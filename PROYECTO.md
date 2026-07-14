@@ -77,14 +77,29 @@ a otras empresas de llantas.
 
 ## 9. Próximos pasos
 
-- [ ] Conseguir el **catálogo completo** (con todo el precio + stock), no solo la propuesta SUDINCO.
-- [ ] Investigar factibilidad de **conexión con WhatsApp Business** (respuesta automática).
-- [ ] Investigar **cuánto se cobra** por este tipo de trabajo (precio de mercado).
-- [ ] Armar **plan por fases con estimación de horas** para el cliente.
+- [ ] Conseguir el **catálogo completo** (con todo el precio + stock), no solo la propuesta SUDINCO. **Bloqueo #1.**
+- [x] Investigar factibilidad de **conexión con WhatsApp Business** → ver [PLAN_DESARROLLO.md](PLAN_DESARROLLO.md).
+- [x] Investigar **cuánto se cobra** por este tipo de trabajo → ver [PLAN_FINANCIERO.md](PLAN_FINANCIERO.md).
+- [x] Armar **plan por fases con estimación de horas** para el cliente.
 - [ ] Construir **Fase 1** (buscar por medida + PDF). Demo estimado: **~1–2 semanas**.
+- [x] Ubicaciones de los 2 locales (ver §11) — ⚠️ **confirmar con el cliente**, Maps los muestra como "Depot Tire", no "Pit Stop".
+- [ ] Aclarar con el cliente las funcionalidades nuevas que pidió el 14-jul (ver [PLAN_DESARROLLO.md §12](PLAN_DESARROLLO.md#12-funcionalidades-pedidas-por-el-cliente-14-jul-2026--análisis)): si tienen un sistema de inventario real aparte del Excel, y si quieren campañas de recuperación/seguimiento (cambia el modelo de costo — requiere opt-in y templates de marketing pagados).
 
-## 10. Enlaces y recursos
+## 11. Locales (para "local más cercano")
+
+El cliente mandó dos links de Google Maps (14-jul-2026):
+
+| Local | Nombre en Google Maps | Dirección / referencia | Coordenadas |
+|---|---|---|---|
+| Local 1 | DEPOT TIRE CUMBAYÁ | C.C La Del Establo, Quito · tel 098 280 1766 · Plus code RH24+QV | — |
+| Local 2 | Depot Tire Quito Sur | Quito (sur) | -0.2487128, -78.5296804 |
+
+⚠️ **Ojo:** ambos locales aparecen en Google Maps como **"Depot Tire"**, no como **"Pit Stop"**. Puede ser el nombre comercial registrado en Maps (común que difiera del nombre con el que venden) o un link equivocado — **preguntar antes de usar estas coordenadas en producción.**
+
+## 12. Enlaces y recursos
 
 - Repo: https://github.com/manuelmmontufarm-dev/AutoVenta
 - Bot actual del cliente (Railway, del otro dev "Interbot"): https://interbot-production.up.railway.app/
 - Catálogo recibido: `catalogo-pitstop-sudinco-mejorado.html` (propuesta flota SUDINCO)
+- Local 1 (Maps): https://maps.app.goo.gl/QnMBPXKc1o8igbsp8
+- Local 2 (Maps): https://maps.app.goo.gl/NQeNN8csyAnRkJDJ7

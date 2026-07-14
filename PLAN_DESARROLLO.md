@@ -221,7 +221,45 @@ Ruta de crecimiento sin re-arquitectura: Supabase Pro (+$25) cuando haga falta n
 6. **Fitment incorrecto = riesgo de seguridad** → nunca cotizar sin confirmación de medida del cliente.
 7. **Cambios de precios/free tiers** → LATAM no cambió el 1-jul-2026; impacto acotado a templates ($1–10/mes a este volumen).
 
-## 11. Fuentes principales
+## 12. Funcionalidades pedidas por el cliente (14-jul-2026) — análisis
+
+El cliente (vía Joaquín) mandó dos listas de funcionalidades deseadas por WhatsApp. Cruce contra el plan de fases ya armado:
+
+| Pedido del cliente | ¿Ya cubierto? | Fase | Nota |
+|---|---|---|---|
+| Entiende mensajes escritos naturalmente | ✅ | Núcleo / F1 | Es lo que hace el LLM por defecto |
+| Identifica medida, vehículo y rin | ✅ | F1 (medida) / F2 (vehículo→rin) | Ya en el plan |
+| Busca alternativas compatibles | ✅ | F2 | "Alternativas cuando no hay stock" ya estaba |
+| Consulta una base de inventario y precios | ✅ | F1 | Google Sheets → caché |
+| Envía cotización | ✅ | F1 | PDF con pdfmake |
+| Envía foto (del producto) | ⚠️ nuevo, chico | F1/F2 | No estaba explícito enviar foto del producto (sí recibirla). Fácil: columna de imagen en el Sheet + adjuntarla junto al PDF. +2–3 h |
+| Detecta cuándo no sabe y entrega el chat a un humano | ⚠️ nuevo, chico | F2 | Ya había handoff *manual* (dueño toma el chat); falta el trigger *proactivo* del bot ("no sé" / cliente frustrado → tool `escalar_a_humano`). +2–3 h |
+| Cambios automáticos de precio y disponibilidad | ✅ (si es vía el Sheet) | F1 | Ya cubierto por el sync — si tienen un sistema de inventario real aparte del Excel, es otra conversación (ver abajo) |
+| Integración en tiempo real con inventario | ⚠️ aclarar | — | Ver "Pregunta abierta" abajo |
+| Reglas comerciales diferentes por marca, margen y stock | 🆕 nuevo | F2/F3 | Factible, pero es lógica de negocio nueva (no solo mostrar el precio del Sheet, sino aplicarle reglas por marca). +6–10 h |
+| Recuperación de clientes que dejaron de responder | 🆕 nuevo | **Fase 4** (fuera del alcance/precio original) | Ver abajo — cambia el modelo de costo |
+| Seguimiento / seguimientos automáticos | 🆕 nuevo (mismo tema) | **Fase 4** | Ídem |
+| Envía promoción y beneficios | 🆕 nuevo (marketing proactivo) | **Fase 4** | Ídem |
+
+### Pregunta abierta: "integración en tiempo real con inventario"
+
+Si "tiempo real" significa *"cuando el dueño edita el Excel/Sheet, el bot ya lo sabe"* → **ya está cubierto** (sync cada 5–10 min es prácticamente instantáneo para este uso). Si significa *"conectar con un sistema de inventario/POS real que ya tienen"* → es un proyecto de integración aparte, con su propio scope y precio, y cambia varias decisiones técnicas del plan (ya no Google Sheets como fuente). **Preguntar directo: ¿tienen algún sistema de inventario más allá del Excel?**
+
+### Por qué "recuperación de clientes" y "seguimientos" van en Fase 4, no gratis dentro de las 75–100 h
+
+Es una campaña de re-enganche proactiva (el bot le vuelve a escribir a quien se quedó callado). Dos cosas la separan del resto del bot:
+
+1. **Ya no es gratis.** Todo lo demás vive dentro de la ventana de 24 h que abre el cliente (servicio = $0, ver §2.2). Un seguimiento a alguien que no respondió en días es un mensaje **iniciado por el negocio fuera de ventana** → template de **marketing**, ~$0,074/mensaje (6,5× el precio de una alerta utility). Con 50-100 chats/día y seguimiento a cada uno que no compró, esto puede sumar $30–80+/mes solo en mensajes — aparte del costo de tokens y de la mensualidad ya cotizada.
+2. **Requiere opt-in explícito.** WhatsApp no permite reescribirle a alguien "en frío" sin su consentimiento previo — hay que pedirlo dentro de la conversación original ("¿quieres que te avisemos si baja el precio / te recordemos en unos días?") y guardarlo.
+3. Es lógica nueva real: detectar "se enfrió" (¿cuánto tiempo sin respuesta?), no volver a escribirle repetidamente, evitar mandarlo a quien ya compró.
+
+**Recomendación:** cotizarlo como **Fase 4 aparte** (~15–20 h + costo de templates de marketing), no comprimirlo en el precio ya conversado ($600 por fases + $40/mes). Es la pieza que más cambia el modelo de negocio de las que pidieron.
+
+### Lo que sí entra fácil en las fases existentes
+
+"Envía foto" y "escalar a humano por incertidumbre" son chicas — se agregan a Fase 1/2 sin tocar el precio ni el cronograma. "Reglas comerciales por marca/margen" es más grande pero cabe en Fase 2/3 si el cliente confirma que la quiere desde ya.
+
+## 13. Fuentes principales
 
 Meta: [Pricing](https://developers.facebook.com/documentation/business-messaging/whatsapp/pricing) · [Coexistence](https://developers.facebook.com/documentation/business-messaging/whatsapp/embedded-signup/onboarding-business-app-users) · [Media](https://developers.facebook.com/docs/whatsapp/cloud-api/reference/media) · [Get started](https://developers.facebook.com/documentation/business-messaging/whatsapp/get-started) · [Graph API versions](https://developers.facebook.com/docs/graph-api/changelog/versions/)
 Infra: [Railway](https://docs.railway.com/pricing/plans) · [Supabase](https://supabase.com/pricing) · [Fly.io](https://fly.io/docs/about/pricing/) · [Render](https://render.com/pricing) · [Sentry](https://sentry.io/pricing/) · [Better Stack](https://betterstack.com/uptime) · [Vercel Hobby (no comercial)](https://vercel.com/docs/plans/hobby)
