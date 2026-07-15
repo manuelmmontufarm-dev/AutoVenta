@@ -1,0 +1,16 @@
+#!/bin/sh
+# Exige que cada commit actualice BITACORA.md.
+# Activar (una vez por clon):  git config core.hooksPath .githooks
+# Saltar excepcionalmente:      git commit --no-verify
+
+if git diff --cached --name-only | grep -qx "BITACORA.md"; then
+  exit 0
+fi
+
+echo "❌ Commit bloqueado: falta actualizar BITACORA.md"
+echo ""
+echo "   Cada commit debe registrar una entrada nueva (qué, por qué, horas)."
+echo "   Añádela arriba de todo en BITACORA.md, haz 'git add BITACORA.md' y reintenta."
+echo ""
+echo "   Caso excepcional (sin registro): git commit --no-verify"
+exit 1
