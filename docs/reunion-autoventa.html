@@ -10,16 +10,16 @@
   :root{
     --ink:#0d1117;          /* caucho negro */
     --ink-2:#151b24;
-    --red:#e3262e;          /* rojo Pit Stop / auto */
-    --red-dark:#b11c23;
-    --red-soft:#fdeaea;
+    --green:#0fa36b;        /* verde AutoVenta / WhatsApp */
+    --green-dark:#0a7a50;
+    --green-soft:#e6f5ee;
     --paper:#f3f2ef;        /* concreto claro del taller */
     --card:#ffffff;
     --steel:#3c434d;
     --muted:#6a7178;
     --line:rgba(13,17,23,.13);
     --hoy-bg:#efe7de; --hoy-ink:#8a5a3f;
-    --con-bg:#fdeaea; --con-ink:#b11c23;
+    --con-bg:#e6f5ee; --con-ink:#0a7a50;
     --gold:#f5b91e;         /* amarillo precaución taller, solo detalles */
     --sans:"Avenir Next","Segoe UI",system-ui,-apple-system,sans-serif;
   }
@@ -31,10 +31,10 @@
   .wrap{ padding:0 46px; }
   .band{ padding:42px 0; }
   .eyebrow{ font-size:8.5pt; font-weight:700; letter-spacing:.2em; text-transform:uppercase;
-    color:var(--red); margin:0 0 10px; }
+    color:var(--green); margin:0 0 10px; }
   h2{ font-size:22pt; line-height:1.06; font-weight:800; letter-spacing:-.02em;
     color:var(--ink); margin:0 0 20px; text-wrap:balance; }
-  h2 .r{ color:var(--red); }
+  h2 .r{ color:var(--green); }
   p{ margin:0 0 14px; }
   .lead-txt{ color:var(--steel); max-width:64ch; }
 
@@ -42,9 +42,9 @@
   .tirewheel{ position:absolute; border-radius:50%; background:#181f29;
     box-shadow:inset 0 0 0 6px #232c38, inset 0 0 0 7px rgba(255,255,255,.05); }
   .tirewheel::before{ content:""; position:absolute; inset:18%; border-radius:50%;
-    border:2px dashed rgba(227,38,46,.55); }
+    border:2px dashed rgba(15,163,107,.55); }
   .tirewheel::after{ content:""; position:absolute; inset:34%; border-radius:50%;
-    background:radial-gradient(circle,#e3262e 0 30%,#232c38 32% 100%); }
+    background:radial-gradient(circle,#0fa36b 0 30%,#232c38 32% 100%); }
 
   /* ---------- HERO ---------- */
   .hero{ position:relative; overflow:hidden; background:var(--ink); color:#f2f4f6;
@@ -52,19 +52,19 @@
   .hero .t1{ width:340px; height:340px; top:-130px; right:-120px; }
   .hero .t2{ width:130px; height:130px; bottom:-52px; right:210px; opacity:.65; }
   .tread{ position:absolute; left:0; right:0; bottom:0; height:10px;
-    background:repeating-linear-gradient(90deg,var(--red) 0 26px,transparent 26px 40px); }
+    background:repeating-linear-gradient(90deg,var(--green) 0 26px,transparent 26px 40px); }
   .hero-inner{ position:relative; z-index:2; max-width:68%; }
   .wordmark{ font-weight:800; font-size:15pt; letter-spacing:.02em; }
-  .wordmark b{ color:var(--red); }
+  .wordmark b{ color:var(--green); }
   .tag{ display:inline-block; margin-top:10px; font-size:7.5pt; font-weight:700; letter-spacing:.18em;
     text-transform:uppercase; color:rgba(242,244,246,.72); border:1px solid rgba(242,244,246,.32);
     padding:4px 10px; border-radius:4px; }
   .hero h1{ font-size:33pt; line-height:1.02; font-weight:800; letter-spacing:-.03em; margin:26px 0 18px; }
-  .hero h1 .a{ color:var(--red); }
+  .hero h1 .a{ color:var(--green); }
   .hero p{ color:rgba(242,244,246,.82); max-width:56ch; }
   .stat-strip{ display:flex; gap:14px; margin-top:24px; }
   .stat{ border:1px solid rgba(242,244,246,.2); border-radius:12px; padding:12px 18px; }
-  .stat .n{ font-size:17pt; font-weight:800; color:var(--red); line-height:1.1; }
+  .stat .n{ font-size:17pt; font-weight:800; color:var(--green); line-height:1.1; }
   .stat .l{ font-size:7.5pt; font-weight:700; letter-spacing:.1em; text-transform:uppercase;
     color:rgba(242,244,246,.6); }
   .meta{ margin-top:24px; font-size:8pt; font-weight:700; letter-spacing:.14em; text-transform:uppercase;
@@ -75,8 +75,8 @@
   .list li{ position:relative; padding:15px 0 15px 34px; border-top:1px solid var(--line); break-inside:avoid; }
   .list li:first-child{ border-top:none; }
   .lug{ position:absolute; left:0; top:18px; width:15px; height:15px; border-radius:50%;
-    border:3px solid var(--red); }
-  .lug::after{ content:""; position:absolute; inset:3px; border-radius:50%; background:var(--red); opacity:.35; }
+    border:3px solid var(--green); }
+  .lug::after{ content:""; position:absolute; inset:3px; border-radius:50%; background:var(--green); opacity:.35; }
   .list b{ color:var(--ink); }
 
   /* ---------- SIMULADOR ---------- */
@@ -89,8 +89,8 @@
   .ctrl label{ display:block; font-size:8pt; font-weight:700; letter-spacing:.12em; text-transform:uppercase;
     color:rgba(242,244,246,.65); margin-bottom:8px; }
   .ctrl output{ font-size:15pt; font-weight:800; color:var(--gold); display:block; margin-bottom:6px; }
-  input[type=range]{ width:100%; accent-color:var(--red); height:22px; }
-  .sim-result{ position:relative; z-index:2; background:var(--red); border-radius:12px; padding:16px 22px;
+  input[type=range]{ width:100%; accent-color:var(--green); height:22px; }
+  .sim-result{ position:relative; z-index:2; background:var(--green); border-radius:12px; padding:16px 22px;
     display:flex; align-items:center; justify-content:space-between; gap:16px; }
   .sim-result .lbl{ font-size:9pt; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:rgba(255,255,255,.85); }
   .sim-result .val{ font-size:23pt; font-weight:800; color:#fff; white-space:nowrap; }
@@ -109,13 +109,13 @@
   .phase-top{ display:flex; align-items:center; gap:12px; margin-bottom:4px; }
   .ph-num{ flex:none; width:38px; height:38px; border-radius:50%; background:var(--ink); color:#fff;
     display:grid; place-items:center; font-weight:800; font-size:14pt;
-    box-shadow:inset 0 0 0 3px var(--red); }
+    box-shadow:inset 0 0 0 3px var(--green); }
   .phase-top h3{ font-size:13pt; font-weight:800; color:var(--ink); margin:0; letter-spacing:-.01em; flex:1; }
-  .price{ flex:none; font-size:11pt; font-weight:800; color:#fff; background:var(--red);
+  .price{ flex:none; font-size:11pt; font-weight:800; color:#fff; background:var(--green);
     padding:6px 14px; border-radius:20px; white-space:nowrap; }
-  .deliver{ margin:10px 0 12px; background:var(--red-soft); border-left:4px solid var(--red);
+  .deliver{ margin:10px 0 12px; background:var(--green-soft); border-left:4px solid var(--green);
     border-radius:0 8px 8px 0; padding:10px 14px; font-size:10pt; }
-  .deliver b{ color:var(--red-dark); font-size:8pt; letter-spacing:.12em; text-transform:uppercase; display:block; margin-bottom:2px; }
+  .deliver b{ color:var(--green-dark); font-size:8pt; letter-spacing:.12em; text-transform:uppercase; display:block; margin-bottom:2px; }
   .phase p{ color:var(--steel); margin:0 0 13px; }
   .cmp{ display:grid; grid-template-columns:1fr 1fr; gap:12px; }
   .cmp div{ border-radius:10px; padding:12px 15px; }
@@ -131,11 +131,11 @@
     position:relative; overflow:hidden; break-inside:avoid; }
   .monthly .t4{ width:150px; height:150px; bottom:-60px; right:-50px; opacity:.45; }
   .monthly h3{ color:#fff; font-size:14pt; font-weight:800; margin:0 0 8px; position:relative; z-index:2; }
-  .monthly h3 b{ color:var(--red); }
+  .monthly h3 b{ color:var(--green); }
   .monthly p{ color:rgba(242,244,246,.8); position:relative; z-index:2; margin:0 0 14px; }
   .inc{ position:relative; z-index:2; display:grid; grid-template-columns:1fr 1fr; gap:8px 20px; padding:0; margin:0; list-style:none; }
   .inc li{ padding-left:20px; position:relative; font-size:10pt; color:rgba(242,244,246,.9); }
-  .inc li::before{ content:"✓"; position:absolute; left:0; color:var(--red); font-weight:800; }
+  .inc li::before{ content:"✓"; position:absolute; left:0; color:var(--green); font-weight:800; }
 
   /* ---------- PENDIENTES ---------- */
   .box{ border:1px solid var(--line); border-radius:14px; overflow:hidden; margin:18px 0; background:var(--card); break-inside:avoid; }
@@ -143,7 +143,7 @@
     color:var(--muted); border-bottom:1px solid var(--line); background:#faf9f7; }
   .row{ display:flex; gap:14px; padding:13px 20px; border-top:1px solid var(--line); align-items:flex-start; }
   .row:first-of-type{ border-top:none; }
-  .num{ flex:none; width:24px; height:24px; border-radius:50%; background:var(--red); color:#fff;
+  .num{ flex:none; width:24px; height:24px; border-radius:50%; background:var(--green); color:#fff;
     font-weight:800; font-size:9pt; display:grid; place-items:center; margin-top:1px; }
   .row p{ margin:0; }
   .row b{ color:var(--ink); }
@@ -152,11 +152,11 @@
   .closing{ background:var(--ink-2); color:#f2f4f6; text-align:center; padding:50px 46px; position:relative; overflow:hidden; }
   .closing .t5{ width:220px; height:220px; top:-90px; left:-90px; opacity:.4; }
   .closing .big{ font-size:17pt; font-weight:800; line-height:1.3; letter-spacing:-.01em; position:relative; z-index:2; }
-  .closing .big .a{ color:var(--red); }
+  .closing .big .a{ color:var(--green); }
   .closing .sub{ color:rgba(242,244,246,.78); max-width:54ch; margin:18px auto 26px; font-size:10.5pt; position:relative; z-index:2; }
   .closing .wordmark{ position:relative; z-index:2; }
   .closing .tread2{ position:absolute; left:0; right:0; top:0; height:10px;
-    background:repeating-linear-gradient(90deg,var(--red) 0 26px,transparent 26px 40px); }
+    background:repeating-linear-gradient(90deg,var(--green) 0 26px,transparent 26px 40px); }
 
   .footer{ background:var(--paper); color:var(--muted); font-size:8pt; padding:20px 46px; }
 </style>
@@ -169,9 +169,9 @@
     <span class="tirewheel t2"></span>
     <div class="hero-inner">
       <div class="wordmark">AUTO<b>VENTA</b></div>
-      <span class="tag">Bot de llantas · WhatsApp · Pit Stop</span>
+      <span class="tag">Bot de llantas · WhatsApp · Depot Tire</span>
       <h1>Recupera tus 6 horas al día. <span class="a">El WhatsApp que vende solo.</span></h1>
-      <p>Joaquín — hoy pierdes la mitad de tu día respondiendo lo mismo: qué medida, qué precio, dónde estamos. Esas horas no vuelven, y muchos de esos chats ni compran. Este plan las recupera: un bot con inteligencia artificial que atiende, cotiza y te avisa solo cuando hay venta. Cinco fases, cada una es algo que <b>ya puedes usar</b>, cada una con su precio.</p>
+      <p>Joaquín — hoy pierdes la mitad de tu día respondiendo lo mismo: qué medida, qué precio, dónde estamos. Esas horas no vuelven, y muchos de esos chats ni compran. Este plan las recupera: un bot con inteligencia artificial que atiende, cotiza y te avisa solo cuando hay venta. Cinco fases, cada una es algo que <b>ya puedes usar</b> — treinta años vendiendo llantas merecen un WhatsApp a esa altura.</p>
       <div class="stat-strip">
         <div class="stat"><div class="n">6 h/día</div><div class="l">respondiendo chats</div></div>
         <div class="stat"><div class="n">~180 h/mes</div><div class="l">un empleado entero</div></div>
@@ -238,7 +238,7 @@
     <h2>Cada fase es algo que usas desde ya.<br><span class="r">Pagas al ver cada una funcionando.</span></h2>
 
     <div class="phase">
-      <div class="phase-top"><span class="ph-num">1</span><h3>El bot que responde solo, con IA</h3><span class="price">$250</span></div>
+      <div class="phase-top"><span class="ph-num">1</span><h3>El bot que responde solo, con IA</h3><span class="price">≈ 25–35 horas</span></div>
       <div class="deliver"><b>Te llevas</b>Un bot vivo en WhatsApp que atiende a tus clientes por ti, 24/7 — desde la primera semana.</div>
       <p>Tu primera idea, primera. Un bot con inteligencia artificial de verdad: entiende mensajes escritos como la gente habla, responde con naturalidad, contesta precios y disponibilidad desde tu catálogo, manda la ubicación del local, y te da una alerta simple cuando alguien quiere comprar. Todavía sin fotos ni PDF — pero ya trabaja mientras tú duermes.</p>
       <div class="cmp">
@@ -248,7 +248,7 @@
     </div>
 
     <div class="phase">
-      <div class="phase-top"><span class="ph-num">2</span><h3>Cotizaciones en PDF, solas</h3><span class="price">$200</span></div>
+      <div class="phase-top"><span class="ph-num">2</span><h3>Cotizaciones en PDF, solas</h3><span class="price">≈ 15–20 horas</span></div>
       <div class="deliver"><b>Te llevas</b>El cliente pide una llanta y recibe su cotización en PDF con tu logo — sin que nadie la arme.</div>
       <p>El bot descifra la medida aunque venga a su manera — "185 R14", "la 185 65 14" — la busca en tu inventario y genera el PDF de cotización al momento. Y lo más importante: <b>cuando no entiende algo, te avisa</b> en vez de inventar. Nunca cotiza mal; prefiere pasarte el chat.</p>
       <div class="cmp">
@@ -258,7 +258,7 @@
     </div>
 
     <div class="phase">
-      <div class="phase-top"><span class="ph-num">3</span><h3>Entiende fotos y todo lo demás</h3><span class="price">$200</span></div>
+      <div class="phase-top"><span class="ph-num">3</span><h3>Entiende fotos y todo lo demás</h3><span class="price">≈ 15–20 horas</span></div>
       <div class="deliver"><b>Te llevas</b>Un bot que entiende el 100% de lo que le mandan: fotos de la llanta, cotizaciones de la competencia, "¿qué le queda a mi Hilux?".</div>
       <p>El nivel avanzado: el cliente manda la foto del costado de la llanta y el bot lee la medida. Manda la captura de la competencia y el bot la interpreta. No sabe su medida pero sabe su carro — el bot le dice qué le queda. Responde simple y al grano, como tu mejor vendedor.</p>
       <div class="cmp">
@@ -268,7 +268,7 @@
     </div>
 
     <div class="phase">
-      <div class="phase-top"><span class="ph-num">4</span><h3>Tu tablero de control</h3><span class="price">$150</span></div>
+      <div class="phase-top"><span class="ph-num">4</span><h3>Tu tablero de control</h3><span class="price">≈ 15–20 horas</span></div>
       <div class="deliver"><b>Te llevas</b>Una pantalla con tu negocio en números: KPIs, alertas y notificaciones en tiempo real.</div>
       <p>Cuántos escribieron hoy, cuántos cotizaron, cuántos están a punto de comprar, qué medidas piden más. Alertas y notificaciones de los clientes calientes. Por primera vez, el WhatsApp deja de ser una caja negra y se vuelve datos para decidir.</p>
       <div class="cmp">
@@ -278,7 +278,7 @@
     </div>
 
     <div class="phase">
-      <div class="phase-top"><span class="ph-num">5</span><h3>No vuelves a abrir WhatsApp</h3><span class="price">$150</span></div>
+      <div class="phase-top"><span class="ph-num">5</span><h3>No vuelves a abrir WhatsApp</h3><span class="price">≈ 10–15 horas</span></div>
       <div class="deliver"><b>Te llevas</b>La meta final: el chat trabaja solo. Tú solo revisas resúmenes, alertas y ventas potenciales en el tablero.</div>
       <p>El cierre del círculo. El bot maneja la conversación completa de punta a punta, el tablero te da el resumen del día, las alertas te llegan solas, y las ventas potenciales aparecen listadas con todo el contexto. Tu trabajo se reduce a lo que sí vale tu tiempo: <b>cerrar ventas y manejar el negocio.</b></p>
       <div class="cmp">
@@ -290,8 +290,8 @@
     <!-- MENSUALIDAD -->
     <div class="monthly">
       <span class="tirewheel t4"></span>
-      <h3>Después de la entrega: <b>mensualidad de mantenimiento</b></h3>
-      <p>Para que el bot viva sano — como el mantenimiento de un carro. Una sola cuota mensual que incluye todo lo que el sistema consume:</p>
+      <h3>Cómo se cobra: <b>por fase + mantenimiento</b></h3>
+      <p>El cobro va <b>por fase entregada y funcionando</b> — apruebas una, la ves trabajando, y decides la siguiente. Después de la entrega, una mensualidad de mantenimiento para que el bot viva sano — como el mantenimiento de un carro. Incluye todo lo que el sistema consume:</p>
       <ul class="inc">
         <li>Hosting del bot y del tablero</li>
         <li>Base de datos y respaldos</li>
@@ -300,7 +300,7 @@
         <li>Servicio de WhatsApp Business</li>
         <li>Soporte y ajustes menores</li>
       </ul>
-      <p style="margin-top:14px; font-size:9pt; color:rgba(242,244,246,.6)">El monto se fija según tu volumen real de chats antes de arrancar — y se revisa si el negocio crece.</p>
+      <p style="margin-top:14px; font-size:9pt; color:rgba(242,244,246,.6)">Los montos por fase y de la mensualidad los cerramos juntos según tu volumen real de chats, antes de arrancar.</p>
     </div>
   </div></section>
 
@@ -313,7 +313,7 @@
       <div class="row"><span class="num">1</span><p><b>El catálogo real</b> — tu Excel con medidas, precios y stock. Es el pendiente número uno: sin esto no arranca la Fase 1.</p></div>
       <div class="row"><span class="num">2</span><p><b>¿Tienen inventario aparte del Excel?</b> Un sistema o punto de venta. Define cómo se conecta el "tiempo real".</p></div>
       <div class="row"><span class="num">3</span><p><b>El número del negocio</b> — ¿es WhatsApp Business? Lo conservas y sigues usando tu app normal; el bot convive con ella.</p></div>
-      <div class="row"><span class="num">4</span><p><b>Los 2 locales</b> — confirmar nombres y direcciones (en Maps salen como "Depot Tire": necesito los datos correctos para mandar la ubicación).</p></div>
+      <div class="row"><span class="num">4</span><p><b>Las marcas y el tono</b> — en la web salen Kenda, Sunoco y Eurolub (¿y Falken?). Confirmar qué marcas maneja el bot y cómo debe presentarse: "Depot Tire, ¿en qué te ayudo?".</p></div>
       <div class="row"><span class="num">5</span><p><b>El presupuesto</b> — lo hablas con tu papá. El plan va por fases justo para eso: apruebas una, la ves funcionando, y decides la siguiente.</p></div>
     </div>
   </div></section>
@@ -324,11 +324,11 @@
     <span class="tirewheel t5"></span>
     <p class="big">Seis horas al día se van en el chat.<br><span class="a">Imagínate qué haces con ellas de vuelta.</span></p>
     <p class="sub">El siguiente paso es simple: me pasas el catálogo, hablas el presupuesto, y arranco la Fase 1 para que en la primera semana veas al bot respondiendo a tus clientes de verdad — no en papel.</p>
-    <div class="wordmark">AUTO<b style="color:var(--red)">VENTA</b></div>
-    <div><span class="tag">Bot de llantas · WhatsApp · Pit Stop</span></div>
+    <div class="wordmark">AUTO<b style="color:var(--green)">VENTA</b></div>
+    <div><span class="tag">Bot de llantas · WhatsApp · Depot Tire</span></div>
   </section>
 
-  <div class="footer">Propuesta · Manuel Montúfar · Julio 2026 · Los precios son por fase entregada y funcionando; las horas y la mensualidad se afinan al cerrar el alcance con el volumen real de chats.</div>
+  <div class="footer">Propuesta · Manuel Montúfar · Julio 2026 · Las horas son estimaciones de buena fe por fase; el cobro es por fase entregada + mensualidad de mantenimiento, y los montos se cierran con el volumen real de chats.</div>
 
 <script>
   const rh=document.getElementById('rh'), rw=document.getElementById('rw');

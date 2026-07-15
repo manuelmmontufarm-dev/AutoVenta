@@ -85,16 +85,32 @@ a otras empresas de llantas.
 - [x] Ubicaciones de los 2 locales (ver §11) — ⚠️ **confirmar con el cliente**, Maps los muestra como "Depot Tire", no "Pit Stop".
 - [ ] Aclarar con el cliente las funcionalidades nuevas que pidió el 14-jul (ver [PLAN_DESARROLLO.md §12](PLAN_DESARROLLO.md#12-funcionalidades-pedidas-por-el-cliente-14-jul-2026--análisis)): si tienen un sistema de inventario real aparte del Excel, y si quieren campañas de recuperación/seguimiento (cambia el modelo de costo — requiere opt-in y templates de marketing pagados).
 
-## 11. Locales (para "local más cercano")
+## 11. La empresa: Depot Tire (confirmado 15-jul-2026)
 
-El cliente mandó dos links de Google Maps (14-jul-2026):
+**Sitio oficial: https://www.tiredepotec.com/** — el cliente confirmó que esta es la empresa. ✅ Misterio resuelto: los locales de Maps decían "Depot Tire" porque **ese es el nombre real del negocio** (la referencia anterior a "Pit Stop" venía del HTML de la propuesta SUDINCO — aclarar con el cliente qué relación tienen los dos nombres).
 
-| Local | Nombre en Google Maps | Dirección / referencia | Coordenadas |
-|---|---|---|---|
-| Local 1 | DEPOT TIRE CUMBAYÁ | C.C La Del Establo, Quito · tel 098 280 1766 · Plus code RH24+QV | — |
-| Local 2 | Depot Tire Quito Sur | Quito (sur) | -0.2487128, -78.5296804 |
+| Dato | Valor |
+|---|---|
+| Nombre | **Depot Tire** |
+| Ciudad | Quito, Ecuador |
+| Local 1 (Cumbayá) | C.C. La del Establo y Av. Oswaldo Guayasamín — "DEPOT TIRE CUMBAYÁ" en Maps, Plus code RH24+QV |
+| Local 2 (Sur) | Galo Molina y Av. Alonso de Angulo — "Depot Tire Quito Sur" en Maps, lat/lng -0.2487128, -78.5296804 |
+| Teléfono | +593 98 280 1766 |
+| Horario | Lunes a sábado, 8:30–17:30 |
+| Marcas | Kenda, Sunoco, Eurolub (el HTML de SUDINCO también mencionaba Falken) |
+| Trayectoria | Más de 30 años de experiencia |
+| Servicios | Llantas + mantenimiento preventivo automotriz, atención personalizada |
+| Promo vigente | 10% de descuento en el primer servicio al agendar cita |
+| Web | Reserva de citas online, secciones: Beneficios VIP, Servicios, Sobre Nosotros, Contacto. **Sin catálogo con precios ni stock visible; sin link a WhatsApp** |
+| Estilo de marca | Oscuro (negro/gris) con blanco y acentos azules, minimalista |
+| Redes | Facebook, Instagram, YouTube, Twitter, Pinterest |
 
-⚠️ **Ojo:** ambos locales aparecen en Google Maps como **"Depot Tire"**, no como **"Pit Stop"**. Puede ser el nombre comercial registrado en Maps (común que difiera del nombre con el que venden) o un link equivocado — **preguntar antes de usar estas coordenadas en producción.**
+**Implicaciones para el bot:**
+- Los datos de "local más cercano" ya están completos (direcciones + coordenadas + teléfono + horario).
+- El horario (L–S 8:30–17:30) sirve para que el bot responda distinto fuera de horario ("te atendemos mañana desde las 8:30, pero ya te dejo la cotización").
+- La web NO tiene catálogo con precios → confirma que la fuente de datos será el Excel del dueño, no el sitio.
+- La promo del 10% primer servicio puede usarla el bot como gancho en el approach.
+- El bot debería presentarse como **Depot Tire** (confirmar con el cliente).
 
 ## 12. Enlaces y recursos
 
