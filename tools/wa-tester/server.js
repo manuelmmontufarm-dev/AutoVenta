@@ -1,24 +1,43 @@
 import express from "express";
-import "dotenv/config";
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { dirname, join } from "node:path";
 
 const app = express();
 app.use(express.json());
 
-const TOKEN = process.env.WHATSAPP_TOKEN;
-const PHONE_NUMBER_ID = process.env.PHONE_NUMBER_ID;
-const DEFAULT_TO = (process.env.RECIPIENT || "").replace(/\D/g, "");
+const ENV_PATH = join(dirname(fileURLToPath(import.meta.url)), ".env");
 const GRAPH = "https://graph.facebook.com/v21.0";
+
+// Lee el .env FRESCO en cada llamada, así no hay que reiniciar el servidor
+// cuando pegas un token nuevo. Solo guardas el archivo y ya funciona.
+function readEnv() {
+  const env = {};
+  try {
+    for (const line of readFileSync(ENV_PATH, "utf8").split("\n")) {
+      const m = line.match(/^\s*([A-Z_]+)\s*=\s*(.*)\s*$/);
+      if (m) env[m[1]] = m[2].trim();
+    }
+  } catch { /* archivo no encontrado — se maneja abajo */ }
+  return env;
+}
 
 app.get("/", (_req, res) => res.type("html").send(PAGE));
 
 app.get("/config", (_req, res) => {
+  const env = readEnv();
   res.json({
-    to: DEFAULT_TO,
-    ready: Boolean(TOKEN && TOKEN !== "PEGA_TU_TOKEN_AQUI" && PHONE_NUMBER_ID),
+    to: (env.RECIPIENT || "").replace(/\D/g, ""),
+    ready: Boolean(env.WHATSAPP_TOKEN && env.WHATSAPP_TOKEN !== "PEGA_TU_TOKEN_AQUI" && env.PHONE_NUMBER_ID),
   });
 });
 
 app.post("/send", async (req, res) => {
+  const env = readEnv();
+  const TOKEN = env.WHATSAPP_TOKEN;
+  const PHONE_NUMBER_ID = env.PHONE_NUMBER_ID;
+  const DEFAULT_TO = (env.RECIPIENT || "").replace(/\D/g, "");
+
   const to = String(req.body.to || DEFAULT_TO).replace(/\D/g, "");
   const message = String(req.body.message || "").trim();
 
