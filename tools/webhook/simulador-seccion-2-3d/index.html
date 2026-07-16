@@ -1,0 +1,1681 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NOVOPAN · Pelíkano · Línea 1 · Sección 2 Encolados · 3D</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Semi+Condensed:wght@600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --panel: rgba(14, 22, 18, 0.74);
+      --panel-border: rgba(0, 230, 118, 0.18);
+      --text: #e8f5e9;
+      --muted: #8fa396;
+      --green: #00e676;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      width: 100%; height: 100%; overflow: hidden;
+      background: radial-gradient(120% 90% at 50% 0%, #102018 0%, #070a09 55%, #050706 100%);
+      color: var(--text);
+      font-family: "Barlow", system-ui, sans-serif;
+    }
+    #canvas-wrap { position: fixed; inset: 0; }
+    canvas { display: block; width: 100%; height: 100%; }
+    .hud { position: fixed; inset: 0; pointer-events: none; z-index: 10; }
+    .hud * { pointer-events: auto; }
+    .topbar {
+      position: absolute; top: 16px; left: 50%; transform: translateX(-50%);
+      display: flex; align-items: center; gap: 14px;
+      padding: 10px 18px 10px 14px; border-radius: 16px;
+      background: var(--panel); border: 1px solid var(--panel-border);
+      backdrop-filter: blur(18px) saturate(140%);
+      -webkit-backdrop-filter: blur(18px) saturate(140%);
+      box-shadow: 0 10px 40px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.06);
+      max-width: min(940px, calc(100vw - 32px));
+    }
+    .brand-mark {
+      width: 36px; height: 36px; border-radius: 10px;
+      background: linear-gradient(145deg, #00e676 0%, #1b5e20 70%);
+      box-shadow: 0 0 20px rgba(0, 230, 118, .35);
+      display: grid; place-items: center;
+      font-family: "Barlow Semi Condensed", sans-serif;
+      font-weight: 800; font-size: 13px; color: #041208;
+    }
+    .brand-text h1 {
+      font-family: "Barlow Semi Condensed", sans-serif;
+      font-size: clamp(13px, 1.5vw, 16px); font-weight: 700; letter-spacing: .04em;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .brand-text p {
+      font-size: 11px; color: var(--muted); letter-spacing: .08em;
+      text-transform: uppercase; margin-top: 1px;
+    }
+    .live-dot {
+      width: 8px; height: 8px; border-radius: 50%; background: var(--green);
+      box-shadow: 0 0 10px var(--green); animation: pulse 1.8s ease-in-out infinite; flex-shrink: 0;
+    }
+    @keyframes pulse { 50% { opacity: .55; transform: scale(.85); } }
+    .controls {
+      position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
+      display: flex; align-items: center; gap: 8px; padding: 8px; border-radius: 14px;
+      background: var(--panel); border: 1px solid var(--panel-border);
+      backdrop-filter: blur(18px); box-shadow: 0 12px 36px rgba(0,0,0,.4);
+    }
+    .btn {
+      appearance: none; border: 0; height: 38px; min-width: 38px; padding: 0 12px;
+      border-radius: 10px; background: rgba(255,255,255,.04); color: var(--text);
+      font: 600 12px/1 "Barlow Semi Condensed", sans-serif; letter-spacing: .06em;
+      cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+      border: 1px solid rgba(255,255,255,.06); transition: background .15s, transform .1s;
+    }
+    .btn:hover { background: rgba(0, 230, 118, .12); border-color: rgba(0, 230, 118, .28); }
+    .btn:active { transform: scale(.97); }
+    .btn.is-active {
+      background: linear-gradient(145deg, rgba(0,230,118,.22), rgba(27,94,32,.35));
+      border-color: rgba(0,230,118,.4);
+    }
+    .btn svg { width: 15px; height: 15px; fill: currentColor; }
+    .sep { width: 1px; height: 22px; background: rgba(255,255,255,.1); margin: 0 2px; }
+    .legend {
+      position: absolute; left: 16px; bottom: 20px; padding: 12px 14px; border-radius: 14px;
+      background: var(--panel); border: 1px solid var(--panel-border);
+      backdrop-filter: blur(16px); font-size: 11px; color: var(--muted); display: grid; gap: 7px; min-width: 160px;
+    }
+    .legend strong {
+      color: var(--text); font-family: "Barlow Semi Condensed", sans-serif;
+      font-size: 11px; letter-spacing: .1em; text-transform: uppercase;
+    }
+    .leg-row { display: flex; align-items: center; gap: 8px; }
+    .swatch { width: 12px; height: 12px; border-radius: 3px; box-shadow: inset 0 0 0 1px rgba(255,255,255,.15); }
+    .hint {
+      position: absolute; right: 16px; bottom: 20px; padding: 10px 12px; border-radius: 12px;
+      background: var(--panel); border: 1px solid rgba(255,255,255,.06);
+      backdrop-filter: blur(14px); font-size: 11px; color: var(--muted); line-height: 1.45; max-width: 220px;
+    }
+    .hint b { color: var(--text); font-weight: 600; }
+    .loading {
+      position: fixed; inset: 0; z-index: 50; display: grid; place-items: center;
+      background: #070a09; transition: opacity .5s ease, visibility .5s;
+    }
+    .loading.hide { opacity: 0; visibility: hidden; }
+    .loading-ring {
+      width: 48px; height: 48px; margin: 0 auto 16px; border-radius: 50%;
+      border: 2px solid rgba(0,230,118,.15); border-top-color: var(--green);
+      animation: spin .9s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .loading p {
+      font-family: "Barlow Semi Condensed", sans-serif; letter-spacing: .14em;
+      text-transform: uppercase; font-size: 12px; color: var(--muted); text-align: center;
+    }
+    @media (max-width: 720px) { .legend, .hint { display: none; } }
+  </style>
+</head>
+<body>
+  <div class="loading" id="loading">
+    <div>
+      <div class="loading-ring"></div>
+      <p>Cargando Sección 2 · 3D</p>
+    </div>
+  </div>
+  <div id="canvas-wrap"></div>
+  <div class="hud">
+    <header class="topbar">
+      <div class="brand-mark">NP</div>
+      <div class="brand-text">
+        <h1>NOVOPAN · Pelíkano · Línea 1 · Sección 2 Encolados</h1>
+        <p>0–85,15 m · Blanca 45 · Roja 10 · CPS+ 20,5 / activo 16,6 · Fin: sensores</p>
+      </div>
+      <div class="live-dot"></div>
+    </header>
+    <aside class="legend">
+      <strong>Rutas · HMI</strong>
+      <div class="leg-row"><span class="swatch" style="background:#29b6f6"></span> SL · Silo 6 · CE</div>
+      <div class="leg-row"><span class="swatch" style="background:#66bb6a"></span> CL · Silo 5 · CI</div>
+      <div class="leg-row"><span class="swatch" style="background:#1565c0"></span> Dosimbunca (Do_Bin)</div>
+      <div class="leg-row"><span class="swatch" style="background:#8a949c"></span> CPS+ acero / marcos</div>
+      <div class="leg-row"><span class="swatch" style="background:#c5ccd1"></span> Endpoint sensores 85,15 m</div>
+    </aside>
+    <div class="controls">
+      <button class="btn is-active" id="btnPlay" title="Play / Pause">
+        <svg id="iconPlay" viewBox="0 0 24 24"><path d="M6 5h4v14H6zm8 0h4v14h-4z"/></svg>
+        <span id="playLabel">PAUSE</span>
+      </button>
+      <div class="sep"></div>
+      <button class="btn" id="btnReset">RESET</button>
+      <button class="btn" id="btnIso">ISO</button>
+      <button class="btn" id="btnSide">SIDE</button>
+      <button class="btn" id="btnTop">TOP</button>
+    </div>
+    <div class="hint">
+      <b>Cámara</b><br/>Orbit · zoom · pan<br/>
+      <b>Alcance</b> termina en sensores · sin enfriadora/estacado
+    </div>
+  </div>
+
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+    }
+  }
+  </script>
+  <script type="module">
+/**
+ * NOVOPAN · Sección 2 3D
+ * Fuentes: PROCESO.md, MEDICIONES_BANDAS_CAMPO.md, HMI Metso/Dieffenbacher,
+ *          Dieffenbacher Universal Bin + Glue Blender + CPS.
+ *
+ * Escala de LÍNEA (métrica, comprimida para caber en pantalla):
+ *   S = 0.38  → 1 m planta = 0.38 world units
+ *   Blanca 45 m | Roja 10 m | Prensa activa 16,6 m | ancho producto ~2,55 m
+ * Upstream (silos→encolado→inclinadas ~65 m reales) se comprime esquemáticamente.
+ */
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+
+// ── Plant scale (VERIFICADO · CAMPO · MEDICIONES_BANDAS_CAMPO) ──
+// Misma escala lineal para blanca / roja / prensa / post hasta sensores.
+// S = 0.38 → 85,15 m caben en una vista landscape; no exagerar ancho.
+const S = 0.38;                    // m → world units
+const MAT_W = 2.40 * S;            // placeholder paramétrico ancho colchón (TBD receta); sin ×1,55
+const PRESS_W = 2.4384 * S;        // CPS+ 8 ft nominal (VERIFICADO · FABRICANTE)
+const BELT_H = 0.42;
+
+// Coordenadas absolutas x_abs desde inicio banda blanca (m)
+const PLANT = {
+  white: 45.0,
+  red: 10.0,
+  pressActive: 16.6,   // zona activa cronometrada
+  pressTotal: 20.5,    // CPS+ sistema contractual Novopan
+  post: 13.55,         // fin prensa → sensores
+  sensors: 85.15,
+  // blanca
+  sl1a: 1.42, sl1b: 8.37,
+  cla: 11.72, clb: 16.10,
+  sl2a: 17.47, sl2b: 23.86,
+  magnet: 26.68,
+  prepA: 29.08, prepB: 33.78,
+  spray: 35.99,
+  detector: 37.69,
+  knives: 39.56,
+  // roja (absolutas)
+  evoA: 46.86, evoB: 49.15,
+  // prensa (absolutas)
+  pressA: 55.0, pressB: 71.60,
+  // post (absolutas)
+  refilaA: 78.30, refilaB: 79.65,
+  sawA: 80.35, sawB: 82.65,
+};
+
+const X0 = 0;
+const xM = (m) => X0 + m * S;
+const WHITE_END = xM(PLANT.white);
+const RED_END = xM(PLANT.white + PLANT.red);
+const PRESS_END = xM(PLANT.pressB);
+const SENSORS_X = xM(PLANT.sensors);
+const LINE_END = SENSORS_X; // endpoint visual y funcional
+
+// Rutas upstream paralelas (cascada vertical por ruta)
+const Z_SL = 3.2;
+const Z_CL = -3.2;
+const Z0 = 0;
+
+const anim = {
+  playing: true, t: 0,
+  belts: [], levels: [], spinners: [], heat: [], labels: [],
+  sawCarriage: null, particles: null,
+  mat: null, // continuous colchón + boards post-sierra
+};
+
+/** Solo piezas que deben girar. axis = eje LOCAL del mesh ('x'|'y'|'z'). */
+const _spinAxes = {
+  x: new THREE.Vector3(1, 0, 0),
+  y: new THREE.Vector3(0, 1, 0),
+  z: new THREE.Vector3(0, 0, 1),
+};
+function spin(mesh, axis = 'y', speed = 2.2) {
+  anim.spinners.push({ mesh, axis, speed });
+}
+
+// ── Materials ──────────────────────────────────────────────────
+function mats() {
+  const mk = (c, o = {}) => new THREE.MeshStandardMaterial({
+    color: c,
+    metalness: o.m ?? 0.42,
+    roughness: o.r ?? 0.52,
+    emissive: o.e ?? 0x000000,
+    emissiveIntensity: o.ei ?? 0,
+    transparent: !!o.op,
+    opacity: o.op ?? 1,
+  });
+  return {
+    steel: mk(0x7a848c, { m: 0.55, r: 0.48 }),
+    steelD: mk(0x2a3036, { m: 0.45, r: 0.62 }),
+    steelL: mk(0xb8c0c6, { m: 0.6, r: 0.38 }),
+    green: mk(0x1b5e20, { m: 0.35, r: 0.45 }),
+    greenA: mk(0x00e676, { m: 0.2, r: 0.35, e: 0x00e676, ei: 0.2 }),
+    blue: mk(0x1565c0, { m: 0.42, r: 0.38 }),
+    blueM: mk(0x1e88e5, { m: 0.45, r: 0.36 }),
+    blueL: mk(0x42a5f5, { m: 0.48, r: 0.34 }),
+    black: mk(0x15181a, { m: 0.25, r: 0.72 }),
+    fine: mk(0xc4a574, { m: 0.04, r: 0.92 }),
+    coarse: mk(0x8d6e4c, { m: 0.04, r: 0.93 }),
+    resin: mk(0xffb74d, { m: 0.12, r: 0.35, e: 0xffb74d, ei: 0.08 }),
+    board: mk(0xd2b48c, { m: 0.05, r: 0.75 }),
+    glass: mk(0xa8d8ff, { m: 0.1, r: 0.05, op: 0.2 }),
+    heat1: mk(0xff5722, { m: 0.3, r: 0.4, e: 0xff5722, ei: 0.55 }),
+    heat2: mk(0xff7043, { m: 0.3, r: 0.4, e: 0xff7043, ei: 0.45 }),
+    heat3: mk(0xff9800, { m: 0.3, r: 0.4, e: 0xff9800, ei: 0.38 }),
+    heat4: mk(0xffc107, { m: 0.3, r: 0.4, e: 0xffc107, ei: 0.3 }),
+    belt: mk(0x23282c, { m: 0.18, r: 0.86 }),
+    floor: mk(0x0c1210, { m: 0.12, r: 0.94 }),
+    rail: mk(0x3a4248, { m: 0.5, r: 0.55 }),
+    sl1c: mk(0xe4b657, { m: 0.05, r: 0.8 }),
+    clc: mk(0xc98b2e, { m: 0.05, r: 0.8 }),
+    sl2c: mk(0xecc873, { m: 0.05, r: 0.8 }),
+  };
+}
+
+// ── Primitives ─────────────────────────────────────────────────
+const box = (w, h, d, mat) => {
+  const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+  m.castShadow = m.receiveShadow = true;
+  return m;
+};
+const cyl = (rt, rb, h, mat, seg = 28) => {
+  const m = new THREE.Mesh(new THREE.CylinderGeometry(rt, rb, h, seg), mat);
+  m.castShadow = m.receiveShadow = true;
+  return m;
+};
+const add = (p, m, x = 0, y = 0, z = 0) => { m.position.set(x, y, z); p.add(m); return m; };
+const G = () => new THREE.Group();
+
+function label(text, color = '#e8f5e9', w = 2.2, opts = {}) {
+  const c = document.createElement('canvas');
+  c.width = 512; c.height = 128;
+  const ctx = c.getContext('2d');
+  ctx.clearRect(0, 0, 512, 128);
+  // glass pill
+  const grd = ctx.createLinearGradient(0, 20, 0, 108);
+  grd.addColorStop(0, 'rgba(12, 22, 18, 0.92)');
+  grd.addColorStop(1, 'rgba(6, 12, 10, 0.88)');
+  ctx.fillStyle = grd;
+  round(ctx, 16, 28, 480, 72, 20); ctx.fill();
+  ctx.strokeStyle = 'rgba(0, 230, 118, 0.35)';
+  ctx.lineWidth = 2.5;
+  round(ctx, 16, 28, 480, 72, 20); ctx.stroke();
+  // accent bar
+  ctx.fillStyle = color;
+  ctx.globalAlpha = 0.9;
+  round(ctx, 28, 48, 6, 32, 3); ctx.fill();
+  ctx.globalAlpha = 1;
+  ctx.fillStyle = color;
+  ctx.font = '700 32px Barlow Semi Condensed,sans-serif';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.shadowColor = 'rgba(0,0,0,0.45)';
+  ctx.shadowBlur = 6;
+  ctx.fillText(text, 268, 64);
+  ctx.shadowBlur = 0;
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  const mesh = new THREE.Mesh(
+    new THREE.PlaneGeometry(w, w * 0.28),
+    new THREE.MeshBasicMaterial({
+      map: tex, transparent: true, depthWrite: false,
+      side: THREE.DoubleSide,
+    })
+  );
+  // floor markers stay flat; machine names always face camera
+  mesh.userData.billboard = opts.floor ? false : true;
+  mesh.userData.lift = opts.lift ?? 0; // subtle float
+  anim.labels.push(mesh);
+  return mesh;
+}
+
+/** Textura granular del colchón (scroll UV). */
+function matGrainTex(hex, grain = 0.35) {
+  const c = document.createElement('canvas');
+  c.width = 256; c.height = 64;
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = hex;
+  ctx.fillRect(0, 0, 256, 64);
+  for (let i = 0; i < 900; i++) {
+    const g = Math.floor(180 + Math.random() * 60);
+    ctx.fillStyle = `rgba(${g * grain + 40},${g * grain * 0.85 + 30},${g * grain * 0.5 + 20},${0.15 + Math.random() * 0.25})`;
+    ctx.fillRect(Math.random() * 256, Math.random() * 64, 1 + Math.random() * 3, 1);
+  }
+  // fine longitudinal fibers
+  ctx.strokeStyle = 'rgba(80,50,20,0.12)';
+  for (let x = 0; x < 256; x += 4) {
+    ctx.beginPath();
+    ctx.moveTo(x, 0);
+    ctx.lineTo(x + Math.random() * 2, 64);
+    ctx.stroke();
+  }
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  tex.repeat.set(8, 1);
+  return tex;
+}
+function round(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+function beltTex(base, stripe) {
+  const c = document.createElement('canvas');
+  c.width = 128; c.height = 32;
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = base; ctx.fillRect(0, 0, 128, 32);
+  ctx.fillStyle = stripe;
+  for (let x = 0; x < 128; x += 22) ctx.fillRect(x, 0, 5, 32);
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  return t;
+}
+
+// ── Conveyor ───────────────────────────────────────────────────
+function conveyor(length, width, M, opts = {}) {
+  const g = G();
+  const h = opts.h ?? BELT_H;
+  add(g, box(length, h * 0.7, width * 0.92, M.steelD), 0, h * 0.35, 0);
+  const bm = M.belt.clone();
+  bm.map = beltTex(opts.base ?? '#23282c', opts.stripe ?? '#c9a227');
+  bm.map.repeat.set(Math.max(2, length * 1.1), 1);
+  anim.belts.push(bm.map);
+  const top = new THREE.Mesh(new THREE.BoxGeometry(length * 0.98, 0.05, width * 0.86), bm);
+  top.position.set(0, h, 0); top.castShadow = true; g.add(top);
+  // rails
+  add(g, box(length, 0.1, 0.04, M.rail), 0, h + 0.06, width / 2 - 0.03);
+  add(g, box(length, 0.1, 0.04, M.rail), 0, h + 0.06, -width / 2 + 0.03);
+  // legs every ~1.2u
+  const n = Math.max(2, Math.floor(length / 1.4));
+  for (let i = 0; i < n; i++) {
+    const x = -length / 2 + 0.25 + (i / Math.max(1, n - 1)) * (length - 0.5);
+    add(g, box(0.07, h, 0.07, M.steelD), x, h / 2, width / 2 - 0.1);
+    add(g, box(0.07, h, 0.07, M.steelD), x, h / 2, -width / 2 + 0.1);
+  }
+  // rollers
+  for (let i = 0; i < Math.min(8, n + 2); i++) {
+    const x = -length / 2 + 0.2 + i * ((length - 0.4) / Math.max(1, Math.min(7, n + 1)));
+    const r = cyl(0.05, 0.05, width * 0.82, M.steelL, 10);
+    r.rotation.x = Math.PI / 2;
+    add(g, r, x, h * 0.55, 0);
+  }
+  return g;
+}
+
+// ── SILO  (tall storage · fine/coarse) ─────────────────────────
+// Real industrial flake silos: tall cylinder, cone outlet, 2 discharge screws
+function buildSilo(name, M, fine) {
+  const g = G();
+  const accent = fine ? M.blueM : M.green;
+  const fillM = fine ? M.fine : M.coarse;
+  // proportions: Ø ~ 2.6 m, H body ~ 5.5 m (+ cone) → world
+  const R = 0.55, bodyH = 2.1, coneH = 0.75, legH = 0.85;
+
+  // ring base + 4 legs
+  add(g, cyl(R + 0.12, R + 0.18, 0.12, M.steelD, 32), 0, 0.06, 0);
+  for (let i = 0; i < 4; i++) {
+    const a = (i / 4) * Math.PI * 2 + Math.PI / 4;
+    add(g, box(0.09, legH, 0.09, M.steelD), Math.cos(a) * (R * 0.85), legH / 2, Math.sin(a) * (R * 0.85));
+  }
+  // cone
+  add(g, cyl(0.12, R * 0.95, coneH, M.steel, 32), 0, legH + coneH / 2, 0);
+  // body
+  add(g, cyl(R, R, bodyH, accent, 40), 0, legH + coneH + bodyH / 2, 0);
+  // fill level inside (slightly smaller)
+  const fill = cyl(R * 0.9, R * 0.9, bodyH * 0.55, fillM, 28);
+  add(g, fill, 0, legH + coneH + bodyH * 0.4, 0);
+  anim.levels.push({ mesh: fill, baseY: legH + coneH + bodyH * 0.4, phase: Math.random() * 6 });
+  // roof
+  add(g, cyl(0.14, R + 0.04, 0.28, M.steelD, 32), 0, legH + coneH + bodyH + 0.14, 0);
+  add(g, cyl(0.14, 0.14, 0.1, M.steelL, 12), 0, legH + coneH + bodyH + 0.32, 0);
+  // ladder
+  for (let i = 0; i < 12; i++) add(g, box(0.22, 0.025, 0.025, M.steelL), 0, legH + 0.3 + i * 0.22, R + 0.02);
+  add(g, box(0.025, 2.6, 0.025, M.steelL), -0.1, legH + 1.5, R + 0.02);
+  add(g, box(0.025, 2.6, 0.025, M.steelL), 0.1, legH + 1.5, R + 0.02);
+  // 2 discharge screws (process: 2 tornillos por silo)
+  for (const sx of [-0.18, 0.18]) {
+    const scr = cyl(0.07, 0.07, 0.7, M.steelD, 10);
+    scr.rotation.z = Math.PI / 2;
+    add(g, scr, sx, legH * 0.55, R * 0.55);
+    const flight = cyl(0.09, 0.09, 0.08, M.steelL, 8);
+    flight.rotation.z = Math.PI / 2;
+    add(g, flight, sx, legH * 0.55, R * 0.55);
+    spin(flight, 'y', 4.0);
+  }
+  // ultrasonic sensor
+  add(g, box(0.12, 0.12, 0.12, M.black), R * 0.7, legH + coneH + bodyH * 0.85, 0);
+  add(g, cyl(0.03, 0.03, 0.06, M.greenA, 8), R * 0.7, legH + coneH + bodyH * 0.92, 0.08);
+
+  const top = legH + coneH + bodyH + 0.55;
+  add(g, label(name, fine ? '#81d4fa' : '#a5d6a7', 2.0), 0, top, 0);
+  return g;
+}
+
+// ── DOSIMBUNCA / Universal Bin for Gluing (Dieffenbacher) ──────
+// Real machine: vertical hopper buffer + rake rolls + belt scale discharge
+// with discharge roller. Mounted on load cells. Blue industrial paint.
+// NOT a long horizontal box — tall bin sitting on a short weighing belt.
+function buildDosimbunca(name, M) {
+  // Universal Bin for Gluing — bunker LARGO (catálogo UBG ~10,6–12,1 m × 3,37 m)
+  // REFERENCIA DE CATÁLOGO: L:H ≈ 3,1–3,6:1 — no rotular como medida Novopan.
+  const g = G();
+  const L = 11.0 * S;   // ~4.2 world @ S=0.38
+  const H = 3.37 * S;   // ~1.28
+  const W = 2.20 * S;   // ~0.84 UBG-1200 width ref
+  const y0 = 0.12;
+
+  // Load-cell feet along length
+  for (let i = 0; i < 5; i++) {
+    const x = -L / 2 + 0.25 + i * ((L - 0.5) / 4);
+    for (const z of [-W / 2 + 0.08, W / 2 - 0.08]) {
+      add(g, box(0.14, 0.1, 0.14, M.steelD), x, 0.05, z);
+      add(g, box(0.1, 0.06, 0.1, M.black), x, 0.13, z);
+    }
+  }
+  // Main long bunker body (steel + punctual blue panels, not full toy paint)
+  add(g, box(L, H, W, M.steelD), 0, y0 + H / 2, 0);
+  // Dieffenbacher blue side panels (partial)
+  add(g, box(L * 0.35, H * 0.55, 0.04, M.blue), -L * 0.15, y0 + H * 0.55, W / 2 + 0.02);
+  add(g, box(L * 0.25, H * 0.4, 0.04, M.blueM), L * 0.2, y0 + H * 0.5, W / 2 + 0.02);
+  // Top covers / hatches
+  for (let i = 0; i < 4; i++) {
+    add(g, box(L * 0.18, 0.06, W * 0.85, M.steel), -L / 2 + 0.4 + i * (L * 0.22), y0 + H + 0.03, 0);
+  }
+  // Inlet flange under silo (ENTRY end = -L/2)
+  add(g, box(0.45, 0.35, 0.45, M.steel), -L / 2 + 0.35, y0 + H + 0.25, 0);
+  add(g, cyl(0.16, 0.2, 0.35, M.steelL, 14), -L / 2 + 0.35, y0 + H + 0.55, 0);
+  // Rake-roll shaft stubs on side
+  for (let i = 0; i < 6; i++) {
+    const x = -L / 2 + 0.6 + i * ((L - 1.2) / 5);
+    const stub = cyl(0.04, 0.04, 0.12, M.steelL, 8);
+    stub.rotation.x = Math.PI / 2;
+    add(g, stub, x, y0 + H * 0.35, W / 2 + 0.08);
+    spin(stub, 'y', 2.5);
+  }
+  // Weighing belt under floor + discharge roller at EXIT (+L/2)
+  const beltL = L * 0.55;
+  const belt = conveyor(beltL, W * 0.75, M, { h: 0.22, stripe: '#1e88e5', base: '#1a2330' });
+  belt.position.set(L / 2 - beltL / 2 - 0.1, 0, 0);
+  g.add(belt);
+  const droll = cyl(0.1, 0.1, W * 0.7, M.steelL, 14);
+  droll.rotation.x = Math.PI / 2;
+  add(g, droll, L / 2 - 0.15, 0.35, 0);
+  spin(droll, 'y', 3.5);
+  // Drive motor at exit side
+  add(g, box(0.32, 0.24, 0.24, M.steelD), L / 2 - 0.4, 0.55, W / 2 + 0.2);
+  // Material level strip (internal suggestion)
+  const fill = box(L * 0.85, H * 0.35, W * 0.8, M.fine);
+  add(g, fill, 0, y0 + H * 0.45, 0);
+  anim.levels.push({ mesh: fill, baseY: y0 + H * 0.45, phase: Math.random() * 6 });
+  // Inspection windows
+  for (let i = 0; i < 3; i++) {
+    add(g, box(0.28, 0.32, 0.03, M.glass), -L / 4 + i * (L / 4), y0 + H * 0.55, W / 2 + 0.01);
+  }
+
+  g.userData.inlet = new THREE.Vector3(-L / 2 + 0.35, y0 + H + 0.7, 0);
+  g.userData.outlet = new THREE.Vector3(L / 2 - 0.1, 0.4, 0);
+  g.userData.length = L;
+
+  add(g, label(name, '#90caf9', 2.4), 0, y0 + H + 0.85, 0);
+  add(g, label('UBG · ref. catálogo L≈11 m', '#78909c', 1.8), 0, 0.22, W / 2 + 0.2);
+  return g;
+}
+
+// ── GLUE BLENDER / ENCOLADORA (CE / CI) ─────────────────────────
+// Un solo cuerpo: carcasa exterior + tambor interior + intake (paddle/screw)
+// + rodillos moleteados integrados en la boca de entrada (no máquina suelta).
+// Dieffenbacher: screw intake (CL) / paddle intake (SL); chaqueta de agua.
+// userData.outlet = punto de salida hacia la banda inclinada (local space).
+function buildEncolador(name, M, isCE) {
+  const g = G();
+  const accent = isCE ? M.blueM : M.green;
+  const drumR = 0.40, drumL = 1.85;
+  const shellW = drumR * 2 + 0.28;
+  const shellH = drumR * 2 + 0.45;
+  const cy = 0.95; // drum center height
+
+  // ── Outer machine shell (what you see from outside) ──
+  // Floor skid
+  add(g, box(drumL + 0.9, 0.12, shellW + 0.25, M.steelD), 0.1, 0.06, 0);
+  // Legs
+  for (const x of [-drumL / 2 + 0.1, drumL / 2 - 0.1]) {
+    for (const z of [-shellW / 2, shellW / 2]) {
+      add(g, box(0.1, 0.55, 0.1, M.steelD), x, 0.32, z);
+    }
+  }
+  // Main housing: acero industrial + panel de color de ruta (no juguete)
+  add(g, box(drumL + 0.2, shellH, shellW, M.steelD), 0, cy, 0);
+  add(g, box(drumL * 0.4, shellH * 0.45, 0.04, accent), 0, cy + 0.05, shellW / 2 + 0.02);
+  // Top cover (hinged look)
+  add(g, box(drumL + 0.28, 0.1, shellW + 0.12, M.steelD), 0, cy + shellH / 2 + 0.05, 0);
+  // Side inspection windows aligned with drum interior
+  for (const z of [shellW / 2 + 0.01, -shellW / 2 - 0.01]) {
+    add(g, box(drumL * 0.55, drumR * 1.1, 0.04, M.glass), 0, cy, z);
+  }
+  // Front name stripe
+  add(g, box(drumL * 0.5, 0.12, 0.03, M.steelL), 0, cy + shellH * 0.28, shellW / 2 + 0.02);
+
+  // ── Inner drum (visible through windows / ends) ──
+  const drum = cyl(drumR * 0.92, drumR * 0.92, drumL * 0.92, M.steel, 32);
+  drum.rotation.z = Math.PI / 2;
+  add(g, drum, 0, cy, 0);
+
+  // End bells flush with shell
+  add(g, cyl(drumR + 0.06, drumR + 0.06, 0.08, M.steelD, 28), -drumL / 2, cy, 0).rotation.z = Math.PI / 2;
+  add(g, cyl(drumR + 0.06, drumR + 0.06, 0.08, M.steelD, 28), drumL / 2, cy, 0).rotation.z = Math.PI / 2;
+
+  // ── INTAKE HOOD (integrated): chute from dosing + knurled rollers inside ──
+  // This replaces the disconnected "classifier bed" — same process step,
+  // but built as the feed end of the blender (reads as one machine).
+  const intake = G();
+  // Outer intake tower attached to shell inlet end
+  add(intake, box(0.55, 0.95, 0.7, M.steelD), 0, 0.55, 0);
+  add(intake, box(0.62, 0.08, 0.78, accent), 0, 1.05, 0);
+  // Inlet funnel from dosing belt
+  add(intake, box(0.4, 0.35, 0.45, M.steel), 0, 1.3, 0);
+  add(intake, cyl(0.12, 0.18, 0.28, M.steelL, 12), 0, 1.55, 0);
+  // Knurled classification rollers INSIDE the intake hood (0.3–1.3 mm)
+  for (let i = 0; i < 5; i++) {
+    const r = cyl(0.04, 0.04, 0.55, M.steelL, 10);
+    r.rotation.x = Math.PI / 2;
+    add(intake, r, -0.12 + i * 0.06, 0.85, 0);
+    spin(r, 'y', 2.8);
+  }
+  // Paddle (CE/SL) or screw (CI/CL) into drum — Dieffenbacher feature
+  if (isCE) {
+    add(intake, box(0.28, 0.35, 0.35, M.steelD), 0.28, cy - 0.15, 0);
+    for (let i = 0; i < 4; i++) {
+      const p = box(0.035, 0.16, 0.07, M.steelL);
+      p.rotation.z = (i / 4) * Math.PI;
+      add(intake, p, 0.32, cy - 0.15, 0);
+      // paletas fijas en intake (solo visual)
+    }
+  } else {
+    const screwIn = cyl(0.1, 0.1, 0.4, M.steelL, 12);
+    screwIn.rotation.z = Math.PI / 2;
+    add(intake, screwIn, 0.25, cy - 0.1, 0);
+    spin(screwIn, 'y', 3.0);
+  }
+  intake.position.set(-drumL / 2 - 0.28, 0, 0);
+  g.add(intake);
+
+  // Resin / paraffin injectors on top cover
+  for (let i = 0; i < 4; i++) {
+    const x = -drumL / 2 + 0.35 + i * (drumL - 0.55) / 3;
+    add(g, cyl(0.03, 0.03, 0.28, M.resin, 8), x, cy + shellH / 2 + 0.22, 0);
+    add(g, box(0.09, 0.06, 0.09, M.black), x, cy + shellH / 2 + 0.4, 0);
+  }
+
+  // Water-cooled lower jacket (visible under shell cutaway strip)
+  add(g, box(drumL * 0.9, 0.12, shellW * 0.85, M.steelL), 0, cy - drumR - 0.05, 0);
+  add(g, cyl(0.028, 0.028, drumL * 0.75, M.blueL, 8), 0, cy - drumR - 0.12, shellW * 0.4).rotation.z = Math.PI / 2;
+
+  // Discharge flap end → connects to inclined belt
+  add(g, box(0.28, 0.45, 0.55, M.steelD), drumL / 2 + 0.2, cy - 0.1, 0);
+  add(g, box(0.12, 0.32, 0.42, M.steelL), drumL / 2 + 0.35, cy - 0.2, 0);
+  // outlet spout pointing up-ish for inclined belt pickup
+  add(g, box(0.35, 0.18, 0.35, M.steel), drumL / 2 + 0.55, cy - 0.15, 0);
+
+  // Drive motor
+  add(g, box(0.36, 0.3, 0.3, M.steelD), drumL / 2 + 0.1, cy + 0.35, shellW / 2 + 0.2);
+  add(g, cyl(0.07, 0.07, 0.14, M.black, 10), drumL / 2 + 0.1, cy + 0.58, shellW / 2 + 0.2);
+
+  // Local outlet anchor (world-space set by caller via getWorldPosition)
+  g.userData.outletLocal = new THREE.Vector3(drumL / 2 + 0.7, cy - 0.05, 0);
+  g.userData.topY = cy + shellH / 2 + 0.45;
+
+  add(g, label(name, isCE ? '#81d4fa' : '#a5d6a7', 2.3), 0, cy + shellH / 2 + 0.7, 0);
+  add(g, label(isCE ? 'CE · paddle · rodillos intake' : 'CI · screw · rodillos intake', '#b0bec5', 1.9), 0, 0.28, shellW / 2 + 0.15);
+  return g;
+}
+
+/** Banda inclinada real: sube desde la salida del encolador hasta la tolva del esparcidor. */
+function buildInclinedBelt(M, length, width, stripe) {
+  const g = conveyor(length, width, M, { h: 0.22, stripe, base: '#1a2330' });
+  // side skirts so it reads as closed incline
+  const railH = 0.14;
+  add(g, box(length * 0.98, railH, 0.03, M.steelD), 0, 0.35, width / 2);
+  add(g, box(length * 0.98, railH, 0.03, M.steelD), 0, 0.35, -width / 2);
+  return g;
+}
+
+// ── FORMING HEAD (esparcidor) ──────────────────────────────────
+// Wide hopper over forming belt; zone length from plant measurements
+function buildFormer(name, M, layerMat, zoneLenM) {
+  const g = G();
+  const zoneL = zoneLenM * S;
+  const headW = MAT_W + 0.25;
+  // Hopper sits in first half of its zone; not as long as the whole zone
+  const hopL = Math.min(zoneL * 0.55, 1.6);
+  const hopH = 1.15;
+
+  // steel frame legs spanning belt
+  for (const x of [-hopL / 2 + 0.1, hopL / 2 - 0.1]) {
+    for (const z of [headW / 2 - 0.05, -headW / 2 + 0.05]) {
+      add(g, box(0.08, 1.35, 0.08, M.steelD), x, 0.68, z);
+    }
+  }
+  add(g, box(hopL + 0.1, 0.08, headW, M.steel), 0, 1.35, 0);
+
+  // hopper body
+  add(g, box(hopL, hopH, headW * 0.92, layerMat), 0, 1.45 + hopH / 2, 0);
+  add(g, box(hopL + 0.08, 0.08, headW, M.steelD), 0, 1.45 + hopH + 0.04, 0);
+
+  // fill
+  const fill = box(hopL * 0.88, hopH * 0.4, headW * 0.8, M.fine);
+  add(g, fill, 0, 1.55 + hopH * 0.25, 0);
+  anim.levels.push({ mesh: fill, baseY: 1.55 + hopH * 0.25, phase: Math.random() * 5 });
+
+  // spread rollers (across belt width)
+  for (let i = 0; i < 5; i++) {
+    const r = cyl(0.055, 0.055, headW * 0.85, M.steelL, 12);
+    r.rotation.x = Math.PI / 2;
+    add(g, r, -hopL * 0.3 + i * (hopL * 0.15), 1.28, 0);
+    spin(r, 'y', 2.8);
+  }
+  // side skirts
+  add(g, box(hopL, 0.4, 0.05, M.steelD), 0, 1.35, headW / 2 - 0.02);
+  add(g, box(hopL, 0.4, 0.05, M.steelD), 0, 1.35, -headW / 2 + 0.02);
+
+  // load cells L/R (plant: 2 celdas por esparcidora)
+  add(g, box(0.12, 0.08, 0.12, M.black), -hopL * 0.25, 1.2, headW / 2 - 0.08);
+  add(g, box(0.12, 0.08, 0.12, M.black), -hopL * 0.25, 1.2, -headW / 2 + 0.08);
+
+  // zone footprint ghost (shows measured length)
+  const zone = box(zoneL, 0.015, MAT_W + 0.15, layerMat.clone());
+  zone.material.transparent = true;
+  zone.material.opacity = 0.18;
+  zone.material.metalness = 0.05;
+  add(g, zone, zoneL / 2 - hopL / 2, BELT_H + 0.08, 0);
+
+  add(g, label(name, '#ffe082', 2.0), 0, 1.45 + hopH + 0.55, 0);
+  add(g, label(`${zoneLenM.toFixed(2)} m zona`, '#b0bec5', 1.3), zoneL / 2 - hopL / 2, BELT_H + 0.22, MAT_W / 2 + 0.25);
+  return g;
+}
+
+// ── PREPRENSA  (CBV / hydraulic prepress · 4.69 m zone) ─────────
+function buildPreprensa(M, zoneLenM) {
+  // CPP Prepress PB: cuña continua de bandas + 6 precompresión + 4 principales
+  // NO es prensa de placa ni tres pórticos vacíos.
+  const g = G();
+  const L = zoneLenM * S;
+  const W = MAT_W + 0.35;
+  const hIn = 1.15, hOut = 0.62;
+
+  // Side frames forming a wedge silhouette
+  const shapePts = [
+    new THREE.Vector3(-L / 2, 0.15, W / 2),
+    new THREE.Vector3(L / 2, 0.15, W / 2),
+    new THREE.Vector3(L / 2, hOut, W / 2),
+    new THREE.Vector3(-L / 2, hIn, W / 2),
+  ];
+  // Approximate wedge with stacked boxes
+  for (let i = 0; i < 8; i++) {
+    const t0 = i / 8, t1 = (i + 1) / 8;
+    const x0 = -L / 2 + t0 * L;
+    const x1 = -L / 2 + t1 * L;
+    const h0 = hIn + (hOut - hIn) * t0;
+    const h1 = hIn + (hOut - hIn) * t1;
+    const h = (h0 + h1) / 2;
+    const seg = box((x1 - x0) * 0.98, h * 0.12, W, M.steelD);
+    add(g, seg, (x0 + x1) / 2, h - 0.05, 0);
+    // lower deck
+    add(g, box((x1 - x0) * 0.98, 0.08, W * 0.95, M.steel), (x0 + x1) / 2, 0.35, 0);
+  }
+  // Perforated de-airing belts (upper + lower)
+  add(g, box(L * 0.92, 0.04, W * 0.85, M.steelL), 0, 0.48, 0);
+  const upperBelt = box(L * 0.9, 0.04, W * 0.85, M.steelL);
+  // tilt upper belt as wedge
+  upperBelt.rotation.z = Math.atan2(hOut - hIn, L) * 0.5;
+  add(g, upperBelt, 0, (hIn + hOut) / 2 - 0.15, 0);
+
+  // 6 pre-compression rollers (entry half)
+  for (let i = 0; i < 6; i++) {
+    const x = -L / 2 + 0.25 + i * ((L * 0.48) / 5);
+    const y = hIn - 0.15 - i * 0.05;
+    const r = cyl(0.07, 0.07, W * 0.78, M.steelL, 12);
+    r.rotation.x = Math.PI / 2;
+    add(g, r, x, y, 0);
+    spin(r, 'y', 2.8);
+  }
+  // 4 main compression rollers (exit half)
+  for (let i = 0; i < 4; i++) {
+    const x = -L / 2 + L * 0.55 + i * ((L * 0.4) / 3);
+    const y = hOut + 0.08 + (3 - i) * 0.04;
+    const r = cyl(0.09, 0.09, W * 0.78, M.steel, 12);
+    r.rotation.x = Math.PI / 2;
+    add(g, r, x, y, 0);
+    spin(r, 'y', 2.8);
+    // actuator above each main roller
+    add(g, cyl(0.04, 0.04, 0.22, M.steelD, 8), x, y + 0.22, W / 2 - 0.05);
+  }
+  // Side panels
+  add(g, box(L, 0.08, 0.06, M.steelD), 0, 0.7, W / 2);
+  add(g, box(L, 0.08, 0.06, M.steelD), 0, 0.7, -W / 2);
+  // Hinge mark mid-machine
+  add(g, box(0.08, 0.55, W + 0.1, M.blueM), 0, 0.75, 0);
+  // Dust extraction hood
+  add(g, box(L * 0.3, 0.15, W * 0.5, M.steelD), -L * 0.15, hIn + 0.1, 0);
+
+  add(g, label('PREPRENSA CPP · 4,69 m', '#a5d6a7', 2.2), 0, hIn + 0.45, 0);
+  add(g, label('6+4 rodillos · bandas desaireación', '#78909c', 1.9), 0, 0.18, W / 2 + 0.15);
+  return g;
+}
+
+// ── DESMOLDANTE sprays ─────────────────────────────────────────
+function buildDesmoldante(M) {
+  const g = G();
+  add(g, box(0.55, 0.06, MAT_W + 0.3, M.steelD), 0, 1.05, 0);
+  for (let i = -3; i <= 3; i++) {
+    add(g, cyl(0.025, 0.04, 0.18, M.steelL, 8), i * 0.1, 0.9, 0);
+    const mist = cyl(0.07, 0.015, 0.22, M.glass, 8);
+    mist.material = M.glass.clone();
+    add(g, mist, i * 0.1, 0.7, 0);
+  }
+  add(g, box(0.28, 0.32, 0.28, M.blueM), 0.4, 0.95, MAT_W / 2 + 0.2);
+  add(g, label('DESMOLDANTE', '#80deea', 1.6), 0, 1.4, 0);
+  return g;
+}
+
+// ── PRECALENTAMIENTO EVOsteam / Dynasteam ───────────────────────
+function buildPreheat(M) {
+  // EVOsteam — zona 2,29 m en banda roja (46,86–49,15). Cabezal superior + plato inferior + vapor.
+  // No es un horno/cubo.
+  const g = G();
+  const L = 2.29 * S;
+  const W = MAT_W + 0.3;
+
+  // Lower steam platen under/around mat
+  add(g, box(L, 0.1, W, M.steelD), 0, 0.48, 0);
+  add(g, box(L * 0.95, 0.04, W * 0.9, M.steelL), 0, 0.56, 0);
+  // Upper movable head (raised/lowered)
+  add(g, box(L * 0.92, 0.18, W * 0.88, M.steel), 0, 1.05, 0);
+  add(g, box(L * 0.85, 0.06, W * 0.8, M.steelL), 0, 0.92, 0);
+  // Lift columns
+  for (const x of [-L * 0.35, L * 0.35]) {
+    for (const z of [-W / 2 + 0.08, W / 2 - 0.08]) {
+      add(g, cyl(0.04, 0.04, 0.7, M.steelD, 10), x, 0.75, z);
+    }
+  }
+  // Steam pipes manifold
+  add(g, cyl(0.05, 0.05, L * 0.8, M.steelL, 8), 0, 1.25, W / 2 + 0.1).rotation.z = Math.PI / 2;
+  for (let i = 0; i < 5; i++) {
+    const x = -L * 0.35 + i * (L * 0.175);
+    add(g, cyl(0.02, 0.02, 0.25, M.steelL, 6), x, 1.15, W / 2 + 0.05);
+  }
+  // Soft vapor mist proxies
+  for (let i = 0; i < 4; i++) {
+    const mist = cyl(0.08, 0.12, 0.15, M.glass, 8);
+    mist.material = M.glass.clone();
+    add(g, mist, -L * 0.3 + i * 0.2, 0.72, 0);
+  }
+  add(g, label('EVOsteam · 2,29 m', '#ffab91', 1.8), 0, 1.55, 0);
+  return g;
+}
+
+// ── CONTINUOUS PRESS (hero · 16.6 m active) ────────────────────
+// CPS-style: long steel frame, upper+lower steel belts, 4 heat zones,
+// ~19 frames, entry/exit drums. Dominates line length.
+function buildPress(M) {
+  // CPS+ Novopan: 8 ft × 20,5 m sistema; 16,6 m zona activa medida.
+  // 19 marcos con pitch 0,75 m (entrada) y 0,90 m (resto).
+  const g = G();
+  const Ltot = PLANT.pressTotal * S;
+  const Lact = PLANT.pressActive * S;
+  const W = Math.max(PRESS_W, MAT_W) + 0.25;
+  const H = 2.05;
+
+  // Full shell 20.5 m (system)
+  add(g, box(Ltot, H * 0.82, W, M.steelD), 0, H * 0.48, 0);
+  // Active zone marker (inner graphite belts 16.6 m) — centered toward exit or entry?
+  // Field: active from abs 55 to 71.6; total system may overhang. Place active as main body centered.
+  // We position press so active zone aligns with pressA–pressB; shell extends equally.
+  const activeOffset = 0; // active centered in shell for visual; label distinguishes
+  add(g, box(Lact * 0.98, 0.05, MAT_W + 0.08, M.steelL), activeOffset, H * 0.56, 0);
+  add(g, box(Lact * 0.98, 0.05, MAT_W + 0.08, M.steelL), activeOffset, H * 0.38, 0);
+  // tablero continuo: buildMatFlow
+
+
+  // Double-hinge nose entry (CPS+ signature) at -Ltot/2
+  add(g, box(0.45, H * 0.7, W * 0.9, M.steel), -Ltot / 2 - 0.1, H * 0.45, 0);
+  for (const z of [-W * 0.25, W * 0.25]) {
+    add(g, box(0.2, 0.5, 0.12, M.steelL), -Ltot / 2 - 0.25, H * 0.55, z);
+  }
+  const entryDrum = cyl(0.2, 0.2, MAT_W + 0.1, M.steelL, 18);
+  entryDrum.rotation.x = Math.PI / 2;
+  add(g, entryDrum, -Ltot / 2 - 0.05, H * 0.47, 0);
+  const exitDrum = cyl(0.2, 0.2, MAT_W + 0.1, M.steelL, 18);
+  exitDrum.rotation.x = Math.PI / 2;
+  add(g, exitDrum, Ltot / 2 + 0.05, H * 0.47, 0);
+
+  // 19 frames: first ~6 at 0.75 m pitch, rest at 0.90 m (approx)
+  const pitches = [];
+  for (let i = 0; i < 6; i++) pitches.push(0.75);
+  while (pitches.length < 18) pitches.push(0.90);
+  let acc = 0.3;
+  const frameXs = [];
+  for (let i = 0; i < 19; i++) {
+    frameXs.push(-Lact / 2 + acc);
+    if (i < pitches.length) acc += pitches[i];
+  }
+  // scale frameXs to fit Lact
+  const maxX = frameXs[frameXs.length - 1];
+  const scaleF = (Lact - 0.6) / Math.max(maxX + Lact / 2, 0.01);
+  for (let i = 0; i < frameXs.length; i++) {
+    const x = -Lact / 2 + 0.3 + (frameXs[i] + Lact / 2 - 0.3) * scaleF;
+    add(g, box(0.06, H * 0.7, 0.06, M.steel), x, H * 0.45, W / 2 + 0.02);
+    add(g, box(0.06, H * 0.7, 0.06, M.steel), x, H * 0.45, -W / 2 - 0.02);
+  }
+
+  // Subtle interior heat glow (not flashy exterior panels)
+  const heat = new THREE.PointLight(0xff7043, 0.55, Lact * 0.9, 2);
+  heat.position.set(0, H * 0.7, 0);
+  g.add(heat);
+  // thin interior emissive strips low opacity
+  for (let i = 0; i < 4; i++) {
+    const strip = box(Lact / 4 - 0.1, 0.06, 0.08, [M.heat1, M.heat2, M.heat3, M.heat4][i]);
+    strip.material = strip.material.clone();
+    strip.material.emissiveIntensity = 0.18;
+    strip.material.transparent = true;
+    strip.material.opacity = 0.55;
+    add(g, strip, -Lact / 2 + (i + 0.5) * (Lact / 4), H * 0.72, 0);
+    anim.heat.push(strip.material);
+  }
+
+  // Top beams
+  add(g, box(Ltot * 0.92, 0.14, 0.18, M.steelD), 0, H + 0.08, W * 0.28);
+  add(g, box(Ltot * 0.92, 0.14, 0.18, M.steelD), 0, H + 0.08, -W * 0.28);
+  // Thermal oil unit
+  add(g, box(0.5, 0.45, 0.35, M.steelD), Ltot / 2 - 0.5, 0.35, W / 2 + 0.4);
+
+  add(g, label('CPS+ · sistema 20,5 m', '#cfd8dc', 2.4), 0, H + 0.55, 0);
+  add(g, label('zona activa 16,6 m · 19 marcos', '#90a4ae', 2.2), 0, 0.18, W / 2 + 0.2);
+  return g;
+}
+
+// ── FLYING SAW / corte angular ─────────────────────────────────
+function buildSaw(M) {
+  // Sierra transversal volante — carro sobre rieles (zona 2,30 m)
+  const g = G();
+  const L = 2.30 * S;
+  const W = MAT_W + 0.45;
+  // Rails along line
+  add(g, box(L + 0.4, 0.06, 0.08, M.steelD), 0, 0.35, W / 2);
+  add(g, box(L + 0.4, 0.06, 0.08, M.steelD), 0, 0.35, -W / 2);
+  // Bridge
+  add(g, box(0.35, 0.12, W + 0.2, M.steel), 0, 1.35, 0);
+  for (const z of [-W / 2, W / 2]) {
+    add(g, box(0.1, 1.2, 0.1, M.steelD), 0, 0.7, z);
+  }
+  const car = G();
+  add(car, box(0.45, 0.28, 0.55, M.steelD), 0, 1.15, 0);
+  const blade = cyl(0.24, 0.24, 0.04, M.steelL, 32);
+  blade.rotation.x = Math.PI / 2;
+  add(car, blade, 0, 0.85, 0);
+  spin(blade, 'y', 12.0);
+  car.rotation.y = 0.12;
+  g.add(car);
+  anim.sawCarriage = car;
+  add(g, label('SIERRA TRANSVERSAL VOLANTE', '#ce93d8', 2.0), 0, 1.75, 0);
+  return g;
+}
+
+function buildRefila(M) {
+  // Edge trimming — pares laterales (1,35 m)
+  const g = G();
+  const L = 1.35 * S;
+  const W = MAT_W;
+  for (const side of [-1, 1]) {
+    add(g, box(L, 0.45, 0.35, M.steelD), 0, 0.7, side * (W / 2 + 0.15));
+    const disc = cyl(0.16, 0.16, 0.04, M.steelL, 20);
+    disc.rotation.z = Math.PI / 2;
+    add(g, disc, 0, 0.65, side * (W / 2 + 0.02));
+    spin(disc, 'y', 8.0);
+    add(g, box(0.15, 0.25, 0.15, M.steel), 0.2, 0.95, side * (W / 2 + 0.2));
+  }
+  add(g, label('REFILA LONGITUDINAL', '#b0bec5', 1.8), 0, 1.35, 0);
+  return g;
+}
+
+function buildSensors(M) {
+  // Endpoint 85,15 m — pórticos de calidad (espesor/peso)
+  const g = G();
+  const W = MAT_W + 0.35;
+  for (let i = 0; i < 3; i++) {
+    const x = (i - 1) * 0.2 * S * 8; // ~0.2 m spacing scaled
+    add(g, box(0.08, 1.1, 0.08, M.steelD), x, 0.7, W / 2);
+    add(g, box(0.08, 1.1, 0.08, M.steelD), x, 0.7, -W / 2);
+    add(g, box(0.08, 0.08, W, M.steelL), x, 1.25, 0);
+    add(g, box(0.12, 0.1, 0.12, M.black), x, 1.15, 0);
+  }
+  // weigh roll suggestion
+  const roll = cyl(0.08, 0.08, MAT_W * 0.9, M.steelL, 12);
+  roll.rotation.x = Math.PI / 2;
+  add(g, roll, 0, 0.55, 0);
+  add(g, label('SENSORES CALIDAD · 85,15 m', '#c5e1a5', 2.2), 0, 1.65, 0);
+  add(g, label('ENDPOINT', '#ffde00', 1.2), 0, 0.2, W / 2 + 0.15);
+  return g;
+}
+
+function buildMagnet(M) {
+  // Imán / tambor azul waypoint 26,68 m
+  const g = G();
+  const drum = cyl(0.22, 0.22, MAT_W + 0.15, M.blue, 20);
+  drum.rotation.x = Math.PI / 2;
+  add(g, drum, 0, 0.72, 0);
+  // imán estático — no girar (solo waypoint de proceso)
+  add(g, box(0.15, 0.35, 0.15, M.steelD), 0, 1.05, MAT_W / 2 + 0.1);
+  add(g, label('IMÁN', '#64b5f6', 1.0), 0, 1.35, 0);
+  return g;
+}
+
+function buildMetalDetector(M) {
+  // Arco abierto — no bloque macizo. 37,69 m en blanca.
+  const g = G();
+  const W = MAT_W + 0.4;
+  add(g, box(0.12, 1.0, 0.12, M.steelD), 0, 0.7, W / 2);
+  add(g, box(0.12, 1.0, 0.12, M.steelD), 0, 0.7, -W / 2);
+  add(g, box(0.14, 0.14, W + 0.12, M.steelL), 0, 1.25, 0);
+  // coil housings
+  add(g, box(0.2, 0.25, 0.18, M.black), 0, 1.15, W / 2);
+  add(g, box(0.2, 0.25, 0.18, M.black), 0, 1.15, -W / 2);
+  add(g, label('DETECTOR METALES', '#90a4ae', 1.6), 0, 1.55, 0);
+  return g;
+}
+
+function buildStar(M) {
+  // Fuera de alcance — stub vacío (no renderizar)
+  return G();
+}
+
+function buildStacker(M) {
+  // Fuera de alcance — stub vacío
+  return G();
+}
+
+// ── STAR COOLER ────────────────────────────────────────────────
+// Arms hold 3 boards; 180° cycle; metal contact tubes
+
+
+// ── STACKER ────────────────────────────────────────────────────
+
+
+// ── Particles ──────────────────────────────────────────────────
+function buildParticles(scene) {
+  const N = 750;
+  const geo = new THREE.BufferGeometry();
+  const pos = new Float32Array(N * 3);
+  const col = new Float32Array(N * 3);
+  const spd = new Float32Array(N);
+  const lane = new Float32Array(N);
+  const cSL = new THREE.Color(0x29b6f6);
+  const cCL = new THREE.Color(0x66bb6a);
+  const cB = new THREE.Color(0xd2b48c);
+  for (let i = 0; i < N; i++) {
+    const ln = i < N * 0.32 ? 0 : i < N * 0.55 ? 1 : 2;
+    lane[i] = ln;
+    const x = ln === 2 ? xM(2) + Math.random() * (LINE_END - xM(2))
+      : -10 + Math.random() * 10;
+    const z = ln === 0 ? Z_SL : ln === 1 ? Z_CL : Z0;
+    pos[i * 3] = x;
+    pos[i * 3 + 1] = BELT_H + 0.12 + Math.random() * 0.2;
+    pos[i * 3 + 2] = z + (Math.random() - 0.5) * 0.35;
+    spd[i] = 0.7 + Math.random() * 0.9;
+    const c = ln === 0 ? cSL : ln === 1 ? cCL : cB;
+    col[i * 3] = c.r; col[i * 3 + 1] = c.g; col[i * 3 + 2] = c.b;
+  }
+  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+  geo.userData = { spd, lane };
+  const pts = new THREE.Points(geo, new THREE.PointsMaterial({
+    size: 0.05, vertexColors: true, transparent: true, opacity: 0.55, depthWrite: false,
+    blending: THREE.AdditiveBlending,
+  }));
+  scene.add(pts);
+  anim.particles = pts;
+}
+
+function updateParticles(dt) {
+  if (!anim.particles || !anim.playing) return;
+  const pos = anim.particles.geometry.attributes.position;
+  const { spd, lane } = anim.particles.geometry.userData;
+  const mergeX = xM(0.5);
+  for (let i = 0; i < pos.count; i++) {
+    let x = pos.getX(i), y = pos.getY(i), z = pos.getZ(i);
+    const sp = spd[i] * dt;
+    if (lane[i] === 0) {
+      x += sp * 1.5;
+      z = THREE.MathUtils.lerp(z, x > mergeX ? Z0 : Z_SL, 0.04);
+      if (x > mergeX + 1) lane[i] = 2;
+      if (x > LINE_END) { x = -10; z = Z_SL; y = BELT_H + 0.15; lane[i] = 0; }
+    } else if (lane[i] === 1) {
+      x += sp * 1.45;
+      z = THREE.MathUtils.lerp(z, x > mergeX ? Z0 : Z_CL, 0.04);
+      if (x > mergeX + 1) lane[i] = 2;
+      if (x > LINE_END) { x = -10; z = Z_CL; y = BELT_H + 0.15; lane[i] = 1; }
+    } else {
+      x += sp * 1.7;
+      z = THREE.MathUtils.lerp(z, Z0, 0.06);
+      y = BELT_H + 0.12 + Math.sin(x * 0.5 + anim.t) * 0.02;
+      if (x > LINE_END) {
+        lane[i] = Math.random() > 0.5 ? 0 : 1;
+        x = -10; z = lane[i] === 0 ? Z_SL : Z_CL; y = BELT_H + 0.15;
+      }
+    }
+    pos.setXYZ(i, x, y, z);
+  }
+  pos.needsUpdate = true;
+}
+
+// ── Floor / zone markers ───────────────────────────────────────
+function buildEnvironment(scene, M) {
+  const floor = new THREE.Mesh(new THREE.PlaneGeometry(48, 16), M.floor);
+  floor.rotation.x = -Math.PI / 2;
+  floor.position.set(xM(42), 0, 0);
+  floor.receiveShadow = true;
+  scene.add(floor);
+  const grid = new THREE.GridHelper(48, 48, 0x1b5e20, 0x121a16);
+  grid.position.set(xM(42), 0.01, 0);
+  grid.material.opacity = 0.32;
+  grid.material.transparent = true;
+  scene.add(grid);
+
+  // path tints
+  const mkStrip = (len, z, col, x) => {
+    const s = box(len, 0.02, 1.4, col.clone());
+    s.material.transparent = true; s.material.opacity = 0.1; s.material.metalness = 0.1;
+    add(scene, s, x, 0.02, z);
+  };
+  mkStrip(12, Z_SL, M.blue, -5);
+  mkStrip(12, Z_CL, M.green, -5);
+  mkStrip(LINE_END + 2, Z0, M.greenA, LINE_END / 2);
+
+  const zones = [
+    { x: -6, t: '0 · SILOS / UBG / ENCOLADO', c: '#29b6f6' },
+    { x: xM(12), t: '2A · FORMACIÓN · blanca 45 m', c: '#00e676' },
+    { x: xM(31), t: '2B · PREPRENSA 4,69 m', c: '#ffb74d' },
+    { x: xM(48), t: '2C · EVOsteam · roja 10 m', c: '#ff8a65' },
+    { x: xM(63), t: '2D · CPS+ 20,5 / activo 16,6', c: '#ff7043' },
+    { x: xM(80), t: '2E · REFILA · SIERRA · SENSORES', c: '#80cbc4' },
+  ];
+  for (const z of zones) {
+    const l = label(z.t, z.c, 2.8, { floor: true });
+    l.position.set(z.x, 0.04, 5.0);
+    l.rotation.x = -Math.PI / 2;
+    scene.add(l);
+  }
+}
+
+// ── ASSEMBLE PLANT ─────────────────────────────────────────────
+
+// ── Colchón continuo + tableros post-corte ─────────────────────
+function buildMatFlow(scene, M) {
+  // Colchón continuo (capas) → cinta compacta → cinta prensada → CORTE en sierra → tableros
+  const group = G();
+  scene.add(group);
+
+  const y0 = BELT_H + 0.095;
+  const fineH = 0.036;
+  const coreH = 0.082;
+  const packH = 0.052;   // post-preprensa
+  const boardH = 0.042;  // post-prensa / tablero
+
+  const xSl1 = xM(PLANT.sl1a);
+  const xCl = xM(PLANT.cla);
+  const xSl2 = xM(PLANT.sl2a);
+  const xPrep = xM(PLANT.prepA);
+  const xPressA = xM(PLANT.pressA);
+  const xSaw = xM((PLANT.sawA + PLANT.sawB) / 2);
+  const xSens = SENSORS_X;
+
+  const grainMaps = [];
+  const mkLayerMat = (hex, rep = 10) => {
+    const map = matGrainTex(hex);
+    map.repeat.set(rep, 1);
+    grainMaps.push(map);
+    return new THREE.MeshStandardMaterial({
+      map, color: 0xffffff, metalness: 0.03, roughness: 0.9,
+      transparent: true, opacity: 0.96,
+    });
+  };
+  const mSL = mkLayerMat('#e2c48a', 12);
+  const mCL = mkLayerMat('#b07f3d', 10);
+  const mPack = mkLayerMat('#c9a060', 14);
+  const mBoard = mkLayerMat('#c4a060', 16);
+
+  const makeSeg = (xA, xB, y, h, mat, w = 0.92) => {
+    const L = Math.max(0.04, xB - xA);
+    const mesh = new THREE.Mesh(new THREE.BoxGeometry(L, h, MAT_W * w), mat);
+    mesh.position.set((xA + xB) / 2, y, Z0);
+    mesh.castShadow = mesh.receiveShadow = true;
+    group.add(mesh);
+    return mesh;
+  };
+
+  // 1) Formación: capas que se acumulan (crecen en X)
+  //    SL1 desde 1.42; CL desde 11.72 encima; SL2 desde 17.47 encima
+  const loose = [];
+  loose.push(makeSeg(xSl1, xPrep, y0 + fineH * 0.5, fineH, mSL));
+  loose.push(makeSeg(xCl, xPrep, y0 + fineH + coreH * 0.5, coreH, mCL));
+  loose.push(makeSeg(xSl2, xPrep, y0 + fineH + coreH + fineH * 0.5, fineH, mSL));
+
+  // 2) Post-preprensa → entrada prensa: colchón compactado (más bajo)
+  const packed = [];
+  packed.push(makeSeg(xPrep, xPressA, y0 + packH * 0.2, packH * 0.28, mSL, 0.91));
+  packed.push(makeSeg(xPrep, xPressA, y0 + packH * 0.5, packH * 0.38, mCL, 0.91));
+  packed.push(makeSeg(xPrep, xPressA, y0 + packH * 0.82, packH * 0.28, mSL, 0.91));
+
+  // 3) Prensa → sierra: cinta continua de tablero (aún no cortada)
+  //    corta justo ANTES de la sierra para que el corte se lea
+  const cutGap = 0.08;
+  const ribbon = makeSeg(xPressA, xSaw - cutGap * 0.5, y0 + boardH * 0.5, boardH, mBoard, 0.9);
+
+  // 4) Tableros maestros tras la sierra volante
+  const boardLen = 1.28;
+  const gap = 0.22;
+  const pathStart = xSaw + cutGap;
+  const pathEnd = xSens + 1.5;
+  const stride = boardLen + gap;
+  const n = Math.ceil((pathEnd - pathStart) / stride) + 3;
+  const boards = [];
+  for (let i = 0; i < n; i++) {
+    const bMat = mBoard.clone();
+    bMat.map = matGrainTex('#c9a56a');
+    bMat.map.repeat.set(2.2, 1);
+    grainMaps.push(bMat.map);
+
+    const body = new THREE.Mesh(
+      new THREE.BoxGeometry(boardLen, boardH, MAT_W * 0.88),
+      bMat
+    );
+    body.castShadow = true;
+    // bisel de canto
+    const edgeMat = new THREE.MeshStandardMaterial({ color: 0x8a6a42, roughness: 0.92, metalness: 0.04 });
+    for (const z of [MAT_W * 0.44, -MAT_W * 0.44]) {
+      const e = new THREE.Mesh(new THREE.BoxGeometry(boardLen * 0.99, boardH * 0.85, 0.018), edgeMat);
+      e.position.z = z;
+      body.add(e);
+    }
+    // frente de corte (cara recién aserrada, un poco más clara)
+    const face = new THREE.Mesh(
+      new THREE.BoxGeometry(0.02, boardH * 0.95, MAT_W * 0.86),
+      new THREE.MeshStandardMaterial({ color: 0xe8d4a8, roughness: 0.75, metalness: 0.02 })
+    );
+    face.position.x = -boardLen / 2 + 0.01;
+    body.add(face);
+
+    group.add(body);
+    boards.push({ mesh: body, phase: i * stride });
+  }
+
+  // Plano de corte + chispa
+  const cutPlane = new THREE.Mesh(
+    new THREE.PlaneGeometry(0.035, MAT_W * 0.96),
+    new THREE.MeshBasicMaterial({
+      color: 0xfff8e1, transparent: true, opacity: 0, side: THREE.DoubleSide, depthWrite: false,
+    })
+  );
+  cutPlane.rotation.y = Math.PI / 2;
+  cutPlane.position.set(xSaw, y0 + 0.1, Z0);
+  group.add(cutPlane);
+
+  // partículas de corte locales
+  const sparkN = 40;
+  const sparkGeo = new THREE.BufferGeometry();
+  const sparkPos = new Float32Array(sparkN * 3);
+  sparkGeo.setAttribute('position', new THREE.BufferAttribute(sparkPos, 3));
+  const sparks = new THREE.Points(
+    sparkGeo,
+    new THREE.PointsMaterial({
+      color: 0xffecb3, size: 0.04, transparent: true, opacity: 0,
+      depthWrite: false, blending: THREE.AdditiveBlending,
+    })
+  );
+  sparks.position.set(xSaw, y0 + 0.1, Z0);
+  group.add(sparks);
+
+  anim.mat = {
+    group,
+    grainMaps,
+    ribbon,
+    boards,
+    boardLen,
+    gap,
+    stride,
+    pathStart,
+    pathEnd,
+    xSaw,
+    cutPlane,
+    sparks,
+    sparkPos,
+    sparkN,
+    speed: (14.5 / 60) * S * 2.8,
+    scroll: 0,
+    cutPulse: 0,
+  };
+  return group;
+}
+
+function updateMatFlow(dt) {
+  const mat = anim.mat;
+  if (!mat) return;
+  if (anim.playing) mat.scroll += mat.speed * dt;
+
+  // grano del colchón continuo (antes del corte)
+  const u = -mat.scroll * 0.14;
+  for (const map of mat.grainMaps) {
+    // tableros cortados no deben compartir el mismo scroll infinito de la cinta
+    // (solo los que están en grainMaps del continuo + boards tienen maps separados)
+    if (map.repeat.x >= 8) map.offset.x = u;
+  }
+
+  // tableros: flujo desde sierra → sensores
+  const loop = mat.boards.length * mat.stride;
+  let nearCut = 0;
+  for (const b of mat.boards) {
+    let local = (b.phase + mat.scroll) % loop;
+    if (local < 0) local += loop;
+    const x = mat.pathStart + local;
+    b.mesh.position.x = x;
+    b.mesh.position.z = Z0;
+
+    const onLine = x >= mat.pathStart - 0.01 && x <= mat.pathEnd + 0.4;
+    b.mesh.visible = onLine;
+    if (!onLine) continue;
+
+    // nacimiento en el corte: escala/opacidad
+    const born = x - mat.xSaw;
+    const grow = Math.min(1, Math.max(0.15, born / 0.35));
+    b.mesh.scale.set(grow, 0.85 + 0.15 * grow, 1);
+
+    // asienta sobre la banda
+    const settle = born < 0.5 ? (1 - born / 0.5) * 0.035 : 0;
+    b.mesh.position.y = BELT_H + 0.095 + boardY(mat) + settle;
+
+    const d = Math.abs(x - mat.xSaw);
+    if (d < 0.14) nearCut = Math.max(nearCut, 1 - d / 0.14);
+  }
+
+  // destello + chispas en el plano de la sierra
+  mat.cutPulse = THREE.MathUtils.lerp(mat.cutPulse || 0, nearCut, 1 - Math.exp(-12 * dt));
+  mat.cutPlane.material.opacity = mat.cutPulse * 0.85;
+  mat.cutPlane.scale.set(1, 1 + mat.cutPulse * 0.25, 1);
+  mat.sparks.material.opacity = mat.cutPulse * 0.75;
+  if (mat.cutPulse > 0.05) {
+    const arr = mat.sparkPos;
+    for (let i = 0; i < mat.sparkN; i++) {
+      const a = (i / mat.sparkN) * Math.PI * 2 + anim.t * 9;
+      const r = 0.05 + Math.random() * 0.25 * mat.cutPulse;
+      arr[i * 3] = (Math.random() - 0.5) * 0.08;
+      arr[i * 3 + 1] = Math.sin(a) * r * 0.6 + Math.random() * 0.15;
+      arr[i * 3 + 2] = (Math.random() - 0.5) * MAT_W * 0.45;
+    }
+    mat.sparks.geometry.attributes.position.needsUpdate = true;
+  }
+}
+function boardY(mat) { return 0.021; }
+
+
+
+
+
+
+function buildPlant(scene, M) {
+  buildEnvironment(scene, M);
+
+  // ═══ UPSTREAM: dos cascadas verticales (SIDE-legible) ═══
+  // Silo arriba → UBG largo debajo (entrada bajo cono) → descarga UBG a boca encolador
+  // → banda inclinada sube a esparcidores (longitud real ~65 m comprimida con aviso).
+
+  function dropChute(from, to, M) {
+    const mid = from.clone().lerp(to, 0.5);
+    const dist = Math.max(0.15, from.distanceTo(to));
+    const dir = to.clone().sub(from).normalize();
+    const tube = cyl(0.09, 0.13, dist, M.steelD, 10);
+    tube.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir);
+    tube.position.copy(mid);
+    tube.castShadow = true;
+    scene.add(tube);
+  }
+
+  function placeUpstream(z, fine, names) {
+    // UBG long: length in world from userData
+    const dos = buildDosimbunca(names.dos, M);
+    // Steel-dominant with route accent strip only
+    const uL = dos.userData.length;
+    // Position so ENTRY (-L/2) under silo and EXIT near encolador
+    const dosX = -6.2;
+    dos.position.set(dosX, 0, z);
+    scene.add(dos);
+
+    // Platform + SILO above inlet end of UBG
+    const inletLocal = dos.userData.inlet.clone();
+    const inletWorld = inletLocal.add(new THREE.Vector3(dosX, 0, z));
+    // Rebuild inlet world properly
+    const siloX = dosX - uL / 2 + 0.35;
+    const plat = G();
+    for (const [px, pz] of [[-0.65, -0.65], [0.65, -0.65], [-0.65, 0.65], [0.65, 0.65]]) {
+      add(plat, box(0.1, 2.55, 0.1, M.steelD), px, 1.28, pz);
+    }
+    add(plat, box(1.6, 0.1, 1.6, M.steelD), 0, 2.55, 0);
+    plat.position.set(siloX, 0, z);
+    scene.add(plat);
+
+    const silo = buildSilo(names.silo, M, fine);
+    silo.position.set(siloX, 2.55, z);
+    scene.add(silo);
+    dropChute(new THREE.Vector3(siloX, 3.35, z), new THREE.Vector3(siloX, 2.0, z), M);
+
+    // Encolador immediately at UBG discharge (exit end)
+    const enc = buildEncolador(names.enc, M, fine);
+    const exitX = dosX + uL / 2 + 0.85;
+    enc.position.set(exitX, 0, z);
+    scene.add(enc);
+    // short hard connection discharge → intake
+    dropChute(
+      new THREE.Vector3(dosX + uL / 2 - 0.1, 0.45, z),
+      new THREE.Vector3(exitX - 1.0, 1.35, z),
+      M
+    );
+
+    // Inclined belt compressed (real ~65 m) — document compression in label
+    const encOut = new THREE.Vector3(exitX + 1.0, 0.85, z);
+    const targetX = names.targetX;
+    const targetY = 2.55;
+    const end = new THREE.Vector3(targetX, targetY, THREE.MathUtils.lerp(z, Z0, 0.7));
+    const mid = encOut.clone().lerp(end, 0.5);
+    const span = encOut.distanceTo(end);
+    const incline = buildInclinedBelt(M, span, 0.5, names.stripe);
+    incline.quaternion.setFromUnitVectors(new THREE.Vector3(1, 0, 0), end.clone().sub(encOut).normalize());
+    incline.position.copy(mid);
+    scene.add(incline);
+    for (let i = 1; i <= 3; i++) {
+      const p = encOut.clone().lerp(end, i / 4);
+      const h = Math.max(0.15, p.y);
+      const post = box(0.07, h, 0.07, M.steelD);
+      post.position.set(p.x, h / 2, p.z);
+      scene.add(post);
+    }
+    add(scene, label(names.inclLabel, names.stripe, 2.1), mid.x, mid.y + 0.5, mid.z + (fine ? 0.55 : -0.55));
+    add(scene, label('(recorrido real ~65 m · comprimido)', '#78909c', 1.7), mid.x, mid.y + 0.25, mid.z + (fine ? 0.55 : -0.55));
+    return { encOut, end };
+  }
+
+  const f1x = xM(PLANT.sl1a) + (PLANT.sl1b - PLANT.sl1a) * S * 0.22;
+  const f2x = xM(PLANT.cla) + (PLANT.clb - PLANT.cla) * S * 0.22;
+  const f3x = xM(PLANT.sl2a) + (PLANT.sl2b - PLANT.sl2a) * S * 0.22;
+
+  placeUpstream(Z_SL, true, {
+    silo: 'SILO 6 · FINA', dos: 'DOSIMBUNCA SL · UBG', enc: 'ENCOLADORA CE',
+    stripe: '#29b6f6', targetX: f1x - 0.35,
+    inclLabel: 'BANDA INCLINADA SL',
+  });
+  placeUpstream(Z_CL, false, {
+    silo: 'SILO 5 · GRUESA', dos: 'DOSIMBUNCA CL · UBG', enc: 'ENCOLADORA CI',
+    stripe: '#66bb6a', targetX: f2x - 0.3,
+    inclLabel: 'BANDA INCLINADA CL',
+  });
+
+  // Divisor SL realista: compuerta + dos tramos cortos a SL1 y SL2
+  {
+    const hub = new THREE.Vector3(f1x - 0.55, 2.55, Z_SL * 0.2);
+    add(scene, box(0.35, 0.4, 0.45, M.steelD), hub.x, hub.y, hub.z);
+    add(scene, label('DIVISOR SL', '#81d4fa', 1.2), hub.x, hub.y + 0.45, hub.z);
+    for (const tx of [f1x, f3x]) {
+      const end = new THREE.Vector3(tx, 2.55, Z0);
+      const mid = hub.clone().lerp(end, 0.5);
+      const span = hub.distanceTo(end);
+      const br = buildInclinedBelt(M, span, 0.32, '#4fc3f7');
+      br.quaternion.setFromUnitVectors(new THREE.Vector3(1, 0, 0), end.clone().sub(hub).normalize());
+      br.position.copy(mid);
+      scene.add(br);
+    }
+  }
+
+  // ═══ BANDA BLANCA 45 m ═══
+  const white = conveyor(PLANT.white * S, MAT_W + 0.15, M, { h: BELT_H, stripe: '#eceff1', base: '#3a4046' });
+  white.position.set(xM(PLANT.white / 2), 0, Z0);
+  scene.add(white);
+  add(scene, label('BANDA BLANCA · 45,00 m', '#cfd8dc', 2.0), xM(22), BELT_H + 0.35, -MAT_W / 2 - 0.35);
+
+  // Colchón animado (capas → cinta → corte en sierra)
+  buildMatFlow(scene, M);
+
+
+  // Forming heads on ONE white belt
+  const f1 = buildFormer('SL1 · CAPA INFERIOR', M, M.steelD, PLANT.sl1b - PLANT.sl1a);
+  f1.position.set(f1x, 0, Z0); scene.add(f1);
+  const f2 = buildFormer('CL · CORE', M, M.steelD, PLANT.clb - PLANT.cla);
+  f2.position.set(f2x, 0, Z0); scene.add(f2);
+  const f3 = buildFormer('SL2 · CAPA SUPERIOR', M, M.steelD, PLANT.sl2b - PLANT.sl2a);
+  f3.position.set(f3x, 0, Z0); scene.add(f3);
+  // Route color accents only on formers
+  add(scene, box(0.15, 0.08, 0.4, M.blueL), f1x, 2.7, MAT_W / 2 + 0.1);
+  add(scene, box(0.15, 0.08, 0.4, M.green), f2x, 2.7, MAT_W / 2 + 0.1);
+  add(scene, box(0.15, 0.08, 0.4, M.blueL), f3x, 2.7, MAT_W / 2 + 0.1);
+
+  // Imán 26.68
+  const mag = buildMagnet(M);
+  mag.position.set(xM(PLANT.magnet), 0, Z0); scene.add(mag);
+
+  // Preprensa 29.08–33.78
+  const prep = buildPreprensa(M, PLANT.prepB - PLANT.prepA);
+  prep.position.set(xM((PLANT.prepA + PLANT.prepB) / 2), 0, Z0); scene.add(prep);
+
+  // Desmoldante 35.99
+  const desm = buildDesmoldante(M);
+  desm.position.set(xM(PLANT.spray), 0, Z0); scene.add(desm);
+
+  // Detector 37.69
+  const det = buildMetalDetector(M);
+  det.position.set(xM(PLANT.detector), 0, Z0); scene.add(det);
+
+  // Cuchillas / nariz 39.56
+  const kn = G();
+  add(kn, box(0.28, 0.4, MAT_W + 0.1, M.steelL), 0, 0.7, 0);
+  add(kn, box(0.12, 0.35, 0.08, M.steel), 0.1, 0.65, MAT_W / 2);
+  add(kn, box(0.12, 0.35, 0.08, M.steel), 0.1, 0.65, -MAT_W / 2);
+  add(kn, label('CUCHILLAS / NARIZ', '#b0bec5', 1.5), 0, 1.2, 0);
+  kn.position.set(xM(PLANT.knives), 0, Z0); scene.add(kn);
+
+  // ═══ BANDA ROJA 10 m ═══
+  const red = conveyor(PLANT.red * S, MAT_W + 0.12, M, { h: BELT_H, stripe: '#b71c1c', base: '#3a1515' });
+  red.position.set(xM(PLANT.white + PLANT.red / 2), 0, Z0); scene.add(red);
+  add(scene, label('BANDA ROJA · 10,00 m', '#ef9a9a', 1.8), xM(50), BELT_H + 0.4, MAT_W / 2 + 0.4);
+
+  // EVOsteam 46.86–49.15
+  const evo = buildPreheat(M);
+  evo.position.set(xM((PLANT.evoA + PLANT.evoB) / 2), 0, Z0); scene.add(evo);
+
+  // ═══ CPS+ ── shell 20.5 m, active 16.6 m aligned to 55–71.6 ═══
+  const press = buildPress(M);
+  // Center of active zone at (55+71.6)/2 = 63.3; shell may be longer so center shell on active center
+  press.position.set(xM((PLANT.pressA + PLANT.pressB) / 2), 0, Z0); scene.add(press);
+
+  // ═══ POST 13,55 m: transporte → refila → gap → sierra → gap → sensores ═══
+  const postLen = PLANT.post * S;
+  const postBelt = conveyor(postLen, MAT_W + 0.1, M, { h: BELT_H * 0.9, stripe: '#9e9e9e', base: '#2a2a2a' });
+  postBelt.position.set(xM((PLANT.pressB + PLANT.sensors) / 2), 0, Z0); scene.add(postBelt);
+
+  // tableros post-sierra: anim.mat (buildMatFlow)
+
+  const refila = buildRefila(M);
+  refila.position.set(xM((PLANT.refilaA + PLANT.refilaB) / 2), 0, Z0); scene.add(refila);
+
+  const saw = buildSaw(M);
+  saw.position.set(xM((PLANT.sawA + PLANT.sawB) / 2), 0, Z0); scene.add(saw);
+
+  const sensors = buildSensors(M);
+  sensors.position.set(SENSORS_X, 0, Z0); scene.add(sensors);
+
+  // short exit after sensors only
+  const exitB = conveyor(1.2, MAT_W + 0.08, M, { h: BELT_H * 0.85 });
+  exitB.position.set(SENSORS_X + 0.9, 0, Z0); scene.add(exitB);
+
+  buildParticles(scene);
+
+  // columns
+  for (const x of [-8, xM(15), xM(40), xM(63), SENSORS_X]) {
+    for (const z of [-5.5, 5.5]) {
+      const c = box(0.18, 3.8, 0.18, M.steelD);
+      c.position.set(x, 1.9, z);
+      scene.add(c);
+    }
+  }
+}
+
+// ── Bootstrap ──────────────────────────────────────────────────
+const wrap = document.getElementById('canvas-wrap');
+let renderer;
+try {
+  renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+} catch (e) {
+  document.getElementById('loading').innerHTML =
+    '<p style="color:#ff8a65;text-align:center;padding:2rem">WebGL no disponible. Usá Chrome/Edge con GPU.</p>';
+  throw e;
+}
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.05;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+wrap.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x070a09);
+scene.fog = new THREE.FogExp2(0x070a09, 0.010);
+
+const midX = (SENSORS_X + X0) / 2 - 2;
+const camera = new THREE.PerspectiveCamera(40, innerWidth / innerHeight, 0.1, 200);
+const CAM = {
+  iso:  { pos: new THREE.Vector3(midX - 2, 15.5, 16.5), target: new THREE.Vector3(midX, 0.3, 0) },
+  side: { pos: new THREE.Vector3(midX, 4.5, 18), target: new THREE.Vector3(midX, 0.8, 0) },
+  top:  { pos: new THREE.Vector3(midX, 28, 0.02), target: new THREE.Vector3(midX, 0, 0) },
+};
+camera.position.copy(CAM.iso.pos);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.copy(CAM.iso.target);
+controls.enableDamping = true;
+controls.dampingFactor = 0.08;
+controls.minDistance = 6;
+controls.maxDistance = 55;
+controls.maxPolarAngle = Math.PI * 0.48;
+
+const pmrem = new THREE.PMREMGenerator(renderer);
+scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+
+scene.add(new THREE.HemisphereLight(0xd0e8d8, 0x121a16, 0.62));
+const amb = new THREE.AmbientLight(0x3a4a40, 0.22);
+scene.add(amb);
+const key = new THREE.DirectionalLight(0xfff6e8, 1.15);
+key.position.set(midX - 4, 20, 12);
+key.castShadow = true;
+key.shadow.mapSize.set(2048, 2048);
+key.shadow.camera.left = -30; key.shadow.camera.right = 30;
+key.shadow.camera.top = 20; key.shadow.camera.bottom = -20;
+key.shadow.camera.far = 70; key.shadow.bias = -0.0002;
+scene.add(key);
+scene.add(new THREE.DirectionalLight(0x81d4fa, 0.32).translateX(-14).translateY(8).translateZ(-6));
+scene.add(new THREE.DirectionalLight(0x00e676, 0.22).translateX(20).translateY(5).translateZ(-8));
+
+const mat = mats();
+buildPlant(scene, mat);
+
+// UI
+const btnPlay = document.getElementById('btnPlay');
+const playLabel = document.getElementById('playLabel');
+const iconPlay = document.getElementById('iconPlay');
+btnPlay.onclick = () => {
+  anim.playing = !anim.playing;
+  btnPlay.classList.toggle('is-active', anim.playing);
+  playLabel.textContent = anim.playing ? 'PAUSE' : 'PLAY';
+  iconPlay.innerHTML = anim.playing
+    ? '<path d="M6 5h4v14H6zm8 0h4v14h-4z"/>'
+    : '<path d="M8 5v14l11-7z"/>';
+};
+let fly = null;
+const flyTo = (k) => {
+  fly = { t: 0, fromP: camera.position.clone(), fromT: controls.target.clone(), toP: CAM[k].pos.clone(), toT: CAM[k].target.clone() };
+};
+document.getElementById('btnReset').onclick = () => flyTo('iso');
+document.getElementById('btnIso').onclick = () => flyTo('iso');
+document.getElementById('btnSide').onclick = () => flyTo('side');
+document.getElementById('btnTop').onclick = () => flyTo('top');
+
+const clock = new THREE.Clock();
+function tick() {
+  requestAnimationFrame(tick);
+  const dt = Math.min(clock.getDelta(), 0.05);
+  if (anim.playing) anim.t += dt;
+
+  if (fly) {
+    fly.t += dt * 1.4;
+    const k = Math.min(1, fly.t);
+    const e = k * k * (3 - 2 * k);
+    camera.position.lerpVectors(fly.fromP, fly.toP, e);
+    controls.target.lerpVectors(fly.fromT, fly.toT, e);
+    if (k >= 1) fly = null;
+  }
+  controls.update();
+
+  // Nombres de máquina: billboard en espacio mundo (válido aunque el padre esté rotado)
+  if (!anim._billQ) {
+    anim._billQ = new THREE.Quaternion();
+    anim._parentQ = new THREE.Quaternion();
+  }
+  for (const l of anim.labels) {
+    if (l.userData.billboard === false) continue;
+    if (l.parent && l.parent.isObject3D && l.parent !== scene) {
+      l.parent.getWorldQuaternion(anim._parentQ);
+      anim._billQ.copy(anim._parentQ).invert().multiply(camera.quaternion);
+      l.quaternion.copy(anim._billQ);
+    } else {
+      l.quaternion.copy(camera.quaternion);
+    }
+    if (l.userData.baseY == null) l.userData.baseY = l.position.y;
+    l.position.y = l.userData.baseY + Math.sin(anim.t * 1.4 + (l.position.x || 0) * 0.15) * 0.018;
+  }
+
+  if (anim.playing) {
+    for (const map of anim.belts) map.offset.x -= dt * 0.28;
+    for (const s of anim.spinners) {
+      s.mesh.rotateOnAxis(_spinAxes[s.axis], s.speed * dt);
+    }
+    for (const lv of anim.levels) lv.mesh.position.y = lv.baseY + Math.sin(anim.t * 0.7 + lv.phase) * 0.03;
+    if (anim.sawCarriage) anim.sawCarriage.position.x = Math.sin(anim.t * 0.7) * 0.18;
+    for (const h of anim.heat) h.emissiveIntensity = 0.12 + Math.sin(anim.t * 1.2) * 0.04;
+    updateMatFlow(dt);
+    updateParticles(dt);
+  }
+  renderer.render(scene, camera);
+}
+addEventListener('resize', () => {
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+requestAnimationFrame(() => {
+  tick();
+  setTimeout(() => document.getElementById('loading').classList.add('hide'), 250);
+});
+  </script>
+</body>
+</html>

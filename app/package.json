@@ -1,0 +1,35 @@
+{
+  "name": "autoventa-bot",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Bot de ventas de llantas por WhatsApp (Meta Cloud API + Claude)",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "start": "node dist/index.js",
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "db:migrate": "tsx src/db/migrate.ts"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.111.0",
+    "express": "^4.21.0",
+    "google-auth-library": "^9.0.0",
+    "google-spreadsheet": "^5.0.2",
+    "pdfmake": "^0.3.11",
+    "postgres": "^3.4.5",
+    "whatsapp-api-js": "^6.2.1",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.21",
+    "@types/node": "^22.0.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0",
+    "vitest": "^2.1.0"
+  }
+}

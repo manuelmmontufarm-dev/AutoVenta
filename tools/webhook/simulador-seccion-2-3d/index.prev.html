@@ -1,0 +1,1426 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NOVOPAN · Pelíkano · Línea 1 · Sección 2 Encolados · 3D</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Semi+Condensed:wght@600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #070a09;
+      --panel: rgba(14, 22, 18, 0.72);
+      --panel-border: rgba(0, 230, 118, 0.18);
+      --text: #e8f5e9;
+      --muted: #8fa396;
+      --green: #00e676;
+      --green-deep: #1b5e20;
+      --blue: #29b6f6;
+      --blue-deep: #1565c0;
+      --amber: #ffb74d;
+      --danger: #ff7043;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      width: 100%; height: 100%;
+      overflow: hidden;
+      background: radial-gradient(120% 90% at 50% 0%, #102018 0%, #070a09 55%, #050706 100%);
+      color: var(--text);
+      font-family: "Barlow", system-ui, sans-serif;
+    }
+    #canvas-wrap { position: fixed; inset: 0; }
+    canvas { display: block; width: 100%; height: 100%; }
+
+    .hud {
+      position: fixed; inset: 0;
+      pointer-events: none;
+      z-index: 10;
+    }
+    .hud * { pointer-events: auto; }
+
+    .topbar {
+      position: absolute; top: 16px; left: 50%; transform: translateX(-50%);
+      display: flex; align-items: center; gap: 14px;
+      padding: 10px 18px 10px 14px;
+      border-radius: 16px;
+      background: var(--panel);
+      border: 1px solid var(--panel-border);
+      backdrop-filter: blur(18px) saturate(140%);
+      -webkit-backdrop-filter: blur(18px) saturate(140%);
+      box-shadow:
+        0 10px 40px rgba(0,0,0,.45),
+        inset 0 1px 0 rgba(255,255,255,.06);
+      max-width: min(920px, calc(100vw - 32px));
+    }
+    .brand-mark {
+      width: 36px; height: 36px; border-radius: 10px;
+      background: linear-gradient(145deg, #00e676 0%, #1b5e20 70%);
+      box-shadow: 0 0 20px rgba(0, 230, 118, .35);
+      display: grid; place-items: center;
+      font-family: "Barlow Semi Condensed", sans-serif;
+      font-weight: 800; font-size: 13px; color: #041208;
+      letter-spacing: .04em;
+    }
+    .brand-text { min-width: 0; }
+    .brand-text h1 {
+      font-family: "Barlow Semi Condensed", sans-serif;
+      font-size: clamp(13px, 1.5vw, 16px);
+      font-weight: 700;
+      letter-spacing: .04em;
+      white-space: nowrap;
+      overflow: hidden; text-overflow: ellipsis;
+    }
+    .brand-text p {
+      font-size: 11px; color: var(--muted);
+      letter-spacing: .08em; text-transform: uppercase;
+      margin-top: 1px;
+    }
+    .live-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: var(--green);
+      box-shadow: 0 0 10px var(--green);
+      animation: pulse 1.8s ease-in-out infinite;
+      flex-shrink: 0;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: .55; transform: scale(.85); }
+    }
+
+    .controls {
+      position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
+      display: flex; align-items: center; gap: 8px;
+      padding: 8px;
+      border-radius: 14px;
+      background: var(--panel);
+      border: 1px solid var(--panel-border);
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+      box-shadow: 0 12px 36px rgba(0,0,0,.4);
+    }
+    .btn {
+      appearance: none; border: 0;
+      height: 38px; min-width: 38px; padding: 0 12px;
+      border-radius: 10px;
+      background: rgba(255,255,255,.04);
+      color: var(--text);
+      font: 600 12px/1 "Barlow Semi Condensed", sans-serif;
+      letter-spacing: .06em;
+      cursor: pointer;
+      display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+      transition: background .15s, transform .1s, box-shadow .15s;
+      border: 1px solid rgba(255,255,255,.06);
+    }
+    .btn:hover { background: rgba(0, 230, 118, .12); border-color: rgba(0, 230, 118, .28); }
+    .btn:active { transform: scale(.97); }
+    .btn.is-active {
+      background: linear-gradient(145deg, rgba(0,230,118,.22), rgba(27,94,32,.35));
+      border-color: rgba(0,230,118,.4);
+      box-shadow: 0 0 16px rgba(0,230,118,.18);
+    }
+    .btn svg { width: 15px; height: 15px; fill: currentColor; opacity: .9; }
+    .sep {
+      width: 1px; height: 22px;
+      background: rgba(255,255,255,.1);
+      margin: 0 2px;
+    }
+
+    .legend {
+      position: absolute; left: 16px; bottom: 20px;
+      padding: 12px 14px;
+      border-radius: 14px;
+      background: var(--panel);
+      border: 1px solid var(--panel-border);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      font-size: 11px;
+      color: var(--muted);
+      display: grid; gap: 7px;
+      min-width: 148px;
+    }
+    .legend strong {
+      color: var(--text);
+      font-family: "Barlow Semi Condensed", sans-serif;
+      font-size: 11px; letter-spacing: .1em;
+      text-transform: uppercase;
+      margin-bottom: 2px;
+    }
+    .leg-row { display: flex; align-items: center; gap: 8px; }
+    .swatch {
+      width: 12px; height: 12px; border-radius: 3px;
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,.15);
+    }
+
+    .hint {
+      position: absolute; right: 16px; bottom: 20px;
+      padding: 10px 12px;
+      border-radius: 12px;
+      background: var(--panel);
+      border: 1px solid rgba(255,255,255,.06);
+      backdrop-filter: blur(14px);
+      font-size: 11px; color: var(--muted);
+      line-height: 1.45;
+      max-width: 210px;
+    }
+    .hint b { color: var(--text); font-weight: 600; }
+
+    .loading {
+      position: fixed; inset: 0; z-index: 50;
+      display: grid; place-items: center;
+      background: #070a09;
+      transition: opacity .5s ease, visibility .5s;
+    }
+    .loading.hide { opacity: 0; visibility: hidden; }
+    .loading-inner { text-align: center; }
+    .loading-ring {
+      width: 48px; height: 48px; margin: 0 auto 16px;
+      border-radius: 50%;
+      border: 2px solid rgba(0,230,118,.15);
+      border-top-color: var(--green);
+      animation: spin .9s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .loading p {
+      font-family: "Barlow Semi Condensed", sans-serif;
+      letter-spacing: .14em; text-transform: uppercase;
+      font-size: 12px; color: var(--muted);
+    }
+
+    @media (max-width: 720px) {
+      .legend, .hint { display: none; }
+      .topbar { top: 10px; padding: 8px 12px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="loading" id="loading">
+    <div class="loading-inner">
+      <div class="loading-ring"></div>
+      <p>Cargando Sección 2 · 3D</p>
+    </div>
+  </div>
+
+  <div id="canvas-wrap"></div>
+
+  <div class="hud">
+    <header class="topbar">
+      <div class="brand-mark">NP</div>
+      <div class="brand-text">
+        <h1>NOVOPAN · Pelíkano · Línea 1 · Sección 2 Encolados</h1>
+        <p>Silos → Encolado → Formación → Prensa → Estacado</p>
+      </div>
+      <div class="live-dot" title="Simulación en vivo"></div>
+    </header>
+
+    <aside class="legend">
+      <strong>Rutas</strong>
+      <div class="leg-row"><span class="swatch" style="background:#29b6f6"></span> SL · fina (Silo 6)</div>
+      <div class="leg-row"><span class="swatch" style="background:#66bb6a"></span> CL · gruesa (Silo 5)</div>
+      <div class="leg-row"><span class="swatch" style="background:#1565c0"></span> Dosimbunca UBG</div>
+      <div class="leg-row"><span class="swatch" style="background:linear-gradient(90deg,#ff7043,#ffb74d)"></span> Zonas calor prensa</div>
+    </aside>
+
+    <div class="controls">
+      <button class="btn is-active" id="btnPlay" title="Play / Pause">
+        <svg id="iconPlay" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+        <span id="playLabel">PAUSE</span>
+      </button>
+      <div class="sep"></div>
+      <button class="btn" id="btnReset" title="Reset cámara">
+        <svg viewBox="0 0 24 24"><path d="M12 5V1L7 6l5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z"/></svg>
+        RESET
+      </button>
+      <button class="btn" id="btnIso" title="Vista isométrica">ISO</button>
+      <button class="btn" id="btnSide" title="Vista lateral">SIDE</button>
+      <button class="btn" id="btnTop" title="Vista planta">TOP</button>
+    </div>
+
+    <div class="hint">
+      <b>Cámara</b><br/>
+      Arrastra · orbit · scroll zoom<br/>
+      Clic derecho · pan
+    </div>
+  </div>
+
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+    }
+  }
+  </script>
+  <script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+
+/* ═══════════════════════════════════════════════════════════════
+   NOVOPAN · Sección 2 3D
+   Layout fiel al repo / simulador-seccion-2:
+   Ruta SL (fina): Silo6 → Dosimbunca → CE → formers SL1+SL2
+   Ruta CL (gruesa): Silo5 → Dosimbunca → CI → former CL
+   Merge en formación → preprensa → desmoldante → precalent.
+   → prensa continua → corte angular → enfriadora estrella → estacado
+   ═══════════════════════════════════════════════════════════════ */
+
+const COLORS = {
+  bg: 0x070a09,
+  floor: 0x0c1210,
+  steel: 0x8a949c,
+  steelDark: 0x3a4248,
+  steelLight: 0xc5ccd1,
+  paintGreen: 0x1b5e20,
+  accentGreen: 0x00e676,
+  dieffenBlue: 0x1565c0,
+  dieffenBlueMid: 0x1e88e5,
+  dieffenBlueLight: 0x42a5f5,
+  sl: 0x29b6f6,
+  cl: 0x66bb6a,
+  resin: 0xffb74d,
+  heat: 0xff5722,
+  heatMid: 0xff9800,
+  heatLow: 0xffc107,
+  matFine: 0xc4a574,
+  matCoarse: 0xa67c52,
+  board: 0xd2b48c,
+  black: 0x1a1d1b,
+  rail: 0x2c3338,
+  label: 0xe8f5e9,
+};
+
+// World scale: compact line ~28 units wide fits landscape viewport
+const Z_SL = 2.4;   // fine / SL path (back)
+const Z_CL = -2.4;  // coarse / CL path (front)
+const Z_LINE = 0;   // merged forming / press axis
+
+const anim = {
+  playing: true,
+  t: 0,
+  belts: [],
+  levels: [],
+  particles: null,
+  star: null,
+  heatMats: [],
+  screwRots: [],
+  labels: [],
+};
+
+// ── Materials factory ──────────────────────────────────────────
+function makeMats() {
+  const mk = (color, opts = {}) => new THREE.MeshStandardMaterial({
+    color, metalness: opts.metalness ?? 0.55, roughness: opts.roughness ?? 0.4,
+    emissive: opts.emissive ?? 0x000000, emissiveIntensity: opts.ei ?? 0,
+    transparent: opts.transparent ?? false, opacity: opts.opacity ?? 1,
+    side: opts.side ?? THREE.FrontSide,
+  });
+  return {
+    steel: mk(COLORS.steel, { metalness: 0.75, roughness: 0.32 }),
+    steelDark: mk(COLORS.steelDark, { metalness: 0.7, roughness: 0.45 }),
+    steelLight: mk(COLORS.steelLight, { metalness: 0.8, roughness: 0.25 }),
+    green: mk(COLORS.paintGreen, { metalness: 0.35, roughness: 0.45 }),
+    greenGlow: mk(COLORS.accentGreen, { metalness: 0.2, roughness: 0.35, emissive: COLORS.accentGreen, ei: 0.25 }),
+    blue: mk(COLORS.dieffenBlue, { metalness: 0.4, roughness: 0.4 }),
+    blueMid: mk(COLORS.dieffenBlueMid, { metalness: 0.45, roughness: 0.38 }),
+    blueLight: mk(COLORS.dieffenBlueLight, { metalness: 0.5, roughness: 0.35 }),
+    black: mk(COLORS.black, { metalness: 0.3, roughness: 0.7 }),
+    rail: mk(COLORS.rail, { metalness: 0.5, roughness: 0.55 }),
+    matFine: mk(COLORS.matFine, { metalness: 0.05, roughness: 0.9 }),
+    matCoarse: mk(COLORS.matCoarse, { metalness: 0.05, roughness: 0.92 }),
+    resin: mk(COLORS.resin, { metalness: 0.1, roughness: 0.35, emissive: COLORS.resin, ei: 0.08 }),
+    board: mk(COLORS.board, { metalness: 0.05, roughness: 0.75 }),
+    glass: mk(0xa8d8ff, { metalness: 0.1, roughness: 0.05, transparent: true, opacity: 0.18 }),
+    heatHi: mk(COLORS.heat, { metalness: 0.3, roughness: 0.4, emissive: COLORS.heat, ei: 0.55 }),
+    heatMid: mk(COLORS.heatMid, { metalness: 0.3, roughness: 0.4, emissive: COLORS.heatMid, ei: 0.4 }),
+    heatLow: mk(COLORS.heatLow, { metalness: 0.3, roughness: 0.4, emissive: COLORS.heatLow, ei: 0.3 }),
+    belt: mk(0x2a2f33, { metalness: 0.2, roughness: 0.85 }),
+    beltYellow: mk(0xc9a227, { metalness: 0.15, roughness: 0.7 }),
+    floor: mk(COLORS.floor, { metalness: 0.15, roughness: 0.92 }),
+    labelBg: mk(0x0e1612, { metalness: 0.1, roughness: 0.6, transparent: true, opacity: 0.85 }),
+  };
+}
+
+// ── Helpers ────────────────────────────────────────────────────
+function box(w, h, d, mat) {
+  const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+  m.castShadow = m.receiveShadow = true;
+  return m;
+}
+function cyl(rTop, rBot, h, mat, segs = 24) {
+  const m = new THREE.Mesh(new THREE.CylinderGeometry(rTop, rBot, h, segs), mat);
+  m.castShadow = m.receiveShadow = true;
+  return m;
+}
+function add(parent, mesh, x = 0, y = 0, z = 0) {
+  mesh.position.set(x, y, z);
+  parent.add(mesh);
+  return mesh;
+}
+function group() { return new THREE.Group(); }
+
+function makeLabel(text, color = '#e8f5e9') {
+  const canvas = document.createElement('canvas');
+  canvas.width = 512; canvas.height = 128;
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, 512, 128);
+  // glass pill
+  ctx.fillStyle = 'rgba(8,14,11,0.78)';
+  roundRect(ctx, 8, 24, 496, 80, 18);
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(0,230,118,0.28)';
+  ctx.lineWidth = 2;
+  roundRect(ctx, 8, 24, 496, 80, 18);
+  ctx.stroke();
+  ctx.fillStyle = color;
+  ctx.font = '700 36px Barlow Semi Condensed, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(text, 256, 64);
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  const mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false });
+  const mesh = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 0.6), mat);
+  mesh.userData.isLabel = true;
+  anim.labels.push(mesh);
+  return mesh;
+}
+function roundRect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+
+// ── Floor / environment ────────────────────────────────────────
+function buildFloor(scene, mats) {
+  const floor = new THREE.Mesh(
+    new THREE.PlaneGeometry(42, 20),
+    mats.floor
+  );
+  floor.rotation.x = -Math.PI / 2;
+  floor.position.set(8, 0, 0);
+  floor.receiveShadow = true;
+  scene.add(floor);
+
+  // subtle grid
+  const grid = new THREE.GridHelper(42, 42, 0x1b5e20, 0x121a16);
+  grid.position.set(8, 0.01, 0);
+  grid.material.opacity = 0.35;
+  grid.material.transparent = true;
+  scene.add(grid);
+
+  // path strips
+  const stripSL = box(14, 0.02, 1.5, mats.blue.clone());
+  stripSL.material.opacity = 0.12;
+  stripSL.material.transparent = true;
+  stripSL.material.metalness = 0.1;
+  add(scene, stripSL, -2.5, 0.02, Z_SL);
+
+  const stripCL = box(14, 0.02, 1.5, mats.green.clone());
+  stripCL.material.opacity = 0.12;
+  stripCL.material.transparent = true;
+  stripCL.material.metalness = 0.1;
+  add(scene, stripCL, -2.5, 0.02, Z_CL);
+
+  const stripMain = box(22, 0.02, 2.0, mats.greenGlow.clone());
+  stripMain.material.opacity = 0.08;
+  stripMain.material.transparent = true;
+  stripMain.material.emissiveIntensity = 0.05;
+  add(scene, stripMain, 14, 0.02, Z_LINE);
+}
+
+// ── Conveyor belt ──────────────────────────────────────────────
+function buildBelt(length, width, mats, opts = {}) {
+  const g = group();
+  const h = opts.height ?? 0.35;
+  const body = box(length, h, width, mats.steelDark);
+  add(g, body, 0, h / 2, 0);
+
+  // belt surface with stripe texture via UV scroll proxy
+  const beltMat = mats.belt.clone();
+  beltMat.map = makeBeltTexture(opts.color ?? '#2a2f33', opts.stripe ?? '#c9a227');
+  beltMat.map.wrapS = beltMat.map.wrapT = THREE.RepeatWrapping;
+  beltMat.map.repeat.set(length * 1.2, 1);
+  beltMat.roughness = 0.8;
+  const belt = new THREE.Mesh(new THREE.BoxGeometry(length * 0.98, 0.04, width * 0.88), beltMat);
+  belt.position.set(0, h + 0.02, 0);
+  belt.castShadow = true;
+  g.add(belt);
+  anim.belts.push(beltMat.map);
+
+  // side rails
+  const railH = 0.12;
+  const railL = box(length, railH, 0.05, mats.rail);
+  add(g, railL, 0, h + railH / 2 + 0.02, width / 2 - 0.04);
+  const railR = railL.clone();
+  add(g, railR, 0, h + railH / 2 + 0.02, -width / 2 + 0.04);
+
+  // support legs
+  for (let i = -1; i <= 1; i += 1) {
+    const leg = box(0.08, h, 0.08, mats.steelDark);
+    add(g, leg, (length / 2 - 0.2) * i, h / 2, width / 2 - 0.08);
+    add(g, leg.clone(), (length / 2 - 0.2) * i, h / 2, -width / 2 + 0.08);
+  }
+
+  // rollers
+  for (let i = 0; i < 5; i++) {
+    const r = cyl(0.06, 0.06, width * 0.85, mats.steel, 12);
+    r.rotation.x = Math.PI / 2;
+    add(g, r, -length / 2 + 0.25 + i * ((length - 0.5) / 4), h * 0.55, 0);
+  }
+  return g;
+}
+
+function makeBeltTexture(base, stripe) {
+  const c = document.createElement('canvas');
+  c.width = 128; c.height = 32;
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = base;
+  ctx.fillRect(0, 0, 128, 32);
+  ctx.fillStyle = stripe;
+  for (let x = 0; x < 128; x += 24) {
+    ctx.fillRect(x, 0, 6, 32);
+  }
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
+}
+
+// ── Silo (Fina / Gruesa) ───────────────────────────────────────
+function buildSilo(label, mats, isFine) {
+  const g = group();
+  const matFill = isFine ? mats.matFine : mats.matCoarse;
+  const accent = isFine ? mats.blueMid : mats.green;
+
+  // base ring
+  add(g, cyl(0.85, 0.95, 0.18, mats.steelDark, 32), 0, 0.09, 0);
+
+  // legs
+  for (let i = 0; i < 4; i++) {
+    const a = (i / 4) * Math.PI * 2 + Math.PI / 4;
+    const leg = box(0.1, 1.1, 0.1, mats.steelDark);
+    add(g, leg, Math.cos(a) * 0.7, 0.55, Math.sin(a) * 0.7);
+  }
+
+  // cone bottom
+  add(g, cyl(0.15, 0.78, 0.7, mats.steel, 32), 0, 1.35, 0);
+
+  // main cylinder body
+  add(g, cyl(0.78, 0.78, 2.0, accent, 40), 0, 2.7, 0);
+
+  // material level (animated)
+  const level = cyl(0.72, 0.72, 1.0, matFill, 32);
+  level.position.set(0, 2.2, 0);
+  g.add(level);
+  anim.levels.push({ mesh: level, baseY: 2.0, amp: 0.35, phase: Math.random() * Math.PI * 2, baseH: 1.0 });
+
+  // top cone / roof
+  add(g, cyl(0.2, 0.82, 0.35, mats.steelDark, 32), 0, 3.85, 0);
+  // manhole
+  add(g, cyl(0.18, 0.18, 0.12, mats.steelLight, 16), 0, 4.08, 0);
+
+  // ladder
+  const ladder = group();
+  for (let i = 0; i < 10; i++) {
+    const rung = box(0.28, 0.03, 0.03, mats.steelLight);
+    add(ladder, rung, 0, 1.2 + i * 0.25, 0.82);
+  }
+  add(ladder, box(0.03, 2.5, 0.03, mats.steelLight), -0.14, 2.4, 0.82);
+  add(ladder, box(0.03, 2.5, 0.03, mats.steelLight), 0.14, 2.4, 0.82);
+  g.add(ladder);
+
+  // discharge screws (2 per silo)
+  for (let sx = -0.25; sx <= 0.25; sx += 0.5) {
+    const screw = group();
+    const tube = cyl(0.1, 0.1, 0.9, mats.steelDark, 12);
+    tube.rotation.z = Math.PI / 2;
+    screw.add(tube);
+    const flight = cyl(0.12, 0.12, 0.08, mats.steelLight, 8);
+    flight.rotation.z = Math.PI / 2;
+    screw.add(flight);
+    anim.screwRots.push(flight);
+    screw.position.set(sx, 0.95, 0.55);
+    g.add(screw);
+  }
+
+  // level sensor ultrasonic "eye"
+  add(g, box(0.15, 0.15, 0.15, mats.black), 0.6, 3.5, 0);
+  add(g, cyl(0.04, 0.04, 0.08, mats.greenGlow, 8), 0.6, 3.58, 0.1);
+
+  const lbl = makeLabel(label, isFine ? '#81d4fa' : '#a5d6a7');
+  add(g, lbl, 0, 4.5, 0);
+
+  return g;
+}
+
+// ── Dosimbunca UBG-1200 (Dieffenbacher-style dosing bin) ───────
+// Long blue volumetric bunker with load-cell feet, discharge belt, screw inlet
+function buildDosimbunca(label, mats) {
+  const g = group();
+  const L = 3.6;   // long body
+  const W = 1.15;
+  const H = 1.45;
+
+  // load-cell feet (4)
+  const footPositions = [
+    [-L / 2 + 0.25, -W / 2 + 0.15],
+    [L / 2 - 0.25, -W / 2 + 0.15],
+    [-L / 2 + 0.25, W / 2 - 0.15],
+    [L / 2 - 0.25, W / 2 - 0.15],
+  ];
+  for (const [fx, fz] of footPositions) {
+    add(g, box(0.18, 0.12, 0.18, mats.steelDark), fx, 0.06, fz);
+    // load cell block
+    add(g, box(0.14, 0.08, 0.14, mats.black), fx, 0.16, fz);
+    add(g, box(0.1, 0.04, 0.1, mats.steelLight), fx, 0.22, fz);
+  }
+
+  // main hopper body — elongated trapezoid approximation
+  const body = box(L, H, W, mats.blue);
+  add(g, body, 0, 0.3 + H / 2, 0);
+
+  // upper flange / rim
+  add(g, box(L + 0.08, 0.08, W + 0.08, mats.blueMid), 0, 0.3 + H + 0.04, 0);
+
+  // interior material level
+  const fill = box(L * 0.9, H * 0.55, W * 0.85, mats.matFine);
+  add(g, fill, 0, 0.45 + H * 0.28, 0);
+  anim.levels.push({ mesh: fill, baseY: 0.45 + H * 0.28, amp: 0.12, phase: Math.random() * 6, baseH: H * 0.55 });
+
+  // inspection windows
+  for (let i = -1; i <= 1; i++) {
+    add(g, box(0.35, 0.45, 0.03, mats.glass), i * 0.9, 0.3 + H * 0.55, W / 2 + 0.02);
+  }
+
+  // top inlet chute from silo
+  add(g, box(0.45, 0.5, 0.45, mats.steelDark), -L / 2 + 0.5, 0.3 + H + 0.3, 0);
+  add(g, cyl(0.18, 0.22, 0.35, mats.steel, 16), -L / 2 + 0.5, 0.3 + H + 0.65, 0);
+
+  // volumetric discharge roller / rotor housing at outlet end
+  const rotorHouse = box(0.55, 0.55, W * 0.95, mats.blueMid);
+  add(g, rotorHouse, L / 2 - 0.15, 0.45, 0);
+  const rotor = cyl(0.18, 0.18, W * 0.8, mats.steelLight, 16);
+  rotor.rotation.x = Math.PI / 2;
+  add(g, rotor, L / 2 - 0.15, 0.45, 0);
+  anim.screwRots.push(rotor);
+
+  // discharge belt under outlet (classic UBG look)
+  const outBelt = buildBelt(1.6, 0.75, mats, { height: 0.22, stripe: '#1e88e5' });
+  outBelt.position.set(L / 2 + 0.85, 0, 0);
+  g.add(outBelt);
+
+  // motor / gearbox
+  add(g, box(0.35, 0.28, 0.28, mats.steelDark), L / 2 - 0.15, 0.85, W / 2 + 0.2);
+  add(g, cyl(0.08, 0.08, 0.15, mats.black, 12), L / 2 - 0.15, 1.05, W / 2 + 0.2);
+
+  // side nameplate stripe
+  add(g, box(L * 0.6, 0.12, 0.02, mats.blueLight), 0, 0.3 + H * 0.7, W / 2 + 0.01);
+
+  // Dieffenbacher blue accent corner plates
+  add(g, box(0.15, H, 0.15, mats.blueMid), -L / 2, 0.3 + H / 2, -W / 2);
+  add(g, box(0.15, H, 0.15, mats.blueMid), L / 2, 0.3 + H / 2, -W / 2);
+
+  const lbl = makeLabel(label, '#90caf9');
+  add(g, lbl, 0, H + 1.15, 0);
+
+  // small UBG badge
+  const badge = makeLabel('UBG-1200', '#64b5f6');
+  badge.scale.set(0.7, 0.7, 0.7);
+  add(g, badge, L / 2 - 0.6, 0.55, W / 2 + 0.05);
+
+  return g;
+}
+
+// ── Classifier (roller bed) + Encolador drum ───────────────────
+function buildClassifierEncolador(label, mats, isCE) {
+  const g = group();
+  const accent = isCE ? mats.blueMid : mats.green;
+
+  // roller classifier bed
+  const bed = group();
+  add(bed, box(1.4, 0.15, 1.0, mats.steelDark), 0, 0.55, 0);
+  for (let i = 0; i < 7; i++) {
+    const roller = cyl(0.06, 0.06, 0.95, mats.steelLight, 12);
+    roller.rotation.x = Math.PI / 2;
+    add(bed, roller, -0.55 + i * 0.18, 0.68, 0);
+    anim.screwRots.push(roller);
+  }
+  // side walls
+  add(bed, box(1.4, 0.35, 0.05, mats.steel), 0, 0.75, 0.5);
+  add(bed, box(1.4, 0.35, 0.05, mats.steel), 0, 0.75, -0.5);
+  bed.position.x = -0.9;
+  g.add(bed);
+
+  // encolador drum (horizontal mixer)
+  const drumG = group();
+  const drum = cyl(0.55, 0.55, 1.8, accent, 32);
+  drum.rotation.z = Math.PI / 2;
+  add(drumG, drum, 0.7, 0.85, 0);
+
+  // end caps
+  add(drumG, cyl(0.58, 0.58, 0.08, mats.steelDark, 32), -0.2, 0.85, 0).rotation.z = Math.PI / 2;
+  add(drumG, cyl(0.58, 0.58, 0.08, mats.steelDark, 32), 1.6, 0.85, 0).rotation.z = Math.PI / 2;
+
+  // resin / paraffin injection pipes
+  for (let i = 0; i < 3; i++) {
+    const pipe = cyl(0.04, 0.04, 0.5, mats.resin, 8);
+    add(drumG, pipe, 0.2 + i * 0.45, 1.45, 0);
+    add(drumG, box(0.12, 0.08, 0.12, mats.black), 0.2 + i * 0.45, 1.72, 0);
+  }
+
+  // cooling jacket band (bottom)
+  add(drumG, box(1.6, 0.12, 0.7, mats.steelLight), 0.7, 0.35, 0);
+
+  // drive motor
+  add(drumG, box(0.4, 0.35, 0.35, mats.steelDark), 1.9, 0.85, 0.45);
+  add(drumG, cyl(0.1, 0.1, 0.2, mats.black, 12), 1.9, 1.15, 0.45);
+
+  // support stands
+  add(drumG, box(0.12, 0.7, 0.12, mats.steelDark), -0.1, 0.35, 0.4);
+  add(drumG, box(0.12, 0.7, 0.12, mats.steelDark), -0.1, 0.35, -0.4);
+  add(drumG, box(0.12, 0.7, 0.12, mats.steelDark), 1.5, 0.35, 0.4);
+  add(drumG, box(0.12, 0.7, 0.12, mats.steelDark), 1.5, 0.35, -0.4);
+
+  g.add(drumG);
+
+  // outlet chute to inclined belt
+  add(g, box(0.4, 0.25, 0.5, mats.steel), 1.95, 0.55, 0);
+
+  const lbl = makeLabel(label, isCE ? '#81d4fa' : '#a5d6a7');
+  add(g, lbl, 0.5, 2.1, 0);
+
+  return g;
+}
+
+// ── Forming head / Esparcidor ──────────────────────────────────
+function buildFormingHead(label, mats, layerColor) {
+  const g = group();
+  const col = layerColor.clone ? layerColor : new THREE.MeshStandardMaterial({
+    color: layerColor, metalness: 0.35, roughness: 0.45
+  });
+
+  // hopper
+  add(g, box(1.1, 0.9, 1.5, col), 0, 1.55, 0);
+  // hopper top flare
+  add(g, box(1.25, 0.12, 1.65, mats.steelDark), 0, 2.05, 0);
+  // material
+  const fill = box(0.95, 0.45, 1.3, mats.matFine);
+  add(g, fill, 0, 1.4, 0);
+  anim.levels.push({ mesh: fill, baseY: 1.4, amp: 0.08, phase: Math.random() * 5, baseH: 0.45 });
+
+  // spreader rollers
+  for (let i = 0; i < 4; i++) {
+    const r = cyl(0.08, 0.08, 1.4, mats.steelLight, 12);
+    r.rotation.x = Math.PI / 2;
+    add(g, r, -0.35 + i * 0.22, 1.0, 0);
+    anim.screwRots.push(r);
+  }
+
+  // side plates
+  add(g, box(1.15, 0.55, 0.06, mats.steelDark), 0, 1.15, 0.78);
+  add(g, box(1.15, 0.55, 0.06, mats.steelDark), 0, 1.15, -0.78);
+
+  // load cells under roller (L/R)
+  add(g, box(0.15, 0.1, 0.15, mats.black), -0.4, 0.85, 0.7);
+  add(g, box(0.15, 0.1, 0.15, mats.black), -0.4, 0.85, -0.7);
+
+  // frame legs
+  for (const [x, z] of [[-0.5, 0.7], [0.5, 0.7], [-0.5, -0.7], [0.5, -0.7]]) {
+    add(g, box(0.08, 0.9, 0.08, mats.steelDark), x, 0.45, z);
+  }
+  // cross beam
+  add(g, box(1.2, 0.08, 1.5, mats.steel), 0, 0.9, 0);
+
+  const lbl = makeLabel(label, '#ffe082');
+  add(g, lbl, 0, 2.45, 0);
+  return g;
+}
+
+// ── Preprensa ──────────────────────────────────────────────────
+function buildPreprensa(mats) {
+  const g = group();
+  // portal frame
+  add(g, box(2.2, 0.15, 2.0, mats.steelDark), 0, 1.6, 0);
+  add(g, box(0.18, 1.6, 0.18, mats.steelDark), -1.0, 0.8, 0.85);
+  add(g, box(0.18, 1.6, 0.18, mats.steelDark), 1.0, 0.8, 0.85);
+  add(g, box(0.18, 1.6, 0.18, mats.steelDark), -1.0, 0.8, -0.85);
+  add(g, box(0.18, 1.6, 0.18, mats.steelDark), 1.0, 0.8, -0.85);
+
+  // hydraulic cylinders
+  for (const z of [-0.5, 0.5]) {
+    add(g, cyl(0.1, 0.1, 0.7, mats.steelLight, 16), 0, 1.2, z);
+    add(g, cyl(0.05, 0.05, 0.35, mats.steel, 12), 0, 0.75, z);
+  }
+
+  // press plate
+  add(g, box(1.8, 0.12, 1.6, mats.steelLight), 0, 0.7, 0);
+
+  // hydraulic unit
+  add(g, box(0.6, 0.5, 0.45, mats.green), 1.3, 0.4, 1.1);
+  add(g, cyl(0.08, 0.08, 0.2, mats.black, 10), 1.3, 0.75, 1.1);
+
+  const lbl = makeLabel('PREPRENSA', '#a5d6a7');
+  add(g, lbl, 0, 2.0, 0);
+  return g;
+}
+
+// ── Desmoldante sprays ─────────────────────────────────────────
+function buildDesmoldante(mats) {
+  const g = group();
+  add(g, box(0.8, 0.08, 1.8, mats.steelDark), 0, 1.1, 0);
+  for (let i = -2; i <= 2; i++) {
+    const noz = cyl(0.03, 0.05, 0.2, mats.steelLight, 8);
+    add(g, noz, i * 0.12, 0.95, 0);
+    // spray mist proxy
+    const mist = cyl(0.08, 0.02, 0.25, mats.glass, 8);
+    mist.material = mats.glass.clone();
+    mist.material.opacity = 0.25;
+    add(g, mist, i * 0.12, 0.7, 0);
+  }
+  add(g, box(0.35, 0.4, 0.35, mats.blueMid), 0.55, 1.0, 0.9);
+  const lbl = makeLabel('DESMOLDANTE', '#80deea');
+  add(g, lbl, 0, 1.55, 0);
+  return g;
+}
+
+// ── Precalentamiento (EVOsteam / Dynasteam) ─────────────────────
+function buildPrecalentamiento(mats) {
+  const g = group();
+  add(g, box(1.6, 0.9, 1.8, mats.steelDark), 0, 0.85, 0);
+  // steam hood
+  add(g, box(1.7, 0.15, 1.9, mats.steel), 0, 1.4, 0);
+  // heating elements glow
+  for (let i = 0; i < 4; i++) {
+    const bar = box(1.3, 0.06, 0.08, mats.heatMid);
+    add(g, bar, 0, 0.55 + i * 0.15, 0.6);
+    anim.heatMats.push(bar.material);
+  }
+  // vapor pipes
+  add(g, cyl(0.06, 0.06, 0.8, mats.steelLight, 10), -0.5, 1.7, 0);
+  add(g, cyl(0.06, 0.06, 0.8, mats.steelLight, 10), 0.5, 1.7, 0);
+  const lbl = makeLabel('PRECALENT. · EVOSTEAM', '#ffab91');
+  add(g, lbl, 0, 2.15, 0);
+  return g;
+}
+
+// ── Continuous press (HERO) ────────────────────────────────────
+function buildPress(mats) {
+  const g = group();
+  const L = 8.2;
+  const W = 2.2;
+  const H = 1.8;
+
+  // main frame body
+  add(g, box(L, H, W, mats.steelDark), 0, H / 2 + 0.15, 0);
+
+  // upper / lower steel belts (CPS look)
+  const beltTop = box(L * 0.96, 0.06, W * 0.75, mats.steelLight);
+  add(g, beltTop, 0, H * 0.62, 0);
+  const beltBot = box(L * 0.96, 0.06, W * 0.75, mats.steelLight);
+  add(g, beltBot, 0, H * 0.35, 0);
+
+  // heat zones (4 areas · SUNDS/Metso style)
+  const zones = [
+    { mat: mats.heatHi, label: '235°C' },
+    { mat: mats.heatHi.clone(), label: '235°C' },
+    { mat: mats.heatMid, label: '222°C' },
+    { mat: mats.heatLow, label: '205°C' },
+  ];
+  const zw = L / 4 - 0.15;
+  zones.forEach((z, i) => {
+    const panel = box(zw, 0.35, W * 0.55, z.mat);
+    add(g, panel, -L / 2 + zw / 2 + 0.12 + i * (L / 4), H * 0.78, 0);
+    anim.heatMats.push(panel.material);
+    // frame number ticks (19 frames representation)
+    for (let f = 0; f < 5; f++) {
+      const tick = box(0.04, 0.5, 0.04, mats.steel);
+      add(g, tick, -L / 2 + 0.3 + i * (L / 4) + f * (zw / 5), H * 0.48, W / 2 - 0.05);
+    }
+  });
+
+  // side windows / frames
+  for (let i = 0; i < 8; i++) {
+    add(g, box(0.08, H * 0.7, 0.08, mats.steel), -L / 2 + 0.6 + i * 1.15, H * 0.5, W / 2 + 0.02);
+  }
+
+  // drive end (entry)
+  add(g, box(0.5, H * 0.9, W * 0.9, mats.steel), -L / 2 - 0.15, H * 0.5, 0);
+  add(g, cyl(0.25, 0.25, W * 0.7, mats.steelLight, 20), -L / 2 - 0.15, H * 0.48, 0).rotation.x = Math.PI / 2;
+
+  // exit drum
+  add(g, box(0.5, H * 0.9, W * 0.9, mats.steel), L / 2 + 0.15, H * 0.5, 0);
+  add(g, cyl(0.25, 0.25, W * 0.7, mats.steelLight, 20), L / 2 + 0.15, H * 0.48, 0).rotation.x = Math.PI / 2;
+
+  // hydraulic beams top
+  add(g, box(L * 0.9, 0.2, 0.25, mats.green), 0, H + 0.2, 0.7);
+  add(g, box(L * 0.9, 0.2, 0.25, mats.green), 0, H + 0.2, -0.7);
+
+  // oil unit
+  add(g, box(0.7, 0.55, 0.5, mats.green), L / 2 - 0.5, 0.4, W / 2 + 0.55);
+  add(g, cyl(0.08, 0.08, 0.25, mats.black, 10), L / 2 - 0.5, 0.8, W / 2 + 0.55);
+
+  // board inside press (thin continuous mat becoming board)
+  const board = box(L * 0.9, 0.08, W * 0.55, mats.board);
+  add(g, board, 0, H * 0.48, 0);
+
+  // soft heat light
+  const heatLight = new THREE.PointLight(0xff6e40, 1.6, 8, 2);
+  heatLight.position.set(0, H * 0.9, 0);
+  g.add(heatLight);
+
+  const lbl = makeLabel('PRENSA CONTINUA · CPS', '#ffab91');
+  add(g, lbl, 0, H + 0.75, 0);
+
+  // zone labels on top
+  const zLabels = ['Z1 235°', 'Z2 235°', 'Z3 222°', 'Z4 205°'];
+  zLabels.forEach((t, i) => {
+    const zl = makeLabel(t, '#ffcc80');
+    zl.scale.set(0.55, 0.55, 0.55);
+    add(g, zl, -L / 2 + (i + 0.5) * (L / 4), H + 0.35, W / 2 + 0.15);
+  });
+
+  return g;
+}
+
+// ── Flying saw / corte angular ─────────────────────────────────
+function buildFlyingSaw(mats) {
+  const g = group();
+  // gantry
+  add(g, box(1.6, 0.12, 2.0, mats.steelDark), 0, 1.5, 0);
+  add(g, box(0.12, 1.5, 0.12, mats.steelDark), -0.7, 0.75, 0.85);
+  add(g, box(0.12, 1.5, 0.12, mats.steelDark), 0.7, 0.75, 0.85);
+  add(g, box(0.12, 1.5, 0.12, mats.steelDark), -0.7, 0.75, -0.85);
+  add(g, box(0.12, 1.5, 0.12, mats.steelDark), 0.7, 0.75, -0.85);
+
+  // saw carriage
+  const carriage = group();
+  add(carriage, box(0.5, 0.35, 0.6, mats.blueMid), 0, 1.15, 0);
+  const blade = cyl(0.28, 0.28, 0.04, mats.steelLight, 32);
+  blade.rotation.x = Math.PI / 2;
+  add(carriage, blade, 0, 0.85, 0);
+  anim.screwRots.push(blade);
+  // diagonal hint (angular cut)
+  carriage.rotation.y = 0.12;
+  g.add(carriage);
+  g.userData.carriage = carriage;
+
+  // longitudinal trim knives
+  add(g, box(0.08, 0.35, 0.08, mats.steelLight), -0.5, 0.55, 0.7);
+  add(g, box(0.08, 0.35, 0.08, mats.steelLight), -0.5, 0.55, -0.7);
+
+  const lbl = makeLabel('CORTE ANGULAR', '#ce93d8');
+  add(g, lbl, 0, 1.95, 0);
+  return g;
+}
+
+// ── Star cooler ────────────────────────────────────────────────
+function buildStarCooler(mats) {
+  const g = group();
+  // base pedestal
+  add(g, cyl(0.55, 0.7, 0.35, mats.steelDark, 24), 0, 0.18, 0);
+  add(g, cyl(0.2, 0.2, 1.4, mats.steel, 16), 0, 1.0, 0);
+
+  const star = group();
+  const arms = 6;
+  for (let i = 0; i < arms; i++) {
+    const arm = group();
+    const a = (i / arms) * Math.PI * 2;
+    // metal cooling tubes
+    const beam = box(1.5, 0.08, 0.12, mats.steelLight);
+    beam.position.set(0.85, 0, 0);
+    arm.add(beam);
+    // board holder
+    if (i % 2 === 0) {
+      const board = box(1.1, 0.06, 0.7, mats.board);
+      board.position.set(1.1, 0.08, 0);
+      arm.add(board);
+    }
+    // contact tubes
+    for (let t = 0; t < 3; t++) {
+      const tube = cyl(0.025, 0.025, 0.65, mats.steel, 8);
+      tube.rotation.x = Math.PI / 2;
+      tube.position.set(0.5 + t * 0.35, -0.05, 0);
+      arm.add(tube);
+    }
+    arm.rotation.y = a;
+    star.add(arm);
+  }
+  star.position.y = 1.15;
+  g.add(star);
+  anim.star = star;
+
+  // guard ring
+  const ringGeo = new THREE.TorusGeometry(1.7, 0.04, 8, 48);
+  const ring = new THREE.Mesh(ringGeo, mats.rail);
+  ring.rotation.x = Math.PI / 2;
+  ring.position.y = 1.15;
+  g.add(ring);
+
+  const lbl = makeLabel('ENFRIADORA ESTRELLA', '#80cbc4');
+  add(g, lbl, 0, 2.4, 0);
+  return g;
+}
+
+// ── Stacker / Estacado ─────────────────────────────────────────
+function buildStacker(mats) {
+  const g = group();
+  // frame
+  add(g, box(2.0, 0.12, 1.8, mats.steelDark), 0, 1.8, 0);
+  for (const [x, z] of [[-0.85, 0.75], [0.85, 0.75], [-0.85, -0.75], [0.85, -0.75]]) {
+    add(g, box(0.1, 1.8, 0.1, mats.steelDark), x, 0.9, z);
+  }
+  // stack of boards
+  for (let i = 0; i < 8; i++) {
+    const b = box(1.5, 0.07, 1.1, mats.board);
+    add(g, b, 0, 0.2 + i * 0.1, 0);
+  }
+  // pneumatic pushers
+  add(g, box(0.2, 0.25, 0.2, mats.blueMid), 1.1, 0.9, 0);
+  add(g, cyl(0.05, 0.05, 0.35, mats.steelLight, 8), 0.9, 0.9, 0).rotation.z = Math.PI / 2;
+
+  // optical sensors
+  add(g, box(0.08, 0.12, 0.08, mats.black), -0.95, 1.2, 0.5);
+  add(g, box(0.08, 0.12, 0.08, mats.greenGlow), 0.95, 1.2, 0.5);
+
+  const lbl = makeLabel('ESTACADO', '#c5e1a5');
+  add(g, lbl, 0, 2.25, 0);
+  return g;
+}
+
+// ── Particle flow system ───────────────────────────────────────
+function buildParticles(scene) {
+  const COUNT = 900;
+  const geo = new THREE.BufferGeometry();
+  const positions = new Float32Array(COUNT * 3);
+  const colors = new Float32Array(COUNT * 3);
+  const speeds = new Float32Array(COUNT);
+  const lanes = new Float32Array(COUNT); // 0 = SL, 1 = CL, 2 = merged
+
+  const cSL = new THREE.Color(COLORS.sl);
+  const cCL = new THREE.Color(COLORS.cl);
+  const cBoard = new THREE.Color(COLORS.board);
+
+  for (let i = 0; i < COUNT; i++) {
+    const lane = i < COUNT * 0.35 ? 0 : i < COUNT * 0.6 ? 1 : 2;
+    lanes[i] = lane;
+    const x = lane === 2 ? 8 + Math.random() * 18 : -8 + Math.random() * 12;
+    const z = lane === 0 ? Z_SL + (Math.random() - 0.5) * 0.6
+      : lane === 1 ? Z_CL + (Math.random() - 0.5) * 0.6
+      : Z_LINE + (Math.random() - 0.5) * 0.8;
+    const y = 0.55 + Math.random() * 0.35;
+    positions[i * 3] = x;
+    positions[i * 3 + 1] = y;
+    positions[i * 3 + 2] = z;
+    speeds[i] = 0.6 + Math.random() * 0.8;
+    const c = lane === 0 ? cSL : lane === 1 ? cCL : cBoard;
+    colors[i * 3] = c.r;
+    colors[i * 3 + 1] = c.g;
+    colors[i * 3 + 2] = c.b;
+  }
+  geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+  geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+  geo.userData = { speeds, lanes };
+
+  const mat = new THREE.PointsMaterial({
+    size: 0.07,
+    vertexColors: true,
+    transparent: true,
+    opacity: 0.85,
+    depthWrite: false,
+    sizeAttenuation: true,
+  });
+  const pts = new THREE.Points(geo, mat);
+  scene.add(pts);
+  anim.particles = pts;
+  return pts;
+}
+
+function updateParticles(dt) {
+  if (!anim.particles || !anim.playing) return;
+  const pos = anim.particles.geometry.attributes.position;
+  const { speeds, lanes } = anim.particles.geometry.userData;
+  const MERGE_X = 3.2;
+  const END_X = 26.5;
+  for (let i = 0; i < pos.count; i++) {
+    let x = pos.getX(i);
+    let y = pos.getY(i);
+    let z = pos.getZ(i);
+    const lane = lanes[i];
+    const sp = speeds[i] * dt;
+
+    if (lane === 0) {
+      x += sp * 1.4;
+      z = THREE.MathUtils.lerp(z, x > MERGE_X ? Z_LINE : Z_SL, 0.03);
+      if (x > MERGE_X + 0.8) lanes[i] = 2;
+      if (x > END_X) { x = -7.5; z = Z_SL + (Math.random() - 0.5) * 0.5; y = 0.55 + Math.random() * 0.3; lanes[i] = 0; }
+    } else if (lane === 1) {
+      x += sp * 1.35;
+      z = THREE.MathUtils.lerp(z, x > MERGE_X ? Z_LINE : Z_CL, 0.03);
+      if (x > MERGE_X + 0.8) lanes[i] = 2;
+      if (x > END_X) { x = -7.5; z = Z_CL + (Math.random() - 0.5) * 0.5; y = 0.55 + Math.random() * 0.3; lanes[i] = 1; }
+    } else {
+      x += sp * 1.6;
+      z = THREE.MathUtils.lerp(z, Z_LINE, 0.05);
+      y = 0.5 + Math.sin(x * 0.4 + anim.t) * 0.03;
+      if (x > END_X) {
+        if (Math.random() > 0.45) { lanes[i] = 0; x = -7.5; z = Z_SL; y = 0.6; }
+        else { lanes[i] = 1; x = -7.5; z = Z_CL; y = 0.6; }
+      }
+    }
+    pos.setXYZ(i, x, y, z);
+  }
+  pos.needsUpdate = true;
+}
+
+// ── Main forming belt (white belt representation) ──────────────
+function buildMainLine(scene, mats) {
+  // forming belt under SL1/CL/SL2 → preprensa
+  const belt = buildBelt(10.5, 1.8, mats, { height: 0.4, stripe: '#eceff1' });
+  belt.position.set(7.2, 0, Z_LINE);
+  scene.add(belt);
+
+  // mat layers visualization (sandwich) under formers
+  const matSL1 = box(1.6, 0.05, 1.3, new THREE.MeshStandardMaterial({
+    color: 0xe4b657, metalness: 0.05, roughness: 0.8, transparent: true, opacity: 0.85
+  }));
+  add(scene, matSL1, 3.6, 0.52, Z_LINE);
+
+  const matCL = box(1.5, 0.1, 1.3, new THREE.MeshStandardMaterial({
+    color: 0xc98b2e, metalness: 0.05, roughness: 0.8, transparent: true, opacity: 0.85
+  }));
+  add(scene, matCL, 5.4, 0.58, Z_LINE);
+
+  const matSL2 = box(1.5, 0.05, 1.3, new THREE.MeshStandardMaterial({
+    color: 0xecc873, metalness: 0.05, roughness: 0.8, transparent: true, opacity: 0.85
+  }));
+  add(scene, matSL2, 7.2, 0.64, Z_LINE);
+
+  // continuous mat toward preprensa
+  const matFull = box(2.4, 0.12, 1.3, mats.board);
+  add(scene, matFull, 9.2, 0.58, Z_LINE);
+
+  // transfer belt press exit → cooler / stacker
+  const post = buildBelt(5.5, 1.6, mats, { height: 0.35 });
+  post.position.set(23.5, 0, Z_LINE);
+  scene.add(post);
+}
+
+// ── Inclined belts from encoladores to formers ─────────────────
+function buildInclinedBelts(scene, mats) {
+  // fine incline SL → formers
+  const b1 = buildBelt(3.4, 0.7, mats, { height: 0.25, stripe: '#29b6f6' });
+  b1.position.set(2.0, 0.35, Z_SL * 0.55);
+  b1.rotation.z = -0.06;
+  b1.rotation.y = 0.35;
+  scene.add(b1);
+
+  // coarse incline CL → formers
+  const b2 = buildBelt(3.4, 0.7, mats, { height: 0.25, stripe: '#66bb6a' });
+  b2.position.set(2.0, 0.35, Z_CL * 0.55);
+  b2.rotation.z = -0.06;
+  b2.rotation.y = -0.35;
+  scene.add(b2);
+}
+
+// ── Zone markers on floor ──────────────────────────────────────
+function buildZoneMarkers(scene) {
+  const zones = [
+    { x: -4.5, text: '0 · SILOS / DOSIF. / ENCOLADO', color: '#29b6f6' },
+    { x: 5.5, text: '2A · FORMACIÓN', color: '#00e676' },
+    { x: 10.8, text: '2B–2C · PREPRENSA / PRECALENT.', color: '#ffb74d' },
+    { x: 17.0, text: '2D · PRENSA', color: '#ff7043' },
+    { x: 24.0, text: '2E · CORTE / ENFRÍO / ESTACADO', color: '#80cbc4' },
+  ];
+  for (const z of zones) {
+    const lbl = makeLabel(z.text, z.color);
+    lbl.scale.set(1.15, 1.15, 1.15);
+    lbl.position.set(z.x, 0.05, 5.2);
+    lbl.rotation.x = -Math.PI / 2;
+    scene.add(lbl);
+  }
+}
+
+// ── Assemble full plant ────────────────────────────────────────
+function buildPlant(scene, mats) {
+  buildFloor(scene, mats);
+  buildZoneMarkers(scene);
+
+  // ── UPPER BLOCK: dual parallel paths (compact, no overlaps) ──
+  // x map:
+  // -8 silos | -4.2 dosimbuncas | -0.4 encoladores | 3–7 formers
+  // 8.6 preprensa | 10.2 desmold | 11.6 preheat | 16.2 press(L≈8)
+  // 21.2 saw | 23.2 star | 25.4 stack
+
+  const silo6 = buildSilo('SILO 6 · FINA', mats, true);
+  silo6.position.set(-8.0, 0, Z_SL);
+  scene.add(silo6);
+
+  const silo5 = buildSilo('SILO 5 · GRUESA', mats, false);
+  silo5.position.set(-8.0, 0, Z_CL);
+  scene.add(silo5);
+
+  const dosSL = buildDosimbunca('DOSIMBUNCA SL · UBG', mats);
+  dosSL.position.set(-4.2, 0, Z_SL);
+  scene.add(dosSL);
+
+  const dosCL = buildDosimbunca('DOSIMBUNCA CL · UBG', mats);
+  dosCL.position.set(-4.2, 0, Z_CL);
+  scene.add(dosCL);
+
+  const encCE = buildClassifierEncolador('ENCOLADOR CE · SL', mats, true);
+  encCE.position.set(-0.4, 0, Z_SL);
+  scene.add(encCE);
+
+  const encCI = buildClassifierEncolador('ENCOLADOR CI · CL', mats, false);
+  encCI.position.set(-0.4, 0, Z_CL);
+  scene.add(encCI);
+
+  buildInclinedBelts(scene, mats);
+  buildMainLine(scene, mats);
+
+  // Forming heads — order SL1 → CL → SL2 (sandwich)
+  const sl1 = buildFormingHead('SL1 · CAPA INFERIOR', mats, mats.blueLight);
+  sl1.position.set(3.6, 0, Z_LINE);
+  scene.add(sl1);
+
+  const cl = buildFormingHead('CL · CORE', mats, mats.green);
+  cl.position.set(5.4, 0, Z_LINE);
+  scene.add(cl);
+
+  const sl2 = buildFormingHead('SL2 · CAPA SUPERIOR', mats, mats.blueMid);
+  sl2.position.set(7.2, 0, Z_LINE);
+  scene.add(sl2);
+
+  // ── LOWER BLOCK ──
+  const prep = buildPreprensa(mats);
+  prep.position.set(9.0, 0, Z_LINE);
+  scene.add(prep);
+
+  const desm = buildDesmoldante(mats);
+  desm.position.set(10.6, 0, Z_LINE);
+  scene.add(desm);
+
+  const preheat = buildPrecalentamiento(mats);
+  preheat.position.set(11.6, 0, Z_LINE);
+  scene.add(preheat);
+
+  // Press L=8.2 centered at 17.4 → ~13.3 … 21.5
+  const press = buildPress(mats);
+  press.position.set(17.4, 0, Z_LINE);
+  scene.add(press);
+
+  const saw = buildFlyingSaw(mats);
+  saw.position.set(22.6, 0, Z_LINE);
+  scene.add(saw);
+  anim.saw = saw;
+
+  const star = buildStarCooler(mats);
+  star.position.set(24.5, 0, Z_LINE + 0.15);
+  scene.add(star);
+
+  const stack = buildStacker(mats);
+  stack.position.set(26.8, 0, Z_LINE);
+  scene.add(stack);
+
+  buildParticles(scene);
+
+  for (const x of [-8, 0, 8, 17, 26]) {
+    for (const z of [-6.2, 6.2]) {
+      const col = box(0.22, 4.2, 0.22, mats.steelDark);
+      col.position.set(x, 2.1, z);
+      col.castShadow = true;
+      scene.add(col);
+    }
+  }
+}
+
+// ── Three.js bootstrap ─────────────────────────────────────────
+const wrap = document.getElementById('canvas-wrap');
+let renderer;
+try {
+  renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: 'high-performance' });
+} catch (err) {
+  document.getElementById('loading').innerHTML =
+    '<div class="loading-inner"><p style="color:#ff8a65;max-width:360px;line-height:1.5">' +
+    'No se pudo crear el contexto WebGL.<br/>Abrí este archivo en Chrome/Edge/Firefox con GPU habilitada.</p></div>';
+  throw err;
+}
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.15;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+wrap.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(COLORS.bg);
+scene.fog = new THREE.FogExp2(0x070a09, 0.014);
+
+const camera = new THREE.PerspectiveCamera(42, window.innerWidth / window.innerHeight, 0.1, 200);
+// Framing tuned so the full dual-path line fits in one landscape view
+const CAM_PRESETS = {
+  iso:  { pos: new THREE.Vector3(9.0, 16.5, 17.5), target: new THREE.Vector3(9.0, 0.4, 0) },
+  side: { pos: new THREE.Vector3(9.0, 4.8, 20), target: new THREE.Vector3(9.0, 1, 0) },
+  top:  { pos: new THREE.Vector3(9.0, 28, 0.02), target: new THREE.Vector3(9.0, 0, 0) },
+};
+camera.position.copy(CAM_PRESETS.iso.pos);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.copy(CAM_PRESETS.iso.target);
+controls.enableDamping = true;
+controls.dampingFactor = 0.06;
+controls.minDistance = 8;
+controls.maxDistance = 55;
+controls.maxPolarAngle = Math.PI * 0.48;
+controls.update();
+
+// Environment for PBR
+const pmrem = new THREE.PMREMGenerator(renderer);
+scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+
+// Lights
+const hemi = new THREE.HemisphereLight(0xc8e6c9, 0x1a2a20, 0.55);
+scene.add(hemi);
+
+const key = new THREE.DirectionalLight(0xffffff, 1.35);
+key.position.set(8, 22, 12);
+key.castShadow = true;
+key.shadow.mapSize.set(2048, 2048);
+key.shadow.camera.near = 1;
+key.shadow.camera.far = 70;
+key.shadow.camera.left = -28;
+key.shadow.camera.right = 28;
+key.shadow.camera.top = 22;
+key.shadow.camera.bottom = -22;
+key.shadow.bias = -0.0002;
+scene.add(key);
+
+const fill = new THREE.DirectionalLight(0x81d4fa, 0.35);
+fill.position.set(-12, 10, -8);
+scene.add(fill);
+
+const rim = new THREE.DirectionalLight(0x00e676, 0.25);
+rim.position.set(20, 6, -10);
+scene.add(rim);
+
+// green accent under-glow
+const under = new THREE.PointLight(0x00e676, 0.4, 30, 2);
+under.position.set(12, 0.5, 0);
+scene.add(under);
+
+const mats = makeMats();
+buildPlant(scene, mats);
+
+// ── UI ─────────────────────────────────────────────────────────
+const btnPlay = document.getElementById('btnPlay');
+const playLabel = document.getElementById('playLabel');
+const iconPlay = document.getElementById('iconPlay');
+
+btnPlay.addEventListener('click', () => {
+  anim.playing = !anim.playing;
+  btnPlay.classList.toggle('is-active', anim.playing);
+  playLabel.textContent = anim.playing ? 'PAUSE' : 'PLAY';
+  iconPlay.innerHTML = anim.playing
+    ? '<path d="M6 5h4v14H6zm8 0h4v14h-4z"/>'
+    : '<path d="M8 5v14l11-7z"/>';
+});
+// start showing pause icon
+iconPlay.innerHTML = '<path d="M6 5h4v14H6zm8 0h4v14h-4z"/>';
+
+document.getElementById('btnReset').addEventListener('click', () => flyTo('iso'));
+document.getElementById('btnIso').addEventListener('click', () => flyTo('iso'));
+document.getElementById('btnSide').addEventListener('click', () => flyTo('side'));
+document.getElementById('btnTop').addEventListener('click', () => flyTo('top'));
+
+let fly = null;
+function flyTo(name) {
+  const p = CAM_PRESETS[name];
+  fly = {
+    t: 0,
+    fromPos: camera.position.clone(),
+    fromTarget: controls.target.clone(),
+    toPos: p.pos.clone(),
+    toTarget: p.target.clone(),
+  };
+}
+
+// billboard labels toward camera
+function updateLabels() {
+  for (const l of anim.labels) {
+    if (!l.userData.isLabel) continue;
+    // keep horizontal labels on floor; upright ones face camera
+    if (Math.abs(l.rotation.x + Math.PI / 2) < 0.01) continue;
+    l.quaternion.copy(camera.quaternion);
+  }
+}
+
+// ── Animation loop ─────────────────────────────────────────────
+const clock = new THREE.Clock();
+function tick() {
+  requestAnimationFrame(tick);
+  const dt = Math.min(clock.getDelta(), 0.05);
+  if (anim.playing) anim.t += dt;
+
+  if (fly) {
+    fly.t += dt * 1.4;
+    const k = Math.min(1, fly.t);
+    const e = k * k * (3 - 2 * k);
+    camera.position.lerpVectors(fly.fromPos, fly.toPos, e);
+    controls.target.lerpVectors(fly.fromTarget, fly.toTarget, e);
+    if (k >= 1) fly = null;
+  }
+
+  controls.update();
+  updateLabels();
+
+  if (anim.playing) {
+    // belt scroll
+    for (const map of anim.belts) {
+      map.offset.x -= dt * 0.35;
+    }
+    // screws / rollers
+    for (const s of anim.screwRots) {
+      s.rotation.y += dt * 2.5;
+      s.rotation.z += dt * 1.8;
+    }
+    // material levels breathe
+    for (const lv of anim.levels) {
+      const y = lv.baseY + Math.sin(anim.t * 0.7 + lv.phase) * lv.amp * 0.15;
+      lv.mesh.position.y = y;
+    }
+    // star cooler rotation
+    if (anim.star) anim.star.rotation.y += dt * 0.35;
+    // flying saw micro motion
+    if (anim.saw?.userData.carriage) {
+      anim.saw.userData.carriage.position.x = Math.sin(anim.t * 1.2) * 0.25;
+    }
+    // heat pulse
+    for (const m of anim.heatMats) {
+      m.emissiveIntensity = 0.35 + Math.sin(anim.t * 2.2) * 0.15;
+    }
+    updateParticles(dt);
+  }
+
+  renderer.render(scene, camera);
+}
+
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+// hide loader after first frame
+requestAnimationFrame(() => {
+  tick();
+  setTimeout(() => document.getElementById('loading').classList.add('hide'), 280);
+});
+  </script>
+</body>
+</html>

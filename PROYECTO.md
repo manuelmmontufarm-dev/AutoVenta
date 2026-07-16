@@ -81,7 +81,9 @@ a otras empresas de llantas.
 - [x] Investigar factibilidad de **conexión con WhatsApp Business** → ver [PLAN_DESARROLLO.md](PLAN_DESARROLLO.md).
 - [x] Investigar **cuánto se cobra** por este tipo de trabajo → ver [PLAN_FINANCIERO.md](PLAN_FINANCIERO.md).
 - [x] Armar **plan por fases con estimación de horas** para el cliente.
-- [ ] Construir **Fase 1** (buscar por medida + PDF). Demo estimado: **~1–2 semanas**.
+- [~] Construir **Fase 1** (buscar por medida + PDF). Demo estimado: **~1–2 semanas**.
+  - ✅ Esqueleto completo en [`app/`](app/) (15-jul): webhook con firma verificada + pipeline anti-caos + agente Claude con 5 tools + parser de medidas (21 tests ✅) + PDF de cotización (probado ✅) + Sheets→cache + Postgres + clasificador de funnel. Ver [app/README.md](app/README.md).
+  - Falta para el demo: credenciales (Meta, Supabase, Sheets service account) + el catálogo real del dueño + validar tabla de fitment.
 - [x] Ubicaciones de los 2 locales (ver §11) — ⚠️ **confirmar con el cliente**, Maps los muestra como "Depot Tire", no "Pit Stop".
 - [ ] Aclarar con el cliente las funcionalidades nuevas que pidió el 14-jul (ver [PLAN_DESARROLLO.md §12](PLAN_DESARROLLO.md#12-funcionalidades-pedidas-por-el-cliente-14-jul-2026--análisis)): si tienen un sistema de inventario real aparte del Excel, y si quieren campañas de recuperación/seguimiento (cambia el modelo de costo — requiere opt-in y templates de marketing pagados).
 

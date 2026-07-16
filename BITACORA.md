@@ -32,6 +32,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-07-15 | _(pendiente)_ | Esqueleto Fase 1 del bot (app/) + investigación de reuso GitHub | 5.0 |
 | 2026-07-15 | _(pendiente)_ | Webhook (recibir) + setup app Meta en vivo + ngrok + prueba e2e + investigación GitHub + bitácora | 4.0 |
 | 2026-07-15 | 6feb1f5 | Simulador: reencuadre "lo que pierdes hoy" | 0.5 |
 | 2026-07-15 | abcc2a7 | Empresa confirmada Depot Tire + propuesta en verde/horas | 1.5 |
@@ -42,11 +43,30 @@ Ya viene activado en este equipo.
 | 2026-07-14 | ac09171 | Ubicaciones de locales + análisis de features del cliente | 1.5 |
 | 2026-07-13 | feadf57 | Brief + plan de desarrollo + plan financiero + catálogo | 4.0 |
 | 2026-07-13 | d997844 | Commit inicial (repo) | 0.25 |
-| | | **TOTAL** | **~19.75 h** |
+| | | **TOTAL** | **~24.75 h** |
 
 ---
 
 ## Entradas (más reciente primero)
+
+### 2026-07-15 · Esqueleto Fase 1 del bot (app/) · ⏱️ 5.0 h
+**Commit:** _(este mismo)_
+
+**Qué se hizo:**
+- **`app/`**: proyecto TypeScript por capas — el bot real de Fase 1.
+  - `wa/`, `server/`: webhook Meta Cloud API con firma verificada (whatsapp-api-js).
+  - `pipeline/inbound.ts`: anti-caos propio (idempotencia + debounce 5s + FIFO por chat).
+  - `agent/`: agente Claude con 5 tools (tool runner oficial + Zod) + clasificador de funnel con Haiku.
+  - `domain/`: parser de medidas propio (21 tests ✅), fitment ~30 vehículos Ecuador (sin validar), haversine locales.
+  - `services/`: catálogo Google Sheets→cache, cotización PDF (pdfmake, probado ✅), Postgres.
+  - `db/schema.sql`: conversaciones/mensajes/cotizaciones/funnel + flag de handoff.
+- **`docs/INVESTIGACION_GITHUB.md`**: barrido de ~55 repos reusables (qué reusar vs construir, licencias).
+
+**Por qué:**
+- Antes de escribir desde cero, investigar qué ya existía → nadie tiene el paquete completo, pero las piezas de fontanería (webhook, loop del agente, PDF, Sheets) son librerías MIT probadas. Reusarlas baja riesgo (firma del webhook, idempotencia) y ahorra semanas; el valor propio queda en parser de medidas, fitment y el ensamblaje.
+- Config del negocio aislada en `config.ts` para poder revender el bot a otra llantera sin tocar código.
+
+---
 
 ### 2026-07-15 · Webhook para recibir mensajes + setup de la app Meta en vivo · ⏱️ 4.0 h
 **Commit:** _(pendiente — este mismo)_

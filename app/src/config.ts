@@ -1,0 +1,111 @@
+/**
+ * Configuración central del bot.
+ *
+ * Todo lo específico del negocio (Depot Tire) vive en `business`. Para vender
+ * el bot a otra llantera solo se cambia este objeto (o se carga desde DB) —
+ * el resto del código es genérico.
+ */
+
+function env(name: string): string {
+  const value = process.env[name];
+  if (!value) throw new Error(`Falta la variable de entorno ${name}`);
+  return value;
+}
+
+function envOr(name: string, fallback: string): string {
+  return process.env[name] ?? fallback;
+}
+
+export interface Store {
+  name: string;
+  address: string;
+  lat: number;
+  lng: number;
+  mapsUrl?: string;
+}
+
+export interface BusinessConfig {
+  name: string;
+  phone: string;
+  schedule: string;
+  /** Horario de atención por día (0=domingo…6=sábado), formato HH:mm, o null si cerrado. */
+  hours: Record<number, { open: string; close: string } | null>;
+  brands: string[];
+  promo?: string;
+  stores: Store[];
+  /** IVA Ecuador (15% desde abr-2024). Los precios del catálogo se asumen SIN IVA. */
+  taxRate: number;
+  currency: string;
+}
+
+export const business: BusinessConfig = {
+  name: "Depot Tire",
+  phone: "+593 98 280 1766",
+  schedule: "Lunes a sábado, 8:30–17:30",
+  hours: {
+    0: null,
+    1: { open: "08:30", close: "17:30" },
+    2: { open: "08:30", close: "17:30" },
+    3: { open: "08:30", close: "17:30" },
+    4: { open: "08:30", close: "17:30" },
+    5: { open: "08:30", close: "17:30" },
+    6: { open: "08:30", close: "17:30" },
+  },
+  brands: ["Kenda", "Sunoco", "Eurolub", "Falken"],
+  promo: "10% de descuento en el primer servicio al agendar cita",
+  stores: [
+    {
+      name: "Depot Tire Cumbayá",
+      address: "C.C. La del Establo y Av. Oswaldo Guayasamín, Cumbayá",
+      lat: -0.198,
+      lng: -78.443,
+      mapsUrl: "https://maps.app.goo.gl/QnMBPXKc1o8igbsp8",
+    },
+    {
+      name: "Depot Tire Quito Sur",
+      address: "Galo Molina y Av. Alonso de Angulo, Quito",
+      lat: -0.2487128,
+      lng: -78.5296804,
+    },
+  ],
+  taxRate: 0.15,
+  currency: "USD",
+};
+
+export const config = {
+  port: Number(envOr("PORT", "3000")),
+
+  whatsapp: {
+    token: env("WHATSAPP_TOKEN"),
+    appSecret: env("WHATSAPP_APP_SECRET"),
+    verifyToken: env("WHATSAPP_VERIFY_TOKEN"),
+    phoneId: env("WHATSAPP_PHONE_ID"),
+    /** Número del vendedor que recibe las alertas (formato internacional sin +). */
+    sellerPhone: env("SELLER_PHONE"),
+  },
+
+  anthropic: {
+    // El plan del proyecto (PLAN_DESARROLLO.md) eligió Sonnet para conversación
+    // y Haiku para el clasificador de etapa, por costo/calidad a este volumen.
+    model: envOr("ANTHROPIC_MODEL", "claude-sonnet-5"),
+    classifierModel: envOr("ANTHROPIC_CLASSIFIER_MODEL", "claude-haiku-4-5"),
+    maxTokens: 2048,
+  },
+
+  databaseUrl: env("DATABASE_URL"),
+
+  catalog: {
+    sheetId: env("CATALOG_SHEET_ID"),
+    serviceAccountEmail: env("GOOGLE_SERVICE_ACCOUNT_EMAIL"),
+    // Railway guarda los saltos de línea como \n literales
+    privateKey: env("GOOGLE_PRIVATE_KEY").replace(/\\n/g, "\n"),
+    syncIntervalMs: Number(envOr("CATALOG_SYNC_INTERVAL_MS", String(5 * 60_000))),
+  },
+
+  pipeline: {
+    /** Espera tras el último mensaje antes de responder (la gente escribe en ráfagas). */
+    debounceMs: Number(envOr("DEBOUNCE_MS", "5000")),
+    /** Cuánto se silencia el bot en un chat cuando el dueño responde a mano. */
+    botPauseHours: Number(envOr("BOT_PAUSE_HOURS", "6")),
+  },
+} as const;

@@ -1,0 +1,1327 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NOVOPAN · Pelíkano · Línea 1 · Sección 2 Encolados · 3D</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Semi+Condensed:wght@600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --panel: rgba(14, 22, 18, 0.74);
+      --panel-border: rgba(0, 230, 118, 0.18);
+      --text: #e8f5e9;
+      --muted: #8fa396;
+      --green: #00e676;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      width: 100%; height: 100%; overflow: hidden;
+      background: radial-gradient(120% 90% at 50% 0%, #102018 0%, #070a09 55%, #050706 100%);
+      color: var(--text);
+      font-family: "Barlow", system-ui, sans-serif;
+    }
+    #canvas-wrap { position: fixed; inset: 0; }
+    canvas { display: block; width: 100%; height: 100%; }
+    .hud { position: fixed; inset: 0; pointer-events: none; z-index: 10; }
+    .hud * { pointer-events: auto; }
+    .topbar {
+      position: absolute; top: 16px; left: 50%; transform: translateX(-50%);
+      display: flex; align-items: center; gap: 14px;
+      padding: 10px 18px 10px 14px; border-radius: 16px;
+      background: var(--panel); border: 1px solid var(--panel-border);
+      backdrop-filter: blur(18px) saturate(140%);
+      -webkit-backdrop-filter: blur(18px) saturate(140%);
+      box-shadow: 0 10px 40px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.06);
+      max-width: min(940px, calc(100vw - 32px));
+    }
+    .brand-mark {
+      width: 36px; height: 36px; border-radius: 10px;
+      background: linear-gradient(145deg, #00e676 0%, #1b5e20 70%);
+      box-shadow: 0 0 20px rgba(0, 230, 118, .35);
+      display: grid; place-items: center;
+      font-family: "Barlow Semi Condensed", sans-serif;
+      font-weight: 800; font-size: 13px; color: #041208;
+    }
+    .brand-text h1 {
+      font-family: "Barlow Semi Condensed", sans-serif;
+      font-size: clamp(13px, 1.5vw, 16px); font-weight: 700; letter-spacing: .04em;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .brand-text p {
+      font-size: 11px; color: var(--muted); letter-spacing: .08em;
+      text-transform: uppercase; margin-top: 1px;
+    }
+    .live-dot {
+      width: 8px; height: 8px; border-radius: 50%; background: var(--green);
+      box-shadow: 0 0 10px var(--green); animation: pulse 1.8s ease-in-out infinite; flex-shrink: 0;
+    }
+    @keyframes pulse { 50% { opacity: .55; transform: scale(.85); } }
+    .controls {
+      position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
+      display: flex; align-items: center; gap: 8px; padding: 8px; border-radius: 14px;
+      background: var(--panel); border: 1px solid var(--panel-border);
+      backdrop-filter: blur(18px); box-shadow: 0 12px 36px rgba(0,0,0,.4);
+    }
+    .btn {
+      appearance: none; border: 0; height: 38px; min-width: 38px; padding: 0 12px;
+      border-radius: 10px; background: rgba(255,255,255,.04); color: var(--text);
+      font: 600 12px/1 "Barlow Semi Condensed", sans-serif; letter-spacing: .06em;
+      cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+      border: 1px solid rgba(255,255,255,.06); transition: background .15s, transform .1s;
+    }
+    .btn:hover { background: rgba(0, 230, 118, .12); border-color: rgba(0, 230, 118, .28); }
+    .btn:active { transform: scale(.97); }
+    .btn.is-active {
+      background: linear-gradient(145deg, rgba(0,230,118,.22), rgba(27,94,32,.35));
+      border-color: rgba(0,230,118,.4);
+    }
+    .btn svg { width: 15px; height: 15px; fill: currentColor; }
+    .sep { width: 1px; height: 22px; background: rgba(255,255,255,.1); margin: 0 2px; }
+    .legend {
+      position: absolute; left: 16px; bottom: 20px; padding: 12px 14px; border-radius: 14px;
+      background: var(--panel); border: 1px solid var(--panel-border);
+      backdrop-filter: blur(16px); font-size: 11px; color: var(--muted); display: grid; gap: 7px; min-width: 160px;
+    }
+    .legend strong {
+      color: var(--text); font-family: "Barlow Semi Condensed", sans-serif;
+      font-size: 11px; letter-spacing: .1em; text-transform: uppercase;
+    }
+    .leg-row { display: flex; align-items: center; gap: 8px; }
+    .swatch { width: 12px; height: 12px; border-radius: 3px; box-shadow: inset 0 0 0 1px rgba(255,255,255,.15); }
+    .hint {
+      position: absolute; right: 16px; bottom: 20px; padding: 10px 12px; border-radius: 12px;
+      background: var(--panel); border: 1px solid rgba(255,255,255,.06);
+      backdrop-filter: blur(14px); font-size: 11px; color: var(--muted); line-height: 1.45; max-width: 220px;
+    }
+    .hint b { color: var(--text); font-weight: 600; }
+    .loading {
+      position: fixed; inset: 0; z-index: 50; display: grid; place-items: center;
+      background: #070a09; transition: opacity .5s ease, visibility .5s;
+    }
+    .loading.hide { opacity: 0; visibility: hidden; }
+    .loading-ring {
+      width: 48px; height: 48px; margin: 0 auto 16px; border-radius: 50%;
+      border: 2px solid rgba(0,230,118,.15); border-top-color: var(--green);
+      animation: spin .9s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .loading p {
+      font-family: "Barlow Semi Condensed", sans-serif; letter-spacing: .14em;
+      text-transform: uppercase; font-size: 12px; color: var(--muted); text-align: center;
+    }
+    @media (max-width: 720px) { .legend, .hint { display: none; } }
+  </style>
+</head>
+<body>
+  <div class="loading" id="loading">
+    <div>
+      <div class="loading-ring"></div>
+      <p>Cargando Sección 2 · 3D</p>
+    </div>
+  </div>
+  <div id="canvas-wrap"></div>
+  <div class="hud">
+    <header class="topbar">
+      <div class="brand-mark">NP</div>
+      <div class="brand-text">
+        <h1>NOVOPAN · Pelíkano · Línea 1 · Sección 2 Encolados</h1>
+        <p>Proporciones de planta · Blanca 45 m · Roja 10 m · Prensa 16,6 m</p>
+      </div>
+      <div class="live-dot"></div>
+    </header>
+    <aside class="legend">
+      <strong>Rutas · HMI</strong>
+      <div class="leg-row"><span class="swatch" style="background:#29b6f6"></span> SL · Silo 6 · CE</div>
+      <div class="leg-row"><span class="swatch" style="background:#66bb6a"></span> CL · Silo 5 · CI</div>
+      <div class="leg-row"><span class="swatch" style="background:#1565c0"></span> Dosimbunca (Do_Bin)</div>
+      <div class="leg-row"><span class="swatch" style="background:linear-gradient(90deg,#ff5722,#ffc107)"></span> Zonas calor prensa</div>
+    </aside>
+    <div class="controls">
+      <button class="btn is-active" id="btnPlay" title="Play / Pause">
+        <svg id="iconPlay" viewBox="0 0 24 24"><path d="M6 5h4v14H6zm8 0h4v14h-4z"/></svg>
+        <span id="playLabel">PAUSE</span>
+      </button>
+      <div class="sep"></div>
+      <button class="btn" id="btnReset">RESET</button>
+      <button class="btn" id="btnIso">ISO</button>
+      <button class="btn" id="btnSide">SIDE</button>
+      <button class="btn" id="btnTop">TOP</button>
+    </div>
+    <div class="hint">
+      <b>Cámara</b><br/>Orbit · zoom · pan<br/>
+      <b>Escala</b> longitudes de banda/prensa según mediciones de campo
+    </div>
+  </div>
+
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+    }
+  }
+  </script>
+  <script type="module">
+/**
+ * NOVOPAN · Sección 2 3D
+ * Fuentes: PROCESO.md, MEDICIONES_BANDAS_CAMPO.md, HMI Metso/Dieffenbacher,
+ *          Dieffenbacher Universal Bin + Glue Blender + CPS.
+ *
+ * Escala de LÍNEA (métrica, comprimida para caber en pantalla):
+ *   S = 0.38  → 1 m planta = 0.38 world units
+ *   Blanca 45 m | Roja 10 m | Prensa activa 16,6 m | ancho producto ~2,55 m
+ * Upstream (silos→encolado→inclinadas ~65 m reales) se comprime esquemáticamente.
+ */
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+
+// ── Plant scale ────────────────────────────────────────────────
+const S = 0.38;                 // m → world
+const MAT_W = 2.55 * S * 1.55;  // ~1.5 u — readable mat width (real ~2.55 m)
+const BELT_H = 0.42;
+
+// White belt milestones (m from mat formation start)
+const PLANT = {
+  white: 45,
+  sl1a: 1.42, sl1b: 8.37,
+  cla: 11.72, clb: 16.10,
+  sl2a: 17.47, sl2b: 23.86,
+  prepA: 29.08, prepB: 33.78,
+  spray: 35.99, detector: 37.69, knives: 39.56,
+  red: 10,
+  press: 16.6,
+  post: 8, // cut + cool + stack visual span
+};
+
+const X0 = 0; // white belt origin
+const xM = (m) => X0 + m * S;
+const WHITE_END = xM(PLANT.white);
+const RED_END = WHITE_END + PLANT.red * S;
+const PRESS_END = RED_END + PLANT.press * S;
+const LINE_END = PRESS_END + PLANT.post * S;
+
+// Parallel upstream lanes (schematic, compressed)
+const Z_SL = 2.8;
+const Z_CL = -2.8;
+const Z0 = 0;
+
+const anim = {
+  playing: true, t: 0,
+  belts: [], levels: [], screws: [], heat: [], labels: [],
+  star: null, sawCarriage: null, particles: null,
+};
+
+// ── Materials ──────────────────────────────────────────────────
+function mats() {
+  const mk = (c, o = {}) => new THREE.MeshStandardMaterial({
+    color: c,
+    metalness: o.m ?? 0.55,
+    roughness: o.r ?? 0.4,
+    emissive: o.e ?? 0x000000,
+    emissiveIntensity: o.ei ?? 0,
+    transparent: !!o.op,
+    opacity: o.op ?? 1,
+  });
+  return {
+    steel: mk(0x8a949c, { m: 0.78, r: 0.3 }),
+    steelD: mk(0x2f363b, { m: 0.7, r: 0.45 }),
+    steelL: mk(0xc5ccd1, { m: 0.82, r: 0.22 }),
+    green: mk(0x1b5e20, { m: 0.35, r: 0.45 }),
+    greenA: mk(0x00e676, { m: 0.2, r: 0.35, e: 0x00e676, ei: 0.2 }),
+    blue: mk(0x1565c0, { m: 0.42, r: 0.38 }),
+    blueM: mk(0x1e88e5, { m: 0.45, r: 0.36 }),
+    blueL: mk(0x42a5f5, { m: 0.48, r: 0.34 }),
+    black: mk(0x15181a, { m: 0.25, r: 0.72 }),
+    fine: mk(0xc4a574, { m: 0.04, r: 0.92 }),
+    coarse: mk(0x8d6e4c, { m: 0.04, r: 0.93 }),
+    resin: mk(0xffb74d, { m: 0.12, r: 0.35, e: 0xffb74d, ei: 0.08 }),
+    board: mk(0xd2b48c, { m: 0.05, r: 0.75 }),
+    glass: mk(0xa8d8ff, { m: 0.1, r: 0.05, op: 0.2 }),
+    heat1: mk(0xff5722, { m: 0.3, r: 0.4, e: 0xff5722, ei: 0.55 }),
+    heat2: mk(0xff7043, { m: 0.3, r: 0.4, e: 0xff7043, ei: 0.45 }),
+    heat3: mk(0xff9800, { m: 0.3, r: 0.4, e: 0xff9800, ei: 0.38 }),
+    heat4: mk(0xffc107, { m: 0.3, r: 0.4, e: 0xffc107, ei: 0.3 }),
+    belt: mk(0x23282c, { m: 0.18, r: 0.86 }),
+    floor: mk(0x0c1210, { m: 0.12, r: 0.94 }),
+    rail: mk(0x3a4248, { m: 0.5, r: 0.55 }),
+    sl1c: mk(0xe4b657, { m: 0.05, r: 0.8 }),
+    clc: mk(0xc98b2e, { m: 0.05, r: 0.8 }),
+    sl2c: mk(0xecc873, { m: 0.05, r: 0.8 }),
+  };
+}
+
+// ── Primitives ─────────────────────────────────────────────────
+const box = (w, h, d, mat) => {
+  const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+  m.castShadow = m.receiveShadow = true;
+  return m;
+};
+const cyl = (rt, rb, h, mat, seg = 28) => {
+  const m = new THREE.Mesh(new THREE.CylinderGeometry(rt, rb, h, seg), mat);
+  m.castShadow = m.receiveShadow = true;
+  return m;
+};
+const add = (p, m, x = 0, y = 0, z = 0) => { m.position.set(x, y, z); p.add(m); return m; };
+const G = () => new THREE.Group();
+
+function label(text, color = '#e8f5e9', w = 2.2) {
+  const c = document.createElement('canvas');
+  c.width = 512; c.height = 128;
+  const ctx = c.getContext('2d');
+  ctx.clearRect(0, 0, 512, 128);
+  ctx.fillStyle = 'rgba(8,14,11,0.8)';
+  round(ctx, 10, 28, 492, 72, 16); ctx.fill();
+  ctx.strokeStyle = 'rgba(0,230,118,0.28)'; ctx.lineWidth = 2;
+  round(ctx, 10, 28, 492, 72, 16); ctx.stroke();
+  ctx.fillStyle = color;
+  ctx.font = '700 34px Barlow Semi Condensed,sans-serif';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText(text, 256, 64);
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  const mesh = new THREE.Mesh(
+    new THREE.PlaneGeometry(w, w * 0.25),
+    new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false })
+  );
+  mesh.userData.billboard = true;
+  anim.labels.push(mesh);
+  return mesh;
+}
+function round(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+function beltTex(base, stripe) {
+  const c = document.createElement('canvas');
+  c.width = 128; c.height = 32;
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = base; ctx.fillRect(0, 0, 128, 32);
+  ctx.fillStyle = stripe;
+  for (let x = 0; x < 128; x += 22) ctx.fillRect(x, 0, 5, 32);
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  return t;
+}
+
+// ── Conveyor ───────────────────────────────────────────────────
+function conveyor(length, width, M, opts = {}) {
+  const g = G();
+  const h = opts.h ?? BELT_H;
+  add(g, box(length, h * 0.7, width * 0.92, M.steelD), 0, h * 0.35, 0);
+  const bm = M.belt.clone();
+  bm.map = beltTex(opts.base ?? '#23282c', opts.stripe ?? '#c9a227');
+  bm.map.repeat.set(Math.max(2, length * 1.1), 1);
+  anim.belts.push(bm.map);
+  const top = new THREE.Mesh(new THREE.BoxGeometry(length * 0.98, 0.05, width * 0.86), bm);
+  top.position.set(0, h, 0); top.castShadow = true; g.add(top);
+  // rails
+  add(g, box(length, 0.1, 0.04, M.rail), 0, h + 0.06, width / 2 - 0.03);
+  add(g, box(length, 0.1, 0.04, M.rail), 0, h + 0.06, -width / 2 + 0.03);
+  // legs every ~1.2u
+  const n = Math.max(2, Math.floor(length / 1.4));
+  for (let i = 0; i < n; i++) {
+    const x = -length / 2 + 0.25 + (i / Math.max(1, n - 1)) * (length - 0.5);
+    add(g, box(0.07, h, 0.07, M.steelD), x, h / 2, width / 2 - 0.1);
+    add(g, box(0.07, h, 0.07, M.steelD), x, h / 2, -width / 2 + 0.1);
+  }
+  // rollers
+  for (let i = 0; i < Math.min(8, n + 2); i++) {
+    const x = -length / 2 + 0.2 + i * ((length - 0.4) / Math.max(1, Math.min(7, n + 1)));
+    const r = cyl(0.05, 0.05, width * 0.82, M.steelL, 10);
+    r.rotation.x = Math.PI / 2;
+    add(g, r, x, h * 0.55, 0);
+  }
+  return g;
+}
+
+// ── SILO  (tall storage · fine/coarse) ─────────────────────────
+// Real industrial flake silos: tall cylinder, cone outlet, 2 discharge screws
+function buildSilo(name, M, fine) {
+  const g = G();
+  const accent = fine ? M.blueM : M.green;
+  const fillM = fine ? M.fine : M.coarse;
+  // proportions: Ø ~ 2.6 m, H body ~ 5.5 m (+ cone) → world
+  const R = 0.55, bodyH = 2.1, coneH = 0.75, legH = 0.85;
+
+  // ring base + 4 legs
+  add(g, cyl(R + 0.12, R + 0.18, 0.12, M.steelD, 32), 0, 0.06, 0);
+  for (let i = 0; i < 4; i++) {
+    const a = (i / 4) * Math.PI * 2 + Math.PI / 4;
+    add(g, box(0.09, legH, 0.09, M.steelD), Math.cos(a) * (R * 0.85), legH / 2, Math.sin(a) * (R * 0.85));
+  }
+  // cone
+  add(g, cyl(0.12, R * 0.95, coneH, M.steel, 32), 0, legH + coneH / 2, 0);
+  // body
+  add(g, cyl(R, R, bodyH, accent, 40), 0, legH + coneH + bodyH / 2, 0);
+  // fill level inside (slightly smaller)
+  const fill = cyl(R * 0.9, R * 0.9, bodyH * 0.55, fillM, 28);
+  add(g, fill, 0, legH + coneH + bodyH * 0.4, 0);
+  anim.levels.push({ mesh: fill, baseY: legH + coneH + bodyH * 0.4, phase: Math.random() * 6 });
+  // roof
+  add(g, cyl(0.14, R + 0.04, 0.28, M.steelD, 32), 0, legH + coneH + bodyH + 0.14, 0);
+  add(g, cyl(0.14, 0.14, 0.1, M.steelL, 12), 0, legH + coneH + bodyH + 0.32, 0);
+  // ladder
+  for (let i = 0; i < 12; i++) add(g, box(0.22, 0.025, 0.025, M.steelL), 0, legH + 0.3 + i * 0.22, R + 0.02);
+  add(g, box(0.025, 2.6, 0.025, M.steelL), -0.1, legH + 1.5, R + 0.02);
+  add(g, box(0.025, 2.6, 0.025, M.steelL), 0.1, legH + 1.5, R + 0.02);
+  // 2 discharge screws (process: 2 tornillos por silo)
+  for (const sx of [-0.18, 0.18]) {
+    const scr = cyl(0.07, 0.07, 0.7, M.steelD, 10);
+    scr.rotation.z = Math.PI / 2;
+    add(g, scr, sx, legH * 0.55, R * 0.55);
+    const flight = cyl(0.09, 0.09, 0.08, M.steelL, 8);
+    flight.rotation.z = Math.PI / 2;
+    add(g, flight, sx, legH * 0.55, R * 0.55);
+    anim.screws.push(flight);
+  }
+  // ultrasonic sensor
+  add(g, box(0.12, 0.12, 0.12, M.black), R * 0.7, legH + coneH + bodyH * 0.85, 0);
+  add(g, cyl(0.03, 0.03, 0.06, M.greenA, 8), R * 0.7, legH + coneH + bodyH * 0.92, 0.08);
+
+  const top = legH + coneH + bodyH + 0.55;
+  add(g, label(name, fine ? '#81d4fa' : '#a5d6a7', 2.0), 0, top, 0);
+  return g;
+}
+
+// ── DOSIMBUNCA / Universal Bin for Gluing (Dieffenbacher) ──────
+// Real machine: vertical hopper buffer + rake rolls + belt scale discharge
+// with discharge roller. Mounted on load cells. Blue industrial paint.
+// NOT a long horizontal box — tall bin sitting on a short weighing belt.
+function buildDosimbunca(name, M) {
+  const g = G();
+  // Hopper: ~2.2 m square footprint, ~2.8 m tall body
+  const BW = 1.15, BD = 1.05, BH = 1.55;
+  const beltL = 1.9, beltW = 0.85;
+
+  // Load-cell feet (4) under frame
+  for (const [fx, fz] of [[-0.45, -0.4], [0.45, -0.4], [-0.45, 0.4], [0.45, 0.4]]) {
+    add(g, box(0.16, 0.1, 0.16, M.steelD), fx, 0.05, fz);
+    add(g, box(0.12, 0.07, 0.12, M.black), fx, 0.13, fz); // load cell
+    add(g, box(0.1, 0.04, 0.1, M.steelL), fx, 0.18, fz);
+  }
+
+  // Weigh frame
+  add(g, box(BW + 0.15, 0.1, BD + 0.15, M.steelD), 0, 0.28, 0);
+
+  // Main hopper body (Dieffenbacher blue)
+  add(g, box(BW, BH, BD, M.blue), 0, 0.35 + BH / 2, 0);
+  // Upper flange
+  add(g, box(BW + 0.1, 0.08, BD + 0.1, M.blueM), 0, 0.35 + BH + 0.04, 0);
+  // Tapered lower throat into belt
+  add(g, box(BW * 0.7, 0.25, BD * 0.55, M.blueM), 0, 0.45, 0);
+
+  // Material level
+  const fill = box(BW * 0.88, BH * 0.5, BD * 0.88, M.fine);
+  add(g, fill, 0, 0.45 + BH * 0.35, 0);
+  anim.levels.push({ mesh: fill, baseY: 0.45 + BH * 0.35, phase: Math.random() * 6 });
+
+  // Inspection windows
+  for (const z of [BD / 2 + 0.01, -BD / 2 - 0.01]) {
+    add(g, box(0.32, 0.4, 0.03, M.glass), 0, 0.35 + BH * 0.55, z);
+  }
+  // Side accent plate
+  add(g, box(0.08, BH * 0.7, 0.08, M.blueL), -BW / 2, 0.35 + BH / 2, -BD / 2);
+
+  // Rake-roll shafts near bottom (equalize flow — Dieffenbacher feature)
+  for (let i = 0; i < 3; i++) {
+    const r = cyl(0.05, 0.05, BD * 0.75, M.steelL, 10);
+    r.rotation.x = Math.PI / 2;
+    add(g, r, -0.25 + i * 0.25, 0.55, 0);
+    anim.screws.push(r);
+  }
+
+  // Inlet from silo (top)
+  add(g, box(0.38, 0.35, 0.38, M.steelD), -0.15, 0.35 + BH + 0.25, 0);
+  add(g, cyl(0.14, 0.18, 0.3, M.steel, 14), -0.15, 0.35 + BH + 0.55, 0);
+
+  // ── Discharge belt scale (under / out) ──
+  // Belt scale + discharge roller — hallmark of Universal Bin for Gluing
+  const belt = conveyor(beltL, beltW, M, { h: 0.28, stripe: '#1e88e5', base: '#1a2330' });
+  belt.position.set(BW * 0.15 + beltL * 0.35, 0, 0);
+  g.add(belt);
+
+  // Discharge roller at belt end
+  const droll = cyl(0.12, 0.12, beltW * 0.9, M.steelL, 16);
+  droll.rotation.x = Math.PI / 2;
+  add(g, droll, BW * 0.15 + beltL * 0.7, 0.38, 0);
+  anim.screws.push(droll);
+
+  // Motor/gearbox
+  add(g, box(0.28, 0.22, 0.22, M.steelD), BW * 0.15 + beltL * 0.55, 0.55, beltW / 2 + 0.18);
+  add(g, cyl(0.06, 0.06, 0.12, M.black, 10), BW * 0.15 + beltL * 0.55, 0.72, beltW / 2 + 0.18);
+
+  // Nameplate
+  add(g, box(BW * 0.55, 0.1, 0.02, M.blueL), 0, 0.35 + BH * 0.72, BD / 2 + 0.01);
+
+  add(g, label(name, '#90caf9', 2.3), 0, 0.35 + BH + 0.95, 0);
+  add(g, label('Do_Bin · belt scale', '#64b5f6', 1.7), beltL * 0.45, 0.85, beltW / 2 + 0.15);
+  return g;
+}
+
+// ── GLUE BLENDER / ENCOLADORA (CE / CI) ─────────────────────────
+// Un solo cuerpo: carcasa exterior + tambor interior + intake (paddle/screw)
+// + rodillos moleteados integrados en la boca de entrada (no máquina suelta).
+// Dieffenbacher: screw intake (CL) / paddle intake (SL); chaqueta de agua.
+// userData.outlet = punto de salida hacia la banda inclinada (local space).
+function buildEncolador(name, M, isCE) {
+  const g = G();
+  const accent = isCE ? M.blueM : M.green;
+  const drumR = 0.40, drumL = 1.85;
+  const shellW = drumR * 2 + 0.28;
+  const shellH = drumR * 2 + 0.45;
+  const cy = 0.95; // drum center height
+
+  // ── Outer machine shell (what you see from outside) ──
+  // Floor skid
+  add(g, box(drumL + 0.9, 0.12, shellW + 0.25, M.steelD), 0.1, 0.06, 0);
+  // Legs
+  for (const x of [-drumL / 2 + 0.1, drumL / 2 - 0.1]) {
+    for (const z of [-shellW / 2, shellW / 2]) {
+      add(g, box(0.1, 0.55, 0.1, M.steelD), x, 0.32, z);
+    }
+  }
+  // Main housing around drum (solid industrial look)
+  add(g, box(drumL + 0.2, shellH, shellW, accent), 0, cy, 0);
+  // Top cover (hinged look)
+  add(g, box(drumL + 0.28, 0.1, shellW + 0.12, M.steelD), 0, cy + shellH / 2 + 0.05, 0);
+  // Side inspection windows aligned with drum interior
+  for (const z of [shellW / 2 + 0.01, -shellW / 2 - 0.01]) {
+    add(g, box(drumL * 0.55, drumR * 1.1, 0.04, M.glass), 0, cy, z);
+  }
+  // Front name stripe
+  add(g, box(drumL * 0.5, 0.12, 0.03, M.blueL), 0, cy + shellH * 0.28, shellW / 2 + 0.02);
+
+  // ── Inner drum (visible through windows / ends) ──
+  const drum = cyl(drumR * 0.92, drumR * 0.92, drumL * 0.92, M.steel, 32);
+  drum.rotation.z = Math.PI / 2;
+  add(g, drum, 0, cy, 0);
+
+  // End bells flush with shell
+  add(g, cyl(drumR + 0.06, drumR + 0.06, 0.08, M.steelD, 28), -drumL / 2, cy, 0).rotation.z = Math.PI / 2;
+  add(g, cyl(drumR + 0.06, drumR + 0.06, 0.08, M.steelD, 28), drumL / 2, cy, 0).rotation.z = Math.PI / 2;
+
+  // ── INTAKE HOOD (integrated): chute from dosing + knurled rollers inside ──
+  // This replaces the disconnected "classifier bed" — same process step,
+  // but built as the feed end of the blender (reads as one machine).
+  const intake = G();
+  // Outer intake tower attached to shell inlet end
+  add(intake, box(0.55, 0.95, 0.7, M.steelD), 0, 0.55, 0);
+  add(intake, box(0.62, 0.08, 0.78, accent), 0, 1.05, 0);
+  // Inlet funnel from dosing belt
+  add(intake, box(0.4, 0.35, 0.45, M.steel), 0, 1.3, 0);
+  add(intake, cyl(0.12, 0.18, 0.28, M.steelL, 12), 0, 1.55, 0);
+  // Knurled classification rollers INSIDE the intake hood (0.3–1.3 mm)
+  for (let i = 0; i < 5; i++) {
+    const r = cyl(0.04, 0.04, 0.55, M.steelL, 10);
+    r.rotation.x = Math.PI / 2;
+    add(intake, r, -0.12 + i * 0.06, 0.85, 0);
+    anim.screws.push(r);
+  }
+  // Paddle (CE/SL) or screw (CI/CL) into drum — Dieffenbacher feature
+  if (isCE) {
+    add(intake, box(0.28, 0.35, 0.35, M.steelD), 0.28, cy - 0.15, 0);
+    for (let i = 0; i < 4; i++) {
+      const p = box(0.035, 0.16, 0.07, M.steelL);
+      p.rotation.z = (i / 4) * Math.PI;
+      add(intake, p, 0.32, cy - 0.15, 0);
+      anim.screws.push(p);
+    }
+  } else {
+    const screwIn = cyl(0.1, 0.1, 0.4, M.steelL, 12);
+    screwIn.rotation.z = Math.PI / 2;
+    add(intake, screwIn, 0.25, cy - 0.1, 0);
+    anim.screws.push(screwIn);
+  }
+  intake.position.set(-drumL / 2 - 0.28, 0, 0);
+  g.add(intake);
+
+  // Resin / paraffin injectors on top cover
+  for (let i = 0; i < 4; i++) {
+    const x = -drumL / 2 + 0.35 + i * (drumL - 0.55) / 3;
+    add(g, cyl(0.03, 0.03, 0.28, M.resin, 8), x, cy + shellH / 2 + 0.22, 0);
+    add(g, box(0.09, 0.06, 0.09, M.black), x, cy + shellH / 2 + 0.4, 0);
+  }
+
+  // Water-cooled lower jacket (visible under shell cutaway strip)
+  add(g, box(drumL * 0.9, 0.12, shellW * 0.85, M.steelL), 0, cy - drumR - 0.05, 0);
+  add(g, cyl(0.028, 0.028, drumL * 0.75, M.blueL, 8), 0, cy - drumR - 0.12, shellW * 0.4).rotation.z = Math.PI / 2;
+
+  // Discharge flap end → connects to inclined belt
+  add(g, box(0.28, 0.45, 0.55, M.steelD), drumL / 2 + 0.2, cy - 0.1, 0);
+  add(g, box(0.12, 0.32, 0.42, M.steelL), drumL / 2 + 0.35, cy - 0.2, 0);
+  // outlet spout pointing up-ish for inclined belt pickup
+  add(g, box(0.35, 0.18, 0.35, M.steel), drumL / 2 + 0.55, cy - 0.15, 0);
+
+  // Drive motor
+  add(g, box(0.36, 0.3, 0.3, M.steelD), drumL / 2 + 0.1, cy + 0.35, shellW / 2 + 0.2);
+  add(g, cyl(0.07, 0.07, 0.14, M.black, 10), drumL / 2 + 0.1, cy + 0.58, shellW / 2 + 0.2);
+
+  // Local outlet anchor (world-space set by caller via getWorldPosition)
+  g.userData.outletLocal = new THREE.Vector3(drumL / 2 + 0.7, cy - 0.05, 0);
+  g.userData.topY = cy + shellH / 2 + 0.45;
+
+  add(g, label(name, isCE ? '#81d4fa' : '#a5d6a7', 2.3), 0, cy + shellH / 2 + 0.7, 0);
+  add(g, label(isCE ? 'CE · paddle · rodillos intake' : 'CI · screw · rodillos intake', '#b0bec5', 1.9), 0, 0.28, shellW / 2 + 0.15);
+  return g;
+}
+
+/** Banda inclinada real: sube desde la salida del encolador hasta la tolva del esparcidor. */
+function buildInclinedBelt(M, length, width, stripe) {
+  const g = conveyor(length, width, M, { h: 0.22, stripe, base: '#1a2330' });
+  // side skirts so it reads as closed incline
+  const railH = 0.14;
+  add(g, box(length * 0.98, railH, 0.03, M.steelD), 0, 0.35, width / 2);
+  add(g, box(length * 0.98, railH, 0.03, M.steelD), 0, 0.35, -width / 2);
+  return g;
+}
+
+// ── FORMING HEAD (esparcidor) ──────────────────────────────────
+// Wide hopper over forming belt; zone length from plant measurements
+function buildFormer(name, M, layerMat, zoneLenM) {
+  const g = G();
+  const zoneL = zoneLenM * S;
+  const headW = MAT_W + 0.25;
+  // Hopper sits in first half of its zone; not as long as the whole zone
+  const hopL = Math.min(zoneL * 0.55, 1.6);
+  const hopH = 1.15;
+
+  // steel frame legs spanning belt
+  for (const x of [-hopL / 2 + 0.1, hopL / 2 - 0.1]) {
+    for (const z of [headW / 2 - 0.05, -headW / 2 + 0.05]) {
+      add(g, box(0.08, 1.35, 0.08, M.steelD), x, 0.68, z);
+    }
+  }
+  add(g, box(hopL + 0.1, 0.08, headW, M.steel), 0, 1.35, 0);
+
+  // hopper body
+  add(g, box(hopL, hopH, headW * 0.92, layerMat), 0, 1.45 + hopH / 2, 0);
+  add(g, box(hopL + 0.08, 0.08, headW, M.steelD), 0, 1.45 + hopH + 0.04, 0);
+
+  // fill
+  const fill = box(hopL * 0.88, hopH * 0.4, headW * 0.8, M.fine);
+  add(g, fill, 0, 1.55 + hopH * 0.25, 0);
+  anim.levels.push({ mesh: fill, baseY: 1.55 + hopH * 0.25, phase: Math.random() * 5 });
+
+  // spread rollers (across belt width)
+  for (let i = 0; i < 5; i++) {
+    const r = cyl(0.055, 0.055, headW * 0.85, M.steelL, 12);
+    r.rotation.x = Math.PI / 2;
+    add(g, r, -hopL * 0.3 + i * (hopL * 0.15), 1.28, 0);
+    anim.screws.push(r);
+  }
+  // side skirts
+  add(g, box(hopL, 0.4, 0.05, M.steelD), 0, 1.35, headW / 2 - 0.02);
+  add(g, box(hopL, 0.4, 0.05, M.steelD), 0, 1.35, -headW / 2 + 0.02);
+
+  // load cells L/R (plant: 2 celdas por esparcidora)
+  add(g, box(0.12, 0.08, 0.12, M.black), -hopL * 0.25, 1.2, headW / 2 - 0.08);
+  add(g, box(0.12, 0.08, 0.12, M.black), -hopL * 0.25, 1.2, -headW / 2 + 0.08);
+
+  // zone footprint ghost (shows measured length)
+  const zone = box(zoneL, 0.015, MAT_W + 0.15, layerMat.clone());
+  zone.material.transparent = true;
+  zone.material.opacity = 0.18;
+  zone.material.metalness = 0.05;
+  add(g, zone, zoneL / 2 - hopL / 2, BELT_H + 0.08, 0);
+
+  add(g, label(name, '#ffe082', 2.0), 0, 1.45 + hopH + 0.55, 0);
+  add(g, label(`${zoneLenM.toFixed(2)} m zona`, '#b0bec5', 1.3), zoneL / 2 - hopL / 2, BELT_H + 0.22, MAT_W / 2 + 0.25);
+  return g;
+}
+
+// ── PREPRENSA  (CBV / hydraulic prepress · 4.69 m zone) ─────────
+function buildPreprensa(M, zoneLenM) {
+  const g = G();
+  const L = zoneLenM * S;
+  const W = MAT_W + 0.45;
+  // portal frames along zone
+  const frames = 3;
+  for (let i = 0; i < frames; i++) {
+    const x = -L / 2 + 0.3 + i * ((L - 0.6) / (frames - 1));
+    for (const z of [W / 2, -W / 2]) {
+      add(g, box(0.12, 1.7, 0.12, M.steelD), x, 0.85, z);
+    }
+    add(g, box(0.12, 0.12, W, M.steelD), x, 1.7, 0);
+  }
+  // hydraulic rams + plate
+  for (const z of [-0.35, 0.35]) {
+    add(g, cyl(0.08, 0.08, 0.55, M.steelL, 14), 0, 1.35, z);
+    add(g, cyl(0.04, 0.04, 0.28, M.steel, 10), 0, 0.95, z);
+  }
+  add(g, box(L * 0.7, 0.1, MAT_W + 0.1, M.steelL), 0, 0.78, 0);
+  // HPU
+  add(g, box(0.45, 0.4, 0.35, M.green), L / 2 - 0.2, 0.35, W / 2 + 0.25);
+
+  add(g, label('PREPRENSA · 4,69 m', '#a5d6a7', 2.2), 0, 2.05, 0);
+  return g;
+}
+
+// ── DESMOLDANTE sprays ─────────────────────────────────────────
+function buildDesmoldante(M) {
+  const g = G();
+  add(g, box(0.55, 0.06, MAT_W + 0.3, M.steelD), 0, 1.05, 0);
+  for (let i = -3; i <= 3; i++) {
+    add(g, cyl(0.025, 0.04, 0.18, M.steelL, 8), i * 0.1, 0.9, 0);
+    const mist = cyl(0.07, 0.015, 0.22, M.glass, 8);
+    mist.material = M.glass.clone();
+    add(g, mist, i * 0.1, 0.7, 0);
+  }
+  add(g, box(0.28, 0.32, 0.28, M.blueM), 0.4, 0.95, MAT_W / 2 + 0.2);
+  add(g, label('DESMOLDANTE', '#80deea', 1.6), 0, 1.4, 0);
+  return g;
+}
+
+// ── PRECALENTAMIENTO EVOsteam / Dynasteam ───────────────────────
+function buildPreheat(M) {
+  const g = G();
+  const L = 1.5, W = MAT_W + 0.35;
+  add(g, box(L, 0.85, W, M.steelD), 0, 0.9, 0);
+  add(g, box(L + 0.1, 0.12, W + 0.1, M.steel), 0, 1.4, 0);
+  for (let i = 0; i < 4; i++) {
+    const bar = box(L * 0.85, 0.05, 0.07, i < 2 ? M.heat2 : M.heat3);
+    add(g, bar, 0, 0.55 + i * 0.12, W / 2 - 0.08);
+    anim.heat.push(bar.material);
+  }
+  add(g, cyl(0.05, 0.05, 0.55, M.steelL, 10), -0.4, 1.65, 0);
+  add(g, cyl(0.05, 0.05, 0.55, M.steelL, 10), 0.4, 1.65, 0);
+  add(g, label('PRECALENT. · EVOsteam', '#ffab91', 2.0), 0, 2.05, 0);
+  return g;
+}
+
+// ── CONTINUOUS PRESS (hero · 16.6 m active) ────────────────────
+// CPS-style: long steel frame, upper+lower steel belts, 4 heat zones,
+// ~19 frames, entry/exit drums. Dominates line length.
+function buildPress(M) {
+  const g = G();
+  const L = PLANT.press * S; // 16.6 * 0.38 ≈ 6.3
+  const W = MAT_W + 0.55;
+  const H = 2.15;
+
+  // main body
+  add(g, box(L, H * 0.85, W, M.steelD), 0, H * 0.5, 0);
+
+  // steel belts (CPS)
+  add(g, box(L * 0.97, 0.05, MAT_W + 0.1, M.steelL), 0, H * 0.58, 0);
+  add(g, box(L * 0.97, 0.05, MAT_W + 0.1, M.steelL), 0, H * 0.38, 0);
+
+  // mat/board inside
+  add(g, box(L * 0.94, 0.07, MAT_W * 0.92, M.board), 0, H * 0.48, 0);
+
+  // 4 heat zones (SUNDS/Metso: 235 / 235 / 222 / 205 °C)
+  const zones = [
+    { mat: M.heat1, t: 'Z1 235°C' },
+    { mat: M.heat2, t: 'Z2 235°C' },
+    { mat: M.heat3, t: 'Z3 222°C' },
+    { mat: M.heat4, t: 'Z4 205°C' },
+  ];
+  const zw = L / 4 - 0.08;
+  zones.forEach((z, i) => {
+    const panel = box(zw, 0.32, W * 0.5, z.mat);
+    add(g, panel, -L / 2 + zw / 2 + 0.08 + i * (L / 4), H * 0.78, 0);
+    anim.heat.push(panel.material);
+    const zl = label(z.t, '#ffcc80', 1.15);
+    zl.scale.setScalar(0.85);
+    add(g, zl, -L / 2 + (i + 0.5) * (L / 4), H + 0.28, W / 2 + 0.05);
+  });
+
+  // 19 frame posts along side (visual rhythm of continuous press)
+  for (let i = 0; i < 19; i++) {
+    const x = -L / 2 + 0.2 + i * ((L - 0.4) / 18);
+    add(g, box(0.05, H * 0.65, 0.05, M.steel), x, H * 0.45, W / 2 + 0.02);
+    add(g, box(0.05, H * 0.65, 0.05, M.steel), x, H * 0.45, -W / 2 - 0.02);
+  }
+
+  // entry / exit drums
+  for (const side of [-1, 1]) {
+    add(g, box(0.35, H * 0.75, W * 0.85, M.steel), side * (L / 2 + 0.1), H * 0.48, 0);
+    const drum = cyl(0.22, 0.22, MAT_W + 0.15, M.steelL, 20);
+    drum.rotation.x = Math.PI / 2;
+    add(g, drum, side * (L / 2 + 0.1), H * 0.48, 0);
+  }
+
+  // top hydraulic beams
+  add(g, box(L * 0.92, 0.16, 0.2, M.green), 0, H + 0.12, W * 0.28);
+  add(g, box(L * 0.92, 0.16, 0.2, M.green), 0, H + 0.12, -W * 0.28);
+
+  // thermal oil unit
+  add(g, box(0.55, 0.5, 0.4, M.green), L / 2 - 0.4, 0.4, W / 2 + 0.45);
+  add(g, cyl(0.07, 0.07, 0.2, M.black, 10), L / 2 - 0.4, 0.75, W / 2 + 0.45);
+
+  const heatLight = new THREE.PointLight(0xff6e40, 1.8, L * 1.2, 2);
+  heatLight.position.set(0, H * 0.9, 0);
+  g.add(heatLight);
+
+  add(g, label('PRENSA CONTINUA · 16,6 m · CPS', '#ffab91', 3.0), 0, H + 0.65, 0);
+  return g;
+}
+
+// ── FLYING SAW / corte angular ─────────────────────────────────
+function buildSaw(M) {
+  const g = G();
+  const W = MAT_W + 0.5;
+  add(g, box(1.3, 0.1, W, M.steelD), 0, 1.55, 0);
+  for (const x of [-0.55, 0.55]) {
+    for (const z of [W / 2 - 0.05, -W / 2 + 0.05]) {
+      add(g, box(0.1, 1.55, 0.1, M.steelD), x, 0.78, z);
+    }
+  }
+  const car = G();
+  add(car, box(0.4, 0.3, 0.5, M.blueM), 0, 1.2, 0);
+  const blade = cyl(0.26, 0.26, 0.035, M.steelL, 36);
+  blade.rotation.x = Math.PI / 2;
+  add(car, blade, 0, 0.88, 0);
+  anim.screws.push(blade);
+  car.rotation.y = 0.15; // angular cut bias
+  g.add(car);
+  anim.sawCarriage = car;
+
+  // longitudinal trim knives
+  add(g, box(0.06, 0.28, 0.06, M.steelL), -0.4, 0.58, MAT_W / 2 - 0.05);
+  add(g, box(0.06, 0.28, 0.06, M.steelL), -0.4, 0.58, -MAT_W / 2 + 0.05);
+
+  add(g, label('CORTE ANGULAR', '#ce93d8', 1.8), 0, 1.95, 0);
+  return g;
+}
+
+// ── STAR COOLER ────────────────────────────────────────────────
+// Arms hold 3 boards; 180° cycle; metal contact tubes
+function buildStar(M) {
+  const g = G();
+  add(g, cyl(0.45, 0.6, 0.3, M.steelD, 24), 0, 0.15, 0);
+  add(g, cyl(0.16, 0.16, 1.5, M.steel, 16), 0, 1.0, 0);
+
+  const star = G();
+  const arms = 6;
+  for (let i = 0; i < arms; i++) {
+    const arm = G();
+    add(arm, box(1.55, 0.07, 0.12, M.steelL), 0.9, 0, 0);
+    for (let t = 0; t < 3; t++) {
+      const tube = cyl(0.022, 0.022, 0.7, M.steel, 8);
+      tube.rotation.x = Math.PI / 2;
+      add(arm, tube, 0.45 + t * 0.35, -0.04, 0);
+    }
+    if (i % 2 === 0) {
+      // board ~2.5×1.2 m product proportion (scaled)
+      add(arm, box(1.15, 0.05, 0.65, M.board), 1.15, 0.08, 0);
+    }
+    arm.rotation.y = (i / arms) * Math.PI * 2;
+    star.add(arm);
+  }
+  star.position.y = 1.2;
+  g.add(star);
+  anim.star = star;
+
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(1.75, 0.035, 8, 48), M.rail);
+  ring.rotation.x = Math.PI / 2;
+  ring.position.y = 1.2;
+  g.add(ring);
+
+  add(g, label('ENFRIADORA ESTRELLA', '#80cbc4', 2.2), 0, 2.45, 0);
+  return g;
+}
+
+// ── STACKER ────────────────────────────────────────────────────
+function buildStacker(M) {
+  const g = G();
+  const W = MAT_W + 0.2;
+  add(g, box(1.7, 0.1, W, M.steelD), 0, 1.75, 0);
+  for (const x of [-0.75, 0.75]) {
+    for (const z of [W / 2 - 0.08, -W / 2 + 0.08]) {
+      add(g, box(0.09, 1.75, 0.09, M.steelD), x, 0.88, z);
+    }
+  }
+  for (let i = 0; i < 9; i++) add(g, box(1.4, 0.055, MAT_W * 0.85, M.board), 0, 0.18 + i * 0.085, 0);
+  add(g, box(0.18, 0.22, 0.18, M.blueM), 0.95, 0.9, 0);
+  add(g, cyl(0.04, 0.04, 0.3, M.steelL, 8), 0.78, 0.9, 0).rotation.z = Math.PI / 2;
+  add(g, box(0.07, 0.1, 0.07, M.black), -0.85, 1.15, 0.35);
+  add(g, box(0.07, 0.1, 0.07, M.greenA), 0.85, 1.15, 0.35);
+  add(g, label('ESTACADO', '#c5e1a5', 1.6), 0, 2.15, 0);
+  return g;
+}
+
+// ── Particles ──────────────────────────────────────────────────
+function buildParticles(scene) {
+  const N = 750;
+  const geo = new THREE.BufferGeometry();
+  const pos = new Float32Array(N * 3);
+  const col = new Float32Array(N * 3);
+  const spd = new Float32Array(N);
+  const lane = new Float32Array(N);
+  const cSL = new THREE.Color(0x29b6f6);
+  const cCL = new THREE.Color(0x66bb6a);
+  const cB = new THREE.Color(0xd2b48c);
+  for (let i = 0; i < N; i++) {
+    const ln = i < N * 0.32 ? 0 : i < N * 0.55 ? 1 : 2;
+    lane[i] = ln;
+    const x = ln === 2 ? xM(2) + Math.random() * (LINE_END - xM(2))
+      : -10 + Math.random() * 10;
+    const z = ln === 0 ? Z_SL : ln === 1 ? Z_CL : Z0;
+    pos[i * 3] = x;
+    pos[i * 3 + 1] = BELT_H + 0.12 + Math.random() * 0.2;
+    pos[i * 3 + 2] = z + (Math.random() - 0.5) * 0.35;
+    spd[i] = 0.7 + Math.random() * 0.9;
+    const c = ln === 0 ? cSL : ln === 1 ? cCL : cB;
+    col[i * 3] = c.r; col[i * 3 + 1] = c.g; col[i * 3 + 2] = c.b;
+  }
+  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+  geo.userData = { spd, lane };
+  const pts = new THREE.Points(geo, new THREE.PointsMaterial({
+    size: 0.06, vertexColors: true, transparent: true, opacity: 0.85, depthWrite: false,
+  }));
+  scene.add(pts);
+  anim.particles = pts;
+}
+
+function updateParticles(dt) {
+  if (!anim.particles || !anim.playing) return;
+  const pos = anim.particles.geometry.attributes.position;
+  const { spd, lane } = anim.particles.geometry.userData;
+  const mergeX = xM(0.5);
+  for (let i = 0; i < pos.count; i++) {
+    let x = pos.getX(i), y = pos.getY(i), z = pos.getZ(i);
+    const sp = spd[i] * dt;
+    if (lane[i] === 0) {
+      x += sp * 1.5;
+      z = THREE.MathUtils.lerp(z, x > mergeX ? Z0 : Z_SL, 0.04);
+      if (x > mergeX + 1) lane[i] = 2;
+      if (x > LINE_END) { x = -10; z = Z_SL; y = BELT_H + 0.15; lane[i] = 0; }
+    } else if (lane[i] === 1) {
+      x += sp * 1.45;
+      z = THREE.MathUtils.lerp(z, x > mergeX ? Z0 : Z_CL, 0.04);
+      if (x > mergeX + 1) lane[i] = 2;
+      if (x > LINE_END) { x = -10; z = Z_CL; y = BELT_H + 0.15; lane[i] = 1; }
+    } else {
+      x += sp * 1.7;
+      z = THREE.MathUtils.lerp(z, Z0, 0.06);
+      y = BELT_H + 0.12 + Math.sin(x * 0.5 + anim.t) * 0.02;
+      if (x > LINE_END) {
+        lane[i] = Math.random() > 0.5 ? 0 : 1;
+        x = -10; z = lane[i] === 0 ? Z_SL : Z_CL; y = BELT_H + 0.15;
+      }
+    }
+    pos.setXYZ(i, x, y, z);
+  }
+  pos.needsUpdate = true;
+}
+
+// ── Floor / zone markers ───────────────────────────────────────
+function buildEnvironment(scene, M) {
+  const floor = new THREE.Mesh(new THREE.PlaneGeometry(55, 18), M.floor);
+  floor.rotation.x = -Math.PI / 2;
+  floor.position.set(12, 0, 0);
+  floor.receiveShadow = true;
+  scene.add(floor);
+  const grid = new THREE.GridHelper(55, 55, 0x1b5e20, 0x121a16);
+  grid.position.set(12, 0.01, 0);
+  grid.material.opacity = 0.32;
+  grid.material.transparent = true;
+  scene.add(grid);
+
+  // path tints
+  const mkStrip = (len, z, col, x) => {
+    const s = box(len, 0.02, 1.4, col.clone());
+    s.material.transparent = true; s.material.opacity = 0.1; s.material.metalness = 0.1;
+    add(scene, s, x, 0.02, z);
+  };
+  mkStrip(12, Z_SL, M.blue, -5);
+  mkStrip(12, Z_CL, M.green, -5);
+  mkStrip(LINE_END + 2, Z0, M.greenA, LINE_END / 2);
+
+  const zones = [
+    { x: -6, t: '0 · SILOS / DOSIF / ENCOLADO', c: '#29b6f6' },
+    { x: xM(12), t: '2A · FORMACIÓN (blanca 45 m)', c: '#00e676' },
+    { x: xM(31), t: '2B–2C · PREPRENSA / PRECALENT.', c: '#ffb74d' },
+    { x: RED_END + PLANT.press * S * 0.5, t: '2D · PRENSA 16,6 m', c: '#ff7043' },
+    { x: PRESS_END + 3, t: '2E · CORTE / ENFRÍO / ESTACADO', c: '#80cbc4' },
+  ];
+  for (const z of zones) {
+    const l = label(z.t, z.c, 2.8);
+    l.position.set(z.x, 0.04, 5.0);
+    l.rotation.x = -Math.PI / 2;
+    l.userData.billboard = false;
+    scene.add(l);
+  }
+}
+
+// ── ASSEMBLE PLANT ─────────────────────────────────────────────
+function buildPlant(scene, M) {
+  buildEnvironment(scene, M);
+
+  // ═══ UPSTREAM — cascada vertical (como upstream-view del repo) ═══
+  // Por ruta: SILO (arriba) → DOSING (debajo) → ENCOLADOR → BANDA INCLINADA
+  // que SUBE hasta la tolva de los esparcidores.
+  //
+  // Layout (cada ruta en su Z):
+  //   x≈-9.2  silo elevado sobre estructura, descarga vertical al dosing
+  //   x≈-7.0  dosimbunca a nivel piso / mezzanine bajo el silo
+  //   x≈-4.0  encoladora (un solo cuerpo)
+  //   x≈-2.5→3.5  banda inclinada subiendo hacia formers
+
+  function dropChute(from, to, M, colorHex) {
+    // Tubo / chute vertical u oblicuo entre dos puntos world
+    const mid = from.clone().lerp(to, 0.5);
+    const dist = from.distanceTo(to);
+    const dir = to.clone().sub(from).normalize();
+    const tube = cyl(0.1, 0.14, dist, M.steelD, 10);
+    // Align cylinder Y-axis to dir
+    tube.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir);
+    tube.position.copy(mid);
+    tube.castShadow = true;
+    scene.add(tube);
+    // flange rings
+    for (const t of [0.15, 0.85]) {
+      const p = from.clone().lerp(to, t);
+      const ring = cyl(0.16, 0.16, 0.06, M.steelL, 12);
+      ring.quaternion.copy(tube.quaternion);
+      ring.position.copy(p);
+      scene.add(ring);
+    }
+  }
+
+  function buildUpstreamRoute(opts) {
+    const { z, fine, siloName, dosName, encName, stripe, targetX, targetY } = opts;
+
+    // 1) DOSIMBUNCA at floor — under the silo cascade
+    const dos = buildDosimbunca(dosName, M);
+    dos.position.set(-7.0, 0, z);
+    scene.add(dos);
+    // top of dosing hopper ≈ 0.35+1.55+0.55 ≈ 2.45 (inlet)
+    const dosInlet = new THREE.Vector3(-7.15, 2.55, z);
+    const dosOutlet = new THREE.Vector3(-5.5, 0.45, z); // toward encolador on discharge belt
+
+    // 2) SILO elevated ABOVE dosing (structure + silo body)
+    // Platform frame
+    const plat = G();
+    for (const [px, pz] of [[-0.7, -0.7], [0.7, -0.7], [-0.7, 0.7], [0.7, 0.7]]) {
+      add(plat, box(0.12, 2.4, 0.12, M.steelD), px, 1.2, pz);
+    }
+    add(plat, box(1.8, 0.1, 1.8, M.steelD), 0, 2.45, 0);
+    // cross braces
+    add(plat, box(1.5, 0.06, 0.06, M.steelL), 0, 1.2, -0.7);
+    add(plat, box(1.5, 0.06, 0.06, M.steelL), 0, 1.2, 0.7);
+    plat.position.set(-9.0, 0, z);
+    scene.add(plat);
+
+    const silo = buildSilo(siloName, M, fine);
+    // Place silo ON the platform (legs sit on deck)
+    silo.position.set(-9.0, 2.45, z);
+    scene.add(silo);
+    // Silo cone discharge ≈ local y 0.85+ → world y ~ 2.45+0.9
+    const siloOut = new THREE.Vector3(-9.0, 3.2, z);
+    dropChute(siloOut, dosInlet, M, stripe);
+
+    // 3) ENCOLADOR — receives from dosing belt scale
+    const enc = buildEncolador(encName, M, fine);
+    enc.position.set(-3.9, 0, z);
+    scene.add(enc);
+    // short covered transfer dosing outlet → encolador intake
+    const encIn = new THREE.Vector3(-4.9, 1.4, z);
+    dropChute(dosOutlet.clone().setY(0.55), encIn, M, stripe);
+    // horizontal mini-belt between dosing discharge and encolador intake
+    const link = conveyor(1.3, 0.5, M, { h: 0.22, stripe, base: '#1a2330' });
+    link.position.set(-5.5, 0.15, z);
+    scene.add(link);
+
+    // 4) BANDA INCLINADA — from encolador outlet UP to former top
+    // Encolador outlet local (drumL/2+0.7, cy-0.05, 0) ≈ (0.925+0.7? wait drumL=1.85 → 0.925+0.7)
+    const encOut = new THREE.Vector3(-3.9 + 0.7 + 1.85 / 2, 0.9, z); // ~ -2.275, 0.9, z
+    encOut.set(-3.9 + (1.85 / 2 + 0.7), 0.9, z);
+
+    const end = new THREE.Vector3(targetX, targetY, Z0 * 0.15 + z * 0.35);
+    // Blend toward center line as we approach formers
+    end.z = THREE.MathUtils.lerp(z, Z0, 0.75);
+
+    const mid = encOut.clone().lerp(end, 0.5);
+    const span = encOut.distanceTo(end);
+    const incline = buildInclinedBelt(M, span, 0.55, stripe);
+    // Orient: conveyor is along +X locally; we need to point from encOut → end
+    const dir = end.clone().sub(encOut).normalize();
+    // Default conveyor axis is +X
+    incline.quaternion.setFromUnitVectors(new THREE.Vector3(1, 0, 0), dir);
+    incline.position.copy(mid);
+    scene.add(incline);
+
+    // Support posts under incline
+    for (let i = 1; i <= 3; i++) {
+      const p = encOut.clone().lerp(end, i / 4);
+      const postH = Math.max(0.2, p.y - 0.05);
+      const post = box(0.08, postH, 0.08, M.steelD);
+      post.position.set(p.x, postH / 2, p.z);
+      scene.add(post);
+    }
+
+    add(scene, label(fine ? 'BANDA INCLINADA · FINA' : 'BANDA INCLINADA · GRUESA', stripe, 2.0),
+      mid.x, mid.y + 0.55, mid.z + (fine ? 0.6 : -0.6));
+
+    return { silo, dos, enc, encOut, end };
+  }
+
+  // Former target heights (tolva top ~ 1.45+1.15+0.1 ≈ 2.7)
+  const FORMER_TOP_Y = 2.65;
+  const f1x = xM(PLANT.sl1a) + (PLANT.sl1b - PLANT.sl1a) * S * 0.25;
+  const f2x = xM(PLANT.cla) + (PLANT.clb - PLANT.cla) * S * 0.25;
+  const f3x = xM(PLANT.sl2a) + (PLANT.sl2b - PLANT.sl2a) * S * 0.25;
+
+  // SL path feeds SL1+SL2 → incline aims near SL1 (then CL path aims CL)
+  buildUpstreamRoute({
+    z: Z_SL, fine: true,
+    siloName: 'SILO 6 · FINA', dosName: 'DOSIMBUNCA SL', encName: 'ENCOLADOR CE · SL',
+    stripe: '#29b6f6',
+    targetX: f1x - 0.4, targetY: FORMER_TOP_Y,
+  });
+  buildUpstreamRoute({
+    z: Z_CL, fine: false,
+    siloName: 'SILO 5 · GRUESA', dosName: 'DOSIMBUNCA CL', encName: 'ENCOLADOR CI · CL',
+    stripe: '#66bb6a',
+    targetX: f2x - 0.3, targetY: FORMER_TOP_Y,
+  });
+
+  // Second fine branch visual: thin split from SL incline toward SL2 (ghost feed)
+  // Shows CE → SL1 + SL2 split without a full second silo cascade
+  {
+    const splitStart = new THREE.Vector3(f1x - 0.2, FORMER_TOP_Y - 0.15, Z_SL * 0.25);
+    const splitEnd = new THREE.Vector3(f3x - 0.3, FORMER_TOP_Y, Z0);
+    const mid = splitStart.clone().lerp(splitEnd, 0.5);
+    const span = splitStart.distanceTo(splitEnd);
+    const br = buildInclinedBelt(M, span, 0.35, '#4fc3f7');
+    br.quaternion.setFromUnitVectors(
+      new THREE.Vector3(1, 0, 0),
+      splitEnd.clone().sub(splitStart).normalize()
+    );
+    br.position.copy(mid);
+    scene.add(br);
+    add(scene, label('CE → SL1 + SL2', '#81d4fa', 1.5), mid.x, mid.y + 0.4, mid.z + 0.4);
+  }
+
+  // ═══ WHITE BELT + FORMING (metric) ═══
+  const white = conveyor(PLANT.white * S, MAT_W + 0.2, M, { h: BELT_H, stripe: '#eceff1', base: '#2a3036' });
+  white.position.set(xM(PLANT.white / 2), 0, Z0);
+  scene.add(white);
+
+  // Layer mats (sandwich build-up)
+  const mkMat = (m0, m1, mat, h, y) => {
+    const L = (m1 - m0) * S;
+    const mesh = box(L, h, MAT_W * 0.9, mat);
+    add(scene, mesh, xM((m0 + m1) / 2), y, Z0);
+  };
+  mkMat(PLANT.sl1a, PLANT.sl1b, M.sl1c, 0.05, BELT_H + 0.1);
+  mkMat(PLANT.cla, PLANT.clb, M.clc, 0.09, BELT_H + 0.16);
+  mkMat(PLANT.sl2a, PLANT.sl2b, M.sl2c, 0.05, BELT_H + 0.22);
+  // full mat after SL2
+  mkMat(PLANT.sl2b, PLANT.prepA, M.board, 0.11, BELT_H + 0.18);
+
+  // Forming heads at zone starts (material drops into zone)
+  const f1 = buildFormer('SL1 · CAPA INFERIOR', M, M.blueL, PLANT.sl1b - PLANT.sl1a);
+  f1.position.set(f1x, 0, Z0);
+  scene.add(f1);
+
+  const f2 = buildFormer('CL · CORE', M, M.green, PLANT.clb - PLANT.cla);
+  f2.position.set(f2x, 0, Z0);
+  scene.add(f2);
+
+  const f3 = buildFormer('SL2 · CAPA SUPERIOR', M, M.blueM, PLANT.sl2b - PLANT.sl2a);
+  f3.position.set(f3x, 0, Z0);
+  scene.add(f3);
+
+  // Preprensa in its measured zone
+  const prep = buildPreprensa(M, PLANT.prepB - PLANT.prepA);
+  prep.position.set(xM((PLANT.prepA + PLANT.prepB) / 2), 0, Z0);
+  scene.add(prep);
+
+  // Desmoldante @ 35.99 m
+  const desm = buildDesmoldante(M);
+  desm.position.set(xM(PLANT.spray), 0, Z0);
+  scene.add(desm);
+
+  // Compact protection icons (detector / knives) as small frames
+  const det = G();
+  add(det, box(0.5, 0.7, MAT_W + 0.15, M.steelD), 0, 0.85, 0);
+  add(det, label('METAL DET.', '#b0bec5', 1.2), 0, 1.45, 0);
+  det.position.set(xM(PLANT.detector), 0, Z0);
+  scene.add(det);
+
+  const kn = G();
+  add(kn, box(0.35, 0.55, MAT_W + 0.1, M.steelL), 0, 0.75, 0);
+  add(kn, label('FILO', '#b0bec5', 0.9), 0, 1.3, 0);
+  kn.position.set(xM(PLANT.knives), 0, Z0);
+  scene.add(kn);
+
+  // ═══ RED BELT 10 m ═══
+  const red = conveyor(PLANT.red * S, MAT_W + 0.15, M, { h: BELT_H, stripe: '#e53935', base: '#3a2020' });
+  red.position.set(WHITE_END + PLANT.red * S / 2, 0, Z0);
+  scene.add(red);
+  add(scene, label('BANDA ROJA · 10 m', '#ef9a9a', 1.8), WHITE_END + PLANT.red * S / 2, BELT_H + 0.55, MAT_W / 2 + 0.5);
+
+  // Preheat just before press (visual: end of red / press entry)
+  const preh = buildPreheat(M);
+  preh.position.set(RED_END - 0.9, 0, Z0);
+  scene.add(preh);
+
+  // ═══ PRESS 16.6 m ═══
+  const press = buildPress(M);
+  press.position.set(RED_END + PLANT.press * S / 2, 0, Z0);
+  scene.add(press);
+
+  // ═══ POST: saw → star → stack ═══
+  const postBelt = conveyor(PLANT.post * S, MAT_W + 0.1, M, { h: BELT_H * 0.9 });
+  postBelt.position.set(PRESS_END + PLANT.post * S / 2, 0, Z0);
+  scene.add(postBelt);
+
+  const saw = buildSaw(M);
+  saw.position.set(PRESS_END + 1.2, 0, Z0);
+  scene.add(saw);
+
+  const star = buildStar(M);
+  star.position.set(PRESS_END + 3.8, 0, Z0);
+  scene.add(star);
+
+  const stack = buildStacker(M);
+  stack.position.set(PRESS_END + 6.5, 0, Z0);
+  scene.add(stack);
+
+  buildParticles(scene);
+
+  // light columns
+  for (const x of [-11, 0, xM(20), RED_END + 3, PRESS_END + 4]) {
+    for (const z of [-6, 6]) {
+      const c = box(0.2, 4, 0.2, M.steelD);
+      c.position.set(x, 2, z);
+      scene.add(c);
+    }
+  }
+}
+
+// ── Bootstrap ──────────────────────────────────────────────────
+const wrap = document.getElementById('canvas-wrap');
+let renderer;
+try {
+  renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+} catch (e) {
+  document.getElementById('loading').innerHTML =
+    '<p style="color:#ff8a65;text-align:center;padding:2rem">WebGL no disponible. Usá Chrome/Edge con GPU.</p>';
+  throw e;
+}
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.12;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+wrap.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x070a09);
+scene.fog = new THREE.FogExp2(0x070a09, 0.012);
+
+const midX = (PRESS_END + X0) / 2 - 1;
+const camera = new THREE.PerspectiveCamera(40, innerWidth / innerHeight, 0.1, 200);
+const CAM = {
+  iso:  { pos: new THREE.Vector3(midX - 2, 15.5, 16.5), target: new THREE.Vector3(midX, 0.3, 0) },
+  side: { pos: new THREE.Vector3(midX, 4.5, 18), target: new THREE.Vector3(midX, 0.8, 0) },
+  top:  { pos: new THREE.Vector3(midX, 28, 0.02), target: new THREE.Vector3(midX, 0, 0) },
+};
+camera.position.copy(CAM.iso.pos);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.copy(CAM.iso.target);
+controls.enableDamping = true;
+controls.dampingFactor = 0.06;
+controls.minDistance = 6;
+controls.maxDistance = 55;
+controls.maxPolarAngle = Math.PI * 0.48;
+
+const pmrem = new THREE.PMREMGenerator(renderer);
+scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+
+scene.add(new THREE.HemisphereLight(0xc8e6c9, 0x1a2a20, 0.55));
+const key = new THREE.DirectionalLight(0xffffff, 1.3);
+key.position.set(midX - 4, 20, 12);
+key.castShadow = true;
+key.shadow.mapSize.set(2048, 2048);
+key.shadow.camera.left = -30; key.shadow.camera.right = 30;
+key.shadow.camera.top = 20; key.shadow.camera.bottom = -20;
+key.shadow.camera.far = 70; key.shadow.bias = -0.0002;
+scene.add(key);
+scene.add(new THREE.DirectionalLight(0x81d4fa, 0.32).translateX(-14).translateY(8).translateZ(-6));
+scene.add(new THREE.DirectionalLight(0x00e676, 0.22).translateX(20).translateY(5).translateZ(-8));
+
+const mat = mats();
+buildPlant(scene, mat);
+
+// UI
+const btnPlay = document.getElementById('btnPlay');
+const playLabel = document.getElementById('playLabel');
+const iconPlay = document.getElementById('iconPlay');
+btnPlay.onclick = () => {
+  anim.playing = !anim.playing;
+  btnPlay.classList.toggle('is-active', anim.playing);
+  playLabel.textContent = anim.playing ? 'PAUSE' : 'PLAY';
+  iconPlay.innerHTML = anim.playing
+    ? '<path d="M6 5h4v14H6zm8 0h4v14h-4z"/>'
+    : '<path d="M8 5v14l11-7z"/>';
+};
+let fly = null;
+const flyTo = (k) => {
+  fly = { t: 0, fromP: camera.position.clone(), fromT: controls.target.clone(), toP: CAM[k].pos.clone(), toT: CAM[k].target.clone() };
+};
+document.getElementById('btnReset').onclick = () => flyTo('iso');
+document.getElementById('btnIso').onclick = () => flyTo('iso');
+document.getElementById('btnSide').onclick = () => flyTo('side');
+document.getElementById('btnTop').onclick = () => flyTo('top');
+
+const clock = new THREE.Clock();
+function tick() {
+  requestAnimationFrame(tick);
+  const dt = Math.min(clock.getDelta(), 0.05);
+  if (anim.playing) anim.t += dt;
+
+  if (fly) {
+    fly.t += dt * 1.4;
+    const k = Math.min(1, fly.t);
+    const e = k * k * (3 - 2 * k);
+    camera.position.lerpVectors(fly.fromP, fly.toP, e);
+    controls.target.lerpVectors(fly.fromT, fly.toT, e);
+    if (k >= 1) fly = null;
+  }
+  controls.update();
+
+  for (const l of anim.labels) {
+    if (l.userData.billboard !== false && Math.abs(l.rotation.x + Math.PI / 2) > 0.2) {
+      l.quaternion.copy(camera.quaternion);
+    }
+  }
+
+  if (anim.playing) {
+    for (const map of anim.belts) map.offset.x -= dt * 0.32;
+    for (const s of anim.screws) { s.rotation.x += dt * 1.5; s.rotation.y += dt * 2.2; s.rotation.z += dt * 1.8; }
+    for (const lv of anim.levels) lv.mesh.position.y = lv.baseY + Math.sin(anim.t * 0.7 + lv.phase) * 0.04;
+    if (anim.star) anim.star.rotation.y += dt * 0.32;
+    if (anim.sawCarriage) anim.sawCarriage.position.x = Math.sin(anim.t * 1.1) * 0.22;
+    for (const h of anim.heat) h.emissiveIntensity = 0.32 + Math.sin(anim.t * 2.1) * 0.14;
+    updateParticles(dt);
+  }
+  renderer.render(scene, camera);
+}
+addEventListener('resize', () => {
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+requestAnimationFrame(() => {
+  tick();
+  setTimeout(() => document.getElementById('loading').classList.add('hide'), 250);
+});
+  </script>
+</body>
+</html>
