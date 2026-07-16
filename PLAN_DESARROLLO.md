@@ -133,8 +133,11 @@ Cliente WhatsApp ──► Meta Cloud API ──► Webhook (Express en Railway)
 - Descartados: Puppeteer/Playwright (100–200 MB RAM + Chromium 150–400 MB en disco — riesgoso en Railway 512 MB), pdf-lib (solo manipulación).
 - Alternativa equivalente si se prefiere JSX: @react-pdf/renderer.
 
-## 5. Catálogo (Google Sheets)
+## 5. Catálogo — Contífico (actualizado 16-jul-2026)
 
+> **CAMBIO:** el cliente confirmó (16-jul) que el inventario se maneja en **Contífico** y pidió conectar el bot ahí. Eso **reemplaza** el plan de Google Sheets como fuente de verdad. Contífico tiene API REST (Manu ya la usó en Mesita y Jardín Express). El bot lee stock/precios de Contífico → caché local cada X minutos (mismo patrón de caché, distinta fuente). Requiere plan Contífico con API (Contable Plus o superior — confirmar cuál tienen). Google Sheets queda como plan B si su Contífico no expone bien el inventario de llantas o si el catálogo no está cargado con las medidas normalizadas.
+
+**Plan B / híbrido — Google Sheets:**
 - Hoja con columnas fijas: `marca | modelo | medida | precio | stock | local`.
 - Sync con `googleapis` (service account, gratis): 1 request lee toda la hoja cada 5–10 min → caché local (SQLite/memoria). Límites API: 300 lect/min por proyecto — irrelevante.
 - Validación al importar: filas cuya medida no pase la regex se reportan al dueño por WhatsApp. Guardar `ultima_sync` y alertar si la hoja tiene errores.

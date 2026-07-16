@@ -1,0 +1,14 @@
+Respuesta de Joaquín (Depot Tire) a la propuesta — audio WhatsApp, 16-jul-2026
+Transcripción (whisper small, español ecuatoriano informal):
+
+"Mano Manu, lo estuve viendo ayer, me parece de putas.
+Es más, creo que ni siquiera se lo voy a [consultar] a mi papá — si él no lo va a
+hacer, yo por mi lado.
+Pero, o sea, no sé — ¿hay chance de pagar por el producto completo y no por etapas?
+Este, no sé, me avisas.
+Y de ahí estaré hablando con mi viejo para el tema del inventario.
+Y todo lo del inventario se maneja con Contífico. No sé si sea mejor conectarle por ahí."
+
+Puntos: (1) le encantó, señal de compra fuerte; (2) quiere pagar completo, no por
+fases; (3) inventario en Contífico, pregunta si conectar el bot ahí; (4) cuadra
+presupuesto con el papá. Análisis e implicaciones en PROYECTO.md §12.

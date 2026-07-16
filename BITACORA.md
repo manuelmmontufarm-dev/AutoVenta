@@ -32,6 +32,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-07-16 | _(este mismo)_ | Respuesta del cliente (audio) + pivote a Contífico + transcripción | 1.0 |
 | 2026-07-15 | _(pendiente)_ | Esqueleto Fase 1 del bot (app/) + investigación de reuso GitHub | 5.0 |
 | 2026-07-15 | _(pendiente)_ | Webhook (recibir) + setup app Meta en vivo + ngrok + prueba e2e + investigación GitHub + bitácora | 4.0 |
 | 2026-07-15 | 6feb1f5 | Simulador: reencuadre "lo que pierdes hoy" | 0.5 |
@@ -43,11 +44,25 @@ Ya viene activado en este equipo.
 | 2026-07-14 | ac09171 | Ubicaciones de locales + análisis de features del cliente | 1.5 |
 | 2026-07-13 | feadf57 | Brief + plan de desarrollo + plan financiero + catálogo | 4.0 |
 | 2026-07-13 | d997844 | Commit inicial (repo) | 0.25 |
-| | | **TOTAL** | **~24.75 h** |
+| | | **TOTAL** | **~25.75 h** |
 
 ---
 
 ## Entradas (más reciente primero)
+
+### 2026-07-16 · Respuesta del cliente + pivote a Contífico · ⏱️ 1.0 h
+**Commit:** _(este mismo)_
+
+**Qué se hizo:**
+- Transcripción del audio de respuesta de Joaquín (whisper local, `docs/respuesta-cliente-16jul.txt`).
+- `PROYECTO.md §12`: análisis de la respuesta (le encantó, quiere pagar completo no por fases, inventario en Contífico) + implicaciones y nuevo pendiente #1.
+- `PLAN_DESARROLLO.md §5`: fuente del catálogo cambia de Google Sheets → **API de Contífico** (Sheets queda como plan B).
+- Guardado en `docs/` la propuesta enviada (`propuesta-autoventa.pdf`) y la transcripción.
+
+**Por qué:**
+- La respuesta del cliente cambia dos decisiones de fondo: (1) modelo de pago (completo con hitos, no fase por fase) y (2) la fuente de datos del inventario (Contífico en vez de Excel/Sheets). Contífico da stock en tiempo real real —lo que él pidió desde el inicio— y Manu ya lo integró en Mesita/Jardín Express, así que es ventaja, no riesgo. Registrar esto ahora evita reconstruir el contexto y marca el pendiente real (acceso al Contífico, no el Excel).
+
+---
 
 ### 2026-07-15 · Esqueleto Fase 1 del bot (app/) · ⏱️ 5.0 h
 **Commit:** _(este mismo)_

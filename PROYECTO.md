@@ -114,7 +114,25 @@ a otras empresas de llantas.
 - La promo del 10% primer servicio puede usarla el bot como gancho en el approach.
 - El bot debería presentarse como **Depot Tire** (confirmar con el cliente).
 
-## 12. Enlaces y recursos
+## 12. Respuesta del cliente a la propuesta (16-jul-2026)
+
+Joaquín respondió por audio a la propuesta enviada (versión con precios: Fases $200/$125/$125/$100/$50, ~$600 "socio fundador" + $40/mes). Reacción **muy positiva** — está comprado, no regateó. Puntos clave:
+
+1. **Le encantó** ("me parece de putas"). Señal de compra fuerte: dijo que si el papá no entra, lo hace él por su lado.
+2. **Quiere pagar por el producto completo, no por fases.**
+   - Recomendación: aceptar con **precio cerrado (~$600) + pagos por hito** (ej. 40% anticipo / 30% Fase 1–2 / 30% final). Mantener las fases **internamente para la entrega** — mostrar Fase 1 funcionando en semana 1, no cargar todo el riesgo de una.
+3. 🔑 **El inventario se maneja en Contífico** (no solo Excel). Pregunta si conviene conectar el bot directo ahí.
+   - **Responde la pregunta abierta** "¿sistema aparte del Excel?" → **SÍ, Contífico.**
+   - **Cambia la fuente de datos del catálogo:** de Google Sheets/Excel → **API de Contífico** (stock y precios en tiempo real — justo lo que pidió desde el inicio). Ver PLAN_DESARROLLO §5.
+   - **Ventaja:** Manu ya integró Contífico en [[project-mesita]] y [[project-jardin-express]] (prefacturas, cobros, API). Sabe que tiene API y cómo pegarle.
+   - **Alcance:** integración con API de Contífico > leer un Excel. Suma horas a la Fase 1 / va como pieza propia; requiere plan Contífico con API (Contable Plus o superior). Es lo que hace el bot "en tiempo real" — no regalarlo.
+4. El presupuesto/inventario lo termina de cuadrar con el papá.
+
+**Nuevo pendiente #1** (reemplaza al "mándame el Excel"): acceso y detalles del **Contífico** de Depot Tire — qué plan tienen (¿incluye API?) y confirmar que el inventario está bien cargado ahí.
+
+**Propuesta enviada:** `docs/propuesta-autoventa.pdf` (Descargas) — versión compacta de una página con precios. Distinta a `reunion-autoventa.html` (versión larga por fases). Transcripción del audio: `docs/respuesta-cliente-16jul.txt`.
+
+## 13. Enlaces y recursos
 
 - Repo: https://github.com/manuelmmontufarm-dev/AutoVenta
 - Bot actual del cliente (Railway, del otro dev "Interbot"): https://interbot-production.up.railway.app/
