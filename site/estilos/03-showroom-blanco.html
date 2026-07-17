@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Estilo 03 · Showroom Blanco</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300..800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#fafaf8; --card:#ffffff; --line:#e8e8e3; --ink:#1d1d1f; --muted:#86868b;
+    --red:#e3262e; --verde:#1db954; --ambar:#e8960c; --azul:#2f6fed; --violeta:#7c5cff; --lima:#9bb537;
+  }
+  *{box-sizing:border-box;margin:0}
+  body{font-family:Inter,system-ui,sans-serif;color:var(--ink);background:var(--bg);min-height:100vh;padding:48px 20px 80px}
+  .wrap{max-width:900px;margin:0 auto}
+  .kicker{font-size:11px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:var(--red)}
+  h1{font-size:clamp(32px,5vw,48px);font-weight:700;letter-spacing:-.03em;margin:8px 0 8px}
+  .lede{color:var(--muted);font-size:16px;max-width:600px;line-height:1.6;font-weight:450}
+  h2{font-size:11px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);margin:48px 0 16px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:24px;box-shadow:0 1px 2px rgba(0,0,0,.03),0 12px 32px rgba(29,29,31,.05)}
+  .pal{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:12px}
+  .sw{border-radius:20px;padding:14px;height:96px;display:flex;flex-direction:column;justify-content:flex-end;box-shadow:inset 0 0 0 1px rgba(0,0,0,.05)}
+  .sw b{font-size:12px}.sw span{font-family:'JetBrains Mono',monospace;font-size:10.5px;opacity:.7}
+  .type{padding:28px;display:grid;gap:8px}
+  .type .big{font-size:34px;font-weight:600;letter-spacing:-.025em}
+  .type .num{font-family:'JetBrains Mono',monospace;font-size:22px;font-weight:700;color:var(--red)}
+  .type small{color:var(--muted)}
+  .grid{display:grid;grid-template-columns:1.2fr 1fr;gap:16px}
+  @media(max-width:700px){.grid{grid-template-columns:1fr}}
+  .panel{padding:18px}
+  .row{display:flex;align-items:center;gap:12px;padding:14px;border-radius:18px;transition:.15s}
+  .row:hover{background:#f5f5f2}
+  .av{width:42px;height:42px;border-radius:50%;display:grid;place-items:center;font-weight:700;font-size:14px;color:#fff}
+  .rowbody{flex:1;min-width:0}
+  .rowtop{display:flex;justify-content:space-between;gap:8px}
+  .rowtop b{font-size:14px;font-weight:650}
+  .time{font-size:11.5px;color:var(--red);font-weight:650}
+  .prev{font-size:13px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px}
+  .tags{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}
+  .badge{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:700;padding:4px 10px;border-radius:99px}
+  .badge i{width:6px;height:6px;border-radius:50%}
+  .chip{font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700;padding:4px 9px;border-radius:9px;background:#f2f2ee;border:1px solid var(--line);color:var(--ink)}
+  .kcard{padding:16px;margin-bottom:14px}
+  .monto{font-family:'JetBrains Mono',monospace;color:var(--verde);font-weight:700;font-size:15px}
+  .stat{padding:22px}
+  .stat .label{font-size:10.5px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+  .stat .val{font-family:'JetBrains Mono',monospace;font-size:32px;font-weight:700;letter-spacing:-.02em;margin-top:8px}
+  .chat{display:flex;flex-direction:column;gap:8px;padding:18px;background:#f7f7f4;border-radius:24px}
+  .bub{max-width:80%;padding:10px 13px;border-radius:18px;font-size:13.5px;line-height:1.5}
+  .in{align-self:flex-start;background:#fff;border:1px solid var(--line);border-bottom-left-radius:6px}
+  .out{align-self:flex-end;background:#e9f8ef;border:1px solid #cdeeda;border-bottom-right-radius:6px}
+  .pdf{display:flex;gap:10px;align-items:center;background:#fff;border:1px solid var(--line);border-radius:14px;padding:10px 13px;box-shadow:0 4px 12px rgba(0,0,0,.05)}
+  .pdf .ic{width:36px;height:36px;border-radius:10px;background:var(--red);color:#fff;display:grid;place-items:center}
+  .btns{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}
+  .btn{border:none;cursor:pointer;font:inherit;font-weight:650;font-size:13.5px;padding:12px 24px;border-radius:99px;transition:.15s}
+  .btn.p{background:var(--red);color:#fff;box-shadow:0 6px 20px rgba(227,38,46,.25)}
+  .btn.s{background:var(--ink);color:#fff}
+  .btn.g{background:#f2f2ee;color:var(--ink);border:1px solid var(--line)}
+  .btn:hover{transform:translateY(-1px)}
+  .note{margin-top:44px;padding:24px 28px;font-size:14px;line-height:1.7;color:var(--muted)}
+  .note b{color:var(--ink)}
+  a.back{color:var(--muted);font-size:12px;text-decoration:none}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="back" href="index.html">← todos los estilos</a>
+  <p class="kicker" style="margin-top:18px">Estilo 03 · luz de tienda</p>
+  <h1>Showroom Blanco</h1>
+  <p class="lede">Modo claro premium: blanco cálido, sombras suaves, aire por todas partes y el rojo Depot usado con cuentagotas. La estética de una Apple Store — el producto (la venta) es el protagonista.</p>
+
+  <h2>Paleta</h2>
+  <div class="pal">
+    <div class="sw" style="background:#fafaf8"><b>Fondo</b><span>#FAFAF8</span></div>
+    <div class="sw" style="background:#ffffff"><b>Tarjeta</b><span>#FFFFFF</span></div>
+    <div class="sw" style="background:#1d1d1f;color:#fff"><b>Tinta</b><span>#1D1D1F</span></div>
+    <div class="sw" style="background:#e3262e;color:#fff"><b>Depot Red</b><span>#E3262E</span></div>
+    <div class="sw" style="background:#1db954;color:#fff"><b>Verde OK</b><span>#1DB954</span></div>
+    <div class="sw" style="background:#2f6fed;color:#fff"><b>Azul info</b><span>#2F6FED</span></div>
+  </div>
+
+  <h2>Tipografía & números</h2>
+  <div class="card type">
+    <div class="big">Inter a peso medio, tracking apretado</div>
+    <div class="num">185/60 R14 · $285,20</div>
+    <small>Jerarquía por peso y espacio, casi sin color. El rojo se reserva para lo urgente.</small>
+  </div>
+
+  <h2>La app en este estilo</h2>
+  <div class="grid">
+    <div class="card panel">
+      <div class="row">
+        <div class="av" style="background:#e8960c">KM</div>
+        <div class="rowbody">
+          <div class="rowtop"><b>Karen Moya</b><span class="time">hace 30 min</span></div>
+          <div class="prev">Sí, voy hoy después del trabajo, tipo 5</div>
+          <div class="tags">
+            <span class="badge" style="color:#7a8c1e;background:#f3f7dd"><i style="background:#9bb537"></i>Por visitar</span>
+            <span class="chip">185/60 R14</span>
+          </div>
+        </div>
+      </div>
+      <div class="row">
+        <div class="av" style="background:#2f6fed">RZ</div>
+        <div class="rowbody">
+          <div class="rowtop"><b>Roberto Zambrano</b><span class="time" style="color:var(--muted)">ahora</span></div>
+          <div class="prev">📄 Cotización PDF</div>
+          <div class="tags">
+            <span class="badge" style="color:#b26f00;background:#fdf3df"><i style="background:#e8960c"></i>Cotizado</span>
+            <span class="badge" style="color:#0d8f43;background:#e9f8ef">🤖 Bot</span>
+          </div>
+        </div>
+      </div>
+      <div class="btns">
+        <button class="btn p">Cerrar ticket</button>
+        <button class="btn s">▶ Demo</button>
+        <button class="btn g">Ver PDF</button>
+      </div>
+    </div>
+    <div>
+      <div class="card kcard">
+        <b style="font-size:13.5px;font-weight:650">Roberto Zambrano</b>
+        <div style="display:flex;justify-content:space-between;margin-top:9px;align-items:center">
+          <span class="chip">185/60 R14</span><span class="monto">$285,20</span>
+        </div>
+      </div>
+      <div class="card stat">
+        <div class="label">En juego (pipeline)</div>
+        <div class="val">$5.094<span style="color:var(--muted);font-size:20px">,50</span></div>
+      </div>
+      <div class="chat" style="margin-top:14px">
+        <div class="bub in">Buenas 🙌 ¿tienen llantas para un Sail?</div>
+        <div class="bub out">¡Claro! ¿Me confirmas la medida? Algo como 185/60 R14</div>
+        <div class="bub out pdf"><span class="ic">📄</span><span style="font-size:12.5px"><b>Cotización #1042</b><br><span style="color:var(--muted);font-size:11px">PDF · toca para ver</span></span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card note">
+    <b>Cuándo elegirlo:</b> si el Hub se va a usar de día, en el local, con sol en la pantalla — el modo claro gana en legibilidad. Transmite orden, limpieza y confianza "de marca grande"; perfecto si Joaquín quiere enseñárselo a su papá impreso o en tablet. <b>Vibra:</b> Apple Store · clínica premium · Stripe Dashboard claro.
+  </div>
+</div>
+</body>
+</html>

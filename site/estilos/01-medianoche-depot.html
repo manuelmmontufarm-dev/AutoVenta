@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Estilo 01 · Medianoche Depot</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300..800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0a1020; --panel:rgba(17,26,49,.62); --line:rgba(255,255,255,.08);
+    --paper:#f5f1e9; --muted:#8b95ab; --red:#e3262e; --lime:#d9ff4f;
+    --blue:#5b8def; --teal:#2dd4bf; --amber:#f5b83d; --violet:#a78bfa; --green:#34d399;
+  }
+  *{box-sizing:border-box;margin:0}
+  body{
+    font-family:Inter,system-ui,sans-serif;color:var(--paper);min-height:100vh;
+    background:
+      radial-gradient(110% 80% at 15% -10%, rgba(23,61,118,.55) 0%, transparent 60%),
+      radial-gradient(90% 70% at 110% 10%, rgba(227,38,46,.14) 0%, transparent 55%),
+      radial-gradient(120% 90% at 50% 0%, #0d1530 0%, #0a1020 55%, #070b16 100%);
+    background-attachment:fixed; padding:48px 20px 80px;
+  }
+  .wrap{max-width:900px;margin:0 auto}
+  .kicker{font-size:11px;font-weight:800;letter-spacing:.2em;text-transform:uppercase;color:var(--red)}
+  h1{font-size:clamp(30px,5vw,44px);font-weight:800;letter-spacing:-.02em;margin:8px 0 6px}
+  .lede{color:var(--muted);font-size:15px;max-width:600px;line-height:1.6}
+  h2{font-size:11px;font-weight:800;letter-spacing:.18em;text-transform:uppercase;color:var(--muted);margin:44px 0 14px}
+  .glass{background:var(--panel);backdrop-filter:blur(18px) saturate(140%);border:1px solid var(--line);border-radius:20px}
+  /* paleta */
+  .pal{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:10px}
+  .sw{border-radius:16px;padding:14px 12px;height:96px;display:flex;flex-direction:column;justify-content:flex-end;border:1px solid var(--line)}
+  .sw b{font-size:12px}.sw span{font-family:'JetBrains Mono',monospace;font-size:10.5px;opacity:.75}
+  /* tipografía */
+  .type{padding:24px;display:grid;gap:6px}
+  .type .big{font-size:34px;font-weight:700;letter-spacing:-.02em}
+  .type .num{font-family:'JetBrains Mono',monospace;font-size:22px;font-weight:700;color:var(--lime)}
+  .type small{color:var(--muted)}
+  /* mock */
+  .grid{display:grid;grid-template-columns:1.2fr 1fr;gap:14px}
+  @media(max-width:700px){.grid{grid-template-columns:1fr}}
+  .panel{padding:16px}
+  .row{display:flex;align-items:center;gap:12px;padding:12px;border-radius:16px;transition:.15s}
+  .row:hover{background:rgba(255,255,255,.045);transform:translateY(-1px)}
+  .av{width:40px;height:40px;border-radius:50%;display:grid;place-items:center;font-weight:800;font-size:14px;flex-shrink:0}
+  .rowbody{flex:1;min-width:0}
+  .rowtop{display:flex;justify-content:space-between;gap:8px}
+  .rowtop b{font-size:13.5px}
+  .time{font-size:11px;color:var(--red);font-weight:700}
+  .prev{font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px}
+  .tags{display:flex;gap:6px;margin-top:7px;flex-wrap:wrap}
+  .badge{display:inline-flex;align-items:center;gap:5px;font-size:10.5px;font-weight:800;padding:3px 9px;border-radius:99px}
+  .badge i{width:6px;height:6px;border-radius:50%;display:inline-block}
+  .chip{font-family:'JetBrains Mono',monospace;font-size:10.5px;font-weight:700;padding:3px 8px;border-radius:8px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.12)}
+  .kcard{padding:14px;border-radius:16px;margin-bottom:12px}
+  .kcard .monto{font-family:'JetBrains Mono',monospace;color:var(--lime);font-weight:700}
+  .stat{padding:18px}
+  .stat .label{font-size:10px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:var(--muted)}
+  .stat .val{font-family:'JetBrains Mono',monospace;font-size:30px;font-weight:700;color:var(--lime);margin-top:6px}
+  .chat{display:flex;flex-direction:column;gap:8px;padding:16px;background-image:radial-gradient(rgba(255,255,255,.05) 1px,transparent 1.4px);background-size:22px 22px}
+  .bub{max-width:80%;padding:9px 12px;border-radius:14px;font-size:13px;line-height:1.45;box-shadow:0 1px 2px rgba(0,0,0,.35)}
+  .in{align-self:flex-start;background:rgba(255,255,255,.09);border:1px solid rgba(255,255,255,.06);border-top-left-radius:4px}
+  .out{align-self:flex-end;background:linear-gradient(150deg,#10745a,#0a5140);border-top-right-radius:4px}
+  .pdf{display:flex;gap:10px;align-items:center;background:rgba(0,0,0,.25);border:1px solid rgba(255,255,255,.12);border-radius:12px;padding:9px 12px}
+  .pdf .ic{width:34px;height:34px;border-radius:9px;background:var(--red);display:grid;place-items:center;font-size:15px}
+  .btns{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:14px}
+  .btn{border:none;cursor:pointer;font:inherit;font-weight:800;font-size:13px;padding:11px 22px;border-radius:99px}
+  .btn.p{background:var(--red);color:#fff;box-shadow:0 8px 24px rgba(227,38,46,.35)}
+  .btn.s{background:var(--lime);color:#0a1020}
+  .btn.g{background:rgba(255,255,255,.07);color:var(--paper);border:1px solid var(--line)}
+  .note{margin-top:40px;padding:20px 24px;font-size:13.5px;line-height:1.65;color:var(--muted)}
+  .note b{color:var(--paper)}
+  a.back{color:var(--muted);font-size:12px;text-decoration:none}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="back" href="index.html">← todos los estilos</a>
+  <p class="kicker" style="margin-top:18px">Estilo 01 · el actual</p>
+  <h1>Medianoche Depot</h1>
+  <p class="lede">Azul tinta profundo + vidrio esmerilado + acentos de la marca. Serio, tecnológico y elegante — el tablero de un carro premium de noche. Es el estilo con el que está construido el Hub hoy.</p>
+
+  <h2>Paleta</h2>
+  <div class="pal">
+    <div class="sw" style="background:#0a1020"><b>Tinta</b><span>#0A1020</span></div>
+    <div class="sw" style="background:#111a31"><b>Panel</b><span>#111A31</span></div>
+    <div class="sw" style="background:#e3262e"><b>Depot Red</b><span>#E3262E</span></div>
+    <div class="sw" style="background:#d9ff4f;color:#0a1020"><b>Lima</b><span>#D9FF4F</span></div>
+    <div class="sw" style="background:#5b8def"><b>Cielo</b><span>#5B8DEF</span></div>
+    <div class="sw" style="background:#f5f1e9;color:#0a1020"><b>Papel</b><span>#F5F1E9</span></div>
+  </div>
+
+  <h2>Tipografía & números</h2>
+  <div class="glass type">
+    <div class="big">Inter — moderna y neutra</div>
+    <div class="num">185/60 R14 · $285,20 — JetBrains Mono</div>
+    <small>La medida de la llanta siempre en monoespaciada: es EL dato del negocio.</small>
+  </div>
+
+  <h2>La app en este estilo</h2>
+  <div class="grid">
+    <div class="glass panel">
+      <div class="row">
+        <div class="av" style="color:#f5b83d;background:rgba(245,184,61,.16);border:1px solid rgba(245,184,61,.35)">KM</div>
+        <div class="rowbody">
+          <div class="rowtop"><b>Karen Moya</b><span class="time">hace 30 min</span></div>
+          <div class="prev">Sí, voy hoy después del trabajo, tipo 5</div>
+          <div class="tags">
+            <span class="badge" style="color:#d9ff4f;background:rgba(217,255,79,.12);border:1px solid rgba(217,255,79,.3)"><i style="background:#d9ff4f"></i>Por visitar</span>
+            <span class="chip">185/60 R14</span>
+          </div>
+        </div>
+      </div>
+      <div class="row">
+        <div class="av" style="color:#2dd4bf;background:rgba(45,212,191,.14);border:1px solid rgba(45,212,191,.35)">RZ</div>
+        <div class="rowbody">
+          <div class="rowtop"><b>Roberto Zambrano</b><span class="time" style="color:#8b95ab">ahora</span></div>
+          <div class="prev">📄 Cotización PDF</div>
+          <div class="tags">
+            <span class="badge" style="color:#f5b83d;background:rgba(245,184,61,.12);border:1px solid rgba(245,184,61,.3)"><i style="background:#f5b83d"></i>Cotizado</span>
+            <span class="badge" style="color:#34d399;background:rgba(52,211,153,.1);border:1px solid rgba(52,211,153,.28)">🤖 Bot</span>
+          </div>
+        </div>
+      </div>
+      <div class="btns">
+        <button class="btn p">Cerrar ticket</button>
+        <button class="btn s">▶ Demo</button>
+        <button class="btn g">Ver PDF</button>
+      </div>
+    </div>
+    <div>
+      <div class="glass kcard">
+        <b style="font-size:13px">Roberto Zambrano</b>
+        <div style="display:flex;justify-content:space-between;margin-top:8px;align-items:center">
+          <span class="chip">185/60 R14</span><span class="monto">$285,20</span>
+        </div>
+      </div>
+      <div class="glass stat">
+        <div class="label">En juego (pipeline)</div>
+        <div class="val">$5.094,50</div>
+      </div>
+      <div class="glass chat" style="margin-top:12px">
+        <div class="bub in">Buenas 🙌 ¿tienen llantas para un Sail?</div>
+        <div class="bub out">¡Claro! ¿Me confirmas la medida? Algo como 185/60 R14</div>
+        <div class="bub out pdf"><span class="ic">📄</span><span style="font-size:12px"><b>Cotización #1042</b><br><span style="opacity:.6;font-size:10.5px">PDF · toca para ver</span></span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="glass note">
+    <b>Cuándo elegirlo:</b> si quieres continuidad total con lo ya construido y un look "sala de control" que impresiona en demo nocturna. Premium, sobrio, muy legible de noche. Es la base actual: costo de adopción cero. <b>Vibra:</b> tablero de superdeportivo · Linear · consola de misión.
+  </div>
+</div>
+</body>
+</html>

@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Estilo 02 · Carbono & Neón</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=Rajdhani:wght@500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0b0b0d; --panel:#131316; --line:#26262b;
+    --txt:#f2f2f0; --muted:#8f8f98; --neon:#ff2d3f; --naranja:#ff7a00; --cian:#00e5ff; --volt:#ccff00;
+  }
+  *{box-sizing:border-box;margin:0}
+  body{
+    font-family:Rajdhani,system-ui,sans-serif;color:var(--txt);min-height:100vh;padding:48px 20px 80px;
+    background:
+      repeating-linear-gradient(45deg, rgba(255,255,255,.012) 0 2px, transparent 2px 6px),
+      repeating-linear-gradient(-45deg, rgba(255,255,255,.012) 0 2px, transparent 2px 6px),
+      #0b0b0d;
+  }
+  .wrap{max-width:900px;margin:0 auto}
+  .kicker{font-family:'Chakra Petch';font-size:11px;font-weight:700;letter-spacing:.3em;text-transform:uppercase;color:var(--neon);text-shadow:0 0 12px rgba(255,45,63,.6)}
+  h1{font-family:'Chakra Petch';font-size:clamp(30px,5vw,46px);font-weight:700;text-transform:uppercase;letter-spacing:.02em;margin:8px 0 6px}
+  h1 em{font-style:normal;color:var(--neon);text-shadow:0 0 18px rgba(255,45,63,.55)}
+  .lede{color:var(--muted);font-size:15px;max-width:620px;line-height:1.6;font-weight:500}
+  h2{font-family:'Chakra Petch';font-size:11px;font-weight:700;letter-spacing:.28em;text-transform:uppercase;color:var(--muted);margin:44px 0 14px;display:flex;align-items:center;gap:10px}
+  h2::after{content:"";flex:1;height:1px;background:linear-gradient(90deg,var(--line),transparent)}
+  /* chaflán */
+  .cut{background:var(--panel);border:1px solid var(--line);clip-path:polygon(14px 0,100% 0,100% calc(100% - 14px),calc(100% - 14px) 100%,0 100%,0 14px)}
+  .pal{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:10px}
+  .sw{height:96px;padding:12px;display:flex;flex-direction:column;justify-content:flex-end;clip-path:polygon(10px 0,100% 0,100% calc(100% - 10px),calc(100% - 10px) 100%,0 100%,0 10px)}
+  .sw b{font-family:'Chakra Petch';font-size:12px}.sw span{font-family:'Share Tech Mono';font-size:10.5px;opacity:.8}
+  .type{padding:24px;display:grid;gap:8px}
+  .type .big{font-family:'Chakra Petch';font-size:30px;font-weight:700;text-transform:uppercase}
+  .type .num{font-family:'Share Tech Mono';font-size:22px;color:var(--volt)}
+  .type small{color:var(--muted)}
+  .grid{display:grid;grid-template-columns:1.2fr 1fr;gap:14px}
+  @media(max-width:700px){.grid{grid-template-columns:1fr}}
+  .panel{padding:16px}
+  .row{display:flex;gap:12px;align-items:center;padding:12px;border-left:3px solid var(--neon);background:#17171b;margin-bottom:10px;clip-path:polygon(0 0,100% 0,100% calc(100% - 10px),calc(100% - 10px) 100%,0 100%)}
+  .row:last-of-type{border-left-color:var(--naranja)}
+  .av{width:40px;height:40px;display:grid;place-items:center;font-family:'Chakra Petch';font-weight:700;font-size:14px;clip-path:polygon(8px 0,100% 0,100% calc(100% - 8px),calc(100% - 8px) 100%,0 100%,0 8px)}
+  .rowbody{flex:1;min-width:0}
+  .rowtop{display:flex;justify-content:space-between;gap:8px}
+  .rowtop b{font-family:'Chakra Petch';font-size:13.5px;text-transform:uppercase;letter-spacing:.03em}
+  .time{font-family:'Share Tech Mono';font-size:10.5px;color:var(--neon)}
+  .prev{font-size:13px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px;font-weight:500}
+  .tags{display:flex;gap:6px;margin-top:7px;flex-wrap:wrap}
+  .badge{font-family:'Chakra Petch';font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;padding:3px 10px;clip-path:polygon(6px 0,100% 0,100% calc(100% - 6px),calc(100% - 6px) 100%,0 100%,0 6px)}
+  .chip{font-family:'Share Tech Mono';font-size:11px;padding:3px 8px;background:#0b0b0d;border:1px solid var(--line);color:var(--cian)}
+  .kcard{padding:14px;margin-bottom:12px;position:relative}
+  .kcard::before{content:"";position:absolute;inset:0 auto 0 0;width:3px;background:linear-gradient(180deg,var(--neon),var(--naranja))}
+  .monto{font-family:'Share Tech Mono';color:var(--volt);font-size:15px}
+  .stat{padding:18px}
+  .stat .label{font-family:'Chakra Petch';font-size:10px;font-weight:700;letter-spacing:.24em;text-transform:uppercase;color:var(--muted)}
+  .stat .val{font-family:'Share Tech Mono';font-size:30px;color:var(--neon);text-shadow:0 0 16px rgba(255,45,63,.45);margin-top:6px}
+  .chat{display:flex;flex-direction:column;gap:8px;padding:16px}
+  .bub{max-width:80%;padding:9px 12px;font-size:13.5px;line-height:1.45;font-weight:500}
+  .in{align-self:flex-start;background:#1c1c21;border:1px solid var(--line);clip-path:polygon(0 0,100% 0,100% 100%,10px 100%,0 calc(100% - 10px))}
+  .out{align-self:flex-end;background:linear-gradient(160deg,#2a0d10,#3d1013);border:1px solid rgba(255,45,63,.4);clip-path:polygon(0 0,100% 0,100% calc(100% - 10px),calc(100% - 10px) 100%,0 100%)}
+  .pdf{display:flex;gap:10px;align-items:center;background:#0b0b0d;border:1px solid rgba(255,45,63,.5);padding:9px 12px}
+  .pdf .ic{width:34px;height:34px;background:var(--neon);display:grid;place-items:center;box-shadow:0 0 14px rgba(255,45,63,.6);clip-path:polygon(6px 0,100% 0,100% calc(100% - 6px),calc(100% - 6px) 100%,0 100%,0 6px)}
+  .btns{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
+  .btn{border:none;cursor:pointer;font-family:'Chakra Petch';font-weight:700;font-size:13px;letter-spacing:.08em;text-transform:uppercase;padding:12px 24px;clip-path:polygon(10px 0,100% 0,100% calc(100% - 10px),calc(100% - 10px) 100%,0 100%,0 10px)}
+  .btn.p{background:var(--neon);color:#fff;box-shadow:0 0 24px rgba(255,45,63,.5)}
+  .btn.s{background:var(--volt);color:#0b0b0d}
+  .btn.g{background:#17171b;color:var(--txt);border:1px solid var(--line)}
+  .note{margin-top:40px;padding:20px 24px;font-size:14px;line-height:1.65;color:var(--muted);font-weight:500}
+  .note b{color:var(--txt)}
+  a.back{color:var(--muted);font-size:12px;text-decoration:none;font-family:'Chakra Petch'}
+  .stripe{height:6px;margin-top:10px;background:repeating-linear-gradient(-45deg,var(--neon) 0 14px,#0b0b0d 14px 22px,var(--naranja) 22px 36px,#0b0b0d 36px 44px)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="back" href="index.html">← TODOS LOS ESTILOS</a>
+  <p class="kicker" style="margin-top:18px">Estilo 02 · garage nocturno</p>
+  <h1>Carbono <em>&amp; Neón</em></h1>
+  <div class="stripe"></div>
+  <p class="lede" style="margin-top:14px">Negro carbono, cortes en chaflán y neón rojo que brilla. Agresivo y veloz — la estética de un taller de tuning a medianoche. Cero curvas suaves: todo tiene filo.</p>
+
+  <h2>Paleta</h2>
+  <div class="pal">
+    <div class="sw" style="background:#0b0b0d;border:1px solid var(--line)"><b>Carbono</b><span>#0B0B0D</span></div>
+    <div class="sw" style="background:#131316;border:1px solid var(--line)"><b>Panel</b><span>#131316</span></div>
+    <div class="sw" style="background:#ff2d3f"><b>Neón Rojo</b><span>#FF2D3F</span></div>
+    <div class="sw" style="background:#ff7a00"><b>Naranja</b><span>#FF7A00</span></div>
+    <div class="sw" style="background:#ccff00;color:#0b0b0d"><b>Volt</b><span>#CCFF00</span></div>
+    <div class="sw" style="background:#00e5ff;color:#0b0b0d"><b>Ciánico</b><span>#00E5FF</span></div>
+  </div>
+
+  <h2>Tipografía & números</h2>
+  <div class="cut type">
+    <div class="big">Chakra Petch — técnica y agresiva</div>
+    <div class="num">185/60 R14 · $285,20 — SHARE TECH MONO</div>
+    <small>Titulares en mayúsculas con tracking; datos como lectura de tablero digital.</small>
+  </div>
+
+  <h2>La app en este estilo</h2>
+  <div class="grid">
+    <div class="cut panel">
+      <div class="row">
+        <div class="av" style="color:#ff7a00;background:rgba(255,122,0,.14);border:1px solid rgba(255,122,0,.4)">KM</div>
+        <div class="rowbody">
+          <div class="rowtop"><b>Karen Moya</b><span class="time">-00:30 MIN</span></div>
+          <div class="prev">Sí, voy hoy después del trabajo, tipo 5</div>
+          <div class="tags">
+            <span class="badge" style="color:#ccff00;background:rgba(204,255,0,.1);border:1px solid rgba(204,255,0,.4)">Por visitar</span>
+            <span class="chip">185/60 R14</span>
+          </div>
+        </div>
+      </div>
+      <div class="row">
+        <div class="av" style="color:#00e5ff;background:rgba(0,229,255,.1);border:1px solid rgba(0,229,255,.4)">RZ</div>
+        <div class="rowbody">
+          <div class="rowtop"><b>Roberto Zambrano</b><span class="time" style="color:var(--muted)">AHORA</span></div>
+          <div class="prev">📄 Cotización PDF</div>
+          <div class="tags">
+            <span class="badge" style="color:#ff7a00;background:rgba(255,122,0,.1);border:1px solid rgba(255,122,0,.4)">Cotizado</span>
+            <span class="badge" style="color:#0b0b0d;background:#00e5ff">BOT</span>
+          </div>
+        </div>
+      </div>
+      <div class="btns">
+        <button class="btn p">Cerrar ticket</button>
+        <button class="btn s">▶ Demo</button>
+        <button class="btn g">Ver PDF</button>
+      </div>
+    </div>
+    <div>
+      <div class="cut kcard">
+        <b style="font-family:'Chakra Petch';font-size:13px;text-transform:uppercase">Roberto Zambrano</b>
+        <div style="display:flex;justify-content:space-between;margin-top:8px;align-items:center">
+          <span class="chip">185/60 R14</span><span class="monto">$285,20</span>
+        </div>
+      </div>
+      <div class="cut stat">
+        <div class="label">En juego / pipeline</div>
+        <div class="val">$5.094,50</div>
+      </div>
+      <div class="cut chat" style="margin-top:12px">
+        <div class="bub in">Buenas 🙌 ¿tienen llantas para un Sail?</div>
+        <div class="bub out">¡Claro! ¿Me confirmas la medida? Algo como 185/60 R14</div>
+        <div class="bub out pdf"><span class="ic">📄</span><span style="font-size:12px"><b>COTIZACIÓN #1042</b><br><span style="opacity:.6;font-size:10.5px;font-family:'Share Tech Mono'">PDF · VER</span></span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="cut note">
+    <b>Cuándo elegirlo:</b> si Depot Tire quiere sentirse marca de performance — llantas deportivas, clientela joven, tuning. Máximo impacto visual en demo; el neón sobre carbono se siente videojuego de carreras. <b>Riesgo:</b> menos "empresa seria", más fatiga visual en jornadas largas. <b>Vibra:</b> Need for Speed · pit lane nocturno · HUD de simulador.
+  </div>
+</div>
+</body>
+</html>

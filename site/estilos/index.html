@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Depot Tire Hub · Exploración de estilos</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+  :root{--bg:#0e0f13;--card:#16181f;--line:rgba(255,255,255,.08);--txt:#f2f1ed;--muted:#8f95a3}
+  *{box-sizing:border-box;margin:0}
+  body{font-family:Inter,system-ui,sans-serif;background:var(--bg);color:var(--txt);min-height:100vh;padding:56px 20px 80px}
+  .wrap{max-width:960px;margin:0 auto}
+  .kicker{font-size:11px;font-weight:800;letter-spacing:.22em;text-transform:uppercase;color:#e3262e}
+  h1{font-size:clamp(30px,5vw,46px);font-weight:800;letter-spacing:-.02em;margin:10px 0 10px}
+  .lede{color:var(--muted);font-size:15px;max-width:640px;line-height:1.65}
+  .lede b{color:var(--txt)}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px;margin-top:36px}
+  a.card{display:block;background:var(--card);border:1px solid var(--line);border-radius:18px;padding:20px;text-decoration:none;color:inherit;transition:.18s}
+  a.card:hover{transform:translateY(-4px);border-color:rgba(255,255,255,.2);box-shadow:0 20px 44px rgba(0,0,0,.45)}
+  .num{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--muted)}
+  .card h3{font-size:18px;font-weight:750;letter-spacing:-.01em;margin:6px 0 4px}
+  .card p{font-size:12.5px;color:var(--muted);line-height:1.55;min-height:58px}
+  .dots{display:flex;gap:6px;margin-top:14px}
+  .dot{width:22px;height:22px;border-radius:7px;border:1px solid rgba(255,255,255,.18)}
+  .vibe{margin-top:12px;font-size:10.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+  .foot{margin-top:44px;padding:20px 24px;background:var(--card);border:1px solid var(--line);border-radius:18px;font-size:13px;line-height:1.7;color:var(--muted)}
+  .foot b{color:var(--txt)}
+  .tag{display:inline-block;font-size:10px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;padding:3px 8px;border-radius:99px;margin-left:8px;vertical-align:2px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <p class="kicker">Depot Tire Hub · Parte 1</p>
+  <h1>Exploración de estilos</h1>
+  <p class="lede">Nueve direcciones visuales para el Hub, todas con el <b>mismo contenido maquetado</b> (inbox, card de Kanban, chat, KPI y botones) para comparar de igual a igual. Abre cada una, míralas en el celular también, y elige la que Joaquín debería ver. Cualquiera se aplica al Hub real cambiando solo los design tokens.</p>
+
+  <div class="grid">
+    <a class="card" href="01-medianoche-depot.html">
+      <span class="num">01</span><span class="tag" style="background:rgba(227,38,46,.15);color:#ff7b81">actual</span>
+      <h3>Medianoche Depot</h3>
+      <p>Azul tinta + glass + rojo y lima de la marca. Sala de control premium — el estilo con el que está construido el Hub hoy.</p>
+      <div class="dots">
+        <span class="dot" style="background:#0a1020"></span><span class="dot" style="background:#111a31"></span>
+        <span class="dot" style="background:#e3262e"></span><span class="dot" style="background:#d9ff4f"></span>
+        <span class="dot" style="background:#f5f1e9"></span>
+      </div>
+      <div class="vibe">Superdeportivo de noche · Linear</div>
+    </a>
+
+    <a class="card" href="02-carbono-neon.html">
+      <span class="num">02</span>
+      <h3>Carbono &amp; Neón</h3>
+      <p>Negro carbono, cortes en chaflán y neón rojo brillante. Agresivo, veloz, taller de tuning a medianoche.</p>
+      <div class="dots">
+        <span class="dot" style="background:#0b0b0d"></span><span class="dot" style="background:#131316"></span>
+        <span class="dot" style="background:#ff2d3f"></span><span class="dot" style="background:#ff7a00"></span>
+        <span class="dot" style="background:#ccff00"></span>
+      </div>
+      <div class="vibe">Need for Speed · pit lane</div>
+    </a>
+
+    <a class="card" href="03-showroom-blanco.html">
+      <span class="num">03</span>
+      <h3>Showroom Blanco</h3>
+      <p>Modo claro premium: blanco cálido, sombras suaves, aire por todos lados y el rojo con cuentagotas.</p>
+      <div class="dots">
+        <span class="dot" style="background:#fafaf8"></span><span class="dot" style="background:#ffffff"></span>
+        <span class="dot" style="background:#1d1d1f"></span><span class="dot" style="background:#e3262e"></span>
+        <span class="dot" style="background:#1db954"></span>
+      </div>
+      <div class="vibe">Apple Store · Stripe claro</div>
+    </a>
+
+    <a class="card" href="04-racing-heritage.html">
+      <span class="num">04</span>
+      <h3>Racing Heritage</h3>
+      <p>Crema vintage, navy, rojo GP y bandera a cuadros. Los 30+ años de Depot Tire como escudería clásica.</p>
+      <div class="dots">
+        <span class="dot" style="background:#f6f1e4"></span><span class="dot" style="background:#14213d"></span>
+        <span class="dot" style="background:#d62828"></span><span class="dot" style="background:#fcbf49"></span>
+        <span class="dot" style="background:#2a9d8f"></span>
+      </div>
+      <div class="vibe">Escudería 70s · heritage</div>
+    </a>
+
+    <a class="card" href="05-neobrutalista-taller.html">
+      <span class="num">05</span>
+      <h3>Neobrutalista Taller</h3>
+      <p>Bordes negros gruesos, sombras duras, colores de caja de herramientas y stickers rotados. Puro carácter.</p>
+      <div class="dots">
+        <span class="dot" style="background:#fff8e7"></span><span class="dot" style="background:#111111"></span>
+        <span class="dot" style="background:#ffd60a"></span><span class="dot" style="background:#ef233c"></span>
+        <span class="dot" style="background:#3a86ff"></span>
+      </div>
+      <div class="vibe">Gumroad · sticker bomb</div>
+    </a>
+
+    <a class="card" href="06-aurora-glass.html">
+      <span class="num">06</span>
+      <h3>Aurora Glass</h3>
+      <p>Violeta profundo, orbes de luz y vidrio iridiscente. El lenguaje de los productos de IA de 2026.</p>
+      <div class="dots">
+        <span class="dot" style="background:#070312"></span><span class="dot" style="background:#7c3aed"></span>
+        <span class="dot" style="background:#22d3ee"></span><span class="dot" style="background:#e879f9"></span>
+        <span class="dot" style="background:#a78bfa"></span>
+      </div>
+      <div class="vibe">Linear · Raycast · keynote IA</div>
+    </a>
+
+    <a class="card" href="07-tecnico-blueprint.html">
+      <span class="num">07</span>
+      <h3>Técnico Blueprint</h3>
+      <p>Papel cuadriculado de ingeniería, un acento azul eléctrico y la medida como cota de plano. Rigor puro.</p>
+      <div class="dots">
+        <span class="dot" style="background:#eef1f4"></span><span class="dot" style="background:#f8fafc"></span>
+        <span class="dot" style="background:#16181d"></span><span class="dot" style="background:#0055ff"></span>
+        <span class="dot" style="background:#00873c"></span>
+      </div>
+      <div class="vibe">Plano de ingeniería · Plex</div>
+    </a>
+
+    <a class="card" href="08-claude-oscuro.html">
+      <span class="num">08</span>
+      <h3>Claude Oscuro</h3>
+      <p>Carbón cálido, serif editorial y acentos apagados de salvia y arena. El lenguaje de Claude de noche, sin el naranja.</p>
+      <div class="dots">
+        <span class="dot" style="background:#262624"></span><span class="dot" style="background:#30302e"></span>
+        <span class="dot" style="background:#f5f4ee"></span><span class="dot" style="background:#8fa885"></span>
+        <span class="dot" style="background:#8da3c0"></span>
+      </div>
+      <div class="vibe">Claude.ai de noche · biblioteca cálida</div>
+    </a>
+
+    <a class="card" href="09-claude-claro.html">
+      <span class="num">09</span>
+      <h3>Claude Claro</h3>
+      <p>Marfil que parece papel bueno, tinta cálida y serif en las cifras. El modo claro de Claude, sin el naranja.</p>
+      <div class="dots">
+        <span class="dot" style="background:#f0eee6"></span><span class="dot" style="background:#faf9f5"></span>
+        <span class="dot" style="background:#1f1e1d"></span><span class="dot" style="background:#5f7d55"></span>
+        <span class="dot" style="background:#5c7799"></span>
+      </div>
+      <div class="vibe">Claude.ai de día · papelería fina</div>
+    </a>
+  </div>
+
+  <div class="foot">
+    <b>Cómo usarlos:</b> cada página es autocontenida — ábrela en el navegador, compártela por WhatsApp como link o imprímela a PDF con Cmd+P. Los nueve usan el mismo mockup (Karen, Roberto, cotización #1042, $5.094,50 en juego), así que la única variable es el estilo. <b>Mi lectura rápida:</b> 01 es continuidad sin costo · 03 gana de día en el local · 06 vende la idea de "IA" · 04 y 05 son los más memorables · 02 el más agresivo · 07 el que convence a un papá escéptico · 08/09 los más elegantes y serenos (par noche/día perfecto si quieren modo oscuro + claro con la misma alma).
+  </div>
+</div>
+</body>
+</html>

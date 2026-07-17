@@ -1,0 +1,318 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Plan Financiero · Depot Tire Hub</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0a1020; --panel:rgba(17,26,49,.62); --line:rgba(255,255,255,.09);
+    --paper:#f5f1e9; --muted:#a3acc2; --red:#e3262e; --lime:#d9ff4f; --blue:#5b8def;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0;font-family:Inter,system-ui,sans-serif;color:var(--paper);min-height:100vh;
+    background:
+      radial-gradient(110% 80% at 15% -10%, rgba(23,61,118,.5) 0%, transparent 60%),
+      radial-gradient(120% 90% at 50% 0%, #0d1530 0%, #0a1020 55%, #070b16 100%);
+    background-attachment:fixed;
+  }
+  .bar{position:sticky;top:0;z-index:10;background:rgba(10,16,32,.86);backdrop-filter:blur(14px);border-bottom:1px solid var(--line);padding:14px 24px;display:flex;align-items:center;gap:14px}
+  .bar a{color:var(--muted);font-size:12.5px;text-decoration:none;font-weight:600}
+  .bar a:hover{color:var(--paper)}
+  .bar .kicker{color:var(--red);font-size:10.5px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;margin-left:auto}
+  .wrap{max-width:760px;margin:0 auto;padding:40px 24px 100px}
+  .doc h1{font-size:clamp(28px,4.4vw,40px);font-weight:800;letter-spacing:-.02em;line-height:1.15;margin:0 0 8px}
+  .doc h2{font-size:22px;font-weight:700;letter-spacing:-.01em;margin:44px 0 14px;padding-bottom:10px;border-bottom:1px solid var(--line)}
+  .doc h3{font-size:17px;font-weight:700;margin:30px 0 10px;color:var(--lime)}
+  .doc p{line-height:1.75;color:#dfe3ee;font-size:15px;margin:0 0 14px}
+  .doc ul,.doc ol{line-height:1.75;color:#dfe3ee;font-size:15px;padding-left:22px;margin:0 0 14px}
+  .doc li{margin-bottom:6px}
+  .doc a{color:var(--blue)}
+  .doc strong{color:var(--paper)}
+  .doc code{font-family:'JetBrains Mono',monospace;font-size:.85em;background:rgba(255,255,255,.08);padding:1px 6px;border-radius:5px;color:var(--lime)}
+  .doc pre{background:rgba(0,0,0,.3);border:1px solid var(--line);border-radius:12px;padding:14px 16px;overflow-x:auto}
+  .doc pre code{background:none;padding:0;color:#dfe3ee}
+  .doc blockquote{margin:0 0 14px;padding:4px 16px;border-left:3px solid var(--red);color:var(--muted);font-size:14px}
+  .doc hr{border:none;border-top:1px solid var(--line);margin:32px 0}
+  .doc table{width:100%;border-collapse:collapse;margin:0 0 20px;font-size:13.5px;display:block;overflow-x:auto}
+  .doc th{text-align:left;font-size:10.5px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);padding:8px 12px;border-bottom:1px solid var(--line);white-space:nowrap}
+  .doc td{padding:9px 12px;border-bottom:1px solid rgba(255,255,255,.05);color:#dfe3ee;vertical-align:top}
+  .doc tr:hover td{background:rgba(255,255,255,.02)}
+</style>
+</head>
+<body>
+  <div class="bar">
+    <a href="/">← Depot Tire Hub</a>
+    <span class="kicker">Costos y precio</span>
+  </div>
+  <div class="wrap"><div class="doc">
+<h1>AutoVenta — Plan Financiero</h1>
+<blockquote>
+<p>Precios verificados a <strong>2026-07-13</strong>. Volumen esperado: 10–50 chats/día (~300–1.500 conversaciones/mes).
+Complementa a <a href="PLAN_DESARROLLO.md">PLAN_DESARROLLO.md</a>.</p>
+</blockquote>
+<hr>
+<h2>1. Cuánto cuesta operar el bot (costos recurrentes)</h2>
+<h3>Escenario A — Arranque (10–20 chats/día, ~300–600 conv/mes)</h3>
+<table>
+<thead>
+<tr>
+<th>Concepto</th>
+<th>Servicio</th>
+<th>$/mes</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Hosting (bot + dashboard)</td>
+<td>Railway Hobby</td>
+<td>$5,00</td>
+</tr>
+<tr>
+<td>Base de datos + Auth</td>
+<td>Supabase Free (con keep-alive + backups por GitHub Actions)</td>
+<td>$0</td>
+</tr>
+<tr>
+<td>WhatsApp (canal)</td>
+<td>Meta Cloud API — conversaciones de servicio <strong>gratis</strong>; ~100 alertas utility × $0,0113</td>
+<td>~$1,13</td>
+</tr>
+<tr>
+<td>LLM — conversación</td>
+<td>Claude Sonnet 5 (~5 turnos/conv, con prompt caching)</td>
+<td>~$6–12</td>
+</tr>
+<tr>
+<td>LLM — clasificador de etapa</td>
+<td>Claude Haiku 4.5</td>
+<td>~$1</td>
+</tr>
+<tr>
+<td>Observabilidad, backups, CI</td>
+<td>Sentry + Better Stack + GitHub Actions (free tiers)</td>
+<td>$0</td>
+</tr>
+<tr>
+<td><strong>TOTAL</strong></td>
+<td></td>
+<td><strong>≈ $13–19/mes</strong></td>
+</tr>
+</tbody></table>
+<h3>Escenario B — Régimen (30–50 chats/día, ~900–1.500 conv/mes)</h3>
+<table>
+<thead>
+<tr>
+<th>Concepto</th>
+<th>$/mes</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Railway (posible overage de crédito)</td>
+<td>$5–10</td>
+</tr>
+<tr>
+<td>Supabase Free</td>
+<td>$0</td>
+</tr>
+<tr>
+<td>WhatsApp (alertas + algún template de reapertura)</td>
+<td>$2–4</td>
+</tr>
+<tr>
+<td>Claude (Sonnet 5 conversación + Haiku clasificador + fotos con visión)</td>
+<td>$15–30</td>
+</tr>
+<tr>
+<td><strong>TOTAL</strong></td>
+<td><strong>≈ $22–44/mes</strong></td>
+</tr>
+</tbody></table>
+<h3>Escenario C — Crecimiento (100+ chats/día, o exigencia de backups gestionados)</h3>
+<table>
+<thead>
+<tr>
+<th>Concepto</th>
+<th>$/mes</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Railway con más uso / Pro</td>
+<td>$10–20</td>
+</tr>
+<tr>
+<td>Supabase Pro (sin pausas, backups 7 días)</td>
+<td>$25</td>
+</tr>
+<tr>
+<td>WhatsApp</td>
+<td>$5–15</td>
+</tr>
+<tr>
+<td>Claude</td>
+<td>$40–80</td>
+</tr>
+<tr>
+<td><strong>TOTAL</strong></td>
+<td><strong>≈ $80–140/mes</strong></td>
+</tr>
+</tbody></table>
+<p><strong>Notas de costos:</strong></p>
+<ul>
+<li>El canal WhatsApp es prácticamente gratis porque el 100% del flujo lo inicia el cliente (servicio = $0 ilimitado desde nov-2024). Solo se pagan templates fuera de ventana.</li>
+<li>El LLM se abarata con <strong>prompt caching</strong> (lecturas a ~10% del precio) y Sonnet 5 tiene precio intro $2/$10 por MTok <strong>hasta el 31-ago-2026</strong>.</li>
+<li>Opción ultra-económica: Haiku 4.5 en todo → LLM ~$3–8/mes, sacrificando algo de calidad conversacional. Opción máxima calidad: Opus 4.8 → LLM ~$30–60/mes.</li>
+</ul>
+<h3>Costos únicos (one-time)</h3>
+<table>
+<thead>
+<tr>
+<th>Concepto</th>
+<th>Costo</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Verificación Meta Business</td>
+<td>$0 (solo RUC + documentos)</td>
+</tr>
+<tr>
+<td>Test number de desarrollo</td>
+<td>$0</td>
+</tr>
+<tr>
+<td>Templates de WhatsApp</td>
+<td>$0 (crear/aprobar es gratis)</td>
+</tr>
+<tr>
+<td>Wheel-Size Fitment API</td>
+<td><strong>$0 en Fases 1–3</strong> (tabla curada propia); $450/año solo si escala</td>
+</tr>
+<tr>
+<td><strong>Total setup externo</strong></td>
+<td><strong>$0</strong></td>
+</tr>
+</tbody></table>
+<h3>Costo por conversación / por venta</h3>
+<ul>
+<li>Conversación completa (<del>5 turnos, Sonnet 5 con caching): **</del>$0,02–0,04**.</li>
+<li>Una llanta se vende a $60–150+ → el costo del bot por venta es <strong>despreciable</strong> (&lt;0,1% del ticket). Argumento de venta fuerte.</li>
+</ul>
+<hr>
+<h2>2. Cuánto cobrar</h2>
+<h3>2.1 El contexto</h3>
+<ul>
+<li>La idea inicial: <strong>$600 por todo</strong>.</li>
+<li>Horas estimadas del proyecto (ver PLAN_DESARROLLO §9): <strong>75–100 h</strong> → $600 equivale a <strong>$6–8/hora</strong>. Muy por debajo de mercado (freelance junior LATAM: $15–30/h; agencias de bots cobran $2.000–10.000 por proyectos así), pero defendible como precio amigo + pieza de portafolio.</li>
+<li>Referencia local directa: el dev de la competencia (&quot;Interbot&quot;) <strong>cobra mensualidad</strong> a otras empresas de llantas — el modelo recurrente ya está validado en este mercado.</li>
+<li>Referencia SaaS: solo la &quot;tubería&quot; de WhatsApp en WATI/360dialog cuesta <strong>$59+/mes</strong> sin ninguna inteligencia. Todo lo que cobres debajo de eso es barato.</li>
+</ul>
+<h3>2.2 La regla de oro</h3>
+<blockquote>
+<p><strong>Nunca absorber los costos recurrentes (API de Claude, Railway, WhatsApp) en el precio fijo.</strong>
+El bot cuesta $13–44/mes en operar <em>para siempre</em>. Si cobras $600 una vez y pagas tú la operación, en ~15–24 meses trabajaste gratis y encima pierdes plata. La mensualidad no es opcional: o la paga el cliente como fee, o el cliente asume las cuentas a su nombre.</p>
+</blockquote>
+<h3>2.3 Opciones de precio</h3>
+<table>
+<thead>
+<tr>
+<th>Opción</th>
+<th>Estructura</th>
+<th>Pros</th>
+<th>Contras</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>A (recomendada)</strong></td>
+<td><strong>$600 de implementación</strong> (pagados por fase: F1 $250 · F2 $200 · F3 $150) <strong>+ $40/mes</strong> todo incluido (infra + WhatsApp + Claude + mantenimiento + soporte + hasta 1 h de cambios menores)</td>
+<td>Ingreso recurrente; alinea con el modelo del competidor; cubre operación con margen; el cliente paga poco por entrar</td>
+<td>Hay que sostener el servicio</td>
+</tr>
+<tr>
+<td>B</td>
+<td>$900–1.100 únicos + cuentas (Railway, Meta, Anthropic) a nombre del cliente; mantenimiento a $15–20/h bajo demanda</td>
+<td>Sin compromiso mensual tuyo</td>
+<td>El cliente debe gestionar 3 cuentas y tarjeta; sin ingreso recurrente; soporte se vuelve regateo</td>
+</tr>
+<tr>
+<td>C</td>
+<td>$600 + comisión por venta</td>
+<td>Al cliente le suena atractivo</td>
+<td><strong>Ya descartada</strong>: &quot;confirmado&quot; ≠ venta real (mucha gente dice que va y no llega); imposible de auditar</td>
+</tr>
+<tr>
+<td>D</td>
+<td>Solo mensualidad, $0 de entrada: $99/mes × 12 meses mínimo</td>
+<td>Barrera de entrada nula; LTV mayor ($1.188/año)</td>
+<td>Riesgo de cancelación temprana; más difícil de vender a una PyME</td>
+</tr>
+</tbody></table>
+<h3>2.4 Recomendación: Opción A</h3>
+<p><strong>$600 de implementación (por fases) + $40/mes.</strong></p>
+<p>Economía de la mensualidad de $40:</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>Escenario A (arranque)</th>
+<th>Escenario B (régimen)</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Costos de operación</td>
+<td>$13–19</td>
+<td>$22–44</td>
+</tr>
+<tr>
+<td>Margen mensual</td>
+<td><strong>$21–27</strong></td>
+<td><strong>–$4 a $18</strong></td>
+</tr>
+</tbody></table>
+<ul>
+<li>En régimen alto (50 chats/día con Sonnet), $40 queda justo → <strong>cláusula de ajuste</strong>: &quot;si el volumen supera ~1.000 conversaciones/mes, la mensualidad pasa a $60–70&quot;. Dejarlo escrito desde el día 1.</li>
+<li>La mensualidad también paga las <strong>25–40 h/año de mantenimiento</strong> (§8 del plan técnico) a razón efectiva de ~$12–19/h sobre el margen — bajo pero razonable para un cliente-amigo con potencial de referidos.</li>
+<li>Los pagos por fase protegen el flujo: $250 al entregar la demo de Fase 1 (~2 semanas), no todo al final.</li>
+</ul>
+<h3>2.5 Argumentos para la negociación con el cliente</h3>
+<ol>
+<li>&quot;Solo el canal de WhatsApp en un SaaS cuesta $59/mes sin ninguna IA; esto es un agente completo por $40.&quot;</li>
+<li>&quot;El costo del bot por venta es menos de 5 centavos — se paga con la primera llanta del mes.&quot;</li>
+<li>&quot;El de Interbot les cobra mensualidad a otras llanteras por menos que esto&quot; (validación del modelo, mismo mercado).</li>
+<li>&quot;El fijo va por fases: pagan $250 y ven la demo funcionando en 2 semanas antes de seguir.&quot;</li>
+</ol>
+<h3>2.6 Proyección año 1 (Opción A)</h3>
+<table>
+<thead>
+<tr>
+<th>Concepto</th>
+<th>Monto</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Implementación (una vez)</td>
+<td>$600</td>
+</tr>
+<tr>
+<td>Mensualidad × 12</td>
+<td>$480</td>
+</tr>
+<tr>
+<td><strong>Ingreso año 1</strong></td>
+<td><strong>$1.080</strong></td>
+</tr>
+<tr>
+<td>Costos de operación año 1 (promedio ~$20/mes)</td>
+<td>–$240</td>
+</tr>
+<tr>
+<td><strong>Neto año 1</strong></td>
+<td><strong>≈ $840</strong> + portafolio + referidos a otras llanteras</td>
+</tr>
+</tbody></table>
+<p><strong>Upside real:</strong> el producto es genérico (AutoVenta). La segunda llantera cuesta ~10–15 h de setup (no 75–100) y puede cobrarse $500–800 + $50–80/mes. Ahí está el negocio.</p>
+
+  </div></div>
+</body>
+</html>

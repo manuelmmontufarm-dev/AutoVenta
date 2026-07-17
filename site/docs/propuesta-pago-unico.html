@@ -1,0 +1,263 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AutoVenta · Propuesta Depot Tire · Pago único</title>
+<style>
+  @page { size: A4; margin: 0; }
+  *{ box-sizing:border-box; -webkit-print-color-adjust:exact; print-color-adjust:exact; margin:0; }
+
+  :root{
+    --ink:#111820;         /* casi negro */
+    --dark:#0f1720;        /* card oscura */
+    --green:#22c55e;       /* verde AutoVenta */
+    --green-card:#26c667;  /* verde card mantenimiento */
+    --green-dark:#0f9d52;
+    --green-soft:#e9f9f1;  /* tint barra total */
+    --paper:#ffffff;
+    --muted:#6b7280;
+    --steel:#374151;
+    --line:#e5e7eb;
+    --soft:#f6f7f8;
+    --sans:"Helvetica Neue",Arial,system-ui,-apple-system,sans-serif;
+  }
+
+  html,body{ margin:0; }
+  body{ width:210mm; background:var(--paper); color:var(--ink);
+    font-family:var(--sans); font-size:10.5pt; line-height:1.48; padding:24px 46px 10px; }
+
+  /* header */
+  .top{ display:flex; align-items:baseline; justify-content:space-between; }
+  .wordmark{ font-weight:800; font-size:16pt; letter-spacing:.01em; color:var(--ink); }
+  .wordmark b{ color:var(--green); }
+  .top .doc{ font-size:8pt; font-weight:700; letter-spacing:.14em; text-transform:uppercase; color:var(--muted); }
+  .rule{ height:1px; background:var(--line); margin:14px 0 20px; }
+
+  h1{ font-size:25pt; line-height:1.08; font-weight:800; letter-spacing:-.025em; color:var(--ink); margin:0 0 9px; }
+  h1 .g{ color:var(--green); }
+  .sub{ color:var(--steel); max-width:70ch; font-size:11pt; margin:0 0 6px; }
+  .conti-tag{ display:inline-flex; align-items:center; gap:7px; margin-top:10px; font-size:8.5pt; font-weight:700;
+    letter-spacing:.04em; color:var(--green-dark); background:var(--green-soft); padding:5px 11px; border-radius:99px; }
+  .conti-tag::before{ content:""; width:7px; height:7px; border-radius:50%; background:var(--green); }
+
+  /* dos cards arriba */
+  .duo{ display:grid; grid-template-columns:1fr 1fr; gap:14px; margin:12px 0 14px; }
+  .cardbox{ border-radius:16px; padding:18px 24px; }
+  .cardbox .k{ font-size:8pt; font-weight:800; letter-spacing:.14em; text-transform:uppercase; margin:0 0 6px; }
+  .cardbox .big{ font-size:26pt; font-weight:800; letter-spacing:-.02em; line-height:1; margin:0 0 8px; }
+  .cardbox p{ font-size:9.5pt; line-height:1.5; margin:0; }
+  .hoy{ background:var(--dark); color:#eef2f6; }
+  .hoy .k{ color:#8b95a1; }
+  .hoy p{ color:#aeb7c2; }
+  .hoy p b{ color:#fff; }
+  .mant{ background:var(--green-card); color:#06301c; }
+  .mant .k{ color:#0a5a34; }
+  .mant p{ color:#0a4227; }
+  .mant p b{ color:#062a19; }
+
+  /* pago */
+  .sec-title{ font-size:13pt; font-weight:800; letter-spacing:-.01em; color:var(--ink); margin:0 0 4px; }
+  .sec-hint{ font-size:9.5pt; color:var(--muted); margin:0 0 14px; }
+
+  .miles{ display:grid; grid-template-columns:repeat(2,1fr); gap:14px; }
+  .mile{ border:1px solid var(--line); border-radius:14px; padding:15px 18px 14px; position:relative; }
+  .mile .pct{ font-size:22pt; font-weight:800; color:var(--green); line-height:1; letter-spacing:-.02em; }
+  .mile .amt{ font-size:15pt; font-weight:800; color:var(--ink); margin:3px 0 0; }
+  .mile .when{ font-size:8pt; font-weight:800; letter-spacing:.1em; text-transform:uppercase; color:var(--green-dark); margin:9px 0 3px; }
+  .mile p{ font-size:9pt; color:var(--steel); line-height:1.45; margin:0; }
+  .mile .step{ position:absolute; top:14px; right:16px; font-size:8pt; font-weight:800; color:var(--line); }
+
+  .totalbar{ display:flex; align-items:center; justify-content:space-between; gap:16px;
+    background:var(--green-soft); border-radius:12px; padding:11px 22px; margin:11px 0 0; }
+  .totalbar .lbl{ font-size:9.5pt; color:var(--steel); }
+  .totalbar .lbl b{ color:var(--ink); }
+  .totalbar .amt{ font-size:20pt; font-weight:800; color:var(--green-dark); letter-spacing:-.02em; white-space:nowrap; }
+
+  /* dos explicaciones */
+  .cols{ display:grid; grid-template-columns:1fr 1fr; gap:16px; margin:14px 0 0; }
+  .col{ }
+  .col h3{ font-size:11pt; font-weight:800; color:var(--ink); margin:0 0 8px; padding-bottom:8px; border-bottom:2px solid var(--green); display:inline-block; }
+  .col p{ font-size:9.5pt; color:var(--steel); line-height:1.55; margin:0; }
+  .col p b{ color:var(--ink); }
+
+  /* nota */
+  .note{ margin:13px 0 0; border-left:4px solid var(--green); background:var(--soft); border-radius:0 10px 10px 0;
+    padding:12px 16px; font-size:9pt; color:var(--steel); line-height:1.5; }
+  .note b{ color:var(--ink); }
+
+  .foot{ display:flex; justify-content:space-between; margin-top:16px; padding-top:11px; border-top:1px solid var(--line);
+    font-size:8pt; color:var(--muted); }
+
+  /* ---------- PÁGINA 2 ---------- */
+  .page2{ page-break-before:always; break-before:page; padding-top:22px; }
+  .p2-lead{ color:var(--steel); font-size:10.5pt; margin:0 0 4px; max-width:74ch; }
+  .p2-lead b{ color:var(--ink); }
+
+  .phase{ display:flex; gap:16px; padding:9px 0; border-top:1px solid var(--line); break-inside:avoid; }
+  .phase:first-of-type{ border-top:none; }
+  .p-num{ flex:none; width:42px; height:42px; border-radius:50%; background:var(--dark); color:#fff;
+    display:grid; place-items:center; font-weight:800; font-size:15pt; box-shadow:inset 0 0 0 3px var(--green); }
+  .p-body{ flex:1; }
+  .p-head{ display:flex; align-items:center; gap:10px; margin:2px 0 5px; flex-wrap:wrap; }
+  .p-head h4{ font-size:12.5pt; font-weight:800; color:var(--ink); margin:0; letter-spacing:-.01em; }
+  .hours{ font-size:8pt; font-weight:800; letter-spacing:.06em; text-transform:uppercase; color:var(--green-dark);
+    background:var(--green-soft); padding:3px 10px; border-radius:99px; white-space:nowrap; }
+  .p-desc{ font-size:9.5pt; color:var(--steel); line-height:1.45; margin:0 0 5px; }
+  .p-desc b{ color:var(--ink); }
+  .deliver{ background:var(--green-soft); border-left:3px solid var(--green); border-radius:0 8px 8px 0;
+    padding:6px 12px; font-size:9.5pt; color:var(--steel); }
+  .deliver b.lbl{ display:block; font-size:7.5pt; font-weight:800; letter-spacing:.1em; text-transform:uppercase;
+    color:var(--green-dark); margin-bottom:2px; }
+  .deliver .txt b{ color:var(--ink); }
+
+  .p2-total{ display:flex; align-items:center; justify-content:space-between; gap:16px;
+    background:var(--dark); color:#eef2f6; border-radius:14px; padding:14px 24px; margin:14px 0 0; }
+  .p2-total .l{ font-size:10pt; }
+  .p2-total .l b{ color:#fff; }
+  .p2-total .r{ font-size:13pt; font-weight:800; color:var(--green); white-space:nowrap; }
+</style>
+</head>
+<body>
+
+  <div class="top">
+    <div class="wordmark">AUTO<b>VENTA</b></div>
+    <div class="doc">Propuesta · Depot Tire · Julio 2026</div>
+  </div>
+  <div class="rule"></div>
+
+  <h1>Un precio cerrado.<br><span class="g">El bot completo, tuyo.</span></h1>
+  <p class="sub">Como lo pediste, Joaquín: <b>un precio cerrado por todo el producto</b> — no fase por fase. El pago va <b>mitad al arrancar y mitad al entregar</b>. Empiezo por el sistema de tickets, y la mensualidad recién corre después de esa primera fase.</p>
+  <span class="conti-tag">Inventario en tiempo real conectado a Contífico</span>
+
+  <div class="duo">
+    <div class="cardbox hoy">
+      <p class="k">Hoy</p>
+      <div class="big">6 h/día</div>
+      <p>respondiendo chats. A $5/hora, son aproximadamente <b>$780 al mes</b> de tu propio tiempo (26 días).</p>
+    </div>
+    <div class="cardbox mant">
+      <p class="k">Mantenimiento AutoVenta</p>
+      <div class="big">$60/mes</div>
+      <p>Equivale a <b>unos 2 días</b> de ese tiempo al mes. Empieza a correr <b>después de la primera fase</b>.</p>
+    </div>
+  </div>
+
+  <div class="sec-title">Pago completo · mitad y mitad</div>
+  <p class="sec-hint">Pagas por el producto entero, no por partes. Mitad al arrancar y mitad al entregar: no adelantas todo por algo que aún no ves, y yo no construyo todo antes de empezar.</p>
+
+  <div class="miles">
+    <div class="mile">
+      <span class="step">1</span>
+      <div class="pct">50%</div>
+      <div class="amt">$300</div>
+      <div class="when">Al arrancar</div>
+      <p>Firmamos, me das acceso al Contífico y empiezo por el <b>sistema de tickets</b>: el tablero donde cada chat de WhatsApp se vuelve un ticket en tu pipeline.</p>
+    </div>
+    <div class="mile">
+      <span class="step">2</span>
+      <div class="pct">50%</div>
+      <div class="amt">$300</div>
+      <div class="when">Al entregar</div>
+      <p>Producto completo en producción: el bot que atiende, cotiza y lee fotos, con alertas y todo probado con tráfico real.</p>
+    </div>
+  </div>
+
+  <div class="totalbar">
+    <div class="lbl"><b>Precio cerrado</b> · pago único socio fundador · 50% y 50%</div>
+    <div class="amt">$600</div>
+  </div>
+
+  <div class="cols">
+    <div class="col">
+      <h3>Cuándo empieza la mensualidad</h3>
+      <p>La mensualidad de <b>$60/mes</b> recién corre <b>después de entregada la primera fase</b> (el sistema de tickets). Mientras construyo, no pagas mantenimiento — solo empiezas a pagarlo cuando ya tienes algo vivo y funcionando en tus manos.</p>
+    </div>
+    <div class="col">
+      <h3>Qué incluye la mensualidad</h3>
+      <p><b>$60/mes</b> para uso normal: hosting, WhatsApp Business, IA/tokens, base de datos, monitoreo, respaldos, soporte y ajustes menores. Es lo que el sistema consume para vivir — como el mantenimiento de un carro. Yo me encargo de todo; tú solo vendes llantas.</p>
+    </div>
+  </div>
+
+  <div class="note">
+    <b>Sobre la mensualidad:</b> los $60 cubren el uso normal esperado. Podría subir un poco si el consumo de tokens de IA se dispara —muchísimas más conversaciones de las previstas—, pero <b>no creemos que pase</b> a tu volumen; y si pasa, es porque el bot te está trayendo muchos más clientes. Funciones nuevas o cambios grandes se cotizan aparte. La conexión a Contífico es lo que da el stock y los precios en tiempo real.
+  </div>
+
+  <div class="foot">
+    <span>AutoVenta · Bot de ventas por WhatsApp · Manuel Montúfar</span>
+    <span>Precio cerrado $600 (50% y 50%) + $60/mes tras la primera fase</span>
+  </div>
+
+  <!-- ===================== PÁGINA 2 ===================== -->
+  <div class="page2">
+    <div class="top">
+      <div class="wordmark">AUTO<b>VENTA</b></div>
+      <div class="doc">Qué incluye · las 5 fases</div>
+    </div>
+    <div class="rule"></div>
+
+    <h1 style="font-size:21pt;margin-bottom:6px">Esto es lo que estás<br><span class="g">comprando, pieza por pieza.</span></h1>
+    <p class="p2-lead">Cada fase es algo que <b>ya puedes usar</b> apenas se entrega — no esperas al final para ver valor. Construidas en este orden, para que desde temprano tengas control de lo que pasa en tu WhatsApp.</p>
+
+    <div style="margin-top:12px">
+
+      <div class="phase">
+        <div class="p-num">1</div>
+        <div class="p-body">
+          <div class="p-head"><h4>Sistema de tickets</h4><span class="hours">≈ 20–25 h</span></div>
+          <p class="p-desc">Tu centro de control. Cada chat de WhatsApp entra como un <b>ticket en un pipeline</b> (nuevo → cotizado → por cerrar → vendido). Por primera vez ves todo lo que pasa en un solo lugar.</p>
+          <div class="deliver"><b class="lbl">Te llevas</b><span class="txt">Un tablero donde <b>ningún cliente se te pierde</b> y sabes en qué va cada uno.</span></div>
+        </div>
+      </div>
+
+      <div class="phase">
+        <div class="p-num">2</div>
+        <div class="p-body">
+          <div class="p-head"><h4>El bot que atiende solo, con IA</h4><span class="hours">≈ 20–25 h</span></div>
+          <p class="p-desc">Conectado a tu WhatsApp: entiende los mensajes como la gente los escribe, responde al instante 24/7, saluda como Depot Tire, manda la ubicación del local y <b>te alerta cuando hay venta</b>.</p>
+          <div class="deliver"><b class="lbl">Te llevas</b><span class="txt">Un vendedor que trabaja de noche y fines de semana, <b>sin sueldo</b>.</span></div>
+        </div>
+      </div>
+
+      <div class="phase">
+        <div class="p-num">3</div>
+        <div class="p-body">
+          <div class="p-head"><h4>Cotización por medida + PDF, con Contífico</h4><span class="hours">≈ 15–20 h</span></div>
+          <p class="p-desc">Descifra la medida ("185 R14", "la 185 65 14"), consulta <b>stock y precio en tiempo real desde Contífico</b> y arma el PDF de cotización con tu logo. Si duda, te avisa en vez de inventar — nunca cotiza mal.</p>
+          <div class="deliver"><b class="lbl">Te llevas</b><span class="txt">Cotizaciones al instante <b>con precios y stock siempre al día</b>.</span></div>
+        </div>
+      </div>
+
+      <div class="phase">
+        <div class="p-num">4</div>
+        <div class="p-body">
+          <div class="p-head"><h4>Fotos y casos avanzados</h4><span class="hours">≈ 15–20 h</span></div>
+          <p class="p-desc">Lee la medida del <b>costado de la llanta por foto</b>, interpreta capturas de la competencia, y cuando el cliente no sabe su medida pero sabe su carro, sugiere la que le queda ("¿qué le va a mi Hilux?").</p>
+          <div class="deliver"><b class="lbl">Te llevas</b><span class="txt">Un bot que entiende <b>el 100% de lo que le mandan</b>, no solo el texto fácil.</span></div>
+        </div>
+      </div>
+
+      <div class="phase">
+        <div class="p-num">5</div>
+        <div class="p-body">
+          <div class="p-head"><h4>Producción + afinamiento final</h4><span class="hours">≈ 10–15 h</span></div>
+          <p class="p-desc">Todo vivo en tu número real, probado con tráfico real. Se <b>perfeccionan los KPIs y las estadísticas</b> del tablero —cuántos escribieron, cuántos cotizaron, qué medidas piden más, cuántos cerraron— y el bot maneja la conversación de <b>punta a punta</b>. Tú solo revisas y cierras.</p>
+          <div class="deliver"><b class="lbl">Te llevas</b><span class="txt">El producto completo funcionando, con <b>estadísticas claras de tu negocio</b> — tu WhatsApp trabajando solo.</span></div>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="p2-total">
+      <div class="l"><b>Todo lo de arriba</b> · cerca de <b>80–100 horas</b> de desarrollo · precio cerrado socio fundador</div>
+      <div class="r">$600 + $60/mes</div>
+    </div>
+
+    <div class="foot">
+      <span>AutoVenta · Bot de ventas por WhatsApp · Manuel Montúfar</span>
+      <span>Las horas son estimaciones de buena fe por fase</span>
+    </div>
+  </div>
+
+</body>
+</html>

@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Estilo 04 · Racing Heritage</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=Archivo+Black&family=JetBrains+Mono:wght@700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --crema:#f6f1e4; --card:#fffdf6; --navy:#14213d; --rojo:#d62828; --amarillo:#fcbf49; --verdebri:#2a9d8f; --linea:#d9d2bf;
+  }
+  *{box-sizing:border-box;margin:0}
+  body{font-family:Archivo,system-ui,sans-serif;color:var(--navy);background:var(--crema);min-height:100vh;padding:0 20px 80px}
+  .checker{height:18px;margin:0 -20px;background:
+    conic-gradient(var(--navy) 90deg,transparent 90deg 180deg,var(--navy) 180deg 270deg,transparent 270deg) 0 0/18px 18px}
+  .wrap{max-width:900px;margin:0 auto;padding-top:40px}
+  .kicker{font-size:11px;font-weight:700;letter-spacing:.22em;text-transform:uppercase;color:var(--rojo)}
+  h1{font-family:'Archivo Black';font-size:clamp(32px,5.4vw,50px);text-transform:uppercase;letter-spacing:-.01em;margin:8px 0 10px}
+  h1 .yr{display:inline-block;background:var(--amarillo);padding:0 10px;transform:rotate(-2deg);border:3px solid var(--navy)}
+  .lede{color:#5c6273;font-size:15.5px;max-width:620px;line-height:1.6;font-weight:500}
+  h2{font-size:11px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:#8a8368;margin:46px 0 14px;display:flex;gap:10px;align-items:center}
+  h2::after{content:"";flex:1;border-top:3px dashed var(--linea)}
+  .card{background:var(--card);border:2px solid var(--navy);border-radius:18px;box-shadow:0 6px 0 rgba(20,33,61,.14)}
+  .pal{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:12px}
+  .sw{border-radius:14px;border:2px solid var(--navy);padding:12px;height:96px;display:flex;flex-direction:column;justify-content:flex-end}
+  .sw b{font-size:12px}.sw span{font-family:'JetBrains Mono',monospace;font-size:10.5px;opacity:.75}
+  .type{padding:26px;display:grid;gap:8px}
+  .type .big{font-family:'Archivo Black';font-size:28px;text-transform:uppercase}
+  .type .num{font-family:'JetBrains Mono',monospace;font-size:22px;color:var(--rojo)}
+  .type small{color:#5c6273}
+  .grid{display:grid;grid-template-columns:1.2fr 1fr;gap:16px}
+  @media(max-width:700px){.grid{grid-template-columns:1fr}}
+  .panel{padding:16px}
+  .row{display:flex;align-items:center;gap:12px;padding:12px;border-radius:14px;border:2px solid transparent}
+  .row:hover{border-color:var(--navy);background:#fff}
+  .av{width:42px;height:42px;border-radius:50%;display:grid;place-items:center;font-family:'Archivo Black';font-size:13px;border:2.5px solid var(--navy);color:var(--navy)}
+  .rowbody{flex:1;min-width:0}
+  .rowtop{display:flex;justify-content:space-between;gap:8px}
+  .rowtop b{font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:.02em}
+  .time{font-size:11px;color:var(--rojo);font-weight:700}
+  .prev{font-size:13px;color:#5c6273;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px;font-weight:500}
+  .tags{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}
+  .badge{font-size:10.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;padding:4px 11px;border-radius:99px;border:2px solid var(--navy)}
+  .chip{font-family:'JetBrains Mono',monospace;font-size:11px;padding:4px 9px;border-radius:8px;background:var(--navy);color:var(--amarillo)}
+  .kcard{padding:16px;margin-bottom:14px;position:relative;overflow:hidden}
+  .kcard::after{content:"";position:absolute;top:0;right:0;bottom:0;width:14px;background:repeating-linear-gradient(180deg,var(--rojo) 0 14px,var(--card) 14px 28px)}
+  .monto{font-family:'JetBrains Mono',monospace;color:var(--rojo);font-weight:700;font-size:16px}
+  .stat{padding:20px}
+  .stat .label{font-size:10.5px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:#8a8368}
+  .stat .val{font-family:'Archivo Black';font-size:32px;margin-top:6px}
+  .chat{display:flex;flex-direction:column;gap:9px;padding:16px}
+  .bub{max-width:82%;padding:10px 13px;border-radius:16px;font-size:13.5px;line-height:1.5;border:2px solid var(--navy);font-weight:500}
+  .in{align-self:flex-start;background:#fff;border-bottom-left-radius:4px}
+  .out{align-self:flex-end;background:#e8f4ea;border-bottom-right-radius:4px}
+  .pdf{display:flex;gap:10px;align-items:center;background:var(--amarillo);border-radius:12px;padding:10px 12px}
+  .pdf .ic{width:36px;height:36px;border-radius:9px;background:var(--rojo);color:#fff;display:grid;place-items:center;border:2px solid var(--navy)}
+  .btns{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}
+  .btn{cursor:pointer;font:inherit;font-weight:700;font-size:13px;text-transform:uppercase;letter-spacing:.05em;padding:12px 24px;border-radius:99px;border:2.5px solid var(--navy);box-shadow:0 4px 0 var(--navy);transition:.12s}
+  .btn:active{transform:translateY(3px);box-shadow:0 1px 0 var(--navy)}
+  .btn.p{background:var(--rojo);color:#fff}
+  .btn.s{background:var(--amarillo);color:var(--navy)}
+  .btn.g{background:var(--card);color:var(--navy)}
+  .note{margin-top:44px;padding:22px 26px;font-size:14px;line-height:1.7;color:#5c6273;font-weight:500}
+  .note b{color:var(--navy)}
+  a.back{color:#8a8368;font-size:12px;text-decoration:none;font-weight:600}
+</style>
+</head>
+<body>
+<div class="checker"></div>
+<div class="wrap">
+  <a class="back" href="index.html">← todos los estilos</a>
+  <p class="kicker" style="margin-top:18px">Estilo 04 · 30+ años de trayectoria</p>
+  <h1>Racing <span class="yr">Heritage</span></h1>
+  <p class="lede">Crema vintage, navy profundo, rojo competición y amarillo señalética. Bordes gruesos, bandera a cuadros y botones que se "pisan" como pedales. Celebra los 30+ años de Depot Tire con espíritu de escudería clásica.</p>
+
+  <h2>Paleta</h2>
+  <div class="pal">
+    <div class="sw" style="background:#f6f1e4"><b>Crema</b><span>#F6F1E4</span></div>
+    <div class="sw" style="background:#14213d;color:#f6f1e4"><b>Navy</b><span>#14213D</span></div>
+    <div class="sw" style="background:#d62828;color:#fff"><b>Rojo GP</b><span>#D62828</span></div>
+    <div class="sw" style="background:#fcbf49"><b>Amarillo</b><span>#FCBF49</span></div>
+    <div class="sw" style="background:#2a9d8f;color:#fff"><b>Verde pit</b><span>#2A9D8F</span></div>
+    <div class="sw" style="background:#fffdf6"><b>Tarjeta</b><span>#FFFDF6</span></div>
+  </div>
+
+  <h2>Tipografía & números</h2>
+  <div class="card type">
+    <div class="big">Archivo Black — cartel de escudería</div>
+    <div class="num">185/60 R14 · $285,20</div>
+    <small>Titulares rotundos en mayúsculas; datos en mono; stickers rotados para lo destacado.</small>
+  </div>
+
+  <h2>La app en este estilo</h2>
+  <div class="grid">
+    <div class="card panel">
+      <div class="row">
+        <div class="av" style="background:#fcbf49">KM</div>
+        <div class="rowbody">
+          <div class="rowtop"><b>Karen Moya</b><span class="time">hace 30 min</span></div>
+          <div class="prev">Sí, voy hoy después del trabajo, tipo 5</div>
+          <div class="tags">
+            <span class="badge" style="background:#fcbf49">Por visitar</span>
+            <span class="chip">185/60 R14</span>
+          </div>
+        </div>
+      </div>
+      <div class="row">
+        <div class="av" style="background:#cfe0ff">RZ</div>
+        <div class="rowbody">
+          <div class="rowtop"><b>Roberto Zambrano</b><span class="time" style="color:#8a8368">ahora</span></div>
+          <div class="prev">📄 Cotización PDF</div>
+          <div class="tags">
+            <span class="badge" style="background:#ffd9a1">Cotizado</span>
+            <span class="badge" style="background:#d7efe8">🤖 Bot</span>
+          </div>
+        </div>
+      </div>
+      <div class="btns">
+        <button class="btn p">Cerrar ticket</button>
+        <button class="btn s">▶ Demo</button>
+        <button class="btn g">Ver PDF</button>
+      </div>
+    </div>
+    <div>
+      <div class="card kcard">
+        <b style="font-size:13.5px;text-transform:uppercase">Roberto Zambrano</b>
+        <div style="display:flex;justify-content:space-between;margin-top:9px;align-items:center;padding-right:16px">
+          <span class="chip">185/60 R14</span><span class="monto">$285,20</span>
+        </div>
+      </div>
+      <div class="card stat">
+        <div class="label">En juego (pipeline)</div>
+        <div class="val">$5.094,50</div>
+      </div>
+      <div class="card chat" style="margin-top:14px">
+        <div class="bub in">Buenas 🙌 ¿tienen llantas para un Sail?</div>
+        <div class="bub out">¡Claro! ¿Me confirmas la medida? Algo como 185/60 R14</div>
+        <div class="bub out pdf" style="border:2px solid var(--navy)"><span class="ic">📄</span><span style="font-size:12.5px"><b>COTIZACIÓN #1042</b><br><span style="font-size:11px;opacity:.7">PDF · toca para ver</span></span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card note">
+    <b>Cuándo elegirlo:</b> si quieren capitalizar los 30+ años — heritage, confianza de toda la vida, taller de barrio hecho leyenda. Único y memorable frente a cualquier competidor digital. <b>Riesgo:</b> menos "software moderno", más marca editorial; hay que ejecutarlo con disciplina para que no se vea juguetón. <b>Vibra:</b> escudería años 70 · cartel de vulcanizadora clásica · Porsche heritage.
+  </div>
+</div>
+</body>
+</html>

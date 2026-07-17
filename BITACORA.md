@@ -32,6 +32,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-07-17 | _(este mismo)_ | Hub interno centralizado + demo visual + documentación navegable | 2.0 |
 | 2026-07-16 | _(este mismo)_ | Respuesta del cliente (audio) + pivote a Contífico + transcripción | 1.0 |
 | 2026-07-15 | _(pendiente)_ | Esqueleto Fase 1 del bot (app/) + investigación de reuso GitHub | 5.0 |
 | 2026-07-15 | _(pendiente)_ | Webhook (recibir) + setup app Meta en vivo + ngrok + prueba e2e + investigación GitHub + bitácora | 4.0 |
@@ -44,11 +45,33 @@ Ya viene activado en este equipo.
 | 2026-07-14 | ac09171 | Ubicaciones de locales + análisis de features del cliente | 1.5 |
 | 2026-07-13 | feadf57 | Brief + plan de desarrollo + plan financiero + catálogo | 4.0 |
 | 2026-07-13 | d997844 | Commit inicial (repo) | 0.25 |
-| | | **TOTAL** | **~25.75 h** |
+| | | **TOTAL** | **~27.75 h** |
 
 ---
 
 ## Entradas (más reciente primero)
+
+### 2026-07-17 · Hub interno centralizado de AutoVenta · ⏱️ 2.0 h
+**Commit:** _(este mismo)_
+
+**Qué se hizo:**
+- Nuevo centro de recursos estático en `site/`, listo para abrir localmente o
+  publicar con Vercel.
+- Accesos centralizados al demo de producto, inbox, pipeline, métricas, dashboard
+  real de WhatsApp, configuración de IA y tester técnico.
+- Galería con las 9 direcciones de diseño, catálogo de referencia, planes por
+  fases, documentación técnica, bitácoras y propuestas comerciales.
+- Enlaces directos a GitHub, Meta for Developers, Business Settings y OpenAI,
+  claramente diferenciados de los recursos locales y las demos simuladas.
+- Generador de documentos Markdown → HTML y build verificado del frontend React.
+
+**Por qué:**
+- El proyecto ya acumulaba demos, planes, propuestas y herramientas en rutas
+  diferentes. Una portada interna —siguiendo el patrón del hub de Mesita— reduce
+  el tiempo de búsqueda y evita confundir una demo simulada con una herramienta
+  conectada a producción. El hub solo guarda enlaces y documentos; nunca secretos.
+
+---
 
 ### 2026-07-16 · Respuesta del cliente + pivote a Contífico · ⏱️ 1.0 h
 **Commit:** _(este mismo)_

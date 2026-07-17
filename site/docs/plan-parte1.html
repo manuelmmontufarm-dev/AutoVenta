@@ -1,0 +1,424 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Plan — Parte 1: Frontend · Depot Tire Hub</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0a1020; --panel:rgba(17,26,49,.62); --line:rgba(255,255,255,.09);
+    --paper:#f5f1e9; --muted:#a3acc2; --red:#e3262e; --lime:#d9ff4f; --blue:#5b8def;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0;font-family:Inter,system-ui,sans-serif;color:var(--paper);min-height:100vh;
+    background:
+      radial-gradient(110% 80% at 15% -10%, rgba(23,61,118,.5) 0%, transparent 60%),
+      radial-gradient(120% 90% at 50% 0%, #0d1530 0%, #0a1020 55%, #070b16 100%);
+    background-attachment:fixed;
+  }
+  .bar{position:sticky;top:0;z-index:10;background:rgba(10,16,32,.86);backdrop-filter:blur(14px);border-bottom:1px solid var(--line);padding:14px 24px;display:flex;align-items:center;gap:14px}
+  .bar a{color:var(--muted);font-size:12.5px;text-decoration:none;font-weight:600}
+  .bar a:hover{color:var(--paper)}
+  .bar .kicker{color:var(--red);font-size:10.5px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;margin-left:auto}
+  .wrap{max-width:760px;margin:0 auto;padding:40px 24px 100px}
+  .doc h1{font-size:clamp(28px,4.4vw,40px);font-weight:800;letter-spacing:-.02em;line-height:1.15;margin:0 0 8px}
+  .doc h2{font-size:22px;font-weight:700;letter-spacing:-.01em;margin:44px 0 14px;padding-bottom:10px;border-bottom:1px solid var(--line)}
+  .doc h3{font-size:17px;font-weight:700;margin:30px 0 10px;color:var(--lime)}
+  .doc p{line-height:1.75;color:#dfe3ee;font-size:15px;margin:0 0 14px}
+  .doc ul,.doc ol{line-height:1.75;color:#dfe3ee;font-size:15px;padding-left:22px;margin:0 0 14px}
+  .doc li{margin-bottom:6px}
+  .doc a{color:var(--blue)}
+  .doc strong{color:var(--paper)}
+  .doc code{font-family:'JetBrains Mono',monospace;font-size:.85em;background:rgba(255,255,255,.08);padding:1px 6px;border-radius:5px;color:var(--lime)}
+  .doc pre{background:rgba(0,0,0,.3);border:1px solid var(--line);border-radius:12px;padding:14px 16px;overflow-x:auto}
+  .doc pre code{background:none;padding:0;color:#dfe3ee}
+  .doc blockquote{margin:0 0 14px;padding:4px 16px;border-left:3px solid var(--red);color:var(--muted);font-size:14px}
+  .doc hr{border:none;border-top:1px solid var(--line);margin:32px 0}
+  .doc table{width:100%;border-collapse:collapse;margin:0 0 20px;font-size:13.5px;display:block;overflow-x:auto}
+  .doc th{text-align:left;font-size:10.5px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);padding:8px 12px;border-bottom:1px solid var(--line);white-space:nowrap}
+  .doc td{padding:9px 12px;border-bottom:1px solid rgba(255,255,255,.05);color:#dfe3ee;vertical-align:top}
+  .doc tr:hover td{background:rgba(255,255,255,.02)}
+</style>
+</head>
+<body>
+  <div class="bar">
+    <a href="/">← Depot Tire Hub</a>
+    <span class="kicker">Plan de implementación</span>
+  </div>
+  <div class="wrap"><div class="doc">
+<h1>AutoVenta — Parte 1: Depot Tire Hub (solo frontend)</h1>
+<blockquote>
+<p>Plan a <strong>2026-07-16</strong>. Alcance: un panel web <strong>100% frontend</strong> (datos simulados) con calidad
+visual nivel Apple, aplicado a la marca Depot Tire, listo para demo con Joaquín.
+El backend real (bot ya esqueletizado en <code>app/</code>) se conecta en la Parte 2 <strong>sin rediseñar nada</strong>:
+el mock imita la forma exacta de la API futura.</p>
+</blockquote>
+<hr>
+<h2>0. Resumen ejecutivo</h2>
+<table>
+<thead>
+<tr>
+<th>Qué</th>
+<th>Decisión</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>Producto</strong></td>
+<td>&quot;Depot Tire Hub&quot;: panel del vendedor con <strong>tickets</strong> (1 cliente = 1 ticket abierto/cerrado) + <strong>pipeline visual</strong> que copia su guion real de venta + chat estilo WhatsApp + KPIs</td>
+</tr>
+<tr>
+<td><strong>Stack</strong></td>
+<td>Vite + React 19 + TypeScript + Tailwind v4 + shadcn/ui + Framer Motion + dnd-kit</td>
+</tr>
+<tr>
+<td><strong>Datos</strong></td>
+<td>Capa <code>DataSource</code> con implementación mock (fixtures + simulador en vivo). En Parte 2 se cambia por <code>fetch</code> al Express del bot — cero cambios de UI</td>
+</tr>
+<tr>
+<td><strong>Dónde vive</strong></td>
+<td><code>hub/</code> en este repo. Se sirve después bajo <code>/admin</code> del mismo Express (PLAN_DESARROLLO §6)</td>
+</tr>
+<tr>
+<td><strong>Demo</strong></td>
+<td>&quot;Modo demo&quot;: botón que simula clientes escribiendo en tiempo real y los tickets avanzando solos por el pipeline — el efecto ¡wow! para Joaquín</td>
+</tr>
+<tr>
+<td><strong>Estimación</strong></td>
+<td><strong>22–30 h</strong> (desglose en §7)</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>1. El pipeline = su guion real de venta</h2>
+<p>El cliente ya vende así por WhatsApp (confirmado en las reuniones). El pipeline del Hub
+<strong>copia ese guion literal</strong>, etapa por etapa:</p>
+<pre><code>1. NUEVO        Cliente escribe → se responde y se le preguntan las MEDIDAS
+2. MEDIDAS      Se tienen las medidas → se busca el PDF/cotización
+3. COTIZADO     PDF enviado → se le pregunta si está INTERESADO
+4. UBICACIÓN    Interesado → se le pide su ubicación → se manda el LOCAL MÁS CERCANO
+5. POR VISITAR  Se le pregunta: ¿vas a venir a comprar la llanta?
+   └─► CERRADO  ganado (dijo que va / compró) · perdido (no va) · sin respuesta
+</code></pre>
+<p>Mapeo contra lo que ya existe en el código (para no romper nada en Parte 2):</p>
+<table>
+<thead>
+<tr>
+<th>Etapa Hub</th>
+<th><code>Stage</code> actual (<code>app/src/services/conversations.ts</code>)</th>
+<th>Cambio</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Nuevo</td>
+<td><code>nuevo</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td>Medidas</td>
+<td><code>conversando</code></td>
+<td>renombrar en schema en Parte 2 (o alias en UI)</td>
+</tr>
+<tr>
+<td>Cotizado</td>
+<td><code>cotizado</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td>Ubicación</td>
+<td>🆕</td>
+<td>agregar al enum en Parte 2</td>
+</tr>
+<tr>
+<td>Por visitar</td>
+<td><code>alerta</code> (hoy = &quot;alerta vendedor&quot;)</td>
+<td>el significado coincide: cliente caliente</td>
+</tr>
+<tr>
+<td>Cerrado ganado/perdido</td>
+<td><code>cerrado</code> / <code>perdido</code></td>
+<td>—</td>
+</tr>
+</tbody></table>
+<p><strong>Regla del frontend:</strong> el mock usa ya los nombres nuevos (<code>nuevo | medidas | cotizado | ubicacion | por_visitar | cerrado_ganado | cerrado_perdido</code>). La migración SQL es de Parte 2.</p>
+<hr>
+<h2>2. Sistema de tickets — lógica copiada de los que lo hacen bien</h2>
+<p>Investigado en <code>docs/INVESTIGACION_GITHUB.md</code> + patrones estándar del sector:</p>
+<table>
+<thead>
+<tr>
+<th>Programa</th>
+<th>Qué le copiamos (lógica, no código)</th>
+<th>Licencia</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>Whaticket / ticketz</strong></td>
+<td>El modelo exacto que pidió el cliente: <strong>1 contacto = máx. 1 ticket abierto a la vez</strong>. Se cierra → queda en historial. Si el cliente vuelve a escribir → <strong>ticket nuevo</strong> (cada venta es su propio ticket, el historial por cliente se conserva)</td>
+<td>AGPL ⚠️ solo ideas</td>
+</tr>
+<tr>
+<td><strong>Chatwoot</strong></td>
+<td><strong>Reapertura automática</strong>: si llega mensaje de un contacto con ticket cerrado, se abre uno nuevo con badge &quot;cliente recurrente&quot;. Estados ortogonales: <em>estado</em> (abierto/cerrado) ≠ <em>etapa</em> (pipeline) ≠ <em>quién atiende</em> (bot/humano)</td>
+<td>MIT ✅</td>
+</tr>
+<tr>
+<td><strong>wacrm</strong></td>
+<td>Kanban de ventas ligado a conversaciones: columnas = etapas, card = ticket, arrastrar card = cambiar etapa</td>
+<td>MIT ✅ (forkeable si acelera)</td>
+</tr>
+<tr>
+<td><strong>Zendesk/Intercom</strong></td>
+<td>Motivo de cierre obligatorio (ganado/perdido/sin respuesta) — sin esto no hay métricas de conversión reales</td>
+<td>— patrón</td>
+</tr>
+</tbody></table>
+<h3>Modelo de datos del frontend (espeja <code>app/src/db/schema.sql</code>)</h3>
+<pre><code class="language-ts">type Etapa = &quot;nuevo&quot; | &quot;medidas&quot; | &quot;cotizado&quot; | &quot;ubicacion&quot; | &quot;por_visitar&quot;;
+type Cierre = &quot;ganado&quot; | &quot;perdido&quot; | &quot;sin_respuesta&quot;;
+
+interface Ticket {
+  id: number;
+  telefono: string;            // wa_id
+  nombre: string | null;
+  estado: &quot;abierto&quot; | &quot;cerrado&quot;;
+  etapa: Etapa;                // solo aplica si abierto
+  cierre?: Cierre;             // solo aplica si cerrado
+  atiende: &quot;bot&quot; | &quot;humano&quot;;   // bot_paused_until del schema
+  medida?: string;             // &quot;205/55R16&quot; — lo que busca
+  vehiculo?: string;           // &quot;Chevrolet Sail 2019&quot;
+  cotizacion?: { total: number; items: number; pdfUrl: string };
+  localAsignado?: { nombre: string; distanciaKm: number };
+  esRecurrente: boolean;       // tuvo tickets cerrados antes
+  creadoEn: string;
+  ultimaActividad: string;
+}
+
+interface Mensaje {
+  id: number;
+  ticketId: number;
+  rol: &quot;cliente&quot; | &quot;bot&quot; | &quot;vendedor&quot;;
+  tipo: &quot;texto&quot; | &quot;pdf&quot; | &quot;ubicacion&quot; | &quot;imagen&quot;;
+  contenido: string;
+  hora: string;
+}
+</code></pre>
+<p>Coincide campo a campo con <code>conversations</code> + <code>messages</code> + <code>quotes</code> de <code>schema.sql</code> — la
+Parte 2 es literalmente escribir 5 endpoints que devuelvan estas formas.</p>
+<hr>
+<h2>3. Pantallas (4 + modo demo)</h2>
+<h3>3.1 Inbox de tickets (pantalla principal)</h3>
+<ul>
+<li>Lista de tickets ordenada por última actividad, estilo bandeja WhatsApp Business pero premium.</li>
+<li>Cada fila: avatar con inicial, nombre/teléfono, preview del último mensaje, badge de <strong>etapa</strong>
+(color propio por etapa), pill <strong>bot 🤖 / humano 👤</strong>, tiempo relativo (&quot;hace 4 min&quot;),
+punto rojo pulsante si espera respuesta.</li>
+<li>Filtros como segmented control (estilo iOS): <strong>Abiertos · Cerrados · Todos</strong> + filtro por etapa.</li>
+<li>Búsqueda instantánea (nombre, teléfono, medida).</li>
+<li>Contador vivo en el título: &quot;12 abiertos&quot;.</li>
+</ul>
+<h3>3.2 Pipeline (Kanban)</h3>
+<ul>
+<li>5 columnas = 5 etapas + zona de cierre. Header de columna: nombre, contador, <strong>$ potencial</strong>
+(suma de cotizaciones en esa etapa).</li>
+<li>Cards arrastrables (dnd-kit) con spring físico al soltar; la card muestra nombre, medida
+buscada y monto cotizado.</li>
+<li>Soltar en &quot;Cerrado&quot; abre un sheet: ¿ganado o perdido? (motivo obligatorio — patrón Zendesk).</li>
+<li>Vista alternativa de embudo: barras horizontales con conversión % etapa→etapa.</li>
+</ul>
+<h3>3.3 Detalle de ticket (la pantalla estrella)</h3>
+<p>Layout 3 zonas (en móvil: tabs):</p>
+<ul>
+<li><strong>Centro — chat</strong>: burbujas estilo WhatsApp (verde saliente/blanco entrante sobre fondo
+oscuro elegante), mensajes PDF renderizados como card de documento con miniatura,
+mensajes de ubicación como mini-mapa estático, doble check. Composer para escribir
+como humano (en Parte 1 solo simula).</li>
+<li><strong>Derecha — ficha del cliente</strong>: medida buscada (chip grande monoespaciado <code>205/55 R16</code>),
+vehículo, cotización (total + botón &quot;ver PDF&quot;), local asignado con distancia,
+historial de tickets anteriores si es recurrente.</li>
+<li><strong>Arriba — stepper del pipeline</strong>: las 5 etapas como línea de progreso animada
+(la etapa actual pulsa). Es el &quot;dónde está esta venta&quot; de un vistazo.</li>
+<li>Acciones: <strong>Tomar conversación</strong> (bot→humano, toggle grande), <strong>Cerrar ganado/perdido</strong>,
+<strong>Reabrir</strong>, nota interna.</li>
+</ul>
+<h3>3.4 Dashboard (KPIs)</h3>
+<ul>
+<li>4 stat tiles: tickets abiertos hoy · cotizaciones enviadas · % cotizado→visita ·
+tiempo medio de respuesta del bot.</li>
+<li>Embudo del mes (funnel chart) + línea de conversaciones por día (últimos 14 días).</li>
+<li>Feed de actividad en vivo (&quot;Carlos M. recibió cotización — hace 2 min&quot;).</li>
+<li>Números con animación count-up al entrar.</li>
+</ul>
+<h3>3.5 Modo demo (el vendedor de la Parte 1)</h3>
+<p>Botón discreto &quot;▶ Demo&quot; que arranca un guion simulado: entran 2–3 clientes nuevos,
+escriben (indicador &quot;escribiendo…&quot;), el bot responde con delays realistas, piden medidas,
+llega el PDF, avanzan de columna en el Kanban en vivo, suena una notificación sutil y
+uno termina en &quot;ganado&quot; con micro-confetti. <strong>Esto es lo que cierra la venta con Joaquín</strong>:
+ve su negocio funcionando solo, antes de que exista el backend.</p>
+<hr>
+<h2>4. Sistema de diseño — Depot Tire, nivel Apple</h2>
+<p>Base: el branding que ya definimos en <code>docs/catalogo-pitstop-sudinco-mejorado.html</code>,
+llevado a modo oscuro premium (técnica glass del simulador 3D de <code>tools/webhook/simulador-seccion-2-3d/</code>).</p>
+<pre><code class="language-css">--ink:      #0a1020;   /* fondo base (ya es el theme-color del catálogo) */
+--ink-2:    #111a31;   /* paneles */
+--red:      #e3262e;   /* Depot red — SOLO acciones primarias y alertas */
+--blue:     #173d76;   /* secundario */
+--lime:     #d9ff4f;   /* focus/éxito — ya definido en el catálogo */
+--glass:    rgba(17, 26, 49, .72) + backdrop-blur(18px) saturate(140%);
+</code></pre>
+<p>Reglas que hacen el &quot;nivel Apple&quot;:</p>
+<ul>
+<li><strong>Tipografía</strong>: Inter variable (ya es la del catálogo); números tabulares
+(<code>font-variant-numeric: tabular-nums</code>) en todo KPI y precio; medidas de llanta en
+monoespaciada (<code>JetBrains Mono</code>) como chip — es EL dato del negocio, se le da jerarquía.</li>
+<li><strong>Motion</strong>: Framer Motion con springs (nada de <code>ease-in-out</code> lineal). Transiciones de
+layout compartido entre inbox→detalle (la fila &quot;se convierte&quot; en el header del chat).
+Solo <code>transform</code>/<code>opacity</code> — 60fps garantizado. <code>prefers-reduced-motion</code> respetado.</li>
+<li><strong>Profundidad</strong>: sombras de 2 capas + bordes <code>1px rgba(255,255,255,.06)</code> (patrón del
+simulador), radios 16–24 px consistentes.</li>
+<li><strong>Detalle obsesivo</strong>: skeleton screens con shimmer (nunca spinners), estados vacíos
+ilustrados (&quot;Sin tickets abiertos — el bot está atento 🛞&quot;), hover lift de 2px en cards,
+punto verde pulsante &quot;bot en línea&quot; (animación ya escrita en el simulador), favicon con
+contador de abiertos, dark scrollbars estilizados.</li>
+<li><strong>Responsive real</strong>: el dueño lo va a abrir desde el celular. Mobile-first: inbox y chat
+perfectos en 390px; Kanban con scroll horizontal con snap.</li>
+</ul>
+<hr>
+<h2>5. Arquitectura del frontend</h2>
+<pre><code>hub/
+├── src/
+│   ├── data/
+│   │   ├── source.ts          # interface DataSource (el contrato con la Parte 2)
+│   │   ├── mock/
+│   │   │   ├── fixtures.ts    # ~25 tickets realistas (nombres EC, medidas reales del
+│   │   │   │                  #   catálogo SUDINCO, cotizaciones, los 2 locales)
+│   │   │   ├── simulator.ts   # motor del modo demo (guiones, timers, typing)
+│   │   │   └── mockSource.ts
+│   │   └── types.ts           # Ticket, Mensaje, Etapa… (espejo de schema.sql)
+│   ├── stores/                # Zustand: tickets, ui, demo
+│   ├── screens/               # Inbox / Pipeline / TicketDetail / Dashboard
+│   ├── components/            # StageBadge, TicketRow, ChatBubble, StatTile, Stepper…
+│   └── design/                # tokens.css, motion presets
+└── package.json               # vite build → app/public/admin (Parte 2)
+</code></pre>
+<ul>
+<li><strong><code>DataSource</code> es el contrato</strong>: <code>listTickets()</code>, <code>getTicket(id)</code>, <code>getMensajes(id)</code>,
+<code>moverEtapa()</code>, <code>cerrar()</code>, <code>tomarConversacion()</code>, <code>subscribe(cb)</code> (eventos en vivo).
+El mock lo implementa con fixtures + EventEmitter; la Parte 2 con fetch + SSE al Express.</li>
+<li><strong>Sin backend, sin auth, sin deploy comercial</strong> en Parte 1. Demo local o preview
+temporal (Vercel preview solo para enseñar, no producción — Hobby prohíbe uso comercial).</li>
+</ul>
+<h3>Qué se reusa y de dónde</h3>
+<table>
+<thead>
+<tr>
+<th>Fuente</th>
+<th>Qué</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>docs/catalogo-pitstop-sudinco-mejorado.html</code></td>
+<td>Paleta Depot, Inter, radios, eyebrows, theme-color</td>
+</tr>
+<tr>
+<td><code>tools/webhook/simulador-seccion-2-3d/</code></td>
+<td>Técnica glass (blur+saturate), dot pulsante, gradientes de fondo</td>
+</tr>
+<tr>
+<td><code>app/src/db/schema.sql</code> + <code>conversations.ts</code></td>
+<td>Modelo de datos (tipos espejo) y nombres de etapas</td>
+</tr>
+<tr>
+<td><code>app/src/domain/locations.ts</code></td>
+<td>Los 2 locales + haversine → copiar a fixtures para &quot;local más cercano&quot;</td>
+</tr>
+<tr>
+<td><code>docs/INVESTIGACION_GITHUB.md</code></td>
+<td>wacrm (kanban MIT, referencia visual), Chatwoot (estados), tremor dashboard (Apache 2.0, componentes KPI)</td>
+</tr>
+<tr>
+<td>NOVOPAN (<code>NOVOPAN-live</code>)</td>
+<td>Patrones de animación/presentación que ya gustaron al cliente de Novopan</td>
+</tr>
+<tr>
+<td>Jardín Express</td>
+<td>Patrón de pantalla de revisión/dashboard ya verificado en producción</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>6. Orden de construcción</h2>
+<ol>
+<li><strong>Cimientos</strong> — Vite + Tailwind + tokens Depot + shell de navegación (sidebar glass, 4 secciones).</li>
+<li><strong>Datos</strong> — tipos, <code>DataSource</code>, fixtures realistas (esto define TODO lo demás).</li>
+<li><strong>Inbox</strong> — la pantalla que más se usa; filtros abierto/cerrado, búsqueda.</li>
+<li><strong>Detalle de ticket</strong> — chat + ficha + stepper + acciones de cierre/reapertura.</li>
+<li><strong>Pipeline Kanban</strong> — drag &amp; drop + sheet de cierre + $ por columna.</li>
+<li><strong>Dashboard</strong> — tiles, embudo, feed.</li>
+<li><strong>Modo demo</strong> — simulador con guiones + typing + notificaciones.</li>
+<li><strong>Pulido Apple</strong> — pasada exclusiva de motion, vacíos, skeletons, móvil 390px, contraste AA.</li>
+</ol>
+<h2>7. Estimación</h2>
+<table>
+<thead>
+<tr>
+<th>Bloque</th>
+<th>Horas</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Cimientos + design tokens</td>
+<td>2–3</td>
+</tr>
+<tr>
+<td>Capa de datos mock + fixtures</td>
+<td>3–4</td>
+</tr>
+<tr>
+<td>Inbox</td>
+<td>3–4</td>
+</tr>
+<tr>
+<td>Detalle de ticket (chat + ficha + stepper)</td>
+<td>5–6</td>
+</tr>
+<tr>
+<td>Pipeline Kanban</td>
+<td>3–4</td>
+</tr>
+<tr>
+<td>Dashboard KPIs</td>
+<td>2–3</td>
+</tr>
+<tr>
+<td>Modo demo</td>
+<td>2–3</td>
+</tr>
+<tr>
+<td>Pasada de pulido + móvil</td>
+<td>2–3</td>
+</tr>
+<tr>
+<td><strong>Total</strong></td>
+<td><strong>22–30 h</strong></td>
+</tr>
+</tbody></table>
+<h2>8. Criterios de aceptación (guion de demo con Joaquín)</h2>
+<ol>
+<li>Abre el Hub en el celular → ve SUS colores, SUS 2 locales, medidas reales de llanta.</li>
+<li>&quot;▶ Demo&quot; → entra un cliente nuevo, el ticket aparece en Inbox con animación.</li>
+<li>Abre el ticket → ve el chat avanzando solo: medidas → PDF → ubicación → local más cercano.</li>
+<li>Va al Pipeline → la card se mueve sola de columna; arrastra una manualmente.</li>
+<li>El cliente simulado confirma → notificación + ticket a &quot;ganado&quot; con confetti → KPI sube.</li>
+<li>Cierra un ticket a mano (motivo obligatorio) y lo reabre escribiendo como cliente recurrente.</li>
+<li>Todo a 60fps, sin un solo dato hardcodeado fuera de fixtures.</li>
+</ol>
+<h2>9. Fuera de alcance (Parte 2+)</h2>
+<p>WhatsApp real (webhook ya esqueletizado en <code>app/</code>), Contífico (bloqueado hasta confirmar
+plan/API con el papá de Joaquín), auth, deploy productivo, clasificador de etapa con Haiku,
+migración SQL de nombres de etapa. <strong>Nada del diseño cambia al conectar el backend</strong> — ese
+es el punto de la capa <code>DataSource</code>.</p>
+
+  </div></div>
+</body>
+</html>

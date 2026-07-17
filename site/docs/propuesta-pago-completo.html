@@ -1,0 +1,279 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AutoVenta · Propuesta Depot Tire · Pago completo</title>
+<style>
+  @page { size: A4; margin: 0; }
+  *{ box-sizing:border-box; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+
+  :root{
+    --ink:#0d1117;          /* caucho negro */
+    --ink-2:#151b24;
+    --green:#0fa36b;        /* verde AutoVenta / WhatsApp */
+    --green-dark:#0a7a50;
+    --green-soft:#e6f5ee;
+    --paper:#f3f2ef;        /* concreto claro del taller */
+    --card:#ffffff;
+    --steel:#3c434d;
+    --muted:#6a7178;
+    --line:rgba(13,17,23,.13);
+    --hoy-bg:#efe7de; --hoy-ink:#8a5a3f;
+    --gold:#f5b91e;
+    --sans:"Avenir Next","Segoe UI",system-ui,-apple-system,sans-serif;
+  }
+
+  html,body{ margin:0; padding:0; }
+  body{ width:210mm; background:var(--paper); color:var(--ink);
+    font-family:var(--sans); font-size:11pt; line-height:1.55; }
+
+  .wrap{ padding:0 46px; }
+  .band{ padding:40px 0; }
+  .eyebrow{ font-size:8.5pt; font-weight:700; letter-spacing:.2em; text-transform:uppercase;
+    color:var(--green); margin:0 0 10px; }
+  h2{ font-size:21pt; line-height:1.08; font-weight:800; letter-spacing:-.02em;
+    color:var(--ink); margin:0 0 18px; text-wrap:balance; }
+  h2 .r{ color:var(--green); }
+  p{ margin:0 0 13px; }
+  .lead-txt{ color:var(--steel); max-width:64ch; }
+
+  /* llanta decorativa */
+  .tirewheel{ position:absolute; border-radius:50%; background:#181f29;
+    box-shadow:inset 0 0 0 6px #232c38, inset 0 0 0 7px rgba(255,255,255,.05); }
+  .tirewheel::before{ content:""; position:absolute; inset:18%; border-radius:50%;
+    border:2px dashed rgba(15,163,107,.55); }
+  .tirewheel::after{ content:""; position:absolute; inset:34%; border-radius:50%;
+    background:radial-gradient(circle,#0fa36b 0 30%,#232c38 32% 100%); }
+
+  /* HERO */
+  .hero{ position:relative; overflow:hidden; background:var(--ink); color:#f2f4f6;
+    padding:50px 46px 44px; }
+  .hero .t1{ width:340px; height:340px; top:-130px; right:-120px; }
+  .hero .t2{ width:130px; height:130px; bottom:-52px; right:210px; opacity:.65; }
+  .tread{ position:absolute; left:0; right:0; bottom:0; height:10px;
+    background:repeating-linear-gradient(90deg,var(--green) 0 26px,transparent 26px 40px); }
+  .hero-inner{ position:relative; z-index:2; max-width:72%; }
+  .wordmark{ font-weight:800; font-size:15pt; letter-spacing:.02em; }
+  .wordmark b{ color:var(--green); }
+  .tag{ display:inline-block; margin-top:10px; font-size:7.5pt; font-weight:700; letter-spacing:.18em;
+    text-transform:uppercase; color:rgba(242,244,246,.72); border:1px solid rgba(242,244,246,.32);
+    padding:4px 10px; border-radius:4px; }
+  .hero h1{ font-size:31pt; line-height:1.04; font-weight:800; letter-spacing:-.03em; margin:24px 0 16px; }
+  .hero h1 .a{ color:var(--green); }
+  .hero p{ color:rgba(242,244,246,.82); max-width:58ch; }
+  .meta{ margin-top:22px; font-size:8pt; font-weight:700; letter-spacing:.14em; text-transform:uppercase;
+    color:rgba(242,244,246,.45); line-height:1.7; }
+
+  /* INCLUYE — lista */
+  .list{ list-style:none; margin:0; padding:0; }
+  .list li{ position:relative; padding:13px 0 13px 34px; border-top:1px solid var(--line); break-inside:avoid; }
+  .list li:first-child{ border-top:none; }
+  .lug{ position:absolute; left:0; top:16px; width:15px; height:15px; border-radius:50%;
+    border:3px solid var(--green); }
+  .lug::after{ content:""; position:absolute; inset:3px; border-radius:50%; background:var(--green); opacity:.35; }
+  .list b{ color:var(--ink); }
+
+  /* PRECIO */
+  .price-card{ background:var(--ink); color:#f2f4f6; border-radius:20px; padding:34px 34px 30px; margin:6px 0;
+    position:relative; overflow:hidden; break-inside:avoid; }
+  .price-card .t3{ width:200px; height:200px; top:-84px; right:-70px; opacity:.5; }
+  .price-top{ position:relative; z-index:2; display:flex; align-items:flex-end; justify-content:space-between; gap:20px; flex-wrap:wrap; }
+  .price-lbl{ font-size:8.5pt; font-weight:700; letter-spacing:.14em; text-transform:uppercase; color:rgba(242,244,246,.6); margin:0 0 6px; }
+  .price-big{ font-size:44pt; font-weight:800; letter-spacing:-.03em; line-height:1; color:#fff; }
+  .price-big .cur{ color:var(--green); font-size:26pt; vertical-align:14px; margin-right:2px; }
+  .price-note{ font-size:9pt; color:rgba(242,244,246,.62); max-width:30ch; text-align:right; }
+  .founder{ display:inline-block; margin-top:4px; font-size:7.5pt; font-weight:800; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--gold); border:1px solid rgba(245,185,30,.5); padding:3px 9px; border-radius:99px; }
+  .anchor{ position:relative; z-index:2; margin-top:20px; padding-top:16px; border-top:1px solid rgba(242,244,246,.15);
+    font-size:9pt; color:rgba(242,244,246,.7); }
+  .anchor b{ color:#fff; }
+
+  /* HITOS */
+  .milestones{ display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin:18px 0 4px; }
+  .ms{ border:1px solid var(--line); border-radius:14px; padding:16px 16px 14px; background:var(--card); position:relative; break-inside:avoid; }
+  .ms .pct{ font-size:20pt; font-weight:800; color:var(--green); line-height:1; letter-spacing:-.02em; }
+  .ms .amt{ font-size:9pt; font-weight:700; color:var(--ink); margin-top:2px; }
+  .ms .k{ font-size:7.5pt; font-weight:800; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); margin:8px 0 4px; }
+  .ms p{ margin:0; font-size:9pt; color:var(--steel); line-height:1.5; }
+
+  /* MENSUALIDAD */
+  .monthly{ background:var(--green); color:#06241a; border-radius:20px; padding:30px 32px; margin:18px 0; position:relative; overflow:hidden; break-inside:avoid; }
+  .monthly .badge{ position:absolute; top:22px; right:26px; background:rgba(6,36,26,.14); color:#06241a;
+    font-size:19pt; font-weight:800; letter-spacing:-.02em; padding:8px 16px; border-radius:12px; }
+  .monthly h3{ margin:0 0 4px; font-size:15pt; font-weight:800; color:#06241a; }
+  .monthly .sub{ margin:0 0 16px; font-size:10pt; color:#0a3a2a; max-width:52ch; }
+  .inc{ display:grid; grid-template-columns:1fr 1fr; gap:7px 22px; padding:0; margin:0 0 14px; list-style:none; }
+  .inc li{ padding-left:20px; position:relative; font-size:9.5pt; color:#0a3a2a; font-weight:600; }
+  .inc li::before{ content:"✓"; position:absolute; left:0; color:#06241a; font-weight:800; }
+  .why{ background:rgba(255,255,255,.55); border-radius:12px; padding:14px 16px; font-size:9.2pt; color:#0a3a2a; line-height:1.55; }
+  .why b{ color:#06241a; }
+
+  /* CONTÍFICO */
+  .conti{ border:1px solid var(--line); border-left:4px solid var(--green); border-radius:0 14px 14px 0;
+    background:var(--card); padding:20px 24px; margin:16px 0; break-inside:avoid; }
+  .conti h3{ margin:0 0 6px; font-size:12pt; font-weight:800; color:var(--ink); }
+  .conti p{ margin:0; color:var(--steel); font-size:10pt; }
+  .conti .pill{ display:inline-block; background:var(--green-soft); color:var(--green-dark); font-size:7.5pt;
+    font-weight:800; letter-spacing:.1em; text-transform:uppercase; padding:3px 9px; border-radius:99px; margin-bottom:8px; }
+
+  /* PENDIENTES */
+  .box{ border:1px solid var(--line); border-radius:14px; overflow:hidden; margin:14px 0; background:var(--card); break-inside:avoid; }
+  .box-h{ padding:12px 20px; font-size:8.5pt; font-weight:700; letter-spacing:.14em; text-transform:uppercase;
+    color:var(--muted); border-bottom:1px solid var(--line); background:#faf9f7; }
+  .row{ display:flex; gap:14px; padding:12px 20px; border-top:1px solid var(--line); align-items:flex-start; }
+  .row:first-of-type{ border-top:none; }
+  .num{ flex:none; width:24px; height:24px; border-radius:50%; background:var(--green); color:#fff;
+    font-weight:800; font-size:9pt; display:grid; place-items:center; margin-top:1px; }
+  .row p{ margin:0; }
+  .row b{ color:var(--ink); }
+
+  /* CIERRE */
+  .closing{ background:var(--ink-2); color:#f2f4f6; text-align:center; padding:46px 46px; position:relative; overflow:hidden; }
+  .closing .t5{ width:220px; height:220px; top:-90px; left:-90px; opacity:.4; }
+  .closing .big{ font-size:16pt; font-weight:800; line-height:1.32; letter-spacing:-.01em; position:relative; z-index:2; }
+  .closing .big .a{ color:var(--green); }
+  .closing .sub{ color:rgba(242,244,246,.78); max-width:54ch; margin:16px auto 24px; font-size:10.5pt; position:relative; z-index:2; }
+  .closing .wordmark{ position:relative; z-index:2; }
+  .closing .tread2{ position:absolute; left:0; right:0; top:0; height:10px;
+    background:repeating-linear-gradient(90deg,var(--green) 0 26px,transparent 26px 40px); }
+
+  .footer{ background:var(--paper); color:var(--muted); font-size:8pt; padding:18px 46px; }
+</style>
+</head>
+<body>
+
+  <!-- HERO -->
+  <section class="hero">
+    <span class="tirewheel t1"></span>
+    <span class="tirewheel t2"></span>
+    <div class="hero-inner">
+      <div class="wordmark">AUTO<b>VENTA</b></div>
+      <span class="tag">Bot de llantas · WhatsApp · Depot Tire</span>
+      <h1>Un solo pago. <span class="a">El bot completo, tuyo.</span></h1>
+      <p>Joaquín — me dijiste que lo quieres completo, no por partes. Perfecto, así lo armamos: <b>un precio cerrado por todo el producto</b>, entregado por etapas para que lo veas crecer semana a semana, y una mensualidad clara que lo mantiene vivo. Sin sorpresas. Aquí está todo en una página.</p>
+      <div class="meta">Propuesta · Preparado por Manuel Montúfar · Julio 2026</div>
+    </div>
+    <div class="tread"></div>
+  </section>
+
+  <!-- QUÉ INCLUYE -->
+  <section class="band"><div class="wrap">
+    <p class="eyebrow">Qué te llevas</p>
+    <h2>Todo el bot, en un solo entregable.<br><span class="r">Esto es lo que hace, completo.</span></h2>
+    <ul class="list">
+      <li><span class="lug"></span><b>Atiende y responde solo, con IA, 24/7.</b> Entiende los mensajes como la gente los escribe, contesta al instante a cualquier hora, y saluda como Depot Tire.</li>
+      <li><span class="lug"></span><b>Cotiza por medida y manda el PDF.</b> Descifra "185 R14", "la 185 65 14" o la foto del costado, busca en tu inventario y arma la cotización con tu logo en segundos.</li>
+      <li><span class="lug"></span><b>Entiende fotos y vehículos.</b> Foto de la llanta, captura de la competencia, o "¿qué le queda a mi Hilux?" — el bot lo interpreta y responde bien.</li>
+      <li><span class="lug"></span><b>Ubicación y local más cercano.</b> El cliente manda su ubicación y el bot le dice a qué local ir, con horario (L–S 8:30–17:30).</li>
+      <li><span class="lug"></span><b>Te avisa cuando hay venta.</b> Cuando alguien está listo para comprar, te llega la alerta con el contexto — tú solo cierras.</li>
+      <li><span class="lug"></span><b>Sabe cuándo no sabe.</b> Si duda, te pasa el chat en vez de inventar. Nunca cotiza mal.</li>
+      <li><span class="lug"></span><b>Tablero de control.</b> Cuántos escribieron, cuántos cotizaron, cuántos a punto de comprar, qué medidas piden más — tu WhatsApp deja de ser una caja negra.</li>
+    </ul>
+  </div></section>
+
+  <!-- PRECIO -->
+  <section class="band" style="padding-top:0"><div class="wrap">
+    <p class="eyebrow">La inversión</p>
+    <h2>Un precio cerrado por todo.</h2>
+
+    <div class="price-card">
+      <span class="tirewheel t3"></span>
+      <div class="price-top">
+        <div>
+          <p class="price-lbl">Desarrollo completo · pago único</p>
+          <div class="price-big"><span class="cur">$</span>600</div>
+          <div><span class="founder">Precio socio fundador</span></div>
+        </div>
+        <p class="price-note">El bot entero: los 7 puntos de arriba, construidos, probados y funcionando en tu número.</p>
+      </div>
+      <div class="anchor">
+        Para ubicarlo: solo la <b>tubería</b> de WhatsApp en un servicio como WATI cuesta <b>$59/mes</b> — sin nada de inteligencia. Una agencia cobra <b>$2.000–10.000</b> por un bot así. Este precio es de socio fundador: eres el primero, y a cambio el producto ya nace pensado para tu taller.
+      </div>
+    </div>
+
+    <p class="lead-txt" style="margin-top:22px"><b>Pagas por el producto completo, no fase por fase</b> — pero lo dividimos en 3 hitos simples. Así no adelantas todo por algo que aún no ves, y yo no construyo todo antes de arrancar. Ganamos los dos:</p>
+
+    <div class="milestones">
+      <div class="ms">
+        <div class="pct">40%</div>
+        <div class="amt">$240 · al arrancar</div>
+        <div class="k">Inicio</div>
+        <p>Firmamos, me das acceso al Contífico y arranco. En ~1 semana ves el bot respondiendo de verdad.</p>
+      </div>
+      <div class="ms">
+        <div class="pct">30%</div>
+        <div class="amt">$180 · a mitad</div>
+        <div class="k">Bot cotizando</div>
+        <p>Cuando el bot ya cotiza por medida, manda el PDF y lee fotos — funcionando en tu número.</p>
+      </div>
+      <div class="ms">
+        <div class="pct">30%</div>
+        <div class="amt">$180 · al entregar</div>
+        <div class="k">Entrega final</div>
+        <p>Producto completo en producción: tablero, alertas, todo probado con tráfico real.</p>
+      </div>
+    </div>
+  </div></section>
+
+  <!-- MENSUALIDAD -->
+  <section class="band" style="padding-top:0"><div class="wrap">
+    <p class="eyebrow">Cómo se mantiene vivo</p>
+    <h2>La mensualidad, explicada sin letra chica.</h2>
+
+    <div class="monthly">
+      <div class="badge">$40/mes</div>
+      <h3>Mantenimiento todo incluido</h3>
+      <p class="sub">El pago único construye el bot. La mensualidad lo mantiene <b>encendido, sano y respondiendo</b> — es lo que el sistema consume cada mes para existir:</p>
+      <ul class="inc">
+        <li>Servidor del bot y del tablero (encendido 24/7)</li>
+        <li>Base de datos y respaldos diarios</li>
+        <li>Servicio de WhatsApp Business (Meta)</li>
+        <li>Tokens de la inteligencia artificial</li>
+        <li>Monitoreo y seguridad del sistema</li>
+        <li>Soporte y ajustes menores (hasta 1 h/mes)</li>
+      </ul>
+      <div class="why">
+        <b>Por qué no es opcional (y por qué te conviene):</b> un bot no es un archivo que se entrega y ya — vive en internet y consume servicios reales cada día, igual que un carro necesita gasolina y mantenimiento para andar. Esos servicios cuestan solos, sin importar quién los pague. Con estos <b>$40 yo me encargo de todo</b>: si algo se cae de madrugada, si Meta cambia una regla, si hay que actualizar algo — está cubierto, sin llamarme a cobrarte por hora. Tú solo vendes llantas.
+      </div>
+    </div>
+    <p class="lead-txt" style="font-size:9.5pt;color:var(--muted)">Nota justa: si el volumen crece mucho (más de ~1.000 conversaciones al mes), la mensualidad sube a $60–70 para cubrir el mayor consumo. Lo dejo escrito desde hoy para que nunca sea sorpresa — y "más volumen" significa que el bot te está trayendo más clientes.</p>
+  </div></section>
+
+  <!-- CONTÍFICO -->
+  <section class="band" style="padding-top:0"><div class="wrap">
+    <p class="eyebrow">Tu pregunta del inventario</p>
+    <h2>Sí — lo conectamos a Contífico.</h2>
+    <div class="conti">
+      <span class="pill">Respuesta directa</span>
+      <h3>Es la mejor forma, y ya sé cómo hacerlo.</h3>
+      <p>Preguntaste si conviene conectar el bot al Contífico. La respuesta es sí: en vez de que el bot lea un Excel que hay que actualizar a mano, lee el <b>stock y los precios directo de Contífico en tiempo real</b> — justo lo que querías desde el inicio. Cuando algo se vende o cambia de precio, el bot ya lo sabe. Además, ya integré Contífico en otros dos proyectos míos, así que no es terreno nuevo: sé que tiene API y cómo pegarle. Esta conexión es parte de lo que hace al bot "en tiempo real" de verdad.</p>
+    </div>
+  </div></section>
+
+  <!-- PARA ARRANCAR -->
+  <section class="band" style="padding-top:0"><div class="wrap" style="break-inside:avoid">
+    <p class="eyebrow">Para arrancar</p>
+    <h2>Lo que necesito de tu lado.</h2>
+    <div class="box">
+      <div class="box-h">3 cosas y arrancamos</div>
+      <div class="row"><span class="num">1</span><p><b>Acceso al Contífico de Depot Tire.</b> Confirmar qué plan tienen (que incluya API) y que el inventario esté bien cargado ahí. Es el pendiente número uno.</p></div>
+      <div class="row"><span class="num">2</span><p><b>El número de WhatsApp del negocio</b> y el logo para las cotizaciones. Conservas tu número y sigues usando tu app normal — el bot convive con ella.</p></div>
+      <div class="row"><span class="num">3</span><p><b>El visto bueno.</b> Con el 40% de inicio arranco, y en una semana ves el bot respondiendo a tus clientes de verdad — no en papel.</p></div>
+    </div>
+  </div></section>
+
+  <!-- CIERRE -->
+  <section class="closing">
+    <div class="tread2"></div>
+    <span class="tirewheel t5"></span>
+    <p class="big">Un pago, un bot completo,<br><span class="a">y tu WhatsApp trabajando solo.</span></p>
+    <p class="sub">Dime que arrancamos y coordinamos el acceso al Contífico. En una semana lo ves funcionando.</p>
+    <div class="wordmark">AUTO<b style="color:var(--green)">VENTA</b></div>
+    <div><span class="tag">Bot de llantas · WhatsApp · Depot Tire</span></div>
+  </section>
+
+  <div class="footer">Propuesta · Manuel Montúfar · Julio 2026 · Precio cerrado $600 (pago único en 3 hitos: 40% / 30% / 30%) + $40/mes de mantenimiento todo incluido. La mensualidad cubre la operación real del sistema; ajuste a $60–70/mes solo si se superan ~1.000 conversaciones mensuales.</div>
+
+</body>
+</html>

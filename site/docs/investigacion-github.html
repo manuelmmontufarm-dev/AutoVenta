@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Investigación de repos reusables · Depot Tire Hub</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0a1020; --panel:rgba(17,26,49,.62); --line:rgba(255,255,255,.09);
+    --paper:#f5f1e9; --muted:#a3acc2; --red:#e3262e; --lime:#d9ff4f; --blue:#5b8def;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0;font-family:Inter,system-ui,sans-serif;color:var(--paper);min-height:100vh;
+    background:
+      radial-gradient(110% 80% at 15% -10%, rgba(23,61,118,.5) 0%, transparent 60%),
+      radial-gradient(120% 90% at 50% 0%, #0d1530 0%, #0a1020 55%, #070b16 100%);
+    background-attachment:fixed;
+  }
+  .bar{position:sticky;top:0;z-index:10;background:rgba(10,16,32,.86);backdrop-filter:blur(14px);border-bottom:1px solid var(--line);padding:14px 24px;display:flex;align-items:center;gap:14px}
+  .bar a{color:var(--muted);font-size:12.5px;text-decoration:none;font-weight:600}
+  .bar a:hover{color:var(--paper)}
+  .bar .kicker{color:var(--red);font-size:10.5px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;margin-left:auto}
+  .wrap{max-width:760px;margin:0 auto;padding:40px 24px 100px}
+  .doc h1{font-size:clamp(28px,4.4vw,40px);font-weight:800;letter-spacing:-.02em;line-height:1.15;margin:0 0 8px}
+  .doc h2{font-size:22px;font-weight:700;letter-spacing:-.01em;margin:44px 0 14px;padding-bottom:10px;border-bottom:1px solid var(--line)}
+  .doc h3{font-size:17px;font-weight:700;margin:30px 0 10px;color:var(--lime)}
+  .doc p{line-height:1.75;color:#dfe3ee;font-size:15px;margin:0 0 14px}
+  .doc ul,.doc ol{line-height:1.75;color:#dfe3ee;font-size:15px;padding-left:22px;margin:0 0 14px}
+  .doc li{margin-bottom:6px}
+  .doc a{color:var(--blue)}
+  .doc strong{color:var(--paper)}
+  .doc code{font-family:'JetBrains Mono',monospace;font-size:.85em;background:rgba(255,255,255,.08);padding:1px 6px;border-radius:5px;color:var(--lime)}
+  .doc pre{background:rgba(0,0,0,.3);border:1px solid var(--line);border-radius:12px;padding:14px 16px;overflow-x:auto}
+  .doc pre code{background:none;padding:0;color:#dfe3ee}
+  .doc blockquote{margin:0 0 14px;padding:4px 16px;border-left:3px solid var(--red);color:var(--muted);font-size:14px}
+  .doc hr{border:none;border-top:1px solid var(--line);margin:32px 0}
+  .doc table{width:100%;border-collapse:collapse;margin:0 0 20px;font-size:13.5px;display:block;overflow-x:auto}
+  .doc th{text-align:left;font-size:10.5px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);padding:8px 12px;border-bottom:1px solid var(--line);white-space:nowrap}
+  .doc td{padding:9px 12px;border-bottom:1px solid rgba(255,255,255,.05);color:#dfe3ee;vertical-align:top}
+  .doc tr:hover td{background:rgba(255,255,255,.02)}
+</style>
+</head>
+<body>
+  <div class="bar">
+    <a href="/">← Depot Tire Hub</a>
+    <span class="kicker">Qué existe y qué copiar</span>
+  </div>
+  <div class="wrap"><div class="doc">
+<h1>Investigación GitHub — qué existe parecido a AutoVenta y qué reusar</h1>
+<blockquote>
+<p>Fecha: 2026-07-15 · 4 barridos paralelos (~55 repos evaluados, ~15 por frente)
+Frentes: (1) stacks WhatsApp Cloud API, (2) bots de ventas/commerce completos, (3) dominio llantas, (4) PDF/Sheets/agente Claude/dashboard.</p>
+</blockquote>
+<h2>Conclusión ejecutiva</h2>
+<p><strong>Nadie tiene el paquete completo.</strong> No existe ningún proyecto open source que haga
+catálogo + cotización PDF + notificación al vendedor + funnel sobre WhatsApp.
+Cada pieza existe por separado con licencia MIT; el ensamblaje (y el dominio
+llantas) es nuestro diferenciador. La decisión validada en PLAN_DESARROLLO.md
+(Cloud API directo + agente Claude con tools) coincide con lo que hace la punta
+del ecosistema.</p>
+<h2>Descomposición: pieza → qué reusar</h2>
+<table>
+<thead>
+<tr>
+<th>Pieza</th>
+<th>Reusar</th>
+<th>Licencia</th>
+<th>Notas</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Cliente Cloud API + webhook (firma, media)</td>
+<td><a href="https://github.com/Secreto31126/whatsapp-api-js">whatsapp-api-js</a> (349★, sin deps) o <a href="https://github.com/MarcosNicolau/whatsapp-business-sdk">whatsapp-business-sdk</a> (168★)</td>
+<td>MIT ✅</td>
+<td>También <a href="https://github.com/great-detail/WhatsApp-JS-SDK">great-detail/WhatsApp-JS-SDK</a> (fork mantenido del SDK oficial de Meta, jun-2026).</td>
+</tr>
+<tr>
+<td>Framework de bot (alternativa)</td>
+<td><a href="https://github.com/codigoencasa/builderbot">BuilderBot</a> (~3k★)</td>
+<td>MIT ✅</td>
+<td>Provider Meta oficial intercambiable con Baileys, flujos, estado y cola por conversación, comunidad LATAM en español. Candidato #1 si preferimos framework en vez de SDK + loop propio.</td>
+</tr>
+<tr>
+<td>Loop del agente (tools)</td>
+<td>Tool runner oficial del SDK Anthropic: <a href="https://github.com/anthropics/anthropic-sdk-typescript/blob/main/examples/tools-helpers-zod.ts"><code>betaZodTool</code> + <code>toolRunner</code></a></td>
+<td>MIT ✅</td>
+<td>~30 líneas, sin framework. Memoria de conversación: array <code>messages</code> por teléfono en Postgres (JSONB), propia y trivial.</td>
+</tr>
+<tr>
+<td>Cotización PDF</td>
+<td><a href="https://github.com/h1dd3nsn1p3r/pdf-invoice">pdf-invoice</a> (TS, MIT, feb-2026; soporta &quot;estimate&quot;, i18n español) o <a href="https://github.com/bpampuch/pdfmake">pdfmake</a> + <a href="https://gist.github.com/tusharf5/034d3e0599ae87ec4033c53107965569">gist plantilla tusharf5</a></td>
+<td>MIT ✅</td>
+<td>pdf-invoice = atajo de 1 día (gap: logo solo SVG). pdfmake = control total del branding (2-3 días). Evitar easyinvoice (renderiza en API externa de pago).</td>
+</tr>
+<tr>
+<td>Catálogo desde Google Sheets</td>
+<td><a href="https://github.com/theoephraim/node-google-spreadsheet">node-google-spreadsheet</a> (2.5k★, v5.3.0 jun-2026)</td>
+<td>MIT ✅</td>
+<td>No existe &quot;sheet→Postgres sync&quot; empaquetado; el job de sync son ~50 líneas propias. Fase 1: cache en memoria con TTL 5-10 min basta.</td>
+</tr>
+<tr>
+<td>Parser de medidas</td>
+<td><strong>Escribir propio</strong> (~50 líneas, una tarde)</td>
+<td>—</td>
+<td>No hay librería npm/PyPI. Referencias de diseño: <a href="https://github.com/Gan4x4/tyresize">Gan4x4/tyresize</a> (PHP, métrico+pulgadas+conversiones) y regexes tolerantes de <a href="https://github.com/ricilandolt/tires_tgcode">tires_tgcode</a>. Ambos SIN licencia → portar ideas, no copiar. Validar rangos: width 125–445, aspect 25–85, rim 10–24.</td>
+</tr>
+<tr>
+<td>Modelo de datos tienda de llantas</td>
+<td><a href="https://github.com/horoshi10v/tires-shop">horoshi10v/tires-shop</a> (Go, MIT, activo jun-2026)</td>
+<td>MIT ✅</td>
+<td>Único repo MIT con dominio completo: productos/lotes/stock/bodegas/órdenes vía bot de mensajería (Telegram). Copiar el esquema de datos.</td>
+</tr>
+<tr>
+<td>Fitment vehículo→medida</td>
+<td><a href="https://developer.wheel-size.com/">Wheel-Size API</a> (sandbox gratis 300 hits/día; $450/año prod)</td>
+<td>Comercial</td>
+<td>Confirma el plan: NO hay dataset abierto de fitment. Tabla curada de ~50 modelos Ecuador sigue siendo la ruta correcta para Fase 2. Scrapers = riesgo legal, descartados.</td>
+</tr>
+<tr>
+<td>Foto de llanta → medida (Fase 2)</td>
+<td>Visión del propio LLM</td>
+<td>—</td>
+<td>Los repos de OCR de flanco (<a href="https://github.com/esolnguyen/tire-sidewall-text-extraction">esolnguyen</a>, Roboflow) confirman: Tesseract falla en negro-sobre-negro y todos terminan usando un VLM. Nuestro plan (Claude vision + confirmación) es el estado del arte simplificado.</td>
+</tr>
+<tr>
+<td>Debounce / colas / idempotencia</td>
+<td>Patrón propio (~100-200 líneas)</td>
+<td>—</td>
+<td>No hay librería empaquetada. Referencias: <a href="https://github.com/taskforcesh/bullmq">BullMQ</a> dedup con <code>id</code>+delay, <a href="https://hookdeck.com/webhooks/platforms/guide-to-whatsapp-webhooks-features-and-best-practices">guía Hookdeck</a> (200 inmediato + dedupe por <code>message.id</code>). Sin Redis a nuestro volumen: en memoria.</td>
+</tr>
+<tr>
+<td>Funnel / panel vendedor (Fase 3)</td>
+<td><a href="https://github.com/ArnasDon/wacrm">wacrm</a> (1.6k★, MIT, Next.js+Supabase)</td>
+<td>MIT ✅</td>
+<td>Kanban de ventas ligado a conversaciones, broadcasts, handoff, pensado para forkear y rebrandear. Alternativa pesada: <a href="https://github.com/chatwoot/chatwoot">Chatwoot</a> (MIT core) — su AgentBot API es el patrón canónico de pausa bot→humano.</td>
+</tr>
+<tr>
+<td>Dashboard simple (Fase 1-2)</td>
+<td><a href="https://github.com/tremorlabs/template-dashboard-oss">tremor template-dashboard-oss</a> (Apache 2.0) o shadcn Vite template</td>
+<td>✅</td>
+<td>Componentes KPI/gráficos listos; servido por el mismo Express bajo <code>/admin</code>.</td>
+</tr>
+</tbody></table>
+<h2>Referencias de arquitectura (leer, no copiar)</h2>
+<ul>
+<li><a href="https://github.com/wassengerhq/whatsapp-chatgpt-bot">wassengerhq/whatsapp-chatgpt-bot</a> (MIT) — mejor diseño de loop LLM + function calling multimodal para WhatsApp.</li>
+<li><a href="https://github.com/bibinprathap/whatsapp-chatbot">bibinprathap/whatsapp-chatbot</a> (132★, MIT) — pipeline NL→carrito→pedido + recuperación de carritos por cron (útil para las campañas de seguimiento que pidió el cliente el 14-jul).</li>
+<li><a href="https://github.com/adithyadilum/wa-demo-shop-bot">adithyadilum/wa-demo-shop-bot</a> (sin licencia) — el más cercano funcionalmente: Cloud API + Meta Commerce Catalog + carrito + handover con pausa del bot. Solo ideas.</li>
+<li><a href="https://github.com/skorokithakis/stavrobot">skorokithakis/stavrobot</a> (185★, <strong>AGPL</strong> ⚠️) — stack exacto (WhatsApp+Claude+Postgres), memoria en 3 niveles. Referencia arquitectónica; no copiar código.</li>
+<li><a href="https://github.com/CaveMindLabs/whatsapp-fastapi-agent">CaveMindLabs/whatsapp-fastapi-agent</a> (Python) — Cloud API + tool calling + memoria por usuario, blueprint completo.</li>
+</ul>
+<h2>Minas de licencia (evitar código)</h2>
+<ul>
+<li><strong>AGPL-3.0</strong>: ticketz/forks de Whaticket, stavrobot, Plausible → si se vende modificado hay que liberar el código.</li>
+<li><strong>FSL-1.1</strong>: Typebot → prohíbe uso comercial competidor.</li>
+<li><strong>GPL-3.0</strong>: j05u3/whatsapp-cloud-api-express → copiar el patrón, no la dependencia.</li>
+<li><strong>Apache con condiciones extra</strong>: Evolution API (cláusula de marca/logo) → incómodo para marca blanca.</li>
+<li><strong>Sin licencia</strong> (wa-demo-shop-bot, bot-ventas, tyresize, Gan4x4…): legalmente no copiables; solo referencia de diseño.</li>
+</ul>
+<h2>Decisión de arquitectura pendiente</h2>
+<p>Dos caminos viables, ambos MIT:</p>
+<ol>
+<li><strong>SDK + loop propio</strong> (plan actual de PLAN_DESARROLLO.md): <code>whatsapp-api-js</code> + tool runner Anthropic + Express. Menos dependencias, control total, todo el bot ~1.500 líneas nuestras.</li>
+<li><strong>BuilderBot como esqueleto</strong>: flujos/estado/cola por conversación ya resueltos + provider Meta oficial; se le inyecta el loop de Claude. Más rápido para el demo, comunidad hispana, y permite demo con Baileys → producción con Meta sin tocar lógica.</li>
+</ol>
+<p>Recomendación: <strong>camino 1 para producción</strong> (coincide con el plan y el volumen es bajo), usando BuilderBot solo si el demo de 1-2 semanas se aprieta.</p>
+
+  </div></div>
+</body>
+</html>

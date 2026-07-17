@@ -1,0 +1,280 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Depot Tire Hub · Centro de Control</title>
+<meta name="description" content="AutoVenta — centro de control: demo interactivo, paletas de estilo y documentación del proyecto.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23e3262e'/%3E%3Ctext x='32' y='42' font-family='Inter,sans-serif' font-size='26' font-weight='800' fill='white' text-anchor='middle'%3EDT%3C/text%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0a1020; --panel:rgba(17,26,49,.62); --panel2:rgba(17,26,49,.85); --line:rgba(255,255,255,.09);
+    --paper:#f5f1e9; --muted:#a3acc2; --faint:#6b7590; --red:#e3262e; --lime:#d9ff4f; --blue:#5b8def;
+    --teal:#2dd4bf; --amber:#f5b83d; --violet:#a78bfa; --green:#34d399;
+  }
+  *{box-sizing:border-box;margin:0}
+  body{
+    font-family:Inter,system-ui,sans-serif;color:var(--paper);min-height:100vh;
+    background:
+      radial-gradient(110% 80% at 15% -10%, rgba(23,61,118,.55) 0%, transparent 60%),
+      radial-gradient(90% 70% at 110% 10%, rgba(227,38,46,.14) 0%, transparent 55%),
+      radial-gradient(120% 90% at 50% 0%, #0d1530 0%, #0a1020 55%, #070b16 100%);
+    background-attachment:fixed;
+  }
+  .wrap{max-width:1040px;margin:0 auto;padding:56px 24px 90px}
+  .glass{background:var(--panel);backdrop-filter:blur(20px) saturate(140%);border:1px solid var(--line);border-radius:20px}
+  .pulse{width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 10px var(--green);display:inline-block;animation:pulse 1.8s ease-in-out infinite;flex-shrink:0}
+  @keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.45;transform:scale(.82)}}
+
+  header{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
+  .brand{display:flex;align-items:center;gap:12px}
+  .logo{width:42px;height:42px;border-radius:13px;background:var(--red);display:grid;place-items:center;font-weight:800;font-size:14px;color:#fff;box-shadow:0 8px 22px rgba(227,38,46,.35)}
+  .brand b{font-size:15px;font-weight:800;letter-spacing:-.01em}
+  .brand span{display:block;font-size:11px;color:var(--muted)}
+  .status{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted);font-weight:600}
+  .status a{color:var(--muted);text-decoration:none}
+  .status a:hover{color:var(--paper)}
+  .quicknav{display:flex;flex-wrap:wrap;gap:8px;margin-top:30px}
+  .quicknav a{color:var(--muted);text-decoration:none;font-size:11.5px;font-weight:700;padding:8px 12px;border:1px solid var(--line);border-radius:99px;background:rgba(255,255,255,.025)}
+  .quicknav a:hover{color:var(--paper);border-color:rgba(255,255,255,.2)}
+
+  .hero{margin-top:52px}
+  .kicker{font-size:11px;font-weight:800;letter-spacing:.2em;text-transform:uppercase;color:var(--red)}
+  h1{font-size:clamp(34px,5.6vw,54px);font-weight:800;letter-spacing:-.03em;margin:10px 0 14px;line-height:1.05}
+  .lede{color:var(--muted);font-size:16px;max-width:600px;line-height:1.65}
+
+  h2{font-size:11px;font-weight:800;letter-spacing:.18em;text-transform:uppercase;color:var(--muted);margin:56px 0 16px;display:flex;align-items:center;gap:12px}
+  h2::after{content:"";flex:1;height:1px;background:var(--line)}
+
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px}
+  a.card{display:block;padding:22px;text-decoration:none;color:inherit;transition:.18s;position:relative;overflow:hidden}
+  a.card:hover{transform:translateY(-3px);border-color:rgba(255,255,255,.2);box-shadow:0 20px 48px rgba(0,0,0,.4)}
+  .card .icon{width:38px;height:38px;border-radius:11px;display:grid;place-items:center;font-size:18px;margin-bottom:14px}
+  .card h3{font-size:16px;font-weight:750;letter-spacing:-.01em;margin-bottom:6px}
+  .card p{font-size:12.5px;color:var(--muted);line-height:1.55;min-height:36px}
+  .card .go{margin-top:14px;font-size:11.5px;font-weight:700;color:var(--paper);display:flex;align-items:center;gap:5px}
+  .badge{display:inline-flex;align-items:center;gap:5px;font-size:9.5px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;padding:3px 8px;border-radius:99px;margin-bottom:10px;border:1px solid var(--line);color:var(--muted)}
+  .badge.local{color:var(--teal);border-color:rgba(45,212,191,.28);background:rgba(45,212,191,.08)}
+  .badge.external{color:var(--blue);border-color:rgba(91,141,239,.3);background:rgba(91,141,239,.08)}
+  .badge.file{color:var(--amber);border-color:rgba(245,184,61,.28);background:rgba(245,184,61,.08)}
+
+  .featured{grid-column:1/-1;display:flex;align-items:center;justify-content:space-between;gap:20px;flex-wrap:wrap;padding:28px}
+  .featured .txt h3{font-size:19px}
+  .featured .go{background:var(--lime);color:#0a1020;padding:11px 22px;border-radius:99px;font-weight:800;font-size:13px;white-space:nowrap;margin-top:0}
+  .tag{display:inline-block;font-size:9.5px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;padding:2.5px 8px;border-radius:99px;background:rgba(52,211,153,.12);color:var(--green);border:1px solid rgba(52,211,153,.3);margin-bottom:10px}
+
+  .foot{margin-top:60px;padding:22px 26px;font-size:12.5px;line-height:1.7;color:var(--faint)}
+  .foot b{color:var(--muted)}
+  .foot a{color:var(--muted)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="brand">
+      <div class="logo">DT</div>
+      <div><b>AutoVenta</b><span>Depot Tire · centro de control interno</span></div>
+    </div>
+    <div class="status">
+      <span class="pulse"></span> repo activo
+      <a href="https://github.com/manuelmmontufarm-dev/AutoVenta" target="_blank" rel="noopener">· GitHub ↗</a>
+    </div>
+  </header>
+
+  <div class="hero">
+    <p class="kicker">Hub interno · no es la app del cliente</p>
+    <h1>Todo el proyecto,<br>en un solo lugar.</h1>
+    <p class="lede">Demo interactivo, exploración de estilos y toda la documentación de AutoVenta — el bot de ventas por WhatsApp para Depot Tire. Esta página es para uso interno del equipo, no se comparte con el cliente.</p>
+    <nav class="quicknav" aria-label="Secciones del hub">
+      <a href="#producto">Producto</a>
+      <a href="#operacion">Operación</a>
+      <a href="#diseno">Diseño</a>
+      <a href="#planes">Planes</a>
+      <a href="#negocio">Negocio</a>
+      <a href="#plataformas">Plataformas</a>
+    </nav>
+  </div>
+
+  <h2 id="producto">Producto</h2>
+  <div class="grid">
+    <a class="card glass featured" href="demo/#/pipeline">
+      <div class="txt">
+        <span class="tag">demo interactiva</span>
+        <h3>Depot Tire Hub — Demo interactivo</h3>
+        <p style="max-width:440px">Inbox de tickets, pipeline Kanban, chat y dashboard con datos simulados. Dale a "▶ Demo" para ver clientes entrando y cerrando ventas solos.</p>
+      </div>
+      <span class="go">Abrir demo →</span>
+    </a>
+  </div>
+
+  <h2 id="operacion">Operación local</h2>
+  <div class="grid">
+    <a class="card glass" href="http://localhost:3001/mensajes">
+      <span class="badge local">● requiere dashboard local</span>
+      <div class="icon" style="background:rgba(52,211,153,.13);color:var(--green)">✦</div>
+      <h3>Mensajes de WhatsApp</h3>
+      <p>Conversaciones reales, envío manual y estado del asistente de AutoVenta.</p>
+      <span class="go">Abrir mensajes →</span>
+    </a>
+    <a class="card glass" href="http://localhost:3001/configuracion/ia">
+      <span class="badge local">● requiere dashboard local</span>
+      <div class="icon" style="background:rgba(167,139,250,.14);color:var(--violet)">✣</div>
+      <h3>Configuración de IA</h3>
+      <p>Personalidad, tono, emojis, longitud de respuesta y sticker final.</p>
+      <span class="go">Configurar asistente →</span>
+    </a>
+    <a class="card glass" href="http://localhost:3000/">
+      <span class="badge local">● herramienta local</span>
+      <div class="icon" style="background:rgba(245,184,61,.13);color:var(--amber)">WA</div>
+      <h3>WhatsApp Tester</h3>
+      <p>Herramienta técnica para probar el envío real por Meta sin pasar por el dashboard.</p>
+      <span class="go">Abrir tester →</span>
+    </a>
+    <a class="card glass" href="demo/#/inbox">
+      <span class="badge">demo simulada</span>
+      <div class="icon" style="background:rgba(91,141,239,.14);color:var(--blue)">☰</div>
+      <h3>Inbox de tickets</h3>
+      <p>Vista del frontend para revisar conversaciones y probar el flujo del equipo.</p>
+      <span class="go">Abrir inbox →</span>
+    </a>
+  </div>
+
+  <h2 id="diseno">Diseño y marca</h2>
+  <div class="grid">
+    <a class="card glass" href="estilos/">
+      <div class="icon" style="background:rgba(167,139,250,.14);color:var(--violet)">🎨</div>
+      <h3>Paletas y estilos</h3>
+      <p>9 direcciones visuales completas — color, tipografía y forma — con el mismo mockup para comparar de igual a igual.</p>
+      <span class="go">Explorar →</span>
+    </a>
+    <a class="card glass" href="estilos/08-claude-oscuro.html">
+      <div class="icon" style="background:rgba(143,168,133,.14);color:#8fa885">◐</div>
+      <h3>Claude Oscuro / Claro</h3>
+      <p>El par de estilos inspirado en Claude — serif editorial, carbón cálido o marfil de papel. Candidato fuerte.</p>
+      <span class="go">Ver estilo →</span>
+    </a>
+    <a class="card glass" href="docs/catalogo-pitstop.html">
+      <div class="icon" style="background:rgba(45,212,191,.13);color:var(--teal)">▦</div>
+      <h3>Catálogo Pitstop</h3>
+      <p>Prototipo visual del catálogo de llantas con estructura y contenido mejorados.</p>
+      <span class="go">Abrir catálogo →</span>
+    </a>
+  </div>
+
+  <h2 id="planes">Planes y documentación</h2>
+  <div class="grid">
+    <a class="card glass" href="docs/plan-parte1.html">
+      <div class="icon" style="background:rgba(217,255,79,.13);color:var(--lime)">📋</div>
+      <h3>Plan — Parte 1: Frontend</h3>
+      <p>El plan que se ejecutó para construir el Hub: tickets, pipeline, modo demo y criterios de aceptación.</p>
+      <span class="go">Leer plan →</span>
+    </a>
+    <a class="card glass" href="docs/plan-desarrollo.html">
+      <div class="icon" style="background:rgba(91,141,239,.14);color:var(--blue)">🏗️</div>
+      <h3>Plan de Desarrollo Técnico</h3>
+      <p>Arquitectura completa: WhatsApp Cloud API, agente Claude, PDF, catálogo, fases 0-3 con horas.</p>
+      <span class="go">Leer plan →</span>
+    </a>
+    <a class="card glass" href="docs/plan-financiero.html">
+      <div class="icon" style="background:rgba(52,211,153,.13);color:var(--green)">💰</div>
+      <h3>Plan Financiero</h3>
+      <p>Costos de infraestructura, precio por fases y mensualidad de mantenimiento.</p>
+      <span class="go">Leer plan →</span>
+    </a>
+    <a class="card glass" href="docs/investigacion-github.html">
+      <div class="icon" style="background:rgba(245,184,61,.13);color:var(--amber)">🔍</div>
+      <h3>Investigación de repos reusables</h3>
+      <p>Qué existe open source parecido a AutoVenta y qué piezas se reusaron (licencias MIT verificadas).</p>
+      <span class="go">Leer investigación →</span>
+    </a>
+    <a class="card glass" href="docs/proyecto.html">
+      <div class="icon" style="background:rgba(45,212,191,.13);color:var(--teal)">📓</div>
+      <h3>Bitácora del proyecto</h3>
+      <p>Contexto del cliente, decisiones tomadas y estado actual — la fuente de verdad de PROYECTO.md.</p>
+      <span class="go">Leer bitácora →</span>
+    </a>
+    <a class="card glass" href="docs/whatsapp-business.html">
+      <div class="icon" style="background:rgba(52,211,153,.13);color:var(--green)">◉</div>
+      <h3>Guía WhatsApp Business</h3>
+      <p>Tokens, webhook, número de prueba, plantillas y pasos de configuración en Meta.</p>
+      <span class="go">Abrir guía →</span>
+    </a>
+    <a class="card glass" href="docs/bitacora.html">
+      <div class="icon" style="background:rgba(167,139,250,.14);color:var(--violet)">✓</div>
+      <h3>Bitácora de desarrollo</h3>
+      <p>Registro cronológico de lo construido, decisiones técnicas y próximos pasos.</p>
+      <span class="go">Ver avances →</span>
+    </a>
+  </div>
+
+  <h2 id="negocio">Propuestas y negocio</h2>
+  <div class="grid">
+    <a class="card glass" href="docs/reunion-autoventa.html">
+      <div class="icon" style="background:rgba(227,38,46,.13);color:var(--red)">🤝</div>
+      <h3>Propuesta al cliente</h3>
+      <p>El documento de la reunión con Joaquín — 5 fases, simulador de ahorro, sin precios explícitos.</p>
+      <span class="go">Ver propuesta →</span>
+    </a>
+    <a class="card glass" href="docs/propuesta-pago-completo.html">
+      <span class="badge file">documento interno</span>
+      <div class="icon" style="background:rgba(245,184,61,.13);color:var(--amber)">$</div>
+      <h3>Propuesta — pago completo</h3>
+      <p>Versión de la propuesta comercial para revisar alcance y condiciones.</p>
+      <span class="go">Abrir propuesta →</span>
+    </a>
+    <a class="card glass" href="docs/propuesta-pago-unico.html">
+      <span class="badge file">documento interno</span>
+      <div class="icon" style="background:rgba(91,141,239,.14);color:var(--blue)">↗</div>
+      <h3>Propuesta — pago único</h3>
+      <p>Versión HTML y PDF lista para revisión o presentación al cliente.</p>
+      <span class="go">Abrir propuesta →</span>
+    </a>
+    <a class="card glass" href="docs/propuesta-pago-unico.pdf">
+      <span class="badge file">PDF</span>
+      <div class="icon" style="background:rgba(227,38,46,.13);color:var(--red)">PDF</div>
+      <h3>Propuesta descargable</h3>
+      <p>Documento de pago único en formato PDF para compartir o imprimir.</p>
+      <span class="go">Ver PDF →</span>
+    </a>
+  </div>
+
+  <h2 id="plataformas">Plataformas y accesos</h2>
+  <div class="grid">
+    <a class="card glass" href="https://github.com/manuelmmontufarm-dev/AutoVenta" target="_blank" rel="noopener">
+      <span class="badge external">externo</span>
+      <div class="icon" style="background:rgba(255,255,255,.08)">⌘</div>
+      <h3>Repositorio AutoVenta</h3>
+      <p>Código fuente, historial, ramas y documentación principal del proyecto.</p>
+      <span class="go">Abrir GitHub ↗</span>
+    </a>
+    <a class="card glass" href="https://developers.facebook.com/apps/" target="_blank" rel="noopener">
+      <span class="badge external">Meta</span>
+      <div class="icon" style="background:rgba(91,141,239,.14);color:var(--blue)">∞</div>
+      <h3>Meta for Developers</h3>
+      <p>Aplicación, WhatsApp Cloud API, tokens temporales y configuración del webhook.</p>
+      <span class="go">Abrir panel ↗</span>
+    </a>
+    <a class="card glass" href="https://business.facebook.com/latest/settings" target="_blank" rel="noopener">
+      <span class="badge external">Meta</span>
+      <div class="icon" style="background:rgba(45,212,191,.13);color:var(--teal)">⚙</div>
+      <h3>Business Settings</h3>
+      <p>Cuenta comercial, usuarios del sistema, activos y número de WhatsApp.</p>
+      <span class="go">Abrir configuración ↗</span>
+    </a>
+    <a class="card glass" href="https://platform.openai.com/settings/organization/api-keys" target="_blank" rel="noopener">
+      <span class="badge external">OpenAI</span>
+      <div class="icon" style="background:rgba(167,139,250,.14);color:var(--violet)">AI</div>
+      <h3>OpenAI Platform</h3>
+      <p>Llaves API, uso y facturación del asistente. Nunca pegues una llave dentro del hub.</p>
+      <span class="go">Abrir plataforma ↗</span>
+    </a>
+  </div>
+
+  <div class="foot glass">
+    <b>Nota de seguridad:</b> este hub solo contiene enlaces; no guarda tokens, contraseñas ni llaves API. Los accesos marcados como “local” funcionan cuando el dashboard de WhatsApp está encendido en el puerto 3001. Los documentos se regeneran desde los archivos fuente del repositorio.
+  </div>
+</div>
+</body>
+</html>

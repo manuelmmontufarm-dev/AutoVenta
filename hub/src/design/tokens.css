@@ -1,0 +1,369 @@
+@import "tailwindcss";
+
+/* ─── Depot Tire Hub — tema "Claude Oscuro × Aurora Glass" ──────────────
+   Base: carbón cálido + serif editorial + acentos apagados (salvia, arena,
+   azul polvo) del estilo 08. Luz: orbes aurora tenues y bordes iridiscentes
+   en el vidrio del estilo 06. El violeta→magenta se reserva para LA acción
+   primaria; todo lo demás susurra. */
+
+@theme {
+  --color-ink: #262624; /* carbón cálido — nunca negro azulado */
+  --color-ink2: #30302e;
+  --color-ink3: #3a3a37;
+  --color-red: #c96b62; /* rojo suave (marca Depot, en voz baja) */
+  --color-reddark: #b3554c;
+  --color-blue: #8da3c0; /* azul polvo */
+  --color-sky: #8da3c0;
+  --color-lime: #a9c39d; /* salvia clara — dinero y positivos */
+  --color-paper: #f5f4ee; /* marfil */
+  --color-muted: #a6a39a;
+  --color-faint: #7d7a72;
+  --color-line: rgba(245, 244, 238, 0.08);
+  --color-violet: #a78bfa;
+  --color-wa: #3f463c; /* burbuja saliente: verde salvia oscuro */
+
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-serif: "Source Serif 4", Georgia, "Times New Roman", serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", monospace;
+
+  --radius-panel: 20px;
+  --radius-card: 16px;
+
+  --shadow-soft: 0 2px 8px rgba(0, 0, 0, 0.22), 0 16px 48px rgba(0, 0, 0, 0.3);
+  --shadow-pop: 0 8px 20px rgba(0, 0, 0, 0.35), 0 24px 64px rgba(0, 0, 0, 0.45);
+}
+
+/* ─── Base (en @layer base: las utilities de Tailwind deben poder ganar) ── */
+
+@layer base {
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  color: var(--color-paper);
+  /* Carbón cálido con orbes aurora muy tenues (violeta / cian / magenta) */
+  background:
+    radial-gradient(85% 65% at 10% -8%, rgba(124, 58, 237, 0.2) 0%, transparent 55%),
+    radial-gradient(75% 55% at 108% 14%, rgba(34, 211, 238, 0.09) 0%, transparent 55%),
+    radial-gradient(70% 55% at 55% 115%, rgba(232, 121, 249, 0.09) 0%, transparent 55%),
+    radial-gradient(120% 90% at 50% 0%, #2b2b28 0%, var(--color-ink) 55%, #1d1d1b 100%);
+  background-attachment: fixed;
+  font-family: var(--font-sans);
+  font-optical-sizing: auto;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  overflow: hidden;
+}
+
+/* Textura de ruido sutil sobre el fondo (feel Apple, imperceptible pero está) */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.35;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.028 0'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E");
+  z-index: 0;
+}
+
+::selection {
+  background: rgba(167, 139, 250, 0.4);
+  color: #fff;
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-violet);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: none;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+input,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+/* Scrollbars oscuros y finos */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(166, 163, 154, 0.28) transparent;
+}
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+*::-webkit-scrollbar-thumb {
+  background: rgba(166, 163, 154, 0.28);
+  border-radius: 99px;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+} /* fin @layer base */
+
+/* ─── Glass ───────────────────────────────────────────────────────── */
+
+@layer components {
+
+/* Vidrio cálido con borde iridiscente aurora (violeta→cian→magenta,
+   en susurro). El ::before hereda el border-radius de cada superficie. */
+.glass {
+  position: relative;
+  background: rgba(48, 48, 45, 0.55);
+  backdrop-filter: blur(20px) saturate(150%);
+  -webkit-backdrop-filter: blur(20px) saturate(150%);
+  border: 1px solid transparent;
+}
+.glass::before {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(
+    135deg,
+    rgba(167, 139, 250, 0.32),
+    rgba(34, 211, 238, 0.08) 45%,
+    rgba(232, 121, 249, 0.2)
+  );
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+.glass-strong {
+  position: relative;
+  background: rgba(38, 38, 36, 0.88);
+  backdrop-filter: blur(26px) saturate(160%);
+  -webkit-backdrop-filter: blur(26px) saturate(160%);
+  border: 1px solid transparent;
+}
+.glass-strong::before {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(
+    135deg,
+    rgba(167, 139, 250, 0.45),
+    rgba(34, 211, 238, 0.14) 45%,
+    rgba(232, 121, 249, 0.32)
+  );
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+/* ─── Serif editorial (el gesto Claude) ───────────────────────────── */
+
+.serif {
+  font-family: var(--font-serif);
+  font-weight: 550;
+  letter-spacing: -0.015em;
+}
+
+/* ─── Acción primaria aurora — UNA por pantalla ───────────────────── */
+
+.btn-aurora {
+  background: linear-gradient(120deg, #7c3aed 0%, #b56ae0 100%);
+  color: #fff;
+  box-shadow: 0 8px 26px rgba(124, 58, 237, 0.4);
+}
+
+/* ─── Micro-etiquetas y números ───────────────────────────────────── */
+
+.microlabel {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+
+.tnum {
+  font-variant-numeric: tabular-nums;
+}
+
+.medida-chip {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+/* ─── Punto "en línea" pulsante ───────────────────────────────────── */
+
+.pulse-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #86c79a;
+  box-shadow: 0 0 10px #86c79a;
+  animation: pulse 1.8s ease-in-out infinite;
+  flex-shrink: 0;
+}
+
+.pulse-dot.rojo {
+  background: var(--color-red);
+  box-shadow: 0 0 10px var(--color-red);
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.45;
+    transform: scale(0.82);
+  }
+}
+
+/* ─── Skeleton shimmer (nunca spinners) ───────────────────────────── */
+
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  background: rgba(245, 244, 238, 0.05);
+  border-radius: 10px;
+}
+.skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, rgba(245, 244, 238, 0.07), transparent);
+  animation: shimmer 1.4s infinite;
+}
+@keyframes shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+/* ─── Chat ────────────────────────────────────────────────────────── */
+
+.chat-bg {
+  background-image: radial-gradient(rgba(245, 244, 238, 0.04) 1px, transparent 1.4px);
+  background-size: 22px 22px;
+}
+
+.bubble {
+  max-width: min(78%, 460px);
+  padding: 8px 12px 6px;
+  border-radius: 14px;
+  font-size: 13.5px;
+  line-height: 1.45;
+  word-break: break-word;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+.bubble-in {
+  background: rgba(245, 244, 238, 0.08);
+  border: 1px solid rgba(245, 244, 238, 0.06);
+  border-top-left-radius: 4px;
+}
+
+.bubble-out {
+  background: linear-gradient(150deg, #414840 0%, #343a31 85%);
+  border: 1px solid rgba(143, 168, 133, 0.26);
+  border-top-right-radius: 4px;
+}
+
+.typing-dots span {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-right: 3px;
+  border-radius: 50%;
+  background: var(--color-muted);
+  animation: typing 1.2s infinite ease-in-out;
+}
+.typing-dots span:nth-child(2) {
+  animation-delay: 0.15s;
+}
+.typing-dots span:nth-child(3) {
+  animation-delay: 0.3s;
+  margin-right: 0;
+}
+@keyframes typing {
+  0%,
+  60%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.4;
+  }
+  30% {
+    transform: translateY(-4px);
+    opacity: 1;
+  }
+}
+
+/* ─── Kanban ──────────────────────────────────────────────────────── */
+
+/* Snap solo en móvil (swipe columna a columna); en desktop recortaba el
+   padding inicial del carril. */
+@media (max-width: 767px) {
+  .kanban-scroll {
+    scroll-snap-type: x proximity;
+    scroll-padding-left: 16px;
+  }
+  .kanban-scroll > * {
+    scroll-snap-align: start;
+  }
+}
+
+/* ─── Confetti ────────────────────────────────────────────────────── */
+
+.confetti-piece {
+  position: fixed;
+  top: -16px;
+  width: 8px;
+  height: 14px;
+  border-radius: 2px;
+  animation: confetti-fall var(--dur, 2.4s) var(--delay, 0s) cubic-bezier(0.25, 0.4, 0.45, 1) forwards;
+  z-index: 200;
+  pointer-events: none;
+}
+@keyframes confetti-fall {
+  0% {
+    transform: translateY(-4vh) translateX(0) rotate(0deg);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(108vh) translateX(var(--drift, 0px)) rotate(var(--spin, 540deg));
+    opacity: 0.9;
+  }
+}
+
+} /* fin @layer components */
+
+/* ─── Accesibilidad: reduced motion ───────────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+  .confetti-piece,
+  .skeleton::after,
+  .pulse-dot,
+  .typing-dots span {
+    animation: none !important;
+  }
+}

@@ -1,0 +1,359 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bitácora de desarrollo · Depot Tire Hub</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0a1020; --panel:rgba(17,26,49,.62); --line:rgba(255,255,255,.09);
+    --paper:#f5f1e9; --muted:#a3acc2; --red:#e3262e; --lime:#d9ff4f; --blue:#5b8def;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0;font-family:Inter,system-ui,sans-serif;color:var(--paper);min-height:100vh;
+    background:
+      radial-gradient(110% 80% at 15% -10%, rgba(23,61,118,.5) 0%, transparent 60%),
+      radial-gradient(120% 90% at 50% 0%, #0d1530 0%, #0a1020 55%, #070b16 100%);
+    background-attachment:fixed;
+  }
+  .bar{position:sticky;top:0;z-index:10;background:rgba(10,16,32,.86);backdrop-filter:blur(14px);border-bottom:1px solid var(--line);padding:14px 24px;display:flex;align-items:center;gap:14px}
+  .bar a{color:var(--muted);font-size:12.5px;text-decoration:none;font-weight:600}
+  .bar a:hover{color:var(--paper)}
+  .bar .kicker{color:var(--red);font-size:10.5px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;margin-left:auto}
+  .wrap{max-width:760px;margin:0 auto;padding:40px 24px 100px}
+  .doc h1{font-size:clamp(28px,4.4vw,40px);font-weight:800;letter-spacing:-.02em;line-height:1.15;margin:0 0 8px}
+  .doc h2{font-size:22px;font-weight:700;letter-spacing:-.01em;margin:44px 0 14px;padding-bottom:10px;border-bottom:1px solid var(--line)}
+  .doc h3{font-size:17px;font-weight:700;margin:30px 0 10px;color:var(--lime)}
+  .doc p{line-height:1.75;color:#dfe3ee;font-size:15px;margin:0 0 14px}
+  .doc ul,.doc ol{line-height:1.75;color:#dfe3ee;font-size:15px;padding-left:22px;margin:0 0 14px}
+  .doc li{margin-bottom:6px}
+  .doc a{color:var(--blue)}
+  .doc strong{color:var(--paper)}
+  .doc code{font-family:'JetBrains Mono',monospace;font-size:.85em;background:rgba(255,255,255,.08);padding:1px 6px;border-radius:5px;color:var(--lime)}
+  .doc pre{background:rgba(0,0,0,.3);border:1px solid var(--line);border-radius:12px;padding:14px 16px;overflow-x:auto}
+  .doc pre code{background:none;padding:0;color:#dfe3ee}
+  .doc blockquote{margin:0 0 14px;padding:4px 16px;border-left:3px solid var(--red);color:var(--muted);font-size:14px}
+  .doc hr{border:none;border-top:1px solid var(--line);margin:32px 0}
+  .doc table{width:100%;border-collapse:collapse;margin:0 0 20px;font-size:13.5px;display:block;overflow-x:auto}
+  .doc th{text-align:left;font-size:10.5px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);padding:8px 12px;border-bottom:1px solid var(--line);white-space:nowrap}
+  .doc td{padding:9px 12px;border-bottom:1px solid rgba(255,255,255,.05);color:#dfe3ee;vertical-align:top}
+  .doc tr:hover td{background:rgba(255,255,255,.02)}
+</style>
+</head>
+<body>
+  <div class="bar">
+    <a href="/">← Depot Tire Hub</a>
+    <span class="kicker">Avances y decisiones</span>
+  </div>
+  <div class="wrap"><div class="doc">
+<h1>Bitácora AutoVenta</h1>
+<blockquote>
+<p><strong>Qué es esto:</strong> el registro cronológico de TODO lo que se hace en el proyecto.
+Cada commit tiene su entrada: qué cambió, <strong>por qué</strong>, y cuánto tiempo tomó.
+Sirve para que cualquier sesión de chat (o cualquier persona) lea esto primero
+y esté al día sin tener que reconstruir el contexto desde cero.</p>
+</blockquote>
+<hr>
+<h2>📌 Reglas (obligatorio)</h2>
+<ol>
+<li><strong>Cada commit añade una entrada nueva aquí</strong>, arriba de todo (más reciente primero).</li>
+<li>La entrada lleva: <strong>fecha</strong>, <strong>qué se hizo</strong>, <strong>por qué se hizo</strong>, y <strong>horas estimadas</strong>.</li>
+<li>El &quot;por qué&quot; es lo más importante — el &quot;qué&quot; ya está en el diff; el &quot;por qué&quot; no.</li>
+<li>Esto está <strong>forzado por un git hook</strong>: si intentas commitear sin tocar <code>BITACORA.md</code>,
+el commit se bloquea (ver más abajo cómo activarlo). Para saltarlo en un caso
+excepcional: <code>git commit --no-verify</code>.</li>
+</ol>
+<h3>Cómo activar el hook (una sola vez por clon del repo)</h3>
+<pre><code class="language-bash">git config core.hooksPath .githooks
+</code></pre>
+<p>Después de esto, cada <code>git commit</code> verifica que <code>BITACORA.md</code> esté en el commit.
+Ya viene activado en este equipo.</p>
+<hr>
+<h2>⏱️ Resumen de horas (para las cuentas)</h2>
+<blockquote>
+<p>Estimados de <strong>tiempo humano invertido</strong> (dirigir, revisar, probar, decidir) — no reloj de pared.
+Ajustables. Actualizar el total al añadir cada entrada.</p>
+</blockquote>
+<table>
+<thead>
+<tr>
+<th>Fecha</th>
+<th>Commit</th>
+<th>Tema</th>
+<th>Horas</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>2026-07-17</td>
+<td><em>(este mismo)</em></td>
+<td>Hub interno centralizado + demo visual + documentación navegable</td>
+<td>2.0</td>
+</tr>
+<tr>
+<td>2026-07-16</td>
+<td><em>(este mismo)</em></td>
+<td>Respuesta del cliente (audio) + pivote a Contífico + transcripción</td>
+<td>1.0</td>
+</tr>
+<tr>
+<td>2026-07-15</td>
+<td><em>(pendiente)</em></td>
+<td>Esqueleto Fase 1 del bot (app/) + investigación de reuso GitHub</td>
+<td>5.0</td>
+</tr>
+<tr>
+<td>2026-07-15</td>
+<td><em>(pendiente)</em></td>
+<td>Webhook (recibir) + setup app Meta en vivo + ngrok + prueba e2e + investigación GitHub + bitácora</td>
+<td>4.0</td>
+</tr>
+<tr>
+<td>2026-07-15</td>
+<td>6feb1f5</td>
+<td>Simulador: reencuadre &quot;lo que pierdes hoy&quot;</td>
+<td>0.5</td>
+</tr>
+<tr>
+<td>2026-07-15</td>
+<td>abcc2a7</td>
+<td>Empresa confirmada Depot Tire + propuesta en verde/horas</td>
+<td>1.5</td>
+</tr>
+<tr>
+<td>2026-07-15</td>
+<td>c53a059</td>
+<td>Rework propuesta a 5 fases + simulador de ahorro</td>
+<td>2.5</td>
+</tr>
+<tr>
+<td>2026-07-15</td>
+<td>971c70c</td>
+<td>Doc HTML de reunión (fuente del PDF al cliente)</td>
+<td>2.0</td>
+</tr>
+<tr>
+<td>2026-07-15</td>
+<td>21df44f</td>
+<td>wa-tester: leer .env fresco por request</td>
+<td>0.5</td>
+</tr>
+<tr>
+<td>2026-07-14</td>
+<td>e355591</td>
+<td>Herramienta wa-tester (enviar) + guía operativa WhatsApp</td>
+<td>3.0</td>
+</tr>
+<tr>
+<td>2026-07-14</td>
+<td>ac09171</td>
+<td>Ubicaciones de locales + análisis de features del cliente</td>
+<td>1.5</td>
+</tr>
+<tr>
+<td>2026-07-13</td>
+<td>feadf57</td>
+<td>Brief + plan de desarrollo + plan financiero + catálogo</td>
+<td>4.0</td>
+</tr>
+<tr>
+<td>2026-07-13</td>
+<td>d997844</td>
+<td>Commit inicial (repo)</td>
+<td>0.25</td>
+</tr>
+<tr>
+<td></td>
+<td></td>
+<td><strong>TOTAL</strong></td>
+<td><strong>~27.75 h</strong></td>
+</tr>
+</tbody></table>
+<hr>
+<h2>Entradas (más reciente primero)</h2>
+<h3>2026-07-17 · Hub interno centralizado de AutoVenta · ⏱️ 2.0 h</h3>
+<p><strong>Commit:</strong> <em>(este mismo)</em></p>
+<p><strong>Qué se hizo:</strong></p>
+<ul>
+<li>Nuevo centro de recursos estático en <code>site/</code>, listo para abrir localmente o
+publicar con Vercel.</li>
+<li>Accesos centralizados al demo de producto, inbox, pipeline, métricas, dashboard
+real de WhatsApp, configuración de IA y tester técnico.</li>
+<li>Galería con las 9 direcciones de diseño, catálogo de referencia, planes por
+fases, documentación técnica, bitácoras y propuestas comerciales.</li>
+<li>Enlaces directos a GitHub, Meta for Developers, Business Settings y OpenAI,
+claramente diferenciados de los recursos locales y las demos simuladas.</li>
+<li>Generador de documentos Markdown → HTML y build verificado del frontend React.</li>
+</ul>
+<p><strong>Por qué:</strong></p>
+<ul>
+<li>El proyecto ya acumulaba demos, planes, propuestas y herramientas en rutas
+diferentes. Una portada interna —siguiendo el patrón del hub de Mesita— reduce
+el tiempo de búsqueda y evita confundir una demo simulada con una herramienta
+conectada a producción. El hub solo guarda enlaces y documentos; nunca secretos.</li>
+</ul>
+<hr>
+<h3>2026-07-16 · Respuesta del cliente + pivote a Contífico · ⏱️ 1.0 h</h3>
+<p><strong>Commit:</strong> <em>(este mismo)</em></p>
+<p><strong>Qué se hizo:</strong></p>
+<ul>
+<li>Transcripción del audio de respuesta de Joaquín (whisper local, <code>docs/respuesta-cliente-16jul.txt</code>).</li>
+<li><code>PROYECTO.md §12</code>: análisis de la respuesta (le encantó, quiere pagar completo no por fases, inventario en Contífico) + implicaciones y nuevo pendiente #1.</li>
+<li><code>PLAN_DESARROLLO.md §5</code>: fuente del catálogo cambia de Google Sheets → <strong>API de Contífico</strong> (Sheets queda como plan B).</li>
+<li>Guardado en <code>docs/</code> la propuesta enviada (<code>propuesta-autoventa.pdf</code>) y la transcripción.</li>
+</ul>
+<p><strong>Por qué:</strong></p>
+<ul>
+<li>La respuesta del cliente cambia dos decisiones de fondo: (1) modelo de pago (completo con hitos, no fase por fase) y (2) la fuente de datos del inventario (Contífico en vez de Excel/Sheets). Contífico da stock en tiempo real real —lo que él pidió desde el inicio— y Manu ya lo integró en Mesita/Jardín Express, así que es ventaja, no riesgo. Registrar esto ahora evita reconstruir el contexto y marca el pendiente real (acceso al Contífico, no el Excel).</li>
+</ul>
+<hr>
+<h3>2026-07-15 · Esqueleto Fase 1 del bot (app/) · ⏱️ 5.0 h</h3>
+<p><strong>Commit:</strong> <em>(este mismo)</em></p>
+<p><strong>Qué se hizo:</strong></p>
+<ul>
+<li><strong><code>app/</code></strong>: proyecto TypeScript por capas — el bot real de Fase 1.<ul>
+<li><code>wa/</code>, <code>server/</code>: webhook Meta Cloud API con firma verificada (whatsapp-api-js).</li>
+<li><code>pipeline/inbound.ts</code>: anti-caos propio (idempotencia + debounce 5s + FIFO por chat).</li>
+<li><code>agent/</code>: agente Claude con 5 tools (tool runner oficial + Zod) + clasificador de funnel con Haiku.</li>
+<li><code>domain/</code>: parser de medidas propio (21 tests ✅), fitment ~30 vehículos Ecuador (sin validar), haversine locales.</li>
+<li><code>services/</code>: catálogo Google Sheets→cache, cotización PDF (pdfmake, probado ✅), Postgres.</li>
+<li><code>db/schema.sql</code>: conversaciones/mensajes/cotizaciones/funnel + flag de handoff.</li>
+</ul>
+</li>
+<li><strong><code>docs/INVESTIGACION_GITHUB.md</code></strong>: barrido de ~55 repos reusables (qué reusar vs construir, licencias).</li>
+</ul>
+<p><strong>Por qué:</strong></p>
+<ul>
+<li>Antes de escribir desde cero, investigar qué ya existía → nadie tiene el paquete completo, pero las piezas de fontanería (webhook, loop del agente, PDF, Sheets) son librerías MIT probadas. Reusarlas baja riesgo (firma del webhook, idempotencia) y ahorra semanas; el valor propio queda en parser de medidas, fitment y el ensamblaje.</li>
+<li>Config del negocio aislada en <code>config.ts</code> para poder revender el bot a otra llantera sin tocar código.</li>
+</ul>
+<hr>
+<h3>2026-07-15 · Webhook para recibir mensajes + setup de la app Meta en vivo · ⏱️ 4.0 h</h3>
+<p><strong>Commit:</strong> <em>(pendiente — este mismo)</em></p>
+<p><strong>Qué se hizo:</strong></p>
+<ul>
+<li><strong><code>tools/webhook/</code></strong>: servidor Express que <strong>recibe</strong> mensajes de la Cloud API.
+Hace el handshake de verificación (<code>GET /webhook</code> con verify token), valida la
+firma HMAC-SHA256 (<code>X-Hub-Signature-256</code>) con el App Secret, y loguea cada
+mensaje entrante (texto, imagen, ubicación, documento) y los estados de entrega.
+Lee <code>.env</code> fresco por request, mismo patrón que el wa-tester.</li>
+<li>Setup completo de la app de Meta en el dashboard <strong>en vivo</strong>: app creada
+(<code>AutoVenta</code>, App ID <code>1053180323906811</code>), test number <code>+1 555 169-8138</code>
+reclamado, token permanente generado, webhook conectado vía <strong>ngrok</strong>
+(<code>https://overdraft-client-stark.ngrok-free.dev</code>), campo <code>messages</code> suscrito.</li>
+<li><strong>Prueba end-to-end exitosa</strong>: el botón &quot;Test&quot; de Meta disparó un POST real que
+llegó, pasó la validación de firma y se parseó correctamente. Toda la tubería
+(Meta → ngrok → webhook → parseo) funciona.</li>
+<li><strong><code>docs/INVESTIGACION_GITHUB.md</code></strong>: barrido de ~55 repos open source similares
+(de otra sesión) — conclusión: nadie tiene el paquete completo; hay piezas MIT
+reusables (whatsapp-api-js, BuilderBot). Se conserva como referencia de build.</li>
+<li><strong><code>BITACORA.md</code></strong> (este archivo) + git hook que la vuelve obligatoria.</li>
+<li><strong>Seguridad</strong>: se blindó <code>tools/wa-tester/.gitignore</code> para que los backups de
+<code>.env</code> (que contienen tokens) nunca lleguen a git.</li>
+</ul>
+<p><strong>Por qué:</strong></p>
+<ul>
+<li>El wa-tester solo <strong>enviaba</strong>; un bot necesita <strong>escuchar</strong> al cliente. El webhook
+es la pieza que faltaba para poder responder automáticamente (siguiente paso: Claude).</li>
+<li>Se hizo el setup en vivo para <strong>validar que la Cloud API funciona de verdad</strong>
+antes de invertir en la lógica del bot — de-risking temprano.</li>
+<li><strong>Hallazgo clave</strong>: los mensajes reales desde el celular NO llegan mientras la app
+esté sin publicar (modo desarrollo). El botón &quot;Test&quot; y payloads simulados sí
+sirven para construir toda la Fase 1. Publicar se pospone a Fase 3 (junto con la
+verificación de negocio de Depot Tire), porque publicar ahora exige política de
+privacidad y no desbloquea nada del desarrollo.</li>
+</ul>
+<p><strong>Estado / próximos pasos:</strong></p>
+<ul>
+<li>⏭️ Conectar el webhook con Claude (que el bot <strong>responda</strong> solo, no solo loguee).</li>
+<li>⏭️ Catálogo mock (Google Sheet de prueba) para programar <code>buscar_llanta</code> sin
+esperar el Excel real del cliente (<strong>bloqueo #1</strong>).</li>
+<li>⚠️ Regenerar el token permanente (se vio parcialmente en un screenshot).</li>
+<li>⚠️ ngrok da URL nueva cada vez que reinicia → en producción se reemplaza por
+Railway con URL fija.</li>
+</ul>
+<hr>
+<h3>2026-07-15 · Simulador: reencuadre &quot;lo que pierdes hoy&quot; · ⏱️ 0.5 h</h3>
+<p><strong>Commit:</strong> <code>6feb1f5</code></p>
+<p><strong>Qué:</strong> El simulador de la propuesta ahora dice explícito que es el <strong>costo actual
+del tiempo del dueño</strong> (no el precio del bot). Slider de valor/hora bajó de máx 15 a 10;
+se quitó el escenario de 8 horas.</p>
+<p><strong>Por qué:</strong> Feedback del cliente — se malinterpretaba como si fuera el precio del
+servicio. El reencuadre hace la cuenta más honesta y menos confusa.</p>
+<hr>
+<h3>2026-07-15 · Empresa confirmada: Depot Tire + propuesta en verde/horas · ⏱️ 1.5 h</h3>
+<p><strong>Commit:</strong> <code>abcc2a7</code></p>
+<p><strong>Qué:</strong> <code>PROYECTO.md</code> con el perfil completo de <strong>Depot Tire</strong> (tiredepotec.com):
+2 locales en Quito con direcciones, teléfono, horario L–S 8:30–17:30, marcas
+Kenda/Sunoco/Eurolub, 30+ años, promo 10% primer servicio, sin catálogo/precios
+en su web. Propuesta: paleta de rojo → <strong>verde</strong> WhatsApp; montos por fase
+reemplazados por <strong>horas de esfuerzo</strong>; cobro reformulado como por-fase + mensualidad.</p>
+<p><strong>Por qué:</strong> El cliente confirmó el nombre real del negocio — resuelve el misterio
+&quot;Depot Tire vs Pit Stop&quot; de los mapas. Cambiar a horas evita anclar un precio
+cerrado antes de conocer el volumen real de chats. Confirma que la fuente de datos
+será el Excel del dueño (su web no tiene catálogo).</p>
+<hr>
+<h3>2026-07-15 · Rework propuesta: 5 fases + simulador de ahorro · ⏱️ 2.5 h</h3>
+<p><strong>Commit:</strong> <code>c53a059</code></p>
+<p><strong>Qué:</strong> Nueva estructura de fases según lo conversado con el cliente:
+(1) bot IA que responde + ubicación + alerta simple, (2) cotizaciones PDF + avisa
+cuando no entiende, (3) fotos + comprensión total, (4) dashboard KPIs, (5) &quot;no
+vuelves a abrir WhatsApp&quot;. Cada fase con chip de precio y entregable &quot;Te llevas&quot;.
+Caja de mantenimiento mensual. Simulador de ahorro interactivo.</p>
+<p><strong>Por qué:</strong> La estructura de 3 fases anterior mezclaba entregables. Separar en 5
+deja que el cliente <strong>apruebe y pague por fase viendo cada una funcionar</strong> —
+reduce su riesgo percibido y hace el &quot;sí&quot; más fácil.</p>
+<hr>
+<h3>2026-07-15 · Doc HTML de reunión (fuente del PDF al cliente) · ⏱️ 2.0 h</h3>
+<p><strong>Commit:</strong> <code>971c70c</code></p>
+<p><strong>Qué:</strong> One-pager editorial espejando el formato de Jardín Express: hero oscuro
+con motivo de llanta + acento verde WhatsApp, resumen de situación, preguntas
+abiertas, y el plan por fases con comparaciones HOY vs CON. Renderiza a PDF.</p>
+<p><strong>Por qué:</strong> El cliente necesita algo tangible y bien presentado para decidir con
+su papá. Un PDF profesional comunica seriedad mejor que un chat.</p>
+<hr>
+<h3>2026-07-15 · wa-tester: leer .env fresco por request · ⏱️ 0.5 h</h3>
+<p><strong>Commit:</strong> <code>21df44f</code></p>
+<p><strong>Qué:</strong> El server cargaba el token una vez al arrancar; ahora re-lee <code>.env</code> en cada
+<code>/send</code> y <code>/config</code>. Guardas el archivo y funciona al instante, sin reiniciar.</p>
+<p><strong>Por qué:</strong> Los tokens de prueba expiran cada 24 h; reiniciar el server cada vez
+que se pega uno nuevo era fricción innecesaria durante las pruebas.</p>
+<hr>
+<h3>2026-07-14 · Herramienta wa-tester (enviar) + guía operativa · ⏱️ 3.0 h</h3>
+<p><strong>Commit:</strong> <code>e355591</code></p>
+<p><strong>Qué:</strong> <code>tools/wa-tester/</code>: mini app Express con interfaz web para <strong>enviar</strong>
+mensajes por la Cloud API (test number). El token vive en <code>.env</code> local (gitignored),
+nunca en el browser ni el repo. Muestra en español claro los errores de ventana de
+24 h y token expirado. <code>WHATSAPP_BUSINESS.md</code>: guía paso a paso del setup de la API.</p>
+<p><strong>Por qué:</strong> Antes de construir el bot, había que <strong>probar que se puede mandar un
+mensaje real</strong> por la API. Esta herramienta valida credenciales end-to-end y sirve
+de sandbox manual. La guía destila la doc de Meta a lo que realmente usamos.</p>
+<hr>
+<h3>2026-07-14 · Ubicaciones de locales + análisis de features del cliente · ⏱️ 1.5 h</h3>
+<p><strong>Commit:</strong> <code>ac09171</code></p>
+<p><strong>Qué:</strong> <code>PROYECTO.md</code>: 2 ubicaciones de los locales (con la discrepancia de nombre
+Depot Tire vs Pit Stop marcada). <code>PLAN_DESARROLLO.md</code>: análisis feature-por-feature
+del pedido del cliente contra las fases; campañas de recuperación/seguimiento
+marcadas como Fase 4 nueva (cambia el modelo de costo — templates de marketing + opt-in).</p>
+<p><strong>Por qué:</strong> El cliente mandó una lista de funcionalidades deseadas; había que cruzarlas
+con el plan para saber qué ya estaba cubierto, qué era nuevo, y qué cambiaba el precio.</p>
+<hr>
+<h3>2026-07-13 · Brief + plan de desarrollo + plan financiero + catálogo · ⏱️ 4.0 h</h3>
+<p><strong>Commit:</strong> <code>feadf57</code></p>
+<p><strong>Qué:</strong> <code>PROYECTO.md</code> (brief: contexto, flujo, fases), <code>PLAN_DESARROLLO.md</code> (plan
+técnico con research verificado), <code>PLAN_FINANCIERO.md</code> (costos de operación y precio),
+<code>docs/</code> (catálogo HTML recibido del cliente — propuesta SUDINCO).</p>
+<p><strong>Por qué:</strong> Fundación del proyecto. Investigar factibilidad técnica (WhatsApp Cloud
+API directo vs BSP, stack, costos reales) y de precio antes de comprometerse con el
+cliente. Todo el research está verificado contra fuentes oficiales.</p>
+<hr>
+<h3>2026-07-13 · Commit inicial · ⏱️ 0.25 h</h3>
+<p><strong>Commit:</strong> <code>d997844</code></p>
+<p><strong>Qué:</strong> Repo creado con README.</p>
+<p><strong>Por qué:</strong> Arranque del control de versiones.</p>
+
+  </div></div>
+</body>
+</html>

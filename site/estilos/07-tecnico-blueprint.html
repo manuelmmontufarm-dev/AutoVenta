@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Estilo 07 · Técnico Blueprint</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@450;600;700&family=IBM+Plex+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --papel:#eef1f4; --card:#f8fafc; --tinta:#16181d; --gris:#5f6b7a; --linea:#c9d2dc;
+    --azul:#0055ff; --azulclaro:#e8efff; --ok:#00873c; --alerta:#c8102e;
+  }
+  *{box-sizing:border-box;margin:0}
+  body{
+    font-family:'IBM Plex Sans',system-ui,sans-serif;color:var(--tinta);background:var(--papel);min-height:100vh;padding:48px 20px 80px;
+    background-image:
+      linear-gradient(rgba(0,85,255,.055) 1px,transparent 1px),
+      linear-gradient(90deg,rgba(0,85,255,.055) 1px,transparent 1px);
+    background-size:28px 28px;
+  }
+  .wrap{max-width:900px;margin:0 auto}
+  .kicker{font-family:'IBM Plex Mono';font-size:10.5px;font-weight:700;letter-spacing:.26em;text-transform:uppercase;color:var(--azul)}
+  h1{font-size:clamp(30px,5vw,44px);font-weight:700;letter-spacing:-.02em;margin:10px 0 8px}
+  .lede{color:var(--gris);font-size:15px;max-width:620px;line-height:1.65}
+  h2{font-family:'IBM Plex Mono';font-size:10.5px;font-weight:700;letter-spacing:.22em;text-transform:uppercase;color:var(--gris);margin:46px 0 14px;display:flex;align-items:center;gap:12px}
+  h2::before{content:"//";color:var(--azul)}
+  .card{background:var(--card);border:1px solid var(--linea);border-radius:6px}
+  .pal{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:10px}
+  .sw{border-radius:5px;border:1px solid var(--linea);padding:12px;height:96px;display:flex;flex-direction:column;justify-content:flex-end}
+  .sw b{font-size:12px}.sw span{font-family:'IBM Plex Mono';font-size:10.5px;opacity:.75}
+  .type{padding:26px;display:grid;gap:8px}
+  .type .big{font-size:28px;font-weight:600;letter-spacing:-.01em}
+  .type .num{font-family:'IBM Plex Mono';font-size:21px;font-weight:700;color:var(--azul)}
+  .type small{color:var(--gris)}
+  /* cota de plano técnico */
+  .dim{position:relative;display:inline-block;padding:6px 18px;border-inline:1px solid var(--azul);margin-top:6px}
+  .dim::before,.dim::after{content:"";position:absolute;top:50%;width:12px;height:1px;background:var(--azul)}
+  .dim::before{left:-12px}.dim::after{right:-12px}
+  .dim b{font-family:'IBM Plex Mono';color:var(--azul);font-size:13px}
+  .grid{display:grid;grid-template-columns:1.2fr 1fr;gap:14px}
+  @media(max-width:700px){.grid{grid-template-columns:1fr}}
+  .panel{padding:16px}
+  .row{display:flex;align-items:center;gap:12px;padding:12px;border:1px solid var(--linea);border-radius:5px;margin-bottom:10px;background:#fff;position:relative}
+  .row::before{content:"";position:absolute;left:0;top:8px;bottom:8px;width:3px;background:var(--azul)}
+  .av{width:40px;height:40px;border-radius:5px;display:grid;place-items:center;font-family:'IBM Plex Mono';font-weight:700;font-size:13px;background:var(--azulclaro);color:var(--azul);border:1px solid #b9ccf5}
+  .rowbody{flex:1;min-width:0}
+  .rowtop{display:flex;justify-content:space-between;gap:8px}
+  .rowtop b{font-size:13.5px;font-weight:600}
+  .time{font-family:'IBM Plex Mono';font-size:10.5px;color:var(--alerta);font-weight:700}
+  .prev{font-size:12.5px;color:var(--gris);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px}
+  .tags{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}
+  .badge{font-family:'IBM Plex Mono';font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:3px 8px;border-radius:3px;border:1px solid}
+  .chip{font-family:'IBM Plex Mono';font-size:11px;font-weight:700;padding:3px 8px;border-radius:3px;background:var(--tinta);color:#9fe870}
+  .kcard{padding:14px;margin-bottom:12px}
+  .khead{font-family:'IBM Plex Mono';font-size:9.5px;letter-spacing:.18em;text-transform:uppercase;color:var(--gris);border-bottom:1px dashed var(--linea);padding-bottom:8px;margin-bottom:10px;display:flex;justify-content:space-between}
+  .monto{font-family:'IBM Plex Mono';font-weight:700;font-size:15px;color:var(--ok)}
+  .stat{padding:18px}
+  .stat .label{font-family:'IBM Plex Mono';font-size:9.5px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:var(--gris)}
+  .stat .val{font-family:'IBM Plex Mono';font-size:29px;font-weight:700;margin-top:8px;color:var(--azul)}
+  .chat{display:flex;flex-direction:column;gap:8px;padding:16px}
+  .bub{max-width:82%;padding:9px 12px;border-radius:5px;font-size:13px;line-height:1.5;border:1px solid var(--linea)}
+  .in{align-self:flex-start;background:#fff}
+  .out{align-self:flex-end;background:var(--azulclaro);border-color:#b9ccf5}
+  .pdf{display:flex;gap:10px;align-items:center;background:#fff;border:1px solid var(--tinta);border-radius:5px;padding:9px 12px}
+  .pdf .ic{width:34px;height:34px;border-radius:4px;background:var(--tinta);color:#fff;display:grid;place-items:center}
+  .btns{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
+  .btn{cursor:pointer;font:inherit;font-family:'IBM Plex Mono';font-weight:700;font-size:12.5px;letter-spacing:.04em;padding:11px 20px;border-radius:5px;border:1px solid var(--tinta);text-transform:uppercase}
+  .btn.p{background:var(--azul);border-color:var(--azul);color:#fff}
+  .btn.s{background:var(--tinta);color:#fff}
+  .btn.g{background:#fff;color:var(--tinta)}
+  .note{margin-top:44px;padding:22px 26px;font-size:13.5px;line-height:1.7;color:var(--gris)}
+  .note b{color:var(--tinta)}
+  a.back{color:var(--gris);font-size:12px;text-decoration:none;font-family:'IBM Plex Mono'}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="back" href="index.html">&lt;- todos_los_estilos</a>
+  <p class="kicker" style="margin-top:18px">Estilo 07 · ficha técnica</p>
+  <h1>Técnico Blueprint</h1>
+  <p class="lede">Papel cuadriculado de ingeniería, un solo acento azul eléctrico, esquinas casi rectas y todo etiquetado como plano de fabricación. La medida de la llanta se presenta como cota de dibujo técnico: precisión ante todo.</p>
+
+  <h2>Paleta</h2>
+  <div class="pal">
+    <div class="sw" style="background:#eef1f4"><b>Papel plano</b><span>#EEF1F4</span></div>
+    <div class="sw" style="background:#f8fafc"><b>Tarjeta</b><span>#F8FAFC</span></div>
+    <div class="sw" style="background:#16181d;color:#fff"><b>Tinta</b><span>#16181D</span></div>
+    <div class="sw" style="background:#0055ff;color:#fff"><b>Azul eléctrico</b><span>#0055FF</span></div>
+    <div class="sw" style="background:#00873c;color:#fff"><b>OK</b><span>#00873C</span></div>
+    <div class="sw" style="background:#c8102e;color:#fff"><b>Alerta</b><span>#C8102E</span></div>
+  </div>
+
+  <h2>Tipografía & números</h2>
+  <div class="card type">
+    <div class="big">IBM Plex — la letra de la ingeniería</div>
+    <div class="num">185/60 R14 · $285,20</div>
+    <div class="dim"><b>← 185/60 R14 →</b></div>
+    <small>La medida como cota de plano; etiquetas mono en mayúsculas con tracking ancho.</small>
+  </div>
+
+  <h2>La app en este estilo</h2>
+  <div class="grid">
+    <div class="card panel">
+      <div class="row">
+        <div class="av">KM</div>
+        <div class="rowbody">
+          <div class="rowtop"><b>Karen Moya</b><span class="time">T-30MIN</span></div>
+          <div class="prev">Sí, voy hoy después del trabajo, tipo 5</div>
+          <div class="tags">
+            <span class="badge" style="color:var(--ok);border-color:#9fd4b4;background:#e9f7ee">Por_visitar</span>
+            <span class="chip">185/60R14</span>
+          </div>
+        </div>
+      </div>
+      <div class="row">
+        <div class="av" style="background:#fff1f1;color:var(--alerta);border-color:#f2b8c0">RZ</div>
+        <div class="rowbody">
+          <div class="rowtop"><b>Roberto Zambrano</b><span class="time" style="color:var(--gris)">T-0</span></div>
+          <div class="prev">📄 Cotización PDF</div>
+          <div class="tags">
+            <span class="badge" style="color:#a06a00;border-color:#e5cf9b;background:#fdf6e3">Cotizado</span>
+            <span class="badge" style="color:var(--azul);border-color:#b9ccf5;background:var(--azulclaro)">BOT:ON</span>
+          </div>
+        </div>
+      </div>
+      <div class="btns">
+        <button class="btn p">Cerrar_ticket</button>
+        <button class="btn s">▶ Demo</button>
+        <button class="btn g">Ver_PDF</button>
+      </div>
+    </div>
+    <div>
+      <div class="card kcard">
+        <div class="khead"><span>TICKET-0100</span><span>REV.A</span></div>
+        <b style="font-size:13.5px">Roberto Zambrano</b>
+        <div style="display:flex;justify-content:space-between;margin-top:9px;align-items:center">
+          <span class="chip">185/60R14</span><span class="monto">$285,20</span>
+        </div>
+      </div>
+      <div class="card stat">
+        <div class="label">En_juego / pipeline</div>
+        <div class="val">$5.094,50</div>
+      </div>
+      <div class="card chat" style="margin-top:12px">
+        <div class="bub in">Buenas 🙌 ¿tienen llantas para un Sail?</div>
+        <div class="bub out">¡Claro! ¿Me confirmas la medida? Algo como 185/60 R14</div>
+        <div class="bub out pdf"><span class="ic">📄</span><span style="font-size:12px"><b>COTIZACION_1042.PDF</b><br><span style="color:var(--gris);font-size:10.5px">1 pág · abrir</span></span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card note">
+    <b>Cuándo elegirlo:</b> si quieren proyectar rigor de taller certificado — datos exactos, cero adorno, todo trazable. Le habla al papá de Joaquín: esto se ve como sistema serio de empresa, no como app de moda. Excelente en pantallas baratas y con sol. <b>Riesgo:</b> el menos emocional de los siete; no "asombra", convence. <b>Vibra:</b> plano de ingeniería · ficha técnica Michelin · terminal industrial.
+  </div>
+</div>
+</body>
+</html>

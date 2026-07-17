@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Estilo 09 · Claude Claro</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,500;8..60,600&family=Inter:opsz,wght@14..32,400..700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#f0eee6; --card:#faf9f5; --card2:#f5f4ee; --line:#e3e0d5; --lineoscura:#d5d1c3;
+    --tinta:#1f1e1d; --muted:#6e6c66; --faint:#9c9a92;
+    --salvia:#5f7d55; --azulpolvo:#5c7799; --arena:#8a7d5c; --rojosuave:#b3554c;
+  }
+  *{box-sizing:border-box;margin:0}
+  body{font-family:Inter,system-ui,sans-serif;color:var(--tinta);background:var(--bg);min-height:100vh;padding:52px 20px 80px}
+  .wrap{max-width:900px;margin:0 auto}
+  .kicker{font-size:11px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:var(--muted)}
+  h1{font-family:'Source Serif 4',Georgia,serif;font-size:clamp(34px,5.4vw,50px);font-weight:500;letter-spacing:-.01em;margin:10px 0 10px}
+  .lede{color:var(--muted);font-size:15.5px;max-width:620px;line-height:1.7}
+  h2{font-family:'Source Serif 4',Georgia,serif;font-size:19px;font-weight:500;margin:48px 0 14px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;box-shadow:0 1px 2px rgba(31,30,29,.04)}
+  .pal{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:10px}
+  .sw{border-radius:12px;padding:13px;height:96px;display:flex;flex-direction:column;justify-content:flex-end;border:1px solid var(--line)}
+  .sw b{font-size:12px}.sw span{font-family:'JetBrains Mono',monospace;font-size:10.5px;opacity:.75}
+  .type{padding:28px;display:grid;gap:10px}
+  .type .big{font-family:'Source Serif 4',Georgia,serif;font-size:30px;font-weight:500}
+  .type .num{font-family:'JetBrains Mono',monospace;font-size:20px;font-weight:700;color:var(--arena)}
+  .type small{color:var(--muted);line-height:1.6}
+  .grid{display:grid;grid-template-columns:1.2fr 1fr;gap:14px}
+  @media(max-width:700px){.grid{grid-template-columns:1fr}}
+  .panel{padding:16px}
+  .row{display:flex;align-items:center;gap:12px;padding:13px;border-radius:12px;transition:.15s}
+  .row:hover{background:var(--card2)}
+  .av{width:40px;height:40px;border-radius:50%;display:grid;place-items:center;font-weight:600;font-size:13.5px}
+  .rowbody{flex:1;min-width:0}
+  .rowtop{display:flex;justify-content:space-between;gap:8px}
+  .rowtop b{font-size:13.5px;font-weight:600}
+  .time{font-size:11px;color:var(--rojosuave);font-weight:600}
+  .prev{font-size:12.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:3px}
+  .tags{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}
+  .badge{font-size:11px;font-weight:600;padding:3.5px 10px;border-radius:99px;border:1px solid}
+  .chip{font-family:'JetBrains Mono',monospace;font-size:10.5px;font-weight:700;padding:3.5px 9px;border-radius:8px;background:#eceade;border:1px solid var(--lineoscura);color:var(--tinta)}
+  .kcard{padding:15px;margin-bottom:12px}
+  .monto{font-family:'JetBrains Mono',monospace;font-weight:700;font-size:15px;color:var(--salvia)}
+  .stat{padding:20px}
+  .stat .label{font-size:10.5px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+  .stat .val{font-family:'Source Serif 4',Georgia,serif;font-size:32px;font-weight:500;margin-top:8px}
+  .chat{display:flex;flex-direction:column;gap:9px;padding:16px;background:var(--card2);border-radius:14px;border:1px solid var(--line)}
+  .bub{max-width:82%;padding:10px 13px;border-radius:14px;font-size:13px;line-height:1.55}
+  .in{align-self:flex-start;background:#fff;border:1px solid var(--line);border-bottom-left-radius:5px}
+  .out{align-self:flex-end;background:#e7ebdf;border:1px solid #d3dcc6;border-bottom-right-radius:5px}
+  .pdf{display:flex;gap:10px;align-items:center;background:#fff;border:1px solid var(--lineoscura);border-radius:11px;padding:9px 12px}
+  .pdf .ic{width:34px;height:34px;border-radius:9px;background:var(--tinta);color:#f5f4ee;display:grid;place-items:center}
+  .btns{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}
+  .btn{border:none;cursor:pointer;font:inherit;font-weight:600;font-size:13px;padding:11px 22px;border-radius:10px;transition:.15s}
+  .btn:hover{transform:translateY(-1px)}
+  .btn.p{background:var(--tinta);color:#f5f4ee}
+  .btn.s{background:#fff;color:var(--tinta);border:1px solid var(--lineoscura)}
+  .btn.d{background:rgba(179,85,76,.09);color:var(--rojosuave);border:1px solid rgba(179,85,76,.3)}
+  .note{margin-top:46px;padding:24px 28px;font-size:13.5px;line-height:1.75;color:var(--muted)}
+  .note b{color:var(--tinta)}
+  a.back{color:var(--muted);font-size:12px;text-decoration:none}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="back" href="index.html">← todos los estilos</a>
+  <p class="kicker" style="margin-top:20px">Estilo 09 · papel y tinta</p>
+  <h1>Claude Claro</h1>
+  <p class="lede">El modo claro de Claude: marfil cálido que parece papel bueno, tinta casi-negra, serif editorial y acentos vegetales apagados — salvia, arena, azul polvo. Sin el naranja — todo lo demás, intacto. Calma absoluta: la interfaz desaparece y quedan los datos.</p>
+
+  <h2>Paleta</h2>
+  <div class="pal">
+    <div class="sw" style="background:#f0eee6"><b>Marfil fondo</b><span>#F0EEE6</span></div>
+    <div class="sw" style="background:#faf9f5"><b>Papel tarjeta</b><span>#FAF9F5</span></div>
+    <div class="sw" style="background:#1f1e1d;color:#f5f4ee"><b>Tinta cálida</b><span>#1F1E1D</span></div>
+    <div class="sw" style="background:#5f7d55;color:#f5f4ee"><b>Salvia</b><span>#5F7D55</span></div>
+    <div class="sw" style="background:#5c7799;color:#f5f4ee"><b>Azul polvo</b><span>#5C7799</span></div>
+    <div class="sw" style="background:#b3554c;color:#f5f4ee"><b>Rojo suave</b><span>#B3554C</span></div>
+  </div>
+
+  <h2>Tipografía & números</h2>
+  <div class="card type">
+    <div class="big">Serif para lo importante, sans para el resto</div>
+    <div class="num">185/60 R14 · $285,20</div>
+    <small>Titulares y cifras grandes en Source Serif; UI en Inter; datos técnicos en mono sobre chips de papel. El contraste nunca es duro: tinta cálida sobre marfil, no negro sobre blanco.</small>
+  </div>
+
+  <h2>La app en este estilo</h2>
+  <div class="grid">
+    <div class="card panel">
+      <div class="row">
+        <div class="av" style="color:#8a7d5c;background:#efe9da;border:1px solid #ddd3ba">KM</div>
+        <div class="rowbody">
+          <div class="rowtop"><b>Karen Moya</b><span class="time">hace 30 min</span></div>
+          <div class="prev">Sí, voy hoy después del trabajo, tipo 5</div>
+          <div class="tags">
+            <span class="badge" style="color:#5f7d55;border-color:#c4d1ba;background:#edf1e7">Por visitar</span>
+            <span class="chip">185/60 R14</span>
+          </div>
+        </div>
+      </div>
+      <div class="row">
+        <div class="av" style="color:#5c7799;background:#e8edf4;border:1px solid #ccd7e4">RZ</div>
+        <div class="rowbody">
+          <div class="rowtop"><b>Roberto Zambrano</b><span class="time" style="color:var(--faint)">ahora</span></div>
+          <div class="prev">📄 Cotización PDF</div>
+          <div class="tags">
+            <span class="badge" style="color:#8a7d5c;border-color:#ddd3ba;background:#f3efe3">Cotizado</span>
+            <span class="badge" style="color:var(--muted);border-color:var(--line);background:#fff">🤖 Bot</span>
+          </div>
+        </div>
+      </div>
+      <div class="btns">
+        <button class="btn p">Cerrar ticket</button>
+        <button class="btn s">▶ Demo</button>
+        <button class="btn d">Perdido</button>
+      </div>
+    </div>
+    <div>
+      <div class="card kcard">
+        <b style="font-size:13.5px;font-weight:600">Roberto Zambrano</b>
+        <div style="display:flex;justify-content:space-between;margin-top:9px;align-items:center">
+          <span class="chip">185/60 R14</span><span class="monto">$285,20</span>
+        </div>
+      </div>
+      <div class="card stat">
+        <div class="label">En juego (pipeline)</div>
+        <div class="val">$5.094,50</div>
+      </div>
+      <div class="chat" style="margin-top:12px">
+        <div class="bub in">Buenas 🙌 ¿tienen llantas para un Sail?</div>
+        <div class="bub out">¡Claro! ¿Me confirmas la medida? Algo como 185/60 R14</div>
+        <div class="bub out pdf"><span class="ic">📄</span><span style="font-size:12px"><b>Cotización #1042</b><br><span style="color:var(--muted);font-size:10.5px">PDF · toca para ver</span></span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card note">
+    <b>Cuándo elegirlo:</b> si quieren la versión más elegante y tranquila posible — se ve caro sin esforzarse, se lee perfecto de día y en tablet, y el serif en los montos ($5.094,50) tiene una autoridad que ningún sans logra. Ideal para enseñarle al papá de Joaquín: transmite empresa establecida, no startup. <b>Riesgo:</b> igual que el 08, la marca roja queda en segundo plano; y el estilo es tan sereno que el modo demo "asombra" menos. <b>Vibra:</b> Claude.ai de día · papelería fina · reporte anual bien impreso.
+  </div>
+</div>
+</body>
+</html>

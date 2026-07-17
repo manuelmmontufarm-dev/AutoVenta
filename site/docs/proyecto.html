@@ -1,0 +1,255 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bitácora del proyecto · Depot Tire Hub</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0a1020; --panel:rgba(17,26,49,.62); --line:rgba(255,255,255,.09);
+    --paper:#f5f1e9; --muted:#a3acc2; --red:#e3262e; --lime:#d9ff4f; --blue:#5b8def;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0;font-family:Inter,system-ui,sans-serif;color:var(--paper);min-height:100vh;
+    background:
+      radial-gradient(110% 80% at 15% -10%, rgba(23,61,118,.5) 0%, transparent 60%),
+      radial-gradient(120% 90% at 50% 0%, #0d1530 0%, #0a1020 55%, #070b16 100%);
+    background-attachment:fixed;
+  }
+  .bar{position:sticky;top:0;z-index:10;background:rgba(10,16,32,.86);backdrop-filter:blur(14px);border-bottom:1px solid var(--line);padding:14px 24px;display:flex;align-items:center;gap:14px}
+  .bar a{color:var(--muted);font-size:12.5px;text-decoration:none;font-weight:600}
+  .bar a:hover{color:var(--paper)}
+  .bar .kicker{color:var(--red);font-size:10.5px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;margin-left:auto}
+  .wrap{max-width:760px;margin:0 auto;padding:40px 24px 100px}
+  .doc h1{font-size:clamp(28px,4.4vw,40px);font-weight:800;letter-spacing:-.02em;line-height:1.15;margin:0 0 8px}
+  .doc h2{font-size:22px;font-weight:700;letter-spacing:-.01em;margin:44px 0 14px;padding-bottom:10px;border-bottom:1px solid var(--line)}
+  .doc h3{font-size:17px;font-weight:700;margin:30px 0 10px;color:var(--lime)}
+  .doc p{line-height:1.75;color:#dfe3ee;font-size:15px;margin:0 0 14px}
+  .doc ul,.doc ol{line-height:1.75;color:#dfe3ee;font-size:15px;padding-left:22px;margin:0 0 14px}
+  .doc li{margin-bottom:6px}
+  .doc a{color:var(--blue)}
+  .doc strong{color:var(--paper)}
+  .doc code{font-family:'JetBrains Mono',monospace;font-size:.85em;background:rgba(255,255,255,.08);padding:1px 6px;border-radius:5px;color:var(--lime)}
+  .doc pre{background:rgba(0,0,0,.3);border:1px solid var(--line);border-radius:12px;padding:14px 16px;overflow-x:auto}
+  .doc pre code{background:none;padding:0;color:#dfe3ee}
+  .doc blockquote{margin:0 0 14px;padding:4px 16px;border-left:3px solid var(--red);color:var(--muted);font-size:14px}
+  .doc hr{border:none;border-top:1px solid var(--line);margin:32px 0}
+  .doc table{width:100%;border-collapse:collapse;margin:0 0 20px;font-size:13.5px;display:block;overflow-x:auto}
+  .doc th{text-align:left;font-size:10.5px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);padding:8px 12px;border-bottom:1px solid var(--line);white-space:nowrap}
+  .doc td{padding:9px 12px;border-bottom:1px solid rgba(255,255,255,.05);color:#dfe3ee;vertical-align:top}
+  .doc tr:hover td{background:rgba(255,255,255,.02)}
+</style>
+</head>
+<body>
+  <div class="bar">
+    <a href="/">← Depot Tire Hub</a>
+    <span class="kicker">Contexto, cliente y decisiones</span>
+  </div>
+  <div class="wrap"><div class="doc">
+<h1>AutoVenta — Bot de ventas por WhatsApp para llantas</h1>
+<blockquote>
+<p>Estado: <strong>descubrimiento / planeación</strong> · Última actualización: 2026-07-13</p>
+</blockquote>
+<p>Bot que automatiza la venta de llantas por WhatsApp para el negocio <strong>Pit Stop</strong>
+(cliente/amigo, Ecuador), construido de forma genérica para poder venderse después
+a otras empresas de llantas.</p>
+<hr>
+<h2>1. Contexto del cliente</h2>
+<ul>
+<li>Negocio de <strong>llantas</strong> en Ecuador (marca <strong>Pit Stop</strong>, marcas que venden: Falken, Kenda).</li>
+<li><strong>2 locales</strong> (pronto 3) + venta a nivel Ecuador.</li>
+<li>Son <strong>2 empresas</strong>:<ul>
+<li>Una vende a <strong>distribuidores / revendedores</strong>.</li>
+<li>Otra vende <strong>directo al cliente final</strong> → <strong>esta es la que compra por WhatsApp</strong> (el foco del bot).</li>
+</ul>
+</li>
+<li>Decisión de presupuesto: el amigo lo consulta con <strong>su papá</strong>.</li>
+</ul>
+<h2>2. Situación actual (cómo venden hoy)</h2>
+<ul>
+<li>Venden por WhatsApp usando <strong>Claude + una extensión de browser</strong>, disparada <strong>a mano</strong> cada día.
+Es un prompt manual, <strong>no un agente automático</strong> → pesado y poco fiable.</li>
+<li>Ya tienen una <strong>web estática (HTML)</strong> con catálogo: fotos, precios y <strong>stock (&quot;disponible&quot;)</strong>
+que jala de un <strong>Excel / base de datos</strong>.</li>
+<li>⚠️ <strong>El código de la web NO es de ellos.</strong> Lo hizo otro dev (&quot;Interbot&quot;, el que les hace
+las páginas). No van a soltar el GitHub. Solo tenemos el <strong>archivo HTML + link</strong>.</li>
+<li>Nota: el HTML recibido (<code>catalogo-pitstop-sudinco-mejorado.html</code>) es una <strong>propuesta
+específica para la flota de SUDINCO</strong> (catálogo Falken/Kenda + simulador de escenarios),
+<strong>no</strong> el catálogo general con todo el stock. → Falta conseguir el catálogo completo.</li>
+</ul>
+<h2>3. Flujo de venta a automatizar</h2>
+<ol>
+<li>Cliente escribe al WhatsApp → <strong>mensaje automático de approach</strong>.</li>
+<li>Cliente responde con la <strong>medida de la llanta</strong> (parámetros) <strong>o no manda nada</strong>.</li>
+<li>Si <strong>da la medida</strong> → <strong>cotiza de una</strong> y manda <strong>PDF</strong>.</li>
+<li>Si <strong>no da medida</strong> → pregunta <strong>&quot;¿qué medida necesitas?&quot;</strong> / <strong>&quot;¿qué vehículo tienes?&quot;</strong>.</li>
+<li>Cliente manda <strong>ubicación</strong> → bot responde con el <strong>local más cercano</strong>.</li>
+<li>Bot <strong>alerta al vendedor</strong> cuando el cliente llega al paso final.</li>
+</ol>
+<h2>4. Fases del proyecto</h2>
+<table>
+<thead>
+<tr>
+<th>Fase</th>
+<th>Alcance</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>Fase 1</strong></td>
+<td>Bot busca la llanta <strong>por medida</strong> y manda el <strong>PDF</strong> de cotización.</td>
+</tr>
+<tr>
+<td><strong>Fase 2</strong></td>
+<td>Maneja el caso <strong>sin datos</strong>: lee mensajes, pregunta medida/vehículo, <strong>OCR de fotos</strong>, sugiere <strong>alternativas por fitment</strong> (vehículo → medida).</td>
+</tr>
+<tr>
+<td><strong>Fase 3</strong></td>
+<td>Producto completo: reacción <strong>más humana</strong>, entiende más contexto. Incluye el <strong>hub/dashboard</strong> de métricas.</td>
+</tr>
+</tbody></table>
+<p><strong>El cliente quiere MÁS el agente que el hub</strong> → el dashboard se hace simple para no perder tiempo.</p>
+<h2>5. Hub / Dashboard (centralizado)</h2>
+<ul>
+<li>Métricas: cuántos escribieron, cuántos respondieron 1er/2do mensaje, cuántos en etapa <strong>alerta/final</strong>.</li>
+<li>Conectado a WhatsApp; <strong>avisa al vendedor por WhatsApp</strong> cuando alguien llega al paso final.</li>
+</ul>
+<h2>6. Retos técnicos a resolver</h2>
+<ul>
+<li><strong>WhatsApp Business API</strong> — vivir dentro de WhatsApp, monitoreo constante.</li>
+<li><strong>OCR de imágenes</strong> — clientes mandan fotos (cotizaciones de la competencia, datos del vehículo).</li>
+<li><strong>Parseo de medidas mal escritas</strong> — ej. &quot;185 R14&quot;, &quot;185/14&quot;, &quot;175 R 14&quot; → normalizar/interpolar.
+Formato de medida = <strong>ancho / perfil R-rin</strong> (ej. 195/15R…, donde 175 = ancho).</li>
+<li><strong>Stock y alternativas</strong> — cuando no hay una medida, sugerir llanta <strong>alternativa que le quede
+al vehículo</strong> → requiere data de <strong>fitment (vehículo → medida)</strong>.</li>
+<li><strong>AI para fitment</strong> (opcional) — consume tokens API, costo bajo (~&lt; $5), transaccional.</li>
+<li>Posible: <strong>recrear la base de datos</strong> de productos a partir del HTML (no tenemos su Excel).</li>
+</ul>
+<h2>7. Modelo de negocio / precio</h2>
+<ul>
+<li>Inclinación: <strong>precio fijo por implementación</strong> (no por venta — mucha gente dice que va y no va → difícil medir).</li>
+<li>Referencia de mercado: el dev de la competencia <strong>cobra mensualidad</strong> a otras empresas de llantas.</li>
+<li>El amigo consulta el <strong>presupuesto con su papá</strong>; nosotros mandamos la <strong>estructura del plan por fases</strong>.</li>
+</ul>
+<h2>8. Enfoque de construcción</h2>
+<ul>
+<li>Orden habitual: <strong>frontend → backend → base de datos</strong> → luego conectar todo.</li>
+<li>Genérico y reutilizable para vender a otras empresas de llantas más adelante.</li>
+</ul>
+<h2>9. Próximos pasos</h2>
+<ul>
+<li><input disabled="" type="checkbox"> Conseguir el <strong>catálogo completo</strong> (con todo el precio + stock), no solo la propuesta SUDINCO. <strong>Bloqueo #1.</strong></li>
+<li><input checked="" disabled="" type="checkbox"> Investigar factibilidad de <strong>conexión con WhatsApp Business</strong> → ver <a href="PLAN_DESARROLLO.md">PLAN_DESARROLLO.md</a>.</li>
+<li><input checked="" disabled="" type="checkbox"> Investigar <strong>cuánto se cobra</strong> por este tipo de trabajo → ver <a href="PLAN_FINANCIERO.md">PLAN_FINANCIERO.md</a>.</li>
+<li><input checked="" disabled="" type="checkbox"> Armar <strong>plan por fases con estimación de horas</strong> para el cliente.</li>
+<li>[~] Construir <strong>Fase 1</strong> (buscar por medida + PDF). Demo estimado: <strong>~1–2 semanas</strong>.<ul>
+<li>✅ Esqueleto completo en <a href="app/"><code>app/</code></a> (15-jul): webhook con firma verificada + pipeline anti-caos + agente Claude con 5 tools + parser de medidas (21 tests ✅) + PDF de cotización (probado ✅) + Sheets→cache + Postgres + clasificador de funnel. Ver <a href="app/README.md">app/README.md</a>.</li>
+<li>Falta para el demo: credenciales (Meta, Supabase, Sheets service account) + el catálogo real del dueño + validar tabla de fitment.</li>
+</ul>
+</li>
+<li><input checked="" disabled="" type="checkbox"> Ubicaciones de los 2 locales (ver §11) — ⚠️ <strong>confirmar con el cliente</strong>, Maps los muestra como &quot;Depot Tire&quot;, no &quot;Pit Stop&quot;.</li>
+<li><input disabled="" type="checkbox"> Aclarar con el cliente las funcionalidades nuevas que pidió el 14-jul (ver <a href="PLAN_DESARROLLO.md#12-funcionalidades-pedidas-por-el-cliente-14-jul-2026--an%C3%A1lisis">PLAN_DESARROLLO.md §12</a>): si tienen un sistema de inventario real aparte del Excel, y si quieren campañas de recuperación/seguimiento (cambia el modelo de costo — requiere opt-in y templates de marketing pagados).</li>
+</ul>
+<h2>11. La empresa: Depot Tire (confirmado 15-jul-2026)</h2>
+<p><strong>Sitio oficial: <a href="https://www.tiredepotec.com/">https://www.tiredepotec.com/</a></strong> — el cliente confirmó que esta es la empresa. ✅ Misterio resuelto: los locales de Maps decían &quot;Depot Tire&quot; porque <strong>ese es el nombre real del negocio</strong> (la referencia anterior a &quot;Pit Stop&quot; venía del HTML de la propuesta SUDINCO — aclarar con el cliente qué relación tienen los dos nombres).</p>
+<table>
+<thead>
+<tr>
+<th>Dato</th>
+<th>Valor</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Nombre</td>
+<td><strong>Depot Tire</strong></td>
+</tr>
+<tr>
+<td>Ciudad</td>
+<td>Quito, Ecuador</td>
+</tr>
+<tr>
+<td>Local 1 (Cumbayá)</td>
+<td>C.C. La del Establo y Av. Oswaldo Guayasamín — &quot;DEPOT TIRE CUMBAYÁ&quot; en Maps, Plus code RH24+QV</td>
+</tr>
+<tr>
+<td>Local 2 (Sur)</td>
+<td>Galo Molina y Av. Alonso de Angulo — &quot;Depot Tire Quito Sur&quot; en Maps, lat/lng -0.2487128, -78.5296804</td>
+</tr>
+<tr>
+<td>Teléfono</td>
+<td>+593 98 280 1766</td>
+</tr>
+<tr>
+<td>Horario</td>
+<td>Lunes a sábado, 8:30–17:30</td>
+</tr>
+<tr>
+<td>Marcas</td>
+<td>Kenda, Sunoco, Eurolub (el HTML de SUDINCO también mencionaba Falken)</td>
+</tr>
+<tr>
+<td>Trayectoria</td>
+<td>Más de 30 años de experiencia</td>
+</tr>
+<tr>
+<td>Servicios</td>
+<td>Llantas + mantenimiento preventivo automotriz, atención personalizada</td>
+</tr>
+<tr>
+<td>Promo vigente</td>
+<td>10% de descuento en el primer servicio al agendar cita</td>
+</tr>
+<tr>
+<td>Web</td>
+<td>Reserva de citas online, secciones: Beneficios VIP, Servicios, Sobre Nosotros, Contacto. <strong>Sin catálogo con precios ni stock visible; sin link a WhatsApp</strong></td>
+</tr>
+<tr>
+<td>Estilo de marca</td>
+<td>Oscuro (negro/gris) con blanco y acentos azules, minimalista</td>
+</tr>
+<tr>
+<td>Redes</td>
+<td>Facebook, Instagram, YouTube, Twitter, Pinterest</td>
+</tr>
+</tbody></table>
+<p><strong>Implicaciones para el bot:</strong></p>
+<ul>
+<li>Los datos de &quot;local más cercano&quot; ya están completos (direcciones + coordenadas + teléfono + horario).</li>
+<li>El horario (L–S 8:30–17:30) sirve para que el bot responda distinto fuera de horario (&quot;te atendemos mañana desde las 8:30, pero ya te dejo la cotización&quot;).</li>
+<li>La web NO tiene catálogo con precios → confirma que la fuente de datos será el Excel del dueño, no el sitio.</li>
+<li>La promo del 10% primer servicio puede usarla el bot como gancho en el approach.</li>
+<li>El bot debería presentarse como <strong>Depot Tire</strong> (confirmar con el cliente).</li>
+</ul>
+<h2>12. Respuesta del cliente a la propuesta (16-jul-2026)</h2>
+<p>Joaquín respondió por audio a la propuesta enviada (versión con precios: Fases $200/$125/$125/$100/$50, ~$600 &quot;socio fundador&quot; + $40/mes). Reacción <strong>muy positiva</strong> — está comprado, no regateó. Puntos clave:</p>
+<ol>
+<li><strong>Le encantó</strong> (&quot;me parece de putas&quot;). Señal de compra fuerte: dijo que si el papá no entra, lo hace él por su lado.</li>
+<li><strong>Quiere pagar por el producto completo, no por fases.</strong><ul>
+<li>Recomendación: aceptar con <strong>precio cerrado (~$600) + pagos por hito</strong> (ej. 40% anticipo / 30% Fase 1–2 / 30% final). Mantener las fases <strong>internamente para la entrega</strong> — mostrar Fase 1 funcionando en semana 1, no cargar todo el riesgo de una.</li>
+</ul>
+</li>
+<li>🔑 <strong>El inventario se maneja en Contífico</strong> (no solo Excel). Pregunta si conviene conectar el bot directo ahí.<ul>
+<li><strong>Responde la pregunta abierta</strong> &quot;¿sistema aparte del Excel?&quot; → <strong>SÍ, Contífico.</strong></li>
+<li><strong>Cambia la fuente de datos del catálogo:</strong> de Google Sheets/Excel → <strong>API de Contífico</strong> (stock y precios en tiempo real — justo lo que pidió desde el inicio). Ver PLAN_DESARROLLO §5.</li>
+<li><strong>Ventaja:</strong> Manu ya integró Contífico en [[project-mesita]] y [[project-jardin-express]] (prefacturas, cobros, API). Sabe que tiene API y cómo pegarle.</li>
+<li><strong>Alcance:</strong> integración con API de Contífico &gt; leer un Excel. Suma horas a la Fase 1 / va como pieza propia; requiere plan Contífico con API (Contable Plus o superior). Es lo que hace el bot &quot;en tiempo real&quot; — no regalarlo.</li>
+</ul>
+</li>
+<li>El presupuesto/inventario lo termina de cuadrar con el papá.</li>
+</ol>
+<p><strong>Nuevo pendiente #1</strong> (reemplaza al &quot;mándame el Excel&quot;): acceso y detalles del <strong>Contífico</strong> de Depot Tire — qué plan tienen (¿incluye API?) y confirmar que el inventario está bien cargado ahí.</p>
+<p><strong>Propuesta enviada:</strong> <code>docs/propuesta-autoventa.pdf</code> (Descargas) — versión compacta de una página con precios. Distinta a <code>reunion-autoventa.html</code> (versión larga por fases). Transcripción del audio: <code>docs/respuesta-cliente-16jul.txt</code>.</p>
+<h2>13. Enlaces y recursos</h2>
+<ul>
+<li>Repo: <a href="https://github.com/manuelmmontufarm-dev/AutoVenta">https://github.com/manuelmmontufarm-dev/AutoVenta</a></li>
+<li>Bot actual del cliente (Railway, del otro dev &quot;Interbot&quot;): <a href="https://interbot-production.up.railway.app/">https://interbot-production.up.railway.app/</a></li>
+<li>Catálogo recibido: <code>catalogo-pitstop-sudinco-mejorado.html</code> (propuesta flota SUDINCO)</li>
+<li>Local 1 (Maps): <a href="https://maps.app.goo.gl/QnMBPXKc1o8igbsp8">https://maps.app.goo.gl/QnMBPXKc1o8igbsp8</a></li>
+<li>Local 2 (Maps): <a href="https://maps.app.goo.gl/NQeNN8csyAnRkJDJ7">https://maps.app.goo.gl/NQeNN8csyAnRkJDJ7</a></li>
+</ul>
+
+  </div></div>
+</body>
+</html>
