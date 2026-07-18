@@ -55,6 +55,20 @@ Ya viene activado en este equipo.
 
 ## Entradas (más reciente primero)
 
+### 2026-07-18 · Hub completo servido desde Railway · ⏱️ 0.5 h
+**Commit:** _(este mismo)_
+
+**Qué se hizo:**
+- `site/` se movió a `app/site/` — Railway solo incluye el Root Directory (`app/`) en el build, así que el hub tenía que vivir adentro.
+- El servidor Express del bot ahora sirve el hub estático completo (`express.static` con `extensions: ["html"]`, que replica las cleanUrls de Vercel): raíz, `/estilos/` con las 9 paletas, `/docs/` y `/demo/`.
+- `vercel.json` actualizado a `outputDirectory: "app/site"` para que el deploy de Vercel siga funcionando mientras exista.
+- Smoke test local: las 9 paletas responden 200 con y sin `.html`, igual que docs, PDF y assets del demo.
+
+**Por qué:**
+- Centralizar todo en Railway: las paletas de estilos daban 404 en `autoventa-production.up.railway.app` porque ese servicio solo corría el bot. Ahora la misma URL sirve bot + hub.
+
+---
+
 ### 2026-07-18 · Deploy en Railway en vivo · ⏱️ 1.0 h
 **Commit:** _(este mismo)_
 
