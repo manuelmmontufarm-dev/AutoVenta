@@ -32,6 +32,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-07-17 | _(este mismo)_ | Publicación del hub completo en Vercel | 0.5 |
 | 2026-07-17 | _(este mismo)_ | Hub interno centralizado + demo visual + documentación navegable | 2.0 |
 | 2026-07-16 | _(este mismo)_ | Respuesta del cliente (audio) + pivote a Contífico + transcripción | 1.0 |
 | 2026-07-15 | _(pendiente)_ | Esqueleto Fase 1 del bot (app/) + investigación de reuso GitHub | 5.0 |
@@ -45,11 +46,28 @@ Ya viene activado en este equipo.
 | 2026-07-14 | ac09171 | Ubicaciones de locales + análisis de features del cliente | 1.5 |
 | 2026-07-13 | feadf57 | Brief + plan de desarrollo + plan financiero + catálogo | 4.0 |
 | 2026-07-13 | d997844 | Commit inicial (repo) | 0.25 |
-| | | **TOTAL** | **~27.75 h** |
+| | | **TOTAL** | **~28.25 h** |
 
 ---
 
 ## Entradas (más reciente primero)
+
+### 2026-07-17 · Hub publicado en Vercel · ⏱️ 0.5 h
+**Commit:** _(este mismo)_
+
+**Qué se hizo:**
+- Se vinculó el repositorio local al proyecto existente `acesso-aefa4bef/auto-venta`.
+- Se desplegó `site/` completo a producción: portada, demo, paletas, planes,
+  documentos, catálogo y propuestas.
+- Se verificaron por HTTP las rutas principales y el PDF publicado.
+- Se añadió `.gitignore` para excluir `.vercel` y cualquier `.env*` local.
+
+**Por qué:**
+- El hub necesitaba una URL estable, accesible sin levantar servidores locales.
+  La vinculación explícita evita crear proyectos duplicados y la exclusión de
+  archivos de entorno protege tokens y metadatos locales de Vercel.
+
+---
 
 ### 2026-07-17 · Hub interno centralizado de AutoVenta · ⏱️ 2.0 h
 **Commit:** _(este mismo)_

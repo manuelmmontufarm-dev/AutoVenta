@@ -89,6 +89,12 @@ Ajustables. Actualizar el total al añadir cada entrada.</p>
 <tbody><tr>
 <td>2026-07-17</td>
 <td><em>(este mismo)</em></td>
+<td>Publicación del hub completo en Vercel</td>
+<td>0.5</td>
+</tr>
+<tr>
+<td>2026-07-17</td>
+<td><em>(este mismo)</em></td>
 <td>Hub interno centralizado + demo visual + documentación navegable</td>
 <td>2.0</td>
 </tr>
@@ -168,11 +174,28 @@ Ajustables. Actualizar el total al añadir cada entrada.</p>
 <td></td>
 <td></td>
 <td><strong>TOTAL</strong></td>
-<td><strong>~27.75 h</strong></td>
+<td><strong>~28.25 h</strong></td>
 </tr>
 </tbody></table>
 <hr>
 <h2>Entradas (más reciente primero)</h2>
+<h3>2026-07-17 · Hub publicado en Vercel · ⏱️ 0.5 h</h3>
+<p><strong>Commit:</strong> <em>(este mismo)</em></p>
+<p><strong>Qué se hizo:</strong></p>
+<ul>
+<li>Se vinculó el repositorio local al proyecto existente <code>acesso-aefa4bef/auto-venta</code>.</li>
+<li>Se desplegó <code>site/</code> completo a producción: portada, demo, paletas, planes,
+documentos, catálogo y propuestas.</li>
+<li>Se verificaron por HTTP las rutas principales y el PDF publicado.</li>
+<li>Se añadió <code>.gitignore</code> para excluir <code>.vercel</code> y cualquier <code>.env*</code> local.</li>
+</ul>
+<p><strong>Por qué:</strong></p>
+<ul>
+<li>El hub necesitaba una URL estable, accesible sin levantar servidores locales.
+La vinculación explícita evita crear proyectos duplicados y la exclusión de
+archivos de entorno protege tokens y metadatos locales de Vercel.</li>
+</ul>
+<hr>
 <h3>2026-07-17 · Hub interno centralizado de AutoVenta · ⏱️ 2.0 h</h3>
 <p><strong>Commit:</strong> <em>(este mismo)</em></p>
 <p><strong>Qué se hizo:</strong></p>
