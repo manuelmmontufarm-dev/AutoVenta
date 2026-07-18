@@ -1,0 +1,137 @@
+/* ─── Tema "Neobrutalista Taller" (estilo 05) ────────────────────────
+   Bordes negros gruesos, sombras duras que no se difuminan, colores de
+   caja de herramientas. Honesto y con carácter, como un taller de
+   verdad. Se activa con <html data-theme="neobrutalista">. */
+
+html[data-theme="neobrutalista"] {
+  --color-ink: #fff8e7; /* crema motor de fondo */
+  --color-ink2: #ffffff;
+  --color-ink3: #fff3d0;
+  --color-paper: #111111; /* negro grasa */
+  --color-muted: #3f3a2e;
+  --color-faint: #6f6a5c;
+  --color-line: rgba(17, 17, 17, 0.22);
+  --color-red: #ef233c; /* rojo caja */
+  --color-reddark: #d61e35;
+  --color-blue: #3a86ff; /* azul overol */
+  --color-sky: #3a86ff;
+  --color-lime: #06d6a0; /* verde OK — dinero */
+  --color-violet: #3a86ff; /* acentos interactivos (demo, drops) */
+  --color-wa: #06d6a0;
+  --color-ok: #06d6a0;
+  --color-sand: #ffd60a; /* amarillo gata */
+  --color-check: #111111;
+  --color-bubble-meta: rgba(17, 17, 17, 0.6);
+  --color-scrim: rgba(17, 17, 17, 0.5);
+
+  --font-sans: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+  --font-serif: "Space Grotesk", sans-serif;
+  --font-mono: "Space Mono", ui-monospace, monospace;
+
+  --radius-panel: 12px;
+  --radius-card: 10px;
+
+  --shadow-soft: 6px 6px 0 #111111;
+  --shadow-pop: 8px 8px 0 #111111;
+
+  --confetti: #ffd60a, #ef233c, #3a86ff, #06d6a0, #ff70a6, #111111;
+}
+
+/* Papel cuadriculado de taller: puntos de grasa sobre crema */
+html[data-theme="neobrutalista"] body {
+  background: var(--color-ink);
+  background-image: radial-gradient(rgba(0, 0, 0, 0.07) 1.5px, transparent 1.5px);
+  background-size: 26px 26px;
+  color: var(--color-paper);
+}
+html[data-theme="neobrutalista"] body::before {
+  display: none;
+}
+
+html[data-theme="neobrutalista"] ::selection {
+  background: var(--color-sand);
+  color: #111111;
+}
+html[data-theme="neobrutalista"] :focus-visible {
+  outline: 3px solid #111111;
+  border-radius: 4px;
+}
+
+html[data-theme="neobrutalista"] .glass,
+html[data-theme="neobrutalista"] .glass-strong {
+  background: #ffffff;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  border: 3px solid #111111;
+  box-shadow: var(--shadow-soft);
+}
+html[data-theme="neobrutalista"] .glass::before,
+html[data-theme="neobrutalista"] .glass-strong::before {
+  display: none;
+}
+
+/* El botón se hunde al presionarlo, como un botón de verdad */
+html[data-theme="neobrutalista"] .btn-aurora {
+  background: var(--color-red);
+  color: #fff;
+  border: 3px solid #111111;
+  box-shadow: 4px 4px 0 #111111;
+}
+html[data-theme="neobrutalista"] .btn-aurora:active {
+  transform: translate(3px, 3px);
+  box-shadow: 1px 1px 0 #111111;
+}
+
+html[data-theme="neobrutalista"] .serif {
+  font-family: var(--font-sans);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+html[data-theme="neobrutalista"] .bubble {
+  border: 3px solid #111111;
+  box-shadow: 4px 4px 0 #111111;
+  font-weight: 500;
+}
+html[data-theme="neobrutalista"] .bubble-in {
+  background: #ffffff;
+  border-top-left-radius: 2px;
+}
+html[data-theme="neobrutalista"] .bubble-out {
+  background: var(--color-wa);
+  border: 3px solid #111111;
+  border-top-right-radius: 2px;
+}
+
+/* El skeleton también es honesto: gris duro, sin shimmer sutil */
+html[data-theme="neobrutalista"] .skeleton {
+  background: rgba(17, 17, 17, 0.08);
+  border-radius: 6px;
+}
+
+/* Chip de medida como etiqueta de taller: negro grasa + amarillo gata.
+   (!important: el fondo base viene en style inline) */
+html[data-theme="neobrutalista"] .medida-chip {
+  background: #111111 !important;
+  color: #ffd60a !important;
+  border-radius: 6px;
+}
+
+/* Etapas y avatares con tinta de marcador sobre crema motor */
+html[data-theme="neobrutalista"] {
+  --etapa-nuevo: #3a86ff;
+  --etapa-medidas: #049674;
+  --etapa-cotizado: #b78900;
+  --etapa-ubicacion: #e0447e;
+  --etapa-visita: #04a57c;
+  --cierre-ganado: #049674;
+  --cierre-perdido: #ef233c;
+  --cierre-sinresp: #6f6a5c;
+  --av-1: #3a86ff;
+  --av-2: #049674;
+  --av-3: #b78900;
+  --av-4: #7048d6;
+  --av-5: #e0447e;
+  --av-6: #04a57c;
+  --av-7: #b35c24;
+}

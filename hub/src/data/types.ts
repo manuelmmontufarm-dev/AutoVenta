@@ -23,39 +23,39 @@ export const ETAPA_META: Record<
   nuevo: {
     nombre: "Nuevo",
     corto: "Nuevo",
-    color: "#8da3c0",
+    color: "var(--etapa-nuevo)",
     descripcion: "Cliente escribió — se le preguntan las medidas",
   },
   medidas: {
     nombre: "Medidas",
     corto: "Medidas",
-    color: "#6cc5d4",
+    color: "var(--etapa-medidas)",
     descripcion: "Medida identificada — se busca la cotización",
   },
   cotizado: {
     nombre: "Cotizado",
     corto: "Cotizado",
-    color: "#cdb989",
+    color: "var(--etapa-cotizado)",
     descripcion: "PDF enviado — ¿está interesado?",
   },
   ubicacion: {
     nombre: "Ubicación",
     corto: "Ubicación",
-    color: "#a78bfa",
+    color: "var(--etapa-ubicacion)",
     descripcion: "Se le envió el local más cercano",
   },
   por_visitar: {
     nombre: "Por visitar",
     corto: "Visita",
-    color: "#8fa885",
+    color: "var(--etapa-visita)",
     descripcion: "Confirmó que viene a comprar",
   },
 };
 
 export const CIERRE_META: Record<Cierre, { nombre: string; color: string; emoji: string }> = {
-  ganado: { nombre: "Ganado", color: "#86c79a", emoji: "🏁" },
-  perdido: { nombre: "Perdido", color: "#c96b62", emoji: "✕" },
-  sin_respuesta: { nombre: "Sin respuesta", color: "#a5a196", emoji: "⏱" },
+  ganado: { nombre: "Ganado", color: "var(--cierre-ganado)", emoji: "🏁" },
+  perdido: { nombre: "Perdido", color: "var(--cierre-perdido)", emoji: "✕" },
+  sin_respuesta: { nombre: "Sin respuesta", color: "var(--cierre-sinresp)", emoji: "⏱" },
 };
 
 export interface ItemCotizacion {

@@ -5,6 +5,8 @@ import tailwindcss from "@tailwindcss/vite";
 // Parte 2: build con base "/admin/" y outDir hacia app/public/admin,
 // servido por el mismo Express del bot (PLAN_DESARROLLO §6).
 export default defineConfig({
+  // Base relativa: el mismo build sirve en /demo/, /demo-racing/, /demo-showroom/…
+  base: "./",
   plugins: [react(), tailwindcss()],
   server: {
     port: 5199,

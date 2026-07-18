@@ -26,7 +26,7 @@ function ToastCard({ toast }: { toast: Toast }) {
       }}
       className="glass-strong pointer-events-auto flex w-80 items-start gap-3 rounded-2xl p-3.5 text-left shadow-pop"
     >
-      <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl text-lg" style={{ background: "rgba(255,255,255,.07)" }}>
+      <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl text-lg" style={{ background: "color-mix(in srgb, var(--color-paper) 7%, transparent)" }}>
         {toast.icono}
       </span>
       <span className="min-w-0">
@@ -52,7 +52,10 @@ export function Toasts() {
 
 /* ── Confetti (cierre ganado) ── */
 
-const COLORES = ["#a78bfa", "#7dd3e0", "#e0b3ee", "#8fa885", "#f5f4ee", "#cdb989"];
+const COLORES = (getComputedStyle(document.documentElement).getPropertyValue("--confetti") ||
+  "#a78bfa,#7dd3e0,#e0b3ee,#8fa885,#f5f4ee,#cdb989")
+  .split(",")
+  .map((c) => c.trim());
 
 export function Confetti() {
   const activo = useHub((s) => s.celebrando);

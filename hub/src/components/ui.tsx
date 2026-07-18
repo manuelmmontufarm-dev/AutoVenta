@@ -25,7 +25,7 @@ export function Avatar({ ticket, size = 40 }: { ticket: Ticket; size?: number })
         <span
           title="Cliente recurrente"
           className="absolute -right-0.5 -bottom-0.5 grid place-items-center rounded-full bg-ink text-[9px]"
-          style={{ width: size * 0.42, height: size * 0.42, border: "1px solid rgba(255,255,255,.15)" }}
+          style={{ width: size * 0.42, height: size * 0.42, border: "1px solid color-mix(in srgb, var(--color-paper) 15%, transparent)" }}
         >
           ★
         </span>
@@ -75,9 +75,9 @@ export function AtiendePill({ atiende }: { atiende: "bot" | "humano" }) {
     <span
       className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10.5px] font-bold"
       style={{
-        color: esBot ? "#86c79a" : "#cdb989",
-        background: esBot ? "rgba(134,199,154,.1)" : "rgba(205,185,137,.1)",
-        border: `1px solid ${esBot ? "rgba(134,199,154,.28)" : "rgba(205,185,137,.28)"}`,
+        color: esBot ? "var(--color-ok)" : "var(--color-sand)",
+        background: esBot ? "color-mix(in srgb, var(--color-ok) 10%, transparent)" : "color-mix(in srgb, var(--color-sand) 10%, transparent)",
+        border: `1px solid ${esBot ? "color-mix(in srgb, var(--color-ok) 28%, transparent)" : "color-mix(in srgb, var(--color-sand) 28%, transparent)"}`,
       }}
     >
       {esBot ? <IconBot size={11} /> : <IconUser size={11} />}
@@ -91,7 +91,7 @@ export function MedidaChip({ medida, size = "md" }: { medida: string; size?: "sm
   return (
     <span
       className={`medida-chip inline-block rounded-lg text-paper ${s}`}
-      style={{ background: "rgba(255,255,255,.07)", border: "1px solid rgba(255,255,255,.12)" }}
+      style={{ background: "color-mix(in srgb, var(--color-paper) 7%, transparent)", border: "1px solid color-mix(in srgb, var(--color-paper) 12%, transparent)" }}
     >
       {medida}
     </span>
@@ -126,7 +126,7 @@ export function Segmented<T extends string>({
               <motion.span
                 layoutId={`seg-${id}`}
                 className="absolute inset-0 rounded-lg"
-                style={{ background: "rgba(255,255,255,.1)", border: "1px solid rgba(255,255,255,.1)" }}
+                style={{ background: "color-mix(in srgb, var(--color-paper) 10%, transparent)", border: "1px solid color-mix(in srgb, var(--color-paper) 10%, transparent)" }}
                 transition={{ type: "spring", stiffness: 500, damping: 38 }}
               />
             )}
@@ -152,7 +152,7 @@ export function EmptyState({ titulo, detalle }: { titulo: string; detalle?: stri
       animate={{ opacity: 1, y: 0 }}
       className="flex flex-col items-center justify-center gap-3 py-16 text-center"
     >
-      <div className="grid h-16 w-16 place-items-center rounded-2xl text-muted" style={{ background: "rgba(255,255,255,.04)", border: "1px solid rgba(255,255,255,.07)" }}>
+      <div className="grid h-16 w-16 place-items-center rounded-2xl text-muted" style={{ background: "color-mix(in srgb, var(--color-paper) 4%, transparent)", border: "1px solid color-mix(in srgb, var(--color-paper) 7%, transparent)" }}>
         <IconTire size={34} />
       </div>
       <p className="text-sm font-semibold text-paper">{titulo}</p>
@@ -186,7 +186,7 @@ export function Modal({ onClose, children, ancho = 460 }: { onClose: () => void;
   return (
     <motion.div
       className="fixed inset-0 z-100 grid place-items-center p-4"
-      style={{ background: "rgba(5,8,16,.6)", backdropFilter: "blur(6px)" }}
+      style={{ background: "var(--color-scrim)", backdropFilter: "blur(6px)" }}
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}

@@ -28,7 +28,7 @@ export function StatTile({
   valor,
   formato = (n) => String(Math.round(n)),
   detalle,
-  color = "#f5f1e9",
+  color = "var(--color-paper)",
   delay = 0,
 }: {
   label: string;
@@ -73,7 +73,7 @@ export function FunnelChart({ pasos }: { pasos: FunnelPaso[] }) {
         return (
           <div key={p.label} className="flex items-center gap-3">
             <span className="w-24 shrink-0 text-right text-[11.5px] font-semibold text-muted">{p.label}</span>
-            <div className="relative h-7 flex-1 overflow-hidden rounded-lg" style={{ background: "rgba(255,255,255,.04)" }}>
+            <div className="relative h-7 flex-1 overflow-hidden rounded-lg" style={{ background: "color-mix(in srgb, var(--color-paper) 4%, transparent)" }}>
               <motion.div
                 initial={{ width: 0 }}
                 animate={{ width: `${(p.valor / max) * 100}%` }}
@@ -101,7 +101,7 @@ export function FunnelChart({ pasos }: { pasos: FunnelPaso[] }) {
 
 /* ── Área de conversaciones (14 días) ── */
 
-export function AreaChart({ serie, color = "#a78bfa" }: { serie: number[]; color?: string }) {
+export function AreaChart({ serie, color = "var(--color-violet)" }: { serie: number[]; color?: string }) {
   const W = 560;
   const H = 130;
   const PAD = 8;
@@ -134,7 +134,7 @@ export function AreaChart({ serie, color = "#a78bfa" }: { serie: number[]; color
         </linearGradient>
       </defs>
       {[0.25, 0.5, 0.75].map((f) => (
-        <line key={f} x1={PAD} x2={W - PAD} y1={H * f} y2={H * f} stroke="rgba(255,255,255,.05)" strokeDasharray="3 5" />
+        <line key={f} x1={PAD} x2={W - PAD} y1={H * f} y2={H * f} stroke="color-mix(in srgb, var(--color-paper) 5%, transparent)" strokeDasharray="3 5" />
       ))}
       <motion.path
         d={`${d} L ${px(ultimo)} ${H - PAD} L ${px(0)} ${H - PAD} Z`}

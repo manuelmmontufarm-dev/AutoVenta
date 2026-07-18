@@ -45,7 +45,11 @@ export function iniciales(nombre: string | null, telefono: string): string {
 }
 
 /** Color de avatar determinístico por teléfono. */
-const AVATAR_COLORS = ["#8da3c0", "#6cc5d4", "#cdb989", "#a78bfa", "#d9a3c8", "#8fa885", "#c9a189"];
+// Se resuelven en CSS: cada tema define su propia gama legible
+const AVATAR_COLORS = [
+  "var(--av-1)", "var(--av-2)", "var(--av-3)", "var(--av-4)",
+  "var(--av-5)", "var(--av-6)", "var(--av-7)",
+];
 export function avatarColor(telefono: string): string {
   let h = 0;
   for (const c of telefono) h = (h * 31 + c.charCodeAt(0)) % 997;

@@ -66,7 +66,7 @@ export default function App() {
                     <motion.span
                       layoutId="rail-activo"
                       className="absolute inset-0 rounded-2xl"
-                      style={{ background: "rgba(255,255,255,.09)", border: "1px solid rgba(255,255,255,.1)" }}
+                      style={{ background: "color-mix(in srgb, var(--color-paper) 9%, transparent)", border: "1px solid color-mix(in srgb, var(--color-paper) 10%, transparent)" }}
                       transition={{ type: "spring", stiffness: 480, damping: 36 }}
                     />
                   )}
@@ -109,9 +109,9 @@ export default function App() {
                 onClick={toggleDemo}
                 className="flex items-center gap-2 rounded-full px-4 py-2 text-xs font-bold shadow-soft transition-colors"
                 style={{
-                  background: demo ? "rgba(167,139,250,.14)" : "var(--color-paper)",
-                  color: demo ? "#c4b5fd" : "var(--color-ink)",
-                  border: demo ? "1px solid rgba(167,139,250,.45)" : "1px solid transparent",
+                  background: demo ? "color-mix(in srgb, var(--color-violet) 14%, transparent)" : "var(--color-paper)",
+                  color: demo ? "var(--color-violet)" : "var(--color-ink)",
+                  border: demo ? "1px solid color-mix(in srgb, var(--color-violet) 45%, transparent)" : "1px solid transparent",
                 }}
               >
                 {demo ? <IconStop size={13} /> : <IconPlay size={13} />}

@@ -1,0 +1,127 @@
+/* ─── Tema "Racing Heritage" (estilo 04) ─────────────────────────────
+   Crema vintage, navy, rojo GP y amarillo. Los 30+ años de Depot Tire
+   como escudería clásica. Archivo Black para las cifras.
+   Se activa con <html data-theme="racing">. */
+
+html[data-theme="racing"] {
+  --color-ink: #f6f1e4; /* crema de fondo */
+  --color-ink2: #fffdf6; /* card */
+  --color-ink3: #efe8d5;
+  --color-paper: #14213d; /* navy: texto e ilustración */
+  --color-muted: #5c6273;
+  --color-faint: #8a8368;
+  --color-line: #d9d2bf;
+  --color-red: #d62828; /* rojo GP */
+  --color-reddark: #b91f1f;
+  --color-blue: #1f4e8c;
+  --color-sky: #1f4e8c;
+  --color-lime: #2a9d8f; /* verde brillante — dinero */
+  --color-violet: #d62828; /* la acción/acento manda el rojo GP */
+  --color-wa: #e8f4ea;
+  --color-ok: #2a9d8f;
+  --color-sand: #fcbf49; /* amarillo racing */
+  --color-check: #2a9d8f;
+  --color-bubble-meta: rgba(20, 33, 61, 0.5);
+  --color-scrim: rgba(20, 33, 61, 0.5);
+
+  --font-sans: "Archivo", ui-sans-serif, system-ui, sans-serif;
+  --font-serif: "Archivo Black", "Archivo", sans-serif;
+
+  --radius-panel: 18px;
+  --radius-card: 14px;
+
+  --shadow-soft: 0 6px 0 rgba(20, 33, 61, 0.14);
+  --shadow-pop: 0 8px 0 rgba(20, 33, 61, 0.2);
+
+  --confetti: #d62828, #fcbf49, #2a9d8f, #14213d, #fffdf6;
+}
+
+html[data-theme="racing"] body {
+  background: var(--color-ink);
+  color: var(--color-paper);
+}
+html[data-theme="racing"] body::before {
+  display: none;
+}
+
+html[data-theme="racing"] ::selection {
+  background: color-mix(in srgb, var(--color-sand) 55%, transparent);
+  color: var(--color-paper);
+}
+html[data-theme="racing"] :focus-visible {
+  outline: 2.5px solid var(--color-paper);
+}
+
+html[data-theme="racing"] .glass,
+html[data-theme="racing"] .glass-strong {
+  background: var(--color-ink2);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  border: 2px solid var(--color-paper);
+  box-shadow: var(--shadow-soft);
+}
+html[data-theme="racing"] .glass::before,
+html[data-theme="racing"] .glass-strong::before {
+  display: none;
+}
+
+/* Botón de pits: rojo GP con borde y sombra sólida navy */
+html[data-theme="racing"] .btn-aurora {
+  background: var(--color-red);
+  color: #fff;
+  border: 2.5px solid var(--color-paper);
+  box-shadow: 0 4px 0 var(--color-paper);
+}
+html[data-theme="racing"] .btn-aurora:active {
+  transform: translateY(3px);
+  box-shadow: 0 1px 0 var(--color-paper);
+}
+
+/* Archivo Black es de un solo peso: las cifras van en display puro */
+html[data-theme="racing"] .serif {
+  font-family: var(--font-serif);
+  font-weight: 400;
+  letter-spacing: 0;
+}
+
+html[data-theme="racing"] .microlabel {
+  letter-spacing: 0.18em;
+}
+
+html[data-theme="racing"] .bubble {
+  border: 2px solid var(--color-paper);
+  box-shadow: none;
+  font-weight: 500;
+}
+html[data-theme="racing"] .bubble-in {
+  background: #ffffff;
+}
+html[data-theme="racing"] .bubble-out {
+  background: #e8f4ea;
+}
+
+/* Chip de medida como placa de box: navy + amarillo racing */
+html[data-theme="racing"] .medida-chip {
+  background: var(--color-paper) !important;
+  color: var(--color-sand) !important;
+  border-radius: 7px;
+}
+
+/* Etapas y avatares en tinta de escudería sobre crema */
+html[data-theme="racing"] {
+  --etapa-nuevo: #1f4e8c;
+  --etapa-medidas: #2a9d8f;
+  --etapa-cotizado: #b07300;
+  --etapa-ubicacion: #d62828;
+  --etapa-visita: #237d6f;
+  --cierre-ganado: #2a9d8f;
+  --cierre-perdido: #d62828;
+  --cierre-sinresp: #8a8368;
+  --av-1: #1f4e8c;
+  --av-2: #2a9d8f;
+  --av-3: #b07300;
+  --av-4: #d62828;
+  --av-5: #b3477d;
+  --av-6: #237d6f;
+  --av-7: #8c5a2b;
+}

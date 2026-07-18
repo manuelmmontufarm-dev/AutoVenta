@@ -1,0 +1,106 @@
+/* ─── Tema "Showroom Blanco" (estilo 03) ─────────────────────────────
+   Modo claro premium: blanco cálido, sombras suaves, aire por todos
+   lados y el rojo con cuentagotas. Apple Store · Stripe claro.
+   Se activa con <html data-theme="showroom">. */
+
+html[data-theme="showroom"] {
+  --color-ink: #fafaf8; /* fondo */
+  --color-ink2: #ffffff;
+  --color-ink3: #f2f2ee;
+  --color-paper: #1d1d1f; /* texto */
+  --color-muted: #86868b;
+  --color-faint: #a9a9ad;
+  --color-line: #e8e8e3;
+  --color-red: #e3262e;
+  --color-reddark: #c81e26;
+  --color-blue: #2f6fed;
+  --color-sky: #2f6fed;
+  --color-lime: #1db954; /* dinero y positivos */
+  --color-violet: #7c5cff; /* acentos de demo / drop zones */
+  --color-wa: #e9f8ef;
+  --color-ok: #1db954;
+  --color-sand: #e8960c; /* ámbar para notas internas / modo humano */
+  --color-check: #2f6fed;
+  --color-bubble-meta: rgba(29, 29, 31, 0.45);
+  --color-scrim: rgba(29, 29, 31, 0.4);
+
+  --radius-panel: 24px;
+  --radius-card: 18px;
+
+  --shadow-soft: 0 1px 2px rgba(0, 0, 0, 0.03), 0 12px 32px rgba(29, 29, 31, 0.06);
+  --shadow-pop: 0 4px 12px rgba(29, 29, 31, 0.08), 0 24px 56px rgba(29, 29, 31, 0.12);
+
+  --confetti: #e3262e, #1db954, #e8960c, #2f6fed, #7c5cff;
+}
+
+html[data-theme="showroom"] body {
+  background: var(--color-ink);
+  color: var(--color-paper);
+}
+
+/* Sin ruido ni orbes: superficie limpia de showroom */
+html[data-theme="showroom"] body::before {
+  display: none;
+}
+
+html[data-theme="showroom"] ::selection {
+  background: color-mix(in srgb, var(--color-blue) 25%, transparent);
+  color: var(--color-paper);
+}
+
+html[data-theme="showroom"] .glass,
+html[data-theme="showroom"] .glass-strong {
+  background: #ffffff;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  border: 1px solid var(--color-line);
+  box-shadow: var(--shadow-soft);
+}
+html[data-theme="showroom"] .glass::before,
+html[data-theme="showroom"] .glass-strong::before {
+  display: none;
+}
+
+/* La acción primaria es el rojo Depot, con su halo suave */
+html[data-theme="showroom"] .btn-aurora {
+  background: var(--color-red);
+  color: #fff;
+  box-shadow: 0 6px 20px rgba(227, 38, 46, 0.25);
+}
+
+html[data-theme="showroom"] .serif {
+  font-family: var(--font-sans);
+  font-weight: 650;
+  letter-spacing: -0.025em;
+}
+
+html[data-theme="showroom"] .bubble {
+  box-shadow: 0 1px 2px rgba(29, 29, 31, 0.05);
+}
+html[data-theme="showroom"] .bubble-in {
+  background: #ffffff;
+  border: 1px solid var(--color-line);
+}
+html[data-theme="showroom"] .bubble-out {
+  background: #e9f8ef;
+  border: 1px solid #cdeeda;
+}
+
+/* Etapas y avatares con tinta suficiente para fondo blanco */
+html[data-theme="showroom"] {
+  --etapa-nuevo: #2f6fed;
+  --etapa-medidas: #0e9aa7;
+  --etapa-cotizado: #c77d00;
+  --etapa-ubicacion: #7c5cff;
+  --etapa-visita: #2e9e5b;
+  --cierre-ganado: #1db954;
+  --cierre-perdido: #e3262e;
+  --cierre-sinresp: #86868b;
+  --av-1: #2f6fed;
+  --av-2: #0e9aa7;
+  --av-3: #c77d00;
+  --av-4: #7c5cff;
+  --av-5: #c2447e;
+  --av-6: #2e9e5b;
+  --av-7: #a3623b;
+}

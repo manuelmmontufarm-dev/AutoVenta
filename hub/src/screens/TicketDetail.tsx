@@ -55,7 +55,7 @@ export function TicketDetail({ id }: { id: number }) {
         <div className="glass mx-3 flex items-center gap-3 rounded-2xl px-3 py-2.5">
           <button
             onClick={() => navigate("inbox")}
-            className="grid h-8 w-8 shrink-0 place-items-center rounded-full text-muted transition-colors hover:bg-white/5 hover:text-paper"
+            className="grid h-8 w-8 shrink-0 place-items-center rounded-full text-muted transition-colors hover:bg-paper/5 hover:text-paper"
             aria-label="Volver"
           >
             <IconBack size={17} />
@@ -77,7 +77,7 @@ export function TicketDetail({ id }: { id: number }) {
           </div>
           <button
             onClick={() => setFichaMovil(true)}
-            className="rounded-full px-2.5 py-1.5 text-[11px] font-bold text-muted hover:bg-white/5 lg:hidden"
+            className="rounded-full px-2.5 py-1.5 text-[11px] font-bold text-muted hover:bg-paper/5 lg:hidden"
           >
             Ficha
           </button>
@@ -208,8 +208,8 @@ function Ficha({
           </p>
           <button
             onClick={onVerCotizacion}
-            className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl py-2 text-xs font-bold transition-colors hover:bg-white/10"
-            style={{ background: "rgba(255,255,255,.06)", border: "1px solid rgba(255,255,255,.1)" }}
+            className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl py-2 text-xs font-bold transition-colors hover:bg-paper/10"
+            style={{ background: "color-mix(in srgb, var(--color-paper) 6%, transparent)", border: "1px solid color-mix(in srgb, var(--color-paper) 10%, transparent)" }}
           >
             <IconDoc size={13} /> Ver PDF
           </button>
@@ -245,7 +245,7 @@ function Ficha({
             role="switch"
             aria-checked={ticket.atiende === "humano"}
             className="relative h-7 w-13 rounded-full transition-colors"
-            style={{ background: ticket.atiende === "humano" ? "var(--color-violet)" : "rgba(255,255,255,.12)" }}
+            style={{ background: ticket.atiende === "humano" ? "var(--color-violet)" : "color-mix(in srgb, var(--color-paper) 12%, transparent)" }}
           >
             <motion.span
               layout
@@ -268,7 +268,7 @@ function Ficha({
               <li
                 key={i}
                 className="rounded-lg px-2.5 py-2 text-[11.5px] leading-relaxed text-paper/85"
-                style={{ background: "rgba(205,185,137,.08)", borderLeft: "2px solid rgba(205,185,137,.5)" }}
+                style={{ background: "color-mix(in srgb, var(--color-sand) 8%, transparent)", borderLeft: "2px solid color-mix(in srgb, var(--color-sand) 50%, transparent)" }}
               >
                 {n}
               </li>
@@ -287,7 +287,7 @@ function Ficha({
             }}
             placeholder="Agregar nota…"
             className="min-w-0 flex-1 rounded-lg px-2.5 py-1.5 text-xs outline-none placeholder:text-faint"
-            style={{ background: "rgba(255,255,255,.05)", border: "1px solid rgba(255,255,255,.08)" }}
+            style={{ background: "color-mix(in srgb, var(--color-paper) 5%, transparent)", border: "1px solid color-mix(in srgb, var(--color-paper) 8%, transparent)" }}
           />
         </div>
       </section>
@@ -304,7 +304,7 @@ function Ficha({
         <button
           onClick={onReabrir}
           className="flex items-center justify-center gap-2 rounded-2xl py-3 text-[13px] font-bold text-paper transition-transform hover:-translate-y-0.5"
-          style={{ background: "rgba(255,255,255,.08)", border: "1px solid rgba(255,255,255,.12)" }}
+          style={{ background: "color-mix(in srgb, var(--color-paper) 8%, transparent)", border: "1px solid color-mix(in srgb, var(--color-paper) 12%, transparent)" }}
         >
           <IconRefresh size={15} /> Reabrir ticket
         </button>
@@ -350,8 +350,8 @@ export function CerrarSheet({
                 onClick={() => setCierre(c)}
                 className="flex items-center gap-3 rounded-2xl px-4 py-3 text-left transition-all"
                 style={{
-                  background: activo ? `color-mix(in srgb, ${meta.color} 12%, transparent)` : "rgba(255,255,255,.04)",
-                  border: `1px solid ${activo ? `color-mix(in srgb, ${meta.color} 45%, transparent)` : "rgba(255,255,255,.07)"}`,
+                  background: activo ? `color-mix(in srgb, ${meta.color} 12%, transparent)` : "color-mix(in srgb, var(--color-paper) 4%, transparent)",
+                  border: `1px solid ${activo ? `color-mix(in srgb, ${meta.color} 45%, transparent)` : "color-mix(in srgb, var(--color-paper) 7%, transparent)"}`,
                 }}
               >
                 <span className="text-lg">{meta.emoji}</span>
@@ -372,7 +372,7 @@ export function CerrarSheet({
           onChange={(e) => setNota(e.target.value)}
           placeholder={cierre === "perdido" ? "¿Por qué se perdió? (ej: precio)" : "Nota opcional…"}
           className="mt-3 w-full rounded-xl px-3.5 py-2.5 text-xs outline-none placeholder:text-faint"
-          style={{ background: "rgba(255,255,255,.05)", border: "1px solid rgba(255,255,255,.08)" }}
+          style={{ background: "color-mix(in srgb, var(--color-paper) 5%, transparent)", border: "1px solid color-mix(in srgb, var(--color-paper) 8%, transparent)" }}
         />
         <button
           disabled={!cierre}

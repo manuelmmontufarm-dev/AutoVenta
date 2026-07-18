@@ -32,6 +32,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-07-18 | _(este mismo)_ | Demo del Hub en 4 estilos: temas CSS (showroom/racing/neobrutalista) + deploy | 1.5 |
 | 2026-07-18 | _(este mismo)_ | Herramientas de operación en línea: /mensajes, /configuracion/ia, /tester | 2.5 |
 | 2026-07-18 | _(este mismo)_ | Deploy en Railway en vivo: root dir, dominio, fix EBUSY del build | 1.0 |
 | 2026-07-18 | _(este mismo)_ | Migración del agente de Anthropic a OpenAI GPT | 1.5 |
@@ -50,11 +51,26 @@ Ya viene activado en este equipo.
 | 2026-07-14 | ac09171 | Ubicaciones de locales + análisis de features del cliente | 1.5 |
 | 2026-07-13 | feadf57 | Brief + plan de desarrollo + plan financiero + catálogo | 4.0 |
 | 2026-07-13 | d997844 | Commit inicial (repo) | 0.25 |
-| | | **TOTAL** | **~34.25 h** |
+| | | **TOTAL** | **~35.75 h** |
 
 ---
 
 ## Entradas (más reciente primero)
+
+### 2026-07-18 · Demo del Hub en 4 estilos · ⏱️ 1.5 h
+**Commit:** _(este mismo)_
+
+**Qué se hizo:**
+- El demo del Hub ahora existe en 4 estilos completos, hosteados en Railway: `/demo/` (Claude × Aurora, el actual), `/demo-showroom/` (estilo 03), `/demo-racing/` (estilo 04) y `/demo-neobrutalista/` (estilo 05). La galería `/estilos/` tiene la botonera para abrirlos.
+- Cómo: el hub se retematizó por design tokens. Los ~60 colores hardcodeados de los componentes pasaron a tokens/`color-mix` sobre `--color-paper` (se invierten solos en temas claros); etapas del funnel, cierres, avatares y confetti ahora son variables CSS con gama propia por tema. El documento de cotización quedó "papel literal" (un PDF es blanco en cualquier tema).
+- 3 hojas de tema en `hub/src/design/themes/` activadas por `<html data-theme>`, que se deduce de la URL (`/demo-racing/` → racing). Un solo build de Vite (base `./`) copiado a las 4 rutas.
+- Fidelidad a las páginas de estilos: neobrutalista con bordes 3px negros, sombras duras y chips negro/amarillo; racing con navy, Archivo Black y placa de box; showroom blanco con sombras suaves y rojo con cuentagotas.
+- Verificado en dev server pantalla por pantalla (inbox, kanban, chat, dashboard) en los 4 temas; el tema por defecto quedó idéntico.
+
+**Por qué:**
+- Para la decisión de estilo con Joaquín: comparar mockups estáticos no es lo mismo que usar la app real en cada dirección visual. Ahora los 4 se pueden abrir lado a lado desde el hub.
+
+---
 
 ### 2026-07-18 · Herramientas de operación en línea · ⏱️ 2.5 h
 **Commit:** _(este mismo)_

@@ -21,6 +21,11 @@
   --color-line: rgba(245, 244, 238, 0.08);
   --color-violet: #a78bfa;
   --color-wa: #3f463c; /* burbuja saliente: verde salvia oscuro */
+  --color-ok: #86c79a; /* verde "en línea" / bot activo */
+  --color-sand: #cdb989; /* arena — notas internas y modo humano */
+  --color-check: #7dd3e0; /* doble check del chat */
+  --color-bubble-meta: rgba(255, 255, 255, 0.5); /* hora/checks dentro de burbujas */
+  --color-scrim: rgba(5, 8, 16, 0.6); /* fondo de modales */
 
   --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, sans-serif;
   --font-serif: "Source Serif 4", Georgia, "Times New Roman", serif;
@@ -31,6 +36,27 @@
 
   --shadow-soft: 0 2px 8px rgba(0, 0, 0, 0.22), 0 16px 48px rgba(0, 0, 0, 0.3);
   --shadow-pop: 0 8px 20px rgba(0, 0, 0, 0.35), 0 24px 64px rgba(0, 0, 0, 0.45);
+}
+
+:root {
+  --confetti: #a78bfa, #7dd3e0, #e0b3ee, #8fa885, #f5f4ee, #cdb989;
+  /* Etapas del funnel y cierres (pasteles para el tema oscuro) */
+  --etapa-nuevo: #8da3c0;
+  --etapa-medidas: #6cc5d4;
+  --etapa-cotizado: #cdb989;
+  --etapa-ubicacion: #a78bfa;
+  --etapa-visita: #8fa885;
+  --cierre-ganado: #86c79a;
+  --cierre-perdido: #c96b62;
+  --cierre-sinresp: #a5a196;
+  /* Gama de avatares */
+  --av-1: #8da3c0;
+  --av-2: #6cc5d4;
+  --av-3: #cdb989;
+  --av-4: #a78bfa;
+  --av-5: #d9a3c8;
+  --av-6: #8fa885;
+  --av-7: #c9a189;
 }
 
 /* ─── Base (en @layer base: las utilities de Tailwind deben poder ganar) ── */
@@ -72,7 +98,7 @@ body::before {
 }
 
 ::selection {
-  background: rgba(167, 139, 250, 0.4);
+  background: color-mix(in srgb, var(--color-violet) 40%, transparent);
   color: #fff;
 }
 
@@ -100,14 +126,14 @@ textarea {
 /* Scrollbars oscuros y finos */
 * {
   scrollbar-width: thin;
-  scrollbar-color: rgba(166, 163, 154, 0.28) transparent;
+  scrollbar-color: color-mix(in srgb, var(--color-muted) 40%, transparent) transparent;
 }
 *::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
 *::-webkit-scrollbar-thumb {
-  background: rgba(166, 163, 154, 0.28);
+  background: color-mix(in srgb, var(--color-muted) 40%, transparent);
   border-radius: 99px;
 }
 *::-webkit-scrollbar-track {
@@ -215,8 +241,8 @@ textarea {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: #86c79a;
-  box-shadow: 0 0 10px #86c79a;
+  background: var(--color-ok);
+  box-shadow: 0 0 10px var(--color-ok);
   animation: pulse 1.8s ease-in-out infinite;
   flex-shrink: 0;
 }
@@ -243,7 +269,7 @@ textarea {
 .skeleton {
   position: relative;
   overflow: hidden;
-  background: rgba(245, 244, 238, 0.05);
+  background: color-mix(in srgb, var(--color-paper) 5%, transparent);
   border-radius: 10px;
 }
 .skeleton::after {
@@ -251,7 +277,7 @@ textarea {
   position: absolute;
   inset: 0;
   transform: translateX(-100%);
-  background: linear-gradient(90deg, transparent, rgba(245, 244, 238, 0.07), transparent);
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--color-paper) 7%, transparent), transparent);
   animation: shimmer 1.4s infinite;
 }
 @keyframes shimmer {
@@ -263,7 +289,7 @@ textarea {
 /* ─── Chat ────────────────────────────────────────────────────────── */
 
 .chat-bg {
-  background-image: radial-gradient(rgba(245, 244, 238, 0.04) 1px, transparent 1.4px);
+  background-image: radial-gradient(color-mix(in srgb, var(--color-paper) 4%, transparent) 1px, transparent 1.4px);
   background-size: 22px 22px;
 }
 
@@ -278,8 +304,8 @@ textarea {
 }
 
 .bubble-in {
-  background: rgba(245, 244, 238, 0.08);
-  border: 1px solid rgba(245, 244, 238, 0.06);
+  background: color-mix(in srgb, var(--color-paper) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-paper) 6%, transparent);
   border-top-left-radius: 4px;
 }
 

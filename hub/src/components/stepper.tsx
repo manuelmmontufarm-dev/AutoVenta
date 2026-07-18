@@ -30,11 +30,11 @@ export function PipelineStepper({ ticket }: { ticket: Ticket }) {
         const meta = ETAPA_META[etapa];
         const hecho = i < actual;
         const activo = i === actual;
-        const color = hecho || activo ? meta.color : "rgba(255,255,255,.14)";
+        const color = hecho || activo ? meta.color : "color-mix(in srgb, var(--color-paper) 14%, transparent)";
         return (
           <div key={etapa} className={`flex items-center ${i > 0 ? "flex-1" : ""}`}>
             {i > 0 && (
-              <div className="relative mx-1 h-0.5 flex-1 overflow-hidden rounded-full" style={{ background: "rgba(255,255,255,.08)" }}>
+              <div className="relative mx-1 h-0.5 flex-1 overflow-hidden rounded-full" style={{ background: "color-mix(in srgb, var(--color-paper) 8%, transparent)" }}>
                 <motion.div
                   className="absolute inset-y-0 left-0 rounded-full"
                   style={{ background: hecho || activo ? meta.color : "transparent" }}
@@ -51,7 +51,7 @@ export function PipelineStepper({ ticket }: { ticket: Ticket }) {
                 transition={activo ? { repeat: Infinity, duration: 2, ease: "easeInOut" } : {}}
                 style={{
                   color: hecho || activo ? "#262624" : "var(--color-faint)",
-                  background: hecho || activo ? color : "rgba(255,255,255,.06)",
+                  background: hecho || activo ? color : "color-mix(in srgb, var(--color-paper) 6%, transparent)",
                   boxShadow: activo ? `0 0 14px color-mix(in srgb, ${color} 60%, transparent)` : "none",
                 }}
               >

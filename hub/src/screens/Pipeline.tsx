@@ -35,7 +35,7 @@ function CardKanban({ ticket, now, arrastrando = false }: { ticket: Ticket; now:
       </div>
       <div className="mt-2.5 flex items-center justify-between gap-2">
         {ticket.medida ? (
-          <span className="medida-chip rounded-md px-1.5 py-0.5 text-[10.5px] text-paper/85" style={{ background: "rgba(255,255,255,.07)" }}>
+          <span className="medida-chip rounded-md px-1.5 py-0.5 text-[10.5px] text-paper/85" style={{ background: "color-mix(in srgb, var(--color-paper) 7%, transparent)" }}>
             {ticket.medida}
           </span>
         ) : (
@@ -78,7 +78,7 @@ function Columna({ etapa, tickets, now }: { etapa: Etapa; tickets: Ticket[]; now
         <span className="text-xs font-bold tracking-wide uppercase" style={{ color: meta.color }}>
           {meta.nombre}
         </span>
-        <span className="tnum rounded-full px-1.5 text-[10.5px] font-bold text-muted" style={{ background: "rgba(255,255,255,.06)" }}>
+        <span className="tnum rounded-full px-1.5 text-[10.5px] font-bold text-muted" style={{ background: "color-mix(in srgb, var(--color-paper) 6%, transparent)" }}>
           {tickets.length}
         </span>
         <span className="tnum ml-auto text-[10.5px] font-bold text-faint">{potencial > 0 ? moneyCompact(potencial) : ""}</span>
@@ -87,8 +87,8 @@ function Columna({ etapa, tickets, now }: { etapa: Etapa; tickets: Ticket[]; now
       <div
         className="flex min-h-24 flex-1 flex-col gap-2 rounded-2xl p-2 transition-colors"
         style={{
-          background: isOver ? `color-mix(in srgb, ${meta.color} 7%, transparent)` : "rgba(255,255,255,.02)",
-          border: `1px dashed ${isOver ? `color-mix(in srgb, ${meta.color} 45%, transparent)` : "rgba(255,255,255,.06)"}`,
+          background: isOver ? `color-mix(in srgb, ${meta.color} 7%, transparent)` : "color-mix(in srgb, var(--color-paper) 2%, transparent)",
+          border: `1px dashed ${isOver ? `color-mix(in srgb, ${meta.color} 45%, transparent)` : "color-mix(in srgb, var(--color-paper) 6%, transparent)"}`,
         }}
       >
         <AnimatePresence mode="popLayout" initial={false}>
@@ -111,8 +111,8 @@ function ZonaCierre() {
       ref={setNodeRef}
       className="grid w-36 shrink-0 place-items-center rounded-2xl text-center transition-all"
       style={{
-        background: isOver ? "rgba(167,139,250,.12)" : "rgba(255,255,255,.02)",
-        border: `1px dashed ${isOver ? "var(--color-violet)" : "rgba(255,255,255,.08)"}`,
+        background: isOver ? "color-mix(in srgb, var(--color-violet) 12%, transparent)" : "color-mix(in srgb, var(--color-paper) 2%, transparent)",
+        border: `1px dashed ${isOver ? "var(--color-violet)" : "color-mix(in srgb, var(--color-paper) 8%, transparent)"}`,
         transform: isOver ? "scale(1.03)" : "scale(1)",
       }}
     >

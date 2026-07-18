@@ -53,7 +53,7 @@ export function Dashboard() {
           label="Cotizado → visita"
           valor={stats.conversion}
           formato={(n) => `${Math.round(n)}%`}
-          color="#a9c39d"
+          color="var(--color-lime)"
           detalle="confirman que vienen al local"
           delay={0.12}
         />
@@ -61,7 +61,7 @@ export function Dashboard() {
           label="Respuesta del bot"
           valor={9}
           formato={(n) => `${Math.round(n)} s`}
-          color="#86c79a"
+          color="var(--color-ok)"
           detalle="promedio · 24/7 sin descanso"
           delay={0.18}
         />
@@ -75,7 +75,7 @@ export function Dashboard() {
         </motion.div>
         <motion.div initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.28 }} className="glass rounded-3xl p-5">
           <p className="microlabel">Vendido (tickets ganados)</p>
-          <p className="serif tnum mt-2 text-[26px]" style={{ color: "#86c79a" }}>
+          <p className="serif tnum mt-2 text-[26px]" style={{ color: "var(--color-ok)" }}>
             {money(stats.vendido)}
           </p>
         </motion.div>
@@ -124,9 +124,9 @@ export function Dashboard() {
             <motion.li key={item.id} layout initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }}>
               <button
                 onClick={() => item.ticketId && navigate(`ticket/${item.ticketId}`)}
-                className="flex w-full items-center gap-3 rounded-xl px-2 py-2 text-left transition-colors hover:bg-white/[.04]"
+                className="flex w-full items-center gap-3 rounded-xl px-2 py-2 text-left transition-colors hover:bg-paper/[.04]"
               >
-                <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg text-sm" style={{ background: "rgba(255,255,255,.05)" }}>
+                <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg text-sm" style={{ background: "color-mix(in srgb, var(--color-paper) 5%, transparent)" }}>
                   {item.icono}
                 </span>
                 <span className="min-w-0 flex-1 truncate text-xs text-paper/85">{item.texto}</span>

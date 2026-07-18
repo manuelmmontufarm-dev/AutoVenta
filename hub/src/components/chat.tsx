@@ -28,9 +28,9 @@ export function ChatBubble({ msg, onVerPdf }: { msg: Mensaje; onVerPdf?: () => v
         ) : (
           <p className="m-0 whitespace-pre-wrap">{msg.contenido}</p>
         )}
-        <span className="mt-0.5 flex items-center justify-end gap-1 text-[10px]" style={{ color: "rgba(255,255,255,.5)" }}>
+        <span className="mt-0.5 flex items-center justify-end gap-1 text-[10px]" style={{ color: "var(--color-bubble-meta)" }}>
           {horaCorta(msg.hora)}
-          {saliente && <IconDoubleCheck size={13} style={{ color: "#7dd3e0" }} />}
+          {saliente && <IconDoubleCheck size={13} style={{ color: "var(--color-check)" }} />}
         </span>
       </div>
     </motion.div>
@@ -44,14 +44,15 @@ function PdfCard({ titulo, onVer }: { titulo: string; onVer?: () => void }) {
     <button
       onClick={onVer}
       className="flex w-full items-center gap-2.5 rounded-xl p-2.5 text-left transition-transform hover:-translate-y-px"
-      style={{ background: "rgba(0,0,0,.22)", border: "1px solid rgba(255,255,255,.1)" }}
+      style={{ background: "rgba(0,0,0,.22)", border: "1px solid color-mix(in srgb, var(--color-paper) 10%, transparent)" }}
     >
-      <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-paper text-ink">
+      {/* El icono del doc es papel literal (un PDF es blanco en cualquier tema) */}
+      <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg" style={{ background: "#f5f4ee", color: "#262624" }}>
         <IconDoc size={18} />
       </span>
       <span className="min-w-0">
         <span className="block truncate text-[12.5px] font-semibold">{titulo}</span>
-        <span className="text-[10.5px]" style={{ color: "rgba(255,255,255,.55)" }}>
+        <span className="text-[10.5px]" style={{ color: "var(--color-bubble-meta)" }}>
           PDF · 1 página · toca para ver
         </span>
       </span>
@@ -63,7 +64,7 @@ function PdfCard({ titulo, onVer }: { titulo: string; onVer?: () => void }) {
 
 function MapCard({ etiqueta }: { etiqueta: string }) {
   return (
-    <div className="w-52 overflow-hidden rounded-xl" style={{ border: "1px solid rgba(255,255,255,.1)" }}>
+    <div className="w-52 overflow-hidden rounded-xl" style={{ border: "1px solid color-mix(in srgb, var(--color-paper) 10%, transparent)" }}>
       <div className="relative h-24" style={{ background: "#0d1930" }}>
         <svg viewBox="0 0 208 96" className="absolute inset-0 h-full w-full">
           <path d="M-10 70 C 40 60, 60 30, 110 34 S 190 60, 220 48" stroke="rgba(255,255,255,.14)" strokeWidth="7" fill="none" />
@@ -78,7 +79,7 @@ function MapCard({ etiqueta }: { etiqueta: string }) {
           <IconPin size={26} />
         </span>
       </div>
-      <div className="flex items-center gap-1.5 px-2.5 py-1.5 text-[11.5px] font-semibold" style={{ background: "rgba(0,0,0,.25)" }}>
+      <div className="flex items-center gap-1.5 px-2.5 py-1.5 text-[11.5px] font-semibold" style={{ background: "rgba(0,0,0,.25)", color: "#fff" }}>
         <IconPin size={11} /> {etiqueta.replace("📍 ", "")}
       </div>
     </div>
@@ -150,8 +151,8 @@ export function Composer({
         </p>
         <button
           onClick={onTomar}
-          className="rounded-full px-3.5 py-1.5 text-xs font-bold text-ink transition-transform hover:-translate-y-px"
-          style={{ background: "var(--color-lime)" }}
+          className="rounded-full px-3.5 py-1.5 text-xs font-bold transition-transform hover:-translate-y-px"
+          style={{ background: "var(--color-lime)", color: "#1c1c1a" }}
         >
           Tomar conversación
         </button>
@@ -170,7 +171,7 @@ export function Composer({
         }}
         placeholder="Escribe como vendedor…"
         className="min-w-0 flex-1 rounded-full px-4 py-2.5 text-[13.5px] outline-none placeholder:text-faint"
-        style={{ background: "rgba(255,255,255,.06)", border: "1px solid rgba(255,255,255,.09)" }}
+        style={{ background: "color-mix(in srgb, var(--color-paper) 6%, transparent)", border: "1px solid color-mix(in srgb, var(--color-paper) 9%, transparent)" }}
       />
       <motion.button
         whileTap={{ scale: 0.88 }}
@@ -191,8 +192,9 @@ export function CotizacionModal({ ticket }: { ticket: Ticket }) {
   const cot = ticket.cotizacion;
   if (!cot) return null;
   return (
-    <div className="overflow-hidden rounded-3xl bg-paper text-ink">
-      <div className="flex items-center justify-between bg-ink px-6 py-5 text-white">
+    // El documento es papel literal: no cambia con el tema del hub (como un PDF real)
+    <div className="overflow-hidden rounded-3xl" style={{ background: "#f5f4ee", color: "#262624" }}>
+      <div className="flex items-center justify-between px-6 py-5 text-white" style={{ background: "#262624" }}>
         <div>
           <p className="serif text-lg tracking-tight">
             Depot<span className="text-red">Tire</span>

@@ -19,7 +19,7 @@ function TicketRow({ ticket, now }: { ticket: Ticket; now: number }) {
       exit={{ opacity: 0, scale: 0.97 }}
       transition={{ type: "spring", stiffness: 380, damping: 32 }}
       onClick={() => navigate(`ticket/${ticket.id}`)}
-      className="group flex w-full items-center gap-3 rounded-2xl px-3.5 py-3 text-left transition-[background,transform] duration-150 hover:-translate-y-px hover:bg-white/[.045]"
+      className="group flex w-full items-center gap-3 rounded-2xl px-3.5 py-3 text-left transition-[background,transform] duration-150 hover:-translate-y-px hover:bg-paper/[.045]"
     >
       <Avatar ticket={ticket} />
       <div className="min-w-0 flex-1">
@@ -151,8 +151,8 @@ function FiltroEtapaChip({
       className="shrink-0 rounded-full px-2.5 py-1 text-[11px] font-bold whitespace-nowrap transition-all"
       style={{
         color: activo ? color : "var(--color-muted)",
-        background: activo ? `color-mix(in srgb, ${color} 14%, transparent)` : "rgba(255,255,255,.04)",
-        border: `1px solid ${activo ? `color-mix(in srgb, ${color} 38%, transparent)` : "rgba(255,255,255,.06)"}`,
+        background: activo ? `color-mix(in srgb, ${color} 14%, transparent)` : "color-mix(in srgb, var(--color-paper) 4%, transparent)",
+        border: `1px solid ${activo ? `color-mix(in srgb, ${color} 38%, transparent)` : "color-mix(in srgb, var(--color-paper) 6%, transparent)"}`,
       }}
     >
       {label}
