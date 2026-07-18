@@ -9,6 +9,7 @@ import { InboundPipeline } from "./pipeline/inbound.js";
 import { runAgent } from "./agent/agent.js";
 import { classifyStage } from "./agent/classifier.js";
 import { startCatalogSync } from "./services/catalog.js";
+import { ensureSchema } from "./db/schema.js";
 import {
   appendMessage,
   getOrCreateConversation,
@@ -86,6 +87,10 @@ wa.on.message = async ({ from, name, message, received }) => {
       break;
   }
 };
+
+// Aplica el esquema al arrancar (idempotente) → deploy sin paso manual de migración.
+await ensureSchema();
+console.log("✅ Esquema de base de datos listo");
 
 startCatalogSync();
 

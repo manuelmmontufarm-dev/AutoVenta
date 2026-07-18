@@ -1,12 +1,7 @@
-/** Aplica schema.sql (idempotente — todo es `create if not exists`). */
-import { readFileSync } from "node:fs";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
+/** Migración manual (opcional — el bot también aplica el esquema al arrancar). */
 import { sql } from "./client.js";
+import { ensureSchema } from "./schema.js";
 
-const here = dirname(fileURLToPath(import.meta.url));
-const schema = readFileSync(join(here, "schema.sql"), "utf8");
-
-await sql.unsafe(schema);
+await ensureSchema();
 console.log("✅ Esquema aplicado");
 await sql.end();

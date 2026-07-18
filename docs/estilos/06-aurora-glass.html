@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Estilo 06 · Aurora Glass</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#070312; --txt:#f4f1ff; --muted:#9d94c4; --violeta:#7c3aed; --cian:#22d3ee; --magenta:#e879f9; --lila:#a78bfa; --exito:#34d399;
+  }
+  *{box-sizing:border-box;margin:0}
+  body{font-family:Sora,system-ui,sans-serif;color:var(--txt);background:var(--bg);min-height:100vh;padding:48px 20px 80px;position:relative;overflow-x:hidden}
+  .orb{position:fixed;border-radius:50%;filter:blur(90px);opacity:.5;pointer-events:none;z-index:0}
+  .o1{width:480px;height:480px;background:#7c3aed;top:-160px;left:-120px}
+  .o2{width:420px;height:420px;background:#22d3ee;top:20%;right:-180px;opacity:.32}
+  .o3{width:380px;height:380px;background:#e879f9;bottom:-140px;left:30%;opacity:.28}
+  .wrap{max-width:900px;margin:0 auto;position:relative;z-index:1}
+  .kicker{font-size:11px;font-weight:700;letter-spacing:.24em;text-transform:uppercase;background:linear-gradient(90deg,var(--cian),var(--magenta));-webkit-background-clip:text;background-clip:text;color:transparent}
+  h1{font-size:clamp(32px,5.2vw,48px);font-weight:700;letter-spacing:-.03em;margin:8px 0 8px}
+  h1 em{font-style:normal;background:linear-gradient(90deg,var(--lila),var(--cian));-webkit-background-clip:text;background-clip:text;color:transparent}
+  .lede{color:var(--muted);font-size:15px;max-width:620px;line-height:1.65}
+  h2{font-size:11px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:var(--muted);margin:46px 0 14px}
+  .glass{position:relative;background:rgba(255,255,255,.045);backdrop-filter:blur(24px) saturate(160%);border-radius:22px;border:1px solid transparent;
+    background-clip:padding-box}
+  .glass::before{content:"";position:absolute;inset:0;border-radius:22px;padding:1px;background:linear-gradient(135deg,rgba(167,139,250,.5),rgba(34,211,238,.2) 40%,rgba(232,121,249,.35));
+    -webkit-mask:linear-gradient(#fff 0 0) content-box,linear-gradient(#fff 0 0);-webkit-mask-composite:xor;mask-composite:exclude;pointer-events:none}
+  .pal{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:10px}
+  .sw{border-radius:18px;padding:13px;height:96px;display:flex;flex-direction:column;justify-content:flex-end}
+  .sw b{font-size:12px}.sw span{font-family:'JetBrains Mono',monospace;font-size:10.5px;opacity:.8}
+  .type{padding:26px;display:grid;gap:8px}
+  .type .big{font-size:30px;font-weight:700;letter-spacing:-.02em}
+  .type .num{font-family:'JetBrains Mono',monospace;font-size:21px;color:var(--cian);text-shadow:0 0 20px rgba(34,211,238,.5)}
+  .type small{color:var(--muted)}
+  .grid{display:grid;grid-template-columns:1.2fr 1fr;gap:14px}
+  @media(max-width:700px){.grid{grid-template-columns:1fr}}
+  .panel{padding:16px}
+  .row{display:flex;align-items:center;gap:12px;padding:12px;border-radius:16px;transition:.2s}
+  .row:hover{background:rgba(255,255,255,.05)}
+  .av{width:42px;height:42px;border-radius:50%;display:grid;place-items:center;font-weight:700;font-size:14px;color:#fff;position:relative}
+  .av::after{content:"";position:absolute;inset:-3px;border-radius:50%;background:inherit;filter:blur(10px);opacity:.55;z-index:-1}
+  .rowbody{flex:1;min-width:0}
+  .rowtop{display:flex;justify-content:space-between;gap:8px}
+  .rowtop b{font-size:13.5px;font-weight:600}
+  .time{font-size:11px;color:var(--magenta);font-weight:700}
+  .prev{font-size:12.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px}
+  .tags{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}
+  .badge{font-size:10.5px;font-weight:700;padding:4px 11px;border-radius:99px;border:1px solid}
+  .chip{font-family:'JetBrains Mono',monospace;font-size:10.5px;font-weight:700;padding:4px 9px;border-radius:9px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.14)}
+  .kcard{padding:15px;margin-bottom:12px}
+  .monto{font-family:'JetBrains Mono',monospace;font-weight:700;font-size:15px;background:linear-gradient(90deg,var(--cian),var(--exito));-webkit-background-clip:text;background-clip:text;color:transparent}
+  .stat{padding:20px}
+  .stat .label{font-size:10px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:var(--muted)}
+  .stat .val{font-family:'JetBrains Mono',monospace;font-size:30px;font-weight:700;margin-top:8px;background:linear-gradient(90deg,var(--lila),var(--magenta));-webkit-background-clip:text;background-clip:text;color:transparent}
+  .chat{display:flex;flex-direction:column;gap:9px;padding:16px}
+  .bub{max-width:82%;padding:10px 13px;border-radius:16px;font-size:13px;line-height:1.5}
+  .in{align-self:flex-start;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.09);border-bottom-left-radius:5px}
+  .out{align-self:flex-end;background:linear-gradient(140deg,rgba(124,58,237,.42),rgba(34,211,238,.22));border:1px solid rgba(167,139,250,.4);border-bottom-right-radius:5px}
+  .pdf{display:flex;gap:10px;align-items:center;background:rgba(0,0,0,.3);border:1px solid rgba(232,121,249,.4);border-radius:13px;padding:9px 12px}
+  .pdf .ic{width:35px;height:35px;border-radius:10px;background:linear-gradient(135deg,var(--violeta),var(--magenta));display:grid;place-items:center;box-shadow:0 0 18px rgba(232,121,249,.5)}
+  .btns{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}
+  .btn{border:none;cursor:pointer;font:inherit;font-weight:700;font-size:13px;padding:12px 24px;border-radius:99px}
+  .btn.p{background:linear-gradient(90deg,var(--violeta),var(--magenta));color:#fff;box-shadow:0 8px 28px rgba(124,58,237,.5)}
+  .btn.s{background:linear-gradient(90deg,var(--cian),#67e8f9);color:#06202a}
+  .btn.g{background:rgba(255,255,255,.07);color:var(--txt);border:1px solid rgba(255,255,255,.14)}
+  .note{margin-top:44px;padding:22px 26px;font-size:13.5px;line-height:1.7;color:var(--muted)}
+  .note b{color:var(--txt)}
+  a.back{color:var(--muted);font-size:12px;text-decoration:none}
+</style>
+</head>
+<body>
+<div class="orb o1"></div><div class="orb o2"></div><div class="orb o3"></div>
+<div class="wrap">
+  <a class="back" href="index.html">← todos los estilos</a>
+  <p class="kicker" style="margin-top:18px">Estilo 06 · producto de IA</p>
+  <h1>Aurora <em>Glass</em></h1>
+  <p class="lede">Violeta profundo, orbes de luz difuminada y vidrio con bordes iridiscentes. El lenguaje visual de los productos de IA de 2026 — le dice al cliente "esto es tecnología de punta" sin decir una palabra.</p>
+
+  <h2>Paleta</h2>
+  <div class="pal">
+    <div class="sw" style="background:#070312;border:1px solid rgba(255,255,255,.1)"><b>Void</b><span>#070312</span></div>
+    <div class="sw" style="background:#7c3aed"><b>Violeta</b><span>#7C3AED</span></div>
+    <div class="sw" style="background:#a78bfa;color:#1c1145"><b>Lila</b><span>#A78BFA</span></div>
+    <div class="sw" style="background:#22d3ee;color:#06202a"><b>Cian</b><span>#22D3EE</span></div>
+    <div class="sw" style="background:#e879f9;color:#3d0a44"><b>Magenta</b><span>#E879F9</span></div>
+    <div class="sw" style="background:#34d399;color:#06281c"><b>Éxito</b><span>#34D399</span></div>
+  </div>
+
+  <h2>Tipografía & números</h2>
+  <div class="glass type">
+    <div class="big">Sora — futurista y redonda</div>
+    <div class="num">185/60 R14 · $285,20</div>
+    <small>Los montos brillan con gradiente; los titulares llevan degradado lila→cian.</small>
+  </div>
+
+  <h2>La app en este estilo</h2>
+  <div class="grid">
+    <div class="glass panel">
+      <div class="row">
+        <div class="av" style="background:linear-gradient(135deg,#e879f9,#7c3aed)">KM</div>
+        <div class="rowbody">
+          <div class="rowtop"><b>Karen Moya</b><span class="time">hace 30 min</span></div>
+          <div class="prev">Sí, voy hoy después del trabajo, tipo 5</div>
+          <div class="tags">
+            <span class="badge" style="color:#67e8f9;border-color:rgba(103,232,249,.4);background:rgba(34,211,238,.08)">● Por visitar</span>
+            <span class="chip">185/60 R14</span>
+          </div>
+        </div>
+      </div>
+      <div class="row">
+        <div class="av" style="background:linear-gradient(135deg,#22d3ee,#7c3aed)">RZ</div>
+        <div class="rowbody">
+          <div class="rowtop"><b>Roberto Zambrano</b><span class="time" style="color:var(--muted)">ahora</span></div>
+          <div class="prev">📄 Cotización PDF</div>
+          <div class="tags">
+            <span class="badge" style="color:#e9b1ff;border-color:rgba(232,121,249,.4);background:rgba(232,121,249,.08)">● Cotizado</span>
+            <span class="badge" style="color:#6ee7b7;border-color:rgba(52,211,153,.4);background:rgba(52,211,153,.08)">🤖 Bot</span>
+          </div>
+        </div>
+      </div>
+      <div class="btns">
+        <button class="btn p">Cerrar ticket</button>
+        <button class="btn s">▶ Demo</button>
+        <button class="btn g">Ver PDF</button>
+      </div>
+    </div>
+    <div>
+      <div class="glass kcard">
+        <b style="font-size:13px;font-weight:600">Roberto Zambrano</b>
+        <div style="display:flex;justify-content:space-between;margin-top:9px;align-items:center">
+          <span class="chip">185/60 R14</span><span class="monto">$285,20</span>
+        </div>
+      </div>
+      <div class="glass stat">
+        <div class="label">En juego (pipeline)</div>
+        <div class="val">$5.094,50</div>
+      </div>
+      <div class="glass chat" style="margin-top:12px">
+        <div class="bub in">Buenas 🙌 ¿tienen llantas para un Sail?</div>
+        <div class="bub out">¡Claro! ¿Me confirmas la medida? Algo como 185/60 R14</div>
+        <div class="bub out pdf"><span class="ic">📄</span><span style="font-size:12px"><b>Cotización #1042</b><br><span style="opacity:.65;font-size:10.5px">PDF · toca para ver</span></span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="glass note">
+    <b>Cuándo elegirlo:</b> si el pitch es "tu negocio con inteligencia artificial" — este estilo ES esa promesa hecha interfaz. Impacto máximo con Joaquín (generación que reconoce el lenguaje de Linear/Raycast/Vercel). <b>Riesgo:</b> se aleja de la identidad roja de Depot Tire (el rojo casi desaparece); es el look de la herramienta, no de la marca. <b>Vibra:</b> Linear · Raycast · lanzamiento de keynote de IA.
+  </div>
+</div>
+</body>
+</html>

@@ -32,6 +32,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-07-18 | _(este mismo)_ | Preparar deploy en Railway (schema al boot, catálogo opcional, railway.toml) | 1.0 |
 | 2026-07-17 | _(este mismo)_ | Publicación del hub completo en Vercel | 0.5 |
 | 2026-07-17 | _(este mismo)_ | Hub interno centralizado + demo visual + documentación navegable | 2.0 |
 | 2026-07-16 | _(este mismo)_ | Respuesta del cliente (audio) + pivote a Contífico + transcripción | 1.0 |
@@ -46,11 +47,27 @@ Ya viene activado en este equipo.
 | 2026-07-14 | ac09171 | Ubicaciones de locales + análisis de features del cliente | 1.5 |
 | 2026-07-13 | feadf57 | Brief + plan de desarrollo + plan financiero + catálogo | 4.0 |
 | 2026-07-13 | d997844 | Commit inicial (repo) | 0.25 |
-| | | **TOTAL** | **~28.25 h** |
+| | | **TOTAL** | **~29.25 h** |
 
 ---
 
 ## Entradas (más reciente primero)
+
+### 2026-07-18 · Preparar deploy del bot en Railway · ⏱️ 1.0 h
+**Commit:** _(este mismo)_
+
+**Qué se hizo:**
+- `railway.toml` en `app/`: build `npm ci && npm run build`, start `npm start`, healthcheck `/health`.
+- `db/schema.ts`: esquema inline + `ensureSchema()` que corre **al arrancar** (idempotente) → deploy de un clic, sin paso manual de migración. `migrate.ts` queda como opción manual.
+- `db/client.ts`: SSL configurable (`PGSSL=require`) — Railway Postgres (red interna) no usa SSL; Supabase sí.
+- Catálogo **opcional**: si faltan las credenciales de Sheets, el bot igual arranca y levanta el webhook (solo no cotiza con precios hasta conectarlo). Permite desplegar ya, con el catálogo pendiente (bloqueo #1 / Contífico).
+- Root route `/` simple (evita 404 al abrir la URL; ahí irá el landing).
+- Boot verificado: parsea config, importa todo y aplica schema; typecheck + 21 tests ✅.
+
+**Por qué:**
+- Decisión de centralizar TODO en Railway (una sola plataforma, $5/mes) en vez de Vercel+Railway. El bot es un proceso always-on (webhooks, sync, estado en memoria) → serverless no sirve. Hacer el catálogo opcional y el schema automático deja el deploy a "conectar repo + pegar variables", sin bloquear el despliegue por el catálogo que aún no está.
+
+---
 
 ### 2026-07-17 · Hub publicado en Vercel · ⏱️ 0.5 h
 **Commit:** _(este mismo)_

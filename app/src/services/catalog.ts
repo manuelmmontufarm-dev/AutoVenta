@@ -48,6 +48,7 @@ function getCell(row: Record<string, unknown>, ...names: string[]): string {
 }
 
 export async function syncCatalog(): Promise<SyncReport> {
+  if (!config.catalog) throw new Error("Catálogo no configurado");
   const auth = new JWT({
     email: config.catalog.serviceAccountEmail,
     key: config.catalog.privateKey,
@@ -98,6 +99,10 @@ export async function syncCatalog(): Promise<SyncReport> {
 }
 
 export function startCatalogSync(): void {
+  if (!config.catalog) {
+    console.warn("⚠️ Catálogo no configurado (sin credenciales de Sheets). El bot responde sin precios hasta conectarlo.");
+    return;
+  }
   const run = () =>
     syncCatalog()
       .then((r) => {
@@ -108,6 +113,7 @@ export function startCatalogSync(): void {
   run();
   setInterval(run, config.catalog.syncIntervalMs);
 }
+
 
 /** Búsqueda exacta por medida (con o sin stock, el agente decide qué decir). */
 export function searchBySize(size: TireSize): CatalogItem[] {

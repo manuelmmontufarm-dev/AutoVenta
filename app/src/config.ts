@@ -16,6 +16,14 @@ function envOr(name: string, fallback: string): string {
   return process.env[name] ?? fallback;
 }
 
+function catalogConfigured(): boolean {
+  return Boolean(
+    process.env.CATALOG_SHEET_ID &&
+      process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL &&
+      process.env.GOOGLE_PRIVATE_KEY,
+  );
+}
+
 export interface Store {
   name: string;
   address: string;
@@ -93,14 +101,21 @@ export const config = {
   },
 
   databaseUrl: env("DATABASE_URL"),
+  // Railway Postgres (red interna) no usa SSL; Supabase/proxy público sí → PGSSL=require
+  pgSsl: process.env.PGSSL === "require",
 
-  catalog: {
-    sheetId: env("CATALOG_SHEET_ID"),
-    serviceAccountEmail: env("GOOGLE_SERVICE_ACCOUNT_EMAIL"),
-    // Railway guarda los saltos de línea como \n literales
-    privateKey: env("GOOGLE_PRIVATE_KEY").replace(/\\n/g, "\n"),
-    syncIntervalMs: Number(envOr("CATALOG_SYNC_INTERVAL_MS", String(5 * 60_000))),
-  },
+  // Catálogo opcional: el bot puede desplegarse y levantar el webhook aunque el
+  // catálogo aún no esté conectado (bloqueo #1). Si faltan las credenciales de
+  // Sheets, el sync se salta y el agente responde sin precios hasta que se conecte.
+  catalog: catalogConfigured()
+    ? {
+        sheetId: env("CATALOG_SHEET_ID"),
+        serviceAccountEmail: env("GOOGLE_SERVICE_ACCOUNT_EMAIL"),
+        // Railway guarda los saltos de línea como \n literales
+        privateKey: env("GOOGLE_PRIVATE_KEY").replace(/\\n/g, "\n"),
+        syncIntervalMs: Number(envOr("CATALOG_SYNC_INTERVAL_MS", String(5 * 60_000))),
+      }
+    : null,
 
   pipeline: {
     /** Espera tras el último mensaje antes de responder (la gente escribe en ráfagas). */

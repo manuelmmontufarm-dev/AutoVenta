@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Estilo 05 · Neobrutalista Taller</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#fff8e7; --negro:#111111; --amarillo:#ffd60a; --rojo:#ef233c; --azul:#3a86ff; --verde:#06d6a0; --rosa:#ff70a6; --card:#ffffff;
+  }
+  *{box-sizing:border-box;margin:0}
+  body{font-family:'Space Grotesk',system-ui,sans-serif;color:var(--negro);background:var(--bg);min-height:100vh;padding:48px 20px 80px;
+    background-image:radial-gradient(#00000012 1.5px,transparent 1.5px);background-size:26px 26px}
+  .wrap{max-width:900px;margin:0 auto}
+  .kicker{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;background:var(--negro);color:var(--amarillo);padding:4px 10px;transform:rotate(-1.5deg)}
+  h1{font-size:clamp(34px,5.6vw,52px);font-weight:700;letter-spacing:-.02em;margin:14px 0 10px;text-transform:uppercase}
+  h1 mark{background:var(--amarillo);padding:0 8px;box-shadow:4px 4px 0 var(--negro)}
+  .lede{color:#3f3a2e;font-size:15.5px;max-width:620px;line-height:1.6;font-weight:500}
+  h2{font-size:12px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;margin:46px 0 14px;display:inline-block;background:var(--card);border:3px solid var(--negro);padding:5px 12px;box-shadow:4px 4px 0 var(--negro)}
+  .card{background:var(--card);border:3px solid var(--negro);border-radius:12px;box-shadow:6px 6px 0 var(--negro)}
+  .pal{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:14px}
+  .sw{border:3px solid var(--negro);border-radius:10px;padding:12px;height:96px;display:flex;flex-direction:column;justify-content:flex-end;box-shadow:5px 5px 0 var(--negro)}
+  .sw b{font-size:12px}.sw span{font-family:'Space Mono',monospace;font-size:10.5px}
+  .type{padding:26px;display:grid;gap:8px}
+  .type .big{font-size:28px;font-weight:700;text-transform:uppercase}
+  .type .num{font-family:'Space Mono',monospace;font-size:21px;background:var(--amarillo);display:inline-block;padding:2px 8px;border:2px solid var(--negro);width:fit-content}
+  .type small{color:#3f3a2e}
+  .grid{display:grid;grid-template-columns:1.2fr 1fr;gap:18px}
+  @media(max-width:700px){.grid{grid-template-columns:1fr}}
+  .panel{padding:16px}
+  .row{display:flex;align-items:center;gap:12px;padding:12px;border:3px solid var(--negro);border-radius:10px;margin-bottom:12px;background:#fff;box-shadow:4px 4px 0 var(--negro);transition:.1s}
+  .row:hover{transform:translate(-2px,-2px);box-shadow:6px 6px 0 var(--negro)}
+  .av{width:42px;height:42px;border-radius:10px;border:3px solid var(--negro);display:grid;place-items:center;font-weight:700;font-size:14px}
+  .rowbody{flex:1;min-width:0}
+  .rowtop{display:flex;justify-content:space-between;gap:8px}
+  .rowtop b{font-size:14px;font-weight:700}
+  .time{font-family:'Space Mono',monospace;font-size:10.5px;background:var(--rojo);color:#fff;padding:1px 6px;border:2px solid var(--negro);transform:rotate(2deg)}
+  .prev{font-size:13px;color:#3f3a2e;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:3px;font-weight:500}
+  .tags{display:flex;gap:8px;margin-top:9px;flex-wrap:wrap}
+  .badge{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding:4px 10px;border:2.5px solid var(--negro);border-radius:7px;box-shadow:3px 3px 0 var(--negro)}
+  .chip{font-family:'Space Mono',monospace;font-size:11px;padding:4px 8px;border:2.5px solid var(--negro);border-radius:7px;background:var(--negro);color:var(--amarillo)}
+  .kcard{padding:16px;margin-bottom:16px;transform:rotate(-.6deg)}
+  .monto{font-family:'Space Mono',monospace;font-weight:700;font-size:16px;background:var(--verde);padding:2px 8px;border:2.5px solid var(--negro)}
+  .stat{padding:20px;background:var(--amarillo)}
+  .stat .label{font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase}
+  .stat .val{font-family:'Space Mono',monospace;font-size:30px;font-weight:700;margin-top:6px}
+  .chat{display:flex;flex-direction:column;gap:10px;padding:16px}
+  .bub{max-width:82%;padding:10px 13px;border:3px solid var(--negro);border-radius:12px;font-size:13.5px;line-height:1.5;font-weight:500;box-shadow:4px 4px 0 var(--negro)}
+  .in{align-self:flex-start;background:#fff;border-bottom-left-radius:2px}
+  .out{align-self:flex-end;background:var(--verde);border-bottom-right-radius:2px}
+  .pdf{display:flex;gap:10px;align-items:center;background:var(--rosa)}
+  .pdf .ic{width:36px;height:36px;border-radius:8px;background:#fff;border:2.5px solid var(--negro);display:grid;place-items:center}
+  .btns{display:flex;gap:14px;flex-wrap:wrap;margin-top:18px}
+  .btn{cursor:pointer;font:inherit;font-weight:700;font-size:13.5px;text-transform:uppercase;letter-spacing:.04em;padding:12px 22px;border:3px solid var(--negro);border-radius:10px;box-shadow:5px 5px 0 var(--negro);transition:.1s}
+  .btn:active{transform:translate(4px,4px);box-shadow:1px 1px 0 var(--negro)}
+  .btn.p{background:var(--rojo);color:#fff}
+  .btn.s{background:var(--amarillo)}
+  .btn.g{background:#fff}
+  .note{margin-top:46px;padding:22px 26px;font-size:14px;line-height:1.7;color:#3f3a2e;font-weight:500}
+  .note b{color:var(--negro)}
+  a.back{color:#3f3a2e;font-size:12px;text-decoration:none;font-weight:700}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="back" href="index.html">← TODOS LOS ESTILOS</a><br>
+  <span class="kicker" style="margin-top:20px;display:inline-block">Estilo 05 · sticker bomb</span>
+  <h1>Neobrutalista <mark>Taller</mark></h1>
+  <p class="lede">Bordes negros gruesos, sombras duras que no se difuminan, colores de caja de herramientas y stickers rotados. Honesto y con carácter, como un taller de verdad: nada se esconde, todo se siente clickeable.</p>
+
+  <h2>Paleta</h2>
+  <div class="pal">
+    <div class="sw" style="background:#fff8e7"><b>Crema motor</b><span>#FFF8E7</span></div>
+    <div class="sw" style="background:#111;color:#fff"><b>Negro grasa</b><span>#111111</span></div>
+    <div class="sw" style="background:#ffd60a"><b>Amarillo gata</b><span>#FFD60A</span></div>
+    <div class="sw" style="background:#ef233c;color:#fff"><b>Rojo caja</b><span>#EF233C</span></div>
+    <div class="sw" style="background:#3a86ff;color:#fff"><b>Azul overol</b><span>#3A86FF</span></div>
+    <div class="sw" style="background:#06d6a0"><b>Verde OK</b><span>#06D6A0</span></div>
+  </div>
+
+  <h2>Tipografía & números</h2>
+  <div class="card type">
+    <div class="big">Space Grotesk — geométrica con actitud</div>
+    <div class="num">185/60 R14 · $285,20</div>
+    <small>Los datos importantes van "resaltados con marcador" sobre amarillo.</small>
+  </div>
+
+  <h2>La app en este estilo</h2>
+  <div class="grid">
+    <div class="card panel">
+      <div class="row">
+        <div class="av" style="background:var(--amarillo)">KM</div>
+        <div class="rowbody">
+          <div class="rowtop"><b>Karen Moya</b><span class="time">30 MIN</span></div>
+          <div class="prev">Sí, voy hoy después del trabajo, tipo 5</div>
+          <div class="tags">
+            <span class="badge" style="background:var(--verde)">Por visitar</span>
+            <span class="chip">185/60 R14</span>
+          </div>
+        </div>
+      </div>
+      <div class="row">
+        <div class="av" style="background:var(--azul);color:#fff">RZ</div>
+        <div class="rowbody">
+          <div class="rowtop"><b>Roberto Zambrano</b><span class="time" style="background:#111;transform:rotate(-2deg)">AHORA</span></div>
+          <div class="prev">📄 Cotización PDF</div>
+          <div class="tags">
+            <span class="badge" style="background:var(--amarillo)">Cotizado</span>
+            <span class="badge" style="background:#fff">🤖 Bot</span>
+          </div>
+        </div>
+      </div>
+      <div class="btns">
+        <button class="btn p">Cerrar ticket</button>
+        <button class="btn s">▶ Demo</button>
+        <button class="btn g">Ver PDF</button>
+      </div>
+    </div>
+    <div>
+      <div class="card kcard">
+        <b style="font-size:14px;text-transform:uppercase">Roberto Zambrano</b>
+        <div style="display:flex;justify-content:space-between;margin-top:10px;align-items:center">
+          <span class="chip">185/60 R14</span><span class="monto">$285,20</span>
+        </div>
+      </div>
+      <div class="card stat">
+        <div class="label">En juego (pipeline)</div>
+        <div class="val">$5.094,50</div>
+      </div>
+      <div class="card chat" style="margin-top:16px">
+        <div class="bub in">Buenas 🙌 ¿tienen llantas para un Sail?</div>
+        <div class="bub out">¡Claro! ¿Me confirmas la medida? Algo como 185/60 R14</div>
+        <div class="bub out pdf"><span class="ic">📄</span><span style="font-size:12.5px"><b>COTIZACIÓN #1042</b><br><span style="font-size:11px">PDF · toca para ver</span></span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card note">
+    <b>Cuándo elegirlo:</b> si quieren diferenciarse a gritos y que la app tenga personalidad de barrio + diseño de vanguardia (es LA tendencia 2024-2026 en productos jóvenes). Botones que se hunden = feedback táctil delicioso en celular. <b>Riesgo:</b> puede leerse informal para un cliente corporativo; el papá de Joaquín podría preferir algo más sobrio. <b>Vibra:</b> Figma/Gumroad · sticker de caja de herramientas · cómic industrial.
+  </div>
+</div>
+</body>
+</html>

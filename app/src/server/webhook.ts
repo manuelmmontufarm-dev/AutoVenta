@@ -27,5 +27,12 @@ export function createServer(): express.Express {
     res.json({ ok: true, catalog: catalogStatus() });
   });
 
+  // Página raíz: evita un 404 al abrir la URL del servicio. Aquí irá el landing.
+  app.get("/", (_req, res) => {
+    res.type("html").send(
+      "<h1>AutoVenta</h1><p>Bot de ventas de llantas por WhatsApp — servicio activo.</p>",
+    );
+  });
+
   return app;
 }
