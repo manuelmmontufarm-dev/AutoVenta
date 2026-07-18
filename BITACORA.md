@@ -32,6 +32,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-07-18 | _(este mismo)_ | Fix handoff: guardar mensajes del cliente con bot pausado + typing honesto | 0.5 |
 | 2026-07-18 | _(este mismo)_ | Racing Heritage aplicado a todo el frontend + hub compacto | 1.0 |
 | 2026-07-18 | _(este mismo)_ | Demo del Hub en 4 estilos: temas CSS (showroom/racing/neobrutalista) + deploy | 1.5 |
 | 2026-07-18 | _(este mismo)_ | Herramientas de operación en línea: /mensajes, /configuracion/ia, /tester | 2.5 |
@@ -52,11 +53,24 @@ Ya viene activado en este equipo.
 | 2026-07-14 | ac09171 | Ubicaciones de locales + análisis de features del cliente | 1.5 |
 | 2026-07-13 | feadf57 | Brief + plan de desarrollo + plan financiero + catálogo | 4.0 |
 | 2026-07-13 | d997844 | Commit inicial (repo) | 0.25 |
-| | | **TOTAL** | **~36.75 h** |
+| | | **TOTAL** | **~37.25 h** |
 
 ---
 
 ## Entradas (más reciente primero)
+
+### 2026-07-18 · Fix handoff: mensajes con bot pausado + typing honesto · ⏱️ 0.5 h
+**Commit:** _(este mismo)_
+
+**Qué se hizo:**
+- **Bug:** con el bot pausado (handoff tras envío manual desde /mensajes), los mensajes del cliente se descartaban ANTES de guardarse — no aparecían en el panel, justo cuando el dueño más necesita leerlos. Además `received("text")` mostraba "escribiendo…" en cada mensaje entrante, aunque el bot estuviera pausado y nunca fuera a contestar.
+- **Fix en `app/src/index.ts`:** el pipeline ahora guarda el mensaje (con idempotencia) y actualiza funnel/etapa ANTES del check de pausa; si está pausado, calla pero todo queda en el panel. El typing se movió a después del check: `showTyping()` (nuevo helper en `wa/client.ts` = markAsRead + indicador) solo cuando el bot sí va a responder. El handler de webhook ahora solo marca leído (`received()` sin argumento).
+- Typecheck limpio y los 21 tests pasan.
+
+**Por qué:**
+- Prueba real del dueño: escribió al número, el mensaje no salía en el panel, y WhatsApp mostraba "escribiendo…" sin respuesta — parecía bot roto cuando en realidad estaba pausado por los envíos manuales de prueba. Ahora el panel es la fuente de verdad del chat y el typing no miente.
+
+---
 
 ### 2026-07-18 · Racing Heritage en todo el frontend + hub compacto · ⏱️ 1.0 h
 **Commit:** _(este mismo)_

@@ -20,6 +20,11 @@ export async function sendText(to: string, body: string): Promise<void> {
   await wa.sendMessage(phoneId, to, new Text(body));
 }
 
+/** Marca leído + "escribiendo…". Llamar solo cuando el bot SÍ va a responder. */
+export async function showTyping(messageId: string): Promise<void> {
+  await wa.markAsRead(phoneId, messageId, "text");
+}
+
 /** Sube un PDF a Meta y lo envía como documento. */
 export async function sendPdf(
   to: string,

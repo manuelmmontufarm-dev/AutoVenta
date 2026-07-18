@@ -4,7 +4,7 @@
  */
 import { config } from "./config.js";
 import { createServer } from "./server/webhook.js";
-import { wa, sendText } from "./wa/client.js";
+import { wa, sendText, showTyping } from "./wa/client.js";
 import { InboundPipeline } from "./pipeline/inbound.js";
 import { runAgent } from "./agent/agent.js";
 import { classifyStage } from "./agent/classifier.js";
@@ -21,9 +21,6 @@ import {
 const pipeline = new InboundPipeline(async ({ from, name, text, waMessageIds }) => {
   const conversation = await getOrCreateConversation(from, name);
 
-  // Handoff: si el dueño está atendiendo este chat a mano, el bot calla.
-  if (await isBotPaused(conversation)) return;
-
   // Idempotencia definitiva: si TODOS los mensajes ya estaban en DB, es un retry.
   let anyNew = false;
   for (const waId of waMessageIds) {
@@ -36,6 +33,13 @@ const pipeline = new InboundPipeline(async ({ from, name, text, waMessageIds }) 
     await logFunnelEvent(conversation.id, "primer_mensaje");
     await setStage(conversation.id, "conversando");
   }
+
+  // Handoff: si el dueño está atendiendo este chat a mano, el bot calla — pero
+  // lo del cliente ya quedó guardado arriba para que el dueño lo lea en /mensajes.
+  if (await isBotPaused(conversation)) return;
+
+  // Recién aquí se sabe que el bot va a responder: "escribiendo…" honesto.
+  void showTyping(waMessageIds[waMessageIds.length - 1]).catch(() => {});
 
   const reply = await runAgent(
     { conversation, customerPhone: from, customerName: name },
@@ -50,8 +54,9 @@ const pipeline = new InboundPipeline(async ({ from, name, text, waMessageIds }) 
 });
 
 wa.on.message = async ({ from, name, message, received }) => {
-  // Marca como leído + indicador de escribiendo (buena UX, cero costo)
-  void received("text").catch(() => {});
+  // Solo marca como leído. El "escribiendo…" se muestra en el pipeline cuando
+  // el bot de verdad va a responder (pausado = ni typing ni respuesta).
+  void received().catch(() => {});
 
   switch (message.type) {
     case "text":
