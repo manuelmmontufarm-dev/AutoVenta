@@ -1,7 +1,8 @@
 # Config de deploy en Railway. El Root Directory del servicio debe ser `app/`.
+# Sin buildCommand custom: Nixpacks ya corre npm ci + npm run build con sus
+# cache mounts (un buildCommand con `npm ci` choca con el cache → EBUSY).
 [build]
 builder = "nixpacks"
-buildCommand = "npm ci && npm run build"
 
 [deploy]
 startCommand = "npm start"

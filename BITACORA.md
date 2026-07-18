@@ -32,6 +32,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-07-18 | _(este mismo)_ | Deploy en Railway en vivo: root dir, dominio, fix EBUSY del build | 1.0 |
 | 2026-07-18 | _(este mismo)_ | Migración del agente de Anthropic a OpenAI GPT | 1.5 |
 | 2026-07-18 | _(este mismo)_ | Preparar deploy en Railway (schema al boot, catálogo opcional, railway.toml) | 1.0 |
 | 2026-07-17 | _(este mismo)_ | Publicación del hub completo en Vercel | 0.5 |
@@ -48,11 +49,27 @@ Ya viene activado en este equipo.
 | 2026-07-14 | ac09171 | Ubicaciones de locales + análisis de features del cliente | 1.5 |
 | 2026-07-13 | feadf57 | Brief + plan de desarrollo + plan financiero + catálogo | 4.0 |
 | 2026-07-13 | d997844 | Commit inicial (repo) | 0.25 |
-| | | **TOTAL** | **~30.75 h** |
+| | | **TOTAL** | **~31.75 h** |
 
 ---
 
 ## Entradas (más reciente primero)
+
+### 2026-07-18 · Deploy en Railway en vivo · ⏱️ 1.0 h
+**Commit:** _(este mismo)_
+
+**Qué se hizo:**
+- Proyecto Railway `cheerful-solace`: Postgres online + servicio AutoVenta desde GitHub.
+- Se aplicaron las 7 variables que estaban en borrador (el "Apply changes" nunca se había pulsado).
+- **Root Directory `/app` configurado** — era la causa del primer "Build failed" (Railway buildeaba la raíz del repo, sin package.json).
+- Dominio público generado: `autoventa-production.up.railway.app` (puerto 3000).
+- **Fix del segundo build fallido**: quitar `buildCommand` custom del `railway.toml`. Nixpacks monta un cache Docker en `node_modules/.cache` y nuestro `npm ci` no podía borrarlo (`EBUSY`). Nixpacks ya corre install+build solo.
+- Token de WhatsApp verificado contra la Graph API (responde el test number ✅).
+
+**Por qué:**
+- Decisión de centralizar todo en Railway ($5/mes) sin Vercel. El deploy estaba "configurado" pero nunca aplicado ni con root directory — el bot no había corrido nunca. Pendientes detectados: `SELLER_PHONE=593` incompleto, y el token de WhatsApp es el mismo del wa-tester (posible 24h — funciona hoy, generar permanente).
+
+---
 
 ### 2026-07-18 · Migración del agente a OpenAI GPT · ⏱️ 1.5 h
 **Commit:** _(este mismo)_
