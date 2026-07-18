@@ -32,6 +32,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-07-18 | _(este mismo)_ | Racing Heritage aplicado a todo el frontend + hub compacto | 1.0 |
 | 2026-07-18 | _(este mismo)_ | Demo del Hub en 4 estilos: temas CSS (showroom/racing/neobrutalista) + deploy | 1.5 |
 | 2026-07-18 | _(este mismo)_ | Herramientas de operación en línea: /mensajes, /configuracion/ia, /tester | 2.5 |
 | 2026-07-18 | _(este mismo)_ | Deploy en Railway en vivo: root dir, dominio, fix EBUSY del build | 1.0 |
@@ -51,11 +52,25 @@ Ya viene activado en este equipo.
 | 2026-07-14 | ac09171 | Ubicaciones de locales + análisis de features del cliente | 1.5 |
 | 2026-07-13 | feadf57 | Brief + plan de desarrollo + plan financiero + catálogo | 4.0 |
 | 2026-07-13 | d997844 | Commit inicial (repo) | 0.25 |
-| | | **TOTAL** | **~35.75 h** |
+| | | **TOTAL** | **~36.75 h** |
 
 ---
 
 ## Entradas (más reciente primero)
+
+### 2026-07-18 · Racing Heritage en todo el frontend + hub compacto · ⏱️ 1.0 h
+**Commit:** _(este mismo)_
+
+**Qué se hizo:**
+- Decisión tomada: **Racing Heritage (estilo 04) es el elegido**. Se aplicó a todas las superficies: hub (`/`), mensajes de WhatsApp, configuración de IA, WA tester, galería de estilos y el demo React (`/demo/` ahora arranca en racing por defecto; `?theme=aurora` conserva el tema anterior).
+- El hub se reorganizó para ser más compacto: documentación, negocio y plataformas pasaron de cards grandes a filas densas de una línea; la demo destacada es una card navy con franja de pit lane y los 4 estilos como pills (racing marcado 🏆); operación queda en 4 cards compactas.
+- Las herramientas (mensajes/config/tester) solo cambiaron de `<style>` — el JS y el HTML quedaron intactos, así que la lógica de Codex (API, gate ADMIN_KEY, polling) no se tocó.
+- La galería `/estilos/` quedó en crema racing con la card 04 marcada "🏆 elegido" y la botonera reordenada.
+
+**Por qué:**
+- Feedback directo: "el Racing Heritage ux y color pallet ganó". Un solo lenguaje visual en todo el proyecto — de la landing al tester — para que se sienta producto y no colcha de retazos.
+
+---
 
 ### 2026-07-18 · Demo del Hub en 4 estilos · ⏱️ 1.5 h
 **Commit:** _(este mismo)_

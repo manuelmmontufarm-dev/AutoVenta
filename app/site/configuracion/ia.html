@@ -4,62 +4,63 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Configuración de IA · AutoVenta</title>
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23e3262e'/%3E%3Ctext x='32' y='42' font-family='Inter,sans-serif' font-size='26' font-weight='800' fill='white' text-anchor='middle'%3EDT%3C/text%3E%3C/svg%3E">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23d62828'/%3E%3Crect x='2' y='2' width='60' height='60' rx='12' fill='none' stroke='%2314213d' stroke-width='4'/%3E%3Ctext x='32' y='42' font-family='Arial Black,sans-serif' font-size='24' font-weight='900' fill='white' text-anchor='middle'%3EDT%3C/text%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=Archivo+Black&display=swap" rel="stylesheet">
 <style>
-  :root{
-    --bg:#0a1020; --panel:rgba(17,26,49,.62); --panel2:rgba(17,26,49,.9); --line:rgba(255,255,255,.09);
-    --paper:#f5f1e9; --muted:#a3acc2; --faint:#6b7590; --red:#e3262e; --green:#34d399; --violet:#a78bfa;
+:root{
+    --crema:#f6f1e4; --card:#fffdf6; --navy:#14213d; --rojo:#d62828; --amarillo:#fcbf49;
+    --verde:#2a9d8f; --linea:#d9d2bf; --muted:#5c6273; --faint:#8a8368; --azul:#1f4e8c;
+    /* alias del esquema anterior que usan HTML/JS */
+    --bg:var(--crema); --panel:var(--card); --panel2:var(--card); --line:var(--linea);
+    --paper:var(--navy); --red:var(--rojo); --green:var(--verde); --blue:var(--azul);
+    --amber:#b07300; --teal:var(--verde); --violet:var(--rojo);
   }
   *{box-sizing:border-box;margin:0}
-  body{
-    font-family:Inter,system-ui,sans-serif;color:var(--paper);min-height:100vh;
-    background:
-      radial-gradient(110% 80% at 15% -10%, rgba(23,61,118,.55) 0%, transparent 60%),
-      radial-gradient(120% 90% at 50% 0%, #0d1530 0%, #0a1020 55%, #070b16 100%);
-    background-attachment:fixed;
-  }
-  .wrap{max-width:640px;margin:0 auto;padding:40px 22px 80px}
-  header{display:flex;align-items:center;gap:12px;margin-bottom:28px}
-  .logo{width:36px;height:36px;border-radius:11px;background:var(--violet);display:grid;place-items:center;font-size:16px}
-  header b{font-size:16px}
-  header span{display:block;font-size:11.5px;color:var(--muted)}
-  header a{margin-left:auto;color:var(--muted);text-decoration:none;font-size:12px;font-weight:600}
-  header a:hover{color:var(--paper)}
-  .card{background:var(--panel);backdrop-filter:blur(20px);border:1px solid var(--line);border-radius:18px;padding:24px;margin-bottom:16px}
-  .card h2{font-size:12px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin-bottom:14px}
-  textarea{width:100%;background:rgba(255,255,255,.04);border:1px solid var(--line);border-radius:10px;
-    color:var(--paper);font:inherit;font-size:13.5px;padding:11px 14px;resize:vertical;min-height:88px}
-  .hint{font-size:11.5px;color:var(--faint);margin-top:8px;line-height:1.6}
+  body{font-family:Archivo,system-ui,sans-serif;color:var(--navy);min-height:100vh;background:var(--crema);padding:0 20px}
+  body::before{content:"";display:block;height:12px;margin:0 -20px;background:conic-gradient(var(--navy) 90deg,transparent 90deg 180deg,var(--navy) 180deg 270deg,transparent 270deg) 0 0/12px 12px}
+  .wrap{max-width:640px;margin:0 auto;padding:30px 0 80px}
+  header{display:flex;align-items:center;gap:12px;margin-bottom:24px}
+  .logo{width:36px;height:36px;border-radius:10px;background:var(--amarillo);border:2px solid var(--navy);box-shadow:2px 2px 0 var(--navy);display:grid;place-items:center;font-size:16px}
+  header b{font-size:16px;font-weight:800;text-transform:uppercase;letter-spacing:.02em}
+  header span{display:block;font-size:11.5px;color:var(--muted);font-weight:600;text-transform:none;letter-spacing:0}
+  header a{margin-left:auto;color:var(--muted);text-decoration:none;font-size:12px;font-weight:700}
+  header a:hover{color:var(--navy)}
+  .card{background:var(--card);border:2px solid var(--navy);border-radius:14px;padding:22px;margin-bottom:14px;box-shadow:0 5px 0 rgba(20,33,61,.14)}
+  .card h2{font-size:12px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:var(--faint);margin-bottom:14px}
+  textarea{width:100%;background:#fff;border:2px solid var(--navy);border-radius:10px;
+    color:var(--navy);font:inherit;font-size:13.5px;padding:11px 14px;resize:vertical;min-height:88px}
+  .hint{font-size:11.5px;color:var(--faint);margin-top:8px;line-height:1.6;font-weight:500}
   .opts{display:flex;gap:8px;flex-wrap:wrap}
-  .opt{flex:1;min-width:110px;background:rgba(255,255,255,.03);border:1px solid var(--line);border-radius:11px;
-    padding:12px;cursor:pointer;text-align:center;font-size:12.5px;font-weight:700;color:var(--muted)}
+  .opt{flex:1;min-width:110px;background:#fff;border:2px solid var(--linea);border-radius:11px;
+    padding:12px;cursor:pointer;text-align:center;font-size:12.5px;font-weight:700;color:var(--muted);transition:.12s}
   .opt small{display:block;font-weight:500;font-size:10.5px;margin-top:3px;color:var(--faint)}
-  .opt.sel{border-color:rgba(52,211,153,.55);color:var(--paper);background:rgba(52,211,153,.08)}
+  .opt.sel{border-color:var(--navy);color:var(--navy);background:var(--amarillo);box-shadow:0 3px 0 var(--navy)}
+  .opt.sel small{color:var(--navy)}
   .row{display:flex;align-items:center;gap:14px}
-  .switch{width:44px;height:25px;border-radius:99px;background:rgba(255,255,255,.1);border:1px solid var(--line);
+  .switch{width:44px;height:25px;border-radius:99px;background:#fff;border:2px solid var(--navy);
     position:relative;cursor:pointer;flex-shrink:0;transition:.15s}
-  .switch::after{content:"";position:absolute;top:2px;left:2px;width:19px;height:19px;border-radius:50%;background:#fff;transition:.15s}
-  .switch.on{background:var(--green)}
-  .switch.on::after{left:21px}
-  .row p{font-size:12.5px;color:var(--muted);line-height:1.55;flex:1}
-  .emoji-in{width:70px;text-align:center;font-size:20px;background:rgba(255,255,255,.04);
-    border:1px solid var(--line);border-radius:10px;color:var(--paper);padding:8px}
+  .switch::after{content:"";position:absolute;top:2px;left:2px;width:17px;height:17px;border-radius:50%;background:var(--navy);transition:.15s}
+  .switch.on{background:var(--verde)}
+  .switch.on::after{left:21px;background:#fff}
+  .row p{font-size:12.5px;color:var(--muted);line-height:1.55;flex:1;font-weight:500}
+  .emoji-in{width:70px;text-align:center;font-size:20px;background:#fff;
+    border:2px solid var(--navy);border-radius:10px;color:var(--navy);padding:8px}
   .save{position:sticky;bottom:18px;display:flex;gap:12px;align-items:center}
-  .save button{background:var(--green);color:#04120d;border:none;border-radius:12px;padding:14px 30px;
-    font-weight:800;font-size:14px;cursor:pointer;box-shadow:0 10px 30px rgba(0,0,0,.4)}
+  .save button{background:var(--rojo);color:#fff;border:2.5px solid var(--navy);border-radius:12px;padding:13px 28px;
+    font-weight:800;font-size:13px;text-transform:uppercase;letter-spacing:.05em;cursor:pointer;box-shadow:0 4px 0 var(--navy);transition:.12s}
+  .save button:hover{transform:translateY(2px);box-shadow:0 2px 0 var(--navy)}
   .save button:disabled{opacity:.5}
-  .save .st{font-size:12.5px;color:var(--muted)}
-  .save .st.ok{color:var(--green)}
-  .save .st.err{color:#ffb4b8}
-  .gate{position:fixed;inset:0;background:rgba(7,11,22,.88);backdrop-filter:blur(8px);display:none;place-items:center;z-index:99}
-  .gate .box{background:var(--panel2);border:1px solid var(--line);border-radius:16px;padding:28px;width:min(360px,90vw)}
-  .gate h2{font-size:15px;margin-bottom:6px}
-  .gate p{font-size:12px;color:var(--muted);margin-bottom:16px;line-height:1.6}
-  .gate input{width:100%;background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:9px;
-    color:var(--paper);font:inherit;padding:10px 13px;margin-bottom:12px}
-  .gate button{width:100%;background:var(--green);color:#04120d;border:none;border-radius:9px;padding:11px;font-weight:800;cursor:pointer}
+  .save .st{font-size:12.5px;color:var(--muted);font-weight:600}
+  .save .st.ok{color:var(--verde)}
+  .save .st.err{color:var(--rojo)}
+  .gate{position:fixed;inset:0;background:rgba(20,33,61,.55);display:none;place-items:center;z-index:99}
+  .gate .box{background:var(--card);border:2.5px solid var(--navy);border-radius:14px;padding:28px;width:min(360px,90vw);box-shadow:0 6px 0 rgba(20,33,61,.3)}
+  .gate h2{font-size:15px;margin-bottom:6px;font-weight:800;text-transform:uppercase}
+  .gate p{font-size:12px;color:var(--muted);margin-bottom:16px;line-height:1.6;font-weight:500}
+  .gate input{width:100%;background:#fff;border:2px solid var(--navy);border-radius:9px;
+    color:var(--navy);font:inherit;padding:10px 13px;margin-bottom:12px}
+  .gate button{width:100%;background:var(--verde);color:#fff;border:2px solid var(--navy);border-radius:9px;padding:11px;font-weight:800;cursor:pointer;box-shadow:0 3px 0 var(--navy)}
 </style>
 </head>
 <body>
