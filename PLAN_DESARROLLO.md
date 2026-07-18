@@ -10,7 +10,7 @@
 | Pieza | Con qué | Por qué | Costo |
 |---|---|---|---|
 | **Canal WhatsApp** | **Meta WhatsApp Cloud API directo** + **coexistence** (app + API en el mismo número) | Conversaciones iniciadas por el cliente son **GRATIS e ilimitadas** desde nov-2024. Un BSP (WATI, 360dialog, Twilio) cobra $15–75/mes por el mismo tráfico. Coexistence deja al dueño seguir usando su app. | ~$1–2/mes (solo alertas) |
-| **Cerebro del bot** | **Claude API** (`@anthropic-ai/sdk`, tool runner con Zod), agente único con 6–8 tools | Patrón dominante 2026: un LLM con function calling decide qué tool llamar. LangGraph = sobre-ingeniería para un solo agente. | $5–25/mes según modelo/volumen |
+| **Cerebro del bot** | **OpenAI GPT API** (SDK `openai`, function calling con Zod), agente único con 6–8 tools | Un LLM con function calling decide qué tool llamar. LangGraph = sobre-ingeniería para un solo agente. GPT-4o mini mantiene bajo el costo del piloto. | Bajo según modelo/volumen |
 | **Modelo LLM** | **Sonnet 5** ($3/$15, intro $2/$10 hasta ago-2026) para conversación; **Haiku 4.5** ($1/$5) para clasificador de etapa | A este volumen el costo es marginal — se elige por calidad, no por precio. Visión incluida (fotos de llantas). | incluido arriba |
 | **Anti-caos de mensajes** | Debounce por número (timer 4–8 s) + cola FIFO por usuario + idempotencia por `message.id` | La gente manda 3 mensajes seguidos; sin buffer = respuestas duplicadas y 3× costo. Meta reintenta webhooks → idempotencia obligatoria. | $0 (~30 líneas) |
 | **Parsing de medidas** | Tool con schema `strict: true` + **regex de normalización** (`185 R14`, `185/65-14`, `175 65 14` → canónico) | El LLM extrae, la regex valida. Cero medidas alucinadas: la búsqueda solo acepta valores validados. | $0 |
@@ -41,7 +41,7 @@ Cliente WhatsApp ──► Meta Cloud API ──► Webhook (Express en Railway)
                                      Debounce (4–8s) + cola FIFO por número
                                             │
                                             ▼
-                              Agente Claude (tool runner, 6–8 tools)
+                              Agente OpenAI GPT (function calling, 6–8 tools)
                               ├─ buscar_llanta(ancho, perfil, rin)  ──► caché catálogo (← Google Sheets sync)
                               ├─ fitment_vehiculo(marca, modelo, año) ──► tabla curada Ecuador
                               ├─ generar_cotizacion(items) ──► pdfmake ──► media upload ──► WhatsApp
@@ -95,7 +95,7 @@ Cliente WhatsApp ──► Meta Cloud API ──► Webhook (Express en Railway)
 ## 3. El agente (cerebro)
 
 ### 3.1 Stack
-- `@anthropic-ai/sdk` directo con **tool runner** (`toolRunner` + `betaZodTool`): el SDK ejecuta el loop agéntico completo (~50–100 líneas propias). Sin LangGraph/LangChain.
+- SDK oficial `openai` con **function calling**: el bot ejecuta las tools locales y devuelve sus resultados al modelo en un loop corto. Sin LangGraph/LangChain.
 - **Modelos:** Sonnet 5 para la conversación (calidad en español informal + visión); Haiku 4.5 para el clasificador de etapa. Opus 4.8 como opción de máxima calidad (a este volumen la diferencia son ~$20–40/mes).
 - **Prompt caching:** system prompt + tools estables al inicio → lecturas de caché a ~10% del precio. Regla: nada volátil (timestamps) en el system prompt.
 - Español ecuatoriano: no requiere nada especial — system prompt con tono local y 5–10 ejemplos de jerga ("de una", "aro" = rin, "ñaño").
@@ -174,7 +174,7 @@ Ruta de crecimiento sin re-arquitectura: Supabase Pro (+$25) cuando haga falta n
 | Free tiers que cambian (ya pasó: UptimeRobot dic-24, Fly oct-24, Hetzner jun-26) | 1–2×/año | Presupuestar que algún $0 se vuelva $5–10 |
 | Dependencias npm / SDK majors | Continuo | Dependabot agrupado mensual |
 | DB acercándose a 500 MB | Silencioso | Purga >90 días + alerta a 350 MB |
-| Modelos de Claude deprecados | ~1×/año | ID del modelo en config |
+| Modelos GPT deprecados | ~1×/año | ID del modelo en config |
 | Pausa Supabase por inactividad | Solo si el negocio para >7 días | Keep-alive diario |
 
 **Horas realistas: 1–3 h/mes normal; picos de 4–8 h 1–2×/año. Total ~25–40 h/año.** → Esto se cobra en la mensualidad, no se regala (ver PLAN_FINANCIERO.md).

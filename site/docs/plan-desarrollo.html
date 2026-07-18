@@ -73,9 +73,9 @@ Volumen objetivo: 10–50 chats/día (~300–1.500 conversaciones/mes), 2 locale
 </tr>
 <tr>
 <td><strong>Cerebro del bot</strong></td>
-<td><strong>Claude API</strong> (<code>@anthropic-ai/sdk</code>, tool runner con Zod), agente único con 6–8 tools</td>
-<td>Patrón dominante 2026: un LLM con function calling decide qué tool llamar. LangGraph = sobre-ingeniería para un solo agente.</td>
-<td>$5–25/mes según modelo/volumen</td>
+<td><strong>OpenAI GPT API</strong> (SDK <code>openai</code>, function calling con Zod), agente único con 6–8 tools</td>
+<td>Un LLM con function calling decide qué tool llamar. LangGraph = sobre-ingeniería para un solo agente. GPT-4o mini mantiene bajo el costo del piloto.</td>
+<td>Bajo según modelo/volumen</td>
 </tr>
 <tr>
 <td><strong>Modelo LLM</strong></td>
@@ -183,7 +183,7 @@ Volumen objetivo: 10–50 chats/día (~300–1.500 conversaciones/mes), 2 locale
                                      Debounce (4–8s) + cola FIFO por número
                                             │
                                             ▼
-                              Agente Claude (tool runner, 6–8 tools)
+                              Agente OpenAI GPT (function calling, 6–8 tools)
                               ├─ buscar_llanta(ancho, perfil, rin)  ──► caché catálogo (← Google Sheets sync)
                               ├─ fitment_vehiculo(marca, modelo, año) ──► tabla curada Ecuador
                               ├─ generar_cotizacion(items) ──► pdfmake ──► media upload ──► WhatsApp
@@ -237,7 +237,7 @@ Volumen objetivo: 10–50 chats/día (~300–1.500 conversaciones/mes), 2 locale
 <h2>3. El agente (cerebro)</h2>
 <h3>3.1 Stack</h3>
 <ul>
-<li><code>@anthropic-ai/sdk</code> directo con <strong>tool runner</strong> (<code>toolRunner</code> + <code>betaZodTool</code>): el SDK ejecuta el loop agéntico completo (~50–100 líneas propias). Sin LangGraph/LangChain.</li>
+<li>SDK oficial <code>openai</code> con <strong>function calling</strong>: el bot ejecuta las tools locales y devuelve sus resultados al modelo en un loop corto. Sin LangGraph/LangChain.</li>
 <li><strong>Modelos:</strong> Sonnet 5 para la conversación (calidad en español informal + visión); Haiku 4.5 para el clasificador de etapa. Opus 4.8 como opción de máxima calidad (a este volumen la diferencia son ~$20–40/mes).</li>
 <li><strong>Prompt caching:</strong> system prompt + tools estables al inicio → lecturas de caché a ~10% del precio. Regla: nada volátil (timestamps) en el system prompt.</li>
 <li>Español ecuatoriano: no requiere nada especial — system prompt con tono local y 5–10 ejemplos de jerga (&quot;de una&quot;, &quot;aro&quot; = rin, &quot;ñaño&quot;).</li>
@@ -387,7 +387,7 @@ Volumen objetivo: 10–50 chats/día (~300–1.500 conversaciones/mes), 2 locale
 <td>Purga &gt;90 días + alerta a 350 MB</td>
 </tr>
 <tr>
-<td>Modelos de Claude deprecados</td>
+<td>Modelos GPT deprecados</td>
 <td>~1×/año</td>
 <td>ID del modelo en config</td>
 </tr>

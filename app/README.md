@@ -15,7 +15,7 @@ Cliente WhatsApp ─► Meta Cloud API ─► POST /webhook (Express, firma veri
                               (idempotencia + debounce 5s + FIFO por chat)
                                           │
                                           ▼
-                              agent/agent.ts — Claude tool runner
+                              agent/agent.ts — OpenAI function calling
                               ├─ buscar_llanta        → services/catalog.ts (← Google Sheets, sync 5 min)
                               ├─ fitment_vehiculo     → domain/fitment.ts (tabla Ecuador)
                               ├─ generar_cotizacion   → services/quotePdf.ts → sendPdf()
@@ -45,7 +45,7 @@ Cliente WhatsApp ─► Meta Cloud API ─► POST /webhook (Express, firma veri
 | Pieza | Fuente | Licencia |
 |---|---|---|
 | Cliente Cloud API + firma webhook + middleware Express | [whatsapp-api-js](https://github.com/Secreto31126/whatsapp-api-js) | MIT |
-| Loop del agente con tools | [tool runner oficial `@anthropic-ai/sdk`](https://github.com/anthropics/anthropic-sdk-typescript) (`betaZodTool` + `toolRunner`) | MIT |
+| Loop del agente con tools | SDK oficial [`openai`](https://github.com/openai/openai-node) + function calling | MIT |
 | Catálogo desde Google Sheets | [google-spreadsheet](https://github.com/theoephraim/node-google-spreadsheet) | MIT |
 | PDF de cotización | [pdfmake](https://github.com/bpampuch/pdfmake) 0.3 (layout propio) | MIT |
 | Postgres | [postgres (porsager)](https://github.com/porsager/postgres) | Unlicense |

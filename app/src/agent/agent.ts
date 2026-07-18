@@ -1,40 +1,65 @@
 /**
- * Loop del agente: tool runner oficial del SDK de Anthropic.
- * El runner ejecuta las tools y re-consulta al modelo hasta terminar.
+ * Loop del agente con OpenAI Chat Completions y function calling.
+ * Ejecuta las tools locales y devuelve los resultados al modelo hasta obtener
+ * una respuesta final para WhatsApp.
  */
-import Anthropic from "@anthropic-ai/sdk";
+import OpenAI from "openai";
+import type { ChatCompletionMessageParam, ChatCompletionTool } from "openai/resources/chat/completions";
 import { config } from "../config.js";
 import { getHistory } from "../services/conversations.js";
 import { buildSystemPrompt } from "./prompts.js";
 import { buildTools, type AgentContext } from "./tools.js";
 
-const anthropic = new Anthropic();
+const openai = new OpenAI({ apiKey: config.openai.apiKey });
 const systemPrompt = buildSystemPrompt();
 
 export async function runAgent(ctx: AgentContext, userText: string): Promise<string> {
   const history = await getHistory(ctx.conversation.id);
+  const localTools = buildTools(ctx);
+  const tools: ChatCompletionTool[] = localTools.map(({ execute: _execute, ...tool }) => ({
+    type: "function",
+    function: tool.function,
+  }));
+  const messages: ChatCompletionMessageParam[] = [
+    { role: "system", content: systemPrompt },
+    ...history,
+    { role: "user", content: userText },
+  ];
 
-  const finalMessage = await anthropic.beta.messages.toolRunner({
-    model: config.anthropic.model,
-    max_tokens: config.anthropic.maxTokens,
-    system: [
-      {
-        type: "text",
-        text: systemPrompt,
-        // Prompt estable → cache hit en cada mensaje de cada cliente
-        cache_control: { type: "ephemeral" },
-      },
-    ],
-    tools: buildTools(ctx),
-    messages: [...history, { role: "user", content: userText }],
-    max_iterations: 8,
-  });
+  for (let iteration = 0; iteration < 8; iteration += 1) {
+    const response = await openai.chat.completions.create({
+      model: config.openai.model,
+      messages,
+      tools,
+      tool_choice: "auto",
+      max_tokens: config.openai.maxTokens,
+    });
+    const message = response.choices[0]?.message;
+    if (!message) break;
+    messages.push(message);
 
-  const text = finalMessage.content
-    .filter((block): block is { type: "text"; text: string } & typeof block => block.type === "text")
-    .map((block) => block.text)
-    .join("\n")
-    .trim();
+    if (!message.tool_calls?.length) {
+      const text = message.content?.trim();
+      return text || "Disculpa, ¿me repites por favor?";
+    }
 
-  return text || "Disculpa, ¿me repites por favor?";
+    for (const call of message.tool_calls) {
+      if (call.type !== "function") continue;
+      const tool = localTools.find((candidate) => candidate.function.name === call.function.name);
+      const result = tool
+        ? await tool.execute(parseArguments(call.function.arguments))
+        : JSON.stringify({ error: `Tool desconocida: ${call.function.name}` });
+      messages.push({ role: "tool", tool_call_id: call.id, content: result });
+    }
+  }
+
+  return "Disculpa, tuve un problema procesando tu mensaje. ¿Me lo repites por favor?";
+}
+
+function parseArguments(raw: string): unknown {
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return {};
+  }
 }

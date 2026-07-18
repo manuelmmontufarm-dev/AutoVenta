@@ -5,7 +5,7 @@ import { business } from "../config.js";
  * para que el bot sea revendible a otras llanteras sin tocar código.
  *
  * Nota de caching: el prompt es estable (sin fechas ni datos por-request) para
- * no invalidar el prompt cache de Anthropic. Lo volátil va en los mensajes.
+ * aprovechar el caching automático de prompts de OpenAI. Lo volátil va en los mensajes.
  */
 export function buildSystemPrompt(): string {
   const stores = business.stores

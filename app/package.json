@@ -2,7 +2,7 @@
   "name": "autoventa-bot",
   "version": "0.1.0",
   "private": true,
-  "description": "Bot de ventas de llantas por WhatsApp (Meta Cloud API + Claude)",
+  "description": "Bot de ventas de llantas por WhatsApp (Meta Cloud API + OpenAI GPT)",
   "type": "module",
   "engines": {
     "node": ">=20"
@@ -16,10 +16,10 @@
     "db:migrate": "tsx src/db/migrate.ts"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.111.0",
     "express": "^4.21.0",
     "google-auth-library": "^9.0.0",
     "google-spreadsheet": "^5.0.2",
+    "openai": "^6.48.0",
     "pdfmake": "^0.3.11",
     "postgres": "^3.4.5",
     "whatsapp-api-js": "^6.2.1",

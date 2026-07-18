@@ -87,6 +87,18 @@ Ajustables. Actualizar el total al añadir cada entrada.</p>
 </tr>
 </thead>
 <tbody><tr>
+<td>2026-07-18</td>
+<td><em>(este mismo)</em></td>
+<td>Migración del agente de Anthropic a OpenAI GPT</td>
+<td>1.5</td>
+</tr>
+<tr>
+<td>2026-07-18</td>
+<td><em>(este mismo)</em></td>
+<td>Preparar deploy en Railway (schema al boot, catálogo opcional, railway.toml)</td>
+<td>1.0</td>
+</tr>
+<tr>
 <td>2026-07-17</td>
 <td><em>(este mismo)</em></td>
 <td>Publicación del hub completo en Vercel</td>
@@ -174,11 +186,51 @@ Ajustables. Actualizar el total al añadir cada entrada.</p>
 <td></td>
 <td></td>
 <td><strong>TOTAL</strong></td>
-<td><strong>~28.25 h</strong></td>
+<td><strong>~30.75 h</strong></td>
 </tr>
 </tbody></table>
 <hr>
 <h2>Entradas (más reciente primero)</h2>
+<h3>2026-07-18 · Migración del agente a OpenAI GPT · ⏱️ 1.5 h</h3>
+<p><strong>Commit:</strong> <em>(este mismo)</em></p>
+<p><strong>Qué se hizo:</strong></p>
+<ul>
+<li>Se reemplazó <code>@anthropic-ai/sdk</code> por el SDK oficial <code>openai</code>.</li>
+<li>El agente ahora usa <code>OPENAI_API_KEY</code>, GPT-4o mini por defecto y function
+calling para las cinco herramientas de ventas.</li>
+<li>El clasificador de funnel ahora usa la misma API de OpenAI con salida JSON.</li>
+<li>Se actualizaron <code>app/.env.example</code>, README, plan técnico e investigación para
+que Railway ya no solicite <code>ANTHROPIC_API_KEY</code>.</li>
+<li>Typecheck y las 21 pruebas existentes pasan correctamente.</li>
+</ul>
+<p><strong>Por qué:</strong></p>
+<ul>
+<li>La cuenta y el saldo disponibles para este piloto son de OpenAI, no de
+Anthropic. Mantener el SDK anterior habría dejado el deploy de Railway
+configurado con el proveedor equivocado aunque el webhook estuviera listo.</li>
+</ul>
+<p><strong>Railway:</strong></p>
+<ul>
+<li>Reemplazar <code>ANTHROPIC_API_KEY</code> por <code>OPENAI_API_KEY</code>.</li>
+<li>Opcionalmente fijar <code>OPENAI_MODEL=gpt-4o-mini</code>; ese es el valor por defecto.</li>
+</ul>
+<hr>
+<h3>2026-07-18 · Preparar deploy del bot en Railway · ⏱️ 1.0 h</h3>
+<p><strong>Commit:</strong> <em>(este mismo)</em></p>
+<p><strong>Qué se hizo:</strong></p>
+<ul>
+<li><code>railway.toml</code> en <code>app/</code>: build <code>npm ci &amp;&amp; npm run build</code>, start <code>npm start</code>, healthcheck <code>/health</code>.</li>
+<li><code>db/schema.ts</code>: esquema inline + <code>ensureSchema()</code> que corre <strong>al arrancar</strong> (idempotente) → deploy de un clic, sin paso manual de migración. <code>migrate.ts</code> queda como opción manual.</li>
+<li><code>db/client.ts</code>: SSL configurable (<code>PGSSL=require</code>) — Railway Postgres (red interna) no usa SSL; Supabase sí.</li>
+<li>Catálogo <strong>opcional</strong>: si faltan las credenciales de Sheets, el bot igual arranca y levanta el webhook (solo no cotiza con precios hasta conectarlo). Permite desplegar ya, con el catálogo pendiente (bloqueo #1 / Contífico).</li>
+<li>Root route <code>/</code> simple (evita 404 al abrir la URL; ahí irá el landing).</li>
+<li>Boot verificado: parsea config, importa todo y aplica schema; typecheck + 21 tests ✅.</li>
+</ul>
+<p><strong>Por qué:</strong></p>
+<ul>
+<li>Decisión de centralizar TODO en Railway (una sola plataforma, $5/mes) en vez de Vercel+Railway. El bot es un proceso always-on (webhooks, sync, estado en memoria) → serverless no sirve. Hacer el catálogo opcional y el schema automático deja el deploy a &quot;conectar repo + pegar variables&quot;, sin bloquear el despliegue por el catálogo que aún no está.</li>
+</ul>
+<hr>
 <h3>2026-07-17 · Hub publicado en Vercel · ⏱️ 0.5 h</h3>
 <p><strong>Commit:</strong> <em>(este mismo)</em></p>
 <p><strong>Qué se hizo:</strong></p>

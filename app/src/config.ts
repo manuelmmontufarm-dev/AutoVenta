@@ -92,11 +92,11 @@ export const config = {
     sellerPhone: env("SELLER_PHONE"),
   },
 
-  anthropic: {
-    // El plan del proyecto (PLAN_DESARROLLO.md) eligió Sonnet para conversación
-    // y Haiku para el clasificador de etapa, por costo/calidad a este volumen.
-    model: envOr("ANTHROPIC_MODEL", "claude-sonnet-5"),
-    classifierModel: envOr("ANTHROPIC_CLASSIFIER_MODEL", "claude-haiku-4-5"),
+  openai: {
+    // GPT-4o mini mantiene el costo bajo para el piloto y soporta function calling.
+    model: envOr("OPENAI_MODEL", "gpt-4o-mini"),
+    classifierModel: envOr("OPENAI_CLASSIFIER_MODEL", "gpt-4o-mini"),
+    apiKey: env("OPENAI_API_KEY"),
     maxTokens: 2048,
   },
 

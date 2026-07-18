@@ -52,14 +52,14 @@
 <h1>Investigación GitHub — qué existe parecido a AutoVenta y qué reusar</h1>
 <blockquote>
 <p>Fecha: 2026-07-15 · 4 barridos paralelos (~55 repos evaluados, ~15 por frente)
-Frentes: (1) stacks WhatsApp Cloud API, (2) bots de ventas/commerce completos, (3) dominio llantas, (4) PDF/Sheets/agente Claude/dashboard.</p>
+Frentes: (1) stacks WhatsApp Cloud API, (2) bots de ventas/commerce completos, (3) dominio llantas, (4) PDF/Sheets/agente GPT/dashboard.</p>
 </blockquote>
 <h2>Conclusión ejecutiva</h2>
 <p><strong>Nadie tiene el paquete completo.</strong> No existe ningún proyecto open source que haga
 catálogo + cotización PDF + notificación al vendedor + funnel sobre WhatsApp.
 Cada pieza existe por separado con licencia MIT; el ensamblaje (y el dominio
 llantas) es nuestro diferenciador. La decisión validada en PLAN_DESARROLLO.md
-(Cloud API directo + agente Claude con tools) coincide con lo que hace la punta
+(Cloud API directo + agente GPT con tools) coincide con lo que hace la punta
 del ecosistema.</p>
 <h2>Descomposición: pieza → qué reusar</h2>
 <table>
@@ -85,9 +85,9 @@ del ecosistema.</p>
 </tr>
 <tr>
 <td>Loop del agente (tools)</td>
-<td>Tool runner oficial del SDK Anthropic: <a href="https://github.com/anthropics/anthropic-sdk-typescript/blob/main/examples/tools-helpers-zod.ts"><code>betaZodTool</code> + <code>toolRunner</code></a></td>
+<td>SDK oficial de OpenAI con function calling</td>
 <td>MIT ✅</td>
-<td>~30 líneas, sin framework. Memoria de conversación: array <code>messages</code> por teléfono en Postgres (JSONB), propia y trivial.</td>
+<td>Loop propio corto, sin framework. Memoria de conversación: array <code>messages</code> por teléfono en Postgres (JSONB), propia y trivial.</td>
 </tr>
 <tr>
 <td>Cotización PDF</td>
@@ -123,7 +123,7 @@ del ecosistema.</p>
 <td>Foto de llanta → medida (Fase 2)</td>
 <td>Visión del propio LLM</td>
 <td>—</td>
-<td>Los repos de OCR de flanco (<a href="https://github.com/esolnguyen/tire-sidewall-text-extraction">esolnguyen</a>, Roboflow) confirman: Tesseract falla en negro-sobre-negro y todos terminan usando un VLM. Nuestro plan (Claude vision + confirmación) es el estado del arte simplificado.</td>
+<td>Los repos de OCR de flanco (<a href="https://github.com/esolnguyen/tire-sidewall-text-extraction">esolnguyen</a>, Roboflow) confirman: Tesseract falla en negro-sobre-negro y todos terminan usando un VLM. Nuestro plan (GPT vision + confirmación) es el estado del arte simplificado.</td>
 </tr>
 <tr>
 <td>Debounce / colas / idempotencia</td>
@@ -149,7 +149,7 @@ del ecosistema.</p>
 <li><a href="https://github.com/wassengerhq/whatsapp-chatgpt-bot">wassengerhq/whatsapp-chatgpt-bot</a> (MIT) — mejor diseño de loop LLM + function calling multimodal para WhatsApp.</li>
 <li><a href="https://github.com/bibinprathap/whatsapp-chatbot">bibinprathap/whatsapp-chatbot</a> (132★, MIT) — pipeline NL→carrito→pedido + recuperación de carritos por cron (útil para las campañas de seguimiento que pidió el cliente el 14-jul).</li>
 <li><a href="https://github.com/adithyadilum/wa-demo-shop-bot">adithyadilum/wa-demo-shop-bot</a> (sin licencia) — el más cercano funcionalmente: Cloud API + Meta Commerce Catalog + carrito + handover con pausa del bot. Solo ideas.</li>
-<li><a href="https://github.com/skorokithakis/stavrobot">skorokithakis/stavrobot</a> (185★, <strong>AGPL</strong> ⚠️) — stack exacto (WhatsApp+Claude+Postgres), memoria en 3 niveles. Referencia arquitectónica; no copiar código.</li>
+<li><a href="https://github.com/skorokithakis/stavrobot">skorokithakis/stavrobot</a> (185★, <strong>AGPL</strong> ⚠️) — stack exacto (WhatsApp+LLM+Postgres), memoria en 3 niveles. Referencia arquitectónica; no copiar código.</li>
 <li><a href="https://github.com/CaveMindLabs/whatsapp-fastapi-agent">CaveMindLabs/whatsapp-fastapi-agent</a> (Python) — Cloud API + tool calling + memoria por usuario, blueprint completo.</li>
 </ul>
 <h2>Minas de licencia (evitar código)</h2>
@@ -163,8 +163,8 @@ del ecosistema.</p>
 <h2>Decisión de arquitectura pendiente</h2>
 <p>Dos caminos viables, ambos MIT:</p>
 <ol>
-<li><strong>SDK + loop propio</strong> (plan actual de PLAN_DESARROLLO.md): <code>whatsapp-api-js</code> + tool runner Anthropic + Express. Menos dependencias, control total, todo el bot ~1.500 líneas nuestras.</li>
-<li><strong>BuilderBot como esqueleto</strong>: flujos/estado/cola por conversación ya resueltos + provider Meta oficial; se le inyecta el loop de Claude. Más rápido para el demo, comunidad hispana, y permite demo con Baileys → producción con Meta sin tocar lógica.</li>
+<li><strong>SDK + loop propio</strong> (plan actual de PLAN_DESARROLLO.md): <code>whatsapp-api-js</code> + function calling de OpenAI + Express. Menos dependencias, control total, todo el bot ~1.500 líneas nuestras.</li>
+<li><strong>BuilderBot como esqueleto</strong>: flujos/estado/cola por conversación ya resueltos + provider Meta oficial; se le inyecta el loop de GPT. Más rápido para el demo, comunidad hispana, y permite demo con Baileys → producción con Meta sin tocar lógica.</li>
 </ol>
 <p>Recomendación: <strong>camino 1 para producción</strong> (coincide con el plan y el volumen es bajo), usando BuilderBot solo si el demo de 1-2 semanas se aprieta.</p>
 

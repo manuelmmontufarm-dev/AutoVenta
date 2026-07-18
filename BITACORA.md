@@ -32,6 +32,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-07-18 | _(este mismo)_ | Migración del agente de Anthropic a OpenAI GPT | 1.5 |
 | 2026-07-18 | _(este mismo)_ | Preparar deploy en Railway (schema al boot, catálogo opcional, railway.toml) | 1.0 |
 | 2026-07-17 | _(este mismo)_ | Publicación del hub completo en Vercel | 0.5 |
 | 2026-07-17 | _(este mismo)_ | Hub interno centralizado + demo visual + documentación navegable | 2.0 |
@@ -47,11 +48,34 @@ Ya viene activado en este equipo.
 | 2026-07-14 | ac09171 | Ubicaciones de locales + análisis de features del cliente | 1.5 |
 | 2026-07-13 | feadf57 | Brief + plan de desarrollo + plan financiero + catálogo | 4.0 |
 | 2026-07-13 | d997844 | Commit inicial (repo) | 0.25 |
-| | | **TOTAL** | **~29.25 h** |
+| | | **TOTAL** | **~30.75 h** |
 
 ---
 
 ## Entradas (más reciente primero)
+
+### 2026-07-18 · Migración del agente a OpenAI GPT · ⏱️ 1.5 h
+**Commit:** _(este mismo)_
+
+**Qué se hizo:**
+- Se reemplazó `@anthropic-ai/sdk` por el SDK oficial `openai`.
+- El agente ahora usa `OPENAI_API_KEY`, GPT-4o mini por defecto y function
+  calling para las cinco herramientas de ventas.
+- El clasificador de funnel ahora usa la misma API de OpenAI con salida JSON.
+- Se actualizaron `app/.env.example`, README, plan técnico e investigación para
+  que Railway ya no solicite `ANTHROPIC_API_KEY`.
+- Typecheck y las 21 pruebas existentes pasan correctamente.
+
+**Por qué:**
+- La cuenta y el saldo disponibles para este piloto son de OpenAI, no de
+  Anthropic. Mantener el SDK anterior habría dejado el deploy de Railway
+  configurado con el proveedor equivocado aunque el webhook estuviera listo.
+
+**Railway:**
+- Reemplazar `ANTHROPIC_API_KEY` por `OPENAI_API_KEY`.
+- Opcionalmente fijar `OPENAI_MODEL=gpt-4o-mini`; ese es el valor por defecto.
+
+---
 
 ### 2026-07-18 · Preparar deploy del bot en Railway · ⏱️ 1.0 h
 **Commit:** _(este mismo)_

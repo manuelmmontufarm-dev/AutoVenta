@@ -1,12 +1,12 @@
 /**
  * Herramientas del agente (function calling con schemas Zod validados).
- * Reusa: tool runner oficial del SDK de Anthropic (betaZodTool).
+ * Las definiciones se convierten al formato de tools de OpenAI; Zod valida
+ * los argumentos antes de ejecutar la lógica de negocio.
  *
  * Cada tool devuelve JSON en string; el agente redacta la respuesta al cliente.
  * El LLM extrae los datos, pero la lógica de negocio (búsqueda, precios, PDF)
  * es determinista — cero precios alucinados.
  */
-import { betaZodTool } from "@anthropic-ai/sdk/helpers/beta/zod";
 import { z } from "zod";
 import { business } from "../config.js";
 import { findByCode, searchAlternatives, searchBySize } from "../services/catalog.js";
@@ -23,12 +23,39 @@ export interface AgentContext {
   customerName?: string;
 }
 
+export interface AgentTool {
+  type: "function";
+  function: {
+    name: string;
+    description: string;
+    parameters: Record<string, unknown>;
+  };
+  execute(args: unknown): Promise<string>;
+}
+
+function defineTool<T extends z.ZodTypeAny>(input: {
+  name: string;
+  description: string;
+  schema: T;
+  run: (args: z.output<T>) => Promise<string>;
+}): AgentTool {
+  return {
+    type: "function",
+    function: {
+      name: input.name,
+      description: input.description,
+      parameters: z.toJSONSchema(input.schema) as Record<string, unknown>,
+    },
+    execute: async (args) => input.run(input.schema.parse(args)),
+  };
+}
+
 export function buildTools(ctx: AgentContext) {
-  const buscarLlanta = betaZodTool({
+  const buscarLlanta = defineTool({
     name: "buscar_llanta",
     description:
       "Busca llantas en el catálogo por medida exacta. Devuelve opciones con marca, precio (sin IVA) y stock. Si no hay stock exacto, incluye alternativas del mismo aro que podrían servir al vehículo. Úsala SIEMPRE antes de mencionar precios o disponibilidad.",
-    inputSchema: z.object({
+    schema: z.object({
       width: z.number().int().describe("Ancho en mm, ej. 185"),
       aspect: z
         .number()
@@ -49,11 +76,11 @@ export function buildTools(ctx: AgentContext) {
     },
   });
 
-  const fitmentVehiculo = betaZodTool({
+  const fitmentVehiculo = defineTool({
     name: "fitment_vehiculo",
     description:
       "Dado un vehículo (marca y modelo), devuelve las medidas de llanta de fábrica más comunes en Ecuador. Si validated es false, debes pedir al cliente que confirme la medida en el costado de su llanta.",
-    inputSchema: z.object({
+    schema: z.object({
       marca: z.string().describe("Marca del vehículo, ej. Chevrolet"),
       modelo: z.string().describe("Modelo, ej. Sail, D-Max, Hilux"),
     }),
@@ -74,11 +101,11 @@ export function buildTools(ctx: AgentContext) {
     },
   });
 
-  const generarCotizacion = betaZodTool({
+  const generarCotizacion = defineTool({
     name: "generar_cotizacion",
     description:
       "Genera la cotización en PDF y se la envía al cliente por WhatsApp automáticamente. Úsala cuando el cliente haya confirmado qué llanta(s) y cuántas unidades quiere. Devuelve los totales con IVA para que los menciones en el chat.",
-    inputSchema: z.object({
+    schema: z.object({
       items: z
         .array(
           z.object({
@@ -125,11 +152,11 @@ export function buildTools(ctx: AgentContext) {
     },
   });
 
-  const localMasCercano = betaZodTool({
+  const localMasCercano = defineTool({
     name: "local_mas_cercano",
     description:
       "Dada la ubicación del cliente (latitud/longitud que llega cuando comparte ubicación), devuelve el local más cercano con dirección y distancia.",
-    inputSchema: z.object({
+    schema: z.object({
       lat: z.number(),
       lng: z.number(),
     }),
@@ -145,11 +172,11 @@ export function buildTools(ctx: AgentContext) {
     },
   });
 
-  const notificarVendedor = betaZodTool({
+  const notificarVendedor = defineTool({
     name: "notificar_vendedor",
     description:
       "Alerta al vendedor humano por WhatsApp. Úsala cuando el cliente confirme compra/reserva, pida hablar con una persona, o tenga un caso que no puedas resolver. Incluye un resumen accionable: qué llanta, cuántas, a qué precio, y el teléfono del cliente.",
-    inputSchema: z.object({
+    schema: z.object({
       resumen: z
         .string()
         .describe("Resumen para el vendedor: producto, cantidad, total, estado del cliente"),
