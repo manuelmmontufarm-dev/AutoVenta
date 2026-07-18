@@ -47,6 +47,13 @@ create table if not exists funnel_events (
 );
 
 create index if not exists funnel_events_type_idx on funnel_events (type, created_at);
+
+-- Ajustes persistentes (configuración de IA del hub, etc.)
+create table if not exists settings (
+  key        text primary key,
+  value      jsonb not null,
+  updated_at timestamptz not null default now()
+);
 `;
 
 /** Aplica el esquema (idempotente). Se llama al arrancar el bot. */

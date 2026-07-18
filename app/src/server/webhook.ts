@@ -7,6 +7,7 @@ import express from "express";
 import { fileURLToPath } from "node:url";
 import { wa } from "../wa/client.js";
 import { catalogStatus } from "../services/catalog.js";
+import { createAdminRouter } from "./admin.js";
 
 // Hub estático (site/ dentro de app/ para que entre en el build de Railway).
 // Compilado vive en dist/server/, en dev en src/server/ — ../../site sirve en ambos.
@@ -31,6 +32,9 @@ export function createServer(): express.Express {
   app.get("/health", (_req, res) => {
     res.json({ ok: true, catalog: catalogStatus() });
   });
+
+  // API del panel en línea (mensajes, configuración de IA, tester).
+  app.use("/api", createAdminRouter());
 
   // Hub estático: paletas de estilos, docs y demo. `extensions` replica las
   // cleanUrls de Vercel (/estilos/01-medianoche-depot funciona sin .html).

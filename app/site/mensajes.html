@@ -1,0 +1,257 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mensajes de WhatsApp · AutoVenta</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23e3262e'/%3E%3Ctext x='32' y='42' font-family='Inter,sans-serif' font-size='26' font-weight='800' fill='white' text-anchor='middle'%3EDT%3C/text%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0a1020; --panel:rgba(17,26,49,.62); --panel2:rgba(17,26,49,.9); --line:rgba(255,255,255,.09);
+    --paper:#f5f1e9; --muted:#a3acc2; --faint:#6b7590; --red:#e3262e; --green:#34d399;
+    --blue:#5b8def; --amber:#f5b83d; --teal:#2dd4bf; --violet:#a78bfa;
+  }
+  *{box-sizing:border-box;margin:0}
+  body{
+    font-family:Inter,system-ui,sans-serif;color:var(--paper);height:100vh;display:flex;flex-direction:column;
+    background:
+      radial-gradient(110% 80% at 15% -10%, rgba(23,61,118,.55) 0%, transparent 60%),
+      radial-gradient(120% 90% at 50% 0%, #0d1530 0%, #0a1020 55%, #070b16 100%);
+    background-attachment:fixed;
+  }
+  header{display:flex;align-items:center;gap:12px;padding:14px 20px;border-bottom:1px solid var(--line);flex-shrink:0}
+  .logo{width:34px;height:34px;border-radius:10px;background:var(--red);display:grid;place-items:center;font-weight:800;font-size:12px;color:#fff}
+  header b{font-size:14px}
+  header span{display:block;font-size:11px;color:var(--muted)}
+  header a{margin-left:auto;color:var(--muted);text-decoration:none;font-size:12px;font-weight:600}
+  header a:hover{color:var(--paper)}
+  .cols{flex:1;display:flex;min-height:0}
+  .list{width:320px;border-right:1px solid var(--line);overflow-y:auto;flex-shrink:0}
+  .conv{display:block;width:100%;text-align:left;background:none;border:none;border-bottom:1px solid var(--line);
+    padding:13px 16px;cursor:pointer;color:inherit;font:inherit}
+  .conv:hover{background:rgba(255,255,255,.03)}
+  .conv.active{background:rgba(91,141,239,.1)}
+  .conv .top{display:flex;justify-content:space-between;gap:8px;margin-bottom:3px}
+  .conv .name{font-weight:700;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .conv .when{font-size:10.5px;color:var(--faint);flex-shrink:0}
+  .conv .preview{font-size:12px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .pill{display:inline-block;font-size:9px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;
+    padding:2px 7px;border-radius:99px;margin-top:6px;border:1px solid var(--line);color:var(--muted)}
+  .pill.nuevo{color:var(--blue);border-color:rgba(91,141,239,.4)}
+  .pill.conversando{color:var(--teal);border-color:rgba(45,212,191,.4)}
+  .pill.cotizado{color:var(--amber);border-color:rgba(245,184,61,.4)}
+  .pill.alerta{color:var(--red);border-color:rgba(227,38,46,.45)}
+  .pill.cerrado{color:var(--green);border-color:rgba(52,211,153,.4)}
+  .pill.perdido{color:var(--faint)}
+  .pill.paused{color:var(--amber);border-color:rgba(245,184,61,.4)}
+  .chat{flex:1;display:flex;flex-direction:column;min-width:0}
+  .chat-head{display:flex;align-items:center;gap:10px;padding:12px 18px;border-bottom:1px solid var(--line)}
+  .chat-head .who b{font-size:14px}
+  .chat-head .who span{display:block;font-size:11.5px;color:var(--muted)}
+  .chat-head button{margin-left:auto;background:rgba(255,255,255,.05);border:1px solid var(--line);color:var(--paper);
+    border-radius:99px;padding:7px 14px;font-size:11.5px;font-weight:700;cursor:pointer}
+  .chat-head button:hover{border-color:rgba(255,255,255,.25)}
+  .msgs{flex:1;overflow-y:auto;padding:20px 18px;display:flex;flex-direction:column;gap:8px}
+  .bubble{max-width:72%;padding:9px 13px;border-radius:14px;font-size:13.5px;line-height:1.5;white-space:pre-wrap;word-break:break-word}
+  .bubble.user{align-self:flex-start;background:var(--panel2);border:1px solid var(--line);border-bottom-left-radius:4px}
+  .bubble.assistant{align-self:flex-end;background:rgba(52,211,153,.14);border:1px solid rgba(52,211,153,.25);border-bottom-right-radius:4px}
+  .bubble .t{display:block;font-size:9.5px;color:var(--faint);margin-top:5px;text-align:right}
+  .composer{display:flex;gap:10px;padding:14px 18px;border-top:1px solid var(--line)}
+  .composer textarea{flex:1;background:rgba(255,255,255,.04);border:1px solid var(--line);border-radius:10px;
+    color:var(--paper);font:inherit;font-size:13.5px;padding:10px 13px;resize:none;height:44px}
+  .composer button{background:var(--green);color:#04120d;border:none;border-radius:10px;padding:0 22px;
+    font-weight:800;font-size:13px;cursor:pointer}
+  .composer button:disabled{opacity:.5;cursor:not-allowed}
+  .empty{flex:1;display:grid;place-items:center;color:var(--faint);font-size:13px;text-align:center;padding:30px;line-height:1.7}
+  .note{padding:6px 18px;font-size:11px;color:var(--faint);border-top:1px solid var(--line)}
+  .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--panel2);
+    border:1px solid var(--line);border-radius:10px;padding:10px 18px;font-size:12.5px;display:none;z-index:60}
+  .toast.err{border-color:rgba(227,38,46,.5);color:#ffb4b8}
+  /* Login overlay */
+  .gate{position:fixed;inset:0;background:rgba(7,11,22,.88);backdrop-filter:blur(8px);display:none;place-items:center;z-index:99}
+  .gate .box{background:var(--panel2);border:1px solid var(--line);border-radius:16px;padding:28px;width:min(360px,90vw)}
+  .gate h2{font-size:15px;margin-bottom:6px}
+  .gate p{font-size:12px;color:var(--muted);margin-bottom:16px;line-height:1.6}
+  .gate input{width:100%;background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:9px;
+    color:var(--paper);font:inherit;padding:10px 13px;margin-bottom:12px}
+  .gate button{width:100%;background:var(--green);color:#04120d;border:none;border-radius:9px;padding:11px;font-weight:800;cursor:pointer}
+  @media (max-width:720px){ .list{width:44%} .bubble{max-width:86%} }
+</style>
+</head>
+<body>
+  <header>
+    <div class="logo">DT</div>
+    <div><b>Mensajes de WhatsApp</b><span>Conversaciones reales del bot · Depot Tire</span></div>
+    <a href="./">← Volver al hub</a>
+  </header>
+
+  <div class="cols">
+    <div class="list" id="list"></div>
+    <div class="chat" id="chat">
+      <div class="empty" id="emptyState">Elige una conversación para ver el chat.<br>
+        Si no hay ninguna, escríbele al número de prueba del bot desde tu WhatsApp y aparecerá aquí.</div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <div class="gate" id="gate">
+    <div class="box">
+      <h2>Panel protegido</h2>
+      <p>Escribe la clave de administración (variable <b>ADMIN_KEY</b> en Railway).</p>
+      <input id="keyInput" type="password" placeholder="Clave de administración">
+      <button id="keyBtn">Entrar</button>
+    </div>
+  </div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+let current = null;        // conversación abierta {id, phone, name, ...}
+let conversations = [];
+let lastMsgCount = -1;
+
+function fmtWhen(iso){
+  if(!iso) return "";
+  const d = new Date(iso), now = new Date();
+  const sameDay = d.toDateString() === now.toDateString();
+  return sameDay ? d.toLocaleTimeString("es-EC",{hour:"2-digit",minute:"2-digit"})
+                 : d.toLocaleDateString("es-EC",{day:"numeric",month:"short"});
+}
+function esc(s){ const div=document.createElement("div"); div.textContent=s; return div.innerHTML; }
+function toast(msg, isErr){
+  const t=$("toast"); t.textContent=msg; t.className="toast"+(isErr?" err":""); t.style.display="block";
+  clearTimeout(t._h); t._h=setTimeout(()=>t.style.display="none", 4200);
+}
+
+async function api(path, opts={}){
+  const key = localStorage.getItem("autoventa_admin_key") || "";
+  const r = await fetch("/api"+path, {...opts,
+    headers:{"Content-Type":"application/json","x-admin-key":key, ...(opts.headers||{})}});
+  if(r.status === 401){ $("gate").style.display="grid"; throw new Error("auth"); }
+  return r.json();
+}
+
+$("keyBtn").addEventListener("click", async ()=>{
+  localStorage.setItem("autoventa_admin_key", $("keyInput").value.trim());
+  try{ await api("/status"); $("gate").style.display="none"; refreshList(); }
+  catch{ /* la clave sigue mal: el overlay se queda */ }
+});
+$("keyInput").addEventListener("keydown", e=>{ if(e.key==="Enter") $("keyBtn").click(); });
+
+function botPaused(c){ return c.bot_paused_until && new Date(c.bot_paused_until) > new Date(); }
+
+let lastListHtml = "";
+function renderList(){
+  const el = $("list");
+  if(!conversations.length){
+    el.innerHTML = '<div class="empty" style="padding:40px 20px">Todavía no hay conversaciones.</div>';
+    return;
+  }
+  const html = conversations.map(c => `
+    <button class="conv ${current && String(current.id)===String(c.id) ? "active":""}" data-id="${c.id}">
+      <div class="top">
+        <span class="name">${esc(c.name || c.phone)}</span>
+        <span class="when">${fmtWhen(c.last_at)}</span>
+      </div>
+      <div class="preview">${c.last_role==="assistant" ? "✦ " : ""}${esc(c.last_message || "(sin mensajes)")}</div>
+      <span class="pill ${esc(c.stage)}">${esc(c.stage)}</span>
+      ${botPaused(c) ? '<span class="pill paused">bot en pausa</span>' : ""}
+    </button>`).join("");
+  if(html === lastListHtml) return;   // sin cambios: no destruir el DOM (clicks en curso)
+  lastListHtml = html;
+  el.innerHTML = html;
+  el.querySelectorAll(".conv").forEach(b => b.addEventListener("click", ()=>openConv(b.dataset.id)));
+}
+
+async function refreshList(){
+  try{
+    const data = await api("/conversations");
+    conversations = data.conversations || [];
+    renderList();
+    if(current){
+      const fresh = conversations.find(c=>String(c.id)===String(current.id));
+      if(fresh){ current = fresh; renderChatHead(); }
+    }
+  }catch(e){ if(e.message!=="auth") console.error(e); }
+}
+
+function renderChatHead(){
+  const head = $("chatHead");
+  if(!head) return;
+  head.querySelector(".who b").textContent = current.name || current.phone;
+  head.querySelector(".who span").textContent = current.phone + " · etapa: " + current.stage;
+  head.querySelector("button").textContent = botPaused(current) ? "▶ Reactivar bot" : "⏸ Pausar bot";
+}
+
+function openConv(id){
+  // Los id llegan como string (postgres.js serializa bigint) — comparar sin tipo.
+  current = conversations.find(c=>String(c.id)===String(id));
+  if(!current) return;
+  lastMsgCount = -1;
+  const chat = $("chat");
+  chat.innerHTML = `
+    <div class="chat-head" id="chatHead">
+      <div class="who"><b></b><span></span></div>
+      <button id="botToggle"></button>
+    </div>
+    <div class="msgs" id="msgs"></div>
+    <div class="composer">
+      <textarea id="draft" placeholder="Escribir como Depot Tire… (el bot se pausa al enviar)"></textarea>
+      <button id="sendBtn">Enviar</button>
+    </div>
+    <div class="note">El envío manual silencia al asistente en este chat por unas horas (handoff humano). Reactívalo con ▶.</div>`;
+  renderChatHead();
+  renderList();
+  $("botToggle").addEventListener("click", toggleBot);
+  $("sendBtn").addEventListener("click", sendManual);
+  $("draft").addEventListener("keydown", e=>{ if((e.metaKey||e.ctrlKey)&&e.key==="Enter") sendManual(); });
+  refreshMsgs(true);
+}
+
+async function refreshMsgs(scroll){
+  if(!current) return;
+  try{
+    const data = await api(`/conversations/${current.id}/messages`);
+    const msgs = data.messages || [];
+    if(msgs.length === lastMsgCount) return;
+    lastMsgCount = msgs.length;
+    const el = $("msgs");
+    if(!el) return;
+    el.innerHTML = msgs.map(m => `
+      <div class="bubble ${m.role==="user"?"user":"assistant"}">${esc(m.content)}
+        <span class="t">${fmtWhen(m.created_at)}</span></div>`).join("");
+    if(scroll !== false) el.scrollTop = el.scrollHeight;
+  }catch(e){ if(e.message!=="auth") console.error(e); }
+}
+
+async function sendManual(){
+  const draft = $("draft"), btn = $("sendBtn");
+  const text = draft.value.trim();
+  if(!text || !current) return;
+  btn.disabled = true; btn.textContent = "…";
+  try{
+    const r = await api(`/conversations/${current.id}/send`, {method:"POST", body:JSON.stringify({text})});
+    if(r.ok){ draft.value=""; toast("✅ Enviado — bot en pausa en este chat"); lastMsgCount=-1; await refreshMsgs(); refreshList(); }
+    else toast("⚠️ " + (r.error || "No se pudo enviar"), true);
+  }catch(e){ if(e.message!=="auth") toast("⚠️ " + e.message, true); }
+  btn.disabled = false; btn.textContent = "Enviar";
+}
+
+async function toggleBot(){
+  if(!current) return;
+  const accion = botPaused(current) ? "activar" : "pausar";
+  try{
+    await api(`/conversations/${current.id}/bot`, {method:"POST", body:JSON.stringify({accion})});
+    toast(accion==="activar" ? "▶ Bot reactivado en este chat" : "⏸ Bot pausado en este chat");
+    await refreshList();
+  }catch(e){ if(e.message!=="auth") toast("⚠️ " + e.message, true); }
+}
+
+refreshList();
+setInterval(refreshList, 10000);
+setInterval(()=>refreshMsgs(false), 5000);
+</script>
+</body>
+</html>

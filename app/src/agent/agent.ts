@@ -7,13 +7,15 @@ import OpenAI from "openai";
 import type { ChatCompletionMessageParam, ChatCompletionTool } from "openai/resources/chat/completions";
 import { config } from "../config.js";
 import { getHistory } from "../services/conversations.js";
+import { getAiConfig } from "../services/settings.js";
 import { buildSystemPrompt } from "./prompts.js";
 import { buildTools, type AgentContext } from "./tools.js";
 
 const openai = new OpenAI({ apiKey: config.openai.apiKey });
-const systemPrompt = buildSystemPrompt();
 
 export async function runAgent(ctx: AgentContext, userText: string): Promise<string> {
+  // El estilo se edita en /configuracion/ia; getAiConfig cachea 30 s en memoria.
+  const systemPrompt = buildSystemPrompt(await getAiConfig());
   const history = await getHistory(ctx.conversation.id);
   const localTools = buildTools(ctx);
   const tools: ChatCompletionTool[] = localTools.map(({ execute: _execute, ...tool }) => ({

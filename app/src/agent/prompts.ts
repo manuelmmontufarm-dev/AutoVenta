@@ -1,13 +1,15 @@
 import { business } from "../config.js";
+import { DEFAULT_AI_CONFIG, type AiConfig } from "../services/settings.js";
 
 /**
  * System prompt del agente de ventas. Se construye desde la config del negocio
  * para que el bot sea revendible a otras llanteras sin tocar código.
  *
- * Nota de caching: el prompt es estable (sin fechas ni datos por-request) para
- * aprovechar el caching automático de prompts de OpenAI. Lo volátil va en los mensajes.
+ * Nota de caching: el prompt es estable mientras no cambie la configuración de
+ * IA (sin fechas ni datos por-request) para aprovechar el caching automático
+ * de prompts de OpenAI. Lo volátil va en los mensajes.
  */
-export function buildSystemPrompt(): string {
+export function buildSystemPrompt(ai: AiConfig = DEFAULT_AI_CONFIG): string {
   const stores = business.stores
     .map((s) => `- ${s.name}: ${s.address}`)
     .join("\n");
@@ -37,5 +39,39 @@ Ayudar al cliente a encontrar su llanta y cotizarla lo más rápido posible, con
 - Si el cliente envía una foto, pídele amablemente que te escriba la medida que aparece en el costado de la llanta (todavía no puedes leer fotos).
 - Los precios unitarios son sin IVA; el PDF de cotización ya muestra el desglose con IVA incluido. Cuando menciones un total en el chat, usa el total con IVA que devuelve generar_cotizacion.
 - Si preguntan por algo fuera de llantas y mantenimiento (política, tareas, etc.), redirige con humor ligero a llantas.
-- Máximo un emoji por mensaje, y no en todos.`;
+
+## Estilo (configurado por el dueño)
+${styleRules(ai)}`;
+}
+
+/** Traduce la configuración de /configuracion/ia a reglas concretas del prompt. */
+function styleRules(ai: AiConfig): string {
+  const tono = {
+    calido: "Trato cálido y directo, como un buen vendedor quiteño.",
+    neutral: "Trato profesional y neutro, amable sin exceso de confianza.",
+    formal: 'Trato formal: siempre de "usted", sin modismos.',
+  }[ai.tono];
+
+  const emojis = {
+    ninguno: "No uses emojis.",
+    pocos: "Máximo un emoji por mensaje, y no en todos.",
+    muchos: "Usa emojis con libertad (2–3 por mensaje) manteniendo claridad.",
+  }[ai.emojis];
+
+  const longitud = {
+    corta: "Respuestas cortas: 1–3 líneas por mensaje.",
+    media: "Respuestas de largo medio: hasta 5 líneas por mensaje.",
+    larga: "Puedes extenderte cuando ayude, sin pasar de un párrafo.",
+  }[ai.longitud];
+
+  const lines = [tono, emojis, longitud];
+  if (ai.stickerFinal) {
+    lines.push(
+      `Cuando la venta quede cerrada o derivada al asesor, despídete terminando con ${ai.emojiCierre} (esta despedida no cuenta para el límite de emojis).`,
+    );
+  }
+  if (ai.personalidad.trim()) {
+    lines.push(`Personalidad adicional definida por el dueño: ${ai.personalidad.trim()}`);
+  }
+  return lines.map((l) => `- ${l}`).join("\n");
 }

@@ -32,6 +32,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-07-18 | _(este mismo)_ | Herramientas de operación en línea: /mensajes, /configuracion/ia, /tester | 2.5 |
 | 2026-07-18 | _(este mismo)_ | Deploy en Railway en vivo: root dir, dominio, fix EBUSY del build | 1.0 |
 | 2026-07-18 | _(este mismo)_ | Migración del agente de Anthropic a OpenAI GPT | 1.5 |
 | 2026-07-18 | _(este mismo)_ | Preparar deploy en Railway (schema al boot, catálogo opcional, railway.toml) | 1.0 |
@@ -49,11 +50,26 @@ Ya viene activado en este equipo.
 | 2026-07-14 | ac09171 | Ubicaciones de locales + análisis de features del cliente | 1.5 |
 | 2026-07-13 | feadf57 | Brief + plan de desarrollo + plan financiero + catálogo | 4.0 |
 | 2026-07-13 | d997844 | Commit inicial (repo) | 0.25 |
-| | | **TOTAL** | **~31.75 h** |
+| | | **TOTAL** | **~34.25 h** |
 
 ---
 
 ## Entradas (más reciente primero)
+
+### 2026-07-18 · Herramientas de operación en línea · ⏱️ 2.5 h
+**Commit:** _(este mismo)_
+
+**Qué se hizo:**
+- Las 3 tarjetas del hub que decían "requiere dashboard local" (localhost:3001/3000) ahora funcionan en la URL de Railway: `/mensajes`, `/configuracion/ia` y `/tester`.
+- API nueva `/api/*` en el bot: listar conversaciones y mensajes reales de Postgres, envío manual (pausa el bot en ese chat, mismo handoff que responder desde el celular), pausar/reactivar bot, configuración de IA, y envío directo del tester.
+- Tabla `settings` (key/value jsonb): guarda personalidad, tono, emojis, longitud y cierre 🤝. `runAgent` los inyecta al system prompt en cada respuesta (cache 30 s).
+- Protección con `ADMIN_KEY` opcional: si la variable existe en Railway, el navegador pide la clave una vez. Los errores de Meta se responden como 502 para no confundirlos con el 401 del login.
+- Probado en local con Postgres temporal: lista, chat, pausa, guardado de config y errores del tester.
+
+**Por qué:**
+- Esas herramientas solo servían con un dashboard local que ni siquiera existe en el repo — el dueño necesita ver los chats y probar el bot desde cualquier lado. El tester local (tools/wa-tester) queda como respaldo de desarrollo; la versión en línea usa el token que ya vive en Railway.
+
+---
 
 ### 2026-07-18 · Hub completo servido desde Railway · ⏱️ 0.5 h
 **Commit:** _(este mismo)_

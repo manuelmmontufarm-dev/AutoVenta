@@ -57,6 +57,7 @@
   .card .go{margin-top:14px;font-size:11.5px;font-weight:700;color:var(--paper);display:flex;align-items:center;gap:5px}
   .badge{display:inline-flex;align-items:center;gap:5px;font-size:9.5px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;padding:3px 8px;border-radius:99px;margin-bottom:10px;border:1px solid var(--line);color:var(--muted)}
   .badge.local{color:var(--teal);border-color:rgba(45,212,191,.28);background:rgba(45,212,191,.08)}
+  .badge.live{color:var(--green);border-color:rgba(52,211,153,.3);background:rgba(52,211,153,.08)}
   .badge.external{color:var(--blue);border-color:rgba(91,141,239,.3);background:rgba(91,141,239,.08)}
   .badge.file{color:var(--amber);border-color:rgba(245,184,61,.28);background:rgba(245,184,61,.08)}
 
@@ -109,24 +110,24 @@
     </a>
   </div>
 
-  <h2 id="operacion">Operación local</h2>
+  <h2 id="operacion">Operación</h2>
   <div class="grid">
-    <a class="card glass" href="http://localhost:3001/mensajes">
-      <span class="badge local">● requiere dashboard local</span>
+    <a class="card glass" href="mensajes">
+      <span class="badge live">● en línea</span>
       <div class="icon" style="background:rgba(52,211,153,.13);color:var(--green)">✦</div>
       <h3>Mensajes de WhatsApp</h3>
       <p>Conversaciones reales, envío manual y estado del asistente de AutoVenta.</p>
       <span class="go">Abrir mensajes →</span>
     </a>
-    <a class="card glass" href="http://localhost:3001/configuracion/ia">
-      <span class="badge local">● requiere dashboard local</span>
+    <a class="card glass" href="configuracion/ia">
+      <span class="badge live">● en línea</span>
       <div class="icon" style="background:rgba(167,139,250,.14);color:var(--violet)">✣</div>
       <h3>Configuración de IA</h3>
       <p>Personalidad, tono, emojis, longitud de respuesta y sticker final.</p>
       <span class="go">Configurar asistente →</span>
     </a>
-    <a class="card glass" href="http://localhost:3000/">
-      <span class="badge local">● herramienta local</span>
+    <a class="card glass" href="tester">
+      <span class="badge live">● en línea</span>
       <div class="icon" style="background:rgba(245,184,61,.13);color:var(--amber)">WA</div>
       <h3>WhatsApp Tester</h3>
       <p>Herramienta técnica para probar el envío real por Meta sin pasar por el dashboard.</p>
@@ -273,7 +274,7 @@
   </div>
 
   <div class="foot glass">
-    <b>Nota de seguridad:</b> este hub solo contiene enlaces; no guarda tokens, contraseñas ni llaves API. Los accesos marcados como “local” funcionan cuando el dashboard de WhatsApp está encendido en el puerto 3001. Los documentos se regeneran desde los archivos fuente del repositorio.
+    <b>Nota de seguridad:</b> este hub solo contiene enlaces; no guarda tokens, contraseñas ni llaves API. Las herramientas marcadas “en línea” hablan con el bot en Railway y se protegen con la clave <b>ADMIN_KEY</b> (se pide una sola vez en el navegador). Los documentos se regeneran desde los archivos fuente del repositorio.
   </div>
 </div>
 </body>
