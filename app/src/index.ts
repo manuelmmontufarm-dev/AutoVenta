@@ -21,6 +21,7 @@ import {
 } from "./services/conversations.js";
 import { emitLiveEvent } from "./services/liveEvents.js";
 import { extractTireSizes, formatTireSize } from "./domain/tireSize.js";
+import { getHubMetrics } from "./services/hubData.js";
 
 const pipeline = new InboundPipeline(async ({ from, name, text, waMessageIds }) => {
   const conversation = await getOrCreateConversation(from, name);
@@ -122,6 +123,7 @@ wa.on.status = async ({ status, id, error, conversation, pricing }) => {
 
 // Aplica el esquema al arrancar (idempotente) → deploy sin paso manual de migración.
 await ensureSchema();
+await getHubMetrics(7);
 console.log("✅ Esquema de base de datos listo");
 
 startCatalogSync();
