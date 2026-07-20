@@ -32,3 +32,20 @@ export function nearestStore(
   }
   return { store: best, distanceKm: Math.round(bestDist * 10) / 10 };
 }
+
+const QUITO_SECTORS: Record<string, { lat: number; lng: number; label: string }> = {
+  itulcachi: { lat: -0.157, lng: -78.337, label: "Itulcachi" },
+  cumbaya: { lat: -0.2, lng: -78.43, label: "Cumbayá" },
+  tumbaco: { lat: -0.211, lng: -78.402, label: "Tumbaco" },
+  pifo: { lat: -0.225, lng: -78.339, label: "Pifo" },
+  quito: { lat: -0.18, lng: -78.49, label: "Quito" },
+};
+
+export function resolveSector(text: string): { lat: number; lng: number; label: string } | null {
+  const normalized = text
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]/g, "");
+  return Object.entries(QUITO_SECTORS).find(([key]) => normalized.includes(key))?.[1] ?? null;
+}

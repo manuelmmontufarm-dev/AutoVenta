@@ -126,7 +126,7 @@ function ZonaCierre() {
 }
 
 export function Pipeline() {
-  const { tickets, moverEtapa } = useHub();
+  const { tickets, moverEtapa, metrics } = useHub();
   const now = useNow();
   const [vista, setVista] = useState<"kanban" | "embudo">("kanban");
   const [activo, setActivo] = useState<Ticket | null>(null);
@@ -143,6 +143,13 @@ export function Pipeline() {
   }, [abiertos]);
 
   const embudo = useMemo(() => {
+    if (metrics?.funnel?.length) {
+      const byStage = new Map(metrics.funnel.map((item) => [item.stage, item.value]));
+      return [
+        ...ETAPAS.map((e) => ({ label: ETAPA_META[e].nombre, valor: byStage.get(e) ?? 0, color: ETAPA_META[e].color })),
+        { label: "Ganado", valor: byStage.get("ganado") ?? 0, color: CIERRE_META.ganado.color },
+      ];
+    }
     const alcanza = (idx: number) =>
       tickets.filter((t) => {
         if (t.estado === "cerrado")
@@ -156,7 +163,7 @@ export function Pipeline() {
       color: CIERRE_META.ganado.color,
     });
     return pasos;
-  }, [tickets]);
+  }, [tickets, metrics]);
 
   function onDragStart(ev: DragStartEvent) {
     setActivo(abiertos.find((t) => t.id === ev.active.id) ?? null);

@@ -17,8 +17,10 @@ import {
   logFunnelEvent,
   recordMessageStatus,
   setStage,
+  updateConversationFacts,
 } from "./services/conversations.js";
 import { emitLiveEvent } from "./services/liveEvents.js";
+import { extractTireSizes, formatTireSize } from "./domain/tireSize.js";
 
 const pipeline = new InboundPipeline(async ({ from, name, text, waMessageIds }) => {
   const conversation = await getOrCreateConversation(from, name);
@@ -30,6 +32,10 @@ const pipeline = new InboundPipeline(async ({ from, name, text, waMessageIds }) 
     break; // el texto ya viene agrupado; un solo registro con el primer id
   }
   if (!anyNew) return;
+  const parsedSize = extractTireSizes(text)[0];
+  if (parsedSize) {
+    await updateConversationFacts(conversation.id, { tireSize: formatTireSize(parsedSize) });
+  }
   emitLiveEvent("message", conversation.id);
   emitLiveEvent("sync", conversation.id);
 
@@ -48,7 +54,7 @@ const pipeline = new InboundPipeline(async ({ from, name, text, waMessageIds }) 
   void showTyping(waMessageIds[waMessageIds.length - 1]).catch(() => {});
 
   const reply = await runAgent(
-    { conversation, customerPhone: from, customerName: name },
+    { conversation, customerPhone: from, customerName: name, currentUserText: text },
     text,
   );
 

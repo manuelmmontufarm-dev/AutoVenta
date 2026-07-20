@@ -25,6 +25,11 @@ alter table conversations add column if not exists closed_reason text;
 alter table conversations add column if not exists closed_at timestamptz;
 alter table conversations add column if not exists last_customer_message_at timestamptz;
 alter table conversations add column if not exists last_assistant_message_at timestamptz;
+alter table conversations add column if not exists current_cycle integer not null default 1;
+alter table conversations add column if not exists selected_product_code text;
+alter table conversations add column if not exists selected_quantity integer;
+alter table conversations add column if not exists location_label text;
+alter table conversations add column if not exists nearest_store text;
 
 -- Migración de las etapas históricas al pipeline canónico.
 update conversations
@@ -55,6 +60,7 @@ alter table messages add column if not exists sent_at timestamptz;
 alter table messages add column if not exists delivered_at timestamptz;
 alter table messages add column if not exists read_at timestamptz;
 alter table messages add column if not exists failed_at timestamptz;
+alter table messages add column if not exists cycle integer not null default 1;
 
 update messages
 set direction = case when role = 'user' then 'inbound' else 'outbound' end,
@@ -74,6 +80,12 @@ create table if not exists quotes (
   total           numeric(10,2) not null,
   created_at      timestamptz not null default now()
 );
+alter table quotes add column if not exists cycle integer not null default 1;
+alter table quotes add column if not exists quote_number text;
+alter table quotes add column if not exists sale_number text;
+update quotes
+set quote_number = coalesce(quote_number, 'COT-' || to_char(created_at, 'YYYYMMDD') || '-' || lpad(id::text, 4, '0')),
+    sale_number = coalesce(sale_number, 'AV-' || lpad(id::text, 6, '0'));
 
 create table if not exists funnel_events (
   id              bigserial primary key,
@@ -82,6 +94,7 @@ create table if not exists funnel_events (
   data            jsonb,
   created_at      timestamptz not null default now()
 );
+alter table funnel_events add column if not exists cycle integer not null default 1;
 
 create index if not exists funnel_events_type_idx on funnel_events (type, created_at);
 
@@ -94,6 +107,7 @@ create table if not exists stage_transitions (
   reason          text,
   created_at      timestamptz not null default now()
 );
+alter table stage_transitions add column if not exists cycle integer not null default 1;
 
 create index if not exists stage_transitions_conversation_idx
   on stage_transitions (conversation_id, created_at);
@@ -160,6 +174,61 @@ create table if not exists quote_artifacts (
   provider_id     text,
   created_at      timestamptz not null default now()
 );
+alter table quote_artifacts add column if not exists cycle integer not null default 1;
+
+create table if not exists sales_history (
+  id                    bigserial primary key,
+  conversation_id       bigint not null references conversations(id) on delete cascade,
+  cycle                  integer not null,
+  outcome                text not null check (outcome in ('ganado', 'perdido')),
+  reason                 text,
+  tire_size              text,
+  vehicle                text,
+  selected_product_code  text,
+  selected_quantity      integer,
+  quote_id                bigint references quotes(id) on delete set null,
+  quote_number            text,
+  sale_number             text,
+  total                   numeric(10,2),
+  closed_at               timestamptz not null default now(),
+  unique (conversation_id, cycle)
+);
+
+create index if not exists sales_history_outcome_idx
+  on sales_history (outcome, closed_at);
+
+-- Corrige cierres antiguos mal clasificados cuando el propio cliente confirmó
+-- en el chat que la compra ya se realizó (caso observado en staging).
+update conversations c
+set stage = 'ganado',
+    status = 'closed',
+    closed_reason = 'Cliente confirmó explícitamente que la compra fue realizada',
+    closed_at = coalesce(c.closed_at, now())
+where exists (
+  select 1 from messages m
+  where m.conversation_id = c.id and m.role = 'user'
+    and lower(m.content) ~ '(ya[[:space:]]+.*compr|acabo de comprar|ya pagu|compra (hecha|realizada))'
+);
+
+insert into sales_history (
+  conversation_id, cycle, outcome, reason, tire_size, vehicle,
+  selected_product_code, selected_quantity, quote_id, quote_number,
+  sale_number, total, closed_at
+)
+select
+  c.id, c.current_cycle,
+  case when c.stage = 'ganado' then 'ganado' else 'perdido' end,
+  c.closed_reason, c.tire_size, c.vehicle,
+  c.selected_product_code, c.selected_quantity,
+  q.id, q.quote_number, q.sale_number, q.total, coalesce(c.closed_at, now())
+from conversations c
+left join lateral (
+  select id, quote_number, sale_number, total from quotes
+  where conversation_id = c.id and cycle = c.current_cycle
+  order by created_at desc limit 1
+) q on true
+where c.status = 'closed'
+on conflict (conversation_id, cycle) do nothing;
 
 create table if not exists product_media (
   id bigserial primary key,

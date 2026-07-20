@@ -16,9 +16,21 @@ export interface FitmentEntry {
   sizes: string[];
   years?: string;
   validated: boolean;
+  sourceUrl?: string;
+  note?: string;
 }
 
 export const FITMENT_TABLE: FitmentEntry[] = [
+  {
+    make: "toyota",
+    model: "highlander",
+    sizes: ["245/65R17", "245/55R19"],
+    years: "2008-2013",
+    validated: true,
+    sourceUrl:
+      "https://pressroom.toyota.com/2012-toyota-highlander-four-cylinder-v6-hybrid-models/",
+    note: "2012: Base/SE 245/65R17; Limited 245/55R19. Confirmar versión y etiqueta de la puerta.",
+  },
   { make: "chevrolet", model: "sail", sizes: ["185/60R14", "185/55R15"], validated: false },
   { make: "chevrolet", model: "aveo", sizes: ["185/60R14", "185/55R15"], validated: false },
   { make: "chevrolet", model: "spark", sizes: ["155/80R13", "165/65R14"], validated: false },
@@ -60,16 +72,23 @@ function normalize(text: string): string {
 }
 
 /** Busca medidas de fábrica para un vehículo. Matching laxo en make/model. */
-export function lookupFitment(make: string, model: string): FitmentEntry | null {
+export function lookupFitment(make: string, model: string, year?: number | null): FitmentEntry | null {
   const nMake = normalize(make);
   const nModel = normalize(model).replace(/[- ]/g, "");
   return (
     FITMENT_TABLE.find((entry) => {
       const eModel = entry.model.replace(/[- ]/g, "");
+      const yearMatches = !year || !entry.years || yearInRange(year, entry.years);
       return (
+        yearMatches &&
         (nMake.includes(entry.make) || entry.make.includes(nMake)) &&
         (nModel.includes(eModel) || eModel.includes(nModel))
       );
     }) ?? null
   );
+}
+
+function yearInRange(year: number, range: string): boolean {
+  const [from, to = from] = range.split("-").map(Number);
+  return Number.isFinite(from) && Number.isFinite(to) && year >= from && year <= to;
 }

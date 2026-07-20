@@ -92,14 +92,14 @@ export function buildDistributorOptionsMessage(
 export function buildSingleQuoteMessage(
   selection: CatalogQuoteSelection,
   customerName = "",
+  quoteNumber?: string,
+  saleNumber?: string,
 ): string {
   const { product, quantity } = selection;
   const warranty = warrantyForBrand(product.brand);
   const total = product.minimumPriceWithTax * quantity;
   return [
-    `Hola${cleanName(customerName) ? ` ${cleanName(customerName)}` : ""} 👋`,
-    "",
-    `Cotización — ${dateLabel()}`,
+    `📄 Cotización${quoteNumber ? ` ${quoteNumber}` : ""} — ${dateLabel()}`,
     `${brandEmoji(product.brand)} ${product.brand} ${product.design} — ${product.sizeLabel ?? product.name}`,
     `💰 ${money(product.minimumPriceWithTax)} c/u (antes ${money(product.customerPriceWithTax)}, −${discount(product)}%)`,
     `🛞 ${quantity} llanta${quantity === 1 ? "" : "s"}: ${money(total)}`,
@@ -109,8 +109,10 @@ export function buildSingleQuoteMessage(
     ...(warranty.roadHazard ? [`🔒 ${warranty.roadHazard}`] : []),
     "",
     "Precio incluye IVA y Ecovalor. Válida por 3 días o hasta agotar stock.",
-    "¿Deseas que coordinemos instalación o retiro?",
+    saleNumber ? `🔖 Número de venta: ${saleNumber}` : "",
+    "📍 ¿En qué sector estás o puedes compartir tu ubicación? Así te indico el local más cercano.",
   ]
+    .filter(Boolean)
     .join("\n")
     .trim();
 }

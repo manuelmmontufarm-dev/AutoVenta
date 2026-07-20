@@ -22,7 +22,9 @@ import {
   renderQuotePdf,
 } from "../services/quotePdf.js";
 import {
+  buildComparisonMessage,
   buildCustomerOptionsMessage,
+  buildSingleQuoteMessage,
   warrantyForBrand,
 } from "../services/quoteMessages.js";
 import {
@@ -30,17 +32,23 @@ import {
   logQuote,
   logQuoteArtifact,
   setStage,
+  updateConversationFacts,
   type Conversation,
 } from "../services/conversations.js";
 import { lookupFitment } from "../domain/fitment.js";
-import { nearestStore } from "../domain/locations.js";
+import { nearestStore, resolveSector } from "../domain/locations.js";
 import { formatTireSize } from "../domain/tireSize.js";
+import { canGenerateFinalQuote } from "../domain/salesIntent.js";
+import { getTirePatternProfile } from "../domain/tireKnowledge.js";
 import { notifySeller, sendPdf } from "../wa/client.js";
+import { sql } from "../db/client.js";
 
 export interface AgentContext {
   conversation: Conversation;
   customerPhone: string;
   customerName?: string;
+  currentUserText: string;
+  comparedThisTurn?: boolean;
 }
 
 export interface AgentTool {
@@ -89,6 +97,7 @@ export function buildTools(ctx: AgentContext) {
       const size = { width, aspect, rim };
       const exact = searchBySize(size);
       const alternatives = exact.some((i) => i.stock > 0) ? [] : searchAlternatives(size);
+      await updateConversationFacts(ctx.conversation.id, { tireSize: formatTireSize(size) });
       return JSON.stringify({
         medida: formatTireSize(size),
         resultados: exact.slice(0, 8).map(toolItem),
@@ -120,9 +129,12 @@ export function buildTools(ctx: AgentContext) {
     schema: z.object({
       marca: z.string().describe("Marca del vehículo, ej. Chevrolet"),
       modelo: z.string().describe("Modelo, ej. Sail, D-Max, Hilux"),
+      anio: z.number().int().min(1950).max(2030).nullable().default(null),
     }),
-    run: async ({ marca, modelo }) => {
-      const entry = lookupFitment(marca, modelo);
+    run: async ({ marca, modelo, anio }) => {
+      const vehicle = `${marca} ${modelo}${anio ? ` ${anio}` : ""}`.trim();
+      await updateConversationFacts(ctx.conversation.id, { vehicle });
+      const entry = lookupFitment(marca, modelo, anio);
       if (!entry) {
         return JSON.stringify({
           encontrado: false,
@@ -134,6 +146,11 @@ export function buildTools(ctx: AgentContext) {
         encontrado: true,
         medidas: entry.sizes,
         validated: entry.validated,
+        anios: entry.years ?? null,
+        nota: entry.note ?? null,
+        fuente: entry.sourceUrl ?? null,
+        regla:
+          "Presenta todas las medidas por versión y pide confirmar versión o etiqueta de puerta/llanta antes de buscar stock.",
       });
     },
   });
@@ -225,10 +242,20 @@ export function buildTools(ctx: AgentContext) {
         filename,
         providerId,
       });
+      const comparisonText = [
+        buildComparisonMessage(selected),
+        buildTechnicalGuidance(selected, ctx.currentUserText),
+      ].filter(Boolean).join("\n\n");
       return JSON.stringify({
         enviada: true,
         modelos: selected.map((product) => `${product.brand} ${product.design}`),
-        nota: "Comparación por unidad; no hay total conjunto.",
+        mensaje_para_enviar: comparisonText,
+        perfiles_tecnicos: selected.map((product) => ({
+          modelo: `${product.brand} ${product.design}`,
+          perfil: getTirePatternProfile(product.brand, product.design),
+        })),
+        regla:
+          "Responde con mensaje_para_enviar sin saludo y, si preguntó por uso, agrega solo conclusiones respaldadas por perfiles_tecnicos. El PDF ya fue enviado. NO generes cotización.",
       });
     },
   });
@@ -250,6 +277,12 @@ export function buildTools(ctx: AgentContext) {
       nombre_cliente: z.string().describe("Nombre del cliente si lo conoces, o 'Cliente'"),
     }),
     run: async ({ items, nombre_cliente }) => {
+      if (!canGenerateFinalQuote(ctx.currentUserText, ctx.comparedThisTurn)) {
+        return JSON.stringify({
+          error:
+            "Cotización bloqueada: esta conversación aún está comparando o el último mensaje no confirmó una cantidad. Pide un modelo y una cantidad explícitos. No envíes PDF de cotización.",
+        });
+      }
       await ensureCatalogReady();
       const lines = [];
       for (const item of items) {
@@ -283,6 +316,7 @@ export function buildTools(ctx: AgentContext) {
         });
       }
       const quote = buildQuote(lines, nombre_cliente, ctx.customerPhone);
+      const saleNumber = `AV-${quote.number.replace(/\D/g, "").slice(-6)}`;
       const pdf = await renderQuotePdf(quote);
       const filename = `Cotizacion-${business.name.replace(/\s/g, "")}-${quote.number}.pdf`;
       const providerId = await sendPdf(
@@ -303,9 +337,22 @@ export function buildTools(ctx: AgentContext) {
           metadata: { filename, quoteNumber: quote.number },
         },
       );
-      await logQuote(ctx.conversation.id, quote.lines, quote.subtotal, quote.tax, quote.total);
+      const quoteId = await logQuote(
+        ctx.conversation.id,
+        quote.lines,
+        quote.subtotal,
+        quote.tax,
+        quote.total,
+        quote.number,
+        saleNumber,
+      );
+      await updateConversationFacts(ctx.conversation.id, {
+        selectedProductCode: items[0].code,
+        selectedQuantity: items[0].cantidad,
+      });
       await logQuoteArtifact({
         conversationId: ctx.conversation.id,
+        quoteId,
         kind: "quote",
         products: quote.lines,
         filename,
@@ -321,6 +368,15 @@ export function buildTools(ctx: AgentContext) {
         subtotal: quote.subtotal,
         iva: quote.tax,
         total_con_iva: quote.total,
+        numero_venta: saleNumber,
+        mensaje_para_enviar: buildSingleQuoteMessage(
+          { product: findByCode(items[0].code)!, quantity: items[0].cantidad },
+          nombre_cliente,
+          quote.number,
+          saleNumber,
+        ),
+        regla:
+          "Responde exactamente con mensaje_para_enviar. El PDF final ya fue enviado. Después espera la ubicación; todavía no notifiques al vendedor.",
       });
     },
   });
@@ -328,19 +384,47 @@ export function buildTools(ctx: AgentContext) {
   const localMasCercano = defineTool({
     name: "local_mas_cercano",
     description:
-      "Dada la ubicación del cliente (latitud/longitud que llega cuando comparte ubicación), devuelve el local más cercano con dirección y distancia.",
+      "Usa una ubicación compartida (lat/lng) o un sector conocido para elegir el local más cercano. Nunca inventes coordenadas ni distancias.",
     schema: z.object({
-      lat: z.number(),
-      lng: z.number(),
+      lat: z.number().nullable().default(null),
+      lng: z.number().nullable().default(null),
+      sector: z.string().nullable().default(null),
     }),
-    run: async ({ lat, lng }) => {
-      const { store, distanceKm } = nearestStore(business.stores, lat, lng);
+    run: async ({ lat, lng, sector }) => {
+      const resolved = lat != null && lng != null ? { lat, lng, label: "ubicación compartida" } : sector ? resolveSector(sector) : null;
+      if (!resolved) {
+        return JSON.stringify({
+          error: "No puedo ubicar ese sector con seguridad. Pide que comparta el pin de ubicación de WhatsApp.",
+        });
+      }
+      const { store, distanceKm } = nearestStore(business.stores, resolved.lat, resolved.lng);
+      await updateConversationFacts(ctx.conversation.id, {
+        locationLabel: resolved.label,
+        nearestStore: store.name,
+      });
+      await setStage(ctx.conversation.id, "handoff_visita", {
+        actor: "customer",
+        reason: "Cliente compartió ubicación después de cotizar",
+      });
+      const sale = await latestSaleNumber(ctx.conversation.id);
       return JSON.stringify({
         local: store.name,
         direccion: store.address,
         distancia_km: distanceKm,
         maps: store.mapsUrl ?? null,
         horario: business.schedule,
+        ubicacion_cliente: resolved.label,
+        distancia_es_aproximada: sector != null,
+        numero_venta: sale,
+        mensaje_para_enviar: [
+          `📍 El local recomendado es *${store.name}*.`,
+          `🏬 ${store.address}`,
+          store.mapsUrl ? `🗺️ ${store.mapsUrl}` : "",
+          `🕐 ${business.schedule}`,
+          sale ? `🔖 Al llegar, indica tu número de venta *${sale}* para aplicar el descuento correspondiente.` : "",
+          "🙌 ¡Te esperamos! Si necesitas algo más, aquí estoy.",
+        ].filter(Boolean).join("\n"),
+        regla: "Responde exactamente con mensaje_para_enviar y no inventes otra distancia o dirección.",
       });
     },
   });
@@ -355,8 +439,17 @@ export function buildTools(ctx: AgentContext) {
         .describe("Resumen para el vendedor: producto, cantidad, total, estado del cliente"),
     }),
     run: async ({ resumen }) => {
+      const [facts] = await sql<{ location_label: string | null; nearest_store: string | null }[]>`
+        select location_label, nearest_store from conversations where id = ${ctx.conversation.id}
+      `;
+      if (!facts?.location_label || !facts.nearest_store) {
+        return JSON.stringify({
+          error:
+            "Antes del handoff necesitas la ubicación del cliente y el local recomendado. Pide ubicación y usa local_mas_cercano.",
+        });
+      }
       await notifySeller(
-        `${resumen}\n\nCliente: ${ctx.customerName ?? "?"} (wa.me/${ctx.customerPhone})`,
+        `${resumen}\nUbicación: ${facts.location_label}\nLocal: ${facts.nearest_store}\n\nCliente: ${ctx.customerName ?? "?"} (wa.me/${ctx.customerPhone})`,
       );
       await setStage(ctx.conversation.id, "handoff_visita", {
         actor: "customer",
@@ -376,6 +469,49 @@ export function buildTools(ctx: AgentContext) {
     localMasCercano,
     notificarVendedor,
   ];
+}
+
+async function latestSaleNumber(conversationId: number): Promise<string | null> {
+  const [row] = await sql<{ sale_number: string | null }[]>`
+    select sale_number from quotes
+    where conversation_id = ${conversationId}
+      and cycle = (select current_cycle from conversations where id = ${conversationId})
+    order by created_at desc limit 1
+  `;
+  return row?.sale_number ?? null;
+}
+
+function buildTechnicalGuidance(
+  products: Array<{ brand: string; design: string }>,
+  question: string,
+): string {
+  const profiles = products
+    .map((product) => ({ product, profile: getTirePatternProfile(product.brand, product.design) }))
+    .filter((entry): entry is { product: { brand: string; design: string }; profile: NonNullable<ReturnType<typeof getTirePatternProfile>> } => Boolean(entry.profile));
+  if (!profiles.length) {
+    return "ℹ️ No tengo fichas técnicas verificadas de estos diseños para recomendar uno por desempeño.";
+  }
+  const normalized = question.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  const mountain = /montan|ripio|barro|destapad|off.?road/.test(normalized);
+  const wet = /lluv|mojad|aquaplan/.test(normalized);
+  const lines = ["🧭 *¿Cuál conviene más?*"];
+  for (const { product, profile } of profiles) {
+    lines.push(
+      `• *${product.brand} ${product.design}:* ${profile.category}; destaca en ${profile.strengths.join(", ")}.`,
+    );
+  }
+  if (mountain) {
+    const allTerrain = profiles.find(({ profile }) => /all-terrain|rugged|mud/.test(profile.category));
+    lines.push(
+      allTerrain
+        ? `🏔️ Para ripio o camino sin asfaltar, *${allTerrain.product.brand} ${allTerrain.product.design}* es la opción diseñada para ese uso.`
+        : "🏔️ Si hablas de carretera pavimentada con curvas o lluvia, prioriza agarre en mojado. Para ripio o barro, ninguna de estas opciones de carretera es A/T; conviene buscar otro diseño.",
+    );
+  } else if (wet) {
+    const wetChoice = profiles.find(({ profile }) => profile.strengths.some((s) => /mojado|aquaplan/.test(s)));
+    if (wetChoice) lines.push(`🌧️ Para lluvia, la ficha del fabricante favorece a *${wetChoice.product.brand} ${wetChoice.product.design}*.`);
+  }
+  return lines.join("\n");
 }
 
 function toolItem(item: {

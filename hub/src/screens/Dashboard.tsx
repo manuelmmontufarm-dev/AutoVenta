@@ -22,10 +22,23 @@ export function Dashboard() {
       : 0;
     const enJuego = abiertos.reduce((s, t) => s + (t.cotizacion?.total ?? 0), 0);
     const vendido = ganados.reduce((s, t) => s + (t.cotizacion?.total ?? 0), 0);
-    return { abiertos: abiertos.length, cotizaciones: conCotizacion.length, conversion, enJuego, vendido };
-  }, [tickets]);
+    return {
+      abiertos: metrics?.summary.abiertos ?? abiertos.length,
+      cotizaciones: metrics?.summary.cotizaciones ?? conCotizacion.length,
+      conversion,
+      enJuego: metrics?.summary.enJuego ?? enJuego,
+      vendido: metrics?.summary.vendido ?? vendido,
+    };
+  }, [tickets, metrics]);
 
   const embudo = useMemo(() => {
+    if (metrics?.funnel?.length) {
+      const byStage = new Map(metrics.funnel.map((item) => [item.stage, item.value]));
+      return [
+        ...ETAPAS.map((e) => ({ label: ETAPA_META[e].nombre, valor: byStage.get(e) ?? 0, color: ETAPA_META[e].color })),
+        { label: "Ganado", valor: byStage.get("ganado") ?? 0, color: CIERRE_META.ganado.color },
+      ];
+    }
     const alcanza = (idx: number) =>
       tickets.filter((t) =>
         t.cierre === "ganado" ? true : ETAPAS.indexOf(t.etapa) >= idx,
@@ -34,7 +47,7 @@ export function Dashboard() {
       ...ETAPAS.map((e, i) => ({ label: ETAPA_META[e].nombre, valor: alcanza(i), color: ETAPA_META[e].color })),
       { label: "Ganado", valor: tickets.filter((t) => t.cierre === "ganado").length, color: CIERRE_META.ganado.color },
     ];
-  }, [tickets]);
+  }, [tickets, metrics]);
 
   const serie = useMemo(
     () => metrics?.daily.map((item) => item.value) ?? Array.from({ length: 14 }, () => 0),

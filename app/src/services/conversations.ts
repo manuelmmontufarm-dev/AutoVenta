@@ -10,6 +10,8 @@ export interface Conversation {
   name: string | null;
   stage: Stage;
   bot_paused_until: Date | null;
+  status: "open" | "closed";
+  current_cycle: number;
 }
 
 export async function getOrCreateConversation(
@@ -22,7 +24,59 @@ export async function getOrCreateConversation(
     on conflict (phone) do update
       set name = coalesce(conversations.name, excluded.name),
           updated_at = now()
-    returning id, phone, name, stage, bot_paused_until
+    returning id, phone, name, stage, bot_paused_until, status, current_cycle
+  `;
+  if (row.status === "closed") {
+    return reopenConversation(row.id, "customer", "Nuevo mensaje después de un cierre");
+  }
+  return row;
+}
+
+export async function reopenConversation(
+  conversationId: number,
+  actor: "customer" | "bot" | "owner" | "system" = "system",
+  reason = "Nueva oportunidad comercial",
+): Promise<Conversation> {
+  await sql`
+    insert into sales_history (
+      conversation_id, cycle, outcome, reason, tire_size, vehicle,
+      selected_product_code, selected_quantity, quote_id, quote_number,
+      sale_number, total, closed_at
+    )
+    select
+      c.id, c.current_cycle,
+      case when c.stage = 'ganado' then 'ganado' else 'perdido' end,
+      c.closed_reason, c.tire_size, c.vehicle,
+      c.selected_product_code, c.selected_quantity,
+      q.id, q.quote_number, q.sale_number, q.total, coalesce(c.closed_at, now())
+    from conversations c
+    left join lateral (
+      select id, quote_number, sale_number, total from quotes
+      where conversation_id = c.id and cycle = c.current_cycle
+      order by created_at desc limit 1
+    ) q on true
+    where c.id = ${conversationId} and c.status = 'closed'
+    on conflict (conversation_id, cycle) do nothing
+  `;
+  const [row] = await sql<Conversation[]>`
+    update conversations
+    set current_cycle = current_cycle + 1,
+        stage = 'nuevo', status = 'open', assigned_to = 'bot',
+        bot_paused_until = null, tire_size = null, vehicle = null,
+        selected_product_code = null, selected_quantity = null,
+        location_label = null, nearest_store = null,
+        closed_reason = null, closed_at = null, updated_at = now()
+    where id = ${conversationId}
+    returning id, phone, name, stage, bot_paused_until, status, current_cycle
+  `;
+  if (!row) throw new Error(`Conversación ${conversationId} no existe`);
+  await sql`
+    insert into funnel_events (conversation_id, cycle, type, data)
+    values (${conversationId}, ${row.current_cycle}, 'reapertura', ${sql.json({ actor, reason })})
+  `;
+  await sql`
+    insert into stage_transitions (conversation_id, cycle, from_stage, to_stage, actor, reason)
+    values (${conversationId}, ${row.current_cycle}, null, 'nuevo', ${actor}, ${reason})
   `;
   return row;
 }
@@ -46,7 +100,7 @@ export async function appendMessage(
   const rows = await sql`
     insert into messages (
       conversation_id, role, content, wa_message_id, direction, type,
-      author_kind, status, metadata, sent_at
+      author_kind, status, metadata, sent_at, cycle
     )
     values (
       ${conversationId},
@@ -58,7 +112,8 @@ export async function appendMessage(
       ${options.authorKind ?? (role === "user" ? "customer" : role === "assistant" ? "bot" : "system")},
       ${options.status ?? (role === "user" ? "delivered" : null)},
       ${sql.json((options.metadata ?? {}) as never)},
-      ${role === "user" ? null : new Date()}
+      ${role === "user" ? null : new Date()},
+      (select current_cycle from conversations where id = ${conversationId})
     )
     on conflict (wa_message_id) do nothing
     returning id
@@ -92,7 +147,9 @@ export async function getHistory(
     select role, content from (
       select role, content, created_at
       from messages
-      where conversation_id = ${conversationId} and role in ('user', 'assistant')
+      where conversation_id = ${conversationId}
+        and cycle = (select current_cycle from conversations where id = ${conversationId})
+        and role in ('user', 'assistant')
       order by created_at desc
       limit ${limit}
     ) recent
@@ -107,8 +164,8 @@ export async function setStage(
   options: { actor?: "customer" | "bot" | "owner" | "system"; reason?: string } = {},
 ): Promise<void> {
   if (!isStage(stage)) throw new Error(`Etapa inválida: ${stage}`);
-  const [current] = await sql<{ stage: Stage }[]>`
-    select stage from conversations where id = ${conversationId}
+  const [current] = await sql<{ stage: Stage; current_cycle: number }[]>`
+    select stage, current_cycle from conversations where id = ${conversationId}
   `;
   if (!current || current.stage === stage) return;
   await sql`
@@ -121,9 +178,10 @@ export async function setStage(
     where id = ${conversationId}
   `;
   await sql`
-    insert into funnel_events (conversation_id, type, data)
+    insert into funnel_events (conversation_id, cycle, type, data)
     values (
       ${conversationId},
+      ${current.current_cycle},
       'etapa',
       ${sql.json({
         from: current.stage,
@@ -134,14 +192,67 @@ export async function setStage(
     )
   `;
   await sql`
-    insert into stage_transitions (conversation_id, from_stage, to_stage, actor, reason)
+    insert into stage_transitions (conversation_id, cycle, from_stage, to_stage, actor, reason)
     values (
       ${conversationId},
+      ${current.current_cycle},
       ${current.stage},
       ${stage},
       ${options.actor ?? "system"},
       ${options.reason ?? null}
     )
+  `;
+  if (stage === "ganado" || stage === "perdido") {
+    await sql`
+      insert into sales_history (
+        conversation_id, cycle, outcome, reason, tire_size, vehicle,
+        selected_product_code, selected_quantity, quote_id, quote_number,
+        sale_number, total, closed_at
+      )
+      select
+        c.id, c.current_cycle, ${stage}, ${options.reason ?? null}, c.tire_size, c.vehicle,
+        c.selected_product_code, c.selected_quantity, q.id, q.quote_number,
+        q.sale_number, q.total, now()
+      from conversations c
+      left join lateral (
+        select id, quote_number, sale_number, total from quotes
+        where conversation_id = c.id and cycle = c.current_cycle
+        order by created_at desc limit 1
+      ) q on true
+      where c.id = ${conversationId}
+      on conflict (conversation_id, cycle) do update set
+        outcome = excluded.outcome, reason = excluded.reason,
+        tire_size = excluded.tire_size, vehicle = excluded.vehicle,
+        selected_product_code = excluded.selected_product_code,
+        selected_quantity = excluded.selected_quantity,
+        quote_id = excluded.quote_id, quote_number = excluded.quote_number,
+        sale_number = excluded.sale_number, total = excluded.total,
+        closed_at = excluded.closed_at
+    `;
+  }
+}
+
+export async function updateConversationFacts(
+  conversationId: number,
+  facts: {
+    tireSize?: string;
+    vehicle?: string;
+    selectedProductCode?: string;
+    selectedQuantity?: number;
+    locationLabel?: string;
+    nearestStore?: string;
+  },
+): Promise<void> {
+  await sql`
+    update conversations set
+      tire_size = coalesce(${facts.tireSize ?? null}, tire_size),
+      vehicle = coalesce(${facts.vehicle ?? null}, vehicle),
+      selected_product_code = coalesce(${facts.selectedProductCode ?? null}, selected_product_code),
+      selected_quantity = coalesce(${facts.selectedQuantity ?? null}, selected_quantity),
+      location_label = coalesce(${facts.locationLabel ?? null}, location_label),
+      nearest_store = coalesce(${facts.nearestStore ?? null}, nearest_store),
+      updated_at = now()
+    where id = ${conversationId}
   `;
 }
 
@@ -165,15 +276,28 @@ export async function logQuote(
   subtotal: number,
   tax: number,
   total: number,
-): Promise<void> {
-  await sql`
-    insert into quotes (conversation_id, items, subtotal, tax, total)
-    values (${conversationId}, ${sql.json(items as never)}, ${subtotal}, ${tax}, ${total})
+  quoteNumber?: string,
+  saleNumber?: string,
+): Promise<number> {
+  const [quote] = await sql<{ id: number }[]>`
+    insert into quotes (conversation_id, cycle, items, subtotal, tax, total, quote_number, sale_number)
+    values (
+      ${conversationId},
+      (select current_cycle from conversations where id = ${conversationId}),
+      ${sql.json(items as never)}, ${subtotal}, ${tax}, ${total},
+      ${quoteNumber ?? null}, ${saleNumber ?? null}
+    )
+    returning id
   `;
   await sql`
-    insert into funnel_events (conversation_id, type, data)
-    values (${conversationId}, 'cotizacion', ${sql.json({ total })})
+    insert into funnel_events (conversation_id, cycle, type, data)
+    values (
+      ${conversationId},
+      (select current_cycle from conversations where id = ${conversationId}),
+      'cotizacion', ${sql.json({ total, quoteNumber, saleNumber })}
+    )
   `;
+  return Number(quote.id);
 }
 
 export async function logFunnelEvent(
@@ -182,8 +306,12 @@ export async function logFunnelEvent(
   data?: Record<string, unknown>,
 ): Promise<void> {
   await sql`
-    insert into funnel_events (conversation_id, type, data)
-    values (${conversationId}, ${type}, ${data ? sql.json(data as never) : null})
+    insert into funnel_events (conversation_id, cycle, type, data)
+    values (
+      ${conversationId},
+      (select current_cycle from conversations where id = ${conversationId}),
+      ${type}, ${data ? sql.json(data as never) : null}
+    )
   `;
 }
 
@@ -263,10 +391,11 @@ export async function logQuoteArtifact(input: {
 }): Promise<void> {
   await sql`
     insert into quote_artifacts (
-      conversation_id, quote_id, kind, products, filename, provider_id
+      conversation_id, cycle, quote_id, kind, products, filename, provider_id
     )
     values (
       ${input.conversationId},
+      (select current_cycle from conversations where id = ${input.conversationId}),
       ${input.quoteId ?? null},
       ${input.kind},
       ${sql.json(input.products as never)},

@@ -45,6 +45,7 @@ import {
   markConversationRead,
   setConversationAssignee,
   setStage,
+  reopenConversation,
 } from "../services/conversations.js";
 import { getHubFeed, getHubMessages, getHubMetrics, listHubTickets } from "../services/hubData.js";
 import { emitLiveEvent, subscribeLiveEvents } from "../services/liveEvents.js";
@@ -240,10 +241,7 @@ export function createAdminRouter(): express.Router {
     if (!Number.isInteger(id)) {
       return res.status(400).json({ ok: false, error: "id inválido" });
     }
-    await setStage(id, "seleccionando", {
-      actor: "owner",
-      reason: "Conversación reabierta",
-    });
+    await reopenConversation(id, "owner", "Conversación reabierta manualmente");
     emitLiveEvent("sync", id);
     res.json({ ok: true });
   });

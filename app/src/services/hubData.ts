@@ -41,8 +41,9 @@ export async function listHubTickets() {
       ) end as quote,
       coalesce(n.notes, '[]'::jsonb) as notes,
       (
-        select count(*)::int from conversations prior
-        where prior.phone = c.phone and prior.stage = 'ganado' and prior.id <> c.id
+        select count(*)::int from sales_history history
+        where history.conversation_id = c.id and history.outcome = 'ganado'
+          and history.cycle < c.current_cycle
       ) as won_count
     from conversations c
     left join lateral (
@@ -55,7 +56,7 @@ export async function listHubTickets() {
     left join lateral (
       select id, items, subtotal, tax, total
       from quotes
-      where conversation_id = c.id
+      where conversation_id = c.id and cycle = c.current_cycle
       order by created_at desc
       limit 1
     ) q on true
@@ -173,11 +174,17 @@ export async function getHubMetrics(days = 14) {
     select
       count(*) filter (where c.status = 'open')::int as open_count,
       count(*) filter (where exists (
-        select 1 from quotes q where q.conversation_id = c.id
+        select 1 from quotes q where q.conversation_id = c.id and q.cycle = c.current_cycle
       ))::int as quoted_count,
-      count(*) filter (where c.stage = 'ganado')::int as won_count,
+      (
+        select count(*)::int from sales_history
+        where outcome = 'ganado' and closed_at >= date_trunc('month', now())
+      ) as won_count,
       coalesce(sum(q.total) filter (where c.status = 'open'), 0) as pipeline_value,
-      coalesce(sum(q.total) filter (where c.stage = 'ganado'), 0) as won_value,
+      (
+        select coalesce(sum(total), 0) from sales_history
+        where outcome = 'ganado' and closed_at >= date_trunc('month', now())
+      ) as won_value,
       (
         select percentile_cont(0.5) within group (
           order by extract(epoch from (first_out.created_at - first_in.created_at))
@@ -197,7 +204,9 @@ export async function getHubMetrics(days = 14) {
       ) as first_response_seconds
     from conversations c
     left join lateral (
-      select total from quotes where conversation_id = c.id order by created_at desc limit 1
+      select total from quotes
+      where conversation_id = c.id and cycle = c.current_cycle
+      order by created_at desc limit 1
     ) q on true
   `;
 
@@ -215,9 +224,56 @@ export async function getHubMetrics(days = 14) {
   `;
 
   const funnel = await sql<{ stage: Stage; count: number }[]>`
-    select stage, count(*)::int as count
-    from conversations
-    group by stage
+    with cycles as (
+      select id as conversation_id, current_cycle as cycle from conversations
+      union
+      select conversation_id, cycle from stage_transitions
+      union
+      select conversation_id, cycle from sales_history
+    ), observed as (
+      select id as conversation_id, current_cycle as cycle, stage from conversations
+      union all
+      select conversation_id, cycle, to_stage as stage from stage_transitions
+    ), progress as (
+      select
+        cy.conversation_id,
+        cy.cycle,
+        coalesce(max(case o.stage
+          when 'medida_confirmada' then 1
+          when 'seleccionando' then 2
+          when 'cotizacion_enviada' then 3
+          when 'handoff_visita' then 4
+          when 'ganado' then 5
+          else 0
+        end), 0) as max_rank,
+        exists (
+          select 1 from sales_history sh
+          where sh.conversation_id = cy.conversation_id and sh.cycle = cy.cycle
+            and sh.outcome = 'ganado'
+        ) or exists (
+          select 1 from conversations current_c
+          where current_c.id = cy.conversation_id and current_c.current_cycle = cy.cycle
+            and current_c.stage = 'ganado'
+        ) as won
+      from cycles cy
+      left join observed o on o.conversation_id = cy.conversation_id and o.cycle = cy.cycle
+      group by cy.conversation_id, cy.cycle
+    ), stages(stage, rank) as (
+      values
+        ('nuevo'::text, 0),
+        ('medida_confirmada'::text, 1),
+        ('seleccionando'::text, 2),
+        ('cotizacion_enviada'::text, 3),
+        ('handoff_visita'::text, 4),
+        ('ganado'::text, 5)
+    )
+    select stages.stage, count(*) filter (
+      where (stages.stage = 'ganado' and progress.won)
+         or (stages.stage <> 'ganado' and progress.max_rank >= stages.rank)
+    )::int as count
+    from stages cross join progress
+    group by stages.stage, stages.rank
+    order by stages.rank
   `;
 
   const deliveries = await sql<{ status: string; count: number }[]>`

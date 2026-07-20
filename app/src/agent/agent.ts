@@ -30,6 +30,8 @@ export async function runAgent(ctx: AgentContext, userText: string): Promise<str
     version: stagePrompt.version,
   });
   const history = await getHistory(ctx.conversation.id);
+  if (history.at(-1)?.role === "user" && history.at(-1)?.content === userText) history.pop();
+  ctx.currentUserText = userText;
   const allTools = buildTools(ctx);
   const allowed = new Set(stagePrompt.allowedTools);
   const localTools =
@@ -82,6 +84,21 @@ export async function runAgent(ctx: AgentContext, userText: string): Promise<str
         ? await tool.execute(parseArguments(call.function.arguments))
         : JSON.stringify({ error: `Tool desconocida: ${call.function.name}` });
       messages.push({ role: "tool", tool_call_id: call.id, content: result });
+      if (call.function.name === "enviar_comparacion") ctx.comparedThisTurn = true;
+      const exact = exactToolReply(result);
+      if (exact) {
+        await logAiRun({
+          conversationId: ctx.conversation.id,
+          stage: ctx.conversation.stage,
+          promptVersionId: stagePrompt.id,
+          model: config.openai.model,
+          latencyMs: Date.now() - startedAt,
+          inputTokens,
+          outputTokens,
+          tools: usedTools,
+        });
+        return exact;
+      }
     }
   }
 
@@ -97,6 +114,17 @@ export async function runAgent(ctx: AgentContext, userText: string): Promise<str
     error: "max_iterations_or_empty_response",
   });
   return "Disculpa, tuve un problema procesando tu mensaje. ¿Me lo repites por favor?";
+}
+
+function exactToolReply(result: string): string | null {
+  try {
+    const parsed = JSON.parse(result) as { mensaje_para_enviar?: unknown };
+    return typeof parsed.mensaje_para_enviar === "string"
+      ? parsed.mensaje_para_enviar.trim()
+      : null;
+  } catch {
+    return null;
+  }
 }
 
 function parseArguments(raw: string): unknown {

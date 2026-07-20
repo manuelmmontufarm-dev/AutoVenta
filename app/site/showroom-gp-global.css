@@ -502,6 +502,11 @@ table {
   min-height: min(820px, 100vh) !important;
 }
 
+/* El Hub es un índice compacto, no una portada de showroom. */
+body.hub-home .hero {
+  min-height: 0 !important;
+}
+
 .hero::before {
   background-image: none !important;
 }

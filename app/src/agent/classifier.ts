@@ -7,6 +7,7 @@ import OpenAI from "openai";
 import { config } from "../config.js";
 import { setStage, type Conversation } from "../services/conversations.js";
 import { STAGE_ORDER, isStage } from "../domain/pipeline.js";
+import { isExplicitPurchaseConfirmation } from "../domain/salesIntent.js";
 
 const openai = new OpenAI({ apiKey: config.openai.apiKey });
 
@@ -16,6 +17,13 @@ export async function classifyStage(
   assistantText: string,
 ): Promise<void> {
   if (conversation.stage === "ganado" || conversation.stage === "perdido") return;
+  if (isExplicitPurchaseConfirmation(userText)) {
+    await setStage(conversation.id, "ganado", {
+      actor: "customer",
+      reason: "Cliente confirmó explícitamente que la compra fue realizada",
+    });
+    return;
+  }
   try {
     const response = await openai.chat.completions.create({
       model: config.openai.classifierModel,
@@ -34,7 +42,7 @@ Etapas:
 - handoff_visita: el cliente confirmó compra/visita/reserva o pidió un humano.
 - perdido: el cliente rechazó explícitamente continuar.
 
-No uses "ganado": solo un humano confirma una venta realizada.
+Usa "ganado" únicamente si el cliente afirma en pasado que ya compró o pagó.
 El mensaje del bot nunca mueve la etapa por sí solo. Clasifica únicamente evidencia del mensaje del cliente; si no hay evidencia nueva, conserva la etapa actual.
 
 Devuelve únicamente JSON válido con esta forma: {"stage":"una_etapa"}.
@@ -49,7 +57,7 @@ Bot: ${assistantText}`,
     const text = response.choices[0]?.message.content;
     if (!text) return;
     const { stage } = JSON.parse(text) as { stage: string };
-    if (!isStage(stage) || stage === "ganado") return;
+    if (!isStage(stage)) return;
 
     if (STAGE_ORDER[stage] > STAGE_ORDER[conversation.stage] || stage === "perdido") {
       await setStage(conversation.id, stage, {
