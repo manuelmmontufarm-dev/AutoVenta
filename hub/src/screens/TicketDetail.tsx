@@ -286,8 +286,7 @@ function Ficha({
               }
             }}
             placeholder="Agregar nota…"
-            className="min-w-0 flex-1 rounded-lg px-2.5 py-1.5 text-xs outline-none placeholder:text-faint"
-            style={{ background: "color-mix(in srgb, var(--color-paper) 5%, transparent)", border: "1px solid color-mix(in srgb, var(--color-paper) 8%, transparent)" }}
+            className="gp-field min-w-0 flex-1 rounded-lg px-2.5 py-1.5 text-xs placeholder:text-faint"
           />
         </div>
       </section>
@@ -371,8 +370,7 @@ export function CerrarSheet({
           value={nota}
           onChange={(e) => setNota(e.target.value)}
           placeholder={cierre === "perdido" ? "¿Por qué se perdió? (ej: precio)" : "Nota opcional…"}
-          className="mt-3 w-full rounded-xl px-3.5 py-2.5 text-xs outline-none placeholder:text-faint"
-          style={{ background: "color-mix(in srgb, var(--color-paper) 5%, transparent)", border: "1px solid color-mix(in srgb, var(--color-paper) 8%, transparent)" }}
+          className="gp-field mt-3 w-full rounded-xl px-3.5 py-2.5 text-xs placeholder:text-faint"
         />
         <button
           disabled={!cierre}

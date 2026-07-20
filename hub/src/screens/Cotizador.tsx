@@ -711,7 +711,7 @@ function FilterPanel({
       <select
         value={sort}
         onChange={(event) => setSort(event.target.value as Sort)}
-        className="w-full rounded-xl bg-paper/[.06] px-3 py-2 text-xs font-bold outline-none"
+        className="gp-field w-full rounded-xl px-3 py-2 text-xs font-bold"
       >
         <option value="brand">Por marca</option>
         <option value="price-asc">Menor precio hoy</option>
@@ -899,7 +899,7 @@ function OptionsPanel({
       <input
         value={customerName}
         onChange={(event) => setCustomerName(event.target.value)}
-        className="mt-2 w-full rounded-xl bg-paper/[.055] px-3 py-2.5 text-xs font-semibold outline-none"
+        className="gp-field mt-2 w-full rounded-xl px-3 py-2.5 text-xs font-semibold"
         placeholder="Nombre opcional"
       />
       <div className="mt-auto pt-5">
@@ -1075,7 +1075,7 @@ function QuotePanel({
       <input
         value={customerName}
         onChange={(event) => setCustomerName(event.target.value)}
-        className="mt-2 w-full rounded-xl bg-paper/[.055] px-3 py-2.5 text-xs font-semibold outline-none"
+        className="gp-field mt-2 w-full rounded-xl px-3 py-2.5 text-xs font-semibold"
         placeholder="Nombre del cliente"
       />
       <div className="mt-4 flex items-end justify-between gap-3">
@@ -1091,7 +1091,7 @@ function QuotePanel({
                 Math.max(1, Math.min(8, Number(event.target.value) || 1)),
               )
             }
-            className="tnum mt-2 block w-20 rounded-xl bg-paper/[.07] px-3 py-2 text-center text-sm font-bold outline-none"
+            className="gp-field tnum mt-2 block w-20 rounded-xl px-3 py-2 text-center text-sm font-bold"
           />
         </label>
         <div className="text-right">

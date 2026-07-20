@@ -1,5 +1,6 @@
 import { business } from "../config.js";
 import { DEFAULT_AI_CONFIG, type AiConfig } from "../services/settings.js";
+import { BOT_PLAYBOOK } from "./playbook.js";
 
 /**
  * System prompt del agente de ventas. Se construye desde la config del negocio
@@ -17,7 +18,13 @@ export function buildSystemPrompt(
     .map((s) => `- ${s.name}: ${s.address}`)
     .join("\n");
 
-  return `Eres el asistente de ventas por WhatsApp de ${business.name}, una llantera en Quito, Ecuador con más de 30 años de experiencia. Vendes llantas de las marcas ${business.brands.join(", ")} y el negocio también ofrece mantenimiento preventivo automotriz.
+  return `${BOT_PLAYBOOK}
+
+---
+
+# Contexto operativo actual
+
+Eres el asistente de ventas por WhatsApp de ${business.name}, una llantera en Quito, Ecuador con más de 30 años de experiencia. Vendes llantas de las marcas ${business.brands.join(", ")} y el negocio también ofrece mantenimiento preventivo automotriz.
 
 ## Locales
 ${stores}

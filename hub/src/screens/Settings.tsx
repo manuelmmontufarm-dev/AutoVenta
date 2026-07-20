@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
+import { marked } from "marked";
+import botPlaybook from "../../../app/BOT_PLAYBOOK.md?raw";
 import { ETAPA_META, ETAPAS, type Etapa } from "../data/types";
 import { getStoredAdminKey, saveStoredAdminKey } from "../data/realSource";
 
-type SettingsTab = "ai" | "business" | "connection";
+type SettingsTab = "ai" | "manual" | "business" | "connection";
 
 interface AiConfig {
   personalidad: string;
@@ -57,6 +59,10 @@ export function Settings() {
     [prompts, stage],
   );
   const published = stageVersions.find((prompt) => prompt.status === "published") ?? null;
+  const playbookHtml = useMemo(
+    () => marked.parse(botPlaybook, { async: false }) as string,
+    [],
+  );
 
   useEffect(() => {
     void loadSettings();
@@ -144,6 +150,7 @@ export function Settings() {
         <div className="mb-4 flex flex-wrap gap-2">
           {([
             ["ai", "IA por etapa"],
+            ["manual", "Manual base"],
             ["business", "Negocio"],
             ["connection", "Conexión"],
           ] as const).map(([id, label]) => (
@@ -389,6 +396,42 @@ export function Settings() {
           </div>
         )}
 
+        {tab === "manual" && (
+          <section className="glass max-w-5xl rounded-3xl p-5 sm:p-7">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <p className="microlabel">Reglas permanentes del asistente</p>
+                <h2 className="serif mt-2 text-2xl">Manual base del bot</h2>
+                <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted">
+                  Este es el archivo que el agente recibe en cada turno. Los
+                  prompts por etapa lo perfeccionan, pero no pueden cambiar
+                  precios, stock, seguridad ni las reglas de cotización.
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => void navigator.clipboard.writeText(botPlaybook)}
+                  className="rounded-2xl border border-navy/25 bg-white px-4 py-2.5 text-xs font-black text-navy"
+                >
+                  Copiar Markdown
+                </button>
+                <button
+                  type="button"
+                  onClick={downloadPlaybook}
+                  className="rounded-2xl bg-navy px-4 py-2.5 text-xs font-black text-white"
+                >
+                  Descargar .md
+                </button>
+              </div>
+            </div>
+            <article
+              className="playbook-markdown mt-6"
+              dangerouslySetInnerHTML={{ __html: playbookHtml }}
+            />
+          </section>
+        )}
+
         {tab === "business" && (
           <div className="glass max-w-2xl rounded-3xl p-6">
             <p className="microlabel">Cuenta activa</p>
@@ -442,6 +485,17 @@ export function Settings() {
       </div>
     </div>
   );
+}
+
+function downloadPlaybook() {
+  const url = URL.createObjectURL(
+    new Blob([botPlaybook], { type: "text/markdown;charset=utf-8" }),
+  );
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = "BOT_PLAYBOOK.md";
+  anchor.click();
+  URL.revokeObjectURL(url);
 }
 
 function Field({

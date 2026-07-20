@@ -170,8 +170,7 @@ export function Composer({
           if ((e.key === "Enter" || e.key === "Return") && !e.nativeEvent.isComposing) enviar();
         }}
         placeholder="Escribe como vendedor…"
-        className="min-w-0 flex-1 rounded-full px-4 py-2.5 text-[13.5px] outline-none placeholder:text-faint"
-        style={{ background: "color-mix(in srgb, var(--color-paper) 6%, transparent)", border: "1px solid color-mix(in srgb, var(--color-paper) 9%, transparent)" }}
+        className="gp-field min-w-0 flex-1 rounded-full px-4 py-2.5 text-[13.5px] placeholder:text-faint"
       />
       <motion.button
         whileTap={{ scale: 0.88 }}
