@@ -2,13 +2,12 @@ import { motion } from "framer-motion";
 import { useMemo } from "react";
 import { AreaChart, FunnelChart, StatTile } from "../components/charts";
 import { CIERRE_META, ETAPAS, ETAPA_META } from "../data/types";
-import { SERIE_14D } from "../data/mock/fixtures";
 import { money, relTime } from "../lib/format";
 import { navigate } from "../router";
 import { useHub, useNow } from "../store";
 
 export function Dashboard() {
-  const { tickets, feed } = useHub();
+  const { tickets, feed, metrics } = useHub();
   const now = useNow();
 
   const stats = useMemo(() => {
@@ -16,7 +15,7 @@ export function Dashboard() {
     const conCotizacion = tickets.filter((t) => t.cotizacion);
     const ganados = tickets.filter((t) => t.cierre === "ganado");
     const llegaronVisita = tickets.filter(
-      (t) => t.cierre === "ganado" || t.etapa === "por_visitar",
+      (t) => t.cierre === "ganado" || t.etapa === "handoff_visita",
     );
     const conversion = conCotizacion.length
       ? Math.round((llegaronVisita.length / conCotizacion.length) * 100)
@@ -37,11 +36,10 @@ export function Dashboard() {
     ];
   }, [tickets]);
 
-  const serie = useMemo(() => {
-    const copia = [...SERIE_14D];
-    copia[copia.length - 1] = Math.max(copia[copia.length - 1], stats.abiertos);
-    return copia;
-  }, [stats.abiertos]);
+  const serie = useMemo(
+    () => metrics?.daily.map((item) => item.value) ?? Array.from({ length: 14 }, () => 0),
+    [metrics],
+  );
 
   return (
     <div className="h-full overflow-y-auto px-4 pb-8">
@@ -59,10 +57,10 @@ export function Dashboard() {
         />
         <StatTile
           label="Respuesta del bot"
-          valor={9}
-          formato={(n) => `${Math.round(n)} s`}
+          valor={metrics?.summary.primeraRespuestaSegundos ?? 0}
+          formato={(n) => (n > 0 ? `${Math.round(n)} s` : "—")}
           color="var(--color-ok)"
-          detalle="promedio · 24/7 sin descanso"
+          detalle="mediana real de primera respuesta"
           delay={0.18}
         />
       </div>
@@ -108,11 +106,98 @@ export function Dashboard() {
         </motion.section>
       </div>
 
+      {/* Inventario real */}
+      {metrics?.inventory && (
+        <motion.section
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.4 }}
+          className="glass mt-2.5 rounded-3xl p-5"
+        >
+          <div className="mb-4 flex flex-wrap items-end justify-between gap-2">
+            <div>
+              <p className="microlabel">Inventario real</p>
+              <p className="mt-1 text-xs text-paper/65">
+                Salud del catálogo que usa el bot para recomendar y cotizar.
+              </p>
+            </div>
+            <p className="tnum text-[10.5px] text-faint">
+              {metrics.inventory.source?.toUpperCase() ?? "SIN FUENTE"}
+              {metrics.inventory.lastSync
+                ? ` · ${new Date(metrics.inventory.lastSync).toLocaleString("es-EC")}`
+                : ""}
+            </p>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2.5 md:grid-cols-3 xl:grid-cols-6">
+            {[
+              {
+                label: "Productos",
+                value: metrics.inventory.total,
+                detail: `${metrics.inventory.brands} marcas`,
+                color: "var(--color-paper)",
+              },
+              {
+                label: "Disponibles",
+                value: metrics.inventory.available,
+                detail: `${Math.round(
+                  (metrics.inventory.available / Math.max(metrics.inventory.total, 1)) * 100,
+                )}% del catálogo`,
+                color: "var(--color-ok)",
+              },
+              {
+                label: "Por confirmar",
+                value: metrics.inventory.check,
+                detail: "validar antes de ofrecer",
+                color: "var(--color-warn)",
+              },
+              {
+                label: "Agotadas",
+                value: metrics.inventory.out,
+                detail: "fuera de recomendación",
+                color: "var(--color-danger)",
+              },
+              {
+                label: "Con fotografía",
+                value: metrics.inventory.withImage,
+                detail: "imagen exacta verificada",
+                color: "var(--color-lime)",
+              },
+              {
+                label: "Cobertura visual",
+                value: metrics.inventory.imageCoverage,
+                detail: "meta: 100%",
+                color:
+                  metrics.inventory.imageCoverage >= 90
+                    ? "var(--color-ok)"
+                    : "var(--color-warn)",
+                suffix: "%",
+              },
+            ].map((item) => (
+              <div
+                key={item.label}
+                className="rounded-2xl border border-paper/[.07] bg-paper/[.035] p-4"
+              >
+                <p className="microlabel">{item.label}</p>
+                <p
+                  className="serif tnum mt-2 text-[25px]"
+                  style={{ color: item.color }}
+                >
+                  {item.value.toLocaleString("es-EC")}
+                  {item.suffix}
+                </p>
+                <p className="mt-1 text-[10.5px] text-faint">{item.detail}</p>
+              </div>
+            ))}
+          </div>
+        </motion.section>
+      )}
+
       {/* Actividad */}
       <motion.section
         initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.42 }}
+        transition={{ delay: 0.46 }}
         className="glass mt-2.5 rounded-3xl p-5"
       >
         <div className="mb-3 flex items-center gap-2">

@@ -1,13 +1,18 @@
 import { create } from "zustand";
-import type { Atiende, Cierre, Etapa, FeedItem, Mensaje, Rol, Ticket } from "./data/types";
+import type { Atiende, Cierre, Etapa, FeedItem, HubMetrics, Mensaje, Rol, Ticket } from "./data/types";
 import { MockSource } from "./data/mock/mockSource";
 import { Simulator } from "./data/mock/simulator";
+import { RealSource } from "./data/realSource";
+import type { DataSource } from "./data/source";
 import { updateFavicon } from "./lib/favicon";
 import { pingNotificacion, pingVenta, sonidoArranque, sonidoPitStop } from "./lib/sound";
 
-/* Parte 2: reemplazar MockSource por RealSource (fetch + SSE) — nada más cambia. */
-const source = new MockSource();
-const simulator = new Simulator(source);
+const dataMode: "demo" | "real" = window.location.pathname.includes("/demo")
+  ? "demo"
+  : "real";
+const mockSource = new MockSource();
+const source: DataSource = dataMode === "demo" ? mockSource : new RealSource();
+const simulator = dataMode === "demo" ? new Simulator(mockSource) : null;
 
 export interface Toast {
   id: number;
@@ -23,8 +28,10 @@ interface HubState {
   mensajes: Record<number, Mensaje[]>;
   typing: Record<number, Rol | null>;
   feed: FeedItem[];
+  metrics: HubMetrics | null;
   toasts: Toast[];
   demo: boolean;
+  dataMode: "demo" | "real";
   celebrando: boolean;
 
   init(): Promise<void>;
@@ -44,8 +51,12 @@ let iniciado = false;
 
 export const useHub = create<HubState>((set, get) => {
   async function refrescar(): Promise<void> {
-    const [tickets, feed] = await Promise.all([source.listTickets(), source.getFeed()]);
-    set({ tickets, feed });
+    const [tickets, feed, metrics] = await Promise.all([
+      source.listTickets(),
+      source.getFeed(),
+      source.getMetrics(),
+    ]);
+    set({ tickets, feed, metrics });
     updateFavicon(tickets.filter((t) => t.estado === "abierto").length);
   }
 
@@ -93,20 +104,40 @@ export const useHub = create<HubState>((set, get) => {
     mensajes: {},
     typing: {},
     feed: [],
+    metrics: null,
     toasts: [],
     demo: false,
+    dataMode,
     celebrando: false,
 
     async init() {
       if (iniciado) return;
       iniciado = true;
-      // Mínimo de skeleton para que la carga se sienta intencional, no rota.
-      const [datos] = await Promise.all([
-        Promise.all([source.listTickets(), source.getFeed()]),
-        new Promise((r) => setTimeout(r, 650)),
-      ]);
-      set({ tickets: datos[0], feed: datos[1], cargando: false });
-      updateFavicon(datos[0].filter((t) => t.estado === "abierto").length);
+      try {
+        // Mínimo de skeleton para que la carga se sienta intencional, no rota.
+        const [datos] = await Promise.all([
+          Promise.all([source.listTickets(), source.getFeed(), source.getMetrics()]),
+          new Promise((r) => setTimeout(r, 650)),
+        ]);
+        set({ tickets: datos[0], feed: datos[1], metrics: datos[2], cargando: false });
+        updateFavicon(datos[0].filter((t) => t.estado === "abierto").length);
+      } catch (error) {
+        set((state) => ({
+          cargando: false,
+          toasts: [
+            ...state.toasts.slice(-2),
+            {
+              id: toastId++,
+              icono: "🔐",
+              titulo: "Configura el acceso",
+              cuerpo:
+                error instanceof Error
+                  ? error.message
+                  : "Abre DT → Conexión para ingresar la clave de staging.",
+            },
+          ],
+        }));
+      }
     },
 
     async abrirTicket(id) {
@@ -122,6 +153,7 @@ export const useHub = create<HubState>((set, get) => {
 
     toggleDemo() {
       const demo = !get().demo;
+      if (!simulator) return;
       set({ demo });
       if (demo) {
         sonidoArranque();

@@ -6,6 +6,7 @@ import {
   type Cotizacion,
   type Etapa,
   type FeedItem,
+  type HubMetrics,
   type LocalAsignado,
   type Mensaje,
   type Rol,
@@ -54,12 +55,57 @@ export class MockSource implements DataSource {
     return [...this.feed];
   }
 
+  async getMetrics(days = 14): Promise<HubMetrics> {
+    const tickets = [...this.tickets.values()];
+    const abiertos = tickets.filter((ticket) => ticket.estado === "abierto");
+    const cotizaciones = tickets.filter((ticket) => ticket.cotizacion);
+    const ganados = tickets.filter((ticket) => ticket.cierre === "ganado");
+    const daily = Array.from({ length: days }, (_, index) => {
+      const day = new Date();
+      day.setHours(0, 0, 0, 0);
+      day.setDate(day.getDate() - (days - 1 - index));
+      const next = new Date(day);
+      next.setDate(next.getDate() + 1);
+      return {
+        day: day.toISOString().slice(0, 10),
+        value: tickets.filter((ticket) => {
+          const created = new Date(ticket.creadoEn);
+          return created >= day && created < next;
+        }).length,
+      };
+    });
+    return {
+      summary: {
+        abiertos: abiertos.length,
+        cotizaciones: cotizaciones.length,
+        ganados: ganados.length,
+        enJuego: abiertos.reduce((sum, ticket) => sum + (ticket.cotizacion?.total ?? 0), 0),
+        vendido: ganados.reduce((sum, ticket) => sum + (ticket.cotizacion?.total ?? 0), 0),
+        primeraRespuestaSegundos: 9,
+      },
+      daily,
+      funnel: [],
+      deliveries: [],
+      inventory: {
+        total: 375,
+        available: 248,
+        check: 41,
+        out: 86,
+        withImage: 9,
+        imageCoverage: 2,
+        brands: 3,
+        source: "contifico",
+        lastSync: new Date().toISOString(),
+      },
+    };
+  }
+
   async moverEtapa(ticketId: number, etapa: Etapa): Promise<void> {
     const t = this.tickets.get(ticketId);
     if (!t || t.estado === "cerrado") return;
     t.etapa = etapa;
     t.ultimaActividad = new Date().toISOString();
-    if (etapa === "por_visitar") {
+    if (etapa === "handoff_visita") {
       this.pushFeed("🔥", `${this.nombre(t)} confirmó visita al local`, ticketId);
     }
     this.emit({ tipo: "sync" });
@@ -70,6 +116,7 @@ export class MockSource implements DataSource {
     if (!t) return;
     t.estado = "cerrado";
     t.cierre = cierre;
+    t.etapa = cierre === "ganado" ? "ganado" : "perdido";
     t.cerradoEn = new Date().toISOString();
     t.ultimaActividad = t.cerradoEn;
     t.sinLeer = 0;
@@ -99,6 +146,7 @@ export class MockSource implements DataSource {
     t.estado = "abierto";
     t.cierre = undefined;
     t.cerradoEn = undefined;
+    t.etapa = "seleccionando";
     t.esRecurrente = true;
     t.ultimaActividad = new Date().toISOString();
     this.pushFeed("↺", `Ticket reabierto: ${this.nombre(t)}`, ticketId);

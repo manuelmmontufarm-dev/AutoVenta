@@ -16,8 +16,13 @@ export const wa = new WhatsAppAPI({
 
 const phoneId = config.whatsapp.phoneId;
 
-export async function sendText(to: string, body: string): Promise<void> {
-  await wa.sendMessage(phoneId, to, new Text(body));
+export async function sendText(to: string, body: string): Promise<string | undefined> {
+  const response = await wa.sendMessage(phoneId, to, new Text(body));
+  if (response instanceof Response) return undefined;
+  if ("messages" in response) {
+    return response.messages[0]?.id;
+  }
+  throw new Error(`WhatsApp rechazó el mensaje: ${response.error.message}`);
 }
 
 /** Marca leído + "escribiendo…". Llamar solo cuando el bot SÍ va a responder. */
@@ -31,7 +36,7 @@ export async function sendPdf(
   pdf: Buffer,
   filename: string,
   caption?: string,
-): Promise<void> {
+): Promise<string | undefined> {
   const form = new FormData();
   form.append(
     "file",
@@ -40,7 +45,16 @@ export async function sendPdf(
   );
   const uploaded = await wa.uploadMedia(phoneId, form);
   const mediaId = (uploaded as { id: string }).id;
-  await wa.sendMessage(phoneId, to, new Document(mediaId, true, caption, filename));
+  const response = await wa.sendMessage(
+    phoneId,
+    to,
+    new Document(mediaId, true, caption, filename),
+  );
+  if (response instanceof Response) return undefined;
+  if ("messages" in response) {
+    return response.messages[0]?.id;
+  }
+  throw new Error(`WhatsApp rechazó el PDF: ${response.error.message}`);
 }
 
 /** Alerta al vendedor. En producción, fuera de la ventana de 24h esto debe ser

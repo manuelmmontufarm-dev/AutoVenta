@@ -6,7 +6,14 @@
  */
 
 /** Etapas del pipeline = el guion real de venta de Depot Tire. */
-export type Etapa = "nuevo" | "medidas" | "cotizado" | "ubicacion" | "por_visitar";
+export type Etapa =
+  | "nuevo"
+  | "medida_confirmada"
+  | "seleccionando"
+  | "cotizacion_enviada"
+  | "handoff_visita"
+  | "ganado"
+  | "perdido";
 
 export type Cierre = "ganado" | "perdido" | "sin_respuesta";
 
@@ -14,7 +21,13 @@ export type Atiende = "bot" | "humano";
 
 export type Rol = "cliente" | "bot" | "vendedor";
 
-export const ETAPAS: Etapa[] = ["nuevo", "medidas", "cotizado", "ubicacion", "por_visitar"];
+export const ETAPAS: Etapa[] = [
+  "nuevo",
+  "medida_confirmada",
+  "seleccionando",
+  "cotizacion_enviada",
+  "handoff_visita",
+];
 
 export const ETAPA_META: Record<
   Etapa,
@@ -26,29 +39,41 @@ export const ETAPA_META: Record<
     color: "var(--etapa-nuevo)",
     descripcion: "Cliente escribió — se le preguntan las medidas",
   },
-  medidas: {
-    nombre: "Medidas",
-    corto: "Medidas",
+  medida_confirmada: {
+    nombre: "Medida confirmada",
+    corto: "Medida",
     color: "var(--etapa-medidas)",
-    descripcion: "Medida identificada — se busca la cotización",
+    descripcion: "El cliente confirmó la medida — se preparan opciones reales",
   },
-  cotizado: {
-    nombre: "Cotizado",
-    corto: "Cotizado",
+  seleccionando: {
+    nombre: "Opciones y comparación",
+    corto: "Eligiendo",
     color: "var(--etapa-cotizado)",
-    descripcion: "PDF enviado — ¿está interesado?",
+    descripcion: "Evalúa marcas, precios y comparaciones de 2–3 modelos",
   },
-  ubicacion: {
-    nombre: "Ubicación",
-    corto: "Ubicación",
+  cotizacion_enviada: {
+    nombre: "Cotización enviada",
+    corto: "Cotización",
     color: "var(--etapa-ubicacion)",
-    descripcion: "Se le envió el local más cercano",
+    descripcion: "Eligió un modelo y cantidad — PDF final enviado",
   },
-  por_visitar: {
-    nombre: "Por visitar",
+  handoff_visita: {
+    nombre: "Visita / handoff",
     corto: "Visita",
     color: "var(--etapa-visita)",
-    descripcion: "Confirmó que viene a comprar",
+    descripcion: "Confirmó visita, reserva o pidió atención humana",
+  },
+  ganado: {
+    nombre: "Ganado",
+    corto: "Ganado",
+    color: "var(--cierre-ganado)",
+    descripcion: "Venta confirmada por el equipo",
+  },
+  perdido: {
+    nombre: "Perdido",
+    corto: "Perdido",
+    color: "var(--cierre-perdido)",
+    descripcion: "El cliente decidió no continuar",
   },
 };
 
@@ -108,6 +133,8 @@ export interface Mensaje {
   rol: Rol;
   tipo: TipoMensaje;
   contenido: string;
+  estado?: string;
+  metadata?: Record<string, unknown>;
   hora: string;
 }
 
@@ -117,6 +144,31 @@ export interface FeedItem {
   texto: string;
   hora: string;
   ticketId?: number;
+}
+
+export interface HubMetrics {
+  summary: {
+    abiertos: number;
+    cotizaciones: number;
+    ganados: number;
+    enJuego: number;
+    vendido: number;
+    primeraRespuestaSegundos: number | null;
+  };
+  daily: Array<{ day: string; value: number }>;
+  funnel: Array<{ stage: Etapa; value: number }>;
+  deliveries: Array<{ status: string; value: number }>;
+  inventory: {
+    total: number;
+    available: number;
+    check: number;
+    out: number;
+    withImage: number;
+    imageCoverage: number;
+    brands: number;
+    source: string | null;
+    lastSync: string | null;
+  };
 }
 
 /** Los 2 locales reales (PROYECTO.md §11 + app/src/config.ts). */

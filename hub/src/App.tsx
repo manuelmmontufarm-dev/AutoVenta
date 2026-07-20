@@ -1,19 +1,22 @@
 import { AnimatePresence, LayoutGroup, MotionConfig, motion } from "framer-motion";
 import { useEffect, useState } from "react";
 import { Confetti, Toasts } from "./components/overlays";
-import { IconChart, IconInbox, IconKanban, IconPlay, IconStop } from "./components/icons";
+import { IconChart, IconInbox, IconKanban, IconPlay, IconStop, IconTire } from "./components/icons";
 import { RacingDetails } from "./components/racing-details";
 import { setSonidoActivo, sonidoActivo, sonidoBoton } from "./lib/sound";
 import { navigate, useRoute, type Route } from "./router";
 import { Dashboard } from "./screens/Dashboard";
+import { Cotizador } from "./screens/Cotizador";
 import { Inbox } from "./screens/Inbox";
 import { Pipeline } from "./screens/Pipeline";
 import { TicketDetail } from "./screens/TicketDetail";
+import { Settings } from "./screens/Settings";
 import { useHub } from "./store";
 
 const NAV = [
   { id: "inbox", label: "Inbox", icon: IconInbox },
   { id: "pipeline", label: "Pipeline", icon: IconKanban },
+  { id: "cotizador", label: "Cotizador", icon: IconTire },
   { id: "dashboard", label: "Métricas", icon: IconChart },
 ] as const;
 
@@ -21,6 +24,8 @@ const TITULOS: Record<string, { titulo: string; sub: string }> = {
   inbox: { titulo: "Inbox", sub: "cada cliente es un ticket" },
   pipeline: { titulo: "Pipeline", sub: "tu guion de venta, en vivo" },
   dashboard: { titulo: "Métricas", sub: "el negocio de un vistazo" },
+  cotizador: { titulo: "Cotizador", sub: "inventario y precios reales de Contífico" },
+  settings: { titulo: "Account Settings", sub: "negocio, IA y etapas del bot" },
   ticket: { titulo: "Conversación", sub: "ticket en detalle" },
 };
 
@@ -30,7 +35,7 @@ function navActivo(route: Route): string {
 
 export default function App() {
   const route = useRoute();
-  const { init, cargando, tickets, demo, toggleDemo } = useHub();
+  const { init, cargando, tickets, demo, dataMode, toggleDemo } = useHub();
   const [audioOn, setAudioOn] = useState(sonidoActivo);
 
   useEffect(() => {
@@ -58,7 +63,7 @@ export default function App() {
         {/* ── Rail de navegación (desktop) ── */}
         <nav className="glass z-20 m-3 mr-0 hidden w-16 flex-col items-center gap-1.5 rounded-3xl py-4 md:flex">
           <button
-            onClick={() => navigate("inbox")}
+            onClick={() => navigate("settings")}
             className="mb-3 grid h-10 w-10 place-items-center rounded-2xl bg-red text-[13px] font-extrabold text-white shadow-soft"
             aria-label="Depot Tire Hub"
           >
@@ -106,9 +111,14 @@ export default function App() {
           {/* Topbar */}
           <header className="flex items-center justify-between gap-3 px-4 pt-4 pb-3 md:px-6">
             <div className="flex items-center gap-3">
-              <div className="grid h-9 w-9 place-items-center rounded-xl bg-red text-xs font-extrabold text-white shadow-soft md:hidden">
+              <button
+                type="button"
+                onClick={() => navigate("settings")}
+                aria-label="Abrir Account Settings"
+                className="grid h-9 w-9 place-items-center rounded-xl bg-red text-xs font-extrabold text-white shadow-soft md:hidden"
+              >
                 DT
-              </div>
+              </button>
               <div>
                 <h1 className="serif text-xl leading-tight tracking-tight">{meta.titulo}</h1>
                 <p className="text-[11px] text-muted">{meta.sub}</p>
@@ -134,19 +144,25 @@ export default function App() {
               <span className="glass hidden items-center gap-2 rounded-full px-3 py-1.5 text-[11px] font-semibold text-muted sm:flex">
                 <span className="pulse-dot" /> Bot en línea 24/7
               </span>
-              <motion.button
-                whileTap={{ scale: 0.94 }}
-                onClick={toggleDemo}
-                className="flex items-center gap-2 rounded-full px-4 py-2 text-xs font-bold shadow-soft transition-colors"
-                style={{
-                  background: demo ? "color-mix(in srgb, var(--color-violet) 14%, transparent)" : "var(--color-paper)",
-                  color: demo ? "var(--color-violet)" : "var(--color-ink)",
-                  border: demo ? "1px solid color-mix(in srgb, var(--color-violet) 45%, transparent)" : "1px solid transparent",
-                }}
-              >
-                {demo ? <IconStop size={13} /> : <IconPlay size={13} />}
-                {demo ? "Detener demo" : "Demo"}
-              </motion.button>
+              {dataMode === "demo" ? (
+                <motion.button
+                  whileTap={{ scale: 0.94 }}
+                  onClick={toggleDemo}
+                  className="flex items-center gap-2 rounded-full px-4 py-2 text-xs font-bold shadow-soft transition-colors"
+                  style={{
+                    background: demo ? "color-mix(in srgb, var(--color-violet) 14%, transparent)" : "var(--color-paper)",
+                    color: demo ? "var(--color-violet)" : "var(--color-ink)",
+                    border: demo ? "1px solid color-mix(in srgb, var(--color-violet) 45%, transparent)" : "1px solid transparent",
+                  }}
+                >
+                  {demo ? <IconStop size={13} /> : <IconPlay size={13} />}
+                  {demo ? "Detener demo" : "Demo"}
+                </motion.button>
+              ) : (
+                <span className="rounded-full bg-emerald-500/10 px-3 py-2 text-[10px] font-black tracking-[0.14em] text-emerald-700 uppercase">
+                  Producto real
+                </span>
+              )}
             </div>
           </header>
 
@@ -164,6 +180,8 @@ export default function App() {
                 {route.vista === "inbox" && <Inbox />}
                 {route.vista === "pipeline" && <Pipeline />}
                 {route.vista === "dashboard" && <Dashboard />}
+                {route.vista === "cotizador" && <Cotizador />}
+                {route.vista === "settings" && <Settings />}
                 {route.vista === "ticket" && !cargando && <TicketDetail id={route.id} />}
               </motion.div>
             </AnimatePresence>

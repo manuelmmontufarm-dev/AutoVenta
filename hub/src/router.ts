@@ -4,6 +4,8 @@ export type Route =
   | { vista: "inbox" }
   | { vista: "pipeline" }
   | { vista: "dashboard" }
+  | { vista: "cotizador" }
+  | { vista: "settings" }
   | { vista: "ticket"; id: number };
 
 function parse(): Route {
@@ -12,6 +14,8 @@ function parse(): Route {
   if (seg === "ticket" && id && !Number.isNaN(Number(id))) return { vista: "ticket", id: Number(id) };
   if (seg === "pipeline") return { vista: "pipeline" };
   if (seg === "dashboard") return { vista: "dashboard" };
+  if (seg === "cotizador") return { vista: "cotizador" };
+  if (seg === "settings") return { vista: "settings" };
   return { vista: "inbox" };
 }
 

@@ -24,6 +24,18 @@ function catalogConfigured(): boolean {
   );
 }
 
+function contificoConfigured(): boolean {
+  return Boolean(process.env.CONTIFICO_API_KEY);
+}
+
+function contificoPriceTier(): "pvp1" | "pvp2" | "pvp3" | "pvp4" {
+  const value = envOr("CONTIFICO_CUSTOMER_PVP", "pvp1").toLowerCase();
+  if (value === "pvp1" || value === "pvp2" || value === "pvp3" || value === "pvp4") {
+    return value;
+  }
+  throw new Error("CONTIFICO_CUSTOMER_PVP debe ser pvp1, pvp2, pvp3 o pvp4");
+}
+
 export interface Store {
   name: string;
   address: string;
@@ -103,6 +115,30 @@ export const config = {
   databaseUrl: env("DATABASE_URL"),
   // Railway Postgres (red interna) no usa SSL; Supabase/proxy público sí → PGSSL=require
   pgSsl: process.env.PGSSL === "require",
+
+  // Contífico es la fuente primaria del cotizador. La API Key solo se usa en
+  // servidor; nunca se expone al Hub ni se incluye en respuestas.
+  contifico: contificoConfigured()
+    ? {
+        apiKey: env("CONTIFICO_API_KEY"),
+        baseUrl: envOr(
+          "CONTIFICO_BASE_URL",
+          "https://api.contifico.com/sistema/api/v2",
+        ).replace(/\/$/, ""),
+        customerPriceTier: contificoPriceTier(),
+        // Interbot observado: distribuidor = base + IVA; mínimo = distribuidor
+        // / 0.75; PVP cliente = distribuidor / 0.5625. Ajustable sin tocar código.
+        customerPriceDivisor: Number(
+          envOr("CONTIFICO_CUSTOMER_PRICE_DIVISOR", "0.5625"),
+        ),
+        minimumPriceDivisor: Number(
+          envOr("CONTIFICO_MINIMUM_PRICE_DIVISOR", "0.75"),
+        ),
+        syncIntervalMs: Number(
+          envOr("CONTIFICO_CATALOG_SYNC_INTERVAL_MS", String(5 * 60_000)),
+        ),
+      }
+    : null,
 
   // Catálogo opcional: el bot puede desplegarse y levantar el webhook aunque el
   // catálogo aún no esté conectado (bloqueo #1). Si faltan las credenciales de

@@ -7,10 +7,48 @@
  * Sin ADMIN_KEY la API queda abierta — solo aceptable durante el piloto.
  */
 import express from "express";
+import { z } from "zod";
 import { sql } from "../db/client.js";
 import { business, config } from "../config.js";
 import { appendMessage, pauseBot } from "../services/conversations.js";
-import { getAiConfig, saveAiConfig } from "../services/settings.js";
+import {
+  getAiConfig,
+  listStagePrompts,
+  publishStagePrompt,
+  saveAiConfig,
+  saveStagePromptDraft,
+} from "../services/settings.js";
+import {
+  catalogStatus,
+  catalogInventoryMetrics,
+  catalogMediaReport,
+  ensureCatalogReady,
+  findById,
+  searchByText,
+} from "../services/catalog.js";
+import {
+  buildQuote,
+  renderComparisonPdf,
+  renderQuotePdf,
+} from "../services/quotePdf.js";
+import {
+  buildComparisonMessage,
+  buildCustomerOptionsMessage,
+  buildDistributorOptionsMessage,
+  buildCustomerQuoteMessage,
+  buildSingleQuoteMessage,
+  type CatalogQuoteSelection,
+  warrantyForBrand,
+} from "../services/quoteMessages.js";
+import {
+  addConversationNote,
+  markConversationRead,
+  setConversationAssignee,
+  setStage,
+} from "../services/conversations.js";
+import { getHubFeed, getHubMessages, getHubMetrics, listHubTickets } from "../services/hubData.js";
+import { emitLiveEvent, subscribeLiveEvents } from "../services/liveEvents.js";
+import { isStage } from "../domain/pipeline.js";
 
 const GRAPH = "https://graph.facebook.com/v21.0";
 const ADMIN_KEY = process.env.ADMIN_KEY ?? "";
@@ -22,6 +60,41 @@ interface SendResult {
   code?: number;
   status: number;
 }
+
+const CatalogSelectionSchema = z.object({
+  items: z
+    .array(
+      z.object({
+        id: z.string().min(1).max(80),
+        quantity: z.number().int().min(1).max(8),
+      }),
+    )
+    .min(1)
+    .max(3),
+  customerName: z.string().max(120).default("Cliente"),
+  customerPhone: z.string().max(30).default(""),
+});
+
+const CompareSchema = z.object({
+  items: z.array(z.object({ id: z.string().min(1).max(80) })).min(2).max(3),
+  style: z.literal("comparison").default("comparison"),
+  customerName: z.string().max(120).default("Cliente"),
+});
+
+const OptionsSchema = z.object({
+  items: z.array(z.object({ id: z.string().min(1).max(80) })).min(1).max(60),
+  style: z.enum(["customer", "distributor"]).default("customer"),
+  customerName: z.string().max(120).default("Cliente"),
+});
+
+const QuoteSchema = z.object({
+  item: z.object({
+    id: z.string().min(1).max(80),
+    quantity: z.number().int().min(1).max(8),
+  }),
+  customerName: z.string().max(120).default("Cliente"),
+  customerPhone: z.string().max(30).default(""),
+});
 
 /**
  * Envío directo por la Graph API (en vez de whatsapp-api-js) para poder
@@ -83,6 +156,273 @@ export function createAdminRouter(): express.Router {
     });
   });
 
+  // ── Producto real: Hub ─────────────────────────────────────────────────────
+  router.get("/hub/tickets", async (_req, res) => {
+    res.json({ ok: true, tickets: await listHubTickets() });
+  });
+
+  router.get("/hub/tickets/:id/messages", async (req, res) => {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id)) {
+      return res.status(400).json({ ok: false, error: "id inválido" });
+    }
+    res.json({ ok: true, messages: await getHubMessages(id) });
+  });
+
+  router.get("/hub/feed", async (_req, res) => {
+    res.json({ ok: true, feed: await getHubFeed() });
+  });
+
+  router.get("/hub/metrics", async (req, res) => {
+    const days = Math.max(7, Math.min(Number(req.query.days) || 14, 90));
+    res.json({
+      ok: true,
+      metrics: {
+        ...(await getHubMetrics(days)),
+        inventory: catalogInventoryMetrics(),
+      },
+    });
+  });
+
+  router.get("/catalog/media-report", async (_req, res) => {
+    await ensureCatalogReady().catch(() => undefined);
+    res.json({ ok: true, report: catalogMediaReport() });
+  });
+
+  router.get("/hub/events", (req, res) => {
+    res.status(200);
+    res.setHeader("Content-Type", "text/event-stream");
+    res.setHeader("Cache-Control", "no-cache, no-transform");
+    res.setHeader("Connection", "keep-alive");
+    res.flushHeaders();
+    res.write(`event: ready\ndata: ${JSON.stringify({ ok: true })}\n\n`);
+
+    const unsubscribe = subscribeLiveEvents((event) => {
+      res.write(`id: ${event.id}\nevent: ${event.type}\ndata: ${JSON.stringify(event)}\n\n`);
+    });
+    const heartbeat = setInterval(() => res.write(": heartbeat\n\n"), 20_000);
+    req.on("close", () => {
+      clearInterval(heartbeat);
+      unsubscribe();
+    });
+  });
+
+  router.patch("/hub/tickets/:id/stage", async (req, res) => {
+    const id = Number(req.params.id);
+    const stage = String(req.body?.stage ?? "");
+    if (!Number.isInteger(id) || !isStage(stage)) {
+      return res.status(400).json({ ok: false, error: "Etapa inválida" });
+    }
+    await setStage(id, stage, {
+      actor: "owner",
+      reason: String(req.body?.reason ?? "Movimiento manual desde Kanban").slice(0, 300),
+    });
+    emitLiveEvent("sync", id);
+    res.json({ ok: true });
+  });
+
+  router.post("/hub/tickets/:id/close", async (req, res) => {
+    const id = Number(req.params.id);
+    const closure = String(req.body?.closure ?? "");
+    if (!Number.isInteger(id) || !["ganado", "perdido", "sin_respuesta"].includes(closure)) {
+      return res.status(400).json({ ok: false, error: "Cierre inválido" });
+    }
+    await setStage(id, closure === "ganado" ? "ganado" : "perdido", {
+      actor: "owner",
+      reason: closure === "sin_respuesta" ? "sin_respuesta" : String(req.body?.note ?? closure),
+    });
+    emitLiveEvent("sync", id);
+    res.json({ ok: true });
+  });
+
+  router.post("/hub/tickets/:id/reopen", async (req, res) => {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id)) {
+      return res.status(400).json({ ok: false, error: "id inválido" });
+    }
+    await setStage(id, "seleccionando", {
+      actor: "owner",
+      reason: "Conversación reabierta",
+    });
+    emitLiveEvent("sync", id);
+    res.json({ ok: true });
+  });
+
+  router.patch("/hub/tickets/:id/assignee", async (req, res) => {
+    const id = Number(req.params.id);
+    const assignedTo = String(req.body?.assignedTo ?? "");
+    if (!Number.isInteger(id) || !["bot", "human"].includes(assignedTo)) {
+      return res.status(400).json({ ok: false, error: "Asignación inválida" });
+    }
+    await setConversationAssignee(id, assignedTo as "bot" | "human");
+    emitLiveEvent("sync", id);
+    res.json({ ok: true });
+  });
+
+  router.post("/hub/tickets/:id/notes", async (req, res) => {
+    const id = Number(req.params.id);
+    const content = String(req.body?.content ?? "").trim().slice(0, 2000);
+    if (!Number.isInteger(id) || !content) {
+      return res.status(400).json({ ok: false, error: "Nota inválida" });
+    }
+    await addConversationNote(id, content);
+    emitLiveEvent("sync", id);
+    res.json({ ok: true });
+  });
+
+  router.post("/hub/tickets/:id/read", async (req, res) => {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id)) {
+      return res.status(400).json({ ok: false, error: "id inválido" });
+    }
+    await markConversationRead(id);
+    emitLiveEvent("sync", id);
+    res.json({ ok: true });
+  });
+
+  // ── Cotizador / catálogo ───────────────────────────────────────────────────
+  router.get("/catalog/status", (_req, res) => {
+    res.json({ ok: true, catalog: catalogStatus() });
+  });
+
+  router.get("/catalog/search", async (req, res) => {
+    const query = String(req.query.q ?? "").trim().slice(0, 100);
+    const limit = Math.max(1, Math.min(Number(req.query.limit) || 40, 60));
+    if (!query) {
+      return res.status(400).json({ ok: false, error: "Escribe una medida, código o diseño" });
+    }
+    try {
+      await ensureCatalogReady();
+      const products = searchByText(query, limit).map(publicCatalogItem);
+      res.json({ ok: true, query, products, catalog: catalogStatus() });
+    } catch {
+      res.status(503).json({
+        ok: false,
+        error: "El catálogo no está disponible en este momento. Intenta nuevamente.",
+      });
+    }
+  });
+
+  router.post("/catalog/message", async (req, res) => {
+    try {
+      await ensureCatalogReady();
+      const input = CatalogSelectionSchema.parse(req.body);
+      const selections = resolveCatalogSelections(input.items);
+      res.json({
+        ok: true,
+        message: buildCustomerQuoteMessage(selections, input.customerName),
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Selección inválida";
+      res.status(400).json({ ok: false, error: message });
+    }
+  });
+
+  router.post("/catalog/compare-message", async (req, res) => {
+    try {
+      await ensureCatalogReady();
+      const input = CompareSchema.parse(req.body);
+      const products = resolveCatalogProducts(input.items.map(({ id }) => id));
+      res.json({ ok: true, message: buildComparisonMessage(products) });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Comparación inválida";
+      res.status(400).json({ ok: false, error: message });
+    }
+  });
+
+  router.post("/catalog/options-message", async (req, res) => {
+    try {
+      await ensureCatalogReady();
+      const input = OptionsSchema.parse(req.body);
+      const products = resolveCatalogProducts(input.items.map(({ id }) => id));
+      const message =
+        input.style === "distributor"
+          ? buildDistributorOptionsMessage(products)
+          : buildCustomerOptionsMessage(products, input.customerName);
+      res.json({ ok: true, message });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Selección inválida";
+      res.status(400).json({ ok: false, error: message });
+    }
+  });
+
+  router.post("/catalog/compare-pdf", async (req, res) => {
+    try {
+      await ensureCatalogReady();
+      const input = CompareSchema.parse(req.body);
+      const products = resolveCatalogProducts(input.items.map(({ id }) => id));
+      const pdf = await renderComparisonPdf(products);
+      res
+        .status(200)
+        .type("application/pdf")
+        .setHeader("Content-Disposition", 'attachment; filename="Comparativa-DepotTire.pdf"')
+        .send(pdf);
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "No se pudo generar la comparativa";
+      res.status(400).json({ ok: false, error: message });
+    }
+  });
+
+  router.post("/catalog/quote-message", async (req, res) => {
+    try {
+      await ensureCatalogReady();
+      const input = QuoteSchema.parse(req.body);
+      const [selection] = resolveCatalogSelections([input.item]);
+      res.json({
+        ok: true,
+        message: buildSingleQuoteMessage(selection, input.customerName),
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Cotización inválida";
+      res.status(400).json({ ok: false, error: message });
+    }
+  });
+
+  router.post("/catalog/quote-pdf", async (req, res) => {
+    try {
+      await ensureCatalogReady();
+      const input = QuoteSchema.parse(req.body);
+      const [selection] = resolveCatalogSelections([input.item]);
+      const { product, quantity } = selection;
+      const warranty = warrantyForBrand(product.brand);
+      const quote = buildQuote(
+        [
+          {
+          code: product.code,
+          description: `${product.brand} ${product.design} ${product.sizeLabel ?? product.name}`,
+          quantity,
+            unitPrice: product.minimumPriceWithTax / (1 + product.taxRate),
+            brand: product.brand,
+            design: product.design,
+            sizeLabel: product.sizeLabel,
+            listPriceWithTax: product.customerPriceWithTax,
+            salePriceWithTax: product.minimumPriceWithTax,
+            availability: product.availability,
+            imageUrl: product.imageUrl,
+            loadSpeed: product.loadSpeed,
+            warrantyFactory: warranty.factory,
+            warrantyRoadHazard: warranty.roadHazard,
+          },
+        ],
+        input.customerName,
+        input.customerPhone,
+      );
+      const pdf = await renderQuotePdf(quote);
+      res
+        .status(200)
+        .type("application/pdf")
+        .setHeader(
+          "Content-Disposition",
+          `attachment; filename="Cotizacion-${business.name.replace(/\s/g, "")}-${quote.number}.pdf"`,
+        )
+        .send(pdf);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "No se pudo generar la cotización";
+      res.status(400).json({ ok: false, error: message });
+    }
+  });
+
   // ── Mensajes ────────────────────────────────────────────────────────────────
   router.get("/conversations", async (_req, res) => {
     const rows = await sql`
@@ -131,8 +471,14 @@ export function createAdminRouter(): express.Router {
     const sent = await sendTextDetailed(conversation.phone, text);
     if (!sent.ok) return res.status(sent.status).json(sent);
 
-    await appendMessage(id, "assistant", text, sent.id);
+    await appendMessage(id, "assistant", text, sent.id, {
+      authorKind: "owner",
+      status: "sent",
+    });
     await pauseBot(id);
+    await setConversationAssignee(id, "human");
+    emitLiveEvent("message", id);
+    emitLiveEvent("sync", id);
     res.json({ ok: true, id: sent.id, botPausadoHoras: config.pipeline.botPauseHours });
   });
 
@@ -144,9 +490,11 @@ export function createAdminRouter(): express.Router {
     }
     if (accion === "pausar") {
       await pauseBot(id);
+      await setConversationAssignee(id, "human");
     } else {
-      await sql`update conversations set bot_paused_until = null where id = ${id}`;
+      await setConversationAssignee(id, "bot");
     }
+    emitLiveEvent("sync", id);
     res.json({ ok: true });
   });
 
@@ -163,6 +511,44 @@ export function createAdminRouter(): express.Router {
     }
   });
 
+  router.get("/stage-prompts", async (_req, res) => {
+    res.json({ ok: true, prompts: await listStagePrompts() });
+  });
+
+  router.post("/stage-prompts/:stage/drafts", async (req, res) => {
+    const stage = String(req.params.stage ?? "");
+    if (!isStage(stage)) {
+      return res.status(400).json({ ok: false, error: "Etapa inválida" });
+    }
+    try {
+      const prompt = await saveStagePromptDraft(stage, req.body);
+      emitLiveEvent("settings");
+      res.json({ ok: true, prompt });
+    } catch (error) {
+      res.status(400).json({
+        ok: false,
+        error: error instanceof Error ? error.message : "Prompt inválido",
+      });
+    }
+  });
+
+  router.post("/stage-prompts/versions/:id/publish", async (req, res) => {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id)) {
+      return res.status(400).json({ ok: false, error: "Versión inválida" });
+    }
+    try {
+      const prompt = await publishStagePrompt(id);
+      emitLiveEvent("settings");
+      res.json({ ok: true, prompt });
+    } catch (error) {
+      res.status(400).json({
+        ok: false,
+        error: error instanceof Error ? error.message : "No se pudo publicar",
+      });
+    }
+  });
+
   // ── Tester ──────────────────────────────────────────────────────────────────
   router.post("/tester/send", async (req, res) => {
     const to = String(req.body?.to ?? "").replace(/\D/g, "");
@@ -175,4 +561,55 @@ export function createAdminRouter(): express.Router {
   });
 
   return router;
+}
+
+function resolveCatalogSelections(
+  input: { id: string; quantity: number }[],
+): CatalogQuoteSelection[] {
+  return input.map(({ id, quantity }) => {
+    const product = findById(id);
+    if (!product) throw new Error(`El producto ${id} ya no está en el catálogo`);
+    if (product.availability === "out") {
+      throw new Error(`${product.brand} ${product.design} está agotada`);
+    }
+    return { product, quantity };
+  });
+}
+
+function resolveCatalogProducts(ids: string[]) {
+  if (new Set(ids).size !== ids.length) {
+    throw new Error("Selecciona modelos distintos para comparar");
+  }
+  return ids.map((id) => {
+    const product = findById(id);
+    if (!product) throw new Error(`El producto ${id} ya no está en el catálogo`);
+    return product;
+  });
+}
+
+function publicCatalogItem(item: ReturnType<typeof searchByText>[number]) {
+  const warranty = warrantyForBrand(item.brand);
+  return {
+    id: item.id,
+    code: item.code,
+    name: item.name,
+    brand: item.brand,
+    design: item.design,
+    sizeLabel: item.sizeLabel,
+    listPrice: item.customerPriceWithTax,
+    salePrice: item.minimumPriceWithTax,
+    discountPercent: Math.round(
+      (1 - item.minimumPriceWithTax / item.customerPriceWithTax) * 100,
+    ),
+    // Alias temporal para clientes anteriores.
+    customerPrice: item.customerPriceWithTax,
+    minimumPrice: item.minimumPriceWithTax,
+    availability: item.availability,
+    stock: item.stock,
+    imageUrl: item.imageUrl,
+    imageSource: item.imageSource,
+    loadSpeed: item.loadSpeed,
+    warranty,
+    updatedAt: catalogStatus().lastSync,
+  };
 }

@@ -59,73 +59,73 @@ const seeds: TicketSeed[] = [
   // ── Abiertos · MEDIDAS ──
   {
     id: 4, telefono: "+593 98 227 9640", nombre: "María Fernanda Torres", estado: "abierto",
-    etapa: "medidas", atiende: "bot", vehiculo: "Toyota Hilux 2019", medida: "265/65 R17",
+    etapa: "medida_confirmada", atiende: "bot", vehiculo: "Toyota Hilux 2019", medida: "265/65 R17",
     esRecurrente: false, creadoEn: hace(31),
   },
   {
     id: 5, telefono: "+593 99 118 5523", nombre: "Jorge Paredes", estado: "abierto",
-    etapa: "medidas", atiende: "bot", vehiculo: "Suzuki Vitara SZ", medida: "215/60 R16",
+    etapa: "medida_confirmada", atiende: "bot", vehiculo: "Suzuki Vitara SZ", medida: "215/60 R16",
     esRecurrente: false, creadoEn: hace(64),
   },
   {
     id: 6, telefono: "+593 96 502 7789", nombre: "Gabriela Almeida", estado: "abierto",
-    etapa: "medidas", atiende: "bot", vehiculo: "Chevrolet Spark GT", medida: "165/70 R13",
+    etapa: "medida_confirmada", atiende: "bot", vehiculo: "Chevrolet Spark GT", medida: "165/70 R13",
     esRecurrente: false, sinLeer: 1, creadoEn: hace(190),
   },
   {
     id: 7, telefono: "+593 98 775 3412", nombre: "Diego Cárdenas", estado: "abierto",
-    etapa: "medidas", atiende: "humano", vehiculo: "Toyota Corolla 2017", medida: "195/65 R15",
+    etapa: "medida_confirmada", atiende: "humano", vehiculo: "Toyota Corolla 2017", medida: "195/65 R15",
     esRecurrente: false, creadoEn: hace(60 * 26), notas: ["Pidió factura a nombre de su empresa (Transcarga S.A.)"],
   },
   // ── Abiertos · COTIZADO ──
   {
     id: 8, telefono: "+593 99 348 8102", nombre: "Verónica Chiriboga", estado: "abierto",
-    etapa: "cotizado", atiende: "bot", vehiculo: "Kia Sportage 2020", medida: "225/60 R17",
+    etapa: "cotizacion_enviada", atiende: "bot", vehiculo: "Kia Sportage 2020", medida: "225/60 R17",
     cotizacion: cot(1024, [llanta("225/60 R17", "Falken", "Ziex ZE310", 133)]),
     esRecurrente: false, creadoEn: hace(55),
   },
   {
     id: 9, telefono: "+593 98 903 4471", nombre: "Paúl Guerrero", estado: "abierto",
-    etapa: "cotizado", atiende: "bot", vehiculo: "Chevrolet D-Max 2018", medida: "245/70 R16",
+    etapa: "cotizacion_enviada", atiende: "bot", vehiculo: "Chevrolet D-Max 2018", medida: "245/70 R16",
     cotizacion: cot(1025, [llanta("245/70 R16", "Kenda", "Klever A/T KR28", 126)]),
     esRecurrente: false, sinLeer: 1, creadoEn: hace(140),
   },
   {
     id: 10, telefono: "+593 96 217 6650", nombre: "Cristina Játiva", estado: "abierto",
-    etapa: "cotizado", atiende: "bot", vehiculo: "Chevrolet Aveo Family", medida: "185/60 R14",
+    etapa: "cotizacion_enviada", atiende: "bot", vehiculo: "Chevrolet Aveo Family", medida: "185/60 R14",
     cotizacion: cot(1026, [llanta("185/60 R14", "Kenda", "Kaiser KR26", 62)]),
     esRecurrente: false, creadoEn: hace(320),
   },
   {
     id: 11, telefono: "+593 99 445 9083", nombre: "Xavier Bonilla", estado: "abierto",
-    etapa: "cotizado", atiende: "bot", vehiculo: "Mazda 3 2019", medida: "205/60 R16",
+    etapa: "cotizacion_enviada", atiende: "bot", vehiculo: "Mazda 3 2019", medida: "205/60 R16",
     cotizacion: cot(1027, [llanta("205/60 R16", "Falken", "Sincera SN110", 95, 2)]),
     esRecurrente: true, creadoEn: hace(60 * 27),
   },
   {
     id: 12, telefono: "+593 98 662 1194", nombre: "Daniela Espinosa", estado: "abierto",
-    etapa: "cotizado", atiende: "bot", vehiculo: "Toyota Yaris", medida: "185/60 R15",
+    etapa: "cotizacion_enviada", atiende: "bot", vehiculo: "Toyota Yaris", medida: "185/60 R15",
     cotizacion: cot(1028, [llanta("185/60 R15", "Sunoco", "Ecoplus HP", 69)]),
     esRecurrente: false, creadoEn: hace(60 * 30),
   },
   // ── Abiertos · UBICACIÓN ──
   {
     id: 13, telefono: "+593 99 781 2236", nombre: "Marco Rivas", estado: "abierto",
-    etapa: "ubicacion", atiende: "bot", vehiculo: "Mazda BT-50 2020", medida: "255/70 R16",
+    etapa: "cotizacion_enviada", atiende: "bot", vehiculo: "Mazda BT-50 2020", medida: "255/70 R16",
     cotizacion: cot(1029, [llanta("255/70 R16", "Kenda", "Klever A/T KR28", 136)]),
     localAsignado: { nombre: SUR.nombre, direccion: SUR.direccion, distanciaKm: 3.1 },
     esRecurrente: false, creadoEn: hace(75),
   },
   {
     id: 14, telefono: "+593 96 934 5518", nombre: "Sofía Carrera", estado: "abierto",
-    etapa: "ubicacion", atiende: "bot", vehiculo: "Nissan Kicks 2022", medida: "205/60 R16",
+    etapa: "cotizacion_enviada", atiende: "bot", vehiculo: "Nissan Kicks 2022", medida: "205/60 R16",
     cotizacion: cot(1030, [llanta("205/60 R16", "Eurolub", "Urban GT", 88)]),
     localAsignado: { nombre: CUMBAYA.nombre, direccion: CUMBAYA.direccion, distanciaKm: 1.8 },
     esRecurrente: false, creadoEn: hace(250),
   },
   {
     id: 15, telefono: "+593 98 550 7621", nombre: "Ricardo Proaño", estado: "abierto",
-    etapa: "ubicacion", atiende: "bot", vehiculo: "Hyundai Tucson 2021", medida: "225/55 R18",
+    etapa: "cotizacion_enviada", atiende: "bot", vehiculo: "Hyundai Tucson 2021", medida: "225/55 R18",
     cotizacion: cot(1031, [llanta("225/55 R18", "Falken", "Azenis FK510", 156)]),
     localAsignado: { nombre: SUR.nombre, direccion: SUR.direccion, distanciaKm: 5.4 },
     esRecurrente: false, creadoEn: hace(60 * 25),
@@ -133,21 +133,21 @@ const seeds: TicketSeed[] = [
   // ── Abiertos · POR VISITAR ──
   {
     id: 16, telefono: "+593 99 205 8867", nombre: "Karen Moya", estado: "abierto",
-    etapa: "por_visitar", atiende: "bot", vehiculo: "Chevrolet Sail 2019", medida: "185/60 R14",
+    etapa: "handoff_visita", atiende: "bot", vehiculo: "Chevrolet Sail 2019", medida: "185/60 R14",
     cotizacion: cot(1032, [llanta("185/60 R14", "Kenda", "Kaiser KR26", 62)]),
     localAsignado: { nombre: CUMBAYA.nombre, direccion: CUMBAYA.direccion, distanciaKm: 2.4 },
     esRecurrente: false, creadoEn: hace(95),
   },
   {
     id: 17, telefono: "+593 98 319 4405", nombre: "Fernando Ortiz", estado: "abierto",
-    etapa: "por_visitar", atiende: "humano", vehiculo: "Toyota Fortuner 2020", medida: "265/65 R17",
+    etapa: "handoff_visita", atiende: "humano", vehiculo: "Toyota Fortuner 2020", medida: "265/65 R17",
     cotizacion: cot(1033, [llanta("265/65 R17", "Falken", "Wildpeak A/T3W", 189)]),
     localAsignado: { nombre: SUR.nombre, direccion: SUR.direccion, distanciaKm: 4.2 },
     esRecurrente: false, creadoEn: hace(200), notas: ["Quiere alineación y balanceo incluidos — confirmar precio con taller"],
   },
   {
     id: 18, telefono: "+593 96 448 2270", nombre: "Estefanía Cueva", estado: "abierto",
-    etapa: "por_visitar", atiende: "bot", vehiculo: "Kia Rio 2018", medida: "195/55 R16",
+    etapa: "handoff_visita", atiende: "bot", vehiculo: "Kia Rio 2018", medida: "195/55 R16",
     cotizacion: cot(1034, [llanta("195/55 R16", "Sunoco", "Ecoplus HP", 78, 2)]),
     localAsignado: { nombre: CUMBAYA.nombre, direccion: CUMBAYA.direccion, distanciaKm: 6.0 },
     esRecurrente: true, creadoEn: hace(60 * 28),
@@ -155,7 +155,7 @@ const seeds: TicketSeed[] = [
   // ── Cerrados · GANADO ──
   {
     id: 19, telefono: "+593 98 106 3349", nombre: "Wladimir Pazmiño", estado: "cerrado",
-    etapa: "por_visitar", cierre: "ganado", cerradoEn: hace(60 * 49), atiende: "bot",
+    etapa: "handoff_visita", cierre: "ganado", cerradoEn: hace(60 * 49), atiende: "bot",
     vehiculo: "Chevrolet D-Max 2021", medida: "245/70 R16",
     cotizacion: cot(1019, [llanta("245/70 R16", "Kenda", "Klever A/T KR28", 126)]),
     localAsignado: { nombre: SUR.nombre, direccion: SUR.direccion, distanciaKm: 2.2 },
@@ -163,7 +163,7 @@ const seeds: TicketSeed[] = [
   },
   {
     id: 20, telefono: "+593 99 872 5510", nombre: "Nathaly Aguirre", estado: "cerrado",
-    etapa: "por_visitar", cierre: "ganado", cerradoEn: hace(60 * 74), atiende: "bot",
+    etapa: "handoff_visita", cierre: "ganado", cerradoEn: hace(60 * 74), atiende: "bot",
     vehiculo: "Chevrolet Sail 2020", medida: "185/60 R14",
     cotizacion: cot(1020, [llanta("185/60 R14", "Kenda", "Kaiser KR26", 62)]),
     localAsignado: { nombre: CUMBAYA.nombre, direccion: CUMBAYA.direccion, distanciaKm: 3.5 },
@@ -171,7 +171,7 @@ const seeds: TicketSeed[] = [
   },
   {
     id: 21, telefono: "+593 96 771 9284", nombre: "Óscar Valdez", estado: "cerrado",
-    etapa: "por_visitar", cierre: "ganado", cerradoEn: hace(60 * 98), atiende: "humano",
+    etapa: "handoff_visita", cierre: "ganado", cerradoEn: hace(60 * 98), atiende: "humano",
     vehiculo: "Toyota Hilux 2022", medida: "265/65 R17",
     cotizacion: cot(1021, [llanta("265/65 R17", "Falken", "Wildpeak A/T3W", 189)]),
     localAsignado: { nombre: SUR.nombre, direccion: SUR.direccion, distanciaKm: 1.9 },
@@ -179,7 +179,7 @@ const seeds: TicketSeed[] = [
   },
   {
     id: 22, telefono: "+593 98 990 4152", nombre: "Tatiana Rueda", estado: "cerrado",
-    etapa: "por_visitar", cierre: "ganado", cerradoEn: hace(60 * 146), atiende: "bot",
+    etapa: "handoff_visita", cierre: "ganado", cerradoEn: hace(60 * 146), atiende: "bot",
     vehiculo: "Toyota Corolla 2016", medida: "195/65 R15",
     cotizacion: cot(1022, [llanta("195/65 R15", "Sunoco", "Ecoplus HP", 73)]),
     localAsignado: { nombre: CUMBAYA.nombre, direccion: CUMBAYA.direccion, distanciaKm: 4.7 },
@@ -188,14 +188,14 @@ const seeds: TicketSeed[] = [
   // ── Cerrados · PERDIDO ──
   {
     id: 23, telefono: "+593 99 514 6673", nombre: "Iván Cabezas", estado: "cerrado",
-    etapa: "cotizado", cierre: "perdido", cerradoEn: hace(60 * 50), atiende: "bot",
+    etapa: "cotizacion_enviada", cierre: "perdido", cerradoEn: hace(60 * 50), atiende: "bot",
     vehiculo: "Hyundai Tucson 2019", medida: "225/55 R18",
     cotizacion: cot(1023, [llanta("225/55 R18", "Falken", "Azenis FK510", 156)]),
     esRecurrente: false, creadoEn: hace(60 * 55), notas: ["Encontró más barato en el sector de la Marín — sensible al precio"],
   },
   {
     id: 24, telefono: "+593 96 320 8845", nombre: "Priscila Montero", estado: "cerrado",
-    etapa: "cotizado", cierre: "perdido", cerradoEn: hace(60 * 122), atiende: "bot",
+    etapa: "cotizacion_enviada", cierre: "perdido", cerradoEn: hace(60 * 122), atiende: "bot",
     vehiculo: "Chevrolet Spark", medida: "155/70 R13",
     cotizacion: cot(1035, [llanta("155/70 R13", "Eurolub", "Urban GT", 43)]),
     esRecurrente: false, creadoEn: hace(60 * 125),
@@ -203,14 +203,14 @@ const seeds: TicketSeed[] = [
   // ── Cerrados · SIN RESPUESTA ──
   {
     id: 25, telefono: "+593 98 634 0027", nombre: "Guillermo Sánchez", estado: "cerrado",
-    etapa: "cotizado", cierre: "sin_respuesta", cerradoEn: hace(60 * 71), atiende: "bot",
+    etapa: "cotizacion_enviada", cierre: "sin_respuesta", cerradoEn: hace(60 * 71), atiende: "bot",
     vehiculo: "Suzuki Grand Vitara", medida: "225/70 R16",
     cotizacion: cot(1036, [llanta("225/70 R16", "Kenda", "Klever H/T", 115)]),
     esRecurrente: false, creadoEn: hace(60 * 76),
   },
   {
     id: 26, telefono: "+593 99 268 7731", nombre: "Melissa Erazo", estado: "cerrado",
-    etapa: "medidas", cierre: "sin_respuesta", cerradoEn: hace(60 * 143), atiende: "bot",
+    etapa: "medida_confirmada", cierre: "sin_respuesta", cerradoEn: hace(60 * 143), atiende: "bot",
     esRecurrente: false, creadoEn: hace(60 * 145),
   },
 ];

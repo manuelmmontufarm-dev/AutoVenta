@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Depot Tire Hub · Centro de Control</title>
-<meta name="description" content="AutoVenta — centro de control: demo interactivo, paletas de estilo y documentación del proyecto.">
+<meta name="description" content="AutoVenta — producto real, demo oficial y documentación del proyecto.">
 <meta name="theme-color" content="#f6f1e4">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23d62828'/%3E%3Crect x='2' y='2' width='60' height='60' rx='12' fill='none' stroke='%2314213d' stroke-width='4'/%3E%3Ctext x='32' y='42' font-family='Arial Black,sans-serif' font-size='24' font-weight='900' fill='white' text-anchor='middle'%3EDT%3C/text%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -99,11 +99,10 @@
     <div>
       <p class="kicker">Hub interno · no es la app del cliente</p>
       <h1>Todo el proyecto <span class="yr">en pits</span></h1>
-      <p class="lede">Demo interactivo, herramientas en línea del bot y toda la documentación de AutoVenta — el bot de ventas por WhatsApp para Depot Tire.</p>
+      <p class="lede">Un producto real conectado al bot y un solo demo oficial para presentar AutoVenta — ventas por WhatsApp para Depot Tire.</p>
     </div>
     <nav class="quicknav" aria-label="Secciones del hub">
       <a href="#operacion">Operación</a>
-      <a href="#diseno">Diseño</a>
       <a href="#docs">Docs</a>
       <a href="#plataformas">Accesos</a>
     </nav>
@@ -113,47 +112,38 @@
   <div class="grid">
     <div class="featured">
       <div class="txt">
-        <span class="tag">🏁 Showroom GP — estilo oficial</span>
-        <h3>Depot Tire Hub — Demo interactivo</h3>
-        <p>Inbox de tickets, pipeline Kanban, chat y dashboard con datos simulados. Dale a "▶ Demo" para ver clientes entrando y cerrando ventas solos.</p>
+        <span class="tag">● Producto real · staging</span>
+        <h3>AutoVenta — Centro de operaciones</h3>
+        <p>Conversaciones reales, pipeline, cotizador, métricas de ventas e inventario y configuración de IA por etapa.</p>
         <div class="estilo-pills">
-          <a href="demo-racing/">Racing Heritage</a>
-          <a class="win" href="demo-showroom-gp/">🏆 Showroom GP · oficial</a>
-          <a href="demo/?theme=aurora">Claude × Aurora</a>
-          <a href="demo-showroom/">Showroom</a>
-          <a href="demo-neobrutalista/">Neobrutalista</a>
+          <a href="admin/#/inbox">Inbox</a>
+          <a href="admin/#/pipeline">Pipeline</a>
+          <a class="win" href="admin/#/cotizador">Cotizador</a>
+          <a href="admin/#/dashboard">Métricas</a>
         </div>
       </div>
-      <a class="go" href="demo-showroom-gp/#/pipeline">Abrir demo →</a>
+      <a class="go" href="admin/#/inbox">Abrir producto →</a>
     </div>
   </div>
 
   <h2 id="operacion">Operación</h2>
   <div class="grid">
-    <a class="card" href="mensajes">
+    <a class="card" href="admin/#/inbox">
       <div class="cardtop"><div class="icon" style="background:#e8f4ea;color:var(--verde)">✦</div><h3>Mensajes WhatsApp</h3><span class="badge live">● en línea</span></div>
-      <p>Conversaciones reales, envío manual y estado del asistente.</p>
+      <p>Conversaciones reales, envío manual, notas y estado del asistente.</p>
     </a>
-    <a class="card" href="configuracion/ia">
+    <a class="card" href="admin/#/settings">
       <div class="cardtop"><div class="icon" style="background:#fdf3d7;color:var(--azul)">✣</div><h3>Configuración de IA</h3><span class="badge live">● en línea</span></div>
-      <p>Personalidad, tono, emojis, longitud y cierre del asistente.</p>
-    </a>
-    <a class="card" href="tester">
-      <div class="cardtop"><div class="icon" style="background:#fdeaea;color:var(--rojo)">WA</div><h3>WhatsApp Tester</h3><span class="badge live">● en línea</span></div>
-      <p>Prueba el envío real por Meta sin pasar por el dashboard.</p>
+      <p>Prompt, herramientas y automatización editables para cada etapa.</p>
     </a>
     <a class="card" href="demo-showroom-gp/#/inbox">
-      <div class="cardtop"><div class="icon" style="background:#eaf0fb;color:var(--azul)">☰</div><h3>Inbox de tickets</h3><span class="badge demo">demo</span></div>
-      <p>Vista del frontend para revisar conversaciones y el flujo del equipo.</p>
+      <div class="cardtop"><div class="icon" style="background:#eaf0fb;color:var(--azul)">🏁</div><h3>Demo oficial</h3><span class="badge demo">demo</span></div>
+      <p>El mismo producto con conversaciones simuladas y sin tocar datos reales.</p>
     </a>
-  </div>
-
-  <h2 id="diseno">Diseño y marca</h2>
-  <div class="rows">
-    <a class="row" href="estilos/"><span class="ic" style="background:#fdf3d7">🎨</span><b>Paletas y estilos — las 9 direcciones</b><span>galería</span><span class="arrow">→</span></a>
-    <a class="row" href="demo-showroom-gp/"><span class="ic" style="background:#fdeaea">🏆</span><b>Showroom GP — estilo oficial</b><span>demo</span><span class="arrow">→</span></a>
-    <a class="row" href="docs/design.html"><span class="ic" style="background:#eaf0fb">DT</span><b>Sistema de diseño Showroom GP</b><span>design.md</span><span class="arrow">→</span></a>
-    <a class="row" href="docs/catalogo-pitstop.html"><span class="ic" style="background:#e8f4ea">▦</span><b>Catálogo Pitstop</b><span>prototipo</span><span class="arrow">→</span></a>
+    <a class="card" href="tester">
+      <div class="cardtop"><div class="icon" style="background:#fdeaea;color:var(--rojo)">WA</div><h3>WhatsApp Tester</h3><span class="badge live">● prueba Meta</span></div>
+      <p>Utilidad técnica para validar el número de prueba aprobado en Meta.</p>
+    </a>
   </div>
 
   <h2 id="docs">Planes, documentación y negocio</h2>
@@ -180,7 +170,7 @@
   </div>
 
   <div class="foot">
-    <b>Nota de seguridad:</b> este hub solo contiene enlaces; no guarda tokens, contraseñas ni llaves API. Las herramientas marcadas “en línea” hablan con el bot en Railway y se protegen con la clave <b>ADMIN_KEY</b> (se pide una sola vez en el navegador). Los documentos se regeneran desde los archivos fuente del repositorio.
+    <b>Nota de seguridad:</b> el producto real se protege con <b>ADMIN_KEY</b> durante staging y el demo nunca escribe en la base real. Antes de producción se mantiene el gate de backup, migraciones verificadas y sesión segura.
   </div>
 </div>
 <script src="/showroom-gp-global.js"></script>

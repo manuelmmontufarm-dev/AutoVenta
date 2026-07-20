@@ -86,6 +86,7 @@ a otras empresas de llantas.
   - Falta para el demo: credenciales (Meta, Supabase, Sheets service account) + el catálogo real del dueño + validar tabla de fitment.
 - [x] Ubicaciones de los 2 locales (ver §11) — ⚠️ **confirmar con el cliente**, Maps los muestra como "Depot Tire", no "Pit Stop".
 - [ ] Aclarar con el cliente las funcionalidades nuevas que pidió el 14-jul (ver [PLAN_DESARROLLO.md §12](PLAN_DESARROLLO.md#12-funcionalidades-pedidas-por-el-cliente-14-jul-2026--análisis)): si tienen un sistema de inventario real aparte del Excel, y si quieren campañas de recuperación/seguimiento (cambia el modelo de costo — requiere opt-in y templates de marketing pagados).
+- [x] Implementar el cotizador compartido Hub + bot con inventario real de Contífico, comparación, mensajes, PDF, imagen para WhatsApp y catálogo de fotos siguiendo los gates de [PLAN_COTIZADOR_CONTIFICO.md](PLAN_COTIZADOR_CONTIFICO.md).
 
 ## 11. La empresa: Depot Tire (confirmado 15-jul-2026)
 

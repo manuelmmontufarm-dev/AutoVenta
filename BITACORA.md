@@ -32,6 +32,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-07-20 | _(este mismo)_ | Cotizador funcional con inventario Contífico, fotos, tres flujos y bot compartido | 6.0 |
 | 2026-07-20 | _(este mismo)_ | Sistema Showroom GP documentado y aplicado a todo el hub | 2.0 |
 | 2026-07-18 | _(este mismo)_ | Fix handoff: guardar mensajes del cliente con bot pausado + typing honesto | 0.5 |
 | 2026-07-18 | _(este mismo)_ | Racing Heritage aplicado a todo el frontend + hub compacto | 1.0 |
@@ -54,11 +55,36 @@ Ya viene activado en este equipo.
 | 2026-07-14 | ac09171 | Ubicaciones de locales + análisis de features del cliente | 1.5 |
 | 2026-07-13 | feadf57 | Brief + plan de desarrollo + plan financiero + catálogo | 4.0 |
 | 2026-07-13 | d997844 | Commit inicial (repo) | 0.25 |
-| | | **TOTAL** | **~39.25 h** |
+| | | **TOTAL** | **~45.25 h** |
 
 ---
 
 ## Entradas (más reciente primero)
+
+### 2026-07-20 · Cotizador funcional conectado a Contífico · ⏱️ 6.0 h
+**Commit:** _(este mismo)_
+
+**Qué se hizo:**
+- Se agregó el tab `Cotizador` al Hub con búsqueda por medida, código, marca o diseño y filtros independientes por marca y disponibilidad.
+- Contífico es ahora la fuente primaria del catálogo: los productos se normalizan, cachean y conservan en memoria ante una falla de sincronización. Google Sheets queda como fallback.
+- Se centralizaron las reglas de búsqueda, precio y disponibilidad para que las usen tanto el Hub como las herramientas del bot.
+- Se separaron explícitamente tres salidas comerciales: **opciones filtradas** (todas las tarjetas visibles, agrupadas por marca), **comparación** (2–3 alternativas, sin cantidad ni total conjunto) y **cotización final** (un solo modelo decidido, con cantidad y total).
+- Opciones filtradas genera mensaje distribuidor, mensaje cliente final e imagen para WhatsApp. Comparación y cotización final generan cada una su propio mensaje, imagen y PDF.
+- Se añadió un manifiesto local de fotos limpias por marca + diseño, con los 38 diseños y 375 productos cubiertos desde fabricantes y distribuidores identificados, además de su registro de procedencia.
+- Se incorporaron índice de carga/velocidad, garantía de fábrica, cobertura contra golpes, precio lista, precio hoy y descuento en tarjetas, mensajes e impresos.
+- Se añadieron endpoints protegibles por `ADMIN_KEY`, configuración sin secretos, pruebas unitarias y el build actualizado del demo Showroom GP.
+
+**Checks:** catálogo real de 375 llantas cotizables; búsqueda real por `205/55R16`;
+36 tests; typecheck de backend y frontend; ambos builds; 100% de cobertura visual; filtros, mensajes,
+comparación y cotización probados desde la interfaz; ambos PDF renderizados a
+PNG y revisados visualmente sin recortes ni desbordes.
+
+**Por qué:** Permite demostrar desde ahora el flujo comercial central de Interbot
+con datos propios de Depot Tire, sin depender de su aplicación ni copiar su base
+privada. El mismo dato y la misma regla alimentan al vendedor y al bot, evitando
+precios o stock diferentes entre canales.
+
+---
 
 ### 2026-07-20 · Sistema Showroom GP en todo el hub · ⏱️ 2.0 h
 **Commit:** _(este mismo)_

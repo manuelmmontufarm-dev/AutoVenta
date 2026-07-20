@@ -16,17 +16,18 @@ Cliente WhatsApp ─► Meta Cloud API ─► POST /webhook (Express, firma veri
                                           │
                                           ▼
                               agent/agent.ts — OpenAI function calling
-                              ├─ buscar_llanta        → services/catalog.ts (← Google Sheets, sync 5 min)
+                              ├─ buscar_llanta        → services/catalog.ts (← Contífico, cache + sync)
+                              ├─ buscar_catalogo      → misma búsqueda usada por el Hub
                               ├─ fitment_vehiculo     → domain/fitment.ts (tabla Ecuador)
                               ├─ generar_cotizacion   → services/quotePdf.ts → sendPdf()
                               ├─ local_mas_cercano    → domain/locations.ts (haversine)
                               └─ notificar_vendedor   → wa/client.ts (alerta al vendedor)
                                           │
                                           ▼
-                              Postgres (Supabase): conversaciones, mensajes,
+                              Postgres: conversaciones, mensajes,
                               cotizaciones, eventos de funnel
                                           │ (post-turno, async)
-                              agent/classifier.ts — Haiku clasifica etapa
+                              agent/classifier.ts — clasifica la sección comercial
 ```
 
 ### Capas (dónde va cada cosa al crecer)
@@ -46,7 +47,7 @@ Cliente WhatsApp ─► Meta Cloud API ─► POST /webhook (Express, firma veri
 |---|---|---|
 | Cliente Cloud API + firma webhook + middleware Express | [whatsapp-api-js](https://github.com/Secreto31126/whatsapp-api-js) | MIT |
 | Loop del agente con tools | SDK oficial [`openai`](https://github.com/openai/openai-node) + function calling | MIT |
-| Catálogo desde Google Sheets | [google-spreadsheet](https://github.com/theoephraim/node-google-spreadsheet) | MIT |
+| Catálogo real | API de Contífico; Google Sheets permanece como fallback | — |
 | PDF de cotización | [pdfmake](https://github.com/bpampuch/pdfmake) 0.3 (layout propio) | MIT |
 | Postgres | [postgres (porsager)](https://github.com/porsager/postgres) | Unlicense |
 | Parser de medidas | **Propio** ([src/domain/tireSize.ts](src/domain/tireSize.ts)) — no existe librería; diseño inspirado en Gan4x4/tyresize y tires_tgcode (solo ideas, sin licencia no se copia código) | — |
@@ -61,7 +62,7 @@ Investigación completa: [docs/INVESTIGACION_GITHUB.md](../docs/INVESTIGACION_GI
 ```bash
 cp .env.example .env       # llenar credenciales
 npm install
-npm run db:migrate         # aplica src/db/schema.sql (idempotente)
+npm run db:migrate         # aplica src/db/schema.ts (idempotente)
 npm test                   # tests del parser de medidas
 npm run dev                # tsx watch
 ```
@@ -74,11 +75,15 @@ o cloudflared tunnel, y registrar la URL en Meta → WhatsApp → Configuration.
 1. Servicio desde este repo, root = `app/`. Build `npm run build`, start `npm start`.
 2. Variables de `.env.example` en Railway → Variables.
 3. Registrar `https://<app>.up.railway.app/webhook` en Meta con el verify token.
-4. `npm run db:migrate` una vez (Railway one-off o local apuntando a Supabase).
+4. El servicio aplica el esquema idempotente al arrancar; `npm run db:migrate`
+   queda disponible como verificación manual.
 
-## Estado / pendientes (Fase 1)
+## Estado / pendientes
 
-- [ ] **Catálogo real**: hoja de Google del dueño con columnas `codigo, marca, diseno, medida, precio, stock` (bloqueo #1 del proyecto).
+- [x] **Catálogo real**: productos, precios y stock activos desde Contífico, con búsqueda compartida entre el Hub y el bot.
+- [x] **Cotizador del Hub**: opciones filtradas, comparación 2–3 alternativas y cotización final de un modelo; cada flujo tiene mensajes e imagen/PDF según corresponde.
+- [x] **Fotos curadas completas**: 38 diseños y 375 productos Kenda, Falken y Winrun relacionados por marca + diseño, guardados localmente y con procedencia documentada.
+- [x] **Producto real `/admin/`**: inbox, pipeline, movimientos auditados, notas, métricas de conversaciones e inventario, SSE y configuración de IA versionada por etapa.
 - [ ] Validar la tabla de fitment con el dueño (todo está `validated: false`).
 - [ ] Template utility aprobado para alertas al vendedor fuera de la ventana 24h (hoy: texto simple).
 - [ ] Coexistence: auto-pausar el bot cuando el dueño responde desde su app (webhook `smb_message_echoes`) — el flag `bot_paused_until` ya existe en DB.

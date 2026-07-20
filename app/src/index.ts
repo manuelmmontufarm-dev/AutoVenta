@@ -15,8 +15,10 @@ import {
   getOrCreateConversation,
   isBotPaused,
   logFunnelEvent,
+  recordMessageStatus,
   setStage,
 } from "./services/conversations.js";
+import { emitLiveEvent } from "./services/liveEvents.js";
 
 const pipeline = new InboundPipeline(async ({ from, name, text, waMessageIds }) => {
   const conversation = await getOrCreateConversation(from, name);
@@ -28,10 +30,14 @@ const pipeline = new InboundPipeline(async ({ from, name, text, waMessageIds }) 
     break; // el texto ya viene agrupado; un solo registro con el primer id
   }
   if (!anyNew) return;
+  emitLiveEvent("message", conversation.id);
+  emitLiveEvent("sync", conversation.id);
 
   if (conversation.stage === "nuevo") {
     await logFunnelEvent(conversation.id, "primer_mensaje");
-    await setStage(conversation.id, "conversando");
+    // La tarjeta no avanza porque el bot respondió: avanza únicamente cuando
+    // el contenido del cliente demuestra una nueva sección comercial.
+    await logFunnelEvent(conversation.id, "cliente_respondio");
   }
 
   // Handoff: si el dueño está atendiendo este chat a mano, el bot calla — pero
@@ -46,8 +52,13 @@ const pipeline = new InboundPipeline(async ({ from, name, text, waMessageIds }) 
     text,
   );
 
-  await sendText(from, reply);
-  await appendMessage(conversation.id, "assistant", reply);
+  const sentId = await sendText(from, reply);
+  await appendMessage(conversation.id, "assistant", reply, sentId, {
+    authorKind: "bot",
+    status: "sent",
+  });
+  emitLiveEvent("message", conversation.id);
+  emitLiveEvent("sync", conversation.id);
 
   // Post-turno, sin bloquear: clasifica etapa para el dashboard.
   void classifyStage(conversation, text, reply);
@@ -91,6 +102,16 @@ wa.on.message = async ({ from, name, message, received }) => {
       // stickers, reacciones, etc. — se ignoran
       break;
   }
+};
+
+wa.on.status = async ({ status, id, error, conversation, pricing }) => {
+  const conversationId = await recordMessageStatus(id, status, {
+    error: error ?? null,
+    conversation: conversation ?? null,
+    pricing: pricing ?? null,
+  });
+  emitLiveEvent("status", conversationId ?? undefined);
+  if (conversationId) emitLiveEvent("message", conversationId);
 };
 
 // Aplica el esquema al arrancar (idempotente) → deploy sin paso manual de migración.
