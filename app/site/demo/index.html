@@ -13,19 +13,19 @@
       rel="stylesheet"
     />
     <script>
-      // Tema por URL: /demo-neobrutalista/, /demo-showroom/, o ?theme= en dev.
-      // Por defecto: Racing Heritage (el estilo elegido). ?theme=aurora da el
-      // tema original Claude Oscuro × Aurora Glass.
+      // Tema por URL: /demo-showroom-gp/, /demo-neobrutalista/, /demo-showroom/, o ?theme= en dev.
+      // Por defecto: Showroom GP (sistema oficial). ?theme=aurora conserva el
+      // tema original Claude Oscuro × Aurora Glass como referencia histórica.
       (function () {
         var m =
-          location.pathname.match(/demo-(neobrutalista|racing|showroom)/) ||
-          location.search.match(/theme=(neobrutalista|racing|showroom|aurora)/);
-        var theme = m ? m[1] : "racing";
+          location.pathname.match(/demo-(showroom-gp|neobrutalista|racing|showroom)/) ||
+          location.search.match(/theme=(showroom-gp|neobrutalista|racing|showroom|aurora)/);
+        var theme = m ? m[1] : "showroom-gp";
         if (theme !== "aurora") document.documentElement.dataset.theme = theme;
       })();
     </script>
-    <script type="module" crossorigin src="./assets/index-W7FQcCbQ.js"></script>
-    <link rel="stylesheet" crossorigin href="./assets/index-DJ8hnjX8.css">
+    <script type="module" crossorigin src="./assets/index-CLP6L5v7.js"></script>
+    <link rel="stylesheet" crossorigin href="./assets/index-CC0RZcv9.css">
   </head>
   <body>
     <div id="root"></div>

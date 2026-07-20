@@ -1,0 +1,426 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sistema de diseño Showroom GP · Depot Tire Hub</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0a1020; --panel:rgba(17,26,49,.62); --line:rgba(255,255,255,.09);
+    --paper:#f5f1e9; --muted:#a3acc2; --red:#e3262e; --lime:#d9ff4f; --blue:#5b8def;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0;font-family:Inter,system-ui,sans-serif;color:var(--paper);min-height:100vh;
+    background:
+      radial-gradient(110% 80% at 15% -10%, rgba(23,61,118,.5) 0%, transparent 60%),
+      radial-gradient(120% 90% at 50% 0%, #0d1530 0%, #0a1020 55%, #070b16 100%);
+    background-attachment:fixed;
+  }
+  .bar{position:sticky;top:0;z-index:10;background:rgba(10,16,32,.86);backdrop-filter:blur(14px);border-bottom:1px solid var(--line);padding:14px 24px;display:flex;align-items:center;gap:14px}
+  .bar a{color:var(--muted);font-size:12.5px;text-decoration:none;font-weight:600}
+  .bar a:hover{color:var(--paper)}
+  .bar .kicker{color:var(--red);font-size:10.5px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;margin-left:auto}
+  .wrap{max-width:760px;margin:0 auto;padding:40px 24px 100px}
+  .doc h1{font-size:clamp(28px,4.4vw,40px);font-weight:800;letter-spacing:-.02em;line-height:1.15;margin:0 0 8px}
+  .doc h2{font-size:22px;font-weight:700;letter-spacing:-.01em;margin:44px 0 14px;padding-bottom:10px;border-bottom:1px solid var(--line)}
+  .doc h3{font-size:17px;font-weight:700;margin:30px 0 10px;color:var(--lime)}
+  .doc p{line-height:1.75;color:#dfe3ee;font-size:15px;margin:0 0 14px}
+  .doc ul,.doc ol{line-height:1.75;color:#dfe3ee;font-size:15px;padding-left:22px;margin:0 0 14px}
+  .doc li{margin-bottom:6px}
+  .doc a{color:var(--blue)}
+  .doc strong{color:var(--paper)}
+  .doc code{font-family:'JetBrains Mono',monospace;font-size:.85em;background:rgba(255,255,255,.08);padding:1px 6px;border-radius:5px;color:var(--lime)}
+  .doc pre{background:rgba(0,0,0,.3);border:1px solid var(--line);border-radius:12px;padding:14px 16px;overflow-x:auto}
+  .doc pre code{background:none;padding:0;color:#dfe3ee}
+  .doc blockquote{margin:0 0 14px;padding:4px 16px;border-left:3px solid var(--red);color:var(--muted);font-size:14px}
+  .doc hr{border:none;border-top:1px solid var(--line);margin:32px 0}
+  .doc table{width:100%;border-collapse:collapse;margin:0 0 20px;font-size:13.5px;display:block;overflow-x:auto}
+  .doc th{text-align:left;font-size:10.5px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);padding:8px 12px;border-bottom:1px solid var(--line);white-space:nowrap}
+  .doc td{padding:9px 12px;border-bottom:1px solid rgba(255,255,255,.05);color:#dfe3ee;vertical-align:top}
+  .doc tr:hover td{background:rgba(255,255,255,.02)}
+</style>
+<link rel="stylesheet" href="/showroom-gp-global.css">
+</head>
+<body>
+  <div class="bar">
+    <a href="/">← Depot Tire Hub</a>
+    <span class="kicker">Diseño oficial · DT—01</span>
+  </div>
+  <div class="wrap"><div class="doc">
+<h1>AutoVenta — Sistema de diseño Showroom GP</h1>
+<h2>1. Idea central</h2>
+<p><strong>Showroom GP</strong> es el lenguaje visual oficial de AutoVenta. Mezcla la claridad de un showroom contemporáneo con la emoción gráfica de un paddock de carreras.</p>
+<p>La interfaz debe provocar dos sensaciones al mismo tiempo:</p>
+<ol>
+<li><strong>“Entiendo inmediatamente qué hacer.”</strong></li>
+<li><strong>“Qué cool se ve esto.”</strong></li>
+</ol>
+<p>La primera sensación siempre tiene prioridad. Los elementos de carreras acompañan el producto; nunca compiten con el contenido ni se convierten en decoración ruidosa.</p>
+<h3>Fórmula visual</h3>
+<ul>
+<li>80% showroom: blanco, orden, aire, jerarquía y superficies limpias.</li>
+<li>15% racing: rojo Depot, líneas de velocidad, telemetría y placas técnicas.</li>
+<li>5% emoción: carros, llantas, circuitos, animación y sonido.</li>
+</ul>
+<h2>2. Principios obligatorios</h2>
+<h3>2.1 Una pantalla, una intención</h3>
+<ul>
+<li>El título dice dónde está el usuario.</li>
+<li>El subtítulo explica la finalidad en una frase corta.</li>
+<li>Sólo hay una acción primaria roja por bloque o momento de decisión.</li>
+<li>Las opciones secundarias son blancas, discretas y claramente distintas.</li>
+<li>No se muestran controles sin propósito ni texto técnico innecesario.</li>
+</ul>
+<h3>2.2 Detalle sin desorden</h3>
+<ul>
+<li>Los dibujos de carros, llantas y circuitos viven en bordes, esquinas o espacios vacíos.</li>
+<li>Su opacidad normal está entre 5% y 12%.</li>
+<li>No se colocan detrás de texto, campos, cifras o botones.</li>
+<li>Nunca se usa un patrón cuadriculado como fondo de contenido.</li>
+<li>La franja superior de pista es el único patrón repetitivo permitido.</li>
+</ul>
+<h3>2.3 Automotriz, no infantil</h3>
+<ul>
+<li>Se prefieren ilustraciones lineales técnicas, placas de medidas, telemetría y formas inspiradas en talleres.</li>
+<li>Los emojis sólo se usan como apoyo en mensajes humanos, estados o herramientas existentes; no sustituyen el sistema de iconos.</li>
+<li>Las referencias a carreras deben sentirse premium, mecánicas y precisas.</li>
+</ul>
+<h3>2.4 La información gana</h3>
+<ul>
+<li>Contraste AA como mínimo para texto funcional.</li>
+<li>Los adornos usan <code>aria-hidden=&quot;true&quot;</code> y no reciben eventos.</li>
+<li>Los estados no dependen únicamente del color: incluyen texto, cifra o forma.</li>
+<li>El sonido siempre tiene control visible, se recuerda entre páginas y nunca es necesario para completar una tarea.</li>
+</ul>
+<h2>3. Identidad visual</h2>
+<h3>3.1 Paleta</h3>
+<table>
+<thead>
+<tr>
+<th>Token</th>
+<th>Valor</th>
+<th>Uso</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>gp-bg</code> / <code>color-ink</code></td>
+<td><code>#f5f6f4</code></td>
+<td>Fondo general cálido</td>
+</tr>
+<tr>
+<td><code>gp-card</code> / <code>color-ink2</code></td>
+<td><code>#ffffff</code></td>
+<td>Tarjetas y paneles</td>
+</tr>
+<tr>
+<td><code>gp-ink</code> / <code>color-paper</code></td>
+<td><code>#17233b</code></td>
+<td>Texto principal y placas técnicas</td>
+</tr>
+<tr>
+<td><code>gp-muted</code></td>
+<td><code>#68717f</code></td>
+<td>Texto secundario</td>
+</tr>
+<tr>
+<td><code>gp-faint</code></td>
+<td><code>#98a0ab</code></td>
+<td>Metadatos y ornamentos</td>
+</tr>
+<tr>
+<td><code>gp-line</code></td>
+<td><code>#d9dfe3</code></td>
+<td>Bordes</td>
+</tr>
+<tr>
+<td><code>gp-red</code> / <code>color-red</code></td>
+<td><code>#de2636</code></td>
+<td>Marca y acción primaria</td>
+</tr>
+<tr>
+<td><code>gp-red-dark</code></td>
+<td><code>#b91d2a</code></td>
+<td>Presión y profundidad de botones</td>
+</tr>
+<tr>
+<td><code>gp-blue</code></td>
+<td><code>#244d88</code></td>
+<td>Enlaces e información</td>
+</tr>
+<tr>
+<td><code>gp-green</code></td>
+<td><code>#178d72</code></td>
+<td>En línea, éxito y avance</td>
+</tr>
+<tr>
+<td><code>gp-yellow</code></td>
+<td><code>#f1b942</code></td>
+<td>Atención no destructiva y acentos especiales</td>
+</tr>
+</tbody></table>
+<p>El rojo se reserva para marca, selección importante, alertas y acción primaria. No debe cubrir áreas grandes.</p>
+<h3>3.2 Tipografía</h3>
+<ul>
+<li><strong>Archivo</strong>: interfaz, párrafos, botones y navegación.</li>
+<li><strong>Archivo Black</strong>: títulos cortos, cifras importantes y gestos editoriales.</li>
+<li><strong>JetBrains Mono</strong>: medidas de llantas, telemetría, códigos, tiempos y microetiquetas técnicas.</li>
+<li>Títulos: compactos y directos; nunca más largos de dos líneas.</li>
+<li>Texto funcional: 12–14 px en escritorio y mínimo 12 px en móvil.</li>
+<li>Microetiquetas: 7–10.5 px, mayúsculas y espaciado de <code>0.12em–0.18em</code>.</li>
+</ul>
+<h3>3.3 Forma y profundidad</h3>
+<ul>
+<li>Panel principal: radio de 20–22 px.</li>
+<li>Tarjeta: radio de 14–16 px.</li>
+<li>Controles: radio de 10–14 px.</li>
+<li>Chips y estados: cápsula completa.</li>
+<li>Sombra suave: elevación limpia, sin borde negro grueso.</li>
+<li>Sombra de acción: leve tinte rojo bajo botones primarios.</li>
+</ul>
+<h2>4. Estructura de pantalla</h2>
+<h3>4.1 Franja de salida</h3>
+<p>Una franja fija de 7 px recorre la parte superior:</p>
+<p><code>navy → blanco → rojo → blanco</code></p>
+<p>Es la firma de Showroom GP. No se replica dentro del contenido.</p>
+<h3>4.2 Navegación</h3>
+<ul>
+<li>Escritorio: rail blanco flotante con borde superior rojo.</li>
+<li>Móvil: barra inferior flotante.</li>
+<li>Estado activo: superficie navy tenue o borde rojo; siempre acompañado de icono y nombre accesible.</li>
+<li>Logo DT: rojo, compacto y con profundidad mecánica.</li>
+</ul>
+<h3>4.3 Encabezado</h3>
+<ul>
+<li>Título alineado a la izquierda.</li>
+<li>Subtítulo breve debajo.</li>
+<li>Acciones y estado del bot a la derecha.</li>
+<li>Telemetría ambiental centrada sólo cuando exista espacio suficiente.</li>
+<li>Ningún texto ornamental puede cruzarse con el título.</li>
+</ul>
+<h3>4.4 Contenido</h3>
+<ul>
+<li>Márgenes mínimos: 16 px móvil, 24 px escritorio.</li>
+<li>Separación entre tarjetas: 10–14 px.</li>
+<li>Máximo de cuatro métricas por fila.</li>
+<li>Formularios de lectura vertical y grupos de opciones claramente rotulados.</li>
+<li>Documentos con columna legible, tablas limpias y barra superior consistente.</li>
+</ul>
+<h2>5. Componentes oficiales</h2>
+<h3>5.1 Tarjeta Showroom</h3>
+<ul>
+<li>Fondo blanco.</li>
+<li>Borde gris de 1 px.</li>
+<li>Sombra suave.</li>
+<li>Radio de 16–22 px.</li>
+<li>Pequeña marca roja/blanca de 28 px en el borde superior derecho.</li>
+<li>Puede contener un número técnico o microetiqueta, pero no decoración detrás del contenido.</li>
+</ul>
+<h3>5.2 Botones</h3>
+<p><strong>Primario</strong></p>
+<ul>
+<li>Fondo rojo Depot.</li>
+<li>Texto blanco.</li>
+<li>Borde rojo oscuro.</li>
+<li>Sombra roja contenida.</li>
+<li>Leve desplazamiento al presionar.</li>
+</ul>
+<p><strong>Secundario</strong></p>
+<ul>
+<li>Fondo blanco.</li>
+<li>Texto navy.</li>
+<li>Borde gris.</li>
+<li>Sin mayúsculas forzadas salvo acciones cortas de sistema.</li>
+</ul>
+<p><strong>Destructivo</strong></p>
+<ul>
+<li>Rojo sólo cuando la acción sea realmente destructiva.</li>
+<li>Debe expresar la consecuencia con texto.</li>
+</ul>
+<h3>5.3 Campos</h3>
+<ul>
+<li>Fondo blanco, borde gris y radio de 10–12 px.</li>
+<li>Foco rojo de 2 px.</li>
+<li>Etiqueta visible encima; el placeholder no reemplaza la etiqueta.</li>
+<li>Mensaje de ayuda inmediatamente debajo cuando sea necesario.</li>
+</ul>
+<h3>5.4 Chips y placas</h3>
+<ul>
+<li>Estados: fondo tonal claro, texto oscuro y punto de color.</li>
+<li>Medidas de llanta: placa navy, texto blanco monoespaciado y línea roja lateral.</li>
+<li>Tiempos y cifras: números tabulares.</li>
+</ul>
+<h3>5.5 Estados vacíos y carga</h3>
+<ul>
+<li>Skeletons; nunca un spinner aislado.</li>
+<li>Estado vacío con icono simple, explicación corta y una única salida accionable.</li>
+<li>No usar ilustraciones enormes ni mensajes genéricos.</li>
+</ul>
+<h3>5.6 Modales y acceso protegido</h3>
+<ul>
+<li>Scrim navy semitransparente.</li>
+<li>Caja blanca de máximo 420 px.</li>
+<li>Título, explicación, campo y acción en ese orden.</li>
+<li>El foco debe entrar al modal y el contenido de fondo no compite visualmente.</li>
+</ul>
+<h2>6. Lenguaje racing</h2>
+<h3>6.1 Ornamentos permitidos</h3>
+<ul>
+<li>Silueta lateral de auto deportivo.</li>
+<li>Auto pequeño de línea técnica.</li>
+<li>Llanta/rin con banda de rodamiento roja.</li>
+<li>Trazado de circuito.</li>
+<li>Líneas de velocidad inclinadas.</li>
+<li>Medida técnica como <code>245/40 R18</code>.</li>
+<li>Marcas de boxes: <code>DT—01</code>, <code>PIT SYSTEM</code>, <code>UI / 01</code>.</li>
+<li>Hitos breves: <code>30+ AÑOS EN PISTA</code>, <code>QUITO · ECU</code>.</li>
+</ul>
+<h3>6.2 Colocación</h3>
+<ul>
+<li>Auto grande: esquina inferior derecha, 5–8% de opacidad.</li>
+<li>Auto pequeño: esquina superior derecha cuando no interfiera con acciones.</li>
+<li>Llanta: lateral derecho o esquina inferior, 6–10% de opacidad.</li>
+<li>Circuito: esquina inferior izquierda, 5–7% de opacidad.</li>
+<li>Telemetría: parte superior central en escritorio; oculta en pantallas estrechas.</li>
+<li>Marcas técnicas: exteriores del área principal.</li>
+</ul>
+<h3>6.3 Límites</h3>
+<ul>
+<li>Máximo de un auto grande, un auto pequeño, dos llantas y un circuito por viewport.</li>
+<li>En móvil se conservan sólo uno o dos detalles.</li>
+<li>Si una pantalla está llena, se reducen u ocultan ornamentos.</li>
+<li>Los elementos racing no se animan continuamente; la interfaz debe permanecer tranquila.</li>
+</ul>
+<h2>7. Movimiento y sonido</h2>
+<h3>7.1 Movimiento</h3>
+<ul>
+<li>Entrada de pantalla: 180–350 ms, opacidad y desplazamiento máximo de 14 px.</li>
+<li>Presión de botón: escala aproximada <code>0.94–0.98</code>.</li>
+<li>Hover: elevación máxima de 2 px.</li>
+<li>Estado en línea: pulso lento de 1.8 s.</li>
+<li>Respetar <code>prefers-reduced-motion</code>.</li>
+</ul>
+<h3>7.2 Sonido</h3>
+<p>La preferencia se guarda en <code>localStorage</code> con la clave:</p>
+<p><code>autoventa_sound_enabled</code></p>
+<p>Sonidos oficiales:</p>
+<ul>
+<li><strong>Botón:</strong> doble clic mecánico muy corto y bajo.</li>
+<li><strong>Notificación:</strong> tres notas ascendentes.</li>
+<li><strong>Nueva actividad:</strong> variante breve de confirmación.</li>
+<li><strong>Demo:</strong> encendido/apagado con gesto sonoro distinguible.</li>
+</ul>
+<p>Reglas:</p>
+<ul>
+<li>El control <code>Sonido / Silenciado</code> debe estar visible en todas las superficies oficiales.</li>
+<li>El estado se comparte entre hub, herramientas, documentos y demo.</li>
+<li>El primer sonido sólo ocurre después de interacción del usuario.</li>
+<li>Volumen bajo; nunca reproducir audio largo, música o motor continuo.</li>
+<li>Con sonido apagado, toda la funcionalidad y feedback visual permanecen completos.</li>
+</ul>
+<h2>8. Responsive</h2>
+<h3>Escritorio</h3>
+<ul>
+<li>Rail lateral y paneles amplios.</li>
+<li>Telemetría, circuito y auto grande disponibles.</li>
+<li>Acciones importantes visibles sin menú adicional.</li>
+</ul>
+<h3>Tablet</h3>
+<ul>
+<li>Reducir telemetría y ornamentos superiores.</li>
+<li>Mantener tarjetas, auto de fondo y una llanta.</li>
+<li>Permitir scroll horizontal sólo en Kanban.</li>
+</ul>
+<h3>Móvil</h3>
+<ul>
+<li>Navegación inferior.</li>
+<li>Ocultar circuito, especificaciones verticales y marcas secundarias.</li>
+<li>Auto ambiental con opacidad menor y fuera del texto.</li>
+<li>El control de sonido puede mostrar sólo el icono si falta espacio.</li>
+<li>Objetivos táctiles de al menos 40 px.</li>
+</ul>
+<h2>9. Accesibilidad y contenido</h2>
+<ul>
+<li><code>:focus-visible</code> rojo de 2 px con separación.</li>
+<li>Texto principal navy sobre blanco.</li>
+<li>Iconos decorativos con <code>aria-hidden=&quot;true&quot;</code>.</li>
+<li>Botones de icono con <code>aria-label</code>.</li>
+<li>Animación reducida cuando el sistema lo solicita.</li>
+<li>Mensajes de error concretos: qué pasó y qué puede hacer el usuario.</li>
+<li>Lenguaje corto, natural y en español.</li>
+<li>Evitar “configuración avanzada”, abreviaturas internas o jerga cuando exista una frase simple.</li>
+</ul>
+<h2>10. Aplicación por superficie</h2>
+<table>
+<thead>
+<tr>
+<th>Superficie</th>
+<th>Aplicación</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Hub principal</td>
+<td>Hero limpio, producto oficial destacado, tarjetas Showroom y ambiente GP</td>
+</tr>
+<tr>
+<td>Inbox</td>
+<td>Lista simple, estados claros, medidas en placa y notificación sonora</td>
+</tr>
+<tr>
+<td>Pipeline</td>
+<td>Columnas limpias, cabeceras técnicas y movimiento limitado al drag</td>
+</tr>
+<tr>
+<td>Conversación</td>
+<td>Chat sin patrón de cuadros, panel lateral ordenado y acción primaria única</td>
+</tr>
+<tr>
+<td>Métricas</td>
+<td>Cifras grandes, gráficos contenidos y detalles de telemetría discretos</td>
+</tr>
+<tr>
+<td>Mensajes reales</td>
+<td>Misma superficie, estados del bot legibles y compositor limpio</td>
+</tr>
+<tr>
+<td>Configuración IA</td>
+<td>Un bloque por decisión, selección evidente y guardado persistente</td>
+</tr>
+<tr>
+<td>Tester</td>
+<td>Formulario centrado, una acción principal y ayuda breve</td>
+</tr>
+<tr>
+<td>Documentación</td>
+<td>Barra superior, columna legible, tablas y código Showroom</td>
+</tr>
+<tr>
+<td>Galería de estilos</td>
+<td>El contenedor usa Showroom GP; las muestras históricas conservan su diseño para comparación</td>
+</tr>
+<tr>
+<td>Demos históricas</td>
+<td>Se consideran referencias archivadas; el demo oficial siempre es Showroom GP</td>
+</tr>
+</tbody></table>
+<h2>11. Criterio de aceptación</h2>
+<p>Antes de publicar una pantalla:</p>
+<ul>
+<li>¿Se entiende su propósito en menos de cinco segundos?</li>
+<li>¿Existe una sola acción primaria visible por momento?</li>
+<li>¿No hay patrón cuadriculado detrás del contenido?</li>
+<li>¿Los carros y llantas están presentes sin tapar información?</li>
+<li>¿Las tarjetas, botones y campos coinciden con los tokens oficiales?</li>
+<li>¿El control de sonido es accesible y recuerda su estado?</li>
+<li>¿Funciona en móvil sin texto superpuesto?</li>
+<li>¿La reducción de movimiento y el foco de teclado funcionan?</li>
+<li>¿La pantalla se siente como parte del mismo producto?</li>
+</ul>
+<p>Si alguna respuesta es “no”, la pantalla todavía no cumple Showroom GP.</p>
+
+  </div></div>
+<script src="/showroom-gp-global.js"></script>
+</body>
+</html>

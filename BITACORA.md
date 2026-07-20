@@ -32,6 +32,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-07-20 | _(este mismo)_ | Sistema Showroom GP documentado y aplicado a todo el hub | 2.0 |
 | 2026-07-18 | _(este mismo)_ | Fix handoff: guardar mensajes del cliente con bot pausado + typing honesto | 0.5 |
 | 2026-07-18 | _(este mismo)_ | Racing Heritage aplicado a todo el frontend + hub compacto | 1.0 |
 | 2026-07-18 | _(este mismo)_ | Demo del Hub en 4 estilos: temas CSS (showroom/racing/neobrutalista) + deploy | 1.5 |
@@ -53,11 +54,27 @@ Ya viene activado en este equipo.
 | 2026-07-14 | ac09171 | Ubicaciones de locales + análisis de features del cliente | 1.5 |
 | 2026-07-13 | feadf57 | Brief + plan de desarrollo + plan financiero + catálogo | 4.0 |
 | 2026-07-13 | d997844 | Commit inicial (repo) | 0.25 |
-| | | **TOTAL** | **~37.25 h** |
+| | | **TOTAL** | **~39.25 h** |
 
 ---
 
 ## Entradas (más reciente primero)
+
+### 2026-07-20 · Sistema Showroom GP en todo el hub · ⏱️ 2.0 h
+**Commit:** _(este mismo)_
+
+**Qué se hizo:**
+- Se creó `DESIGN.md` como fuente de verdad de Showroom GP: principios, paleta, tipografía, componentes, lenguaje racing, sonido, movimiento, responsive, accesibilidad y criterios de aceptación.
+- La capa global del hub ahora agrega de forma consistente telemetría, carros, llantas, circuito, líneas de velocidad y placas técnicas, siempre fuera del contenido y con opacidad baja.
+- Se unificaron tarjetas, campos, botones, estados, modales, documentos y el catálogo Pitstop con el showroom claro; se eliminó visualmente el patrón cuadriculado de las áreas de contenido.
+- El sonido global cubre todos los enlaces y botones, conserva la preferencia entre páginas y mantiene un control visible para apagarlo.
+- Showroom GP pasó a ser el tema por defecto y todos los accesos operativos apuntan al demo oficial; Racing Heritage y las otras direcciones quedan como referencias históricas comparables.
+- `DESIGN.md` también se renderiza dentro del hub como documento navegable.
+
+**Por qué:**
+- La dirección híbrida ya fue aprobada por el usuario: la simplicidad del showroom facilita entender el producto y los detalles de carreras generan la emoción que sus clientes buscan. Documentarlo y convertirlo en una capa compartida evita que nuevas pantallas vuelvan a verse como productos distintos.
+
+---
 
 ### 2026-07-18 · Fix handoff: mensajes con bot pausado + typing honesto · ⏱️ 0.5 h
 **Commit:** _(este mismo)_

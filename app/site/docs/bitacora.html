@@ -88,6 +88,42 @@ Ajustables. Actualizar el total al añadir cada entrada.</p>
 </tr>
 </thead>
 <tbody><tr>
+<td>2026-07-20</td>
+<td><em>(este mismo)</em></td>
+<td>Sistema Showroom GP documentado y aplicado a todo el hub</td>
+<td>2.0</td>
+</tr>
+<tr>
+<td>2026-07-18</td>
+<td><em>(este mismo)</em></td>
+<td>Fix handoff: guardar mensajes del cliente con bot pausado + typing honesto</td>
+<td>0.5</td>
+</tr>
+<tr>
+<td>2026-07-18</td>
+<td><em>(este mismo)</em></td>
+<td>Racing Heritage aplicado a todo el frontend + hub compacto</td>
+<td>1.0</td>
+</tr>
+<tr>
+<td>2026-07-18</td>
+<td><em>(este mismo)</em></td>
+<td>Demo del Hub en 4 estilos: temas CSS (showroom/racing/neobrutalista) + deploy</td>
+<td>1.5</td>
+</tr>
+<tr>
+<td>2026-07-18</td>
+<td><em>(este mismo)</em></td>
+<td>Herramientas de operación en línea: /mensajes, /configuracion/ia, /tester</td>
+<td>2.5</td>
+</tr>
+<tr>
+<td>2026-07-18</td>
+<td><em>(este mismo)</em></td>
+<td>Deploy en Railway en vivo: root dir, dominio, fix EBUSY del build</td>
+<td>1.0</td>
+</tr>
+<tr>
 <td>2026-07-18</td>
 <td><em>(este mismo)</em></td>
 <td>Migración del agente de Anthropic a OpenAI GPT</td>
@@ -187,11 +223,114 @@ Ajustables. Actualizar el total al añadir cada entrada.</p>
 <td></td>
 <td></td>
 <td><strong>TOTAL</strong></td>
-<td><strong>~30.75 h</strong></td>
+<td><strong>~39.25 h</strong></td>
 </tr>
 </tbody></table>
 <hr>
 <h2>Entradas (más reciente primero)</h2>
+<h3>2026-07-20 · Sistema Showroom GP en todo el hub · ⏱️ 2.0 h</h3>
+<p><strong>Commit:</strong> <em>(este mismo)</em></p>
+<p><strong>Qué se hizo:</strong></p>
+<ul>
+<li>Se creó <code>DESIGN.md</code> como fuente de verdad de Showroom GP: principios, paleta, tipografía, componentes, lenguaje racing, sonido, movimiento, responsive, accesibilidad y criterios de aceptación.</li>
+<li>La capa global del hub ahora agrega de forma consistente telemetría, carros, llantas, circuito, líneas de velocidad y placas técnicas, siempre fuera del contenido y con opacidad baja.</li>
+<li>Se unificaron tarjetas, campos, botones, estados, modales, documentos y el catálogo Pitstop con el showroom claro; se eliminó visualmente el patrón cuadriculado de las áreas de contenido.</li>
+<li>El sonido global cubre todos los enlaces y botones, conserva la preferencia entre páginas y mantiene un control visible para apagarlo.</li>
+<li>Showroom GP pasó a ser el tema por defecto y todos los accesos operativos apuntan al demo oficial; Racing Heritage y las otras direcciones quedan como referencias históricas comparables.</li>
+<li><code>DESIGN.md</code> también se renderiza dentro del hub como documento navegable.</li>
+</ul>
+<p><strong>Por qué:</strong></p>
+<ul>
+<li>La dirección híbrida ya fue aprobada por el usuario: la simplicidad del showroom facilita entender el producto y los detalles de carreras generan la emoción que sus clientes buscan. Documentarlo y convertirlo en una capa compartida evita que nuevas pantallas vuelvan a verse como productos distintos.</li>
+</ul>
+<hr>
+<h3>2026-07-18 · Fix handoff: mensajes con bot pausado + typing honesto · ⏱️ 0.5 h</h3>
+<p><strong>Commit:</strong> <em>(este mismo)</em></p>
+<p><strong>Qué se hizo:</strong></p>
+<ul>
+<li><strong>Bug:</strong> con el bot pausado (handoff tras envío manual desde /mensajes), los mensajes del cliente se descartaban ANTES de guardarse — no aparecían en el panel, justo cuando el dueño más necesita leerlos. Además <code>received(&quot;text&quot;)</code> mostraba &quot;escribiendo…&quot; en cada mensaje entrante, aunque el bot estuviera pausado y nunca fuera a contestar.</li>
+<li><strong>Fix en <code>app/src/index.ts</code>:</strong> el pipeline ahora guarda el mensaje (con idempotencia) y actualiza funnel/etapa ANTES del check de pausa; si está pausado, calla pero todo queda en el panel. El typing se movió a después del check: <code>showTyping()</code> (nuevo helper en <code>wa/client.ts</code> = markAsRead + indicador) solo cuando el bot sí va a responder. El handler de webhook ahora solo marca leído (<code>received()</code> sin argumento).</li>
+<li>Typecheck limpio y los 21 tests pasan.</li>
+</ul>
+<p><strong>Por qué:</strong></p>
+<ul>
+<li>Prueba real del dueño: escribió al número, el mensaje no salía en el panel, y WhatsApp mostraba &quot;escribiendo…&quot; sin respuesta — parecía bot roto cuando en realidad estaba pausado por los envíos manuales de prueba. Ahora el panel es la fuente de verdad del chat y el typing no miente.</li>
+</ul>
+<hr>
+<h3>2026-07-18 · Racing Heritage en todo el frontend + hub compacto · ⏱️ 1.0 h</h3>
+<p><strong>Commit:</strong> <em>(este mismo)</em></p>
+<p><strong>Qué se hizo:</strong></p>
+<ul>
+<li>Decisión tomada: <strong>Racing Heritage (estilo 04) es el elegido</strong>. Se aplicó a todas las superficies: hub (<code>/</code>), mensajes de WhatsApp, configuración de IA, WA tester, galería de estilos y el demo React (<code>/demo/</code> ahora arranca en racing por defecto; <code>?theme=aurora</code> conserva el tema anterior).</li>
+<li>El hub se reorganizó para ser más compacto: documentación, negocio y plataformas pasaron de cards grandes a filas densas de una línea; la demo destacada es una card navy con franja de pit lane y los 4 estilos como pills (racing marcado 🏆); operación queda en 4 cards compactas.</li>
+<li>Las herramientas (mensajes/config/tester) solo cambiaron de <code>&lt;style&gt;</code> — el JS y el HTML quedaron intactos, así que la lógica de Codex (API, gate ADMIN_KEY, polling) no se tocó.</li>
+<li>La galería <code>/estilos/</code> quedó en crema racing con la card 04 marcada &quot;🏆 elegido&quot; y la botonera reordenada.</li>
+</ul>
+<p><strong>Por qué:</strong></p>
+<ul>
+<li>Feedback directo: &quot;el Racing Heritage ux y color pallet ganó&quot;. Un solo lenguaje visual en todo el proyecto — de la landing al tester — para que se sienta producto y no colcha de retazos.</li>
+</ul>
+<hr>
+<h3>2026-07-18 · Demo del Hub en 4 estilos · ⏱️ 1.5 h</h3>
+<p><strong>Commit:</strong> <em>(este mismo)</em></p>
+<p><strong>Qué se hizo:</strong></p>
+<ul>
+<li>El demo del Hub ahora existe en 4 estilos completos, hosteados en Railway: <code>/demo/</code> (Claude × Aurora, el actual), <code>/demo-showroom/</code> (estilo 03), <code>/demo-racing/</code> (estilo 04) y <code>/demo-neobrutalista/</code> (estilo 05). La galería <code>/estilos/</code> tiene la botonera para abrirlos.</li>
+<li>Cómo: el hub se retematizó por design tokens. Los ~60 colores hardcodeados de los componentes pasaron a tokens/<code>color-mix</code> sobre <code>--color-paper</code> (se invierten solos en temas claros); etapas del funnel, cierres, avatares y confetti ahora son variables CSS con gama propia por tema. El documento de cotización quedó &quot;papel literal&quot; (un PDF es blanco en cualquier tema).</li>
+<li>3 hojas de tema en <code>hub/src/design/themes/</code> activadas por <code>&lt;html data-theme&gt;</code>, que se deduce de la URL (<code>/demo-racing/</code> → racing). Un solo build de Vite (base <code>./</code>) copiado a las 4 rutas.</li>
+<li>Fidelidad a las páginas de estilos: neobrutalista con bordes 3px negros, sombras duras y chips negro/amarillo; racing con navy, Archivo Black y placa de box; showroom blanco con sombras suaves y rojo con cuentagotas.</li>
+<li>Verificado en dev server pantalla por pantalla (inbox, kanban, chat, dashboard) en los 4 temas; el tema por defecto quedó idéntico.</li>
+</ul>
+<p><strong>Por qué:</strong></p>
+<ul>
+<li>Para la decisión de estilo con Joaquín: comparar mockups estáticos no es lo mismo que usar la app real en cada dirección visual. Ahora los 4 se pueden abrir lado a lado desde el hub.</li>
+</ul>
+<hr>
+<h3>2026-07-18 · Herramientas de operación en línea · ⏱️ 2.5 h</h3>
+<p><strong>Commit:</strong> <em>(este mismo)</em></p>
+<p><strong>Qué se hizo:</strong></p>
+<ul>
+<li>Las 3 tarjetas del hub que decían &quot;requiere dashboard local&quot; (localhost:3001/3000) ahora funcionan en la URL de Railway: <code>/mensajes</code>, <code>/configuracion/ia</code> y <code>/tester</code>.</li>
+<li>API nueva <code>/api/*</code> en el bot: listar conversaciones y mensajes reales de Postgres, envío manual (pausa el bot en ese chat, mismo handoff que responder desde el celular), pausar/reactivar bot, configuración de IA, y envío directo del tester.</li>
+<li>Tabla <code>settings</code> (key/value jsonb): guarda personalidad, tono, emojis, longitud y cierre 🤝. <code>runAgent</code> los inyecta al system prompt en cada respuesta (cache 30 s).</li>
+<li>Protección con <code>ADMIN_KEY</code> opcional: si la variable existe en Railway, el navegador pide la clave una vez. Los errores de Meta se responden como 502 para no confundirlos con el 401 del login.</li>
+<li>Probado en local con Postgres temporal: lista, chat, pausa, guardado de config y errores del tester.</li>
+</ul>
+<p><strong>Por qué:</strong></p>
+<ul>
+<li>Esas herramientas solo servían con un dashboard local que ni siquiera existe en el repo — el dueño necesita ver los chats y probar el bot desde cualquier lado. El tester local (tools/wa-tester) queda como respaldo de desarrollo; la versión en línea usa el token que ya vive en Railway.</li>
+</ul>
+<hr>
+<h3>2026-07-18 · Hub completo servido desde Railway · ⏱️ 0.5 h</h3>
+<p><strong>Commit:</strong> <em>(este mismo)</em></p>
+<p><strong>Qué se hizo:</strong></p>
+<ul>
+<li><code>site/</code> se movió a <code>app/site/</code> — Railway solo incluye el Root Directory (<code>app/</code>) en el build, así que el hub tenía que vivir adentro.</li>
+<li>El servidor Express del bot ahora sirve el hub estático completo (<code>express.static</code> con <code>extensions: [&quot;html&quot;]</code>, que replica las cleanUrls de Vercel): raíz, <code>/estilos/</code> con las 9 paletas, <code>/docs/</code> y <code>/demo/</code>.</li>
+<li><code>vercel.json</code> actualizado a <code>outputDirectory: &quot;app/site&quot;</code> para que el deploy de Vercel siga funcionando mientras exista.</li>
+<li>Smoke test local: las 9 paletas responden 200 con y sin <code>.html</code>, igual que docs, PDF y assets del demo.</li>
+</ul>
+<p><strong>Por qué:</strong></p>
+<ul>
+<li>Centralizar todo en Railway: las paletas de estilos daban 404 en <code>autoventa-production.up.railway.app</code> porque ese servicio solo corría el bot. Ahora la misma URL sirve bot + hub.</li>
+</ul>
+<hr>
+<h3>2026-07-18 · Deploy en Railway en vivo · ⏱️ 1.0 h</h3>
+<p><strong>Commit:</strong> <em>(este mismo)</em></p>
+<p><strong>Qué se hizo:</strong></p>
+<ul>
+<li>Proyecto Railway <code>cheerful-solace</code>: Postgres online + servicio AutoVenta desde GitHub.</li>
+<li>Se aplicaron las 7 variables que estaban en borrador (el &quot;Apply changes&quot; nunca se había pulsado).</li>
+<li><strong>Root Directory <code>/app</code> configurado</strong> — era la causa del primer &quot;Build failed&quot; (Railway buildeaba la raíz del repo, sin package.json).</li>
+<li>Dominio público generado: <code>autoventa-production.up.railway.app</code> (puerto 3000).</li>
+<li><strong>Fix del segundo build fallido</strong>: quitar <code>buildCommand</code> custom del <code>railway.toml</code>. Nixpacks monta un cache Docker en <code>node_modules/.cache</code> y nuestro <code>npm ci</code> no podía borrarlo (<code>EBUSY</code>). Nixpacks ya corre install+build solo.</li>
+<li>Token de WhatsApp verificado contra la Graph API (responde el test number ✅).</li>
+</ul>
+<p><strong>Por qué:</strong></p>
+<ul>
+<li>Decisión de centralizar todo en Railway ($5/mes) sin Vercel. El deploy estaba &quot;configurado&quot; pero nunca aplicado ni con root directory — el bot no había corrido nunca. Pendientes detectados: <code>SELLER_PHONE=593</code> incompleto, y el token de WhatsApp es el mismo del wa-tester (posible 24h — funciona hoy, generar permanente).</li>
+</ul>
+<hr>
 <h3>2026-07-18 · Migración del agente a OpenAI GPT · ⏱️ 1.5 h</h3>
 <p><strong>Commit:</strong> <em>(este mismo)</em></p>
 <p><strong>Qué se hizo:</strong></p>

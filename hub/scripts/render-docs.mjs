@@ -14,6 +14,12 @@ marked.setOptions({ gfm: true, breaks: false });
 
 const DOCS = [
   {
+    src: "DESIGN.md",
+    out: "design.html",
+    title: "Sistema de diseño Showroom GP",
+    kicker: "Diseño oficial · DT—01",
+  },
+  {
     src: "PLAN_PARTE1_FRONTEND.md",
     out: "plan-parte1.html",
     title: "Plan — Parte 1: Frontend",
