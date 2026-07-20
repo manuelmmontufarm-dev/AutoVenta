@@ -1,4 +1,4 @@
-/** Pings sutiles con WebAudio (solo en modo demo, tras gesto del usuario). */
+/** Sonidos sutiles con WebAudio, activados después de una interacción. */
 let ctx: AudioContext | null = null;
 
 function audio(): AudioContext | null {
@@ -62,10 +62,11 @@ export function sonidoArranque(): void {
   tone(1320, 0.46, 0.18, 0.016);
 }
 
-/** Click mecánico muy sutil al cambiar de pantalla. */
-export function sonidoCambio(): void {
+/** Interruptor mecánico corto para toda la botonera. */
+export function sonidoBoton(): void {
   if (!esShowroomGp()) return;
-  sweep(210, 135, 0, 0.075, 0.012, "triangle");
+  sweep(360, 230, 0, 0.055, 0.009, "triangle");
+  tone(920, 0.025, 0.055, 0.0045);
 }
 
 /** Apagado limpio del modo demo. */
@@ -75,11 +76,24 @@ export function sonidoPitStop(): void {
 }
 
 export function pingNotificacion(): void {
-  tone(880, 0, 0.18, 0.035);
-  tone(1318, 0.09, 0.22, 0.03);
+  if (esShowroomGp()) {
+    sweep(720, 980, 0, 0.11, 0.022, "triangle");
+    tone(1174, 0.08, 0.15, 0.025);
+    tone(1568, 0.17, 0.22, 0.022);
+    return;
+  }
+  tone(880, 0, 0.18, 0.03);
+  tone(1318, 0.09, 0.22, 0.026);
 }
 
 export function pingVenta(): void {
+  if (esShowroomGp()) {
+    sweep(82, 154, 0, 0.34, 0.035, "sawtooth");
+    tone(659, 0.18, 0.16, 0.032);
+    tone(880, 0.29, 0.16, 0.034);
+    tone(1174, 0.4, 0.28, 0.038);
+    return;
+  }
   tone(659, 0, 0.16, 0.04);
   tone(880, 0.1, 0.16, 0.04);
   tone(1108, 0.2, 0.3, 0.045);

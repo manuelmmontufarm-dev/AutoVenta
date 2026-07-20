@@ -98,7 +98,8 @@ html[data-theme="showroom-gp"] .gp-details {
 html[data-theme="showroom-gp"] .gp-telemetry {
   position: absolute;
   top: 18px;
-  left: 92px;
+  left: 50%;
+  transform: translateX(-50%);
   display: flex;
   align-items: center;
   gap: 7px;
@@ -190,6 +191,87 @@ html[data-theme="showroom-gp"] .gp-car-red {
   stroke: color-mix(in srgb, var(--color-red) 13%, transparent);
 }
 
+html[data-theme="showroom-gp"] .gp-mini-car,
+html[data-theme="showroom-gp"] .gp-wheel,
+html[data-theme="showroom-gp"] .gp-circuit {
+  position: absolute;
+  fill: none;
+  stroke: var(--color-paper);
+  vector-effect: non-scaling-stroke;
+}
+
+html[data-theme="showroom-gp"] .gp-mini-car {
+  top: 72px;
+  right: 190px;
+  width: 116px;
+  stroke-width: 2.2;
+  opacity: 0.12;
+}
+
+html[data-theme="showroom-gp"] .gp-mini-car .gp-car-red {
+  stroke: var(--color-red);
+}
+
+html[data-theme="showroom-gp"] .gp-wheel {
+  stroke-width: 2.5;
+}
+
+html[data-theme="showroom-gp"] .gp-wheel-a {
+  top: 33%;
+  right: 24px;
+  width: 68px;
+  opacity: 0.075;
+  transform: rotate(12deg);
+}
+
+html[data-theme="showroom-gp"] .gp-wheel-b {
+  bottom: 20px;
+  left: 30%;
+  width: 52px;
+  opacity: 0.09;
+  transform: rotate(-14deg);
+}
+
+html[data-theme="showroom-gp"] .gp-wheel-tread {
+  stroke: var(--color-red);
+}
+
+html[data-theme="showroom-gp"] .gp-circuit {
+  bottom: 64px;
+  left: 108px;
+  width: 190px;
+  stroke-width: 4;
+  opacity: 0.065;
+}
+
+html[data-theme="showroom-gp"] .gp-circuit-red {
+  stroke: var(--color-red);
+}
+
+html[data-theme="showroom-gp"] .gp-tire-spec {
+  position: absolute;
+  right: 25px;
+  top: 68%;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  color: color-mix(in srgb, var(--color-paper) 18%, transparent);
+  font-family: var(--font-mono);
+  transform: rotate(-90deg) translateX(100%);
+  transform-origin: right top;
+}
+
+html[data-theme="showroom-gp"] .gp-tire-spec b {
+  font-size: 13px;
+  letter-spacing: -0.04em;
+}
+
+html[data-theme="showroom-gp"] .gp-tire-spec span {
+  font-size: 6px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+}
+
 html[data-theme="showroom-gp"] .gp-tire-mark {
   position: absolute;
   left: 41%;
@@ -270,11 +352,32 @@ html[data-theme="showroom-gp"] header .pulse-dot {
   position: relative;
 }
 
+@media (max-width: 1050px) {
+  html[data-theme="showroom-gp"] .gp-telemetry {
+    display: none;
+  }
+}
+
 @media (max-width: 767px) {
   html[data-theme="showroom-gp"] .gp-telemetry,
   html[data-theme="showroom-gp"] .gp-corner-mark-b,
-  html[data-theme="showroom-gp"] .gp-tire-mark {
+  html[data-theme="showroom-gp"] .gp-tire-mark,
+  html[data-theme="showroom-gp"] .gp-wheel-b,
+  html[data-theme="showroom-gp"] .gp-circuit,
+  html[data-theme="showroom-gp"] .gp-tire-spec {
     display: none;
+  }
+
+  html[data-theme="showroom-gp"] .gp-mini-car {
+    top: 68px;
+    right: 18px;
+    width: 90px;
+    opacity: 0.09;
+  }
+
+  html[data-theme="showroom-gp"] .gp-wheel-a {
+    right: -18px;
+    width: 62px;
   }
 
   html[data-theme="showroom-gp"] .gp-car {

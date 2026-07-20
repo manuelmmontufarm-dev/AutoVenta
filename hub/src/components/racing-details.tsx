@@ -45,6 +45,42 @@ export function RacingDetails() {
         <path className="gp-car-red" d="m431 111 26 13" />
       </motion.svg>
 
+      <svg className="gp-mini-car" viewBox="0 0 240 92">
+        <path d="M14 66h22l17-27c7-11 18-17 31-18l52-2c15-1 28 4 39 13l24 20 24 4c7 1 12 5 15 10H14Z" />
+        <path d="m75 34 54-2 28 24H60l15-22Z" />
+        <circle cx="65" cy="67" r="15" />
+        <circle cx="65" cy="67" r="6" />
+        <circle cx="183" cy="67" r="15" />
+        <circle cx="183" cy="67" r="6" />
+        <path className="gp-car-red" d="M151 44h42" />
+      </svg>
+
+      <svg className="gp-wheel gp-wheel-a" viewBox="0 0 100 100">
+        <circle cx="50" cy="50" r="44" />
+        <circle cx="50" cy="50" r="28" />
+        <circle cx="50" cy="50" r="7" />
+        <path d="M50 22v21M50 57v21M22 50h21M57 50h21M30 30l15 15M55 55l15 15M70 30 55 45M45 55 30 70" />
+        <path className="gp-wheel-tread" d="M19 20l8 8M8 43l11 2M13 68l10-4M81 20l-8 8M92 43l-11 2M87 68l-10-4" />
+      </svg>
+
+      <svg className="gp-wheel gp-wheel-b" viewBox="0 0 100 100">
+        <circle cx="50" cy="50" r="44" />
+        <circle cx="50" cy="50" r="28" />
+        <circle cx="50" cy="50" r="7" />
+        <path d="M50 22v21M50 57v21M22 50h21M57 50h21M30 30l15 15M55 55l15 15M70 30 55 45M45 55 30 70" />
+      </svg>
+
+      <svg className="gp-circuit" viewBox="0 0 320 180">
+        <path d="M28 108c18-38 47-36 67-15 17 18 39 20 57-10 23-38 66-51 104-26 33 22 37 66 13 92-25 27-64 22-79-4-18-32-49-30-72-8-34 32-72 8-90-29Z" />
+        <circle cx="28" cy="108" r="5" />
+        <path className="gp-circuit-red" d="M22 116h24M22 122h24" />
+      </svg>
+
+      <div className="gp-tire-spec">
+        <b>245/40</b>
+        <span>R18 · SPORT</span>
+      </div>
+
       <div className="gp-tire-mark">
         <span />
         <span />

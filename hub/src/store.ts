@@ -76,12 +76,12 @@ export const useHub = create<HubState>((set, get) => {
           ticketId: ev.ticketId,
         };
         set((s) => ({ toasts: [...s.toasts.slice(-2), toast] }));
-        if (get().demo) pingNotificacion();
+        pingNotificacion();
         break;
       }
       case "celebracion":
         set({ celebrando: true });
-        if (get().demo) pingVenta();
+        pingVenta();
         setTimeout(() => set({ celebrando: false }), 3000);
         break;
     }
