@@ -266,6 +266,19 @@ create table if not exists settings (
   value      jsonb not null,
   updated_at timestamptz not null default now()
 );
+
+-- Ajuste único solicitado para el piloto; después de esta migración la opción
+-- vuelve a quedar totalmente controlada desde Account Settings.
+with migration as (
+  insert into settings (key, value)
+  values ('migration_more_emojis_v1', 'true'::jsonb)
+  on conflict (key) do nothing
+  returning key
+)
+update settings
+set value = jsonb_set(value, '{emojis}', '"muchos"'::jsonb, true),
+    updated_at = now()
+where key = 'ai_config' and exists (select 1 from migration);
 `;
 
 /** Aplica el esquema (idempotente). Se llama al arrancar el bot. */

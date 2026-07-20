@@ -12,7 +12,7 @@ export const AiConfigSchema = z.object({
   /** Texto libre que se suma al prompt: personalidad extra del asistente. */
   personalidad: z.string().max(600).default(""),
   tono: z.enum(["calido", "neutral", "formal"]).default("calido"),
-  emojis: z.enum(["ninguno", "pocos", "muchos"]).default("pocos"),
+  emojis: z.enum(["ninguno", "pocos", "muchos"]).default("muchos"),
   longitud: z.enum(["corta", "media", "larga"]).default("corta"),
   /** Cierre de venta: si está activo, el bot despide con el emoji elegido. */
   stickerFinal: z.boolean().default(true),
