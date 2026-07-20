@@ -1,0 +1,141 @@
+/* ─── Tema "Showroom GP" ─────────────────────────────────────────────
+   Una mezcla de showroom contemporáneo y paddock clásico: superficies blancas
+   muy limpias, tinta navy, rojo Depot preciso y una trama de cuadros apenas
+   visible. Se activa con <html data-theme="showroom-gp">. */
+
+html[data-theme="showroom-gp"] {
+  --color-ink: #f5f6f4;
+  --color-ink2: #ffffff;
+  --color-ink3: #edf0ed;
+  --color-paper: #17233b;
+  --color-muted: #68717f;
+  --color-faint: #98a0ab;
+  --color-line: #d9dfe3;
+  --color-red: #de2636;
+  --color-reddark: #b91d2a;
+  --color-blue: #244d88;
+  --color-sky: #244d88;
+  --color-lime: #178d72;
+  --color-violet: #de2636;
+  --color-wa: #e8f6ef;
+  --color-ok: #178d72;
+  --color-sand: #f1b942;
+  --color-check: #178d72;
+  --color-bubble-meta: rgba(23, 35, 59, 0.5);
+  --color-scrim: rgba(23, 35, 59, 0.46);
+
+  --font-sans: "Archivo", ui-sans-serif, system-ui, sans-serif;
+  --font-serif: "Archivo Black", "Archivo", sans-serif;
+
+  --radius-panel: 22px;
+  --radius-card: 16px;
+  --shadow-soft: 0 1px 2px rgba(23, 35, 59, 0.04), 0 12px 30px rgba(23, 35, 59, 0.08);
+  --shadow-pop: 0 4px 12px rgba(23, 35, 59, 0.1), 0 22px 44px rgba(23, 35, 59, 0.16);
+  --confetti: #de2636, #f1b942, #178d72, #17233b, #ffffff;
+}
+
+html[data-theme="showroom-gp"] body {
+  background:
+    linear-gradient(90deg, rgba(23, 35, 59, 0.028) 1px, transparent 1px) 0 0 / 36px 36px,
+    linear-gradient(rgba(23, 35, 59, 0.028) 1px, transparent 1px) 0 0 / 36px 36px,
+    radial-gradient(circle at 100% 0%, rgba(222, 38, 54, 0.08), transparent 25rem),
+    var(--color-ink);
+  color: var(--color-paper);
+}
+
+html[data-theme="showroom-gp"] body::before {
+  content: "";
+  display: block;
+  position: fixed;
+  inset: 0 0 auto;
+  height: 7px;
+  opacity: 1;
+  background: repeating-linear-gradient(
+    90deg,
+    var(--color-paper) 0 13px,
+    #ffffff 13px 26px,
+    var(--color-red) 26px 39px,
+    #ffffff 39px 52px
+  );
+}
+
+html[data-theme="showroom-gp"] ::selection {
+  background: color-mix(in srgb, var(--color-red) 24%, transparent);
+  color: var(--color-paper);
+}
+
+html[data-theme="showroom-gp"] :focus-visible {
+  outline: 2px solid var(--color-red);
+}
+
+html[data-theme="showroom-gp"] .glass,
+html[data-theme="showroom-gp"] .glass-strong {
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--color-line);
+  box-shadow: var(--shadow-soft);
+}
+
+html[data-theme="showroom-gp"] .glass::before,
+html[data-theme="showroom-gp"] .glass-strong::before {
+  display: none;
+}
+
+/* Un gesto de pista, contenido: la acción primaria conserva el rojo Depot. */
+html[data-theme="showroom-gp"] .btn-aurora {
+  background: var(--color-red);
+  color: #fff;
+  border: 1px solid var(--color-reddark);
+  box-shadow: 0 7px 18px rgba(222, 38, 54, 0.24);
+}
+
+html[data-theme="showroom-gp"] .serif {
+  font-family: var(--font-serif);
+  font-weight: 400;
+  letter-spacing: -0.015em;
+}
+
+html[data-theme="showroom-gp"] .microlabel {
+  color: var(--color-blue);
+  letter-spacing: 0.17em;
+}
+
+html[data-theme="showroom-gp"] .bubble {
+  box-shadow: 0 1px 2px rgba(23, 35, 59, 0.05);
+}
+
+html[data-theme="showroom-gp"] .bubble-in {
+  background: #fff;
+  border: 1px solid var(--color-line);
+}
+
+html[data-theme="showroom-gp"] .bubble-out {
+  background: var(--color-wa);
+  border: 1px solid #c7ead8;
+}
+
+/* La medida se lee como una placa de box, sin perder la limpieza del local. */
+html[data-theme="showroom-gp"] .medida-chip {
+  background: var(--color-paper) !important;
+  color: #fff !important;
+  border-radius: 7px;
+}
+
+html[data-theme="showroom-gp"] {
+  --etapa-nuevo: #244d88;
+  --etapa-medidas: #178d72;
+  --etapa-cotizado: #b87800;
+  --etapa-ubicacion: #de2636;
+  --etapa-visita: #287457;
+  --cierre-ganado: #178d72;
+  --cierre-perdido: #de2636;
+  --cierre-sinresp: #7e8791;
+  --av-1: #244d88;
+  --av-2: #178d72;
+  --av-3: #b87800;
+  --av-4: #de2636;
+  --av-5: #b25a77;
+  --av-6: #287457;
+  --av-7: #815e32;
+}
