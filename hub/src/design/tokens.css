@@ -214,6 +214,10 @@ textarea {
   box-shadow: 0 8px 26px rgba(124, 58, 237, 0.4);
 }
 
+.gp-sound-control {
+  display: none;
+}
+
 /* ─── Micro-etiquetas y números ───────────────────────────────────── */
 
 .microlabel {

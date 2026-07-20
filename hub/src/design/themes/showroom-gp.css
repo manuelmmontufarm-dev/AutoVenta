@@ -352,6 +352,25 @@ html[data-theme="showroom-gp"] header .pulse-dot {
   position: relative;
 }
 
+html[data-theme="showroom-gp"] .gp-sound-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 10px;
+  border: 1px solid var(--color-line);
+  border-radius: 999px;
+  color: var(--color-muted);
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: var(--shadow-soft);
+  font-size: 10px;
+  font-weight: 700;
+}
+
+html[data-theme="showroom-gp"] .gp-sound-control[aria-pressed="false"] {
+  color: var(--color-faint);
+  background: var(--color-ink3);
+}
+
 @media (max-width: 1050px) {
   html[data-theme="showroom-gp"] .gp-telemetry {
     display: none;

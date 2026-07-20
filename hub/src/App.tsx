@@ -1,9 +1,9 @@
 import { AnimatePresence, LayoutGroup, MotionConfig, motion } from "framer-motion";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Confetti, Toasts } from "./components/overlays";
 import { IconChart, IconInbox, IconKanban, IconPlay, IconStop } from "./components/icons";
 import { RacingDetails } from "./components/racing-details";
-import { sonidoBoton } from "./lib/sound";
+import { setSonidoActivo, sonidoActivo, sonidoBoton } from "./lib/sound";
 import { navigate, useRoute, type Route } from "./router";
 import { Dashboard } from "./screens/Dashboard";
 import { Inbox } from "./screens/Inbox";
@@ -31,6 +31,7 @@ function navActivo(route: Route): string {
 export default function App() {
   const route = useRoute();
   const { init, cargando, tickets, demo, toggleDemo } = useHub();
+  const [audioOn, setAudioOn] = useState(sonidoActivo);
 
   useEffect(() => {
     void init();
@@ -114,6 +115,22 @@ export default function App() {
               </div>
             </div>
             <div className="flex items-center gap-2.5">
+              <motion.button
+                whileTap={{ scale: 0.94 }}
+                type="button"
+                className="gp-sound-control"
+                aria-label={audioOn ? "Apagar sonidos" : "Activar sonidos"}
+                aria-pressed={audioOn}
+                title={audioOn ? "Apagar sonidos" : "Activar sonidos"}
+                onClick={() => {
+                  const next = !audioOn;
+                  setSonidoActivo(next);
+                  setAudioOn(next);
+                }}
+              >
+                <span aria-hidden>{audioOn ? "🔊" : "🔇"}</span>
+                <span className="hidden lg:inline">{audioOn ? "Sonido" : "Silenciado"}</span>
+              </motion.button>
               <span className="glass hidden items-center gap-2 rounded-full px-3 py-1.5 text-[11px] font-semibold text-muted sm:flex">
                 <span className="pulse-dot" /> Bot en línea 24/7
               </span>

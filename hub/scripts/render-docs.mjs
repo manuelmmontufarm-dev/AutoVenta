@@ -7,7 +7,7 @@ import path from "path";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO = path.resolve(__dirname, "../..");
-const OUT_DIR = path.join(REPO, "site/docs");
+const OUT_DIR = path.join(REPO, "app/site/docs");
 mkdirSync(OUT_DIR, { recursive: true });
 
 marked.setOptions({ gfm: true, breaks: false });
@@ -101,6 +101,7 @@ const template = (title, kicker, bodyHtml) => `<!doctype html>
   .doc td{padding:9px 12px;border-bottom:1px solid rgba(255,255,255,.05);color:#dfe3ee;vertical-align:top}
   .doc tr:hover td{background:rgba(255,255,255,.02)}
 </style>
+<link rel="stylesheet" href="/showroom-gp-global.css">
 </head>
 <body>
   <div class="bar">
@@ -110,6 +111,7 @@ const template = (title, kicker, bodyHtml) => `<!doctype html>
   <div class="wrap"><div class="doc">
 ${bodyHtml}
   </div></div>
+<script src="/showroom-gp-global.js"></script>
 </body>
 </html>
 `;

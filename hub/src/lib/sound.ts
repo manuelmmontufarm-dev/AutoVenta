@@ -1,7 +1,25 @@
 /** Sonidos sutiles con WebAudio, activados después de una interacción. */
 let ctx: AudioContext | null = null;
+const SOUND_KEY = "autoventa_sound_enabled";
+
+export function sonidoActivo(): boolean {
+  try {
+    return localStorage.getItem(SOUND_KEY) !== "off";
+  } catch {
+    return true;
+  }
+}
+
+export function setSonidoActivo(activo: boolean): void {
+  try {
+    localStorage.setItem(SOUND_KEY, activo ? "on" : "off");
+  } catch {
+    // La preferencia simplemente no persiste si el navegador bloquea storage.
+  }
+}
 
 function audio(): AudioContext | null {
+  if (!sonidoActivo()) return null;
   try {
     if (!ctx) ctx = new AudioContext();
     if (ctx.state === "suspended") void ctx.resume();
@@ -55,7 +73,7 @@ function sweep(
 
 /** Encendido corto: grave de motor + confirmación electrónica. */
 export function sonidoArranque(): void {
-  if (!esShowroomGp()) return;
+  if (!esShowroomGp() || !sonidoActivo()) return;
   sweep(48, 96, 0, 0.42, 0.045, "sawtooth");
   sweep(70, 138, 0.12, 0.35, 0.026, "triangle");
   tone(880, 0.38, 0.12, 0.018);
@@ -64,18 +82,19 @@ export function sonidoArranque(): void {
 
 /** Interruptor mecánico corto para toda la botonera. */
 export function sonidoBoton(): void {
-  if (!esShowroomGp()) return;
+  if (!esShowroomGp() || !sonidoActivo()) return;
   sweep(360, 230, 0, 0.055, 0.009, "triangle");
   tone(920, 0.025, 0.055, 0.0045);
 }
 
 /** Apagado limpio del modo demo. */
 export function sonidoPitStop(): void {
-  if (!esShowroomGp()) return;
+  if (!esShowroomGp() || !sonidoActivo()) return;
   sweep(118, 52, 0, 0.28, 0.025, "sawtooth");
 }
 
 export function pingNotificacion(): void {
+  if (!sonidoActivo()) return;
   if (esShowroomGp()) {
     sweep(720, 980, 0, 0.11, 0.022, "triangle");
     tone(1174, 0.08, 0.15, 0.025);
@@ -87,6 +106,7 @@ export function pingNotificacion(): void {
 }
 
 export function pingVenta(): void {
+  if (!sonidoActivo()) return;
   if (esShowroomGp()) {
     sweep(82, 154, 0, 0.34, 0.035, "sawtooth");
     tone(659, 0.18, 0.16, 0.032);

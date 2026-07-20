@@ -1,0 +1,308 @@
+@import url("https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=Archivo+Black&family=JetBrains+Mono:wght@500;700&display=swap");
+
+:root {
+  --gp-bg: #f5f6f4;
+  --gp-card: #ffffff;
+  --gp-ink: #17233b;
+  --gp-muted: #68717f;
+  --gp-faint: #98a0ab;
+  --gp-line: #d9dfe3;
+  --gp-red: #de2636;
+  --gp-red-dark: #b91d2a;
+  --gp-green: #178d72;
+  --gp-yellow: #f1b942;
+  --gp-shadow: 0 1px 2px rgba(23, 35, 59, 0.04), 0 12px 30px rgba(23, 35, 59, 0.08);
+}
+
+html {
+  color-scheme: light;
+}
+
+body {
+  color: var(--gp-ink) !important;
+  background-color: var(--gp-bg) !important;
+  background-image: radial-gradient(circle at 100% 0%, rgba(222, 38, 54, 0.07), transparent 28rem) !important;
+  font-family: "Archivo", ui-sans-serif, system-ui, sans-serif !important;
+}
+
+body::before {
+  content: "" !important;
+  display: block !important;
+  position: fixed !important;
+  inset: 0 0 auto !important;
+  width: auto !important;
+  height: 7px !important;
+  margin: 0 !important;
+  z-index: 1000 !important;
+  pointer-events: none !important;
+  background: repeating-linear-gradient(
+    90deg,
+    var(--gp-ink) 0 13px,
+    #fff 13px 26px,
+    var(--gp-red) 26px 39px,
+    #fff 39px 52px
+  ) !important;
+}
+
+body::after {
+  content: "" !important;
+  position: fixed !important;
+  right: 3vw !important;
+  bottom: 2vh !important;
+  width: min(32vw, 470px) !important;
+  height: 160px !important;
+  z-index: 0 !important;
+  opacity: 0.055 !important;
+  pointer-events: none !important;
+  background: center / contain no-repeat url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 220' fill='none' stroke='%2317233b' stroke-width='3'%3E%3Cpath d='M60 154h38l27-45c11-18 30-29 51-30l108-5c24-1 46 6 65 20l40 29 102 13c26 3 46 18 57 40H84c-11 0-20-9-24-22Z'/%3E%3Cpath d='m179 111 116-5 43 33H159l20-28ZM329 106v33M126 139h-23M492 148h39'/%3E%3Ccircle cx='166' cy='174' r='31'/%3E%3Ccircle cx='166' cy='174' r='13'/%3E%3Ccircle cx='456' cy='174' r='31'/%3E%3Ccircle cx='456' cy='174' r='13'/%3E%3Cpath d='M365 122h74m-8-11 26 13' stroke='%23de2636'/%3E%3C/svg%3E") !important;
+}
+
+body > * {
+  position: relative;
+  z-index: 1;
+}
+
+::selection {
+  color: var(--gp-ink);
+  background: rgba(222, 38, 54, 0.2);
+}
+
+a {
+  color: #244d88;
+}
+
+.checker {
+  height: 7px !important;
+  background: transparent !important;
+}
+
+/* Portada, galería y herramientas */
+.card,
+.foot,
+.tip,
+.gate .box,
+.chat-head,
+.composer,
+.list,
+.featured,
+a.row {
+  background: rgba(255, 255, 255, 0.94) !important;
+  color: var(--gp-ink) !important;
+  border-color: var(--gp-line) !important;
+  box-shadow: var(--gp-shadow) !important;
+}
+
+.card,
+.gate .box,
+.featured {
+  border-width: 1px !important;
+  border-radius: 20px !important;
+}
+
+.featured {
+  overflow: hidden;
+}
+
+.featured::before {
+  content: "SHOWROOM GP / DT—01";
+  position: absolute;
+  top: 12px;
+  right: 22px;
+  color: var(--gp-faint);
+  font: 700 8px/1 "JetBrains Mono", monospace;
+  letter-spacing: 0.14em;
+}
+
+.featured::after {
+  width: 6px !important;
+  background: var(--gp-red) !important;
+}
+
+.featured h3,
+.featured p {
+  color: var(--gp-ink) !important;
+}
+
+.featured .tag,
+.badge.demo {
+  color: var(--gp-ink) !important;
+  background: var(--gp-yellow) !important;
+  border-color: var(--gp-ink) !important;
+}
+
+.featured .go,
+.save button,
+.composer button,
+button[type="submit"] {
+  color: #fff !important;
+  background: var(--gp-red) !important;
+  border-color: var(--gp-red-dark) !important;
+  box-shadow: 0 7px 18px rgba(222, 38, 54, 0.22) !important;
+}
+
+.featured .estilo-pills a {
+  color: var(--gp-muted) !important;
+  background: #fff !important;
+  border-color: var(--gp-line) !important;
+}
+
+.featured .estilo-pills a.win {
+  color: #fff !important;
+  background: var(--gp-red) !important;
+  border-color: var(--gp-red) !important;
+}
+
+input,
+textarea,
+select {
+  color: var(--gp-ink) !important;
+  background: #fff !important;
+  border-color: var(--gp-line) !important;
+  box-shadow: 0 4px 16px rgba(23, 35, 59, 0.05);
+}
+
+.msgs {
+  background-color: var(--gp-bg) !important;
+  background-image: none !important;
+}
+
+.bubble {
+  border-width: 1px !important;
+  border-color: var(--gp-line) !important;
+  box-shadow: 0 5px 18px rgba(23, 35, 59, 0.06);
+}
+
+.bubble.assistant {
+  background: #e8f6ef !important;
+}
+
+.conv.active,
+.opt.sel {
+  color: var(--gp-ink) !important;
+  background: rgba(222, 38, 54, 0.07) !important;
+  box-shadow: inset 3px 0 0 var(--gp-red) !important;
+}
+
+/* Documentos Markdown del hub */
+.bar {
+  top: 7px !important;
+  color: var(--gp-ink) !important;
+  background: rgba(255, 255, 255, 0.92) !important;
+  border-color: var(--gp-line) !important;
+  box-shadow: 0 6px 24px rgba(23, 35, 59, 0.07);
+}
+
+.bar a,
+.bar .kicker {
+  color: var(--gp-muted) !important;
+}
+
+.bar .kicker {
+  color: var(--gp-red) !important;
+}
+
+.doc {
+  color: var(--gp-ink) !important;
+}
+
+.doc h1,
+.doc h2,
+.doc strong {
+  color: var(--gp-ink) !important;
+}
+
+.doc h2 {
+  border-color: var(--gp-line) !important;
+}
+
+.doc h3,
+.doc a {
+  color: #244d88 !important;
+}
+
+.doc p,
+.doc li,
+.doc ul,
+.doc ol,
+.doc td {
+  color: var(--gp-muted) !important;
+}
+
+.doc code {
+  color: var(--gp-red-dark) !important;
+  background: rgba(222, 38, 54, 0.07) !important;
+}
+
+.doc pre {
+  color: var(--gp-ink) !important;
+  background: #fff !important;
+  border-color: var(--gp-line) !important;
+  box-shadow: var(--gp-shadow);
+}
+
+.doc pre code {
+  color: var(--gp-ink) !important;
+  background: transparent !important;
+}
+
+.doc th,
+.doc td,
+.doc hr {
+  border-color: var(--gp-line) !important;
+}
+
+.doc tr:hover td {
+  background: rgba(23, 35, 59, 0.025) !important;
+}
+
+/* Control global de audio */
+.gp-sound-toggle {
+  position: fixed !important;
+  right: 18px !important;
+  bottom: 18px !important;
+  z-index: 2000 !important;
+  display: inline-flex !important;
+  width: auto !important;
+  align-items: center !important;
+  gap: 8px !important;
+  padding: 9px 13px !important;
+  color: var(--gp-ink) !important;
+  background: rgba(255, 255, 255, 0.95) !important;
+  border: 1px solid var(--gp-line) !important;
+  border-radius: 999px !important;
+  box-shadow: 0 8px 26px rgba(23, 35, 59, 0.14) !important;
+  font: 700 11px/1 "Archivo", sans-serif !important;
+  text-transform: none !important;
+  letter-spacing: 0 !important;
+  cursor: pointer !important;
+}
+
+.gp-sound-toggle:hover {
+  transform: translateY(-1px);
+}
+
+.gp-sound-toggle[aria-pressed="false"] {
+  color: var(--gp-muted) !important;
+  background: rgba(245, 246, 244, 0.96) !important;
+}
+
+@media (max-width: 720px) {
+  body::after {
+    right: -22vw !important;
+    width: 78vw !important;
+    opacity: 0.04 !important;
+  }
+
+  .gp-sound-toggle {
+    right: 12px !important;
+    bottom: 12px !important;
+  }
+}
+
+@media print {
+  body::before,
+  body::after,
+  .gp-sound-toggle {
+    display: none !important;
+  }
+}
