@@ -3,7 +3,7 @@ import type { Atiende, Cierre, Etapa, FeedItem, Mensaje, Rol, Ticket } from "./d
 import { MockSource } from "./data/mock/mockSource";
 import { Simulator } from "./data/mock/simulator";
 import { updateFavicon } from "./lib/favicon";
-import { pingNotificacion, pingVenta } from "./lib/sound";
+import { pingNotificacion, pingVenta, sonidoArranque, sonidoPitStop } from "./lib/sound";
 
 /* Parte 2: reemplazar MockSource por RealSource (fetch + SSE) — nada más cambia. */
 const source = new MockSource();
@@ -124,6 +124,7 @@ export const useHub = create<HubState>((set, get) => {
       const demo = !get().demo;
       set({ demo });
       if (demo) {
+        sonidoArranque();
         simulator.start();
         set((s) => ({
           toasts: [
@@ -132,6 +133,7 @@ export const useHub = create<HubState>((set, get) => {
           ],
         }));
       } else {
+        sonidoPitStop();
         simulator.stop();
       }
     },

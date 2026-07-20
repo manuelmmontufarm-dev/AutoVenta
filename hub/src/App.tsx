@@ -2,6 +2,8 @@ import { AnimatePresence, LayoutGroup, MotionConfig, motion } from "framer-motio
 import { useEffect } from "react";
 import { Confetti, Toasts } from "./components/overlays";
 import { IconChart, IconInbox, IconKanban, IconPlay, IconStop } from "./components/icons";
+import { RacingDetails } from "./components/racing-details";
+import { sonidoCambio } from "./lib/sound";
 import { navigate, useRoute, type Route } from "./router";
 import { Dashboard } from "./screens/Dashboard";
 import { Inbox } from "./screens/Inbox";
@@ -41,10 +43,14 @@ export default function App() {
   return (
     <MotionConfig reducedMotion="user">
       <div className="relative z-10 flex h-full">
+        <RacingDetails />
         {/* ── Rail de navegación (desktop) ── */}
         <nav className="glass z-20 m-3 mr-0 hidden w-16 flex-col items-center gap-1.5 rounded-3xl py-4 md:flex">
           <button
-            onClick={() => navigate("inbox")}
+            onClick={() => {
+              sonidoCambio();
+              navigate("inbox");
+            }}
             className="mb-3 grid h-10 w-10 place-items-center rounded-2xl bg-red text-[13px] font-extrabold text-white shadow-soft"
             aria-label="Depot Tire Hub"
           >
@@ -56,7 +62,10 @@ export default function App() {
               return (
                 <button
                   key={item.id}
-                  onClick={() => navigate(item.id)}
+                  onClick={() => {
+                    sonidoCambio();
+                    navigate(item.id);
+                  }}
                   className="relative grid h-11 w-11 place-items-center rounded-2xl text-muted transition-colors hover:text-paper data-[activo=true]:text-paper"
                   data-activo={activo}
                   aria-label={item.label}
@@ -147,7 +156,10 @@ export default function App() {
             return (
               <button
                 key={item.id}
-                onClick={() => navigate(item.id)}
+                onClick={() => {
+                  sonidoCambio();
+                  navigate(item.id);
+                }}
                 className="relative flex flex-col items-center gap-0.5 rounded-2xl px-5 py-1"
                 style={{ color: activo ? "var(--color-paper)" : "var(--color-faint)" }}
               >
