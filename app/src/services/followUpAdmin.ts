@@ -33,7 +33,7 @@ export async function listFollowUpBoard() {
       where conversation_id = c.id and cycle = c.current_cycle
       order by
         case status when 'processing' then 0 when 'scheduled' then 1 when 'blocked' then 2 else 3 end,
-        due_at desc
+        due_at asc
       limit 1
     ) j on true
     left join lateral (
@@ -124,11 +124,11 @@ export async function getFollowUpMetrics() {
     select
       count(*) filter (where j.status = 'scheduled')::int as scheduled,
       count(*) filter (where j.status = 'sent')::int as sent,
-      count(*) filter (where exists (
+      count(distinct (j.conversation_id, j.cycle)) filter (where exists (
         select 1 from messages m where m.conversation_id = j.conversation_id
           and m.cycle = j.cycle and m.direction = 'inbound' and m.created_at > j.executed_at
       ))::int as responded,
-      count(*) filter (where exists (
+      count(distinct (j.conversation_id, j.cycle)) filter (where exists (
         select 1 from sales_history h where h.conversation_id = j.conversation_id
           and h.cycle = j.cycle and h.outcome = 'ganado' and h.closed_at > j.executed_at
       ))::int as converted,

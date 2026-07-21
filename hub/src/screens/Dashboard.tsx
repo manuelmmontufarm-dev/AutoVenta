@@ -156,6 +156,22 @@ export function Dashboard() {
         </motion.section>
       )}
 
+      {metrics?.discounts && (
+        <motion.section initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="glass mt-2.5 rounded-3xl p-5">
+          <div className="mb-4"><p className="microlabel">Impacto de descuentos autorizados</p><p className="mt-1 text-[10.5px] text-faint">Comparación por ciclo cotizado; muestra asociación, no causalidad.</p></div>
+          <div className="grid grid-cols-2 gap-2.5 md:grid-cols-4">
+            <StatTile label="Ofertas con descuento" valor={metrics.discounts.offered} detalle={`${metrics.discounts.wonWith} terminaron en venta`} />
+            <StatTile label="Conversión con descuento" valor={metrics.discounts.conversionWith * 100} formato={(n) => `${Math.round(n)}%`} color="var(--color-lime)" detalle="ciclos únicos" />
+            <StatTile label="Respuesta tras oferta" valor={metrics.discounts.avgHoursToReply ?? 0} formato={(n) => metrics.discounts?.avgHoursToReply == null ? "—" : `${n.toFixed(1)} h`} detalle="promedio hasta el siguiente inbound" />
+            <StatTile label="Descuento autorizado" valor={metrics.discounts.totalDiscount} formato={money} color="var(--color-warn)" detalle="monto acumulado" />
+          </div>
+          <div className="mt-4 grid gap-2.5 lg:grid-cols-2">
+            <div className="rounded-2xl border border-paper/[.07] bg-paper/[.025] p-4"><p className="microlabel mb-4">Conversión: con vs. sin descuento</p><MetricBars items={[{ label: "Con descuento", value: Math.round(metrics.discounts.conversionWith * 100), color: "var(--color-lime)" }, { label: "Sin descuento", value: Math.round(metrics.discounts.conversionWithout * 100), color: "var(--color-violet)" }]} /></div>
+            <div className="rounded-2xl border border-paper/[.07] bg-paper/[.025] p-4"><p className="microlabel mb-4">Días promedio hasta venta</p><MetricBars items={[{ label: "Con descuento", value: Number((metrics.discounts.avgDaysToWinWith ?? 0).toFixed(1)), color: "var(--color-ok)" }, { label: "Sin descuento", value: Number((metrics.discounts.avgDaysToWinWithout ?? 0).toFixed(1)), color: "var(--color-violet)" }]} /></div>
+          </div>
+        </motion.section>
+      )}
+
       {/* Inventario real */}
       {metrics?.inventory && (
         <motion.section

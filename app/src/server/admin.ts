@@ -24,6 +24,7 @@ import {
   catalogMediaReport,
   ensureCatalogReady,
   findById,
+  findByCode,
   searchByText,
 } from "../services/catalog.js";
 import {
@@ -46,6 +47,7 @@ import {
   setConversationAssignee,
   setStage,
   reopenConversation,
+  logQuoteArtifact,
 } from "../services/conversations.js";
 import { getHubFeed, getHubMessages, getHubMetrics, listHubTickets } from "../services/hubData.js";
 import { emitLiveEvent, subscribeLiveEvents } from "../services/liveEvents.js";
@@ -57,7 +59,15 @@ import {
   listBotAlerts,
   listFollowUpBoard,
 } from "../services/followUpAdmin.js";
-import { cancelPendingFollowUps } from "../services/followUps.js";
+import { cancelPendingFollowUps, createBotAlert, scheduleConversationFollowUps } from "../services/followUps.js";
+import {
+  captureManualDiscount,
+  createDiscountOffer,
+  discountOfferMessage,
+  markDiscountOfferSent,
+} from "../services/discountOffers.js";
+import { renderQuoteImage, toRenderLine } from "../render/quoteImage.js";
+import { sendImage } from "../wa/client.js";
 
 const GRAPH = "https://graph.facebook.com/v21.0";
 const ADMIN_KEY = process.env.ADMIN_KEY ?? "";
@@ -343,6 +353,96 @@ export function createAdminRouter(): express.Router {
     emitLiveEvent("sync", id); res.json({ ok: true });
   });
 
+  router.post("/hub/tickets/:id/discount-offers", async (req, res) => {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id)) return res.status(400).json({ ok: false, error: "id inválido" });
+    try {
+      const input = z.object({
+        amount: z.number().positive().max(100000),
+        reason: z.string().trim().min(3).max(300),
+        condition: z.string().trim().min(3).max(300),
+        expiresAt: z.string().datetime().nullable().optional(),
+      }).parse(req.body);
+      const offer = await createDiscountOffer({
+        conversationId: id,
+        valueCents: Math.round(input.amount * 100),
+        reason: input.reason,
+        condition: input.condition,
+        expiresAt: input.expiresAt ? new Date(input.expiresAt) : null,
+      });
+      const message = discountOfferMessage(offer);
+      await cancelPendingFollowUps(id, "discount_offer_replaced_plan");
+      const decision = await authorizeConversationOutbound({
+        conversationId: id, contentType: "text", actor: "owner",
+      });
+      if (!decision.allowed) {
+        const [conversation] = await sql<{ current_cycle: number }[]>`
+          select current_cycle from conversations where id=${id}
+        `;
+        if (conversation) await createBotAlert({
+          conversationId: id, cycle: conversation.current_cycle,
+          type: "discount_template_required", priority: "high",
+          summary: "Descuento autorizado, pero la ventana está cerrada",
+          exactReason: "No se envió texto libre. La oferta quedó reflejada en la cotización revisada.",
+          suggestedAction: `Usar una plantilla aprobada o llamar al cliente. Texto de contexto: ${message}`,
+          dedupeKey: `${id}:${conversation.current_cycle}:discount_template_required:${offer.id}`,
+        });
+        await scheduleConversationFollowUps(id);
+        return res.status(202).json({
+          ok: true, sent: false, policyCode: decision.code, message,
+          offer, warning: "Ventana cerrada: no se envió texto libre; se creó una alerta para el asesor.",
+        });
+      }
+      const [conversation] = await sql<{ phone: string }[]>`select phone from conversations where id=${id}`;
+      if (!conversation) return res.status(404).json({ ok: false, error: "Conversación no encontrada" });
+      let providerId: string | undefined;
+      let messageType: "text" | "image" = "text";
+      let filename: string | undefined;
+      try {
+        await ensureCatalogReady();
+        const [quote] = await sql<{
+          id: number; quote_number: string; items: Array<Record<string, unknown>>;
+          subtotal: string | number; tax: string | number; total: string | number;
+        }[]>`select id, quote_number, items, subtotal, tax, total from quotes where id=${offer.quoteId}`;
+        if (!quote) throw new Error("Cotización revisada no encontrada");
+        const renderLines = [];
+        for (const item of quote.items) {
+          const product = findByCode(String(item.code ?? ""));
+          if (!product) throw new Error(`Producto ${String(item.code ?? "")} no está en catálogo`);
+          renderLines.push(await toRenderLine(product, Number(item.quantity ?? 1)));
+        }
+        const png = await renderQuoteImage({
+          number: quote.quote_number, dateLabel: new Intl.DateTimeFormat("es-EC", { dateStyle: "medium", timeZone: "America/Guayaquil" }).format(new Date()),
+          lines: renderLines, subtotal: Number(quote.subtotal), iva: Number(quote.tax), total: Number(quote.total),
+          discountAmount: offer.discountAmountCents / 100, discountCondition: offer.condition,
+          offerExpiresAt: offer.expiresAt,
+        });
+        filename = `Cotizacion-DepotTire-${quote.quote_number}.png`;
+        providerId = await sendImage(id, conversation.phone, png, message, filename);
+        messageType = "image";
+        await logQuoteArtifact({ conversationId: id, quoteId: Number(quote.id), kind: "quote", products: quote.items, filename, providerId });
+      } catch (visualError) {
+        console.warn("⚠️ No se pudo generar la cotización visual del descuento; se enviará texto:", visualError);
+        const sent = await sendTextDetailed(conversation.phone, message);
+        if (!sent.ok) return res.status(sent.status).json(sent);
+        providerId = sent.id;
+      }
+      await appendMessage(id, "assistant", message, providerId, {
+        type: messageType, authorKind: "bot", status: "sent",
+        metadata: { discountOfferId: offer.id, authorizedBy: "owner", filename },
+      });
+      const [stored] = providerId
+        ? await sql<{ id: number }[]>`select id from messages where wa_message_id=${providerId}`
+        : [];
+      await markDiscountOfferSent(offer.id, stored?.id ? Number(stored.id) : null);
+      await scheduleConversationFollowUps(id);
+      emitLiveEvent("message", id); emitLiveEvent("sync", id);
+      res.json({ ok: true, sent: true, message, offer });
+    } catch (error) {
+      res.status(400).json({ ok: false, error: error instanceof Error ? error.message : "Oferta inválida" });
+    }
+  });
+
   router.patch("/hub/tickets/:id/stage", async (req, res) => {
     const id = Number(req.params.id);
     const stage = String(req.body?.stage ?? "");
@@ -624,6 +724,7 @@ export function createAdminRouter(): express.Router {
       authorKind: "owner",
       status: "sent",
     });
+    await captureManualDiscount(id, text, sent.id);
     await pauseBot(id);
     await setConversationAssignee(id, "human");
     emitLiveEvent("message", id);

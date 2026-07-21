@@ -8,6 +8,7 @@ const admin = postgres("postgresql://manue@localhost/postgres", { prepare: false
 let appSql: typeof import("../src/db/client.js").sql;
 let conversations: typeof import("../src/services/conversations.js");
 let followUps: typeof import("../src/services/followUps.js");
+let discountOffers: typeof import("../src/services/discountOffers.js");
 
 describe.sequential("Fase A — migración, transiciones y reapertura", () => {
   beforeAll(async () => {
@@ -28,6 +29,7 @@ describe.sequential("Fase A — migración, transiciones y reapertura", () => {
     await schema.ensureSchema();
     conversations = await import("../src/services/conversations.js");
     followUps = await import("../src/services/followUps.js");
+    discountOffers = await import("../src/services/discountOffers.js");
   });
 
   afterAll(async () => {
@@ -58,8 +60,11 @@ describe.sequential("Fase A — migración, transiciones y reapertura", () => {
     `;
 
     const { runFollowUpMigration } = await import("../src/db/migrations/001_follow_up_system.js");
+    const { runSalesPlanDiscountsMigration } = await import("../src/db/migrations/002_sales_follow_up_plan_discounts.js");
     await runFollowUpMigration(appSql);
     await runFollowUpMigration(appSql);
+    await runSalesPlanDiscountsMigration(appSql);
+    await runSalesPlanDiscountsMigration(appSql);
 
     const [row] = await appSql<{ id: number; stage: string; current_cycle: number }[]>`
       select id, stage, current_cycle from conversations where id = ${legacy.id}
@@ -76,6 +81,30 @@ describe.sequential("Fase A — migración, transiciones y reapertura", () => {
     expect(row.stage).toBe("seguimiento_venta");
     expect(transition.to_stage).toBe("seguimiento_venta");
     expect(event.stage).toBe("seguimiento_venta");
+  });
+
+  it("versiona una cotización con descuento y conserva el total original", async () => {
+    const conversation = await conversations.getOrCreateConversation("593000000009", "Cliente Descuento");
+    await conversations.logQuote(
+      conversation.id,
+      [{ code: "K1", description: "Llanta Kenda", quantity: 4, unitPrice: 100 }],
+      400, 60, 460, "COT-BASE", "AV-BASE",
+    );
+    const offer = await discountOffers.createDiscountOffer({
+      conversationId: conversation.id,
+      valueCents: 2_000,
+      reason: "Autorizado para prueba",
+      condition: "visita el sábado",
+    });
+    expect(offer.baseTotalCents).toBe(46_000);
+    expect(offer.finalTotalCents).toBe(44_000);
+    const quotes = await appSql<{ total: string; original_total: string; discount_amount: string }[]>`
+      select total, original_total, discount_amount from quotes
+      where conversation_id=${conversation.id} order by created_at desc, id desc limit 1
+    `;
+    expect(Number(quotes[0].total)).toBe(440);
+    expect(Number(quotes[0].original_total)).toBe(460);
+    expect(Number(quotes[0].discount_amount)).toBe(20);
   });
 
   it("registra transición, cierre y reapertura en un ciclo nuevo", async () => {
@@ -132,14 +161,33 @@ describe.sequential("Fase A — migración, transiciones y reapertura", () => {
       select count(*)::int as count from follow_up_jobs
       where conversation_id = ${conversation.id} and status = 'scheduled'
     `;
-    expect(scheduled[0].count).toBe(2);
+    // Dos mensajes dentro de la ventana + revisión de asesor ya creada.
+    expect(scheduled[0].count).toBe(3);
 
     await followUps.handleInboundFollowUpState(conversation.id, "lo reviso y te aviso");
     const cancelled = await appSql<{ count: number }[]>`
       select count(*)::int as count from follow_up_jobs
       where conversation_id = ${conversation.id} and status = 'cancelled'
     `;
-    expect(cancelled[0].count).toBe(2);
+    expect(cancelled[0].count).toBe(3);
+  });
+
+  it("mantiene un siguiente paso en cada etapa comercial activa", async () => {
+    const stages = ["nuevo", "medida_confirmada", "seleccionando", "cotizacion_enviada", "seguimiento_venta"] as const;
+    const now = new Date("2026-07-20T15:01:00.000Z");
+    for (const [index, stage] of stages.entries()) {
+      const conversation = await conversations.getOrCreateConversation(`5930000010${index}`, `Etapa ${stage}`);
+      await appSql`
+        update conversations set stage=${stage}, last_customer_message_at=${new Date("2026-07-20T15:00:00.000Z")},
+          last_assistant_message_at=${now} where id=${conversation.id}
+      `;
+      await followUps.scheduleConversationFollowUps(conversation.id, now);
+      const [next] = await appSql<{ type: string }[]>`
+        select type from follow_up_jobs where conversation_id=${conversation.id}
+          and status in ('scheduled','processing','blocked') order by due_at limit 1
+      `;
+      expect(next?.type).toBe("in_window_first");
+    }
   });
 
   it("recupera un lease tras reinicio y SKIP LOCKED evita doble claim", async () => {

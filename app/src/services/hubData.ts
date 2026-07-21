@@ -7,6 +7,10 @@ interface QuoteRow {
   subtotal: string | number;
   tax: string | number;
   total: string | number;
+  original_total: string | number | null;
+  discount_amount: string | number | null;
+  discount_reason: string | null;
+  discount_condition: string | null;
 }
 
 interface TicketRow {
@@ -41,8 +45,10 @@ interface TicketRow {
   selected_option: string | null;
   follow_up_reason: string | null;
   next_follow_up: { id: number; dueAt: string; status: string; preview: string; templateKey: string | null; windowClosesAt: string | null } | null;
+  follow_up_plan: unknown[] | null;
   follow_up_history: unknown[] | null;
   last_customer_message_at: Date | null;
+  active_discount: Record<string, unknown> | null;
 }
 
 export async function listHubTickets() {
@@ -54,7 +60,9 @@ export async function listHubTickets() {
       c.visit_date, c.offer_expires_at, c.nearest_store, c.last_customer_message_at,
       m.content as last_message, m.created_at as last_at,
       case when q.id is null then null else jsonb_build_object(
-        'id', q.id, 'items', q.items, 'subtotal', q.subtotal, 'tax', q.tax, 'total', q.total
+        'id', q.id, 'items', q.items, 'subtotal', q.subtotal, 'tax', q.tax, 'total', q.total,
+        'original_total', q.original_total, 'discount_amount', q.discount_amount,
+        'discount_reason', q.discount_reason, 'discount_condition', q.discount_condition
       ) end as quote,
       s.summary, s.customer_need, s.options_discussed, s.selected_option,
       coalesce(s.follow_up_reason, c.follow_up_reason) as follow_up_reason,
@@ -63,7 +71,9 @@ export async function listHubTickets() {
         'preview', coalesce(j.payload->>'preview', ''),
         'templateKey', j.payload->>'templateKey', 'windowClosesAt', j.window_closes_at
       ) end as next_follow_up,
+      coalesce(p.plan, '[]'::jsonb) as follow_up_plan,
       coalesce(h.history, '[]'::jsonb) as follow_up_history,
+      d.offer as active_discount,
       coalesce(n.notes, '[]'::jsonb) as notes,
       (
         select count(*)::int from sales_history history
@@ -79,7 +89,8 @@ export async function listHubTickets() {
       limit 1
     ) m on true
     left join lateral (
-      select id, items, subtotal, tax, total
+      select id, items, subtotal, tax, total, original_total, discount_amount,
+        discount_reason, discount_condition
       from quotes
       where conversation_id = c.id and cycle = c.current_cycle
       order by created_at desc
@@ -92,6 +103,18 @@ export async function listHubTickets() {
         and status in ('scheduled', 'processing', 'blocked')
       order by due_at limit 1
     ) j on true
+    left join lateral (
+      select jsonb_agg(jsonb_build_object(
+        'id', jobs.id, 'type', jobs.type, 'channel', jobs.channel,
+        'dueAt', jobs.due_at, 'status', jobs.status,
+        'preview', coalesce(jobs.payload->>'preview',''),
+        'templateKey', jobs.payload->>'templateKey',
+        'windowClosesAt', jobs.window_closes_at,
+        'reason', jobs.payload->>'reason'
+      ) order by jobs.due_at) as plan
+      from follow_up_jobs jobs where jobs.conversation_id=c.id and jobs.cycle=c.current_cycle
+        and jobs.status in ('scheduled','processing','blocked')
+    ) p on true
     left join lateral (
       select jsonb_agg(jsonb_build_object(
         'id', a.id, 'type', jobs.type, 'status', a.status,
@@ -107,6 +130,17 @@ export async function listHubTickets() {
       from conversation_notes
       where conversation_id = c.id
     ) n on true
+    left join lateral (
+      select jsonb_build_object(
+        'id', o.id, 'amount', o.discount_amount_cents::numeric / 100,
+        'finalTotal', o.final_total_cents::numeric / 100, 'reason', o.reason,
+        'condition', o.condition_text, 'status', o.status, 'expiresAt', o.expires_at
+      ) as offer
+      from discount_offers o where o.conversation_id=c.id and o.cycle=c.current_cycle
+        and o.status in ('approved','offered','accepted')
+        and (o.expires_at is null or o.expires_at > now())
+      order by o.created_at desc limit 1
+    ) d on true
     order by coalesce(m.created_at, c.updated_at) desc
     limit 500
   `;
@@ -149,6 +183,9 @@ export async function listHubTickets() {
     customerOptIn: row.customer_opt_in,
     optedOutAt: row.opted_out_at?.toISOString(),
     proximoSeguimiento: row.next_follow_up,
+    planSeguimientos: row.follow_up_plan ?? [],
+    mensajeRecomendadoHumano: row.next_follow_up?.preview ?? undefined,
+    descuentoActivo: row.active_discount ?? undefined,
     historialSeguimientos: row.follow_up_history ?? [],
     ventanaCierraEn: row.last_customer_message_at
       ? new Date(row.last_customer_message_at.getTime() + 24 * 60 * 60 * 1000).toISOString()
@@ -342,6 +379,34 @@ export async function getHubMetrics(days = 14) {
     group by coalesce(status, 'unknown')
   `;
 
+  const [discounts] = await sql<{
+    offered: number; won_with: number; quoted_without: number; won_without: number;
+    total_discount: string | number; avg_days_to_win_with: string | number | null;
+    avg_days_to_win_without: string | number | null; avg_hours_to_reply: string | number | null;
+  }[]>`
+    with offered as (
+      select conversation_id, cycle, min(created_at) as offered_at,
+        max(discount_amount_cents) as discount_cents
+      from discount_offers where status in ('approved','offered','accepted','superseded')
+      group by conversation_id, cycle
+    ), quoted as (
+      select conversation_id, cycle, min(created_at) as quoted_at
+      from quotes group by conversation_id, cycle
+    )
+    select
+      (select count(*)::int from offered) as offered,
+      (select count(*)::int from offered o join sales_history s using (conversation_id,cycle) where s.outcome='ganado') as won_with,
+      (select count(*)::int from quoted q where not exists (select 1 from offered o where o.conversation_id=q.conversation_id and o.cycle=q.cycle)) as quoted_without,
+      (select count(*)::int from quoted q join sales_history s using (conversation_id,cycle)
+        where s.outcome='ganado' and not exists (select 1 from offered o where o.conversation_id=q.conversation_id and o.cycle=q.cycle)) as won_without,
+      coalesce((select sum(discount_cents)::numeric / 100 from offered),0) as total_discount,
+      (select avg(extract(epoch from (s.closed_at-o.offered_at))/86400) from offered o join sales_history s using (conversation_id,cycle) where s.outcome='ganado') as avg_days_to_win_with,
+      (select avg(extract(epoch from (s.closed_at-q.quoted_at))/86400) from quoted q join sales_history s using (conversation_id,cycle)
+        where s.outcome='ganado' and not exists (select 1 from offered o where o.conversation_id=q.conversation_id and o.cycle=q.cycle)) as avg_days_to_win_without,
+      (select avg(extract(epoch from (reply.created_at-o.offered_at))/3600)
+        from offered o join lateral (select created_at from messages m where m.conversation_id=o.conversation_id and m.cycle=o.cycle and m.direction='inbound' and m.created_at>o.offered_at order by m.created_at limit 1) reply on true) as avg_hours_to_reply
+  `;
+
   return {
     summary: {
       abiertos: Number(summary?.open_count ?? 0),
@@ -360,6 +425,16 @@ export async function getHubMetrics(days = 14) {
       status: row.status,
       value: Number(row.count),
     })),
+    discounts: {
+      offered: Number(discounts?.offered ?? 0), wonWith: Number(discounts?.won_with ?? 0),
+      quotedWithout: Number(discounts?.quoted_without ?? 0), wonWithout: Number(discounts?.won_without ?? 0),
+      conversionWith: Number(discounts?.offered ?? 0) ? Number(discounts?.won_with ?? 0) / Number(discounts.offered) : 0,
+      conversionWithout: Number(discounts?.quoted_without ?? 0) ? Number(discounts?.won_without ?? 0) / Number(discounts.quoted_without) : 0,
+      totalDiscount: Number(discounts?.total_discount ?? 0),
+      avgDaysToWinWith: discounts?.avg_days_to_win_with == null ? null : Number(discounts.avg_days_to_win_with),
+      avgDaysToWinWithout: discounts?.avg_days_to_win_without == null ? null : Number(discounts.avg_days_to_win_without),
+      avgHoursToReply: discounts?.avg_hours_to_reply == null ? null : Number(discounts.avg_hours_to_reply),
+    },
   };
 }
 
@@ -378,6 +453,10 @@ function publicQuote(row: QuoteRow) {
     subtotal: Number(row.subtotal),
     iva: Number(row.tax),
     total: Number(row.total),
+    originalTotal: row.original_total == null ? undefined : Number(row.original_total),
+    discountAmount: row.discount_amount == null ? undefined : Number(row.discount_amount),
+    discountReason: row.discount_reason ?? undefined,
+    discountCondition: row.discount_condition ?? undefined,
   };
 }
 

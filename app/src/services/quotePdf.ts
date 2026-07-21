@@ -55,6 +55,13 @@ export interface Quote {
   subtotal: number;
   tax: number;
   total: number;
+  originalSubtotal?: number;
+  originalTax?: number;
+  originalTotal?: number;
+  discountAmount?: number;
+  discountReason?: string;
+  discountCondition?: string;
+  offerExpiresAt?: Date | null;
 }
 
 const NAVY = "#14213d";
@@ -70,17 +77,35 @@ export function buildQuote(
   lines: QuoteLine[],
   customerName: string,
   customerPhone: string,
+  discount?: { amount: number; reason: string; condition: string; expiresAt?: Date | null },
 ): Quote {
-  const subtotal = lines.reduce((sum, line) => sum + line.quantity * line.unitPrice, 0);
-  const tax = subtotal * business.taxRate;
+  const originalSubtotal = round2(lines.reduce((sum, line) => sum + line.quantity * line.unitPrice, 0));
+  const originalTax = round2(originalSubtotal * business.taxRate);
+  const originalTotal = round2(originalSubtotal + originalTax);
+  const discountAmount = discount ? round2(discount.amount) : 0;
+  if (discountAmount < 0 || discountAmount >= originalTotal) {
+    throw new Error("El descuento autorizado no es válido para esta cotización");
+  }
+  const total = round2(originalTotal - discountAmount);
+  const subtotal = round2(total / (1 + business.taxRate));
+  const tax = round2(total - subtotal);
   return {
     number: `COT-${Date.now().toString(36).toUpperCase()}`,
     customerName,
     customerPhone,
     lines,
-    subtotal: round2(subtotal),
-    tax: round2(tax),
-    total: round2(subtotal + tax),
+    subtotal,
+    tax,
+    total,
+    ...(discount ? {
+      originalSubtotal,
+      originalTax,
+      originalTotal,
+      discountAmount,
+      discountReason: discount.reason,
+      discountCondition: discount.condition,
+      offerExpiresAt: discount.expiresAt ?? null,
+    } : {}),
   };
 }
 
@@ -336,8 +361,14 @@ function singleQuoteDocument(quote: Quote, line: QuoteLine, image: string | null
         layout: totalLayout,
         margin: [0, 16, 0, 0],
       },
+      ...(quote.discountAmount ? [{
+        text: `Descuento adicional autorizado: -${money(quote.discountAmount)} · ${quote.discountCondition ?? quote.discountReason ?? "condición registrada"}`,
+        alignment: "right", color: GREEN, bold: true, fontSize: 9, margin: [0, 8, 0, 0],
+      }] : []),
       {
-        text: "Válida por 3 días o hasta agotar stock. Instalación y retiro se coordinan con el asesor.",
+        text: quote.offerExpiresAt
+          ? `Oferta vigente hasta ${quote.offerExpiresAt.toLocaleString("es-EC", { timeZone: "America/Guayaquil" })}. Instalación y retiro se coordinan con el asesor.`
+          : "La vigencia se confirma con el asesor. Instalación y retiro se coordinan con el asesor.",
         alignment: "center",
         color: MUTED,
         fontSize: 8,
@@ -374,7 +405,7 @@ function headerBlock(title: string, detail: string) {
               {
                 stack: [
                   { text: detail, alignment: "right", color: "white", bold: true, fontSize: 11 },
-                  { text: "IVA Y ECOVALOR · VÁLIDA 3 DÍAS", alignment: "right", color: "#dce4f3", fontSize: 8, margin: [0, 5, 0, 0] },
+                  { text: "IVA Y ECOVALOR INCLUIDOS", alignment: "right", color: "#dce4f3", fontSize: 8, margin: [0, 5, 0, 0] },
                 ],
                 fillColor: NAVY,
                 margin: [14, 10, 14, 10],
@@ -424,7 +455,8 @@ function legacyQuoteDocument(quote: Quote) {
           paddingBottom: () => 8,
         },
       },
-      { text: `TOTAL CON IVA: ${money(quote.total)}`, bold: true, fontSize: 16, alignment: "right", color: RED, margin: [0, 18, 0, 0] },
+      ...(quote.discountAmount ? [{ text: `DESCUENTO AUTORIZADO: -${money(quote.discountAmount)} · ${quote.discountCondition}`, bold: true, fontSize: 10, alignment: "right", color: GREEN, margin: [0, 14, 0, 0] }] : []),
+      { text: `TOTAL CON IVA: ${money(quote.total)}`, bold: true, fontSize: 16, alignment: "right", color: RED, margin: [0, quote.discountAmount ? 6 : 18, 0, 0] },
     ],
   };
 }

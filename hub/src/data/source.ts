@@ -26,6 +26,7 @@ export interface DataSource {
   reabrir(ticketId: number): Promise<void>;
   setAtiende(ticketId: number, atiende: Atiende): Promise<void>;
   enviarMensaje(ticketId: number, texto: string): Promise<void>; // como vendedor
+  crearDescuento(ticketId: number, input: { amount: number; reason: string; condition: string; expiresAt?: string | null }): Promise<{ sent: boolean; message: string; warning?: string }>;
   agregarNota(ticketId: number, texto: string): Promise<void>;
   marcarLeido(ticketId: number): Promise<void>;
   subscribe(listener: (ev: SourceEvent) => void): () => void;

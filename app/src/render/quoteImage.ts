@@ -81,6 +81,9 @@ export interface QuoteRenderData {
   subtotal: number;
   iva: number;
   total: number;
+  discountAmount?: number;
+  discountCondition?: string;
+  offerExpiresAt?: Date | null;
 }
 
 export interface CompareRenderData {
@@ -366,6 +369,9 @@ function totalsBand(data: QuoteRenderData, units: number): SatoriNode {
           { fontSize: 18, color: "#c8d0e2" },
           `Subtotal ${money(data.subtotal)} + IVA ${money(data.iva)}`,
         ),
+        data.discountAmount
+          ? text({ fontSize: 18, fontWeight: 700, color: GREEN }, `Descuento autorizado −${money(data.discountAmount)} · ${data.discountCondition ?? "condición registrada"}`)
+          : null,
       ),
       text({ ...BLACK_FONT, fontSize: 62, color: GOLD }, money(data.total)),
     ),
@@ -427,12 +433,12 @@ export async function renderQuoteImage(data: QuoteRenderData): Promise<Buffer> {
   const first = data.lines[0];
 
   const children: Child[] = [
-    header("Cotización de Llantas", `Cotización ${data.number}`, data.dateLabel, "IVA incluido · Válida 3 días"),
+    header("Cotización de Llantas", `Cotización ${data.number}`, data.dateLabel, data.offerExpiresAt ? `Oferta hasta ${data.offerExpiresAt.toLocaleDateString("es-EC", { timeZone: "America/Guayaquil" })}` : "IVA incluido"),
     ...(single ? heroBody(first) : listBody(data)),
-    ...(single && units === 1 ? [] : [totalsBand(data, units)]),
+    ...(single && units === 1 && !data.discountAmount ? [] : [totalsBand(data, units)]),
     ...(single ? [warrantyRow(first)] : []),
     el({ flexGrow: 1 }),
-    footer(`Cotización ${data.number} · Presenta este número en el local · Válida 3 días o hasta agotar stock`),
+    footer(`Cotización ${data.number} · Presenta este número en el local${data.offerExpiresAt ? ` · Oferta hasta ${data.offerExpiresAt.toLocaleString("es-EC", { timeZone: "America/Guayaquil" })}` : ""}`),
   ];
 
   // header ~184 + padding + filas (~196 c/u con gap) + banda de total + footer
@@ -503,13 +509,13 @@ export async function renderCompareImage(data: CompareRenderData): Promise<Buffe
   const colWidth = Math.floor((width - 44 * 2 - 28 * (n - 1)) / n);
   const node = el(
     { flexDirection: "column", width: "100%", height: "100%", backgroundColor: CREAM },
-    header("Comparativa de Llantas", `${business.name} · Elige la tuya`, data.dateLabel, "IVA incluido · Válida 3 días"),
+    header("Comparativa de Llantas", `${business.name} · Elige la tuya`, data.dateLabel, "IVA incluido"),
     el(
       { gap: 28, padding: "36px 44px 0", width: "100%", justifyContent: "center" },
       ...data.products.slice(0, 3).map((p) => compareColumn(p, colWidth)),
     ),
     el({ flexGrow: 1 }),
-    footer("Precios incluyen IVA · Válida 3 días o hasta agotar stock"),
+    footer("Precios incluyen IVA · Confirma vigencia y stock al momento de comprar"),
   );
   return renderPng(node, width, 1180);
 }
@@ -630,12 +636,12 @@ export async function renderOptionsImage(data: OptionsRenderData): Promise<Buffe
       "Opciones de Llantas",
       data.sizeLabel ? `Disponibles en ${data.sizeLabel}` : `${business.name} · Disponibles hoy`,
       data.dateLabel,
-      "IVA incluido · Válida 3 días",
+      "IVA incluido",
     ),
     el({ height: 26 }),
     ...sections,
     el({ flexGrow: 1 }),
-    footer("Precios por unidad incluyen IVA · Válida 3 días o hasta agotar stock"),
+    footer("Precios por unidad incluyen IVA · Confirma vigencia y stock al momento de comprar"),
   );
   return renderPng(node, width, height);
 }

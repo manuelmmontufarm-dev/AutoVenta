@@ -246,6 +246,9 @@ export async function setStage(
     stage === "ganado" || stage === "perdido" ? `conversation_closed_${stage}` : "stage_changed",
     current.current_cycle,
   );
+  if (stage !== "ganado" && stage !== "perdido") {
+    await scheduleConversationFollowUps(conversationId);
+  }
 }
 
 export async function updateConversationFacts(
@@ -306,14 +309,21 @@ export async function logQuote(
   total: number,
   quoteNumber?: string,
   saleNumber?: string,
+  discount?: {
+    id: number; baseTotalCents: number; discountAmountCents: number;
+    reason: string; condition: string;
+  },
 ): Promise<number> {
   const [quote] = await sql<{ id: number }[]>`
-    insert into quotes (conversation_id, cycle, items, subtotal, tax, total, quote_number, sale_number)
+    insert into quotes (conversation_id, cycle, items, subtotal, tax, total, quote_number, sale_number,
+      original_total, discount_amount, discount_reason, discount_condition, discount_offer_id)
     values (
       ${conversationId},
       (select current_cycle from conversations where id = ${conversationId}),
       ${sql.json(items as never)}, ${subtotal}, ${tax}, ${total},
-      ${quoteNumber ?? null}, ${saleNumber ?? null}
+      ${quoteNumber ?? null}, ${saleNumber ?? null}, ${discount ? discount.baseTotalCents / 100 : null},
+      ${discount ? discount.discountAmountCents / 100 : null}, ${discount?.reason ?? null},
+      ${discount?.condition ?? null}, ${discount?.id ?? null}
     )
     returning id
   `;
@@ -372,11 +382,8 @@ export async function setConversationAssignee(
         updated_at = now()
     where id = ${conversationId}
   `;
-  if (assignedTo === "human") {
-    await cancelPendingFollowUps(conversationId, "human_took_control");
-  } else {
-    await scheduleConversationFollowUps(conversationId);
-  }
+  if (assignedTo === "human") await cancelPendingFollowUps(conversationId, "human_took_control");
+  await scheduleConversationFollowUps(conversationId);
 }
 
 export async function recordMessageStatus(

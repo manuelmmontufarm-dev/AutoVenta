@@ -110,6 +110,12 @@ export class RealSource implements DataSource {
     });
   }
 
+  async crearDescuento(ticketId: number, input: { amount: number; reason: string; condition: string; expiresAt?: string | null }): Promise<{ sent: boolean; message: string; warning?: string }> {
+    return this.request(`/api/hub/tickets/${ticketId}/discount-offers`, {
+      method: "POST", body: JSON.stringify(input),
+    });
+  }
+
   async agregarNota(ticketId: number, texto: string): Promise<void> {
     await this.request(`/api/hub/tickets/${ticketId}/notes`, {
       method: "POST",

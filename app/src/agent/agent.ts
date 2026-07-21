@@ -10,6 +10,7 @@ import { getHistory, logAiRun } from "../services/conversations.js";
 import { getAiConfig, getPublishedStagePrompt } from "../services/settings.js";
 import { buildSystemPrompt } from "./prompts.js";
 import { buildTools, type AgentContext } from "./tools.js";
+import { getActiveDiscountOffer } from "../services/discountOffers.js";
 
 const openai = new OpenAI({ apiKey: config.openai.apiKey });
 
@@ -19,9 +20,10 @@ export async function runAgent(ctx: AgentContext, userText: string): Promise<str
   let outputTokens = 0;
   const usedTools: string[] = [];
   // El estilo se edita en /configuracion/ia; getAiConfig cachea 30 s en memoria.
-  const [aiConfig, stagePrompt] = await Promise.all([
+  const [aiConfig, stagePrompt, activeDiscount] = await Promise.all([
     getAiConfig(),
     getPublishedStagePrompt(ctx.conversation.stage),
+    getActiveDiscountOffer(ctx.conversation.id),
   ]);
   const systemPrompt = buildSystemPrompt(aiConfig, {
     name: stagePrompt.stage,
@@ -44,6 +46,7 @@ export async function runAgent(ctx: AgentContext, userText: string): Promise<str
   }));
   const messages: ChatCompletionMessageParam[] = [
     { role: "system", content: systemPrompt },
+    ...(activeDiscount ? [{ role: "system" as const, content: `OFERTA AUTORIZADA Y VIGENTE (fuente determinística): descuento adicional $${(activeDiscount.discountAmountCents / 100).toFixed(2)}, total final $${(activeDiscount.finalTotalCents / 100).toFixed(2)}, condición: ${activeDiscount.condition}. Motivo interno: ${activeDiscount.reason}. No cambies estos valores ni inventes otra oferta.` }] : []),
     ...history,
     { role: "user", content: userText },
   ];

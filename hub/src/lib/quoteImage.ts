@@ -65,7 +65,7 @@ export async function downloadComparisonImage(
   const height = 1180;
   const { canvas, ctx } = canvas2d(width, height);
   paintBackground(ctx, width, height);
-  drawHeader(ctx, "Comparativa de llantas", `${shortDate()} · válida 3 días`);
+  drawHeader(ctx, "Comparativa de llantas", `${shortDate()} · confirma vigencia`);
   const gap = 28;
   const cardWidth = (width - 104 - gap * (products.length - 1)) / products.length;
   await Promise.all(
@@ -94,7 +94,7 @@ export async function downloadQuoteImage(
   const height = 1350;
   const { canvas, ctx } = canvas2d(width, height);
   paintBackground(ctx, width, height);
-  drawHeader(ctx, "Cotización de llanta", `${shortDate()} · válida 3 días`);
+  drawHeader(ctx, "Cotización de llanta", `${shortDate()} · confirma vigencia`);
 
   roundedRect(ctx, 56, 180, width - 112, 1100, 28, PAPER, "#d9dde5");
   const image = await loadImage(product.imageUrl);

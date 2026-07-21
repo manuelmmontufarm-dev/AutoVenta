@@ -179,8 +179,37 @@ function Ficha({
   onToggleAtiende: () => void;
   onNota: (texto: string) => void;
 }) {
+  const { crearDescuento } = useHub();
   const [nota, setNota] = useState("");
+  const [verDescuento, setVerDescuento] = useState(false);
+  const [montoDescuento, setMontoDescuento] = useState("");
+  const [razonDescuento, setRazonDescuento] = useState("Autorizado por asesor");
+  const [condicionDescuento, setCondicionDescuento] = useState("");
+  const [venceDescuento, setVenceDescuento] = useState("");
+  const [estadoDescuento, setEstadoDescuento] = useState<string | null>(null);
+  const [guardandoDescuento, setGuardandoDescuento] = useState(false);
   const abierto = ticket.estado === "abierto";
+  const ventanaAbierta = Boolean(ticket.ventanaCierraEn && new Date(ticket.ventanaCierraEn) > new Date());
+  const recomendacion = ticket.mensajeRecomendadoHumano ?? ticket.planSeguimientos?.[0]?.preview ?? ticket.proximoSeguimiento?.preview;
+
+  const confirmarDescuento = async () => {
+    const amount = Number(montoDescuento.replace(",", "."));
+    if (!Number.isFinite(amount) || amount <= 0 || condicionDescuento.trim().length < 3 || razonDescuento.trim().length < 3) {
+      setEstadoDescuento("Completa un monto, una razón y una condición válidos.");
+      return;
+    }
+    setGuardandoDescuento(true); setEstadoDescuento(null);
+    try {
+      const result = await crearDescuento(ticket.id, {
+        amount, reason: razonDescuento.trim(), condition: condicionDescuento.trim(),
+        expiresAt: venceDescuento ? new Date(venceDescuento).toISOString() : null,
+      });
+      setEstadoDescuento(result.sent ? "Oferta aplicada a la cotización y enviada." : (result.warning ?? "Oferta registrada; requiere plantilla."));
+      setVerDescuento(false); setMontoDescuento(""); setCondicionDescuento(""); setVenceDescuento("");
+    } catch (error) {
+      setEstadoDescuento(error instanceof Error ? error.message : "No se pudo crear la oferta.");
+    } finally { setGuardandoDescuento(false); }
+  };
 
   return (
     <div className="flex flex-col gap-2.5">
@@ -207,10 +236,11 @@ function Ficha({
           <div><dt className="text-faint">Qué eligió</dt><dd>{ticket.opcionElegida ?? "Aún no eligió"}</dd></div>
           <div><dt className="text-faint">Compromiso o fecha</dt><dd>{ticket.compromisoCliente ?? (ticket.visitDate ? new Date(ticket.visitDate).toLocaleString("es-EC") : "Sin compromiso registrado")}</dd></div>
         </dl>
-        {ticket.proximoSeguimiento ? <div className="mt-3 rounded-xl bg-paper/[.05] p-3"><p className="text-[11px] font-bold">Próximo: {new Date(ticket.proximoSeguimiento.dueAt).toLocaleString("es-EC")}</p><p className="mt-1 text-xs">{ticket.proximoSeguimiento.preview}</p>{ticket.proximoSeguimiento.templateKey && <p className="mt-1 text-[10px] font-bold text-amber-500">Plantilla: {ticket.proximoSeguimiento.templateKey}</p>}</div> : <p className="mt-3 text-[11px] text-faint">No hay un seguimiento programado.</p>}
+        {ticket.proximoSeguimiento ? <div className="mt-3 rounded-xl bg-paper/[.05] p-3"><p className="text-[11px] font-bold">Próximo: {new Date(ticket.proximoSeguimiento.dueAt).toLocaleString("es-EC")}</p><p className="mt-1 text-xs">{ticket.proximoSeguimiento.preview}</p>{ticket.proximoSeguimiento.templateKey && <p className="mt-1 text-[10px] font-bold text-amber-500">Plantilla: {ticket.proximoSeguimiento.templateKey}</p>}</div> : <p className="mt-3 text-[11px] text-faint">Sin envío automático: revisa el estado de seguridad o cierre.</p>}
+        {ticket.planSeguimientos && ticket.planSeguimientos.length > 0 && <div className="mt-3"><p className="microlabel mb-2">Plan hasta cierre de ventana y escalamiento</p><ol className="grid gap-1.5">{ticket.planSeguimientos.map((step, index) => <li key={step.id} className="rounded-lg bg-paper/[.035] px-2.5 py-2 text-[10.5px]"><span className="font-bold">{index + 1}. {step.channel === "advisor" ? "Revisión del asesor" : step.templateKey ? `Plantilla ${step.templateKey}` : "Mensaje WhatsApp"}</span><span className="tnum ml-1 text-faint">· {new Date(step.dueAt).toLocaleString("es-EC")}</span><p className="mt-1 text-muted">{step.preview || step.reason}</p></li>)}</ol></div>}
         <p className="mt-3 text-[11px] font-bold" style={{ color: ticket.ventanaCierraEn && new Date(ticket.ventanaCierraEn) > new Date() ? "var(--color-ok)" : "var(--color-warn)" }}>Ventana de 24 h: {ticket.ventanaCierraEn ? (new Date(ticket.ventanaCierraEn) > new Date() ? `abierta hasta ${new Date(ticket.ventanaCierraEn).toLocaleString("es-EC")}` : "cerrada — requiere plantilla") : "sin mensaje entrante"}</p>
         {!ticket.customerOptIn && <p className="mt-1 text-[10px] text-amber-500">Sin consentimiento registrado para plantillas post-24 h.</p>}
-        <p className="mt-2 text-[11px] text-muted"><b>Mensaje recomendado al humano:</b> {ticket.proximoSeguimiento?.preview || "Revisar el contexto antes de contactar; si la ventana cerró, usar únicamente una plantilla aprobada."}</p>
+        <div className="mt-3 rounded-xl border border-paper/10 p-3"><p className="text-[10px] font-bold uppercase tracking-wider text-faint">Mensaje recomendado para copiar</p><p className="mt-1.5 text-xs leading-relaxed">{recomendacion ?? "No hay un mensaje permitido en este estado."}</p><button disabled={!recomendacion || !ventanaAbierta} onClick={() => recomendacion && void navigator.clipboard.writeText(recomendacion).then(() => setEstadoDescuento("Mensaje copiado."))} className="mt-2 rounded-lg bg-paper/10 px-2.5 py-1.5 text-[10px] font-bold disabled:cursor-not-allowed disabled:opacity-40">{ventanaAbierta ? "Copiar mensaje" : "Ventana cerrada: solo plantilla"}</button></div>
         <div className="mt-3 flex gap-2"><button onClick={onToggleAtiende} className="rounded-lg bg-violet/15 px-3 py-2 text-[10px] font-bold">{ticket.atiende === "bot" ? "Tomar control" : "Devolver al bot"}</button></div>
         <div className="mt-3 border-t border-paper/10 pt-3"><p className="microlabel mb-2">Historial</p>{ticket.historialSeguimientos?.length ? <ul className="grid gap-1">{ticket.historialSeguimientos.map((item) => <li key={item.id} className="text-[10.5px] text-muted">{item.type} · {item.status} · {new Date(item.createdAt).toLocaleString("es-EC")}{item.error ? ` · ${item.error}` : ""}</li>)}</ul> : <p className="text-[10.5px] text-faint">Sin intentos todavía.</p>}</div>
       </section>
@@ -220,6 +250,7 @@ function Ficha({
         <section className="glass rounded-2xl p-4">
           <p className="microlabel mb-2.5">Cotización #{ticket.cotizacion.numero}</p>
           <p className="tnum text-[26px] leading-none font-bold tracking-tight">{money(ticket.cotizacion.total)}</p>
+          {ticket.cotizacion.discountAmount && <p className="mt-1.5 text-[11px] font-bold text-lime">Descuento autorizado: −{money(ticket.cotizacion.discountAmount)} · {ticket.cotizacion.discountCondition}</p>}
           <p className="mt-1.5 text-[11.5px] text-muted">
             {ticket.cotizacion.items.map((i) => `${i.cantidad}× ${i.descripcion}`).join(" · ")}
           </p>
@@ -230,6 +261,9 @@ function Ficha({
           >
             <IconDoc size={13} /> Ver PDF
           </button>
+          {abierto && <button onClick={() => setVerDescuento((value) => !value)} className="mt-2 w-full rounded-xl bg-lime/10 py-2 text-xs font-bold text-lime">Ofrecer descuento</button>}
+          {verDescuento && <div className="mt-3 grid gap-2 rounded-xl border border-lime/20 bg-lime/[.04] p-3"><label className="text-[10px] font-bold">Monto total del descuento (USD)<input value={montoDescuento} onChange={(e) => setMontoDescuento(e.target.value)} inputMode="decimal" placeholder="Ej. 20.00" className="gp-field mt-1 w-full rounded-lg px-2.5 py-2 text-xs" /></label><label className="text-[10px] font-bold">Razón interna<input value={razonDescuento} onChange={(e) => setRazonDescuento(e.target.value)} placeholder="Ej. Autorizado por gerente" className="gp-field mt-1 w-full rounded-lg px-2.5 py-2 text-xs" /></label><label className="text-[10px] font-bold">Condición que verá el cliente<textarea value={condicionDescuento} onChange={(e) => setCondicionDescuento(e.target.value)} placeholder="si va esta semana, si va el sábado…" className="gp-field mt-1 min-h-16 w-full rounded-lg px-2.5 py-2 text-xs" /></label><label className="text-[10px] font-bold">Vence (opcional)<input type="datetime-local" value={venceDescuento} onChange={(e) => setVenceDescuento(e.target.value)} className="gp-field mt-1 w-full rounded-lg px-2.5 py-2 text-xs" /></label><button disabled={guardandoDescuento} onClick={() => void confirmarDescuento()} className="btn-aurora rounded-xl py-2.5 text-xs font-bold disabled:opacity-50">{guardandoDescuento ? "Confirmando…" : "Confirmar y dejar que el bot la ofrezca"}</button></div>}
+          {estadoDescuento && <p className="mt-2 text-[10.5px] text-muted">{estadoDescuento}</p>}
         </section>
       )}
 

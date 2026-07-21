@@ -215,7 +215,7 @@ export function CotizacionModal({ ticket }: { ticket: Ticket }) {
           </div>
           <div className="text-right opacity-60">
             <p>{new Date().toLocaleDateString("es-EC", { day: "numeric", month: "long", year: "numeric" })}</p>
-            <p>Válida por 5 días</p>
+            <p>{ticket.offerExpiresAt ? `Oferta hasta ${new Date(ticket.offerExpiresAt).toLocaleString("es-EC")}` : "Vigencia por confirmar"}</p>
           </div>
         </div>
         <table className="w-full border-collapse text-[13px]">
@@ -247,6 +247,7 @@ export function CotizacionModal({ ticket }: { ticket: Ticket }) {
             <span>IVA 15%</span>
             <span className="tnum">{money(cot.iva)}</span>
           </div>
+          {cot.discountAmount && <div className="flex justify-between pt-1 font-bold text-green-700"><span>Descuento autorizado</span><span className="tnum">−{money(cot.discountAmount)}</span></div>}
           <div className="serif flex justify-between pt-2 text-lg">
             <span>Total</span>
             <span className="tnum text-red">{money(cot.total)}</span>

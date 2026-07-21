@@ -50,6 +50,7 @@ import {
 } from "../render/quoteImage.js";
 import { sql } from "../db/client.js";
 import { createBotAlert } from "../services/followUps.js";
+import { getActiveDiscountOffer } from "../services/discountOffers.js";
 
 export interface AgentContext {
   conversation: Conversation;
@@ -411,7 +412,18 @@ export function buildTools(ctx: AgentContext) {
           warrantyRoadHazard: warrantyForBrand(product.brand).roadHazard,
         });
       }
-      const quote = buildQuote(lines, nombre_cliente, ctx.customerPhone);
+      const activeDiscount = await getActiveDiscountOffer(ctx.conversation.id);
+      const quote = buildQuote(
+        lines,
+        nombre_cliente,
+        ctx.customerPhone,
+        activeDiscount ? {
+          amount: activeDiscount.discountAmountCents / 100,
+          reason: activeDiscount.reason,
+          condition: activeDiscount.condition,
+          expiresAt: activeDiscount.expiresAt,
+        } : undefined,
+      );
       const saleNumber = `AV-${quote.number.replace(/\D/g, "").slice(-6)}`;
       const product = findByCode(items[0].code)!;
 
@@ -428,8 +440,11 @@ export function buildTools(ctx: AgentContext) {
             subtotal: quote.subtotal,
             iva: quote.tax,
             total: quote.total,
+            discountAmount: quote.discountAmount,
+            discountCondition: quote.discountCondition,
+            offerExpiresAt: quote.offerExpiresAt,
           }),
-        `Cotización ${quote.number} · válida 3 días 🏁`,
+        `Cotización ${quote.number}${quote.offerExpiresAt ? ` · oferta hasta ${quote.offerExpiresAt.toLocaleDateString("es-EC", { timeZone: "America/Guayaquil" })}` : ""} 🏁`,
         imageName,
         `cotización ${quote.number}`,
       );
@@ -492,6 +507,7 @@ export function buildTools(ctx: AgentContext) {
         quote.total,
         quote.number,
         saleNumber,
+        activeDiscount ?? undefined,
       );
       await updateConversationFacts(ctx.conversation.id, {
         selectedProductCode: items[0].code,
@@ -521,6 +537,12 @@ export function buildTools(ctx: AgentContext) {
           nombre_cliente,
           quote.number,
           saleNumber,
+          activeDiscount ? {
+            amount: activeDiscount.discountAmountCents / 100,
+            finalTotal: quote.total,
+            condition: activeDiscount.condition,
+            expiresAt: activeDiscount.expiresAt,
+          } : undefined,
         ),
         regla:
           "Responde exactamente con mensaje_para_enviar. El PDF final ya fue enviado. Después espera la ubicación; todavía no notifiques al vendedor.",
@@ -568,7 +590,7 @@ export function buildTools(ctx: AgentContext) {
           `🏬 ${store.address}`,
           store.mapsUrl ? `🗺️ ${store.mapsUrl}` : "",
           `🕐 ${business.schedule}`,
-          sale ? `🔖 Al llegar, indica tu número de venta *${sale}* para aplicar el descuento correspondiente.` : "",
+          sale ? `🔖 Al llegar, indica tu número de venta *${sale}* para ubicar tu cotización.` : "",
           "🙌 ¡Te esperamos! Si necesitas algo más, aquí estoy.",
         ].filter(Boolean).join("\n"),
         regla: "Responde exactamente con mensaje_para_enviar y no inventes otra distancia o dirección.",

@@ -5,6 +5,7 @@
  */
 import { sql } from "./client.js";
 import { runFollowUpMigration } from "./migrations/001_follow_up_system.js";
+import { runSalesPlanDiscountsMigration } from "./migrations/002_sales_follow_up_plan_discounts.js";
 
 export const SCHEMA = /* sql */ `
 create table if not exists conversations (
@@ -286,4 +287,5 @@ where key = 'ai_config' and exists (select 1 from migration);
 export async function ensureSchema(): Promise<void> {
   await sql.unsafe(SCHEMA);
   await runFollowUpMigration(sql);
+  await runSalesPlanDiscountsMigration(sql);
 }

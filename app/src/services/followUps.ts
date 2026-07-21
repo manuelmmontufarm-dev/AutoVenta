@@ -79,6 +79,9 @@ interface ConversationForFollowUp {
   quote_number: string | null;
   quote_total: string | number | null;
   summary: string | null;
+  active_discount_amount: string | number | null;
+  active_discount_condition: string | null;
+  active_discount_final_total: string | number | null;
 }
 
 export async function getFollowUpPolicy(): Promise<FollowUpPolicy> {
@@ -120,7 +123,10 @@ async function getConversationForFollowUp(
       c.follow_up_reason, c.customer_opt_in, c.opted_out_at,
       c.negative_sentiment_at, c.last_customer_message_at,
       c.last_assistant_message_at, c.bot_paused_until,
-      q.quote_number, q.total as quote_total, s.summary
+      q.quote_number, q.total as quote_total, s.summary,
+      d.discount_amount_cents::numeric / 100 as active_discount_amount,
+      d.condition_text as active_discount_condition,
+      d.final_total_cents::numeric / 100 as active_discount_final_total
     from conversations c
     left join lateral (
       select quote_number, total from quotes
@@ -129,6 +135,13 @@ async function getConversationForFollowUp(
     ) q on true
     left join conversation_summaries s
       on s.conversation_id = c.id and s.cycle = c.current_cycle
+    left join lateral (
+      select discount_amount_cents, condition_text, final_total_cents
+      from discount_offers where conversation_id = c.id and cycle = c.current_cycle
+        and status in ('approved','offered','accepted')
+        and (expires_at is null or expires_at > now())
+      order by created_at desc limit 1
+    ) d on true
     where c.id = ${conversationId}
   `;
   return row ?? null;
@@ -136,6 +149,9 @@ async function getConversationForFollowUp(
 
 export function buildFollowUpPreview(conversation: ConversationForFollowUp): string {
   const size = conversation.tire_size ? ` para ${conversation.tire_size}` : "";
+  if (conversation.active_discount_amount && conversation.active_discount_condition) {
+    return `La oferta de $${Number(conversation.active_discount_amount).toFixed(2)} de descuento sigue disponible si ${conversation.active_discount_condition}. El total es $${Number(conversation.active_discount_final_total).toFixed(2)}. ¿Quieres que coordinemos el siguiente paso?`;
+  }
   if (conversation.stage === "cotizacion_enviada") {
     const quote = conversation.quote_number ? ` ${conversation.quote_number}` : "";
     return `¿Pudiste revisar la cotización${quote}${size}? Si tienes una duda, te ayudo por aquí.`;
@@ -146,6 +162,9 @@ export function buildFollowUpPreview(conversation: ConversationForFollowUp): str
   }
   if (conversation.selected_product_code) {
     return `¿Quieres continuar con ${conversation.selected_product_code}${size} o comparar otra opción?`;
+  }
+  if (conversation.stage === "nuevo" && !conversation.tire_size) {
+    return "¿Me confirmas la medida que aparece en el costado de tu llanta? Con ese dato te comparto opciones reales.";
   }
   return `¿Te ayudo a continuar con las opciones${size}?`;
 }
@@ -176,13 +195,14 @@ async function insertJob(input: {
   windowClosesAt: Date | null;
   idempotencyKey: string;
   payload: Record<string, unknown>;
+  channel?: string;
 }): Promise<void> {
   await sql`
     insert into follow_up_jobs (
-      conversation_id, cycle, type, due_at, window_closes_at,
+      conversation_id, cycle, type, channel, due_at, window_closes_at,
       idempotency_key, payload
     ) values (
-      ${input.conversationId}, ${input.cycle}, ${input.type}, ${input.dueAt},
+      ${input.conversationId}, ${input.cycle}, ${input.type}, ${input.channel ?? "whatsapp"}, ${input.dueAt},
       ${input.windowClosesAt}, ${input.idempotencyKey},
       ${sql.json(input.payload as never)}
     ) on conflict (idempotency_key) do nothing
@@ -202,22 +222,22 @@ export async function scheduleConversationFollowUps(
   if (
     !policy.enabled ||
     conversation.status !== "open" ||
-    conversation.assigned_to === "human" ||
     conversation.opted_out_at ||
     conversation.negative_sentiment_at ||
     !policy.enabledStages.includes(conversation.stage) ||
     !conversation.last_customer_message_at ||
     !conversation.last_assistant_message_at
   ) return;
+  if (
+    conversation.assigned_to === "bot" &&
+    conversation.last_assistant_message_at < conversation.last_customer_message_at
+  ) return;
 
-  const schedule = computeInWindowSchedule({
-    lastCustomerMessageAt: conversation.last_customer_message_at,
-    lastRelevantBotMessageAt: conversation.last_assistant_message_at,
-    policy,
-    now,
-  });
   const preview = buildFollowUpPreview(conversation);
-  const base = `${conversation.id}:${conversation.current_cycle}:${conversation.last_customer_message_at.toISOString()}`;
+  const relevantAt = conversation.last_assistant_message_at.getTime() >= conversation.last_customer_message_at.getTime()
+    ? conversation.last_assistant_message_at
+    : conversation.last_customer_message_at;
+  const base = `plan:v2:${conversation.id}:${conversation.current_cycle}:${conversation.stage}:${relevantAt.toISOString()}`;
   await sql`
     update follow_up_jobs set status = 'cancelled',
       cancel_reason = 'replaced_by_new_schedule', executed_at = now(),
@@ -227,6 +247,25 @@ export async function scheduleConversationFollowUps(
       and status in ('scheduled', 'processing', 'blocked')
       and idempotency_key not like ${`${base}:%`}
   `;
+
+  if (conversation.assigned_to === "human") {
+    const dueAt = nextBusinessInstant(new Date(now.getTime() + policy.firstDelayMinutes * 60_000), policy);
+    if (dueAt) await insertJob({
+      conversationId, cycle: conversation.current_cycle, type: "advisor_review", channel: "advisor",
+      dueAt, windowClosesAt: new Date(conversation.last_customer_message_at.getTime() + 24 * 60 * 60 * 1000),
+      idempotencyKey: `${base}:advisor_review`,
+      payload: { preview, stage: conversation.stage, reason: "Conversación bajo control humano pendiente de respuesta" },
+    });
+    emitLiveEvent("follow_up", conversationId);
+    return;
+  }
+
+  const schedule = computeInWindowSchedule({
+    lastCustomerMessageAt: conversation.last_customer_message_at,
+    lastRelevantBotMessageAt: conversation.last_assistant_message_at,
+    policy,
+    now,
+  });
   if (schedule.firstDueAt) {
     await insertJob({
       conversationId,
@@ -269,6 +308,16 @@ export async function scheduleConversationFollowUps(
       });
     }
   }
+  const advisorDueAt = nextBusinessInstant(
+    new Date(schedule.windowClosesAt.getTime() + policy.advisorAlertDays * 86_400_000),
+    policy,
+  );
+  if (advisorDueAt) await insertJob({
+    conversationId, cycle: conversation.current_cycle, type: "advisor_review", channel: "advisor",
+    dueAt: advisorDueAt, windowClosesAt: schedule.windowClosesAt,
+    idempotencyKey: `${base}:advisor_review`,
+    payload: { preview, stage: conversation.stage, reason: "Oportunidad activa sin respuesta: requiere evaluación del asesor" },
+  });
   emitLiveEvent("follow_up", conversationId);
 }
 
@@ -332,7 +381,33 @@ export async function handleInboundFollowUpState(
   });
   emitLiveEvent("follow_up", conversationId);
   emitLiveEvent("alert", conversationId);
+  if (!negative) {
+    const [state] = await sql<{ assigned_to: string }[]>`select assigned_to from conversations where id=${conversationId}`;
+    if (requestedHuman || state?.assigned_to === "human") {
+      await scheduleConversationFollowUps(conversationId);
+    }
+  }
   return { optedOut, negative, requestedHuman };
+}
+
+export async function ensureActiveConversationPlans(now = new Date()): Promise<number> {
+  const rows = await sql<{ id: number }[]>`
+    select c.id from conversations c
+    where c.status = 'open' and c.opted_out_at is null and c.negative_sentiment_at is null
+      and c.last_customer_message_at is not null and c.last_assistant_message_at is not null
+      and (c.assigned_to = 'human' or c.last_assistant_message_at >= c.last_customer_message_at)
+      and not exists (
+        select 1 from follow_up_jobs j where j.conversation_id = c.id
+          and j.cycle = c.current_cycle and j.status in ('scheduled','processing','blocked')
+      )
+      and not exists (
+        select 1 from follow_up_jobs advisor where advisor.conversation_id = c.id
+          and advisor.cycle = c.current_cycle and advisor.type = 'advisor_review'
+      )
+    order by c.updated_at desc limit 50
+  `;
+  for (const row of rows) await scheduleConversationFollowUps(Number(row.id), now);
+  return rows.length;
 }
 
 export async function refreshConversationSummary(conversationId: number): Promise<void> {
@@ -498,6 +573,7 @@ export async function getFollowUpJobContext(jobId: number) {
       job_id: number;
       job_cycle: number;
       job_type: string;
+      job_channel: string;
       job_status: FollowUpJobStatus;
       job_payload: Record<string, unknown>;
       window_closes_at: Date | null;
@@ -505,9 +581,12 @@ export async function getFollowUpJobContext(jobId: number) {
     })[]
   >`
     select c.*, q.quote_number, q.total as quote_total, s.summary,
+      d.discount_amount_cents::numeric / 100 as active_discount_amount,
+      d.condition_text as active_discount_condition,
+      d.final_total_cents::numeric / 100 as active_discount_final_total,
       j.id as job_id, j.cycle as job_cycle, j.type as job_type,
       j.status as job_status, j.payload as job_payload,
-      j.window_closes_at, j.attempt_count
+      j.window_closes_at, j.attempt_count, j.channel as job_channel
     from follow_up_jobs j
     join conversations c on c.id = j.conversation_id
     left join lateral (
@@ -515,6 +594,12 @@ export async function getFollowUpJobContext(jobId: number) {
       order by created_at desc limit 1
     ) q on true
     left join conversation_summaries s on s.conversation_id = c.id and s.cycle = c.current_cycle
+    left join lateral (
+      select discount_amount_cents, condition_text, final_total_cents
+      from discount_offers where conversation_id = c.id and cycle = c.current_cycle
+        and status in ('approved','offered','accepted') and (expires_at is null or expires_at > now())
+      order by created_at desc limit 1
+    ) d on true
     where j.id = ${jobId}
   `;
   return row ?? null;

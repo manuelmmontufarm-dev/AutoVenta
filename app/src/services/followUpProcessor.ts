@@ -75,6 +75,28 @@ export async function processFollowUpJob(
     await markFollowUpJobCancelled(job.id, "obsolete_cycle_or_closed");
     return;
   }
+  if (context.job_channel === "advisor" || context.job_type === "advisor_review") {
+    if (context.opted_out_at || context.negative_sentiment_at) {
+      await markFollowUpJobCancelled(job.id, "safety_state_changed");
+      return;
+    }
+    await createBotAlert({
+      conversationId: context.id,
+      cycle: context.current_cycle,
+      type: "advisor_follow_up",
+      priority: "high",
+      summary: "Oportunidad activa requiere evaluación del asesor",
+      exactReason: String(context.job_payload.reason ?? "El cliente sigue sin responder y se agotó el siguiente paso automático."),
+      suggestedAction: `Revisar el contexto. Mensaje recomendado: ${String(context.job_payload.preview ?? "")}`,
+      dedupeKey: `${context.id}:${context.current_cycle}:advisor_review:${job.id}`,
+    });
+    await sql`
+      update follow_up_jobs set status='sent', executed_at=${now}, locked_at=null, locked_by=null
+      where id=${job.id}
+    `;
+    emitLiveEvent("follow_up", context.id);
+    return;
+  }
   if (context.assigned_to === "human" || context.opted_out_at || context.negative_sentiment_at) {
     await markFollowUpJobCancelled(job.id, "safety_state_changed");
     return;

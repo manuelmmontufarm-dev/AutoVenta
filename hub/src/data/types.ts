@@ -95,6 +95,10 @@ export interface Cotizacion {
   subtotal: number;
   iva: number; // 15% Ecuador
   total: number;
+  originalTotal?: number;
+  discountAmount?: number;
+  discountReason?: string;
+  discountCondition?: string;
 }
 
 export interface LocalAsignado {
@@ -139,6 +143,16 @@ export interface Ticket {
   proximoSeguimiento?: {
     id: number; dueAt: string; status: string; preview: string;
     templateKey: string | null; windowClosesAt: string | null;
+  };
+  planSeguimientos?: Array<{
+    id: number; type: string; channel: string; dueAt: string; status: string;
+    preview: string; templateKey: string | null; windowClosesAt: string | null;
+    reason?: string | null;
+  }>;
+  mensajeRecomendadoHumano?: string;
+  descuentoActivo?: {
+    id: number; amount: number; finalTotal: number; reason: string;
+    condition: string; status: string; expiresAt: string | null;
   };
   historialSeguimientos?: Array<{
     id: number; type: string; status: string; createdAt: string;
@@ -197,6 +211,12 @@ export interface HubMetrics {
   daily: Array<{ day: string; value: number }>;
   funnel: Array<{ stage: Etapa; value: number }>;
   deliveries: Array<{ status: string; value: number }>;
+  discounts?: {
+    offered: number; wonWith: number; quotedWithout: number; wonWithout: number;
+    conversionWith: number; conversionWithout: number; totalDiscount: number;
+    avgDaysToWinWith: number | null; avgDaysToWinWithout: number | null;
+    avgHoursToReply: number | null;
+  };
   inventory: {
     total: number;
     available: number;

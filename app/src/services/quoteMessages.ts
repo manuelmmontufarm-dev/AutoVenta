@@ -57,7 +57,7 @@ export function buildCustomerOptionsMessage(
     }
     lines.push("");
   }
-  lines.push("Precios por unidad incluyen IVA y Ecovalor.", "Cotización válida por 3 días.");
+  lines.push("Precios por unidad incluyen IVA y Ecovalor.", "Confirma vigencia y stock al momento de comprar.");
   return lines.join("\n").trim();
 }
 
@@ -94,21 +94,25 @@ export function buildSingleQuoteMessage(
   customerName = "",
   quoteNumber?: string,
   saleNumber?: string,
+  offerDiscount?: { amount: number; finalTotal: number; condition: string; expiresAt?: Date | null },
 ): string {
   const { product, quantity } = selection;
   const warranty = warrantyForBrand(product.brand);
-  const total = product.minimumPriceWithTax * quantity;
+  const total = offerDiscount?.finalTotal ?? product.minimumPriceWithTax * quantity;
   return [
     `📄 Cotización${quoteNumber ? ` ${quoteNumber}` : ""} — ${dateLabel()}`,
     `${brandEmoji(product.brand)} ${product.brand} ${product.design} — ${product.sizeLabel ?? product.name}`,
     `💰 ${money(product.minimumPriceWithTax)} c/u (antes ${money(product.customerPriceWithTax)}, −${discount(product)}%)`,
     `🛞 ${quantity} llanta${quantity === 1 ? "" : "s"}: ${money(total)}`,
+    ...(offerDiscount ? [`✅ Descuento adicional autorizado: −${money(offerDiscount.amount)} si ${offerDiscount.condition}.`] : []),
     ...(specLine(product) ? [`📦 ${specLine(product)}`] : []),
     availabilityLine(product),
     `⭐ ${warranty.factory}`,
     ...(warranty.roadHazard ? [`🔒 ${warranty.roadHazard}`] : []),
     "",
-    "Precio incluye IVA y Ecovalor. Válida por 3 días o hasta agotar stock.",
+    offerDiscount?.expiresAt
+      ? `Precio incluye IVA y Ecovalor. Oferta vigente hasta ${offerDiscount.expiresAt.toLocaleString("es-EC", { timeZone: "America/Guayaquil" })}.`
+      : "Precio incluye IVA y Ecovalor. Vigencia por confirmar con el asesor.",
     saleNumber ? `🔖 Número de venta: ${saleNumber}` : "",
     "📍 ¿En qué sector estás o puedes compartir tu ubicación? Así te indico el local más cercano.",
   ]

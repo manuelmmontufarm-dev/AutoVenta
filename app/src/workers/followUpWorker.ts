@@ -3,6 +3,7 @@ import {
   markFollowUpJobCancelled,
   type FollowUpJob,
   reconcileFollowUpAlerts,
+  ensureActiveConversationPlans,
 } from "../services/followUps.js";
 
 export interface FollowUpJobProcessor {
@@ -22,6 +23,7 @@ export async function runFollowUpWorkerOnce(
   options: WorkerOptions,
 ): Promise<number> {
   await reconcileFollowUpAlerts(options.clock?.() ?? new Date());
+  await ensureActiveConversationPlans(options.clock?.() ?? new Date());
   const jobs = await claimDueFollowUpJobs({
     workerId: options.workerId,
     now: options.clock?.() ?? new Date(),

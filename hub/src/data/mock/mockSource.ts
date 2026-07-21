@@ -174,6 +174,21 @@ export class MockSource implements DataSource {
     this.pushMensaje(ticketId, "vendedor", "texto", texto);
   }
 
+  async crearDescuento(ticketId: number, input: { amount: number; reason: string; condition: string }): Promise<{ sent: boolean; message: string }> {
+    const t = this.tickets.get(ticketId);
+    if (!t?.cotizacion) throw new Error("Primero debe existir una cotización real");
+    if (input.amount <= 0 || input.amount >= t.cotizacion.total) throw new Error("Descuento inválido");
+    const original = t.cotizacion.originalTotal ?? t.cotizacion.total;
+    t.cotizacion = {
+      ...t.cotizacion, originalTotal: original, discountAmount: input.amount,
+      discountReason: input.reason, discountCondition: input.condition,
+      total: original - input.amount,
+    };
+    const message = `Puedo ofrecerte un descuento autorizado de ${money(input.amount)} si ${input.condition}. El total quedaría en ${money(t.cotizacion.total)}. ¿Quieres que coordinemos el siguiente paso?`;
+    this.pushMensaje(ticketId, "bot", "texto", message);
+    return { sent: true, message };
+  }
+
   async agregarNota(ticketId: number, texto: string): Promise<void> {
     const t = this.tickets.get(ticketId);
     if (!t) return;

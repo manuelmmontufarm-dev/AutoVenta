@@ -77,7 +77,6 @@ export const business: BusinessConfig = {
     6: { open: "08:30", close: "17:30" },
   },
   brands: ["Kenda", "Sunoco", "Eurolub", "Falken"],
-  promo: "10% de descuento en el primer servicio al agendar cita",
   stores: [
     {
       name: "Depot Tire Cumbayá",
