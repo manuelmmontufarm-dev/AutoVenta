@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import type { Atiende, Cierre, Etapa, FeedItem, HubMetrics, Mensaje, Rol, Ticket } from "./data/types";
+import type { Atiende, BotAlert, Cierre, Etapa, FeedItem, FollowUpCard, HubMetrics, Mensaje, Rol, Ticket } from "./data/types";
 import { MockSource } from "./data/mock/mockSource";
 import { Simulator } from "./data/mock/simulator";
 import { RealSource } from "./data/realSource";
@@ -29,6 +29,8 @@ interface HubState {
   typing: Record<number, Rol | null>;
   feed: FeedItem[];
   metrics: HubMetrics | null;
+  followUps: FollowUpCard[];
+  alerts: BotAlert[];
   toasts: Toast[];
   demo: boolean;
   dataMode: "demo" | "real";
@@ -42,6 +44,8 @@ interface HubState {
   setAtiende(id: number, atiende: Atiende): Promise<void>;
   enviarMensaje(id: number, texto: string): Promise<void>;
   agregarNota(id: number, texto: string): Promise<void>;
+  followUpAction(id: number, action: "send" | "cancel" | "edit", preview?: string): Promise<void>;
+  alertAction(id: number, action: "resolve" | "snooze" | "take"): Promise<void>;
   toggleDemo(): void;
   quitarToast(id: number): void;
 }
@@ -51,12 +55,14 @@ let iniciado = false;
 
 export const useHub = create<HubState>((set, get) => {
   async function refrescar(): Promise<void> {
-    const [tickets, feed, metrics] = await Promise.all([
+    const [tickets, feed, metrics, followUps, alerts] = await Promise.all([
       source.listTickets(),
       source.getFeed(),
       source.getMetrics(),
+      source.listFollowUps(),
+      source.listAlerts(),
     ]);
-    set({ tickets, feed, metrics });
+    set({ tickets, feed, metrics, followUps, alerts });
     updateFavicon(tickets.filter((t) => t.estado === "abierto").length);
   }
 
@@ -105,6 +111,8 @@ export const useHub = create<HubState>((set, get) => {
     typing: {},
     feed: [],
     metrics: null,
+    followUps: [],
+    alerts: [],
     toasts: [],
     demo: false,
     dataMode,
@@ -116,10 +124,10 @@ export const useHub = create<HubState>((set, get) => {
       try {
         // Mínimo de skeleton para que la carga se sienta intencional, no rota.
         const [datos] = await Promise.all([
-          Promise.all([source.listTickets(), source.getFeed(), source.getMetrics()]),
+          Promise.all([source.listTickets(), source.getFeed(), source.getMetrics(), source.listFollowUps(), source.listAlerts()]),
           new Promise((r) => setTimeout(r, 650)),
         ]);
-        set({ tickets: datos[0], feed: datos[1], metrics: datos[2], cargando: false });
+        set({ tickets: datos[0], feed: datos[1], metrics: datos[2], followUps: datos[3], alerts: datos[4], cargando: false });
         updateFavicon(datos[0].filter((t) => t.estado === "abierto").length);
       } catch (error) {
         set((state) => ({
@@ -150,6 +158,14 @@ export const useHub = create<HubState>((set, get) => {
     setAtiende: (id, atiende) => source.setAtiende(id, atiende),
     enviarMensaje: (id, texto) => source.enviarMensaje(id, texto),
     agregarNota: (id, texto) => source.agregarNota(id, texto),
+    async followUpAction(id, action, preview) {
+      await source.followUpAction(id, action, preview);
+      await refrescar();
+    },
+    async alertAction(id, action) {
+      await source.alertAction(id, action);
+      await refrescar();
+    },
 
     toggleDemo() {
       const demo = !get().demo;

@@ -4,6 +4,7 @@
  * Todo es idempotente (`create if not exists`) → seguro en cada boot.
  */
 import { sql } from "./client.js";
+import { runFollowUpMigration } from "./migrations/001_follow_up_system.js";
 
 export const SCHEMA = /* sql */ `
 create table if not exists conversations (
@@ -36,7 +37,7 @@ update conversations
 set stage = case stage
   when 'conversando' then 'nuevo'
   when 'cotizado' then 'cotizacion_enviada'
-  when 'alerta' then 'handoff_visita'
+  when 'alerta' then 'seguimiento_venta'
   when 'cerrado' then 'ganado'
   else stage
 end
@@ -284,4 +285,5 @@ where key = 'ai_config' and exists (select 1 from migration);
 /** Aplica el esquema (idempotente). Se llama al arrancar el bot. */
 export async function ensureSchema(): Promise<void> {
   await sql.unsafe(SCHEMA);
+  await runFollowUpMigration(sql);
 }

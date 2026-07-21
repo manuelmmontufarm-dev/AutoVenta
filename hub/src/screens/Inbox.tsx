@@ -54,11 +54,12 @@ function TicketRow({ ticket, now }: { ticket: Ticket; now: number }) {
 }
 
 export function Inbox() {
-  const { tickets, cargando } = useHub();
+  const { tickets, alerts, alertAction, cargando } = useHub();
   const now = useNow();
   const [estado, setEstado] = useState<FiltroEstado>("abiertos");
   const [etapa, setEtapa] = useState<Etapa | "todas">("todas");
   const [q, setQ] = useState("");
+  const [section, setSection] = useState<"tickets" | "alerts">("tickets");
 
   const abiertos = tickets.filter((t) => t.estado === "abierto").length;
   const cerrados = tickets.length - abiertos;
@@ -80,6 +81,16 @@ export function Inbox() {
   return (
     <div className="flex h-full flex-col">
       <div className="flex flex-wrap items-center gap-2.5 px-4 pt-1 pb-3">
+        <Segmented
+          id="inbox-section"
+          valor={section}
+          onChange={setSection}
+          opciones={[
+            { valor: "tickets", label: "Conversaciones" },
+            { valor: "alerts", label: "Alertas del bot", badge: alerts.length },
+          ]}
+        />
+        {section === "tickets" && <>
         <Segmented<FiltroEstado>
           id="estado"
           valor={estado}
@@ -99,9 +110,10 @@ export function Inbox() {
             className="w-full bg-transparent text-xs outline-none placeholder:text-faint"
           />
         </div>
+        </>}
       </div>
 
-      <div className="scrollbar-none flex gap-1.5 overflow-x-auto px-4 pb-3">
+      {section === "tickets" && <div className="scrollbar-none flex gap-1.5 overflow-x-auto px-4 pb-3">
         <FiltroEtapaChip activo={etapa === "todas"} color="#8b95ab" label="Todas" onClick={() => setEtapa("todas")} />
         {ETAPAS.map((e) => (
           <FiltroEtapaChip
@@ -112,10 +124,21 @@ export function Inbox() {
             onClick={() => setEtapa(etapa === e ? "todas" : e)}
           />
         ))}
-      </div>
+      </div>}
 
       <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-6">
-        {cargando ? (
+        {section === "alerts" ? (
+          <div className="mx-auto grid max-w-4xl gap-2 px-2">
+            {alerts.length === 0 ? <EmptyState titulo="Sin alertas pendientes" detalle="El bot no ha detectado situaciones que requieran intervención." /> : alerts.map((alert) => (
+              <article key={alert.id} className="glass rounded-2xl p-4">
+                <div className="flex items-start justify-between gap-3"><div><p className="text-sm font-bold">{alert.customer}</p><p className="mt-1 text-xs font-semibold">{alert.summary}</p></div><span className="rounded-full px-2 py-1 text-[10px] font-black uppercase" style={{ color: alert.priority === "critical" ? "var(--color-danger)" : "var(--color-warn)", background: "color-mix(in srgb, currentColor 12%, transparent)" }}>{alert.priority}</span></div>
+                <p className="mt-3 text-xs text-muted"><b>Motivo exacto:</b> {alert.exactReason}</p>
+                <p className="mt-2 text-xs"><b>Acción sugerida:</b> {alert.suggestedAction}</p>
+                <div className="mt-3 flex flex-wrap gap-2"><button onClick={() => void alertAction(alert.id, "take")} className="rounded-lg bg-violet/15 px-3 py-1.5 text-[10px] font-bold">Tomar conversación</button><button onClick={() => void alertAction(alert.id, "resolve")} className="rounded-lg bg-lime/15 px-3 py-1.5 text-[10px] font-bold">Resolver</button><button onClick={() => void alertAction(alert.id, "snooze")} className="rounded-lg bg-paper/10 px-3 py-1.5 text-[10px] font-bold">Posponer 4 h</button><button onClick={() => navigate(`ticket/${alert.conversationId}`)} className="rounded-lg bg-paper/10 px-3 py-1.5 text-[10px] font-bold">Abrir ticket</button></div>
+              </article>
+            ))}
+          </div>
+        ) : cargando ? (
           <SkeletonRows n={8} />
         ) : visibles.length === 0 ? (
           <EmptyState

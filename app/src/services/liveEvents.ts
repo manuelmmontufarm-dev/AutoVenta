@@ -2,7 +2,7 @@ import { EventEmitter } from "node:events";
 
 export interface LiveEvent {
   id: number;
-  type: "sync" | "message" | "status" | "settings";
+  type: "sync" | "message" | "status" | "settings" | "follow_up" | "alert";
   conversationId?: number;
   at: string;
 }

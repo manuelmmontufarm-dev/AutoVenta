@@ -198,6 +198,23 @@ function Ficha({
         )}
       </section>
 
+      <section className="glass rounded-2xl p-4">
+        <p className="microlabel mb-2.5">Seguimiento comercial</p>
+        <p className="text-xs leading-relaxed">{ticket.resumen ?? "Resumen automático pendiente; se actualizará con la próxima interacción."}</p>
+        <dl className="mt-3 grid gap-2 text-[11px]">
+          <div><dt className="text-faint">Qué busca</dt><dd>{ticket.queBusca ?? ticket.medida ?? "Por identificar"}</dd></div>
+          <div><dt className="text-faint">Opciones que comparó</dt><dd>{ticket.opcionesComparadas?.length ? ticket.opcionesComparadas.map(String).join(" · ") : "Sin comparación registrada"}</dd></div>
+          <div><dt className="text-faint">Qué eligió</dt><dd>{ticket.opcionElegida ?? "Aún no eligió"}</dd></div>
+          <div><dt className="text-faint">Compromiso o fecha</dt><dd>{ticket.compromisoCliente ?? (ticket.visitDate ? new Date(ticket.visitDate).toLocaleString("es-EC") : "Sin compromiso registrado")}</dd></div>
+        </dl>
+        {ticket.proximoSeguimiento ? <div className="mt-3 rounded-xl bg-paper/[.05] p-3"><p className="text-[11px] font-bold">Próximo: {new Date(ticket.proximoSeguimiento.dueAt).toLocaleString("es-EC")}</p><p className="mt-1 text-xs">{ticket.proximoSeguimiento.preview}</p>{ticket.proximoSeguimiento.templateKey && <p className="mt-1 text-[10px] font-bold text-amber-500">Plantilla: {ticket.proximoSeguimiento.templateKey}</p>}</div> : <p className="mt-3 text-[11px] text-faint">No hay un seguimiento programado.</p>}
+        <p className="mt-3 text-[11px] font-bold" style={{ color: ticket.ventanaCierraEn && new Date(ticket.ventanaCierraEn) > new Date() ? "var(--color-ok)" : "var(--color-warn)" }}>Ventana de 24 h: {ticket.ventanaCierraEn ? (new Date(ticket.ventanaCierraEn) > new Date() ? `abierta hasta ${new Date(ticket.ventanaCierraEn).toLocaleString("es-EC")}` : "cerrada — requiere plantilla") : "sin mensaje entrante"}</p>
+        {!ticket.customerOptIn && <p className="mt-1 text-[10px] text-amber-500">Sin consentimiento registrado para plantillas post-24 h.</p>}
+        <p className="mt-2 text-[11px] text-muted"><b>Mensaje recomendado al humano:</b> {ticket.proximoSeguimiento?.preview || "Revisar el contexto antes de contactar; si la ventana cerró, usar únicamente una plantilla aprobada."}</p>
+        <div className="mt-3 flex gap-2"><button onClick={onToggleAtiende} className="rounded-lg bg-violet/15 px-3 py-2 text-[10px] font-bold">{ticket.atiende === "bot" ? "Tomar control" : "Devolver al bot"}</button></div>
+        <div className="mt-3 border-t border-paper/10 pt-3"><p className="microlabel mb-2">Historial</p>{ticket.historialSeguimientos?.length ? <ul className="grid gap-1">{ticket.historialSeguimientos.map((item) => <li key={item.id} className="text-[10.5px] text-muted">{item.type} · {item.status} · {new Date(item.createdAt).toLocaleString("es-EC")}{item.error ? ` · ${item.error}` : ""}</li>)}</ul> : <p className="text-[10.5px] text-faint">Sin intentos todavía.</p>}</div>
+      </section>
+
       {/* Cotización */}
       {ticket.cotizacion && (
         <section className="glass rounded-2xl p-4">

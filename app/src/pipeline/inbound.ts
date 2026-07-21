@@ -9,7 +9,7 @@
 import { config } from "../config.js";
 
 interface PendingBuffer {
-  parts: { text: string; waMessageId: string }[];
+  parts: { text: string; waMessageId: string; receivedAt: Date }[];
   timer: NodeJS.Timeout;
   name?: string;
 }
@@ -19,6 +19,7 @@ export type InboundHandler = (job: {
   name?: string;
   text: string;
   waMessageIds: string[];
+  receivedAt: Date;
 }) => Promise<void>;
 
 const SEEN_TTL_MS = 6 * 60 * 60 * 1000;
@@ -32,19 +33,19 @@ export class InboundPipeline {
     setInterval(() => this.cleanupSeen(), 60 * 60 * 1000).unref();
   }
 
-  push(from: string, waMessageId: string, text: string, name?: string): void {
+  push(from: string, waMessageId: string, text: string, name?: string, receivedAt = new Date()): void {
     if (this.seen.has(waMessageId)) return; // webhook duplicado
     this.seen.set(waMessageId, Date.now());
 
     const existing = this.buffers.get(from);
     if (existing) {
       clearTimeout(existing.timer);
-      existing.parts.push({ text, waMessageId });
+      existing.parts.push({ text, waMessageId, receivedAt });
       existing.timer = this.startTimer(from);
       if (name) existing.name = name;
     } else {
       this.buffers.set(from, {
-        parts: [{ text, waMessageId }],
+        parts: [{ text, waMessageId, receivedAt }],
         timer: this.startTimer(from),
         name,
       });
@@ -65,6 +66,7 @@ export class InboundPipeline {
       name: buffer.name,
       text: buffer.parts.map((p) => p.text).join("\n"),
       waMessageIds: buffer.parts.map((p) => p.waMessageId),
+      receivedAt: new Date(Math.max(...buffer.parts.map((p) => p.receivedAt.getTime()))),
     };
 
     // Cola FIFO por usuario: encadena sobre el último job de este chat.

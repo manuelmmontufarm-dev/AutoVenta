@@ -4,9 +4,16 @@
  * del webhook + middleware de Express incluidos.
  */
 import { WhatsAppAPI } from "whatsapp-api-js/middleware/express";
-import { Text } from "whatsapp-api-js/messages";
-import { Document, Image } from "whatsapp-api-js/messages";
+import {
+  BodyComponent,
+  BodyParameter,
+  Document,
+  Image,
+  Template,
+  Text,
+} from "whatsapp-api-js/messages";
 import { config } from "../config.js";
+import { assertConversationOutbound } from "../services/whatsappPolicy.js";
 
 export const wa = new WhatsAppAPI({
   token: config.whatsapp.token,
@@ -16,7 +23,13 @@ export const wa = new WhatsAppAPI({
 
 const phoneId = config.whatsapp.phoneId;
 
-export async function sendText(to: string, body: string): Promise<string | undefined> {
+export async function sendCustomerText(
+  conversationId: number,
+  to: string,
+  body: string,
+  actor: "bot" | "owner" | "worker" = "bot",
+): Promise<string | undefined> {
+  await assertConversationOutbound({ conversationId, contentType: "text", actor });
   const response = await wa.sendMessage(phoneId, to, new Text(body));
   return messageIdOrThrow(response, "el mensaje");
 }
@@ -63,11 +76,13 @@ async function uploadMedia(buf: Buffer, mime: string, filename: string): Promise
 
 /** Sube un PDF a Meta y lo envía como documento. */
 export async function sendPdf(
+  conversationId: number,
   to: string,
   pdf: Buffer,
   filename: string,
   caption?: string,
 ): Promise<string | undefined> {
+  await assertConversationOutbound({ conversationId, contentType: "pdf", actor: "bot" });
   const mediaId = await uploadMedia(pdf, "application/pdf", filename);
   const response = await wa.sendMessage(
     phoneId,
@@ -79,18 +94,42 @@ export async function sendPdf(
 
 /** Sube una imagen PNG a Meta y la envía. */
 export async function sendImage(
+  conversationId: number,
   to: string,
   png: Buffer,
   caption?: string,
   filename = "cotizacion.png",
 ): Promise<string | undefined> {
+  await assertConversationOutbound({ conversationId, contentType: "image", actor: "bot" });
   const mediaId = await uploadMedia(png, "image/png", filename);
   const response = await wa.sendMessage(phoneId, to, new Image(mediaId, true, caption));
   return messageIdOrThrow(response, "la imagen");
 }
 
-/** Alerta al vendedor. En producción, fuera de la ventana de 24h esto debe ser
- * un template utility aprobado — TODO cuando exista el template. */
-export async function notifySeller(summary: string): Promise<void> {
-  await sendText(config.whatsapp.sellerPhone, `🔔 *AutoVenta*\n${summary}`);
+export async function sendApprovedTemplate(input: {
+  conversationId: number;
+  to: string;
+  templateName: string;
+  language: string;
+  variables: string[];
+  attemptId: number;
+}): Promise<string | undefined> {
+  await assertConversationOutbound({
+    conversationId: input.conversationId,
+    contentType: "template",
+    actor: "worker",
+  });
+  const body = new BodyComponent(
+    ...input.variables.map((value) => new BodyParameter(value)) as [BodyParameter, ...BodyParameter[]],
+  );
+  const response = await wa.sendMessage(
+    phoneId,
+    input.to,
+    new Template(input.templateName, input.language, body),
+    undefined,
+    `followup_attempt:${input.attemptId}`,
+  );
+  if (response instanceof Response) return undefined;
+  if ("messages" in response) return response.messages[0]?.id;
+  throw new Error(`WhatsApp rechazó la plantilla: ${response.error.message}`);
 }

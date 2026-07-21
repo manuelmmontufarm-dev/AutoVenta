@@ -28,6 +28,21 @@ interface TicketRow {
   quote: QuoteRow | null;
   notes: string[] | null;
   won_count: number;
+  customer_opt_in: boolean;
+  opted_out_at: Date | null;
+  customer_commitment: string | null;
+  pickup_date: Date | null;
+  visit_date: Date | null;
+  offer_expires_at: Date | null;
+  nearest_store: string | null;
+  summary: string | null;
+  customer_need: string | null;
+  options_discussed: unknown;
+  selected_option: string | null;
+  follow_up_reason: string | null;
+  next_follow_up: { id: number; dueAt: string; status: string; preview: string; templateKey: string | null; windowClosesAt: string | null } | null;
+  follow_up_history: unknown[] | null;
+  last_customer_message_at: Date | null;
 }
 
 export async function listHubTickets() {
@@ -35,10 +50,20 @@ export async function listHubTickets() {
     select
       c.id, c.phone, c.name, c.stage, c.status, c.assigned_to, c.unread_count,
       c.tire_size, c.vehicle, c.closed_reason, c.closed_at, c.created_at, c.updated_at,
+      c.customer_opt_in, c.opted_out_at, c.customer_commitment, c.pickup_date,
+      c.visit_date, c.offer_expires_at, c.nearest_store, c.last_customer_message_at,
       m.content as last_message, m.created_at as last_at,
       case when q.id is null then null else jsonb_build_object(
         'id', q.id, 'items', q.items, 'subtotal', q.subtotal, 'tax', q.tax, 'total', q.total
       ) end as quote,
+      s.summary, s.customer_need, s.options_discussed, s.selected_option,
+      coalesce(s.follow_up_reason, c.follow_up_reason) as follow_up_reason,
+      case when j.id is null then null else jsonb_build_object(
+        'id', j.id, 'dueAt', j.due_at, 'status', j.status,
+        'preview', coalesce(j.payload->>'preview', ''),
+        'templateKey', j.payload->>'templateKey', 'windowClosesAt', j.window_closes_at
+      ) end as next_follow_up,
+      coalesce(h.history, '[]'::jsonb) as follow_up_history,
       coalesce(n.notes, '[]'::jsonb) as notes,
       (
         select count(*)::int from sales_history history
@@ -60,6 +85,23 @@ export async function listHubTickets() {
       order by created_at desc
       limit 1
     ) q on true
+    left join conversation_summaries s on s.conversation_id = c.id and s.cycle = c.current_cycle
+    left join lateral (
+      select id, due_at, status, payload, window_closes_at from follow_up_jobs
+      where conversation_id = c.id and cycle = c.current_cycle
+        and status in ('scheduled', 'processing', 'blocked')
+      order by due_at limit 1
+    ) j on true
+    left join lateral (
+      select jsonb_agg(jsonb_build_object(
+        'id', a.id, 'type', jobs.type, 'status', a.status,
+        'createdAt', a.created_at, 'sentAt', a.sent_at,
+        'deliveredAt', a.delivered_at, 'readAt', a.read_at,
+        'error', a.error
+      ) order by a.created_at desc) as history
+      from follow_up_attempts a join follow_up_jobs jobs on jobs.id = a.job_id
+      where a.conversation_id = c.id and a.cycle = c.current_cycle
+    ) h on true
     left join lateral (
       select jsonb_agg(content order by created_at) as notes
       from conversation_notes
@@ -94,6 +136,23 @@ export async function listHubTickets() {
     creadoEn: row.created_at.toISOString(),
     ultimaActividad: (row.last_at ?? row.updated_at).toISOString(),
     ultimoMensaje: row.last_message ?? "Conversación iniciada",
+    resumen: row.summary ?? undefined,
+    queBusca: row.customer_need ?? undefined,
+    opcionesComparadas: Array.isArray(row.options_discussed) ? row.options_discussed : [],
+    opcionElegida: row.selected_option ?? undefined,
+    compromisoCliente: row.customer_commitment ?? undefined,
+    pickupDate: row.pickup_date?.toISOString(),
+    visitDate: row.visit_date?.toISOString(),
+    offerExpiresAt: row.offer_expires_at?.toISOString(),
+    localCercano: row.nearest_store ?? undefined,
+    followUpReason: row.follow_up_reason ?? undefined,
+    customerOptIn: row.customer_opt_in,
+    optedOutAt: row.opted_out_at?.toISOString(),
+    proximoSeguimiento: row.next_follow_up,
+    historialSeguimientos: row.follow_up_history ?? [],
+    ventanaCierraEn: row.last_customer_message_at
+      ? new Date(row.last_customer_message_at.getTime() + 24 * 60 * 60 * 1000).toISOString()
+      : undefined,
   }));
 }
 
@@ -242,7 +301,7 @@ export async function getHubMetrics(days = 14) {
           when 'medida_confirmada' then 1
           when 'seleccionando' then 2
           when 'cotizacion_enviada' then 3
-          when 'handoff_visita' then 4
+          when 'seguimiento_venta' then 4
           when 'ganado' then 5
           else 0
         end), 0) as max_rank,
@@ -264,7 +323,7 @@ export async function getHubMetrics(days = 14) {
         ('medida_confirmada'::text, 1),
         ('seleccionando'::text, 2),
         ('cotizacion_enviada'::text, 3),
-        ('handoff_visita'::text, 4),
+        ('seguimiento_venta'::text, 4),
         ('ganado'::text, 5)
     )
     select stages.stage, count(*) filter (

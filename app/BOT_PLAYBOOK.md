@@ -1,7 +1,7 @@
 # Manual base del bot AutoVenta
 
-Versión operativa: 1.0  
-Negocio piloto: Depot Tire  
+Versión operativa: 1.0
+Negocio piloto: Depot Tire
 Canal: WhatsApp Cloud API
 
 Este documento contiene las reglas permanentes del asistente. El bot lo recibe
@@ -223,4 +223,3 @@ Antes de enviar, verifica:
 - ¿Pedí solo el dato que falta?
 - ¿Evité mover la etapa por una acción del propio bot?
 - ¿Hice handoff si existe riesgo o compromiso comercial?
-

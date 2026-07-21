@@ -12,6 +12,8 @@ import {
   type Rol,
   type Ticket,
   type TipoMensaje,
+  type FollowUpCard,
+  type BotAlert,
 } from "../types";
 import { FEED_SEED, MENSAJES_SEED, TICKETS_SEED } from "./fixtures";
 import { money } from "../../lib/format";
@@ -100,12 +102,17 @@ export class MockSource implements DataSource {
     };
   }
 
+  async listFollowUps(): Promise<FollowUpCard[]> { return []; }
+  async listAlerts(): Promise<BotAlert[]> { return []; }
+  async followUpAction(): Promise<void> {}
+  async alertAction(): Promise<void> {}
+
   async moverEtapa(ticketId: number, etapa: Etapa): Promise<void> {
     const t = this.tickets.get(ticketId);
     if (!t || t.estado === "cerrado") return;
     t.etapa = etapa;
     t.ultimaActividad = new Date().toISOString();
-    if (etapa === "handoff_visita") {
+    if (etapa === "seguimiento_venta") {
       this.pushFeed("🔥", `${this.nombre(t)} confirmó visita al local`, ticketId);
     }
     this.emit({ tipo: "sync" });

@@ -41,7 +41,7 @@ import { nearestStore, resolveSector } from "../domain/locations.js";
 import { formatTireSize } from "../domain/tireSize.js";
 import { canGenerateFinalQuote } from "../domain/salesIntent.js";
 import { getTirePatternProfile } from "../domain/tireKnowledge.js";
-import { notifySeller, sendImage, sendPdf } from "../wa/client.js";
+import { sendImage, sendPdf } from "../wa/client.js";
 import {
   renderCompareImage,
   renderOptionsImage,
@@ -49,6 +49,7 @@ import {
   toRenderLine,
 } from "../render/quoteImage.js";
 import { sql } from "../db/client.js";
+import { createBotAlert } from "../services/followUps.js";
 
 export interface AgentContext {
   conversation: Conversation;
@@ -100,6 +101,7 @@ function dateLabel(): string {
  * cae al PDF — el cliente jamás se queda sin su cotización (fallo del demo 20-jul).
  */
 async function sendVisual(
+  conversationId: number,
   to: string,
   render: () => Promise<Buffer>,
   caption: string,
@@ -109,7 +111,7 @@ async function sendVisual(
   let png: Buffer | undefined;
   try {
     png = await render();
-    const providerId = await sendImage(to, png, caption, filename);
+    const providerId = await sendImage(conversationId, to, png, caption, filename);
     return { ok: true, providerId, png };
   } catch (err) {
     console.error(`❌ Imagen de ${what} falló:`, err);
@@ -216,6 +218,7 @@ export function buildTools(ctx: AgentContext) {
       // sigue siendo la respuesta — el cliente nunca se queda sin opciones.
       const sizeLabel = products[0]?.sizeLabel ?? null;
       const visual = await sendVisual(
+        ctx.conversation.id,
         ctx.customerPhone,
         async () =>
           renderOptionsImage({
@@ -282,6 +285,7 @@ export function buildTools(ctx: AgentContext) {
       // Pieza visual primero (lo que pidió el cliente); el PDF queda de respaldo.
       const imageName = `Comparativa-${business.name.replace(/\s/g, "")}.png`;
       const visual = await sendVisual(
+        ctx.conversation.id,
         ctx.customerPhone,
         async () =>
           renderCompareImage({
@@ -298,6 +302,7 @@ export function buildTools(ctx: AgentContext) {
         const pdf = await renderComparisonPdf(selected);
         filename = `Comparativa-${business.name.replace(/\s/g, "")}.pdf`;
         providerId = await sendPdf(
+          ctx.conversation.id,
           ctx.customerPhone,
           pdf,
           filename,
@@ -413,6 +418,7 @@ export function buildTools(ctx: AgentContext) {
       // Imagen de cotización (pieza principal); PDF si lo piden o si falla.
       const imageName = `Cotizacion-${business.name.replace(/\s/g, "")}-${quote.number}.png`;
       const visual = await sendVisual(
+        ctx.conversation.id,
         ctx.customerPhone,
         async () =>
           renderQuoteImage({
@@ -439,6 +445,7 @@ export function buildTools(ctx: AgentContext) {
             : await renderQuotePdf(quote);
           const pdfName = `Cotizacion-${business.name.replace(/\s/g, "")}-${quote.number}.pdf`;
           const pdfId = await sendPdf(
+            ctx.conversation.id,
             ctx.customerPhone,
             pdf,
             pdfName,
@@ -454,9 +461,16 @@ export function buildTools(ctx: AgentContext) {
         }
       }
       if (!visual.ok && !pdfEnviado) {
-        await notifySeller(
-          `⚠️ Cotización ${quote.number} generada pero NO se pudo enviar imagen ni PDF a wa.me/${ctx.customerPhone}. Revisar logs.`,
-        );
+        await createBotAlert({
+          conversationId: ctx.conversation.id,
+          cycle: ctx.conversation.current_cycle,
+          type: "send_error",
+          priority: "critical",
+          summary: `No se pudo enviar la cotización ${quote.number}`,
+          exactReason: `Cotización ${quote.number} generada pero no se pudo enviar imagen ni PDF.`,
+          suggestedAction: "Revisar el error y contactar al cliente desde el ticket.",
+          dedupeKey: `${ctx.conversation.id}:${ctx.conversation.current_cycle}:quote_send_error:${quote.number}`,
+        });
       }
       await appendMessage(
         ctx.conversation.id,
@@ -535,7 +549,7 @@ export function buildTools(ctx: AgentContext) {
         locationLabel: resolved.label,
         nearestStore: store.name,
       });
-      await setStage(ctx.conversation.id, "handoff_visita", {
+      await setStage(ctx.conversation.id, "seguimiento_venta", {
         actor: "customer",
         reason: "Cliente compartió ubicación después de cotizar",
       });
@@ -581,10 +595,17 @@ export function buildTools(ctx: AgentContext) {
             "Antes del handoff necesitas la ubicación del cliente y el local recomendado. Pide ubicación y usa local_mas_cercano.",
         });
       }
-      await notifySeller(
-        `${resumen}\nUbicación: ${facts.location_label}\nLocal: ${facts.nearest_store}\n\nCliente: ${ctx.customerName ?? "?"} (wa.me/${ctx.customerPhone})`,
-      );
-      await setStage(ctx.conversation.id, "handoff_visita", {
+      await createBotAlert({
+        conversationId: ctx.conversation.id,
+        cycle: ctx.conversation.current_cycle,
+        type: "customer_ready_to_buy",
+        priority: "high",
+        summary: resumen.slice(0, 300),
+        exactReason: `Ubicación: ${facts.location_label}. Local: ${facts.nearest_store}.`,
+        suggestedAction: `Abrir la conversación de ${ctx.customerName ?? ctx.customerPhone} y coordinar la venta.`,
+        dedupeKey: `${ctx.conversation.id}:${ctx.conversation.current_cycle}:customer_ready_to_buy`,
+      });
+      await setStage(ctx.conversation.id, "seguimiento_venta", {
         actor: "customer",
         reason: "Cliente confirmó interés/visita o pidió un humano",
       });

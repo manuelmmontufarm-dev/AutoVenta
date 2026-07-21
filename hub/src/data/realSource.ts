@@ -7,6 +7,8 @@ import type {
   HubMetrics,
   Mensaje,
   Ticket,
+  FollowUpCard,
+  BotAlert,
 } from "./types";
 
 const ADMIN_KEY_STORAGE = "autoventa_admin_key";
@@ -47,6 +49,28 @@ export class RealSource implements DataSource {
         `/api/hub/metrics?days=${encodeURIComponent(days)}`,
       )
     ).metrics;
+  }
+
+  async listFollowUps(): Promise<FollowUpCard[]> {
+    return (await this.request<{ followUps: FollowUpCard[] }>("/api/hub/follow-ups")).followUps;
+  }
+
+  async listAlerts(): Promise<BotAlert[]> {
+    return (await this.request<{ alerts: BotAlert[] }>("/api/hub/alerts")).alerts;
+  }
+
+  async followUpAction(id: number, action: "send" | "cancel" | "edit", preview?: string): Promise<void> {
+    if (action === "cancel") {
+      await this.request(`/api/hub/follow-ups/${id}`, { method: "DELETE" });
+    } else if (action === "edit") {
+      await this.request(`/api/hub/follow-ups/${id}`, { method: "PATCH", body: JSON.stringify({ preview }) });
+    } else {
+      await this.request(`/api/hub/follow-ups/${id}/send-now`, { method: "POST", body: "{}" });
+    }
+  }
+
+  async alertAction(id: number, action: "resolve" | "snooze" | "take"): Promise<void> {
+    await this.request(`/api/hub/alerts/${id}/action`, { method: "POST", body: JSON.stringify({ action }) });
   }
 
   async moverEtapa(ticketId: number, etapa: Etapa): Promise<void> {

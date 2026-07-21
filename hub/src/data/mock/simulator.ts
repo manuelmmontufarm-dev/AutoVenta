@@ -17,7 +17,7 @@ type Paso =
         | "medida_confirmada"
         | "seleccionando"
         | "cotizacion_enviada"
-        | "handoff_visita";
+        | "seguimiento_venta";
     }
   | { t: "medida"; medida: string }
   | { t: "cotizacion"; medida: string; marca: string; modelo: string; precio: number; cant?: number }
@@ -57,7 +57,7 @@ const GUIONES: Guion[] = [
       { t: "etapa", etapa: "cotizacion_enviada" },
       { t: "bot", texto: "¡Listo! Te queda Depot Tire Cumbayá — C.C. La del Establo, a 6,8 km de ti. ¿Te esperamos hoy? Atendemos hasta las 17:30 🕠", typing: 1500 },
       { t: "cliente", texto: "Sí, paso en la tarde 💪", typing: 2100 },
-      { t: "etapa", etapa: "handoff_visita" },
+      { t: "etapa", etapa: "seguimiento_venta" },
       { t: "toast", icono: "🔥", titulo: "Roberto confirmó visita", cuerpo: "Hoy en la tarde · Cumbayá — vendedor notificado" },
       { t: "bot", texto: "¡Buenísimo Roberto! 🙌 Te esperamos. Pregunta por Andrés y menciona la cotización #1042 🚗", typing: 1200 },
       { t: "espera", ms: 4500 },

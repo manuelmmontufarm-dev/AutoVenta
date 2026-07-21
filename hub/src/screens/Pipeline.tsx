@@ -13,7 +13,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useMemo, useState } from "react";
 import { FunnelChart } from "../components/charts";
 import { Avatar, EmptyState, Segmented } from "../components/ui";
-import { CIERRE_META, ETAPAS, ETAPA_META, type Etapa, type Ticket } from "../data/types";
+import { CIERRE_META, ETAPAS, ETAPA_META, type Etapa, type FollowUpBucket, type FollowUpCard, type Ticket } from "../data/types";
 import { money, moneyCompact, relTime } from "../lib/format";
 import { navigate } from "../router";
 import { useHub, useNow } from "../store";
@@ -125,10 +125,68 @@ function ZonaCierre() {
   );
 }
 
+const FOLLOW_UP_GROUPS: Array<{ id: FollowUpBucket; label: string }> = [
+  { id: "attention_now", label: "Requieren atención ahora" },
+  { id: "today", label: "Programados para hoy" },
+  { id: "tomorrow", label: "Programados para mañana" },
+  { id: "waiting_response", label: "Esperando respuesta" },
+  { id: "window_closed", label: "Ventana cerrada / requiere plantilla" },
+  { id: "human_control", label: "Tomados por humano" },
+  { id: "cancelled_failed", label: "Cancelados o fallidos" },
+];
+
+function FollowUpCardView({ item, now }: { item: FollowUpCard; now: number }) {
+  const { setAtiende, followUpAction } = useHub();
+  const remaining = item.windowClosesAt
+    ? Math.max(0, new Date(item.windowClosesAt).getTime() - now)
+    : null;
+  const remainingLabel = remaining === null ? "Sin ventana" : remaining === 0
+    ? "Ventana cerrada"
+    : `${Math.floor(remaining / 3_600_000)} h ${Math.floor((remaining % 3_600_000) / 60_000)} min`;
+  return (
+    <article className="glass rounded-2xl p-4 shadow-soft">
+      <div className="flex items-start justify-between gap-3">
+        <div><p className="text-sm font-bold">{item.customer}</p><p className="mt-1 text-[11px] text-muted">{ETAPA_META[item.stage].nombre} · {item.tireSize ?? item.selectedProductCode ?? "sin medida/modelo"}</p></div>
+        <span className="rounded-full px-2 py-1 text-[10px] font-bold" style={{ background: "color-mix(in srgb, var(--color-violet) 12%, transparent)" }}>{remainingLabel}</span>
+      </div>
+      <p className="mt-3 line-clamp-2 text-xs leading-relaxed text-paper/80">{item.summary}</p>
+      <dl className="mt-3 grid gap-2 text-[11px] sm:grid-cols-2">
+        <div><dt className="text-faint">Último mensaje</dt><dd className="mt-0.5 line-clamp-2">{item.lastMessage ?? "—"}</dd></div>
+        <div><dt className="text-faint">Próximo seguimiento</dt><dd className="mt-0.5">{item.dueAt ? new Date(item.dueAt).toLocaleString("es-EC") : "No programado"}</dd></div>
+      </dl>
+      {item.preview && <div className="mt-3 rounded-xl bg-paper/[.05] p-3"><p className="microlabel">Mensaje exacto</p><p className="mt-1 text-xs">{item.preview}</p></div>}
+      {item.templateRequired && <p className="mt-2 text-[11px] font-bold text-amber-500">Plantilla requerida: {item.templateRequired}</p>}
+      {item.alertReason && <p className="mt-2 text-[11px] text-red">Motivo: {item.alertReason}</p>}
+      <div className="mt-3 flex flex-wrap gap-1.5">
+        <button onClick={() => void setAtiende(item.conversationId, "humano")} className="rounded-lg bg-violet/15 px-2.5 py-1.5 text-[10px] font-bold">Tomar control</button>
+        {item.id && <button onClick={() => void followUpAction(item.id!, "send")} className="rounded-lg bg-lime/15 px-2.5 py-1.5 text-[10px] font-bold">Enviar ahora</button>}
+        {item.id && <button onClick={() => { const value = window.prompt("Editar mensaje", item.preview); if (value?.trim()) void followUpAction(item.id!, "edit", value.trim()); }} className="rounded-lg bg-paper/10 px-2.5 py-1.5 text-[10px] font-bold">Editar</button>}
+        {item.id && <button onClick={() => void followUpAction(item.id!, "cancel")} className="rounded-lg bg-red/10 px-2.5 py-1.5 text-[10px] font-bold text-red">Cancelar</button>}
+        <button onClick={() => navigate(`ticket/${item.conversationId}`)} className="rounded-lg bg-paper/10 px-2.5 py-1.5 text-[10px] font-bold">Abrir conversación</button>
+      </div>
+    </article>
+  );
+}
+
+function FollowUpsView({ now }: { now: number }) {
+  const followUps = useHub((state) => state.followUps);
+  return <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-8">
+    <div className="grid gap-5 xl:grid-cols-2">
+      {FOLLOW_UP_GROUPS.map((group) => {
+        const items = followUps.filter((item) => item.bucket === group.id);
+        return <section key={group.id}>
+          <div className="mb-2 flex items-center gap-2"><h3 className="text-xs font-black uppercase tracking-wide">{group.label}</h3><span className="tnum rounded-full bg-paper/10 px-2 text-[10px]">{items.length}</span></div>
+          <div className="grid gap-2">{items.length ? items.map((item) => <FollowUpCardView key={`${item.conversationId}-${item.id ?? group.id}`} item={item} now={now} />) : <div className="rounded-2xl border border-dashed border-paper/10 p-5 text-center text-xs text-faint">Sin seguimientos en este estado</div>}</div>
+        </section>;
+      })}
+    </div>
+  </div>;
+}
+
 export function Pipeline() {
   const { tickets, moverEtapa, metrics } = useHub();
   const now = useNow();
-  const [vista, setVista] = useState<"kanban" | "embudo">("kanban");
+  const [vista, setVista] = useState<"kanban" | "seguimientos" | "embudo">("kanban");
   const [activo, setActivo] = useState<Ticket | null>(null);
   const [cerrando, setCerrando] = useState<Ticket | null>(null);
   const cerrar = useHub((s) => s.cerrar);
@@ -192,6 +250,7 @@ export function Pipeline() {
           onChange={setVista}
           opciones={[
             { valor: "kanban", label: "Kanban" },
+            { valor: "seguimientos", label: "Seguimientos" },
             { valor: "embudo", label: "Embudo" },
           ]}
         />
@@ -217,7 +276,7 @@ export function Pipeline() {
             )}
           </DragOverlay>
         </DndContext>
-      ) : (
+      ) : vista === "seguimientos" ? <FollowUpsView now={now} /> : (
         <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-6">
           <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="glass max-w-2xl rounded-3xl p-6">
             <p className="microlabel mb-4">Embudo del mes — conversión etapa a etapa</p>

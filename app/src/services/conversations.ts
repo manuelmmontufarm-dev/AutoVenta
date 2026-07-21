@@ -1,6 +1,7 @@
 import { sql } from "../db/client.js";
 import { config } from "../config.js";
 import { isStage, type Stage } from "../domain/pipeline.js";
+import { cancelPendingFollowUps, scheduleConversationFollowUps } from "./followUps.js";
 
 export type { Stage } from "../domain/pipeline.js";
 
@@ -95,12 +96,14 @@ export async function appendMessage(
     authorKind?: "customer" | "bot" | "owner" | "system";
     status?: "queued" | "sent" | "delivered" | "read" | "failed";
     metadata?: Record<string, unknown>;
+    occurredAt?: Date;
   } = {},
 ): Promise<boolean> {
+  const occurredAt = options.occurredAt ?? new Date();
   const rows = await sql`
     insert into messages (
       conversation_id, role, content, wa_message_id, direction, type,
-      author_kind, status, metadata, sent_at, cycle
+      author_kind, status, metadata, sent_at, cycle, created_at
     )
     values (
       ${conversationId},
@@ -112,8 +115,9 @@ export async function appendMessage(
       ${options.authorKind ?? (role === "user" ? "customer" : role === "assistant" ? "bot" : "system")},
       ${options.status ?? (role === "user" ? "delivered" : null)},
       ${sql.json((options.metadata ?? {}) as never)},
-      ${role === "user" ? null : new Date()},
-      (select current_cycle from conversations where id = ${conversationId})
+      ${role === "user" ? null : occurredAt},
+      (select current_cycle from conversations where id = ${conversationId}),
+      ${occurredAt}
     )
     on conflict (wa_message_id) do nothing
     returning id
@@ -123,14 +127,21 @@ export async function appendMessage(
       await sql`
         update conversations
         set unread_count = unread_count + 1,
-            last_customer_message_at = now(),
+            last_customer_message_at = greatest(
+              coalesce(last_customer_message_at, '-infinity'::timestamptz),
+              ${occurredAt}
+            ),
             updated_at = now()
         where id = ${conversationId}
       `;
     } else if (role === "assistant") {
       await sql`
         update conversations
-        set last_assistant_message_at = now(), updated_at = now()
+        set last_assistant_message_at = greatest(
+              coalesce(last_assistant_message_at, '-infinity'::timestamptz),
+              ${occurredAt}
+            ),
+            updated_at = now()
         where id = ${conversationId}
       `;
     }
@@ -230,6 +241,11 @@ export async function setStage(
         closed_at = excluded.closed_at
     `;
   }
+  await cancelPendingFollowUps(
+    conversationId,
+    stage === "ganado" || stage === "perdido" ? `conversation_closed_${stage}` : "stage_changed",
+    current.current_cycle,
+  );
 }
 
 export async function updateConversationFacts(
@@ -241,6 +257,12 @@ export async function updateConversationFacts(
     selectedQuantity?: number;
     locationLabel?: string;
     nearestStore?: string;
+    pickupDate?: Date;
+    visitDate?: Date;
+    offerExpiresAt?: Date;
+    savingsAmount?: number;
+    customerCommitment?: string;
+    followUpReason?: string;
   },
 ): Promise<void> {
   await sql`
@@ -251,6 +273,12 @@ export async function updateConversationFacts(
       selected_quantity = coalesce(${facts.selectedQuantity ?? null}, selected_quantity),
       location_label = coalesce(${facts.locationLabel ?? null}, location_label),
       nearest_store = coalesce(${facts.nearestStore ?? null}, nearest_store),
+      pickup_date = coalesce(${facts.pickupDate ?? null}, pickup_date),
+      visit_date = coalesce(${facts.visitDate ?? null}, visit_date),
+      offer_expires_at = coalesce(${facts.offerExpiresAt ?? null}, offer_expires_at),
+      savings_amount = coalesce(${facts.savingsAmount ?? null}, savings_amount),
+      customer_commitment = coalesce(${facts.customerCommitment ?? null}, customer_commitment),
+      follow_up_reason = coalesce(${facts.followUpReason ?? null}, follow_up_reason),
       updated_at = now()
     where id = ${conversationId}
   `;
@@ -344,12 +372,18 @@ export async function setConversationAssignee(
         updated_at = now()
     where id = ${conversationId}
   `;
+  if (assignedTo === "human") {
+    await cancelPendingFollowUps(conversationId, "human_took_control");
+  } else {
+    await scheduleConversationFollowUps(conversationId);
+  }
 }
 
 export async function recordMessageStatus(
   providerId: string,
   status: string,
   payload: Record<string, unknown> = {},
+  occurredAt = new Date(),
 ): Promise<number | null> {
   const normalized =
     status === "sent" ||
@@ -360,23 +394,41 @@ export async function recordMessageStatus(
       : "unknown";
   const [message] = await sql<{ id: number; conversation_id: number }[]>`
     update messages
-    set status = ${normalized},
-        sent_at = case when ${normalized} = 'sent' then coalesce(sent_at, now()) else sent_at end,
-        delivered_at = case when ${normalized} = 'delivered' then coalesce(delivered_at, now()) else delivered_at end,
-        read_at = case when ${normalized} = 'read' then coalesce(read_at, now()) else read_at end,
-        failed_at = case when ${normalized} = 'failed' then coalesce(failed_at, now()) else failed_at end,
+    set status = case
+          when ${normalized} = 'failed' then 'failed'
+          when (case ${normalized} when 'sent' then 1 when 'delivered' then 2 when 'read' then 3 else 0 end)
+             >= (case status when 'sent' then 1 when 'delivered' then 2 when 'read' then 3 else 0 end)
+          then ${normalized} else status end,
+        sent_at = case when ${normalized} = 'sent' then coalesce(sent_at, ${occurredAt}) else sent_at end,
+        delivered_at = case when ${normalized} = 'delivered' then coalesce(delivered_at, ${occurredAt}) else delivered_at end,
+        read_at = case when ${normalized} = 'read' then coalesce(read_at, ${occurredAt}) else read_at end,
+        failed_at = case when ${normalized} = 'failed' then coalesce(failed_at, ${occurredAt}) else failed_at end,
         metadata = metadata || ${sql.json(payload as never)}
     where wa_message_id = ${providerId}
     returning id, conversation_id
   `;
   await sql`
-    insert into message_status_events (message_id, provider_id, status, payload)
+    insert into message_status_events (message_id, provider_id, status, payload, created_at)
     values (
       ${message?.id ?? null},
       ${providerId},
       ${normalized},
-      ${sql.json(payload as never)}
+      ${sql.json(payload as never)},
+      ${occurredAt}
     )
+  `;
+  await sql`
+    update follow_up_attempts
+    set status = case
+          when ${normalized} = 'failed' then 'failed'
+          when (case ${normalized} when 'sent' then 1 when 'delivered' then 2 when 'read' then 3 else 0 end)
+             >= (case status when 'sent' then 1 when 'delivered' then 2 when 'read' then 3 else 0 end)
+          then ${normalized} else status end,
+        sent_at = case when ${normalized} = 'sent' then coalesce(sent_at, ${occurredAt}) else sent_at end,
+        delivered_at = case when ${normalized} = 'delivered' then coalesce(delivered_at, ${occurredAt}) else delivered_at end,
+        read_at = case when ${normalized} = 'read' then coalesce(read_at, ${occurredAt}) else read_at end,
+        failed_at = case when ${normalized} = 'failed' then coalesce(failed_at, ${occurredAt}) else failed_at end
+    where provider_message_id = ${providerId}
   `;
   return message ? Number(message.conversation_id) : null;
 }

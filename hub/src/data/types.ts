@@ -11,7 +11,7 @@ export type Etapa =
   | "medida_confirmada"
   | "seleccionando"
   | "cotizacion_enviada"
-  | "handoff_visita"
+  | "seguimiento_venta"
   | "ganado"
   | "perdido";
 
@@ -26,7 +26,7 @@ export const ETAPAS: Etapa[] = [
   "medida_confirmada",
   "seleccionando",
   "cotizacion_enviada",
-  "handoff_visita",
+  "seguimiento_venta",
 ];
 
 export const ETAPA_META: Record<
@@ -57,11 +57,11 @@ export const ETAPA_META: Record<
     color: "var(--etapa-ubicacion)",
     descripcion: "Eligió un modelo y cantidad — PDF final enviado",
   },
-  handoff_visita: {
-    nombre: "Visita / handoff",
-    corto: "Visita",
+  seguimiento_venta: {
+    nombre: "Seguimiento hasta venta",
+    corto: "Seguimiento",
     color: "var(--etapa-visita)",
-    descripcion: "Confirmó visita, reserva o pidió atención humana",
+    descripcion: "Visita, ubicación, reserva, handoff y seguimiento comercial",
   },
   ganado: {
     nombre: "Ganado",
@@ -123,6 +123,45 @@ export interface Ticket {
   ultimaActividad: string;
   /** Preview del último mensaje para el inbox (denormalizado, como WhatsApp). */
   ultimoMensaje: string;
+  resumen?: string;
+  queBusca?: string;
+  opcionesComparadas?: unknown[];
+  opcionElegida?: string;
+  compromisoCliente?: string;
+  pickupDate?: string;
+  visitDate?: string;
+  offerExpiresAt?: string;
+  localCercano?: string;
+  followUpReason?: string;
+  customerOptIn?: boolean;
+  optedOutAt?: string;
+  ventanaCierraEn?: string;
+  proximoSeguimiento?: {
+    id: number; dueAt: string; status: string; preview: string;
+    templateKey: string | null; windowClosesAt: string | null;
+  };
+  historialSeguimientos?: Array<{
+    id: number; type: string; status: string; createdAt: string;
+    sentAt?: string; deliveredAt?: string; readAt?: string; error?: string;
+  }>;
+}
+
+export type FollowUpBucket = "attention_now" | "today" | "tomorrow" | "waiting_response" | "window_closed" | "human_control" | "cancelled_failed";
+
+export interface FollowUpCard {
+  id: number | null; conversationId: number; cycle: number; type: string | null;
+  status: string | null; bucket: FollowUpBucket; customer: string; phone: string;
+  stage: Etapa; tireSize: string | null; selectedProductCode: string | null;
+  summary: string; lastMessage: string | null; lastAt: string | null; dueAt: string | null;
+  windowClosesAt: string | null; preview: string; templateRequired: string | null;
+  alertReason: string | null; assignedTo: "bot" | "human";
+}
+
+export interface BotAlert {
+  id: number; conversationId: number; type: string;
+  priority: "critical" | "high" | "medium" | "low";
+  summary: string; exactReason: string; suggestedAction: string;
+  status: string; snoozedUntil: string | null; createdAt: string; customer: string;
 }
 
 export type TipoMensaje = "texto" | "pdf" | "ubicacion";
@@ -168,6 +207,20 @@ export interface HubMetrics {
     brands: number;
     source: string | null;
     lastSync: string | null;
+  };
+  followUps?: {
+    scheduled: number;
+    sent: number;
+    responded: number;
+    converted: number;
+    cancelled_by_reply: number;
+    missed_windows: number;
+    opt_outs: number;
+    negative: number;
+    template_delivered: number;
+    template_read: number;
+    avg_response_seconds: number | null;
+    byStageAndType: Array<{ stage: string; type: string; total: number; sent: number }>;
   };
 }
 

@@ -39,7 +39,7 @@ Etapas:
 - medida_confirmada: el cliente dio o confirmó la medida/vehículo, pero todavía no reaccionó a opciones.
 - seleccionando: el cliente está evaluando opciones, marcas, precios o pide comparar 2–3 modelos. Opciones y comparación son una sola sección.
 - cotizacion_enviada: el cliente confirmó un único modelo y cantidad, por lo que se generó la cotización final.
-- handoff_visita: el cliente confirmó compra/visita/reserva o pidió un humano.
+- seguimiento_venta: visita, ubicación, reserva, handoff o seguimiento comercial hasta concretar la venta.
 - perdido: el cliente rechazó explícitamente continuar.
 
 Usa "ganado" únicamente si el cliente afirma en pasado que ya compró o pagó.

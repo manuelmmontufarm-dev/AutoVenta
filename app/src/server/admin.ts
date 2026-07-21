@@ -50,6 +50,14 @@ import {
 import { getHubFeed, getHubMessages, getHubMetrics, listHubTickets } from "../services/hubData.js";
 import { emitLiveEvent, subscribeLiveEvents } from "../services/liveEvents.js";
 import { isStage } from "../domain/pipeline.js";
+import { authorizeConversationOutbound } from "../services/whatsappPolicy.js";
+import {
+  getFollowUpMetrics,
+  getFollowUpSettings,
+  listBotAlerts,
+  listFollowUpBoard,
+} from "../services/followUpAdmin.js";
+import { cancelPendingFollowUps } from "../services/followUps.js";
 
 const GRAPH = "https://graph.facebook.com/v21.0";
 const ADMIN_KEY = process.env.ADMIN_KEY ?? "";
@@ -181,6 +189,7 @@ export function createAdminRouter(): express.Router {
       metrics: {
         ...(await getHubMetrics(days)),
         inventory: catalogInventoryMetrics(),
+        followUps: await getFollowUpMetrics(),
       },
     });
   });
@@ -206,6 +215,132 @@ export function createAdminRouter(): express.Router {
       clearInterval(heartbeat);
       unsubscribe();
     });
+  });
+
+  router.get("/hub/follow-ups", async (_req, res) => {
+    res.json({ ok: true, followUps: await listFollowUpBoard() });
+  });
+
+  router.post("/hub/follow-ups/:id/send-now", async (req, res) => {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id)) return res.status(400).json({ ok: false, error: "id inválido" });
+    const [job] = await sql<{ conversation_id: number }[]>`
+      update follow_up_jobs set due_at = now(), status = 'scheduled',
+        cancel_reason = null, locked_at = null, locked_by = null
+      where id = ${id} and status in ('scheduled', 'blocked', 'failed')
+      returning conversation_id
+    `;
+    if (!job) return res.status(409).json({ ok: false, error: "Ese seguimiento ya no se puede enviar" });
+    emitLiveEvent("follow_up", Number(job.conversation_id));
+    res.json({ ok: true });
+  });
+
+  router.patch("/hub/follow-ups/:id", async (req, res) => {
+    const id = Number(req.params.id);
+    const preview = String(req.body?.preview ?? "").trim().slice(0, 1000);
+    if (!Number.isInteger(id) || !preview) return res.status(400).json({ ok: false, error: "Mensaje inválido" });
+    const [job] = await sql<{ conversation_id: number }[]>`
+      update follow_up_jobs set payload = jsonb_set(payload, '{preview}', to_jsonb(${preview}::text), true)
+      where id = ${id} and status in ('scheduled', 'blocked') returning conversation_id
+    `;
+    if (!job) return res.status(409).json({ ok: false, error: "Seguimiento no editable" });
+    emitLiveEvent("follow_up", Number(job.conversation_id));
+    res.json({ ok: true });
+  });
+
+  router.delete("/hub/follow-ups/:id", async (req, res) => {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id)) return res.status(400).json({ ok: false, error: "id inválido" });
+    const [job] = await sql<{ conversation_id: number }[]>`
+      update follow_up_jobs set status = 'cancelled', cancel_reason = 'cancelled_by_owner', executed_at = now()
+      where id = ${id} and status in ('scheduled', 'blocked', 'failed') returning conversation_id
+    `;
+    if (job) emitLiveEvent("follow_up", Number(job.conversation_id));
+    res.json({ ok: true });
+  });
+
+  router.get("/hub/alerts", async (_req, res) => {
+    res.json({ ok: true, alerts: await listBotAlerts() });
+  });
+
+  router.post("/hub/alerts/:id/action", async (req, res) => {
+    const id = Number(req.params.id);
+    const action = String(req.body?.action ?? "");
+    if (!Number.isInteger(id) || !["resolve", "snooze", "take"].includes(action)) {
+      return res.status(400).json({ ok: false, error: "Acción inválida" });
+    }
+    const [alert] = await sql<{ conversation_id: number }[]>`
+      update bot_alerts set
+        status = ${action === "resolve" || action === "take" ? "resolved" : "snoozed"},
+        resolved_at = ${action === "resolve" || action === "take" ? new Date() : null},
+        snoozed_until = ${action === "snooze" ? new Date(Date.now() + 4 * 60 * 60 * 1000) : null}
+      where id = ${id} returning conversation_id
+    `;
+    if (!alert) return res.status(404).json({ ok: false, error: "Alerta no encontrada" });
+    if (action === "take") await setConversationAssignee(Number(alert.conversation_id), "human");
+    emitLiveEvent("alert", Number(alert.conversation_id));
+    res.json({ ok: true });
+  });
+
+  router.get("/follow-up-settings", async (_req, res) => {
+    res.json({ ok: true, ...(await getFollowUpSettings()) });
+  });
+
+  router.put("/follow-up-settings/policy", async (req, res) => {
+    const input = z.object({
+      timezone: z.string().min(1).max(80), businessHours: z.record(z.string(), z.unknown()),
+      quietHours: z.record(z.string(), z.unknown()).default({}), enabledStages: z.array(z.string()).max(10),
+      enabled: z.boolean(), firstDelayMinutes: z.number().int().min(1).max(10080),
+      secondBeforeCloseMinutes: z.number().int().min(1).max(1440), minimumGapMinutes: z.number().int().min(1).max(1440),
+      maxInWindowAttempts: z.number().int().min(0).max(5), maxPostWindowAttempts: z.number().int().min(0).max(5),
+      postWindowGapMinutes: z.number().int().min(1440).max(10080), advisorAlertDays: z.number().int().min(1).max(30),
+      recommendCloseDays: z.number().int().min(1).max(90), requireConsent: z.boolean(), respectOptOut: z.boolean(),
+      neverOutsideHours: z.boolean(), maxMessagesPerDay: z.number().int().min(1).max(10), pauseOnHumanControl: z.boolean(),
+      alertSettings: z.record(z.string(), z.unknown()).default({}),
+    }).parse(req.body);
+    await sql`
+      update follow_up_policies set enabled=${input.enabled}, timezone=${input.timezone},
+        business_hours=${sql.json(input.businessHours as never)}, quiet_hours=${sql.json(input.quietHours as never)},
+        enabled_stages=${sql.json(input.enabledStages as never)}, first_delay_minutes=${input.firstDelayMinutes},
+        second_before_close_minutes=${input.secondBeforeCloseMinutes}, minimum_gap_minutes=${input.minimumGapMinutes},
+        max_in_window_attempts=${input.maxInWindowAttempts}, max_post_window_attempts=${input.maxPostWindowAttempts},
+        post_window_gap_minutes=${input.postWindowGapMinutes}, advisor_alert_days=${input.advisorAlertDays},
+        recommend_close_days=${input.recommendCloseDays}, require_consent=${input.requireConsent},
+        respect_opt_out=${input.respectOptOut}, never_outside_hours=${input.neverOutsideHours},
+        max_messages_per_day=${input.maxMessagesPerDay}, pause_on_human_control=${input.pauseOnHumanControl}, updated_at=now()
+        , alert_settings=${sql.json(input.alertSettings as never)}
+      where policy_key='default'
+    `;
+    emitLiveEvent("settings"); res.json({ ok: true });
+  });
+
+  router.put("/follow-up-settings/templates/:key", async (req, res) => {
+    const key = String(req.params.key);
+    const input = z.object({ templateName: z.string().max(512).nullable(), language: z.string().min(1).max(20),
+      expectedCategory: z.string().max(40), variables: z.array(z.string()).max(20), buttons: z.array(z.unknown()).max(10),
+      preview: z.string().max(2000), approvalStatus: z.enum(["not_configured", "pending", "approved", "rejected"]),
+      configured: z.boolean(), automaticSend: z.boolean() }).parse(req.body);
+    await sql`update follow_up_templates set template_name=${input.templateName}, language=${input.language},
+      expected_category=${input.expectedCategory}, variables=${sql.json(input.variables as never)}, buttons=${sql.json(input.buttons as never)},
+      preview=${input.preview}, approval_status=${input.approvalStatus}, configured=${input.configured},
+      automatic_send=${input.automaticSend}, updated_at=now() where template_key=${key}`;
+    emitLiveEvent("settings"); res.json({ ok: true });
+  });
+
+  router.get("/hub/follow-up-metrics", async (_req, res) => {
+    res.json({ ok: true, metrics: await getFollowUpMetrics() });
+  });
+
+  router.post("/hub/tickets/:id/consent", async (req, res) => {
+    const id = Number(req.params.id); const granted = Boolean(req.body?.granted);
+    if (!Number.isInteger(id)) return res.status(400).json({ ok: false, error: "id inválido" });
+    const [conversation] = await sql<{ current_cycle: number }[]>`select current_cycle from conversations where id=${id}`;
+    if (!conversation) return res.status(404).json({ ok: false, error: "Conversación no encontrada" });
+    await sql`update conversations set customer_opt_in=${granted}, opted_out_at=${granted ? null : new Date()}, updated_at=now() where id=${id}`;
+    await sql`insert into customer_consents (conversation_id, cycle, status, source, recorded_by, revoked_at)
+      values (${id}, ${conversation.current_cycle}, ${granted ? "granted" : "revoked"}, 'admin_panel', 'owner', ${granted ? null : new Date()})`;
+    if (!granted) await cancelPendingFollowUps(id, "consent_revoked");
+    emitLiveEvent("sync", id); res.json({ ok: true });
   });
 
   router.patch("/hub/tickets/:id/stage", async (req, res) => {
@@ -466,6 +601,22 @@ export function createAdminRouter(): express.Router {
     `;
     if (!conversation) return res.status(404).json({ ok: false, error: "Conversación no encontrada" });
 
+    const decision = await authorizeConversationOutbound({
+      conversationId: id,
+      contentType: "text",
+      actor: "owner",
+    });
+    if (!decision.allowed) {
+      return res.status(409).json({
+        ok: false,
+        error: decision.code === "window_closed"
+          ? "La ventana de 24 h está cerrada. Selecciona una plantilla aprobada; no se enviará texto libre."
+          : `Envío bloqueado por seguridad: ${decision.code}`,
+        policyCode: decision.code,
+        windowClosesAt: decision.windowClosesAt?.toISOString() ?? null,
+      });
+    }
+
     const sent = await sendTextDetailed(conversation.phone, text);
     if (!sent.ok) return res.status(sent.status).json(sent);
 
@@ -553,6 +704,26 @@ export function createAdminRouter(): express.Router {
     const message = String(req.body?.message ?? "").trim();
     if (!to || !message) {
       return res.status(400).json({ ok: false, error: "Escribe el número y el mensaje." });
+    }
+    const [conversation] = await sql<{ id: number }[]>`
+      select id from conversations where phone = ${to}
+    `;
+    if (!conversation) {
+      return res.status(409).json({
+        ok: false,
+        error: "Ese número no tiene una conversación entrante. El tester no puede iniciar texto libre.",
+        policyCode: "no_customer_window",
+      });
+    }
+    const decision = await authorizeConversationOutbound({
+      conversationId: Number(conversation.id), contentType: "text", actor: "owner",
+    });
+    if (!decision.allowed) {
+      return res.status(409).json({
+        ok: false,
+        error: "Envío bloqueado por la política de 24 h; usa una plantilla aprobada.",
+        policyCode: decision.code,
+      });
     }
     const sent = await sendTextDetailed(to, message);
     res.status(sent.ok ? 200 : sent.status).json(sent);

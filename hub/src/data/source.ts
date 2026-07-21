@@ -1,4 +1,4 @@
-import type { Atiende, Cierre, Etapa, FeedItem, HubMetrics, Mensaje, Rol, Ticket } from "./types";
+import type { Atiende, BotAlert, Cierre, Etapa, FeedItem, FollowUpCard, HubMetrics, Mensaje, Rol, Ticket } from "./types";
 
 /**
  * El contrato entre la UI y los datos. Parte 1: MockSource (fixtures + simulador).
@@ -17,6 +17,10 @@ export interface DataSource {
   getMensajes(ticketId: number): Promise<Mensaje[]>;
   getFeed(): Promise<FeedItem[]>;
   getMetrics(days?: number): Promise<HubMetrics>;
+  listFollowUps(): Promise<FollowUpCard[]>;
+  listAlerts(): Promise<BotAlert[]>;
+  followUpAction(id: number, action: "send" | "cancel" | "edit", preview?: string): Promise<void>;
+  alertAction(id: number, action: "resolve" | "snooze" | "take"): Promise<void>;
   moverEtapa(ticketId: number, etapa: Etapa): Promise<void>;
   cerrar(ticketId: number, cierre: Cierre, nota?: string): Promise<void>;
   reabrir(ticketId: number): Promise<void>;

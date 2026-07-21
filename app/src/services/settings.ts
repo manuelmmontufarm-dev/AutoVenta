@@ -113,10 +113,10 @@ const DEFAULT_STAGE_PROMPTS: Record<Stage, StagePromptInput> = {
     allowedTools: ["local_mas_cercano", "notificar_vendedor", "generar_cotizacion"],
     settings: { autoAction: "none", requiresHumanApproval: false, fallback: "" },
   },
-  handoff_visita: {
-    objective: "Coordinar el traspaso al vendedor sin prometer pagos ni reservas.",
+  seguimiento_venta: {
+    objective: "Dar seguimiento comercial hasta la venta, incluyendo visita, reserva y handoff.",
     prompt:
-      "Resume lo acordado, confirma local y horario, y deja el cierre comercial a un humano.",
+      "Resume lo acordado y confirma local u horario sin inventar datos. Mantén el caso abierto hasta una venta o rechazo verificados.",
     allowedTools: ["local_mas_cercano", "notificar_vendedor"],
     settings: { autoAction: "handoff", requiresHumanApproval: false, fallback: "" },
   },

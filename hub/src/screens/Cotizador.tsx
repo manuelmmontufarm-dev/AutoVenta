@@ -560,6 +560,9 @@ function ProductCard({
           {product.brand}
         </span>
         <AvailabilityBadge value={product.availability} />
+        <span className="absolute right-3 bottom-3 rounded-full border border-black/[.07] bg-white/90 px-2 py-1 text-[9.5px] font-bold text-black/60 shadow-sm backdrop-blur-sm">
+          {Math.max(0, product.stock).toLocaleString("es-EC")} en inventario
+        </span>
       </button>
       <div className="p-4">
         <p className="truncate text-base font-extrabold text-paper">

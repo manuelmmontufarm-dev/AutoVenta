@@ -133,21 +133,21 @@ const seeds: TicketSeed[] = [
   // ── Abiertos · POR VISITAR ──
   {
     id: 16, telefono: "+593 99 205 8867", nombre: "Karen Moya", estado: "abierto",
-    etapa: "handoff_visita", atiende: "bot", vehiculo: "Chevrolet Sail 2019", medida: "185/60 R14",
+    etapa: "seguimiento_venta", atiende: "bot", vehiculo: "Chevrolet Sail 2019", medida: "185/60 R14",
     cotizacion: cot(1032, [llanta("185/60 R14", "Kenda", "Kaiser KR26", 62)]),
     localAsignado: { nombre: CUMBAYA.nombre, direccion: CUMBAYA.direccion, distanciaKm: 2.4 },
     esRecurrente: false, creadoEn: hace(95),
   },
   {
     id: 17, telefono: "+593 98 319 4405", nombre: "Fernando Ortiz", estado: "abierto",
-    etapa: "handoff_visita", atiende: "humano", vehiculo: "Toyota Fortuner 2020", medida: "265/65 R17",
+    etapa: "seguimiento_venta", atiende: "humano", vehiculo: "Toyota Fortuner 2020", medida: "265/65 R17",
     cotizacion: cot(1033, [llanta("265/65 R17", "Falken", "Wildpeak A/T3W", 189)]),
     localAsignado: { nombre: SUR.nombre, direccion: SUR.direccion, distanciaKm: 4.2 },
     esRecurrente: false, creadoEn: hace(200), notas: ["Quiere alineación y balanceo incluidos — confirmar precio con taller"],
   },
   {
     id: 18, telefono: "+593 96 448 2270", nombre: "Estefanía Cueva", estado: "abierto",
-    etapa: "handoff_visita", atiende: "bot", vehiculo: "Kia Rio 2018", medida: "195/55 R16",
+    etapa: "seguimiento_venta", atiende: "bot", vehiculo: "Kia Rio 2018", medida: "195/55 R16",
     cotizacion: cot(1034, [llanta("195/55 R16", "Sunoco", "Ecoplus HP", 78, 2)]),
     localAsignado: { nombre: CUMBAYA.nombre, direccion: CUMBAYA.direccion, distanciaKm: 6.0 },
     esRecurrente: true, creadoEn: hace(60 * 28),
@@ -155,7 +155,7 @@ const seeds: TicketSeed[] = [
   // ── Cerrados · GANADO ──
   {
     id: 19, telefono: "+593 98 106 3349", nombre: "Wladimir Pazmiño", estado: "cerrado",
-    etapa: "handoff_visita", cierre: "ganado", cerradoEn: hace(60 * 49), atiende: "bot",
+    etapa: "seguimiento_venta", cierre: "ganado", cerradoEn: hace(60 * 49), atiende: "bot",
     vehiculo: "Chevrolet D-Max 2021", medida: "245/70 R16",
     cotizacion: cot(1019, [llanta("245/70 R16", "Kenda", "Klever A/T KR28", 126)]),
     localAsignado: { nombre: SUR.nombre, direccion: SUR.direccion, distanciaKm: 2.2 },
@@ -163,7 +163,7 @@ const seeds: TicketSeed[] = [
   },
   {
     id: 20, telefono: "+593 99 872 5510", nombre: "Nathaly Aguirre", estado: "cerrado",
-    etapa: "handoff_visita", cierre: "ganado", cerradoEn: hace(60 * 74), atiende: "bot",
+    etapa: "seguimiento_venta", cierre: "ganado", cerradoEn: hace(60 * 74), atiende: "bot",
     vehiculo: "Chevrolet Sail 2020", medida: "185/60 R14",
     cotizacion: cot(1020, [llanta("185/60 R14", "Kenda", "Kaiser KR26", 62)]),
     localAsignado: { nombre: CUMBAYA.nombre, direccion: CUMBAYA.direccion, distanciaKm: 3.5 },
@@ -171,7 +171,7 @@ const seeds: TicketSeed[] = [
   },
   {
     id: 21, telefono: "+593 96 771 9284", nombre: "Óscar Valdez", estado: "cerrado",
-    etapa: "handoff_visita", cierre: "ganado", cerradoEn: hace(60 * 98), atiende: "humano",
+    etapa: "seguimiento_venta", cierre: "ganado", cerradoEn: hace(60 * 98), atiende: "humano",
     vehiculo: "Toyota Hilux 2022", medida: "265/65 R17",
     cotizacion: cot(1021, [llanta("265/65 R17", "Falken", "Wildpeak A/T3W", 189)]),
     localAsignado: { nombre: SUR.nombre, direccion: SUR.direccion, distanciaKm: 1.9 },
@@ -179,7 +179,7 @@ const seeds: TicketSeed[] = [
   },
   {
     id: 22, telefono: "+593 98 990 4152", nombre: "Tatiana Rueda", estado: "cerrado",
-    etapa: "handoff_visita", cierre: "ganado", cerradoEn: hace(60 * 146), atiende: "bot",
+    etapa: "seguimiento_venta", cierre: "ganado", cerradoEn: hace(60 * 146), atiende: "bot",
     vehiculo: "Toyota Corolla 2016", medida: "195/65 R15",
     cotizacion: cot(1022, [llanta("195/65 R15", "Sunoco", "Ecoplus HP", 73)]),
     localAsignado: { nombre: CUMBAYA.nombre, direccion: CUMBAYA.direccion, distanciaKm: 4.7 },

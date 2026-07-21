@@ -4,7 +4,7 @@
  */
 import { config } from "./config.js";
 import { createServer } from "./server/webhook.js";
-import { wa, sendText, showTyping } from "./wa/client.js";
+import { wa, sendCustomerText, showTyping } from "./wa/client.js";
 import { InboundPipeline } from "./pipeline/inbound.js";
 import { runAgent } from "./agent/agent.js";
 import { classifyStage } from "./agent/classifier.js";
@@ -22,23 +22,31 @@ import {
 import { emitLiveEvent } from "./services/liveEvents.js";
 import { extractTireSizes, formatTireSize } from "./domain/tireSize.js";
 import { getHubMetrics } from "./services/hubData.js";
+import {
+  handleInboundFollowUpState,
+  scheduleConversationFollowUps,
+} from "./services/followUps.js";
 
-const pipeline = new InboundPipeline(async ({ from, name, text, waMessageIds }) => {
+const pipeline = new InboundPipeline(async ({ from, name, text, waMessageIds, receivedAt }) => {
   const conversation = await getOrCreateConversation(from, name);
 
   // Idempotencia definitiva: si TODOS los mensajes ya estaban en DB, es un retry.
   let anyNew = false;
   for (const waId of waMessageIds) {
-    if (await appendMessage(conversation.id, "user", text, waId)) anyNew = true;
+    if (await appendMessage(conversation.id, "user", text, waId, { occurredAt: receivedAt })) anyNew = true;
     break; // el texto ya viene agrupado; un solo registro con el primer id
   }
   if (!anyNew) return;
+  const inboundSafety = await handleInboundFollowUpState(conversation.id, text);
   const parsedSize = extractTireSizes(text)[0];
   if (parsedSize) {
     await updateConversationFacts(conversation.id, { tireSize: formatTireSize(parsedSize) });
   }
   emitLiveEvent("message", conversation.id);
   emitLiveEvent("sync", conversation.id);
+
+  // Opt-out o molestia detienen el bot antes de typing, IA o cualquier envío.
+  if (inboundSafety.optedOut || inboundSafety.negative || inboundSafety.requestedHuman) return;
 
   if (conversation.stage === "nuevo") {
     await logFunnelEvent(conversation.id, "primer_mensaje");
@@ -59,7 +67,7 @@ const pipeline = new InboundPipeline(async ({ from, name, text, waMessageIds }) 
     text,
   );
 
-  const sentId = await sendText(from, reply);
+  const sentId = await sendCustomerText(conversation.id, from, reply);
   await appendMessage(conversation.id, "assistant", reply, sentId, {
     authorKind: "bot",
     status: "sent",
@@ -67,8 +75,10 @@ const pipeline = new InboundPipeline(async ({ from, name, text, waMessageIds }) 
   emitLiveEvent("message", conversation.id);
   emitLiveEvent("sync", conversation.id);
 
-  // Post-turno, sin bloquear: clasifica etapa para el dashboard.
-  void classifyStage(conversation, text, reply);
+  // Post-turno: primero consolida la etapa y luego agenda contra ese estado.
+  void classifyStage(conversation, text, reply)
+    .then(() => scheduleConversationFollowUps(conversation.id))
+    .catch((error) => console.error("⚠️ No se pudo programar seguimiento:", error));
 });
 
 wa.on.message = async ({ from, name, message, received }) => {
@@ -76,9 +86,10 @@ wa.on.message = async ({ from, name, message, received }) => {
   // el bot de verdad va a responder (pausado = ni typing ni respuesta).
   void received().catch(() => {});
 
+  const receivedAt = new Date(Number(message.timestamp) * 1000);
   switch (message.type) {
     case "text":
-      pipeline.push(from, message.id, message.text.body, name);
+      pipeline.push(from, message.id, message.text.body, name, receivedAt);
       break;
     case "location":
       pipeline.push(
@@ -86,6 +97,7 @@ wa.on.message = async ({ from, name, message, received }) => {
         message.id,
         `[El cliente compartió su ubicación: lat ${message.location.latitude}, lng ${message.location.longitude}]`,
         name,
+        receivedAt,
       );
       break;
     case "image":
@@ -95,6 +107,7 @@ wa.on.message = async ({ from, name, message, received }) => {
         message.id,
         "[El cliente envió una foto que todavía no puedes ver]",
         name,
+        receivedAt,
       );
       break;
     case "audio":
@@ -103,6 +116,7 @@ wa.on.message = async ({ from, name, message, received }) => {
         message.id,
         "[El cliente envió un audio que todavía no puedes escuchar]",
         name,
+        receivedAt,
       );
       break;
     default:
@@ -111,12 +125,12 @@ wa.on.message = async ({ from, name, message, received }) => {
   }
 };
 
-wa.on.status = async ({ status, id, error, conversation, pricing }) => {
+wa.on.status = async ({ status, id, timestamp, error, conversation, pricing }) => {
   const conversationId = await recordMessageStatus(id, status, {
     error: error ?? null,
     conversation: conversation ?? null,
     pricing: pricing ?? null,
-  });
+  }, new Date(Number(timestamp) * 1000));
   emitLiveEvent("status", conversationId ?? undefined);
   if (conversationId) emitLiveEvent("message", conversationId);
 };

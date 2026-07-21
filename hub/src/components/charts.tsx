@@ -30,6 +30,8 @@ export function StatTile({
   detalle,
   color = "var(--color-paper)",
   delay = 0,
+  sparkline,
+  progress,
 }: {
   label: string;
   valor: number;
@@ -37,6 +39,8 @@ export function StatTile({
   detalle?: string;
   color?: string;
   delay?: number;
+  sparkline?: number[];
+  progress?: number;
 }) {
   const animado = useCountUp(valor);
   return (
@@ -50,8 +54,130 @@ export function StatTile({
       <p className="serif tnum mt-2 text-[34px] leading-none" style={{ color }}>
         {formato(animado)}
       </p>
+      {sparkline && sparkline.length > 1 && (
+        <Sparkline values={sparkline} color={color} />
+      )}
+      {progress !== undefined && (
+        <div
+          className="mt-3 h-1.5 overflow-hidden rounded-full bg-paper/[.06]"
+          role="img"
+          aria-label={`${Math.round(Math.max(0, Math.min(100, progress)))} por ciento`}
+        >
+          <motion.div
+            initial={{ width: 0 }}
+            animate={{ width: `${Math.max(0, Math.min(100, progress))}%` }}
+            transition={{ duration: 0.8, delay }}
+            className="h-full rounded-full"
+            style={{ background: color }}
+          />
+        </div>
+      )}
       {detalle && <p className="mt-2 text-[11.5px] text-muted">{detalle}</p>}
     </motion.div>
+  );
+}
+
+export function Sparkline({ values, color }: { values: number[]; color: string }) {
+  const width = 180;
+  const height = 32;
+  const max = Math.max(1, ...values);
+  const points = values
+    .map((value, index) => {
+      const x = (index / Math.max(1, values.length - 1)) * width;
+      const y = height - 3 - (value / max) * (height - 6);
+      return `${x},${y}`;
+    })
+    .join(" ");
+  return (
+    <svg viewBox={`0 0 ${width} ${height}`} className="mt-3 h-8 w-full" aria-hidden="true">
+      <motion.polyline
+        points={points}
+        fill="none"
+        stroke={color}
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        initial={{ pathLength: 0, opacity: 0 }}
+        animate={{ pathLength: 1, opacity: 1 }}
+        transition={{ duration: 0.8 }}
+      />
+    </svg>
+  );
+}
+
+export interface MetricBarItem {
+  label: string;
+  value: number;
+  color: string;
+}
+
+export function MetricBars({ items }: { items: MetricBarItem[] }) {
+  const max = Math.max(1, ...items.map((item) => item.value));
+  return (
+    <div className="space-y-3" role="img" aria-label="Comparación de métricas">
+      {items.map((item, index) => (
+        <div key={item.label}>
+          <div className="mb-1.5 flex items-center justify-between gap-3 text-[10.5px]">
+            <span className="font-semibold text-muted">{item.label}</span>
+            <span className="tnum font-bold text-paper">{item.value.toLocaleString("es-EC")}</span>
+          </div>
+          <div className="h-2 overflow-hidden rounded-full bg-paper/[.06]">
+            <motion.div
+              initial={{ width: 0 }}
+              animate={{ width: `${(item.value / max) * 100}%` }}
+              transition={{ duration: 0.7, delay: index * 0.06 }}
+              className="h-full min-w-[2px] rounded-full"
+              style={{ background: item.color }}
+            />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+export function DonutChart({ items }: { items: MetricBarItem[] }) {
+  const visible = items.filter((item) => item.value > 0);
+  const total = visible.reduce((sum, item) => sum + item.value, 0);
+  let offset = 0;
+  return (
+    <div className="flex items-center gap-5">
+      <div className="relative h-28 w-28 shrink-0">
+        <svg viewBox="0 0 42 42" className="h-full w-full -rotate-90" role="img" aria-label={`Total ${total}`}>
+          <circle cx="21" cy="21" r="15.915" fill="none" stroke="color-mix(in srgb, var(--color-paper) 6%, transparent)" strokeWidth="5" />
+          {visible.map((item) => {
+            const part = (item.value / Math.max(1, total)) * 100;
+            const currentOffset = offset;
+            offset += part;
+            return (
+              <motion.circle
+                key={item.label}
+                cx="21"
+                cy="21"
+                r="15.915"
+                fill="none"
+                stroke={item.color}
+                strokeWidth="5"
+                strokeDasharray={`${part} ${100 - part}`}
+                strokeDashoffset={-currentOffset}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+              />
+            );
+          })}
+        </svg>
+        <span className="tnum absolute inset-0 grid place-items-center text-lg font-extrabold text-paper">{total}</span>
+      </div>
+      <div className="min-w-0 flex-1 space-y-2">
+        {items.map((item) => (
+          <div key={item.label} className="flex items-center gap-2 text-[10.5px]">
+            <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: item.color }} />
+            <span className="min-w-0 flex-1 truncate text-muted">{item.label}</span>
+            <span className="tnum font-bold text-paper">{item.value.toLocaleString("es-EC")}</span>
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
 

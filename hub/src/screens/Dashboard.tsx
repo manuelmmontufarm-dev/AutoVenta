@@ -1,6 +1,6 @@
 import { motion } from "framer-motion";
 import { useMemo } from "react";
-import { AreaChart, FunnelChart, StatTile } from "../components/charts";
+import { AreaChart, DonutChart, FunnelChart, MetricBars, StatTile } from "../components/charts";
 import { CIERRE_META, ETAPAS, ETAPA_META } from "../data/types";
 import { money, relTime } from "../lib/format";
 import { navigate } from "../router";
@@ -15,7 +15,7 @@ export function Dashboard() {
     const conCotizacion = tickets.filter((t) => t.cotizacion);
     const ganados = tickets.filter((t) => t.cierre === "ganado");
     const llegaronVisita = tickets.filter(
-      (t) => t.cierre === "ganado" || t.etapa === "handoff_visita",
+      (t) => t.cierre === "ganado" || t.etapa === "seguimiento_venta",
     );
     const conversion = conCotizacion.length
       ? Math.round((llegaronVisita.length / conCotizacion.length) * 100)
@@ -58,7 +58,7 @@ export function Dashboard() {
     <div className="h-full overflow-y-auto px-4 pb-8">
       {/* KPIs */}
       <div className="grid grid-cols-2 gap-2.5 lg:grid-cols-4">
-        <StatTile label="Tickets abiertos" valor={stats.abiertos} detalle="conversaciones activas ahora" delay={0} />
+        <StatTile label="Tickets abiertos" valor={stats.abiertos} detalle="conversaciones activas ahora" delay={0} sparkline={serie} />
         <StatTile label="Cotizaciones enviadas" valor={stats.cotizaciones} detalle="PDF generados este mes" delay={0.06} />
         <StatTile
           label="Cotizado → visita"
@@ -66,6 +66,7 @@ export function Dashboard() {
           formato={(n) => `${Math.round(n)}%`}
           color="var(--color-lime)"
           detalle="confirman que vienen al local"
+          progress={stats.conversion}
           delay={0.12}
         />
         <StatTile
@@ -118,6 +119,42 @@ export function Dashboard() {
           <FunnelChart pasos={embudo} />
         </motion.section>
       </div>
+
+      {metrics?.followUps && (
+        <motion.section initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="glass mt-2.5 rounded-3xl p-5">
+          <p className="microlabel mb-4">Resultados de seguimientos</p>
+          <div className="grid grid-cols-2 gap-2.5 md:grid-cols-4 xl:grid-cols-6">
+            {[
+              ["Programados", metrics.followUps.scheduled], ["Enviados", metrics.followUps.sent],
+              ["Respondidos", metrics.followUps.responded], ["Ventas recuperadas", metrics.followUps.converted],
+              ["Cancelados por respuesta", metrics.followUps.cancelled_by_reply], ["Ventanas perdidas", metrics.followUps.missed_windows],
+              ["Plantillas entregadas", metrics.followUps.template_delivered], ["Plantillas leídas", metrics.followUps.template_read],
+              ["Opt-outs", metrics.followUps.opt_outs], ["Clientes molestos", metrics.followUps.negative],
+              ["Promedio hasta respuesta", metrics.followUps.avg_response_seconds === null ? "—" : `${Math.round(metrics.followUps.avg_response_seconds / 60)} min`],
+            ].map(([label, value]) => <div key={String(label)} className="rounded-2xl border border-paper/[.07] bg-paper/[.035] p-4"><p className="microlabel">{label}</p><p className="serif tnum mt-2 text-[22px]">{value}</p></div>)}
+          </div>
+          <div className="mt-4 grid gap-2.5 lg:grid-cols-2">
+            <div className="rounded-2xl border border-paper/[.07] bg-paper/[.025] p-4">
+              <p className="microlabel mb-4">Recorrido de seguimientos</p>
+              <MetricBars items={[
+                { label: "Programados", value: metrics.followUps.scheduled, color: "var(--color-violet)" },
+                { label: "Enviados", value: metrics.followUps.sent, color: "var(--color-lime)" },
+                { label: "Respondidos", value: metrics.followUps.responded, color: "var(--color-ok)" },
+                { label: "Ventas recuperadas", value: metrics.followUps.converted, color: "#f8ce5e" },
+              ]} />
+            </div>
+            <div className="rounded-2xl border border-paper/[.07] bg-paper/[.025] p-4">
+              <p className="microlabel mb-4">Estados reales de entrega</p>
+              <DonutChart items={(metrics.deliveries.length > 0 ? metrics.deliveries : [{ status: "sin datos", value: 0 }]).map((item, index) => ({
+                label: deliveryLabel(item.status),
+                value: item.value,
+                color: ["var(--color-violet)", "var(--color-ok)", "var(--color-lime)", "var(--color-warn)", "var(--color-danger)"][index % 5],
+              }))} />
+            </div>
+          </div>
+          {metrics.followUps.byStageAndType.length > 0 && <div className="mt-4 overflow-x-auto"><table className="w-full text-left text-[11px]"><thead className="text-faint"><tr><th className="py-2">Etapa</th><th>Tipo</th><th>Total</th><th>Enviados</th></tr></thead><tbody>{metrics.followUps.byStageAndType.map((row) => <tr key={`${row.stage}-${row.type}`} className="border-t border-paper/[.06]"><td className="py-2">{row.stage}</td><td>{row.type}</td><td>{row.total}</td><td>{row.sent}</td></tr>)}</tbody></table></div>}
+        </motion.section>
+      )}
 
       {/* Inventario real */}
       {metrics?.inventory && (
@@ -236,4 +273,17 @@ export function Dashboard() {
       </motion.section>
     </div>
   );
+}
+
+function deliveryLabel(status: string): string {
+  const labels: Record<string, string> = {
+    queued: "En cola",
+    sent: "Enviados",
+    delivered: "Entregados",
+    read: "Leídos",
+    failed: "Fallidos",
+    unknown: "Sin confirmar",
+    "sin datos": "Sin datos",
+  };
+  return labels[status.toLowerCase()] ?? status;
 }
