@@ -62,12 +62,13 @@ import {
 import { cancelPendingFollowUps, createBotAlert, scheduleConversationFollowUps } from "../services/followUps.js";
 import {
   captureManualDiscount,
-  createDiscountOffer,
+  createDiscountFromPrompt,
   discountOfferMessage,
   markDiscountOfferSent,
 } from "../services/discountOffers.js";
 import { renderQuoteImage, toRenderLine } from "../render/quoteImage.js";
 import { sendImage } from "../wa/client.js";
+import { authorizeAdvisorTemplatePlan, previewAdvisorTemplatePlan } from "../services/followUpCampaigns.js";
 
 const GRAPH = "https://graph.facebook.com/v21.0";
 const ADMIN_KEY = process.env.ADMIN_KEY ?? "";
@@ -308,6 +309,8 @@ export function createAdminRouter(): express.Router {
       neverOutsideHours: z.boolean(), maxMessagesPerDay: z.number().int().min(1).max(10), pauseOnHumanControl: z.boolean(),
       alertSettings: z.record(z.string(), z.unknown()).default({}),
       stagePrompts: z.record(z.string(), z.string().max(2000)).default({}),
+      templateFollowUpDays: z.number().int().min(1).max(8).default(8),
+      templateSendTime: z.string().regex(/^\d{2}:\d{2}$/).default("10:00"),
     }).parse(req.body);
     await sql`
       update follow_up_policies set enabled=${input.enabled}, timezone=${input.timezone},
@@ -319,7 +322,8 @@ export function createAdminRouter(): express.Router {
         recommend_close_days=${input.recommendCloseDays}, require_consent=${input.requireConsent},
         respect_opt_out=${input.respectOptOut}, never_outside_hours=${input.neverOutsideHours},
         max_messages_per_day=${input.maxMessagesPerDay}, pause_on_human_control=${input.pauseOnHumanControl}, updated_at=now()
-        , alert_settings=${sql.json(input.alertSettings as never)}, stage_prompts=${sql.json(input.stagePrompts as never)}
+        , alert_settings=${sql.json(input.alertSettings as never)}, stage_prompts=${sql.json(input.stagePrompts as never)},
+        template_follow_up_days=${input.templateFollowUpDays}, template_send_time=${input.templateSendTime}
       where policy_key='default'
     `;
     emitLiveEvent("settings"); res.json({ ok: true });
@@ -342,6 +346,23 @@ export function createAdminRouter(): express.Router {
     res.json({ ok: true, metrics: await getFollowUpMetrics() });
   });
 
+  router.get("/hub/tickets/:id/template-plan", async (req, res) => {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id)) return res.status(400).json({ ok: false, error: "id inválido" });
+    res.json({ ok: true, plan: await previewAdvisorTemplatePlan(id) });
+  });
+
+  router.post("/hub/tickets/:id/template-plan", async (req, res) => {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id)) return res.status(400).json({ ok: false, error: "id inválido" });
+    try {
+      const plan = await authorizeAdvisorTemplatePlan(id);
+      res.json({ ok: true, plan });
+    } catch (error) {
+      res.status(409).json({ ok: false, error: error instanceof Error ? error.message : "No se pudo autorizar el plan" });
+    }
+  });
+
   router.post("/hub/tickets/:id/consent", async (req, res) => {
     const id = Number(req.params.id); const granted = Boolean(req.body?.granted);
     if (!Number.isInteger(id)) return res.status(400).json({ ok: false, error: "id inválido" });
@@ -358,19 +379,17 @@ export function createAdminRouter(): express.Router {
     const id = Number(req.params.id);
     if (!Number.isInteger(id)) return res.status(400).json({ ok: false, error: "id inválido" });
     try {
-      const input = z.object({
-        amount: z.number().positive().max(100000),
-        reason: z.string().trim().min(3).max(300),
-        condition: z.string().trim().min(3).max(300),
-        expiresAt: z.string().datetime().nullable().optional(),
-      }).parse(req.body);
-      const offer = await createDiscountOffer({
-        conversationId: id,
-        valueCents: Math.round(input.amount * 100),
-        reason: input.reason,
-        condition: input.condition,
-        expiresAt: input.expiresAt ? new Date(input.expiresAt) : null,
-      });
+      const input = z.object({ prompt: z.string().trim().min(3).max(500) }).parse(req.body);
+      const created = await createDiscountFromPrompt(id, input.prompt);
+      if (created.status === "pending") {
+        await scheduleConversationFollowUps(id);
+        return res.status(202).json({
+          ok: true, sent: false, pending: true,
+          message: "Descuento guardado; se aplicará automáticamente a la próxima cotización.",
+          warning: "Todavía no existe una cotización. La regla quedó guardada.",
+        });
+      }
+      const offer = created.offer;
       const message = discountOfferMessage(offer);
       await cancelPendingFollowUps(id, "discount_offer_replaced_plan");
       const decision = await authorizeConversationOutbound({

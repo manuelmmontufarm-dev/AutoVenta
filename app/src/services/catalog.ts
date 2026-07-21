@@ -273,6 +273,25 @@ export function findByCode(code: string): CatalogItem | undefined {
   return items.find((item) => item.code.toLowerCase() === code.toLowerCase());
 }
 
+/**
+ * Resuelve la referencia que el agente conserva de una opción. Meta/LLM puede
+ * devolver el código Contífico, el id o el diseño visible (p. ej. "KR203").
+ * Solo acepta coincidencias inequívocas para no cotizar otra llanta.
+ */
+export function resolveCatalogReference(reference: string): CatalogItem | undefined {
+  const clean = reference.trim().toLowerCase();
+  if (!clean) return undefined;
+  const exact = items.filter((item) =>
+    item.code.toLowerCase() === clean ||
+    item.id.toLowerCase() === clean ||
+    item.design.trim().toLowerCase() === clean ||
+    `${item.brand} ${item.design}`.trim().toLowerCase() === clean,
+  );
+  if (exact.length === 1) return exact[0];
+  const matches = searchByText(reference, 8);
+  return matches.length === 1 ? matches[0] : undefined;
+}
+
 export function findById(id: string): CatalogItem | undefined {
   return items.find((item) => item.id === id);
 }

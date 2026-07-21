@@ -55,5 +55,9 @@ describe("Fase C — política determinística de WhatsApp", () => {
     expect(evaluateOutboundPolicy({ ...base, negativeSentimentAt: base.now })).toMatchObject({ code: "negative_sentiment" });
     expect(evaluateOutboundPolicy({ ...base, assignedTo: "human" })).toMatchObject({ code: "human_control" });
     expect(evaluateOutboundPolicy({ ...base, assignedTo: "human", actor: "owner" })).toMatchObject({ allowed: true });
+    expect(evaluateOutboundPolicy({ ...base, assignedTo: "human", actor: "authorized_campaign",
+      contentType: "template", customerOptIn: true })).toMatchObject({ allowed: true, code: "allowed_template" });
+    expect(evaluateOutboundPolicy({ ...base, assignedTo: "human", actor: "authorized_campaign",
+      contentType: "template", customerOptIn: true, optedOutAt: base.now })).toMatchObject({ allowed: false, code: "opted_out" });
   });
 });

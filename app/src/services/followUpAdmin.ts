@@ -25,7 +25,9 @@ export async function listFollowUpBoard() {
     customer_commitment: string | null;
     visit_date: Date | null;
     pickup_date: Date | null;
-    advisor_alert_days: number;
+    campaign_id: number | null;
+    campaign_template_key: string | null;
+    campaign_plan: unknown[] | null;
   }[]>`
     select j.id as job_id, c.id as conversation_id, c.current_cycle as cycle,
       j.type, j.status, j.due_at, j.window_closes_at, j.payload, j.cancel_reason,
@@ -33,14 +35,14 @@ export async function listFollowUpBoard() {
       c.selected_product_code, m.content as last_message, m.created_at as last_at,
       s.summary, t.template_name, c.last_customer_message_at,
       coalesce(c.customer_commitment, s.customer_commitment) as customer_commitment,
-      c.visit_date, c.pickup_date, p.advisor_alert_days
+      c.visit_date, c.pickup_date, campaign.id as campaign_id,
+      campaign.template_key as campaign_template_key, campaign_jobs.plan as campaign_plan
     from conversations c
     left join lateral (
       select * from follow_up_jobs
       where conversation_id = c.id and cycle = c.current_cycle
-      order by
-        case status when 'processing' then 0 when 'blocked' then 1 when 'scheduled' then 2 else 3 end,
-        due_at asc
+        and status in ('scheduled','processing','blocked')
+      order by due_at asc
       limit 1
     ) j on true
     left join lateral (
@@ -49,28 +51,39 @@ export async function listFollowUpBoard() {
     ) m on true
     left join conversation_summaries s on s.conversation_id = c.id and s.cycle = c.current_cycle
     left join follow_up_templates t on t.template_key = j.payload->>'templateKey'
-    cross join follow_up_policies p
-    where (c.status = 'open' or j.status in ('failed', 'cancelled'))
-      and p.policy_key = 'default'
-    order by coalesce(j.due_at, m.created_at, c.updated_at) asc
+    left join lateral (
+      select id, template_key from follow_up_campaigns
+      where conversation_id=c.id and cycle=c.current_cycle and status='active'
+      order by created_at desc limit 1
+    ) campaign on true
+    left join lateral (
+      select jsonb_agg(jsonb_build_object(
+        'id', fj.id, 'day', fj.payload->>'day', 'dueAt', fj.due_at,
+        'preview', fj.payload->>'preview', 'templateKey', fj.payload->>'templateKey',
+        'status', fj.status
+      ) order by fj.due_at) as plan
+      from follow_up_jobs fj where fj.payload->>'campaignId'=campaign.id::text
+        and fj.status in ('scheduled','processing','blocked')
+    ) campaign_jobs on true
+    where c.status='open' and c.opted_out_at is null and c.negative_sentiment_at is null
+      and c.last_customer_message_at is not null
+      and (
+        c.stage='seguimiento_venta'
+        or (
+          c.last_customer_message_at + interval '24 hours' <= now()
+          and c.last_assistant_message_at >= c.last_customer_message_at
+        )
+      )
+    order by case when c.stage='seguimiento_venta' then 0 else 1 end,
+      coalesce(c.visit_date, c.pickup_date::timestamptz, j.due_at, c.last_customer_message_at) asc
     limit 500
   `;
   const now = new Date();
   return rows.map((row) => {
-    const due = row.due_at;
-    const localToday = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Guayaquil" }).format(now);
-    const dueDay = due ? new Intl.DateTimeFormat("en-CA", { timeZone: "America/Guayaquil" }).format(due) : null;
     const unansweredDays = row.last_customer_message_at
       ? Math.max(0, Math.floor((now.getTime() - row.last_customer_message_at.getTime()) / 86_400_000))
       : 0;
-    const hasCommitment = Boolean(row.customer_commitment || row.visit_date || row.pickup_date);
-    let bucket = "scheduled";
-    if (row.assigned_to === "human" || unansweredDays >= row.advisor_alert_days) bucket = "human_review";
-    else if (row.status === "failed" || row.status === "cancelled") bucket = "cancelled_failed";
-    else if (row.status === "blocked" || (row.window_closes_at && now >= row.window_closes_at)) bucket = "window_closed";
-    else if (due && due <= now) bucket = "attention_now";
-    else if (hasCommitment) bucket = "commitments";
-    else if (dueDay === localToday) bucket = "today";
+    const bucket = row.stage === "seguimiento_venta" ? "closing" : "needs_human";
     return {
       id: row.job_id ? Number(row.job_id) : null,
       conversationId: Number(row.conversation_id),
@@ -86,7 +99,7 @@ export async function listFollowUpBoard() {
       summary: row.summary ?? row.last_message ?? "Conversación abierta esperando respuesta.",
       lastMessage: row.last_message,
       lastAt: row.last_at?.toISOString() ?? null,
-      dueAt: row.due_at?.toISOString() ?? null,
+      dueAt: row.due_at?.toISOString() ?? row.visit_date?.toISOString() ?? row.pickup_date?.toISOString() ?? null,
       windowClosesAt: row.window_closes_at?.toISOString() ?? null,
       preview: String(row.payload?.preview ?? ""),
       templateRequired: String(row.payload?.templateKey ?? row.template_name ?? "") || null,
@@ -96,6 +109,9 @@ export async function listFollowUpBoard() {
       commitment: row.customer_commitment,
       visitDate: row.visit_date?.toISOString() ?? null,
       pickupDate: row.pickup_date?.toISOString() ?? null,
+      campaignId: row.campaign_id ? Number(row.campaign_id) : null,
+      campaignTemplateKey: row.campaign_template_key,
+      campaignPlan: row.campaign_plan ?? [],
     };
   });
 }

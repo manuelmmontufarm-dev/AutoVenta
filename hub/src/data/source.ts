@@ -1,4 +1,4 @@
-import type { Atiende, BotAlert, Cierre, Etapa, FeedItem, FollowUpCard, HubMetrics, Mensaje, Rol, Ticket } from "./types";
+import type { Atiende, BotAlert, Cierre, Etapa, FeedItem, FollowUpCard, HubMetrics, Mensaje, Rol, TemplatePlanPreview, Ticket } from "./types";
 
 /**
  * El contrato entre la UI y los datos. Parte 1: MockSource (fixtures + simulador).
@@ -26,7 +26,9 @@ export interface DataSource {
   reabrir(ticketId: number): Promise<void>;
   setAtiende(ticketId: number, atiende: Atiende): Promise<void>;
   enviarMensaje(ticketId: number, texto: string): Promise<void>; // como vendedor
-  crearDescuento(ticketId: number, input: { amount: number; reason: string; condition: string; expiresAt?: string | null }): Promise<{ sent: boolean; message: string; warning?: string }>;
+  crearDescuento(ticketId: number, prompt: string): Promise<{ sent: boolean; message: string; warning?: string; pending?: boolean }>;
+  getTemplatePlan(ticketId: number): Promise<TemplatePlanPreview>;
+  authorizeTemplatePlan(ticketId: number): Promise<TemplatePlanPreview>;
   agregarNota(ticketId: number, texto: string): Promise<void>;
   marcarLeido(ticketId: number): Promise<void>;
   subscribe(listener: (ev: SourceEvent) => void): () => void;

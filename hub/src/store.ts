@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import type { Atiende, BotAlert, Cierre, Etapa, FeedItem, FollowUpCard, HubMetrics, Mensaje, Rol, Ticket } from "./data/types";
+import type { Atiende, BotAlert, Cierre, Etapa, FeedItem, FollowUpCard, HubMetrics, Mensaje, Rol, TemplatePlanPreview, Ticket } from "./data/types";
 import { MockSource } from "./data/mock/mockSource";
 import { Simulator } from "./data/mock/simulator";
 import { RealSource } from "./data/realSource";
@@ -43,7 +43,9 @@ interface HubState {
   reabrir(id: number): Promise<void>;
   setAtiende(id: number, atiende: Atiende): Promise<void>;
   enviarMensaje(id: number, texto: string): Promise<void>;
-  crearDescuento(id: number, input: { amount: number; reason: string; condition: string; expiresAt?: string | null }): Promise<{ sent: boolean; message: string; warning?: string }>;
+  crearDescuento(id: number, prompt: string): Promise<{ sent: boolean; message: string; warning?: string; pending?: boolean }>;
+  getTemplatePlan(id: number): Promise<TemplatePlanPreview>;
+  authorizeTemplatePlan(id: number): Promise<TemplatePlanPreview>;
   agregarNota(id: number, texto: string): Promise<void>;
   followUpAction(id: number, action: "send" | "cancel" | "edit", preview?: string): Promise<void>;
   alertAction(id: number, action: "resolve" | "snooze" | "take"): Promise<void>;
@@ -158,11 +160,17 @@ export const useHub = create<HubState>((set, get) => {
     reabrir: (id) => source.reabrir(id),
     setAtiende: (id, atiende) => source.setAtiende(id, atiende),
     enviarMensaje: (id, texto) => source.enviarMensaje(id, texto),
-    async crearDescuento(id, input) {
-      const result = await source.crearDescuento(id, input);
+    async crearDescuento(id, prompt) {
+      const result = await source.crearDescuento(id, prompt);
       await refrescar();
       await refrescarMensajes(id);
       return result;
+    },
+    getTemplatePlan: (id) => source.getTemplatePlan(id),
+    async authorizeTemplatePlan(id) {
+      const plan = await source.authorizeTemplatePlan(id);
+      await refrescar();
+      return plan;
     },
     agregarNota: (id, texto) => source.agregarNota(id, texto),
     async followUpAction(id, action, preview) {

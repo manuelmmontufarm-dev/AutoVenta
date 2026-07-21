@@ -109,7 +109,8 @@ export async function processFollowUpJob(
     emitLiveEvent("follow_up", context.id);
     return;
   }
-  if (context.assigned_to === "human" || context.opted_out_at || context.negative_sentiment_at) {
+  const isAuthorizedCampaign = context.job_type.startsWith("advisor_template_day_");
+  if ((!isAuthorizedCampaign && context.assigned_to === "human") || context.opted_out_at || context.negative_sentiment_at) {
     await markFollowUpJobCancelled(job.id, "safety_state_changed");
     return;
   }
@@ -134,12 +135,12 @@ export async function processFollowUpJob(
     return;
   }
 
-  const isPostWindow = context.job_type.startsWith("post_window_");
+  const isPostWindow = context.job_type.startsWith("post_window_") || isAuthorizedCampaign;
   const contentType = isPostWindow ? "template" : "text";
   const decision = await authorizeConversationOutbound({
     conversationId: context.id,
     contentType,
-    actor: "worker",
+    actor: isAuthorizedCampaign ? "authorized_campaign" : "worker",
     now,
   });
   if (!decision.allowed) {
@@ -156,11 +157,22 @@ export async function processFollowUpJob(
       from follow_up_templates where template_key = ${templateKey}
     `;
     template = row ?? null;
+    if (isAuthorizedCampaign) {
+      const campaignId = Number(context.job_payload.campaignId ?? 0);
+      const [campaign] = await sql<{ id: number }[]>`
+        select id from follow_up_campaigns where id=${campaignId}
+          and conversation_id=${context.id} and cycle=${context.current_cycle} and status='active'
+      `;
+      if (!campaign) {
+        await markFollowUpJobCancelled(job.id, "campaign_not_active");
+        return;
+      }
+    }
     if (
       !template?.template_name ||
       !template.configured ||
       template.approval_status !== "approved" ||
-      !template.automatic_send
+      (!isAuthorizedCampaign && !template.automatic_send)
     ) {
       await sql`
         update follow_up_jobs set status = 'blocked',
@@ -254,6 +266,14 @@ export async function processFollowUpJob(
         update follow_up_jobs set status = 'sent', executed_at = ${now},
           locked_at = null, locked_by = null, last_error = null
         where id = ${job.id}
+      `;
+      if (isAuthorizedCampaign) await tx`
+        update follow_up_campaigns c set status='completed'
+        where c.id=${Number(context.job_payload.campaignId ?? 0)}
+          and not exists (
+            select 1 from follow_up_jobs j where j.payload->>'campaignId'=c.id::text
+              and j.id<>${job.id} and j.status in ('scheduled','processing','blocked')
+          )
       `;
     });
     emitLiveEvent("message", context.id);

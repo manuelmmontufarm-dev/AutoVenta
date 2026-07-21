@@ -31,7 +31,7 @@ export function buildComparisonMessage(products: readonly CatalogItem[]): string
 
 export function buildCustomerOptionsMessage(
   products: readonly CatalogItem[],
-  customerName = "",
+  _customerName = "",
 ): string {
   const groups = new Map<string, CatalogItem[]>();
   for (const product of products) {
@@ -39,10 +39,9 @@ export function buildCustomerOptionsMessage(
     current.push(product);
     groups.set(product.brand, current);
   }
-  const lines: string[] = [
-    `Hola${cleanName(customerName) ? ` ${cleanName(customerName)}` : ""}, opciones disponibles:`,
-    "",
-  ];
+  // Esta pieza normalmente se envía a mitad de una conversación activa.
+  // No reinicia el saludo ni repite el nombre del cliente.
+  const lines: string[] = ["Opciones disponibles:", ""];
   for (const [brand, brandProducts] of groups) {
     lines.push(`${brandEmoji(brand)} ${brand.toUpperCase()}`);
     for (const product of brandProducts) {
@@ -188,11 +187,6 @@ function brandEmoji(brand: string): string {
   if (normalized.includes("kenda")) return "🔴";
   if (normalized.includes("winrun")) return "🟢";
   return "⚫";
-}
-
-function cleanName(value: string): string {
-  const clean = value.trim().replace(/\s+/g, " ");
-  return clean.toLowerCase() === "cliente" ? "" : clean;
 }
 
 function dateLabel(): string {

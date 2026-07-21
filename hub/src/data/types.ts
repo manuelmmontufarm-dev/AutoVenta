@@ -155,13 +155,14 @@ export interface Ticket {
     id: number; amount: number; finalTotal: number; reason: string;
     condition: string; status: string; expiresAt: string | null;
   };
+  descuentoPendiente?: { id: number; kind: string; value: number; condition: string };
   historialSeguimientos?: Array<{
     id: number; type: string; status: string; createdAt: string;
     sentAt?: string; deliveredAt?: string; readAt?: string; error?: string;
   }>;
 }
 
-export type FollowUpBucket = "attention_now" | "today" | "scheduled" | "commitments" | "window_closed" | "human_review" | "cancelled_failed";
+export type FollowUpBucket = "needs_human" | "closing" | "attention_now" | "today" | "scheduled" | "commitments" | "window_closed" | "human_review" | "cancelled_failed";
 
 export interface FollowUpCard {
   id: number | null; conversationId: number; cycle: number; type: string | null;
@@ -171,6 +172,15 @@ export interface FollowUpCard {
   windowClosesAt: string | null; preview: string; templateRequired: string | null;
   alertReason: string | null; assignedTo: "bot" | "human";
   unansweredDays: number; commitment: string | null; visitDate: string | null; pickupDate: string | null;
+  campaignId: number | null; campaignTemplateKey: string | null;
+  campaignPlan: Array<{ id: number; day: string; dueAt: string; preview: string; templateKey: string; status: string }>;
+}
+
+export interface TemplatePlanPreview {
+  allowed: boolean;
+  reason: string | null;
+  template: { template_key: string; template_name: string | null; language: string; preview: string; approval_status: string; configured: boolean } | null;
+  days: Array<{ day: number; dueAt: string; templateKey: string; templateName: string; language: string; preview: string }>;
 }
 
 export interface BotAlert {

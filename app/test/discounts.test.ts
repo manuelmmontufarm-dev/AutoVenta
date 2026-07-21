@@ -25,6 +25,18 @@ describe("Descuentos comerciales estructurados", () => {
       kind: "final_price", valueCents: 40000,
     });
     expect(detectManualDiscount("La medida es 205/55 R16 e incluye IVA 15%")).toBeNull();
+    expect(detectManualDiscount("5% si recoge esta semana")).toMatchObject({
+      kind: "percentage", valueCents: 500, condition: "recoge esta semana",
+    });
+  });
+
+  it("muestra el porcentaje y el ahorro exacto en el mensaje", () => {
+    const text = buildDiscountCustomerMessage({
+      discountAmountCents: 2125, finalTotalCents: 40375,
+      percentage: 5, condition: "recoge esta semana",
+    });
+    expect(text).toContain("5% ($21.25)");
+    expect(text).toContain("$403.75");
   });
 
   it("genera un mensaje breve con valores determinísticos", () => {

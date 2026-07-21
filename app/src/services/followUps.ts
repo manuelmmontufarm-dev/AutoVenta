@@ -4,7 +4,6 @@ import {
   computeInWindowSchedule,
   detectNegativeSentiment,
   detectOptOut,
-  followUpTemplateForStage,
   nextBusinessInstant,
   type FollowUpPolicy,
 } from "../domain/followUps.js";
@@ -87,7 +86,7 @@ interface ConversationForFollowUp {
   active_discount_final_total: string | number | null;
 }
 
-const FOLLOW_UP_PLAN_VERSION = "v4";
+const FOLLOW_UP_PLAN_VERSION = "v5";
 
 export async function getFollowUpPolicy(): Promise<FollowUpPolicy> {
   const [row] = await sql<PolicyRow[]>`
@@ -186,6 +185,9 @@ export async function cancelPendingFollowUps(
     returning id
   `;
   if (rows.length) emitLiveEvent("follow_up", conversationId);
+  await sql`update follow_up_campaigns set status='cancelled', cancelled_at=now(), cancel_reason=${reason}
+    where conversation_id=${conversationId}
+      ${cycle === undefined ? sql`` : sql`and cycle=${cycle}`} and status='active'`;
   return rows.length;
 }
 
@@ -266,14 +268,16 @@ export async function scheduleConversationFollowUps(
     where conversation_id = ${conversationId}
       and cycle = ${conversation.current_cycle}
       and status in ('scheduled', 'processing', 'blocked')
+      and payload->>'campaignId' is null
       and idempotency_key not like ${`${base}:%`}
   `;
 
   if (conversation.assigned_to === "human") {
-    const dueAt = nextBusinessInstant(new Date(now.getTime() + policy.firstDelayMinutes * 60_000), policy);
+    const windowClosesAt = new Date(conversation.last_customer_message_at.getTime() + 24 * 60 * 60 * 1000);
+    const dueAt = nextBusinessInstant(windowClosesAt > now ? windowClosesAt : now, policy);
     if (dueAt) await insertJob({
       conversationId, cycle: conversation.current_cycle, type: "advisor_review", channel: "advisor",
-      dueAt, windowClosesAt: new Date(conversation.last_customer_message_at.getTime() + 24 * 60 * 60 * 1000),
+      dueAt, windowClosesAt,
       idempotencyKey: `${base}:advisor_review`,
       payload: { preview: buildFollowUpPreview(conversation, "advisor_review"), stage: conversation.stage, reason: "Conversación bajo control humano pendiente de respuesta" },
     });
@@ -310,34 +314,17 @@ export async function scheduleConversationFollowUps(
     });
   }
 
-  if (conversation.customer_opt_in && policy.maxPostWindowAttempts > 0) {
-    const templateKey = followUpTemplateForStage(conversation.stage);
-    for (let attempt = 1; attempt <= policy.maxPostWindowAttempts; attempt += 1) {
-      const target = new Date(
-        schedule.windowClosesAt.getTime() + (attempt - 1) * policy.postWindowGapMinutes * 60_000,
-      );
-      const dueAt = nextBusinessInstant(target, policy);
-      if (!dueAt) continue;
-      await insertJob({
-        conversationId,
-        cycle: conversation.current_cycle,
-        type: `post_window_${attempt}`,
-        dueAt,
-        windowClosesAt: schedule.windowClosesAt,
-        idempotencyKey: `${base}:post_window_${attempt}`,
-        payload: { templateKey, preview: buildFollowUpPreview(conversation, "post_window"), stage: conversation.stage },
-      });
-    }
-  }
+  // Fuera de 24 h nunca se agenda automáticamente: un asesor debe autorizar
+  // explícitamente la campaña de plantillas desde Oportunidades.
   const advisorDueAt = nextBusinessInstant(
-    new Date(Math.max(now.getTime(), conversation.last_customer_message_at.getTime() + policy.advisorAlertDays * 86_400_000)),
+    new Date(Math.max(now.getTime(), schedule.windowClosesAt.getTime())),
     policy,
   );
   if (advisorDueAt) await insertJob({
     conversationId, cycle: conversation.current_cycle, type: "advisor_review", channel: "advisor",
     dueAt: advisorDueAt, windowClosesAt: schedule.windowClosesAt,
     idempotencyKey: `${base}:advisor_review`,
-    payload: { preview: buildFollowUpPreview(conversation, "advisor_review"), stage: conversation.stage, reason: `${policy.advisorAlertDays} días sin respuesta: requiere evaluación del asesor` },
+    payload: { preview: buildFollowUpPreview(conversation, "advisor_review"), stage: conversation.stage, reason: "Ventana de 24 horas agotada tras los seguimientos iniciales: requiere evaluación del asesor" },
   });
   emitLiveEvent("follow_up", conversationId);
 }
@@ -357,6 +344,9 @@ export async function handleInboundFollowUpState(
       where conversation_id = ${conversationId}
         and status in ('scheduled', 'processing', 'blocked')
     `;
+    await tx`update follow_up_campaigns set status='cancelled', cancelled_at=now(),
+      cancel_reason=${optedOut ? "customer_opt_out" : negative ? "negative_sentiment" : "customer_replied"}
+      where conversation_id=${conversationId} and status='active'`;
     if (optedOut || negative) {
       await tx`
         update conversations set
@@ -422,7 +412,7 @@ export async function ensureActiveConversationPlans(now = new Date()): Promise<n
           select 1 from follow_up_jobs legacy where legacy.conversation_id = c.id
             and legacy.cycle = c.current_cycle and legacy.status in ('scheduled','processing','blocked')
             and legacy.idempotency_key like 'plan:v%:%'
-            and legacy.idempotency_key not like 'plan:v4:%'
+            and legacy.idempotency_key not like 'plan:v5:%'
         )
         or (
           not exists (

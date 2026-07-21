@@ -12,6 +12,7 @@ import { business } from "../config.js";
 import {
   ensureCatalogReady,
   findByCode,
+  resolveCatalogReference,
   searchAlternatives,
   searchBySize,
   searchByText,
@@ -50,7 +51,7 @@ import {
 } from "../render/quoteImage.js";
 import { sql } from "../db/client.js";
 import { createBotAlert } from "../services/followUps.js";
-import { getActiveDiscountOffer } from "../services/discountOffers.js";
+import { attachDiscountOfferToQuote, getActiveDiscountOffer, materializePendingDiscount } from "../services/discountOffers.js";
 
 export interface AgentContext {
   conversation: Conversation;
@@ -94,6 +95,32 @@ function dateLabel(): string {
     year: "numeric",
     timeZone: "America/Guayaquil",
   });
+}
+
+async function resolvePresentedProduct(conversationId: number, reference: string) {
+  const [artifact] = await sql<{ products: Array<{ code?: string; brand?: string; design?: string }> }[]>`
+    select products from quote_artifacts
+    where conversation_id=${conversationId}
+      and cycle=(select current_cycle from conversations where id=${conversationId})
+      and kind in ('options','comparison')
+    order by created_at desc, id desc limit 1
+  `;
+  const products = (Array.isArray(artifact?.products) ? artifact.products : [])
+    .map((item) => findByCode(String(item.code ?? "")))
+    .filter((item): item is NonNullable<typeof item> => Boolean(item));
+  const clean = reference.trim().toLowerCase().replace(/[$,]/g, "");
+  const numeric = Number(clean);
+  const matches = products.filter((product) => {
+    const labels = [product.code, product.id, product.design, `${product.brand} ${product.design}`]
+      .map((value) => value.trim().toLowerCase());
+    if (labels.includes(clean)) return true;
+    return Number.isFinite(numeric) && (
+      Math.round(product.minimumPriceWithTax) === Math.round(numeric) ||
+      Math.abs(product.minimumPriceWithTax - numeric) < 0.01
+    );
+  });
+  if (matches.length === 1) return matches[0];
+  return resolveCatalogReference(reference);
 }
 
 /**
@@ -167,7 +194,7 @@ export function buildTools(ctx: AgentContext) {
   const fitmentVehiculo = defineTool({
     name: "fitment_vehiculo",
     description:
-      "Dado un vehículo (marca y modelo), devuelve las medidas de llanta de fábrica más comunes en Ecuador. Si validated es false, debes pedir al cliente que confirme la medida en el costado de su llanta.",
+      "Dado un vehículo (marca, modelo y año), busca medidas verificadas. Año/modelo por sí solos no prueban compatibilidad: si falta una fuente o hay varias versiones, dilo claramente y pide versión/origen o foto de la etiqueta de puerta/costado de la llanta.",
     schema: z.object({
       marca: z.string().describe("Marca del vehículo, ej. Chevrolet"),
       modelo: z.string().describe("Modelo, ej. Sail, D-Max, Hilux"),
@@ -180,8 +207,14 @@ export function buildTools(ctx: AgentContext) {
       if (!entry) {
         return JSON.stringify({
           encontrado: false,
+          compatibilidad_confirmada: false,
           mensaje:
-            "Vehículo no está en la tabla. Pide al cliente la medida del costado de la llanta.",
+            "No existe una medida verificada para ese año/modelo en la base. No afirmes que una llanta le entra. Pregunta la versión o país de fabricación y ofrece identificar la medida con una foto de la etiqueta de la puerta o del costado de una llanta actual.",
+          preguntas_utiles: [
+            "¿Qué versión o motor es y en qué país fue fabricado?",
+            "¿Puedes enviarme una foto de la etiqueta de la puerta del conductor?",
+            "¿Puedes enviarme una foto de la medida escrita en una llanta actual?",
+          ],
         });
       }
       return JSON.stringify({
@@ -383,7 +416,7 @@ export function buildTools(ctx: AgentContext) {
       await ensureCatalogReady();
       const lines = [];
       for (const item of items) {
-        const product = findByCode(item.code);
+        const product = await resolvePresentedProduct(ctx.conversation.id, item.code);
         if (!product) {
           return JSON.stringify({
             error: `Código ${item.code} no existe en el catálogo. Vuelve a buscar la llanta.`,
@@ -412,7 +445,14 @@ export function buildTools(ctx: AgentContext) {
           warrantyRoadHazard: warrantyForBrand(product.brand).roadHazard,
         });
       }
-      const activeDiscount = await getActiveDiscountOffer(ctx.conversation.id);
+      let activeDiscount = await getActiveDiscountOffer(ctx.conversation.id);
+      if (!activeDiscount) {
+        const baseQuote = buildQuote(lines, nombre_cliente, ctx.customerPhone);
+        activeDiscount = await materializePendingDiscount(
+          ctx.conversation.id,
+          Math.round(baseQuote.total * 100),
+        );
+      }
       const quote = buildQuote(
         lines,
         nombre_cliente,
@@ -425,7 +465,8 @@ export function buildTools(ctx: AgentContext) {
         } : undefined,
       );
       const saleNumber = `AV-${quote.number.replace(/\D/g, "").slice(-6)}`;
-      const product = findByCode(items[0].code)!;
+      const product = await resolvePresentedProduct(ctx.conversation.id, items[0].code);
+      if (!product) throw new Error("La opción confirmada dejó de ser inequívoca; vuelve a mostrar las opciones antes de cotizar");
 
       // Imagen de cotización (pieza principal); PDF si lo piden o si falla.
       const imageName = `Cotizacion-${business.name.replace(/\s/g, "")}-${quote.number}.png`;
@@ -509,8 +550,9 @@ export function buildTools(ctx: AgentContext) {
         saleNumber,
         activeDiscount ?? undefined,
       );
+      if (activeDiscount) await attachDiscountOfferToQuote(activeDiscount.id, quoteId);
       await updateConversationFacts(ctx.conversation.id, {
-        selectedProductCode: items[0].code,
+        selectedProductCode: product.code,
         selectedQuantity: items[0].cantidad,
       });
       await logQuoteArtifact({
@@ -533,7 +575,7 @@ export function buildTools(ctx: AgentContext) {
         total_con_iva: quote.total,
         numero_venta: saleNumber,
         mensaje_para_enviar: buildSingleQuoteMessage(
-          { product: findByCode(items[0].code)!, quantity: items[0].cantidad },
+          { product, quantity: items[0].cantidad },
           nombre_cliente,
           quote.number,
           saleNumber,

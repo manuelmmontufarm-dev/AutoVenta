@@ -52,7 +52,7 @@ export function detectManualDiscount(text: string): DiscountDraft | null {
   const conditionMatch = normalized.match(/\bsi\s+(.{3,160}?)(?:[.!?]|$)/i);
   const condition = conditionMatch?.[1]?.trim() ?? null;
 
-  const percent = normalized.match(/(?:descuento|rebaja|ahorro)[^\d]{0,20}(\d{1,2}(?:[.,]\d+)?)\s*%|(\d{1,2}(?:[.,]\d+)?)\s*%[^\n]{0,24}(?:descuento|rebaja|ahorro)/i);
+  const percent = normalized.match(/(?:descuento|rebaja|ahorro)[^\d]{0,20}(\d{1,2}(?:[.,]\d+)?)\s*%|(\d{1,2}(?:[.,]\d+)?)\s*%[^\n]{0,40}(?:(?:descuento|rebaja|ahorro)|\bsi\b)/i);
   if (percent) {
     const points = Math.round(Number((percent[1] ?? percent[2]).replace(",", ".")) * 100);
     if (points > 0 && points < 10_000) {
@@ -84,11 +84,15 @@ export function buildDiscountCustomerMessage(input: {
   finalTotalCents: number;
   condition: string;
   expiresAt?: Date | null;
+  percentage?: number | null;
 }): string {
   const money = (cents: number) => `$${(cents / 100).toFixed(2)}`;
   const quote = input.quoteNumber ? ` en la cotización ${input.quoteNumber}` : "";
   const expiration = input.expiresAt
     ? ` Esta oferta está vigente hasta ${input.expiresAt.toLocaleString("es-EC", { timeZone: "America/Guayaquil", dateStyle: "medium", timeStyle: "short" })}.`
     : "";
-  return `Puedo ofrecerte un descuento autorizado de ${money(input.discountAmountCents)}${quote} si ${input.condition.trim()}. El total quedaría en ${money(input.finalTotalCents)}.${expiration} ¿Quieres que coordinemos el siguiente paso?`;
+  const amount = input.percentage
+    ? `${input.percentage.toLocaleString("es-EC")}% (${money(input.discountAmountCents)})`
+    : money(input.discountAmountCents);
+  return `Puedo ofrecerte un descuento autorizado de ${amount}${quote} si ${input.condition.trim()}. El total quedaría en ${money(input.finalTotalCents)}.${expiration} ¿Quieres que coordinemos el siguiente paso? 😊`;
 }

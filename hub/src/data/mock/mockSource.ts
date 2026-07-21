@@ -174,20 +174,25 @@ export class MockSource implements DataSource {
     this.pushMensaje(ticketId, "vendedor", "texto", texto);
   }
 
-  async crearDescuento(ticketId: number, input: { amount: number; reason: string; condition: string }): Promise<{ sent: boolean; message: string }> {
+  async crearDescuento(ticketId: number, prompt: string): Promise<{ sent: boolean; message: string }> {
     const t = this.tickets.get(ticketId);
-    if (!t?.cotizacion) throw new Error("Primero debe existir una cotización real");
-    if (input.amount <= 0 || input.amount >= t.cotizacion.total) throw new Error("Descuento inválido");
+    if (!t) throw new Error("Ticket no encontrado");
+    const match = prompt.match(/(\d+(?:[.,]\d+)?)\s*%/);
+    if (!match || !t.cotizacion) return { sent: false, message: "Descuento guardado para la próxima cotización" };
+    const amount = t.cotizacion.total * Number(match[1].replace(",", ".")) / 100;
     const original = t.cotizacion.originalTotal ?? t.cotizacion.total;
     t.cotizacion = {
-      ...t.cotizacion, originalTotal: original, discountAmount: input.amount,
-      discountReason: input.reason, discountCondition: input.condition,
-      total: original - input.amount,
+      ...t.cotizacion, originalTotal: original, discountAmount: amount,
+      discountReason: "Autorizado por asesor", discountCondition: prompt,
+      total: original - amount,
     };
-    const message = `Puedo ofrecerte un descuento autorizado de ${money(input.amount)} si ${input.condition}. El total quedaría en ${money(t.cotizacion.total)}. ¿Quieres que coordinemos el siguiente paso?`;
+    const message = `Puedo ofrecerte ${match[1]}% (${money(amount)}) de descuento. El total quedaría en ${money(t.cotizacion.total)}. 😊`;
     this.pushMensaje(ticketId, "bot", "texto", message);
     return { sent: true, message };
   }
+
+  async getTemplatePlan(): Promise<import("../types").TemplatePlanPreview> { return { allowed: false, reason: "Disponible solo en staging", template: null, days: [] }; }
+  async authorizeTemplatePlan(): Promise<import("../types").TemplatePlanPreview> { return this.getTemplatePlan(); }
 
   async agregarNota(ticketId: number, texto: string): Promise<void> {
     const t = this.tickets.get(ticketId);

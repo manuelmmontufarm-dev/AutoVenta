@@ -1,7 +1,7 @@
 import { AnimatePresence, LayoutGroup, MotionConfig, motion } from "framer-motion";
 import { useEffect, useState } from "react";
 import { Confetti, Toasts } from "./components/overlays";
-import { IconChart, IconInbox, IconKanban, IconPlay, IconStop, IconTire } from "./components/icons";
+import { IconChart, IconInbox, IconKanban, IconPlay, IconSparkle, IconStop, IconTire } from "./components/icons";
 import { RacingDetails } from "./components/racing-details";
 import { setSonidoActivo, sonidoActivo, sonidoBoton } from "./lib/sound";
 import { navigate, useRoute, type Route } from "./router";
@@ -11,10 +11,12 @@ import { Inbox } from "./screens/Inbox";
 import { Pipeline } from "./screens/Pipeline";
 import { TicketDetail } from "./screens/TicketDetail";
 import { Settings } from "./screens/Settings";
+import { Opportunities } from "./screens/Opportunities";
 import { useHub } from "./store";
 
 const NAV = [
   { id: "inbox", label: "Inbox", icon: IconInbox },
+  { id: "opportunities", label: "Oportunidades", icon: IconSparkle },
   { id: "pipeline", label: "Pipeline", icon: IconKanban },
   { id: "cotizador", label: "Cotizador", icon: IconTire },
   { id: "dashboard", label: "Métricas", icon: IconChart },
@@ -22,6 +24,7 @@ const NAV = [
 
 const TITULOS: Record<string, { titulo: string; sub: string }> = {
   inbox: { titulo: "Inbox", sub: "cada cliente es un ticket" },
+  opportunities: { titulo: "Oportunidades", sub: "clientes por recuperar y ventas en recta final" },
   pipeline: { titulo: "Pipeline", sub: "tu guion de venta, en vivo" },
   dashboard: { titulo: "Métricas", sub: "el negocio de un vistazo" },
   cotizador: { titulo: "Cotizador", sub: "inventario y precios reales de Contífico" },
@@ -178,6 +181,7 @@ export default function App() {
                 transition={{ type: "spring", stiffness: 340, damping: 32 }}
               >
                 {route.vista === "inbox" && <Inbox />}
+                {route.vista === "opportunities" && <Opportunities />}
                 {route.vista === "pipeline" && <Pipeline />}
                 {route.vista === "dashboard" && <Dashboard />}
                 {route.vista === "cotizador" && <Cotizador />}

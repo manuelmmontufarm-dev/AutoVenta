@@ -9,6 +9,7 @@ let appSql: typeof import("../src/db/client.js").sql;
 let conversations: typeof import("../src/services/conversations.js");
 let followUps: typeof import("../src/services/followUps.js");
 let discountOffers: typeof import("../src/services/discountOffers.js");
+let campaigns: typeof import("../src/services/followUpCampaigns.js");
 
 describe.sequential("Fase A — migración, transiciones y reapertura", () => {
   beforeAll(async () => {
@@ -30,6 +31,7 @@ describe.sequential("Fase A — migración, transiciones y reapertura", () => {
     conversations = await import("../src/services/conversations.js");
     followUps = await import("../src/services/followUps.js");
     discountOffers = await import("../src/services/discountOffers.js");
+    campaigns = await import("../src/services/followUpCampaigns.js");
   });
 
   afterAll(async () => {
@@ -62,12 +64,15 @@ describe.sequential("Fase A — migración, transiciones y reapertura", () => {
     const { runFollowUpMigration } = await import("../src/db/migrations/001_follow_up_system.js");
     const { runSalesPlanDiscountsMigration } = await import("../src/db/migrations/002_sales_follow_up_plan_discounts.js");
     const { runFollowUpStagePromptsMigration } = await import("../src/db/migrations/003_follow_up_stage_prompts.js");
+    const { runOpportunityCampaignsPendingDiscountsMigration } = await import("../src/db/migrations/004_opportunity_campaigns_pending_discounts.js");
     await runFollowUpMigration(appSql);
     await runFollowUpMigration(appSql);
     await runSalesPlanDiscountsMigration(appSql);
     await runSalesPlanDiscountsMigration(appSql);
     await runFollowUpStagePromptsMigration(appSql);
     await runFollowUpStagePromptsMigration(appSql);
+    await runOpportunityCampaignsPendingDiscountsMigration(appSql);
+    await runOpportunityCampaignsPendingDiscountsMigration(appSql);
 
     const [row] = await appSql<{ id: number; stage: string; current_cycle: number }[]>`
       select id, stage, current_cycle from conversations where id = ${legacy.id}
@@ -110,6 +115,20 @@ describe.sequential("Fase A — migración, transiciones y reapertura", () => {
     expect(Number(quotes[0].total)).toBe(440);
     expect(Number(quotes[0].original_total)).toBe(460);
     expect(Number(quotes[0].discount_amount)).toBe(20);
+  });
+
+  it("guarda un porcentaje antes de cotizar y lo materializa con ahorro exacto", async () => {
+    const conversation = await conversations.getOrCreateConversation("593000000019", "Cliente Descuento Pendiente");
+    const created = await discountOffers.createDiscountFromPrompt(
+      conversation.id, "5% si recoge esta semana",
+    );
+    expect(created.status).toBe("pending");
+    const offer = await discountOffers.materializePendingDiscount(conversation.id, 42_500);
+    expect(offer).toMatchObject({ kind: "percentage", valueCents: 500,
+      discountAmountCents: 2125, finalTotalCents: 40375 });
+    const [pending] = await appSql<{ status: string }[]>`select status from pending_discount_rules
+      where conversation_id=${conversation.id} order by created_at desc limit 1`;
+    expect(pending.status).toBe("applied");
   });
 
   it("registra transición, cierre y reapertura en un ciclo nuevo", async () => {
@@ -195,7 +214,7 @@ describe.sequential("Fase A — migración, transiciones y reapertura", () => {
     }
   });
 
-  it("reemplaza planes v2 activos por mensajes v3 distintos", async () => {
+  it("reemplaza planes anteriores por dos mensajes v5 distintos dentro de la ventana", async () => {
     const conversation = await conversations.getOrCreateConversation("593000000013", "Cliente Plan Anterior");
     const lastCustomer = new Date("2026-07-20T15:00:00.000Z");
     const lastBot = new Date("2026-07-20T15:01:00.000Z");
@@ -211,7 +230,7 @@ describe.sequential("Fase A — migración, transiciones y reapertura", () => {
     const [oldState] = await appSql<{ status: string }[]>`select status from follow_up_jobs where id=${legacy.id}`;
     const messages = await appSql<{ preview: string }[]>`
       select payload->>'preview' as preview from follow_up_jobs
-      where conversation_id=${conversation.id} and idempotency_key like 'plan:v4:%'
+      where conversation_id=${conversation.id} and idempotency_key like 'plan:v5:%'
         and type in ('in_window_first','in_window_second') order by due_at
     `;
     expect(oldState.status).toBe("cancelled");
@@ -348,5 +367,34 @@ describe.sequential("Fase A — migración, transiciones y reapertura", () => {
     expect(state).toEqual({ status: "blocked", cancel_reason: "template_variables_missing" });
     expect(textCalls).toBe(0);
     expect(templateCalls).toBe(0);
+  });
+
+  it("autoriza ocho días de plantilla con hora visible y cancela el plan al responder", async () => {
+    const conversation = await conversations.getOrCreateConversation("593000000017", "Cliente Campaña");
+    await appSql`update conversations set stage='nuevo', assigned_to='human', customer_opt_in=true,
+      last_customer_message_at='2026-07-18T14:00:00Z', last_assistant_message_at='2026-07-18T14:01:00Z'
+      where id=${conversation.id}`;
+    await appSql`update follow_up_templates set template_name='seguimiento_opciones_aprobada', configured=true,
+      approval_status='approved', automatic_send=false, variables='[]'::jsonb,
+      preview='¿Te ayudo a retomar las opciones que revisamos? 🛞'
+      where template_key='seguimiento_opciones_v1'`;
+    const authorized = await campaigns.authorizeAdvisorTemplatePlan(
+      conversation.id, new Date("2026-07-20T15:00:00Z"),
+    );
+    expect(authorized.days).toHaveLength(8);
+    expect(authorized.days.every((day) => new Intl.DateTimeFormat("en-US", {
+      timeZone: "America/Guayaquil", hour: "2-digit", minute: "2-digit", hour12: false,
+    }).format(new Date(day.dueAt)) === "10:00")).toBe(true);
+    const [count] = await appSql<{ count: number }[]>`select count(*)::int as count from follow_up_jobs
+      where conversation_id=${conversation.id} and type like 'advisor_template_day_%' and status='scheduled'`;
+    expect(count.count).toBe(8);
+
+    await followUps.handleInboundFollowUpState(conversation.id, "Sí, todavía me interesa");
+    const [cancelled] = await appSql<{ count: number }[]>`select count(*)::int as count from follow_up_jobs
+      where conversation_id=${conversation.id} and type like 'advisor_template_day_%' and status='cancelled'`;
+    const [campaign] = await appSql<{ status: string }[]>`select status from follow_up_campaigns
+      where conversation_id=${conversation.id} order by created_at desc limit 1`;
+    expect(cancelled.count).toBe(8);
+    expect(campaign.status).toBe("cancelled");
   });
 });

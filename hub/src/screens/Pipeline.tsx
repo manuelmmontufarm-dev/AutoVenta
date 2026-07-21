@@ -194,7 +194,7 @@ function FollowUpsView({ now }: { now: number }) {
 export function Pipeline() {
   const { tickets, moverEtapa, metrics } = useHub();
   const now = useNow();
-  const [vista, setVista] = useState<"kanban" | "seguimientos" | "embudo">("kanban");
+  const [vista, setVista] = useState<"kanban" | "embudo">("kanban");
   const [activo, setActivo] = useState<Ticket | null>(null);
   const [cerrando, setCerrando] = useState<Ticket | null>(null);
   const cerrar = useHub((s) => s.cerrar);
@@ -258,7 +258,6 @@ export function Pipeline() {
           onChange={setVista}
           opciones={[
             { valor: "kanban", label: "Kanban" },
-            { valor: "seguimientos", label: "Seguimientos" },
             { valor: "embudo", label: "Embudo" },
           ]}
         />
@@ -284,7 +283,7 @@ export function Pipeline() {
             )}
           </DragOverlay>
         </DndContext>
-      ) : vista === "seguimientos" ? <FollowUpsView now={now} /> : (
+      ) : (
         <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-6">
           <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="glass max-w-2xl rounded-3xl p-6">
             <p className="microlabel mb-4">Embudo del mes — conversión etapa a etapa</p>

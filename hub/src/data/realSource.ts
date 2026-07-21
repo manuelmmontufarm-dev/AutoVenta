@@ -7,6 +7,7 @@ import type {
   HubMetrics,
   Mensaje,
   Ticket,
+  TemplatePlanPreview,
   FollowUpCard,
   BotAlert,
 } from "./types";
@@ -110,10 +111,18 @@ export class RealSource implements DataSource {
     });
   }
 
-  async crearDescuento(ticketId: number, input: { amount: number; reason: string; condition: string; expiresAt?: string | null }): Promise<{ sent: boolean; message: string; warning?: string }> {
+  async crearDescuento(ticketId: number, prompt: string): Promise<{ sent: boolean; message: string; warning?: string; pending?: boolean }> {
     return this.request(`/api/hub/tickets/${ticketId}/discount-offers`, {
-      method: "POST", body: JSON.stringify(input),
+      method: "POST", body: JSON.stringify({ prompt }),
     });
+  }
+
+  async getTemplatePlan(ticketId: number): Promise<TemplatePlanPreview> {
+    return (await this.request<{ plan: TemplatePlanPreview }>(`/api/hub/tickets/${ticketId}/template-plan`)).plan;
+  }
+
+  async authorizeTemplatePlan(ticketId: number): Promise<TemplatePlanPreview> {
+    return (await this.request<{ plan: TemplatePlanPreview }>(`/api/hub/tickets/${ticketId}/template-plan`, { method: "POST", body: "{}" })).plan;
   }
 
   async agregarNota(ticketId: number, texto: string): Promise<void> {

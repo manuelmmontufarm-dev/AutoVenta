@@ -22,6 +22,19 @@ export interface ActiveDiscountOffer {
   status: string;
 }
 
+export interface PendingDiscountRule {
+  id: number;
+  kind: DiscountKind;
+  valueCents: number;
+  reason: string;
+  condition: string;
+  expiresAt: Date | null;
+}
+
+export type DiscountCreationResult =
+  | { status: "applied"; offer: ActiveDiscountOffer }
+  | { status: "pending"; pending: PendingDiscountRule };
+
 interface QuoteRow {
   id: number;
   items: unknown;
@@ -147,6 +160,109 @@ export async function createDiscountOffer(input: {
   return active;
 }
 
+export async function savePendingDiscountRule(input: {
+  conversationId: number;
+  kind: DiscountKind;
+  valueCents: number;
+  reason: string;
+  condition: string;
+  expiresAt?: Date | null;
+  source?: "admin_prompt" | "manual_message";
+  sourceMessageId?: number | null;
+}): Promise<PendingDiscountRule> {
+  const [row] = await sql.begin(async (tx) => {
+    const [conversation] = await tx<{ current_cycle: number; status: string }[]>`
+      select current_cycle, status from conversations where id=${input.conversationId} for update
+    `;
+    if (!conversation || conversation.status !== "open") throw new Error("La conversación no está activa");
+    await tx`update pending_discount_rules set status='superseded'
+      where conversation_id=${input.conversationId} and cycle=${conversation.current_cycle} and status='pending'`;
+    return tx<{ id: number; kind: DiscountKind; value_cents: number; reason: string; condition_text: string; expires_at: Date | null }[]>`
+      insert into pending_discount_rules (
+        conversation_id, cycle, kind, value_cents, reason, condition_text,
+        expires_at, source, source_message_id
+      ) values (
+        ${input.conversationId}, ${conversation.current_cycle}, ${input.kind}, ${input.valueCents},
+        ${input.reason}, ${input.condition}, ${input.expiresAt ?? null},
+        ${input.source ?? "admin_prompt"}, ${input.sourceMessageId ?? null}
+      ) returning id, kind, value_cents, reason, condition_text, expires_at
+    `;
+  });
+  emitLiveEvent("sync", input.conversationId);
+  return { id: Number(row.id), kind: row.kind, valueCents: row.value_cents, reason: row.reason,
+    condition: row.condition_text, expiresAt: row.expires_at };
+}
+
+export async function createDiscountFromPrompt(
+  conversationId: number,
+  prompt: string,
+  source: "admin_prompt" | "manual_message" = "admin_prompt",
+  sourceMessageId?: number | null,
+): Promise<DiscountCreationResult> {
+  const draft = detectManualDiscount(prompt);
+  if (!draft) throw new Error("Escribe un descuento explícito, por ejemplo: 5% de descuento si recoge esta semana");
+  const condition = draft.condition ?? "completa la compra con el asesor";
+  const [quote] = await sql<{ id: number }[]>`
+    select q.id from quotes q join conversations c on c.id=q.conversation_id
+    where q.conversation_id=${conversationId} and q.cycle=c.current_cycle
+    order by q.created_at desc, q.id desc limit 1
+  `;
+  if (!quote) {
+    const pending = await savePendingDiscountRule({ conversationId, kind: draft.kind,
+      valueCents: draft.valueCents, reason: "Descuento autorizado por asesor", condition,
+      source, sourceMessageId });
+    return { status: "pending", pending };
+  }
+  const offer = await createDiscountOffer({ conversationId, kind: draft.kind,
+    valueCents: draft.valueCents, reason: "Descuento autorizado por asesor", condition,
+    source: source === "manual_message" ? "manual_message" : "admin_form", sourceMessageId });
+  return { status: "applied", offer };
+}
+
+/** Convierte el descuento pendiente en una oferta real antes de renderizar la primera cotización. */
+export async function materializePendingDiscount(
+  conversationId: number,
+  baseTotalCents: number,
+): Promise<ActiveDiscountOffer | null> {
+  const existing = await getActiveDiscountOffer(conversationId);
+  if (existing) return existing;
+  const offerId = await sql.begin(async (tx) => {
+    const [conversation] = await tx<{ current_cycle: number }[]>`
+      select current_cycle from conversations where id=${conversationId} for update
+    `;
+    if (!conversation) return null;
+    const [pending] = await tx<{ id: number; kind: DiscountKind; value_cents: number; reason: string; condition_text: string; expires_at: Date | null; source: string; source_message_id: number | null }[]>`
+      select * from pending_discount_rules where conversation_id=${conversationId}
+        and cycle=${conversation.current_cycle} and status='pending'
+      order by created_at desc limit 1 for update
+    `;
+    if (!pending) return null;
+    const breakdown = calculateDiscount(baseTotalCents, pending.kind, pending.value_cents);
+    const [created] = await tx<{ id: number }[]>`
+      insert into discount_offers (
+        conversation_id, cycle, kind, value_cents, base_total_cents,
+        discount_amount_cents, final_total_cents, reason, condition_text,
+        expires_at, status, source, created_by, source_message_id
+      ) values (
+        ${conversationId}, ${conversation.current_cycle}, ${pending.kind}, ${pending.value_cents},
+        ${breakdown.baseTotalCents}, ${breakdown.discountAmountCents}, ${breakdown.finalTotalCents},
+        ${pending.reason}, ${pending.condition_text}, ${pending.expires_at}, 'approved',
+        ${pending.source === "manual_message" ? "manual_message" : "admin_form"}, 'owner', ${pending.source_message_id}
+      ) returning id
+    `;
+    await tx`update pending_discount_rules set status='applied', applied_at=now(), applied_offer_id=${created.id} where id=${pending.id}`;
+    await tx`update conversations set savings_amount=${breakdown.discountAmountCents / 100},
+      offer_expires_at=${pending.expires_at}, follow_up_reason=${`Oferta autorizada: ${pending.condition_text}`}, updated_at=now()
+      where id=${conversationId}`;
+    return Number(created.id);
+  });
+  return offerId ? getActiveDiscountOffer(conversationId) : null;
+}
+
+export async function attachDiscountOfferToQuote(offerId: number, quoteId: number): Promise<void> {
+  await sql`update discount_offers set quote_id=${quoteId}, updated_at=now() where id=${offerId} and quote_id is null`;
+}
+
 export function discountOfferMessage(offer: ActiveDiscountOffer): string {
   return buildDiscountCustomerMessage({
     quoteNumber: offer.quoteNumber,
@@ -154,6 +270,7 @@ export function discountOfferMessage(offer: ActiveDiscountOffer): string {
     finalTotalCents: offer.finalTotalCents,
     condition: offer.condition,
     expiresAt: offer.expiresAt,
+    percentage: offer.kind === "percentage" ? offer.valueCents / 100 : null,
   });
 }
 
@@ -189,15 +306,10 @@ export async function captureManualDiscount(
     ? await sql<{ id: number }[]>`select id from messages where wa_message_id=${providerMessageId}`
     : [];
   try {
-    return await createDiscountOffer({
-      conversationId,
-      kind: draft.kind,
-      valueCents: draft.valueCents,
-      reason: "Descuento ofrecido manualmente por asesor",
-      condition: draft.condition ?? "continúa con la compra",
-      source: "manual_message",
-      sourceMessageId: message?.id ? Number(message.id) : null,
-    });
+    const result = await createDiscountFromPrompt(
+      conversationId, text, "manual_message", message?.id ? Number(message.id) : null,
+    );
+    return result.status === "applied" ? result.offer : null;
   } catch (error) {
     const [conversation] = await sql<{ current_cycle: number }[]>`select current_cycle from conversations where id=${conversationId}`;
     if (conversation) await sql`

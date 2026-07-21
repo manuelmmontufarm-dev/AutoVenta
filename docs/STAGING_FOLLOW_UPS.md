@@ -20,6 +20,7 @@ Variables compartidas por HTTP y worker:
 - `OPENAI_API_KEY`
 - `META_ACCESS_TOKEN`
 - `META_PHONE_NUMBER_ID`
+- `META_BUSINESS_ACCOUNT_ID` (necesario para sincronizar/confirmar plantillas desde Meta cuando se habilite esa integración)
 - `META_VERIFY_TOKEN`
 - variables actuales de Contífico y catálogo
 - `NODE_ENV=production` (describe el runtime compilado, no autoriza un ambiente comercial)
@@ -31,7 +32,7 @@ Variables locales para el smoke, nunca persistidas en el repositorio:
 - `E2E_AUTHORIZED_PHONE`, sólo un número autorizado en Meta
 - `E2E_ALLOW_META_SEND=true`, sólo durante la prueba explícita de WhatsApp
 
-Las tres plantillas se crean desactivadas y sin nombre Meta: `seguimiento_cotizacion_v1`, `recordatorio_visita_v1` y `seguimiento_opciones_v1`. No marcar `configured`, `approved` ni `automatic_send` hasta confirmar los nombres y aprobación reales en Meta.
+Las tres plantillas se crean desactivadas y sin nombre Meta: `seguimiento_cotizacion_v1`, `recordatorio_visita_v1` y `seguimiento_opciones_v1`. No marcar `configured` ni `approved` hasta confirmar los nombres y aprobación reales en Meta. El botón “Continuar seguimiento con plantilla” autoriza explícitamente el plan mostrado (máximo 8 días); no habilita texto libre.
 
 ## Backup y migración
 
@@ -74,7 +75,9 @@ No se debe ejecutar un envío si el teléfono no está autorizado por Meta.
 - `/health` responde 200.
 - Logs HTTP sin errores de migración o webhook.
 - Logs del worker muestran polling y no un loop de fallos.
-- Hub muestra `Kanban | Seguimientos | Embudo`.
+- Pipeline muestra `Kanban | Embudo` y el rail incluye `Oportunidades` debajo de Inbox.
+- Oportunidades contiene únicamente revisión humana post-24 h y la recta final de `seguimiento_venta`.
+- El ticket muestra los días, la plantilla y la hora antes de autorizar un plan post-24 h.
 - Inbox muestra Alertas del bot.
 - Cotizador muestra inventario numérico por llanta.
 - KPIs cargan seguimiento y estados de entrega sin datos inventados.

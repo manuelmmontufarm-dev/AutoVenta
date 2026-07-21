@@ -4,7 +4,7 @@ import { ChatBubble, Composer, CotizacionModal, TypingBubble } from "../componen
 import { IconBack, IconDoc, IconNote, IconPhone, IconPin, IconRefresh, IconX } from "../components/icons";
 import { PipelineStepper } from "../components/stepper";
 import { AtiendePill, Avatar, CierreBadge, MedidaChip, Modal, StageBadge } from "../components/ui";
-import { CIERRE_META, type Cierre, type Ticket } from "../data/types";
+import { CIERRE_META, type Cierre, type TemplatePlanPreview, type Ticket } from "../data/types";
 import { money, relTime } from "../lib/format";
 import { navigate } from "../router";
 import { useHub, useNow } from "../store";
@@ -184,35 +184,48 @@ function Ficha({
   onToggleAtiende: () => void;
   onNota: (texto: string) => void;
 }) {
-  const { crearDescuento } = useHub();
+  const { crearDescuento, getTemplatePlan, authorizeTemplatePlan } = useHub();
   const [nota, setNota] = useState("");
   const [verDescuento, setVerDescuento] = useState(false);
-  const [montoDescuento, setMontoDescuento] = useState("");
-  const [razonDescuento, setRazonDescuento] = useState("Autorizado por asesor");
-  const [condicionDescuento, setCondicionDescuento] = useState("");
-  const [venceDescuento, setVenceDescuento] = useState("");
+  const [promptDescuento, setPromptDescuento] = useState("");
   const [estadoDescuento, setEstadoDescuento] = useState<string | null>(null);
   const [guardandoDescuento, setGuardandoDescuento] = useState(false);
+  const [templatePlan, setTemplatePlan] = useState<TemplatePlanPreview | null>(null);
+  const [templatePlanStatus, setTemplatePlanStatus] = useState<string | null>(null);
+  const [loadingTemplatePlan, setLoadingTemplatePlan] = useState(false);
   const abierto = ticket.estado === "abierto";
   const ventanaAbierta = Boolean(ticket.ventanaCierraEn && new Date(ticket.ventanaCierraEn) > new Date());
 
   const confirmarDescuento = async () => {
-    const amount = Number(montoDescuento.replace(",", "."));
-    if (!Number.isFinite(amount) || amount <= 0 || condicionDescuento.trim().length < 3 || razonDescuento.trim().length < 3) {
-      setEstadoDescuento("Completa un monto, una razón y una condición válidos.");
+    if (promptDescuento.trim().length < 3) {
+      setEstadoDescuento("Escribe el descuento y la condición.");
       return;
     }
     setGuardandoDescuento(true); setEstadoDescuento(null);
     try {
-      const result = await crearDescuento(ticket.id, {
-        amount, reason: razonDescuento.trim(), condition: condicionDescuento.trim(),
-        expiresAt: venceDescuento ? new Date(venceDescuento).toISOString() : null,
-      });
+      const result = await crearDescuento(ticket.id, promptDescuento.trim());
       setEstadoDescuento(result.sent ? "Oferta aplicada a la cotización y enviada." : (result.warning ?? "Oferta registrada; requiere plantilla."));
-      setVerDescuento(false); setMontoDescuento(""); setCondicionDescuento(""); setVenceDescuento("");
+      setVerDescuento(false); setPromptDescuento("");
     } catch (error) {
       setEstadoDescuento(error instanceof Error ? error.message : "No se pudo crear la oferta.");
     } finally { setGuardandoDescuento(false); }
+  };
+
+  const mostrarTemplatePlan = async () => {
+    setLoadingTemplatePlan(true); setTemplatePlanStatus(null);
+    try { setTemplatePlan(await getTemplatePlan(ticket.id)); }
+    catch (error) { setTemplatePlanStatus(error instanceof Error ? error.message : "No se pudo cargar el plan."); }
+    finally { setLoadingTemplatePlan(false); }
+  };
+
+  const confirmarTemplatePlan = async () => {
+    setLoadingTemplatePlan(true); setTemplatePlanStatus(null);
+    try {
+      const result = await authorizeTemplatePlan(ticket.id);
+      setTemplatePlan(result);
+      setTemplatePlanStatus("Plan autorizado. Se cancelará automáticamente si el cliente responde, rechaza, compra o se molesta.");
+    } catch (error) { setTemplatePlanStatus(error instanceof Error ? error.message : "No se pudo autorizar el plan."); }
+    finally { setLoadingTemplatePlan(false); }
   };
 
   return (
@@ -244,7 +257,9 @@ function Ficha({
         {ticket.planSeguimientos && ticket.planSeguimientos.length > 0 && <div className="mt-3"><p className="microlabel mb-2">Plan hasta cierre de ventana y escalamiento</p><ol className="grid gap-1.5">{ticket.planSeguimientos.map((step, index) => <li key={step.id} className="rounded-lg bg-paper/[.035] px-2.5 py-2 text-[10.5px]"><span className="font-bold">{index + 1}. {step.channel === "advisor" ? "Revisión del asesor" : step.templateKey ? `Plantilla ${step.templateKey}` : "Mensaje WhatsApp"}</span><span className="tnum ml-1 text-faint">· {new Date(step.dueAt).toLocaleString("es-EC")}</span><p className="mt-1 text-muted">{step.preview || step.reason}</p>{step.channel !== "advisor" && <button disabled={Boolean(step.templateKey) || !ventanaAbierta} onClick={() => void navigator.clipboard.writeText(step.preview).then(() => setEstadoDescuento("Mensaje copiado."))} className="mt-1.5 text-[9.5px] font-black text-lime disabled:cursor-not-allowed disabled:text-faint">{step.templateKey ? "Enviar únicamente como plantilla" : ventanaAbierta ? "Copiar mensaje" : "Ventana cerrada: solo plantilla"}</button>}</li>)}</ol></div>}
         <p className="mt-3 text-[11px] font-bold" style={{ color: ticket.ventanaCierraEn && new Date(ticket.ventanaCierraEn) > new Date() ? "var(--color-ok)" : "var(--color-warn)" }}>Ventana de 24 h: {ticket.ventanaCierraEn ? (new Date(ticket.ventanaCierraEn) > new Date() ? `abierta hasta ${new Date(ticket.ventanaCierraEn).toLocaleString("es-EC")}` : "cerrada — requiere plantilla") : "sin mensaje entrante"}</p>
         {!ticket.customerOptIn && <p className="mt-1 text-[10px] text-amber-500">Sin consentimiento registrado para plantillas post-24 h.</p>}
-        <div className="mt-3 flex gap-2"><button onClick={onToggleAtiende} className="rounded-lg bg-violet/15 px-3 py-2 text-[10px] font-bold">{ticket.atiende === "bot" ? "Tomar control" : "Devolver al bot"}</button></div>
+        {ticket.ventanaCierraEn && new Date(ticket.ventanaCierraEn) <= new Date() && <button disabled={loadingTemplatePlan} onClick={() => void mostrarTemplatePlan()} className="mt-3 w-full rounded-xl bg-violet/15 px-3 py-2 text-[10.5px] font-black disabled:opacity-50">{loadingTemplatePlan ? "Cargando…" : "Continuar seguimiento con plantilla"}</button>}
+        {templatePlan && <div className="mt-3 rounded-xl border border-violet/20 bg-violet/[.045] p-2.5"><div className="flex items-center justify-between gap-2"><p className="text-[10.5px] font-black">{templatePlan.template?.template_name ?? templatePlan.template?.template_key ?? "Plantilla requerida"}</p><span className="rounded-full bg-paper/10 px-2 py-0.5 text-[9px]">{templatePlan.template?.language ?? "es"}</span></div>{templatePlan.reason && <p className="mt-2 text-[10px] font-bold text-amber-500">{templatePlan.reason}</p>}<ol className="mt-2 grid max-h-56 gap-1 overflow-y-auto">{templatePlan.days.map((day) => <li key={day.day} className="rounded-lg bg-paper/[.045] px-2 py-1.5 text-[9.5px]"><span className="font-black">Día {day.day}</span><span className="tnum ml-1 text-faint">· {new Date(day.dueAt).toLocaleString("es-EC", { weekday: "short", hour: "2-digit", minute: "2-digit" })}</span><p className="mt-0.5 line-clamp-2 text-muted">{day.preview}</p></li>)}</ol><button disabled={!templatePlan.allowed || loadingTemplatePlan} onClick={() => void confirmarTemplatePlan()} className="mt-2 w-full rounded-lg bg-lime/15 py-2 text-[10px] font-black text-lime disabled:cursor-not-allowed disabled:opacity-40">Confirmar plan de {templatePlan.days.length || 8} días</button></div>}
+        {templatePlanStatus && <p className="mt-2 text-[10px] text-muted">{templatePlanStatus}</p>}
         <div className="mt-3 border-t border-paper/10 pt-3"><p className="microlabel mb-2">Historial</p>{ticket.historialSeguimientos?.length ? <ul className="grid gap-1">{ticket.historialSeguimientos.map((item) => <li key={item.id} className="text-[10.5px] text-muted">{item.type} · {item.status} · {new Date(item.createdAt).toLocaleString("es-EC")}{item.error ? ` · ${item.error}` : ""}</li>)}</ul> : <p className="text-[10.5px] text-faint">Sin intentos todavía.</p>}</div>
       </section>
 
@@ -270,9 +285,10 @@ function Ficha({
       <section className="glass rounded-2xl border border-lime/10 p-4">
         <div className="flex items-center justify-between gap-2"><div><p className="microlabel">Descuento comercial</p><p className="mt-1 text-[10.5px] text-muted">El bot solo ofrecerá el monto y la condición que autorices aquí.</p></div><span className="text-xl">🏷️</span></div>
         {ticket.descuentoActivo && <div className="mt-2 rounded-xl bg-lime/[.07] p-2.5"><p className="text-xs font-black text-lime">−{money(ticket.descuentoActivo.amount)} · Total {money(ticket.descuentoActivo.finalTotal)}</p><p className="mt-1 text-[10.5px]">Si {ticket.descuentoActivo.condition}</p></div>}
-        {!ticket.cotizacion && <p className="mt-3 rounded-xl bg-paper/[.04] p-2.5 text-[10.5px] text-faint">Primero genera una cotización. Así el descuento se reflejará en el mensaje y en la pieza cotizada.</p>}
-        {abierto && <button disabled={!ticket.cotizacion} onClick={() => setVerDescuento((value) => !value)} className="mt-3 w-full rounded-xl bg-lime/10 py-2 text-xs font-bold text-lime disabled:cursor-not-allowed disabled:opacity-35">{ticket.descuentoActivo ? "Ajustar descuento" : "Ofrecer descuento"}</button>}
-        {verDescuento && ticket.cotizacion && <div className="mt-3 grid gap-2 rounded-xl border border-lime/20 bg-lime/[.04] p-3"><label className="text-[10px] font-bold">Monto total del descuento (USD)<input value={montoDescuento} onChange={(e) => setMontoDescuento(e.target.value)} inputMode="decimal" placeholder="Ej. 20.00" className="gp-field mt-1 w-full rounded-lg px-2.5 py-2 text-xs" /></label><label className="text-[10px] font-bold">Razón interna<input value={razonDescuento} onChange={(e) => setRazonDescuento(e.target.value)} placeholder="Ej. Autorizado por gerente" className="gp-field mt-1 w-full rounded-lg px-2.5 py-2 text-xs" /></label><label className="text-[10px] font-bold">Condición que verá el cliente<textarea value={condicionDescuento} onChange={(e) => setCondicionDescuento(e.target.value)} placeholder="si va esta semana, si va el sábado…" className="gp-field mt-1 min-h-16 w-full rounded-lg px-2.5 py-2 text-xs" /></label><label className="text-[10px] font-bold">Vence (opcional)<input type="datetime-local" value={venceDescuento} onChange={(e) => setVenceDescuento(e.target.value)} className="gp-field mt-1 w-full rounded-lg px-2.5 py-2 text-xs" /></label><button disabled={guardandoDescuento} onClick={() => void confirmarDescuento()} className="btn-aurora rounded-xl py-2.5 text-xs font-bold disabled:opacity-50">{guardandoDescuento ? "Confirmando…" : "Confirmar y dejar que el bot la ofrezca"}</button></div>}
+        {ticket.descuentoPendiente && !ticket.descuentoActivo && <div className="mt-2 rounded-xl bg-amber-500/[.08] p-2.5"><p className="text-[10.5px] font-black text-amber-500">Descuento listo para la próxima cotización</p><p className="mt-1 text-[10px]">{ticket.descuentoPendiente.kind === "percentage" ? `${ticket.descuentoPendiente.value / 100}%` : money(ticket.descuentoPendiente.value / 100)} · si {ticket.descuentoPendiente.condition}</p></div>}
+        {!ticket.cotizacion && <p className="mt-3 rounded-xl bg-paper/[.04] p-2.5 text-[10.5px] text-faint">Puedes autorizarlo ahora: quedará guardado y se aplicará automáticamente a la próxima cotización.</p>}
+        {abierto && <button onClick={() => setVerDescuento((value) => !value)} className="mt-3 w-full rounded-xl bg-lime/10 py-2 text-xs font-bold text-lime">{ticket.descuentoActivo ? "Ajustar descuento" : "Ofrecer descuento"}</button>}
+        {verDescuento && <div className="mt-3 grid gap-2 rounded-xl border border-lime/20 bg-lime/[.04] p-3"><label className="text-[10px] font-bold">Indicación para el bot<textarea value={promptDescuento} onChange={(e) => setPromptDescuento(e.target.value)} placeholder="Ej. 5% de descuento si recoge esta semana" className="gp-field mt-1 min-h-20 w-full rounded-lg px-2.5 py-2 text-xs" /></label><p className="text-[9.5px] text-faint">El bot calculará el ahorro exacto y repetirá únicamente esta condición en cotización y seguimientos.</p><button disabled={guardandoDescuento} onClick={() => void confirmarDescuento()} className="btn-aurora rounded-xl py-2.5 text-xs font-bold disabled:opacity-50">{guardandoDescuento ? "Confirmando…" : "Confirmar descuento"}</button></div>}
         {estadoDescuento && <p className="mt-2 text-[10.5px] text-muted">{estadoDescuento}</p>}
       </section>
 

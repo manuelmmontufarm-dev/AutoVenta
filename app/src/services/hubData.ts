@@ -49,6 +49,7 @@ interface TicketRow {
   follow_up_history: unknown[] | null;
   last_customer_message_at: Date | null;
   active_discount: Record<string, unknown> | null;
+  pending_discount: Record<string, unknown> | null;
 }
 
 export async function listHubTickets() {
@@ -73,7 +74,7 @@ export async function listHubTickets() {
       ) end as next_follow_up,
       coalesce(p.plan, '[]'::jsonb) as follow_up_plan,
       coalesce(h.history, '[]'::jsonb) as follow_up_history,
-      d.offer as active_discount,
+      d.offer as active_discount, pending_discount.rule as pending_discount,
       coalesce(n.notes, '[]'::jsonb) as notes,
       (
         select count(*)::int from sales_history history
@@ -141,6 +142,12 @@ export async function listHubTickets() {
         and (o.expires_at is null or o.expires_at > now())
       order by o.created_at desc limit 1
     ) d on true
+    left join lateral (
+      select jsonb_build_object('id', r.id, 'kind', r.kind,
+        'value', r.value_cents, 'condition', r.condition_text) as rule
+      from pending_discount_rules r where r.conversation_id=c.id and r.cycle=c.current_cycle
+        and r.status='pending' order by r.created_at desc limit 1
+    ) pending_discount on true
     order by coalesce(m.created_at, c.updated_at) desc
     limit 500
   `;
@@ -187,6 +194,7 @@ export async function listHubTickets() {
     planSeguimientos: row.follow_up_plan ?? [],
     mensajeRecomendadoHumano: row.next_follow_up?.preview ?? undefined,
     descuentoActivo: row.active_discount ?? undefined,
+    descuentoPendiente: row.pending_discount ?? undefined,
     historialSeguimientos: row.follow_up_history ?? [],
     ventanaCierraEn: row.last_customer_message_at
       ? new Date(row.last_customer_message_at.getTime() + 24 * 60 * 60 * 1000).toISOString()

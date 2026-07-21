@@ -1,7 +1,7 @@
 import { WHATSAPP_WINDOW_MS } from "./followUps.js";
 
 export type OutboundContentType = "text" | "image" | "pdf" | "template";
-export type OutboundActor = "bot" | "owner" | "worker";
+export type OutboundActor = "bot" | "owner" | "worker" | "authorized_campaign";
 
 export interface OutboundPolicyInput {
   contentType: OutboundContentType;
@@ -31,7 +31,7 @@ export function evaluateOutboundPolicy(input: OutboundPolicyInput): OutboundDeci
   if (input.status !== "open") return { allowed: false, code: "conversation_closed", windowClosesAt };
   if (input.respectOptOut && input.optedOutAt) return { allowed: false, code: "opted_out", windowClosesAt };
   if (input.negativeSentimentAt) return { allowed: false, code: "negative_sentiment", windowClosesAt };
-  if (input.actor !== "owner" && input.pauseOnHumanControl && input.assignedTo === "human") {
+  if (input.actor !== "owner" && input.actor !== "authorized_campaign" && input.pauseOnHumanControl && input.assignedTo === "human") {
     return { allowed: false, code: "human_control", windowClosesAt };
   }
   if (input.contentType === "template") {

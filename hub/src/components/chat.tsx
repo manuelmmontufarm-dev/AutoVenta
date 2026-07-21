@@ -114,11 +114,10 @@ export function TypingBubble({ rol }: { rol: Rol }) {
 export function Composer({
   ticket,
   onEnviar,
-  onTomar,
 }: {
   ticket: Ticket;
   onEnviar: (texto: string) => void;
-  onTomar: () => void;
+  onTomar?: () => void;
 }) {
   const [texto, setTexto] = useState("");
   const puedeEscribir = ticket.atiende === "humano" && ticket.estado === "abierto";
@@ -145,17 +144,10 @@ export function Composer({
 
   if (!puedeEscribir) {
     return (
-      <div className="flex items-center justify-between gap-3 px-4 py-2.5">
+      <div className="flex items-center gap-3 px-4 py-2.5">
         <p className="flex items-center gap-2 text-xs text-muted">
           <span className="pulse-dot" /> El bot está atendiendo esta conversación
         </p>
-        <button
-          onClick={onTomar}
-          className="rounded-full px-3.5 py-1.5 text-xs font-bold transition-transform hover:-translate-y-px"
-          style={{ background: "var(--color-lime)", color: "#1c1c1a" }}
-        >
-          Tomar conversación
-        </button>
       </div>
     );
   }
