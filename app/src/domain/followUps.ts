@@ -26,6 +26,7 @@ export interface FollowUpPolicy {
   neverOutsideHours: boolean;
   maxMessagesPerDay: number;
   pauseOnHumanControl: boolean;
+  stagePrompts?: Partial<Record<Stage, string>>;
 }
 
 export interface InWindowSchedule {

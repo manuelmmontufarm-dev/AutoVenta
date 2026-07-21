@@ -6,6 +6,7 @@
 import { sql } from "./client.js";
 import { runFollowUpMigration } from "./migrations/001_follow_up_system.js";
 import { runSalesPlanDiscountsMigration } from "./migrations/002_sales_follow_up_plan_discounts.js";
+import { runFollowUpStagePromptsMigration } from "./migrations/003_follow_up_stage_prompts.js";
 
 export const SCHEMA = /* sql */ `
 create table if not exists conversations (
@@ -288,4 +289,5 @@ export async function ensureSchema(): Promise<void> {
   await sql.unsafe(SCHEMA);
   await runFollowUpMigration(sql);
   await runSalesPlanDiscountsMigration(sql);
+  await runFollowUpStagePromptsMigration(sql);
 }

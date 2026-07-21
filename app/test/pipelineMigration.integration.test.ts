@@ -61,10 +61,13 @@ describe.sequential("Fase A — migración, transiciones y reapertura", () => {
 
     const { runFollowUpMigration } = await import("../src/db/migrations/001_follow_up_system.js");
     const { runSalesPlanDiscountsMigration } = await import("../src/db/migrations/002_sales_follow_up_plan_discounts.js");
+    const { runFollowUpStagePromptsMigration } = await import("../src/db/migrations/003_follow_up_stage_prompts.js");
     await runFollowUpMigration(appSql);
     await runFollowUpMigration(appSql);
     await runSalesPlanDiscountsMigration(appSql);
     await runSalesPlanDiscountsMigration(appSql);
+    await runFollowUpStagePromptsMigration(appSql);
+    await runFollowUpStagePromptsMigration(appSql);
 
     const [row] = await appSql<{ id: number; stage: string; current_cycle: number }[]>`
       select id, stage, current_cycle from conversations where id = ${legacy.id}
@@ -81,6 +84,8 @@ describe.sequential("Fase A — migración, transiciones y reapertura", () => {
     expect(row.stage).toBe("seguimiento_venta");
     expect(transition.to_stage).toBe("seguimiento_venta");
     expect(event.stage).toBe("seguimiento_venta");
+    const [policy] = await appSql<{ prompt: string }[]>`select stage_prompts->>'cotizacion_enviada' as prompt from follow_up_policies where policy_key='default'`;
+    expect(policy.prompt).toContain("cotización");
   });
 
   it("versiona una cotización con descuento y conserva el total original", async () => {
@@ -213,6 +218,32 @@ describe.sequential("Fase A — migración, transiciones y reapertura", () => {
       leaseMinutes: 5,
     });
     expect(afterRestart.map((item) => Number(item.id))).toEqual([Number(job.id)]);
+  });
+
+  it("mueve a revisión humana al vencer el job por días sin respuesta", async () => {
+    const conversation = await conversations.getOrCreateConversation("593000000014", "Cliente Revisión");
+    await appSql`
+      update conversations set stage='cotizacion_enviada', assigned_to='bot',
+        last_customer_message_at='2026-07-17T14:00:00Z', last_assistant_message_at='2026-07-17T14:01:00Z'
+      where id=${conversation.id}
+    `;
+    const [review] = await appSql<{ id: number }[]>`
+      insert into follow_up_jobs (conversation_id, cycle, type, channel, due_at, idempotency_key, payload, status, locked_at, locked_by)
+      values (${conversation.id}, 1, 'advisor_review', 'advisor', '2026-07-20T14:00:00Z', 'advisor-review-test',
+        '{"reason":"3 días sin respuesta","preview":"Revisar y decidir continuar o marcar Perdido"}'::jsonb,
+        'processing', '2026-07-20T14:00:00Z', 'test-worker') returning id
+    `;
+    const [pending] = await appSql<{ id: number }[]>`
+      insert into follow_up_jobs (conversation_id, cycle, type, due_at, idempotency_key, payload)
+      values (${conversation.id}, 1, 'post_window_2', '2026-07-21T14:00:00Z', 'advisor-review-pending-test', '{}'::jsonb) returning id
+    `;
+    const { processFollowUpJob } = await import("../src/services/followUpProcessor.js");
+    await processFollowUpJob({ id: Number(review.id) } as never, { now: () => new Date("2026-07-20T14:00:00Z") });
+    const [state] = await appSql<{ assigned_to: string; bot_paused_until: Date | null }[]>`select assigned_to, bot_paused_until from conversations where id=${conversation.id}`;
+    const [pendingState] = await appSql<{ status: string; cancel_reason: string }[]>`select status, cancel_reason from follow_up_jobs where id=${pending.id}`;
+    expect(state.assigned_to).toBe("human");
+    expect(state.bot_paused_until).not.toBeNull();
+    expect(pendingState).toEqual({ status: "cancelled", cancel_reason: "moved_to_human_review" });
   });
 
   it("bloquea post-24h sin plantilla aprobada y nunca hace fallback a texto", async () => {

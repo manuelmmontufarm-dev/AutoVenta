@@ -9,7 +9,9 @@ import {
   type FollowUpPolicy,
 } from "../domain/followUps.js";
 import { isStage, type Stage } from "../domain/pipeline.js";
+import { buildContextualFollowUpMessage, type FollowUpMessageKind } from "../domain/followUpMessages.js";
 import { emitLiveEvent } from "./liveEvents.js";
+import { generateFollowUpCopies } from "./followUpCopy.js";
 
 export type FollowUpJobStatus =
   | "scheduled"
@@ -54,6 +56,7 @@ interface PolicyRow {
   never_outside_hours: boolean;
   max_messages_per_day: number;
   pause_on_human_control: boolean;
+  stage_prompts: Partial<Record<Stage, string>>;
 }
 
 interface ConversationForFollowUp {
@@ -110,6 +113,7 @@ export async function getFollowUpPolicy(): Promise<FollowUpPolicy> {
     neverOutsideHours: row.never_outside_hours,
     maxMessagesPerDay: row.max_messages_per_day,
     pauseOnHumanControl: row.pause_on_human_control,
+    stagePrompts: row.stage_prompts ?? {},
   };
 }
 
@@ -147,26 +151,22 @@ async function getConversationForFollowUp(
   return row ?? null;
 }
 
-export function buildFollowUpPreview(conversation: ConversationForFollowUp): string {
-  const size = conversation.tire_size ? ` para ${conversation.tire_size}` : "";
-  if (conversation.active_discount_amount && conversation.active_discount_condition) {
-    return `La oferta de $${Number(conversation.active_discount_amount).toFixed(2)} de descuento sigue disponible si ${conversation.active_discount_condition}. El total es $${Number(conversation.active_discount_final_total).toFixed(2)}. ¿Quieres que coordinemos el siguiente paso?`;
-  }
-  if (conversation.stage === "cotizacion_enviada") {
-    const quote = conversation.quote_number ? ` ${conversation.quote_number}` : "";
-    return `¿Pudiste revisar la cotización${quote}${size}? Si tienes una duda, te ayudo por aquí.`;
-  }
-  if (conversation.stage === "seguimiento_venta") {
-    const store = conversation.nearest_store ? ` en ${conversation.nearest_store}` : "";
-    return `¿Quieres que coordinemos el siguiente paso${store}? Puedo ayudarte con la visita o reserva.`;
-  }
-  if (conversation.selected_product_code) {
-    return `¿Quieres continuar con ${conversation.selected_product_code}${size} o comparar otra opción?`;
-  }
-  if (conversation.stage === "nuevo" && !conversation.tire_size) {
-    return "¿Me confirmas la medida que aparece en el costado de tu llanta? Con ese dato te comparto opciones reales.";
-  }
-  return `¿Te ayudo a continuar con las opciones${size}?`;
+export function buildFollowUpPreview(
+  conversation: ConversationForFollowUp,
+  kind: FollowUpMessageKind = "in_window_first",
+): string {
+  return buildContextualFollowUpMessage({
+    name: conversation.name,
+    stage: conversation.stage,
+    tireSize: conversation.tire_size,
+    selectedProductCode: conversation.selected_product_code,
+    nearestStore: conversation.nearest_store,
+    customerCommitment: conversation.customer_commitment,
+    quoteNumber: conversation.quote_number,
+    activeDiscountAmount: conversation.active_discount_amount === null ? null : Number(conversation.active_discount_amount),
+    activeDiscountCondition: conversation.active_discount_condition,
+    activeDiscountFinalTotal: conversation.active_discount_final_total === null ? null : Number(conversation.active_discount_final_total),
+  }, kind);
 }
 
 export async function cancelPendingFollowUps(
@@ -233,11 +233,30 @@ export async function scheduleConversationFollowUps(
     conversation.last_assistant_message_at < conversation.last_customer_message_at
   ) return;
 
-  const preview = buildFollowUpPreview(conversation);
   const relevantAt = conversation.last_assistant_message_at.getTime() >= conversation.last_customer_message_at.getTime()
     ? conversation.last_assistant_message_at
     : conversation.last_customer_message_at;
-  const base = `plan:v2:${conversation.id}:${conversation.current_cycle}:${conversation.stage}:${relevantAt.toISOString()}`;
+  const base = `plan:v3:${conversation.id}:${conversation.current_cycle}:${conversation.stage}:${relevantAt.toISOString()}`;
+  const [existingPlan] = await sql<{ count: number }[]>`
+    select count(*)::int as count from follow_up_jobs
+    where conversation_id=${conversationId} and cycle=${conversation.current_cycle}
+      and idempotency_key like ${`${base}:%`}
+  `;
+  if (existingPlan.count > 0) return;
+  const copyContext = {
+    name: conversation.name,
+    stage: conversation.stage,
+    tireSize: conversation.tire_size,
+    selectedProductCode: conversation.selected_product_code,
+    nearestStore: conversation.nearest_store,
+    customerCommitment: conversation.customer_commitment,
+    quoteNumber: conversation.quote_number,
+    activeDiscountAmount: conversation.active_discount_amount === null ? null : Number(conversation.active_discount_amount),
+    activeDiscountCondition: conversation.active_discount_condition,
+    activeDiscountFinalTotal: conversation.active_discount_final_total === null ? null : Number(conversation.active_discount_final_total),
+    summary: conversation.summary,
+  };
+  const copies = await generateFollowUpCopies(copyContext, policy.stagePrompts?.[conversation.stage]);
   await sql`
     update follow_up_jobs set status = 'cancelled',
       cancel_reason = 'replaced_by_new_schedule', executed_at = now(),
@@ -254,7 +273,7 @@ export async function scheduleConversationFollowUps(
       conversationId, cycle: conversation.current_cycle, type: "advisor_review", channel: "advisor",
       dueAt, windowClosesAt: new Date(conversation.last_customer_message_at.getTime() + 24 * 60 * 60 * 1000),
       idempotencyKey: `${base}:advisor_review`,
-      payload: { preview, stage: conversation.stage, reason: "Conversación bajo control humano pendiente de respuesta" },
+      payload: { preview: buildFollowUpPreview(conversation, "advisor_review"), stage: conversation.stage, reason: "Conversación bajo control humano pendiente de respuesta" },
     });
     emitLiveEvent("follow_up", conversationId);
     return;
@@ -274,7 +293,7 @@ export async function scheduleConversationFollowUps(
       dueAt: schedule.firstDueAt,
       windowClosesAt: schedule.windowClosesAt,
       idempotencyKey: `${base}:in_window_first`,
-      payload: { preview, stage: conversation.stage },
+      payload: { preview: copies.first, stage: conversation.stage },
     });
   }
   if (schedule.secondDueAt) {
@@ -285,7 +304,7 @@ export async function scheduleConversationFollowUps(
       dueAt: schedule.secondDueAt,
       windowClosesAt: schedule.windowClosesAt,
       idempotencyKey: `${base}:in_window_second`,
-      payload: { preview, stage: conversation.stage },
+      payload: { preview: copies.second, stage: conversation.stage },
     });
   }
 
@@ -304,19 +323,19 @@ export async function scheduleConversationFollowUps(
         dueAt,
         windowClosesAt: schedule.windowClosesAt,
         idempotencyKey: `${base}:post_window_${attempt}`,
-        payload: { templateKey, preview, stage: conversation.stage },
+        payload: { templateKey, preview: buildFollowUpPreview(conversation, "post_window"), stage: conversation.stage },
       });
     }
   }
   const advisorDueAt = nextBusinessInstant(
-    new Date(schedule.windowClosesAt.getTime() + policy.advisorAlertDays * 86_400_000),
+    new Date(Math.max(now.getTime(), conversation.last_customer_message_at.getTime() + policy.advisorAlertDays * 86_400_000)),
     policy,
   );
   if (advisorDueAt) await insertJob({
     conversationId, cycle: conversation.current_cycle, type: "advisor_review", channel: "advisor",
     dueAt: advisorDueAt, windowClosesAt: schedule.windowClosesAt,
     idempotencyKey: `${base}:advisor_review`,
-    payload: { preview, stage: conversation.stage, reason: "Oportunidad activa sin respuesta: requiere evaluación del asesor" },
+    payload: { preview: buildFollowUpPreview(conversation, "advisor_review"), stage: conversation.stage, reason: `${policy.advisorAlertDays} días sin respuesta: requiere evaluación del asesor` },
   });
   emitLiveEvent("follow_up", conversationId);
 }

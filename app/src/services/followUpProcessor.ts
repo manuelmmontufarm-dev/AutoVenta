@@ -87,13 +87,25 @@ export async function processFollowUpJob(
       priority: "high",
       summary: "Oportunidad activa requiere evaluación del asesor",
       exactReason: String(context.job_payload.reason ?? "El cliente sigue sin responder y se agotó el siguiente paso automático."),
-      suggestedAction: `Revisar el contexto. Mensaje recomendado: ${String(context.job_payload.preview ?? "")}`,
+      suggestedAction: `${String(context.job_payload.preview ?? "")} Si decides continuar, devuelve la conversación al bot o responde personalmente dentro de la ventana permitida.`,
       dedupeKey: `${context.id}:${context.current_cycle}:advisor_review:${job.id}`,
     });
-    await sql`
-      update follow_up_jobs set status='sent', executed_at=${now}, locked_at=null, locked_by=null
-      where id=${job.id}
-    `;
+    await sql.begin(async (tx) => {
+      await tx`
+        update conversations set assigned_to='human', bot_paused_until='infinity'::timestamptz,
+          updated_at=${now} where id=${context.id}
+      `;
+      await tx`
+        update follow_up_jobs set status='cancelled', cancel_reason='moved_to_human_review',
+          executed_at=${now}, locked_at=null, locked_by=null
+        where conversation_id=${context.id} and cycle=${context.current_cycle}
+          and id <> ${job.id} and status in ('scheduled','processing','blocked')
+      `;
+      await tx`
+        update follow_up_jobs set status='sent', executed_at=${now}, locked_at=null, locked_by=null
+        where id=${job.id}
+      `;
+    });
     emitLiveEvent("follow_up", context.id);
     return;
   }

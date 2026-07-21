@@ -21,18 +21,25 @@ export async function listFollowUpBoard() {
     last_at: Date | null;
     summary: string | null;
     template_name: string | null;
+    last_customer_message_at: Date | null;
+    customer_commitment: string | null;
+    visit_date: Date | null;
+    pickup_date: Date | null;
+    advisor_alert_days: number;
   }[]>`
     select j.id as job_id, c.id as conversation_id, c.current_cycle as cycle,
       j.type, j.status, j.due_at, j.window_closes_at, j.payload, j.cancel_reason,
       c.name, c.phone, c.stage, c.assigned_to, c.tire_size,
       c.selected_product_code, m.content as last_message, m.created_at as last_at,
-      s.summary, t.template_name
+      s.summary, t.template_name, c.last_customer_message_at,
+      coalesce(c.customer_commitment, s.customer_commitment) as customer_commitment,
+      c.visit_date, c.pickup_date, p.advisor_alert_days
     from conversations c
     left join lateral (
       select * from follow_up_jobs
       where conversation_id = c.id and cycle = c.current_cycle
       order by
-        case status when 'processing' then 0 when 'scheduled' then 1 when 'blocked' then 2 else 3 end,
+        case status when 'processing' then 0 when 'blocked' then 1 when 'scheduled' then 2 else 3 end,
         due_at asc
       limit 1
     ) j on true
@@ -42,7 +49,9 @@ export async function listFollowUpBoard() {
     ) m on true
     left join conversation_summaries s on s.conversation_id = c.id and s.cycle = c.current_cycle
     left join follow_up_templates t on t.template_key = j.payload->>'templateKey'
-    where c.status = 'open' or j.status in ('failed', 'cancelled')
+    cross join follow_up_policies p
+    where (c.status = 'open' or j.status in ('failed', 'cancelled'))
+      and p.policy_key = 'default'
     order by coalesce(j.due_at, m.created_at, c.updated_at) asc
     limit 500
   `;
@@ -50,15 +59,18 @@ export async function listFollowUpBoard() {
   return rows.map((row) => {
     const due = row.due_at;
     const localToday = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Guayaquil" }).format(now);
-    const localTomorrow = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Guayaquil" }).format(new Date(now.getTime() + 86_400_000));
     const dueDay = due ? new Intl.DateTimeFormat("en-CA", { timeZone: "America/Guayaquil" }).format(due) : null;
-    let bucket = "waiting_response";
-    if (row.assigned_to === "human") bucket = "human_control";
+    const unansweredDays = row.last_customer_message_at
+      ? Math.max(0, Math.floor((now.getTime() - row.last_customer_message_at.getTime()) / 86_400_000))
+      : 0;
+    const hasCommitment = Boolean(row.customer_commitment || row.visit_date || row.pickup_date);
+    let bucket = "scheduled";
+    if (row.assigned_to === "human" || unansweredDays >= row.advisor_alert_days) bucket = "human_review";
     else if (row.status === "failed" || row.status === "cancelled") bucket = "cancelled_failed";
     else if (row.status === "blocked" || (row.window_closes_at && now >= row.window_closes_at)) bucket = "window_closed";
     else if (due && due <= now) bucket = "attention_now";
+    else if (hasCommitment) bucket = "commitments";
     else if (dueDay === localToday) bucket = "today";
-    else if (dueDay === localTomorrow) bucket = "tomorrow";
     return {
       id: row.job_id ? Number(row.job_id) : null,
       conversationId: Number(row.conversation_id),
@@ -80,6 +92,10 @@ export async function listFollowUpBoard() {
       templateRequired: String(row.payload?.templateKey ?? row.template_name ?? "") || null,
       alertReason: row.cancel_reason,
       assignedTo: row.assigned_to,
+      unansweredDays,
+      commitment: row.customer_commitment,
+      visitDate: row.visit_date?.toISOString() ?? null,
+      pickupDate: row.pickup_date?.toISOString() ?? null,
     };
   });
 }

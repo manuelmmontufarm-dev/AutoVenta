@@ -121,6 +121,7 @@ export interface Ticket {
   cotizacion?: Cotizacion;
   localAsignado?: LocalAsignado;
   esRecurrente: boolean;
+  comprasAnteriores?: number;
   sinLeer: number;
   notas: string[];
   creadoEn: string;
@@ -160,7 +161,7 @@ export interface Ticket {
   }>;
 }
 
-export type FollowUpBucket = "attention_now" | "today" | "tomorrow" | "waiting_response" | "window_closed" | "human_control" | "cancelled_failed";
+export type FollowUpBucket = "attention_now" | "today" | "scheduled" | "commitments" | "window_closed" | "human_review" | "cancelled_failed";
 
 export interface FollowUpCard {
   id: number | null; conversationId: number; cycle: number; type: string | null;
@@ -169,6 +170,7 @@ export interface FollowUpCard {
   summary: string; lastMessage: string | null; lastAt: string | null; dueAt: string | null;
   windowClosesAt: string | null; preview: string; templateRequired: string | null;
   alertReason: string | null; assignedTo: "bot" | "human";
+  unansweredDays: number; commitment: string | null; visitDate: string | null; pickupDate: string | null;
 }
 
 export interface BotAlert {

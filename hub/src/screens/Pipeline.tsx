@@ -125,58 +125,66 @@ function ZonaCierre() {
   );
 }
 
-const FOLLOW_UP_GROUPS: Array<{ id: FollowUpBucket; label: string }> = [
-  { id: "attention_now", label: "Requieren atención ahora" },
-  { id: "today", label: "Programados para hoy" },
-  { id: "tomorrow", label: "Programados para mañana" },
-  { id: "waiting_response", label: "Esperando respuesta" },
-  { id: "window_closed", label: "Ventana cerrada / requiere plantilla" },
-  { id: "human_control", label: "Tomados por humano" },
-  { id: "cancelled_failed", label: "Cancelados o fallidos" },
+const FOLLOW_UP_GROUPS: Array<{ id: FollowUpBucket; label: string; icon: string; hint: string }> = [
+  { id: "attention_now", label: "Atención ahora", icon: "🔴", hint: "Vencidos o listos para actuar" },
+  { id: "today", label: "Programados para hoy", icon: "⏰", hint: "Ordenados por hora de envío" },
+  { id: "commitments", label: "Visitas y compromisos", icon: "🚗", hint: "Clientes que dijeron cuándo irían o retirarían" },
+  { id: "scheduled", label: "Programados", icon: "📅", hint: "Próximos envíos, en orden de tiempo" },
+  { id: "human_review", label: "Revisión humana", icon: "👤", hint: "Sin respuesta; decidir si continuar o marcar Perdido" },
+  { id: "window_closed", label: "Ventana cerrada", icon: "🔒", hint: "Solo se puede contactar con plantilla aprobada" },
+  { id: "cancelled_failed", label: "Cancelados o fallidos", icon: "⚠️", hint: "Casos que necesitan revisión técnica" },
 ];
 
 function FollowUpCardView({ item, now }: { item: FollowUpCard; now: number }) {
-  const { setAtiende, followUpAction } = useHub();
+  const { setAtiende, followUpAction, cerrar } = useHub();
+  const [copied, setCopied] = useState(false);
   const remaining = item.windowClosesAt
     ? Math.max(0, new Date(item.windowClosesAt).getTime() - now)
     : null;
   const remainingLabel = remaining === null ? "Sin ventana" : remaining === 0
     ? "Ventana cerrada"
     : `${Math.floor(remaining / 3_600_000)} h ${Math.floor((remaining % 3_600_000) / 60_000)} min`;
-  return (
-    <article className="glass rounded-2xl p-4 shadow-soft">
-      <div className="flex items-start justify-between gap-3">
-        <div><p className="text-sm font-bold">{item.customer}</p><p className="mt-1 text-[11px] text-muted">{ETAPA_META[item.stage].nombre} · {item.tireSize ?? item.selectedProductCode ?? "sin medida/modelo"}</p></div>
-        <span className="rounded-full px-2 py-1 text-[10px] font-bold" style={{ background: "color-mix(in srgb, var(--color-violet) 12%, transparent)" }}>{remainingLabel}</span>
-      </div>
-      <p className="mt-3 line-clamp-2 text-xs leading-relaxed text-paper/80">{item.summary}</p>
-      <dl className="mt-3 grid gap-2 text-[11px] sm:grid-cols-2">
-        <div><dt className="text-faint">Último mensaje</dt><dd className="mt-0.5 line-clamp-2">{item.lastMessage ?? "—"}</dd></div>
-        <div><dt className="text-faint">Próximo seguimiento</dt><dd className="mt-0.5">{item.dueAt ? new Date(item.dueAt).toLocaleString("es-EC") : "No programado"}</dd></div>
-      </dl>
-      {item.preview && <div className="mt-3 rounded-xl bg-paper/[.05] p-3"><p className="microlabel">Mensaje exacto</p><p className="mt-1 text-xs">{item.preview}</p></div>}
-      {item.templateRequired && <p className="mt-2 text-[11px] font-bold text-amber-500">Plantilla requerida: {item.templateRequired}</p>}
-      {item.alertReason && <p className="mt-2 text-[11px] text-red">Motivo: {item.alertReason}</p>}
-      <div className="mt-3 flex flex-wrap gap-1.5">
-        <button onClick={() => void setAtiende(item.conversationId, "humano")} className="rounded-lg bg-violet/15 px-2.5 py-1.5 text-[10px] font-bold">Tomar control</button>
-        {item.id && <button onClick={() => void followUpAction(item.id!, "send")} className="rounded-lg bg-lime/15 px-2.5 py-1.5 text-[10px] font-bold">Enviar ahora</button>}
-        {item.id && <button onClick={() => { const value = window.prompt("Editar mensaje", item.preview); if (value?.trim()) void followUpAction(item.id!, "edit", value.trim()); }} className="rounded-lg bg-paper/10 px-2.5 py-1.5 text-[10px] font-bold">Editar</button>}
-        {item.id && <button onClick={() => void followUpAction(item.id!, "cancel")} className="rounded-lg bg-red/10 px-2.5 py-1.5 text-[10px] font-bold text-red">Cancelar</button>}
-        <button onClick={() => navigate(`ticket/${item.conversationId}`)} className="rounded-lg bg-paper/10 px-2.5 py-1.5 text-[10px] font-bold">Abrir conversación</button>
-      </div>
-    </article>
-  );
+  const dueLabel = item.dueAt ? new Date(item.dueAt).toLocaleString("es-EC", { weekday: "short", hour: "2-digit", minute: "2-digit" }) : "Sin programar";
+  return <article className="glass rounded-xl px-3 py-2.5 shadow-soft transition-colors hover:bg-paper/[.035]">
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+      <button onClick={() => navigate(`ticket/${item.conversationId}`)} className="min-w-0 text-left text-[12.5px] font-black hover:text-lime hover:underline">{item.customer}</button>
+      <span className="rounded-full bg-paper/[.07] px-2 py-0.5 text-[9.5px] font-bold">{ETAPA_META[item.stage].corto}</span>
+      {(item.tireSize || item.selectedProductCode) && <span className="truncate text-[10.5px] text-muted">{item.tireSize ?? item.selectedProductCode}</span>}
+      <span className="tnum ml-auto text-[10.5px] font-bold">{dueLabel}</span>
+      <span className="rounded-full bg-violet/10 px-2 py-0.5 text-[9.5px] font-bold">{remainingLabel}</span>
+    </div>
+    <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[10.5px]">
+      <span className={item.unansweredDays > 0 ? "font-black text-red" : "text-faint"}>Sin responder {item.unansweredDays} {item.unansweredDays === 1 ? "día" : "días"}</span>
+      {item.commitment && <span className="line-clamp-1 text-lime">🚗 {item.commitment}</span>}
+      {!item.commitment && <span className="line-clamp-1 min-w-0 flex-1 text-faint">{item.summary}</span>}
+    </div>
+    {item.preview && <div className="mt-2 rounded-lg bg-paper/[.045] px-2.5 py-2">
+      <p className="text-[9px] font-black uppercase tracking-wider text-faint">Mensaje programado</p>
+      <p className="mt-0.5 line-clamp-2 text-[11px] leading-relaxed">{item.preview}</p>
+      {item.type !== "advisor_review" && <button onClick={() => void navigator.clipboard.writeText(item.preview).then(() => { setCopied(true); window.setTimeout(() => setCopied(false), 1500); })} className="mt-1 text-[9.5px] font-black text-lime hover:underline">{copied ? "✓ Copiado" : "Copiar mensaje"}</button>}
+    </div>}
+    {(item.templateRequired || item.alertReason) && <p className="mt-1.5 text-[10px] font-bold text-amber-500">{item.templateRequired ? `Plantilla: ${item.templateRequired}` : `Motivo: ${item.alertReason}`}</p>}
+    <div className="mt-2 flex flex-wrap gap-1">
+      <button onClick={() => navigate(`ticket/${item.conversationId}`)} className="rounded-md bg-paper/10 px-2 py-1 text-[9.5px] font-bold">Abrir chat</button>
+      {item.assignedTo === "bot" && <button onClick={() => void setAtiende(item.conversationId, "humano")} className="rounded-md bg-violet/15 px-2 py-1 text-[9.5px] font-bold">Tomar control</button>}
+      {item.bucket === "human_review" && item.assignedTo === "human" && <button onClick={() => void setAtiende(item.conversationId, "bot")} className="rounded-md bg-lime/15 px-2 py-1 text-[9.5px] font-bold">Continuar con bot</button>}
+      {item.bucket === "human_review" && <button onClick={() => { if (window.confirm(`¿Marcar a ${item.customer} como Perdido por falta de respuesta?`)) void cerrar(item.conversationId, "perdido", "Sin respuesta tras revisión humana"); }} className="rounded-md bg-red/10 px-2 py-1 text-[9.5px] font-bold text-red">Marcar Perdido</button>}
+      {item.id && item.status === "scheduled" && <button onClick={() => void followUpAction(item.id!, "send")} className="rounded-md bg-lime/15 px-2 py-1 text-[9.5px] font-bold">Enviar ahora</button>}
+      {item.id && item.status === "scheduled" && <button onClick={() => { const value = window.prompt("Editar mensaje", item.preview); if (value?.trim()) void followUpAction(item.id!, "edit", value.trim()); }} className="rounded-md bg-paper/10 px-2 py-1 text-[9.5px] font-bold">Editar</button>}
+      {item.id && ["scheduled", "blocked"].includes(item.status ?? "") && <button onClick={() => void followUpAction(item.id!, "cancel")} className="rounded-md bg-red/10 px-2 py-1 text-[9.5px] font-bold text-red">Cancelar</button>}
+    </div>
+  </article>;
 }
 
 function FollowUpsView({ now }: { now: number }) {
   const followUps = useHub((state) => state.followUps);
   return <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-8">
-    <div className="grid gap-5 xl:grid-cols-2">
+    <div className="mx-auto grid max-w-6xl gap-4">
       {FOLLOW_UP_GROUPS.map((group) => {
-        const items = followUps.filter((item) => item.bucket === group.id);
-        return <section key={group.id}>
-          <div className="mb-2 flex items-center gap-2"><h3 className="text-xs font-black uppercase tracking-wide">{group.label}</h3><span className="tnum rounded-full bg-paper/10 px-2 text-[10px]">{items.length}</span></div>
-          <div className="grid gap-2">{items.length ? items.map((item) => <FollowUpCardView key={`${item.conversationId}-${item.id ?? group.id}`} item={item} now={now} />) : <div className="rounded-2xl border border-dashed border-paper/10 p-5 text-center text-xs text-faint">Sin seguimientos en este estado</div>}</div>
+        const items = followUps.filter((item) => item.bucket === group.id).sort((a, b) => group.id === "human_review" ? b.unansweredDays - a.unansweredDays : new Date(a.dueAt ?? 0).getTime() - new Date(b.dueAt ?? 0).getTime());
+        return <section key={group.id} className="rounded-2xl border border-paper/[.06] bg-paper/[.015] p-3">
+          <div className="mb-2 flex items-center gap-2"><span>{group.icon}</span><h3 className="text-xs font-black uppercase tracking-wide">{group.label}</h3><span className="tnum rounded-full bg-paper/10 px-2 text-[10px]">{items.length}</span><p className="ml-auto hidden text-[10px] text-faint sm:block">{group.hint}</p></div>
+          <div className="grid gap-1.5">{items.length ? items.map((item) => <FollowUpCardView key={`${item.conversationId}-${item.id ?? group.id}`} item={item} now={now} />) : <div className="rounded-xl border border-dashed border-paper/[.07] px-3 py-2 text-center text-[10.5px] text-faint">Sin casos</div>}</div>
         </section>;
       })}
     </div>

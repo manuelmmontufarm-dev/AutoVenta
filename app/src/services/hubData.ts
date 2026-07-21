@@ -165,6 +165,7 @@ export async function listHubTickets() {
     vehiculo: row.vehicle ?? undefined,
     cotizacion: row.quote ? publicQuote(row.quote) : undefined,
     esRecurrente: row.won_count > 0,
+    comprasAnteriores: Number(row.won_count),
     sinLeer: Number(row.unread_count),
     notas: row.notes ?? [],
     creadoEn: row.created_at.toISOString(),

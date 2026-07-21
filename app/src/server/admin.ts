@@ -307,6 +307,7 @@ export function createAdminRouter(): express.Router {
       recommendCloseDays: z.number().int().min(1).max(90), requireConsent: z.boolean(), respectOptOut: z.boolean(),
       neverOutsideHours: z.boolean(), maxMessagesPerDay: z.number().int().min(1).max(10), pauseOnHumanControl: z.boolean(),
       alertSettings: z.record(z.string(), z.unknown()).default({}),
+      stagePrompts: z.record(z.string(), z.string().max(2000)).default({}),
     }).parse(req.body);
     await sql`
       update follow_up_policies set enabled=${input.enabled}, timezone=${input.timezone},
@@ -318,7 +319,7 @@ export function createAdminRouter(): express.Router {
         recommend_close_days=${input.recommendCloseDays}, require_consent=${input.requireConsent},
         respect_opt_out=${input.respectOptOut}, never_outside_hours=${input.neverOutsideHours},
         max_messages_per_day=${input.maxMessagesPerDay}, pause_on_human_control=${input.pauseOnHumanControl}, updated_at=now()
-        , alert_settings=${sql.json(input.alertSettings as never)}
+        , alert_settings=${sql.json(input.alertSettings as never)}, stage_prompts=${sql.json(input.stagePrompts as never)}
       where policy_key='default'
     `;
     emitLiveEvent("settings"); res.json({ ok: true });
