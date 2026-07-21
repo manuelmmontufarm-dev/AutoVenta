@@ -515,6 +515,132 @@ export async function renderCompareImage(data: CompareRenderData): Promise<Buffe
 }
 
 // ---------------------------------------------------------------------------
+// Plantilla: opciones disponibles (catálogo agrupado por marca — pieza 3)
+// ---------------------------------------------------------------------------
+
+const BRAND_DOT: Record<string, string> = {
+  falken: "#1f4e8c",
+  kenda: RED,
+  winrun: GREEN,
+  maxxis: "#e07000",
+  sunoco: "#c9a227",
+};
+
+function optionCard(line: RenderLine, cardWidth: number): SatoriNode {
+  const discount =
+    line.pvpConIva && line.pvpConIva > line.unitConIva
+      ? Math.round((1 - line.unitConIva / line.pvpConIva) * 100)
+      : null;
+  return el(
+    {
+      flexDirection: "column",
+      gap: 10,
+      backgroundColor: PANEL,
+      border: `2px solid ${BORDER}`,
+      borderRadius: 22,
+      padding: "18px 18px 20px",
+      width: cardWidth,
+    },
+    el(
+      { justifyContent: "center", width: "100%" },
+      photoCard(line.photo, cardWidth - 60),
+    ),
+    text({ ...BLACK_FONT, fontSize: 24, color: NAVY }, line.design.toUpperCase()),
+    text(
+      { fontSize: 17, fontWeight: 500, color: MUTED },
+      [line.sizeLabel, line.loadSpeedLabel].filter(Boolean).join(" · "),
+    ),
+    el(
+      { alignItems: "center", gap: 12 },
+      text({ ...BLACK_FONT, fontSize: 32, color: RED }, money(line.unitConIva)),
+      line.pvpConIva && discount
+        ? text(
+            { fontSize: 16, fontWeight: 700, color: MUTED, textDecoration: "line-through" },
+            money(line.pvpConIva),
+          )
+        : null,
+      discount
+        ? el(
+            { backgroundColor: "#e8f4ea", borderRadius: 999, padding: "3px 10px" },
+            text({ fontSize: 14, fontWeight: 700, color: "#1d7268" }, `−${discount}%`),
+          )
+        : null,
+    ),
+    el({}, availabilityBadge(line.availability, 14)),
+    el(
+      { flexDirection: "column", gap: 2 },
+      line.golpesMeses
+        ? text({ fontSize: 14, fontWeight: 700, color: NAVY }, `${line.golpesMeses} meses contra golpes`)
+        : null,
+      text({ fontSize: 14, color: MUTED }, `${line.fabricaAnios} años de fábrica`),
+    ),
+  );
+}
+
+export interface OptionsRenderData {
+  dateLabel: string;
+  /** Medida buscada, ej. "205/55R16" — va en el subtítulo. */
+  sizeLabel?: string | null;
+  products: RenderLine[]; // quantity ignorada
+}
+
+export async function renderOptionsImage(data: OptionsRenderData): Promise<Buffer> {
+  const width = 1440;
+  const PAD = 44;
+  const GAP = 24;
+  const perRow = 3;
+  const cardWidth = Math.floor((width - PAD * 2 - GAP * (perRow - 1)) / perRow);
+  const cardHeight = cardWidth - 60 + 235; // foto + textos
+
+  // Agrupar por marca conservando el orden de aparición
+  const groups = new Map<string, RenderLine[]>();
+  for (const p of data.products) {
+    const list = groups.get(p.brand) ?? [];
+    list.push(p);
+    groups.set(p.brand, list);
+  }
+
+  const sections: Child[] = [];
+  let height = 196 + 36 + 150; // header + padding top + footer
+  for (const [brand, lines] of groups) {
+    const rows = Math.ceil(lines.length / perRow);
+    height += 74 + rows * (cardHeight + GAP);
+    const dot = BRAND_DOT[brand.toLowerCase()] ?? NAVY;
+    sections.push(
+      el(
+        { alignItems: "center", gap: 14, padding: `10px ${PAD}px 14px`, width: "100%" },
+        el({ width: 18, height: 18, borderRadius: 999, backgroundColor: dot }),
+        brandMark(brand, 40),
+        el({ flexGrow: 1, height: 2, backgroundColor: BORDER }),
+      ),
+    );
+    for (let r = 0; r < rows; r++) {
+      sections.push(
+        el(
+          { gap: GAP, padding: `0 ${PAD}px ${GAP}px`, width: "100%" },
+          ...lines.slice(r * perRow, (r + 1) * perRow).map((l) => optionCard(l, cardWidth)),
+        ),
+      );
+    }
+  }
+
+  const node = el(
+    { flexDirection: "column", width: "100%", height: "100%", backgroundColor: CREAM },
+    header(
+      "Opciones de Llantas",
+      data.sizeLabel ? `Disponibles en ${data.sizeLabel}` : `${business.name} · Disponibles hoy`,
+      data.dateLabel,
+      "IVA incluido · Válida 3 días",
+    ),
+    el({ height: 26 }),
+    ...sections,
+    el({ flexGrow: 1 }),
+    footer("Precios por unidad incluyen IVA · Válida 3 días o hasta agotar stock"),
+  );
+  return renderPng(node, width, height);
+}
+
+// ---------------------------------------------------------------------------
 // satori + resvg
 // ---------------------------------------------------------------------------
 

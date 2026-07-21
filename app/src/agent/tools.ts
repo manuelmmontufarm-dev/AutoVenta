@@ -18,6 +18,7 @@ import {
 } from "../services/catalog.js";
 import {
   buildQuote,
+  pngToQuotePdf,
   renderComparisonPdf,
   renderQuotePdf,
 } from "../services/quotePdf.js";
@@ -43,6 +44,7 @@ import { getTirePatternProfile } from "../domain/tireKnowledge.js";
 import { notifySeller, sendImage, sendPdf } from "../wa/client.js";
 import {
   renderCompareImage,
+  renderOptionsImage,
   renderQuoteImage,
   toRenderLine,
 } from "../render/quoteImage.js";
@@ -103,14 +105,15 @@ async function sendVisual(
   caption: string,
   filename: string,
   what: string,
-): Promise<{ ok: boolean; providerId?: string }> {
+): Promise<{ ok: boolean; providerId?: string; png?: Buffer }> {
+  let png: Buffer | undefined;
   try {
-    const png = await render();
+    png = await render();
     const providerId = await sendImage(to, png, caption, filename);
-    return { ok: true, providerId };
+    return { ok: true, providerId, png };
   } catch (err) {
     console.error(`❌ Imagen de ${what} falló:`, err);
-    return { ok: false };
+    return { ok: false, png };
   }
 }
 
@@ -208,6 +211,36 @@ export function buildTools(ctx: AgentContext) {
         return JSON.stringify({ error: "No se encontraron los productos seleccionados" });
       }
       const message = buildCustomerOptionsMessage(products, nombre_cliente);
+
+      // Pieza visual del catálogo (agrupada por marca). Si falla, el texto
+      // sigue siendo la respuesta — el cliente nunca se queda sin opciones.
+      const sizeLabel = products[0]?.sizeLabel ?? null;
+      const visual = await sendVisual(
+        ctx.customerPhone,
+        async () =>
+          renderOptionsImage({
+            dateLabel: dateLabel(),
+            sizeLabel,
+            products: await Promise.all(products.map((product) => toRenderLine(product))),
+          }),
+        `Opciones disponibles${sizeLabel ? ` en ${sizeLabel}` : ""} 🏁`,
+        `Opciones-${business.name.replace(/\s/g, "")}.png`,
+        "opciones",
+      );
+      if (visual.ok) {
+        await appendMessage(
+          ctx.conversation.id,
+          "assistant",
+          `Opciones enviadas: ${products.map((p) => `${p.brand} ${p.design}`).join(" · ")}`,
+          visual.providerId,
+          {
+            type: "image",
+            authorKind: "bot",
+            status: "sent",
+            metadata: { codes },
+          },
+        );
+      }
       await logQuoteArtifact({
         conversationId: ctx.conversation.id,
         kind: "options",
@@ -220,6 +253,7 @@ export function buildTools(ctx: AgentContext) {
         })),
       });
       return JSON.stringify({
+        imagen_enviada: visual.ok,
         mensaje_para_enviar: message,
         regla: "Responde usando exactamente mensaje_para_enviar; no sumes alternativas.",
       });
@@ -398,7 +432,11 @@ export function buildTools(ctx: AgentContext) {
       let pdfEnviado = false;
       if (!visual.ok || incluir_pdf) {
         try {
-          const pdf = await renderQuotePdf(quote);
+          // Mismo diseño que la imagen cuando el render funcionó; el PDF
+          // clásico de pdfmake queda solo como último recurso.
+          const pdf = visual.png
+            ? await pngToQuotePdf(visual.png)
+            : await renderQuotePdf(quote);
           const pdfName = `Cotizacion-${business.name.replace(/\s/g, "")}-${quote.number}.pdf`;
           const pdfId = await sendPdf(
             ctx.customerPhone,

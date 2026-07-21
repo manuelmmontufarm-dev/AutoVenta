@@ -6,7 +6,8 @@
 import express from "express";
 import { fileURLToPath } from "node:url";
 import { wa } from "../wa/client.js";
-import { catalogStatus } from "../services/catalog.js";
+import { catalogStatus, searchBySize } from "../services/catalog.js";
+import { renderCompareImage, toRenderLine } from "../render/quoteImage.js";
 import { createAdminRouter } from "./admin.js";
 
 // Hub estático (site/ dentro de app/ para que entre en el build de Railway).
@@ -31,6 +32,41 @@ export function createServer(): express.Express {
 
   app.get("/health", (_req, res) => {
     res.json({ ok: true, catalog: catalogStatus() });
+  });
+
+  // Prueba en vivo del motor de imágenes con el catálogo real: renderiza la
+  // comparativa de una medida (?medida=205/55R16) en este mismo servidor.
+  // Sirve para verificar que satori/resvg/fuentes/fotos funcionan en Railway.
+  app.get("/cotizaciones/live.png", async (req, res) => {
+    try {
+      const raw = String(req.query.medida ?? "205/55R16");
+      const m = raw.match(/(\d{3})[/ ]?(\d{2})\s?Z?R?(\d{2})/i);
+      if (!m) {
+        res.status(400).json({ error: "medida inválida, ej. 205/55R16" });
+        return;
+      }
+      const size = { width: Number(m[1]), aspect: Number(m[2]), rim: Number(m[3]) };
+      const products = searchBySize(size)
+        .filter((p) => p.availability !== "out")
+        .slice(0, 3);
+      if (!products.length) {
+        res.status(404).json({ error: `sin productos para ${raw}` });
+        return;
+      }
+      const png = await renderCompareImage({
+        dateLabel: new Date().toLocaleDateString("es-EC", {
+          day: "2-digit",
+          month: "2-digit",
+          year: "numeric",
+          timeZone: "America/Guayaquil",
+        }),
+        products: await Promise.all(products.map((p) => toRenderLine(p))),
+      });
+      res.type("png").send(png);
+    } catch (err) {
+      console.error("❌ /cotizaciones/live.png:", err);
+      res.status(500).json({ error: String(err) });
+    }
   });
 
   // API del panel en línea (mensajes, configuración de IA, tester).

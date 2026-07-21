@@ -32,6 +32,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-07-20 | _(este mismo)_ | Piezas visuales en TODOS los flujos: opciones como imagen, fitment Prado, PDF con diseño nuevo, /cotizaciones/live.png | 2.0 |
 | 2026-07-20 | _(este mismo)_ | Unificación: motor de imágenes sobre el catálogo Contífico (un solo entorno) | 2.0 |
 | 2026-07-20 | _(este mismo)_ | Cotizador funcional con inventario Contífico, fotos, tres flujos y bot compartido | 6.0 |
 | 2026-07-20 | _(este mismo)_ | Cotizaciones visuales nivel Grupo Inter: motor satori/resvg + comparar_llantas + envío endurecido | 4.0 |
@@ -57,11 +58,34 @@ Ya viene activado en este equipo.
 | 2026-07-14 | ac09171 | Ubicaciones de locales + análisis de features del cliente | 1.5 |
 | 2026-07-13 | feadf57 | Brief + plan de desarrollo + plan financiero + catálogo | 4.0 |
 | 2026-07-13 | d997844 | Commit inicial (repo) | 0.25 |
-| | | **TOTAL** | **~49.25 h** |
+| | | **TOTAL** | **~51.25 h** |
 
 ---
 
 ## Entradas (más reciente primero)
+
+### 2026-07-20 · Piezas visuales en todos los flujos + verificación en vivo · ⏱️ 2.0 h
+
+**Qué:** Al probar en staging quedó claro que el flujo que más se usa (opciones tras
+confirmar la medida) seguía siendo solo texto, el fitment no conocía al Prado 2002 y el
+PDF de cotización mantenía el diseño viejo. Fixes: (1) `preparar_opciones` ahora envía la
+pieza de catálogo agrupada por marca (estilo pieza 3 de Grupo Inter) además del texto;
+(2) tabla de fitment ampliada con Prado/Land Cruiser, RAV4, 4Runner, Montero, L200,
+Outlander, Tracker, Captiva, Wingle y JAC T8; (3) el PDF de `generar_cotizacion` incrusta
+el PNG del diseño nuevo (pdfmake queda de último recurso); (4) endpoint
+`/cotizaciones/live.png?medida=205/55R16` que renderiza la comparativa con el catálogo
+real EN el servidor — prueba en vivo de que satori/resvg/fuentes/fotos funcionan en Railway.
+
+**Por qué:** El cliente probó el bot y reportó que "no se implementó ningún cambio": las
+piezas existían pero no estaban conectadas al flujo que él recorrió. Ahora todos los
+caminos (opciones → comparación → cotización) mandan imagen, y hay una URL para verificar
+el motor en producción sin tener que chatear.
+
+**Cómo se probó:** 41 tests + typecheck + build; fitment de Prado 2002 verificado por
+script; pieza de opciones renderizada con productos reales (fotos del manifiesto) y
+revisada a ojo; tras el deploy, `/cotizaciones/live.png` verificado por HTTP en staging.
+
+---
 
 ### 2026-07-20 · Unificación de entornos: imágenes de cotización sobre el catálogo real · ⏱️ 2.0 h
 

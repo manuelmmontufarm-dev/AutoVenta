@@ -61,6 +61,23 @@ export const FITMENT_TABLE: FitmentEntry[] = [
   { make: "ford", model: "ranger", sizes: ["255/70R16", "265/60R18"], validated: false },
   { make: "ford", model: "ecosport", sizes: ["205/60R16", "205/50R17"], validated: false },
   { make: "volkswagen", model: "gol", sizes: ["185/60R15"], validated: false },
+  {
+    make: "toyota",
+    model: "prado",
+    sizes: ["265/70R16", "265/65R17"],
+    validated: false,
+    note: "Serie J90 (hasta 2002): 265/70R16. Serie J120 (2003-2009) y J150: 265/65R17.",
+  },
+  { make: "toyota", model: "land cruiser", sizes: ["265/70R16", "265/65R17", "285/60R18"], validated: false },
+  { make: "toyota", model: "rav4", sizes: ["225/65R17", "235/55R19"], validated: false },
+  { make: "toyota", model: "4runner", sizes: ["265/70R17", "265/65R17"], validated: false },
+  { make: "mitsubishi", model: "montero", sizes: ["265/70R16", "265/60R18"], validated: false },
+  { make: "mitsubishi", model: "l200", sizes: ["245/70R16", "265/60R18"], validated: false },
+  { make: "mitsubishi", model: "outlander", sizes: ["225/55R18", "215/70R16"], validated: false },
+  { make: "great wall", model: "wingle", sizes: ["235/70R16", "245/70R16"], validated: false },
+  { make: "chevrolet", model: "tracker", sizes: ["205/70R16", "215/55R17"], validated: false },
+  { make: "chevrolet", model: "captiva", sizes: ["225/60R17", "235/50R19"], validated: false },
+  { make: "jac", model: "t8", sizes: ["245/70R16", "265/60R18"], validated: false },
 ];
 
 function normalize(text: string): string {
