@@ -362,7 +362,7 @@ function singleQuoteDocument(quote: Quote, line: QuoteLine, image: string | null
         margin: [0, 16, 0, 0],
       },
       ...(quote.discountAmount ? [{
-        text: `Descuento adicional autorizado: -${money(quote.discountAmount)} · ${quote.discountCondition ?? quote.discountReason ?? "condición registrada"}`,
+        text: `SEGUNDO DESCUENTO · EXTRA DEL ASESOR: -${money(quote.discountAmount)} · CONDICIÓN OBLIGATORIA: ${quote.discountCondition ?? quote.discountReason ?? "condición registrada"}`,
         alignment: "right", color: GREEN, bold: true, fontSize: 9, margin: [0, 8, 0, 0],
       }] : []),
       {
@@ -455,8 +455,8 @@ function legacyQuoteDocument(quote: Quote) {
           paddingBottom: () => 8,
         },
       },
-      ...(quote.discountAmount ? [{ text: `DESCUENTO AUTORIZADO: -${money(quote.discountAmount)} · ${quote.discountCondition}`, bold: true, fontSize: 10, alignment: "right", color: GREEN, margin: [0, 14, 0, 0] }] : []),
-      ...(quote.discountAmount ? [{ text: `Válido en tienda únicamente presentando la cotización ${quote.number}.`, bold: true, fontSize: 9, alignment: "right", color: NAVY, margin: [0, 4, 0, 0] }] : []),
+      ...(quote.discountAmount ? [{ text: `2. DESCUENTO EXTRA DEL ASESOR: -${money(quote.discountAmount)}`, bold: true, fontSize: 11, alignment: "right", color: GREEN, margin: [0, 14, 0, 0] }] : []),
+      ...(quote.discountAmount ? [{ text: `CONDICIÓN OBLIGATORIA: ${quote.discountCondition}. Si no se cumple, aplica únicamente el precio base. Válido presentando ${quote.number}.`, bold: true, fontSize: 9, alignment: "right", color: NAVY, margin: [0, 4, 0, 0] }] : []),
       { text: `TOTAL CON IVA: ${money(quote.total)}`, bold: true, fontSize: 16, alignment: "right", color: RED, margin: [0, quote.discountAmount ? 6 : 18, 0, 0] },
     ],
   };

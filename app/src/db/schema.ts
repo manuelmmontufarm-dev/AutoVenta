@@ -9,6 +9,7 @@ import { runSalesPlanDiscountsMigration } from "./migrations/002_sales_follow_up
 import { runFollowUpStagePromptsMigration } from "./migrations/003_follow_up_stage_prompts.js";
 import { runOpportunityCampaignsPendingDiscountsMigration } from "./migrations/004_opportunity_campaigns_pending_discounts.js";
 import { runConversationMemoryDiscountDeliveryMigration } from "./migrations/005_conversation_memory_discount_delivery.js";
+import { runCycleContextQualityMigration } from "./migrations/006_cycle_context_quality.js";
 
 export const SCHEMA = /* sql */ `
 create table if not exists conversations (
@@ -296,4 +297,5 @@ export async function ensureSchema(): Promise<void> {
   await runFollowUpStagePromptsMigration(sql);
   await runOpportunityCampaignsPendingDiscountsMigration(sql);
   await runConversationMemoryDiscountDeliveryMigration(sql);
+  await runCycleContextQualityMigration(sql);
 }

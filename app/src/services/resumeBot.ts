@@ -9,6 +9,7 @@ import { createBotAlert, scheduleConversationFollowUps } from "./followUps.js";
 import { emitLiveEvent } from "./liveEvents.js";
 import { authorizeConversationOutbound } from "./whatsappPolicy.js";
 import { hasUnansweredCustomerMessage } from "../domain/conversationState.js";
+import { flagRepetitiveConversation } from "./conversationQuality.js";
 
 export type ResumeBotResult = "answered" | "nothing_pending" | "window_closed" | "already_processing";
 
@@ -75,6 +76,7 @@ export async function resumeBotIfUnanswered(conversationId: number): Promise<Res
       currentUserText: claimed.last_text, resumedFromHuman: true,
     };
     const reply = await runAgent(ctx, claimed.last_text);
+    await flagRepetitiveConversation(conversationId, reply);
     const providerId = await sendCustomerText(conversationId, claimed.phone, reply);
     await appendMessage(conversationId, "assistant", reply, providerId, {
       authorKind: "bot", status: "sent", metadata: { resumedAfterHuman: true },

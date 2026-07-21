@@ -37,7 +37,7 @@ import {
   updateConversationFacts,
   type Conversation,
 } from "../services/conversations.js";
-import { lookupFitment } from "../domain/fitment.js";
+import { researchVehicleFitment } from "../services/vehicleFitmentResearch.js";
 import { nearestStore, resolveSector } from "../domain/locations.js";
 import { formatTireSize } from "../domain/tireSize.js";
 import { canGenerateFinalQuote } from "../domain/salesIntent.js";
@@ -204,30 +204,27 @@ export function buildTools(ctx: AgentContext) {
     }),
     run: async ({ marca, modelo, anio }) => {
       const vehicle = `${marca} ${modelo}${anio ? ` ${anio}` : ""}`.trim();
-      await updateConversationFacts(ctx.conversation.id, { vehicle });
-      const entry = lookupFitment(marca, modelo, anio);
-      if (!entry) {
+      await updateConversationFacts(ctx.conversation.id, { vehicle, ...(anio ? { vehicleYear: anio } : {}) });
+      const result = await researchVehicleFitment(marca, modelo, anio);
+      if (result.status === "not_found") {
         return JSON.stringify({
           encontrado: false,
           compatibilidad_confirmada: false,
           mensaje:
             "No existe una medida verificada para ese año/modelo en la base. No afirmes que una llanta le entra. Pregunta la versión o país de fabricación y ofrece identificar la medida con una foto de la etiqueta de la puerta o del costado de una llanta actual.",
-          preguntas_utiles: [
-            "¿Qué versión o motor es y en qué país fue fabricado?",
-            "¿Puedes enviarme una foto de la etiqueta de la puerta del conductor?",
-            "¿Puedes enviarme una foto de la medida escrita en una llanta actual?",
-          ],
+          siguiente_pregunta: result.nextQuestion,
         });
       }
       return JSON.stringify({
         encontrado: true,
-        medidas: entry.sizes,
-        validated: entry.validated,
-        anios: entry.years ?? null,
-        nota: entry.note ?? null,
-        fuente: entry.sourceUrl ?? null,
+        medidas: result.sizes,
+        compatibilidad_confirmada: result.status === "verified",
+        estado: result.status,
+        nota: result.note,
+        fuentes: result.sources,
+        siguiente_pregunta: result.nextQuestion,
         regla:
-          "Presenta todas las medidas por versión y pide confirmar versión o etiqueta de puerta/llanta antes de buscar stock.",
+          "Muestra la fuente. Si estado no es verified, preséntalo solo como referencia y haz una sola pregunta discriminante; nunca afirmes que entra sin confirmar versión/etiqueta.",
       });
     },
   });

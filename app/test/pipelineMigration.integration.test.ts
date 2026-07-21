@@ -154,6 +154,10 @@ describe.sequential("Fase A — migración, transiciones y reapertura", () => {
       actor: "owner",
       reason: "Confirmó visita",
     });
+    await conversations.updateConversationFacts(conversation.id, {
+      customerCommitment: "Voy el sábado",
+      followUpReason: "Cliente pidió asesor en la compra anterior",
+    });
     await conversations.setStage(conversation.id, "ganado", {
       actor: "owner",
       reason: "Compra verificada",
@@ -167,6 +171,10 @@ describe.sequential("Fase A — migración, transiciones y reapertura", () => {
     expect(reopened.stage).toBe("nuevo");
     expect(reopened.status).toBe("open");
     expect(reopened.current_cycle).toBe(2);
+    const [freshContext] = await appSql<{
+      customer_commitment: string | null; follow_up_reason: string | null;
+    }[]>`select customer_commitment, follow_up_reason from conversations where id=${conversation.id}`;
+    expect(freshContext).toEqual({ customer_commitment: null, follow_up_reason: null });
 
     const history = await appSql<{ cycle: number; outcome: string }[]>`
       select cycle, outcome from sales_history where conversation_id = ${conversation.id}

@@ -29,7 +29,8 @@ function OpportunityCard({ item, now }: { item: FollowUpCard; now: number }) {
       </div>
       <p className="mt-1 line-clamp-1 text-[10.5px] text-muted">{item.tireSize || item.selectedProductCode || "Medida pendiente"} · {item.summary}</p>
       <p className="mt-1 line-clamp-1 text-[10px] font-bold text-amber-500">⚡ {item.importanceReason}</p>
-      {commitment && <p className="mt-1 line-clamp-1 text-[10.5px] font-bold text-lime">🚗 {commitment}</p>}
+      {commitment && <p className="mt-1 rounded-lg bg-lime/[.08] px-2 py-1 text-[10.5px] font-black text-lime">📅 Dijo que irá: {commitment}</p>}
+      {item.discountCondition && <p className="mt-1 line-clamp-1 text-[10px] font-bold text-amber-500">🏷️ Condición del descuento extra: {item.discountCondition}</p>}
     </div>
     <div className="flex items-center justify-between gap-3 sm:block sm:text-right">
       <p className="tnum text-[10px] font-bold">{next ? `Próximo: ${next}` : "Requiere decisión"}</p>

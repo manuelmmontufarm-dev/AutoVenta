@@ -176,6 +176,7 @@ export interface FollowUpCard {
   campaignPlan: Array<{ id: number; day: string; dueAt: string; preview: string; templateKey: string; status: string }>;
   importanceLabel: string;
   importanceReason: string;
+  discountCondition: string | null;
 }
 
 export interface TemplatePlanPreview {
@@ -225,6 +226,7 @@ export interface HubMetrics {
   daily: Array<{ day: string; value: number }>;
   funnel: Array<{ stage: Etapa; value: number }>;
   deliveries: Array<{ status: string; value: number }>;
+  replyHours?: Array<{ hour: number; label: string; replies: number }>;
   discounts?: {
     offered: number; wonWith: number; quotedWithout: number; wonWithout: number;
     conversionWith: number; conversionWithout: number; totalDiscount: number;

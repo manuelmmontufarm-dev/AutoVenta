@@ -57,7 +57,9 @@ export async function listHubTickets() {
     select
       c.id, c.phone, c.name, c.stage, c.status, c.assigned_to, c.unread_count,
       c.tire_size, c.vehicle, c.closed_reason, c.closed_at, c.created_at, c.updated_at,
-      c.customer_opt_in, c.opted_out_at, c.customer_commitment, c.pickup_date,
+      c.customer_opt_in, c.opted_out_at,
+      case when c.customer_commitment_cycle=c.current_cycle then c.customer_commitment end as customer_commitment,
+      c.pickup_date,
       c.visit_date, c.offer_expires_at, c.nearest_store, c.last_customer_message_at,
       m.content as last_message, m.created_at as last_at,
       case when q.id is null then null else jsonb_build_object(
@@ -66,7 +68,9 @@ export async function listHubTickets() {
         'discount_reason', q.discount_reason, 'discount_condition', q.discount_condition
       ) end as quote,
       s.summary, s.customer_need, s.options_discussed, s.selected_option,
-      coalesce(s.follow_up_reason, c.follow_up_reason) as follow_up_reason,
+      coalesce(s.follow_up_reason,
+        case when c.follow_up_reason_cycle=c.current_cycle then c.follow_up_reason end
+      ) as follow_up_reason,
       case when j.id is null then null else jsonb_build_object(
         'id', j.id, 'dueAt', j.due_at, 'status', j.status,
         'preview', coalesce(j.payload->>'preview', ''),
@@ -203,15 +207,15 @@ export async function listHubTickets() {
 }
 
 function commercialAttentionReason(row: TicketRow): string | undefined {
-  if (row.follow_up_reason) return row.follow_up_reason;
-  if (/\b(?:asesor|humano|vendedor|hablar con alguien)\b/i.test(row.last_message ?? "")) {
-    return "Cliente pidió atención de un asesor y todavía requiere respuesta.";
-  }
   if (row.customer_commitment) return `Compromiso pendiente: ${row.customer_commitment}`;
   if (row.stage === "seguimiento_venta") {
     return row.quote
       ? "Cotización en recta final: confirmar visita, reserva o decisión de compra."
       : "Venta en recta final: requiere coordinar el siguiente paso con el cliente.";
+  }
+  if (row.follow_up_reason) return row.follow_up_reason;
+  if (row.assigned_to === "human" && /\b(?:asesor|humano|vendedor|hablar con alguien)\b/i.test(row.last_message ?? "")) {
+    return "Cliente pidió atención de un asesor en este ciclo y todavía requiere respuesta.";
   }
   if (row.last_customer_message_at &&
       Date.now() >= row.last_customer_message_at.getTime() + 24 * 60 * 60 * 1000) {
@@ -406,6 +410,19 @@ export async function getHubMetrics(days = 14) {
     group by coalesce(status, 'unknown')
   `;
 
+  const replyHours = await sql<{ hour: number; replies: number }[]>`
+    select extract(hour from inbound.created_at at time zone 'America/Guayaquil')::int as hour,
+      count(*)::int as replies
+    from messages inbound
+    where inbound.direction='inbound' and inbound.created_at >= now() - interval '90 days'
+      and exists (
+        select 1 from messages outbound
+        where outbound.conversation_id=inbound.conversation_id and outbound.cycle=inbound.cycle
+          and outbound.direction='outbound' and outbound.created_at < inbound.created_at
+      )
+    group by 1 order by 1
+  `;
+
   const [discounts] = await sql<{
     offered: number; won_with: number; quoted_without: number; won_without: number;
     total_discount: string | number; avg_days_to_win_with: string | number | null;
@@ -451,6 +468,11 @@ export async function getHubMetrics(days = 14) {
     deliveries: deliveries.map((row) => ({
       status: row.status,
       value: Number(row.count),
+    })),
+    replyHours: Array.from({ length: 24 }, (_, hour) => ({
+      hour,
+      label: `${String(hour).padStart(2, "0")}:00`,
+      replies: Number(replyHours.find((row) => Number(row.hour) === hour)?.replies ?? 0),
     })),
     discounts: {
       offered: Number(discounts?.offered ?? 0), wonWith: Number(discounts?.won_with ?? 0),

@@ -176,7 +176,7 @@ export async function createDiscountOffer(input: {
     await tx`
       update conversations set savings_amount = ${breakdown.discountAmountCents / 100},
         offer_expires_at = ${input.expiresAt ?? null},
-        follow_up_reason = ${`Oferta autorizada: ${input.condition.trim()}`}, updated_at = now()
+        updated_at = now()
       where id = ${input.conversationId}
     `;
     await tx`
@@ -292,7 +292,7 @@ export async function materializePendingDiscount(
     `;
     await tx`update pending_discount_rules set status='applied', applied_at=now(), applied_offer_id=${created.id} where id=${pending.id}`;
     await tx`update conversations set savings_amount=${breakdown.discountAmountCents / 100},
-      offer_expires_at=${pending.expires_at}, follow_up_reason=${`Oferta autorizada: ${pending.condition_text}`}, updated_at=now()
+      offer_expires_at=${pending.expires_at}, updated_at=now()
       where id=${conversationId}`;
     return Number(created.id);
   });
@@ -320,7 +320,7 @@ export function pendingDiscountNoticeMessage(rule: PendingDiscountRule): string 
     : rule.kind === "final_price"
       ? `un precio final de $${(rule.valueCents / 100).toFixed(2)}`
       : `$${(rule.valueCents / 100).toFixed(2)}`;
-  return `🏷️ Un asesor decidió que eres elegible para ${rule.kind === "percentage" ? `un ${value} de descuento` : `un descuento de ${value}`} si ${rule.condition}. Se aplicará en tu próxima cotización y solo será válido en la tienda presentando ese número.`;
+  return `🏷️ Un asesor autorizó un descuento EXTRA de ${value}, adicional al precio promocional base.\n⚠️ Para recibir este segundo descuento debes cumplir obligatoriamente: ${rule.condition}.\nSe aplicará en tu próxima cotización. Si no cumples la condición, se mantiene únicamente el precio base. En la tienda debes presentar el número de cotización.`;
 }
 
 export async function markDiscountNoticeSent(

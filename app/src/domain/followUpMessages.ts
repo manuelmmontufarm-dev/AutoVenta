@@ -61,8 +61,8 @@ export function buildContextualFollowUpMessage(
     const amount = context.activeDiscountAmount.toFixed(2);
     const total = context.activeDiscountFinalTotal.toFixed(2);
     return kind === "in_window_second"
-      ? `😊 Solo quería asegurarme de que viste la oferta autorizada: $${amount} de descuento si ${context.activeDiscountCondition}. El total queda en $${total}.${context.quoteNumber ? ` Para validarlo en tienda, presenta la cotización ${context.quoteNumber}.` : ""} ¿Te ayudo a coordinarlo?`
-      : `${prefix}✨ Tengo registrada para ti una oferta de $${amount} de descuento si ${context.activeDiscountCondition}; el total queda en $${total}.${context.quoteNumber ? ` Para validarlo en tienda, presenta la cotización ${context.quoteNumber}.` : ""} ¿Quieres que coordinemos el siguiente paso?`;
+      ? `😊 Recuerda que tienes $${amount} de descuento EXTRA sobre el precio base. Este segundo descuento aplica únicamente si ${context.activeDiscountCondition}; cumpliéndolo, el total queda en $${total}.${context.quoteNumber ? ` Preséntalo con la cotización ${context.quoteNumber}.` : ""} ¿Te ayudo a coordinarlo?`
+      : `${prefix}✨ Tienes $${amount} de descuento EXTRA sobre el precio base. Para recibir este segundo descuento debes cumplir: ${context.activeDiscountCondition}; así el total queda en $${total}.${context.quoteNumber ? ` Preséntalo con la cotización ${context.quoteNumber}.` : ""} ¿Coordinamos el siguiente paso?`;
   }
 
   if (context.customerCommitment || context.stage === "seguimiento_venta") {

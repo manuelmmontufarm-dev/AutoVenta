@@ -348,6 +348,10 @@ function heroBody(line: RenderLine): SatoriNode[] {
 }
 
 function totalsBand(data: QuoteRenderData, units: number): SatoriNode {
+  const listTotal = data.lines.reduce((sum, line) => sum + (line.pvpConIva ?? line.unitConIva) * line.quantity, 0);
+  const baseTotal = data.lines.reduce((sum, line) => sum + line.unitConIva * line.quantity, 0);
+  const baseSaving = Math.max(0, listTotal - baseTotal);
+  const basePercent = listTotal > 0 ? Math.round((baseSaving / listTotal) * 100) : 0;
   return el(
     { padding: "30px 44px 0", width: "100%" },
     el(
@@ -365,15 +369,19 @@ function totalsBand(data: QuoteRenderData, units: number): SatoriNode {
           { fontSize: 17, fontWeight: 700, color: GOLD, letterSpacing: 4 },
           `TOTAL · ${units} ${units === 1 ? "LLANTA" : "LLANTAS"}`,
         ),
-        text(
-          { fontSize: 18, color: "#c8d0e2" },
-          `Subtotal ${money(data.subtotal)} + IVA ${money(data.iva)}`,
-        ),
-        data.discountAmount
-          ? text({ fontSize: 18, fontWeight: 700, color: GREEN }, `Descuento autorizado −${money(data.discountAmount)} · ${data.discountCondition ?? "condición registrada"}`)
+        text({ fontSize: 18, color: "#c8d0e2" }, `PVP original ${money(listTotal)}`),
+        baseSaving > 0
+          ? text({ fontSize: 20, fontWeight: 700, color: "#9ee3c7" },
+              `1. DESCUENTO BASE DEPOT TIRE −${money(baseSaving)} (−${basePercent}%) · precio base ${money(baseTotal)}`)
           : null,
         data.discountAmount
-          ? text({ fontSize: 15, fontWeight: 700, color: "#ffffff" }, `Válido en tienda únicamente presentando la cotización ${data.number}`)
+          ? text({ fontSize: 22, fontWeight: 900, color: GOLD }, `2. DESCUENTO EXTRA DEL ASESOR −${money(data.discountAmount)}`)
+          : null,
+        data.discountAmount
+          ? text({ fontSize: 18, fontWeight: 900, color: "#ffffff" }, `CONDICIÓN OBLIGATORIA: ${data.discountCondition ?? "condición registrada"}`)
+          : null,
+        data.discountAmount
+          ? text({ fontSize: 15, fontWeight: 700, color: "#ffffff" }, `Si no cumple la condición, conserva solo el precio base. Válido presentando ${data.number}`)
           : null,
       ),
       text({ ...BLACK_FONT, fontSize: 62, color: GOLD }, money(data.total)),
@@ -445,7 +453,7 @@ export async function renderQuoteImage(data: QuoteRenderData): Promise<Buffer> {
   ];
 
   // header ~184 + padding + filas (~196 c/u con gap) + banda de total + footer
-  const height = single ? 1560 : 460 + data.lines.length * 214;
+  const height = (single ? 1560 : 460 + data.lines.length * 214) + (data.discountAmount ? 130 : 0);
 
   return renderPng(el({ flexDirection: "column", width: "100%", height: "100%", backgroundColor: CREAM }, ...children), 1080, height);
 }

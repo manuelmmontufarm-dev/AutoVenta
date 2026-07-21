@@ -29,6 +29,8 @@ import {
   scheduleConversationFollowUps,
 } from "./services/followUps.js";
 import { markDiscountNoticeSent } from "./services/discountOffers.js";
+import { extractCustomerCommitment } from "./domain/customerCommitment.js";
+import { flagRepetitiveConversation } from "./services/conversationQuality.js";
 
 const pipeline = new InboundPipeline(async ({ from, name, text, waMessageIds, receivedAt }) => {
   const conversation = await getOrCreateConversation(from, name);
@@ -44,10 +46,12 @@ const pipeline = new InboundPipeline(async ({ from, name, text, waMessageIds, re
   const parsedSize = extractTireSizes(text)[0];
   const parsedQuantity = extractExplicitQuantity(text);
   const parsedVehicleYear = extractVehicleYear(text);
+  const commitment = extractCustomerCommitment(text, receivedAt);
   await updateConversationFacts(conversation.id, {
     ...(parsedSize ? { tireSize: formatTireSize(parsedSize) } : {}),
     ...(parsedQuantity ? { selectedQuantity: parsedQuantity } : {}),
     ...(parsedVehicleYear ? { vehicleYear: parsedVehicleYear } : {}),
+    ...(commitment ? { customerCommitment: commitment.text, visitDate: commitment.visitDate } : {}),
   });
   emitLiveEvent("message", conversation.id);
   emitLiveEvent("sync", conversation.id);
@@ -72,6 +76,7 @@ const pipeline = new InboundPipeline(async ({ from, name, text, waMessageIds, re
   const agentContext: AgentContext = { conversation, customerPhone: from, customerName: name,
     currentUserText: text };
   const reply = await runAgent(agentContext, text);
+  await flagRepetitiveConversation(conversation.id, reply);
 
   const sentId = await sendCustomerText(conversation.id, from, reply);
   await appendMessage(conversation.id, "assistant", reply, sentId, {

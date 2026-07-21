@@ -138,8 +138,10 @@ async function getConversationForFollowUp(
   const [row] = await sql<ConversationForFollowUp[]>`
     select c.id, c.phone, c.name, c.stage, c.status, c.assigned_to,
       c.current_cycle, c.tire_size, coalesce(c.selected_product_code, s.selected_option) as selected_product_code,
-      c.selected_quantity, c.nearest_store, c.customer_commitment,
-      c.follow_up_reason, c.customer_opt_in, c.opted_out_at,
+      c.selected_quantity, c.nearest_store,
+      case when c.customer_commitment_cycle=c.current_cycle then c.customer_commitment end as customer_commitment,
+      case when c.follow_up_reason_cycle=c.current_cycle then c.follow_up_reason end as follow_up_reason,
+      c.customer_opt_in, c.opted_out_at,
       c.negative_sentiment_at, c.last_customer_message_at,
       c.last_assistant_message_at, c.bot_paused_until,
       q.quote_number, q.total as quote_total, s.summary,
@@ -407,6 +409,7 @@ export async function handleInboundFollowUpState(
       const [conversation] = await tx<{ current_cycle: number }[]>`
         update conversations set assigned_to = 'human', bot_paused_until = 'infinity'::timestamptz,
           follow_up_reason = 'Cliente pidió atención de un asesor y todavía requiere respuesta',
+          follow_up_reason_cycle = current_cycle,
           updated_at = now() where id = ${conversationId} returning current_cycle
       `;
       if (conversation) await tx`
@@ -470,7 +473,8 @@ export async function refreshConversationSummary(conversationId: number): Promis
     last_owner_message: string | null;
   }[]>`
     select c.current_cycle, c.tire_size, c.vehicle, c.selected_product_code,
-      c.customer_commitment, c.follow_up_reason,
+      case when c.customer_commitment_cycle=c.current_cycle then c.customer_commitment end as customer_commitment,
+      case when c.follow_up_reason_cycle=c.current_cycle then c.follow_up_reason end as follow_up_reason,
       (select m.content from messages m where m.conversation_id=c.id and m.cycle=c.current_cycle
         and m.author_kind='owner' and m.type='text' order by m.created_at desc, m.id desc limit 1) as last_owner_message
     from conversations c where c.id = ${conversationId}

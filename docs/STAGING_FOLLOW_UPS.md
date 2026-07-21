@@ -18,6 +18,8 @@ Variables compartidas por HTTP y worker:
 - `DATABASE_URL`
 - `ADMIN_KEY`
 - `OPENAI_API_KEY`
+- `OPENAI_RESEARCH_MODEL` (opcional; por defecto usa `OPENAI_MODEL`)
+- `WHEELSIZE_API_KEY` (opcional; habilita consulta determinística de fitment para región Latinoamérica/Ecuador)
 - `META_ACCESS_TOKEN`
 - `META_PHONE_NUMBER_ID`
 - `META_BUSINESS_ACCOUNT_ID` (necesario para sincronizar/confirmar plantillas desde Meta cuando se habilite esa integración)
@@ -75,12 +77,14 @@ No se debe ejecutar un envío si el teléfono no está autorizado por Meta.
 - `/health` responde 200.
 - Logs HTTP sin errores de migración o webhook.
 - Logs del worker muestran polling y no un loop de fallos.
-- Pipeline muestra `Kanban | Embudo` y el rail incluye `Oportunidades` debajo de Inbox.
+- El rail incluye `Oportunidades` debajo de Inbox; Pipeline mantiene `Kanban | Embudo`.
 - Oportunidades contiene únicamente revisión humana post-24 h y la recta final de `seguimiento_venta`.
 - El ticket muestra los días, la plantilla y la hora antes de autorizar un plan post-24 h.
 - Inbox muestra Alertas del bot.
 - Cotizador muestra inventario numérico por llanta.
 - KPIs cargan seguimiento y estados de entrega sin datos inventados.
+- KPIs muestran la distribución de respuestas por hora de Guayaquil de los últimos 90 días.
+- Fitment muestra fuente y distingue claramente entre medida verificada, referencia y caso ambiguo.
 - Un manual fuera de 24 horas es rechazado.
 - Una plantilla no configurada crea tarea humana y nunca cae a texto libre.
 

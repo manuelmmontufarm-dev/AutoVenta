@@ -53,6 +53,9 @@ export function Dashboard() {
     () => metrics?.daily.map((item) => item.value) ?? Array.from({ length: 14 }, () => 0),
     [metrics],
   );
+  const replyHours = metrics?.replyHours ?? [];
+  const peakReplyHour = replyHours.reduce((best, item) => item.replies > (best?.replies ?? -1) ? item : best, replyHours[0]);
+  const maxHourReplies = Math.max(1, ...replyHours.map((item) => item.replies));
 
   return (
     <div className="h-full overflow-y-auto px-4 pb-8">
@@ -78,6 +81,18 @@ export function Dashboard() {
           delay={0.18}
         />
       </div>
+
+      {replyHours.length > 0 && (
+        <motion.section initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="glass mt-2.5 rounded-3xl p-5">
+          <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
+            <div><p className="microlabel">¿A qué hora contestan más?</p><p className="mt-1 text-[10.5px] text-faint">Respuestas reales de clientes durante los últimos 90 días · hora de Guayaquil</p></div>
+            <div className="rounded-2xl border border-paper/[.08] bg-paper/[.04] px-4 py-2 text-right"><p className="microlabel">Hora pico</p><p className="serif tnum text-[22px] text-lime">{peakReplyHour ? `${peakReplyHour.label}–${String((peakReplyHour.hour + 1) % 24).padStart(2, "0")}:00` : "—"}</p><p className="text-[10px] text-faint">{peakReplyHour?.replies ?? 0} respuestas</p></div>
+          </div>
+          <div className="flex h-36 items-end gap-1.5" aria-label="Respuestas por hora">
+            {replyHours.map((item) => <div key={item.hour} className="flex min-w-0 flex-1 flex-col items-center justify-end gap-1" title={`${item.label}: ${item.replies} respuestas`}><span className="tnum text-[8px] text-faint">{item.replies || ""}</span><div className="w-full rounded-t-md bg-lime/75" style={{ height: `${Math.max(item.replies ? 5 : 1, (item.replies / maxHourReplies) * 92)}px` }} /><span className="tnum text-[8px] text-faint">{item.hour % 3 === 0 ? String(item.hour).padStart(2, "0") : ""}</span></div>)}
+          </div>
+        </motion.section>
+      )}
 
       {/* $ en juego / vendido */}
       <div className="mt-2.5 grid grid-cols-2 gap-2.5">

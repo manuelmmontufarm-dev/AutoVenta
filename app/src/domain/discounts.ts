@@ -97,5 +97,5 @@ export function buildDiscountCustomerMessage(input: {
   const validation = input.quoteNumber
     ? ` Para validarlo en la tienda, presenta el número de cotización *${input.quoteNumber}*.`
     : " Se aplicará en tu próxima cotización y, para validarlo en la tienda, deberás presentar ese número.";
-  return `Un asesor decidió que eres elegible para un descuento de ${amount}${quote} si ${input.condition.trim()}. El total quedaría en ${money(input.finalTotalCents)}.${expiration}${validation} ¿Quieres que coordinemos el siguiente paso? 😊`;
+  return `🏷️ Un asesor autorizó un descuento EXTRA de ${amount}${quote}, adicional al descuento base ya incluido.\n⚠️ Para recibir este segundo descuento debes cumplir obligatoriamente: si ${input.condition.trim()}.\n💰 Total final cumpliendo la condición: ${money(input.finalTotalCents)}.${expiration}${validation}\nSi no se cumple la condición, se conserva únicamente el precio base de la cotización. ¿Coordinamos el siguiente paso? 😊`;
 }

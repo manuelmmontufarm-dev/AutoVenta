@@ -30,15 +30,20 @@ export async function listFollowUpBoard() {
     campaign_id: number | null;
     campaign_template_key: string | null;
     campaign_plan: unknown[] | null;
+    discount_condition: string | null;
   }[]>`
     select j.id as job_id, c.id as conversation_id, c.current_cycle as cycle,
       j.type, j.status, j.due_at, j.window_closes_at, j.payload, j.cancel_reason,
       c.name, c.phone, c.stage, c.assigned_to, c.tire_size,
       c.selected_product_code, m.content as last_message, m.created_at as last_at,
       s.summary, t.template_name, c.last_customer_message_at,
-      coalesce(c.customer_commitment, s.customer_commitment) as customer_commitment,
-      c.visit_date, c.pickup_date, coalesce(c.follow_up_reason, s.follow_up_reason) as follow_up_reason,
-      quote.quote_number, campaign.id as campaign_id,
+      coalesce(case when c.customer_commitment_cycle=c.current_cycle then c.customer_commitment end,
+        s.customer_commitment) as customer_commitment,
+      c.visit_date, c.pickup_date,
+      coalesce(case when c.follow_up_reason_cycle=c.current_cycle then c.follow_up_reason end,
+        s.follow_up_reason) as follow_up_reason,
+      quote.quote_number, discount.condition_text as discount_condition,
+      campaign.id as campaign_id,
       campaign.template_key as campaign_template_key, campaign_jobs.plan as campaign_plan
     from conversations c
     left join lateral (
@@ -58,6 +63,11 @@ export async function listFollowUpBoard() {
       order by created_at desc, id desc limit 1
     ) quote on true
     left join follow_up_templates t on t.template_key = j.payload->>'templateKey'
+    left join lateral (
+      select condition_text from discount_offers where conversation_id=c.id and cycle=c.current_cycle
+        and status in ('approved','offered','accepted') and (expires_at is null or expires_at>now())
+      order by created_at desc limit 1
+    ) discount on true
     left join lateral (
       select id, template_key from follow_up_campaigns
       where conversation_id=c.id and cycle=c.current_cycle and status='active'
@@ -100,9 +110,9 @@ export async function listFollowUpBoard() {
           : row.quote_number
             ? "Cotización por convertir"
             : "Venta en recta final";
-    const importanceReason = row.follow_up_reason
-      ?? (row.customer_commitment ? `El cliente indicó: ${row.customer_commitment}` : null)
+    const importanceReason = (row.customer_commitment ? `El cliente indicó: ${row.customer_commitment}` : null)
       ?? (row.quote_number ? `La cotización ${row.quote_number} sigue abierta y requiere el siguiente paso.` : null)
+      ?? row.follow_up_reason
       ?? (bucket === "needs_human"
         ? "Pasaron 24 horas sin respuesta; un asesor debe decidir si continúa con plantilla o marca Perdido."
         : "Está en seguimiento hasta venta y todavía se puede concretar visita, reserva o compra.");
@@ -136,6 +146,7 @@ export async function listFollowUpBoard() {
       campaignPlan: row.campaign_plan ?? [],
       importanceLabel,
       importanceReason,
+      discountCondition: row.discount_condition,
     };
   });
 }

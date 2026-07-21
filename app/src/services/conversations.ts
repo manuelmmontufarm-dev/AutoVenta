@@ -67,6 +67,10 @@ export async function reopenConversation(
         vehicle_year = null,
         selected_product_code = null, selected_quantity = null,
         location_label = null, nearest_store = null,
+        pickup_date = null, visit_date = null, offer_expires_at = null,
+        savings_amount = null, customer_commitment = null,
+        customer_commitment_cycle = null, follow_up_reason = null,
+        follow_up_reason_cycle = null,
         closed_reason = null, closed_at = null, updated_at = now()
     where id = ${conversationId}
     returning id, phone, name, stage, bot_paused_until, status, current_cycle
@@ -285,6 +289,10 @@ export async function updateConversationFacts(
       savings_amount = coalesce(${facts.savingsAmount ?? null}, savings_amount),
       customer_commitment = coalesce(${facts.customerCommitment ?? null}, customer_commitment),
       follow_up_reason = coalesce(${facts.followUpReason ?? null}, follow_up_reason),
+      customer_commitment_cycle = case when ${facts.customerCommitment ?? null}::text is not null
+        then current_cycle else customer_commitment_cycle end,
+      follow_up_reason_cycle = case when ${facts.followUpReason ?? null}::text is not null
+        then current_cycle else follow_up_reason_cycle end,
       updated_at = now()
     where id = ${conversationId}
   `;

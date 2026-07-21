@@ -181,12 +181,17 @@ export class RealSource implements DataSource {
   }
 
   private async readEventStream(signal: AbortSignal): Promise<void> {
+    let lastReconnectToast = 0;
     while (!signal.aborted) {
       try {
         const response = await fetch("/api/hub/events", {
           headers: this.authHeaders(),
           signal,
         });
+        if (response.status === 401) {
+          this.emit({ tipo: "toast", icono: "🔐", titulo: "Clave administrativa requerida", cuerpo: "Abre Ajustes → Conexión e ingresa la clave de staging." });
+          return;
+        }
         if (!response.ok || !response.body) {
           throw new Error(`SSE ${response.status}`);
         }
@@ -203,12 +208,10 @@ export class RealSource implements DataSource {
         }
       } catch (error) {
         if (signal.aborted) return;
-        this.emit({
-          tipo: "toast",
-          icono: "↻",
-          titulo: "Reconectando datos en vivo",
-          cuerpo: error instanceof Error ? error.message : undefined,
-        });
+        if (Date.now() - lastReconnectToast > 30_000) {
+          lastReconnectToast = Date.now();
+          this.emit({ tipo: "toast", icono: "↻", titulo: "Reconectando datos en vivo", cuerpo: error instanceof Error ? error.message : undefined });
+        }
       }
       await new Promise((resolve) => setTimeout(resolve, 2_000));
     }

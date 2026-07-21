@@ -177,6 +177,7 @@ function salesFactsPrompt(facts: AgentSalesFacts, resumedFromHuman = false): str
     ...(lines.length ? lines : ["Todavía no hay datos estructurados confirmados."]),
     "No vuelvas a preguntar un dato listado aquí. Pregunta únicamente lo que falte.",
     "Si modelo y cantidad ya están confirmados, genera la cotización inmediatamente y después pregunta si está bien; no pidas otra confirmación.",
+    "Para compatibilidad vehicular usa fitment_vehiculo. Si el resultado es referencia o ambiguo, muestra la fuente, reconoce claramente el límite y haz UNA sola pregunta nueva; no repitas la misma lista de versión/país/etiqueta en turnos consecutivos.",
     resumedFromHuman ? "El asesor devolvió la conversación al bot con un mensaje del cliente pendiente. Responde directamente ese último mensaje y retoma el hilo; nunca lo dejes sin contestar." : null,
   ].filter(Boolean).join("\n");
 }

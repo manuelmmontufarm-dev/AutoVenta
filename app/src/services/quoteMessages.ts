@@ -104,7 +104,10 @@ export function buildSingleQuoteMessage(
     `💰 ${money(product.minimumPriceWithTax)} c/u (antes ${money(product.customerPriceWithTax)}, −${discount(product)}%)`,
     `🛞 ${quantity} llanta${quantity === 1 ? "" : "s"}: ${money(total)}`,
     ...(offerDiscount ? [
-      `✅ Descuento adicional autorizado: −${money(offerDiscount.amount)} si ${offerDiscount.condition}.`,
+      `1️⃣ Descuento base Depot Tire: de ${money(product.customerPriceWithTax)} a ${money(product.minimumPriceWithTax)} c/u (−${discount(product)}%).`,
+      `2️⃣ Descuento EXTRA del asesor: −${money(offerDiscount.amount)}.`,
+      `⚠️ Este segundo descuento aplica ÚNICAMENTE si: ${offerDiscount.condition}.`,
+      `💰 Total final cumpliendo la condición: ${money(total)}. Si no la cumple, conserva solo el precio base.`,
       quoteNumber ? `🔖 Para validar el descuento en tienda, presenta la cotización *${quoteNumber}*.` : "",
     ] : []),
     ...(specLine(product) ? [`📦 ${specLine(product)}`] : []),

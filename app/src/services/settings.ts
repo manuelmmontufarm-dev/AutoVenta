@@ -90,7 +90,7 @@ const DEFAULT_STAGE_PROMPTS: Record<Stage, StagePromptInput> = {
     objective: "Presentar opciones reales y ayudar a iniciar la selección.",
     prompt:
       "Usa el catálogo real y presenta opciones agrupadas con preparar_opciones. No decidas por el cliente ni sumes alternativas.",
-    allowedTools: ["buscar_llanta", "buscar_catalogo", "preparar_opciones", "enviar_comparacion"],
+    allowedTools: ["buscar_llanta", "buscar_catalogo", "fitment_vehiculo", "preparar_opciones", "enviar_comparacion"],
     settings: { autoAction: "options", requiresHumanApproval: false, fallback: "" },
   },
   seleccionando: {
@@ -100,6 +100,7 @@ const DEFAULT_STAGE_PROMPTS: Record<Stage, StagePromptInput> = {
     allowedTools: [
       "buscar_llanta",
       "buscar_catalogo",
+      "fitment_vehiculo",
       "preparar_opciones",
       "enviar_comparacion",
       "generar_cotizacion",
@@ -110,14 +111,14 @@ const DEFAULT_STAGE_PROMPTS: Record<Stage, StagePromptInput> = {
     objective: "Confirmar interés, resolver logística y obtener intención de visita.",
     prompt:
       "No regeneres el PDF salvo que cambien modelo o cantidad. Pregunta si desea reservar, visitar o hablar con un asesor.",
-    allowedTools: ["local_mas_cercano", "notificar_vendedor", "generar_cotizacion"],
+    allowedTools: ["fitment_vehiculo", "local_mas_cercano", "notificar_vendedor", "generar_cotizacion"],
     settings: { autoAction: "none", requiresHumanApproval: false, fallback: "" },
   },
   seguimiento_venta: {
     objective: "Dar seguimiento comercial hasta la venta, incluyendo visita, reserva y handoff.",
     prompt:
       "Resume lo acordado y confirma local u horario sin inventar datos. Mantén el caso abierto hasta una venta o rechazo verificados.",
-    allowedTools: ["local_mas_cercano", "notificar_vendedor"],
+    allowedTools: ["fitment_vehiculo", "local_mas_cercano", "notificar_vendedor"],
     settings: { autoAction: "handoff", requiresHumanApproval: false, fallback: "" },
   },
   ganado: {

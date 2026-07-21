@@ -117,8 +117,13 @@ export const config = {
     // GPT-4o mini mantiene el costo bajo para el piloto y soporta function calling.
     model: envOr("OPENAI_MODEL", "gpt-4o-mini"),
     classifierModel: envOr("OPENAI_CLASSIFIER_MODEL", "gpt-4o-mini"),
+    researchModel: envOr("OPENAI_RESEARCH_MODEL", envOr("OPENAI_MODEL", "gpt-4o-mini")),
     apiKey: env("OPENAI_API_KEY"),
     maxTokens: 2048,
+  },
+
+  vehicleFitment: {
+    wheelSizeApiKey: process.env.WHEELSIZE_API_KEY ?? null,
   },
 
   databaseUrl: env("DATABASE_URL"),
