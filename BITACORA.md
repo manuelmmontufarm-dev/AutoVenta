@@ -84,6 +84,7 @@ revisadas a ojo; 26 tests unitarios (nuevo parser de índice de carga); typechec
 E2e real con `test/send-image-e2e.ts`: render (531 KB) y upload a Meta OK; el send de prueba
 requiere agregar el número al allowed list de la app de Meta (sigue en modo dev).
 Fix posterior: `incluir_pdf` opcional en el schema (si el modelo lo omitía, Zod tumbaba al agente).
+Galería `/cotizaciones` en el hub con las 3 piezas renderizadas, enlazada desde Operación.
 
 ---
 

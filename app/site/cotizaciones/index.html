@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cotizaciones visuales · AutoVenta</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;700&family=Archivo+Black&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --cream:#f6f1e4; --panel:#fffdf6; --navy:#14213d; --red:#d62828;
+    --gold:#fcbf49; --muted:#5c6273; --border:#d9d2bf;
+  }
+  * { box-sizing:border-box; margin:0; }
+  body { background:var(--cream); font-family:Archivo,system-ui,sans-serif; color:var(--navy); }
+  header { background:var(--navy); color:#fff; padding:28px 24px 22px; }
+  header .inner, main { max-width:1100px; margin:0 auto; }
+  header h1 { font-family:'Archivo Black'; font-size:clamp(22px,4vw,34px); }
+  header p { color:var(--gold); letter-spacing:3px; font-size:13px; font-weight:700; margin-top:6px; text-transform:uppercase; }
+  .stripe { height:10px; display:flex; }
+  .stripe i { display:block; height:100%; }
+  .stripe i:nth-child(1){ width:58%; background:var(--red); }
+  .stripe i:nth-child(2){ width:26%; background:var(--gold); }
+  .stripe i:nth-child(3){ flex:1; background:#0d1730; }
+  main { padding:34px 24px 60px; }
+  .note { background:var(--panel); border:2px solid var(--border); border-radius:16px; padding:16px 20px; color:var(--muted); font-size:15px; line-height:1.5; margin-bottom:30px; }
+  .note b { color:var(--navy); }
+  section { margin-bottom:44px; }
+  section h2 { font-family:'Archivo Black'; font-size:20px; margin-bottom:6px; }
+  section .sub { color:var(--muted); font-size:14px; margin-bottom:14px; }
+  section img { width:100%; height:auto; border-radius:18px; border:2px solid var(--border); box-shadow:0 10px 30px rgba(20,33,61,.12); background:#fff; }
+  .back { display:inline-block; margin-bottom:22px; color:var(--red); font-weight:700; text-decoration:none; }
+  .back:hover { text-decoration:underline; }
+</style>
+</head>
+<body>
+<header>
+  <div class="inner">
+    <h1>Cotizaciones visuales</h1>
+    <p>Generadas en vivo por el bot · Racing Heritage</p>
+  </div>
+</header>
+<div class="stripe"><i></i><i></i><i></i></div>
+<main>
+  <a class="back" href="/">← Volver al hub</a>
+  <div class="note">
+    Estas piezas las genera el bot <b>en el momento</b>, con datos reales del catálogo:
+    logo de la marca, foto, precio con IVA, PVP tachado con % de ahorro, garantías por marca,
+    índice de carga traducido y <b>stock verificado</b> (Disponible / Consultar).
+    Se envían por WhatsApp como imagen — siempre acompañadas del resumen en texto —
+    y el PDF (mismo diseño) solo si el cliente lo pide.
+  </div>
+  <section>
+    <h2>Cotización de una llanta</h2>
+    <div class="sub">Se envía cuando el cliente confirma qué llanta y cuántas quiere. El número COT-XXXX sirve para reclamar el precio en el local.</div>
+    <img src="cotizacion-hero.png" alt="Cotización de una llanta" loading="lazy">
+  </section>
+  <section>
+    <h2>Cotización de varias llantas</h2>
+    <div class="sub">Cuando cotiza más de un modelo a la vez, con el total consolidado.</div>
+    <img src="cotizacion-multi.png" alt="Cotización de varias llantas" loading="lazy">
+  </section>
+  <section>
+    <h2>Comparativa</h2>
+    <div class="sub">Cuando el cliente está decidiendo entre 2 o 3 opciones — el bot la manda solo con la tool comparar_llantas.</div>
+    <img src="comparativa.png" alt="Comparativa de llantas" loading="lazy">
+  </section>
+</main>
+</body>
+</html>
