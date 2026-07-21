@@ -195,6 +195,30 @@ describe.sequential("Fase A — migración, transiciones y reapertura", () => {
     }
   });
 
+  it("reemplaza planes v2 activos por mensajes v3 distintos", async () => {
+    const conversation = await conversations.getOrCreateConversation("593000000013", "Cliente Plan Anterior");
+    const lastCustomer = new Date("2026-07-20T15:00:00.000Z");
+    const lastBot = new Date("2026-07-20T15:01:00.000Z");
+    await appSql`update conversations set stage='cotizacion_enviada', tire_size='215/65R16',
+      last_customer_message_at=${lastCustomer}, last_assistant_message_at=${lastBot} where id=${conversation.id}`;
+    const [legacy] = await appSql<{ id: number }[]>`
+      insert into follow_up_jobs (conversation_id, cycle, type, due_at, idempotency_key, payload)
+      values (${conversation.id}, 1, 'in_window_first', '2026-07-20T18:01:00Z',
+        ${`plan:v2:${conversation.id}:1:cotizacion_enviada:${lastBot.toISOString()}:in_window_first`},
+        '{"preview":"mensaje anterior repetido"}'::jsonb) returning id
+    `;
+    await followUps.ensureActiveConversationPlans(lastBot);
+    const [oldState] = await appSql<{ status: string }[]>`select status from follow_up_jobs where id=${legacy.id}`;
+    const messages = await appSql<{ preview: string }[]>`
+      select payload->>'preview' as preview from follow_up_jobs
+      where conversation_id=${conversation.id} and idempotency_key like 'plan:v3:%'
+        and type in ('in_window_first','in_window_second') order by due_at
+    `;
+    expect(oldState.status).toBe("cancelled");
+    expect(messages).toHaveLength(2);
+    expect(messages[0].preview).not.toBe(messages[1].preview);
+  });
+
   it("recupera un lease tras reinicio y SKIP LOCKED evita doble claim", async () => {
     const conversation = await conversations.getOrCreateConversation("593000000004", "Cliente C");
     const [job] = await appSql<{ id: number }[]>`

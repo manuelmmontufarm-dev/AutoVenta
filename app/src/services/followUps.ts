@@ -415,13 +415,22 @@ export async function ensureActiveConversationPlans(now = new Date()): Promise<n
     where c.status = 'open' and c.opted_out_at is null and c.negative_sentiment_at is null
       and c.last_customer_message_at is not null and c.last_assistant_message_at is not null
       and (c.assigned_to = 'human' or c.last_assistant_message_at >= c.last_customer_message_at)
-      and not exists (
-        select 1 from follow_up_jobs j where j.conversation_id = c.id
-          and j.cycle = c.current_cycle and j.status in ('scheduled','processing','blocked')
-      )
-      and not exists (
-        select 1 from follow_up_jobs advisor where advisor.conversation_id = c.id
-          and advisor.cycle = c.current_cycle and advisor.type = 'advisor_review'
+      and (
+        exists (
+          select 1 from follow_up_jobs legacy where legacy.conversation_id = c.id
+            and legacy.cycle = c.current_cycle and legacy.status in ('scheduled','processing','blocked')
+            and legacy.idempotency_key like 'plan:v2:%'
+        )
+        or (
+          not exists (
+            select 1 from follow_up_jobs j where j.conversation_id = c.id
+              and j.cycle = c.current_cycle and j.status in ('scheduled','processing','blocked')
+          )
+          and not exists (
+            select 1 from follow_up_jobs advisor where advisor.conversation_id = c.id
+              and advisor.cycle = c.current_cycle and advisor.type = 'advisor_review'
+          )
+        )
       )
     order by c.updated_at desc limit 50
   `;
