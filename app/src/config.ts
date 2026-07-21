@@ -56,6 +56,11 @@ export interface BusinessConfig {
   /** IVA Ecuador (15% desde abr-2024). Los precios del catálogo se asumen SIN IVA. */
   taxRate: number;
   currency: string;
+  /**
+   * Garantías por marca para las piezas de cotización (clave = marca tal como
+   * viene en el catálogo; "default" aplica a las demás).
+   */
+  warranties: Record<string, { golpesMeses: number; fabricaAnios: number }>;
 }
 
 export const business: BusinessConfig = {
@@ -90,6 +95,11 @@ export const business: BusinessConfig = {
   ],
   taxRate: 0.15,
   currency: "USD",
+  warranties: {
+    default: { golpesMeses: 6, fabricaAnios: 5 },
+    Kenda: { golpesMeses: 12, fabricaAnios: 5 },
+    Falken: { golpesMeses: 18, fabricaAnios: 5 },
+  },
 };
 
 export const config = {

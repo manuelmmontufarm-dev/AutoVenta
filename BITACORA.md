@@ -32,7 +32,9 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-07-20 | _(este mismo)_ | Unificación: motor de imágenes sobre el catálogo Contífico (un solo entorno) | 2.0 |
 | 2026-07-20 | _(este mismo)_ | Cotizador funcional con inventario Contífico, fotos, tres flujos y bot compartido | 6.0 |
+| 2026-07-20 | _(este mismo)_ | Cotizaciones visuales nivel Grupo Inter: motor satori/resvg + comparar_llantas + envío endurecido | 4.0 |
 | 2026-07-20 | _(este mismo)_ | Sistema Showroom GP documentado y aplicado a todo el hub | 2.0 |
 | 2026-07-18 | _(este mismo)_ | Fix handoff: guardar mensajes del cliente con bot pausado + typing honesto | 0.5 |
 | 2026-07-18 | _(este mismo)_ | Racing Heritage aplicado a todo el frontend + hub compacto | 1.0 |
@@ -55,11 +57,34 @@ Ya viene activado en este equipo.
 | 2026-07-14 | ac09171 | Ubicaciones de locales + análisis de features del cliente | 1.5 |
 | 2026-07-13 | feadf57 | Brief + plan de desarrollo + plan financiero + catálogo | 4.0 |
 | 2026-07-13 | d997844 | Commit inicial (repo) | 0.25 |
-| | | **TOTAL** | **~45.25 h** |
+| | | **TOTAL** | **~49.25 h** |
 
 ---
 
 ## Entradas (más reciente primero)
+
+### 2026-07-20 · Unificación de entornos: imágenes de cotización sobre el catálogo real · ⏱️ 2.0 h
+
+**Qué:** Existían dos entornos con código distinto — producción (`main`) con el motor de
+imágenes y staging (`codex/producto-real-depot-tire`) con el catálogo real de Contífico.
+Se fusionaron en una sola línea: el renderer (`src/render/`) ahora consume el `CatalogItem`
+de Contífico (precio hoy y precio lista ya con IVA, disponibilidad de 3 estados, foto real
+del manifiesto, índice de carga y garantía por marca desde `quoteMessages`). `enviar_comparacion`
+y `generar_cotizacion` mandan **imagen** como pieza principal y caen al PDF de staging si
+el render o el envío fallan; `incluir_pdf` lo adjunta cuando el cliente lo pide. Se eliminó
+`domain/loadSpeed.ts` (duplicaba `domain/tireSpecs.ts`) y `wa/client.ts` quedó con el envío
+endurecido (reintento de upload + verificación de la respuesta de Meta) conservando el id
+de mensaje que usa el panel. Los logos de banco pierden su rectángulo blanco de fondo.
+
+**Por qué:** Dos entornos divergentes significan dos productos que mantener y demos que no
+coinciden con lo que ve el cliente. Staging queda como el único entorno vivo; ambos quedan
+con el mismo código mientras se retira producción.
+
+**Cómo se probó:** 41 tests, typecheck y build limpios; las 3 piezas regeneradas con
+productos reales del catálogo (KR608 $239.44 vs lista $319.25 = −25%, idéntico a la
+referencia de Grupo Inter) y revisadas a ojo con fotos reales y estado "Sin stock".
+
+---
 
 ### 2026-07-20 · Cotizador funcional conectado a Contífico · ⏱️ 6.0 h
 **Commit:** _(este mismo)_
@@ -83,6 +108,33 @@ PNG y revisados visualmente sin recortes ni desbordes.
 con datos propios de Depot Tire, sin depender de su aplicación ni copiar su base
 privada. El mismo dato y la misma regla alimentan al vendedor y al bot, evitando
 precios o stock diferentes entre canales.
+
+---
+
+### 2026-07-20 · Cotizaciones visuales nivel Grupo Inter + comparativa + envío endurecido · ⏱️ 4.0 h
+
+**Qué:** Motor de imágenes de cotización (`src/render/`): satori + resvg (HTML→SVG→PNG,
+sin Chromium — cabe en los 512MB de Railway). Tres cambios visibles para el cliente:
+(1) `generar_cotizacion` ahora manda una **imagen** de cotización estilo Racing Heritage
+(logo de marca en vez del nombre, foto, PVP tachado + % de ahorro, medallas de garantía,
+índice de carga traducido a kg/km-h, stock real como Disponible/Consultar) y el PDF solo
+si lo piden (mismo diseño: el PNG incrustado vía pdf-lib); (2) tool nueva `comparar_llantas`
+(2–3 opciones lado a lado); (3) `sendPdf`/`sendImage` verifican upload y respuesta de Meta
+con 1 reintento — el fallo del demo del 20-jul era silencioso. Catálogo acepta columnas
+opcionales `pvp` y `foto`; garantías por marca en config. Si el render o el envío fallan,
+la cotización NO se cae: fallback a PDF clásico y el agente la da completa en texto.
+
+**Por qué:** En la reunión del 20-jul el cliente pidió explícitamente cotización como
+imagen (no "texto grandote"), al nivel de las piezas de Grupo Inter que nos mostró, con
+el logo de la marca — y en el demo los PDFs fallaron en vivo. La cotización visual es la
+cara del producto; el número COT-XXXX visible prepara la fase de incentivos/redención.
+
+**Cómo se probó:** `test/render-demo.ts` genera las 3 piezas (héroe, multi, comparativa)
+revisadas a ojo; 26 tests unitarios (nuevo parser de índice de carga); typecheck y build ok.
+E2e real con `test/send-image-e2e.ts`: render (531 KB) y upload a Meta OK; el send de prueba
+requiere agregar el número al allowed list de la app de Meta (sigue en modo dev).
+Fix posterior: `incluir_pdf` opcional en el schema (si el modelo lo omitía, Zod tumbaba al agente).
+Galería `/cotizaciones` en el hub con las 3 piezas renderizadas, enlazada desde Operación.
 
 ---
 

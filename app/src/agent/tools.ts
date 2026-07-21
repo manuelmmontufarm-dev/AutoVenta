@@ -40,7 +40,12 @@ import { nearestStore, resolveSector } from "../domain/locations.js";
 import { formatTireSize } from "../domain/tireSize.js";
 import { canGenerateFinalQuote } from "../domain/salesIntent.js";
 import { getTirePatternProfile } from "../domain/tireKnowledge.js";
-import { notifySeller, sendPdf } from "../wa/client.js";
+import { notifySeller, sendImage, sendPdf } from "../wa/client.js";
+import {
+  renderCompareImage,
+  renderQuoteImage,
+  toRenderLine,
+} from "../render/quoteImage.js";
 import { sql } from "../db/client.js";
 
 export interface AgentContext {
@@ -76,6 +81,37 @@ function defineTool<T extends z.ZodTypeAny>(input: {
     },
     execute: async (args) => input.run(input.schema.parse(args)),
   };
+}
+
+function dateLabel(): string {
+  return new Date().toLocaleDateString("es-EC", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    timeZone: "America/Guayaquil",
+  });
+}
+
+/**
+ * Envía una pieza visual (cotización o comparativa) por WhatsApp.
+ * Nunca lanza: si el render o el envío fallan, devuelve ok=false y el flujo
+ * cae al PDF — el cliente jamás se queda sin su cotización (fallo del demo 20-jul).
+ */
+async function sendVisual(
+  to: string,
+  render: () => Promise<Buffer>,
+  caption: string,
+  filename: string,
+  what: string,
+): Promise<{ ok: boolean; providerId?: string }> {
+  try {
+    const png = await render();
+    const providerId = await sendImage(to, png, caption, filename);
+    return { ok: true, providerId };
+  } catch (err) {
+    console.error(`❌ Imagen de ${what} falló:`, err);
+    return { ok: false };
+  }
 }
 
 export function buildTools(ctx: AgentContext) {
@@ -209,21 +245,38 @@ export function buildTools(ctx: AgentContext) {
       if (new Set(selected.map((product) => product.id)).size !== selected.length) {
         return JSON.stringify({ error: "La comparación exige modelos distintos" });
       }
-      const pdf = await renderComparisonPdf(selected);
-      const filename = `Comparativa-${business.name.replace(/\s/g, "")}.pdf`;
-      const providerId = await sendPdf(
+      // Pieza visual primero (lo que pidió el cliente); el PDF queda de respaldo.
+      const imageName = `Comparativa-${business.name.replace(/\s/g, "")}.png`;
+      const visual = await sendVisual(
         ctx.customerPhone,
-        pdf,
-        filename,
-        "Comparativa de llantas por unidad 📄",
+        async () =>
+          renderCompareImage({
+            dateLabel: dateLabel(),
+            products: await Promise.all(selected.map((product) => toRenderLine(product))),
+          }),
+        "Comparativa para que elijas con calma 🏁",
+        imageName,
+        "comparativa",
       );
+      let filename = imageName;
+      let providerId = visual.providerId;
+      if (!visual.ok) {
+        const pdf = await renderComparisonPdf(selected);
+        filename = `Comparativa-${business.name.replace(/\s/g, "")}.pdf`;
+        providerId = await sendPdf(
+          ctx.customerPhone,
+          pdf,
+          filename,
+          "Comparativa de llantas por unidad 📄",
+        );
+      }
       await appendMessage(
         ctx.conversation.id,
         "assistant",
         `Comparativa enviada: ${selected.map((product) => `${product.brand} ${product.design}`).join(" · ")}`,
         providerId,
         {
-          type: "pdf",
+          type: visual.ok ? "image" : "pdf",
           authorKind: "bot",
           status: "sent",
           metadata: { filename, codes },
@@ -275,8 +328,12 @@ export function buildTools(ctx: AgentContext) {
         .length(1)
         .describe("Una sola llanta ya elegida; las alternativas se comparan antes"),
       nombre_cliente: z.string().describe("Nombre del cliente si lo conoces, o 'Cliente'"),
+      incluir_pdf: z
+        .boolean()
+        .optional()
+        .describe("true SOLO si el cliente pidió explícitamente el PDF/documento"),
     }),
-    run: async ({ items, nombre_cliente }) => {
+    run: async ({ items, nombre_cliente, incluir_pdf = false }) => {
       if (!canGenerateFinalQuote(ctx.currentUserText, ctx.comparedThisTurn)) {
         return JSON.stringify({
           error:
@@ -317,23 +374,61 @@ export function buildTools(ctx: AgentContext) {
       }
       const quote = buildQuote(lines, nombre_cliente, ctx.customerPhone);
       const saleNumber = `AV-${quote.number.replace(/\D/g, "").slice(-6)}`;
-      const pdf = await renderQuotePdf(quote);
-      const filename = `Cotizacion-${business.name.replace(/\s/g, "")}-${quote.number}.pdf`;
-      const providerId = await sendPdf(
+      const product = findByCode(items[0].code)!;
+
+      // Imagen de cotización (pieza principal); PDF si lo piden o si falla.
+      const imageName = `Cotizacion-${business.name.replace(/\s/g, "")}-${quote.number}.png`;
+      const visual = await sendVisual(
         ctx.customerPhone,
-        pdf,
-        filename,
-        `Su cotización ${quote.number} 📄`,
+        async () =>
+          renderQuoteImage({
+            number: quote.number,
+            dateLabel: dateLabel(),
+            lines: [await toRenderLine(product, items[0].cantidad)],
+            subtotal: quote.subtotal,
+            iva: quote.tax,
+            total: quote.total,
+          }),
+        `Cotización ${quote.number} · válida 3 días 🏁`,
+        imageName,
+        `cotización ${quote.number}`,
       );
+      let filename = imageName;
+      let providerId = visual.providerId;
+      let pdfEnviado = false;
+      if (!visual.ok || incluir_pdf) {
+        try {
+          const pdf = await renderQuotePdf(quote);
+          const pdfName = `Cotizacion-${business.name.replace(/\s/g, "")}-${quote.number}.pdf`;
+          const pdfId = await sendPdf(
+            ctx.customerPhone,
+            pdf,
+            pdfName,
+            `Su cotización ${quote.number} 📄`,
+          );
+          pdfEnviado = true;
+          if (!visual.ok) {
+            filename = pdfName;
+            providerId = pdfId;
+          }
+        } catch (err) {
+          console.error(`❌ PDF de cotización ${quote.number} falló:`, err);
+        }
+      }
+      if (!visual.ok && !pdfEnviado) {
+        await notifySeller(
+          `⚠️ Cotización ${quote.number} generada pero NO se pudo enviar imagen ni PDF a wa.me/${ctx.customerPhone}. Revisar logs.`,
+        );
+      }
       await appendMessage(
         ctx.conversation.id,
         "assistant",
         `Cotización ${quote.number} enviada por $${quote.total.toFixed(2)}`,
         providerId,
         {
-          type: "pdf",
+          type: visual.ok ? "image" : "pdf",
           authorKind: "bot",
-          status: "sent",
+          status: visual.ok || pdfEnviado ? "sent" : "failed",
           metadata: { filename, quoteNumber: quote.number },
         },
       );
