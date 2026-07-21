@@ -372,6 +372,9 @@ function totalsBand(data: QuoteRenderData, units: number): SatoriNode {
         data.discountAmount
           ? text({ fontSize: 18, fontWeight: 700, color: GREEN }, `Descuento autorizado −${money(data.discountAmount)} · ${data.discountCondition ?? "condición registrada"}`)
           : null,
+        data.discountAmount
+          ? text({ fontSize: 15, fontWeight: 700, color: "#ffffff" }, `Válido en tienda únicamente presentando la cotización ${data.number}`)
+          : null,
       ),
       text({ ...BLACK_FONT, fontSize: 62, color: GOLD }, money(data.total)),
     ),

@@ -64,6 +64,7 @@ export async function reopenConversation(
     set current_cycle = current_cycle + 1,
         stage = 'nuevo', status = 'open', assigned_to = 'bot',
         bot_paused_until = null, tire_size = null, vehicle = null,
+        vehicle_year = null,
         selected_product_code = null, selected_quantity = null,
         location_label = null, nearest_store = null,
         closed_reason = null, closed_at = null, updated_at = now()
@@ -256,6 +257,7 @@ export async function updateConversationFacts(
   facts: {
     tireSize?: string;
     vehicle?: string;
+    vehicleYear?: number;
     selectedProductCode?: string;
     selectedQuantity?: number;
     locationLabel?: string;
@@ -272,6 +274,7 @@ export async function updateConversationFacts(
     update conversations set
       tire_size = coalesce(${facts.tireSize ?? null}, tire_size),
       vehicle = coalesce(${facts.vehicle ?? null}, vehicle),
+      vehicle_year = coalesce(${facts.vehicleYear ?? null}, vehicle_year),
       selected_product_code = coalesce(${facts.selectedProductCode ?? null}, selected_product_code),
       selected_quantity = coalesce(${facts.selectedQuantity ?? null}, selected_quantity),
       location_label = coalesce(${facts.locationLabel ?? null}, location_label),

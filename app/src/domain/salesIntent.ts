@@ -13,14 +13,36 @@ export function isExplicitPurchaseConfirmation(text: string): boolean {
 }
 
 export function hasExplicitQuantity(text: string): boolean {
-  const normalized = normalize(text);
-  return /\b([1-8]|un[ao]?|dos|tres|cuatro|cinco|seis|siete|ocho)\s*(?:llantas?|unidades?)?\b/.test(
-    normalized,
-  );
+  return extractExplicitQuantity(text) !== null;
 }
 
-export function canGenerateFinalQuote(text: string, comparedThisTurn = false): boolean {
-  return !comparedThisTurn && !isComparisonRequest(text) && hasExplicitQuantity(text);
+export function extractExplicitQuantity(text: string): number | null {
+  const normalized = normalize(text);
+  if (/^[1-8]$/.test(normalized)) return Number(normalized);
+  const words: Record<string, number> = {
+    un: 1, uno: 1, una: 1, dos: 2, tres: 3, cuatro: 4,
+    cinco: 5, seis: 6, siete: 7, ocho: 8,
+  };
+  const match = normalized.match(
+    /\b([1-8]|un|uno|una|dos|tres|cuatro|cinco|seis|siete|ocho)\s+(?:llantas?|unidades?)\b|\b(?:quiero|necesito|deme|dame|cotiza(?:me)?|llevo|serian|serían)\s+(?:las?\s+)?([1-8]|un|uno|una|dos|tres|cuatro|cinco|seis|siete|ocho)\b/,
+  );
+  const value = match?.[1] ?? match?.[2];
+  if (!value) return null;
+  return /^\d$/.test(value) ? Number(value) : words[value] ?? null;
+}
+
+export function extractVehicleYear(text: string): number | null {
+  const match = normalize(text).match(/\b(19[5-9]\d|20[0-2]\d|2030)\b/);
+  return match ? Number(match[1]) : null;
+}
+
+export function canGenerateFinalQuote(
+  text: string,
+  comparedThisTurn = false,
+  confirmedQuantity = false,
+): boolean {
+  return !comparedThisTurn && !isComparisonRequest(text) &&
+    (hasExplicitQuantity(text) || confirmedQuantity);
 }
 
 function normalize(text: string): string {

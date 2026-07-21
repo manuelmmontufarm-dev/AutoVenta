@@ -174,7 +174,7 @@ export class MockSource implements DataSource {
     this.pushMensaje(ticketId, "vendedor", "texto", texto);
   }
 
-  async crearDescuento(ticketId: number, prompt: string): Promise<{ sent: boolean; message: string }> {
+  async crearDescuento(ticketId: number, prompt: string, _deliveryMode: "now" | "next_message"): Promise<{ sent: boolean; message: string }> {
     const t = this.tickets.get(ticketId);
     if (!t) throw new Error("Ticket no encontrado");
     const match = prompt.match(/(\d+(?:[.,]\d+)?)\s*%/);

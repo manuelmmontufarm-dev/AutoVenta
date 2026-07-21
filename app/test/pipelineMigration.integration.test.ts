@@ -65,6 +65,7 @@ describe.sequential("Fase A — migración, transiciones y reapertura", () => {
     const { runSalesPlanDiscountsMigration } = await import("../src/db/migrations/002_sales_follow_up_plan_discounts.js");
     const { runFollowUpStagePromptsMigration } = await import("../src/db/migrations/003_follow_up_stage_prompts.js");
     const { runOpportunityCampaignsPendingDiscountsMigration } = await import("../src/db/migrations/004_opportunity_campaigns_pending_discounts.js");
+    const { runConversationMemoryDiscountDeliveryMigration } = await import("../src/db/migrations/005_conversation_memory_discount_delivery.js");
     await runFollowUpMigration(appSql);
     await runFollowUpMigration(appSql);
     await runSalesPlanDiscountsMigration(appSql);
@@ -73,6 +74,8 @@ describe.sequential("Fase A — migración, transiciones y reapertura", () => {
     await runFollowUpStagePromptsMigration(appSql);
     await runOpportunityCampaignsPendingDiscountsMigration(appSql);
     await runOpportunityCampaignsPendingDiscountsMigration(appSql);
+    await runConversationMemoryDiscountDeliveryMigration(appSql);
+    await runConversationMemoryDiscountDeliveryMigration(appSql);
 
     const [row] = await appSql<{ id: number; stage: string; current_cycle: number }[]>`
       select id, stage, current_cycle from conversations where id = ${legacy.id}
@@ -120,7 +123,7 @@ describe.sequential("Fase A — migración, transiciones y reapertura", () => {
   it("guarda un porcentaje antes de cotizar y lo materializa con ahorro exacto", async () => {
     const conversation = await conversations.getOrCreateConversation("593000000019", "Cliente Descuento Pendiente");
     const created = await discountOffers.createDiscountFromPrompt(
-      conversation.id, "5% si recoge esta semana",
+      conversation.id, "5% si recoge esta semana", "admin_prompt", null, "next_message",
     );
     expect(created.status).toBe("pending");
     const offer = await discountOffers.materializePendingDiscount(conversation.id, 42_500);
@@ -129,6 +132,20 @@ describe.sequential("Fase A — migración, transiciones y reapertura", () => {
     const [pending] = await appSql<{ status: string }[]>`select status from pending_discount_rules
       where conversation_id=${conversation.id} order by created_at desc limit 1`;
     expect(pending.status).toBe("applied");
+    expect(offer?.notificationMode).toBe("next_message");
+  });
+
+  it("expone el descuento pendiente al agente y registra su notificación", async () => {
+    const conversation = await conversations.getOrCreateConversation("593000000029", "Cliente Aviso Descuento");
+    const created = await discountOffers.createDiscountFromPrompt(
+      conversation.id, "5% si lo lleva hoy", "admin_prompt", null, "now",
+    );
+    expect(created.status).toBe("pending");
+    const pending = await discountOffers.getPendingDiscountRule(conversation.id);
+    expect(pending).toMatchObject({ kind: "percentage", valueCents: 500,
+      notificationMode: "now", condition: "lo lleva hoy" });
+    await discountOffers.markDiscountNoticeSent("pending", pending!.id);
+    expect((await discountOffers.getPendingDiscountRule(conversation.id))?.notifiedAt).toBeInstanceOf(Date);
   });
 
   it("registra transición, cierre y reapertura en un ciclo nuevo", async () => {
@@ -212,6 +229,35 @@ describe.sequential("Fase A — migración, transiciones y reapertura", () => {
       `;
       expect(next?.type).toBe("in_window_first");
     }
+  });
+
+  it("recalcula un seguimiento existente al ampliar el horario comercial", async () => {
+    const conversation = await conversations.getOrCreateConversation("593000000039", "Cliente Horario");
+    const lastCustomer = new Date("2026-07-20T19:59:00.000Z");
+    const lastBot = new Date("2026-07-20T20:00:00.000Z");
+    await appSql`update conversations set last_customer_message_at=${lastCustomer},
+      last_assistant_message_at=${lastBot} where id=${conversation.id}`;
+    await followUps.scheduleConversationFollowUps(conversation.id, lastBot);
+    const [before] = await appSql<{ id: number; due_at: Date }[]>`
+      select id, due_at from follow_up_jobs where conversation_id=${conversation.id}
+        and type='in_window_first' and status='scheduled' order by id desc limit 1
+    `;
+    expect(before.due_at.toISOString()).toBe("2026-07-21T13:30:00.000Z");
+
+    await appSql`update follow_up_policies set
+      business_hours=jsonb_set(business_hours, '{1,close}', '"19:30"'::jsonb), updated_at=now()
+      where policy_key='default'`;
+    await followUps.rescheduleActiveConversationPlans(lastBot);
+    const [after] = await appSql<{ due_at: Date }[]>`
+      select due_at from follow_up_jobs where conversation_id=${conversation.id}
+        and type='in_window_first' and status='scheduled' order by id desc limit 1
+    `;
+    const [old] = await appSql<{ status: string }[]>`select status from follow_up_jobs where id=${before.id}`;
+    expect(after.due_at.toISOString()).toBe("2026-07-20T23:00:00.000Z");
+    expect(old.status).toBe("cancelled");
+    await appSql`update follow_up_policies set
+      business_hours=jsonb_set(business_hours, '{1,close}', '"17:30"'::jsonb), updated_at=now()
+      where policy_key='default'`;
   });
 
   it("reemplaza planes anteriores por dos mensajes v5 distintos dentro de la ventana", async () => {

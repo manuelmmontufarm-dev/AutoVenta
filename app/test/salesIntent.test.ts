@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   canGenerateFinalQuote,
+  extractExplicitQuantity,
+  extractVehicleYear,
   hasExplicitQuantity,
   isComparisonRequest,
   isExplicitPurchaseConfirmation,
@@ -16,6 +18,18 @@ describe("guardas del flujo comercial", () => {
     expect(hasExplicitQuantity("quiero tres llantas")).toBe(true);
     expect(canGenerateFinalQuote("la Kenda por favor")).toBe(false);
     expect(canGenerateFinalQuote("quiero 3 llantas Kenda")).toBe(true);
+  });
+
+  it("recuerda una cantidad aislada sin confundirla con el año", () => {
+    expect(extractExplicitQuantity("4")).toBe(4);
+    expect(extractExplicitQuantity("quiero cuatro llantas")).toBe(4);
+    expect(extractExplicitQuantity("Chevrolet Trooper 2002")).toBeNull();
+    expect(canGenerateFinalQuote("sí, esa", false, true)).toBe(true);
+  });
+
+  it("extrae un año vehicular ya informado", () => {
+    expect(extractVehicleYear("las que le entren a mi 2002 trooper")).toBe(2002);
+    expect(extractVehicleYear("medida 245/75R16")).toBeNull();
   });
 
   it("solo cierra ganado ante compra ya realizada", () => {

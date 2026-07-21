@@ -26,7 +26,7 @@ export interface DataSource {
   reabrir(ticketId: number): Promise<void>;
   setAtiende(ticketId: number, atiende: Atiende): Promise<void>;
   enviarMensaje(ticketId: number, texto: string): Promise<void>; // como vendedor
-  crearDescuento(ticketId: number, prompt: string): Promise<{ sent: boolean; message: string; warning?: string; pending?: boolean }>;
+  crearDescuento(ticketId: number, prompt: string, deliveryMode: "now" | "next_message"): Promise<{ sent: boolean; message: string; warning?: string; pending?: boolean }>;
   getTemplatePlan(ticketId: number): Promise<TemplatePlanPreview>;
   authorizeTemplatePlan(ticketId: number): Promise<TemplatePlanPreview>;
   agregarNota(ticketId: number, texto: string): Promise<void>;

@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { createHash } from "node:crypto";
 import { sql } from "../db/client.js";
 import {
   computeInWindowSchedule,
@@ -87,6 +88,19 @@ interface ConversationForFollowUp {
 }
 
 const FOLLOW_UP_PLAN_VERSION = "v5";
+
+function policyScheduleSignature(policy: FollowUpPolicy): string {
+  return createHash("sha256").update(JSON.stringify({
+    timezone: policy.timezone,
+    businessHours: policy.businessHours,
+    enabledStages: policy.enabledStages,
+    firstDelayMinutes: policy.firstDelayMinutes,
+    secondBeforeCloseMinutes: policy.secondBeforeCloseMinutes,
+    minimumGapMinutes: policy.minimumGapMinutes,
+    maxInWindowAttempts: policy.maxInWindowAttempts,
+    neverOutsideHours: policy.neverOutsideHours,
+  })).digest("hex").slice(0, 10);
+}
 
 export async function getFollowUpPolicy(): Promise<FollowUpPolicy> {
   const [row] = await sql<PolicyRow[]>`
@@ -240,7 +254,7 @@ export async function scheduleConversationFollowUps(
   const relevantAt = conversation.last_assistant_message_at.getTime() >= conversation.last_customer_message_at.getTime()
     ? conversation.last_assistant_message_at
     : conversation.last_customer_message_at;
-  const base = `plan:${FOLLOW_UP_PLAN_VERSION}:${conversation.id}:${conversation.current_cycle}:${conversation.stage}:${relevantAt.toISOString()}`;
+  const base = `plan:${FOLLOW_UP_PLAN_VERSION}:${policyScheduleSignature(policy)}:${conversation.id}:${conversation.current_cycle}:${conversation.stage}:${relevantAt.toISOString()}`;
   const [existingPlan] = await sql<{ count: number }[]>`
     select count(*)::int as count from follow_up_jobs
     where conversation_id=${conversationId} and cycle=${conversation.current_cycle}
@@ -329,6 +343,19 @@ export async function scheduleConversationFollowUps(
   emitLiveEvent("follow_up", conversationId);
 }
 
+/** Recalcula jobs pendientes cuando cambia horario o retrasos administrativos. */
+export async function rescheduleActiveConversationPlans(now = new Date()): Promise<number> {
+  const rows = await sql<{ id: number }[]>`
+    select id from conversations
+    where status='open' and opted_out_at is null and negative_sentiment_at is null
+      and last_customer_message_at is not null and last_assistant_message_at is not null
+      and (assigned_to='human' or last_assistant_message_at >= last_customer_message_at)
+    order by updated_at desc
+  `;
+  for (const row of rows) await scheduleConversationFollowUps(Number(row.id), now);
+  return rows.length;
+}
+
 export async function handleInboundFollowUpState(
   conversationId: number,
   text: string,
@@ -379,6 +406,7 @@ export async function handleInboundFollowUpState(
     if (requestedHuman && !negative) {
       const [conversation] = await tx<{ current_cycle: number }[]>`
         update conversations set assigned_to = 'human', bot_paused_until = 'infinity'::timestamptz,
+          follow_up_reason = 'Cliente pidió atención de un asesor y todavía requiere respuesta',
           updated_at = now() where id = ${conversationId} returning current_cycle
       `;
       if (conversation) await tx`

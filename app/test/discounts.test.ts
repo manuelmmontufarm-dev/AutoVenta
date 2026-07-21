@@ -47,6 +47,7 @@ describe("Descuentos comerciales estructurados", () => {
     expect(text).toContain("$20.00");
     expect(text).toContain("$480.00");
     expect(text).toContain("si vienes el sábado");
+    expect(text).toContain("presenta el número de cotización *COT-10-D3*");
   });
 
   it("proyecta el mismo descuento en los totales de la cotización", async () => {

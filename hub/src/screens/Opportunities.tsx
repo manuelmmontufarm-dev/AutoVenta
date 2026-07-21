@@ -22,11 +22,13 @@ function OpportunityCard({ item, now }: { item: FollowUpCard; now: number }) {
       <div className="flex flex-wrap items-center gap-2">
         <span className="truncate text-[13px] font-black">{item.customer}</span>
         <span className="rounded-full bg-paper/[.07] px-2 py-0.5 text-[9px] font-bold">{ETAPA_META[item.stage].corto}</span>
-        <span className={`rounded-full px-2 py-0.5 text-[9px] font-black ${item.bucket === "needs_human" ? "bg-red/10 text-red" : "bg-lime/10 text-lime"}`}>
-          {item.bucket === "needs_human" ? `Sin responder ${item.unansweredDays} d` : "Oportunidad activa"}
+        <span className={`max-w-full truncate rounded-full px-2 py-0.5 text-[9px] font-black ${item.bucket === "needs_human" ? "bg-red/10 text-red" : "bg-lime/10 text-lime"}`} title={item.importanceReason}>
+          {item.importanceLabel}
         </span>
+        {item.bucket === "needs_human" && <span className="rounded-full bg-paper/[.07] px-2 py-0.5 text-[9px] font-bold">Sin responder {item.unansweredDays} d</span>}
       </div>
       <p className="mt-1 line-clamp-1 text-[10.5px] text-muted">{item.tireSize || item.selectedProductCode || "Medida pendiente"} · {item.summary}</p>
+      <p className="mt-1 line-clamp-1 text-[10px] font-bold text-amber-500">⚡ {item.importanceReason}</p>
       {commitment && <p className="mt-1 line-clamp-1 text-[10.5px] font-bold text-lime">🚗 {commitment}</p>}
     </div>
     <div className="flex items-center justify-between gap-3 sm:block sm:text-right">

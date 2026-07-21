@@ -8,6 +8,7 @@ import { runFollowUpMigration } from "./migrations/001_follow_up_system.js";
 import { runSalesPlanDiscountsMigration } from "./migrations/002_sales_follow_up_plan_discounts.js";
 import { runFollowUpStagePromptsMigration } from "./migrations/003_follow_up_stage_prompts.js";
 import { runOpportunityCampaignsPendingDiscountsMigration } from "./migrations/004_opportunity_campaigns_pending_discounts.js";
+import { runConversationMemoryDiscountDeliveryMigration } from "./migrations/005_conversation_memory_discount_delivery.js";
 
 export const SCHEMA = /* sql */ `
 create table if not exists conversations (
@@ -25,11 +26,13 @@ alter table conversations add column if not exists assigned_to text not null def
 alter table conversations add column if not exists unread_count integer not null default 0;
 alter table conversations add column if not exists tire_size text;
 alter table conversations add column if not exists vehicle text;
+alter table conversations add column if not exists vehicle_year integer;
 alter table conversations add column if not exists closed_reason text;
 alter table conversations add column if not exists closed_at timestamptz;
 alter table conversations add column if not exists last_customer_message_at timestamptz;
 alter table conversations add column if not exists last_assistant_message_at timestamptz;
 alter table conversations add column if not exists current_cycle integer not null default 1;
+alter table conversations add column if not exists bot_resume_in_progress boolean not null default false;
 alter table conversations add column if not exists selected_product_code text;
 alter table conversations add column if not exists selected_quantity integer;
 alter table conversations add column if not exists location_label text;
@@ -292,4 +295,5 @@ export async function ensureSchema(): Promise<void> {
   await runSalesPlanDiscountsMigration(sql);
   await runFollowUpStagePromptsMigration(sql);
   await runOpportunityCampaignsPendingDiscountsMigration(sql);
+  await runConversationMemoryDiscountDeliveryMigration(sql);
 }

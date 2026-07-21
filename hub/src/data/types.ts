@@ -174,6 +174,8 @@ export interface FollowUpCard {
   unansweredDays: number; commitment: string | null; visitDate: string | null; pickupDate: string | null;
   campaignId: number | null; campaignTemplateKey: string | null;
   campaignPlan: Array<{ id: number; day: string; dueAt: string; preview: string; templateKey: string; status: string }>;
+  importanceLabel: string;
+  importanceReason: string;
 }
 
 export interface TemplatePlanPreview {

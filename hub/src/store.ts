@@ -43,7 +43,7 @@ interface HubState {
   reabrir(id: number): Promise<void>;
   setAtiende(id: number, atiende: Atiende): Promise<void>;
   enviarMensaje(id: number, texto: string): Promise<void>;
-  crearDescuento(id: number, prompt: string): Promise<{ sent: boolean; message: string; warning?: string; pending?: boolean }>;
+  crearDescuento(id: number, prompt: string, deliveryMode: "now" | "next_message"): Promise<{ sent: boolean; message: string; warning?: string; pending?: boolean }>;
   getTemplatePlan(id: number): Promise<TemplatePlanPreview>;
   authorizeTemplatePlan(id: number): Promise<TemplatePlanPreview>;
   agregarNota(id: number, texto: string): Promise<void>;
@@ -160,8 +160,8 @@ export const useHub = create<HubState>((set, get) => {
     reabrir: (id) => source.reabrir(id),
     setAtiende: (id, atiende) => source.setAtiende(id, atiende),
     enviarMensaje: (id, texto) => source.enviarMensaje(id, texto),
-    async crearDescuento(id, prompt) {
-      const result = await source.crearDescuento(id, prompt);
+    async crearDescuento(id, prompt, deliveryMode) {
+      const result = await source.crearDescuento(id, prompt, deliveryMode);
       await refrescar();
       await refrescarMensajes(id);
       return result;

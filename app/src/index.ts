@@ -7,6 +7,7 @@ import { createServer } from "./server/webhook.js";
 import { wa, sendCustomerText, showTyping } from "./wa/client.js";
 import { InboundPipeline } from "./pipeline/inbound.js";
 import { runAgent } from "./agent/agent.js";
+import type { AgentContext } from "./agent/tools.js";
 import { classifyStage } from "./agent/classifier.js";
 import { startCatalogSync } from "./services/catalog.js";
 import { ensureSchema } from "./db/schema.js";
@@ -21,11 +22,13 @@ import {
 } from "./services/conversations.js";
 import { emitLiveEvent } from "./services/liveEvents.js";
 import { extractTireSizes, formatTireSize } from "./domain/tireSize.js";
+import { extractExplicitQuantity, extractVehicleYear } from "./domain/salesIntent.js";
 import { getHubMetrics } from "./services/hubData.js";
 import {
   handleInboundFollowUpState,
   scheduleConversationFollowUps,
 } from "./services/followUps.js";
+import { markDiscountNoticeSent } from "./services/discountOffers.js";
 
 const pipeline = new InboundPipeline(async ({ from, name, text, waMessageIds, receivedAt }) => {
   const conversation = await getOrCreateConversation(from, name);
@@ -39,9 +42,13 @@ const pipeline = new InboundPipeline(async ({ from, name, text, waMessageIds, re
   if (!anyNew) return;
   const inboundSafety = await handleInboundFollowUpState(conversation.id, text);
   const parsedSize = extractTireSizes(text)[0];
-  if (parsedSize) {
-    await updateConversationFacts(conversation.id, { tireSize: formatTireSize(parsedSize) });
-  }
+  const parsedQuantity = extractExplicitQuantity(text);
+  const parsedVehicleYear = extractVehicleYear(text);
+  await updateConversationFacts(conversation.id, {
+    ...(parsedSize ? { tireSize: formatTireSize(parsedSize) } : {}),
+    ...(parsedQuantity ? { selectedQuantity: parsedQuantity } : {}),
+    ...(parsedVehicleYear ? { vehicleYear: parsedVehicleYear } : {}),
+  });
   emitLiveEvent("message", conversation.id);
   emitLiveEvent("sync", conversation.id);
 
@@ -62,16 +69,18 @@ const pipeline = new InboundPipeline(async ({ from, name, text, waMessageIds, re
   // Recién aquí se sabe que el bot va a responder: "escribiendo…" honesto.
   void showTyping(waMessageIds[waMessageIds.length - 1]).catch(() => {});
 
-  const reply = await runAgent(
-    { conversation, customerPhone: from, customerName: name, currentUserText: text },
-    text,
-  );
+  const agentContext: AgentContext = { conversation, customerPhone: from, customerName: name,
+    currentUserText: text };
+  const reply = await runAgent(agentContext, text);
 
   const sentId = await sendCustomerText(conversation.id, from, reply);
   await appendMessage(conversation.id, "assistant", reply, sentId, {
     authorKind: "bot",
     status: "sent",
   });
+  if (agentContext.discountNotice) {
+    await markDiscountNoticeSent(agentContext.discountNotice.source, agentContext.discountNotice.id);
+  }
   emitLiveEvent("message", conversation.id);
   emitLiveEvent("sync", conversation.id);
 

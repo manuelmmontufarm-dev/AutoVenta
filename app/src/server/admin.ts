@@ -59,16 +59,19 @@ import {
   listBotAlerts,
   listFollowUpBoard,
 } from "../services/followUpAdmin.js";
-import { cancelPendingFollowUps, createBotAlert, scheduleConversationFollowUps } from "../services/followUps.js";
+import { cancelPendingFollowUps, createBotAlert, rescheduleActiveConversationPlans, scheduleConversationFollowUps } from "../services/followUps.js";
 import {
   captureManualDiscount,
   createDiscountFromPrompt,
   discountOfferMessage,
   markDiscountOfferSent,
+  markDiscountNoticeSent,
+  pendingDiscountNoticeMessage,
 } from "../services/discountOffers.js";
 import { renderQuoteImage, toRenderLine } from "../render/quoteImage.js";
 import { sendImage } from "../wa/client.js";
 import { authorizeAdvisorTemplatePlan, previewAdvisorTemplatePlan } from "../services/followUpCampaigns.js";
+import { resumeBotIfUnanswered } from "../services/resumeBot.js";
 
 const GRAPH = "https://graph.facebook.com/v21.0";
 const ADMIN_KEY = process.env.ADMIN_KEY ?? "";
@@ -326,7 +329,9 @@ export function createAdminRouter(): express.Router {
         template_follow_up_days=${input.templateFollowUpDays}, template_send_time=${input.templateSendTime}
       where policy_key='default'
     `;
-    emitLiveEvent("settings"); res.json({ ok: true });
+    const rescheduled = await rescheduleActiveConversationPlans();
+    emitLiveEvent("settings"); emitLiveEvent("follow_up");
+    res.json({ ok: true, rescheduled });
   });
 
   router.put("/follow-up-settings/templates/:key", async (req, res) => {
@@ -379,18 +384,25 @@ export function createAdminRouter(): express.Router {
     const id = Number(req.params.id);
     if (!Number.isInteger(id)) return res.status(400).json({ ok: false, error: "id inválido" });
     try {
-      const input = z.object({ prompt: z.string().trim().min(3).max(500) }).parse(req.body);
-      const created = await createDiscountFromPrompt(id, input.prompt);
-      if (created.status === "pending") {
+      const input = z.object({
+        prompt: z.string().trim().min(3).max(500),
+        deliveryMode: z.enum(["now", "next_message"]).default("next_message"),
+      }).parse(req.body);
+      const created = await createDiscountFromPrompt(
+        id, input.prompt, "admin_prompt", null, input.deliveryMode,
+      );
+      const message = created.status === "pending"
+        ? pendingDiscountNoticeMessage(created.pending)
+        : discountOfferMessage(created.offer);
+      if (input.deliveryMode === "next_message") {
         await scheduleConversationFollowUps(id);
         return res.status(202).json({
-          ok: true, sent: false, pending: true,
-          message: "Descuento guardado; se aplicará automáticamente a la próxima cotización.",
-          warning: "Todavía no existe una cotización. La regla quedó guardada.",
+          ok: true, sent: false, pending: created.status === "pending", message,
+          warning: created.status === "pending"
+            ? "Descuento guardado: el bot lo incluirá en su siguiente respuesta y en la próxima cotización."
+            : "Descuento aplicado: el bot lo incluirá en su siguiente respuesta.",
         });
       }
-      const offer = created.offer;
-      const message = discountOfferMessage(offer);
       await cancelPendingFollowUps(id, "discount_offer_replaced_plan");
       const decision = await authorizeConversationOutbound({
         conversationId: id, contentType: "text", actor: "owner",
@@ -403,14 +415,17 @@ export function createAdminRouter(): express.Router {
           conversationId: id, cycle: conversation.current_cycle,
           type: "discount_template_required", priority: "high",
           summary: "Descuento autorizado, pero la ventana está cerrada",
-          exactReason: "No se envió texto libre. La oferta quedó reflejada en la cotización revisada.",
+          exactReason: created.status === "applied"
+            ? "No se envió texto libre. La oferta quedó reflejada en la cotización revisada."
+            : "No se envió texto libre. La elegibilidad quedó guardada para la próxima cotización.",
           suggestedAction: `Usar una plantilla aprobada o llamar al cliente. Texto de contexto: ${message}`,
-          dedupeKey: `${id}:${conversation.current_cycle}:discount_template_required:${offer.id}`,
+          dedupeKey: `${id}:${conversation.current_cycle}:discount_template_required:${created.status}:${created.status === "pending" ? created.pending.id : created.offer.id}`,
         });
         await scheduleConversationFollowUps(id);
         return res.status(202).json({
           ok: true, sent: false, policyCode: decision.code, message,
-          offer, warning: "Ventana cerrada: no se envió texto libre; se creó una alerta para el asesor.",
+          ...(created.status === "applied" ? { offer: created.offer } : { pending: true }),
+          warning: "Ventana cerrada: no se envió texto libre; se creó una alerta para el asesor.",
         });
       }
       const [conversation] = await sql<{ phone: string }[]>`select phone from conversations where id=${id}`;
@@ -418,7 +433,12 @@ export function createAdminRouter(): express.Router {
       let providerId: string | undefined;
       let messageType: "text" | "image" = "text";
       let filename: string | undefined;
-      try {
+      if (created.status === "pending") {
+        const sent = await sendTextDetailed(conversation.phone, message);
+        if (!sent.ok) return res.status(sent.status).json(sent);
+        providerId = sent.id;
+      } else try {
+        const offer = created.offer;
         await ensureCatalogReady();
         const [quote] = await sql<{
           id: number; quote_number: string; items: Array<Record<string, unknown>>;
@@ -449,15 +469,22 @@ export function createAdminRouter(): express.Router {
       }
       await appendMessage(id, "assistant", message, providerId, {
         type: messageType, authorKind: "bot", status: "sent",
-        metadata: { discountOfferId: offer.id, authorizedBy: "owner", filename },
+        metadata: created.status === "applied"
+          ? { discountOfferId: created.offer.id, authorizedBy: "owner", filename }
+          : { pendingDiscountId: created.pending.id, authorizedBy: "owner" },
       });
       const [stored] = providerId
         ? await sql<{ id: number }[]>`select id from messages where wa_message_id=${providerId}`
         : [];
-      await markDiscountOfferSent(offer.id, stored?.id ? Number(stored.id) : null);
+      if (created.status === "applied") {
+        await markDiscountOfferSent(created.offer.id, stored?.id ? Number(stored.id) : null);
+      } else {
+        await markDiscountNoticeSent("pending", created.pending.id);
+      }
       await scheduleConversationFollowUps(id);
       emitLiveEvent("message", id); emitLiveEvent("sync", id);
-      res.json({ ok: true, sent: true, message, offer });
+      res.json({ ok: true, sent: true, message,
+        ...(created.status === "applied" ? { offer: created.offer } : { pending: true }) });
     } catch (error) {
       res.status(400).json({ ok: false, error: error instanceof Error ? error.message : "Oferta inválida" });
     }
@@ -508,8 +535,9 @@ export function createAdminRouter(): express.Router {
       return res.status(400).json({ ok: false, error: "Asignación inválida" });
     }
     await setConversationAssignee(id, assignedTo as "bot" | "human");
+    const resumed = assignedTo === "bot" ? await resumeBotIfUnanswered(id) : null;
     emitLiveEvent("sync", id);
-    res.json({ ok: true });
+    res.json({ ok: true, resumed });
   });
 
   router.post("/hub/tickets/:id/notes", async (req, res) => {

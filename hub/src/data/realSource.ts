@@ -111,9 +111,9 @@ export class RealSource implements DataSource {
     });
   }
 
-  async crearDescuento(ticketId: number, prompt: string): Promise<{ sent: boolean; message: string; warning?: string; pending?: boolean }> {
+  async crearDescuento(ticketId: number, prompt: string, deliveryMode: "now" | "next_message"): Promise<{ sent: boolean; message: string; warning?: string; pending?: boolean }> {
     return this.request(`/api/hub/tickets/${ticketId}/discount-offers`, {
-      method: "POST", body: JSON.stringify({ prompt }),
+      method: "POST", body: JSON.stringify({ prompt, deliveryMode }),
     });
   }
 

@@ -188,6 +188,7 @@ function Ficha({
   const [nota, setNota] = useState("");
   const [verDescuento, setVerDescuento] = useState(false);
   const [promptDescuento, setPromptDescuento] = useState("");
+  const [entregaDescuento, setEntregaDescuento] = useState<"now" | "next_message">("next_message");
   const [estadoDescuento, setEstadoDescuento] = useState<string | null>(null);
   const [guardandoDescuento, setGuardandoDescuento] = useState(false);
   const [templatePlan, setTemplatePlan] = useState<TemplatePlanPreview | null>(null);
@@ -203,8 +204,8 @@ function Ficha({
     }
     setGuardandoDescuento(true); setEstadoDescuento(null);
     try {
-      const result = await crearDescuento(ticket.id, promptDescuento.trim());
-      setEstadoDescuento(result.sent ? "Oferta aplicada a la cotización y enviada." : (result.warning ?? "Oferta registrada; requiere plantilla."));
+      const result = await crearDescuento(ticket.id, promptDescuento.trim(), entregaDescuento);
+      setEstadoDescuento(result.sent ? "Descuento notificado al cliente." : (result.warning ?? "Oferta registrada; requiere plantilla."));
       setVerDescuento(false); setPromptDescuento("");
     } catch (error) {
       setEstadoDescuento(error instanceof Error ? error.message : "No se pudo crear la oferta.");
@@ -247,6 +248,7 @@ function Ficha({
       <section className="glass rounded-2xl p-4">
         <p className="microlabel mb-2.5">Seguimiento comercial</p>
         <p className="text-xs leading-relaxed">{ticket.resumen ?? "Resumen automático pendiente; se actualizará con la próxima interacción."}</p>
+        {ticket.followUpReason && <div className="mt-2 rounded-xl border border-amber-500/15 bg-amber-500/[.06] p-2.5"><p className="text-[9px] font-black uppercase tracking-wider text-amber-500">Por qué requiere atención</p><p className="mt-1 text-[10.5px] font-bold">{ticket.followUpReason}</p></div>}
         <dl className="mt-3 grid gap-2 text-[11px]">
           <div><dt className="text-faint">Qué busca</dt><dd>{ticket.queBusca ?? ticket.medida ?? "Por identificar"}</dd></div>
           <div><dt className="text-faint">Opciones que comparó</dt><dd>{ticket.opcionesComparadas?.length ? ticket.opcionesComparadas.map(String).join(" · ") : "Sin comparación registrada"}</dd></div>
@@ -288,7 +290,7 @@ function Ficha({
         {ticket.descuentoPendiente && !ticket.descuentoActivo && <div className="mt-2 rounded-xl bg-amber-500/[.08] p-2.5"><p className="text-[10.5px] font-black text-amber-500">Descuento listo para la próxima cotización</p><p className="mt-1 text-[10px]">{ticket.descuentoPendiente.kind === "percentage" ? `${ticket.descuentoPendiente.value / 100}%` : money(ticket.descuentoPendiente.value / 100)} · si {ticket.descuentoPendiente.condition}</p></div>}
         {!ticket.cotizacion && <p className="mt-3 rounded-xl bg-paper/[.04] p-2.5 text-[10.5px] text-faint">Puedes autorizarlo ahora: quedará guardado y se aplicará automáticamente a la próxima cotización.</p>}
         {abierto && <button onClick={() => setVerDescuento((value) => !value)} className="mt-3 w-full rounded-xl bg-lime/10 py-2 text-xs font-bold text-lime">{ticket.descuentoActivo ? "Ajustar descuento" : "Ofrecer descuento"}</button>}
-        {verDescuento && <div className="mt-3 grid gap-2 rounded-xl border border-lime/20 bg-lime/[.04] p-3"><label className="text-[10px] font-bold">Indicación para el bot<textarea value={promptDescuento} onChange={(e) => setPromptDescuento(e.target.value)} placeholder="Ej. 5% de descuento si recoge esta semana" className="gp-field mt-1 min-h-20 w-full rounded-lg px-2.5 py-2 text-xs" /></label><p className="text-[9.5px] text-faint">El bot calculará el ahorro exacto y repetirá únicamente esta condición en cotización y seguimientos.</p><button disabled={guardandoDescuento} onClick={() => void confirmarDescuento()} className="btn-aurora rounded-xl py-2.5 text-xs font-bold disabled:opacity-50">{guardandoDescuento ? "Confirmando…" : "Confirmar descuento"}</button></div>}
+        {verDescuento && <div className="mt-3 grid gap-2 rounded-xl border border-lime/20 bg-lime/[.04] p-3"><label className="text-[10px] font-bold">Indicación para el bot<textarea value={promptDescuento} onChange={(e) => setPromptDescuento(e.target.value)} placeholder="Ej. 5% de descuento si recoge esta semana" className="gp-field mt-1 min-h-20 w-full rounded-lg px-2.5 py-2 text-xs" /></label><div className="grid grid-cols-2 gap-2"><button type="button" onClick={() => setEntregaDescuento("now")} className={`rounded-xl border px-2 py-2 text-[10px] font-black ${entregaDescuento === "now" ? "border-lime/50 bg-lime/15 text-lime" : "border-paper/10 text-muted"}`}>Notificar ahora</button><button type="button" onClick={() => setEntregaDescuento("next_message")} className={`rounded-xl border px-2 py-2 text-[10px] font-black ${entregaDescuento === "next_message" ? "border-lime/50 bg-lime/15 text-lime" : "border-paper/10 text-muted"}`}>Incluir en el siguiente mensaje</button></div><p className="text-[9.5px] text-faint">El bot aplicará el ahorro exacto en la cotización. El descuento solo será válido en tienda presentando el número de cotización.</p><button disabled={guardandoDescuento} onClick={() => void confirmarDescuento()} className="btn-aurora rounded-xl py-2.5 text-xs font-bold disabled:opacity-50">{guardandoDescuento ? "Confirmando…" : "Confirmar descuento"}</button></div>}
         {estadoDescuento && <p className="mt-2 text-[10.5px] text-muted">{estadoDescuento}</p>}
       </section>
 

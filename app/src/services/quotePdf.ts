@@ -456,6 +456,7 @@ function legacyQuoteDocument(quote: Quote) {
         },
       },
       ...(quote.discountAmount ? [{ text: `DESCUENTO AUTORIZADO: -${money(quote.discountAmount)} · ${quote.discountCondition}`, bold: true, fontSize: 10, alignment: "right", color: GREEN, margin: [0, 14, 0, 0] }] : []),
+      ...(quote.discountAmount ? [{ text: `Válido en tienda únicamente presentando la cotización ${quote.number}.`, bold: true, fontSize: 9, alignment: "right", color: NAVY, margin: [0, 4, 0, 0] }] : []),
       { text: `TOTAL CON IVA: ${money(quote.total)}`, bold: true, fontSize: 16, alignment: "right", color: RED, margin: [0, quote.discountAmount ? 6 : 18, 0, 0] },
     ],
   };

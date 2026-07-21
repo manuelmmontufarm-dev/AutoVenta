@@ -187,7 +187,7 @@ export async function listHubTickets() {
     visitDate: row.visit_date?.toISOString(),
     offerExpiresAt: row.offer_expires_at?.toISOString(),
     localCercano: row.nearest_store ?? undefined,
-    followUpReason: row.follow_up_reason ?? undefined,
+    followUpReason: commercialAttentionReason(row),
     customerOptIn: row.customer_opt_in,
     optedOutAt: row.opted_out_at?.toISOString(),
     proximoSeguimiento: row.next_follow_up,
@@ -200,6 +200,24 @@ export async function listHubTickets() {
       ? new Date(row.last_customer_message_at.getTime() + 24 * 60 * 60 * 1000).toISOString()
       : undefined,
   }));
+}
+
+function commercialAttentionReason(row: TicketRow): string | undefined {
+  if (row.follow_up_reason) return row.follow_up_reason;
+  if (/\b(?:asesor|humano|vendedor|hablar con alguien)\b/i.test(row.last_message ?? "")) {
+    return "Cliente pidió atención de un asesor y todavía requiere respuesta.";
+  }
+  if (row.customer_commitment) return `Compromiso pendiente: ${row.customer_commitment}`;
+  if (row.stage === "seguimiento_venta") {
+    return row.quote
+      ? "Cotización en recta final: confirmar visita, reserva o decisión de compra."
+      : "Venta en recta final: requiere coordinar el siguiente paso con el cliente.";
+  }
+  if (row.last_customer_message_at &&
+      Date.now() >= row.last_customer_message_at.getTime() + 24 * 60 * 60 * 1000) {
+    return "La ventana de 24 horas terminó sin respuesta; requiere revisión humana.";
+  }
+  return undefined;
 }
 
 export async function getHubMessages(conversationId: number) {

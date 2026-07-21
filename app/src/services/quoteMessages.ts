@@ -103,7 +103,10 @@ export function buildSingleQuoteMessage(
     `${brandEmoji(product.brand)} ${product.brand} ${product.design} — ${product.sizeLabel ?? product.name}`,
     `💰 ${money(product.minimumPriceWithTax)} c/u (antes ${money(product.customerPriceWithTax)}, −${discount(product)}%)`,
     `🛞 ${quantity} llanta${quantity === 1 ? "" : "s"}: ${money(total)}`,
-    ...(offerDiscount ? [`✅ Descuento adicional autorizado: −${money(offerDiscount.amount)} si ${offerDiscount.condition}.`] : []),
+    ...(offerDiscount ? [
+      `✅ Descuento adicional autorizado: −${money(offerDiscount.amount)} si ${offerDiscount.condition}.`,
+      quoteNumber ? `🔖 Para validar el descuento en tienda, presenta la cotización *${quoteNumber}*.` : "",
+    ] : []),
     ...(specLine(product) ? [`📦 ${specLine(product)}`] : []),
     availabilityLine(product),
     `⭐ ${warranty.factory}`,

@@ -59,6 +59,8 @@ export interface AgentContext {
   customerName?: string;
   currentUserText: string;
   comparedThisTurn?: boolean;
+  resumedFromHuman?: boolean;
+  discountNotice?: { source: "pending" | "offer"; id: number };
 }
 
 export interface AgentTool {
@@ -389,7 +391,7 @@ export function buildTools(ctx: AgentContext) {
   const generarCotizacion = defineTool({
     name: "generar_cotizacion",
     description:
-      "Genera la cotización en PDF y se la envía al cliente por WhatsApp automáticamente. Úsala cuando el cliente haya confirmado qué llanta(s) y cuántas unidades quiere. Devuelve los totales con IVA para que los menciones en el chat.",
+      "Genera la cotización y se la envía al cliente por WhatsApp automáticamente. Úsala en cuanto modelo y cantidad estén confirmados, incluso si la cantidad apareció en un mensaje anterior. No pidas una confirmación adicional: cotiza y después pregunta si está bien. Devuelve los totales con IVA para que los menciones en el chat.",
     schema: z.object({
       items: z
         .array(
@@ -407,7 +409,11 @@ export function buildTools(ctx: AgentContext) {
         .describe("true SOLO si el cliente pidió explícitamente el PDF/documento"),
     }),
     run: async ({ items, nombre_cliente, incluir_pdf = false }) => {
-      if (!canGenerateFinalQuote(ctx.currentUserText, ctx.comparedThisTurn)) {
+      const [facts] = await sql<{ selected_quantity: number | null }[]>`
+        select selected_quantity from conversations where id=${ctx.conversation.id}
+      `;
+      const quantityWasConfirmed = facts?.selected_quantity === items[0]?.cantidad;
+      if (!canGenerateFinalQuote(ctx.currentUserText, ctx.comparedThisTurn, quantityWasConfirmed)) {
         return JSON.stringify({
           error:
             "Cotización bloqueada: esta conversación aún está comparando o el último mensaje no confirmó una cantidad. Pide un modelo y una cantidad explícitos. No envíes PDF de cotización.",

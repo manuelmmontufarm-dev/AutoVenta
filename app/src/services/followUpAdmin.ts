@@ -25,6 +25,8 @@ export async function listFollowUpBoard() {
     customer_commitment: string | null;
     visit_date: Date | null;
     pickup_date: Date | null;
+    follow_up_reason: string | null;
+    quote_number: string | null;
     campaign_id: number | null;
     campaign_template_key: string | null;
     campaign_plan: unknown[] | null;
@@ -35,7 +37,8 @@ export async function listFollowUpBoard() {
       c.selected_product_code, m.content as last_message, m.created_at as last_at,
       s.summary, t.template_name, c.last_customer_message_at,
       coalesce(c.customer_commitment, s.customer_commitment) as customer_commitment,
-      c.visit_date, c.pickup_date, campaign.id as campaign_id,
+      c.visit_date, c.pickup_date, coalesce(c.follow_up_reason, s.follow_up_reason) as follow_up_reason,
+      quote.quote_number, campaign.id as campaign_id,
       campaign.template_key as campaign_template_key, campaign_jobs.plan as campaign_plan
     from conversations c
     left join lateral (
@@ -50,6 +53,10 @@ export async function listFollowUpBoard() {
       order by created_at desc limit 1
     ) m on true
     left join conversation_summaries s on s.conversation_id = c.id and s.cycle = c.current_cycle
+    left join lateral (
+      select quote_number from quotes where conversation_id=c.id and cycle=c.current_cycle
+      order by created_at desc, id desc limit 1
+    ) quote on true
     left join follow_up_templates t on t.template_key = j.payload->>'templateKey'
     left join lateral (
       select id, template_key from follow_up_campaigns
@@ -84,6 +91,21 @@ export async function listFollowUpBoard() {
       ? Math.max(0, Math.floor((now.getTime() - row.last_customer_message_at.getTime()) / 86_400_000))
       : 0;
     const bucket = row.stage === "seguimiento_venta" ? "closing" : "needs_human";
+    const importanceLabel = bucket === "needs_human"
+      ? "Ventana cerrada"
+      : row.customer_commitment || row.visit_date || row.pickup_date
+        ? "Compromiso por confirmar"
+        : row.follow_up_reason?.toLowerCase().includes("asesor")
+          ? "Cliente pidió asesor"
+          : row.quote_number
+            ? "Cotización por convertir"
+            : "Venta en recta final";
+    const importanceReason = row.follow_up_reason
+      ?? (row.customer_commitment ? `El cliente indicó: ${row.customer_commitment}` : null)
+      ?? (row.quote_number ? `La cotización ${row.quote_number} sigue abierta y requiere el siguiente paso.` : null)
+      ?? (bucket === "needs_human"
+        ? "Pasaron 24 horas sin respuesta; un asesor debe decidir si continúa con plantilla o marca Perdido."
+        : "Está en seguimiento hasta venta y todavía se puede concretar visita, reserva o compra.");
     return {
       id: row.job_id ? Number(row.job_id) : null,
       conversationId: Number(row.conversation_id),
@@ -112,6 +134,8 @@ export async function listFollowUpBoard() {
       campaignId: row.campaign_id ? Number(row.campaign_id) : null,
       campaignTemplateKey: row.campaign_template_key,
       campaignPlan: row.campaign_plan ?? [],
+      importanceLabel,
+      importanceReason,
     };
   });
 }

@@ -94,5 +94,8 @@ export function buildDiscountCustomerMessage(input: {
   const amount = input.percentage
     ? `${input.percentage.toLocaleString("es-EC")}% (${money(input.discountAmountCents)})`
     : money(input.discountAmountCents);
-  return `Puedo ofrecerte un descuento autorizado de ${amount}${quote} si ${input.condition.trim()}. El total quedaría en ${money(input.finalTotalCents)}.${expiration} ¿Quieres que coordinemos el siguiente paso? 😊`;
+  const validation = input.quoteNumber
+    ? ` Para validarlo en la tienda, presenta el número de cotización *${input.quoteNumber}*.`
+    : " Se aplicará en tu próxima cotización y, para validarlo en la tienda, deberás presentar ese número.";
+  return `Un asesor decidió que eres elegible para un descuento de ${amount}${quote} si ${input.condition.trim()}. El total quedaría en ${money(input.finalTotalCents)}.${expiration}${validation} ¿Quieres que coordinemos el siguiente paso? 😊`;
 }
