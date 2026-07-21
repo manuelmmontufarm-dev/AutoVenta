@@ -1,0 +1,9 @@
+# Servicio separado de seguimientos en staging. El Root Directory debe ser `app/`.
+# No define healthcheck HTTP porque este proceso consume jobs desde PostgreSQL.
+[build]
+builder = "nixpacks"
+
+[deploy]
+startCommand = "npm run start:worker"
+restartPolicyType = "on_failure"
+restartPolicyMaxRetries = 10

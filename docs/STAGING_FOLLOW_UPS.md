@@ -7,7 +7,7 @@ Este procedimiento aplica únicamente a `https://autoventa-staging.up.railway.ap
 Usar dos servicios conectados a la misma base PostgreSQL y al mismo commit:
 
 - HTTP: directorio `app`, build `npm ci && npm run build`, start `npm start`, healthcheck `/health`.
-- Worker: directorio `app`, build `npm ci && npm run build`, start `npm run start:worker`. No exponer dominio público.
+- Worker: directorio `app`, config `app/railway.worker.toml`, start `npm run start:worker`. No exponer dominio público; usar referencias a las variables del servicio `AutoVenta`.
 
 PostgreSQL es la fuente de verdad. El worker reclama jobs con `FOR UPDATE SKIP LOCKED`; un reinicio no elimina los jobs y los leases abandonados se recuperan.
 
