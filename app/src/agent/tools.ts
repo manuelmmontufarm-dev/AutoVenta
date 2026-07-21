@@ -136,9 +136,10 @@ export function buildTools(ctx: AgentContext) {
       nombre_cliente: z.string().describe("Nombre del cliente si lo conoces, o 'Cliente'"),
       incluir_pdf: z
         .boolean()
+        .optional()
         .describe("true SOLO si el cliente pidió explícitamente el PDF/documento"),
     }),
-    run: async ({ items, nombre_cliente, incluir_pdf }) => {
+    run: async ({ items, nombre_cliente, incluir_pdf = false }) => {
       const lines = [];
       const products: { product: CatalogItem; cantidad: number }[] = [];
       for (const item of items) {

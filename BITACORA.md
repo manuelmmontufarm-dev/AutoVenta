@@ -81,6 +81,9 @@ cara del producto; el número COT-XXXX visible prepara la fase de incentivos/red
 
 **Cómo se probó:** `test/render-demo.ts` genera las 3 piezas (héroe, multi, comparativa)
 revisadas a ojo; 26 tests unitarios (nuevo parser de índice de carga); typecheck y build ok.
+E2e real con `test/send-image-e2e.ts`: render (531 KB) y upload a Meta OK; el send de prueba
+requiere agregar el número al allowed list de la app de Meta (sigue en modo dev).
+Fix posterior: `incluir_pdf` opcional en el schema (si el modelo lo omitía, Zod tumbaba al agente).
 
 ---
 
