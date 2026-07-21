@@ -16,6 +16,7 @@ import {
   formatTireSize,
   type TireSize,
 } from "../domain/tireSize.js";
+import { extractLoadSpeed, type LoadSpeed } from "../domain/loadSpeed.js";
 
 export interface CatalogItem {
   code: string;
@@ -23,8 +24,16 @@ export interface CatalogItem {
   design: string;
   size: TireSize;
   sizeLabel: string;
+  /** Texto crudo de la columna "medida" (puede traer índice de carga, PR, etc.). */
+  rawSize: string;
+  /** Índice de carga/velocidad si venía en la medida (ej. 112T). */
+  loadSpeed: LoadSpeed | null;
   /** Precio unitario SIN IVA. */
   price: number;
+  /** PVP / precio de lista SIN IVA (columna opcional "pvp") — para el tachado. */
+  pvp: number | null;
+  /** URL de foto del producto (columna opcional "foto"). */
+  photoUrl: string | null;
   stock: number;
 }
 
@@ -81,6 +90,11 @@ export async function syncCatalog(): Promise<SyncReport> {
       return;
     }
     const stock = Number(getCell(data, "stock", "cantidad") || "0");
+    const pvpRaw = Number(
+      getCell(data, "pvp", "precio lista", "preciolista").replace(/[$,]/g, ""),
+    );
+    const pvp = Number.isFinite(pvpRaw) && pvpRaw > price ? pvpRaw : null;
+    const photoUrl = getCell(data, "foto", "imagen", "photo", "image") || null;
 
     next.push({
       code: getCell(data, "codigo", "código", "code") || `ROW${rowNum}`,
@@ -88,7 +102,11 @@ export async function syncCatalog(): Promise<SyncReport> {
       design: getCell(data, "diseno", "diseño", "modelo", "design"),
       size: sizes[0],
       sizeLabel: formatTireSize(sizes[0]),
+      rawSize: medida,
+      loadSpeed: extractLoadSpeed(medida),
       price,
+      pvp,
+      photoUrl,
       stock: Number.isFinite(stock) ? stock : 0,
     });
   });

@@ -32,6 +32,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-07-20 | _(este mismo)_ | Cotizaciones visuales nivel Grupo Inter: motor satori/resvg + comparar_llantas + envío endurecido | 4.0 |
 | 2026-07-20 | _(este mismo)_ | Sistema Showroom GP documentado y aplicado a todo el hub | 2.0 |
 | 2026-07-18 | _(este mismo)_ | Fix handoff: guardar mensajes del cliente con bot pausado + typing honesto | 0.5 |
 | 2026-07-18 | _(este mismo)_ | Racing Heritage aplicado a todo el frontend + hub compacto | 1.0 |
@@ -54,11 +55,34 @@ Ya viene activado en este equipo.
 | 2026-07-14 | ac09171 | Ubicaciones de locales + análisis de features del cliente | 1.5 |
 | 2026-07-13 | feadf57 | Brief + plan de desarrollo + plan financiero + catálogo | 4.0 |
 | 2026-07-13 | d997844 | Commit inicial (repo) | 0.25 |
-| | | **TOTAL** | **~39.25 h** |
+| | | **TOTAL** | **~43.25 h** |
 
 ---
 
 ## Entradas (más reciente primero)
+
+### 2026-07-20 · Cotizaciones visuales nivel Grupo Inter + comparativa + envío endurecido · ⏱️ 4.0 h
+
+**Qué:** Motor de imágenes de cotización (`src/render/`): satori + resvg (HTML→SVG→PNG,
+sin Chromium — cabe en los 512MB de Railway). Tres cambios visibles para el cliente:
+(1) `generar_cotizacion` ahora manda una **imagen** de cotización estilo Racing Heritage
+(logo de marca en vez del nombre, foto, PVP tachado + % de ahorro, medallas de garantía,
+índice de carga traducido a kg/km-h, stock real como Disponible/Consultar) y el PDF solo
+si lo piden (mismo diseño: el PNG incrustado vía pdf-lib); (2) tool nueva `comparar_llantas`
+(2–3 opciones lado a lado); (3) `sendPdf`/`sendImage` verifican upload y respuesta de Meta
+con 1 reintento — el fallo del demo del 20-jul era silencioso. Catálogo acepta columnas
+opcionales `pvp` y `foto`; garantías por marca en config. Si el render o el envío fallan,
+la cotización NO se cae: fallback a PDF clásico y el agente la da completa en texto.
+
+**Por qué:** En la reunión del 20-jul el cliente pidió explícitamente cotización como
+imagen (no "texto grandote"), al nivel de las piezas de Grupo Inter que nos mostró, con
+el logo de la marca — y en el demo los PDFs fallaron en vivo. La cotización visual es la
+cara del producto; el número COT-XXXX visible prepara la fase de incentivos/redención.
+
+**Cómo se probó:** `test/render-demo.ts` genera las 3 piezas (héroe, multi, comparativa)
+revisadas a ojo; 26 tests unitarios (nuevo parser de índice de carga); typecheck y build ok.
+
+---
 
 ### 2026-07-20 · Sistema Showroom GP en todo el hub · ⏱️ 2.0 h
 **Commit:** _(este mismo)_

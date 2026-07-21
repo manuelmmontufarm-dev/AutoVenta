@@ -5,9 +5,24 @@
  */
 import pdfmake from "pdfmake";
 import helvetica from "pdfmake/standard-fonts/Helvetica.js";
+import { PDFDocument } from "pdf-lib";
 import { business } from "../config.js";
 
 pdfmake.addFonts(helvetica);
+
+/**
+ * PDF de cotización a partir del PNG renderizado (mismo diseño que la imagen —
+ * una sola pieza visual que mantener). Página a la medida del PNG, ancho A4.
+ */
+export async function pngToQuotePdf(png: Buffer): Promise<Buffer> {
+  const doc = await PDFDocument.create();
+  const image = await doc.embedPng(png);
+  const width = 595.28; // ancho A4 en puntos
+  const height = (image.height / image.width) * width;
+  const page = doc.addPage([width, height]);
+  page.drawImage(image, { x: 0, y: 0, width, height });
+  return Buffer.from(await doc.save());
+}
 
 export interface QuoteLine {
   code: string;

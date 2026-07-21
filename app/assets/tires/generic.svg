@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400">
+  <defs>
+    <radialGradient id="rim" cx="42%" cy="40%" r="70%">
+      <stop offset="0%" stop-color="#f4f4f5"/>
+      <stop offset="55%" stop-color="#c9ccd1"/>
+      <stop offset="100%" stop-color="#8e939b"/>
+    </radialGradient>
+    <radialGradient id="rubber" cx="45%" cy="42%" r="65%">
+      <stop offset="0%" stop-color="#33343a"/>
+      <stop offset="70%" stop-color="#1d1e22"/>
+      <stop offset="100%" stop-color="#101114"/>
+    </radialGradient>
+  </defs>
+  <!-- Banda de rodadura con tacos -->
+  <circle cx="200" cy="200" r="186" fill="url(#rubber)"/>
+  <g stroke="#0a0b0d" stroke-width="22" stroke-linecap="butt">
+    <circle cx="200" cy="200" r="180" fill="none" stroke-dasharray="26 16"/>
+  </g>
+  <!-- Hombro -->
+  <circle cx="200" cy="200" r="158" fill="none" stroke="#3a3b41" stroke-width="3"/>
+  <!-- Costado -->
+  <circle cx="200" cy="200" r="132" fill="none" stroke="#44454c" stroke-width="2" stroke-dasharray="4 10"/>
+  <circle cx="200" cy="200" r="120" fill="none" stroke="#54555c" stroke-width="2"/>
+  <!-- Aro -->
+  <circle cx="200" cy="200" r="104" fill="url(#rim)"/>
+  <circle cx="200" cy="200" r="104" fill="none" stroke="#6b7076" stroke-width="3"/>
+  <!-- Rayos (5) -->
+  <g fill="#585d64">
+    <g transform="rotate(0 200 200)"><path d="M186 200 L182 118 Q200 110 218 118 L214 200 Z"/></g>
+    <g transform="rotate(72 200 200)"><path d="M186 200 L182 118 Q200 110 218 118 L214 200 Z"/></g>
+    <g transform="rotate(144 200 200)"><path d="M186 200 L182 118 Q200 110 218 118 L214 200 Z"/></g>
+    <g transform="rotate(216 200 200)"><path d="M186 200 L182 118 Q200 110 218 118 L214 200 Z"/></g>
+    <g transform="rotate(288 200 200)"><path d="M186 200 L182 118 Q200 110 218 118 L214 200 Z"/></g>
+  </g>
+  <!-- Pernos -->
+  <g fill="#3f444b">
+    <circle cx="200" cy="166" r="7"/>
+    <circle cx="232" cy="189" r="7"/>
+    <circle cx="220" cy="227" r="7"/>
+    <circle cx="180" cy="227" r="7"/>
+    <circle cx="168" cy="189" r="7"/>
+  </g>
+  <!-- Centro -->
+  <circle cx="200" cy="200" r="26" fill="#2b2d33"/>
+  <circle cx="200" cy="200" r="26" fill="none" stroke="#787d84" stroke-width="3"/>
+  <!-- Brillo -->
+  <ellipse cx="150" cy="120" rx="70" ry="34" fill="#ffffff" opacity="0.07" transform="rotate(-35 150 120)"/>
+</svg>
