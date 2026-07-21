@@ -9,7 +9,7 @@ import {
   type FollowUpPolicy,
 } from "../domain/followUps.js";
 import { isStage, type Stage } from "../domain/pipeline.js";
-import { buildContextualFollowUpMessage, type FollowUpMessageKind } from "../domain/followUpMessages.js";
+import { buildContextualFollowUpMessage, inferProductCode, type FollowUpMessageKind } from "../domain/followUpMessages.js";
 import { emitLiveEvent } from "./liveEvents.js";
 import { generateFollowUpCopies } from "./followUpCopy.js";
 
@@ -87,6 +87,8 @@ interface ConversationForFollowUp {
   active_discount_final_total: string | number | null;
 }
 
+const FOLLOW_UP_PLAN_VERSION = "v4";
+
 export async function getFollowUpPolicy(): Promise<FollowUpPolicy> {
   const [row] = await sql<PolicyRow[]>`
     select * from follow_up_policies where policy_key = 'default'
@@ -122,7 +124,7 @@ async function getConversationForFollowUp(
 ): Promise<ConversationForFollowUp | null> {
   const [row] = await sql<ConversationForFollowUp[]>`
     select c.id, c.phone, c.name, c.stage, c.status, c.assigned_to,
-      c.current_cycle, c.tire_size, c.selected_product_code,
+      c.current_cycle, c.tire_size, coalesce(c.selected_product_code, s.selected_option) as selected_product_code,
       c.selected_quantity, c.nearest_store, c.customer_commitment,
       c.follow_up_reason, c.customer_opt_in, c.opted_out_at,
       c.negative_sentiment_at, c.last_customer_message_at,
@@ -236,7 +238,7 @@ export async function scheduleConversationFollowUps(
   const relevantAt = conversation.last_assistant_message_at.getTime() >= conversation.last_customer_message_at.getTime()
     ? conversation.last_assistant_message_at
     : conversation.last_customer_message_at;
-  const base = `plan:v3:${conversation.id}:${conversation.current_cycle}:${conversation.stage}:${relevantAt.toISOString()}`;
+  const base = `plan:${FOLLOW_UP_PLAN_VERSION}:${conversation.id}:${conversation.current_cycle}:${conversation.stage}:${relevantAt.toISOString()}`;
   const [existingPlan] = await sql<{ count: number }[]>`
     select count(*)::int as count from follow_up_jobs
     where conversation_id=${conversationId} and cycle=${conversation.current_cycle}
@@ -419,7 +421,8 @@ export async function ensureActiveConversationPlans(now = new Date()): Promise<n
         exists (
           select 1 from follow_up_jobs legacy where legacy.conversation_id = c.id
             and legacy.cycle = c.current_cycle and legacy.status in ('scheduled','processing','blocked')
-            and legacy.idempotency_key like 'plan:v2:%'
+            and legacy.idempotency_key like 'plan:v%:%'
+            and legacy.idempotency_key not like 'plan:v4:%'
         )
         or (
           not exists (
@@ -446,10 +449,13 @@ export async function refreshConversationSummary(conversationId: number): Promis
     selected_product_code: string | null;
     customer_commitment: string | null;
     follow_up_reason: string | null;
+    last_owner_message: string | null;
   }[]>`
-    select current_cycle, tire_size, vehicle, selected_product_code,
-      customer_commitment, follow_up_reason
-    from conversations where id = ${conversationId}
+    select c.current_cycle, c.tire_size, c.vehicle, c.selected_product_code,
+      c.customer_commitment, c.follow_up_reason,
+      (select m.content from messages m where m.conversation_id=c.id and m.cycle=c.current_cycle
+        and m.author_kind='owner' and m.type='text' order by m.created_at desc, m.id desc limit 1) as last_owner_message
+    from conversations c where c.id = ${conversationId}
   `;
   if (!context) return;
   const [lastInbound, quote] = await Promise.all([
@@ -479,13 +485,14 @@ export async function refreshConversationSummary(conversationId: number): Promis
       return String(value.code ?? value.description ?? value.descripcion ?? "").trim() || null;
     })
     .filter((value): value is string => Boolean(value));
+  const selectedOption = context.selected_product_code ?? inferProductCode(context.last_owner_message);
   await sql`
     insert into conversation_summaries (
       conversation_id, cycle, summary, customer_need, options_discussed,
       selected_option, customer_commitment, follow_up_reason, generated_at, source_message_id
     ) values (
       ${conversationId}, ${context.current_cycle}, ${summary}, ${need || null},
-      ${sql.json(options)}, ${context.selected_product_code}, ${context.customer_commitment},
+      ${sql.json(options)}, ${selectedOption}, ${context.customer_commitment},
       ${context.follow_up_reason}, now(), ${lastInbound[0]?.id ?? null}
     ) on conflict (conversation_id, cycle) do update set
       summary = excluded.summary, customer_need = excluded.customer_need,

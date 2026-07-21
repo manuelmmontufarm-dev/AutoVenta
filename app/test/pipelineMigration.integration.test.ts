@@ -211,7 +211,7 @@ describe.sequential("Fase A — migración, transiciones y reapertura", () => {
     const [oldState] = await appSql<{ status: string }[]>`select status from follow_up_jobs where id=${legacy.id}`;
     const messages = await appSql<{ preview: string }[]>`
       select payload->>'preview' as preview from follow_up_jobs
-      where conversation_id=${conversation.id} and idempotency_key like 'plan:v3:%'
+      where conversation_id=${conversation.id} and idempotency_key like 'plan:v4:%'
         and type in ('in_window_first','in_window_second') order by due_at
     `;
     expect(oldState.status).toBe("cancelled");

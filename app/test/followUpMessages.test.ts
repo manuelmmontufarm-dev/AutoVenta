@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildContextualFollowUpMessage } from "../src/domain/followUpMessages.js";
+import { buildContextualFollowUpMessage, inferProductCode } from "../src/domain/followUpMessages.js";
 
 describe("Redacción contextual de seguimientos", () => {
   it("genera intentos distintos, breves y humanos para una cotización", () => {
@@ -39,5 +39,10 @@ describe("Redacción contextual de seguimientos", () => {
     expect(message).toContain("$20.00");
     expect(message).toContain("$440.00");
     expect(message).toContain("va el sábado");
+  });
+
+  it("reconoce el modelo que un asesor escribió manualmente", () => {
+    expect(inferProductCode("QUE SI QUIERES LAS R380")).toBe("R380");
+    expect(inferProductCode("la medida es R16")).toBeNull();
   });
 });

@@ -19,6 +19,15 @@ export interface FollowUpMessageContext {
   activeDiscountFinalTotal?: number | null;
 }
 
+/** Extrae un código de modelo escrito explícitamente por un asesor (ej. R380, KR33A). */
+export function inferProductCode(text?: string | null): string | null {
+  if (!text) return null;
+  const candidates = text.toUpperCase().match(/\b[A-Z][A-Z0-9-]{2,14}\b/g) ?? [];
+  return candidates.reverse().find((value) =>
+    /\d/.test(value) && !/^R\d{2}$/.test(value) && !/^(?:USD|IVA)\d*$/.test(value)
+  ) ?? null;
+}
+
 function firstName(name?: string | null): string | null {
   const value = name?.trim().split(/\s+/)[0];
   return value && value.length <= 30 ? value : null;
