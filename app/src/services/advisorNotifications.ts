@@ -120,3 +120,39 @@ export async function notifyAdvisor(input: AdvisorNotificationInput): Promise<{
     return { sent: false, skipped: false, error: reason };
   }
 }
+
+/** Recupera solicitudes humanas abiertas creadas antes de un reinicio/deploy. */
+export async function notifyPendingHumanRequests(limit = 20): Promise<number> {
+  const pending = await sql<{
+    conversation_id: number;
+    cycle: number;
+    exact_reason: string;
+  }[]>`
+    select a.conversation_id, a.cycle, a.exact_reason
+    from bot_alerts a
+    join conversations c on c.id=a.conversation_id and c.current_cycle=a.cycle
+    where a.type='human_requested' and a.status in ('open','snoozed')
+      and c.status='open' and c.assigned_to='human'
+      and not exists (
+        select 1 from advisor_notifications n
+        where n.dedupe_key=(a.conversation_id || ':' || a.cycle || ':human_requested')
+          and n.status in ('queued','sent')
+      )
+    order by a.created_at asc
+    limit ${limit}
+  `;
+  let sent = 0;
+  for (const row of pending) {
+    const delivery = await notifyAdvisor({
+      conversationId: Number(row.conversation_id),
+      cycle: row.cycle,
+      eventType: "human_requested",
+      dedupeKey: `${row.conversation_id}:${row.cycle}:human_requested`,
+      title: "Cliente pidió hablar con un asesor",
+      reason: `Mensaje del cliente: “${row.exact_reason.slice(0, 300)}”`,
+      action: "Abrir el ticket y responder personalmente dentro de la ventana de 24 horas.",
+    });
+    if (delivery.sent) sent += 1;
+  }
+  return sent;
+}

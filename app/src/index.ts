@@ -31,6 +31,7 @@ import {
 import { markDiscountNoticeSent } from "./services/discountOffers.js";
 import { extractCustomerCommitment } from "./domain/customerCommitment.js";
 import { flagRepetitiveConversation } from "./services/conversationQuality.js";
+import { notifyPendingHumanRequests } from "./services/advisorNotifications.js";
 
 const pipeline = new InboundPipeline(async ({ from, name, text, waMessageIds, receivedAt }) => {
   const conversation = await getOrCreateConversation(from, name);
@@ -159,4 +160,9 @@ startCatalogSync();
 const app = createServer();
 app.listen(config.port, () => {
   console.log(`🚀 AutoVenta escuchando en :${config.port}`);
+  void notifyPendingHumanRequests()
+    .then((sent) => {
+      if (sent) console.log(`📲 ${sent} solicitud(es) humana(s) pendiente(s) notificadas al asesor`);
+    })
+    .catch((error) => console.error("⚠️ No se pudieron recuperar avisos pendientes al asesor:", error));
 });
