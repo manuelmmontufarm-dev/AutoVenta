@@ -52,6 +52,7 @@ import {
 import { sql } from "../db/client.js";
 import { createBotAlert } from "../services/followUps.js";
 import { attachDiscountOfferToQuote, getActiveDiscountOffer, materializePendingDiscount } from "../services/discountOffers.js";
+import { notifyAdvisor } from "../services/advisorNotifications.js";
 
 export interface AgentContext {
   conversation: Conversation;
@@ -570,6 +571,31 @@ export function buildTools(ctx: AgentContext) {
         actor: "customer",
         reason: "Cliente confirmó un modelo y cantidad",
       });
+      const quoteAlertKey = `${ctx.conversation.id}:${ctx.conversation.current_cycle}:quote_created:${quote.number}`;
+      await createBotAlert({
+        conversationId: ctx.conversation.id,
+        cycle: ctx.conversation.current_cycle,
+        type: "quote_created",
+        priority: "medium",
+        summary: `Nueva cotización ${quote.number} por $${quote.total.toFixed(2)}`,
+        exactReason: `${items[0].cantidad} × ${product.brand} ${product.design} ${product.sizeLabel}`,
+        suggestedAction: "Revisar la cotización y acompañar al cliente si pide ayuda o confirma visita.",
+        dedupeKey: quoteAlertKey,
+      });
+      await notifyAdvisor({
+        conversationId: ctx.conversation.id,
+        cycle: ctx.conversation.current_cycle,
+        eventType: "quote_created",
+        dedupeKey: quoteAlertKey,
+        title: `Nueva cotización ${quote.number}`,
+        reason: `${items[0].cantidad} × ${product.brand} ${product.design} ${product.sizeLabel}`,
+        action: "Revisar el ticket y dar seguimiento si el cliente necesita ayuda para concretar.",
+        details: [
+          `💵 Total: $${quote.total.toFixed(2)}`,
+          `🔖 Número de venta: ${saleNumber}`,
+          activeDiscount ? `🏷️ Descuento extra: $${(activeDiscount.discountAmountCents / 100).toFixed(2)} · ${activeDiscount.condition}` : "",
+        ],
+      });
       return JSON.stringify({
         enviada: true,
         numero: quote.number,
@@ -590,7 +616,7 @@ export function buildTools(ctx: AgentContext) {
           } : undefined,
         ),
         regla:
-          "Responde exactamente con mensaje_para_enviar. El PDF final ya fue enviado. Después espera la ubicación; todavía no notifiques al vendedor.",
+          "Responde exactamente con mensaje_para_enviar. La cotización ya fue enviada y Manuel ya fue notificado. Después espera la ubicación.",
       });
     },
   });
@@ -671,6 +697,16 @@ export function buildTools(ctx: AgentContext) {
         exactReason: `Ubicación: ${facts.location_label}. Local: ${facts.nearest_store}.`,
         suggestedAction: `Abrir la conversación de ${ctx.customerName ?? ctx.customerPhone} y coordinar la venta.`,
         dedupeKey: `${ctx.conversation.id}:${ctx.conversation.current_cycle}:customer_ready_to_buy`,
+      });
+      await notifyAdvisor({
+        conversationId: ctx.conversation.id,
+        cycle: ctx.conversation.current_cycle,
+        eventType: "customer_ready_to_buy",
+        dedupeKey: `${ctx.conversation.id}:${ctx.conversation.current_cycle}:customer_ready_to_buy`,
+        title: "Cliente listo para comprar",
+        reason: resumen.slice(0, 500),
+        action: `Coordinar la compra en ${facts.nearest_store}.`,
+        details: [`📍 ${facts.location_label}`, `🏬 ${facts.nearest_store}`],
       });
       await setStage(ctx.conversation.id, "seguimiento_venta", {
         actor: "customer",

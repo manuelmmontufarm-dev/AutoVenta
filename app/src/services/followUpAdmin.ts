@@ -31,6 +31,7 @@ export async function listFollowUpBoard() {
     campaign_template_key: string | null;
     campaign_plan: unknown[] | null;
     discount_condition: string | null;
+    human_requested: boolean;
   }[]>`
     select j.id as job_id, c.id as conversation_id, c.current_cycle as cycle,
       j.type, j.status, j.due_at, j.window_closes_at, j.payload, j.cancel_reason,
@@ -43,6 +44,11 @@ export async function listFollowUpBoard() {
       coalesce(case when c.follow_up_reason_cycle=c.current_cycle then c.follow_up_reason end,
         s.follow_up_reason) as follow_up_reason,
       quote.quote_number, discount.condition_text as discount_condition,
+      exists (
+        select 1 from bot_alerts requested
+        where requested.conversation_id=c.id and requested.cycle=c.current_cycle
+          and requested.type='human_requested' and requested.status in ('open','snoozed')
+      ) as human_requested,
       campaign.id as campaign_id,
       campaign.template_key as campaign_template_key, campaign_jobs.plan as campaign_plan
     from conversations c
@@ -86,12 +92,21 @@ export async function listFollowUpBoard() {
       and c.last_customer_message_at is not null
       and (
         c.stage='seguimiento_venta'
+        or exists (
+          select 1 from bot_alerts requested
+          where requested.conversation_id=c.id and requested.cycle=c.current_cycle
+            and requested.type='human_requested' and requested.status in ('open','snoozed')
+        )
         or (
           c.last_customer_message_at + interval '24 hours' <= now()
           and c.last_assistant_message_at >= c.last_customer_message_at
         )
       )
-    order by case when c.stage='seguimiento_venta' then 0 else 1 end,
+    order by case when exists (
+        select 1 from bot_alerts requested
+        where requested.conversation_id=c.id and requested.cycle=c.current_cycle
+          and requested.type='human_requested' and requested.status in ('open','snoozed')
+      ) then 0 when c.stage='seguimiento_venta' then 1 else 2 end,
       coalesce(c.visit_date, c.pickup_date::timestamptz, j.due_at, c.last_customer_message_at) asc
     limit 500
   `;
@@ -100,9 +115,9 @@ export async function listFollowUpBoard() {
     const unansweredDays = row.last_customer_message_at
       ? Math.max(0, Math.floor((now.getTime() - row.last_customer_message_at.getTime()) / 86_400_000))
       : 0;
-    const bucket = row.stage === "seguimiento_venta" ? "closing" : "needs_human";
+    const bucket = row.human_requested || row.stage !== "seguimiento_venta" ? "needs_human" : "closing";
     const importanceLabel = bucket === "needs_human"
-      ? "Ventana cerrada"
+      ? row.human_requested ? "Cliente pidió asesor" : "Ventana cerrada"
       : row.customer_commitment || row.visit_date || row.pickup_date
         ? "Compromiso por confirmar"
         : row.follow_up_reason?.toLowerCase().includes("asesor")
@@ -110,7 +125,8 @@ export async function listFollowUpBoard() {
           : row.quote_number
             ? "Cotización por convertir"
             : "Venta en recta final";
-    const importanceReason = (row.customer_commitment ? `El cliente indicó: ${row.customer_commitment}` : null)
+    const importanceReason = (row.human_requested ? "El cliente pidió atención de un asesor y aún requiere una respuesta humana." : null)
+      ?? (row.customer_commitment ? `El cliente indicó: ${row.customer_commitment}` : null)
       ?? (row.quote_number ? `La cotización ${row.quote_number} sigue abierta y requiere el siguiente paso.` : null)
       ?? row.follow_up_reason
       ?? (bucket === "needs_human"

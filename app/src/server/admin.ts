@@ -176,6 +176,7 @@ export function createAdminRouter(): express.Router {
       negocio: business.name,
       protegido: Boolean(ADMIN_KEY),
       telefonoVendedor: config.whatsapp.sellerPhone,
+      asesor: config.whatsapp.sellerName,
     });
   });
 

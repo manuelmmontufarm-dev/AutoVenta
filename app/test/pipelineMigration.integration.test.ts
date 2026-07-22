@@ -10,6 +10,7 @@ let conversations: typeof import("../src/services/conversations.js");
 let followUps: typeof import("../src/services/followUps.js");
 let discountOffers: typeof import("../src/services/discountOffers.js");
 let campaigns: typeof import("../src/services/followUpCampaigns.js");
+let followUpAdmin: typeof import("../src/services/followUpAdmin.js");
 
 describe.sequential("Fase A — migración, transiciones y reapertura", () => {
   beforeAll(async () => {
@@ -32,6 +33,7 @@ describe.sequential("Fase A — migración, transiciones y reapertura", () => {
     followUps = await import("../src/services/followUps.js");
     discountOffers = await import("../src/services/discountOffers.js");
     campaigns = await import("../src/services/followUpCampaigns.js");
+    followUpAdmin = await import("../src/services/followUpAdmin.js");
   });
 
   afterAll(async () => {
@@ -66,6 +68,8 @@ describe.sequential("Fase A — migración, transiciones y reapertura", () => {
     const { runFollowUpStagePromptsMigration } = await import("../src/db/migrations/003_follow_up_stage_prompts.js");
     const { runOpportunityCampaignsPendingDiscountsMigration } = await import("../src/db/migrations/004_opportunity_campaigns_pending_discounts.js");
     const { runConversationMemoryDiscountDeliveryMigration } = await import("../src/db/migrations/005_conversation_memory_discount_delivery.js");
+    const { runCycleContextQualityMigration } = await import("../src/db/migrations/006_cycle_context_quality.js");
+    const { runAdvisorNotificationsMigration } = await import("../src/db/migrations/007_advisor_notifications.js");
     await runFollowUpMigration(appSql);
     await runFollowUpMigration(appSql);
     await runSalesPlanDiscountsMigration(appSql);
@@ -76,6 +80,10 @@ describe.sequential("Fase A — migración, transiciones y reapertura", () => {
     await runOpportunityCampaignsPendingDiscountsMigration(appSql);
     await runConversationMemoryDiscountDeliveryMigration(appSql);
     await runConversationMemoryDiscountDeliveryMigration(appSql);
+    await runCycleContextQualityMigration(appSql);
+    await runCycleContextQualityMigration(appSql);
+    await runAdvisorNotificationsMigration(appSql);
+    await runAdvisorNotificationsMigration(appSql);
 
     const [row] = await appSql<{ id: number; stage: string; current_cycle: number }[]>`
       select id, stage, current_cycle from conversations where id = ${legacy.id}
@@ -94,6 +102,33 @@ describe.sequential("Fase A — migración, transiciones y reapertura", () => {
     expect(event.stage).toBe("seguimiento_venta");
     const [policy] = await appSql<{ prompt: string }[]>`select stage_prompts->>'cotizacion_enviada' as prompt from follow_up_policies where policy_key='default'`;
     expect(policy.prompt).toContain("cotización");
+    const [advisorTable] = await appSql<{ exists: boolean }[]>`
+      select to_regclass('public.advisor_notifications') is not null as exists
+    `;
+    expect(advisorTable.exists).toBe(true);
+  });
+
+  it("muestra inmediatamente en Revisión humana a quien pide asesor", async () => {
+    const conversation = await conversations.getOrCreateConversation("593000000049", "Cliente Asesor");
+    await appSql`
+      update conversations set assigned_to='human', bot_paused_until='infinity'::timestamptz,
+        last_customer_message_at=now(), last_assistant_message_at=now() - interval '1 minute'
+      where id=${conversation.id}
+    `;
+    await appSql`
+      insert into bot_alerts (
+        conversation_id, cycle, type, priority, summary, exact_reason,
+        suggested_action, dedupe_key
+      ) values (
+        ${conversation.id}, 1, 'human_requested', 'high', 'Cliente solicitó atención humana',
+        'asesor', 'Responder personalmente', ${`${conversation.id}:1:human_requested`}
+      ) on conflict do nothing
+    `;
+    const board = await followUpAdmin.listFollowUpBoard();
+    expect(board.find((item) => item.conversationId === Number(conversation.id))).toMatchObject({
+      bucket: "needs_human",
+      importanceLabel: "Cliente pidió asesor",
+    });
   });
 
   it("versiona una cotización con descuento y conserva el total original", async () => {

@@ -4,7 +4,7 @@ import { navigate } from "../router";
 import { useHub, useNow } from "../store";
 
 const GROUPS: Array<{ id: FollowUpBucket; title: string; subtitle: string; icon: string }> = [
-  { id: "needs_human", title: "Revisión humana", subtitle: "La ventana terminó; decidir si continuar con plantilla o marcar Perdido", icon: "👤" },
+  { id: "needs_human", title: "Revisión humana", subtitle: "Solicitudes de asesor o ventana cerrada; responder y decidir el siguiente paso", icon: "👤" },
   { id: "closing", title: "Recta final", subtitle: "Visitas, reservas y compromisos que todavía podemos convertir", icon: "🏁" },
 ];
 

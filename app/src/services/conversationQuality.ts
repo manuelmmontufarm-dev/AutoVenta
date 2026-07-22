@@ -1,6 +1,7 @@
 import { sql } from "../db/client.js";
 import { createBotAlert } from "./followUps.js";
 import { looksRepetitiveReply } from "../domain/conversationQuality.js";
+import { notifyAdvisor } from "./advisorNotifications.js";
 
 /** Alerta al asesor, sin pausar el bot, cuando la respuesta vuelve a la misma idea. */
 export async function flagRepetitiveConversation(conversationId: number, candidate: string): Promise<boolean> {
@@ -18,6 +19,15 @@ export async function flagRepetitiveConversation(conversationId: number, candida
     exactReason: "El bot está repitiendo una respuesta o pregunta similar y el cliente puede quedar atrapado.",
     suggestedAction: "Revisar rápidamente el contexto y asesorar o intervenir si hace falta; el bot permanece activo.",
     dedupeKey: `${conversationId}:${rows[0].cycle}:repetitive_conversation`,
+  });
+  await notifyAdvisor({
+    conversationId,
+    cycle: rows[0].cycle,
+    eventType: "repetitive_conversation",
+    dedupeKey: `${conversationId}:${rows[0].cycle}:repetitive_conversation`,
+    title: "Conversación repetitiva",
+    reason: "El bot repitió una respuesta o pregunta similar y el cliente puede quedar atrapado.",
+    action: "Revisar el ticket pronto; el bot continúa activo hasta que Manuel decida intervenir.",
   });
   return true;
 }

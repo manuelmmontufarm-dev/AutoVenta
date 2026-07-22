@@ -4,6 +4,9 @@ export interface LiveEvent {
   id: number;
   type: "sync" | "message" | "status" | "settings" | "follow_up" | "alert";
   conversationId?: number;
+  title?: string;
+  body?: string;
+  icon?: string;
   at: string;
 }
 
@@ -14,11 +17,13 @@ let sequence = 0;
 export function emitLiveEvent(
   type: LiveEvent["type"],
   conversationId?: number,
+  details?: Pick<LiveEvent, "title" | "body" | "icon">,
 ): LiveEvent {
   const event: LiveEvent = {
     id: ++sequence,
     type,
     conversationId,
+    ...details,
     at: new Date().toISOString(),
   };
   bus.emit("event", event);

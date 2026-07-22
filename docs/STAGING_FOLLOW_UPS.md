@@ -20,6 +20,9 @@ Variables compartidas por HTTP y worker:
 - `OPENAI_API_KEY`
 - `OPENAI_RESEARCH_MODEL` (opcional; por defecto usa `OPENAI_MODEL`)
 - `WHEELSIZE_API_KEY` (opcional; habilita consulta determinística de fitment para región Latinoamérica/Ecuador)
+- `SELLER_PHONE` (número internacional de Manuel Montúfar, sin `+`)
+- `SELLER_NAME=Manuel Montúfar`
+- `HUB_PUBLIC_URL=https://autoventa-staging.up.railway.app/admin`
 - `META_ACCESS_TOKEN`
 - `META_PHONE_NUMBER_ID`
 - `META_BUSINESS_ACCOUNT_ID` (necesario para sincronizar/confirmar plantillas desde Meta cuando se habilite esa integración)
@@ -85,6 +88,8 @@ No se debe ejecutar un envío si el teléfono no está autorizado por Meta.
 - KPIs cargan seguimiento y estados de entrega sin datos inventados.
 - KPIs muestran la distribución de respuestas por hora de Guayaquil de los últimos 90 días.
 - Fitment muestra fuente y distingue claramente entre medida verificada, referencia y caso ambiguo.
+- Pedir “asesor” crea alerta web, mueve el ticket inmediatamente a Revisión humana y avisa por WhatsApp a `SELLER_PHONE` una sola vez por ciclo.
+- Cada nueva cotización y evento comercial crítico registra y envía una alerta idempotente al asesor; los rechazos de Meta quedan visibles como alerta de entrega fallida.
 - Un manual fuera de 24 horas es rechazado.
 - Una plantilla no configurada crea tarea humana y nunca cae a texto libre.
 

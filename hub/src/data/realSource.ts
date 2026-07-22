@@ -221,9 +221,18 @@ export class RealSource implements DataSource {
     const type = raw.match(/^event:\s*(.+)$/m)?.[1]?.trim();
     const data = raw.match(/^data:\s*(.+)$/m)?.[1]?.trim();
     if (!type || type === "ready" || !data) return;
-    const parsed = JSON.parse(data) as { conversationId?: number };
+    const parsed = JSON.parse(data) as { conversationId?: number; title?: string; body?: string; icon?: string };
     if (type === "message" && parsed.conversationId) {
       this.emit({ tipo: "mensaje", ticketId: parsed.conversationId });
+    }
+    if (type === "alert") {
+      this.emit({
+        tipo: "toast",
+        icono: parsed.icon ?? "🚨",
+        titulo: parsed.title ?? "Nueva alerta del bot",
+        cuerpo: parsed.body ?? "Revisa Alertas del bot u Oportunidades.",
+        ticketId: parsed.conversationId,
+      });
     }
     this.emit({ tipo: "sync" });
   }

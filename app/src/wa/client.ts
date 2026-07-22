@@ -34,6 +34,21 @@ export async function sendCustomerText(
   return messageIdOrThrow(response, "el mensaje");
 }
 
+/**
+ * Envía una alerta operativa al asesor configurado. Es un destinatario distinto
+ * del cliente, por eso no reutiliza la ventana de la conversación comercial.
+ * Meta puede rechazar texto libre si el número del asesor no tiene una ventana
+ * abierta; el llamador registra ese fallo y lo mantiene visible en el Hub.
+ */
+export async function sendAdvisorText(body: string): Promise<string | undefined> {
+  const response = await wa.sendMessage(
+    phoneId,
+    config.whatsapp.sellerPhone,
+    new Text(body),
+  );
+  return messageIdOrThrow(response, "la alerta al asesor");
+}
+
 /** Marca leído + "escribiendo…". Llamar solo cuando el bot SÍ va a responder. */
 export async function showTyping(messageId: string): Promise<void> {
   await wa.markAsRead(phoneId, messageId, "text");

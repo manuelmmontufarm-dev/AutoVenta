@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { createHash } from "node:crypto";
+import { config } from "../config.js";
 import { sql } from "../db/client.js";
 import {
   computeInWindowSchedule,
@@ -12,6 +13,7 @@ import { isStage, type Stage } from "../domain/pipeline.js";
 import { buildContextualFollowUpMessage, inferProductCode, type FollowUpMessageKind } from "../domain/followUpMessages.js";
 import { emitLiveEvent } from "./liveEvents.js";
 import { generateFollowUpCopies } from "./followUpCopy.js";
+import { notifyAdvisor } from "./advisorNotifications.js";
 
 export type FollowUpJobStatus =
   | "scheduled"
@@ -422,7 +424,43 @@ export async function handleInboundFollowUpState(
     }
   });
   emitLiveEvent("follow_up", conversationId);
-  emitLiveEvent("alert", conversationId);
+  if (requestedHuman || negative) {
+    const [noticeContext] = await sql<{ current_cycle: number; name: string | null }[]>`
+      select current_cycle, name from conversations where id=${conversationId}
+    `;
+    if (noticeContext) {
+      const eventType = optedOut
+        ? "customer_opt_out"
+        : negative
+          ? "negative_sentiment"
+          : "human_requested";
+      const title = optedOut
+        ? "Cliente pidió detener los mensajes"
+        : negative
+          ? "Cliente molesto: requiere atención"
+          : "Cliente pidió hablar con un asesor";
+      const delivery = await notifyAdvisor({
+        conversationId,
+        cycle: noticeContext.current_cycle,
+        eventType,
+        dedupeKey: `${conversationId}:${noticeContext.current_cycle}:${eventType}`,
+        title,
+        reason: `Mensaje del cliente: “${text.slice(0, 300)}”`,
+        action: optedOut
+          ? "Revisar el caso sin enviar nuevos mensajes comerciales."
+          : "Abrir el ticket y responder personalmente dentro de la ventana de 24 horas.",
+      });
+      if (delivery.sent) {
+        emitLiveEvent("alert", conversationId, {
+          icon: optedOut || negative ? "🛑" : "🙋",
+          title,
+          body: `${noticeContext.name ?? "Cliente"} · ${config.whatsapp.sellerName} fue notificado`,
+        });
+      } else if (delivery.skipped) {
+        emitLiveEvent("sync", conversationId);
+      }
+    }
+  }
   if (!negative) {
     const [state] = await sql<{ assigned_to: string }[]>`select assigned_to from conversations where id=${conversationId}`;
     if (requestedHuman || state?.assigned_to === "human") {

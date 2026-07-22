@@ -111,6 +111,15 @@ export const config = {
     phoneId: env("WHATSAPP_PHONE_ID"),
     /** Número del vendedor que recibe las alertas (formato internacional sin +). */
     sellerPhone: env("SELLER_PHONE"),
+    /** Nombre visible del asesor principal de staging. */
+    sellerName: envOr("SELLER_NAME", "Manuel Montúfar"),
+  },
+
+  hub: {
+    publicUrl: envOr(
+      "HUB_PUBLIC_URL",
+      "https://autoventa-staging.up.railway.app/admin",
+    ).replace(/\/$/, ""),
   },
 
   openai: {
