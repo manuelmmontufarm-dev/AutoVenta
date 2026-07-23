@@ -16,7 +16,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:staging": "node scripts/staging-follow-ups-smoke.mjs",
-    "db:migrate": "tsx src/db/migrate.ts"
+    "db:migrate": "tsx src/db/migrate.ts",
+    "seed:depot": "tsx src/db/seed-depot.ts"
   },
   "dependencies": {
     "@date-fns/tz": "^1.5.0",

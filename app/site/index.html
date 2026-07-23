@@ -99,10 +99,11 @@
     <div>
       <p class="kicker">Centro de acceso · Depot Tire</p>
       <h1>AutoVenta <span class="yr">en línea</span></h1>
-      <p class="lede">Tres accesos, sin frontends de prueba: producto real de staging, demo oficial y conversaciones de WhatsApp.</p>
+      <p class="lede">Cuatro accesos, sin frontends de prueba: producto real de staging, panel de administración, demo oficial y conversaciones de WhatsApp.</p>
     </div>
     <nav class="quicknav" aria-label="Accesos rápidos">
       <a href="admin/">Producto real</a>
+      <a href="panel/">Panel admin</a>
       <a href="demo-showroom-gp/">Demo</a>
       <a href="admin/#/inbox">WhatsApp</a>
     </nav>
@@ -120,6 +121,7 @@
           <a href="admin/#/pipeline">Pipeline</a>
           <a class="win" href="admin/#/cotizador">Cotizador</a>
           <a href="admin/#/dashboard">Métricas</a>
+          <a href="admin/#/settings">Ajustes</a>
         </div>
       </div>
       <a class="go" href="admin/#/inbox">Abrir producto →</a>
@@ -136,10 +138,49 @@
       <div class="cardtop"><div class="icon" style="background:#fdeaea;color:var(--rojo)">◫</div><h3>Cotizaciones visuales</h3><span class="badge live">● staging</span></div>
       <p>Las piezas que el bot manda por WhatsApp: cotización, comparativa y multi.</p>
     </a>
+    <a class="card" href="panel/">
+      <div class="cardtop"><div class="icon" style="background:#eef0f4;color:var(--azul)">⚙️</div><h3>Panel de administración</h3><span class="badge live">● control</span></div>
+      <p>Control central aparte: enciende las fases (1 · 2 · 3 · 4) de cada cliente y su canal de WhatsApp, vía su API. No es operativo — no toca conversaciones.</p>
+    </a>
   </div>
 
   <div class="foot">
     <b>Staging seguro:</b> el producto real usa su propia base de datos y acceso administrativo. El demo nunca escribe en conversaciones reales.
+  </div>
+
+  <h2 id="arquitectura">Cómo se conecta todo</h2>
+  <p style="color:var(--tinta);opacity:.75;max-width:60ch;margin:-6px 0 18px;line-height:1.5">
+    Una sola base de código, tres superficies. El backend siempre trae TODO;
+    las <b>fases</b> deciden qué se muestra en cada cliente.
+  </p>
+  <div style="display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));align-items:stretch" class="conex-grid">
+    <div style="border:2px solid var(--navy,#14213d);border-radius:16px;padding:16px;background:#fff">
+      <span style="font-size:11px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--rojo)">1 · Tu laboratorio</span>
+      <h3 style="margin:6px 0 4px">Staging</h3>
+      <p style="font-size:13px;line-height:1.45;margin:0">Donde trabajas y pruebas. WhatsApp <b>de prueba</b> (tester). Todas las fases encendidas.</p>
+      <code style="display:block;margin-top:10px;font-size:11px;color:var(--muted,#6b7280);word-break:break-all">autoventa-staging.up.railway.app</code>
+    </div>
+    <div style="border:2px solid var(--navy,#14213d);border-radius:16px;padding:16px;background:#fff">
+      <span style="font-size:11px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--rojo)">2 · Lo que entregas</span>
+      <h3 style="margin:6px 0 4px">Cliente · Depot Tire</h3>
+      <p style="font-size:13px;line-height:1.45;margin:0">Su WhatsApp Business, su base de datos limpia, su clave. Ve <b>solo las fases que le enciendes</b>.</p>
+      <code style="display:block;margin-top:10px;font-size:11px;color:var(--muted,#6b7280);word-break:break-all">autoventa-depottire.up.railway.app</code>
+    </div>
+    <div style="border:2px solid var(--rojo);border-radius:16px;padding:16px;background:#fff">
+      <span style="font-size:11px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--rojo)">3 · Tu control</span>
+      <h3 style="margin:6px 0 4px">Panel de administración</h3>
+      <p style="font-size:13px;line-height:1.45;margin:0"><b>Aparte.</b> Enciendes las fases de cada cliente con un clic, vía su API. No opera conversaciones.</p>
+      <code style="display:block;margin-top:10px;font-size:11px;color:var(--muted,#6b7280);word-break:break-all">/panel</code>
+    </div>
+  </div>
+  <p style="text-align:center;color:var(--tinta);opacity:.7;font-size:13px;margin:12px 0 0">
+    Staging <b>se copia</b> → Cliente · El Panel <b>controla</b> las fases del Cliente
+  </p>
+
+  <div class="foot" style="margin-top:16px">
+    <b>Las 4 fases</b> (el backend trae todas; enciendes las que ya entregaste):
+    <b>1</b> buscar por medida + cotización · <b>2</b> fitment + fotos ·
+    <b>3</b> comparativas visuales + Cotizador + Métricas · <b>4</b> Oportunidades (seguimientos y recuperación).
   </div>
 
   <h2 id="planes">Planes y documentación</h2>

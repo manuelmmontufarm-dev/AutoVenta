@@ -14,13 +14,25 @@ import { Settings } from "./screens/Settings";
 import { Opportunities } from "./screens/Opportunities";
 import { useHub } from "./store";
 
+import type { PhaseFlags } from "./data/types";
+
+// `requiere`: fase que desbloquea cada pantalla (null = núcleo, Fase 1, siempre).
+// Inbox y Pipeline son el núcleo. Cotizador y Métricas = Fase 3.
+// Oportunidades (seguimientos) = Fase 4.
 const NAV = [
-  { id: "inbox", label: "Inbox", icon: IconInbox },
-  { id: "opportunities", label: "Oportunidades", icon: IconSparkle },
-  { id: "pipeline", label: "Pipeline", icon: IconKanban },
-  { id: "cotizador", label: "Cotizador", icon: IconTire },
-  { id: "dashboard", label: "Métricas", icon: IconChart },
+  { id: "inbox", label: "Inbox", icon: IconInbox, requiere: null },
+  { id: "opportunities", label: "Oportunidades", icon: IconSparkle, requiere: "fase4" },
+  { id: "pipeline", label: "Pipeline", icon: IconKanban, requiere: null },
+  { id: "cotizador", label: "Cotizador", icon: IconTire, requiere: "fase3" },
+  { id: "dashboard", label: "Métricas", icon: IconChart, requiere: "fase3" },
 ] as const;
+
+/** ¿La pantalla está permitida con las fases activas? */
+function pantallaPermitida(vista: string, phases: PhaseFlags): boolean {
+  if (vista === "cotizador" || vista === "dashboard") return phases.fase3;
+  if (vista === "opportunities") return phases.fase4;
+  return true;
+}
 
 const TITULOS: Record<string, { titulo: string; sub: string }> = {
   inbox: { titulo: "Inbox", sub: "cada cliente es un ticket" },
@@ -38,8 +50,15 @@ function navActivo(route: Route): string {
 
 export default function App() {
   const route = useRoute();
-  const { init, cargando, tickets, demo, dataMode, toggleDemo } = useHub();
+  const { init, cargando, tickets, demo, dataMode, toggleDemo, phases } = useHub();
   const [audioOn, setAudioOn] = useState(sonidoActivo);
+
+  const navVisible = NAV.filter((item) => !item.requiere || phases[item.requiere]);
+
+  // Si la fase que habilitaba esta pantalla se apaga, se vuelve al Inbox.
+  useEffect(() => {
+    if (!pantallaPermitida(route.vista, phases)) navigate("inbox");
+  }, [route.vista, phases]);
 
   useEffect(() => {
     void init();
@@ -73,7 +92,7 @@ export default function App() {
             DT
           </button>
           <LayoutGroup id="rail">
-            {NAV.map((item) => {
+            {navVisible.map((item) => {
               const activo = navActivo(route) === item.id;
               return (
                 <button
@@ -181,10 +200,10 @@ export default function App() {
                 transition={{ type: "spring", stiffness: 340, damping: 32 }}
               >
                 {route.vista === "inbox" && <Inbox />}
-                {route.vista === "opportunities" && <Opportunities />}
+                {route.vista === "opportunities" && phases.fase4 && <Opportunities />}
                 {route.vista === "pipeline" && <Pipeline />}
-                {route.vista === "dashboard" && <Dashboard />}
-                {route.vista === "cotizador" && <Cotizador />}
+                {route.vista === "dashboard" && phases.fase3 && <Dashboard />}
+                {route.vista === "cotizador" && phases.fase3 && <Cotizador />}
                 {route.vista === "settings" && <Settings />}
                 {route.vista === "ticket" && !cargando && <TicketDetail id={route.id} />}
               </motion.div>
@@ -194,7 +213,7 @@ export default function App() {
 
         {/* ── Tab bar (móvil) ── */}
         <nav className="glass-strong fixed inset-x-3 bottom-3 z-20 flex items-center justify-around rounded-3xl py-2 md:hidden">
-          {NAV.map((item) => {
+          {navVisible.map((item) => {
             const activo = navActivo(route) === item.id;
             return (
               <button

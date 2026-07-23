@@ -1,0 +1,343 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>AutoVenta · Panel de administración</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23d62828'/%3E%3Ctext x='32' y='42' font-family='Arial Black,sans-serif' font-size='22' font-weight='900' fill='white' text-anchor='middle'%3EAV%3C/text%3E%3C/svg%3E" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=Archivo+Black&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet" />
+  <style>
+    :root{
+      --rojo:#d62828; --azul:#14213d; --tinta:#1a1a2e; --papel:#f7f7fb;
+      --linea:#e6e6ef; --muted:#6b7280; --ok:#1f9d55; --amber:#c77700;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;font-family:Archivo,system-ui,sans-serif;background:
+      linear-gradient(180deg,#fff, #f2f3f8);color:var(--tinta);min-height:100vh}
+    .stripe{height:8px;background:repeating-linear-gradient(90deg,var(--azul) 0 18px,#fff 18px 36px)}
+    .wrap{max-width:960px;margin:0 auto;padding:22px 20px 60px}
+    header.top{display:flex;align-items:center;gap:14px;margin:8px 0 22px}
+    .logo{width:46px;height:46px;border-radius:13px;background:var(--rojo);color:#fff;
+      display:grid;place-items:center;font-family:'Archivo Black';font-size:15px;box-shadow:0 6px 20px rgba(214,40,40,.28)}
+    h1{font-family:'Archivo Black';font-size:22px;margin:0;letter-spacing:-.02em}
+    .sub{color:var(--muted);font-size:13px;margin:2px 0 0}
+    .kicker{font-size:11px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:var(--rojo)}
+    .card{background:#fff;border:1px solid var(--linea);border-radius:20px;padding:20px;
+      box-shadow:0 10px 30px rgba(20,33,61,.05);margin-bottom:16px}
+    label{font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);display:block;margin-bottom:5px}
+    input{width:100%;padding:10px 12px;border:1px solid var(--linea);border-radius:12px;font:inherit;font-size:14px;background:var(--papel)}
+    input:focus{outline:2px solid color-mix(in srgb,var(--rojo) 40%,transparent);border-color:var(--rojo)}
+    button{font:inherit;font-weight:800;cursor:pointer;border:none;border-radius:12px;padding:10px 16px;font-size:13px}
+    .btn-primary{background:var(--azul);color:#fff}
+    .btn-ghost{background:var(--papel);color:var(--azul);border:1px solid var(--linea)}
+    .btn-danger{background:#fdecec;color:var(--rojo)}
+    .btn-link{background:none;border:none;color:var(--rojo);padding:6px 0;font-size:13px}
+    .client{display:flex;flex-direction:column;gap:14px}
+    .chead{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap}
+    .cname{font-family:'Archivo Black';font-size:17px;margin:0}
+    .curl{font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--muted);word-break:break-all}
+    .badges{display:flex;gap:8px;flex-wrap:wrap;margin-top:4px}
+    .badge{font-size:11px;font-weight:800;padding:4px 10px;border-radius:999px;letter-spacing:.04em}
+    .b-ok{background:#e6f6ec;color:var(--ok)}
+    .b-warn{background:#fff4e0;color:var(--amber)}
+    .b-off{background:#f0f0f4;color:var(--muted)}
+    .b-err{background:#fdecec;color:var(--rojo)}
+    .row-actions{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}
+    .keyrow{display:flex;gap:8px;align-items:stretch}
+    .keyrow input{flex:1}
+    .keyrow button{white-space:nowrap}
+    .phases{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+    @media(max-width:620px){.phases{grid-template-columns:1fr}}
+    .phase{border:1px solid var(--linea);border-radius:14px;padding:14px;background:var(--papel)}
+    .phase.on{border-color:color-mix(in srgb,var(--ok) 45%,transparent);background:#f2fbf5}
+    .ptitle{font-weight:800;font-size:13px;display:flex;align-items:center;justify-content:space-between;gap:8px}
+    .pdesc{font-size:12px;color:var(--muted);margin-top:6px;line-height:1.4}
+    .toggle{position:relative;width:44px;height:24px;border-radius:999px;background:#cfd0da;transition:.15s;flex:none}
+    .toggle.on{background:var(--ok)}
+    .toggle::after{content:"";position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:#fff;transition:.15s}
+    .toggle.on::after{left:23px}
+    .toggle.lock{background:var(--azul)}
+    .channel{border:1px solid var(--linea);border-radius:14px;background:var(--papel);overflow:hidden}
+    .chhead{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:12px 14px;cursor:pointer;user-select:none}
+    .chhead b{font-size:13px}
+    .chbody{display:none;padding:0 14px 14px;gap:10px;grid-template-columns:1fr 1fr}
+    .chbody.open{display:grid}
+    @media(max-width:620px){.chbody.open{grid-template-columns:1fr}}
+    .chbody .full{grid-column:1/-1}
+    .chbody label{margin-bottom:4px}
+    .caret{transition:.15s;color:var(--muted)}
+    .caret.open{transform:rotate(90deg)}
+    .note{font-size:12px;color:var(--muted);margin:0;line-height:1.5}
+    .foot{font-size:12px;color:var(--muted);border-top:1px solid var(--linea);padding-top:14px;margin-top:8px}
+    a{color:var(--rojo)}
+  </style>
+</head>
+<body>
+  <div class="stripe"></div>
+  <div class="wrap">
+    <header class="top">
+      <div class="logo">AV</div>
+      <div>
+        <p class="kicker">Control interno · no operativo</p>
+        <h1>Panel de administración</h1>
+        <p class="sub">Enciende las fases de cada cliente. Solo tienes que pegar su admin key.</p>
+      </div>
+    </header>
+
+    <div id="list"></div>
+
+    <div style="text-align:center;margin-top:4px">
+      <button class="btn-link" id="add-toggle">+ Agregar otro cliente</button>
+    </div>
+    <div class="card" id="add-card" style="display:none">
+      <p class="kicker" style="margin-bottom:12px">Nuevo cliente</p>
+      <div style="display:grid;grid-template-columns:1fr 1.4fr auto;gap:10px;align-items:end">
+        <div><label>Nombre</label><input id="f-name" placeholder="Otra Llantera" /></div>
+        <div><label>URL base</label><input id="f-url" placeholder="https://…up.railway.app" /></div>
+        <div><button class="btn-primary" id="f-save">Agregar</button></div>
+      </div>
+    </div>
+
+    <div class="foot">
+      Fase 1 (buscar por medida + cotización) es el núcleo y siempre está activa.
+      Fase 2 = fitment vehículo→medida y OCR. Fase 3 = comparativas visuales + Cotizador y Métricas.
+      Fase 4 = Oportunidades (seguimientos / recuperación de clientes). Requiere el worker de seguimientos corriendo.
+    </div>
+  </div>
+
+  <script>
+    // Clientes que ya vienen en el panel: solo hay que pegarles el admin key.
+    const KNOWN_CLIENTS = [
+      { name: "Depot Tire", baseUrl: "https://autoventa-depottire.up.railway.app" },
+    ];
+    const STORE = "autoventa_admin_v2";
+    const $ = (id) => document.getElementById(id);
+    const esc = (s) => String(s == null ? "" : s).replace(/[&<>"]/g, (c) => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;" }[c]));
+
+    function state() {
+      try { return Object.assign({ keys: {}, custom: [] }, JSON.parse(localStorage.getItem(STORE) || "{}")); }
+      catch { return { keys: {}, custom: [] }; }
+    }
+    function saveState(s) { localStorage.setItem(STORE, JSON.stringify(s)); }
+    function normUrl(u) { return (u || "").trim().replace(/\/+$/, ""); }
+
+    // Lista efectiva: conocidos (URL del código) + custom (del navegador), con su key.
+    function clients() {
+      const s = state();
+      const list = KNOWN_CLIENTS.map((c) => ({ ...c, custom: false }))
+        .concat((s.custom || []).map((c) => ({ ...c, custom: true })));
+      return list.map((c) => ({ ...c, adminKey: s.keys[c.name] || "" }));
+    }
+
+    async function api(client, path, init) {
+      const res = await fetch(normUrl(client.baseUrl) + path, {
+        ...init,
+        headers: { "Content-Type": "application/json", "x-admin-key": client.adminKey || "", ...(init && init.headers) },
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || ("Error " + res.status));
+      return data;
+    }
+
+    const badge = (cls, text) => `<span class="badge ${cls}">${text}</span>`;
+
+    function phaseCard(kind, label, desc, on, locked, idx) {
+      return `<div class="phase ${on ? "on" : ""}">
+        <div class="ptitle"><span>${label}</span>
+          <span class="toggle ${on ? "on" : ""} ${locked ? "lock" : ""}" ${locked ? "" : `data-toggle="${kind}" data-idx="${idx}"`}></span>
+        </div>
+        <div class="pdesc">${desc}</div>
+      </div>`;
+    }
+
+    function controls(idx) {
+      return `
+        <div class="phases" id="phases-${idx}">
+          ${phaseCard("fase1", "Fase 1 · núcleo", "Buscar por medida y enviar cotización. Siempre activa.", true, true, idx)}
+          ${phaseCard("fase2", "Fase 2", "Sin datos: fitment vehículo→medida y OCR de fotos.", false, false, idx)}
+          ${phaseCard("fase3", "Fase 3", "Comparativas visuales + Cotizador y Métricas en el hub.", false, false, idx)}
+          ${phaseCard("fase4", "Fase 4", "Oportunidades: seguimientos y recuperación de clientes.", false, false, idx)}
+        </div>
+        <div class="channel">
+          <div class="chhead" data-chtoggle="${idx}"><b>📲 Canal de WhatsApp</b><span class="caret" id="caret-${idx}">▸</span></div>
+          <div class="chbody" id="channel-${idx}">
+            <div><label>Token permanente</label><input type="password" data-ch="token" data-idx="${idx}" placeholder="pegar cuando lo manden" /></div>
+            <div><label>Phone Number ID</label><input data-ch="phoneId" data-idx="${idx}" /></div>
+            <div><label>App Secret</label><input type="password" data-ch="appSecret" data-idx="${idx}" placeholder="pegar cuando lo manden" /></div>
+            <div><label>Verify token</label><input data-ch="verifyToken" data-idx="${idx}" /></div>
+            <div><label>Teléfono del vendedor</label><input data-ch="sellerPhone" data-idx="${idx}" placeholder="5939XXXXXXXX" /></div>
+            <div class="full" style="display:flex;align-items:end"><button class="btn-primary" data-savech="${idx}" style="width:100%">Guardar canal</button></div>
+            <p class="full note" style="margin-top:2px">Deja en blanco lo que no cambies. Token y App Secret nunca se muestran. Al guardar, el webhook se reactiva en caliente.</p>
+          </div>
+        </div>`;
+    }
+
+    function keyPrompt(idx, name) {
+      return `
+        <div class="keyrow">
+          <input type="password" data-keyinput="${idx}" placeholder="Pega la ADMIN_KEY de ${esc(name)}" />
+          <button class="btn-primary" data-savekey="${idx}">Conectar</button>
+        </div>
+        <p class="note">La clave se guarda solo en <b>este navegador</b> (localStorage), nunca en el servidor ni en el repo.</p>`;
+    }
+
+    function render() {
+      const list = clients();
+      $("list").innerHTML = list.map((c, i) => `
+        <div class="card client">
+          <div class="chead">
+            <div>
+              <p class="cname">${esc(c.name)}</p>
+              <p class="curl">${esc(normUrl(c.baseUrl))}</p>
+              <div class="badges" id="badges-${i}">${c.adminKey ? badge("b-off", "conectando…") : badge("b-warn", "falta admin key")}</div>
+            </div>
+            <div class="row-actions">
+              ${c.adminKey ? `<button class="btn-ghost" data-refresh="${i}">Refrescar</button><button class="btn-ghost" data-editkey="${i}">🔑 Clave</button>` : ""}
+              ${c.custom ? `<button class="btn-danger" data-remove="${i}">Quitar</button>` : ""}
+            </div>
+          </div>
+          ${c.adminKey ? controls(i) : keyPrompt(i, c.name)}
+        </div>`).join("");
+      list.forEach((c, i) => { if (c.adminKey) refresh(i); });
+    }
+
+    async function refresh(i) {
+      const c = clients()[i];
+      const badges = $("badges-" + i);
+      if (!c || !c.adminKey) return;
+      try {
+        const [ph, ch] = await Promise.all([
+          api(c, "/api/phases"),
+          api(c, "/api/channel").catch(() => null),
+        ]);
+        const f = ph.phases || { fase2: false, fase3: false };
+        const cont = document.querySelector(`#phases-${i}`);
+        setToggle(cont, "fase2", f.fase2);
+        setToggle(cont, "fase3", f.fase3);
+        setToggle(cont, "fase4", f.fase4);
+        const level = f.fase4 ? 4 : f.fase3 ? 3 : f.fase2 ? 2 : 1;
+        const marks = [badge("b-ok", "Fase " + level + " activa")];
+        if (ch && ch.channel) {
+          marks.push(ch.channel.ready ? badge("b-ok", "WhatsApp listo") : badge("b-warn", "WhatsApp sin token"));
+          populateChannel(i, ch.channel);
+        }
+        badges.innerHTML = marks.join("");
+      } catch (e) {
+        badges.innerHTML = badge("b-err", "Clave inválida o sin conexión");
+      }
+    }
+
+    function setToggle(cont, kind, on) {
+      if (!cont) return;
+      const t = cont.querySelector(`[data-toggle="${kind}"]`);
+      if (t) t.classList.toggle("on", !!on);
+      const phase = t && t.closest(".phase");
+      if (phase) phase.classList.toggle("on", !!on);
+    }
+
+    function populateChannel(i, chan) {
+      const body = document.querySelector(`#channel-${i}`);
+      if (!body) return;
+      const set = (name, val) => { const el = body.querySelector(`[data-ch="${name}"]`); if (el && document.activeElement !== el) el.value = val || ""; };
+      set("phoneId", chan.phoneId); set("verifyToken", chan.verifyToken); set("sellerPhone", chan.sellerPhone);
+      const ph = (el, on) => { if (el && document.activeElement !== el) el.placeholder = on ? "configurado ✓ — en blanco = mantener" : "pegar cuando lo manden"; };
+      ph(body.querySelector('[data-ch="token"]'), chan.tokenSet);
+      ph(body.querySelector('[data-ch="appSecret"]'), chan.appSecretSet);
+    }
+
+    function saveKey(i) {
+      const input = document.querySelector(`[data-keyinput="${i}"]`);
+      const key = input.value.trim();
+      if (!key) { alert("Pega la admin key primero."); return; }
+      const c = clients()[i];
+      const s = state();
+      s.keys[c.name] = key;
+      saveState(s);
+      render();
+    }
+
+    function editKey(i) {
+      const c = clients()[i];
+      const s = state();
+      delete s.keys[c.name];
+      saveState(s);
+      render();
+    }
+
+    async function toggle(i, kind) {
+      const c = clients()[i];
+      const cont = document.querySelector(`#phases-${i}`);
+      const t = cont.querySelector(`[data-toggle="${kind}"]`);
+      const next = !t.classList.contains("on");
+      const patch = { [kind]: next };
+      if (kind === "fase3" && next) patch.fase2 = true;
+      if (kind === "fase2" && !next) patch.fase3 = false;
+      try {
+        await api(c, "/api/phases", { method: "PUT", body: JSON.stringify(patch) });
+        await refresh(i);
+      } catch (e) { alert("No se pudo cambiar: " + e.message); }
+    }
+
+    async function saveChannel(i) {
+      const c = clients()[i];
+      const body = document.querySelector(`#channel-${i}`);
+      const payload = {};
+      body.querySelectorAll("[data-ch]").forEach((el) => { if (el.value.trim()) payload[el.dataset.ch] = el.value.trim(); });
+      if (!Object.keys(payload).length) { alert("Nada que guardar: llena al menos un campo."); return; }
+      try {
+        const r = await api(c, "/api/channel", { method: "PUT", body: JSON.stringify(payload) });
+        body.querySelector('[data-ch="token"]').value = "";
+        body.querySelector('[data-ch="appSecret"]').value = "";
+        await refresh(i);
+        alert(r.activo ? "Canal guardado. Webhook activo ✓" : "Canal guardado. Falta token, app secret o verify token para activar el webhook.");
+      } catch (e) { alert("No se pudo guardar el canal: " + e.message); }
+    }
+
+    // "Agregar otro cliente"
+    $("add-toggle").addEventListener("click", () => {
+      const card = $("add-card");
+      card.style.display = card.style.display === "none" ? "block" : "none";
+    });
+    $("f-save").addEventListener("click", () => {
+      const name = $("f-name").value.trim();
+      const baseUrl = normUrl($("f-url").value);
+      if (!name || !baseUrl) { alert("Nombre y URL son obligatorios."); return; }
+      const s = state();
+      s.custom = (s.custom || []).filter((c) => c.name.toLowerCase() !== name.toLowerCase());
+      s.custom.push({ name, baseUrl });
+      saveState(s);
+      $("f-name").value = ""; $("f-url").value = ""; $("add-card").style.display = "none";
+      render();
+    });
+
+    document.addEventListener("click", (e) => {
+      const t = e.target;
+      const chToggle = t.closest && t.closest("[data-chtoggle]");
+      if (t.dataset.savekey !== undefined) saveKey(Number(t.dataset.savekey));
+      else if (t.dataset.editkey !== undefined) editKey(Number(t.dataset.editkey));
+      else if (t.dataset.refresh !== undefined) refresh(Number(t.dataset.refresh));
+      else if (t.dataset.savech !== undefined) saveChannel(Number(t.dataset.savech));
+      else if (t.dataset.remove !== undefined) {
+        const c = clients()[Number(t.dataset.remove)];
+        if (confirm("¿Quitar " + c.name + " del panel?")) {
+          const s = state(); s.custom = (s.custom || []).filter((x) => x.name !== c.name); delete s.keys[c.name]; saveState(s); render();
+        }
+      } else if (t.dataset.toggle) toggle(Number(t.dataset.idx), t.dataset.toggle);
+      else if (chToggle) {
+        const i = chToggle.dataset.chtoggle;
+        document.querySelector(`#channel-${i}`).classList.toggle("open");
+        $("caret-" + i).classList.toggle("open");
+      }
+    });
+
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" && e.target.dataset && e.target.dataset.keyinput !== undefined) {
+        saveKey(Number(e.target.dataset.keyinput));
+      }
+    });
+
+    render();
+  </script>
+</body>
+</html>

@@ -64,6 +64,88 @@ Ya viene activado en este equipo.
 
 ## Entradas (más reciente primero)
 
+### 2026-07-23 · MERGE: fases/panel + Oportunidades (codex) unificados · ⏱️ 4.0 h
+
+**Qué:** Fusión de las dos ramas que habían divergido desde `130eef4`:
+`main` (fases + panel central + canal en runtime) y `codex/producto-real-depot-tire`
+(Oportunidades/seguimientos, worker, descuentos, política de conversación,
+alertas al asesor). Base = codex; re-aplicadas encima las 4 piezas de main.
+- Conflictos resueltos en 10 archivos core (agent.ts, index.ts, admin.ts,
+  wa/client.ts, config.ts, App.tsx, store.ts, source.ts, package.json).
+- `wa/client.ts`: las funciones de codex (sendCustomerText con gate de política,
+  sendAdvisorText, sendApprovedTemplate) reimplementadas sobre mi envío Graph
+  API + canal en runtime; se conserva initWa/getWa/reloadWa/setWaHandlers.
+- **Fase 4 = Oportunidades**: nav gateado en App.tsx, `phase_config.fase4`,
+  agendado de seguimientos gateado por fase4 en index.ts, toggle en el panel.
+  Gating de tools seguro (solo bloquea tools gateadas; el resto pasa).
+- Verificado: backend typecheck+build+**85 tests** verdes; hub typecheck+build;
+  demo muestra Oportunidades; landing con sección "Cómo se conecta todo".
+- El worker de seguimientos es proceso aparte (`start:worker`); solo hace falta
+  cuando la Fase 4 está encendida.
+
+**Por qué:** el cliente quería Oportunidades ("botón con estrella") además del
+sistema de fases. Estaban en ramas/carpetas distintas; unificarlas evita perder
+features y deja una sola base de código para staging y clientes.
+
+---
+
+### 2026-07-23 · Panel: clientes precargados, solo pide admin key · ⏱️ 0.5 h
+
+**Qué:** El panel `/panel` ya trae a **Depot Tire precargado** (nombre + URL en
+`KNOWN_CLIENTS` del código); el usuario solo pega el **admin key** y conecta.
+Antes había que escribir nombre + URL + clave cada vez. Storage nuevo
+(`autoventa_admin_v2`): las URLs conocidas vienen del código, las claves viven
+solo en el navegador. Botón "+ Agregar otro cliente" para clientes futuros.
+
+**Por qué:** fricción tonta — Manuel solo necesita pegar la clave, no reescribir
+datos que ya sabemos. Verificado en navegador (tarjeta Depot con "falta admin
+key" + input de clave + Conectar).
+
+---
+
+### 2026-07-23 · Canal editable desde el panel + webhook en caliente · ⏱️ 1.0 h
+
+**Qué:** El canal de WhatsApp de cada cliente se llena desde el **panel central**
+(`/panel` → tarjeta → Canal de WhatsApp), no desde variables de Railway.
+- `wa/client.ts`: `initWa()` ahora devuelve null si faltan credenciales (el bot
+  arranca igual, webhook inactivo); `setWaHandlers()` registra los handlers una
+  vez y se re-aplican al reconstruir; `reloadWa()` reconstruye el webhook tras
+  guardar el canal → el token nuevo entra **en caliente, sin redeploy**.
+- `PUT /api/channel` llama `reloadWa()` y devuelve `activo`. `webhook.ts` responde
+  200 (no reintento) / 503 si el canal aún no está.
+- Panel: editor de canal por cliente (token/phoneId/appSecret/verify/vendedor),
+  guarda parcial (blanco = mantener), secretos nunca se muestran.
+
+**Por qué:** Depot manda sus datos de WhatsApp Business después; el env de su
+deploy queda en blanco y Manuel llena el canal desde el panel cuando lleguen,
+sin tocar Railway ni redeployar.
+
+---
+
+### 2026-07-23 · Fases por cliente + panel central de admin + canal en runtime · ⏱️ 4.0 h
+
+**Qué:** Sistema de entrega por fases sobre una sola base de código.
+- `services/phases.ts`: `settings.phase_config` (fase2/fase3; fase1 núcleo siempre).
+  El backend trae todo; el frontend (nav del hub) y las tools del agente se
+  gatean por fase. `PHASES_DEFAULT` como fallback (staging="all", Depot="1").
+- Panel central `app/site/panel/`: superficie **aparte** que enciende fases de
+  cada cliente llamando a su `/api/phases` (CORS + `x-admin-key`, registro de
+  clientes en localStorage). El hub del cliente ya no tiene controles de fase.
+- `services/channel.ts` + rewrite de `wa/client.ts`: credenciales de WhatsApp
+  resueltas en runtime (DB > entorno), envío por Graph API con reintentos.
+  `WHATSAPP_*` ahora opcionales → el bot arranca sin ellas.
+- Auth del panel **fail-closed** con `NODE_ENV=production`. Respuestas que Meta
+  rechaza se guardan como `failed` (no se pierden en silencio).
+- `npm run seed:depot` (base limpia) + guía `docs/entrega-fases-depot.md`.
+- Landing enlaza las 3 superficies (staging · cliente · panel). Production viejo
+  queda fuera (se borra desde Railway; el repo usa links relativos).
+
+**Por qué:** entregar Fase 1–2 a Depot hoy y encender el resto por botón, sin
+forkear el código ni perder features. Staging (deploy desde `main`) es la fuente
+de verdad; cada cliente es el mismo repo con su entorno, base y clave propios.
+
+---
+
 ### 2026-07-20 · Piezas visuales en todos los flujos + verificación en vivo · ⏱️ 2.0 h
 
 **Qué:** Al probar en staging quedó claro que el flujo que más se usa (opciones tras

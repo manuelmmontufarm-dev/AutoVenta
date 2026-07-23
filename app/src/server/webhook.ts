@@ -5,7 +5,7 @@
  */
 import express from "express";
 import { fileURLToPath } from "node:url";
-import { wa } from "../wa/client.js";
+import { getWa } from "../wa/client.js";
 import { catalogStatus, searchBySize } from "../services/catalog.js";
 import { renderCompareImage, toRenderLine } from "../render/quoteImage.js";
 import { createAdminRouter } from "./admin.js";
@@ -19,10 +19,21 @@ export function createServer(): express.Express {
 
   // handle_post necesita el body como string crudo (valida la firma sobre los bytes)
   app.post("/webhook", express.text({ type: "*/*" }), async (req, res) => {
+    const wa = getWa();
+    // Canal aún sin configurar: 200 para que Meta no reintente en bucle.
+    if (!wa) {
+      res.sendStatus(200);
+      return;
+    }
     res.sendStatus(await wa.handle_post(req));
   });
 
   app.get("/webhook", (req, res) => {
+    const wa = getWa();
+    if (!wa) {
+      res.sendStatus(503);
+      return;
+    }
     try {
       res.send(wa.handle_get(req));
     } catch (code) {

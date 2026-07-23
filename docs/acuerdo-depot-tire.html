@@ -1,0 +1,284 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>AutoVenta · Acuerdo de servicio · Depot Tire</title>
+<style>
+  @page { size: A4; margin: 0; }
+  *{ box-sizing:border-box; -webkit-print-color-adjust:exact; print-color-adjust:exact; margin:0; }
+
+  :root{
+    --ink:#111820; --dark:#0f1720;
+    --green:#22c55e; --green-dark:#0f9d52; --green-soft:#e9f9f1;
+    --paper:#ffffff; --muted:#6b7280; --steel:#374151;
+    --line:#e5e7eb; --soft:#f6f7f8;
+    --sans:"Helvetica Neue",Arial,system-ui,-apple-system,sans-serif;
+  }
+
+  html,body{ margin:0; }
+  body{ width:210mm; background:var(--paper); color:var(--ink);
+    font-family:var(--sans); font-size:9.5pt; line-height:1.42; }
+  .sheet{ width:210mm; height:297mm; padding:22px 44px 14px; display:flex; flex-direction:column; }
+  .sheet + .sheet{ page-break-before:always; break-before:page; }
+
+  .top{ display:flex; align-items:baseline; justify-content:space-between; }
+  .wordmark{ font-weight:800; font-size:15pt; color:var(--ink); }
+  .wordmark b{ color:var(--green); }
+  .top .doc{ font-size:7.5pt; font-weight:700; letter-spacing:.14em; text-transform:uppercase; color:var(--muted); }
+  .rule{ height:1px; background:var(--line); margin:10px 0 14px; }
+
+  h1{ font-size:19pt; line-height:1.08; font-weight:800; letter-spacing:-.025em; margin:0 0 7px; }
+  h1 .g{ color:var(--green); }
+  .lead{ color:var(--steel); font-size:10pt; max-width:82ch; margin:0 0 11px; }
+  .lead b{ color:var(--ink); }
+
+  h2{ font-size:10.5pt; font-weight:800; color:var(--ink); margin:9px 0 4px;
+      padding-bottom:4px; border-bottom:2px solid var(--green); display:inline-block; }
+  h2 .n{ color:var(--green-dark); }
+  .sheet > h2{ align-self:flex-start; }
+  p{ font-size:9.2pt; color:var(--steel); line-height:1.45; margin:0 0 5px; }
+  p b, li b{ color:var(--ink); }
+  ul{ margin:0 0 6px; padding-left:16px; }
+  li{ font-size:9.2pt; color:var(--steel); line-height:1.42; margin-bottom:2px; }
+
+  .parties{ display:grid; grid-template-columns:1fr 1fr; gap:14px; margin:0 0 4px; }
+  .party{ border:1px solid var(--line); border-radius:12px; padding:11px 15px; }
+  .party .k{ font-size:7.5pt; font-weight:800; letter-spacing:.12em; text-transform:uppercase; color:var(--green-dark); margin-bottom:6px; }
+  .party .nm{ font-size:11pt; font-weight:800; color:var(--ink); margin-bottom:4px; }
+  .party .ln{ font-size:9pt; color:var(--steel); }
+  .fill{ display:inline-block; min-width:120px; border-bottom:1px solid #b9c0c8; }
+
+  .miles{ display:grid; grid-template-columns:1fr 1fr; gap:12px; margin:7px 0 0; }
+  .mile{ border:1px solid var(--line); border-radius:12px; padding:10px 15px; }
+  .mile .amt{ font-size:19pt; font-weight:800; color:var(--green-dark); line-height:1; letter-spacing:-.02em; }
+  .mile .when{ font-size:7.5pt; font-weight:800; letter-spacing:.1em; text-transform:uppercase; color:var(--ink); margin:7px 0 3px; }
+  .mile p{ font-size:9pt; margin:0; }
+
+  .totalbar{ display:flex; align-items:center; justify-content:space-between; gap:16px;
+    background:var(--green-soft); border-radius:10px; padding:10px 20px; margin:10px 0 0; }
+  .totalbar .lbl{ font-size:9.5pt; color:var(--steel); }
+  .totalbar .lbl b{ color:var(--ink); }
+  .totalbar .amt{ font-size:17pt; font-weight:800; color:var(--green-dark); letter-spacing:-.02em; white-space:nowrap; }
+
+  .note{ margin:7px 0 0; border-left:4px solid var(--green); background:var(--soft); border-radius:0 10px 10px 0;
+    padding:9px 14px; font-size:9pt; color:var(--steel); line-height:1.5; }
+  .note b{ color:var(--ink); }
+  .note.dark{ background:var(--dark); border-left-color:var(--green); color:#aeb7c2; border-radius:0 10px 10px 0; }
+  .note.dark b{ color:#fff; }
+
+  .phase{ display:flex; gap:12px; padding:4px 0; border-top:1px solid var(--line); break-inside:avoid; }
+  .phase:first-of-type{ border-top:none; }
+  .p-num{ flex:none; width:26px; height:26px; border-radius:50%; background:var(--dark); color:#fff;
+    display:grid; place-items:center; font-weight:800; font-size:10pt; box-shadow:inset 0 0 0 2px var(--green); }
+  .p-body h4{ font-size:10.5pt; font-weight:800; color:var(--ink); margin:2px 0 3px; }
+  .p-body h4 span{ font-size:8pt; font-weight:800; letter-spacing:.05em; text-transform:uppercase;
+    color:var(--green-dark); background:var(--green-soft); padding:2px 8px; border-radius:99px; margin-left:6px; }
+  .p-body p{ margin:0; font-size:9.2pt; }
+
+  .two{ display:grid; grid-template-columns:1fr 1fr; gap:18px; }
+
+
+  .sign{ display:grid; grid-template-columns:1fr 1fr; gap:26px; margin-top:20px; }
+  .sig{ }
+  .sig .line{ border-bottom:1px solid var(--ink); height:44px; position:relative; }
+  .sig .line img{ position:absolute; left:4px; bottom:-6px; height:52px; }
+  .sig .who{ font-size:9pt; font-weight:800; color:var(--ink); margin-top:6px; }
+  .sig .meta{ font-size:8.5pt; color:var(--muted); line-height:1.6; }
+
+  .foot{ display:flex; justify-content:space-between; margin-top:auto; padding-top:9px; border-top:1px solid var(--line);
+    font-size:8pt; color:var(--muted); }
+</style>
+</head>
+<body>
+
+<div class="sheet">
+
+  <div class="top">
+    <div class="wordmark">AUTO<b>VENTA</b></div>
+    <div class="doc">Acuerdo de servicio · Depot Tire · Julio 2026</div>
+  </div>
+  <div class="rule"></div>
+
+  <h1>Propuesta y acuerdo de servicio.<br><span class="g">Bot de ventas por WhatsApp para Depot Tire.</span></h1>
+  <p class="lead">Este documento resume lo ya conversado y sirve para firmar: <b>qué se entrega, cuánto cuesta, cómo se paga y qué necesita cada parte del otro</b>. Está escrito en lenguaje simple a propósito. Firmado por ambas partes, es el acuerdo que rige el trabajo.</p>
+
+  <div class="parties">
+    <div class="party">
+      <p class="k">Proveedor</p>
+      <p class="nm">Manuel Montúfar</p>
+      <p class="ln">C.I.: 1722104336<br>
+      manuelmmontufarm@gmail.com<br>
+      +593 99 372 8763</p>
+    </div>
+    <div class="party">
+      <p class="k">Cliente</p>
+      <p class="nm">Depot Tire</p>
+      <p class="ln">RUC: <span class="fill">&nbsp;</span><br>
+      Representante: <span class="fill">&nbsp;</span><br>
+      Correo / teléfono: <span class="fill">&nbsp;</span></p>
+    </div>
+  </div>
+
+  <h2><span class="n">1.</span> El producto final</h2>
+  <p>Un asistente de ventas por WhatsApp para Depot Tire, funcionando en el número del negocio, más un tablero web para verlo y controlarlo. Es el mismo producto de la propuesta:</p>
+  <ul>
+    <li><b>Atiende y responde solo, con IA, 24/7</b> — entiende los mensajes como la gente los escribe y saluda como Depot Tire.</li>
+    <li><b>Cotiza por medida y manda la cotización</b>, con stock y precios tomados de Contífico.</li>
+    <li><b>Entiende fotos y vehículos</b>: la foto de la llanta, la captura de la competencia, o "¿qué le queda a mi Hilux?".</li>
+    <li><b>Ubicación y local más cercano</b>, con horario.</li>
+    <li><b>Avisa cuando hay venta</b>, con el contexto del chat, para que una persona cierre.</li>
+    <li><b>Sabe cuándo no sabe</b>: si duda, pasa el chat a una persona en vez de inventar.</li>
+    <li><b>Tablero de control</b>: cada chat como ticket en un pipeline, con las estadísticas del negocio.</li>
+  </ul>
+
+  <h2><span class="n">2.</span> Cómo se construye: cinco fases que se traslapan</h2>
+  <p>El trabajo se organiza en cinco fases. <b>Son un orden de construcción, no cinco productos separados</b>: en la práctica se traslapan bastante y varias avanzan en paralelo — el tablero se sigue afinando mientras el bot ya cotiza, y piezas como la conexión a Contífico se tocan en más de una fase. Se listan para que se entienda el camino, no como entregas con fecha y precio independientes.</p>
+
+  <div class="phase"><div class="p-num">1</div><div class="p-body">
+    <h4>Sistema de tickets</h4>
+    <p>El centro de control: cada chat de WhatsApp entra como ticket en un pipeline. Va primero para tener visibilidad desde temprano — ningún cliente se pierde.</p></div></div>
+  <div class="phase"><div class="p-num">2</div><div class="p-body">
+    <h4>El bot que atiende solo, con IA</h4>
+    <p>Conectado al WhatsApp del negocio: responde al instante, manda la ubicación y avisa cuando hay venta. Un vendedor que trabaja de noche y fines de semana.</p></div></div>
+  <div class="phase"><div class="p-num">3</div><div class="p-body">
+    <h4>Cotización por medida, con Contífico</h4>
+    <p>Descifra la medida, consulta stock y precio desde Contífico y arma la cotización con el logo del negocio.</p></div></div>
+  <div class="phase"><div class="p-num">4</div><div class="p-body">
+    <h4>Fotos y casos avanzados</h4>
+    <p>Lee la medida por foto, interpreta capturas de la competencia y sugiere la medida a partir del vehículo.</p></div></div>
+  <div class="phase"><div class="p-num">5</div><div class="p-body">
+    <h4>Producción y afinamiento final</h4>
+    <p>Todo vivo en el número real, probado con tráfico real, y las estadísticas del tablero afinadas.</p></div></div>
+
+  <div class="note"><b>El precio es cerrado</b>, no se factura por hora: no cambia si el trabajo toma más tiempo del previsto.</div>
+
+  <div class="foot"><span>AutoVenta · Bot de ventas por WhatsApp · Manuel Montúfar</span><span>Página 1 de 3</span></div>
+
+</div>
+
+  <!-- ───────────────── PÁGINA 2 ───────────────── -->
+  <div class="sheet">
+  <div class="top">
+    <div class="wordmark">AUTO<b>VENTA</b></div>
+    <div class="doc">Acuerdo de servicio · Depot Tire · Julio 2026</div>
+  </div>
+  <div class="rule"></div>
+
+  <h2><span class="n">3.</span> Precio y forma de pago</h2>
+  <p>Precio cerrado de desarrollo: <b>USD 550</b> (quinientos cincuenta dólares), precio socio fundador, pagados en <b>dos transferencias</b>: $300 a la firma y $250 a la entrega.</p>
+
+  <div class="miles">
+    <div class="mile">
+      <div class="amt">USD 300</div>
+      <p class="when">Pago 1 · a la firma</p>
+      <p>Con este pago arranca el desarrollo y se habilitan los accesos (Contífico, WhatsApp). Cubre el trabajo del primer tramo, incluido el sistema de tickets.</p>
+    </div>
+    <div class="mile">
+      <div class="amt">USD 250</div>
+      <p class="when">Pago 2 · a la entrega</p>
+      <p>Contra el producto completo funcionando en el número real de Depot Tire, probado con tráfico real.</p>
+    </div>
+  </div>
+
+  <div class="totalbar">
+    <div class="lbl"><b>Total desarrollo:</b> USD 550 · en dos pagos ($300 + $250) · sin costos ocultos</div>
+    <div class="amt">USD 550</div>
+  </div>
+
+  <ul style="margin-top:8px">
+    <li>Los pagos se hacen por <b>transferencia bancaria</b> a la cuenta indicada al pie, dentro de los <b>cinco días hábiles</b> siguientes a cada hito.</li>
+    <li>Contra cada pago se entrega el <b>documento de venta correspondiente</b>.</li>
+    <li>Los pagos <b>no son reembolsables</b>: el primero cubre trabajo ya iniciado, y el segundo solo se hace cuando el producto ya convenció (punto 8).</li>
+    <li>Valores en dólares (USD). No incluyen impuestos, si estos aplicaran.</li>
+  </ul>
+
+  <h2><span class="n">4.</span> Mensualidad de mantenimiento</h2>
+  <p><b>USD 100 al mes</b>, que <b>empiezan a correr recién después de entregada la primera fase</b> (el sistema de tickets). Mientras se construye, no se paga mantenimiento.</p>
+  <div class="two">
+    <div>
+      <p><b>Incluye:</b> servidor del bot y del tablero encendido 24/7, base de datos y respaldos diarios, consumo de inteligencia artificial, monitoreo y seguridad, y <b>hasta 5 horas al mes de mi tiempo</b> para soporte, ajustes y afinar el bot con lo que vaya pasando en los chats reales. Cubre <b>hasta 2.000 conversaciones al mes</b> — más del doble del día más cargado del negocio, así que en la práctica no se toca ese techo.</p>
+    </div>
+    <div>
+      <p><b>Condiciones:</b> los $100 cubren el sistema con el motor de IA actual y el volumen normal de conversaciones. Si un mes se pasa de las 2.000, <b>no se corta nada</b>: el bot sigue respondiendo; solo si el volumen se queda arriba varios meses hablamos de ajustar. El precio también puede cambiar si más adelante subimos a un <b>modelo de IA más potente</b> para dar más calidad, o si se activa la <b>lectura de fotos</b> — siempre <b>avisando por escrito con 30 días</b>, y el cliente decide si lo acepta o termina. Cualquiera de las partes puede terminar con ese mismo aviso; al cerrar se entregan los datos.</p>
+    </div>
+  </div>
+
+  <h2><span class="n">5.</span> Qué se necesita del cliente</h2>
+  <p>Depot Tire facilita: acceso a <b>Contífico</b> (usuario con API habilitada), el <b>número de WhatsApp</b> del negocio con su acceso administrativo de Meta, <b>RUC y documentos</b> para la verificación ante Meta, <b>logo</b>, direcciones de los locales y el número del vendedor.</p>
+  <div class="note">Los <b>tiempos de espera de terceros</b> (verificación de Meta, aprobación de plantillas de WhatsApp, habilitación de la API de Contífico) y las demoras en entregar accesos <b>no cuentan dentro del plazo</b> del proyecto.</div>
+
+  <h2><span class="n">6.</span> Plazo</h2>
+  <p>Estimado de <b>8 a 10 semanas</b> desde el primer pago y la entrega de accesos, con avances visibles desde las primeras semanas. Es una estimación de buena fe, no una fecha con penalidad; cualquier desvío se avisa a tiempo.</p>
+
+  <h2><span class="n">7.</span> Qué no incluye</h2>
+  <ul>
+    <li>Integraciones con otros sistemas distintos de Contífico y WhatsApp.</li>
+    <li>Contenido comercial (fotos de producto, textos publicitarios), pauta o publicidad, y equipos.</li>
+    <li>Funciones nuevas o cambios de alcance no descritos aquí: se cotizan por escrito antes de ejecutarse (correo o WhatsApp cuentan como "por escrito").</li>
+  </ul>
+
+  <div class="foot"><span>AutoVenta · Bot de ventas por WhatsApp · Manuel Montúfar</span><span>Página 2 de 3</span></div>
+  </div>
+
+  <!-- ───────────────── PÁGINA 3 ───────────────── -->
+  <div class="sheet">
+  <div class="top">
+    <div class="wordmark">AUTO<b>VENTA</b></div>
+    <div class="doc">Acuerdo de servicio · Depot Tire · Julio 2026</div>
+  </div>
+  <div class="rule"></div>
+
+  <h2><span class="n">8.</span> Entrega: se ve funcionando antes de pagar</h2>
+  <p>Al terminar el desarrollo se presenta el producto <b>funcionando</b> y Depot Tire lo prueba con calma. Si hace lo que dice el punto 1, se hace el segundo pago y el sistema queda operando en el número del negocio. <b>Si no convence, no se hace ese pago y el sistema no se entrega</b> — cada uno sigue su camino, sin deudas ni reclamos de ninguna parte.</p>
+  <p>Las primeras semanas de uso siempre traen ajustes finos (el bot se afina con el tráfico real): eso viene incluido en la mensualidad, junto con el soporte del día a día.</p>
+
+  <h2><span class="n">9.</span> Propiedad, datos y confidencialidad</h2>
+  <ul>
+    <li><b>Los datos son de Depot Tire</b>: conversaciones, clientes, cotizaciones y catálogo son propiedad del cliente y se entregan exportados cuando los pida, sin costo.</li>
+    <li>Depot Tire recibe el <b>producto final funcionando</b>, con derecho de uso indefinido para su negocio. La tecnología base con la que está construido (AutoVenta) es del proveedor, que la mantiene y también la usa en otros proyectos; nunca con los datos, el catálogo ni la configuración de Depot Tire.</li>
+    <li>Ambas partes mantienen <b>confidencialidad</b> sobre la información comercial que conozcan por este trabajo.</li>
+    <li>El proveedor puede mencionar el proyecto en su portafolio de forma general, salvo que el cliente pida lo contrario por escrito.</li>
+  </ul>
+
+  <h2><span class="n">10.</span> Alcance de la responsabilidad</h2>
+  <ul>
+    <li>El sistema <b>asiste en la venta</b>: informa, cotiza y avisa. <b>No cobra ni cierra ventas</b>; la decisión comercial y la confirmación siempre las hace una persona de Depot Tire.</li>
+    <li>Los <b>precios y el stock provienen de Contífico</b>, administrado por el cliente. El proveedor no responde por errores de precio, stock o datos originados en esa fuente.</li>
+    <li>El servicio depende de <b>terceros</b> (Meta/WhatsApp, Contífico, proveedores de IA y de servidores) que pueden cambiar reglas, precios o disponibilidad. El proveedor se compromete a adaptar el sistema en tiempo razonable, pero no responde por interrupciones, cambios de política o suspensiones decididas por esos terceros.</li>
+    <li>La <b>responsabilidad máxima</b> del proveedor, en cualquier caso, no supera lo que el cliente le haya pagado por el servicio en los doce meses anteriores. No se responde por lucro cesante ni por daños indirectos.</li>
+  </ul>
+
+  <h2><span class="n">11.</span> Naturaleza de la relación</h2>
+  <p>Este es un acuerdo de <b>prestación de servicios profesionales independientes</b>. No genera relación laboral, de dependencia ni exclusividad entre las partes. El proveedor organiza su trabajo con sus propios medios y horarios.</p>
+
+  <h2><span class="n">12.</span> Vigencia de la propuesta</h2>
+  <p>Esta propuesta es válida por <b>30 días</b> desde la fecha de emisión. Cualquier modificación a lo aquí acordado se hace por escrito y firmada o confirmada por ambas partes.</p>
+
+  <div class="note dark" style="margin-top:14px">
+    <b>Datos para la transferencia</b><br>
+    Banco: <b>Produbanco</b> &nbsp;·&nbsp; Tipo: Cuenta de Ahorros Nacional &nbsp;·&nbsp; N.º de cuenta: <b>12040733985</b><br>
+    Titular: <b>Manuel María Montúfar</b> &nbsp;·&nbsp; C.I.: 1722104336 &nbsp;·&nbsp; Celular: 0993728763<br>
+    Correo para el comprobante: MONTUFARMANC@WISC.EDU
+  </div>
+
+  <h2 style="margin-top:18px"><span class="n">13.</span> Aceptación</h2>
+  <p>Con la firma de este documento, las partes aceptan el alcance, el precio y las condiciones descritas. Se firma en dos ejemplares del mismo tenor, en la ciudad de Quito, el <b>22 de julio de 2026</b>.</p>
+
+  <div class="sign">
+    <div class="sig">
+      <div class="line"><img src="firma-manuel.png" alt="Firma"></div>
+      <p class="who">Manuel Montúfar</p>
+      <p class="meta">Proveedor · AutoVenta<br>C.I.: 1722104336</p>
+    </div>
+    <div class="sig">
+      <div class="line"></div>
+      <p class="who">Depot Tire</p>
+      <p class="meta">Representante: ____________________<br>C.I. / RUC: ____________________</p>
+    </div>
+  </div>
+
+  <div class="foot"><span>AutoVenta · Bot de ventas por WhatsApp · Manuel Montúfar</span><span>Página 3 de 3</span></div>
+  </div>
+
+</body>
+</html>

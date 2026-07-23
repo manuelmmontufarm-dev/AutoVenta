@@ -69,12 +69,19 @@ import {
   pendingDiscountNoticeMessage,
 } from "../services/discountOffers.js";
 import { renderQuoteImage, toRenderLine } from "../render/quoteImage.js";
-import { sendImage } from "../wa/client.js";
 import { authorizeAdvisorTemplatePlan, previewAdvisorTemplatePlan } from "../services/followUpCampaigns.js";
 import { resumeBotIfUnanswered } from "../services/resumeBot.js";
+import { getPhaseFlags, savePhaseFlags } from "../services/phases.js";
+import {
+  getChannelConfig,
+  getPublicChannelConfig,
+  saveChannelConfig,
+} from "../services/channel.js";
+import { sendImage, reloadWa } from "../wa/client.js";
 
 const GRAPH = "https://graph.facebook.com/v21.0";
 const ADMIN_KEY = process.env.ADMIN_KEY ?? "";
+const IS_PRODUCTION = process.env.NODE_ENV === "production";
 
 interface SendResult {
   ok: boolean;
@@ -124,10 +131,18 @@ const QuoteSchema = z.object({
  * traducir los errores típicos de Meta a mensajes accionables en el panel.
  */
 async function sendTextDetailed(to: string, body: string): Promise<SendResult> {
-  const r = await fetch(`${GRAPH}/${config.whatsapp.phoneId}/messages`, {
+  const channel = await getChannelConfig();
+  if (!channel.token || !channel.phoneId) {
+    return {
+      ok: false,
+      error: "Canal de WhatsApp sin configurar: pon el token y el Phone ID en Ajustes → Canal.",
+      status: 502,
+    };
+  }
+  const r = await fetch(`${GRAPH}/${channel.phoneId}/messages`, {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${config.whatsapp.token}`,
+      Authorization: `Bearer ${channel.token}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
@@ -160,13 +175,49 @@ async function sendTextDetailed(to: string, body: string): Promise<SendResult> {
   return { ok: false, error: hint, code: err.code, status: 502 };
 }
 
+const PANEL_ORIGIN = process.env.ADMIN_PANEL_ORIGIN ?? "*";
+
 export function createAdminRouter(): express.Router {
   const router = express.Router();
   router.use(express.json());
 
+  // CORS: el panel central de administración vive en otro origen y llama a
+  // /api/phases y /api/channel de cada cliente. La seguridad real es la
+  // x-admin-key; el preflight OPTIONS va ANTES del gate para no rebotar.
   router.use((req, res, next) => {
-    if (!ADMIN_KEY || req.header("x-admin-key") === ADMIN_KEY) return next();
-    res.status(401).json({ ok: false, error: "Clave de administración requerida" });
+    res.header("Access-Control-Allow-Origin", PANEL_ORIGIN);
+    res.header("Access-Control-Allow-Headers", "Content-Type, x-admin-key");
+    res.header("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, OPTIONS");
+    res.header("Vary", "Origin");
+    if (req.method === "OPTIONS") {
+      res.sendStatus(204);
+      return;
+    }
+    next();
+  });
+
+  if (!ADMIN_KEY && IS_PRODUCTION) {
+    console.error(
+      "🔒 ADMIN_KEY no está configurada y NODE_ENV=production: el panel /api quedará BLOQUEADO. Define ADMIN_KEY en el entorno.",
+    );
+  }
+
+  router.use((req, res, next) => {
+    if (ADMIN_KEY) {
+      if (req.header("x-admin-key") === ADMIN_KEY) return next();
+      res.status(401).json({ ok: false, error: "Clave de administración requerida" });
+      return;
+    }
+    // Sin ADMIN_KEY: en producción se cierra (nunca abierto en el entregable);
+    // en desarrollo local se permite para no frenar las pruebas.
+    if (IS_PRODUCTION) {
+      res.status(503).json({
+        ok: false,
+        error: "El panel no tiene ADMIN_KEY configurada. Define ADMIN_KEY antes de exponerlo.",
+      });
+      return;
+    }
+    next();
   });
 
   // Estado general: las páginas lo usan para validar la clave y prellenar datos.
@@ -178,6 +229,42 @@ export function createAdminRouter(): express.Router {
       telefonoVendedor: config.whatsapp.sellerPhone,
       asesor: config.whatsapp.sellerName,
     });
+  });
+
+  // ── Fases del producto (entrega por etapas) ────────────────────────────────
+  router.get("/phases", async (_req, res) => {
+    res.json({ ok: true, phases: await getPhaseFlags() });
+  });
+
+  router.put("/phases", async (req, res) => {
+    try {
+      const phases = await savePhaseFlags(req.body);
+      res.json({ ok: true, phases });
+    } catch (error) {
+      res.status(400).json({
+        ok: false,
+        error: error instanceof Error ? error.message : "Fases inválidas",
+      });
+    }
+  });
+
+  // ── Canal de WhatsApp (token/phoneId/etc. desde el panel) ──────────────────
+  router.get("/channel", async (_req, res) => {
+    res.json({ ok: true, channel: await getPublicChannelConfig() });
+  });
+
+  router.put("/channel", async (req, res) => {
+    try {
+      await saveChannelConfig(req.body);
+      // Reactiva el webhook en caliente con el token recién guardado.
+      const activo = await reloadWa();
+      res.json({ ok: true, activo, channel: await getPublicChannelConfig() });
+    } catch (error) {
+      res.status(400).json({
+        ok: false,
+        error: error instanceof Error ? error.message : "Canal inválido",
+      });
+    }
   });
 
   // ── Producto real: Hub ─────────────────────────────────────────────────────

@@ -8,6 +8,7 @@ import type { ChatCompletionMessageParam, ChatCompletionTool } from "openai/reso
 import { config } from "../config.js";
 import { getHistory, logAiRun } from "../services/conversations.js";
 import { getAiConfig, getPublishedStagePrompt } from "../services/settings.js";
+import { getPhaseFlags, toolEnabled } from "../services/phases.js";
 import { buildSystemPrompt } from "./prompts.js";
 import { buildTools, type AgentContext } from "./tools.js";
 import { getActiveDiscountOffer } from "../services/discountOffers.js";
@@ -27,13 +28,15 @@ export async function runAgent(ctx: AgentContext, userText: string): Promise<str
   let outputTokens = 0;
   const usedTools: string[] = [];
   // El estilo se edita en /configuracion/ia; getAiConfig cachea 30 s en memoria.
-  const [aiConfig, stagePrompt, activeDiscount, pendingDiscount, salesFacts] = await Promise.all([
-    getAiConfig(),
-    getPublishedStagePrompt(ctx.conversation.stage),
-    getActiveDiscountOffer(ctx.conversation.id),
-    getPendingDiscountRule(ctx.conversation.id),
-    getAgentSalesFacts(ctx.conversation.id),
-  ]);
+  const [aiConfig, stagePrompt, activeDiscount, pendingDiscount, salesFacts, phaseFlags] =
+    await Promise.all([
+      getAiConfig(),
+      getPublishedStagePrompt(ctx.conversation.stage),
+      getActiveDiscountOffer(ctx.conversation.id),
+      getPendingDiscountRule(ctx.conversation.id),
+      getAgentSalesFacts(ctx.conversation.id),
+      getPhaseFlags(),
+    ]);
   const systemPrompt = buildSystemPrompt(aiConfig, {
     name: stagePrompt.stage,
     objective: stagePrompt.objective,
@@ -45,10 +48,14 @@ export async function runAgent(ctx: AgentContext, userText: string): Promise<str
   ctx.currentUserText = userText;
   const allTools = buildTools(ctx);
   const allowed = new Set(stagePrompt.allowedTools);
+  // Gate de fases: aunque el prompt permita una tool, si está gateada solo se
+  // ofrece con su fase encendida. Las no gateadas pasan siempre.
   const localTools =
     allowed.size === 0
       ? []
-      : allTools.filter((tool) => allowed.has(tool.function.name));
+      : allTools.filter(
+          (tool) => allowed.has(tool.function.name) && toolEnabled(tool.function.name, phaseFlags),
+        );
   const tools: ChatCompletionTool[] = localTools.map(({ execute: _execute, ...tool }) => ({
     type: "function",
     function: tool.function,
