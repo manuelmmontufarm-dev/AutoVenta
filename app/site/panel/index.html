@@ -107,8 +107,11 @@
   </div>
 
   <script>
-    // Clientes que ya vienen en el panel: solo hay que pegarles el admin key.
+    // Entornos que ya vienen en el panel: solo hay que pegarles el admin key.
+    // Staging = tu laboratorio; Depot Tire = el cliente. Cada uno tiene sus
+    // propias fases (son entornos separados).
     const KNOWN_CLIENTS = [
+      { name: "Staging (tu laboratorio)", baseUrl: "https://autoventa-staging.up.railway.app" },
       { name: "Depot Tire", baseUrl: "https://autoventa-depottire.up.railway.app" },
     ];
     const STORE = "autoventa_admin_v2";

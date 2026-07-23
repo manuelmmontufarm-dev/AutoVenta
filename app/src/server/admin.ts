@@ -239,6 +239,8 @@ export function createAdminRouter(): express.Router {
   router.put("/phases", async (req, res) => {
     try {
       const phases = await savePhaseFlags(req.body);
+      // Avisa a los hubs conectados para que actualicen la navegación en vivo.
+      emitLiveEvent("sync");
       res.json({ ok: true, phases });
     } catch (error) {
       res.status(400).json({

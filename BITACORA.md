@@ -64,6 +64,22 @@ Ya viene activado en este equipo.
 
 ## Entradas (más reciente primero)
 
+### 2026-07-23 · Panel controla staging + refresh en vivo + tarjetas clickables · ⏱️ 0.4 h
+
+**Qué:** Tres arreglos tras el merge:
+- El panel ahora trae **Staging Y Depot Tire** precargados (antes solo Depot).
+  Cada entorno tiene sus propias fases; así se pueden encender las de staging.
+- `PUT /api/phases` emite `emitLiveEvent("sync")` → los hubs abiertos refrescan
+  la navegación **en vivo** al togglear (antes había que recargar a mano).
+- Las 3 tarjetas de "Cómo se conecta todo" en el landing ahora son **links**
+  (Staging→/admin, Cliente→/admin, Panel→/panel).
+
+**Por qué:** "toggleo y siguen saliendo 2 tabs" = estaba mirando staging pero el
+panel solo controlaba Depot; y el hub no se refrescaba solo. Nada se borró: el
+merge conservó todo; encender las 4 fases da el producto completo.
+
+---
+
 ### 2026-07-23 · MERGE: fases/panel + Oportunidades (codex) unificados · ⏱️ 4.0 h
 
 **Qué:** Fusión de las dos ramas que habían divergido desde `130eef4`:
