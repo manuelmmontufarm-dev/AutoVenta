@@ -5,7 +5,7 @@
  */
 import express from "express";
 import { fileURLToPath } from "node:url";
-import { wa } from "../wa/client.js";
+import { getWa } from "../wa/client.js";
 import { catalogStatus, searchBySize } from "../services/catalog.js";
 import { renderCompareImage, toRenderLine } from "../render/quoteImage.js";
 import { createAdminRouter } from "./admin.js";
@@ -19,12 +19,12 @@ export function createServer(): express.Express {
 
   // handle_post necesita el body como string crudo (valida la firma sobre los bytes)
   app.post("/webhook", express.text({ type: "*/*" }), async (req, res) => {
-    res.sendStatus(await wa.handle_post(req));
+    res.sendStatus(await getWa().handle_post(req));
   });
 
   app.get("/webhook", (req, res) => {
     try {
-      res.send(wa.handle_get(req));
+      res.send(getWa().handle_get(req));
     } catch (code) {
       res.sendStatus(code as number);
     }

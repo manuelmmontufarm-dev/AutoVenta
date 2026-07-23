@@ -64,6 +64,30 @@ Ya viene activado en este equipo.
 
 ## Entradas (más reciente primero)
 
+### 2026-07-23 · Fases por cliente + panel central de admin + canal en runtime · ⏱️ 4.0 h
+
+**Qué:** Sistema de entrega por fases sobre una sola base de código.
+- `services/phases.ts`: `settings.phase_config` (fase2/fase3; fase1 núcleo siempre).
+  El backend trae todo; el frontend (nav del hub) y las tools del agente se
+  gatean por fase. `PHASES_DEFAULT` como fallback (staging="all", Depot="1").
+- Panel central `app/site/panel/`: superficie **aparte** que enciende fases de
+  cada cliente llamando a su `/api/phases` (CORS + `x-admin-key`, registro de
+  clientes en localStorage). El hub del cliente ya no tiene controles de fase.
+- `services/channel.ts` + rewrite de `wa/client.ts`: credenciales de WhatsApp
+  resueltas en runtime (DB > entorno), envío por Graph API con reintentos.
+  `WHATSAPP_*` ahora opcionales → el bot arranca sin ellas.
+- Auth del panel **fail-closed** con `NODE_ENV=production`. Respuestas que Meta
+  rechaza se guardan como `failed` (no se pierden en silencio).
+- `npm run seed:depot` (base limpia) + guía `docs/entrega-fases-depot.md`.
+- Landing enlaza las 3 superficies (staging · cliente · panel). Production viejo
+  queda fuera (se borra desde Railway; el repo usa links relativos).
+
+**Por qué:** entregar Fase 1–2 a Depot hoy y encender el resto por botón, sin
+forkear el código ni perder features. Staging (deploy desde `main`) es la fuente
+de verdad; cada cliente es el mismo repo con su entorno, base y clave propios.
+
+---
+
 ### 2026-07-20 · Piezas visuales en todos los flujos + verificación en vivo · ⏱️ 2.0 h
 
 **Qué:** Al probar en staging quedó claro que el flujo que más se usa (opciones tras

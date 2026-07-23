@@ -19,6 +19,15 @@ export type Cierre = "ganado" | "perdido" | "sin_respuesta";
 
 export type Atiende = "bot" | "humano";
 
+/**
+ * Fases activas del producto entregado. El backend siempre trae todo; estas
+ * banderas deciden qué pantallas del hub aparecen. Fase 1 = núcleo (siempre).
+ */
+export interface PhaseFlags {
+  fase2: boolean;
+  fase3: boolean;
+}
+
 export type Rol = "cliente" | "bot" | "vendedor";
 
 export const ETAPAS: Etapa[] = [

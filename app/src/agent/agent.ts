@@ -8,6 +8,7 @@ import type { ChatCompletionMessageParam, ChatCompletionTool } from "openai/reso
 import { config } from "../config.js";
 import { getHistory, logAiRun } from "../services/conversations.js";
 import { getAiConfig, getPublishedStagePrompt } from "../services/settings.js";
+import { getPhaseFlags, enabledTools } from "../services/phases.js";
 import { buildSystemPrompt } from "./prompts.js";
 import { buildTools, type AgentContext } from "./tools.js";
 
@@ -19,9 +20,10 @@ export async function runAgent(ctx: AgentContext, userText: string): Promise<str
   let outputTokens = 0;
   const usedTools: string[] = [];
   // El estilo se edita en /configuracion/ia; getAiConfig cachea 30 s en memoria.
-  const [aiConfig, stagePrompt] = await Promise.all([
+  const [aiConfig, stagePrompt, phaseFlags] = await Promise.all([
     getAiConfig(),
     getPublishedStagePrompt(ctx.conversation.stage),
+    getPhaseFlags(),
   ]);
   const systemPrompt = buildSystemPrompt(aiConfig, {
     name: stagePrompt.stage,
@@ -34,10 +36,15 @@ export async function runAgent(ctx: AgentContext, userText: string): Promise<str
   ctx.currentUserText = userText;
   const allTools = buildTools(ctx);
   const allowed = new Set(stagePrompt.allowedTools);
+  // Gate de fases: aunque el prompt permita una tool, solo se ofrece si su fase
+  // está encendida. El backend siempre trae todas; las fases deciden qué actúa.
+  const phaseTools = enabledTools(phaseFlags);
   const localTools =
     allowed.size === 0
       ? []
-      : allTools.filter((tool) => allowed.has(tool.function.name));
+      : allTools.filter(
+          (tool) => allowed.has(tool.function.name) && phaseTools.has(tool.function.name),
+        );
   const tools: ChatCompletionTool[] = localTools.map(({ execute: _execute, ...tool }) => ({
     type: "function",
     function: tool.function,

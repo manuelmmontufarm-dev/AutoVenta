@@ -4,7 +4,9 @@
  */
 import { config } from "./config.js";
 import { createServer } from "./server/webhook.js";
-import { wa, sendText, showTyping } from "./wa/client.js";
+import { initWa, sendText, showTyping } from "./wa/client.js";
+import { getPublicChannelConfig } from "./services/channel.js";
+import { getPhaseFlags, activeLevel } from "./services/phases.js";
 import { InboundPipeline } from "./pipeline/inbound.js";
 import { runAgent } from "./agent/agent.js";
 import { classifyStage } from "./agent/classifier.js";
@@ -59,17 +61,45 @@ const pipeline = new InboundPipeline(async ({ from, name, text, waMessageIds }) 
     text,
   );
 
-  const sentId = await sendText(from, reply);
-  await appendMessage(conversation.id, "assistant", reply, sentId, {
-    authorKind: "bot",
-    status: "sent",
-  });
+  // Envío con red de seguridad: si Meta rechaza, la respuesta queda guardada
+  // como "failed" y visible en el hub — nunca se pierde en silencio.
+  try {
+    const sentId = await sendText(from, reply);
+    await appendMessage(conversation.id, "assistant", reply, sentId, {
+      authorKind: "bot",
+      status: "sent",
+    });
+  } catch (sendError) {
+    await appendMessage(conversation.id, "assistant", reply, undefined, {
+      authorKind: "bot",
+      status: "failed",
+    });
+    console.error(`❌ No se pudo enviar la respuesta a ${from}:`, sendError);
+  }
   emitLiveEvent("message", conversation.id);
   emitLiveEvent("sync", conversation.id);
 
   // Post-turno, sin bloquear: clasifica etapa para el dashboard.
   void classifyStage(conversation, text, reply);
 });
+
+// Aplica el esquema al arrancar (idempotente) → deploy sin paso manual de migración.
+await ensureSchema();
+await getHubMetrics(7);
+console.log("✅ Esquema de base de datos listo");
+
+// El canal de WhatsApp se resuelve desde DB (settings) con respaldo del entorno;
+// por eso initWa() va DESPUÉS del esquema. Los handlers se enganchan a la
+// instancia ya lista.
+const wa = await initWa();
+const channel = await getPublicChannelConfig();
+const phases = await getPhaseFlags();
+console.log(
+  channel.ready
+    ? `✅ Canal de WhatsApp listo (token: ${channel.tokenSource})`
+    : "⚠️  Canal de WhatsApp sin configurar — define las WHATSAPP_* del entorno antes de recibir mensajes.",
+);
+console.log(`✅ Fase activa: ${activeLevel(phases)} (fase2=${phases.fase2}, fase3=${phases.fase3})`);
 
 wa.on.message = async ({ from, name, message, received }) => {
   // Solo marca como leído. El "escribiendo…" se muestra en el pipeline cuando
@@ -120,11 +150,6 @@ wa.on.status = async ({ status, id, error, conversation, pricing }) => {
   emitLiveEvent("status", conversationId ?? undefined);
   if (conversationId) emitLiveEvent("message", conversationId);
 };
-
-// Aplica el esquema al arrancar (idempotente) → deploy sin paso manual de migración.
-await ensureSchema();
-await getHubMetrics(7);
-console.log("✅ Esquema de base de datos listo");
 
 startCatalogSync();
 

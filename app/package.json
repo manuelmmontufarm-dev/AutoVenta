@@ -13,7 +13,8 @@
     "build": "tsc",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "db:migrate": "tsx src/db/migrate.ts"
+    "db:migrate": "tsx src/db/migrate.ts",
+    "seed:depot": "tsx src/db/seed-depot.ts"
   },
   "dependencies": {
     "@resvg/resvg-js": "^2.6.2",

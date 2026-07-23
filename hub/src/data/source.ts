@@ -1,4 +1,4 @@
-import type { Atiende, Cierre, Etapa, FeedItem, HubMetrics, Mensaje, Rol, Ticket } from "./types";
+import type { Atiende, Cierre, Etapa, FeedItem, HubMetrics, Mensaje, PhaseFlags, Rol, Ticket } from "./types";
 
 /**
  * El contrato entre la UI y los datos. Parte 1: MockSource (fixtures + simulador).
@@ -24,5 +24,7 @@ export interface DataSource {
   enviarMensaje(ticketId: number, texto: string): Promise<void>; // como vendedor
   agregarNota(ticketId: number, texto: string): Promise<void>;
   marcarLeido(ticketId: number): Promise<void>;
+  /** Fases activas del producto (para decidir qué pantallas muestra el hub). */
+  getPhases(): Promise<PhaseFlags>;
   subscribe(listener: (ev: SourceEvent) => void): () => void;
 }

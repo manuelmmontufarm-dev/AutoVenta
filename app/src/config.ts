@@ -105,13 +105,17 @@ export const business: BusinessConfig = {
 export const config = {
   port: Number(envOr("PORT", "3000")),
 
+  // Credenciales de WhatsApp opcionales en el entorno: el dueño puede pegarlas
+  // desde el panel (Ajustes → Canal), que se guarda en DB y gana sobre el
+  // entorno (ver services/channel.ts). El bot arranca sin ellas y levanta el
+  // webhook; solo no responde por WhatsApp hasta que el canal esté configurado.
   whatsapp: {
-    token: env("WHATSAPP_TOKEN"),
-    appSecret: env("WHATSAPP_APP_SECRET"),
-    verifyToken: env("WHATSAPP_VERIFY_TOKEN"),
-    phoneId: env("WHATSAPP_PHONE_ID"),
+    token: envOr("WHATSAPP_TOKEN", ""),
+    appSecret: envOr("WHATSAPP_APP_SECRET", ""),
+    verifyToken: envOr("WHATSAPP_VERIFY_TOKEN", ""),
+    phoneId: envOr("WHATSAPP_PHONE_ID", ""),
     /** Número del vendedor que recibe las alertas (formato internacional sin +). */
-    sellerPhone: env("SELLER_PHONE"),
+    sellerPhone: envOr("SELLER_PHONE", ""),
   },
 
   openai: {

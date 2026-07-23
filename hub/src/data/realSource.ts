@@ -6,6 +6,7 @@ import type {
   FeedItem,
   HubMetrics,
   Mensaje,
+  PhaseFlags,
   Ticket,
 } from "./types";
 
@@ -98,6 +99,10 @@ export class RealSource implements DataSource {
       method: "POST",
       body: "{}",
     });
+  }
+
+  async getPhases(): Promise<PhaseFlags> {
+    return (await this.request<{ phases: PhaseFlags }>("/api/phases")).phases;
   }
 
   subscribe(listener: (event: SourceEvent) => void): () => void {

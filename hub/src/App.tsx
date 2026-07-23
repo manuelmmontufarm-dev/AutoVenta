@@ -13,12 +13,22 @@ import { TicketDetail } from "./screens/TicketDetail";
 import { Settings } from "./screens/Settings";
 import { useHub } from "./store";
 
+import type { PhaseFlags } from "./data/types";
+
+// requiereFase3: pantallas avanzadas que solo aparecen al encender la Fase 3.
+// Inbox y Pipeline son el núcleo (Fase 1) y siempre están.
 const NAV = [
-  { id: "inbox", label: "Inbox", icon: IconInbox },
-  { id: "pipeline", label: "Pipeline", icon: IconKanban },
-  { id: "cotizador", label: "Cotizador", icon: IconTire },
-  { id: "dashboard", label: "Métricas", icon: IconChart },
+  { id: "inbox", label: "Inbox", icon: IconInbox, requiereFase3: false },
+  { id: "pipeline", label: "Pipeline", icon: IconKanban, requiereFase3: false },
+  { id: "cotizador", label: "Cotizador", icon: IconTire, requiereFase3: true },
+  { id: "dashboard", label: "Métricas", icon: IconChart, requiereFase3: true },
 ] as const;
+
+/** ¿La pantalla está permitida con las fases activas? */
+function pantallaPermitida(vista: string, phases: PhaseFlags): boolean {
+  if (vista === "cotizador" || vista === "dashboard") return phases.fase3;
+  return true;
+}
 
 const TITULOS: Record<string, { titulo: string; sub: string }> = {
   inbox: { titulo: "Inbox", sub: "cada cliente es un ticket" },
@@ -35,8 +45,15 @@ function navActivo(route: Route): string {
 
 export default function App() {
   const route = useRoute();
-  const { init, cargando, tickets, demo, dataMode, toggleDemo } = useHub();
+  const { init, cargando, tickets, demo, dataMode, toggleDemo, phases } = useHub();
   const [audioOn, setAudioOn] = useState(sonidoActivo);
+
+  const navVisible = NAV.filter((item) => !item.requiereFase3 || phases.fase3);
+
+  // Si la fase que habilitaba esta pantalla se apaga, se vuelve al Inbox.
+  useEffect(() => {
+    if (!pantallaPermitida(route.vista, phases)) navigate("inbox");
+  }, [route.vista, phases]);
 
   useEffect(() => {
     void init();
@@ -70,7 +87,7 @@ export default function App() {
             DT
           </button>
           <LayoutGroup id="rail">
-            {NAV.map((item) => {
+            {navVisible.map((item) => {
               const activo = navActivo(route) === item.id;
               return (
                 <button
@@ -179,8 +196,8 @@ export default function App() {
               >
                 {route.vista === "inbox" && <Inbox />}
                 {route.vista === "pipeline" && <Pipeline />}
-                {route.vista === "dashboard" && <Dashboard />}
-                {route.vista === "cotizador" && <Cotizador />}
+                {route.vista === "dashboard" && phases.fase3 && <Dashboard />}
+                {route.vista === "cotizador" && phases.fase3 && <Cotizador />}
                 {route.vista === "settings" && <Settings />}
                 {route.vista === "ticket" && !cargando && <TicketDetail id={route.id} />}
               </motion.div>
@@ -190,7 +207,7 @@ export default function App() {
 
         {/* ── Tab bar (móvil) ── */}
         <nav className="glass-strong fixed inset-x-3 bottom-3 z-20 flex items-center justify-around rounded-3xl py-2 md:hidden">
-          {NAV.map((item) => {
+          {navVisible.map((item) => {
             const activo = navActivo(route) === item.id;
             return (
               <button

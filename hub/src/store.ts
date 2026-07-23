@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import type { Atiende, Cierre, Etapa, FeedItem, HubMetrics, Mensaje, Rol, Ticket } from "./data/types";
+import type { Atiende, Cierre, Etapa, FeedItem, HubMetrics, Mensaje, PhaseFlags, Rol, Ticket } from "./data/types";
 import { MockSource } from "./data/mock/mockSource";
 import { Simulator } from "./data/mock/simulator";
 import { RealSource } from "./data/realSource";
@@ -33,6 +33,8 @@ interface HubState {
   demo: boolean;
   dataMode: "demo" | "real";
   celebrando: boolean;
+  /** Fases activas: deciden qué pantallas del hub se muestran. */
+  phases: PhaseFlags;
 
   init(): Promise<void>;
   abrirTicket(id: number): Promise<void>;
@@ -51,12 +53,13 @@ let iniciado = false;
 
 export const useHub = create<HubState>((set, get) => {
   async function refrescar(): Promise<void> {
-    const [tickets, feed, metrics] = await Promise.all([
+    const [tickets, feed, metrics, phases] = await Promise.all([
       source.listTickets(),
       source.getFeed(),
       source.getMetrics(),
+      source.getPhases(),
     ]);
-    set({ tickets, feed, metrics });
+    set({ tickets, feed, metrics, phases });
     updateFavicon(tickets.filter((t) => t.estado === "abierto").length);
   }
 
@@ -109,6 +112,8 @@ export const useHub = create<HubState>((set, get) => {
     demo: false,
     dataMode,
     celebrando: false,
+    // Conservador hasta cargar: no revela pantallas que deban estar ocultas.
+    phases: { fase2: false, fase3: false },
 
     async init() {
       if (iniciado) return;
@@ -116,10 +121,21 @@ export const useHub = create<HubState>((set, get) => {
       try {
         // Mínimo de skeleton para que la carga se sienta intencional, no rota.
         const [datos] = await Promise.all([
-          Promise.all([source.listTickets(), source.getFeed(), source.getMetrics()]),
+          Promise.all([
+            source.listTickets(),
+            source.getFeed(),
+            source.getMetrics(),
+            source.getPhases(),
+          ]),
           new Promise((r) => setTimeout(r, 650)),
         ]);
-        set({ tickets: datos[0], feed: datos[1], metrics: datos[2], cargando: false });
+        set({
+          tickets: datos[0],
+          feed: datos[1],
+          metrics: datos[2],
+          phases: datos[3],
+          cargando: false,
+        });
         updateFavicon(datos[0].filter((t) => t.estado === "abierto").length);
       } catch (error) {
         set((state) => ({

@@ -9,6 +9,7 @@ import {
   type HubMetrics,
   type LocalAsignado,
   type Mensaje,
+  type PhaseFlags,
   type Rol,
   type Ticket,
   type TipoMensaje,
@@ -40,6 +41,11 @@ export class MockSource implements DataSource {
   }
 
   /* ── DataSource ── */
+
+  async getPhases(): Promise<PhaseFlags> {
+    // El demo muestra todas las capacidades.
+    return { fase2: true, fase3: true };
+  }
 
   async listTickets(): Promise<Ticket[]> {
     return [...this.tickets.values()].sort(
