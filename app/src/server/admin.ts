@@ -56,6 +56,7 @@ import {
   getPublicChannelConfig,
   saveChannelConfig,
 } from "../services/channel.js";
+import { reloadWa } from "../wa/client.js";
 
 const GRAPH = "https://graph.facebook.com/v21.0";
 const ADMIN_KEY = process.env.ADMIN_KEY ?? "";
@@ -233,7 +234,9 @@ export function createAdminRouter(): express.Router {
   router.put("/channel", async (req, res) => {
     try {
       await saveChannelConfig(req.body);
-      res.json({ ok: true, channel: await getPublicChannelConfig() });
+      // Reactiva el webhook en caliente con el token recién guardado.
+      const activo = await reloadWa();
+      res.json({ ok: true, activo, channel: await getPublicChannelConfig() });
     } catch (error) {
       res.status(400).json({
         ok: false,

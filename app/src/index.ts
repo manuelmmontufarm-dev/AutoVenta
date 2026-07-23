@@ -4,7 +4,7 @@
  */
 import { config } from "./config.js";
 import { createServer } from "./server/webhook.js";
-import { initWa, sendText, showTyping } from "./wa/client.js";
+import { initWa, setWaHandlers, sendText, showTyping } from "./wa/client.js";
 import { getPublicChannelConfig } from "./services/channel.js";
 import { getPhaseFlags, activeLevel } from "./services/phases.js";
 import { InboundPipeline } from "./pipeline/inbound.js";
@@ -83,73 +83,76 @@ const pipeline = new InboundPipeline(async ({ from, name, text, waMessageIds }) 
   void classifyStage(conversation, text, reply);
 });
 
+// Handlers del webhook: se registran una vez y se re-aplican solos cada vez que
+// la instancia de WhatsApp se reconstruye (token pegado desde el panel).
+setWaHandlers({
+  message: async ({ from, name, message, received }) => {
+    // Solo marca como leído. El "escribiendo…" se muestra en el pipeline cuando
+    // el bot de verdad va a responder (pausado = ni typing ni respuesta).
+    void received().catch(() => {});
+
+    switch (message.type) {
+      case "text":
+        pipeline.push(from, message.id, message.text.body, name);
+        break;
+      case "location":
+        pipeline.push(
+          from,
+          message.id,
+          `[El cliente compartió su ubicación: lat ${message.location.latitude}, lng ${message.location.longitude}]`,
+          name,
+        );
+        break;
+      case "image":
+        // Fase 2: bajar la imagen y pasarla a la visión del modelo (leer medida de la foto)
+        pipeline.push(
+          from,
+          message.id,
+          "[El cliente envió una foto que todavía no puedes ver]",
+          name,
+        );
+        break;
+      case "audio":
+        pipeline.push(
+          from,
+          message.id,
+          "[El cliente envió un audio que todavía no puedes escuchar]",
+          name,
+        );
+        break;
+      default:
+        // stickers, reacciones, etc. — se ignoran
+        break;
+    }
+  },
+  status: async ({ status, id, error, conversation, pricing }) => {
+    const conversationId = await recordMessageStatus(id, status, {
+      error: error ?? null,
+      conversation: conversation ?? null,
+      pricing: pricing ?? null,
+    });
+    emitLiveEvent("status", conversationId ?? undefined);
+    if (conversationId) emitLiveEvent("message", conversationId);
+  },
+});
+
 // Aplica el esquema al arrancar (idempotente) → deploy sin paso manual de migración.
 await ensureSchema();
 await getHubMetrics(7);
 console.log("✅ Esquema de base de datos listo");
 
-// El canal de WhatsApp se resuelve desde DB (settings) con respaldo del entorno;
-// por eso initWa() va DESPUÉS del esquema. Los handlers se enganchan a la
-// instancia ya lista.
+// El canal se resuelve desde DB (settings) con respaldo del entorno. Sin
+// credenciales completas, el webhook queda inactivo y se activa en caliente al
+// guardar el canal desde el panel (PUT /api/channel → reloadWa).
 const wa = await initWa();
 const channel = await getPublicChannelConfig();
 const phases = await getPhaseFlags();
 console.log(
-  channel.ready
+  wa
     ? `✅ Canal de WhatsApp listo (token: ${channel.tokenSource})`
-    : "⚠️  Canal de WhatsApp sin configurar — define las WHATSAPP_* del entorno antes de recibir mensajes.",
+    : "⚠️  Canal de WhatsApp sin configurar — el webhook está inactivo hasta llenarlo desde el panel.",
 );
 console.log(`✅ Fase activa: ${activeLevel(phases)} (fase2=${phases.fase2}, fase3=${phases.fase3})`);
-
-wa.on.message = async ({ from, name, message, received }) => {
-  // Solo marca como leído. El "escribiendo…" se muestra en el pipeline cuando
-  // el bot de verdad va a responder (pausado = ni typing ni respuesta).
-  void received().catch(() => {});
-
-  switch (message.type) {
-    case "text":
-      pipeline.push(from, message.id, message.text.body, name);
-      break;
-    case "location":
-      pipeline.push(
-        from,
-        message.id,
-        `[El cliente compartió su ubicación: lat ${message.location.latitude}, lng ${message.location.longitude}]`,
-        name,
-      );
-      break;
-    case "image":
-      // Fase 2: bajar la imagen y pasarla a la visión del modelo (leer medida de la foto)
-      pipeline.push(
-        from,
-        message.id,
-        "[El cliente envió una foto que todavía no puedes ver]",
-        name,
-      );
-      break;
-    case "audio":
-      pipeline.push(
-        from,
-        message.id,
-        "[El cliente envió un audio que todavía no puedes escuchar]",
-        name,
-      );
-      break;
-    default:
-      // stickers, reacciones, etc. — se ignoran
-      break;
-  }
-};
-
-wa.on.status = async ({ status, id, error, conversation, pricing }) => {
-  const conversationId = await recordMessageStatus(id, status, {
-    error: error ?? null,
-    conversation: conversation ?? null,
-    pricing: pricing ?? null,
-  });
-  emitLiveEvent("status", conversationId ?? undefined);
-  if (conversationId) emitLiveEvent("message", conversationId);
-};
 
 startCatalogSync();
 

@@ -64,6 +64,25 @@ Ya viene activado en este equipo.
 
 ## Entradas (más reciente primero)
 
+### 2026-07-23 · Canal editable desde el panel + webhook en caliente · ⏱️ 1.0 h
+
+**Qué:** El canal de WhatsApp de cada cliente se llena desde el **panel central**
+(`/panel` → tarjeta → Canal de WhatsApp), no desde variables de Railway.
+- `wa/client.ts`: `initWa()` ahora devuelve null si faltan credenciales (el bot
+  arranca igual, webhook inactivo); `setWaHandlers()` registra los handlers una
+  vez y se re-aplican al reconstruir; `reloadWa()` reconstruye el webhook tras
+  guardar el canal → el token nuevo entra **en caliente, sin redeploy**.
+- `PUT /api/channel` llama `reloadWa()` y devuelve `activo`. `webhook.ts` responde
+  200 (no reintento) / 503 si el canal aún no está.
+- Panel: editor de canal por cliente (token/phoneId/appSecret/verify/vendedor),
+  guarda parcial (blanco = mantener), secretos nunca se muestran.
+
+**Por qué:** Depot manda sus datos de WhatsApp Business después; el env de su
+deploy queda en blanco y Manuel llena el canal desde el panel cuando lleguen,
+sin tocar Railway ni redeployar.
+
+---
+
 ### 2026-07-23 · Fases por cliente + panel central de admin + canal en runtime · ⏱️ 4.0 h
 
 **Qué:** Sistema de entrega por fases sobre una sola base de código.

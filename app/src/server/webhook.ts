@@ -19,12 +19,23 @@ export function createServer(): express.Express {
 
   // handle_post necesita el body como string crudo (valida la firma sobre los bytes)
   app.post("/webhook", express.text({ type: "*/*" }), async (req, res) => {
-    res.sendStatus(await getWa().handle_post(req));
+    const wa = getWa();
+    // Canal aún sin configurar: 200 para que Meta no reintente en bucle.
+    if (!wa) {
+      res.sendStatus(200);
+      return;
+    }
+    res.sendStatus(await wa.handle_post(req));
   });
 
   app.get("/webhook", (req, res) => {
+    const wa = getWa();
+    if (!wa) {
+      res.sendStatus(503);
+      return;
+    }
     try {
-      res.send(getWa().handle_get(req));
+      res.send(wa.handle_get(req));
     } catch (code) {
       res.sendStatus(code as number);
     }

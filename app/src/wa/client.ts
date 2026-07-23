@@ -16,23 +16,56 @@ import { getChannelConfig, type ChannelConfig } from "../services/channel.js";
 const GRAPH = "https://graph.facebook.com/v21.0";
 
 let waInstance: WhatsAppAPI | null = null;
+let messageHandler: WhatsAppAPI["on"]["message"];
+let statusHandler: WhatsAppAPI["on"]["status"];
 
-/** Construye la instancia del webhook desde el canal efectivo. Llamar al arrancar. */
-export async function initWa(): Promise<WhatsAppAPI> {
+/**
+ * Registra los handlers del webhook UNA vez (index.ts). Se re-aplican solos
+ * cada vez que la instancia se reconstruye (p. ej. token pegado desde el panel).
+ */
+export function setWaHandlers(handlers: {
+  message?: WhatsAppAPI["on"]["message"];
+  status?: WhatsAppAPI["on"]["status"];
+}): void {
+  messageHandler = handlers.message;
+  statusHandler = handlers.status;
+  if (waInstance) {
+    waInstance.on.message = messageHandler;
+    waInstance.on.status = statusHandler;
+  }
+}
+
+/**
+ * (Re)construye la instancia del webhook desde el canal efectivo (DB > entorno).
+ * Sin credenciales completas devuelve null: el bot arranca igual y el webhook
+ * queda inactivo hasta que se guarde el canal desde el panel (reloadWa).
+ */
+export async function initWa(): Promise<WhatsAppAPI | null> {
   const ch = await getChannelConfig();
+  if (!ch.token || !ch.appSecret || !ch.verifyToken) {
+    waInstance = null;
+    return null;
+  }
   waInstance = new WhatsAppAPI({
     token: ch.token,
     appSecret: ch.appSecret,
     webhookVerifyToken: ch.verifyToken,
   });
+  waInstance.on.message = messageHandler;
+  waInstance.on.status = statusHandler;
   return waInstance;
 }
 
-/** Instancia del webhook ya inicializada (para handle_post / handle_get / .on). */
-export function getWa(): WhatsAppAPI {
-  if (!waInstance) {
-    throw new Error("WhatsApp no inicializado: llama a initWa() antes de servir el webhook.");
-  }
+/**
+ * Reconstruye el webhook tras guardar el canal (PUT /api/channel): el token
+ * nuevo entra en caliente, sin redeploy. Devuelve si quedó activo.
+ */
+export async function reloadWa(): Promise<boolean> {
+  return (await initWa()) !== null;
+}
+
+/** Instancia actual del webhook, o null si el canal aún no está configurado. */
+export function getWa(): WhatsAppAPI | null {
   return waInstance;
 }
 

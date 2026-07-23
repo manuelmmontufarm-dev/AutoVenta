@@ -54,21 +54,26 @@ operación del cliente. Es tu herramienta interna.
    - `ADMIN_KEY=` clave del cliente, **distinta** de staging.
    - `NODE_ENV=production` → fuerza el fail-closed del panel (sin clave, bloqueado).
    - `OPENAI_API_KEY`, `CONTIFICO_API_KEY`, etc. (las del negocio).
-   - `WHATSAPP_TOKEN`, `WHATSAPP_APP_SECRET`, `WHATSAPP_VERIFY_TOKEN`,
-     `WHATSAPP_PHONE_ID`, `SELLER_PHONE` → los del **WhatsApp Business** de Depot.
+   - `WHATSAPP_*` y `SELLER_PHONE` → **déjalas en blanco**. Se llenan desde el
+     panel (`/panel` → tarjeta de Depot → Canal de WhatsApp) cuando el cliente
+     te mande sus datos; el webhook se activa en caliente, sin redeploy.
    - **Sin** `PHASES_DEFAULT` → arranca en Fase 1.
-4. Deploy. El bot crea el esquema solo al arrancar. Opcional, para dejar el
-   estado explícito y verificar que no hay datos: `npm run seed:depot`
-   (reutilizas una base con tráfico previo y quieres vaciarla: `SEED_WIPE=true npm run seed:depot`).
-5. Registra `https://<depot>.up.railway.app/webhook` en Meta con el verify token.
+4. Deploy. El bot arranca sin WhatsApp y crea el esquema solo; el webhook queda
+   inactivo hasta que llenes el canal. Opcional, para verificar que no hay datos:
+   `npm run seed:depot` (base con tráfico previo a vaciar: `SEED_WIPE=true npm run seed:depot`).
+5. Cuando el canal esté puesto, registra `https://<depot>.up.railway.app/webhook`
+   en Meta con el mismo verify token que pusiste en el panel.
 
 ## Entregar hoy (Fase 1 y 2)
 
-1. Verifica WhatsApp: el bot responde a un mensaje de prueba al número de Depot.
-2. En **`/panel`** agrega a Depot (URL + su ADMIN_KEY) y enciende **Fase 2** si
-   ya entregas OCR/fitment. Deja **Fase 3 apagada** → Cotizador y Métricas no
-   aparecen para el cliente.
-3. Listo: el cliente ve solo lo prometido; el bot responde por su WhatsApp.
+1. En **`/panel`** agrega a Depot (nombre + URL + su ADMIN_KEY).
+2. En su tarjeta → **Canal de WhatsApp**: pega el token, Phone ID, App Secret,
+   verify token y teléfono del vendedor. Guarda → el webhook se activa (badge
+   "WhatsApp listo"). Registra el webhook en Meta.
+3. Verifica: el bot responde a un mensaje de prueba al número de Depot.
+4. Enciende **Fase 2** si ya entregas OCR/fitment. Deja **Fase 3 apagada** →
+   Cotizador y Métricas no aparecen para el cliente.
+5. Listo: el cliente ve solo lo prometido; el bot responde por su WhatsApp.
 
 ## Seguir mejorando staging y actualizar Depot (promoción MANUAL)
 
