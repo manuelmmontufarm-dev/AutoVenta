@@ -64,6 +64,20 @@ Ya viene activado en este equipo.
 
 ## Entradas (más reciente primero)
 
+### 2026-07-23 · Panel: clientes precargados, solo pide admin key · ⏱️ 0.5 h
+
+**Qué:** El panel `/panel` ya trae a **Depot Tire precargado** (nombre + URL en
+`KNOWN_CLIENTS` del código); el usuario solo pega el **admin key** y conecta.
+Antes había que escribir nombre + URL + clave cada vez. Storage nuevo
+(`autoventa_admin_v2`): las URLs conocidas vienen del código, las claves viven
+solo en el navegador. Botón "+ Agregar otro cliente" para clientes futuros.
+
+**Por qué:** fricción tonta — Manuel solo necesita pegar la clave, no reescribir
+datos que ya sabemos. Verificado en navegador (tarjeta Depot con "falta admin
+key" + input de clave + Conectar).
+
+---
+
 ### 2026-07-23 · Canal editable desde el panel + webhook en caliente · ⏱️ 1.0 h
 
 **Qué:** El canal de WhatsApp de cada cliente se llena desde el **panel central**

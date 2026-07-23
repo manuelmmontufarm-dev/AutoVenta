@@ -16,7 +16,7 @@
     body{margin:0;font-family:Archivo,system-ui,sans-serif;background:
       linear-gradient(180deg,#fff, #f2f3f8);color:var(--tinta);min-height:100vh}
     .stripe{height:8px;background:repeating-linear-gradient(90deg,var(--azul) 0 18px,#fff 18px 36px)}
-    .wrap{max-width:1000px;margin:0 auto;padding:22px 20px 60px}
+    .wrap{max-width:960px;margin:0 auto;padding:22px 20px 60px}
     header.top{display:flex;align-items:center;gap:14px;margin:8px 0 22px}
     .logo{width:46px;height:46px;border-radius:13px;background:var(--rojo);color:#fff;
       display:grid;place-items:center;font-family:'Archivo Black';font-size:15px;box-shadow:0 6px 20px rgba(214,40,40,.28)}
@@ -25,8 +25,6 @@
     .kicker{font-size:11px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:var(--rojo)}
     .card{background:#fff;border:1px solid var(--linea);border-radius:20px;padding:20px;
       box-shadow:0 10px 30px rgba(20,33,61,.05);margin-bottom:16px}
-    .add{display:grid;grid-template-columns:1fr 1.4fr 1fr auto;gap:10px;align-items:end}
-    @media(max-width:760px){.add{grid-template-columns:1fr}}
     label{font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);display:block;margin-bottom:5px}
     input{width:100%;padding:10px 12px;border:1px solid var(--linea);border-radius:12px;font:inherit;font-size:14px;background:var(--papel)}
     input:focus{outline:2px solid color-mix(in srgb,var(--rojo) 40%,transparent);border-color:var(--rojo)}
@@ -34,6 +32,7 @@
     .btn-primary{background:var(--azul);color:#fff}
     .btn-ghost{background:var(--papel);color:var(--azul);border:1px solid var(--linea)}
     .btn-danger{background:#fdecec;color:var(--rojo)}
+    .btn-link{background:none;border:none;color:var(--rojo);padding:6px 0;font-size:13px}
     .client{display:flex;flex-direction:column;gap:14px}
     .chead{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap}
     .cname{font-family:'Archivo Black';font-size:17px;margin:0}
@@ -44,11 +43,14 @@
     .b-warn{background:#fff4e0;color:var(--amber)}
     .b-off{background:#f0f0f4;color:var(--muted)}
     .b-err{background:#fdecec;color:var(--rojo)}
+    .row-actions{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}
+    .keyrow{display:flex;gap:8px;align-items:stretch}
+    .keyrow input{flex:1}
+    .keyrow button{white-space:nowrap}
     .phases{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
     @media(max-width:620px){.phases{grid-template-columns:1fr}}
     .phase{border:1px solid var(--linea);border-radius:14px;padding:14px;background:var(--papel)}
     .phase.on{border-color:color-mix(in srgb,var(--ok) 45%,transparent);background:#f2fbf5}
-    .phase.locked{opacity:.9}
     .ptitle{font-weight:800;font-size:13px;display:flex;align-items:center;justify-content:space-between;gap:8px}
     .pdesc{font-size:12px;color:var(--muted);margin-top:6px;line-height:1.4}
     .toggle{position:relative;width:44px;height:24px;border-radius:999px;background:#cfd0da;transition:.15s;flex:none}
@@ -56,7 +58,6 @@
     .toggle::after{content:"";position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:#fff;transition:.15s}
     .toggle.on::after{left:23px}
     .toggle.lock{background:var(--azul)}
-    .row-actions{display:flex;gap:8px;justify-content:flex-end}
     .channel{border:1px solid var(--linea);border-radius:14px;background:var(--papel);overflow:hidden}
     .chhead{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:12px 14px;cursor:pointer;user-select:none}
     .chhead b{font-size:13px}
@@ -67,8 +68,7 @@
     .chbody label{margin-bottom:4px}
     .caret{transition:.15s;color:var(--muted)}
     .caret.open{transform:rotate(90deg)}
-    .empty{color:var(--muted);font-size:14px;text-align:center;padding:30px 10px}
-    .note{font-size:12px;color:var(--muted);margin-top:10px;line-height:1.5}
+    .note{font-size:12px;color:var(--muted);margin:0;line-height:1.5}
     .foot{font-size:12px;color:var(--muted);border-top:1px solid var(--linea);padding-top:14px;margin-top:8px}
     a{color:var(--rojo)}
   </style>
@@ -81,22 +81,23 @@
       <div>
         <p class="kicker">Control interno · no operativo</p>
         <h1>Panel de administración</h1>
-        <p class="sub">Enciende las fases de cada cliente. El backend siempre trae todo; esto decide qué ven.</p>
+        <p class="sub">Enciende las fases de cada cliente. Solo tienes que pegar su admin key.</p>
       </div>
     </header>
 
-    <div class="card">
-      <p class="kicker" style="margin-bottom:12px">Agregar / actualizar cliente</p>
-      <div class="add">
-        <div><label>Nombre</label><input id="f-name" placeholder="Depot Tire" /></div>
-        <div><label>URL base</label><input id="f-url" placeholder="https://depot-tire-production.up.railway.app" /></div>
-        <div><label>Admin key del cliente</label><input id="f-key" type="password" placeholder="clave de ese entorno" /></div>
-        <div><button class="btn-primary" id="f-save">Guardar</button></div>
-      </div>
-      <p class="note">Las claves se guardan solo en <b>este navegador</b> (localStorage), nunca en el servidor ni en el repo. Guardar con el mismo nombre actualiza la entrada.</p>
-    </div>
-
     <div id="list"></div>
+
+    <div style="text-align:center;margin-top:4px">
+      <button class="btn-link" id="add-toggle">+ Agregar otro cliente</button>
+    </div>
+    <div class="card" id="add-card" style="display:none">
+      <p class="kicker" style="margin-bottom:12px">Nuevo cliente</p>
+      <div style="display:grid;grid-template-columns:1fr 1.4fr auto;gap:10px;align-items:end">
+        <div><label>Nombre</label><input id="f-name" placeholder="Otra Llantera" /></div>
+        <div><label>URL base</label><input id="f-url" placeholder="https://…up.railway.app" /></div>
+        <div><button class="btn-primary" id="f-save">Agregar</button></div>
+      </div>
+    </div>
 
     <div class="foot">
       Fase 1 (buscar por medida + cotización) es el núcleo y siempre está activa.
@@ -105,16 +106,28 @@
   </div>
 
   <script>
-    const STORE = "autoventa_admin_clients";
+    // Clientes que ya vienen en el panel: solo hay que pegarles el admin key.
+    const KNOWN_CLIENTS = [
+      { name: "Depot Tire", baseUrl: "https://autoventa-depottire.up.railway.app" },
+    ];
+    const STORE = "autoventa_admin_v2";
     const $ = (id) => document.getElementById(id);
+    const esc = (s) => String(s == null ? "" : s).replace(/[&<>"]/g, (c) => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;" }[c]));
 
-    function load() {
-      try { return JSON.parse(localStorage.getItem(STORE) || "[]"); }
-      catch { return []; }
+    function state() {
+      try { return Object.assign({ keys: {}, custom: [] }, JSON.parse(localStorage.getItem(STORE) || "{}")); }
+      catch { return { keys: {}, custom: [] }; }
     }
-    function save(list) { localStorage.setItem(STORE, JSON.stringify(list)); }
-
+    function saveState(s) { localStorage.setItem(STORE, JSON.stringify(s)); }
     function normUrl(u) { return (u || "").trim().replace(/\/+$/, ""); }
+
+    // Lista efectiva: conocidos (URL del código) + custom (del navegador), con su key.
+    function clients() {
+      const s = state();
+      const list = KNOWN_CLIENTS.map((c) => ({ ...c, custom: false }))
+        .concat((s.custom || []).map((c) => ({ ...c, custom: true })));
+      return list.map((c) => ({ ...c, adminKey: s.keys[c.name] || "" }));
+    }
 
     async function api(client, path, init) {
       const res = await fetch(normUrl(client.baseUrl) + path, {
@@ -126,188 +139,198 @@
       return data;
     }
 
-    function badge(cls, text) { return `<span class="badge ${cls}">${text}</span>`; }
+    const badge = (cls, text) => `<span class="badge ${cls}">${text}</span>`;
 
     function phaseCard(kind, label, desc, on, locked, idx) {
-      return `<div class="phase ${on ? "on" : ""} ${locked ? "locked" : ""}">
+      return `<div class="phase ${on ? "on" : ""}">
         <div class="ptitle"><span>${label}</span>
-          <span class="toggle ${on ? "on" : ""} ${locked ? "lock" : ""}"
-                ${locked ? "" : `data-toggle="${kind}" data-idx="${idx}"`}></span>
+          <span class="toggle ${on ? "on" : ""} ${locked ? "lock" : ""}" ${locked ? "" : `data-toggle="${kind}" data-idx="${idx}"`}></span>
         </div>
         <div class="pdesc">${desc}</div>
       </div>`;
     }
 
+    function controls(idx) {
+      return `
+        <div class="phases" id="phases-${idx}">
+          ${phaseCard("fase1", "Fase 1 · núcleo", "Buscar por medida y enviar cotización. Siempre activa.", true, true, idx)}
+          ${phaseCard("fase2", "Fase 2", "Sin datos: fitment vehículo→medida y OCR de fotos.", false, false, idx)}
+          ${phaseCard("fase3", "Fase 3", "Comparativas visuales + Cotizador y Métricas en el hub.", false, false, idx)}
+        </div>
+        <div class="channel">
+          <div class="chhead" data-chtoggle="${idx}"><b>📲 Canal de WhatsApp</b><span class="caret" id="caret-${idx}">▸</span></div>
+          <div class="chbody" id="channel-${idx}">
+            <div><label>Token permanente</label><input type="password" data-ch="token" data-idx="${idx}" placeholder="pegar cuando lo manden" /></div>
+            <div><label>Phone Number ID</label><input data-ch="phoneId" data-idx="${idx}" /></div>
+            <div><label>App Secret</label><input type="password" data-ch="appSecret" data-idx="${idx}" placeholder="pegar cuando lo manden" /></div>
+            <div><label>Verify token</label><input data-ch="verifyToken" data-idx="${idx}" /></div>
+            <div><label>Teléfono del vendedor</label><input data-ch="sellerPhone" data-idx="${idx}" placeholder="5939XXXXXXXX" /></div>
+            <div class="full" style="display:flex;align-items:end"><button class="btn-primary" data-savech="${idx}" style="width:100%">Guardar canal</button></div>
+            <p class="full note" style="margin-top:2px">Deja en blanco lo que no cambies. Token y App Secret nunca se muestran. Al guardar, el webhook se reactiva en caliente.</p>
+          </div>
+        </div>`;
+    }
+
+    function keyPrompt(idx, name) {
+      return `
+        <div class="keyrow">
+          <input type="password" data-keyinput="${idx}" placeholder="Pega la ADMIN_KEY de ${esc(name)}" />
+          <button class="btn-primary" data-savekey="${idx}">Conectar</button>
+        </div>
+        <p class="note">La clave se guarda solo en <b>este navegador</b> (localStorage), nunca en el servidor ni en el repo.</p>`;
+    }
+
     function render() {
-      const list = load();
-      const el = $("list");
-      if (!list.length) {
-        el.innerHTML = `<div class="card empty">Sin clientes todavía. Agrega uno arriba —
-          por ejemplo <b>Staging</b> apuntando a <code>${location.origin}</code> con su admin key,
-          o <b>Depot Tire</b> cuando su deploy exista.</div>`;
-        return;
-      }
-      el.innerHTML = list.map((c, i) => `
-        <div class="card client" data-idx="${i}">
+      const list = clients();
+      $("list").innerHTML = list.map((c, i) => `
+        <div class="card client">
           <div class="chead">
             <div>
-              <p class="cname">${c.name || "(sin nombre)"}</p>
-              <p class="curl">${normUrl(c.baseUrl) || "—"}</p>
-              <div class="badges" id="badges-${i}">${badge("b-off", "conectando…")}</div>
+              <p class="cname">${esc(c.name)}</p>
+              <p class="curl">${esc(normUrl(c.baseUrl))}</p>
+              <div class="badges" id="badges-${i}">${c.adminKey ? badge("b-off", "conectando…") : badge("b-warn", "falta admin key")}</div>
             </div>
             <div class="row-actions">
-              <button class="btn-ghost" data-refresh="${i}">Refrescar</button>
-              <button class="btn-danger" data-remove="${i}">Quitar</button>
+              ${c.adminKey ? `<button class="btn-ghost" data-refresh="${i}">Refrescar</button><button class="btn-ghost" data-editkey="${i}">🔑 Clave</button>` : ""}
+              ${c.custom ? `<button class="btn-danger" data-remove="${i}">Quitar</button>` : ""}
             </div>
           </div>
-          <div class="phases" id="phases-${i}">
-            ${phaseCard("fase1", "Fase 1 · núcleo", "Buscar por medida y enviar cotización. Siempre activa.", true, true, i)}
-            ${phaseCard("fase2", "Fase 2", "Sin datos: fitment vehículo→medida y OCR de fotos.", false, false, i)}
-            ${phaseCard("fase3", "Fase 3", "Comparativas visuales + Cotizador y Métricas en el hub.", false, false, i)}
-          </div>
-          <div class="channel">
-            <div class="chhead" data-chtoggle="${i}">
-              <b>📲 Canal de WhatsApp</b>
-              <span class="caret" id="caret-${i}">▸</span>
-            </div>
-            <div class="chbody" id="channel-${i}">
-              <div><label>Token permanente</label><input type="password" data-ch="token" data-idx="${i}" placeholder="pegar cuando lo manden" /></div>
-              <div><label>Phone Number ID</label><input data-ch="phoneId" data-idx="${i}" /></div>
-              <div><label>App Secret</label><input type="password" data-ch="appSecret" data-idx="${i}" placeholder="pegar cuando lo manden" /></div>
-              <div><label>Verify token</label><input data-ch="verifyToken" data-idx="${i}" /></div>
-              <div><label>Teléfono del vendedor</label><input data-ch="sellerPhone" data-idx="${i}" placeholder="5939XXXXXXXX" /></div>
-              <div class="full" style="display:flex;align-items:end">
-                <button class="btn-primary" data-savech="${i}" style="width:100%">Guardar canal</button>
-              </div>
-              <p class="full" style="font-size:11px;color:var(--muted);margin:2px 0 0">
-                Deja en blanco lo que no cambies. Token y App Secret nunca se muestran; solo se indica si están puestos. Al guardar, el webhook del cliente se reactiva en caliente.
-              </p>
-            </div>
-          </div>
+          ${c.adminKey ? controls(i) : keyPrompt(i, c.name)}
         </div>`).join("");
-      list.forEach((_, i) => refresh(i));
+      list.forEach((c, i) => { if (c.adminKey) refresh(i); });
     }
 
     async function refresh(i) {
-      const c = load()[i];
+      const c = clients()[i];
       const badges = $("badges-" + i);
-      if (!c) return;
+      if (!c || !c.adminKey) return;
       try {
         const [ph, ch] = await Promise.all([
           api(c, "/api/phases"),
           api(c, "/api/channel").catch(() => null),
         ]);
         const f = ph.phases || { fase2: false, fase3: false };
-        // Actualiza toggles
         const cont = document.querySelector(`#phases-${i}`);
         setToggle(cont, "fase2", f.fase2);
         setToggle(cont, "fase3", f.fase3);
-        const marks = [];
         const level = f.fase3 ? 3 : f.fase2 ? 2 : 1;
-        marks.push(badge("b-ok", "Fase " + level + " activa"));
+        const marks = [badge("b-ok", "Fase " + level + " activa")];
         if (ch && ch.channel) {
           marks.push(ch.channel.ready ? badge("b-ok", "WhatsApp listo") : badge("b-warn", "WhatsApp sin token"));
           populateChannel(i, ch.channel);
         }
         badges.innerHTML = marks.join("");
       } catch (e) {
-        badges.innerHTML = badge("b-err", "Sin conexión / clave inválida");
-      }
-    }
-
-    function populateChannel(i, chan) {
-      const body = document.querySelector(`#channel-${i}`);
-      if (!body) return;
-      const set = (name, val) => {
-        const el = body.querySelector(`[data-ch="${name}"]`);
-        if (el && document.activeElement !== el) el.value = val || "";
-      };
-      set("phoneId", chan.phoneId);
-      set("verifyToken", chan.verifyToken);
-      set("sellerPhone", chan.sellerPhone);
-      const ph = (el, set) => { if (el && document.activeElement !== el) el.placeholder = set ? "configurado ✓ — en blanco = mantener" : "pegar cuando lo manden"; };
-      ph(body.querySelector('[data-ch="token"]'), chan.tokenSet);
-      ph(body.querySelector('[data-ch="appSecret"]'), chan.appSecretSet);
-    }
-
-    async function saveChannel(i) {
-      const c = load()[i];
-      const body = document.querySelector(`#channel-${i}`);
-      const payload = {};
-      body.querySelectorAll("[data-ch]").forEach((el) => {
-        if (el.value.trim()) payload[el.dataset.ch] = el.value.trim();
-      });
-      if (!Object.keys(payload).length) { alert("Nada que guardar: llena al menos un campo."); return; }
-      try {
-        const r = await api(c, "/api/channel", { method: "PUT", body: JSON.stringify(payload) });
-        body.querySelector('[data-ch="token"]').value = "";
-        body.querySelector('[data-ch="appSecret"]').value = "";
-        await refresh(i);
-        alert(r.activo
-          ? "Canal guardado. Webhook activo ✓"
-          : "Canal guardado. Falta token, app secret o verify token para activar el webhook.");
-      } catch (e) {
-        alert("No se pudo guardar el canal: " + e.message);
+        badges.innerHTML = badge("b-err", "Clave inválida o sin conexión");
       }
     }
 
     function setToggle(cont, kind, on) {
+      if (!cont) return;
       const t = cont.querySelector(`[data-toggle="${kind}"]`);
       if (t) t.classList.toggle("on", !!on);
       const phase = t && t.closest(".phase");
       if (phase) phase.classList.toggle("on", !!on);
     }
 
+    function populateChannel(i, chan) {
+      const body = document.querySelector(`#channel-${i}`);
+      if (!body) return;
+      const set = (name, val) => { const el = body.querySelector(`[data-ch="${name}"]`); if (el && document.activeElement !== el) el.value = val || ""; };
+      set("phoneId", chan.phoneId); set("verifyToken", chan.verifyToken); set("sellerPhone", chan.sellerPhone);
+      const ph = (el, on) => { if (el && document.activeElement !== el) el.placeholder = on ? "configurado ✓ — en blanco = mantener" : "pegar cuando lo manden"; };
+      ph(body.querySelector('[data-ch="token"]'), chan.tokenSet);
+      ph(body.querySelector('[data-ch="appSecret"]'), chan.appSecretSet);
+    }
+
+    function saveKey(i) {
+      const input = document.querySelector(`[data-keyinput="${i}"]`);
+      const key = input.value.trim();
+      if (!key) { alert("Pega la admin key primero."); return; }
+      const c = clients()[i];
+      const s = state();
+      s.keys[c.name] = key;
+      saveState(s);
+      render();
+    }
+
+    function editKey(i) {
+      const c = clients()[i];
+      const s = state();
+      delete s.keys[c.name];
+      saveState(s);
+      render();
+    }
+
     async function toggle(i, kind) {
-      const c = load()[i];
+      const c = clients()[i];
       const cont = document.querySelector(`#phases-${i}`);
       const t = cont.querySelector(`[data-toggle="${kind}"]`);
       const next = !t.classList.contains("on");
-      // Fase 3 requiere Fase 2 encendida (acumulativo).
       const patch = { [kind]: next };
       if (kind === "fase3" && next) patch.fase2 = true;
       if (kind === "fase2" && !next) patch.fase3 = false;
       try {
         await api(c, "/api/phases", { method: "PUT", body: JSON.stringify(patch) });
         await refresh(i);
-      } catch (e) {
-        alert("No se pudo cambiar: " + e.message);
-      }
+      } catch (e) { alert("No se pudo cambiar: " + e.message); }
     }
 
-    // Eventos
+    async function saveChannel(i) {
+      const c = clients()[i];
+      const body = document.querySelector(`#channel-${i}`);
+      const payload = {};
+      body.querySelectorAll("[data-ch]").forEach((el) => { if (el.value.trim()) payload[el.dataset.ch] = el.value.trim(); });
+      if (!Object.keys(payload).length) { alert("Nada que guardar: llena al menos un campo."); return; }
+      try {
+        const r = await api(c, "/api/channel", { method: "PUT", body: JSON.stringify(payload) });
+        body.querySelector('[data-ch="token"]').value = "";
+        body.querySelector('[data-ch="appSecret"]').value = "";
+        await refresh(i);
+        alert(r.activo ? "Canal guardado. Webhook activo ✓" : "Canal guardado. Falta token, app secret o verify token para activar el webhook.");
+      } catch (e) { alert("No se pudo guardar el canal: " + e.message); }
+    }
+
+    // "Agregar otro cliente"
+    $("add-toggle").addEventListener("click", () => {
+      const card = $("add-card");
+      card.style.display = card.style.display === "none" ? "block" : "none";
+    });
     $("f-save").addEventListener("click", () => {
       const name = $("f-name").value.trim();
       const baseUrl = normUrl($("f-url").value);
-      const adminKey = $("f-key").value;
-      if (!name || !baseUrl) { alert("Nombre y URL base son obligatorios."); return; }
-      const list = load();
-      const existing = list.findIndex((c) => c.name.toLowerCase() === name.toLowerCase());
-      const entry = { name, baseUrl, adminKey };
-      if (existing >= 0) list[existing] = entry; else list.push(entry);
-      save(list);
-      $("f-name").value = ""; $("f-url").value = ""; $("f-key").value = "";
+      if (!name || !baseUrl) { alert("Nombre y URL son obligatorios."); return; }
+      const s = state();
+      s.custom = (s.custom || []).filter((c) => c.name.toLowerCase() !== name.toLowerCase());
+      s.custom.push({ name, baseUrl });
+      saveState(s);
+      $("f-name").value = ""; $("f-url").value = ""; $("add-card").style.display = "none";
       render();
     });
 
     document.addEventListener("click", (e) => {
       const t = e.target;
       const chToggle = t.closest && t.closest("[data-chtoggle]");
-      if (t.dataset.remove !== undefined) {
-        const i = Number(t.dataset.remove);
-        if (confirm("¿Quitar este cliente del panel? (No borra nada en su servidor.)")) {
-          const list = load(); list.splice(i, 1); save(list); render();
+      if (t.dataset.savekey !== undefined) saveKey(Number(t.dataset.savekey));
+      else if (t.dataset.editkey !== undefined) editKey(Number(t.dataset.editkey));
+      else if (t.dataset.refresh !== undefined) refresh(Number(t.dataset.refresh));
+      else if (t.dataset.savech !== undefined) saveChannel(Number(t.dataset.savech));
+      else if (t.dataset.remove !== undefined) {
+        const c = clients()[Number(t.dataset.remove)];
+        if (confirm("¿Quitar " + c.name + " del panel?")) {
+          const s = state(); s.custom = (s.custom || []).filter((x) => x.name !== c.name); delete s.keys[c.name]; saveState(s); render();
         }
-      } else if (t.dataset.refresh !== undefined) {
-        refresh(Number(t.dataset.refresh));
-      } else if (t.dataset.savech !== undefined) {
-        saveChannel(Number(t.dataset.savech));
-      } else if (t.dataset.toggle) {
-        toggle(Number(t.dataset.idx), t.dataset.toggle);
-      } else if (chToggle) {
+      } else if (t.dataset.toggle) toggle(Number(t.dataset.idx), t.dataset.toggle);
+      else if (chToggle) {
         const i = chToggle.dataset.chtoggle;
         document.querySelector(`#channel-${i}`).classList.toggle("open");
         $("caret-" + i).classList.toggle("open");
+      }
+    });
+
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" && e.target.dataset && e.target.dataset.keyinput !== undefined) {
+        saveKey(Number(e.target.dataset.keyinput));
       }
     });
 
