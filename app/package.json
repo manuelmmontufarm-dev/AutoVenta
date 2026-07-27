@@ -17,7 +17,8 @@
     "test": "vitest run",
     "test:staging": "node scripts/staging-follow-ups-smoke.mjs",
     "db:migrate": "tsx src/db/migrate.ts",
-    "seed:depot": "tsx src/db/seed-depot.ts"
+    "seed:depot": "tsx src/db/seed-depot.ts",
+    "test:carga": "node scripts/loadtest/run.mjs"
   },
   "dependencies": {
     "@date-fns/tz": "^1.5.0",
@@ -36,6 +37,7 @@
   "devDependencies": {
     "@types/express": "^4.17.21",
     "@types/node": "^22.0.0",
+    "playwright": "^1.62.0",
     "tsx": "^4.19.0",
     "typescript": "^5.6.0",
     "vitest": "^2.1.0"

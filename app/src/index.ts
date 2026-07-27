@@ -36,15 +36,9 @@ import { flagRepetitiveConversation } from "./services/conversationQuality.js";
 import { notifyPendingHumanRequests } from "./services/advisorNotifications.js";
 
 const pipeline = new InboundPipeline(async ({ from, name, text, waMessageIds, receivedAt }) => {
+  // El mensaje ya quedó guardado en recibirMensaje(), antes de responderle 200
+  // a Meta. Aquí solo se elabora la respuesta sobre el texto ya agrupado.
   const conversation = await getOrCreateConversation(from, name);
-
-  // Idempotencia definitiva: si TODOS los mensajes ya estaban en DB, es un retry.
-  let anyNew = false;
-  for (const waId of waMessageIds) {
-    if (await appendMessage(conversation.id, "user", text, waId, { occurredAt: receivedAt })) anyNew = true;
-    break; // el texto ya viene agrupado; un solo registro con el primer id
-  }
-  if (!anyNew) return;
   const inboundSafety = await handleInboundFollowUpState(conversation.id, text);
   const parsedSize = extractTireSizes(text)[0];
   const parsedQuantity = extractExplicitQuantity(text);
@@ -114,6 +108,31 @@ const pipeline = new InboundPipeline(async ({ from, name, text, waMessageIds, re
 
 // Handlers del webhook: se registran una vez y se re-aplican solos cada vez que
 // la instancia de WhatsApp se reconstruye (token pegado desde el panel).
+/**
+ * Guarda el mensaje del cliente ANTES de que el webhook responda 200, y recién
+ * después lo pasa al agrupador.
+ *
+ * El orden importa: Meta entrega at-least-once y solo reintenta lo que no
+ * recibió 200. Si se responde 200 con el mensaje todavía en un buffer en
+ * memoria, un reinicio lo borra y Meta nunca lo reenvía — el cliente escribió y
+ * nadie se entera. Persistir primero también le da a cada mensaje su propia
+ * fila con su wa_message_id, que es lo que permite que la deduplicación
+ * definitiva sea la de la base (unique) y no un Map que muere con el proceso.
+ */
+async function recibirMensaje(
+  from: string,
+  name: string | undefined,
+  texto: string,
+  waMessageId: string,
+  receivedAt: Date,
+): Promise<void> {
+  const conversation = await getOrCreateConversation(from, name);
+  const esNuevo = await appendMessage(conversation.id, "user", texto, waMessageId, { occurredAt: receivedAt });
+  if (!esNuevo) return; // reentrega de Meta: ya estaba guardado
+  emitLiveEvent("message", conversation.id);
+  pipeline.push(from, waMessageId, texto, name, receivedAt);
+}
+
 setWaHandlers({
   message: async ({ from, name, message, received }) => {
     // Solo marca como leído. El "escribiendo…" se muestra en el pipeline cuando
@@ -123,33 +142,33 @@ setWaHandlers({
     const receivedAt = new Date(Number(message.timestamp) * 1000);
     switch (message.type) {
       case "text":
-        pipeline.push(from, message.id, message.text.body, name, receivedAt);
+        await recibirMensaje(from, name, message.text.body, message.id, receivedAt);
         break;
       case "location":
-        pipeline.push(
+        await recibirMensaje(
           from,
-          message.id,
-          `[El cliente compartió su ubicación: lat ${message.location.latitude}, lng ${message.location.longitude}]`,
           name,
+          `[El cliente compartió su ubicación: lat ${message.location.latitude}, lng ${message.location.longitude}]`,
+          message.id,
           receivedAt,
         );
         break;
       case "image":
         // Fase 2: bajar la imagen y pasarla a la visión del modelo (leer medida de la foto)
-        pipeline.push(
+        await recibirMensaje(
           from,
-          message.id,
-          "[El cliente envió una foto que todavía no puedes ver]",
           name,
+          "[El cliente envió una foto que todavía no puedes ver]",
+          message.id,
           receivedAt,
         );
         break;
       case "audio":
-        pipeline.push(
+        await recibirMensaje(
           from,
-          message.id,
-          "[El cliente envió un audio que todavía no puedes escuchar]",
           name,
+          "[El cliente envió un audio que todavía no puedes escuchar]",
+          message.id,
           receivedAt,
         );
         break;

@@ -118,6 +118,13 @@ export const config = {
     sellerPhone: envOr("SELLER_PHONE", ""),
     /** Nombre visible del asesor principal de staging. */
     sellerName: envOr("SELLER_NAME", "Manuel Montúfar"),
+    /**
+     * Host de la Graph API. Solo se cambia para pruebas de carga, donde se
+     * apunta a un stub local y así ningún mensaje sintético sale a Meta.
+     * En producción NUNCA se define: el default es el host real.
+     */
+    graphBaseUrl: envOr("GRAPH_BASE_URL", "https://graph.facebook.com/v21.0")
+      .replace(/\/$/, ""),
   },
 
   hub: {

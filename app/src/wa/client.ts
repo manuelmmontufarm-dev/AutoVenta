@@ -11,10 +11,16 @@
  * los permanentes (ventana de 24 h cerrada, token inválido).
  */
 import { WhatsAppAPI } from "whatsapp-api-js/middleware/express";
+import { config } from "../config.js";
 import { getChannelConfig, type ChannelConfig } from "../services/channel.js";
 import { assertConversationOutbound } from "../services/whatsappPolicy.js";
 
-const GRAPH = "https://graph.facebook.com/v21.0";
+const GRAPH = config.whatsapp.graphBaseUrl;
+// Si alguien apunta el bot a un host que no es Meta, tiene que verse en el log
+// de arranque: es la diferencia entre una prueba de carga y no enviar nada.
+if (!GRAPH.startsWith("https://graph.facebook.com")) {
+  console.warn(`⚠️ Graph API apuntando a ${GRAPH} — NO es Meta. Solo debe pasar en pruebas.`);
+}
 
 let waInstance: WhatsAppAPI | null = null;
 let messageHandler: WhatsAppAPI["on"]["message"];

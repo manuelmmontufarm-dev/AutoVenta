@@ -32,6 +32,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-07-27 | _(este mismo)_ | Prueba de carga 50 clientes + fix durabilidad del webhook | 4.0 |
 | 2026-07-27 | _(este mismo)_ | Fix: botón «Generar» estaba en pantalla muerta (tree-shaken) | 0.5 |
 | 2026-07-27 | _(este mismo)_ | Seguimientos perezosos: redactar solo cuando el mensaje va a salir | 1.0 |
 | 2026-07-27 | _(este mismo)_ | Ajustes → WhatsApp: conexión guiada con verificación por paso | 1.5 |
@@ -63,11 +64,43 @@ Ya viene activado en este equipo.
 | 2026-07-14 | ac09171 | Ubicaciones de locales + análisis de features del cliente | 1.5 |
 | 2026-07-13 | feadf57 | Brief + plan de desarrollo + plan financiero + catálogo | 4.0 |
 | 2026-07-13 | d997844 | Commit inicial (repo) | 0.25 |
-| | | **TOTAL** | **~55.75 h** |
+| | | **TOTAL** | **~59.75 h** |
 
 ---
 
 ## Entradas (más reciente primero)
+
+### 2026-07-27 · Prueba de carga de 50 clientes + fix de durabilidad del webhook · ⏱️ 4.0 h
+
+**Qué:** banco de pruebas de carga completo en `app/scripts/loadtest/`
+(`npm run test:carga`) y el arreglo del bug que destapó.
+
+- **Banco nuevo:** base efímera, stub de la Graph API, stub de OpenAI, bot y
+  worker como procesos hijos, cinco escenarios y 13 criterios de aceptación.
+  Capturas del panel con Playwright, cada una con su aserción. Nada sale a Meta.
+- **`GRAPH_BASE_URL`** (nuevo, default = el host real de Meta) para poder
+  apuntar la salida a un stub. Si no apunta a Meta, lo avisa al arrancar.
+- **Bug encontrado y corregido — el webhook respondía 200 antes de guardar.**
+  El mensaje quedaba en un buffer en memoria mientras se le decía 200 a Meta.
+  Un reinicio lo borraba y Meta **nunca lo reenvía**, porque para Meta ya fue
+  entregado. El escenario E lo reproducía: 20 de 20 mensajes perdidos.
+  Ahora `recibirMensaje()` persiste antes de encolar; el escenario E pasó a
+  0 de 20 perdidos.
+- **Efecto secundario del mismo arreglo:** cada mensaje guarda su propio
+  `wa_message_id` (antes, al agrupar, solo se guardaba el del primero: 60 de
+  340 quedaban sin registrar). Ahora la deduplicación definitiva es el unique
+  de la base y no un `Map` que muere con el proceso.
+
+**Por qué:** antes de ofrecerle el bot a Depot con volumen real hacía falta
+saber si aguanta, y "aguanta" tenía que significar algo medible y no una
+impresión. El hallazgo importante no fue de rendimiento —el pool de 5
+conexiones ni se despeinó, el ACK quedó en 98 ms sobre un presupuesto de
+3 000— sino de correctitud: se perdían mensajes de clientes en cada reinicio,
+en silencio y sin manera de enterarse.
+
+Veredicto final: **13/13 criterios en verde** con 50 clientes, 340 mensajes,
+564 llamadas al modelo. Reporte y capturas en `reports/<timestamp>/`.
+Detalle del diseño en `PLAN_CARGA_50_CLIENTES.md`.
 
 ### 2026-07-27 · Fix: el botón «Generar» estaba en una pantalla muerta · ⏱️ 0.5 h
 
