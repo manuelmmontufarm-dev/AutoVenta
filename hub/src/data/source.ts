@@ -20,7 +20,7 @@ export interface DataSource {
   getMetrics(days?: number): Promise<HubMetrics>;
   listFollowUps(): Promise<FollowUpCard[]>;
   listAlerts(): Promise<BotAlert[]>;
-  followUpAction(id: number, action: "send" | "cancel" | "edit", preview?: string): Promise<void>;
+  followUpAction(id: number, action: "send" | "cancel" | "edit" | "generate", preview?: string): Promise<void>;
   alertAction(id: number, action: "resolve" | "snooze" | "take"): Promise<void>;
   moverEtapa(ticketId: number, etapa: Etapa): Promise<void>;
   cerrar(ticketId: number, cierre: Cierre, nota?: string): Promise<void>;

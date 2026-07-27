@@ -150,6 +150,9 @@ export async function listFollowUpBoard() {
       dueAt: row.due_at?.toISOString() ?? row.visit_date?.toISOString() ?? row.pickup_date?.toISOString() ?? null,
       windowClosesAt: row.window_closes_at?.toISOString() ?? null,
       preview: String(row.payload?.preview ?? ""),
+      // true = todavía es el borrador determinístico; nadie ha pagado tokens por él.
+      aiPending: row.payload?.aiPending === true,
+      copySource: (row.payload?.copySource as string | undefined) ?? null,
       templateRequired: String(row.payload?.templateKey ?? row.template_name ?? "") || null,
       alertReason: row.cancel_reason,
       assignedTo: row.assigned_to,
@@ -200,7 +203,8 @@ export async function getFollowUpSettings() {
 export async function getFollowUpMetrics() {
   const [summary] = await sql<{
     scheduled: number; sent: number; responded: number; converted: number;
-    cancelled_by_reply: number; missed_windows: number; opt_outs: number;
+    cancelled_by_reply: number; generations_avoided: number; generations_used: number;
+    missed_windows: number; opt_outs: number;
     negative: number; template_delivered: number; template_read: number;
     avg_response_seconds: string | number | null;
   }[]>`
@@ -216,6 +220,10 @@ export async function getFollowUpMetrics() {
           and h.cycle = j.cycle and h.outcome = 'ganado' and h.closed_at > j.executed_at
       ))::int as converted,
       count(*) filter (where j.cancel_reason = 'customer_replied')::int as cancelled_by_reply,
+      -- Ahorro visible: seguimientos que murieron en el portón sin que se
+      -- redactara nunca su texto (aiPending seguía en true).
+      count(*) filter (where j.status = 'cancelled' and j.payload->>'aiPending' = 'true')::int as generations_avoided,
+      count(*) filter (where j.payload->>'aiGeneratedAt' is not null)::int as generations_used,
       count(*) filter (where j.cancel_reason = 'window_closed')::int as missed_windows,
       (select count(*)::int from conversations where opted_out_at is not null) as opt_outs,
       (select count(*)::int from conversations where negative_sentiment_at is not null) as negative,

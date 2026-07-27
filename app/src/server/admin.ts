@@ -59,7 +59,7 @@ import {
   listBotAlerts,
   listFollowUpBoard,
 } from "../services/followUpAdmin.js";
-import { cancelPendingFollowUps, createBotAlert, rescheduleActiveConversationPlans, scheduleConversationFollowUps } from "../services/followUps.js";
+import { cancelPendingFollowUps, createBotAlert, generateFollowUpJobCopyById, rescheduleActiveConversationPlans, scheduleConversationFollowUps } from "../services/followUps.js";
 import {
   captureManualDiscount,
   createDiscountFromPrompt,
@@ -384,12 +384,29 @@ export function createAdminRouter(): express.Router {
     const preview = String(req.body?.preview ?? "").trim().slice(0, 1000);
     if (!Number.isInteger(id) || !preview) return res.status(400).json({ ok: false, error: "Mensaje inválido" });
     const [job] = await sql<{ conversation_id: number }[]>`
-      update follow_up_jobs set payload = jsonb_set(payload, '{preview}', to_jsonb(${preview}::text), true)
+      update follow_up_jobs
+      set payload = payload || jsonb_build_object('preview', ${preview}::text, 'aiPending', false, 'copySource', 'advisor')
       where id = ${id} and status in ('scheduled', 'blocked') returning conversation_id
     `;
     if (!job) return res.status(409).json({ ok: false, error: "Seguimiento no editable" });
     emitLiveEvent("follow_up", Number(job.conversation_id));
     res.json({ ok: true });
+  });
+
+  // Redacción bajo demanda: el asesor puede ver y editar el texto antes de la
+  // hora de envío. Como queda con `aiPending: false`, el worker lo respeta y no
+  // vuelve a llamar al modelo.
+  router.post("/hub/follow-ups/:id/generate", async (req, res) => {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id)) return res.status(400).json({ ok: false, error: "id inválido" });
+    const [job] = await sql<{ status: string }[]>`select status from follow_up_jobs where id = ${id}`;
+    if (!job) return res.status(404).json({ ok: false, error: "Seguimiento no encontrado" });
+    if (!["scheduled", "blocked"].includes(job.status)) {
+      return res.status(409).json({ ok: false, error: "Ese seguimiento ya no se puede redactar" });
+    }
+    const result = await generateFollowUpJobCopyById(id);
+    if (!result) return res.status(404).json({ ok: false, error: "Seguimiento no encontrado" });
+    res.json({ ok: true, preview: result.text });
   });
 
   router.delete("/hub/follow-ups/:id", async (req, res) => {

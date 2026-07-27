@@ -61,7 +61,7 @@ interface HubState {
   getTemplatePlan(id: number): Promise<TemplatePlanPreview>;
   authorizeTemplatePlan(id: number): Promise<TemplatePlanPreview>;
   agregarNota(id: number, texto: string): Promise<void>;
-  followUpAction(id: number, action: "send" | "cancel" | "edit", preview?: string): Promise<void>;
+  followUpAction(id: number, action: "send" | "cancel" | "edit" | "generate", preview?: string): Promise<void>;
   alertAction(id: number, action: "resolve" | "snooze" | "take"): Promise<void>;
   toggleDemo(): void;
   quitarToast(id: number): void;

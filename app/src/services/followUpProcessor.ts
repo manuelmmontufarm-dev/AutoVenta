@@ -3,6 +3,7 @@ import { isWithinBusinessHours } from "../domain/followUps.js";
 import { appendMessage } from "./conversations.js";
 import {
   createBotAlert,
+  ensureFollowUpJobCopy,
   getFollowUpJobContext,
   getFollowUpPolicy,
   markFollowUpJobCancelled,
@@ -118,6 +119,19 @@ export async function processFollowUpJob(
     await markFollowUpJobCancelled(job.id, "stage_changed");
     return;
   }
+  // Portón de relevancia: si el cliente escribió después de que se programó el
+  // seguimiento, ya no aplica. El inbound normalmente lo cancela, pero esta
+  // revisión cubre la carrera entre el mensaje entrante y el despertar del worker
+  // —y evita pagar la redacción de un mensaje que no va a salir.
+  if (
+    !isAuthorizedCampaign &&
+    context.last_customer_message_at &&
+    context.last_assistant_message_at &&
+    context.last_customer_message_at > context.last_assistant_message_at
+  ) {
+    await markFollowUpJobCancelled(job.id, "customer_replied");
+    return;
+  }
 
   const policy = await getFollowUpPolicy();
   if (policy.neverOutsideHours && !isWithinBusinessHours(now, policy)) {
@@ -219,6 +233,12 @@ export async function processFollowUpJob(
     resolvedTemplateVariables = resolved.values;
   }
 
+  // Último momento: ya pasaron todos los portones, este mensaje sí se envía.
+  // Recién aquí se paga la redacción con IA (si el asesor no la generó antes).
+  const preview = isPostWindow
+    ? String(context.job_payload.preview ?? "").trim()
+    : (await ensureFollowUpJobCopy({ context, policy })).text;
+
   const attemptNumber = context.attempt_count + 1;
   const [attempt] = await sql<{ id: number }[]>`
     insert into follow_up_attempts (
@@ -226,14 +246,13 @@ export async function processFollowUpJob(
       message_type, template_name, payload
     ) values (
       ${job.id}, ${context.id}, ${context.current_cycle}, ${attemptNumber}, 'sending',
-      ${contentType}, ${template?.template_name ?? null}, ${sql.json(context.job_payload as never)}
+      ${contentType}, ${template?.template_name ?? null}, ${sql.json({ ...context.job_payload, preview } as never)}
     ) on conflict (job_id, attempt_number) do update set status = 'sending'
     returning id
   `;
   await sql`update follow_up_jobs set attempt_count = ${attemptNumber} where id = ${job.id}`;
 
   try {
-    const preview = String(context.job_payload.preview ?? "").trim();
     const providerId = isPostWindow
       ? await (dependencies.sendTemplate ?? sendApprovedTemplate)({
           conversationId: context.id,

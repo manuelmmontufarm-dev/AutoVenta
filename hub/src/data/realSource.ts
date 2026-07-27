@@ -129,11 +129,13 @@ export class RealSource implements DataSource {
     return (await this.request<{ alerts: BotAlert[] }>("/api/hub/alerts")).alerts;
   }
 
-  async followUpAction(id: number, action: "send" | "cancel" | "edit", preview?: string): Promise<void> {
+  async followUpAction(id: number, action: "send" | "cancel" | "edit" | "generate", preview?: string): Promise<void> {
     if (action === "cancel") {
       await this.request(`/api/hub/follow-ups/${id}`, { method: "DELETE" });
     } else if (action === "edit") {
       await this.request(`/api/hub/follow-ups/${id}`, { method: "PATCH", body: JSON.stringify({ preview }) });
+    } else if (action === "generate") {
+      await this.request(`/api/hub/follow-ups/${id}/generate`, { method: "POST", body: "{}" });
     } else {
       await this.request(`/api/hub/follow-ups/${id}/send-now`, { method: "POST", body: "{}" });
     }

@@ -12,7 +12,7 @@ import {
 import { isStage, type Stage } from "../domain/pipeline.js";
 import { buildContextualFollowUpMessage, inferProductCode, type FollowUpMessageKind } from "../domain/followUpMessages.js";
 import { emitLiveEvent } from "./liveEvents.js";
-import { generateFollowUpCopies } from "./followUpCopy.js";
+import { generateFollowUpCopy } from "./followUpCopy.js";
 import { notifyAdvisor } from "./advisorNotifications.js";
 
 export type FollowUpJobStatus =
@@ -265,20 +265,6 @@ export async function scheduleConversationFollowUps(
       and idempotency_key like ${`${base}:%`}
   `;
   if (existingPlan.count > 0) return;
-  const copyContext = {
-    name: conversation.name,
-    stage: conversation.stage,
-    tireSize: conversation.tire_size,
-    selectedProductCode: conversation.selected_product_code,
-    nearestStore: conversation.nearest_store,
-    customerCommitment: conversation.customer_commitment,
-    quoteNumber: conversation.quote_number,
-    activeDiscountAmount: conversation.active_discount_amount === null ? null : Number(conversation.active_discount_amount),
-    activeDiscountCondition: conversation.active_discount_condition,
-    activeDiscountFinalTotal: conversation.active_discount_final_total === null ? null : Number(conversation.active_discount_final_total),
-    summary: conversation.summary,
-  };
-  const copies = await generateFollowUpCopies(copyContext, policy.stagePrompts?.[conversation.stage]);
   await sql`
     update follow_up_jobs set status = 'cancelled',
       cancel_reason = 'replaced_by_new_schedule', executed_at = now(),
@@ -317,7 +303,9 @@ export async function scheduleConversationFollowUps(
       dueAt: schedule.firstDueAt,
       windowClosesAt: schedule.windowClosesAt,
       idempotencyKey: `${base}:in_window_first`,
-      payload: { preview: copies.first, stage: conversation.stage },
+      // `preview` es el borrador determinístico (costo cero). La redacción con IA
+      // se hace perezosamente: al enviar, o cuando el asesor aplasta «Generar».
+      payload: { preview: buildFollowUpPreview(conversation, "in_window_first"), stage: conversation.stage, aiPending: true },
     });
   }
   if (schedule.secondDueAt) {
@@ -328,7 +316,7 @@ export async function scheduleConversationFollowUps(
       dueAt: schedule.secondDueAt,
       windowClosesAt: schedule.windowClosesAt,
       idempotencyKey: `${base}:in_window_second`,
-      payload: { preview: copies.second, stage: conversation.stage },
+      payload: { preview: buildFollowUpPreview(conversation, "in_window_second"), stage: conversation.stage, aiPending: true },
     });
   }
 
@@ -698,6 +686,83 @@ export async function getFollowUpJobContext(jobId: number) {
     where j.id = ${jobId}
   `;
   return row ?? null;
+}
+
+export type FollowUpJobContext = NonNullable<Awaited<ReturnType<typeof getFollowUpJobContext>>>;
+
+/** Los tipos de job que se redactan con IA; el resto usa texto fijo o plantilla de Meta. */
+const AI_COPY_KIND: Record<string, FollowUpMessageKind> = {
+  in_window_first: "in_window_first",
+  in_window_second: "in_window_second",
+};
+
+export function followUpJobCopyKind(jobType: string): FollowUpMessageKind | null {
+  return AI_COPY_KIND[jobType] ?? null;
+}
+
+function jobCopyContext(context: FollowUpJobContext) {
+  const raw = context as unknown as Record<string, unknown>;
+  const commitmentCycle = raw.customer_commitment_cycle;
+  return {
+    name: context.name,
+    stage: context.stage,
+    tireSize: context.tire_size,
+    selectedProductCode: context.selected_product_code,
+    nearestStore: context.nearest_store,
+    customerCommitment: commitmentCycle === context.current_cycle ? context.customer_commitment : null,
+    quoteNumber: context.quote_number,
+    activeDiscountAmount: context.active_discount_amount === null ? null : Number(context.active_discount_amount),
+    activeDiscountCondition: context.active_discount_condition,
+    activeDiscountFinalTotal: context.active_discount_final_total === null ? null : Number(context.active_discount_final_total),
+    summary: context.summary,
+  };
+}
+
+/**
+ * Devuelve el texto definitivo del seguimiento, redactándolo con IA solo si
+ * todavía está pendiente (`aiPending`). El resultado se persiste en el payload
+ * para que un reintento —o el worker, después de que el asesor usara «Generar»—
+ * no vuelva a pagar la llamada al modelo.
+ */
+export async function ensureFollowUpJobCopy(input: {
+  context: FollowUpJobContext;
+  policy: FollowUpPolicy;
+  force?: boolean;
+}): Promise<{ text: string; generated: boolean }> {
+  const { context, policy, force = false } = input;
+  const stored = String(context.job_payload.preview ?? "").trim();
+  const kind = followUpJobCopyKind(context.job_type);
+  if (!kind || (!context.job_payload.aiPending && !force)) {
+    return { text: stored, generated: false };
+  }
+  const copy = await generateFollowUpCopy(
+    jobCopyContext(context),
+    kind,
+    policy.stagePrompts?.[context.stage],
+  );
+  const text = copy.text.trim() || stored;
+  await sql`
+    update follow_up_jobs
+    set payload = payload
+      || jsonb_build_object('preview', ${text}::text, 'aiPending', false,
+                            'copySource', ${copy.source}::text, 'aiGeneratedAt', now())
+    where id = ${context.job_id}
+  `;
+  return { text, generated: true };
+}
+
+/** Genera el texto bajo demanda desde el panel (botón «Generar»). */
+export async function generateFollowUpJobCopyById(
+  jobId: number,
+  force = true,
+): Promise<{ text: string; generated: boolean } | null> {
+  const context = await getFollowUpJobContext(jobId);
+  if (!context) return null;
+  if (!followUpJobCopyKind(context.job_type)) return { text: String(context.job_payload.preview ?? ""), generated: false };
+  const policy = await getFollowUpPolicy();
+  const result = await ensureFollowUpJobCopy({ context, policy, force });
+  emitLiveEvent("follow_up", context.id);
+  return result;
 }
 
 export async function createBotAlert(input: {

@@ -181,6 +181,7 @@ export interface FollowUpCard {
   stage: Etapa; tireSize: string | null; selectedProductCode: string | null;
   summary: string; lastMessage: string | null; lastAt: string | null; dueAt: string | null;
   windowClosesAt: string | null; preview: string; templateRequired: string | null;
+  aiPending: boolean; copySource: string | null;
   alertReason: string | null; assignedTo: "bot" | "human";
   unansweredDays: number; commitment: string | null; visitDate: string | null; pickupDate: string | null;
   campaignId: number | null; campaignTemplateKey: string | null;

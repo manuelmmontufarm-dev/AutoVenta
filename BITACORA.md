@@ -32,6 +32,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-07-27 | _(este mismo)_ | Seguimientos perezosos: redactar solo cuando el mensaje va a salir | 1.0 |
 | 2026-07-27 | _(este mismo)_ | Ajustes → WhatsApp: conexión guiada con verificación por paso | 1.5 |
 | 2026-07-27 | _(este mismo)_ | Hub rediseñado: simple, oscuro, staging + Depot Tire al frente | 0.5 |
 | 2026-07-26 | _(este mismo)_ | Gate de conexión: botón Conectar con diagnóstico de clave + chip de estado + token navy | 1.0 |
@@ -61,11 +62,44 @@ Ya viene activado en este equipo.
 | 2026-07-14 | ac09171 | Ubicaciones de locales + análisis de features del cliente | 1.5 |
 | 2026-07-13 | feadf57 | Brief + plan de desarrollo + plan financiero + catálogo | 4.0 |
 | 2026-07-13 | d997844 | Commit inicial (repo) | 0.25 |
-| | | **TOTAL** | **~54.25 h** |
+| | | **TOTAL** | **~55.25 h** |
 
 ---
 
 ## Entradas (más reciente primero)
+
+### 2026-07-27 · Seguimientos perezosos: redactar el mensaje solo cuando va a salir · ⏱️ 1.0 h
+
+**Qué:** el texto del seguimiento deja de generarse por adelantado.
+
+- **Al programar ya no se llama al modelo** (`scheduleConversationFollowUps`).
+  Se inserta la cita —cuándo, a quién, contexto— con un borrador
+  determinístico (el fallback que ya existía, costo cero) marcado
+  `aiPending: true` en el payload.
+- **El worker redacta en el último momento** (`followUpProcessor.ts`), después
+  de todos los portones y justo antes de enviar. Además genera **un** mensaje
+  por llamada en vez de los dos de golpe.
+- **Portón nuevo:** si el cliente escribió después de programarse el
+  seguimiento, se cancela con `customer_replied`. El inbound ya lo cancelaba,
+  pero esto cubre la carrera entre el mensaje entrante y el worker.
+- **Botón «Generar»** en el panel (`POST /api/hub/follow-ups/:id/generate`):
+  el asesor redacta y edita bajo demanda; queda `aiPending: false` y el worker
+  lo respeta sin regenerar.
+- **Bug corregido de paso:** el `PATCH` de edición guardaba el texto del asesor
+  pero no apagaba ninguna bandera. Con el esquema perezoso el worker habría
+  **sobrescrito la edición manual**. Ahora marca `copySource: 'advisor'`.
+- **Métricas** `generations_avoided` / `generations_used` para ver el ahorro.
+
+**Por qué:** se pagaba por adelantado por mensajes que muchas veces se
+descartan —el cliente respondió, compró, o el asesor cerró el ticket antes de
+la hora de envío. El ahorro en tokens es de centavos (mini es baratísimo); lo
+que importa es que la misma regla —*no generar ni mandar nada que pueda no
+usarse*— es la que después evita mandar templates de Meta a ~$0,074 c/u, que
+es el gasto que sí duele cuando Depot escale. Plan completo en
+`PLAN_SEGUIMIENTOS_LAZY.md`.
+
+Retrocompatible: los jobs viejos sin `aiPending` se envían tal cual, y no hizo
+falta migración porque el `payload` ya era `jsonb`.
 
 ### 2026-07-27 · Ajustes → WhatsApp: conectar el canal con verificación paso a paso · ⏱️ 1.5 h
 

@@ -256,6 +256,55 @@ describe.sequential("Fase A — migración, transiciones y reapertura", () => {
     expect(cancelled[0].count).toBe(3);
   });
 
+  it("agenda sin redactar y solo genera el texto cuando el mensaje va a salir", async () => {
+    const conversation = await conversations.getOrCreateConversation("593000000019", "Cliente perezoso");
+    const lastCustomer = new Date("2026-07-20T15:00:00.000Z");
+    const lastBot = new Date("2026-07-20T15:01:00.000Z");
+    await appSql`
+      update conversations set last_customer_message_at = ${lastCustomer},
+        last_assistant_message_at = ${lastBot}, tire_size = '195/65 R15'
+      where id = ${conversation.id}
+    `;
+    await followUps.scheduleConversationFollowUps(conversation.id, lastBot);
+
+    // Al programar no se paga redacción: queda el borrador determinístico marcado.
+    const pending = await appSql<{ id: number; preview: string; ai_pending: boolean }[]>`
+      select id, payload->>'preview' as preview, (payload->>'aiPending')::boolean as ai_pending
+      from follow_up_jobs
+      where conversation_id = ${conversation.id} and type = 'in_window_first'
+    `;
+    expect(pending).toHaveLength(1);
+    expect(pending[0].ai_pending).toBe(true);
+    expect(pending[0].preview.length).toBeGreaterThan(0);
+
+    // La revisión del asesor nunca pasa por el modelo.
+    const [advisor] = await appSql<{ ai_pending: boolean | null }[]>`
+      select (payload->>'aiPending')::boolean as ai_pending from follow_up_jobs
+      where conversation_id = ${conversation.id} and type = 'advisor_review'
+    `;
+    expect(advisor.ai_pending).toBeNull();
+
+    // Generar (worker al enviar, o el asesor desde el panel) fija el texto una sola vez.
+    const context = await followUps.getFollowUpJobContext(pending[0].id);
+    const policy = await followUps.getFollowUpPolicy();
+    const generated = await followUps.ensureFollowUpJobCopy({ context: context!, policy });
+    expect(generated.generated).toBe(true);
+    const [after] = await appSql<{ ai_pending: boolean; preview: string }[]>`
+      select (payload->>'aiPending')::boolean as ai_pending, payload->>'preview' as preview
+      from follow_up_jobs where id = ${pending[0].id}
+    `;
+    expect(after.ai_pending).toBe(false);
+    expect(after.preview).toBe(generated.text);
+
+    // Con el texto ya fijado no se vuelve a llamar al modelo.
+    const again = await followUps.ensureFollowUpJobCopy({
+      context: (await followUps.getFollowUpJobContext(pending[0].id))!,
+      policy,
+    });
+    expect(again.generated).toBe(false);
+    expect(again.text).toBe(generated.text);
+  });
+
   it("mantiene un siguiente paso en cada etapa comercial activa", async () => {
     const stages = ["nuevo", "medida_confirmada", "seleccionando", "cotizacion_enviada", "seguimiento_venta"] as const;
     const now = new Date("2026-07-20T15:01:00.000Z");
