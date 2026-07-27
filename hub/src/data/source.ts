@@ -7,6 +7,7 @@ import type { Atiende, BotAlert, Cierre, Etapa, FeedItem, FollowUpCard, HubMetri
 
 export type SourceEvent =
   | { tipo: "sync" } // tickets o feed cambiaron → la UI refresca snapshots
+  | { tipo: "clave-invalida" } // el gate de admin rechazó la clave guardada
   | { tipo: "mensaje"; ticketId: number }
   | { tipo: "typing"; ticketId: number; rol: Rol; activo: boolean }
   | { tipo: "toast"; icono: string; titulo: string; cuerpo?: string; ticketId?: number }

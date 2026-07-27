@@ -32,6 +32,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-07-26 | _(este mismo)_ | Gate de conexión: botón Conectar con diagnóstico de clave + chip de estado + token navy | 1.0 |
 | 2026-07-20 | _(este mismo)_ | Piezas visuales en TODOS los flujos: opciones como imagen, fitment Prado, PDF con diseño nuevo, /cotizaciones/live.png | 2.0 |
 | 2026-07-20 | _(este mismo)_ | Unificación: motor de imágenes sobre el catálogo Contífico (un solo entorno) | 2.0 |
 | 2026-07-20 | _(este mismo)_ | Cotizador funcional con inventario Contífico, fotos, tres flujos y bot compartido | 6.0 |
@@ -58,11 +59,43 @@ Ya viene activado en este equipo.
 | 2026-07-14 | ac09171 | Ubicaciones de locales + análisis de features del cliente | 1.5 |
 | 2026-07-13 | feadf57 | Brief + plan de desarrollo + plan financiero + catálogo | 4.0 |
 | 2026-07-13 | d997844 | Commit inicial (repo) | 0.25 |
-| | | **TOTAL** | **~51.25 h** |
+| | | **TOTAL** | **~52.25 h** |
 
 ---
 
 ## Entradas (más reciente primero)
+
+### 2026-07-26 · Gate de conexión: el hub dice si la clave sirve · ⏱️ 1.0 h
+
+**Qué:** El hub ya no falla en silencio cuando la clave administrativa está mal.
+
+- `probarClaveAdmin()` valida la clave contra `/api/status` + `/api/phases` **sin
+  guardarla**, y distingue 401 (clave rechazada) de fallo de red (servidor caído).
+- `AdminKeyForm` (componente nuevo, `components/admin-key.tsx`): campo + botón
+  **Conectar** que responde en la misma pantalla — verde con la fase activa y las
+  pantallas que desbloquea, rojo si la clave está mal, ámbar si no hay servidor.
+  Se usa en dos sitios: el gate y Ajustes → Conexión.
+- `ConnectionGate`: pantalla completa cuando el hub no puede leer datos.
+- `ConnectionChip` en el topbar con el estado real. Antes ese espacio decía
+  "Bot en línea 24/7" fijo, incluso desconectado.
+- `AdminKeyError` + estado `conexion` en el store; el 401 del SSE ya no se queda
+  en un toast que se desvanece.
+- **Bug preexistente:** faltaba el token `--color-navy`, así que `bg-navy` no
+  pintaba nada y los 5 botones de Ajustes salían con texto blanco sobre fondo
+  transparente (invisibles). Definido en la paleta base y en los 4 temas.
+- **Bug de render:** la animación de entrada del gate se quedaba congelada en
+  `opacity: 0.26`; se quitó — esta pantalla no puede depender de que termine.
+- Verificado en navegador con el server real: sin clave sale el gate; clave mala
+  → rojo; clave buena → verde y aparecen los 5 iconos con "Fase 4"; apagar y
+  encender fases por API cambia la nav **sin recargar**; el demo sigue intacto.
+
+**Por qué:** Manuel reportó que "se perdieron muchas cosas" y que "al activar las
+fases en el panel no se activa nada en la página". No era pérdida de datos: con
+el sistema de fases todos los endpoints quedaron detrás de `ADMIN_KEY`, y un hub
+sin clave se ve **idéntico** a un negocio sin conversaciones — misma pantalla
+vacía, nav recortada, cero avisos. El diagnóstico tenía que ser visible.
+
+---
 
 ### 2026-07-23 · Panel controla staging + refresh en vivo + tarjetas clickables · ⏱️ 0.4 h
 

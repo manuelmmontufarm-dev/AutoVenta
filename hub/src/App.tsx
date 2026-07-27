@@ -1,5 +1,6 @@
 import { AnimatePresence, LayoutGroup, MotionConfig, motion } from "framer-motion";
 import { useEffect, useState } from "react";
+import { ConnectionChip, ConnectionGate } from "./components/admin-key";
 import { Confetti, Toasts } from "./components/overlays";
 import { IconChart, IconInbox, IconKanban, IconPlay, IconSparkle, IconStop, IconTire } from "./components/icons";
 import { RacingDetails } from "./components/racing-details";
@@ -50,10 +51,14 @@ function navActivo(route: Route): string {
 
 export default function App() {
   const route = useRoute();
-  const { init, cargando, tickets, demo, dataMode, toggleDemo, phases } = useHub();
+  const { init, cargando, tickets, demo, dataMode, toggleDemo, phases, conexion } = useHub();
   const [audioOn, setAudioOn] = useState(sonidoActivo);
 
   const navVisible = NAV.filter((item) => !item.requiere || phases[item.requiere]);
+  const faseActiva = phases.fase4 ? 4 : phases.fase3 ? 3 : phases.fase2 ? 2 : 1;
+  // El gate solo aplica al producto real; el demo usa fixtures y no tiene clave.
+  const bloqueado =
+    dataMode === "real" && (conexion === "clave-invalida" || conexion === "sin-conexion");
 
   // Si la fase que habilitaba esta pantalla se apaga, se vuelve al Inbox.
   useEffect(() => {
@@ -163,9 +168,17 @@ export default function App() {
                 <span aria-hidden>{audioOn ? "🔊" : "🔇"}</span>
                 <span className="hidden lg:inline">{audioOn ? "Sonido" : "Silenciado"}</span>
               </motion.button>
-              <span className="glass hidden items-center gap-2 rounded-full px-3 py-1.5 text-[11px] font-semibold text-muted sm:flex">
-                <span className="pulse-dot" /> Bot en línea 24/7
-              </span>
+              {dataMode === "demo" ? (
+                <span className="glass hidden items-center gap-2 rounded-full px-3 py-1.5 text-[11px] font-semibold text-muted sm:flex">
+                  <span className="pulse-dot" /> Bot en línea 24/7
+                </span>
+              ) : (
+                <ConnectionChip
+                  estado={conexion}
+                  fase={faseActiva}
+                  onClick={() => navigate("settings")}
+                />
+              )}
               {dataMode === "demo" ? (
                 <motion.button
                   whileTap={{ scale: 0.94 }}
@@ -236,6 +249,7 @@ export default function App() {
 
         <Toasts />
         <Confetti />
+        {bloqueado && <ConnectionGate estado={conexion as "clave-invalida" | "sin-conexion"} />}
       </div>
     </MotionConfig>
   );

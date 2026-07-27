@@ -2,7 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import { marked } from "marked";
 import botPlaybook from "../../../app/BOT_PLAYBOOK.md?raw";
 import { ETAPA_META, ETAPAS, type Etapa } from "../data/types";
-import { getStoredAdminKey, saveStoredAdminKey } from "../data/realSource";
+import { AdminKeyForm } from "../components/admin-key";
+import { getStoredAdminKey } from "../data/realSource";
 
 type SettingsTab = "ai" | "followups" | "manual" | "business" | "connection";
 
@@ -50,7 +51,6 @@ export function Settings() {
   const [prompts, setPrompts] = useState<StagePrompt[]>([]);
   const [stage, setStage] = useState<Etapa>("nuevo");
   const [draft, setDraft] = useState<StagePrompt | null>(null);
-  const [key, setKey] = useState(getStoredAdminKey);
   const [status, setStatus] = useState("");
   const [saving, setSaving] = useState(false);
 
@@ -455,28 +455,20 @@ export function Settings() {
         {tab === "connection" && (
           <div className="glass max-w-2xl rounded-3xl p-6">
             <p className="microlabel">Acceso al producto real</p>
-            <p className="mt-2 text-sm text-muted">
+            <h2 className="serif mt-2 text-2xl">Conexión con el servidor</h2>
+            <p className="mt-2 text-sm leading-relaxed text-muted">
+              Con esta clave el hub lee tickets, métricas y las fases que
+              enciendes en el panel. Pulsa <b>Conectar</b> y te dirá si quedó
+              bien, si la clave está mal, o si el servidor no responde.
+            </p>
+            <div className="mt-5">
+              <AdminKeyForm />
+            </div>
+            <p className="mt-4 text-[11px] leading-relaxed text-faint">
               La clave nunca se incluye en el bundle ni en una URL. Durante el
               staging se conserva el gate existente; antes de producción se
               migrará a una sesión HttpOnly.
             </p>
-            <Field label="Clave administrativa de staging">
-              <input
-                type="password"
-                value={key}
-                onChange={(event) => setKey(event.target.value)}
-                className="settings-input"
-              />
-            </Field>
-            <button
-              onClick={() => {
-                saveStoredAdminKey(key);
-                window.location.reload();
-              }}
-              className="mt-3 rounded-2xl bg-navy px-5 py-3 text-xs font-black text-white"
-            >
-              Guardar y probar conexión
-            </button>
           </div>
         )}
 

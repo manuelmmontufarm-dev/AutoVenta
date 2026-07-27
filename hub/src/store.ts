@@ -2,7 +2,7 @@ import { create } from "zustand";
 import type { Atiende, BotAlert, Cierre, Etapa, FeedItem, FollowUpCard, HubMetrics, Mensaje, PhaseFlags, Rol, TemplatePlanPreview, Ticket } from "./data/types";
 import { MockSource } from "./data/mock/mockSource";
 import { Simulator } from "./data/mock/simulator";
-import { RealSource } from "./data/realSource";
+import { AdminKeyError, RealSource } from "./data/realSource";
 import type { DataSource } from "./data/source";
 import { updateFavicon } from "./lib/favicon";
 import { pingNotificacion, pingVenta, sonidoArranque, sonidoPitStop } from "./lib/sound";
@@ -22,6 +22,16 @@ export interface Toast {
   ticketId?: number;
 }
 
+/**
+ * Estado del acceso al backend. Sin esto el hub se veía "vacío pero normal"
+ * cuando la clave estaba mal: mismo aspecto que un negocio sin tickets.
+ */
+export type EstadoConexion =
+  | "verificando"
+  | "conectada"
+  | "clave-invalida"
+  | "sin-conexion";
+
 interface HubState {
   cargando: boolean;
   tickets: Ticket[];
@@ -37,6 +47,8 @@ interface HubState {
   celebrando: boolean;
   /** Fases activas: deciden qué pantallas del hub se muestran. */
   phases: PhaseFlags;
+  /** ¿El hub está leyendo datos de verdad, o la clave/servidor falla? */
+  conexion: EstadoConexion;
 
   init(): Promise<void>;
   abrirTicket(id: number): Promise<void>;
@@ -58,18 +70,27 @@ interface HubState {
 let toastId = 1;
 let iniciado = false;
 
+/** Un fallo de lectura es "clave mala" o "servidor caído" — nunca silencio. */
+function clasificarFallo(error: unknown): EstadoConexion {
+  return error instanceof AdminKeyError ? "clave-invalida" : "sin-conexion";
+}
+
 export const useHub = create<HubState>((set, get) => {
   async function refrescar(): Promise<void> {
-    const [tickets, feed, metrics, followUps, alerts, phases] = await Promise.all([
-      source.listTickets(),
-      source.getFeed(),
-      source.getMetrics(),
-      source.listFollowUps(),
-      source.listAlerts(),
-      source.getPhases(),
-    ]);
-    set({ tickets, feed, metrics, followUps, alerts, phases });
-    updateFavicon(tickets.filter((t) => t.estado === "abierto").length);
+    try {
+      const [tickets, feed, metrics, followUps, alerts, phases] = await Promise.all([
+        source.listTickets(),
+        source.getFeed(),
+        source.getMetrics(),
+        source.listFollowUps(),
+        source.listAlerts(),
+        source.getPhases(),
+      ]);
+      set({ tickets, feed, metrics, followUps, alerts, phases, conexion: "conectada" });
+      updateFavicon(tickets.filter((t) => t.estado === "abierto").length);
+    } catch (error) {
+      set({ conexion: clasificarFallo(error) });
+    }
   }
 
   async function refrescarMensajes(ticketId: number): Promise<void> {
@@ -81,6 +102,9 @@ export const useHub = create<HubState>((set, get) => {
     switch (ev.tipo) {
       case "sync":
         void refrescar();
+        break;
+      case "clave-invalida":
+        set({ conexion: "clave-invalida", cargando: false });
         break;
       case "mensaje":
         void refrescarMensajes(ev.ticketId);
@@ -125,6 +149,7 @@ export const useHub = create<HubState>((set, get) => {
     celebrando: false,
     // Conservador hasta cargar: no revela pantallas que deban estar ocultas.
     phases: { fase2: false, fase3: false, fase4: false },
+    conexion: "verificando",
 
     async init() {
       if (iniciado) return;
@@ -135,24 +160,11 @@ export const useHub = create<HubState>((set, get) => {
           Promise.all([source.listTickets(), source.getFeed(), source.getMetrics(), source.listFollowUps(), source.listAlerts(), source.getPhases()]),
           new Promise((r) => setTimeout(r, 650)),
         ]);
-        set({ tickets: datos[0], feed: datos[1], metrics: datos[2], followUps: datos[3], alerts: datos[4], phases: datos[5], cargando: false });
+        set({ tickets: datos[0], feed: datos[1], metrics: datos[2], followUps: datos[3], alerts: datos[4], phases: datos[5], cargando: false, conexion: "conectada" });
         updateFavicon(datos[0].filter((t) => t.estado === "abierto").length);
       } catch (error) {
-        set((state) => ({
-          cargando: false,
-          toasts: [
-            ...state.toasts.slice(-2),
-            {
-              id: toastId++,
-              icono: "🔐",
-              titulo: "Configura el acceso",
-              cuerpo:
-                error instanceof Error
-                  ? error.message
-                  : "Abre DT → Conexión para ingresar la clave de staging.",
-            },
-          ],
-        }));
+        // Sin toast: el gate de conexión ocupa la pantalla y explica qué pasó.
+        set({ cargando: false, conexion: clasificarFallo(error) });
       }
     },
 

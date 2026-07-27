@@ -20,6 +20,9 @@
   --color-faint: #7d7a72;
   --color-line: rgba(245, 244, 238, 0.08);
   --color-violet: #a78bfa;
+  /* Superficie sólida de acción (botones primarios): siempre con texto blanco.
+     Faltaba y `bg-navy` no pintaba nada → botones invisibles en Ajustes. */
+  --color-navy: #3a4a63;
   --color-wa: #3f463c; /* burbuja saliente: verde salvia oscuro */
   --color-ok: #86c79a; /* verde "en línea" / bot activo */
   --color-sand: #cdb989; /* arena — notas internas y modo humano */

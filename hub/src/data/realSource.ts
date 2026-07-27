@@ -25,6 +25,74 @@ export function saveStoredAdminKey(value: string): void {
   else window.localStorage.removeItem(ADMIN_KEY_STORAGE);
 }
 
+/**
+ * Error de clave (401/503 del gate de admin). Se distingue de un fallo de red
+ * para que la UI pueda decir "la clave está mal" en vez de "algo falló".
+ */
+export class AdminKeyError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "AdminKeyError";
+  }
+}
+
+export type ResultadoConexion =
+  | { estado: "conectada"; negocio: string; phases: PhaseFlags; fase: 1 | 2 | 3 | 4 }
+  | { estado: "clave-invalida"; mensaje: string }
+  | { estado: "sin-conexion"; mensaje: string };
+
+/**
+ * Prueba una clave contra el servidor SIN guardarla. Devuelve además la fase
+ * activa, que es lo que el dueño necesita ver para saber que quedó bien.
+ */
+export async function probarClaveAdmin(value: string): Promise<ResultadoConexion> {
+  const key = value.trim();
+  if (!key) {
+    return { estado: "clave-invalida", mensaje: "Escribe la clave antes de conectar." };
+  }
+  const headers = { "Content-Type": "application/json", "x-admin-key": key };
+  try {
+    const [status, phases] = await Promise.all([
+      fetch("/api/status", { headers }),
+      fetch("/api/phases", { headers }),
+    ]);
+    if (status.status === 401 || phases.status === 401) {
+      return {
+        estado: "clave-invalida",
+        mensaje: "El servidor rechazó esta clave.",
+      };
+    }
+    if (status.status === 503 || phases.status === 503) {
+      return {
+        estado: "sin-conexion",
+        mensaje: "Este servidor no tiene ADMIN_KEY configurada todavía.",
+      };
+    }
+    if (!status.ok || !phases.ok) {
+      return {
+        estado: "sin-conexion",
+        mensaje: `El servidor respondió ${status.ok ? phases.status : status.status}.`,
+      };
+    }
+    const negocio = ((await status.json()) as { negocio?: string }).negocio;
+    const flags = ((await phases.json()) as { phases: PhaseFlags }).phases;
+    return {
+      estado: "conectada",
+      negocio: negocio ?? "Cuenta activa",
+      phases: flags,
+      fase: flags.fase4 ? 4 : flags.fase3 ? 3 : flags.fase2 ? 2 : 1,
+    };
+  } catch (error) {
+    return {
+      estado: "sin-conexion",
+      mensaje:
+        error instanceof Error
+          ? error.message
+          : "No se pudo contactar el servidor.",
+    };
+  }
+}
+
 export class RealSource implements DataSource {
   private listeners = new Set<(event: SourceEvent) => void>();
   private controller: AbortController | null = null;
@@ -174,6 +242,11 @@ export class RealSource implements DataSource {
     const payload = (await response.json().catch(() => ({}))) as T & {
       error?: string;
     };
+    if (response.status === 401 || response.status === 503) {
+      throw new AdminKeyError(
+        payload.error ?? "El servidor rechazó la clave administrativa.",
+      );
+    }
     if (!response.ok) {
       throw new Error(payload.error ?? `Error ${response.status}`);
     }
@@ -193,8 +266,8 @@ export class RealSource implements DataSource {
           headers: this.authHeaders(),
           signal,
         });
-        if (response.status === 401) {
-          this.emit({ tipo: "toast", icono: "🔐", titulo: "Clave administrativa requerida", cuerpo: "Abre Ajustes → Conexión e ingresa la clave de staging." });
+        if (response.status === 401 || response.status === 503) {
+          this.emit({ tipo: "clave-invalida" });
           return;
         }
         if (!response.ok || !response.body) {
