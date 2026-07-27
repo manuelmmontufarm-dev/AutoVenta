@@ -47,6 +47,7 @@ function clasificarPeticion(body) {
   if (body.response_format?.type === "json_object") {
     if (texto.includes("SECCIÓN COMERCIAL")) return "classifier";
     if (texto.includes("seguimientos de WhatsApp")) return "followUpCopy";
+    if (texto.includes("gerente de ventas")) return "juez";
     return "json_desconocido";
   }
   return "agent";
@@ -69,6 +70,11 @@ function respuestaChat(kind, body) {
     const indice = ETAPAS.indexOf(actual);
     const siguiente = ETAPAS[Math.min(indice + 1, ETAPAS.length - 1)] ?? "nuevo";
     return { content: JSON.stringify({ stage: indice === -1 ? "nuevo" : siguiente }) };
+  }
+  if (kind === "juez") {
+    // Notas fijas: solo sirven para comprobar que el cableado del evaluador
+    // funciona. Un juez de verdad requiere el modelo real.
+    return { content: JSON.stringify({ utilidad: 4, naturalidad: 4, precision: 4, accion: 4, comentario: "stub" }) };
   }
   if (kind === "followUpCopy") {
     return { content: JSON.stringify({ text: "Quedé pendiente de lo que hablamos 😊 ¿Te ayudo a dejar listo el siguiente paso?" }) };

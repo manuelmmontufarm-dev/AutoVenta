@@ -1,3 +1,5 @@
 .vercel
 .env*
 app/scripts/loadtest/reports/
+app/scripts/eval/reports/
+backups/

@@ -18,7 +18,9 @@
     "test:staging": "node scripts/staging-follow-ups-smoke.mjs",
     "db:migrate": "tsx src/db/migrate.ts",
     "seed:depot": "tsx src/db/seed-depot.ts",
-    "test:carga": "node scripts/loadtest/run.mjs"
+    "test:carga": "node scripts/loadtest/run.mjs",
+    "test:calidad": "node scripts/eval/run.mjs",
+    "ops:backup": "node scripts/ops/backup-restore.mjs"
   },
   "dependencies": {
     "@date-fns/tz": "^1.5.0",

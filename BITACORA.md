@@ -32,6 +32,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-07-27 | _(este mismo)_ | Calidad comercial, modelo lento, respaldos y latido del worker | 3.0 |
 | 2026-07-27 | _(este mismo)_ | Prueba de carga 50 clientes + fix durabilidad del webhook | 4.0 |
 | 2026-07-27 | _(este mismo)_ | Fix: botón «Generar» estaba en pantalla muerta (tree-shaken) | 0.5 |
 | 2026-07-27 | _(este mismo)_ | Seguimientos perezosos: redactar solo cuando el mensaje va a salir | 1.0 |
@@ -64,11 +65,48 @@ Ya viene activado en este equipo.
 | 2026-07-14 | ac09171 | Ubicaciones de locales + análisis de features del cliente | 1.5 |
 | 2026-07-13 | feadf57 | Brief + plan de desarrollo + plan financiero + catálogo | 4.0 |
 | 2026-07-13 | d997844 | Commit inicial (repo) | 0.25 |
-| | | **TOTAL** | **~59.75 h** |
+| | | **TOTAL** | **~62.75 h** |
 
 ---
 
 ## Entradas (más reciente primero)
+
+### 2026-07-27 · Calidad comercial, modelo lento, respaldos y latido del worker · ⏱️ 3.0 h
+
+**Qué:** cerrar los cuatro huecos que el reporte de carga dejó abiertos, más
+pruebas funcionales de los seguimientos perezosos.
+
+- **Evaluador de calidad comercial** (`npm run test:calidad`): 10 reglas duras
+  determinísticas —precio, descuento, stock, plazo inventados; no pedir la
+  medida; largo; sin pregunta; saludo repetido— más un juez LLM solo para lo
+  que las reglas no pueden ver. Un fallo crítico reprueba aunque el juez ponga
+  5. Las reglas tienen 12 pruebas propias contra respuestas que **deben**
+  fallar: sin eso, "0 fallos" es indistinguible de un evaluador roto.
+- **12 pruebas funcionales de seguimientos** (`followUpsLazy.integration`) que
+  espían `generateFollowUpCopy` y cuentan llamadas: programar cuesta 0, el
+  worker redacta exactamente 1 vez, «Generar» del asesor evita que el worker
+  vuelva a pedirlo, el texto escrito a mano sobrevive, y los seis portones
+  (cliente respondió, opt-out, cambio de etapa, fuera de horario, plantilla,
+  carrera del worker) cancelan **antes** de gastar redacción.
+- **Corrida con modelo lento (2 s) y 10 % de errores de Meta**: 13/13 en verde.
+  55 rechazos inyectados (30× 429, 25× 503) absorbidos por los reintentos, sin
+  un solo duplicado. El ACK se quedó en 72 ms: la ruta de acuse está bien
+  desacoplada del modelo.
+- **Respaldo probado** (`npm run ops:backup`): dump → restaurar en base limpia →
+  comparar las 11 tablas que importan. Falla si alguna difiere. Verificado.
+- **Latido del worker** + `/health` lo reporta. Era el agujero más silencioso:
+  el worker corre en otro proceso sin healthcheck, y si moría los seguimientos
+  se detenían mientras el bot seguía contestando y el panel seguía abriendo.
+- **`docs/OPERACION.md`**: respaldos, alertas con umbrales, rollback y los
+  pasos del token permanente de WhatsApp.
+- **Modo `--real-model`** en la prueba de carga y `--latency`/`--chaos`.
+
+**Por qué:** el reporte anterior terminaba con cuatro salvedades honestas y
+quedarse ahí las convertía en deuda. Tres se cerraron. La cuarta —correr contra
+la API real de OpenAI— quedó **bloqueada por falta de `OPENAI_API_KEY`** en el
+entorno; la maquinaria está lista y es un comando. El token permanente de
+WhatsApp exige Meta Business Manager y es tuyo.
+
 
 ### 2026-07-27 · Prueba de carga de 50 clientes + fix de durabilidad del webhook · ⏱️ 4.0 h
 

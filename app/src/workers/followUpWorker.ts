@@ -1,3 +1,4 @@
+import { sql } from "../db/client.js";
 import {
   claimDueFollowUpJobs,
   markFollowUpJobCancelled,
@@ -5,6 +6,22 @@ import {
   reconcileFollowUpAlerts,
   ensureActiveConversationPlans,
 } from "../services/followUps.js";
+
+/**
+ * Latido del worker.
+ *
+ * El worker corre en un proceso aparte y sin healthcheck: si se muere, los
+ * seguimientos dejan de salir y nada lo dice — el bot sigue contestando, el
+ * panel sigue abriendo, y el silencio pasa por normalidad. Dejar la marca de
+ * la última vuelta es lo que permite que /health lo detecte.
+ */
+async function latir(workerId: string): Promise<void> {
+  await sql`
+    insert into settings (key, value)
+    values ('follow_up_worker_heartbeat', ${sql.json({ at: new Date().toISOString(), workerId })})
+    on conflict (key) do update set value = excluded.value
+  `.catch(() => { /* el latido nunca debe tumbar al worker */ });
+}
 
 export interface FollowUpJobProcessor {
   (job: FollowUpJob): Promise<void>;
@@ -22,6 +39,7 @@ export async function runFollowUpWorkerOnce(
   processor: FollowUpJobProcessor,
   options: WorkerOptions,
 ): Promise<number> {
+  await latir(options.workerId);
   await reconcileFollowUpAlerts(options.clock?.() ?? new Date());
   await ensureActiveConversationPlans(options.clock?.() ?? new Date());
   const jobs = await claimDueFollowUpJobs({

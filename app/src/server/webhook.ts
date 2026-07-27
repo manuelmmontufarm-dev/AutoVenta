@@ -6,6 +6,7 @@
 import express from "express";
 import { fileURLToPath } from "node:url";
 import { getWa } from "../wa/client.js";
+import { sql } from "../db/client.js";
 import { catalogStatus, searchBySize } from "../services/catalog.js";
 import { renderCompareImage, toRenderLine } from "../render/quoteImage.js";
 import { createAdminRouter } from "./admin.js";
@@ -41,8 +42,26 @@ export function createServer(): express.Express {
     }
   });
 
-  app.get("/health", (_req, res) => {
-    res.json({ ok: true, catalog: catalogStatus() });
+  // /health también reporta el worker de seguimientos, que corre en otro
+  // proceso y sin healthcheck propio: si se muere, deja de mandar seguimientos
+  // sin que nada más se entere. `worker.ok` es falso si no late hace 2 minutos
+  // (el ciclo normal es de 5 s), y es lo que debe vigilar la alerta externa.
+  app.get("/health", async (_req, res) => {
+    let worker: { ok: boolean; lastBeatAt: string | null; secondsAgo: number | null } = {
+      ok: false, lastBeatAt: null, secondsAgo: null,
+    };
+    try {
+      const [row] = await sql<{ value: { at?: string } }[]>`
+        select value from settings where key = 'follow_up_worker_heartbeat'
+      `;
+      if (row?.value?.at) {
+        const segundos = (Date.now() - new Date(row.value.at).getTime()) / 1000;
+        worker = { ok: segundos < 120, lastBeatAt: row.value.at, secondsAgo: Math.round(segundos) };
+      }
+    } catch {
+      worker = { ok: false, lastBeatAt: null, secondsAgo: null };
+    }
+    res.json({ ok: true, catalog: catalogStatus(), worker });
   });
 
   // Prueba en vivo del motor de imágenes con el catálogo real: renderiza la

@@ -39,6 +39,18 @@ const ADMIN_KEY = `loadtest_${RUN_ID}`;
 const PHONE_ID = "STUBPHONEID";
 const BASE_URL = `http://127.0.0.1:${PUERTO_APP}`;
 const DEBOUNCE_MS = Number(args.debounce ?? 5_000);
+// Latencia del stub del modelo y tasa de errores transitorios de Meta: un stub
+// que responde en 1 ms esconde justo los timeouts que se vienen a buscar.
+const LATENCIA_MODELO = String(args.latency ?? 150);
+const CAOS_GRAPH = String(args.chaos ?? 0);
+// --real-model usa la API de OpenAI de verdad en vez del stub. Cuesta dinero
+// (del orden de $0,30 la corrida completa) y sirve para confirmar que el stub
+// no escondió nada: latencias reales, tool-calls reales, rechazos reales.
+const MODELO_REAL = process.argv.includes("--real-model");
+if (MODELO_REAL && !process.env.OPENAI_API_KEY) {
+  console.error("--real-model necesita OPENAI_API_KEY en el entorno. Defínela y vuelve a correr.");
+  process.exit(2);
+}
 
 const salida = resolve(aquí, "reports", new Date().toISOString().replace(/[:.]/g, "-"));
 mkdirSync(salida, { recursive: true });
@@ -76,8 +88,8 @@ function lanzar(nombre, comando, argumentos, env, archivoLog) {
 const envBot = () => ({
   DATABASE_URL: `postgresql://manue@localhost/${DB}`,
   PORT: String(PUERTO_APP),
-  OPENAI_API_KEY: "stub-key",
-  OPENAI_BASE_URL: `http://127.0.0.1:${PUERTO_OPENAI}/v1`,
+  OPENAI_API_KEY: MODELO_REAL ? process.env.OPENAI_API_KEY : "stub-key",
+  ...(MODELO_REAL ? {} : { OPENAI_BASE_URL: `http://127.0.0.1:${PUERTO_OPENAI}/v1` }),
   GRAPH_BASE_URL: `http://127.0.0.1:${PUERTO_GRAPH}`,
   WHATSAPP_TOKEN: "stub-token",
   WHATSAPP_APP_SECRET: APP_SECRET,
@@ -135,9 +147,9 @@ async function main() {
   log("🧱 Compilando (tsc)");
   execFileSync("npm", ["run", "build"], { cwd: raízApp, stdio: "pipe" });
 
-  log("🎭 Levantando stubs de Meta y OpenAI");
-  lanzar("stub-graph", "node", [resolve(aquí, "stub-graph.mjs"), "--port", String(PUERTO_GRAPH), "--log", artefactos.graphLog], {}, resolve(salida, "stub-graph.log"));
-  lanzar("stub-openai", "node", [resolve(aquí, "stub-openai.mjs"), "--port", String(PUERTO_OPENAI), "--log", artefactos.openaiLog], {}, resolve(salida, "stub-openai.log"));
+  log(MODELO_REAL ? "🎭 Stub de Meta (modelo: API REAL de OpenAI)" : "🎭 Levantando stubs de Meta y OpenAI");
+  lanzar("stub-graph", "node", [resolve(aquí, "stub-graph.mjs"), "--port", String(PUERTO_GRAPH), "--log", artefactos.graphLog, "--chaos", CAOS_GRAPH], {}, resolve(salida, "stub-graph.log"));
+  lanzar("stub-openai", "node", [resolve(aquí, "stub-openai.mjs"), "--port", String(PUERTO_OPENAI), "--log", artefactos.openaiLog, "--latency", LATENCIA_MODELO], {}, resolve(salida, "stub-openai.log"));
   await sleep(1_000);
 
   log("🤖 Arrancando bot y worker");
@@ -274,7 +286,7 @@ async function main() {
   console.log(`\n📁 ${salida}\n`);
 
   await sql.end();
-  if (args["keep-db"] === undefined) {
+  if (!process.argv.includes("--keep-db")) {
     await admin.unsafe(`drop database if exists ${DB}`).catch(() => {});
   } else {
     log(`🗄  Base conservada para inspección: ${DB}`);
