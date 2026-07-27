@@ -104,7 +104,7 @@ día siguiente.
 
 ```bash
 cd app
-npm run typecheck && npm test        # 98 pruebas
+npm run typecheck && npm test        # 110 pruebas
 npm run test:carga                   # 13 criterios, 50 clientes simultáneos
 OPENAI_API_KEY=… npm run test:calidad   # calidad comercial (cuesta ~$0,30)
 ```
