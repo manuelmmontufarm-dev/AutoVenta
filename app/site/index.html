@@ -3,201 +3,275 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Depot Tire Hub · Centro de Control</title>
-<meta name="description" content="AutoVenta — producto real, demo oficial y mensajes de WhatsApp.">
-<meta name="theme-color" content="#f6f1e4">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23d62828'/%3E%3Crect x='2' y='2' width='60' height='60' rx='12' fill='none' stroke='%2314213d' stroke-width='4'/%3E%3Ctext x='32' y='42' font-family='Arial Black,sans-serif' font-size='24' font-weight='900' fill='white' text-anchor='middle'%3EDT%3C/text%3E%3C/svg%3E">
+<title>AutoVenta · Hub</title>
+<meta name="description" content="Centro de acceso de AutoVenta: staging, Depot Tire y panel de fases.">
+<meta name="theme-color" content="#0a0d14">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%230a0d14'/%3E%3Crect x='1.5' y='1.5' width='61' height='61' rx='14.5' fill='none' stroke='%23ff3b47' stroke-width='3'/%3E%3Ctext x='32' y='42' font-family='Helvetica,Arial,sans-serif' font-size='24' font-weight='700' fill='%23ff3b47' text-anchor='middle'%3EAV%3C/text%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=Archivo+Black&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
   :root{
-    --crema:#f6f1e4; --card:#fffdf6; --navy:#14213d; --rojo:#d62828; --amarillo:#fcbf49;
-    --verde:#2a9d8f; --linea:#d9d2bf; --muted:#5c6273; --faint:#8a8368; --azul:#1f4e8c;
+    --bg:#0a0d14; --ink:#eef1f7; --muted:#8b93a7; --faint:#5f6779;
+    --card:rgba(255,255,255,.035); --card-hi:rgba(255,255,255,.06);
+    --line:rgba(255,255,255,.10); --line-hi:rgba(255,255,255,.20);
+    --red:#ff3b47; --green:#2ee6a8; --blue:#5b9dff;
+    --radius:18px;
   }
-  *{box-sizing:border-box;margin:0}
-  body{font-family:Archivo,system-ui,sans-serif;color:var(--navy);background:var(--crema);min-height:100vh;padding:0 20px 70px}
-  .checker{height:16px;margin:0 -20px;background:conic-gradient(var(--navy) 90deg,transparent 90deg 180deg,var(--navy) 180deg 270deg,transparent 270deg) 0 0/16px 16px}
-  .wrap{max-width:1060px;margin:0 auto;padding-top:26px}
-  .pulse{width:8px;height:8px;border-radius:50%;background:var(--verde);box-shadow:0 0 8px var(--verde);display:inline-block;animation:pulse 1.8s ease-in-out infinite;flex-shrink:0}
-  @keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.45;transform:scale(.82)}}
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{color-scheme:dark;-webkit-text-size-adjust:100%}
+  body{
+    font-family:Inter,ui-sans-serif,system-ui,sans-serif;
+    background:var(--bg); color:var(--ink);
+    min-height:100vh; padding:0 20px 64px;
+    -webkit-font-smoothing:antialiased;
+    letter-spacing:-.006em;
+  }
+  /* Fondo: rejilla fina + halos */
+  body::before{
+    content:"";position:fixed;inset:0;z-index:0;pointer-events:none;
+    background:
+      radial-gradient(60rem 40rem at 82% -8%, rgba(255,59,71,.14), transparent 62%),
+      radial-gradient(52rem 36rem at 8% 6%, rgba(91,157,255,.10), transparent 60%),
+      linear-gradient(transparent 95%, rgba(255,255,255,.035) 95%) 0 0/100% 34px,
+      linear-gradient(90deg, transparent 95%, rgba(255,255,255,.035) 95%) 0 0/34px 100%;
+    mask-image:linear-gradient(#000 0, #000 62%, transparent 100%);
+  }
+  .wrap{position:relative;z-index:1;max-width:960px;margin:0 auto;padding-top:36px}
 
+  a{text-decoration:none;color:inherit}
+  .mono{font-family:'JetBrains Mono',ui-monospace,monospace}
+
+  /* ── Header ── */
   header{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
-  .brand{display:flex;align-items:center;gap:12px}
-  .logo{width:40px;height:40px;border-radius:11px;background:var(--rojo);border:2.5px solid var(--navy);box-shadow:3px 3px 0 var(--navy);display:grid;place-items:center;font-family:'Archivo Black';font-size:13px;color:#fff}
-  .brand b{font-size:15px;font-weight:800;letter-spacing:.01em;text-transform:uppercase}
-  .brand span{display:block;font-size:11px;color:var(--muted);font-weight:600;text-transform:none;letter-spacing:0}
-  .status{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted);font-weight:700}
-  .status a{color:var(--muted);text-decoration:none}
-  .status a:hover{color:var(--navy)}
+  .brand{display:flex;align-items:center;gap:11px}
+  .mark{
+    width:36px;height:36px;border-radius:11px;display:grid;place-items:center;
+    font-size:12px;font-weight:700;letter-spacing:.02em;color:var(--red);
+    border:1.5px solid rgba(255,59,71,.45);background:rgba(255,59,71,.10);
+    box-shadow:0 0 24px rgba(255,59,71,.20)
+  }
+  .brand b{display:block;font-size:14.5px;font-weight:600}
+  .brand span{display:block;font-size:11.5px;color:var(--faint);font-weight:450}
+  .head-right{display:flex;align-items:center;gap:8px}
+  .chip{
+    display:inline-flex;align-items:center;gap:7px;padding:6px 12px;border-radius:999px;
+    border:1px solid var(--line);background:var(--card);
+    font-size:11px;font-weight:600;color:var(--muted);
+    letter-spacing:.06em;text-transform:uppercase;transition:.15s
+  }
+  a.chip:hover{border-color:var(--line-hi);color:var(--ink)}
+  .dot{width:6px;height:6px;border-radius:50%;background:var(--green);box-shadow:0 0 10px var(--green);animation:pulse 2.2s ease-in-out infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
 
-  .hero{margin-top:30px;display:flex;align-items:flex-end;justify-content:space-between;gap:18px;flex-wrap:wrap}
-  .kicker{font-size:11px;font-weight:800;letter-spacing:.22em;text-transform:uppercase;color:var(--rojo)}
-  h1{font-family:'Archivo Black';font-size:clamp(26px,4vw,38px);text-transform:uppercase;letter-spacing:-.01em;margin:8px 0 0;line-height:1.08}
-  h1 .yr{display:inline-block;background:var(--amarillo);padding:0 9px;transform:rotate(-2deg);border:3px solid var(--navy)}
-  .lede{color:var(--muted);font-size:13.5px;max-width:520px;line-height:1.55;font-weight:500;margin-top:10px}
-  .quicknav{display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end}
-  .quicknav a{color:var(--navy);text-decoration:none;font-size:11px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;padding:7px 13px;border:2px solid var(--navy);border-radius:99px;background:var(--card);box-shadow:0 3px 0 var(--navy);transition:.12s}
-  .quicknav a:hover{transform:translateY(1px);box-shadow:0 2px 0 var(--navy)}
+  /* ── Hero ── */
+  .hero{margin:52px 0 30px}
+  .kicker{font-size:11px;font-weight:600;letter-spacing:.2em;text-transform:uppercase;color:var(--red)}
+  h1{font-size:clamp(32px,5.4vw,46px);font-weight:600;letter-spacing:-.035em;line-height:1.04;margin-top:12px}
+  h1 em{font-style:normal;color:var(--faint)}
+  .lede{margin-top:12px;color:var(--muted);font-size:14.5px;line-height:1.55;max-width:46ch}
 
-  h2{font-size:11px;font-weight:800;letter-spacing:.2em;text-transform:uppercase;color:var(--faint);margin:34px 0 12px;display:flex;align-items:center;gap:12px}
-  h2::after{content:"";flex:1;height:2px;background:var(--linea)}
+  h2{
+    display:flex;align-items:center;gap:14px;margin:40px 0 14px;
+    font-size:11px;font-weight:600;letter-spacing:.18em;text-transform:uppercase;color:var(--faint)
+  }
+  h2::after{content:"";flex:1;height:1px;background:var(--line)}
 
-  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(235px,1fr));gap:12px}
-  .card{background:var(--card);border:2px solid var(--navy);border-radius:14px;box-shadow:0 5px 0 rgba(20,33,61,.14)}
-  a.card{display:block;padding:15px 16px;text-decoration:none;color:inherit;transition:.12s;position:relative}
-  a.card:hover{transform:translateY(-2px);box-shadow:0 8px 0 rgba(20,33,61,.2)}
-  .cardtop{display:flex;align-items:center;gap:10px;margin-bottom:6px}
-  .card .icon{width:30px;height:30px;border-radius:8px;border:2px solid var(--navy);display:grid;place-items:center;font-size:14px;flex-shrink:0}
-  .card h3{font-size:14px;font-weight:800;letter-spacing:0}
-  .card p{font-size:12px;color:var(--muted);line-height:1.5;font-weight:500}
-  .badge{display:inline-flex;align-items:center;gap:4px;font-size:9px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;padding:2.5px 8px;border-radius:99px;border:2px solid var(--navy);margin-left:auto;flex-shrink:0}
-  .badge.live{color:#fff;background:var(--verde);border-color:var(--navy)}
-  .badge.demo{background:var(--amarillo);color:var(--navy)}
+  /* ── Entornos ── */
+  .envs{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(300px,1fr))}
+  .env{
+    position:relative;overflow:hidden;padding:22px;border-radius:var(--radius);
+    border:1px solid var(--line);background:var(--card);transition:.18s ease
+  }
+  .env::before{
+    content:"";position:absolute;inset:0;border-radius:var(--radius);pointer-events:none;
+    background:radial-gradient(28rem 12rem at 100% 0%, var(--glow,transparent), transparent 70%);
+    opacity:.7
+  }
+  .env:hover{border-color:var(--line-hi);background:var(--card-hi);transform:translateY(-2px)}
+  .env-top{position:relative;display:flex;align-items:center;justify-content:space-between;gap:10px}
+  .tag{font-size:10px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:var(--accent,var(--muted))}
+  .env h3{position:relative;margin-top:12px;font-size:21px;font-weight:600;letter-spacing:-.02em;display:flex;align-items:center;gap:8px}
+  /* El título cubre toda la tarjeta: un solo destino, sin anidar enlaces. */
+  .env h3 a::after{content:"";position:absolute;inset:0;border-radius:var(--radius);z-index:1}
+  .env h3 .arrow{color:var(--accent,var(--muted));transition:transform .18s;display:inline-block}
+  .env:hover h3 .arrow{transform:translate(3px,-3px)}
+  .env p{position:relative;margin-top:7px;font-size:13.5px;line-height:1.55;color:var(--muted)}
+  .env .url{position:relative;display:block;margin-top:14px;font-size:11px;color:var(--faint);word-break:break-all}
+  .here{
+    display:none;align-items:center;gap:6px;padding:4px 9px;border-radius:999px;
+    font-size:9.5px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;
+    border:1px solid rgba(46,230,168,.35);background:rgba(46,230,168,.10);color:var(--green)
+  }
+  .here.on{display:inline-flex}
+  /* Sub-links dentro de cada entorno */
+  .sub{position:relative;z-index:2;display:flex;flex-wrap:wrap;gap:6px;margin-top:16px;padding-top:15px;border-top:1px solid var(--line)}
+  .sub a{
+    padding:5px 11px;border-radius:999px;font-size:11.5px;font-weight:500;color:var(--muted);
+    border:1px solid var(--line);transition:.15s
+  }
+  .sub a:hover{color:var(--ink);border-color:var(--line-hi);background:rgba(255,255,255,.05)}
 
-  /* Demo destacada */
-  .featured{grid-column:1/-1;display:flex;align-items:center;justify-content:space-between;gap:18px;flex-wrap:wrap;padding:20px 22px;background:var(--navy);color:var(--crema);border-radius:16px;border:2px solid var(--navy);box-shadow:0 6px 0 rgba(20,33,61,.25);position:relative;overflow:hidden}
-  .featured::after{content:"";position:absolute;top:0;right:0;bottom:0;width:14px;background:repeating-linear-gradient(180deg,var(--rojo) 0 14px,var(--navy) 14px 28px)}
-  .featured .tag{display:inline-block;font-size:9.5px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;padding:2.5px 9px;background:var(--amarillo);color:var(--navy);border:2px solid var(--navy);transform:rotate(-1.5deg);margin-bottom:8px}
-  .featured h3{font-family:'Archivo Black';font-size:18px;text-transform:uppercase;margin-bottom:4px}
-  .featured p{color:#c8cede;font-size:12.5px;font-weight:500;max-width:430px}
-  .featured .go{background:var(--rojo);color:#fff;padding:11px 22px;border-radius:99px;font-weight:800;font-size:12.5px;text-transform:uppercase;letter-spacing:.05em;white-space:nowrap;border:2.5px solid var(--crema);box-shadow:0 4px 0 rgba(0,0,0,.35);text-decoration:none;transition:.12s;margin-right:16px}
-  .featured .go:hover{transform:translateY(1px);box-shadow:0 2px 0 rgba(0,0,0,.35)}
-  .estilo-pills{display:flex;gap:7px;flex-wrap:wrap;margin-top:10px}
-  .estilo-pills a{font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.03em;padding:5px 11px;border-radius:99px;text-decoration:none;border:2px solid var(--crema);color:var(--crema);transition:.12s}
-  .estilo-pills a:hover{background:rgba(255,255,255,.12)}
-  .estilo-pills a.win{background:var(--amarillo);color:var(--navy);border-color:var(--amarillo)}
+  /* ── Panel destacado ── */
+  .panel{
+    display:flex;align-items:center;gap:16px;margin-top:12px;padding:20px 22px;
+    border-radius:var(--radius);border:1px solid rgba(255,59,71,.28);
+    background:linear-gradient(100deg, rgba(255,59,71,.13), rgba(255,59,71,.03) 62%);
+    transition:.18s ease
+  }
+  .panel:hover{border-color:rgba(255,59,71,.55);transform:translateY(-2px)}
+  .panel .ic{
+    width:40px;height:40px;flex-shrink:0;border-radius:12px;display:grid;place-items:center;font-size:17px;
+    border:1px solid rgba(255,59,71,.3);background:rgba(255,59,71,.12)
+  }
+  .panel .txt{min-width:0;flex:1}
+  .panel .tag{color:var(--red)}
+  .panel h3{margin-top:4px;font-size:16.5px;font-weight:600;letter-spacing:-.015em}
+  .panel p{margin-top:3px;font-size:12.5px;color:var(--muted);line-height:1.5}
+  .panel .go{flex-shrink:0;font-size:12px;font-weight:600;color:var(--red)}
 
-  /* Filas compactas (docs, plataformas) */
-  .rows{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:8px}
-  a.row{display:flex;align-items:center;gap:10px;padding:9px 12px;background:var(--card);border:2px solid var(--linea);border-radius:10px;text-decoration:none;color:inherit;transition:.12s}
-  a.row:hover{border-color:var(--navy);box-shadow:0 3px 0 rgba(20,33,61,.15);transform:translateY(-1px)}
-  .row .ic{width:26px;height:26px;border-radius:7px;border:2px solid var(--navy);display:grid;place-items:center;font-size:12px;flex-shrink:0}
-  .row b{font-size:12.5px;font-weight:700;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .row span{font-size:10px;font-weight:800;color:var(--faint);text-transform:uppercase;letter-spacing:.05em;flex-shrink:0}
-  .row .arrow{color:var(--rojo);font-weight:800;flex-shrink:0}
+  /* ── Grid compacta ── */
+  .grid{display:grid;gap:8px;grid-template-columns:repeat(auto-fill,minmax(160px,1fr))}
+  .tile{
+    display:flex;align-items:center;gap:10px;padding:12px 13px;border-radius:13px;
+    border:1px solid var(--line);background:var(--card);transition:.15s ease
+  }
+  .tile:hover{border-color:var(--line-hi);background:var(--card-hi);transform:translateY(-1px)}
+  .tile .ic{width:15px;text-align:center;font-size:13px;flex-shrink:0;opacity:.85}
+  .tile b{flex:1;min-width:0;font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .tile .out{font-size:11px;color:var(--faint);flex-shrink:0;transition:.15s}
+  .tile:hover .out{color:var(--ink)}
 
-  .foot{margin-top:36px;padding:16px 20px;font-size:12px;line-height:1.65;color:var(--muted);font-weight:500;background:var(--card);border:2px solid var(--linea);border-radius:12px}
-  .foot b{color:var(--navy)}
+  footer{
+    display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;
+    margin-top:44px;padding-top:18px;border-top:1px solid var(--line);
+    font-size:11px;color:var(--faint)
+  }
+
+  @media (max-width:520px){
+    body{padding:0 16px 48px}
+    .wrap{padding-top:26px}
+    .hero{margin:38px 0 24px}
+    .panel{flex-direction:column;align-items:flex-start;gap:12px;padding:18px}
+    .tile b{font-size:12.5px}
+  }
+  @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 </style>
-<link rel="stylesheet" href="/showroom-gp-global.css">
 </head>
-<body class="hub-home">
-<div class="checker"></div>
+<body>
 <div class="wrap">
+
   <header>
     <div class="brand">
-      <div class="logo">DT</div>
-      <div><b>AutoVenta</b><span>Depot Tire · centro de control interno</span></div>
+      <div class="mark">AV</div>
+      <div><b>AutoVenta</b><span>centro de control</span></div>
     </div>
-    <div class="status">
-      <span class="pulse"></span> repo activo
-      <a href="https://github.com/manuelmmontufarm-dev/AutoVenta" target="_blank" rel="noopener">· GitHub ↗</a>
+    <div class="head-right">
+      <span class="chip"><span class="dot"></span><span id="entorno">en línea</span></span>
+      <a class="chip" href="https://github.com/manuelmmontufarm-dev/AutoVenta" target="_blank" rel="noopener">GitHub ↗</a>
     </div>
   </header>
 
-  <div class="hero">
-    <div>
-      <p class="kicker">Centro de acceso · Depot Tire</p>
-      <h1>AutoVenta <span class="yr">en línea</span></h1>
-      <p class="lede">Cuatro accesos, sin frontends de prueba: producto real de staging, panel de administración, demo oficial y conversaciones de WhatsApp.</p>
-    </div>
-    <nav class="quicknav" aria-label="Accesos rápidos">
-      <a href="admin/">Producto real</a>
-      <a href="panel/">Panel admin</a>
-      <a href="demo-showroom-gp/">Demo</a>
-      <a href="admin/#/inbox">WhatsApp</a>
-    </nav>
-  </div>
+  <section class="hero">
+    <p class="kicker">Hub</p>
+    <h1>Un backend.<br><em>Dos entornos.</em></h1>
+    <p class="lede">
+      El mismo código corre en tu laboratorio y en el cliente. Las <b>fases</b>
+      deciden qué ve cada uno — y eso se enciende desde el panel.
+    </p>
+  </section>
 
-  <h2 id="producto">Accesos oficiales</h2>
-  <div class="grid">
-    <div class="featured">
-      <div class="txt">
-        <span class="tag">● Producto real · staging</span>
-        <h3>AutoVenta — Centro de operaciones</h3>
-        <p>Conversaciones reales, pipeline, cotizador, métricas de ventas e inventario y configuración de IA por etapa.</p>
-        <div class="estilo-pills">
-          <a href="admin/#/inbox">Inbox</a>
-          <a href="admin/#/pipeline">Pipeline</a>
-          <a class="win" href="admin/#/cotizador">Cotizador</a>
-          <a href="admin/#/dashboard">Métricas</a>
-          <a href="admin/#/settings">Ajustes</a>
-        </div>
+  <h2>Entornos</h2>
+  <div class="envs">
+
+    <div class="env" id="env-staging" style="--accent:var(--blue);--glow:rgba(91,157,255,.13)">
+      <div class="env-top">
+        <span class="tag">Tu laboratorio</span>
+        <span class="here">● estás aquí</span>
       </div>
-      <a class="go" href="admin/#/inbox">Abrir producto →</a>
+      <h3><a href="https://autoventa-staging.up.railway.app/admin/">Staging <span class="arrow">↗</span></a></h3>
+      <p>Donde pruebas. WhatsApp de tester, todas las fases encendidas.</p>
+      <span class="url mono">autoventa-staging.up.railway.app</span>
+      <div class="sub">
+        <a href="https://autoventa-staging.up.railway.app/admin/#/inbox">Inbox</a>
+        <a href="https://autoventa-staging.up.railway.app/admin/#/pipeline">Pipeline</a>
+        <a href="https://autoventa-staging.up.railway.app/admin/#/cotizador">Cotizador</a>
+        <a href="https://autoventa-staging.up.railway.app/admin/#/dashboard">Métricas</a>
+        <a href="https://autoventa-staging.up.railway.app/admin/#/settings">Ajustes</a>
+      </div>
     </div>
-    <a class="card" href="demo-showroom-gp/#/inbox">
-      <div class="cardtop"><div class="icon" style="background:#eaf0fb;color:var(--azul)">🏁</div><h3>Demo oficial</h3><span class="badge demo">demo</span></div>
-      <p>El mismo producto con datos simulados para presentaciones, sin tocar la operación real.</p>
-    </a>
-    <a class="card" href="admin/#/inbox">
-      <div class="cardtop"><div class="icon" style="background:#e8f4ea;color:var(--verde)">WA</div><h3>Mensajes WhatsApp</h3><span class="badge live">● staging</span></div>
-      <p>Conversaciones registradas, respuesta manual, estado del bot y seguimiento comercial.</p>
-    </a>
-    <a class="card" href="cotizaciones/">
-      <div class="cardtop"><div class="icon" style="background:#fdeaea;color:var(--rojo)">◫</div><h3>Cotizaciones visuales</h3><span class="badge live">● staging</span></div>
-      <p>Las piezas que el bot manda por WhatsApp: cotización, comparativa y multi.</p>
-    </a>
-    <a class="card" href="panel/">
-      <div class="cardtop"><div class="icon" style="background:#eef0f4;color:var(--azul)">⚙️</div><h3>Panel de administración</h3><span class="badge live">● control</span></div>
-      <p>Control central aparte: enciende las fases (1 · 2 · 3 · 4) de cada cliente y su canal de WhatsApp, vía su API. No es operativo — no toca conversaciones.</p>
-    </a>
+
+    <div class="env" id="env-depot" style="--accent:var(--red);--glow:rgba(255,59,71,.13)">
+      <div class="env-top">
+        <span class="tag">El cliente, en vivo</span>
+        <span class="here">● estás aquí</span>
+      </div>
+      <h3><a href="https://autoventa-depottire.up.railway.app/admin/">Depot Tire <span class="arrow">↗</span></a></h3>
+      <p>Su WhatsApp Business, su base de datos, su clave. Solo las fases entregadas.</p>
+      <span class="url mono">autoventa-depottire.up.railway.app</span>
+      <div class="sub">
+        <a href="https://autoventa-depottire.up.railway.app/admin/#/inbox">Inbox</a>
+        <a href="https://autoventa-depottire.up.railway.app/admin/#/pipeline">Pipeline</a>
+        <a href="https://autoventa-depottire.up.railway.app/admin/#/cotizador">Cotizador</a>
+        <a href="https://autoventa-depottire.up.railway.app/admin/#/dashboard">Métricas</a>
+        <a href="https://autoventa-depottire.up.railway.app/admin/#/settings">Ajustes</a>
+      </div>
+    </div>
+
   </div>
 
-  <div class="foot">
-    <b>Staging seguro:</b> el producto real usa su propia base de datos y acceso administrativo. El demo nunca escribe en conversaciones reales.
+  <a class="panel" href="panel/">
+    <span class="ic">⚙️</span>
+    <div class="txt">
+      <span class="tag">Tu control</span>
+      <h3>Panel de administración</h3>
+      <p>Enciende las fases 1 · 2 · 3 · 4 de cada cliente y su canal de WhatsApp. No toca conversaciones.</p>
+    </div>
+    <span class="go">Abrir →</span>
+  </a>
+
+  <h2>Accesos</h2>
+  <div class="grid">
+    <a class="tile" href="demo-showroom-gp/#/inbox"><span class="ic">▶</span><b>Demo oficial</b><span class="out">→</span></a>
+    <a class="tile" href="cotizaciones/"><span class="ic">◫</span><b>Cotizaciones</b><span class="out">→</span></a>
+    <a class="tile" href="presentacion-depot-tire/"><span class="ic">◆</span><b>Presentación</b><span class="out">→</span></a>
+    <a class="tile" href="configuracion/ia.html"><span class="ic">✳</span><b>Config. IA</b><span class="out">→</span></a>
+    <a class="tile" href="tester.html"><span class="ic">⌁</span><b>Tester WA</b><span class="out">→</span></a>
+    <a class="tile" href="mensajes.html"><span class="ic">✉</span><b>Mensajes</b><span class="out">→</span></a>
   </div>
 
-  <h2 id="arquitectura">Cómo se conecta todo</h2>
-  <p style="color:var(--tinta);opacity:.75;max-width:60ch;margin:-6px 0 18px;line-height:1.5">
-    Una sola base de código, tres superficies. El backend siempre trae TODO;
-    las <b>fases</b> deciden qué se muestra en cada cliente.
-  </p>
-  <div style="display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));align-items:stretch" class="conex-grid">
-    <a href="https://autoventa-staging.up.railway.app/admin/" style="text-decoration:none;color:inherit;display:block;border:2px solid var(--navy,#14213d);border-radius:16px;padding:16px;background:#fff">
-      <span style="font-size:11px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--rojo)">1 · Tu laboratorio</span>
-      <h3 style="margin:6px 0 4px">Staging →</h3>
-      <p style="font-size:13px;line-height:1.45;margin:0">Donde trabajas y pruebas. WhatsApp <b>de prueba</b> (tester). Todas las fases encendidas.</p>
-      <code style="display:block;margin-top:10px;font-size:11px;color:var(--muted,#6b7280);word-break:break-all">autoventa-staging.up.railway.app</code>
-    </a>
-    <a href="https://autoventa-depottire.up.railway.app/admin/" style="text-decoration:none;color:inherit;display:block;border:2px solid var(--navy,#14213d);border-radius:16px;padding:16px;background:#fff">
-      <span style="font-size:11px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--rojo)">2 · Lo que entregas</span>
-      <h3 style="margin:6px 0 4px">Cliente · Depot Tire →</h3>
-      <p style="font-size:13px;line-height:1.45;margin:0">Su WhatsApp Business, su base de datos limpia, su clave. Ve <b>solo las fases que le enciendes</b>.</p>
-      <code style="display:block;margin-top:10px;font-size:11px;color:var(--muted,#6b7280);word-break:break-all">autoventa-depottire.up.railway.app</code>
-    </a>
-    <a href="panel/" style="text-decoration:none;color:inherit;display:block;border:2px solid var(--rojo);border-radius:16px;padding:16px;background:#fff">
-      <span style="font-size:11px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--rojo)">3 · Tu control</span>
-      <h3 style="margin:6px 0 4px">Panel de administración →</h3>
-      <p style="font-size:13px;line-height:1.45;margin:0"><b>Aparte.</b> Enciendes las fases de cada cliente con un clic, vía su API. No opera conversaciones.</p>
-      <code style="display:block;margin-top:10px;font-size:11px;color:var(--muted,#6b7280);word-break:break-all">/panel</code>
-    </a>
-  </div>
-  <p style="text-align:center;color:var(--tinta);opacity:.7;font-size:13px;margin:12px 0 0">
-    Staging <b>se copia</b> → Cliente · El Panel <b>controla</b> las fases del Cliente
-  </p>
-
-  <div class="foot" style="margin-top:16px">
-    <b>Las 4 fases</b> (el backend trae todas; enciendes las que ya entregaste):
-    <b>1</b> buscar por medida + cotización · <b>2</b> fitment + fotos ·
-    <b>3</b> comparativas visuales + Cotizador + Métricas · <b>4</b> Oportunidades (seguimientos y recuperación).
+  <h2>Documentación</h2>
+  <div class="grid">
+    <a class="tile" href="docs/plan-desarrollo.html"><span class="ic">◈</span><b>Plan de desarrollo</b><span class="out">→</span></a>
+    <a class="tile" href="docs/plan-financiero.html"><span class="ic">◇</span><b>Plan financiero</b><span class="out">→</span></a>
+    <a class="tile" href="docs/proyecto.html"><span class="ic">▤</span><b>Proyecto</b><span class="out">→</span></a>
+    <a class="tile" href="docs/bitacora.html"><span class="ic">≡</span><b>Bitácora</b><span class="out">→</span></a>
+    <a class="tile" href="docs/whatsapp-business.html"><span class="ic">◐</span><b>WhatsApp Business</b><span class="out">→</span></a>
+    <a class="tile" href="docs/propuesta-pago-completo.html"><span class="ic">◉</span><b>Propuesta</b><span class="out">→</span></a>
+    <a class="tile" href="docs/catalogo-pitstop.html"><span class="ic">○</span><b>Catálogo</b><span class="out">→</span></a>
+    <a class="tile" href="docs/design.html"><span class="ic">◑</span><b>Diseño</b><span class="out">→</span></a>
+    <a class="tile" href="estilos/"><span class="ic">◧</span><b>Paletas de estilo</b><span class="out">→</span></a>
   </div>
 
-  <h2 id="planes">Planes y documentación</h2>
-  <div class="rows">
-    <a class="row" href="presentacion-depot-tire/"><span class="ic">🎤</span><b>Presentación para los dueños</b><span>Reunión</span><span class="arrow">→</span></a>
-    <a class="row" href="docs/plan-desarrollo.html"><span class="ic">🛠️</span><b>Plan de desarrollo</b><span>Producto</span><span class="arrow">→</span></a>
-    <a class="row" href="docs/plan-financiero.html"><span class="ic">📈</span><b>Plan financiero</b><span>Negocio</span><span class="arrow">→</span></a>
-    <a class="row" href="docs/proyecto.html"><span class="ic">📘</span><b>Proyecto AutoVenta</b><span>Resumen</span><span class="arrow">→</span></a>
-    <a class="row" href="docs/reunion-autoventa.html"><span class="ic">🤝</span><b>Reunión AutoVenta</b><span>Agenda</span><span class="arrow">→</span></a>
-    <a class="row" href="docs/design.html"><span class="ic">🎨</span><b>Sistema de diseño</b><span>UI</span><span class="arrow">→</span></a>
-    <a class="row" href="docs/catalogo-pitstop.html"><span class="ic">🛞</span><b>Catálogo PitStop</b><span>Inventario</span><span class="arrow">→</span></a>
-    <a class="row" href="docs/whatsapp-business.html"><span class="ic">💬</span><b>WhatsApp Business</b><span>Integración</span><span class="arrow">→</span></a>
-    <a class="row" href="docs/bitacora.html"><span class="ic">🗒️</span><b>Bitácora técnica</b><span>Historial</span><span class="arrow">→</span></a>
-    <a class="row" href="docs/propuesta-pago-completo.html"><span class="ic">💳</span><b>Propuesta de pago</b><span>Comercial</span><span class="arrow">→</span></a>
-    <a class="row" href="docs/investigacion-github.html"><span class="ic">⌘</span><b>Investigación GitHub</b><span>Técnico</span><span class="arrow">→</span></a>
-  </div>
+  <footer>
+    <span>AutoVenta · Depot Tire</span>
+    <span class="mono">4 fases · 1 código · 2 entornos</span>
+  </footer>
+
 </div>
-<script src="/showroom-gp-global.js"></script>
+
+<script>
+  // Marca cuál de los dos entornos es el que estás viendo ahora mismo.
+  (function () {
+    var host = location.hostname;
+    var id = host.indexOf("depottire") > -1 ? "env-depot"
+           : host.indexOf("staging") > -1 ? "env-staging" : null;
+    if (!id) return;
+    var card = document.getElementById(id);
+    card.querySelector(".here").classList.add("on");
+    document.getElementById("entorno").textContent =
+      id === "env-depot" ? "Depot Tire" : "Staging";
+  })();
+</script>
 </body>
 </html>

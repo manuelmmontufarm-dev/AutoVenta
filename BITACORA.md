@@ -32,6 +32,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-07-27 | _(este mismo)_ | Hub rediseñado: simple, oscuro, staging + Depot Tire al frente | 0.5 |
 | 2026-07-26 | _(este mismo)_ | Gate de conexión: botón Conectar con diagnóstico de clave + chip de estado + token navy | 1.0 |
 | 2026-07-20 | _(este mismo)_ | Piezas visuales en TODOS los flujos: opciones como imagen, fitment Prado, PDF con diseño nuevo, /cotizaciones/live.png | 2.0 |
 | 2026-07-20 | _(este mismo)_ | Unificación: motor de imágenes sobre el catálogo Contífico (un solo entorno) | 2.0 |
@@ -59,11 +60,38 @@ Ya viene activado en este equipo.
 | 2026-07-14 | ac09171 | Ubicaciones de locales + análisis de features del cliente | 1.5 |
 | 2026-07-13 | feadf57 | Brief + plan de desarrollo + plan financiero + catálogo | 4.0 |
 | 2026-07-13 | d997844 | Commit inicial (repo) | 0.25 |
-| | | **TOTAL** | **~52.25 h** |
+| | | **TOTAL** | **~52.75 h** |
 
 ---
 
 ## Entradas (más reciente primero)
+
+### 2026-07-27 · Hub rediseñado: simple, oscuro y con los dos entornos al frente · ⏱️ 0.5 h
+
+**Qué:** `app/site/index.html` se reescribió de cero.
+
+- **Dos tarjetas de entorno** arriba de todo: **Staging** (azul, tu laboratorio)
+  y **Depot Tire** (rojo, el cliente en vivo), cada una con su URL visible y
+  atajos directos a Inbox · Pipeline · Cotizador · Métricas · Ajustes.
+- El **panel de fases** queda como única banda destacada debajo.
+- Todo lo demás colapsó en dos rejillas compactas: *Accesos* (demo,
+  cotizaciones, presentación, config IA, tester, mensajes) y *Documentación*.
+- Un chip marca **en cuál de los dos entornos estás** leyendo el hostname
+  (`staging` / `depottire`), así el hub sirve igual desde ambos deploys.
+- La página es **autocontenida**: ya no importa `showroom-gp-global.css/js`, así
+  que no arrastra la franja de cuadros, el auto ambiental ni los sonidos. El
+  resto del sitio conserva el sistema Showroom GP intacto.
+- Se eliminaron las secciones "Cómo se conecta todo" y "Planes y documentación"
+  como bloques largos: decían lo mismo que las tarjetas, con otras palabras.
+
+**Por qué:** Manuel pidió un hub "más simple y más moderno", con los links
+importantes a la vista y acceso directo tanto a staging como a la versión de
+Depot Tire — inspirado en el hub de Mesita (`/accesos`). El hub anterior tenía
+cinco secciones y repetía los mismos destinos hasta tres veces; entrar al
+producto del cliente exigía leer un párrafo de arquitectura primero. Ahora la
+decisión es una sola: **¿a qué entorno entro?**
+
+---
 
 ### 2026-07-26 · Gate de conexión: el hub dice si la clave sirve · ⏱️ 1.0 h
 
