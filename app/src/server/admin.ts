@@ -77,6 +77,7 @@ import {
   getPublicChannelConfig,
   saveChannelConfig,
 } from "../services/channel.js";
+import { diagnoseChannel } from "../services/channelDiagnostics.js";
 import { sendImage, reloadWa } from "../wa/client.js";
 
 const GRAPH = "https://graph.facebook.com/v21.0";
@@ -267,6 +268,45 @@ export function createAdminRouter(): express.Router {
         error: error instanceof Error ? error.message : "Canal inválido",
       });
     }
+  });
+
+  /**
+   * Diagnóstico paso a paso: pregunta a Meta si el token sirve, si el número
+   * es de esta cuenta, y mira si el webhook ya entregó algo. Es lo que pinta
+   * Ajustes → WhatsApp; se puede repetir cuantas veces haga falta.
+   */
+  router.get("/channel/diagnose", async (req, res) => {
+    try {
+      // Railway termina el TLS en su proxy: sin x-forwarded-proto saldría http.
+      const proto = String(req.headers["x-forwarded-proto"] ?? req.protocol).split(",")[0];
+      const baseUrl = `${proto}://${req.get("host")}`;
+      res.json({ ok: true, ...(await diagnoseChannel(baseUrl)) });
+    } catch (error) {
+      res.status(500).json({
+        ok: false,
+        error: error instanceof Error ? error.message : "No se pudo diagnosticar",
+      });
+    }
+  });
+
+  /**
+   * Prueba de extremo a extremo: manda un texto real al número que escribas.
+   * Es el único chequeo que confirma que el canal SALE de verdad.
+   */
+  router.post("/channel/test", async (req, res) => {
+    const to = String((req.body as { to?: unknown })?.to ?? "").replace(/[^\d]/g, "");
+    if (to.length < 8) {
+      return res.status(400).json({
+        ok: false,
+        error: "Escribe el número en formato internacional sin «+» (ej. 5939…).",
+      });
+    }
+    const result = await sendTextDetailed(
+      to,
+      "✅ Prueba de conexión de AutoVenta. Si lees esto, el canal de WhatsApp está bien configurado.",
+    );
+    if (result.ok) return res.json({ ok: true, id: result.id });
+    res.status(result.status ?? 502).json({ ok: false, error: result.error, code: result.code });
   });
 
   // ── Producto real: Hub ─────────────────────────────────────────────────────

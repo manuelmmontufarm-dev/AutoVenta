@@ -3,9 +3,10 @@ import { marked } from "marked";
 import botPlaybook from "../../../app/BOT_PLAYBOOK.md?raw";
 import { ETAPA_META, ETAPAS, type Etapa } from "../data/types";
 import { AdminKeyForm } from "../components/admin-key";
+import { WhatsAppSetup } from "../components/whatsapp-setup";
 import { getStoredAdminKey } from "../data/realSource";
 
-type SettingsTab = "ai" | "followups" | "manual" | "business" | "connection";
+type SettingsTab = "whatsapp" | "ai" | "followups" | "manual" | "business" | "connection";
 
 interface AiConfig {
   personalidad: string;
@@ -46,7 +47,7 @@ const TOOLS = [
 ];
 
 export function Settings() {
-  const [tab, setTab] = useState<SettingsTab>("ai");
+  const [tab, setTab] = useState<SettingsTab>("whatsapp");
   const [ai, setAi] = useState<AiConfig | null>(null);
   const [prompts, setPrompts] = useState<StagePrompt[]>([]);
   const [stage, setStage] = useState<Etapa>("nuevo");
@@ -149,6 +150,7 @@ export function Settings() {
       <div className="mx-auto max-w-6xl">
         <div className="mb-4 flex flex-wrap gap-2">
           {([
+            ["whatsapp", "WhatsApp"],
             ["ai", "IA por etapa"],
             ["followups", "Seguimientos"],
             ["manual", "Manual base"],
@@ -168,6 +170,8 @@ export function Settings() {
             </button>
           ))}
         </div>
+
+        {tab === "whatsapp" && <WhatsAppSetup />}
 
         {tab === "ai" && ai && (
           <div className="grid gap-4 xl:grid-cols-[320px_1fr]">

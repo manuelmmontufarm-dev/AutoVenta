@@ -32,6 +32,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-07-27 | _(este mismo)_ | Ajustes → WhatsApp: conexión guiada con verificación por paso | 1.5 |
 | 2026-07-27 | _(este mismo)_ | Hub rediseñado: simple, oscuro, staging + Depot Tire al frente | 0.5 |
 | 2026-07-26 | _(este mismo)_ | Gate de conexión: botón Conectar con diagnóstico de clave + chip de estado + token navy | 1.0 |
 | 2026-07-20 | _(este mismo)_ | Piezas visuales en TODOS los flujos: opciones como imagen, fitment Prado, PDF con diseño nuevo, /cotizaciones/live.png | 2.0 |
@@ -60,11 +61,54 @@ Ya viene activado en este equipo.
 | 2026-07-14 | ac09171 | Ubicaciones de locales + análisis de features del cliente | 1.5 |
 | 2026-07-13 | feadf57 | Brief + plan de desarrollo + plan financiero + catálogo | 4.0 |
 | 2026-07-13 | d997844 | Commit inicial (repo) | 0.25 |
-| | | **TOTAL** | **~52.75 h** |
+| | | **TOTAL** | **~54.25 h** |
 
 ---
 
 ## Entradas (más reciente primero)
+
+### 2026-07-27 · Ajustes → WhatsApp: conectar el canal con verificación paso a paso · ⏱️ 1.5 h
+
+**Qué:** Enlazar el WhatsApp del negocio deja de ser un trámite a ciegas.
+
+- **Pestaña nueva «WhatsApp»** en Ajustes, y es la que abre por defecto
+  (`hub/src/components/whatsapp-setup.tsx`). Reúne los cinco campos que pide
+  Meta —token, Phone Number ID, verify token, app secret y WhatsApp del
+  vendedor— en un solo formulario, cada uno con la ruta exacta donde
+  encontrarlo en Meta.
+- **`GET /api/channel/diagnose`** (servicio nuevo `channelDiagnostics.ts`):
+  seis chequeos con evidencia real, no un booleano.
+  1. *Token* — `GET /me` contra la Graph API; distingue caducado (code 190)
+     de mal copiado.
+  2. *Número* — `GET /{phoneId}` y devuelve **el número y el nombre
+     verificado que Meta tiene registrados**, más la calidad. Es la prueba de
+     que el token y el número son de la misma cuenta.
+  3. *Webhook* — si está montado, y qué campo falta si no.
+  4. *Firma* — si hay app secret para validar los eventos entrantes.
+  5. *Entrando* — hace cuánto llegó el último mensaje inbound. Única prueba
+     de que Meta está entregando de verdad en este servidor.
+  6. *Vendedor* — si las alertas de handoff tienen destinatario.
+- **`POST /api/channel/test`**: manda un texto real al número que escribas y
+  traduce el rechazo de Meta (ventana de 24 h, token inválido) a español.
+- Botón **Revisar conexión** que reejecuta todo, y un bloque que muestra la
+  **URL del webhook y el verify token listos para copiar** — con el recordatorio
+  de suscribir el campo `messages`, que es lo que más se olvida.
+- Guardar no borra: los campos vacíos conservan lo guardado, y el token y el
+  app secret nunca vuelven del servidor (se marcan «ya guardado»).
+
+**Por qué:** el canal solo se podía tocar desde `/panel`, que es un formulario
+plano sin verificación: guardabas el token y no sabías si servía hasta que un
+cliente escribía y no pasaba nada. Los errores de Meta son crípticos (code 190,
+131047) y el fallo más común —no suscribir `messages`— no produce ningún error,
+solo silencio. Ahora cada paso dice qué se comprobó, contra qué, y qué hacer.
+
+**Verificación:** `npm test` (85 ✓) y typecheck de app y hub. La pantalla se
+probó en el navegador contra un backend simulado: guardar, generar verify token,
+marcas de «ya guardado», copiar URL, y el error de ventana de 24 h. Los chequeos
+contra la Graph API real **no se han ejercitado todavía** con credenciales de
+Meta — eso se valida al abrir la pestaña en staging.
+
+---
 
 ### 2026-07-27 · Hub rediseñado: simple, oscuro y con los dos entornos al frente · ⏱️ 0.5 h
 
