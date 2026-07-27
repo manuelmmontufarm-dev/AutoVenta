@@ -1,4 +1,5 @@
 import { motion } from "framer-motion";
+import { useState } from "react";
 import { ETAPA_META, type FollowUpBucket, type FollowUpCard } from "../data/types";
 import { navigate } from "../router";
 import { useHub, useNow } from "../store";
@@ -9,15 +10,19 @@ const GROUPS: Array<{ id: FollowUpBucket; title: string; subtitle: string; icon:
 ];
 
 function OpportunityCard({ item, now }: { item: FollowUpCard; now: number }) {
+  const followUpAction = useHub((state) => state.followUpAction);
+  const [generating, setGenerating] = useState(false);
   const commitment = item.commitment || (item.visitDate ? `Visita: ${new Date(item.visitDate).toLocaleString("es-EC")}` : null)
     || (item.pickupDate ? `Retiro: ${new Date(item.pickupDate).toLocaleDateString("es-EC")}` : null);
   const next = item.dueAt ? new Date(item.dueAt).toLocaleString("es-EC", { weekday: "short", hour: "2-digit", minute: "2-digit" }) : null;
   const silenceHours = item.lastAt ? Math.max(0, Math.floor((now - new Date(item.lastAt).getTime()) / 3_600_000)) : 0;
-  return <motion.button
+  // Solo los seguimientos de texto se redactan; las plantillas llevan copy aprobado por Meta.
+  const editable = Boolean(item.id) && item.status === "scheduled" && !item.templateRequired;
+  return <motion.div
     layout initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
-    onClick={() => navigate(`ticket/${item.conversationId}`)}
-    className="glass grid w-full gap-2 rounded-2xl p-3 text-left shadow-soft transition-transform hover:-translate-y-0.5 hover:border-lime/25 sm:grid-cols-[minmax(0,1fr)_auto]"
+    className="glass grid w-full gap-2 rounded-2xl p-3 text-left shadow-soft transition-transform hover:-translate-y-0.5 hover:border-lime/25"
   >
+    <button onClick={() => navigate(`ticket/${item.conversationId}`)} className="grid w-full gap-2 text-left sm:grid-cols-[minmax(0,1fr)_auto]">
     <div className="min-w-0">
       <div className="flex flex-wrap items-center gap-2">
         <span className="truncate text-[13px] font-black">{item.customer}</span>
@@ -36,7 +41,29 @@ function OpportunityCard({ item, now }: { item: FollowUpCard; now: number }) {
       <p className="tnum text-[10px] font-bold">{next ? `Próximo: ${next}` : "Requiere decisión"}</p>
       <p className="mt-1 text-[9.5px] text-faint">{item.campaignPlan.length ? `${item.campaignPlan.length} plantillas programadas` : `${silenceHours} h desde actividad`}</p>
     </div>
-  </motion.button>;
+    </button>
+    {editable && <div className="rounded-xl bg-paper/[.045] px-2.5 py-2">
+      <p className="text-[9px] font-black uppercase tracking-wider text-faint">
+        {item.aiPending ? "Borrador · se redacta al enviar" : "Mensaje listo"}
+      </p>
+      <p className="mt-0.5 line-clamp-2 text-[11px] leading-relaxed">{item.preview}</p>
+      <div className="mt-1.5 flex flex-wrap gap-1">
+        {item.aiPending && <button
+          disabled={generating}
+          onClick={() => { setGenerating(true); void followUpAction(item.id!, "generate").finally(() => setGenerating(false)); }}
+          className="rounded-md bg-violet/15 px-2 py-1 text-[9.5px] font-bold disabled:opacity-40"
+        >{generating ? "Redactando…" : "Generar con IA"}</button>}
+        <button
+          onClick={() => { const value = window.prompt("Editar mensaje", item.preview); if (value?.trim()) void followUpAction(item.id!, "edit", value.trim()); }}
+          className="rounded-md bg-paper/10 px-2 py-1 text-[9.5px] font-bold"
+        >Editar</button>
+        <button
+          onClick={() => { if (window.confirm(`¿Enviar ahora este mensaje a ${item.customer}?`)) void followUpAction(item.id!, "send"); }}
+          className="rounded-md bg-lime/15 px-2 py-1 text-[9.5px] font-bold"
+        >Enviar ahora</button>
+      </div>
+    </div>}
+  </motion.div>;
 }
 
 export function Opportunities() {

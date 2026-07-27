@@ -32,6 +32,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-07-27 | _(este mismo)_ | Fix: botón «Generar» estaba en pantalla muerta (tree-shaken) | 0.5 |
 | 2026-07-27 | _(este mismo)_ | Seguimientos perezosos: redactar solo cuando el mensaje va a salir | 1.0 |
 | 2026-07-27 | _(este mismo)_ | Ajustes → WhatsApp: conexión guiada con verificación por paso | 1.5 |
 | 2026-07-27 | _(este mismo)_ | Hub rediseñado: simple, oscuro, staging + Depot Tire al frente | 0.5 |
@@ -62,11 +63,37 @@ Ya viene activado en este equipo.
 | 2026-07-14 | ac09171 | Ubicaciones de locales + análisis de features del cliente | 1.5 |
 | 2026-07-13 | feadf57 | Brief + plan de desarrollo + plan financiero + catálogo | 4.0 |
 | 2026-07-13 | d997844 | Commit inicial (repo) | 0.25 |
-| | | **TOTAL** | **~55.25 h** |
+| | | **TOTAL** | **~55.75 h** |
 
 ---
 
 ## Entradas (más reciente primero)
+
+### 2026-07-27 · Fix: el botón «Generar» estaba en una pantalla muerta · ⏱️ 0.5 h
+
+**Qué:** al verificar el deploy anterior, los strings del botón nuevo no
+aparecían en el bundle publicado. La causa: `FollowUpsView` y
+`FollowUpCardView` (en `hub/src/screens/Pipeline.tsx`) **no se usan en ningún
+lado** — Vite los elimina por tree-shaking. Ahí vivían también «Enviar ahora»,
+«Editar» y «Cancelar» de seguimientos, así que ninguna de esas acciones existía
+en el panel publicado, solo sus endpoints.
+
+- Se revirtió el cambio sobre el código muerto.
+- Las acciones por seguimiento —«Generar con IA», «Editar», «Enviar ahora»—
+  se movieron a `hub/src/screens/Opportunities.tsx`, que es la pantalla que el
+  asesor usa de verdad.
+- La tarjeta pasó de ser un `<button>` que envolvía todo a un `<div>` con el
+  área de navegación como botón, porque anidar botones es HTML inválido.
+- «Enviar ahora» pide confirmación: manda un WhatsApp a un cliente real.
+
+**Por qué:** el ahorro de tokens (Fase A) ya funcionaba sin UI —el worker
+redacta al enviar—, pero el control del asesor (Fase B) era inalcanzable: el
+endpoint existía y nada lo llamaba. Verificar el bundle desplegado, y no solo
+que compilara, es lo que lo destapó.
+
+Pendiente aparte: borrar `FollowUpsView`/`FollowUpCardView`, que además filtran
+por el bucket `human_review` que el backend ya no emite (hoy son
+`needs_human`/`closing`).
 
 ### 2026-07-27 · Seguimientos perezosos: redactar el mensaje solo cuando va a salir · ⏱️ 1.0 h
 

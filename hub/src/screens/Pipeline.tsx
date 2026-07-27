@@ -138,7 +138,6 @@ const FOLLOW_UP_GROUPS: Array<{ id: FollowUpBucket; label: string; icon: string;
 function FollowUpCardView({ item, now }: { item: FollowUpCard; now: number }) {
   const { setAtiende, followUpAction, cerrar } = useHub();
   const [copied, setCopied] = useState(false);
-  const [generating, setGenerating] = useState(false);
   const remaining = item.windowClosesAt
     ? Math.max(0, new Date(item.windowClosesAt).getTime() - now)
     : null;
@@ -160,7 +159,7 @@ function FollowUpCardView({ item, now }: { item: FollowUpCard; now: number }) {
       {!item.commitment && <span className="line-clamp-1 min-w-0 flex-1 text-faint">{item.summary}</span>}
     </div>
     {item.preview && <div className="mt-2 rounded-lg bg-paper/[.045] px-2.5 py-2">
-      <p className="text-[9px] font-black uppercase tracking-wider text-faint">{item.aiPending ? "Borrador · se redacta al enviar" : "Mensaje programado"}</p>
+      <p className="text-[9px] font-black uppercase tracking-wider text-faint">Mensaje programado</p>
       <p className="mt-0.5 line-clamp-2 text-[11px] leading-relaxed">{item.preview}</p>
       {item.type !== "advisor_review" && <button onClick={() => void navigator.clipboard.writeText(item.preview).then(() => { setCopied(true); window.setTimeout(() => setCopied(false), 1500); })} className="mt-1 text-[9.5px] font-black text-lime hover:underline">{copied ? "✓ Copiado" : "Copiar mensaje"}</button>}
     </div>}
@@ -170,7 +169,6 @@ function FollowUpCardView({ item, now }: { item: FollowUpCard; now: number }) {
       {item.assignedTo === "bot" && <button onClick={() => void setAtiende(item.conversationId, "humano")} className="rounded-md bg-violet/15 px-2 py-1 text-[9.5px] font-bold">Tomar control</button>}
       {item.bucket === "human_review" && item.assignedTo === "human" && <button onClick={() => void setAtiende(item.conversationId, "bot")} className="rounded-md bg-lime/15 px-2 py-1 text-[9.5px] font-bold">Continuar con bot</button>}
       {item.bucket === "human_review" && <button onClick={() => { if (window.confirm(`¿Marcar a ${item.customer} como Perdido por falta de respuesta?`)) void cerrar(item.conversationId, "perdido", "Sin respuesta tras revisión humana"); }} className="rounded-md bg-red/10 px-2 py-1 text-[9.5px] font-bold text-red">Marcar Perdido</button>}
-      {item.id && item.status === "scheduled" && item.aiPending && <button disabled={generating} onClick={() => { setGenerating(true); void followUpAction(item.id!, "generate").finally(() => setGenerating(false)); }} className="rounded-md bg-violet/15 px-2 py-1 text-[9.5px] font-bold disabled:opacity-40">{generating ? "Redactando…" : "Generar"}</button>}
       {item.id && item.status === "scheduled" && <button onClick={() => void followUpAction(item.id!, "send")} className="rounded-md bg-lime/15 px-2 py-1 text-[9.5px] font-bold">Enviar ahora</button>}
       {item.id && item.status === "scheduled" && <button onClick={() => { const value = window.prompt("Editar mensaje", item.preview); if (value?.trim()) void followUpAction(item.id!, "edit", value.trim()); }} className="rounded-md bg-paper/10 px-2 py-1 text-[9.5px] font-bold">Editar</button>}
       {item.id && ["scheduled", "blocked"].includes(item.status ?? "") && <button onClick={() => void followUpAction(item.id!, "cancel")} className="rounded-md bg-red/10 px-2 py-1 text-[9.5px] font-bold text-red">Cancelar</button>}
