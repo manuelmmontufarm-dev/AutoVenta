@@ -9,6 +9,7 @@
  *
  * Nada de esto expone el token ni el app secret: solo el resultado.
  */
+import { createHmac } from "node:crypto";
 import { sql } from "../db/client.js";
 import { getChannelConfig } from "./channel.js";
 import { getWa } from "../wa/client.js";
@@ -113,6 +114,27 @@ function hace(fecha: Date): string {
 const INBOUND_FRESCO_MS = 48 * 60 * 60 * 1000;
 
 /**
+ * ¿El app secret guardado es el de la app que emitió el token?
+ *
+ * Es la misma clave con la que se valida la firma de cada evento entrante, así
+ * que si está cruzada Meta entrega y nosotros rechazamos — el canal se ve
+ * perfecto desde adentro y no entra un solo mensaje.
+ *
+ * Se comprueba con `appsecret_proof` (HMAC-SHA256 del token con el secret):
+ * Meta lo acepta o lo rechaza sin que haga falta conocer el App ID, que con un
+ * token de usuario del sistema no se puede deducir.
+ *
+ * Devuelve null cuando no se pudo determinar (red, u otro error de Meta).
+ */
+async function comprobarAppSecret(token: string, appSecret: string): Promise<boolean | null> {
+  const proof = createHmac("sha256", appSecret).update(token).digest("hex");
+  const respuesta = await graphGet<{ id?: string }>(`me?fields=id&appsecret_proof=${proof}`, token);
+  if (respuesta.ok) return true;
+  if (/appsecret_proof/i.test(respuesta.error?.message ?? "")) return false;
+  return null;
+}
+
+/**
  * ¿Meta tiene una suscripción de webhook viva y apuntando AQUÍ?
  *
  * Es el hueco que dejaban los pasos anteriores: token, número y webhook pueden
@@ -130,6 +152,7 @@ async function comprobarSuscripcion(
   appId: string | null,
   appSecret: string,
   webhookUrl: string,
+  secretCorrecto: boolean | null,
 ): Promise<ChannelCheck> {
   const base: Pick<ChannelCheck, "id" | "label"> = { id: "entrega", label: "Meta entregando aquí" };
   if (!appId || !appSecret) {
@@ -146,16 +169,28 @@ async function comprobarSuscripcion(
   }>(`${appId}/subscriptions`, `${appId}|${appSecret}`);
 
   if (!suscripciones.ok) {
-    // 190/102 con app token = el secret no es el de esta app.
+    // Meta rechaza la credencial `appId|appSecret`. Puede ser el secret… o que
+    // `appId` no sea el App ID: con un token de usuario del sistema, /me
+    // devuelve el usuario, no la app. El paso de la firma ya distingue cuál de
+    // los dos es, así que aquí solo se acusa al secret cuando consta que está
+    // mal; si no, este chequeo se declara indeterminado en vez de inventar.
     const credencial = suscripciones.error?.code === 190 || suscripciones.error?.code === 102;
+    if (credencial && secretCorrecto === false) {
+      return {
+        ...base,
+        estado: "error",
+        detalle: "El app secret no corresponde a la app de este token.",
+        ayuda: "Copia la «Clave secreta de la app» de la MISMA app que generó el token (Meta → Configuración de la app → Básica). Con el secret cruzado, la firma de los eventos falla y Meta deja de entregar.",
+      };
+    }
     return {
       ...base,
-      estado: credencial ? "error" : "falta",
+      estado: "falta",
       detalle: credencial
-        ? "El app secret no corresponde a la app de este token."
+        ? `No se pudo consultar la suscripción: «${appId}» no es el App ID de la app.`
         : suscripciones.red ?? "Meta no respondió a la consulta de suscripciones.",
       ayuda: credencial
-        ? "Copia la «Clave secreta de la app» de la MISMA app que generó el token (Meta → Configuración de la app → Básica). Con el secret cruzado, la firma de los eventos falla y Meta deja de entregar."
+        ? `Compruébalo a mano en Meta → tu app → WhatsApp → Configuración → Webhook: la URL debe ser ${webhookUrl} y el campo «messages» tiene que estar marcado.`
         : "Reintenta en unos segundos.",
     };
   }
@@ -325,26 +360,48 @@ export async function diagnoseChannel(baseUrl: string): Promise<ChannelDiagnosis
     });
   }
 
-  // ── 4. App secret ──────────────────────────────────────────────────────────
-  checks.push(
-    channel.appSecret
-      ? {
-          id: "firma",
-          label: "Firma de los eventos",
-          estado: "ok",
-          detalle: "Hay app secret: cada evento de Meta se valida antes de procesarse.",
-        }
-      : {
-          id: "firma",
-          label: "Firma de los eventos",
-          estado: "falta",
-          detalle: "Sin app secret no se puede comprobar que los eventos vengan de Meta.",
-          ayuda: "Meta → Configuración de la app → Básica → «Clave secreta de la app».",
-        },
-  );
+  // ── 4. App secret, verificado contra Meta ──────────────────────────────────
+  // «Hay app secret» no era una comprobación: un secret de otra app se ve
+  // igual de lleno y hace que rechacemos cada evento que Meta nos entrega.
+  const secretCorrecto =
+    channel.appSecret && tokenValido
+      ? await comprobarAppSecret(channel.token, channel.appSecret)
+      : null;
+  if (!channel.appSecret) {
+    checks.push({
+      id: "firma",
+      label: "Firma de los eventos",
+      estado: "falta",
+      detalle: "Sin app secret no se puede comprobar que los eventos vengan de Meta.",
+      ayuda: "Meta → Configuración de la app → Básica → «Clave secreta de la app».",
+    });
+  } else if (secretCorrecto === false) {
+    checks.push({
+      id: "firma",
+      label: "Firma de los eventos",
+      estado: "error",
+      detalle: "El app secret no es el de la app que emitió el token.",
+      ayuda: "Meta rechaza la firma calculada con este secret, así que cada evento entrante se descarta. Copia la «Clave secreta de la app» de la MISMA app del token: Meta → Configuración de la app → Básica.",
+    });
+  } else if (secretCorrecto === true) {
+    checks.push({
+      id: "firma",
+      label: "Firma de los eventos",
+      estado: "ok",
+      detalle: "Meta acepta la firma calculada con este app secret.",
+    });
+  } else {
+    checks.push({
+      id: "firma",
+      label: "Firma de los eventos",
+      estado: "falta",
+      detalle: "Hay app secret, pero Meta no respondió a la verificación.",
+      ayuda: "Reintenta en unos segundos.",
+    });
+  }
 
   // ── 5. ¿A dónde entrega Meta? ──────────────────────────────────────────────
-  checks.push(await comprobarSuscripcion(appId, channel.appSecret, webhookUrl));
+  checks.push(await comprobarSuscripcion(appId, channel.appSecret, webhookUrl, secretCorrecto));
 
   // ── 6. ¿Está entrando algo? ────────────────────────────────────────────────
   // Un inbound viejo no prueba nada: el canal pudo morirse ayer. Por eso el

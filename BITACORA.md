@@ -93,6 +93,13 @@ Ya viene activado en este equipo.
   los tres fallos reales: no hay suscripción, apunta a otra URL, o le falta el
   campo `messages`. De rebote valida que el app secret sea el de la app del
   token — si estuviera cruzado, la firma de cada evento fallaría.
+- **La firma se verifica contra Meta, no contra sí misma.** «Hay app secret»
+  no comprobaba nada: un secret de otra app se ve igual de lleno. Ahora se
+  manda un `appsecret_proof` (HMAC del token con el secret) y es Meta quien
+  dice si corresponde. No hace falta el App ID, que con un token de usuario del
+  sistema no se puede deducir — y por eso el paso de la suscripción, cuando
+  Meta rechaza la credencial y la firma sí es válida, se declara indeterminado
+  en vez de acusar al secret.
 - **«Mensajes entrando» ya no da ✅ con un inbound de hace 7 días**: pasadas
   48 h se pone en ámbar. Un mensaje viejo no prueba que el canal esté vivo hoy,
   que es justo lo que se estaba mirando mientras nada llegaba.
