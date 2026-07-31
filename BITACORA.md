@@ -100,6 +100,12 @@ Ya viene activado en este equipo.
   sistema no se puede deducir — y por eso el paso de la suscripción, cuando
   Meta rechaza la credencial y la firma sí es válida, se declara indeterminado
   en vez de acusar al secret.
+- **El App ID se deduce con `debug_token`.** `/me` con token de usuario del
+  sistema devuelve el usuario (122103177789404114), no la app
+  (1053180323906811), y con ese id la consulta de suscripción no podía
+  funcionar. `debug_token` da los dos datos que faltaban: a qué app pertenece
+  el token y cuándo caduca — el paso del token ahora avisa en ámbar si es
+  temporal, en vez de dejar que el canal se muera solo una semana después.
 - **«Mensajes entrando» ya no da ✅ con un inbound de hace 7 días**: pasadas
   48 h se pone en ámbar. Un mensaje viejo no prueba que el canal esté vivo hoy,
   que es justo lo que se estaba mirando mientras nada llegaba.

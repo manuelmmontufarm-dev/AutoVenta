@@ -126,6 +126,30 @@ const INBOUND_FRESCO_MS = 48 * 60 * 60 * 1000;
  *
  * Devuelve null cuando no se pudo determinar (red, u otro error de Meta).
  */
+/**
+ * App ID y caducidad del token, preguntándole a Meta por el token mismo.
+ *
+ * `/me` con un token de usuario del sistema devuelve el usuario, no la app —
+ * de ahí salía el id que no servía para consultar la suscripción. `debug_token`
+ * sí dice a qué app pertenece, y de paso cuándo caduca: la avería que dejó el
+ * canal mudo una semana fue justo un token temporal que nadie sabía que moría.
+ */
+async function inspeccionarToken(
+  token: string,
+): Promise<{ appId: string | null; caduca: Date | null; permanente: boolean } | null> {
+  const respuesta = await graphGet<{
+    data?: { app_id?: string; expires_at?: number; is_valid?: boolean };
+  }>(`debug_token?input_token=${encodeURIComponent(token)}`, token);
+  if (!respuesta.ok || !respuesta.data?.data) return null;
+  const { app_id, expires_at } = respuesta.data.data;
+  return {
+    appId: app_id ?? null,
+    // expires_at = 0 significa «no caduca» en la Graph API.
+    caduca: expires_at ? new Date(expires_at * 1000) : null,
+    permanente: expires_at === 0,
+  };
+}
+
 async function comprobarAppSecret(token: string, appSecret: string): Promise<boolean | null> {
   const proof = createHmac("sha256", appSecret).update(token).digest("hex");
   const respuesta = await graphGet<{ id?: string }>(`me?fields=id&appsecret_proof=${proof}`, token);
@@ -255,13 +279,29 @@ export async function diagnoseChannel(baseUrl: string): Promise<ChannelDiagnosis
     const me = await graphGet<{ id: string; name?: string }>("me?fields=id,name", channel.token);
     if (me.ok) {
       tokenValido = true;
-      appId = me.data?.id ?? null;
+      const inspeccion = await inspeccionarToken(channel.token);
+      // El id de /me es el del usuario del sistema; el de la app lo da debug_token.
+      appId = inspeccion?.appId ?? me.data?.id ?? null;
+      const quien = me.data?.name ? `${me.data.name} · id ${me.data?.id}` : `id ${me.data?.id}`;
+      const vigencia = inspeccion?.permanente
+        ? "no caduca"
+        : inspeccion?.caduca
+          ? `caduca el ${inspeccion.caduca.toLocaleDateString("es-EC", { day: "2-digit", month: "short", year: "numeric", timeZone: "America/Guayaquil" })}`
+          : null;
       checks.push({
         id: "token",
         label: "Token de acceso",
-        estado: "ok",
-        detalle: "Meta acepta el token.",
-        dato: me.data?.name ? `${me.data.name} · id ${me.data?.id}` : `id ${me.data?.id}`,
+        // Un token con fecha de muerte no es un fallo hoy, pero avisarlo es la
+        // diferencia entre renovarlo y descubrirlo cuando el canal ya está mudo.
+        estado: inspeccion && !inspeccion.permanente && inspeccion.caduca ? "falta" : "ok",
+        detalle:
+          inspeccion && !inspeccion.permanente && inspeccion.caduca
+            ? "Meta acepta el token, pero es temporal."
+            : "Meta acepta el token.",
+        dato: [quien, vigencia].filter(Boolean).join(" · "),
+        ...(inspeccion && !inspeccion.permanente && inspeccion.caduca
+          ? { ayuda: "Genera uno permanente en Meta → Business Settings → Usuarios del sistema → Generate token, con vencimiento «Nunca»." }
+          : {}),
       });
     } else {
       checks.push({
