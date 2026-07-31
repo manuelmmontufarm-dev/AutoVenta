@@ -32,6 +32,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-07-31 | _(este mismo)_ | Toast cada 5 s + el diagnóstico ahora pregunta a Meta a dónde entrega | 0.5 |
 | 2026-07-31 | _(este mismo)_ | Diagnóstico del canal caído + worker de seguimientos embebido en el HTTP | 0.5 |
 | 2026-07-27 | _(este mismo)_ | Calidad comercial, modelo lento, respaldos y latido del worker | 3.0 |
 | 2026-07-27 | _(este mismo)_ | Prueba de carga 50 clientes + fix durabilidad del webhook | 4.0 |
@@ -66,11 +67,42 @@ Ya viene activado en este equipo.
 | 2026-07-14 | ac09171 | Ubicaciones de locales + análisis de features del cliente | 1.5 |
 | 2026-07-13 | feadf57 | Brief + plan de desarrollo + plan financiero + catálogo | 4.0 |
 | 2026-07-13 | d997844 | Commit inicial (repo) | 0.25 |
-| | | **TOTAL** | **~63.25 h** |
+| | | **TOTAL** | **~63.75 h** |
 
 ---
 
 ## Entradas (más reciente primero)
+
+### 2026-07-31 · «Nueva alerta del bot» cada 5 s, y el punto ciego del diagnóstico · ⏱️ 0.5 h
+
+**Qué:** dos arreglos que salieron de encender el worker.
+
+- **El toast incesante.** `reconcileFollowUpAlerts` termina con
+  `emitLiveEvent("alert")`, y corre en cada vuelta del worker. Sus inserts son
+  idempotentes (`dedupe_key` + `on conflict do nothing`), así que casi siempre
+  no crea nada — pero avisaba igual. Con el worker apagado no se notaba; al
+  encenderlo, el hub gritaba «Nueva alerta del bot» cada 5 segundos por alertas
+  de hace días. Ahora el aviso va condicionado a que algún insert haya contado
+  filas, con prueba de regresión contra Postgres (cinco vueltas seguidas = cero
+  avisos).
+- **El diagnóstico daba «Conectado» con el canal mudo.** Los pasos de webhook y
+  firma solo miraban hacia adentro (¿hay verify token?, ¿hay app secret?, ¿se
+  montó el handler?). Ninguno preguntaba a Meta si existe una suscripción viva
+  apuntando a esta URL. Se añadió el paso **«Meta entregando aquí»**, que
+  consulta `GET /{app_id}/subscriptions` con el app access token y distingue
+  los tres fallos reales: no hay suscripción, apunta a otra URL, o le falta el
+  campo `messages`. De rebote valida que el app secret sea el de la app del
+  token — si estuviera cruzado, la firma de cada evento fallaría.
+- **«Mensajes entrando» ya no da ✅ con un inbound de hace 7 días**: pasadas
+  48 h se pone en ámbar. Un mensaje viejo no prueba que el canal esté vivo hoy,
+  que es justo lo que se estaba mirando mientras nada llegaba.
+- Y `listo` (el titular «Conectado») ahora exige que ningún paso esté en
+  `error`, no solo que los tres críticos estén en verde.
+
+**Por qué:** los dos fallos son la misma familia que el worker sin latido —el
+sistema se ve sano desde afuera mientras está roto— y el diagnóstico existe
+precisamente para no tener que adivinar. Un chequeo que solo se pregunta a sí
+mismo no sirve: tiene que preguntarle a Meta.
 
 ### 2026-07-31 · El canal llevaba días caído y nadie lo sabía · ⏱️ 0.5 h
 

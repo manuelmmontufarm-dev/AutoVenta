@@ -16,7 +16,14 @@ import { getWa } from "../wa/client.js";
 const GRAPH = "https://graph.facebook.com/v21.0";
 const TIMEOUT_MS = 10_000;
 
-export type CheckId = "token" | "phone" | "webhook" | "firma" | "entrante" | "vendedor";
+export type CheckId =
+  | "token"
+  | "phone"
+  | "webhook"
+  | "firma"
+  | "entrega"
+  | "entrante"
+  | "vendedor";
 export type CheckEstado = "ok" | "falta" | "error";
 
 export interface ChannelCheck {
@@ -102,6 +109,93 @@ function hace(fecha: Date): string {
   return `hace ${Math.floor(horas / 24)} días`;
 }
 
+/** Pasadas 48 h sin un inbound, un ✅ en «Mensajes entrando» ya no significa nada. */
+const INBOUND_FRESCO_MS = 48 * 60 * 60 * 1000;
+
+/**
+ * ¿Meta tiene una suscripción de webhook viva y apuntando AQUÍ?
+ *
+ * Es el hueco que dejaban los pasos anteriores: token, número y webhook pueden
+ * estar los tres perfectos y aun así no entrar un solo mensaje, porque la
+ * suscripción de la app se cayó, apunta a otra URL o perdió el campo
+ * `messages`. Desde fuera se ve idéntico a «todo bien» — hasta que alguien
+ * escribe y no pasa nada.
+ *
+ * Se consulta con el *app access token* (`appId|appSecret`), así que este paso
+ * también prueba de rebote que el app secret guardado es el de esta app: si no
+ * lo fuera, la firma de cada evento entrante fallaría y Meta acabaría dejando
+ * de entregar.
+ */
+async function comprobarSuscripcion(
+  appId: string | null,
+  appSecret: string,
+  webhookUrl: string,
+): Promise<ChannelCheck> {
+  const base: Pick<ChannelCheck, "id" | "label"> = { id: "entrega", label: "Meta entregando aquí" };
+  if (!appId || !appSecret) {
+    return {
+      ...base,
+      estado: "falta",
+      detalle: "No se puede comprobar sin el token y el app secret.",
+      ayuda: "Guarda los dos arriba y vuelve a revisar.",
+    };
+  }
+
+  const suscripciones = await graphGet<{
+    data?: { object?: string; callback_url?: string; active?: boolean; fields?: { name?: string }[] }[];
+  }>(`${appId}/subscriptions`, `${appId}|${appSecret}`);
+
+  if (!suscripciones.ok) {
+    // 190/102 con app token = el secret no es el de esta app.
+    const credencial = suscripciones.error?.code === 190 || suscripciones.error?.code === 102;
+    return {
+      ...base,
+      estado: credencial ? "error" : "falta",
+      detalle: credencial
+        ? "El app secret no corresponde a la app de este token."
+        : suscripciones.red ?? "Meta no respondió a la consulta de suscripciones.",
+      ayuda: credencial
+        ? "Copia la «Clave secreta de la app» de la MISMA app que generó el token (Meta → Configuración de la app → Básica). Con el secret cruzado, la firma de los eventos falla y Meta deja de entregar."
+        : "Reintenta en unos segundos.",
+    };
+  }
+
+  const whatsapp = suscripciones.data?.data?.find((s) => s.object === "whatsapp_business_account");
+  if (!whatsapp) {
+    return {
+      ...base,
+      estado: "error",
+      detalle: "La app no tiene ninguna suscripción de webhook para WhatsApp.",
+      ayuda: `Meta → tu app → WhatsApp → Configuración → Webhook: pon ${webhookUrl}, el verify token de abajo, y suscríbete al campo «messages».`,
+    };
+  }
+
+  const suscrito = (whatsapp.fields ?? []).some((campo) => campo.name === "messages");
+  const mismaUrl = (whatsapp.callback_url ?? "").replace(/\/$/, "") === webhookUrl.replace(/\/$/, "");
+  const problemas = [
+    !mismaUrl ? `Meta entrega en ${whatsapp.callback_url || "(sin URL)"}` : null,
+    !suscrito ? "falta el campo «messages»" : null,
+    whatsapp.active === false ? "la suscripción está inactiva" : null,
+  ].filter(Boolean);
+
+  if (problemas.length) {
+    return {
+      ...base,
+      estado: "error",
+      detalle: `${problemas.join(" · ")}.`,
+      dato: whatsapp.callback_url,
+      ayuda: `Meta → tu app → WhatsApp → Configuración → Webhook: la URL debe ser ${webhookUrl} y el campo «messages» tiene que estar marcado.`,
+    };
+  }
+
+  return {
+    ...base,
+    estado: "ok",
+    detalle: "Meta confirma que entrega los mensajes en esta URL.",
+    dato: whatsapp.callback_url,
+  };
+}
+
 /**
  * Corre todos los chequeos. `baseUrl` es el origen público de ESTE servidor
  * (lo arma el router desde la petición) para poder mostrar la URL del webhook.
@@ -112,6 +206,8 @@ export async function diagnoseChannel(baseUrl: string): Promise<ChannelDiagnosis
 
   // ── 1. Token ───────────────────────────────────────────────────────────────
   let tokenValido = false;
+  /** Id de la app dueña del token: hace falta para preguntar por la suscripción. */
+  let appId: string | null = null;
   if (!channel.token) {
     checks.push({
       id: "token",
@@ -124,6 +220,7 @@ export async function diagnoseChannel(baseUrl: string): Promise<ChannelDiagnosis
     const me = await graphGet<{ id: string; name?: string }>("me?fields=id,name", channel.token);
     if (me.ok) {
       tokenValido = true;
+      appId = me.data?.id ?? null;
       checks.push({
         id: "token",
         label: "Token de acceso",
@@ -246,16 +343,32 @@ export async function diagnoseChannel(baseUrl: string): Promise<ChannelDiagnosis
         },
   );
 
-  // ── 5. ¿Meta está entregando de verdad? ────────────────────────────────────
+  // ── 5. ¿A dónde entrega Meta? ──────────────────────────────────────────────
+  checks.push(await comprobarSuscripcion(appId, channel.appSecret, webhookUrl));
+
+  // ── 6. ¿Está entrando algo? ────────────────────────────────────────────────
+  // Un inbound viejo no prueba nada: el canal pudo morirse ayer. Por eso el
+  // paso se pone en ámbar pasadas 48 h en vez de dar un ✅ que tranquiliza
+  // mientras el número lleva días mudo.
   const entrante = await ultimoEntrante();
+  const frescura = entrante ? Date.now() - entrante.getTime() : null;
   checks.push(
-    entrante
+    entrante && frescura !== null && frescura <= INBOUND_FRESCO_MS
       ? {
           id: "entrante",
           label: "Mensajes entrando",
           estado: "ok",
           detalle: `Último mensaje recibido ${hace(entrante)}.`,
           dato: entrante.toISOString(),
+        }
+      : entrante
+      ? {
+          id: "entrante",
+          label: "Mensajes entrando",
+          estado: "falta",
+          detalle: `Nada nuevo desde ${hace(entrante)}.`,
+          dato: entrante.toISOString(),
+          ayuda: "Si le escribiste al número después de esa fecha y no aparece aquí, Meta no está entregando en este webhook: revisa el paso anterior.",
         }
       : {
           id: "entrante",
@@ -285,11 +398,15 @@ export async function diagnoseChannel(baseUrl: string): Promise<ChannelDiagnosis
         },
   );
 
-  // Imprescindibles para operar: token, número y webhook.
+  // Imprescindibles para operar: token, número y webhook. Además, un `error`
+  // en cualquier paso tumba el «Conectado»: el titular no puede decir que todo
+  // está verificado mientras un chequeo está gritando lo contrario.
   const criticos: CheckId[] = ["token", "phone", "webhook"];
-  const listo = checks
-    .filter((check) => criticos.includes(check.id))
-    .every((check) => check.estado === "ok");
+  const listo =
+    checks
+      .filter((check) => criticos.includes(check.id))
+      .every((check) => check.estado === "ok") &&
+    checks.every((check) => check.estado !== "error");
 
   return { listo, checks, webhookUrl, verifyToken: channel.verifyToken };
 }

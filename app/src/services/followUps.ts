@@ -551,9 +551,20 @@ export async function refreshConversationSummary(conversationId: number): Promis
   `;
 }
 
+/**
+ * Crea las alertas que se deducen del estado (ventana por cerrar, seguimientos
+ * sin respuesta, visita no confirmada). Corre en cada vuelta del worker, cada
+ * pocos segundos, y casi siempre no inserta nada: los `dedupe_key` con
+ * `on conflict do nothing` hacen que la misma alerta se cree una sola vez.
+ *
+ * Por eso el aviso en vivo va **condicionado a que algo se haya insertado de
+ * verdad**. Avisar en cada vuelta convertía el hub en una alarma cada 5 s
+ * anunciando alertas que ya estaban ahí desde hace horas.
+ */
 export async function reconcileFollowUpAlerts(now = new Date()): Promise<void> {
   const policy = await getFollowUpPolicy();
-  await sql`
+  const nuevas: number[] = [];
+  nuevas.push((await sql`
     insert into bot_alerts (conversation_id, cycle, type, priority, summary, exact_reason, suggested_action, dedupe_key)
     select c.id, c.current_cycle, 'window_closing', 'medium',
       'La ventana de WhatsApp está próxima a cerrar',
@@ -565,8 +576,8 @@ export async function reconcileFollowUpAlerts(now = new Date()): Promise<void> {
       and c.last_customer_message_at is not null
       and c.last_customer_message_at + interval '24 hours' between ${now} and ${new Date(now.getTime() + 2 * 60 * 60 * 1000)}
     on conflict do nothing
-  `;
-  await sql`
+  `).count);
+  nuevas.push((await sql`
     insert into bot_alerts (conversation_id, cycle, type, priority, summary, exact_reason, suggested_action, dedupe_key)
     select c.id, c.current_cycle, 'two_follow_ups_no_reply', 'high',
       'Dos seguimientos sin respuesta',
@@ -583,8 +594,8 @@ export async function reconcileFollowUpAlerts(now = new Date()): Promise<void> {
           select max(j.executed_at) from follow_up_jobs j where j.conversation_id = c.id and j.cycle = c.current_cycle and j.status = 'sent'
         )
     ) on conflict do nothing
-  `;
-  await sql`
+  `).count);
+  nuevas.push((await sql`
     insert into bot_alerts (conversation_id, cycle, type, priority, summary, exact_reason, suggested_action, dedupe_key)
     select c.id, c.current_cycle,
       case when c.last_customer_message_at <= ${new Date(now.getTime() - policy.recommendCloseDays * 86_400_000)} then 'recommend_close_lost' else 'advisor_follow_up' end,
@@ -596,8 +607,8 @@ export async function reconcileFollowUpAlerts(now = new Date()): Promise<void> {
     from conversations c where c.status = 'open' and c.last_customer_message_at is not null
       and c.last_customer_message_at <= ${new Date(now.getTime() - policy.advisorAlertDays * 86_400_000)}
     on conflict do nothing
-  `;
-  await sql`
+  `).count);
+  nuevas.push((await sql`
     insert into bot_alerts (conversation_id, cycle, type, priority, summary, exact_reason, suggested_action, dedupe_key)
     select c.id, c.current_cycle, 'visit_not_confirmed', 'high',
       'Cliente prometió visitar y no confirmó', 'La fecha de visita registrada ya pasó.',
@@ -605,8 +616,8 @@ export async function reconcileFollowUpAlerts(now = new Date()): Promise<void> {
       c.id || ':' || c.current_cycle || ':visit_not_confirmed'
     from conversations c where c.status = 'open' and c.visit_date is not null and c.visit_date < ${now}
     on conflict do nothing
-  `;
-  emitLiveEvent("alert");
+  `).count);
+  if (nuevas.some((cantidad) => cantidad > 0)) emitLiveEvent("alert");
 }
 
 export async function claimDueFollowUpJobs(input: {
