@@ -34,6 +34,7 @@ import { markDiscountNoticeSent } from "./services/discountOffers.js";
 import { extractCustomerCommitment } from "./domain/customerCommitment.js";
 import { flagRepetitiveConversation } from "./services/conversationQuality.js";
 import { notifyPendingHumanRequests } from "./services/advisorNotifications.js";
+import { startEmbeddedFollowUpWorker } from "./workers/embeddedFollowUpWorker.js";
 
 const pipeline = new InboundPipeline(async ({ from, name, text, waMessageIds, receivedAt }) => {
   // El mensaje ya quedó guardado en recibirMensaje(), antes de responderle 200
@@ -209,6 +210,11 @@ console.log(
 );
 
 startCatalogSync();
+
+// Seguimientos: se levantan aquí salvo que haya un servicio dedicado
+// (FOLLOW_UP_WORKER=externo). Sin esto, un deploy sin servicio worker deja los
+// seguimientos apagados en silencio.
+startEmbeddedFollowUpWorker();
 
 const app = createServer();
 app.listen(config.port, () => {

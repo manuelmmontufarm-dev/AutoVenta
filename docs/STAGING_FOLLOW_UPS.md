@@ -4,12 +4,14 @@ Este procedimiento aplica únicamente a `https://autoventa-staging.up.railway.ap
 
 ## Servicios Railway
 
-Usar dos servicios conectados a la misma base PostgreSQL y al mismo commit:
+Basta con el servicio HTTP: directorio `app`, build `npm ci && npm run build`, start `npm start`, healthcheck `/health`. Ese proceso levanta el worker de seguimientos por su cuenta, así que un deploy sin servicio worker ya no deja los seguimientos apagados en silencio (es exactamente lo que pasó el 31-jul-2026: `/health` reportaba `worker.ok=false` y `lastBeatAt=null` porque el servicio dedicado no existía).
 
-- HTTP: directorio `app`, build `npm ci && npm run build`, start `npm start`, healthcheck `/health`.
+Para separarlo en dos procesos —recomendable cuando el volumen crezca, para que un pico de seguimientos no compita con el webhook:
+
 - Worker: directorio `app`, config `app/railway.worker.toml`, start `npm run start:worker`. No exponer dominio público; usar referencias a las variables del servicio `AutoVenta`.
+- En el servicio HTTP definir `FOLLOW_UP_WORKER=externo` para que no lo corra también. `/health` reporta en `worker.modo` cuál de los dos debería estar latiendo.
 
-PostgreSQL es la fuente de verdad. El worker reclama jobs con `FOR UPDATE SKIP LOCKED`; un reinicio no elimina los jobs y los leases abandonados se recuperan.
+PostgreSQL es la fuente de verdad. El worker reclama jobs con `FOR UPDATE SKIP LOCKED`; un reinicio no elimina los jobs y los leases abandonados se recuperan. Por eso correr los dos a la vez no corrompe datos: solo duplica trabajo.
 
 ## Variables
 

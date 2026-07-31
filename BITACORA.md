@@ -32,6 +32,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-07-31 | _(este mismo)_ | Diagnóstico del canal caído + worker de seguimientos embebido en el HTTP | 0.5 |
 | 2026-07-27 | _(este mismo)_ | Calidad comercial, modelo lento, respaldos y latido del worker | 3.0 |
 | 2026-07-27 | _(este mismo)_ | Prueba de carga 50 clientes + fix durabilidad del webhook | 4.0 |
 | 2026-07-27 | _(este mismo)_ | Fix: botón «Generar» estaba en pantalla muerta (tree-shaken) | 0.5 |
@@ -65,11 +66,37 @@ Ya viene activado en este equipo.
 | 2026-07-14 | ac09171 | Ubicaciones de locales + análisis de features del cliente | 1.5 |
 | 2026-07-13 | feadf57 | Brief + plan de desarrollo + plan financiero + catálogo | 4.0 |
 | 2026-07-13 | d997844 | Commit inicial (repo) | 0.25 |
-| | | **TOTAL** | **~62.75 h** |
+| | | **TOTAL** | **~63.25 h** |
 
 ---
 
 ## Entradas (más reciente primero)
+
+### 2026-07-31 · El canal llevaba días caído y nadie lo sabía · ⏱️ 0.5 h
+
+**Qué:** el bot dejó de responder en WhatsApp desde el 24-jul. El diagnóstico
+del canal (`/api/channel/diagnose`) responde `token: error` — Meta lo rechaza
+con el código 190: **el token temporal de 24 h caducó**. Webhook y firma siguen
+bien. El arreglo es generar el token permanente de System User y pegarlo en
+Ajustes → WhatsApp; no hay nada que cambiar en el código para eso.
+
+Al revisar `/health` salió un segundo fallo, este sí de código: el worker de
+seguimientos nunca había latido (`worker.ok=false`, `lastBeatAt=null`) porque el
+servicio dedicado de Railway no existe. Ahora el proceso HTTP lo levanta él
+mismo, con un supervisor que lo relanza si el bucle se cae, y `/health` reporta
+en `worker.modo` de dónde debería venir el latido.
+
+**Por qué:** los dos fallos comparten la misma forma —el sistema queda mudo y
+sigue viéndose sano desde afuera—. El latido que se añadió el 27-jul hizo su
+trabajo: delató al worker apagado. Lo que faltaba era que no dependiera de que
+alguien se acordara de crear un segundo servicio en Railway; la configuración
+por omisión ahora es la que funciona, y separar los procesos pasa a ser una
+decisión explícita (`FOLLOW_UP_WORKER=externo`) para cuando crezca el volumen.
+
+**Ojo:** mientras el token siga caducado el worker tampoco puede enviar. Los
+seguimientos vencidos de estos días no se van a mandar como si nada — están
+fuera de la ventana de 24 h y quedan como alertas para revisión humana, que es
+el comportamiento correcto.
 
 ### 2026-07-27 · Calidad comercial, modelo lento, respaldos y latido del worker · ⏱️ 3.0 h
 

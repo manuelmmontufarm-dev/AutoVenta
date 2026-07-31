@@ -10,6 +10,7 @@ import { sql } from "../db/client.js";
 import { catalogStatus, searchBySize } from "../services/catalog.js";
 import { renderCompareImage, toRenderLine } from "../render/quoteImage.js";
 import { createAdminRouter } from "./admin.js";
+import { shouldRunEmbeddedWorker } from "../workers/embeddedFollowUpWorker.js";
 
 // Hub estático (site/ dentro de app/ para que entre en el build de Railway).
 // Compilado vive en dist/server/, en dev en src/server/ — ../../site sirve en ambos.
@@ -61,7 +62,13 @@ export function createServer(): express.Express {
     } catch {
       worker = { ok: false, lastBeatAt: null, secondsAgo: null };
     }
-    res.json({ ok: true, catalog: catalogStatus(), worker });
+    // `modo` evita el diagnóstico a ciegas: dice si el latido debería venir de
+    // este mismo proceso o de un servicio aparte que hay que ir a mirar.
+    res.json({
+      ok: true,
+      catalog: catalogStatus(),
+      worker: { ...worker, modo: shouldRunEmbeddedWorker() ? "embebido" : "externo" },
+    });
   });
 
   // Prueba en vivo del motor de imágenes con el catálogo real: renderiza la
