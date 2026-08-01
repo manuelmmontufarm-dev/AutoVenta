@@ -33,6 +33,7 @@ Ya viene activado en este equipo.
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
 | 2026-07-31 | _(este mismo)_ | Toast cada 5 s + el diagnóstico ahora pregunta a Meta a dónde entrega | 0.5 |
+| 2026-08-01 | _(este mismo)_ | Depot Tire EN VIVO: app propia en su portafolio + playbook de conexión + pendientes | 5.0 |
 | 2026-07-31 | _(este mismo)_ | Diagnóstico del canal caído + worker de seguimientos embebido en el HTTP | 0.5 |
 | 2026-07-27 | _(este mismo)_ | Calidad comercial, modelo lento, respaldos y latido del worker | 3.0 |
 | 2026-07-27 | _(este mismo)_ | Prueba de carga 50 clientes + fix durabilidad del webhook | 4.0 |
@@ -67,11 +68,42 @@ Ya viene activado en este equipo.
 | 2026-07-14 | ac09171 | Ubicaciones de locales + análisis de features del cliente | 1.5 |
 | 2026-07-13 | feadf57 | Brief + plan de desarrollo + plan financiero + catálogo | 4.0 |
 | 2026-07-13 | d997844 | Commit inicial (repo) | 0.25 |
-| | | **TOTAL** | **~63.75 h** |
+| | | **TOTAL** | **~68.75 h** |
 
 ---
 
 ## Entradas (más reciente primero)
+
+### 2026-08-01 · Depot Tire EN VIVO: app propia en su portafolio + playbook de conexión · ⏱️ 5.0 h
+
+**Qué:** el canal de WhatsApp de Depot Tire quedó **conectado y verificado de punta a punta** — los
+siete pasos del diagnóstico en verde, incluido «Mensajes entrando» con un mensaje real. Se creó la
+app **AutoVenta Depot Tire** (`1351729383802913`) **dentro del portafolio del cliente**, publicada,
+con token permanente del system user `AutoVentas Bot`, suscrita a la WABA y con el webhook apuntando
+al deploy de Depot. La app vieja (`AutoVenta`, portafolio Acesso) quedó desuscrita de esa WABA.
+
+Documentación nueva:
+- `docs/CONECTAR_WHATSAPP_CLIENTE.md` — playbook de 11 pasos para conectar cualquier cliente, con la
+  regla de oro, las trampas y los comandos de diagnóstico.
+- `docs/PENDIENTES.md` — lo que queda abierto, con dueño: rotar los tokens expuestos, sacar a Kommo
+  de la WABA, devolver el webhook de staging, y el camino a acceso avanzado antes del tercer cliente.
+
+Se borraron `docs/conexion-depot-waba.md` y `docs/prompt-token-meta-depot.md`: describían el modelo
+equivocado (la app en nuestro portafolio) y habrían hecho repetir el error.
+
+**Por qué:** el canal llevaba horas «todo verde y sin recibir nada». La causa resultó ser
+estructural, no de configuración: **una app en TU portafolio con la WABA en el del cliente es
+*agency sharing***, y Meta lo capa de dos formas que no se ven desde el diagnóstico — no deja dar
+control total de la app al usuario del sistema (*«Manage task is disabled for agency sharing
+scenarios»*) y mantiene los permisos en *«Ready for testing»*, así que **nunca enruta mensajes
+reales**. El webhook de prueba del dashboard sí llegaba; los de clientes de verdad, no. Esa
+distinción es la que costó el día y es lo que el playbook existe para que nadie vuelva a pagar.
+
+Decisión de producto: **no se importa historial**. Meter conversaciones con fecha vieja en `messages`
+haría que el worker de seguimientos las tomara por leads sin atender y le escribiera a clientes ya
+atendidos. Agregar historial después es fácil; deshacer seguimientos ya enviados, no.
+
+---
 
 ### 2026-07-31 · «Nueva alerta del bot» cada 5 s, y el punto ciego del diagnóstico · ⏱️ 0.5 h
 
