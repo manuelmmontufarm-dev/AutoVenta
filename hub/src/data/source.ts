@@ -1,4 +1,4 @@
-import type { Atiende, BotAlert, Cierre, Etapa, FeedItem, FollowUpCard, HubMetrics, Mensaje, PhaseFlags, Rol, TemplatePlanPreview, Ticket } from "./types";
+import type { Atiende, BotAlert, BotPower, Cierre, Etapa, FeedItem, FollowUpCard, HubMetrics, Mensaje, PhaseFlags, Rol, TemplatePlanPreview, Ticket } from "./types";
 
 /**
  * El contrato entre la UI y los datos. Parte 1: MockSource (fixtures + simulador).
@@ -34,5 +34,8 @@ export interface DataSource {
   marcarLeido(ticketId: number): Promise<void>;
   /** Fases activas del producto (para decidir qué pantallas muestra el hub). */
   getPhases(): Promise<PhaseFlags>;
+  /** Interruptor global: si el bot está contestando o está apagado. */
+  getBotPower(): Promise<BotPower>;
+  setBotPower(activo: boolean, motivo?: string): Promise<BotPower>;
   subscribe(listener: (ev: SourceEvent) => void): () => void;
 }

@@ -147,13 +147,32 @@ Se guarda en la DB y entra en caliente: **sin redeploy**, efectivo en ≤15 s
 
 ---
 
+## Antes de conectar el webhook: deja el bot apagado
+
+En cuanto Meta enruta el número, entran mensajes de clientes **reales** — y eso pasa antes de que
+el catálogo, el prompt y las pruebas estén listos. Pon en el deploy del cliente:
+
+```
+BOT_POWER_DEFAULT=off
+```
+
+El servicio arranca recibiendo y guardando todo (los tickets aparecen en el Inbox), pero **no
+contesta ni manda seguimientos** hasta que alguien pulse *Encender el bot* en **Ajustes → Estado del
+bot**. Mientras esté apagado, el hub lo avisa en la cabecera de todas las pantallas.
+
+La variable solo decide el **estado inicial**: cuando se enciende desde el panel, la decisión queda
+en la DB y ya manda ella. Para volver a apagarlo no hace falta tocar el entorno ni redeployar.
+
+---
+
 ## Verificación final
 
 No se cierra sin las dos:
 
 1. **Diagnóstico del panel** (botón *Revisar conexión*): los siete pasos en verde, incluido
    **"Mensajes entrando"**.
-2. **Mensaje real** desde otro teléfono al número del negocio, y el bot responde.
+2. **Mensaje real** desde otro teléfono al número del negocio. Con el bot apagado, el ticket tiene
+   que **aparecer en el Inbox sin respuesta**; enciéndelo y repite para ver que contesta.
 
 ---
 

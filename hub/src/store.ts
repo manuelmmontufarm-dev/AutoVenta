@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import type { Atiende, BotAlert, Cierre, Etapa, FeedItem, FollowUpCard, HubMetrics, Mensaje, PhaseFlags, Rol, TemplatePlanPreview, Ticket } from "./data/types";
+import type { Atiende, BotAlert, BotPower, Cierre, Etapa, FeedItem, FollowUpCard, HubMetrics, Mensaje, PhaseFlags, Rol, TemplatePlanPreview, Ticket } from "./data/types";
 import { MockSource } from "./data/mock/mockSource";
 import { Simulator } from "./data/mock/simulator";
 import { AdminKeyError, RealSource } from "./data/realSource";
@@ -47,6 +47,12 @@ interface HubState {
   celebrando: boolean;
   /** Fases activas: deciden qué pantallas del hub se muestran. */
   phases: PhaseFlags;
+  /**
+   * Interruptor global. Vive en el store y no dentro de Ajustes para que el
+   * estado se pinte en todas las pantallas: un bot apagado del que nadie se
+   * acuerda es una venta perdida en silencio, y el aviso tiene que seguirte.
+   */
+  power: BotPower;
   /** ¿El hub está leyendo datos de verdad, o la clave/servidor falla? */
   conexion: EstadoConexion;
 
@@ -65,6 +71,7 @@ interface HubState {
   alertAction(id: number, action: "resolve" | "snooze" | "take"): Promise<void>;
   toggleDemo(): void;
   quitarToast(id: number): void;
+  cambiarPower(activo: boolean, motivo?: string): Promise<void>;
 }
 
 let toastId = 1;
@@ -78,15 +85,16 @@ function clasificarFallo(error: unknown): EstadoConexion {
 export const useHub = create<HubState>((set, get) => {
   async function refrescar(): Promise<void> {
     try {
-      const [tickets, feed, metrics, followUps, alerts, phases] = await Promise.all([
+      const [tickets, feed, metrics, followUps, alerts, phases, power] = await Promise.all([
         source.listTickets(),
         source.getFeed(),
         source.getMetrics(),
         source.listFollowUps(),
         source.listAlerts(),
         source.getPhases(),
+        source.getBotPower(),
       ]);
-      set({ tickets, feed, metrics, followUps, alerts, phases, conexion: "conectada" });
+      set({ tickets, feed, metrics, followUps, alerts, phases, power, conexion: "conectada" });
       updateFavicon(tickets.filter((t) => t.estado === "abierto").length);
     } catch (error) {
       set({ conexion: clasificarFallo(error) });
@@ -149,6 +157,9 @@ export const useHub = create<HubState>((set, get) => {
     celebrando: false,
     // Conservador hasta cargar: no revela pantallas que deban estar ocultas.
     phases: { fase2: false, fase3: false, fase4: false },
+    // Se asume encendido hasta saberlo: durante el medio segundo de carga es
+    // preferible no gritar "apagado" en un bot que sí está trabajando.
+    power: { activo: true, apagadoAt: null, motivo: "" },
     conexion: "verificando",
 
     async init() {
@@ -157,10 +168,10 @@ export const useHub = create<HubState>((set, get) => {
       try {
         // Mínimo de skeleton para que la carga se sienta intencional, no rota.
         const [datos] = await Promise.all([
-          Promise.all([source.listTickets(), source.getFeed(), source.getMetrics(), source.listFollowUps(), source.listAlerts(), source.getPhases()]),
+          Promise.all([source.listTickets(), source.getFeed(), source.getMetrics(), source.listFollowUps(), source.listAlerts(), source.getPhases(), source.getBotPower()]),
           new Promise((r) => setTimeout(r, 650)),
         ]);
-        set({ tickets: datos[0], feed: datos[1], metrics: datos[2], followUps: datos[3], alerts: datos[4], phases: datos[5], cargando: false, conexion: "conectada" });
+        set({ tickets: datos[0], feed: datos[1], metrics: datos[2], followUps: datos[3], alerts: datos[4], phases: datos[5], power: datos[6], cargando: false, conexion: "conectada" });
         updateFavicon(datos[0].filter((t) => t.estado === "abierto").length);
       } catch (error) {
         // Sin toast: el gate de conexión ocupa la pantalla y explica qué pasó.
@@ -197,6 +208,16 @@ export const useHub = create<HubState>((set, get) => {
     async alertAction(id, action) {
       await source.alertAction(id, action);
       await refrescar();
+    },
+
+    /**
+     * El estado se pinta desde la respuesta del servidor, no desde lo que se
+     * pidió: si el PUT falla, la UI no puede quedarse diciendo "apagado"
+     * mientras el bot le sigue escribiendo a los clientes. El error sube a
+     * quien llame para mostrarlo junto al botón.
+     */
+    async cambiarPower(activo, motivo = "") {
+      set({ power: await source.setBotPower(activo, motivo) });
     },
 
     toggleDemo() {

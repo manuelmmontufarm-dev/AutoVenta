@@ -23,13 +23,19 @@ todas las fases      fases limitadas          cada cliente por su API
 - **production** viejo = **muerto**. Bórralo desde tu consola de Railway; el repo
   no apunta a él (los links del hub son relativos).
 
-| Entorno | Base de datos | Fases | ADMIN_KEY |
-|---|---|---|---|
-| **staging** | Postgres A (datos de prueba) | `PHASES_DEFAULT=all` | clave tuya |
-| **depot** (producción) | Postgres B **nueva y vacía** | arranca en Fase 1 | clave del cliente, distinta |
+| Entorno | Base de datos | Fases | Bot | ADMIN_KEY |
+|---|---|---|---|---|
+| **staging** | Postgres A (datos de prueba) | `PHASES_DEFAULT=all` | encendido | clave tuya |
+| **depot** (producción) | Postgres B **nueva y vacía** | arranca en Fase 1 | `BOT_POWER_DEFAULT=off` | clave del cliente, distinta |
 
 El backend trae TODAS las capacidades en ambos. Solo cambian: **fases** activas
-(tabla `settings`), **base de datos** (datos aislados) y **ADMIN_KEY**.
+(tabla `settings`), **base de datos** (datos aislados), **ADMIN_KEY** y con qué
+estado nace el interruptor del bot.
+
+`BOT_POWER_DEFAULT=off` es lo que permite dejar el deploy conectado a WhatsApp
+sin que conteste: los mensajes entran al Inbox, pero el bot calla hasta que el
+dueño pulse *Encender el bot* en Ajustes. Al encenderlo, la decisión queda en la
+DB y la variable deja de mandar — apagarlo después no necesita redeploy.
 
 ## El panel central `/panel`
 

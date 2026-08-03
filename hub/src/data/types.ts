@@ -30,6 +30,17 @@ export interface PhaseFlags {
   fase4: boolean;
 }
 
+/**
+ * Interruptor global del bot (app/src/services/botPower.ts). Apagado, el bot
+ * no contesta ni manda seguimientos; los mensajes siguen entrando al Inbox.
+ */
+export interface BotPower {
+  activo: boolean;
+  /** ISO del apagado. null si está encendido o si nunca se encendió. */
+  apagadoAt: string | null;
+  motivo: string;
+}
+
 export type Rol = "cliente" | "bot" | "vendedor";
 
 export const ETAPAS: Etapa[] = [

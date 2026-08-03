@@ -23,6 +23,7 @@ import {
   updateConversationFacts,
 } from "./services/conversations.js";
 import { emitLiveEvent } from "./services/liveEvents.js";
+import { isBotActive } from "./services/botPower.js";
 import { extractTireSizes, formatTireSize } from "./domain/tireSize.js";
 import { extractExplicitQuantity, extractVehicleYear } from "./domain/salesIntent.js";
 import { getHubMetrics } from "./services/hubData.js";
@@ -63,6 +64,11 @@ const pipeline = new InboundPipeline(async ({ from, name, text, waMessageIds, re
     // el contenido del cliente demuestra una nueva sección comercial.
     await logFunnelEvent(conversation.id, "cliente_respondio");
   }
+
+  // Interruptor global (Ajustes → apagar el bot). Va DESPUÉS de guardar el
+  // mensaje: apagado el bot no contesta, pero el dueño sigue viendo todo lo que
+  // le escriben y puede responder a mano desde el panel.
+  if (!(await isBotActive())) return;
 
   // Handoff: si el dueño está atendiendo este chat a mano, el bot calla — pero
   // lo del cliente ya quedó guardado arriba para que el dueño lo lea en /mensajes.

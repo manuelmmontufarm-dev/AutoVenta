@@ -54,7 +54,7 @@ function TicketRow({ ticket, now }: { ticket: Ticket; now: number }) {
 }
 
 export function Inbox() {
-  const { tickets, alerts, alertAction, cargando } = useHub();
+  const { tickets, alerts, alertAction, cargando, power } = useHub();
   const now = useNow();
   const [estado, setEstado] = useState<FiltroEstado>("abiertos");
   const [etapa, setEtapa] = useState<Etapa | "todas">("todas");
@@ -143,7 +143,13 @@ export function Inbox() {
         ) : visibles.length === 0 ? (
           <EmptyState
             titulo={estado === "cerrados" ? "Sin tickets cerrados aquí" : "Sin tickets en esta vista"}
-            detalle="El bot está atento — cuando un cliente escriba, su ticket aparece aquí solo."
+            // Con el bot apagado, «el bot está atento» era mentira justo en la
+            // pantalla donde el dueño va a comprobar si algo entra.
+            detalle={
+              power.activo
+                ? "El bot está atento — cuando un cliente escriba, su ticket aparece aquí solo."
+                : "El bot está apagado: los mensajes van a seguir llegando aquí, pero nadie contesta hasta que lo enciendas o respondas a mano."
+            }
           />
         ) : (
           <AnimatePresence mode="popLayout" initial={false}>

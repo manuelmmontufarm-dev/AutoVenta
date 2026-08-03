@@ -6,6 +6,7 @@ import {
   reconcileFollowUpAlerts,
   ensureActiveConversationPlans,
 } from "../services/followUps.js";
+import { isBotActive } from "../services/botPower.js";
 
 /**
  * Latido del worker.
@@ -40,6 +41,10 @@ export async function runFollowUpWorkerOnce(
   options: WorkerOptions,
 ): Promise<number> {
   await latir(options.workerId);
+  // Interruptor global: con el bot apagado no sale ni un seguimiento. El latido
+  // va ANTES del corte, para que /health siga viendo el worker vivo — apagado
+  // no es lo mismo que caído, y confundirlos dispararía una alerta falsa.
+  if (!(await isBotActive())) return 0;
   await reconcileFollowUpAlerts(options.clock?.() ?? new Date());
   await ensureActiveConversationPlans(options.clock?.() ?? new Date());
   const jobs = await claimDueFollowUpJobs({

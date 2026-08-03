@@ -15,6 +15,7 @@ import {
   type TipoMensaje,
   type FollowUpCard,
   type BotAlert,
+  type BotPower,
 } from "../types";
 import { FEED_SEED, MENSAJES_SEED, TICKETS_SEED } from "./fixtures";
 import { money } from "../../lib/format";
@@ -47,6 +48,15 @@ export class MockSource implements DataSource {
   async getPhases(): Promise<PhaseFlags> {
     // El demo muestra todas las capacidades.
     return { fase2: true, fase3: true, fase4: true };
+  }
+
+  /** En el demo el bot siempre contesta: no hay clientes reales que proteger. */
+  async getBotPower(): Promise<BotPower> {
+    return { activo: true, apagadoAt: null, motivo: "" };
+  }
+
+  async setBotPower(activo: boolean): Promise<BotPower> {
+    return { activo, apagadoAt: null, motivo: "" };
   }
 
   async listTickets(): Promise<Ticket[]> {

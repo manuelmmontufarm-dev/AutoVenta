@@ -32,6 +32,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-08-02 | _(este mismo)_ | Interruptor del bot: nace apagado, sin fugas y visible en todo el hub | 1.5 |
 | 2026-07-31 | _(este mismo)_ | Toast cada 5 s + el diagnóstico ahora pregunta a Meta a dónde entrega | 0.5 |
 | 2026-08-01 | _(este mismo)_ | Depot Tire EN VIVO: app propia en su portafolio + playbook de conexión + pendientes | 5.0 |
 | 2026-07-31 | _(este mismo)_ | Diagnóstico del canal caído + worker de seguimientos embebido en el HTTP | 0.5 |
@@ -68,11 +69,41 @@ Ya viene activado en este equipo.
 | 2026-07-14 | ac09171 | Ubicaciones de locales + análisis de features del cliente | 1.5 |
 | 2026-07-13 | feadf57 | Brief + plan de desarrollo + plan financiero + catálogo | 4.0 |
 | 2026-07-13 | d997844 | Commit inicial (repo) | 0.25 |
-| | | **TOTAL** | **~68.75 h** |
+| | | **TOTAL** | **~70.25 h** |
 
 ---
 
 ## Entradas (más reciente primero)
+
+### 2026-08-02 · Interruptor del bot: nace apagado y se enciende desde el panel · ⏱️ 1.5 h
+
+**Qué:** el interruptor global (Ajustes → *Estado del bot*) se terminó y se cerraron sus tres
+huecos:
+
+- **`BOT_POWER_DEFAULT=off`** decide con qué estado nace una instalación. Sin fila en `settings`
+  mandaba siempre «encendido», así que el deploy de un cliente recién conectado empezaba a
+  contestar en cuanto Meta enrutaba el número. Con la DB caída también se devuelve ese default, no
+  un «sí» fijo: en un cliente que nace apagado, un error de lectura no puede ser la forma en que el
+  bot se enciende solo.
+- **Fuga en `resumeBot`**: devolver una conversación al bot desde el panel llamaba al agente y
+  enviaba, sin mirar el interruptor. Era la única vía que se saltaba el apagado.
+- **El estado se ve en todo el hub**: chip rojo en la cabecera, punto del rail (que antes decía
+  «Bot en línea» siempre) y el vacío del Inbox, que afirmaba «el bot está atento» estando apagado.
+
+Documentado en el playbook de conexión (`BOT_POWER_DEFAULT=off` **antes** de apuntar el webhook) y
+en la tabla de entornos de `entrega-fases-depot.md`.
+
+**Por qué:** el interruptor estaba escrito pero sin terminar ni desplegar, y su default hacía justo
+lo contrario de lo que hace falta al conectar un cliente: en cuanto Meta enruta el número entran
+mensajes de clientes **reales**, y eso pasa días antes de que el catálogo, el prompt y las pruebas
+estén listos. Depot Tire ya está conectado y su bot no debe hablar hasta que se decida. Un
+interruptor con fugas es peor que no tenerlo: el panel dice «apagado» y el cliente recibe mensajes
+igual.
+
+**Pruebas:** 4 nuevas en `app/test/botPower.integration.test.ts` (nace apagado, no inventa fecha de
+apagado, encender manda sobre el default, y `resumeBot` no responde con el bot apagado). Suite
+completa: 124 en verde. Verificado además en el navegador contra una DB local: apagar → encender →
+apagar, con el aviso siguiendo por todas las pantallas.
 
 ### 2026-08-01 · Depot Tire EN VIVO: app propia en su portafolio + playbook de conexión · ⏱️ 5.0 h
 

@@ -3,6 +3,7 @@ import type { AgentContext } from "../agent/tools.js";
 import { classifyStage } from "../agent/classifier.js";
 import { sql } from "../db/client.js";
 import { sendCustomerText } from "../wa/client.js";
+import { isBotActive } from "./botPower.js";
 import { appendMessage, type Conversation } from "./conversations.js";
 import { markDiscountNoticeSent } from "./discountOffers.js";
 import { createBotAlert, scheduleConversationFollowUps } from "./followUps.js";
@@ -11,10 +12,21 @@ import { authorizeConversationOutbound } from "./whatsappPolicy.js";
 import { hasUnansweredCustomerMessage } from "../domain/conversationState.js";
 import { flagRepetitiveConversation } from "./conversationQuality.js";
 
-export type ResumeBotResult = "answered" | "nothing_pending" | "window_closed" | "already_processing";
+export type ResumeBotResult =
+  | "answered"
+  | "nothing_pending"
+  | "window_closed"
+  | "already_processing"
+  | "bot_off";
 
 /** Responde el último inbound que quedó huérfano mientras atendía un humano. */
 export async function resumeBotIfUnanswered(conversationId: number): Promise<ResumeBotResult> {
+  // Interruptor global, antes de reclamar nada: devolver el chat al bot no
+  // puede saltarse el apagado. Sin esto, el panel decía "apagado" y aun así
+  // salía un mensaje a un cliente real — la fuga más cara posible, porque pasa
+  // justo cuando alguien está probando el producto sin querer publicarlo.
+  if (!(await isBotActive())) return "bot_off";
+
   const [claimed] = await sql<{
     id: number; phone: string; name: string | null; stage: Conversation["stage"];
     bot_paused_until: Date | null; status: Conversation["status"]; current_cycle: number;

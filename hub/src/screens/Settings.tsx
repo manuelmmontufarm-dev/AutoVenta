@@ -5,6 +5,7 @@ import { ETAPA_META, ETAPAS, type Etapa } from "../data/types";
 import { AdminKeyForm } from "../components/admin-key";
 import { WhatsAppSetup } from "../components/whatsapp-setup";
 import { getStoredAdminKey } from "../data/realSource";
+import { useHub } from "../store";
 
 type SettingsTab = "whatsapp" | "ai" | "followups" | "manual" | "business" | "connection";
 
@@ -148,6 +149,7 @@ export function Settings() {
   return (
     <div className="h-full overflow-y-auto px-4 pb-10">
       <div className="mx-auto max-w-6xl">
+        <BotPowerSwitch />
         <div className="mb-4 flex flex-wrap gap-2">
           {([
             ["whatsapp", "WhatsApp"],
@@ -565,6 +567,151 @@ function downloadPlaybook() {
   anchor.download = "BOT_PLAYBOOK.md";
   anchor.click();
   URL.revokeObjectURL(url);
+}
+
+/**
+ * Interruptor de emergencia. Va arriba de todo y fuera de las pestañas: cuando
+ * hace falta apagar el bot, hace falta ya, y nadie debería tener que acordarse
+ * de en qué pestaña estaba.
+ *
+ * El estado sale del store, no de un fetch propio: es el mismo dato que pinta
+ * el aviso de la cabecera, y dos copias podrían contradecirse justo en lo único
+ * que no admite ambigüedad — si el bot le está escribiendo a clientes o no.
+ *
+ * Apagar pide confirmación (afecta a clientes reales en el acto); encender no.
+ */
+function BotPowerSwitch() {
+  const power = useHub((s) => s.power);
+  const cambiarPower = useHub((s) => s.cambiarPower);
+  const [guardando, setGuardando] = useState(false);
+  const [error, setError] = useState("");
+  const [confirmando, setConfirmando] = useState(false);
+  const [motivo, setMotivo] = useState("");
+
+  async function cambiar(activo: boolean) {
+    setGuardando(true);
+    setError("");
+    try {
+      await cambiarPower(activo, motivo.trim());
+      setConfirmando(false);
+      setMotivo("");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "No se pudo cambiar");
+    } finally {
+      setGuardando(false);
+    }
+  }
+
+  const apagado = !power.activo;
+
+  return (
+    <div
+      className="glass mb-4 rounded-3xl p-5"
+      style={apagado ? { borderColor: "var(--color-red)", borderWidth: 2 } : undefined}
+    >
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div className="min-w-60 flex-1">
+          <p className="microlabel">Estado del bot</p>
+          <p className="mt-1 text-lg font-black" style={{ color: apagado ? "var(--color-red)" : undefined }}>
+            {apagado ? "Apagado" : "Respondiendo"}
+          </p>
+          <p className="mt-1 text-xs text-muted">
+            {apagado ? (
+              <>
+                No contesta ni manda seguimientos. Los mensajes de los clientes{" "}
+                <strong>siguen llegando</strong> al Inbox y puedes responder a mano.
+                {power.apagadoAt ? (
+                  <>
+                    {" "}Apagado desde {formatoFechaHora(power.apagadoAt)}
+                    {power.motivo && <> · Motivo: {power.motivo}</>}
+                  </>
+                ) : (
+                  // Sin fecha de apagado nunca estuvo encendido: el motivo lo
+                  // explica solo y llamarlo "motivo" sonaría a avería.
+                  power.motivo && <> {power.motivo}.</>
+                )}
+              </>
+            ) : (
+              "Contesta a los clientes y envía los seguimientos programados."
+            )}
+          </p>
+        </div>
+
+        {apagado ? (
+          <button
+            disabled={guardando}
+            onClick={() => void cambiar(true)}
+            className="rounded-2xl px-5 py-3 text-xs font-black text-white disabled:opacity-50"
+            style={{ background: "var(--color-green, #2a9d8f)" }}
+          >
+            {guardando ? "Encendiendo…" : "Encender el bot"}
+          </button>
+        ) : (
+          <button
+            disabled={guardando}
+            onClick={() => setConfirmando(true)}
+            className="rounded-2xl border-2 px-5 py-3 text-xs font-black disabled:opacity-50"
+            style={{ borderColor: "var(--color-red)", color: "var(--color-red)" }}
+          >
+            Apagar el bot
+          </button>
+        )}
+      </div>
+
+      {confirmando && (
+        <div className="mt-4 rounded-2xl border-2 p-4" style={{ borderColor: "var(--color-red)" }}>
+          <p className="text-xs font-black">¿Apagar el bot para todos los clientes?</p>
+          <p className="mt-1 text-xs text-muted">
+            Deja de responder <strong>en el acto</strong>. Quien escriba no recibirá respuesta hasta
+            que alguien conteste a mano o lo vuelvas a encender.
+          </p>
+          <input
+            value={motivo}
+            onChange={(event) => setMotivo(event.target.value)}
+            placeholder="Motivo (opcional): catálogo desactualizado, pruebas…"
+            maxLength={200}
+            className="settings-input mt-3"
+          />
+          <div className="mt-3 flex flex-wrap gap-2">
+            <button
+              disabled={guardando}
+              onClick={() => void cambiar(false)}
+              className="rounded-2xl px-5 py-3 text-xs font-black text-white disabled:opacity-50"
+              style={{ background: "var(--color-red)" }}
+            >
+              {guardando ? "Apagando…" : "Sí, apagar"}
+            </button>
+            <button
+              onClick={() => {
+                setConfirmando(false);
+                setMotivo("");
+              }}
+              className="rounded-2xl px-5 py-3 text-xs font-black"
+              style={{ color: "var(--color-muted)" }}
+            >
+              Cancelar
+            </button>
+          </div>
+        </div>
+      )}
+
+      {error && (
+        <p className="mt-3 text-xs font-bold" style={{ color: "var(--color-red)" }}>
+          {error}
+        </p>
+      )}
+    </div>
+  );
+}
+
+function formatoFechaHora(iso: string): string {
+  return new Date(iso).toLocaleString("es-EC", {
+    day: "2-digit",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: "America/Guayaquil",
+  });
 }
 
 function Field({

@@ -78,6 +78,7 @@ import {
   saveChannelConfig,
 } from "../services/channel.js";
 import { diagnoseChannel } from "../services/channelDiagnostics.js";
+import { getBotPower, setBotPower } from "../services/botPower.js";
 import { sendImage, reloadWa } from "../wa/client.js";
 
 const GRAPH = "https://graph.facebook.com/v21.0";
@@ -230,6 +231,27 @@ export function createAdminRouter(): express.Router {
       telefonoVendedor: config.whatsapp.sellerPhone,
       asesor: config.whatsapp.sellerName,
     });
+  });
+
+  // ── Interruptor global del bot ─────────────────────────────────────────────
+  // Apagado: no contesta ni manda seguimientos. Sigue recibiendo y guardando
+  // los mensajes, y el dueño sigue pudiendo responder a mano desde el panel.
+  router.get("/bot-power", async (_req, res) => {
+    res.json({ ok: true, power: await getBotPower() });
+  });
+
+  router.put("/bot-power", async (req, res) => {
+    try {
+      const power = await setBotPower(req.body);
+      // El hub pinta el estado en la cabecera: que se entere sin recargar.
+      emitLiveEvent("sync");
+      res.json({ ok: true, power });
+    } catch (error) {
+      res.status(400).json({
+        ok: false,
+        error: error instanceof Error ? error.message : "Valor inválido",
+      });
+    }
   });
 
   // ── Fases del producto (entrega por etapas) ────────────────────────────────

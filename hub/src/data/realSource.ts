@@ -11,6 +11,7 @@ import type {
   TemplatePlanPreview,
   FollowUpCard,
   BotAlert,
+  BotPower,
 } from "./types";
 
 const ADMIN_KEY_STORAGE = "autoventa_admin_key";
@@ -212,6 +213,19 @@ export class RealSource implements DataSource {
 
   async getPhases(): Promise<PhaseFlags> {
     return (await this.request<{ phases: PhaseFlags }>("/api/phases")).phases;
+  }
+
+  async getBotPower(): Promise<BotPower> {
+    return (await this.request<{ power: BotPower }>("/api/bot-power")).power;
+  }
+
+  async setBotPower(activo: boolean, motivo = ""): Promise<BotPower> {
+    return (
+      await this.request<{ power: BotPower }>("/api/bot-power", {
+        method: "PUT",
+        body: JSON.stringify({ activo, motivo: activo ? "" : motivo }),
+      })
+    ).power;
   }
 
   subscribe(listener: (event: SourceEvent) => void): () => void {

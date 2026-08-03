@@ -10,6 +10,7 @@ import { sql } from "../db/client.js";
 import { catalogStatus, searchBySize } from "../services/catalog.js";
 import { renderCompareImage, toRenderLine } from "../render/quoteImage.js";
 import { createAdminRouter } from "./admin.js";
+import { getBotPower } from "../services/botPower.js";
 import { shouldRunEmbeddedWorker } from "../workers/embeddedFollowUpWorker.js";
 
 // Hub estático (site/ dentro de app/ para que entre en el build de Railway).
@@ -64,8 +65,11 @@ export function createServer(): express.Express {
     }
     // `modo` evita el diagnóstico a ciegas: dice si el latido debería venir de
     // este mismo proceso o de un servicio aparte que hay que ir a mirar.
+    // `bot` va aquí para que el monitor externo distinga «apagado a propósito»
+    // de «caído»: sin esto, un apagado se ve idéntico a una avería.
     res.json({
       ok: true,
+      bot: await getBotPower().catch(() => null),
       catalog: catalogStatus(),
       worker: { ...worker, modo: shouldRunEmbeddedWorker() ? "embebido" : "externo" },
     });

@@ -51,7 +51,7 @@ function navActivo(route: Route): string {
 
 export default function App() {
   const route = useRoute();
-  const { init, cargando, tickets, demo, dataMode, toggleDemo, phases, conexion } = useHub();
+  const { init, cargando, tickets, demo, dataMode, toggleDemo, phases, conexion, power } = useHub();
   const [audioOn, setAudioOn] = useState(sonidoActivo);
 
   const navVisible = NAV.filter((item) => !item.requiere || phases[item.requiere]);
@@ -129,7 +129,20 @@ export default function App() {
             })}
           </LayoutGroup>
           <div className="mt-auto flex flex-col items-center gap-3">
-            <span className="pulse-dot" title="Bot en línea" />
+            {power.activo ? (
+              <span className="pulse-dot" title="Bot en línea" />
+            ) : (
+              // El punto decía "en línea" siempre, también con el bot apagado.
+              // Un indicador que solo sabe decir que sí no es un indicador.
+              <button
+                type="button"
+                onClick={() => navigate("settings")}
+                aria-label="Bot apagado — ir a Ajustes para encenderlo"
+                title="Bot apagado: no contesta ni manda seguimientos"
+                className="grid h-2.5 w-2.5 place-items-center rounded-full"
+                style={{ background: "var(--color-red)" }}
+              />
+            )}
           </div>
         </nav>
 
@@ -152,6 +165,29 @@ export default function App() {
               </div>
             </div>
             <div className="flex items-center gap-2.5">
+              {/* Aviso persistente: el bot apagado es un estado que se olvida,
+                  y olvidarlo son clientes escribiendo a un número que no
+                  responde. Lleva a Ajustes, que es donde se enciende. */}
+              {!power.activo && (
+                <motion.button
+                  whileTap={{ scale: 0.94 }}
+                  type="button"
+                  onClick={() => navigate("settings")}
+                  title="El bot no está contestando. Toca para encenderlo."
+                  // En móvil la cabecera ya va justa: sin nowrap el chip parte
+                  // en dos líneas y empuja lo demás fuera de la pantalla.
+                  className="flex items-center gap-1.5 rounded-full px-2 py-1.5 text-[11px] font-black whitespace-nowrap sm:gap-2 sm:px-3"
+                  style={{
+                    background: "color-mix(in srgb, var(--color-red) 12%, transparent)",
+                    color: "var(--color-red)",
+                    border: "1px solid color-mix(in srgb, var(--color-red) 45%, transparent)",
+                  }}
+                >
+                  <span aria-hidden>⏻</span>
+                  <span className="hidden sm:inline">Bot apagado</span>
+                  <span className="sm:hidden">Apagado</span>
+                </motion.button>
+              )}
               <motion.button
                 whileTap={{ scale: 0.94 }}
                 type="button"
