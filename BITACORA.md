@@ -32,7 +32,8 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
-| 2026-08-02 | _(este mismo)_ | Interruptor del bot: nace apagado, sin fugas y visible en todo el hub | 1.5 |
+| 2026-08-02 | _(este mismo)_ | Plan financiero alineado al acuerdo firmado ($300+$300+$60/mes) | 0.25 |
+| 2026-08-02 | a36bb0a | Interruptor del bot: nace apagado, sin fugas y visible en todo el hub | 1.5 |
 | 2026-07-31 | _(este mismo)_ | Toast cada 5 s + el diagnóstico ahora pregunta a Meta a dónde entrega | 0.5 |
 | 2026-08-01 | _(este mismo)_ | Depot Tire EN VIVO: app propia en su portafolio + playbook de conexión + pendientes | 5.0 |
 | 2026-07-31 | _(este mismo)_ | Diagnóstico del canal caído + worker de seguimientos embebido en el HTTP | 0.5 |
@@ -69,11 +70,24 @@ Ya viene activado en este equipo.
 | 2026-07-14 | ac09171 | Ubicaciones de locales + análisis de features del cliente | 1.5 |
 | 2026-07-13 | feadf57 | Brief + plan de desarrollo + plan financiero + catálogo | 4.0 |
 | 2026-07-13 | d997844 | Commit inicial (repo) | 0.25 |
-| | | **TOTAL** | **~70.25 h** |
+| | | **TOTAL** | **~70.5 h** |
 
 ---
 
 ## Entradas (más reciente primero)
+
+### 2026-08-02 · Plan financiero: queda escrito lo acordado ($300 + $300 + $60/mes) · ⏱️ 0.25 h
+
+**Qué:** `PLAN_FINANCIERO.md` incorpora la **opción A′**, que es la que está en el acuerdo firmado
+con Depot Tire: $600 cerrados en dos transferencias de $300 (firma y entrega) y $60/mes que
+empiezan a correr recién con la Fase 1 entregada. Se recalculó el margen por escenario y la
+proyección del año 1 ($1.200 de ingreso, ≈$960 neto), y los argumentos de negociación quedaron
+alineados al precio real.
+
+**Por qué:** el documento seguía recomendando la opción A ($600 por fases + $40/mes), que **no** es
+lo que se acordó. Un plan financiero que contradice el contrato firmado se convierte en la fuente de
+un error de cobro. Con $40 el escenario de régimen quedaba casi en cero; los $60 acordados son los
+que sostienen el servicio.
 
 ### 2026-08-02 · Interruptor del bot: nace apagado y se enciende desde el panel · ⏱️ 1.5 h
 

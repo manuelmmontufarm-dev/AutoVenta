@@ -76,15 +76,28 @@
 | Opción | Estructura | Pros | Contras |
 |---|---|---|---|
 | **A (recomendada)** | **$600 de implementación** (pagados por fase: F1 $250 · F2 $200 · F3 $150) **+ $40/mes** todo incluido (infra + WhatsApp + Claude + mantenimiento + soporte + hasta 1 h de cambios menores) | Ingreso recurrente; alinea con el modelo del competidor; cubre operación con margen; el cliente paga poco por entrar | Hay que sostener el servicio |
+| **A′ (ACORDADA con el cliente, jul-2026)** | **$600 precio cerrado en 2 cobros de $300** ($300 a la firma · $300 a la entrega) **+ $60/mes** desde la entrega de la Fase 1 | El cliente pidió explícitamente precio cerrado por el producto entero, no fase por fase; la mensualidad sube a $60 y da margen real en todos los escenarios | Solo 2 hitos de cobro → más exposición de flujo entre el primero y el último |
 | B | $900–1.100 únicos + cuentas (Railway, Meta, Anthropic) a nombre del cliente; mantenimiento a $15–20/h bajo demanda | Sin compromiso mensual tuyo | El cliente debe gestionar 3 cuentas y tarjeta; sin ingreso recurrente; soporte se vuelve regateo |
 | C | $600 + comisión por venta | Al cliente le suena atractivo | **Ya descartada**: "confirmado" ≠ venta real (mucha gente dice que va y no llega); imposible de auditar |
 | D | Solo mensualidad, $0 de entrada: $99/mes × 12 meses mínimo | Barrera de entrada nula; LTV mayor ($1.188/año) | Riesgo de cancelación temprana; más difícil de vender a una PyME |
 
-### 2.4 Recomendación: Opción A
+### 2.4 Lo acordado: Opción A′ — $300 + $300 + $60/mes
 
-**$600 de implementación (por fases) + $40/mes.**
+> **Esto es lo que va firmado** (ver [docs/acuerdo-depot-tire.html](docs/acuerdo-depot-tire.html) → PDF para firma).
+> $600 cerrados por todo el producto, en **dos transferencias de $300** ($300 a la firma, $300 a la entrega),
+> más **$60/mes** que **recién empiezan a correr después de entregada la Fase 1** (sistema de tickets).
 
-Economía de la mensualidad de $40:
+Economía de la mensualidad de $60:
+
+| | Escenario A (arranque) | Escenario B (régimen) | Escenario C (crecimiento) |
+|---|---|---|---|
+| Costos de operación | $13–19 | $22–44 | $80–140 |
+| Margen mensual con $60 | **$41–47** | **$16–38** | **negativo → aplica el ajuste** |
+
+- Con $60 (vs los $40 de la opción original) el margen aguanta el régimen normal sin quedar en rojo. El escenario C dispara la **cláusula de ajuste** que ya está escrita en el acuerdo (§4: sobre ~1.000 conversaciones/mes sostenidas, aviso por escrito con 30 días).
+- El riesgo de flujo de los 2 hitos se mitiga con el §3 del acuerdo: el primer pago **no es reembolsable** una vez arrancado el desarrollo, y el segundo se factura contra el producto operando en el número real.
+
+Economía de la mensualidad de $40 (referencia de la opción A original):
 
 | | Escenario A (arranque) | Escenario B (régimen) |
 |---|---|---|
@@ -96,19 +109,19 @@ Economía de la mensualidad de $40:
 - Los pagos por fase protegen el flujo: $250 al entregar la demo de Fase 1 (~2 semanas), no todo al final.
 
 ### 2.5 Argumentos para la negociación con el cliente
-1. "Solo el canal de WhatsApp en un SaaS cuesta $59/mes sin ninguna IA; esto es un agente completo por $40."
+1. "Solo el canal de WhatsApp en un SaaS cuesta $59/mes sin ninguna IA; esto es un agente completo por $60, con todo incluido."
 2. "El costo del bot por venta es menos de 5 centavos — se paga con la primera llanta del mes."
 3. "El de Interbot les cobra mensualidad a otras llanteras por menos que esto" (validación del modelo, mismo mercado).
-4. "El fijo va por fases: pagan $250 y ven la demo funcionando en 2 semanas antes de seguir."
+4. "Mitad al arrancar y mitad al entregar: no adelantan todo por algo que aún no ven, y la mensualidad recién corre cuando ya tienen algo vivo en las manos."
 
-### 2.6 Proyección año 1 (Opción A)
+### 2.6 Proyección año 1 (Opción A′ — la acordada)
 
 | Concepto | Monto |
 |---|---|
-| Implementación (una vez) | $600 |
-| Mensualidad × 12 | $480 |
-| **Ingreso año 1** | **$1.080** |
+| Implementación ($300 + $300) | $600 |
+| Mensualidad $60 × ~10 meses (arranca tras la Fase 1) | $600 |
+| **Ingreso año 1** | **$1.200** |
 | Costos de operación año 1 (promedio ~$20/mes) | –$240 |
-| **Neto año 1** | **≈ $840** + portafolio + referidos a otras llanteras |
+| **Neto año 1** | **≈ $960** + portafolio + referidos a otras llanteras |
 
 **Upside real:** el producto es genérico (AutoVenta). La segunda llantera cuesta ~10–15 h de setup (no 75–100) y puede cobrarse $500–800 + $50–80/mes. Ahí está el negocio.
