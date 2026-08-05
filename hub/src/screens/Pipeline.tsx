@@ -13,6 +13,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useMemo, useState } from "react";
 import { FunnelChart } from "../components/charts";
 import { Avatar, EmptyState, Segmented } from "../components/ui";
+import { getStoredAdminKey } from "../data/realSource";
 import { CIERRE_META, ETAPAS, ETAPA_META, type Etapa, type FollowUpBucket, type FollowUpCard, type Ticket } from "../data/types";
 import { money, moneyCompact, relTime } from "../lib/format";
 import { navigate } from "../router";
@@ -66,9 +67,9 @@ function CardArrastrable({ ticket, now }: { ticket: Ticket; now: number }) {
   );
 }
 
-function Columna({ etapa, tickets, now }: { etapa: Etapa; tickets: Ticket[]; now: number }) {
+function Columna({ etapa, tickets, now, grupo }: { etapa: Etapa; tickets: Ticket[]; now: number; grupo: string }) {
   const meta = ETAPA_META[etapa];
-  const { setNodeRef, isOver } = useDroppable({ id: etapa });
+  const { setNodeRef, isOver } = useDroppable({ id: `${grupo}:${etapa}` });
   const potencial = tickets.reduce((s, t) => s + (t.cotizacion?.total ?? 0), 0);
 
   return (
@@ -191,8 +192,161 @@ function FollowUpsView({ now }: { now: number }) {
   </div>;
 }
 
+/**
+ * Acciones de puesta al día. Sirven sobre todo después de que el bot estuvo
+ * apagado: mientras lo está, se siguen guardando los mensajes y extrayendo la
+ * medida, pero nadie recalcula la etapa ni contesta.
+ *
+ * Las dos simulan primero y piden confirmación: mueven tarjetas reales y, la
+ * segunda, manda mensajes a clientes reales.
+ */
+function AccionesPuestaAlDia({ onListo }: { onListo: () => void }) {
+  const [cargando, setCargando] = useState<string | null>(null);
+  const [previo, setPrevio] = useState<{ accion: string; texto: string; n: number } | null>(null);
+  const [resultado, setResultado] = useState<string | null>(null);
+
+  const llamar = async (ruta: string, simular: boolean) => {
+    const key = getStoredAdminKey();
+    const r = await fetch(`/api/hub/tickets/${ruta}${simular ? "?simular=1" : ""}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...(key ? { "x-admin-key": key } : {}) },
+      body: JSON.stringify({}),
+    });
+    const d = await r.json();
+    if (!r.ok || !d.ok) throw new Error(d.error ?? `Error ${r.status}`);
+    return d;
+  };
+
+  const simular = async (accion: "reorganizar" | "atender-pendientes") => {
+    setCargando(accion); setResultado(null);
+    try {
+      const d = await llamar(accion, true);
+      if (accion === "reorganizar") {
+        const n = d.movimientos.length;
+        setPrevio({ accion, n, texto: n === 0 ? "No hay tarjetas que mover: todas están donde corresponde."
+          : `Se moverían ${n} tarjeta${n === 1 ? "" : "s"}, solo las que ya tienen medida o visita identificada:\n` +
+            d.movimientos.slice(0, 8).map((m: { nombre: string; de: string; a: string; motivo: string }) =>
+              `· ${m.nombre ?? "sin nombre"}: ${m.de} → ${m.a} (${m.motivo})`).join("\n") +
+            (n > 8 ? `\n… y ${n - 8} más` : "") });
+      } else {
+        const n = d.candidatos;
+        setPrevio({ accion, n, texto: n === 0 ? "No hay conversaciones sin responder dentro de las 24 h."
+          : `El bot le escribiría a ${n} cliente${n === 1 ? "" : "s"} que quedaron sin respuesta y siguen dentro de las 24 h:\n` +
+            d.resultados.slice(0, 8).map((x: { nombre: string; telefono: string }) =>
+              `· ${x.nombre ?? x.telefono}`).join("\n") + (n > 8 ? `\n… y ${n - 8} más` : "") });
+      }
+    } catch (e) {
+      setResultado(e instanceof Error ? e.message : "Falló");
+    } finally { setCargando(null); }
+  };
+
+  const aplicar = async () => {
+    if (!previo) return;
+    setCargando(previo.accion);
+    try {
+      const d = await llamar(previo.accion, false);
+      setResultado(previo.accion === "reorganizar"
+        ? `${d.aplicados} tarjeta${d.aplicados === 1 ? "" : "s"} puesta${d.aplicados === 1 ? "" : "s"} al día.`
+        : `El bot contestó ${(d.resultados ?? []).filter((x: { resultado: string }) => x.resultado === "answered").length} de ${d.candidatos}.`);
+      setPrevio(null);
+      onListo();
+    } catch (e) {
+      setResultado(e instanceof Error ? e.message : "Falló");
+    } finally { setCargando(null); }
+  };
+
+  const btn = "rounded-full px-3 py-1.5 text-[11px] font-semibold transition-colors disabled:opacity-50";
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <button className={btn} disabled={!!cargando} onClick={() => void simular("reorganizar")}
+        style={{ background: "color-mix(in srgb, var(--color-paper) 8%, transparent)" }}>
+        {cargando === "reorganizar" ? "Revisando…" : "Poner tarjetas al día"}
+      </button>
+      <button className={btn} disabled={!!cargando} onClick={() => void simular("atender-pendientes")}
+        style={{ background: "color-mix(in srgb, var(--color-ok) 14%, transparent)", color: "var(--color-ok)" }}>
+        {cargando === "atender-pendientes" ? "Revisando…" : "Que el bot conteste lo pendiente"}
+      </button>
+      {resultado && <span className="text-[11px] text-faint">{resultado}</span>}
+
+      <AnimatePresence>
+        {previo && (
+          <>
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              onClick={() => setPrevio(null)} className="fixed inset-0 z-40"
+              style={{ background: "var(--color-scrim)" }} />
+            <motion.div initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 10 }}
+              className="glass fixed top-1/2 left-1/2 z-50 w-[min(520px,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2 rounded-3xl p-5">
+              <p className="microlabel mb-2">
+                {previo.accion === "reorganizar" ? "Poner tarjetas al día" : "Que el bot conteste lo pendiente"}
+              </p>
+              <pre className="mb-4 max-h-64 overflow-y-auto text-[11.5px] leading-relaxed whitespace-pre-wrap text-muted">
+                {previo.texto}
+              </pre>
+              <div className="flex justify-end gap-2">
+                <button onClick={() => setPrevio(null)} className={btn}
+                  style={{ background: "color-mix(in srgb, var(--color-paper) 8%, transparent)" }}>
+                  Cancelar
+                </button>
+                <button onClick={() => void aplicar()} disabled={previo.n === 0 || !!cargando} className={btn}
+                  style={{ background: "var(--color-ok)", color: "#06210f" }}>
+                  {cargando ? "Aplicando…" : previo.accion === "reorganizar" ? "Mover" : "Enviar"}
+                </button>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+/**
+ * Uno de los dos tableros. El de arriba es lo que el bot todavía puede
+ * atender; el de abajo es la lista de pendientes reales de Joaquín.
+ */
+function TableroVentana({
+  grupo, titulo, detalle, color, tickets, porEtapa, now, conZonaCierre = false, vacio,
+}: {
+  grupo: string; titulo: string; detalle: string; color: string;
+  tickets: Ticket[]; porEtapa: Record<Etapa, Ticket[]>; now: number;
+  conZonaCierre?: boolean; vacio?: string;
+}) {
+  const sinLeer = tickets.reduce((s, t) => s + (t.sinLeer ?? 0), 0);
+  return (
+    <section className="mb-4">
+      <div className="mb-2 flex flex-wrap items-center gap-2.5 px-4">
+        <span className="h-2.5 w-2.5 rounded-full" style={{ background: color, boxShadow: `0 0 10px ${color}` }} />
+        <span className="text-[13px] font-bold" style={{ color }}>{titulo}</span>
+        <span
+          className="tnum rounded-full px-2 py-0.5 text-[10.5px] font-bold"
+          style={{ background: `color-mix(in srgb, ${color} 14%, transparent)`, color }}
+        >
+          {tickets.length}
+        </span>
+        {sinLeer > 0 && (
+          <span className="tnum text-[10.5px] font-bold text-faint">{sinLeer} sin leer</span>
+        )}
+        <span className="text-[10.5px] text-faint">{detalle}</span>
+      </div>
+      {tickets.length === 0 && vacio ? (
+        <p className="mx-4 rounded-2xl border border-dashed px-4 py-5 text-center text-[11.5px] text-faint"
+           style={{ borderColor: "color-mix(in srgb, var(--color-paper) 12%, transparent)" }}>
+          {vacio}
+        </p>
+      ) : (
+        <div className="kanban-scroll flex gap-3 overflow-x-auto px-4">
+          {ETAPAS.map((e) => (
+            <Columna key={e} etapa={e} tickets={porEtapa[e]} now={now} grupo={grupo} />
+          ))}
+          {conZonaCierre && <ZonaCierre />}
+        </div>
+      )}
+    </section>
+  );
+}
+
 export function Pipeline() {
-  const { tickets, moverEtapa, metrics } = useHub();
+  const { tickets, moverEtapa, metrics, refrescar } = useHub();
   const now = useNow();
   const [vista, setVista] = useState<"kanban" | "embudo">("kanban");
   const [activo, setActivo] = useState<Ticket | null>(null);
@@ -202,11 +356,29 @@ export function Pipeline() {
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
 
   const abiertos = tickets.filter((t) => t.estado === "abierto");
-  const porEtapa = useMemo(() => {
+
+  // La ventana de 24 h de WhatsApp parte el tablero en dos mundos distintos:
+  // dentro, el bot todavía puede contestar texto libre; fuera, Meta lo prohíbe
+  // y el caso es de una persona. Mezclarlos escondía justamente los que hay
+  // que atender a mano.
+  const { enVentana, fueraVentana } = useMemo(() => {
+    const dentro: Ticket[] = [], fuera: Ticket[] = [];
+    for (const t of abiertos) {
+      const cierra = t.ventanaCierraEn ? Date.parse(t.ventanaCierraEn) : NaN;
+      // Sin dato de ventana se asume que el bot puede: es el caso de las
+      // conversaciones que nunca recibieron un mensaje del cliente.
+      (Number.isFinite(cierra) && cierra <= now ? fuera : dentro).push(t);
+    }
+    return { enVentana: dentro, fueraVentana: fuera };
+  }, [abiertos, now]);
+
+  const agrupar = (lista: Ticket[]) => {
     const mapa = Object.fromEntries(ETAPAS.map((e) => [e, [] as Ticket[]])) as Record<Etapa, Ticket[]>;
-    for (const t of abiertos) mapa[t.etapa].push(t);
+    for (const t of lista) mapa[t.etapa].push(t);
     return mapa;
-  }, [abiertos]);
+  };
+  const porEtapaEnVentana = useMemo(() => agrupar(enVentana), [enVentana]);
+  const porEtapaFuera = useMemo(() => agrupar(fueraVentana), [fueraVentana]);
 
   const embudo = useMemo(() => {
     if (metrics?.funnel?.length) {
@@ -239,10 +411,13 @@ export function Pipeline() {
     const ticket = activo;
     setActivo(null);
     if (!ticket || !ev.over) return;
-    const destino = ev.over.id;
-    if (destino === "cerrar") {
+    const bruto = String(ev.over.id);
+    if (bruto === "cerrar") {
       setCerrando(ticket);
-    } else if (ETAPAS.includes(destino as Etapa) && destino !== ticket.etapa) {
+      return;
+    }
+    const destino = bruto.includes(":") ? bruto.split(":")[1] : bruto;
+    if (ETAPAS.includes(destino as Etapa) && destino !== ticket.etapa) {
       void moverEtapa(ticket.id, destino as Etapa);
     }
   }
@@ -261,19 +436,38 @@ export function Pipeline() {
             { valor: "embudo", label: "Embudo" },
           ]}
         />
-        <p className="text-xs text-muted">
-          <span className="tnum font-bold text-lime">{money(potencialTotal)}</span> en juego ·{" "}
-          <span className="tnum font-bold text-paper">{abiertos.length}</span> tickets abiertos
-        </p>
+        <div className="flex flex-wrap items-center gap-3">
+          <AccionesPuestaAlDia onListo={() => void refrescar()} />
+          <p className="text-xs text-muted">
+            <span className="tnum font-bold text-lime">{money(potencialTotal)}</span> en juego ·{" "}
+            <span className="tnum font-bold text-paper">{abiertos.length}</span> tickets abiertos
+          </p>
+        </div>
       </div>
 
       {vista === "kanban" ? (
         <DndContext sensors={sensors} onDragStart={onDragStart} onDragEnd={onDragEnd}>
-          <div className="kanban-scroll flex min-h-0 flex-1 gap-3 overflow-x-auto px-4 pb-5">
-            {ETAPAS.map((e) => (
-              <Columna key={e} etapa={e} tickets={porEtapa[e]} now={now} />
-            ))}
-            <ZonaCierre />
+          <div className="min-h-0 flex-1 overflow-y-auto pb-5">
+            <TableroVentana
+              grupo="viva"
+              titulo="El bot puede responder"
+              detalle="Dentro de las 24 h desde el último mensaje del cliente. El bot contesta solo."
+              color="var(--color-ok)"
+              tickets={enVentana}
+              porEtapa={porEtapaEnVentana}
+              now={now}
+              conZonaCierre
+            />
+            <TableroVentana
+              grupo="cerrada"
+              titulo="Solo tú puedes responder"
+              detalle="Pasaron 24 h desde el último mensaje. WhatsApp ya no deja que el bot escriba texto libre: estos hay que contestarlos a mano."
+              color="var(--color-red)"
+              tickets={fueraVentana}
+              porEtapa={porEtapaFuera}
+              now={now}
+              vacio="Ninguna conversación se pasó de las 24 h. Todo al día."
+            />
           </div>
           <DragOverlay dropAnimation={{ duration: 220 }}>
             {activo && (

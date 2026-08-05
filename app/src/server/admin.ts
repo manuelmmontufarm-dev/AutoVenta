@@ -82,6 +82,7 @@ import {
 } from "../services/brandProfiles.js";
 import { PALETTE_NAMES, PRICE_FONT_NAMES } from "../render/depotDesign.js";
 import { renderPreviewPiece } from "../render/preview.js";
+import { atenderPendientes, reorganizarEtapas } from "../services/hubMaintenance.js";
 import {
   getChannelConfig,
   getPublicChannelConfig,
@@ -671,6 +672,33 @@ export function createAdminRouter(): express.Router {
         ...(created.status === "applied" ? { offer: created.offer } : { pending: true }) });
     } catch (error) {
       res.status(400).json({ ok: false, error: error instanceof Error ? error.message : "Oferta inválida" });
+    }
+  });
+
+  // ── Puesta al día tras un apagón del bot ────────────────────────────────────
+  //
+  // Con el bot apagado se guardan los mensajes y se extraen los datos, pero
+  // nunca corre el clasificador de etapa. Estas dos dejan el tablero al día sin
+  // adivinar. Ambas aceptan ?simular=1 para ver el plan sin tocar nada.
+
+  router.post("/hub/tickets/reorganizar", async (req, res) => {
+    try {
+      const dryRun = req.query.simular === "1";
+      const { movimientos, aplicados } = await reorganizarEtapas({ dryRun });
+      res.json({ ok: true, simulado: dryRun, aplicados, movimientos });
+    } catch (error) {
+      res.status(500).json({ ok: false, error: mensaje(error, "No se pudo reorganizar") });
+    }
+  });
+
+  router.post("/hub/tickets/atender-pendientes", async (req, res) => {
+    try {
+      const dryRun = req.query.simular === "1";
+      const limite = Math.max(1, Math.min(Number(req.body?.limite) || 25, 100));
+      const out = await atenderPendientes({ limite, dryRun });
+      res.json({ ok: true, simulado: dryRun, ...out });
+    } catch (error) {
+      res.status(500).json({ ok: false, error: mensaje(error, "No se pudo atender los pendientes") });
     }
   });
 

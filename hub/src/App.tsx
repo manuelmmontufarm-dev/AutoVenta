@@ -4,6 +4,7 @@ import { ConnectionChip, ConnectionGate } from "./components/admin-key";
 import { Confetti, Toasts } from "./components/overlays";
 import { IconChart, IconInbox, IconKanban, IconPlay, IconSparkle, IconStop, IconTire, IconSliders } from "./components/icons";
 import { RacingDetails } from "./components/racing-details";
+import { VersionBadge } from "./components/version-badge";
 import { setSonidoActivo, sonidoActivo, sonidoBoton } from "./lib/sound";
 import { navigate, useRoute, type Route } from "./router";
 import { Ajustes } from "./screens/Ajustes";
@@ -220,6 +221,7 @@ export default function App() {
                   onClick={() => navigate("settings")}
                 />
               )}
+              <VersionBadge />
               {dataMode === "demo" ? (
                 <motion.button
                   whileTap={{ scale: 0.94 }}
@@ -244,12 +246,11 @@ export default function App() {
 
           {/* Pantalla activa */}
           <main className="min-h-0 flex-1 pb-20 md:pb-0">
-            {/* Ojo: con mode="wait" la navegación se traba — la pantalla que
-                sale nunca termina su animación de salida, así que la nueva no
-                llega a montarse nunca. Se probó y se revirtió. Queda pendiente
-                que las pantallas salientes tampoco terminan de desmontarse con
-                popLayout y se acumulan en el DOM; es un fallo aparte. */}
-            <AnimatePresence mode="popLayout" initial={false}>
+            {/* Sin AnimatePresence a propósito: su animación de salida no
+                terminaba nunca y las pantallas se quedaban montadas unas sobre
+                otras (llegaban a 4). Cambiar la `key` hace que React desmonte
+                la anterior de inmediato; la animación de entrada se conserva,
+                que es la única que se nota. */}
               <motion.div
                 key={route.vista === "ticket" ? `ticket-${route.id}` : route.vista}
                 className="h-full"
@@ -267,7 +268,7 @@ export default function App() {
                 {route.vista === "settings" && <Settings />}
                 {route.vista === "ticket" && !cargando && <TicketDetail id={route.id} />}
               </motion.div>
-            </AnimatePresence>
+
           </main>
         </div>
 

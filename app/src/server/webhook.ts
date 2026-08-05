@@ -22,6 +22,9 @@ import { shouldRunEmbeddedWorker } from "../workers/embeddedFollowUpWorker.js";
 // Compilado vive en dist/server/, en dev en src/server/ — ../../site sirve en ambos.
 const siteDir = fileURLToPath(new URL("../../site", import.meta.url));
 
+/** Momento de arranque del proceso: delata si un deploy reinició de verdad. */
+const ARRANCADO_EN = new Date().toISOString();
+
 export function createServer(): express.Express {
   const app = express();
 
@@ -54,6 +57,12 @@ export function createServer(): express.Express {
   // sin que nada más se entere. `worker.ok` es falso si no late hace 2 minutos
   // (el ciclo normal es de 5 s), y es lo que debe vigilar la alerta externa.
   app.get("/health", async (_req, res) => {
+    // Commit que está corriendo: el badge del panel lo compara con el suyo y
+    // avisa si solo se desplegó una mitad.
+    const version = {
+      commit: (process.env.RAILWAY_GIT_COMMIT_SHA ?? process.env.GIT_SHA ?? "").slice(0, 7) || null,
+      arrancadoEn: ARRANCADO_EN,
+    };
     let worker: { ok: boolean; lastBeatAt: string | null; secondsAgo: number | null } = {
       ok: false, lastBeatAt: null, secondsAgo: null,
     };
@@ -74,6 +83,7 @@ export function createServer(): express.Express {
     // de «caído»: sin esto, un apagado se ve idéntico a una avería.
     res.json({
       ok: true,
+      version,
       bot: await getBotPower().catch(() => null),
       catalog: catalogStatus(),
       worker: { ...worker, modo: shouldRunEmbeddedWorker() ? "embebido" : "externo" },

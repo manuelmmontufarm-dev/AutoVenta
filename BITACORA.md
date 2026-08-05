@@ -32,6 +32,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-08-05 | _(este mismo)_ | Dos Kanban por ventana de 24 h, puesta al día del tablero y badge de versión | 2.0 |
 | 2026-08-04 | _(este mismo)_ | Piezas nuevas del diseño + tab Ajustes con vista previa en vivo | 4.0 |
 | 2026-08-04 | _(este mismo)_ | Tanda 0: la imagen es el mensaje — captions cortos, bloques, INCLUYE y contador de piezas | 3.0 |
 | 2026-08-02 | _(este mismo)_ | Plan financiero alineado al acuerdo firmado ($300+$300+$60/mes) | 0.25 |
@@ -72,11 +73,40 @@ Ya viene activado en este equipo.
 | 2026-07-14 | ac09171 | Ubicaciones de locales + análisis de features del cliente | 1.5 |
 | 2026-07-13 | feadf57 | Brief + plan de desarrollo + plan financiero + catálogo | 4.0 |
 | 2026-07-13 | d997844 | Commit inicial (repo) | 0.25 |
-| | | **TOTAL** | **~77.5 h** |
+| | | **TOTAL** | **~79.5 h** |
 
 ---
 
 ## Entradas (más reciente primero)
+
+### 2026-08-05 · Dos tableros por ventana de 24 h + puesta al día tras el apagón · ⏱️ 2.0 h
+
+**Qué:** el bot de Depot llevaba dos días apagado y el Inbox tenía 104 conversaciones,
+**286 mensajes sin leer en 91 de ellas** y 95 tarjetas atascadas en «nuevo». Con el bot
+apagado el pipeline sí guarda los mensajes y extrae medida y compromisos, pero
+`classifyStage` nunca corre: por eso una clienta que había escrito «Voy el sábado», con
+19 sin leer, seguía figurando como nueva.
+
+- **Pipeline partido en dos tableros** por la ventana de 24 h de WhatsApp: arriba lo que
+  el bot todavía puede contestar, abajo lo que ya solo puede contestar una persona. Cada
+  columna lleva su grupo en el id de drop para que dnd-kit no confunda los dos tableros.
+- **`POST /api/hub/tickets/reorganizar`** — recalcula etapas con datos ya extraídos, nunca
+  con el modelo. Una etapa mal puesta por una corazonada es peor que una desactualizada.
+- **`POST /api/hub/tickets/atender-pendientes`** — el bot contesta lo que quedó huérfano,
+  solo dentro de la ventana. Reusa `resumeBotIfUnanswered`, que revalida ventana e
+  interruptor por conversación.
+- Ambas simulan primero (`?simular=1`) y el panel pide confirmación mostrando el plan:
+  mueven tarjetas reales y la segunda manda mensajes a clientes reales.
+- **Badge de versión** en el topbar con el commit compilado; al tocarlo se ve qué trajo
+  cada actualización. Si el commit del servidor no coincide, avisa: un despliegue a medias
+  dejaba de ser invisible. Antes la única forma de saber si un cambio había entrado era
+  comparar el SHA-256 del bundle a mano.
+
+**Arreglado de paso:** el switch de pantallas usaba `AnimatePresence`, cuya animación de
+salida no terminaba nunca — las pantallas se acumulaban hasta 4 y la anterior quedaba
+dibujada encima. Se quitó: cambiar la `key` desmonta al instante y la animación de entrada,
+que es la única que se nota, se conserva. (`mode="wait"` se probó y se descartó: trababa la
+navegación entera.)
 
 ### 2026-08-04 · Fix: Ajustes no dejaba bajar · ⏱️ 0.25 h
 
