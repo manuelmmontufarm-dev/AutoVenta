@@ -1,4 +1,18 @@
+import { execSync } from "node:child_process";
 import { defineConfig } from "vite";
+
+/** SHA del commit con el que se compila, para el badge de versión del panel. */
+function gitSha(): string {
+  // Railway expone el SHA por entorno; en local se saca de git. Si ninguno
+  // está disponible el badge dice "local", que también es información.
+  const env = process.env.RAILWAY_GIT_COMMIT_SHA ?? process.env.GIT_SHA;
+  if (env) return env.slice(0, 7);
+  try {
+    return execSync("git rev-parse --short HEAD", { encoding: "utf8" }).trim();
+  } catch {
+    return "local";
+  }
+}
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 
@@ -7,6 +21,7 @@ import tailwindcss from "@tailwindcss/vite";
 export default defineConfig({
   // Base relativa para servir el bundle desde /demo-showroom-gp/.
   base: "./",
+  define: { __GIT_SHA__: JSON.stringify(gitSha()) },
   plugins: [react(), tailwindcss()],
   build: {
     // Express y Vercel sirven app/site. El build debe aterrizar en la ruta

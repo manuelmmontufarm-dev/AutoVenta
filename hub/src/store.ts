@@ -33,6 +33,8 @@ export type EstadoConexion =
   | "sin-conexion";
 
 interface HubState {
+  /** Recarga tickets, métricas y seguimientos desde el servidor. */
+  refrescar: () => Promise<void>;
   cargando: boolean;
   tickets: Ticket[];
   mensajes: Record<number, Mensaje[]>;
@@ -161,6 +163,9 @@ export const useHub = create<HubState>((set, get) => {
     // preferible no gritar "apagado" en un bot que sí está trabajando.
     power: { activo: true, apagadoAt: null, motivo: "" },
     conexion: "verificando",
+
+    /** Recarga tickets y métricas. La usa el Pipeline tras poner el tablero al día. */
+    refrescar,
 
     async init() {
       if (iniciado) return;

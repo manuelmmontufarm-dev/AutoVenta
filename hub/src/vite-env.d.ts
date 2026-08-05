@@ -1,6 +1,4 @@
 /// <reference types="vite/client" />
 
-declare module "*.md?raw" {
-  const content: string;
-  export default content;
-}
+/** SHA corto del commit, inyectado por Vite en tiempo de compilación. */
+declare const __GIT_SHA__: string;
