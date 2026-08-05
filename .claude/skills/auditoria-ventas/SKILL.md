@@ -39,6 +39,26 @@ la serie se cortó.
 
 ## Paso 2 · Leer los chats, no solo los números
 
+**REGLA INNEGOCIABLE: cada chat con hallazgos se lee COMPLETO y se entiende
+exactamente qué vivió el cliente, mensaje por mensaje.** El 5-ago la falla se
+descubrió por capturas de Joaquín, no por el análisis — eso no puede repetirse.
+Los conteos localizan; la lectura entiende. Para CADA chat afectado escribe en
+el análisis: qué pidió el cliente, qué respondió el bot, en qué mensaje exacto
+se rompió la venta, y qué debió responder. Si un chat te parece confuso, ese es
+precisamente el que hay que leer dos veces.
+
+Referencia obligada — las fallas reales del 5-ago que la auditoría debe
+reconocer al instante si reaparecen:
+
+- **Ricardo Nitro**: tres «tuve un problema procesando» seguidos, dos idénticos
+  calcados. El cliente preguntó «¿incluye alineación?» y quedó hablando solo.
+- **Jordian**: dos respuestas al mismo mensaje con 30 s de diferencia, la
+  segunda arrancando con «¡Buenas tardes!» como si nada — a mitad de hilo.
+- **KLEVER**: dos números de cotización distintos (COT-MSGJQPAK y COT-MSGJR010)
+  para la MISMA compra, cada uno enviado 3 veces.
+- **Chevrolet Orlando**: con la medida 225/65R17 en mano, pidió versión y foto.
+- **18 pedidos de foto en un solo día.** El bot no puede leer imágenes.
+
 Los detectores dicen *qué* pasó; el chat dice *por qué*. Toma las conversaciones
 con más hallazgos y **lee la transcripción completa** de al menos 5, incluyendo
 una que sí terminó en venta (para saber qué funciona, no solo qué falla):
@@ -131,6 +151,27 @@ exige entrada en cada commit).
 | `sin_ficha_verificada` | Prudencia mal calibrada. Correcto sería: cotizar igual y aclarar el límite, no frenar. |
 | `pieza_fallida` | El cliente recibe texto donde debía ver la imagen. |
 | `abandono_tras_pregunta` | El último mensaje fue una pregunta del bot y el cliente no volvió. |
+| `mensaje_duplicado` | Mensaje calcado al anterior. Spam puro (caso Ricardo Nitro). |
+| `disculpas_seguidas` | Dos disculpas seguidas = bot atascado y cliente abandonado. |
+| `saludo_repetido` | «¡Hola!» a mitad de conversación: delata al bot (caso Jordian). |
+
+## El guardián de salida y qué significa para la auditoría
+
+Desde el 5-ago existe `outboundGuard.ts`: un filtro determinístico que corre
+sobre CADA respuesta antes de enviarla. Bloquea pedir fotos, la disculpa
+repetida, el mensaje calcado y el saludo a mitad de conversación, y registra
+cada intento como alerta `guard_*` en `bot_alerts`.
+
+Consecuencia para el análisis: **lo que llega al cliente ya viene filtrado.**
+La métrica `intentosBloqueadosPorGuardian` del reporte dice cuántas veces el
+modelo INTENTÓ la falla aunque el cliente no la viera. Léela siempre:
+
+- Intentos altos + chats limpios = el guardián está tapando; el prompt sigue
+  enfermo y hay que arreglarlo (proponer cambio de prompt).
+- Intentos bajando entre corridas = la mejora de prompt funcionó de verdad.
+- Un intento `bot_atascado` = un cliente quedó SIN respuesta (el guardián
+  bloqueó la segunda disculpa). Ese chat se lee completo sí o sí: alguien tuvo
+  que atenderlo a mano.
 
 ## Sobre el modelo
 

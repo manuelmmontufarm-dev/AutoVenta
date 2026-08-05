@@ -6,6 +6,7 @@ import { sendCustomerText } from "../wa/client.js";
 import { isBotActive } from "./botPower.js";
 import { appendMessage, type Conversation } from "./conversations.js";
 import { markDiscountNoticeSent } from "./discountOffers.js";
+import { applyOutboundGuard } from "./outboundGuard.js";
 import { createBotAlert, scheduleConversationFollowUps } from "./followUps.js";
 import { emitLiveEvent } from "./liveEvents.js";
 import { authorizeConversationOutbound } from "./whatsappPolicy.js";
@@ -89,8 +90,14 @@ export async function resumeBotIfUnanswered(conversationId: number): Promise<Res
     };
     const reply = await runAgent(ctx, claimed.last_text);
     await flagRepetitiveConversation(conversationId, reply);
-    const providerId = await sendCustomerText(conversationId, claimed.phone, reply);
-    await appendMessage(conversationId, "assistant", reply, providerId, {
+    // Mismo guardián que el camino normal: lo que el bot no debe decir, no lo
+    // dice tampoco al retomar tras un humano.
+    const vetted = await applyOutboundGuard(conversationId, reply);
+    // El guardián bloqueó el envío (duplicado/atascado): ya alertó al asesor y
+    // para el que llama esto equivale a que no había nada seguro que responder.
+    if (!vetted.text) return "nothing_pending";
+    const providerId = await sendCustomerText(conversationId, claimed.phone, vetted.text);
+    await appendMessage(conversationId, "assistant", vetted.text, providerId, {
       authorKind: "bot", status: "sent", metadata: { resumedAfterHuman: true },
     });
     if (ctx.discountNotice) {

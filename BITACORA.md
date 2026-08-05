@@ -32,6 +32,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-08-05 | _(este mismo)_ | Guardián de salida + la auditoría ve las fallas del día clarísimo | 1.5 |
 | 2026-08-05 | _(este mismo)_ | VENTA PRIMERO en las 3 capas (tools+DB+prompt) y los casos de Joaquín como pruebas | 2.0 |
 | 2026-08-05 | _(este mismo)_ | El bot deja de preguntar y empieza a vender + skill de auditoría | 3.0 |
 | 2026-08-05 | _(este mismo)_ | Contador del final del tablero por día + fix del link del asesor | 1.5 |
@@ -84,6 +85,47 @@ Ya viene activado en este equipo.
 ---
 
 ## Entradas (más reciente primero)
+
+### 2026-08-05 · Guardián de salida: las fallas de hoy ya no PUEDEN llegar al cliente · ⏱️ 1.5 h
+
+**Qué pasó:** el bot viejo estuvo vivo todo el día y Joaquín lo apagó a mano a las 16:02
+tras verlo fallar en vivo. Escaneo de los chats reales del día (66 conversaciones):
+**18 pedidos de foto**, 12 «tuve un problema procesando» (Ricardo Nitro recibió TRES
+seguidos, dos calcados), 5 mensajes duplicados idénticos, re-saludos a mitad de hilo
+(Jordian recibió doble respuesta, la segunda con «¡Buenas tardes!») y la cotización
+doble de KLEVER. Todo ANTERIOR al deploy de venta-primero (16:34): el bot arreglado
+aún no ha hablado. Y nada de esto estuvo en la auditoría anterior porque corrió sobre
+una base de demostración, no producción.
+
+**Qué se hizo:**
+
+1. **`outboundGuard.ts` — guardián determinístico en el envío.** Corre sobre CADA
+   respuesta antes de mandarla, en los dos caminos (webhook y resumeBot):
+   - dos disculpas seguidas → NO se envía la segunda + alerta ALTA al asesor
+     («bot atascado: el cliente quedó sin respuesta»);
+   - mensaje calcado al anterior → no se envía;
+   - oración que pide foto → se elimina (el resto del mensaje se salva); si el
+     mensaje queda sin pregunta, se pide la medida escrita;
+   - saludo de apertura a mitad de conversación → se recorta.
+   Cada bloqueo queda como alerta `guard_*` en el panel. El guardián nunca rompe el
+   envío: ante error interno propio, deja pasar el texto original.
+2. **La auditoría ahora VE estas fallas, clarísimo.** Detectores nuevos:
+   `mensaje_duplicado`, `disculpas_seguidas`, `saludo_repetido`; `pide_foto` ampliado.
+   Métrica nueva `intentosBloqueadosPorGuardian` (lee las alertas `guard_*`): dice
+   cuántas veces el modelo INTENTÓ la falla aunque el cliente no la viera — si el
+   prompt mejora de verdad, baja; si solo el guardián tapa, se queda alta. El SKILL
+   ahora exige leer COMPLETO cada chat con hallazgos y documenta los 5 casos del
+   5-ago como referencia obligada.
+3. **Pruebas con los textos reales de producción** (`outboundGuard.test.ts`, 12):
+   los mensajes exactos de Ricardo, Jordian y Orlando se bloquean/corrigen; los
+   buenos pasan intactos. Detectores verificados contra una base sembrada con los
+   casos del día. **Suite: 180 en verde.**
+
+**Por qué:** el prompt es una petición al modelo; el guardián es una garantía. Con
+GPT-4o-mini el modelo va a fallar de vez en cuando — lo que no puede pasar es que esa
+falla llegue al cliente, ni que nadie se entere.
+
+---
 
 ### 2026-08-05 · VENTA PRIMERO en las tres capas + los casos de Joaquín como pruebas · ⏱️ 2.0 h
 

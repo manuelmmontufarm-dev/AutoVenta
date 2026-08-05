@@ -37,6 +37,7 @@ import { markDiscountNoticeSent } from "./services/discountOffers.js";
 import { extractCustomerCommitment } from "./domain/customerCommitment.js";
 import { splitBlocks } from "./services/quoteMessages.js";
 import { flagRepetitiveConversation } from "./services/conversationQuality.js";
+import { applyOutboundGuard } from "./services/outboundGuard.js";
 import { notifyPendingHumanRequests } from "./services/advisorNotifications.js";
 import { startEmbeddedFollowUpWorker } from "./workers/embeddedFollowUpWorker.js";
 
@@ -94,13 +95,19 @@ const pipeline = new InboundPipeline(async ({ from, name, text, waMessageIds, re
   const reply = await runAgent(agentContext, text);
   await flagRepetitiveConversation(conversation.id, reply);
 
+  // Guardián de salida (5-ago): determinístico, corre sobre TODO lo que el bot
+  // va a decir. Bloquea pedir fotos, la disculpa repetida, el mensaje calcado y
+  // el saludo a mitad de conversación — y alerta al asesor. null = no enviar.
+  const vetted = await applyOutboundGuard(conversation.id, reply);
+  if (!vetted.text) return;
+
   // Varios mensajes cortos en vez de uno largo: es como escribe el vendedor
   // humano de los chats que el cliente puso de ejemplo. Los bloques los separa
   // el agente con '---'; sin separadores esto envía un solo mensaje, igual que antes.
   //
   // Envío con red de seguridad: si Meta rechaza, la respuesta queda guardada
   // como "failed" y visible en el hub — nunca se pierde en silencio.
-  const bloques = splitBlocks(reply);
+  const bloques = splitBlocks(vetted.text);
   for (const [indice, bloque] of bloques.entries()) {
     if (indice > 0) await esperar(PAUSA_ENTRE_BLOQUES_MS);
     try {

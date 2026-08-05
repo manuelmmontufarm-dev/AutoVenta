@@ -39,7 +39,8 @@ const sql = postgres(DATABASE_URL, { prepare: false, max: 2 });
 // el historial, o los gráficos de tendencia pierden el hilo.
 
 const ERROR_PROCESAMIENTO = /tuve un problema procesando tu mensaje|¿me repites por favor\?/i;
-const PIDE_FOTO = /(mánd|mand|enví|envi|pued[ae]s?\s+enviar|podr[íi]as?\s+enviar)[^.?!]{0,40}(foto|imagen)|foto de la etiqueta|foto del costado|una foto de/i;
+const PIDE_FOTO = /(mánd|mand|enví|envi|compárt|adjunt|pued[ae]s?\s+(?:enviar|mandar)|podr[íi]as?\s+(?:enviar|mandar))[^.?!]{0,50}(foto|imagen)|foto de la etiqueta|foto del costado|foto de la puerta|una foto de/i;
+const SALUDO_INICIAL = /^\s*(?:¡\s*)?(?:hola|buen[oa]s(?:\s+(?:d[íi]as|tardes|noches))?)\s*[!.,]/i;
 const PIEZA_FALLIDA = /no se pudo volver a dibujar la pieza|no pude generar la imagen|no logr[ée] enviar la imagen/i;
 const ES_COTIZACION = /COT-[A-Z0-9]+/;
 const SIN_FICHA = /no tengo una ficha t[ée]cnica verificada|no tengo una medida verificada/i;
@@ -96,6 +97,16 @@ async function main() {
     from ai_runs where created_at >= ${desde}
   `;
 
+  // Intentos que el guardián de salida BLOQUEÓ antes de llegar al cliente.
+  // Señal clave: si el prompt mejora de verdad, el modelo deja de intentarlo;
+  // si solo el guardián lo tapa, estos números siguen altos.
+  const intentosBloqueados = await sql`
+    select type, count(*)::int as n
+    from bot_alerts
+    where type like 'guard_%' and created_at >= ${desde}
+    group by type
+  `.catch(() => []);
+
   // ── Agrupar mensajes por conversación ──────────────────────────────────────
   const porConversacion = new Map();
   for (const m of mensajes) {
@@ -148,6 +159,23 @@ async function main() {
       const previa = bot[i - 1]?.content ?? "";
       if (previa && esPregunta(texto) && similitud(texto, previa) >= 0.6) {
         marcar("pregunta_repetida", m);
+      }
+
+      // Mensaje CALCADO al anterior (caso Ricardo Nitro, 5-ago: dos disculpas
+      // idénticas seguidas). Spam puro: el cliente ya lo recibió.
+      if (previa && texto.trim().toLowerCase() === previa.trim().toLowerCase()) {
+        marcar("mensaje_duplicado", m);
+      }
+
+      // Disculpa tras disculpa: el bot está atascado y el cliente abandonado.
+      if (ERROR_PROCESAMIENTO.test(texto) && ERROR_PROCESAMIENTO.test(previa)) {
+        marcar("disculpas_seguidas", m);
+      }
+
+      // Volver a saludar a mitad de conversación (caso Jordian, 5-ago):
+      // delata al bot y confunde — el hilo ya estaba abierto.
+      if (i > 0 && SALUDO_INICIAL.test(texto)) {
+        marcar("saludo_repetido", m);
       }
     }
 
@@ -219,6 +247,9 @@ async function main() {
       "pide_foto_que_no_puede_leer",
       "pregunta_teniendo_medida",
       "pregunta_repetida",
+      "mensaje_duplicado",
+      "disculpas_seguidas",
+      "saludo_repetido",
       "cotizacion_duplicada",
       "con_medida_sin_cotizar",
       "sin_ficha_verificada",
@@ -229,6 +260,11 @@ async function main() {
       chatsAfectados: chatsAfectados(d),
       pctChats: pct(chatsAfectados(d), porChat.length),
     }])),
+
+    // Lo que el guardián frenó: el modelo lo INTENTÓ aunque el cliente no lo vio.
+    intentosBloqueadosPorGuardian: Object.fromEntries(
+      intentosBloqueados.map((r) => [r.type.replace(/^guard_/, ""), r.n]),
+    ),
 
     // Modelo — para comparar corridas antes/después de cambiarlo.
     modelo: {

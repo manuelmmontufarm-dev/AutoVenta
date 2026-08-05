@@ -10,7 +10,12 @@ export type AdvisorEventType =
   | "negative_sentiment"
   | "customer_opt_out"
   | "repetitive_conversation"
-  | "send_error";
+  | "send_error"
+  // Guardián de salida (5-ago): el envío se bloqueó y alguien debe saberlo.
+  | "guard_bot_atascado"
+  | "guard_pide_foto"
+  | "guard_mensaje_duplicado"
+  | "guard_saludo_repetido";
 
 export interface AdvisorNotificationInput {
   conversationId: number;

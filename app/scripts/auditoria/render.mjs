@@ -53,6 +53,9 @@ const FALLAS_ETIQUETA = {
   pide_foto_que_no_puede_leer: "Pidió una foto que no puede leer",
   pregunta_teniendo_medida: "Preguntó teniendo ya la medida",
   pregunta_repetida: "Repitió la misma pregunta",
+  mensaje_duplicado: "Mandó el mismo mensaje calcado dos veces",
+  disculpas_seguidas: "Disculpa tras disculpa: bot atascado, cliente abandonado",
+  saludo_repetido: "Volvió a saludar a mitad de conversación",
   cotizacion_duplicada: "Mandó la cotización dos veces",
   con_medida_sin_cotizar: "Tenía la medida y nunca cotizó",
   sin_ficha_verificada: "Se escudó en «no tengo ficha verificada»",
@@ -144,6 +147,17 @@ ${previa ? `comparado contra la corrida del ${new Date(previa.fecha).toLocaleDat
 <p class="sub" style="margin-top:10px">Modelo(s) en uso: <b>${esc(m.modelo.modelos.join(", ") || "—")}</b> ·
 ${m.modelo.tokensEntrada.toLocaleString("es-EC")} tokens de entrada,
 ${m.modelo.tokensSalida.toLocaleString("es-EC")} de salida.</p>
+
+${Object.keys(m.intentosBloqueadosPorGuardian ?? {}).length ? `<h2>Lo que el guardián frenó (el cliente no lo vio)</h2>
+<div class="aviso">El modelo <b>intentó</b> estas fallas y el guardián de salida las bloqueó antes de enviar.
+Si el prompt mejora de verdad, estos números bajan; si solo el guardián tapa, se quedan altos.</div>
+<div class="grid">${Object.entries(m.intentosBloqueadosPorGuardian).map(([k, v]) =>
+  `<div class="tarjeta"><p class="etiqueta">${esc(k.replaceAll("_", " "))}</p><p class="valor">${v}</p>
+   <p class="delta ${previa?.metricas?.intentosBloqueadosPorGuardian?.[k] != null && v < previa.metricas.intentosBloqueadosPorGuardian[k] ? "bien" : "neutro"}">${
+     previa?.metricas?.intentosBloqueadosPorGuardian?.[k] != null
+       ? `antes: ${previa.metricas.intentosBloqueadosPorGuardian[k]}`
+       : "primera medición"}</p></div>`).join("")}
+</div>` : ""}
 
 <h2>Dónde falla, por impacto</h2>
 <div class="scroll"><table>
