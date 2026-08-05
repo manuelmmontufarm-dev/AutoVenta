@@ -216,7 +216,7 @@ export interface BotAlert {
   status: string; snoozedUntil: string | null; createdAt: string; customer: string;
 }
 
-export type TipoMensaje = "texto" | "pdf" | "ubicacion";
+export type TipoMensaje = "texto" | "pdf" | "imagen" | "ubicacion";
 
 export interface Mensaje {
   id: number;

@@ -9,7 +9,7 @@
  * responde el servidor no coincide con este, el panel avisa: significa que una
  * mitad se desplegó y la otra no.
  */
-export const VERSION = "v0.9.0";
+export const VERSION = "v0.10.0";
 
 /** SHA corto del commit con el que se compiló este panel. */
 export const COMMIT: string =
@@ -24,6 +24,18 @@ export interface Cambio {
 
 /** Más reciente primero. Cada entrada es lo que el negocio nota, no el diff. */
 export const CAMBIOS: Cambio[] = [
+  {
+    version: "v0.10.0",
+    fecha: "5 de agosto de 2026",
+    titulo: "Tipos de llanta, 3 opciones y las piezas visibles en el chat",
+    puntos: [
+      "El bot ya sabe el tipo de cada modelo (H/T, A/T, R/T, M/T, turismo, comercial): ahora entiende «quiero una R17 A/T».",
+      "Manda 3 opciones y no 6 — una premium, una de equilibrio y una económica.",
+      "En el chat del panel se ve la imagen que se le mandó al cliente, con aviso claro si no le llegó.",
+      "Los avisos salen a varios asesores, no a uno solo; se administran desde Ajustes.",
+      "Arreglado: el bot escribía **negrita** de Markdown, que en WhatsApp se ve con los asteriscos.",
+    ],
+  },
   {
     version: "v0.9.0",
     fecha: "5 de agosto de 2026",

@@ -252,7 +252,14 @@ export async function getHubMessages(conversationId: number) {
         : row.author_kind === "owner"
           ? "vendedor"
           : "bot",
-    tipo: row.type === "pdf" ? "pdf" : row.type === "location" ? "ubicacion" : "texto",
+    // "image" caía a "texto" y por eso el panel solo mostraba el resumen
+    // ("Opciones enviadas: …") sin la pieza. Ahora se distingue para poder
+    // dibujarla y verificar que salió bien.
+    tipo:
+      row.type === "pdf" ? "pdf"
+      : row.type === "image" ? "imagen"
+      : row.type === "location" ? "ubicacion"
+      : "texto",
     contenido: row.content,
     estado: row.status ?? undefined,
     metadata: row.metadata ?? {},

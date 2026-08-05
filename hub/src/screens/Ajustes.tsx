@@ -157,6 +157,7 @@ export function Ajustes() {
           />
           <SeccionPromociones benefits={benefits} setBenefits={setBenefits} onError={setError} />
           <SeccionMarcas profiles={profiles} setProfiles={setProfiles} onError={setError} />
+          <SeccionAsesores onError={setError} />
         </div>
 
         <VistaPrevia
@@ -361,6 +362,114 @@ function SeccionPromociones({ benefits, setBenefits, onError }: {
           onClick={() => void agregar()}
           className="shrink-0 rounded-xl bg-paper/[.10] px-4 text-[12px] font-semibold hover:bg-paper/[.16]"
         >Agregar</button>
+      </div>
+    </Tarjeta>
+  );
+}
+
+interface Asesor {
+  id: number;
+  nombre: string;
+  telefono: string;
+  prioridad: number;
+  active: boolean;
+}
+
+/**
+ * Quién recibe los avisos del bot. Cada aviso sale a TODOS los activos, en
+ * orden de prioridad (0 = principal).
+ */
+function SeccionAsesores({ onError }: { onError: (e: string) => void }) {
+  const [asesores, setAsesores] = useState<Asesor[]>([]);
+  const [nombre, setNombre] = useState("");
+  const [telefono, setTelefono] = useState("");
+
+  const cargar = useCallback(async () => {
+    try {
+      setAsesores((await api<{ asesores: Asesor[] }>("/api/advisors")).asesores);
+    } catch (e) {
+      onError(e instanceof Error ? e.message : "No se pudieron cargar los asesores");
+    }
+  }, [onError]);
+  useEffect(() => { void cargar(); }, [cargar]);
+
+  const agregar = async () => {
+    const soloDigitos = telefono.replace(/\D/g, "");
+    if (!nombre.trim() || soloDigitos.length < 8) {
+      onError("Hace falta el nombre y el teléfono con código de país");
+      return;
+    }
+    try {
+      await api("/api/advisors", {
+        method: "POST",
+        body: JSON.stringify({ nombre: nombre.trim(), telefono: soloDigitos, prioridad: asesores.length }),
+      });
+      setNombre(""); setTelefono(""); await cargar();
+    } catch (e) {
+      onError(e instanceof Error ? e.message : "No se pudo agregar");
+    }
+  };
+
+  const cambiar = async (a: Asesor, patch: Partial<Asesor>) => {
+    setAsesores(asesores.map((x) => (x.id === a.id ? { ...x, ...patch } : x)));
+    try {
+      await api(`/api/advisors/${a.id}`, { method: "PATCH", body: JSON.stringify(patch) });
+    } catch (e) {
+      onError(e instanceof Error ? e.message : "No se pudo guardar");
+    }
+  };
+
+  const quitar = async (id: number) => {
+    try {
+      await api(`/api/advisors/${id}`, { method: "DELETE" });
+      setAsesores(asesores.filter((a) => a.id !== id));
+    } catch (e) {
+      onError(e instanceof Error ? e.message : "No se pudo quitar");
+    }
+  };
+
+  return (
+    <Tarjeta
+      titulo="Quién recibe los avisos"
+      sub="Cuando un cliente pide hablar con alguien, se genera una cotización o algo falla, el bot avisa por WhatsApp a todos los de esta lista."
+    >
+      <div className="flex flex-col gap-2">
+        {asesores.map((a) => (
+          <div key={a.id} className="flex items-center gap-2 rounded-2xl border border-paper/[.08] bg-paper/[.03] p-3">
+            <input
+              type="checkbox" checked={a.active}
+              onChange={(e) => void cambiar(a, { active: e.target.checked })}
+              className="size-4 shrink-0 accent-[var(--color-ok)]" title={a.active ? "Recibe avisos" : "Sin avisos"}
+            />
+            <input
+              value={a.nombre}
+              onChange={(e) => setAsesores(asesores.map((x) => (x.id === a.id ? { ...x, nombre: e.target.value } : x)))}
+              onBlur={() => void cambiar(a, { nombre: a.nombre })}
+              className={`${inputCls} ${a.active ? "" : "opacity-50"}`}
+            />
+            <span className="tnum shrink-0 text-[11.5px] text-faint">+{a.telefono}</span>
+            <button
+              onClick={() => void quitar(a.id)}
+              className="shrink-0 rounded-lg px-2 py-1 text-[16px] leading-none text-faint hover:text-[var(--color-red)]"
+              title="Quitar"
+            >×</button>
+          </div>
+        ))}
+        {!asesores.length && (
+          <p className="rounded-2xl border border-dashed border-[var(--color-red)]/40 p-4 text-center text-[12px] text-[var(--color-red)]">
+            No hay nadie recibiendo avisos. Si un cliente pide un asesor, nadie se entera.
+          </p>
+        )}
+      </div>
+      <div className="mt-3 flex flex-wrap gap-2">
+        <input value={nombre} onChange={(e) => setNombre(e.target.value)}
+          placeholder="Nombre" className={`${inputCls} flex-1`} />
+        <input value={telefono} onChange={(e) => setTelefono(e.target.value)}
+          placeholder="593987654321 (con código de país)" className={`${inputCls} flex-1`} />
+        <button onClick={() => void agregar()}
+          className="shrink-0 rounded-xl bg-paper/[.10] px-4 text-[12px] font-semibold hover:bg-paper/[.16]">
+          Agregar
+        </button>
       </div>
     </Tarjeta>
   );

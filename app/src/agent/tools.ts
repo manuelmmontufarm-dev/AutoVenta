@@ -49,6 +49,9 @@ import { nearestStore, resolveSector } from "../domain/locations.js";
 import { formatTireSize } from "../domain/tireSize.js";
 import { canGenerateFinalQuote } from "../domain/salesIntent.js";
 import { getTirePatternProfile } from "../domain/tireKnowledge.js";
+import {
+  catalogoDeTipos, escalonDeMarca, infoTipo, normalizarTipo, ordenDeMarca, tipoDeProducto,
+} from "../domain/tireTypes.js";
 import { sendImage, sendPdf } from "../wa/client.js";
 import {
   renderCompareImage,
@@ -96,6 +99,32 @@ function defineTool<T extends z.ZodTypeAny>(input: {
     },
     execute: async (args) => input.run(input.schema.parse(args)),
   };
+}
+
+/** Cómo se le nombra al cliente cada escalón de marca. */
+const ESCALONES = ["premium", "equilibrio", "equilibrio", "economica"] as const;
+
+/**
+ * Deja UNA opción por escalón de marca, la más barata disponible de cada uno.
+ *
+ * El cliente pidió mandar 3 y no 6: «así ni le confundimos tanto al mijin».
+ * Se prioriza lo que tiene stock — una opción agotada no es una opción.
+ */
+function tresOpciones<T extends { brand: string; minimumPriceWithTax: number; availability: string }>(
+  productos: readonly T[],
+): T[] {
+  const porEscalon = new Map<number, T>();
+  for (const p of productos) {
+    const escalon = escalonDeMarca(p.brand);
+    const actual = porEscalon.get(escalon);
+    const mejorQue = (a: T, b: T) => {
+      const disp = (x: T) => (x.availability === "available" ? 0 : x.availability === "check" ? 1 : 2);
+      if (disp(a) !== disp(b)) return disp(a) < disp(b);
+      return a.minimumPriceWithTax < b.minimumPriceWithTax;
+    };
+    if (!actual || mejorQue(p, actual)) porEscalon.set(escalon, p);
+  }
+  return [...porEscalon.entries()].sort((a, b) => a[0] - b[0]).map(([, p]) => p);
 }
 
 function dateLabel(): string {
@@ -225,6 +254,85 @@ export function buildTools(ctx: AgentContext) {
     },
   });
 
+  const buscarPorAroYTipo = defineTool({
+    name: "buscar_por_aro_y_tipo",
+    description:
+      "Busca por ARO y (opcional) TIPO de llanta: H/T, A/T, R/T, M/T, turismo, turismo SUV, turismo UHP, comercial. Úsala cuando el cliente pida algo como 'una R17 A/T' o 'llantas todo terreno para aro 16', o cuando cambió los aros y ya no sirve la medida original. Devuelve las medidas que existen en ese aro con su tipo y precio.",
+    schema: z.object({
+      aro: z.number().int().min(12).max(24).describe("Aro en pulgadas, ej. 17"),
+      tipo: z
+        .string()
+        .nullable()
+        .default(null)
+        .describe("Tipo pedido: A/T, H/T, R/T, M/T, turismo, turismo SUV, turismo UHP, comercial. Null si no lo dijo."),
+      uso: z
+        .string()
+        .nullable()
+        .default(null)
+        .describe("Uso que declaró el cliente, si lo dijo (ciudad, mixto, trabajo pesado)."),
+    }),
+    run: async ({ aro, tipo, uso }) => {
+      await ensureCatalogReady();
+      const pedido = tipo ? normalizarTipo(tipo) : null;
+      // Se busca por aro en el catálogo real y se filtra por el tipo que dice
+      // la base del cliente; el tipo NO viene de Contífico.
+      const enElAro = searchByText(`R${aro}`, 60).filter(
+        (item) => item.size?.rim === aro,
+      );
+      const delTipo = pedido
+        ? enElAro.filter((item) => normalizarTipo(tipoDeProducto(item.code, item.design) ?? "") === pedido)
+        : enElAro;
+
+      if (!delTipo.length) {
+        return JSON.stringify({
+          encontrado: false,
+          aro,
+          tipo_pedido: pedido || null,
+          hay_en_el_aro: enElAro.length,
+          tipos_disponibles_en_ese_aro: [
+            ...new Set(enElAro.map((i) => tipoDeProducto(i.code, i.design)).filter(Boolean)),
+          ],
+          regla:
+            "No hay stock de ese tipo en ese aro. Dile qué tipos SÍ hay en ese aro y pregunta el uso; no inventes que llegará ni ofrezcas otro tipo como si fuera el pedido.",
+        });
+      }
+
+      const seleccion = tresOpciones(delTipo);
+      const info = pedido ? infoTipo(pedido) : null;
+      return JSON.stringify({
+        encontrado: true,
+        aro,
+        tipo_pedido: pedido || null,
+        que_es_ese_tipo: info
+          ? { nombre: info.nombre, definicion: info.definicion, cuando_va: info.cuandoOfrecerla, cuando_no: info.noOfrecerlaSi }
+          : null,
+        uso_declarado: uso,
+        // Tres y no seis: una por escalón de marca.
+        opciones: seleccion.map(toolItem),
+        otras_en_ese_aro: delTipo.length - seleccion.length,
+        regla:
+          "Presenta SOLO estas opciones con preparar_opciones (una premium, una de equilibrio, una económica). Si el cliente no dijo el uso, pregúntalo antes de recomendar. No afirmes un tipo que no venga en 'tipo'.",
+      });
+    },
+  });
+
+  const tiposDeLlanta = defineTool({
+    name: "tipos_de_llanta",
+    description:
+      "Explica los tipos de llanta que maneja Depot Tire y cuándo conviene cada uno. Úsala cuando el cliente no sabe qué tipo necesita o pregunta la diferencia entre A/T, H/T, M/T, etc.",
+    schema: z.object({}),
+    run: async () =>
+      JSON.stringify({
+        tipos: catalogoDeTipos().map((t) => ({
+          tipo: t.clave, nombre: t.nombre, que_es: t.definicion,
+          cuando_va: t.cuandoOfrecerla, cuando_no: t.noOfrecerlaSi,
+        })),
+        orden_de_marca: ordenDeMarca(),
+        regla:
+          "Usa estas definiciones tal cual; no inventes ventajas. Pregunta el uso del vehículo antes de recomendar un tipo.",
+      }),
+  });
+
   const fitmentVehiculo = defineTool({
     name: "fitment_vehiculo",
     description:
@@ -264,9 +372,9 @@ export function buildTools(ctx: AgentContext) {
   const prepararOpciones = defineTool({
     name: "preparar_opciones",
     description:
-      "Envía la imagen de opciones al cliente y devuelve el texto corto que la acompaña. Úsala después de confirmar la medida. Debes recomendar UNA opción con un motivo concreto: la imagen ya muestra precios y garantías, así que tu texto solo aporta el criterio. Responde con el texto que devuelve, sin reescribir precios.",
+      "Envía la imagen de opciones al cliente y devuelve el texto corto que la acompaña. Úsala después de confirmar la medida. Manda como máximo TRES: una premium, una de equilibrio y una económica — más opciones confunden y bajan el cierre. Debes recomendar UNA con un motivo concreto: la imagen ya muestra precios y garantías, así que tu texto solo aporta el criterio. Responde con el texto que devuelve, sin reescribir precios.",
     schema: z.object({
-      codes: z.array(z.string().min(1)).min(1).max(12),
+      codes: z.array(z.string().min(1)).min(1).max(6),
       nombre_cliente: z.string().default("Cliente"),
       recomendado: z
         .string()
@@ -282,12 +390,15 @@ export function buildTools(ctx: AgentContext) {
     }),
     run: async ({ codes, nombre_cliente, recomendado, motivo }) => {
       await ensureCatalogReady();
-      const products = codes
+      const encontrados = codes
         .map((code) => findByCode(code))
         .filter((product): product is NonNullable<typeof product> => Boolean(product));
-      if (!products.length) {
+      if (!encontrados.length) {
         return JSON.stringify({ error: "No se encontraron los productos seleccionados" });
       }
+      // Tope de tres, una por escalón de marca. El cliente lo pidió explícito:
+      // seis opciones confunden y el cliente termina sin elegir ninguna.
+      const products = encontrados.length > 3 ? tresOpciones(encontrados) : encontrados;
       // La recomendación tiene que ser una de las opciones mostradas. Si el
       // modelo apunta a otra cosa, se cae a la primera en vez de recomendar algo
       // que el cliente no está viendo.
@@ -870,6 +981,8 @@ export function buildTools(ctx: AgentContext) {
   return [
     buscarLlanta,
     buscarCatalogo,
+    buscarPorAroYTipo,
+    tiposDeLlanta,
     fitmentVehiculo,
     prepararOpciones,
     enviarComparacion,
@@ -932,11 +1045,16 @@ function toolItem(item: {
   stock: number;
   availability?: string;
 }) {
+  // El tipo (H/T, A/T, R/T…) no viene de Contífico: sale de la base que entregó
+  // el cliente. Es lo que permite responder "quiero una R17 A/T".
+  const tipo = tipoDeProducto(item.code, item.design);
   return {
     code: item.code,
     marca: item.brand,
     diseno: item.design,
     medida: item.sizeLabel ?? "Sin medida",
+    tipo: tipo ?? undefined,
+    escalon: ESCALONES[Math.min(escalonDeMarca(item.brand), ESCALONES.length - 1)],
     precio_lista_con_iva: item.customerPriceWithTax,
     precio_hoy_con_iva: item.minimumPriceWithTax,
     stock: item.stock,

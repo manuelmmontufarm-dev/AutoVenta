@@ -23,6 +23,8 @@ export function ChatBubble({ msg, onVerPdf }: { msg: Mensaje; onVerPdf?: () => v
         )}
         {msg.tipo === "pdf" ? (
           <PdfCard titulo={msg.contenido} onVer={onVerPdf} />
+        ) : msg.tipo === "imagen" ? (
+          <PiezaEnviada msg={msg} />
         ) : msg.tipo === "ubicacion" ? (
           <MapCard etiqueta={msg.contenido} />
         ) : (
@@ -34,6 +36,56 @@ export function ChatBubble({ msg, onVerPdf }: { msg: Mensaje; onVerPdf?: () => v
         </span>
       </div>
     </motion.div>
+  );
+}
+
+/* ── Pieza visual enviada (cotización, comparativa, opciones) ── */
+
+/**
+ * Dibuja la pieza que se le mandó al cliente.
+ *
+ * El PNG no se guarda —se sube a Meta y se descarta—, así que el servidor la
+ * vuelve a dibujar desde los códigos del mensaje. Eso significa que usa los
+ * precios de HOY: sirve para comprobar que la pieza se ve bien, no como copia
+ * exacta de lo que recibió el cliente.
+ *
+ * El estado del envío sale del mensaje, no de que la imagen cargue: una pieza
+ * que falló se vuelve a dibujar igual, y confundir eso sería peor que no
+ * mostrarla.
+ */
+function PiezaEnviada({ msg }: { msg: Mensaje }) {
+  const [falló, setFalló] = useState(false);
+  const fallida = msg.estado === "failed";
+  const error = (msg.metadata as { renderError?: string } | undefined)?.renderError;
+
+  return (
+    <div className="flex flex-col gap-1.5">
+      {fallida ? (
+        <div
+          className="rounded-xl px-3 py-2 text-[11px]"
+          style={{ background: "color-mix(in srgb, var(--color-red) 12%, transparent)", color: "var(--color-red)" }}
+        >
+          <b>No le llegó al cliente.</b>
+          {error ? <span className="block opacity-80">{error}</span> : null}
+        </div>
+      ) : null}
+
+      {falló ? (
+        <p className="m-0 text-[11px] italic opacity-70">
+          No se pudo volver a dibujar la pieza (el producto pudo salir del catálogo).
+        </p>
+      ) : (
+        <img
+          src={`/api/hub/messages/${msg.id}/pieza.png`}
+          alt={msg.contenido}
+          loading="lazy"
+          onError={() => setFalló(true)}
+          className="block w-full max-w-[260px] rounded-xl"
+          style={{ background: "color-mix(in srgb, var(--color-paper) 4%, transparent)" }}
+        />
+      )}
+      <p className="m-0 text-[11px] opacity-75">{msg.contenido}</p>
+    </div>
   );
 }
 

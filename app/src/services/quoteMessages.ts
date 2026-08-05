@@ -34,9 +34,23 @@ export function composeBlocks(...blocks: (string | null | undefined)[]): string 
 export function splitBlocks(reply: string): string[] {
   return reply
     .split(/\n\s*-{3,}\s*\n/)
-    .map((block) => block.trim())
+    .map((block) => aWhatsApp(block.trim()))
     .filter(Boolean)
     .slice(0, MAX_BLOCKS);
+}
+
+/**
+ * Negrita de Markdown → negrita de WhatsApp.
+ *
+ * El prompt pide `*texto*`, pero el modelo se escapa a `**texto**` cada tantos
+ * mensajes y WhatsApp lo muestra con los asteriscos a la vista. Se corrige aquí
+ * y no con más instrucciones: una regla determinista no falla el 3 % de las
+ * veces. También cae `__texto__`, que WhatsApp tampoco entiende.
+ */
+export function aWhatsApp(texto: string): string {
+  return texto
+    .replace(/\*\*([^*\n]+)\*\*/g, "*$1*")
+    .replace(/__([^_\n]+)__/g, "*$1*");
 }
 
 /* ------------------------------------------------------------------ *

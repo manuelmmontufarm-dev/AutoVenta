@@ -44,10 +44,17 @@ export async function sendCustomerText(
  * Alerta operativa al asesor configurado. Es un destinatario distinto del
  * cliente, por eso no reutiliza la ventana de la conversación comercial.
  */
-export async function sendAdvisorText(body: string): Promise<string | undefined> {
-  const ch = await getChannelConfig();
-  if (!ch.sellerPhone) return undefined;
-  return sendText(ch.sellerPhone, body);
+/**
+ * Aviso a un asesor. Sin `telefono` va al asesor del canal, que es el
+ * comportamiento de siempre; con teléfono va a ese, para poder avisar a varios.
+ */
+export async function sendAdvisorText(
+  body: string,
+  telefono?: string,
+): Promise<string | undefined> {
+  const destino = telefono?.trim() || (await getChannelConfig()).sellerPhone;
+  if (!destino) return undefined;
+  return sendText(destino, body);
 }
 
 /**

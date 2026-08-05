@@ -32,6 +32,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-08-05 | _(este mismo)_ | Tipos de llanta, 3 opciones, piezas en el chat y varios asesores | 2.5 |
 | 2026-08-05 | _(este mismo)_ | Dos Kanban por ventana de 24 h, puesta al día del tablero y badge de versión | 2.0 |
 | 2026-08-04 | _(este mismo)_ | Piezas nuevas del diseño + tab Ajustes con vista previa en vivo | 4.0 |
 | 2026-08-04 | _(este mismo)_ | Tanda 0: la imagen es el mensaje — captions cortos, bloques, INCLUYE y contador de piezas | 3.0 |
@@ -73,11 +74,37 @@ Ya viene activado en este equipo.
 | 2026-07-14 | ac09171 | Ubicaciones de locales + análisis de features del cliente | 1.5 |
 | 2026-07-13 | feadf57 | Brief + plan de desarrollo + plan financiero + catálogo | 4.0 |
 | 2026-07-13 | d997844 | Commit inicial (repo) | 0.25 |
-| | | **TOTAL** | **~79.5 h** |
+| | | **TOTAL** | **~82 h** |
 
 ---
 
 ## Entradas (más reciente primero)
+
+### 2026-08-05 · Tipos de llanta, 3 opciones y las piezas visibles en el chat · ⏱️ 2.5 h
+
+**Qué:** el cliente entregó `base_llantas_tipos.json` — 385 códigos clasificados en H/T, A/T,
+R/T, M/T, turismo y comercial, 35 líneas con su uso y 8 tipos con cuándo ofrecerlos y cuándo
+no. Con eso:
+
+- **`buscar_por_aro_y_tipo`** resuelve el caso que Joaquín señaló como el más frecuente:
+  *«un pichaso de gente dice quiero una R17 A/T»*. Antes era imposible — Contífico no dice
+  el tipo por ningún lado.
+- **`tipos_de_llanta`** explica las diferencias cuando el cliente no sabe qué necesita.
+- **Tres opciones y no seis**, una por escalón de marca (Falken → Kenda → Giti → Winrun),
+  priorizando lo que tiene stock: *«así ni le confundimos tanto al mijin»*.
+- El tipo **solo** se afirma si viene de la base; nunca se deduce del nombre del modelo.
+- **Las piezas se ven en el chat del panel.** El PNG no se guarda (se sube a Meta y se
+  descarta), así que se vuelve a dibujar desde los códigos del mensaje. Usa precios de hoy:
+  sirve para comprobar que se ve bien, no como copia exacta. El estado del envío sale del
+  mensaje, no de que la imagen cargue.
+- **Varios asesores** (tabla `advisors`): antes había uno solo fijado por entorno y sumar a
+  alguien exigía redeploy. El índice de dedupe pasó a `(dedupe_key, recipient_phone)` — sin
+  eso el segundo asesor chocaba con el unique del primero y nunca recibía nada. Cada asesor
+  se cobra aparte: que a uno le falle no deja sin aviso a los demás.
+
+**Arreglado:** el bot escribía `**negrita**` de Markdown cada tantos mensajes y WhatsApp lo
+muestra con los asteriscos a la vista (1 de 29 mensajes en producción). Se normaliza al
+enviar en vez de pedirlo por prompt: una regla determinista no falla el 3 % de las veces.
 
 ### 2026-08-05 · Dos tableros por ventana de 24 h + puesta al día tras el apagón · ⏱️ 2.0 h
 

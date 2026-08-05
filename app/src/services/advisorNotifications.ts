@@ -43,6 +43,32 @@ export function buildAdvisorMessage(input: AdvisorNotificationInput & {
  * Envía una sola vez por evento lógico. Si Meta falla, el error queda visible
  * en Alertas del bot y un segundo procesamiento puede reintentar hasta 3 veces.
  */
+export interface Asesor {
+  nombre: string;
+  telefono: string;
+}
+
+/**
+ * Asesores que reciben los avisos, en orden de prioridad.
+ *
+ * Si la tabla no se puede leer (por ejemplo antes de que corra la migración),
+ * cae al asesor del entorno: un aviso que no sale es una venta que nadie
+ * atiende, y ese respaldo ya funcionaba.
+ */
+export async function asesoresActivos(): Promise<Asesor[]> {
+  try {
+    const filas = await sql<{ nombre: string; telefono: string }[]>`
+      select nombre, telefono from advisors
+      where active and telefono <> '' order by prioridad, id
+    `;
+    if (filas.length) return filas;
+  } catch (error) {
+    console.error("⚠️ No se pudo leer la tabla de asesores:", error);
+  }
+  const respaldo = config.whatsapp.sellerPhone;
+  return respaldo ? [{ nombre: config.whatsapp.sellerName, telefono: respaldo }] : [];
+}
+
 export async function notifyAdvisor(input: AdvisorNotificationInput): Promise<{
   sent: boolean;
   skipped: boolean;
@@ -58,46 +84,55 @@ export async function notifyAdvisor(input: AdvisorNotificationInput): Promise<{
     phone: conversation.phone,
   });
 
-  const [created] = await sql<{ id: number }[]>`
+  // Un aviso por asesor activo. Antes salía a uno solo, fijado por entorno.
+  const destinatarios = await asesoresActivos();
+  if (!destinatarios.length) {
+    return { sent: false, skipped: true, error: "No hay asesores activos configurados" };
+  }
+  const creadas = await sql<{ id: number; recipient_phone: string; recipient_name: string }[]>`
     insert into advisor_notifications (
       conversation_id, cycle, event_type, dedupe_key, recipient_name,
       recipient_phone, message, status
-    ) values (
+    )
+    select
       ${input.conversationId}, ${input.cycle}, ${input.eventType}, ${input.dedupeKey},
-      ${config.whatsapp.sellerName}, ${config.whatsapp.sellerPhone}, ${message}, 'queued'
-    ) on conflict (dedupe_key) do nothing returning id
+      d.nombre, d.telefono, ${message}, 'queued'
+    from (values ${sql(destinatarios.map((a) => [a.nombre, a.telefono]))}) as d(nombre, telefono)
+    on conflict (dedupe_key, recipient_phone) do nothing
+    returning id, recipient_phone, recipient_name
   `;
-  let notificationId = created ? Number(created.id) : null;
-  if (!notificationId) {
-    const [retry] = await sql<{ id: number }[]>`
+  let pendientes = creadas;
+  if (!pendientes.length) {
+    // Reintento de las que fallaron antes, una por asesor.
+    pendientes = await sql<{ id: number; recipient_phone: string; recipient_name: string }[]>`
       update advisor_notifications set status='queued', updated_at=now()
       where dedupe_key=${input.dedupeKey} and status='failed' and attempt_count < 3
-      returning id
+      returning id, recipient_phone, recipient_name
     `;
-    notificationId = retry ? Number(retry.id) : null;
   }
-  if (!notificationId) return { sent: false, skipped: true };
+  if (!pendientes.length) return { sent: false, skipped: true };
 
+  // Cada asesor se cobra aparte: que a uno le falle no puede dejar sin aviso a
+  // los demás. Basta con que salga uno para considerarlo entregado.
+  let algunoSalio = false;
+  let ultimoError: string | undefined;
+  for (const destino of pendientes) {
   try {
-    const providerId = await sendAdvisorText(message);
+    const providerId = await sendAdvisorText(message, destino.recipient_phone);
     await sql`
       update advisor_notifications set status='sent', attempt_count=attempt_count+1,
         provider_message_id=${providerId ?? null}, error=null, sent_at=now(), updated_at=now()
-      where id=${notificationId}
+      where id=${destino.id}
     `;
-    await sql`
-      update bot_alerts set status='resolved', resolved_at=now()
-      where dedupe_key=${`${input.dedupeKey}:delivery_failed`}
-        and status in ('open','snoozed')
-    `;
-    emitLiveEvent("sync", input.conversationId);
-    return { sent: true, skipped: false };
+    algunoSalio = true;
+    continue;
   } catch (error) {
     const reason = error instanceof Error ? error.message : String(error);
+    ultimoError = reason;
     await sql.begin(async (tx) => {
       await tx`
         update advisor_notifications set status='failed', attempt_count=attempt_count+1,
-          error=${reason.slice(0, 1000)}, updated_at=now() where id=${notificationId}
+          error=${reason.slice(0, 1000)}, updated_at=now() where id=${destino.id}
       `;
       await tx`
         insert into bot_alerts (
@@ -116,9 +151,20 @@ export async function notifyAdvisor(input: AdvisorNotificationInput): Promise<{
       title: "Aviso al asesor bloqueado",
       body: `${conversation.name ?? conversation.phone} · revisa Alertas del bot`,
     });
-    console.error(`⚠️ No se pudo notificar a ${config.whatsapp.sellerName}:`, reason);
-    return { sent: false, skipped: false, error: reason };
+    console.error(`⚠️ No se pudo notificar a ${destino.recipient_name}:`, reason);
   }
+  }
+
+  if (algunoSalio) {
+    await sql`
+      update bot_alerts set status='resolved', resolved_at=now()
+      where dedupe_key=${`${input.dedupeKey}:delivery_failed`}
+        and status in ('open','snoozed')
+    `;
+    emitLiveEvent("sync", input.conversationId);
+    return { sent: true, skipped: false };
+  }
+  return { sent: false, skipped: false, error: ultimoError };
 }
 
 /** Recupera solicitudes humanas abiertas creadas antes de un reinicio/deploy. */

@@ -13,6 +13,7 @@ import { runCycleContextQualityMigration } from "./migrations/006_cycle_context_
 import { runAdvisorNotificationsMigration } from "./migrations/007_advisor_notifications.js";
 import { runBenefitsMigration } from "./migrations/008_benefits.js";
 import { runBrandProfilesMigration } from "./migrations/009_brand_profiles.js";
+import { runAdvisorsMigration } from "./migrations/010_advisors.js";
 
 export const SCHEMA = /* sql */ `
 create table if not exists conversations (
@@ -318,4 +319,5 @@ export async function ensureSchema(): Promise<void> {
   await runAdvisorNotificationsMigration(sql);
   await runBenefitsMigration(sql);
   await runBrandProfilesMigration(sql);
+  await runAdvisorsMigration(sql);
 }

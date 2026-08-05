@@ -70,7 +70,7 @@ import {
   markDiscountNoticeSent,
   pendingDiscountNoticeMessage,
 } from "../services/discountOffers.js";
-import { renderQuoteImage, toRenderLine } from "../render/quoteImage.js";
+import { renderCompareImage, renderOptionsImage, renderQuoteImage, toRenderLine } from "../render/quoteImage.js";
 import { authorizeAdvisorTemplatePlan, previewAdvisorTemplatePlan } from "../services/followUpCampaigns.js";
 import { resumeBotIfUnanswered } from "../services/resumeBot.js";
 import { getPhaseFlags, savePhaseFlags } from "../services/phases.js";
@@ -78,7 +78,7 @@ import {
   applicableBenefitTexts, createBenefit, deleteBenefit, listBenefits, updateBenefit,
 } from "../services/benefits.js";
 import {
-  deleteBrandProfile, listBrandProfiles, saveBrandProfile,
+  brandProfilesForRender, deleteBrandProfile, listBrandProfiles, saveBrandProfile,
 } from "../services/brandProfiles.js";
 import { PALETTE_NAMES, PRICE_FONT_NAMES } from "../render/depotDesign.js";
 import { renderPreviewPiece } from "../render/preview.js";
@@ -675,6 +675,74 @@ export function createAdminRouter(): express.Router {
     }
   });
 
+  /**
+   * Vuelve a dibujar la pieza que se envió en un mensaje, para poder verla en
+   * el panel. Solo se guarda el registro del envío, no el PNG: se re-renderiza
+   * desde `metadata` (códigos o número de cotización).
+   *
+   * Ojo: usa el catálogo de HOY. Sirve para comprobar que la pieza se ve bien,
+   * no como archivo de lo que exactamente recibió el cliente — si un precio
+   * cambió desde entonces, aquí sale el nuevo. El estado real del envío (sent /
+   * failed) sale del mensaje, no de que esto renderice.
+   */
+  router.get("/hub/messages/:id/pieza.png", async (req, res) => {
+    try {
+      const [row] = await sql<{ type: string; metadata: Record<string, unknown> | null }[]>`
+        select type, metadata from messages where id = ${Number(req.params.id)}
+      `;
+      if (!row || (row.type !== "image" && row.type !== "pdf")) {
+        return res.status(404).json({ ok: false, error: "Ese mensaje no llevaba una pieza" });
+      }
+      await ensureCatalogReady().catch(() => undefined);
+      const meta = row.metadata ?? {};
+      const pieza = String(meta.piece ?? (meta.quoteNumber ? "quote" : "options"));
+      const codes = Array.isArray(meta.codes) ? (meta.codes as string[]) : [];
+      const tema = { ...(await getPiecesConfig()), brandProfiles: await brandProfilesForRender() };
+      const fecha = new Date().toLocaleDateString("es-EC", {
+        day: "2-digit", month: "2-digit", year: "numeric", timeZone: "America/Guayaquil",
+      });
+
+      let png: Buffer;
+      if (pieza === "quote") {
+        const [quote] = await sql<{ items: unknown; subtotal: string; tax: string; total: string }[]>`
+          select items, subtotal, tax, total from quotes
+          where quote_number = ${String(meta.quoteNumber ?? "")} limit 1
+        `;
+        const item = (Array.isArray(quote?.items) ? quote.items : [])[0] as
+          { code?: string; quantity?: number } | undefined;
+        const producto = item?.code ? findByCode(item.code) : undefined;
+        if (!producto) {
+          return res.status(404).json({ ok: false, error: "El producto de esa cotización ya no está en el catálogo" });
+        }
+        png = await renderQuoteImage({
+          number: String(meta.quoteNumber ?? ""), dateLabel: fecha,
+          lines: [await toRenderLine(producto, Number(item?.quantity ?? 1))],
+          subtotal: Number(quote.subtotal), iva: Number(quote.tax), total: Number(quote.total),
+          benefits: await applicableBenefitTexts({ brands: [producto.brand] }),
+          ...tema,
+        });
+      } else {
+        const productos = codes.map((c) => findByCode(c)).filter(Boolean) as NonNullable<ReturnType<typeof findByCode>>[];
+        if (!productos.length) {
+          return res.status(404).json({ ok: false, error: "Los productos de esa pieza ya no están en el catálogo" });
+        }
+        const comun = {
+          dateLabel: fecha, sizeLabel: productos[0]?.sizeLabel ?? null,
+          products: await Promise.all(productos.map((p) => toRenderLine(p))), ...tema,
+        };
+        png = pieza === "comparison"
+          ? await renderCompareImage(comun)
+          : await renderOptionsImage(comun);
+      }
+      res.setHeader("Content-Type", "image/png");
+      res.setHeader("Cache-Control", "private, max-age=300");
+      res.send(png);
+    } catch (error) {
+      console.error("❌ No se pudo re-dibujar la pieza:", error);
+      res.status(500).json({ ok: false, error: mensaje(error, "No se pudo dibujar la pieza") });
+    }
+  });
+
   // ── Puesta al día tras un apagón del bot ────────────────────────────────────
   //
   // Con el bot apagado se guardan los mensajes y se extraen los datos, pero
@@ -1052,6 +1120,55 @@ export function createAdminRouter(): express.Router {
 
   router.delete("/benefits/:id", async (req, res) => {
     await deleteBenefit(Number(req.params.id));
+    res.json({ ok: true });
+  });
+
+  router.get("/advisors", async (_req, res) => {
+    const asesores = await sql<
+      { id: number; nombre: string; telefono: string; prioridad: number; active: boolean }[]
+    >`select id, nombre, telefono, prioridad, active from advisors order by prioridad, id`;
+    res.json({ ok: true, asesores });
+  });
+
+  router.post("/advisors", async (req, res) => {
+    try {
+      const nombre = String(req.body?.nombre ?? "").trim();
+      // Formato de la Graph API: solo dígitos, con código de país y sin "+".
+      const telefono = String(req.body?.telefono ?? "").replace(/\D/g, "");
+      if (!nombre || telefono.length < 8) {
+        return res.status(400).json({ ok: false, error: "Hace falta nombre y un teléfono con código de país" });
+      }
+      const [asesor] = await sql`
+        insert into advisors (nombre, telefono, prioridad, active)
+        values (${nombre}, ${telefono}, ${Number(req.body?.prioridad) || 10}, true)
+        on conflict (telefono) do update set
+          nombre = excluded.nombre, prioridad = excluded.prioridad,
+          active = true, updated_at = now()
+        returning id, nombre, telefono, prioridad, active
+      `;
+      res.json({ ok: true, asesor });
+    } catch (error) {
+      res.status(400).json({ ok: false, error: mensaje(error, "No se pudo guardar el asesor") });
+    }
+  });
+
+  router.patch("/advisors/:id", async (req, res) => {
+    const campos = req.body ?? {};
+    const [asesor] = await sql`
+      update advisors set
+        nombre = coalesce(${campos.nombre ?? null}, nombre),
+        prioridad = coalesce(${campos.prioridad ?? null}::int, prioridad),
+        active = coalesce(${campos.active ?? null}::boolean, active),
+        updated_at = now()
+      where id = ${Number(req.params.id)}
+      returning id, nombre, telefono, prioridad, active
+    `;
+    if (!asesor) return res.status(404).json({ ok: false, error: "Asesor no encontrado" });
+    res.json({ ok: true, asesor });
+  });
+
+  router.delete("/advisors/:id", async (req, res) => {
+    await sql`delete from advisors where id = ${Number(req.params.id)}`;
     res.json({ ok: true });
   });
 
