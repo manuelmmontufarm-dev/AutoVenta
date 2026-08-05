@@ -24,7 +24,9 @@ import {
 } from "./services/conversations.js";
 import { emitLiveEvent } from "./services/liveEvents.js";
 import { isBotActive } from "./services/botPower.js";
-import { extractTireSizes, formatTireSize } from "./domain/tireSize.js";
+import {
+  extractFlotationSizes, extractTireSizes, formatFlotationSize, formatTireSize,
+} from "./domain/tireSize.js";
 import { extractExplicitQuantity, extractVehicleYear } from "./domain/salesIntent.js";
 import { getHubMetrics } from "./services/hubData.js";
 import {
@@ -48,12 +50,16 @@ const pipeline = new InboundPipeline(async ({ from, name, text, waMessageIds, re
   // a Meta. Aquí solo se elabora la respuesta sobre el texto ya agrupado.
   const conversation = await getOrCreateConversation(from, name);
   const inboundSafety = await handleInboundFollowUpState(conversation.id, text);
+  // La medida puede venir métrica (205/55R16) o en pulgadas (30x9.5R15). Sin
+  // esta segunda, el bot no registraba nada y terminaba diciendo que no había.
   const parsedSize = extractTireSizes(text)[0];
+  const parsedFlotation = parsedSize ? null : extractFlotationSizes(text)[0];
   const parsedQuantity = extractExplicitQuantity(text);
   const parsedVehicleYear = extractVehicleYear(text);
   const commitment = extractCustomerCommitment(text, receivedAt);
   await updateConversationFacts(conversation.id, {
     ...(parsedSize ? { tireSize: formatTireSize(parsedSize) } : {}),
+    ...(parsedFlotation ? { tireSize: formatFlotationSize(parsedFlotation) } : {}),
     ...(parsedQuantity ? { selectedQuantity: parsedQuantity } : {}),
     ...(parsedVehicleYear ? { vehicleYear: parsedVehicleYear } : {}),
     ...(commitment ? { customerCommitment: commitment.text, visitDate: commitment.visitDate } : {}),

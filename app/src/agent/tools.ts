@@ -46,7 +46,7 @@ import { brandProfilesForRender } from "../services/brandProfiles.js";
 import { getAiConfig, getPiecesConfig } from "../services/settings.js";
 import { researchVehicleFitment } from "../services/vehicleFitmentResearch.js";
 import { nearestStore, resolveSector } from "../domain/locations.js";
-import { formatTireSize } from "../domain/tireSize.js";
+import { extractFlotationSizes, formatFlotationSize, formatTireSize } from "../domain/tireSize.js";
 import { canGenerateFinalQuote } from "../domain/salesIntent.js";
 import { getTirePatternProfile } from "../domain/tireKnowledge.js";
 import {
@@ -214,8 +214,13 @@ export function buildTools(ctx: AgentContext) {
   const buscarLlanta = defineTool({
     name: "buscar_llanta",
     description:
-      "Busca llantas en el catálogo real por medida exacta. Devuelve opciones con marca, precio final para el cliente (IVA incluido) y disponibilidad. Si no hay stock exacto, incluye alternativas del mismo aro que podrían servir al vehículo. Úsala SIEMPRE antes de mencionar precios o disponibilidad.",
+      "Busca llantas en el catálogo real por medida exacta. Devuelve opciones con marca, precio final para el cliente (IVA incluido) y disponibilidad. Si no hay stock exacto, incluye alternativas del mismo aro que podrían servir al vehículo. Úsala SIEMPRE antes de mencionar precios o disponibilidad. Si el cliente dio una medida de flotación en pulgadas (30x9.5R15, 31x10.5R15, 33x12.50R15) manda SOLO `flotacion` con el texto tal cual lo escribió.",
     schema: z.object({
+      flotacion: z
+        .string()
+        .nullable()
+        .default(null)
+        .describe("Medida de flotación tal como la escribió el cliente, ej. '30x9.5r15'. Null si dio una medida métrica."),
       width: z.number().int().describe("Ancho en mm, ej. 185"),
       aspect: z
         .number()
@@ -224,8 +229,30 @@ export function buildTools(ctx: AgentContext) {
         .describe("Perfil, ej. 65. Null si el cliente dio una medida sin perfil como 185R14"),
       rim: z.number().int().describe("Aro en pulgadas, ej. 14"),
     }),
-    run: async ({ width, aspect, rim }) => {
+    run: async ({ width, aspect, rim, flotacion }) => {
       await ensureCatalogReady();
+
+      // Medidas en pulgadas (30x9.5R15). El catálogo las trae escritas de dos
+      // formas — "30X9.5R15LT" y "30X9.50R15LT" — así que se busca por la forma
+      // canónica: si no, la mitad del stock queda invisible.
+      if (flotacion) {
+        const medida = extractFlotationSizes(flotacion)[0];
+        if (medida) {
+          const etiqueta = formatFlotationSize(medida);
+          const encontradas = searchByText(etiqueta.replace(/R\d+$/, ""), 40)
+            .filter((item) => item.sizeLabel === etiqueta);
+          await updateConversationFacts(ctx.conversation.id, { tireSize: etiqueta });
+          return JSON.stringify({
+            medida: etiqueta,
+            resultados: tresOpciones(encontradas).map(toolItem),
+            total_en_esa_medida: encontradas.length,
+            regla: encontradas.some((i) => i.stock > 0)
+              ? "PROHIBIDO listarlas en texto: llama preparar_opciones para que salga la imagen."
+              : "Ninguna tiene stock. Dilo claro y ofrece consultar con el asesor; no inventes que llegará.",
+          });
+        }
+      }
+
       const size = { width, aspect, rim };
       const exact = searchBySize(size);
       const alternatives = exact.some((i) => i.stock > 0) ? [] : searchAlternatives(size);
@@ -234,6 +261,7 @@ export function buildTools(ctx: AgentContext) {
         medida: formatTireSize(size),
         resultados: exact.slice(0, 8).map(toolItem),
         alternativas_mismo_aro: alternatives.slice(0, 5).map(toolItem),
+        siguiente_paso: "PROHIBIDO escribir estas opciones como lista en el chat. Para mostrárselas al cliente llama preparar_opciones con máximo 3 códigos (una premium, una de equilibrio y una económica) — esa herramienta manda la imagen. Si escribes precios y disponibilidad en texto, el cliente recibe un muro y no ve la pieza.",
       });
     },
   });
@@ -250,6 +278,7 @@ export function buildTools(ctx: AgentContext) {
       return JSON.stringify({
         consulta,
         resultados: searchByText(consulta, 8).map(toolItem),
+        siguiente_paso: "PROHIBIDO escribir estas opciones como lista en el chat. Para mostrárselas al cliente llama preparar_opciones con máximo 3 códigos (una premium, una de equilibrio y una económica) — esa herramienta manda la imagen. Si escribes precios y disponibilidad en texto, el cliente recibe un muro y no ve la pieza.",
       });
     },
   });
@@ -311,7 +340,7 @@ export function buildTools(ctx: AgentContext) {
         opciones: seleccion.map(toolItem),
         otras_en_ese_aro: delTipo.length - seleccion.length,
         regla:
-          "Presenta SOLO estas opciones con preparar_opciones (una premium, una de equilibrio, una económica). Si el cliente no dijo el uso, pregúntalo antes de recomendar. No afirmes un tipo que no venga en 'tipo'.",
+          "PROHIBIDO listarlas en texto. Llama preparar_opciones con estos códigos para que salga la imagen (una premium, una de equilibrio, una económica). Si el cliente no dijo el uso, pregúntalo antes de recomendar. No afirmes un tipo que no venga en 'tipo'.",
       });
     },
   });

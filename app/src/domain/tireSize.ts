@@ -75,3 +75,44 @@ export function formatTireSize(size: TireSize): string {
 export function sameSize(a: TireSize, b: TireSize): boolean {
   return a.width === b.width && a.aspect === b.aspect && a.rim === b.rim;
 }
+
+/**
+ * Medida de flotación tal como la escribe la gente: "30x9.5r15", "31X10.50R15".
+ *
+ * Van aparte de las métricas porque no tienen perfil en % — son pulgadas:
+ * diámetro exterior × ancho de sección, sobre el aro. Muy usadas en camioneta
+ * y 4x4 en Ecuador, y hasta ahora el bot no las reconocía en absoluto.
+ */
+export interface FlotationSize {
+  /** Diámetro exterior en pulgadas (ej. 30). */
+  diameter: number;
+  /** Ancho de sección en pulgadas (ej. 9.5). */
+  section: number;
+  /** Aro en pulgadas (ej. 15). */
+  rim: number;
+}
+
+const FLOTATION_TEXT_RE =
+  /(?<!\d)(\d{2})\s*[xX]\s*(\d{1,2}(?:[.,]\d{1,2})?)\s*(?:Z?R\s*|[-\s]\s*)(\d{2})(?!\d)/gi;
+
+/** Extrae medidas de flotación de texto libre. */
+export function extractFlotationSizes(text: string): FlotationSize[] {
+  const out: FlotationSize[] = [];
+  for (const m of text.matchAll(FLOTATION_TEXT_RE)) {
+    const diameter = Number(m[1]);
+    const section = Number(m[2].replace(",", "."));
+    const rim = Number(m[3]);
+    // Rangos reales: por debajo o encima no es una llanta, es otro número.
+    if (diameter < 26 || diameter > 44) continue;
+    if (section < 6 || section > 20) continue;
+    if (rim < 12 || rim > 24) continue;
+    if (out.some((s) => s.diameter === diameter && s.section === section && s.rim === rim)) continue;
+    out.push({ diameter, section, rim });
+  }
+  return out;
+}
+
+/** Forma canónica, sin ceros de más: 30x9.50 y 30x9.5 dan lo mismo. */
+export function formatFlotationSize(size: FlotationSize): string {
+  return `${size.diameter}X${size.section}R${size.rim}`;
+}

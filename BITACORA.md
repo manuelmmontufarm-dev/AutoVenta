@@ -32,6 +32,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-08-05 | _(este mismo)_ | Medidas de flotación (venta perdida) + la imagen deja de ser opcional | 1.5 |
 | 2026-08-05 | _(este mismo)_ | Tipos de llanta, 3 opciones, piezas en el chat y varios asesores | 2.5 |
 | 2026-08-05 | _(este mismo)_ | Dos Kanban por ventana de 24 h, puesta al día del tablero y badge de versión | 2.0 |
 | 2026-08-04 | _(este mismo)_ | Piezas nuevas del diseño + tab Ajustes con vista previa en vivo | 4.0 |
@@ -74,11 +75,35 @@ Ya viene activado en este equipo.
 | 2026-07-14 | ac09171 | Ubicaciones de locales + análisis de features del cliente | 1.5 |
 | 2026-07-13 | feadf57 | Brief + plan de desarrollo + plan financiero + catálogo | 4.0 |
 | 2026-07-13 | d997844 | Commit inicial (repo) | 0.25 |
-| | | **TOTAL** | **~82 h** |
+| | | **TOTAL** | **~83.5 h** |
 
 ---
 
 ## Entradas (más reciente primero)
+
+### 2026-08-05 · Medidas en pulgadas: la venta que se perdió por un cero · ⏱️ 1.5 h
+
+**Qué:** un cliente pidió `30x9.5r15`, el bot dijo que no había, y sí había. Dos fallos
+encadenados:
+
+1. **El parser no reconocía ninguna medida de flotación.** 30x9.5R15, 31x10.5R15,
+   33x12.50R15 — todas devolvían vacío. Son las de camioneta y 4x4, muy comunes en Ecuador.
+2. **El catálogo trae la MISMA llanta escrita de dos formas:** `30X9.5R15LT` (Kenda, stock 0)
+   y `30X9.50R15LT` (Falken, **stock 20**). Sin canonizar quedaban como medidas distintas,
+   así que el bot encontró solo la agotada. Joaquín lo intuyó: *«capaz porque se escriben
+   diferente no les cacho»*.
+
+Ahora las etiquetas se canonizan sin ceros de más y ambas colapsan en `30X9.5R15`.
+
+**La imagen deja de ser opcional.** Las capturas mostraron al bot escribiendo la lista de
+precios en texto y sin mandar pieza — tanto que el cliente tuvo que pedirla («¿No me vas a
+mandar una foto de las opciones?»). El prompt ya lo pedía y el modelo lo ignoraba, así que
+la prohibición pasó a las respuestas de las herramientas: cada búsqueda devuelve
+`siguiente_paso` prohibiendo listar en texto y exigiendo `preparar_opciones`.
+
+**De paso:** el chat de prueba de Manuel (593993728763) no recibía respuesta porque estaba
+en `atiende: humano` desde las pruebas viejas — el bot calla a propósito cuando un humano
+tomó el chat. Devuelto al bot.
 
 ### 2026-08-05 · Tipos de llanta, 3 opciones y las piezas visibles en el chat · ⏱️ 2.5 h
 

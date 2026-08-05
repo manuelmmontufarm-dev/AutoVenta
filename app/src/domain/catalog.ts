@@ -75,6 +75,25 @@ export function compactCatalogText(value: string): string {
   return normalizeCatalogText(value).replace(/[^a-z0-9]/g, "");
 }
 
+/**
+ * Medida de flotación en forma canónica: "30X9.5R15".
+ *
+ * El catálogo trae la MISMA llanta escrita de dos formas — "30X9.5R15LT" y
+ * "30X9.50R15LT" — y sin canonizar quedan como medidas distintas. Eso le costó
+ * una venta a Depot: el cliente pidió 30x9.5r15, el bot encontró solo la que
+ * tenía stock 0 y le dijo que no había, mientras la otra tenía 20 unidades.
+ * Se quitan los ceros de más del decimal para que ambas colapsen en una.
+ */
+export function canonicalFlotationLabel(
+  width: string | number,
+  section: string | number,
+  rim: string | number,
+): string {
+  const dec = String(section).replace(",", ".");
+  const limpio = dec.includes(".") ? dec.replace(/0+$/, "").replace(/\.$/, "") : dec;
+  return `${width}X${limpio}R${rim}`;
+}
+
 export function extractCatalogSizeLabel(text: string): {
   size: TireSize | null;
   sizeLabel: string | null;
@@ -84,10 +103,10 @@ export function extractCatalogSizeLabel(text: string): {
 
   const flotation = text.match(FLOTATION_RE);
   if (!flotation) return { size: null, sizeLabel: null };
-  const width = flotation[1];
-  const section = flotation[2].replace(",", ".");
-  const rim = flotation[3];
-  return { size: null, sizeLabel: `${width}X${section}R${rim}` };
+  return {
+    size: null,
+    sizeLabel: canonicalFlotationLabel(flotation[1], flotation[2], flotation[3]),
+  };
 }
 
 export function availabilityFromStock(stock: number): CatalogAvailability {

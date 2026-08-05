@@ -9,7 +9,7 @@
  * responde el servidor no coincide con este, el panel avisa: significa que una
  * mitad se desplegó y la otra no.
  */
-export const VERSION = "v0.10.0";
+export const VERSION = "v0.11.0";
 
 /** SHA corto del commit con el que se compiló este panel. */
 export const COMMIT: string =
@@ -24,6 +24,17 @@ export interface Cambio {
 
 /** Más reciente primero. Cada entrada es lo que el negocio nota, no el diff. */
 export const CAMBIOS: Cambio[] = [
+  {
+    version: "v0.11.0",
+    fecha: "5 de agosto de 2026",
+    titulo: "Medidas en pulgadas y la imagen deja de ser opcional",
+    puntos: [
+      "El bot ya entiende medidas como 30x9.5R15. Antes no las reconocía y decía que no había stock aunque sí hubiera.",
+      "30x9.5 y 30x9.50 pasan a ser la misma medida: el catálogo las trae escritas de las dos formas y media bodega quedaba invisible.",
+      "El bot tiene prohibido escribir las opciones como lista de precios en el chat: siempre manda la imagen.",
+      "Tu chat de prueba volvió al bot (estaba tomado por un humano, por eso no te contestaba).",
+    ],
+  },
   {
     version: "v0.10.0",
     fecha: "5 de agosto de 2026",

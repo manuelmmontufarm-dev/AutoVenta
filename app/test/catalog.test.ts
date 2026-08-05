@@ -90,10 +90,16 @@ describe("extractLoadSpeed", () => {
 });
 
 describe("extractCatalogSizeLabel", () => {
-  it("reconoce medidas métricas y de flotación", () => {
+  // Las de flotación se canonizan sin ceros de más: el catálogo trae la MISMA
+  // llanta como "30X9.5R15LT" y "30X9.50R15LT", y sin esto quedaban como dos
+  // medidas distintas — el bot decía "no hay" con 20 unidades en bodega.
+  it("reconoce medidas métricas y canoniza las de flotación", () => {
     expect(extractCatalogSizeLabel("205/55 R16 ZE310").sizeLabel).toBe("205/55R16");
-    expect(extractCatalogSizeLabel("31X10.50R15 AT").sizeLabel).toBe("31X10.50R15");
-    expect(extractCatalogSizeLabel("35x12,50R17 MT").sizeLabel).toBe("35X12.50R17");
+    expect(extractCatalogSizeLabel("31X10.50R15 AT").sizeLabel).toBe("31X10.5R15");
+    expect(extractCatalogSizeLabel("35x12,50R17 MT").sizeLabel).toBe("35X12.5R17");
+    expect(extractCatalogSizeLabel("31X10.5R15 AT").sizeLabel).toBe(
+      extractCatalogSizeLabel("31X10.50R15 AT").sizeLabel,
+    );
   });
 });
 
