@@ -249,6 +249,14 @@ export interface HubMetrics {
   daily: Array<{ day: string; value: number }>;
   funnel: Array<{ stage: Etapa; value: number }>;
   deliveries: Array<{ status: string; value: number }>;
+  /** Piezas visuales de los últimos 7 días: si una falla, el cliente recibe el texto largo. */
+  visualPieces?: Array<{
+    piece: "quote" | "comparison" | "options";
+    label: string;
+    sent: number;
+    failed: number;
+    renderErrors: number;
+  }>;
   replyHours?: Array<{ hour: number; label: string; replies: number }>;
   discounts?: {
     offered: number; wonWith: number; quotedWithout: number; wonWithout: number;

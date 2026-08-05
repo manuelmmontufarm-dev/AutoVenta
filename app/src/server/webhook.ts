@@ -8,7 +8,12 @@ import { fileURLToPath } from "node:url";
 import { getWa } from "../wa/client.js";
 import { sql } from "../db/client.js";
 import { catalogStatus, searchBySize } from "../services/catalog.js";
-import { renderCompareImage, toRenderLine } from "../render/quoteImage.js";
+import {
+  renderCompareImage,
+  renderOptionsImage,
+  renderQuoteImage,
+  toRenderLine,
+} from "../render/quoteImage.js";
 import { createAdminRouter } from "./admin.js";
 import { getBotPower } from "../services/botPower.js";
 import { shouldRunEmbeddedWorker } from "../workers/embeddedFollowUpWorker.js";
@@ -107,6 +112,77 @@ export function createServer(): express.Express {
     } catch (err) {
       console.error("❌ /cotizaciones/live.png:", err);
       res.status(500).json({ error: String(err) });
+    }
+  });
+
+  // Diagnóstico de las tres piezas visuales contra el catálogo real.
+  // Existe porque cuando una pieza no sale, el cliente recibe el texto largo y
+  // hasta ahora nadie se enteraba. Reporta peso y tiempo de cada una: el tope
+  // de Meta para imágenes es 5 MB y pasado eso el upload se rechaza.
+  app.get("/diagnostico/piezas", async (req, res) => {
+    const LIMITE_META_MB = 5;
+    const ALERTA_MB = 4.5;
+    try {
+      const raw = String(req.query.medida ?? "205/55R16");
+      const m = raw.match(/(\d{3})[/ ]?(\d{2})\s?Z?R?(\d{2})/i);
+      if (!m) {
+        res.status(400).json({ error: "medida inválida, ej. 205/55R16" });
+        return;
+      }
+      const size = { width: Number(m[1]), aspect: Number(m[2]), rim: Number(m[3]) };
+      const products = searchBySize(size).slice(0, 9);
+      if (!products.length) {
+        res.status(404).json({ error: `sin productos para ${raw}` });
+        return;
+      }
+      const fecha = new Date().toLocaleDateString("es-EC", {
+        day: "2-digit", month: "2-digit", year: "numeric", timeZone: "America/Guayaquil",
+      });
+      const lines = await Promise.all(products.map((p) => toRenderLine(p)));
+
+      const medir = async (pieza: string, render: () => Promise<Buffer>) => {
+        const inicio = Date.now();
+        try {
+          const png = await render();
+          const mb = png.byteLength / 1_048_576;
+          return {
+            pieza, ok: true,
+            ancho: png.readUInt32BE(16), alto: png.readUInt32BE(20),
+            mb: Number(mb.toFixed(2)), ms: Date.now() - inicio,
+            aceptaMeta: mb < LIMITE_META_MB,
+            alLimite: mb >= ALERTA_MB && mb < LIMITE_META_MB,
+          };
+        } catch (err) {
+          return {
+            pieza, ok: false, ms: Date.now() - inicio,
+            error: err instanceof Error ? err.message : String(err),
+          };
+        }
+      };
+
+      const piezas = [
+        await medir("cotizacion", () =>
+          renderQuoteImage({
+            number: "COT-DIAG", dateLabel: fecha, lines: [lines[0]],
+            subtotal: 0, iva: 0, total: 0,
+          })),
+        await medir("comparativa", () =>
+          renderCompareImage({ dateLabel: fecha, products: lines.slice(0, 3) })),
+        await medir("opciones", () =>
+          renderOptionsImage({ dateLabel: fecha, sizeLabel: raw, products: lines })),
+      ];
+
+      const rotas = piezas.filter((p) => !p.ok || p.aceptaMeta === false);
+      res.json({
+        ok: rotas.length === 0,
+        medida: raw,
+        productos: products.length,
+        sinFoto: products.filter((p) => !p.imageUrl).length,
+        piezas,
+      });
+    } catch (err) {
+      console.error("❌ /diagnostico/piezas:", err);
+      res.status(500).json({ ok: false, error: String(err) });
     }
   });
 

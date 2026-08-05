@@ -410,6 +410,35 @@ export async function getHubMetrics(days = 14) {
     group by coalesce(status, 'unknown')
   `;
 
+  // Piezas visuales (cotización · comparativa · opciones) de los últimos 7 días.
+  // Cuando una imagen no sale, el cliente recibe el texto largo que el cliente
+  // pidió evitar; sin este contador eso era indistinguible de un envío normal.
+  // `piece` se escribe desde las tools; el `case` cubre las filas anteriores.
+  const visualPieces = await sql<
+    { piece: string; sent: number; failed: number; render_errors: number }[]
+  >`
+    select
+      coalesce(
+        metadata->>'piece',
+        case
+          when metadata ? 'quoteNumber' then 'quote'
+          when metadata->>'filename' like 'Comparativa%' then 'comparison'
+          when content like 'Opciones enviadas%' or content like 'Imagen de opciones%' then 'options'
+          else 'other'
+        end
+      ) as piece,
+      count(*) filter (where status in ('sent', 'delivered', 'read'))::int as sent,
+      count(*) filter (where status = 'failed')::int as failed,
+      count(*) filter (where metadata ? 'renderError')::int as render_errors
+    from messages
+    where direction = 'outbound'
+      and author_kind = 'bot'
+      and type in ('image', 'pdf')
+      and created_at >= now() - interval '7 days'
+    group by 1
+    order by 1
+  `;
+
   const replyHours = await sql<{ hour: number; replies: number }[]>`
     select extract(hour from inbound.created_at at time zone 'America/Guayaquil')::int as hour,
       count(*)::int as replies
@@ -469,6 +498,18 @@ export async function getHubMetrics(days = 14) {
       status: row.status,
       value: Number(row.count),
     })),
+    // Las tres piezas van siempre, aunque no haya filas: un cero explícito dice
+    // "no se envió ninguna", que es información. Una fila ausente no dice nada.
+    visualPieces: (["quote", "comparison", "options"] as const).map((piece) => {
+      const row = visualPieces.find((item) => item.piece === piece);
+      return {
+        piece,
+        label: { quote: "Cotizaciones", comparison: "Comparativas", options: "Opciones" }[piece],
+        sent: Number(row?.sent ?? 0),
+        failed: Number(row?.failed ?? 0),
+        renderErrors: Number(row?.render_errors ?? 0),
+      };
+    }),
     replyHours: Array.from({ length: 24 }, (_, hour) => ({
       hour,
       label: `${String(hour).padStart(2, "0")}:00`,

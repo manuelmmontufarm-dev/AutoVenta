@@ -24,9 +24,13 @@ import {
   renderQuotePdf,
 } from "../services/quotePdf.js";
 import {
-  buildComparisonMessage,
-  buildCustomerOptionsMessage,
-  buildSingleQuoteMessage,
+  buildComparisonCaption,
+  buildComparisonMessageDetallado,
+  buildCustomerOptionsMessageDetallado,
+  buildOptionsCaption,
+  buildSingleQuoteCaption,
+  buildSingleQuoteMessageDetallado,
+  composeBlocks,
   warrantyForBrand,
 } from "../services/quoteMessages.js";
 import {
@@ -37,6 +41,8 @@ import {
   updateConversationFacts,
   type Conversation,
 } from "../services/conversations.js";
+import { buildBenefitsBlock } from "../services/benefits.js";
+import { getAiConfig } from "../services/settings.js";
 import { researchVehicleFitment } from "../services/vehicleFitmentResearch.js";
 import { nearestStore, resolveSector } from "../domain/locations.js";
 import { formatTireSize } from "../domain/tireSize.js";
@@ -130,7 +136,28 @@ async function resolvePresentedProduct(conversationId: number, reference: string
  * Envía una pieza visual (cotización o comparativa) por WhatsApp.
  * Nunca lanza: si el render o el envío fallan, devuelve ok=false y el flujo
  * cae al PDF — el cliente jamás se queda sin su cotización (fallo del demo 20-jul).
+ *
+ * Devuelve `error` con la etapa y el motivo exacto. Antes solo iba a
+ * console.error, así que una imagen que no salía era indistinguible de una que
+ * sí: el cliente recibía el texto y en el panel no quedaba rastro.
  */
+/**
+ * ¿El texto acompaña a la imagen (corto) o la reemplaza (detallado)?
+ *
+ * Detallado en dos casos: cuando el dueño lo pidió desde el panel, y siempre que
+ * la pieza no haya salido — ahí el texto largo es lo único que le queda al
+ * cliente. Si no se puede leer la configuración, se asume detallado: de más
+ * información nadie se queda sin cotización.
+ */
+async function usarCaptionCorto(imagenEnviada: boolean): Promise<boolean> {
+  if (!imagenEnviada) return false;
+  try {
+    return (await getAiConfig()).formato === "imagen_primero";
+  } catch {
+    return false;
+  }
+}
+
 async function sendVisual(
   conversationId: number,
   to: string,
@@ -138,15 +165,18 @@ async function sendVisual(
   caption: string,
   filename: string,
   what: string,
-): Promise<{ ok: boolean; providerId?: string; png?: Buffer }> {
+): Promise<{ ok: boolean; providerId?: string; png?: Buffer; error?: string }> {
   let png: Buffer | undefined;
+  let etapa: "render" | "envío" = "render";
   try {
     png = await render();
+    etapa = "envío";
     const providerId = await sendImage(conversationId, to, png, caption, filename);
     return { ok: true, providerId, png };
   } catch (err) {
-    console.error(`❌ Imagen de ${what} falló:`, err);
-    return { ok: false, png };
+    const motivo = err instanceof Error ? err.message : String(err);
+    console.error(`❌ Imagen de ${what} falló en ${etapa}:`, err);
+    return { ok: false, png, error: `${etapa}: ${motivo}` };
   }
 }
 
@@ -233,12 +263,23 @@ export function buildTools(ctx: AgentContext) {
   const prepararOpciones = defineTool({
     name: "preparar_opciones",
     description:
-      "Construye el mensaje bonito de opciones para cliente final usando productos reales que ya devolvió una búsqueda. Úsala después de confirmar la medida. Devuelve el texto final; debes responder con ese texto sin reescribir precios ni garantías.",
+      "Envía la imagen de opciones al cliente y devuelve el texto corto que la acompaña. Úsala después de confirmar la medida. Debes recomendar UNA opción con un motivo concreto: la imagen ya muestra precios y garantías, así que tu texto solo aporta el criterio. Responde con el texto que devuelve, sin reescribir precios.",
     schema: z.object({
       codes: z.array(z.string().min(1)).min(1).max(12),
       nombre_cliente: z.string().default("Cliente"),
+      recomendado: z
+        .string()
+        .min(1)
+        .describe("Código de la opción que TÚ recomiendas, de entre las de codes"),
+      motivo: z
+        .string()
+        .min(8)
+        .max(140)
+        .describe(
+          "Una sola frase de por qué esa: el criterio real (uso, duración, precio). Sin inventar ventajas técnicas no verificadas.",
+        ),
     }),
-    run: async ({ codes, nombre_cliente }) => {
+    run: async ({ codes, nombre_cliente, recomendado, motivo }) => {
       await ensureCatalogReady();
       const products = codes
         .map((code) => findByCode(code))
@@ -246,7 +287,11 @@ export function buildTools(ctx: AgentContext) {
       if (!products.length) {
         return JSON.stringify({ error: "No se encontraron los productos seleccionados" });
       }
-      const message = buildCustomerOptionsMessage(products, nombre_cliente);
+      // La recomendación tiene que ser una de las opciones mostradas. Si el
+      // modelo apunta a otra cosa, se cae a la primera en vez de recomendar algo
+      // que el cliente no está viendo.
+      const recommended =
+        products.find((product) => product.code === recomendado) ?? products[0];
 
       // Pieza visual del catálogo (agrupada por marca). Si falla, el texto
       // sigue siendo la respuesta — el cliente nunca se queda sin opciones.
@@ -264,19 +309,36 @@ export function buildTools(ctx: AgentContext) {
         `Opciones-${business.name.replace(/\s/g, "")}.png`,
         "opciones",
       );
-      if (visual.ok) {
-        await appendMessage(
-          ctx.conversation.id,
-          "assistant",
-          `Opciones enviadas: ${products.map((p) => `${p.brand} ${p.design}`).join(" · ")}`,
-          visual.providerId,
-          {
-            type: "image",
-            authorKind: "bot",
-            status: "sent",
-            metadata: { codes },
-          },
-        );
+      const resumenProductos = products.map((p) => `${p.brand} ${p.design}`).join(" · ");
+      await appendMessage(
+        ctx.conversation.id,
+        "assistant",
+        visual.ok
+          ? `Opciones enviadas: ${resumenProductos}`
+          : `Imagen de opciones NO enviada (${resumenProductos})`,
+        visual.providerId,
+        {
+          type: "image",
+          authorKind: "bot",
+          status: visual.ok ? "sent" : "failed",
+          metadata: { piece: "options", codes, ...(visual.error ? { renderError: visual.error } : {}) },
+        },
+      );
+      // La imagen es la pieza principal: sin ella el cliente recibe solo el
+      // texto largo, que es justo lo que el cliente pidió evitar. Antes esto
+      // fallaba en silencio; ahora queda alerta y el asesor puede reaccionar.
+      if (!visual.ok) {
+        await createBotAlert({
+          conversationId: ctx.conversation.id,
+          cycle: ctx.conversation.current_cycle,
+          type: "send_error",
+          priority: "high",
+          summary: `No se pudo enviar la imagen de opciones (${products.length} productos)`,
+          exactReason: visual.error ?? "Motivo desconocido",
+          suggestedAction:
+            "El cliente recibió las opciones solo en texto. Revisar el error y reenviar la pieza si hace falta.",
+          dedupeKey: `${ctx.conversation.id}:${ctx.conversation.current_cycle}:options_image_error:${codes.join(",")}`,
+        });
       }
       await logQuoteArtifact({
         conversationId: ctx.conversation.id,
@@ -289,10 +351,24 @@ export function buildTools(ctx: AgentContext) {
           size: product.sizeLabel,
         })),
       });
+      // La imagen es el mensaje: si salió, el texto es solo el criterio y la
+      // pregunta. Si no salió, el cliente recibe el detalle completo en texto —
+      // feo, pero nunca se queda sin las opciones.
+      const beneficios = await buildBenefitsBlock({
+        brands: products.map((product) => product.brand),
+      });
       return JSON.stringify({
         imagen_enviada: visual.ok,
-        mensaje_para_enviar: message,
-        regla: "Responde usando exactamente mensaje_para_enviar; no sumes alternativas.",
+        recomendacion: `${recommended.brand} ${recommended.design}`,
+        mensaje_para_enviar: composeBlocks(
+          (await usarCaptionCorto(visual.ok))
+            ? buildOptionsCaption(products, recommended, motivo)
+            : buildCustomerOptionsMessageDetallado(products, nombre_cliente),
+          beneficios,
+          "¿Cuál le llama más la atención?",
+        ),
+        regla:
+          "Responde usando exactamente mensaje_para_enviar, con sus separadores '---' intactos. No sumes alternativas ni repitas en texto lo que ya muestra la imagen.",
       });
     },
   });
@@ -332,29 +408,58 @@ export function buildTools(ctx: AgentContext) {
       );
       let filename = imageName;
       let providerId = visual.providerId;
+      let respaldoError: string | undefined;
       if (!visual.ok) {
-        const pdf = await renderComparisonPdf(selected);
-        filename = `Comparativa-${business.name.replace(/\s/g, "")}.pdf`;
-        providerId = await sendPdf(
-          ctx.conversation.id,
-          ctx.customerPhone,
-          pdf,
-          filename,
-          "Comparativa de llantas por unidad 📄",
-        );
+        // El PDF de respaldo también puede fallar. Si lanzaba aquí, la tool
+        // reventaba y el cliente se quedaba sin comparativa Y sin respuesta.
+        try {
+          const pdf = await renderComparisonPdf(selected);
+          filename = `Comparativa-${business.name.replace(/\s/g, "")}.pdf`;
+          providerId = await sendPdf(
+            ctx.conversation.id,
+            ctx.customerPhone,
+            pdf,
+            filename,
+            "Comparativa de llantas por unidad 📄",
+          );
+        } catch (err) {
+          respaldoError = err instanceof Error ? err.message : String(err);
+          console.error("❌ PDF de respaldo de la comparativa falló:", err);
+        }
       }
+      const entregada = visual.ok || !respaldoError;
       await appendMessage(
         ctx.conversation.id,
         "assistant",
-        `Comparativa enviada: ${selected.map((product) => `${product.brand} ${product.design}`).join(" · ")}`,
+        entregada
+          ? `Comparativa enviada: ${selected.map((product) => `${product.brand} ${product.design}`).join(" · ")}`
+          : `Comparativa NO entregada: ${selected.map((product) => `${product.brand} ${product.design}`).join(" · ")}`,
         providerId,
         {
           type: visual.ok ? "image" : "pdf",
           authorKind: "bot",
-          status: "sent",
-          metadata: { filename, codes },
+          status: entregada ? "sent" : "failed",
+          metadata: {
+            piece: "comparison",
+            filename,
+            codes,
+            ...(visual.error ? { renderError: visual.error } : {}),
+            ...(respaldoError ? { pdfError: respaldoError } : {}),
+          },
         },
       );
+      if (!entregada) {
+        await createBotAlert({
+          conversationId: ctx.conversation.id,
+          cycle: ctx.conversation.current_cycle,
+          type: "send_error",
+          priority: "critical",
+          summary: "No se pudo enviar la comparativa (ni imagen ni PDF)",
+          exactReason: `Imagen: ${visual.error ?? "desconocido"}. PDF: ${respaldoError}`,
+          suggestedAction: "El cliente quedó sin la comparativa. Revisar el error y contactarlo desde el ticket.",
+          dedupeKey: `${ctx.conversation.id}:${ctx.conversation.current_cycle}:comparison_send_error:${codes.join(",")}`,
+        });
+      }
       await logQuoteArtifact({
         conversationId: ctx.conversation.id,
         kind: "comparison",
@@ -368,10 +473,13 @@ export function buildTools(ctx: AgentContext) {
         filename,
         providerId,
       });
-      const comparisonText = [
-        buildComparisonMessage(selected),
+      const comparisonText = composeBlocks(
+        (await usarCaptionCorto(visual.ok))
+          ? buildComparisonCaption(selected)
+          : buildComparisonMessageDetallado(selected),
         buildTechnicalGuidance(selected, ctx.currentUserText),
-      ].filter(Boolean).join("\n\n");
+        "¿Para qué la usa más: ciudad y carretera, o también caminos mixtos e irregulares?",
+      );
       return JSON.stringify({
         enviada: true,
         modelos: selected.map((product) => `${product.brand} ${product.design}`),
@@ -541,7 +649,12 @@ export function buildTools(ctx: AgentContext) {
           type: visual.ok ? "image" : "pdf",
           authorKind: "bot",
           status: visual.ok || pdfEnviado ? "sent" : "failed",
-          metadata: { filename, quoteNumber: quote.number },
+          metadata: {
+            piece: "quote",
+            filename,
+            quoteNumber: quote.number,
+            ...(visual.error ? { renderError: visual.error } : {}),
+          },
         },
       );
       const quoteId = await logQuote(
@@ -603,20 +716,41 @@ export function buildTools(ctx: AgentContext) {
         iva: quote.tax,
         total_con_iva: quote.total,
         numero_venta: saleNumber,
-        mensaje_para_enviar: buildSingleQuoteMessage(
-          { product, quantity: items[0].cantidad },
-          nombre_cliente,
-          quote.number,
-          saleNumber,
-          activeDiscount ? {
-            amount: activeDiscount.discountAmountCents / 100,
-            finalTotal: quote.total,
-            condition: activeDiscount.condition,
-            expiresAt: activeDiscount.expiresAt,
-          } : undefined,
+        mensaje_para_enviar: composeBlocks(
+          (await usarCaptionCorto(visual.ok))
+            ? buildSingleQuoteCaption(
+                { product, quantity: items[0].cantidad },
+                quote.number,
+                activeDiscount
+                  ? {
+                      finalTotal: quote.total,
+                      condition: activeDiscount.condition,
+                      expiresAt: activeDiscount.expiresAt,
+                    }
+                  : undefined,
+              )
+            : buildSingleQuoteMessageDetallado(
+                { product, quantity: items[0].cantidad },
+                nombre_cliente,
+                quote.number,
+                saleNumber,
+                activeDiscount
+                  ? {
+                      amount: activeDiscount.discountAmountCents / 100,
+                      finalTotal: quote.total,
+                      condition: activeDiscount.condition,
+                      expiresAt: activeDiscount.expiresAt,
+                    }
+                  : undefined,
+              ),
+          await buildBenefitsBlock({
+            brands: [product.brand],
+            quantity: items[0].cantidad,
+          }),
+          "¿Le queda mejor Cumbayá o Quito Sur? Puede pasar sin compromiso a verlas y probarlas en su vehículo.",
         ),
         regla:
-          "Responde exactamente con mensaje_para_enviar. La cotización ya fue enviada y Manuel ya fue notificado. Después espera la ubicación.",
+          "Responde exactamente con mensaje_para_enviar, con sus separadores '---' intactos. La cotización ya fue enviada y Manuel ya fue notificado.",
       });
     },
   });

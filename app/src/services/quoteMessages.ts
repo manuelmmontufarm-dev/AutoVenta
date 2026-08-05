@@ -1,5 +1,6 @@
 import { business } from "../config.js";
 import type { CatalogItem } from "../domain/catalog.js";
+import { getTirePatternProfile } from "../domain/tireKnowledge.js";
 
 export interface CatalogQuoteSelection {
   product: CatalogItem;
@@ -8,7 +9,103 @@ export interface CatalogQuoteSelection {
 
 export type CustomerMessageStyle = "comparison" | "customer";
 
-export function buildComparisonMessage(products: readonly CatalogItem[]): string {
+/**
+ * Separador de bloques. El agente y las tools lo emiten; index.ts lo convierte
+ * en varios mensajes cortos seguidos, que es como escribe un vendedor humano.
+ */
+export const BLOCK_SEPARATOR = "\n\n---\n\n";
+
+/** Tope de bloques por turno: más que esto se lee como spam. */
+export const MAX_BLOCKS = 4;
+
+/** Une bloques descartando los vacíos y respetando el tope. */
+export function composeBlocks(...blocks: (string | null | undefined)[]): string {
+  return blocks
+    .map((block) => block?.trim() ?? "")
+    .filter(Boolean)
+    .slice(0, MAX_BLOCKS)
+    .join(BLOCK_SEPARATOR);
+}
+
+/**
+ * Parte una respuesta en los mensajes que se van a enviar.
+ * Tolerante con el modelo: acepta 3 o más guiones y espacios alrededor.
+ */
+export function splitBlocks(reply: string): string[] {
+  return reply
+    .split(/\n\s*-{3,}\s*\n/)
+    .map((block) => block.trim())
+    .filter(Boolean)
+    .slice(0, MAX_BLOCKS);
+}
+
+/* ------------------------------------------------------------------ *
+ * Captions — la imagen ES el mensaje.
+ *
+ * La pieza visual ya lleva marca, diseño, medida, precio tachado, precio de
+ * hoy, índice de carga, disponibilidad y garantías. Repetir todo eso en texto
+ * es el muro que el cliente reportó que nadie lee. El caption solo aporta lo
+ * que la imagen no puede: cuál elegiría el bot y por qué.
+ * ------------------------------------------------------------------ */
+
+/**
+ * Opciones. La recomendación explícita no es decoración: el §7 del PDF exige
+ * que el agente diga siempre cuál elegiría.
+ */
+export function buildOptionsCaption(
+  products: readonly CatalogItem[],
+  recommended: CatalogItem,
+  motivo: string,
+): string {
+  const sizeLabel = products[0]?.sizeLabel ?? null;
+  return [
+    `Le mando las opciones${sizeLabel ? ` en ${sizeLabel}` : ""} 👆`,
+    "",
+    `Yo iría por la *${recommended.brand} ${recommended.design}*: ${motivo.trim().replace(/\.$/, "")}.`,
+    "",
+    "Los precios son por unidad, con IVA incluido.",
+  ].join("\n");
+}
+
+/** Cotización: número, total y vigencia. El desglose ya está en la imagen. */
+export function buildSingleQuoteCaption(
+  selection: CatalogQuoteSelection,
+  quoteNumber?: string,
+  offerDiscount?: { finalTotal: number; condition: string; expiresAt?: Date | null },
+): string {
+  const { product, quantity } = selection;
+  const total = offerDiscount?.finalTotal ?? product.minimumPriceWithTax * quantity;
+  const lines = [
+    `Aquí está su cotización${quoteNumber ? ` *${quoteNumber}*` : ""} 👆`,
+    "",
+    `${quantity} × ${product.brand} ${product.design}: ${money(total)} (${money(product.minimumPriceWithTax)} c/u, IVA incluido).`,
+  ];
+  if (offerDiscount) {
+    lines.push(
+      `El descuento extra aplica si ${offerDiscount.condition}${
+        offerDiscount.expiresAt ? `, hasta el ${shortDate(offerDiscount.expiresAt)}` : ""
+      }.`,
+    );
+  }
+  if (quoteNumber) lines.push(`Presente el número *${quoteNumber}* en la tienda.`);
+  return lines.join("\n");
+}
+
+/** Comparativa: una línea por modelo con la diferencia práctica, no la ficha. */
+export function buildComparisonCaption(products: readonly CatalogItem[]): string {
+  return [
+    "Le dejo la comparativa 👆",
+    "",
+    ...products.map((product) => {
+      const profile = getTirePatternProfile(product.brand, product.design);
+      return `${brandEmoji(product.brand)} *${product.brand} ${product.design}* — ${
+        profile ? profile.category : "ver ficha"
+      } · ${money(product.minimumPriceWithTax)} c/u`;
+    }),
+  ].join("\n");
+}
+
+export function buildComparisonMessageDetallado(products: readonly CatalogItem[]): string {
   const lines = products.flatMap((product) => [
     `🔹 ${product.brand} ${product.design} — ${product.sizeLabel ?? product.name}`,
     `   💰 ${money(product.minimumPriceWithTax)} (antes ${money(product.customerPriceWithTax)}, −${discount(product)}%)`,
@@ -29,7 +126,11 @@ export function buildComparisonMessage(products: readonly CatalogItem[]): string
     .trim();
 }
 
-export function buildCustomerOptionsMessage(
+/**
+ * Muro completo de opciones. Ya NO es el camino normal: solo se usa cuando la
+ * imagen no salió, para que el cliente nunca se quede sin la información.
+ */
+export function buildCustomerOptionsMessageDetallado(
   products: readonly CatalogItem[],
   _customerName = "",
 ): string {
@@ -88,7 +189,8 @@ export function buildDistributorOptionsMessage(
     .trim();
 }
 
-export function buildSingleQuoteMessage(
+/** Cotización completa en texto. Respaldo para cuando la imagen y el PDF fallan. */
+export function buildSingleQuoteMessageDetallado(
   selection: CatalogQuoteSelection,
   customerName = "",
   quoteNumber?: string,
@@ -132,8 +234,8 @@ export function buildCustomerQuoteMessage(
   customerName = "",
 ): string {
   return selections.length === 1
-    ? buildSingleQuoteMessage(selections[0], customerName)
-    : buildCustomerOptionsMessage(
+    ? buildSingleQuoteMessageDetallado(selections[0], customerName)
+    : buildCustomerOptionsMessageDetallado(
         selections.map(({ product }) => product),
         customerName,
       );
@@ -193,6 +295,14 @@ function brandEmoji(brand: string): string {
   if (normalized.includes("kenda")) return "🔴";
   if (normalized.includes("winrun")) return "🟢";
   return "⚫";
+}
+
+function shortDate(value: Date): string {
+  return new Intl.DateTimeFormat("es-EC", {
+    day: "2-digit",
+    month: "2-digit",
+    timeZone: "America/Guayaquil",
+  }).format(value);
 }
 
 function dateLabel(): string {

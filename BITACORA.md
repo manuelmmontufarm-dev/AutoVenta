@@ -32,6 +32,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-08-04 | _(este mismo)_ | Tanda 0: la imagen es el mensaje — captions cortos, bloques, INCLUYE y contador de piezas | 3.0 |
 | 2026-08-02 | _(este mismo)_ | Plan financiero alineado al acuerdo firmado ($300+$300+$60/mes) | 0.25 |
 | 2026-08-02 | a36bb0a | Interruptor del bot: nace apagado, sin fugas y visible en todo el hub | 1.5 |
 | 2026-07-31 | _(este mismo)_ | Toast cada 5 s + el diagnóstico ahora pregunta a Meta a dónde entrega | 0.5 |
@@ -70,11 +71,43 @@ Ya viene activado en este equipo.
 | 2026-07-14 | ac09171 | Ubicaciones de locales + análisis de features del cliente | 1.5 |
 | 2026-07-13 | feadf57 | Brief + plan de desarrollo + plan financiero + catálogo | 4.0 |
 | 2026-07-13 | d997844 | Commit inicial (repo) | 0.25 |
-| | | **TOTAL** | **~70.5 h** |
+| | | **TOTAL** | **~73.5 h** |
 
 ---
 
 ## Entradas (más reciente primero)
+
+### 2026-08-04 · Tanda 0: la imagen es el mensaje, no un adjunto · ⏱️ 3.0 h
+
+**Qué:** el bot deja de mandar muros de texto. Cuando envía una pieza visual (cotización,
+comparativa u opciones), el texto que la acompaña baja a 3–4 líneas y se parte en varios
+mensajes cortos separados por `---`, como escribe un vendedor. Los muros viejos siguen
+existiendo bajo `…Detallado` y son el respaldo automático cuando la imagen no sale.
+
+- **Recomendación obligatoria.** `preparar_opciones` ahora exige `recomendado` y `motivo`
+  en su schema: el modelo no puede mostrar opciones sin decir cuál elegiría y por qué.
+- **Bloque `*INCLUYE*` desde tabla** (migración `008_benefits`), con condiciones por marca,
+  cantidad mínima, sucursal y vigencia. Sembrado con el texto literal de los chats que
+  mandó el cliente.
+- **Contador de piezas en Métricas:** enviadas vs fallidas por tipo, últimos 7 días, con
+  los errores de render aparte.
+- **Ajuste `formato`** (`imagen_primero` / `texto_completo`) para revertir desde el panel
+  sin tocar código, y migración que devuelve `emojis` a «pocos».
+
+**Por qué:** el cliente lo dijo con todas las letras — *"está mandando dms texto y la people
+ni siquiera lee"*. La imagen ya lleva marca, diseño, medida, precio tachado, precio de hoy,
+índice de carga, disponibilidad y garantías; repetir todo eso debajo en texto no agrega nada
+y es justo lo que nadie abre. Con 3 productos eran 21 líneas en un solo mensaje; ahora son
+10 repartidas en 3.
+
+El `*INCLUYE*` va en tabla y no en el prompt porque el §8 del PDF de especificaciones exige
+que una promoción se pueda cambiar o dar de baja sin desarrollador. Y el ajuste `formato`
+cambia el comportamiento real de las tres tools, no solo el prompt: un panel que dice una
+cosa mientras el bot hace otra es peor que no tener el interruptor.
+
+**Evidencia:** `test/tanda0-evidencia.ts` genera el antes/después de los tres flujos con las
+piezas renderizadas por el mismo motor de producción. 135/135 pruebas, migración verificada
+idempotente contra base limpia, y el contador revisado en el panel.
 
 ### 2026-08-02 · Plan financiero: queda escrito lo acordado ($300 + $300 + $60/mes) · ⏱️ 0.25 h
 
