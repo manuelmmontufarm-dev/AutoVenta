@@ -14,9 +14,13 @@ export const VENTA_PRIMERO_MIGRATION_ID = "011_venta_primero";
  * alcanza: las bases de staging y Depot ya tienen sembrada la v1 publicada, y
  * `ensureDefaultStagePrompts` solo inserta si falta.
  *
- * Seguridad: solo se tocan las filas EXACTAS que sembró el sistema (v1,
- * created_by='system', texto sin editar). Si el dueño publicó su propia
- * versión desde el panel, la v1 quedó archivada y esta migración no la pisa.
+ * Seguridad: se tocan solo las filas publicadas cuyo prompt es BYTE-IDÉNTICO
+ * al texto viejo del sistema — la prueba de que nadie lo editó. No se ancla en
+ * la versión: en producción las publicadas eran v4/v6 (republicadas por
+ * migraciones anteriores con ajustes de herramientas) y conservaban el texto
+ * dañino intacto. Un prompt redactado por el dueño jamás coincide byte a byte,
+ * así que no se pisa. Las herramientas se UNEN (nunca se quita ninguna que el
+ * deploy ya tuviera; solo se garantizan las que venta-primero necesita).
  */
 export async function runVentaPrimeroMigration(sql: Sql): Promise<void> {
   const ETAPAS: Array<{
@@ -83,17 +87,24 @@ export async function runVentaPrimeroMigration(sql: Sql): Promise<void> {
 
   await sql.begin(async (tx) => {
     for (const etapa of ETAPAS) {
-      await tx`
-        update stage_prompt_versions
-        set objective = ${etapa.objective},
-            prompt = ${etapa.prompt},
-            allowed_tools = ${tx.json(etapa.allowedTools as never)}
+      // El texto byte-idéntico al default viejo es la única llave: si coincide,
+      // nadie lo editó y reescribirlo es exactamente la intención.
+      const filas = await tx<{ id: number; allowed_tools: string[] }[]>`
+        select id, allowed_tools from stage_prompt_versions
         where stage = ${etapa.stage}
           and status = 'published'
-          and version = 1
-          and created_by = 'system'
           and prompt = ${etapa.promptViejo}
       `;
+      for (const fila of filas) {
+        const union = [...new Set([...(fila.allowed_tools ?? []), ...etapa.allowedTools])];
+        await tx`
+          update stage_prompt_versions
+          set objective = ${etapa.objective},
+              prompt = ${etapa.prompt},
+              allowed_tools = ${tx.json(union as never)}
+          where id = ${fila.id}
+        `;
+      }
     }
     await tx`
       insert into schema_migrations (id)

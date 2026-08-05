@@ -121,6 +121,14 @@ del código. Arreglar solo el prompt era dejar la falla viva en las dos capas qu
 **Suite: 167 en verde.** Pendiente de correr con API real: `OPENAI_API_KEY=… node
 scripts/eval/run.mjs` (~$0,30) — los casos de Joaquín quedan medidos contra el modelo real.
 
+**Corrección post-deploy (mismo día):** al verificar en la base de Depot, los prompts
+publicados eran **v4/v6** (republicados por migraciones anteriores con ajustes de
+herramientas) y conservaban el texto dañino byte-idéntico — la migración anclada en v1 no
+los tocó, como estaba diseñada. Se re-ancló en el **texto exacto** (la prueba de que nadie
+lo editó) sin importar la versión, y las herramientas ahora se UNEN en vez de reemplazarse
+(no se quita ninguna que el deploy ya tuviera). Prueba nueva que reproduce el estado real
+de Depot (v4 publicada + texto viejo + tools propias). Suite: 168 en verde.
+
 ---
 
 ### 2026-08-05 · El bot deja de preguntar y empieza a vender + skill de auditoría · ⏱️ 3.0 h

@@ -86,6 +86,33 @@ describe.sequential("Venta primero — los arreglos de Joaquín", () => {
       expect(publicado.allowedTools).toContain("tipos_de_llanta");
     });
 
+    it("reescribe también versiones republicadas (v4/v6) si el texto sigue siendo el viejo — el caso real de Depot", async () => {
+      // Producción tenía el texto dañino intacto en una v4 publicada, con una
+      // lista de herramientas propia. La migración debe reescribir el texto y
+      // UNIR las herramientas, sin quitar ninguna.
+      await appSql`
+        update stage_prompt_versions set status='archived' where stage='nuevo' and status='published'
+      `;
+      await appSql`
+        insert into stage_prompt_versions (stage, version, status, objective, prompt, allowed_tools, settings, created_by, published_at)
+        values ('nuevo', 4, 'published', 'Identificar medida o vehículo sin presionar al cliente.',
+                'Haz una sola pregunta clara para obtener la medida. Si da vehículo, confirma la medida antes de hablar de precios.',
+                '["buscar_llanta","buscar_catalogo","fitment_vehiculo"]',
+                '{"autoAction":"none","requiresHumanApproval":false,"fallback":""}', 'system', now())
+      `;
+      const { runVentaPrimeroMigration } = await import("../src/db/migrations/011_venta_primero.js");
+      await runVentaPrimeroMigration(appSql);
+      const publicado = await settings.getPublishedStagePrompt("nuevo");
+      expect(publicado.version).toBe(4);
+      expect(publicado.prompt).toContain("esa manda");
+      expect(publicado.prompt).not.toContain("confirma la medida antes de hablar de precios");
+      // Unión: conserva las que tenía y suma las de venta-primero.
+      expect(publicado.allowedTools).toEqual(expect.arrayContaining([
+        "buscar_llanta", "buscar_catalogo", "fitment_vehiculo",
+        "generar_cotizacion", "buscar_por_aro_y_tipo", "tipos_de_llanta", "preparar_opciones",
+      ]));
+    });
+
     it("la migración NO pisa un prompt editado por el dueño", async () => {
       // Simula una edición del panel: nueva versión publicada, v1 archivada.
       await appSql`
