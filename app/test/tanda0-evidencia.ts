@@ -51,7 +51,6 @@ const BENEFICIOS = [
   "Todos los servicios de instalación y beneficios",
   "Seguro gratuito contra golpes, cortes o cualquier daño que sufra la llanta",
   "Mantenimiento gratuito cada 10.000km para alargar la vida útil de las llantas",
-  "Camiseta de la TRI🇪🇨",
   "Revisión gratuita de su vehículo para que ruede seguro",
 ].map((text, i) => ({
   id: i, text, position: i, active: true,

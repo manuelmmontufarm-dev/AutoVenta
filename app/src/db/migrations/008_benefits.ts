@@ -51,7 +51,7 @@ export async function runBenefitsMigration(sql: Sql): Promise<void> {
       "Todos los servicios de instalación y beneficios",
       "Seguro gratuito contra golpes, cortes o cualquier daño que sufra la llanta",
       "Mantenimiento gratuito cada 10.000km para alargar la vida útil de las llantas",
-      "Camiseta de la TRI🇪🇨",
+      // Se quitó "Camiseta de la TRI🇪🇨": la promoción venció en agosto de 2026.
       "Revisión gratuita de su vehículo para que ruede seguro",
     ];
     for (const [index, text] of defaults.entries()) {

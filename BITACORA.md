@@ -32,6 +32,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-08-05 | _(este mismo)_ | Quitar la camiseta de la TRI de la siembra de beneficios (promo vencida) | 0.25 |
 | 2026-08-05 | _(este mismo)_ | Medidas de flotación (venta perdida) + la imagen deja de ser opcional | 1.5 |
 | 2026-08-05 | _(este mismo)_ | Tipos de llanta, 3 opciones, piezas en el chat y varios asesores | 2.5 |
 | 2026-08-05 | _(este mismo)_ | Dos Kanban por ventana de 24 h, puesta al día del tablero y badge de versión | 2.0 |
@@ -75,11 +76,26 @@ Ya viene activado en este equipo.
 | 2026-07-14 | ac09171 | Ubicaciones de locales + análisis de features del cliente | 1.5 |
 | 2026-07-13 | feadf57 | Brief + plan de desarrollo + plan financiero + catálogo | 4.0 |
 | 2026-07-13 | d997844 | Commit inicial (repo) | 0.25 |
-| | | **TOTAL** | **~83.5 h** |
+| | | **TOTAL** | **~83.75 h** |
 
 ---
 
 ## Entradas (más reciente primero)
+
+### 2026-08-05 · Fuera la camiseta de la TRI: la promo ya venció · ⏱️ 0.25 h
+
+**Qué:** se quitó `"Camiseta de la TRI🇪🇨"` de la lista que siembra la migración
+`008_benefits.ts`, y la misma línea del fixture de `test/tanda0-evidencia.ts` para que la
+prueba siga reflejando lo que la migración siembra de verdad. Queda un comentario en la
+migración explicando que la promoción venció en agosto de 2026, para que nadie la
+reponga por creer que fue un borrado accidental.
+
+**Por qué:** la promoción ya se desactivó a mano en producción desde Ajustes →
+Promociones y beneficios, así que el bot ya no la ofrece a nadie hoy. Pero los beneficios
+son datos sembrados, no código: cualquier base de datos nueva (un entorno de staging
+levantado desde cero, el primer deploy de otro cliente) volvería a nacer ofreciendo una
+camiseta que ya no existe. Esto es solo limpieza — no corrige nada en la producción
+actual, evita que el problema vuelva a nacer solo.
 
 ### 2026-08-05 · Medidas en pulgadas: la venta que se perdió por un cero · ⏱️ 1.5 h
 
