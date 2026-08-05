@@ -1,5 +1,5 @@
 import { AnimatePresence, LayoutGroup, MotionConfig, motion } from "framer-motion";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ConnectionChip, ConnectionGate } from "./components/admin-key";
 import { Confetti, Toasts } from "./components/overlays";
 import { IconChart, IconInbox, IconKanban, IconPlay, IconSparkle, IconStop, IconTire, IconSliders } from "./components/icons";
@@ -53,6 +53,146 @@ const TITULOS: Record<string, { titulo: string; sub: string }> = {
 
 function navActivo(route: Route): string {
   return route.vista === "ticket" ? "inbox" : route.vista;
+}
+
+// Cuántas pestañas caben cómodamente de ancho en un teléfono. Con las seis en
+// una sola fila, la última (Ajustes) quedaba fuera de la cápsula y no había
+// manera de llegar a ella salvo escribiendo #/ajustes a mano.
+const TABS_POR_PAGINA = 3;
+
+type ItemNav = (typeof NAV)[number];
+
+/**
+ * Barra inferior de móvil. Las pestañas se reparten en páginas de a tres y se
+ * pasa de una a otra deslizando, como las pantallas del escritorio del
+ * teléfono: cada swipe cae en una página completa, nunca a medio camino. Los
+ * puntos de abajo dicen cuántas páginas hay y en cuál está el usuario — sin
+ * ellos, que haya más pestañas sería invisible.
+ *
+ * Con tres o menos (Fase 1: Inbox, Pipeline, Ajustes) se dibuja de una sola
+ * fila y sin puntos, exactamente como antes.
+ */
+function TabBarMovil({
+  items,
+  activo,
+  abiertos,
+  onIr,
+}: {
+  items: ItemNav[];
+  activo: string;
+  abiertos: number;
+  onIr: (id: string) => void;
+}) {
+  const paginas = useMemo(() => {
+    const out: ItemNav[][] = [];
+    for (let i = 0; i < items.length; i += TABS_POR_PAGINA) {
+      out.push(items.slice(i, i + TABS_POR_PAGINA));
+    }
+    return out;
+  }, [items]);
+
+  const pistaRef = useRef<HTMLDivElement>(null);
+  const [pagina, setPagina] = useState(0);
+  const unaSola = paginas.length <= 1;
+
+  // El salto es instantáneo a propósito. Con animación, cualquier re-render que
+  // caiga encima (llega un mensaje, el contador cambia) relayoutea el carril, el
+  // navegador vuelve a enganchar al punto más cercano y la animación muere a
+  // medio camino: los puntos decían una página y se veía otra. Instantáneo
+  // siempre aterriza, y es lo que se pidió — que se sienta seco, no deslizado.
+  function irAPagina(i: number) {
+    const pista = pistaRef.current;
+    if (!pista?.clientWidth) return;
+    pista.scrollTo({ left: i * pista.clientWidth, behavior: "auto" });
+    // Se marca a mano porque un scroll programático no dispara evento `scroll`:
+    // si esto se dejara solo en manos de `alDeslizar`, el carril se movía y los
+    // puntos se quedaban señalando la página anterior. En el swipe del dedo sí
+    // hay evento, y ahí `alDeslizar` es quien manda.
+    setPagina(i);
+  }
+
+  // Si la pantalla activa vive en otra página (entrar directo a #/ajustes, o
+  // que el bot te mande a un ticket), se trae esa página a la vista: dejar la
+  // pestaña marcada fuera de pantalla es peor que no marcarla.
+  const paginaDelActivo = paginas.findIndex((p) => p.some((it) => it.id === activo));
+  useEffect(() => {
+    if (paginaDelActivo >= 0) irAPagina(paginaDelActivo);
+    // Solo cuando cambia la página que contiene al activo — si dependiera de
+    // `pagina`, pelearía contra el swipe del usuario.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [paginaDelActivo]);
+
+  function alDeslizar() {
+    const pista = pistaRef.current;
+    if (!pista || !pista.clientWidth) return;
+    const i = Math.round(pista.scrollLeft / pista.clientWidth);
+    if (i !== pagina) setPagina(i);
+  }
+
+  return (
+    <nav
+      aria-label="Secciones"
+      className="glass-strong fixed inset-x-3 bottom-3 z-20 flex flex-col rounded-3xl py-2 md:hidden"
+    >
+      <div
+        ref={pistaRef}
+        onScroll={unaSola ? undefined : alDeslizar}
+        className={`flex ${unaSola ? "" : "tabbar-paged overflow-x-auto"}`}
+      >
+        {paginas.map((pag, i) => (
+          <div key={i} className="grid w-full flex-none grid-cols-3 place-items-center">
+            {pag.map((item) => {
+              const esActivo = activo === item.id;
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => onIr(item.id)}
+                  aria-current={esActivo ? "page" : undefined}
+                  className="relative flex flex-col items-center gap-0.5 rounded-2xl px-3 py-1"
+                  style={{ color: esActivo ? "var(--color-paper)" : "var(--color-faint)" }}
+                >
+                  <item.icon size={19} aria-hidden="true" />
+                  <span className="text-[9.5px] font-bold whitespace-nowrap">{item.label}</span>
+                  {item.id === "inbox" && abiertos > 0 && (
+                    <span className="tnum absolute top-0 right-1 grid h-4 min-w-4 place-items-center rounded-full bg-red px-1 text-[9px] font-bold text-white">
+                      {abiertos}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        ))}
+      </div>
+
+      {!unaSola && (
+        <div className="mt-1.5 flex items-center justify-center gap-1.5">
+          {/* El punto se ve chico, pero el área que recibe el dedo es de 44×30:
+              el `py-3 -my-3` la estira hacia el relleno muerto de la cápsula sin
+              mover el layout ni robarle toques a las pestañas. Con el tamaño del
+              punto pelado (18×16) el dedo erraba. */}
+          {paginas.map((_, i) => (
+            <button
+              key={i}
+              onClick={() => irAPagina(i)}
+              aria-label={`Página ${i + 1} de ${paginas.length} de secciones`}
+              aria-current={i === pagina ? "true" : undefined}
+              className="grid w-11 place-items-center py-3 -my-3"
+            >
+              <span
+                className="block h-1.5 rounded-full"
+                style={{
+                  width: i === pagina ? 14 : 6,
+                  background: i === pagina ? "var(--color-paper)" : "var(--color-faint)",
+                  opacity: i === pagina ? 1 : 0.5,
+                }}
+              />
+            </button>
+          ))}
+        </div>
+      )}
+    </nav>
+  );
 }
 
 export default function App() {
@@ -245,7 +385,9 @@ export default function App() {
           </header>
 
           {/* Pantalla activa */}
-          <main className="min-h-0 flex-1 pb-20 md:pb-0">
+          {/* pb-24: la barra inferior mide 95 px con la fila de puntos; con
+              pb-20 (80 px) la última tarjeta de cada lista quedaba debajo. */}
+          <main className="min-h-0 flex-1 pb-24 md:pb-0">
             {/* Sin AnimatePresence a propósito: su animación de salida no
                 terminaba nunca y las pantallas se quedaban montadas unas sobre
                 otras (llegaban a 4). Cambiar la `key` hace que React desmonte
@@ -273,27 +415,12 @@ export default function App() {
         </div>
 
         {/* ── Tab bar (móvil) ── */}
-        <nav className="glass-strong fixed inset-x-3 bottom-3 z-20 flex items-center justify-around rounded-3xl py-2 md:hidden">
-          {navVisible.map((item) => {
-            const activo = navActivo(route) === item.id;
-            return (
-              <button
-                key={item.id}
-                onClick={() => navigate(item.id)}
-                className="relative flex flex-col items-center gap-0.5 rounded-2xl px-5 py-1"
-                style={{ color: activo ? "var(--color-paper)" : "var(--color-faint)" }}
-              >
-                <item.icon size={19} />
-                <span className="text-[9.5px] font-bold">{item.label}</span>
-                {item.id === "inbox" && abiertos > 0 && (
-                  <span className="tnum absolute top-0 right-2.5 grid h-4 min-w-4 place-items-center rounded-full bg-red px-1 text-[9px] font-bold text-white">
-                    {abiertos}
-                  </span>
-                )}
-              </button>
-            );
-          })}
-        </nav>
+        <TabBarMovil
+          items={navVisible}
+          activo={navActivo(route)}
+          abiertos={abiertos}
+          onIr={navigate}
+        />
 
         <Toasts />
         <Confetti />

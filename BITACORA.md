@@ -32,6 +32,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-08-05 | _(este mismo)_ | Ajustes no aparecía en el celular: barra inferior paginada | 1.0 |
 | 2026-08-05 | _(este mismo)_ | Medidas de flotación (venta perdida) + la imagen deja de ser opcional | 1.5 |
 | 2026-08-05 | _(este mismo)_ | Tipos de llanta, 3 opciones, piezas en el chat y varios asesores | 2.5 |
 | 2026-08-05 | _(este mismo)_ | Dos Kanban por ventana de 24 h, puesta al día del tablero y badge de versión | 2.0 |
@@ -75,11 +76,46 @@ Ya viene activado en este equipo.
 | 2026-07-14 | ac09171 | Ubicaciones de locales + análisis de features del cliente | 1.5 |
 | 2026-07-13 | feadf57 | Brief + plan de desarrollo + plan financiero + catálogo | 4.0 |
 | 2026-07-13 | d997844 | Commit inicial (repo) | 0.25 |
-| | | **TOTAL** | **~83.5 h** |
+| | | **TOTAL** | **~84.5 h** |
 
 ---
 
 ## Entradas (más reciente primero)
+
+### 2026-08-05 · En el celular no se podía entrar a Ajustes · ⏱️ 1.0 h
+
+**Qué:** la barra inferior del móvil era una fila sola con `justify-around`. Con las seis
+pestañas encendidas (Fase 3 + Fase 4) no cabían a lo ancho de un teléfono: las tres
+primeras se veían y **Ajustes quedaba fuera de la cápsula**, sin scroll ni nada que
+indicara que existía. La pantalla funcionaba entrando a `#/ajustes` a mano; simplemente no
+había cómo llegar tocando.
+
+Ahora las pestañas se reparten en páginas de a tres y se pasa deslizando, con dos puntos
+abajo que dicen cuántas páginas hay y en cuál está uno. Detalles que importan:
+
+- El salto entre páginas es **instantáneo, no animado**. Con animación, cualquier
+  re-render que cayera encima (llega un mensaje, cambia el contador del Inbox)
+  relayouteaba el carril, el navegador re-enganchaba al punto más cercano y la animación
+  moría a medio camino: los puntos decían una página y se veía otra.
+- El scroll programático **no dispara evento `scroll`**, así que la página activa se marca
+  a mano al saltar; en el swipe del dedo sí hay evento y ahí manda la posición real. Sin
+  esto los puntos se quedaban señalando la página anterior.
+- Entrar directo a `#/ajustes` (o que el bot te mande a un ticket) **trae a la vista la
+  página donde vive esa pestaña**. Marcarla activa fuera de pantalla no servía de nada.
+- El punto se ve chico pero recibe el dedo en 44×30 px; con el tamaño pelado (18×16) el
+  toque erraba más de lo que acertaba.
+- `main` pasó de `pb-20` a `pb-24`: la barra mide 95 px con la fila de puntos y con 80 px
+  la última tarjeta de cada lista quedaba debajo.
+- Con tres pestañas o menos (Fase 1: Inbox, Pipeline, Ajustes) se dibuja de una sola fila
+  y sin puntos, exactamente como antes. En escritorio no cambia nada: la barra es
+  `md:hidden` y el rail lateral sigue igual.
+
+**Por qué:** Ajustes es donde se apaga el bot y se bajan las promociones — es la pantalla
+que hay que poder alcanzar rápido y desde el teléfono, que es donde se atiende cuando uno
+no está frente al computador. Que fuera la que se caía de la barra era el peor caso
+posible. Se eligió paginar y no dejar scroll horizontal libre porque una tira que se
+desliza sin tope no comunica dónde termina; los puntos sí, y el paso seco se siente como
+las pantallas del escritorio del teléfono, que es un gesto que la gente ya conoce.
 
 ### 2026-08-05 · Medidas en pulgadas: la venta que se perdió por un cero · ⏱️ 1.5 h
 

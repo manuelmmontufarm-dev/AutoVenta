@@ -457,6 +457,29 @@ select {
   }
 }
 
+/* ─── Tab bar (móvil) ─────────────────────────────────────────────── */
+
+/* Las pestañas van paginadas, no en scroll libre: con seis, la última (Ajustes)
+   se salía de la cápsula en pantalla de teléfono y no había forma de llegar.
+   `mandatory` obliga a aterrizar siempre en una página completa — nunca a medio
+   camino entre dos — y `scroll-snap-stop: always` evita que un swipe fuerte se
+   salte una página de largo. El carril no lleva barra: el paginador de puntos es
+   quien comunica que hay más. */
+.tabbar-paged {
+  scroll-snap-type: x mandatory;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+}
+
+.tabbar-paged::-webkit-scrollbar {
+  display: none;
+}
+
+.tabbar-paged > * {
+  scroll-snap-align: start;
+  scroll-snap-stop: always;
+}
+
 /* ─── Confetti ────────────────────────────────────────────────────── */
 
 .confetti-piece {
