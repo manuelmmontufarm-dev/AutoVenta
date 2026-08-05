@@ -30,6 +30,10 @@ export const IconKanban = (p: P) =>
 export const IconChart = (p: P) =>
   base(p, <><path d="M4 20V10" /><path d="M10 20V4" /><path d="M16 20v-7" /><path d="M21 20H3" /></>);
 
+/** Perillas — el tab de Ajustes del negocio. */
+export const IconSliders = (p: P) =>
+  base(p, <><path d="M4 8h10" /><path d="M18 8h2" /><circle cx="16" cy="8" r="2" /><path d="M4 16h4" /><path d="M12 16h8" /><circle cx="10" cy="16" r="2" /></>);
+
 export const IconPlay = (p: P) => base(p, <path d="M7 5.5v13l11-6.5L7 5.5Z" fill="currentColor" stroke="none" />);
 
 export const IconStop = (p: P) => base(p, <rect x="6.5" y="6.5" width="11" height="11" rx="2" fill="currentColor" stroke="none" />);

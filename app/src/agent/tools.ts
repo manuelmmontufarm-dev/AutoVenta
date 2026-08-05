@@ -41,8 +41,9 @@ import {
   updateConversationFacts,
   type Conversation,
 } from "../services/conversations.js";
-import { buildBenefitsBlock } from "../services/benefits.js";
-import { getAiConfig } from "../services/settings.js";
+import { applicableBenefitTexts, buildBenefitsBlock } from "../services/benefits.js";
+import { brandProfilesForRender } from "../services/brandProfiles.js";
+import { getAiConfig, getPiecesConfig } from "../services/settings.js";
 import { researchVehicleFitment } from "../services/vehicleFitmentResearch.js";
 import { nearestStore, resolveSector } from "../domain/locations.js";
 import { formatTireSize } from "../domain/tireSize.js";
@@ -303,6 +304,8 @@ export function buildTools(ctx: AgentContext) {
           renderOptionsImage({
             dateLabel: dateLabel(),
             sizeLabel,
+            ...(await getPiecesConfig()),
+            brandProfiles: await brandProfilesForRender(),
             products: await Promise.all(products.map((product) => toRenderLine(product))),
           }),
         `Opciones disponibles${sizeLabel ? ` en ${sizeLabel}` : ""} 🏁`,
@@ -400,6 +403,9 @@ export function buildTools(ctx: AgentContext) {
         async () =>
           renderCompareImage({
             dateLabel: dateLabel(),
+            sizeLabel: selected[0]?.sizeLabel ?? null,
+            ...(await getPiecesConfig()),
+            brandProfiles: await brandProfilesForRender(),
             products: await Promise.all(selected.map((product) => toRenderLine(product))),
           }),
         "Comparativa para que elijas con calma 🏁",
@@ -580,6 +586,13 @@ export function buildTools(ctx: AgentContext) {
       const product = await resolvePresentedProduct(ctx.conversation.id, items[0].code);
       if (!product) throw new Error("La opción confirmada dejó de ser inequívoca; vuelve a mostrar las opciones antes de cotizar");
 
+      // Los mismos beneficios que van en el texto van dibujados en la pieza,
+      // filtrados por marca y cantidad de esta compra concreta.
+      const beneficiosPieza = await applicableBenefitTexts({
+        brands: [product.brand],
+        quantity: items[0].cantidad,
+      });
+
       // Imagen de cotización (pieza principal); PDF si lo piden o si falla.
       const imageName = `Cotizacion-${business.name.replace(/\s/g, "")}-${quote.number}.png`;
       const visual = await sendVisual(
@@ -589,6 +602,10 @@ export function buildTools(ctx: AgentContext) {
           renderQuoteImage({
             number: quote.number,
             dateLabel: dateLabel(),
+            ...(await getPiecesConfig()),
+            brandProfiles: await brandProfilesForRender(),
+            benefits: beneficiosPieza,
+
             lines: [await toRenderLine(product, items[0].cantidad)],
             subtotal: quote.subtotal,
             iva: quote.tax,

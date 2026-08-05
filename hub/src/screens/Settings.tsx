@@ -580,7 +580,7 @@ function downloadPlaybook() {
  *
  * Apagar pide confirmación (afecta a clientes reales en el acto); encender no.
  */
-function BotPowerSwitch() {
+export function BotPowerSwitch() {
   const power = useHub((s) => s.power);
   const cambiarPower = useHub((s) => s.cambiarPower);
   const [guardando, setGuardando] = useState(false);

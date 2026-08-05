@@ -22,7 +22,8 @@ export interface FontSpec {
   name: string;
   data: Buffer;
   weight: 400 | 500 | 700 | 900;
-  style: "normal";
+  /** Las fuentes de precio del diseño son itálicas; el cuerpo es normal. */
+  style: "normal" | "italic";
 }
 
 let fonts: FontSpec[] | null = null;
@@ -35,6 +36,14 @@ export function loadFonts(): FontSpec[] {
     { name: "Archivo", data: readFileSync(path.join(dir, "Archivo-500.ttf")), weight: 500, style: "normal" },
     { name: "Archivo", data: readFileSync(path.join(dir, "Archivo-700.ttf")), weight: 700, style: "normal" },
     { name: "Archivo Black", data: readFileSync(path.join(dir, "ArchivoBlack.ttf")), weight: 900, style: "normal" },
+    // Fuentes de precio del diseño de Depot Tire. El negocio elige una desde
+    // Ajustes; solo se usan en las cifras grandes, no en el cuerpo del texto.
+    { name: "Exo 2", data: readFileSync(path.join(dir, "Exo2-700i.ttf")), weight: 700, style: "italic" },
+    { name: "Barlow", data: readFileSync(path.join(dir, "Barlow-700i.ttf")), weight: 700, style: "italic" },
+    { name: "Kanit", data: readFileSync(path.join(dir, "Kanit-700i.ttf")), weight: 700, style: "italic" },
+    { name: "Chakra Petch", data: readFileSync(path.join(dir, "ChakraPetch-700i.ttf")), weight: 700, style: "italic" },
+    { name: "Saira", data: readFileSync(path.join(dir, "Saira-700i.ttf")), weight: 700, style: "italic" },
+    { name: "Rajdhani", data: readFileSync(path.join(dir, "Rajdhani-700.ttf")), weight: 700, style: "normal" },
   ];
   return fonts;
 }

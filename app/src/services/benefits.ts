@@ -99,13 +99,73 @@ export function formatBenefitsBlock(benefits: readonly Benefit[]): string {
 
 /** Atajo: consulta, filtra y formatea. Es lo que usan las tools. */
 export async function buildBenefitsBlock(ctx: BenefitContext = {}): Promise<string> {
+  const textos = await applicableBenefitTexts(ctx);
+  if (!textos.length) return "";
+  return ["*INCLUYE*", ...textos.map((texto) => `- ${texto}`)].join("\n");
+}
+
+/** Los mismos beneficios, en lista — es lo que dibuja la pieza de cotización. */
+export async function applicableBenefitTexts(ctx: BenefitContext = {}): Promise<string[]> {
   try {
-    return formatBenefitsBlock(applicableBenefits(await getActiveBenefits(), ctx));
+    return applicableBenefits(await getActiveBenefits(), ctx).map((benefit) => benefit.text);
   } catch (error) {
     // Un beneficio que no se pudo leer no puede tumbar una cotización.
     console.error("⚠️ No se pudieron leer los beneficios:", error);
-    return "";
+    return [];
   }
+}
+
+export interface BenefitInput {
+  text: string;
+  position?: number;
+  active?: boolean;
+  brand?: string | null;
+  minQuantity?: number | null;
+  store?: string | null;
+  expiresAt?: string | null;
+}
+
+export async function createBenefit(input: BenefitInput): Promise<Benefit> {
+  if (!input.text?.trim()) throw new Error("El texto del beneficio es obligatorio");
+  const [row] = await sql<BenefitRow[]>`
+    insert into benefits (text, position, active, brand, min_quantity, store, expires_at)
+    values (
+      ${input.text.trim()},
+      ${input.position ?? 0},
+      ${input.active ?? true},
+      ${input.brand?.trim() || null},
+      ${input.minQuantity ?? null},
+      ${input.store?.trim() || null},
+      ${input.expiresAt ? new Date(input.expiresAt) : null}
+    )
+    returning id, text, position, active, brand, min_quantity, store, starts_at, expires_at
+  `;
+  invalidateBenefitsCache();
+  return publicBenefit(row);
+}
+
+export async function updateBenefit(id: number, input: BenefitInput): Promise<Benefit> {
+  const [row] = await sql<BenefitRow[]>`
+    update benefits set
+      text = ${input.text.trim()},
+      position = ${input.position ?? 0},
+      active = ${input.active ?? true},
+      brand = ${input.brand?.trim() || null},
+      min_quantity = ${input.minQuantity ?? null},
+      store = ${input.store?.trim() || null},
+      expires_at = ${input.expiresAt ? new Date(input.expiresAt) : null},
+      updated_at = now()
+    where id = ${id}
+    returning id, text, position, active, brand, min_quantity, store, starts_at, expires_at
+  `;
+  if (!row) throw new Error("Beneficio no encontrado");
+  invalidateBenefitsCache();
+  return publicBenefit(row);
+}
+
+export async function deleteBenefit(id: number): Promise<void> {
+  await sql`delete from benefits where id = ${id}`;
+  invalidateBenefitsCache();
 }
 
 function publicBenefit(row: BenefitRow): Benefit {

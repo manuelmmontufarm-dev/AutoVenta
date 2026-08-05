@@ -13,6 +13,8 @@ import { business, config } from "../config.js";
 import { appendMessage, pauseBot } from "../services/conversations.js";
 import {
   getAiConfig,
+  getPiecesConfig,
+  savePiecesConfig,
   listStagePrompts,
   publishStagePrompt,
   saveAiConfig,
@@ -72,6 +74,14 @@ import { renderQuoteImage, toRenderLine } from "../render/quoteImage.js";
 import { authorizeAdvisorTemplatePlan, previewAdvisorTemplatePlan } from "../services/followUpCampaigns.js";
 import { resumeBotIfUnanswered } from "../services/resumeBot.js";
 import { getPhaseFlags, savePhaseFlags } from "../services/phases.js";
+import {
+  applicableBenefitTexts, createBenefit, deleteBenefit, listBenefits, updateBenefit,
+} from "../services/benefits.js";
+import {
+  deleteBrandProfile, listBrandProfiles, saveBrandProfile,
+} from "../services/brandProfiles.js";
+import { PALETTE_NAMES, PRICE_FONT_NAMES } from "../render/depotDesign.js";
+import { renderPreviewPiece } from "../render/preview.js";
 import {
   getChannelConfig,
   getPublicChannelConfig,
@@ -177,6 +187,11 @@ async function sendTextDetailed(to: string, body: string): Promise<SendResult> {
   return { ok: false, error: hint, code: err.code, status: 502 };
 }
 
+/** Motivo legible de un error, con respaldo cuando no lo trae. */
+function mensaje(error: unknown, respaldo: string): string {
+  return error instanceof Error && error.message ? error.message : respaldo;
+}
+
 const PANEL_ORIGIN = process.env.ADMIN_PANEL_ORIGIN ?? "*";
 
 export function createAdminRouter(): express.Router {
@@ -189,7 +204,7 @@ export function createAdminRouter(): express.Router {
   router.use((req, res, next) => {
     res.header("Access-Control-Allow-Origin", PANEL_ORIGIN);
     res.header("Access-Control-Allow-Headers", "Content-Type, x-admin-key");
-    res.header("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, OPTIONS");
+    res.header("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS");
     res.header("Vary", "Origin");
     if (req.method === "OPTIONS") {
       res.sendStatus(204);
@@ -963,6 +978,97 @@ export function createAdminRouter(): express.Router {
     }
     emitLiveEvent("sync", id);
     res.json({ ok: true });
+  });
+
+  // ── Ajustes del negocio: piezas, promociones y marcas ───────────────────────
+  //
+  // Todo lo de esta sección lo edita Depot Tire desde el tab «Ajustes». Ningún
+  // endpoint de aquí expone un token ni puede dejar al bot mudo.
+
+  router.get("/pieces-config", async (_req, res) => {
+    res.json({
+      ok: true,
+      config: await getPiecesConfig(),
+      paletas: PALETTE_NAMES,
+      fuentes: PRICE_FONT_NAMES,
+    });
+  });
+
+  router.put("/pieces-config", async (req, res) => {
+    try {
+      res.json({ ok: true, config: await savePiecesConfig(req.body) });
+    } catch {
+      res.status(400).json({ ok: false, error: "Paleta o fuente inválida" });
+    }
+  });
+
+  router.get("/benefits", async (_req, res) => {
+    res.json({ ok: true, benefits: await listBenefits() });
+  });
+
+  router.post("/benefits", async (req, res) => {
+    try {
+      res.json({ ok: true, benefit: await createBenefit(req.body) });
+    } catch (error) {
+      res.status(400).json({ ok: false, error: mensaje(error, "No se pudo crear el beneficio") });
+    }
+  });
+
+  router.put("/benefits/:id", async (req, res) => {
+    try {
+      res.json({ ok: true, benefit: await updateBenefit(Number(req.params.id), req.body) });
+    } catch (error) {
+      res.status(400).json({ ok: false, error: mensaje(error, "No se pudo guardar el beneficio") });
+    }
+  });
+
+  router.delete("/benefits/:id", async (req, res) => {
+    await deleteBenefit(Number(req.params.id));
+    res.json({ ok: true });
+  });
+
+  router.get("/brand-profiles", async (_req, res) => {
+    res.json({ ok: true, profiles: await listBrandProfiles() });
+  });
+
+  router.put("/brand-profiles/:brand", async (req, res) => {
+    try {
+      const profile = await saveBrandProfile({ ...req.body, brand: req.params.brand });
+      res.json({ ok: true, profile });
+    } catch (error) {
+      res.status(400).json({ ok: false, error: mensaje(error, "No se pudo guardar la marca") });
+    }
+  });
+
+  router.delete("/brand-profiles/:brand", async (req, res) => {
+    await deleteBrandProfile(req.params.brand);
+    res.json({ ok: true });
+  });
+
+  /**
+   * Vista previa en vivo de una pieza. Renderiza con lo que venga en la query,
+   * no con lo guardado: así el negocio ve el cambio antes de aplicarlo, que es
+   * lo que exige el §20 del PDF.
+   *
+   * Usa el catálogo real cuando hay; si no, un ejemplo, para que la pantalla de
+   * ajustes funcione aunque Contífico esté caído.
+   */
+  router.get("/pieces/preview.png", async (req, res) => {
+    try {
+      const pieza = String(req.query.pieza ?? "cotizacion");
+      const paleta = req.query.paleta ? String(req.query.paleta) : undefined;
+      const fuente = req.query.fuente ? String(req.query.fuente) : undefined;
+      const beneficios = req.query.beneficios
+        ? String(req.query.beneficios).split("|").map((b) => b.trim()).filter(Boolean)
+        : await applicableBenefitTexts();
+      const png = await renderPreviewPiece({ pieza, paleta, fuente, beneficios });
+      res.setHeader("Content-Type", "image/png");
+      res.setHeader("Cache-Control", "no-store");
+      res.send(png);
+    } catch (error) {
+      console.error("❌ Vista previa de pieza falló:", error);
+      res.status(500).json({ ok: false, error: mensaje(error, "No se pudo renderizar la vista previa") });
+    }
   });
 
   // ── Configuración de IA ─────────────────────────────────────────────────────

@@ -32,6 +32,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-08-04 | _(este mismo)_ | Piezas nuevas del diseño + tab Ajustes con vista previa en vivo | 4.0 |
 | 2026-08-04 | _(este mismo)_ | Tanda 0: la imagen es el mensaje — captions cortos, bloques, INCLUYE y contador de piezas | 3.0 |
 | 2026-08-02 | _(este mismo)_ | Plan financiero alineado al acuerdo firmado ($300+$300+$60/mes) | 0.25 |
 | 2026-08-02 | a36bb0a | Interruptor del bot: nace apagado, sin fugas y visible en todo el hub | 1.5 |
@@ -71,11 +72,47 @@ Ya viene activado en este equipo.
 | 2026-07-14 | ac09171 | Ubicaciones de locales + análisis de features del cliente | 1.5 |
 | 2026-07-13 | feadf57 | Brief + plan de desarrollo + plan financiero + catálogo | 4.0 |
 | 2026-07-13 | d997844 | Commit inicial (repo) | 0.25 |
-| | | **TOTAL** | **~73.5 h** |
+| | | **TOTAL** | **~77.5 h** |
 
 ---
 
 ## Entradas (más reciente primero)
+
+### 2026-08-04 · Piezas del diseño aprobado + Ajustes separados de lo técnico · ⏱️ 4.0 h
+
+**Qué:** las tres piezas visuales (cotización, comparativa, opciones) se reemplazaron por
+el diseño del proyecto de Claude Design, portado a satori. Y nace el tab **Ajustes**, que
+es todo lo que Depot Tire puede cambiar solo:
+
+- **Colores y tipografía**: 6 paletas y 7 fuentes de precio, con **vista previa en vivo** —
+  la pieza se re-renderiza al tocar cada opción y solo llega al cliente al «Aplicar».
+- **Promociones**: alta, baja y condiciones (marca, cantidad mínima, vigencia). Entran a la
+  vista previa mientras se escriben.
+- **Qué decir de cada marca** (tabla `brand_profiles`): la etiqueta y la frase que salen
+  dibujadas, más las notas que son lo único que el bot puede afirmar de esa marca.
+- El logo DT pasa a **«Configuración técnica»** y los avisos de «bot apagado» ahora llevan
+  a Ajustes, que es donde se enciende.
+
+**Por qué:** el motor se quedó en satori y no se metió Chromium porque un spike mostró que
+satori aguanta todo lo que usa el diseño (skew, gradientes anidados, brillos, sombras,
+tachados). Chromium habría sumado ~300 MB y empeorado justo el riesgo de memoria que la
+Tanda 0.0 señalaba como sospechoso de los fallos de envío. El render sigue en 340–970 ms.
+
+La separación por audiencia y no por tema es el §20 del PDF: el token de Meta no puede estar
+a dos clics del tono de voz del bot, y el dueño no debería entrar por la misma puerta para
+cambiar una promoción.
+
+**Defectos corregidos mirando el render, no adivinando:** el ✓ y el 🇪🇨 salían como cuadritos
+(satori solo dibuja glifos de fuentes registradas) — el ✓ pasó a SVG y el emoji se cae solo
+en la imagen, no en el texto de WhatsApp; calcular el alto a mano dejaba una banda muerta
+abajo, ahora lo mide satori; las sombras de las tarjetas quedaban corridas.
+
+**Fallo preexistente encontrado de paso:** `AnimatePresence mode="popLayout"` nunca
+desmontaba la pantalla que salía y se acumulaban hasta 4 en el DOM — entre ellas el
+formulario técnico con sus campos de token. Con `mode="wait"` queda una sola.
+
+**Pendiente que no es de código:** las fotos del catálogo tienen fondo blanco y el diseño
+asume recortes con transparencia.
 
 ### 2026-08-04 · Tanda 0: la imagen es el mensaje, no un adjunto · ⏱️ 3.0 h
 
