@@ -2,10 +2,11 @@ import { AnimatePresence, LayoutGroup, MotionConfig, motion } from "framer-motio
 import { useEffect, useState } from "react";
 import { ConnectionChip, ConnectionGate } from "./components/admin-key";
 import { Confetti, Toasts } from "./components/overlays";
-import { IconChart, IconInbox, IconKanban, IconPlay, IconSparkle, IconStop, IconTire } from "./components/icons";
+import { IconChart, IconInbox, IconKanban, IconPlay, IconSparkle, IconStop, IconTire, IconSliders } from "./components/icons";
 import { RacingDetails } from "./components/racing-details";
 import { setSonidoActivo, sonidoActivo, sonidoBoton } from "./lib/sound";
 import { navigate, useRoute, type Route } from "./router";
+import { Ajustes } from "./screens/Ajustes";
 import { Dashboard } from "./screens/Dashboard";
 import { Cotizador } from "./screens/Cotizador";
 import { Inbox } from "./screens/Inbox";
@@ -26,6 +27,9 @@ const NAV = [
   { id: "pipeline", label: "Pipeline", icon: IconKanban, requiere: null },
   { id: "cotizador", label: "Cotizador", icon: IconTire, requiere: "fase3" },
   { id: "dashboard", label: "Métricas", icon: IconChart, requiere: "fase3" },
+  // Ajustes va siempre visible: apagar el bot o bajar una promoción no puede
+  // depender de qué fase esté activa.
+  { id: "ajustes", label: "Ajustes", icon: IconSliders, requiere: null },
 ] as const;
 
 /** ¿La pantalla está permitida con las fases activas? */
@@ -40,8 +44,9 @@ const TITULOS: Record<string, { titulo: string; sub: string }> = {
   opportunities: { titulo: "Oportunidades", sub: "clientes por recuperar y ventas en recta final" },
   pipeline: { titulo: "Pipeline", sub: "tu guion de venta, en vivo" },
   dashboard: { titulo: "Métricas", sub: "el negocio de un vistazo" },
+  ajustes: { titulo: "Ajustes", sub: "promociones, colores y qué dice el bot de cada marca" },
   cotizador: { titulo: "Cotizador", sub: "inventario y precios reales de Contífico" },
-  settings: { titulo: "Account Settings", sub: "negocio, IA y etapas del bot" },
+  settings: { titulo: "Configuración técnica", sub: "canal, prompts y salud del sistema" },
   ticket: { titulo: "Conversación", sub: "ticket en detalle" },
 };
 
@@ -136,7 +141,7 @@ export default function App() {
               // Un indicador que solo sabe decir que sí no es un indicador.
               <button
                 type="button"
-                onClick={() => navigate("settings")}
+                onClick={() => navigate("ajustes")}
                 aria-label="Bot apagado — ir a Ajustes para encenderlo"
                 title="Bot apagado: no contesta ni manda seguimientos"
                 className="grid h-2.5 w-2.5 place-items-center rounded-full"
@@ -172,7 +177,7 @@ export default function App() {
                 <motion.button
                   whileTap={{ scale: 0.94 }}
                   type="button"
-                  onClick={() => navigate("settings")}
+                  onClick={() => navigate("ajustes")}
                   title="El bot no está contestando. Toca para encenderlo."
                   // En móvil la cabecera ya va justa: sin nowrap el chip parte
                   // en dos líneas y empuja lo demás fuera de la pantalla.
@@ -239,7 +244,11 @@ export default function App() {
 
           {/* Pantalla activa */}
           <main className="min-h-0 flex-1 pb-20 md:pb-0">
-            <AnimatePresence mode="popLayout" initial={false}>
+            {/* "wait" y no "popLayout": con popLayout las pantallas que salían
+                nunca terminaban de desmontarse y se acumulaban en el DOM (4 a la
+                vez). Además de la fuga, dejaba el formulario técnico montado
+                después de salir de él. */}
+            <AnimatePresence mode="wait" initial={false}>
               <motion.div
                 key={route.vista === "ticket" ? `ticket-${route.id}` : route.vista}
                 className="h-full"
@@ -252,6 +261,7 @@ export default function App() {
                 {route.vista === "opportunities" && phases.fase4 && <Opportunities />}
                 {route.vista === "pipeline" && <Pipeline />}
                 {route.vista === "dashboard" && phases.fase3 && <Dashboard />}
+                {route.vista === "ajustes" && <Ajustes />}
                 {route.vista === "cotizador" && phases.fase3 && <Cotizador />}
                 {route.vista === "settings" && <Settings />}
                 {route.vista === "ticket" && !cargando && <TicketDetail id={route.id} />}

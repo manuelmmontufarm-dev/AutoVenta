@@ -56,6 +56,47 @@ export async function saveAiConfig(input: unknown): Promise<AiConfig> {
   return merged;
 }
 
+/**
+ * Apariencia de las piezas visuales (cotización, comparativa, opciones).
+ * Son las perillas que el negocio mueve desde Ajustes y ve en la vista previa.
+ */
+export const PiecesConfigSchema = z.object({
+  paleta: z.enum(["grafito", "carbon", "rojo", "verde", "espresso", "navy"]).default("grafito"),
+  fuente: z.enum(["exo", "barlow", "kanit", "chakra", "saira", "rajdhani", "archivo"]).default("exo"),
+});
+
+export type PiecesConfig = z.infer<typeof PiecesConfigSchema>;
+export const DEFAULT_PIECES_CONFIG: PiecesConfig = PiecesConfigSchema.parse({});
+
+let piecesCache: { value: PiecesConfig; at: number } | null = null;
+
+export async function getPiecesConfig(): Promise<PiecesConfig> {
+  if (piecesCache && Date.now() - piecesCache.at < CACHE_TTL_MS) return piecesCache.value;
+  try {
+    const [row] = await sql<{ value: unknown }[]>`
+      select value from settings where key = 'pieces_config'
+    `;
+    const parsed = PiecesConfigSchema.safeParse(row?.value ?? {});
+    const value = parsed.success ? parsed.data : DEFAULT_PIECES_CONFIG;
+    piecesCache = { value, at: Date.now() };
+    return value;
+  } catch {
+    // Una pieza no se deja de enviar porque no se pudo leer su color.
+    return DEFAULT_PIECES_CONFIG;
+  }
+}
+
+export async function savePiecesConfig(input: unknown): Promise<PiecesConfig> {
+  const merged = PiecesConfigSchema.parse({ ...(await getPiecesConfig()), ...(input as object) });
+  await sql`
+    insert into settings (key, value)
+    values ('pieces_config', ${sql.json(merged)})
+    on conflict (key) do update set value = excluded.value, updated_at = now()
+  `;
+  piecesCache = { value: merged, at: Date.now() };
+  return merged;
+}
+
 export const StagePromptInputSchema = z.object({
   objective: z.string().max(500).default(""),
   prompt: z.string().max(6000).default(""),
