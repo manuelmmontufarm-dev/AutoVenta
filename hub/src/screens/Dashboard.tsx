@@ -53,6 +53,7 @@ export function Dashboard() {
     () => metrics?.daily.map((item) => item.value) ?? Array.from({ length: 14 }, () => 0),
     [metrics],
   );
+  const piezasFallidas = (metrics?.visualPieces ?? []).reduce((total, p) => total + p.failed, 0);
   const replyHours = metrics?.replyHours ?? [];
   const peakReplyHour = replyHours.reduce((best, item) => item.replies > (best?.replies ?? -1) ? item : best, replyHours[0]);
   const maxHourReplies = Math.max(1, ...replyHours.map((item) => item.replies));
@@ -134,6 +135,52 @@ export function Dashboard() {
           <FunnelChart pasos={embudo} />
         </motion.section>
       </div>
+
+      {/* Piezas visuales: la imagen ES el mensaje. Si no sale, el cliente
+          recibe el texto largo y nadie se entera — por eso se mide aparte. */}
+      {metrics?.visualPieces && (
+        <motion.section initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="glass mt-2.5 rounded-3xl p-5">
+          <div className="mb-4 flex flex-wrap items-end justify-between gap-2">
+            <div>
+              <p className="microlabel">Piezas visuales enviadas</p>
+              <p className="mt-1 text-[10.5px] text-faint">
+                Últimos 7 días. Una pieza fallida deja al cliente con el mensaje en texto.
+              </p>
+            </div>
+            {piezasFallidas > 0 && (
+              <span className="rounded-full bg-[var(--color-red)]/15 px-3 py-1 text-[10.5px] text-[var(--color-red)]">
+                {piezasFallidas} sin entregar
+              </span>
+            )}
+          </div>
+          <div className="grid grid-cols-1 gap-2.5 md:grid-cols-3">
+            {metrics.visualPieces.map((pieza) => {
+              const total = pieza.sent + pieza.failed;
+              return (
+                <div key={pieza.piece} className="rounded-2xl border border-paper/[.07] bg-paper/[.035] p-4">
+                  <div className="flex items-baseline justify-between">
+                    <p className="microlabel">{pieza.label}</p>
+                    <p className="tnum text-[10.5px] text-faint">
+                      {total === 0 ? "sin envíos" : `${Math.round((pieza.sent / total) * 100)}% entregadas`}
+                    </p>
+                  </div>
+                  <p className="serif tnum mt-2 text-[22px]">
+                    {pieza.sent}
+                    <span className="text-[13px] text-faint"> enviadas</span>
+                  </p>
+                  <p
+                    className="tnum mt-1 text-[11px]"
+                    style={{ color: pieza.failed > 0 ? "var(--color-red)" : "var(--color-faint)" }}
+                  >
+                    {pieza.failed} fallidas
+                    {pieza.renderErrors > 0 ? ` · ${pieza.renderErrors} con error de render` : ""}
+                  </p>
+                </div>
+              );
+            })}
+          </div>
+        </motion.section>
+      )}
 
       {metrics?.followUps && (
         <motion.section initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="glass mt-2.5 rounded-3xl p-5">

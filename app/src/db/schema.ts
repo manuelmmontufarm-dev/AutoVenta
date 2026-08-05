@@ -11,6 +11,7 @@ import { runOpportunityCampaignsPendingDiscountsMigration } from "./migrations/0
 import { runConversationMemoryDiscountDeliveryMigration } from "./migrations/005_conversation_memory_discount_delivery.js";
 import { runCycleContextQualityMigration } from "./migrations/006_cycle_context_quality.js";
 import { runAdvisorNotificationsMigration } from "./migrations/007_advisor_notifications.js";
+import { runBenefitsMigration } from "./migrations/008_benefits.js";
 
 export const SCHEMA = /* sql */ `
 create table if not exists conversations (
@@ -288,6 +289,20 @@ update settings
 set value = jsonb_set(value, '{emojis}', '"muchos"'::jsonb, true),
     updated_at = now()
 where key = 'ai_config' and exists (select 1 from migration);
+
+-- Vuelta atrás de la anterior: el cliente reportó que los mensajes del bot se
+-- leen como muros y nadie los abre. Un emoji por bloque, no tres. Igual que la
+-- de arriba, corre una sola vez y después el dueño manda desde el panel.
+with migration as (
+  insert into settings (key, value)
+  values ('migration_fewer_emojis_v2', 'true'::jsonb)
+  on conflict (key) do nothing
+  returning key
+)
+update settings
+set value = jsonb_set(value, '{emojis}', '"pocos"'::jsonb, true),
+    updated_at = now()
+where key = 'ai_config' and exists (select 1 from migration);
 `;
 
 /** Aplica el esquema (idempotente). Se llama al arrancar el bot. */
@@ -300,4 +315,5 @@ export async function ensureSchema(): Promise<void> {
   await runConversationMemoryDiscountDeliveryMigration(sql);
   await runCycleContextQualityMigration(sql);
   await runAdvisorNotificationsMigration(sql);
+  await runBenefitsMigration(sql);
 }

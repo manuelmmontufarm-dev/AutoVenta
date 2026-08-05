@@ -33,11 +33,11 @@ import {
   renderQuotePdf,
 } from "../services/quotePdf.js";
 import {
-  buildComparisonMessage,
-  buildCustomerOptionsMessage,
+  buildComparisonMessageDetallado,
+  buildCustomerOptionsMessageDetallado,
   buildDistributorOptionsMessage,
   buildCustomerQuoteMessage,
-  buildSingleQuoteMessage,
+  buildSingleQuoteMessageDetallado,
   type CatalogQuoteSelection,
   warrantyForBrand,
 } from "../services/quoteMessages.js";
@@ -773,7 +773,7 @@ export function createAdminRouter(): express.Router {
       await ensureCatalogReady();
       const input = CompareSchema.parse(req.body);
       const products = resolveCatalogProducts(input.items.map(({ id }) => id));
-      res.json({ ok: true, message: buildComparisonMessage(products) });
+      res.json({ ok: true, message: buildComparisonMessageDetallado(products) });
     } catch (error) {
       const message = error instanceof Error ? error.message : "Comparación inválida";
       res.status(400).json({ ok: false, error: message });
@@ -788,7 +788,7 @@ export function createAdminRouter(): express.Router {
       const message =
         input.style === "distributor"
           ? buildDistributorOptionsMessage(products)
-          : buildCustomerOptionsMessage(products, input.customerName);
+          : buildCustomerOptionsMessageDetallado(products, input.customerName);
       res.json({ ok: true, message });
     } catch (error) {
       const message = error instanceof Error ? error.message : "Selección inválida";
@@ -821,7 +821,7 @@ export function createAdminRouter(): express.Router {
       const [selection] = resolveCatalogSelections([input.item]);
       res.json({
         ok: true,
-        message: buildSingleQuoteMessage(selection, input.customerName),
+        message: buildSingleQuoteMessageDetallado(selection, input.customerName),
       });
     } catch (error) {
       const message = error instanceof Error ? error.message : "Cotización inválida";

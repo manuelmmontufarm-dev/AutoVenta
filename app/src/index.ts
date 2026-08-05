@@ -33,9 +33,15 @@ import {
 } from "./services/followUps.js";
 import { markDiscountNoticeSent } from "./services/discountOffers.js";
 import { extractCustomerCommitment } from "./domain/customerCommitment.js";
+import { splitBlocks } from "./services/quoteMessages.js";
 import { flagRepetitiveConversation } from "./services/conversationQuality.js";
 import { notifyPendingHumanRequests } from "./services/advisorNotifications.js";
 import { startEmbeddedFollowUpWorker } from "./workers/embeddedFollowUpWorker.js";
+
+/** Pausa entre bloques: suficiente para que se lean como mensajes seguidos y no como spam. */
+const PAUSA_ENTRE_BLOQUES_MS = 900;
+
+const esperar = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 const pipeline = new InboundPipeline(async ({ from, name, text, waMessageIds, receivedAt }) => {
   // El mensaje ya quedó guardado en recibirMensaje(), antes de responderle 200
@@ -82,20 +88,34 @@ const pipeline = new InboundPipeline(async ({ from, name, text, waMessageIds, re
   const reply = await runAgent(agentContext, text);
   await flagRepetitiveConversation(conversation.id, reply);
 
+  // Varios mensajes cortos en vez de uno largo: es como escribe el vendedor
+  // humano de los chats que el cliente puso de ejemplo. Los bloques los separa
+  // el agente con '---'; sin separadores esto envía un solo mensaje, igual que antes.
+  //
   // Envío con red de seguridad: si Meta rechaza, la respuesta queda guardada
   // como "failed" y visible en el hub — nunca se pierde en silencio.
-  try {
-    const sentId = await sendCustomerText(conversation.id, from, reply);
-    await appendMessage(conversation.id, "assistant", reply, sentId, {
-      authorKind: "bot",
-      status: "sent",
-    });
-  } catch (sendError) {
-    await appendMessage(conversation.id, "assistant", reply, undefined, {
-      authorKind: "bot",
-      status: "failed",
-    });
-    console.error(`❌ No se pudo enviar la respuesta a ${from}:`, sendError);
+  const bloques = splitBlocks(reply);
+  for (const [indice, bloque] of bloques.entries()) {
+    if (indice > 0) await esperar(PAUSA_ENTRE_BLOQUES_MS);
+    try {
+      const sentId = await sendCustomerText(conversation.id, from, bloque);
+      await appendMessage(conversation.id, "assistant", bloque, sentId, {
+        authorKind: "bot",
+        status: "sent",
+      });
+    } catch (sendError) {
+      console.error(`❌ No se pudo enviar la respuesta a ${from}:`, sendError);
+      // Si un bloque no sale, los siguientes tampoco van a salir (ventana
+      // cerrada, token vencido…). Se guardan todos como fallidos para que el
+      // hub muestre la respuesta completa que el cliente nunca recibió.
+      for (const restante of bloques.slice(indice)) {
+        await appendMessage(conversation.id, "assistant", restante, undefined, {
+          authorKind: "bot",
+          status: "failed",
+        });
+      }
+      break;
+    }
   }
   if (agentContext.discountNotice) {
     await markDiscountNoticeSent(agentContext.discountNotice.source, agentContext.discountNotice.id);
