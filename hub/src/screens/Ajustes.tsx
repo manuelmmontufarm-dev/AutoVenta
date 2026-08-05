@@ -132,8 +132,10 @@ export function Ajustes() {
     return <div className="p-6 text-sm text-faint">Cargando ajustes…</div>;
   }
 
+  // `h-full overflow-y-auto` como el resto de las pantallas: sin esto la
+  // pantalla se pasa del alto de <main> y no hay forma de bajar.
   return (
-    <div className="pb-10">
+    <div className="h-full overflow-y-auto px-4 pb-10">
       {error && (
         <div className="glass mb-2.5 rounded-2xl border border-[var(--color-red)]/40 p-4 text-[13px] text-[var(--color-red)]">
           {error}

@@ -244,11 +244,12 @@ export default function App() {
 
           {/* Pantalla activa */}
           <main className="min-h-0 flex-1 pb-20 md:pb-0">
-            {/* "wait" y no "popLayout": con popLayout las pantallas que salían
-                nunca terminaban de desmontarse y se acumulaban en el DOM (4 a la
-                vez). Además de la fuga, dejaba el formulario técnico montado
-                después de salir de él. */}
-            <AnimatePresence mode="wait" initial={false}>
+            {/* Ojo: con mode="wait" la navegación se traba — la pantalla que
+                sale nunca termina su animación de salida, así que la nueva no
+                llega a montarse nunca. Se probó y se revirtió. Queda pendiente
+                que las pantallas salientes tampoco terminan de desmontarse con
+                popLayout y se acumulan en el DOM; es un fallo aparte. */}
+            <AnimatePresence mode="popLayout" initial={false}>
               <motion.div
                 key={route.vista === "ticket" ? `ticket-${route.id}` : route.vista}
                 className="h-full"

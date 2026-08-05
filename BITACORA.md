@@ -78,6 +78,21 @@ Ya viene activado en este equipo.
 
 ## Entradas (más reciente primero)
 
+### 2026-08-04 · Fix: Ajustes no dejaba bajar · ⏱️ 0.25 h
+
+**Qué:** la pantalla de Ajustes no scrolleaba. Le faltaba el `h-full overflow-y-auto`
+que sí tienen Dashboard, Settings, Pipeline y Cotizador, así que el contenido (3.688 px)
+se pasaba del alto de `<main>` y no había forma de llegar a promociones ni a marcas.
+
+**Por qué se coló:** la verifiqué con el panel del navegador oculto, donde los screenshots
+salen en blanco, y me quedé con la comprobación por DOM — que decía que las secciones
+existían y estaban visibles, porque lo estaban: simplemente eran inalcanzables.
+
+**Nota:** en el mismo intento se probó `AnimatePresence mode="wait"` para arreglar que las
+pantallas salientes se acumulen en el DOM, y se revirtió: con "wait" la navegación se traba
+del todo (la pantalla que sale nunca termina su animación, la nueva no se monta nunca). La
+acumulación con "popLayout" sigue pendiente como fallo aparte.
+
 ### 2026-08-04 · Piezas del diseño aprobado + Ajustes separados de lo técnico · ⏱️ 4.0 h
 
 **Qué:** las tres piezas visuales (cotización, comparativa, opciones) se reemplazaron por
