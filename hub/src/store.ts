@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import type { Atiende, BotAlert, BotPower, Cierre, Etapa, FeedItem, FollowUpCard, HubMetrics, Mensaje, PhaseFlags, Rol, TemplatePlanPreview, Ticket } from "./data/types";
+import type { Atiende, BotAlert, BotPower, Cierre, Etapa, FeedItem, FinalStage, FollowUpCard, HubMetrics, Mensaje, PhaseFlags, Rol, TemplatePlanPreview, Ticket } from "./data/types";
 import { MockSource } from "./data/mock/mockSource";
 import { Simulator } from "./data/mock/simulator";
 import { AdminKeyError, RealSource } from "./data/realSource";
@@ -41,6 +41,8 @@ interface HubState {
   typing: Record<number, Rol | null>;
   feed: FeedItem[];
   metrics: HubMetrics | null;
+  /** Quién llegó al final del tablero, por día. null mientras no ha cargado. */
+  finalStage: FinalStage | null;
   followUps: FollowUpCard[];
   alerts: BotAlert[];
   toasts: Toast[];
@@ -87,16 +89,17 @@ function clasificarFallo(error: unknown): EstadoConexion {
 export const useHub = create<HubState>((set, get) => {
   async function refrescar(): Promise<void> {
     try {
-      const [tickets, feed, metrics, followUps, alerts, phases, power] = await Promise.all([
+      const [tickets, feed, metrics, finalStage, followUps, alerts, phases, power] = await Promise.all([
         source.listTickets(),
         source.getFeed(),
         source.getMetrics(),
+        source.getFinalStage(),
         source.listFollowUps(),
         source.listAlerts(),
         source.getPhases(),
         source.getBotPower(),
       ]);
-      set({ tickets, feed, metrics, followUps, alerts, phases, power, conexion: "conectada" });
+      set({ tickets, feed, metrics, finalStage, followUps, alerts, phases, power, conexion: "conectada" });
       updateFavicon(tickets.filter((t) => t.estado === "abierto").length);
     } catch (error) {
       set({ conexion: clasificarFallo(error) });
@@ -151,6 +154,7 @@ export const useHub = create<HubState>((set, get) => {
     typing: {},
     feed: [],
     metrics: null,
+    finalStage: null,
     followUps: [],
     alerts: [],
     toasts: [],
@@ -173,10 +177,10 @@ export const useHub = create<HubState>((set, get) => {
       try {
         // Mínimo de skeleton para que la carga se sienta intencional, no rota.
         const [datos] = await Promise.all([
-          Promise.all([source.listTickets(), source.getFeed(), source.getMetrics(), source.listFollowUps(), source.listAlerts(), source.getPhases(), source.getBotPower()]),
+          Promise.all([source.listTickets(), source.getFeed(), source.getMetrics(), source.getFinalStage(), source.listFollowUps(), source.listAlerts(), source.getPhases(), source.getBotPower()]),
           new Promise((r) => setTimeout(r, 650)),
         ]);
-        set({ tickets: datos[0], feed: datos[1], metrics: datos[2], followUps: datos[3], alerts: datos[4], phases: datos[5], power: datos[6], cargando: false, conexion: "conectada" });
+        set({ tickets: datos[0], feed: datos[1], metrics: datos[2], finalStage: datos[3], followUps: datos[4], alerts: datos[5], phases: datos[6], power: datos[7], cargando: false, conexion: "conectada" });
         updateFavicon(datos[0].filter((t) => t.estado === "abierto").length);
       } catch (error) {
         // Sin toast: el gate de conexión ocupa la pantalla y explica qué pasó.

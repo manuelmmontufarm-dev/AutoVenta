@@ -45,6 +45,25 @@ const REGLAS = [
       && !/\b(?:medida|205|\d{3}\/\d{2}|costado|placa|modelo de tu (?:carro|veh[íi]culo))\b/i.test(r),
   },
   {
+    // Regla de Joaquín (5-ago): «hay que decirle al mijin del bot que no pida
+    // fotos hasta que no pueda leer». El bot no procesa imágenes: pedir una
+    // foto deja la conversación en un callejón sin salida.
+    id: "pide_foto",
+    gravedad: "critica",
+    descripcion: "Pide una foto o imagen que el bot no puede leer",
+    falla: (r) => /(?:m[áa]nd|mand|env[íi]|enviar|comp[áa]rt)[^.?!\n]{0,50}(?:foto|imagen)|foto (?:de la etiqueta|del costado|de la puerta)/i.test(r),
+  },
+  {
+    // Regla de Joaquín (5-ago): «no debería confirmar con el vehículo sino ya
+    // con la medida que tiene cotizar de una». Con medida en mano, preguntar
+    // versión/vehículo es fricción que enfría la venta.
+    id: "pregunta_vehiculo_con_medida",
+    gravedad: "alta",
+    descripcion: "El cliente ya dio la medida y el bot pregunta vehículo/versión en vez de cotizar",
+    falla: (r, ctx) => ctx.clienteDioMedida
+      && /(?:¿qu[ée] (?:carro|veh[íi]culo|auto)|versi[óo]n de(?:l| su)? (?:auto|carro|veh[íi]culo)|¿me puede dar la versi[óo]n|etiqueta de la puerta|¿de qu[ée] a[ñn]o es)/i.test(r),
+  },
+  {
     id: "demasiado_largo",
     gravedad: "media",
     descripcion: "Más de 700 caracteres: en WhatsApp no se lee",

@@ -14,7 +14,7 @@ import { useMemo, useState } from "react";
 import { FunnelChart } from "../components/charts";
 import { Avatar, EmptyState, Segmented } from "../components/ui";
 import { getStoredAdminKey } from "../data/realSource";
-import { CIERRE_META, ETAPAS, ETAPA_META, type Etapa, type FollowUpBucket, type FollowUpCard, type Ticket } from "../data/types";
+import { CIERRE_META, ETAPAS, ETAPA_META, type Etapa, type FinalStage, type FollowUpBucket, type FollowUpCard, type Ticket } from "../data/types";
 import { money, moneyCompact, relTime } from "../lib/format";
 import { navigate } from "../router";
 import { useHub, useNow } from "../store";
@@ -123,6 +123,131 @@ function ZonaCierre() {
         <p className="mt-0.5 text-[10px] text-faint">ganado · perdido</p>
       </div>
     </div>
+  );
+}
+
+/** YYYY-MM-DD en hora de Guayaquil — el mismo corte de día que usa el backend. */
+const diaGuayaquil = (fecha: Date) =>
+  new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Guayaquil",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(fecha);
+
+function etiquetaDia(day: string, hoy: string, ayer: string): string {
+  if (day === hoy) return "Hoy";
+  if (day === ayer) return "Ayer";
+  // Mediodía para que el desfase horario no corra la fecha al día anterior.
+  return new Date(`${day}T12:00:00`).toLocaleDateString("es-EC", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+  });
+}
+
+/**
+ * El contador del final del tablero. Cuenta a quien tocó la última columna
+ * alguna vez — incluidos los cerrados, que ya no aparecen en el kanban — y
+ * abre el detalle por día.
+ */
+function ZonaFinal({ total, onAbrir }: { total: number; onAbrir: () => void }) {
+  return (
+    <button
+      onClick={onAbrir}
+      className="grid w-36 shrink-0 place-items-center rounded-2xl text-center transition-all hover:scale-[1.03]"
+      style={{
+        background: "color-mix(in srgb, var(--color-lime) 8%, transparent)",
+        border: "1px dashed color-mix(in srgb, var(--color-lime) 35%, transparent)",
+      }}
+    >
+      <div className="px-3 py-6">
+        <p className="tnum text-2xl font-black text-lime">{total}</p>
+        <p className="mt-1.5 text-[11px] font-bold text-paper/80">Llegaron al final</p>
+        <p className="mt-0.5 text-[10px] text-faint">{total === 0 ? "todavía nadie" : "ver por día"}</p>
+      </div>
+    </button>
+  );
+}
+
+function PanelFinal({ data, now, onCerrar }: { data: FinalStage; now: number; onCerrar: () => void }) {
+  const hoy = diaGuayaquil(new Date(now));
+  const ayer = diaGuayaquil(new Date(now - 86_400_000));
+  return (
+    <>
+      <motion.div
+        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+        onClick={onCerrar} className="fixed inset-0 z-40" style={{ background: "var(--color-scrim)" }}
+      />
+      <motion.div
+        initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 10 }}
+        className="glass fixed top-1/2 left-1/2 z-50 flex max-h-[82vh] w-[min(640px,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2 flex-col rounded-3xl p-5"
+      >
+        <div className="mb-3 flex items-baseline gap-2.5">
+          <p className="microlabel">Llegaron al final del tablero</p>
+          <span className="tnum ml-auto text-[11px] text-faint">
+            <span className="font-bold text-lime">{data.ganados}</span> de {data.total} terminaron en venta
+          </span>
+        </div>
+
+        {data.days.length === 0 ? (
+          <p className="rounded-2xl border border-dashed px-4 py-8 text-center text-[11.5px] text-faint"
+             style={{ borderColor: "color-mix(in srgb, var(--color-paper) 12%, transparent)" }}>
+            Todavía nadie llegó a la última columna.
+          </p>
+        ) : (
+          <div className="-mr-2 min-h-0 flex-1 overflow-y-auto pr-2">
+            {data.days.map((grupo) => (
+              <section key={grupo.day} className="mb-4">
+                <div className="mb-1.5 flex items-center gap-2">
+                  <h3 className="text-[11px] font-black uppercase tracking-wide">
+                    {etiquetaDia(grupo.day, hoy, ayer)}
+                  </h3>
+                  <span className="tnum rounded-full bg-paper/10 px-2 text-[10px] font-bold">
+                    {grupo.tickets.length}
+                  </span>
+                </div>
+                <div className="grid gap-1.5">
+                  {grupo.tickets.map((t) => (
+                    <button
+                      key={`${t.id}-${t.cycle}`}
+                      onClick={() => { onCerrar(); navigate(`ticket/${t.id}`); }}
+                      className="glass flex flex-wrap items-center gap-x-3 gap-y-1 rounded-xl px-3 py-2 text-left transition-colors hover:bg-paper/[.05]"
+                    >
+                      <span className="text-[12.5px] font-black">{t.nombre ?? t.telefono}</span>
+                      {t.medida && <span className="text-[10.5px] text-muted">{t.medida}</span>}
+                      <span
+                        className="rounded-full px-2 py-0.5 text-[9.5px] font-bold"
+                        style={
+                          t.cierre === "ganado"
+                            ? { background: "color-mix(in srgb, var(--color-ok) 16%, transparent)", color: "var(--color-ok)" }
+                            : t.cierre === "perdido"
+                              ? { background: "color-mix(in srgb, var(--color-red) 14%, transparent)", color: "var(--color-red)" }
+                              : { background: "color-mix(in srgb, var(--color-paper) 8%, transparent)" }
+                        }
+                      >
+                        {t.cierre === "ganado" ? "Ganado" : t.cierre === "perdido" ? "Perdido" : "Sigue abierto"}
+                      </span>
+                      {t.cotizacion != null && (
+                        <span className="tnum text-[11.5px] font-bold text-lime">{money(t.cotizacion)}</span>
+                      )}
+                      <span className="tnum ml-auto text-[10px] text-faint">{relTime(t.llegoEn, now)}</span>
+                    </button>
+                  ))}
+                </div>
+              </section>
+            ))}
+          </div>
+        )}
+
+        <div className="mt-3 flex justify-end">
+          <button onClick={onCerrar} className="rounded-full px-3 py-1.5 text-[11px] font-semibold"
+                  style={{ background: "color-mix(in srgb, var(--color-paper) 8%, transparent)" }}>
+            Cerrar
+          </button>
+        </div>
+      </motion.div>
+    </>
   );
 }
 
@@ -305,11 +430,13 @@ function AccionesPuestaAlDia({ onListo }: { onListo: () => void }) {
  * atender; el de abajo es la lista de pendientes reales de Joaquín.
  */
 function TableroVentana({
-  grupo, titulo, detalle, color, tickets, porEtapa, now, conZonaCierre = false, vacio,
+  grupo, titulo, detalle, color, tickets, porEtapa, now, conZonaCierre = false, vacio, alFinal,
 }: {
   grupo: string; titulo: string; detalle: string; color: string;
   tickets: Ticket[]; porEtapa: Record<Etapa, Ticket[]>; now: number;
   conZonaCierre?: boolean; vacio?: string;
+  /** Se pinta después de la última columna, al final del scroll horizontal. */
+  alFinal?: React.ReactNode;
 }) {
   const sinLeer = tickets.reduce((s, t) => s + (t.sinLeer ?? 0), 0);
   return (
@@ -339,6 +466,7 @@ function TableroVentana({
             <Columna key={e} etapa={e} tickets={porEtapa[e]} now={now} grupo={grupo} />
           ))}
           {conZonaCierre && <ZonaCierre />}
+          {alFinal}
         </div>
       )}
     </section>
@@ -346,11 +474,12 @@ function TableroVentana({
 }
 
 export function Pipeline() {
-  const { tickets, moverEtapa, metrics, refrescar } = useHub();
+  const { tickets, moverEtapa, metrics, refrescar, finalStage } = useHub();
   const now = useNow();
   const [vista, setVista] = useState<"kanban" | "embudo">("kanban");
   const [activo, setActivo] = useState<Ticket | null>(null);
   const [cerrando, setCerrando] = useState<Ticket | null>(null);
+  const [verFinal, setVerFinal] = useState(false);
   const cerrar = useHub((s) => s.cerrar);
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
@@ -457,6 +586,7 @@ export function Pipeline() {
               porEtapa={porEtapaEnVentana}
               now={now}
               conZonaCierre
+              alFinal={finalStage && <ZonaFinal total={finalStage.total} onAbrir={() => setVerFinal(true)} />}
             />
             <TableroVentana
               grupo="cerrada"
@@ -486,6 +616,12 @@ export function Pipeline() {
           </motion.div>
         </div>
       )}
+
+      <AnimatePresence>
+        {verFinal && finalStage && (
+          <PanelFinal data={finalStage} now={now} onCerrar={() => setVerFinal(false)} />
+        )}
+      </AnimatePresence>
 
       <AnimatePresence>
         {cerrando && (

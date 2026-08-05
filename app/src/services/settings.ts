@@ -127,26 +127,45 @@ export interface StagePromptVersion extends StagePromptInput {
 
 const DEFAULT_STAGE_PROMPTS: Record<Stage, StagePromptInput> = {
   nuevo: {
-    objective: "Identificar medida o vehículo sin presionar al cliente.",
+    objective: "Conseguir la medida y llegar a un precio lo antes posible.",
     prompt:
-      "Haz una sola pregunta clara para obtener la medida. Si da vehículo, confirma la medida antes de hablar de precios.",
-    allowedTools: ["buscar_llanta", "buscar_catalogo", "fitment_vehiculo", "preparar_opciones"],
+      "Si el cliente ya dio una medida, esa manda: busca y muestra opciones DE UNA, sin confirmar el vehículo ni pedir versión. Si además dio modelo y cantidad, cotiza de inmediato. Si no hay medida, consíguela con una sola pregunta clara, pedida siempre ESCRITA (nunca foto). Si solo da el vehículo, usa fitment_vehiculo y ofrece la medida más probable sin frenar la venta.",
+    allowedTools: [
+      "buscar_llanta",
+      "buscar_catalogo",
+      "buscar_por_aro_y_tipo",
+      "tipos_de_llanta",
+      "fitment_vehiculo",
+      "preparar_opciones",
+      "generar_cotizacion",
+    ],
     settings: { autoAction: "none", requiresHumanApproval: false, fallback: "" },
   },
   medida_confirmada: {
-    objective: "Presentar opciones reales y ayudar a iniciar la selección.",
+    objective: "Presentar opciones reales y avanzar hacia la cotización.",
     prompt:
-      "Usa el catálogo real y presenta opciones agrupadas con preparar_opciones. No decidas por el cliente ni sumes alternativas.",
-    allowedTools: ["buscar_llanta", "buscar_catalogo", "fitment_vehiculo", "preparar_opciones", "enviar_comparacion"],
+      "Usa el catálogo real y presenta opciones agrupadas con preparar_opciones. Si el cliente pide un tipo (A/T, todo terreno, carretera), eso es lo que busca: usa buscar_por_aro_y_tipo y ofrécele de ese tipo. Si ya eligió modelo y cantidad, cotiza de inmediato sin pedir otra confirmación. No decidas por el cliente ni sumes alternativas.",
+    allowedTools: [
+      "buscar_llanta",
+      "buscar_catalogo",
+      "buscar_por_aro_y_tipo",
+      "tipos_de_llanta",
+      "fitment_vehiculo",
+      "preparar_opciones",
+      "enviar_comparacion",
+      "generar_cotizacion",
+    ],
     settings: { autoAction: "options", requiresHumanApproval: false, fallback: "" },
   },
   seleccionando: {
     objective: "Resolver dudas y comparar hasta que el cliente elija un modelo.",
     prompt:
-      "Aclara diferencias entre 2–3 opciones. Usa enviar_comparacion si la duda está acotada. Cotiza solo después de confirmar un modelo y cantidad.",
+      "Aclara diferencias entre 2–3 opciones. Usa enviar_comparacion si la duda está acotada. Si el cliente pide un tipo (A/T, todo terreno), usa buscar_por_aro_y_tipo o tipos_de_llanta: te está diciendo qué quiere comprar, no algo que verificar. En cuanto confirme un modelo y una cantidad, cotiza de inmediato; nunca cotices dos veces lo mismo.",
     allowedTools: [
       "buscar_llanta",
       "buscar_catalogo",
+      "buscar_por_aro_y_tipo",
+      "tipos_de_llanta",
       "fitment_vehiculo",
       "preparar_opciones",
       "enviar_comparacion",

@@ -1,4 +1,4 @@
-import type { Atiende, BotAlert, BotPower, Cierre, Etapa, FeedItem, FollowUpCard, HubMetrics, Mensaje, PhaseFlags, Rol, TemplatePlanPreview, Ticket } from "./types";
+import type { Atiende, BotAlert, BotPower, Cierre, Etapa, FeedItem, FinalStage, FollowUpCard, HubMetrics, Mensaje, PhaseFlags, Rol, TemplatePlanPreview, Ticket } from "./types";
 
 /**
  * El contrato entre la UI y los datos. Parte 1: MockSource (fixtures + simulador).
@@ -18,6 +18,8 @@ export interface DataSource {
   getMensajes(ticketId: number): Promise<Mensaje[]>;
   getFeed(): Promise<FeedItem[]>;
   getMetrics(days?: number): Promise<HubMetrics>;
+  /** Quién llegó a la última columna del tablero, agrupado por día. */
+  getFinalStage(): Promise<FinalStage>;
   listFollowUps(): Promise<FollowUpCard[]>;
   listAlerts(): Promise<BotAlert[]>;
   followUpAction(id: number, action: "send" | "cancel" | "edit" | "generate", preview?: string): Promise<void>;

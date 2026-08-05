@@ -1,11 +1,13 @@
 import type { DataSource, SourceEvent } from "../source";
 import {
   CIERRE_META,
+  ETAPAS,
   type Atiende,
   type Cierre,
   type Cotizacion,
   type Etapa,
   type FeedItem,
+  type FinalStage,
   type HubMetrics,
   type LocalAsignado,
   type Mensaje,
@@ -115,6 +117,36 @@ export class MockSource implements DataSource {
         source: "contifico",
         lastSync: new Date().toISOString(),
       },
+    };
+  }
+
+  /**
+   * En demo no hay historial de etapas, así que el día se toma de la última
+   * actividad. Alcanza para ver la forma de la pantalla; el número real sale
+   * de `stage_transitions` en el backend.
+   */
+  async getFinalStage(): Promise<FinalStage> {
+    const llegaron = [...this.tickets.values()].filter(
+      (t) => ETAPAS.indexOf(t.etapa) >= ETAPAS.indexOf("seguimiento_venta") || t.cierre === "ganado",
+    );
+    const days = new Map<string, FinalStage["days"][number]>();
+    for (const t of llegaron) {
+      const day = t.ultimaActividad.slice(0, 10);
+      const grupo = days.get(day) ?? { day, tickets: [] };
+      grupo.tickets.push({
+        id: t.id, cycle: 1, nombre: t.nombre ?? null, telefono: t.telefono,
+        medida: t.medida ?? null, etapa: t.etapa,
+        cierre: t.cierre === "ganado" || t.cierre === "perdido" ? t.cierre : null,
+        abierto: t.estado === "abierto",
+        cotizacion: t.cotizacion?.total ?? null,
+        llegoEn: t.ultimaActividad,
+      });
+      days.set(day, grupo);
+    }
+    return {
+      total: llegaron.length,
+      ganados: llegaron.filter((t) => t.cierre === "ganado").length,
+      days: [...days.values()].sort((a, b) => b.day.localeCompare(a.day)),
     };
   }
 

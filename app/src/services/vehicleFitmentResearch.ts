@@ -5,6 +5,20 @@ import { extractTireSizesFromUnknown } from "../domain/fitmentResearch.js";
 
 const openai = new OpenAI({ apiKey: config.openai.apiKey });
 
+/**
+ * El bot NO puede leer imágenes: pedir una foto deja al cliente en un callejón
+ * sin salida (falla vista en producción — chat del Chevrolet Orlando, 5-ago).
+ * La alternativa que sí vende: pedir la medida escrita del filo de la llanta.
+ */
+const PREGUNTA_MEDIDA_ESCRITA =
+  "¿Me escribe la medida que dice el filo de la llanta? Es algo como 225/65R17 — con eso le cotizo de una.";
+
+/** Reescribe cualquier pregunta que pida foto/imagen (incluidas las que redacta la investigación web). */
+function sinPedirFoto(pregunta: string | null | undefined): string | null {
+  if (!pregunta) return null;
+  return /foto|imagen|selfie|captura/i.test(pregunta) ? PREGUNTA_MEDIDA_ESCRITA : pregunta;
+}
+
 export interface FitmentResearchResult {
   status: "verified" | "reference" | "ambiguous" | "not_found";
   vehicle: string;
@@ -30,9 +44,10 @@ async function wheelSizeLookup(make: string, model: string, year: number | null)
     status: sizes.length === 1 ? "verified" : "reference",
     vehicle: `${make} ${model} ${year}`, sizes,
     note: sizes.length === 1
-      ? "Medida encontrada para el mercado latinoamericano; confirmar versión y etiqueta antes de instalar."
-      : "Hay varias medidas OEM según versión. No elegir una al azar: confirmar versión o etiqueta.",
-    nextQuestion: sizes.length === 1 ? null : "¿Qué versión o motor tiene, o puedes enviar una foto de la etiqueta de la puerta?",
+      ? "Medida encontrada para el mercado latinoamericano; la confirmación fina se hace en el local al instalar."
+      : "Hay varias medidas OEM según versión. Ofrecer la más común como referencia diciendo su límite; no afirmarla como segura.",
+    // Nunca pedir foto: el bot no puede leer imágenes y la conversación muere ahí.
+    nextQuestion: sizes.length === 1 ? null : "¿Qué versión o motor tiene? O si prefiere, escríbame la medida que dice el filo de la llanta (ej. 225/65R17) y le cotizo de una.",
     sources: [{ title: "Wheel-Size API", url: "https://developer.wheel-size.com/api-data" }],
     provider: "wheel-size",
   };
@@ -70,7 +85,7 @@ async function webLookup(make: string, model: string, year: number | null): Prom
     status: parsed.status === "reference" ? "reference" : "ambiguous",
     vehicle, sizes, provider: "web", sources,
     note: parsed.note?.slice(0, 500) ?? "Referencia encontrada en la web; falta confirmar la versión exacta.",
-    nextQuestion: parsed.nextQuestion?.slice(0, 220) ?? "¿Puedes confirmar la versión o enviar una foto de la etiqueta de la puerta?",
+    nextQuestion: sinPedirFoto(parsed.nextQuestion?.slice(0, 220)) ?? PREGUNTA_MEDIDA_ESCRITA,
   };
 }
 
@@ -79,7 +94,7 @@ export async function researchVehicleFitment(make: string, model: string, year: 
   if (local?.validated) return {
     status: "verified", vehicle: `${make} ${model}${year ? ` ${year}` : ""}`,
     sizes: local.sizes, note: local.note ?? "Medidas OEM registradas; confirmar versión.",
-    nextQuestion: local.sizes.length > 1 ? "¿Qué versión es o qué medida indica la etiqueta de la puerta?" : null,
+    nextQuestion: local.sizes.length > 1 ? `¿Qué versión es? O si prefiere, ${PREGUNTA_MEDIDA_ESCRITA}` : null,
     sources: local.sourceUrl ? [{ title: "Fuente del fabricante", url: local.sourceUrl }] : [], provider: "curated",
   };
   try { const result = await wheelSizeLookup(make, model, year); if (result) return result; } catch (error) {
@@ -91,11 +106,11 @@ export async function researchVehicleFitment(make: string, model: string, year: 
   if (local) return {
     status: "reference", vehicle: `${make} ${model}${year ? ` ${year}` : ""}`,
     sizes: local.sizes, note: "Referencia local no validada; no garantiza compatibilidad.",
-    nextQuestion: "¿Qué versión es o puedes enviar una foto de la etiqueta de la puerta?",
+    nextQuestion: PREGUNTA_MEDIDA_ESCRITA,
     sources: [], provider: "curated",
   };
   return { status: "not_found", vehicle: `${make} ${model}${year ? ` ${year}` : ""}`, sizes: [],
     note: "No se encontró una medida verificable. No afirmar compatibilidad.",
-    nextQuestion: "¿Puedes enviar una foto de la etiqueta de la puerta o de la medida escrita en una llanta actual?",
+    nextQuestion: PREGUNTA_MEDIDA_ESCRITA,
     sources: [], provider: "none" };
 }

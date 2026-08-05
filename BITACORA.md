@@ -32,6 +32,9 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-08-05 | _(este mismo)_ | VENTA PRIMERO en las 3 capas (tools+DB+prompt) y los casos de Joaquín como pruebas | 2.0 |
+| 2026-08-05 | _(este mismo)_ | El bot deja de preguntar y empieza a vender + skill de auditoría | 3.0 |
+| 2026-08-05 | _(este mismo)_ | Contador del final del tablero por día + fix del link del asesor | 1.5 |
 | 2026-08-05 | _(este mismo)_ | Quitar la camiseta de la TRI de la siembra de beneficios (promo vencida) | 0.25 |
 | 2026-08-05 | _(este mismo)_ | Medidas de flotación (venta perdida) + la imagen deja de ser opcional | 1.5 |
 | 2026-08-05 | _(este mismo)_ | Tipos de llanta, 3 opciones, piezas en el chat y varios asesores | 2.5 |
@@ -81,6 +84,130 @@ Ya viene activado en este equipo.
 ---
 
 ## Entradas (más reciente primero)
+
+### 2026-08-05 · VENTA PRIMERO en las tres capas + los casos de Joaquín como pruebas · ⏱️ 2.0 h
+
+**Qué:** los arreglos del prompt (entrada anterior) no bastaban: la instrucción de pedir
+fotos y de confirmar el vehículo vivía en TRES capas, y dos seguían intactas.
+
+1. **Herramientas** — `fitment_vehiculo` le devolvía al modelo «pide versión/origen o
+   foto de la etiqueta» en su descripción, en su rama not_found y en su regla; y
+   `vehicleFitmentResearch` redactaba `nextQuestion` pidiendo foto en 4 salidas (incluida
+   la investigación web, que podía redactar la suya). De ahí salió literalmente el
+   «¿Podrías enviarme una foto de la etiqueta?» del caso Orlando. Ahora todas las salidas
+   piden la medida ESCRITA (`sinPedirFoto()` sanea incluso lo que redacte la web) y el
+   límite se dice en una línea sin frenar la venta.
+2. **Prompts por etapa (base de datos)** — el default sembrado de `nuevo` decía «si da
+   vehículo, confirma la medida antes de hablar de precios»: la regla exacta que congeló
+   la venta. **Migración `011_venta_primero`**: reescribe los prompts sembrados por el
+   sistema a venta-primero y habilita `generar_cotizacion`, `buscar_por_aro_y_tipo` y
+   `tipos_de_llanta` en las etapas tempranas (medida+cantidad en el primer mensaje ahora
+   puede cotizar sin esperar cambio de etapa). Solo toca filas v1 `created_by='system'`
+   con el texto original: lo editado desde el panel no se pisa (probado).
+3. **Verificación** — los mensajes REALES de las capturas son ahora pruebas:
+   - `rubrica.mjs` (el criterio único de calidad) suma 2 reglas de Joaquín:
+     `pide_foto` (crítica) y `pregunta_vehiculo_con_medida` (alta).
+   - `test/ventaPrimero.test.ts` (15 pruebas): las respuestas reales de Orlando y KLEVER
+     reprueban; las conductas nuevas aprueban; el anti-duplicado expone `COT-…` con
+     minutos y bloquea <30 min; fitment nunca vuelve a pedir foto; la migración respeta
+     ediciones del dueño.
+   - La eval de calidad comercial suma los casos `medida_manda_sobre_vehiculo` y
+     `tipo_es_lo_que_busca`; cableado verificado en `--stub` (14 turnos por el bot real).
+
+**Por qué:** el prompt es la capa con menos autoridad: lo que devuelve una herramienta el
+modelo lo repite casi textual, y el prompt de etapa publicado en la base pisa al default
+del código. Arreglar solo el prompt era dejar la falla viva en las dos capas que más pesan.
+
+**Suite: 167 en verde.** Pendiente de correr con API real: `OPENAI_API_KEY=… node
+scripts/eval/run.mjs` (~$0,30) — los casos de Joaquín quedan medidos contra el modelo real.
+
+---
+
+### 2026-08-05 · El bot deja de preguntar y empieza a vender + skill de auditoría · ⏱️ 3.0 h
+
+**Qué:**
+
+Skill nuevo `.claude/skills/auditoria-ventas/` que audita cómo está vendiendo el bot:
+extrae todas las conversaciones, corre **detectores determinísticos** de fallas, y genera
+un HTML con el embudo, la fricción, las fallas ordenadas por impacto y los chats donde se
+ven. Cada corrida queda en `registro/historial.jsonl`, así que el reporte compara contra la
+anterior y muestra qué cambios se aplicaron en medio — sin eso, cada auditoría es una foto
+suelta y no hay forma de saber si una mejora sirvió.
+
+Detectores: `error_procesamiento`, `pide_foto_que_no_puede_leer`, `pregunta_teniendo_medida`,
+`pregunta_repetida`, `cotizacion_duplicada`, `con_medida_sin_cotizar`, `sin_ficha_verificada`,
+`pieza_fallida`, `abandono_tras_pregunta`.
+
+Arreglos del bot, todos sacados de chats reales (Chevrolet Orlando y KLEVER):
+
+- **El objetivo del bot ahora es VENDER**, explícito y arriba de todo, con tres reglas que
+  mandan: dar precio en cuanto se pueda, nunca preguntar lo ya dicho, y ser prudente sin
+  frenar (cotizar igual y aclarar el límite en la misma frase).
+- **La medida manda sobre el vehículo.** Si el cliente dio medida, se cotiza con esa medida:
+  nada de fitment, versión, año ni etiqueta. Antes el prompt decía "CONFIRMA versión/etiqueta
+  antes de cotizar" y eso mataba la venta del Orlando, que había dado `225/65 R17` y su carro.
+- **Prohibido pedir fotos.** El bot no lee imágenes; pedirlas era mandar al cliente a un
+  callejón sin salida. El prompt se contradecía: una regla mandaba pedir foto de la etiqueta
+  y la siguiente decía que no puede leerlas.
+- **No cotizar dos veces lo mismo.** `getAgentSalesFacts` ahora trae la última cotización del
+  ciclo con su número y hace cuántos minutos salió; si es de hace menos de 30 min, el prompt
+  prohíbe generar otra y manda remitir al número existente.
+- **El tipo de llanta que pide el cliente es lo que BUSCA, no algo que verificar.** "Son todo
+  terreno" ahora dispara `buscar_por_aro_y_tipo`, no un "no tengo ficha técnica verificada".
+
+**Por qué:**
+
+Las capturas mostraron el mismo patrón tres veces: el bot tenía todo para cotizar y en vez de
+eso preguntaba. Joaquín lo dijo en dos frases — *«no debería confirmar con el vehículo sino ya
+con la medida que tiene cotizar de una»* y *«hay que decirle al mijin del bot que no pida fotos
+hasta que no pueda leer»*. Ninguna de esas fallas era del modelo: las tres estaban escritas
+como regla en el prompt, y el modelo obedecía.
+
+El skill existe para que esto no dependa de que alguien revise chats a mano y se acuerde.
+
+**Verificación:** typecheck y 150 pruebas en verde. Los scripts se corrieron contra una base
+sembrada con los chats reales de las capturas: los 6 detectores esperados dispararon, y una
+segunda corrida simulada confirmó que las flechas de tendencia leen bien la dirección (menos
+preguntas = verde aunque el número baje).
+
+---
+
+### 2026-08-05 · Contador del final del tablero + el link del asesor apuntaba a staging · ⏱️ 1.5 h
+
+**Qué:**
+
+- **Contador «Llegaron al final»** al final del kanban, después de «Cerrar ticket». Se
+  despliega y muestra los tickets agrupados por día, con el estado de cada uno (Ganado /
+  Perdido / Sigue abierto), la medida y el monto. Cada fila abre el chat.
+- Sale de `stage_transitions`, no del estado actual: cuenta a quien tocó
+  `seguimiento_venta` alguna vez, **incluidos los que ya se cerraron** y por lo tanto
+  desaparecieron del tablero. Cuenta también a los que saltaron directo a `ganado`.
+- Los días se cortan en **hora de Guayaquil**, no UTC. En UTC todo lo que pasa después de
+  las 19:00 caería al día siguiente y las fechas no serían las que vivió el negocio.
+- Un ticket que rebota (entra al final, sale y vuelve) cuenta **una vez**, con la fecha de
+  la primera llegada. Un cliente que vuelve a comprar cuenta una vez **por ciclo**.
+- Endpoint nuevo `GET /api/hub/final-stage`; 4 pruebas de integración contra Postgres
+  cubren cerrados, zona horaria, rebotes y ciclos. Suite: 150 en verde.
+- **Fix: `HUB_PUBLIC_URL` tenía de default la URL de staging.** El link que el bot le manda
+  al asesor por WhatsApp salía apuntando al panel de staging aunque el mensaje viniera del
+  deploy de Depot: el ticket existe, pero en otra base de datos, así que el link abría en
+  vacío y no se podía atender. Ahora el default sale de `RAILWAY_PUBLIC_DOMAIN` — cada
+  deploy se apunta a sí mismo sin configurar nada.
+
+**Por qué:**
+
+- El kanban solo dice dónde está cada ticket **hoy**. El que llegaba al final y se cerraba
+  se esfumaba del tablero, así que no había forma de saber cuánta gente recorrió el embudo
+  completo — justo el número que hace falta ahora, con el embudo cayendo de 112 nuevos a 0
+  ganados. El historial ya estaba en la base; solo no se estaba leyendo.
+- El fix del link es de operación diaria: sin él, cada vez que el bot escala al asesor, el
+  asesor recibe un link que no abre nada. Y un default con URL fija volvería a romperse con
+  el tercer cliente del `PLAN_CARGA_50_CLIENTES.md`.
+
+**Pendiente al desplegar:** nada manual. `RAILWAY_PUBLIC_DOMAIN` lo pone Railway solo; si
+algún deploy ya tenía `HUB_PUBLIC_URL` puesta a mano, esa sigue mandando.
+
+---
 
 ### 2026-08-05 · Fuera la camiseta de la TRI: la promo ya venció · ⏱️ 0.25 h
 

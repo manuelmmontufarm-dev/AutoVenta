@@ -137,28 +137,40 @@ export async function runAgent(ctx: AgentContext, userText: string): Promise<str
   return "Disculpa, tuve un problema procesando tu mensaje. ¿Me lo repites por favor?";
 }
 
-interface AgentSalesFacts {
+export interface AgentSalesFacts {
   tireSize: string | null;
   vehicle: string | null;
   vehicleYear: number | null;
   selectedProductCode: string | null;
   selectedQuantity: number | null;
+  /** Última cotización del ciclo — evita mandar dos números para la misma compra. */
+  lastQuote: { number: string; total: number; minutesAgo: number } | null;
 }
 
-async function getAgentSalesFacts(conversationId: number): Promise<AgentSalesFacts> {
+/** Exportada para pruebas: los hechos determinísticos que frenan al modelo (anti-duplicado, medida, cantidad). */
+export async function getAgentSalesFacts(conversationId: number): Promise<AgentSalesFacts> {
   const [row] = await sql<{
     tire_size: string | null; vehicle: string | null; vehicle_year: number | null;
     selected_product_code: string | null; selected_quantity: number | null;
     inbound_messages: string[];
+    last_quote_number: string | null; last_quote_total: string | number | null;
+    last_quote_at: Date | null;
   }[]>`
     select c.tire_size, c.vehicle, c.vehicle_year, c.selected_product_code,
       c.selected_quantity,
+      q.quote_number as last_quote_number, q.total as last_quote_total,
+      q.created_at as last_quote_at,
       coalesce(array_agg(m.content order by m.created_at desc) filter (where m.id is not null), '{}') as inbound_messages
     from conversations c
+    left join lateral (
+      select quote_number, total, created_at from quotes
+      where conversation_id=c.id and cycle=c.current_cycle
+      order by created_at desc limit 1
+    ) q on true
     left join messages m on m.conversation_id=c.id and m.cycle=c.current_cycle
       and m.direction='inbound'
     where c.id=${conversationId}
-    group by c.id
+    group by c.id, q.quote_number, q.total, q.created_at
   `;
   const inferredYear = row?.vehicle_year ?? row?.inbound_messages
     .map(extractVehicleYear).find((value): value is number => value !== null) ?? null;
@@ -168,23 +180,41 @@ async function getAgentSalesFacts(conversationId: number): Promise<AgentSalesFac
     vehicleYear: inferredYear,
     selectedProductCode: row?.selected_product_code ?? null,
     selectedQuantity: row?.selected_quantity ?? null,
+    lastQuote: row?.last_quote_number && row.last_quote_at
+      ? {
+          number: row.last_quote_number,
+          total: Number(row.last_quote_total ?? 0),
+          minutesAgo: Math.round((Date.now() - row.last_quote_at.getTime()) / 60_000),
+        }
+      : null,
   };
 }
 
-function salesFactsPrompt(facts: AgentSalesFacts, resumedFromHuman = false): string {
+/** Exportada para pruebas: el bloque de sistema que aplica venta-primero sobre hechos de la base. */
+export function salesFactsPrompt(facts: AgentSalesFacts, resumedFromHuman = false): string {
   const lines = [
     facts.tireSize ? `Medida confirmada: ${facts.tireSize}` : null,
     facts.vehicle ? `Vehículo mencionado: ${facts.vehicle}` : null,
     facts.vehicleYear ? `Año ya informado por el cliente: ${facts.vehicleYear}` : null,
     facts.selectedProductCode ? `Producto elegido: ${facts.selectedProductCode}` : null,
     facts.selectedQuantity ? `Cantidad ya confirmada: ${facts.selectedQuantity}` : null,
+    facts.lastQuote
+      ? `Cotización YA ENVIADA en este ciclo: ${facts.lastQuote.number} por $${facts.lastQuote.total.toFixed(2)}, hace ${facts.lastQuote.minutesAgo} min`
+      : null,
   ].filter(Boolean);
   return [
     "HECHOS COMERCIALES CONFIRMADOS (fuente determinística):",
     ...(lines.length ? lines : ["Todavía no hay datos estructurados confirmados."]),
     "No vuelvas a preguntar un dato listado aquí. Pregunta únicamente lo que falte.",
     "Si modelo y cantidad ya están confirmados, genera la cotización inmediatamente y después pregunta si está bien; no pidas otra confirmación.",
-    "Para compatibilidad vehicular usa fitment_vehiculo. Si el resultado es referencia o ambiguo, muestra la fuente, reconoce claramente el límite y haz UNA sola pregunta nueva; no repitas la misma lista de versión/país/etiqueta en turnos consecutivos.",
+    // Sin este freno el modelo volvía a cotizar lo mismo cuando el cliente
+    // reafirmaba la medida o la cantidad, y el cliente terminaba con dos
+    // números distintos para una sola compra.
+    facts.lastQuote && facts.lastQuote.minutesAgo < 30
+      ? `Ya cotizaste hace ${facts.lastQuote.minutesAgo} min. NO generes otra cotización por el mismo pedido: si el cliente reafirma la medida, el modelo o la cantidad, remítelo a ${facts.lastQuote.number} y avanza al cierre (ubicación, visita, asesor). Solo cotiza de nuevo si cambia el producto o la cantidad.`
+      : null,
+    "Si el cliente ya dio una medida, cotiza con esa medida. No pidas versión, año ni etiqueta del vehículo, y nunca condiciones la cotización a confirmar el auto.",
+    "Nunca pidas fotos: no puedes leerlas. Si falta la medida, pídela escrita.",
     resumedFromHuman ? "El asesor devolvió la conversación al bot con un mensaje del cliente pendiente. Responde directamente ese último mensaje y retoma el hilo; nunca lo dejes sin contestar." : null,
   ].filter(Boolean).join("\n");
 }

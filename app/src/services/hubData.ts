@@ -576,3 +576,102 @@ function feedText(
   }
   return `${customer}: ${type.replaceAll("_", " ")}`;
 }
+
+interface FinalStageRow {
+  conversation_id: number;
+  cycle: number;
+  day: string;
+  reached_at: Date;
+  name: string | null;
+  phone: string;
+  tire_size: string | null;
+  stage: Stage;
+  status: "open" | "closed";
+  outcome: string | null;
+  quote_total: string | number | null;
+}
+
+/**
+ * Quién llegó al final del tablero — la última columna ("Seguimiento hasta
+ * venta") — y qué día llegó.
+ *
+ * Existe porque el kanban solo muestra dónde está cada ticket HOY: el que llegó
+ * al final y después se cerró desaparece del tablero, así que no había forma de
+ * saber cuánta gente recorrió el embudo completo. Eso se lee de
+ * `stage_transitions`, que sí guarda el historial.
+ *
+ * Cuenta también a los que saltaron directo a 'ganado' sin pasar por la última
+ * columna: llegaron al final igual, y no contarlos subestimaría el número justo
+ * en los casos que mejor salieron.
+ *
+ * El día se agrupa en hora de Guayaquil, no UTC: agrupar en UTC empuja todo lo
+ * que pasa después de las 19:00 al día siguiente, y el tablero se leería con
+ * fechas que no son las que vivió el negocio.
+ */
+export async function getFinalStageArrivals() {
+  const rows = await sql<FinalStageRow[]>`
+    with arrivals as (
+      select conversation_id, cycle, created_at
+      from stage_transitions
+      where to_stage in ('seguimiento_venta', 'ganado')
+      union all
+      -- Respaldo: tickets que están en la última columna sin fila de
+      -- transición (se movieron antes de que existiera el historial).
+      select id as conversation_id, current_cycle as cycle, updated_at as created_at
+      from conversations
+      where stage in ('seguimiento_venta', 'ganado')
+    ), first_arrival as (
+      select conversation_id, cycle, min(created_at) as reached_at
+      from arrivals
+      group by conversation_id, cycle
+    )
+    select
+      fa.conversation_id, fa.cycle, fa.reached_at,
+      to_char(fa.reached_at at time zone 'America/Guayaquil', 'YYYY-MM-DD') as day,
+      c.name, c.phone, c.tire_size, c.stage, c.status,
+      coalesce(
+        sh.outcome,
+        case
+          when c.current_cycle = fa.cycle and c.stage = 'ganado' then 'ganado'
+          when c.current_cycle = fa.cycle and c.status = 'closed' then 'perdido'
+        end
+      ) as outcome,
+      q.total as quote_total
+    from first_arrival fa
+    join conversations c on c.id = fa.conversation_id
+    left join sales_history sh
+      on sh.conversation_id = fa.conversation_id and sh.cycle = fa.cycle
+    left join lateral (
+      select total from quotes
+      where conversation_id = fa.conversation_id and cycle = fa.cycle
+      order by created_at desc limit 1
+    ) q on true
+    order by fa.reached_at desc
+  `;
+
+  const days = new Map<string, { day: string; tickets: unknown[] }>();
+  for (const row of rows) {
+    const grupo = days.get(row.day) ?? { day: row.day, tickets: [] };
+    grupo.tickets.push({
+      id: row.conversation_id,
+      cycle: row.cycle,
+      nombre: row.name,
+      telefono: row.phone,
+      medida: row.tire_size,
+      etapa: row.stage,
+      // 'ganado' | 'perdido' | null (null = sigue abierto, sin cerrar todavía)
+      cierre: row.outcome,
+      abierto: row.status === "open",
+      cotizacion: row.quote_total == null ? null : Number(row.quote_total),
+      llegoEn: row.reached_at.toISOString(),
+    });
+    days.set(row.day, grupo);
+  }
+
+  return {
+    total: rows.length,
+    ganados: rows.filter((r) => r.outcome === "ganado").length,
+    // Más reciente primero: lo de hoy es lo que se mira.
+    days: [...days.values()].sort((a, b) => b.day.localeCompare(a.day)),
+  };
+}

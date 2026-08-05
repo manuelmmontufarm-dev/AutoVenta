@@ -310,3 +310,36 @@ export const LOCALES = [
 export const MARCAS = ["Kenda", "Sunoco", "Eurolub", "Falken"] as const;
 
 export const IVA = 0.15;
+
+/**
+ * Quién llegó al final del tablero. El kanban solo muestra dónde está cada
+ * ticket hoy, así que el que llegó a la última columna y se cerró desaparecía
+ * sin dejar rastro; esto lo recupera del historial de etapas, por día.
+ */
+export interface FinalStageTicket {
+  id: number;
+  /** Ciclo de venta: un mismo cliente puede llegar al final más de una vez. */
+  cycle: number;
+  nombre: string | null;
+  telefono: string;
+  medida: string | null;
+  etapa: Etapa;
+  /** null = llegó al final y sigue abierto, sin cerrar todavía. */
+  cierre: "ganado" | "perdido" | null;
+  abierto: boolean;
+  cotizacion: number | null;
+  /** ISO del momento en que tocó la última columna por primera vez. */
+  llegoEn: string;
+}
+
+export interface FinalStageDay {
+  /** YYYY-MM-DD en hora de Guayaquil. */
+  day: string;
+  tickets: FinalStageTicket[];
+}
+
+export interface FinalStage {
+  total: number;
+  ganados: number;
+  days: FinalStageDay[];
+}

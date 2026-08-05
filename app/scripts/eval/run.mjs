@@ -89,6 +89,26 @@ const CASOS = [
       { texto: "¿me las pueden entregar hoy?", espera: { clienteDioMedida: true } },
     ],
   },
+  {
+    // Caso Chevrolet Orlando (5-ago): el cliente dio la MEDIDA y su carro, y el
+    // bot en vez de cotizar pidió versión y una foto de la etiqueta. Con medida
+    // en mano, el vehículo es contexto, no un requisito.
+    id: "medida_manda_sobre_vehiculo",
+    turnos: [
+      { texto: "Buenas, necesito llantas 225/65 r17", espera: { clienteDioMedida: true } },
+      { texto: "Es para un Chevrolet Orlando", espera: { clienteDioMedida: true } },
+    ],
+  },
+  {
+    // Caso KLEVER (5-ago): «son todo terreno» es lo que el cliente BUSCA, no
+    // una afirmación a verificar. La respuesta mala fue «no tengo una ficha
+    // técnica verificada… ¿me da la versión de su auto?».
+    id: "tipo_es_lo_que_busca",
+    turnos: [
+      { texto: "Quiero 4 llantas 225/60R17", espera: { clienteDioMedida: true } },
+      { texto: "que sean todo terreno", espera: { clienteDioMedida: true } },
+    ],
+  },
 ];
 
 const procesos = [];

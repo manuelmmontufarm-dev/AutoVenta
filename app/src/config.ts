@@ -128,9 +128,22 @@ export const config = {
   },
 
   hub: {
+    /**
+     * Base de los links que el bot le manda al asesor por WhatsApp.
+     *
+     * El default NO puede ser una URL fija: cada cliente corre su propio deploy
+     * y un default de staging manda al asesor de Depot a un panel que no es el
+     * suyo — el ticket existe, pero en otra base de datos, así que el link
+     * abre en vacío. Railway expone el dominio del propio servicio en
+     * RAILWAY_PUBLIC_DOMAIN, así que cada deploy se apunta a sí mismo sin que
+     * nadie tenga que acordarse de configurar nada. Solo se usa el literal de
+     * staging cuando no hay ninguna de las dos (correr local).
+     */
     publicUrl: envOr(
       "HUB_PUBLIC_URL",
-      "https://autoventa-staging.up.railway.app/admin",
+      process.env.RAILWAY_PUBLIC_DOMAIN
+        ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}/admin`
+        : "https://autoventa-staging.up.railway.app/admin",
     ).replace(/\/$/, ""),
   },
 

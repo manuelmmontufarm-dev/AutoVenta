@@ -51,7 +51,7 @@ import {
   reopenConversation,
   logQuoteArtifact,
 } from "../services/conversations.js";
-import { getHubFeed, getHubMessages, getHubMetrics, listHubTickets } from "../services/hubData.js";
+import { getFinalStageArrivals, getHubFeed, getHubMessages, getHubMetrics, listHubTickets } from "../services/hubData.js";
 import { emitLiveEvent, subscribeLiveEvents } from "../services/liveEvents.js";
 import { isStage } from "../domain/pipeline.js";
 import { authorizeConversationOutbound } from "../services/whatsappPolicy.js";
@@ -374,6 +374,10 @@ export function createAdminRouter(): express.Router {
         followUps: await getFollowUpMetrics(),
       },
     });
+  });
+
+  router.get("/hub/final-stage", async (_req, res) => {
+    res.json({ ok: true, finalStage: await getFinalStageArrivals() });
   });
 
   router.get("/catalog/media-report", async (_req, res) => {

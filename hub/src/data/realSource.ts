@@ -4,6 +4,7 @@ import type {
   Cierre,
   Etapa,
   FeedItem,
+  FinalStage,
   HubMetrics,
   Mensaje,
   PhaseFlags,
@@ -120,6 +121,10 @@ export class RealSource implements DataSource {
         `/api/hub/metrics?days=${encodeURIComponent(days)}`,
       )
     ).metrics;
+  }
+
+  async getFinalStage(): Promise<FinalStage> {
+    return (await this.request<{ finalStage: FinalStage }>("/api/hub/final-stage")).finalStage;
   }
 
   async listFollowUps(): Promise<FollowUpCard[]> {

@@ -365,7 +365,7 @@ export function buildTools(ctx: AgentContext) {
   const fitmentVehiculo = defineTool({
     name: "fitment_vehiculo",
     description:
-      "Dado un vehículo (marca, modelo y año), busca medidas verificadas. Año/modelo por sí solos no prueban compatibilidad: si falta una fuente o hay varias versiones, dilo claramente y pide versión/origen o foto de la etiqueta de puerta/costado de la llanta.",
+      "Dado un vehículo (marca, modelo y año), sugiere medidas verificadas. Úsala SOLO cuando el cliente NO dio ninguna medida: si ya dio una medida, esa manda y esta herramienta no hace falta. Si hay varias versiones, ofrece la más probable con su límite dicho en una línea y sigue vendiendo. NUNCA pidas fotos (no puedes leerlas); si necesitas certeza, pide la medida ESCRITA del filo de la llanta.",
     schema: z.object({
       marca: z.string().describe("Marca del vehículo, ej. Chevrolet"),
       modelo: z.string().describe("Modelo, ej. Sail, D-Max, Hilux"),
@@ -380,7 +380,7 @@ export function buildTools(ctx: AgentContext) {
           encontrado: false,
           compatibilidad_confirmada: false,
           mensaje:
-            "No existe una medida verificada para ese año/modelo en la base. No afirmes que una llanta le entra. Pregunta la versión o país de fabricación y ofrece identificar la medida con una foto de la etiqueta de la puerta o del costado de una llanta actual.",
+            "No existe una medida verificada para ese año/modelo en la base. No afirmes que una llanta le entra, pero NO frenes la venta: pide la medida ESCRITA que dice el filo de la llanta (ej. 225/65R17) y en cuanto la dé, busca y cotiza. NUNCA pidas fotos: no puedes leerlas.",
           siguiente_pregunta: result.nextQuestion,
         });
       }
@@ -393,7 +393,7 @@ export function buildTools(ctx: AgentContext) {
         fuentes: result.sources,
         siguiente_pregunta: result.nextQuestion,
         regla:
-          "Muestra la fuente. Si estado no es verified, preséntalo solo como referencia y haz una sola pregunta discriminante; nunca afirmes que entra sin confirmar versión/etiqueta.",
+          "Muestra la fuente. Si estado no es verified, ofrece la medida más probable como referencia con su límite dicho en UNA línea y sigue vendiendo — la confirmación fina se hace en el local. Nunca pidas foto; si necesitas certeza, pide la medida escrita del filo de la llanta.",
       });
     },
   });
