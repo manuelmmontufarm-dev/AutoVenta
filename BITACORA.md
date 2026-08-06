@@ -32,6 +32,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-08-05 | _(este mismo)_ | Candado anti-duplicado en generar_cotizacion + censo del historial | 0.5 |
 | 2026-08-05 | _(este mismo)_ | Guardián de salida + la auditoría ve las fallas del día clarísimo | 1.5 |
 | 2026-08-05 | _(este mismo)_ | VENTA PRIMERO en las 3 capas (tools+DB+prompt) y los casos de Joaquín como pruebas | 2.0 |
 | 2026-08-05 | _(este mismo)_ | El bot deja de preguntar y empieza a vender + skill de auditoría | 3.0 |
@@ -85,6 +86,23 @@ Ya viene activado en este equipo.
 ---
 
 ## Entradas (más reciente primero)
+
+### 2026-08-05 · Candado anti-duplicado dentro de generar_cotizacion · ⏱️ 0.5 h
+
+**Qué:** si ya existe una cotización de hace <30 min por el MISMO producto y cantidad, la
+herramienta no genera otra: devuelve el número vigente («Su cotización COT-X sigue
+vigente…») y empuja al cierre. El prompt ya lo prohibía, pero el prompt es una petición;
+esto es un candado. Probado con el caso KLEVER reproducido (la segunda llamada no crea
+fila en `quotes`). Censo del historial completo de Depot vía panel: 164 conversaciones,
+25 con errores graves (30 pedidos de foto, 7 errores de procesamiento, 5 disculpas
+seguidas, 5 mensajes calcados, 6 re-saludos, 1 cotización duplicada). Suite: 181 en verde.
+
+**Por qué:** con esto, TODAS las clases de error del 5-ago tienen defensa determinística
+o candado, no solo instrucciones: foto/duplicado/disculpa/saludo → guardián de salida;
+cotización doble → candado en la tool; preguntar teniendo la medida → instrucción en las
+3 capas + detector que lo mide en cada auditoría.
+
+---
 
 ### 2026-08-05 · Guardián de salida: las fallas de hoy ya no PUEDEN llegar al cliente · ⏱️ 1.5 h
 

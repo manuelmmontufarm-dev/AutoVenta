@@ -661,6 +661,27 @@ export function buildTools(ctx: AgentContext) {
         .describe("true SOLO si el cliente pidió explícitamente el PDF/documento"),
     }),
     run: async ({ items, nombre_cliente, incluir_pdf = false }) => {
+      // Candado anti-duplicado (caso KLEVER, 5-ago: dos números de cotización
+      // para la misma compra en 10 minutos). Determinístico: si YA existe una
+      // cotización reciente por el MISMO producto y cantidad, no se genera
+      // otra — se le recuerda al cliente la vigente. El prompt también lo
+      // prohíbe, pero el prompt es una petición; esto es un candado.
+      const [reciente] = await sql<{ quote_number: string; total: string | number; items: unknown }[]>`
+        select quote_number, total, items from quotes
+        where conversation_id=${ctx.conversation.id} and cycle=${ctx.conversation.current_cycle}
+          and created_at > now() - interval '30 minutes'
+        order by created_at desc limit 1
+      `;
+      if (reciente?.quote_number) {
+        const lineasPrevias = Array.isArray(reciente.items) ? reciente.items as Array<{ code?: string; quantity?: number }> : [];
+        const mismoPedido = lineasPrevias.length === items.length
+          && lineasPrevias.every((l, i) => l.code === items[i]?.code && l.quantity === items[i]?.cantidad);
+        if (mismoPedido) {
+          return JSON.stringify({
+            mensaje_para_enviar: `Su cotización *${reciente.quote_number}* sigue vigente por $${Number(reciente.total).toFixed(2)} 👍 Preséntela en la tienda con ese número.\n---\n¿Le queda mejor Cumbayá o Quito Sur para pasar a verlas?`,
+          });
+        }
+      }
       const [facts] = await sql<{ selected_quantity: number | null }[]>`
         select selected_quantity from conversations where id=${ctx.conversation.id}
       `;

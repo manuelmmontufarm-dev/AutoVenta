@@ -217,6 +217,39 @@ describe.sequential("Venta primero — los arreglos de Joaquín", () => {
     });
   });
 
+  describe("candado anti-duplicado en la herramienta misma (caso KLEVER)", () => {
+    it("con una cotización vigente por el MISMO pedido, la tool devuelve el número existente sin generar otra", async () => {
+      const [c] = await appSql<{ id: number }[]>`
+        insert into conversations (phone, name, stage, tire_size, selected_quantity)
+        values ('593995614099', 'KLEVER BIS', 'seleccionando', '225/60R17', 4)
+        returning id
+      `;
+      await appSql`
+        insert into quotes (conversation_id, cycle, items, subtotal, tax, total, quote_number, created_at)
+        values (${c.id}, 1,
+                '[{"code":"FALKEN-ZE310R-22560R17","quantity":4}]',
+                555.30, 83.29, 638.59, 'COT-VIGENTE1', now() - interval '5 minutes')
+      `;
+      const { buildTools } = await import("../src/agent/tools.js");
+      const tools = buildTools({
+        conversation: { id: c.id, phone: "593995614099", name: "KLEVER BIS", stage: "seleccionando", bot_paused_until: null, status: "open", current_cycle: 1 },
+        customerPhone: "593995614099",
+        currentUserText: "Las 4 llantas",
+      } as never);
+      const cotizar = tools.find((t) => t.function.name === "generar_cotizacion")!;
+      const resultado = JSON.parse(await cotizar.execute({
+        items: [{ code: "FALKEN-ZE310R-22560R17", cantidad: 4 }],
+        nombre_cliente: "KLEVER BIS",
+      }));
+      // No genera una segunda: recuerda la vigente, con su número.
+      expect(resultado.mensaje_para_enviar).toContain("COT-VIGENTE1");
+      const [conteo] = await appSql<{ n: number }[]>`
+        select count(*)::int as n from quotes where conversation_id=${c.id}
+      `;
+      expect(conteo.n).toBe(1);
+    });
+  });
+
   describe("fitment nunca vuelve a pedir foto", () => {
     it("todas las salidas de la investigación piden la medida escrita", async () => {
       const { researchVehicleFitment } = await import("../src/services/vehicleFitmentResearch.js");
