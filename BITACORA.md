@@ -32,6 +32,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-08-06 | _(este mismo)_ | Favicon como archivo para la tarjeta de Vercel | 0.25 |
 | 2026-08-05 | _(este mismo)_ | Rescate del agente: causa raíz del «problema procesando» | 1.0 |
 | 2026-08-05 | _(este mismo)_ | Candado anti-duplicado en generar_cotizacion + censo del historial | 0.5 |
 | 2026-08-05 | _(este mismo)_ | Guardián de salida + la auditoría ve las fallas del día clarísimo | 1.5 |
@@ -82,11 +83,25 @@ Ya viene activado en este equipo.
 | 2026-07-14 | ac09171 | Ubicaciones de locales + análisis de features del cliente | 1.5 |
 | 2026-07-13 | feadf57 | Brief + plan de desarrollo + plan financiero + catálogo | 4.0 |
 | 2026-07-13 | d997844 | Commit inicial (repo) | 0.25 |
-| | | **TOTAL** | **~83.75 h** |
+| | | **TOTAL** | **~84.0 h** |
 
 ---
 
 ## Entradas (más reciente primero)
+
+### 2026-08-06 · El favicon deja de ser data-URI para que Vercel lo muestre · ⏱️ 0.25 h
+
+**Qué:** el sitio declaraba su favicon embebido en un `data:image/svg+xml,...`. El
+navegador lo pinta bien, pero el rastreador de Vercel no lee data-URIs, así que la
+tarjeta del proyecto en el tablero salía con el logo genérico en vez del de AutoVenta.
+El mismo diseño (AV rojo sobre fondo oscuro) ahora vive en `app/site/icon.svg` y las dos
+páginas —landing y panel— lo referencian por ruta.
+
+**Por qué:** con varios proyectos en la cuenta, distinguirlos de un vistazo en el tablero
+importa; y de paso el panel usaba un diseño distinto (rojo pleno) al de la landing, así
+que quedaron unificados.
+
+---
 
 ### 2026-08-05 · Rescate del agente: el «tuve un problema procesando» ataca su causa raíz · ⏱️ 1.0 h
 
