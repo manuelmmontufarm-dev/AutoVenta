@@ -32,6 +32,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-08-05 | _(este mismo)_ | Rescate del agente: causa raíz del «problema procesando» | 1.0 |
 | 2026-08-05 | _(este mismo)_ | Candado anti-duplicado en generar_cotizacion + censo del historial | 0.5 |
 | 2026-08-05 | _(este mismo)_ | Guardián de salida + la auditoría ve las fallas del día clarísimo | 1.5 |
 | 2026-08-05 | _(este mismo)_ | VENTA PRIMERO en las 3 capas (tools+DB+prompt) y los casos de Joaquín como pruebas | 2.0 |
@@ -86,6 +87,24 @@ Ya viene activado en este equipo.
 ---
 
 ## Entradas (más reciente primero)
+
+### 2026-08-05 · Rescate del agente: el «tuve un problema procesando» ataca su causa raíz · ⏱️ 1.0 h
+
+**Qué:** los 7 errores de procesamiento de producción salían de un solo lugar: el agente
+tiene 8 rondas de herramientas y, si las quema en bucle (una tool que falla y el modelo
+la reintenta — en el chat de KLEVER, `generar_cotizacion` devolviendo «bloqueada» una y
+otra vez), se rendía con la disculpa. Ahora, al agotar las rondas, hay una llamada de
+RESCATE sin herramientas que obliga al modelo a responder con lo que ya averiguó (con
+prohibición explícita de disculparse o pedir que repita). La disculpa queda solo para
+cuando hasta el rescate falla — y si eso se repite, el guardián bloquea la segunda y
+alerta al asesor. `ai_runs.error` distingue `max_iterations_salvaged` de la rendición
+real, y la auditoría reporta `rescatados` aparte de `errores`.
+
+**Prueba:** stub de OpenAI que SIEMPRE pide otra herramienta (el bucle reproducido):
+8 rondas + 1 rescate, el cliente recibe respuesta útil, cero disculpas, y el run queda
+registrado como rescatado. Suite: 182 en verde.
+
+---
 
 ### 2026-08-05 · Candado anti-duplicado dentro de generar_cotizacion · ⏱️ 0.5 h
 

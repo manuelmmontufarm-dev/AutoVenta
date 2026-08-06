@@ -123,6 +123,44 @@ export async function runAgent(ctx: AgentContext, userText: string): Promise<str
     }
   }
 
+  // RESCATE (5-ago): agotar las 8 rondas era la causa #1 del «tuve un problema
+  // procesando» (7 casos en producción — el modelo se quedaba en bucle con una
+  // herramienta que fallaba). Antes de rendirse, una última llamada SIN
+  // herramientas lo obliga a responder al cliente con lo que ya averiguó.
+  try {
+    const rescate = await openai.chat.completions.create({
+      model: config.openai.model,
+      messages: [
+        ...messages,
+        {
+          role: "system",
+          content:
+            "Se acabaron los intentos con herramientas. Responde AHORA al cliente con lo que ya sabes de esta conversación: si tienes opciones o precios de las herramientas, dilos; si algo falló, avanza por otro camino (pide el dato que falte o deriva al asesor). Prohibido disculparte por 'problemas procesando' y prohibido pedir que repita el mensaje.",
+        },
+      ],
+      max_tokens: config.openai.maxTokens,
+    });
+    inputTokens += rescate.usage?.prompt_tokens ?? 0;
+    outputTokens += rescate.usage?.completion_tokens ?? 0;
+    const texto = rescate.choices[0]?.message?.content?.trim();
+    if (texto) {
+      await logAiRun({
+        conversationId: ctx.conversation.id,
+        stage: ctx.conversation.stage,
+        promptVersionId: stagePrompt.id,
+        model: config.openai.model,
+        latencyMs: Date.now() - startedAt,
+        inputTokens,
+        outputTokens,
+        tools: usedTools,
+        error: "max_iterations_salvaged",
+      });
+      return withDiscountNotice(texto, ctx, activeDiscount, pendingDiscount);
+    }
+  } catch (error) {
+    console.warn("⚠️ Rescate sin herramientas falló:", error instanceof Error ? error.message : error);
+  }
+
   await logAiRun({
     conversationId: ctx.conversation.id,
     stage: ctx.conversation.stage,

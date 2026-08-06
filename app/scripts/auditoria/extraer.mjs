@@ -270,8 +270,10 @@ async function main() {
     modelo: {
       modelos: [...new Set(corridas.map((r) => r.model))],
       corridas: corridas.length,
-      errores: corridas.filter((r) => r.error).length,
-      pctErrores: pct(corridas.filter((r) => r.error).length, corridas.length),
+      // Rescatado = agotó las rondas pero el cliente SÍ recibió respuesta útil.
+      rescatados: corridas.filter((r) => r.error === "max_iterations_salvaged").length,
+      errores: corridas.filter((r) => r.error && r.error !== "max_iterations_salvaged").length,
+      pctErrores: pct(corridas.filter((r) => r.error && r.error !== "max_iterations_salvaged").length, corridas.length),
       latenciaMedianaMs: mediana(corridas.map((r) => r.latency_ms).filter(Boolean)),
       tokensEntrada: corridas.reduce((s, r) => s + (r.input_tokens ?? 0), 0),
       tokensSalida: corridas.reduce((s, r) => s + (r.output_tokens ?? 0), 0),
