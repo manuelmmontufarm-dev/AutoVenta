@@ -98,14 +98,7 @@ const escenarios: Escenario[] = [
     imagen: dataUri(pngOpciones),
     antes: [qm.buildCustomerOptionsMessageDetallado(CATALOGO.slice(0, 3), "Cliente")],
     ahora: qm.splitBlocks(
-      qm.composeBlocks(
-        qm.buildOptionsCaption(
-          CATALOGO.slice(0, 3), kenda,
-          "es el mejor equilibrio entre duración y precio",
-        ),
-        incluye,
-        "¿Cuál le llama más la atención?",
-      ),
+      qm.composeBlocks(incluye, qm.PREGUNTA_RECOMENDACION),
     ),
   },
 ];

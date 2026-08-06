@@ -59,27 +59,21 @@ export function aWhatsApp(texto: string): string {
  * La pieza visual ya lleva marca, diseño, medida, precio tachado, precio de
  * hoy, índice de carga, disponibilidad y garantías. Repetir todo eso en texto
  * es el muro que el cliente reportó que nadie lee. El caption solo aporta lo
- * que la imagen no puede: cuál elegiría el bot y por qué.
+ * que la imagen no puede.
  * ------------------------------------------------------------------ */
 
 /**
- * Opciones. La recomendación explícita no es decoración: el §7 del PDF exige
- * que el agente diga siempre cuál elegiría.
+ * Cierre de las opciones. Antes aquí iba un bloque «Yo iría por la X porque…»
+ * ANTES de la imagen, y el turno cerraba con «¿Cuál le llama más la atención?».
+ *
+ * Joaquín lo mandó a quitar el 6-ago viendo la conversación real: con el
+ * preámbulo, la imagen, el INCLUYE y la pregunta, la cadena se volvía tan larga
+ * que «los mijines ya no leen» — y la recomendación, que es lo que más pesa, se
+ * perdía en el muro. Ahora la recomendación no se adelanta: se OFRECE. El bot
+ * la tiene lista (`recomendado` + `motivo` de preparar_opciones) y la da en una
+ * frase solo si el cliente dice que sí, cuando ya está mirando la pieza.
  */
-export function buildOptionsCaption(
-  products: readonly CatalogItem[],
-  recommended: CatalogItem,
-  motivo: string,
-): string {
-  const sizeLabel = products[0]?.sizeLabel ?? null;
-  return [
-    `Le mando las opciones${sizeLabel ? ` en ${sizeLabel}` : ""} 👆`,
-    "",
-    `Yo iría por la *${recommended.brand} ${recommended.design}*: ${motivo.trim().replace(/\.$/, "")}.`,
-    "",
-    "Los precios son por unidad, con IVA incluido.",
-  ].join("\n");
-}
+export const PREGUNTA_RECOMENDACION = "¿Necesita alguna recomendación?";
 
 /** Cotización: número, total y vigencia. El desglose ya está en la imagen. */
 export function buildSingleQuoteCaption(

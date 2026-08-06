@@ -32,6 +32,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-08-06 | _(este mismo)_ | Cadena más corta al mandar opciones + llantas grandes en la pieza + la KR50 deja de salir invisible | 1.5 |
 | 2026-08-06 | _(este mismo)_ | Favicon como archivo para la tarjeta de Vercel | 0.25 |
 | 2026-08-05 | _(este mismo)_ | Rescate del agente: causa raíz del «problema procesando» | 1.0 |
 | 2026-08-05 | _(este mismo)_ | Candado anti-duplicado en generar_cotizacion + censo del historial | 0.5 |
@@ -88,6 +89,57 @@ Ya viene activado en este equipo.
 ---
 
 ## Entradas (más reciente primero)
+
+### 2026-08-06 · Las opciones: cadena más corta, llantas grandes y la KR50 visible · ⏱️ 1.5 h
+
+**De dónde sale:** Joaquín revisó un chat real de hoy (245/65R17) y mandó tres cosas.
+
+**1. «Este mensaje le quitaría».** Antes de la imagen el bot mandaba un bloque
+«Le mando las opciones en 245/65R17 👆 / Yo iría por la *FALKEN WILDPEAK A/T TRAIL*: … /
+Los precios son por unidad, con IVA incluido», y cerraba con «¿Cuál le llama más la
+atención?». Con la imagen y el INCLUYE en medio, eso son cuatro mensajes seguidos:
+_«se vuelve una cadena muy larga y los mijines ya no leen»_. Se eliminó
+`buildOptionsCaption`. El turno queda en **imagen + INCLUYE + «¿Necesita alguna
+recomendación?»**. La recomendación no desaparece: se OFRECE. `preparar_opciones`
+sigue eligiéndola y ahora devuelve `recomendacion` y `motivo_recomendacion` para que
+el agente la dé en UNA frase cuando el cliente diga que sí — con el cliente ya
+mirando la pieza, que es cuando pesa.
+
+Se cambió en las **cuatro capas** donde vivía la regla vieja, no solo en el código
+que arma el texto: `quoteMessages.ts`, la descripción y la `regla` de
+`preparar_opciones`, el prompt del sistema (`prompts.ts`) y `BOT_PLAYBOOK.md` —
+incluido su ejemplo, que enseñaba justo la cadena que Joaquín mandó a quitar.
+(El playbook se compila dentro del bundle del panel, así que el hub se rebuildeó.)
+
+**2. «¿Hay chance de hacer las llantas más grandes?».** La tarjeta de opciones tenía
+la foto fija en 140 px sin importar el ancho disponible. En el caso normal —
+`tresOpciones()` deja una marca por escalón, o sea **una tarjeta sola por fila, de
+~1.100 px** — la llanta ocupaba el 13 % del ancho y se veía perdida. Ahora la tarjeta
+crece con el sitio que tiene: escala foto/texto según cuántas van en la fila, y la
+tarjeta que va sola se **acuesta** (llanta grande a la izquierda, datos a la derecha)
+en vez de apilar y dejar media tarjeta vacía. Mismo diseño, mismos elementos, mismo
+orden de lectura. De paso la pieza quedó más corta: 3.342 px de alto contra los
+4.554 que daba solo agrandando la foto en vertical.
+
+**3. La Kenda KR50 salía en blanco.** En la propia captura de Joaquín la tarjeta de la
+KR50 es un hueco con la sombra dibujada y nada encima. El archivo estaba y pesaba
+1,1 MB: es un **JPEG guardado como `.png`**. El motor deducía el MIME de la extensión,
+resvg recibía `data:image/png` con bytes de JPEG y no dibujaba nada. Ahora
+`sniffImageMime()` lee los bytes mágicos y el nombre del archivo ya no manda —ni el
+`content-type` del servidor en las fotos remotas—; lo que no tenga firma reconocible
+cae a la ilustración genérica en vez de dejar el hueco. `kenda-kr100.png` estaba igual.
+
+**Pruebas:** suite en **185 en verde** (3 nuevas). `fotosCatalogo.test.ts` recorre las
+fotos del manifiesto y exige que existan Y que decodifiquen. `piezas.test.ts` suma la
+variante *una-por-marca*, que desde hoy es la más alta y pesada de la pieza (1,73 MB
+contra los 4,5 de margen). Las tres formas reales de la pieza —3 marcas × 1, 2+1, y
+3 tarjetas en fila— se revisaron renderizadas a ojo.
+
+**Pendiente conocido:** que el modelo no adelante la recomendación es instrucción en
+las cuatro capas, no un candado como el guardián de salida. Si la auditoría lo ve
+reaparecer, ahí sí toca detectarlo determinísticamente.
+
+---
 
 ### 2026-08-06 · El favicon deja de ser data-URI para que Vercel lo muestre · ⏱️ 0.25 h
 

@@ -364,36 +364,71 @@ export function optionsPoster(data: OptionsPosterData, theme: Theme): SatoriNode
     grupos.set(key, actual);
   }
 
-  const tarjeta = (line: PosterLine, acento: string): SatoriNode => {
+  /**
+   * La tarjeta crece cuando tiene sitio. Con 3 llantas la fila va apretada y
+   * manda el tamaño original; con 1 sola marca en la fila —el caso normal, tres
+   * marcas con una opción cada una— la tarjeta ocupaba 1.100 px con una llanta
+   * de 140 y se veía perdida. Joaquín lo pidió el 6-ago: «¿hay chance de hacer
+   * las llantas más grandes?». La foto crece más que el texto: la llanta es lo
+   * que el cliente mira, y la tipografía no necesita el mismo salto.
+   */
+  const escalas = (columnas: number) =>
+    columnas >= 3
+      ? { foto: 1.15, texto: 1.1 }
+      : columnas === 2
+        ? { foto: 1.6, texto: 1.3 }
+        : { foto: 2.4, texto: 1.6 };
+
+  const tarjeta = (line: PosterLine, acento: string, columnas: number): SatoriNode => {
     const pct = savingsPct(line);
-    return el({ flex: 1, flexDirection: "column", gap: 8, position: "relative",
-      backgroundImage: `linear-gradient(160deg,#ffffff 0%,${p.panel} 55%,#f1ead9 100%)`,
-      border: `1px solid ${p.border}`, borderRadius: 16, padding: "20px 22px",
-      boxShadow: "0 12px 28px rgba(20,20,20,0.10), 0 2px 6px rgba(20,20,20,0.06)" },
-      el({ position: "absolute", top: 0, left: 24, width: 56, height: 5,
-        borderRadius: "0 0 4px 4px", backgroundColor: acento }),
-      el({ alignItems: "center", justifyContent: "center", height: 150, position: "relative" },
-        el({ position: "absolute", bottom: 2, width: 120, height: 16,
-          borderRadius: "50%", backgroundColor: "rgba(0,0,0,0.20)" }),
-        img(line.photoUri, { width: 140, height: 130, objectFit: "contain" }),
-        el({ position: "absolute", top: 12, left: 52, width: 52, height: 20, borderRadius: "50%",
-          backgroundImage: "linear-gradient(120deg,rgba(255,255,255,0.75),rgba(255,255,255,0))",
-          transform: "rotate(-18deg)" }),
-      ),
-      text({ ...BLACK_ITALIC, fontSize: 26, letterSpacing: -0.5, color: p.dark }, line.design),
-      text({ fontSize: 14, color: p.tenue }, line.loadSpeedLabel ?? ""),
-      el({ alignItems: "baseline", gap: 10, marginTop: 4 },
-        text({ ...price, fontSize: 42, lineHeight: 1, letterSpacing: -1, color: p.dark }, money(line.unitConIva)),
+    const { foto, texto } = escalas(columnas);
+    const f = (n: number) => Math.round(n * foto);
+    const t = (n: number) => Math.round(n * texto);
+    // Sola en su fila la tarjeta tiene ~1.100 px de ancho: apilar foto sobre
+    // texto dejaba media tarjeta vacía a la derecha y estiraba la pieza a lo
+    // alto. Acostada, la llanta ocupa el espacio que sobra y la fila queda más
+    // corta — mismo material, mismo orden de lectura.
+    const acostada = columnas === 1;
+
+    const bloqueFoto = el(
+      { alignItems: "center", justifyContent: "center", height: f(150), position: "relative",
+        ...(acostada ? { width: f(170) } : {}) },
+      el({ position: "absolute", bottom: 2, width: f(120), height: f(16),
+        borderRadius: "50%", backgroundColor: "rgba(0,0,0,0.20)" }),
+      img(line.photoUri, { width: f(140), height: f(130), objectFit: "contain" }),
+      el({ position: "absolute", top: f(12), left: f(52), width: f(52), height: f(20), borderRadius: "50%",
+        backgroundImage: "linear-gradient(120deg,rgba(255,255,255,0.75),rgba(255,255,255,0))",
+        transform: "rotate(-18deg)" }),
+    );
+
+    const bloqueDatos = el({ flexDirection: "column", gap: t(8), ...(acostada ? { flex: 1 } : {}) },
+      text({ ...BLACK_ITALIC, fontSize: t(26), letterSpacing: -0.5, color: p.dark }, line.design),
+      text({ fontSize: t(14), color: p.tenue }, line.loadSpeedLabel ?? ""),
+      el({ alignItems: "baseline", gap: t(10), marginTop: 4 },
+        text({ ...price, fontSize: t(42), lineHeight: 1, letterSpacing: -1, color: p.dark }, money(line.unitConIva)),
         pct && line.pvpConIva
           ? el({ flexDirection: "column", gap: 3 },
-              text({ fontSize: 16, color: p.tenue, textDecoration: "line-through" }, money(line.pvpConIva)),
+              text({ fontSize: t(16), color: p.tenue, textDecoration: "line-through" }, money(line.pvpConIva)),
               el({}, text({ backgroundImage: "linear-gradient(135deg,#f7e29a 0%,#eccd6f 40%,#b98a1e 100%)",
-                borderRadius: 5, padding: "2px 8px", fontSize: 13, fontWeight: 700,
+                borderRadius: 5, padding: `${t(2)}px ${t(8)}px`, fontSize: t(13), fontWeight: 700,
                 color: "#211a08", whiteSpace: "nowrap" }, `−${pct}`)),
             )
           : null,
       ),
-      availabilityDot(line.availability),
+      availabilityDot(line.availability, texto),
+    );
+
+    return el({ flex: 1, position: "relative",
+      ...(acostada
+        ? { flexDirection: "row", alignItems: "center", gap: t(28) }
+        : { flexDirection: "column", gap: t(8) }),
+      backgroundImage: `linear-gradient(160deg,#ffffff 0%,${p.panel} 55%,#f1ead9 100%)`,
+      border: `1px solid ${p.border}`, borderRadius: 16, padding: `${t(20)}px ${t(22)}px`,
+      boxShadow: "0 12px 28px rgba(20,20,20,0.10), 0 2px 6px rgba(20,20,20,0.06)" },
+      el({ position: "absolute", top: 0, left: 24, width: 56, height: 5,
+        borderRadius: "0 0 4px 4px", backgroundColor: acento }),
+      bloqueFoto,
+      bloqueDatos,
     );
   };
 
@@ -420,7 +455,7 @@ export function optionsPoster(data: OptionsPosterData, theme: Theme): SatoriNode
         ),
       ),
       el({ flex: 1, gap: 20, padding: "28px 32px", alignItems: "stretch" },
-        ...items.map((line) => tarjeta(line, acento)),
+        ...items.map((line) => tarjeta(line, acento, items.length)),
       ),
     );
   };

@@ -70,6 +70,15 @@ describe("Piezas visuales dentro de los límites de WhatsApp", () => {
       renderCompareImage({ dateLabel: fecha, products: lines.slice(0, 3) }));
     await medir("opciones", () =>
       renderOptionsImage({ dateLabel: fecha, sizeLabel: "205/55R16", products: lines }));
+    // La forma que el bot manda de verdad: tresOpciones() deja una marca por
+    // escalón, o sea una tarjeta por fila. Desde el 6-ago esa tarjeta va
+    // acostada y con la llanta grande, así que es la variante más alta y más
+    // pesada de la pieza — la que hay que vigilar.
+    await medir("opciones-una-por-marca", () =>
+      renderOptionsImage({
+        dateLabel: fecha, sizeLabel: "205/55R16",
+        products: [lines[0], lines[3], lines[6]],
+      }));
 
     for (const { nombre, png, ms } of piezas) {
       expect(png.byteLength, `${nombre} debe producir un PNG`).toBeGreaterThan(0);

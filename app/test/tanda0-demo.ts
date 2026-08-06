@@ -20,8 +20,8 @@ const { sql } = await import("../src/db/client.js");
 const { buildBenefitsBlock, getActiveBenefits } = await import("../src/services/benefits.js");
 const {
   buildCustomerOptionsMessageDetallado,
-  buildOptionsCaption,
   composeBlocks,
+  PREGUNTA_RECOMENDACION,
   splitBlocks,
 } = await import("../src/services/quoteMessages.js");
 
@@ -74,9 +74,8 @@ console.log("\n" + "═".repeat(70));
 console.log("AHORA — imagen + bloques cortos");
 console.log("═".repeat(70));
 const ahora = composeBlocks(
-  buildOptionsCaption(productos, kenda, "es el mejor equilibrio entre duración y precio"),
   await buildBenefitsBlock({ brands: productos.map((p) => p.brand) }),
-  "¿Cuál le llama más la atención?",
+  PREGUNTA_RECOMENDACION,
 );
 const bloques = splitBlocks(ahora);
 bloques.forEach((bloque, i) => {

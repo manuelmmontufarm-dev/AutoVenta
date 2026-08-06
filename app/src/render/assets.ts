@@ -215,6 +215,28 @@ export function localTirePhoto(brand: string, design: string): RasterImage | nul
 const photoCache = new Map<string, RasterImage | null>();
 
 /**
+ * Formato REAL del archivo, por sus bytes mágicos — no por la extensión.
+ *
+ * `kenda-kr50.png` y `kenda-kr100.png` son JPEG guardados con extensión .png.
+ * Declararlos como `data:image/png` hacía que resvg no pudiera decodificarlos y
+ * la tarjeta salía vacía: eso es el hueco blanco que Joaquín vio en la pieza de
+ * 245/65R17 el 6-ago. Un archivo mal nombrado no puede volver a romper la
+ * pieza: el nombre no manda, el contenido sí.
+ */
+export function sniffImageMime(buf: Buffer): string | null {
+  if (buf.length >= 8 && buf.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))) {
+    return "image/png";
+  }
+  if (buf.length >= 3 && buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff) return "image/jpeg";
+  if (buf.length >= 12 && buf.subarray(0, 4).toString("latin1") === "RIFF" && buf.subarray(8, 12).toString("latin1") === "WEBP") {
+    return "image/webp";
+  }
+  if (buf.length >= 5 && buf.subarray(0, 5).toString("latin1") === "<?xml") return "image/svg+xml";
+  if (buf.length >= 4 && buf.subarray(0, 4).toString("latin1") === "<svg") return "image/svg+xml";
+  return null;
+}
+
+/**
  * Foto del catálogo. Las rutas del manifiesto vienen como `/assets/catalog/x.jpg`
  * (servidas por el hub) → se leen del disco; una URL absoluta se descarga.
  */
@@ -230,9 +252,12 @@ function sitePhoto(publicPath: string): RasterImage | null {
   const rel = path.normalize(publicPath).replace(/^(\.\.[/\\])+/, "").replace(/^[/\\]+/, "");
   const file = path.join(SITE, rel);
   if (file.startsWith(SITE) && existsSync(file)) {
-    const ext = path.extname(file).toLowerCase();
-    const mime = ext === ".png" ? "image/png" : ext === ".webp" ? "image/webp" : "image/jpeg";
-    result = { dataUri: `data:${mime};base64,${readFileSync(file).toString("base64")}`, width: 0, height: 0 };
+    const buf = readFileSync(file);
+    const mime = sniffImageMime(buf);
+    // Sin firma reconocible se descarta: mejor la ilustración genérica que una
+    // tarjeta en blanco.
+    if (mime) result = { dataUri: `data:${mime};base64,${buf.toString("base64")}`, width: 0, height: 0 };
+    else console.warn(`⚠️ Foto de catálogo con formato no reconocido, se ignora: ${publicPath}`);
   }
   photoCache.set(publicPath, result);
   return result;
@@ -247,10 +272,12 @@ export async function remotePhoto(url: string): Promise<RasterImage | null> {
     const timer = setTimeout(() => controller.abort(), 6000);
     const res = await fetch(url, { signal: controller.signal });
     clearTimeout(timer);
-    const mime = res.headers.get("content-type")?.split(";")[0] ?? "";
-    if (res.ok && ["image/png", "image/jpeg", "image/jpg"].includes(mime)) {
+    const declarado = res.headers.get("content-type")?.split(";")[0] ?? "";
+    if (res.ok && ["image/png", "image/jpeg", "image/jpg"].includes(declarado)) {
       const buf = Buffer.from(await res.arrayBuffer());
-      if (buf.byteLength <= 3 * 1024 * 1024) {
+      // El content-type del servidor tampoco manda: vale la firma del archivo.
+      const mime = sniffImageMime(buf);
+      if (mime && buf.byteLength <= 3 * 1024 * 1024) {
         result = { dataUri: `data:${mime};base64,${buf.toString("base64")}`, width: 0, height: 0 };
       }
     }

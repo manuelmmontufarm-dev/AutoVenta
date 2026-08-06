@@ -54,20 +54,18 @@ describe("formato WhatsApp: la imagen es el mensaje", () => {
 
   it("ninguna pieza acompañada de imagen pasa de 5 líneas de texto", () => {
     const captions = [
-      qm.buildOptionsCaption([kenda, falken], kenda, "es el mejor equilibrio entre duración y precio"),
       qm.buildSingleQuoteCaption({ product: kenda, quantity: 4 }, "AV-000123"),
       qm.buildComparisonCaption([kenda, falken]),
     ];
     for (const caption of captions) expect(lineas(caption)).toBeLessThanOrEqual(5);
   });
 
-  it("el caption de opciones recomienda una y dice que el precio es por unidad", () => {
-    const caption = qm.buildOptionsCaption([kenda, falken], kenda, "es el mejor equilibrio");
-    expect(caption).toContain("*Kenda KR203*");
-    expect(caption).toMatch(/por unidad/i);
-    // Lo que ya muestra la imagen no se repite en texto.
-    expect(caption).not.toContain("113.49");
-    expect(caption).not.toMatch(/garantía/i);
+  // Joaquín, 6-ago, viendo un chat real: «este mensaje le quitaría porque se
+  // vuelve una cadena muy larga y los mijines ya no leen». El preámbulo con la
+  // recomendación desapareció; el turno cierra ofreciéndola.
+  it("las opciones cierran ofreciendo la recomendación, sin adelantarla", () => {
+    expect(qm.PREGUNTA_RECOMENDACION).toBe("¿Necesita alguna recomendación?");
+    expect(lineas(qm.PREGUNTA_RECOMENDACION)).toBe(1);
   });
 
   it("el muro completo sigue disponible para cuando la imagen no sale", () => {
@@ -76,19 +74,22 @@ describe("formato WhatsApp: la imagen es el mensaje", () => {
     expect(lineas(muro)).toBeGreaterThan(5);
   });
 
-  it("una respuesta comercial se parte en bloques y termina en pregunta", () => {
+  it("con la imagen enviada el turno son 2 bloques: INCLUYE y la pregunta", () => {
     const respuesta = qm.composeBlocks(
-      qm.buildOptionsCaption([kenda, falken], kenda, "es el mejor equilibrio"),
+      null, // el caption de presentación ya no existe
       benefits.formatBenefitsBlock([
         { id: 1, text: "Seguro gratuito contra golpes", position: 0, active: true,
           brand: null, minQuantity: null, store: null, startsAt: null, expiresAt: null },
       ]),
-      "¿Cuál le llama más la atención?",
+      qm.PREGUNTA_RECOMENDACION,
     );
     const bloques = qm.splitBlocks(respuesta);
-    expect(bloques).toHaveLength(3);
-    expect(bloques[1]).toMatch(/^\*INCLUYE\*/);
-    expect(bloques.at(-1)).toMatch(/\?$/);
+    expect(bloques).toHaveLength(2);
+    expect(bloques[0]).toMatch(/^\*INCLUYE\*/);
+    expect(bloques.at(-1)).toBe(qm.PREGUNTA_RECOMENDACION);
+    // Nada de la cadena vieja: ni «Yo iría por», ni precios repetidos.
+    expect(respuesta).not.toMatch(/yo ir[íi]a/i);
+    expect(respuesta).not.toContain("113.49");
   });
 
   it("nunca manda más de 4 bloques por turno", () => {

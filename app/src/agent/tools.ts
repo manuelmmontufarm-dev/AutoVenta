@@ -27,10 +27,10 @@ import {
   buildComparisonCaption,
   buildComparisonMessageDetallado,
   buildCustomerOptionsMessageDetallado,
-  buildOptionsCaption,
   buildSingleQuoteCaption,
   buildSingleQuoteMessageDetallado,
   composeBlocks,
+  PREGUNTA_RECOMENDACION,
   warrantyForBrand,
 } from "../services/quoteMessages.js";
 import {
@@ -401,20 +401,22 @@ export function buildTools(ctx: AgentContext) {
   const prepararOpciones = defineTool({
     name: "preparar_opciones",
     description:
-      "Envía la imagen de opciones al cliente y devuelve el texto corto que la acompaña. Úsala después de confirmar la medida. Manda como máximo TRES: una premium, una de equilibrio y una económica — más opciones confunden y bajan el cierre. Debes recomendar UNA con un motivo concreto: la imagen ya muestra precios y garantías, así que tu texto solo aporta el criterio. Responde con el texto que devuelve, sin reescribir precios.",
+      "Envía la imagen de opciones al cliente y devuelve el texto corto que la acompaña. Úsala después de confirmar la medida. Manda como máximo TRES: una premium, una de equilibrio y una económica — más opciones confunden y bajan el cierre. Elige UNA como recomendación con un motivo concreto, pero NO se la mandas ahora: el texto cierra ofreciéndola y tú la das en una frase solo si el cliente dice que sí. Responde con el texto que devuelve, sin reescribir precios.",
     schema: z.object({
       codes: z.array(z.string().min(1)).min(1).max(6),
       nombre_cliente: z.string().default("Cliente"),
       recomendado: z
         .string()
         .min(1)
-        .describe("Código de la opción que TÚ recomiendas, de entre las de codes"),
+        .describe(
+          "Código de la opción que TÚ recomiendas, de entre las de codes. Queda guardada para cuando el cliente pida la recomendación; no se envía en este turno.",
+        ),
       motivo: z
         .string()
         .min(8)
         .max(140)
         .describe(
-          "Una sola frase de por qué esa: el criterio real (uso, duración, precio). Sin inventar ventajas técnicas no verificadas.",
+          "Una sola frase de por qué esa: el criterio real (uso, duración, precio). Sin inventar ventajas técnicas no verificadas. Es lo que dirás si el cliente pide la recomendación.",
         ),
     }),
     run: async ({ codes, nombre_cliente, recomendado, motivo }) => {
@@ -494,24 +496,26 @@ export function buildTools(ctx: AgentContext) {
           size: product.sizeLabel,
         })),
       });
-      // La imagen es el mensaje: si salió, el texto es solo el criterio y la
-      // pregunta. Si no salió, el cliente recibe el detalle completo en texto —
-      // feo, pero nunca se queda sin las opciones.
+      // La imagen es el mensaje: si salió, el texto no la presenta ni la
+      // resume — solo los beneficios y el ofrecimiento de recomendar. Si no
+      // salió, el cliente recibe el detalle completo en texto: feo, pero nunca
+      // se queda sin las opciones.
       const beneficios = await buildBenefitsBlock({
         brands: products.map((product) => product.brand),
       });
       return JSON.stringify({
         imagen_enviada: visual.ok,
         recomendacion: `${recommended.brand} ${recommended.design}`,
+        motivo_recomendacion: motivo.trim().replace(/\.$/, ""),
         mensaje_para_enviar: composeBlocks(
           (await usarCaptionCorto(visual.ok))
-            ? buildOptionsCaption(products, recommended, motivo)
+            ? null
             : buildCustomerOptionsMessageDetallado(products, nombre_cliente),
           beneficios,
-          "¿Cuál le llama más la atención?",
+          PREGUNTA_RECOMENDACION,
         ),
         regla:
-          "Responde usando exactamente mensaje_para_enviar, con sus separadores '---' intactos. No sumes alternativas ni repitas en texto lo que ya muestra la imagen.",
+          "Responde usando exactamente mensaje_para_enviar, con sus separadores '---' intactos. No sumes alternativas ni repitas en texto lo que ya muestra la imagen. NO adelantes la recomendación en este turno: el texto ya la ofrece. Si el cliente responde que sí, recién ahí dile en UNA frase que irías por `recomendacion` porque `motivo_recomendacion`.",
       });
     },
   });

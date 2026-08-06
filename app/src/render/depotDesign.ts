@@ -316,12 +316,14 @@ export function tick(size: number, color: string): SatoriNode {
 }
 
 /** Punto + texto de las tarjetas de opciones. */
-export function availabilityDot(availability: Availability): SatoriNode {
+/** `scale` acompaña el tamaño de la tarjeta que lo contiene (ver optionsPoster). */
+export function availabilityDot(availability: Availability, scale = 1): SatoriNode {
+  const s = (n: number) => Math.round(n * scale);
   const dot = availability === "available" ? "#2a9d8f" : availability === "check" ? "#e0a71c" : "#b0b6bc";
   const corto = availability === "available" ? "Disponible" : availability === "check" ? "Consultar" : "Sin stock";
-  return el({ alignItems: "center", gap: 7, marginTop: 2 },
-    el({ width: 10, height: 10, borderRadius: "50%", backgroundColor: dot }),
-    text({ fontSize: 14, fontWeight: 700, color: availabilityFg(availability) }, corto),
+  return el({ alignItems: "center", gap: s(7), marginTop: 2 },
+    el({ width: s(10), height: s(10), borderRadius: "50%", backgroundColor: dot }),
+    text({ fontSize: s(14), fontWeight: 700, color: availabilityFg(availability) }, corto),
   );
 }
 
