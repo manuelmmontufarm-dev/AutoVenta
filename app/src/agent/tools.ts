@@ -289,7 +289,7 @@ export function buildTools(ctx: AgentContext) {
   const buscarPorAroYTipo = defineTool({
     name: "buscar_por_aro_y_tipo",
     description:
-      "Busca por ARO y (opcional) TIPO de llanta: H/T, A/T, R/T, M/T, turismo, turismo SUV, turismo UHP, comercial. Úsala cuando el cliente pida algo como 'una R17 A/T' o 'llantas todo terreno para aro 16', o cuando cambió los aros y ya no sirve la medida original. Devuelve las medidas que existen en ese aro con su tipo y precio.",
+      "Busca por ARO y (opcional) TIPO de llanta: H/T, A/T, R/T, M/T, turismo, turismo SUV, turismo UHP, comercial. EL ARO SOLO YA ALCANZA: si el cliente dijo 'para rin 19' o 'aro 16' sin decir el tipo, llámala igual con tipo: null y te devuelve todas las medidas que existen en ese aro. Úsala también cuando pida 'una R17 A/T' o 'todo terreno para aro 16', o cuando cambió los aros y ya no sirve la medida original. El aro le gana al vehículo: si el cliente dio aro y carro en el mismo mensaje, usa esta y no fitment_vehiculo. Devuelve las medidas que existen en ese aro con su tipo y precio.",
     schema: z.object({
       aro: z.number().int().min(12).max(24).describe("Aro en pulgadas, ej. 17"),
       tipo: z
@@ -343,7 +343,7 @@ export function buildTools(ctx: AgentContext) {
         opciones: seleccion.map(toolItem),
         otras_en_ese_aro: delTipo.length - seleccion.length,
         regla:
-          "PROHIBIDO listarlas en texto. Llama preparar_opciones con estos códigos para que salga la imagen (una premium, una de equilibrio, una económica). Si el cliente no dijo el uso, pregúntalo antes de recomendar. No afirmes un tipo que no venga en 'tipo'.",
+          "PROHIBIDO listarlas en texto. Llama preparar_opciones con estos códigos para que salga la imagen (una premium, una de equilibrio, una económica). Si el cliente no dijo el uso ni el tipo, se lo preguntas DESPUÉS de mandarle la imagen — nunca retengas las opciones para preguntar primero. No afirmes un tipo que no venga en 'tipo'.",
       });
     },
   });
@@ -368,7 +368,7 @@ export function buildTools(ctx: AgentContext) {
   const fitmentVehiculo = defineTool({
     name: "fitment_vehiculo",
     description:
-      "Dado un vehículo (marca, modelo y año), sugiere medidas verificadas. Úsala SOLO cuando el cliente NO dio ninguna medida: si ya dio una medida, esa manda y esta herramienta no hace falta. Si hay varias versiones, ofrece la más probable con su límite dicho en una línea y sigue vendiendo. NUNCA pidas fotos (no puedes leerlas); si necesitas certeza, pide la medida ESCRITA del filo de la llanta.",
+      "Dado un vehículo (marca, modelo y año), sugiere medidas verificadas. Es el ÚLTIMO RECURSO: úsala SOLO cuando el cliente no dio NI medida NI aro. Si ya dio una medida, esa manda; si dio un aro, el aro manda y va buscar_por_aro_y_tipo (con tipo: null si no dijo el tipo) — esta herramienta no hace falta en ninguno de los dos casos. Si hay varias versiones, ofrece la más probable con su límite dicho en una línea y sigue vendiendo. NUNCA pidas fotos (no puedes leerlas); si necesitas certeza, pide la medida ESCRITA del filo de la llanta.",
     schema: z.object({
       marca: z.string().describe("Marca del vehículo, ej. Chevrolet"),
       modelo: z.string().describe("Modelo, ej. Sail, D-Max, Hilux"),
@@ -384,6 +384,8 @@ export function buildTools(ctx: AgentContext) {
           compatibilidad_confirmada: false,
           mensaje:
             "No existe una medida verificada para ese año/modelo en la base. No afirmes que una llanta le entra, pero NO frenes la venta: pide la medida ESCRITA que dice el filo de la llanta (ej. 225/65R17) y en cuanto la dé, busca y cotiza. NUNCA pidas fotos: no puedes leerlas.",
+          regla:
+            "PROHIBIDO responder solo «no tengo una medida verificada» y una pregunta. Si el cliente dio un ARO, olvídate de este resultado y llama buscar_por_aro_y_tipo con ese aro y tipo: null — ofrécele esas opciones. Solo si no hay aro ni medida por ningún lado pides la medida escrita, y aun así en esa misma respuesta le dices qué le puedes conseguir. No te detengas aquí.",
           siguiente_pregunta: result.nextQuestion,
         });
       }
@@ -396,7 +398,7 @@ export function buildTools(ctx: AgentContext) {
         fuentes: result.sources,
         siguiente_pregunta: result.nextQuestion,
         regla:
-          "Muestra la fuente. Si estado no es verified, ofrece la medida más probable como referencia con su límite dicho en UNA línea y sigue vendiendo — la confirmación fina se hace en el local. Nunca pidas foto; si necesitas certeza, pide la medida escrita del filo de la llanta.",
+          "Muestra la fuente. Si estado no es verified, ofrece la medida más probable como referencia con su límite dicho en UNA línea y sigue vendiendo — la confirmación fina se hace en el local. Nunca cierres el turno con la limitación sola: si el cliente dio un aro, enséñale además las opciones de ese aro. Nunca pidas foto; si necesitas certeza, pide la medida escrita del filo de la llanta.",
       });
     },
   });

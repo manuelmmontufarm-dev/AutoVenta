@@ -32,6 +32,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-08-07 | _(este mismo)_ | El aro solo ya basta: se acabó el «no tengo medida verificada» sin ofrecer nada | 0.5 |
 | 2026-08-07 | _(este mismo)_ | Aviso por WhatsApp al asesor cada vez que se prende o apaga el bot, con el motivo | 1.5 |
 | 2026-08-06 | _(este mismo)_ | Si no es un NO es un SÍ + leer fotos + candados de opciones + watchdog de bot apagado | 4.0 |
 | 2026-08-06 | _(este mismo)_ | Cadena más corta al mandar opciones + llantas grandes en la pieza + la KR50 deja de salir invisible | 1.5 |
@@ -92,6 +93,30 @@ Ya viene activado en este equipo.
 ---
 
 ## Entradas (más reciente primero)
+
+### 2026-08-07 · El aro solo ya basta para mostrar opciones · ⏱️ 0.5 h
+
+**Qué:** falla cazada EN VIVO a los 40 minutos de encender el bot (conversación 1704, 08:50). El
+cliente escribió «Para rin 19 / Marca hyundai / Modelo creta 2027» y el bot respondió *«No tengo una
+medida verificada para la Hyundai Creta 2027. ¿Me escribe la medida…?»* — o sea, con el aro en la
+mano no le ofreció nada. Es el detector `sin_ficha_verificada`: prudencia que cuesta plata.
+
+**Causa:** no era la herramienta. `buscar_por_aro_y_tipo` ya acepta `tipo: null` y con solo el aro
+devuelve todo lo que existe en ese aro. Era el texto que enrutaba: el paso 1c decía «Si pide un ARO
+con un TIPO», que se lee como que hacen falta los dos, y el 2b mandaba al vehículo. Con aro Y
+vehículo en el mismo mensaje el modelo eligió el vehículo, fitment no tenía ficha de una Creta 2027,
+y ahí se detuvo.
+
+**Arreglo:** el aro sube al mismo rango que la medida (**el aro le gana al vehículo**: es un dato
+duro del cliente que no depende de ninguna ficha); `fitment_vehiculo` baja a último recurso, solo
+cuando no hay medida NI aro; y regla dura nueva en las cuatro que mandan: **prohibido terminar un
+turno con una limitación propia y una pregunta, sin ofrecer nada** — «no tengo una medida
+verificada» jamás puede ser el mensaje completo. Se alinearon también las `description` y las
+`regla` de `buscar_por_aro_y_tipo` y `fitment_vehiculo` (incluida la rama `not_found`, que es el
+punto exacto donde el modelo se frenó): el prompt y las herramientas tenían que decir lo mismo.
+
+**Verificación:** 247 tests en verde (3 nuevos que fijan las tres reglas con regex resistentes a
+reescrituras de estilo pero que fallan si alguien las revierte).
 
 ### 2026-08-07 · El interruptor del bot avisa por WhatsApp, con el motivo · ⏱️ 1.5 h
 

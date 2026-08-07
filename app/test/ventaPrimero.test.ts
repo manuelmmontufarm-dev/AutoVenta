@@ -67,6 +67,35 @@ describe.sequential("Venta primero — los arreglos de Joaquín", () => {
       const texto = prompts.buildSystemPrompt();
       expect(texto).toMatch(/describe el USO o el TIPO[\s\S]{0,200}buscar_por_aro_y_tipo/);
     });
+
+    /**
+     * Caso real del 7-ago (conversación 1704): "Para rin 19 / hyundai creta
+     * 2027" y el bot no ofreció NADA porque se fue por fitment. El aro solo
+     * ya alcanza para mostrar opciones.
+     */
+    it("un ARO sin tipo basta para buscar: tipo null y a mostrar opciones", () => {
+      const texto = prompts.buildSystemPrompt();
+      expect(texto).toContain("El ARO solo ya es suficiente para mostrar opciones");
+      // El paso 1c tiene que decir explícitamente cómo se llama la tool sin tipo.
+      expect(texto).toMatch(/ARO[\s\S]{0,400}buscar_por_aro_y_tipo[\s\S]{0,200}tipo: null/);
+      // El tipo y el uso son preguntas POSTERIORES, nunca un peaje previo.
+      expect(texto).toMatch(/TIPO y el USO se preguntan DESPU[ÉE]S/);
+    });
+
+    it("el aro le gana al vehículo, igual que la medida", () => {
+      const texto = prompts.buildSystemPrompt();
+      expect(texto).toMatch(/ARO tambi[ée]n manda sobre el veh[íi]culo/);
+      // Con aro en el mismo mensaje que el carro, fitment queda fuera.
+      expect(texto).toMatch(/fitment_vehiculo es el [úu]ltimo recurso[\s\S]{0,160}no hay medida NI aro/);
+    });
+
+    it("prohíbe cerrar un turno con una limitación y una pregunta, sin ofrecer nada", () => {
+      const texto = prompts.buildSystemPrompt();
+      expect(texto).toMatch(/PROHIBIDO terminar un turno con una limitaci[óo]n tuya y una pregunta/);
+      // "No tengo una medida verificada" nunca puede ser el mensaje completo.
+      expect(texto).toMatch(/no tengo una medida verificada[\s\S]{0,200}NUNCA pueden ser el mensaje completo/i);
+      expect(texto).toMatch(/NUNCA pueden ser el mensaje completo[\s\S]{0,240}opciones del aro/i);
+    });
   });
 
   describe("los prompts por etapa (base de datos) quedaron en venta-primero", () => {
