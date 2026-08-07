@@ -32,6 +32,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-08-07 | _(este mismo)_ | Precios reales del Interbot (362 llantas cruzadas: no hay fórmula, se lee el precio) | 2.5 |
 | 2026-08-07 | _(este mismo)_ | Lo que el asesor escribe desde WhatsApp ya entra al panel y al historial del bot | 2.0 |
 | 2026-08-07 | _(este mismo)_ | El aro solo ya basta: se acabó el «no tengo medida verificada» sin ofrecer nada | 0.5 |
 | 2026-08-07 | _(este mismo)_ | Aviso por WhatsApp al asesor cada vez que se prende o apaga el bot, con el motivo | 1.5 |
@@ -94,6 +95,35 @@ Ya viene activado en este equipo.
 ---
 
 ## Entradas (más reciente primero)
+
+### 2026-08-07 · Los precios ahora son los del Interbot, no una fórmula · ⏱️ 2.5 h
+
+**De dónde sale:** Joaquín mandó captura: la RT01 315/70R17 salía **$502.16** en la cotización
+del bot y **$489.14** en el Interbot. «Está dando mal los precios, le voy a poner pausa.»
+
+**Qué se encontró.** Contífico solo trae el **costo** (`pvp1=327.50`; pvp2-4 en cero) — el PVP
+que ve la vendedora en pantalla ($653.33) NO sale por la API. Por eso el bot reconstruía el
+precio con divisores «observados» (×1.15 ÷0.75 = margen 33%). Se cruzaron las **362 llantas**
+presentes en ambos sistemas (barrido del Interbot vía `/api/medidas` + `/api/chat`): el Interbot
+lee el mismo costo de Contífico (ratio 1.0000, IVA 15% — la teoría del IVA 12% quedó descartada)
+pero el precio de venta se pone **producto por producto**: 32 grupos de factores entre ×1.0 y
+×1.7. La regla del 33% solo cubre 96/362 (27%). La RT01 del reclamo está en el grupo ×1.2987.
+Conclusión: ninguna fórmula reproduce eso — hay que **leer** el precio, no calcularlo.
+
+**Qué se hizo.**
+- `services/interbotPrices.ts`: login + barrido del Interbot con credenciales propias
+  (`INTERBOT_USERNAME/PASSWORD`, cada 15 min), snapshot de fábrica en
+  `assets/precios-interbot.json` (373 productos, capturado hoy) como respaldo, y candado
+  contra barridos parciales (si trae <50% de lo conocido, se descarta).
+- `catalog.ts`: `applyInterbotPrices()` tras cada sync — precio hoy = `pvpMinConIva` del
+  Interbot (o la promo si está vigente), tachado = `pvpFullConIva` solo si es mayor.
+  Los códigos que el Interbot no tenga conservan la fórmula como último recurso.
+- 6 pruebas en `test/interbotPrices.test.ts`, incluida la regresión exacta del reclamo
+  (502.16 → 489.14) y el caso promo.
+
+**Pendiente:** usuario propio del Interbot para el bot (hoy el snapshot cubre; el sync en vivo
+se activa al poner las credenciales en Railway). El «PVP con ecovalor» de Contífico ($653.33)
+sigue sin salir por API — si algún día lo cargan en pvp2, se lee directo y esto se simplifica.
 
 ### 2026-08-07 · Lo que el asesor escribe desde WhatsApp entra al panel · ⏱️ 2.0 h
 

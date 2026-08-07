@@ -160,6 +160,27 @@ export const config = {
     wheelSizeApiKey: process.env.WHEELSIZE_API_KEY ?? null,
   },
 
+  // Interbot: la fuente del PRECIO DE VENTA real (el que ve el vendedor).
+  // Contífico solo trae el costo; los precios del Interbot se ponen producto
+  // por producto y no siguen ninguna fórmula (ver services/interbotPrices.ts).
+  // Sin credenciales, el bot usa el snapshot de assets/precios-interbot.json.
+  interbot:
+    process.env.INTERBOT_USERNAME && process.env.INTERBOT_PASSWORD
+      ? {
+          baseUrl: envOr(
+            "INTERBOT_BASE_URL",
+            "https://interbot-production.up.railway.app",
+          ).replace(/\/$/, ""),
+          username: env("INTERBOT_USERNAME"),
+          password: env("INTERBOT_PASSWORD"),
+          // 15 min: el barrido son ~155 requests al Interbot; más seguido sería
+          // castigar su servidor sin ganancia (los precios no cambian por minuto).
+          syncIntervalMs: Number(
+            envOr("INTERBOT_SYNC_INTERVAL_MS", String(15 * 60_000)),
+          ),
+        }
+      : null,
+
   databaseUrl: env("DATABASE_URL"),
   // Railway Postgres (red interna) no usa SSL; Supabase/proxy público sí → PGSSL=require
   pgSsl: process.env.PGSSL === "require",

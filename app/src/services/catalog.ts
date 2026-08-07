@@ -17,6 +17,11 @@ import {
   type ContificoProductWire,
 } from "../domain/catalog.js";
 import { extractTireSizes, formatTireSize, type TireSize } from "../domain/tireSize.js";
+import {
+  ensureInterbotPricesFresh,
+  getInterbotPrice,
+  interbotPricesState,
+} from "./interbotPrices.js";
 
 export type { CatalogItem } from "../domain/catalog.js";
 
@@ -163,10 +168,38 @@ async function syncContificoCatalog(): Promise<{ report: SyncReport; items: Cata
   }
 
   if (next.length === 0) throw new Error("Contífico no devolvió llantas cotizables");
+  applyInterbotPrices(next);
   return {
     items: next,
     report: { ok: next.length, skipped, at: new Date(), source: "contifico" },
   };
+}
+
+/**
+ * Sobrescribe los precios calculados con los REALES del Interbot (7-ago: los
+ * precios de venta se ponen ahí producto por producto y no siguen fórmula; los
+ * divisores de normalizeContificoProduct solo aciertan el 27% del catálogo).
+ * Los códigos que el Interbot no conoce conservan la fórmula como último recurso.
+ */
+export function applyInterbotPrices(list: CatalogItem[]): number {
+  const round2 = (n: number) => Math.round(n * 100) / 100;
+  let applied = 0;
+  for (const item of list) {
+    const ib = getInterbotPrice(item.code);
+    if (!ib) continue;
+    // Precio hoy = el de venta del vendedor; si hay promo vigente, la promo.
+    const hoy = ib.tienePromo && ib.precioPromoConIva ? ib.precioPromoConIva : ib.pvpMinConIva;
+    item.minimumPriceWithTax = hoy;
+    // El tachado solo vale si de verdad es mayor; si no, sin tachado engañoso.
+    item.customerPriceWithTax = ib.pvpFullConIva > hoy ? ib.pvpFullConIva : hoy;
+    item.price = round2(item.customerPriceWithTax / (1 + item.taxRate));
+    applied += 1;
+  }
+  const st = interbotPricesState();
+  console.log(
+    `💲 Precios Interbot aplicados: ${applied}/${list.length} (fuente ${st.source}${st.at ? `, ${st.at.toISOString()}` : ""})`,
+  );
+  return applied;
 }
 
 async function fetchWithTimeout(url: URL, apiKey: string): Promise<Response> {
@@ -192,6 +225,9 @@ export async function syncCatalog(): Promise<SyncReport> {
   syncInFlight = (async () => {
     try {
       if (config.contifico) {
+        // Nunca lanza: si el Interbot no responde, quedan el último barrido
+        // bueno o el snapshot de assets/, y el catálogo sigue sincronizando.
+        await ensureInterbotPricesFresh();
         const synced = await syncContificoCatalog();
         items = synced.items;
         lastReport = synced.report;

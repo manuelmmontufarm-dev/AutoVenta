@@ -1,0 +1,3364 @@
+{
+ "capturadoEn": "2026-08-07T17:00:00.000Z",
+ "fuente": "interbot /api/chat (barrido de 155 medidas, sesión manual)",
+ "nota": "Snapshot de respaldo: se usa solo si el sync en vivo de Interbot no está configurado o falla.",
+ "productos": {
+  "318907": {
+   "marca": "FALKEN",
+   "medida": "265/75R16",
+   "costoConIva": 221.86,
+   "pvpFullConIva": 394.42,
+   "pvpMinConIva": 295.8,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "318931": {
+   "marca": "FALKEN",
+   "medida": "265/70R17",
+   "costoConIva": 217.22,
+   "pvpFullConIva": 376.13,
+   "pvpMinConIva": 282.1,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "318941": {
+   "marca": "FALKEN",
+   "medida": "30X9.50R15LT",
+   "costoConIva": 182.94,
+   "pvpFullConIva": 325.23,
+   "pvpMinConIva": 243.92,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "318943": {
+   "marca": "FALKEN",
+   "medida": "33X12.50R20",
+   "costoConIva": 274.53,
+   "pvpFullConIva": 475.36,
+   "pvpMinConIva": 356.52,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "318949": {
+   "marca": "FALKEN",
+   "medida": "285/70R17",
+   "costoConIva": 261.87,
+   "pvpFullConIva": 453.44,
+   "pvpMinConIva": 340.08,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "318959": {
+   "marca": "FALKEN",
+   "medida": "245/75R16",
+   "costoConIva": 218.57,
+   "pvpFullConIva": 388.55,
+   "pvpMinConIva": 291.42,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "318973": {
+   "marca": "FALKEN",
+   "medida": "305/55R20",
+   "costoConIva": 288.19,
+   "pvpFullConIva": 499.04,
+   "pvpMinConIva": 374.29,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "328703": {
+   "marca": "FALKEN",
+   "medida": "225/45R17",
+   "costoConIva": 125.68,
+   "pvpFullConIva": 223.42,
+   "pvpMinConIva": 167.56,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "328710": {
+   "marca": "FALKEN",
+   "medida": "215/45R17",
+   "costoConIva": 117.36,
+   "pvpFullConIva": 208.63,
+   "pvpMinConIva": 156.48,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "329009": {
+   "marca": "FALKEN",
+   "medida": "215/65R16",
+   "costoConIva": 109.23,
+   "pvpFullConIva": 194.2,
+   "pvpMinConIva": 145.64,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "329012": {
+   "marca": "FALKEN",
+   "medida": "225/55R19",
+   "costoConIva": 132.85,
+   "pvpFullConIva": 273.9,
+   "pvpMinConIva": 205.42,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "329038": {
+   "marca": "FALKEN",
+   "medida": "235/50R19",
+   "costoConIva": 153.26,
+   "pvpFullConIva": 272.46,
+   "pvpMinConIva": 204.35,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "329039": {
+   "marca": "FALKEN",
+   "medida": "235/55R18",
+   "costoConIva": 133.38,
+   "pvpFullConIva": 237.12,
+   "pvpMinConIva": 177.83,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "329042": {
+   "marca": "FALKEN",
+   "medida": "235/60R17",
+   "costoConIva": 129.29,
+   "pvpFullConIva": 229.86,
+   "pvpMinConIva": 172.4,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "329045": {
+   "marca": "FALKEN",
+   "medida": "235/65R18",
+   "costoConIva": 150.53,
+   "pvpFullConIva": 267.63,
+   "pvpMinConIva": 200.72,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "329047": {
+   "marca": "FALKEN",
+   "medida": "245/50R20",
+   "costoConIva": 170.63,
+   "pvpFullConIva": 326.82,
+   "pvpMinConIva": 245.11,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "329048": {
+   "marca": "FALKEN",
+   "medida": "245/55R19",
+   "costoConIva": 161.02,
+   "pvpFullConIva": 311.25,
+   "pvpMinConIva": 233.44,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "329050": {
+   "marca": "FALKEN",
+   "medida": "255/50R19",
+   "costoConIva": 155.51,
+   "pvpFullConIva": 276.46,
+   "pvpMinConIva": 207.35,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "329058": {
+   "marca": "FALKEN",
+   "medida": "265/50R20",
+   "costoConIva": 174.04,
+   "pvpFullConIva": 331.49,
+   "pvpMinConIva": 248.61,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "335821": {
+   "marca": "FALKEN",
+   "medida": "225/60R18",
+   "costoConIva": 135.78,
+   "pvpFullConIva": 241.41,
+   "pvpMinConIva": 181.05,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "335824": {
+   "marca": "FALKEN",
+   "medida": "235/55R19",
+   "costoConIva": 152.97,
+   "pvpFullConIva": 303.48,
+   "pvpMinConIva": 227.61,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "336706": {
+   "marca": "FALKEN",
+   "medida": "255/55R19",
+   "costoConIva": 172.65,
+   "pvpFullConIva": 323.7,
+   "pvpMinConIva": 242.78,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "339052": {
+   "marca": "FALKEN",
+   "medida": "235/65R17",
+   "costoConIva": 135.87,
+   "pvpFullConIva": 256.78,
+   "pvpMinConIva": 192.58,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "350214": {
+   "marca": "FALKEN",
+   "medida": "215/65R16",
+   "costoConIva": 107.74,
+   "pvpFullConIva": 191.54,
+   "pvpMinConIva": 143.65,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "350218": {
+   "marca": "FALKEN",
+   "medida": "215/60R17",
+   "costoConIva": 112.25,
+   "pvpFullConIva": 199.55,
+   "pvpMinConIva": 149.66,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "350222": {
+   "marca": "FALKEN",
+   "medida": "225/55R17",
+   "costoConIva": 146.45,
+   "pvpFullConIva": 260.37,
+   "pvpMinConIva": 195.28,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "350234": {
+   "marca": "FALKEN",
+   "medida": "245/65R17",
+   "costoConIva": 152.16,
+   "pvpFullConIva": 270.49,
+   "pvpMinConIva": 202.87,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "350240": {
+   "marca": "FALKEN",
+   "medida": "235/50R18",
+   "costoConIva": 135.1,
+   "pvpFullConIva": 240.17,
+   "pvpMinConIva": 180.12,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "350244": {
+   "marca": "FALKEN",
+   "medida": "235/60R18",
+   "costoConIva": 128.98,
+   "pvpFullConIva": 229.31,
+   "pvpMinConIva": 171.98,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "350248": {
+   "marca": "FALKEN",
+   "medida": "245/60R18",
+   "costoConIva": 148.63,
+   "pvpFullConIva": 264.24,
+   "pvpMinConIva": 198.18,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "350250": {
+   "marca": "FALKEN",
+   "medida": "255/55R18",
+   "costoConIva": 155.66,
+   "pvpFullConIva": 295.69,
+   "pvpMinConIva": 221.77,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "350266": {
+   "marca": "FALKEN",
+   "medida": "255/50R20",
+   "costoConIva": 155.32,
+   "pvpFullConIva": 300.36,
+   "pvpMinConIva": 225.27,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "350270": {
+   "marca": "FALKEN",
+   "medida": "265/50R20",
+   "costoConIva": 165.43,
+   "pvpFullConIva": 311.25,
+   "pvpMinConIva": 233.44,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "350274": {
+   "marca": "FALKEN",
+   "medida": "215/60R16",
+   "costoConIva": 122.1,
+   "pvpFullConIva": 217.05,
+   "pvpMinConIva": 162.78,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "350276": {
+   "marca": "FALKEN",
+   "medida": "265/70R16",
+   "costoConIva": 169.71,
+   "pvpFullConIva": 301.7,
+   "pvpMinConIva": 226.27,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "351141": {
+   "marca": "FALKEN",
+   "medida": "205/40R17",
+   "costoConIva": 100.46,
+   "pvpFullConIva": 185.18,
+   "pvpMinConIva": 138.89,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "351657": {
+   "marca": "FALKEN",
+   "medida": "265/65R18",
+   "costoConIva": 190.54,
+   "pvpFullConIva": 338.73,
+   "pvpMinConIva": 254.05,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "351665": {
+   "marca": "FALKEN",
+   "medida": "275/55R20",
+   "costoConIva": 206.14,
+   "pvpFullConIva": 381.74,
+   "pvpMinConIva": 286.3,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "351667": {
+   "marca": "FALKEN",
+   "medida": "285/50R20",
+   "costoConIva": 201.56,
+   "pvpFullConIva": 435.76,
+   "pvpMinConIva": 326.82,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "351810": {
+   "marca": "FALKEN",
+   "medida": "245/60R18",
+   "costoConIva": 144.28,
+   "pvpFullConIva": 256.51,
+   "pvpMinConIva": 192.39,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "351818": {
+   "marca": "FALKEN",
+   "medida": "205/60R16",
+   "costoConIva": 122.18,
+   "pvpFullConIva": 217.2,
+   "pvpMinConIva": 162.9,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "351821": {
+   "marca": "FALKEN",
+   "medida": "225/50R18",
+   "costoConIva": 124.36,
+   "pvpFullConIva": 221.08,
+   "pvpMinConIva": 165.81,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "351823": {
+   "marca": "FALKEN",
+   "medida": "245/45R19",
+   "costoConIva": 157.32,
+   "pvpFullConIva": 309.71,
+   "pvpMinConIva": 232.28,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "351824": {
+   "marca": "FALKEN",
+   "medida": "255/50R19",
+   "costoConIva": 165.32,
+   "pvpFullConIva": 293.92,
+   "pvpMinConIva": 220.44,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "352133": {
+   "marca": "FALKEN",
+   "medida": "215/45R17",
+   "costoConIva": 99.27,
+   "pvpFullConIva": 176.48,
+   "pvpMinConIva": 132.35,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "352134": {
+   "marca": "FALKEN",
+   "medida": "225/45R17",
+   "costoConIva": 103.01,
+   "pvpFullConIva": 217.89,
+   "pvpMinConIva": 163.41,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "352135": {
+   "marca": "FALKEN",
+   "medida": "225/65R17",
+   "costoConIva": 119.62,
+   "pvpFullConIva": 212.65,
+   "pvpMinConIva": 159.49,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "352141": {
+   "marca": "FALKEN",
+   "medida": "225/55R17",
+   "costoConIva": 113.03,
+   "pvpFullConIva": 200.96,
+   "pvpMinConIva": 150.73,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "352142": {
+   "marca": "FALKEN",
+   "medida": "225/40R18",
+   "costoConIva": 105.79,
+   "pvpFullConIva": 188.07,
+   "pvpMinConIva": 141.05,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "352143": {
+   "marca": "FALKEN",
+   "medida": "225/55R18",
+   "costoConIva": 116.13,
+   "pvpFullConIva": 249,
+   "pvpMinConIva": 186.75,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "352144": {
+   "marca": "FALKEN",
+   "medida": "205/45R17",
+   "costoConIva": 93.14,
+   "pvpFullConIva": 165.17,
+   "pvpMinConIva": 123.88,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "352145": {
+   "marca": "FALKEN",
+   "medida": "215/60R17",
+   "costoConIva": 107.64,
+   "pvpFullConIva": 191.36,
+   "pvpMinConIva": 143.53,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "352147": {
+   "marca": "FALKEN",
+   "medida": "215/55R17",
+   "costoConIva": 108.15,
+   "pvpFullConIva": 192.27,
+   "pvpMinConIva": 144.2,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "352148": {
+   "marca": "FALKEN",
+   "medida": "225/60R17",
+   "costoConIva": 119.74,
+   "pvpFullConIva": 212.86,
+   "pvpMinConIva": 159.64,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "352149": {
+   "marca": "FALKEN",
+   "medida": "235/50R18",
+   "costoConIva": 142.35,
+   "pvpFullConIva": 292.59,
+   "pvpMinConIva": 219.44,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "352165": {
+   "marca": "FALKEN",
+   "medida": "205/55R16",
+   "costoConIva": 83.51,
+   "pvpFullConIva": 148.48,
+   "pvpMinConIva": 111.36,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "352174": {
+   "marca": "FALKEN",
+   "medida": "205/60R16",
+   "costoConIva": 104.91,
+   "pvpFullConIva": 186.52,
+   "pvpMinConIva": 139.88,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "352691": {
+   "marca": "FALKEN",
+   "medida": "235/60R16",
+   "costoConIva": 119.53,
+   "pvpFullConIva": 212.49,
+   "pvpMinConIva": 159.36,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "352853": {
+   "marca": "FALKEN",
+   "medida": "265/75R16",
+   "costoConIva": 264.58,
+   "pvpFullConIva": 470.36,
+   "pvpMinConIva": 352.77,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "352855": {
+   "marca": "FALKEN",
+   "medida": "265/70R17",
+   "costoConIva": 273.09,
+   "pvpFullConIva": 472.89,
+   "pvpMinConIva": 354.67,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "352856": {
+   "marca": "FALKEN",
+   "medida": "33X12.50R17LT",
+   "costoConIva": 317.85,
+   "pvpFullConIva": 543.33,
+   "pvpMinConIva": 407.5,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "352858": {
+   "marca": "FALKEN",
+   "medida": "285/70R17",
+   "costoConIva": 324.36,
+   "pvpFullConIva": 561.66,
+   "pvpMinConIva": 421.24,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "352862": {
+   "marca": "FALKEN",
+   "medida": "315/70R17",
+   "costoConIva": 376.62,
+   "pvpFullConIva": 652.18,
+   "pvpMinConIva": 489.14,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "352868": {
+   "marca": "FALKEN",
+   "medida": "275/65R18",
+   "costoConIva": 389.85,
+   "pvpFullConIva": 649.75,
+   "pvpMinConIva": 487.32,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "352871": {
+   "marca": "FALKEN",
+   "medida": "275/70R18",
+   "costoConIva": 300.89,
+   "pvpFullConIva": 521.02,
+   "pvpMinConIva": 390.76,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "352879": {
+   "marca": "FALKEN",
+   "medida": "275/55R20",
+   "costoConIva": 272.88,
+   "pvpFullConIva": 483.93,
+   "pvpMinConIva": 362.95,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "352881": {
+   "marca": "FALKEN",
+   "medida": "33X12.50R20LT",
+   "costoConIva": 330.9,
+   "pvpFullConIva": 565.64,
+   "pvpMinConIva": 424.23,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "352888": {
+   "marca": "FALKEN",
+   "medida": "35X11.50R20LT",
+   "costoConIva": 352.59,
+   "pvpFullConIva": 602.73,
+   "pvpMinConIva": 452.04,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "353127": {
+   "marca": "FALKEN",
+   "medida": "205/55R17",
+   "costoConIva": 102.07,
+   "pvpFullConIva": 185.18,
+   "pvpMinConIva": 138.89,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "353131": {
+   "marca": "FALKEN",
+   "medida": "215/40R17",
+   "costoConIva": 95.99,
+   "pvpFullConIva": 170.65,
+   "pvpMinConIva": 127.99,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "353136": {
+   "marca": "FALKEN",
+   "medida": "265/60R18",
+   "costoConIva": 158.79,
+   "pvpFullConIva": 311.25,
+   "pvpMinConIva": 233.44,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "356304": {
+   "marca": "FALKEN",
+   "medida": "215/65R17",
+   "costoConIva": 153.73,
+   "pvpFullConIva": 269.7,
+   "pvpMinConIva": 202.27,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "356388": {
+   "marca": "FALKEN",
+   "medida": "235/75R15",
+   "costoConIva": 156.87,
+   "pvpFullConIva": 278.86,
+   "pvpMinConIva": 209.15,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "356389": {
+   "marca": "FALKEN",
+   "medida": "235/70R16",
+   "costoConIva": 149.29,
+   "pvpFullConIva": 261.92,
+   "pvpMinConIva": 196.44,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "356390": {
+   "marca": "FALKEN",
+   "medida": "245/75R16",
+   "costoConIva": 188.52,
+   "pvpFullConIva": 335.17,
+   "pvpMinConIva": 251.37,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "356391": {
+   "marca": "FALKEN",
+   "medida": "265/70R16",
+   "costoConIva": 168.12,
+   "pvpFullConIva": 298.87,
+   "pvpMinConIva": 224.15,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "356392": {
+   "marca": "FALKEN",
+   "medida": "265/75R16",
+   "costoConIva": 203.62,
+   "pvpFullConIva": 361.99,
+   "pvpMinConIva": 271.49,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "356393": {
+   "marca": "FALKEN",
+   "medida": "225/65R17",
+   "costoConIva": 163.77,
+   "pvpFullConIva": 291.15,
+   "pvpMinConIva": 218.37,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "356394": {
+   "marca": "FALKEN",
+   "medida": "235/65R17",
+   "costoConIva": 159.75,
+   "pvpFullConIva": 283.99,
+   "pvpMinConIva": 213,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "356398": {
+   "marca": "FALKEN",
+   "medida": "265/65R17",
+   "costoConIva": 165.25,
+   "pvpFullConIva": 295.69,
+   "pvpMinConIva": 221.77,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "356401": {
+   "marca": "FALKEN",
+   "medida": "265/60R18",
+   "costoConIva": 185.87,
+   "pvpFullConIva": 330.44,
+   "pvpMinConIva": 247.83,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "356439": {
+   "marca": "FALKEN",
+   "medida": "255/70R16",
+   "costoConIva": 156.07,
+   "pvpFullConIva": 277.45,
+   "pvpMinConIva": 208.09,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "356456": {
+   "marca": "FALKEN",
+   "medida": "285/55R20",
+   "costoConIva": 247.88,
+   "pvpFullConIva": 429.23,
+   "pvpMinConIva": 321.92,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "356518": {
+   "marca": "FALKEN",
+   "medida": "215/75R15",
+   "costoConIva": 160.19,
+   "pvpFullConIva": 284.79,
+   "pvpMinConIva": 213.6,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "356521": {
+   "marca": "FALKEN",
+   "medida": "235/75R15",
+   "costoConIva": 156.37,
+   "pvpFullConIva": 277.97,
+   "pvpMinConIva": 208.48,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "356530": {
+   "marca": "FALKEN",
+   "medida": "265/65R18",
+   "costoConIva": 242.17,
+   "pvpFullConIva": 419.34,
+   "pvpMinConIva": 314.5,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "356531": {
+   "marca": "FALKEN",
+   "medida": "265/70R17",
+   "costoConIva": 222.41,
+   "pvpFullConIva": 395.39,
+   "pvpMinConIva": 296.55,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "356532": {
+   "marca": "FALKEN",
+   "medida": "265/70R18",
+   "costoConIva": 230.75,
+   "pvpFullConIva": 409.2,
+   "pvpMinConIva": 306.91,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "356533": {
+   "marca": "FALKEN",
+   "medida": "265/75R16",
+   "costoConIva": 217.02,
+   "pvpFullConIva": 385.81,
+   "pvpMinConIva": 289.36,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "356534": {
+   "marca": "FALKEN",
+   "medida": "275/55R20",
+   "costoConIva": 282.14,
+   "pvpFullConIva": 501.58,
+   "pvpMinConIva": 376.18,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "356536": {
+   "marca": "FALKEN",
+   "medida": "275/65R18",
+   "costoConIva": 258.19,
+   "pvpFullConIva": 458.99,
+   "pvpMinConIva": 344.25,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "356539": {
+   "marca": "FALKEN",
+   "medida": "285/55R20",
+   "costoConIva": 247.2,
+   "pvpFullConIva": 428.04,
+   "pvpMinConIva": 321.03,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "357106": {
+   "marca": "FALKEN",
+   "medida": "215/45R17",
+   "costoConIva": 117.21,
+   "pvpFullConIva": 214.07,
+   "pvpMinConIva": 160.56,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "357107": {
+   "marca": "FALKEN",
+   "medida": "215/50R18",
+   "costoConIva": 139.85,
+   "pvpFullConIva": 255.41,
+   "pvpMinConIva": 191.57,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "357110": {
+   "marca": "FALKEN",
+   "medida": "225/40R18",
+   "costoConIva": 124.67,
+   "pvpFullConIva": 227.72,
+   "pvpMinConIva": 170.79,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "357112": {
+   "marca": "FALKEN",
+   "medida": "225/45R17",
+   "costoConIva": 118.52,
+   "pvpFullConIva": 216.48,
+   "pvpMinConIva": 162.35,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "357113": {
+   "marca": "FALKEN",
+   "medida": "225/45R18",
+   "costoConIva": 132.73,
+   "pvpFullConIva": 242.43,
+   "pvpMinConIva": 181.82,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "357116": {
+   "marca": "FALKEN",
+   "medida": "225/50R18",
+   "costoConIva": 141.36,
+   "pvpFullConIva": 261.77,
+   "pvpMinConIva": 196.33,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "357117": {
+   "marca": "FALKEN",
+   "medida": "225/55R18",
+   "costoConIva": 149.26,
+   "pvpFullConIva": 272.61,
+   "pvpMinConIva": 204.47,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "357118": {
+   "marca": "FALKEN",
+   "medida": "225/55R19",
+   "costoConIva": 154.07,
+   "pvpFullConIva": 286.35,
+   "pvpMinConIva": 214.76,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "357125": {
+   "marca": "FALKEN",
+   "medida": "235/50R19",
+   "costoConIva": 155.51,
+   "pvpFullConIva": 280.13,
+   "pvpMinConIva": 210.09,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "357126": {
+   "marca": "FALKEN",
+   "medida": "235/55R18",
+   "costoConIva": 157.61,
+   "pvpFullConIva": 283.96,
+   "pvpMinConIva": 212.98,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "357133": {
+   "marca": "FALKEN",
+   "medida": "245/40R19",
+   "costoConIva": 154.09,
+   "pvpFullConIva": 273.94,
+   "pvpMinConIva": 205.45,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "357136": {
+   "marca": "FALKEN",
+   "medida": "245/45R19",
+   "costoConIva": 152.41,
+   "pvpFullConIva": 270.94,
+   "pvpMinConIva": 203.21,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "357145": {
+   "marca": "FALKEN",
+   "medida": "255/40R20",
+   "costoConIva": 150.87,
+   "pvpFullConIva": 271.84,
+   "pvpMinConIva": 203.87,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "357159": {
+   "marca": "FALKEN",
+   "medida": "275/40R20",
+   "costoConIva": 168.7,
+   "pvpFullConIva": 312.41,
+   "pvpMinConIva": 234.3,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "358143": {
+   "marca": "FALKEN",
+   "medida": "255/45R20",
+   "costoConIva": 164.43,
+   "pvpFullConIva": 304.49,
+   "pvpMinConIva": 228.37,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "358144": {
+   "marca": "FALKEN",
+   "medida": "255/50R20",
+   "costoConIva": 176.13,
+   "pvpFullConIva": 326.19,
+   "pvpMinConIva": 244.64,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "358430": {
+   "marca": "FALKEN",
+   "medida": "285/70R17",
+   "costoConIva": 247.26,
+   "pvpFullConIva": 428.14,
+   "pvpMinConIva": 321.11,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "359991": {
+   "marca": "FALKEN",
+   "medida": "205/50R17",
+   "costoConIva": 99.81,
+   "pvpFullConIva": 177.44,
+   "pvpMinConIva": 133.08,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "359997": {
+   "marca": "FALKEN",
+   "medida": "245/45R18",
+   "costoConIva": 125.43,
+   "pvpFullConIva": 223,
+   "pvpMinConIva": 167.24,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "360030": {
+   "marca": "FALKEN",
+   "medida": "225/45R18",
+   "costoConIva": 112.38,
+   "pvpFullConIva": 199.79,
+   "pvpMinConIva": 149.84,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "360031": {
+   "marca": "FALKEN",
+   "medida": "235/60R16",
+   "costoConIva": 120.81,
+   "pvpFullConIva": 214.77,
+   "pvpMinConIva": 161.08,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "360046": {
+   "marca": "FALKEN",
+   "medida": "215/60R16",
+   "costoConIva": 97.17,
+   "pvpFullConIva": 172.75,
+   "pvpMinConIva": 129.56,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "360055": {
+   "marca": "FALKEN",
+   "medida": "215/60R16",
+   "costoConIva": 124.89,
+   "pvpFullConIva": 166.11,
+   "pvpMinConIva": 124.58,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "360709": {
+   "marca": "FALKEN",
+   "medida": "225/45R19",
+   "costoConIva": 142.22,
+   "pvpFullConIva": 252.84,
+   "pvpMinConIva": 189.63,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "30413009": {
+   "marca": "KENDA",
+   "medida": "195R14C",
+   "costoConIva": 92.77,
+   "pvpFullConIva": 159.96,
+   "pvpMinConIva": 119.97,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "30463046": {
+   "marca": "KENDA",
+   "medida": "215/75R14C",
+   "costoConIva": 88.46,
+   "pvpFullConIva": 158.61,
+   "pvpMinConIva": 118.95,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "30492045": {
+   "marca": "KENDA",
+   "medida": "175/70R14C",
+   "costoConIva": 67.07,
+   "pvpFullConIva": 115.64,
+   "pvpMinConIva": 86.73,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "30683015": {
+   "marca": "KENDA",
+   "medida": "265/75R16",
+   "costoConIva": 169.77,
+   "pvpFullConIva": 304.43,
+   "pvpMinConIva": 228.31,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "30904098": {
+   "marca": "KENDA",
+   "medida": "235/65R16C",
+   "costoConIva": 101.94,
+   "pvpFullConIva": 182.79,
+   "pvpMinConIva": 137.09,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "30913081": {
+   "marca": "KENDA",
+   "medida": "225/70R15C",
+   "costoConIva": 111.72,
+   "pvpFullConIva": 198.13,
+   "pvpMinConIva": 148.6,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "32086001": {
+   "marca": "KENDA",
+   "medida": "6.50R16",
+   "costoConIva": 111.35,
+   "pvpFullConIva": 199.69,
+   "pvpMinConIva": 149.76,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "32175002": {
+   "marca": "KENDA",
+   "medida": "7.00R16",
+   "costoConIva": 136.6,
+   "pvpFullConIva": 244.93,
+   "pvpMinConIva": 183.69,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "32512006": {
+   "marca": "KENDA",
+   "medida": "215/75R15",
+   "costoConIva": 118.83,
+   "pvpFullConIva": 210.74,
+   "pvpMinConIva": 158.06,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "32693061": {
+   "marca": "KENDA",
+   "medida": "195R15C",
+   "costoConIva": 97.5,
+   "pvpFullConIva": 172.91,
+   "pvpMinConIva": 129.69,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "32774002": {
+   "marca": "KENDA",
+   "medida": "215/75R16C",
+   "costoConIva": 111.71,
+   "pvpFullConIva": 200.31,
+   "pvpMinConIva": 150.24,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "32793002": {
+   "marca": "KENDA",
+   "medida": "265/65R17",
+   "costoConIva": 169.75,
+   "pvpFullConIva": 309.41,
+   "pvpMinConIva": 232.05,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "32906026": {
+   "marca": "KENDA",
+   "medida": "225/75R16",
+   "costoConIva": 127.94,
+   "pvpFullConIva": 224.09,
+   "pvpMinConIva": 168.06,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "32966012": {
+   "marca": "KENDA",
+   "medida": "285/70R17",
+   "costoConIva": 178.18,
+   "pvpFullConIva": 324.75,
+   "pvpMinConIva": 243.57,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "33005026": {
+   "marca": "KENDA",
+   "medida": "265/65R17",
+   "costoConIva": 169.41,
+   "pvpFullConIva": 310.48,
+   "pvpMinConIva": 232.85,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "33014002": {
+   "marca": "KENDA",
+   "medida": "265/70R16",
+   "costoConIva": 178.05,
+   "pvpFullConIva": 319.27,
+   "pvpMinConIva": 239.46,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "33024001": {
+   "marca": "KENDA",
+   "medida": "245/70R16",
+   "costoConIva": 158.76,
+   "pvpFullConIva": 284.66,
+   "pvpMinConIva": 213.5,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "33042060": {
+   "marca": "KENDA",
+   "medida": "235/70R16",
+   "costoConIva": 154.35,
+   "pvpFullConIva": 276.79,
+   "pvpMinConIva": 207.6,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "33065004": {
+   "marca": "KENDA",
+   "medida": "315/70R17",
+   "costoConIva": 257.07,
+   "pvpFullConIva": 461.05,
+   "pvpMinConIva": 345.79,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "33172081": {
+   "marca": "KENDA",
+   "medida": "285/70R17",
+   "costoConIva": 198.09,
+   "pvpFullConIva": 361.03,
+   "pvpMinConIva": 270.78,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "33374000": {
+   "marca": "KENDA",
+   "medida": "285/60R18",
+   "costoConIva": 231.55,
+   "pvpFullConIva": 433.45,
+   "pvpMinConIva": 325.08,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "34304022": {
+   "marca": "KENDA",
+   "medida": "35X12.50R17LT",
+   "costoConIva": 267.03,
+   "pvpFullConIva": 486.7,
+   "pvpMinConIva": 365.03,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "34334029": {
+   "marca": "KENDA",
+   "medida": "285/70R17",
+   "costoConIva": 233.28,
+   "pvpFullConIva": 425.19,
+   "pvpMinConIva": 318.89,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "35222009": {
+   "marca": "KENDA",
+   "medida": "235/75R15",
+   "costoConIva": 136.61,
+   "pvpFullConIva": 242.25,
+   "pvpMinConIva": 181.69,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "35232008": {
+   "marca": "KENDA",
+   "medida": "235/70R16",
+   "costoConIva": 130.66,
+   "pvpFullConIva": 234.3,
+   "pvpMinConIva": 175.73,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "35242007": {
+   "marca": "KENDA",
+   "medida": "225/75R15",
+   "costoConIva": 121.2,
+   "pvpFullConIva": 214.94,
+   "pvpMinConIva": 161.21,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "35262005": {
+   "marca": "KENDA",
+   "medida": "245/70R16",
+   "costoConIva": 144.88,
+   "pvpFullConIva": 259.8,
+   "pvpMinConIva": 194.85,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "35272004": {
+   "marca": "KENDA",
+   "medida": "265/65R17",
+   "costoConIva": 176.98,
+   "pvpFullConIva": 322.6,
+   "pvpMinConIva": 241.95,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "35282003": {
+   "marca": "KENDA",
+   "medida": "265/70R16",
+   "costoConIva": 168.59,
+   "pvpFullConIva": 302.3,
+   "pvpMinConIva": 226.73,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "35292002": {
+   "marca": "KENDA",
+   "medida": "31X10.50R15LT",
+   "costoConIva": 150.56,
+   "pvpFullConIva": 295.32,
+   "pvpMinConIva": 221.49,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "35405026": {
+   "marca": "KENDA",
+   "medida": "265/70R17",
+   "costoConIva": 175.81,
+   "pvpFullConIva": 320.44,
+   "pvpMinConIva": 240.33,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "36444032": {
+   "marca": "KENDA",
+   "medida": "265/60R18",
+   "costoConIva": 166.39,
+   "pvpFullConIva": 291.43,
+   "pvpMinConIva": 218.57,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "36583003": {
+   "marca": "KENDA",
+   "medida": "265/70R17",
+   "costoConIva": 178.18,
+   "pvpFullConIva": 324.75,
+   "pvpMinConIva": 243.57,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "36625028": {
+   "marca": "KENDA",
+   "medida": "35X12.50R20LT",
+   "costoConIva": 291.44,
+   "pvpFullConIva": 510.46,
+   "pvpMinConIva": 382.85,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "38664009": {
+   "marca": "KENDA",
+   "medida": "255/70R16",
+   "costoConIva": 165.02,
+   "pvpFullConIva": 287.13,
+   "pvpMinConIva": 215.35,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "38675005": {
+   "marca": "KENDA",
+   "medida": "275/70R17",
+   "costoConIva": 198.32,
+   "pvpFullConIva": 361.47,
+   "pvpMinConIva": 271.09,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "38685004": {
+   "marca": "KENDA",
+   "medida": "255/60R18",
+   "costoConIva": 175.87,
+   "pvpFullConIva": 329.21,
+   "pvpMinConIva": 246.91,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "38705000": {
+   "marca": "KENDA",
+   "medida": "235/55R19",
+   "costoConIva": 162.89,
+   "pvpFullConIva": 304.92,
+   "pvpMinConIva": 228.69,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "38805008": {
+   "marca": "KENDA",
+   "medida": "255/55R19",
+   "costoConIva": 185.4,
+   "pvpFullConIva": 347.06,
+   "pvpMinConIva": 260.3,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "39233036": {
+   "marca": "KENDA",
+   "medida": "275/70R18",
+   "costoConIva": 177.07,
+   "pvpFullConIva": 331.45,
+   "pvpMinConIva": 248.59,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "319M6008": {
+   "marca": "KENDA",
+   "medida": "7.00R15",
+   "costoConIva": 116.46,
+   "pvpFullConIva": 206.53,
+   "pvpMinConIva": 154.91,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "3284B528": {
+   "marca": "KENDA",
+   "medida": "30X9.50R15LT",
+   "costoConIva": 141.74,
+   "pvpFullConIva": 251.37,
+   "pvpMinConIva": 188.52,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "K309B551": {
+   "marca": "KENDA",
+   "medida": "30X9.5R15LT",
+   "costoConIva": 129.01,
+   "pvpFullConIva": 233.24,
+   "pvpMinConIva": 174.93,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "3810B505": {
+   "marca": "KENDA",
+   "medida": "31X10.50R15",
+   "costoConIva": 157.93,
+   "pvpFullConIva": 280.07,
+   "pvpMinConIva": 210.06,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "3285B527": {
+   "marca": "KENDA",
+   "medida": "31X10.50R15LT",
+   "costoConIva": 140.86,
+   "pvpFullConIva": 254.66,
+   "pvpMinConIva": 191,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "3820B503": {
+   "marca": "KENDA",
+   "medida": "32X11.50R15",
+   "costoConIva": 173.33,
+   "pvpFullConIva": 307.38,
+   "pvpMinConIva": 230.54,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "3272B506": {
+   "marca": "KENDA",
+   "medida": "33X12.50R15LT",
+   "costoConIva": 195.84,
+   "pvpFullConIva": 347.3,
+   "pvpMinConIva": 260.48,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "3312502WNMT305LT": {
+   "marca": "WINRUN",
+   "medida": "33X12.50R20LT",
+   "costoConIva": 191.73,
+   "pvpFullConIva": 323.61,
+   "pvpMinConIva": 242.71,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "35125017WNMT305LT": {
+   "marca": "WINRUN",
+   "medida": "35X12.50R17LT",
+   "costoConIva": 215.98,
+   "pvpFullConIva": 359.16,
+   "pvpMinConIva": 269.37,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "306C3002": {
+   "marca": "KENDA",
+   "medida": "155R13C",
+   "costoConIva": 51.69,
+   "pvpFullConIva": 89.16,
+   "pvpMinConIva": 66.86,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "K257B475": {
+   "marca": "KENDA",
+   "medida": "165/60R14",
+   "costoConIva": 50.12,
+   "pvpFullConIva": 86.42,
+   "pvpMinConIva": 64.82,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "K072B353": {
+   "marca": "KENDA",
+   "medida": "165/65R13",
+   "costoConIva": 37.01,
+   "pvpFullConIva": 63.79,
+   "pvpMinConIva": 47.85,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "1656513WNR380": {
+   "marca": "WINRUN",
+   "medida": "165/65R13",
+   "costoConIva": 33.66,
+   "pvpFullConIva": 54.73,
+   "pvpMinConIva": 41.05,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "K086B480": {
+   "marca": "KENDA",
+   "medida": "165/65R14",
+   "costoConIva": 46.57,
+   "pvpFullConIva": 80.29,
+   "pvpMinConIva": 60.22,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "K246B404": {
+   "marca": "KENDA",
+   "medida": "165/65R14",
+   "costoConIva": 43.02,
+   "pvpFullConIva": 74.19,
+   "pvpMinConIva": 55.64,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "K240B301": {
+   "marca": "KENDA",
+   "medida": "175/60R13",
+   "costoConIva": 45.77,
+   "pvpFullConIva": 78.9,
+   "pvpMinConIva": 59.18,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "K641B421": {
+   "marca": "KENDA",
+   "medida": "175/65R14",
+   "costoConIva": 50.96,
+   "pvpFullConIva": 87.86,
+   "pvpMinConIva": 65.89,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "K016B352": {
+   "marca": "KENDA",
+   "medida": "175/70R13",
+   "costoConIva": 38.42,
+   "pvpFullConIva": 66.24,
+   "pvpMinConIva": 49.68,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "1757013WRR330": {
+   "marca": "WINRUN",
+   "medida": "175/70R13",
+   "costoConIva": 36.54,
+   "pvpFullConIva": 59.4,
+   "pvpMinConIva": 44.55,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "K078B456": {
+   "marca": "KENDA",
+   "medida": "175/70R14",
+   "costoConIva": 47.72,
+   "pvpFullConIva": 82.31,
+   "pvpMinConIva": 61.72,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "1757014WNMAXCLAWAT": {
+   "marca": "WINRUN",
+   "medida": "175/70R14",
+   "costoConIva": 48.22,
+   "pvpFullConIva": 78.41,
+   "pvpMinConIva": 58.81,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "K227B506": {
+   "marca": "KENDA",
+   "medida": "185/55R15",
+   "costoConIva": 57.36,
+   "pvpFullConIva": 101.72,
+   "pvpMinConIva": 76.28,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "K275B580": {
+   "marca": "KENDA",
+   "medida": "185/55R15",
+   "costoConIva": 55.19,
+   "pvpFullConIva": 97.88,
+   "pvpMinConIva": 73.41,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "1855515WNR330": {
+   "marca": "WINRUN",
+   "medida": "185/55R15",
+   "costoConIva": 46.37,
+   "pvpFullConIva": 78.26,
+   "pvpMinConIva": 58.69,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "K229B306": {
+   "marca": "KENDA",
+   "medida": "185/60R13",
+   "costoConIva": 46.11,
+   "pvpFullConIva": 79.51,
+   "pvpMinConIva": 59.63,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "K250B498": {
+   "marca": "KENDA",
+   "medida": "185/60R14",
+   "costoConIva": 53.29,
+   "pvpFullConIva": 92.2,
+   "pvpMinConIva": 69.15,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "K922B439": {
+   "marca": "KENDA",
+   "medida": "185/60R14",
+   "costoConIva": 44.88,
+   "pvpFullConIva": 75.34,
+   "pvpMinConIva": 56.51,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "1856014WNR380": {
+   "marca": "WINRUN",
+   "medida": "185/60R14",
+   "costoConIva": 41.64,
+   "pvpFullConIva": 67.71,
+   "pvpMinConIva": 50.78,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "K243B506": {
+   "marca": "KENDA",
+   "medida": "185/60R15",
+   "costoConIva": 57.64,
+   "pvpFullConIva": 102.21,
+   "pvpMinConIva": 76.66,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "K923B545": {
+   "marca": "KENDA",
+   "medida": "185/60R15",
+   "costoConIva": 56.04,
+   "pvpFullConIva": 99.38,
+   "pvpMinConIva": 74.54,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "1856015WRR330": {
+   "marca": "WINRUN",
+   "medida": "185/60R15",
+   "costoConIva": 46.47,
+   "pvpFullConIva": 78.43,
+   "pvpMinConIva": 58.82,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "K927B434": {
+   "marca": "KENDA",
+   "medida": "185/65R14",
+   "costoConIva": 51.31,
+   "pvpFullConIva": 84.04,
+   "pvpMinConIva": 63.03,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "K259B507": {
+   "marca": "KENDA",
+   "medida": "185/65R15",
+   "costoConIva": 56.86,
+   "pvpFullConIva": 95.7,
+   "pvpMinConIva": 71.77,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "K917B543": {
+   "marca": "KENDA",
+   "medida": "185/65R15",
+   "costoConIva": 54.84,
+   "pvpFullConIva": 95.7,
+   "pvpMinConIva": 71.77,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "K084B383": {
+   "marca": "KENDA",
+   "medida": "185/70R13",
+   "costoConIva": 47.2,
+   "pvpFullConIva": 81.36,
+   "pvpMinConIva": 61.01,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "K108B468": {
+   "marca": "KENDA",
+   "medida": "185/70R14",
+   "costoConIva": 52.23,
+   "pvpFullConIva": 87.53,
+   "pvpMinConIva": 65.65,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "1857014WNR380": {
+   "marca": "WINRUN",
+   "medida": "185/70R14",
+   "costoConIva": 44.77,
+   "pvpFullConIva": 72.79,
+   "pvpMinConIva": 54.59,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "K247B536": {
+   "marca": "KENDA",
+   "medida": "195/45R15",
+   "costoConIva": 63.87,
+   "pvpFullConIva": 113.27,
+   "pvpMinConIva": 84.95,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "K242C638": {
+   "marca": "KENDA",
+   "medida": "195/45R16",
+   "costoConIva": 73.22,
+   "pvpFullConIva": 131.3,
+   "pvpMinConIva": 98.47,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "K218B507": {
+   "marca": "KENDA",
+   "medida": "195/50R15",
+   "costoConIva": 58.44,
+   "pvpFullConIva": 103.65,
+   "pvpMinConIva": 77.74,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "1955015WNR330": {
+   "marca": "WINRUN",
+   "medida": "195/50R15",
+   "costoConIva": 45.95,
+   "pvpFullConIva": 80.63,
+   "pvpMinConIva": 60.46,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "K203B553": {
+   "marca": "KENDA",
+   "medida": "195/50R15",
+   "costoConIva": 52.95,
+   "pvpFullConIva": 93.91,
+   "pvpMinConIva": 70.42,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "K216B509": {
+   "marca": "KENDA",
+   "medida": "195/55R15",
+   "costoConIva": 61.96,
+   "pvpFullConIva": 109.88,
+   "pvpMinConIva": 82.42,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "1955515WNR330": {
+   "marca": "WINRUN",
+   "medida": "195/55R15",
+   "costoConIva": 46.01,
+   "pvpFullConIva": 77.66,
+   "pvpMinConIva": 58.25,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "K203B587": {
+   "marca": "KENDA",
+   "medida": "195/55R15",
+   "costoConIva": 52.99,
+   "pvpFullConIva": 93.98,
+   "pvpMinConIva": 70.48,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "K251B406": {
+   "marca": "KENDA",
+   "medida": "195/60R14",
+   "costoConIva": 56.38,
+   "pvpFullConIva": 97.24,
+   "pvpMinConIva": 72.93,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "K926B567": {
+   "marca": "KENDA",
+   "medida": "195/60R15",
+   "costoConIva": 61.96,
+   "pvpFullConIva": 109.88,
+   "pvpMinConIva": 82.42,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "1956015WNR330": {
+   "marca": "WINRUN",
+   "medida": "195/60R15",
+   "costoConIva": 46.98,
+   "pvpFullConIva": 80.3,
+   "pvpMinConIva": 60.23,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "K258B508": {
+   "marca": "KENDA",
+   "medida": "195/60R15",
+   "costoConIva": 63.15,
+   "pvpFullConIva": 111.99,
+   "pvpMinConIva": 84.04,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "K264B773": {
+   "marca": "KENDA",
+   "medida": "195/60R15",
+   "costoConIva": 57.24,
+   "pvpFullConIva": 101.5,
+   "pvpMinConIva": 76.13,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "K924B544": {
+   "marca": "KENDA",
+   "medida": "195/65R15",
+   "costoConIva": 64.33,
+   "pvpFullConIva": 110.87,
+   "pvpMinConIva": 83.15,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "1956515WRR330": {
+   "marca": "WINRUN",
+   "medida": "195/65R15",
+   "costoConIva": 46.69,
+   "pvpFullConIva": 79.81,
+   "pvpMinConIva": 59.86,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "1956515WRR330E": {
+   "marca": "WINRUN",
+   "medida": "195/65R15",
+   "costoConIva": 52.76,
+   "pvpFullConIva": 90.18,
+   "pvpMinConIva": 67.64,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "305B3047": {
+   "marca": "KENDA",
+   "medida": "195R15C",
+   "costoConIva": 92.76,
+   "pvpFullConIva": 164.51,
+   "pvpMinConIva": 123.39,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "305B3005": {
+   "marca": "KENDA",
+   "medida": "195R15C",
+   "costoConIva": 89.9,
+   "pvpFullConIva": 159.41,
+   "pvpMinConIva": 119.55,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "2054516WNR330": {
+   "marca": "WINRUN",
+   "medida": "205/45R16",
+   "costoConIva": 48.44,
+   "pvpFullConIva": 84.98,
+   "pvpMinConIva": 63.74,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "K244B604": {
+   "marca": "KENDA",
+   "medida": "205/45R16",
+   "costoConIva": 74.98,
+   "pvpFullConIva": 134.46,
+   "pvpMinConIva": 100.84,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "K416B739": {
+   "marca": "KENDA",
+   "medida": "205/45R17",
+   "costoConIva": 70.35,
+   "pvpFullConIva": 128.22,
+   "pvpMinConIva": 96.17,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "2054517WNR330": {
+   "marca": "WINRUN",
+   "medida": "205/45R17",
+   "costoConIva": 54.5,
+   "pvpFullConIva": 95.62,
+   "pvpMinConIva": 71.72,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "K237B728": {
+   "marca": "KENDA",
+   "medida": "205/45R17",
+   "costoConIva": 69.18,
+   "pvpFullConIva": 126.09,
+   "pvpMinConIva": 94.57,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "K236B562": {
+   "marca": "KENDA",
+   "medida": "205/50R16",
+   "costoConIva": 66.7,
+   "pvpFullConIva": 119.61,
+   "pvpMinConIva": 89.7,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "K236B521": {
+   "marca": "KENDA",
+   "medida": "205/50R16",
+   "costoConIva": 66.7,
+   "pvpFullConIva": 119.61,
+   "pvpMinConIva": 89.7,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "K2055016KR20": {
+   "marca": "KENDA",
+   "medida": "205/50R16",
+   "costoConIva": 63.74,
+   "pvpFullConIva": 114.3,
+   "pvpMinConIva": 85.72,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "K236B547": {
+   "marca": "KENDA",
+   "medida": "205/50R16",
+   "costoConIva": 58.28,
+   "pvpFullConIva": 104.51,
+   "pvpMinConIva": 78.38,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "K334B779": {
+   "marca": "KENDA",
+   "medida": "205/50R17",
+   "costoConIva": 77.04,
+   "pvpFullConIva": 140.39,
+   "pvpMinConIva": 105.3,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "K240B707": {
+   "marca": "KENDA",
+   "medida": "205/50R17",
+   "costoConIva": 74.34,
+   "pvpFullConIva": 135.47,
+   "pvpMinConIva": 101.61,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "K2055017KR3289": {
+   "marca": "KENDA",
+   "medida": "205/50R17",
+   "costoConIva": 70.68,
+   "pvpFullConIva": 130.56,
+   "pvpMinConIva": 97.92,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "K217B607": {
+   "marca": "KENDA",
+   "medida": "205/55R16",
+   "costoConIva": 67.87,
+   "pvpFullConIva": 121.69,
+   "pvpMinConIva": 91.28,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "K642B636": {
+   "marca": "KENDA",
+   "medida": "205/55R16",
+   "costoConIva": 63.84,
+   "pvpFullConIva": 114.47,
+   "pvpMinConIva": 85.85,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "2055516WNR330": {
+   "marca": "WINRUN",
+   "medida": "205/55R16",
+   "costoConIva": 47.93,
+   "pvpFullConIva": 80.9,
+   "pvpMinConIva": 60.67,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "K414B665": {
+   "marca": "KENDA",
+   "medida": "205/55R16",
+   "costoConIva": 62.33,
+   "pvpFullConIva": 111.77,
+   "pvpMinConIva": 83.82,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "K238B4A2": {
+   "marca": "KENDA",
+   "medida": "205/60R14",
+   "costoConIva": 65.53,
+   "pvpFullConIva": 112.98,
+   "pvpMinConIva": 84.73,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "2056015WNR380": {
+   "marca": "WINRUN",
+   "medida": "205/60R15",
+   "costoConIva": 54.04,
+   "pvpFullConIva": 92.39,
+   "pvpMinConIva": 69.29,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "K266B664": {
+   "marca": "KENDA",
+   "medida": "205/60R16",
+   "costoConIva": 69.06,
+   "pvpFullConIva": 123.82,
+   "pvpMinConIva": 92.87,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "2056016WNR330": {
+   "marca": "WINRUN",
+   "medida": "205/60R16",
+   "costoConIva": 59.83,
+   "pvpFullConIva": 103.6,
+   "pvpMinConIva": 77.7,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "2056016WRR330E": {
+   "marca": "WINRUN",
+   "medida": "205/60R16",
+   "costoConIva": 61,
+   "pvpFullConIva": 105.64,
+   "pvpMinConIva": 79.22,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "K377B561": {
+   "marca": "KENDA",
+   "medida": "205/65R15",
+   "costoConIva": 67.9,
+   "pvpFullConIva": 120.42,
+   "pvpMinConIva": 90.31,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "2056515WRR330": {
+   "marca": "WINRUN",
+   "medida": "205/65R15",
+   "costoConIva": 53.13,
+   "pvpFullConIva": 90.84,
+   "pvpMinConIva": 68.12,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "K240B582": {
+   "marca": "KENDA",
+   "medida": "205/65R15",
+   "costoConIva": 54.45,
+   "pvpFullConIva": 96.57,
+   "pvpMinConIva": 72.43,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "307LB532": {
+   "marca": "KENDA",
+   "medida": "205/70R15C",
+   "costoConIva": 86.07,
+   "pvpFullConIva": 161.1,
+   "pvpMinConIva": 120.82,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "K233B722": {
+   "marca": "KENDA",
+   "medida": "215/45R17",
+   "costoConIva": 72.14,
+   "pvpFullConIva": 131.49,
+   "pvpMinConIva": 98.61,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "2154517WNR330": {
+   "marca": "WINRUN",
+   "medida": "215/45R17",
+   "costoConIva": 58.99,
+   "pvpFullConIva": 103.49,
+   "pvpMinConIva": 77.62,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "K120B702": {
+   "marca": "KENDA",
+   "medida": "215/45R17",
+   "costoConIva": 71.54,
+   "pvpFullConIva": 126.05,
+   "pvpMinConIva": 94.54,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "K224B707": {
+   "marca": "KENDA",
+   "medida": "215/50R17",
+   "costoConIva": 77.46,
+   "pvpFullConIva": 141.17,
+   "pvpMinConIva": 105.88,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "K266B748": {
+   "marca": "KENDA",
+   "medida": "215/50R17",
+   "costoConIva": 63.89,
+   "pvpFullConIva": 116.46,
+   "pvpMinConIva": 87.35,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "K225B607": {
+   "marca": "KENDA",
+   "medida": "215/55R16",
+   "costoConIva": 81.51,
+   "pvpFullConIva": 146.16,
+   "pvpMinConIva": 109.62,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "2155516WNR330": {
+   "marca": "WINRUN",
+   "medida": "215/55R16",
+   "costoConIva": 60.51,
+   "pvpFullConIva": 103.44,
+   "pvpMinConIva": 77.59,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "K712B763": {
+   "marca": "KENDA",
+   "medida": "215/55R17",
+   "costoConIva": 78.65,
+   "pvpFullConIva": 143.34,
+   "pvpMinConIva": 107.5,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "K518B801": {
+   "marca": "KENDA",
+   "medida": "215/55R18",
+   "costoConIva": 104.83,
+   "pvpFullConIva": 196.21,
+   "pvpMinConIva": 147.17,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "2155518WNR330": {
+   "marca": "WINRUN",
+   "medida": "215/55R18",
+   "costoConIva": 72.07,
+   "pvpFullConIva": 124.79,
+   "pvpMinConIva": 93.59,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "2156016WRR330": {
+   "marca": "WINRUN",
+   "medida": "215/60R16",
+   "costoConIva": 64.15,
+   "pvpFullConIva": 111.09,
+   "pvpMinConIva": 83.32,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "K280B781": {
+   "marca": "KENDA",
+   "medida": "215/60R17",
+   "costoConIva": 88.44,
+   "pvpFullConIva": 161.17,
+   "pvpMinConIva": 120.88,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "K501B602": {
+   "marca": "KENDA",
+   "medida": "215/65R16",
+   "costoConIva": 93.4,
+   "pvpFullConIva": 167.5,
+   "pvpMinConIva": 125.62,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "K925B659": {
+   "marca": "KENDA",
+   "medida": "215/65R16",
+   "costoConIva": 87.85,
+   "pvpFullConIva": 157.52,
+   "pvpMinConIva": 118.14,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "307FB637": {
+   "marca": "KENDA",
+   "medida": "215/65R16C",
+   "costoConIva": 87.47,
+   "pvpFullConIva": 156.85,
+   "pvpMinConIva": 117.64,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "2156516WRMAXCLAWRT": {
+   "marca": "WINRUN",
+   "medida": "215/65R16",
+   "costoConIva": 84.74,
+   "pvpFullConIva": 146.75,
+   "pvpMinConIva": 110.06,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "K510B676": {
+   "marca": "KENDA",
+   "medida": "215/70R16",
+   "costoConIva": 95.12,
+   "pvpFullConIva": 163.4,
+   "pvpMinConIva": 122.55,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "2157514WNMAXCLAWATLT": {
+   "marca": "WINRUN",
+   "medida": "215/75R14",
+   "costoConIva": 84.2,
+   "pvpFullConIva": 136.93,
+   "pvpMinConIva": 102.69,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "3813B502": {
+   "marca": "KENDA",
+   "medida": "215/75R15",
+   "costoConIva": 136.62,
+   "pvpFullConIva": 242.27,
+   "pvpMinConIva": 181.71,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "K299B509": {
+   "marca": "KENDA",
+   "medida": "215/75R15",
+   "costoConIva": 96.96,
+   "pvpFullConIva": 171.94,
+   "pvpMinConIva": 128.95,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "307G4046": {
+   "marca": "KENDA",
+   "medida": "215/75R16C",
+   "costoConIva": 97.38,
+   "pvpFullConIva": 174.62,
+   "pvpMinConIva": 130.97,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "K221B940": {
+   "marca": "KENDA",
+   "medida": "225/35R19",
+   "costoConIva": 79.95,
+   "pvpFullConIva": 149.65,
+   "pvpMinConIva": 112.24,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "K215B880": {
+   "marca": "KENDA",
+   "medida": "225/40R18",
+   "costoConIva": 83.46,
+   "pvpFullConIva": 156.23,
+   "pvpMinConIva": 117.17,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "K234B804": {
+   "marca": "KENDA",
+   "medida": "225/40R18",
+   "costoConIva": 83.46,
+   "pvpFullConIva": 156.23,
+   "pvpMinConIva": 117.17,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "K232B707": {
+   "marca": "KENDA",
+   "medida": "225/45R17",
+   "costoConIva": 77.46,
+   "pvpFullConIva": 128.39,
+   "pvpMinConIva": 96.29,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "K232B731": {
+   "marca": "KENDA",
+   "medida": "225/45R17",
+   "costoConIva": 77.46,
+   "pvpFullConIva": 141.17,
+   "pvpMinConIva": 105.88,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "K200B705": {
+   "marca": "KENDA",
+   "medida": "225/45R17",
+   "costoConIva": 76.88,
+   "pvpFullConIva": 140.13,
+   "pvpMinConIva": 105.09,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "K219B803": {
+   "marca": "KENDA",
+   "medida": "225/45R18",
+   "costoConIva": 89.38,
+   "pvpFullConIva": 167.31,
+   "pvpMinConIva": 125.48,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "K320B965": {
+   "marca": "KENDA",
+   "medida": "225/45R19",
+   "costoConIva": 101.27,
+   "pvpFullConIva": 189.58,
+   "pvpMinConIva": 142.18,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "K320B932": {
+   "marca": "KENDA",
+   "medida": "225/45R19",
+   "costoConIva": 96.53,
+   "pvpFullConIva": 180.7,
+   "pvpMinConIva": 135.53,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "K248B733": {
+   "marca": "KENDA",
+   "medida": "225/50R17",
+   "costoConIva": 85.76,
+   "pvpFullConIva": 156.3,
+   "pvpMinConIva": 117.23,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "2255017WNR330": {
+   "marca": "WINRUN",
+   "medida": "225/50R17",
+   "costoConIva": 65.58,
+   "pvpFullConIva": 115.07,
+   "pvpMinConIva": 86.31,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "K827B864": {
+   "marca": "KENDA",
+   "medida": "225/55R18",
+   "costoConIva": 101.22,
+   "pvpFullConIva": 189.5,
+   "pvpMinConIva": 142.11,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "2255518WNR330": {
+   "marca": "WINRUN",
+   "medida": "225/55R18",
+   "costoConIva": 74.72,
+   "pvpFullConIva": 129.39,
+   "pvpMinConIva": 97.05,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "K500B959": {
+   "marca": "KENDA",
+   "medida": "225/55R19",
+   "costoConIva": 115.9,
+   "pvpFullConIva": 216.95,
+   "pvpMinConIva": 162.71,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "K508B761": {
+   "marca": "KENDA",
+   "medida": "225/60R17",
+   "costoConIva": 89.75,
+   "pvpFullConIva": 163.59,
+   "pvpMinConIva": 122.69,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "2256017WNR380": {
+   "marca": "WINRUN",
+   "medida": "225/60R17",
+   "costoConIva": 87.11,
+   "pvpFullConIva": 123.2,
+   "pvpMinConIva": 92.4,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "K401B868": {
+   "marca": "KENDA",
+   "medida": "225/60R18",
+   "costoConIva": 104.79,
+   "pvpFullConIva": 196.14,
+   "pvpMinConIva": 147.11,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "2256018WNR380": {
+   "marca": "WINRUN",
+   "medida": "225/60R18",
+   "costoConIva": 79.58,
+   "pvpFullConIva": 137.8,
+   "pvpMinConIva": 103.35,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "K307B772": {
+   "marca": "KENDA",
+   "medida": "225/65R17",
+   "costoConIva": 113,
+   "pvpFullConIva": 205.98,
+   "pvpMinConIva": 154.49,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "2256517WNMAXCLAWAT": {
+   "marca": "WINRUN",
+   "medida": "225/65R17",
+   "costoConIva": 75.58,
+   "pvpFullConIva": 130.63,
+   "pvpMinConIva": 97.97,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "2256517WNMAXCLAWHT2": {
+   "marca": "WINRUN",
+   "medida": "225/65R17",
+   "costoConIva": 75.64,
+   "pvpFullConIva": 132.7,
+   "pvpMinConIva": 99.52,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "307E3040": {
+   "marca": "KENDA",
+   "medida": "225/70R15C",
+   "costoConIva": 99.87,
+   "pvpFullConIva": 177.12,
+   "pvpMinConIva": 132.84,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "K152B034": {
+   "marca": "KENDA",
+   "medida": "225/70R15",
+   "costoConIva": 74.96,
+   "pvpFullConIva": 132.94,
+   "pvpMinConIva": 99.69,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "K503B600": {
+   "marca": "KENDA",
+   "medida": "225/70R16",
+   "costoConIva": 93.71,
+   "pvpFullConIva": 170.57,
+   "pvpMinConIva": 127.93,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "2257016WRMAXCLAWAT": {
+   "marca": "WINRUN",
+   "medida": "225/70R16",
+   "costoConIva": 96.06,
+   "pvpFullConIva": 166.34,
+   "pvpMinConIva": 124.76,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "3236B675": {
+   "marca": "KENDA",
+   "medida": "225/75R16C",
+   "costoConIva": 95.19,
+   "pvpFullConIva": 170.67,
+   "pvpMinConIva": 128.01,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "K230B709": {
+   "marca": "KENDA",
+   "medida": "235/45R17",
+   "costoConIva": 86.04,
+   "pvpFullConIva": 156.83,
+   "pvpMinConIva": 117.61,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "2355017WNR330": {
+   "marca": "WINRUN",
+   "medida": "235/50R17",
+   "costoConIva": 70.48,
+   "pvpFullConIva": 122.04,
+   "pvpMinConIva": 91.52,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "K597B862": {
+   "marca": "KENDA",
+   "medida": "235/50R18",
+   "costoConIva": 97.14,
+   "pvpFullConIva": 172.74,
+   "pvpMinConIva": 129.55,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "K848B802": {
+   "marca": "KENDA",
+   "medida": "235/50R18",
+   "costoConIva": 95.3,
+   "pvpFullConIva": 178.4,
+   "pvpMinConIva": 133.8,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "2355018WNR330": {
+   "marca": "WINRUN",
+   "medida": "235/50R18",
+   "costoConIva": 77.48,
+   "pvpFullConIva": 134.15,
+   "pvpMinConIva": 100.62,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "K847B829": {
+   "marca": "KENDA",
+   "medida": "235/50R18",
+   "costoConIva": 74.97,
+   "pvpFullConIva": 136.64,
+   "pvpMinConIva": 102.48,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "K500B934": {
+   "marca": "KENDA",
+   "medida": "235/50R19",
+   "costoConIva": 111.06,
+   "pvpFullConIva": 207.87,
+   "pvpMinConIva": 155.91,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "2355019WRR330": {
+   "marca": "WINRUN",
+   "medida": "235/50R19",
+   "costoConIva": 87.35,
+   "pvpFullConIva": 149.01,
+   "pvpMinConIva": 111.76,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "K507B705": {
+   "marca": "KENDA",
+   "medida": "235/55R17",
+   "costoConIva": 101.9,
+   "pvpFullConIva": 185.72,
+   "pvpMinConIva": 139.29,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "K253B735": {
+   "marca": "KENDA",
+   "medida": "235/55R17",
+   "costoConIva": 98.78,
+   "pvpFullConIva": 180.04,
+   "pvpMinConIva": 135.04,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "K714B738": {
+   "marca": "KENDA",
+   "medida": "235/55R17",
+   "costoConIva": 91.69,
+   "pvpFullConIva": 167.12,
+   "pvpMinConIva": 125.34,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "K509B802": {
+   "marca": "KENDA",
+   "medida": "235/55R18",
+   "costoConIva": 101.73,
+   "pvpFullConIva": 190.43,
+   "pvpMinConIva": 142.82,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "2355518WNR330": {
+   "marca": "WINRUN",
+   "medida": "235/55R18",
+   "costoConIva": 80.17,
+   "pvpFullConIva": 138.8,
+   "pvpMinConIva": 104.11,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "2355519WNR330": {
+   "marca": "WINRUN",
+   "medida": "235/55R19",
+   "costoConIva": 92.07,
+   "pvpFullConIva": 157.07,
+   "pvpMinConIva": 117.8,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "K794B988": {
+   "marca": "KENDA",
+   "medida": "235/55R19",
+   "costoConIva": 105.12,
+   "pvpFullConIva": 196.79,
+   "pvpMinConIva": 147.6,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "2355519WNRR330": {
+   "marca": "WINRUN",
+   "medida": "235/55R19",
+   "costoConIva": 94.05,
+   "pvpFullConIva": 169.46,
+   "pvpMinConIva": 127.09,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "2355520WNMAXCLAWHT2": {
+   "marca": "WINRUN",
+   "medida": "235/55R20",
+   "costoConIva": 104.71,
+   "pvpFullConIva": 186.14,
+   "pvpMinConIva": 139.6,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "K158B301": {
+   "marca": "KENDA",
+   "medida": "235/60R15",
+   "costoConIva": 91.59,
+   "pvpFullConIva": 162.41,
+   "pvpMinConIva": 121.81,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "K303B677": {
+   "marca": "KENDA",
+   "medida": "235/60R16",
+   "costoConIva": 97.14,
+   "pvpFullConIva": 166.9,
+   "pvpMinConIva": 125.18,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "K502B601": {
+   "marca": "KENDA",
+   "medida": "235/60R16",
+   "costoConIva": 93.58,
+   "pvpFullConIva": 161.07,
+   "pvpMinConIva": 120.8,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "2356016WNMAXCLAWHT2": {
+   "marca": "WINRUN",
+   "medida": "235/60R16",
+   "costoConIva": 72.22,
+   "pvpFullConIva": 123.45,
+   "pvpMinConIva": 92.59,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "2356017WNR380": {
+   "marca": "WINRUN",
+   "medida": "235/60R17",
+   "costoConIva": 82.12,
+   "pvpFullConIva": 144.06,
+   "pvpMinConIva": 108.05,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "K950B863": {
+   "marca": "KENDA",
+   "medida": "235/60R18",
+   "costoConIva": 107.85,
+   "pvpFullConIva": 201.86,
+   "pvpMinConIva": 151.39,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "2356018WNR380": {
+   "marca": "WINRUN",
+   "medida": "235/60R18",
+   "costoConIva": 86.58,
+   "pvpFullConIva": 149.94,
+   "pvpMinConIva": 112.44,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "K291B796": {
+   "marca": "KENDA",
+   "medida": "235/65R17",
+   "costoConIva": 113,
+   "pvpFullConIva": 205.96,
+   "pvpMinConIva": 154.46,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "K501B784": {
+   "marca": "KENDA",
+   "medida": "235/65R17",
+   "costoConIva": 107.09,
+   "pvpFullConIva": 195.17,
+   "pvpMinConIva": 146.37,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "K291B762": {
+   "marca": "KENDA",
+   "medida": "235/65R17",
+   "costoConIva": 99.98,
+   "pvpFullConIva": 182.23,
+   "pvpMinConIva": 136.67,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "2356518WNMAXCLAWHT2": {
+   "marca": "WINRUN",
+   "medida": "235/65R18",
+   "costoConIva": 102.44,
+   "pvpFullConIva": 177.38,
+   "pvpMinConIva": 133.03,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "2357016WNMAXCLAWAT": {
+   "marca": "WINRUN",
+   "medida": "235/70R16",
+   "costoConIva": 88.7,
+   "pvpFullConIva": 155.62,
+   "pvpMinConIva": 116.71,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "K403B650": {
+   "marca": "KENDA",
+   "medida": "235/70R16",
+   "costoConIva": 107.5,
+   "pvpFullConIva": 192.77,
+   "pvpMinConIva": 144.58,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "3808B509": {
+   "marca": "KENDA",
+   "medida": "235/75R15",
+   "costoConIva": 146.08,
+   "pvpFullConIva": 259.06,
+   "pvpMinConIva": 194.3,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "K352B537": {
+   "marca": "KENDA",
+   "medida": "235/75R15",
+   "costoConIva": 112.54,
+   "pvpFullConIva": 210.74,
+   "pvpMinConIva": 158.06,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "K223BA04": {
+   "marca": "KENDA",
+   "medida": "245/35R20",
+   "costoConIva": 106.82,
+   "pvpFullConIva": 205.24,
+   "pvpMinConIva": 153.93,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "K212B800": {
+   "marca": "KENDA",
+   "medida": "245/45R18",
+   "costoConIva": 102.42,
+   "pvpFullConIva": 191.7,
+   "pvpMinConIva": 143.78,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "K421B849": {
+   "marca": "KENDA",
+   "medida": "245/45R18",
+   "costoConIva": 94.13,
+   "pvpFullConIva": 176.2,
+   "pvpMinConIva": 132.16,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "K421B872": {
+   "marca": "KENDA",
+   "medida": "245/45R18",
+   "costoConIva": 73.21,
+   "pvpFullConIva": 133.43,
+   "pvpMinConIva": 100.07,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "K200B986": {
+   "marca": "KENDA",
+   "medida": "245/45R19",
+   "costoConIva": 107.49,
+   "pvpFullConIva": 201.23,
+   "pvpMinConIva": 150.91,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "K951B037": {
+   "marca": "KENDA",
+   "medida": "245/45R20",
+   "costoConIva": 120.26,
+   "pvpFullConIva": 231.03,
+   "pvpMinConIva": 173.27,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "K723B992": {
+   "marca": "KENDA",
+   "medida": "245/55R19",
+   "costoConIva": 155.77,
+   "pvpFullConIva": 291.59,
+   "pvpMinConIva": 218.7,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "K510B965": {
+   "marca": "KENDA",
+   "medida": "245/55R19",
+   "costoConIva": 124.97,
+   "pvpFullConIva": 233.93,
+   "pvpMinConIva": 175.45,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "K50AB800": {
+   "marca": "KENDA",
+   "medida": "245/60R18",
+   "costoConIva": 130.85,
+   "pvpFullConIva": 244.94,
+   "pvpMinConIva": 183.7,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "K510B700": {
+   "marca": "KENDA",
+   "medida": "245/65R17",
+   "costoConIva": 121.3,
+   "pvpFullConIva": 221.08,
+   "pvpMinConIva": 165.81,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "K407B615": {
+   "marca": "KENDA",
+   "medida": "245/70R16",
+   "costoConIva": 114.91,
+   "pvpFullConIva": 192.58,
+   "pvpMinConIva": 144.44,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "3817B706": {
+   "marca": "KENDA",
+   "medida": "245/70R17",
+   "costoConIva": 187.65,
+   "pvpFullConIva": 342.01,
+   "pvpMinConIva": 256.5,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "3800B606": {
+   "marca": "KENDA",
+   "medida": "245/75R16",
+   "costoConIva": 173.32,
+   "pvpFullConIva": 310.78,
+   "pvpMinConIva": 233.09,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "K407B664": {
+   "marca": "KENDA",
+   "medida": "245/75R16",
+   "costoConIva": 124.38,
+   "pvpFullConIva": 217.87,
+   "pvpMinConIva": 163.4,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "K282B649": {
+   "marca": "KENDA",
+   "medida": "245/75R16",
+   "costoConIva": 112.54,
+   "pvpFullConIva": 191.66,
+   "pvpMinConIva": 143.75,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "P245/75R16 KR28": {
+   "marca": "KENDA",
+   "medida": "245/75R16",
+   "costoConIva": 121.08,
+   "pvpFullConIva": 217.11,
+   "pvpMinConIva": 162.83,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "K209BA44": {
+   "marca": "KENDA",
+   "medida": "255/35R20",
+   "costoConIva": 104.37,
+   "pvpFullConIva": 200.54,
+   "pvpMinConIva": 150.4,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "K952B036": {
+   "marca": "KENDA",
+   "medida": "255/45R20",
+   "costoConIva": 133.93,
+   "pvpFullConIva": 257.3,
+   "pvpMinConIva": 192.97,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "2554520WNR330": {
+   "marca": "WINRUN",
+   "medida": "255/45R20",
+   "costoConIva": 95.77,
+   "pvpFullConIva": 170.27,
+   "pvpMinConIva": 127.7,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "K505B806": {
+   "marca": "KENDA",
+   "medida": "255/55R18",
+   "costoConIva": 120.14,
+   "pvpFullConIva": 224.91,
+   "pvpMinConIva": 168.68,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "K528B908": {
+   "marca": "KENDA",
+   "medida": "255/55R19",
+   "costoConIva": 136.23,
+   "pvpFullConIva": 238.62,
+   "pvpMinConIva": 178.96,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "2555519WNMAXCLAWAT": {
+   "marca": "WINRUN",
+   "medida": "255/55R19",
+   "costoConIva": 150.24,
+   "pvpFullConIva": 270.7,
+   "pvpMinConIva": 203.02,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "2555519WNR330": {
+   "marca": "WINRUN",
+   "medida": "255/55R19",
+   "costoConIva": 106.2,
+   "pvpFullConIva": 191.36,
+   "pvpMinConIva": 143.53,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "K895B622": {
+   "marca": "KENDA",
+   "medida": "255/70R16",
+   "costoConIva": 121.28,
+   "pvpFullConIva": 210.09,
+   "pvpMinConIva": 157.57,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "K288B643": {
+   "marca": "KENDA",
+   "medida": "255/70R16",
+   "costoConIva": 118.46,
+   "pvpFullConIva": 205.42,
+   "pvpMinConIva": 154.07,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "2557016WNMAXCLAWAT": {
+   "marca": "WINRUN",
+   "medida": "255/70R16",
+   "costoConIva": 103.82,
+   "pvpFullConIva": 177.49,
+   "pvpMinConIva": 133.11,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "K991B138": {
+   "marca": "KENDA",
+   "medida": "265/45R21",
+   "costoConIva": 136.09,
+   "pvpFullConIva": 261.45,
+   "pvpMinConIva": 196.09,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "K429B056": {
+   "marca": "KENDA",
+   "medida": "265/50R20",
+   "costoConIva": 156.45,
+   "pvpFullConIva": 292.86,
+   "pvpMinConIva": 219.64,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "2655020WNMAXCLAWAT": {
+   "marca": "WINRUN",
+   "medida": "265/50R20",
+   "costoConIva": 130.69,
+   "pvpFullConIva": 232.35,
+   "pvpMinConIva": 174.25,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "K413B831": {
+   "marca": "KENDA",
+   "medida": "265/60R18",
+   "costoConIva": 137.91,
+   "pvpFullConIva": 258.15,
+   "pvpMinConIva": 193.61,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "K526B801": {
+   "marca": "KENDA",
+   "medida": "265/60R18",
+   "costoConIva": 134.4,
+   "pvpFullConIva": 251.59,
+   "pvpMinConIva": 188.69,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "2656018WNMAXCLAWAT": {
+   "marca": "WINRUN",
+   "medida": "265/60R18",
+   "costoConIva": 119.39,
+   "pvpFullConIva": 206.76,
+   "pvpMinConIva": 155.07,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "K417B753": {
+   "marca": "KENDA",
+   "medida": "265/65R17",
+   "costoConIva": 135.06,
+   "pvpFullConIva": 231.1,
+   "pvpMinConIva": 173.32,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "K292B779": {
+   "marca": "KENDA",
+   "medida": "265/65R17",
+   "costoConIva": 130.79,
+   "pvpFullConIva": 238.37,
+   "pvpMinConIva": 178.79,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "K560B709": {
+   "marca": "KENDA",
+   "medida": "265/65R17",
+   "costoConIva": 130.31,
+   "pvpFullConIva": 269.78,
+   "pvpMinConIva": 202.33,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "2656517WRMAXCLAWRT": {
+   "marca": "WINRUN",
+   "medida": "265/65R17",
+   "costoConIva": 133.11,
+   "pvpFullConIva": 233.52,
+   "pvpMinConIva": 175.15,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "K516B803": {
+   "marca": "KENDA",
+   "medida": "265/65R18",
+   "costoConIva": 155.71,
+   "pvpFullConIva": 276.14,
+   "pvpMinConIva": 207.11,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "K383B639": {
+   "marca": "KENDA",
+   "medida": "265/70R16",
+   "costoConIva": 128.31,
+   "pvpFullConIva": 230.08,
+   "pvpMinConIva": 172.55,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "2657016WNMAXCLAWAT": {
+   "marca": "WINRUN",
+   "medida": "265/70R16",
+   "costoConIva": 110.56,
+   "pvpFullConIva": 193.97,
+   "pvpMinConIva": 145.47,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "3806B733": {
+   "marca": "KENDA",
+   "medida": "265/70R17",
+   "costoConIva": 213.72,
+   "pvpFullConIva": 389.52,
+   "pvpMinConIva": 292.14,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "3806B709": {
+   "marca": "KENDA",
+   "medida": "265/70R17",
+   "costoConIva": 175.97,
+   "pvpFullConIva": 400.33,
+   "pvpMinConIva": 300.25,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "2657017WNMAXCLAWAT": {
+   "marca": "WINRUN",
+   "medida": "265/70R17",
+   "costoConIva": 119.62,
+   "pvpFullConIva": 209.85,
+   "pvpMinConIva": 157.39,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "3801B605": {
+   "marca": "KENDA",
+   "medida": "265/75R16",
+   "costoConIva": 176.88,
+   "pvpFullConIva": 317.18,
+   "pvpMinConIva": 237.87,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "2657516WRMAXCLAWRTLT": {
+   "marca": "WINRUN",
+   "medida": "265/75R16",
+   "costoConIva": 144.64,
+   "pvpFullConIva": 257.12,
+   "pvpMinConIva": 192.84,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "K955B033": {
+   "marca": "KENDA",
+   "medida": "275/40R20",
+   "costoConIva": 127.94,
+   "pvpFullConIva": 243.94,
+   "pvpMinConIva": 182.95,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "K754B022": {
+   "marca": "KENDA",
+   "medida": "275/40R22",
+   "costoConIva": 139.67,
+   "pvpFullConIva": 268.34,
+   "pvpMinConIva": 201.26,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "K954B034": {
+   "marca": "KENDA",
+   "medida": "275/45R20",
+   "costoConIva": 143.55,
+   "pvpFullConIva": 275.79,
+   "pvpMinConIva": 206.85,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "2754520WNR330": {
+   "marca": "WINRUN",
+   "medida": "275/45R20",
+   "costoConIva": 105.35,
+   "pvpFullConIva": 187.3,
+   "pvpMinConIva": 140.47,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "K992B137": {
+   "marca": "KENDA",
+   "medida": "275/45R21",
+   "costoConIva": 143.45,
+   "pvpFullConIva": 275.6,
+   "pvpMinConIva": 206.71,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "K993B136": {
+   "marca": "KENDA",
+   "medida": "275/50R21",
+   "costoConIva": 161.72,
+   "pvpFullConIva": 303.48,
+   "pvpMinConIva": 227.61,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "K549B044": {
+   "marca": "KENDA",
+   "medida": "275/55R20",
+   "costoConIva": 174.36,
+   "pvpFullConIva": 334.97,
+   "pvpMinConIva": 251.24,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "2756517WRMAXCLAWAT": {
+   "marca": "WINRUN",
+   "medida": "275/65R17",
+   "costoConIva": 127.48,
+   "pvpFullConIva": 223.64,
+   "pvpMinConIva": 167.73,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "K323B806": {
+   "marca": "KENDA",
+   "medida": "275/65R18",
+   "costoConIva": 154.01,
+   "pvpFullConIva": 270.8,
+   "pvpMinConIva": 203.1,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "K304B676": {
+   "marca": "KENDA",
+   "medida": "275/70R16",
+   "costoConIva": 154.74,
+   "pvpFullConIva": 277.47,
+   "pvpMinConIva": 208.1,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "K429B064": {
+   "marca": "KENDA",
+   "medida": "285/50R20",
+   "costoConIva": 182.65,
+   "pvpFullConIva": 350.91,
+   "pvpMinConIva": 263.18,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "K308B789": {
+   "marca": "KENDA",
+   "medida": "285/65R17",
+   "costoConIva": 164.02,
+   "pvpFullConIva": 298.95,
+   "pvpMinConIva": 224.22,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "K296B742": {
+   "marca": "KENDA",
+   "medida": "285/70R17",
+   "costoConIva": 168.69,
+   "pvpFullConIva": 307.45,
+   "pvpMinConIva": 230.59,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  },
+  "3802B604": {
+   "marca": "KENDA",
+   "medida": "285/75R16",
+   "costoConIva": 225.45,
+   "pvpFullConIva": 404.25,
+   "pvpMinConIva": 303.19,
+   "precioPromoConIva": null,
+   "tienePromo": false
+  }
+ }
+}
