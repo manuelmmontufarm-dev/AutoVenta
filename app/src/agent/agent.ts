@@ -22,6 +22,34 @@ import { extractVehicleYear } from "../domain/salesIntent.js";
 
 const openai = new OpenAI({ apiKey: config.openai.apiKey });
 
+/** Rondas del loop antes de rendirse; el rescate es la ronda siguiente. */
+const MAX_ITERACIONES = 8;
+/**
+ * El rescate no es una iteración más del loop: se numera fuera del rango para
+ * que modeloDelTurno le dé SIEMPRE el modelo superior (ver abajo el porqué).
+ */
+const ITERACION_RESCATE = MAX_ITERACIONES;
+
+/**
+ * Qué modelo atiende cada ronda del turno.
+ *
+ * PORQUÉ escalar por número de iteración: un turno sano se resuelve en 2-3
+ * iteraciones (busca → cotiza → responde), así que las primeras cuatro van con
+ * el modelo principal, que es el barato y el que atiende el 99 % del tráfico.
+ * Llegar a la iteración 4 ya no es "va lento": es que el principal está dando
+ * vueltas (repite la misma tool, no cierra). Insistir con él es la causa #1 del
+ * «tuve un problema procesando» — 8 rondas y un rescate con el MISMO modelo que
+ * acababa de atascarse 8 veces. Desde la iteración 4 entra el modelo superior
+ * con TODO el contexto ya acumulado (mensajes + resultados de las tools de este
+ * turno), que es justo lo que necesita para cerrar, y suele cerrar en una.
+ *
+ * Con OPENAI_ESCALATION_MODEL sin definir, config lo iguala al principal: sin
+ * variable de entorno esto no cambia absolutamente nada.
+ */
+function modeloDelTurno(iteration: number): string {
+  return iteration < 4 ? config.openai.model : config.openai.escalationModel;
+}
+
 export async function runAgent(ctx: AgentContext, userText: string): Promise<string> {
   const startedAt = Date.now();
   let inputTokens = 0;
@@ -69,12 +97,18 @@ export async function runAgent(ctx: AgentContext, userText: string): Promise<str
     { role: "user", content: userText },
   ];
 
-  for (let iteration = 0; iteration < 8; iteration += 1) {
+  // Modelo que produjo la respuesta que se devuelve al cliente. Se actualiza
+  // ANTES de cada llamada (no después) para que la auditoría vea quién atendió
+  // incluso si esa llamada revienta: interesa saber que ya se había escalado.
+  let modeloUsado = modeloDelTurno(0);
+
+  for (let iteration = 0; iteration < MAX_ITERACIONES; iteration += 1) {
+    modeloUsado = modeloDelTurno(iteration);
     const response = await openai.chat.completions.create({
-      model: config.openai.model,
+      model: modeloUsado,
       messages,
       ...(tools.length > 0 ? { tools, tool_choice: "auto" as const } : {}),
-      max_tokens: config.openai.maxTokens,
+      max_completion_tokens: config.openai.maxTokens,
     });
     inputTokens += response.usage?.prompt_tokens ?? 0;
     outputTokens += response.usage?.completion_tokens ?? 0;
@@ -88,7 +122,7 @@ export async function runAgent(ctx: AgentContext, userText: string): Promise<str
         conversationId: ctx.conversation.id,
         stage: ctx.conversation.stage,
         promptVersionId: stagePrompt.id,
-        model: config.openai.model,
+        model: modeloUsado,
         latencyMs: Date.now() - startedAt,
         inputTokens,
         outputTokens,
@@ -112,7 +146,7 @@ export async function runAgent(ctx: AgentContext, userText: string): Promise<str
           conversationId: ctx.conversation.id,
           stage: ctx.conversation.stage,
           promptVersionId: stagePrompt.id,
-          model: config.openai.model,
+          model: modeloUsado,
           latencyMs: Date.now() - startedAt,
           inputTokens,
           outputTokens,
@@ -127,9 +161,12 @@ export async function runAgent(ctx: AgentContext, userText: string): Promise<str
   // procesando» (7 casos en producción — el modelo se quedaba en bucle con una
   // herramienta que fallaba). Antes de rendirse, una última llamada SIN
   // herramientas lo obliga a responder al cliente con lo que ya averiguó.
+  // ESCALACIÓN (7-ago): el rescate corría con el mismo modelo que acababa de
+  // atascarse 8 veces; ahora es el turno del superior, con todo el contexto.
   try {
+    modeloUsado = modeloDelTurno(ITERACION_RESCATE);
     const rescate = await openai.chat.completions.create({
-      model: config.openai.model,
+      model: modeloUsado,
       messages: [
         ...messages,
         {
@@ -138,7 +175,7 @@ export async function runAgent(ctx: AgentContext, userText: string): Promise<str
             "Se acabaron los intentos con herramientas. Responde AHORA al cliente con lo que ya sabes de esta conversación: si tienes opciones o precios de las herramientas, dilos; si algo falló, avanza por otro camino (pide el dato que falte o deriva al asesor). Prohibido disculparte por 'problemas procesando' y prohibido pedir que repita el mensaje.",
         },
       ],
-      max_tokens: config.openai.maxTokens,
+      max_completion_tokens: config.openai.maxTokens,
     });
     inputTokens += rescate.usage?.prompt_tokens ?? 0;
     outputTokens += rescate.usage?.completion_tokens ?? 0;
@@ -148,7 +185,7 @@ export async function runAgent(ctx: AgentContext, userText: string): Promise<str
         conversationId: ctx.conversation.id,
         stage: ctx.conversation.stage,
         promptVersionId: stagePrompt.id,
-        model: config.openai.model,
+        model: modeloUsado,
         latencyMs: Date.now() - startedAt,
         inputTokens,
         outputTokens,
@@ -165,7 +202,7 @@ export async function runAgent(ctx: AgentContext, userText: string): Promise<str
     conversationId: ctx.conversation.id,
     stage: ctx.conversation.stage,
     promptVersionId: stagePrompt.id,
-    model: config.openai.model,
+    model: modeloUsado,
     latencyMs: Date.now() - startedAt,
     inputTokens,
     outputTokens,
@@ -252,7 +289,10 @@ export function salesFactsPrompt(facts: AgentSalesFacts, resumedFromHuman = fals
       ? `Ya cotizaste hace ${facts.lastQuote.minutesAgo} min. NO generes otra cotización por el mismo pedido: si el cliente reafirma la medida, el modelo o la cantidad, remítelo a ${facts.lastQuote.number} y avanza al cierre (ubicación, visita, asesor). Solo cotiza de nuevo si cambia el producto o la cantidad.`
       : null,
     "Si el cliente ya dio una medida, cotiza con esa medida. No pidas versión, año ni etiqueta del vehículo, y nunca condiciones la cotización a confirmar el auto.",
-    "Nunca pidas fotos: no puedes leerlas. Si falta la medida, pídela escrita.",
+    // Desde el 6-ago el bot SÍ lee fotos (visión); la instrucción vieja
+    // («nunca pidas fotos: no puedes leerlas») ya era falsa y le quitaba un
+    // camino para conseguir la medida.
+    "Si falta la medida: pídela escrita (ej. 225/65R17) o pide una foto del costado de la llanta — sí puedes leer fotos. Siempre ofreciendo algo concreto en la misma respuesta.",
     resumedFromHuman ? "El asesor devolvió la conversación al bot con un mensaje del cliente pendiente. Responde directamente ese último mensaje y retoma el hilo; nunca lo dejes sin contestar." : null,
   ].filter(Boolean).join("\n");
 }

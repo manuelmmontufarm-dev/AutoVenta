@@ -40,7 +40,7 @@ vi.mock("../src/services/advisorNotifications.js", async (importOriginal) => {
 
 const { sql } = await import("../src/db/client.js");
 const { ensureSchema } = await import("../src/db/schema.js");
-const { applyOutboundGuard, PREGUNTA_MEDIDA_GUARD } = await import("../src/services/outboundGuard.js");
+const { applyOutboundGuard } = await import("../src/services/outboundGuard.js");
 
 const APOLOGIA = "Disculpa, tuve un problema procesando tu mensaje. ¿Me lo repites por favor?";
 
@@ -98,20 +98,18 @@ describe("applyOutboundGuard contra la base real", () => {
     }, { timeout: 5_000, interval: 100 });
   });
 
-  it("reescribe el pedido de foto y deja la alerta guard_pide_foto", async () => {
+  it("el pedido de foto pasa intacto y NO alerta (visión activa desde el 6-ago)", async () => {
     const conv = await crearConversacion("593900000002");
     await sembrarSalienteDelBot(conv.id, "En 225/65R17 tengo Falken Wildpeak A/T 🛞");
 
-    const resultado = await applyOutboundGuard(conv.id, "¿Me puede enviar una foto del costado?");
+    const pedido = "¿Me puede enviar una foto del costado?";
+    const resultado = await applyOutboundGuard(conv.id, pedido);
 
-    expect(resultado.issues).toContain("pide_foto");
-    expect(resultado.text).not.toBeNull();
-    expect(resultado.text).not.toMatch(/foto|imagen/i);
-    expect(resultado.text).toContain(PREGUNTA_MEDIDA_GUARD);
-    await vi.waitFor(async () => {
-      const alertas = await alertasDe(conv.id);
-      expect(alertas).toEqual([{ type: "guard_pide_foto", priority: "medium" }]);
-    }, { timeout: 5_000, interval: 100 });
+    expect(resultado.text).toBe(pedido);
+    expect(resultado.issues).toEqual([]);
+    // Margen por si una alerta se insertara tarde: censurar esto era el bug.
+    await new Promise((r) => setTimeout(r, 400));
+    expect(await alertasDe(conv.id)).toEqual([]);
   });
 
   it("sin mensajes previos del bot, el saludo inicial pasa intacto y no alerta", async () => {

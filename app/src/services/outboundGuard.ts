@@ -15,19 +15,18 @@ import { notifyAdvisor } from "./advisorNotifications.js";
  * Mismo criterio que scripts/eval/rubrica.mjs y la auditoría: una sola vara.
  */
 
-export const PREGUNTA_MEDIDA_GUARD =
-  "¿Me escribe la medida que dice el filo de la llanta? Es algo como 225/65R17 — con eso le cotizo de una.";
-
-/** Pedir foto/imagen: el bot no puede leerlas; la conversación muere ahí. */
-const PIDE_FOTO =
-  /(?:env[íi]\w*|m[áa]nd\w*|comp[áa]rt\w*|adjunt\w*|puede[sn]?|podr[íi]a[sn]?)[^.?!\n]{0,60}(?:foto|imagen)|foto (?:de la etiqueta|del costado|de la puerta)/i;
-
+// JUBILADO (7-ago): el censor de peticiones de foto (regex PIDE_FOTO). Existió
+// porque el bot no podía leer imágenes y pedir una foto mataba la conversación
+// (caso Orlando, 5-ago). Desde el 6-ago la visión está activa (services/vision.ts)
+// y pedir «una foto del costado» es una jugada legítima del playbook — censurarla
+// aquí borraba la jugada nueva y disparaba alertas falsas al asesor. El detector
+// histórico sigue en scripts/auditoria para medir el pasado, no el presente.
 const APOLOGIA = /disculpa,?\s*tuve un problema procesando/i;
 
 /** Saludo de apertura: válido solo en el primer mensaje del bot del ciclo. */
 const SALUDO_INICIAL = /^\s*(?:¡\s*)?(?:hola|buen[oa]s(?:\s+(?:d[íi]as|tardes|noches))?)\s*[!.,]*\s*/i;
 
-export type GuardIssue = "pide_foto" | "mensaje_duplicado" | "bot_atascado" | "saludo_repetido";
+export type GuardIssue = "mensaje_duplicado" | "bot_atascado" | "saludo_repetido";
 
 export interface GuardResult {
   /** Texto listo para enviar; null = no enviar nada (ya se alertó al asesor). */
@@ -43,9 +42,8 @@ const normalizar = (t: string) => t.trim().replace(/\s+/g, " ").toLowerCase();
  * 1. Repetir EXACTAMENTE el último mensaje del bot → no se envía.
  * 2. Disculpa tras disculpa → no se envía (el cliente ya recibió una;
  *    la segunda es spam y la tercera espanta) y se alerta «bot atascado».
- * 3. Oraciones que piden foto → se eliminan; si el mensaje queda sin
- *    pregunta, se pide la medida escrita.
- * 4. Saludo de apertura a mitad de conversación → se recorta.
+ * 3. Saludo de apertura a mitad de conversación → se recorta.
+ * (La regla de censurar peticiones de foto se jubiló el 7-ago: ver arriba.)
  */
 export function guardOutboundReply(
   reply: string,
@@ -65,21 +63,6 @@ export function guardOutboundReply(
   }
 
   let texto = reply;
-
-  if (PIDE_FOTO.test(texto)) {
-    issues.push("pide_foto");
-    // Se elimina la oración ofensora, no el mensaje: lo demás suele ser útil.
-    const lineas = texto.split("\n").map((linea) =>
-      linea
-        .split(/(?<=[.!?…])\s+/)
-        .filter((oracion) => !PIDE_FOTO.test(oracion))
-        .join(" "),
-    );
-    texto = lineas.join("\n").replace(/\n{3,}/g, "\n\n").trim();
-    if (!texto.includes("?")) {
-      texto = texto ? `${texto}\n\n${PREGUNTA_MEDIDA_GUARD}` : PREGUNTA_MEDIDA_GUARD;
-    }
-  }
 
   if (hasPriorOutbound && SALUDO_INICIAL.test(texto)) {
     const sinSaludo = texto.replace(SALUDO_INICIAL, "").trim();
@@ -102,12 +85,6 @@ const ALERTAS: Record<GuardIssue, { priority: "high" | "medium"; summary: string
     summary: "Bot atascado: dos disculpas seguidas — el cliente quedó sin respuesta",
     reason: "El bot falló dos veces seguidas procesando al cliente. La segunda disculpa NO se envió para no espantarlo, pero nadie le está respondiendo.",
     action: "Abrir el ticket y responder a mano AHORA; el cliente está esperando.",
-  },
-  pide_foto: {
-    priority: "medium",
-    summary: "El modelo intentó pedir una foto (bloqueado por el guardián)",
-    reason: "El bot no puede leer imágenes; la oración se eliminó antes de enviar y se pidió la medida escrita. El prompt no debería producir esto: revisar el chat.",
-    action: "Verificar que la conversación siga fluyendo; reportar el caso para ajustar el prompt.",
   },
   mensaje_duplicado: {
     priority: "medium",

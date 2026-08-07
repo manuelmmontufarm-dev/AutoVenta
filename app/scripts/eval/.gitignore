@@ -1,0 +1,3 @@
+# Salidas del harness: traen mensajes de clientes reales (nombres, teléfonos y
+# lo que escribieron). Nada de esto tiene por qué vivir en el repositorio.
+datos/

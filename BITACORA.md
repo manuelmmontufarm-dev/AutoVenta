@@ -32,6 +32,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-08-07 | _(este mismo)_ | El bot oye, ve, abre links y ya no se queda sin ofrecer + harness de evaluación | 5.0 |
 | 2026-08-07 | _(este mismo)_ | Precios reales del Interbot (362 llantas cruzadas: no hay fórmula, se lee el precio) | 2.5 |
 | 2026-08-07 | _(este mismo)_ | Lo que el asesor escribe desde WhatsApp ya entra al panel y al historial del bot | 2.0 |
 | 2026-08-07 | _(este mismo)_ | El aro solo ya basta: se acabó el «no tengo medida verificada» sin ofrecer nada | 0.5 |
@@ -95,6 +96,53 @@ Ya viene activado en este equipo.
 ---
 
 ## Entradas (más reciente primero)
+
+### 2026-08-07 · El bot oye, ve, abre links y ya no se queda sin ofrecer · ⏱️ 5.0 h
+
+**De dónde sale:** «hace demasiados errores importantes… necesitamos un bot más inteligente».
+Dos quejas concretas de Joaquín el mismo día: el precio equivocado (entrada anterior) y el
+Creta rin 19 al que el bot contestó «no tengo una medida verificada» sin ofrecer nada.
+
+**Arquitectura nueva: modelos superiores donde rinden, no en todas partes.** El loop común
+sigue barato; los ANÁLISIS (visión, investigación, rescate) tienen su propio knob y pueden
+usar un modelo grande porque son pocas llamadas. Modelos validados contra la API real antes
+de fijarlos —tools, visión y web probados uno por uno— porque un ID mal escrito tumba el bot.
+
+**Qué se hizo.**
+- **Audios** (`services/transcripcion.ts`): Whisper con sesgo de vocabulario de llantas. Antes
+  el webhook contestaba «no puedes escucharlo»; en Ecuador la gente manda notas de voz.
+- **Links** (`services/linkPreview.ts`): abre la página, la resume y pasa su `og:image` por
+  visión, así el bot «ve» la llanta del anuncio. Con defensa anti-SSRF (rechaza IPs privadas).
+- **Fotos**: modelo superior + el caption orienta la lectura. Se jubila «no puedes leer fotos»
+  del playbook, `prompts.ts`, las descripciones de tools y del **guardián de salida** — que
+  censuraba la petición de foto y le mandaba una alerta falsa al asesor por hacer lo correcto.
+- **Fitment**: el aro llega a la investigación y el prompt deja de autocensurarse. Medido:
+  gpt-5.5 SÍ encontraba `235/45R19` y la devolvía en `sizes: []` porque el prompt decía «no
+  adivines / prioriza el manual del fabricante». Subir el modelo solo no arreglaba nada.
+  Además candado de catálogo: con stock, `fitment_vehiculo` nunca devuelve cero opciones.
+- **Escalación**: iteración ≥4 y el rescate usan `escalationModel`. Antes el rescate
+  reintentaba con el mismo modelo que acababa de atascarse ocho veces.
+- **`max_completion_tokens`** en las 5 llamadas: la familia GPT-5 rechaza `max_tokens` con 400.
+
+**Lo que encontró la evaluación (scripts/eval, 273 conversaciones reales, 461 turnos).**
+El replay cazó el bug de `max_tokens` — 461/461 turnos fallaron con gpt-5.4 — **antes** de que
+tocara producción. Ya corregido, contra la línea base del 5-ago:
+
+| | antes | ahora |
+|---|---|---|
+| «Tuve un problema procesando» | 12 | **0** |
+| El cliente escribió y no hubo respuesta | 185 | **63** |
+| Dijo no tener ficha verificada | 8 | **1** |
+| Repitió la misma pregunta | 23 | **10** |
+| Mensaje duplicado / disculpas / saludo repetido / doble cotización | 18 | **0** |
+| Conversaciones afectadas | 243 | **191** |
+
+«Preguntó teniendo ya la medida» sube en absoluto (176→211) pero **baja por respuesta
+emitida (63.8% → 53.0%)**: el bot viejo ganaba esa métrica quedándose callado, y el nuevo
+responde 122 veces más. Queda como el pendiente #1.
+
+**Pendiente:** créditos de OpenAI agotados a mitad de la corrida (5M tokens en 353 turnos) —
+faltan 108 turnos y el juez LLM. Usuario propio del Interbot para el sync de precios en vivo.
 
 ### 2026-08-07 · Los precios ahora son los del Interbot, no una fórmula · ⏱️ 2.5 h
 

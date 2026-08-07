@@ -6,6 +6,8 @@ import { config } from "./config.js";
 import { createServer } from "./server/webhook.js";
 import { initWa, setWaHandlers, sendCustomerText, showTyping, downloadMedia } from "./wa/client.js";
 import { describirFotoDeLlanta } from "./services/vision.js";
+import { transcribirAudio } from "./services/transcripcion.js";
+import { conResumenDeLinks } from "./services/linkPreview.js";
 import { getPublicChannelConfig } from "./services/channel.js";
 import { getPhaseFlags, activeLevel } from "./services/phases.js";
 import { InboundPipeline } from "./pipeline/inbound.js";
@@ -91,9 +93,35 @@ const pipeline = new InboundPipeline(async ({ from, name, text, waMessageIds, re
   // Recién aquí se sabe que el bot va a responder: "escribiendo…" honesto.
   void showTyping(waMessageIds[waMessageIds.length - 1]).catch(() => {});
 
+  // Los links se abren AQUÍ, no en el webhook.
+  //
+  // Hacerlo antes de pipeline.push() invertía el orden de la conversación: el
+  // debounce es de 5 s y un link se lleva hasta 10, así que el «¿cuánto cuesta?»
+  // que el cliente escribe un segundo después entraba al buffer primero, se
+  // respondía solo, y el mensaje del link llegaba tarde y provocaba un segundo
+  // turno. Aquí el push ya ocurrió con el texto crudo (orden y agrupación
+  // intactos) y la espera cae sobre el turno, después del showTyping — el
+  // cliente ve "escribiendo…" durante toda la lectura del link.
+  //
+  // Efecto colateral asumido: en la base queda lo que el cliente escribió de
+  // verdad (la URL cruda), no el resumen. El dato que vende —la medida— sí
+  // persiste, porque se guarda en los HECHOS de la conversación aquí abajo.
+  const textoConLinks = await conResumenDeLinks(text, from);
+  if (textoConLinks !== text && !parsedSize && !parsedFlotation) {
+    const medidaDelLink = extractTireSizes(textoConLinks)[0];
+    const flotacionDelLink = medidaDelLink ? null : extractFlotationSizes(textoConLinks)[0];
+    if (medidaDelLink || flotacionDelLink) {
+      await updateConversationFacts(conversation.id, {
+        tireSize: medidaDelLink
+          ? formatTireSize(medidaDelLink)
+          : formatFlotationSize(flotacionDelLink!),
+      });
+    }
+  }
+
   const agentContext: AgentContext = { conversation, customerPhone: from, customerName: name,
-    currentUserText: text };
-  const reply = await runAgent(agentContext, text);
+    currentUserText: textoConLinks };
+  const reply = await runAgent(agentContext, textoConLinks);
   await flagRepetitiveConversation(conversation.id, reply);
 
   // Guardián de salida (5-ago): determinístico, corre sobre TODO lo que el bot
@@ -183,6 +211,10 @@ setWaHandlers({
     const receivedAt = new Date(Number(message.timestamp) * 1000);
     switch (message.type) {
       case "text":
+        // El texto entra TAL CUAL y sin esperar a nada: el agrupador (debounce)
+        // necesita ver los mensajes en el orden en que llegaron. Los links que
+        // traiga se abren después, dentro del pipeline, con el "escribiendo…" ya
+        // encendido.
         await recibirMensaje(from, name, message.text.body, message.id, receivedAt);
         break;
       case "location":
@@ -216,15 +248,20 @@ setWaHandlers({
         );
         break;
       }
-      case "audio":
-        await recibirMensaje(
-          from,
-          name,
-          "[El cliente envió un audio que todavía no puedes escuchar]",
-          message.id,
-          receivedAt,
-        );
+      case "audio": {
+        // La nota de voz se transcribe y entra como texto normal: el debounce la
+        // junta con lo que el cliente escriba alrededor y extractTireSizes le
+        // saca la medida sola. El ack a Meta ya salió arriba (received()), así
+        // que el await de la descarga+transcripción no arriesga un reintento del
+        // webhook.
+        const media = await downloadMedia(message.audio.id);
+        const dicho = media ? await transcribirAudio(media.bytes, media.mimeType) : null;
+        const cuerpo = dicho
+          ? `[El cliente mandó un audio. Dice: ${dicho}]`
+          : "[El cliente mandó un audio que no se pudo escuchar. Pídele con amabilidad que escriba su consulta o mande la medida escrita.]";
+        await recibirMensaje(from, name, cuerpo, message.id, receivedAt);
         break;
+      }
       default:
         // stickers, reacciones, etc. — se ignoran
         break;

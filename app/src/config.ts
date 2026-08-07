@@ -148,11 +148,30 @@ export const config = {
   },
 
   openai: {
-    // GPT-4o mini mantiene el costo bajo para el piloto y soporta function calling.
+    // Arquitectura de modelos (7-ago): el loop conversacional usa `model`; los
+    // ANÁLISIS (visión, investigación, escalación) pueden usar modelos superiores
+    // sin encarecer el turno común — son pocas llamadas donde la capacidad rinde.
+    // Los defaults NO cambian el comportamiento actual: la potencia se activa
+    // poniendo las variables en Railway, previa validación contra /v1/models
+    // (un ID mal escrito tumbaría al bot con 400 en cada mensaje).
     model: envOr("OPENAI_MODEL", "gpt-4o-mini"),
     classifierModel: envOr("OPENAI_CLASSIFIER_MODEL", "gpt-4o-mini"),
     researchModel: envOr("OPENAI_RESEARCH_MODEL", envOr("OPENAI_MODEL", "gpt-4o-mini")),
+    /** Lee fotos del cliente (medida en el costado, etiqueta de la puerta). */
+    visionModel: envOr("OPENAI_VISION_MODEL", envOr("OPENAI_MODEL", "gpt-4o-mini")),
+    /** Transcribe los audios de WhatsApp. */
+    transcribeModel: envOr("OPENAI_TRANSCRIBE_MODEL", "whisper-1"),
+    /**
+     * Modelo de rescate: entra cuando el principal se atascó (iteraciones
+     * tardías del loop y la llamada de rescate). Hoy el rescate usa el MISMO
+     * modelo que ya falló 8 veces — con esta variable, escala a uno superior.
+     */
+    escalationModel: envOr("OPENAI_ESCALATION_MODEL", envOr("OPENAI_MODEL", "gpt-4o-mini")),
     apiKey: env("OPENAI_API_KEY"),
+    // Se envía como `max_completion_tokens` (NO `max_tokens`): la familia GPT-5
+    // rechaza el parámetro viejo con 400 «Unsupported parameter», y el nuevo lo
+    // aceptan tanto GPT-5 como GPT-4o. Lo cazó el replay del 7-ago: 461/461
+    // turnos fallaron al probar gpt-5.4 antes de tocar producción.
     maxTokens: 2048,
   },
 

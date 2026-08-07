@@ -8,7 +8,7 @@ process.env.WHATSAPP_VERIFY_TOKEN ||= "test";
 process.env.WHATSAPP_PHONE_ID ||= "test";
 process.env.DATABASE_URL ||= "postgresql://manue@localhost/postgres";
 
-const { guardOutboundReply, PREGUNTA_MEDIDA_GUARD } = await import("../src/services/outboundGuard.js");
+const { guardOutboundReply } = await import("../src/services/outboundGuard.js");
 
 /**
  * El guardián de salida, probado contra los MENSAJES REALES que el bot mandó
@@ -48,30 +48,21 @@ describe("Guardián de salida — las fallas del 5-ago no pueden volver a enviar
     });
   });
 
-  describe("pedir fotos: se elimina la oración, se salva el resto", () => {
-    it("frena el mensaje real «si prefiere, puede mandarme una foto del costado»", () => {
+  describe("pedir fotos: ya es una jugada legítima (visión activa desde el 6-ago)", () => {
+    it("deja pasar el ofrecimiento de leer la foto — antes lo censuraba", () => {
       const real =
         "Perfecto, ¿puede decirme qué medida dice el filo de su llanta actual? Si prefiere, puede mandarme una foto del costado y yo la leo.";
       const r = guardOutboundReply(real, null, false);
-      expect(r.issues).toContain("pide_foto");
-      expect(r.text).not.toMatch(/foto/i);
-      // La parte útil (pedir la medida) sobrevive.
-      expect(r.text).toContain("¿puede decirme qué medida");
+      expect(r.text).toBe(real);
+      expect(r.issues).toEqual([]);
     });
 
-    it("frena el mensaje real del caso Orlando y deja una pregunta que vende", () => {
+    it("el caso Orlando ya no se recorta: la foto es una vía de venta, no un callejón", () => {
       const real =
         "No tengo una medida verificada para ese modelo.\n\n¿Podrías enviarme una foto de la etiqueta de la puerta o de la medida que aparece en una llanta actual? Así confirmamos la compatibilidad.";
       const r = guardOutboundReply(real, null, false);
-      expect(r.issues).toContain("pide_foto");
-      expect(r.text).not.toMatch(/foto|imagen/i);
-      // Sin la oración de la foto no quedaba pregunta: el guardián pide la medida escrita.
-      expect(r.text).toContain(PREGUNTA_MEDIDA_GUARD);
-    });
-
-    it("si TODO el mensaje era pedir la foto, sale solo la pregunta de la medida", () => {
-      const r = guardOutboundReply("¿Podrías enviarme una foto de la etiqueta de la puerta?", null, false);
-      expect(r.text).toBe(PREGUNTA_MEDIDA_GUARD);
+      expect(r.text).toBe(real);
+      expect(r.issues).toEqual([]);
     });
 
     it("no toca un mensaje que habla de fotos sin pedirlas", () => {

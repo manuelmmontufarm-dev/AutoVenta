@@ -1,0 +1,622 @@
+{
+ "generadoEn": "2026-08-07T00:00:00.000Z",
+ "fuente": "fixtures",
+ "commitBot": "fixture0",
+ "periodoDias": 14,
+ "nota": "Conversaciones SINTÉTICAS para desarrollar el harness sin DATABASE_URL. Los teléfonos son inventados (rango 59390000xxxx, no asignado). Cada una reproduce a mano una falla del censo del 5-ago para que los detectores tengan de qué agarrarse en --dry: si un cambio rompe un detector, el --dry lo delata sin gastar una corrida real. Se agregaron 1103 (el cliente corrige la medida a mitad del hilo → dos piezas de opciones en el mismo ciclo) y 1131 (pide precio de dos marcas del mismo precio → dos COT- por la misma compra, el caso KLEVER): sin ellas los detectores opciones_reenviadas y cotizacion_duplicada nunca se ejercitan con datos en --dry. | 7-ago: +5 casos REALES de producción (Creta rin19 ticket 1704, precio RT01, audio, link, foto).",
+ "auditoria": {
+  "metricas": {
+   "conversaciones": 10,
+   "conMedida": 5,
+   "conCotizacion": 2,
+   "ganados": 1,
+   "fallas": {}
+  },
+  "hallazgos": [],
+  "porChat": []
+ },
+ "conversaciones": [
+  {
+   "id": 972,
+   "phone": "593900000972",
+   "name": "Ricardo Nitro",
+   "stage": "nuevo",
+   "status": "abierta",
+   "tire_size": null,
+   "vehicle": null,
+   "current_cycle": 0,
+   "created_at": "2026-08-01T14:00:00.000Z",
+   "ganado": false,
+   "mensajes": [
+    {
+     "direction": "inbound",
+     "author_kind": "customer",
+     "type": "text",
+     "cycle": 0,
+     "created_at": "2026-08-01T14:00:00.000Z",
+     "content": "buenas, necesito llantas para mi camioneta"
+    },
+    {
+     "direction": "outbound",
+     "author_kind": "bot",
+     "type": "text",
+     "cycle": 0,
+     "created_at": "2026-08-01T14:00:20.000Z",
+     "content": "¡Hola! Con gusto le ayudo. ¿Me puede enviar una foto de la etiqueta de la puerta del conductor para ver la medida?"
+    },
+    {
+     "direction": "inbound",
+     "author_kind": "customer",
+     "type": "text",
+     "cycle": 0,
+     "created_at": "2026-08-01T14:03:00.000Z",
+     "content": "265/65R17"
+    },
+    {
+     "direction": "outbound",
+     "author_kind": "bot",
+     "type": "text",
+     "cycle": 0,
+     "created_at": "2026-08-01T14:03:30.000Z",
+     "content": "Disculpa, tuve un problema procesando tu mensaje. ¿Me lo repites por favor?"
+    },
+    {
+     "direction": "inbound",
+     "author_kind": "customer",
+     "type": "text",
+     "cycle": 0,
+     "created_at": "2026-08-01T14:05:00.000Z",
+     "content": "265/65R17 le digo, y si incluye alineacion?"
+    },
+    {
+     "direction": "outbound",
+     "author_kind": "bot",
+     "type": "text",
+     "cycle": 0,
+     "created_at": "2026-08-01T14:05:25.000Z",
+     "content": "Disculpa, tuve un problema procesando tu mensaje. ¿Me lo repites por favor?"
+    }
+   ]
+  },
+  {
+   "id": 980,
+   "phone": "593900000980",
+   "name": "Orlando Vaca",
+   "stage": "medida_confirmada",
+   "status": "abierta",
+   "tire_size": "225/65R17",
+   "vehicle": "Hyundai Creta",
+   "current_cycle": 0,
+   "created_at": "2026-08-02T09:10:00.000Z",
+   "ganado": false,
+   "mensajes": [
+    {
+     "direction": "inbound",
+     "author_kind": "customer",
+     "type": "text",
+     "cycle": 0,
+     "created_at": "2026-08-02T09:10:00.000Z",
+     "content": "hola quiero precio de 225/65R17 para mi Creta"
+    },
+    {
+     "direction": "outbound",
+     "author_kind": "bot",
+     "type": "text",
+     "cycle": 0,
+     "created_at": "2026-08-02T09:10:30.000Z",
+     "content": "Buenos días. ¿Me podrías mandar una foto del costado de la llanta para confirmar la medida?"
+    },
+    {
+     "direction": "inbound",
+     "author_kind": "customer",
+     "type": "text",
+     "cycle": 0,
+     "created_at": "2026-08-02T09:12:00.000Z",
+     "content": "ya te di la medida pana, 225/65R17"
+    },
+    {
+     "direction": "outbound",
+     "author_kind": "bot",
+     "type": "text",
+     "cycle": 0,
+     "created_at": "2026-08-02T09:12:40.000Z",
+     "content": "Entendido. ¿Qué versión y año es su Creta?"
+    }
+   ]
+  },
+  {
+   "id": 1001,
+   "phone": "593900001001",
+   "name": "Mateo Salazar",
+   "stage": "seleccionando",
+   "status": "abierta",
+   "tire_size": "215/60R19",
+   "vehicle": "Hyundai Creta rin 19",
+   "current_cycle": 0,
+   "created_at": "2026-08-03T16:20:00.000Z",
+   "ganado": false,
+   "mensajes": [
+    {
+     "direction": "inbound",
+     "author_kind": "customer",
+     "type": "text",
+     "cycle": 0,
+     "created_at": "2026-08-03T16:20:00.000Z",
+     "content": "buenas tardes, tengo una Creta con rin 19, que llantas me sirven?"
+    },
+    {
+     "direction": "outbound",
+     "author_kind": "bot",
+     "type": "text",
+     "cycle": 0,
+     "created_at": "2026-08-03T16:20:40.000Z",
+     "content": "No tengo una ficha técnica verificada para ese vehículo. ¿Me puedes enviar una foto de la llanta actual?"
+    },
+    {
+     "direction": "inbound",
+     "author_kind": "customer",
+     "type": "text",
+     "cycle": 0,
+     "created_at": "2026-08-03T16:24:00.000Z",
+     "content": "es rin 19 de fabrica, no tengo la llanta a mano"
+    },
+    {
+     "direction": "outbound",
+     "author_kind": "bot",
+     "type": "text",
+     "cycle": 0,
+     "created_at": "2026-08-03T16:24:30.000Z",
+     "content": "Para poder ayudarte necesito la medida exacta. ¿Podrías enviar una foto de la etiqueta de la puerta?"
+    }
+   ]
+  },
+  {
+   "id": 943,
+   "phone": "593900000943",
+   "name": "KLEVER",
+   "stage": "seguimiento_venta",
+   "status": "abierta",
+   "tire_size": "235/75R15",
+   "vehicle": null,
+   "current_cycle": 0,
+   "created_at": "2026-07-30T11:00:00.000Z",
+   "ganado": false,
+   "mensajes": [
+    {
+     "direction": "inbound",
+     "author_kind": "customer",
+     "type": "text",
+     "cycle": 0,
+     "created_at": "2026-07-30T11:00:00.000Z",
+     "content": "necesito 4 llantas 235/75R15 todo terreno"
+    },
+    {
+     "direction": "outbound",
+     "author_kind": "bot",
+     "type": "text",
+     "cycle": 0,
+     "created_at": "2026-07-30T11:00:45.000Z",
+     "content": "Perfecto. Le preparé la cotización COT-MSGJQPAK por $638.59 con IVA incluido."
+    },
+    {
+     "direction": "inbound",
+     "author_kind": "customer",
+     "type": "text",
+     "cycle": 0,
+     "created_at": "2026-07-30T11:02:00.000Z",
+     "content": "si son 235/75R15, todo terreno confirmo"
+    },
+    {
+     "direction": "outbound",
+     "author_kind": "bot",
+     "type": "text",
+     "cycle": 0,
+     "created_at": "2026-07-30T11:02:13.000Z",
+     "content": "Listo, su cotización COT-MSGJR010 queda por $638,60 con IVA. ¿Confirmamos la cantidad exacta que necesita?"
+    }
+   ]
+  },
+  {
+   "id": 982,
+   "phone": "593900000982",
+   "name": "Jordian",
+   "stage": "nuevo",
+   "status": "abierta",
+   "tire_size": null,
+   "vehicle": null,
+   "current_cycle": 0,
+   "created_at": "2026-08-04T18:30:00.000Z",
+   "ganado": false,
+   "mensajes": [
+    {
+     "direction": "inbound",
+     "author_kind": "customer",
+     "type": "text",
+     "cycle": 0,
+     "created_at": "2026-08-04T18:30:00.000Z",
+     "content": "hola, tienen llantas 195/65R15?"
+    },
+    {
+     "direction": "outbound",
+     "author_kind": "bot",
+     "type": "text",
+     "cycle": 0,
+     "created_at": "2026-08-04T18:30:30.000Z",
+     "content": "¡Hola! Sí manejamos esa medida. ¿Para qué vehículo son?"
+    },
+    {
+     "direction": "inbound",
+     "author_kind": "customer",
+     "type": "text",
+     "cycle": 0,
+     "created_at": "2026-08-04T18:33:00.000Z",
+     "content": "un aveo"
+    },
+    {
+     "direction": "outbound",
+     "author_kind": "bot",
+     "type": "text",
+     "cycle": 0,
+     "created_at": "2026-08-04T18:33:35.000Z",
+     "content": "¡Buenas tardes! Con gusto le ayudo con las 195/65R15. ¿Cuántas llantas necesita?"
+    }
+   ]
+  },
+  {
+   "id": 1042,
+   "phone": "593900001042",
+   "name": "Gabriela Terán",
+   "stage": "cotizacion_enviada",
+   "status": "abierta",
+   "tire_size": "185/65R15",
+   "vehicle": "Kia Rio",
+   "current_cycle": 0,
+   "created_at": "2026-08-05T10:00:00.000Z",
+   "ganado": true,
+   "mensajes": [
+    {
+     "direction": "inbound",
+     "author_kind": "customer",
+     "type": "text",
+     "cycle": 0,
+     "created_at": "2026-08-05T10:00:00.000Z",
+     "content": "buenos dias, necesito un juego de 185/65R15 para un Kia Rio"
+    },
+    {
+     "direction": "outbound",
+     "author_kind": "bot",
+     "type": "text",
+     "cycle": 0,
+     "created_at": "2026-08-05T10:00:50.000Z",
+     "content": "Buenos días. Le comparto tres opciones en 185/65R15. La RT01 es la de mejor relación precio-duración."
+    },
+    {
+     "direction": "inbound",
+     "author_kind": "customer",
+     "type": "text",
+     "cycle": 0,
+     "created_at": "2026-08-05T10:04:00.000Z",
+     "content": "cuanto sale el juego de la RT01?"
+    },
+    {
+     "direction": "outbound",
+     "author_kind": "bot",
+     "type": "text",
+     "cycle": 0,
+     "created_at": "2026-08-05T10:04:30.000Z",
+     "content": "El juego de 4 RT01 queda en $502.16 con IVA incluido, cotización COT-RT01A001."
+    },
+    {
+     "direction": "inbound",
+     "author_kind": "customer",
+     "type": "text",
+     "cycle": 0,
+     "created_at": "2026-08-05T10:09:00.000Z",
+     "content": "ok me interesa, donde los retiro?"
+    }
+   ]
+  },
+  {
+   "id": 1077,
+   "phone": "593900001077",
+   "name": "Wilson Chicaiza",
+   "stage": "nuevo",
+   "status": "abierta",
+   "tire_size": null,
+   "vehicle": null,
+   "current_cycle": 0,
+   "created_at": "2026-08-06T08:15:00.000Z",
+   "ganado": false,
+   "mensajes": [
+    {
+     "direction": "inbound",
+     "author_kind": "customer",
+     "type": "audio",
+     "cycle": 0,
+     "created_at": "2026-08-06T08:15:00.000Z",
+     "content": "",
+     "metadata": {
+      "media_id": "MEDIA_AUDIO_FIXTURE",
+      "mime_type": "audio/ogg"
+     }
+    },
+    {
+     "direction": "outbound",
+     "author_kind": "bot",
+     "type": "text",
+     "cycle": 0,
+     "created_at": "2026-08-06T08:15:30.000Z",
+     "content": "Disculpa, tuve un problema procesando tu mensaje. ¿Me lo repites por favor?"
+    },
+    {
+     "direction": "inbound",
+     "author_kind": "customer",
+     "type": "text",
+     "cycle": 0,
+     "created_at": "2026-08-06T08:18:00.000Z",
+     "content": "le decia que necesito 205/55R16 para un Corolla"
+    }
+   ]
+  },
+  {
+   "id": 1090,
+   "phone": "593900001090",
+   "name": "Anita Puma",
+   "stage": "nuevo",
+   "status": "abierta",
+   "tire_size": null,
+   "vehicle": null,
+   "current_cycle": 0,
+   "created_at": "2026-08-06T20:40:00.000Z",
+   "ganado": false,
+   "mensajes": [
+    {
+     "direction": "inbound",
+     "author_kind": "customer",
+     "type": "image",
+     "cycle": 0,
+     "created_at": "2026-08-06T20:40:00.000Z",
+     "content": "",
+     "metadata": {
+      "media_id": "MEDIA_FOTO_FIXTURE",
+      "mime_type": "image/jpeg"
+     }
+    },
+    {
+     "direction": "inbound",
+     "author_kind": "customer",
+     "type": "text",
+     "cycle": 0,
+     "created_at": "2026-08-06T20:41:00.000Z",
+     "content": "esta es mi llanta, cuanto cuesta cambiarla?"
+    }
+   ]
+  },
+  {
+   "id": 1103,
+   "phone": "593900001103",
+   "name": "Silvia Andrade",
+   "stage": "seleccionando",
+   "status": "abierta",
+   "tire_size": "195/65R15",
+   "vehicle": null,
+   "current_cycle": 0,
+   "created_at": "2026-08-04T15:00:00.000Z",
+   "ganado": false,
+   "mensajes": [
+    {
+     "direction": "inbound",
+     "author_kind": "customer",
+     "type": "text",
+     "cycle": 0,
+     "created_at": "2026-08-04T15:00:00.000Z",
+     "content": "buenas, cuanto cuestan las 195/65R15?"
+    },
+    {
+     "direction": "outbound",
+     "author_kind": "bot",
+     "type": "text",
+     "cycle": 0,
+     "created_at": "2026-08-04T15:00:40.000Z",
+     "content": "Le comparto las opciones en 195/65R15 🛞"
+    },
+    {
+     "direction": "inbound",
+     "author_kind": "customer",
+     "type": "text",
+     "cycle": 0,
+     "created_at": "2026-08-04T15:04:00.000Z",
+     "content": "uy perdon, me equivoque: son 205/55R16, cuanto sale el juego?"
+    },
+    {
+     "direction": "outbound",
+     "author_kind": "bot",
+     "type": "text",
+     "cycle": 0,
+     "created_at": "2026-08-04T15:04:35.000Z",
+     "content": "Le comparto las opciones en 205/55R16 🛞"
+    }
+   ]
+  },
+  {
+   "id": 1131,
+   "phone": "593900001131",
+   "name": "Byron Lema",
+   "stage": "seleccionando",
+   "status": "abierta",
+   "tire_size": "205/55R16",
+   "vehicle": null,
+   "current_cycle": 0,
+   "created_at": "2026-08-05T09:00:00.000Z",
+   "ganado": false,
+   "mensajes": [
+    {
+     "direction": "inbound",
+     "author_kind": "customer",
+     "type": "text",
+     "cycle": 0,
+     "created_at": "2026-08-05T09:00:00.000Z",
+     "content": "buenas, necesito 4 llantas 205/55R16. cuanto sale el juego michelin?"
+    },
+    {
+     "direction": "outbound",
+     "author_kind": "bot",
+     "type": "text",
+     "cycle": 0,
+     "created_at": "2026-08-05T09:00:45.000Z",
+     "content": "Su cotización *COT-VIEJA01* por $380.28 👆 Preséntela en la tienda con ese número."
+    },
+    {
+     "direction": "inbound",
+     "author_kind": "customer",
+     "type": "text",
+     "cycle": 0,
+     "created_at": "2026-08-05T09:03:00.000Z",
+     "content": "y cuanto sale el juego bridgestone?"
+    },
+    {
+     "direction": "outbound",
+     "author_kind": "bot",
+     "type": "text",
+     "cycle": 0,
+     "created_at": "2026-08-05T09:03:40.000Z",
+     "content": "Su cotización *COT-VIEJA02* por $380.28 👆 Preséntela en la tienda con ese número."
+    }
+   ]
+  },
+  {
+   "id": 1704,
+   "phone": "593900001704",
+   "name": "Cliente Creta R19",
+   "stage": "nuevo",
+   "status": "abierta",
+   "tire_size": null,
+   "vehicle": null,
+   "current_cycle": 0,
+   "created_at": "2026-08-07T01:26:00.000Z",
+   "ganado": false,
+   "mensajes": [
+    {
+     "direction": "inbound",
+     "author_kind": "customer",
+     "type": "text",
+     "cycle": 0,
+     "created_at": "2026-08-07T01:26:00.000Z",
+     "content": "¡Hola! Quiero más información"
+    },
+    {
+     "direction": "outbound",
+     "author_kind": "bot",
+     "type": "text",
+     "cycle": 0,
+     "created_at": "2026-08-07T01:26:30.000Z",
+     "content": "¡Hola! Con gusto le ayudo. ¿Qué medida necesita?"
+    },
+    {
+     "direction": "inbound",
+     "author_kind": "customer",
+     "type": "text",
+     "cycle": 0,
+     "created_at": "2026-08-07T13:50:00.000Z",
+     "content": "Para rin 19\nMarca hyundai\nModelo creta 2027"
+    },
+    {
+     "direction": "outbound",
+     "author_kind": "bot",
+     "type": "text",
+     "cycle": 0,
+     "created_at": "2026-08-07T13:50:30.000Z",
+     "content": "No tengo una medida verificada para la Hyundai Creta 2027.\n\n¿Me escribe la medida que dice el filo de la llanta? Es algo como 225/65R17 — con eso le cotizo de una."
+    }
+   ]
+  },
+  {
+   "id": 1705,
+   "phone": "593900001705",
+   "name": "Cliente RT01 precio",
+   "stage": "medida_confirmada",
+   "status": "abierta",
+   "tire_size": "315/70R17",
+   "vehicle": null,
+   "current_cycle": 0,
+   "created_at": "2026-08-07T13:40:00.000Z",
+   "ganado": false,
+   "mensajes": [
+    {
+     "direction": "inbound",
+     "author_kind": "customer",
+     "type": "text",
+     "cycle": 0,
+     "created_at": "2026-08-07T13:40:00.000Z",
+     "content": "buenas, cuanto sale el juego de 4 en 315/70R17 wildpeak?"
+    }
+   ]
+  },
+  {
+   "id": 1706,
+   "phone": "593900001706",
+   "name": "Cliente audio",
+   "stage": "nuevo",
+   "status": "abierta",
+   "tire_size": null,
+   "vehicle": null,
+   "current_cycle": 0,
+   "created_at": "2026-08-07T14:00:00.000Z",
+   "ganado": false,
+   "mensajes": [
+    {
+     "direction": "inbound",
+     "author_kind": "customer",
+     "type": "text",
+     "cycle": 0,
+     "created_at": "2026-08-07T14:00:00.000Z",
+     "content": "[El cliente mandó un audio. Dice: buenas tardes vecino, necesito cuatro llantas para mi Hilux, la medida es 265 65 R17, a cómo me sale el juego]"
+    }
+   ]
+  },
+  {
+   "id": 1707,
+   "phone": "593900001707",
+   "name": "Cliente link",
+   "stage": "nuevo",
+   "status": "abierta",
+   "tire_size": null,
+   "vehicle": null,
+   "current_cycle": 0,
+   "created_at": "2026-08-07T14:10:00.000Z",
+   "ganado": false,
+   "mensajes": [
+    {
+     "direction": "inbound",
+     "author_kind": "customer",
+     "type": "text",
+     "cycle": 0,
+     "created_at": "2026-08-07T14:10:00.000Z",
+     "content": "vi esta llanta, tienen algo asi?\n[El cliente mandó un link: https://ejemplo.com/anuncio. Contiene: Llanta Falken Wildpeak A/T3W 265/70R17 — anuncio de venta. En la imagen se lee: FALKEN WILDPEAK A/T3W 265/70R17 112T]"
+    }
+   ]
+  },
+  {
+   "id": 1708,
+   "phone": "593900001708",
+   "name": "Cliente foto",
+   "stage": "nuevo",
+   "status": "abierta",
+   "tire_size": null,
+   "vehicle": null,
+   "current_cycle": 0,
+   "created_at": "2026-08-07T14:20:00.000Z",
+   "ganado": false,
+   "mensajes": [
+    {
+     "direction": "inbound",
+     "author_kind": "customer",
+     "type": "text",
+     "cycle": 0,
+     "created_at": "2026-08-07T14:20:00.000Z",
+     "content": "[El cliente mandó una foto. Se lee: 205/55R16 91V, marca KENDA, modelo KR203]\na como estan?"
+    }
+   ]
+  }
+ ]
+}

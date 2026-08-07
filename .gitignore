@@ -3,3 +3,7 @@
 app/scripts/loadtest/reports/
 app/scripts/eval/reports/
 backups/
+
+# Datos de la evaluación: conversaciones REALES de clientes (PII). El informe
+# se comparte a mano; los crudos no viajan al repo.
+app/scripts/eval/datos/

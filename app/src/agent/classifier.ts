@@ -27,7 +27,7 @@ export async function classifyStage(
   try {
     const response = await openai.chat.completions.create({
       model: config.openai.classifierModel,
-      max_tokens: 128,
+      max_completion_tokens: 128,
       response_format: { type: "json_object" },
       messages: [
         {

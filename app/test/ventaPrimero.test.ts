@@ -53,14 +53,24 @@ describe.sequential("Venta primero — los arreglos de Joaquín", () => {
       const texto = prompts.buildSystemPrompt();
       expect(texto).toContain("Tu objetivo: VENDER");
       expect(texto).toContain("La medida manda sobre el vehículo");
-      expect(texto).toContain("PROHIBIDO PEDIR FOTOS");
     });
 
-    it("no queda NINGUNA instrucción de pedir fotos (la contradicción que rompió el caso Orlando)", () => {
+    /**
+     * La prohibición de pedir fotos venció el 6-ago, cuando vision.ts entró a
+     * producción: hoy el bot SÍ lee fotos, y prohibírselo le quita la jugada que
+     * hace cualquier vendedor en el local («mándeme una foto y le confirmo»).
+     * Lo que NO vence es la regla del caso Orlando: pedir algo nunca puede ser
+     * el mensaje completo.
+     */
+    it("ya no dice que no puede leer fotos (visión entró a producción el 6-ago)", () => {
       const texto = prompts.buildSystemPrompt();
-      // Las únicas menciones válidas de "foto" son las prohibiciones y qué
-      // hacer si el CLIENTE manda una. Nunca "pide/envía una foto".
-      expect(texto).not.toMatch(/pide una foto|env[íi]ame una foto|m[áa]ndame una foto|puede mandarme una foto|ofrece identificar la medida con una foto/i);
+      expect(texto).not.toMatch(/PROHIBIDO PEDIR FOTOS|no puedes leer(las)?|no puedo leer/i);
+      expect(texto).toContain("sí puedes leer fotos");
+    });
+
+    it("pedir la medida o la foto nunca puede ser el mensaje completo", () => {
+      const texto = prompts.buildSystemPrompt();
+      expect(texto).toContain("la petición nunca puede ser el mensaje completo");
     });
 
     it("el tipo de llanta que pide el cliente dispara búsqueda, no ficha verificada", () => {
@@ -192,13 +202,16 @@ describe.sequential("Venta primero — los arreglos de Joaquín", () => {
       expect(bloque).toContain("COT-VIEJA");
     });
 
-    it("siempre recuerda: con medida no se pregunta vehículo, y nunca fotos", () => {
+    it("siempre recuerda: con medida no se pregunta vehículo, y la foto es una opción válida", () => {
       const bloque = agent.salesFactsPrompt({
         tireSize: null, vehicle: null, vehicleYear: null,
         selectedProductCode: null, selectedQuantity: null, lastQuote: null,
       });
       expect(bloque).toContain("cotiza con esa medida");
-      expect(bloque).toContain("Nunca pidas fotos");
+      // Antes aquí decía "Nunca pidas fotos". Venció el 6-ago con vision.ts en
+      // producción: hoy pedir la foto del costado es la jugada del vendedor.
+      expect(bloque).not.toMatch(/Nunca pidas fotos|no puedes leer(las)?/i);
+      expect(bloque).toContain("sí puedes leer fotos");
     });
   });
 
@@ -279,14 +292,24 @@ describe.sequential("Venta primero — los arreglos de Joaquín", () => {
     });
   });
 
-  describe("fitment nunca vuelve a pedir foto", () => {
-    it("todas las salidas de la investigación piden la medida escrita", async () => {
+  /**
+   * Este bloque se llamaba «fitment nunca vuelve a pedir foto» y exigía que la
+   * repregunta NO mencionara la foto. Esa regla venció el 6-ago, cuando
+   * vision.ts entró a producción: hoy el bot sí las lee, y el título afirmaba lo
+   * contrario de la regla vigente. Lo que nunca venció es la lección del caso
+   * Orlando — la foto no puede ser la ÚNICA salida, porque si el cliente maneja
+   * o la llanta está sucia la conversación se para ahí. Así que ahora se exige
+   * lo que de verdad protege al cliente: las dos vías, siempre juntas.
+   */
+  describe("fitment siempre ofrece las dos vías", () => {
+    it("la salida not_found pide la medida escrita Y ofrece la foto", async () => {
       const { researchVehicleFitment } = await import("../src/services/vehicleFitmentResearch.js");
       // Vehículo inexistente → rama not_found (sin red: NODE_ENV=test corta la web).
       const r = await researchVehicleFitment("MarcaFicticia", "ModeloFicticio", null);
       expect(r.status).toBe("not_found");
-      expect(r.nextQuestion ?? "").not.toMatch(/foto|imagen/i);
-      expect(r.nextQuestion).toContain("medida");
+      expect(r.nextQuestion).toMatch(/medida/i);
+      // La foto ya es una vía válida, pero nunca sola: las dos en la misma frase.
+      expect(r.nextQuestion).toMatch(/foto/i);
     });
   });
 });

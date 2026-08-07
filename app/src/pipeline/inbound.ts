@@ -41,6 +41,13 @@ export class InboundPipeline {
    * clientes a la vez: eran N llamadas simultáneas al LLM y bajo carga el rate
    * limit de OpenAI le devolvía un error al cliente. Los excedentes esperan en
    * la cola (responden un poco más tarde) — nunca se descartan.
+   *
+   * TRADEOFF con la escalación de modelos (7-ago): al escalar a un modelo
+   * superior cada handler pasa más tiempo en vuelo, así que con el MISMO
+   * tráfico crece la cola. Si se ve espera, se puede probar
+   * PIPELINE_MAX_CONCURRENT=8 en Railway — pero midiendo: el tope existe para
+   * no reventar el rate limit de OpenAI, y los modelos grandes tienen límites
+   * de tokens/min MÁS bajos, así que subirlo a ciegas empeora las cosas.
    */
   private async adquirir(): Promise<void> {
     if (this.enVuelo < config.pipeline.maxConcurrent) {

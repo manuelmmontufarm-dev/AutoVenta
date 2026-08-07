@@ -38,7 +38,7 @@ export async function generateFollowUpCopy(
     const response = await openai.chat.completions.create({
       model: config.openai.model,
       temperature: 0.65,
-      max_tokens: 160,
+      max_completion_tokens: 160,
       response_format: { type: "json_object" },
       messages: [
         { role: "system", content: "Redactas seguimientos de WhatsApp para una llantera en Ecuador. Devuelve JSON con una sola clave `text`. Debe sonar humano, amable, persuasivo y breve. Usa máximo 2 emojis. No reinicies con saludo dentro de la conversación activa. Nunca inventes descuentos, precios, stock, disponibilidad, fechas, ahorro, escasez ni compromisos. Solo usa los hechos suministrados. Haz una pregunta fácil de responder." },

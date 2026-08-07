@@ -16,6 +16,7 @@ import {
   searchAlternatives,
   searchBySize,
   searchByText,
+  type CatalogItem,
 } from "../services/catalog.js";
 import {
   buildQuote,
@@ -46,7 +47,7 @@ import { brandProfilesForRender } from "../services/brandProfiles.js";
 import { getAiConfig, getPiecesConfig } from "../services/settings.js";
 import { researchVehicleFitment } from "../services/vehicleFitmentResearch.js";
 import { nearestStore, resolveSector } from "../domain/locations.js";
-import { extractFlotationSizes, formatFlotationSize, formatTireSize } from "../domain/tireSize.js";
+import { extractFlotationSizes, formatFlotationSize, formatTireSize, parseTireSize, type TireSize } from "../domain/tireSize.js";
 import { canGenerateFinalQuote } from "../domain/salesIntent.js";
 import { getTirePatternProfile } from "../domain/tireKnowledge.js";
 import {
@@ -111,7 +112,13 @@ const ESCALONES = ["premium", "equilibrio", "equilibrio", "economica"] as const;
  * Deja UNA opción por escalón de marca, la más barata disponible de cada uno.
  *
  * El cliente pidió mandar 3 y no 6: «así ni le confundimos tanto al mijin».
- * Se prioriza lo que tiene stock — una opción agotada no es una opción.
+ *
+ * OJO con lo que hace y lo que NO hace: PREFIERE lo disponible dentro de cada
+ * escalón, pero no excluye lo agotado. Si un escalón de marca solo tiene
+ * agotadas, sale una agotada — a propósito, porque `buscar_por_aro_y_tipo`
+ * quiere mostrar que la marca existe en ese aro aunque haya que encargarla.
+ * Quien necesite garantizar stock tiene que filtrar ANTES de llamar (ver
+ * `conStock`); confiar en esta función para eso fue el bug del 7-ago.
  */
 function tresOpciones<T extends { brand: string; minimumPriceWithTax: number; availability: string }>(
   productos: readonly T[],
@@ -129,6 +136,160 @@ function tresOpciones<T extends { brand: string; minimumPriceWithTax: number; av
   }
   return [...porEscalon.entries()].sort((a, b) => a[0] - b[0]).map(([, p]) => p);
 }
+
+/**
+ * Búsqueda por ARO en el catálogo real, con filtro opcional por tipo.
+ *
+ * Vivía dentro de `buscar_por_aro_y_tipo`. Se sacó porque el candado de
+ * `fitment_vehiculo` necesita exactamente esto: cuando la investigación del
+ * vehículo no da medida, el aro que dijo el cliente es lo único que queda para
+ * ofrecerle algo real del stock. Una sola implementación = un solo criterio de
+ * qué hay en un aro y cuáles tres se muestran.
+ *
+ * Quien la llame debe haber hecho `ensureCatalogReady()` antes.
+ */
+function opcionesEnAro(aro: number, tipo: string | null): {
+  pedido: string | null;
+  enElAro: CatalogItem[];
+  delTipo: CatalogItem[];
+  seleccion: CatalogItem[];
+} {
+  const pedido = tipo ? normalizarTipo(tipo) : null;
+  // Se busca por aro en el catálogo real y se filtra por el tipo que dice la
+  // base del cliente; el tipo NO viene de Contífico.
+  const enElAro = searchByText(`R${aro}`, 60).filter((item) => item.size?.rim === aro);
+  const delTipo = pedido
+    ? enElAro.filter((item) => normalizarTipo(tipoDeProducto(item.code, item.design) ?? "") === pedido)
+    : enElAro;
+  return { pedido: pedido || null, enElAro, delTipo, seleccion: tresOpciones(delTipo) };
+}
+
+/** Aros que existen en el mercado ecuatoriano; fuera de este rango es ruido del modelo. */
+const ARO_MIN = 12;
+const ARO_MAX = 24;
+
+/**
+ * Lo que se puede vender HOY.
+ *
+ * El candado de fitment le promete al vendedor opciones ofrecibles, no un
+ * inventario de recuerdos: mandarle a un cliente tres llantas en cero es peor
+ * que decirle que no hay, porque pregunta por una y recién ahí se entera.
+ * Va aparte de `tresOpciones` porque esa función la comparten búsquedas que SÍ
+ * quieren mostrar lo agotado (`buscar_por_aro_y_tipo`).
+ */
+function conStock(items: readonly CatalogItem[]): CatalogItem[] {
+  return items.filter((item) => item.stock > 0);
+}
+
+/**
+ * Último recurso del candado de fitment: una muestra real del stock.
+ *
+ * Se barre aro por aro porque el catálogo no expone un "dame todo" y esto usa
+ * el mismo camino que el resto de las búsquedas. Son opciones REALES y
+ * disponibles, pero no una recomendación para ese vehículo — la `regla` de la
+ * tool obliga a decirlo. Corre solo cuando no hubo ni medida investigada ni aro
+ * del cliente, que es la única forma de que el bot no tenga nada que ofrecer.
+ *
+ * Filtra por stock aquí adentro para que el nombre sea cierto: si el catálogo
+ * está en cero, esto devuelve vacío y el candado se calla en vez de mentir.
+ */
+function muestraDelStock(): CatalogItem[] {
+  const todo: CatalogItem[] = [];
+  for (let aro = ARO_MIN; aro <= ARO_MAX; aro++) {
+    todo.push(...tresOpciones(conStock(opcionesEnAro(aro, null).enElAro)));
+  }
+  return tresOpciones(todo);
+}
+
+/** Une listas del catálogo sin repetir códigos (una misma llanta cae por varias medidas). */
+function sinRepetir(...listas: CatalogItem[][]): CatalogItem[] {
+  const porCodigo = new Map<string, CatalogItem>();
+  for (const lista of listas) for (const item of lista) if (!porCodigo.has(item.code)) porCodigo.set(item.code, item);
+  return [...porCodigo.values()];
+}
+
+/** De dónde salieron las opciones; cambia lo que el vendedor puede afirmar sobre ellas. */
+type OrigenOpciones = "medida_investigada" | "aro_del_cliente" | "medida_cercana" | "muestra_del_stock";
+
+/**
+ * CANDADO de `fitment_vehiculo`: convierte la investigación en algo vendible.
+ *
+ * El problema que resuelve no es de búsqueda sino de final de turno: hasta el
+ * 7-ago, cuando la investigación no daba medida, la tool respondía una
+ * limitación y una pregunta, y ahí se acababa la conversación. El cliente había
+ * dicho su carro y su aro y aun así no vio ni una llanta.
+ *
+ * La regla es que si el catálogo tiene stock, de aquí sale al menos una opción,
+ * degradando por escalones y diciendo siempre de qué escalón vino:
+ *   a) las medidas que la investigación propuso, cruzadas contra el catálogo;
+ *   b) el aro que dijo el cliente — dato suyo, no inferido;
+ *   c) las medidas más cercanas que SÍ existen (mismo aro, ancho ±10mm);
+ *   d) una muestra del stock, que ya no es una recomendación para ese vehículo.
+ *
+ * LOS CUATRO escalones exigen STOCK, no solo existencia. Que solo lo exigiera
+ * el (a) fue el bug del 7-ago: una medida agotada se reportaba en
+ * `medidas_agotadas` y volvía a salir como opción #1 por la puerta del aro, y
+ * con el catálogo entero en cero el candado devolvía tres llantas invendibles
+ * declarándolas «muestra del stock». La invariante correcta es: hay stock ⇒ hay
+ * al menos una opción; no hay stock ⇒ `[]` y `origen: null`. El candado promete
+ * no callarse teniendo qué vender, no promete tener qué vender.
+ */
+async function opcionesDeFitment(
+  medidas: readonly string[],
+  aro: number | null,
+): Promise<{ opciones: CatalogItem[]; origen: OrigenOpciones | null; medidasConStock: string[]; medidasAgotadas: string[] }> {
+  await ensureCatalogReady();
+  const parseadas = medidas
+    .map((etiqueta) => ({ etiqueta, size: parseTireSize(etiqueta) }))
+    .filter((m): m is { etiqueta: string; size: TireSize } => m.size !== null);
+
+  const listasDisponibles: CatalogItem[][] = [];
+  const medidasConStock: string[] = [];
+  const medidasAgotadas: string[] = [];
+  for (const { etiqueta, size } of parseadas) {
+    const hits = searchBySize(size);
+    if (!hits.length) continue;
+    const disponibles = conStock(hits);
+    if (disponibles.length) {
+      listasDisponibles.push(disponibles);
+      medidasConStock.push(etiqueta);
+    } else {
+      medidasAgotadas.push(etiqueta);
+    }
+  }
+
+  const porMedida = tresOpciones(sinRepetir(...listasDisponibles));
+  if (porMedida.length) return { opciones: porMedida, origen: "medida_investigada", medidasConStock, medidasAgotadas };
+
+  if (aro) {
+    // Se filtra por stock ANTES de elegir las tres: `opcionesEnAro` comparte
+    // `tresOpciones` con `buscar_por_aro_y_tipo`, que sí muestra agotadas. Si se
+    // filtrara después, un escalón de marca cuya única llanta está en cero
+    // dejaría fuera a la disponible de ese mismo escalón.
+    const delAro = tresOpciones(conStock(opcionesEnAro(aro, null).enElAro));
+    if (delAro.length) return { opciones: delAro, origen: "aro_del_cliente", medidasConStock, medidasAgotadas };
+  }
+
+  // `searchAlternatives` ya filtra stock en el catálogo real; se vuelve a
+  // filtrar para que la invariante no dependa de las tripas de esa búsqueda.
+  const cercanas = tresOpciones(conStock(sinRepetir(...parseadas.map(({ size }) => searchAlternatives(size)))));
+  if (cercanas.length) return { opciones: cercanas, origen: "medida_cercana", medidasConStock, medidasAgotadas };
+
+  const muestra = muestraDelStock();
+  return { opciones: muestra, origen: muestra.length ? "muestra_del_stock" : null, medidasConStock, medidasAgotadas };
+}
+
+/** Qué puede afirmar el vendedor sobre unas opciones, según de dónde salieron. */
+const REGLA_POR_ORIGEN: Record<OrigenOpciones, string> = {
+  medida_investigada:
+    "Estas opciones SON de la medida investigada. Mándalas ya con preparar_opciones (una premium, una de equilibrio, una económica) y di en UNA línea que la medida se confirma al instalar.",
+  aro_del_cliente:
+    "La investigación no dio una medida con stock, pero el cliente dijo su ARO y estas opciones son de ese aro. Ofrécelas como lo que son —opciones de su aro— y de paso pídele la medida exacta. No afirmes que son las de fábrica de su vehículo.",
+  medida_cercana:
+    "No hay stock de las medidas investigadas. Estas son las medidas más cercanas que SÍ existen. Dilo tal cual: son parecidas, no las de fábrica, y hay que confirmar en el local antes de montar.",
+  muestra_del_stock:
+    "Esto es una MUESTRA del stock, no una recomendación para ese vehículo. Mándala solo para que vea marcas y precios, y en la misma respuesta pide la medida o la foto del costado.",
+};
 
 function dateLabel(): string {
   return new Date().toLocaleDateString("es-EC", {
@@ -305,15 +466,7 @@ export function buildTools(ctx: AgentContext) {
     }),
     run: async ({ aro, tipo, uso }) => {
       await ensureCatalogReady();
-      const pedido = tipo ? normalizarTipo(tipo) : null;
-      // Se busca por aro en el catálogo real y se filtra por el tipo que dice
-      // la base del cliente; el tipo NO viene de Contífico.
-      const enElAro = searchByText(`R${aro}`, 60).filter(
-        (item) => item.size?.rim === aro,
-      );
-      const delTipo = pedido
-        ? enElAro.filter((item) => normalizarTipo(tipoDeProducto(item.code, item.design) ?? "") === pedido)
-        : enElAro;
+      const { pedido, enElAro, delTipo, seleccion } = opcionesEnAro(aro, tipo);
 
       if (!delTipo.length) {
         return JSON.stringify({
@@ -329,7 +482,6 @@ export function buildTools(ctx: AgentContext) {
         });
       }
 
-      const seleccion = tresOpciones(delTipo);
       const info = pedido ? infoTipo(pedido) : null;
       return JSON.stringify({
         encontrado: true,
@@ -368,37 +520,54 @@ export function buildTools(ctx: AgentContext) {
   const fitmentVehiculo = defineTool({
     name: "fitment_vehiculo",
     description:
-      "Dado un vehículo (marca, modelo y año), sugiere medidas verificadas. Es el ÚLTIMO RECURSO: úsala SOLO cuando el cliente no dio NI medida NI aro. Si ya dio una medida, esa manda; si dio un aro, el aro manda y va buscar_por_aro_y_tipo (con tipo: null si no dijo el tipo) — esta herramienta no hace falta en ninguno de los dos casos. Si hay varias versiones, ofrece la más probable con su límite dicho en una línea y sigue vendiendo. NUNCA pidas fotos (no puedes leerlas); si necesitas certeza, pide la medida ESCRITA del filo de la llanta.",
+      "Dado un vehículo (marca, modelo y año), investiga qué medidas le van y te devuelve YA las opciones del catálogo que puedes mandar. Úsala cuando el cliente no dio la medida. Si ya dio una medida escrita, esa manda y va buscar_llanta; si dio solo un aro sin vehículo, va buscar_por_aro_y_tipo. Si dijo aro Y vehículo, puedes usar cualquiera de las dos, pero si usas esta manda SIEMPRE el 'aro': con él la investigación distingue la generación correcta y las opciones salen mucho mejor apuntadas. Devuelve siempre 'opciones' con lo que hay en stock, así que nunca te quedas sin algo que ofrecer. Si necesitas la medida exacta puedes pedirla escrita O pedir una foto del costado de la llanta — las dos sirven, sabes leer fotos.",
     schema: z.object({
       marca: z.string().describe("Marca del vehículo, ej. Chevrolet"),
       modelo: z.string().describe("Modelo, ej. Sail, D-Max, Hilux"),
       anio: z.number().int().min(1950).max(2030).nullable().default(null),
+      aro: z
+        .number()
+        .int()
+        .min(12)
+        .max(24)
+        .nullable()
+        .default(null)
+        .describe("Aro en pulgadas si el cliente lo dijo (ej. 19 de 'para rin 19'). Null si no lo dijo. Mándalo siempre que lo sepas: es lo que distingue una versión de otra."),
     }),
-    run: async ({ marca, modelo, anio }) => {
+    run: async ({ marca, modelo, anio, aro }) => {
       const vehicle = `${marca} ${modelo}${anio ? ` ${anio}` : ""}`.trim();
       await updateConversationFacts(ctx.conversation.id, { vehicle, ...(anio ? { vehicleYear: anio } : {}) });
-      const result = await researchVehicleFitment(marca, modelo, anio);
-      if (result.status === "not_found") {
-        return JSON.stringify({
-          encontrado: false,
-          compatibilidad_confirmada: false,
-          mensaje:
-            "No existe una medida verificada para ese año/modelo en la base. No afirmes que una llanta le entra, pero NO frenes la venta: pide la medida ESCRITA que dice el filo de la llanta (ej. 225/65R17) y en cuanto la dé, busca y cotiza. NUNCA pidas fotos: no puedes leerlas.",
-          regla:
-            "PROHIBIDO responder solo «no tengo una medida verificada» y una pregunta. Si el cliente dio un ARO, olvídate de este resultado y llama buscar_por_aro_y_tipo con ese aro y tipo: null — ofrécele esas opciones. Solo si no hay aro ni medida por ningún lado pides la medida escrita, y aun así en esa misma respuesta le dices qué le puedes conseguir. No te detengas aquí.",
-          siguiente_pregunta: result.nextQuestion,
-        });
-      }
+      const result = await researchVehicleFitment(marca, modelo, anio, aro);
+      const { opciones, origen, medidasConStock, medidasAgotadas } = await opcionesDeFitment(result.sizes, aro);
+
+      // El candado: la respuesta lleva opciones aunque la investigación haya
+      // fallado. Lo único que cambia es qué puede AFIRMAR el vendedor sobre
+      // ellas, y eso lo dice `origen_opciones` junto con su regla.
+      const reglaOrigen = origen ? REGLA_POR_ORIGEN[origen] : null;
       return JSON.stringify({
-        encontrado: true,
+        encontrado: result.status !== "not_found",
         medidas: result.sizes,
+        // Cada medida con su respaldo: el vendedor necesita saber cuál puede
+        // defender y cuál solo ofrecer con reservas.
+        candidatos: result.candidatos.map((c) => ({ medida: c.medida, confianza: c.confianza, porque: c.porque })),
         compatibilidad_confirmada: result.status === "verified",
         estado: result.status,
+        aro_del_cliente: aro,
         nota: result.note,
         fuentes: result.sources,
+        medidas_con_stock: medidasConStock,
+        medidas_agotadas: medidasAgotadas,
+        opciones: opciones.map(toolItem),
+        origen_opciones: origen,
         siguiente_pregunta: result.nextQuestion,
-        regla:
-          "Muestra la fuente. Si estado no es verified, ofrece la medida más probable como referencia con su límite dicho en UNA línea y sigue vendiendo — la confirmación fina se hace en el local. Nunca cierres el turno con la limitación sola: si el cliente dio un aro, enséñale además las opciones de ese aro. Nunca pidas foto; si necesitas certeza, pide la medida escrita del filo de la llanta.",
+        regla: [
+          "PROHIBIDO cerrar el turno con la limitación y una pregunta sola: en 'opciones' ya tienes llantas reales del catálogo, listas para preparar_opciones sin volver a buscar.",
+          reglaOrigen,
+          result.sources.length ? "Menciona la fuente cuando afirmes una medida." : null,
+          "Si necesitas la medida exacta, pídela de las dos formas: escrita del filo de la llanta (ej. 225/65R17) o una foto del costado. Sabes leer fotos, así que la foto es una vía válida y para mucha gente es la más fácil.",
+        ]
+          .filter(Boolean)
+          .join(" "),
       });
     },
   });
