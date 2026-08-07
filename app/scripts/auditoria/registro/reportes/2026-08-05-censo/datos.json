@@ -1,0 +1,52 @@
+{
+  "generadoEn": "2026-08-05T22:35:00.000Z",
+  "periodoDias": null,
+  "desde": null,
+  "fuente": "censo-panel",
+  "commitBot": "35d8dbc",
+  "nota": "Censo manual del historial completo de Depot vía API del panel, ANTES de las correcciones del 5-ago. No salió de extraer.mjs: ver LINEA-BASE-2026-08-05.md para la nota de comparabilidad.",
+  "metricas": {
+    "conversaciones": 164,
+    "conversacionesAfectadas": 25,
+    "pctAfectadas": 15.2,
+    "fallas": {
+      "pide_foto_que_no_puede_leer": { "incidencias": 30, "chatsAfectados": 22, "pctChats": 13.4 },
+      "error_procesamiento": { "incidencias": 12, "chatsAfectados": 8, "pctChats": 4.9 },
+      "saludo_repetido": { "incidencias": 6, "chatsAfectados": 4, "pctChats": 2.4 },
+      "disculpas_seguidas": { "incidencias": 5, "chatsAfectados": 4, "pctChats": 2.4 },
+      "mensaje_duplicado": { "incidencias": 5, "chatsAfectados": 4, "pctChats": 2.4 },
+      "cotizacion_duplicada": { "incidencias": 2, "chatsAfectados": 1, "pctChats": 0.6 },
+      "pregunta_teniendo_medida": { "incidencias": 2, "chatsAfectados": 2, "pctChats": 1.2 }
+    },
+    "modelo": { "modelos": ["gpt-4o-mini"], "rescatados": 0 }
+  },
+  "conversacionesAfectadas": [
+    { "ticket": 3, "cliente": "Manuel Maria Montufar", "etapa": "cotizacion_enviada", "errores": { "saludo_repetido": 3 } },
+    { "ticket": 29, "cliente": "~M Alex", "etapa": "seleccionando", "errores": { "pide_foto": 1 } },
+    { "ticket": 63, "cliente": "Javier Puruncaja", "etapa": "medida_confirmada", "errores": { "pide_foto": 1 } },
+    { "ticket": 73, "cliente": "Manu. D", "etapa": "medida_confirmada", "errores": { "pide_foto": 1 } },
+    { "ticket": 671, "cliente": "Anefi", "etapa": "seleccionando", "errores": { "pide_foto": 1 } },
+    { "ticket": 689, "cliente": "patriciocastro0416", "etapa": "medida_confirmada", "errores": { "pide_foto": 1 } },
+    { "ticket": 692, "cliente": "Edison Plazarte", "etapa": "seleccionando", "errores": { "pide_foto": 2 } },
+    { "ticket": 767, "cliente": "GESTION COINVER PARQUES DEL RECUERDO", "etapa": "seguimiento_venta", "errores": { "pide_foto": 3, "saludo_repetido": 1 } },
+    { "ticket": 791, "cliente": "Jona", "etapa": "medida_confirmada", "errores": { "pide_foto": 1 } },
+    { "ticket": 843, "cliente": "borboleta", "etapa": "seleccionando", "errores": { "pide_foto": 1 } },
+    { "ticket": 847, "cliente": "Silvio Campana", "etapa": "nuevo", "errores": { "pide_foto": 1 } },
+    { "ticket": 861, "cliente": "Blady", "etapa": "seleccionando", "errores": { "pide_foto": 1, "saludo_repetido": 1 } },
+    { "ticket": 867, "cliente": "Diego Bonilla", "etapa": "nuevo", "errores": { "pide_foto": 1 } },
+    { "ticket": 877, "cliente": "Flaquito", "etapa": "medida_confirmada", "errores": { "pide_foto": 2, "error_procesamiento": 1, "disculpas_seguidas": 1, "mensaje_duplicado": 1 } },
+    { "ticket": 891, "cliente": "djfrenlife", "etapa": "medida_confirmada", "errores": { "pide_foto": 1, "error_procesamiento": 1, "disculpas_seguidas": 1, "mensaje_duplicado": 1 } },
+    { "ticket": 895, "cliente": "Joffre Arequipa", "etapa": "seleccionando", "errores": { "pide_foto": 2 } },
+    { "ticket": 907, "cliente": "Rositas", "etapa": "nuevo", "errores": { "pide_foto": 1 } },
+    { "ticket": 909, "cliente": "SuperAle 23/09", "etapa": "nuevo", "errores": { "pide_foto": 1, "error_procesamiento": 2, "disculpas_seguidas": 1, "mensaje_duplicado": 1 } },
+    { "ticket": 911, "cliente": "Cesar", "etapa": "seleccionando", "errores": { "error_procesamiento": 1 } },
+    { "ticket": 913, "cliente": "Edwin", "etapa": "medida_confirmada", "errores": { "pide_foto": 1 } },
+    { "ticket": 939, "cliente": "uniformessolcorp", "etapa": "nuevo", "errores": { "pide_foto": 1 } },
+    { "ticket": 943, "cliente": "KLEVER", "etapa": "seguimiento_venta", "errores": { "pide_foto": 2, "error_procesamiento": 1, "pregunta_teniendo_medida": 1, "cotizacion_duplicada": 1 } },
+    { "ticket": 972, "cliente": "Ricardo Nitro", "etapa": "nuevo", "errores": { "pide_foto": 1, "error_procesamiento": 1, "disculpas_seguidas": 2, "mensaje_duplicado": 2 } },
+    { "ticket": 980, "cliente": "Orlando Vaca", "etapa": "nuevo", "errores": { "pide_foto": 1 } },
+    { "ticket": 982, "cliente": "Jordian", "etapa": "nuevo", "errores": { "pide_foto": 2, "saludo_repetido": 1 } }
+  ],
+  "hallazgos": [],
+  "porChat": []
+}

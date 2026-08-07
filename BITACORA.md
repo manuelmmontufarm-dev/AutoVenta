@@ -34,6 +34,7 @@ Ya viene activado en este equipo.
 |---|---|---|---|
 | 2026-08-06 | _(este mismo)_ | Cadena más corta al mandar opciones + llantas grandes en la pieza + la KR50 deja de salir invisible | 1.5 |
 | 2026-08-06 | _(este mismo)_ | Favicon como archivo para la tarjeta de Vercel | 0.25 |
+| 2026-08-05 | _(este mismo)_ | Línea base publicada + archivado automático de auditorías | 1.0 |
 | 2026-08-05 | _(este mismo)_ | Rescate del agente: causa raíz del «problema procesando» | 1.0 |
 | 2026-08-05 | _(este mismo)_ | Candado anti-duplicado en generar_cotizacion + censo del historial | 0.5 |
 | 2026-08-05 | _(este mismo)_ | Guardián de salida + la auditoría ve las fallas del día clarísimo | 1.5 |
@@ -89,6 +90,37 @@ Ya viene activado en este equipo.
 ---
 
 ## Entradas (más reciente primero)
+
+### 2026-08-05 · Línea base publicada y archivado automático de auditorías · ⏱️ 1.0 h
+
+**Qué:** las auditorías dejan de ser fotos sueltas.
+
+- **Línea base con fecha** (`registro/LINEA-BASE-2026-08-05.md`): los 7 errores del censo
+  (30 pedidos de foto, 12 errores de procesamiento, 6 re-saludos, 5 disculpas seguidas,
+  5 mensajes calcados, 2 cotizaciones dobles, 2 preguntas con la medida en mano), los 25
+  chats afectados de 164, los **5 commits** que arreglaron cada uno, y una tabla de qué
+  métrica debe moverse en la próxima corrida. Archivada como corrida `2026-08-05-censo`
+  en el historial, marcada `esLineaBase` y con `fuente: censo-panel` + nota de
+  comparabilidad — no se puede confundir con una corrida del extractor.
+- **Archivado automático:** `render.mjs` ya no depende de `--salida`. Cada corrida guarda
+  `reporte.html` + `datos.json` + `analisis.json` bajo `registro/reportes/<sello>/`. Los
+  datos crudos permiten recalcular una métrica nueva sobre una corrida vieja; el análisis
+  conserva POR QUÉ se propuso cada cambio.
+- **Historial enriquecido:** cada entrada trae `sello`, `fuente`, `commitBot`,
+  `hallazgosPorDetector`, `resumen`, la ruta del reporte y los `cambiosAplicados`
+  completos (con el detector que atacan y la métrica prometida). Orden cronológico
+  garantizado, y re-renderizar la misma extracción ya no duplica la corrida.
+- **`extraer.mjs --commit`** graba qué versión del bot produjo las conversaciones: sin
+  eso, un «mejoró» no se puede atribuir a ningún cambio.
+- **El SKILL exige el ciclo completo:** leer la corrida anterior ANTES de analizar, dar
+  veredicto sobre cada cambio previo (funcionó / no se movió / no medible), y commitear
+  el registro — si no entra al repo, la próxima corrida no lo ve.
+
+**Por qué:** el 5-ago se descubrieron las fallas por capturas, no por el análisis. Con la
+línea base publicada y el archivado automático, la próxima auditoría arranca sabiendo qué
+se prometió arreglar y tiene la obligación de decir si se cumplió.
+
+---
 
 ### 2026-08-06 · Las opciones: cadena más corta, llantas grandes y la KR50 visible · ⏱️ 1.5 h
 

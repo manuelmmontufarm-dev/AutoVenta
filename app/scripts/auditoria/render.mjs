@@ -19,6 +19,7 @@ import { fileURLToPath } from "node:url";
 
 const aquí = dirname(fileURLToPath(import.meta.url));
 const HISTORIAL = resolve(aquí, "registro/historial.jsonl");
+const ARCHIVO = resolve(aquí, "registro/reportes");
 
 const args = process.argv.slice(2);
 const opt = (n, d) => { const i = args.indexOf(`--${n}`); return i >= 0 && args[i + 1] ? args[i + 1] : d; };
@@ -27,12 +28,24 @@ const datos = JSON.parse(readFileSync(opt("datos"), "utf8"));
 const analisis = opt("analisis") && existsSync(opt("analisis"))
   ? JSON.parse(readFileSync(opt("analisis"), "utf8"))
   : { resumen: "", hipotesis: [], cambiosPropuestos: [], promptPropuesto: "" };
-const SALIDA = opt("salida", resolve(aquí, "reportes/ultima.html"));
+
+/** Sello de la corrida: `2026-08-07-0252`. Es la llave de todo el archivo. */
+const SELLO = new Date(datos.generadoEn).toISOString().slice(0, 16).replace("T", "-").replace(":", "");
+const CARPETA = resolve(ARCHIVO, SELLO);
+// --salida es una COPIA de cortesía (para abrir o mandar); el original siempre
+// se archiva en el repo. Sin eso, un reporte en /tmp se pierde y la próxima
+// corrida no tiene contra qué comparar.
+const SALIDA = opt("salida", null);
 
 const historial = existsSync(HISTORIAL)
   ? readFileSync(HISTORIAL, "utf8").split("\n").filter(Boolean).map((l) => JSON.parse(l))
   : [];
-const previa = historial.at(-1) ?? null;
+// Re-renderizar la MISMA extracción (por ejemplo tras corregir el análisis) no
+// debe crear una corrida nueva: se compara contra la anterior de verdad y luego
+// se reemplaza la propia entrada.
+const yaRegistrada = historial.find((r) => r.fecha === datos.generadoEn);
+const anteriores = historial.filter((r) => r.fecha !== datos.generadoEn);
+const previa = anteriores.at(-1) ?? null;
 
 const m = datos.metricas;
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
@@ -113,6 +126,16 @@ const html = `<!doctype html>
   .aviso{background:color-mix(in srgb,var(--acento) 12%,transparent);border:1px solid color-mix(in srgb,var(--acento) 35%,transparent);
          border-radius:12px;padding:13px 16px;font-size:13.5px;margin:14px 0}
   ul{padding-left:20px} li{margin:5px 0}
+  .chat{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px 16px;margin:12px 0}
+  .chat h3{margin:0 0 9px;font-size:14.5px}
+  .chat h3 span{color:var(--muted);font-weight:600;font-size:12px}
+  .chat dl{display:grid;grid-template-columns:max-content 1fr;gap:6px 14px;margin:0;font-size:13px}
+  .chat dt{color:var(--muted);font-size:10.5px;text-transform:uppercase;letter-spacing:.07em;font-weight:700;padding-top:3px}
+  .chat dd{margin:0}
+  .rompio{color:var(--mal);font-weight:600}
+  .urg{display:inline-block;font-size:10px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;
+       padding:2px 7px;border-radius:99px;border:1px solid var(--line);color:var(--muted);white-space:nowrap}
+  .urg.hoy{color:var(--mal);border-color:var(--mal)}
 </style></head><body><div class="wrap">
 
 <h1>¿Está vendiendo el bot?</h1>
@@ -159,6 +182,25 @@ Si el prompt mejora de verdad, estos números bajan; si solo el guardián tapa, 
        : "primera medición"}</p></div>`).join("")}
 </div>` : ""}
 
+${analisis.comparativa ? `<h2>${esc(analisis.comparativa.titulo ?? "¿Mejoró?")}</h2>
+${analisis.comparativa.nota ? `<div class="aviso">${esc(analisis.comparativa.nota)}</div>` : ""}
+<div class="scroll"><table>
+<tr><th>Falla · por cada 100 mensajes del bot</th>${
+  analisis.comparativa.periodos.map((p) => `<th>${esc(p.nombre)}<br><span style="font-weight:400;text-transform:none;letter-spacing:0">${
+    esc(p.rango)} · ${p.chats} chats · ${p.msgsBot} msgs</span></th>`).join("")}<th>Veredicto</th></tr>
+${analisis.comparativa.filas.map((f) => `<tr><td>${esc(f.falla)}</td>${
+  analisis.comparativa.periodos.map((p, i, arr) => {
+    const v = f[p.id];
+    const prev = i > 0 ? f[arr[i - 1].id] : null;
+    // null = el bot no habló ese día: no hay nada que comparar, ni para bien ni
+    // para mal. Pintarlo de verde porque "bajó a cero" sería mentir.
+    const mejora = f.mejorSiSube ? v > prev : v < prev;
+    const clase = prev == null || v == null || v === prev ? "" : mejora ? "bien" : "mal";
+    return `<td class="${clase}" style="font-variant-numeric:tabular-nums;font-weight:${clase ? 700 : 400}">${
+      v == null ? "—" : esc(v)}</td>`;
+  }).join("")}<td class="${/sin arreglar/i.test(f.veredicto ?? "") ? "mal" : /extinguida/i.test(f.veredicto ?? "") ? "bien" : "neutro"}" style="font-weight:700;font-size:12px">${esc(f.veredicto ?? "")}</td></tr>`).join("")}
+</table></div>` : ""}
+
 <h2>Dónde falla, por impacto</h2>
 <div class="scroll"><table>
 <tr><th>Falla</th><th>Chats afectados</th><th>%</th><th>Incidencias</th><th>vs. corrida anterior</th></tr>
@@ -187,9 +229,34 @@ ${analisis.resumen ? `<h2>Lectura</h2><div class="aviso">${esc(analisis.resumen)
 ${analisis.hipotesis?.length ? `<h2>Por qué pasa</h2><ul>${
   analisis.hipotesis.map((h) => `<li>${esc(h)}</li>`).join("")}</ul>` : ""}
 
+${analisis.chats?.length ? `<h2>Lo que vivió el cliente, chat por chat</h2>
+<p class="sub" style="margin:-4px 0 10px">Los conteos localizan; la transcripción explica. Cada uno se leyó completo.</p>
+${analisis.chats.map((c) => `<div class="chat">
+  <h3>${esc(c.cliente)} <span>· ticket ${esc(c.ticket)} · ${esc(c.cuando)}</span></h3>
+  <dl>
+    <dt>Pidió</dt><dd>${esc(c.pidio)}</dd>
+    <dt>Pasó</dt><dd>${esc(c.paso)}</dd>
+    <dt>Se rompió</dt><dd class="rompio">${esc(c.rompio)}</dd>
+    <dt>Debió</dt><dd>${esc(c.debio)}</dd>
+    <dt>Terminó</dt><dd>${esc(c.final)}</dd>
+  </dl></div>`).join("")}` : ""}
+
 ${analisis.cambiosPropuestos?.length ? `<h2>Cambios propuestos</h2><div class="scroll"><table>
 <tr><th>Cambio</th><th>Ataca</th><th>Métrica que debería moverse</th></tr>
 ${analisis.cambiosPropuestos.map((c) => `<tr><td>${esc(c.cambio)}</td><td>${esc(FALLAS_ETIQUETA[c.ataca] ?? c.ataca)}</td><td>${esc(c.metrica)}</td></tr>`).join("")}
+</table></div>` : ""}
+
+${analisis.arreglos?.length ? `<h2>Arreglos fuera del ciclo de prompt</h2>
+<p class="sub" style="margin:-4px 0 10px">No compiten con los tres cambios de arriba: son fallas de infraestructura o de capacidad
+que ningún prompt puede tapar.</p>
+<div class="scroll"><table>
+<tr><th>Qué</th><th>Cuándo</th><th>Por qué</th><th>Dónde</th></tr>
+${analisis.arreglos.map((a) => `<tr>
+  <td><b>${esc(a.titulo)}</b></td>
+  <td><span class="urg ${/hoy/i.test(a.urgencia ?? "") ? "hoy" : ""}">${esc(a.urgencia)}</span></td>
+  <td>${esc(a.detalle)}</td>
+  <td><code style="font-size:12px;color:var(--muted)">${esc(a.donde)}</code></td>
+</tr>`).join("")}
 </table></div>` : ""}
 
 ${analisis.promptPropuesto ? `<h2>Prompt propuesto</h2>
@@ -215,18 +282,53 @@ siguiente, no funcionó — revertirlo es tan válido como insistir.</p>
 
 </div></body></html>`;
 
-mkdirSync(dirname(SALIDA), { recursive: true });
-writeFileSync(SALIDA, html);
+// ── Archivo permanente ───────────────────────────────────────────────────────
+// El reporte, los datos crudos y el análisis se guardan JUNTOS en el repo bajo
+// el sello de la corrida. Guardar solo el HTML no alcanza: sin los datos crudos
+// no se puede recalcular una métrica nueva sobre una corrida vieja, y sin el
+// análisis se pierde POR QUÉ se propuso cada cambio.
+mkdirSync(CARPETA, { recursive: true });
+writeFileSync(resolve(CARPETA, "reporte.html"), html);
+writeFileSync(resolve(CARPETA, "datos.json"), JSON.stringify(datos, null, 2));
+writeFileSync(resolve(CARPETA, "analisis.json"), JSON.stringify(analisis, null, 2));
 
-// Registrar la corrida SOLO después de escribir el HTML: si el render falla, la
-// corrida no queda contada y el historial no miente.
-mkdirSync(dirname(HISTORIAL), { recursive: true });
-appendFileSync(HISTORIAL, `${JSON.stringify({
+if (SALIDA) {
+  mkdirSync(dirname(SALIDA), { recursive: true });
+  writeFileSync(SALIDA, html);
+}
+
+// Entrada del historial: TODO lo que una corrida futura necesita para comparar
+// sin volver a abrir los datos crudos.
+const entrada = {
   fecha: datos.generadoEn,
+  sello: SELLO,
   periodoDias: datos.periodoDias,
+  desde: datos.desde ?? null,
+  // De dónde salieron los números. Comparar una corrida del extractor contra un
+  // censo hecho a mano es comparar dos varas distintas: queda anotado.
+  fuente: datos.fuente ?? "extraer.mjs",
+  // Versión del bot que produjo estas conversaciones: sin esto, "mejoró" no se
+  // puede atribuir a ningún cambio concreto.
+  commitBot: datos.commitBot ?? null,
   metricas: m,
-  cambiosAplicados: analisis.cambiosPropuestos?.map((c) => c.cambio) ?? [],
-})}\n`);
+  hallazgosPorDetector: (datos.hallazgos ?? []).reduce((acc, h) => {
+    acc[h.detector] = (acc[h.detector] ?? 0) + 1;
+    return acc;
+  }, {}),
+  resumen: analisis.resumen ?? "",
+  // Los cambios completos (qué ataca, qué métrica debería moverse), no solo el
+  // título: la corrida siguiente los usa para dar veredicto.
+  cambiosAplicados: analisis.cambiosPropuestos ?? [],
+  reporte: `registro/reportes/${SELLO}/reporte.html`,
+};
 
-console.log(`✅ Reporte: ${SALIDA}`);
-console.log(`📎 Corrida registrada en ${HISTORIAL} (${historial.length + 1} en total)`);
+const lineas = [...anteriores, entrada]
+  .sort((a, b) => String(a.fecha).localeCompare(String(b.fecha)))
+  .map((r) => JSON.stringify(r));
+mkdirSync(dirname(HISTORIAL), { recursive: true });
+writeFileSync(HISTORIAL, `${lineas.join("\n")}\n`);
+
+console.log(`✅ Reporte archivado: ${CARPETA}/reporte.html`);
+if (SALIDA) console.log(`   copia: ${SALIDA}`);
+console.log(`📎 Historial: ${lineas.length} corrida(s)${yaRegistrada ? " (esta se re-renderizó, no se duplicó)" : ""}`);
+if (previa) console.log(`   comparada contra ${previa.sello ?? previa.fecha}`);

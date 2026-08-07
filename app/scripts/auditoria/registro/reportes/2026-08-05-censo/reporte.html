@@ -1,0 +1,82 @@
+<!doctype html><html lang="es"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Censo de errores graves · AutoVenta Depot</title>
+<style>
+:root{--bg:#0b0e14;--card:#141926;--ink:#e9edf5;--muted:#93a0b8;--line:#232c3f;--rojo:#ff5c62;--ambar:#ffb020;--ok:#3ddc84}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:14.5px/1.55 -apple-system,"Segoe UI",Inter,sans-serif;padding:32px 18px 60px}
+.wrap{max-width:1080px;margin:0 auto}h1{font-size:24px;margin:0 0 4px}h2{font-size:16px;margin:34px 0 10px}
+.sub{color:var(--muted);font-size:13px;margin:0 0 22px}
+table{width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+th,td{padding:9px 12px;text-align:left;border-bottom:1px solid var(--line);font-size:13px;vertical-align:top}
+th{font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}tr:last-child td{border-bottom:none}
+.chip{display:inline-block;border-radius:999px;padding:1px 9px;font-size:11px;font-weight:700;margin:1px 3px 1px 0}
+.g{background:color-mix(in srgb,var(--ok) 15%,transparent);color:var(--ok);border:1px solid color-mix(in srgb,var(--ok) 40%,transparent)}
+.aviso{background:color-mix(in srgb,var(--ok) 10%,transparent);border:1px solid color-mix(in srgb,var(--ok) 30%,transparent);border-radius:12px;padding:12px 16px;margin:14px 0;font-size:13.5px}
+.scroll{overflow-x:auto}
+</style></head><body><div class="wrap">
+<h1>Censo de errores graves — historial completo de Depot Tire</h1>
+<p class="sub">164 conversaciones escaneadas · <b>25 afectadas</b> · generado 5-ago-2026, 17:35 (Quito) ·
+todos los errores son ANTERIORES a los arreglos (el bot corregido aún no habla)</p>
+
+<div class="aviso">✅ <b>Estado:</b> los arreglos + guardián + candado están EN PRODUCCIÓN (commits 1613a18 → 7cc48c0).
+Cada clase de error de esta página tiene defensa determinística o candado, más detección automática en la auditoría.</div>
+
+<h2>Totales por clase de error, y qué lo previene ahora</h2>
+<div class="scroll"><table>
+<tr><th>Error</th><th>Veces</th><th>Por qué no vuelve a pasar</th></tr>
+<tr><td><span class="chip" style="background:#ff5c6222;color:#ff5c62;border:1px solid #ff5c6255">Pidió una foto que no puede leer</span></td>
+   <td style="font-weight:800">30</td><td>GARANTÍA: el guardián de salida elimina la oración antes de enviar y pide la medida escrita. Además se borraron las 7 fuentes que ordenaban pedirla (prompt, tools, fitment).</td></tr><tr><td><span class="chip" style="background:#ffb02022;color:#ffb020;border:1px solid #ffb02055">«Tuve un problema procesando» (agente agotado)</span></td>
+   <td style="font-weight:800">7</td><td>MITIGACIÓN + CONTENCIÓN: venta-primero reduce los bucles de herramientas que lo causan; la PRIMERA disculpa pasa (es honesta), la segunda la frena el guardián con alerta. La auditoría mide si baja.</td></tr><tr><td><span class="chip" style="background:#ffb02022;color:#ffb020;border:1px solid #ffb02055">Volvió a saludar a mitad de conversación</span></td>
+   <td style="font-weight:800">6</td><td>GARANTÍA: el guardián recorta el saludo si ya hubo mensajes del bot en el ciclo.</td></tr><tr><td><span class="chip" style="background:#ff5c6222;color:#ff5c62;border:1px solid #ff5c6255">Disculpa tras disculpa (bot atascado)</span></td>
+   <td style="font-weight:800">5</td><td>GARANTÍA: el guardián no envía la segunda disculpa y dispara alerta ALTA al asesor por WhatsApp para atender a mano.</td></tr><tr><td><span class="chip" style="background:#ff5c6222;color:#ff5c62;border:1px solid #ff5c6255">Mensaje idéntico repetido</span></td>
+   <td style="font-weight:800">5</td><td>GARANTÍA: el guardián compara con el último mensaje del bot y no envía duplicados exactos.</td></tr><tr><td><span class="chip" style="background:#ffb02022;color:#ffb020;border:1px solid #ffb02055">Preguntó vehículo/versión teniendo la medida</span></td>
+   <td style="font-weight:800">1</td><td>PREVENCIÓN FUERTE + MEDICIÓN: se eliminaron las instrucciones que lo ORDENABAN (prompt de etapa en la base, descripción de fitment, prompt del sistema). No es bloqueable por regex sin falsos positivos, así que además la auditoría lo mide en cada corrida y la rúbrica lo reprueba.</td></tr><tr><td><span class="chip" style="background:#ff5c6222;color:#ff5c62;border:1px solid #ff5c6255">Dos números de cotización para la misma compra</span></td>
+   <td style="font-weight:800">1</td><td>GARANTÍA: candado dentro de generar_cotizacion — si hay cotización vigente (&lt;30 min) por el mismo producto y cantidad, devuelve el número existente; no crea otra.</td></tr>
+</table></div>
+
+<h2>Las 25 conversaciones afectadas</h2>
+<div class="scroll"><table>
+<tr><th>Ticket</th><th>Cliente</th><th>Etapa</th><th>Errores</th></tr>
+<tr><td>#3</td><td><b>Manuel Maria Montufar</b></td><td>cotizacion enviada</td>
+  <td><span class="chip" style="background:#ffb02022;color:#ffb020;border:1px solid #ffb02055">Volvió a saludar a mitad de conversación ×3</span></td></tr><tr><td>#29</td><td><b>~M Alex</b></td><td>seleccionando</td>
+  <td><span class="chip" style="background:#ff5c6222;color:#ff5c62;border:1px solid #ff5c6255">Pidió una foto que no puede leer</span></td></tr><tr><td>#63</td><td><b>Javier Puruncaja</b></td><td>medida confirmada</td>
+  <td><span class="chip" style="background:#ff5c6222;color:#ff5c62;border:1px solid #ff5c6255">Pidió una foto que no puede leer</span></td></tr><tr><td>#73</td><td><b>Manu. D</b></td><td>medida confirmada</td>
+  <td><span class="chip" style="background:#ff5c6222;color:#ff5c62;border:1px solid #ff5c6255">Pidió una foto que no puede leer</span></td></tr><tr><td>#671</td><td><b>Anefi</b></td><td>seleccionando</td>
+  <td><span class="chip" style="background:#ff5c6222;color:#ff5c62;border:1px solid #ff5c6255">Pidió una foto que no puede leer</span></td></tr><tr><td>#689</td><td><b>patriciocastro0416</b></td><td>medida confirmada</td>
+  <td><span class="chip" style="background:#ff5c6222;color:#ff5c62;border:1px solid #ff5c6255">Pidió una foto que no puede leer</span></td></tr><tr><td>#692</td><td><b>Edison Plazarte</b></td><td>seleccionando</td>
+  <td><span class="chip" style="background:#ff5c6222;color:#ff5c62;border:1px solid #ff5c6255">Pidió una foto que no puede leer ×2</span></td></tr><tr><td>#767</td><td><b>GESTION COINVER PARQUES DEL RECUERDO</b></td><td>seguimiento venta</td>
+  <td><span class="chip" style="background:#ffb02022;color:#ffb020;border:1px solid #ffb02055">Volvió a saludar a mitad de conversación</span> <span class="chip" style="background:#ff5c6222;color:#ff5c62;border:1px solid #ff5c6255">Pidió una foto que no puede leer ×3</span></td></tr><tr><td>#791</td><td><b>Jona</b></td><td>medida confirmada</td>
+  <td><span class="chip" style="background:#ff5c6222;color:#ff5c62;border:1px solid #ff5c6255">Pidió una foto que no puede leer</span></td></tr><tr><td>#843</td><td><b>borboleta</b></td><td>seleccionando</td>
+  <td><span class="chip" style="background:#ff5c6222;color:#ff5c62;border:1px solid #ff5c6255">Pidió una foto que no puede leer</span></td></tr><tr><td>#847</td><td><b>Silvio Campaña</b></td><td>nuevo</td>
+  <td><span class="chip" style="background:#ff5c6222;color:#ff5c62;border:1px solid #ff5c6255">Pidió una foto que no puede leer</span></td></tr><tr><td>#861</td><td><b>Blady</b></td><td>seleccionando</td>
+  <td><span class="chip" style="background:#ff5c6222;color:#ff5c62;border:1px solid #ff5c6255">Pidió una foto que no puede leer</span> <span class="chip" style="background:#ffb02022;color:#ffb020;border:1px solid #ffb02055">Volvió a saludar a mitad de conversación</span></td></tr><tr><td>#867</td><td><b>Diego Bonilla</b></td><td>nuevo</td>
+  <td><span class="chip" style="background:#ff5c6222;color:#ff5c62;border:1px solid #ff5c6255">Pidió una foto que no puede leer</span></td></tr><tr><td>#877</td><td><b>Flaquito</b></td><td>medida confirmada</td>
+  <td><span class="chip" style="background:#ff5c6222;color:#ff5c62;border:1px solid #ff5c6255">Pidió una foto que no puede leer ×2</span> <span class="chip" style="background:#ffb02022;color:#ffb020;border:1px solid #ffb02055">«Tuve un problema procesando» (agente agotado)</span> <span class="chip" style="background:#ff5c6222;color:#ff5c62;border:1px solid #ff5c6255">Disculpa tras disculpa (bot atascado)</span> <span class="chip" style="background:#ff5c6222;color:#ff5c62;border:1px solid #ff5c6255">Mensaje idéntico repetido</span></td></tr><tr><td>#891</td><td><b>djfrenlife</b></td><td>medida confirmada</td>
+  <td><span class="chip" style="background:#ff5c6222;color:#ff5c62;border:1px solid #ff5c6255">Pidió una foto que no puede leer</span> <span class="chip" style="background:#ffb02022;color:#ffb020;border:1px solid #ffb02055">«Tuve un problema procesando» (agente agotado)</span> <span class="chip" style="background:#ff5c6222;color:#ff5c62;border:1px solid #ff5c6255">Disculpa tras disculpa (bot atascado)</span> <span class="chip" style="background:#ff5c6222;color:#ff5c62;border:1px solid #ff5c6255">Mensaje idéntico repetido</span></td></tr><tr><td>#895</td><td><b>Joffre Arequipa</b></td><td>seleccionando</td>
+  <td><span class="chip" style="background:#ff5c6222;color:#ff5c62;border:1px solid #ff5c6255">Pidió una foto que no puede leer ×2</span></td></tr><tr><td>#907</td><td><b>Rositas</b></td><td>nuevo</td>
+  <td><span class="chip" style="background:#ff5c6222;color:#ff5c62;border:1px solid #ff5c6255">Pidió una foto que no puede leer</span></td></tr><tr><td>#909</td><td><b>SuperAle 23/09</b></td><td>nuevo</td>
+  <td><span class="chip" style="background:#ff5c6222;color:#ff5c62;border:1px solid #ff5c6255">Pidió una foto que no puede leer</span> <span class="chip" style="background:#ffb02022;color:#ffb020;border:1px solid #ffb02055">«Tuve un problema procesando» (agente agotado) ×2</span> <span class="chip" style="background:#ff5c6222;color:#ff5c62;border:1px solid #ff5c6255">Disculpa tras disculpa (bot atascado)</span> <span class="chip" style="background:#ff5c6222;color:#ff5c62;border:1px solid #ff5c6255">Mensaje idéntico repetido</span></td></tr><tr><td>#911</td><td><b>Cesar</b></td><td>seleccionando</td>
+  <td><span class="chip" style="background:#ffb02022;color:#ffb020;border:1px solid #ffb02055">«Tuve un problema procesando» (agente agotado)</span></td></tr><tr><td>#913</td><td><b>Edwin</b></td><td>medida confirmada</td>
+  <td><span class="chip" style="background:#ff5c6222;color:#ff5c62;border:1px solid #ff5c6255">Pidió una foto que no puede leer</span></td></tr><tr><td>#939</td><td><b>uniformessolcorp</b></td><td>nuevo</td>
+  <td><span class="chip" style="background:#ff5c6222;color:#ff5c62;border:1px solid #ff5c6255">Pidió una foto que no puede leer</span></td></tr><tr><td>#943</td><td><b>KLEVER</b></td><td>seguimiento venta</td>
+  <td><span class="chip" style="background:#ff5c6222;color:#ff5c62;border:1px solid #ff5c6255">Pidió una foto que no puede leer ×2</span> <span class="chip" style="background:#ffb02022;color:#ffb020;border:1px solid #ffb02055">«Tuve un problema procesando» (agente agotado)</span> <span class="chip" style="background:#ffb02022;color:#ffb020;border:1px solid #ffb02055">Preguntó vehículo/versión teniendo la medida</span> <span class="chip" style="background:#ff5c6222;color:#ff5c62;border:1px solid #ff5c6255">Dos números de cotización para la misma compra</span></td></tr><tr><td>#972</td><td><b>Ricardo Nitro</b></td><td>nuevo</td>
+  <td><span class="chip" style="background:#ff5c6222;color:#ff5c62;border:1px solid #ff5c6255">Pidió una foto que no puede leer</span> <span class="chip" style="background:#ffb02022;color:#ffb020;border:1px solid #ffb02055">«Tuve un problema procesando» (agente agotado)</span> <span class="chip" style="background:#ff5c6222;color:#ff5c62;border:1px solid #ff5c6255">Disculpa tras disculpa (bot atascado) ×2</span> <span class="chip" style="background:#ff5c6222;color:#ff5c62;border:1px solid #ff5c6255">Mensaje idéntico repetido ×2</span></td></tr><tr><td>#980</td><td><b>Orlando Vaca</b></td><td>nuevo</td>
+  <td><span class="chip" style="background:#ff5c6222;color:#ff5c62;border:1px solid #ff5c6255">Pidió una foto que no puede leer</span></td></tr><tr><td>#982</td><td><b>Jordian</b></td><td>nuevo</td>
+  <td><span class="chip" style="background:#ff5c6222;color:#ff5c62;border:1px solid #ff5c6255">Pidió una foto que no puede leer ×2</span> <span class="chip" style="background:#ffb02022;color:#ffb020;border:1px solid #ffb02055">Volvió a saludar a mitad de conversación</span></td></tr>
+</table></div>
+
+<h2>Los 4 casos más graves, en detalle</h2>
+<div class="scroll"><table>
+<tr><th>Caso</th><th>Qué vivió el cliente</th><th>La defensa que lo bloquea hoy</th></tr>
+<tr><td><b>Ricardo Nitro</b> #972</td><td>Tres «tuve un problema procesando» seguidos, dos idénticos. Preguntó «¿incluye alineación?» y quedó sin respuesta.</td><td><span class="chip g">guardián</span> La 2ª disculpa no sale; alerta ALTA al asesor por WhatsApp. Probado con sus mensajes exactos.</td></tr>
+<tr><td><b>KLEVER</b> #943</td><td>Dos cotizaciones distintas (COT-MSGJQPAK + COT-MSGJR010) por la misma compra, cada una ×3, y «¿me da la versión de su auto?» tras decir «son todo terreno».</td><td><span class="chip g">candado</span> generar_cotizacion devuelve la vigente si es el mismo pedido &lt;30 min. Probado: la 2ª llamada no crea fila.</td></tr>
+<tr><td><b>Jordian</b> #982</td><td>Doble respuesta al mismo mensaje con 30 s de diferencia, la segunda arrancando «¡Buenas tardes!».</td><td><span class="chip g">guardián</span> El re-saludo se recorta; el duplicado exacto no se envía. Probado con su texto exacto.</td></tr>
+<tr><td><b>30 pedidos de foto</b> (22 chats)</td><td>El bot pedía una foto que no puede leer; la conversación moría ahí.</td><td><span class="chip g">guardián + fuentes eliminadas</span> Se borraron las 7 instrucciones que lo ordenaban Y el guardián elimina la oración si el modelo la produce igual.</td></tr>
+</table></div>
+
+<h2>Cómo saber que sigue funcionando</h2>
+<p style="color:var(--muted);font-size:13.5px">Cada bloqueo del guardián queda como alerta <code>guard_*</code> en el panel y en la métrica
+<b>intentosBloqueadosPorGuardian</b> de la auditoría (/auditoria-ventas). Si los intentos bajan entre corridas, el prompt mejoró de verdad;
+si se mantienen, el guardián está tapando y hay que ajustar el prompt — pero el cliente nunca lo ve. Las 181 pruebas de la suite incluyen
+los textos reales de estos chats: si alguien reintroduce la falla, el código no llega ni a desplegarse.</p>
+</div></body></html>

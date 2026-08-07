@@ -27,8 +27,13 @@ Hace falta el `DATABASE_URL` de producción (Railway → servicio de Depot →
 Variables). Si no lo tienes, pídelo; no lo adivines ni uses el de staging: las
 conclusiones saldrían de conversaciones que no son las del negocio.
 
+Anota **siempre** el commit del bot que produjo esas conversaciones: sin él, un
+«mejoró» no se puede atribuir a ningún cambio.
+
 ```bash
-DATABASE_URL='postgresql://…' node app/scripts/auditoria/extraer.mjs --dias 14 --salida /tmp/auditoria.json
+COMMIT=$(curl -s https://autoventa-depottire.up.railway.app/health | grep -o '"commit":"[a-f0-9]*"' | cut -d'"' -f4)
+DATABASE_URL='postgresql://…' node app/scripts/auditoria/extraer.mjs \
+  --dias 14 --commit "$COMMIT" --salida /tmp/auditoria.json
 ```
 
 Los conteos son **determinísticos** (reglas fijas sobre la base), no opinión del
@@ -36,6 +41,18 @@ modelo. Eso es lo que hace comparables dos corridas. No inventes números que no
 estén en ese JSON, y no ajustes un detector para que dé mejor: si un detector
 está mal, se corrige en `extraer.mjs` y se dice explícitamente en el reporte que
 la serie se cortó.
+
+### Antes de mirar nada: lee la corrida anterior
+
+```bash
+cat app/scripts/auditoria/registro/historial.jsonl | tail -1     # la corrida previa
+cat app/scripts/auditoria/registro/LINEA-BASE-2026-08-05.md      # el punto cero
+```
+
+Cada entrada trae `cambiosAplicados` con el detector que ataca y **la métrica que
+debía moverse**. Ese es tu encargo principal en esta corrida: dar veredicto sobre
+cada uno. La línea base documenta los errores del 5-ago, los commits que los
+arreglaron, y qué debería verse ahora.
 
 ## Paso 2 · Leer los chats, no solo los números
 
@@ -112,28 +129,56 @@ Reglas para los cambios propuestos:
   que nunca iban a comprar.
 - **El prompt propuesto se escribe completo**, no como diff. Va a pegarse tal cual.
 
-## Paso 4 · Generar el HTML
+## Paso 4 · Generar el HTML (y archivar la corrida)
 
 ```bash
-node app/scripts/auditoria/render.mjs --datos /tmp/auditoria.json --analisis /tmp/analisis.json --salida ~/auditorias/$(date +%F).html
+node app/scripts/auditoria/render.mjs --datos /tmp/auditoria.json --analisis /tmp/analisis.json
 ```
 
-Esto además **registra la corrida** en `app/scripts/auditoria/registro/historial.jsonl`,
-con sus métricas y los cambios propuestos. El HTML muestra cada métrica contra la
-corrida anterior y una tabla de historial: ahí es donde se ve si los cambios de la
-vez pasada funcionaron.
+**El archivado es automático y no se puede saltar.** Cada corrida queda en el
+repo bajo su sello de fecha (`2026-08-09-1430`):
 
-Entrega el archivo al usuario con `SendUserFile`.
+```
+app/scripts/auditoria/registro/
+├── historial.jsonl                     ← una línea por corrida, orden cronológico
+├── LINEA-BASE-2026-08-05.md            ← el punto cero, con los commits que arreglaron cada falla
+└── reportes/<sello>/
+    ├── reporte.html                    ← el reporte
+    ├── datos.json                      ← datos crudos (para recalcular métricas nuevas sobre corridas viejas)
+    └── analisis.json                   ← el análisis (por qué se propuso cada cambio)
+```
+
+`--salida` es opcional: solo hace una copia extra para mandar o abrir. El
+original **siempre** va al repo — un reporte en `/tmp` se pierde y la corrida
+siguiente se queda sin nada contra qué comparar.
+
+Re-renderizar la misma extracción (por ejemplo tras corregir el análisis) no
+duplica la corrida: reemplaza su propia entrada y sigue comparando contra la
+anterior de verdad.
+
+**Commitea el registro.** Si no entra al repo, la próxima corrida no lo ve:
+
+```bash
+git add app/scripts/auditoria/registro && git commit -m "auditoría: corrida <sello>"
+```
+
+Entrega el reporte al usuario con `SendUserFile`.
 
 ## Paso 5 · Cerrar el ciclo
 
 Al terminar, di explícitamente:
 
-1. **Qué se propuso** y qué métrica debería moverse.
-2. **Si los cambios de la corrida anterior funcionaron.** Compara su métrica
-   objetivo contra la corrida previa. Si no se movió, dilo — revertir es una
-   conclusión válida y más honesta que insistir por inercia.
+1. **Veredicto sobre cada cambio de la corrida anterior.** Toma su
+   `cambiosAplicados` del historial, mira la métrica que cada uno prometía mover
+   y falla: *funcionó* / *no se movió* / *no medible todavía*. Si no se movió,
+   dilo — revertir es una conclusión válida y más honesta que insistir por
+   inercia. Esta es la razón de ser del historial: sin veredicto, la corrida
+   fue una foto suelta.
+2. **Qué se propone ahora** y qué métrica debería moverse (máximo 3).
 3. **Qué NO se pudo medir**, si aplica.
+
+Cuidado al comparar corridas con `fuente` distinta (`extraer.mjs` vs
+`censo-panel`): son varas distintas y hay que decirlo, no promediarlas.
 
 Si el usuario aplica los cambios, anótalos en `BITACORA.md` (el hook del repo
 exige entrada en cada commit).

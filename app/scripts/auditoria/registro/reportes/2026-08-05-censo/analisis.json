@@ -1,0 +1,16 @@
+{
+  "resumen": "25 de 164 conversaciones (15%) tenían errores graves que costaban ventas. La causa no era el modelo: instrucciones internas le ORDENABAN pedir fotos que no puede leer y frenar la venta para confirmar el vehículo. El bot se apagó a mano el 5-ago a las 16:02 tras verlo fallar en vivo.",
+  "hipotesis": [
+    "Las 30 peticiones de foto salían de 7 instrucciones distintas en 3 capas (prompt del sistema, descripción de fitment_vehiculo, y las 4 salidas de vehicleFitmentResearch): el modelo repetía casi textual lo que la herramienta le devolvía.",
+    "El prompt por etapa PUBLICADO EN LA BASE decía 'si da vehículo, confirma la medida antes de hablar de precios' — pisa al default del código y fue lo que congeló la venta del Chevrolet Orlando.",
+    "Los 12 'tuve un problema procesando' son el agente agotando sus 8 rondas de herramientas en bucle (en KLEVER: generar_cotizacion devolvía 'bloqueada' una y otra vez).",
+    "Nada de esto tenía defensa determinística: el prompt es una petición al modelo, no una garantía."
+  ],
+  "cambiosPropuestos": [
+    { "cambio": "VENTA PRIMERO en las 3 capas: la medida manda sobre el vehículo, prohibido pedir fotos, el tipo que pide el cliente dispara búsqueda (commits 1613a18 + 3021e97)", "ataca": "pide_foto_que_no_puede_leer", "metrica": "pide_foto a 0 y tasaMedidaACotizacion subiendo" },
+    { "cambio": "Guardián de salida determinístico sobre cada respuesta antes de enviarla, con alerta al asesor (commit f3c2a42)", "ataca": "disculpas_seguidas", "metrica": "disculpas_seguidas, mensaje_duplicado y saludo_repetido a 0; intentosBloqueadosPorGuardian bajando entre corridas" },
+    { "cambio": "Candado anti-duplicado dentro de generar_cotizacion: cotización vigente <30 min por el mismo pedido devuelve el número existente (commit 7cc48c0)", "ataca": "cotizacion_duplicada", "metrica": "cotizacion_duplicada a 0" },
+    { "cambio": "Rescate del agente: al agotar las 8 rondas, responder con lo averiguado en vez de disculparse (commit bea9bf9)", "ataca": "error_procesamiento", "metrica": "error_procesamiento bajando y modelo.rescatados > 0" }
+  ],
+  "promptPropuesto": ""
+}

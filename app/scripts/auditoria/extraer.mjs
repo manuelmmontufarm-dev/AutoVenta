@@ -24,6 +24,12 @@ const opt = (nombre, porDefecto) => {
 
 const DIAS = Number(opt("dias", 14));
 const SALIDA = opt("salida", null);
+/**
+ * Commit del bot que produjo estas conversaciones (de /health). Sin él, un
+ * "mejoró" no se puede atribuir a ningún cambio: queda en el historial.
+ *   --commit $(curl -s https://…/health | grep -o '"commit":"[a-f0-9]*"' | cut -d'"' -f4)
+ */
+const COMMIT = opt("commit", null);
 const DATABASE_URL = process.env.DATABASE_URL;
 
 if (!DATABASE_URL) {
@@ -180,10 +186,26 @@ async function main() {
     }
 
     // Cotizaciones duplicadas: dos COT- distintas con el mismo monto en < 10 min.
-    const cotizaciones = bot
-      .map((m) => ({ m, cot: (m.content ?? "").match(/COT-[A-Z0-9]+/)?.[0],
-                     monto: (m.content ?? "").match(/\$\s?([\d.,]+)/)?.[1] }))
-      .filter((x) => x.cot);
+    //
+    // Cada cotización sale en DOS mensajes (la imagen y el texto que la explica)
+    // y cada uno escribe el monto a su manera: "$638.59" en la imagen, "$638,60"
+    // en el texto. Comparar mensajes consecutivos en crudo hacía que el caso
+    // KLEVER del 5-ago —dos números para la misma compra con 13 s de diferencia—
+    // se contara como 0. Se compara una sola entrada por número de cotización y
+    // el monto normalizado a centavos.
+    const montoEnCentavos = (texto) => {
+      const bruto = (texto ?? "").match(/\$\s?([\d.,]+)/)?.[1];
+      if (!bruto) return null;
+      // "1.173,15" y "1,173.15" y "638.59" → centavos enteros.
+      const sinMiles = bruto.replace(/[.,](?=\d{3}\b)/g, "");
+      return Math.round(Number(sinMiles.replace(",", ".")) * 100);
+    };
+    const cotizaciones = [];
+    for (const m of bot) {
+      const cot = (m.content ?? "").match(/COT-[A-Z0-9]+/)?.[0];
+      if (!cot || cotizaciones.some((x) => x.cot === cot)) continue;
+      cotizaciones.push({ m, cot, monto: montoEnCentavos(m.content) });
+    }
     for (let i = 1; i < cotizaciones.length; i += 1) {
       const a = cotizaciones[i - 1], b = cotizaciones[i];
       const minutos = (new Date(b.m.created_at) - new Date(a.m.created_at)) / 60_000;
@@ -284,6 +306,8 @@ async function main() {
     generadoEn: new Date().toISOString(),
     periodoDias: DIAS,
     desde: desde.toISOString(),
+    fuente: "extraer.mjs",
+    commitBot: COMMIT,
     metricas,
     hallazgos,
     porChat,
