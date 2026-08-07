@@ -50,6 +50,12 @@ const SALUDO_INICIAL = /^\s*(?:¡\s*)?(?:hola|buen[oa]s(?:\s+(?:d[íi]as|tardes|
 const PIEZA_FALLIDA = /no se pudo volver a dibujar la pieza|no pude generar la imagen|no logr[ée] enviar la imagen/i;
 const ES_COTIZACION = /COT-[A-Z0-9]+/;
 const SIN_FICHA = /no tengo una ficha t[ée]cnica verificada|no tengo una medida verificada/i;
+/**
+ * Pedir que confirmen una cantidad. «Juego» ya son 4 y un número suelto ya es
+ * una cantidad: volver a preguntarla es el freno más caro que tiene el bot,
+ * porque pasa justo cuando el cliente ya decidió comprar.
+ */
+const PIDE_CONFIRMAR_CANTIDAD = /confirm\w*[^.?!]{0,40}cantidad|cu[áa]ntas llantas (?:desea|necesita|le gustar[íi]a)|cantidad exacta/i;
 
 /** Pregunta = el bot terminó pidiendo un dato en vez de avanzar la venta. */
 const esPregunta = (texto) => /\?/.test(texto);
@@ -91,7 +97,7 @@ async function main() {
   const mensajes = ids.length
     ? await sql`
         select conversation_id, direction, author_kind, content, type, status,
-               created_at, metadata
+               created_at, metadata, cycle
         from messages
         where conversation_id in ${sql(ids)} and type <> 'note'
         order by conversation_id, created_at
@@ -155,6 +161,10 @@ async function main() {
       // conversación queda trabada esperando algo que nunca va a poder usar.
       if (PIDE_FOTO.test(texto)) marcar("pide_foto_que_no_puede_leer", m);
 
+      // Volver a pedir la cantidad: «juego» ya son 4 y un número suelto ya es
+      // una cantidad. Preguntarlo otra vez enfría al cliente que ya decidió.
+      if (PIDE_CONFIRMAR_CANTIDAD.test(texto)) marcar("pide_confirmar_cantidad", m);
+
       // Preguntar teniendo ya la medida = fricción pura: podía cotizar.
       if (c.tire_size && esPregunta(texto) && !ES_COTIZACION.test(texto)
           && (!cotizo || new Date(m.created_at) < new Date(msgs[indiceCotizacion].created_at))) {
@@ -212,6 +222,33 @@ async function main() {
       if (a.cot !== b.cot && a.monto === b.monto && minutos <= 10) {
         marcar("cotizacion_duplicada", b.m, { previa: a.cot, duplicada: b.cot, minutos: Number(minutos.toFixed(1)) });
       }
+    }
+
+    // La pieza de opciones reenviada dentro del MISMO ciclo. Cuando el cliente
+    // pide precio y recibe otra vez la misma imagen, la venta se estanca: la
+    // segunda pieza no aporta nada que no viera hace dos mensajes.
+    const esPiezaOpciones = (m) => {
+      if (m.type !== "image") return false;
+      // metadata llega como objeto (jsonb) o como texto según el driver.
+      let meta = m.metadata;
+      if (typeof meta === "string") { try { meta = JSON.parse(meta); } catch { meta = null; } }
+      if (meta && typeof meta === "object" && meta.piece === "options") return true;
+      return /^Opciones enviadas/.test(m.content ?? "");
+    };
+    const piezasPorCiclo = new Map();
+    for (const m of bot) {
+      if (!esPiezaOpciones(m)) continue;
+      const ciclo = m.cycle ?? 0;
+      const vistas = (piezasPorCiclo.get(ciclo) ?? 0) + 1;
+      piezasPorCiclo.set(ciclo, vistas);
+      // La primera del ciclo es la correcta; se marca de la segunda en adelante.
+      if (vistas > 1) marcar("opciones_reenviadas", m, { ciclo, vecesEnElCiclo: vistas });
+    }
+
+    // El cliente escribió y el bot jamás respondió (6-ago: bot apagado, 38
+    // clientes sin una sola respuesta y nadie se enteró).
+    if (cliente.length > 0 && bot.length === 0) {
+      marcar("sin_respuesta_del_bot", cliente.at(-1), { mensajesCliente: cliente.length });
     }
 
     // Tenía la medida y nunca cotizó: la venta más barata que se dejó ir.
@@ -277,6 +314,9 @@ async function main() {
       "sin_ficha_verificada",
       "pieza_fallida",
       "abandono_tras_pregunta",
+      "sin_respuesta_del_bot",
+      "pide_confirmar_cantidad",
+      "opciones_reenviadas",
     ].map((d) => [d, {
       incidencias: cuenta(d),
       chatsAfectados: chatsAfectados(d),

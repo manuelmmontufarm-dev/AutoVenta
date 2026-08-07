@@ -5,6 +5,7 @@
  *     (Primera línea aquí en memoria; la definitiva es el unique de wa_message_id en DB.)
  *  2. Debounce — la gente escribe 3 mensajes seguidos; se agrupan y se responde una vez.
  *  3. FIFO por usuario — nunca hay dos respuestas en vuelo para el mismo chat.
+ *  4. Tope global — como mucho config.pipeline.maxConcurrent handlers a la vez.
  */
 import { config } from "../config.js";
 
@@ -28,9 +29,36 @@ export class InboundPipeline {
   private seen = new Map<string, number>();
   private buffers = new Map<string, PendingBuffer>();
   private tails = new Map<string, Promise<void>>();
+  private enVuelo = 0;
+  private espera: (() => void)[] = [];
 
   constructor(private handler: InboundHandler) {
     setInterval(() => this.cleanupSeen(), 60 * 60 * 1000).unref();
+  }
+
+  /**
+   * Semáforo global. El FIFO por usuario no limita nada cuando escriben N
+   * clientes a la vez: eran N llamadas simultáneas al LLM y bajo carga el rate
+   * limit de OpenAI le devolvía un error al cliente. Los excedentes esperan en
+   * la cola (responden un poco más tarde) — nunca se descartan.
+   */
+  private async adquirir(): Promise<void> {
+    if (this.enVuelo < config.pipeline.maxConcurrent) {
+      this.enVuelo += 1;
+      return;
+    }
+    // El que libera TRASPASA su cupo (ver liberar), así que al despertar ya se
+    // tiene el slot: no se vuelve a contar.
+    await new Promise<void>((resolve) => this.espera.push(resolve));
+  }
+
+  private liberar(): void {
+    // Si hay cola, el cupo pasa directo al siguiente. Bajar el contador y
+    // despertarlo por separado abría una ventana donde un flush nuevo se
+    // colaba y quedaban maxConcurrent+1 en vuelo.
+    const siguiente = this.espera.shift();
+    if (siguiente) siguiente();
+    else this.enVuelo -= 1;
   }
 
   push(from: string, waMessageId: string, text: string, name?: string, receivedAt = new Date()): void {
@@ -72,7 +100,14 @@ export class InboundPipeline {
     // Cola FIFO por usuario: encadena sobre el último job de este chat.
     const tail = this.tails.get(from) ?? Promise.resolve();
     const next = tail
-      .then(() => this.handler(job))
+      .then(async () => {
+        await this.adquirir();
+        try {
+          await this.handler(job);
+        } finally {
+          this.liberar();
+        }
+      })
       .catch((err) => console.error(`❌ Error procesando mensaje de ${from}:`, err));
     this.tails.set(from, next);
     next.finally(() => {

@@ -52,6 +52,9 @@ import { getTirePatternProfile } from "../domain/tireKnowledge.js";
 import {
   catalogoDeTipos, escalonDeMarca, infoTipo, normalizarTipo, ordenDeMarca, tipoDeProducto,
 } from "../domain/tireTypes.js";
+import {
+  debeBloquearReenvio, medidaDesdeContenido, tipoSolicitadoEn,
+} from "../domain/opcionesCandados.js";
 import { sendImage, sendPdf } from "../wa/client.js";
 import {
   renderCompareImage,
@@ -429,7 +432,68 @@ export function buildTools(ctx: AgentContext) {
       }
       // Tope de tres, una por escalón de marca. El cliente lo pidió explícito:
       // seis opciones confunden y el cliente termina sin elegir ninguna.
-      const products = encontrados.length > 3 ? tresOpciones(encontrados) : encontrados;
+      // CANDADO 2 — respeto del tipo pedido. El 6-ago-2026 (ticket 1286) el
+      // cliente pidió «265/70/17 AT» y recibió un FALKEN WILDPEAK M/T y una
+      // KENDA sin tipo verificado: dos de tres no eran lo que pidió. El modelo
+      // elige los códigos, pero el filtro por tipo no se negocia.
+      const inbound = await sql<{ content: string }[]>`
+        select content from messages
+        where conversation_id=${ctx.conversation.id}
+          and cycle=${ctx.conversation.current_cycle}
+          and direction='inbound'
+        order by created_at desc limit 12
+      `;
+      const tipoPedido = tipoSolicitadoEn([
+        ctx.currentUserText,
+        ...inbound.map((m) => m.content),
+      ]);
+      let avisoTipo: string | null = null;
+      let candidatos = encontrados;
+      if (tipoPedido) {
+        const coinciden = encontrados.filter(
+          (p) => tipoDeProducto(p.code, p.design) === tipoPedido,
+        );
+        const resto = encontrados.filter((p) => !coinciden.includes(p));
+        if (coinciden.length >= 2) candidatos = coinciden;
+        else if (coinciden.length === 1) candidatos = [...coinciden, ...resto];
+        else {
+          avisoTipo = `El cliente pidió ${tipoPedido} y ninguna de estas opciones es de ese tipo verificado: dilo en una línea y ofrece lo más cercano.`;
+        }
+      }
+      // Tope de tres, una por escalón de marca. El cliente lo pidió explícito:
+      // seis opciones confunden y el cliente termina sin elegir ninguna.
+      const products = candidatos.length > 3 ? tresOpciones(candidatos) : candidatos;
+
+      // CANDADO 1 — anti-reenvío. Tickets 1288 y 1415 del 6-ago-2026: la misma
+      // pieza de opciones salió hasta 4 veces en la misma conversación y el
+      // cliente lo único que quería era el precio. Si ya la tiene en pantalla,
+      // no se reenvía: se le responde lo que preguntó.
+      const sizeLabelActual = products[0]?.sizeLabel ?? null;
+      const [previo] = await sql<{ metadata: Record<string, unknown> | null; content: string; minutos: number }[]>`
+        select content, metadata,
+               extract(epoch from (now() - created_at))/60 as minutos
+        from messages
+        where conversation_id=${ctx.conversation.id}
+          and cycle=${ctx.conversation.current_cycle}
+          and type='image'
+          and metadata->>'piece'='options'
+        order by created_at desc limit 1
+      `;
+      const previoNormalizado = previo
+        ? {
+            sizeLabel:
+              (previo.metadata?.sizeLabel as string | undefined) ??
+              medidaDesdeContenido(previo.content),
+            minutos: Number(previo.minutos),
+          }
+        : null;
+      if (debeBloquearReenvio(previoNormalizado, sizeLabelActual, ctx.currentUserText)) {
+        const minutos = Math.max(1, Math.round(previoNormalizado!.minutos));
+        return JSON.stringify({
+          error: `Las opciones de ${sizeLabelActual ?? "esa medida"} YA se enviaron hace ${minutos} min y el cliente las tiene en pantalla. PROHIBIDO reenviarlas. Si pidió precio o eligió un modelo, llama generar_cotizacion con ese modelo (4 unidades si no dijo cantidad). Si preguntó otra cosa, respóndela directo en texto.`,
+        });
+      }
+
       // La recomendación tiene que ser una de las opciones mostradas. Si el
       // modelo apunta a otra cosa, se cae a la primera en vez de recomendar algo
       // que el cliente no está viendo.
@@ -438,7 +502,7 @@ export function buildTools(ctx: AgentContext) {
 
       // Pieza visual del catálogo (agrupada por marca). Si falla, el texto
       // sigue siendo la respuesta — el cliente nunca se queda sin opciones.
-      const sizeLabel = products[0]?.sizeLabel ?? null;
+      const sizeLabel = sizeLabelActual;
       const visual = await sendVisual(
         ctx.conversation.id,
         ctx.customerPhone,
@@ -466,7 +530,9 @@ export function buildTools(ctx: AgentContext) {
           type: "image",
           authorKind: "bot",
           status: visual.ok ? "sent" : "failed",
-          metadata: { piece: "options", codes, ...(visual.error ? { renderError: visual.error } : {}) },
+          // sizeLabel queda en metadata para que el candado anti-reenvío pueda
+          // comparar medidas sin tener que parsear el texto del caption.
+          metadata: { piece: "options", codes, sizeLabel, ...(visual.error ? { renderError: visual.error } : {}) },
         },
       );
       // La imagen es la pieza principal: sin ella el cliente recibe solo el
@@ -505,6 +571,7 @@ export function buildTools(ctx: AgentContext) {
       });
       return JSON.stringify({
         imagen_enviada: visual.ok,
+        ...(avisoTipo ? { aviso: avisoTipo } : {}),
         recomendacion: `${recommended.brand} ${recommended.design}`,
         motivo_recomendacion: motivo.trim().replace(/\.$/, ""),
         mensaje_para_enviar: composeBlocks(
@@ -686,14 +753,24 @@ export function buildTools(ctx: AgentContext) {
           });
         }
       }
+      // Regla del 6-ago: si no es un NO, es un sí. Antes este candado exigía
+      // que el ÚLTIMO mensaje trajera una cantidad con verbo y que coincidiera
+      // exacta con la guardada; un «Si», un «4» suelto o un «juego» rebotaban
+      // y el modelo volvía a pedir confirmación (Rodrigo: 4 confirmaciones por
+      // 5 llantas ya dichas). Ahora cualquier cantidad ya conocida en la
+      // conversación vale, y solo frenan la comparación en curso o una
+      // negativa explícita del cliente.
       const [facts] = await sql<{ selected_quantity: number | null }[]>`
         select selected_quantity from conversations where id=${ctx.conversation.id}
       `;
-      const quantityWasConfirmed = facts?.selected_quantity === items[0]?.cantidad;
+      // El juego de 4 es el default comercial: si el cliente pidió precio sin
+      // decir cantidad, cotizar 4 y aclarar que se ajusta vende más que
+      // preguntar. Cualquier otra cantidad sí necesita venir del cliente.
+      const quantityWasConfirmed = facts?.selected_quantity != null || items[0]?.cantidad === 4;
       if (!canGenerateFinalQuote(ctx.currentUserText, ctx.comparedThisTurn, quantityWasConfirmed)) {
         return JSON.stringify({
           error:
-            "Cotización bloqueada: esta conversación aún está comparando o el último mensaje no confirmó una cantidad. Pide un modelo y una cantidad explícitos. No envíes PDF de cotización.",
+            "Cotización bloqueada: el cliente está comparando o acaba de decir que no. Si está comparando, termina la comparación; si dijo que no, respeta el no y pregunta qué le falta para decidirse. No envíes PDF de cotización.",
         });
       }
       await ensureCatalogReady();

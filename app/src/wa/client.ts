@@ -240,6 +240,63 @@ async function uploadMedia(buf: Buffer, mime: string, filename: string): Promise
   throw lastError instanceof Error ? lastError : new Error(String(lastError));
 }
 
+/**
+ * Baja media entrante (foto del cliente) de la Graph API: primero el metadato
+ * del media_id (que trae una URL firmada de vida corta) y luego los bytes.
+ *
+ * Nunca lanza: una foto ilegible no puede tumbar el webhook — el llamador
+ * responde igual pidiendo la medida por escrito.
+ */
+export async function downloadMedia(
+  mediaId: string,
+): Promise<{ bytes: Buffer; mimeType: string } | null> {
+  try {
+    const ch = await getChannelConfig();
+    if (!ch.token) {
+      console.warn("⚠️ downloadMedia sin token de canal");
+      return null;
+    }
+    const auth = { Authorization: `Bearer ${ch.token}` };
+    const metaResponse = await fetch(`${GRAPH}/${mediaId}`, {
+      headers: auth,
+      signal: AbortSignal.timeout(15000),
+    });
+    if (!metaResponse.ok) {
+      console.warn(`⚠️ downloadMedia: metadato ${mediaId} respondió ${metaResponse.status}`);
+      return null;
+    }
+    const meta = (await metaResponse.json().catch(() => ({}))) as {
+      url?: string;
+      mime_type?: string;
+    };
+    if (!meta.url) {
+      console.warn(`⚠️ downloadMedia: metadato ${mediaId} sin url`);
+      return null;
+    }
+    // La URL firmada también exige el Bearer: sin él Meta devuelve 401.
+    const fileResponse = await fetch(meta.url, {
+      headers: auth,
+      signal: AbortSignal.timeout(15000),
+    });
+    if (!fileResponse.ok) {
+      console.warn(`⚠️ downloadMedia: bytes de ${mediaId} respondieron ${fileResponse.status}`);
+      return null;
+    }
+    const bytes = Buffer.from(await fileResponse.arrayBuffer());
+    if (!bytes.length) {
+      console.warn(`⚠️ downloadMedia: ${mediaId} vino vacío`);
+      return null;
+    }
+    return { bytes, mimeType: meta.mime_type ?? "image/jpeg" };
+  } catch (error) {
+    console.warn(
+      `⚠️ downloadMedia falló para ${mediaId}:`,
+      error instanceof Error ? error.message : error,
+    );
+    return null;
+  }
+}
+
 /** Sube un PDF a Meta y lo envía como documento. */
 export async function sendPdf(
   conversationId: number,

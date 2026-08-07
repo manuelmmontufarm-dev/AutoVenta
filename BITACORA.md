@@ -32,6 +32,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-08-06 | _(este mismo)_ | Si no es un NO es un SÍ + leer fotos + candados de opciones + watchdog de bot apagado | 4.0 |
 | 2026-08-06 | _(este mismo)_ | Cadena más corta al mandar opciones + llantas grandes en la pieza + la KR50 deja de salir invisible | 1.5 |
 | 2026-08-06 | _(este mismo)_ | Favicon como archivo para la tarjeta de Vercel | 0.25 |
 | 2026-08-05 | _(este mismo)_ | Línea base publicada + archivado automático de auditorías | 1.0 |
@@ -90,6 +91,45 @@ Ya viene activado en este equipo.
 ---
 
 ## Entradas (más reciente primero)
+
+### 2026-08-06 · Si no es un NO es un SÍ + leer fotos + candados de opciones + watchdog · ⏱️ 4.0 h
+
+**Qué:** la auditoría contra la base real de Depot (239 conversaciones, 14 días) mostró que las
+fallas del 5-ago están extinguidas pero el bot sigue sin cerrar: pedía confirmar cantidades ya
+dichas (Rodrigo: 4 confirmaciones por 5 llantas; J.F.R.C escribió «4» dos veces y recibió la misma
+pieza por tercera vez), reenviaba opciones ante «Presio por favor», ignoraba «juego de llantas»
+(18 mensajes en 15 chats), mandó M/T cuando pidieron A/T, tiró 33 fotos de clientes a la basura y
+estuvo apagado sin que nadie se enterara (188 mensajes sin respuesta el 6-ago). Seis arreglos:
+
+1. **Si no es un NO, es un SÍ** (`salesIntent.ts` + gate de `generar_cotizacion` en `tools.ts`):
+   la cotización solo se frena por comparación en curso o negativa explícita
+   (`isNegativeResponse`). Cantidad nueva: «juego»=4, «las/los N», «cambiar las 5», número suelto
+   al borde del mensaje agrupado, y la cantidad guardada en la conversación vale siempre; 4 es el
+   default comercial. Las horas («paso a las 3») se excluyen — bug cazado por el test de cableado.
+2. **Candados de opciones** (`domain/opcionesCandados.ts` + `preparar_opciones`): prohibido
+   reenviar la pieza de la misma medida en 120 min (salvo que el cliente la pida de nuevo); el
+   tipo pedido (A/T, M/T…, con sinónimos quiteños «todo terreno», «lodo») filtra las opciones.
+3. **Leer fotos** (`wa/client.ts` `downloadMedia` + `services/vision.ts` + case image):
+   la foto se transcribe con la visión de gpt-4o-mini y entra como texto normal — la medida de la
+   etiqueta cae sola en los hechos comerciales. El caption del cliente ya no se pierde.
+4. **Tope global del pipeline** (`pipeline/inbound.ts`): máximo `PIPELINE_MAX_CONCURRENT` (6)
+   agentes en vuelo; bajo carga los excedentes esperan en vez de reventar contra el rate limit.
+5. **Watchdog de bot apagado** (`embeddedFollowUpWorker.ts`): cada 5 min, si el bot está apagado
+   y hay clientes con el último mensaje sin responder → alerta ALTA + WhatsApp al asesor, un
+   recordatorio por hora. El 6-ago el bot pasó apagado desde las 13:16 y nadie lo supo.
+6. **Prompt nuevo** (`prompts.ts`): cuarta regla «Si no es un NO, es un SÍ», sección de cantidad,
+   «precio se responde con un precio», ubicación ya dicha no se repregunta, y las fotos ahora se
+   leen. Detectores nuevos en la auditoría: `sin_respuesta_del_bot`, `pide_confirmar_cantidad`,
+   `opciones_reenviadas` (+ fix del detector de cotización duplicada que comparaba «$638.59» de la
+   imagen contra «$638,60» del texto y daba 0 con el caso KLEVER en la base).
+
+**Verificación:** `tsc` limpio; **225 tests en verde** (34 nuevos), incluido un test de cableado
+del guardián contra Postgres real que confirma que `applyOutboundGuard` bloquea e inserta alertas
+— los cero `guard_*` de producción son porque el modelo ya no intenta la falla, no un cable roto.
+
+**Por qué:** de 239 conversaciones salieron 4 cotizaciones y 1 venta — y esa venta la cerró un
+humano en un chat que el bot nunca tocó. La meta de mañana: `pide_confirmar_cantidad`,
+`opciones_reenviadas` y `pide_foto` en <1% de chats, y `tasaMedidaACotizacion` subiendo desde 4,2%.
 
 ### 2026-08-05 · Línea base publicada y archivado automático de auditorías · ⏱️ 1.0 h
 

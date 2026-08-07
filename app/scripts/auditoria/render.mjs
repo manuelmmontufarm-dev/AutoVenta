@@ -74,6 +74,9 @@ const FALLAS_ETIQUETA = {
   sin_ficha_verificada: "Se escudó en «no tengo ficha verificada»",
   pieza_fallida: "No pudo dibujar la pieza",
   abandono_tras_pregunta: "El cliente se fue tras una pregunta del bot",
+  sin_respuesta_del_bot: "El cliente escribió y el bot jamás respondió",
+  pide_confirmar_cantidad: "Pidió confirmar una cantidad ya dicha",
+  opciones_reenviadas: "Reenvió la pieza de opciones en el mismo ciclo",
 };
 
 const fallasOrdenadas = Object.entries(m.fallas)

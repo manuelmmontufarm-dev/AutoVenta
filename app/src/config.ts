@@ -206,5 +206,13 @@ export const config = {
     debounceMs: Number(envOr("DEBOUNCE_MS", "5000")),
     /** Cuánto se silencia el bot en un chat cuando el dueño responde a mano. */
     botPauseHours: Number(envOr("BOT_PAUSE_HOURS", "6")),
+    /**
+     * Tope global de handlers en vuelo. El FIFO por usuario no limita nada
+     * cuando escriben N clientes a la vez: N llamadas simultáneas al LLM →
+     * rate limit de OpenAI → el cliente ve el mensaje de error. Con el tope,
+     * los excedentes esperan en cola (responden un poco más tarde) en vez de
+     * fallar.
+     */
+    maxConcurrent: Number(envOr("PIPELINE_MAX_CONCURRENT", "6")),
   },
 } as const;

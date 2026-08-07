@@ -15,7 +15,9 @@ export type AdvisorEventType =
   | "guard_bot_atascado"
   | "guard_pide_foto"
   | "guard_mensaje_duplicado"
-  | "guard_saludo_repetido";
+  | "guard_saludo_repetido"
+  // Watchdog (6-ago): el bot quedó apagado y los clientes siguieron escribiendo.
+  | "bot_apagado_con_clientes";
 
 export interface AdvisorNotificationInput {
   conversationId: number;

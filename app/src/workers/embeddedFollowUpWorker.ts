@@ -21,6 +21,9 @@ import { hostname } from "node:os";
 /** Espera entre reintentos cuando el bucle del worker se cae entero. */
 const RELANZAR_MS = 15_000;
 
+/** Cada cuánto se revisa si el bot está apagado con clientes esperando. */
+const VIGILANCIA_MS = 5 * 60_000;
+
 /**
  * ¿Le toca a este proceso correr el worker? Solo se apaga con la señal
  * explícita: cualquier otro valor (o ninguno) deja el worker encendido, que es
@@ -39,6 +42,122 @@ function esperar(ms: number, signal: AbortSignal): Promise<void> {
       resolve();
     }, { once: true });
   });
+}
+
+/**
+ * Decisión pura del watchdog de bot apagado.
+ *
+ * El 6-ago el bot quedó apagado desde las 13:16 y entraron 139 mensajes de 38
+ * clientes sin que nadie se enterara: apagar el bot no apaga el WhatsApp, así
+ * que los mensajes siguen llegando y nadie los contesta. Esto avisa.
+ *
+ * La clave de deduplicación baja a HORAS apagadas a propósito: se quiere un
+ * recordatorio por hora mientras dure el apagón, no una alerta cada 5 minutos
+ * (eso sería ruido y el dueño lo terminaría ignorando, que es justo el fallo
+ * que se quiere evitar).
+ *
+ * Se separa de la consulta para poder probar la regla sin base de datos.
+ */
+export function debeAlertarBotApagado(
+  estado: { activo: boolean; apagadoAt: string | null },
+  clientesEsperando: number,
+  ahora: Date,
+): { alertar: boolean; dedupeKey: string } | null {
+  // Encendido: no hay nada que vigilar. Sin apagadoAt tampoco hay apagón que
+  // fechar (instalación que nunca se encendió), y alertar ahí sería ruido.
+  if (estado.activo || !estado.apagadoAt) return null;
+  if (clientesEsperando <= 0) return null;
+  const desde = new Date(estado.apagadoAt).getTime();
+  if (Number.isNaN(desde)) return null;
+  const minutosApagado = Math.max(0, (ahora.getTime() - desde) / 60_000);
+  return {
+    alertar: true,
+    dedupeKey: `bot_apagado:${estado.apagadoAt}:${Math.floor(minutosApagado / 60)}`,
+  };
+}
+
+/**
+ * Cuenta clientes esperando y, si toca, alerta. Nunca lanza: el watchdog vigila
+ * al worker, no puede ser quien lo tumbe.
+ */
+async function vigilarBotApagado(): Promise<void> {
+  const [{ sql }, { getBotPower }, { createBotAlert }, { notifyAdvisor }] = await Promise.all([
+    import("../db/client.js"),
+    import("../services/botPower.js"),
+    import("../services/followUps.js"),
+    import("../services/advisorNotifications.js"),
+  ]);
+
+  const estado = await getBotPower();
+  if (estado.activo || !estado.apagadoAt) return;
+
+  // Conversaciones con mensajes del cliente posteriores al apagón donde el
+  // último mensaje NO es del negocio: nadie contestó, ni el bot ni un humano.
+  const esperando = await sql<{ id: number; cycle: number }[]>`
+    select c.id, c.current_cycle as cycle
+    from conversations c
+    where exists (
+            select 1 from messages m
+            where m.conversation_id = c.id
+              and m.direction = 'inbound'
+              and m.created_at >= ${estado.apagadoAt}
+          )
+      and (
+        select m2.direction from messages m2
+        where m2.conversation_id = c.id
+        order by m2.created_at desc limit 1
+      ) = 'inbound'
+    order by c.id desc
+  `;
+
+  const decision = debeAlertarBotApagado(estado, esperando.length, new Date());
+  if (!decision?.alertar) return;
+
+  // La alerta cuelga de la conversación más reciente que quedó sin respuesta:
+  // bot_alerts y las notificaciones son por conversación, y esa es la que el
+  // dueño va a querer abrir primero.
+  const ancla = esperando[0];
+  const horas = Math.floor(
+    (Date.now() - new Date(estado.apagadoAt).getTime()) / 3_600_000,
+  );
+  const resumen = `El bot está APAGADO y ${esperando.length} clientes escribieron sin respuesta`;
+  const razon = `Apagado desde ${estado.apagadoAt} (${horas} h). ${esperando.length} conversaciones tienen un mensaje del cliente como último mensaje.`;
+  const accion = "Enciende el bot desde el panel o contesta a mano esas conversaciones.";
+
+  await createBotAlert({
+    conversationId: ancla.id,
+    cycle: ancla.cycle,
+    type: "bot_apagado_con_clientes",
+    priority: "high",
+    summary: resumen,
+    exactReason: razon,
+    suggestedAction: accion,
+    dedupeKey: decision.dedupeKey,
+  });
+  await notifyAdvisor({
+    conversationId: ancla.id,
+    cycle: ancla.cycle,
+    eventType: "bot_apagado_con_clientes",
+    dedupeKey: decision.dedupeKey,
+    title: resumen,
+    reason: razon,
+    action: accion,
+  });
+}
+
+/** Bucle del watchdog: revisa cada ~5 min mientras viva el proceso. */
+async function supervisarBotApagado(signal: AbortSignal): Promise<void> {
+  while (!signal.aborted) {
+    try {
+      await vigilarBotApagado();
+    } catch (error) {
+      console.warn(
+        "⚠️ Watchdog de bot apagado falló:",
+        error instanceof Error ? error.message : error,
+      );
+    }
+    await esperar(VIGILANCIA_MS, signal);
+  }
 }
 
 /**
@@ -83,4 +202,7 @@ export function startEmbeddedFollowUpWorker(): void {
   }
   console.log("✅ Worker de seguimientos activo dentro del proceso HTTP");
   void supervisar(`http:${hostname()}:${process.pid}`, controller.signal);
+  // Bucle aparte: con el bot apagado el worker de seguimientos se corta antes
+  // de hacer nada, y es justo entonces cuando hay que vigilar.
+  void supervisarBotApagado(controller.signal);
 }

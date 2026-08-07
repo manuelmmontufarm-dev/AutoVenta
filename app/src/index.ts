@@ -4,7 +4,8 @@
  */
 import { config } from "./config.js";
 import { createServer } from "./server/webhook.js";
-import { initWa, setWaHandlers, sendCustomerText, showTyping } from "./wa/client.js";
+import { initWa, setWaHandlers, sendCustomerText, showTyping, downloadMedia } from "./wa/client.js";
+import { describirFotoDeLlanta } from "./services/vision.js";
 import { getPublicChannelConfig } from "./services/channel.js";
 import { getPhaseFlags, activeLevel } from "./services/phases.js";
 import { InboundPipeline } from "./pipeline/inbound.js";
@@ -193,16 +194,28 @@ setWaHandlers({
           receivedAt,
         );
         break;
-      case "image":
-        // Fase 2: bajar la imagen y pasarla a la visión del modelo (leer medida de la foto)
+      case "image": {
+        // La foto se transcribe y entra como texto normal: el debounce la junta
+        // con lo que el cliente escriba alrededor y extractTireSizes le saca la
+        // medida sola. El ack a Meta ya salió arriba (received()), así que el
+        // await de la descarga+visión no arriesga un reintento del webhook.
+        const media = await downloadMedia(message.image.id);
+        const leido = media ? await describirFotoDeLlanta(media.bytes, media.mimeType) : null;
+        // El caption es lo que el cliente ESCRIBIÓ junto a la foto («Esa llanta
+        // mi amigo, a como me da») — perderlo era perder la pregunta.
+        const caption = message.image.caption?.trim();
+        const cuerpo = leido
+          ? `[El cliente mandó una foto. Se lee: ${leido}]`
+          : "[El cliente mandó una foto que no se pudo leer. Pídele con amabilidad que escriba lo que dice el costado de la llanta.]";
         await recibirMensaje(
           from,
           name,
-          "[El cliente envió una foto que todavía no puedes ver]",
+          caption ? `${cuerpo}\n${caption}` : cuerpo,
           message.id,
           receivedAt,
         );
         break;
+      }
       case "audio":
         await recibirMensaje(
           from,
