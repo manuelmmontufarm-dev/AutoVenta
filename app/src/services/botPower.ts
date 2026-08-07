@@ -92,16 +92,40 @@ export async function isBotActive(): Promise<boolean> {
   return (await getBotPower()).activo;
 }
 
+/**
+ * Lo que el panel PUEDE mandar, y nada más.
+ *
+ * NO es `BotPowerSchema.partial()`: en zod 4 `.partial()` deja vivos los
+ * `.default()`, así que un `{ motivo: "x" }` volvía con `activo: true` metido
+ * de contrabando y **encendía el bot** en una llamada que solo quería corregir
+ * la nota. Con campos opcionales de verdad, «no vino» sigue siendo `undefined`
+ * y se distingue de «vino vacío».
+ *
+ * `apagadoAt` no está a propósito: la marca la pone el servidor (ver abajo).
+ */
+const BotPowerInputSchema = z.object({
+  activo: z.boolean().optional(),
+  motivo: z.string().max(200).optional(),
+});
+
 export async function setBotPower(input: unknown): Promise<BotPower> {
-  const partial = BotPowerSchema.partial().parse(input ?? {});
+  const partial = BotPowerInputSchema.parse(input ?? {});
   const current = await getBotPower();
   const activo = partial.activo ?? current.activo;
   const next: BotPower = {
     activo,
     // La marca de tiempo la pone el servidor, no el cliente: es lo que se
-    // muestra en el panel como «apagado desde…».
+    // muestra en el panel como «apagado desde…». Reapagar algo ya apagado
+    // conserva la marca del primer apagado: lo que importa es desde cuándo el
+    // negocio está mudo, no la última vez que alguien tocó el botón.
     apagadoAt: activo ? null : (current.activo ? new Date().toISOString() : current.apagadoAt),
-    motivo: activo ? "" : (partial.motivo ?? current.motivo),
+    // El motivo describe el estado ACTUAL, no solo el apagado. Antes se borraba
+    // al encender, y por eso «ya está el catálogo» o «terminé de probar» se
+    // perdían: el panel y el aviso a los asesores solo podían explicar por qué
+    // se había apagado, nunca por qué se volvió a encender. Sin motivo nuevo se
+    // conserva el de antes SOLO si el estado no cambió; en un cambio de estado
+    // el motivo viejo describía la situación contraria y sería una mentira.
+    motivo: partial.motivo ?? (activo === current.activo ? current.motivo : ""),
   };
   await sql`
     insert into settings (key, value)

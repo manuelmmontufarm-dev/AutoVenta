@@ -34,6 +34,7 @@ export class MockSource implements DataSource {
   private nextTicketId = 100;
   private nextMsgId = 10_000;
   private nextFeedId = 100;
+  private power: BotPower = { activo: true, apagadoAt: null, motivo: "" };
 
   constructor() {
     for (const t of TICKETS_SEED) this.tickets.set(t.id, { ...t, notas: [...t.notas] });
@@ -52,13 +53,19 @@ export class MockSource implements DataSource {
     return { fase2: true, fase3: true, fase4: true };
   }
 
-  /** En el demo el bot siempre contesta: no hay clientes reales que proteger. */
+  /** El demo arranca con el bot contestando: no hay clientes reales que proteger. */
   async getBotPower(): Promise<BotPower> {
-    return { activo: true, apagadoAt: null, motivo: "" };
+    return { ...this.power };
   }
 
-  async setBotPower(activo: boolean): Promise<BotPower> {
-    return { activo, apagadoAt: null, motivo: "" };
+  /**
+   * Espeja el contrato del backend en vez de devolver un estado fijo: el motivo
+   * describe el estado ACTUAL (no se borra al encender) y la fecha solo existe
+   * mientras está apagado. Sin esto el demo no sirve para ver el interruptor.
+   */
+  async setBotPower(activo: boolean, motivo = ""): Promise<BotPower> {
+    this.power = { activo, apagadoAt: activo ? null : new Date().toISOString(), motivo };
+    return { ...this.power };
   }
 
   async listTickets(): Promise<Ticket[]> {

@@ -570,6 +570,13 @@ function downloadPlaybook() {
 }
 
 /**
+ * Lo que pone el backend cuando la instalación nace apagada
+ * (app/src/services/botPower.ts). No es un motivo de verdad: es una frase que
+ * solo tiene sentido con el bot apagado, y encendido sonaría a contradicción.
+ */
+const MOTIVO_NUNCA_ENCENDIDO = "Nunca se ha encendido en este servidor";
+
+/**
  * Interruptor de emergencia. Va arriba de todo y fuera de las pestañas: cuando
  * hace falta apagar el bot, hace falta ya, y nadie debería tener que acordarse
  * de en qué pestaña estaba.
@@ -578,14 +585,19 @@ function downloadPlaybook() {
  * el aviso de la cabecera, y dos copias podrían contradecirse justo en lo único
  * que no admite ambigüedad — si el bot le está escribiendo a clientes o no.
  *
- * Apagar pide confirmación (afecta a clientes reales en el acto); encender no.
+ * Las DOS acciones piden un motivo: cada cambio le manda un WhatsApp a los
+ * asesores con lo que se escriba aquí, así que encender sin decir por qué deja
+ * a quien recibe el aviso adivinando. El motivo sigue siendo opcional — apagar
+ * es un botón de emergencia y nada puede interponerse.
  */
 export function BotPowerSwitch() {
   const power = useHub((s) => s.power);
   const cambiarPower = useHub((s) => s.cambiarPower);
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState("");
-  const [confirmando, setConfirmando] = useState(false);
+  // Una sola confirmación para las dos acciones: son el mismo gesto (avisar por
+  // qué) y duplicar estado invita a que se queden los dos abiertos a la vez.
+  const [confirmando, setConfirmando] = useState<"on" | "off" | null>(null);
   const [motivo, setMotivo] = useState("");
 
   async function cambiar(activo: boolean) {
@@ -593,7 +605,7 @@ export function BotPowerSwitch() {
     setError("");
     try {
       await cambiarPower(activo, motivo.trim());
-      setConfirmando(false);
+      setConfirmando(null);
       setMotivo("");
     } catch (e) {
       setError(e instanceof Error ? e.message : "No se pudo cambiar");
@@ -603,6 +615,8 @@ export function BotPowerSwitch() {
   }
 
   const apagado = !power.activo;
+  const encendiendo = confirmando === "on";
+  const colorAccion = encendiendo ? "var(--color-green, #2a9d8f)" : "var(--color-red)";
 
   return (
     <div
@@ -632,7 +646,15 @@ export function BotPowerSwitch() {
                 )}
               </>
             ) : (
-              "Contesta a los clientes y envía los seguimientos programados."
+              <>
+                Contesta a los clientes y envía los seguimientos programados.
+                {/* El motivo ya no se borra al encender: describe el estado
+                    ACTUAL, así que también hay algo que contar cuando el bot
+                    trabaja ("ya está el catálogo"). Se descarta el texto del
+                    servidor recién instalado: encendido diría lo contrario de
+                    lo que se ve. */}
+                {power.motivo && power.motivo !== MOTIVO_NUNCA_ENCENDIDO && <> · Motivo: {power.motivo}</>}
+              </>
             )}
           </p>
         </div>
@@ -640,16 +662,16 @@ export function BotPowerSwitch() {
         {apagado ? (
           <button
             disabled={guardando}
-            onClick={() => void cambiar(true)}
+            onClick={() => setConfirmando("on")}
             className="rounded-2xl px-5 py-3 text-xs font-black text-white disabled:opacity-50"
             style={{ background: "var(--color-green, #2a9d8f)" }}
           >
-            {guardando ? "Encendiendo…" : "Encender el bot"}
+            Encender el bot
           </button>
         ) : (
           <button
             disabled={guardando}
-            onClick={() => setConfirmando(true)}
+            onClick={() => setConfirmando("off")}
             className="rounded-2xl border-2 px-5 py-3 text-xs font-black disabled:opacity-50"
             style={{ borderColor: "var(--color-red)", color: "var(--color-red)" }}
           >
@@ -659,31 +681,58 @@ export function BotPowerSwitch() {
       </div>
 
       {confirmando && (
-        <div className="mt-4 rounded-2xl border-2 p-4" style={{ borderColor: "var(--color-red)" }}>
-          <p className="text-xs font-black">¿Apagar el bot para todos los clientes?</p>
+        <div className="mt-4 rounded-2xl border-2 p-4" style={{ borderColor: colorAccion }}>
+          {/* Apagar es una emergencia y avisa del daño; encender es volver a la
+              normalidad y solo pregunta por qué. Mismo bloque, distinto tono. */}
+          <p className="text-xs font-black">
+            {encendiendo ? "¿Por qué se vuelve a encender?" : "¿Apagar el bot para todos los clientes?"}
+          </p>
           <p className="mt-1 text-xs text-muted">
-            Deja de responder <strong>en el acto</strong>. Quien escriba no recibirá respuesta hasta
-            que alguien conteste a mano o lo vuelvas a encender.
+            {encendiendo ? (
+              <>
+                Vuelve a contestar solo y a mandar los seguimientos programados.
+              </>
+            ) : (
+              <>
+                Deja de responder <strong>en el acto</strong>. Quien escriba no recibirá respuesta hasta
+                que alguien conteste a mano o lo vuelvas a encender.
+              </>
+            )}
           </p>
           <input
             value={motivo}
             onChange={(event) => setMotivo(event.target.value)}
-            placeholder="Motivo (opcional): catálogo desactualizado, pruebas…"
+            placeholder={
+              encendiendo
+                ? "Motivo (opcional): ya está el catálogo, terminé de probar…"
+                : "Motivo (opcional): catálogo desactualizado, pruebas…"
+            }
             maxLength={200}
             className="settings-input mt-3"
           />
+          {/* Que el dueño sepa que esto no se queda en el panel: lo que escriba
+              lo va a leer un asesor en su teléfono. */}
+          <p className="mt-2 text-[11px] text-faint">
+            Se le avisa a los asesores por WhatsApp con este motivo.
+          </p>
           <div className="mt-3 flex flex-wrap gap-2">
             <button
               disabled={guardando}
-              onClick={() => void cambiar(false)}
+              onClick={() => void cambiar(encendiendo)}
               className="rounded-2xl px-5 py-3 text-xs font-black text-white disabled:opacity-50"
-              style={{ background: "var(--color-red)" }}
+              style={{ background: colorAccion }}
             >
-              {guardando ? "Apagando…" : "Sí, apagar"}
+              {encendiendo
+                ? guardando
+                  ? "Encendiendo…"
+                  : "Encender el bot"
+                : guardando
+                  ? "Apagando…"
+                  : "Sí, apagar"}
             </button>
             <button
               onClick={() => {
-                setConfirmando(false);
+                setConfirmando(null);
                 setMotivo("");
               }}
               className="rounded-2xl px-5 py-3 text-xs font-black"

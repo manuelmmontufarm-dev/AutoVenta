@@ -224,11 +224,17 @@ export class RealSource implements DataSource {
     return (await this.request<{ power: BotPower }>("/api/bot-power")).power;
   }
 
+  /**
+   * El motivo se manda tal cual en las dos direcciones. Antes se vaciaba al
+   * encender, cuando solo describía por qué estaba apagado; ahora describe el
+   * estado ACTUAL y además viaja en el WhatsApp que reciben los asesores, así
+   * que borrarlo aquí sería mandar un aviso mudo.
+   */
   async setBotPower(activo: boolean, motivo = ""): Promise<BotPower> {
     return (
       await this.request<{ power: BotPower }>("/api/bot-power", {
         method: "PUT",
-        body: JSON.stringify({ activo, motivo: activo ? "" : motivo }),
+        body: JSON.stringify({ activo, motivo }),
       })
     ).power;
   }

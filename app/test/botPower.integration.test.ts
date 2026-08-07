@@ -102,7 +102,7 @@ describe.sequential("Interruptor global del bot", () => {
     });
   });
 
-  it("apagar guarda la marca de tiempo y el motivo; encender los limpia", async () => {
+  it("apagar guarda la marca de tiempo y el motivo; encender sin motivo los limpia", async () => {
     const apagado = await botPower.setBotPower({ activo: false, motivo: "catálogo desactualizado" });
     expect(apagado.activo).toBe(false);
     expect(apagado.motivo).toBe("catálogo desactualizado");
@@ -111,7 +111,20 @@ describe.sequential("Interruptor global del bot", () => {
     const encendido = await botPower.setBotPower({ activo: true });
     expect(encendido.activo).toBe(true);
     expect(encendido.apagadoAt).toBeNull();
+    // Sin motivo nuevo no se arrastra el del apagado: describiría lo contrario.
     expect(encendido.motivo).toBe("");
+  });
+
+  /**
+   * El motivo describe el estado ACTUAL, no solo el apagado. Antes se borraba
+   * al encender y el aviso a los asesores («ya está el catálogo») se quedaba
+   * sin nada que contar.
+   */
+  it("encender CON motivo lo conserva", async () => {
+    await botPower.setBotPower({ activo: false, motivo: "probando" });
+    const encendido = await botPower.setBotPower({ activo: true, motivo: "ya está el catálogo" });
+    expect(encendido.motivo).toBe("ya está el catálogo");
+    expect(encendido.apagadoAt).toBeNull();
   });
 
   it("apagar dos veces no mueve la marca del primer apagado", async () => {

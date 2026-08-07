@@ -121,7 +121,11 @@ async function vigilarBotApagado(): Promise<void> {
     (Date.now() - new Date(estado.apagadoAt).getTime()) / 3_600_000,
   );
   const resumen = `El bot está APAGADO y ${esperando.length} clientes escribieron sin respuesta`;
-  const razon = `Apagado desde ${estado.apagadoAt} (${horas} h). ${esperando.length} conversaciones tienen un mensaje del cliente como último mensaje.`;
+  // El motivo que escribió quien lo apagó va en el recordatorio: sin él, a las
+  // 3 horas nadie se acuerda de si fue por pruebas o por catálogo desactualizado
+  // — y esa es justo la información que decide si ya se puede volver a prender.
+  const porQue = estado.motivo ? ` Motivo del apagado: «${estado.motivo}».` : "";
+  const razon = `Apagado desde ${estado.apagadoAt} (${horas} h).${porQue} ${esperando.length} conversaciones tienen un mensaje del cliente como último mensaje.`;
   const accion = "Enciende el bot desde el panel o contesta a mano esas conversaciones.";
 
   await createBotAlert({

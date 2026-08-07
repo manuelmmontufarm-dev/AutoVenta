@@ -32,6 +32,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-08-07 | _(este mismo)_ | Aviso por WhatsApp al asesor cada vez que se prende o apaga el bot, con el motivo | 1.5 |
 | 2026-08-06 | _(este mismo)_ | Si no es un NO es un SÍ + leer fotos + candados de opciones + watchdog de bot apagado | 4.0 |
 | 2026-08-06 | _(este mismo)_ | Cadena más corta al mandar opciones + llantas grandes en la pieza + la KR50 deja de salir invisible | 1.5 |
 | 2026-08-06 | _(este mismo)_ | Favicon como archivo para la tarjeta de Vercel | 0.25 |
@@ -91,6 +92,37 @@ Ya viene activado en este equipo.
 ---
 
 ## Entradas (más reciente primero)
+
+### 2026-08-07 · El interruptor del bot avisa por WhatsApp, con el motivo · ⏱️ 1.5 h
+
+**Qué:** mover el interruptor global (prender o apagar) ahora le manda un WhatsApp a todos los
+asesores activos con el motivo que se escribió en el panel. Antes no avisaba nada: el 6-ago el bot
+quedó apagado a las 13:16 y a las 19 horas seguían entrando mensajes al vacío.
+
+- `advisorNotifications.ts`: `mensajeCambioDeBot()` (pura, testeable con hora fija) arma el texto —
+  qué pasó, qué implica, el motivo o «sin motivo anotado», cuánto duró el apagón al encender, y la
+  hora de Guayaquil. `avisarAsesoresGlobal()` lo manda a cada asesor sin exigir conversación:
+  `notifyAdvisor` no servía porque `advisor_notifications.conversation_id` es `not null`, y un
+  evento global no tiene conversación a la que colgarse (queda `console.log` como rastro).
+- `admin.ts` (`PUT /bot-power`): lee el estado anterior, guarda, y solo si `activo` cambió de verdad
+  dispara el aviso en segundo plano — un WhatsApp caído no puede frenar un apagado de emergencia.
+- **Bug latente encontrado y corregido:** `setBotPower` usaba `BotPowerSchema.partial()`, y en zod 4
+  `.partial()` NO desactiva los `.default()`. Un `PUT {motivo:"x"}` volvía con `activo:true` de
+  contrabando y **encendía el bot**. Ahora hay un `BotPowerInputSchema` con opcionales de verdad.
+- **Segundo bug, en el hub:** `realSource.setBotPower` mandaba `motivo: activo ? "" : motivo`,
+  o sea borraba el motivo justo al encender — el aviso habría salido mudo la mitad de las veces.
+- El motivo pasa a describir el estado ACTUAL (ya no se borra al encender) y el panel lo muestra
+  también con el bot trabajando. Encender ahora pide motivo igual que apagar, en verde y con otro
+  tono, y ambos bloques avisan que lo escrito se le manda a los asesores por WhatsApp.
+- El watchdog del apagón también incluye ahora el motivo en su recordatorio horario.
+
+**Verificación:** 244 tests en verde (19 nuevos), `tsc` limpio, hub reconstruido y copiado a
+`app/site/admin`. El test del endpoint se validó por mutación (romper la comparación de estado o la
+marca de `apagadoAt` lo hace fallar), y los dos flujos del panel se probaron en el navegador.
+
+**Dato de producción:** el watchdog desplegado anoche lleva 10 alertas enviadas, una por hora, y la
+última reporta el bot apagado 19 h con 33 clientes sin respuesta — 9 de ellos con la medida ya
+confirmada. La pieza funciona; falta que alguien prenda el bot.
 
 ### 2026-08-06 · Si no es un NO es un SÍ + leer fotos + candados de opciones + watchdog · ⏱️ 4.0 h
 

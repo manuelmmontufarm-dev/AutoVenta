@@ -46,6 +46,107 @@ export function buildAdvisorMessage(input: AdvisorNotificationInput & {
   ].join("\n");
 }
 
+/** Hora corta de Guayaquil: el asesor lee esto en el celular, no un ISO. */
+function horaEcuador(fecha: Date): string {
+  return new Intl.DateTimeFormat("es-EC", {
+    day: "numeric", month: "short", hour: "2-digit", minute: "2-digit",
+    hour12: false, timeZone: "America/Guayaquil",
+  }).format(fecha);
+}
+
+/** «8 h 12 min», «12 min», «menos de 1 min». Redondear a horas se queda corto. */
+function duracion(desde: Date, hasta: Date): string {
+  const minutos = Math.max(0, Math.floor((hasta.getTime() - desde.getTime()) / 60_000));
+  if (minutos < 1) return "menos de 1 min";
+  const horas = Math.floor(minutos / 60);
+  const resto = minutos % 60;
+  if (!horas) return `${minutos} min`;
+  return resto ? `${horas} h ${resto} min` : `${horas} h`;
+}
+
+/**
+ * Texto del aviso cuando alguien mueve el interruptor global desde el panel.
+ *
+ * Pura a propósito: el mensaje es lo único que el asesor va a ver y tiene que
+ * poder probarse con una hora fija, sin DB ni reloj. El 6-ago el bot pasó 8
+ * horas apagado sin que nadie se enterara, así que el texto se lee de un
+ * vistazo: qué pasó, qué implica y desde cuándo.
+ */
+export function mensajeCambioDeBot(input: {
+  activo: boolean;
+  motivo: string;
+  apagadoAt: string | null;
+  ahora?: Date;
+}): string {
+  const ahora = input.ahora ?? new Date();
+  const motivo = input.motivo.trim();
+  const lineas = input.activo
+    ? [
+        "🟢 *Bot ENCENDIDO*",
+        "✅ Vuelve a contestar a los clientes y a mandar seguimientos.",
+      ]
+    : [
+        "🔴 *Bot APAGADO*",
+        "⚠️ Los clientes que escriban NO reciben respuesta hasta que alguien conteste a mano.",
+      ];
+  lineas.push(motivo ? `📝 Motivo: ${motivo}` : "📝 Sin motivo anotado");
+  // Solo al encender: cuánto duró el apagón es el dato que faltó el 6-ago.
+  if (input.activo && input.apagadoAt) {
+    const desde = new Date(input.apagadoAt);
+    if (!Number.isNaN(desde.getTime())) {
+      lineas.push(`⏱️ Estuvo apagado ${duracion(desde, ahora)}`);
+    }
+  }
+  lineas.push(`🕒 ${horaEcuador(ahora)}`);
+  return lineas.join("\n");
+}
+
+/**
+ * Aviso a TODOS los asesores sin conversación de por medio.
+ *
+ * `notifyAdvisor` no sirve para esto: exige un `conversationId` que exista, y
+ * apagar el bot es un evento global. Tampoco se registra en
+ * `advisor_notifications` ni en `bot_alerts` porque en ambas
+ * `conversation_id` es `not null references conversations(id)`: no hay fila
+ * legítima a la que colgar el evento e inventar una conversación falsa
+ * ensuciaría el hub. Queda el `console.log` como rastro; si algún día hace
+ * falta auditoría, toca una migración que permita eventos sin conversación.
+ *
+ * NUNCA lanza: quien la llama está apagando el bot, y un WhatsApp caído no
+ * puede impedir un apagado de emergencia.
+ */
+export async function avisarAsesoresGlobal(texto: string): Promise<{
+  enviados: number;
+  error?: string;
+}> {
+  try {
+    const destinatarios = await asesoresActivos();
+    if (!destinatarios.length) {
+      console.log("📣 Aviso global sin destino: no hay asesores activos configurados");
+      return { enviados: 0, error: "No hay asesores activos configurados" };
+    }
+    let enviados = 0;
+    let ultimoError: string | undefined;
+    // Cada asesor se cobra aparte, como en notifyAdvisor: que a uno le falle no
+    // puede dejar sin aviso a los demás.
+    for (const destino of destinatarios) {
+      try {
+        await sendAdvisorText(texto, destino.telefono);
+        enviados += 1;
+      } catch (error) {
+        ultimoError = error instanceof Error ? error.message : String(error);
+        console.error(`⚠️ Aviso global no salió para ${destino.nombre}:`, ultimoError);
+      }
+    }
+    console.log(`📣 Aviso global enviado a ${enviados}/${destinatarios.length} asesores`);
+    return enviados ? { enviados } : { enviados, error: ultimoError };
+  } catch (error) {
+    const razon = error instanceof Error ? error.message : String(error);
+    console.error("⚠️ Aviso global falló por completo:", razon);
+    return { enviados: 0, error: razon };
+  }
+}
+
 /**
  * Envía una sola vez por evento lógico. Si Meta falla, el error queda visible
  * en Alertas del bot y un segundo procesamiento puede reintentar hasta 3 veces.

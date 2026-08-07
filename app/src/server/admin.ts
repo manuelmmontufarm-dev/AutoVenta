@@ -90,6 +90,7 @@ import {
 } from "../services/channel.js";
 import { diagnoseChannel } from "../services/channelDiagnostics.js";
 import { getBotPower, setBotPower } from "../services/botPower.js";
+import { avisarAsesoresGlobal, mensajeCambioDeBot } from "../services/advisorNotifications.js";
 import { sendImage, reloadWa } from "../wa/client.js";
 
 const GRAPH = "https://graph.facebook.com/v21.0";
@@ -258,9 +259,34 @@ export function createAdminRouter(): express.Router {
 
   router.put("/bot-power", async (req, res) => {
     try {
+      // El estado ANTERIOR se lee aquí y no dentro de setBotPower: el aviso a
+      // los asesores cuelga de esta ruta porque aquí hay una persona tocando el
+      // panel. A setBotPower también lo llaman las semillas y las pruebas, y
+      // nadie quiere un WhatsApp por cada una.
+      const previo = await getBotPower();
       const power = await setBotPower(req.body);
       // El hub pinta el estado en la cabecera: que se entere sin recargar.
       emitLiveEvent("sync");
+      // Solo si el interruptor cambió de verdad: reguardar el mismo estado (o
+      // corregir un motivo) no es noticia y quemaría la confianza en el aviso.
+      if (power.activo !== previo.activo) {
+        const texto = mensajeCambioDeBot({
+          activo: power.activo,
+          motivo: power.motivo,
+          // Al encender, apagadoAt ya viene en null: la duración del apagón
+          // sale de la marca ANTERIOR, que es la que sabe desde cuándo estuvo mudo.
+          apagadoAt: power.activo ? previo.apagadoAt : power.apagadoAt,
+        });
+        // En segundo plano, igual que las alertas del guardián de salida: apagar
+        // el bot es una emergencia y un WhatsApp caído no puede frenarla ni
+        // romper la respuesta HTTP.
+        void (async () => {
+          const salida = await avisarAsesoresGlobal(texto);
+          if (salida.error) console.warn("⚠️ Aviso de interruptor incompleto:", salida.error);
+        })().catch((error) => {
+          console.warn("⚠️ No se pudo avisar del interruptor:", error instanceof Error ? error.message : error);
+        });
+      }
       res.json({ ok: true, power });
     } catch (error) {
       res.status(400).json({
