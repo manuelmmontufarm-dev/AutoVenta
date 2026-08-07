@@ -1,11 +1,14 @@
 /**
  * Servidor HTTP: webhook de Meta + healthcheck + hub estático.
  * La verificación de firma (x-hub-signature-256) y el challenge GET los maneja
- * whatsapp-api-js internamente (handle_post / handle_get).
+ * whatsapp-api-js internamente (handle_post / handle_get). La excepción son los
+ * ecos de mensajes salientes, que la librería no despacha: los atiende
+ * `handleEchoWebhook`, que valida la misma firma por su cuenta antes de escribir.
  */
 import express from "express";
 import { fileURLToPath } from "node:url";
 import { getWa } from "../wa/client.js";
+import { handleEchoWebhook } from "../wa/echoes.js";
 import { sql } from "../db/client.js";
 import { catalogStatus, searchBySize } from "../services/catalog.js";
 import {
@@ -34,6 +37,13 @@ export function createServer(): express.Express {
     // Canal aún sin configurar: 200 para que Meta no reintente en bucle.
     if (!wa) {
       res.sendStatus(200);
+      return;
+    }
+    // Los ecos van antes: whatsapp-api-js solo despacha `messages` y `calls`, y
+    // tiraba a la basura lo que el asesor escribía desde WhatsApp (ticket 1286).
+    const eco = await handleEchoWebhook(String(req.body ?? ""), req.header("x-hub-signature-256"));
+    if (eco.handled) {
+      res.sendStatus(eco.status);
       return;
     }
     res.sendStatus(await wa.handle_post(req));

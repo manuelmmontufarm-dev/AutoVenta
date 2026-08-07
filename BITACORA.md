@@ -32,6 +32,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-08-07 | _(este mismo)_ | Lo que el asesor escribe desde WhatsApp ya entra al panel y al historial del bot | 2.0 |
 | 2026-08-07 | _(este mismo)_ | El aro solo ya basta: se acabó el «no tengo medida verificada» sin ofrecer nada | 0.5 |
 | 2026-08-07 | _(este mismo)_ | Aviso por WhatsApp al asesor cada vez que se prende o apaga el bot, con el motivo | 1.5 |
 | 2026-08-06 | _(este mismo)_ | Si no es un NO es un SÍ + leer fotos + candados de opciones + watchdog de bot apagado | 4.0 |
@@ -93,6 +94,56 @@ Ya viene activado en este equipo.
 ---
 
 ## Entradas (más reciente primero)
+
+### 2026-08-07 · Lo que el asesor escribe desde WhatsApp entra al panel · ⏱️ 2.0 h
+
+**De dónde sale:** Manuel reportó que «no salen los mensajes que mandamos nosotros en los chats»,
+con el ticket 1286 (Rodrigo Villamarín) a la vista.
+
+**Qué se encontró.** El panel pinta bien: 15 burbujas salientes, estilo visible, tema `showroom-gp`
+correcto. El problema no era de render sino de datos. En ese ticket el cliente mandó **20 mensajes
+seguidos** (16:18 → 16:29 UTC) sin una sola respuesta guardada, pero sus propios mensajes delataban
+que alguien le estaba contestando: «Ok muchísimas gracias» justo después de pedir las ubicaciones,
+«Es una camioneta Rely R8» después de que alguien preguntara el vehículo, «Ok mi nombre es Rodrigo
+Villamarín» después de que alguien le pidiera el nombre. El asesor le respondía **desde WhatsApp**,
+no desde el panel, y para el sistema esa conversación estaba muda.
+
+**Causa raíz:** `whatsapp-api-js` solo despacha `field === "messages"` y `"calls"` (ver `post()` en
+`lib/index.js`). Los campos `message_echoes` y `smb_message_echoes` —la copia que Meta manda de lo
+que el negocio envía por fuera de nuestra API— se descartaban en silencio. Costaba tres cosas:
+
+1. El panel mostraba conversaciones que parecían abandonadas (y la auditoría las contaba como
+   `sin_respuesta_del_bot`, inflando la métrica con falsos positivos).
+2. **El agente no veía lo que el humano ya había dicho**, así que al retomar repetía preguntas y
+   reenviaba cotizaciones — la misma familia de fallas que reportó Joaquín esta mañana.
+3. Nadie podía auditar lo que se le prometió al cliente a mano.
+
+**El arreglo:**
+
+- `domain/echoPayload.ts` (puro, probable sin base): reconoce el payload, valida la firma
+  `x-hub-signature-256` con el app secret, extrae los ecos y traduce tipo y contenido. Un eco sin
+  texto se guarda como «[el asesor envió una imagen]» y no en blanco: en blanco el agente cree que
+  ahí no pasó nada y vuelve a preguntar.
+- `wa/echoes.ts` + gancho en `server/webhook.ts` **antes** de `handle_post`: guarda el eco como
+  saliente de `owner` (el panel lo pinta como «Vendedor») y pasa la conversación a control humano
+  para que el bot no hable encima del asesor.
+- `wa/outboundRegistry.ts`: registra los `wamid` que este proceso mandó, en cuanto la Graph API
+  devuelve el id. Sin esto, el eco de nuestra propia respuesta llegaría antes de que termine su
+  `appendMessage` y pausaría el bot por su propio mensaje. Cableado en `graphSend` y en
+  `sendTextDetailed`. La deduplicación definitiva sigue siendo el `unique` de `wa_message_id`.
+- `channelDiagnostics.ts`: chequeo nuevo **«Respuestas del asesor desde WhatsApp»**, porque lo único
+  que no se puede arreglar desde el código es la casilla en Meta.
+
+**Verificación:** `tsc` limpio; **270 tests en verde** (23 nuevos), incluidos 9 de cableado contra
+Postgres real que confirman que el mensaje del asesor sale por `getHubMessages` como `rol:vendedor`
+(lo que el panel dibuja), que entra a `getHistory` (lo que lee el agente), que una reentrega de Meta
+no duplica la burbuja, que una firma inválida no escribe nada, y que el eco propio no provoca
+handoff. En producción se comprobó además que el render ya funcionaba, con datos reales del 1286.
+
+**Falta un paso que no es código:** en Meta → la app → WhatsApp → Configuración → Webhook →
+«Administrar» hay que marcar `message_echoes` (y `smb_message_echoes` si el número también se usa
+desde la app de WhatsApp Business). Sin esa casilla Meta no manda la copia y no hay nada que
+guardar. El chequeo nuevo del panel dice en rojo si falta.
 
 ### 2026-08-07 · El aro solo ya basta para mostrar opciones · ⏱️ 0.5 h
 

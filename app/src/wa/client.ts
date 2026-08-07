@@ -14,6 +14,7 @@ import { WhatsAppAPI } from "whatsapp-api-js/middleware/express";
 import { config } from "../config.js";
 import { getChannelConfig, type ChannelConfig } from "../services/channel.js";
 import { assertConversationOutbound } from "../services/whatsappPolicy.js";
+import { registrarEnviado } from "./outboundRegistry.js";
 
 const GRAPH = config.whatsapp.graphBaseUrl;
 // Si alguien apunta el bot a un host que no es Meta, tiene que verse en el log
@@ -169,7 +170,12 @@ async function graphSend(
       messages?: { id?: string }[];
       error?: MetaError;
     };
-    if (response.ok) return data.messages?.[0]?.id;
+    if (response.ok) {
+      // El eco de este mismo mensaje va a volver por el webhook: se registra
+      // ya para no confundirlo con un asesor escribiendo desde WhatsApp.
+      registrarEnviado(data.messages?.[0]?.id);
+      return data.messages?.[0]?.id;
+    }
     if (isPermanent(response.status, data.error?.code)) {
       throw new Error(translateMetaError(data.error, what));
     }

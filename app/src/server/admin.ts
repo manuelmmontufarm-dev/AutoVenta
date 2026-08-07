@@ -92,6 +92,7 @@ import { diagnoseChannel } from "../services/channelDiagnostics.js";
 import { getBotPower, setBotPower } from "../services/botPower.js";
 import { avisarAsesoresGlobal, mensajeCambioDeBot } from "../services/advisorNotifications.js";
 import { sendImage, reloadWa } from "../wa/client.js";
+import { registrarEnviado } from "../wa/outboundRegistry.js";
 
 const GRAPH = "https://graph.facebook.com/v21.0";
 const ADMIN_KEY = process.env.ADMIN_KEY ?? "";
@@ -171,7 +172,12 @@ async function sendTextDetailed(to: string, body: string): Promise<SendResult> {
     error?: { message?: string; code?: number };
   };
 
-  if (r.ok) return { ok: true, id: data.messages?.[0]?.id, status: 200 };
+  if (r.ok) {
+    // Igual que en graphSend: el eco de este envío vuelve por el webhook y no
+    // debe leerse como "un asesor escribió desde WhatsApp".
+    registrarEnviado(data.messages?.[0]?.id);
+    return { ok: true, id: data.messages?.[0]?.id, status: 200 };
+  }
 
   const err = data.error ?? {};
   let hint = err.message || "Error de Meta";

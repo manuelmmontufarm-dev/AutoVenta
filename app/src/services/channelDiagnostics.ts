@@ -23,6 +23,7 @@ export type CheckId =
   | "webhook"
   | "firma"
   | "entrega"
+  | "ecos"
   | "entrante"
   | "vendedor";
 export type CheckEstado = "ok" | "falta" | "error";
@@ -256,6 +257,54 @@ async function comprobarSuscripcion(
 }
 
 /**
+ * ¿Meta nos manda copia de lo que el asesor escribe desde WhatsApp?
+ *
+ * Sin el campo de ecos, un humano puede estar conversando con el cliente y para
+ * el sistema esa conversación está muda: el panel la muestra como abandonada y
+ * el agente, al retomar, repite lo que el humano ya dijo. Es exactamente lo que
+ * pasó en el ticket 1286 del 6-ago. El código ya sabe guardar los ecos; esto
+ * comprueba lo único que no se puede arreglar desde aquí — la casilla en Meta.
+ */
+async function comprobarEcos(appId: string | null, appSecret: string): Promise<ChannelCheck> {
+  const base: Pick<ChannelCheck, "id" | "label"> = {
+    id: "ecos",
+    label: "Respuestas del asesor desde WhatsApp",
+  };
+  const ayuda =
+    "Meta → tu app → WhatsApp → Configuración → Webhook → «Administrar»: marca «message_echoes» (y «smb_message_echoes» si el número también se usa desde la app de WhatsApp Business). Sin eso, lo que el asesor escriba desde el teléfono no entra al panel ni al historial del bot.";
+  if (!appId || !appSecret) {
+    return { ...base, estado: "falta", detalle: "No se puede comprobar sin el token y el app secret.", ayuda };
+  }
+
+  const suscripciones = await graphGet<{
+    data?: { object?: string; fields?: { name?: string }[] }[];
+  }>(`${appId}/subscriptions`, `${appId}|${appSecret}`);
+  if (!suscripciones.ok) {
+    return { ...base, estado: "falta", detalle: "Meta no respondió a la consulta de suscripciones.", ayuda };
+  }
+
+  const campos = (
+    suscripciones.data?.data?.find((s) => s.object === "whatsapp_business_account")?.fields ?? []
+  ).map((c) => c.name);
+  const suscritos = campos.filter((c) => c === "message_echoes" || c === "smb_message_echoes");
+
+  if (suscritos.length === 0) {
+    return {
+      ...base,
+      estado: "error",
+      detalle: "Meta NO manda copia de lo que el asesor escribe desde WhatsApp.",
+      ayuda,
+    };
+  }
+  return {
+    ...base,
+    estado: "ok",
+    detalle: "Lo que el asesor escriba desde WhatsApp entra al panel y al historial del bot.",
+    dato: suscritos.join(" · "),
+  };
+}
+
+/**
  * Corre todos los chequeos. `baseUrl` es el origen público de ESTE servidor
  * (lo arma el router desde la petición) para poder mostrar la URL del webhook.
  */
@@ -442,6 +491,7 @@ export async function diagnoseChannel(baseUrl: string): Promise<ChannelDiagnosis
 
   // ── 5. ¿A dónde entrega Meta? ──────────────────────────────────────────────
   checks.push(await comprobarSuscripcion(appId, channel.appSecret, webhookUrl, secretCorrecto));
+  checks.push(await comprobarEcos(appId, channel.appSecret));
 
   // ── 6. ¿Está entrando algo? ────────────────────────────────────────────────
   // Un inbound viejo no prueba nada: el canal pudo morirse ayer. Por eso el
