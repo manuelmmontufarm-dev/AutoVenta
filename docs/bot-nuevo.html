@@ -1,0 +1,341 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>El bot nuevo · qué cambió y qué lo prueba</title>
+<style>
+  :root{
+    --tinta:#16181d; --suave:#5a6472; --linea:#e3e6ec; --fondo:#fbfcfd; --tarjeta:#fff;
+    --bien:#1a7f4b; --mal:#c1362f; --ojo:#b7791f; --marca:#1f5fa8; --marca2:#7b3fa0;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--fondo);color:var(--tinta);
+    font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    -webkit-font-smoothing:antialiased}
+  .env{max-width:940px;margin:0 auto;padding:0 20px 80px}
+  header{padding:56px 0 32px;border-bottom:3px solid var(--tinta);margin-bottom:40px}
+  h1{font-size:clamp(28px,5vw,42px);line-height:1.15;margin:0 0 12px;letter-spacing:-.02em}
+  .bajada{font-size:19px;color:var(--suave);margin:0;max-width:62ch}
+  .fecha{font-size:13px;text-transform:uppercase;letter-spacing:.09em;color:var(--suave);margin:0 0 18px}
+  h2{font-size:26px;margin:56px 0 8px;letter-spacing:-.01em;padding-top:8px}
+  h2 .num{color:var(--linea);font-size:34px;margin-right:10px;font-weight:800}
+  h3{font-size:18px;margin:30px 0 8px}
+  p{max-width:68ch}
+  .lead{color:var(--suave);max-width:68ch;margin-top:0}
+  .tarjeta{background:var(--tarjeta);border:1px solid var(--linea);border-radius:12px;padding:22px 24px;margin:22px 0}
+  .grid{display:grid;gap:14px}
+  @media(min-width:700px){.g3{grid-template-columns:repeat(3,1fr)}.g2{grid-template-columns:repeat(2,1fr)}}
+  .cifra{background:var(--tarjeta);border:1px solid var(--linea);border-radius:12px;padding:18px 20px}
+  .cifra .n{font-size:34px;font-weight:800;letter-spacing:-.02em;line-height:1.1}
+  .cifra .t{font-size:13px;color:var(--suave);margin-top:4px}
+  .verde{color:var(--bien)} .rojo{color:var(--mal)} .ambar{color:var(--ojo)}
+  table{border-collapse:collapse;width:100%;margin:18px 0;font-size:15px}
+  th,td{text-align:left;padding:11px 12px;border-bottom:1px solid var(--linea);vertical-align:top}
+  th{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--suave);font-weight:700}
+  td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
+  .tabla-envoltorio{overflow-x:auto;-webkit-overflow-scrolling:touch}
+  .semaforo{display:flex;gap:10px;align-items:flex-start;padding:13px 0;border-bottom:1px solid var(--linea)}
+  .semaforo:last-child{border-bottom:0}
+  .punto{flex:0 0 auto;width:11px;height:11px;border-radius:50%;margin-top:7px}
+  .ok{background:var(--bien)} .pendiente{background:var(--ojo)} .no{background:var(--mal)}
+  .cita{border-left:4px solid var(--linea);padding:4px 0 4px 18px;margin:18px 0;color:var(--suave)}
+  code{background:#eef1f5;padding:2px 6px;border-radius:5px;font-size:.88em;
+    font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+  .aviso{background:#fff8e6;border:1px solid #f0dca8;border-left:5px solid var(--ojo);
+    border-radius:10px;padding:18px 22px;margin:24px 0}
+  .aviso strong{color:#7a5310}
+  .bueno{background:#eefaf2;border:1px solid #bfe6cf;border-left:5px solid var(--bien);
+    border-radius:10px;padding:18px 22px;margin:24px 0}
+  figure{margin:26px 0}
+  figcaption{font-size:13.5px;color:var(--suave);margin-top:10px;max-width:66ch}
+  svg{display:block;max-width:100%;height:auto}
+  .leyenda{display:flex;gap:20px;flex-wrap:wrap;font-size:13px;color:var(--suave);margin:6px 0 12px}
+  .llave{display:inline-block;width:11px;height:11px;border-radius:3px;margin-right:6px;vertical-align:-1px}
+  ul{max-width:68ch;padding-left:22px} li{margin:7px 0}
+  .pro::marker{content:"✓  "} .contra::marker{content:"→  "}
+  .pro{color:var(--tinta)} .contra{color:var(--tinta)}
+  footer{margin-top:70px;padding-top:24px;border-top:1px solid var(--linea);font-size:14px;color:var(--suave)}
+  @media (prefers-color-scheme: dark){
+    :root{--tinta:#e8eaef;--suave:#9aa3b2;--linea:#2a2f38;--fondo:#111318;--tarjeta:#171a20;
+      --bien:#4ec27f;--mal:#f0736a;--ojo:#e0aa4a;--marca:#5b9bde;--marca2:#b184d8}
+    code{background:#222731}
+    .aviso{background:#2a2317;border-color:#4a3d22}.aviso strong{color:#e9c67c}
+    .bueno{background:#15251c;border-color:#2c5240}
+  }
+</style>
+</head>
+<body>
+<div class="env">
+
+<header>
+  <p class="fecha">Depot Tire · 7 de agosto de 2026</p>
+  <h1>El bot nuevo:<br>qué cambió y qué lo prueba</h1>
+  <p class="bajada">Se le reprocesaron al bot <strong>273 conversaciones reales</strong> de clientes de Depot
+  —las mismas que ya había contestado— para comparar, mensaje por mensaje, si lo hace mejor.
+  Esto es lo que salió, sin maquillar.</p>
+</header>
+
+<h2><span class="num">0</span>Antes de nada: qué está prendido y qué no</h2>
+<p class="lead">Para que no haya sorpresas, el estado exacto en este momento.</p>
+
+<div class="tarjeta">
+  <div class="semaforo"><span class="punto ok"></span><div><strong>Los precios correctos — YA FUNCIONANDO.</strong>
+    Desplegado y verificado. La llanta del reclamo cotiza $489.14, igual que lo que ve el vendedor.</div></div>
+  <div class="semaforo"><span class="punto ok"></span><div><strong>El código nuevo — YA DESPLEGADO.</strong>
+    Audios, links, fotos, investigación y escalación están en producción. 402 pruebas automáticas en verde.</div></div>
+  <div class="semaforo"><span class="punto pendiente"></span><div><strong>El cerebro nuevo — TODAVÍA APAGADO.</strong>
+    Falta poner las variables de modelo en Railway. Hasta entonces el bot corre con el modelo viejo y barato:
+    tiene los músculos nuevos pero la cabeza vieja.</div></div>
+  <div class="semaforo"><span class="punto pendiente"></span><div><strong>Elegir qué modelo usar — EN CURSO.</strong>
+    Se están comparando tres, del más caro al más barato, para no pagar de más.</div></div>
+  <div class="semaforo"><span class="punto pendiente"></span><div><strong>Precios en vivo del Interbot — FALTA UN USUARIO.</strong>
+    Hoy funciona con una copia de los 373 precios tomada hoy. Con un usuario propio se actualiza solo.</div></div>
+</div>
+
+<h2><span class="num">1</span>Lo que salió de reprocesar 273 conversaciones</h2>
+<p class="lead">Cada mensaje que un cliente escribió de verdad se le volvió a dar al bot nuevo.
+Después, un programa contó los errores con las mismas reglas fijas que se usaron el 5 de agosto,
+para que la comparación sea justa.</p>
+
+<div class="grid g3" style="margin:24px 0">
+  <div class="cifra"><div class="n verde">12 → 0</div><div class="t">Veces que dijo «tuve un problema procesando tu mensaje»</div></div>
+  <div class="cifra"><div class="n verde">185 → 63</div><div class="t">Clientes que escribieron y se quedaron sin respuesta</div></div>
+  <div class="cifra"><div class="n verde">243 → 191</div><div class="t">Conversaciones con algún error</div></div>
+</div>
+
+<figure>
+<svg viewBox="0 0 900 420" role="img" aria-label="Errores antes y después">
+  <text x="0" y="16" font-size="14" font-weight="700" fill="currentColor">Errores contados en las mismas 273 conversaciones</text>
+  <g font-size="13" fill="currentColor">
+    <!-- filas: etiqueta, viejo, nuevo, max -->
+    <g transform="translate(0,44)">
+      <text x="0" y="12">Cliente sin respuesta</text>
+      <rect x="250" y="1" width="500" height="13" fill="#c1362f" opacity=".85"/><text x="758" y="12" font-size="12">185</text>
+      <rect x="250" y="17" width="170" height="13" fill="#1a7f4b"/><text x="428" y="28" font-size="12">63</text>
+    </g>
+    <g transform="translate(0,96)">
+      <text x="0" y="12">Nunca cotizó teniendo la medida</text>
+      <rect x="250" y="1" width="381" height="13" fill="#c1362f" opacity=".85"/><text x="639" y="12" font-size="12">141</text>
+      <rect x="250" y="17" width="378" height="13" fill="#1a7f4b"/><text x="636" y="28" font-size="12">140</text>
+    </g>
+    <g transform="translate(0,148)">
+      <text x="0" y="12">Repitió la misma pregunta</text>
+      <rect x="250" y="1" width="62" height="13" fill="#c1362f" opacity=".85"/><text x="320" y="12" font-size="12">23</text>
+      <rect x="250" y="17" width="27" height="13" fill="#1a7f4b"/><text x="285" y="28" font-size="12">10</text>
+    </g>
+    <g transform="translate(0,200)">
+      <text x="0" y="12">«Tuve un problema procesando»</text>
+      <rect x="250" y="1" width="32" height="13" fill="#c1362f" opacity=".85"/><text x="290" y="12" font-size="12">12</text>
+      <rect x="250" y="17" width="3" height="13" fill="#1a7f4b"/><text x="261" y="28" font-size="12">0</text>
+    </g>
+    <g transform="translate(0,252)">
+      <text x="0" y="12">«No tengo ficha verificada»</text>
+      <rect x="250" y="1" width="22" height="13" fill="#c1362f" opacity=".85"/><text x="280" y="12" font-size="12">8</text>
+      <rect x="250" y="17" width="3" height="13" fill="#1a7f4b"/><text x="261" y="28" font-size="12">1</text>
+    </g>
+    <g transform="translate(0,304)">
+      <text x="0" y="12">Volvió a saludar a mitad del chat</text>
+      <rect x="250" y="1" width="16" height="13" fill="#c1362f" opacity=".85"/><text x="274" y="12" font-size="12">6</text>
+      <rect x="250" y="17" width="3" height="13" fill="#1a7f4b"/><text x="261" y="28" font-size="12">0</text>
+    </g>
+    <g transform="translate(0,356)">
+      <text x="0" y="12">Mandó dos cotizaciones por lo mismo</text>
+      <rect x="250" y="1" width="6" height="13" fill="#c1362f" opacity=".85"/><text x="264" y="12" font-size="12">1</text>
+      <rect x="250" y="17" width="3" height="13" fill="#1a7f4b"/><text x="261" y="28" font-size="12">0</text>
+    </g>
+  </g>
+</svg>
+<div class="leyenda">
+  <span><span class="llave" style="background:#c1362f;opacity:.85"></span>Bot viejo (lo que pasó de verdad)</span>
+  <span><span class="llave" style="background:#1a7f4b"></span>Bot nuevo (mismas conversaciones)</span>
+</div>
+<figcaption>El cambio más grande es el primero: <strong>122 clientes más recibieron respuesta</strong>.
+Antes el bot se quedaba callado y esa venta se moría sola.</figcaption>
+</figure>
+
+<div class="aviso">
+<strong>Un número que parece empeorar, y no empeora.</strong>
+El contador «preguntó teniendo ya la medida» subió de 176 a 211. Al revisar los casos uno por uno:
+<strong>el 80% eran el bot mandando la imagen de opciones</strong> —o sea, vendiendo— y el contador
+las marca como error porque el texto que acompaña la foto termina en pregunta.
+De las 159 marcadas, solo <strong>32 son fricción real</strong>, y casi todas son preguntas de cierre
+del tipo «¿le cotizo la KR608 por juego?».
+<br><br>
+Visto por respuesta enviada, la falla <strong>bajó de 63.8% a 53.0%</strong>. El bot viejo ganaba esa
+estadística quedándose mudo. Hay que arreglar el contador, no el bot.
+</div>
+
+<h2><span class="num">2</span>Los seis cambios, en simple</h2>
+
+<h3>1 · Los precios ahora se leen, no se calculan</h3>
+<p>El bot inventaba el precio a partir del costo, usando un margen fijo copiado a ojo.
+Al cruzar las <strong>362 llantas</strong> que están en los dos sistemas, resultó que Depot
+<strong>no usa una fórmula</strong>: pone el precio llanta por llanta.</p>
+
+<figure>
+<svg viewBox="0 0 900 250" role="img" aria-label="Margen por llanta">
+  <text x="0" y="16" font-size="14" font-weight="700" fill="currentColor">¿Cuánto se le suma al costo? Un grupo por cada margen distinto</text>
+  <g fill="currentColor" font-size="12">
+    <rect x="0" y="40" width="240" height="26" fill="#1f5fa8"/><text x="250" y="58">96 llantas · margen 33% (el que usaba el bot)</text>
+    <rect x="0" y="74" width="112" height="26" fill="#7b3fa0"/><text x="250" y="92">45 llantas · otro margen ← aquí está la del reclamo</text>
+    <rect x="0" y="108" width="105" height="26" fill="#7b3fa0" opacity=".8"/><text x="250" y="126">42 llantas · otro margen</text>
+    <rect x="0" y="142" width="92" height="26" fill="#7b3fa0" opacity=".65"/><text x="250" y="160">37 llantas · otro margen</text>
+    <rect x="0" y="176" width="85" height="26" fill="#7b3fa0" opacity=".5"/><text x="250" y="194">34 llantas · otro margen</text>
+    <rect x="0" y="210" width="240" height="26" fill="#b7791f" opacity=".55"/><text x="250" y="228">108 llantas repartidas en otros 27 márgenes distintos</text>
+  </g>
+</svg>
+<figcaption>El margen del 33% que usaba el bot solo acierta <strong>96 de 362 llantas (27%)</strong>.
+Ninguna fórmula puede acertarle a 32 grupos distintos: hay que leer el precio de donde está.</figcaption>
+</figure>
+
+<div class="bueno">
+<strong>Resultado, verificado con el producto real:</strong> la Falken Wildpeak 315/70R17 pasó de
+cotizarse en <strong>$502.16 a $489.14</strong>, exactamente lo que ve el vendedor en pantalla.
+El juego de 4 baja de $2.008,64 a <strong>$1.956,56</strong>.
+</div>
+
+<h3>2 · Ahora escucha los audios</h3>
+<p>Antes, si un cliente mandaba una nota de voz, el bot contestaba que no podía escucharla.
+En Ecuador la gente manda audios todo el tiempo — cada uno era una venta que se enfriaba.
+Ahora se transcribe y entra igual que un mensaje escrito.</p>
+
+<h3>3 · Ahora entiende los links</h3>
+<p>Si el cliente manda el link de un anuncio, el bot <strong>abre la página, la lee, y además
+mira la foto del anuncio</strong> para saber qué llanta es. Antes veía una dirección web y no entendía nada.</p>
+
+<h3>4 · Lee mejor las fotos… y ya puede pedirlas</h3>
+<p>El bot sabe leer fotos desde el 6 de agosto, pero sus instrucciones todavía le decían
+«nunca pidas fotos, no puedes leerlas». Peor: había un filtro que <strong>borraba la frase</strong>
+si el bot pedía una foto, y encima le mandaba una alerta falsa al asesor por hacer lo correcto.
+Todo eso se corrigió, y ahora la foto la lee un modelo mejor.</p>
+
+<h3>5 · Nunca más se queda sin ofrecer nada</h3>
+<p>El caso que reclamó Joaquín: cliente pide llantas para una Creta 2027 rin 19, y el bot contesta
+«no tengo una medida verificada» y nada más. Se arreglaron dos cosas:</p>
+<ul>
+  <li>El <strong>rin 19</strong> ahora sí llega a la investigación — era el dato que permitía acertar.</li>
+  <li>Se puso un <strong>candado</strong>: si hay stock, la respuesta <em>no puede</em> salir sin opciones.
+  Si no encuentra la medida exacta, ofrece las de ese rin. Si tampoco, las más cercanas. Antes era
+  una súplica en las instrucciones; ahora es una regla del programa que no se puede saltar.</li>
+</ul>
+
+<h3>6 · Cuando se traba, entra un modelo más listo</h3>
+<p>El bot puede dar hasta 8 vueltas buscando datos antes de contestar. Si se traba, antes reintentaba
+<strong>con el mismo modelo que acababa de trabarse</strong> — de ahí salía el «tuve un problema procesando».
+Ahora, a partir de la cuarta vuelta, entra un modelo superior con todo el contexto.</p>
+
+<h2><span class="num">3</span>El descubrimiento que cambió el plan</h2>
+<p class="lead">La idea original era simple: «pongamos un modelo más caro y listo». Se midió, y no era cierto.</p>
+
+<div class="tabla-envoltorio">
+<table>
+  <thead><tr><th>Modelo probado con el caso Creta</th><th>¿Encontró la medida correcta?</th><th>¿Qué le entregó al bot?</th></tr></thead>
+  <tbody>
+    <tr><td>gpt-4o-mini <span style="color:var(--suave)">(el que usa hoy)</span></td>
+      <td class="rojo">No — se inventó una medida vieja</td><td>Un dato falso</td></tr>
+    <tr><td>gpt-4o</td><td class="rojo">No</td><td>Nada</td></tr>
+    <tr><td>gpt-5.4</td><td class="rojo">No</td><td>Nada</td></tr>
+    <tr><td><strong>gpt-5.5</strong></td><td class="ambar"><strong>Sí, la escribió en sus notas</strong></td>
+      <td class="rojo"><strong>Nada — la borró antes de entregarla</strong></td></tr>
+  </tbody>
+</table>
+</div>
+
+<p>El mejor modelo <strong>sí encontró</strong> la medida correcta (235/45R19), pero sus instrucciones decían
+«no adivines» y «prioriza el manual del fabricante», así que se autocensuró y entregó una lista vacía.</p>
+
+<div class="aviso">
+<strong>La lección:</strong> pagar por un modelo más caro no arreglaba nada por sí solo.
+Había que reescribir las instrucciones para que siempre entregue candidatos con su nivel de confianza
+(«esta es muy probable», «esta es una apuesta»). Un vendedor con una medida probable vende;
+uno con una lista vacía, no.
+</div>
+
+<h2><span class="num">4</span>El error que la prueba evitó</h2>
+<p class="lead">Esto por sí solo justificó armar todo el sistema de pruebas.</p>
+<p>Al correr las 273 conversaciones con el modelo nuevo, <strong>fallaron las 461 de 461</strong>:</p>
+<div class="cita">400 · Unsupported parameter: <code>max_tokens</code> is not supported with this model.</div>
+<p>Los modelos nuevos rechazan un parámetro que el bot usaba en sus cinco llamadas.
+Si se hubiera prendido el modelo nuevo en producción sin esta prueba,
+<strong>el bot habría quedado completamente mudo con todos los clientes</strong>, y nadie se habría
+enterado hasta que llamara Joaquín. Ya está corregido.</p>
+
+<h2><span class="num">5</span>Cuánto cuesta</h2>
+<p class="lead">Medido de verdad: 14.108 palabras de entrada por mensaje, sobre las
+4.449 consultas de clientes que Depot recibe al mes.</p>
+
+<figure>
+<svg viewBox="0 0 900 240" role="img" aria-label="Costo mensual por modelo">
+  <text x="0" y="16" font-size="14" font-weight="700" fill="currentColor">Costo al mes, con el descuento por repetición activado</text>
+  <g fill="currentColor" font-size="13">
+    <text x="0" y="58">gpt-4o-mini (hoy)</text>
+    <rect x="210" y="42" width="36" height="22" fill="#5a6472"/><text x="256" y="59" font-weight="700">$6</text>
+    <text x="0" y="102">gpt-5.4-mini</text>
+    <rect x="210" y="86" width="90" height="22" fill="#1f5fa8" opacity=".55"/><text x="310" y="103" font-weight="700">$15</text>
+    <text x="0" y="146">gpt-5.4</text>
+    <rect x="210" y="130" width="300" height="22" fill="#1f5fa8"/><text x="520" y="147" font-weight="700">$50</text>
+    <text x="0" y="190">gpt-5.5 (el más listo)</text>
+    <rect x="210" y="174" width="600" height="22" fill="#7b3fa0"/><text x="820" y="191" font-weight="700">$100</text>
+  </g>
+  <line x1="210" y1="212" x2="810" y2="212" stroke="currentColor" opacity=".25"/>
+  <text x="210" y="230" font-size="12" fill="currentColor" opacity=".7">por mes · 1.234 conversaciones · 4.449 mensajes de clientes</text>
+</svg>
+<figcaption>El «descuento por repetición» (caché) es clave: sin él, gpt-5.4 costaría $163 en vez de $50.
+Funciona porque los clientes de Depot contestan rápido — <strong>3 de cada 4 veces en menos de 4,4 minutos</strong>.</figcaption>
+</figure>
+
+<h2><span class="num">6</span>Lo bueno y lo que cuesta</h2>
+<div class="grid g2">
+  <div class="tarjeta">
+    <h3 style="margin-top:0;color:var(--bien)">A favor</h3>
+    <ul style="padding-left:20px">
+      <li class="pro">Los precios ya coinciden con los del vendedor. Se acabó el riesgo de que un cliente llegue con una cotización equivocada.</li>
+      <li class="pro">122 clientes más reciben respuesta en el mismo periodo.</li>
+      <li class="pro">Desaparecen por completo los mensajes de error, las disculpas repetidas y las cotizaciones dobles.</li>
+      <li class="pro">Entiende audios, links y fotos: tres puertas de entrada que antes se cerraban.</li>
+      <li class="pro">Ya no se queda sin ofrecer nada — está garantizado por programa, no por instrucción.</li>
+      <li class="pro">Queda un sistema de pruebas: cualquier cambio futuro se puede medir contra clientes reales antes de soltarlo.</li>
+    </ul>
+  </div>
+  <div class="tarjeta">
+    <h3 style="margin-top:0;color:var(--ojo)">Lo que cuesta</h3>
+    <ul style="padding-left:20px">
+      <li class="contra"><strong>Precio:</strong> pasa de ~$6 a ~$50 al mes. Es una llanta al mes, pero no es gratis.</li>
+      <li class="contra"><strong>Demora:</strong> el bot tarda más en contestar — de 1,2 a 5,4 segundos. Un cliente puede notarlo.</li>
+      <li class="contra"><strong>Sigue sin cotizar en 140 casos</strong> teniendo la medida. Ese es el trabajo que sigue.</li>
+      <li class="contra"><strong>Los precios son una copia de hoy.</strong> Hasta tener un usuario del Interbot, si Depot cambia precios el bot no se entera.</li>
+      <li class="contra"><strong>Un contador está mal calibrado</strong> y marca como error el mandar opciones. Hay que arreglarlo o la próxima auditoría va a mentir.</li>
+      <li class="contra"><strong>El embudo del panel no está validado</strong>: el clasificador de etapas falló durante la prueba por falta de saldo.</li>
+    </ul>
+  </div>
+</div>
+
+<h2><span class="num">7</span>Qué falta para prenderlo</h2>
+<div class="tarjeta">
+  <div class="semaforo"><span class="punto pendiente"></span><div><strong>1. Elegir modelo.</strong>
+    Se están comparando tres del más caro al más barato, sobre 70 conversaciones reales.
+    Sale una tabla de calidad contra precio contra demora.</div></div>
+  <div class="semaforo"><span class="punto pendiente"></span><div><strong>2. Poner las variables en Railway</strong>
+    (entorno Depot_Tire). Es el interruptor: sin esto el bot sigue con el cerebro viejo.</div></div>
+  <div class="semaforo"><span class="punto pendiente"></span><div><strong>3. Pedirle a Joaquín un usuario del Interbot</strong>
+    para que los precios se actualicen solos.</div></div>
+  <div class="semaforo"><span class="punto pendiente"></span><div><strong>4. Vigilar la primera semana:</strong>
+    demora de respuesta, cola en horas pico, y que el descuento por repetición esté funcionando.</div></div>
+</div>
+
+<footer>
+  <p><strong>Cómo se hicieron estas pruebas.</strong> Se copiaron las 273 conversaciones reales de la base
+  de Depot (solo lectura) y se le volvieron a dar al bot nuevo sobre una base de prueba desechable,
+  con el envío por WhatsApp desconectado: <strong>ningún cliente recibió nada</strong>.
+  Los errores los cuenta un programa con reglas fijas, las mismas del 5 de agosto, para que la
+  comparación sea justa y no dependa de la opinión de nadie.</p>
+  <p>Pendiente de esta versión: la calificación con un evaluador independiente y los 108 turnos que
+  quedaron sin correr por falta de saldo. Los números de arriba salen de <strong>353 turnos reales
+  completados</strong>.</p>
+  <p style="margin-top:18px">Versión del bot <code>07d8be8</code> · 402 pruebas automáticas en verde</p>
+</footer>
+
+</div>
+</body>
+</html>

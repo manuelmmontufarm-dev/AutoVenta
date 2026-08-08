@@ -32,6 +32,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-08-07 | _(este mismo)_ | Escalera de modelos: gpt-5.5 gana midiendo (14 cotizaciones vs 5) + caché verificado | 1.5 |
 | 2026-08-07 | _(este mismo)_ | El bot oye, ve, abre links y ya no se queda sin ofrecer + harness de evaluación | 5.0 |
 | 2026-08-07 | _(este mismo)_ | Precios reales del Interbot (362 llantas cruzadas: no hay fórmula, se lee el precio) | 2.5 |
 | 2026-08-07 | _(este mismo)_ | Lo que el asesor escribe desde WhatsApp ya entra al panel y al historial del bot | 2.0 |
@@ -96,6 +97,49 @@ Ya viene activado en este equipo.
 ---
 
 ## Entradas (más reciente primero)
+
+### 2026-08-07 · Se elige el modelo midiendo, y se enciende en producción · ⏱️ 1.5 h
+
+**De dónde sale:** «subamos el nivel del bot, empecemos por el caro y vamos bajando desde ahí».
+
+**Escalera de modelos.** Se le pasaron las MISMAS 70 conversaciones reales (195 turnos) a
+tres modelos, uno tras otro. Costó ~$6 de API y decidió la arquitectura:
+
+| | gpt-5.5 | gpt-5.4 |
+|---|---|---|
+| **Cotizaciones generadas** | **14** | 5 |
+| Ofreció algo (opciones o cotización) | 79 | 65 |
+| Errores | 0 | 7 |
+| Notificó al vendedor | 12 | 0 |
+| Demora (mediana) | 7,3 s | 3,4 s |
+
+Casi el triple de cotizaciones sobre el mismo tráfico. La recomendación inicial era gpt-5.4
+(más barato y 2× más rápido) y **los datos la voltearon**: a $66/mes de diferencia, una sola
+venta extra la paga. Queda `OPENAI_MODEL=gpt-5.5` en Railway (`Depot_Tire`), con
+`RESEARCH`/`VISION`/`ESCALATION`=gpt-5.5, `CLASSIFIER`=gpt-5.4-mini,
+`TRANSCRIBE`=gpt-4o-transcribe. Retroceder es cambiar una variable, no hay código que revertir.
+
+**Caché verificado contra la API real** con el prompt del bot (26.592 caracteres):
+la 2ª llamada cachea el **90%** del prompt. Es automático de OpenAI y el prompt ya estaba
+escrito para aprovecharlo (sin fechas ni datos por-request). Eso baja gpt-5.5 de ~$140 a
+**~$77/mes** con 300 conversaciones/semana. Los clientes de Depot ayudan: contestan en
+0,8 min de mediana, así que el 91% de los turnos cae dentro de la ventana de 30 min.
+
+**Por qué NO se migra a Anthropic** (se evaluó): su ventaja de TTL de 1 h son solo 3 puntos
+(94% vs 91%) porque los huecos aquí son cortos; tras el 31-ago Sonnet 5 sale más caro que
+gpt-5.4; y habría que quedarse con OpenAI igual para los audios (Anthropic no transcribe voz).
+Migrar costaría 1-2 días para terminar con dos proveedores y pagando más.
+
+**Aclaración del informe anterior:** los «140 casos con medida sin cotizar» se desglosaron —
+90 son el bot mandando opciones y el cliente que no vuelve a escribir, 4 son pedidos fuera de
+catálogo (aros), y **solo 24 son falla real**. Los 90 marcan el punto exacto donde muere el
+embudo: vale preguntarle a Joaquín si conviene cotizar directo la más probable en vez de
+mostrar opciones y esperar.
+
+**Pendientes de recorte** (meta del cliente: ~$15/mes): adelgazar el playbook (6.500 palabras
+en CADA llamada, la palanca grande y sin riesgo de calidad), arreglar el clasificador de etapa
+—falla seguido y rompe el embudo del panel—, y recién ahí evaluar gpt-5.4-mini (~$12/mes con
+el caché medido). El escalón de 5.4-mini quedó a medias cuando se cortó la sesión.
 
 ### 2026-08-07 · El bot oye, ve, abre links y ya no se queda sin ofrecer · ⏱️ 5.0 h
 
