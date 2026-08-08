@@ -36,9 +36,16 @@ interface StagePrompt {
 }
 
 const ALL_STAGES: Etapa[] = [...ETAPAS, "ganado", "perdido"];
+// Mismo orden que buildTools() en el bot. Si aquí falta una, el dueño no puede
+// ver ni encender una herramienta que su bot sí tiene — que fue justo lo que
+// pasó con guia_medida y buscar_por_aro_y_tipo.
 const TOOLS = [
   "buscar_llanta",
   "buscar_catalogo",
+  "buscar_por_aro_y_tipo",
+  "tipos_de_llanta",
+  "guia_medida",
+  "opciones_sin_medida",
   "fitment_vehiculo",
   "preparar_opciones",
   "enviar_comparacion",

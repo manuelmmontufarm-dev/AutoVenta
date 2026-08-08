@@ -136,6 +136,7 @@ const DEFAULT_STAGE_PROMPTS: Record<Stage, StagePromptInput> = {
       "buscar_por_aro_y_tipo",
       "tipos_de_llanta",
       "guia_medida",
+      "opciones_sin_medida",
       "fitment_vehiculo",
       "preparar_opciones",
       "generar_cotizacion",
@@ -152,6 +153,7 @@ const DEFAULT_STAGE_PROMPTS: Record<Stage, StagePromptInput> = {
       "buscar_por_aro_y_tipo",
       "tipos_de_llanta",
       "guia_medida",
+      "opciones_sin_medida",
       "fitment_vehiculo",
       "preparar_opciones",
       "enviar_comparacion",
@@ -169,6 +171,7 @@ const DEFAULT_STAGE_PROMPTS: Record<Stage, StagePromptInput> = {
       "buscar_por_aro_y_tipo",
       "tipos_de_llanta",
       "guia_medida",
+      "opciones_sin_medida",
       "fitment_vehiculo",
       "preparar_opciones",
       "enviar_comparacion",
@@ -180,14 +183,44 @@ const DEFAULT_STAGE_PROMPTS: Record<Stage, StagePromptInput> = {
     objective: "Conseguir dos datos: qué día viene y a cuál local.",
     prompt:
       "No regeneres el PDF salvo que cambien modelo o cantidad. Tu objetivo ahora es UNO: que diga qué día puede pasar y a cuál local. Van juntos y en la misma pregunta — una fecha sin local no se le puede avisar a nadie y un local sin fecha no entra en ninguna agenda. Ningún turno cierra sin esa pregunta mientras falte alguno de los dos. El motivo que le das es el descuento y es verdad: su cotización sale con precio rebajado y el número es lo que la tienda exige para respetarlo, así que avisarle al asesor es lo que hace que se lo apliquen. Nunca inventes un descuento extra que nadie autorizó.",
-    allowedTools: ["fitment_vehiculo", "local_mas_cercano", "notificar_vendedor", "generar_cotizacion"],
+    // Con la cotización enviada el objetivo es fecha+local, pero el cliente no
+    // se entera de eso: si vuelve a pedir opciones o pregunta por otra medida,
+    // el bot tiene que poder mostrárselas. Sin estas tools lo único que le
+    // quedaba era repetir la pregunta (ticket 2150, 8-ago-2026).
+    allowedTools: [
+      "buscar_llanta",
+      "buscar_catalogo",
+      "buscar_por_aro_y_tipo",
+      "guia_medida",
+      "opciones_sin_medida",
+      "preparar_opciones",
+      "fitment_vehiculo",
+      "local_mas_cercano",
+      "notificar_vendedor",
+      "generar_cotizacion",
+    ],
     settings: { autoAction: "none", requiresHumanApproval: false, fallback: "" },
   },
   seguimiento_venta: {
     objective: "Dar seguimiento comercial hasta la venta, incluyendo visita, reserva y handoff.",
     prompt:
       "Resume lo acordado y confirma local u horario sin inventar datos. Si todavía no sabes qué día viene o a cuál local, eso es lo que falta: pídelo en cada turno, junto, y diciéndole que así el asesor le aplica el descuento cuando llegue. Mantén el caso abierto hasta una venta o rechazo verificados.",
-    allowedTools: ["fitment_vehiculo", "local_mas_cercano", "notificar_vendedor"],
+    // Esta es la etapa del ticket 2150: el cliente pidió una cotización y el bot
+    // no tenía UNA sola herramienta de venta con qué contestarle, así que repitió
+    // la pregunta por la foto tres turnos seguidos hasta que el dueño mandó las
+    // opciones a mano. Seguimiento no significa dejar de vender.
+    allowedTools: [
+      "buscar_llanta",
+      "buscar_catalogo",
+      "buscar_por_aro_y_tipo",
+      "guia_medida",
+      "opciones_sin_medida",
+      "preparar_opciones",
+      "fitment_vehiculo",
+      "local_mas_cercano",
+      "notificar_vendedor",
+      "generar_cotizacion",
+    ],
     settings: { autoAction: "handoff", requiresHumanApproval: false, fallback: "" },
   },
   ganado: {

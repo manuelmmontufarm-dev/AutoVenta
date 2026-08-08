@@ -49,6 +49,7 @@ import { brandProfilesForRender } from "../services/brandProfiles.js";
 import { getAiConfig, getPiecesConfig } from "../services/settings.js";
 import { researchVehicleFitment } from "../services/vehicleFitmentResearch.js";
 import { arosDeCandidatos, arosDeMedidas, invitacionPorAroAmbiguo } from "../domain/fitmentResearch.js";
+import { rangoDeAros } from "../domain/aros.js";
 import { nearestStore, resolveSector } from "../domain/locations.js";
 import { extractFlotationSizes, formatFlotationSize, formatTireSize, parseTireSize, type TireSize } from "../domain/tireSize.js";
 import { canGenerateFinalQuote } from "../domain/salesIntent.js";
@@ -219,19 +220,6 @@ function arosConStock(): number[] {
     if (conStock(opcionesEnAro(aro, null).enElAro).length) aros.push(aro);
   }
   return aros;
-}
-
-/**
- * "13 al 20" cuando los aros son corridos; "13, 15 y 17" cuando hay huecos.
- * Decirlo como rango es más fácil de leer, pero solo vale si de verdad están
- * todos: un rango con huecos manda al cliente a preguntar por un aro que no hay.
- */
-export function rangoDeAros(aros: readonly number[]): string | null {
-  if (!aros.length) return null;
-  if (aros.length === 1) return String(aros[0]);
-  const corridos = aros.every((aro, i) => i === 0 || aro === aros[i - 1] + 1);
-  if (corridos) return `${aros[0]} al ${aros[aros.length - 1]}`;
-  return `${aros.slice(0, -1).join(", ")} y ${aros[aros.length - 1]}`;
 }
 
 /** Une listas del catálogo sin repetir códigos (una misma llanta cae por varias medidas). */

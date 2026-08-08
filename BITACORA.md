@@ -32,6 +32,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-08-08 | _(este mismo)_ | Seguimiento y cotización vuelven a poder mostrar llantas (ticket 2150) | 1.5 |
 | 2026-08-08 | _(este mismo)_ | El aro manda: guía visual del costado, dos aros = invitación al local, y fecha+local como meta | 2.0 |
 | 2026-08-08 | _(este mismo)_ | Los que confirman fecha salen en Oportunidades, en grupo propio | 0.5 |
 | 2026-08-08 | _(este mismo)_ | El bot dejó de redactar lo que no puede enviar + el panel dice la verdad del envío | 1.5 |
@@ -102,6 +103,68 @@ Ya viene activado en este equipo.
 ---
 
 ## Entradas (más reciente primero)
+
+### 2026-08-08 · Seguimiento y cotización vuelven a poder mostrar llantas · ⏱️ 1.5 h
+
+**De dónde sale:** el ticket 2150, mirándolo en vivo. El cliente escribió *«xfavor ya le envío y q
+me ayude con una cotización»* y el bot contestó, por tercera vez seguida, que le mandara la foto de
+la medida. Manuel terminó mandando las opciones de rin 13 a mano. Su pedido: «si piden opciones que
+las manden al cliente, hay que darle lo que pide».
+
+**La causa no era el prompt.** El prompt ya prohibía cerrar un turno con una limitación y una
+pregunta sin ofrecer nada (regla 3), y ya mandaba mostrar opciones con solo el aro (paso 1c). El
+problema estaba dos capas más abajo: la conversación estaba en etapa `seguimiento_venta`, y esa
+etapa tenía exactamente tres herramientas —`fitment_vehiculo`, `local_mas_cercano`,
+`notificar_vendedor`—. Ni `buscar_llanta`, ni `buscar_por_aro_y_tipo`, ni `preparar_opciones`, ni
+`guia_medida`. Y `agent.ts` filtra por `allowed_tools` **antes** de ofrecerle nada al modelo
+(`allowed.has(tool.function.name)`), así que el bot no se negó a mostrar opciones: no tenía con qué
+mostrar una sola llanta. Lo único que sabía hacer ahí era repetir la pregunta.
+
+`cotizacion_enviada` tenía el mismo hueco: una vez cotizado, tampoco podía volver a mostrar nada.
+Las dos etapas se escribieron desde el objetivo del vendedor —conseguir fecha y local, cerrar—,
+pero el cliente no sabe en qué etapa está: pide opciones cuando se le ocurre, y cuando pide, hay
+que dársela.
+
+**Las dos etapas de cierre recuperan las herramientas de venta**, y seguimiento además
+`generar_cotizacion` — un «¿a cómo las 4?» en seguimiento es exactamente el mismo bug.
+
+**`opciones_sin_medida`, la salida del callejón sin salida.** Cuando no hay medida NI aro NI
+vehículo no existía una sola tool que el modelo pudiera llamar: con las manos vacías lo único que
+le queda es preguntar, y pregunta para siempre. La tool decide por él en dos pasos, y los dos pasos
+van en código porque son criterio de negocio, no juicio del modelo: la primera vez devuelve los
+aros que hay en stock para pedir el aro ofreciendo algo concreto («¿qué aro usa? tenemos del 13 al
+22»); si el cliente vuelve a pedir sin darlo, devuelve muestra real del stock y obliga a mandarla
+con `preparar_opciones` explicando por qué el aro manda e invitando a medirlo en el local. El
+rastro determinista de «ya se le pidió una vez» es que la pieza de `guia_medida` ya salió.
+
+**La foto nunca fue el problema.** `preparar_opciones` ya renderiza y envía la imagen, y su
+`sizeLabel` es opcional — la pieza sabe salir sin medida. No había que construirla: había que poder
+llegar hasta ella.
+
+**Migración `014`, por lo mismo que la 012.** `ensureDefaultStagePrompts` inserta la versión 1 con
+`on conflict (stage, version) do nothing`, así que cambiar el default del código **no le llega** a
+staging ni a Depot, que llevan semanas con su fila sembrada. La migración une, nunca quita, y sin
+condicionar al texto del prompt: darle con qué vender a un negocio no le cambia lo que dice, y
+negárselo porque editó su prompt lo dejaría justo en el problema que la migración viene a arreglar.
+Hay test de integración que lo prueba sobre una base **ya sembrada con las listas viejas**, que es
+el caso real de Depot.
+
+**Corrección de coordinación:** el commit anterior (`28ed12e`) se llevó por delante este trabajo a
+medias — dejó `opciones_sin_medida` definida y nombrada en el prompt, pero fuera del `allowed_tools`
+de toda etapa. Producción quedó una hora con el modelo recibiendo la orden de llamar una tool que el
+gate le escondía. Esto lo cierra.
+
+**De paso:** el panel mostraba una lista de herramientas vieja (le faltaban `buscar_por_aro_y_tipo`,
+`tipos_de_llanta` y `guia_medida`), así que el dueño no podía ver ni encender cosas que su bot sí
+tenía. Y `rangoDeAros` salió a `domain/aros.ts` para poder probarla sin levantar base, mismo
+criterio que `opcionesCandados`.
+
+**Verificado:** typecheck de app y hub, 454 tests en verde (10 nuevos), y contra el catálogo vivo de
+Contífico — el bot diría «tenemos del 13 al 22» y es cierto: aros 13 a 22 con stock y sin huecos.
+Lo que **no** se pudo verificar es que el modelo de verdad elija llamar la tool nueva: no hay
+`OPENAI_API_KEY` local, así que falta correr `npm run test:calidad` con la key de Railway.
+
+---
 
 ### 2026-08-08 · El aro manda, y después de cotizar solo importan fecha y local · ⏱️ 2.0 h
 
