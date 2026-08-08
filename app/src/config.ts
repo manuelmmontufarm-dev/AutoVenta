@@ -66,7 +66,7 @@ export interface BusinessConfig {
 export const business: BusinessConfig = {
   name: "Depot Tire",
   phone: "+593 98 280 1766",
-  schedule: "Lunes a sábado, 8:30–17:30",
+  schedule: "Cumbayá: lunes a viernes 08:30–17:30; sábado y domingo 08:30–14:30. Quito Sur: lunes a sábado 08:30–17:30",
   hours: {
     0: null,
     1: { open: "08:30", close: "17:30" },
