@@ -23,8 +23,22 @@ export type AiConfig = z.infer<typeof AiConfigSchema>;
 
 export const DEFAULT_AI_CONFIG: AiConfig = AiConfigSchema.parse({});
 
+const TimeSchema = z.string().regex(/^([01]\\d|2[0-3]):[0-5]\\d$/);
+const StorePeriodSchema = z.object({ open: TimeSchema, close: TimeSchema, closed: z.boolean().default(false) })
+  .refine((value) => value.closed || value.open < value.close, "La hora de cierre debe ser posterior a la apertura");
+export const StoreHoursSchema = z.object({
+  cumbaya: z.object({ weekday: StorePeriodSchema, weekend: StorePeriodSchema }),
+  quitoSur: z.object({ weekday: StorePeriodSchema, weekend: StorePeriodSchema }),
+});
+export type StoreHours = z.infer<typeof StoreHoursSchema>;
+export const DEFAULT_STORE_HOURS: StoreHours = StoreHoursSchema.parse({
+  cumbaya: { weekday: { open: "08:30", close: "17:30" }, weekend: { open: "08:30", close: "14:30" } },
+  quitoSur: { weekday: { open: "08:30", close: "17:30" }, weekend: { open: "08:30", close: "17:30", closed: true } },
+});
+
 const CACHE_TTL_MS = 30_000;
 let cache: { value: AiConfig; at: number } | null = null;
+let storeHoursCache: { value: StoreHours; at: number } | null = null;
 
 export async function getAiConfig(): Promise<AiConfig> {
   if (cache && Date.now() - cache.at < CACHE_TTL_MS) return cache.value;
@@ -48,6 +62,27 @@ export async function saveAiConfig(input: unknown): Promise<AiConfig> {
   `;
   cache = { value: merged, at: Date.now() };
   return merged;
+}
+
+export async function getStoreHours(): Promise<StoreHours> {
+  if (storeHoursCache && Date.now() - storeHoursCache.at < CACHE_TTL_MS) return storeHoursCache.value;
+  const [row] = await sql<{ value: unknown }[]>`select value from settings where key = 'store_hours'`;
+  const parsed = StoreHoursSchema.safeParse(row?.value ?? {});
+  const value = parsed.success ? parsed.data : DEFAULT_STORE_HOURS;
+  storeHoursCache = { value, at: Date.now() };
+  return value;
+}
+
+export async function saveStoreHours(input: unknown): Promise<StoreHours> {
+  const value = StoreHoursSchema.parse(input);
+  await sql`insert into settings (key, value) values ('store_hours', ${sql.json(value)}) on conflict (key) do update set value = excluded.value, updated_at = now()`;
+  storeHoursCache = { value, at: Date.now() };
+  return value;
+}
+
+export function formatStoreHours(hours: StoreHours): string {
+  const format = (period: StoreHours["cumbaya"]["weekday"]) => period.closed ? "cerrado" : `${period.open}–${period.close}`;
+  return `Cumbayá: lunes a viernes ${format(hours.cumbaya.weekday)}; sábado y domingo ${format(hours.cumbaya.weekend)}. Quito Sur: lunes a viernes ${format(hours.quitoSur.weekday)}; sábado y domingo ${format(hours.quitoSur.weekend)}.`;
 }
 
 export const StagePromptInputSchema = z.object({

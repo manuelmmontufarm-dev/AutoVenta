@@ -1,5 +1,5 @@
 import { business } from "../config.js";
-import { DEFAULT_AI_CONFIG, type AiConfig } from "../services/settings.js";
+import { DEFAULT_AI_CONFIG, formatStoreHours, type AiConfig, type StoreHours } from "../services/settings.js";
 import { BOT_PLAYBOOK } from "./playbook.js";
 
 /**
@@ -13,6 +13,7 @@ import { BOT_PLAYBOOK } from "./playbook.js";
 export function buildSystemPrompt(
   ai: AiConfig = DEFAULT_AI_CONFIG,
   stage?: { name: string; objective: string; prompt: string; version: number },
+  storeHours?: StoreHours,
 ): string {
   const stores = business.stores
     .map((s) => `- ${s.name}: ${s.address}`)
@@ -28,7 +29,7 @@ Eres el asistente de ventas por WhatsApp de ${business.name}, una llantera en Qu
 
 ## Locales
 ${stores}
-Horario: ${business.schedule}. Teléfono: ${business.phone}.
+Horario: ${storeHours ? formatStoreHours(storeHours) : business.schedule}. Teléfono: ${business.phone}.
 ${business.promo ? `Promoción vigente: ${business.promo}.` : ""}
 
 ## Tu objetivo

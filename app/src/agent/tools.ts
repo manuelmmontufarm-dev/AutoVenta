@@ -53,6 +53,7 @@ import { sql } from "../db/client.js";
 import { createBotAlert } from "../services/followUps.js";
 import { attachDiscountOfferToQuote, getActiveDiscountOffer, materializePendingDiscount } from "../services/discountOffers.js";
 import { notifyAdvisor } from "../services/advisorNotifications.js";
+import type { StoreHours } from "../services/settings.js";
 
 export interface AgentContext {
   conversation: Conversation;
@@ -61,6 +62,7 @@ export interface AgentContext {
   currentUserText: string;
   comparedThisTurn?: boolean;
   resumedFromHuman?: boolean;
+  storeHours?: StoreHours;
   discountNotice?: { source: "pending" | "offer"; id: number };
 }
 
@@ -89,6 +91,13 @@ function defineTool<T extends z.ZodTypeAny>(input: {
     },
     execute: async (args) => input.run(input.schema.parse(args)),
   };
+}
+
+function storeSchedule(name: string, hours?: StoreHours): string {
+  if (!hours) return business.schedule;
+  const schedule = name.includes("Cumbayá") ? hours.cumbaya : hours.quitoSur;
+  const format = (period: { open: string; close: string; closed: boolean }) => period.closed ? "cerrado" : `${period.open}–${period.close}`;
+  return `lunes a viernes ${format(schedule.weekday)}; sábado y domingo ${format(schedule.weekend)}`;
 }
 
 function dateLabel(): string {
@@ -647,12 +656,13 @@ export function buildTools(ctx: AgentContext) {
         reason: "Cliente compartió ubicación después de cotizar",
       });
       const sale = await latestSaleNumber(ctx.conversation.id);
+      const horario = storeSchedule(store.name, ctx.storeHours);
       return JSON.stringify({
         local: store.name,
         direccion: store.address,
         distancia_km: distanceKm,
         maps: store.mapsUrl ?? null,
-        horario: business.schedule,
+        horario,
         ubicacion_cliente: resolved.label,
         distancia_es_aproximada: sector != null,
         numero_venta: sale,
@@ -660,7 +670,7 @@ export function buildTools(ctx: AgentContext) {
           `📍 El local recomendado es *${store.name}*.`,
           `🏬 ${store.address}`,
           store.mapsUrl ? `🗺️ ${store.mapsUrl}` : "",
-          `🕐 ${business.schedule}`,
+          `🕐 ${horario}`,
           sale ? `🔖 Al llegar, indica tu número de venta *${sale}* para ubicar tu cotización.` : "",
           "🙌 ¡Te esperamos! Si necesitas algo más, aquí estoy.",
         ].filter(Boolean).join("\n"),

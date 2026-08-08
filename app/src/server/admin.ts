@@ -13,9 +13,11 @@ import { business, config } from "../config.js";
 import { appendMessage, pauseBot } from "../services/conversations.js";
 import {
   getAiConfig,
+  getStoreHours,
   listStagePrompts,
   publishStagePrompt,
   saveAiConfig,
+  saveStoreHours,
   saveStagePromptDraft,
 } from "../services/settings.js";
 import {
@@ -807,6 +809,20 @@ export function createAdminRouter(): express.Router {
       res.json({ ok: true, config: await saveAiConfig(req.body) });
     } catch {
       res.status(400).json({ ok: false, error: "Configuración inválida" });
+    }
+  });
+
+  router.get("/store-hours", async (_req, res) => {
+    res.json({ ok: true, hours: await getStoreHours() });
+  });
+
+  router.put("/store-hours", async (req, res) => {
+    try {
+      const hours = await saveStoreHours(req.body);
+      emitLiveEvent("settings");
+      res.json({ ok: true, hours });
+    } catch (error) {
+      res.status(400).json({ ok: false, error: error instanceof Error ? error.message : "Horarios inválidos" });
     }
   });
 

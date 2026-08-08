@@ -15,6 +15,9 @@ interface AiConfig {
   emojiCierre: string;
 }
 
+interface StorePeriod { open: string; close: string; closed: boolean; }
+interface StoreHours { cumbaya: { weekday: StorePeriod; weekend: StorePeriod }; quitoSur: { weekday: StorePeriod; weekend: StorePeriod }; }
+
 interface StagePrompt {
   id: number;
   stage: Etapa;
@@ -47,6 +50,7 @@ const TOOLS = [
 export function Settings() {
   const [tab, setTab] = useState<SettingsTab>("ai");
   const [ai, setAi] = useState<AiConfig | null>(null);
+  const [storeHours, setStoreHours] = useState<StoreHours | null>(null);
   const [prompts, setPrompts] = useState<StagePrompt[]>([]);
   const [stage, setStage] = useState<Etapa>("nuevo");
   const [draft, setDraft] = useState<StagePrompt | null>(null);
@@ -75,15 +79,29 @@ export function Settings() {
 
   async function loadSettings() {
     try {
-      const [aiPayload, promptPayload] = await Promise.all([
+      const [aiPayload, promptPayload, hoursPayload] = await Promise.all([
         api<{ config: AiConfig }>("/api/ai-config"),
         api<{ prompts: StagePrompt[] }>("/api/stage-prompts"),
+        api<{ hours: StoreHours }>("/api/store-hours"),
       ]);
       setAi(aiPayload.config);
       setPrompts(promptPayload.prompts);
+      setStoreHours(hoursPayload.hours);
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "No se pudo cargar");
     }
+  }
+
+  async function saveStoreHours() {
+    if (!storeHours) return;
+    setSaving(true);
+    try {
+      const payload = await api<{ hours: StoreHours }>("/api/store-hours", { method: "PUT", body: JSON.stringify(storeHours) });
+      setStoreHours(payload.hours);
+      setStatus("Horarios de locales guardados. El bot los usará de inmediato.");
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "No se pudieron guardar los horarios");
+    } finally { setSaving(false); }
   }
 
   async function saveGlobalAi() {
@@ -447,8 +465,8 @@ export function Settings() {
               <Info label="Modo de WhatsApp" value="Número de prueba de Meta" />
               <Info label="Inventario" value="Contífico · sincronización real" />
               <Info label="IVA" value="15%" />
-              <Info label="Horario" value="Lunes a sábado · 08:30–17:30" />
             </dl>
+            {storeHours && <section className="mt-6 border-t border-paper/10 pt-5"><p className="microlabel">Horarios de locales</p><p className="mt-1 text-xs text-muted">El bot usa estos horarios al recomendar un local. Marca “Cerrado” cuando no atienda.</p><div className="mt-4 grid gap-4">{([ ["Cumbayá", "cumbaya"], ["Quito Sur", "quitoSur"] ] as const).map(([name, key]) => <div key={key} className="rounded-2xl bg-paper/[.05] p-4"><p className="text-sm font-black">Depot Tire {name}</p>{([ ["Lunes a viernes", "weekday"], ["Sábado y domingo", "weekend"] ] as const).map(([label, period]) => { const value = storeHours[key][period]; return <div key={period} className="mt-3 grid grid-cols-[1fr_auto_auto] items-end gap-2 text-[11px]"><label className="font-bold text-muted">{label}</label><label>Abre<input disabled={value.closed} type="time" className="settings-input mt-1 w-24" value={value.open} onChange={(event) => setStoreHours({ ...storeHours, [key]: { ...storeHours[key], [period]: { ...value, open: event.target.value } } })} /></label><label>Cierra<input disabled={value.closed} type="time" className="settings-input mt-1 w-24" value={value.close} onChange={(event) => setStoreHours({ ...storeHours, [key]: { ...storeHours[key], [period]: { ...value, close: event.target.value } } })} /></label><label className="col-span-3 mt-1 flex items-center gap-2 text-xs font-bold"><input type="checkbox" checked={value.closed} onChange={(event) => setStoreHours({ ...storeHours, [key]: { ...storeHours[key], [period]: { ...value, closed: event.target.checked } } })} /> Cerrado</label></div>; })}</div>)}</div><button disabled={saving} onClick={() => void saveStoreHours()} className="mt-5 rounded-2xl bg-lime px-5 py-3 text-xs font-black text-navy disabled:opacity-50">{saving ? "Guardando…" : "Guardar horarios"}</button></section>}
           </div>
         )}
 
