@@ -72,6 +72,7 @@ import { sql } from "../db/client.js";
 import { createBotAlert } from "../services/followUps.js";
 import { attachDiscountOfferToQuote, getActiveDiscountOffer, materializePendingDiscount } from "../services/discountOffers.js";
 import { notifyAdvisor } from "../services/advisorNotifications.js";
+import type { StoreHours } from "../services/settings.js";
 
 export interface AgentContext {
   conversation: Conversation;
@@ -81,6 +82,7 @@ export interface AgentContext {
   comparedThisTurn?: boolean;
   resumedFromHuman?: boolean;
   discountNotice?: { source: "pending" | "offer"; id: number };
+  storeHours?: StoreHours;
 }
 
 export interface AgentTool {
@@ -108,6 +110,13 @@ function defineTool<T extends z.ZodTypeAny>(input: {
     },
     execute: async (args) => input.run(input.schema.parse(args)),
   };
+}
+
+function storeSchedule(name: string, hours?: StoreHours): string {
+  if (!hours) return business.schedule;
+  const schedule = name.includes("Cumbayá") ? hours.cumbaya : hours.quitoSur;
+  const fmt = (period: { open: string; close: string; closed: boolean }) => period.closed ? "cerrado" : `${period.open}–${period.close}`;
+  return `lunes a viernes ${fmt(schedule.weekday)}; sábado y domingo ${fmt(schedule.weekend)}`;
 }
 
 /** Cómo se le nombra al cliente cada escalón de marca. */
@@ -1421,12 +1430,13 @@ export function buildTools(ctx: AgentContext) {
       });
       const sale = await latestSaleNumber(ctx.conversation.id);
       const descuentoVivo = Boolean(await getActiveDiscountOffer(ctx.conversation.id));
+      const horario = storeSchedule(store.name, ctx.storeHours);
       return JSON.stringify({
         local: store.name,
         direccion: store.address,
         distancia_km: distanceKm,
         maps: store.mapsUrl ?? null,
-        horario: business.schedule,
+        horario,
         ubicacion_cliente: resolved.label,
         distancia_es_aproximada: sector != null,
         numero_venta: sale,
@@ -1434,7 +1444,7 @@ export function buildTools(ctx: AgentContext) {
           `📍 El local recomendado es *${store.name}*.`,
           `🏬 ${store.address}`,
           store.mapsUrl ? `🗺️ ${store.mapsUrl}` : "",
-          `🕐 ${business.schedule}`,
+          `🕐 ${horario}`,
           sale ? `🔖 Al llegar, indica tu número de venta *${sale}* para ubicar tu cotización.` : "",
           // Sin esta línea el turno terminaba en "te esperamos": cortés y sin
           // fecha. La ubicación es el mejor momento para pedir el día porque el

@@ -7,7 +7,7 @@ import OpenAI from "openai";
 import type { ChatCompletionMessageParam, ChatCompletionTool } from "openai/resources/chat/completions";
 import { config } from "../config.js";
 import { getHistory, logAiRun } from "../services/conversations.js";
-import { getAiConfig, getPublishedStagePrompt } from "../services/settings.js";
+import { getAiConfig, getPublishedStagePrompt, getStoreHours } from "../services/settings.js";
 import { getPhaseFlags, toolEnabled } from "../services/phases.js";
 import { buildSystemPrompt } from "./prompts.js";
 import { buildTools, type AgentContext } from "./tools.js";
@@ -56,7 +56,7 @@ export async function runAgent(ctx: AgentContext, userText: string): Promise<str
   let outputTokens = 0;
   const usedTools: string[] = [];
   // El estilo se edita en /configuracion/ia; getAiConfig cachea 30 s en memoria.
-  const [aiConfig, stagePrompt, activeDiscount, pendingDiscount, salesFacts, phaseFlags] =
+  const [aiConfig, stagePrompt, activeDiscount, pendingDiscount, salesFacts, phaseFlags, storeHours] =
     await Promise.all([
       getAiConfig(),
       getPublishedStagePrompt(ctx.conversation.stage),
@@ -64,16 +64,18 @@ export async function runAgent(ctx: AgentContext, userText: string): Promise<str
       getPendingDiscountRule(ctx.conversation.id),
       getAgentSalesFacts(ctx.conversation.id),
       getPhaseFlags(),
+      getStoreHours(),
     ]);
   const systemPrompt = buildSystemPrompt(aiConfig, {
     name: stagePrompt.stage,
     objective: stagePrompt.objective,
     prompt: stagePrompt.prompt,
     version: stagePrompt.version,
-  });
+  }, storeHours);
   const history = await getHistory(ctx.conversation.id);
   if (history.at(-1)?.role === "user" && history.at(-1)?.content === userText) history.pop();
   ctx.currentUserText = userText;
+  ctx.storeHours = storeHours;
   const allTools = buildTools(ctx);
   const allowed = new Set(stagePrompt.allowedTools);
   // Gate de fases: aunque el prompt permita una tool, si está gateada solo se

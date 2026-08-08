@@ -48,6 +48,8 @@ interface BrandProfile {
   active: boolean;
   position: number;
 }
+interface StorePeriod { open: string; close: string; closed: boolean }
+interface StoreHours { cumbaya: { weekday: StorePeriod; weekend: StorePeriod }; quitoSur: { weekday: StorePeriod; weekend: StorePeriod } }
 
 const PALETA_LABEL: Record<string, string> = {
   grafito: "Grafito", carbon: "Carbón", rojo: "Rojo", verde: "Verde",
@@ -74,6 +76,7 @@ export function Ajustes() {
 
   const [benefits, setBenefits] = useState<Benefit[]>([]);
   const [profiles, setProfiles] = useState<BrandProfile[]>([]);
+  const [hours, setHours] = useState<StoreHours | null>(null);
   const [pieza, setPieza] = useState<string>("cotizacion");
   const [error, setError] = useState("");
   const [guardando, setGuardando] = useState(false);
@@ -81,10 +84,11 @@ export function Ajustes() {
 
   const cargar = useCallback(async () => {
     try {
-      const [cfg, ben, br] = await Promise.all([
+      const [cfg, ben, br, hrs] = await Promise.all([
         api<{ config: { paleta: string; fuente: string }; paletas: string[]; fuentes: string[] }>("/api/pieces-config"),
         api<{ benefits: Benefit[] }>("/api/benefits"),
         api<{ profiles: BrandProfile[] }>("/api/brand-profiles"),
+        api<{ hours: StoreHours }>("/api/store-hours"),
       ]);
       setPaleta(cfg.config.paleta);
       setFuente(cfg.config.fuente);
@@ -93,6 +97,7 @@ export function Ajustes() {
       setFuentes(cfg.fuentes);
       setBenefits(ben.benefits);
       setProfiles(br.profiles);
+      setHours(hrs.hours);
       setError("");
     } catch (e) {
       setError(e instanceof Error ? e.message : "No se pudo cargar la configuración");
@@ -155,6 +160,7 @@ export function Ajustes() {
             onPaleta={setPaleta} onFuente={setFuente}
             sinAplicar={sinAplicar} guardando={guardando} onAplicar={aplicar}
           />
+          {hours && <SeccionHorarios hours={hours} setHours={setHours} onError={setError} />}
           <SeccionPromociones benefits={benefits} setBenefits={setBenefits} onError={setError} />
           <SeccionMarcas profiles={profiles} setProfiles={setProfiles} onError={setError} />
           <SeccionAsesores onError={setError} />
@@ -193,6 +199,21 @@ function Tarjeta({ titulo, sub, children, extra }: {
 
 const inputCls =
   "w-full rounded-xl border border-paper/[.12] bg-paper/[.04] px-3 py-2 text-[13px] outline-none focus:border-paper/30";
+
+function SeccionHorarios({ hours, setHours, onError }: { hours: StoreHours; setHours: (v: StoreHours) => void; onError: (v: string) => void }) {
+  const [saving, setSaving] = useState(false);
+  const save = async () => {
+    setSaving(true);
+    try {
+      const result = await api<{ hours: StoreHours }>("/api/store-hours", { method: "PUT", body: JSON.stringify(hours) });
+      setHours(result.hours); onError("");
+    } catch (e) { onError(e instanceof Error ? e.message : "No se pudieron guardar los horarios"); }
+    finally { setSaving(false); }
+  };
+  return <Tarjeta titulo="Horarios de locales" sub="El bot usa estos horarios al recomendar un local. Marca Cerrado cuando no atienda." extra={<button onClick={() => void save()} disabled={saving} className="rounded-full bg-lime px-4 py-2 text-[12px] font-semibold text-navy disabled:opacity-50">{saving ? "Guardando…" : "Guardar horarios"}</button>}>
+    <div className="grid gap-4 md:grid-cols-2">{([ ["Cumbayá", "cumbaya"], ["Quito Sur", "quitoSur"] ] as const).map(([label, store]) => <div key={store} className="rounded-2xl bg-paper/[.04] p-4"><p className="text-sm font-bold">{label}</p>{([ ["Lunes a viernes", "weekday"], ["Sábado y domingo", "weekend"] ] as const).map(([dayLabel, period]) => { const value = hours[store][period]; return <div key={period} className="mt-3 grid grid-cols-2 gap-2"><p className="col-span-2 text-[11px] font-semibold text-faint">{dayLabel}</p><label className="text-[10px]">Abre<input type="time" disabled={value.closed} className={inputCls} value={value.open} onChange={(e) => setHours({ ...hours, [store]: { ...hours[store], [period]: { ...value, open: e.target.value } } })} /></label><label className="text-[10px]">Cierra<input type="time" disabled={value.closed} className={inputCls} value={value.close} onChange={(e) => setHours({ ...hours, [store]: { ...hours[store], [period]: { ...value, close: e.target.value } } })} /></label><label className="col-span-2 flex items-center gap-2 text-xs font-semibold"><input type="checkbox" checked={value.closed} onChange={(e) => setHours({ ...hours, [store]: { ...hours[store], [period]: { ...value, closed: e.target.checked } } })} /> Cerrado</label></div>; })}</div>)}</div>
+  </Tarjeta>;
+}
 
 function SeccionTema({ paleta, fuente, paletas, fuentes, onPaleta, onFuente, sinAplicar, guardando, onAplicar }: {
   paleta: string; fuente: string; paletas: string[]; fuentes: string[];
