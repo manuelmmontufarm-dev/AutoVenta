@@ -69,13 +69,30 @@ describe("Reglas de calidad comercial", () => {
       .not.toContain("se_presenta_de_nuevo");
   });
 
-  it("atrapa que pida una foto (regla de Joaquín: el bot no puede leerlas)", () => {
-    // Frases reales de las capturas del 5-ago.
-    expect(ids("¿Podrías enviarme una foto de la etiqueta de la puerta?")).toContain("pide_foto");
-    expect(ids("Si prefiere, puede mandarme una foto del costado y yo la leo.")).toContain("pide_foto");
-    // Pedir la medida ESCRITA es la conducta correcta y no dispara.
-    expect(ids("¿Me escribe la medida que dice el filo de la llanta? Es algo como 225/65R17."))
-      .not.toContain("pide_foto");
+  it("atrapa que pida el dato sin ofrecer nada (ticket 2150)", () => {
+    // La regla vieja `pide_foto` (Joaquín, 5-ago) reprobaba cualquier mención a
+    // una foto porque el bot era ciego. Desde services/vision.ts sí las lee y la
+    // migración 012 repuso esa vía: pedir la foto dejó de ser el error. El error
+    // es pedir y no dar nada, que es lo que colgó el ticket 2150.
+    expect(ids("¿Podrías enviarme una foto de la etiqueta de la puerta?")).toContain("pide_sin_ofrecer");
+    expect(ids("¿Me escribe la medida que dice el filo de la llanta?")).toContain("pide_sin_ofrecer");
+
+    // Pedir la foto ofreciendo algo concreto en la misma respuesta SÍ pasa: es
+    // exactamente la conducta que el dueño pidió.
+    expect(ids("Tenemos llantas en aros del 13 al 22. ¿Me dice su medida, o me manda una foto del costado y la leo?"))
+      .not.toContain("pide_sin_ofrecer");
+    expect(ids("Pase por Quito Sur y se lo medimos en 2 minutos. ¿O me dice la medida del costado?"))
+      .not.toContain("pide_sin_ofrecer");
+
+    // Si salió una pieza, ya se le ofreció algo aunque el texto solo pregunte.
+    expect(ids("¿Me dice la medida, o prefiere mandarme una foto del costado?", { ...SIN_NADA_AUTORIZADO, mandoPieza: true }))
+      .not.toContain("pide_sin_ofrecer");
+  });
+
+  it("no cuenta como oferta un «no tengo»", () => {
+    // La negación invierte el sentido: era la frase que el dueño mandó eliminar.
+    expect(ids("No tengo una medida verificada para ese modelo. ¿Me manda una foto de la etiqueta?"))
+      .toContain("pide_sin_ofrecer");
   });
 
   it("atrapa que pregunte vehículo/versión teniendo ya la medida (regla de Joaquín)", () => {

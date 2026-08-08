@@ -14,6 +14,8 @@ import { WhatsAppAPI } from "whatsapp-api-js/middleware/express";
 import { config } from "../config.js";
 import { getChannelConfig, type ChannelConfig } from "../services/channel.js";
 import { assertConversationOutbound } from "../services/whatsappPolicy.js";
+import { conSaludo } from "../domain/saludo.js";
+import { sql } from "../db/client.js";
 import { registrarEnviado } from "./outboundRegistry.js";
 
 const GRAPH = config.whatsapp.graphBaseUrl;
@@ -38,7 +40,40 @@ export async function sendCustomerText(
   actor: "bot" | "owner" | "worker" = "bot",
 ): Promise<string | undefined> {
   await assertConversationOutbound({ conversationId, contentType: "text", actor });
-  return sendText(to, body);
+  // Lo PRIMERO que el negocio le dice a alguien empieza saludando. El prompt ya
+  // lo pedía, pero un prompt es una intención: bastaba que el modelo arrancara
+  // directo con la pregunta por el aro para que la primera frase de la llantera
+  // fuera un interrogatorio. Solo toca el primer texto de la conversación, y
+  // solo si de verdad falta. El dueño escribiendo a mano nunca se toca.
+  const texto = actor === "owner" ? body : await conSaludoSiEsElPrimerTexto(conversationId, body);
+  return sendText(to, texto);
+}
+
+/**
+ * Antepone el saludo si este es el primer texto que sale hacia el cliente.
+ *
+ * Se mira solo el historial de TEXTO: si una pieza salió antes (la guía de la
+ * medida, por ejemplo), el saludo igual le toca al primer mensaje escrito, que
+ * es donde el cliente lo lee. Ante cualquier error de base se devuelve el texto
+ * tal cual — un saludo no vale romper un envío.
+ */
+async function conSaludoSiEsElPrimerTexto(conversationId: number, body: string): Promise<string> {
+  try {
+    const [previo] = await sql<{ id: number }[]>`
+      select id from messages
+      where conversation_id = ${conversationId}
+        and direction = 'outbound'
+        and type = 'text'
+      limit 1
+    `;
+    if (previo) return body;
+    const [conv] = await sql<{ name: string | null }[]>`
+      select name from conversations where id = ${conversationId}
+    `;
+    return conSaludo(body, conv?.name ?? null);
+  } catch {
+    return body;
+  }
 }
 
 /**

@@ -57,6 +57,21 @@ const server = createServer((req, res) => {
 
     counter += 1;
     stats.total += 1;
+
+    // Subida de media (multipart a /{phoneId}/media). Meta responde `{id}` y el
+    // bot usa ese id para mandar la imagen; el stub respondía el shape de un
+    // MENSAJE, sin `id` arriba, así que `uploadMedia` fallaba siempre. Efecto:
+    // toda pieza caía al fallback de texto largo y el eval nunca medía el camino
+    // real —el de la imagen— sino el degradado. Se veía como bot verboso.
+    if (/\/media\/?$/.test((req.url ?? "").split("?")[0])) {
+      const mediaId = `STUB_MEDIA_${counter}`;
+      stats.byType.media = (stats.byType.media ?? 0) + 1;
+      appendFileSync(logPath, `${JSON.stringify({ receivedAt, path: req.url, to: null, type: "media", text: null, templateName: null, providerMessageId: mediaId })}\n`);
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ id: mediaId }));
+      return;
+    }
+
     const type = parsed.type ?? (parsed.template ? "template" : "desconocido");
     stats.byType[type] = (stats.byType[type] ?? 0) + 1;
     const id = `wamid.STUB_OUT_${counter}`;

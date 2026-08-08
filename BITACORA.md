@@ -32,6 +32,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-08-08 | _(este mismo)_ | El primer mensaje siempre saluda + el eval deja de medir el bot degradado | 2.0 |
 | 2026-08-08 | _(este mismo)_ | Seguimiento y cotización vuelven a poder mostrar llantas (ticket 2150) | 1.5 |
 | 2026-08-08 | _(este mismo)_ | El aro manda: guía visual del costado, dos aros = invitación al local, y fecha+local como meta | 2.0 |
 | 2026-08-08 | _(este mismo)_ | Los que confirman fecha salen en Oportunidades, en grupo propio | 0.5 |
@@ -103,6 +104,54 @@ Ya viene activado en este equipo.
 ---
 
 ## Entradas (más reciente primero)
+
+### 2026-08-08 · El primer mensaje siempre saluda, y el eval deja de medir un bot degradado · ⏱️ 2.0 h
+
+**De dónde sale:** Manuel, sobre el eval de calidad — «arréglalo» — y una pedida nueva: «asegúrate que siempre
+que manda un primer mensaje a un cliente salude primero».
+
+**1. El saludo dejó de depender del modelo.** El prompt ya lo pedía en «El mensaje de entrada», pero un prompt
+es una intención, no una garantía: basta que el modelo arranque directo con la pregunta por el aro para que la
+primera frase de una llantera con 30 años sea un interrogatorio. Ahora `sendCustomerText` —el embudo por donde
+pasa todo lo que va al cliente— revisa si es el primer TEXTO de la conversación y, si le falta saludo, se lo
+antepone. Lógica pura en `domain/saludo.ts` para probarla sin levantar base. Detalles que importan: el dueño
+escribiendo a mano NUNCA se toca; si el modelo ya saludó no se duplica; y los pushnames de WhatsApp se filtran,
+porque saludar «¡Hola, angelbarreiro1986!» se lee peor que no saludar (`nombreSaludable`). Se mira solo el
+historial de texto, así que si una pieza salió antes, el saludo igual le toca al primer mensaje escrito. Ante
+cualquier error de base devuelve el texto tal cual: un saludo no vale romper un envío. Verificado en el eval —
+las 8 conversaciones de cliente saludan; el asesor, que va por otra función, no.
+
+**2. El eval estaba midiendo al bot en su peor versión, y nadie lo sabía.** Tres fallas encadenadas:
+
+- **El stub de Graph rompía TODAS las imágenes.** `uploadMedia` sube el PNG a `/{phoneId}/media` y espera `{id}`;
+  el stub respondía el shape de un MENSAJE, sin `id` arriba. Resultado: cada pieza fallaba, `preparar_opciones`
+  caía a su fallback de texto largo —que existe justamente para que el cliente nunca se quede sin opciones— y el
+  eval calificaba ese camino degradado como si fuera el normal. De ahí salían `inventa_precio`, `demasiado_largo`
+  y `exceso_emojis` en cascada: no era el bot siendo verboso, era el bot compensando una imagen que nunca salió.
+- **La rúbrica leía solo el ÚLTIMO mensaje del turno.** El bot contesta en varios bloques separados por `---`, así
+  que se calificaba la coletilla («¿Necesita alguna recomendación?») en vez de la respuesta. Varios turnos salían
+  «sin fallos» por mirar un fragmento inofensivo. Ahora se lee todo lo que salió en el turno.
+- **La espera era fija (9 s).** Un turno que renderiza y manda una pieza tarda más, así que el eval leía antes de
+  que el bot hablara y anotaba `vacio`. Ahora espera a que diga algo y después a que se calle.
+
+**3. Dos reglas de la rúbrica contradecían lo que el bot hace hoy.** `pide_foto` (regla de Joaquín, 5-ago:
+«que no pida fotos hasta que no pueda leer») reprobaba en CRÍTICO cualquier mención a una foto — pero desde
+`services/vision.ts` sí las lee, y la migración 012 repuso esa vía a propósito el 8-ago. Se reemplaza por
+`pide_sin_ofrecer`, que atrapa el error de verdad, el del ticket 2150: pedir el dato y no dejarle nada al
+cliente en la misma respuesta. Y `no_pide_medida` solo reconocía la palabra «medida», no «aro» ni «rin», así
+que reprobaba justo la conducta que shipeó `28ed12e`. Ojo con la negación: la primera versión de
+`pide_sin_ofrecer` daba por buena la frase «**no tengo** una medida verificada» porque contenía «tengo» — la
+que el dueño mandó eliminar. Hay lookbehind y test para eso.
+
+**4. Un caso nuevo que reproduce el 2150:** cliente que pide cotización sin medida, sin aro y sin vehículo, y
+vuelve a pedir sin darlo. Es el único que ejercita `opciones_sin_medida`, y sin él el eval daba verde sin haber
+probado nada del arreglo anterior.
+
+**Resultado:** de ❌ ROJO con 12 fallos críticos a ✅ **VERDE, 0 críticos y 0 altos**, con el juez subiendo de
+~3.4 a 4.24/4.18/4.59/4.41. Y quedó probado en vivo lo que faltaba del commit anterior: el modelo SÍ llama
+`opciones_sin_medida`, los dos pasos disparan, y salen 9 imágenes reales donde antes salían 0.
+
+---
 
 ### 2026-08-08 · Joaquín llevaba 62 avisos sin recibir, y la tabla decía «enviado» · ⏱️ 1.5 h
 

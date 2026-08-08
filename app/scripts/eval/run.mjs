@@ -54,6 +54,23 @@ const log = (m) => { console.log(m); appendFileSync(resolve(salida, "run.log"), 
 /** Conversaciones de prueba: cada turno declara qué se le puede exigir a la respuesta. */
 const CASOS = [
   {
+    // Ticket 2150 (8-ago): el cliente pidió cotización sin dar medida, ni aro,
+    // ni vehículo, y el bot le contestó tres turnos seguidos que le mandara la
+    // foto del costado, sin ofrecer nada. El dueño terminó mandando las opciones
+    // de rin 13 a mano.
+    //
+    // Los tres turnos son el punto: el primero puede pedir el dato, pero para el
+    // TERCERO el cliente ya pidió opciones dos veces sin darlo, y ahí
+    // `opciones_sin_medida` obliga a mostrarle stock real e invitarlo al local.
+    // Un turno que solo vuelve a pedir la foto reprueba en `pide_sin_ofrecer`.
+    id: "pide_cotizacion_sin_nada",
+    turnos: [
+      { texto: "Buenas, necesito una cotización de llantas", espera: { etapa: "nuevo", clienteDioMedida: false } },
+      { texto: "Xfavor ya le envío y q me ayude con una cotización", espera: { clienteDioMedida: false } },
+      { texto: "no sé cuál es, solo deme las opciones que tengan porfa", espera: { clienteDioMedida: false } },
+    ],
+  },
+  {
     id: "pide_medida",
     turnos: [
       { texto: "Hola, necesito llantas para mi carro", espera: { etapa: "nuevo", clienteDioMedida: false } },
@@ -118,6 +135,59 @@ function lanzar(nombre, cmd, argv, env, archivo) {
   for (const s of [hijo.stdout, hijo.stderr]) s.on("data", (c) => appendFileSync(archivo, c.toString()));
   procesos.push(hijo);
   return hijo;
+}
+
+/**
+ * Espera a que el catálogo termine de sincronizar y dice si quedó con stock.
+ *
+ * `esperarSalud` solo prueba que el puerto responde; el catálogo entra después,
+ * por su cuenta. Sin esta espera el primer caso corría contra un bot sin nada
+ * que ofrecer y salía vacío — un fallo del arnés que se leía como fallo del bot.
+ */
+async function esperarCatalogo() {
+  for (let i = 0; i < 40; i += 1) {
+    try {
+      const d = await (await fetch(`${BASE_URL}/health`, { signal: AbortSignal.timeout(3000) })).json();
+      const items = Number(d?.catalog?.items ?? 0);
+      if (items > 0) {
+        log(`📚 Catálogo listo: ${items} ítems (${d?.catalog?.source ?? "sin fuente"})\n`);
+        return true;
+      }
+    } catch { /* sigue arrancando */ }
+    await sleep(1500);
+  }
+  log("📚 Sin catálogo: el bot no podrá ofrecer llantas reales (¿faltan credenciales de Contífico?)\n");
+  return false;
+}
+
+/**
+ * Espera a que el bot termine de hablar en este turno.
+ *
+ * Dos fases: primero que diga ALGO (hasta `techo`), y después que se quede
+ * callado un rato (`silencio`), porque contesta en varios bloques con pausas
+ * entre ellos y cortar al primero partiría la respuesta a la mitad.
+ */
+async function esperarRespuesta(sql, phone, desdeId, stub) {
+  const techo = stub ? 15_000 : 75_000;
+  const silencio = stub ? 1_500 : 6_000;
+  const paso = 750;
+  let esperado = 0;
+  let ultimoConteo = 0;
+  let quieto = 0;
+
+  while (esperado < techo) {
+    await sleep(paso);
+    esperado += paso;
+    const [{ n }] = await sql`
+      select count(*)::int as n from messages m join conversations c on c.id = m.conversation_id
+      where c.phone = ${phone} and m.direction = 'outbound' and m.id > ${desdeId}
+    `;
+    if (n !== ultimoConteo) { ultimoConteo = n; quieto = 0; continue; }
+    if (n > 0) {
+      quieto += paso;
+      if (quieto >= silencio) return;
+    }
+  }
 }
 
 async function esperarSalud() {
@@ -186,8 +256,22 @@ async function main() {
   const sql = postgres(`postgresql://manue@localhost/${DB}`, { prepare: false, max: 5 });
   const resultados = [];
 
+  // ¿El bot arrancó con catálogo de verdad? Cambia lo que se le puede reprochar:
+  // con stock real, decir que hay disponibilidad no es inventar. Corriendo con
+  // `railway run` las credenciales de Contífico llegan y esto da true; con un
+  // `OPENAI_API_KEY=...` pelado, false.
+  //
+  // Hay que ESPERARLO: /health responde en cuanto el puerto está arriba, pero el
+  // catálogo sincroniza aparte y tarda. Medirlo de una daba 0 ítems mientras el
+  // app.log decía «368 llantas», y de paso el primer caso arrancaba en frío y se
+  // quedaba sin respuesta.
+  const catalogoConItems = await esperarCatalogo();
+
   for (const [indice, caso] of CASOS.entries()) {
     const phone = `59397${String(700000 + indice).padStart(6, "0")}`;
+    // Marca de agua para leer lo que salió en cada turno: cada caso arranca en 0
+    // porque es una conversación nueva.
+    let ultimoIdVisto = 0;
     for (const [t, turno] of caso.turnos.entries()) {
       await deliverWebhook({
         baseUrl: BASE_URL, appSecret: APP_SECRET,
@@ -196,14 +280,36 @@ async function main() {
           waMessageId: `wamid.EVAL_${RUN_ID}_${indice}_${t}`, phoneId: PHONE_ID,
         }),
       });
-      await sleep(Number(env.DEBOUNCE_MS) + (USA_STUB ? 2500 : 9000));
+      // Espera adaptativa en vez de dormir un rato fijo. Un turno que solo
+      // contesta texto tarda segundos; uno que renderiza y manda una pieza tarda
+      // bastante más, y con los 9 s fijos el eval leía ANTES de que el bot
+      // hablara y anotaba «vacio» — un fallo del arnés que se leía como mudez
+      // del bot. Se espera a que aparezca algo y luego a que deje de aparecer.
+      await esperarRespuesta(sql, phone, ultimoIdVisto, USA_STUB);
 
-      const [ultima] = await sql`
-        select m.content from messages m join conversations c on c.id = m.conversation_id
-        where c.phone = ${phone} and m.direction = 'outbound'
-        order by m.created_at desc, m.id desc limit 1
+      // TODO lo que el bot dijo en ESTE turno, no solo el último mensaje.
+      //
+      // El bot contesta en varios bloques separados por '---', y cada bloque sale
+      // como un mensaje aparte. Leer solo el último hacía que la rúbrica calificara
+      // la coletilla —«¿Necesita alguna recomendación?»— en vez de la respuesta:
+      // reglas como `sin_pregunta`, `demasiado_largo` o `no_pide_medida` estaban
+      // juzgando un fragmento, y varios turnos salían «sin fallos» por eso.
+      const salientes = await sql`
+        select m.id, m.content, m.type from messages m join conversations c on c.id = m.conversation_id
+        where c.phone = ${phone} and m.direction = 'outbound' and m.id > ${ultimoIdVisto}
+        order by m.id asc
       `;
-      const respuesta = ultima?.content ?? "";
+      if (salientes.length) ultimoIdVisto = salientes[salientes.length - 1].id;
+      const respuesta = salientes
+        .filter((m) => m.type === "text")
+        .map((m) => m.content)
+        .join("\n")
+        .trim();
+
+      // ¿Salió una pieza en ESTE turno? Una imagen de opciones o la guía de la
+      // medida ya es algo concreto, así que el texto puede limitarse a pedir el
+      // dato sin que eso sea dejar al cliente con las manos vacías.
+      const mandoPieza = salientes.some((m) => m.type === "image");
 
       // ¿Había precio/descuento/stock autorizado en ese momento? Si no lo hubo,
       // cualquier mención es invención, no criterio del evaluador.
@@ -219,7 +325,12 @@ async function main() {
         turno: t + 1,
         tienePrecioAutorizado: ctxReal.tiene_precio,
         tieneDescuentoAutorizado: ctxReal.tiene_descuento,
-        tieneStock: false, // sin Contífico conectado, el bot nunca tiene stock real
+        // Antes iba `false` fijo, con la nota «sin Contífico conectado». Dejó de
+        // ser cierto: el hijo hereda process.env, así que corriendo con
+        // `railway run` las credenciales llegan y el catálogo sincroniza de
+        // verdad. Con stock real, afirmar disponibilidad no es inventar.
+        tieneStock: catalogoConItems,
+        mandoPieza,
       };
 
       const reglas = evaluarReglas(respuesta, contexto);

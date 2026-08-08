@@ -10,6 +10,22 @@
  * `isSafeCopy` aplica a los seguimientos, para que el criterio sea uno solo.
  */
 
+/** El bot está pidiendo el dato que le falta para poder vender. */
+const PIDE_UN_DATO =
+  /\b(?:medida|aro|rin|costado|foto|imagen|qu[ée] (?:carro|veh[íi]culo|auto))\b/i;
+
+/**
+ * Algo concreto en la misma respuesta: llantas, un precio, el rango de aros que
+ * hay, o la invitación al local a que se lo midan. Cualquiera salva el turno —
+ * lo que no se perdona es pedir y no dar nada.
+ *
+ * El lookbehind por «no» no es un detalle: «no tengo una medida verificada» es
+ * exactamente la frase que el dueño mandó eliminar, y sin él contaba como oferta
+ * por la palabra «tengo». La negación invierte el sentido, no lo matiza.
+ */
+const OFRECE_ALGO =
+  /\$\s?\d|(?<!\bno\s)\b(?:tenemos|manejamos|tengo|hay|le queda|quedan)\b|\bdel \d{2} al \d{2}\b|\bopciones\b|\b(?:pase|ven[ga]|ac[ée]rquese|le medimos|se lo medimos)\b|\blocal(?:es)?\b|\bCumbay[áa]\b|\bQuito Sur\b/i;
+
 const REGLAS = [
   {
     id: "inventa_precio",
@@ -41,17 +57,29 @@ const REGLAS = [
     id: "no_pide_medida",
     gravedad: "alta",
     descripcion: "El cliente no dio la medida y el bot no se la pide ni ofrece ayuda para encontrarla",
-    falla: (r, ctx) => ctx.etapa === "nuevo" && !ctx.clienteDioMedida
-      && !/\b(?:medida|205|\d{3}\/\d{2}|costado|placa|modelo de tu (?:carro|veh[íi]culo))\b/i.test(r),
+    // `aro` y `rin` entraron el 8-ago: hasta el commit 28ed12e el dato que se
+    // pedía era «la medida», y desde «el aro manda» el bot pregunta el aro —
+    // que es lo que el cliente sí sabe mirar. Sin estas dos palabras la regla
+    // reprobaba justo la respuesta correcta. Y si salió una pieza (la guía del
+    // costado, o las opciones), ya se le ofreció ayuda: eso no es dejarlo solo.
+    falla: (r, ctx) => ctx.etapa === "nuevo" && !ctx.clienteDioMedida && !ctx.mandoPieza
+      && !/\b(?:medida|aro|rin|205|\d{3}\/\d{2}|costado|placa|modelo de tu (?:carro|veh[íi]culo))\b/i.test(r),
   },
   {
-    // Regla de Joaquín (5-ago): «hay que decirle al mijin del bot que no pida
-    // fotos hasta que no pueda leer». El bot no procesa imágenes: pedir una
-    // foto deja la conversación en un callejón sin salida.
-    id: "pide_foto",
+    // Reemplaza a la vieja `pide_foto` (regla de Joaquín, 5-ago: «que no pida
+    // fotos hasta que no pueda leer»). Esa se escribió cuando el bot era ciego;
+    // desde `services/vision.ts` sí las lee, y la migración 012 repuso esa vía a
+    // propósito —prohibirla dejaba fuera el camino más fácil para el cliente que
+    // no ubica la medida—. Pedir la foto ya no es el error.
+    //
+    // El error es el del ticket 2150 (8-ago): pedir el dato y no ofrecer NADA en
+    // la misma respuesta. El cliente escribió «xfavor ya le envío y q me ayude
+    // con una cotización» y recibió, por tercera vez, «apenas me envíe la foto le
+    // hago la cotización». Eso es lo que mata la venta, no la palabra foto.
+    id: "pide_sin_ofrecer",
     gravedad: "critica",
-    descripcion: "Pide una foto o imagen que el bot no puede leer",
-    falla: (r) => /(?:m[áa]nd|mand|env[íi]|enviar|comp[áa]rt)[^.?!\n]{0,50}(?:foto|imagen)|foto (?:de la etiqueta|del costado|de la puerta)/i.test(r),
+    descripcion: "Pide medida, aro o foto sin ofrecer nada concreto en la misma respuesta",
+    falla: (r, ctx) => PIDE_UN_DATO.test(r) && !OFRECE_ALGO.test(r) && !ctx.mandoPieza,
   },
   {
     // Regla de Joaquín (5-ago): «no debería confirmar con el vehículo sino ya

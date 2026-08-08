@@ -221,11 +221,15 @@ describe.sequential("Venta primero — los arreglos de Joaquín", () => {
       tienePrecioAutorizado: false, tieneDescuentoAutorizado: false, tieneStock: false,
     };
 
-    it("reprueba la respuesta real del caso Orlando (pidió foto)", () => {
+    it("reprueba la respuesta real del caso Orlando (pidió y no ofreció nada)", () => {
+      // Antes esto se reprobaba por `pide_foto`. Desde services/vision.ts el bot
+      // sí lee fotos y la migración 012 repuso esa vía a propósito, así que lo
+      // que reprueba ya no es la palabra «foto»: es que el turno entero sea un
+      // «no tengo» seguido de una petición, sin nada que el cliente pueda mirar.
       const respuestaReal =
         "No tengo una medida verificada para ese modelo.\n\n¿Podrías enviarme una foto de la etiqueta de la puerta o de la medida que aparece en una llanta actual? Así confirmamos la compatibilidad.";
       const r = evaluarReglas(respuestaReal, ctxConMedida);
-      expect(r.fallos.map((f: { id: string }) => f.id)).toContain("pide_foto");
+      expect(r.fallos.map((f: { id: string }) => f.id)).toContain("pide_sin_ofrecer");
       expect(r.aprueba).toBe(false);
     });
 
@@ -236,18 +240,29 @@ describe.sequential("Venta primero — los arreglos de Joaquín", () => {
       expect(r.fallos.map((f: { id: string }) => f.id)).toContain("pregunta_vehiculo_con_medida");
     });
 
-    it("reprueba el «si prefieres mándame una foto del costado» del primer turno", () => {
-      const respuestaReal =
+    it("ofrecer la foto ya NO es el problema; quedarse sin ofrecer nada sí", () => {
+      // Misma frase, dos veredictos: lo que cambia no es la foto, es si el turno
+      // le deja algo al cliente.
+      const soloPide =
         "¡Hola! Con gusto le ayudo. ¿Qué medida dice el filo de su llanta actual? Si prefiere, puede mandarme una foto del costado y yo la leo.";
-      const r = evaluarReglas(respuestaReal, { ...ctxConMedida, clienteDioMedida: false, turno: 1 });
-      expect(r.fallos.map((f: { id: string }) => f.id)).toContain("pide_foto");
+      const ctx = { ...ctxConMedida, clienteDioMedida: false, turno: 1 };
+      expect(evaluarReglas(soloPide, ctx).fallos.map((f: { id: string }) => f.id))
+        .toContain("pide_sin_ofrecer");
+
+      // La misma petición, pero acompañada de la guía de la medida (la pieza que
+      // enseña dónde mirar), ya no deja al cliente con las manos vacías.
+      expect(evaluarReglas(soloPide, { ...ctx, mandoPieza: true }).fallos.map((f: { id: string }) => f.id))
+        .not.toContain("pide_sin_ofrecer");
     });
 
-    it("aprueba la conducta nueva: pedir la medida escrita y avanzar", () => {
+    it("aprueba la conducta de hoy: pedir el aro diciendo cuáles hay", () => {
+      // Lo que cambió el 8-ago: el dato que se pide es el ARO, y la pregunta va
+      // con una oferta pegada. Antes bastaba con pedir la medida escrita; hoy
+      // eso solo es media respuesta.
       const respuestaBuena =
-        "¡Buenas! Para cotizarle de una: ¿me escribe la medida que dice el filo de la llanta? Es algo como 225/65R17.";
+        "¡Buenas! Tenemos llantas en aros del 13 al 22. ¿Me dice su aro o la medida del costado, por ejemplo 225/65R17?";
       const r = evaluarReglas(respuestaBuena, { ...ctxConMedida, clienteDioMedida: false, turno: 1 });
-      expect(r.fallos.map((f: { id: string }) => f.id)).not.toContain("pide_foto");
+      expect(r.fallos.map((f: { id: string }) => f.id)).not.toContain("pide_sin_ofrecer");
       expect(r.aprueba).toBe(true);
     });
 
