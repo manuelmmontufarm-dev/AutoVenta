@@ -142,6 +142,11 @@ descartaron y por qué — antes morían en un `console.error` que no lee nadie.
 **Por qué importa:** las cuatro son la misma queja — el panel mostraba huecos sin explicación, y
 un hueco sin explicación se lee como un error del sistema aunque sea una decisión del negocio.
 
+**Hallazgo al desplegar:** `docs/OPERACION.md` decía «`main` deploya solo a staging». Es falso —
+staging y Depot Tire arrancaron con el mismo commit y 4 segundos de diferencia. Un push a `main`
+toca al cliente real. Corregido en el doc, porque esa línea es justo la que alguien lee antes de
+decidir si empuja.
+
 ---
 
 ### 2026-08-07 · Se elige el modelo midiendo, y se enciende en producción · ⏱️ 1.5 h

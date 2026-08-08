@@ -54,7 +54,10 @@ Basta un GET cada minuto y una regla sobre el JSON.
 
 ## 3. Rollback
 
-`main` deploya solo a staging. Para volver atrás:
+**`main` deploya a los DOS servicios: staging y Depot Tire.** (Esta línea decía
+"solo a staging" y era falsa: el 7-ago se comprobó que los dos arrancan con el
+mismo commit y con segundos de diferencia. Un push a main toca al cliente real.)
+Para volver atrás:
 
 ```bash
 git revert <sha>          # revert, NO reset: main es compartido y ya está desplegado
