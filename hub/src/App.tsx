@@ -1,7 +1,7 @@
 import { AnimatePresence, LayoutGroup, MotionConfig, motion } from "framer-motion";
 import { useEffect, useState } from "react";
 import { Confetti, Toasts } from "./components/overlays";
-import { IconChart, IconInbox, IconKanban, IconPlay, IconSparkle, IconStop, IconTire } from "./components/icons";
+import { IconChart, IconInbox, IconKanban, IconPlay, IconSettings, IconSparkle, IconStop, IconTire } from "./components/icons";
 import { RacingDetails } from "./components/racing-details";
 import { setSonidoActivo, sonidoActivo, sonidoBoton } from "./lib/sound";
 import { navigate, useRoute, type Route } from "./router";
@@ -20,6 +20,7 @@ const NAV = [
   { id: "pipeline", label: "Pipeline", icon: IconKanban },
   { id: "cotizador", label: "Cotizador", icon: IconTire },
   { id: "dashboard", label: "Métricas", icon: IconChart },
+  { id: "settings", label: "Ajustes", icon: IconSettings },
 ] as const;
 
 const TITULOS: Record<string, { titulo: string; sub: string }> = {
