@@ -32,6 +32,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-08-08 | _(este mismo)_ | El aro manda: guía visual del costado, dos aros = invitación al local, y fecha+local como meta | 2.0 |
 | 2026-08-08 | _(este mismo)_ | Los que confirman fecha salen en Oportunidades, en grupo propio | 0.5 |
 | 2026-08-08 | _(este mismo)_ | El bot dejó de redactar lo que no puede enviar + el panel dice la verdad del envío | 1.5 |
 | 2026-08-08 | _(este mismo)_ | Avisos al asesor: cuando el cliente da la fecha y la víspera de la visita | 1.0 |
@@ -96,11 +97,61 @@ Ya viene activado en este equipo.
 | 2026-07-14 | ac09171 | Ubicaciones de locales + análisis de features del cliente | 1.5 |
 | 2026-07-13 | feadf57 | Brief + plan de desarrollo + plan financiero + catálogo | 4.0 |
 | 2026-07-13 | d997844 | Commit inicial (repo) | 0.25 |
-| | | **TOTAL** | **~89.5 h** |
+| | | **TOTAL** | **~91.5 h** |
 
 ---
 
 ## Entradas (más reciente primero)
+
+### 2026-08-08 · El aro manda, y después de cotizar solo importan fecha y local · ⏱️ 2.0 h
+
+**De dónde sale:** Manuel, con el diagrama del costado de una llanta en la mano: «el RIN es clave,
+sin el rin no se puede cotizar una llanta con 100% de certeza». Y en el mismo hilo: «la nueva meta
+después de mandar la cotización es conseguir que nos diga una fecha que quiere ir y a qué local».
+
+**1. El aro deja de pedirse en seco.** Pedir «¿qué medida necesita?» le pone al cliente seis
+números impresos delante sin decirle cuál mirar. Ahora hay una pieza —`guia_medida`, dibujada con
+el mismo motor satori de las otras tres— que despieza `195/55R16 87V` segmento por segmento con el
+aro en naranja y una franja que dice por qué: **el ancho, el perfil y el índice de carga admiten un
+equivalente; el aro no admite ninguno.** La pieza cierra ofreciendo la foto («mándenos una foto del
+costado: nosotros la leemos»), que desde vision.ts es una vía real y para mucha gente la más fácil.
+Se manda **una sola vez por conversación**, con el mismo candado que la pieza de opciones.
+
+**2. Dos aros posibles = invitación al local, no un interrogatorio.** Un X-Trail 2017 sale de
+fábrica en aro 15 o 17 según la versión. Preguntar «¿qué versión tiene?» termina en «no sé» y ahí
+se muere el chat — nadie compró su carro por la ficha técnica. Ahora `fitment_vehiculo` cuenta
+**aros distintos** (no medidas distintas: cuatro medidas del mismo aro son una sola decisión) y,
+si hay stock en los dos, devuelve la frase armada: *tenemos para los dos, pase y le medimos el
+aro*. Con stock en uno solo NO hay invitación — sería prometer lo que no hay.
+
+**3. Después de la cotización el objetivo son dos datos, no «confirmar interés».** Una fecha sin
+local no se le puede avisar a nadie y un local sin fecha no entra en ninguna agenda, así que van
+juntos y en la misma pregunta, y ningún turno posterior a la cotización cierra sin ella.
+
+**4. El motivo que se le da al cliente ahora es el descuento — y es verdad.** Hasta hoy, sin
+oferta autorizada viva el bot decía «le dejo avisado al asesor» y el test exigía que NO apareciera
+la palabra descuento. Pero la cotización sale con precio rebajado y su número es justo lo que la
+tienda exige para respetarlo: avisarle al asesor es literalmente lo que hace que se lo apliquen.
+Lo que sigue prohibido —y con test— es nombrar un descuento **extra** que nadie autorizó.
+
+**5. El mensaje de entrada muestra el alcance del bot y admite preguntas.** Tres bloques: qué
+resuelve en concreto, que puede preguntar lo que sea *y mandar foto*, y la pregunta por el aro. Con
+dos frenos: no prometer lo que no hace (no reserva, no cobra) y nada de hablar de «IA» o «sistema».
+Si el primer mensaje ya trae medida o vehículo, se salta la presentación y va directo a opciones.
+
+**Migración `012`, porque cambiar el default no alcanza.** Las bases de staging y Depot ya tienen
+sembrados los prompts por etapa, así que el criterio nuevo se siembra igual que en la 011: se pisan
+SOLO las filas publicadas cuyo texto es byte-idéntico al del sistema —la prueba de que nadie las
+editó— y las herramientas se unen, nunca se quitan. De paso corrige el prompt de `nuevo`, que
+todavía decía «pedida siempre ESCRITA (nunca foto)»: se escribió cuando el bot no leía imágenes y
+desde entonces prohibía la vía más fácil para el que no ubica la medida.
+
+**Nota de coordinación:** este commit arrastra también el escalamiento sin ubicación
+(`notificar_vendedor` con `motivo`, el caso de Yantzaza) que se estaba escribiendo en paralelo en
+otra sesión sobre el mismo árbol. No se puede separar: comparte `tools.ts` y `prompts.ts` con lo de
+arriba, y dejarlo fuera rompería el build. Va entero y en verde; su bitácora la escribe esa sesión.
+
+---
 
 ### 2026-08-08 · El que dice qué día viene ya tiene dónde aparecer · ⏱️ 0.5 h
 

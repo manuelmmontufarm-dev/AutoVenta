@@ -309,6 +309,63 @@ export function normalizarCandidatos(
 }
 
 /**
+ * Los aros distintos que propuso la investigación, en orden de probabilidad.
+ *
+ * El aro es lo único que decide si la llanta entra o no, así que la pregunta
+ * «¿cuántos aros distintos hay en juego?» no es la misma que «¿cuántas medidas
+ * hay?»: un X-Trail puede devolver cuatro medidas que son todas del aro 17
+ * (misma decisión para el cliente) o dos que son de aro 15 y 17 (dos vehículos
+ * distintos a efectos de compra).
+ */
+export function arosDeCandidatos(candidatos: readonly CandidatoFitment[]): number[] {
+  const vistos = new Set<number>();
+  for (const candidato of candidatos) {
+    const rim = parseTireSize(candidato.medida)?.rim;
+    if (rim) vistos.add(rim);
+  }
+  return [...vistos];
+}
+
+/** Los aros distintos de un puñado de medidas del catálogo, en orden de aparición. */
+export function arosDeMedidas(medidas: readonly string[]): number[] {
+  const vistos = new Set<number>();
+  for (const medida of medidas) {
+    const rim = parseTireSize(medida)?.rim;
+    if (rim) vistos.add(rim);
+  }
+  return [...vistos];
+}
+
+/**
+ * El caso «o rin 15 o rin 17»: dos aros de fábrica y stock para los dos.
+ *
+ * Es la única ambigüedad de fitment que NO hay que resolver por chat. Cuando la
+ * versión decide entre dos aros, preguntar «¿qué versión tiene?» suele terminar
+ * en un «no sé» y ahí se muere la conversación: el cliente no compró su carro
+ * por la ficha técnica. Pero si el local tiene llantas para los dos aros, la
+ * duda deja de ser un bloqueo y se vuelve un motivo para venir — se le mide el
+ * aro en dos minutos y sale con la llanta correcta.
+ *
+ * Devuelve null cuando no aplica (un solo aro, o sin stock en dos de ellos):
+ * invitar al local prometiendo opciones que no existen sería peor que preguntar.
+ */
+export function invitacionPorAroAmbiguo(
+  vehiculo: string,
+  arosConStock: readonly number[],
+): string | null {
+  const aros = [...new Set(arosConStock)].sort((a, b) => a - b);
+  if (aros.length < 2) return null;
+  const lista = aros.length === 2
+    ? `aro ${aros[0]} o aro ${aros[1]}`
+    : `${aros.slice(0, -1).map((a) => `aro ${a}`).join(", ")} o aro ${aros[aros.length - 1]}`;
+  return (
+    `Su ${vehiculo} viene de fábrica en ${lista}, según la versión. ` +
+    `Tenemos llantas para ${aros.length === 2 ? "los dos" : "todos"}, así que no se complique: ` +
+    `si no sabe cuál tiene, pase al local y un asesor le mide el aro y le monta la que va.`
+  );
+}
+
+/**
  * Confianza del mejor candidato → estado del resultado.
  *
  * La investigación web nunca produce "verified": eso queda para la ficha curada

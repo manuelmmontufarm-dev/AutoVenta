@@ -85,14 +85,39 @@ export const PREGUNTA_RECOMENDACION = "¿Necesita alguna recomendación?";
  * última columna del kanban en una lista de trabajo — sin él, "Seguimiento
  * hasta venta" es un montón de tarjetas sin nada que hacer hoy.
  *
- * El motivo que se le da al cliente cambia según lo que sea VERDAD: el
- * descuento solo se nombra si hay una oferta autorizada viva. Inventar un
- * descuento para que conteste sería justo lo que el playbook prohíbe.
+ * El motivo SIEMPRE es el descuento, y siempre es verdad: la cotización sale
+ * con el precio rebajado y su número es lo que el local exige para respetarlo,
+ * así que avisar al asesor es literalmente lo que hace que se lo apliquen. Lo
+ * que cambia según el caso es CUÁL descuento — el extra autorizado por un
+ * asesor cuando existe, el de la propia cotización cuando no. Lo que sigue
+ * prohibido es inventar un descuento extra que nadie autorizó.
  */
 export function buildVisitDayQuestion(conDescuentoAutorizado: boolean): string {
   return conDescuentoAutorizado
-    ? "¿Qué día podría pasar? Avíseme y dejamos anotado su descuento para que se lo respeten cuando llegue. 📅"
-    : "¿Qué día podría pasar? Avíseme y le dejo avisado al asesor con su número de cotización para que le tengan todo listo. 📅";
+    ? "¿Qué día podría pasar? Le aviso al asesor y le dejo anotado su descuento extra para que se lo respeten apenas llegue. 📅"
+    : "¿Qué día podría pasar? Le aviso al asesor con su número de cotización para que le apliquen el descuento cuando llegue. 📅";
+}
+
+/**
+ * Los dos datos que cierran la cotización: qué día viene y a cuál local.
+ *
+ * Van juntos y en una sola pregunta porque son la misma decisión del cliente y
+ * porque el asesor no puede hacer nada con uno solo: una fecha sin local no se
+ * le puede avisar a nadie, y un local sin fecha no entra en la agenda de nadie.
+ * Después de mandar la cotización, conseguir estos dos datos ES el objetivo del
+ * bot — no un cierre de cortesía.
+ */
+export function buildVisitPlanQuestion(input: {
+  conDescuentoAutorizado: boolean;
+  locales: readonly string[];
+}): string {
+  const opciones = input.locales.length
+    ? ` ¿${input.locales.slice(0, 2).join(" o ")}?`
+    : "";
+  const motivo = input.conDescuentoAutorizado
+    ? "le dejo anotado su descuento extra para que se lo respeten apenas llegue"
+    : "le aplican el descuento de su cotización apenas llegue";
+  return `¿Qué día puede pasar y a cuál local?${opciones} Con esos dos datos le aviso al asesor y ${motivo}. 📅`;
 }
 
 /** Cotización: número, total y vigencia. El desglose ya está en la imagen. */

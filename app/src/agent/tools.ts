@@ -31,6 +31,7 @@ import {
   buildSingleQuoteCaption,
   buildSingleQuoteMessageDetallado,
   buildVisitDayQuestion,
+  buildVisitPlanQuestion,
   composeBlocks,
   PREGUNTA_RECOMENDACION,
   warrantyForBrand,
@@ -47,6 +48,7 @@ import { applicableBenefitTexts, buildBenefitsBlock } from "../services/benefits
 import { brandProfilesForRender } from "../services/brandProfiles.js";
 import { getAiConfig, getPiecesConfig } from "../services/settings.js";
 import { researchVehicleFitment } from "../services/vehicleFitmentResearch.js";
+import { arosDeCandidatos, arosDeMedidas, invitacionPorAroAmbiguo } from "../domain/fitmentResearch.js";
 import { nearestStore, resolveSector } from "../domain/locations.js";
 import { extractFlotationSizes, formatFlotationSize, formatTireSize, parseTireSize, type TireSize } from "../domain/tireSize.js";
 import { canGenerateFinalQuote } from "../domain/salesIntent.js";
@@ -60,6 +62,7 @@ import {
 import { sendImage, sendPdf } from "../wa/client.js";
 import {
   renderCompareImage,
+  renderMedidaGuideImage,
   renderOptionsImage,
   renderQuoteImage,
   toRenderLine,
@@ -200,6 +203,35 @@ function muestraDelStock(): CatalogItem[] {
     todo.push(...tresOpciones(conStock(opcionesEnAro(aro, null).enElAro)));
   }
   return tresOpciones(todo);
+}
+
+/**
+ * Aros que hoy tienen algo vendible.
+ *
+ * Es lo concreto que se le puede dar a alguien que todavía no sabe su medida:
+ * «¿qué aro usa?» en seco es una pregunta más, pero «¿qué aro usa? tenemos del
+ * 13 al 20» ya es una oferta. Se calcula del stock real para no prometer un aro
+ * que no existe.
+ */
+function arosConStock(): number[] {
+  const aros: number[] = [];
+  for (let aro = ARO_MIN; aro <= ARO_MAX; aro++) {
+    if (conStock(opcionesEnAro(aro, null).enElAro).length) aros.push(aro);
+  }
+  return aros;
+}
+
+/**
+ * "13 al 20" cuando los aros son corridos; "13, 15 y 17" cuando hay huecos.
+ * Decirlo como rango es más fácil de leer, pero solo vale si de verdad están
+ * todos: un rango con huecos manda al cliente a preguntar por un aro que no hay.
+ */
+export function rangoDeAros(aros: readonly number[]): string | null {
+  if (!aros.length) return null;
+  if (aros.length === 1) return String(aros[0]);
+  const corridos = aros.every((aro, i) => i === 0 || aro === aros[i - 1] + 1);
+  if (corridos) return `${aros[0]} al ${aros[aros.length - 1]}`;
+  return `${aros.slice(0, -1).join(", ")} y ${aros[aros.length - 1]}`;
 }
 
 /** Une listas del catálogo sin repetir códigos (una misma llanta cae por varias medidas). */
@@ -518,6 +550,172 @@ export function buildTools(ctx: AgentContext) {
       }),
   });
 
+  /**
+   * La guía visual de la medida, con el aro marcado como dato clave.
+   *
+   * Existe porque «¿qué medida necesita?» es una pregunta que el cliente no
+   * siempre sabe contestar, y responderle con más texto no ayuda: hay seis
+   * números impresos en el costado y ninguno viene rotulado. La imagen convierte
+   * la pregunta en algo que se resuelve mirando la llanta, y en la misma pieza
+   * legitima la otra vía —mandar la foto— para el que ni así la ubica.
+   *
+   * No consulta el catálogo ni menciona precios: se manda ANTES de saber qué
+   * llanta usa el cliente, que es cuando hace falta.
+   */
+  const guiaMedida = defineTool({
+    name: "guia_medida",
+    description:
+      "Envía la imagen que explica cómo se lee la medida en el costado de la llanta, con el ARO (rin) marcado como el dato clave, y devuelve el texto que la acompaña. Úsala la PRIMERA vez que tengas que pedir la medida o el aro: en vez de preguntar en seco, el cliente ve dónde mirar. También sirve si el cliente dice que no sabe su medida, que no la encuentra o pregunta qué significan esos números. Nunca la mandes dos veces en la misma conversación.",
+    schema: z.object({
+      aro: z
+        .number()
+        .int()
+        .min(ARO_MIN)
+        .max(ARO_MAX)
+        .nullable()
+        .default(null)
+        .describe("Aro que el cliente YA dijo, si lo dijo. Cambia el pie de la imagen de «pídalo» a «confirmado». Null si todavía no lo sabes."),
+    }),
+    run: async ({ aro }) => {
+      // Mismo criterio que el candado de opciones: la pieza se manda una vez por
+      // ciclo. Repetir una infografía que el cliente ya tiene en pantalla se lee
+      // como que el bot no lo escuchó.
+      const [previa] = await sql<{ id: number }[]>`
+        select id from messages
+        where conversation_id=${ctx.conversation.id}
+          and cycle=${ctx.conversation.current_cycle}
+          and type='image'
+          and metadata->>'piece'='medida_guide'
+        limit 1
+      `;
+      if (previa) {
+        return JSON.stringify({
+          error:
+            "La guía de la medida YA se envió en esta conversación y el cliente la tiene en pantalla. No la reenvíes: pregúntale directo el aro o la medida, o dile que mande la foto del costado.",
+        });
+      }
+
+      const visual = await sendVisual(
+        ctx.conversation.id,
+        ctx.customerPhone,
+        async () =>
+          // Sin brandProfiles a propósito: la guía no muestra ni una marca.
+          renderMedidaGuideImage({
+            dateLabel: dateLabel(),
+            aroDelCliente: aro,
+            ...(await getPiecesConfig()),
+          }),
+        "Así se lee la medida en el costado de la llanta 🛞",
+        `Medida-${business.name.replace(/\s/g, "")}.png`,
+        "guía de medida",
+      );
+      await appendMessage(
+        ctx.conversation.id,
+        "assistant",
+        visual.ok ? "Guía de medida enviada" : "Guía de medida NO enviada",
+        visual.providerId,
+        {
+          type: "image",
+          authorKind: "bot",
+          status: visual.ok ? "sent" : "failed",
+          metadata: { piece: "medida_guide", ...(visual.error ? { renderError: visual.error } : {}) },
+        },
+      );
+
+      // Si la imagen no salió, el texto tiene que explicar solo lo que la pieza
+      // explicaba. La petición nunca puede quedarse sin las dos vías.
+      const pedido = aro
+        ? `Con aro ${aro} ya podemos avanzar. Si me confirma la medida completa del costado (ej. 225/65R17), le cotizo exacto.`
+        : "Lo que más necesito es el *aro* — el número después de la R (ej. la R*17* de 225/65R17). Sin ese dato no le puedo asegurar que la llanta entre.";
+      return JSON.stringify({
+        imagen_enviada: visual.ok,
+        aro_del_cliente: aro,
+        mensaje_para_enviar: composeBlocks(
+          visual.ok
+            ? pedido
+            : `${pedido}\nLa medida está impresa en el costado de la llanta, en formato 225/65R17.`,
+          "¿Me dice la medida, o prefiere mandarme una foto del costado y la leo yo? 📸",
+        ),
+        regla:
+          "Responde exactamente con mensaje_para_enviar, con sus separadores '---' intactos. La imagen ya explica los seis números: no los repitas en texto. Si el cliente contesta con el aro, con la medida o con una foto, sigue de una hacia las opciones.",
+      });
+    },
+  });
+
+  /**
+   * La salida del callejón sin salida.
+   *
+   * Ticket 2150 del 8-ago-2026: el cliente escribió «xfavor ya le envío y q me
+   * ayude con una cotización» y el bot contestó «apenas me envíe la foto con la
+   * medida le hago la cotización». Tres turnos seguidos pidiendo lo mismo, cero
+   * ofrecido. El dueño terminó mandando las opciones a mano.
+   *
+   * El prompt ya prohibía cerrar un turno con una petición sola, pero cuando no
+   * hay medida NI aro NI vehículo no había una sola herramienta que el modelo
+   * pudiera llamar: con las manos vacías lo único que le queda es preguntar, y
+   * pregunta para siempre. Esta tool le da con qué contestar.
+   *
+   * Los dos pasos van aquí y no en el prompt porque son una decisión de negocio,
+   * no un criterio del modelo: primero se pide el aro ofreciendo cuáles hay; si
+   * el cliente vuelve a pedir sin darlo, se le muestra stock real y se le
+   * explica por qué el aro manda. Que la pieza de la guía ya haya salido es el
+   * rastro determinista de que "ya se le pidió una vez".
+   */
+  const opcionesSinMedida = defineTool({
+    name: "opciones_sin_medida",
+    description:
+      "Úsala cuando el cliente pide opciones, precio o cotización y NO tienes medida, ni aro, ni vehículo. Ese pedido NUNCA se contesta solo con una pregunta: esta herramienta te dice qué toca según cuántas veces ya se lo pediste. La primera vez te devuelve los aros que sí hay en stock para que pidas el aro ofreciendo algo concreto; si el cliente ya lo pidió otra vez sin darlo, te devuelve una muestra real del stock para que la mandes con preparar_opciones y le expliques por qué el aro decide. Si el cliente SÍ dio un aro va buscar_por_aro_y_tipo, y si dio vehículo va fitment_vehiculo — esta es solo para cuando no hay nada.",
+    schema: z.object({}),
+    run: async () => {
+      await ensureCatalogReady();
+      const aros = arosConStock();
+      const rango = rangoDeAros(aros);
+
+      // ¿Ya se le pidió el aro en este ciclo? La guía de medida es el rastro:
+      // el prompt manda mandarla justo la primera vez que se pide la medida, así
+      // que si ya salió, esta es la segunda vez que el cliente pregunta.
+      const [guiaPrevia] = await sql<{ id: number }[]>`
+        select id from messages
+        where conversation_id=${ctx.conversation.id}
+          and cycle=${ctx.conversation.current_cycle}
+          and type='image'
+          and metadata->>'piece'='medida_guide'
+        limit 1
+      `;
+
+      if (!guiaPrevia) {
+        return JSON.stringify({
+          paso: "pedir_el_aro",
+          aros_en_stock: aros,
+          rango_para_decir: rango,
+          regla: rango
+            ? `Todavía no se le ha pedido el aro con la guía. Manda guia_medida (con aro: null) y en el texto dile que manejamos del ${rango} — así la pregunta viene con una oferta y no en seco. NO llames preparar_opciones en este turno: sin aro no sabes qué mostrarle. Si el cliente contesta con el aro, sigues de una con buscar_por_aro_y_tipo.`
+            : "Todavía no se le ha pedido el aro con la guía. Manda guia_medida (con aro: null). No prometas aros: hoy el catálogo no tiene stock que puedas nombrar.",
+        });
+      }
+
+      // Segunda vez: ya se le pidió y volvió a pedir sin dar el aro. Aquí sí
+      // sale la pieza, con stock real y el límite dicho en la misma respuesta.
+      const muestra = muestraDelStock();
+      if (!muestra.length) {
+        return JSON.stringify({
+          paso: "sin_stock_que_mostrar",
+          regla:
+            "El catálogo no tiene stock que mostrar. No inventes opciones: explícale en una línea que el aro es lo que decide si la llanta entra e invítalo a pasar por el local para medirlo.",
+        });
+      }
+      return JSON.stringify({
+        paso: "mostrar_muestra_e_invitar",
+        opciones: muestra.map(toolItem),
+        aros_en_stock: aros,
+        rango_para_decir: rango,
+        locales: business.stores.map((s) => ({ nombre: s.name, direccion: s.address })),
+        regla:
+          "Llama preparar_opciones con estos códigos AHORA: el cliente pidió opciones dos veces y esta vez las ve. En el texto que acompaña la pieza van tres cosas y ninguna más: (1) que es una muestra de lo que manejamos, NO su medida; (2) en UNA línea, por qué el aro manda — si no coincide, la llanta no entra, y por eso no le puedes afirmar precio todavía; (3) la invitación a pasar por el local a que se lo midan. PROHIBIDO afirmar que estas llantas le sirven a su carro, y PROHIBIDO cotizar sobre ellas. Si en algún momento dice el aro o el vehículo, esto se descarta y vas por buscar_por_aro_y_tipo o fitment_vehiculo.",
+      });
+    },
+  });
+
   const fitmentVehiculo = defineTool({
     name: "fitment_vehiculo",
     description:
@@ -541,6 +739,13 @@ export function buildTools(ctx: AgentContext) {
       const result = await researchVehicleFitment(marca, modelo, anio, aro);
       const { opciones, origen, medidasConStock, medidasAgotadas } = await opcionesDeFitment(result.sizes, aro);
 
+      // El caso «o rin 15 o rin 17». Solo se calcula cuando el cliente NO dijo
+      // su aro: si lo dijo, la ambigüedad ya la resolvió él y recordársela sería
+      // devolverle una duda que no tiene.
+      const arosPosibles = arosDeCandidatos(result.candidatos);
+      const arosConStock = arosDeMedidas(medidasConStock);
+      const invitacionAro = aro ? null : invitacionPorAroAmbiguo(result.vehicle, arosConStock);
+
       // El candado: la respuesta lleva opciones aunque la investigación haya
       // fallado. Lo único que cambia es qué puede AFIRMAR el vendedor sobre
       // ellas, y eso lo dice `origen_opciones` junto con su regla.
@@ -548,6 +753,9 @@ export function buildTools(ctx: AgentContext) {
       return JSON.stringify({
         encontrado: result.status !== "not_found",
         medidas: result.sizes,
+        aros_posibles: arosPosibles,
+        aros_con_stock: arosConStock,
+        ...(invitacionAro ? { invitacion_por_aro_ambiguo: invitacionAro } : {}),
         // Cada medida con su respaldo: el vendedor necesita saber cuál puede
         // defender y cuál solo ofrecer con reservas.
         candidatos: result.candidatos.map((c) => ({ medida: c.medida, confianza: c.confianza, porque: c.porque })),
@@ -565,7 +773,13 @@ export function buildTools(ctx: AgentContext) {
           "PROHIBIDO cerrar el turno con la limitación y una pregunta sola: en 'opciones' ya tienes llantas reales del catálogo, listas para preparar_opciones sin volver a buscar.",
           reglaOrigen,
           result.sources.length ? "Menciona la fuente cuando afirmes una medida." : null,
-          "Si necesitas la medida exacta, pídela de las dos formas: escrita del filo de la llanta (ej. 225/65R17) o una foto del costado. Sabes leer fotos, así que la foto es una vía válida y para mucha gente es la más fácil.",
+          // El aro ambiguo se resuelve en el local, no por chat: preguntar la
+          // versión a alguien que no la sabe mata la conversación, y con stock
+          // en los dos aros la duda es un motivo para venir, no un bloqueo.
+          invitacionAro
+            ? `Ese vehículo tiene DOS aros de fábrica y hay stock para los dos. Di 'invitacion_por_aro_ambiguo' tal cual en vez de preguntar la versión, y cierra invitándolo a pasar. No elijas un aro por él ni afirmes que su carro usa uno solo.`
+            : null,
+          "Si necesitas la medida exacta, pídela de las dos formas: escrita del filo de la llanta (ej. 225/65R17) o una foto del costado. Sabes leer fotos, así que la foto es una vía válida y para mucha gente es la más fácil. Si el cliente no ubica la medida, manda guia_medida: la imagen le muestra dónde está el aro.",
         ]
           .filter(Boolean)
           .join(" "),
@@ -1179,11 +1393,15 @@ export function buildTools(ctx: AgentContext) {
             quantity: items[0].cantidad,
           }),
           // Local y día en el MISMO bloque: son la misma decisión para el
-          // cliente, y separarlos sumaba un cuarto mensaje al turno.
-          `¿Le queda mejor Cumbayá o Quito Sur? Puede pasar sin compromiso a verlas y probarlas en su vehículo.\n${buildVisitDayQuestion(Boolean(activeDiscount))}`,
+          // cliente, y separarlos sumaba un cuarto mensaje al turno. Con la
+          // cotización enviada, estos dos datos son el objetivo del bot.
+          `Puede pasar sin compromiso a verlas y probarlas en su vehículo.\n${buildVisitPlanQuestion({
+            conDescuentoAutorizado: Boolean(activeDiscount),
+            locales: business.stores.map((store) => store.name),
+          })}`,
         ),
         regla:
-          "Responde exactamente con mensaje_para_enviar, con sus separadores '---' intactos. La cotización ya fue enviada y Manuel ya fue notificado.",
+          "Responde exactamente con mensaje_para_enviar, con sus separadores '---' intactos. La cotización ya fue enviada y Manuel ya fue notificado. A partir de ahora tu objetivo es UNO: que el cliente diga qué día viene y a cuál local. No cierres ningún turno sin esa pregunta hasta tener las dos respuestas.",
       });
     },
   });
@@ -1235,7 +1453,8 @@ export function buildTools(ctx: AgentContext) {
           // cliente acaba de decidir a dónde va.
           buildVisitDayQuestion(descuentoVivo),
         ].filter(Boolean).join("\n"),
-        regla: "Responde exactamente con mensaje_para_enviar, incluida la pregunta por el día, y no inventes otra distancia o dirección.",
+        regla:
+          "Responde exactamente con mensaje_para_enviar, incluida la pregunta por el día, y no inventes otra distancia o dirección. Ya tienes el local: lo único que falta para cerrar es la FECHA. No cierres un turno sin pedirla mientras el cliente no la haya dado.",
       });
     },
   });
@@ -1243,47 +1462,104 @@ export function buildTools(ctx: AgentContext) {
   const notificarVendedor = defineTool({
     name: "notificar_vendedor",
     description:
-      "Alerta al vendedor humano por WhatsApp. Úsala cuando el cliente confirme compra/reserva, pida hablar con una persona, o tenga un caso que no puedas resolver. Incluye un resumen accionable: qué llanta, cuántas, a qué precio, y el teléfono del cliente.",
+      "Alerta al vendedor humano por WhatsApp. Úsala cuando el cliente confirme compra/reserva, pida hablar con una persona, pida despacho a una ciudad sin local, o tenga un caso que no puedas resolver. Incluye un resumen accionable: qué llanta, cuántas, a qué precio, y qué necesita el cliente.",
     schema: z.object({
+      motivo: z
+        .enum(["compra", "pide_humano", "envio_fuera_de_cobertura", "caso_sin_resolver"])
+        .describe(
+          "Por qué escalas: compra = confirmó que compra o reserva y va a un local; pide_humano = pidió hablar con una persona; envio_fuera_de_cobertura = pide despacho a una ciudad donde no hay local; caso_sin_resolver = cualquier otra cosa que no puedas responder",
+        ),
       resumen: z
         .string()
         .describe("Resumen para el vendedor: producto, cantidad, total, estado del cliente"),
     }),
-    run: async ({ resumen }) => {
+    run: async ({ motivo, resumen }) => {
       const [facts] = await sql<{ location_label: string | null; nearest_store: string | null }[]>`
         select location_label, nearest_store from conversations where id = ${ctx.conversation.id}
       `;
-      if (!facts?.location_label || !facts.nearest_store) {
+      const ubicacion = facts?.location_label ?? null;
+      const local = facts?.nearest_store ?? null;
+
+      // La ubicación y el local solo son requisito para COORDINAR una visita:
+      // sin ellos el asesor no sabe a qué tienda ir a esperar al cliente. Para
+      // escalar NO son requisito, y exigirlos era el bug: el 8-ago un cliente de
+      // Yantzaza pidió despacho, nunca compartió pin —no hay local que
+      // recomendarle— y la guarda dejó el aviso sin salir. Un caso que el bot no
+      // puede resolver tiene que llegar a un humano aunque no sepamos dónde vive.
+      if (motivo === "compra" && (!ubicacion || !local)) {
         return JSON.stringify({
           error:
-            "Antes del handoff necesitas la ubicación del cliente y el local recomendado. Pide ubicación y usa local_mas_cercano.",
+            "Antes del handoff de compra necesitas la ubicación del cliente y el local recomendado. Pide ubicación y usa local_mas_cercano. Si el caso es otro (pide un humano, pide envío, no puedes resolverlo), vuelve a llamarme con el motivo correcto.",
         });
       }
+
+      const plan = {
+        compra: {
+          eventType: "customer_ready_to_buy" as const,
+          title: "Cliente listo para comprar",
+          action: `Coordinar la compra en ${local}.`,
+          alertAction: `Abrir la conversación de ${ctx.customerName ?? ctx.customerPhone} y coordinar la venta.`,
+        },
+        pide_humano: {
+          eventType: "human_requested" as const,
+          title: "Cliente pidió hablar con un asesor",
+          action: "Abrir el ticket y responder personalmente dentro de la ventana de 24 horas.",
+          alertAction: `Responder personalmente a ${ctx.customerName ?? ctx.customerPhone}: pidió un humano.`,
+        },
+        envio_fuera_de_cobertura: {
+          eventType: "envio_fuera_de_cobertura" as const,
+          title: "Cliente pide despacho fuera de cobertura",
+          action:
+            "Confirmarle si se puede despachar, a qué costo y en cuántos días. El bot ya le dijo que un asesor lo revisa.",
+          alertAction:
+            "Cotizar el envío o decirle que no se puede. El bot no tiene cómo resolverlo solo.",
+        },
+        caso_sin_resolver: {
+          eventType: "caso_sin_resolver" as const,
+          title: "Caso que el bot no puede resolver",
+          action: "Abrir el ticket y contestarle personalmente.",
+          alertAction: `Revisar la conversación de ${ctx.customerName ?? ctx.customerPhone}: el bot se quedó sin respuesta.`,
+        },
+      }[motivo];
+
+      const dedupeKey = `${ctx.conversation.id}:${ctx.conversation.current_cycle}:${plan.eventType}`;
+      const contexto = [
+        ubicacion ? `Ubicación: ${ubicacion}.` : "Sin ubicación compartida.",
+        local ? `Local: ${local}.` : "Sin local asignado.",
+      ].join(" ");
+
       await createBotAlert({
         conversationId: ctx.conversation.id,
         cycle: ctx.conversation.current_cycle,
-        type: "customer_ready_to_buy",
+        type: plan.eventType,
         priority: "high",
         summary: resumen.slice(0, 300),
-        exactReason: `Ubicación: ${facts.location_label}. Local: ${facts.nearest_store}.`,
-        suggestedAction: `Abrir la conversación de ${ctx.customerName ?? ctx.customerPhone} y coordinar la venta.`,
-        dedupeKey: `${ctx.conversation.id}:${ctx.conversation.current_cycle}:customer_ready_to_buy`,
+        exactReason: contexto,
+        suggestedAction: plan.alertAction,
+        dedupeKey,
       });
       await notifyAdvisor({
         conversationId: ctx.conversation.id,
         cycle: ctx.conversation.current_cycle,
-        eventType: "customer_ready_to_buy",
-        dedupeKey: `${ctx.conversation.id}:${ctx.conversation.current_cycle}:customer_ready_to_buy`,
-        title: "Cliente listo para comprar",
+        eventType: plan.eventType,
+        dedupeKey,
+        title: plan.title,
         reason: resumen.slice(0, 500),
-        action: `Coordinar la compra en ${facts.nearest_store}.`,
-        details: [`📍 ${facts.location_label}`, `🏬 ${facts.nearest_store}`],
+        action: plan.action,
+        details: [
+          ubicacion ? `📍 ${ubicacion}` : "",
+          local ? `🏬 ${local}` : "",
+        ].filter(Boolean),
       });
-      await setStage(ctx.conversation.id, "seguimiento_venta", {
-        actor: "customer",
-        reason: "Cliente confirmó interés/visita o pidió un humano",
-      });
-      return JSON.stringify({ notificado: true });
+      // Solo la compra confirmada mueve el kanban: escalar no es avanzar en el
+      // embudo, y un cliente que pide envío puede seguir en "cotización enviada".
+      if (motivo === "compra") {
+        await setStage(ctx.conversation.id, "seguimiento_venta", {
+          actor: "customer",
+          reason: "Cliente confirmó interés/visita",
+        });
+      }
+      return JSON.stringify({ notificado: true, motivo });
     },
   });
 
@@ -1292,6 +1568,8 @@ export function buildTools(ctx: AgentContext) {
     buscarCatalogo,
     buscarPorAroYTipo,
     tiposDeLlanta,
+    guiaMedida,
+    opcionesSinMedida,
     fitmentVehiculo,
     prepararOpciones,
     enviarComparacion,

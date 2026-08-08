@@ -16,8 +16,9 @@ process.env.SELLER_PHONE ??= "x";
 process.env.OPENAI_API_KEY ??= "x";
 process.env.DATABASE_URL ??= "postgres://x/x";
 
-const { renderOptionsImage, renderCompareImage, renderQuoteImage, toRenderLine } =
-  await import("../src/render/quoteImage.js");
+const {
+  renderOptionsImage, renderCompareImage, renderMedidaGuideImage, renderQuoteImage, toRenderLine,
+} = await import("../src/render/quoteImage.js");
 const { normalizeContificoProduct } = await import("../src/domain/catalog.js");
 
 /** Margen operativo bajo los 5 MB de Meta. */
@@ -79,6 +80,11 @@ describe("Piezas visuales dentro de los límites de WhatsApp", () => {
         dateLabel: fecha, sizeLabel: "205/55R16",
         products: [lines[0], lines[3], lines[6]],
       }));
+    // La guía de medida no toca el catálogo, pero se manda al principio de la
+    // conversación: si pesa o tarda, el primer turno del bot es el que sufre.
+    await medir("guia-medida", () => renderMedidaGuideImage({ dateLabel: fecha }));
+    await medir("guia-medida-con-aro", () =>
+      renderMedidaGuideImage({ dateLabel: fecha, aroDelCliente: 17 }));
 
     for (const { nombre, png, ms } of piezas) {
       expect(png.byteLength, `${nombre} debe producir un PNG`).toBeGreaterThan(0);

@@ -12,7 +12,7 @@ import type { CatalogAvailability, CatalogItem } from "../domain/catalog.js";
 import { warrantyForBrand } from "../services/quoteMessages.js";
 import { loadFonts, productPhoto, type RasterImage } from "./assets.js";
 import { DEFAULT_BRAND_PROFILES, resolveTheme, type SatoriNode, type Theme } from "./depotDesign.js";
-import { comparePoster, optionsPoster, quotePoster, type PosterLine } from "./depotPosters.js";
+import { comparePoster, medidaGuidePoster, optionsPoster, quotePoster, type PosterLine } from "./depotPosters.js";
 
 // ---------------------------------------------------------------------------
 // Datos de entrada
@@ -160,6 +160,25 @@ export async function renderOptionsImage(data: OptionsRenderData): Promise<Buffe
   return renderPng(node, POSTER_WIDTH);
 }
 
+
+export interface MedidaGuideRenderData extends PieceTheme {
+  dateLabel: string;
+  /** Aro que ya dijo el cliente, si lo dijo. */
+  aroDelCliente?: number | null;
+}
+
+/**
+ * La guía de «cómo leer su medida». No toca el catálogo —no muestra ni un
+ * precio— así que se renderiza sin haber buscado nada, que es justo el momento
+ * en que hace falta: cuando todavía no sabemos qué llanta usa el cliente.
+ */
+export async function renderMedidaGuideImage(data: MedidaGuideRenderData): Promise<Buffer> {
+  const node = medidaGuidePoster(
+    { dateLabel: data.dateLabel, aroDelCliente: data.aroDelCliente ?? null },
+    themeOf(data),
+  );
+  return renderPng(node, POSTER_WIDTH);
+}
 
 async function renderPng(node: SatoriNode, width: number, height?: number): Promise<Buffer> {
   const svg = await satori(node as never, {

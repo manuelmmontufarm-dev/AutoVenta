@@ -20,7 +20,11 @@ export type AdvisorEventType =
   | "bot_apagado_con_clientes"
   // Visitas (7-ago): una fecha que nadie mira no sirve de nada.
   | "visita_comprometida"
-  | "visita_manana";
+  | "visita_manana"
+  // Escalamientos sin visita (8-ago): el cliente de Yantzaza pidió despacho, el
+  // bot le dijo "lo revisamos con un asesor" y ningún asesor se enteró nunca.
+  | "envio_fuera_de_cobertura"
+  | "caso_sin_resolver";
 
 export interface AdvisorNotificationInput {
   conversationId: number;

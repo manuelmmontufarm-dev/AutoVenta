@@ -127,14 +127,15 @@ export interface StagePromptVersion extends StagePromptInput {
 
 const DEFAULT_STAGE_PROMPTS: Record<Stage, StagePromptInput> = {
   nuevo: {
-    objective: "Conseguir la medida y llegar a un precio lo antes posible.",
+    objective: "Conseguir el aro o la medida y llegar a un precio lo antes posible.",
     prompt:
-      "Si el cliente ya dio una medida, esa manda: busca y muestra opciones DE UNA, sin confirmar el vehículo ni pedir versión. Si además dio modelo y cantidad, cotiza de inmediato. Si no hay medida, consíguela con una sola pregunta clara, pedida siempre ESCRITA (nunca foto). Si solo da el vehículo, usa fitment_vehiculo y ofrece la medida más probable sin frenar la venta.",
+      "Si el cliente ya dio una medida, esa manda: busca y muestra opciones DE UNA, sin confirmar el vehículo ni pedir versión. Si además dio modelo y cantidad, cotiza de inmediato. Si no hay medida, lo que necesitas es el ARO: sin él ninguna cotización es segura. Pídelo mandando guia_medida, que enseña dónde se lee en el costado, y acepta las dos vías — medida escrita o foto de la llanta, que sí sabes leer. Si solo da el vehículo, usa fitment_vehiculo y ofrece la medida más probable sin frenar la venta; si ese vehículo tiene dos aros de fábrica y hay stock para los dos, díselo e invítalo al local en vez de preguntarle la versión.",
     allowedTools: [
       "buscar_llanta",
       "buscar_catalogo",
       "buscar_por_aro_y_tipo",
       "tipos_de_llanta",
+      "guia_medida",
       "fitment_vehiculo",
       "preparar_opciones",
       "generar_cotizacion",
@@ -150,6 +151,7 @@ const DEFAULT_STAGE_PROMPTS: Record<Stage, StagePromptInput> = {
       "buscar_catalogo",
       "buscar_por_aro_y_tipo",
       "tipos_de_llanta",
+      "guia_medida",
       "fitment_vehiculo",
       "preparar_opciones",
       "enviar_comparacion",
@@ -166,6 +168,7 @@ const DEFAULT_STAGE_PROMPTS: Record<Stage, StagePromptInput> = {
       "buscar_catalogo",
       "buscar_por_aro_y_tipo",
       "tipos_de_llanta",
+      "guia_medida",
       "fitment_vehiculo",
       "preparar_opciones",
       "enviar_comparacion",
@@ -174,16 +177,16 @@ const DEFAULT_STAGE_PROMPTS: Record<Stage, StagePromptInput> = {
     settings: { autoAction: "comparison", requiresHumanApproval: false, fallback: "" },
   },
   cotizacion_enviada: {
-    objective: "Confirmar interés, resolver logística y obtener intención de visita.",
+    objective: "Conseguir dos datos: qué día viene y a cuál local.",
     prompt:
-      "No regeneres el PDF salvo que cambien modelo o cantidad. Pregunta si desea reservar, visitar o hablar con un asesor.",
+      "No regeneres el PDF salvo que cambien modelo o cantidad. Tu objetivo ahora es UNO: que diga qué día puede pasar y a cuál local. Van juntos y en la misma pregunta — una fecha sin local no se le puede avisar a nadie y un local sin fecha no entra en ninguna agenda. Ningún turno cierra sin esa pregunta mientras falte alguno de los dos. El motivo que le das es el descuento y es verdad: su cotización sale con precio rebajado y el número es lo que la tienda exige para respetarlo, así que avisarle al asesor es lo que hace que se lo apliquen. Nunca inventes un descuento extra que nadie autorizó.",
     allowedTools: ["fitment_vehiculo", "local_mas_cercano", "notificar_vendedor", "generar_cotizacion"],
     settings: { autoAction: "none", requiresHumanApproval: false, fallback: "" },
   },
   seguimiento_venta: {
     objective: "Dar seguimiento comercial hasta la venta, incluyendo visita, reserva y handoff.",
     prompt:
-      "Resume lo acordado y confirma local u horario sin inventar datos. Mantén el caso abierto hasta una venta o rechazo verificados.",
+      "Resume lo acordado y confirma local u horario sin inventar datos. Si todavía no sabes qué día viene o a cuál local, eso es lo que falta: pídelo en cada turno, junto, y diciéndole que así el asesor le aplica el descuento cuando llegue. Mantén el caso abierto hasta una venta o rechazo verificados.",
     allowedTools: ["fitment_vehiculo", "local_mas_cercano", "notificar_vendedor"],
     settings: { autoAction: "handoff", requiresHumanApproval: false, fallback: "" },
   },

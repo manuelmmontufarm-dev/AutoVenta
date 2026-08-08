@@ -55,12 +55,53 @@ describe("pregunta por el día de la visita", () => {
     expect(qm.buildVisitDayQuestion(false)).toMatch(/qué día/i);
   });
 
-  it("solo nombra el descuento cuando hay uno autorizado", () => {
+  /*
+   * El descuento es el motivo SIEMPRE, porque siempre es verdad: la cotización
+   * sale con precio rebajado y su número es lo que la tienda exige para
+   * respetarlo. Lo que cambia es cuál descuento se nombra.
+   */
+  it("da el descuento como motivo en los dos casos", () => {
     expect(qm.buildVisitDayQuestion(true)).toMatch(/descuento/i);
-    // Sin oferta viva el motivo es otro: inventar un descuento para arrancar
-    // una fecha es justo lo que el playbook prohíbe.
-    expect(qm.buildVisitDayQuestion(false)).not.toMatch(/descuento/i);
+    expect(qm.buildVisitDayQuestion(false)).toMatch(/descuento/i);
+  });
+
+  it("solo llama «extra» al descuento cuando hay uno autorizado", () => {
+    // Prometer un descuento extra que nadie autorizó sigue prohibido: sin
+    // oferta viva el motivo se ancla en el número de cotización.
+    expect(qm.buildVisitDayQuestion(true)).toMatch(/extra/i);
+    expect(qm.buildVisitDayQuestion(false)).not.toMatch(/extra/i);
     expect(qm.buildVisitDayQuestion(false)).toMatch(/cotización/i);
+  });
+});
+
+/*
+ * Después de la cotización el objetivo del bot son dos datos, no uno. Una fecha
+ * sin local no se le puede avisar a nadie y un local sin fecha no entra en
+ * ninguna agenda, así que la pregunta va junta o no sirve.
+ */
+describe("pregunta por fecha y local", () => {
+  const locales = ["Cumbayá", "Quito Sur"];
+
+  it("pide el día y el local en la misma pregunta", () => {
+    const pregunta = qm.buildVisitPlanQuestion({ conDescuentoAutorizado: false, locales });
+    expect(pregunta).toMatch(/qué día/i);
+    expect(pregunta).toMatch(/local/i);
+    expect(pregunta).toMatch(/Cumbayá/);
+    expect(pregunta).toMatch(/Quito Sur/);
+  });
+
+  it("usa el descuento como motivo para que conteste", () => {
+    expect(qm.buildVisitPlanQuestion({ conDescuentoAutorizado: false, locales }))
+      .toMatch(/descuento/i);
+    expect(qm.buildVisitPlanQuestion({ conDescuentoAutorizado: true, locales }))
+      .toMatch(/descuento extra/i);
+  });
+
+  it("sigue siendo una pregunta legible sin locales configurados", () => {
+    const pregunta = qm.buildVisitPlanQuestion({ conDescuentoAutorizado: false, locales: [] });
+    expect(pregunta).toMatch(/qué día/i);
+    expect(pregunta).not.toMatch(/¿\s*\?/);
+    expect(lineas(pregunta)).toBe(1);
   });
 });
 

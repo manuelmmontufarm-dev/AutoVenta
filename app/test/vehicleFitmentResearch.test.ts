@@ -1,9 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
 import {
+  arosDeCandidatos,
+  arosDeMedidas,
   conDobleVia,
   ESQUEMA_CANDIDATOS,
   estadoDeCandidatos,
   extractTireSizesFromUnknown,
+  invitacionPorAroAmbiguo,
   medidasDelAro,
   normalizarCandidatos,
   normalizarMedida,
@@ -196,6 +199,48 @@ describe("el aro recorta las medidas de las fichas", () => {
 
   it("sin aro no borra nada", () => {
     expect(medidasDelAro(["245/65R17", "245/55R19"], null)).toEqual(["245/65R17", "245/55R19"]);
+  });
+});
+
+/**
+ * El caso «o rin 15 o rin 17».
+ *
+ * Es la única ambigüedad de fitment que no se resuelve por chat: preguntar la
+ * versión a alguien que no la sabe termina la conversación. Con stock en los
+ * dos aros deja de ser un bloqueo y se vuelve un motivo para venir al local.
+ */
+describe("dos aros de fábrica", () => {
+  const candidato = (medida: string) => ({ medida, confianza: "media" as const, porque: "" });
+
+  it("cuenta aros distintos, no medidas distintas", () => {
+    // Cuatro medidas del mismo aro son UNA sola decisión para el cliente.
+    expect(arosDeCandidatos([candidato("225/65R17"), candidato("235/60R17")])).toEqual([17]);
+    expect(arosDeCandidatos([candidato("215/70R15"), candidato("225/65R17")])).toEqual([15, 17]);
+  });
+
+  it("lee los aros de las medidas que sí tienen stock", () => {
+    expect(arosDeMedidas(["215/70R15", "225/65R17", "235/60R17"])).toEqual([15, 17]);
+    expect(arosDeMedidas(["no es una medida"])).toEqual([]);
+  });
+
+  it("invita al local nombrando los dos aros y ordenándolos", () => {
+    const mensaje = invitacionPorAroAmbiguo("Nissan X-Trail 2017", [17, 15]);
+    expect(mensaje).toContain("Nissan X-Trail 2017");
+    expect(mensaje).toMatch(/aro 15 o aro 17/);
+    expect(mensaje).toMatch(/pase al local/i);
+  });
+
+  it("con un solo aro con stock no hay invitación: sería prometer lo que no hay", () => {
+    expect(invitacionPorAroAmbiguo("Nissan X-Trail 2017", [17])).toBeNull();
+    expect(invitacionPorAroAmbiguo("Nissan X-Trail 2017", [])).toBeNull();
+    // Un aro repetido sigue siendo un aro.
+    expect(invitacionPorAroAmbiguo("Nissan X-Trail 2017", [17, 17])).toBeNull();
+  });
+
+  it("con tres aros los enumera sin perder ninguno", () => {
+    const mensaje = invitacionPorAroAmbiguo("Hyundai Creta 2027", [19, 16, 17]);
+    expect(mensaje).toMatch(/aro 16, aro 17 o aro 19/);
+    expect(mensaje).toMatch(/todos/);
   });
 });
 

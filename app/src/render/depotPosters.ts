@@ -470,3 +470,126 @@ export function optionsPoster(data: OptionsPosterData, theme: Theme): SatoriNode
     posterFooter(theme, "Precios incluyen IVA y Ecovalor · por unidad · 3 y 6 meses sin intereses", SUCURSALES),
   );
 }
+
+// ===========================================================================
+// GUÍA DE MEDIDA — cómo se lee el costado
+// ===========================================================================
+
+/**
+ * Los seis segmentos de una medida, en el orden en que están impresos.
+ *
+ * El aro va marcado aparte porque no es un dato más de la lista: es el único
+ * que, si falla, deja la llanta sin poder montarse. Todo lo demás admite un
+ * equivalente cercano — un 205 por un 195, un índice de carga superior — y el
+ * aro no admite ninguno.
+ */
+interface SegmentoMedida {
+  valor: string;
+  rotulo: string;
+  detalle: string;
+  clave?: boolean;
+}
+
+const SEGMENTOS: readonly SegmentoMedida[] = [
+  { valor: "195", rotulo: "ANCHO", detalle: "195 milímetros de ancho." },
+  { valor: "55", rotulo: "PERFIL", detalle: "El flanco mide el 55% del ancho." },
+  { valor: "R", rotulo: "CONSTRUCCIÓN", detalle: "Radial, como casi todos los autos." },
+  { valor: "16", rotulo: "ARO / RIN", detalle: "16 pulgadas. El diámetro del aro.", clave: true },
+  { valor: "87", rotulo: "CARGA", detalle: "Cuánto peso aguanta cada llanta." },
+  { valor: "V", rotulo: "VELOCIDAD", detalle: "V = hasta 240 km/h." },
+];
+
+export interface MedidaGuidePosterData {
+  dateLabel: string;
+  /** Aro que ya dijo el cliente, si lo dijo: cambia el pie de «pídalo» a «confirmado». */
+  aroDelCliente?: number | null;
+}
+
+/**
+ * La pieza que enseña a leer el costado, con el aro marcado como dato clave.
+ *
+ * Nace de una regla comercial, no estética: sin el aro no se cotiza una llanta
+ * con certeza, y pedirlo en seco («¿qué aro usa?») deja al cliente adivinando
+ * cuál de los seis números impresos es. Esta imagen convierte esa pregunta en
+ * algo que se resuelve mirando la llanta diez segundos, y de paso legitima la
+ * otra vía: si prefiere, manda la foto y la leemos nosotros.
+ *
+ * Sin emojis a propósito — satori solo dibuja los glifos de las fuentes
+ * registradas y un emoji saldría como un cuadrito vacío.
+ */
+export function medidaGuidePoster(data: MedidaGuidePosterData, theme: Theme): SatoriNode {
+  const { p, price } = theme;
+
+  const columna = (seg: SegmentoMedida): SatoriNode => {
+    const acento = seg.clave ? p.accent : p.border;
+    // Columnas iguales: la caja se estira sola y los rótulos —«CONSTRUCCIÓN»,
+    // «VELOCIDAD»— entran en una línea. Repartidas por el largo de la cifra, la
+    // última quedaba tan angosta que partía «km/h» en dos renglones.
+    return el({ flex: 1, flexDirection: "column", alignItems: "center", gap: 14 },
+      // La cifra, en la caja. La del aro va rellena para que se lea antes que
+      // las otras cinco incluso de reojo en la miniatura de WhatsApp.
+      el({
+        alignItems: "center", justifyContent: "center", minHeight: 132, padding: "10px 20px",
+        borderRadius: 16, border: `3px solid ${acento}`,
+        backgroundColor: seg.clave ? p.accent : "#ffffff",
+        boxShadow: seg.clave
+          ? "0 14px 30px rgba(20,20,20,0.18)"
+          : "0 6px 16px rgba(20,20,20,0.07)",
+      },
+        text({ ...price, fontSize: 84, lineHeight: 1, letterSpacing: -2,
+          color: seg.clave ? "#fffdf6" : p.dark }, seg.valor),
+      ),
+      // Conector: la línea que ata la cifra con su explicación, en lugar de las
+      // flechas del diagrama original — satori no dibuja curvas en flex.
+      el({ width: 3, height: 34, backgroundColor: acento }),
+      el({ flexDirection: "column", alignItems: "center", gap: 8 },
+        text({
+          fontSize: 13, fontWeight: 700, letterSpacing: 2, textAlign: "center",
+          color: seg.clave ? "#fffdf6" : p.tenue,
+          ...(seg.clave
+            ? { backgroundColor: p.accent, borderRadius: 999, padding: "5px 14px" }
+            : {}),
+        }, seg.rotulo),
+        text({ fontSize: 16, lineHeight: 1.4, textAlign: "center", color: p.dark }, seg.detalle),
+      ),
+    );
+  };
+
+  const separador = (simbolo: string): SatoriNode =>
+    el({ width: 30, alignItems: "center", paddingTop: 40 },
+      text({ ...ARCHIVO_BLACK, fontSize: 52, color: p.darkSub }, simbolo));
+
+  const aviso = data.aroDelCliente
+    ? `Usted ya nos dijo aro ${data.aroDelCliente}: con eso cotizamos. Si nos confirma la medida completa, mejor todavía.`
+    : "Sin el aro no podemos garantizar que la llanta entre. Es el único dato que no tiene reemplazo.";
+
+  return el({ flexDirection: "column", width: "100%", backgroundColor: p.base, fontFamily: "Archivo", color: p.dark },
+    posterHeader(theme, "CÓMO LEER SU MEDIDA", "195/55R16 87V", data.dateLabel),
+    racingBar(theme),
+
+    el({ alignItems: "flex-start", justifyContent: "center", padding: "48px 56px 40px", gap: 4 },
+      columna(SEGMENTOS[0]),
+      separador("/"),
+      columna(SEGMENTOS[1]),
+      columna(SEGMENTOS[2]),
+      columna(SEGMENTOS[3]),
+      columna(SEGMENTOS[4]),
+      columna(SEGMENTOS[5]),
+    ),
+
+    // Franja del aro: la razón de ser de la pieza, dicha en una línea.
+    el({ alignItems: "center", gap: 18, padding: "24px 56px",
+      backgroundColor: p.dark, borderTop: `1px solid ${p.border}` },
+      text({ ...ARCHIVO_BLACK, fontSize: 22, color: p.gold, whiteSpace: "nowrap" }, "EL ARO MANDA"),
+      text({ fontSize: 18, color: "#fffdf6", lineHeight: 1.4 }, aviso),
+    ),
+
+    el({ alignItems: "center", gap: 14, padding: "22px 56px", backgroundColor: p.panel },
+      check(22, "#2a9d8f"),
+      text({ fontSize: 18, fontWeight: 500 },
+        "¿No la encuentra? Mándenos una foto del costado de la llanta: nosotros la leemos y le cotizamos."),
+    ),
+
+    posterFooter(theme, "La medida está impresa en el costado de la llanta", SUCURSALES),
+  );
+}

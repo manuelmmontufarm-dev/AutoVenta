@@ -2,6 +2,7 @@ import { sql } from "../db/client.js";
 import { config } from "../config.js";
 import { isStage, type Stage } from "../domain/pipeline.js";
 import { cancelPendingFollowUps, scheduleConversationFollowUps } from "./followUps.js";
+import { emitLiveEvent } from "./liveEvents.js";
 
 export type { Stage } from "../domain/pipeline.js";
 
@@ -489,7 +490,76 @@ export async function recordMessageStatus(
         failed_at = case when ${normalized} = 'failed' then coalesce(failed_at, ${occurredAt}) else failed_at end
     where provider_message_id = ${providerId}
   `;
+  await reconciliarAvisoAsesor(providerId, normalized, payload, occurredAt);
   return message ? Number(message.conversation_id) : null;
+}
+
+/**
+ * Cierra el círculo del aviso al asesor: hasta ahora terminaba en el wamid.
+ *
+ * `notifyAdvisor` marca 'sent' apenas la Graph API acepta el mensaje, y aceptar
+ * no es entregar: un número mal tecleado devuelve wamid igual y el fallo llega
+ * después, por este webhook. El 8-ago eso dejó a Joaquín con 62 avisos que la
+ * tabla daba por enviados y que Meta había rechazado uno por uno con el 131026.
+ *
+ * Un aviso que no llega es peor que uno que no se intentó: el que lo mandó cree
+ * que hay alguien atendiendo. Por eso el fallo no solo corrige el estado —
+ * levanta una alerta con el número al que no se pudo entregar, que es el dato
+ * con el que alguien lo arregla en el panel.
+ */
+async function reconciliarAvisoAsesor(
+  providerId: string,
+  normalized: string,
+  payload: Record<string, unknown>,
+  occurredAt: Date,
+): Promise<void> {
+  if (normalized === "delivered" || normalized === "read") {
+    await sql`
+      update advisor_notifications
+      set delivered_at = coalesce(delivered_at, ${occurredAt}), updated_at = now()
+      where provider_message_id = ${providerId}
+    `;
+    return;
+  }
+  if (normalized !== "failed") return;
+
+  const error = payload.error as { code?: number; title?: string } | null | undefined;
+  const detalle = [error?.code ? `Meta ${error.code}` : "", error?.title ?? ""]
+    .filter(Boolean)
+    .join(": ") || "Meta rechazó la entrega";
+
+  const [aviso] = await sql<{
+    conversation_id: number;
+    cycle: number;
+    recipient_name: string;
+    recipient_phone: string;
+    event_type: string;
+  }[]>`
+    update advisor_notifications
+    set status = 'failed', error = ${detalle}, updated_at = now()
+    where provider_message_id = ${providerId} and status <> 'failed'
+    returning conversation_id, cycle, recipient_name, recipient_phone, event_type
+  `;
+  if (!aviso) return;
+
+  // La clave lleva el teléfono y NO el evento: lo que hay que arreglar es el
+  // número, una sola vez, no una alerta por cada aviso que rebote.
+  await sql`
+    insert into bot_alerts (
+      conversation_id, cycle, type, priority, summary, exact_reason,
+      suggested_action, dedupe_key
+    ) values (
+      ${aviso.conversation_id}, ${aviso.cycle}, 'advisor_notification_undelivered', 'high',
+      ${`${aviso.recipient_name} no está recibiendo los avisos del bot`},
+      ${`${detalle}. Número configurado: +${aviso.recipient_phone}. Último aviso perdido: ${aviso.event_type}.`},
+      'Revisar el número en Ajustes › Quién recibe los avisos. Un número sin WhatsApp acepta el envío y nunca entrega.',
+      ${`asesor_no_entregable:${aviso.recipient_phone}`}
+    ) on conflict do nothing
+  `;
+  emitLiveEvent("alert", aviso.conversation_id);
+  console.error(
+    `⚠️ Aviso al asesor no entregado a ${aviso.recipient_name} (+${aviso.recipient_phone}): ${detalle}`,
+  );
 }
 
 export async function logQuoteArtifact(input: {
