@@ -184,7 +184,7 @@ export interface Ticket {
   }>;
 }
 
-export type FollowUpBucket = "needs_human" | "closing" | "attention_now" | "today" | "scheduled" | "commitments" | "window_closed" | "human_review" | "cancelled_failed";
+export type FollowUpBucket = "needs_human" | "closing" | "visita_confirmada" | "attention_now" | "today" | "scheduled" | "commitments" | "window_closed" | "human_review" | "cancelled_failed";
 
 export interface FollowUpCard {
   id: number | null; conversationId: number; cycle: number; type: string | null;

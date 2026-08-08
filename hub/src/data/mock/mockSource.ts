@@ -192,7 +192,31 @@ export class MockSource implements DataSource {
     };
   }
 
-  async listFollowUps(): Promise<FollowUpCard[]> { return []; }
+  /**
+   * Oportunidades en demo. Se derivan de los tickets que ya tienen un
+   * compromiso, para que la pantalla cuente la misma historia que el kanban en
+   * vez de salir vacía.
+   */
+  async listFollowUps(): Promise<FollowUpCard[]> {
+    return [...this.tickets.values()]
+      .filter((t) => t.estado === "abierto" && (t.compromisoCliente || t.visitDate))
+      .map((t) => ({
+        id: null, conversationId: t.id, cycle: 1, type: null, status: null,
+        bucket: "visita_confirmada" as const,
+        customer: t.nombre ?? t.telefono, phone: t.telefono, stage: t.etapa,
+        tireSize: t.medida ?? null, selectedProductCode: null,
+        summary: t.ultimoMensaje, lastMessage: t.ultimoMensaje, lastAt: t.ultimaActividad,
+        dueAt: t.visitDate ?? null, windowClosesAt: t.ventanaCierraEn ?? null,
+        preview: "", templateRequired: null, aiPending: false, copySource: null,
+        alertReason: null, assignedTo: t.atiende === "humano" ? "human" as const : "bot" as const,
+        unansweredDays: 0, commitment: t.compromisoCliente ?? null,
+        visitDate: t.visitDate ?? null, pickupDate: null,
+        campaignId: null, campaignTemplateKey: null, campaignPlan: [],
+        importanceLabel: "Dijo que viene",
+        importanceReason: `El cliente indicó: ${t.compromisoCliente ?? "una fecha"}`,
+        discountCondition: null,
+      }));
+  }
   async listAlerts(): Promise<BotAlert[]> { return []; }
   async followUpAction(): Promise<void> {}
   async alertAction(): Promise<void> {}

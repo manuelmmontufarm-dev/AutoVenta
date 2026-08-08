@@ -91,7 +91,13 @@ export async function listFollowUpBoard() {
     where c.status='open' and c.opted_out_at is null and c.negative_sentiment_at is null
       and c.last_customer_message_at is not null
       and (
-        c.stage='seguimiento_venta'
+        -- Quien dijo qué día viene entra SIEMPRE, sin importar su etapa. Antes
+        -- solo aparecía si además estaba en 'seguimiento_venta', así que un
+        -- «voy el lunes» dicho recién cotizado no salía en ninguna pantalla:
+        -- el dato más accionable del sistema no tenía dónde mirarse.
+        c.visit_date is not null
+        or (c.customer_commitment is not null and c.customer_commitment_cycle = c.current_cycle)
+        or c.stage='seguimiento_venta'
         or exists (
           select 1 from bot_alerts requested
           where requested.conversation_id=c.id and requested.cycle=c.current_cycle
@@ -106,7 +112,8 @@ export async function listFollowUpBoard() {
         select 1 from bot_alerts requested
         where requested.conversation_id=c.id and requested.cycle=c.current_cycle
           and requested.type='human_requested' and requested.status in ('open','snoozed')
-      ) then 0 when c.stage='seguimiento_venta' then 1 else 2 end,
+      ) then 0 when c.visit_date is not null then 1
+        when c.stage='seguimiento_venta' then 2 else 3 end,
       coalesce(c.visit_date, c.pickup_date::timestamptz, j.due_at, c.last_customer_message_at) asc
     limit 500
   `;
@@ -115,8 +122,20 @@ export async function listFollowUpBoard() {
     const unansweredDays = row.last_customer_message_at
       ? Math.max(0, Math.floor((now.getTime() - row.last_customer_message_at.getTime()) / 86_400_000))
       : 0;
-    const bucket = row.human_requested || row.stage !== "seguimiento_venta" ? "needs_human" : "closing";
-    const importanceLabel = bucket === "needs_human"
+    // Un cliente que ya dijo qué día viene tiene grupo propio: es el más
+    // accionable de todos y se perdía mezclado en "recta final". Solo lo
+    // desplaza que haya pedido un asesor a gritos, que es más urgente.
+    const tieneFecha = Boolean(row.visit_date || row.pickup_date || row.customer_commitment);
+    const bucket = row.human_requested
+      ? "needs_human"
+      : tieneFecha
+        ? "visita_confirmada"
+        : row.stage !== "seguimiento_venta"
+          ? "needs_human"
+          : "closing";
+    const importanceLabel = bucket === "visita_confirmada"
+      ? "Dijo que viene"
+      : bucket === "needs_human"
       ? row.human_requested ? "Cliente pidió asesor" : "Ventana cerrada"
       : row.customer_commitment || row.visit_date || row.pickup_date
         ? "Compromiso por confirmar"

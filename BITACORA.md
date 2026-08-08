@@ -32,6 +32,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-08-08 | _(este mismo)_ | Los que confirman fecha salen en Oportunidades, en grupo propio | 0.5 |
 | 2026-08-08 | _(este mismo)_ | El bot dejó de redactar lo que no puede enviar + el panel dice la verdad del envío | 1.5 |
 | 2026-08-08 | _(este mismo)_ | Avisos al asesor: cuando el cliente da la fecha y la víspera de la visita | 1.0 |
 | 2026-08-07 | _(este mismo)_ | Métrica de llegada a seguimiento + día de visita en el kanban + por qué faltan mensajes | 2.5 |
@@ -95,11 +96,37 @@ Ya viene activado en este equipo.
 | 2026-07-14 | ac09171 | Ubicaciones de locales + análisis de features del cliente | 1.5 |
 | 2026-07-13 | feadf57 | Brief + plan de desarrollo + plan financiero + catálogo | 4.0 |
 | 2026-07-13 | d997844 | Commit inicial (repo) | 0.25 |
-| | | **TOTAL** | **~89.0 h** |
+| | | **TOTAL** | **~89.5 h** |
 
 ---
 
 ## Entradas (más reciente primero)
+
+### 2026-08-08 · El que dice qué día viene ya tiene dónde aparecer · ⏱️ 0.5 h
+
+**De dónde sale:** «una vez que confirman la fecha deberían salir en un tab oportunidades».
+
+El agujero era peor de lo que parecía: la consulta de Oportunidades solo admitía tres clases de
+conversación —etapa `seguimiento_venta`, pidió-asesor, o ventana cerrada—, así que un cliente que
+decía «voy el lunes» estando todavía en *cotización enviada* **no salía en ninguna pantalla**. El
+dato más accionable del sistema no tenía dónde mirarse.
+
+- Entra a Oportunidades cualquiera con fecha o compromiso, sin importar su etapa.
+- Grupo propio y primero: **«Dijeron qué día vienen»**. Solo lo desplaza que el cliente haya
+  pedido un asesor, que es más urgente.
+- Ordenado por fecha ascendente: **el que prometió y no apareció va arriba** —esa es la tarjeta
+  que más urge— y el chip se pinta en rojo con «no apareció». Los que dieron un tramo sin día
+  («este fin de semana») van al final: no tienen plazo encima y no pueden desplazar a alguien
+  que viene mañana.
+- El demo dejó de mostrar Oportunidades vacío: ahora deriva las tarjetas de los tickets con
+  compromiso, así la pantalla cuenta la misma historia que el kanban.
+
+**Encontrado de paso (no arreglado):** `FollowUpsView` en `Pipeline.tsx` agrupa por siete buckets
+(`attention_now`, `today`, `commitments`…) que el backend no devuelve nunca — solo emite
+`needs_human`, `closing` y ahora `visita_confirmada`. El componente además no se renderiza desde
+ninguna vista. Es código muerto que mostraría siete grupos vacíos si alguien lo conectara.
+
+---
 
 ### 2026-08-08 · «Sale como si responde pero en vida real no» · ⏱️ 1.5 h
 

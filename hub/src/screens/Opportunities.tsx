@@ -1,13 +1,23 @@
 import { motion } from "framer-motion";
 import { useState } from "react";
 import { ETAPA_META, type FollowUpBucket, type FollowUpCard } from "../data/types";
+import { etiquetaVisita } from "../lib/format";
 import { navigate } from "../router";
 import { useHub, useNow } from "../store";
 
 const GROUPS: Array<{ id: FollowUpBucket; title: string; subtitle: string; icon: string }> = [
+  // Primero los que ya dijeron cuándo vienen: es lo único de esta pantalla que
+  // tiene una fecha encima, y el que prometió y no apareció está al principio.
+  { id: "visita_confirmada", title: "Dijeron qué día vienen", subtitle: "Confirmar la hora y tener las llantas listas; los atrasados van primero", icon: "🗓" },
   { id: "needs_human", title: "Revisión humana", subtitle: "Solicitudes de asesor o ventana cerrada; responder y decidir el siguiente paso", icon: "👤" },
   { id: "closing", title: "Recta final", subtitle: "Visitas, reservas y compromisos que todavía podemos convertir", icon: "🏁" },
 ];
+
+/** Fecha por la que ordenar. Sin fecha = sin plazo = al final de la lista. */
+function cuando(item: FollowUpCard): number {
+  const t = new Date(item.visitDate ?? item.pickupDate ?? item.dueAt ?? 0).getTime();
+  return t || Number.POSITIVE_INFINITY;
+}
 
 function OpportunityCard({ item, now }: { item: FollowUpCard; now: number }) {
   const followUpAction = useHub((state) => state.followUpAction);
@@ -34,7 +44,21 @@ function OpportunityCard({ item, now }: { item: FollowUpCard; now: number }) {
       </div>
       <p className="mt-1 line-clamp-1 text-[10.5px] text-muted">{item.tireSize || item.selectedProductCode || "Medida pendiente"} · {item.summary}</p>
       <p className="mt-1 line-clamp-1 text-[10px] font-bold text-amber-500">⚡ {item.importanceReason}</p>
-      {commitment && <p className="mt-1 rounded-lg bg-lime/[.08] px-2 py-1 text-[10.5px] font-black text-lime">📅 Dijo que irá: {commitment}</p>}
+      {commitment && (() => {
+        // El día en grande y con color: verde si todavía puede pasar, rojo si
+        // la fecha ya pasó — «prometió el lunes y no vino» es la tarjeta que
+        // más urge trabajar, y antes se leía igual que las demás.
+        const dia = etiquetaVisita(item.visitDate ?? undefined, item.commitment ?? undefined, now);
+        const vencida = Boolean(item.visitDate) && new Date(item.visitDate!).getTime() < now - 86_400_000;
+        return <p
+          className="mt-1 rounded-lg px-2 py-1 text-[10.5px] font-black"
+          style={vencida
+            ? { background: "color-mix(in srgb, var(--color-red) 12%, transparent)", color: "var(--color-red)" }
+            : { background: "color-mix(in srgb, var(--color-lime) 10%, transparent)", color: "var(--color-lime)" }}
+        >
+          🗓 {dia ? `${dia} · ` : ""}{vencida ? "no apareció — " : ""}dijo: {commitment}
+        </p>;
+      })()}
       {item.discountCondition && <p className="mt-1 line-clamp-1 text-[10px] font-bold text-amber-500">🏷️ Condición del descuento extra: {item.discountCondition}</p>}
     </div>
     <div className="flex items-center justify-between gap-3 sm:block sm:text-right">
@@ -77,7 +101,11 @@ export function Opportunities() {
       {GROUPS.map((group) => {
         const groupItems = items.filter((item) => item.bucket === group.id).sort((a, b) => {
           if (group.id === "needs_human") return b.unansweredDays - a.unansweredDays;
-          return new Date(a.visitDate ?? a.pickupDate ?? a.dueAt ?? 0).getTime() - new Date(b.visitDate ?? b.pickupDate ?? b.dueAt ?? 0).getTime();
+          // Ascendente: la fecha más vieja primero. En "dijeron qué día vienen"
+          // eso pone arriba a los que ya debieron aparecer y no aparecieron.
+          // Sin fecha van al FINAL: «este fin de semana» no tiene plazo encima,
+          // así que no puede desplazar a alguien que viene mañana.
+          return cuando(a) - cuando(b);
         });
         return <section key={group.id}>
           <div className="mb-2 flex items-center gap-2"><span>{group.icon}</span><h2 className="text-xs font-black uppercase tracking-wide">{group.title}</h2><span className="tnum rounded-full bg-paper/10 px-2 text-[10px]">{groupItems.length}</span><p className="ml-auto hidden text-[10px] text-faint md:block">{group.subtitle}</p></div>
