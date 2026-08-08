@@ -49,6 +49,10 @@ export const IconCheck = (p: P) => base(p, <path d="m5 12.5 4.5 4.5L19 7.5" />);
 export const IconDoubleCheck = (p: P) =>
   base(p, <><path d="m2.5 12.7 4 4L14 9" /><path d="m11 15.5 1.6 1.7L21.5 9" /></>);
 
+/** No salió. `IconCheck` (un check) e `IconClock` (en cola) ya existen arriba. */
+export const IconAlert = (p: P) =>
+  base(p, <><circle cx="12" cy="12" r="8.5" /><path d="M12 7.5v5" /><path d="M12 16.2v.4" /></>);
+
 export const IconPin = (p: P) =>
   base(p, <><path d="M12 21s-7-5.3-7-11a7 7 0 0 1 14 0c0 5.7-7 11-7 11Z" /><circle cx="12" cy="10" r="2.6" /></>);
 

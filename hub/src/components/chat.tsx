@@ -2,7 +2,7 @@ import { motion } from "framer-motion";
 import { useEffect, useRef, useState } from "react";
 import type { Mensaje, Rol, Ticket } from "../data/types";
 import { horaCorta, money } from "../lib/format";
-import { IconBot, IconDoc, IconDoubleCheck, IconPin, IconSend, IconUser } from "./icons";
+import { IconAlert, IconBot, IconCheck, IconClock, IconDoc, IconDoubleCheck, IconPin, IconSend, IconUser } from "./icons";
 
 /* ── Burbuja ── */
 
@@ -30,13 +30,60 @@ export function ChatBubble({ msg, onVerPdf }: { msg: Mensaje; onVerPdf?: () => v
         ) : (
           <p className="m-0 whitespace-pre-wrap">{msg.contenido}</p>
         )}
+        {saliente && msg.estado === "failed" && msg.tipo !== "imagen" && (
+          <p
+            className="mt-1 mb-0 rounded-lg px-2 py-1 text-[10.5px]"
+            style={{ background: "color-mix(in srgb, var(--color-red) 12%, transparent)", color: "var(--color-red)" }}
+          >
+            <b>No le llegó al cliente.</b>
+            {motivoDeFallo(msg) ? <span className="block opacity-80">{motivoDeFallo(msg)}</span> : null}
+          </p>
+        )}
         <span className="mt-0.5 flex items-center justify-end gap-1 text-[10px]" style={{ color: "var(--color-bubble-meta)" }}>
           {horaCorta(msg.hora)}
-          {saliente && <IconDoubleCheck size={13} style={{ color: "var(--color-check)" }} />}
+          {saliente && <EstadoEnvio estado={msg.estado} />}
         </span>
       </div>
     </motion.div>
   );
+}
+
+/**
+ * El estado REAL del envío, no un adorno.
+ *
+ * Hasta el 8-ago aquí iba un doble check fijo en todo mensaje saliente: en cola,
+ * aceptado por Meta, entregado y FALLIDO se veían exactamente igual. Manuel lo
+ * describió perfecto — «en la página sale como si responde pero en vida real
+ * no». El backend siempre supo la diferencia (guarda sent/delivered/read/failed
+ * con el error de Meta); el panel simplemente no la miraba.
+ *
+ * La distinción que importa es la primera: *aceptado* (un check) no es
+ * *entregado* (dos). Meta acepta un mensaje y lo puede dejar caer después.
+ */
+function EstadoEnvio({ estado }: { estado?: string }) {
+  if (estado === "failed") {
+    return <IconAlert size={13} style={{ color: "var(--color-red)" }} aria-label="No se envió" />;
+  }
+  if (estado === "read") {
+    return <IconDoubleCheck size={13} style={{ color: "var(--color-lime)" }} aria-label="Leído" />;
+  }
+  if (estado === "delivered") {
+    return <IconDoubleCheck size={13} style={{ color: "var(--color-check)" }} aria-label="Entregado" />;
+  }
+  if (estado === "sent") {
+    return <IconCheck size={13} style={{ color: "var(--color-check)" }} aria-label="Aceptado por WhatsApp, sin confirmar entrega" />;
+  }
+  return <IconClock size={12} style={{ color: "var(--color-bubble-meta)" }} aria-label="En cola" />;
+}
+
+/** El motivo que devolvió Meta, si lo hay. Llega crudo dentro de metadata. */
+function motivoDeFallo(msg: Mensaje): string | null {
+  const error = (msg.metadata as { error?: unknown } | undefined)?.error;
+  const primero = Array.isArray(error) ? error[0] : error;
+  if (!primero || typeof primero !== "object") return null;
+  const dato = primero as { title?: string; message?: string; error_data?: { details?: string }; code?: number };
+  const texto = dato.error_data?.details ?? dato.message ?? dato.title;
+  return texto ? `${texto}${dato.code ? ` (${dato.code})` : ""}` : null;
 }
 
 /* ── Pieza visual enviada (cotización, comparativa, opciones) ── */

@@ -411,6 +411,33 @@ export async function setConversationAssignee(
   await scheduleConversationFollowUps(conversationId);
 }
 
+/**
+ * Devuelve el chat al bot cuando la pausa del handoff ya venció.
+ *
+ * `setConversationAssignee('human')` hace dos cosas: marca `assigned_to='human'`
+ * (pegajoso) y pone una pausa de BOT_PAUSE_HOURS (temporal). Al vencer la pausa
+ * quedaba lo peor de los dos mundos: el bot volvía a redactar respuestas —
+ * gastando un turno entero del modelo por cada mensaje— y la política las
+ * bloqueaba por `human_control` al momento de enviarlas. El cliente no recibía
+ * nada y el chat parecía atendido.
+ *
+ * Decisión del 8-ago: al vencer el plazo el chat vuelve al bot solo. Un chat
+ * olvidado que se queda mudo cuesta más que un bot que retoma de más, y el
+ * asesor siempre puede volver a tomarlo desde el panel.
+ *
+ * Devuelve true solo si de verdad lo devolvió (para poder registrarlo).
+ */
+export async function devolverAlBotSiVencioLaPausa(conversationId: number): Promise<boolean> {
+  const filas = await sql`
+    update conversations
+    set assigned_to = 'bot', bot_paused_until = null, updated_at = now()
+    where id = ${conversationId} and assigned_to = 'human'
+      and (bot_paused_until is null or bot_paused_until <= now())
+    returning id
+  `;
+  return filas.length > 0;
+}
+
 export async function recordMessageStatus(
   providerId: string,
   status: string,

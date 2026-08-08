@@ -393,6 +393,9 @@ export const MENSAJES_SEED: Mensaje[] = Object.entries(conversaciones).flatMap((
     rol,
     tipo,
     contenido,
+    // El demo es una operación sana: lo que salió, llegó y lo leyeron. Sin
+    // estado, el panel lo pintaría como "en cola" — que ahora significa algo.
+    estado: rol === "cliente" ? undefined : "read",
     hora: hace(hacemin),
   })),
 );

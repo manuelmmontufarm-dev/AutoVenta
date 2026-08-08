@@ -32,6 +32,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-08-08 | _(este mismo)_ | El bot dejó de redactar lo que no puede enviar + el panel dice la verdad del envío | 1.5 |
 | 2026-08-08 | _(este mismo)_ | Avisos al asesor: cuando el cliente da la fecha y la víspera de la visita | 1.0 |
 | 2026-08-07 | _(este mismo)_ | Métrica de llegada a seguimiento + día de visita en el kanban + por qué faltan mensajes | 2.5 |
 | 2026-08-07 | _(este mismo)_ | Escalera de modelos: gpt-5.5 gana midiendo (14 cotizaciones vs 5) + caché verificado | 1.5 |
@@ -94,11 +95,45 @@ Ya viene activado en este equipo.
 | 2026-07-14 | ac09171 | Ubicaciones de locales + análisis de features del cliente | 1.5 |
 | 2026-07-13 | feadf57 | Brief + plan de desarrollo + plan financiero + catálogo | 4.0 |
 | 2026-07-13 | d997844 | Commit inicial (repo) | 0.25 |
-| | | **TOTAL** | **~87.5 h** |
+| | | **TOTAL** | **~89.0 h** |
 
 ---
 
 ## Entradas (más reciente primero)
+
+### 2026-08-08 · «Sale como si responde pero en vida real no» · ⏱️ 1.5 h
+
+**De dónde sale:** Manuel, mirando el ticket 3: el panel mostraba las respuestas del bot con
+doble check y el cliente no había recibido nada. Su propio diagnóstico dio en el clavo — «estaba
+como si el vendedor lo atiende, no el bot… pero entonces por qué sale que mandamos cosas. No
+debería tratar de mandar cosas si no puede mandarlas, es un desperdicio de tokens».
+
+**La cadena completa, que resultó ser un error de verdad:**
+1. Un asesor toma el chat → `assigned_to='human'` (pegajoso) + pausa de `BOT_PAUSE_HOURS` (6 h,
+   temporal).
+2. Pasan las 6 h. La pausa vence; `assigned_to` **no**, porque nadie lo devuelve.
+3. Desde ahí, cada mensaje del cliente pasaba `isBotPaused` (ya no hay pausa) y disparaba un
+   turno COMPLETO del modelo: herramientas, catálogo, a veces visión.
+4. Recién al enviar, la política lo bloqueaba con `human_control`. La respuesta se guardaba como
+   `failed` y el cliente no recibía nada.
+5. Y el panel **pintaba un doble check fijo en todo mensaje saliente, sin mirar el estado**. En
+   cola, aceptado, entregado y fallido se veían idénticos.
+
+Tres arreglos:
+- **Preguntar antes de escribir.** El camino de entrada ahora comprueba la política ANTES de
+  llamar al modelo. La comprobación ya existía en `resumeBotIfUnanswered`; faltaba justo en el
+  camino por el que entra el 100% de los mensajes.
+- **El chat vuelve al bot al vencer el plazo.** Decisión de Manuel entre tres opciones: un chat
+  olvidado que se queda mudo cuesta más que un bot que retoma de más, y el asesor siempre puede
+  volver a tomarlo. Las filas viejas con `assigned_to='human'` y sin plazo también se rescatan.
+- **El panel dice la verdad del envío.** Un check = WhatsApp lo aceptó; dos = entregado; dos en
+  lima = leído; y el fallido sale en rojo con «No le llegó al cliente» y el motivo que devolvió
+  Meta. El backend siempre supo la diferencia; el panel no la miraba.
+
+**Por qué importa:** era la peor clase de fallo — invisible desde el panel, caro en tokens, y
+mentía justo en el dato que se usa para confiar en el sistema.
+
+---
 
 ### 2026-08-08 · La fecha de visita ahora despierta a alguien · ⏱️ 1.0 h
 

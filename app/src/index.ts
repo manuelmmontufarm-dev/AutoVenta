@@ -18,6 +18,7 @@ import { startCatalogSync } from "./services/catalog.js";
 import { ensureSchema } from "./db/schema.js";
 import {
   appendMessage,
+  devolverAlBotSiVencioLaPausa,
   getOrCreateConversation,
   isBotPaused,
   lastOutboundText,
@@ -40,6 +41,7 @@ import {
 import { markDiscountNoticeSent } from "./services/discountOffers.js";
 import { extractCustomerCommitment, preguntamosElDia } from "./domain/customerCommitment.js";
 import { avisarVisitaComprometida } from "./services/visitAlerts.js";
+import { authorizeConversationOutbound } from "./services/whatsappPolicy.js";
 import { splitBlocks } from "./services/quoteMessages.js";
 import { flagRepetitiveConversation } from "./services/conversationQuality.js";
 import { applyOutboundGuard } from "./services/outboundGuard.js";
@@ -107,6 +109,41 @@ const pipeline = new InboundPipeline(async ({ from, name, text, waMessageIds, re
   // Handoff: si el dueño está atendiendo este chat a mano, el bot calla — pero
   // lo del cliente ya quedó guardado arriba para que el dueño lo lea en /mensajes.
   if (await isBotPaused(conversation)) return;
+
+  // Llegar hasta aquí con el chat en 'human' significa que la pausa del handoff
+  // ya venció: el plazo se cumplió y nadie lo devolvió. Vuelve al bot (decisión
+  // del 8-ago) — si no, el bot redactaba y la política le bloqueaba el envío.
+  if (await devolverAlBotSiVencioLaPausa(conversation.id)) {
+    console.log(`🤖 Venció la pausa del asesor en ${conversation.id}: el bot retoma la conversación.`);
+    emitLiveEvent("sync", conversation.id);
+  }
+
+  // ¿Podríamos siquiera ENVIAR la respuesta? Preguntarlo antes de escribirla.
+  //
+  // El 8-ago Manuel lo describió exacto: «en la página sale como si responde
+  // pero en vida real no». La cadena era esta: un asesor toma el chat
+  // (assigned_to='human' + pausa de BOT_PAUSE_HOURS). Pasan esas horas, la
+  // pausa vence pero `assigned_to` sigue en 'human' — nadie lo devuelve al bot.
+  // Desde ahí, cada mensaje del cliente disparaba un turno COMPLETO del modelo
+  // (herramientas, catálogo, a veces visión) y recién al final `sendCustomerText`
+  // lo bloqueaba por política `human_control`. La respuesta se guardaba como
+  // fallida y el panel la pintaba con doble check: plata gastada, mensaje que
+  // nadie recibió, y un chat que parecía atendido.
+  //
+  // La misma comprobación ya existía en `resumeBotIfUnanswered`; faltaba justo
+  // en el camino por el que entra el 100% de los mensajes.
+  const permiso = await authorizeConversationOutbound({
+    conversationId: conversation.id,
+    contentType: "text",
+    actor: "bot",
+  });
+  if (!permiso.allowed) {
+    console.log(
+      `🤐 El bot no responde en la conversación ${conversation.id}: ${permiso.code}. ` +
+        "El mensaje del cliente quedó guardado; contesta un humano desde el panel.",
+    );
+    return;
+  }
 
   // Recién aquí se sabe que el bot va a responder: "escribiendo…" honesto.
   void showTyping(waMessageIds[waMessageIds.length - 1]).catch(() => {});
