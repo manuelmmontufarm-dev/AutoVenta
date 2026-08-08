@@ -528,6 +528,15 @@ async function reconciliarAvisoAsesor(
     .filter(Boolean)
     .join(": ") || "Meta rechazó la entrega";
 
+  // Los dos fallos que se ven en la práctica piden cosas distintas, y decir
+  // "no se entregó" a secas deja al que lo lee sin saber cuál de las dos es.
+  const remedio =
+    error?.code === 131047
+      ? "Pásate más de 24 h sin que el asesor escriba al bot y WhatsApp cierra el canal. Pídele que mande cualquier mensaje al número del bot para reabrirlo."
+      : error?.code === 131026
+        ? "El número no tiene WhatsApp. Revísalo en Ajustes › Quién recibe los avisos: un dígito de más en el código de país acepta el envío y nunca entrega."
+        : "Revisar el número en Ajustes › Quién recibe los avisos y el estado del canal.";
+
   const [aviso] = await sql<{
     conversation_id: number;
     cycle: number;
@@ -552,7 +561,7 @@ async function reconciliarAvisoAsesor(
       ${aviso.conversation_id}, ${aviso.cycle}, 'advisor_notification_undelivered', 'high',
       ${`${aviso.recipient_name} no está recibiendo los avisos del bot`},
       ${`${detalle}. Número configurado: +${aviso.recipient_phone}. Último aviso perdido: ${aviso.event_type}.`},
-      'Revisar el número en Ajustes › Quién recibe los avisos. Un número sin WhatsApp acepta el envío y nunca entrega.',
+      ${remedio},
       ${`asesor_no_entregable:${aviso.recipient_phone}`}
     ) on conflict do nothing
   `;

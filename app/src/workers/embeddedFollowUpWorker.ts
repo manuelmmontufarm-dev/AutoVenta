@@ -196,6 +196,30 @@ async function supervisarVisitas(signal: AbortSignal): Promise<void> {
 }
 
 /**
+ * Bucle de las ventanas de 24 h de los asesores.
+ *
+ * Comparte el ritmo de las visitas y el motivo para no depender del bot: si el
+ * bot está apagado, los avisos a personas son lo único que queda funcionando.
+ * La ventana se cierra sola con el paso del tiempo, así que este es de los
+ * pocos vigilantes que tiene algo que hacer aunque nadie escriba.
+ */
+async function supervisarVentanas(signal: AbortSignal): Promise<void> {
+  while (!signal.aborted) {
+    try {
+      const { revisarVentanasDeAsesores } = await import("../services/advisorWindow.js");
+      const avisados = await revisarVentanasDeAsesores();
+      if (avisados > 0) console.log(`📵 ${avisados} asesor(es) por quedarse sin ventana de WhatsApp`);
+    } catch (error) {
+      console.warn(
+        "⚠️ Revisión de ventanas de asesores falló:",
+        error instanceof Error ? error.message : error,
+      );
+    }
+    await esperar(VISITAS_MS, signal);
+  }
+}
+
+/**
  * Supervisa el bucle: si revienta (por ejemplo, la base se cae un momento) lo
  * vuelve a levantar. En el servicio dedicado ese trabajo lo hacía Railway
  * reiniciando el proceso; aquí no puede morirse el HTTP por culpa del worker.
@@ -241,4 +265,5 @@ export function startEmbeddedFollowUpWorker(): void {
   // de hacer nada, y es justo entonces cuando hay que vigilar y avisar.
   void supervisarBotApagado(controller.signal);
   void supervisarVisitas(controller.signal);
+  void supervisarVentanas(controller.signal);
 }

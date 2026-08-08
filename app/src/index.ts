@@ -28,6 +28,7 @@ import {
   updateConversationFacts,
 } from "./services/conversations.js";
 import { emitLiveEvent } from "./services/liveEvents.js";
+import { registrarMensajeDeAsesor } from "./services/advisorWindow.js";
 import { isBotActive } from "./services/botPower.js";
 import {
   extractFlotationSizes, extractTireSizes, formatFlotationSize, formatTireSize,
@@ -250,6 +251,11 @@ async function recibirMensaje(
   waMessageId: string,
   receivedAt: Date,
 ): Promise<void> {
+  // Si escribe un asesor, su ventana de 24 h se reabre. No lo desvía del
+  // pipeline a propósito: un asesor probando el bot tiene que ver que contesta.
+  void registrarMensajeDeAsesor(from, receivedAt).catch((error) =>
+    console.warn("⚠️ No se pudo refrescar la ventana del asesor:", error),
+  );
   const conversation = await getOrCreateConversation(from, name);
   const esNuevo = await appendMessage(conversation.id, "user", texto, waMessageId, { occurredAt: receivedAt });
   if (!esNuevo) return; // reentrega de Meta: ya estaba guardado

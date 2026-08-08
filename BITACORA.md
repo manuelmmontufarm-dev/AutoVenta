@@ -104,6 +104,48 @@ Ya viene activado en este equipo.
 
 ## Entradas (más reciente primero)
 
+### 2026-08-08 · Joaquín llevaba 62 avisos sin recibir, y la tabla decía «enviado» · ⏱️ 1.5 h
+
+**De dónde sale:** Manuel, mirando su WhatsApp: «no le está notificando a Joaquín Tamayo como
+asesor también». Los avisos figuraban como enviados desde el día que se lo agregó.
+
+**Eran dos fallos encadenados, y ninguno se veía.**
+
+1. El número estaba tecleado **+32** (Bélgica) en vez de **+34**. La Graph API acepta cualquier
+   número con formato válido, devuelve un wamid, y recién por webhook rechaza con el 131026. En la
+   base de Depot: 62 avisos en estado `sent`, cero errores, cero entregas.
+
+2. Corregido el número, **seguía sin llegar**: error 131047. WhatsApp solo permite texto libre a
+   quien le escribió al número del negocio en las últimas 24 h. Manuel nunca lo notó porque él le
+   escribe al bot todo el día — su ventana está siempre abierta. Joaquín no le había escrito nunca,
+   así que ni con el número bueno podía recibir nada.
+
+**Por qué la tabla mentía:** `recordMessageStatus` reconciliaba `messages` y `follow_up_attempts`
+por `provider_message_id`, y saltaba justo `advisor_notifications`. El estado se ponía en `sent` al
+recibir el wamid — aceptar no es entregar. Meta sí avisaba del fallo; el aviso se guardaba en
+`message_status_events` y nadie lo leía.
+
+**Qué se decidió.** La salida oficial para el 131047 son plantillas aprobadas: cuestan (~$15-40 al
+mes al ritmo de hoy) y hay que hacerlas aprobar. Manuel prefirió lo otro: que el sistema avise antes
+de que la ventana se cierre y él le pide al asesor que mande un mensaje. Es más barato y no depende
+de una aprobación de Meta; a cambio, depende de que alguien haga caso al recordatorio.
+
+**Lo que quedó:**
+- `advisors.ventana_hasta`, que se refresca con cada mensaje entrante del asesor. No lo saca del
+  pipeline a propósito: un asesor probando el bot tiene que ver que le contesta.
+- Recordatorio 3 h antes de que venza, o de una si nunca escribió. Uno por asesor por día.
+- El texto dice a quién escribirle, qué pedirle y a qué número — con test de que **no** menciona
+  «131047» ni «ventana de 24 h», que a quien lo lee no le dicen nada.
+- Un rechazo de Meta ahora deja el aviso en `failed` con el código y levanta UNA alerta por número
+  (no una por aviso rebotado) que distingue los dos casos y dice qué hacer con cada uno.
+- En la base de Depot: el +32 quedó **inactivo**, no borrado, y el +34 renombrado a «Joaquín Tamayo».
+
+**Por qué importa:** un aviso que no llega es peor que uno que no se intentó — el que lo mandó cree
+que hay alguien atendiendo. Ese es el mismo agujero del cliente de Yantzaza de esta mañana, visto
+desde el otro lado.
+
+---
+
 ### 2026-08-08 · Seguimiento y cotización vuelven a poder mostrar llantas · ⏱️ 1.5 h
 
 **De dónde sale:** el ticket 2150, mirándolo en vivo. El cliente escribió *«xfavor ya le envío y q
