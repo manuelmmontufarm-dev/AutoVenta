@@ -229,6 +229,22 @@ export interface Mensaje {
   hora: string;
 }
 
+/**
+ * ¿Llega al panel lo que un asesor contesta desde su propio WhatsApp?
+ *
+ * Meta manda copia de esos mensajes solo si la casilla `message_echoes` está
+ * marcada y la firma valida. Cuando no llega, la conversación se ve como un
+ * monólogo del cliente y no hay forma de saber si nadie contestó o si sí
+ * contestaron y no lo estamos guardando. Esto distingue las dos cosas.
+ */
+export interface EchoHealth {
+  guardados: number;
+  ultimoGuardadoEn: string | null;
+  descartados: number;
+  ultimoDescarteEn: string | null;
+  ultimoDescarteMotivo: "sin_app_secret" | "firma_invalida" | null;
+}
+
 export interface FeedItem {
   id: number;
   icono: string;
@@ -257,6 +273,22 @@ export interface HubMetrics {
     failed: number;
     renderErrors: number;
   }>;
+  /**
+   * Llegadas a la última columna. Quién cierra la venta se decide en el local
+   * y nadie lo registra, así que esto es lo más cerca de una venta que el
+   * sistema mide de verdad: cuántos tickets llegaron a coordinar la visita.
+   */
+  reachedFinal?: {
+    total: number;
+    esteMes: number;
+    cotizados: number;
+    cotizadosQueLlegaron: number;
+    /** cotizadosQueLlegaron / cotizados, entre 0 y 1. */
+    ratio: number;
+    abiertosAhora: number;
+    ganados: number;
+    valor: number;
+  };
   replyHours?: Array<{ hour: number; label: string; replies: number }>;
   discounts?: {
     offered: number; wonWith: number; quotedWithout: number; wonWithout: number;

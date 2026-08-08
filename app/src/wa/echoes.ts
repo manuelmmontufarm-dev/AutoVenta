@@ -36,6 +36,7 @@ import {
   getOrCreateConversation,
   setConversationAssignee,
 } from "../services/conversations.js";
+import { registrarEcoDescartado, registrarEcoGuardado } from "../services/echoHealth.js";
 import { esEnvioPropio } from "./outboundRegistry.js";
 
 export interface EchoOutcome {
@@ -57,7 +58,19 @@ export async function handleEchoWebhook(
   if (!esPayloadDeEco(rawBody)) return { handled: false, status: 200 };
 
   const canal = await getChannelConfig();
-  if (!firmaValida(rawBody, firma, canal.appSecret ?? "")) {
+  // Los dos descartes se distinguen porque se arreglan en sitios distintos: sin
+  // app secret es un campo vacío en Ajustes; con firma inválida el secret está
+  // pero no es el de esta app. Antes los dos morían en el mismo console.error y
+  // desde el panel se veían igual que "el asesor no escribió nada".
+  if (!canal.appSecret) {
+    await registrarEcoDescartado("sin_app_secret");
+    console.error(
+      "🚨 Llegó un eco de WhatsApp pero el canal no tiene app secret: no se puede validar la firma y se descarta.",
+    );
+    return { handled: true, status: 401 };
+  }
+  if (!firmaValida(rawBody, firma, canal.appSecret)) {
+    await registrarEcoDescartado("firma_invalida");
     console.error("🚨 Eco de WhatsApp con firma inválida: descartado.");
     return { handled: true, status: 401 };
   }
@@ -100,6 +113,7 @@ async function guardarEco(eco: EchoMessage): Promise<boolean> {
   // Solo un mensaje ajeno y nuevo significa handoff. El eco de nuestro propio
   // envío no puede pausar al bot por su propia respuesta.
   if (esNuevo && !propio) {
+    await registrarEcoGuardado();
     await setConversationAssignee(conversation.id, "human");
     console.log(
       `👤 Asesor respondió desde WhatsApp en la conversación ${conversation.id}: bot en pausa.`,

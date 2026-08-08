@@ -20,6 +20,7 @@ import {
   appendMessage,
   getOrCreateConversation,
   isBotPaused,
+  lastOutboundText,
   logFunnelEvent,
   recordMessageStatus,
   setStage,
@@ -37,7 +38,7 @@ import {
   scheduleConversationFollowUps,
 } from "./services/followUps.js";
 import { markDiscountNoticeSent } from "./services/discountOffers.js";
-import { extractCustomerCommitment } from "./domain/customerCommitment.js";
+import { extractCustomerCommitment, preguntamosElDia } from "./domain/customerCommitment.js";
 import { splitBlocks } from "./services/quoteMessages.js";
 import { flagRepetitiveConversation } from "./services/conversationQuality.js";
 import { applyOutboundGuard } from "./services/outboundGuard.js";
@@ -60,7 +61,12 @@ const pipeline = new InboundPipeline(async ({ from, name, text, waMessageIds, re
   const parsedFlotation = parsedSize ? null : extractFlotationSizes(text)[0];
   const parsedQuantity = extractExplicitQuantity(text);
   const parsedVehicleYear = extractVehicleYear(text);
-  const commitment = extractCustomerCommitment(text, receivedAt);
+  // El día de la visita llega casi siempre como respuesta seca ("el sábado")
+  // a la pregunta que el bot hace tras cotizar. Sin mirar lo que preguntamos
+  // antes, esa respuesta no era un compromiso para nadie.
+  const commitment = extractCustomerCommitment(text, receivedAt, {
+    respondiendoAlDia: preguntamosElDia(await lastOutboundText(conversation.id)),
+  });
   await updateConversationFacts(conversation.id, {
     ...(parsedSize ? { tireSize: formatTireSize(parsedSize) } : {}),
     ...(parsedFlotation ? { tireSize: formatFlotationSize(parsedFlotation) } : {}),

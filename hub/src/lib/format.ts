@@ -30,6 +30,43 @@ export function relTime(iso: string, ahora: number = Date.now()): string {
   return new Date(iso).toLocaleDateString("es-EC", { day: "numeric", month: "short" });
 }
 
+const DIAS_LARGOS = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
+
+/**
+ * El día en que el cliente dijo que puede pasar, en dos palabras.
+ *
+ * La tarjeta del kanban lo necesita del mismo tamaño que la medida: "Sábado",
+ * "Mañana", "Fin de semana". Cuando hay fecha exacta se usa esa; cuando el
+ * cliente solo dijo un tramo ("esta semana", "el finde") se conserva el tramo,
+ * porque inventarle un día concreto sería ponerle en la boca algo que no dijo.
+ *
+ * Devuelve null si no hay nada que mostrar.
+ */
+export function etiquetaVisita(
+  visitDate: string | undefined,
+  compromiso: string | undefined,
+  ahora: number = Date.now(),
+): string | null {
+  if (visitDate) {
+    const fecha = new Date(visitDate);
+    const dias = Math.round(
+      (new Date(fecha).setHours(0, 0, 0, 0) - new Date(ahora).setHours(0, 0, 0, 0)) / 86_400_000,
+    );
+    if (dias === 0) return "Hoy";
+    if (dias === 1) return "Mañana";
+    if (dias === -1) return "Ayer";
+    if (dias < -1) return `${DIAS_LARGOS[fecha.getDay()]} pasado`;
+    if (dias < 7) return DIAS_LARGOS[fecha.getDay()];
+    return fecha.toLocaleDateString("es-EC", { day: "numeric", month: "short" });
+  }
+  if (!compromiso) return null;
+  const texto = compromiso.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  if (/\b(?:fin de semana|finde)\b/.test(texto)) return "Fin de semana";
+  if (/\b(?:proxima semana|la otra semana|la siguiente semana)\b/.test(texto)) return "Próxima semana";
+  if (/\b(?:esta semana|en la semana)\b/.test(texto)) return "Esta semana";
+  return null;
+}
+
 export function horaCorta(iso: string): string {
   return new Date(iso).toLocaleTimeString("es-EC", { hour: "2-digit", minute: "2-digit" });
 }

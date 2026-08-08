@@ -45,6 +45,26 @@ describe("mensajes de opciones en conversación activa", () => {
 });
 
 /*
+ * La pregunta por el día cierra la cotización y la ubicación. Un "sí me
+ * interesa" no se puede agendar; un día sí, y es lo que convierte la última
+ * columna del kanban en una lista de trabajo.
+ */
+describe("pregunta por el día de la visita", () => {
+  it("pide una fecha concreta en los dos casos", () => {
+    expect(qm.buildVisitDayQuestion(true)).toMatch(/qué día/i);
+    expect(qm.buildVisitDayQuestion(false)).toMatch(/qué día/i);
+  });
+
+  it("solo nombra el descuento cuando hay uno autorizado", () => {
+    expect(qm.buildVisitDayQuestion(true)).toMatch(/descuento/i);
+    // Sin oferta viva el motivo es otro: inventar un descuento para arrancar
+    // una fecha es justo lo que el playbook prohíbe.
+    expect(qm.buildVisitDayQuestion(false)).not.toMatch(/descuento/i);
+    expect(qm.buildVisitDayQuestion(false)).toMatch(/cotización/i);
+  });
+});
+
+/*
  * Criterios de aceptación de la Tanda 0 — el reclamo del cliente fue
  * "está mandando dms texto y la people ni siquiera lee".
  */

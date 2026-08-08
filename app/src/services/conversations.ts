@@ -256,6 +256,20 @@ export async function setStage(
   }
 }
 
+/**
+ * Lo último que le dijimos al cliente, lo haya escrito el bot o un asesor.
+ * Sirve para leer su respuesta en contexto: "el sábado" solo significa una
+ * visita si lo anterior fue una pregunta por el día.
+ */
+export async function lastOutboundText(conversationId: number): Promise<string | null> {
+  const [row] = await sql<{ content: string }[]>`
+    select content from messages
+    where conversation_id = ${conversationId} and direction = 'outbound' and type <> 'note'
+    order by created_at desc limit 1
+  `;
+  return row?.content ?? null;
+}
+
 export async function updateConversationFacts(
   conversationId: number,
   facts: {

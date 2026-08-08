@@ -14,18 +14,24 @@ export function Dashboard() {
     const abiertos = tickets.filter((t) => t.estado === "abierto");
     const conCotizacion = tickets.filter((t) => t.cotizacion);
     const ganados = tickets.filter((t) => t.cierre === "ganado");
+    // El respaldo local solo ve la etapa de HOY: el ticket que llegó al final y
+    // se cerró ya no cuenta. Por eso manda `metrics.reachedFinal`, que lo lee
+    // del historial de etapas y sí incluye a los cerrados.
     const llegaronVisita = tickets.filter(
       (t) => t.cierre === "ganado" || t.etapa === "seguimiento_venta",
     );
-    const conversion = conCotizacion.length
-      ? Math.round((llegaronVisita.length / conCotizacion.length) * 100)
-      : 0;
+    const conversion = metrics?.reachedFinal
+      ? Math.round(metrics.reachedFinal.ratio * 100)
+      : conCotizacion.length
+        ? Math.round((llegaronVisita.length / conCotizacion.length) * 100)
+        : 0;
     const enJuego = abiertos.reduce((s, t) => s + (t.cotizacion?.total ?? 0), 0);
     const vendido = ganados.reduce((s, t) => s + (t.cotizacion?.total ?? 0), 0);
     return {
       abiertos: metrics?.summary.abiertos ?? abiertos.length,
       cotizaciones: metrics?.summary.cotizaciones ?? conCotizacion.length,
       conversion,
+      llegaron: metrics?.reachedFinal?.total ?? llegaronVisita.length,
       enJuego: metrics?.summary.enJuego ?? enJuego,
       vendido: metrics?.summary.vendido ?? vendido,
     };
@@ -61,17 +67,28 @@ export function Dashboard() {
   return (
     <div className="h-full overflow-y-auto px-4 pb-8">
       {/* KPIs */}
-      <div className="grid grid-cols-2 gap-2.5 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-2.5 lg:grid-cols-5">
         <StatTile label="Tickets abiertos" valor={stats.abiertos} detalle="conversaciones activas ahora" delay={0} sparkline={serie} />
         <StatTile label="Cotizaciones enviadas" valor={stats.cotizaciones} detalle="PDF generados este mes" delay={0.06} />
         <StatTile
-          label="Cotizado → visita"
+          label="Llegan a seguimiento"
+          valor={stats.llegaron}
+          color="var(--etapa-visita)"
+          detalle={
+            metrics?.reachedFinal
+              ? `${metrics.reachedFinal.esteMes} este mes · ${metrics.reachedFinal.abiertosAhora} abiertos hoy`
+              : "tickets que llegaron a la última columna"
+          }
+          delay={0.12}
+        />
+        <StatTile
+          label="Cotizado → seguimiento"
           valor={stats.conversion}
           formato={(n) => `${Math.round(n)}%`}
           color="var(--color-lime)"
-          detalle="confirman que vienen al local"
+          detalle="de cada cotización enviada"
           progress={stats.conversion}
-          delay={0.12}
+          delay={0.18}
         />
         <StatTile
           label="Respuesta del bot"
@@ -79,9 +96,44 @@ export function Dashboard() {
           formato={(n) => (n > 0 ? `${Math.round(n)} s` : "—")}
           color="var(--color-ok)"
           detalle="mediana real de primera respuesta"
-          delay={0.18}
+          delay={0.24}
         />
       </div>
+
+      {/* La venta se cierra en el local y nadie la registra ahí. Esta sección
+          dice en voz alta cuál es el número que sí se puede medir y cuál no,
+          para que "conversión" no se lea como "ventas". */}
+      {metrics?.reachedFinal && (
+        <motion.section initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="glass mt-2.5 rounded-3xl p-5">
+          <div className="mb-4">
+            <p className="microlabel">Hasta dónde llega el bot</p>
+            <p className="mt-1 text-[10.5px] text-faint">
+              La venta se cierra en el local y no vuelve al sistema, así que no se puede medir.
+              Lo que sí se mide es cuántos tickets llegan a <b>Seguimiento hasta venta</b>: cotizados,
+              con local y con la visita en conversación. Es el último punto que el bot controla.
+            </p>
+          </div>
+          <div className="grid grid-cols-2 gap-2.5 md:grid-cols-3 xl:grid-cols-5">
+            {[
+              { label: "Llegaron al final", value: String(metrics.reachedFinal.total), detail: "en todo el histórico", color: "var(--etapa-visita)" },
+              { label: "Este mes", value: String(metrics.reachedFinal.esteMes), detail: "llegadas desde el día 1", color: "var(--color-paper)" },
+              { label: "De los cotizados", value: `${Math.round(metrics.reachedFinal.ratio * 100)}%`, detail: `${metrics.reachedFinal.cotizadosQueLlegaron} de ${metrics.reachedFinal.cotizados} cotizaciones`, color: "var(--color-lime)" },
+              { label: "Abiertos ahora", value: String(metrics.reachedFinal.abiertosAhora), detail: "esperando la visita", color: "var(--color-warn)" },
+              { label: "Confirmados como venta", value: String(metrics.reachedFinal.ganados), detail: "solo los que alguien marcó a mano", color: "var(--color-ok)" },
+            ].map((item) => (
+              <div key={item.label} className="rounded-2xl border border-paper/[.07] bg-paper/[.035] p-4">
+                <p className="microlabel">{item.label}</p>
+                <p className="serif tnum mt-2 text-[25px]" style={{ color: item.color }}>{item.value}</p>
+                <p className="mt-1 text-[10.5px] text-faint">{item.detail}</p>
+              </div>
+            ))}
+          </div>
+          <p className="mt-3 text-[10.5px] text-faint">
+            Valor cotizado de los que llegaron: <span className="tnum font-bold text-lime">{money(metrics.reachedFinal.valor)}</span>.
+            No es dinero cobrado — es lo que estaba sobre la mesa cuando la conversación llegó al final.
+          </p>
+        </motion.section>
+      )}
 
       {replyHours.length > 0 && (
         <motion.section initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="glass mt-2.5 rounded-3xl p-5">

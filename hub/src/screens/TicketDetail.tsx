@@ -4,14 +4,17 @@ import { ChatBubble, Composer, CotizacionModal, TypingBubble } from "../componen
 import { IconBack, IconDoc, IconNote, IconPhone, IconPin, IconRefresh, IconX } from "../components/icons";
 import { PipelineStepper } from "../components/stepper";
 import { AtiendePill, Avatar, CierreBadge, MedidaChip, Modal, StageBadge } from "../components/ui";
-import { CIERRE_META, type Cierre, type TemplatePlanPreview, type Ticket } from "../data/types";
+import { CIERRE_META, type Cierre, type Mensaje, type TemplatePlanPreview, type Ticket } from "../data/types";
 import { money, relTime } from "../lib/format";
 import { navigate } from "../router";
 import { useHub, useNow } from "../store";
 
 export function TicketDetail({ id }: { id: number }) {
-  const { tickets, mensajes, typing, abrirTicket, enviarMensaje, setAtiende, cerrar, reabrir, agregarNota } = useHub();
-  const ticket = tickets.find((t) => t.id === id);
+  const { tickets, ticketsSueltos, mensajes, typing, abrirTicket, enviarMensaje, setAtiende, cerrar, reabrir, agregarNota } = useHub();
+  // El listado corta en 500: un enlace viejo (feed, "Llegaron al final") apunta
+  // a una conversación que existe pero no vino en el lote. `abrirTicket` la
+  // trae de a una y aterriza aquí.
+  const ticket = tickets.find((t) => t.id === id) ?? ticketsSueltos[id];
   const msgs = mensajes[id] ?? [];
   const escribiendo = typing[id];
   const now = useNow();
@@ -19,11 +22,13 @@ export function TicketDetail({ id }: { id: number }) {
   const [verCotizacion, setVerCotizacion] = useState(false);
   const [cerrando, setCerrando] = useState(false);
   const [fichaMovil, setFichaMovil] = useState(false);
+  const [cargandoTicket, setCargandoTicket] = useState(!ticket);
 
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    void abrirTicket(id);
+    setCargandoTicket(true);
+    void abrirTicket(id).finally(() => setCargandoTicket(false));
   }, [id, abrirTicket]);
 
   useEffect(() => {
@@ -40,10 +45,16 @@ export function TicketDetail({ id }: { id: number }) {
   if (!ticket) {
     return (
       <div className="grid h-full place-items-center text-sm text-muted">
-        Ticket no encontrado —{" "}
-        <button className="ml-1 font-bold text-lime" onClick={() => navigate("inbox")}>
-          volver al inbox
-        </button>
+        {cargandoTicket ? (
+          "Abriendo la conversación…"
+        ) : (
+          <>
+            Ticket no encontrado —{" "}
+            <button className="ml-1 font-bold text-lime" onClick={() => navigate("inbox")}>
+              volver al inbox
+            </button>
+          </>
+        )}
       </div>
     );
   }
@@ -94,6 +105,7 @@ export function TicketDetail({ id }: { id: number }) {
 
         <div ref={scrollRef} className="chat-bg mx-3 mt-2.5 min-h-0 flex-1 overflow-y-auto rounded-2xl px-3 py-4">
           <div className="mx-auto flex max-w-2xl flex-col gap-2">
+            <AvisoMonologo ticket={ticket} mensajes={msgs} />
             {msgs.map((m) => (
               <ChatBubble key={m.id} msg={m} onVerPdf={() => setVerCotizacion(true)} />
             ))}
@@ -163,6 +175,71 @@ export function TicketDetail({ id }: { id: number }) {
           />
         )}
       </AnimatePresence>
+    </div>
+  );
+}
+
+/**
+ * Una conversación donde solo se ve al cliente no es lo mismo que una
+ * conversación donde nadie contestó, y hasta ahora las dos se veían igual.
+ *
+ * Ticket 1848: cinco mensajes seguidos del cliente, uno preguntando «221 cada
+ * una ?» — alguien le había dado un precio y ese alguien no existía en el
+ * panel. Este aviso dice cuál de los tres motivos es, con el dato real de cada
+ * uno, en vez de dejar el hueco sin explicación:
+ *  · el bot está apagado (no contesta, y eso es una decisión, no una falla);
+ *  · la conversación está en manos de un asesor;
+ *  · el asesor contesta desde su WhatsApp y Meta no nos manda la copia — el
+ *    único de los tres que es un error y hay que arreglar.
+ */
+function AvisoMonologo({ ticket, mensajes }: { ticket: Ticket; mensajes: Mensaje[] }) {
+  const { power, echoHealth } = useHub();
+  const delCliente = mensajes.filter((m) => m.rol === "cliente").length;
+  const nuestros = mensajes.length - delCliente;
+  if (delCliente === 0 || nuestros > 0) return null;
+
+  const ecosRotos = (echoHealth?.descartados ?? 0) > 0;
+  const ecosNuncaLlegaron = echoHealth != null && echoHealth.guardados === 0 && !ecosRotos;
+  const motivos: string[] = [];
+  if (!power.activo) motivos.push("El bot está apagado, así que no contestó ninguno de estos mensajes.");
+  if (ticket.atiende === "humano") motivos.push("La conversación está asignada a un asesor: el bot no responde mientras siga así.");
+  if (ecosRotos) {
+    motivos.push(
+      `Llegaron ${echoHealth?.descartados} respuestas de asesor desde WhatsApp y se descartaron (${
+        echoHealth?.ultimoDescarteMotivo === "sin_app_secret"
+          ? "falta el app secret del canal"
+          : "la firma no coincide con el app secret guardado"
+      }). Eso sí es un error: revisa Ajustes → Canal.`,
+    );
+  } else if (ecosNuncaLlegaron) {
+    motivos.push(
+      "Meta nunca nos ha mandado copia de lo que un asesor escribe desde su celular. Si alguien le respondió por WhatsApp, ese mensaje existe para el cliente pero no para el panel: hay que marcar «message_echoes» en Meta (Ajustes → Diagnóstico del canal lo comprueba).",
+    );
+  } else if (echoHealth) {
+    motivos.push(
+      "Las respuestas que un asesor escribe desde WhatsApp sí están entrando al panel, así que aquí de verdad no contestó nadie todavía.",
+    );
+  }
+
+  return (
+    <div
+      className="mb-1 rounded-xl border border-dashed px-3 py-2.5 text-[11px] leading-relaxed"
+      style={{
+        borderColor: ecosRotos || ecosNuncaLlegaron
+          ? "color-mix(in srgb, var(--color-warn) 45%, transparent)"
+          : "color-mix(in srgb, var(--color-paper) 14%, transparent)",
+        background: ecosRotos || ecosNuncaLlegaron
+          ? "color-mix(in srgb, var(--color-warn) 8%, transparent)"
+          : "color-mix(in srgb, var(--color-paper) 3%, transparent)",
+      }}
+    >
+      <p className="font-black">Aquí solo hay mensajes del cliente</p>
+      {motivos.map((motivo) => (
+        <p key={motivo} className="mt-1 text-muted">{motivo}</p>
+      ))}
+      {motivos.length === 0 && (
+        <p className="mt-1 text-muted">Nadie ha respondido todavía en esta conversación.</p>
+      )}
     </div>
   );
 }

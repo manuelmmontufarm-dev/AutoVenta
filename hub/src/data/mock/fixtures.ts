@@ -136,6 +136,8 @@ const seeds: TicketSeed[] = [
     etapa: "seguimiento_venta", atiende: "bot", vehiculo: "Chevrolet Sail 2019", medida: "185/60 R14",
     cotizacion: cot(1032, [llanta("185/60 R14", "Kenda", "Kaiser KR26", 62)]),
     localAsignado: { nombre: CUMBAYA.nombre, direccion: CUMBAYA.direccion, distanciaKm: 2.4 },
+    // Día exacto: la tarjeta lo muestra como chip, igual que la medida.
+    compromisoCliente: "Voy mañana en la tarde", visitDate: hace(-60 * 20),
     esRecurrente: false, creadoEn: hace(95),
   },
   {
@@ -148,6 +150,8 @@ const seeds: TicketSeed[] = [
   {
     id: 18, telefono: "+593 96 448 2270", nombre: "Estefanía Cueva", estado: "abierto",
     etapa: "seguimiento_venta", atiende: "bot", vehiculo: "Kia Rio 2018", medida: "195/55 R16",
+    // Sin día exacto: el cliente dio un tramo y el chip conserva el tramo.
+    compromisoCliente: "Paso este fin de semana",
     cotizacion: cot(1034, [llanta("195/55 R16", "Sunoco", "Ecoplus HP", 78, 2)]),
     localAsignado: { nombre: CUMBAYA.nombre, direccion: CUMBAYA.direccion, distanciaKm: 6.0 },
     esRecurrente: true, creadoEn: hace(60 * 28),

@@ -51,7 +51,8 @@ import {
   reopenConversation,
   logQuoteArtifact,
 } from "../services/conversations.js";
-import { getFinalStageArrivals, getHubFeed, getHubMessages, getHubMetrics, listHubTickets } from "../services/hubData.js";
+import { getFinalStageArrivals, getHubFeed, getHubMessages, getHubMetrics, getHubTicket, listHubTickets } from "../services/hubData.js";
+import { getEchoHealth } from "../services/echoHealth.js";
 import { emitLiveEvent, subscribeLiveEvents } from "../services/liveEvents.js";
 import { isStage } from "../domain/pipeline.js";
 import { authorizeConversationOutbound } from "../services/whatsappPolicy.js";
@@ -384,6 +385,18 @@ export function createAdminRouter(): express.Router {
     res.json({ ok: true, tickets: await listHubTickets() });
   });
 
+  // Un ticket suelto: el listado corta en 500 y los enlaces del feed o del
+  // panel "Llegaron al final" pueden apuntar más atrás.
+  router.get("/hub/tickets/:id", async (req, res) => {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id)) {
+      return res.status(400).json({ ok: false, error: "id inválido" });
+    }
+    const ticket = await getHubTicket(id);
+    if (!ticket) return res.status(404).json({ ok: false, error: "Ticket no encontrado" });
+    res.json({ ok: true, ticket });
+  });
+
   router.get("/hub/tickets/:id/messages", async (req, res) => {
     const id = Number(req.params.id);
     if (!Number.isInteger(id)) {
@@ -406,6 +419,13 @@ export function createAdminRouter(): express.Router {
         followUps: await getFollowUpMetrics(),
       },
     });
+  });
+
+  // Lo que de verdad llega del webhook cuando un asesor contesta desde su
+  // WhatsApp. El panel lo usa para explicar una conversación sin respuestas
+  // nuestras en vez de dejarla como un monólogo sin motivo.
+  router.get("/hub/echo-health", async (_req, res) => {
+    res.json({ ok: true, echoHealth: await getEchoHealth() });
   });
 
   router.get("/hub/final-stage", async (_req, res) => {

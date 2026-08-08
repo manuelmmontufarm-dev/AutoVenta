@@ -30,6 +30,7 @@ import {
   buildCustomerOptionsMessageDetallado,
   buildSingleQuoteCaption,
   buildSingleQuoteMessageDetallado,
+  buildVisitDayQuestion,
   composeBlocks,
   PREGUNTA_RECOMENDACION,
   warrantyForBrand,
@@ -1177,7 +1178,9 @@ export function buildTools(ctx: AgentContext) {
             brands: [product.brand],
             quantity: items[0].cantidad,
           }),
-          "¿Le queda mejor Cumbayá o Quito Sur? Puede pasar sin compromiso a verlas y probarlas en su vehículo.",
+          // Local y día en el MISMO bloque: son la misma decisión para el
+          // cliente, y separarlos sumaba un cuarto mensaje al turno.
+          `¿Le queda mejor Cumbayá o Quito Sur? Puede pasar sin compromiso a verlas y probarlas en su vehículo.\n${buildVisitDayQuestion(Boolean(activeDiscount))}`,
         ),
         regla:
           "Responde exactamente con mensaje_para_enviar, con sus separadores '---' intactos. La cotización ya fue enviada y Manuel ya fue notificado.",
@@ -1211,6 +1214,7 @@ export function buildTools(ctx: AgentContext) {
         reason: "Cliente compartió ubicación después de cotizar",
       });
       const sale = await latestSaleNumber(ctx.conversation.id);
+      const descuentoVivo = Boolean(await getActiveDiscountOffer(ctx.conversation.id));
       return JSON.stringify({
         local: store.name,
         direccion: store.address,
@@ -1226,9 +1230,12 @@ export function buildTools(ctx: AgentContext) {
           store.mapsUrl ? `🗺️ ${store.mapsUrl}` : "",
           `🕐 ${business.schedule}`,
           sale ? `🔖 Al llegar, indica tu número de venta *${sale}* para ubicar tu cotización.` : "",
-          "🙌 ¡Te esperamos! Si necesitas algo más, aquí estoy.",
+          // Sin esta línea el turno terminaba en "te esperamos": cortés y sin
+          // fecha. La ubicación es el mejor momento para pedir el día porque el
+          // cliente acaba de decidir a dónde va.
+          buildVisitDayQuestion(descuentoVivo),
         ].filter(Boolean).join("\n"),
-        regla: "Responde exactamente con mensaje_para_enviar y no inventes otra distancia o dirección.",
+        regla: "Responde exactamente con mensaje_para_enviar, incluida la pregunta por el día, y no inventes otra distancia o dirección.",
       });
     },
   });

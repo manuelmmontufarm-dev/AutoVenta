@@ -15,12 +15,13 @@ import { FunnelChart } from "../components/charts";
 import { Avatar, EmptyState, Segmented } from "../components/ui";
 import { getStoredAdminKey } from "../data/realSource";
 import { CIERRE_META, ETAPAS, ETAPA_META, type Etapa, type FinalStage, type FollowUpBucket, type FollowUpCard, type Ticket } from "../data/types";
-import { money, moneyCompact, relTime } from "../lib/format";
+import { etiquetaVisita, money, moneyCompact, relTime } from "../lib/format";
 import { navigate } from "../router";
 import { useHub, useNow } from "../store";
 import { CerrarSheet } from "./TicketDetail";
 
 function CardKanban({ ticket, now, arrastrando = false }: { ticket: Ticket; now: number; arrastrando?: boolean }) {
+  const dia = etiquetaVisita(ticket.visitDate, ticket.compromisoCliente, now);
   return (
     <div
       className={`glass w-full rounded-2xl p-3 text-left ${arrastrando ? "rotate-2 scale-105 shadow-pop" : "shadow-soft"}`}
@@ -42,8 +43,27 @@ function CardKanban({ ticket, now, arrastrando = false }: { ticket: Ticket; now:
         ) : (
           <span className="text-[10.5px] text-faint italic">sin medida</span>
         )}
-        {ticket.cotizacion && <span className="tnum text-[11.5px] font-bold text-lime">{money(ticket.cotizacion.total)}</span>}
+        {/* Un monto en blanco se leía como un error del panel. Decir "sin
+            cotización" es el dato: nadie le puso precio a este ticket todavía. */}
+        {ticket.cotizacion ? (
+          <span className="tnum text-[11.5px] font-bold text-lime">{money(ticket.cotizacion.total)}</span>
+        ) : (
+          <span className="text-[10px] text-faint italic">sin cotización</span>
+        )}
       </div>
+      {/* El día de la visita, del mismo tamaño que la medida: es el otro dato
+          que decide qué tarjeta se trabaja hoy. */}
+      {dia && (
+        <div className="mt-1.5">
+          <span
+            className="rounded-md px-1.5 py-0.5 text-[10.5px] font-bold"
+            style={{ background: "color-mix(in srgb, var(--color-lime) 14%, transparent)", color: "var(--color-lime)" }}
+            title={ticket.compromisoCliente ?? undefined}
+          >
+            🗓 {dia}
+          </span>
+        </div>
+      )}
     </div>
   );
 }
@@ -228,8 +248,10 @@ function PanelFinal({ data, now, onCerrar }: { data: FinalStage; now: number; on
                       >
                         {t.cierre === "ganado" ? "Ganado" : t.cierre === "perdido" ? "Perdido" : "Sigue abierto"}
                       </span>
-                      {t.cotizacion != null && (
+                      {t.cotizacion != null ? (
                         <span className="tnum text-[11.5px] font-bold text-lime">{money(t.cotizacion)}</span>
+                      ) : (
+                        <span className="text-[10px] text-faint italic">sin cotización</span>
                       )}
                       <span className="tnum ml-auto text-[10px] text-faint">{relTime(t.llegoEn, now)}</span>
                     </button>

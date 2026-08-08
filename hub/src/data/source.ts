@@ -1,4 +1,4 @@
-import type { Atiende, BotAlert, BotPower, Cierre, Etapa, FeedItem, FinalStage, FollowUpCard, HubMetrics, Mensaje, PhaseFlags, Rol, TemplatePlanPreview, Ticket } from "./types";
+import type { Atiende, BotAlert, BotPower, Cierre, EchoHealth, Etapa, FeedItem, FinalStage, FollowUpCard, HubMetrics, Mensaje, PhaseFlags, Rol, TemplatePlanPreview, Ticket } from "./types";
 
 /**
  * El contrato entre la UI y los datos. Parte 1: MockSource (fixtures + simulador).
@@ -15,7 +15,11 @@ export type SourceEvent =
 
 export interface DataSource {
   listTickets(): Promise<Ticket[]>;
+  /** Un ticket suelto: el listado corta en 500 y los enlaces apuntan más atrás. */
+  getTicket(ticketId: number): Promise<Ticket | null>;
   getMensajes(ticketId: number): Promise<Mensaje[]>;
+  /** Si las respuestas del asesor desde WhatsApp están entrando al panel. */
+  getEchoHealth(): Promise<EchoHealth>;
   getFeed(): Promise<FeedItem[]>;
   getMetrics(days?: number): Promise<HubMetrics>;
   /** Quién llegó a la última columna del tablero, agrupado por día. */

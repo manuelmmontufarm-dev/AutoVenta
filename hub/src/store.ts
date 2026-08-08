@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import type { Atiende, BotAlert, BotPower, Cierre, Etapa, FeedItem, FinalStage, FollowUpCard, HubMetrics, Mensaje, PhaseFlags, Rol, TemplatePlanPreview, Ticket } from "./data/types";
+import type { Atiende, BotAlert, BotPower, Cierre, EchoHealth, Etapa, FeedItem, FinalStage, FollowUpCard, HubMetrics, Mensaje, PhaseFlags, Rol, TemplatePlanPreview, Ticket } from "./data/types";
 import { MockSource } from "./data/mock/mockSource";
 import { Simulator } from "./data/mock/simulator";
 import { AdminKeyError, RealSource } from "./data/realSource";
@@ -37,12 +37,21 @@ interface HubState {
   refrescar: () => Promise<void>;
   cargando: boolean;
   tickets: Ticket[];
+  /**
+   * Tickets traídos de a uno. El listado corta en 500 y los enlaces del feed y
+   * del panel "Llegaron al final" apuntan más atrás: sin esto, abrir uno de
+   * esos mostraba "Ticket no encontrado" con la conversación intacta en la base.
+   * Van aparte para no ensuciar el kanban ni el inbox con tickets sueltos.
+   */
+  ticketsSueltos: Record<number, Ticket>;
   mensajes: Record<number, Mensaje[]>;
   typing: Record<number, Rol | null>;
   feed: FeedItem[];
   metrics: HubMetrics | null;
   /** Quién llegó al final del tablero, por día. null mientras no ha cargado. */
   finalStage: FinalStage | null;
+  /** ¿Entran al panel las respuestas que un asesor escribe desde su WhatsApp? */
+  echoHealth: EchoHealth | null;
   followUps: FollowUpCard[];
   alerts: BotAlert[];
   toasts: Toast[];
@@ -150,11 +159,13 @@ export const useHub = create<HubState>((set, get) => {
   return {
     cargando: true,
     tickets: [],
+    ticketsSueltos: {},
     mensajes: {},
     typing: {},
     feed: [],
     metrics: null,
     finalStage: null,
+    echoHealth: null,
     followUps: [],
     alerts: [],
     toasts: [],
@@ -189,7 +200,22 @@ export const useHub = create<HubState>((set, get) => {
     },
 
     async abrirTicket(id) {
-      await Promise.all([refrescarMensajes(id), source.marcarLeido(id)]);
+      await Promise.all([
+        refrescarMensajes(id),
+        source.marcarLeido(id),
+        // Ticket viejo (fuera del lote de 500): se trae solo, y su ficha se
+        // pinta igual que la de cualquier otro.
+        get().tickets.some((t) => t.id === id) || get().ticketsSueltos[id]
+          ? Promise.resolve()
+          : source.getTicket(id).then((ticket) => {
+              if (ticket) set((s) => ({ ticketsSueltos: { ...s.ticketsSueltos, [id]: ticket } }));
+            }),
+        // Se pide una vez por sesión: explica en la conversación por qué puede
+        // no haber mensajes nuestros.
+        get().echoHealth
+          ? Promise.resolve()
+          : source.getEchoHealth().then((echoHealth) => set({ echoHealth })),
+      ]).catch(() => undefined);
     },
 
     moverEtapa: (id, etapa) => source.moverEtapa(id, etapa),

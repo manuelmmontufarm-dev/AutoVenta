@@ -5,6 +5,7 @@ import {
   type Atiende,
   type Cierre,
   type Cotizacion,
+  type EchoHealth,
   type Etapa,
   type FeedItem,
   type FinalStage,
@@ -74,8 +75,23 @@ export class MockSource implements DataSource {
     );
   }
 
+  async getTicket(ticketId: number): Promise<Ticket | null> {
+    return this.tickets.get(ticketId) ?? null;
+  }
+
   async getMensajes(ticketId: number): Promise<Mensaje[]> {
     return [...(this.mensajes.get(ticketId) ?? [])];
+  }
+
+  /** En demo los ecos siempre entran: no hay Meta al otro lado que fallar. */
+  async getEchoHealth(): Promise<EchoHealth> {
+    return {
+      guardados: 3,
+      ultimoGuardadoEn: new Date().toISOString(),
+      descartados: 0,
+      ultimoDescarteEn: null,
+      ultimoDescarteMotivo: null,
+    };
   }
 
   async getFeed(): Promise<FeedItem[]> {
@@ -113,6 +129,25 @@ export class MockSource implements DataSource {
       daily,
       funnel: [],
       deliveries: [],
+      // Espeja el contrato del backend: sin esto el demo escondía justo la
+      // métrica que explica hasta dónde llega el bot.
+      reachedFinal: (() => {
+        const llegaron = tickets.filter(
+          (t) => t.etapa === "seguimiento_venta" || t.cierre === "ganado",
+        );
+        const conCotizacion = cotizaciones.length;
+        const llegaronCotizados = llegaron.filter((t) => t.cotizacion).length;
+        return {
+          total: llegaron.length,
+          esteMes: llegaron.length,
+          cotizados: conCotizacion,
+          cotizadosQueLlegaron: llegaronCotizados,
+          ratio: conCotizacion ? llegaronCotizados / conCotizacion : 0,
+          abiertosAhora: llegaron.filter((t) => t.estado === "abierto").length,
+          ganados: ganados.length,
+          valor: llegaron.reduce((sum, t) => sum + (t.cotizacion?.total ?? 0), 0),
+        };
+      })(),
       inventory: {
         total: 375,
         available: 248,

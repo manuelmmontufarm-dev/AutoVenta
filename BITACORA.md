@@ -32,6 +32,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-08-07 | _(este mismo)_ | Métrica de llegada a seguimiento + día de visita en el kanban + por qué faltan mensajes | 2.5 |
 | 2026-08-07 | _(este mismo)_ | Escalera de modelos: gpt-5.5 gana midiendo (14 cotizaciones vs 5) + caché verificado | 1.5 |
 | 2026-08-07 | _(este mismo)_ | El bot oye, ve, abre links y ya no se queda sin ofrecer + harness de evaluación | 5.0 |
 | 2026-08-07 | _(este mismo)_ | Precios reales del Interbot (362 llantas cruzadas: no hay fórmula, se lee el precio) | 2.5 |
@@ -92,11 +93,56 @@ Ya viene activado en este equipo.
 | 2026-07-14 | ac09171 | Ubicaciones de locales + análisis de features del cliente | 1.5 |
 | 2026-07-13 | feadf57 | Brief + plan de desarrollo + plan financiero + catálogo | 4.0 |
 | 2026-07-13 | d997844 | Commit inicial (repo) | 0.25 |
-| | | **TOTAL** | **~84.0 h** |
+| | | **TOTAL** | **~86.5 h** |
 
 ---
 
 ## Entradas (más reciente primero)
+
+### 2026-08-07 · Hasta dónde llega el bot: la métrica, el día de la visita y por qué faltaban mensajes · ⏱️ 2.5 h
+
+**De dónde sale:** cuatro cosas de la misma sesión — «una estadística que sea tickets que
+llegan a seguimiento hasta venta, porque como no podemos medir qué llega a ser venta hay que
+mostrar eso», «hay cotizaciones en seguimiento que no sale el monto ni la conversación y no sé
+por qué», «el bot debería preguntar qué día puede ir… y que en el kanban salga el día como sale
+la medida», y —mirando el ticket 1848— «¿no podemos ver los mensajes que mandamos nosotros?».
+
+**1. La métrica que sí se puede medir.** La venta se cierra en el local y no vuelve al sistema.
+`getHubMetrics` ahora devuelve `reachedFinal`: cuántos ciclos llegaron a *Seguimiento hasta
+venta*, cuántos este mes, qué porcentaje de los cotizados, cuántos siguen abiertos y cuánto
+valían. Se lee de `stage_transitions`, no de la etapa actual — el ticket que llegó al final y
+después se cerró desaparece del kanban, y contarlo por etapa lo perdía justo en los casos que
+más importan. El Dashboard estrena tile («Llegan a seguimiento») y una sección que dice en voz
+alta qué se mide y qué no, para que nadie lea «conversión» como «ventas».
+
+**2. Por qué faltaban el monto y la conversación.** Dos causas distintas, las dos ahora visibles:
+· **Sin monto** = no hay cotización en ese ciclo. Pasa de verdad: a la última columna se llega
+  también compartiendo ubicación o pidiendo un asesor, sin que nadie haya cotizado; y si el
+  asesor cotizó desde su WhatsApp, ese precio nunca existió para el sistema. La tarjeta ya no
+  deja el hueco en blanco: dice **«sin cotización»**, que es el dato.
+· **Sin conversación** = el listado corta en 500 tickets y los enlaces del feed y del panel
+  «Llegaron al final» apuntan más atrás; al abrirlos salía *Ticket no encontrado* con la
+  conversación intacta en la base. Nuevo `GET /api/hub/tickets/:id` y el detalle lo trae de a uno.
+
+**3. El día de la visita.** El bot pregunta **qué día puede pasar** en los dos momentos en que
+el cliente ya tiene todo para decidir: al mandar la cotización y al confirmar el local. El motivo
+que le da tiene que ser verdad — nombra el descuento solo si hay una oferta autorizada viva; si
+no, ofrece dejarle avisado al asesor con su número de cotización. La respuesta se captura aunque
+venga seca («el sábado»), leyendo antes lo que preguntamos nosotros, y el kanban muestra el día
+como un chip del mismo tamaño que la medida: *Mañana*, *Sábado*, *Fin de semana*.
+
+**4. El monólogo del ticket 1848.** Cinco mensajes del cliente, uno preguntando «221 cada una ?»
+—alguien le había dado un precio— y cero respuestas nuestras en el panel. Una conversación donde
+solo se ve al cliente y una donde nadie contestó se veían **exactamente igual**. Ahora el detalle
+lo explica con el dato real de cada motivo: el bot está apagado, la conversación es de un asesor,
+o los ecos de WhatsApp no están llegando. Ese último es el único que es un error, y para poder
+distinguirlo se registra la salud de los ecos (`echoHealth`): cuántos entraron, cuántos se
+descartaron y por qué — antes morían en un `console.error` que no lee nadie.
+
+**Por qué importa:** las cuatro son la misma queja — el panel mostraba huecos sin explicación, y
+un hueco sin explicación se lee como un error del sistema aunque sea una decisión del negocio.
+
+---
 
 ### 2026-08-07 · Se elige el modelo midiendo, y se enciende en producción · ⏱️ 1.5 h
 

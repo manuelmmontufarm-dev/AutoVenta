@@ -2,6 +2,7 @@ import type { DataSource, SourceEvent } from "./source";
 import type {
   Atiende,
   Cierre,
+  EchoHealth,
   Etapa,
   FeedItem,
   FinalStage,
@@ -101,6 +102,19 @@ export class RealSource implements DataSource {
 
   async listTickets(): Promise<Ticket[]> {
     return (await this.request<{ tickets: Ticket[] }>("/api/hub/tickets")).tickets;
+  }
+
+  async getTicket(ticketId: number): Promise<Ticket | null> {
+    try {
+      return (await this.request<{ ticket: Ticket }>(`/api/hub/tickets/${ticketId}`)).ticket;
+    } catch (error) {
+      if (error instanceof AdminKeyError) throw error;
+      return null;
+    }
+  }
+
+  async getEchoHealth(): Promise<EchoHealth> {
+    return (await this.request<{ echoHealth: EchoHealth }>("/api/hub/echo-health")).echoHealth;
   }
 
   async getMensajes(ticketId: number): Promise<Mensaje[]> {

@@ -75,6 +75,26 @@ export function aWhatsApp(texto: string): string {
  */
 export const PREGUNTA_RECOMENDACION = "¿Necesita alguna recomendación?";
 
+/**
+ * La pregunta por el día de la visita. Cierra los dos momentos en los que el
+ * cliente ya tiene todo para decidir: cuando recibe la cotización y cuando ya
+ * sabe a qué local ir.
+ *
+ * Por qué se pregunta la fecha y no solo "¿le interesa?": un "sí" no se puede
+ * agendar ni recordar, un día sí. Es además el único dato que convierte la
+ * última columna del kanban en una lista de trabajo — sin él, "Seguimiento
+ * hasta venta" es un montón de tarjetas sin nada que hacer hoy.
+ *
+ * El motivo que se le da al cliente cambia según lo que sea VERDAD: el
+ * descuento solo se nombra si hay una oferta autorizada viva. Inventar un
+ * descuento para que conteste sería justo lo que el playbook prohíbe.
+ */
+export function buildVisitDayQuestion(conDescuentoAutorizado: boolean): string {
+  return conDescuentoAutorizado
+    ? "¿Qué día podría pasar? Avíseme y dejamos anotado su descuento para que se lo respeten cuando llegue. 📅"
+    : "¿Qué día podría pasar? Avíseme y le dejo avisado al asesor con su número de cotización para que le tengan todo listo. 📅";
+}
+
 /** Cotización: número, total y vigencia. El desglose ya está en la imagen. */
 export function buildSingleQuoteCaption(
   selection: CatalogQuoteSelection,

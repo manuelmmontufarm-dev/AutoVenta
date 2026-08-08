@@ -52,7 +52,15 @@ interface TicketRow {
   pending_discount: Record<string, unknown> | null;
 }
 
-export async function listHubTickets() {
+/**
+ * Los tickets del hub. El listado corta en 500 por peso de la respuesta, y esa
+ * es exactamente la razón por la que existe el filtro por id: el panel "Llegaron
+ * al final" y los enlaces del feed pueden apuntar a una conversación más vieja
+ * que las 500 últimas, y al abrirla el detalle decía "Ticket no encontrado" —
+ * la conversación existía, solo no venía en el lote.
+ */
+export async function listHubTickets(options: { id?: number } = {}) {
+  const filtro = options.id ? sql`where c.id = ${options.id}` : sql``;
   const rows = await sql<TicketRow[]>`
     select
       c.id, c.phone, c.name, c.stage, c.status, c.assigned_to, c.unread_count,
@@ -152,6 +160,7 @@ export async function listHubTickets() {
       from pending_discount_rules r where r.conversation_id=c.id and r.cycle=c.current_cycle
         and r.status='pending' order by r.created_at desc limit 1
     ) pending_discount on true
+    ${filtro}
     order by coalesce(m.created_at, c.updated_at) desc
     limit 500
   `;
@@ -204,6 +213,11 @@ export async function listHubTickets() {
       ? new Date(row.last_customer_message_at.getTime() + 24 * 60 * 60 * 1000).toISOString()
       : undefined,
   }));
+}
+
+/** Un solo ticket, aunque no esté entre los 500 últimos. */
+export async function getHubTicket(id: number) {
+  return (await listHubTickets({ id }))[0] ?? null;
 }
 
 function commercialAttentionReason(row: TicketRow): string | undefined {
@@ -459,6 +473,56 @@ export async function getHubMetrics(days = 14) {
     group by 1 order by 1
   `;
 
+  // Llegadas a la última columna. Es la métrica que sí se puede medir: quién
+  // cierra la venta se decide en el local y nadie lo registra, así que "llegó a
+  // Seguimiento hasta venta" es lo más cerca de una venta que el sistema ve de
+  // verdad. Se cuenta por CICLO y desde el historial de etapas, no desde la
+  // etapa actual: el ticket que llegó al final y después se cerró desaparece
+  // del kanban, y contarlo solo por `conversations.stage` lo perdería.
+  const [reached] = await sql<{
+    total: number; month: number; quoted: number; quoted_reached: number;
+    open_now: number; won: number; value: string | number;
+  }[]>`
+    with arrivals as (
+      select conversation_id, cycle, min(created_at) as reached_at
+      from stage_transitions
+      where to_stage in ('seguimiento_venta', 'ganado')
+      group by conversation_id, cycle
+      union all
+      -- Respaldo para los que están en la última columna sin fila de historial.
+      select id, current_cycle, updated_at
+      from conversations
+      where stage in ('seguimiento_venta', 'ganado')
+    ), llegaron as (
+      select conversation_id, cycle, min(reached_at) as reached_at
+      from arrivals group by conversation_id, cycle
+    ), cotizados as (
+      select conversation_id, cycle, min(created_at) as quoted_at
+      from quotes group by conversation_id, cycle
+    )
+    select
+      (select count(*)::int from llegaron) as total,
+      (select count(*)::int from llegaron where reached_at >= date_trunc('month', now())) as month,
+      (select count(*)::int from cotizados) as quoted,
+      (select count(*)::int from cotizados c
+        where exists (select 1 from llegaron l
+          where l.conversation_id = c.conversation_id and l.cycle = c.cycle)) as quoted_reached,
+      (select count(*)::int from conversations
+        where stage = 'seguimiento_venta' and status = 'open') as open_now,
+      (select count(*)::int from llegaron l
+        where exists (select 1 from sales_history s
+          where s.conversation_id = l.conversation_id and s.cycle = l.cycle
+            and s.outcome = 'ganado')) as won,
+      coalesce((
+        select sum(q.total) from llegaron l
+        left join lateral (
+          select total from quotes
+          where conversation_id = l.conversation_id and cycle = l.cycle
+          order by created_at desc limit 1
+        ) q on true
+      ), 0) as value
+  `;
+
   const [discounts] = await sql<{
     offered: number; won_with: number; quoted_without: number; won_without: number;
     total_discount: string | number; avg_days_to_win_with: string | number | null;
@@ -517,6 +581,21 @@ export async function getHubMetrics(days = 14) {
         renderErrors: Number(row?.render_errors ?? 0),
       };
     }),
+    // El proxy de venta: llegar al final del tablero. `ratio` se mide contra
+    // los cotizados porque es la pregunta del negocio — de cada cotización que
+    // sale, ¿cuántas llegan a coordinar la visita?
+    reachedFinal: {
+      total: Number(reached?.total ?? 0),
+      esteMes: Number(reached?.month ?? 0),
+      cotizados: Number(reached?.quoted ?? 0),
+      cotizadosQueLlegaron: Number(reached?.quoted_reached ?? 0),
+      ratio: Number(reached?.quoted ?? 0)
+        ? Number(reached?.quoted_reached ?? 0) / Number(reached.quoted)
+        : 0,
+      abiertosAhora: Number(reached?.open_now ?? 0),
+      ganados: Number(reached?.won ?? 0),
+      valor: Number(reached?.value ?? 0),
+    },
     replyHours: Array.from({ length: 24 }, (_, hour) => ({
       hour,
       label: `${String(hour).padStart(2, "0")}:00`,

@@ -56,6 +56,7 @@ const { handleEchoWebhook } = await import("../src/wa/echoes.js");
 const { getHubMessages } = await import("../src/services/hubData.js");
 const { getHistory } = await import("../src/services/conversations.js");
 const { registrarEnviado, _resetRegistroEnviados } = await import("../src/wa/outboundRegistry.js");
+const { getEchoHealth } = await import("../src/services/echoHealth.js");
 
 const TELEFONO = "593993676947";
 
@@ -189,5 +190,26 @@ describe("Seguridad y encaminamiento", () => {
       eco("wamid.BUENO", "Sí trabajamos con tarjeta de crédito", "593900000111"),
     ]);
     expect(r.guardados).toBe(1);
+  });
+});
+
+/**
+ * Lo que se descarta tiene que dejar rastro. Antes un eco rechazado moría en un
+ * `console.error` que nadie lee, y desde el panel eso se veía igual que "el
+ * asesor no escribió nada" — que es exactamente lo que pasó en el ticket 1848.
+ */
+describe("Salud de los ecos", () => {
+  it("cuenta los que entran y los que se descartan, con el motivo", async () => {
+    const antes = await getEchoHealth();
+
+    const body = payload("message_echoes", [eco("wamid.MAL_FIRMADO", "hola", "593900000222")]);
+    await handleEchoWebhook(body, "sha256=deadbeef");
+    await entregar("message_echoes", [eco("wamid.CONTADO", "Le confirmo el stock", "593900000333")]);
+
+    const salud = await getEchoHealth();
+    expect(salud.guardados).toBe(antes.guardados + 1);
+    expect(salud.descartados).toBe(antes.descartados + 1);
+    expect(salud.ultimoDescarteMotivo).toBe("firma_invalida");
+    expect(salud.ultimoGuardadoEn).not.toBeNull();
   });
 });
