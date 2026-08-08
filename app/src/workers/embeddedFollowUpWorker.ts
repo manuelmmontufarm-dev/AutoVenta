@@ -25,6 +25,13 @@ const RELANZAR_MS = 15_000;
 const VIGILANCIA_MS = 5 * 60_000;
 
 /**
+ * Cada cuánto se buscan las visitas de mañana. Un cuarto de hora sobra: la
+ * ventana de envío dura diez horas y el aviso sale una sola vez por cliente y
+ * por fecha. Revisar más seguido no adelanta nada.
+ */
+const VISITAS_MS = 15 * 60_000;
+
+/**
  * ¿Le toca a este proceso correr el worker? Solo se apaga con la señal
  * explícita: cualquier otro valor (o ninguno) deja el worker encendido, que es
  * el estado seguro — un seguimiento de más se ve; uno de menos, no.
@@ -165,6 +172,30 @@ async function supervisarBotApagado(signal: AbortSignal): Promise<void> {
 }
 
 /**
+ * Bucle de las visitas de mañana.
+ *
+ * Va aparte del worker de seguimientos porque ese se corta en seco cuando el
+ * bot está apagado, y este NO debe cortarse: el aviso es para una persona, no
+ * un mensaje al cliente. Con el bot apagado es cuando más falta hace — nadie
+ * más va a acordarse de que mañana viene alguien.
+ */
+async function supervisarVisitas(signal: AbortSignal): Promise<void> {
+  while (!signal.aborted) {
+    try {
+      const { revisarVisitasDeManana } = await import("../services/visitAlerts.js");
+      const avisados = await revisarVisitasDeManana();
+      if (avisados > 0) console.log(`📅 ${avisados} recordatorio(s) de visita para mañana`);
+    } catch (error) {
+      console.warn(
+        "⚠️ Recordatorio de visitas falló:",
+        error instanceof Error ? error.message : error,
+      );
+    }
+    await esperar(VISITAS_MS, signal);
+  }
+}
+
+/**
  * Supervisa el bucle: si revienta (por ejemplo, la base se cae un momento) lo
  * vuelve a levantar. En el servicio dedicado ese trabajo lo hacía Railway
  * reiniciando el proceso; aquí no puede morirse el HTTP por culpa del worker.
@@ -206,7 +237,8 @@ export function startEmbeddedFollowUpWorker(): void {
   }
   console.log("✅ Worker de seguimientos activo dentro del proceso HTTP");
   void supervisar(`http:${hostname()}:${process.pid}`, controller.signal);
-  // Bucle aparte: con el bot apagado el worker de seguimientos se corta antes
-  // de hacer nada, y es justo entonces cuando hay que vigilar.
+  // Bucles aparte: con el bot apagado el worker de seguimientos se corta antes
+  // de hacer nada, y es justo entonces cuando hay que vigilar y avisar.
   void supervisarBotApagado(controller.signal);
+  void supervisarVisitas(controller.signal);
 }

@@ -32,6 +32,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-08-08 | _(este mismo)_ | Avisos al asesor: cuando el cliente da la fecha y la víspera de la visita | 1.0 |
 | 2026-08-07 | _(este mismo)_ | Métrica de llegada a seguimiento + día de visita en el kanban + por qué faltan mensajes | 2.5 |
 | 2026-08-07 | _(este mismo)_ | Escalera de modelos: gpt-5.5 gana midiendo (14 cotizaciones vs 5) + caché verificado | 1.5 |
 | 2026-08-07 | _(este mismo)_ | El bot oye, ve, abre links y ya no se queda sin ofrecer + harness de evaluación | 5.0 |
@@ -93,11 +94,43 @@ Ya viene activado en este equipo.
 | 2026-07-14 | ac09171 | Ubicaciones de locales + análisis de features del cliente | 1.5 |
 | 2026-07-13 | feadf57 | Brief + plan de desarrollo + plan financiero + catálogo | 4.0 |
 | 2026-07-13 | d997844 | Commit inicial (repo) | 0.25 |
-| | | **TOTAL** | **~86.5 h** |
+| | | **TOTAL** | **~87.5 h** |
 
 ---
 
 ## Entradas (más reciente primero)
+
+### 2026-08-08 · La fecha de visita ahora despierta a alguien · ⏱️ 1.0 h
+
+**De dónde sale:** «que alerte a los asesores cuando dan una fecha de ir para que puedan estar
+pilas de la conversación, y también el día antes de que vayan para empujarles».
+
+El bot ya preguntaba el día y el kanban ya lo mostraba, pero una fecha que nadie mira no vende
+nada. Ahora salen dos avisos por WhatsApp al asesor (y a *Alertas del bot* del panel), que son
+dos momentos distintos de verdad:
+
+1. **Cuando el cliente da la fecha** — es el instante en que el chat pasa de "interesado" a
+   "viene", y es cuando hay que empezar a mirarlo. Si dio un tramo en vez de un día («el
+   finde»), el aviso lo dice y pide el día concreto: sin fecha no hay recordatorio posible.
+2. **El día antes** — una promesa de hace cinco días se enfría sola. El aviso va al **asesor**,
+   no al cliente: escribirle automáticamente a un cliente es otra decisión (plantillas, ventana
+   de 24 h, opt-out) y no se toma de contrabando dentro de esta.
+
+**Detalles que deciden si el asesor lo lee o lo silencia:**
+- El recordatorio de la víspera solo sale entre 8:00 y 18:00 de Guayaquil. La condición «la
+  visita es mañana» se cumple desde las 00:00, y el bucle corre cada cuarto de hora: sin la
+  ventana, el asesor recibía un WhatsApp a medianoche.
+- «Voy mañana» es de las respuestas más comunes. Si el cliente lo prometió HOY, la víspera se
+  salta — si no, eran dos mensajes iguales con quince minutos de diferencia.
+- La clave de deduplicación lleva el día dentro: repetir «voy el sábado» no vuelve a avisar,
+  pero cambiar de sábado a lunes sí, porque para el asesor eso es información nueva.
+- Los dos avisos salen **aunque el bot esté apagado**. Apagado no significa que el negocio pare:
+  significa que contesta una persona, y esa persona es justo la que necesita enterarse.
+
+**Por qué importa:** cerraba el circuito que quedó abierto ayer. Preguntar el día servía para
+llenar una tarjeta; avisarlo sirve para que alguien esté esperando al cliente.
+
+---
 
 ### 2026-08-07 · Hasta dónde llega el bot: la métrica, el día de la visita y por qué faltaban mensajes · ⏱️ 2.5 h
 

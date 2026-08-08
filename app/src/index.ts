@@ -39,6 +39,7 @@ import {
 } from "./services/followUps.js";
 import { markDiscountNoticeSent } from "./services/discountOffers.js";
 import { extractCustomerCommitment, preguntamosElDia } from "./domain/customerCommitment.js";
+import { avisarVisitaComprometida } from "./services/visitAlerts.js";
 import { splitBlocks } from "./services/quoteMessages.js";
 import { flagRepetitiveConversation } from "./services/conversationQuality.js";
 import { applyOutboundGuard } from "./services/outboundGuard.js";
@@ -74,6 +75,17 @@ const pipeline = new InboundPipeline(async ({ from, name, text, waMessageIds, re
     ...(parsedVehicleYear ? { vehicleYear: parsedVehicleYear } : {}),
     ...(commitment ? { customerCommitment: commitment.text, visitDate: commitment.visitDate } : {}),
   });
+  // El aviso va aunque el bot esté apagado: apagado significa que contesta una
+  // persona, y esa persona es justo la que tiene que enterarse de que este
+  // cliente dijo cuándo viene. En segundo plano para no demorar la respuesta.
+  if (commitment) {
+    void avisarVisitaComprometida({
+      conversationId: conversation.id,
+      cycle: conversation.current_cycle,
+      texto: commitment.text,
+      visitDate: commitment.visitDate,
+    }).catch((error) => console.error("⚠️ No se pudo avisar la visita comprometida:", error));
+  }
   emitLiveEvent("message", conversation.id);
   emitLiveEvent("sync", conversation.id);
 
