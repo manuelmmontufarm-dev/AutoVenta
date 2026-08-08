@@ -23,7 +23,7 @@ export type AiConfig = z.infer<typeof AiConfigSchema>;
 
 export const DEFAULT_AI_CONFIG: AiConfig = AiConfigSchema.parse({});
 
-const TimeSchema = z.string().regex(/^([01]\\d|2[0-3]):[0-5]\\d$/);
+const TimeSchema = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/);
 const StorePeriodSchema = z.object({ open: TimeSchema, close: TimeSchema, closed: z.boolean().default(false) })
   .refine((value) => value.closed || value.open < value.close, "La hora de cierre debe ser posterior a la apertura");
 export const StoreHoursSchema = z.object({
