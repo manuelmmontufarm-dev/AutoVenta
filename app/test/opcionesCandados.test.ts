@@ -41,6 +41,24 @@ describe("candado 1 — anti-reenvío de la pieza de opciones", () => {
     expect(debeBloquearReenvio(previo("265/75R16", 10), "225/65R17", "y en r17?")).toBe(false);
   });
 
+  it("permite productos distintos de la misma medida cuando el cliente pide otras opciones", () => {
+    expect(debeBloquearReenvio(
+      { sizeLabel: "265/75R16", minutos: 10, codes: ["A", "B", "C"] },
+      "265/75R16",
+      "quiero ver otras",
+      ["D", "E", "F"],
+    )).toBe(false);
+  });
+
+  it("bloquea exactamente el mismo conjunto aunque cambie el orden", () => {
+    expect(debeBloquearReenvio(
+      { sizeLabel: "265/75R16", minutos: 10, codes: ["A", "B", "C"] },
+      "265/75R16",
+      "precio",
+      ["C", "A", "B"],
+    )).toBe(true);
+  });
+
   it("permite pasadas las 2 horas", () => {
     expect(debeBloquearReenvio(previo("265/75R16", 121), "265/75R16", "precio")).toBe(false);
   });

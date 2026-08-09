@@ -313,6 +313,17 @@ export async function updateConversationFacts(
   `;
 }
 
+/** Una elección explícita del cliente reemplaza cualquier recomendación previa. */
+export async function setExplicitStore(conversationId: number, store: string): Promise<void> {
+  await sql`
+    update conversations
+    set nearest_store=${store},
+        location_label=${`Local elegido explícitamente por el cliente: ${store}`},
+        updated_at=now()
+    where id=${conversationId}
+  `;
+}
+
 /** Handoff: silencia el bot en este chat (ej. cuando el dueño responde a mano). */
 export async function pauseBot(conversationId: number, hours = config.pipeline.botPauseHours) {
   await sql`
@@ -607,13 +618,19 @@ export async function logAiRun(input: {
   latencyMs: number;
   inputTokens: number;
   outputTokens: number;
+  cachedInputTokens?: number;
+  reasoningTokens?: number;
+  iterations?: number;
+  route?: string;
+  callType?: string;
   tools: string[];
   error?: string;
 }): Promise<void> {
   await sql`
     insert into ai_runs (
       conversation_id, stage, prompt_version_id, model, latency_ms,
-      input_tokens, output_tokens, tools, error
+      input_tokens, output_tokens, cached_input_tokens, reasoning_tokens,
+      iterations, route, call_type, tools, error
     )
     values (
       ${input.conversationId},
@@ -623,6 +640,11 @@ export async function logAiRun(input: {
       ${input.latencyMs},
       ${input.inputTokens},
       ${input.outputTokens},
+      ${input.cachedInputTokens ?? 0},
+      ${input.reasoningTokens ?? 0},
+      ${input.iterations ?? 1},
+      ${input.route ?? null},
+      ${input.callType ?? "chat"},
       ${sql.json(input.tools as never)},
       ${input.error ?? null}
     )

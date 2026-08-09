@@ -32,6 +32,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-08-09 | _(este mismo)_ | Modalidad eficiente: cumple piezas pedidas, recuerda visita y reduce llamadas sin bajar GPT-5.5 | 4.0 |
 | 2026-08-08 | _(este mismo)_ | El primer mensaje siempre saluda + el eval deja de medir el bot degradado | 2.0 |
 | 2026-08-08 | _(este mismo)_ | Seguimiento y cotización vuelven a poder mostrar llantas (ticket 2150) | 1.5 |
 | 2026-08-08 | _(este mismo)_ | El aro manda: guía visual del costado, dos aros = invitación al local, y fecha+local como meta | 2.0 |
@@ -104,6 +105,26 @@ Ya viene activado en este equipo.
 ---
 
 ## Entradas (más reciente primero)
+
+### 2026-08-09 · Menos tokens sin quitarle el cerebro que sí vende · ⏱️ 4.0 h
+
+**Qué:** Se implementó el plan de eficiencia para la prueba del 10-ago: rutas
+determinísticas para reenviar la cotización y capturar local/fecha, nueva tool de
+reenvío, comparación disponible después de cotizar, memoria completa de visita,
+prompt compacto, historial configurable, tres rondas más rescate, reasoning bajo,
+candado de tools repetidas, visión con caption/presupuesto suficiente y telemetría
+de caché/razonamiento/ruta. Quedó preparado `OPENAI_ROUTINE_MODEL`, pero mañana
+empieza en GPT-5.5. Se documentó diseño, medición, rollout y rollback en
+`docs/PLAN_REDUCCION_COSTOS_IA.md`.
+
+**Por qué:** GPT-5.5 multiplicó las cotizaciones y el modelo anterior perdió
+ventas; bajar todo para ahorrar era destruir la mejora. El gasto evitable estaba
+en llamadas exactas, 30 mensajes de contexto y loops de ocho rondas. Además el
+bot guardaba local/fecha sin recordarlos y el anti-duplicado impedía entregar la
+misma imagen cuando el cliente sí la pedía. El nuevo orden ahorra primero donde
+el riesgo es mínimo y deja el downgrade por etapa condicionado a datos reales.
+
+---
 
 ### 2026-08-08 · El primer mensaje siempre saluda, y el eval deja de medir un bot degradado · ⏱️ 2.0 h
 

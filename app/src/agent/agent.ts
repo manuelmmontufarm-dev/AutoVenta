@@ -23,38 +23,34 @@ import { extractVehicleYear } from "../domain/salesIntent.js";
 const openai = new OpenAI({ apiKey: config.openai.apiKey });
 
 /** Rondas del loop antes de rendirse; el rescate es la ronda siguiente. */
-const MAX_ITERACIONES = 8;
-/**
- * El rescate no es una iteración más del loop: se numera fuera del rango para
- * que modeloDelTurno le dé SIEMPRE el modelo superior (ver abajo el porqué).
- */
-const ITERACION_RESCATE = MAX_ITERACIONES;
-
 /**
  * Qué modelo atiende cada ronda del turno.
  *
- * PORQUÉ escalar por número de iteración: un turno sano se resuelve en 2-3
- * iteraciones (busca → cotiza → responde), así que las primeras cuatro van con
- * el modelo principal, que es el barato y el que atiende el 99 % del tráfico.
- * Llegar a la iteración 4 ya no es "va lento": es que el principal está dando
- * vueltas (repite la misma tool, no cierra). Insistir con él es la causa #1 del
- * «tuve un problema procesando» — 8 rondas y un rescate con el MISMO modelo que
- * acababa de atascarse 8 veces. Desde la iteración 4 entra el modelo superior
- * con TODO el contexto ya acumulado (mensajes + resultados de las tools de este
- * turno), que es justo lo que necesita para cerrar, y suele cerrar en una.
+ * Un turno sano se resuelve en 2–3 iteraciones (busca → pieza → responde). En
+ * etapas post-cotización las dos primeras pueden usar `routineModel`; hoy se
+ * configura igual a GPT-5.5 y solo se bajará después de un shadow eval. Si el
+ * loop sigue, vuelve al principal y, al agotarse, el rescate siempre usa el
+ * modelo de escalación con todo el contexto acumulado.
  *
  * Con OPENAI_ESCALATION_MODEL sin definir, config lo iguala al principal: sin
  * variable de entorno esto no cambia absolutamente nada.
  */
-function modeloDelTurno(iteration: number): string {
-  return iteration < 4 ? config.openai.model : config.openai.escalationModel;
+function modeloDelTurno(iteration: number, stage: AgentContext["conversation"]["stage"]): string {
+  const routineStage = stage === "cotizacion_enviada" || stage === "seguimiento_venta";
+  if (routineStage && iteration < 2) return config.openai.routineModel;
+  return iteration < Math.min(4, config.openai.maxToolIterations)
+    ? config.openai.model
+    : config.openai.escalationModel;
 }
 
 export async function runAgent(ctx: AgentContext, userText: string): Promise<string> {
   const startedAt = Date.now();
   let inputTokens = 0;
   let outputTokens = 0;
+  let cachedInputTokens = 0;
+  let reasoningTokens = 0;
   const usedTools: string[] = [];
+  const executedCalls = new Set<string>();
   // El estilo se edita en /configuracion/ia; getAiConfig cachea 30 s en memoria.
   const [aiConfig, stagePrompt, activeDiscount, pendingDiscount, salesFacts, phaseFlags, storeHours] =
     await Promise.all([
@@ -72,7 +68,7 @@ export async function runAgent(ctx: AgentContext, userText: string): Promise<str
     prompt: stagePrompt.prompt,
     version: stagePrompt.version,
   }, storeHours);
-  const history = await getHistory(ctx.conversation.id);
+  const history = await getHistory(ctx.conversation.id, config.openai.historyLimit);
   if (history.at(-1)?.role === "user" && history.at(-1)?.content === userText) history.pop();
   ctx.currentUserText = userText;
   ctx.storeHours = storeHours;
@@ -102,18 +98,27 @@ export async function runAgent(ctx: AgentContext, userText: string): Promise<str
   // Modelo que produjo la respuesta que se devuelve al cliente. Se actualiza
   // ANTES de cada llamada (no después) para que la auditoría vea quién atendió
   // incluso si esa llamada revienta: interesa saber que ya se había escalado.
-  let modeloUsado = modeloDelTurno(0);
+  let modeloUsado = modeloDelTurno(0, ctx.conversation.stage);
 
-  for (let iteration = 0; iteration < MAX_ITERACIONES; iteration += 1) {
-    modeloUsado = modeloDelTurno(iteration);
+  for (let iteration = 0; iteration < config.openai.maxToolIterations; iteration += 1) {
+    modeloUsado = modeloDelTurno(iteration, ctx.conversation.stage);
+    const gpt5 = modeloUsado.startsWith("gpt-5");
     const response = await openai.chat.completions.create({
       model: modeloUsado,
       messages,
       ...(tools.length > 0 ? { tools, tool_choice: "auto" as const } : {}),
+      ...(tools.length > 0 ? { parallel_tool_calls: false } : {}),
       max_completion_tokens: config.openai.maxTokens,
+      ...(gpt5 ? {
+        reasoning_effort: "low" as const,
+        verbosity: "low" as const,
+        prompt_cache_retention: "24h" as const,
+      } : {}),
     });
     inputTokens += response.usage?.prompt_tokens ?? 0;
     outputTokens += response.usage?.completion_tokens ?? 0;
+    cachedInputTokens += response.usage?.prompt_tokens_details?.cached_tokens ?? 0;
+    reasoningTokens += response.usage?.completion_tokens_details?.reasoning_tokens ?? 0;
     const message = response.choices[0]?.message;
     if (!message) break;
     messages.push(message);
@@ -128,6 +133,10 @@ export async function runAgent(ctx: AgentContext, userText: string): Promise<str
         latencyMs: Date.now() - startedAt,
         inputTokens,
         outputTokens,
+        cachedInputTokens,
+        reasoningTokens,
+        iterations: iteration + 1,
+        route: ctx.conversation.stage === "cotizacion_enviada" || ctx.conversation.stage === "seguimiento_venta" ? "routine_stage" : "commercial",
         tools: usedTools,
       });
       return withDiscountNotice(text || "Disculpa, ¿me repites por favor?", ctx, activeDiscount, pendingDiscount);
@@ -136,10 +145,14 @@ export async function runAgent(ctx: AgentContext, userText: string): Promise<str
     for (const call of message.tool_calls) {
       if (call.type !== "function") continue;
       usedTools.push(call.function.name);
+      const signature = `${call.function.name}:${call.function.arguments.trim()}`;
       const tool = localTools.find((candidate) => candidate.function.name === call.function.name);
-      const result = tool
-        ? await tool.execute(parseArguments(call.function.arguments))
-        : JSON.stringify({ error: `Tool desconocida: ${call.function.name}` });
+      const result = executedCalls.has(signature)
+        ? JSON.stringify({ error: "Esta misma herramienta con los mismos argumentos ya se ejecutó en este turno. Usa el resultado anterior y responde ahora; no la repitas." })
+        : tool
+          ? await tool.execute(parseArguments(call.function.arguments))
+          : JSON.stringify({ error: `Tool desconocida: ${call.function.name}` });
+      executedCalls.add(signature);
       messages.push({ role: "tool", tool_call_id: call.id, content: result });
       if (call.function.name === "enviar_comparacion") ctx.comparedThisTurn = true;
       const exact = exactToolReply(result);
@@ -152,6 +165,10 @@ export async function runAgent(ctx: AgentContext, userText: string): Promise<str
           latencyMs: Date.now() - startedAt,
           inputTokens,
           outputTokens,
+          cachedInputTokens,
+          reasoningTokens,
+          iterations: iteration + 1,
+          route: "exact_tool_reply",
           tools: usedTools,
         });
         return withDiscountNotice(exact, ctx, activeDiscount, pendingDiscount);
@@ -166,7 +183,8 @@ export async function runAgent(ctx: AgentContext, userText: string): Promise<str
   // ESCALACIÓN (7-ago): el rescate corría con el mismo modelo que acababa de
   // atascarse 8 veces; ahora es el turno del superior, con todo el contexto.
   try {
-    modeloUsado = modeloDelTurno(ITERACION_RESCATE);
+    modeloUsado = config.openai.escalationModel;
+    const gpt5 = modeloUsado.startsWith("gpt-5");
     const rescate = await openai.chat.completions.create({
       model: modeloUsado,
       messages: [
@@ -178,9 +196,16 @@ export async function runAgent(ctx: AgentContext, userText: string): Promise<str
         },
       ],
       max_completion_tokens: config.openai.maxTokens,
+      ...(gpt5 ? {
+        reasoning_effort: "medium" as const,
+        verbosity: "low" as const,
+        prompt_cache_retention: "24h" as const,
+      } : {}),
     });
     inputTokens += rescate.usage?.prompt_tokens ?? 0;
     outputTokens += rescate.usage?.completion_tokens ?? 0;
+    cachedInputTokens += rescate.usage?.prompt_tokens_details?.cached_tokens ?? 0;
+    reasoningTokens += rescate.usage?.completion_tokens_details?.reasoning_tokens ?? 0;
     const texto = rescate.choices[0]?.message?.content?.trim();
     if (texto) {
       await logAiRun({
@@ -191,6 +216,10 @@ export async function runAgent(ctx: AgentContext, userText: string): Promise<str
         latencyMs: Date.now() - startedAt,
         inputTokens,
         outputTokens,
+        cachedInputTokens,
+        reasoningTokens,
+        iterations: config.openai.maxToolIterations + 1,
+        route: "rescue",
         tools: usedTools,
         error: "max_iterations_salvaged",
       });
@@ -208,6 +237,10 @@ export async function runAgent(ctx: AgentContext, userText: string): Promise<str
     latencyMs: Date.now() - startedAt,
     inputTokens,
     outputTokens,
+    cachedInputTokens,
+    reasoningTokens,
+    iterations: config.openai.maxToolIterations + 1,
+    route: "failed",
     tools: usedTools,
     error: "max_iterations_or_empty_response",
   });
@@ -220,6 +253,9 @@ export interface AgentSalesFacts {
   vehicleYear: number | null;
   selectedProductCode: string | null;
   selectedQuantity: number | null;
+  nearestStore: string | null;
+  visitDate: Date | null;
+  customerCommitment: string | null;
   /** Última cotización del ciclo — evita mandar dos números para la misma compra. */
   lastQuote: { number: string; total: number; minutesAgo: number } | null;
 }
@@ -229,12 +265,13 @@ export async function getAgentSalesFacts(conversationId: number): Promise<AgentS
   const [row] = await sql<{
     tire_size: string | null; vehicle: string | null; vehicle_year: number | null;
     selected_product_code: string | null; selected_quantity: number | null;
+    nearest_store: string | null; visit_date: Date | null; customer_commitment: string | null;
     inbound_messages: string[];
     last_quote_number: string | null; last_quote_total: string | number | null;
     last_quote_at: Date | null;
   }[]>`
     select c.tire_size, c.vehicle, c.vehicle_year, c.selected_product_code,
-      c.selected_quantity,
+      c.selected_quantity, c.nearest_store, c.visit_date, c.customer_commitment,
       q.quote_number as last_quote_number, q.total as last_quote_total,
       q.created_at as last_quote_at,
       coalesce(array_agg(m.content order by m.created_at desc) filter (where m.id is not null), '{}') as inbound_messages
@@ -257,6 +294,9 @@ export async function getAgentSalesFacts(conversationId: number): Promise<AgentS
     vehicleYear: inferredYear,
     selectedProductCode: row?.selected_product_code ?? null,
     selectedQuantity: row?.selected_quantity ?? null,
+    nearestStore: row?.nearest_store ?? null,
+    visitDate: row?.visit_date ?? null,
+    customerCommitment: row?.customer_commitment ?? null,
     lastQuote: row?.last_quote_number && row.last_quote_at
       ? {
           number: row.last_quote_number,
@@ -275,6 +315,9 @@ export function salesFactsPrompt(facts: AgentSalesFacts, resumedFromHuman = fals
     facts.vehicleYear ? `Año ya informado por el cliente: ${facts.vehicleYear}` : null,
     facts.selectedProductCode ? `Producto elegido: ${facts.selectedProductCode}` : null,
     facts.selectedQuantity ? `Cantidad ya confirmada: ${facts.selectedQuantity}` : null,
+    facts.nearestStore ? `Local elegido/recomendado: ${facts.nearestStore}` : null,
+    facts.visitDate ? `Fecha de visita confirmada: ${facts.visitDate.toLocaleDateString("es-EC", { timeZone: "America/Guayaquil" })}` : null,
+    facts.customerCommitment ? `Compromiso del cliente: ${facts.customerCommitment}` : null,
     facts.lastQuote
       ? `Cotización YA ENVIADA en este ciclo: ${facts.lastQuote.number} por $${facts.lastQuote.total.toFixed(2)}, hace ${facts.lastQuote.minutesAgo} min`
       : null,
@@ -283,6 +326,9 @@ export function salesFactsPrompt(facts: AgentSalesFacts, resumedFromHuman = fals
     "HECHOS COMERCIALES CONFIRMADOS (fuente determinística):",
     ...(lines.length ? lines : ["Todavía no hay datos estructurados confirmados."]),
     "No vuelvas a preguntar un dato listado aquí. Pregunta únicamente lo que falte.",
+    facts.nearestStore && (facts.visitDate || facts.customerCommitment)
+      ? "Local y visita ya están confirmados. Confirma el plan una sola vez y NO vuelvas a pedir local ni fecha."
+      : null,
     "Si modelo y cantidad ya están confirmados, genera la cotización inmediatamente y después pregunta si está bien; no pidas otra confirmación.",
     // Sin este freno el modelo volvía a cotizar lo mismo cuando el cliente
     // reafirmaba la medida o la cantidad, y el cliente terminaba con dos

@@ -73,6 +73,7 @@ import { createBotAlert } from "../services/followUps.js";
 import { attachDiscountOfferToQuote, getActiveDiscountOffer, materializePendingDiscount } from "../services/discountOffers.js";
 import { notifyAdvisor } from "../services/advisorNotifications.js";
 import type { StoreHours } from "../services/settings.js";
+import { resendLatestQuoteImage } from "../services/directSalesRoutes.js";
 
 export interface AgentContext {
   conversation: Conversation;
@@ -863,14 +864,17 @@ export function buildTools(ctx: AgentContext) {
         order by created_at desc limit 1
       `;
       const previoNormalizado = previo
-        ? {
+          ? {
             sizeLabel:
               (previo.metadata?.sizeLabel as string | undefined) ??
               medidaDesdeContenido(previo.content),
             minutos: Number(previo.minutos),
+            codes: Array.isArray(previo.metadata?.codes)
+              ? previo.metadata.codes.map(String)
+              : undefined,
           }
         : null;
-      if (debeBloquearReenvio(previoNormalizado, sizeLabelActual, ctx.currentUserText)) {
+      if (debeBloquearReenvio(previoNormalizado, sizeLabelActual, ctx.currentUserText, products.map((p) => p.code))) {
         const minutos = Math.max(1, Math.round(previoNormalizado!.minutos));
         return JSON.stringify({
           error: `Las opciones de ${sizeLabelActual ?? "esa medida"} YA se enviaron hace ${minutos} min y el cliente las tiene en pantalla. PROHIBIDO reenviarlas. Si pidió precio o eligió un modelo, llama generar_cotizacion con ese modelo (4 unidades si no dijo cantidad). Si preguntó otra cosa, respóndela directo en texto.`,
@@ -1403,6 +1407,22 @@ export function buildTools(ctx: AgentContext) {
     },
   });
 
+  const reenviarCotizacion = defineTool({
+    name: "reenviar_cotizacion",
+    description:
+      "Reenvía la imagen de la última cotización cuando el cliente la pide otra vez o dice que no le llegó. No crea otro número ni recalcula precios.",
+    schema: z.object({}),
+    run: async () => {
+      const message = await resendLatestQuoteImage(ctx.conversation.id, ctx.customerPhone).catch((error) => {
+        console.error("❌ No se pudo reenviar la cotización:", error);
+        return null;
+      });
+      return message
+        ? JSON.stringify({ enviada: true, mensaje_para_enviar: message })
+        : JSON.stringify({ error: "No existe una cotización previa que se pueda reenviar." });
+    },
+  });
+
   const localMasCercano = defineTool({
     name: "local_mas_cercano",
     description:
@@ -1413,6 +1433,28 @@ export function buildTools(ctx: AgentContext) {
       sector: z.string().nullable().default(null),
     }),
     run: async ({ lat, lng, sector }) => {
+      const [saved] = await sql<{
+        nearest_store: string | null;
+        location_label: string | null;
+        visit_date: Date | null;
+        customer_commitment: string | null;
+      }[]>`select nearest_store, location_label, visit_date, customer_commitment from conversations where id=${ctx.conversation.id}`;
+      if (saved?.nearest_store && saved.location_label?.startsWith("Local elegido explícitamente")) {
+        const explicit = business.stores.find((store) => store.name === saved.nearest_store);
+        if (explicit) {
+          const visitKnown = Boolean(saved.visit_date || saved.customer_commitment);
+          return JSON.stringify({
+            local: explicit.name,
+            direccion: explicit.address,
+            mensaje_para_enviar: visitKnown
+              ? `Perfecto, queda confirmado *${explicit.name}*. Ya registré también cuándo viene; no necesita repetir esos datos.`
+              : `Perfecto, queda confirmado *${explicit.name}*. ¿Qué día puede pasar?`,
+            regla: visitKnown
+              ? "Responde exactamente con mensaje_para_enviar. No vuelvas a preguntar local ni fecha."
+              : "Responde exactamente con mensaje_para_enviar y pregunta únicamente la fecha.",
+          });
+        }
+      }
       const resolved = lat != null && lng != null ? { lat, lng, label: "ubicación compartida" } : sector ? resolveSector(sector) : null;
       if (!resolved) {
         return JSON.stringify({
@@ -1572,6 +1614,7 @@ export function buildTools(ctx: AgentContext) {
     prepararOpciones,
     enviarComparacion,
     generarCotizacion,
+    reenviarCotizacion,
     localMasCercano,
     notificarVendedor,
   ];

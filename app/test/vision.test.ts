@@ -41,8 +41,13 @@ describe("Visión — las fotos del cliente se vuelven texto vendible", () => {
     const args = crear.mock.calls[0][0];
     const url = args.messages[1].content[0].image_url.url;
     expect(url).toBe(`data:image/png;base64,${FOTO.toString("base64")}`);
-    expect(args.max_completion_tokens).toBe(150);
-    expect(args.temperature).toBe(0);
+    expect(args.max_completion_tokens).toBe(400);
+    if (String(args.model).startsWith("gpt-5")) {
+      expect(args.reasoning_effort).toBe("low");
+      expect(args.verbosity).toBe("low");
+    } else {
+      expect(args.temperature).toBe(0);
+    }
   });
 
   /**

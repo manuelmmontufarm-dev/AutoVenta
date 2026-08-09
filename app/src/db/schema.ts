@@ -19,6 +19,7 @@ import { runAroFotoVisitaMigration } from "./migrations/012_aro_foto_y_visita.js
 import { runAvisosEntregadosMigration } from "./migrations/013_avisos_entregados.js";
 import { runVenderEnTodaEtapaMigration } from "./migrations/014_vender_en_toda_etapa.js";
 import { runVentanaAsesoresMigration } from "./migrations/015_ventana_asesores.js";
+import { runCumplirSolicitudMigration } from "./migrations/016_cumplir_solicitud_y_cierre.js";
 
 export const SCHEMA = /* sql */ `
 create table if not exists conversations (
@@ -180,6 +181,11 @@ create table if not exists ai_runs (
   error             text,
   created_at        timestamptz not null default now()
 );
+alter table ai_runs add column if not exists cached_input_tokens integer not null default 0;
+alter table ai_runs add column if not exists reasoning_tokens integer not null default 0;
+alter table ai_runs add column if not exists iterations integer not null default 1;
+alter table ai_runs add column if not exists route text;
+alter table ai_runs add column if not exists call_type text not null default 'chat';
 
 create table if not exists quote_artifacts (
   id              bigserial primary key,
@@ -330,4 +336,5 @@ export async function ensureSchema(): Promise<void> {
   await runAvisosEntregadosMigration(sql);
   await runVenderEnTodaEtapaMigration(sql);
   await runVentanaAsesoresMigration(sql);
+  await runCumplirSolicitudMigration(sql);
 }

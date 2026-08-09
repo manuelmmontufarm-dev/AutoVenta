@@ -80,12 +80,18 @@ export function medidaDesdeContenido(content: string | null | undefined): string
  * pidiendo explícitamente que se la vuelvan a mandar.
  */
 export function debeBloquearReenvio(
-  previo: { sizeLabel: string | null; minutos: number } | null,
+  previo: { sizeLabel: string | null; minutos: number; codes?: string[] } | null,
   sizeActual: string | null,
   textoCliente: string,
+  codesActuales?: string[],
 ): boolean {
   if (!previo) return false;
   if (previo.minutos >= MINUTOS_PIEZA_VIGENTE) return false;
   if (PIDE_REENVIO.test(textoCliente ?? "")) return false;
+  if (previo.codes?.length && codesActuales?.length) {
+    const before = [...previo.codes].map((code) => code.toLowerCase()).sort().join("|");
+    const after = [...codesActuales].map((code) => code.toLowerCase()).sort().join("|");
+    if (before !== after) return false;
+  }
   return mismaMedida(previo.sizeLabel, sizeActual);
 }

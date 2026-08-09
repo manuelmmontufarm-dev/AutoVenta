@@ -25,6 +25,7 @@ import {
   logFunnelEvent,
   recordMessageStatus,
   setStage,
+  setExplicitStore,
   updateConversationFacts,
 } from "./services/conversations.js";
 import { emitLiveEvent } from "./services/liveEvents.js";
@@ -48,6 +49,8 @@ import { flagRepetitiveConversation } from "./services/conversationQuality.js";
 import { applyOutboundGuard } from "./services/outboundGuard.js";
 import { notifyPendingHumanRequests } from "./services/advisorNotifications.js";
 import { startEmbeddedFollowUpWorker } from "./workers/embeddedFollowUpWorker.js";
+import { extractExplicitStore } from "./domain/storeSelection.js";
+import { tryDirectSalesRoute } from "./services/directSalesRoutes.js";
 
 /** Pausa entre bloques: suficiente para que se lean como mensajes seguidos y no como spam. */
 const PAUSA_ENTRE_BLOQUES_MS = 900;
@@ -65,6 +68,7 @@ const pipeline = new InboundPipeline(async ({ from, name, text, waMessageIds, re
   const parsedFlotation = parsedSize ? null : extractFlotationSizes(text)[0];
   const parsedQuantity = extractExplicitQuantity(text);
   const parsedVehicleYear = extractVehicleYear(text);
+  const explicitStore = extractExplicitStore(text);
   // El día de la visita llega casi siempre como respuesta seca ("el sábado")
   // a la pregunta que el bot hace tras cotizar. Sin mirar lo que preguntamos
   // antes, esa respuesta no era un compromiso para nadie.
@@ -78,6 +82,7 @@ const pipeline = new InboundPipeline(async ({ from, name, text, waMessageIds, re
     ...(parsedVehicleYear ? { vehicleYear: parsedVehicleYear } : {}),
     ...(commitment ? { customerCommitment: commitment.text, visitDate: commitment.visitDate } : {}),
   });
+  if (explicitStore) await setExplicitStore(conversation.id, explicitStore);
   // El aviso va aunque el bot esté apagado: apagado significa que contesta una
   // persona, y esa persona es justo la que tiene que enterarse de que este
   // cliente dijo cuándo viene. En segundo plano para no demorar la respuesta.
@@ -177,7 +182,11 @@ const pipeline = new InboundPipeline(async ({ from, name, text, waMessageIds, re
 
   const agentContext: AgentContext = { conversation, customerPhone: from, customerName: name,
     currentUserText: textoConLinks };
-  const reply = await runAgent(agentContext, textoConLinks);
+  const directReply = await tryDirectSalesRoute(
+    { conversation, customerPhone: from, explicitStore, commitment },
+    textoConLinks,
+  );
+  const reply = directReply ?? await runAgent(agentContext, textoConLinks);
   await flagRepetitiveConversation(conversation.id, reply);
 
   // Guardián de salida (5-ago): determinístico, corre sobre TODO lo que el bot
@@ -223,7 +232,10 @@ const pipeline = new InboundPipeline(async ({ from, name, text, waMessageIds, re
 
   // Post-turno: primero consolida la etapa y luego agenda contra ese estado.
   // Los seguimientos (Oportunidades) solo se agendan si la Fase 4 está activa.
-  void classifyStage(conversation, text, reply)
+  const consolidateStage = directReply
+    ? Promise.resolve()
+    : classifyStage(conversation, text, reply);
+  void consolidateStage
     .then(async () => {
       const ph = await getPhaseFlags();
       if (ph.fase4) await scheduleConversationFollowUps(conversation.id);
@@ -293,10 +305,14 @@ setWaHandlers({
         // medida sola. El ack a Meta ya salió arriba (received()), así que el
         // await de la descarga+visión no arriesga un reintento del webhook.
         const media = await downloadMedia(message.image.id);
-        const leido = media ? await describirFotoDeLlanta(media.bytes, media.mimeType) : null;
+        const caption = message.image.caption?.trim();
+        const visionConversation = await getOrCreateConversation(from, name);
+        const leido = media ? await describirFotoDeLlanta(media.bytes, media.mimeType, caption, {
+          conversationId: visionConversation.id,
+          stage: visionConversation.stage,
+        }) : null;
         // El caption es lo que el cliente ESCRIBIÓ junto a la foto («Esa llanta
         // mi amigo, a como me da») — perderlo era perder la pregunta.
-        const caption = message.image.caption?.trim();
         const cuerpo = leido
           ? `[El cliente mandó una foto. Se lee: ${leido}]`
           : "[El cliente mandó una foto que no se pudo leer. Pídele con amabilidad que escriba lo que dice el costado de la llanta.]";

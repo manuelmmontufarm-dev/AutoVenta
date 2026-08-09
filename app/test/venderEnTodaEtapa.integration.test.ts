@@ -6,6 +6,7 @@ const admin = postgres("postgresql://manue@localhost/postgres", { prepare: false
 
 let appSql: typeof import("../src/db/client.js").sql;
 let migracion: typeof import("../src/db/migrations/014_vender_en_toda_etapa.js");
+let migracionCumplir: typeof import("../src/db/migrations/016_cumplir_solicitud_y_cierre.js");
 
 /** Lo que la etapa tenía ANTES del arreglo — el estado real de staging y Depot. */
 const ANTES_SEGUIMIENTO = ["fitment_vehiculo", "local_mas_cercano", "notificar_vendedor"];
@@ -48,6 +49,7 @@ describe.sequential("El bot puede vender en las etapas de cierre (ticket 2150)",
     const settings = await import("../src/services/settings.js");
     await settings.ensureDefaultStagePrompts();
     migracion = await import("../src/db/migrations/014_vender_en_toda_etapa.js");
+    migracionCumplir = await import("../src/db/migrations/016_cumplir_solicitud_y_cierre.js");
   });
 
   afterAll(async () => {
@@ -112,5 +114,22 @@ describe.sequential("El bot puede vender en las etapas de cierre (ticket 2150)",
     await migracion.runVenderEnTodaEtapaMigration(appSql);
     const tools = await toolsDe("seguimiento_venta");
     expect(tools.length).toBe(new Set(tools).size);
+  });
+
+  it("una base existente recibe reenvío y comparación en las etapas de cierre", async () => {
+    await appSql`
+      update stage_prompt_versions
+      set allowed_tools=${appSql.json(ANTES_COTIZACION as never)}, prompt='prompt anterior'
+      where stage='cotizacion_enviada' and status='published'
+    `;
+    await migracionCumplir.runCumplirSolicitudMigration(appSql);
+    const tools = await toolsDe("cotizacion_enviada");
+    expect(tools).toContain("reenviar_cotizacion");
+    expect(tools).toContain("enviar_comparacion");
+    const [row] = await appSql<{ prompt: string }[]>`
+      select prompt from stage_prompt_versions
+      where stage='cotizacion_enviada' and status='published'
+    `;
+    expect(row.prompt).toMatch(/Cumple primero la solicitud/);
   });
 });

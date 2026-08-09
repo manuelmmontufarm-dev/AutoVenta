@@ -25,6 +25,8 @@
  */
 import OpenAI from "openai";
 import { config } from "../config.js";
+import { logAiRun } from "./conversations.js";
+import type { Stage } from "../domain/pipeline.js";
 
 const openai = new OpenAI({ apiKey: config.openai.apiKey });
 
@@ -44,14 +46,16 @@ export async function describirFotoDeLlanta(
   bytes: Buffer,
   mimeType: string,
   caption?: string,
+  audit?: { conversationId: number; stage: Stage },
 ): Promise<string | null> {
+  const startedAt = Date.now();
   try {
     const dataUrl = `data:${mimeType || "image/jpeg"};base64,${bytes.toString("base64")}`;
     const pie = caption?.trim();
     // La imagen va SIEMPRE primero: así el contrato del contenido no cambia
     // según haya caption o no, y el pie de foto es un extra que se suma al final.
     const contenido = [
-      { type: "image_url" as const, image_url: { url: dataUrl } },
+      { type: "image_url" as const, image_url: { url: dataUrl, detail: "auto" as const } },
       ...(pie
         ? [{ type: "text" as const, text: `El cliente escribió junto a la foto: ${pie}` }]
         : []),
@@ -62,15 +66,49 @@ export async function describirFotoDeLlanta(
         { role: "system", content: SYSTEM },
         { role: "user", content: contenido },
       ],
-      max_completion_tokens: 150,
-      // Temperatura 0: esto es transcripción, no redacción — inventar una medida
-      // que no está en la foto es peor que no leer nada.
-      temperature: 0,
+      // GPT-5 usa este presupuesto para razonamiento Y salida. 150 dejaba fotos
+      // con razonamiento completo pero sin ningún texto visible.
+      max_completion_tokens: 400,
+      ...(config.openai.visionModel.startsWith("gpt-5") ? {
+        reasoning_effort: "low" as const,
+        verbosity: "low" as const,
+        prompt_cache_retention: "24h" as const,
+      } : { temperature: 0 }),
     });
     const texto = response.choices[0]?.message?.content?.trim();
+    if (audit) {
+      await logAiRun({
+        conversationId: audit.conversationId,
+        stage: audit.stage,
+        model: config.openai.visionModel,
+        latencyMs: Date.now() - startedAt,
+        inputTokens: response.usage?.prompt_tokens ?? 0,
+        outputTokens: response.usage?.completion_tokens ?? 0,
+        cachedInputTokens: response.usage?.prompt_tokens_details?.cached_tokens ?? 0,
+        reasoningTokens: response.usage?.completion_tokens_details?.reasoning_tokens ?? 0,
+        tools: [],
+        callType: "vision",
+        route: texto ? "image_read" : "empty_image_read",
+        ...(texto ? {} : { error: "empty_visible_output" }),
+      });
+    }
     if (!texto || texto.toUpperCase().includes(SIN_DATOS)) return null;
     return texto;
   } catch (error) {
+    if (audit) {
+      await logAiRun({
+        conversationId: audit.conversationId,
+        stage: audit.stage,
+        model: config.openai.visionModel,
+        latencyMs: Date.now() - startedAt,
+        inputTokens: 0,
+        outputTokens: 0,
+        tools: [],
+        callType: "vision",
+        route: "image_error",
+        error: error instanceof Error ? error.message : String(error),
+      }).catch(() => {});
+    }
     console.warn("⚠️ Visión falló al leer la foto:", error instanceof Error ? error.message : error);
     return null;
   }

@@ -1,6 +1,7 @@
-import { business } from "../config.js";
+import { business, config } from "../config.js";
 import { DEFAULT_AI_CONFIG, formatStoreHours, type AiConfig, type StoreHours } from "../services/settings.js";
 import { BOT_PLAYBOOK } from "./playbook.js";
+import { COMPACT_PLAYBOOK } from "./compactPlaybook.js";
 
 /**
  * System prompt del agente de ventas. Se construye desde la config del negocio
@@ -19,7 +20,7 @@ export function buildSystemPrompt(
     .map((s) => `- ${s.name}: ${s.address}`)
     .join("\n");
 
-  return `${BOT_PLAYBOOK}
+  return `${config.openai.compactPromptEnabled ? COMPACT_PLAYBOOK : BOT_PLAYBOOK}
 
 ---
 

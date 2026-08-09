@@ -16,6 +16,12 @@ function envOr(name: string, fallback: string): string {
   return process.env[name] ?? fallback;
 }
 
+function envBoolean(name: string, fallback: boolean): boolean {
+  const value = process.env[name];
+  if (value == null) return fallback;
+  return ["1", "true", "yes", "on"].includes(value.trim().toLowerCase());
+}
+
 function catalogConfigured(): boolean {
   return Boolean(
     process.env.CATALOG_SHEET_ID &&
@@ -155,6 +161,12 @@ export const config = {
     // poniendo las variables en Railway, previa validación contra /v1/models
     // (un ID mal escrito tumbaría al bot con 400 en cada mensaje).
     model: envOr("OPENAI_MODEL", "gpt-4o-mini"),
+    /**
+     * Modelo de primera ronda para tareas rutinarias post-cotización. En
+     * producción empieza igual al principal: permite bajar por etapa después
+     * de validar la tasa de éxito, sin volver a desplegar código.
+     */
+    routineModel: envOr("OPENAI_ROUTINE_MODEL", envOr("OPENAI_MODEL", "gpt-4o-mini")),
     classifierModel: envOr("OPENAI_CLASSIFIER_MODEL", "gpt-4o-mini"),
     researchModel: envOr("OPENAI_RESEARCH_MODEL", envOr("OPENAI_MODEL", "gpt-4o-mini")),
     /** Lee fotos del cliente (medida en el costado, etiqueta de la puerta). */
@@ -173,6 +185,11 @@ export const config = {
     // aceptan tanto GPT-5 como GPT-4o. Lo cazó el replay del 7-ago: 461/461
     // turnos fallaron al probar gpt-5.4 antes de tocar producción.
     maxTokens: 2048,
+    /** Límite del loop normal; siempre queda una llamada final de rescate. */
+    maxToolIterations: Math.max(1, Number(envOr("AI_MAX_TOOL_ITERATIONS", "8"))),
+    historyLimit: Math.max(4, Number(envOr("AI_HISTORY_LIMIT", "30"))),
+    compactPromptEnabled: envBoolean("AI_COMPACT_PROMPT_ENABLED", false),
+    directSalesRoutesEnabled: envBoolean("DIRECT_SALES_ROUTES_ENABLED", false),
   },
 
   vehicleFitment: {

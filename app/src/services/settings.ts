@@ -217,7 +217,7 @@ const DEFAULT_STAGE_PROMPTS: Record<Stage, StagePromptInput> = {
   cotizacion_enviada: {
     objective: "Conseguir dos datos: qué día viene y a cuál local.",
     prompt:
-      "No regeneres el PDF salvo que cambien modelo o cantidad. Tu objetivo ahora es UNO: que diga qué día puede pasar y a cuál local. Van juntos y en la misma pregunta — una fecha sin local no se le puede avisar a nadie y un local sin fecha no entra en ninguna agenda. Ningún turno cierra sin esa pregunta mientras falte alguno de los dos. El motivo que le das es el descuento y es verdad: su cotización sale con precio rebajado y el número es lo que la tienda exige para respetarlo, así que avisarle al asesor es lo que hace que se lo apliquen. Nunca inventes un descuento extra que nadie autorizó.",
+      "Cumple primero la solicitud actual: si pide la cotización otra vez usa reenviar_cotizacion; si pide otras opciones o comparación, envía esa pieza. No crees otra cotización salvo que cambien modelo o cantidad. Después pide únicamente el dato de visita que falte. Si local y fecha/compromiso ya están guardados, confírmalos una vez y no los vuelvas a preguntar. El local elegido explícitamente por el cliente siempre gana sobre una recomendación.",
     // Con la cotización enviada el objetivo es fecha+local, pero el cliente no
     // se entera de eso: si vuelve a pedir opciones o pregunta por otra medida,
     // el bot tiene que poder mostrárselas. Sin estas tools lo único que le
@@ -229,17 +229,19 @@ const DEFAULT_STAGE_PROMPTS: Record<Stage, StagePromptInput> = {
       "guia_medida",
       "opciones_sin_medida",
       "preparar_opciones",
+      "enviar_comparacion",
       "fitment_vehiculo",
       "local_mas_cercano",
       "notificar_vendedor",
       "generar_cotizacion",
+      "reenviar_cotizacion",
     ],
     settings: { autoAction: "none", requiresHumanApproval: false, fallback: "" },
   },
   seguimiento_venta: {
     objective: "Dar seguimiento comercial hasta la venta, incluyendo visita, reserva y handoff.",
     prompt:
-      "Resume lo acordado y confirma local u horario sin inventar datos. Si todavía no sabes qué día viene o a cuál local, eso es lo que falta: pídelo en cada turno, junto, y diciéndole que así el asesor le aplica el descuento cuando llegue. Mantén el caso abierto hasta una venta o rechazo verificados.",
+      "Cumple primero lo que pide: reenvía la cotización, opciones o comparación cuando corresponda. Resume lo acordado sin inventar datos y pregunta solo el dato de visita que falte. Con local y fecha/compromiso confirmados, no los vuelvas a pedir. Mantén el caso abierto hasta una venta o rechazo verificados.",
     // Esta es la etapa del ticket 2150: el cliente pidió una cotización y el bot
     // no tenía UNA sola herramienta de venta con qué contestarle, así que repitió
     // la pregunta por la foto tres turnos seguidos hasta que el dueño mandó las
@@ -251,10 +253,12 @@ const DEFAULT_STAGE_PROMPTS: Record<Stage, StagePromptInput> = {
       "guia_medida",
       "opciones_sin_medida",
       "preparar_opciones",
+      "enviar_comparacion",
       "fitment_vehiculo",
       "local_mas_cercano",
       "notificar_vendedor",
       "generar_cotizacion",
+      "reenviar_cotizacion",
     ],
     settings: { autoAction: "handoff", requiresHumanApproval: false, fallback: "" },
   },

@@ -5,7 +5,7 @@
  */
 import OpenAI from "openai";
 import { config } from "../config.js";
-import { setStage, type Conversation } from "../services/conversations.js";
+import { logAiRun, setStage, type Conversation } from "../services/conversations.js";
 import { STAGE_ORDER, isStage } from "../domain/pipeline.js";
 import { isExplicitPurchaseConfirmation } from "../domain/salesIntent.js";
 
@@ -16,6 +16,7 @@ export async function classifyStage(
   userText: string,
   assistantText: string,
 ): Promise<void> {
+  const startedAt = Date.now();
   if (conversation.stage === "ganado" || conversation.stage === "perdido") return;
   if (isExplicitPurchaseConfirmation(userText)) {
     await setStage(conversation.id, "ganado", {
@@ -52,6 +53,20 @@ Cliente: ${userText}
 Bot: ${assistantText}`,
         },
       ],
+    });
+
+    await logAiRun({
+      conversationId: conversation.id,
+      stage: conversation.stage,
+      model: config.openai.classifierModel,
+      latencyMs: Date.now() - startedAt,
+      inputTokens: response.usage?.prompt_tokens ?? 0,
+      outputTokens: response.usage?.completion_tokens ?? 0,
+      cachedInputTokens: response.usage?.prompt_tokens_details?.cached_tokens ?? 0,
+      reasoningTokens: response.usage?.completion_tokens_details?.reasoning_tokens ?? 0,
+      tools: [],
+      callType: "classifier",
+      route: "post_turn_stage",
     });
 
     const text = response.choices[0]?.message.content;
