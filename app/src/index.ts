@@ -51,6 +51,7 @@ import { notifyPendingHumanRequests } from "./services/advisorNotifications.js";
 import { startEmbeddedFollowUpWorker } from "./workers/embeddedFollowUpWorker.js";
 import { extractExplicitStore } from "./domain/storeSelection.js";
 import { tryDirectSalesRoute } from "./services/directSalesRoutes.js";
+import { firstContactReply, isGenericFirstContact } from "./domain/firstContact.js";
 
 /** Pausa entre bloques: suficiente para que se lean como mensajes seguidos y no como spam. */
 const PAUSA_ENTRE_BLOQUES_MS = 900;
@@ -69,11 +70,12 @@ const pipeline = new InboundPipeline(async ({ from, name, text, waMessageIds, re
   const parsedQuantity = extractExplicitQuantity(text);
   const parsedVehicleYear = extractVehicleYear(text);
   const explicitStore = extractExplicitStore(text);
+  const previousOutbound = await lastOutboundText(conversation.id);
   // El día de la visita llega casi siempre como respuesta seca ("el sábado")
   // a la pregunta que el bot hace tras cotizar. Sin mirar lo que preguntamos
   // antes, esa respuesta no era un compromiso para nadie.
   const commitment = extractCustomerCommitment(text, receivedAt, {
-    respondiendoAlDia: preguntamosElDia(await lastOutboundText(conversation.id)),
+    respondiendoAlDia: preguntamosElDia(previousOutbound),
   });
   await updateConversationFacts(conversation.id, {
     ...(parsedSize ? { tireSize: formatTireSize(parsedSize) } : {}),
@@ -182,10 +184,22 @@ const pipeline = new InboundPipeline(async ({ from, name, text, waMessageIds, re
 
   const agentContext: AgentContext = { conversation, customerPhone: from, customerName: name,
     currentUserText: textoConLinks };
-  const directReply = await tryDirectSalesRoute(
-    { conversation, customerPhone: from, explicitStore, commitment },
-    textoConLinks,
-  );
+  // El saludo genérico de los anuncios no necesita gastar un turno de IA. Esta
+  // respuesta fija deja claro que la medida es la vía rápida, no la única: el
+  // bot también puede arrancar por vehículo, aro o uso. Si el cliente ya dio
+  // cualquier dato concreto, sigue al agente completo para que lo aproveche.
+  const isFirstGenericMessage = conversation.stage === "nuevo"
+    && previousOutbound === null
+    && isGenericFirstContact(textoConLinks);
+  const directReply = isFirstGenericMessage
+    ? firstContactReply()
+    : await tryDirectSalesRoute(
+      { conversation, customerPhone: from, explicitStore, commitment },
+      textoConLinks,
+    );
+  if (isFirstGenericMessage) {
+    await logFunnelEvent(conversation.id, "respuesta_directa", { route: "first_contact" });
+  }
   const reply = directReply ?? await runAgent(agentContext, textoConLinks);
   await flagRepetitiveConversation(conversation.id, reply);
 

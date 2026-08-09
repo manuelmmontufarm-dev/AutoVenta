@@ -32,6 +32,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-08-09 | _(este mismo)_ | Primer saludo inteligente: medida primero, pero también vehículo, aro y uso | 0.5 |
 | 2026-08-09 | _(este mismo)_ | La fecha se confirma una vez: sin repetir día, local ni descuento | 0.5 |
 | 2026-08-09 | _(este mismo)_ | Hotfix GPT-5.5: tools requieren reasoning none en Chat Completions | 0.5 |
 | 2026-08-09 | _(este mismo)_ | Modalidad eficiente: cumple piezas pedidas, recuerda visita y reduce llamadas sin bajar GPT-5.5 | 4.0 |
@@ -102,11 +103,26 @@ Ya viene activado en este equipo.
 | 2026-07-14 | ac09171 | Ubicaciones de locales + análisis de features del cliente | 1.5 |
 | 2026-07-13 | feadf57 | Brief + plan de desarrollo + plan financiero + catálogo | 4.0 |
 | 2026-07-13 | d997844 | Commit inicial (repo) | 0.25 |
-| | | **TOTAL** | **~91.5 h** |
+| | | **TOTAL** | **~92.0 h** |
 
 ---
 
 ## Entradas (más reciente primero)
+
+### 2026-08-09 · El bot muestra desde el saludo que sí sabe asesorar · ⏱️ 0.5 h
+
+**Qué:** El saludo genérico ahora es determinístico y presenta la medida o la
+foto como la vía más rápida, pero ofrece también empezar por marca, modelo y año
+del vehículo, aro o uso, y comparar opciones. Las consultas que ya traen datos
+concretos conservan el agente completo. El contrato compacto y el largo quedaron
+alineados con la misma regla.
+
+**Por qué:** El mensaje anterior empujaba bien a mandar la medida, pero sonaba
+como un formulario que solo aceptaba medida o foto. Eso escondía la capacidad
+real del bot y podía frenar a quien solo conoce su vehículo. Resolver el saludo
+sin IA además reduce tokens sin sacrificar efectividad.
+
+---
 
 ### 2026-08-09 · «Martes 10 am» se registra, no se vuelve a preguntar · ⏱️ 0.5 h
 
