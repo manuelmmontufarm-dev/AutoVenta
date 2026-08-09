@@ -32,6 +32,8 @@ export interface DataSource {
   cerrar(ticketId: number, cierre: Cierre, nota?: string): Promise<void>;
   reabrir(ticketId: number): Promise<void>;
   setAtiende(ticketId: number, atiende: Atiende): Promise<void>;
+  /** Pin "para después" del modo revisión: prioridad visible en Oportunidades. */
+  marcarParaDespues(ticketId: number, enabled: boolean): Promise<void>;
   enviarMensaje(ticketId: number, texto: string): Promise<void>; // como vendedor
   crearDescuento(ticketId: number, prompt: string, deliveryMode: "now" | "next_message"): Promise<{ sent: boolean; message: string; warning?: string; pending?: boolean }>;
   getTemplatePlan(ticketId: number): Promise<TemplatePlanPreview>;

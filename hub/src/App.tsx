@@ -22,15 +22,17 @@ import type { PhaseFlags } from "./data/types";
 // `requiere`: fase que desbloquea cada pantalla (null = núcleo, Fase 1, siempre).
 // Inbox y Pipeline son el núcleo. Cotizador y Métricas = Fase 3.
 // Oportunidades (seguimientos) = Fase 4.
+// `corto`: etiqueta para la tab bar móvil, donde 6 tabs se reparten ~60px
+// cada una y "Oportunidades" no entra sin truncarse a media palabra.
 const NAV = [
-  { id: "inbox", label: "Inbox", icon: IconInbox, requiere: null },
-  { id: "opportunities", label: "Oportunidades", icon: IconSparkle, requiere: "fase4" },
-  { id: "pipeline", label: "Pipeline", icon: IconKanban, requiere: null },
-  { id: "cotizador", label: "Cotizador", icon: IconTire, requiere: "fase3" },
-  { id: "dashboard", label: "Métricas", icon: IconChart, requiere: "fase3" },
+  { id: "inbox", label: "Inbox", corto: "Inbox", icon: IconInbox, requiere: null },
+  { id: "opportunities", label: "Oportunidades", corto: "Oportun.", icon: IconSparkle, requiere: "fase4" },
+  { id: "pipeline", label: "Pipeline", corto: "Pipeline", icon: IconKanban, requiere: null },
+  { id: "cotizador", label: "Cotizador", corto: "Cotizador", icon: IconTire, requiere: "fase3" },
+  { id: "dashboard", label: "Métricas", corto: "Métricas", icon: IconChart, requiere: "fase3" },
   // Ajustes va siempre visible: apagar el bot o bajar una promoción no puede
   // depender de qué fase esté activa.
-  { id: "ajustes", label: "Ajustes", icon: IconSliders, requiere: null },
+  { id: "ajustes", label: "Ajustes", corto: "Ajustes", icon: IconSliders, requiere: null },
 ] as const;
 
 /** ¿La pantalla está permitida con las fases activas? */
@@ -237,7 +239,7 @@ export default function App() {
                   {demo ? "Detener demo" : "Demo"}
                 </motion.button>
               ) : (
-                <span className="rounded-full bg-emerald-500/10 px-3 py-2 text-[10px] font-black tracking-[0.14em] text-emerald-700 uppercase">
+                <span className="hidden rounded-full bg-emerald-500/10 px-3 py-2 text-[10px] font-black tracking-[0.14em] text-emerald-700 uppercase sm:inline">
                   Producto real
                 </span>
               )}
@@ -272,21 +274,24 @@ export default function App() {
           </main>
         </div>
 
-        {/* ── Tab bar (móvil) ── */}
-        <nav className="glass-strong fixed inset-x-3 bottom-3 z-20 flex items-center justify-around rounded-3xl py-2 md:hidden">
+        {/* ── Tab bar (móvil) ──
+            Cada tab reparte el ancho con flex-1: con las 6 fases activas los
+            px fijos empujaban Métricas y Ajustes fuera de la pantalla, y un
+            tab que no se ve es un tab que no existe. */}
+        <nav className="glass-strong fixed inset-x-2 bottom-2 z-20 flex items-stretch rounded-3xl px-1 py-2 md:hidden" style={{ paddingBottom: "max(0.5rem, env(safe-area-inset-bottom))" }}>
           {navVisible.map((item) => {
             const activo = navActivo(route) === item.id;
             return (
               <button
                 key={item.id}
                 onClick={() => navigate(item.id)}
-                className="relative flex flex-col items-center gap-0.5 rounded-2xl px-5 py-1"
+                className="relative flex min-w-0 flex-1 flex-col items-center gap-0.5 rounded-2xl px-0.5 py-1"
                 style={{ color: activo ? "var(--color-paper)" : "var(--color-faint)" }}
               >
                 <item.icon size={19} />
-                <span className="text-[9.5px] font-bold">{item.label}</span>
+                <span className="max-w-full truncate text-[8.5px] font-bold">{item.corto}</span>
                 {item.id === "inbox" && abiertos > 0 && (
-                  <span className="tnum absolute top-0 right-2.5 grid h-4 min-w-4 place-items-center rounded-full bg-red px-1 text-[9px] font-bold text-white">
+                  <span className="tnum absolute top-0 right-1/2 grid h-4 min-w-4 translate-x-4 place-items-center rounded-full bg-red px-1 text-[9px] font-bold text-white">
                     {abiertos}
                   </span>
                 )}

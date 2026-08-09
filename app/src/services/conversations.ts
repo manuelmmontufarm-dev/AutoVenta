@@ -191,6 +191,9 @@ export async function setStage(
         status = ${stage === "ganado" || stage === "perdido" ? "closed" : "open"},
         closed_reason = ${stage === "perdido" ? options.reason ?? "perdido" : null},
         closed_at = ${stage === "ganado" || stage === "perdido" ? new Date() : null},
+        -- Cerrada la venta, el pin "para después" ya cumplió: si revive en otro
+        -- ciclo no debe arrastrar la prioridad vieja.
+        review_later_at = case when ${stage === "ganado" || stage === "perdido"} then null else review_later_at end,
         updated_at = now()
     where id = ${conversationId}
   `;
@@ -405,6 +408,22 @@ export async function addConversationNote(
   await sql`
     insert into conversation_notes (conversation_id, content, author)
     values (${conversationId}, ${content}, ${author})
+  `;
+}
+
+/**
+ * Marca / desmarca "para después": la dejó el asesor en el modo revisión sin
+ * cerrarla. Es un pin de prioridad, no una etapa — no toca el pipeline.
+ */
+export async function setReviewLater(
+  conversationId: number,
+  enabled: boolean,
+): Promise<void> {
+  await sql`
+    update conversations
+    set review_later_at = ${enabled ? new Date() : null},
+        updated_at = now()
+    where id = ${conversationId}
   `;
 }
 

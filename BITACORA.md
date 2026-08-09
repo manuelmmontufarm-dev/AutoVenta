@@ -32,6 +32,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-08-09 | _(este mismo)_ | Oportunidades reorganizado: cuadrícula de cotizados, baraja swipe y "Para después" + 6 tabs en móvil | 3.0 |
 | 2026-08-09 | _(este mismo)_ | Cotización sin eco: INCLUYE una vez y texto reducido a modelo + total | 0.5 |
 | 2026-08-09 | _(este mismo)_ | Primer saludo inteligente: medida primero, pero también vehículo, aro y uso | 0.5 |
 | 2026-08-09 | _(este mismo)_ | La fecha se confirma una vez: sin repetir día, local ni descuento | 0.5 |
@@ -109,6 +110,32 @@ Ya viene activado en este equipo.
 ---
 
 ## Entradas (más reciente primero)
+
+### 2026-08-09 · Oportunidades reorganizado: cuadrícula, baraja swipe y "Para después" · ⏱️ 3.0 h
+
+**Qué:** El tab Oportunidades se reorganizó en tres vistas por botones grandes:
+**Cotizados** (cotización enviada en adelante — cuadrícula densa donde cada
+tarjeta muestra la fecha en que el cliente dijo que viene, el monto cotizado,
+la ubicación, la medida y la llanta), **Piden asesor** (pidieron humano, van a
+llamar o preguntaron algo que el bot no alcanza) y **Errores** (alertas del
+bot: conversación repetitiva, fallos). Dentro de cada vista, **"Revisar uno por
+uno"**: una baraja estilo swipe (móvil y desktop, con drag, botones y flechas
+del teclado) — izquierda = perdida, derecha = ganada o **"para después"** — con
+el chat completo adentro, composer para responder como vendedor y el toggle de
+si sigue el bot o toma el equipo. Los "para después" persisten en la base
+(`conversations.review_later_at`, endpoint nuevo) y se pintan como banda
+prioritaria arriba del tab hasta cerrarse. De paso: la tab bar del celular
+ahora reparte el ancho entre las 6 pestañas (Métricas y Ajustes quedaban fuera
+de la pantalla) y "Saltar" en la baraja ya no anima como si fuera ganada.
+
+**Por qué:** Cotización enviada es donde el bot más o menos acaba y el asesor
+se tiene que poner las pilas: esa vista tiene que mostrar muchos clientes a la
+vez con lo que hay en juego, no una lista de seguimientos técnicos. Y revisar
+chats uno por uno con una decisión obligada por chat (perdida / ganada /
+después) convierte "revisar el panel" en una tarea con final, también desde el
+teléfono.
+
+---
 
 ### 2026-08-09 · La foto habla; el texto deja de repetirla · ⏱️ 0.5 h
 

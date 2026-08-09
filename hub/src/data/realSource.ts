@@ -195,6 +195,13 @@ export class RealSource implements DataSource {
     });
   }
 
+  async marcarParaDespues(ticketId: number, enabled: boolean): Promise<void> {
+    await this.request(`/api/hub/tickets/${ticketId}/review-later`, {
+      method: "PATCH",
+      body: JSON.stringify({ enabled }),
+    });
+  }
+
   async enviarMensaje(ticketId: number, texto: string): Promise<void> {
     await this.request(`/api/conversations/${ticketId}/send`, {
       method: "POST",

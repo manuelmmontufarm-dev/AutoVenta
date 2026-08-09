@@ -48,6 +48,9 @@ alter table conversations add column if not exists selected_product_code text;
 alter table conversations add column if not exists selected_quantity integer;
 alter table conversations add column if not exists location_label text;
 alter table conversations add column if not exists nearest_store text;
+-- El asesor la dejó "para después" en el modo revisión: seguimiento prioritario
+-- que el tab Oportunidades pinta arriba de todo hasta cerrarla o soltarla.
+alter table conversations add column if not exists review_later_at timestamptz;
 
 -- Migración de las etapas históricas al pipeline canónico.
 update conversations

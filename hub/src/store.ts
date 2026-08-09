@@ -75,6 +75,7 @@ interface HubState {
   cerrar(id: number, cierre: Cierre, nota?: string): Promise<void>;
   reabrir(id: number): Promise<void>;
   setAtiende(id: number, atiende: Atiende): Promise<void>;
+  marcarParaDespues(id: number, enabled: boolean): Promise<void>;
   enviarMensaje(id: number, texto: string): Promise<void>;
   crearDescuento(id: number, prompt: string, deliveryMode: "now" | "next_message"): Promise<{ sent: boolean; message: string; warning?: string; pending?: boolean }>;
   getTemplatePlan(id: number): Promise<TemplatePlanPreview>;
@@ -222,6 +223,10 @@ export const useHub = create<HubState>((set, get) => {
     cerrar: (id, cierre, nota) => source.cerrar(id, cierre, nota),
     reabrir: (id) => source.reabrir(id),
     setAtiende: (id, atiende) => source.setAtiende(id, atiende),
+    async marcarParaDespues(id, enabled) {
+      await source.marcarParaDespues(id, enabled);
+      await refrescar();
+    },
     enviarMensaje: (id, texto) => source.enviarMensaje(id, texto),
     async crearDescuento(id, prompt, deliveryMode) {
       const result = await source.crearDescuento(id, prompt, deliveryMode);

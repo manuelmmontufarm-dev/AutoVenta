@@ -159,6 +159,8 @@ export interface Ticket {
   visitDate?: string;
   offerExpiresAt?: string;
   localCercano?: string;
+  /** ISO de cuándo el asesor la dejó "para después" en el modo revisión. */
+  paraDespues?: string;
   followUpReason?: string;
   customerOptIn?: boolean;
   optedOutAt?: string;

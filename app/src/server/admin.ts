@@ -49,6 +49,7 @@ import {
   addConversationNote,
   markConversationRead,
   setConversationAssignee,
+  setReviewLater,
   setStage,
   reopenConversation,
   logQuoteArtifact,
@@ -876,6 +877,19 @@ export function createAdminRouter(): express.Router {
     const resumed = assignedTo === "bot" ? await resumeBotIfUnanswered(id) : null;
     emitLiveEvent("sync", id);
     res.json({ ok: true, resumed });
+  });
+
+  // "Para después": el asesor la revisó en el modo swipe y no la cerró, pero
+  // tampoco la quiere perder de vista. Oportunidades la pinta arriba de todo.
+  router.patch("/hub/tickets/:id/review-later", async (req, res) => {
+    const id = Number(req.params.id);
+    const enabled = req.body?.enabled;
+    if (!Number.isInteger(id) || typeof enabled !== "boolean") {
+      return res.status(400).json({ ok: false, error: "Parámetros inválidos" });
+    }
+    await setReviewLater(id, enabled);
+    emitLiveEvent("sync", id);
+    res.json({ ok: true });
   });
 
   router.post("/hub/tickets/:id/notes", async (req, res) => {

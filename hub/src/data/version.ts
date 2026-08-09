@@ -9,7 +9,7 @@
  * responde el servidor no coincide con este, el panel avisa: significa que una
  * mitad se desplegó y la otra no.
  */
-export const VERSION = "v0.11.0";
+export const VERSION = "v0.12.0";
 
 /** SHA corto del commit con el que se compiló este panel. */
 export const COMMIT: string =
@@ -24,6 +24,17 @@ export interface Cambio {
 
 /** Más reciente primero. Cada entrada es lo que el negocio nota, no el diff. */
 export const CAMBIOS: Cambio[] = [
+  {
+    version: "v0.12.0",
+    fecha: "9 de agosto de 2026",
+    titulo: "Oportunidades reorganizado: cuadrícula, baraja y Para después",
+    puntos: [
+      "Tres vistas grandes: Cotizados (fecha de visita, monto, ubicación, medida y llanta de un vistazo), Piden asesor y Errores del bot.",
+      "Revisar uno por uno: baraja estilo swipe — izquierda perdida, derecha ganada o \"para después\" — con el chat adentro para responder sin salir.",
+      "Banda \"Para después\": lo que revisaste y va bien queda arriba de todo hasta que lo cierres.",
+      "En el celular ya se ven las 6 pestañas de abajo (Métricas y Ajustes quedaban fuera de la pantalla).",
+    ],
+  },
   {
     version: "v0.11.0",
     fecha: "5 de agosto de 2026",

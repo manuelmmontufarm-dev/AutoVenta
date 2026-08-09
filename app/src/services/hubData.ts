@@ -39,6 +39,7 @@ interface TicketRow {
   visit_date: Date | null;
   offer_expires_at: Date | null;
   nearest_store: string | null;
+  review_later_at: Date | null;
   summary: string | null;
   customer_need: string | null;
   options_discussed: unknown;
@@ -68,7 +69,7 @@ export async function listHubTickets(options: { id?: number } = {}) {
       c.customer_opt_in, c.opted_out_at,
       case when c.customer_commitment_cycle=c.current_cycle then c.customer_commitment end as customer_commitment,
       c.pickup_date,
-      c.visit_date, c.offer_expires_at, c.nearest_store, c.last_customer_message_at,
+      c.visit_date, c.offer_expires_at, c.nearest_store, c.review_later_at, c.last_customer_message_at,
       m.content as last_message, m.created_at as last_at,
       case when q.id is null then null else jsonb_build_object(
         'id', q.id, 'items', q.items, 'subtotal', q.subtotal, 'tax', q.tax, 'total', q.total,
@@ -200,6 +201,7 @@ export async function listHubTickets(options: { id?: number } = {}) {
     visitDate: row.visit_date?.toISOString(),
     offerExpiresAt: row.offer_expires_at?.toISOString(),
     localCercano: row.nearest_store ?? undefined,
+    paraDespues: row.review_later_at?.toISOString(),
     followUpReason: commercialAttentionReason(row),
     customerOptIn: row.customer_opt_in,
     optedOutAt: row.opted_out_at?.toISOString(),
