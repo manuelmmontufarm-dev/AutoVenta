@@ -1439,10 +1439,21 @@ export function buildTools(ctx: AgentContext) {
         visit_date: Date | null;
         customer_commitment: string | null;
       }[]>`select nearest_store, location_label, visit_date, customer_commitment from conversations where id=${ctx.conversation.id}`;
+      const visitKnown = Boolean(saved?.visit_date || saved?.customer_commitment);
+      const currentMessageChangesLocation = /\b(?:ubicacion|direcci[oó]n|local|cumbay[aá]|quito|sur|sector|vivo|estoy|pin)\b/i.test(ctx.currentUserText);
+      // Si el cliente acaba de contestar la fecha, no vuelvas a dibujar todo
+      // el local ni a preguntar lo mismo. Esto cubre también un Kanban atrasado.
+      if (saved?.nearest_store && visitKnown && !currentMessageChangesLocation) {
+        const plan = saved.customer_commitment?.trim() || "la fecha indicada";
+        return JSON.stringify({
+          local: saved.nearest_store,
+          mensaje_para_enviar: `Perfecto: *${plan} en ${saved.nearest_store}*. Ya quedó registrado para el asesor.`,
+          regla: "Responde exactamente con mensaje_para_enviar. No repitas dirección, descuento, local ni fecha.",
+        });
+      }
       if (saved?.nearest_store && saved.location_label?.startsWith("Local elegido explícitamente")) {
         const explicit = business.stores.find((store) => store.name === saved.nearest_store);
         if (explicit) {
-          const visitKnown = Boolean(saved.visit_date || saved.customer_commitment);
           return JSON.stringify({
             local: explicit.name,
             direccion: explicit.address,
@@ -1491,10 +1502,13 @@ export function buildTools(ctx: AgentContext) {
           // Sin esta línea el turno terminaba en "te esperamos": cortés y sin
           // fecha. La ubicación es el mejor momento para pedir el día porque el
           // cliente acaba de decidir a dónde va.
-          buildVisitDayQuestion(descuentoVivo),
+          visitKnown
+            ? `✅ Visita registrada: ${saved?.customer_commitment?.trim() || "fecha confirmada"}.`
+            : buildVisitDayQuestion(descuentoVivo),
         ].filter(Boolean).join("\n"),
-        regla:
-          "Responde exactamente con mensaje_para_enviar, incluida la pregunta por el día, y no inventes otra distancia o dirección. Ya tienes el local: lo único que falta para cerrar es la FECHA. No cierres un turno sin pedirla mientras el cliente no la haya dado.",
+        regla: visitKnown
+          ? "Responde exactamente con mensaje_para_enviar. La visita ya está registrada: no preguntes otra vez el día ni repitas el argumento del descuento."
+          : "Responde exactamente con mensaje_para_enviar, incluida la pregunta por el día. Ya tienes el local: pide únicamente la fecha.",
       });
     },
   });

@@ -307,6 +307,31 @@ describe.sequential("Venta primero — los arreglos de Joaquín", () => {
     });
   });
 
+  describe("fecha de visita ya respondida", () => {
+    it("local_mas_cercano confirma Martes 10 am sin volver a pedir el día ni repetir descuento", async () => {
+      const [c] = await appSql<{ id: number }[]>`
+        insert into conversations (
+          phone, name, stage, tire_size, nearest_store, location_label,
+          visit_date, customer_commitment
+        ) values (
+          '593995614188', 'VISITA SIN REPETIR', 'cotizacion_enviada', '205/55R16',
+          'Depot Tire Cumbayá', 'Cumbayá', now() + interval '2 days', 'Martes 10 am'
+        ) returning id
+      `;
+      const { buildTools } = await import("../src/agent/tools.js");
+      const tools = buildTools({
+        conversation: { id: c.id, phone: "593995614188", name: "VISITA SIN REPETIR", stage: "cotizacion_enviada", bot_paused_until: null, status: "open", current_cycle: 1 },
+        customerPhone: "593995614188",
+        currentUserText: "Martes 10 am",
+      } as never);
+      const local = tools.find((t) => t.function.name === "local_mas_cercano")!;
+      const result = JSON.parse(await local.execute({ lat: null, lng: null, sector: "Cumbayá" }));
+      expect(result.mensaje_para_enviar).toContain("Martes 10 am");
+      expect(result.mensaje_para_enviar).toContain("Depot Tire Cumbayá");
+      expect(result.mensaje_para_enviar).not.toMatch(/qué día|podría pasar|descuento/i);
+    });
+  });
+
   /**
    * Este bloque se llamaba «fitment nunca vuelve a pedir foto» y exigía que la
    * repregunta NO mencionara la foto. Esa regla venció el 6-ago, cuando

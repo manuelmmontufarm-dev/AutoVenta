@@ -32,6 +32,19 @@ export interface DirectSalesContext {
   commitment?: CustomerCommitment | null;
 }
 
+export function canUseDirectVisitRoute(input: {
+  stage: Conversation["stage"];
+  hasQuote: boolean;
+  hasExplicitStore: boolean;
+  hasCommitment: boolean;
+  text: string;
+}): boolean {
+  const closingStage = input.stage === "cotizacion_enviada" || input.stage === "seguimiento_venta";
+  if (!closingStage && !input.hasQuote) return false;
+  if (!input.hasExplicitStore && !input.hasCommitment) return false;
+  return !input.text.includes("?") && normalized(input.text).split(/\s+/).length <= 18;
+}
+
 const normalized = (text: string) =>
   text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 
@@ -141,22 +154,31 @@ export async function tryDirectSalesRoute(
       return null;
     });
   }
-  const closingStage = ctx.conversation.stage === "cotizacion_enviada" || ctx.conversation.stage === "seguimiento_venta";
-  if (!closingStage || (!ctx.explicitStore && !ctx.commitment)) return null;
-  // Una pregunta adicional merece el cerebro comercial; esta ruta solo maneja
-  // respuestas secas como "sábado en Quito Sur".
-  if (text.includes("?") || normalized(text).split(/\s+/).length > 18) return null;
-
   const [facts] = await sql<{
     nearest_store: string | null;
     visit_date: Date | null;
     customer_commitment: string | null;
-  }[]>`select nearest_store, visit_date, customer_commitment from conversations where id=${ctx.conversation.id}`;
+    has_quote: boolean;
+  }[]>`
+    select c.nearest_store, c.visit_date, c.customer_commitment,
+      exists(select 1 from quotes q where q.conversation_id=c.id and q.cycle=c.current_cycle) as has_quote
+    from conversations c where c.id=${ctx.conversation.id}
+  `;
+  // El Kanban puede ir atrasado. Una cotización real es evidencia más fuerte
+  // que la etapa para reconocer respuestas secas como "Martes 10 am".
+  if (!canUseDirectVisitRoute({
+    stage: ctx.conversation.stage,
+    hasQuote: facts?.has_quote ?? false,
+    hasExplicitStore: Boolean(ctx.explicitStore),
+    hasCommitment: Boolean(ctx.commitment),
+    text,
+  })) return null;
   const store = facts?.nearest_store ?? null;
   const visit = visitDateText(facts?.visit_date ?? null);
+  const visitLabel = facts?.customer_commitment?.trim() || visit;
   let reply: string;
-  if (store && (visit || facts?.customer_commitment)) {
-    reply = `Perfecto, quedó registrado: *${store}*${visit ? `, ${visit}` : ""}. El asesor tendrá a mano su cotización cuando llegue.`;
+  if (store && visitLabel) {
+    reply = `Perfecto: *${visitLabel} en ${store}*. Ya quedó registrado para el asesor.`;
   } else if (store) {
     reply = `Perfecto, *${store}*. ¿Qué día puede pasar?`;
   } else {

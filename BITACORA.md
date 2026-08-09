@@ -32,6 +32,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-08-09 | _(este mismo)_ | La fecha se confirma una vez: sin repetir día, local ni descuento | 0.5 |
 | 2026-08-09 | _(este mismo)_ | Hotfix GPT-5.5: tools requieren reasoning none en Chat Completions | 0.5 |
 | 2026-08-09 | _(este mismo)_ | Modalidad eficiente: cumple piezas pedidas, recuerda visita y reduce llamadas sin bajar GPT-5.5 | 4.0 |
 | 2026-08-08 | _(este mismo)_ | El primer mensaje siempre saluda + el eval deja de medir el bot degradado | 2.0 |
@@ -106,6 +107,20 @@ Ya viene activado en este equipo.
 ---
 
 ## Entradas (más reciente primero)
+
+### 2026-08-09 · «Martes 10 am» se registra, no se vuelve a preguntar · ⏱️ 0.5 h
+
+**Qué:** La ruta determinística de visita ahora usa la existencia de una
+cotización aunque el Kanban vaya atrasado. `local_mas_cercano` detecta fecha o
+compromiso ya guardados y devuelve una confirmación corta, sin repetir dirección,
+local, descuento ni la pregunta por el día.
+
+**Por qué:** En un chat real el bot preguntó cuándo vendría a Cumbayá, el cliente
+respondió «Martes 10 am» y la siguiente respuesta volvió a preguntar el día con
+el mismo argumento del descuento. El dato sí estaba en la base; la salida fija
+de la tool lo ignoraba.
+
+---
 
 ### 2026-08-09 · Hotfix: GPT-5.5 vuelve a responder con herramientas · ⏱️ 0.5 h
 
