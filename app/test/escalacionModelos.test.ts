@@ -7,8 +7,8 @@ process.env.OPENAI_API_KEY ||= "test";
 const testDatabase = `autoventa_escalacion_${process.pid}`;
 const admin = postgres("postgresql://manue@localhost/postgres", { prepare: false, max: 1 });
 
-const MODELO_PRINCIPAL = "modelo-principal-test";
-const MODELO_SUPERIOR = "modelo-superior-test";
+const MODELO_PRINCIPAL = "gpt-5.5";
+const MODELO_SUPERIOR = "gpt-5.5-superior-test";
 
 /**
  * ESCALACIÓN A MODELO SUPERIOR (7-ago).
@@ -28,7 +28,7 @@ let stub: Server;
 let puerto = 0;
 
 /** Cada llamada al "OpenAI" stub, en orden. `conTools` distingue el rescate. */
-let llamadas: { model: string; conTools: boolean }[] = [];
+let llamadas: { model: string; conTools: boolean; reasoningEffort?: string }[] = [];
 /** "bucle" = pide herramientas para siempre (agota las rondas); "cierra" = responde ya. */
 let modoStub: "bucle" | "cierra" = "bucle";
 
@@ -91,9 +91,9 @@ describe.sequential("Escalación a modelo superior", () => {
       let body = "";
       req.on("data", (c) => { body += c; });
       req.on("end", () => {
-        const parsed = JSON.parse(body || "{}") as { model?: string; tools?: unknown[] };
+        const parsed = JSON.parse(body || "{}") as { model?: string; tools?: unknown[]; reasoning_effort?: string };
         const conTools = Array.isArray(parsed.tools) && parsed.tools.length > 0;
-        llamadas.push({ model: parsed.model ?? "", conTools });
+        llamadas.push({ model: parsed.model ?? "", conTools, reasoningEffort: parsed.reasoning_effort });
         const pideTool = conTools && modoStub === "bucle";
         const message = pideTool
           ? { role: "assistant", content: null, tool_calls: [{ id: `call_${llamadas.length}`, type: "function", function: { name: "tipos_de_llanta", arguments: "{}" } }] }
@@ -145,6 +145,11 @@ describe.sequential("Escalación a modelo superior", () => {
       const rescates = llamadas.filter((l) => !l.conTools);
       expect(rescates).toHaveLength(1);
       expect(rescates[0].model).toBe(MODELO_SUPERIOR);
+      expect(rescates[0].reasoningEffort).toBe("medium");
+    });
+
+    it("GPT-5.5 con function tools usa reasoning none (contrato real de Chat Completions)", () => {
+      expect(llamadas.filter((l) => l.conTools).every((l) => l.reasoningEffort === "none")).toBe(true);
     });
 
     it("(d) la auditoría registra el modelo que respondió: el escalado, no el de config", async () => {

@@ -19,6 +19,7 @@ import {
 } from "../services/discountOffers.js";
 import { sql } from "../db/client.js";
 import { extractVehicleYear } from "../domain/salesIntent.js";
+import { chatReasoningEffort } from "./aiRequestPolicy.js";
 
 const openai = new OpenAI({ apiKey: config.openai.apiKey });
 
@@ -103,6 +104,7 @@ export async function runAgent(ctx: AgentContext, userText: string): Promise<str
   for (let iteration = 0; iteration < config.openai.maxToolIterations; iteration += 1) {
     modeloUsado = modeloDelTurno(iteration, ctx.conversation.stage);
     const gpt5 = modeloUsado.startsWith("gpt-5");
+    const reasoningEffort = chatReasoningEffort(modeloUsado, tools.length > 0);
     const response = await openai.chat.completions.create({
       model: modeloUsado,
       messages,
@@ -110,7 +112,8 @@ export async function runAgent(ctx: AgentContext, userText: string): Promise<str
       ...(tools.length > 0 ? { parallel_tool_calls: false } : {}),
       max_completion_tokens: config.openai.maxTokens,
       ...(gpt5 ? {
-        reasoning_effort: "low" as const,
+        // Chat Completions de GPT-5.5 solo acepta tools con `none`.
+        reasoning_effort: reasoningEffort!,
         verbosity: "low" as const,
         prompt_cache_retention: "24h" as const,
       } : {}),
@@ -185,6 +188,7 @@ export async function runAgent(ctx: AgentContext, userText: string): Promise<str
   try {
     modeloUsado = config.openai.escalationModel;
     const gpt5 = modeloUsado.startsWith("gpt-5");
+    const reasoningEffort = chatReasoningEffort(modeloUsado, false, true);
     const rescate = await openai.chat.completions.create({
       model: modeloUsado,
       messages: [
@@ -197,7 +201,7 @@ export async function runAgent(ctx: AgentContext, userText: string): Promise<str
       ],
       max_completion_tokens: config.openai.maxTokens,
       ...(gpt5 ? {
-        reasoning_effort: "medium" as const,
+        reasoning_effort: reasoningEffort!,
         verbosity: "low" as const,
         prompt_cache_retention: "24h" as const,
       } : {}),

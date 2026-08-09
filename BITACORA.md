@@ -32,6 +32,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-08-09 | _(este mismo)_ | Hotfix GPT-5.5: tools requieren reasoning none en Chat Completions | 0.5 |
 | 2026-08-09 | _(este mismo)_ | Modalidad eficiente: cumple piezas pedidas, recuerda visita y reduce llamadas sin bajar GPT-5.5 | 4.0 |
 | 2026-08-08 | _(este mismo)_ | El primer mensaje siempre saluda + el eval deja de medir el bot degradado | 2.0 |
 | 2026-08-08 | _(este mismo)_ | Seguimiento y cotización vuelven a poder mostrar llantas (ticket 2150) | 1.5 |
@@ -105,6 +106,19 @@ Ya viene activado en este equipo.
 ---
 
 ## Entradas (más reciente primero)
+
+### 2026-08-09 · Hotfix: GPT-5.5 vuelve a responder con herramientas · ⏱️ 0.5 h
+
+**Qué:** Las llamadas del agente con function tools ahora mandan
+`reasoning_effort: none`; las llamadas sin tools conservan `low` y el rescate
+`medium`. Se añadió una prueba de regresión con la matriz exacta aceptada.
+
+**Por qué:** GPT-5.5 en Chat Completions rechaza tools junto con reasoning `low`
+con HTTP 400. El health seguía verde porque el proceso, catálogo y WhatsApp
+estaban sanos, pero los turnos morían al llegar a OpenAI. Los tickets 2693 y
+2700 permitieron identificar el contrato real de la API.
+
+---
 
 ### 2026-08-09 · Menos tokens sin quitarle el cerebro que sí vende · ⏱️ 4.0 h
 
