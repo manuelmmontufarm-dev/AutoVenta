@@ -275,7 +275,7 @@ describe.sequential("Venta primero — los arreglos de Joaquín", () => {
   });
 
   describe("candado anti-duplicado en la herramienta misma (caso KLEVER)", () => {
-    it("con una cotización vigente por el MISMO pedido, la tool devuelve el número existente sin generar otra", async () => {
+    it("con una cotización vigente por el MISMO pedido, la tool no genera ni repite el número", async () => {
       const [c] = await appSql<{ id: number }[]>`
         insert into conversations (phone, name, stage, tire_size, selected_quantity)
         values ('593995614099', 'KLEVER BIS', 'seleccionando', '225/60R17', 4)
@@ -298,12 +298,40 @@ describe.sequential("Venta primero — los arreglos de Joaquín", () => {
         items: [{ code: "FALKEN-ZE310R-22560R17", cantidad: 4 }],
         nombre_cliente: "KLEVER BIS",
       }));
-      // No genera una segunda: recuerda la vigente, con su número.
-      expect(resultado.mensaje_para_enviar).toContain("COT-VIGENTE1");
+      // No genera una segunda y tampoco vuelve a escribir el número que ya
+      // está visible en la pieza original.
+      expect(resultado.mensaje_para_enviar).not.toContain("COT-VIGENTE1");
       const [conteo] = await appSql<{ n: number }[]>`
         select count(*)::int as n from quotes where conversation_id=${c.id}
       `;
       expect(conteo.n).toBe(1);
+    });
+  });
+
+  describe("INCLUYE aparece una sola vez", () => {
+    it("la primera pieza lo muestra, la siguiente lo omite y un pedido explícito lo habilita", async () => {
+      const [c] = await appSql<{ id: number }[]>`
+        insert into conversations (phone, name, stage)
+        values ('593995614177', 'BENEFICIOS UNA VEZ', 'seleccionando')
+        returning id
+      `;
+      await appSql`
+        insert into benefits (text, position, active)
+        values ('Beneficio prueba única', -100, true)
+      `;
+      const { buildBenefitsBlockOnce, invalidateBenefitsCache } = await import("../src/services/benefits.js");
+      invalidateBenefitsCache();
+
+      const primera = await buildBenefitsBlockOnce(c.id, 1);
+      expect(primera).toContain("*INCLUYE*");
+      expect(primera).toContain("Beneficio prueba única");
+
+      await appSql`
+        insert into messages (conversation_id, role, content, cycle, status)
+        values (${c.id}, 'assistant', ${primera}, 1, 'sent')
+      `;
+      expect(await buildBenefitsBlockOnce(c.id, 1)).toBe("");
+      expect(await buildBenefitsBlockOnce(c.id, 1, {}, true)).toContain("*INCLUYE*");
     });
   });
 

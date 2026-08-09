@@ -44,7 +44,11 @@ import {
   updateConversationFacts,
   type Conversation,
 } from "../services/conversations.js";
-import { applicableBenefitTexts, buildBenefitsBlock } from "../services/benefits.js";
+import {
+  applicableBenefitTexts,
+  buildBenefitsBlockOnce,
+  requestsBenefitsAgain,
+} from "../services/benefits.js";
 import { brandProfilesForRender } from "../services/brandProfiles.js";
 import { getAiConfig, getPiecesConfig } from "../services/settings.js";
 import { researchVehicleFitment } from "../services/vehicleFitmentResearch.js";
@@ -953,9 +957,12 @@ export function buildTools(ctx: AgentContext) {
       // resume — solo los beneficios y el ofrecimiento de recomendar. Si no
       // salió, el cliente recibe el detalle completo en texto: feo, pero nunca
       // se queda sin las opciones.
-      const beneficios = await buildBenefitsBlock({
-        brands: products.map((product) => product.brand),
-      });
+      const beneficios = await buildBenefitsBlockOnce(
+        ctx.conversation.id,
+        ctx.conversation.current_cycle,
+        { brands: products.map((product) => product.brand) },
+        requestsBenefitsAgain(ctx.currentUserText),
+      );
       return JSON.stringify({
         imagen_enviada: visual.ok,
         ...(avisoTipo ? { aviso: avisoTipo } : {}),
@@ -1136,7 +1143,7 @@ export function buildTools(ctx: AgentContext) {
           && lineasPrevias.every((l, i) => l.code === items[i]?.code && l.quantity === items[i]?.cantidad);
         if (mismoPedido) {
           return JSON.stringify({
-            mensaje_para_enviar: `Su cotización *${reciente.quote_number}* sigue vigente por $${Number(reciente.total).toFixed(2)} 👍 Preséntela en la tienda con ese número.\n---\n¿Le queda mejor Cumbayá o Quito Sur para pasar a verlas?`,
+          mensaje_para_enviar: `Su cotización sigue vigente por $${Number(reciente.total).toFixed(2)} 👍\n---\n¿Le queda mejor Cumbayá o Quito Sur para pasar a verlas?`,
           });
         }
       }
@@ -1243,7 +1250,7 @@ export function buildTools(ctx: AgentContext) {
             discountCondition: quote.discountCondition,
             offerExpiresAt: quote.offerExpiresAt,
           }),
-        `Cotización ${quote.number}${quote.offerExpiresAt ? ` · oferta hasta ${quote.offerExpiresAt.toLocaleDateString("es-EC", { timeZone: "America/Guayaquil" })}` : ""} 🏁`,
+        `Cotización lista${quote.offerExpiresAt ? ` · oferta hasta ${quote.offerExpiresAt.toLocaleDateString("es-EC", { timeZone: "America/Guayaquil" })}` : ""} 🏁`,
         imageName,
         `cotización ${quote.number}`,
       );
@@ -1263,7 +1270,7 @@ export function buildTools(ctx: AgentContext) {
             ctx.customerPhone,
             pdf,
             pdfName,
-            `Su cotización ${quote.number} 📄`,
+            "Su cotización 📄",
           );
           pdfEnviado = true;
           if (!visual.ok) {
@@ -1389,10 +1396,12 @@ export function buildTools(ctx: AgentContext) {
                     }
                   : undefined,
               ),
-          await buildBenefitsBlock({
-            brands: [product.brand],
-            quantity: items[0].cantidad,
-          }),
+          await buildBenefitsBlockOnce(
+            ctx.conversation.id,
+            ctx.conversation.current_cycle,
+            { brands: [product.brand], quantity: items[0].cantidad },
+            requestsBenefitsAgain(ctx.currentUserText),
+          ),
           // Local y día en el MISMO bloque: son la misma decisión para el
           // cliente, y separarlos sumaba un cuarto mensaje al turno. Con la
           // cotización enviada, estos dos datos son el objetivo del bot.

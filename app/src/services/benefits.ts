@@ -104,6 +104,39 @@ export async function buildBenefitsBlock(ctx: BenefitContext = {}): Promise<stri
   return ["*INCLUYE*", ...textos.map((texto) => `- ${texto}`)].join("\n");
 }
 
+/**
+ * El bloque comercial se muestra una sola vez por ciclo. La primera pieza
+ * (opciones o cotización) lo presenta; las siguientes ya lo tienen arriba en
+ * el chat y no deben formar otra cadena larga. Solo se repite si el cliente lo
+ * pidió expresamente.
+ */
+export async function buildBenefitsBlockOnce(
+  conversationId: number,
+  cycle: number,
+  ctx: BenefitContext = {},
+  force = false,
+): Promise<string> {
+  if (!force) {
+    const [shown] = await sql<{ id: number }[]>`
+      select id from messages
+      where conversation_id=${conversationId}
+        and cycle=${cycle}
+        and role='assistant'
+        and coalesce(status, 'sent') <> 'failed'
+        and content ~* '(^|\\n)[*]?INCLUYE[*]?(\\s|$)'
+      limit 1
+    `;
+    if (shown) return "";
+  }
+  return buildBenefitsBlock(ctx);
+}
+
+/** Pedido explícito que autoriza volver a mostrar el bloque. */
+export function requestsBenefitsAgain(text: string): boolean {
+  const normalized = text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  return /\bque\s+(?:mas\s+)?incluye(?:n)?\b|\bbeneficios?\b|\bque\s+garantias?\b/.test(normalized);
+}
+
 /** Los mismos beneficios, en lista — es lo que dibuja la pieza de cotización. */
 export async function applicableBenefitTexts(ctx: BenefitContext = {}): Promise<string[]> {
   try {

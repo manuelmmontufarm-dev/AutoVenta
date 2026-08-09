@@ -123,25 +123,12 @@ export function buildVisitPlanQuestion(input: {
 /** Cotización: número, total y vigencia. El desglose ya está en la imagen. */
 export function buildSingleQuoteCaption(
   selection: CatalogQuoteSelection,
-  quoteNumber?: string,
+  _quoteNumber?: string,
   offerDiscount?: { finalTotal: number; condition: string; expiresAt?: Date | null },
 ): string {
   const { product, quantity } = selection;
   const total = offerDiscount?.finalTotal ?? product.minimumPriceWithTax * quantity;
-  const lines = [
-    `Aquí está su cotización${quoteNumber ? ` *${quoteNumber}*` : ""} 👆`,
-    "",
-    `${quantity} × ${product.brand} ${product.design}: ${money(total)} (${money(product.minimumPriceWithTax)} c/u, IVA incluido).`,
-  ];
-  if (offerDiscount) {
-    lines.push(
-      `El descuento extra aplica si ${offerDiscount.condition}${
-        offerDiscount.expiresAt ? `, hasta el ${shortDate(offerDiscount.expiresAt)}` : ""
-      }.`,
-    );
-  }
-  if (quoteNumber) lines.push(`Presente el número *${quoteNumber}* en la tienda.`);
-  return lines.join("\n");
+  return `${quantity} × ${product.brand} ${product.design}`.toLocaleUpperCase("es-EC") + `: ${money(total)}`;
 }
 
 /** Comparativa: una línea por modelo con la diferencia práctica, no la ficha. */
@@ -348,14 +335,6 @@ function brandEmoji(brand: string): string {
   if (normalized.includes("kenda")) return "🔴";
   if (normalized.includes("winrun")) return "🟢";
   return "⚫";
-}
-
-function shortDate(value: Date): string {
-  return new Intl.DateTimeFormat("es-EC", {
-    day: "2-digit",
-    month: "2-digit",
-    timeZone: "America/Guayaquil",
-  }).format(value);
 }
 
 function dateLabel(): string {

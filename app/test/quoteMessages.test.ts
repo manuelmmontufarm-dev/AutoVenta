@@ -121,6 +121,15 @@ describe("formato WhatsApp: la imagen es el mensaje", () => {
     for (const caption of captions) expect(lineas(caption)).toBeLessThanOrEqual(5);
   });
 
+  it("después de la foto de cotización solo resume cantidad, modelo y total", () => {
+    const caption = qm.buildSingleQuoteCaption(
+      { product: producto({ brand: "Falken", design: "Wildpeak A/T Trail", minimumPriceWithTax: 202.87 }), quantity: 4 },
+      "COT-MSKPHG6R",
+    );
+    expect(caption).toBe("4 × FALKEN WILDPEAK A/T TRAIL: $811,48");
+    expect(caption).not.toMatch(/COT-|c\/u|IVA|Presente|Aquí está/i);
+  });
+
   // Joaquín, 6-ago, viendo un chat real: «este mensaje le quitaría porque se
   // vuelve una cadena muy larga y los mijines ya no leen». El preámbulo con la
   // recomendación desapareció; el turno cierra ofreciéndola.
@@ -197,5 +206,11 @@ describe("bloque INCLUYE", () => {
     expect(benefits.applicableBenefits(lista, { brands: ["Kenda"], store: "Quito Sur" })).toHaveLength(0);
     expect(benefits.applicableBenefits(lista, { brands: ["Falken"] }).map((b) => b.id)).toEqual([1]);
     expect(benefits.applicableBenefits(lista, { store: "cumbayá" }).map((b) => b.id)).toEqual([2]);
+  });
+
+  it("solo autoriza repetirlo cuando el cliente lo pide", () => {
+    expect(benefits.requestsBenefitsAgain("¿Qué incluye la cotización?")).toBe(true);
+    expect(benefits.requestsBenefitsAgain("¿Qué garantías tiene?")).toBe(true);
+    expect(benefits.requestsBenefitsAgain("Mándeme otra cotización")).toBe(false);
   });
 });

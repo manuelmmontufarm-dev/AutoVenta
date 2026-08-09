@@ -32,6 +32,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-08-09 | _(este mismo)_ | Cotización sin eco: INCLUYE una vez y texto reducido a modelo + total | 0.5 |
 | 2026-08-09 | _(este mismo)_ | Primer saludo inteligente: medida primero, pero también vehículo, aro y uso | 0.5 |
 | 2026-08-09 | _(este mismo)_ | La fecha se confirma una vez: sin repetir día, local ni descuento | 0.5 |
 | 2026-08-09 | _(este mismo)_ | Hotfix GPT-5.5: tools requieren reasoning none en Chat Completions | 0.5 |
@@ -103,11 +104,27 @@ Ya viene activado en este equipo.
 | 2026-07-14 | ac09171 | Ubicaciones de locales + análisis de features del cliente | 1.5 |
 | 2026-07-13 | feadf57 | Brief + plan de desarrollo + plan financiero + catálogo | 4.0 |
 | 2026-07-13 | d997844 | Commit inicial (repo) | 0.25 |
-| | | **TOTAL** | **~92.0 h** |
+| | | **TOTAL** | **~92.5 h** |
 
 ---
 
 ## Entradas (más reciente primero)
+
+### 2026-08-09 · La foto habla; el texto deja de repetirla · ⏱️ 0.5 h
+
+**Qué:** El bloque *INCLUYE* ahora aparece únicamente con la primera pieza del
+ciclo y solo se habilita otra vez si el cliente pregunta por beneficios o
+garantías. Después de una cotización visual, el texto queda reducido a cantidad,
+modelo y total. El número, precio unitario, IVA e instrucciones de tienda ya no
+se duplican: el código queda una sola vez, dentro de la pieza. Al reenviar, el
+bot solo confirma que volvió a mandar la cotización.
+
+**Por qué:** La imagen ya contiene toda la ficha y el número de cotización. El
+texto anterior repetía esa misma información hasta tres veces y convertía cada
+avance en una cadena larga. El resumen corto conserva el dato decisivo —el total—
+sin obligar al cliente a leer dos versiones de la misma cotización.
+
+---
 
 ### 2026-08-09 · El bot muestra desde el saludo que sí sabe asesorar · ⏱️ 0.5 h
 

@@ -113,7 +113,7 @@ export async function resendLatestQuoteImage(
     conversationId,
     phone,
     png,
-    `Aquí está de nuevo su cotización ${quote.quote_number} 🏁`,
+    "Aquí está de nuevo su cotización 🏁",
     filename,
   );
   await appendMessage(conversationId, "assistant", `Cotización ${quote.quote_number} reenviada`, providerId, {
@@ -131,7 +131,7 @@ export async function resendLatestQuoteImage(
     providerId,
   });
   await logFunnelEvent(conversationId, "respuesta_directa", { route: "quote_resend" });
-  return `Aquí está de nuevo su cotización *${quote.quote_number}* por $${Number(quote.total).toFixed(2)}.`;
+  return "Se la envié nuevamente 👆";
 }
 
 function visitDateText(value: Date | null): string | null {
