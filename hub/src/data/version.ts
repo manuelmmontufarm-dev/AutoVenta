@@ -9,7 +9,7 @@
  * responde el servidor no coincide con este, el panel avisa: significa que una
  * mitad se desplegó y la otra no.
  */
-export const VERSION = "v0.12.0";
+export const VERSION = "v0.12.1";
 
 /** SHA corto del commit con el que se compiló este panel. */
 export const COMMIT: string =
@@ -24,6 +24,16 @@ export interface Cambio {
 
 /** Más reciente primero. Cada entrada es lo que el negocio nota, no el diff. */
 export const CAMBIOS: Cambio[] = [
+  {
+    version: "v0.12.1",
+    fecha: "9 de agosto de 2026",
+    titulo: "Responder desde la baraja ahora es una pantalla completa",
+    puntos: [
+      "Tocar \"Responder\" en la baraja abre el chat a pantalla completa, como una app de mensajes: la conversación ocupa todo, el teclado no tapa nada y el campo queda listo para escribir.",
+      "Al enviar, el chat pasa automáticamente a ustedes y el bot se pausa; el botón de arriba lo devuelve al bot cuando terminen.",
+      "Arreglado el 'zoom fantasma' del celular: las animaciones ya no agrandan la pantalla hasta recargar.",
+    ],
+  },
   {
     version: "v0.12.0",
     fecha: "9 de agosto de 2026",

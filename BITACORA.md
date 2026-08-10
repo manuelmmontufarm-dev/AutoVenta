@@ -32,6 +32,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-08-09 | _(este mismo)_ | Chat de la baraja a pantalla completa + fix del zoom fantasma en móvil | 1.0 |
 | 2026-08-09 | _(este mismo)_ | Oportunidades reorganizado: cuadrícula de cotizados, baraja swipe y "Para después" + 6 tabs en móvil | 3.0 |
 | 2026-08-09 | _(este mismo)_ | Cotización sin eco: INCLUYE una vez y texto reducido a modelo + total | 0.5 |
 | 2026-08-09 | _(este mismo)_ | Primer saludo inteligente: medida primero, pero también vehículo, aro y uso | 0.5 |
@@ -110,6 +111,29 @@ Ya viene activado en este equipo.
 ---
 
 ## Entradas (más reciente primero)
+
+### 2026-08-09 · Chat de la baraja a pantalla completa + fix del zoom fantasma · ⏱️ 1.0 h
+
+**Qué:** Responder desde la baraja ya no se hace dentro de la tarjeta: tocar
+"Responder a …" abre un chat a pantalla completa (slide-up estilo app de
+mensajes) con cabecera compacta (volver · cliente · monto · medida · chip
+bot/ustedes), la conversación a todo el alto y el composer siempre visible
+encima del teclado. El alto sigue a `visualViewport` (en iOS el teclado no
+encoge `dvh`) y en Android el meta `interactive-widget=resizes-content` hace
+que el teclado achique el viewport en vez de taparlo; el input usa 16px en
+móvil para que iOS no haga zoom al enfocar, `enterKeyHint="send"`, autofocus y
+se re-enfoca tras enviar para encadenar mensajes. Al enviar, el chat pasa a
+"ustedes" y el bot se pausa (handoff del backend); un toque lo devuelve al bot.
+Además: `overflow-x: clip` en `html`/`body` — las tarjetas que salían volando
+a ±420px expandían el layout viewport del celular y TODO el panel quedaba
+"zoomeado" hasta recargar.
+
+**Por qué:** escribir dentro de una tarjeta arrastrable, con el teclado encima
+y tres franjas de UI compitiendo, era ilegible — Manuel: "se abre y medio que
+es difícil leer y se siente raro". La tarjeta es para decidir; escribir merece
+su propia pantalla, como en Tinder o WhatsApp.
+
+---
 
 ### 2026-08-09 · Oportunidades reorganizado: cuadrícula, baraja swipe y "Para después" · ⏱️ 3.0 h
 

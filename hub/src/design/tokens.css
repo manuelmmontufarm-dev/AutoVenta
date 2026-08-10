@@ -72,8 +72,21 @@ body,
   height: 100%;
 }
 
+/* En el raíz, no solo en body: en móvil cualquier cosa que asome por el borde
+   (decorados, tarjetas animadas) expande el layout viewport y el panel entero
+   queda "zoomeado" hasta recargar. clip y no hidden: hidden crearía un
+   scroll container y rompería position: sticky. */
+html {
+  overflow-x: clip;
+}
+
 body {
   margin: 0;
+  /* clip, no hidden: hidden crea scroll container y rompe position:sticky.
+     Sin esto, una animación que saque algo del borde (la tarjeta de la baraja
+     volando a ±420px) expande el layout viewport en móvil y TODO el panel
+     queda "zoomeado" hasta recargar. */
+  overflow-x: clip;
   color: var(--color-paper);
   /* Carbón cálido con orbes aurora muy tenues (violeta / cian / magenta) */
   background:

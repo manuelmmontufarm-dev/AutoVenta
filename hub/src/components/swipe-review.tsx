@@ -1,12 +1,12 @@
 import { AnimatePresence, motion, useMotionValue, useTransform } from "framer-motion";
-import { useEffect, useMemo, useState } from "react";
-import type { Ticket } from "../data/types";
+import { useEffect, useMemo, useRef, useState } from "react";
+import type { Mensaje, Ticket } from "../data/types";
 import { ETAPA_META } from "../data/types";
 import { etiquetaVisita, money, relTime } from "../lib/format";
 import { navigate } from "../router";
 import { useHub, useNow } from "../store";
-import { ChatBubble, Composer } from "./chat";
-import { IconBot, IconChevronR, IconUser, IconX } from "./icons";
+import { ChatBubble } from "./chat";
+import { IconBack, IconBot, IconChevronR, IconSend, IconUser, IconX } from "./icons";
 
 /**
  * Revisión uno-por-uno estilo baraja: el asesor decide el destino de cada
@@ -18,6 +18,10 @@ import { IconBot, IconChevronR, IconUser, IconX } from "./icons";
  * Funciona con drag (móvil y mouse), con los botones de abajo y con las
  * flechas del teclado. Toda decisión pide un segundo toque: un swipe
  * accidental no puede cerrar una venta.
+ *
+ * Responder abre un chat A PANTALLA COMPLETA (ver ChatFullScreen): la tarjeta
+ * es para decidir; escribir merece su propia pantalla, como en cualquier app
+ * de mensajes.
  */
 
 export interface SwipeItem {
@@ -39,6 +43,10 @@ export function SwipeReview({ titulo, items, onClose }: { titulo: string; items:
   const [decision, setDecision] = useState<Decision>(null);
   const [saliendo, setSaliendo] = useState<"izq" | "der" | null>(null);
   const [ocupado, setOcupado] = useState(false);
+  // Chat a pantalla completa. Vive AQUÍ y no dentro de la tarjeta: la tarjeta
+  // lleva transform (drag/rotación) y un `fixed` adentro quedaría anclado a
+  // ella en vez de a la pantalla.
+  const [escribiendo, setEscribiendo] = useState(false);
 
   const item = items[index];
   const ticket: Ticket | undefined = useMemo(
@@ -55,13 +63,17 @@ export function SwipeReview({ titulo, items, onClose }: { titulo: string; items:
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      if (escribiendo) {
+        if (e.key === "Escape") setEscribiendo(false);
+        return; // escribiendo, las flechas no deciden nada
+      }
       if (e.key === "ArrowLeft") setDecision("perdida");
       if (e.key === "ArrowRight") setDecision("derecha");
       if (e.key === "Escape") onClose();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
+  }, [onClose, escribiendo]);
 
   async function ejecutar(accion: "perdida" | "ganada" | "despues" | "saltar") {
     if (!item || ocupado) return;
@@ -76,6 +88,7 @@ export function SwipeReview({ titulo, items, onClose }: { titulo: string; items:
       // Saltar no es una decisión: se desvanece neutro, sin sello de ganada.
       setSaliendo(accion === "perdida" ? "izq" : accion === "saltar" ? null : "der");
       setDecision(null);
+      setEscribiendo(false);
       // Deja que la tarjeta vuele fuera antes de traer la siguiente.
       setTimeout(() => {
         setSaliendo(null);
@@ -91,8 +104,12 @@ export function SwipeReview({ titulo, items, onClose }: { titulo: string; items:
 
   return (
     <motion.div
-      className="fixed inset-0 z-100 flex flex-col"
-      style={{ background: "var(--color-scrim)", backdropFilter: "blur(10px)" }}
+      // overflow-hidden: la tarjeta sale volando a ±420px y sin el clip ese
+      // vuelo agranda el layout viewport del celular (el panel queda zoomeado).
+      className="fixed inset-x-0 top-0 z-100 flex flex-col overflow-hidden"
+      // 100dvh y no inset-0: en el celular el teclado cambia el alto visible
+      // y dvh lo sigue; 100vh clásico deja el composer debajo del teclado.
+      style={{ height: "100dvh", background: "var(--color-scrim)", backdropFilter: "blur(10px)" }}
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
@@ -142,8 +159,7 @@ export function SwipeReview({ titulo, items, onClose }: { titulo: string; items:
               ocupado={ocupado}
               onDecidir={setDecision}
               onEjecutar={ejecutar}
-              onToggleAtiende={() => void setAtiende(ticket.id, ticket.atiende === "bot" ? "humano" : "bot")}
-              onEnviar={(texto) => void enviarMensaje(ticket.id, texto)}
+              onEscribir={() => setEscribiendo(true)}
             />
           </AnimatePresence>
         )}
@@ -151,7 +167,7 @@ export function SwipeReview({ titulo, items, onClose }: { titulo: string; items:
 
       {/* Controles (siempre visibles: en desktop nadie adivina que hay que arrastrar) */}
       {!terminado && ticket && (
-        <div className="mx-auto flex w-full max-w-lg items-center justify-center gap-3 px-4 pb-5">
+        <div className="mx-auto flex w-full max-w-lg items-center justify-center gap-3 px-4 pb-5" style={{ paddingBottom: "max(1.25rem, env(safe-area-inset-bottom))" }}>
           <button
             disabled={ocupado}
             onClick={() => setDecision("perdida")}
@@ -177,25 +193,38 @@ export function SwipeReview({ titulo, items, onClose }: { titulo: string; items:
           </button>
         </div>
       )}
+
+      {/* Chat a pantalla completa (fuera de la tarjeta: sin transform arriba) */}
+      <AnimatePresence>
+        {escribiendo && ticket && (
+          <ChatFullScreen
+            ticket={ticket}
+            mensajesTicket={mensajes[ticket.id] ?? []}
+            now={now}
+            onCerrar={() => setEscribiendo(false)}
+            onEnviar={(texto) => void enviarMensaje(ticket.id, texto)}
+            onToggleAtiende={() => void setAtiende(ticket.id, ticket.atiende === "bot" ? "humano" : "bot")}
+          />
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 }
 
 function SwipeCard({
   ticket, motivo, mensajesTicket, now, saliendo, decision, ocupado,
-  onDecidir, onEjecutar, onToggleAtiende, onEnviar,
+  onDecidir, onEjecutar, onEscribir,
 }: {
   ticket: Ticket;
   motivo: string;
-  mensajesTicket: import("../data/types").Mensaje[];
+  mensajesTicket: Mensaje[];
   now: number;
   saliendo: "izq" | "der" | null;
   decision: Decision;
   ocupado: boolean;
   onDecidir: (d: Decision) => void;
   onEjecutar: (a: "perdida" | "ganada" | "despues" | "saltar") => void;
-  onToggleAtiende: () => void;
-  onEnviar: (texto: string) => void;
+  onEscribir: () => void;
 }) {
   const x = useMotionValue(0);
   const rotate = useTransform(x, [-260, 260], [-7, 7]);
@@ -270,29 +299,33 @@ function SwipeCard({
         {llanta && <p className="mt-1.5 truncate text-[10.5px] text-muted">🛞 {llanta}</p>}
       </div>
 
-      {/* Conversación */}
+      {/* Conversación (vista previa — para escribir se abre a pantalla completa) */}
       <div className="chat-bg min-h-0 flex-1 space-y-2 overflow-y-auto px-3 py-3" ref={(el) => { el?.scrollTo({ top: el.scrollHeight }); }}>
         {ultimos.length === 0
           ? <p className="pt-8 text-center text-[11px] text-faint">Cargando conversación…</p>
           : ultimos.map((m) => <ChatBubble key={m.id} msg={m} />)}
       </div>
 
-      {/* Quién contesta + composer: escribir sin salir de la baraja */}
-      <div className="border-t border-paper/[.07]">
-        <div className="flex items-center justify-between px-3 pt-2">
-          <p className="text-[10px] font-bold text-faint uppercase tracking-wider">Responder</p>
-          <button
-            onClick={onToggleAtiende}
-            className="flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-black"
+      {/* Responder: un toque abre el chat a pantalla completa, estilo Tinder.
+          Escribir dentro de una tarjeta arrastrable con el teclado encima era
+          ilegible; mejor una pantalla dedicada. */}
+      <div className="border-t border-paper/[.07] px-3 py-2.5" style={{ paddingBottom: "max(0.625rem, env(safe-area-inset-bottom))" }}>
+        <button
+          onClick={onEscribir}
+          className="gp-field flex w-full items-center gap-2 rounded-full px-4 py-2.5 text-left"
+        >
+          <span className="min-w-0 flex-1 truncate text-[13px] text-faint">
+            Responder a {ticket.nombre?.split(" ")[0] ?? "este cliente"}…
+          </span>
+          <span
+            className="flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-[9.5px] font-black"
             style={ticket.atiende === "bot"
               ? { background: "color-mix(in srgb, var(--color-violet) 14%, transparent)", color: "var(--color-violet)" }
               : { background: "color-mix(in srgb, var(--color-lime) 12%, transparent)", color: "var(--color-lime)" }}
-            title={ticket.atiende === "bot" ? "El bot responde. Toca para tomar el chat." : "Ustedes responden. Toca para devolvérselo al bot."}
           >
-            {ticket.atiende === "bot" ? <><IconBot size={11} /> Bot responde — tomar chat</> : <><IconUser size={11} /> Atienden ustedes — devolver al bot</>}
-          </button>
-        </div>
-        <Composer ticket={ticket} onEnviar={onEnviar} />
+            {ticket.atiende === "bot" ? <><IconBot size={10} /> bot</> : <><IconUser size={10} /> ustedes</>}
+          </span>
+        </button>
       </div>
 
       {/* Confirmación: un swipe no cierra nada solo */}
@@ -354,6 +387,142 @@ function SwipeCard({
           </motion.div>
         )}
       </AnimatePresence>
+    </motion.div>
+  );
+}
+
+/**
+ * El chat de la baraja a pantalla completa — la experiencia de escribir.
+ *
+ * Por qué existe: escribir dentro de la tarjeta era malo de verdad — el
+ * teclado tapaba el composer, la tarjeta seguía siendo arrastrable bajo el
+ * dedo y quedaban tres franjas de UI compitiendo. Aquí la conversación ocupa
+ * TODO el alto visible real (visualViewport: lo que el teclado deja libre,
+ * también en iOS donde dvh no se encoge), el input enfoca solo y el scroll se
+ * pega abajo cuando el teclado sube o llega mensaje.
+ */
+function ChatFullScreen({
+  ticket, mensajesTicket, now, onCerrar, onEnviar, onToggleAtiende,
+}: {
+  ticket: Ticket;
+  mensajesTicket: Mensaje[];
+  now: number;
+  onCerrar: () => void;
+  onEnviar: (texto: string) => void;
+  onToggleAtiende: () => void;
+}) {
+  const [texto, setTexto] = useState("");
+  const [alto, setAlto] = useState<number | null>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const abajo = (suave = false) => {
+    const el = scrollRef.current;
+    if (el) el.scrollTo({ top: el.scrollHeight, behavior: suave ? "smooth" : "auto" });
+  };
+
+  // El alto = lo que el teclado deja libre. En Android (resizes-content) el
+  // dvh ya lo hace; en iOS el teclado NO encoge dvh y sin esto el composer
+  // queda escondido detrás del teclado.
+  useEffect(() => {
+    const vv = window.visualViewport;
+    if (!vv) return;
+    const sync = () => {
+      setAlto(vv.height);
+      requestAnimationFrame(() => abajo());
+    };
+    sync();
+    vv.addEventListener("resize", sync);
+    return () => vv.removeEventListener("resize", sync);
+  }, []);
+
+  // Mensaje nuevo (del cliente o el enviado) → pegado abajo, como WhatsApp.
+  useEffect(() => { abajo(true); }, [mensajesTicket.length]);
+
+  function enviar() {
+    const limpio = texto.trim();
+    if (!limpio) return;
+    onEnviar(limpio);
+    setTexto("");
+    inputRef.current?.focus(); // el teclado no se cierra entre mensajes
+  }
+
+  return (
+    <motion.div
+      className="fixed inset-x-0 top-0 z-110 flex flex-col"
+      style={{ height: alto ? `${alto}px` : "100dvh", background: "var(--color-ink, #14213d)" }}
+      initial={{ y: "100%" }}
+      animate={{ y: 0 }}
+      exit={{ y: "100%" }}
+      transition={{ type: "spring", stiffness: 380, damping: 38 }}
+    >
+      {/* Cabecera compacta: volver + quién es + cuánto hay en juego */}
+      <div className="glass-strong flex items-center gap-2 px-2 py-2">
+        <button
+          onClick={onCerrar}
+          aria-label="Volver a la tarjeta"
+          className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-muted hover:text-paper"
+        >
+          <IconBack size={18} />
+        </button>
+        <button onClick={() => navigate(`ticket/${ticket.id}`)} className="min-w-0 flex-1 text-left">
+          <p className="truncate text-[13.5px] font-black">{ticket.nombre ?? ticket.telefono}</p>
+          <p className="truncate text-[10px] text-faint">
+            {ETAPA_META[ticket.etapa].corto}
+            {ticket.cotizacion ? ` · ${money(ticket.cotizacion.total)}` : ""}
+            {ticket.medida ? ` · ${ticket.medida}` : ""} · {relTime(ticket.ultimaActividad, now)}
+          </p>
+        </button>
+        <button
+          onClick={onToggleAtiende}
+          className="flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1.5 text-[10px] font-black"
+          style={ticket.atiende === "bot"
+            ? { background: "color-mix(in srgb, var(--color-violet) 14%, transparent)", color: "var(--color-violet)" }
+            : { background: "color-mix(in srgb, var(--color-lime) 12%, transparent)", color: "var(--color-lime)" }}
+          title={ticket.atiende === "bot" ? "El bot responde. Toca para tomar el chat." : "Ustedes responden. Toca para devolvérselo al bot."}
+        >
+          {ticket.atiende === "bot" ? <><IconBot size={11} /> Bot</> : <><IconUser size={11} /> Ustedes</>}
+        </button>
+      </div>
+
+      {/* Conversación a todo el alto */}
+      <div ref={scrollRef} className="chat-bg min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain px-3 py-3">
+        {mensajesTicket.length === 0
+          ? <p className="pt-8 text-center text-[11px] text-faint">Cargando conversación…</p>
+          : mensajesTicket.map((m) => <ChatBubble key={m.id} msg={m} />)}
+      </div>
+
+      {/* Composer: siempre visible encima del teclado */}
+      <div className="glass-strong px-3 pt-2" style={{ paddingBottom: "max(0.625rem, env(safe-area-inset-bottom))" }}>
+        {ticket.atiende === "bot" && (
+          <p className="mb-1.5 text-center text-[9.5px] text-faint">
+            El bot sigue atendiendo — al enviar, el chat pasa a ustedes y el bot se pausa
+          </p>
+        )}
+        <div className="flex items-center gap-2">
+          <input
+            ref={inputRef}
+            autoFocus
+            value={texto}
+            onChange={(e) => setTexto(e.target.value)}
+            onKeyDown={(e) => {
+              if ((e.key === "Enter" || e.key === "Return") && !e.nativeEvent.isComposing) enviar();
+            }}
+            enterKeyHint="send"
+            placeholder="Escribe como vendedor…"
+            className="gp-field min-w-0 flex-1 rounded-full px-4 py-2.5 text-[16px] placeholder:text-faint sm:text-[13.5px]"
+          />
+          <motion.button
+            whileTap={{ scale: 0.88 }}
+            onClick={enviar}
+            disabled={!texto.trim()}
+            className="btn-aurora grid h-10 w-10 shrink-0 place-items-center rounded-full transition-opacity disabled:opacity-35"
+            aria-label="Enviar"
+          >
+            <IconSend size={17} />
+          </motion.button>
+        </div>
+      </div>
     </motion.div>
   );
 }
