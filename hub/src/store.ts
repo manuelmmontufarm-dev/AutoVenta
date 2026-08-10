@@ -91,29 +91,112 @@ interface HubState {
 let toastId = 1;
 let iniciado = false;
 
+/**
+ * Las fases se recuerdan entre sesiones.
+ *
+ * Deciden qué pestañas existen. Si `/api/phases` tarda o se pierde —Railway
+ * degradado, 9-ago— el panel arrancaba mostrando 3 pestañas y sin
+ * Oportunidades: media aplicación desaparecida, sin aviso. Arrancar con lo
+ * último que se supo y corregir cuando el servidor conteste evita ese hueco;
+ * si el negocio de verdad cambió de fase, la respuesta manda y se ajusta solo.
+ */
+const PHASES_KEY = "autoventa_phases";
+const PHASES_CONSERVADORAS: PhaseFlags = { fase2: false, fase3: false, fase4: false };
+
+function phasesRecordadas(): PhaseFlags {
+  try {
+    const crudo = window.localStorage.getItem(PHASES_KEY);
+    if (!crudo) return PHASES_CONSERVADORAS;
+    const v = JSON.parse(crudo) as Partial<PhaseFlags>;
+    return {
+      fase2: v.fase2 === true,
+      fase3: v.fase3 === true,
+      fase4: v.fase4 === true,
+    };
+  } catch {
+    return PHASES_CONSERVADORAS;
+  }
+}
+
+function recordarPhases(phases: PhaseFlags): void {
+  try {
+    window.localStorage.setItem(PHASES_KEY, JSON.stringify(phases));
+  } catch {
+    // Modo privado o storage lleno: se sigue sin memoria, no es fatal.
+  }
+}
+
 /** Un fallo de lectura es "clave mala" o "servidor caído" — nunca silencio. */
 function clasificarFallo(error: unknown): EstadoConexion {
   return error instanceof AdminKeyError ? "clave-invalida" : "sin-conexion";
 }
 
 export const useHub = create<HubState>((set, get) => {
+  /**
+   * Recarga todo, pero cada cosa por su cuenta.
+   *
+   * Antes era un `Promise.all` de ocho: si UNA fallaba, se perdían las ocho y
+   * el panel se declaraba sin conexión. Con Railway degradado (9-ago) eso
+   * significaba pantallas en blanco y pestañas que desaparecían aunque el
+   * servidor estuviera contestando el 70 % de las veces. Ahora lo que llega se
+   * pinta, y lo que no, se queda como estaba hasta el próximo intento.
+   */
   async function refrescar(): Promise<void> {
-    try {
-      const [tickets, feed, metrics, finalStage, followUps, alerts, phases, power] = await Promise.all([
-        source.listTickets(),
-        source.getFeed(),
-        source.getMetrics(),
-        source.getFinalStage(),
-        source.listFollowUps(),
-        source.listAlerts(),
-        source.getPhases(),
-        source.getBotPower(),
-      ]);
-      set({ tickets, feed, metrics, finalStage, followUps, alerts, phases, power, conexion: "conectada" });
-      updateFavicon(tickets.filter((t) => t.estado === "abierto").length);
-    } catch (error) {
-      set({ conexion: clasificarFallo(error) });
+    // Las tres salen a la vez; se esperan por separado a propósito.
+    const pTickets = source.listTickets();
+    const pPhases = source.getPhases();
+    const pPower = source.getBotPower();
+
+    // Los tickets SON la pantalla: en cuanto llegan se pinta y se acaba el
+    // skeleton, sin esperar a `phases` (que decide pestañas, no contenido).
+    // Antes se esperaba a las tres y una petición perdida dejaba el panel gris
+    // veinte segundos con los datos ya en memoria.
+    const rTickets = await pTickets.then(
+      (value) => ({ ok: true as const, value }),
+      (reason: unknown) => ({ ok: false as const, reason }),
+    );
+    if (rTickets.ok) {
+      set({ tickets: rTickets.value, cargando: false, conexion: "conectada" });
+      updateFavicon(rTickets.value.filter((t) => t.estado === "abierto").length);
     }
+
+    const [rPhases, rPower] = await Promise.allSettled([pPhases, pPower]);
+    const parcial: Partial<HubState> = {};
+    if (rPhases.status === "fulfilled") {
+      parcial.phases = rPhases.value;
+      recordarPhases(rPhases.value);
+    }
+    if (rPower.status === "fulfilled") parcial.power = rPower.value;
+
+    const fallos = [
+      rTickets.ok ? null : rTickets.reason,
+      rPhases.status === "rejected" ? rPhases.reason : null,
+      rPower.status === "rejected" ? rPower.reason : null,
+    ];
+    // Solo se declara caída si NADA crítico llegó: media respuesta es mejor
+    // que el portón de "sin conexión" tapando un panel que sí funciona.
+    const todasFallaron = fallos.every((f) => f !== null);
+    const claveMala = fallos.some((f) => f !== null && clasificarFallo(f) === "clave-invalida");
+    parcial.conexion = claveMala ? "clave-invalida" : todasFallaron ? "sin-conexion" : "conectada";
+    parcial.cargando = false;
+    set(parcial);
+    if (claveMala || todasFallaron) return;
+
+    // Lo secundario llena la pantalla cuando pueda; que falle no rompe nada.
+    const extras = await Promise.allSettled([
+      source.getFeed(),
+      source.getMetrics(),
+      source.getFinalStage(),
+      source.listFollowUps(),
+      source.listAlerts(),
+    ]);
+    const resto: Partial<HubState> = {};
+    if (extras[0].status === "fulfilled") resto.feed = extras[0].value;
+    if (extras[1].status === "fulfilled") resto.metrics = extras[1].value;
+    if (extras[2].status === "fulfilled") resto.finalStage = extras[2].value;
+    if (extras[3].status === "fulfilled") resto.followUps = extras[3].value;
+    if (extras[4].status === "fulfilled") resto.alerts = extras[4].value;
+    set(resto);
   }
 
   async function refrescarMensajes(ticketId: number): Promise<void> {
@@ -173,8 +256,8 @@ export const useHub = create<HubState>((set, get) => {
     demo: false,
     dataMode,
     celebrando: false,
-    // Conservador hasta cargar: no revela pantallas que deban estar ocultas.
-    phases: { fase2: false, fase3: false, fase4: false },
+    // Lo último que se supo (o nada, en el primer arranque): ver [[phasesRecordadas]].
+    phases: phasesRecordadas(),
     // Se asume encendido hasta saberlo: durante el medio segundo de carga es
     // preferible no gritar "apagado" en un bot que sí está trabajando.
     power: { activo: true, apagadoAt: null, motivo: "" },
@@ -183,21 +266,16 @@ export const useHub = create<HubState>((set, get) => {
     /** Recarga tickets y métricas. La usa el Pipeline tras poner el tablero al día. */
     refrescar,
 
+    /**
+     * Arranque. `refrescar` ya trae lo crítico primero y tolera caídas
+     * parciales, así que aquí solo se acompaña con el mínimo de skeleton para
+     * que la carga se sienta intencional y no rota.
+     */
     async init() {
       if (iniciado) return;
       iniciado = true;
-      try {
-        // Mínimo de skeleton para que la carga se sienta intencional, no rota.
-        const [datos] = await Promise.all([
-          Promise.all([source.listTickets(), source.getFeed(), source.getMetrics(), source.getFinalStage(), source.listFollowUps(), source.listAlerts(), source.getPhases(), source.getBotPower()]),
-          new Promise((r) => setTimeout(r, 650)),
-        ]);
-        set({ tickets: datos[0], feed: datos[1], metrics: datos[2], finalStage: datos[3], followUps: datos[4], alerts: datos[5], phases: datos[6], power: datos[7], cargando: false, conexion: "conectada" });
-        updateFavicon(datos[0].filter((t) => t.estado === "abierto").length);
-      } catch (error) {
-        // Sin toast: el gate de conexión ocupa la pantalla y explica qué pasó.
-        set({ cargando: false, conexion: clasificarFallo(error) });
-      }
+      await Promise.all([refrescar(), new Promise((r) => setTimeout(r, 650))]);
+      set({ cargando: false });
     },
 
     async abrirTicket(id) {

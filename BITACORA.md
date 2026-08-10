@@ -32,6 +32,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-08-09 | _(este mismo)_ | El panel sobrevive a Railway degradado: reintentos, carga por partes y fases recordadas | 1.5 |
 | 2026-08-09 | _(este mismo)_ | PWA instalable (sin barra de Safari) + composer pegado al teclado | 0.5 |
 | 2026-08-09 | _(este mismo)_ | Chat de baraja calzado al teclado de iPhone + decidir desde el chat + kanban móvil por botón | 1.5 |
 | 2026-08-09 | _(este mismo)_ | Chat de la baraja a pantalla completa + fix del zoom fantasma en móvil | 1.0 |
@@ -114,6 +115,42 @@ Ya viene activado en este equipo.
 ---
 
 ## Entradas (más reciente primero)
+
+### 2026-08-09 · El panel sobrevive a Railway degradado · ⏱️ 1.5 h
+
+**Qué:** Noche de 502 y cuelgues intermitentes (~30 % de las peticiones no
+respondían nunca; le pasaba igual a Jardín Express, otro proyecto Railway → la
+plataforma, no el código). El panel no estaba preparado: **una** petición
+perdida lo dejaba roto y sin avisar. Cuatro cambios:
+
+1. **Reintentos con corte** (`realSource.request`): las lecturas (GET) cortan a
+   los 9 s y se reintentan hasta 3 veces con espera creciente; escribir NO se
+   reintenta (reenviar un POST podría mandarle dos mensajes al mismo cliente) y
+   una clave inválida nunca reintenta.
+2. **Carga por partes** (`store.refrescar`): era un `Promise.all` de ocho — si
+   una fallaba se perdían las ocho y el panel se declaraba sin conexión. Ahora
+   los tickets se pintan apenas llegan, phases/power van por su lado, y lo
+   secundario (feed, métricas, seguimientos, alertas) rellena después. Solo se
+   muestra el portón de "sin conexión" si NO llegó nada.
+3. **Fases recordadas** en `localStorage`: deciden qué pestañas existen, así que
+   perder `/api/phases` borraba Oportunidades, Cotizador y Métricas de la barra.
+   Ahora arranca con lo último que se supo y corrige cuando el servidor conteste.
+4. **Tipografías no bloqueantes** en `index.html` (`media="print"` + `onload`):
+   las 7 familias de Google ya no retrasan el primer dibujado.
+
+**Verificado de verdad**, no por lectura: servidor de prueba que sirve el panel
+COMPILADO en modo real con `/api/phases` colgado las 2 primeras veces. Antes:
+3 pestañas y skeleton gris. Después: panel completo con sus 6 pestañas y los
+tickets en ~1 s, mientras la petición seguía colgada. Medido de paso: el
+catálogo tiene 372 conversaciones, `listHubTickets` tarda ~760 ms y pesa 427 KB
+de JSON (49 KB comprimido — Railway ya comprime en el edge, no hace falta el
+middleware `compression`).
+
+**Por qué:** un panel que se rompe entero porque una de ocho peticiones se
+perdió es frágil de más para el celular de un asesor en la calle. Y el modo de
+falla era el peor posible: silencioso, con media aplicación desaparecida.
+
+---
 
 ### 2026-08-09 · PWA instalable + composer pegado al teclado · ⏱️ 0.5 h
 

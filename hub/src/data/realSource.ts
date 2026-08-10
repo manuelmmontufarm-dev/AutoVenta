@@ -275,12 +275,55 @@ export class RealSource implements DataSource {
     };
   }
 
+  /**
+   * Una lectura, con paciencia limitada y reintentos.
+   *
+   * Existe por lo del 9-ago: Railway se degradó y ~30 % de las peticiones se
+   * quedaban colgadas sin responder nunca. Sin timeout, el panel esperaba para
+   * siempre; sin reintento, UNA petición perdida dejaba el panel a medias —
+   * `/api/phases` caído = solo 3 pestañas abajo, sin Oportunidades, y sin nada
+   * que le dijera al asesor que faltaba media pantalla.
+   *
+   * Solo se reintenta lo idempotente (GET): reenviar un POST podría mandarle
+   * dos mensajes al mismo cliente. Una clave mala nunca se reintenta.
+   */
   private async request<T extends object = { ok: true }>(
     url: string,
     init: RequestInit = {},
   ): Promise<T> {
+    const esLectura = !init.method || init.method.toUpperCase() === "GET";
+    const intentos = esLectura ? 3 : 1;
+    let ultimo: unknown;
+    for (let intento = 1; intento <= intentos; intento++) {
+      try {
+        return await this.requestOnce<T>(url, init);
+      } catch (error) {
+        // La clave mala no mejora reintentando: el gate tiene que aparecer ya.
+        if (error instanceof AdminKeyError) throw error;
+        ultimo = error;
+        if (intento < intentos) {
+          await new Promise((r) => setTimeout(r, intento * 700));
+        }
+      }
+    }
+    throw ultimo;
+  }
+
+  private async requestOnce<T extends object = { ok: true }>(
+    url: string,
+    init: RequestInit = {},
+  ): Promise<T> {
+    // Una lectura sana tarda menos de 1 s, así que 9 s ya es una petición
+    // perdida: cortar rápido y reintentar recupera en ~18 s en el peor caso,
+    // no en 40. Escribir aguanta más: mandar un mensaje puede pasar por la IA.
+    // El `?.` no es adorno: en un navegador viejo sin `AbortSignal.timeout`
+    // esto reventaría el panel entero, y quedarse sin corte es mucho menos
+    // grave que no arrancar.
+    const esLectura = !init.method || init.method.toUpperCase() === "GET";
+    const corte = AbortSignal.timeout?.(esLectura ? 9_000 : 30_000);
     const response = await fetch(url, {
       ...init,
+      signal: init.signal ?? corte,
       headers: {
         "Content-Type": "application/json",
         ...this.authHeaders(),

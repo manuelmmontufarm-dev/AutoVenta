@@ -9,7 +9,7 @@
  * responde el servidor no coincide con este, el panel avisa: significa que una
  * mitad se desplegó y la otra no.
  */
-export const VERSION = "v0.12.3";
+export const VERSION = "v0.13.0";
 
 /** SHA corto del commit con el que se compiló este panel. */
 export const COMMIT: string =
@@ -24,6 +24,17 @@ export interface Cambio {
 
 /** Más reciente primero. Cada entrada es lo que el negocio nota, no el diff. */
 export const CAMBIOS: Cambio[] = [
+  {
+    version: "v0.13.0",
+    fecha: "9 de agosto de 2026",
+    titulo: "El panel aguanta cuando el servidor va lento",
+    puntos: [
+      "Si una petición se pierde, el panel la reintenta solo (hasta 3 veces) en vez de quedarse a medias. Eso era lo que hacía desaparecer la pestaña de Oportunidades.",
+      "Las pestañas se recuerdan: aparecen completas al instante, sin esperar al servidor.",
+      "La lista de clientes se pinta apenas llega, sin esperar a lo secundario; y ninguna petición se queda colgada más de 9 segundos.",
+      "Arranque más rápido en el celular: las tipografías ya no bloquean el dibujado de la pantalla.",
+    ],
+  },
   {
     version: "v0.12.3",
     fecha: "9 de agosto de 2026",
