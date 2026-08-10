@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>AutoVenta · Tokens y efectividad · 9 agosto 2026</title>
+  <style>
+    :root{--bg:#080b12;--panel:#111827;--panel2:#151e2e;--ink:#f5f7fb;--muted:#95a2b8;--line:#263249;--green:#39d98a;--red:#ff626a;--yellow:#ffb423;--blue:#51a8ff;--cyan:#48d8df;--purple:#9b87ff}
+    @media(prefers-color-scheme:light){:root{--bg:#f3f5f9;--panel:#fff;--panel2:#f8faff;--ink:#121826;--muted:#5d687b;--line:#dfe5ef;--green:#11875d;--red:#d83d46;--yellow:#ad6c00;--blue:#126fd1;--cyan:#087f89;--purple:#6550cf}}
+    *{box-sizing:border-box} html{scroll-behavior:smooth}
+    body{margin:0;background:radial-gradient(circle at 85% -10%,rgba(81,168,255,.13),transparent 28%),var(--bg);color:var(--ink);font:15px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,sans-serif;padding:28px 18px 70px}
+    .wrap{max-width:1160px;margin:auto}.eyebrow{color:var(--cyan);font-size:11px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;margin:0 0 8px}
+    h1{font-size:clamp(28px,5vw,48px);line-height:1.05;letter-spacing:-.035em;margin:0;max-width:840px}h2{font-size:20px;margin:42px 0 13px;letter-spacing:-.01em}h3{font-size:15px;margin:0 0 7px}
+    .lead{font-size:17px;color:var(--muted);max-width:900px;margin:13px 0 5px}.meta{font-size:12px;color:var(--muted);margin:7px 0 25px}.mono{font-variant-numeric:tabular-nums}
+    .verdict{display:grid;grid-template-columns:1.2fr .8fr;gap:13px;margin:26px 0}.box,.card,.chat,.note{background:linear-gradient(145deg,var(--panel),var(--panel2));border:1px solid var(--line);border-radius:16px;padding:17px 19px}
+    .box.good{border-left:4px solid var(--green)}.box.bad{border-left:4px solid var(--red)}.box p{margin:0;color:var(--muted)}.box strong{color:var(--ink)}
+    .grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:11px}.card{min-height:126px}.label{font-size:10px;text-transform:uppercase;letter-spacing:.11em;color:var(--muted);font-weight:800}.value{font-size:31px;line-height:1.1;font-weight:850;margin:8px 0 3px;letter-spacing:-.03em}.delta{font-size:12px;font-weight:750}.goodtxt{color:var(--green)}.badtxt{color:var(--red)}.warn{color:var(--yellow)}.muted{color:var(--muted)}
+    .scroll{overflow:auto;border-radius:15px;border:1px solid var(--line)}table{width:100%;border-collapse:collapse;background:var(--panel);min-width:760px}th,td{padding:11px 14px;border-bottom:1px solid var(--line);text-align:right;font-size:13px;vertical-align:top}th{color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.09em}th:first-child,td:first-child{text-align:left}tr:last-child td{border:0}.today td{background:rgba(72,216,223,.045)}
+    .bars{display:grid;gap:11px}.barrow{display:grid;grid-template-columns:155px 1fr 86px;gap:10px;align-items:center}.barlabel{font-size:12px;color:var(--muted)}.track{height:11px;background:var(--line);border-radius:99px;overflow:hidden}.fill{height:100%;border-radius:99px;background:linear-gradient(90deg,var(--blue),var(--cyan))}.barvalue{text-align:right;font-size:12px;font-weight:800}
+    .split{display:grid;grid-template-columns:1fr 1fr;gap:13px}.funnel{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}.step{position:relative;text-align:center;padding:15px 8px;background:var(--panel);border:1px solid var(--line);border-radius:13px}.step b{font-size:23px;display:block}.step span{color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.07em}.step.sun{border-color:rgba(255,98,106,.5)}
+    .callout{background:rgba(255,180,35,.085);border:1px solid rgba(255,180,35,.34);border-radius:14px;padding:14px 17px;margin:13px 0}.callout.red{background:rgba(255,98,106,.075);border-color:rgba(255,98,106,.35)}.callout.green{background:rgba(57,217,138,.07);border-color:rgba(57,217,138,.34)}.callout p{margin:0}.callout strong{color:var(--ink)}
+    .chat{margin:10px 0}.chathead{display:flex;justify-content:space-between;gap:10px}.tag{font-size:10px;font-weight:850;text-transform:uppercase;letter-spacing:.07em;border:1px solid var(--line);border-radius:99px;padding:3px 8px;white-space:nowrap}.tag.good{color:var(--green);border-color:var(--green)}.tag.bad{color:var(--red);border-color:var(--red)}.tag.warn{color:var(--yellow);border-color:var(--yellow)}.chat dl{display:grid;grid-template-columns:90px 1fr;gap:5px 12px;margin:9px 0 0;font-size:13px}.chat dt{color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.07em;font-weight:800;padding-top:2px}.chat dd{margin:0}
+    .formula{font:12px/1.6 ui-monospace,SFMono-Regular,Menlo,monospace;background:#070a10;border:1px solid var(--line);padding:13px 15px;border-radius:12px;overflow:auto;color:#d6e3f4}.source{font-size:12px;color:var(--muted)}a{color:var(--cyan)}ul{padding-left:20px}li{margin:6px 0}.rank{display:inline-grid;place-items:center;width:22px;height:22px;border-radius:7px;background:var(--line);font-size:11px;font-weight:900;margin-right:7px}.footer{margin-top:45px;padding-top:17px;border-top:1px solid var(--line);color:var(--muted);font-size:11px}
+    @media(max-width:850px){.grid{grid-template-columns:repeat(2,1fr)}.verdict,.split{grid-template-columns:1fr}.funnel{grid-template-columns:repeat(2,1fr)}.barrow{grid-template-columns:115px 1fr 70px}}
+    @media(max-width:480px){body{padding:20px 12px 55px}.grid{grid-template-columns:1fr}.value{font-size:28px}.chat dl{grid-template-columns:1fr}.chat dt{margin-top:5px}}
+    @media print{body{background:#fff;color:#111;padding:12px}.box,.card,.chat,.note,table,.step{break-inside:avoid;background:#fff}.wrap{max-width:none}}
+  </style>
+</head>
+<body><main class="wrap">
+  <p class="eyebrow">Depot Tire · auditoría real de producción</p>
+  <h1>El domingo gastó menos por cliente. Pero también cotizó mucho menos.</h1>
+  <p class="lead">Comparación del domingo 9 de agosto hasta las 21:23 contra el sábado 8, normalizada por conversaciones y mensajes. Se excluyeron las pruebas de los dos asesores identificados.</p>
+  <p class="meta">Corte: 9 ago 2026 · 21:23 (Guayaquil) · commit al corte <b>76e3fde</b> · precios oficiales vigentes por millón de tokens</p>
+
+  <section class="verdict">
+    <div class="box good">
+      <h3>Veredicto de costos: sí funcionó</h3>
+      <p>El costo por conversación externa cayó <strong>69,4%</strong> y el costo por mensaje enviado por el bot cayó <strong>27,5%</strong>. La caída total no es solo domingo: aun controlando por volumen, hubo ahorro unitario.</p>
+    </div>
+    <div class="box bad">
+      <h3>Veredicto comercial: todavía no</h3>
+      <p>Solo <strong>1 de 11</strong> chats con intención explícita de precio terminó en cotización. Ningún cliente externo llegó a cotización + local + fecha.</p>
+    </div>
+  </section>
+
+  <section class="grid">
+    <article class="card"><div class="label">Costo domingo · clientes</div><div class="value mono">$1,18</div><div class="delta goodtxt">−91,2% vs sábado mismas horas</div></article>
+    <article class="card"><div class="label">Costo / conversación</div><div class="value mono">$0,056</div><div class="delta goodtxt">antes $0,184 · −69,4%</div></article>
+    <article class="card"><div class="label">Costo / mensaje del bot</div><div class="value mono">$0,0144</div><div class="delta goodtxt">antes $0,0198 · −27,5%</div></article>
+    <article class="card"><div class="label">Costo / cotización</div><div class="value mono">$1,18</div><div class="delta badtxt">antes $0,58 · +102%</div></article>
+    <article class="card"><div class="label">Cache hit GPT‑5.5</div><div class="value mono">72,0%</div><div class="delta goodtxt">ahorró ≈ $1,97 hoy</div></article>
+    <article class="card"><div class="label">Salida / mensaje</div><div class="value mono">45,7</div><div class="delta goodtxt">tokens · antes 134,5 · −66%</div></article>
+    <article class="card"><div class="label">Latencia GPT‑5.5</div><div class="value mono">6,15 s</div><div class="delta goodtxt">antes 8,15 s · −24,6%</div></article>
+    <article class="card"><div class="label">Errores registrados</div><div class="value mono">0%</div><div class="delta warn">la caída de la mañana no quedó en ai_runs</div></article>
+  </section>
+
+  <h2>Comparación justa: mismas 21 h 23 min, clientes externos</h2>
+  <div class="scroll"><table>
+    <thead><tr><th>Métrica</th><th>Sábado 8</th><th>Domingo 9</th><th>Cambio</th><th>Lectura</th></tr></thead>
+    <tbody>
+      <tr><td>Conversaciones activas</td><td>73</td><td>21</td><td class="muted">−71,2%</td><td class="muted">Demanda mucho menor</td></tr>
+      <tr><td>Mensajes del cliente</td><td>290</td><td>54</td><td class="muted">−81,4%</td><td class="muted">Menos profundidad por chat</td></tr>
+      <tr><td>Mensajes enviados por el bot</td><td>676</td><td>82</td><td class="muted">−87,9%</td><td class="goodtxt">Menos cadenas y repeticiones</td></tr>
+      <tr><td>Corridas de IA</td><td>316</td><td>73</td><td class="goodtxt">−76,9%</td><td class="goodtxt">9 saludos fueron costo cero</td></tr>
+      <tr><td>Tokens de entrada</td><td>5.815.150</td><td>618.905</td><td class="goodtxt">−89,4%</td><td class="goodtxt">−12,3% por mensaje</td></tr>
+      <tr><td>Tokens de salida</td><td>90.929</td><td>3.749</td><td class="goodtxt">−95,9%</td><td class="goodtxt">−66,0% por mensaje</td></tr>
+      <tr><td>Costo comparable</td><td>$13,41</td><td>$1,18</td><td class="goodtxt">−91,2%</td><td class="goodtxt">Ahorro real + menor demanda</td></tr>
+      <tr><td>Cotizaciones</td><td>23</td><td>1</td><td class="badtxt">−95,7%</td><td class="badtxt">Cayó más que la demanda</td></tr>
+      <tr><td>Costo por cotización</td><td>$0,58</td><td>$1,18</td><td class="badtxt">+102%</td><td class="badtxt">El ahorro no llegó al resultado</td></tr>
+    </tbody>
+  </table></div>
+
+  <h2>Cuánto del ahorro fue domingo y cuánto fue eficiencia</h2>
+  <div class="split">
+    <div class="box">
+      <div class="label">Ahorro total comparable</div><div class="value mono">$12,23</div>
+      <div class="bars" style="margin-top:15px">
+        <div class="barrow"><span class="barlabel">Menor demanda</span><div class="track"><div class="fill" style="width:78.1%;background:var(--muted)"></div></div><span class="barvalue">$9,55</span></div>
+        <div class="barrow"><span class="barlabel">Eficiencia real</span><div class="track"><div class="fill" style="width:21.9%"></div></div><span class="barvalue">$2,68</span></div>
+      </div>
+    </div>
+    <div class="box">
+      <h3>Método de descomposición</h3>
+      <p class="muted">A 21 conversaciones, con el costo unitario del sábado, se habrían gastado <b>$3,86</b>. Se gastaron <b>$1,18</b>: esa diferencia de $2,68 es ahorro atribuible a eficiencia. El resto viene de atender 21 chats y no 73.</p>
+    </div>
+  </div>
+
+  <h2>Reconciliación con los ~$15 del sábado</h2>
+  <div class="callout green"><p><strong>Los $15 sí cuadran.</strong> El logger viejo guardó 6,49 M tokens de entrada, pero registró 0 tokens cacheados. Si se cobraran todos como entrada normal daría $35,53, algo incompatible con el panel. Para que el total sea $15, el cache implícito es 70,31%; el domingo medimos 72,01%. Son prácticamente el mismo nivel.</p></div>
+  <div class="formula">sábado observado ≈ $15,00
+cache implícito = 70,31%
+domingo medido = (170.165 entrada no cacheada × $5/M) + (437.760 cacheada × $0,50/M) + (3.272 salida × $30/M) + clasificador
+domingo clientes externos = $1,1782
+domingo cuenta completa, incluyendo pruebas = $1,2777</div>
+  <p class="source">Tarifas estándar usadas: GPT‑5.5 $5 entrada / $0,50 cacheada / $30 salida; GPT‑5.4 mini $0,75 / $0,075 / $4,50. Fuente: <a href="https://developers.openai.com/api/docs/pricing">OpenAI API Pricing</a>. El endpoint de costos exactos respondió 403 porque la clave del bot no tiene el scope <code>api.usage.read</code>; por eso $1,28 es estimado desde tokens, no una factura.</p>
+
+  <h2>Dónde se fue el $1,18 del domingo</h2>
+  <div class="bars">
+    <div class="barrow"><span class="barlabel">Respuesta exacta de tool</span><div class="track"><div class="fill" style="width:100%"></div></div><span class="barvalue">$0,642 · 54,5%</span></div>
+    <div class="barrow"><span class="barlabel">Decisión comercial</span><div class="track"><div class="fill" style="width:55.0%;background:var(--purple)"></div></div><span class="barvalue">$0,354 · 30,0%</span></div>
+    <div class="barrow"><span class="barlabel">Rutina por etapa</span><div class="track"><div class="fill" style="width:15.2%;background:var(--yellow)"></div></div><span class="barvalue">$0,098 · 8,3%</span></div>
+    <div class="barrow"><span class="barlabel">Sin etiqueta</span><div class="track"><div class="fill" style="width:10.0%;background:var(--red)"></div></div><span class="barvalue">$0,065 · 5,5%</span></div>
+    <div class="barrow"><span class="barlabel">Clasificador mini</span><div class="track"><div class="fill" style="width:1.6%;background:var(--green)"></div></div><span class="barvalue">$0,010 · 0,9%</span></div>
+    <div class="barrow"><span class="barlabel">Lectura de foto</span><div class="track"><div class="fill" style="width:1.5%;background:var(--cyan)"></div></div><span class="barvalue">$0,010 · 0,8%</span></div>
+  </div>
+  <div class="callout"><p><strong>La escalera de modelos ya empezó bien:</strong> 35 clasificaciones corrieron en GPT‑5.4 mini y costaron apenas un centavo. El siguiente lugar para ahorrar no es la decisión comercial de GPT‑5.5; es la finalización posterior a herramientas que ya devuelven <code>mensaje_para_enviar</code>. Antes de bajarla de modelo hay que registrar costo por llamada, porque hoy cada <code>ai_run</code> agrega todas las iteraciones.</p></div>
+
+  <h2>Efectividad: el embudo no acompañó al ahorro</h2>
+  <p class="meta">Aquí se usa el sábado completo para evaluar el resultado comercial del día. Se mantienen excluidas las pruebas internas.</p>
+  <div class="split">
+    <div><h3>Sábado 8</h3><div class="funnel">
+      <div class="step"><b>77</b><span>activos</span></div><div class="step"><b>60</b><span>con medida</span></div><div class="step"><b>27</b><span>pidieron precio</span></div><div class="step"><b>24</b><span>cotizados</span></div><div class="step"><b>3</b><span>local + compromiso</span></div>
+    </div></div>
+    <div><h3>Domingo 9</h3><div class="funnel">
+      <div class="step sun"><b>21</b><span>activos</span></div><div class="step sun"><b>14</b><span>con medida</span></div><div class="step sun"><b>11</b><span>pidieron precio</span></div><div class="step sun"><b>1</b><span>cotizado</span></div><div class="step sun"><b>0</b><span>local + compromiso</span></div>
+    </div></div>
+  </div>
+  <div class="grid" style="margin-top:12px">
+    <article class="card"><div class="label">Precio → cotización</div><div class="value">9,1%</div><div class="delta badtxt">sábado 88,9%</div></article>
+    <article class="card"><div class="label">Activo → cotización</div><div class="value">4,8%</div><div class="delta badtxt">sábado 31,2%</div></article>
+    <article class="card"><div class="label">Piezas de opciones</div><div class="value">15</div><div class="delta warn">solo 1 terminó cotizando</div></article>
+    <article class="card"><div class="label">Mejor éxito externo</div><div class="value">0</div><div class="delta badtxt">sin local + fecha después de cotizar</div></article>
+  </div>
+  <div class="callout red"><p><strong>Falla repetida:</strong> en los tickets 2722, 2740, 2771, 2775 y 2789 el cliente pidió precio, pero el último mensaje del bot fue “¿Necesita alguna recomendación?”. La imagen mostraba precios unitarios, pero según la definición comercial acordada eso no es éxito: faltó generar la cotización.</p></div>
+
+  <h2>Incidente que contamina el domingo</h2>
+  <div class="scroll"><table>
+    <thead><tr><th>Hora</th><th>Qué ocurrió</th><th>Impacto medido</th></tr></thead>
+    <tbody>
+      <tr><td>00:58</td><td>Entró la modalidad de reducción de tokens.</td><td class="muted">GPT‑5.5 rechazaba tools con reasoning low.</td></tr>
+      <tr><td>00:58–09:25</td><td>El proceso y WhatsApp seguían verdes, pero los turnos con herramientas fallaban.</td><td class="badtxt">7 mensajes · 4 clientes · 6 demoras &gt;30 min.</td></tr>
+      <tr><td>09:25</td><td>Hotfix: tools pasan a reasoning none.</td><td class="goodtxt">Todos los clientes pendientes fueron recuperados.</td></tr>
+      <tr><td>09:55–10:47</td><td>Se desplegaron memoria de visita, saludo costo cero y textos sin repetición.</td><td class="goodtxt">La cotización #2736 ya salió en una sola línea.</td></tr>
+    </tbody>
+  </table></div>
+  <p class="meta">Demora promedio entre esos mensajes y la respuesta recuperada: 106,9 minutos. Máxima: 6 h 23 min. Quedaron 0 sin respuesta, pero el día no es una prueba limpia de conversión.</p>
+
+  <h2>Chats leídos completos</h2>
+  <article class="chat"><div class="chathead"><h3>Ticket 2736 · Dairon</h3><span class="tag good">cotizó bien</span></div><dl><dt>Pidió</dt><dd>Precio del juego y luego mandó la foto del costado.</dd><dt>Bot</dt><dd>Leyó 265/70R16, mandó opciones y cotizó 4 Winrun por $581,88 con el nuevo resumen corto.</dd><dt>Resultado</dt><dd>Cotización enviada; vive en Muisne y el caso se escaló para despacho. Éxito básico, no visita local.</dd><dt>Costo</dt><dd>$0,1214 estimado.</dd></dl></article>
+  <article class="chat"><div class="chathead"><h3>Ticket 2704 · Luis Arellano</h3><span class="tag bad">oportunidad perdida</span></div><dl><dt>Pidió</dt><dd>255/70R16 y “el precio”.</dd><dt>Bot</dt><dd>Mostró opciones y $133,11 c/u; después priorizó ubicación, teléfono y día.</dd><dt>Resultado</dt><dd>El cliente dijo que llamaría para coordinar y quedó Cumbayá, pero nunca recibió cotización. No cuenta como éxito bajo la definición acordada.</dd><dt>Costo</dt><dd>$0,1443 estimado.</dd></dl></article>
+  <article class="chat"><div class="chathead"><h3>Tickets 2722, 2740, 2771, 2775 y 2789</h3><span class="tag bad">patrón repetido</span></div><dl><dt>Pidieron</dt><dd>Precio, dirección + precio o una medida concreta.</dd><dt>Bot</dt><dd>Mandó la pieza de opciones.</dd><dt>Se rompió</dt><dd>El cierre fijo fue “¿Necesita alguna recomendación?” en lugar de cotizar por 4.</dd><dt>Resultado</dt><dd>0 cotizaciones entre los cinco.</dd></dl></article>
+  <article class="chat"><div class="chathead"><h3>Ticket 2693 · OMeGa</h3><span class="tag warn">recuperado tarde</span></div><dl><dt>Pidió</dt><dd>Kenda KR601, precio y 265/70R17.</dd><dt>Bot</dt><dd>Tras la caída respondió con una KR29 a $292,14 c/u y preguntó si cotizaba.</dd><dt>Resultado</dt><dd>Recibió respuesta 47 minutos tarde y no contestó. Faltó cotizar de una.</dd></dl></article>
+  <article class="chat"><div class="chathead"><h3>Ticket 2779 · Luis Morales</h3><span class="tag warn">caro, no vendible</span></div><dl><dt>Pidió</dt><dd>235/60R16 y luego aclaró que buscaba R/T.</dd><dt>Bot</dt><dd>Detectó correctamente que no había R/T en esa medida y no inventó stock.</dd><dt>Resultado</dt><dd>El cliente dijo “No gracias”. Después de “Ok”, el bot volvió a pedir la medida que ya estaba arriba: repetición innecesaria, pero cotizar otra categoría habría sido incorrecto.</dd><dt>Costo</dt><dd>$0,1842, el chat externo más caro del domingo.</dd></dl></article>
+  <article class="chat"><div class="chathead"><h3>Tickets 3 y 11</h3><span class="tag">excluidos</span></div><dl><dt>Quiénes</dt><dd>Asesor principal y Joaquín Tamayo, identificados por cruce exacto de teléfono con la tabla de asesores.</dd><dt>Por qué</dt><dd>Sus mensajes sirven para probar el sistema, pero no deben inflar demanda ni éxitos comerciales reales.</dd><dt>Impacto</dt><dd>Sin excluirlos, el domingo aparentaba 2 cotizaciones y 1 local + compromiso; externamente fue 1 y 0.</dd></dl></article>
+
+  <h2>Qué haría mañana</h2>
+  <div class="scroll"><table>
+    <thead><tr><th>Prioridad</th><th>Cambio medible</th><th>Meta</th><th>Riesgo</th></tr></thead>
+    <tbody>
+      <tr><td><span class="rank">1</span>Cierre</td><td>Con medida + intención de precio, generar cotización por 4 inmediatamente. La pregunta de recomendación queda solo para quien pidió explorar opciones.</td><td>Precio → cotización: 9,1% → ≥60%</td><td class="warn">Bajo; cantidad se ajusta después.</td></tr>
+      <tr><td><span class="rank">2</span>Medición</td><td>Guardar costo por llamada/iteración y habilitar una credencial de solo lectura <code>api.usage.read</code>.</td><td>Telemetría vs factura: diferencia &lt;5%</td><td class="muted">Ninguno para clientes.</td></tr>
+      <tr><td><span class="rank">3</span>Modelo</td><td>Mantener GPT‑5.5 para intención y decisiones; probar determinismo o modelo menor solo en la respuesta posterior a tools exactas.</td><td>Otro −15–20% por mensaje sin bajar cotización ni local+fecha</td><td class="warn">Medio; requiere canary.</td></tr>
+    </tbody>
+  </table></div>
+  <div class="callout"><p><strong>No bajaría todavía el cerebro comercial.</strong> El clasificador mini ya cuesta menos de 1% del día. El pool grande es <code>exact_tool_reply</code> (54,5%), pero mezcla selección y finalización; primero hay que separar su costo por llamada. Mañana debe probarse en un día laborable y sin una caída de ocho horas.</p></div>
+
+  <h2>Conclusión ejecutiva</h2>
+  <div class="box">
+    <p><strong>Tokens:</strong> éxito. El sistema consume mucho menos por unidad atendida, el cache está funcionando y los textos se hicieron sustancialmente más cortos.</p>
+    <p><strong>Ventas:</strong> alerta. El domingo no preservó el éxito definido por el negocio. La prioridad no es volver al prompt largo ni quitar GPT‑5.5; es impedir que una petición de precio termine en una pregunta de recomendación.</p>
+    <p><strong>Decisión:</strong> mantener la modalidad eficiente, reparar el paso precio → cotización y medir un lunes completo antes de bajar más partes del modelo.</p>
+  </div>
+
+  <h2>Metodología y límites</h2>
+  <ul class="source">
+    <li>Datos leídos directamente de Postgres de producción: <code>messages</code>, <code>ai_runs</code>, <code>quotes</code>, <code>conversations</code>, <code>funnel_events</code> y <code>advisors</code>.</li>
+    <li>Éxito básico = cotización enviada. Éxito fuerte = cotización + local. Mejor éxito = cotización + local + fecha/compromiso de ir.</li>
+    <li>Costos del domingo calculados con tokens cacheados reales. El sábado se calibró al gasto de ~$15 reportado por el usuario porque el logger anterior no persistía <code>cached_input_tokens</code>.</li>
+    <li>La comparación principal usa las mismas 21 h 23 min. El embudo usa el sábado completo para no ocultar cierres del final del día.</li>
+    <li>Los tickets internos 3 y 11 se excluyen de métricas comerciales y costos de clientes; la cifra de cuenta completa se conserva para reconciliar el panel.</li>
+    <li>Se revisaron completas siete conversaciones representativas, incluyendo la única cotización externa y los chats de mayor costo.</li>
+    <li>El detector histórico “pide foto que no puede leer” ya no es válido: desde el 6 de agosto el bot sí procesa imágenes. No se usó en este veredicto.</li>
+  </ul>
+
+  <p class="footer">AutoVenta · reporte archivado con datos y análisis reproducibles · 9 agosto 2026</p>
+</main></body></html>

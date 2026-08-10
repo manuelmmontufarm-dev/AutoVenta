@@ -1,0 +1,27 @@
+{
+  "resumen": "El domingo gastó mucho menos incluso después de normalizar la menor demanda: el costo por conversación externa cayó 69,4% y por mensaje del bot 27,5%. Sin embargo, la eficiencia comercial no se sostuvo: solo 1 de 11 conversaciones con intención explícita de precio terminó en cotización y ninguna cotización externa confirmó local y fecha. La caída de herramientas entre 00:58 y 09:25 contamina el día, pero no explica los cinco chats posteriores que terminaron en una pregunta genérica en vez de cotizar.",
+  "hipotesis": [
+    "El prompt compacto, el límite de historial, el cache hit de 72% y las rutas directas redujeron de verdad el costo unitario; 21,9% del ahorro total comparable proviene de eficiencia y 78,1% de menor volumen.",
+    "La salida fija de preparar_opciones termina en ‘¿Necesita alguna recomendación?’ incluso cuando el cliente pidió precio. En cinco chats con intención de compra esa pregunta fue el último paso y no hubo cotización.",
+    "La telemetría anterior no guardaba tokens cacheados: tratar los 6,49 M de entrada del sábado como no cacheados infla el estimado a $35,53. El gasto de ~$15 reportado por el usuario implica 70,31% de cache, prácticamente el 72,01% medido el domingo.",
+    "El incidente GPT-5.5 + tools demoró 7 mensajes de 4 clientes; todos fueron recuperados, pero la demora media de 106,9 minutos hace que la conversión del domingo no sea una prueba limpia de calidad."
+  ],
+  "cambiosPropuestos": [
+    {
+      "cambio": "Ruta determinística: si hay medida y el cliente pidió precio, cotizar 4 inmediatamente; no cerrar preparar_opciones con la pregunta de recomendación.",
+      "ataca": "precio_sin_cotizar",
+      "metrica": "intención de precio → cotización debe subir de 9,1% a al menos 60% sin elevar costo por mensaje más de 10%"
+    },
+    {
+      "cambio": "Registrar costo por llamada/iteración y habilitar una credencial de solo lectura api.usage.read para reconciliar telemetría con factura.",
+      "ataca": "costo_no_reconciliado",
+      "metrica": "diferencia entre costo calculado y dashboard menor a 5%"
+    },
+    {
+      "cambio": "Mantener GPT-5.5 para decisiones comerciales y probar salida determinística o modelo menor solo después de tools que devuelven mensaje_para_enviar.",
+      "ataca": "costo_exact_tool_reply",
+      "metrica": "bajar costo por mensaje otro 15–20% manteniendo intención de precio → cotización y local+fecha"
+    }
+  ],
+  "promptPropuesto": "Si el cliente pide precio, ‘a cómo’, ‘cuánto’, ‘cotización’ o ‘el juego’ y ya existe medida o producto, entrega la pieza solicitada y genera de inmediato la cotización por 4, salvo que haya dicho otra cantidad. No cierres ese turno con ‘¿Necesita alguna recomendación?’. Esa pregunta solo se usa cuando el cliente pidió opciones para explorar y no pidió precio."
+}

@@ -1,0 +1,95 @@
+{
+  "generadoEn": "2026-08-10T02:23:38.809Z",
+  "corteLocal": "2026-08-09T21:23:38.809-05:00",
+  "zonaHoraria": "America/Guayaquil",
+  "commitAlCorte": "76e3fde",
+  "fuentes": {
+    "operacion": "Postgres de producción Depot_Tire",
+    "precioTokens": "https://developers.openai.com/api/docs/pricing",
+    "tarifaGpt55PorMillon": { "entrada": 5, "entradaCacheada": 0.5, "salida": 30 },
+    "tarifaGpt54MiniPorMillon": { "entrada": 0.75, "entradaCacheada": 0.075, "salida": 4.5 },
+    "costoSabadoObservadoPorUsuario": 15,
+    "billingApi": "No disponible: la clave de producción no tiene api.usage.read"
+  },
+  "exclusiones": {
+    "conversacionesInternas": [3, 11],
+    "razon": "Coinciden por teléfono con Asesor principal y Joaquín Tamayo"
+  },
+  "periodosComparablesClientesExternos": {
+    "sabadoMismasHoras": {
+      "desde": "2026-08-08T00:00:00-05:00",
+      "hasta": "2026-08-08T21:23:38.809-05:00",
+      "conversacionesActivas": 73,
+      "mensajesCliente": 290,
+      "mensajesBot": 676,
+      "corridasIA": 316,
+      "tokensEntrada": 5815150,
+      "tokensSalida": 90929,
+      "cotizaciones": 23,
+      "cotizacionesConLocal": 3,
+      "cotizacionesConLocalYCompromiso": 2,
+      "costoCalibradoUSD": 13.4057
+    },
+    "domingoHastaCorte": {
+      "desde": "2026-08-09T00:00:00-05:00",
+      "hasta": "2026-08-09T21:23:38.809-05:00",
+      "conversacionesActivas": 21,
+      "mensajesCliente": 54,
+      "mensajesBot": 82,
+      "corridasIA": 73,
+      "tokensEntrada": 618905,
+      "tokensEntradaCacheada": 437760,
+      "tokensSalida": 3749,
+      "cotizaciones": 1,
+      "cotizacionesConLocal": 0,
+      "cotizacionesConLocalYCompromiso": 0,
+      "costoTelemetriaUSD": 1.1782
+    }
+  },
+  "cuentaCompletaIncluyendoPruebas": {
+    "sabadoCompletoCostoObservadoUSD": 15,
+    "domingoHastaCorteCostoTelemetriaUSD": 1.2777,
+    "domingoConversacionesActivas": 23,
+    "domingoMensajesBot": 88
+  },
+  "reconciliacionSabado": {
+    "tokensEntradaRegistrados": 6489469,
+    "tokensSalidaRegistrados": 102801,
+    "tokensCacheadosRegistrados": 0,
+    "costoSiTodoFueraNoCacheadoUSD": 35.5314,
+    "costoObservadoPorUsuarioUSD": 15,
+    "cacheImplicitoNecesarioPct": 70.31,
+    "cacheDomingoGpt55Pct": 72.01,
+    "conclusion": "El logger anterior no guardaba cached_input_tokens; el gasto observado es consistente con un cache hit cercano al del domingo."
+  },
+  "domingoDesgloseRutas": [
+    { "ruta": "exact_tool_reply", "modelo": "gpt-5.5", "corridas": 18, "entrada": 339625, "cacheada": 246016, "salida": 1713, "costoUSD": 0.6424 },
+    { "ruta": "commercial", "modelo": "gpt-5.5", "corridas": 14, "entrada": 198029, "cacheada": 148224, "salida": 1017, "costoUSD": 0.3536 },
+    { "ruta": "routine_stage", "modelo": "gpt-5.5", "corridas": 4, "entrada": 56389, "cacheada": 43520, "salida": 387, "costoUSD": 0.0977 },
+    { "ruta": "sin_etiqueta", "modelo": "gpt-5.5", "corridas": 1, "entrada": 12036, "cacheada": 0, "salida": 144, "costoUSD": 0.0645 },
+    { "ruta": "post_turn_stage", "modelo": "gpt-5.4-mini", "corridas": 35, "entrada": 10980, "cacheada": 0, "salida": 477, "costoUSD": 0.0104 },
+    { "ruta": "image_read", "modelo": "gpt-5.5", "corridas": 1, "entrada": 1846, "cacheada": 0, "salida": 11, "costoUSD": 0.0096 }
+  ],
+  "embudoClientesExternosDiaCompleto": {
+    "sabado": { "activos": 77, "conMedida": 60, "intencionPrecio": 27, "piezaOpciones": 69, "cotizados": 24, "cotizaciones": 25, "conLocal": 4, "conLocalYCompromiso": 3 },
+    "domingo": { "activos": 21, "conMedida": 14, "intencionPrecio": 11, "piezaOpciones": 15, "cotizados": 1, "cotizaciones": 1, "conLocal": 0, "conLocalYCompromiso": 0 }
+  },
+  "incidente": {
+    "inicio": "2026-08-09T00:58:20-05:00",
+    "hotfix": "2026-08-09T09:25:47-05:00",
+    "conversacionesExternas": 4,
+    "mensajesCliente": 7,
+    "demorasMayores30Min": 6,
+    "demoraPromedioMin": 106.9,
+    "demoraMaxima": "06:23:27",
+    "sinResponderAlCorte": 0
+  },
+  "chatsRevisadosCompletos": [3, 2683, 2693, 2700, 2704, 2736, 2779],
+  "hallazgosVentas": {
+    "precioACotizacionSabadoPct": 88.9,
+    "precioACotizacionDomingoPct": 9.1,
+    "chatsPrecioTerminadosEnPreguntaRecomendacion": [2722, 2740, 2771, 2775, 2789],
+    "unicaCotizacionExterna": 2736,
+    "compromisoSinCotizacion": 2704
+  }
+}

@@ -34,6 +34,7 @@ Ya viene activado en este equipo.
 |---|---|---|---|
 | 2026-08-09 | _(este mismo)_ | Chat de la baraja a pantalla completa + fix del zoom fantasma en móvil | 1.0 |
 | 2026-08-09 | _(este mismo)_ | Oportunidades reorganizado: cuadrícula de cotizados, baraja swipe y "Para después" + 6 tabs en móvil | 3.0 |
+| 2026-08-09 | _(este mismo)_ | Auditoría domingo: costo unitario baja, pero precio→cotización cae | 1.0 |
 | 2026-08-09 | _(este mismo)_ | Cotización sin eco: INCLUYE una vez y texto reducido a modelo + total | 0.5 |
 | 2026-08-09 | _(este mismo)_ | Primer saludo inteligente: medida primero, pero también vehículo, aro y uso | 0.5 |
 | 2026-08-09 | _(este mismo)_ | La fecha se confirma una vez: sin repetir día, local ni descuento | 0.5 |
@@ -106,7 +107,7 @@ Ya viene activado en este equipo.
 | 2026-07-14 | ac09171 | Ubicaciones de locales + análisis de features del cliente | 1.5 |
 | 2026-07-13 | feadf57 | Brief + plan de desarrollo + plan financiero + catálogo | 4.0 |
 | 2026-07-13 | d997844 | Commit inicial (repo) | 0.25 |
-| | | **TOTAL** | **~92.5 h** |
+| | | **TOTAL** | **~97.5 h** |
 
 ---
 
@@ -158,6 +159,21 @@ vez con lo que hay en juego, no una lista de seguimientos técnicos. Y revisar
 chats uno por uno con una decisión obligada por chat (perdida / ganada /
 después) convierte "revisar el panel" en una tarea con final, también desde el
 teléfono.
+
+---
+
+### 2026-08-09 · Menos tokens sí; menos ventas no puede ser el precio · ⏱️ 1.0 h
+
+**Qué:** Se auditó el domingo contra el sábado por costo total, conversación,
+mensaje, corrida y resultado comercial, excluyendo las pruebas de los asesores.
+Se reconciliaron los ~$15 observados el sábado con el cache no registrado por el
+logger anterior, se revisaron siete chats completos y se archivaron datos,
+análisis y un reporte HTML bajo `2026-08-09-2124-costos`.
+
+**Por qué:** El domingo tuvo menor demanda, así que mirar solo el total podía
+atribuir al ahorro lo que en realidad era menos tráfico. El costo normalizado sí
+mejoró, pero intención de precio → cotización cayó de 88,9% a 9,1%; el próximo
+cambio debe recuperar ese cierre sin deshacer la eficiencia conseguida.
 
 ---
 
