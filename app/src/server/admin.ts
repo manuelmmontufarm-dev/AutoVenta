@@ -56,6 +56,10 @@ import {
 } from "../services/conversations.js";
 import { getFinalStageArrivals, getHubFeed, getHubMessages, getHubMetrics, getHubTicket, listHubTickets } from "../services/hubData.js";
 import { getEchoHealth } from "../services/echoHealth.js";
+import { buildDailyReport } from "../services/dailyReport.js";
+import { enviarReporteDiario } from "../services/dailyReportDelivery.js";
+import { renderDailyReportHtml } from "../render/dailyReportHtml.js";
+import { nombreArchivoReporte, renderDailyReportPdf } from "../render/dailyReportPdf.js";
 import { emitLiveEvent, subscribeLiveEvents } from "../services/liveEvents.js";
 import { isStage } from "../domain/pipeline.js";
 import { authorizeConversationOutbound } from "../services/whatsappPolicy.js";
@@ -538,6 +542,31 @@ export function createAdminRouter(): express.Router {
     if (action === "take") await setConversationAssignee(Number(alert.conversation_id), "human");
     emitLiveEvent("alert", Number(alert.conversation_id));
     res.json({ ok: true });
+  });
+
+  // ── Reporte del día ────────────────────────────────────────────────────
+  // El asesor lo recibe por WhatsApp a las 20:00; estas rutas son para verlo
+  // antes, revisarlo desde el panel y reenviarlo si hizo falta. Fuera de hora
+  // devuelven el último período cerrado, no medio día suelto.
+  router.get("/hub/reporte-diario", async (_req, res) => {
+    res.json({ ok: true, reporte: await buildDailyReport() });
+  });
+
+  router.get("/hub/reporte-diario.html", async (_req, res) => {
+    res.type("html").send(renderDailyReportHtml(await buildDailyReport()));
+  });
+
+  router.get("/hub/reporte-diario.pdf", async (_req, res) => {
+    const reporte = await buildDailyReport();
+    const pdf = await renderDailyReportPdf(reporte);
+    res.type("application/pdf")
+      .setHeader("Content-Disposition", `inline; filename="${nombreArchivoReporte(reporte)}"`);
+    res.send(pdf);
+  });
+
+  router.post("/hub/reporte-diario/enviar", async (_req, res) => {
+    const resultado = await enviarReporteDiario({ forzar: true });
+    res.json({ ok: resultado.enviado, ...resultado });
   });
 
   router.get("/follow-up-settings", async (_req, res) => {

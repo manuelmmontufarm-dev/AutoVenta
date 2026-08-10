@@ -1,4 +1,5 @@
 import { sql } from "../db/client.js";
+import { clasificarAlerta, etiquetaTecnica } from "./alertTaxonomy.js";
 
 export async function listFollowUpBoard() {
   const rows = await sql<{
@@ -210,6 +211,11 @@ export async function listBotAlerts() {
     suggestedAction: row.suggested_action, status: row.status,
     snoozedUntil: row.snoozed_until?.toISOString() ?? null,
     createdAt: row.created_at.toISOString(), customer: row.name ?? row.phone,
+    // El teléfono va aparte del nombre: las alertas técnicas se muestran sólo
+    // con el número (es un problema del desarrollador, no una ficha comercial).
+    phone: row.phone,
+    clase: clasificarAlerta(row.type),
+    etiquetaTecnica: etiquetaTecnica(row.type),
   }));
 }
 

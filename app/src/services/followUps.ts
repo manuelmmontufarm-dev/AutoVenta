@@ -564,19 +564,17 @@ export async function refreshConversationSummary(conversationId: number): Promis
 export async function reconcileFollowUpAlerts(now = new Date()): Promise<void> {
   const policy = await getFollowUpPolicy();
   const nuevas: number[] = [];
-  nuevas.push((await sql`
-    insert into bot_alerts (conversation_id, cycle, type, priority, summary, exact_reason, suggested_action, dedupe_key)
-    select c.id, c.current_cycle, 'window_closing', 'medium',
-      'La ventana de WhatsApp está próxima a cerrar',
-      'Quedan menos de dos horas y la conversación sigue esperando respuesta.',
-      'Revisar si el seguimiento programado sigue siendo pertinente.',
-      c.id || ':' || c.current_cycle || ':window_closing'
-    from conversations c
-    where c.status = 'open' and c.assigned_to = 'bot'
-      and c.last_customer_message_at is not null
-      and c.last_customer_message_at + interval '24 hours' between ${now} and ${new Date(now.getTime() + 2 * 60 * 60 * 1000)}
-    on conflict do nothing
-  `).count);
+  // La ventana de 24 h de WhatsApp cerrándose NO es un error: es el reloj de
+  // Meta corriendo, pasa en cada conversación que el cliente deja enfriar y no
+  // hay nada que arreglar. Se creaba una alerta por cada una y el tab Errores
+  // vivía con decenas de filas que nadie podía resolver, así que el asesor
+  // dejó de mirarlo. El dato sigue disponible donde sirve — `ventanaCierraEn`
+  // en la ficha y el contador del seguimiento — sólo deja de ser una alerta.
+  // Esto además limpia las que quedaron abiertas de antes.
+  await sql`
+    update bot_alerts set status = 'resolved', resolved_at = now()
+    where type = 'window_closing' and status in ('open', 'snoozed')
+  `;
   nuevas.push((await sql`
     insert into bot_alerts (conversation_id, cycle, type, priority, summary, exact_reason, suggested_action, dedupe_key)
     select c.id, c.current_cycle, 'two_follow_ups_no_reply', 'high',

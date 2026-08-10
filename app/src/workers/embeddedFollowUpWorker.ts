@@ -220,6 +220,33 @@ async function supervisarVentanas(signal: AbortSignal): Promise<void> {
 }
 
 /**
+ * Bucle del reporte del día.
+ *
+ * Comparte el ritmo de las visitas por la misma razón: la condición «ya son las
+ * 20:00» se cumple durante toda la noche, no en un instante, así que revisar
+ * cada cuarto de hora basta y sobra. Lo que impide que salgan cuatro reportes
+ * por hora es el candado por día dentro de `enviarReporteDiario`, no el ritmo
+ * de este bucle — y esa es la única defensa que sobrevive a un reinicio.
+ */
+async function supervisarReporteDiario(signal: AbortSignal): Promise<void> {
+  while (!signal.aborted) {
+    try {
+      const { enviarReporteDiario } = await import("../services/dailyReportDelivery.js");
+      const resultado = await enviarReporteDiario();
+      if (resultado.enviado) {
+        console.log(`📊 Reporte del día enviado a ${resultado.destinatarios} asesor(es)`);
+      }
+    } catch (error) {
+      console.warn(
+        "⚠️ Reporte del día falló:",
+        error instanceof Error ? error.message : error,
+      );
+    }
+    await esperar(VISITAS_MS, signal);
+  }
+}
+
+/**
  * Supervisa el bucle: si revienta (por ejemplo, la base se cae un momento) lo
  * vuelve a levantar. En el servicio dedicado ese trabajo lo hacía Railway
  * reiniciando el proceso; aquí no puede morirse el HTTP por culpa del worker.
@@ -266,4 +293,5 @@ export function startEmbeddedFollowUpWorker(): void {
   void supervisarBotApagado(controller.signal);
   void supervisarVisitas(controller.signal);
   void supervisarVentanas(controller.signal);
+  void supervisarReporteDiario(controller.signal);
 }

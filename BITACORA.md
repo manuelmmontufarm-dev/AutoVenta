@@ -32,6 +32,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-08-10 | _(este mismo)_ | Reporte diario 20:00 a los asesores (PDF con links) + el tab de errores solo con errores | 3.0 |
 | 2026-08-09 | _(este mismo)_ | El panel sobrevive a Railway degradado: reintentos, carga por partes y fases recordadas | 1.5 |
 | 2026-08-09 | _(este mismo)_ | PWA instalable (sin barra de Safari) + composer pegado al teclado | 0.5 |
 | 2026-08-09 | _(este mismo)_ | Chat de baraja calzado al teclado de iPhone + decidir desde el chat + kanban móvil por botón | 1.5 |
@@ -115,6 +116,65 @@ Ya viene activado en este equipo.
 ---
 
 ## Entradas (más reciente primero)
+
+### 2026-08-10 · Reporte diario 20:00 + el tab de errores solo con errores · ⏱️ 3.0 h
+
+**Qué:** Dos cosas que iban juntas — el reporte de la noche necesitaba una lista
+de errores en la que se pudiera confiar, y el tab no la daba.
+
+**1. Qué es un error y qué no** (`services/alertTaxonomy.ts`). `bot_alerts`
+mezclaba tres cosas y el tab las mostraba todas, así que el contador marcaba
+decenas todo el día y el asesor dejó de mirarlo. Ahora se clasifican:
+`conversacion` (el bot se rompió DENTRO del chat: se repitió, se atascó, saludó
+a mitad de hilo, el cliente se molestó — lo único que es un error),
+`tecnico` (no salió un envío, falta plantilla, el aviso no se entregó → se
+muestra SOLO con el número, agrupado: es del desarrollador, no una tarea
+comercial) y `operativo` (ventana de 24 h, seguimientos, visitas, "pide asesor"
+— no son errores y ya se ven en Cotizados, Piden asesor y el pipeline). Un tipo
+desconocido cae en `conversacion`: equivocarse hacia "visible" se nota y se
+corrige; hacia "oculto", no. Mismo filtro en el tab Oportunidades y en el badge
+"Alertas del bot" del Inbox, que contaba lo mismo.
+
+La **ventana de 24 h cerrándose además deja de generarse**: es el reloj de Meta
+corriendo, no un fallo del bot, y se creaba una alerta por CADA conversación que
+el cliente dejaba enfriar. `reconcileFollowUpAlerts` resuelve las que quedaron
+abiertas, así que la base se limpia sola en el primer arranque.
+
+**2. El reporte del día.** Sale a las 20:00 de Ecuador y cubre desde las 20:00
+del día anterior. Mismas divisiones que el tab Oportunidades — no es un informe
+aparte, es el tab en el bolsillo del asesor cuando cierra la tienda. PDF con
+links de verdad a cada conversación (por eso pdfmake y no una imagen de satori:
+una imagen no se puede tocar) y un texto que lo acompaña con los números, para
+que algo llegue aunque Meta rechace el adjunto. El diseño sale de `depotDesign`:
+barra de carreras, líneas de velocidad, y la paleta y la fuente de precio que el
+negocio ya eligió en Ajustes — cambiar el color de las cotizaciones cambia el
+reporte. Rutas para verlo antes de las ocho: `/api/hub/reporte-diario{,.html,.pdf}`
+y `.../enviar` para forzarlo.
+
+**Verificado de verdad**, no por lectura: 525 tests (25 nuevos), el candado del
+día contra un Postgres real (4 procesos simultáneos → UN reporte), las seis
+paletas renderizadas y revisadas una por una, y el PDF generado desde `dist/`
+COMPILADO para confirmar que las fuentes resuelven como lo hará Railway. De
+paso salieron tres bugs de maquetación que sólo se ven mirando el PDF: las
+tarjetas de métricas se salían de la página (el filo dorado era un `canvas` de
+ancho fijo e imponía ese mínimo a la columna), el rótulo de la derecha quedaba
+cortado (pdfmake ignora `width` con `absolutePosition`) y en las paletas cuyo
+acento ya es rojo (navy, carbon) la barra de "no vino" no se distinguía.
+
+**Por qué:** el asesor cierra la tienda a las seis y no vuelve a abrir el panel;
+lo que no le llegue al teléfono no existe. Y el tab de errores había dejado de
+servir por exceso: cuando todo es una alerta, nada lo es.
+
+**Ojo con la ventana de 24 h de los asesores.** El envío es texto libre, así que
+Meta lo rechaza (131047) si el asesor no le ha escrito al número del negocio en
+las últimas 24 h — el mismo motivo por el que Joaquín no recibió ningún aviso el
+8-ago. Por eso el candado del día se SUELTA cuando no lo recibió nadie: el bucle
+reintenta cada cuarto de hora y el reporte entra en cuanto el asesor escribe.
+Pasada la medianoche se deja de intentar (a nadie le sirve el reporte de ayer a
+media mañana). Si un día no llega, la causa casi segura es esa, y la solución es
+que el asesor mande cualquier mensaje al número.
+
+---
 
 ### 2026-08-09 · El panel sobrevive a Railway degradado · ⏱️ 1.5 h
 

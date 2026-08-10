@@ -64,6 +64,12 @@ export function Inbox() {
   const abiertos = tickets.filter((t) => t.estado === "abierto").length;
   const cerrados = tickets.length - abiertos;
 
+  // Mismo criterio que el tab Errores de Oportunidades: aquí sólo entra lo que
+  // de verdad se rompió (el chat o la plomería). Lo operativo — la ventana de
+  // 24 h cerrándose, seguimientos, visitas — no es una alerta y ya tiene su
+  // pantalla; contarlo aquí hacía que el badge marcara decenas siempre.
+  const alertasReales = useMemo(() => alerts.filter((a) => a.clase !== "operativo"), [alerts]);
+
   const visibles = useMemo(() => {
     const texto = q.trim().toLowerCase();
     return tickets.filter((t) => {
@@ -87,7 +93,7 @@ export function Inbox() {
           onChange={setSection}
           opciones={[
             { valor: "tickets", label: "Conversaciones" },
-            { valor: "alerts", label: "Alertas del bot", badge: alerts.length },
+            { valor: "alerts", label: "Alertas del bot", badge: alertasReales.length },
           ]}
         />
         {section === "tickets" && <>
@@ -129,7 +135,7 @@ export function Inbox() {
       <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-6">
         {section === "alerts" ? (
           <div className="mx-auto grid max-w-4xl gap-2 px-2">
-            {alerts.length === 0 ? <EmptyState titulo="Sin alertas pendientes" detalle="El bot no ha detectado situaciones que requieran intervención." /> : alerts.map((alert) => (
+            {alertasReales.length === 0 ? <EmptyState titulo="Sin alertas pendientes" detalle="Nada roto: ni chats repetidos, ni envíos fallidos. Los seguimientos y las ventanas de 24 h no son alertas — viven en Oportunidades." /> : alertasReales.map((alert) => (
               <article key={alert.id} className="glass rounded-2xl p-4">
                 <div className="flex items-start justify-between gap-3"><div><p className="text-sm font-bold">{alert.customer}</p><p className="mt-1 text-xs font-semibold">{alert.summary}</p></div><span className="rounded-full px-2 py-1 text-[10px] font-black uppercase" style={{ color: alert.priority === "critical" ? "var(--color-danger)" : "var(--color-warn)", background: "color-mix(in srgb, currentColor 12%, transparent)" }}>{alert.priority}</span></div>
                 <p className="mt-3 text-xs text-muted"><b>Motivo exacto:</b> {alert.exactReason}</p>

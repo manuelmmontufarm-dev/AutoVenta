@@ -100,6 +100,15 @@ export async function sendPdf(conversationId, to, pdf, filename, caption) {
   });
 }
 
+export async function sendAdvisorPdf(input) {
+  return registrar("pdf_asesor", {
+    to: input?.to ?? null,
+    bytes: input?.pdf?.length ?? 0,
+    caption: input?.caption ?? null,
+    filename: input?.filename ?? null,
+  });
+}
+
 export async function sendApprovedTemplate(input) {
   return registrar("plantilla", {
     conversationId: input?.conversationId ?? null,

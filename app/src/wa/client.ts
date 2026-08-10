@@ -359,6 +359,33 @@ export async function sendPdf(
   }));
 }
 
+/**
+ * Manda un PDF a un asesor.
+ *
+ * Va aparte de `sendPdf` porque ese exige un `conversationId` y pasa por
+ * `assertConversationOutbound`: la política de la ventana de 24 h y el opt-out
+ * protegen al CLIENTE, y el asesor no es un cliente — su chat es interno y no
+ * tiene ciclo comercial al que colgarse. Colar el reporte del día por ahí
+ * obligaría a inventar una conversación falsa sólo para pasar el guardia.
+ */
+export async function sendAdvisorPdf(input: {
+  to: string;
+  pdf: Buffer;
+  filename: string;
+  caption?: string;
+}): Promise<string | undefined> {
+  const mediaId = await uploadMedia(input.pdf, "application/pdf", input.filename);
+  return graphSend("el PDF al asesor", (ch) => ({
+    path: `${ch.phoneId}/messages`,
+    body: {
+      messaging_product: "whatsapp",
+      to: input.to,
+      type: "document",
+      document: { id: mediaId, caption: input.caption, filename: input.filename },
+    },
+  }));
+}
+
 /** Sube una imagen PNG a Meta y la envía. */
 export async function sendImage(
   conversationId: number,

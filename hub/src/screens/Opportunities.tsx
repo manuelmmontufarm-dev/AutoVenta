@@ -73,12 +73,29 @@ export function Opportunities() {
       .filter((t) => !pinned.has(t.id) && (motivoFU.has(t.id) || t.atiende === "humano"))
       .sort((a, b) => new Date(a.ultimaActividad).getTime() - new Date(b.ultimaActividad).getTime());
 
-    const errores = [...alerts].sort(
-      (a, b) => PRIORIDAD_ALERTA[a.priority] - PRIORIDAD_ALERTA[b.priority] ||
-        new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
-    );
+    // Errores = SOLO lo que se rompió dentro del chat. La ventana de 24 h por
+    // cerrar, los seguimientos pendientes y las visitas sin confirmar entraban
+    // aquí y no son errores: son estados normales que ya se ven en Cotizados,
+    // Piden asesor y el pipeline. Con ellos dentro el contador marcaba decenas
+    // todo el día y el tab dejó de mirarse. La clase la manda el backend
+    // (services/alertTaxonomy.ts) para que reporte y panel no se contradigan.
+    const porGravedad = (a: BotAlert, b: BotAlert): number =>
+      PRIORIDAD_ALERTA[a.priority] - PRIORIDAD_ALERTA[b.priority] ||
+      new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+    const errores = alerts.filter((a) => a.clase === "conversacion").sort(porGravedad);
 
-    return { abiertos, despues, cotizados, asesor, errores, motivoFU };
+    // Lo técnico se agrupa por número: diez fallos de envío al mismo cliente son
+    // un bug, no diez tareas. El asesor no puede hacer nada con esto — se
+    // muestra para que sepa a quién no le está llegando y lo pase al desarrollo.
+    const tecnicos = [...alerts.filter((a) => a.clase === "tecnico").sort(porGravedad)]
+      .reduce<Array<{ phone: string; etiqueta: string; veces: number }>>((acc, a) => {
+        const previa = acc.find((t) => t.phone === a.phone);
+        if (previa) previa.veces += 1;
+        else acc.push({ phone: a.phone, etiqueta: a.etiquetaTecnica || "Fallo técnico", veces: 1 });
+        return acc;
+      }, []);
+
+    return { abiertos, despues, cotizados, asesor, errores, tecnicos, motivoFU };
   }, [tickets, followUps, alerts, now]);
 
   function motivoAsesor(t: Ticket): string {
@@ -113,7 +130,7 @@ export function Opportunities() {
   const VISTAS: Array<{ id: Vista; icon: string; titulo: string; sub: string; n: number; alerta?: boolean }> = [
     { id: "cotizados", icon: "💰", titulo: "Cotizados", sub: "cotización enviada en adelante — a cerrar", n: datos.cotizados.length },
     { id: "asesor", icon: "🙋", titulo: "Piden asesor", sub: "pidieron humano, van a llamar o el bot no alcanzó", n: datos.asesor.length },
-    { id: "errores", icon: "⚠️", titulo: "Errores", sub: "repeticiones y fallos del bot", n: datos.errores.length, alerta: datos.errores.length > 0 },
+    { id: "errores", icon: "⚠️", titulo: "Errores", sub: "el bot se rompió dentro del chat", n: datos.errores.length, alerta: datos.errores.length > 0 },
   ];
 
   return (
@@ -174,7 +191,7 @@ export function Opportunities() {
           <p className="text-[11px] text-muted">
             {vista === "cotizados" && "Ordenados por urgencia: primero los que prometieron venir y no vinieron."}
             {vista === "asesor" && "Ordenados por quién espera hace más tiempo."}
-            {vista === "errores" && "Ordenados por gravedad."}
+            {vista === "errores" && "Sólo errores del bot dentro del chat, por gravedad. Lo técnico va abajo."}
           </p>
           <button
             onClick={() => abrirRevision(vista)}
@@ -217,7 +234,7 @@ export function Opportunities() {
 
         {vista === "errores" && (
           datos.errores.length === 0
-            ? <EmptyState titulo="Sin errores pendientes" detalle="El bot no ha detectado conversaciones repetitivas ni fallos que requieran intervención." />
+            ? <EmptyState titulo="Ningún chat roto" detalle="El bot no se ha repetido, atascado ni molestado a nadie. La ventana de 24 h cerrándose o un seguimiento pendiente no son errores: eso vive en Cotizados y Piden asesor." />
             : <div className="grid gap-2 md:grid-cols-2">
                 {datos.errores.map((a) => (
                   <div key={a.id} className="glass grid gap-1.5 rounded-2xl p-3 shadow-soft">
@@ -242,6 +259,29 @@ export function Opportunities() {
                   </div>
                 ))}
               </div>
+        )}
+
+        {/* ── Lo técnico: del desarrollador, no del asesor ──
+            Sólo el número. Sin ficha, sin botones y sin nombre a propósito: no
+            hay nada que el asesor pueda hacer con esto salvo reportarlo, y
+            darle forma de tarea comercial es lo que ensuciaba el tab. */}
+        {vista === "errores" && datos.tecnicos.length > 0 && (
+          <section className="rounded-2xl p-3" style={{ background: "color-mix(in srgb, var(--color-paper) 4%, transparent)", border: "1px solid var(--color-line)" }}>
+            <div className="mb-2 flex items-center gap-2">
+              <h2 className="text-xs font-black tracking-wide text-muted uppercase">🔧 Problemas técnicos</h2>
+              <span className="tnum rounded-full bg-paper/[.07] px-2 text-[10px] font-black text-muted">{datos.tecnicos.length}</span>
+              <p className="ml-auto hidden text-[10px] text-faint md:block">esto lo revisa el desarrollador — sólo los números afectados</p>
+            </div>
+            <ul className="grid gap-1 sm:grid-cols-2 lg:grid-cols-3">
+              {datos.tecnicos.map((t) => (
+                <li key={t.phone} className="flex items-baseline gap-2 text-[11px]">
+                  <span className="font-mono font-bold">{t.phone}</span>
+                  <span className="truncate text-[10px] text-faint">{t.etiqueta}</span>
+                  {t.veces > 1 && <span className="tnum ml-auto text-[10px] font-bold text-red">×{t.veces}</span>}
+                </li>
+              ))}
+            </ul>
+          </section>
         )}
       </div>
 

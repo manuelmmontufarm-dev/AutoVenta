@@ -211,11 +211,26 @@ export interface TemplatePlanPreview {
   days: Array<{ day: number; dueAt: string; templateKey: string; templateName: string; language: string; preview: string }>;
 }
 
+/**
+ * `clase` la decide el backend (services/alertTaxonomy.ts) y es lo que separa
+ * un error de verdad de una señal de negocio:
+ *  · conversacion — el bot se rompió dentro del chat. Va al tab Errores.
+ *  · tecnico      — falló la plomería. Se muestra sólo con el número: es del
+ *                   desarrollador, no una tarea comercial.
+ *  · operativo    — no es un error (ventana de 24 h, seguimientos, visitas).
+ *                   Ya se ve en Cotizados, Piden asesor o el pipeline.
+ */
+export type ClaseAlerta = "conversacion" | "tecnico" | "operativo";
+
 export interface BotAlert {
   id: number; conversationId: number; type: string;
   priority: "critical" | "high" | "medium" | "low";
   summary: string; exactReason: string; suggestedAction: string;
   status: string; snoozedUntil: string | null; createdAt: string; customer: string;
+  phone: string;
+  clase: ClaseAlerta;
+  /** Etiqueta corta de la falla técnica. Vacía si no es técnica. */
+  etiquetaTecnica: string;
 }
 
 export type TipoMensaje = "texto" | "pdf" | "imagen" | "ubicacion";
