@@ -332,15 +332,19 @@ function tiras(e: Estilo, metricas: Array<[string, string, string, boolean?]>) {
         widths: ["*"],
         heights: [2.5, 43],
         body: [
-          [{ text: "", fillColor: destacada ? e.p.accent : e.p.gold }],
+          [{ text: "", fillColor: e.p.gold }],
           [{
-            fillColor: e.p.panel,
+            // La destacada se INVIERTE (fondo oscuro, cifra en oro) en vez de
+            // teñirse con el acento: en la paleta «rojo» el acento es casi
+            // negro (#191919) y la tarjeta quedaba más apagada que las otras
+            // cinco. `dark` y `gold` sí contrastan en las seis paletas.
+            fillColor: destacada ? e.p.dark : e.p.panel,
             margin: [6, 6, 6, 6],
             stack: [
-              { text: soloTexto(etiqueta), fontSize: 5.8, bold: true, color: "#8b8778", characterSpacing: 0.4 },
+              { text: soloTexto(etiqueta), fontSize: 5.8, bold: true, color: destacada ? e.p.darkSub : "#8b8778", characterSpacing: 0.4 },
               // El dinero necesita más dígitos que un conteo: baja de cuerpo
               // para que «$18,432» no se salga de una tarjeta de sexta parte.
-              { text: numero, font: e.precio, fontSize: destacada ? 15 : 19, color: destacada ? e.p.accent : e.p.dark, margin: [0, destacada ? 4 : 2, 0, 0] },
+              { text: numero, font: e.precio, fontSize: destacada ? 15 : 19, color: destacada ? e.p.gold : e.p.dark, margin: [0, destacada ? 4 : 2, 0, 0] },
               { text: extra, fontSize: 7.5, bold: true, color: e.p.accent },
             ],
           }],

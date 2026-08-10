@@ -129,7 +129,11 @@ anotaciones de enlace. (2) Sexta tarjeta arriba: **«EN JUEGO SIN CERRAR»**, la
 suma de TODOS los cotizados pendientes (no los del día), con el filo y el número
 en el acento de la marca. Se calcula sobre el total, no sobre las doce que se
 listan: recortar la lista es una decisión de lectura y no puede achicar la plata
-que hay sobre la mesa. Va sin centavos, que en esa cifra no deciden nada.
+que hay sobre la mesa. Va sin centavos, que en esa cifra no deciden nada. La
+tarjeta se **invierte** (fondo oscuro, cifra en oro) en vez de teñirse con el
+acento: en la paleta «rojo» —la que Depot tiene puesta— el acento es casi negro
+(#191919) y la destacada quedaba más apagada que las otras cinco. `dark` y
+`gold` sí contrastan en las seis.
 
 **Por qué:** las otras cinco cifras miran hacia atrás (qué pasó ayer). Esta mira
 hacia adelante y es la que justifica abrir el panel un domingo.
