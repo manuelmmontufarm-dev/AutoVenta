@@ -100,6 +100,13 @@ export interface ReporteDiario {
     visitasAgendadas: number;
     ventasGanadas: number;
     montoGanado: number;
+    /**
+     * Plata cotizada que sigue SIN cerrarse: la suma de todos los «Cotizados»
+     * pendientes, no sólo los del día. Es la única cifra del reporte que no
+     * mira hacia atrás — dice cuánto hay sobre la mesa esperando un empujón, y
+     * es la que justifica que el asesor abra el panel un domingo.
+     */
+    montoEnJuego: number;
   };
   cotizados: { filas: FilaCliente[]; total: number };
   pidenAsesor: { filas: FilaCliente[]; total: number };
@@ -341,6 +348,10 @@ export async function buildDailyReport(ahora = new Date()): Promise<ReporteDiari
   }
   const tecnicos = [...tecnicosPorNumero.values()];
 
+  // Sobre el total, no sobre las doce que se listan: recortar la lista es una
+  // decisión de lectura, no puede achicar la plata que hay en juego.
+  const montoEnJuego = cotizados.reduce((suma, row) => suma + Number(row.total ?? 0), 0);
+
   function motivoCotizado(row: FilaCruda): string {
     const visita = row.visit_date ?? row.pickup_date;
     if (visita && visita.getTime() < ahora.getTime() - 86_400_000) return "Dijo que venía y no apareció — rescatar";
@@ -378,6 +389,7 @@ export async function buildDailyReport(ahora = new Date()): Promise<ReporteDiari
       visitasAgendadas: metricas?.visitas ?? 0,
       ventasGanadas: metricas?.ganadas ?? 0,
       montoGanado: Number(metricas?.monto_ganado ?? 0),
+      montoEnJuego,
     },
     cotizados: { filas: cotizados.slice(0, TOPE_POR_SECCION).map((r) => aFila(r, motivoCotizado(r), ahora)), total: cotizados.length },
     pidenAsesor: { filas: asesor.slice(0, TOPE_POR_SECCION).map((r) => aFila(r, motivoAsesor(r), ahora)), total: asesor.length },

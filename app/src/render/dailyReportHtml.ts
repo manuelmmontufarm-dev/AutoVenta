@@ -54,7 +54,10 @@ function filaCliente(fila: FilaCliente, ahora: Date): string {
         <span class="monto">${money(fila.monto)}</span>
       </div>
       <p class="motivo">${esc(fila.motivo)}</p>
-      <div class="chips">${cuando}${chips}</div>
+      <div class="pie">
+        <div class="chips">${cuando}${chips}</div>
+        <span class="abrir">abrir chat →</span>
+      </div>
     </a>`;
 }
 
@@ -106,6 +109,9 @@ export function renderDailyReportHtml(r: ReporteDiario): string {
     ["Dijeron cuándo vienen", String(m.visitasAgendadas), ""],
     ["Ventas cerradas", String(m.ventasGanadas), m.ventasGanadas ? money(m.montoGanado) : ""],
   ];
+  // Aparte de las cinco del día: no mira hacia atrás, dice cuánta plata cotizada
+  // sigue sobre la mesa esperando un empujón.
+  const enJuego = `$${Math.round(Number.isFinite(m.montoEnJuego) ? m.montoEnJuego : 0).toLocaleString("en-US")}`;
 
   return `<!doctype html>
 <html lang="es">
@@ -135,7 +141,9 @@ export function renderDailyReportHtml(r: ReporteDiario): string {
      no el reporte, y si ocupan la primera pantalla entera el asesor tiene que
      hacer scroll para llegar a lo único que puede accionar. */
   .tarjetas { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-bottom: 24px; }
-  @media (min-width: 560px) { .tarjetas { grid-template-columns: repeat(5, 1fr); } }
+  @media (min-width: 560px) { .tarjetas { grid-template-columns: repeat(6, 1fr); } }
+  .tarjeta.destacada { border-color: color-mix(in srgb, var(--salvia) 45%, transparent); }
+  .tarjeta.destacada .n { color: var(--salvia); font-size: 17px; }
   .tarjeta { background: var(--card); border: 1px solid var(--line); border-radius: 11px; padding: 8px 9px; }
   /* Las dos alturas mínimas son las que dejan las cinco tarjetas parejas: sin
      ellas, las que no llevan monto quedan medio vacías y las de etiqueta larga
@@ -163,6 +171,10 @@ export function renderDailyReportHtml(r: ReporteDiario): string {
   .monto { font-weight: 800; font-size: 14.5px; color: var(--salvia); font-variant-numeric: tabular-nums; white-space: nowrap; }
   .abrir { font-size: 11.5px; font-weight: 700; color: var(--violeta); white-space: nowrap; }
   .motivo { font-size: 12.5px; color: var(--ink-2); margin: 4px 0 0; }
+  /* El "abrir chat" va en TODAS las tarjetas: la tarjeta entera ya era un
+     enlace, pero nada lo indicaba y el asesor no iba a descubrirlo. */
+  .pie { display: flex; align-items: flex-end; justify-content: space-between; gap: 8px; margin-top: 7px; }
+  .pie .chips { margin-top: 0; }
   .chips { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 7px; }
   .chip, .cuando { font-size: 10.5px; font-weight: 700; border-radius: 999px; padding: 2px 8px; background: rgba(38,38,36,.06); color: var(--ink-2); }
   .cuando { background: rgba(95,122,82,.13); color: var(--salvia); }
@@ -204,6 +216,11 @@ export function renderDailyReportHtml(r: ReporteDiario): string {
       <p class="n">${esc(n)}</p>
       <p class="extra">${esc(extra)}</p>
     </div>`).join("")}
+    <div class="tarjeta destacada">
+      <p class="et">En juego sin cerrar</p>
+      <p class="n">${esc(enJuego)}</p>
+      <p class="extra">${r.cotizados.total} cotizados pendientes</p>
+    </div>
   </div>
 
   ${seccion({

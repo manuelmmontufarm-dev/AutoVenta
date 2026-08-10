@@ -32,6 +32,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-08-10 | _(este mismo)_ | Reporte: botón «abrir chat» en toda fila + plata en juego arriba | 0.25 |
 | 2026-08-10 | _(este mismo)_ | El reporte diario cuenta el día, no el arrastre histórico (medido contra la base de Depot) | 0.5 |
 | 2026-08-10 | _(este mismo)_ | Reporte diario 20:00 a los asesores (PDF con links) + el tab de errores solo con errores | 3.0 |
 | 2026-08-09 | _(este mismo)_ | El panel sobrevive a Railway degradado: reintentos, carga por partes y fases recordadas | 1.5 |
@@ -117,6 +118,28 @@ Ya viene activado en este equipo.
 ---
 
 ## Entradas (más reciente primero)
+
+### 2026-08-10 · Botón en toda fila + la plata en juego arriba · ⏱️ 0.25 h
+
+**Qué:** Dos pedidos de Manuel viendo el primer reporte real. (1) El **«abrir
+chat →»** ya no es exclusivo de la sección de errores: va en todas las filas.
+El nombre siempre fue un enlace, pero en un PDF nada indica que un texto se
+pueda tocar y el asesor no iba a descubrirlo — el PDF pasó de 25 a 40
+anotaciones de enlace. (2) Sexta tarjeta arriba: **«EN JUEGO SIN CERRAR»**, la
+suma de TODOS los cotizados pendientes (no los del día), con el filo y el número
+en el acento de la marca. Se calcula sobre el total, no sobre las doce que se
+listan: recortar la lista es una decisión de lectura y no puede achicar la plata
+que hay sobre la mesa. Va sin centavos, que en esa cifra no deciden nada.
+
+**Por qué:** las otras cinco cifras miran hacia atrás (qué pasó ayer). Esta mira
+hacia adelante y es la que justifica abrir el panel un domingo.
+
+**De paso:** `montoCorto` quedó blindado contra no-números. El tipo garantiza un
+`number`, pero se vio un `$NaN` renderizando con un fixture viejo, y un NaN en
+una cifra de dinero es de las pocas cosas que destruyen la confianza en un
+reporte de un vistazo — ese PDF termina en el teléfono de un asesor.
+
+---
 
 ### 2026-08-10 · El reporte cuenta el día, no el arrastre · ⏱️ 0.5 h
 

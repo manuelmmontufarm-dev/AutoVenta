@@ -117,6 +117,17 @@ export function mezclar(a: string, b: string, proporcion: number): string {
   return `#${mezcla.map((v) => v.toString(16).padStart(2, "0")).join("")}`;
 }
 
+/**
+ * Sin centavos: en la tarjeta del pipeline los decimales no deciden nada.
+ *
+ * Blinda contra no-números. El tipo dice que siempre llega un `number`, pero
+ * este PDF acaba en el teléfono de un asesor y `$NaN` en una cifra de dinero es
+ * de las pocas cosas que destruyen la confianza en un reporte de un vistazo.
+ */
+function montoCorto(valor: number): string {
+  return `$${Math.round(Number.isFinite(valor) ? valor : 0).toLocaleString("en-US")}`;
+}
+
 function money(valor: number | null): string {
   if (valor == null) return "—";
   return `$${valor.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -245,10 +256,17 @@ function filaCliente(e: Estilo, acento: string, fila: FilaCliente, ahora: Date) 
       ],
     },
     { text: soloTexto(fila.motivo), fontSize: 8.5, color: e.p.tenue, margin: [0, 3, 0, 0] },
-    detalles
-      ? { text: soloTexto(detalles), fontSize: 7.5, color: fila.vencida ? ALERTA : "#8b8778", margin: [0, 3, 0, 0] }
-      : null,
-  ].filter(Boolean), fila.vencida ? mezclar(e.p.panel, ALERTA, 0.07) : undefined);
+    // El "abrir chat" va en TODAS las filas, no sólo en las de error: el nombre
+    // ya era un enlace, pero en un PDF nada indica que un texto se pueda tocar y
+    // el asesor no iba a descubrirlo. La fila existe aunque no haya detalles.
+    {
+      margin: [0, 3, 0, 0],
+      columns: [
+        { width: "*", text: detalles ? soloTexto(detalles) : "", fontSize: 7.5, color: fila.vencida ? ALERTA : "#8b8778" },
+        { width: 62, text: "abrir chat →", link: fila.link, fontSize: 8, bold: true, color: e.p.accent, alignment: "right" },
+      ],
+    },
+  ], fila.vencida ? mezclar(e.p.panel, ALERTA, 0.07) : undefined);
 }
 
 function filaError(e: Estilo, fila: { nombre: string; motivo: string; link: string }) {
@@ -295,10 +313,16 @@ function resto(total: number, mostradas: number) {
     : [];
 }
 
-/** Las cinco cifras del día, en tarjetas del mismo alto con filo de color. */
-function tiras(e: Estilo, metricas: Array<[string, string, string]>) {
+/**
+ * Las cifras del día, en tarjetas del mismo alto con filo de color.
+ *
+ * La última entrada puede venir marcada como destacada: es «en juego», la plata
+ * cotizada sin cerrar, y se pinta con el filo y el número en el acento de la
+ * marca porque es la razón por la que el asesor abre el panel.
+ */
+function tiras(e: Estilo, metricas: Array<[string, string, string, boolean?]>) {
   return {
-    columns: metricas.map(([etiqueta, numero, extra]) => ({
+    columns: metricas.map(([etiqueta, numero, extra, destacada]) => ({
       width: "*",
       // El filo de color va como fila propia de la tabla, no como un canvas:
       // un canvas tiene ancho fijo en puntos y le imponía ese mínimo a la
@@ -308,13 +332,15 @@ function tiras(e: Estilo, metricas: Array<[string, string, string]>) {
         widths: ["*"],
         heights: [2.5, 43],
         body: [
-          [{ text: "", fillColor: e.p.gold }],
+          [{ text: "", fillColor: destacada ? e.p.accent : e.p.gold }],
           [{
             fillColor: e.p.panel,
-            margin: [7, 6, 7, 6],
+            margin: [6, 6, 6, 6],
             stack: [
               { text: soloTexto(etiqueta), fontSize: 5.8, bold: true, color: "#8b8778", characterSpacing: 0.4 },
-              { text: numero, font: e.precio, fontSize: 19, color: e.p.dark, margin: [0, 2, 0, 0] },
+              // El dinero necesita más dígitos que un conteo: baja de cuerpo
+              // para que «$18,432» no se salga de una tarjeta de sexta parte.
+              { text: numero, font: e.precio, fontSize: destacada ? 15 : 19, color: destacada ? e.p.accent : e.p.dark, margin: [0, destacada ? 4 : 2, 0, 0] },
               { text: extra, fontSize: 7.5, bold: true, color: e.p.accent },
             ],
           }],
@@ -410,6 +436,7 @@ function documento(r: ReporteDiario, e: Estilo) {
         ["COTIZACIONES\nENVIADAS", String(m.cotizacionesEnviadas), m.cotizacionesEnviadas ? money(m.montoCotizado) : ""],
         ["DIJERON QUE\nVIENEN", String(m.visitasAgendadas), ""],
         ["VENTAS\nCERRADAS", String(m.ventasGanadas), m.ventasGanadas ? money(m.montoGanado) : ""],
+        ["EN JUEGO\nSIN CERRAR", montoCorto(m.montoEnJuego), "", true],
       ]),
 
       ...titulo(e, e.p.accent, "Cotizados — a un empujón", r.cotizados.total,
