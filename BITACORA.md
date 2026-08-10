@@ -32,6 +32,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-08-10 | _(este mismo)_ | El reporte diario cuenta el día, no el arrastre histórico (medido contra la base de Depot) | 0.5 |
 | 2026-08-10 | _(este mismo)_ | Reporte diario 20:00 a los asesores (PDF con links) + el tab de errores solo con errores | 3.0 |
 | 2026-08-09 | _(este mismo)_ | El panel sobrevive a Railway degradado: reintentos, carga por partes y fases recordadas | 1.5 |
 | 2026-08-09 | _(este mismo)_ | PWA instalable (sin barra de Safari) + composer pegado al teclado | 0.5 |
@@ -116,6 +117,44 @@ Ya viene activado en este equipo.
 ---
 
 ## Entradas (más reciente primero)
+
+### 2026-08-10 · El reporte cuenta el día, no el arrastre · ⏱️ 0.5 h
+
+**Qué:** Al pedir el reporte contra la base REAL de Depot (antes de mandárselo a
+nadie) salió: `piden asesor 202 · errores 74 · técnicos 108`. Inservible. Dos
+correcciones, las dos medidas contra producción:
+
+1. **Las alertas del reporte se acotan a la ventana.** Eran todas las abiertas
+   desde siempre (897 vivas hoy). El tab del panel sigue mostrándolas todas —ahí
+   es una bandeja de tareas— pero el reporte es un parte diario. Con el corte:
+   197 alertas nacidas en la ventana → **1 error de conversación + 10 técnicos**,
+   porque la taxonomía descarta 113 `advisor_follow_up`, 40 `recommend_close_lost`,
+   30 `two_follow_ups_no_reply` y 5 `window_closing`.
+2. **«Piden asesor» pasa a ser «está esperando respuesta».** El criterio viejo
+   era `assigned_to='human'`, y eso no significa lo que parece: un envío manual
+   desde el panel voltea el chat a humano y **nunca lo devuelve al bot**, así que
+   202 de 368 conversaciones abiertas figuran como humanas — más de la mitad del
+   censo, casi todas ya atendidas. Ahora entra quien tiene alerta
+   `human_requested` abierta (5) o está en manos humanas **con el último mensaje
+   del cliente**, o sea nadie le contestó (23). Total: **26** accionables.
+
+También se probó un corte por antigüedad (14 días sin hablar) y **no servía**:
+los 202 tenían actividad reciente. El problema no era que fueran viejos, era el
+criterio. Queda igual como red de seguridad.
+
+**Por qué:** el reporte se iba a enviar con "74 errores" en la cabecera — la
+misma enfermedad que fuimos a curar al tab de errores. Un número que nadie puede
+accionar entrena al asesor a ignorar el mensaje entero.
+
+**⚠️ Divergencia conocida:** el tab Oportunidades del panel sigue con el criterio
+viejo de "Piden asesor" (`atiende=humano`), así que ahí siguen apareciendo ~202.
+El reporte y el tab dejaron de coincidir en esa sección. Alinearlo es el
+siguiente paso; se dejó fuera para no cambiar la UI sin verla.
+
+**Dato suelto que salió de paso:** 10 `send_error` en un solo día en Depot —
+mensajes que el bot no logró entregar. Vale la pena mirarlo aparte.
+
+---
 
 ### 2026-08-10 · Reporte diario 20:00 + el tab de errores solo con errores · ⏱️ 3.0 h
 

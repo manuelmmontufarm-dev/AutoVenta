@@ -27,6 +27,18 @@ import { DEFAULT_PIECES_CONFIG, getPiecesConfig } from "./settings.js";
 /** Cuántas filas se listan por sección antes de resumir el resto en «y N más». */
 const TOPE_POR_SECCION = 12;
 
+/**
+ * Cuántos días de silencio antes de que una conversación deje de ser tarea.
+ *
+ * «Cotizados» y «Piden asesor» son pendientes acumulados, no cosas que pasaron
+ * hoy, y eso está bien — son plata sin cerrar. Lo que no está bien es que sean
+ * ETERNOS: un envío manual reasigna el chat a `humano` y nunca vuelve al bot,
+ * así que sin este corte «piden asesor» acaba siendo el censo de todo chat que
+ * un humano tocó alguna vez. Medido contra la base real de Depot: 202 filas.
+ * Con dos semanas de corte queda lo que de verdad sigue vivo.
+ */
+const DIAS_VIVO = 14;
+
 /** Hora de corte, en hora de Ecuador. */
 export const HORA_DE_CORTE = 20;
 
@@ -218,6 +230,7 @@ const COTIZACION_VIGENTE = sql`
 
 export async function buildDailyReport(ahora = new Date()): Promise<ReporteDiario> {
   const { desde, hasta, diaClave } = ventanaDelReporte(ahora);
+  const vivoDesde = new Date(hasta.getTime() - DIAS_VIVO * 86_400_000);
 
   const [metricas] = await sql<{
     nuevos: number; escribieron: number; cotizaciones: number; monto: string | number | null;
@@ -249,26 +262,42 @@ export async function buildDailyReport(ahora = new Date()): Promise<ReporteDiari
     from conversations c
     ${COTIZACION_VIGENTE}
     where c.status = 'open' and c.stage in ('cotizacion_enviada', 'seguimiento_venta')
+      and coalesce(c.last_customer_message_at, c.updated_at) >= ${vivoDesde}
     order by
       (c.visit_date is not null and c.visit_date < ${new Date(ahora.getTime() - 86_400_000)}) desc,
       coalesce(c.visit_date, c.pickup_date::timestamptz, 'infinity'::timestamptz) asc,
       q.total desc nulls last
   `;
 
-  // Piden asesor: el bot lo marcó, o el chat ya está en manos humanas. Ordenados
-  // por quién lleva más tiempo esperando, que es como se ve en el tab.
+  // Piden asesor = quien de verdad está ESPERANDO una respuesta.
+  //
+  // «Está en manos humanas» no sirve como criterio: un envío manual desde el
+  // panel reasigna el chat a `humano` y nunca lo devuelve al bot, así que en la
+  // base real de Depot 202 de 368 conversaciones abiertas figuran como humanas
+  // — más de la mitad del censo. De esas, sólo 23 tienen el último mensaje del
+  // cliente (nadie contestó) y sólo 5 pidieron un asesor explícitamente. Esos
+  // son los que hay que atender; el resto ya fueron atendidos y siguen abiertos
+  // porque nadie los cierra.
   const asesor = await sql<FilaCruda[]>`
     select ${CAMPOS_CLIENTE}
     from conversations c
     ${COTIZACION_VIGENTE}
-    where c.status = 'open' and (
-      c.assigned_to = 'human'
-      or exists (
-        select 1 from bot_alerts a
-        where a.conversation_id = c.id and a.cycle = c.current_cycle
-          and a.type = 'human_requested' and a.status in ('open', 'snoozed')
+    where c.status = 'open'
+      and coalesce(c.last_customer_message_at, c.updated_at) >= ${vivoDesde}
+      and (
+        exists (
+          select 1 from bot_alerts a
+          where a.conversation_id = c.id and a.cycle = c.current_cycle
+            and a.type = 'human_requested' and a.status in ('open', 'snoozed')
+        )
+        or (
+          c.assigned_to = 'human'
+          and (
+            select m.direction from messages m
+            where m.conversation_id = c.id order by m.created_at desc limit 1
+          ) = 'inbound'
+        )
       )
-    )
     order by coalesce(c.last_customer_message_at, c.updated_at) asc
   `;
 
@@ -281,6 +310,11 @@ export async function buildDailyReport(ahora = new Date()): Promise<ReporteDiari
     join conversations c on c.id = a.conversation_id
     where a.status in ('open', 'snoozed')
       and (a.snoozed_until is null or a.snoozed_until <= now())
+      -- Sólo lo que se rompió DENTRO de la ventana. El tab del panel sigue
+      -- mostrando todo lo abierto —ahí es una bandeja de tareas—, pero el
+      -- reporte es un parte diario: un error de hace cinco días no es noticia
+      -- de hoy, y arrastrarlo hacía que el reporte abriera con «74 errores».
+      and a.created_at >= ${desde} and a.created_at < ${hasta}
     order by case a.priority when 'critical' then 0 when 'high' then 1 when 'medium' then 2 else 3 end,
       a.created_at desc
   `;
