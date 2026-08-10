@@ -9,7 +9,7 @@
  * responde el servidor no coincide con este, el panel avisa: significa que una
  * mitad se desplegó y la otra no.
  */
-export const VERSION = "v0.12.2";
+export const VERSION = "v0.12.3";
 
 /** SHA corto del commit con el que se compiló este panel. */
 export const COMMIT: string =
@@ -24,6 +24,16 @@ export interface Cambio {
 
 /** Más reciente primero. Cada entrada es lo que el negocio nota, no el diff. */
 export const CAMBIOS: Cambio[] = [
+  {
+    version: "v0.12.3",
+    fecha: "9 de agosto de 2026",
+    titulo: "El panel se instala como app — chat pegado al teclado",
+    puntos: [
+      "Desde Safari: Compartir → \"Añadir a pantalla de inicio\". El panel abre a pantalla completa, sin la barra del navegador — la dirección esa que se colaba entre el chat y el teclado desaparece.",
+      "El composer del chat queda pegado al teclado: se quitó la franja blanca muerta que aparecía debajo al escribir.",
+      "Ojo: la app instalada guarda su propia sesión — la primera vez pide la clave administrativa de nuevo.",
+    ],
+  },
   {
     version: "v0.12.2",
     fecha: "9 de agosto de 2026",

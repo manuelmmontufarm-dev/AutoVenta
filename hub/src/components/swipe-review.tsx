@@ -457,6 +457,11 @@ function ChatFullScreen({
     inputRef.current?.focus(); // el teclado no se cierra entre mensajes
   }
 
+  // Con el teclado abierto la barra del home queda DETRÁS del teclado: el
+  // padding de safe-area se volvía una franja blanca muerta entre el composer
+  // y el teclado. Se detecta comparando lo visible contra la ventana entera.
+  const tecladoAbierto = marco !== null && window.innerHeight - marco.alto - marco.top > 80;
+
   return (
     <motion.div
       className="fixed inset-x-0 z-110 flex flex-col"
@@ -526,8 +531,8 @@ function ChatFullScreen({
           : mensajesTicket.map((m) => <ChatBubble key={m.id} msg={m} />)}
       </div>
 
-      {/* Composer: siempre visible encima del teclado */}
-      <div className="glass-strong px-3 pt-2" style={{ paddingBottom: "max(0.625rem, env(safe-area-inset-bottom))" }}>
+      {/* Composer: siempre visible encima del teclado, pegado a él */}
+      <div className="glass-strong px-3 pt-2" style={{ paddingBottom: tecladoAbierto ? "0.5rem" : "max(0.625rem, env(safe-area-inset-bottom))" }}>
         {ticket.atiende === "bot" && (
           <p className="mb-1.5 text-center text-[9.5px] text-faint">
             El bot sigue atendiendo — al enviar, el chat pasa a ustedes y el bot se pausa

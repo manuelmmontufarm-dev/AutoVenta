@@ -32,6 +32,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-08-09 | _(este mismo)_ | PWA instalable (sin barra de Safari) + composer pegado al teclado | 0.5 |
 | 2026-08-09 | _(este mismo)_ | Chat de baraja calzado al teclado de iPhone + decidir desde el chat + kanban móvil por botón | 1.5 |
 | 2026-08-09 | _(este mismo)_ | Chat de la baraja a pantalla completa + fix del zoom fantasma en móvil | 1.0 |
 | 2026-08-09 | _(este mismo)_ | Oportunidades reorganizado: cuadrícula de cotizados, baraja swipe y "Para después" + 6 tabs en móvil | 3.0 |
@@ -113,6 +114,24 @@ Ya viene activado en este equipo.
 ---
 
 ## Entradas (más reciente primero)
+
+### 2026-08-09 · PWA instalable + composer pegado al teclado · ⏱️ 0.5 h
+
+**Qué:** El hub ahora es instalable: `manifest.webmanifest` (standalone,
+íconos DT 192/512 generados con Chrome headless desde el SVG) + metas de
+Apple (`apple-touch-icon` 180, `apple-mobile-web-app-capable`). "Añadir a
+pantalla de inicio" abre el panel a pantalla completa, sin barra de Safari.
+Además, con el teclado abierto el composer del chat suelta el padding de
+safe-area (la barra del home queda detrás del teclado y ese padding era una
+franja blanca muerta entre el input y el teclado).
+
+**Por qué:** la píldora del URL de Safari se colaba visualmente entre el chat
+y el teclado y rompía la sensación de app — Manuel: "que se sienta como una
+sola, como si fuera WhatsApp". Esa píldora es chrome de Safari: no se puede
+pintar encima desde la página; instalada como app desaparece de verdad. Ojo:
+la app instalada tiene su propio localStorage → pide la ADMIN_KEY una vez.
+
+---
 
 ### 2026-08-09 · Chat calzado al teclado de iPhone + decidir desde el chat + kanban móvil · ⏱️ 1.5 h
 
