@@ -9,7 +9,7 @@
  * responde el servidor no coincide con este, el panel avisa: significa que una
  * mitad se desplegó y la otra no.
  */
-export const VERSION = "v0.12.1";
+export const VERSION = "v0.12.2";
 
 /** SHA corto del commit con el que se compiló este panel. */
 export const COMMIT: string =
@@ -24,6 +24,16 @@ export interface Cambio {
 
 /** Más reciente primero. Cada entrada es lo que el negocio nota, no el diff. */
 export const CAMBIOS: Cambio[] = [
+  {
+    version: "v0.12.2",
+    fecha: "9 de agosto de 2026",
+    titulo: "Chat de la baraja sin fugas en iPhone + kanban móvil sin arrastres",
+    puntos: [
+      "Al escribir en la baraja ya no se puede 'scrollear' y ver la tarjeta vieja detrás: el chat sigue al teclado de iPhone y ocupa siempre exactamente lo visible.",
+      "Ahora se decide sin salir del chat: botones ✕ (perdida) y ✓ (ganada / para después) en la cabecera.",
+      "Kanban en el celular: ver es scroll y mover es un botón — '⇄ Mover de etapa' abre una lista de etapas para tocar, en vez del arrastre que se peleaba con el dedo.",
+    ],
+  },
   {
     version: "v0.12.1",
     fecha: "9 de agosto de 2026",

@@ -10,7 +10,7 @@ import {
   type DragStartEvent,
 } from "@dnd-kit/core";
 import { AnimatePresence, motion } from "framer-motion";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { FunnelChart } from "../components/charts";
 import { Avatar, EmptyState, Segmented } from "../components/ui";
 import { getStoredAdminKey } from "../data/realSource";
@@ -20,12 +20,28 @@ import { navigate } from "../router";
 import { useHub, useNow } from "../store";
 import { CerrarSheet } from "./TicketDetail";
 
-function CardKanban({ ticket, now, arrastrando = false }: { ticket: Ticket; now: number; arrastrando?: boolean }) {
+/**
+ * ¿Pantalla táctil chica? El drag & drop del kanban con el dedo era una
+ * lotería (se confundía con el scroll y soltaba la tarjeta donde caía), así
+ * que en móvil el tablero es de solo-lectura y mover es un botón explícito.
+ */
+function useEsMovil(): boolean {
+  const [movil, setMovil] = useState(() => window.matchMedia("(max-width: 767px)").matches);
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 767px)");
+    const onChange = () => setMovil(mq.matches);
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
+  }, []);
+  return movil;
+}
+
+function CardKanban({ ticket, now, arrastrando = false, onMover }: { ticket: Ticket; now: number; arrastrando?: boolean; onMover?: () => void }) {
   const dia = etiquetaVisita(ticket.visitDate, ticket.compromisoCliente, now);
   return (
     <div
       className={`glass w-full rounded-2xl p-3 text-left ${arrastrando ? "rotate-2 scale-105 shadow-pop" : "shadow-soft"}`}
-      style={{ cursor: arrastrando ? "grabbing" : "grab" }}
+      style={{ cursor: arrastrando ? "grabbing" : onMover ? "pointer" : "grab" }}
     >
       <div className="flex items-center gap-2.5">
         <Avatar ticket={ticket} size={30} />
@@ -64,12 +80,24 @@ function CardKanban({ ticket, now, arrastrando = false }: { ticket: Ticket; now:
           </span>
         </div>
       )}
+      {/* Móvil: mover es un botón, no un arrastre a ciegas. */}
+      {onMover && (
+        <button
+          onClick={(e) => { e.stopPropagation(); onMover(); }}
+          className="mt-2 w-full rounded-lg py-1.5 text-[10.5px] font-black"
+          style={{ background: "color-mix(in srgb, var(--color-paper) 8%, transparent)", color: "var(--color-paper)" }}
+        >
+          ⇄ Mover de etapa
+        </button>
+      )}
     </div>
   );
 }
 
-function CardArrastrable({ ticket, now }: { ticket: Ticket; now: number }) {
-  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id: ticket.id });
+function CardArrastrable({ ticket, now, movil, onMover }: { ticket: Ticket; now: number; movil: boolean; onMover: (t: Ticket) => void }) {
+  // En móvil no se registran los listeners de drag: la columna se scrollea
+  // sin pelearse con el dedo y la tarjeta solo navega o abre "Mover".
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id: ticket.id, disabled: movil });
   return (
     <motion.div
       layout
@@ -79,17 +107,17 @@ function CardArrastrable({ ticket, now }: { ticket: Ticket; now: number }) {
       transition={{ type: "spring", stiffness: 380, damping: 30 }}
       ref={setNodeRef}
       {...attributes}
-      {...listeners}
+      {...(movil ? {} : listeners)}
       onClick={() => !isDragging && navigate(`ticket/${ticket.id}`)}
     >
-      <CardKanban ticket={ticket} now={now} />
+      <CardKanban ticket={ticket} now={now} onMover={movil ? () => onMover(ticket) : undefined} />
     </motion.div>
   );
 }
 
-function Columna({ etapa, tickets, now, grupo }: { etapa: Etapa; tickets: Ticket[]; now: number; grupo: string }) {
+function Columna({ etapa, tickets, now, grupo, movil, onMover }: { etapa: Etapa; tickets: Ticket[]; now: number; grupo: string; movil: boolean; onMover: (t: Ticket) => void }) {
   const meta = ETAPA_META[etapa];
-  const { setNodeRef, isOver } = useDroppable({ id: `${grupo}:${etapa}` });
+  const { setNodeRef, isOver } = useDroppable({ id: `${grupo}:${etapa}`, disabled: movil });
   const potencial = tickets.reduce((s, t) => s + (t.cotizacion?.total ?? 0), 0);
 
   return (
@@ -114,11 +142,11 @@ function Columna({ etapa, tickets, now, grupo }: { etapa: Etapa; tickets: Ticket
       >
         <AnimatePresence mode="popLayout" initial={false}>
           {tickets.map((t) => (
-            <CardArrastrable key={t.id} ticket={t} now={now} />
+            <CardArrastrable key={t.id} ticket={t} now={now} movil={movil} onMover={onMover} />
           ))}
         </AnimatePresence>
         {tickets.length === 0 && (
-          <p className="py-6 text-center text-[10.5px] text-faint italic">Suelta un ticket aquí</p>
+          <p className="py-6 text-center text-[10.5px] text-faint italic">{movil ? "Sin tickets en esta etapa" : "Suelta un ticket aquí"}</p>
         )}
       </div>
     </div>
@@ -452,13 +480,14 @@ function AccionesPuestaAlDia({ onListo }: { onListo: () => void }) {
  * atender; el de abajo es la lista de pendientes reales de Joaquín.
  */
 function TableroVentana({
-  grupo, titulo, detalle, color, tickets, porEtapa, now, conZonaCierre = false, vacio, alFinal,
+  grupo, titulo, detalle, color, tickets, porEtapa, now, conZonaCierre = false, vacio, alFinal, movil, onMover,
 }: {
   grupo: string; titulo: string; detalle: string; color: string;
   tickets: Ticket[]; porEtapa: Record<Etapa, Ticket[]>; now: number;
   conZonaCierre?: boolean; vacio?: string;
   /** Se pinta después de la última columna, al final del scroll horizontal. */
   alFinal?: React.ReactNode;
+  movil: boolean; onMover: (t: Ticket) => void;
 }) {
   const sinLeer = tickets.reduce((s, t) => s + (t.sinLeer ?? 0), 0);
   return (
@@ -485,9 +514,11 @@ function TableroVentana({
       ) : (
         <div className="kanban-scroll flex gap-3 overflow-x-auto px-4">
           {ETAPAS.map((e) => (
-            <Columna key={e} etapa={e} tickets={porEtapa[e]} now={now} grupo={grupo} />
+            <Columna key={e} etapa={e} tickets={porEtapa[e]} now={now} grupo={grupo} movil={movil} onMover={onMover} />
           ))}
-          {conZonaCierre && <ZonaCierre />}
+          {/* La zona de soltar solo tiene sentido con drag: en móvil se cierra
+              desde la hoja "Mover de etapa". */}
+          {conZonaCierre && !movil && <ZonaCierre />}
           {alFinal}
         </div>
       )}
@@ -495,12 +526,75 @@ function TableroVentana({
   );
 }
 
+/**
+ * La hoja "Mover de etapa" del móvil: reemplaza al drag & drop. Lista las
+ * etapas con su color, marca la actual y ofrece cerrar el ticket — todo con
+ * toques francos en vez de arrastres que se confunden con el scroll.
+ */
+function MoverSheet({ ticket, onMover, onCerrarTicket, onCancelar }: {
+  ticket: Ticket;
+  onMover: (etapa: Etapa) => void;
+  onCerrarTicket: () => void;
+  onCancelar: () => void;
+}) {
+  return (
+    <motion.div
+      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+      className="fixed inset-0 z-100 flex items-end justify-center"
+      style={{ background: "var(--color-scrim)", backdropFilter: "blur(4px)" }}
+      onClick={onCancelar}
+    >
+      <motion.div
+        initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
+        transition={{ type: "spring", stiffness: 420, damping: 40 }}
+        className="glass-strong w-full max-w-md rounded-t-3xl p-4"
+        style={{ paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <p className="text-[13px] font-black">{ticket.nombre ?? ticket.telefono}</p>
+        <p className="mb-3 text-[10.5px] text-muted">
+          Está en <span className="font-bold" style={{ color: ETAPA_META[ticket.etapa].color }}>{ETAPA_META[ticket.etapa].nombre}</span> — ¿a dónde lo movemos?
+        </p>
+        <div className="grid gap-1.5">
+          {ETAPAS.map((e) => {
+            const meta = ETAPA_META[e];
+            const actual = e === ticket.etapa;
+            return (
+              <button
+                key={e}
+                disabled={actual}
+                onClick={() => onMover(e)}
+                className="flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-[12px] font-bold disabled:opacity-45"
+                style={{ background: `color-mix(in srgb, ${meta.color} ${actual ? 16 : 8}%, transparent)` }}
+              >
+                <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: meta.color }} />
+                <span className="min-w-0 flex-1 truncate">{meta.nombre}</span>
+                {actual && <span className="text-[9.5px] font-black uppercase text-faint">aquí</span>}
+              </button>
+            );
+          })}
+          <button
+            onClick={onCerrarTicket}
+            className="mt-1 rounded-xl px-3 py-2.5 text-[12px] font-black"
+            style={{ background: "color-mix(in srgb, var(--color-violet) 14%, transparent)", color: "var(--color-violet)" }}
+          >
+            🏁 Cerrar ticket — ganado o perdido
+          </button>
+          <button onClick={onCancelar} className="glass rounded-xl py-2.5 text-[12px] font-bold text-muted">Cancelar</button>
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+}
+
 export function Pipeline() {
   const { tickets, moverEtapa, metrics, refrescar, finalStage } = useHub();
   const now = useNow();
+  const movil = useEsMovil();
   const [vista, setVista] = useState<"kanban" | "embudo">("kanban");
   const [activo, setActivo] = useState<Ticket | null>(null);
   const [cerrando, setCerrando] = useState<Ticket | null>(null);
+  const [moviendo, setMoviendo] = useState<Ticket | null>(null);
   const [verFinal, setVerFinal] = useState(false);
   const cerrar = useHub((s) => s.cerrar);
 
@@ -608,6 +702,8 @@ export function Pipeline() {
               porEtapa={porEtapaEnVentana}
               now={now}
               conZonaCierre
+              movil={movil}
+              onMover={setMoviendo}
               alFinal={finalStage && <ZonaFinal total={finalStage.total} onAbrir={() => setVerFinal(true)} />}
             />
             <TableroVentana
@@ -618,6 +714,8 @@ export function Pipeline() {
               tickets={fueraVentana}
               porEtapa={porEtapaFuera}
               now={now}
+              movil={movil}
+              onMover={setMoviendo}
               vacio="Ninguna conversación se pasó de las 24 h. Todo al día."
             />
           </div>
@@ -642,6 +740,23 @@ export function Pipeline() {
       <AnimatePresence>
         {verFinal && finalStage && (
           <PanelFinal data={finalStage} now={now} onCerrar={() => setVerFinal(false)} />
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {moviendo && (
+          <MoverSheet
+            ticket={moviendo}
+            onMover={(etapa) => {
+              void moverEtapa(moviendo.id, etapa);
+              setMoviendo(null);
+            }}
+            onCerrarTicket={() => {
+              setCerrando(moviendo);
+              setMoviendo(null);
+            }}
+            onCancelar={() => setMoviendo(null)}
+          />
         )}
       </AnimatePresence>
 

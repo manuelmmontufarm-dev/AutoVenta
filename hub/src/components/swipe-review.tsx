@@ -114,8 +114,9 @@ export function SwipeReview({ titulo, items, onClose }: { titulo: string; items:
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
     >
-      {/* Cabecera */}
-      <div className="mx-auto flex w-full max-w-lg items-center justify-between px-4 pt-4 pb-2">
+      {/* Cabecera — oculta mientras se escribe: en iOS el teclado puede
+          panear la página y dejar ver lo de atrás; que atrás no haya nada. */}
+      <div className="mx-auto flex w-full max-w-lg items-center justify-between px-4 pt-4 pb-2" style={{ visibility: escribiendo ? "hidden" : "visible" }}>
         <div>
           <p className="text-sm font-black">{titulo}</p>
           <p className="tnum text-[11px] text-muted">
@@ -132,7 +133,7 @@ export function SwipeReview({ titulo, items, onClose }: { titulo: string; items:
       </div>
 
       {/* Baraja */}
-      <div className="relative mx-auto w-full max-w-lg min-h-0 flex-1 px-4 pb-4">
+      <div className="relative mx-auto w-full max-w-lg min-h-0 flex-1 px-4 pb-4" style={{ visibility: escribiendo ? "hidden" : "visible" }}>
         {terminado || !ticket ? (
           <div className="glass-strong grid h-full place-items-center rounded-3xl text-center">
             <div className="p-8">
@@ -167,7 +168,7 @@ export function SwipeReview({ titulo, items, onClose }: { titulo: string; items:
 
       {/* Controles (siempre visibles: en desktop nadie adivina que hay que arrastrar) */}
       {!terminado && ticket && (
-        <div className="mx-auto flex w-full max-w-lg items-center justify-center gap-3 px-4 pb-5" style={{ paddingBottom: "max(1.25rem, env(safe-area-inset-bottom))" }}>
+        <div className="mx-auto flex w-full max-w-lg items-center justify-center gap-3 px-4 pb-5" style={{ paddingBottom: "max(1.25rem, env(safe-area-inset-bottom))", visibility: escribiendo ? "hidden" : "visible" }}>
           <button
             disabled={ocupado}
             onClick={() => setDecision("perdida")}
@@ -204,6 +205,7 @@ export function SwipeReview({ titulo, items, onClose }: { titulo: string; items:
             onCerrar={() => setEscribiendo(false)}
             onEnviar={(texto) => void enviarMensaje(ticket.id, texto)}
             onToggleAtiende={() => void setAtiende(ticket.id, ticket.atiende === "bot" ? "humano" : "bot")}
+            onDecidir={(d) => { setEscribiendo(false); setDecision(d); }}
           />
         )}
       </AnimatePresence>
@@ -402,7 +404,7 @@ function SwipeCard({
  * pega abajo cuando el teclado sube o llega mensaje.
  */
 function ChatFullScreen({
-  ticket, mensajesTicket, now, onCerrar, onEnviar, onToggleAtiende,
+  ticket, mensajesTicket, now, onCerrar, onEnviar, onToggleAtiende, onDecidir,
 }: {
   ticket: Ticket;
   mensajesTicket: Mensaje[];
@@ -410,9 +412,11 @@ function ChatFullScreen({
   onCerrar: () => void;
   onEnviar: (texto: string) => void;
   onToggleAtiende: () => void;
+  /** Decidir sin salir del chat: cierra el chat y abre la confirmación. */
+  onDecidir: (d: Exclude<Decision, null>) => void;
 }) {
   const [texto, setTexto] = useState("");
-  const [alto, setAlto] = useState<number | null>(null);
+  const [marco, setMarco] = useState<{ alto: number; top: number } | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -421,19 +425,25 @@ function ChatFullScreen({
     if (el) el.scrollTo({ top: el.scrollHeight, behavior: suave ? "smooth" : "auto" });
   };
 
-  // El alto = lo que el teclado deja libre. En Android (resizes-content) el
-  // dvh ya lo hace; en iOS el teclado NO encoge dvh y sin esto el composer
-  // queda escondido detrás del teclado.
+  // La hoja se calza EXACTAMENTE sobre el área visible (visualViewport):
+  // alto = lo que el teclado deja libre, y top = el pan de iOS. Safari, con el
+  // teclado abierto, deja arrastrar la página entera (offsetTop cambia) y sin
+  // seguirlo se veía la baraja asomarse debajo del chat. Se escucha `resize`
+  // Y `scroll` del visualViewport: el pan solo dispara `scroll`.
   useEffect(() => {
     const vv = window.visualViewport;
     if (!vv) return;
     const sync = () => {
-      setAlto(vv.height);
+      setMarco({ alto: vv.height, top: vv.offsetTop });
       requestAnimationFrame(() => abajo());
     };
     sync();
     vv.addEventListener("resize", sync);
-    return () => vv.removeEventListener("resize", sync);
+    vv.addEventListener("scroll", sync);
+    return () => {
+      vv.removeEventListener("resize", sync);
+      vv.removeEventListener("scroll", sync);
+    };
   }, []);
 
   // Mensaje nuevo (del cliente o el enviado) → pegado abajo, como WhatsApp.
@@ -449,15 +459,19 @@ function ChatFullScreen({
 
   return (
     <motion.div
-      className="fixed inset-x-0 top-0 z-110 flex flex-col"
-      style={{ height: alto ? `${alto}px` : "100dvh", background: "var(--color-ink, #14213d)" }}
+      className="fixed inset-x-0 z-110 flex flex-col"
+      style={{
+        top: marco ? `${marco.top}px` : 0,
+        height: marco ? `${marco.alto}px` : "100dvh",
+        background: "var(--color-ink, #14213d)",
+      }}
       initial={{ y: "100%" }}
       animate={{ y: 0 }}
       exit={{ y: "100%" }}
       transition={{ type: "spring", stiffness: 380, damping: 38 }}
     >
-      {/* Cabecera compacta: volver + quién es + cuánto hay en juego */}
-      <div className="glass-strong flex items-center gap-2 px-2 py-2">
+      {/* Cabecera compacta: volver + quién es + decidir sin salir del chat */}
+      <div className="glass-strong flex items-center gap-1.5 px-2 py-2">
         <button
           onClick={onCerrar}
           aria-label="Volver a la tarjeta"
@@ -472,6 +486,26 @@ function ChatFullScreen({
             {ticket.cotizacion ? ` · ${money(ticket.cotizacion.total)}` : ""}
             {ticket.medida ? ` · ${ticket.medida}` : ""} · {relTime(ticket.ultimaActividad, now)}
           </p>
+        </button>
+        {/* Las mismas decisiones de la baraja, aquí mismo: muchas veces es
+            leyendo el chat completo donde se decide perdida o ganada. */}
+        <button
+          onClick={() => onDecidir("perdida")}
+          aria-label="Marcar perdida"
+          title="Marcar perdida"
+          className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-[15px] font-black"
+          style={{ background: "color-mix(in srgb, var(--color-red) 14%, transparent)", color: "var(--color-red)" }}
+        >
+          ✕
+        </button>
+        <button
+          onClick={() => onDecidir("derecha")}
+          aria-label="Ganada o dejar para después"
+          title="Ganada / Para después"
+          className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-[15px] font-black"
+          style={{ background: "color-mix(in srgb, var(--color-lime) 14%, transparent)", color: "var(--color-lime)" }}
+        >
+          ✓
         </button>
         <button
           onClick={onToggleAtiende}

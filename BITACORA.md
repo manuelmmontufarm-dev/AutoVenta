@@ -32,6 +32,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-08-09 | _(este mismo)_ | Chat de baraja calzado al teclado de iPhone + decidir desde el chat + kanban móvil por botón | 1.5 |
 | 2026-08-09 | _(este mismo)_ | Chat de la baraja a pantalla completa + fix del zoom fantasma en móvil | 1.0 |
 | 2026-08-09 | _(este mismo)_ | Oportunidades reorganizado: cuadrícula de cotizados, baraja swipe y "Para después" + 6 tabs en móvil | 3.0 |
 | 2026-08-09 | _(este mismo)_ | Auditoría domingo: costo unitario baja, pero precio→cotización cae | 1.0 |
@@ -112,6 +113,27 @@ Ya viene activado en este equipo.
 ---
 
 ## Entradas (más reciente primero)
+
+### 2026-08-09 · Chat calzado al teclado de iPhone + decidir desde el chat + kanban móvil · ⏱️ 1.5 h
+
+**Qué:** Tres arreglos sobre el iPhone real de Manuel. (1) El chat de la baraja
+ahora se calza EXACTAMENTE sobre el área visible: sigue `offsetTop` del
+`visualViewport` (Safari con teclado abierto deja arrastrar la página entera y
+se veía la tarjeta vieja asomarse debajo del chat) escuchando `resize` Y
+`scroll`, y mientras se escribe la baraja de atrás se oculta — aunque Safari
+panee, atrás no hay nada que confunda. (2) Decidir sin salir del chat: botones
+✕ (perdida) y ✓ (ganada / para después) en la cabecera del chat; cierran el
+chat y abren la confirmación de siempre. (3) Kanban móvil: se acabó el drag &
+drop con el dedo — las tarjetas son de solo-lectura (scroll libre) y cada una
+lleva "⇄ Mover de etapa", que abre una hoja con las 5 etapas (la actual
+marcada) + cerrar ticket ganado/perdido. En desktop el arrastre sigue igual.
+
+**Por qué:** en el teléfono el teclado rompía la pantalla de responder (se
+podía scrollear a la vista anterior) y el kanban táctil confundía arrastrar
+con scrollear: mover un ticket era una lotería. Ver es scroll; mover es un
+toque explícito.
+
+---
 
 ### 2026-08-09 · Chat de la baraja a pantalla completa + fix del zoom fantasma · ⏱️ 1.0 h
 
