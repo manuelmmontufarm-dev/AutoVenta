@@ -32,6 +32,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-08-10 | _(este mismo)_ | Auditoría feriado: costos, proyección mensual y escenarios por modelo | 1.0 |
 | 2026-08-10 | _(este mismo)_ | Reporte: botón «abrir chat» en toda fila + plata en juego arriba | 0.25 |
 | 2026-08-10 | _(este mismo)_ | El reporte diario cuenta el día, no el arrastre histórico (medido contra la base de Depot) | 0.5 |
 | 2026-08-10 | _(este mismo)_ | Reporte diario 20:00 a los asesores (PDF con links) + el tab de errores solo con errores | 3.0 |
@@ -113,11 +114,25 @@ Ya viene activado en este equipo.
 | 2026-07-14 | ac09171 | Ubicaciones de locales + análisis de features del cliente | 1.5 |
 | 2026-07-13 | feadf57 | Brief + plan de desarrollo + plan financiero + catálogo | 4.0 |
 | 2026-07-13 | d997844 | Commit inicial (repo) | 0.25 |
-| | | **TOTAL** | **~97.5 h** |
+| | | **TOTAL** | **~98.5 h** |
 
 ---
 
 ## Entradas (más reciente primero)
+
+### 2026-08-10 · Costos del feriado + proyección por modelo · ⏱️ 1.0 h
+
+**Qué:** Auditoría de producción hasta las 20:07 comparada contra las mismas
+horas del domingo. Se separó costo por conversación, mensaje, ruta y cotización;
+se proyectaron cuatro volúmenes mensuales y seis configuraciones de modelos con
+las tarifas oficiales. Se leyeron completas 12 conversaciones, incluidas las
+cuatro cotizadas, los tres pedidos de precio que no cotizaron y los casos de
+foto/medida ambigua de mayor costo.
+
+**Por qué:** El feriado volvió a dar poco volumen y no se podía multiplicar el
+gasto del día sin más. La proyección por volumen muestra el rango real; el
+desglose por ruta permite bajar modelo donde los hechos ya vienen resueltos sin
+arriesgar las decisiones comerciales que todavía necesitan GPT‑5.5.
 
 ### 2026-08-10 · Botón en toda fila + la plata en juego arriba · ⏱️ 0.25 h
 

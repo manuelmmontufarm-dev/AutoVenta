@@ -1,0 +1,44 @@
+{
+  "resumen": "El lunes feriado mantiene el costo por mensaje en $0,014, prácticamente igual al domingo, mientras cuadruplicó las cotizaciones y redujo 65% el costo por cotización. La cuenta completa proyecta ~$50 al mes si todos los días fueran como este feriado, pero con 70 conversaciones diarias el run-rate realista sube a ~$172 al mes. La siguiente reducción razonable no es bajar todo el cerebro: es mover exact_tool_reply y routine_stage a GPT-5.4-mini mediante canary, con ahorro teórico de 42% y GPT-5.5 conservado en ventas complejas y visión.",
+  "hipotesis": [
+    "El aumento de costo por conversación de $0,0547 a $0,0798 no es una regresión de tokens: cada conversación tuvo 49% más mensajes del bot, mientras el costo por mensaje bajó 2,5%.",
+    "La calidad comercial mejoró: 4 cotizaciones frente a 1 y dos clientes eligieron local. Sin embargo, precio→cotización quedó en 40%, debajo de la meta de 60%; los tickets 2886 y 2904 todavía cerraron con la pregunta de recomendación, y 2888 reportó bloqueo de cotización.",
+    "Los casos 2751 y 2830 muestran por qué no conviene bajar todo a mini: lectura de foto, medida de camión 22.5, stock exacto y equivalencias requieren juicio. En cambio, exact_tool_reply y routine_stage consumieron 49,9% del costo y reciben hechos estructurados, por lo que son el primer canary lógico.",
+    "Los 17 rechazos de seguimiento fueron de Meta por recipient phone number not in allowed list; no son errores del modelo ni están incluidos como pérdida de calidad de GPT-5.5, pero sí impiden recuperar clientes."
+  ],
+  "veredictoCambiosAnteriores": [
+    {
+      "cambio": "Con medida + intención de precio, cotizar 4 inmediatamente",
+      "veredicto": "Mejoró pero no cumplió",
+      "evidencia": "precio→cotización subió de 10% a 40% en las mismas horas, todavía debajo de ≥60%; tres pedidos explícitos de precio quedaron sin cotización."
+    },
+    {
+      "cambio": "Registrar costo por llamada y habilitar api.usage.read",
+      "veredicto": "Parcial",
+      "evidencia": "ai_runs ya permite costo por ruta y llamada; la consulta de factura sigue bloqueada por falta del scope api.usage.read."
+    },
+    {
+      "cambio": "Canary de modelo menor después de tools exactas",
+      "veredicto": "No aplicado todavía",
+      "evidencia": "exact_tool_reply y routine_stage siguen en GPT-5.5; hoy identificamos que juntas representan 49,9% del gasto."
+    }
+  ],
+  "cambiosPropuestos": [
+    {
+      "cambio": "Corregir primero el cierre medida + precio para que la cotización por 4 salga en el mismo turno; eliminar la pregunta de recomendación en ese caso.",
+      "ataca": "precio_sin_cotizar",
+      "metrica": "precio→cotización debe pasar de 40% a ≥60% antes del canary"
+    },
+    {
+      "cambio": "Canary de 20% con GPT-5.4-mini únicamente en exact_tool_reply y routine_stage, manteniendo GPT-5.5 en commercial e image_read.",
+      "ataca": "costo_exact_tool_reply",
+      "metrica": "costo por mensaje ≤$0,010, sin caída >5 puntos en medida→cotización ni errores de producto/cantidad"
+    },
+    {
+      "cambio": "Habilitar api.usage.read en una llave de solo lectura y corregir la lista permitida de Meta para seguimientos.",
+      "ataca": "costo_no_reconciliado_y_seguimientos_fallidos",
+      "metrica": "factura vs telemetría <5% y send_error #131030 de 17 a 0"
+    }
+  ],
+  "promptPropuesto": "Si el cliente pide precio, valor, cuánto cuesta o cotización y ya existe una medida o producto inequívoco, muestra las opciones y genera en el mismo turno una cotización por 4 unidades de la opción recomendada, salvo que el cliente haya indicado otra cantidad. No cierres ese turno con ‘¿Necesita alguna recomendación?’. Esa pregunta se reserva para clientes que pidieron explorar opciones sin pedir precio. Si el producto o medida no es inequívoco, explica la discrepancia en una línea y escala; nunca cotices una medida cercana como si fuera exacta."
+}
