@@ -32,6 +32,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-08-11 | _(este mismo)_ | El sync de precios del Interbot llevaba 4 días muerto por media cookie | 1.5 |
 | 2026-08-10 | _(este mismo)_ | Reporte: botón «abrir chat» en toda fila + plata en juego arriba | 0.25 |
 | 2026-08-10 | _(este mismo)_ | El reporte diario cuenta el día, no el arrastre histórico (medido contra la base de Depot) | 0.5 |
 | 2026-08-10 | _(este mismo)_ | Reporte diario 20:00 a los asesores (PDF con links) + el tab de errores solo con errores | 3.0 |
@@ -118,6 +119,51 @@ Ya viene activado en este equipo.
 ---
 
 ## Entradas (más reciente primero)
+
+### 2026-08-11 · El sync de precios llevaba 4 días muerto por media cookie · ⏱️ 1.5 h
+
+**Qué:** El sync en vivo del Interbot **nunca corrió**, ni siquiera con las
+credenciales puestas en Railway: el log repetía `fuente snapshot,
+2026-08-07` y, al ponerle usuario y clave, `Sync de precios Interbot falló
+(Interbot devolvió 0 medidas)`.
+
+La causa es que el Interbot usa **sesión firmada (Koa)** y el login deja **dos**
+cookies, `interbot.sid` y `interbot.sid.sig`. El código hacía
+`headers.get("set-cookie").split(";")[0]` y se quedaba con la primera; sin la
+firma, el Interbot responde `{"error":"No autenticado"}` a todo. Verificado
+contra la API real: una cookie → `No autenticado`; las dos → 200 y 155 medidas.
+Ahora se recogen todas con `getSetCookie()`.
+
+Cuatro mejoras más, todas de cosas que se vieron leyendo el caso:
+
+1. **El barrido ya no bloquea al cliente.** `ensureInterbotPricesFresh()`
+   esperaba el barrido completo, y lo llama `ensureCatalogReady()` desde la tool
+   de cotizar: el primer mensaje tras 15 min de calma pagaba la espera entera
+   antes de recibir respuesta. Ahora solo se espera si no hay NINGÚN precio en
+   memoria; teniendo snapshot, el refresco corre en segundo plano.
+2. **Barrido en paralelo** (5 a la vez): de ~30 s secuenciales a **3,7 s
+   medidos** contra el Interbot real, 373 productos de 155 medidas.
+3. **El último sync bueno se guarda en `settings.interbot_precios`** y se
+   rescata al arrancar. Sin esto, cada redeploy volvía a los precios del 7-ago
+   aunque el sync llevara semanas corriendo bien.
+4. **Reintento a los 2 min tras un fallo**, no a los 15. Un fallo marcaba
+   `lastLiveSyncAt` como si hubiera funcionado, así que una caída de un minuto
+   dejaba los precios viejos un cuarto de hora.
+
+Y el error de sesión ahora se distingue de «no hay medidas», que es lo que hizo
+que esto tardara: el síntoma apuntaba al Interbot y la culpa era nuestra.
+
+**Por qué:** hoy Joaquín reclamó que el bot «dio mal los precios» (KR23:
+vendedor $55,64, bot $64,82). **El bot tenía razón** —el cliente pidió 165/60R14
+(K257B475, $64,82) y el vendedor miró la 165/65R14 (K246B404, $55,64): dos SKU
+distintos del mismo modelo—, pero al revisarlo salió que los precios llevaban
+desde el 7-ago congelados. No se notó porque en esos días el Interbot no cambió
+ningún precio: el barrido nuevo reporta «sin cambios de precio» contra el
+snapshot. Era una bomba de tiempo, no un problema visible.
+
+**Pruebas:** `test/interbotSync.test.ts` con un Interbot de mentira que solo
+responde con las dos cookies — cubre el bug, el barrido bueno, el mensaje de
+sesión rechazada y el guardia del 50%. 4 nuevas, 529 en total, typecheck limpio.
 
 ### 2026-08-10 · Botón en toda fila + la plata en juego arriba · ⏱️ 0.25 h
 
