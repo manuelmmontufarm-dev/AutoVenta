@@ -10,9 +10,9 @@
 import { z } from "zod";
 import { business } from "../config.js";
 import {
+  catalogCandidates,
   ensureCatalogReady,
   findByCode,
-  resolveCatalogReference,
   searchAlternatives,
   searchBySize,
   searchByText,
@@ -337,7 +337,22 @@ function dateLabel(): string {
   });
 }
 
-async function resolvePresentedProduct(conversationId: number, reference: string) {
+/**
+ * De la referencia que el agente conserva a la llanta concreta que se cotiza.
+ *
+ * Devuelve la lista, no un producto, porque los tres desenlaces piden respuestas
+ * distintas y antes se trataban igual —como «no existe»—:
+ *
+ *  · **Una** — es esa; se cotiza.
+ *  · **Varias** — el cliente pidió un modelo que Depot tiene en varias
+ *    versiones. Eso es una PREGUNTA («¿la M/T o la A/T3W?»), no una negativa.
+ *  · **Ninguna** — ahí sí no existe.
+ *
+ * El desempate fuerte es la medida que la conversación ya confirmó: sin ella,
+ * «Falken Wildpeak M/T» son las ocho medidas que Depot surte de ese modelo y
+ * nunca resolvía. Con ella, es una.
+ */
+async function resolvePresentedProduct(conversationId: number, reference: string): Promise<CatalogItem[]> {
   const [artifact] = await sql<{ products: Array<{ code?: string; brand?: string; design?: string }> }[]>`
     select products from quote_artifacts
     where conversation_id=${conversationId}
@@ -359,8 +374,20 @@ async function resolvePresentedProduct(conversationId: number, reference: string
       Math.abs(product.minimumPriceWithTax - numeric) < 0.01
     );
   });
-  if (matches.length === 1) return matches[0];
-  return resolveCatalogReference(reference);
+  // Lo que ya se le mostró al cliente manda: si la referencia señala una de las
+  // opciones de la pieza que tiene en pantalla, es esa y no hay nada que buscar.
+  if (matches.length === 1) return matches;
+
+  const [facts] = await sql<{ tire_size: string | null }[]>`
+    select tire_size from conversations where id=${conversationId}
+  `;
+  return catalogCandidates(reference, facts?.tire_size ?? null);
+}
+
+/** «FALKEN WILDPEAK M/T (265/70R17) — código LT2657017WPMT» */
+function etiquetaOpcion(item: CatalogItem): string {
+  const medida = item.sizeLabel ? ` (${item.sizeLabel})` : "";
+  return `${item.brand} ${item.design}${medida} — código ${item.code}`;
 }
 
 /**
@@ -569,7 +596,7 @@ export function buildTools(ctx: AgentContext) {
   const guiaMedida = defineTool({
     name: "guia_medida",
     description:
-      "Envía la imagen que explica cómo se lee la medida en el costado de la llanta, con el ARO (rin) marcado como el dato clave, y devuelve el texto que la acompaña. Úsala la PRIMERA vez que tengas que pedir la medida o el aro: en vez de preguntar en seco, el cliente ve dónde mirar. También sirve si el cliente dice que no sabe su medida, que no la encuentra o pregunta qué significan esos números. Nunca la mandes dos veces en la misma conversación.",
+      "Envía la imagen que explica cómo se lee la medida en el costado de la llanta, con el ARO (rin) marcado como el dato clave, y devuelve el texto que la acompaña. Úsala la PRIMERA vez que tengas que pedir la medida o el aro: en vez de preguntar en seco, el cliente ve dónde mirar. Y úsala SIEMPRE que el cliente diga que no sabe su medida, que no la encuentra, que no sabe dónde mirar o pregunte qué significan esos números — en ese caso pasa lo_pidio_el_cliente: true y se le manda otra vez aunque ya la haya recibido.",
     schema: z.object({
       aro: z
         .number()
@@ -579,11 +606,22 @@ export function buildTools(ctx: AgentContext) {
         .nullable()
         .default(null)
         .describe("Aro que el cliente YA dijo, si lo dijo. Cambia el pie de la imagen de «pídalo» a «confirmado». Null si todavía no lo sabes."),
+      lo_pidio_el_cliente: z
+        .boolean()
+        .default(false)
+        .describe("true SOLO si el cliente acaba de decir que no sabe la medida, que no la encuentra o que no sabe dónde mirar. false cuando la mandas tú por iniciativa propia al pedir la medida."),
     }),
-    run: async ({ aro }) => {
+    run: async ({ aro, lo_pidio_el_cliente }) => {
       // Mismo criterio que el candado de opciones: la pieza se manda una vez por
       // ciclo. Repetir una infografía que el cliente ya tiene en pantalla se lee
       // como que el bot no lo escuchó.
+      //
+      // Pero el candado es para el envío por INICIATIVA del bot. Si el cliente
+      // dice «no sé dónde ver la medida», negarse a reenviarla es exactamente lo
+      // contrario de escucharlo: pidió ayuda y se le contesta con un párrafo de
+      // texto describiendo la imagen que existe y no se le manda. Pasó el 12-ago
+      // en un chat que ya tenía cotización — la guía había salido al principio y
+      // el candado la bloqueó justo cuando hacía falta.
       const [previa] = await sql<{ id: number }[]>`
         select id from messages
         where conversation_id=${ctx.conversation.id}
@@ -592,10 +630,10 @@ export function buildTools(ctx: AgentContext) {
           and metadata->>'piece'='medida_guide'
         limit 1
       `;
-      if (previa) {
+      if (previa && !lo_pidio_el_cliente) {
         return JSON.stringify({
           error:
-            "La guía de la medida YA se envió en esta conversación y el cliente la tiene en pantalla. No la reenvíes: pregúntale directo el aro o la medida, o dile que mande la foto del costado.",
+            "La guía de la medida ya salió en esta conversación por iniciativa tuya y el cliente la tiene en pantalla. No la repitas sola: pregúntale directo el aro o la medida, o dile que mande la foto del costado. (Si él dice que no sabe o no la encuentra, vuelve a llamarme con lo_pidio_el_cliente: true.)",
         });
       }
 
@@ -1172,7 +1210,22 @@ export function buildTools(ctx: AgentContext) {
       await ensureCatalogReady();
       const lines = [];
       for (const item of items) {
-        const product = await resolvePresentedProduct(ctx.conversation.id, item.code);
+        const candidatos = await resolvePresentedProduct(ctx.conversation.id, item.code);
+        if (candidatos.length > 1) {
+          // NO es «no hay». El cliente pidió un modelo que Depot surte en
+          // varias versiones y hay que preguntarle cuál — decirle que no existe
+          // es mentirle y matar la venta, que es lo que pasaba con las
+          // populares (Wildpeak, 12-ago).
+          return JSON.stringify({
+            error: `«${item.code}» no señala una sola llanta: hay ${candidatos.length} que encajan.`,
+            opciones: candidatos.slice(0, 5).map(etiquetaOpcion),
+            siguiente_paso:
+              "NO le digas al cliente que no hay. Tiene lo que pidió, en varias versiones. " +
+              "Pregúntale cuál quiere con una frase corta (la diferencia entre ellas en media línea) " +
+              "y vuelve a llamar preparar_cotizacion con el CÓDIGO exacto de la que elija.",
+          });
+        }
+        const product = candidatos[0];
         if (!product) {
           return JSON.stringify({
             error: `Código ${item.code} no existe en el catálogo. Vuelve a buscar la llanta.`,
@@ -1234,7 +1287,7 @@ export function buildTools(ctx: AgentContext) {
         } : undefined,
       );
       const saleNumber = `AV-${quote.number.replace(/\D/g, "").slice(-6)}`;
-      const product = await resolvePresentedProduct(ctx.conversation.id, items[0].code);
+      const [product] = await resolvePresentedProduct(ctx.conversation.id, items[0].code);
       if (!product) throw new Error("La opción confirmada dejó de ser inequívoca; vuelve a mostrar las opciones antes de cotizar");
 
       // Los mismos beneficios que van en el texto van dibujados en la pieza,

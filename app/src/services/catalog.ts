@@ -12,6 +12,7 @@ import { config } from "../config.js";
 import {
   availabilityFromStock,
   normalizeContificoProduct,
+  resolveCatalogCandidates,
   searchCatalog,
   type CatalogItem,
   type ContificoProductWire,
@@ -312,20 +313,22 @@ export function findByCode(code: string): CatalogItem | undefined {
 /**
  * Resuelve la referencia que el agente conserva de una opción. Meta/LLM puede
  * devolver el código Contífico, el id o el diseño visible (p. ej. "KR203").
- * Solo acepta coincidencias inequívocas para no cotizar otra llanta.
+ *
+ * Devuelve la LISTA de candidatos, no uno solo: ver `resolveCatalogCandidates`.
+ * Quien llama distingue «no existe» (vacío) de «¿cuál de estas?» (varios), que
+ * son dos respuestas muy distintas para el cliente.
  */
-export function resolveCatalogReference(reference: string): CatalogItem | undefined {
-  const clean = reference.trim().toLowerCase();
-  if (!clean) return undefined;
-  const exact = items.filter((item) =>
-    item.code.toLowerCase() === clean ||
-    item.id.toLowerCase() === clean ||
-    item.design.trim().toLowerCase() === clean ||
-    `${item.brand} ${item.design}`.trim().toLowerCase() === clean,
-  );
-  if (exact.length === 1) return exact[0];
-  const matches = searchByText(reference, 8);
-  return matches.length === 1 ? matches[0] : undefined;
+export function catalogCandidates(reference: string, sizeLabel?: string | null): CatalogItem[] {
+  return resolveCatalogCandidates(items, reference, sizeLabel);
+}
+
+/** La referencia resuelta a UNA llanta, o undefined si no es inequívoca. */
+export function resolveCatalogReference(
+  reference: string,
+  sizeLabel?: string | null,
+): CatalogItem | undefined {
+  const candidatos = catalogCandidates(reference, sizeLabel);
+  return candidatos.length === 1 ? candidatos[0] : undefined;
 }
 
 export function findById(id: string): CatalogItem | undefined {

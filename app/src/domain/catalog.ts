@@ -213,6 +213,61 @@ export function searchCatalog(
     .map((entry) => entry.item);
 }
 
+/**
+ * Los productos que pueden ser la referencia que el agente conserva.
+ *
+ * El agente no siempre devuelve el código de Contífico: devuelve lo que el
+ * cliente dijo — «Wildpeak», «Falken Wildpeak M/T», «la 265/70R17 falken
+ * wildpeak». Antes esto exigía coincidencia ÚNICA y, si no la había, se
+ * respondía «no existe en el catálogo».
+ *
+ * Eso rompía justo con los modelos que más se venden. Depot tiene la Wildpeak
+ * en muchas medidas, así que «Falken Wildpeak M/T» nunca coincide con una sola
+ * fila: coincide con ocho. El agente le creía al «no existe», le decía al
+ * cliente que no había, volvía a buscar, encontraba lo mismo y volvía a
+ * fallar — el chat trabado que reportó Joaquín el 12-ago con
+ * «265/70R17 falken wildpeak».
+ *
+ * Aquí se devuelven TODOS los candidatos, en orden, y se afinan con lo que la
+ * conversación ya sabe. Quien llama decide: uno solo es la llanta; varios son
+ * una pregunta al cliente; ninguno sí es «no existe».
+ */
+export function resolveCatalogCandidates(
+  items: readonly CatalogItem[],
+  reference: string,
+  /** Medida ya confirmada en la conversación. Es lo que desempata de verdad. */
+  sizeLabel?: string | null,
+): CatalogItem[] {
+  const clean = reference.trim().toLowerCase();
+  if (!clean) return [];
+
+  const exactas = items.filter((item) =>
+    item.code.toLowerCase() === clean ||
+    item.id.toLowerCase() === clean ||
+    item.design.trim().toLowerCase() === clean ||
+    `${item.brand} ${item.design}`.trim().toLowerCase() === clean,
+  );
+  // La búsqueda por texto solo entra si el nombre exacto no dio nada: un
+  // diseño que coincide letra por letra siempre le gana a una coincidencia
+  // parcial, aunque salgan varias filas de ese mismo diseño.
+  const candidatos = exactas.length > 0 ? exactas : searchCatalog(items, reference, 8);
+  if (candidatos.length <= 1) return candidatos;
+
+  // Primer desempate: la medida de la conversación. «Wildpeak M/T» son ocho
+  // llantas en el catálogo, pero una sola en la medida que este cliente pidió.
+  const compactSize = sizeLabel ? compactCatalogText(sizeLabel) : null;
+  const deLaMedida = compactSize
+    ? candidatos.filter((item) => compactCatalogText(item.sizeLabel ?? "") === compactSize)
+    : [];
+  const porMedida = deLaMedida.length > 0 ? deLaMedida : candidatos;
+  if (porMedida.length <= 1) return porMedida;
+
+  // Segundo desempate: el stock. Si de las que quedan solo una se puede
+  // vender, esa es — cotizar la agotada sería el error, no la ambigüedad.
+  const conStock = porMedida.filter((item) => item.stock > 0);
+  return conStock.length > 0 ? conStock : porMedida;
+}
+
 function scoreItem(
   item: CatalogItem,
   query: string,
