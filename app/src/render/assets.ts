@@ -229,6 +229,37 @@ export function genericTireImage(): RasterImage {
   return genericTire;
 }
 
+const guideTireCache = new Map<string, RasterImage>();
+
+/**
+ * La llanta de la guía de medida, con el ARO resaltado.
+ *
+ * Es la misma ilustración genérica con un anillo grueso sobre el borde del rin.
+ * Existe porque la pieza entera se trata de una sola idea —«el aro es el dato
+ * que no tiene reemplazo»— y el dibujo la contradecía: el rin era la parte más
+ * apagada de la imagen. Resaltado, el ojo va del anillo de la llanta a la caja
+ * del «16» sin que nadie lo explique.
+ *
+ * El realce se inyecta en el SVG como figuras, nunca como texto: resvg dibuja
+ * formas siempre, pero para el texto depende de las fuentes que encuentre en el
+ * sistema, y el contenedor de Railway no trae ninguna.
+ */
+export function guideTireImage(rimColor: string): RasterImage {
+  const cached = guideTireCache.get(rimColor);
+  if (cached) return cached;
+
+  const base = readFileSync(path.join(ASSETS, "tires", "generic.svg"), "utf8");
+  // Va justo antes del cierre para quedar por encima de los rayos y los pernos,
+  // pegado al borde del rin (r=104 en el lienzo de 400 del original).
+  const realce = `
+  <circle cx="200" cy="200" r="104" fill="none" stroke="${rimColor}" stroke-width="11" opacity="0.95"/>
+  <circle cx="200" cy="200" r="112" fill="none" stroke="${rimColor}" stroke-width="3" opacity="0.55"/>
+  </svg>`;
+  const image = rasterize(base.replace("</svg>", realce), 640);
+  guideTireCache.set(rimColor, image);
+  return image;
+}
+
 const tireAssetCache = new Map<string, RasterImage | null>();
 
 /**
