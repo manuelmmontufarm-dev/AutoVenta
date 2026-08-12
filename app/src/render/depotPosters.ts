@@ -15,7 +15,20 @@ import {
   brandMark, check, depotWordmark, el, img, posterFooter, posterHeader, racingBar, savingsBadge, speedLines,
   stripEmoji, text,
 } from "./depotDesign.js";
-import { genericTireImage } from "./assets.js";
+import { guideTireImage } from "./assets.js";
+
+/**
+ * ¿Este color desaparecería sobre el caucho de la ilustración?
+ *
+ * La paleta «rojo» tiene `accent` en #191919 — casi negro — y varias piezas lo
+ * usan como color de énfasis sobre fondo claro sin problema. Sobre la llanta
+ * oscura, en cambio, un realce en ese tono es un realce invisible.
+ */
+function esOscuro(hex: string): boolean {
+  const canal = (i: number) => parseInt(hex.slice(1 + i * 2, 3 + i * 2), 16);
+  // Luminancia percibida (Rec. 601): el verde pesa más que el rojo y el azul.
+  return (canal(0) * 299 + canal(1) * 587 + canal(2) * 114) / 1000 < 90;
+}
 
 const money = (n: number) => `$${n.toFixed(2)}`;
 
@@ -572,25 +585,54 @@ export function medidaGuidePoster(data: MedidaGuidePosterData, theme: Theme): Sa
    * texto sobre una trayectoria: recta sobre el flanco superior se lee mejor que
    * un arco falso, y es donde de verdad está impresa.
    */
-  const laLlanta = (): SatoriNode =>
-    el({ position: "relative", width: 244, height: 244, alignItems: "center", justifyContent: "center" },
-      img(genericTireImage().dataUri, { width: 244, height: 244 }),
-      // El letrero se apoya sobre el flanco: arriba del centro, donde el
-      // caucho es negro, para que el blanco tenga contraste. Cabe dentro del
-      // círculo a propósito — desbordado se leía como una etiqueta pegada
-      // encima y no como algo impreso en la llanta.
-      el({
-        position: "absolute", top: 46, left: 0, width: 244,
-        alignItems: "center", justifyContent: "center",
+  const laLlanta = (): SatoriNode => {
+    const D = 244;
+    const MEDIDA = "195/55R16 87V";
+
+    // Cuánto ocupa cada carácter en el arco. Con un paso constante, el "1" y el
+    // "/" dejan huecos y "195/55" se ve suelto: pesarlos deja el letrero
+    // parejo, que es lo único que se le pide a un arco de trece caracteres.
+    const ancho = (ch: string) => (ch === "1" || ch === "/" ? 0.62 : ch === " " ? 0.38 : 1);
+    const total = [...MEDIDA].reduce((suma, ch) => suma + ancho(ch), 0);
+    // El paso NO es una constante de diseño, es geometría: sobre un arco, los
+    // grados que ocupa una letra dependen del radio en el que se apoya. Bajar
+    // el letrero al flanco acorta el radio y, con el mismo paso, las letras se
+    // montan unas sobre otras. Se calcula: avance del glifo ÷ largo de un grado.
+    const CUERPO = 22;
+    const RADIO = D / 2 - 30 - CUERPO / 2; // hasta el centro del glifo
+    const PASO = (CUERPO * 0.6) / ((RADIO * Math.PI) / 180);
+    const arco = total * PASO;
+
+    let recorrido = 0;
+    const letras = [...MEDIDA].map((ch) => {
+      const mio = ancho(ch);
+      // El ángulo del centro del glifo, con el arco entero centrado arriba.
+      const angulo = -arco / 2 + recorrido + (mio * PASO) / 2;
+      recorrido += mio * PASO;
+      // La caja cubre la llanta entera y gira sobre su propio centro —que es
+      // el centro de la llanta—, con el glifo pegado arriba. Así el carácter
+      // orbita Y se inclina a la vez, que es lo que hace que el texto se lea
+      // curvado sobre el flanco en vez de recto encima de él.
+      return el({
+        position: "absolute", top: 0, left: 0, width: D, height: D,
+        alignItems: "flex-start", justifyContent: "center",
+        transform: `rotate(${angulo.toFixed(2)}deg)`,
       },
-        el({
-          backgroundColor: "rgba(16,17,20,0.85)", borderRadius: 999,
-          padding: "5px 13px", border: `2px solid ${p.gold}`,
-        },
-          text({ ...price, fontSize: 21, color: "#ffffff", letterSpacing: 0.6 }, "195/55R16 87V"),
-        ),
-      ),
+        // `paddingTop` es lo que decide en qué anillo cae el letrero: aquí
+        // sobre el flanco liso, entre los tacos de la banda y el borde del rin,
+        // que es exactamente donde va impreso en una llanta de verdad.
+        text({ ...price, fontSize: CUERPO, color: "#ffffff", paddingTop: 30 }, ch),
+      );
+    });
+
+    return el({ position: "relative", width: D, height: D, alignItems: "center", justifyContent: "center" },
+      // El aro va resaltado en el mismo color que su caja del despiece, salvo
+      // cuando ese color es casi negro (paleta «rojo»): sobre el caucho oscuro
+      // no se vería nada y ahí manda el oro, que contrasta en las seis.
+      img(guideTireImage(esOscuro(p.accent) ? p.gold : p.accent).dataUri, { width: D, height: D }),
+      ...letras,
     );
+  };
 
   const aviso = data.aroDelCliente
     ? `Usted ya nos dijo aro ${data.aroDelCliente}: con eso cotizamos. Si nos confirma la medida completa, mejor todavía.`
