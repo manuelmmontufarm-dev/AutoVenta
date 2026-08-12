@@ -15,6 +15,7 @@ import {
   brandMark, check, depotWordmark, el, img, posterFooter, posterHeader, racingBar, savingsBadge, speedLines,
   stripEmoji, text,
 } from "./depotDesign.js";
+import { genericTireImage } from "./assets.js";
 
 const money = (n: number) => `$${n.toFixed(2)}`;
 
@@ -522,18 +523,21 @@ export function medidaGuidePoster(data: MedidaGuidePosterData, theme: Theme): Sa
     // Columnas iguales: la caja se estira sola y los rótulos —«CONSTRUCCIÓN»,
     // «VELOCIDAD»— entran en una línea. Repartidas por el largo de la cifra, la
     // última quedaba tan angosta que partía «km/h» en dos renglones.
-    return el({ flex: 1, flexDirection: "column", alignItems: "center", gap: 14 },
+    // `minWidth: 0` es lo que impide que las cajas se monten unas sobre otras:
+    // con la llanta ocupando su parte de la fila, flex encogía las columnas por
+    // debajo de su contenido y el "/" quedaba tapado por el 195.
+    return el({ flex: 1, minWidth: 0, flexDirection: "column", alignItems: "center", gap: 12 },
       // La cifra, en la caja. La del aro va rellena para que se lea antes que
       // las otras cinco incluso de reojo en la miniatura de WhatsApp.
       el({
-        alignItems: "center", justifyContent: "center", minHeight: 132, padding: "10px 20px",
+        alignItems: "center", justifyContent: "center", minHeight: 108, padding: "10px 12px",
         borderRadius: 16, border: `3px solid ${acento}`,
         backgroundColor: seg.clave ? p.accent : "#ffffff",
         boxShadow: seg.clave
           ? "0 14px 30px rgba(20,20,20,0.18)"
           : "0 6px 16px rgba(20,20,20,0.07)",
       },
-        text({ ...price, fontSize: 84, lineHeight: 1, letterSpacing: -2,
+        text({ ...price, fontSize: 68, lineHeight: 1, letterSpacing: -2,
           color: seg.clave ? p.paper : p.dark }, seg.valor),
       ),
       // Conector: la línea que ata la cifra con su explicación, en lugar de las
@@ -553,8 +557,40 @@ export function medidaGuidePoster(data: MedidaGuidePosterData, theme: Theme): Sa
   };
 
   const separador = (simbolo: string): SatoriNode =>
-    el({ width: 30, alignItems: "center", paddingTop: 40 },
-      text({ ...ARCHIVO_BLACK, fontSize: 52, color: p.darkSub }, simbolo));
+    el({ width: 22, alignItems: "center", paddingTop: 30 },
+      text({ ...ARCHIVO_BLACK, fontSize: 40, color: p.darkSub }, simbolo));
+
+  /**
+   * La llanta, con la medida escrita encima del costado.
+   *
+   * Es lo que le faltaba a la pieza: el despiece de abajo explica qué significa
+   * cada número, pero no le dice al cliente qué está buscando físicamente. Aquí
+   * ve el objeto y ve el letrero sobre el flanco, que es exactamente el gesto
+   * que tiene que repetir con su llanta en el parqueadero.
+   *
+   * La medida va superpuesta y no dibujada dentro del SVG porque satori no curva
+   * texto sobre una trayectoria: recta sobre el flanco superior se lee mejor que
+   * un arco falso, y es donde de verdad está impresa.
+   */
+  const laLlanta = (): SatoriNode =>
+    el({ position: "relative", width: 244, height: 244, alignItems: "center", justifyContent: "center" },
+      img(genericTireImage().dataUri, { width: 244, height: 244 }),
+      // El letrero se apoya sobre el flanco: arriba del centro, donde el
+      // caucho es negro, para que el blanco tenga contraste. Cabe dentro del
+      // círculo a propósito — desbordado se leía como una etiqueta pegada
+      // encima y no como algo impreso en la llanta.
+      el({
+        position: "absolute", top: 46, left: 0, width: 244,
+        alignItems: "center", justifyContent: "center",
+      },
+        el({
+          backgroundColor: "rgba(16,17,20,0.85)", borderRadius: 999,
+          padding: "5px 13px", border: `2px solid ${p.gold}`,
+        },
+          text({ ...price, fontSize: 21, color: "#ffffff", letterSpacing: 0.6 }, "195/55R16 87V"),
+        ),
+      ),
+    );
 
   const aviso = data.aroDelCliente
     ? `Usted ya nos dijo aro ${data.aroDelCliente}: con eso cotizamos. Si nos confirma la medida completa, mejor todavía.`
@@ -564,14 +600,23 @@ export function medidaGuidePoster(data: MedidaGuidePosterData, theme: Theme): Sa
     posterHeader(theme, "CÓMO LEER SU MEDIDA", "195/55R16 87V", data.dateLabel),
     racingBar(theme),
 
-    el({ alignItems: "flex-start", justifyContent: "center", padding: "48px 56px 40px", gap: 4 },
-      columna(SEGMENTOS[0]),
-      separador("/"),
-      columna(SEGMENTOS[1]),
-      columna(SEGMENTOS[2]),
-      columna(SEGMENTOS[3]),
-      columna(SEGMENTOS[4]),
-      columna(SEGMENTOS[5]),
+    // La llanta a la izquierda y el despiece a la derecha: primero QUÉ mirar,
+    // después qué significa. Al revés —el despiece solo, como estaba— el
+    // cliente entiende los números pero sigue sin saber dónde están.
+    el({ alignItems: "flex-start", padding: "40px 56px 36px", gap: 34 },
+      el({ flexDirection: "column", alignItems: "center", gap: 16, paddingTop: 6 },
+        laLlanta(),
+        text({ fontSize: 15, fontWeight: 700, letterSpacing: 1.4, color: p.tenue }, "EN EL COSTADO"),
+      ),
+      el({ flex: 1, alignItems: "flex-start", justifyContent: "center", gap: 4 },
+        columna(SEGMENTOS[0]),
+        separador("/"),
+        columna(SEGMENTOS[1]),
+        columna(SEGMENTOS[2]),
+        columna(SEGMENTOS[3]),
+        columna(SEGMENTOS[4]),
+        columna(SEGMENTOS[5]),
+      ),
     ),
 
     // Franja del aro: la razón de ser de la pieza, dicha en una línea.

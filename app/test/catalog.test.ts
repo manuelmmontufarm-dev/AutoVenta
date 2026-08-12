@@ -3,6 +3,7 @@ import {
   extractCatalogSizeLabel,
   inferCatalogDesign,
   normalizeContificoProduct,
+  resolveCatalogCandidates,
   searchCatalog,
   type CatalogItem,
 } from "../src/domain/catalog.js";
@@ -139,5 +140,87 @@ describe("searchCatalog", () => {
   it("ordena disponible antes que agotada", () => {
     const results = searchCatalog(items, "205/55R16");
     expect(results.at(-1)?.availability).toBe("out");
+  });
+});
+
+/**
+ * El fallo que reportó Joaquín el 12-ago: «con este man se vuelve a trabar
+ * cuando le ponen 265/70R17 falken wildpeak — les contesta que no tiene».
+ *
+ * La causa no era la búsqueda sino la resolución: exigía coincidencia ÚNICA, y
+ * un modelo que Depot surte en varias medidas jamás coincide con una sola fila.
+ * El agente recibía «no existe en el catálogo», se lo decía al cliente, volvía
+ * a buscar, encontraba lo mismo y volvía a fallar.
+ */
+describe("resolveCatalogCandidates", () => {
+  const catalogo = (
+    [
+      ["c1", "LT265/70R17 121/118Q WILDPEAK M/T FALKEN", "FALKEN", 12],
+      ["c2", "LT285/70R17 121/118Q WILDPEAK M/T FALKEN", "FALKEN", 6],
+      ["c3", "LT265/65R18 121/118Q WILDPEAK M/T FALKEN", "FALKEN", 4],
+      ["c4", "LT265/70R17 121/118S WILDPEAK A/T3W FALKEN", "FALKEN", 8],
+      ["c5", "265/70R17 115T MAXCLAW H/T WINRUN", "WINRUN", 20],
+      ["c6", "265/70R17 121Q KR600 KENDA", "KENDA", 0],
+    ] as const
+  )
+    .map(([codigo, nombre, marca, stock], i) =>
+      normalizeContificoProduct(
+        product({ id: `id-${i}`, codigo, nombre, marca_nombre: marca, cantidad_stock: String(stock) }),
+        "pvp1",
+      ),
+    )
+    .filter((item): item is CatalogItem => Boolean(item));
+
+  const codigos = (reference: string, size?: string | null) =>
+    resolveCatalogCandidates(catalogo, reference, size).map((item) => item.code);
+
+  it("el código de Contífico resuelve solo, con medida o sin ella", () => {
+    expect(codigos("c1")).toEqual(["c1"]);
+    expect(codigos("c1", "265/70R17")).toEqual(["c1"]);
+  });
+
+  it("la medida de la conversación desempata el modelo repetido", () => {
+    // Este es EL caso: sin medida, «Wildpeak M/T» son las tres que Depot surte
+    // y antes eso se traducía en «no existe». Con la medida, es una.
+    expect(codigos("WILDPEAK M/T")).toHaveLength(3);
+    expect(codigos("WILDPEAK M/T", "265/70R17")).toEqual(["c1"]);
+    expect(codigos("FALKEN WILDPEAK M/T", "265/70R17")).toEqual(["c1"]);
+    expect(codigos("WILDPEAK M/T", "285/70R17")).toEqual(["c2"]);
+  });
+
+  it("dos versiones en la misma medida quedan como pregunta, no como negativa", () => {
+    // En 265/70R17 hay M/T y A/T3W: el bot tiene que preguntar cuál, y quien
+    // llama distingue esto de «no hay» justamente porque la lista no va vacía.
+    expect(codigos("wildpeak", "265/70R17").sort()).toEqual(["c1", "c4"]);
+    expect(codigos("265/70R17 falken wildpeak", "265/70R17").sort()).toEqual(["c1", "c4"]);
+  });
+
+  it("lo que de verdad no está sigue devolviendo vacío", () => {
+    // «No existe» tiene que seguir siendo posible, o el arreglo sería mentir al revés.
+    expect(codigos("pirelli scorpion", "265/70R17")).toEqual([]);
+    expect(codigos("   ")).toEqual([]);
+  });
+
+  it("la agotada resuelve igual: «no existe» y «se acabó» no son lo mismo", () => {
+    // La KR600 está en cero y aun así tiene que resolver, para que quien llama
+    // pueda decir «esa se agotó, mire esta otra». Devolver vacío la convertiría
+    // otra vez en el «no existe en el catálogo» que mataba la venta.
+    expect(codigos("265/70R17 kenda", "265/70R17")).toEqual(["c6"]);
+    expect(codigos("MAXCLAW H/T", "265/70R17")).toEqual(["c5"]);
+  });
+
+  it("entre varias empatadas se queda la que se puede vender", () => {
+    // Dos versiones del mismo modelo en la misma medida, pero solo una con
+    // stock: ahí no hay nada que preguntarle al cliente.
+    const conAgotada = catalogo.map((item) =>
+      item.code === "c4" ? { ...item, stock: 0, availability: "out" as const } : item);
+    expect(resolveCatalogCandidates(conAgotada, "wildpeak", "265/70R17").map((i) => i.code))
+      .toEqual(["c1"]);
+  });
+
+  it("una medida que no existe no borra los candidatos", () => {
+    // Si la conversación quedó con una medida vieja, filtrar por ella dejaría
+    // la lista en cero y el bot volvería a decir «no existe».
+    expect(codigos("WILDPEAK M/T", "195/60R15")).toHaveLength(3);
   });
 });
