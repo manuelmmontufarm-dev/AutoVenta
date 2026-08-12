@@ -96,6 +96,7 @@ export const business: BusinessConfig = {
       address: "Galo Molina y Av. Alonso de Angulo, Quito",
       lat: -0.2487128,
       lng: -78.5296804,
+      mapsUrl: "https://maps.app.goo.gl/NQeNN8csyAnRkJDJ7",
     },
   ],
   taxRate: 0.15,

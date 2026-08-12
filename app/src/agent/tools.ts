@@ -49,6 +49,7 @@ import {
   buildBenefitsBlockOnce,
   requestsBenefitsAgain,
 } from "../services/benefits.js";
+import { buildStoreLinksBlockOnce } from "../services/storeLinks.js";
 import { brandProfilesForRender } from "../services/brandProfiles.js";
 import { getAiConfig, getPiecesConfig } from "../services/settings.js";
 import { researchVehicleFitment } from "../services/vehicleFitmentResearch.js";
@@ -1463,12 +1464,17 @@ export function buildTools(ctx: AgentContext) {
       if (saved?.nearest_store && saved.location_label?.startsWith("Local elegido explícitamente")) {
         const explicit = business.stores.find((store) => store.name === saved.nearest_store);
         if (explicit) {
+          // El cliente ya eligió: este es el momento de los mapas, y van los dos.
+          const mapas = await buildStoreLinksBlockOnce(ctx.conversation.id, explicit.name);
           return JSON.stringify({
             local: explicit.name,
             direccion: explicit.address,
-            mensaje_para_enviar: visitKnown
-              ? `Perfecto, queda confirmado *${explicit.name}*. Ya registré también cuándo viene; no necesita repetir esos datos.`
-              : `Perfecto, queda confirmado *${explicit.name}*. ¿Qué día puede pasar?`,
+            mensaje_para_enviar: composeBlocks(
+              visitKnown
+                ? `Perfecto, queda confirmado *${explicit.name}*. Ya registré también cuándo viene; no necesita repetir esos datos.`
+                : `Perfecto, queda confirmado *${explicit.name}*. ¿Qué día puede pasar?`,
+              mapas,
+            ),
             regla: visitKnown
               ? "Responde exactamente con mensaje_para_enviar. No vuelvas a preguntar local ni fecha."
               : "Responde exactamente con mensaje_para_enviar y pregunta únicamente la fecha.",
@@ -1493,6 +1499,8 @@ export function buildTools(ctx: AgentContext) {
       const sale = await latestSaleNumber(ctx.conversation.id);
       const descuentoVivo = Boolean(await getActiveDiscountOffer(ctx.conversation.id));
       const horario = storeSchedule(store.name, ctx.storeHours);
+      // La ubicación quedó resuelta: aquí sí van los mapas, los dos y una vez.
+      const mapas = await buildStoreLinksBlockOnce(ctx.conversation.id, store.name);
       return JSON.stringify({
         local: store.name,
         direccion: store.address,
@@ -1502,19 +1510,21 @@ export function buildTools(ctx: AgentContext) {
         ubicacion_cliente: resolved.label,
         distancia_es_aproximada: sector != null,
         numero_venta: sale,
-        mensaje_para_enviar: [
-          `📍 El local recomendado es *${store.name}*.`,
-          `🏬 ${store.address}`,
-          store.mapsUrl ? `🗺️ ${store.mapsUrl}` : "",
-          `🕐 ${horario}`,
-          sale ? `🔖 Al llegar, indica tu número de venta *${sale}* para ubicar tu cotización.` : "",
-          // Sin esta línea el turno terminaba en "te esperamos": cortés y sin
-          // fecha. La ubicación es el mejor momento para pedir el día porque el
-          // cliente acaba de decidir a dónde va.
-          visitKnown
-            ? `✅ Visita registrada: ${saved?.customer_commitment?.trim() || "fecha confirmada"}.`
-            : buildVisitDayQuestion(descuentoVivo),
-        ].filter(Boolean).join("\n"),
+        mensaje_para_enviar: composeBlocks(
+          [
+            `📍 El local recomendado es *${store.name}*.`,
+            `🏬 ${store.address}`,
+            `🕐 ${horario}`,
+            sale ? `🔖 Al llegar, indica tu número de venta *${sale}* para ubicar tu cotización.` : "",
+            // Sin esta línea el turno terminaba en "te esperamos": cortés y sin
+            // fecha. La ubicación es el mejor momento para pedir el día porque el
+            // cliente acaba de decidir a dónde va.
+            visitKnown
+              ? `✅ Visita registrada: ${saved?.customer_commitment?.trim() || "fecha confirmada"}.`
+              : buildVisitDayQuestion(descuentoVivo),
+          ].filter(Boolean).join("\n"),
+          mapas,
+        ),
         regla: visitKnown
           ? "Responde exactamente con mensaje_para_enviar. La visita ya está registrada: no preguntes otra vez el día ni repitas el argumento del descuento."
           : "Responde exactamente con mensaje_para_enviar, incluida la pregunta por el día. Ya tienes el local: pide únicamente la fecha.",

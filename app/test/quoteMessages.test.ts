@@ -103,6 +103,43 @@ describe("pregunta por fecha y local", () => {
     expect(pregunta).not.toMatch(/¿\s*\?/);
     expect(lineas(pregunta)).toBe(1);
   });
+
+  it("pregunta sin links: el mapa se manda al confirmar, no al preguntar", () => {
+    expect(qm.buildVisitPlanQuestion({ conDescuentoAutorizado: false, locales }))
+      .not.toMatch(/https?:\/\//);
+  });
+});
+
+/*
+ * El bot enumeraba los locales, acto seguido preguntaba dónde vive el cliente y
+ * recién después mandaba el link. Eran tres pasos para una sola decisión. Ahora
+ * la cotización pregunta una vez (día + local) y los mapas salen solo cuando la
+ * ubicación ya está resuelta.
+ */
+describe("mapas de los locales", () => {
+  it("la cotización detallada ya no pregunta la ubicación por segunda vez", () => {
+    const mensaje = qm.buildSingleQuoteMessageDetallado(
+      { product: producto(), quantity: 4 },
+      "Manuel",
+      "COT-1",
+      "AV-000001",
+    );
+    expect(mensaje).not.toMatch(/en qué sector/i);
+    expect(mensaje).not.toMatch(/comparti[rt] tu ubicaci[oó]n/i);
+    expect(mensaje).not.toMatch(/https?:\/\//);
+  });
+
+  it("manda los DOS locales con su link", () => {
+    const bloque = qm.buildStoreLinksBlock();
+    expect(bloque).toMatch(/Cumbayá/);
+    expect(bloque).toMatch(/Quito Sur/);
+    expect(bloque.match(/https?:\/\/\S+/g) ?? []).toHaveLength(2);
+  });
+
+  it("pone primero el local que el cliente eligió", () => {
+    const bloque = qm.buildStoreLinksBlock("Depot Tire Quito Sur");
+    expect(bloque.indexOf("Quito Sur")).toBeLessThan(bloque.indexOf("Cumbayá"));
+  });
 });
 
 /*

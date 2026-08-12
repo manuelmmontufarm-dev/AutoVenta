@@ -32,6 +32,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-08-12 | _(este mismo)_ | Una sola pregunta de ubicación + los dos mapas al confirmar · y el cruce con Contífico da 0 de 61 | 2.0 |
 | 2026-08-11 | _(este mismo)_ | El sync de precios del Interbot llevaba 4 días muerto por media cookie | 1.5 |
 | 2026-08-10 | _(este mismo)_ | Reporte: botón «abrir chat» en toda fila + plata en juego arriba | 0.25 |
 | 2026-08-10 | _(este mismo)_ | El reporte diario cuenta el día, no el arrastre histórico (medido contra la base de Depot) | 0.5 |
@@ -119,6 +120,69 @@ Ya viene activado en este equipo.
 ---
 
 ## Entradas (más reciente primero)
+
+### 2026-08-12 · Una sola pregunta de ubicación, y el cruce con Contífico da 0 de 61 · ⏱️ 2.0 h
+
+**Qué (1 — la repetición después de cotizar):** el bot hacía **tres pasos para
+una sola decisión**: enumeraba los locales, acto seguido preguntaba dónde vive el
+cliente, y recién después mandaba el link del mapa.
+
+La causa no eran los links sino **dos preguntas de ubicación en el mismo turno**.
+`generar_cotizacion` compone en un solo `composeBlocks` la cotización detallada y
+`buildVisitPlanQuestion` («¿Qué día puede pasar y a cuál local? ¿Cumbayá o Quito
+Sur?»), y el pie de la cotización detallada cerraba con «📍 ¿En qué sector estás
+o puedes compartir tu ubicación?». Se quitó ese pie: la pregunta de día y local
+ya estaba ahí y es la que sirve.
+
+Los mapas ahora salen **solo cuando la ubicación ya está resuelta**, en las dos
+ramas de `local_mas_cercano` — la de sector/pin y la de local elegido
+explícitamente, que hasta hoy **no mandaba ningún link** (y es el camino más
+común, porque el cliente escribe «Cumbayá» y lo agarra `extractExplicitStore`).
+
+Van **los dos locales**, con el elegido primero: el cliente puede cambiar de
+opinión y pedir el otro link cuesta un turno entero. Para eso **Quito Sur estrena
+`mapsUrl`** — el link existía solo en `PROYECTO.md`, así que si el local
+recomendado era Quito Sur no salía mapa ninguno. El candado de «una sola vez» es
+por conversación y mira los mensajes realmente enviados (mismo criterio que
+`buildBenefitsBlockOnce`), así un envío fallido no consume el único disparo.
+
+Los links no tenían **ni un test**; ahora sí.
+
+**Qué (2 — el cruce con Contífico):** script nuevo en
+`app/scripts/cruce-facturas/`. Baja los 5.804 documentos de cliente y el padrón
+de 273 personas, y cruza contra los teléfonos que el bot cotizó. La llave es el
+teléfono normalizado a los **últimos 9 dígitos**: la BD guarda el `wa_id` de Meta
+(`593982801766`) y Contífico el número local (`0982801766`).
+
+**El resultado es 0 de 61.** Ninguno de los 61 teléfonos cotizados por el bot
+($42.643,74 cotizados) aparece en Contífico — ni facturado, ni con proforma, ni
+siquiera creado en el padrón. No es un bug de normalización: se verificó
+comparando las claves de los dos lados a mano.
+
+El motivo se ve en los datos: ese Contífico es la operación **mayorista**. 1.267
+facturas repartidas entre **69 clientes**, casi todos empresas (CENTRO
+AUTOMOTRIZ 202, PITSTOP S.A.S. 179, ECUATIRE 104, JAPANTIRES 71). El bot atiende
+consumidor final por WhatsApp, y ese mostrador **no factura en esta cuenta** —o
+factura a consumidor final sin teléfono (325 de 1.267 facturas no traen ni el
+teléfono del cliente).
+
+**Por qué:** la repetición era lo que más se notaba leyendo los chats — tres
+mensajes para pedir un dato ya dado. Y el cruce nació de querer medir la
+conversión de verdad: hoy «venta ganada» es lo que alguien marcó a mano en el
+Kanban (`sales_history`), sin contraste contra facturación. Ahora sabemos que ese
+contraste **no se puede hacer con esta cuenta de Contífico**, y eso es el
+hallazgo: antes de medir conversión hay que averiguar con Depot dónde se factura
+el mostrador, o pedir que el asesor registre el teléfono al facturar. Sin una de
+las dos, la conversión real del bot es inauditable.
+
+**Notas de la API:** la v2 de Contífico **ignora** los filtros `tipo_documento` y
+de fechas (devuelve el mismo total sin importar lo que se mande); el único que
+respeta es `tipo_registro`. Por eso se baja todo y se filtra en local. La v1 de
+`/documento/` cuelga hasta el timeout. Y `CONTIFICO_TOKEN` está en `app/.env`
+pero **no lo lee nadie** en el código.
+
+El volcado queda en `datos/`, **ignorado por git**: trae nombres, RUC, correos y
+direcciones de clientes reales.
 
 ### 2026-08-11 · El sync de precios llevaba 4 días muerto por media cookie · ⏱️ 1.5 h
 

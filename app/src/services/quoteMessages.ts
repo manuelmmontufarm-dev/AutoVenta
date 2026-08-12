@@ -120,6 +120,29 @@ export function buildVisitPlanQuestion(input: {
   return `¿Qué día puede pasar y a cuál local?${opciones} Con esos dos datos le aviso al asesor y ${motivo}. 📅`;
 }
 
+/**
+ * Los mapas de los DOS locales, juntos y una sola vez.
+ *
+ * Se mandan al CONFIRMAR la ubicación, nunca al preguntarla: un link dentro de
+ * una pregunta es ruido — el cliente todavía no sabe a cuál va a ir. Van los dos
+ * aunque ya haya elegido porque el que eligió puede cambiar de opinión, y volver
+ * a pedir el otro link cuesta un turno entero.
+ *
+ * Si se pasa `destacado`, ese local va primero: es el que el cliente eligió o el
+ * que le recomendamos, y el orden es la única señal que necesita.
+ */
+export function buildStoreLinksBlock(destacado?: string | null): string {
+  const conMapa = business.stores.filter((store) => Boolean(store.mapsUrl));
+  if (!conMapa.length) return "";
+  const ordenados = destacado
+    ? [...conMapa].sort((a, b) => Number(b.name === destacado) - Number(a.name === destacado))
+    : conMapa;
+  return [
+    ordenados.length > 1 ? "📍 Le dejo las ubicaciones de los dos locales:" : "📍 Le dejo la ubicación:",
+    ...ordenados.map((store) => `🏬 *${store.name}* — ${store.address}\n🗺️ ${store.mapsUrl}`),
+  ].join("\n");
+}
+
 /** Cotización: número, total y vigencia. El desglose ya está en la imagen. */
 export function buildSingleQuoteCaption(
   selection: CatalogQuoteSelection,
@@ -261,7 +284,10 @@ export function buildSingleQuoteMessageDetallado(
       ? `Precio incluye IVA y Ecovalor. Oferta vigente hasta ${offerDiscount.expiresAt.toLocaleString("es-EC", { timeZone: "America/Guayaquil" })}.`
       : "Precio incluye IVA y Ecovalor. Vigencia por confirmar con el asesor.",
     saleNumber ? `🔖 Número de venta: ${saleNumber}` : "",
-    "📍 ¿En qué sector estás o puedes compartir tu ubicación? Así te indico el local más cercano.",
+    // Aquí NO va ninguna pregunta por la ubicación: este bloque sale en el mismo
+    // turno que buildVisitPlanQuestion, que ya pregunta el día y el local. Tener
+    // las dos era lo que hacía que el bot enumerara los locales y acto seguido
+    // preguntara dónde vive el cliente.
   ]
     .filter(Boolean)
     .join("\n")
