@@ -32,6 +32,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-08-12 | _(este mismo)_ | El sync dejó de barrer el Interbot 15.000 veces al día; la cotización pregunta por medida | 1.5 |
 | 2026-08-12 | _(este mismo)_ | Una sola pregunta de ubicación + los dos mapas al confirmar · y el cruce con Contífico da 0 de 61 | 2.0 |
 | 2026-08-11 | _(este mismo)_ | El sync de precios del Interbot llevaba 4 días muerto por media cookie | 1.5 |
 | 2026-08-10 | _(este mismo)_ | Reporte: botón «abrir chat» en toda fila + plata en juego arriba | 0.25 |
@@ -120,6 +121,40 @@ Ya viene activado en este equipo.
 ---
 
 ## Entradas (más reciente primero)
+
+### 2026-08-12 · 10.099 consultas al Interbot en 16 horas · ⏱️ 1.5 h
+
+**Qué:** Depot reclamó por audio que «en cada consulta está leyendo todos los
+precios» y que llevaban **10.099 búsquedas** en el día. La cuenta calza exacta y
+la causa fuimos nosotros: el sync que se arregló ayer barre **155 medidas cada
+15 minutos**, y desde el deploy (19:30) hasta el reclamo (11:48) van 16,3 h ×
+4 barridos × 155 = **10.106 consultas**. A ese ritmo son ~15.000 diarias.
+
+El bug de la cookie tenía el sync muerto desde el 7-ago, así que el barrido
+**nunca había corrido**: arreglarlo encendió una manguera que no existía. El
+comentario del código decía que 15 min era prudente «para no castigar su
+servidor»; nadie multiplicó por 96 barridos al día.
+
+Tres cambios:
+
+1. **La cotización pregunta por SU medida, no por todas.** `refreshPriceForSize()`
+   hace **1 consulta** contra `/api/chat` justo antes de imprimir la cotización,
+   que es el único momento donde el precio tiene que estar al día. Si el Interbot
+   no contesta, queda el del último barrido y la cotización sale igual. Es
+   literalmente lo que pidió el cliente en el audio.
+2. **El barrido pasa de 15 min a 12 h** (default en código + variable en
+   Railway): de ~15.000 consultas diarias a **310**. Los precios no cambiaron ni
+   una vez en 4 días, así que la vitrina no necesita más.
+3. **Sesión reutilizable** (30 min): antes cada barrido se logueaba de nuevo.
+
+**Por qué:** el precio correcto importa en la cotización, no en el catálogo. El
+barrido existe para que la vitrina no muestre un precio viejo; confundir las dos
+cosas nos costó castigar el servidor de un tercero 15.000 veces al día para
+refrescar datos que no cambian.
+
+**Pruebas:** 3 nuevas en `interbotSync.test.ts` — que cotizar cueste 2 peticiones
+y nunca toque `/api/medidas`, que la sesión no se re-loguee, y que un Interbot
+caído no rompa la cotización. 536 en total, typecheck limpio.
 
 ### 2026-08-12 · Una sola pregunta de ubicación, y el cruce con Contífico da 0 de 61 · ⏱️ 2.0 h
 

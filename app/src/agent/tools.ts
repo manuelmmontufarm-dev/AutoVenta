@@ -18,6 +18,7 @@ import {
   searchByText,
   type CatalogItem,
 } from "../services/catalog.js";
+import { getInterbotPrice, refreshPriceForSize } from "../services/interbotPrices.js";
 import {
   buildQuote,
   pngToQuotePdf,
@@ -1182,17 +1183,30 @@ export function buildTools(ctx: AgentContext) {
             error: `${product.brand} ${product.design} está agotada. Busca otra opción disponible antes de cotizar.`,
           });
         }
+        // El precio que se imprime se confirma contra el Interbot AQUÍ, con UNA
+        // consulta por la medida que se está cotizando. Antes esto dependía del
+        // barrido completo cada 15 min (12-ago: ~15.000 consultas diarias a su
+        // servidor); ahora el barrido solo refresca la vitrina y el número que
+        // firma la cotización se pregunta en el momento. Si el Interbot no
+        // contesta, queda el del último barrido y la cotización sale igual.
+        await refreshPriceForSize(product.sizeLabel ?? "");
+        const vivo = getInterbotPrice(product.code);
+        const hoyConIva = vivo
+          ? (vivo.tienePromo && vivo.precioPromoConIva ? vivo.precioPromoConIva : vivo.pvpMinConIva)
+          : product.minimumPriceWithTax;
+        const antesConIva =
+          vivo && vivo.pvpFullConIva > hoyConIva ? vivo.pvpFullConIva : product.customerPriceWithTax;
+
         lines.push({
           code: product.code,
           description: `Llanta ${product.brand} ${product.design} ${product.sizeLabel}`,
           quantity: item.cantidad,
-          unitPrice:
-            product.minimumPriceWithTax / (1 + product.taxRate),
+          unitPrice: hoyConIva / (1 + product.taxRate),
           brand: product.brand,
           design: product.design,
           sizeLabel: product.sizeLabel,
-          listPriceWithTax: product.customerPriceWithTax,
-          salePriceWithTax: product.minimumPriceWithTax,
+          listPriceWithTax: antesConIva > hoyConIva ? antesConIva : hoyConIva,
+          salePriceWithTax: hoyConIva,
           availability: product.availability,
           imageUrl: product.imageUrl,
           loadSpeed: product.loadSpeed,

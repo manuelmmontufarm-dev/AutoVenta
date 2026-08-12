@@ -64,11 +64,18 @@ const RETRY_TRAS_FALLO_MS = 2 * 60_000;
 /** Peticiones simultáneas del barrido. Son ~155 medidas; de a una tomaba ~30 s. */
 const CONCURRENCIA = 5;
 
+/**
+ * La sesión del Interbot dura semanas (la cookie expira a los 30 días), así que
+ * no hace falta volver a loguearse en cada consulta. Se reusa media hora.
+ */
+const SESION_TTL_MS = 30 * 60_000;
+
 let precios: Map<string, InterbotPrice> = new Map();
 let state: InterbotSyncState = { source: "none", at: null, productos: 0, lastError: null };
 let nextLiveAttemptAt = 0;
 let syncInFlight: Promise<void> | null = null;
 let persistedLoaded = false;
+let sesion: { cookie: string; at: number } | null = null;
 
 const snapshotPath = fileURLToPath(
   new URL("../../assets/precios-interbot.json", import.meta.url),
@@ -202,9 +209,9 @@ async function enParalelo<T>(
   await Promise.all(obreros);
 }
 
-async function syncLive(): Promise<void> {
+async function conSesion(): Promise<string> {
   if (!config.interbot) throw new Error("Interbot no configurado");
-
+  if (sesion && Date.now() - sesion.at < SESION_TTL_MS) return sesion.cookie;
   const login = await fetchJson("/api/login", {
     method: "POST",
     body: JSON.stringify({
@@ -214,14 +221,79 @@ async function syncLive(): Promise<void> {
   });
   const cookie = login.cookies;
   if (login.status !== 200 || !cookie) {
+    sesion = null;
     throw new Error(`login Interbot falló (HTTP ${login.status})`);
   }
+  sesion = { cookie, at: Date.now() };
+  return cookie;
+}
+
+/** Lee los productos de una respuesta de /api/chat al mapa que se le pase. */
+function absorberProductos(json: unknown, destino: Map<string, InterbotPrice>): number {
+  const productos = ((json as { productos?: unknown[] } | null)?.productos ?? []) as Array<
+    Record<string, unknown>
+  >;
+  let n = 0;
+  for (const p of productos) {
+    const codigo = String(p.codigo ?? "");
+    const pvpMin = Number(p.pvpMinConIva);
+    if (!codigo || !Number.isFinite(pvpMin) || pvpMin <= 0) continue;
+    destino.set(codigo, {
+      marca: String(p.marca ?? ""),
+      medida: String(p.medida ?? ""),
+      costoConIva: Number(p.precioConIva) || 0,
+      pvpFullConIva: Number(p.pvpFullConIva) || 0,
+      pvpMinConIva: pvpMin,
+      precioPromoConIva: Number(p.precioPromoConIva) > 0 ? Number(p.precioPromoConIva) : null,
+      tienePromo: Boolean(p.tienePromo),
+    });
+    n += 1;
+  }
+  return n;
+}
+
+/**
+ * Precio en vivo de UNA medida: **1 petición en vez de las 156 del barrido**.
+ *
+ * Nace del reclamo del 12-ago: con el barrido cada 15 min el Interbot recibía
+ * ~15.000 consultas diarias nuestras. El precio solo TIENE que estar al día en
+ * un momento —cuando se imprime una cotización—, y para eso basta preguntar por
+ * la medida que se está cotizando. El barrido completo queda para refrescar la
+ * vitrina, y espaciado.
+ *
+ * Nunca lanza: si el Interbot no responde, queda el precio del último barrido.
+ */
+export async function refreshPriceForSize(medida: string): Promise<boolean> {
+  if (!config.interbot || !medida.trim()) return false;
+  try {
+    const cookie = await conSesion();
+    const res = await fetchJson("/api/chat", {
+      method: "POST",
+      cookie,
+      body: JSON.stringify({ mensaje: medida }),
+    });
+    if (precios.size === 0) loadSnapshot();
+    return absorberProductos(res.json, precios) > 0;
+  } catch (error) {
+    console.warn(
+      `⚠️ No se pudo confirmar el precio de ${medida} con el Interbot:`,
+      error instanceof Error ? error.message : error,
+    );
+    return false;
+  }
+}
+
+async function syncLive(): Promise<void> {
+  if (!config.interbot) throw new Error("Interbot no configurado");
+
+  const cookie = await conSesion();
 
   const medidasRes = await fetchJson("/api/medidas", { cookie });
   // Distinguir «la sesión no sirve» de «no hay medidas»: con el bug de la cookie
   // los dos casos se veían igual en el log y costó una semana encontrarlo.
   const authError = (medidasRes.json as { error?: string } | null)?.error;
   if (medidasRes.status === 401 || authError) {
+    sesion = null;
     throw new Error(`sesión rechazada por el Interbot (${authError ?? medidasRes.status})`);
   }
   const rawMedidas = Array.isArray(medidasRes.json)
@@ -248,23 +320,7 @@ async function syncLive(): Promise<void> {
       medidasFallidas += 1;
       return;
     }
-    const productos = ((res.json as { productos?: unknown[] } | null)?.productos ?? []) as Array<
-      Record<string, unknown>
-    >;
-    for (const p of productos) {
-      const codigo = String(p.codigo ?? "");
-      const pvpMin = Number(p.pvpMinConIva);
-      if (!codigo || !Number.isFinite(pvpMin) || pvpMin <= 0) continue;
-      next.set(codigo, {
-        marca: String(p.marca ?? ""),
-        medida: String(p.medida ?? ""),
-        costoConIva: Number(p.precioConIva) || 0,
-        pvpFullConIva: Number(p.pvpFullConIva) || 0,
-        pvpMinConIva: pvpMin,
-        precioPromoConIva: Number(p.precioPromoConIva) > 0 ? Number(p.precioPromoConIva) : null,
-        tienePromo: Boolean(p.tienePromo),
-      });
-    }
+    absorberProductos(res.json, next);
   });
 
   // Un barrido que trae muchísimo menos que el anterior huele a fallo parcial
@@ -346,8 +402,9 @@ export async function __syncLiveForTests(): Promise<void> {
   await syncLive();
 }
 
-/** Solo para pruebas: fija el mapa sin tocar red ni disco. */
+/** Solo para pruebas: fija el mapa y descarta la sesión, sin tocar red ni disco. */
 export function __setPreciosForTests(map: Record<string, InterbotPrice> | null): void {
+  sesion = null;
   precios = map ? new Map(Object.entries(map)) : new Map();
   state = map
     ? { source: "live", at: new Date(), productos: precios.size, lastError: null }

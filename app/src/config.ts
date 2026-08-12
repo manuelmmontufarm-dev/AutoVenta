@@ -210,10 +210,13 @@ export const config = {
           ).replace(/\/$/, ""),
           username: env("INTERBOT_USERNAME"),
           password: env("INTERBOT_PASSWORD"),
-          // 15 min: el barrido son ~155 requests al Interbot; más seguido sería
-          // castigar su servidor sin ganancia (los precios no cambian por minuto).
+          // 12 h, no 15 min. El barrido son ~156 requests: cada 15 minutos son
+          // ~15.000 consultas diarias al servidor del Interbot, que es lo que
+          // reclamaron el 12-ago (10.099 en 16 horas). Los precios no cambiaron
+          // ni una vez en 4 días, y el número que firma una cotización ya no
+          // sale de aquí: se pregunta por medida con refreshPriceForSize().
           syncIntervalMs: Number(
-            envOr("INTERBOT_SYNC_INTERVAL_MS", String(15 * 60_000)),
+            envOr("INTERBOT_SYNC_INTERVAL_MS", String(12 * 60 * 60_000)),
           ),
         }
       : null,

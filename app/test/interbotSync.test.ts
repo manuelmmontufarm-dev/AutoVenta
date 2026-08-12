@@ -16,8 +16,10 @@ process.env.DATABASE_URL ||= "postgresql://test@localhost/test";
 process.env.INTERBOT_USERNAME = "bot";
 process.env.INTERBOT_PASSWORD = "clave";
 
-const { __syncLiveForTests, __setPreciosForTests, getInterbotPrice, interbotPricesState } =
-  await import("../src/services/interbotPrices.js");
+const {
+  __syncLiveForTests, __setPreciosForTests, getInterbotPrice, interbotPricesState,
+  refreshPriceForSize,
+} = await import("../src/services/interbotPrices.js");
 
 /** Lo que de verdad manda el Interbot en producción (verificado contra la API). */
 const LOGIN_COOKIES = [
@@ -120,5 +122,40 @@ describe("sync en vivo de precios del Interbot", () => {
     // El Interbot falso devuelve 1 producto contra los 10 que ya había.
     await expect(__syncLiveForTests()).rejects.toThrow(/se descarta/i);
     expect(interbotPricesState().productos).toBe(10);
+  });
+
+  it("cotizar consulta UNA medida, no el barrido de 155", async () => {
+    // Reclamo del 12-ago: el barrido cada 15 min dejaba ~15.000 consultas
+    // diarias en el Interbot. Confirmar el precio de una cotización tiene que
+    // costar una consulta, no el catálogo entero.
+    const { fetchMock } = interbotFalso(LOGIN_COOKIES);
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+    const ok = await refreshPriceForSize("165/65R14");
+
+    expect(ok).toBe(true);
+    expect(getInterbotPrice("K246B404")?.pvpMinConIva).toBe(55.64);
+    // login + chat de esa medida. Nada de /api/medidas ni barrido.
+    expect(fetchMock.mock.calls.length).toBe(2);
+    expect(fetchMock.mock.calls.some(([u]) => String(u).endsWith("/api/medidas"))).toBe(false);
+  });
+
+  it("reusa la sesión: la segunda consulta ya no vuelve a loguearse", async () => {
+    const { fetchMock } = interbotFalso(LOGIN_COOKIES);
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+    await refreshPriceForSize("165/65R14");
+    await refreshPriceForSize("165/65R14");
+
+    const logins = fetchMock.mock.calls.filter(([u]) => String(u).endsWith("/api/login")).length;
+    expect(logins).toBe(1);
+  });
+
+  it("si el Interbot no contesta, no rompe la cotización", async () => {
+    globalThis.fetch = (async () => {
+      throw new Error("ECONNREFUSED");
+    }) as unknown as typeof fetch;
+
+    await expect(refreshPriceForSize("165/65R14")).resolves.toBe(false);
   });
 });
