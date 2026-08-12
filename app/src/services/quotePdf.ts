@@ -12,6 +12,7 @@ import { PDFDocument } from "pdf-lib";
 import { business } from "../config.js";
 import type { CatalogItem } from "../domain/catalog.js";
 import { warrantyForBrand } from "./quoteMessages.js";
+import { DEPOT_LOGO_RATIO, depotLogo } from "../render/assets.js";
 
 pdfmake.addFonts(helvetica);
 
@@ -72,6 +73,15 @@ const GREEN = "#14835d";
 const GOLD = "#f4bd4f";
 const MUTED = "#667085";
 const BORDER = "#dfe3ea";
+
+/**
+ * El logotipo de Depot Tire para pdfmake, al alto pedido. Null si falta el
+ * archivo — quien llama cae al nombre en texto.
+ */
+function depotLogoPdf(alto: number) {
+  const logo = depotLogo("blanco");
+  return logo ? { image: logo.dataUri, height: alto, width: alto * DEPOT_LOGO_RATIO } : null;
+}
 
 export function buildQuote(
   lines: QuoteLine[],
@@ -396,8 +406,11 @@ function headerBlock(title: string, detail: string) {
             [
               {
                 stack: [
-                  { text: "DEPOT TIRE", bold: true, color: "white", fontSize: 22 },
-                  { text: title, bold: true, color: GOLD, fontSize: 9, characterSpacing: 1.1 },
+                  // El logotipo real de la marca, no «DEPOT TIRE» en Helvetica
+                  // negrita: este PDF se manda al cliente junto con la imagen y
+                  // las dos tienen que traer el mismo logo.
+                  depotLogoPdf(26) ?? { text: "DEPOT TIRE", bold: true, color: "white", fontSize: 22 },
+                  { text: title, bold: true, color: GOLD, fontSize: 9, characterSpacing: 1.1, margin: [0, 4, 0, 0] },
                 ],
                 fillColor: NAVY,
                 margin: [14, 10, 14, 10],
