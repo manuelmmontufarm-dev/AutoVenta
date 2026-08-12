@@ -12,7 +12,7 @@
 import {
   ARCHIVO_BLACK, BLACK_ITALIC, type Availability, type Child, type SatoriNode, type Theme,
   availabilityChip, availabilityDot, availabilityPill, benefitsStrip, brandAccent, brandAccentDark,
-  brandMark, check, el, img, posterFooter, posterHeader, racingBar, savingsBadge, speedLines,
+  brandMark, check, depotWordmark, el, img, posterFooter, posterHeader, racingBar, savingsBadge, speedLines,
   stripEmoji, text,
 } from "./depotDesign.js";
 
@@ -80,24 +80,21 @@ export function quotePoster(data: QuotePosterData, theme: Theme): SatoriNode {
   const bloques: Child[] = [
     // Encabezado
     el({ justifyContent: "space-between", alignItems: "center", backgroundColor: p.dark, padding: "26px 64px" },
-      el({ alignItems: "baseline", gap: 14 },
-        el({ alignItems: "baseline" },
-          text({ ...BLACK_ITALIC, fontSize: 32, color: "#fffdf6", letterSpacing: 1 }, "DEPOT"),
-          text({ ...BLACK_ITALIC, fontSize: 32, color: p.gold, letterSpacing: 1 }, "TIRE"),
-        ),
-        text({ fontSize: 13, fontWeight: 700, letterSpacing: 3, color: p.darkSub }, "QUITO · DESDE 1996"),
-      ),
+      // El mismo logotipo que las otras tres piezas: la cotización tenía su
+      // propio encabezado copiado a mano y se le quedaba atrás cada vez que la
+      // marca cambiaba algo.
+      depotWordmark(theme),
       el({ alignItems: "center", gap: 18 },
         text({ border: `2px solid ${p.gold}`, color: p.gold, borderRadius: 10, padding: "8px 18px",
           fontSize: 19, fontWeight: 700, letterSpacing: 1, whiteSpace: "nowrap" }, data.number),
-        text({ fontSize: 18, fontWeight: 700, color: "#fffdf6" }, data.dateLabel),
+        text({ fontSize: 18, fontWeight: 700, color: p.paper }, data.dateLabel),
       ),
     ),
     racingBar(theme),
 
     // Héroe: foto + identidad del producto
     el({ alignItems: "center", gap: 56, padding: "56px 64px 40px", position: "relative",
-      backgroundImage: `linear-gradient(150deg,#ffffff 0%,${p.base} 45%,#ede5d0 100%)` },
+      backgroundImage: `linear-gradient(150deg,#ffffff 0%,${p.base} 45%,${p.wash} 100%)` },
       el({ position: "absolute", top: 36, right: 64, gap: 6 },
         el({ width: 34, height: 8, backgroundColor: p.accent, transform: "skewX(-30deg)" }),
         el({ width: 18, height: 8, backgroundColor: p.gold, transform: "skewX(-30deg)" }),
@@ -117,7 +114,7 @@ export function quotePoster(data: QuotePosterData, theme: Theme): SatoriNode {
         brandMark(line.brand, theme),
         text({ ...BLACK_ITALIC, fontSize: 96, lineHeight: 0.98, letterSpacing: -2, color: p.dark }, line.design),
         el({ alignItems: "center", gap: 14, marginTop: 8 },
-          text({ ...ARCHIVO_BLACK, backgroundColor: p.accent, color: "#fffdf6", borderRadius: 12,
+          text({ ...ARCHIVO_BLACK, backgroundColor: p.accent, color: p.paper, borderRadius: 12,
             padding: "10px 24px", fontSize: 38 }, line.sizeLabel),
           line.loadSpeedLabel
             ? text({ ...ARCHIVO_BLACK, border: `3px solid ${p.dark}`, borderRadius: 12,
@@ -140,7 +137,7 @@ export function quotePoster(data: QuotePosterData, theme: Theme): SatoriNode {
       speedLines(4, 0.1, 180),
       el({ flexDirection: "column", gap: 2 },
         text({ fontSize: 17, fontWeight: 700, letterSpacing: 4, color: p.gold }, "PRECIO HOY · POR LLANTA"),
-        text({ ...price, fontSize: 168, lineHeight: 1.12, letterSpacing: -4, color: "#fffdf6" }, money(line.unitConIva)),
+        text({ ...price, fontSize: 168, lineHeight: 1.12, letterSpacing: -4, color: p.paper }, money(line.unitConIva)),
         text({ fontSize: 19, color: p.darkSub }, "IVA y Ecovalor incluidos"),
       ),
       pct && line.pvpConIva
@@ -157,7 +154,7 @@ export function quotePoster(data: QuotePosterData, theme: Theme): SatoriNode {
 
     // Sellos de garantía
     el({ justifyContent: "space-between", alignItems: "center", padding: "40px 64px",
-      backgroundImage: `linear-gradient(180deg,#ffffff 0%,${p.panel} 55%,#f3edde 100%)` },
+      backgroundImage: `linear-gradient(180deg,#ffffff 0%,${p.panel} 55%,${p.wash} 100%)` },
       golpes
         ? seal(String(line.golpesMeses), "MESES", "GARANTÍA CONTRA GOLPES")
         : seal(String(line.fabricaAnios), "AÑOS", "GARANTÍA DE FÁBRICA"),
@@ -173,7 +170,7 @@ export function quotePoster(data: QuotePosterData, theme: Theme): SatoriNode {
   if (benefits.length) {
     bloques.push(
       el({ flexDirection: "column", gap: 16, padding: "36px 64px", borderTop: `1px solid ${p.border}`,
-        backgroundImage: `linear-gradient(180deg,${p.base} 0%,#efe8d6 100%)` },
+        backgroundImage: `linear-gradient(180deg,${p.base} 0%,${p.wash} 100%)` },
         text({ fontSize: 15, fontWeight: 700, letterSpacing: 3, color: p.tenue }, "INCLUIDO CON TU COMPRA"),
         el({ flexWrap: "wrap", gap: 12 },
           ...benefits.map((b) =>
@@ -217,7 +214,7 @@ export function quotePoster(data: QuotePosterData, theme: Theme): SatoriNode {
       ),
       el({ alignItems: "baseline", gap: 16 },
         text({ fontSize: 16, fontWeight: 700, letterSpacing: 3, color: p.gold }, "TOTAL"),
-        text({ ...price, fontSize: 80, letterSpacing: -2, color: "#fffdf6" }, money(data.total)),
+        text({ ...price, fontSize: 80, letterSpacing: -2, color: p.paper }, money(data.total)),
       ),
     ),
     posterFooter(theme,
@@ -252,7 +249,7 @@ const divider = (color: string) => el({ width: 1, height: 140, backgroundColor: 
 function totalCell(theme: Theme, rotulo: string, valor: string): SatoriNode {
   return el({ flexDirection: "column", gap: 2 },
     text({ fontSize: 13, letterSpacing: 2, color: theme.p.darkSub }, rotulo),
-    text({ fontSize: 26, fontWeight: 700, color: "#fffdf6" }, valor),
+    text({ fontSize: 26, fontWeight: 700, color: theme.p.paper }, valor),
   );
 }
 
@@ -281,13 +278,13 @@ export function comparePoster(data: ComparePosterData, theme: Theme): SatoriNode
       line.tag
         ? el({},
             text({ backgroundImage: `linear-gradient(120deg,${acento},${brandAccentDark(line.brand, p.dark)})`,
-              color: "#fffdf6", borderRadius: 999, padding: "7px 18px", fontSize: 14, fontWeight: 700,
+              color: p.paper, borderRadius: 999, padding: "7px 18px", fontSize: 14, fontWeight: 700,
               letterSpacing: 2, whiteSpace: "nowrap", boxShadow: "0 4px 12px rgba(0,0,0,0.18)" }, line.tag))
         : el({ height: 32 }),
       el({ alignItems: "center", height: 44 }, brandMark(line.brand, theme, 0.66)),
       el({ alignItems: "center", justifyContent: "center", height: 270, position: "relative" },
         el({ position: "absolute", top: 10, left: 20, right: 20, bottom: 10, borderRadius: 20,
-          backgroundImage: `linear-gradient(165deg,#ffffff 0%,${p.panel} 50%,#efe8d6 100%)`,
+          backgroundImage: `linear-gradient(165deg,#ffffff 0%,${p.panel} 50%,${p.wash} 100%)`,
           border: `1px solid ${p.border}`,
           boxShadow: "0 14px 32px rgba(20,20,20,0.12), 0 3px 8px rgba(20,20,20,0.06)" }),
         el({ position: "absolute", bottom: 26, left: 70, width: 200, height: 22,
@@ -422,7 +419,7 @@ export function optionsPoster(data: OptionsPosterData, theme: Theme): SatoriNode
       ...(acostada
         ? { flexDirection: "row", alignItems: "center", gap: t(28) }
         : { flexDirection: "column", gap: t(8) }),
-      backgroundImage: `linear-gradient(160deg,#ffffff 0%,${p.panel} 55%,#f1ead9 100%)`,
+      backgroundImage: `linear-gradient(160deg,#ffffff 0%,${p.panel} 55%,${p.wash} 100%)`,
       border: `1px solid ${p.border}`, borderRadius: 16, padding: `${t(20)}px ${t(22)}px`,
       boxShadow: "0 12px 28px rgba(20,20,20,0.10), 0 2px 6px rgba(20,20,20,0.06)" },
       el({ position: "absolute", top: 0, left: 24, width: 56, height: 5,
@@ -438,11 +435,11 @@ export function optionsPoster(data: OptionsPosterData, theme: Theme): SatoriNode
     const golpes = golpesLabel(primera);
     return el({ borderBottom: `1px solid ${p.border}` },
       el({ width: 280, flexDirection: "column", justifyContent: "center", gap: 12,
-        backgroundImage: `linear-gradient(180deg,#ffffff 0%,${p.panel} 60%,#f3edde 100%)`,
+        backgroundImage: `linear-gradient(180deg,#ffffff 0%,${p.panel} 60%,${p.wash} 100%)`,
         borderRight: `1px solid ${p.border}`, padding: "28px 26px" },
         brandMark(marca, theme, 0.55),
         primera.tag
-          ? el({}, text({ backgroundColor: acento, color: "#fffdf6", borderRadius: 999, padding: "5px 14px",
+          ? el({}, text({ backgroundColor: acento, color: p.paper, borderRadius: 999, padding: "5px 14px",
               fontSize: 12, fontWeight: 700, letterSpacing: 2, whiteSpace: "nowrap" }, primera.tag))
           : null,
         primera.posicionamiento
@@ -537,7 +534,7 @@ export function medidaGuidePoster(data: MedidaGuidePosterData, theme: Theme): Sa
           : "0 6px 16px rgba(20,20,20,0.07)",
       },
         text({ ...price, fontSize: 84, lineHeight: 1, letterSpacing: -2,
-          color: seg.clave ? "#fffdf6" : p.dark }, seg.valor),
+          color: seg.clave ? p.paper : p.dark }, seg.valor),
       ),
       // Conector: la línea que ata la cifra con su explicación, en lugar de las
       // flechas del diagrama original — satori no dibuja curvas en flex.
@@ -545,7 +542,7 @@ export function medidaGuidePoster(data: MedidaGuidePosterData, theme: Theme): Sa
       el({ flexDirection: "column", alignItems: "center", gap: 8 },
         text({
           fontSize: 13, fontWeight: 700, letterSpacing: 2, textAlign: "center",
-          color: seg.clave ? "#fffdf6" : p.tenue,
+          color: seg.clave ? p.paper : p.tenue,
           ...(seg.clave
             ? { backgroundColor: p.accent, borderRadius: 999, padding: "5px 14px" }
             : {}),
@@ -581,7 +578,7 @@ export function medidaGuidePoster(data: MedidaGuidePosterData, theme: Theme): Sa
     el({ alignItems: "center", gap: 18, padding: "24px 56px",
       backgroundColor: p.dark, borderTop: `1px solid ${p.border}` },
       text({ ...ARCHIVO_BLACK, fontSize: 22, color: p.gold, whiteSpace: "nowrap" }, "EL ARO MANDA"),
-      text({ fontSize: 18, color: "#fffdf6", lineHeight: 1.4 }, aviso),
+      text({ fontSize: 18, color: p.paper, lineHeight: 1.4 }, aviso),
     ),
 
     el({ alignItems: "center", gap: 14, padding: "22px 56px", backgroundColor: p.panel },

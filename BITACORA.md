@@ -32,6 +32,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-08-12 | _(este mismo)_ | El logo real de Depot Tire en todas las piezas + la paleta del sitio (fondo blanco) | 1.5 |
 | 2026-08-12 | _(este mismo)_ | Precios: barrido semanal + botón «Actualizar ahora». Horarios: casos especiales por local | 2.5 |
 | 2026-08-12 | _(este mismo)_ | El barrido del Interbot pasa a una sola pasada diaria a las 6 de la mañana | 0.5 |
 | 2026-08-12 | _(este mismo)_ | El sync dejó de barrer el Interbot 15.000 veces al día; la cotización pregunta por medida | 1.5 |
@@ -118,11 +119,64 @@ Ya viene activado en este equipo.
 | 2026-07-14 | ac09171 | Ubicaciones de locales + análisis de features del cliente | 1.5 |
 | 2026-07-13 | feadf57 | Brief + plan de desarrollo + plan financiero + catálogo | 4.0 |
 | 2026-07-13 | d997844 | Commit inicial (repo) | 0.25 |
-| | | **TOTAL** | **~97.5 h** |
+| | | **TOTAL** | **~99.0 h** |
 
 ---
 
 ## Entradas (más reciente primero)
+
+### 2026-08-12 · El logo real de Depot Tire, y la paleta del sitio · ⏱️ 1.5 h
+
+**Qué:** dos pedidos de Manuel sobre la identidad de las piezas.
+
+**1. El logo exacto, no una recreación.** Las piezas dibujaban «DEPOT» + «TIRE»
+en Archivo Black itálica. Se parecía —por eso pasó tantos meses— pero el logo
+verdadero de Depot lleva **el volante dentro de la O** y la bajada «SOLUCIONES
+AUTOMOTRICES», y ninguna de las dos cosas se puede sacar de una tipografía. El
+cliente que abre la cotización y después entra a tiredepotec.com nota la
+diferencia, y lo que nota es que la cotización no es del todo de ellos.
+
+Ahora va el archivo de la marca, bajado del sitio y recortado a su contenido
+(el PNG de Wix viene en lienzo de 500×500 con el arte al centro; queda 422×132).
+Se guardan las **dos** versiones que publica el negocio: la de color y la
+blanca. Las piezas usan la blanca porque el encabezado es oscuro en las siete
+paletas. Va en las cuatro piezas, en el PDF de cotización y en el del reporte
+diario. Si algún día falta el archivo, cae al texto de antes en vez de dejar un
+hueco en el encabezado.
+
+De paso, la cotización tenía **su propio encabezado copiado a mano** —el mismo
+bloque que `depotWordmark()`, duplicado— y por eso se le quedaba atrás cada vez
+que la marca cambiaba algo. Ahora las cuatro piezas comparten uno solo.
+
+**2. Una séptima paleta, la del sitio.** Las seis que había son propuestas de
+estilo; esta no se eligió, **se midió**. El oscuro y el acento salen del pixel
+del propio logotipo (`#1c1e1b` y `#e52c2a`) y no del tema del sitio: el rojo que
+importa es el que va a quedar **al lado del logo** en la pieza, y ni el `#ed1c24`
+del tema de Wix ni el `#ce2026` de sus adornos son ese. El dorado, el borde y
+los grises sí son colores declarados del sitio.
+
+El fondo es **blanco**, no el crema de las otras seis. Eso destapó cinco beiges
+hardcodeados (`#ede5d0`, `#f3edde`, `#efe8d6`, `#f1ead9`) que cerraban los
+degradados del héroe, los sellos y las tarjetas: puesto el fondo en blanco,
+esos beiges reintroducían por detrás justo el color que se había quitado. Ahora
+son dos campos de paleta —`wash`, el cierre de los degradados claros, y `paper`,
+el claro sobre fondo oscuro—, así que la próxima paleta no vuelve a chocar con
+ellos. Las seis viejas conservan su crema.
+
+**Los botones de Ajustes llevan muestras de color**, servidas desde el mismo
+`PALETTES` que renderiza las piezas para que el botón no pueda mentir sobre el
+color que va a salir. Con siete paletas el nombre solo ya no alcanzaba para
+saber cuál es cuál sin abrir la vista previa.
+
+**Verificado a ojo, que es como se verifica esto:** las 4 piezas renderizadas en
+`depot` y en `grafito` (para confirmar que las seis viejas no se movieron), más
+los 2 PDFs. Se revisó un degradado de encabezado que termina en
+`rgba(0,0,0,0.35)` sospechando que el fondo blanco lo aclararía de más: da
+`#979797` en depot contra `#928F88` en grafito — es el comportamiento de siempre
+y no se tocó. 547 tests pasan, typecheck limpio en backend y hub.
+
+Queda `test/render-depot-check.ts`, el script con que se verificó: renderiza las
+cuatro piezas en la paleta que se le pase, al estilo de `render-demo.ts`.
 
 ### 2026-08-12 · Barrido semanal con botón, y feriados por local · ⏱️ 2.5 h
 

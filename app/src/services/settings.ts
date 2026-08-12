@@ -174,7 +174,9 @@ export async function saveAiConfig(input: unknown): Promise<AiConfig> {
  * Son las perillas que el negocio mueve desde Ajustes y ve en la vista previa.
  */
 export const PiecesConfigSchema = z.object({
-  paleta: z.enum(["grafito", "carbon", "rojo", "verde", "espresso", "navy"]).default("grafito"),
+  // "depot" es la paleta del sitio del cliente (tiredepotec.com); las otras
+  // seis son propuestas de estilo. Ver PALETTES en render/depotDesign.ts.
+  paleta: z.enum(["grafito", "carbon", "rojo", "verde", "espresso", "navy", "depot"]).default("grafito"),
   fuente: z.enum(["exo", "barlow", "kanit", "chakra", "saira", "rajdhani", "archivo"]).default("exo"),
 });
 

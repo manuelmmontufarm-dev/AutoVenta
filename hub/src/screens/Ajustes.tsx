@@ -57,7 +57,11 @@ interface PreciosEstado { fuente: string; actualizadoEn: string | null; producto
 
 const PALETA_LABEL: Record<string, string> = {
   grafito: "Grafito", carbon: "Carbón", rojo: "Rojo", verde: "Verde",
-  espresso: "Espresso", navy: "Azul marino",
+  espresso: "Espresso", navy: "Azul marino", depot: "Depot Tire",
+};
+/** La paleta sacada del sitio del cliente, no una propuesta de estilo. */
+const PALETA_NOTA: Record<string, string> = {
+  depot: "Colores de tiredepotec.com · fondo blanco",
 };
 const FUENTE_LABEL: Record<string, string> = {
   exo: "Exo 2", barlow: "Barlow", kanit: "Kanit", chakra: "Chakra Petch",
@@ -75,6 +79,8 @@ export function Ajustes() {
   const [paleta, setPaleta] = useState("grafito");
   const [fuente, setFuente] = useState("exo");
   const [paletas, setPaletas] = useState<string[]>([]);
+  // dark / accent / gold / base de cada paleta, tal como las usa el motor.
+  const [muestras, setMuestras] = useState<Record<string, string[]>>({});
   const [fuentes, setFuentes] = useState<string[]>([]);
   const [guardado, setGuardado] = useState<{ paleta: string; fuente: string } | null>(null);
 
@@ -90,7 +96,7 @@ export function Ajustes() {
   const cargar = useCallback(async () => {
     try {
       const [cfg, ben, br, hrs] = await Promise.all([
-        api<{ config: { paleta: string; fuente: string }; paletas: string[]; fuentes: string[] }>("/api/pieces-config"),
+        api<{ config: { paleta: string; fuente: string }; paletas: string[]; muestras: Record<string, string[]>; fuentes: string[] }>("/api/pieces-config"),
         api<{ benefits: Benefit[] }>("/api/benefits"),
         api<{ profiles: BrandProfile[] }>("/api/brand-profiles"),
         api<{ hours: StoreHours }>("/api/store-hours"),
@@ -104,6 +110,7 @@ export function Ajustes() {
       setFuente(cfg.config.fuente);
       setGuardado(cfg.config);
       setPaletas(cfg.paletas);
+      setMuestras(cfg.muestras ?? {});
       setFuentes(cfg.fuentes);
       setBenefits(ben.benefits);
       setProfiles(br.profiles);
@@ -166,7 +173,7 @@ export function Ajustes() {
       <div className="grid gap-2.5 xl:grid-cols-[minmax(0,1fr)_460px]">
         <div className="flex flex-col gap-2.5">
           <SeccionTema
-            paleta={paleta} fuente={fuente} paletas={paletas} fuentes={fuentes}
+            paleta={paleta} fuente={fuente} paletas={paletas} fuentes={fuentes} muestras={muestras}
             onPaleta={setPaleta} onFuente={setFuente}
             sinAplicar={sinAplicar} guardando={guardando} onAplicar={aplicar}
           />
@@ -296,8 +303,8 @@ function SeccionHorarios({ hours, setHours, onError }: { hours: StoreHours; setH
   </Tarjeta>;
 }
 
-function SeccionTema({ paleta, fuente, paletas, fuentes, onPaleta, onFuente, sinAplicar, guardando, onAplicar }: {
-  paleta: string; fuente: string; paletas: string[]; fuentes: string[];
+function SeccionTema({ paleta, fuente, paletas, fuentes, muestras, onPaleta, onFuente, sinAplicar, guardando, onAplicar }: {
+  paleta: string; fuente: string; paletas: string[]; fuentes: string[]; muestras: Record<string, string[]>;
   onPaleta: (v: string) => void; onFuente: (v: string) => void;
   sinAplicar: boolean; guardando: boolean; onAplicar: () => void;
 }) {
@@ -324,13 +331,25 @@ function SeccionTema({ paleta, fuente, paletas, fuentes, onPaleta, onFuente, sin
         {paletas.map((p) => (
           <button
             key={p} onClick={() => onPaleta(p)}
-            className={`rounded-xl border px-3.5 py-2 text-[12px] transition ${
+            title={PALETA_NOTA[p]}
+            className={`flex flex-col items-start gap-1.5 rounded-xl border px-3.5 py-2 text-[12px] transition ${
               p === paleta
                 ? "border-paper/40 bg-paper/[.10] font-semibold"
                 : "border-paper/[.10] bg-paper/[.03] hover:bg-paper/[.06]"
             }`}
           >
-            {PALETA_LABEL[p] ?? p}
+            <span>{PALETA_LABEL[p] ?? p}</span>
+            {/* Los cuatro colores que mandan en la pieza: oscuro, acento, dorado
+                y fondo. Con siete paletas el nombre solo ya no alcanzaba para
+                saber cuál es cuál sin abrir la vista previa. */}
+            <span className="flex overflow-hidden rounded-full border border-paper/20">
+              {(muestras[p] ?? []).map((c, i) => (
+                <span key={i} className="h-2.5 w-4" style={{ background: c }} />
+              ))}
+            </span>
+            {PALETA_NOTA[p] && (
+              <span className="text-[9.5px] font-normal text-faint">{PALETA_NOTA[p]}</span>
+            )}
           </button>
         ))}
       </div>

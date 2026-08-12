@@ -11,6 +11,8 @@
  * declarara como props.
  */
 
+import { DEPOT_LOGO_RATIO, depotLogo } from "./assets.js";
+
 export type Child = SatoriNode | string | null | false | undefined;
 
 export interface SatoriNode {
@@ -32,7 +34,7 @@ export function img(src: string, style: Record<string, unknown>): SatoriNode {
 }
 
 // ---------------------------------------------------------------------------
-// Paletas — las seis del diseño
+// Paletas — las seis del diseño, más la del sitio de Depot Tire
 // ---------------------------------------------------------------------------
 
 export interface Palette {
@@ -45,9 +47,16 @@ export interface Palette {
   panel: string;
   border: string;
   tenue: string;
+  /** Claro sobre fondo oscuro: cifras, totales, texto del encabezado. */
+  paper: string;
+  /** Cierre de los degradados claros (héroe, tarjetas, sellos). */
+  wash: string;
 }
 
-const COMUN = { base: "#f6f1e4", panel: "#fffdf6", border: "#d9d2bf", tenue: "#5c6273" };
+const COMUN = {
+  base: "#f6f1e4", panel: "#fffdf6", border: "#d9d2bf", tenue: "#5c6273",
+  paper: "#fffdf6", wash: "#efe8d6",
+};
 
 export const PALETTES: Record<string, Palette> = {
   grafito: { ...COMUN, dark: "#23262b", darkSub: "#8f959d", accent: "#f07818", accentSoft: "#ffe2c8", gold: "#fcbf49" },
@@ -56,6 +65,27 @@ export const PALETTES: Record<string, Palette> = {
   verde: { ...COMUN, dark: "#1c3a2d", darkSub: "#93b0a2", accent: "#b3841f", accentSoft: "#f3e3bd", gold: "#e8c15a" },
   espresso: { ...COMUN, base: "#f6efe2", dark: "#2b2018", darkSub: "#ab9a8d", accent: "#c1440e", accentSoft: "#f6d3c0", gold: "#e8c15a" },
   navy: { ...COMUN, dark: "#14213d", darkSub: "#8b93a8", accent: "#d62828", accentSoft: "#ffd9d9", gold: "#fcbf49" },
+
+  /**
+   * La paleta de tiredepotec.com. A diferencia de las seis anteriores —que son
+   * propuestas de estilo— esta no se eligió: se midió.
+   *
+   *  · `dark` y `accent` salen del pixel del propio logotipo (#1c1e1b y
+   *    #e52c2a), no del tema del sitio. Es el rojo que va a quedar al lado del
+   *    logo en la pieza, así que tiene que ser exactamente ese y no el
+   *    #ed1c24 del tema ni el #ce2026 de los adornos.
+   *  · `gold`, `border`, `tenue` y `darkSub` sí son colores declarados del
+   *    sitio (theme 5, 12, 13 y 10).
+   *  · El fondo es BLANCO, no el crema de las otras seis: el sitio es blanco,
+   *    y `wash` cierra en un gris frío en vez de un beige para que los
+   *    degradados no reintroduzcan el color que se quitó.
+   */
+  depot: {
+    base: "#ffffff", panel: "#ffffff", border: "#e3e3e3", tenue: "#605e5e",
+    paper: "#ffffff", wash: "#eef0f1",
+    dark: "#1c1e1b", darkSub: "#b0b0b0",
+    accent: "#e52c2a", accentSoft: "#ffdcdc", gold: "#ffcb05",
+  },
 };
 
 export const PALETTE_NAMES = Object.keys(PALETTES);
@@ -202,13 +232,32 @@ export function speedLines(count: number, opacity: number, right: number, width 
   );
 }
 
-/** Marca denominativa DEPOT TIRE del encabezado. */
+/** Alto del logotipo en el encabezado de las piezas. El ancho sale del ratio. */
+const DEPOT_LOGO_H = 44;
+
+/**
+ * Logotipo de Depot Tire del encabezado — el archivo real de la marca.
+ *
+ * Antes esto dibujaba «DEPOT» + «TIRE» en Archivo Black itálica, que se
+ * parecía pero no era: el logo verdadero lleva el volante dentro de la O y la
+ * bajada «SOLUCIONES AUTOMOTRICES». Un cliente que compara la cotización con
+ * la página nota la diferencia, así que va el archivo, no la imitación.
+ *
+ * El encabezado es oscuro en las siete paletas, así que siempre es la versión
+ * blanca. La leyenda de al lado no es parte del logo: es dato del negocio, y
+ * por eso sigue siendo texto.
+ */
 export function depotWordmark(theme: Theme): SatoriNode {
-  return el({ alignItems: "baseline", gap: 14 },
-    el({ alignItems: "baseline" },
-      text({ ...ARCHIVO_BLACK, fontStyle: "italic", fontSize: 32, color: "#fffdf6", letterSpacing: 1 }, "DEPOT"),
-      text({ ...ARCHIVO_BLACK, fontStyle: "italic", fontSize: 32, color: theme.p.gold, letterSpacing: 1 }, "TIRE"),
-    ),
+  const logo = depotLogo("blanco");
+  const marca: SatoriNode = logo
+    ? img(logo.dataUri, { height: DEPOT_LOGO_H, width: Math.round(DEPOT_LOGO_H * DEPOT_LOGO_RATIO) })
+    // Sin el archivo, el nombre en texto antes que un hueco en el encabezado.
+    : el({ alignItems: "baseline" },
+        text({ ...ARCHIVO_BLACK, fontStyle: "italic", fontSize: 32, color: theme.p.paper, letterSpacing: 1 }, "DEPOT"),
+        text({ ...ARCHIVO_BLACK, fontStyle: "italic", fontSize: 32, color: theme.p.gold, letterSpacing: 1 }, "TIRE"),
+      );
+  return el({ alignItems: "center", gap: 16 },
+    marca,
     text({ fontSize: 13, fontWeight: 700, letterSpacing: 3, color: theme.p.darkSub }, "QUITO · DESDE 1996"),
   );
 }
@@ -249,7 +298,7 @@ export function posterHeader(
             borderRadius: 10, padding: "8px 18px", whiteSpace: "nowrap",
           }, medida)
         : null,
-      text({ fontSize: 18, fontWeight: 700, color: "#fffdf6" }, fecha),
+      text({ fontSize: 18, fontWeight: 700, color: theme.p.paper }, fecha),
     ),
   );
 }
@@ -258,7 +307,7 @@ export function posterHeader(
 export function posterFooter(theme: Theme, condiciones: string, sucursales: string, padding = "16px 64px"): SatoriNode {
   return el({ justifyContent: "space-between", alignItems: "center", backgroundColor: theme.p.accent, padding },
     text({ fontSize: 14, color: theme.p.accentSoft }, condiciones),
-    text({ fontSize: 16, fontWeight: 700, color: "#fffdf6" }, sucursales),
+    text({ fontSize: 16, fontWeight: 700, color: theme.p.paper }, sucursales),
   );
 }
 
