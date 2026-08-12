@@ -32,9 +32,31 @@ export const DEFAULT_AI_CONFIG: AiConfig = AiConfigSchema.parse({});
 const TimeSchema = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/);
 const StorePeriodSchema = z.object({ open: TimeSchema, close: TimeSchema, closed: z.boolean().default(false) })
   .refine((value) => value.closed || value.open < value.close, "La hora de cierre debe ser posterior a la apertura");
+
+/**
+ * Caso especial de un local en una fecha concreta: feriados, inventario, un
+ * cierre por mantenimiento. Va por local porque no siempre coinciden — Cumbayá
+ * puede abrir medio día y Quito Sur cerrar completo el mismo feriado.
+ */
+const StoreExceptionSchema = z.object({
+  fecha: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Fecha inválida (YYYY-MM-DD)"),
+  motivo: z.string().max(60).default(""),
+  open: TimeSchema.default("08:30"),
+  close: TimeSchema.default("17:30"),
+  closed: z.boolean().default(false),
+}).refine((v) => v.closed || v.open < v.close, "La hora de cierre debe ser posterior a la apertura");
+export type StoreException = z.infer<typeof StoreExceptionSchema>;
+
+const StoreSchema = z.object({
+  weekday: StorePeriodSchema,
+  weekend: StorePeriodSchema,
+  /** Máximo 40: son fechas puntuales, no un calendario. */
+  excepciones: z.array(StoreExceptionSchema).max(40).default([]),
+});
+
 export const StoreHoursSchema = z.object({
-  cumbaya: z.object({ weekday: StorePeriodSchema, weekend: StorePeriodSchema }),
-  quitoSur: z.object({ weekday: StorePeriodSchema, weekend: StorePeriodSchema }),
+  cumbaya: StoreSchema,
+  quitoSur: StoreSchema,
 });
 export type StoreHours = z.infer<typeof StoreHoursSchema>;
 export const DEFAULT_STORE_HOURS: StoreHours = StoreHoursSchema.parse({
@@ -56,15 +78,71 @@ export async function getStoreHours(): Promise<StoreHours> {
 }
 
 export async function saveStoreHours(input: unknown): Promise<StoreHours> {
-  const value = StoreHoursSchema.parse(input);
+  const value = podarExcepciones(StoreHoursSchema.parse(input));
   await sql`insert into settings (key, value) values ('store_hours', ${sql.json(value)}) on conflict (key) do update set value=excluded.value, updated_at=now()`;
   storeHoursCache = { value, at: Date.now() };
   return value;
 }
 
-export function formatStoreHours(hours: StoreHours): string {
-  const fmt = (p: StoreHours["cumbaya"]["weekday"]) => p.closed ? "cerrado" : `${p.open}–${p.close}`;
-  return `Cumbayá: lunes a viernes ${fmt(hours.cumbaya.weekday)}; sábado y domingo ${fmt(hours.cumbaya.weekend)}. Quito Sur: lunes a viernes ${fmt(hours.quitoSur.weekday)}; sábado y domingo ${fmt(hours.quitoSur.weekend)}.`;
+const NOMBRE_LOCAL = { cumbaya: "Cumbayá", quitoSur: "Quito Sur" } as const;
+
+/** Hoy en Ecuador, como YYYY-MM-DD. */
+export function hoyEnEcuador(now: Date = new Date()): string {
+  return now.toLocaleDateString("en-CA", { timeZone: "America/Guayaquil" });
+}
+
+/**
+ * Borra las excepciones ya pasadas al guardar. Son fechas puntuales: si no se
+ * podan, la lista crece sola y el prompt termina cargando feriados del año
+ * pasado que a nadie le sirven.
+ */
+function podarExcepciones(hours: StoreHours, hoy = hoyEnEcuador()): StoreHours {
+  const podar = (s: StoreHours["cumbaya"]) => ({
+    ...s,
+    excepciones: [...s.excepciones]
+      .filter((e) => e.fecha >= hoy)
+      .sort((a, b) => a.fecha.localeCompare(b.fecha)),
+  });
+  return { cumbaya: podar(hours.cumbaya), quitoSur: podar(hours.quitoSur) };
+}
+
+/** La excepción vigente de un local para una fecha, si la hay. */
+export function excepcionDelDia(
+  hours: StoreHours,
+  local: keyof StoreHours,
+  fecha = hoyEnEcuador(),
+): StoreException | null {
+  return hours[local].excepciones.find((e) => e.fecha === fecha) ?? null;
+}
+
+/**
+ * Los horarios como se los damos al bot. Además del horario normal, incluye los
+ * casos especiales de hoy y de los próximos días: el cliente que pregunta un
+ * 31 de diciembre necesita saber que ese día se cierra temprano, y el bot no
+ * puede deducirlo del horario semanal.
+ */
+export function formatStoreHours(hours: StoreHours, hoy = hoyEnEcuador()): string {
+  const fmt = (p: { open: string; close: string; closed: boolean }) =>
+    p.closed ? "cerrado" : `${p.open}–${p.close}`;
+  const base =
+    `Cumbayá: lunes a viernes ${fmt(hours.cumbaya.weekday)}; sábado y domingo ${fmt(hours.cumbaya.weekend)}. ` +
+    `Quito Sur: lunes a viernes ${fmt(hours.quitoSur.weekday)}; sábado y domingo ${fmt(hours.quitoSur.weekend)}.`;
+
+  const limite = new Date(`${hoy}T12:00:00Z`);
+  limite.setUTCDate(limite.getUTCDate() + 21);
+  const hasta = limite.toISOString().slice(0, 10);
+
+  const avisos: string[] = [];
+  for (const local of ["cumbaya", "quitoSur"] as const) {
+    for (const e of hours[local].excepciones) {
+      if (e.fecha < hoy || e.fecha > hasta) continue;
+      const cuando = e.fecha === hoy ? "HOY" : `el ${e.fecha}`;
+      const motivo = e.motivo ? ` (${e.motivo})` : "";
+      avisos.push(`${NOMBRE_LOCAL[local]} ${cuando}${motivo}: ${fmt(e)}`);
+    }
+  }
+  if (!avisos.length) return base;
+  return `${base}\n\nCASOS ESPECIALES que mandan sobre el horario normal — dilos si el cliente pregunta por esos días: ${avisos.join("; ")}.`;
 }
 
 export async function getAiConfig(): Promise<AiConfig> {

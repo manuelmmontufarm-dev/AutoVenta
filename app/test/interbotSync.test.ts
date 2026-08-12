@@ -20,7 +20,7 @@ process.env.INTERBOT_SYNC_HOUR = "0";
 
 const {
   __syncLiveForTests, __setPreciosForTests, getInterbotPrice, interbotPricesState,
-  refreshPriceForSize, ensureInterbotPricesFresh,
+  refreshPriceForSize, ensureInterbotPricesFresh, forceSyncNow,
 } = await import("../src/services/interbotPrices.js");
 
 /** Lo que de verdad manda el Interbot en producción (verificado contra la API). */
@@ -173,7 +173,45 @@ describe("sync en vivo de precios del Interbot", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it("si el último barrido es de ayer, sí barre", async () => {
+  it("dos días después y sin ser miércoles, NO barre: es semanal", async () => {
+    const anteayer = new Date(Date.now() - 2 * 86_400_000);
+    __setPreciosForTests({ K246B404: { ...PRODUCTO } as never }, anteayer);
+    const { fetchMock } = interbotFalso(LOGIN_COOKIES);
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+    await ensureInterbotPricesFresh();
+    await new Promise((r) => setTimeout(r, 10));
+
+    // Solo barrería si hoy fuera el día configurado; con INTERBOT_SYNC_DAY sin
+    // poner (miércoles) esto es falso 6 de cada 7 días. La prueba vale para los
+    // otros 6; el miércoles la cubre la red de seguridad de abajo.
+    const hoyEsMiercoles = new Date().getDay() === 3;
+    expect(fetchMock.mock.calls.length > 0).toBe(hoyEsMiercoles);
+  });
+
+  it("el botón de Ajustes fuerza el barrido sin esperar al miércoles", async () => {
+    const anteayer = new Date(Date.now() - 2 * 86_400_000);
+    __setPreciosForTests({ K246B404: { ...PRODUCTO } as never }, anteayer);
+    const { fetchMock } = interbotFalso(LOGIN_COOKIES);
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+    const estado = await forceSyncNow();
+
+    expect(fetchMock).toHaveBeenCalled();
+    expect(estado.source).toBe("live");
+    expect(estado.productos).toBe(1);
+  });
+
+  it("si el barrido forzado falla, el botón se entera (lanza)", async () => {
+    __setPreciosForTests({ K246B404: { ...PRODUCTO } as never });
+    globalThis.fetch = (async () => {
+      throw new Error("ECONNREFUSED");
+    }) as unknown as typeof fetch;
+
+    await expect(forceSyncNow()).rejects.toThrow();
+  });
+
+  it("tras 8 días sin barrer, la red de seguridad lo dispara igual", async () => {
     const ayer = new Date(Date.UTC(2020, 0, 1));
     __setPreciosForTests({ K246B404: { ...PRODUCTO } as never }, ayer);
     const { fetchMock } = interbotFalso(LOGIN_COOKIES);

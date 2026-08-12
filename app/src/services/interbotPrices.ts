@@ -335,7 +335,7 @@ async function syncLive(): Promise<void> {
   precios = next;
   state = { source: "live", at, productos: next.size, lastError: null };
   console.log(
-    `💲 Barrido diario del Interbot: ${next.size} productos de ${medidas.length} medidas` +
+    `💲 Barrido del Interbot: ${next.size} productos de ${medidas.length} medidas` +
       `${cambios ? `, ${cambios} con precio distinto` : ", sin cambios de precio"}` +
       `${medidasFallidas ? ` (${medidasFallidas} medidas fallaron)` : ""}`,
   );
@@ -359,23 +359,38 @@ function diaEcuador(d: Date): string {
   return d.toLocaleDateString("en-CA", { timeZone: ZONA });
 }
 
+/** Máximo que se tolera sin barrer, aunque el día de la semana no haya llegado. */
+const RED_DE_SEGURIDAD_DIAS = 8;
+
 /**
- * ¿Toca el barrido de hoy? Una sola pasada al día, a partir de la hora
- * configurada (6 de la mañana por defecto).
+ * ¿Toca el barrido? **Uno por semana**, el día y la hora configurados
+ * (miércoles 15:00 de Ecuador por defecto).
  *
  * Se mide contra la fecha del último barrido bueno —que sobrevive a los
  * redeploys porque se guarda en la base—, así que subir cinco versiones en un
- * día ya no dispara cinco barridos: el de la mañana ya corrió y no se repite.
+ * día no dispara cinco barridos.
+ *
+ * La red de seguridad de 8 días existe para el caso en que el servicio estuviera
+ * caído justo el miércoles: sin ella la vitrina se quedaría dos semanas atrás.
+ * Y si alguien necesita los precios al día antes del miércoles, está el botón
+ * de Ajustes (`forceSyncNow`).
  */
 function tocaBarrer(): boolean {
   if (!config.interbot) return false;
   const ahora = new Date();
+  if (!state.at) return true;
+  if (diaEcuador(state.at) === diaEcuador(ahora)) return false;
+
+  const dias = (ahora.getTime() - state.at.getTime()) / 86_400_000;
+  if (dias >= RED_DE_SEGURIDAD_DIAS) return true;
+
   const hora = Number(
     ahora.toLocaleString("en-US", { timeZone: ZONA, hour: "2-digit", hour12: false }),
   );
-  if (hora < config.interbot.syncHour) return false;
-  if (!state.at) return true;
-  return diaEcuador(state.at) !== diaEcuador(ahora);
+  // getUTCDay() sobre el mediodía UTC de la fecha ecuatoriana da el día correcto
+  // sin importar el desfase horario.
+  const diaSemana = new Date(`${diaEcuador(ahora)}T12:00:00Z`).getUTCDay();
+  return diaSemana === config.interbot.syncDay && hora >= config.interbot.syncHour;
 }
 
 /**
@@ -422,6 +437,38 @@ export function getInterbotPrice(codigo: string): InterbotPrice | null {
 
 export function interbotPricesState(): InterbotSyncState {
   return { ...state };
+}
+
+/**
+ * Fuerza el barrido AHORA, sin esperar al miércoles. Es lo que dispara el botón
+ * «Actualizar precios» de Ajustes: los cambios de precio son raros y el
+ * proveedor avisa cuando ocurren, así que quien se entera puede refrescar en el
+ * momento en vez de esperar al barrido semanal.
+ *
+ * A diferencia del automático, este SÍ lanza si falla — el que apretó el botón
+ * tiene que ver el error, no un «listo» silencioso.
+ */
+export async function forceSyncNow(): Promise<InterbotSyncState> {
+  if (!config.interbot) {
+    throw new Error("El Interbot no está configurado en este entorno.");
+  }
+  const antes = state.at?.getTime() ?? 0;
+  if (!syncInFlight) {
+    syncInFlight = syncLive()
+      .catch((error) => {
+        state.lastError = error instanceof Error ? error.message : String(error);
+      })
+      .finally(() => {
+        syncInFlight = null;
+      });
+  }
+  await syncInFlight;
+  if ((state.at?.getTime() ?? 0) <= antes) {
+    throw new Error(state.lastError ?? "El barrido no trajo precios del Interbot.");
+  }
+  // El barrido manual también cuenta como el de la semana.
+  nextLiveAttemptAt = 0;
+  return interbotPricesState();
 }
 
 /** Solo para pruebas: corre un barrido contra el `fetch` que la prueba haya puesto. */

@@ -11,6 +11,7 @@ import { z } from "zod";
 import { sql } from "../db/client.js";
 import { business, config } from "../config.js";
 import { appendMessage, pauseBot } from "../services/conversations.js";
+import { forceSyncNow, interbotPricesState } from "../services/interbotPrices.js";
 import {
   getAiConfig,
   getPiecesConfig,
@@ -1208,6 +1209,45 @@ export function createAdminRouter(): express.Router {
       res.json({ ok: true, hours: await saveStoreHours(req.body) });
     } catch (error) {
       res.status(400).json({ ok: false, error: error instanceof Error ? error.message : "Horarios inválidos" });
+    }
+  });
+
+  /**
+   * Estado del barrido de precios y botón para forzarlo. Los cambios de precio
+   * son raros y el proveedor avisa cuando ocurren, así que el barrido corre una
+   * vez por semana y quien se entera de un cambio lo refresca desde Ajustes sin
+   * esperar al miércoles.
+   */
+  router.get("/precios", (_req, res) => {
+    const st = interbotPricesState();
+    res.json({
+      ok: true,
+      precios: {
+        fuente: st.source,
+        actualizadoEn: st.at?.toISOString() ?? null,
+        productos: st.productos,
+        error: st.lastError,
+      },
+    });
+  });
+
+  router.post("/precios/sync", async (_req, res) => {
+    try {
+      const st = await forceSyncNow();
+      res.json({
+        ok: true,
+        precios: {
+          fuente: st.source,
+          actualizadoEn: st.at?.toISOString() ?? null,
+          productos: st.productos,
+          error: null,
+        },
+      });
+    } catch (error) {
+      res.status(502).json({
+        ok: false,
+        error: error instanceof Error ? error.message : "No se pudo actualizar los precios",
+      });
     }
   });
 

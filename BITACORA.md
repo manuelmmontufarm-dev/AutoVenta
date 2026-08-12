@@ -32,6 +32,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-08-12 | _(este mismo)_ | Precios: barrido semanal + botón «Actualizar ahora». Horarios: casos especiales por local | 2.5 |
 | 2026-08-12 | _(este mismo)_ | El barrido del Interbot pasa a una sola pasada diaria a las 6 de la mañana | 0.5 |
 | 2026-08-12 | _(este mismo)_ | El sync dejó de barrer el Interbot 15.000 veces al día; la cotización pregunta por medida | 1.5 |
 | 2026-08-12 | _(este mismo)_ | Una sola pregunta de ubicación + los dos mapas al confirmar · y el cruce con Contífico da 0 de 61 | 2.0 |
@@ -122,6 +123,43 @@ Ya viene activado en este equipo.
 ---
 
 ## Entradas (más reciente primero)
+
+### 2026-08-12 · Barrido semanal con botón, y feriados por local · ⏱️ 2.5 h
+
+**Qué:** dos pedidos de Depot en el mismo mensaje.
+
+**1. El barrido pasa a semanal (miércoles 15:00) con botón manual.** Los precios
+cambian rara vez *y el proveedor avisa cuando pasa*, así que no tiene sentido
+barrer todos los días: se barre una vez por semana y quien se entera de un
+cambio aprieta **«Actualizar ahora»** en Ajustes. `forceSyncNow()` corre el
+barrido en el momento y —a diferencia del automático— **lanza si falla**, porque
+el que apretó el botón tiene que ver el error y no un «listo» silencioso.
+
+Queda una red de seguridad de 8 días: si el servicio estuvo caído justo el
+miércoles, el barrido se dispara igual en vez de esperar a la semana siguiente.
+Con esto la cuenta baja de ~15.000 consultas diarias a **~156 por semana**.
+
+**2. Casos especiales de horario, por local.** Los feriados no se deducen del
+horario semanal, y los dos locales no siempre coinciden: el mismo 15 de agosto
+Cumbayá puede abrir media jornada y Quito Sur cerrar completo. Ahora cada local
+tiene su lista de fechas puntuales (fecha, motivo, horario o cerrado) en Ajustes,
+y `formatStoreHours()` las inyecta en el prompt marcando **HOY** cuando toca.
+
+Detalles que importan: solo entran al prompt las de los próximos 21 días (un
+feriado de Navidad en agosto es ruido), y al guardar se **podan las pasadas**
+para que la lista no crezca sola.
+
+**Bug encontrado verificando en el navegador:** el panel entero se caía con
+«Cannot read properties of undefined (reading map)» cuando los horarios llegaban
+sin `excepciones` — el caso de un backend viejo sirviendo el hub nuevo durante un
+deploy. Se vio comparando el render contra la versión anterior de la pantalla.
+Corregido con `data.excepciones ?? []`.
+
+**Pruebas:** `horariosEspeciales.test.ts` (6: horarios distintos por local el
+mismo feriado, el marcador HOY, la ventana de 21 días, validación de horas) y
+4 nuevas en `interbotSync.test.ts` (que sin ser miércoles no barre, que el botón
+sí, que el botón lanza si falla, y la red de 8 días). 547 en total, typecheck
+limpio en backend y hub.
 
 ### 2026-08-12 · Un solo barrido, a las 6 de la mañana · ⏱️ 0.5 h
 

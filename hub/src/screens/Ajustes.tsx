@@ -49,7 +49,11 @@ interface BrandProfile {
   position: number;
 }
 interface StorePeriod { open: string; close: string; closed: boolean }
-interface StoreHours { cumbaya: { weekday: StorePeriod; weekend: StorePeriod }; quitoSur: { weekday: StorePeriod; weekend: StorePeriod } }
+/** Feriado o cierre puntual de UN local en UNA fecha. Manda sobre el horario normal. */
+interface StoreException { fecha: string; motivo: string; open: string; close: string; closed: boolean }
+interface Store { weekday: StorePeriod; weekend: StorePeriod; excepciones: StoreException[] }
+interface StoreHours { cumbaya: Store; quitoSur: Store }
+interface PreciosEstado { fuente: string; actualizadoEn: string | null; productos: number; error: string | null }
 
 const PALETA_LABEL: Record<string, string> = {
   grafito: "Grafito", carbon: "Carbón", rojo: "Rojo", verde: "Verde",
@@ -77,6 +81,7 @@ export function Ajustes() {
   const [benefits, setBenefits] = useState<Benefit[]>([]);
   const [profiles, setProfiles] = useState<BrandProfile[]>([]);
   const [hours, setHours] = useState<StoreHours | null>(null);
+  const [precios, setPrecios] = useState<PreciosEstado | null>(null);
   const [pieza, setPieza] = useState<string>("cotizacion");
   const [error, setError] = useState("");
   const [guardando, setGuardando] = useState(false);
@@ -90,6 +95,11 @@ export function Ajustes() {
         api<{ profiles: BrandProfile[] }>("/api/brand-profiles"),
         api<{ hours: StoreHours }>("/api/store-hours"),
       ]);
+      // No bloquea la pantalla: si el Interbot no está configurado, el resto de
+      // Ajustes tiene que cargar igual.
+      api<{ precios: PreciosEstado }>("/api/precios")
+        .then((r) => setPrecios(r.precios))
+        .catch(() => setPrecios(null));
       setPaleta(cfg.config.paleta);
       setFuente(cfg.config.fuente);
       setGuardado(cfg.config);
@@ -161,6 +171,7 @@ export function Ajustes() {
             sinAplicar={sinAplicar} guardando={guardando} onAplicar={aplicar}
           />
           {hours && <SeccionHorarios hours={hours} setHours={setHours} onError={setError} />}
+          {precios && <SeccionPrecios precios={precios} setPrecios={setPrecios} onError={setError} />}
           <SeccionPromociones benefits={benefits} setBenefits={setBenefits} onError={setError} />
           <SeccionMarcas profiles={profiles} setProfiles={setProfiles} onError={setError} />
           <SeccionAsesores onError={setError} />
@@ -200,6 +211,76 @@ function Tarjeta({ titulo, sub, children, extra }: {
 const inputCls =
   "w-full rounded-xl border border-paper/[.12] bg-paper/[.04] px-3 py-2 text-[13px] outline-none focus:border-paper/30";
 
+
+/**
+ * Barrido de precios del Interbot. Corre solo los miércoles a las 15:00, porque
+ * los precios cambian rara vez; cuando el proveedor avisa de un cambio, este
+ * botón lo trae al instante sin esperar a la semana siguiente.
+ */
+function SeccionPrecios({ precios, setPrecios, onError }: { precios: PreciosEstado; setPrecios: (v: PreciosEstado) => void; onError: (v: string) => void }) {
+  const [sync, setSync] = useState(false);
+  const [listo, setListo] = useState(false);
+  const actualizar = async () => {
+    setSync(true); setListo(false);
+    try {
+      const r = await api<{ precios: PreciosEstado }>("/api/precios/sync", { method: "POST" });
+      setPrecios(r.precios); onError(""); setListo(true);
+      setTimeout(() => setListo(false), 4000);
+    } catch (e) { onError(e instanceof Error ? e.message : "No se pudieron actualizar los precios"); }
+    finally { setSync(false); }
+  };
+  const cuando = precios.actualizadoEn
+    ? new Date(precios.actualizadoEn).toLocaleString("es-EC", { timeZone: "America/Guayaquil", day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })
+    : "nunca";
+  const viejo = precios.actualizadoEn
+    ? Date.now() - new Date(precios.actualizadoEn).getTime() > 8 * 86400000
+    : true;
+  return <Tarjeta
+    titulo="Precios del Interbot"
+    sub="Se actualizan solos los miércoles a las 15:00. Si les avisan de un cambio de precios antes, actualícenlo aquí."
+    extra={<button onClick={() => void actualizar()} disabled={sync} className="rounded-full bg-lime px-4 py-2 text-[12px] font-semibold text-navy disabled:opacity-50">{sync ? "Actualizando…" : listo ? "✓ Actualizado" : "Actualizar ahora"}</button>}
+  >
+    <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-[12px]">
+      <span><span className="text-faint">Última actualización:</span> <b className={viejo ? "text-[var(--color-warn,#e8b33a)]" : ""}>{cuando}</b></span>
+      <span><span className="text-faint">Productos:</span> <b>{precios.productos}</b></span>
+    </div>
+    {sync && <p className="mt-2 text-[11px] text-faint">Consultando las medidas del Interbot; toma unos segundos.</p>}
+    {precios.error && <p className="mt-2 text-[11px] text-[var(--color-danger,#e2564d)]">Último error: {precios.error}</p>}
+  </Tarjeta>;
+}
+
+/** Feriados y cierres puntuales, por local. Cada uno puede tener los suyos. */
+function Excepciones({ store, label, data, onChange }: { store: "cumbaya" | "quitoSur"; label: string; data: Store; onChange: (v: Store) => void }) {
+  // El backend viejo no manda `excepciones`: durante un deploy escalonado el
+  // panel tiene que seguir abriendo.
+  const lista = data.excepciones ?? [];
+  const hoy = new Date().toLocaleDateString("en-CA", { timeZone: "America/Guayaquil" });
+  const set = (i: number, patch: Partial<StoreException>) =>
+    onChange({ ...data, excepciones: lista.map((e, j) => (j === i ? { ...e, ...patch } : e)) });
+  return <div className="mt-3 border-t border-paper/[.08] pt-3">
+    <div className="flex items-center justify-between">
+      <p className="text-[11px] font-semibold text-faint">Casos especiales</p>
+      <button
+        onClick={() => onChange({ ...data, excepciones: [...lista, { fecha: hoy, motivo: "", open: data.weekday.open, close: data.weekday.close, closed: false }] })}
+        className="rounded-full bg-paper/[.08] px-2.5 py-1 text-[10px] font-semibold hover:bg-paper/[.14]"
+      >+ Agregar</button>
+    </div>
+    {!lista.length && <p className="mt-1.5 text-[10px] text-faint">Sin feriados ni cierres cargados para {label}.</p>}
+    {lista.map((e, i) => <div key={`${store}-${i}`} className="mt-2 rounded-xl bg-paper/[.05] p-2.5">
+      <div className="grid grid-cols-2 gap-2">
+        <label className="text-[10px]">Fecha<input type="date" className={inputCls} value={e.fecha} onChange={(ev) => set(i, { fecha: ev.target.value })} /></label>
+        <label className="text-[10px]">Motivo<input type="text" maxLength={60} placeholder="Feriado, inventario…" className={inputCls} value={e.motivo} onChange={(ev) => set(i, { motivo: ev.target.value })} /></label>
+        <label className="text-[10px]">Abre<input type="time" disabled={e.closed} className={inputCls} value={e.open} onChange={(ev) => set(i, { open: ev.target.value })} /></label>
+        <label className="text-[10px]">Cierra<input type="time" disabled={e.closed} className={inputCls} value={e.close} onChange={(ev) => set(i, { close: ev.target.value })} /></label>
+      </div>
+      <div className="mt-2 flex items-center justify-between">
+        <label className="flex items-center gap-2 text-[11px] font-semibold"><input type="checkbox" checked={e.closed} onChange={(ev) => set(i, { closed: ev.target.checked })} /> Cerrado todo el día</label>
+        <button onClick={() => onChange({ ...data, excepciones: lista.filter((_, j) => j !== i) })} className="text-[10px] font-semibold text-faint hover:text-[var(--color-danger,#e2564d)]">Quitar</button>
+      </div>
+    </div>)}
+  </div>;
+}
+
 function SeccionHorarios({ hours, setHours, onError }: { hours: StoreHours; setHours: (v: StoreHours) => void; onError: (v: string) => void }) {
   const [saving, setSaving] = useState(false);
   const save = async () => {
@@ -210,8 +291,8 @@ function SeccionHorarios({ hours, setHours, onError }: { hours: StoreHours; setH
     } catch (e) { onError(e instanceof Error ? e.message : "No se pudieron guardar los horarios"); }
     finally { setSaving(false); }
   };
-  return <Tarjeta titulo="Horarios de locales" sub="El bot usa estos horarios al recomendar un local. Marca Cerrado cuando no atienda." extra={<button onClick={() => void save()} disabled={saving} className="rounded-full bg-lime px-4 py-2 text-[12px] font-semibold text-navy disabled:opacity-50">{saving ? "Guardando…" : "Guardar horarios"}</button>}>
-    <div className="grid gap-4 md:grid-cols-2">{([ ["Cumbayá", "cumbaya"], ["Quito Sur", "quitoSur"] ] as const).map(([label, store]) => <div key={store} className="rounded-2xl bg-paper/[.04] p-4"><p className="text-sm font-bold">{label}</p>{([ ["Lunes a viernes", "weekday"], ["Sábado y domingo", "weekend"] ] as const).map(([dayLabel, period]) => { const value = hours[store][period]; return <div key={period} className="mt-3 grid grid-cols-2 gap-2"><p className="col-span-2 text-[11px] font-semibold text-faint">{dayLabel}</p><label className="text-[10px]">Abre<input type="time" disabled={value.closed} className={inputCls} value={value.open} onChange={(e) => setHours({ ...hours, [store]: { ...hours[store], [period]: { ...value, open: e.target.value } } })} /></label><label className="text-[10px]">Cierra<input type="time" disabled={value.closed} className={inputCls} value={value.close} onChange={(e) => setHours({ ...hours, [store]: { ...hours[store], [period]: { ...value, close: e.target.value } } })} /></label><label className="col-span-2 flex items-center gap-2 text-xs font-semibold"><input type="checkbox" checked={value.closed} onChange={(e) => setHours({ ...hours, [store]: { ...hours[store], [period]: { ...value, closed: e.target.checked } } })} /> Cerrado</label></div>; })}</div>)}</div>
+  return <Tarjeta titulo="Horarios de locales" sub="El bot usa estos horarios al recomendar un local. Marca Cerrado cuando no atienda, y carga los feriados o cierres puntuales en Casos especiales — el bot los avisa cuando el cliente pregunta por esos días." extra={<button onClick={() => void save()} disabled={saving} className="rounded-full bg-lime px-4 py-2 text-[12px] font-semibold text-navy disabled:opacity-50">{saving ? "Guardando…" : "Guardar horarios"}</button>}>
+    <div className="grid gap-4 md:grid-cols-2">{([ ["Cumbayá", "cumbaya"], ["Quito Sur", "quitoSur"] ] as const).map(([label, store]) => <div key={store} className="rounded-2xl bg-paper/[.04] p-4"><p className="text-sm font-bold">{label}</p>{([ ["Lunes a viernes", "weekday"], ["Sábado y domingo", "weekend"] ] as const).map(([dayLabel, period]) => { const value = hours[store][period]; return <div key={period} className="mt-3 grid grid-cols-2 gap-2"><p className="col-span-2 text-[11px] font-semibold text-faint">{dayLabel}</p><label className="text-[10px]">Abre<input type="time" disabled={value.closed} className={inputCls} value={value.open} onChange={(e) => setHours({ ...hours, [store]: { ...hours[store], [period]: { ...value, open: e.target.value } } })} /></label><label className="text-[10px]">Cierra<input type="time" disabled={value.closed} className={inputCls} value={value.close} onChange={(e) => setHours({ ...hours, [store]: { ...hours[store], [period]: { ...value, close: e.target.value } } })} /></label><label className="col-span-2 flex items-center gap-2 text-xs font-semibold"><input type="checkbox" checked={value.closed} onChange={(e) => setHours({ ...hours, [store]: { ...hours[store], [period]: { ...value, closed: e.target.checked } } })} /> Cerrado</label></div>; })}<Excepciones store={store} label={label} data={hours[store]} onChange={(v) => setHours({ ...hours, [store]: v })} /></div>)}</div>
   </Tarjeta>;
 }
 
