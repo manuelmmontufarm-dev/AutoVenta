@@ -13,6 +13,20 @@
  * casi nada de fuera.
  */
 import type { FilaCliente, FilaError, FilaTecnica, ReporteDiario } from "../services/dailyReport.js";
+import { resolvePalette } from "./depotDesign.js";
+import { areaSemana, barrasConversaciones, barrasKanban, donaCotizado, type Fuentes } from "./reportCharts.js";
+
+/**
+ * Los gráficos escriben con las fuentes de la página, no con las del PDF.
+ *
+ * En el PDF son familias registradas en pdfmake; aquí son nombres CSS con sus
+ * alternativas, porque este archivo no carga fuentes de fuera —tiene que verse
+ * dentro de WhatsApp, que apenas descarga nada— y cae a las del sistema.
+ */
+const FUENTES: Fuentes = {
+  texto: '"Inter", ui-sans-serif, system-ui, -apple-system, sans-serif',
+  cifra: '"Source Serif 4", Georgia, serif',
+};
 
 function esc(texto: string): string {
   return texto
@@ -97,12 +111,25 @@ function seccion(input: {
   </section>`;
 }
 
+/** Tarjeta del tablero: rótulo, explicación y el gráfico dentro. */
+function grafico(titulo: string, sub: string, ...svg: string[]): string {
+  return `
+  <figure class="grafico">
+    <figcaption>
+      <h3>${esc(titulo)}</h3>
+      <p>${esc(sub)}</p>
+    </figcaption>
+    ${svg.join("")}
+  </figure>`;
+}
+
 export function renderDailyReportHtml(r: ReporteDiario): string {
   const ahora = new Date(r.generadoEn);
   const m = r.resumen;
+  const s = r.semana;
   const tarjetas: Array<[string, string, string]> = [
     ["Clientes nuevos", String(m.clientesNuevos), ""],
-    ["Escribieron", String(m.clientesQueEscribieron), ""],
+    ["Escribieron", String(m.clientesQueEscribieron), `${s.escribieron} en la semana`],
     // Sin cotizaciones no se escribe «$0.00»: un cero con dos decimales se lee
     // como un dato y es sólo la ausencia del dato.
     ["Cotizaciones", String(m.cotizacionesEnviadas), m.cotizacionesEnviadas ? money(m.montoCotizado) : ""],
@@ -112,6 +139,13 @@ export function renderDailyReportHtml(r: ReporteDiario): string {
   // Aparte de las cinco del día: no mira hacia atrás, dice cuánta plata cotizada
   // sigue sobre la mesa esperando un empujón.
   const enJuego = `$${Math.round(Number.isFinite(m.montoEnJuego) ? m.montoEnJuego : 0).toLocaleString("en-US")}`;
+
+  // Los gráficos son exactamente los mismos del PDF —mismo módulo, misma
+  // paleta del negocio— y no una versión web aparte: si el reporte impreso y el
+  // que se abre en el teléfono dibujaran distinto, uno de los dos mentiría.
+  const p = resolvePalette(r.paleta);
+  const punto = (valor: (dia: typeof s.dias[number]) => number) =>
+    s.dias.map((dia) => ({ etiqueta: dia.etiqueta, esHoy: dia.esHoy, valor: valor(dia) }));
 
   return `<!doctype html>
 <html lang="es">
@@ -151,6 +185,25 @@ export function renderDailyReportHtml(r: ReporteDiario): string {
   .tarjeta .et { font-size: 8.5px; text-transform: uppercase; letter-spacing: .05em; color: var(--faint); font-weight: 700; line-height: 1.25; min-height: 2.5em; }
   .tarjeta .n { font: 700 21px/1.05 "Source Serif 4", Georgia, serif; margin-top: 3px; }
   .tarjeta .extra { font-size: 10px; color: var(--salvia); font-weight: 700; min-height: 1.3em; }
+
+  /* Dos columnas en pantalla ancha, una en el teléfono. El gráfico de la
+     semana ocupa la fila entera porque es una serie de siete días: partido a
+     media pantalla, los días se apelmazan y deja de leerse la tendencia. */
+  .tablero { display: grid; grid-template-columns: 1fr; gap: 10px; margin-bottom: 26px; }
+  @media (min-width: 620px) {
+    .tablero { grid-template-columns: 1fr 1fr; }
+    .tablero .ancho { grid-column: 1 / -1; }
+  }
+  /* Los gráficos se quedan sobre papel claro también en modo oscuro: llevan sus
+     colores dentro del SVG —los de la marca, los mismos del PDF— y sobre fondo
+     negro los ejes y las etiquetas desaparecerían. Es una hoja impresa dentro
+     de la página, y se lee como tal. */
+  .grafico { background: #fffdf6; border: 1px solid var(--line); border-radius: 14px; padding: 13px 14px 14px; margin: 0; }
+  .grafico figcaption { border-bottom: 1px solid #e6dfcd; padding-bottom: 9px; margin-bottom: 10px; }
+  .grafico h3 { font: 800 11px/1.2 "Inter", sans-serif; letter-spacing: .09em; text-transform: uppercase; color: #23262b; margin: 0; }
+  .grafico figcaption p { font-size: 11px; color: #8b8778; margin: 3px 0 0; }
+  .grafico svg { display: block; width: 100%; height: auto; }
+  .grafico svg + svg { margin-top: 4px; }
 
   .bloque { margin-bottom: 26px; }
   .bloque-cab { display: flex; align-items: center; gap: 9px; }
@@ -221,6 +274,28 @@ export function renderDailyReportHtml(r: ReporteDiario): string {
       <p class="n">${esc(enJuego)}</p>
       <p class="extra">${r.cotizados.total} cotizados pendientes</p>
     </div>
+  </div>
+
+  <div class="tablero">
+    ${grafico(
+      "Cuánto se cotizó",
+      "Hoy dentro de la semana, y la semana dentro de todo",
+      donaCotizado({ hoy: m.montoCotizado, semana: s.montoCotizado, total: r.acumulado.montoCotizado }, p, FUENTES),
+    )}
+    ${grafico(
+      "Movimiento del kanban",
+      "Cuánta gente entró a cada columna esta semana",
+      barrasKanban(
+        r.fases.map((fase) => ({ nombre: fase.corto, hoy: fase.hoy, semana: fase.semana, perdido: fase.etapa === "perdido" })),
+        p, FUENTES,
+      ),
+    )}
+    <div class="ancho">${grafico(
+      "La semana, día por día",
+      "Plata cotizada arriba; cuántos clientes escribieron abajo",
+      areaSemana(punto((dia) => dia.monto), p, FUENTES),
+      barrasConversaciones(punto((dia) => dia.escribieron), p, FUENTES),
+    )}</div>
   </div>
 
   ${seccion({

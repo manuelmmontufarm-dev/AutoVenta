@@ -17,6 +17,17 @@
  *    PDF— daba un documento de oficina y encima codifica en WinAnsi: la flecha
  *    del período salía como «!».
  *
+ * El documento está partido en dos actos, y el corte es deliberado:
+ *
+ *  · **Página 1, el tablero.** Las cifras del día contra las de la semana y
+ *    cuatro gráficos. Se lee de un vistazo y contesta «¿cómo fue el día?» sin
+ *    hacer scroll — que es todo lo que muchas noches se necesita.
+ *  · **Páginas 2 y siguientes, los chats.** Una tarjeta por conversación, con
+ *    su link. Ahí se va sólo quien va a trabajar.
+ *
+ * Antes todo iba seguido y los números eran una tira delgada arriba de una
+ * lista: el resumen se perdía y las conversaciones empezaban a media página.
+ *
  * Lo que NO se toca: los links son de verdad. Cada nombre enlaza a su chat y el
  * pie al tab Oportunidades. Es la razón de que esto sea pdfmake y no una imagen
  * renderizada con satori como las piezas — una imagen no se puede tocar, y el
@@ -28,6 +39,15 @@ import pdfmake from "pdfmake";
 import type { FilaCliente, ReporteDiario } from "../services/dailyReport.js";
 import { resolvePalette, type Palette } from "./depotDesign.js";
 import { espera } from "./dailyReportHtml.js";
+import {
+  areaSemana, barrasConversaciones, barrasKanban, donaCotizado, mezclar, montoEntero,
+  type Fuentes,
+} from "./reportCharts.js";
+
+// El test de la mezcla de colores entra por aquí: `mezclar` nació en este
+// módulo para el gradiente de la banda y se mudó a los gráficos, que la usan
+// en cada barra. Se reexporta para no romper a quien ya la importaba de aquí.
+export { mezclar } from "./reportCharts.js";
 
 // src/render → app/assets (misma profundidad ya compilado en dist/render).
 const FUENTES = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../assets/fonts");
@@ -93,6 +113,10 @@ const BANDA_H = 88;
 const BARRA_H = 7;
 /** Margen superior del contenido: debajo de la banda y su barra de carreras. */
 const TOPE = BANDA_H + BARRA_H + 15;
+/** Ancho útil de una A4 con los márgenes de este documento. */
+const ANCHO = 595.28 - MARGEN_X * 2;
+/** Gris de los textos de apoyo. Fuera de la paleta: no es color de marca. */
+const APOYO = "#8b8778";
 
 /**
  * Quita lo que las fuentes no saben pintar.
@@ -107,25 +131,6 @@ export function soloTexto(texto: string): string {
     .replace(/[\p{Extended_Pictographic}\u{FE0F}\u{20E3}\u{1F3FB}-\u{1F3FF}]/gu, "")
     .replace(/ {2,}/g, " ")
     .trim();
-}
-
-/** Mezcla dos hex. Sirve para el gradiente de la banda, que nace de la paleta. */
-export function mezclar(a: string, b: string, proporcion: number): string {
-  const canal = (hex: string, i: number) => parseInt(hex.slice(1 + i * 2, 3 + i * 2), 16);
-  const mezcla = [0, 1, 2].map((i) =>
-    Math.round(canal(a, i) * (1 - proporcion) + canal(b, i) * proporcion));
-  return `#${mezcla.map((v) => v.toString(16).padStart(2, "0")).join("")}`;
-}
-
-/**
- * Sin centavos: en la tarjeta del pipeline los decimales no deciden nada.
- *
- * Blinda contra no-números. El tipo dice que siempre llega un `number`, pero
- * este PDF acaba en el teléfono de un asesor y `$NaN` en una cifra de dinero es
- * de las pocas cosas que destruyen la confianza en un reporte de un vistazo.
- */
-function montoCorto(valor: number): string {
-  return `$${Math.round(Number.isFinite(valor) ? valor : 0).toLocaleString("en-US")}`;
 }
 
 function money(valor: number | null): string {
@@ -215,7 +220,194 @@ function cuna(color: string) {
 interface Estilo {
   p: Palette;
   precio: string;
+  f: Fuentes;
 }
+
+// ---------------------------------------------------------------------------
+// Piezas del tablero
+// ---------------------------------------------------------------------------
+
+/**
+ * Pastilla de dato: fondo tenue, texto corto, esquinas al ras.
+ *
+ * Sustituye a la línea de detalles separada por puntos medios que llevaba antes
+ * cada tarjeta. Con cuatro datos seguidos —fecha, medida, local, espera— la
+ * línea se leía como una frase y había que descifrarla; en pastillas cada dato
+ * es un objeto y el ojo los salta hasta encontrar el que busca.
+ */
+function pastilla(texto: string, fondo: string, color: string, negrita = true) {
+  return {
+    width: "auto",
+    table: {
+      widths: ["auto"],
+      body: [[{
+        text: soloTexto(texto), fontSize: 7, bold: negrita, color,
+        fillColor: fondo, margin: [5, 2.5, 5, 2.5],
+      }]],
+    },
+    layout: SIN_LINEAS,
+  };
+}
+
+/**
+ * Cabecera de tarjeta del tablero: rótulo en versalitas y su explicación.
+ *
+ * `interior` es el ancho ya descontados los márgenes de la tarjeta. Hace falta
+ * porque el `canvas` del divisor se dibuja en puntos absolutos y no sabe estirarse
+ * solo: con un ancho fijo, la línea quedaba corta en la tarjeta ancha y se salía
+ * en las dos angostas.
+ */
+function tarjetaGrafico(e: Estilo, interior: number, titulo: string, sub: string, cuerpo: unknown[]) {
+  return {
+    table: {
+      widths: ["*"],
+      body: [[{
+        fillColor: e.p.panel,
+        margin: [12, 10, 12, 11],
+        stack: [
+          { text: soloTexto(titulo), fontSize: 8, bold: true, characterSpacing: 1.2, color: e.p.dark },
+          { text: soloTexto(sub), fontSize: 7, color: APOYO, margin: [0, 2.5, 0, 0] },
+          {
+            canvas: [{ type: "line", x1: 0, y1: 0, x2: interior, y2: 0, lineWidth: 0.6, lineColor: e.p.border }],
+            margin: [0, 7, 0, 8],
+          },
+          ...cuerpo,
+        ],
+      }]],
+    },
+    layout: SIN_LINEAS,
+  };
+}
+
+/**
+ * Las cifras del día, en tarjetas del mismo alto con filo de color.
+ *
+ * Cada una lleva debajo su equivalente de la semana, en el acento: un número
+ * suelto no se puede juzgar —¿seis cotizaciones es mucho?— y con la línea de la
+ * semana al lado se juzga solo. La última se marca como destacada: es «en
+ * juego», la plata cotizada sin cerrar, y se pinta invertida porque es la razón
+ * por la que el asesor abre el panel.
+ */
+function tiras(e: Estilo, metricas: Array<[string, string, string, boolean?]>) {
+  return {
+    columns: metricas.map(([etiqueta, numero, extra, destacada]) => ({
+      width: "*",
+      // El filo de color va como fila propia de la tabla, no como un canvas:
+      // un canvas tiene ancho fijo en puntos y le imponía ese mínimo a la
+      // columna, así que las seis tarjetas se desbordaban fuera de la página.
+      // Una fila con `fillColor` se estira sola al ancho que toque.
+      table: {
+        widths: ["*"],
+        heights: [2.5, 43],
+        body: [
+          [{ text: "", fillColor: e.p.gold }],
+          [{
+            // La destacada se INVIERTE (fondo oscuro, cifra en oro) en vez de
+            // teñirse con el acento: en la paleta «rojo» el acento es casi
+            // negro (#191919) y la tarjeta quedaba más apagada que las otras
+            // cinco. `dark` y `gold` sí contrastan en las seis paletas.
+            fillColor: destacada ? e.p.dark : e.p.panel,
+            margin: [6, 6, 6, 6],
+            stack: [
+              { text: soloTexto(etiqueta), fontSize: 5.8, bold: true, color: destacada ? e.p.darkSub : APOYO, characterSpacing: 0.4 },
+              // El dinero necesita más dígitos que un conteo: baja de cuerpo
+              // para que «$18,432» no se salga de una tarjeta de sexta parte.
+              { text: numero, font: e.precio, fontSize: destacada ? 15 : 19, color: destacada ? e.p.gold : e.p.dark, margin: [0, destacada ? 4 : 2, 0, 0] },
+              { text: soloTexto(extra), fontSize: 6.5, bold: true, color: destacada ? e.p.darkSub : e.p.accent },
+            ],
+          }],
+        ],
+      },
+      layout: SIN_LINEAS,
+    })),
+    columnGap: 5,
+  };
+}
+
+/**
+ * La primera página: las cifras y los cuatro gráficos.
+ *
+ * El ancho de cada SVG se declara aquí y no en el módulo de gráficos porque es
+ * una decisión de esta página —dos columnas arriba, una abajo—, no del gráfico:
+ * el mismo dibujo entra en el HTML a otro ancho sin tocarse.
+ */
+function tablero(r: ReporteDiario, e: Estilo) {
+  const m = r.resumen;
+  const s = r.semana;
+  const columna = (ANCHO - 11) / 2;
+  const interior = columna - 24;
+
+  const punto = (valor: (dia: typeof s.dias[number]) => number) =>
+    s.dias.map((dia) => ({ etiqueta: dia.etiqueta, esHoy: dia.esHoy, valor: valor(dia) }));
+
+  return [
+    // Las etiquetas van a dos líneas aunque quepan en una: si no, el número
+    // arranca a distinta altura en cada tarjeta y la fila se ve rota.
+    tiras(e, [
+      ["CLIENTES\nNUEVOS", String(m.clientesNuevos), ""],
+      ["CLIENTES QUE\nESCRIBIERON", String(m.clientesQueEscribieron), `${s.escribieron} en la semana`],
+      // Sin cotizaciones no se escribe «$0.00»: un cero con dos decimales se
+      // lee como un dato y es sólo la ausencia del dato.
+      ["COTIZACIONES\nENVIADAS", String(m.cotizacionesEnviadas), m.cotizacionesEnviadas ? money(m.montoCotizado) : ""],
+      ["DIJERON QUE\nVIENEN", String(m.visitasAgendadas), ""],
+      ["VENTAS\nCERRADAS", String(m.ventasGanadas), m.ventasGanadas ? money(m.montoGanado) : ""],
+      // Entera y no abreviada: en los ejes «$18.4k» sobra, pero ésta es LA
+      // cifra del reporte —la plata que hay sobre la mesa— y redondearla a
+      // miles la vuelve una estimación. Además es la que el HTML muestra
+      // completa, y las dos versiones tienen que decir lo mismo.
+      ["EN JUEGO\nSIN CERRAR", montoEntero(m.montoEnJuego), `${r.cotizados.total} pendientes`, true],
+    ]),
+
+    {
+      margin: [0, 11, 0, 0],
+      columns: [
+        {
+          width: columna,
+          stack: [tarjetaGrafico(e, interior, "CUÁNTO SE COTIZÓ", "Hoy dentro de la semana, y la semana dentro de todo", [
+            { svg: donaCotizado({ hoy: m.montoCotizado, semana: s.montoCotizado, total: r.acumulado.montoCotizado }, e.p, e.f), width: interior, font: "Archivo" },
+          ])],
+        },
+        {
+          width: columna,
+          stack: [tarjetaGrafico(e, interior, "MOVIMIENTO DEL KANBAN", "Cuánta gente entró a cada columna esta semana", [
+            {
+              svg: barrasKanban(
+                r.fases.map((fase) => ({ nombre: fase.corto, hoy: fase.hoy, semana: fase.semana, perdido: fase.etapa === "perdido" })),
+                e.p, e.f,
+              ),
+              width: interior, font: "Archivo",
+            },
+            {
+              margin: [0, 6, 0, 0],
+              columns: [
+                pastilla("HOY", e.p.accent, e.p.panel),
+                pastilla("LA SEMANA", mezclar(e.p.accent, e.p.base, 0.55), e.p.dark),
+                { width: "*", text: "" },
+              ],
+              columnGap: 4,
+            },
+          ])],
+        },
+      ],
+      columnGap: 11,
+    },
+
+    {
+      margin: [0, 11, 0, 0],
+      stack: [tarjetaGrafico(e, ANCHO - 24, "LA SEMANA, DÍA POR DÍA", "Plata cotizada arriba; cuántos clientes escribieron abajo", [
+        { svg: areaSemana(punto((dia) => dia.monto), e.p, e.f), width: ANCHO - 24, font: "Archivo" },
+        {
+          svg: barrasConversaciones(punto((dia) => dia.escribieron), e.p, e.f),
+          width: ANCHO - 24, font: "Archivo", margin: [0, 4, 0, 0],
+        },
+      ])],
+    },
+  ];
+}
+
+// ---------------------------------------------------------------------------
+// Las conversaciones
+// ---------------------------------------------------------------------------
 
 /** Tarjeta de una conversación: barra de acento a la izquierda y fondo panel. */
 function tarjeta(e: Estilo, acento: string, contenido: unknown[], fondo?: string) {
@@ -224,7 +416,7 @@ function tarjeta(e: Estilo, acento: string, contenido: unknown[], fondo?: string
       widths: [3, "*"],
       body: [[
         { text: "", fillColor: acento },
-        { stack: contenido, fillColor: fondo ?? e.p.panel, margin: [10, 6, 10, 6] },
+        { stack: contenido, fillColor: fondo ?? e.p.panel, margin: [11, 8, 11, 8] },
       ]],
     },
     layout: SIN_LINEAS,
@@ -241,30 +433,44 @@ function tarjeta(e: Estilo, acento: string, contenido: unknown[], fondo?: string
  */
 function filaCliente(e: Estilo, acento: string, fila: FilaCliente, ahora: Date) {
   const espera_ = espera(fila.esperaDesde, ahora);
-  const detalles = [
-    fila.cuando ? `${fila.cuando}${fila.vencida ? " · no vino" : ""}` : null,
-    fila.medida,
-    fila.local,
-    espera_ ? `esperando ${espera_}` : null,
-  ].filter(Boolean).join("   ·   ");
+  const suave = mezclar(e.p.base, e.p.border, 0.5);
+  const pastillas = [
+    fila.cuando
+      ? pastilla(
+          `${fila.cuando}${fila.vencida ? " · no vino" : ""}`,
+          fila.vencida ? mezclar(e.p.panel, ALERTA, 0.16) : mezclar(e.p.panel, acento, 0.14),
+          fila.vencida ? ALERTA : e.p.dark,
+        )
+      : null,
+    fila.medida ? pastilla(fila.medida, suave, e.p.tenue) : null,
+    fila.local ? pastilla(fila.local, suave, e.p.tenue) : null,
+    espera_ ? pastilla(`esperando ${espera_}`, suave, e.p.tenue) : null,
+  ].filter(Boolean);
 
   return tarjeta(e, fila.vencida ? ALERTA : acento, [
     {
       columns: [
         { text: soloTexto(fila.nombre), link: fila.link, bold: true, fontSize: 11, color: e.p.dark },
-        { text: money(fila.monto), font: e.precio, fontSize: 13, color: e.p.accent, alignment: "right", width: 82 },
+        {
+          text: money(fila.monto), font: e.precio, fontSize: 13, alignment: "right", width: 82,
+          // Sin cotización el hueco lleva una raya, y la raya no es plata: en el
+          // acento de la marca se leía como una cifra que no se alcanzó a cargar.
+          color: fila.monto == null ? APOYO : e.p.accent,
+        },
       ],
     },
     { text: soloTexto(fila.motivo), fontSize: 8.5, color: e.p.tenue, margin: [0, 3, 0, 0] },
     // El "abrir chat" va en TODAS las filas, no sólo en las de error: el nombre
     // ya era un enlace, pero en un PDF nada indica que un texto se pueda tocar y
-    // el asesor no iba a descubrirlo. La fila existe aunque no haya detalles.
+    // el asesor no iba a descubrirlo. La fila existe aunque no haya pastillas.
     {
-      margin: [0, 3, 0, 0],
+      margin: [0, 6, 0, 0],
       columns: [
-        { width: "*", text: detalles ? soloTexto(detalles) : "", fontSize: 7.5, color: fila.vencida ? ALERTA : "#8b8778" },
+        ...pastillas,
+        { width: "*", text: "" },
         { width: 62, text: "abrir chat →", link: fila.link, fontSize: 8, bold: true, color: e.p.accent, alignment: "right" },
       ],
+      columnGap: 4,
     },
   ], fila.vencida ? mezclar(e.p.panel, ALERTA, 0.07) : undefined);
 }
@@ -281,8 +487,13 @@ function filaError(e: Estilo, fila: { nombre: string; motivo: string; link: stri
   ]);
 }
 
-/** Cabecera de sección: cuña de color, título, y el conteo en una pastilla. */
-function titulo(e: Estilo, color: string, texto: string, total: number, sub: string) {
+/**
+ * Cabecera de sección: cuña de color, título, el conteo, y una línea al pie.
+ *
+ * `abrePagina` sólo quita el aire de arriba. El salto de página en sí lo pone
+ * quien llama, sobre el bloque entero: ver `seccion`.
+ */
+function titulo(e: Estilo, color: string, texto: string, total: number, sub: string, abrePagina = false) {
   return [
     {
       columns: [
@@ -297,64 +508,56 @@ function titulo(e: Estilo, color: string, texto: string, total: number, sub: str
           layout: SIN_LINEAS,
         },
       ],
-      margin: [0, 13, 0, 0],
+      margin: [0, abrePagina ? 0 : 15, 0, 0],
     },
-    { text: soloTexto(sub), fontSize: 7.5, color: "#8b8778", margin: [13, 3, 0, 7] },
+    { text: soloTexto(sub), fontSize: 7.5, color: APOYO, margin: [13, 3, 0, 0] },
+    {
+      canvas: [{ type: "line", x1: 0, y1: 0, x2: ANCHO, y2: 0, lineWidth: 0.6, lineColor: e.p.border }],
+      margin: [0, 7, 0, 8],
+    },
   ];
 }
 
 function vacio(e: Estilo, texto: string) {
-  return tarjeta(e, e.p.border, [{ text: texto, fontSize: 9, color: "#8b8778", italics: true }], e.p.base);
+  return tarjeta(e, e.p.border, [{ text: texto, fontSize: 9, color: APOYO, italics: true }], e.p.base);
 }
 
 function resto(total: number, mostradas: number) {
   return total > mostradas
-    ? [{ text: `y ${total - mostradas} más en el panel`, fontSize: 7.5, color: "#8b8778", margin: [13, 2, 0, 0] }]
+    ? [{ text: `y ${total - mostradas} más en el panel`, fontSize: 7.5, color: APOYO, margin: [13, 2, 0, 0] }]
     : [];
 }
 
 /**
- * Las cifras del día, en tarjetas del mismo alto con filo de color.
+ * Una sección completa: cabecera, tarjetas y el «y N más».
  *
- * La última entrada puede venir marcada como destacada: es «en juego», la plata
- * cotizada sin cerrar, y se pinta con el filo y el número en el acento de la
- * marca porque es la razón por la que el asesor abre el panel.
+ * La cabecera viaja pegada a su primera tarjeta dentro de un bloque
+ * `unbreakable`. Sin eso, pdfmake trata cada pieza por separado y cuando la
+ * sección arranca al final de una hoja deja el título y su línea abajo del todo
+ * —una firma huérfana— y las conversaciones empiezan en la siguiente.
+ *
+ * `saltoAntes` va sobre ese mismo bloque y NO sobre su primer hijo. Puesto
+ * dentro, pdfmake salta de página al leerlo y vuelve a saltar al medir el
+ * bloque indivisible que lo contiene: el resultado era una hoja en blanco
+ * entera entre el tablero y los chats.
  */
-function tiras(e: Estilo, metricas: Array<[string, string, string, boolean?]>) {
-  return {
-    columns: metricas.map(([etiqueta, numero, extra, destacada]) => ({
-      width: "*",
-      // El filo de color va como fila propia de la tabla, no como un canvas:
-      // un canvas tiene ancho fijo en puntos y le imponía ese mínimo a la
-      // columna, así que las cinco tarjetas se desbordaban fuera de la página.
-      // Una fila con `fillColor` se estira sola al ancho que toque.
-      table: {
-        widths: ["*"],
-        heights: [2.5, 43],
-        body: [
-          [{ text: "", fillColor: e.p.gold }],
-          [{
-            // La destacada se INVIERTE (fondo oscuro, cifra en oro) en vez de
-            // teñirse con el acento: en la paleta «rojo» el acento es casi
-            // negro (#191919) y la tarjeta quedaba más apagada que las otras
-            // cinco. `dark` y `gold` sí contrastan en las seis paletas.
-            fillColor: destacada ? e.p.dark : e.p.panel,
-            margin: [6, 6, 6, 6],
-            stack: [
-              { text: soloTexto(etiqueta), fontSize: 5.8, bold: true, color: destacada ? e.p.darkSub : "#8b8778", characterSpacing: 0.4 },
-              // El dinero necesita más dígitos que un conteo: baja de cuerpo
-              // para que «$18,432» no se salga de una tarjeta de sexta parte.
-              { text: numero, font: e.precio, fontSize: destacada ? 15 : 19, color: destacada ? e.p.gold : e.p.dark, margin: [0, destacada ? 4 : 2, 0, 0] },
-              { text: extra, fontSize: 7.5, bold: true, color: e.p.accent },
-            ],
-          }],
-        ],
-      },
-      layout: SIN_LINEAS,
-    })),
-    columnGap: 5,
-    margin: [0, 0, 0, 2],
-  };
+function seccion(input: {
+  e: Estilo; color: string; titulo: string; sub: string; total: number;
+  vacio: string; tarjetas: unknown[]; saltoAntes?: boolean;
+}) {
+  const cabecera = titulo(input.e, input.color, input.titulo, input.total, input.sub, input.saltoAntes);
+  const filas = input.total === 0 ? [vacio(input.e, input.vacio)] : input.tarjetas;
+  const [primera, ...siguientes] = filas;
+
+  return [
+    {
+      ...(input.saltoAntes ? { pageBreak: "before" as const } : {}),
+      unbreakable: true,
+      stack: [...cabecera, primera],
+    },
+    ...siguientes,
+    ...resto(input.total, input.tarjetas.length),
+  ];
 }
 
 /**
@@ -422,7 +625,6 @@ function fondo(r: ReporteDiario, e: Estilo) {
 
 function documento(r: ReporteDiario, e: Estilo) {
   const ahora = new Date(r.generadoEn);
-  const m = r.resumen;
 
   return {
     pageSize: "A4",
@@ -430,36 +632,35 @@ function documento(r: ReporteDiario, e: Estilo) {
     defaultStyle: { font: "Archivo", fontSize: 9, color: e.p.dark },
     background: fondo(r, e),
     content: [
-      // Las cinco etiquetas van a dos líneas aunque quepan en una: si no, el
-      // número arranca a distinta altura en cada tarjeta y la fila se ve rota.
-      tiras(e, [
-        ["CLIENTES\nNUEVOS", String(m.clientesNuevos), ""],
-        ["CLIENTES QUE\nESCRIBIERON", String(m.clientesQueEscribieron), ""],
-        // Sin cotizaciones no se escribe «$0.00»: un cero con dos decimales se
-        // lee como un dato y es sólo la ausencia del dato.
-        ["COTIZACIONES\nENVIADAS", String(m.cotizacionesEnviadas), m.cotizacionesEnviadas ? money(m.montoCotizado) : ""],
-        ["DIJERON QUE\nVIENEN", String(m.visitasAgendadas), ""],
-        ["VENTAS\nCERRADAS", String(m.ventasGanadas), m.ventasGanadas ? money(m.montoGanado) : ""],
-        ["EN JUEGO\nSIN CERRAR", montoCorto(m.montoEnJuego), "", true],
-      ]),
+      ...tablero(r, e),
 
-      ...titulo(e, e.p.accent, "Cotizados — a un empujón", r.cotizados.total,
-        "Ya tienen precio. Primero los que prometieron venir y no aparecieron."),
-      ...(r.cotizados.total === 0
-        ? [vacio(e, "Nadie con cotización pendiente.")]
-        : [...r.cotizados.filas.map((f) => filaCliente(e, e.p.accent, f, ahora)), ...resto(r.cotizados.total, r.cotizados.filas.length)]),
+      // El salto va sobre la primera sección y no como un bloque suelto al
+      // final del tablero: un `pageBreak: after` en una pieza vacía deja una
+      // línea fantasma que, si el tablero creciera, empujaría a una tercera
+      // página en blanco.
+      ...seccion({
+        e, color: e.p.accent, saltoAntes: true,
+        titulo: "Cotizados — a un empujón", total: r.cotizados.total,
+        sub: "Ya tienen precio. Primero los que prometieron venir y no aparecieron.",
+        vacio: "Nadie con cotización pendiente.",
+        tarjetas: r.cotizados.filas.map((f) => filaCliente(e, e.p.accent, f, ahora)),
+      }),
 
-      ...titulo(e, e.p.gold, "Piden asesor", r.pidenAsesor.total,
-        "Pidieron hablar con alguien, van a llamar o el bot no alcanzó. Ordenados por quién espera hace más."),
-      ...(r.pidenAsesor.total === 0
-        ? [vacio(e, "Nadie esperando un asesor.")]
-        : [...r.pidenAsesor.filas.map((f) => filaCliente(e, e.p.gold, f, ahora)), ...resto(r.pidenAsesor.total, r.pidenAsesor.filas.length)]),
+      ...seccion({
+        e, color: e.p.gold,
+        titulo: "Piden asesor", total: r.pidenAsesor.total,
+        sub: "Pidieron hablar con alguien, van a llamar o el bot no alcanzó. Ordenados por quién espera hace más.",
+        vacio: "Nadie esperando un asesor.",
+        tarjetas: r.pidenAsesor.filas.map((f) => filaCliente(e, e.p.gold, f, ahora)),
+      }),
 
-      ...titulo(e, ALERTA, "Errores en la conversación", r.errores.total,
-        "El bot se rompió dentro del chat. Abre el link y responde a mano."),
-      ...(r.errores.total === 0
-        ? [vacio(e, "Ningún chat se rompió hoy.")]
-        : [...r.errores.filas.map((f) => filaError(e, f)), ...resto(r.errores.total, r.errores.filas.length)]),
+      ...seccion({
+        e, color: ALERTA,
+        titulo: "Errores en la conversación", total: r.errores.total,
+        sub: "El bot se rompió dentro del chat. Abre el link y responde a mano.",
+        vacio: "Ningún chat se rompió hoy.",
+        tarjetas: r.errores.filas.map((f) => filaError(e, f)),
+      }),
 
       ...(r.tecnicos.total === 0 ? [] : [
         ...titulo(e, e.p.border, "Problemas técnicos", r.tecnicos.total,
@@ -496,7 +697,7 @@ function documento(r: ReporteDiario, e: Estilo) {
     footer: (pagina: number, total: number) => ({
       margin: [MARGEN_X, 10, MARGEN_X, 0],
       stack: [
-        { canvas: barraCarreras(e.p, 0, 523, 2.5) },
+        { canvas: barraCarreras(e.p, 0, ANCHO, 2.5) },
         {
           margin: [0, 7, 0, 0],
           columns: [
@@ -509,7 +710,7 @@ function documento(r: ReporteDiario, e: Estilo) {
             {
               width: "auto",
               text: soloTexto(`${r.negocio} · reporte automático · ${pagina}/${total}`),
-              fontSize: 7, color: "#8b8778", alignment: "right",
+              fontSize: 7, color: APOYO, alignment: "right",
             },
           ],
         },
@@ -519,7 +720,15 @@ function documento(r: ReporteDiario, e: Estilo) {
 }
 
 export async function renderDailyReportPdf(r: ReporteDiario): Promise<Buffer> {
-  const estilo: Estilo = { p: resolvePalette(r.paleta), precio: registrarFuentes(r.fuente) };
+  const precio = registrarFuentes(r.fuente);
+  const estilo: Estilo = {
+    p: resolvePalette(r.paleta),
+    precio,
+    // Los gráficos escriben con las mismas dos familias que el resto del
+    // documento: si pidieran una que pdfmake no tiene registrada, el render
+    // entero revienta con «Font not defined» en vez de salir sin gráfico.
+    f: { texto: "Archivo", cifra: precio },
+  };
   return pdfmake.createPdf(documento(r, estilo) as never).getBuffer();
 }
 
