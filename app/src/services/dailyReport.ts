@@ -21,11 +21,32 @@
  */
 import { business, config } from "../config.js";
 import { sql } from "../db/client.js";
+import type { Stage } from "../domain/pipeline.js";
 import { clasificarAlerta, etiquetaTecnica } from "./alertTaxonomy.js";
 import { DEFAULT_PIECES_CONFIG, getPiecesConfig } from "./settings.js";
 
 /** Cuántas filas se listan por sección antes de resumir el resto en «y N más». */
 const TOPE_POR_SECCION = 12;
+
+/** Cuántos días cubre la portada de gráficos. Siete = la semana que se cerró. */
+const DIAS_SEMANA = 7;
+
+/**
+ * Las fases del kanban que sí se pueden contar.
+ *
+ * `nuevo` queda fuera a propósito: es la etapa en la que nace la conversación,
+ * no una a la que alguien la mueve, y el historial de los tickets viejos no
+ * tiene esa fila. Contarla daría un número que parece cero cuando en realidad
+ * es «no se sabe» — el mismo «?» que muestra el panel.
+ */
+const FASES: Array<{ etapa: Stage; nombre: string; corto: string }> = [
+  { etapa: "medida_confirmada", nombre: "Medida confirmada", corto: "Medida" },
+  { etapa: "seleccionando", nombre: "Eligiendo opciones", corto: "Eligiendo" },
+  { etapa: "cotizacion_enviada", nombre: "Cotización enviada", corto: "Cotización" },
+  { etapa: "seguimiento_venta", nombre: "Seguimiento hasta venta", corto: "Seguimiento" },
+  { etapa: "ganado", nombre: "Ganado", corto: "Ganado" },
+  { etapa: "perdido", nombre: "Perdido", corto: "Perdido" },
+];
 
 /**
  * Cuántos días de silencio antes de que una conversación deje de ser tarea.
@@ -71,6 +92,37 @@ export interface FilaTecnica {
   veces: number;
 }
 
+/** Un día de la semana, medido con el mismo corte de 20:00 que el reporte. */
+export interface DiaSemana {
+  /** YYYY-MM-DD del día que esa ventana cierra. */
+  clave: string;
+  /** «lun 4» — lo que cabe bajo una barra del eje. */
+  etiqueta: string;
+  /** true = el día que este reporte cierra. Se pinta distinto en los gráficos. */
+  esHoy: boolean;
+  cotizaciones: number;
+  monto: number;
+  escribieron: number;
+  ganadas: number;
+  montoGanado: number;
+}
+
+/**
+ * Cuánta gente entró a una columna del kanban.
+ *
+ * Se cuenta por conversación y ciclo, no por fila del historial: un ticket que
+ * rebota entre «eligiendo» y «cotización enviada» tres veces es una persona que
+ * llegó a cotización, no tres.
+ */
+export interface FaseKanban {
+  etapa: Stage;
+  nombre: string;
+  /** «Seguimiento» en vez de «Seguimiento hasta venta»: es lo que cabe en un eje. */
+  corto: string;
+  hoy: number;
+  semana: number;
+}
+
 export interface ReporteDiario {
   negocio: string;
   /**
@@ -108,6 +160,26 @@ export interface ReporteDiario {
      */
     montoEnJuego: number;
   };
+  /**
+   * La semana que se cierra hoy, para los gráficos de la portada.
+   *
+   * Un solo día no dice nada: seis cotizaciones son muchas o pocas según cómo
+   * vinieron los cinco días anteriores. Los siete días usan el mismo corte de
+   * 20:00, así que el último de la serie es exactamente el del resumen — el
+   * asesor puede leer la barra de hoy y la cifra de arriba y cuadran.
+   */
+  semana: {
+    dias: DiaSemana[];
+    cotizaciones: number;
+    montoCotizado: number;
+    escribieron: number;
+    ganadas: number;
+    montoGanado: number;
+  };
+  /** Entradas a cada columna del kanban. Sin `nuevo`: ver la constante FASES. */
+  fases: FaseKanban[];
+  /** Todo lo cotizado desde que el bot existe. El «total» contra el «hoy». */
+  acumulado: { cotizaciones: number; montoCotizado: number };
   cotizados: { filas: FilaCliente[]; total: number };
   pidenAsesor: { filas: FilaCliente[]; total: number };
   errores: { filas: FilaError[]; total: number };
@@ -140,6 +212,16 @@ function fechaLarga(fecha: Date): string {
   }).format(fecha);
 }
 
+/** «lun 4» — el eje de los gráficos, en los caracteres que caben debajo. */
+function diaCorto(fecha: Date): string {
+  const partes = new Intl.DateTimeFormat("es-EC", {
+    timeZone: "America/Guayaquil", weekday: "short", day: "numeric",
+  }).formatToParts(fecha);
+  const dia = partes.find((p) => p.type === "weekday")?.value ?? "";
+  const numero = partes.find((p) => p.type === "day")?.value ?? "";
+  return `${dia.replace(".", "").slice(0, 3)} ${numero}`;
+}
+
 function horaCorta(fecha: Date): string {
   return new Intl.DateTimeFormat("es-EC", {
     timeZone: "America/Guayaquil", hour: "2-digit", minute: "2-digit", hour12: false,
@@ -165,7 +247,13 @@ function linkTicket(id: number): string {
   return `${config.hub.publicUrl}/#/ticket/${id}`;
 }
 
-/** «viene mañana», «hoy 15:00», «no vino» — lo que el asesor necesita del plazo. */
+/**
+ * «hoy 15:00», «mañana 09:30», «vie 14 ago 16:00» — el plazo en lo mínimo.
+ *
+ * Las fechas lejanas van en formato corto y no como «viernes 14 de agosto»
+ * porque esta etiqueta se pinta dentro de una pastilla al lado de la medida y
+ * el local: la versión larga ocupaba media tarjeta y se partía en dos líneas.
+ */
 function etiquetaCuando(visita: Date | null, compromiso: string | null, ahora: Date): string | null {
   if (visita) {
     const dia = diaGuayaquil(visita);
@@ -174,7 +262,9 @@ function etiquetaCuando(visita: Date | null, compromiso: string | null, ahora: D
     const hora = horaCorta(visita);
     if (dia === hoy) return `hoy ${hora}`;
     if (dia === manana) return `mañana ${hora}`;
-    return `${fechaLarga(visita)}, ${hora}`;
+    const mes = new Intl.DateTimeFormat("es-EC", { timeZone: "America/Guayaquil", month: "short" })
+      .format(visita).replace(".", "");
+    return `${diaCorto(visita)} ${mes} ${hora}`;
   }
   return compromiso ? compromiso.slice(0, 60) : null;
 }
@@ -259,6 +349,67 @@ export async function buildDailyReport(ahora = new Date()): Promise<ReporteDiari
         where outcome = 'ganado' and closed_at >= ${desde} and closed_at < ${hasta}) as ganadas,
       (select coalesce(sum(total), 0) from sales_history
         where outcome = 'ganado' and closed_at >= ${desde} and closed_at < ${hasta}) as monto_ganado
+  `;
+
+  // La semana, ventana por ventana.
+  //
+  // Los cortes se generan desde `hasta` hacia atrás en pasos de un día, así que
+  // el último tramo de la serie ES el del resumen de arriba: la barra de hoy y
+  // la cifra grande de «cotizado hoy» salen del mismo período o el reporte se
+  // contradice a sí mismo. Van como una sola consulta con subconsultas por
+  // tramo —siete filas, no siete viajes a la base— porque esto corre a las
+  // 20:00 en la instancia chica de Railway.
+  const semanaDesde = new Date(hasta.getTime() - DIAS_SEMANA * 86_400_000);
+  const serie = await sql<{
+    inicio: Date; cotizaciones: number; monto: string | number | null;
+    escribieron: number; ganadas: number; monto_ganado: string | number | null;
+  }[]>`
+    with tramos as (
+      select generate_series(
+        ${semanaDesde}::timestamptz,
+        ${new Date(hasta.getTime() - 86_400_000)}::timestamptz,
+        interval '1 day'
+      ) as inicio
+    )
+    select
+      t.inicio,
+      (select count(*)::int from quotes q
+        where q.created_at >= t.inicio and q.created_at < t.inicio + interval '1 day') as cotizaciones,
+      (select coalesce(sum(q.total), 0) from quotes q
+        where q.created_at >= t.inicio and q.created_at < t.inicio + interval '1 day') as monto,
+      (select count(distinct m.conversation_id)::int from messages m
+        where m.direction = 'inbound'
+          and m.created_at >= t.inicio and m.created_at < t.inicio + interval '1 day') as escribieron,
+      (select count(*)::int from sales_history s
+        where s.outcome = 'ganado'
+          and s.closed_at >= t.inicio and s.closed_at < t.inicio + interval '1 day') as ganadas,
+      (select coalesce(sum(s.total), 0) from sales_history s
+        where s.outcome = 'ganado'
+          and s.closed_at >= t.inicio and s.closed_at < t.inicio + interval '1 day') as monto_ganado
+    from tramos t
+    order by t.inicio
+  `;
+
+  // Entradas a cada columna del kanban.
+  //
+  // `count(distinct (conversation_id, cycle))` y no `count(*)`: el ticket que
+  // rebota de «eligiendo» a «cotización enviada» y vuelve deja dos filas en el
+  // historial, pero es una sola persona que llegó a cotizar. Contar filas
+  // inflaba justo las columnas del medio, que son las que más rebotan.
+  const entradas = await sql<{ etapa: string; hoy: number; semana: number }[]>`
+    select
+      to_stage as etapa,
+      count(distinct (conversation_id, cycle))
+        filter (where created_at >= ${desde} and created_at < ${hasta})::int as hoy,
+      count(distinct (conversation_id, cycle))::int as semana
+    from stage_transitions
+    where created_at >= ${semanaDesde} and created_at < ${hasta}
+      and to_stage <> 'nuevo'
+    group by to_stage
+  `;
+
+  const [historico] = await sql<{ cotizaciones: number; monto: string | number | null }[]>`
+    select count(*)::int as cotizaciones, coalesce(sum(total), 0) as monto from quotes
   `;
 
   // Cotizados: mismo criterio que el tab (etapa cotizacion_enviada o
@@ -369,6 +520,34 @@ export async function buildDailyReport(ahora = new Date()): Promise<ReporteDiari
   // defecto: un color no vale un reporte que no llega.
   const piezas = await getPiecesConfig().catch(() => DEFAULT_PIECES_CONFIG);
 
+  const dias: DiaSemana[] = serie.map((fila) => {
+    // La etiqueta es la del día en que se TRABAJÓ: la ventana abre a las 20:00
+    // y cierra a las 20:00 del día siguiente, así que fechar el tramo por su
+    // inicio pondría el trabajo del martes bajo el rótulo del lunes.
+    const cierre = new Date(fila.inicio.getTime() + 86_400_000 - 60_000);
+    return {
+      clave: diaGuayaquil(cierre),
+      etiqueta: diaCorto(cierre),
+      esHoy: diaGuayaquil(cierre) === diaClave,
+      cotizaciones: fila.cotizaciones,
+      monto: Number(fila.monto ?? 0),
+      escribieron: fila.escribieron,
+      ganadas: fila.ganadas,
+      montoGanado: Number(fila.monto_ganado ?? 0),
+    };
+  });
+
+  const porEtapa = new Map(entradas.map((fila) => [fila.etapa, fila]));
+  // Se recorre FASES y no el resultado de la consulta: una columna sin
+  // movimiento tiene que aparecer en cero, no desaparecer del gráfico. Un hueco
+  // en el kanban es información, y además el orden lo fija el pipeline, no el
+  // azar de lo que la base devuelva primero.
+  const fases: FaseKanban[] = FASES.map(({ etapa, nombre, corto }) => ({
+    etapa, nombre, corto,
+    hoy: porEtapa.get(etapa)?.hoy ?? 0,
+    semana: porEtapa.get(etapa)?.semana ?? 0,
+  }));
+
   return {
     negocio: business.name,
     paleta: piezas.paleta,
@@ -390,6 +569,19 @@ export async function buildDailyReport(ahora = new Date()): Promise<ReporteDiari
       ventasGanadas: metricas?.ganadas ?? 0,
       montoGanado: Number(metricas?.monto_ganado ?? 0),
       montoEnJuego,
+    },
+    semana: {
+      dias,
+      cotizaciones: dias.reduce((s, d) => s + d.cotizaciones, 0),
+      montoCotizado: dias.reduce((s, d) => s + d.monto, 0),
+      escribieron: dias.reduce((s, d) => s + d.escribieron, 0),
+      ganadas: dias.reduce((s, d) => s + d.ganadas, 0),
+      montoGanado: dias.reduce((s, d) => s + d.montoGanado, 0),
+    },
+    fases,
+    acumulado: {
+      cotizaciones: historico?.cotizaciones ?? 0,
+      montoCotizado: Number(historico?.monto ?? 0),
     },
     cotizados: { filas: cotizados.slice(0, TOPE_POR_SECCION).map((r) => aFila(r, motivoCotizado(r), ahora)), total: cotizados.length },
     pidenAsesor: { filas: asesor.slice(0, TOPE_POR_SECCION).map((r) => aFila(r, motivoAsesor(r), ahora)), total: asesor.length },

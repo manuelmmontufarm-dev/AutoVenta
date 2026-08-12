@@ -66,9 +66,17 @@ export async function reclamarDia(dia: string): Promise<boolean> {
   return filas.count > 0;
 }
 
-/** El WhatsApp que acompaña al PDF: los números del día y por dónde entrar. */
+/**
+ * El WhatsApp que acompaña al PDF: los números del día y por dónde entrar.
+ *
+ * Lleva la semana al lado del día en las dos cifras que se comparan solas —lo
+ * cotizado y quién escribió— porque el mensaje se lee antes que el adjunto, y
+ * muchas noches es lo único que se lee. La página de gráficos del PDF cuenta lo
+ * mismo con más detalle; aquí sólo tiene que caber en una notificación.
+ */
 export function textoDelReporte(r: ReporteDiario): string {
   const m = r.resumen;
+  const s = r.semana;
   const dinero = (valor: number) => `$${valor.toLocaleString("en-US", { maximumFractionDigits: 0 })}`;
   const lineas = [
     `📊 *Reporte del día — ${r.dia}*`,
@@ -76,6 +84,7 @@ export function textoDelReporte(r: ReporteDiario): string {
     "",
     `👋 ${m.clientesQueEscribieron} clientes escribieron · ${m.clientesNuevos} nuevos`,
     `📄 ${m.cotizacionesEnviadas} cotizaciones · ${dinero(m.montoCotizado)}`,
+    `📈 En la semana: ${s.cotizaciones} cotizaciones · ${dinero(s.montoCotizado)}`,
     `🗓 ${m.visitasAgendadas} dijeron cuándo vienen`,
   ];
   if (m.ventasGanadas > 0) lineas.push(`✅ ${m.ventasGanadas} ventas cerradas · ${dinero(m.montoGanado)}`);
@@ -85,7 +94,7 @@ export function textoDelReporte(r: ReporteDiario): string {
     `🙋 ${r.pidenAsesor.total} piden asesor`,
   );
   if (r.errores.total > 0) lineas.push(`⚠️ ${r.errores.total} chats con errores del bot`);
-  lineas.push("", "📎 El PDF de abajo tiene el detalle, con link a cada conversación.", `🔗 ${r.linkOportunidades}`);
+  lineas.push("", "📎 El PDF de abajo abre con los gráficos de la semana y sigue con cada conversación y su link.", `🔗 ${r.linkOportunidades}`);
   return lineas.join("\n");
 }
 
