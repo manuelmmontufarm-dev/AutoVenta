@@ -55,11 +55,11 @@ export interface InterbotSyncState {
 const SETTINGS_KEY = "interbot_precios";
 
 /**
- * Un fallo no debe reintentar el barrido completo en cada mensaje (castiga al
- * Interbot y alarga la respuesta al cliente), pero tampoco esperar los 15 min
- * completos: una caída de un minuto dejaría los precios viejos un cuarto de hora.
+ * Si el barrido de la mañana falla, se reintenta a la media hora — no al día
+ * siguiente, que dejaría la vitrina con los precios de ayer, ni cada dos minutos,
+ * que volvería a castigar al Interbot cuando justamente está teniendo problemas.
  */
-const RETRY_TRAS_FALLO_MS = 2 * 60_000;
+const RETRY_TRAS_FALLO_MS = 30 * 60_000;
 
 /** Peticiones simultáneas del barrido. Son ~155 medidas; de a una tomaba ~30 s. */
 const CONCURRENCIA = 5;
@@ -73,6 +73,7 @@ const SESION_TTL_MS = 30 * 60_000;
 let precios: Map<string, InterbotPrice> = new Map();
 let state: InterbotSyncState = { source: "none", at: null, productos: 0, lastError: null };
 let nextLiveAttemptAt = 0;
+const ZONA = "America/Guayaquil";
 let syncInFlight: Promise<void> | null = null;
 let persistedLoaded = false;
 let sesion: { cookie: string; at: number } | null = null;
@@ -334,7 +335,7 @@ async function syncLive(): Promise<void> {
   precios = next;
   state = { source: "live", at, productos: next.size, lastError: null };
   console.log(
-    `💲 Sync Interbot en vivo: ${next.size} productos de ${medidas.length} medidas` +
+    `💲 Barrido diario del Interbot: ${next.size} productos de ${medidas.length} medidas` +
       `${cambios ? `, ${cambios} con precio distinto` : ", sin cambios de precio"}` +
       `${medidasFallidas ? ` (${medidasFallidas} medidas fallaron)` : ""}`,
   );
@@ -353,6 +354,30 @@ function contarCambios(
   return n;
 }
 
+/** El día calendario en Ecuador, para no barrer dos veces la misma jornada. */
+function diaEcuador(d: Date): string {
+  return d.toLocaleDateString("en-CA", { timeZone: ZONA });
+}
+
+/**
+ * ¿Toca el barrido de hoy? Una sola pasada al día, a partir de la hora
+ * configurada (6 de la mañana por defecto).
+ *
+ * Se mide contra la fecha del último barrido bueno —que sobrevive a los
+ * redeploys porque se guarda en la base—, así que subir cinco versiones en un
+ * día ya no dispara cinco barridos: el de la mañana ya corrió y no se repite.
+ */
+function tocaBarrer(): boolean {
+  if (!config.interbot) return false;
+  const ahora = new Date();
+  const hora = Number(
+    ahora.toLocaleString("en-US", { timeZone: ZONA, hour: "2-digit", hour12: false }),
+  );
+  if (hora < config.interbot.syncHour) return false;
+  if (!state.at) return true;
+  return diaEcuador(state.at) !== diaEcuador(ahora);
+}
+
 /**
  * Garantiza precios frescos. Nunca lanza: si el vivo falla se queda el último
  * snapshot bueno (o el de fábrica) y el error queda en el estado.
@@ -368,10 +393,12 @@ export async function ensureInterbotPricesFresh(): Promise<void> {
   }
   if (!config.interbot) return;
   if (Date.now() < nextLiveAttemptAt) return;
+  if (!tocaBarrer()) return;
   if (!syncInFlight) {
-    // Se marca el próximo intento ANTES de arrancar: si el barrido tarda, los
-    // mensajes que entren mientras tanto no encolan otro.
-    nextLiveAttemptAt = Date.now() + config.interbot.syncIntervalMs;
+    // Se marca antes de arrancar: si el barrido tarda, los mensajes que entren
+    // mientras tanto no encolan otro. Al terminar bien, `tocaBarrer()` ya lo
+    // frena por fecha hasta mañana.
+    nextLiveAttemptAt = Date.now() + RETRY_TRAS_FALLO_MS;
     syncInFlight = syncLive()
       .catch((error) => {
         const msg = error instanceof Error ? error.message : String(error);
@@ -402,11 +429,19 @@ export async function __syncLiveForTests(): Promise<void> {
   await syncLive();
 }
 
-/** Solo para pruebas: fija el mapa y descarta la sesión, sin tocar red ni disco. */
-export function __setPreciosForTests(map: Record<string, InterbotPrice> | null): void {
+/**
+ * Solo para pruebas: fija el mapa y descarta sesión y backoff, sin tocar red ni
+ * disco. `at` permite simular que el último barrido fue otro día.
+ */
+export function __setPreciosForTests(
+  map: Record<string, InterbotPrice> | null,
+  at: Date = new Date(),
+): void {
   sesion = null;
+  nextLiveAttemptAt = 0;
+  persistedLoaded = true;
   precios = map ? new Map(Object.entries(map)) : new Map();
   state = map
-    ? { source: "live", at: new Date(), productos: precios.size, lastError: null }
+    ? { source: "live", at, productos: precios.size, lastError: null }
     : { source: "none", at: null, productos: 0, lastError: null };
 }

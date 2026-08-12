@@ -15,10 +15,12 @@ process.env.OPENAI_API_KEY ||= "test";
 process.env.DATABASE_URL ||= "postgresql://test@localhost/test";
 process.env.INTERBOT_USERNAME = "bot";
 process.env.INTERBOT_PASSWORD = "clave";
+// Hora 0 para que el barrido no dependa de a qué hora corran las pruebas.
+process.env.INTERBOT_SYNC_HOUR = "0";
 
 const {
   __syncLiveForTests, __setPreciosForTests, getInterbotPrice, interbotPricesState,
-  refreshPriceForSize,
+  refreshPriceForSize, ensureInterbotPricesFresh,
 } = await import("../src/services/interbotPrices.js");
 
 /** Lo que de verdad manda el Interbot en producción (verificado contra la API). */
@@ -157,5 +159,29 @@ describe("sync en vivo de precios del Interbot", () => {
     }) as unknown as typeof fetch;
 
     await expect(refreshPriceForSize("165/65R14")).resolves.toBe(false);
+  });
+
+  it("un redeploy el mismo día NO dispara otro barrido", async () => {
+    // Antes cada arranque barría: cinco deploys en un día eran cinco barridos
+    // de 156 peticiones. Ahora el de la mañana ya corrió y no se repite.
+    __setPreciosForTests({ K246B404: { ...PRODUCTO } as never });
+    const { fetchMock } = interbotFalso(LOGIN_COOKIES);
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+    await ensureInterbotPricesFresh();
+
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("si el último barrido es de ayer, sí barre", async () => {
+    const ayer = new Date(Date.UTC(2020, 0, 1));
+    __setPreciosForTests({ K246B404: { ...PRODUCTO } as never }, ayer);
+    const { fetchMock } = interbotFalso(LOGIN_COOKIES);
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+    await ensureInterbotPricesFresh();
+    await new Promise((r) => setTimeout(r, 10));
+
+    expect(fetchMock).toHaveBeenCalled();
   });
 });

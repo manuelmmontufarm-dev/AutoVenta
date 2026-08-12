@@ -32,6 +32,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-08-12 | _(este mismo)_ | El barrido del Interbot pasa a una sola pasada diaria a las 6 de la mañana | 0.5 |
 | 2026-08-12 | _(este mismo)_ | El sync dejó de barrer el Interbot 15.000 veces al día; la cotización pregunta por medida | 1.5 |
 | 2026-08-12 | _(este mismo)_ | Una sola pregunta de ubicación + los dos mapas al confirmar · y el cruce con Contífico da 0 de 61 | 2.0 |
 | 2026-08-11 | _(este mismo)_ | El sync de precios del Interbot llevaba 4 días muerto por media cookie | 1.5 |
@@ -121,6 +122,29 @@ Ya viene activado en este equipo.
 ---
 
 ## Entradas (más reciente primero)
+
+### 2026-08-12 · Un solo barrido, a las 6 de la mañana · ⏱️ 0.5 h
+
+**Qué:** el arreglo anterior dejó el barrido cada 12 h. Depot pidió que sea
+**una sola pasada diaria en la mañana**, y así queda: `tocaBarrer()` mide contra
+la **fecha** del último barrido bueno en hora de Ecuador y solo deja pasar uno
+por jornada, a partir de las 06:00 (`INTERBOT_SYNC_HOUR`).
+
+Medir por fecha y no por intervalo arregla de paso algo que el cambio anterior
+no cubría: **cada redeploy disparaba un barrido de arranque**. Como la fecha del
+último sobrevive en la base, subir cinco versiones en un día ya no son cinco
+barridos — el de la mañana ya corrió y no se repite.
+
+El reintento tras fallo sube de 2 a 30 min: si el Interbot está caído,
+insistirle cada dos minutos es justo lo que no hay que hacer.
+
+**Por qué:** los precios no han cambiado ni una vez en cinco días. Refrescar la
+vitrina una vez al día sobra, y el precio que firma una cotización ya no depende
+de esto — se pregunta por medida en el momento de cotizar.
+
+**Cuenta final:** de ~15.000 consultas diarias a **~156**, más una por cotización
+emitida. 2 pruebas nuevas (redeploy del mismo día no barre; con fecha de ayer sí).
+538 en total, typecheck limpio.
 
 ### 2026-08-12 · 10.099 consultas al Interbot en 16 horas · ⏱️ 1.5 h
 
