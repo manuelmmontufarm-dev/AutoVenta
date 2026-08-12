@@ -89,7 +89,7 @@ import {
 import {
   brandProfilesForRender, deleteBrandProfile, listBrandProfiles, saveBrandProfile,
 } from "../services/brandProfiles.js";
-import { PALETTE_NAMES, PRICE_FONT_NAMES } from "../render/depotDesign.js";
+import { PALETTE_NAMES, PALETTES, PRICE_FONT_NAMES } from "../render/depotDesign.js";
 import { renderPreviewPiece } from "../render/preview.js";
 import { atenderPendientes, reorganizarEtapas } from "../services/hubMaintenance.js";
 import {
@@ -1188,6 +1188,14 @@ export function createAdminRouter(): express.Router {
       ok: true,
       config: await getPiecesConfig(),
       paletas: PALETTE_NAMES,
+      // Las muestras salen de la misma paleta que renderiza las piezas: el
+      // botón de Ajustes no puede mentir sobre el color que va a salir.
+      muestras: Object.fromEntries(
+        PALETTE_NAMES.map((n) => {
+          const { dark, accent, gold, base } = PALETTES[n];
+          return [n, [dark, accent, gold, base]];
+        }),
+      ),
       fuentes: PRICE_FONT_NAMES,
     });
   });

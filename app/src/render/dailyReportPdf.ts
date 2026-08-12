@@ -27,6 +27,7 @@ import { fileURLToPath } from "node:url";
 import pdfmake from "pdfmake";
 import type { FilaCliente, ReporteDiario } from "../services/dailyReport.js";
 import { resolvePalette, type Palette } from "./depotDesign.js";
+import { DEPOT_LOGO_RATIO, depotLogo } from "./assets.js";
 import { espera } from "./dailyReportHtml.js";
 
 // src/render → app/assets (misma profundidad ya compilado en dist/render).
@@ -371,16 +372,28 @@ function fondo(r: ReporteDiario, e: Estilo) {
   return (pagina: number, tamano: { width: number; height: number }) => {
     const W = tamano.width;
     const portada = pagina === 1;
-    const wordmark = (y: number, escala: number) => ({
-      absolutePosition: { x: MARGEN_X, y },
-      text: [
-        { text: "DEPOT", color: e.p.panel },
-        { text: "TIRE", color: e.p.gold },
-      ],
-      font: "ArchivoBlack",
-      fontSize: escala,
-      characterSpacing: 0.6,
-    });
+    // El logotipo real de la marca sobre la banda oscura; `escala` era el
+    // cuerpo de la tipografía y ahora es el alto del logo, que es lo mismo que
+    // regulaba antes: cuánto ocupa la marca en la portada y en el repetido.
+    const logo = depotLogo("blanco");
+    const wordmark = (y: number, escala: number) =>
+      logo
+        ? {
+            absolutePosition: { x: MARGEN_X, y },
+            image: logo.dataUri,
+            height: escala,
+            width: escala * DEPOT_LOGO_RATIO,
+          }
+        : {
+            absolutePosition: { x: MARGEN_X, y },
+            text: [
+              { text: "DEPOT", color: e.p.panel },
+              { text: "TIRE", color: e.p.gold },
+            ],
+            font: "ArchivoBlack",
+            fontSize: escala,
+            characterSpacing: 0.6,
+          };
 
     return [
       {
@@ -399,7 +412,7 @@ function fondo(r: ReporteDiario, e: Estilo) {
       },
       ...(portada
         ? [
-            wordmark(20, 15),
+            wordmark(16, 20),
             rotuloDerecha(W, 22, soloTexto("REPORTE DEL DÍA"), 7, e.p.darkSub),
             {
               absolutePosition: { x: MARGEN_X, y: 41 },
@@ -413,7 +426,7 @@ function fondo(r: ReporteDiario, e: Estilo) {
             },
           ]
         : [
-            wordmark(BANDA_H / 2 - 14, 13),
+            wordmark(BANDA_H / 2 - 8, 15),
             rotuloDerecha(W, BANDA_H / 2 - 8, soloTexto(`REPORTE DEL DÍA · ${r.dia}`), 7.5, e.p.darkSub),
           ]),
     ];

@@ -176,6 +176,49 @@ export function brandLogo(brand: string): RasterImage | null {
   return result;
 }
 
+// ---------------------------------------------------------------------------
+// Logotipo de Depot Tire
+// ---------------------------------------------------------------------------
+
+/**
+ * Proporción del archivo de logo (422×132). Quien lo coloque fija el ALTO y
+ * saca el ancho de aquí: un logo estirado es peor que ninguno.
+ */
+export const DEPOT_LOGO_RATIO = 422 / 132;
+
+const depotLogoCache = new Map<string, RasterImage | null>();
+
+/**
+ * Logotipo real de Depot Tire, tal como está en tiredepotec.com — el archivo
+ * de la marca, no una recreación tipográfica.
+ *
+ * Son los dos únicos originales que publica el negocio, recortados a su
+ * contenido (el PNG de Wix viene en lienzo de 500×500 con el arte al centro):
+ *
+ * - `blanco` para fondos oscuros — el encabezado de las cuatro piezas.
+ * - `color`  para fondos claros — negro, rojo y el volante de la O.
+ *
+ * Devuelve null si falta el archivo; quien llama dibuja el nombre en texto,
+ * que es lo que hacían las piezas antes de tener el logo.
+ */
+export function depotLogo(variant: "blanco" | "color" = "blanco"): RasterImage | null {
+  if (depotLogoCache.has(variant)) return depotLogoCache.get(variant)!;
+  let result: RasterImage | null = null;
+  const file = path.join(ASSETS, "depot", variant === "blanco" ? "logo-blanco.png" : "logo.png");
+  try {
+    if (existsSync(file)) {
+      const buf = readFileSync(file);
+      result = { dataUri: `data:image/png;base64,${buf.toString("base64")}`, width: 422, height: 132 };
+    } else {
+      console.warn(`⚠️ Falta el logo de Depot Tire (${file}); las piezas caen al nombre en texto`);
+    }
+  } catch (err) {
+    console.warn("⚠️ No se pudo leer el logo de Depot Tire:", err);
+  }
+  depotLogoCache.set(variant, result);
+  return result;
+}
+
 let genericTire: RasterImage | null = null;
 
 /** Ilustración genérica de llanta (fallback cuando el producto no tiene foto). */
