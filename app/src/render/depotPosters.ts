@@ -166,32 +166,47 @@ export function quotePoster(data: QuotePosterData, theme: Theme): SatoriNode {
     ),
     racingBar(theme, true),
 
-    // Sellos de garantía
-    el({ justifyContent: "space-between", alignItems: "center", padding: "40px 64px",
+    // Sellos de garantía — la sección que más vende, dicho por Depot: va
+    // grande de verdad, con rótulo propio, no como una franja de trámite.
+    el({ flexDirection: "column", gap: 30, padding: "44px 64px 48px",
       backgroundImage: `linear-gradient(180deg,#ffffff 0%,${p.panel} 55%,${p.wash} 100%)` },
-      golpes
-        ? seal(String(line.golpesMeses), "MESES", "GARANTÍA CONTRA GOLPES")
-        : seal(String(line.fabricaAnios), "AÑOS", "GARANTÍA DE FÁBRICA"),
-      divider(p.border),
-      seal(String(line.fabricaAnios), "AÑOS", "GARANTÍA DE FÁBRICA"),
-      divider(p.border),
-      seal("30", "AÑOS", "DEPOT TIRE EN QUITO"),
+      el({ alignItems: "center", gap: 16 },
+        el({ width: 10, height: 34, backgroundColor: p.accent, transform: "skewX(-22deg)" }),
+        text({ fontSize: 26, fontWeight: 700, letterSpacing: 4, color: p.dark }, "GARANTÍAS QUE TE RESPALDAN"),
+      ),
+      el({ justifyContent: "space-between", alignItems: "center" },
+        golpes
+          ? seal(String(line.golpesMeses), "MESES", "GARANTÍA CONTRA GOLPES")
+          : seal(String(line.fabricaAnios), "AÑOS", "GARANTÍA DE FÁBRICA"),
+        divider(p.border),
+        seal(String(line.fabricaAnios), "AÑOS", "GARANTÍA DE FÁBRICA"),
+        divider(p.border),
+        seal("30", "AÑOS", "DEPOT TIRE EN QUITO"),
+      ),
     ),
   ];
 
   // Beneficios: vienen de la tabla, no del diseño. Sin beneficios cargados no
   // se dibuja la franja — el bot no promete lo que el negocio no configuró.
   if (benefits.length) {
+    // Al tamaño de las garantías: esto es lo que diferencia a Depot de vender
+    // la misma llanta más barata en Marketplace, y estaba en letra de trámite.
     bloques.push(
-      el({ flexDirection: "column", gap: 16, padding: "36px 64px", borderTop: `1px solid ${p.border}`,
+      el({ flexDirection: "column", gap: 22, padding: "40px 64px 46px", borderTop: `3px solid ${p.gold}`,
         backgroundImage: `linear-gradient(180deg,${p.base} 0%,${p.wash} 100%)` },
-        text({ fontSize: 15, fontWeight: 700, letterSpacing: 3, color: p.tenue }, "INCLUIDO CON TU COMPRA"),
-        el({ flexWrap: "wrap", gap: 12 },
+        el({ alignItems: "center", gap: 16 },
+          el({ width: 10, height: 34, backgroundColor: p.accent, transform: "skewX(-22deg)" }),
+          text({ fontSize: 26, fontWeight: 700, letterSpacing: 4, color: p.dark }, "INCLUIDO CON TU COMPRA"),
+          text({ backgroundColor: p.accent, color: p.paper, borderRadius: 999, padding: "6px 18px",
+            fontSize: 17, fontWeight: 700, letterSpacing: 1, whiteSpace: "nowrap" }, "SIN COSTO"),
+        ),
+        el({ flexWrap: "wrap", gap: 16 },
           ...benefits.map((b) =>
-            el({ alignItems: "center", gap: 10, backgroundColor: p.panel,
-              border: `1px solid ${p.border}`, borderRadius: 999, padding: "12px 24px" },
-              check(20),
-              text({ fontSize: 19, fontWeight: 500, color: p.dark }, stripEmoji(b)))),
+            el({ alignItems: "center", gap: 14, backgroundColor: p.panel,
+              border: `2px solid ${p.border}`, borderRadius: 999, padding: "16px 28px",
+              boxShadow: "0 6px 16px rgba(20,20,20,0.07)" },
+              check(28),
+              text({ fontSize: 25, fontWeight: 600, color: p.dark }, stripEmoji(b)))),
         ),
       ),
     );
@@ -244,21 +259,28 @@ export function quotePoster(data: QuotePosterData, theme: Theme): SatoriNode {
   }
 }
 
+/**
+ * El sello creció del tamaño de un timbre (132 px en una pieza de 1440) al de
+ * un argumento de venta: Depot pidió el 13-ago que las garantías «se vean, que
+ * eso vende un montón». La cifra es lo que se lee en la miniatura de WhatsApp,
+ * así que es la que más sube.
+ */
 function warrantySealLocal(numero: string, unidad: string, rotulo: string): SatoriNode {
-  return el({ flexDirection: "column", alignItems: "center", gap: 12, width: 300 },
-    el({ width: 132, height: 132, borderRadius: "50%", alignItems: "center", justifyContent: "center",
-      backgroundImage: "linear-gradient(135deg,#eccd6f,#b98a1e)" },
-      el({ width: 106, height: 106, borderRadius: "50%", backgroundColor: "#211a08",
+  return el({ flexDirection: "column", alignItems: "center", gap: 16, width: 380 },
+    el({ width: 200, height: 200, borderRadius: "50%", alignItems: "center", justifyContent: "center",
+      backgroundImage: "linear-gradient(135deg,#eccd6f,#b98a1e)",
+      boxShadow: "0 12px 30px rgba(185,138,30,0.35)" },
+      el({ width: 162, height: 162, borderRadius: "50%", backgroundColor: "#211a08",
         flexDirection: "column", alignItems: "center", justifyContent: "center" },
-        text({ ...ARCHIVO_BLACK, fontSize: 40, color: "#e8c15a", lineHeight: 1 }, numero),
-        text({ fontSize: 13, fontWeight: 700, letterSpacing: 2, color: "#e8c15a" }, unidad),
+        text({ ...ARCHIVO_BLACK, fontSize: 66, color: "#e8c15a", lineHeight: 1 }, numero),
+        text({ fontSize: 19, fontWeight: 700, letterSpacing: 3, color: "#e8c15a" }, unidad),
       ),
     ),
-    text({ fontSize: 15, fontWeight: 700, letterSpacing: 3, textAlign: "center" }, rotulo),
+    text({ fontSize: 21, fontWeight: 700, letterSpacing: 3, textAlign: "center" }, rotulo),
   );
 }
 
-const divider = (color: string) => el({ width: 1, height: 140, backgroundColor: color });
+const divider = (color: string) => el({ width: 1, height: 190, backgroundColor: color });
 
 function totalCell(theme: Theme, rotulo: string, valor: string): SatoriNode {
   return el({ flexDirection: "column", gap: 2 },

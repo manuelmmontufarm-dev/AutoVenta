@@ -57,11 +57,13 @@ interface PreciosEstado { fuente: string; actualizadoEn: string | null; producto
 
 const PALETA_LABEL: Record<string, string> = {
   grafito: "Grafito", carbon: "Carbón", rojo: "Rojo", verde: "Verde",
-  espresso: "Espresso", navy: "Azul marino", depot: "Depot Tire",
+  espresso: "Espresso", navy: "Azul marino",
+  depot: "Depot Tire negro", depotRojo: "Depot Tire rojo",
 };
-/** La paleta sacada del sitio del cliente, no una propuesta de estilo. */
+/** Las paletas sacadas del sitio del cliente, no propuestas de estilo. */
 const PALETA_NOTA: Record<string, string> = {
-  depot: "Colores de tiredepotec.com · fondo blanco",
+  depot: "Colores de tiredepotec.com · el negro del logo manda",
+  depotRojo: "Colores de tiredepotec.com · el rojo del logo manda · sin beige",
 };
 const FUENTE_LABEL: Record<string, string> = {
   exo: "Exo 2", barlow: "Barlow", kanit: "Kanit", chakra: "Chakra Petch",

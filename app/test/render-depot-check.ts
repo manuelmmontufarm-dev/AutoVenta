@@ -42,7 +42,7 @@ const wildpeak = product({ codigo: "FK-WP-AT-TRAIL-2657016", nombre: "265/70R16 
 const dateLabel = "12 / 08 / 2026";
 const benefits = ["Instalación y balanceo sin costo", "Seguro contra golpes 12 meses"];
 
-for (const paleta of ["depot", "grafito"]) {
+for (const paleta of ["depotRojo", "depot", "grafito"]) {
   writeFileSync(path.join(out, `${paleta}-1-cotizacion.png`), await renderQuoteImage({
     paleta, number: "COT-DEMO1", dateLabel, lines: [await toRenderLine(kr608, 4)],
     subtotal: 832.9, iva: 124.94, total: 957.84, benefits,

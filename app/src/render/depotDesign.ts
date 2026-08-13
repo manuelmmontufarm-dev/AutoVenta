@@ -86,6 +86,26 @@ export const PALETTES: Record<string, Palette> = {
     dark: "#1c1e1b", darkSub: "#b0b0b0",
     accent: "#e52c2a", accentSoft: "#ffdcdc", gold: "#ffcb05",
   },
+
+  /**
+   * La variante ROJA de la paleta de Depot Tire — pedida por el negocio el
+   * 13-ago: «el rojo del logo, y nada de beige».
+   *
+   * Mismos colores medidos que `depot`, con los papeles invertidos: aquí el
+   * rojo del logotipo (#e52c2a) es el color DOMINANTE —encabezado, precio,
+   * totales— y el negro del logo pasa a acento. El fondo sigue siendo blanco
+   * y `wash` cierra en un gris frío, exactamente como en `depot`, para que
+   * ningún degradado reintroduzca el crema de las seis paletas de propuesta.
+   *
+   * `darkSub` es el único color nuevo: un rosa pálido legible sobre el rojo,
+   * porque el gris #b0b0b0 de `depot` se ensucia sobre #e52c2a.
+   */
+  depotRojo: {
+    base: "#ffffff", panel: "#ffffff", border: "#e3e3e3", tenue: "#605e5e",
+    paper: "#ffffff", wash: "#eef0f1",
+    dark: "#e52c2a", darkSub: "#ffd3d2",
+    accent: "#1c1e1b", accentSoft: "#d9d9d9", gold: "#ffcb05",
+  },
 };
 
 export const PALETTE_NAMES = Object.keys(PALETTES);

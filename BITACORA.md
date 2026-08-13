@@ -32,6 +32,9 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-08-13 | _(este mismo)_ | Revisión contextual diaria: skill + corrida del 13-ago (102 hallazgos, 8 chats mudos por handoff) | 2.5 |
+| 2026-08-13 | _(este mismo)_ | Conocimiento del negocio al bot (marcas/vehículos/escalera) + «al sur» ya registra Quito Sur | 2.5 |
+| 2026-08-13 | _(este mismo)_ | Garantías e INCLUIDO en grande en la cotización + paleta «Depot Tire rojo» | 1.0 |
 | 2026-08-12 | _(este mismo)_ | El logo real de Depot Tire en todas las piezas + la paleta del sitio (fondo blanco) | 1.5 |
 | 2026-08-12 | _(este mismo)_ | Precios: barrido semanal + botón «Actualizar ahora». Horarios: casos especiales por local | 2.5 |
 | 2026-08-12 | _(este mismo)_ | El barrido del Interbot pasa a una sola pasada diaria a las 6 de la mañana | 0.5 |
@@ -124,6 +127,68 @@ Ya viene activado en este equipo.
 ---
 
 ## Entradas (más reciente primero)
+
+### 2026-08-13 · Revisión contextual diaria: el error que ningún regex ve · ⏱️ 2.5 h
+
+**Qué:** Nueva skill `revision-contextual` + `scripts/revision/` (extraer.mjs,
+render.mjs, registro con historial día a día). Lee TODOS los chats del día
+mensaje por mensaje (subagentes en paralelo con rúbrica de 8 categorías),
+consolida hallazgos con evidencia citada, y genera un HTML con tendencia por
+categoría contra el día anterior. Primera corrida (13-ago): 104 chats, 102
+hallazgos (23 altas). El patrón dominante NO era del bot conversando: 8 chats
+calientes mudos porque el handoff pausa al bot por horas y ningún humano
+contestó (2 mensajes de asesor en todo el día). También: flood de ~1.400
+alertas `window_closing` por chat, y el bot confirmando medidas que luego
+niega.
+
+**Por qué:** El error del 13-ago (re-preguntar la sucursal ya elegida) lo vio
+Joaquín en su teléfono, no ningún detector — son errores que solo existen en
+contexto. La auditoría determinística cuenta lo contable; esta revisión juzga
+lo demás, y el registro permite ver si bajan día a día sin que Joaquín viva
+pegado al teléfono.
+
+---
+
+### 2026-08-13 · El conocimiento del negocio entra al bot + «al sur» ya es Quito Sur · ⏱️ 2.5 h
+
+**Qué:** Tres bases nuevas en `assets/` (entregadas por el negocio):
+(1) `conocimiento-marcas.json` → módulo `respaldoMarcas` + herramienta
+`respaldo_marcas`: origen, 5 años de fábrica, seguro «hasta X meses», km
+aproximados y costo por km como argumento de nivel, con las reglas duras (no
+detallar letra chica, escalar reclamos, GITI no se cotiza).
+(2) `aplicaciones-vehiculos.json` (122 modelos) reemplaza la tablita inline de
+`fitment.ts`: fichas con aros de fábrica, confianza por ficha (alta =
+validada; media/baja = confirmar), alias compuestos (H1/Starex) y
+`aroEsDeFabrica()` para detectar cambio de aro.
+(3) `escalera-precio.json` → módulo `escalera`: el nivel por LÍNEA manda sobre
+la marca (KR628 intermedia, KR203 económica) y `tresOpciones` arma la escalera
+con eso; reglas de presentación (de más cara a más económica) al prompt.
+Además: `extractExplicitStore` ahora entiende «al sur» cuando el bot acaba de
+preguntar el local (caso real del chat 5165) — espeja `respondiendoAlDia`.
+
+**Por qué:** Las preguntas de duración/origen/garantía son las que más
+enfrían cierres (se vio en los chats del 12 y 13-ago) y el bot no tenía el
+dato oficial. Y la re-pregunta de sucursal fue el error que Joaquín reportó
+con captura: el extractor exigía «Quito Sur» literal y la ruta directa
+preguntaba el local ya respondido.
+
+---
+
+### 2026-08-13 · Garantías e INCLUIDO en grande + paleta «Depot Tire rojo» · ⏱️ 1.0 h
+
+**Qué:** En la pieza de cotización, los sellos de garantía pasan de 132 a
+200 px con rótulo propio («GARANTÍAS QUE TE RESPALDAN») y la franja INCLUIDO
+CON TU COMPRA sube a 25 px con chips más grandes, borde dorado y badge «SIN
+COSTO». Paleta nueva `depotRojo` («Depot Tire rojo»): el rojo medido del logo
+(#e52c2a) como color dominante, fondo blanco, sin beige; la paleta `depot`
+pasa a llamarse «Depot Tire negro» en Ajustes.
+
+**Por qué:** Pedido directo de Depot el 13-ago: las garantías y lo incluido
+«venden un montón» y salían en letra de trámite; y el PDF rojo de la
+competencia (Grupo Inter) usa el rojo de marca a lo grande — el nuestro usaba
+un vino con crema que no es de la marca.
+
+---
 
 ### 2026-08-12 · El logo real de Depot Tire, y la paleta del sitio · ⏱️ 1.5 h
 
