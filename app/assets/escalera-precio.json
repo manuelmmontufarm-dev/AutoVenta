@@ -1,0 +1,77 @@
+{
+ "version": "2.3",
+ "generado": "2026-08-05",
+ "proposito": "Regla de presentacion en 3 niveles de precio. El agente NUNCA manda todas las opciones de una medida: manda maximo 3, una por nivel.",
+ "escalera_de_precio": {
+  "1_PREMIUM": {
+   "marcas": [
+    "FALKEN"
+   ],
+   "argumento": "Mayor duracion, mejor agarre en mojado y garantia de marca. Es la que mas kilometros rinde."
+  },
+  "2_INTERMEDIA": {
+   "marcas": [
+    "KENDA lineas actuales: KR628, KR601, KR629, KR608, KR50, KR605, KR41, KR20",
+    "GITI cuando ingrese"
+   ],
+   "argumento": "El equilibrio entre precio y rendimiento. Es la que mas se vende."
+  },
+  "3_ECONOMICA": {
+   "marcas": [
+    "WINRUN",
+    "KENDA lineas de entrada: KR203, KR23, KR28, KR29, KR15, Komendo"
+   ],
+   "argumento": "La opcion de menor inversion. Cumple bien para uso normal."
+  }
+ },
+ "reglas": [
+  "1. Primero se define el TIPO (H/T, A/T, R/T, M/T, turismo, comercial) segun el uso que declare el cliente. Recien despues se arma la escalera de precio dentro de ese tipo.",
+  "2. Nunca mezcles tipos en una misma escalera. Ofrecer una A/T premium y una M/T economica en la misma lista confunde al cliente y genera devoluciones.",
+  "3. Presenta SIEMPRE de mas cara a mas economica. El cliente ancla en la primera y compara hacia abajo.",
+  "4. Una sola opcion por nivel. Si en un nivel hay varias lineas, elige la de mayor stock.",
+  "5. Solo cuenta como opcion de juego lo que tenga 4 o mas unidades. Con 1 a 3 se ofrece solo si el cliente pidio sueltas, y se avisa (campo solo_unidad_suelta).",
+  "6. Si en ese tipo solo hay 2 niveles, manda 2. Si solo hay 1, manda 1. Nunca inventes un tercer nivel ni repitas la misma linea dos veces.",
+  "7. Si el cliente no dijo el uso, usa tipo_por_defecto y aclara en una linea que si entra a tierra le muestras otras.",
+  "8. Si en la medida exacta no se completan 3 niveles, se puede completar con equivalencias dentro de +-3% de diametro, avisando que es medida alternativa.",
+  "9. Si el cliente pide de entrada 'lo mas economico', igual manda las 3 pero empieza por la economica y menciona las otras en una linea.",
+  "10. Nunca desprestigies el nivel economico. Se argumenta hacia arriba: la premium rinde mas, no la barata es mala.",
+  "11. Cuando el cliente pregunte por duracion o kilometraje, usa kilometraje_referencial y siempre aclara que depende del mantenimiento.",
+  "12. El kilometraje es el argumento principal para subir de nivel de precio: compara km contra km, no precio contra precio.",
+  "13. Dentro de Falken Wildpeak, si en la misma medida existen A/T4W y A/T Trail con stock, se cotiza la A/T4W primero. La Trail se menciona solo si el cliente prioriza confort y silencio en SUV urbana."
+ ],
+ "formato_de_respuesta": {
+  "estructura": "Una linea por opcion: nivel, marca, modelo, medida y el argumento en pocas palabras. Sin parrafos.",
+  "ejemplo": "Para tu 265/65R17 te tengo tres:\n\n1. Falken Wildpeak A/T4W - la premium, mas kilometraje y garantia de marca\n2. Kenda Klever A/T2 - el equilibrio precio-rendimiento, la mas vendida\n3. Winrun Maxclaw A/T - la de menor inversion, cumple para uso normal\n\n?Con cual te preparo la cotizacion?",
+  "cierre": "Termina siempre con una pregunta de accion."
+ },
+ "kilometraje_referencial": {
+  "FALKEN": {
+   "km": 86500,
+   "nivel": "PREMIUM"
+  },
+  "KENDA": {
+   "km": 68500,
+   "nivel": "INTERMEDIA"
+  },
+  "WINRUN": {
+   "km": 58000,
+   "nivel": "ECONOMICA"
+  },
+  "diferencias": {
+   "FALKEN_vs_KENDA_km": 18000,
+   "FALKEN_vs_WINRUN_km": 28500,
+   "KENDA_vs_WINRUN_km": 10500
+  },
+  "ver_detalle_en": "marcas_origen_garantia_rendimiento.json",
+  "como_usarlo": [
+   "Es el kilometraje de referencia de la marca, no una garantia contractual. Nunca lo presentes como promesa.",
+   "Frasealo asi: 'la Falken te rinde alrededor de 86.500 km, la Kenda unos 68.500 y la Winrun unos 58.000, con mantenimiento normal'.",
+   "Sirve para justificar la diferencia de precio: la premium cuesta mas pero rinde 28.500 km mas que la economica. Es el argumento mas fuerte para subir de nivel.",
+   "Siempre acompanalo de la condicion: depende de rotacion cada 10.000 km, alineacion, balanceo y presion correcta. Sin eso ninguna marca llega a su rendimiento.",
+   "Si el cliente pide el costo por kilometro, calculalo con el precio real de la cotizacion dividido para el km de la marca. No lo estimes de memoria.",
+   "Estos numeros aplican a uso normal en asfalto. En una M/T o en uso de obra el rendimiento baja y hay que decirlo.",
+   "Si el cliente reclama que no llego a ese kilometraje, no discutas ni prometas nada: escala con notificar_vendedor."
+  ]
+ },
+ "nota_integracion": "El bloque medidas (stocks curados del 5-ago) se omitió a propósito: el stock vivo sale de Contífico. Aquí quedan los niveles y las reglas de presentación."
+}

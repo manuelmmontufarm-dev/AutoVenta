@@ -1,0 +1,151 @@
+{
+ "version": "1.0",
+ "generado": "2026-08-13",
+ "proposito": "Origen, garantia, seguro y rendimiento por marca. El agente usa esto para responder preguntas de duracion, respaldo y procedencia, y para justificar la diferencia de precio entre niveles.",
+ "marcas": {
+  "FALKEN": {
+   "nivel": "PREMIUM",
+   "orden_al_cotizar": 1,
+   "origen": {
+    "pais": "Japon",
+    "gentilicio": "japonesa",
+    "frase_de_venta": "Falken es japonesa. Tecnologia y control de calidad japones en cada llanta."
+   },
+   "garantia_fabrica": {
+    "anios": 5,
+    "cubre": "Defectos de fabricacion."
+   },
+   "seguro": {
+    "meses": 18,
+    "texto": "Hasta 18 meses de seguro contra todo dano.",
+    "beneficio": "Si la llanta sufre un dano cubierto, Depot Tire entrega una llanta nueva sin costo por la danada.",
+    "frase_de_venta": "18 meses de seguro: si se dana, te damos una llanta nueva gratis."
+   },
+   "rendimiento": {
+    "km_promedio": 86500,
+    "texto": "Alrededor de 86.500 km en promedio."
+   }
+  },
+  "KENDA": {
+   "nivel": "INTERMEDIA",
+   "orden_al_cotizar": 2,
+   "origen": {
+    "pais": "Taiwan",
+    "gentilicio": "taiwanesa",
+    "frase_de_venta": "Kenda es taiwanesa, con mas de 60 anos fabricando llantas y presencia en todo el mundo."
+   },
+   "garantia_fabrica": {
+    "anios": 5,
+    "cubre": "Defectos de fabricacion."
+   },
+   "seguro": {
+    "meses": 12,
+    "texto": "Hasta 12 meses de seguro contra todo dano.",
+    "beneficio": "Si la llanta sufre un dano cubierto, Depot Tire entrega una llanta nueva sin costo por la danada.",
+    "frase_de_venta": "12 meses de seguro: si se dana, te damos una llanta nueva gratis."
+   },
+   "rendimiento": {
+    "km_promedio": 68500,
+    "texto": "Alrededor de 68.500 km en promedio."
+   }
+  },
+  "WINRUN": {
+   "nivel": "ECONOMICA",
+   "orden_al_cotizar": 4,
+   "origen": {
+    "pais": "China",
+    "gentilicio": "china",
+    "ingenieria": "alemana",
+    "frase_de_venta": "Winrun es china con ingenieria alemana: te da respaldo tecnico a precio de entrada."
+   },
+   "garantia_fabrica": {
+    "anios": 5,
+    "cubre": "Defectos de fabricacion."
+   },
+   "seguro": {
+    "meses": 6,
+    "texto": "Hasta 6 meses de seguro contra todo dano.",
+    "beneficio": "Si la llanta sufre un dano cubierto, Depot Tire entrega una llanta nueva sin costo por la danada.",
+    "frase_de_venta": "6 meses de seguro: si se dana, te damos una llanta nueva gratis."
+   },
+   "rendimiento": {
+    "km_promedio": 58000,
+    "texto": "Alrededor de 58.000 km en promedio."
+   }
+  },
+  "GITI": {
+   "nivel": "INTERMEDIA",
+   "orden_al_cotizar": 3,
+   "origen": {
+    "pais": "POR CONFIRMAR"
+   },
+   "garantia_fabrica": {
+    "anios": 5,
+    "cubre": "Defectos de fabricacion."
+   },
+   "seguro": {
+    "meses": null,
+    "texto": "POR CONFIRMAR - marca en proceso de importacion directa"
+   },
+   "rendimiento": {
+    "km_promedio": null,
+    "texto": "POR CONFIRMAR"
+   },
+   "nota": "Marca en ingreso como importacion directa. NO cotizar ni prometer condiciones hasta tener los datos oficiales."
+  }
+ },
+ "servicios_incluidos": {
+  "mantenimiento_gratuito": {
+   "texto": "Mantenimiento de llantas gratuito para clientes de Depot Tire.",
+   "frase_de_venta": "El mantenimiento va incluido, sin costo."
+  },
+  "rotacion": {
+   "cada_km": 10000,
+   "texto": "Rotacion cada 10.000 km, incluida.",
+   "frase_de_venta": "Te hacemos la rotacion cada 10.000 km sin costo, asi la llanta te rinde lo que debe rendir."
+  }
+ },
+ "comparativo_rapido": {
+  "rendimiento_km": {
+   "FALKEN": 86500,
+   "KENDA": 68500,
+   "WINRUN": 58000
+  },
+  "seguro_meses": {
+   "FALKEN": 18,
+   "KENDA": 12,
+   "WINRUN": 6
+  },
+  "garantia_fabrica_anios": {
+   "FALKEN": 5,
+   "KENDA": 5,
+   "WINRUN": 5
+  },
+  "diferencias_km": {
+   "FALKEN_vs_KENDA": 18000,
+   "FALKEN_vs_WINRUN": 28500,
+   "KENDA_vs_WINRUN": 10500
+  }
+ },
+ "argumento_para_subir_de_nivel": [
+  "La Falken rinde 28.500 km mas que la Winrun y trae 12 meses mas de seguro. Compara km contra km, no precio contra precio.",
+  "Si el cliente duda entre dos niveles, calcula el costo por kilometro con el precio real de la cotizacion dividido para el km promedio de la marca. Muchas veces la premium sale mas barata por kilometro.",
+  "El seguro es el diferenciador mas fuerte y el que menos usan los vendedores: 18 meses contra 6 es tres veces mas cobertura."
+ ],
+ "reglas_de_uso": [
+  "1. El rendimiento es APROXIMADO y siempre se dice asi. Nunca lo presentes como cifra garantizada.",
+  "2. Acompana siempre el km con la condicion: depende del uso y del mantenimiento. Y ofrece de inmediato el mantenimiento gratuito y la rotacion cada 10.000 km.",
+  "3. Diferencia claramente los dos respaldos: garantia de fabrica (5 anos, cubre defectos de fabricacion) y seguro Depot Tire (cubre danos, con plazo distinto por marca).",
+  "4. Di siempre 'hasta X meses', nunca 'X meses' a secas.",
+  "5. NO detalles condiciones, exclusiones ni el procedimiento del seguro. Si el cliente pregunta por la letra chica, que aplica a su caso, o si ya tiene una llanta danada, escala con notificar_vendedor.",
+  "6. Ante un reclamo de garantia o de seguro, el agente NO evalua ni aprueba nada: escala de inmediato.",
+  "7. En uso de obra, cantera o carga pesada, el rendimiento baja. Si el cliente declara ese uso, dilo antes de dar la cifra.",
+  "8. GITI todavia no tiene condiciones definidas: no la cotices ni prometas plazos."
+ ],
+ "ejemplos_de_respuesta": {
+  "pregunta_duracion": "La Falken te rinde alrededor de 86.500 km, la Kenda unos 68.500 y la Winrun unos 58.000. Son promedios: dependen del uso y del mantenimiento. Por eso te incluimos el mantenimiento y la rotacion cada 10.000 km sin costo.",
+  "pregunta_origen": "Falken es japonesa, Kenda taiwanesa y Winrun es china con ingenieria alemana. Las tres con 5 anos de garantia de fabrica.",
+  "pregunta_garantia": "Todas traen 5 anos de garantia de fabrica contra defectos. Ademas te damos seguro contra danos: hasta 18 meses en Falken, 12 en Kenda y 6 en Winrun. Si la llanta se dana, te entregamos una nueva sin costo.",
+  "pregunta_por_que_mas_cara": "La Falken rinde cerca de 28.500 km mas que la Winrun y trae 18 meses de seguro en vez de 6. Por kilometro recorrido casi siempre termina saliendo mas conveniente."
+ }
+}

@@ -63,6 +63,8 @@ import { getTirePatternProfile } from "../domain/tireKnowledge.js";
 import {
   catalogoDeTipos, escalonDeMarca, infoTipo, normalizarTipo, ordenDeMarca, tipoDeProducto,
 } from "../domain/tireTypes.js";
+import { nivelDeLinea, ordenDeNivel, reglasEscalera } from "../domain/escalera.js";
+import { costoPorKm, respaldoCompleto, respaldoDeMarca } from "../domain/respaldoMarcas.js";
 import {
   debeBloquearReenvio, medidaDesdeContenido, tipoSolicitadoEn,
 } from "../domain/opcionesCandados.js";
@@ -130,6 +132,19 @@ function storeSchedule(name: string, hours?: StoreHours): string {
 const ESCALONES = ["premium", "equilibrio", "equilibrio", "economica"] as const;
 
 /**
+ * Etiqueta del escalón para UNA llanta concreta: primero por línea (la
+ * escalera del 13-ago distingue las Kenda intermedias de las de entrada) y,
+ * si la línea no está clasificada, por marca como siempre.
+ */
+function etiquetaEscalon(brand: string, design: string): (typeof ESCALONES)[number] {
+  const nivel = nivelDeLinea(brand, design);
+  if (nivel === "PREMIUM") return "premium";
+  if (nivel === "INTERMEDIA") return "equilibrio";
+  if (nivel === "ECONOMICA") return "economica";
+  return ESCALONES[Math.min(escalonDeMarca(brand), ESCALONES.length - 1)];
+}
+
+/**
  * Deja UNA opción por escalón de marca, la más barata disponible de cada uno.
  *
  * El cliente pidió mandar 3 y no 6: «así ni le confundimos tanto al mijin».
@@ -141,12 +156,16 @@ const ESCALONES = ["premium", "equilibrio", "equilibrio", "economica"] as const;
  * Quien necesite garantizar stock tiene que filtrar ANTES de llamar (ver
  * `conStock`); confiar en esta función para eso fue el bug del 7-ago.
  */
-function tresOpciones<T extends { brand: string; minimumPriceWithTax: number; availability: string }>(
+function tresOpciones<T extends { brand: string; design: string; minimumPriceWithTax: number; availability: string }>(
   productos: readonly T[],
 ): T[] {
   const porEscalon = new Map<number, T>();
   for (const p of productos) {
-    const escalon = escalonDeMarca(p.brand);
+    // La LÍNEA manda sobre la marca (escalera 13-ago): una Kenda KR628 es
+    // intermedia y una KR203 es económica; meterlas al mismo cajón «Kenda»
+    // dejaba escaleras con dos del mismo nivel y ninguna económica real.
+    const nivel = nivelDeLinea(p.brand, p.design);
+    const escalon = nivel ? ordenDeNivel(nivel) : escalonDeMarca(p.brand);
     const actual = porEscalon.get(escalon);
     const mejorQue = (a: T, b: T) => {
       const disp = (x: T) => (x.availability === "available" ? 0 : x.availability === "check" ? 1 : 2);
@@ -560,6 +579,44 @@ export function buildTools(ctx: AgentContext) {
         otras_en_ese_aro: delTipo.length - seleccion.length,
         regla:
           "PROHIBIDO listarlas en texto. Llama preparar_opciones con estos códigos para que salga la imagen (una premium, una de equilibrio, una económica). Si el cliente no dijo el uso ni el tipo, se lo preguntas DESPUÉS de mandarle la imagen — nunca retengas las opciones para preguntar primero. No afirmes un tipo que no venga en 'tipo'.",
+      });
+    },
+  });
+
+  const respaldoMarcas = defineTool({
+    name: "respaldo_marcas",
+    description:
+      "Origen, garantía de fábrica, seguro contra daños y rendimiento en km de cada marca (Falken, Kenda, Winrun), con los argumentos para justificar la diferencia de precio entre niveles. Úsala SIEMPRE que el cliente pregunte cuánto dura una llanta, de dónde es una marca, qué garantía o seguro tiene, o por qué una cuesta más que otra — y también cuando dude entre dos niveles: el costo por kilómetro es el argumento más fuerte. Pasa la marca y el precio cotizado si los tienes para recibir el costo por km ya calculado.",
+    schema: z.object({
+      marca: z
+        .string()
+        .nullable()
+        .default(null)
+        .describe("Marca puntual si la pregunta es sobre una (FALKEN, KENDA, WINRUN). Null = las tres, para comparar."),
+      precio_con_iva: z
+        .number()
+        .nullable()
+        .default(null)
+        .describe("Precio por llanta ya cotizado, si existe: devuelve el costo por km de esa marca."),
+    }),
+    run: async ({ marca, precio_con_iva }) => {
+      const completo = respaldoCompleto();
+      const una = marca ? respaldoDeMarca(marca) : null;
+      const costo = marca && precio_con_iva ? costoPorKm(marca, precio_con_iva) : null;
+      return JSON.stringify({
+        ...(una ? { marca: una } : { marcas: completo.marcas }),
+        ...(costo ? { costo_por_km: costo } : {}),
+        servicios_incluidos: completo.serviciosIncluidos,
+        argumentos_para_subir_de_nivel: completo.argumentosParaSubirDeNivel,
+        ejemplos_de_respuesta: completo.ejemplos,
+        regla: [
+          "El rendimiento en km es APROXIMADO y se dice así siempre, con su condición: depende del uso y del mantenimiento — y ahí mismo ofreces el mantenimiento gratuito y la rotación cada 10.000 km incluidos.",
+          "Di siempre «hasta X meses» de seguro, nunca «X meses» a secas. Son dos respaldos distintos: garantía de fábrica (5 años, defectos) y seguro contra daños (meses según marca) — no los mezcles.",
+          "NO detalles condiciones, exclusiones ni procedimiento del seguro. Si el cliente pregunta la letra chica o ya tiene una llanta dañada, escala con notificar_vendedor: tú no evalúas ni apruebas reclamos.",
+          "GITI está en ingreso y sin condiciones definidas: no la cotices ni le prometas plazos.",
+          "En uso de obra, cantera o carga pesada el rendimiento baja: dilo ANTES de dar la cifra.",
+          "Nunca desprestigies la económica: se argumenta hacia arriba (la premium rinde más), no hacia abajo.",
+        ].join(" "),
       });
     },
   });
@@ -1708,6 +1765,7 @@ export function buildTools(ctx: AgentContext) {
     buscarCatalogo,
     buscarPorAroYTipo,
     tiposDeLlanta,
+    respaldoMarcas,
     guiaMedida,
     opcionesSinMedida,
     fitmentVehiculo,
@@ -1782,7 +1840,7 @@ function toolItem(item: {
     diseno: item.design,
     medida: item.sizeLabel ?? "Sin medida",
     tipo: tipo ?? undefined,
-    escalon: ESCALONES[Math.min(escalonDeMarca(item.brand), ESCALONES.length - 1)],
+    escalon: etiquetaEscalon(item.brand, item.design),
     precio_lista_con_iva: item.customerPriceWithTax,
     precio_hoy_con_iva: item.minimumPriceWithTax,
     stock: item.stock,

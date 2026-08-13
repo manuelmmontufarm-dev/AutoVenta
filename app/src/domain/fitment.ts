@@ -1,26 +1,52 @@
 /**
  * Tabla de fitment vehículo → medidas OEM, curada para el mercado ecuatoriano.
  *
- * No existe dataset libre de fitment (investigado jul-2026; la única API seria
- * es Wheel-Size a $450/año). Esta tabla cubre los modelos más vendidos en
- * Ecuador y la valida el dueño del negocio.
+ * Desde el 13-ago-2026 la fuente principal es `assets/aplicaciones-vehiculos.json`
+ * (122 modelos, 24 marcas), la tabla que armó el negocio con medidas por aro,
+ * aros de fábrica y nivel de confianza por ficha. La tablita inline que vivía
+ * aquí queda como respaldo para los pocos modelos que el archivo no cubre.
  *
- * ⚠️ TODAS las entradas están marcadas `validated: false` hasta que el dueño
- * las revise — el agente SIEMPRE agrega un disclaimer si validated es false.
+ * La confianza de la ficha manda sobre el flujo:
+ *  · `alta`  → validated: la investigación la trata como ficha OEM confiable.
+ *  · `media`/`baja` → NO validated: el agente ofrece con reserva y pide
+ *    confirmar (foto del flanco o etiqueta de la puerta), como dice la propia
+ *    tabla: «Nunca adivinar».
  */
+import { readFileSync } from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+const ASSETS = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "assets");
 
 export interface FitmentEntry {
   make: string;
   model: string;
   /** Medidas comunes de fábrica, formato canónico "185/65R14". */
   sizes: string[];
+  /** Aros que salieron de fábrica en ese modelo. Un aro fuera de esta lista = el cliente cambió de aro. */
+  factoryRims?: number[];
   years?: string;
   validated: boolean;
   sourceUrl?: string;
   note?: string;
 }
 
-export const FITMENT_TABLE: FitmentEntry[] = [
+interface AplicacionCruda {
+  marca: string;
+  modelo: string;
+  anios?: string;
+  medidas_de_fabrica?: Array<{ medida: string; aro?: number; nota?: string }>;
+  aros_de_fabrica?: number[];
+  confianza?: "alta" | "media" | "baja";
+  verificado_contra_fuente?: boolean;
+  nota?: string;
+}
+
+/**
+ * Respaldo inline: solo modelos que el archivo del negocio no trae.
+ * (El resto de la tabla vieja se retiró: el archivo la reemplaza y ampliada.)
+ */
+const LEGADO: FitmentEntry[] = [
   {
     make: "toyota",
     model: "highlander",
@@ -31,54 +57,44 @@ export const FITMENT_TABLE: FitmentEntry[] = [
       "https://pressroom.toyota.com/2012-toyota-highlander-four-cylinder-v6-hybrid-models/",
     note: "2012: Base/SE 245/65R17; Limited 245/55R19. Confirmar versión y etiqueta de la puerta.",
   },
-  { make: "chevrolet", model: "sail", sizes: ["185/60R14", "185/55R15"], validated: false },
-  { make: "chevrolet", model: "aveo", sizes: ["185/60R14", "185/55R15"], validated: false },
-  { make: "chevrolet", model: "spark", sizes: ["155/80R13", "165/65R14"], validated: false },
-  { make: "chevrolet", model: "d-max", sizes: ["245/70R16", "255/60R18"], validated: false },
-  { make: "chevrolet", model: "onix", sizes: ["185/65R15", "195/55R16"], validated: false },
-  { make: "suzuki", model: "grand vitara", sizes: ["225/70R16", "215/65R16"], validated: false },
-  { make: "suzuki", model: "vitara", sizes: ["215/60R16", "215/55R17"], validated: false },
-  { make: "suzuki", model: "swift", sizes: ["185/65R15", "195/55R16"], validated: false },
-  { make: "toyota", model: "hilux", sizes: ["265/65R17", "255/70R16"], validated: false },
-  { make: "toyota", model: "corolla", sizes: ["205/55R16", "215/45R17"], validated: false },
-  { make: "toyota", model: "yaris", sizes: ["185/60R15", "195/50R16"], validated: false },
-  { make: "toyota", model: "fortuner", sizes: ["265/65R17", "265/60R18"], validated: false },
-  { make: "kia", model: "rio", sizes: ["185/65R15", "205/45R17"], validated: false },
-  { make: "kia", model: "sportage", sizes: ["225/60R17", "235/55R18"], validated: false },
-  { make: "kia", model: "picanto", sizes: ["175/65R14", "185/55R15"], validated: false },
-  { make: "kia", model: "soluto", sizes: ["185/65R15"], validated: false },
-  { make: "hyundai", model: "accent", sizes: ["185/65R15", "195/55R16"], validated: false },
-  { make: "hyundai", model: "tucson", sizes: ["225/60R17", "235/55R18"], validated: false },
-  { make: "hyundai", model: "grand i10", sizes: ["165/65R14", "175/60R15"], validated: false },
-  { make: "nissan", model: "sentra", sizes: ["205/60R16", "215/50R17"], validated: false },
-  { make: "nissan", model: "frontier", sizes: ["255/70R16", "265/60R18"], validated: false },
-  { make: "nissan", model: "x-trail", sizes: ["225/65R17", "225/60R18"], validated: false },
-  { make: "mazda", model: "3", sizes: ["205/60R16", "215/45R18"], validated: false },
-  { make: "mazda", model: "bt-50", sizes: ["255/70R16", "265/65R17"], validated: false },
-  { make: "mazda", model: "cx-5", sizes: ["225/65R17", "225/55R19"], validated: false },
-  { make: "renault", model: "duster", sizes: ["215/65R16", "215/60R17"], validated: false },
-  { make: "renault", model: "kwid", sizes: ["165/70R14"], validated: false },
-  { make: "ford", model: "ranger", sizes: ["255/70R16", "265/60R18"], validated: false },
-  { make: "ford", model: "ecosport", sizes: ["205/60R16", "205/50R17"], validated: false },
-  { make: "volkswagen", model: "gol", sizes: ["185/60R15"], validated: false },
-  {
-    make: "toyota",
-    model: "prado",
-    sizes: ["265/70R16", "265/65R17"],
-    validated: false,
-    note: "Serie J90 (hasta 2002): 265/70R16. Serie J120 (2003-2009) y J150: 265/65R17.",
-  },
-  { make: "toyota", model: "land cruiser", sizes: ["265/70R16", "265/65R17", "285/60R18"], validated: false },
-  { make: "toyota", model: "rav4", sizes: ["225/65R17", "235/55R19"], validated: false },
-  { make: "toyota", model: "4runner", sizes: ["265/70R17", "265/65R17"], validated: false },
-  { make: "mitsubishi", model: "montero", sizes: ["265/70R16", "265/60R18"], validated: false },
-  { make: "mitsubishi", model: "l200", sizes: ["245/70R16", "265/60R18"], validated: false },
-  { make: "mitsubishi", model: "outlander", sizes: ["225/55R18", "215/70R16"], validated: false },
-  { make: "great wall", model: "wingle", sizes: ["235/70R16", "245/70R16"], validated: false },
-  { make: "chevrolet", model: "tracker", sizes: ["205/70R16", "215/55R17"], validated: false },
-  { make: "chevrolet", model: "captiva", sizes: ["225/60R17", "235/50R19"], validated: false },
-  { make: "jac", model: "t8", sizes: ["245/70R16", "265/60R18"], validated: false },
 ];
+
+let tabla: FitmentEntry[] | null = null;
+
+function cargar(): FitmentEntry[] {
+  if (tabla) return tabla;
+  try {
+    const cruda = JSON.parse(
+      readFileSync(path.join(ASSETS, "aplicaciones-vehiculos.json"), "utf8"),
+    ) as { aplicaciones?: AplicacionCruda[] };
+    const delArchivo: FitmentEntry[] = (cruda.aplicaciones ?? []).map((a) => ({
+      make: a.marca.toLowerCase(),
+      model: a.modelo.toLowerCase(),
+      sizes: (a.medidas_de_fabrica ?? []).map((m) => m.medida.toUpperCase()),
+      factoryRims: a.aros_de_fabrica ?? [],
+      years: a.anios,
+      validated: a.confianza === "alta",
+      ...(a.verificado_contra_fuente
+        ? { sourceUrl: "https://www.wheel-size.com" }
+        : {}),
+      note: [
+        a.nota,
+        a.confianza && a.confianza !== "alta"
+          ? `Confianza ${a.confianza}: confirmar con el cliente (foto del flanco o etiqueta de la puerta).`
+          : null,
+      ].filter(Boolean).join(" ") || undefined,
+    }));
+    tabla = [...delArchivo, ...LEGADO];
+  } catch (error) {
+    console.error("⚠️ No se pudo cargar aplicaciones-vehiculos.json:", error);
+    tabla = LEGADO;
+  }
+  return tabla;
+}
+
+export function fitmentTable(): FitmentEntry[] {
+  return cargar();
+}
 
 function normalize(text: string): string {
   return text
@@ -93,16 +109,34 @@ export function lookupFitment(make: string, model: string, year?: number | null)
   const nMake = normalize(make);
   const nModel = normalize(model).replace(/[- ]/g, "");
   return (
-    FITMENT_TABLE.find((entry) => {
-      const eModel = entry.model.replace(/[- ]/g, "");
+    cargar().find((entry) => {
+      // Los modelos del archivo pueden venir compuestos («H1 / Starex»,
+      // «Cerato / Forte»): cada alias cuenta por separado.
+      const alias = entry.model.split("/").map((m) => normalize(m).replace(/[- ]/g, "")).filter(Boolean);
       const yearMatches = !year || !entry.years || yearInRange(year, entry.years);
+      const makeMatches =
+        nMake.includes(normalize(entry.make).replace(/\(.*\)/, "").trim()) ||
+        normalize(entry.make).includes(nMake);
       return (
         yearMatches &&
-        (nMake.includes(entry.make) || entry.make.includes(nMake)) &&
-        (nModel.includes(eModel) || eModel.includes(nModel))
+        makeMatches &&
+        alias.some((a) => nModel.includes(a) || a.includes(nModel))
       );
     }) ?? null
   );
+}
+
+/**
+ * ¿El aro que trae el cliente salió de fábrica en ese modelo?
+ *
+ * `null` = no se sabe (ficha sin aros o vehículo sin ficha): no afirmar nada.
+ * `false` = cambió de aro → no sirve la medida OEM tal cual; corresponde
+ * buscar equivalencia por diámetro en el aro nuevo (buscar_por_aro_y_tipo).
+ */
+export function aroEsDeFabrica(make: string, model: string, aro: number, year?: number | null): boolean | null {
+  const entry = lookupFitment(make, model, year);
+  if (!entry?.factoryRims?.length) return null;
+  return entry.factoryRims.includes(aro);
 }
 
 function yearInRange(year: number, range: string): boolean {

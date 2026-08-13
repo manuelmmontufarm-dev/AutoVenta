@@ -49,7 +49,7 @@ import { flagRepetitiveConversation } from "./services/conversationQuality.js";
 import { applyOutboundGuard } from "./services/outboundGuard.js";
 import { notifyPendingHumanRequests } from "./services/advisorNotifications.js";
 import { startEmbeddedFollowUpWorker } from "./workers/embeddedFollowUpWorker.js";
-import { extractExplicitStore } from "./domain/storeSelection.js";
+import { extractExplicitStore, preguntamosElLocal } from "./domain/storeSelection.js";
 import { tryDirectSalesRoute } from "./services/directSalesRoutes.js";
 import { firstContactReply, isGenericFirstContact } from "./domain/firstContact.js";
 
@@ -69,8 +69,12 @@ const pipeline = new InboundPipeline(async ({ from, name, text, waMessageIds, re
   const parsedFlotation = parsedSize ? null : extractFlotationSizes(text)[0];
   const parsedQuantity = extractExplicitQuantity(text);
   const parsedVehicleYear = extractVehicleYear(text);
-  const explicitStore = extractExplicitStore(text);
   const previousOutbound = await lastOutboundText(conversation.id);
+  // «Al sur me resulta más fácil» solo es elección de local si acabamos de
+  // preguntar el local — la misma lógica contextual que el día de visita.
+  const explicitStore = extractExplicitStore(text, {
+    respondiendoAlLocal: preguntamosElLocal(previousOutbound),
+  });
   // El día de la visita llega casi siempre como respuesta seca ("el sábado")
   // a la pregunta que el bot hace tras cotizar. Sin mirar lo que preguntamos
   // antes, esa respuesta no era un compromiso para nadie.

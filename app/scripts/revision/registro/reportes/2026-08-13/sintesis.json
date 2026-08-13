@@ -1,0 +1,74 @@
+{
+ "resumen": "Día de volumen alto (104 chats) donde el bot conversa bien pero pierde las ventas en la última milla: 8 chats CALIENTES (negociando efectivo, confirmando visita, preguntando ubicación) quedaron mudos porque el handoff al asesor pausa al bot por horas y ningún humano contestó — en todo el día solo hubo 2 mensajes de asesor. Lo segundo más caro: el bot confirma una medida y dos mensajes después admite que no hay stock de ella (3 chats), y las preguntas de procedencia/formas de pago se ignoran sistemáticamente en el cierre.",
+ "patrones": [
+  {
+   "titulo": "Handoff mudo: la pausa del bot no la cubre ningún humano",
+   "detalle": "Cuando el cliente pide asesor o el asesor toca el chat, el bot se pausa (bot_paused_until, 2–6 h). Hoy 8 conversaciones activas quedaron en ese limbo con el cliente escribiendo solo — varias en el mejor momento de la venta: 4718 ofrecía $580–600 en efectivo, 5066 comparaba contra Maxxis de la competencia, 4008 ya tenía $1.186 cotizados y preguntaba formas de pago, 5229 confirmó visita y pedía la ubicación. Solo hubo 2 mensajes humanos en todo el día. Algunos chats recibieron un seguimiento automático recién ~17:30.",
+   "conversaciones": [
+    4008,
+    4718,
+    5008,
+    5061,
+    5066,
+    5151,
+    5229,
+    5276
+   ],
+   "accion": "Operativo + producto: (1) alerta insistente al asesor cuando un chat pausado acumula mensajes sin respuesta (hoy no disparó ninguna); (2) permitir que el bot conteste lo factual (ubicación, horario, formas de pago) aunque esté pausado, dejando la negociación al humano."
+  },
+  {
+   "titulo": "Confirma la medida y luego la niega",
+   "detalle": "El bot muestra opciones como si fueran de la medida pedida y, cuando el cliente pide confirmar, admite que esa medida no tiene stock y que eran alternativas (185/55R14 en 4946, 185/65R14 en 5231, Wildpeak 205/75R15 vs 215/75R15 en 5101). El cliente siente que le mintieron y se va.",
+   "conversaciones": [
+    4946,
+    5231,
+    5101
+   ],
+   "accion": "Cuando las opciones sean alternativas de otra medida, decirlo EN el primer mensaje («en su medida exacta no tengo, estas son equivalentes que sí le entran»), nunca después del reclamo. Regla para el prompt + marcar 'es_alternativa' en las opciones que devuelven las herramientas."
+  },
+  {
+   "titulo": "Preguntas de cierre ignoradas: procedencia, pagos, audio",
+   "detalle": "En el momento de decidir, el bot ignora la pregunta y sigue su guion: procedencia de la marca (4200 — el cliente ya había dicho que por ese dato no compró), formas de pago/tarjeta a meses (4008, 5276), y en 5407 el cliente avisó que no puede leer y pidió audio: recibió tres textos.",
+   "conversaciones": [
+    4200,
+    4008,
+    5276,
+    5407
+   ],
+   "accion": "La herramienta respaldo_marcas (integrada hoy) resuelve procedencia/garantía/duración. Falta: respuesta estándar de formas de pago (3 y 6 meses sin intereses ya está en el pie de la cotización — el bot debe DECIRLA), y escalar a humano cuando el cliente pide audio."
+  },
+  {
+   "titulo": "Re-preguntar lo ya confirmado (sucursal)",
+   "detalle": "El caso reportado por Joaquín: en 5165 el cliente eligió «al sur», el bot confirmó Quito Sur y al registrar la fecha volvió a preguntar «¿Cumbayá o Quito Sur?». Causa raíz: «al sur» no pasaba el extractor de local y la ruta directa de visitas pregunta el local cuando no está guardado. También re-preguntas menores de cantidad y medida en otros chats.",
+   "conversaciones": [
+    5165
+   ],
+   "accion": "CORREGIDO HOY: el extractor ahora entiende «al sur» cuando el bot acaba de preguntar el local (mismo mecanismo contextual que la fecha). Test del caso real incluido."
+  },
+  {
+   "titulo": "Sistema: flood de alertas window_closing",
+   "detalle": "La alerta «la ventana de WhatsApp está por cerrar» se insertó ~1.400 veces por conversación en 2 horas (una cada ~5 segundos) en al menos 3 chats. Infla bot_alerts, entierra las alertas reales y es carga inútil para la base.",
+   "conversaciones": [
+    3722,
+    4006,
+    4025
+   ],
+   "accion": "Deduplicar por dedupe_key (la columna existe) o marcar la alerta como ya-emitida por conversación y ciclo."
+  },
+  {
+   "titulo": "Fotos y audios que quedan en el vacío",
+   "detalle": "Chats donde la foto llegó ilegible o el audio no se procesó y el bot simplemente no respondió nada (1904, 3722, 5151). Distinto del handoff: aquí no había pausa — el mensaje entró y no salió respuesta.",
+   "conversaciones": [
+    1904,
+    3722,
+    5151
+   ],
+   "accion": "Investigar el pipeline de medios: si la transcripción/lectura falla, el bot debe responder pidiendo el dato por otra vía, nunca callar."
+  }
+ ],
+ "correcciones": [
+  "Extractor de sucursal contextual: «al sur» tras la pregunta del local ya registra Quito Sur (storeSelection.ts + test del chat 5165).",
+  "Conocimiento integrado al bot: respaldo_marcas (origen, garantía, seguro, km y costo por km), tabla de 122 vehículos con aros de fábrica, y escalera de precio por línea (las Kenda de entrada ya no salen como intermedias).",
+  "Garantías e INCLUIDO CON TU COMPRA mucho más grandes en la pieza de cotización; nueva paleta «Depot Tire rojo» (el rojo del logo, sin beige) y la anterior renombrada «Depot Tire negro»."
+ ]
+}

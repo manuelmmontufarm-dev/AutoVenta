@@ -1,0 +1,1460 @@
+[
+ {
+  "conversacionId": 3,
+  "cliente": "Manuel Maria Montufar",
+  "severidad": "media",
+  "categoria": "repetitividad",
+  "mensajes": [
+   5109
+  ],
+  "resumen": "Cuarto seguimiento idéntico citando un audio del 08-08, ignorando que la venta ya cambió: el 12-08 el cliente pidió cambiar a Kenda KR608 y el bot ofreció regenerar la cotización, cosa que nunca retomó.",
+  "evidencia": "Hoy 08:30 (msg 5109): «😊 Sobre lo que me comentaste: “[…Yo estoy en Quito y puedo ir hoy o mañana a recoger y probar las llantas.]”, ¿te ayudo a dejar lista la visita…?» — texto calcado ya enviado el 08-08 (2296), 08-10 (2719) y 08-11 (2883). Anoche el cliente: «tienes la kenda kr608 en la misma medida» (4908) y el bot: «Le puedo cambiar la cotización a esa… se la genero de una» (4909).",
+  "costo": "Cliente con 4 cotizaciones acumuladas y una oferta de cambio a KR608 pendiente; el seguimiento robótico y desactualizado (habla de «hoy o mañana» de hace 5 días) delata al bot y enfría el cierre.",
+  "sugerencia": "El seguimiento debía retomar lo último conversado: confirmar si genera la cotización de las Kenda KR608 265/70R17 x4, no repetir la plantilla del audio viejo."
+ },
+ {
+  "conversacionId": 11,
+  "cliente": "joaquin tamayo",
+  "severidad": "media",
+  "categoria": "sistema",
+  "mensajes": [
+   5390
+  ],
+  "resumen": "Mensaje anómalo enviado hoy desde la cuenta del negocio (author owner, no bot): texto romántico/inapropiado hacia el cliente con datos que no corresponden a esta conversación.",
+  "evidencia": "Msg 5390 (owner, 10:45): «…otra vez viste mi catálogo a las 2am 👀 … cuando pediste 4 llantas 205/55 R16 en vez de solo 2, algo en mi base de datos hizo click… ¿Confirmamos el pedido o me dejas en visto…? 💔» — el cliente nunca pidió 205/55R16 (su medida es 265/70R17) ni hay pedido alguno.",
+  "costo": "Riesgo reputacional serio: mensaje no profesional desde el número comercial a un cliente en prospección; sugiere uso indebido de la cuenta o prueba enviada a un cliente real.",
+  "sugerencia": "No es un error del bot (se reporta como anomalía de sistema/cuenta): revisar quién tiene acceso al número y evitar pruebas o bromas por el canal de clientes."
+ },
+ {
+  "conversacionId": 615,
+  "cliente": "Diego Almeida",
+  "severidad": "media",
+  "categoria": "cierre",
+  "mensajes": [
+   5421,
+   5422,
+   5767
+  ],
+  "resumen": "El cliente eligió hoy el local (Sur) y el bot lo confirmó, pero el dato no quedó registrado (hechos.local = null) y el seguimiento de la tarde fue una plantilla genérica que no retomó la pregunta pendiente (qué día viene) ni cotizó.",
+  "evidencia": "Cliente (5421): «Sur» → bot (5422): «Perfecto, Quito Sur… ¿qué día viene?». En hechos: \"local\": null. Seguimiento (5767): «😊 Sobre tu visita, ¿te ayudo a dejar lista la visita o reserva?»",
+  "costo": "Sin el local registrado, el próximo turno puede volver a preguntarlo (patrón ya visto); además el cliente pidió precio desde el 05-08 y sigue sin cotización formal.",
+  "sugerencia": "Registrar Quito Sur en hechos, y en el seguimiento reenganchar con lo concreto: «¿Qué día pasa por Quito Sur? Le dejo lista la cotización de las 235/60R16»."
+ },
+ {
+  "conversacionId": 1904,
+  "cliente": "J H 0 S S",
+  "severidad": "alta",
+  "categoria": "flujo-roto",
+  "mensajes": [
+   5565,
+   5566
+  ],
+  "resumen": "El cliente mandó hoy dos fotos (ilegibles) y el bot no respondió absolutamente nada en todo el día, pese a que además ya tenía la medida registrada (215/45R17 leída de una foto el 12-08) y nunca le ofreció opciones.",
+  "evidencia": "Msgs 5565/5566 (12:02): «[El cliente mandó una foto que no se pudo leer. Pídele con amabilidad que escriba lo que dice el costado de la llanta.]» — cero mensajes del bot hoy. En hechos: \"medida\": \"215/45R17\" desde el 12-08 (msg 4201: «Se lee: 215/45ZR17»).",
+  "costo": "Cliente que lleva desde el 07-08 intentando pasar su medida por foto queda en el vacío; venta caliente que se pierde por silencio.",
+  "sugerencia": "Responder pidiendo amablemente el texto del costado o, mejor, usar la medida 215/45R17 que ya conoce y mandar opciones con precio de una."
+ },
+ {
+  "conversacionId": 2100,
+  "cliente": "od090923",
+  "severidad": "alta",
+  "categoria": "flujo-roto",
+  "mensajes": [
+   5375,
+   5379
+  ],
+  "resumen": "El cliente volvió hoy tras 5 días y escribió dos veces «¡Hola! Quiero más información» (10:40:34 y 10:40:55) y el bot no respondió nada en todo el día.",
+  "evidencia": "Msgs 5375 y 5379 (cliente): «¡Hola! Quiero más información» ×2 — ningún mensaje del bot hoy. El bot ya tenía la medida (hechos: 275/65R18) y opciones enviadas el 08-08.",
+  "costo": "Reenganche espontáneo de un lead con medida confirmada, desperdiciado; la repetición del mensaje a los 21 segundos muestra que el cliente esperaba respuesta inmediata.",
+  "sugerencia": "Responder al instante retomando contexto: «Con su medida 275/65R18 tenemos estas opciones…» y avanzar a cotización (cantidad y local)."
+ },
+ {
+  "conversacionId": 3638,
+  "cliente": "clementeolguin2",
+  "severidad": "alta",
+  "categoria": "flujo-roto",
+  "mensajes": [
+   5252
+  ],
+  "resumen": "El cliente avisó hoy que no puede ir a su visita (agendada para hoy) por el fallecimiento de un tío, y el bot no respondió en todo el día: ni condolencias ni reagendamiento.",
+  "evidencia": "Msg 5252 (09:42, cliente): «Hola buenos día disculpe que no Boy a poder ir a la llanta XQ me tengo problema familiar q a fallecido un tío» — cero respuesta del bot hoy; hechos.visita = 2026-08-13, cotización COT-MSPD5GU9 por $836.60.",
+  "costo": "Venta cotizada de $836.60 con visita comprometida queda sin reagendar; el silencio ante un mensaje delicado enfría la relación justo cuando el cliente dio la cara para avisar.",
+  "sugerencia": "Responder con empatía breve («Lamento mucho su pérdida, no se preocupe») y dejar la puerta abierta: la cotización sigue vigente y se reagenda cuando él pueda."
+ },
+ {
+  "conversacionId": 3722,
+  "cliente": "Vicente Gutiérrez",
+  "severidad": "alta",
+  "categoria": "flujo-roto",
+  "mensajes": [
+   5166,
+   5167,
+   5168,
+   5169,
+   5170,
+   5171,
+   5172,
+   5173
+  ],
+  "resumen": "El cliente mandó hoy 5 fotos y preguntó precio por 5 llantas e incluso si venden por docena, y el bot no respondió nada en todo el día.",
+  "evidencia": "Msgs 5171-5172 (cliente): «Esas 5 en cuanto me la podrías dejar» / «O vende por docena» tras 5 fotos (5166-5170) — ningún mensaje del bot hoy.",
+  "costo": "Cliente pidiendo cotización por volumen (5-12 llantas), potencialmente la venta más grande del hilo, abandonado en silencio; ayer se le prometió contacto de un asesor que tampoco aparece.",
+  "sugerencia": "Pedir amablemente el texto del costado si las fotos no se leen, responder la pregunta de volumen (sí/no docena, precio por 5) o escalar de inmediato al asesor prometido."
+ },
+ {
+  "conversacionId": 3722,
+  "cliente": "Vicente Gutiérrez",
+  "severidad": "baja",
+  "categoria": "sistema",
+  "mensajes": [],
+  "resumen": "Flood de alertas window_closing: 1.396 disparos en 2 horas (03:58-05:58) para una sola conversación.",
+  "evidencia": "alertasDelDia: tipo window_closing, veces: 1396, primeraHora 03:57:59, ultimaHora 05:57:56.",
+  "costo": "Ruido masivo en el monitoreo que entierra alertas reales.",
+  "sugerencia": "Deduplicar la alerta window_closing (una por conversación por ventana, no por tick)."
+ },
+ {
+  "conversacionId": 3726,
+  "cliente": "dario576mena",
+  "severidad": "baja",
+  "categoria": "repetitividad",
+  "mensajes": [
+   5114
+  ],
+  "resumen": "Tercera petición calcada de la medida sin cambiar de estrategia, cuando el cliente ya mostró (foto del aro RAYS) que no sabe dónde encontrarla.",
+  "evidencia": "Hoy (5114): «👋 Para recomendarte opciones reales, ¿me confirmas la medida…?» tras el 12-08 (4689): «Solo me falta la medida…» y la guía + petición de foto (4710-4712); la foto del cliente (4707) mostraba el centro del aro, no el costado.",
+  "costo": "El cliente intentó cooperar y recibe la misma pregunta en bucle; probable abandono.",
+  "sugerencia": "Variar el camino: pedir marca, modelo y año del vehículo (que el propio bot ofrece en su saludo) para deducir la medida, en vez de insistir con la misma plantilla."
+ },
+ {
+  "conversacionId": 4006,
+  "cliente": "edisonxavier70",
+  "severidad": "media",
+  "categoria": "ignora-pregunta",
+  "mensajes": [
+   5124
+  ],
+  "resumen": "El cliente pidió el precio del juego de 4 Maxtrek M9 195/65R15; se le mandaron otras marcas sin aclarar que no hay Maxtrek, y el seguimiento de hoy pregunta prioridades en vez de dar el precio pedido.",
+  "evidencia": "Cliente 12-08 (4100): «Precio de Maxtrek M9 medida 195/65/15 el juego de 4 llantas» → bot envió «KENDA KR203 · WINRUN R330» sin mencionar Maxtrek. Hoy (5124): «😊 Ya con la medida 195/65R15 estamos cerca. ¿Prefieres priorizar duración, comodidad o precio?»",
+  "costo": "El cliente ya dijo qué quiere (marca, medida y cantidad); recibir una pregunta de descubrimiento genérica hace sentir que no lo leyeron y frena la cotización.",
+  "sugerencia": "Aclarar que Maxtrek no está en catálogo, ofrecer el equivalente y dar de una el total del juego de 4 con la alternativa económica."
+ },
+ {
+  "conversacionId": 4006,
+  "cliente": "edisonxavier70",
+  "severidad": "baja",
+  "categoria": "sistema",
+  "mensajes": [],
+  "resumen": "Flood de alertas window_closing: 1.408 disparos entre 08:41 y 10:41.",
+  "evidencia": "alertasDelDia: tipo window_closing, veces: 1408.",
+  "costo": "Ruido de monitoreo que oculta alertas accionables.",
+  "sugerencia": "Deduplicar la alerta por conversación/ventana."
+ },
+ {
+  "conversacionId": 4008,
+  "cliente": "Larry Proaño",
+  "severidad": "alta",
+  "categoria": "ignora-pregunta",
+  "mensajes": [
+   5204,
+   5205,
+   5208,
+   5222,
+   5223,
+   5225,
+   5265,
+   5266,
+   5702
+  ],
+  "resumen": "Cliente listo para comprar ($1.186,20 cotizados) preguntó por descuentos según forma de pago; el bot derivó al asesor y luego guardó silencio todo el día mientras el cliente pedía las formas de pago, decía estar mirando marca General, confirmaba visita 11-12 y hasta designaba quién retira las llantas.",
+  "evidencia": "Cliente (5204): «según el método de pago hay algún descuento?» → bot (5205): «…le confirma un asesor enseguida. 🤝». Cliente (5208): «Compártame las dos formas para revisar por favor» — sin respuesta. (5225): «No podría estar de local en local preguntando, por eso mismo le escribo al WhatsApp». (5266): «Tipo 11 a 12». (5702): «Álvaro Flores retira las llantas por favor» — sin respuesta.",
+  "costo": "La compra estuvo a punto de perderse hacia la competencia («Estoy revisando otras opciones en marca General») por no dar una respuesta simple de formas de pago; la instrucción de retiro (persona autorizada) quedó sin confirmar. Tampoco se respondió nunca el stock en Cumbayá preguntado el 12-08.",
+  "sugerencia": "Responder en el canal lo que sí se sabe (contado/tarjeta, cuotas), confirmar stock, y acusar recibo de la visita 11-12 y del retiro por Álvaro Flores avisando al asesor."
+ },
+ {
+  "conversacionId": 4008,
+  "cliente": "Larry Proaño",
+  "severidad": "baja",
+  "categoria": "sistema",
+  "mensajes": [],
+  "resumen": "Inconsistencia de datos en hechos: cantidad = 2 mientras la cotización activa y la alerta del día dicen 4 llantas.",
+  "evidencia": "hechos: \"cantidad\": 2; cotización COT-MSQA4EFK: «FALKEN WILDPEAK A/T 4W x4»; alerta customer_ready_to_buy: «4 llantas… total $1186.20».",
+  "costo": "Riesgo de que un turno futuro o el asesor prepare mal el pedido.",
+  "sugerencia": "Corregir la extracción de cantidad para que refleje la cotización vigente."
+ },
+ {
+  "conversacionId": 4025,
+  "cliente": "Leo.",
+  "severidad": "baja",
+  "categoria": "sistema",
+  "mensajes": [],
+  "resumen": "Flood de alertas window_closing: 1.406 disparos entre 08:55 y 10:55.",
+  "evidencia": "alertasDelDia: tipo window_closing, veces: 1406.",
+  "costo": "Ruido de monitoreo.",
+  "sugerencia": "Deduplicar la alerta por conversación/ventana."
+ },
+ {
+  "conversacionId": 4055,
+  "cliente": "Jorge Silva",
+  "severidad": "baja",
+  "categoria": "tono",
+  "mensajes": [
+   5197
+  ],
+  "resumen": "Tratamiento inconsistente: la conversación del bot es de usted y el seguimiento de hoy tutea; patrón que se repite en las plantillas de seguimiento de otras conversaciones (4006, 4131).",
+  "evidencia": "Bot 12-08 (4158): «Ya le envié las opciones… Si desea, le recomiendo una…» vs hoy (5197): «😊 Ya con la medida 245/70R16 estamos cerca. ¿Prefieres priorizar duración, comodidad o precio?»",
+  "costo": "El cambio de registro delata que escriben dos «voces» distintas (bot vs plantilla) y resta naturalidad.",
+  "sugerencia": "Unificar las plantillas de seguimiento al mismo tratamiento (usted) que usa el bot conversacional."
+ },
+ {
+  "conversacionId": 4055,
+  "cliente": "Jorge Silva",
+  "severidad": "baja",
+  "categoria": "sistema",
+  "mensajes": [],
+  "resumen": "Flood de alertas window_closing: 1.403 disparos entre 09:25 y 11:25.",
+  "evidencia": "alertasDelDia: tipo window_closing, veces: 1403.",
+  "costo": "Ruido de monitoreo.",
+  "sugerencia": "Deduplicar la alerta por conversación/ventana."
+ },
+ {
+  "conversacionId": 4061,
+  "cliente": "Cristian",
+  "severidad": "media",
+  "categoria": "contradiccion",
+  "mensajes": [
+   5220
+  ],
+  "resumen": "El seguimiento de hoy afirma «me quedé pendiente de tu visita» cuando nunca se acordó visita alguna: el cliente solo pidió ubicación y medida, y hechos.visita = null; ayer ya se le envió otra plantilla de «visita» igual de infundada.",
+  "evidencia": "Hoy (5220): «🚗 Me quedé pendiente de tu visita. ¿Qué día te quedaría más cómodo para coordinar? 😊»; ayer (4360): «😊 Sobre tu visita…». En todo el hilo el cliente nunca prometió visitar; hechos: \"visita\": null, \"local\": null.",
+  "costo": "Seguimiento que inventa un compromiso confunde al cliente y suena a spam automatizado; además saltó el paso natural (recomendar/cotizar las opciones enviadas).",
+  "sugerencia": "Elegir la plantilla según el estado real: aquí tocaba retomar las opciones 185/60R14 para su Aveo Family y ofrecer cotización, no hablar de una visita inexistente."
+ },
+ {
+  "conversacionId": 4061,
+  "cliente": "Cristian",
+  "severidad": "baja",
+  "categoria": "sistema",
+  "mensajes": [],
+  "resumen": "Flood de alertas window_closing: 1.403 disparos entre 09:36 y 11:36.",
+  "evidencia": "alertasDelDia: tipo window_closing, veces: 1403.",
+  "costo": "Ruido de monitoreo.",
+  "sugerencia": "Deduplicar la alerta por conversación/ventana."
+ },
+ {
+  "conversacionId": 4131,
+  "cliente": "💚💛❤️ ···0212",
+  "severidad": "baja",
+  "categoria": "sistema",
+  "mensajes": [],
+  "resumen": "Flood de alertas window_closing: 1.396 disparos entre 10:30 y 12:30.",
+  "evidencia": "alertasDelDia: tipo window_closing, veces: 1396.",
+  "costo": "Ruido de monitoreo.",
+  "sugerencia": "Deduplicar la alerta por conversación/ventana."
+ },
+ {
+  "conversacionId": 4139,
+  "cliente": "Eduard Lopez",
+  "severidad": "baja",
+  "categoria": "sistema",
+  "mensajes": [],
+  "resumen": "Flood de alertas window_closing (742 disparos en ~1h) y un send_error de WhatsApp («Recipient phone number not in allowed list») pese a que el canal sí entregó mensajes hoy.",
+  "evidencia": "alertasDelDia: window_closing veces 742 (10:44-11:47); send_error #131030 a las 14:47, aunque a las 11:47 el bot envió y el cliente respondió con normalidad.",
+  "costo": "Ruido de monitoreo y un rechazo de envío que sugiere configuración de lista de destinatarios inconsistente.",
+  "sugerencia": "Deduplicar window_closing y revisar por qué el número cayó fuera de la allowed list a media tarde."
+ },
+ {
+  "conversacionId": 4171,
+  "cliente": "fantasmatk80",
+  "severidad": "media",
+  "categoria": "re-pregunta",
+  "mensajes": [
+   5507
+  ],
+  "resumen": "El cliente ya dijo que visita «fin de mes» en Quito Sur y el bot lo confirmó dos veces («le dejo anotado», «le esperamos a fin de mes»); hoy el seguimiento vuelve a preguntar qué día le queda cómodo, y nada quedó registrado (hechos: local, visita y compromiso en null).",
+  "evidencia": "Cliente 12-08 (4314): «Fin de mes!» → bot (4315/4319): «le queda mejor *Depot Tire Quito Sur*… ¡Perfecto! Le esperamos… a fin de mes». Hoy (5507): «🚗 Me quedé pendiente de tu visita. ¿Qué día te quedaría más cómodo para coordinar? 😊». hechos: \"local\": null, \"visita\": null, \"compromiso\": null.",
+  "costo": "Re-preguntar un dato confirmado delata al bot y contradice el «ya quedó anotado»; el compromiso de fin de mes no existe en el sistema, así que nadie lo va a gestionar.",
+  "sugerencia": "Registrar «Quito Sur, fin de mes» en hechos y hacer seguimiento coherente: recordar la cotización COT-MSQF6HWB y ofrecer fijar día exacto cercano al fin de mes."
+ },
+ {
+  "conversacionId": 4171,
+  "cliente": "fantasmatk80",
+  "severidad": "baja",
+  "categoria": "sistema",
+  "mensajes": [],
+  "resumen": "Flood de alertas window_closing: 1.397 disparos entre 11:32 y 13:31.",
+  "evidencia": "alertasDelDia: tipo window_closing, veces: 1397.",
+  "costo": "Ruido de monitoreo.",
+  "sugerencia": "Deduplicar la alerta por conversación/ventana."
+ },
+ {
+  "conversacionId": 4200,
+  "cliente": "Rene Moreno",
+  "severidad": "media",
+  "categoria": "re-pregunta",
+  "mensajes": [
+   5631,
+   5632
+  ],
+  "resumen": "El seguimiento del día dice que le falta la medida cuando el cliente ya la dio ayer y hasta tenía cotización enviada",
+  "evidencia": "Bot (5631): «Solo me falta la medida de la llanta para ayudarte bien. ¿Me la compartes cuando puedas?» — pero el 12-ago el cliente ya había dicho «Tienen Neumáticos 195/60/R1» + «R16» (4338/4340) y existía la cotización COT-MSQH2U5P",
+  "costo": "El cliente tuvo que repetir medida y cantidad (5632) y el bot rehizo desde cero un flujo que ya estaba en etapa de cierre",
+  "sugerencia": "El seguimiento debía partir de la cotización COT-MSQH2U5P ya enviada: retomar procedencia/decisión, no pedir la medida otra vez"
+ },
+ {
+  "conversacionId": 4200,
+  "cliente": "Rene Moreno",
+  "severidad": "media",
+  "categoria": "ignora-pregunta",
+  "mensajes": [
+   5637,
+   5638,
+   5641
+  ],
+  "resumen": "El cliente preguntó de qué marca eran las opciones y el bot respondió disparando una cotización de Kenda que nadie pidió",
+  "evidencia": "Cliente (5637): «En qué marca» → Bot (5638): «Cotización COT-MSRT2VCO enviada por $343.40». El cliente reaccionó (5641): «Gracias, no nm e gusta esa llanta»",
+  "costo": "Cotizó una llanta que el cliente no había elegido y provocó un rechazo inmediato",
+  "sugerencia": "Responder la pregunta («son Falken, Kenda y Winrun; ¿cuál le interesa?») antes de generar cotización alguna"
+ },
+ {
+  "conversacionId": 4200,
+  "cliente": "Rene Moreno",
+  "severidad": "alta",
+  "categoria": "ignora-pregunta",
+  "mensajes": [
+   5658,
+   5659,
+   5660,
+   5661
+  ],
+  "resumen": "El cliente volvió a preguntar la procedencia — el mismo dato por el que ayer dijo que no iría — y el bot cotizó precio y la ignoró por completo",
+  "evidencia": "Cliente (5658): «La FALKEN ZE, Precio y lugar de procedencia?» → Bot solo respondió «Cotización COT-MSRTTIJ6 enviada por $559.52» y «4 × FALKEN ZE310R: $559,52» más la plantilla de cierre; nada de procedencia. Ayer el cliente había advertido (4350): «Si no conozco procedencia, no voy , gracias»",
+  "costo": "Es el dato decisivo declarado por el cliente; ignorarlo por segunda vez probablemente mata la venta",
+  "sugerencia": "Responder la procedencia (Falken: origen conocido, p. ej. Tailandia/Japón según lote) o escalar al asesor para verificarla, junto con el precio"
+ },
+ {
+  "conversacionId": 4200,
+  "cliente": "Rene Moreno",
+  "severidad": "baja",
+  "categoria": "repetitividad",
+  "mensajes": [
+   5640,
+   5661
+  ],
+  "resumen": "La misma plantilla de cierre calcada dos veces en la misma mañana, ignorando que el cliente ya la vio y no la respondió",
+  "evidencia": "5640 y 5661 son idénticos: «Puede pasar sin compromiso a verlas y probarlas en su vehículo. ¿Qué día puede pasar y a cuál local? ¿Depot Tire Cumbayá o Depot Tire Quito Sur?...»",
+  "costo": "Suena robótico y desgasta el mensaje de cierre",
+  "sugerencia": "Variar el cierre en la segunda cotización y ligarlo a lo pendiente (procedencia) en lugar de repetir la plantilla"
+ },
+ {
+  "conversacionId": 4200,
+  "cliente": "Rene Moreno",
+  "severidad": "media",
+  "categoria": "sistema",
+  "mensajes": [
+   5638,
+   5659
+  ],
+  "resumen": "Los metadatos de las cotizaciones del día registran medidas que no son la del cliente",
+  "evidencia": "Alertas quote_created: «4 × KENDA KR203 205/55R16» y «4 × FALKEN ZE310R 205/60R16», cuando el cliente pidió (5632): «195/60R16, necesito cotización de 4 neumáticos»",
+  "costo": "Si la medida mal registrada llega al asesor o a la cotización impresa, el cliente recibe la llanta equivocada; si es solo metadato, contamina reportes",
+  "sugerencia": "Auditar el pipeline de quote_created: la medida del ítem cotizado debe salir del catálogo del ítem, no de otro campo"
+ },
+ {
+  "conversacionId": 4200,
+  "cliente": "Rene Moreno",
+  "severidad": "media",
+  "categoria": "sistema",
+  "mensajes": [],
+  "resumen": "Los seguimientos programados fallan por número fuera de la allowed list de WhatsApp; el patrón se repite en ~12 conversaciones del lote",
+  "evidencia": "Alerta send_error: «WhatsApp rechazó el mensaje: (#131030) Recipient phone number not in allowed list» (misma alerta en 4231, 4291, 4387, 4443, 4450, 4460, 4518, 4734, 4762, 4766, 4772, 4802, 4807, 4809, 4819)",
+  "costo": "Seguimientos que el sistema cree enviados nunca llegan al cliente: leads que se enfrían en silencio",
+  "sugerencia": "Revisar la configuración del número/allowed list en la API de WhatsApp; hoy los follow-ups automáticos están parcialmente rotos"
+ },
+ {
+  "conversacionId": 4231,
+  "cliente": "L (···0296)",
+  "severidad": "media",
+  "categoria": "sistema",
+  "mensajes": [],
+  "resumen": "Flood masivo de alertas window_closing: la misma alerta se disparó 1.410 veces en dos horas; patrón repetido en varias conversaciones",
+  "evidencia": "Alerta window_closing «veces: 1410» (12:41–14:41) en 4231; también 1.290 veces en 4291, 824 en 4387, 553 en 4460, 350 en 4494, 259 en 4354",
+  "costo": "Ruido que entierra las alertas reales y sugiere un bucle sin deduplicación en el monitor de ventana de 24h",
+  "sugerencia": "Deduplicar la alerta por conversación (dispararla una vez por ventana, no por tick del scheduler)"
+ },
+ {
+  "conversacionId": 4354,
+  "cliente": "gcaicedocuasquer",
+  "severidad": "baja",
+  "categoria": "repetitividad",
+  "mensajes": [
+   5111,
+   5811
+  ],
+  "resumen": "Dos seguimientos casi idénticos el mismo día citando la misma frase del cliente, pese a que dijo que iría la próxima semana",
+  "evidencia": "5111 (08:30): «Sobre lo que me comentaste: “La próxima semana en Cumbaya”, ¿te ayudo a dejar lista la visita...?» y 5811 (14:50): «Me quedé pendiente de lo que me comentaste: “La próxima semana en Cumbaya”...»",
+  "costo": "Presión repetitiva a un cliente que ya fijó plazo; riesgo de percibirse como spam",
+  "sugerencia": "Un solo seguimiento, y programarlo para inicios de la semana comprometida, no dos veces el día siguiente"
+ },
+ {
+  "conversacionId": 4387,
+  "cliente": "Leonardo Alvarez",
+  "severidad": "baja",
+  "categoria": "contradiccion",
+  "mensajes": [
+   5104
+  ],
+  "resumen": "El bot cerró ayer con «averigüe con calma, cuando esté listo me escribe» y a la mañana siguiente le mandó seguimiento de visita",
+  "evidencia": "Ayer (4577): «Perfecto, averigüe con calma... cuando esté listo para venir a Cumbayá, me escribe»; cliente (4576): «todavía tengo para un mes las llantas». Hoy (5104): «Sobre tu visita, ¿te ayudo a dejar lista la visita o reserva a Depot Tire Cumbayá?»",
+  "costo": "Contradice el compromiso de dejar la iniciativa al cliente; fricción menor",
+  "sugerencia": "Respetar el plazo declarado: reprogramar el seguimiento a ~3 semanas, no al día siguiente"
+ },
+ {
+  "conversacionId": 4443,
+  "cliente": "Miguel Topa",
+  "severidad": "media",
+  "categoria": "flujo-roto",
+  "mensajes": [
+   5129,
+   5128,
+   5130
+  ],
+  "resumen": "El cliente pidió una foto; el bot prometió reenviar la imagen de la cotización pero nunca la envió, y además su plantilla de cierre se cruzó con el mensaje del cliente duplicando la pregunta de día/local",
+  "evidencia": "Cliente (5129): «Una foto» → Bot (5130): «Claro. Le reenvío la imagen de la cotización COT-MSRKJFC3 para que la tenga a mano; ¿qué día pasa y a cuál local...?» — no hay ninguna pieza/imagen enviada después; 5128 (un segundo antes) ya preguntaba lo mismo: «¿Qué día puede pasar y a cuál local?»",
+  "costo": "Promesa incumplida y doble pregunta idéntica en segundos; el cliente terminó postergando («Ya veo si tiene tiempo disponible»)",
+  "sugerencia": "Adjuntar realmente la imagen prometida (o aclarar si quería foto de la llanta) y no re-preguntar día/local cuando el turno se cruzó"
+ },
+ {
+  "conversacionId": 4450,
+  "cliente": "Zeuz Forever",
+  "severidad": "alta",
+  "categoria": "flujo-roto",
+  "mensajes": [
+   5152,
+   5156
+  ],
+  "resumen": "El cliente aceptó la recomendación y pidió una foto; el bot prometió enviarla y nunca la envió — la conversación murió ahí",
+  "evidencia": "Cliente (5152): «Esta bien si puede mandar una fotito gracias» → Bot (5156): «Claro, le envío la foto/opciones de la 235/70R16 para que la revise. ¿Quiere que después le deje cotizado el juego de 4?» — no hay pieza de imagen posterior ni más mensajes",
+  "costo": "Venta activa (cliente había aceptado la Falken Wildpeak) quedó abandonada esperando una foto que no llegó",
+  "sugerencia": "Enviar la pieza de opciones/foto en el mismo turno de la promesa y, con el visto bueno previo del cliente, generar la cotización sin esperar otra confirmación"
+ },
+ {
+  "conversacionId": 4490,
+  "cliente": "Edygov",
+  "severidad": "baja",
+  "categoria": "flujo-roto",
+  "mensajes": [
+   5108
+  ],
+  "resumen": "El seguimiento del día retrocede el flujo: el cliente ya tenía producto exacto y precio, con la pregunta «¿1 o 4?» pendiente, y el bot volvió a ofrecer «elegir la mejor opción»",
+  "evidencia": "Ayer (4639): «Sí tenemos la *Kenda Klever KR601 265/70R16*: le sale en *$226,73 cada una*... ¿Desea que le cotice 1 o el juego de 4?» → Hoy (5108): «Ya tengo tu medida 265/70R16. ¿Te ayudo a elegir la mejor opción según el uso que le das y tu presupuesto?»",
+  "costo": "Pierde el hilo de un cierre casi listo y obliga al cliente a re-decidir desde cero",
+  "sugerencia": "El seguimiento debía retomar lo pendiente: «¿Le cotizo 1 o el juego de 4 de la KR601?»"
+ },
+ {
+  "conversacionId": 4494,
+  "cliente": "Dios Por Delante",
+  "severidad": "baja",
+  "categoria": "repetitividad",
+  "mensajes": [
+   5110,
+   5794
+  ],
+  "resumen": "Dos seguimientos el mismo día hablando de «tu visita» cuando el cliente nunca acordó visita, local ni fecha",
+  "evidencia": "5110: «Sobre tu visita, ¿te ayudo a dejar lista la visita o reserva?» y 5794: «Me quedé pendiente de tu visita. ¿Qué día te quedaría más cómodo para coordinar?» — el cliente solo había preguntado precio de 4 (4658/4659) y nunca mencionó visitar",
+  "costo": "Presume un compromiso inexistente y suena a plantilla; puede generar rechazo",
+  "sugerencia": "Seguimiento anclado a lo real: «¿Qué le pareció la cotización COT-MSQM7COL?» en lugar de «tu visita»"
+ },
+ {
+  "conversacionId": 4718,
+  "cliente": "ibrepresentaciones00",
+  "severidad": "alta",
+  "categoria": "flujo-roto",
+  "mensajes": [
+   5115,
+   5116,
+   5117,
+   5118,
+   5119,
+   5120,
+   5123
+  ],
+  "resumen": "El cliente mandó 6 mensajes negociando (oferta de $580–$600 en efectivo), preguntó la marca y pidió la ubicación para ir mañana, y el bot no respondió ninguno",
+  "evidencia": "Cliente (5117): «De que marca», (5120): «mi presupuesto es USD 600 para las Kenda», (5123): «Ok perfecto gracias envíeme por favor la ubicación a ver si alcanzo mañana ir gracias» — cero respuestas del bot después de 5099 (08:18)",
+  "costo": "Lead caliente con presupuesto declarado y visita para mañana quedó en visto; la ubicación era trivial de responder",
+  "sugerencia": "Aunque el caso esté escalado al asesor, el bot debía contestar lo objetivo (marca Kenda, ubicación y horario del local) y confirmar que el asesor responde el descuento"
+ },
+ {
+  "conversacionId": 4734,
+  "cliente": "Juan Jose Tamayo",
+  "severidad": "baja",
+  "categoria": "repetitividad",
+  "mensajes": [
+   5412
+  ],
+  "resumen": "Por tercera vez el bot ofrece cotizar el modelo más agresivo en vez de simplemente cotizarlo",
+  "evidencia": "Ayer (4971): «¿Le hago la cotización por las 4 para comparar total?», (4976): «¿quiere que se la cotice por 4 para comparar contra la COT-MSQYAHGV?» → Hoy (5412): «Si quiere un modelo más agresivo, le reviso opciones y le cotizo directo»",
+  "costo": "El cliente interesado en A/T sigue sin ver el precio de la Winrun Maxclaw; cada oferta sin acción alarga el ciclo",
+  "sugerencia": "Generar de una vez la cotización comparativa de la Winrun Maxclaw A/T y presentarla junto a la COT-MSQYAHGV"
+ },
+ {
+  "conversacionId": 4762,
+  "cliente": "cesar",
+  "severidad": "baja",
+  "categoria": "flujo-roto",
+  "mensajes": [
+   5401,
+   5402
+  ],
+  "resumen": "Doble turno del bot que se pisa: dos preguntas distintas con 5 segundos de diferencia tras la misma entrada del cliente",
+  "evidencia": "5401 (10:51:37): «¿Necesita alguna recomendación?» y 5402 (10:51:42): «Para 195/65R15 tenemos Kenda KR203 y Winrun R330 disponibles. ¿Le cotizo el juego de 4 o prefiere que le recomiende una?»",
+  "costo": "Dos preguntas simultáneas confunden sobre cuál responder; el cliente no volvió a escribir",
+  "sugerencia": "Consolidar en un solo mensaje por turno (el guard ya recortó el saludo; falta deduplicar la doble pregunta)"
+ },
+ {
+  "conversacionId": 4772,
+  "cliente": "René Gordillo",
+  "severidad": "media",
+  "categoria": "ignora-pregunta",
+  "mensajes": [
+   5008,
+   5009,
+   5010
+  ],
+  "resumen": "El cliente preguntó cuál opción le convenía y el bot respondió con compatibilidad de medida y empujó día/local; el cliente se despidió sin decidir",
+  "evidencia": "Cliente (5008): «O cual le queda mejor» → Bot (5009): «Para su X-Trail la medida cotizada es *235/65R17*; la compatibilidad exacta la confirmamos al montar... ¿Qué día puede pasar y a cuál local...?» → Cliente (5010): «Le estaría avisando»",
+  "costo": "Duda de compra sin resolver justo después de la cotización; el cliente pasó a modo «yo le aviso»",
+  "sugerencia": "Aclarar la ambigüedad («¿me pregunta por la llanta o por el local?») o comparar brevemente KR628 vs Wildpeak vs KR50 para su X-Trail"
+ },
+ {
+  "conversacionId": 4785,
+  "cliente": "woswaldogarciab63",
+  "severidad": "media",
+  "categoria": "re-pregunta",
+  "mensajes": [
+   5015,
+   5019,
+   5022
+  ],
+  "resumen": "El cliente dijo desde el inicio que era para Quito Sur (Quitumbe) y la plantilla de cierre volvió a preguntar Cumbayá o Quito Sur",
+  "evidencia": "Cliente (5015): «Necesito 2 Llantas Kendall medida 235/60/Rin 16... en Quito al Sur en Quitumbe» → Bot (5019): «¿Qué día puede pasar y a cuál local? ¿Depot Tire Cumbayá o Depot Tire Quito Sur?» → Cliente tuvo que repetir (5022): «Quito Sur xfa Gracias»",
+  "costo": "Fricción y sensación de no ser escuchado en pleno cierre (el caso típico de la rúbrica)",
+  "sugerencia": "La plantilla post-cotización debe leer `hechos.local/ubicacion` y preguntar solo el dato faltante (el día)"
+ },
+ {
+  "conversacionId": 4785,
+  "cliente": "woswaldogarciab63",
+  "severidad": "alta",
+  "categoria": "ignora-pregunta",
+  "mensajes": [
+   5026,
+   5027
+  ],
+  "resumen": "El cliente mandó una oferta de la competencia notablemente más barata y el bot la despachó confirmando la medida, sin defender el precio ni escalar",
+  "evidencia": "Cliente (5026): foto «SAILUN TURISMO SV57... P. Oferta: $90.84... x4 llantas: $363.34» → Bot (5027): «Gracias, la medida está confirmada: *235/60R16*. Usted ya tiene la cotización *COT-MSRDOD47* por *2 Kenda KR50*...» ($120,80 c/u vs $90,84 de la competencia)",
+  "costo": "Cliente con visita comprometida para hoy comparando precios; ignorar la objeción de $30 por llanta puede perder la visita",
+  "sugerencia": "Reconocer la comparación: destacar diferencias (marca, seguro, mantenimiento incluidos) y/o escalar al asesor para igualar u ofrecer alternativa económica (Winrun)"
+ },
+ {
+  "conversacionId": 4785,
+  "cliente": "woswaldogarciab63",
+  "severidad": "baja",
+  "categoria": "contradiccion",
+  "mensajes": [
+   5025,
+   5479
+  ],
+  "resumen": "El bot dijo que la visita de hoy «ya quedó registrada» y horas después ofrece «dejar lista la visita» como si no existiera",
+  "evidencia": "Bot (5025): «Perfecto: *Hoy en Depot Tire Quito Sur*. Ya quedó registrado para el asesor.» → Bot (5479, 11:23): «Sobre lo que me comentaste: “Hoy”, ¿te ayudo a dejar lista la visita o reserva a Depot Tire Quito Sur?»",
+  "costo": "Mensaje redundante que contradice la confirmación previa y puede sembrar duda de si quedó registrada",
+  "sugerencia": "Si la visita ya está registrada para hoy, el seguimiento debía ser un recordatorio con dirección/horario, no volver a ofrecer agendarla"
+ },
+ {
+  "conversacionId": 4798,
+  "cliente": "jruloalavaro",
+  "severidad": "baja",
+  "categoria": "producto-equivocado",
+  "mensajes": [
+   5030,
+   5082,
+   5083
+  ],
+  "resumen": "Para una furgoneta de carga declarada, tras recibir la medida el bot ofreció llantas A/T y de turismo sin señalar cuál es apta para carga",
+  "evidencia": "Cliente (5030): «llantas para la furgoneta foton view año 2015 de carga por favor» → Bot (5083): «Opciones enviadas: FALKEN WILDPEAK A/T 4W · KENDA KR33A · WINRUN R330» (la primera respuesta, 5031, sí había filtrado solo KENDA KR33A de carga)",
+  "costo": "Riesgo de que el cliente elija una llanta sin índice de carga adecuado para uso comercial",
+  "sugerencia": "Mantener el filtro por uso de carga (C/reforzada) al pasar de vehículo a medida, o advertir cuál de las opciones es la indicada para carga"
+ },
+ {
+  "conversacionId": 4809,
+  "cliente": "JESU",
+  "severidad": "media",
+  "categoria": "repetitividad",
+  "mensajes": [
+   5046,
+   5057,
+   5068,
+   5069,
+   5102,
+   5103
+  ],
+  "resumen": "El cliente pidió fotos del labrado tres veces; el bot reenvió el mismo bloque de opciones ya enviado y terminó respondiendo «ya le envié la imagen»",
+  "evidencia": "Cliente: «Si tiene fotos» (5046), «Tiene fotos del labrado» (5057), «Alguna foto» (5102) → Bot reenvió idéntico «FALKEN WILDPEAK A/T TRAIL · KENDA KR628 · WINRUN MAXCLAW A/T» (5069, igual a 5043) y cerró (5103): «Le envié la imagen con las opciones A/T y el labrado disponible...»",
+  "costo": "El cliente (quiere 4x4 de campo, vio un video) nunca obtuvo la foto del labrado que buscaba; la venta quedó girando en círculos",
+  "sugerencia": "Enviar fotos individuales del labrado por modelo (o pedir al asesor fotos reales) y preguntar por el video/anuncio que vio para identificar el modelo exacto"
+ },
+ {
+  "conversacionId": 4819,
+  "cliente": "Fabian Villalba",
+  "severidad": "baja",
+  "categoria": "flujo-roto",
+  "mensajes": [
+   5409,
+   5410,
+   5762
+  ],
+  "resumen": "El seguimiento pregunta por la visita cuando lo pendiente era que el cliente eligiera modelo, y él ya había dicho dos veces que confirmaría",
+  "evidencia": "Cliente (5066): «Yann bn le confirmo», (5409): «Yo les confirmo» → Bot (5410): «Claro, quedo pendiente. Cuando me confirme el modelo, le genero la cotización» → Bot (5762, 3h después): «Sobre tu visita, ¿te ayudo a dejar lista la visita o reserva a Depot Tire Cumbayá?»",
+  "costo": "Seguimiento fuera de contexto (visita en vez de modelo) a un cliente que pidió tiempo dos veces; fricción menor",
+  "sugerencia": "Si se hace seguimiento, retomar lo pendiente real: «¿Pudo revisar el labrado? Le comparo la KR628 con la Wildpeak A/T Trail»"
+ },
+ {
+  "conversacionId": 4200,
+  "cliente": "Rene Moreno",
+  "severidad": "baja",
+  "categoria": "tono",
+  "mensajes": [
+   5631
+  ],
+  "resumen": "Los seguimientos automáticos tutean mientras todo el flujo principal trata de usted; patrón en casi todas las conversaciones del lote",
+  "evidencia": "Seguimiento (5631): «¿Me la compartes cuando puedas?» vs. flujo del bot: «¿Me confirma el número después de la R...?» — mismo contraste en 4231/4291 («¿Prefieres priorizar...?»), 4354, 4387, 4443, 4450, 4460, 4490, 4494, 4512, 4518, 4785 y 4819",
+  "costo": "Inconsistencia de voz que delata plantillas distintas y resta profesionalismo",
+  "sugerencia": "Unificar el tratamiento (usted) en las plantillas de seguimiento para alinearlas con el flujo conversacional"
+ },
+ {
+  "conversacionId": 4847,
+  "cliente": "Edy",
+  "severidad": "media",
+  "categoria": "repetitividad",
+  "mensajes": [
+   5088,
+   5091
+  ],
+  "resumen": "El bot envió dos sets de opciones distintos con 13 segundos de diferencia sin que el cliente escribiera nada en medio, y con modelos diferentes entre sí.",
+  "evidencia": "Bot 5088: «Opciones enviadas: FALKEN ZE310R · KENDA KR203 · WINRUN R330» → Bot 5091 (13s después, sin mensaje del cliente): «Opciones enviadas: FALKEN ZE310 · KENDA KR41 · WINRUN R330»",
+  "costo": "El cliente no sabe cuál de los dos sets es válido ni por qué cambiaron los modelos; no volvió a escribir después del segundo envío.",
+  "sugerencia": "Procesar los dos mensajes del cliente (vehículo + rin) como una sola consulta y enviar un único set de opciones; si se corrige el set, decirlo explícitamente."
+ },
+ {
+  "conversacionId": 4853,
+  "cliente": "Cristiam",
+  "severidad": "media",
+  "categoria": "contradiccion",
+  "mensajes": [
+   5448
+  ],
+  "resumen": "El seguimiento automático afirma «Ya tengo tu medida» cuando el cliente nunca dio medida (hechos.medida = null); solo dio vehículo Montero 2004.",
+  "evidencia": "Bot 5448: «🛞 Ya tengo tu medida. ¿Te ayudo a elegir la mejor opción...?» — en hechos, medida: null; el cliente solo escribió «Para un Montero blíster 2004 que opciones tendrían» (5094).",
+  "costo": "El bot promete un dato que no tiene; si el cliente sigue el hilo, el bot no podrá cotizar sin volver a pedir la medida, delatando la plantilla. Además cambia de usted a tú.",
+  "sugerencia": "El seguimiento debe validar contra hechos: si medida es null, pedir la medida o confirmar la que infiere del vehículo, y mantener el tratamiento de usted."
+ },
+ {
+  "conversacionId": 4895,
+  "cliente": "Eduardo Guaño",
+  "severidad": "baja",
+  "categoria": "repetitividad",
+  "mensajes": [
+   5148,
+   5149
+  ],
+  "resumen": "Dos mensajes de bienvenida consecutivos (4 segundos de diferencia) pidiendo lo mismo, por responder por separado el «Hola» y el «Buenos días» del cliente.",
+  "evidencia": "Bot 5148: «...¿Qué medida usa o qué vehículo tiene?» → Bot 5149: «Con gusto le ayudo 😊 Para cotizarle rápido, envíeme la medida de la llanta...»",
+  "costo": "Delata al bot desde el primer turno; fricción cosmética.",
+  "sugerencia": "Agrupar mensajes del cliente que llegan en ráfaga y responder una sola vez."
+ },
+ {
+  "conversacionId": 4907,
+  "cliente": "Fidel Rosero",
+  "severidad": "alta",
+  "categoria": "cierre",
+  "mensajes": [
+   5226,
+   5274,
+   5307
+  ],
+  "resumen": "Cliente confirmó ir mañana a Cumbayá por 4 Winrun R330; el bot le repitió que el precio se respeta «presentando el número en tienda», pero nunca generó ni envió una cotización (cotizaciones vacío) ni registró la visita (hechos.visita = null).",
+  "evidencia": "Bot 5226: «el precio de la cotización se respeta presentando el número en tienda»; Bot 5307: «le respeten la cotización mañana en Cumbayá» — no existe ninguna pieza quote ni número COT en el hilo.",
+  "costo": "Cliente caliente (mañana, Visa Pichincha, juego de 4) llegará a tienda sin número de cotización: el descuento prometido no tiene cómo aplicarse y el precio de $58,25 no queda amarrado.",
+  "sugerencia": "Al confirmar local y fecha con producto elegido, generar la COT-XXX de inmediato y registrar la visita de mañana en Cumbayá."
+ },
+ {
+  "conversacionId": 4928,
+  "cliente": "Seguros",
+  "severidad": "media",
+  "categoria": "producto-equivocado",
+  "mensajes": [
+   5177,
+   5185,
+   5187
+  ],
+  "resumen": "Con solo «Precio Ring 16» y sin vehículo, el bot cotizó opciones en una medida asumida (205/55R16); luego, con el Passat 2009 confirmado, dijo que lo probable es 215/55R16, dejando las opciones ya enviadas como probablemente equivocadas.",
+  "evidencia": "Bot 5185: «lo más probable es *215/55R16*... Ya le mostré opciones en 205/55R16»; Bot 5187: «la opción más alta y ancha... es *215/55R16*».",
+  "costo": "El cliente vio precios de una medida que probablemente no es la suya; nunca vio precios de la medida recomendada.",
+  "sugerencia": "Con solo el aro, pedir vehículo o medida completa antes de enviar opciones, o etiquetar claramente la medida asumida."
+ },
+ {
+  "conversacionId": 4928,
+  "cliente": "Seguros",
+  "severidad": "media",
+  "categoria": "repetitividad",
+  "mensajes": [
+   5189,
+   5191,
+   5192,
+   5194
+  ],
+  "resumen": "Ráfaga de tres mensajes de ubicación que se pisan (¿a cuál le queda mejor? / recomendado Cumbayá / mapas de ambos) y, cuando el cliente repite «Norte de Quito», el bot reenvía exactamente el mismo bloque de Cumbayá de 5191.",
+  "evidencia": "Bot 5191 y 5194 son idénticos: «📍 El local recomendado es *Depot Tire Cumbayá*... ¿Qué día podría pasar? Le aviso al asesor con su número de cotización...»",
+  "costo": "El cliente repitió su ubicación y recibió plantilla calcada; abandonó ahí. Además se menciona un «número de cotización» y un descuento que no existen (no hay COT).",
+  "sugerencia": "Un solo mensaje de ubicación adaptado a «Norte de Quito», sin prometer cotizaciones inexistentes."
+ },
+ {
+  "conversacionId": 4928,
+  "cliente": "Seguros",
+  "severidad": "media",
+  "categoria": "flujo-roto",
+  "mensajes": [
+   5187,
+   5188,
+   5194
+  ],
+  "resumen": "El bot ofreció mostrar opciones en 215/55R16 («¿Le muestro opciones disponibles en esa medida?»), el cliente pasó a preguntar ubicación, y el bot nunca retomó ni mostró esas opciones; la conversación murió en plantillas de local.",
+  "evidencia": "Bot 5187: «¿Le muestro opciones disponibles en esa medida?» — no hay ningún envío de opciones 215/55R16 después; últimos mensajes son plantillas de ubicación.",
+  "costo": "Venta quedó a medias: el cliente nunca vio precios de la medida correcta para su Passat.",
+  "sugerencia": "Tras resolver la pregunta de ubicación, retomar el pendiente: «Le muestro ahora las opciones en 215/55R16»."
+ },
+ {
+  "conversacionId": 4946,
+  "cliente": "jbvhjk",
+  "severidad": "alta",
+  "categoria": "contradiccion",
+  "mensajes": [
+   5227,
+   5228,
+   5237
+  ],
+  "resumen": "El cliente preguntó si las opciones eran de su medida 185/55R14; el bot afirmó «Sí, esas opciones son para la medida 185/55R14» y dos mensajes después admitió que en esa medida no hay stock y que eran alternativas de otro aro/medida.",
+  "evidencia": "Cliente 5227: «Estas son de esa medida ?» → Bot 5228: «Sí, esas opciones son para la medida *185/55R14*» → Bot 5237: «En *185/55R14* no me sale stock exacto ahora; le mostré alternativas del mismo aro».",
+  "costo": "El cliente cotizó y agendó visita creyendo en una respuesta falsa; la COT-MSRML6QR terminó siendo KR20 195/60R14, otra medida. Riesgo de reclamo en tienda.",
+  "sugerencia": "Nunca confirmar una medida que no coincide; desde el primer envío etiquetar «no tengo 185/55R14, estas son alternativas 195/60R14»."
+ },
+ {
+  "conversacionId": 4946,
+  "cliente": "jbvhjk",
+  "severidad": "media",
+  "categoria": "cierre",
+  "mensajes": [
+   5254,
+   5255
+  ],
+  "resumen": "El cliente dijo «Yo puedo el miércoles 26» y el sistema registró la visita el miércoles 19 de agosto a las 10:00 (hechos.visita = 2026-08-19), una semana antes de lo dicho.",
+  "evidencia": "Cliente 5254: «Yo puedo el miércoles 26»; alerta visita_comprometida: «Interpretado como: miércoles, 19 de agosto, 10:00»; hechos.visita: 2026-08-19T15:00:00Z.",
+  "costo": "El asesor esperará al cliente el día equivocado; el seguimiento y la preparación de la venta quedan descoordinados.",
+  "sugerencia": "Al interpretar fechas, priorizar el número de día explícito (26) sobre «próximo miércoles» y confirmar: «¿miércoles 26 de agosto, correcto?»."
+ },
+ {
+  "conversacionId": 4946,
+  "cliente": "jbvhjk",
+  "severidad": "baja",
+  "categoria": "re-pregunta",
+  "mensajes": [
+   5255,
+   5643
+  ],
+  "resumen": "Tres horas después de dejar la visita «registrada para el asesor», el seguimiento automático vuelve a ofrecer agendar esa misma visita.",
+  "evidencia": "Bot 5255: «Ya quedó registrado para el asesor» → Bot 5643: «Sobre lo que me comentaste: “Yo puedo el miércoles 26”, ¿te ayudo a dejar lista la visita o reserva a Depot Tire Quito Sur?»",
+  "costo": "Hace dudar al cliente de si su visita quedó registrada o no.",
+  "sugerencia": "El seguimiento no debe re-ofrecer lo que ya está cerrado; en todo caso, confirmar: «le esperamos el miércoles 26»."
+ },
+ {
+  "conversacionId": 4946,
+  "cliente": "jbvhjk",
+  "severidad": "baja",
+  "categoria": "tono",
+  "mensajes": [
+   5255
+  ],
+  "resumen": "Eco robótico: el bot insertó la frase literal del cliente dentro de su plantilla de confirmación.",
+  "evidencia": "Bot 5255: «Perfecto: *Yo puedo el miércoles 26 en Depot Tire Quito Sur*. Ya quedó registrado para el asesor.»",
+  "costo": "Suena a máquina que concatena textos; resta confianza justo en el cierre.",
+  "sugerencia": "Parafrasear: «Perfecto, le esperamos el miércoles 26 en Depot Tire Quito Sur»."
+ },
+ {
+  "conversacionId": 4966,
+  "cliente": "Jonathan Flores",
+  "severidad": "media",
+  "categoria": "repetitividad",
+  "mensajes": [
+   5295,
+   5300
+  ],
+  "resumen": "Tras la foto (leída como 175/70R14) y la corrección del cliente («Es 195/50R15»), el bot mandó dos sets de opciones seguidos sin etiquetar a qué medida corresponde cada uno; el primero incluye una A/T improbable para un 195/50R15.",
+  "evidencia": "Bot 5295: «Opciones enviadas: KENDA KR33 · KENDA KR203 · WINRUN MAXCLAW A/T» → Bot 5300 (10s después, sin mensaje del cliente): «Opciones enviadas: KENDA KR20 · WINRUN R330».",
+  "costo": "El cliente no sabe qué precios son de su medida real; el guard tuvo que recortar un duplicado adicional.",
+  "sugerencia": "Al recibir foto + corrección, descartar la lectura de la foto y responder solo a la medida corregida, indicándola en el mensaje."
+ },
+ {
+  "conversacionId": 4984,
+  "cliente": "ccv",
+  "severidad": "baja",
+  "categoria": "re-pregunta",
+  "mensajes": [
+   5239,
+   5310
+  ],
+  "resumen": "En la despedida, el bot pide la medida como si no la tuviera, cuando el cliente ya había dado 215/65R16 y recibido opciones.",
+  "evidencia": "Cliente 5239: «Necesito unas 215/65/r16» → Bot 5310 (cierre): «Cuando tenga la medida, aro o vehículo, le cotizo con stock y precio real al instante.»",
+  "costo": "Cosmético (la venta ya se había descartado por estar en Guayaquil), pero delata pérdida de contexto.",
+  "sugerencia": "Cerrar referenciando lo ya conocido: «si algún día pasa por Quito, le cotizo sus 215/65R16 al instante»."
+ },
+ {
+  "conversacionId": 5008,
+  "cliente": "Sebas A.",
+  "severidad": "alta",
+  "categoria": "flujo-roto",
+  "mensajes": [
+   5267,
+   5273,
+   5281,
+   5289
+  ],
+  "resumen": "El bot respondió solo el primer mensaje y luego enmudeció: el cliente mandó cuatro mensajes con preguntas directas (tipo AT, combo de alineación/balanceo/rotación, medida 265/70R17, dirección) sin recibir ninguna respuesta.",
+  "evidencia": "Cliente 5273: «Tienen algún combo de alineación y balanceo y rotación trimestral...??»; Cliente 5289: «Manda la dirección por favor» — ningún mensaje del bot después de 5264 (09:46:27).",
+  "costo": "Cliente interesado en Falken 285/70R17, con preguntas de compra y pidiendo la dirección, abandonado por completo; venta perdida.",
+  "sugerencia": "Investigar por qué el pipeline dejó de responder; cualquier mensaje de cliente sin respuesta en X minutos debería escalar a asesor."
+ },
+ {
+  "conversacionId": 5018,
+  "cliente": "Galo Marcelo Noroña",
+  "severidad": "media",
+  "categoria": "ignora-pregunta",
+  "mensajes": [
+   5275,
+   5276,
+   5287
+  ],
+  "resumen": "El cliente pidió precio y ubicación en el mismo mensaje; el bot solo mandó opciones y el cliente tuvo que repetir la pregunta de ubicación tres minutos después.",
+  "evidencia": "Cliente 5275: «el precio de las 235 75 15 y donde están ubicados» → bot solo envía opciones/INCLUYE → Cliente 5287: «Donde estan ubicados por favor».",
+  "costo": "Fricción visible: el cliente debe perseguir al bot para obtener la mitad de su pregunta.",
+  "sugerencia": "Responder ambas partes del mensaje: opciones + direcciones en el mismo turno."
+ },
+ {
+  "conversacionId": 5018,
+  "cliente": "Galo Marcelo Noroña",
+  "severidad": "media",
+  "categoria": "cierre",
+  "mensajes": [
+   5293,
+   5299,
+   5311
+  ],
+  "resumen": "Ante «Al sur» (respuesta de local), el bot generó por su cuenta la cotización COT-MSRN5MAY de 4 × KENDA KR29 ($777,20) sin que el cliente eligiera modelo ni cantidad; además hechos.local quedó null pese a la elección explícita del sur.",
+  "evidencia": "Cliente 5293: «Al sur» → Bot 5299: «Cotización COT-MSRN5MAY enviada por $777.20» (detalle: KENDA KR29 x4); hechos.local: null aunque el bot dijo «el local sería *Depot Tire Quito Sur*» (5311).",
+  "costo": "El cliente recibe un total alto de un modelo que no escogió; puede asumir que ese es el único precio y enfriarse. El local sin registrar rompe el seguimiento.",
+  "sugerencia": "Antes de cotizar, confirmar modelo y cantidad («¿le cotizo las Kenda KR29 o prefiere otra opción?») y registrar el local elegido."
+ },
+ {
+  "conversacionId": 5055,
+  "cliente": "Ricardo",
+  "severidad": "baja",
+  "categoria": "cierre",
+  "mensajes": [
+   5346,
+   5348
+  ],
+  "resumen": "El bot confirmó dos veces «Depot Tire Quito Sur» como local (a partir de un ambiguo «Sería en Quito»), pero el local nunca quedó registrado en hechos (local: null).",
+  "evidencia": "Bot 5346: «entonces sería en *Depot Tire Quito Sur*»; Bot 5348: «queda para *Depot Tire Quito Sur*» — hechos.local: null.",
+  "costo": "El seguimiento posterior no sabrá a qué local avisar; el estado interno contradice lo prometido al cliente.",
+  "sugerencia": "Persistir el local cuando el bot mismo lo confirma, o pedir confirmación explícita si «Quito» era ambiguo."
+ },
+ {
+  "conversacionId": 5061,
+  "cliente": "Mc_Pato",
+  "severidad": "alta",
+  "categoria": "flujo-roto",
+  "mensajes": [
+   5413,
+   5420,
+   5423,
+   5438,
+   5440,
+   5468
+  ],
+  "resumen": "El bot enmudeció tras las 10:18: el cliente mandó seis mensajes en una hora (labrado, vehículo, precio de «la de 127», país de fabricación, ubicación, «Sur», «Mañana... hasta qué hora atienden») sin una sola respuesta.",
+  "evidencia": "Cliente 5438: «Ubicación para poder ir\\nPor favor»; Cliente 5468: «Mañana más probable \\nHasta que hora atienden» — ningún mensaje del bot después de 5368 (10:18:26).",
+  "costo": "Cliente que quería ir MAÑANA al local del sur se quedó sin dirección ni horarios; venta activa perdida por silencio total.",
+  "sugerencia": "Detectar mensajes sin responder y escalar; este cliente ameritaba respuesta inmediata con dirección de Quito Sur y horarios."
+ },
+ {
+  "conversacionId": 5066,
+  "cliente": "Nelson Salazar",
+  "severidad": "alta",
+  "categoria": "flujo-roto",
+  "mensajes": [
+   5587
+  ],
+  "resumen": "El cliente entró a negociar en caliente —pago en efectivo, pide mejor precio y menciona que le están cotizando Maxxis en la competencia— y el bot nunca respondió (ya había ignorado el «¿Es ese su mejor precio?» de 5557, que respondió solo con la cotización).",
+  "evidencia": "Cliente 5587: «En efectivo señor \\nPor eso busco un mejor precio\\nMe están cotizando en Maxxis también» — ningún mensaje del bot después de 5577 (12:05:22).",
+  "costo": "Momento decisivo de la venta (comparando con competidor) sin respuesta; alta probabilidad de perder los $438 frente a Maxxis.",
+  "sugerencia": "Ante mención de competidor/negociación, responder de inmediato reforzando el INCLUYE (seguro, mantenimiento) o escalar a asesor humano."
+ },
+ {
+  "conversacionId": 5069,
+  "cliente": "cristhian chancusig🫡",
+  "severidad": "baja",
+  "categoria": "repetitividad",
+  "mensajes": [
+   5722,
+   5724,
+   5726
+  ],
+  "resumen": "La misma coletilla pidiendo local y día (con el número COT) cerró tres mensajes seguidos en menos de un minuto, incluso cuando el cliente estaba preguntando por el labrado.",
+  "evidencia": "Bot 5722: «¿A cuál local le queda mejor y qué día pasa...?»; Bot 5724: «¿pasa a Cumbayá o Quito Sur y qué día?»; Bot 5726: «¿Qué día pasa para dejar avisado al asesor...?»",
+  "costo": "Presión de plantilla; el cliente ya había dicho «Al sur» y solo faltaba el día.",
+  "sugerencia": "Pedir el dato faltante una vez y variar la redacción; no repetir la coletilla en cada mensaje."
+ },
+ {
+  "conversacionId": 5084,
+  "cliente": "Xavier",
+  "severidad": "media",
+  "categoria": "contradiccion",
+  "mensajes": [
+   5353,
+   5356
+  ],
+  "resumen": "El bot envió opciones para el taxi (Sail, 185/65R14) e inmediatamente después dijo que la medida exacta está sin stock y que lo disponible es «lo más cercano en aro 14», sin aclarar de qué medida eran las opciones ya enviadas; tampoco respondió lo del labrado deportivo.",
+  "evidencia": "Bot 5353: «Opciones enviadas: KENDA KR20 · KENDA KR33 · WINRUN R380» → Bot 5356: «En 185/65R14 exacta me sale Kenda KR203 desde *$63,03* c/u, pero está sin stock ahora; lo más cercano disponible arranca desde *$50,78* c/u en aro 14.»",
+  "costo": "El taxista no sabe si los precios que vio son de su medida o de una parecida; pregunta de labrado deportivo quedó sin respuesta.",
+  "sugerencia": "Etiquetar la medida de cada opción enviada y responder explícitamente la consulta de labrado para uso taxi."
+ },
+ {
+  "conversacionId": 5101,
+  "cliente": "Mario Alex Toledo😇😇😇",
+  "severidad": "alta",
+  "categoria": "contradiccion",
+  "mensajes": [
+   5392,
+   5394,
+   5404
+  ],
+  "resumen": "El bot envió y confirmó Falken Wildpeak A/T 4W como opción en 205/75R15, pero cuando el cliente pidió cerciorarse antes de cotizar, dijo que esa A/T solo existe en «medida cercana 215/75R15», contradiciendo sus dos mensajes anteriores; la cotización nunca se hizo.",
+  "evidencia": "Bot 5394: «la que sí le envié para *205/75R15* incluye *Falken Wildpeak A/T 4W*» → Bot 5404: «En A/T disponible me sale *Falken Wildpeak A/T 4W* pero en medida cercana *215/75R15*».",
+  "costo": "Cliente decidido a comprar 4 llantas A/T quedó sin saber qué existe realmente en su medida; la conversación murió ahí sin cotización.",
+  "sugerencia": "Validar catálogo antes de enviar opciones; si hubo error, reconocerlo claramente («me equivoqué: en su medida la A/T no está disponible») y ofrecer la alternativa concreta con precio."
+ },
+ {
+  "conversacionId": 5145,
+  "cliente": "Pablo Benavides",
+  "severidad": "media",
+  "categoria": "re-pregunta",
+  "mensajes": [
+   5427,
+   5428,
+   5429,
+   5430
+  ],
+  "resumen": "El cliente mandó la medida completa «265 70 17» y 4 segundos después el bot le envió la guía de medida y le pidió el aro como si no hubiera dicho nada; 10 segundos más tarde mandó las opciones de esa misma medida.",
+  "evidencia": "Cliente 5427: «265 70 17» → Bot 5429: «Lo que más necesito es el *aro* — el número después de la R... Sin ese dato no le puedo asegurar que la llanta entre.» → Bot 5431: «Opciones enviadas: FALKEN WILDPEAK A/T 4W · WINRUN MAXCLAW A/T».",
+  "costo": "Turnos que se pisan y piden un dato ya entregado; confunde en el arranque de una venta que llegó a cotización de $1.186.",
+  "sugerencia": "Esperar/agrupar la ráfaga de mensajes del cliente antes de disparar la guía de medida."
+ },
+ {
+  "conversacionId": 5145,
+  "cliente": "Pablo Benavides",
+  "severidad": "media",
+  "categoria": "contradiccion",
+  "mensajes": [
+   5449,
+   5450
+  ],
+  "resumen": "El cliente objetó el modelo Falken mostrado y el bot le dio la razón... para recomendarle exactamente el mismo modelo que ya le había enviado (Wildpeak A/T 4W).",
+  "evidencia": "Cliente 5449: «No está bien ese modelo en falken» → Bot 5450: «Tiene razón, para esa medida el modelo Falken correcto disponible es *WILDPEAK A/T 4W*» — el mismo de 5431: «FALKEN WILDPEAK A/T 4W».",
+  "costo": "Concede un error inexistente y no aclara la objeción real del cliente; pudo descarrilar la elección (se salvó porque el cliente aceptó).",
+  "sugerencia": "Ante una objeción, preguntar qué modelo esperaba el cliente en vez de dar la razón por reflejo y repetir lo mismo."
+ },
+ {
+  "conversacionId": 5145,
+  "cliente": "Pablo Benavides",
+  "severidad": "media",
+  "categoria": "repetitividad",
+  "mensajes": [
+   5477,
+   5485,
+   5489,
+   5490,
+   5492,
+   5494
+  ],
+  "resumen": "La pregunta «¿qué día pasa y a cuál local?» cerró seis mensajes seguidos del bot, incluidos dos consecutivos (5489 y 5490) que se pisan entre sí, aunque el cliente estaba diciendo que aún le quedan 10.000 km a sus llantas.",
+  "evidencia": "Bot 5489: «¿Le dejo avisado para qué día y en cuál local...?» → Bot 5490 (10s después): «¿Para qué día y en cuál local quiere que le dejemos avisado?»; igual en 5477, 5485, 5492 y 5494.",
+  "costo": "Presión repetitiva sobre un cliente que ya explicó que comprará cuando gaste las llantas actuales; suena a guion.",
+  "sugerencia": "Registrar la señal de tiempo del cliente («faltan 10.000 km») y ofrecer seguimiento futuro en vez de insistir con día y local en cada turno."
+ },
+ {
+  "conversacionId": 5145,
+  "cliente": "Pablo Benavides",
+  "severidad": "baja",
+  "categoria": "flujo-roto",
+  "mensajes": [
+   5501,
+   5506
+  ],
+  "resumen": "El compromiso final del cliente («ya le confirmo la próxima semana que regresa la camioneta») y su despedida quedaron sin ninguna respuesta del bot.",
+  "evidencia": "Cliente 5501: «Ya le confirmo la próxima semana que regresa la camioneta de viaje»; Cliente 5506: «Gracias su amable atención» — sin respuesta (último bot: 5494, 11:28:08).",
+  "costo": "El cliente no recibió confirmación de que su plan quedó anotado ni un cierre cordial.",
+  "sugerencia": "Cerrar el hilo: «Perfecto, le escribo la próxima semana; su cotización COT-MSRQ7UW7 queda guardada»."
+ },
+ {
+  "conversacionId": 5151,
+  "cliente": "Alejandro Laaz",
+  "severidad": "media",
+  "categoria": "producto-equivocado",
+  "mensajes": [
+   5459,
+   5461
+  ],
+  "resumen": "El cliente insistió en que la llanta es «para tierra» (trabajo de ganadería, tierra blanda) y el bot, tras decir que «le conviene una opción A/T», recomendó la Kenda KR605 —que en el propio catálogo aparece como opción de calle en medidas deportivas— teniendo la Falken Wildpeak A/T Trail en la misma lista.",
+  "evidencia": "Cliente 5459: «Para camioneta es para. tierra» → Bot 5461: «Para tierra le conviene una opción *A/T* antes que una de carretera. En la medida 245/60R20 le recomiendo la *Kenda KR605*».",
+  "costo": "Recomendación incoherente con el uso declarado: el cliente pudo cotizar una llanta inadecuada para tierra blanda.",
+  "sugerencia": "Si dice que conviene A/T, recomendar la A/T de la lista (Wildpeak A/T Trail) o explicar por qué sugiere otra."
+ },
+ {
+  "conversacionId": 5151,
+  "cliente": "Alejandro Laaz",
+  "severidad": "alta",
+  "categoria": "flujo-roto",
+  "mensajes": [
+   5467,
+   5474,
+   5478,
+   5644
+  ],
+  "resumen": "El bot dejó de responder: la pregunta directa de precio («En cuanto esta x fa»), un audio explicando el uso, una foto ilegible (que el sistema pedía re-solicitar por escrito) y «Camioneta jac» una hora después quedaron todos sin respuesta.",
+  "evidencia": "Cliente 5467: «En cuanto esta x fa»; sistema en 5478: «[...foto que no se pudo leer. Pídele con amabilidad que escriba lo que dice el costado...]»; Cliente 5644: «Camioneta jac» — ningún mensaje del bot después de 5461 (11:19:37).",
+  "costo": "Cliente pidiendo precio de la llanta recomendada, abandonado en el momento de mayor intención de compra.",
+  "sugerencia": "Responder el precio pedido y ejecutar la instrucción del sistema de pedir la medida por escrito; alertar cuando queden mensajes sin responder."
+ },
+ {
+  "conversacionId": 5008,
+  "cliente": "Sebas A.",
+  "severidad": "alta",
+  "categoria": "sistema",
+  "mensajes": [
+   5267,
+   5468,
+   5587,
+   5644
+  ],
+  "resumen": "Patrón de caída del pipeline de respuesta: en al menos 4 conversaciones del día (5008 desde ~09:50, 5061 desde ~10:18, 5151 desde ~11:20, 5066 desde ~12:09) el bot dejó de responder por completo a mensajes de clientes activos, y ninguna alerta de alertasDelDia registró estos silencios.",
+  "evidencia": "5008: 4 mensajes sin respuesta desde 09:50; 5061: 6 mensajes sin respuesta 11:00–11:20; 5151: 4 sin respuesta desde 11:20; 5066: negociación sin respuesta a las 12:09 — en los cuatro casos, cero mensajes del bot después.",
+  "costo": "Cuatro ventas calientes perdidas o enfriadas el mismo día por la misma falla; al no generar alerta, nadie del equipo se enteró.",
+  "sugerencia": "Añadir monitoreo de «último mensaje es del cliente y pasaron N minutos» con alerta y escalamiento a asesor humano."
+ },
+ {
+  "conversacionId": 4905,
+  "cliente": "Freddy Legña",
+  "severidad": "media",
+  "categoria": "sistema",
+  "mensajes": [
+   5575,
+   5448,
+   5616,
+   5643,
+   5679,
+   5703,
+   5704
+  ],
+  "resumen": "Los seguimientos automáticos (+3h exactas) usan plantillas en tuteo («¿te ayudo a dejar lista la visita o reserva?», «Ya tengo tu medida») que chocan con hilos llevados de usted e ignoran el estado real: en 4853 afirma tener una medida que no existe, en 4946 re-ofrece agendar una visita ya registrada, y en 4905/4966/5055/5088 repite la misma frase genérica.",
+  "evidencia": "Bot 5575 (4905): «😊 Sobre tu visita, ¿te ayudo a dejar lista la visita o reserva?» — idéntico en 5679 (5055) y 5703 (4966); Bot 5448 (4853): «Ya tengo tu medida» con hechos.medida null.",
+  "costo": "Los seguimientos delatan al bot (cambio brusco a tú, frases calcadas) y a veces contradicen el estado de la venta, restando credibilidad al canal.",
+  "sugerencia": "Plantillas de seguimiento en usted, condicionadas a hechos reales (medida, visita) y con redacción variable."
+ },
+ {
+  "conversacionId": 4847,
+  "cliente": "Edy",
+  "severidad": "media",
+  "categoria": "sistema",
+  "mensajes": [],
+  "resumen": "Flood de errores de envío: en al menos 8 conversaciones del lote (4847, 4889, 4895, 4907, 4958, 4964, 4984, 5016, 5018, 5026, 5084, 5101, 5111) el seguimiento programado falló con el mismo error de WhatsApp «(#131030) Recipient phone number not in allowed list», siempre ~3h después del último mensaje.",
+  "evidencia": "Alerta repetida en cada conversación: «WhatsApp rechazó el mensaje: (#131030) Recipient phone number not in allowed list».",
+  "costo": "Ningún seguimiento diferido está llegando a estos clientes (probable ventana de 24h vencida o lista de destinatarios restringida del número de prueba); se pierde toda la recuperación de ventas frías.",
+  "sugerencia": "Revisar la configuración del número (allowed list / plantillas aprobadas para fuera de ventana) antes de confiar en los seguimientos de +3h."
+ },
+ {
+  "conversacionId": 4946,
+  "cliente": "jbvhjk",
+  "severidad": "baja",
+  "categoria": "sistema",
+  "mensajes": [
+   5201,
+   5088,
+   5091,
+   5295,
+   5300
+  ],
+  "resumen": "Fallas del pipeline de la pieza «options»: opciones con el mismo modelo duplicado en un solo envío (4946: «KENDA KR20 · KENDA KR20») y dobles envíos consecutivos de sets distintos sin input del cliente cuando llegan dos mensajes en ráfaga (4847 y 4966), con guard_mensaje_duplicado disparándose detrás.",
+  "evidencia": "Bot 5201 (4946): «Opciones enviadas: KENDA KR20 · KENDA KR20»; 4847: 5088 y 5091 con sets distintos en 13s; 4966: 5295 y 5300 en 10s.",
+  "costo": "Piezas visualmente rotas o contradictorias que confunden al cliente en el momento de mostrar precios.",
+  "sugerencia": "Deduplicar modelos dentro de la pieza options y agrupar mensajes de cliente en ráfaga antes de generar opciones."
+ },
+ {
+  "conversacionId": 5165,
+  "cliente": "Galo Arboleda",
+  "severidad": "alta",
+  "categoria": "re-pregunta",
+  "mensajes": [
+   5480,
+   5481,
+   5483
+  ],
+  "resumen": "El cliente eligió Quito Sur, el bot lo confirmó, y dos mensajes después volvió a preguntar a cuál local le queda mejor.",
+  "evidencia": "Cliente: «Al sur me resulta más fácil» (5480). Bot: «Perfecto, le queda *Depot Tire Quito Sur*…» (5481). Bot: «Perfecto, registré su visita para lunes, 17 de agosto. ¿Le queda mejor *Cumbayá* o *Quito Sur*?» (5483).",
+  "costo": "Enfrió una venta ya cerrada: el cliente respondió seco «Igual,gracias.» y no reconfirmó el local; en `hechos` el local quedó null pese a la elección explícita.",
+  "sugerencia": "Al registrar la visita, reutilizar el local ya confirmado: «Listo, lunes 17 a las 15:00 en Depot Tire Quito Sur. Le espera el asesor.»"
+ },
+ {
+  "conversacionId": 5165,
+  "cliente": "Galo Arboleda",
+  "severidad": "media",
+  "categoria": "cierre",
+  "mensajes": [
+   5482,
+   5483
+  ],
+  "resumen": "El cliente dijo «lunes tres de la tarde» y la visita quedó registrada a las 10:00.",
+  "evidencia": "Cliente: «El dia lunes tres de la tarde» (5482). Alerta del día: «Interpretado como: lunes, 17 de agosto, 10:00»; `hechos.visita` = 2026-08-17T15:00Z (10:00 hora Quito).",
+  "costo": "El asesor esperará al cliente en la mañana y el cliente llegará a las 15:00; el aviso interno queda mal.",
+  "sugerencia": "Parsear la hora expresada en texto («tres de la tarde» = 15:00) y confirmarla de vuelta: «Lo espero el lunes 17 a las 3 pm en Quito Sur.»"
+ },
+ {
+  "conversacionId": 5153,
+  "cliente": "Wilma Males",
+  "severidad": "media",
+  "categoria": "producto-equivocado",
+  "mensajes": [
+   5646,
+   5647,
+   5651,
+   5652
+  ],
+  "resumen": "Para una furgoneta de carga en 195R15 el bot ofreció alternativas de turismo, y al mensaje siguiente él mismo admitió que no debía venderlas para carga.",
+  "evidencia": "Bot: «Opciones enviadas: KENDA KR20 · WINRUN R330 · WINRUN R330» (5647) tras «Claro cual es la alternativa» (5646). Luego: «Las alternativas disponibles son de turismo aro 15; para carga prefiero no vendérselas sin validarlo» (5652).",
+  "costo": "El cliente evaluó opciones que el propio bot luego descartó; fricción y pérdida de confianza (cliente venía pidiendo llanta comercial de 8 lonas desde 5443).",
+  "sugerencia": "Filtrar por tipo de servicio antes de enviar opciones: si el uso declarado es carga/furgoneta, no ofrecer llantas de turismo; escalar al asesor de una vez."
+ },
+ {
+  "conversacionId": 5153,
+  "cliente": "Wilma Males",
+  "severidad": "baja",
+  "categoria": "sistema",
+  "mensajes": [
+   5647
+  ],
+  "resumen": "El bloque de opciones incluyó la misma llanta dos veces.",
+  "evidencia": "«Opciones enviadas: KENDA KR20 · WINRUN R330 · WINRUN R330» (5647).",
+  "costo": "Aparenta catálogo pobre o error; el cliente ve dos tarjetas idénticas.",
+  "sugerencia": "Deduplicar por producto (marca+modelo+medida) antes de armar la pieza de opciones."
+ },
+ {
+  "conversacionId": 5227,
+  "cliente": "Segundo",
+  "severidad": "media",
+  "categoria": "ignora-pregunta",
+  "mensajes": [
+   5555,
+   5559,
+   5561
+  ],
+  "resumen": "El cliente pidió explícitamente una recomendación de marca y el bot respondió con la plantilla que pregunta si necesita una recomendación.",
+  "evidencia": "Cliente: «disculpe cuál marca es buena y que aguanté Rin 16 205.50» (5555). Bot: opciones + «¿Necesita alguna recomendación?» (5561).",
+  "costo": "El cliente ya había pedido la recomendación; no volvió a escribir en todo el día (solo recibió un follow-up 3 horas después).",
+  "sugerencia": "Cuando el cliente ya pide recomendación, responderla directo: cuál opción es más resistente y por qué, y ofrecer cotizar el juego."
+ },
+ {
+  "conversacionId": 5227,
+  "cliente": "Segundo",
+  "severidad": "baja",
+  "categoria": "sistema",
+  "mensajes": [
+   5559,
+   5818
+  ],
+  "resumen": "Bloque de opciones con el mismo producto duplicado, y el follow-up invita a comparar con «la otra alternativa» que es la misma llanta.",
+  "evidencia": "«Opciones enviadas: KENDA KR20 · KENDA KR20» (5559); follow-up: «También puedo ayudarte a compararla con la otra alternativa 😊» (5818).",
+  "costo": "Mensajes sin sentido para el cliente; delatan al bot.",
+  "sugerencia": "Deduplicar opciones y hacer que el follow-up valide cuántas opciones distintas se enviaron antes de ofrecer comparación."
+ },
+ {
+  "conversacionId": 5227,
+  "cliente": "Segundo",
+  "severidad": "baja",
+  "categoria": "tono",
+  "mensajes": [
+   5521,
+   5818
+  ],
+  "resumen": "La conversación va en usted y el follow-up automático cambia a tú.",
+  "evidencia": "Bot: «Le cotizo con stock…» (5521) vs. follow-up: «¿Cómo viste la opción…? puedo ayudarte…» (5818).",
+  "costo": "Inconsistencia que delata mensaje enlatado.",
+  "sugerencia": "Unificar el tratamiento (usted) en los mensajes de seguimiento."
+ },
+ {
+  "conversacionId": 5229,
+  "cliente": "Ramiro Ponton",
+  "severidad": "media",
+  "categoria": "ignora-pregunta",
+  "mensajes": [
+   5550,
+   5551,
+   5552,
+   5553
+  ],
+  "resumen": "El cliente preguntó si la llanta es ideal para su Gran Vitara 3 puertas y el bot mandó la cotización sin responder la pregunta.",
+  "evidencia": "Cliente: «Es para un gran Vitara tres puertas? Está es ideal ?» (5550). Bot: «Cotización COT-MSRRMM9S enviada por $483.20» (5551) y plantilla de cierre (5553), sin mencionar el Vitara.",
+  "costo": "El cliente quedó sin la validación técnica que pidió antes de comprometerse; el dato del vehículo tampoco se registró (hechos.vehiculo = null).",
+  "sugerencia": "Confirmar primero el fitment («Sí, la 235/60R16 es la medida del Gran Vitara 3 puertas y la KR50 le va bien para ciudad») y luego cotizar."
+ },
+ {
+  "conversacionId": 5229,
+  "cliente": "Ramiro Ponton",
+  "severidad": "alta",
+  "categoria": "flujo-roto",
+  "mensajes": [
+   5572,
+   5578
+  ],
+  "resumen": "El cliente confirmó visita para el viernes en Cumbayá y pidió la ubicación; el bot nunca respondió nada.",
+  "evidencia": "Cliente: «Día viernes le visito en CUMBAYA envíeme la ubicación» (5572). No hay ningún mensaje del bot después; el cliente cierra solo: «Gracias» (5578).",
+  "costo": "Venta activa con visita comprometida quedó sin confirmación ni dirección; riesgo de que el cliente no llegue o llegue a otro lado.",
+  "sugerencia": "Responder siempre a un compromiso de visita: confirmar día/local, enviar dirección y horario de Cumbayá, y avisar que el asesor lo espera."
+ },
+ {
+  "conversacionId": 5231,
+  "cliente": "Ronny Terán",
+  "severidad": "alta",
+  "categoria": "contradiccion",
+  "mensajes": [
+   5525,
+   5528,
+   5530,
+   5545,
+   5546
+  ],
+  "resumen": "El bot envió opciones para 185/65R14 y, tras el reclamo del cliente, admitió que la medida exacta estaba sin stock; terminó ofreciendo otra medida y el cliente se fue.",
+  "evidencia": "Bot: «Opciones enviadas: KENDA KR203 · KENDA KR20 · WINRUN R380» (5525). Cliente: «Lo que le pedí...» (5528). Bot: «Disculpe, tiene razón. En 185/65R14 exacta la Kenda KR203 está sin stock ahora» (5530); luego ofrece «WINRUN R380 185/60R14» (5545). Cliente: «No puedo cambiar el auto. Buen día gracias.» (5546).",
+  "costo": "Venta perdida (etapa «perdido»): el cliente pidió una medida, recibió tarjetas que no correspondían y luego una medida distinta como sustituto.",
+  "sugerencia": "No enviar la pieza de opciones si la medida pedida no tiene stock: decirlo de entrada, ofrecer avisar cuando llegue o derivar al asesor, sin mostrar medidas vecinas como si fueran equivalentes."
+ },
+ {
+  "conversacionId": 5276,
+  "cliente": "Futbolero100%⚽💙🧟‍♂️",
+  "severidad": "alta",
+  "categoria": "ignora-pregunta",
+  "mensajes": [
+   5592,
+   5593,
+   5594,
+   5595
+  ],
+  "resumen": "El cliente pidió cotizar con tarjeta a seis meses y preguntó la ubicación en Quito; el bot cotizó y mandó la plantilla de cierre sin responder ninguna de las dos cosas.",
+  "evidencia": "Cliente (audio): «Cotíceme por favor y con tarjeta seis meses de gracia… ¿en qué parte de Quito se encuentran ubicados?» (5592). Bot: cotización + «¿Qué día puede pasar y a cuál local?…» (5595), sin mencionar financiamiento ni direcciones.",
+  "costo": "El cliente siguió decidiendo con un dato no confirmado («a seis meses sin intereses, ¿no? Lo que entendí», 5653) y sin saber dónde quedan los locales.",
+  "sugerencia": "Responder las dos preguntas junto con la cotización: condiciones reales de pago con tarjeta y las dos direcciones, indicando cuál le queda mejor."
+ },
+ {
+  "conversacionId": 5276,
+  "cliente": "Futbolero100%⚽💙🧟‍♂️",
+  "severidad": "alta",
+  "categoria": "flujo-roto",
+  "mensajes": [
+   5645,
+   5653
+  ],
+  "resumen": "Los dos últimos audios del cliente (dudas Kenda vs Falken, garantía, que está en el norte, confirmación del financiamiento) quedaron sin ninguna respuesta del bot.",
+  "evidencia": "Cliente (audio): «Esta Kenda… ¿qué tal es como llanta?… me llamó la atención la Falken… Yo estoy en el norte, por el condado» (5645) y «…el precio que estaba ahí a seis meses sin intereses, ¿no?… ya converso con mi esposa» (5653). No hay mensajes del bot después de 5595.",
+  "costo": "Cliente caliente ($532 cotizados) quedó decidiendo solo, con una suposición de financiamiento sin confirmar y sin saber que ningún local le queda cerca del norte.",
+  "sugerencia": "Responder los audios: comparar Kenda vs Falken, aclarar las condiciones de pago y manejar la objeción de distancia (horarios de fin de semana, reserva de cotización)."
+ },
+ {
+  "conversacionId": 5276,
+  "cliente": "Futbolero100%⚽💙🧟‍♂️",
+  "severidad": "media",
+  "categoria": "cierre",
+  "mensajes": [
+   5653
+  ],
+  "resumen": "Se registró una visita para el viernes 14 a las 10:00 a partir de un audio en el que el cliente solo dijo que avisaría máximo mañana.",
+  "evidencia": "Alerta: «Cliente dijo cuándo viene: viernes, 14 de agosto, 10:00… Escribió: “déjeme ver cómo me organizo y yo le doy una respuesta más tardecito, máximo mañana”»; `hechos.visita` = 2026-08-14T15:00Z.",
+  "costo": "Compromiso falso en el sistema: el asesor puede esperar una visita que nunca se acordó y los seguimientos salen con premisa equivocada.",
+  "sugerencia": "Distinguir «le aviso mañana» de «voy mañana»: registrar visita solo con fecha de visita explícita, y si hay ambigüedad, preguntar."
+ },
+ {
+  "conversacionId": 5290,
+  "cliente": "Eisenhower Benavides",
+  "severidad": "media",
+  "categoria": "ignora-pregunta",
+  "mensajes": [
+   5598,
+   5601,
+   5606,
+   5607
+  ],
+  "resumen": "El cliente pidió características, precio y ubicación desde su primer mensaje; el bot respondió con la plantilla y el cliente tuvo que repetir las tres preguntas.",
+  "evidencia": "Cliente: «245/75/16 Características? Precio? Ubicación.?» (5598). Bot: opciones + «¿Necesita alguna recomendación?» (5601). Cliente insiste: «Precio? Características. Ubicación. Gracias» (5606). Recién en 5607 responde, y las características quedan en «es tipo *M/T* según catálogo».",
+  "costo": "Fricción visible (alerta repetitive_conversation) y respuesta técnica vacía en una compra de $1.165.",
+  "sugerencia": "Contestar las tres cosas en la primera respuesta: opciones con precio, direcciones de los dos locales y características concretas de cada modelo."
+ },
+ {
+  "conversacionId": 5324,
+  "cliente": "🪘Danielon Salsa 🪇",
+  "severidad": "media",
+  "categoria": "producto-equivocado",
+  "mensajes": [
+   5654,
+   5655
+  ],
+  "resumen": "Con solo «Rin 16 Kia Seltos» el bot envió opciones sin confirmar ni declarar la medida exacta; la medida quedó sin registrar.",
+  "evidencia": "Cliente: «Rin 16 Kia Seltos mi estimado» (5654). Bot: «Opciones enviadas: FALKEN ZE310R · KENDA KR203 · WINRUN R330» (5655) sin mencionar ninguna medida; `hechos.medida` = null.",
+  "costo": "Riesgo de cotizar y vender una medida que no corresponde al Seltos; sin medida registrada el resto del flujo queda cojo.",
+  "sugerencia": "Confirmar la medida antes o junto con las opciones: «Para su Seltos rin 16 la medida es 205/65R16, ¿la verificamos en el costado de su llanta?»"
+ },
+ {
+  "conversacionId": 5348,
+  "cliente": "wilmercoque1975",
+  "severidad": "media",
+  "categoria": "producto-equivocado",
+  "mensajes": [
+   5692,
+   5693,
+   5700,
+   5701
+  ],
+  "resumen": "El bot envió opciones de turismo con solo «245 rin 16», el cliente tuvo que preguntar si eran para auto o camioneta, y recién ahí el bot pidió la medida completa.",
+  "evidencia": "Cliente (audio): «245 pero rin 16» (5692). Bot: «Opciones enviadas: FALKEN ZE310R · KENDA KR203 · WINRUN R330» (5693). Cliente (audio): «Eso de ahí son para auto, para camioneta» (5700). Bot: «para camioneta en rin 16 necesitamos confirmar la medida completa» (5701).",
+  "costo": "Dos vueltas perdidas mostrando llantas que no aplicaban; el cliente detectó el error antes que el bot.",
+  "sugerencia": "Con medida incompleta, pedir el perfil o el vehículo antes de enviar la pieza de opciones, en vez de mostrar productos genéricos."
+ },
+ {
+  "conversacionId": 5387,
+  "cliente": "Geo Lascano",
+  "severidad": "media",
+  "categoria": "repetitividad",
+  "mensajes": [
+   5744,
+   5747,
+   5751
+  ],
+  "resumen": "Tres bloques de opciones casi seguidos, uno de ellos disparado sin ningún mensaje del cliente, y el último sin texto ni pregunta de cierre.",
+  "evidencia": "Bot: opciones «KENDA KR23 · WINRUN MAXCLAW A/T» (5744, 13:50:43), luego otro bloque «KENDA KR20» (5747, 13:50:54) sin input del cliente; tras «185/60 R14» (5749) un tercer bloque «WINRUN R380 · KENDA KR203» (5751) sin acompañamiento. Alertas: repetitive_conversation y guard_mensaje_duplicado.",
+  "costo": "El cliente recibió tres listas distintas en un minuto sin explicación de cuál corresponde a qué; la conversación murió ahí.",
+  "sugerencia": "Un solo bloque de opciones por medida confirmada, con texto que diga a qué medida corresponde y una pregunta de avance."
+ },
+ {
+  "conversacionId": 5393,
+  "cliente": "Solo Con DIOS",
+  "severidad": "media",
+  "categoria": "contradiccion",
+  "mensajes": [
+   5752,
+   5754,
+   5757
+  ],
+  "resumen": "El bot envió opciones tras el pedido de 175/70R13 y cinco segundos después dijo que esa medida no tiene stock, sin aclarar de qué medida eran las tarjetas enviadas.",
+  "evidencia": "Cliente: «175 70 13 y la ubicacion» (5752). Bot: «Opciones enviadas: KENDA KR203 · KENDA KR20 · KENDA KR203» (5754) y luego «En 175/70R13 no me sale stock disponible ahora… le cotizo la 185/70R13 Kenda KR203» (5757).",
+  "costo": "Confusión sobre qué le estaban ofreciendo; la venta siguió pero el cliente aceptó otra medida con un «Ok» sin ver claro el cambio.",
+  "sugerencia": "Si la medida pedida no tiene stock, decirlo antes de mostrar tarjetas y etiquetar las alternativas con su medida explícita."
+ },
+ {
+  "conversacionId": 5393,
+  "cliente": "Solo Con DIOS",
+  "severidad": "media",
+  "categoria": "ignora-pregunta",
+  "mensajes": [
+   5752,
+   5761
+  ],
+  "resumen": "El cliente pidió la ubicación en su primer mensaje y el bot nunca dio ninguna dirección en toda la conversación.",
+  "evidencia": "Cliente: «175 70 13 y la ubicacion» (5752). Ningún mensaje posterior del bot incluye direcciones; el cierre solo pregunta «¿Qué día puede pasar y a cuál local?» (5761).",
+  "costo": "Cliente con cotización en mano ($244,04) pero sin saber dónde quedan los locales; barrera absurda para concretar la visita.",
+  "sugerencia": "Responder la ubicación apenas se pregunta: dar las dos direcciones junto con las opciones o la cotización."
+ },
+ {
+  "conversacionId": 5393,
+  "cliente": "Solo Con DIOS",
+  "severidad": "baja",
+  "categoria": "sistema",
+  "mensajes": [
+   5754
+  ],
+  "resumen": "El bloque de opciones repitió la misma llanta dos veces (patrón que también aparece en las conversaciones 5153 y 5227).",
+  "evidencia": "«Opciones enviadas: KENDA KR203 · KENDA KR20 · KENDA KR203» (5754).",
+  "costo": "Tarjetas duplicadas que confunden y delatan un bug del armado de opciones.",
+  "sugerencia": "Deduplicar productos en el pipeline de la pieza de opciones; es un patrón repetido del día, no un caso aislado."
+ },
+ {
+  "conversacionId": 5407,
+  "cliente": "···8259",
+  "severidad": "alta",
+  "categoria": "ignora-pregunta",
+  "mensajes": [
+   5770,
+   5771,
+   5772,
+   5773
+  ],
+  "resumen": "El cliente pidió que le respondieran por audio porque no puede leer los mensajes, y el bot contestó con tres mensajes de texto.",
+  "evidencia": "Cliente (audio): «¿me puede mandar por audio por favor? Porque no le puedo leer el mensaje. Gracias.» (5770). Bot: opciones (5771), bloque INCLUYE (5772) y «¿Necesita alguna recomendación?» (5773), todo en texto.",
+  "costo": "El cliente probablemente no pudo leer nada de lo enviado; no volvió a responder. Venta parada por una barrera de accesibilidad ignorada.",
+  "sugerencia": "Si no puede enviar audio, reconocer la limitación y ofrecer llamada del asesor o pasar el contacto de una vez, en lugar de seguir con texto."
+ },
+ {
+  "conversacionId": 5385,
+  "cliente": "Harold Mendoza",
+  "severidad": "baja",
+  "categoria": "ignora-pregunta",
+  "mensajes": [
+   5736,
+   5737
+  ],
+  "resumen": "El cliente pidió 205/70 en R15 o R14 y el bot mandó opciones sin decir de qué medida eran ni atender la alternativa R14.",
+  "evidencia": "Cliente: «Llantas 205/70/R15 o R14» (5736). Bot: «Opciones enviadas: KENDA KR33A · KENDA KR23 · WINRUN MAXCLAW A/T» (5737), sin mencionar medida; `hechos.medida` quedó 205/70R15.",
+  "costo": "El cliente no sabe si le mostraron R15, R14 o una mezcla; duda innecesaria en el primer contacto.",
+  "sugerencia": "Aclarar «estas son en 205/70R15» y preguntar si también quiere ver R14, o pedir que confirme cuál usa su vehículo."
+ },
+ {
+  "conversacionId": 5175,
+  "cliente": "Juan Fernando",
+  "severidad": "baja",
+  "categoria": "tono",
+  "mensajes": [
+   5464,
+   5774
+  ],
+  "resumen": "El saludo trata al cliente de usted y el follow-up automático cambia a tú.",
+  "evidencia": "Bot: «Le cotizo… dígame…» (5464) vs. follow-up: «¿me confirmas la medida que aparece en el costado de tu llanta?» (5774).",
+  "costo": "Inconsistencia de tratamiento que delata mensaje enlatado.",
+  "sugerencia": "Redactar los follow-ups en usted, igual que el resto del flujo."
+ },
+ {
+  "conversacionId": 5219,
+  "cliente": "Jose Oñate",
+  "severidad": "baja",
+  "categoria": "tono",
+  "mensajes": [
+   5509,
+   5775
+  ],
+  "resumen": "Conversación en usted y follow-up automático en tú.",
+  "evidencia": "Bot: «Le cotizo… dígame…» (5509) vs. follow-up: «Ya tengo tu medida 265/70R16. ¿Te ayudo a elegir…?» (5775).",
+  "costo": "Mismo patrón de inconsistencia tú/usted en los seguimientos automáticos (también en 5175 y 5227).",
+  "sugerencia": "Unificar el tratamiento en las plantillas de seguimiento."
+ }
+]
