@@ -32,6 +32,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-08-14 | _(este mismo)_ | «at4» ya encuentra la A/T4W + el guardián ve las herramientas del turno | 1.5 |
 | 2026-08-13 | _(este mismo)_ | El Ángel Guardián: revisión IA de cada respuesta antes de enviarla, con interruptor en Ajustes | 2.0 |
 | 2026-08-13 | _(este mismo)_ | Candado de medida: el bot firmó una cotización de otra medida, $82,84 por debajo | 1.5 |
 | 2026-08-13 | _(este mismo)_ | Revisión contextual diaria: skill + corrida del 13-ago (102 hallazgos, 8 chats mudos por handoff) | 2.5 |
@@ -129,6 +130,37 @@ Ya viene activado en este equipo.
 ---
 
 ## Entradas (más reciente primero)
+
+### 2026-08-14 · «at4» ya encuentra la A/T4W, y el guardián ve lo que el bot HIZO · ⏱️ 1.5 h
+
+**Qué:** El bot volvió a jurar que la Wildpeak A/T4W 265/70R17 no existía
+(conv 3, 12 y 14-ago) teniéndola en stock (código 356531). Dos agujeros en
+`searchCatalog`: «at4» no aparece contiguo en el texto normalizado con
+espacios («a t4w») — ahora cada token también se compara en forma COMPACTA —
+y «tienen» era un token obligatorio que ningún producto contiene — ahora las
+palabras de conversación (tienen, busco, precio, llanta…) se filtran del
+query si queda algo con qué buscar. Verificado con la ficha real: los 4
+estilos de escribirlo encuentran la A/T4W y «at4» no se confunde con la AT3W.
+
+Además, el guardián ganó los ojos que le faltaron ese turno: `toolTrace` en
+AgentContext (cada herramienta con argumentos y recorte del resultado, la
+llena el loop del agente) entra al contexto del revisor como «LO QUE EL BOT
+HIZO ESTE TURNO», con dos reglas nuevas: (8) el borrador debe ser consistente
+con lo que las herramientas devolvieron, y (9) NUNCA se niega en seco un
+modelo de las marcas de la casa (Falken/Kenda/Winrun) — una búsqueda vacía
+casi siempre es la búsqueda fallando, no la llanta faltando; se reescribe a
+«déjeme confirmarlo con el asesor» + opciones de la medida. Smoke real contra
+gpt-5.5: niega Wildpeak → corrige (alta); niega Michelin (no la manejamos) →
+aprueba.
+
+**Por qué:** El guardián revisó ese turno y solo pudo suavizar el texto: sin
+ver la herramienta ni conocer las marcas de la casa, «no aparece en catálogo»
+era inverificable. La causa raíz era del buscador (el mismo patrón del
+parser de medidas: el determinismo no entendía cómo escribe la gente), y la
+regla 9 convierte el peor desenlace posible —negarle al cliente la llanta
+estrella que sí tenemos— en una respuesta segura aunque todo lo demás falle.
+
+---
 
 ### 2026-08-13 · El Ángel Guardián: la revisión que ve la conversación desde afuera · ⏱️ 2.0 h
 

@@ -96,6 +96,14 @@ export interface AgentContext {
   resumedFromHuman?: boolean;
   discountNotice?: { source: "pending" | "offer"; id: number };
   storeHours?: StoreHours;
+  /**
+   * Lo que el bot HIZO este turno: cada herramienta con sus argumentos y un
+   * recorte del resultado. Lo llena el loop del agente y lo lee el Ángel
+   * Guardián — sin esto, el guardián solo ve lo que el bot DICE, y un «no
+   * aparece en catálogo» tras una búsqueda mal escrita se le pasa entero
+   * (Wildpeak A/T4W, 14-ago).
+   */
+  toolTrace?: Array<{ herramienta: string; argumentos: string; resultado: string }>;
 }
 
 export interface AgentTool {

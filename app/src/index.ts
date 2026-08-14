@@ -219,7 +219,7 @@ const pipeline = new InboundPipeline(async ({ from, name, text, waMessageIds, re
   // DESPUÉS del guardián determinístico porque ese es gratis y este cuesta
   // tokens; se prende y apaga desde Ajustes. Falla abierto: si no contesta,
   // sale el borrador tal cual.
-  const custodiado = await revisarConGuardian(conversation, vetted.text);
+  const custodiado = await revisarConGuardian(conversation, vetted.text, agentContext.toolTrace ?? []);
 
   // Varios mensajes cortos en vez de uno largo: es como escribe el vendedor
   // humano de los chats que el cliente puso de ejemplo. Los bloques los separa

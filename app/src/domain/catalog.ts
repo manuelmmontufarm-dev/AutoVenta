@@ -187,6 +187,20 @@ export function normalizeContificoProduct(
   };
 }
 
+/**
+ * Cómo pregunta la gente, no cómo se describe una llanta. El agente a veces
+ * pasa la frase del cliente casi entera a la búsqueda; estas palabras no
+ * pueden costar el resultado.
+ */
+const RELLENO = new Set([
+  "tienen", "tiene", "tendran", "tendras", "hay", "habra", "busco", "buscamos",
+  "quiero", "quisiera", "necesito", "necesitamos", "venden", "vende", "manejan",
+  "maneja", "disponen", "dispone", "disponible", "disponibilidad", "precio",
+  "precios", "cuanto", "cuesta", "vale", "cotiza", "cotizar", "cotizacion",
+  "llanta", "llantas", "de", "del", "la", "las", "el", "los", "un", "una",
+  "en", "para", "por", "con", "y", "o", "me", "mi", "su",
+]);
+
 export function searchCatalog(
   items: readonly CatalogItem[],
   query: string,
@@ -195,7 +209,12 @@ export function searchCatalog(
   const normalizedQuery = normalizeCatalogText(query);
   const compactQuery = compactCatalogText(query);
   if (!normalizedQuery || !compactQuery) return [];
-  const queryTokens = normalizedQuery.split(" ").filter(Boolean);
+  // Las palabras de conversación no describen la llanta y exigirlas mata la
+  // búsqueda: «tienen falken wildpeak at4» fallaba porque ningún producto
+  // contiene «tienen». Solo se filtran si queda algo con qué buscar.
+  const crudos = normalizedQuery.split(" ").filter(Boolean);
+  const utiles = crudos.filter((token) => !RELLENO.has(token));
+  const queryTokens = utiles.length ? utiles : crudos;
   const querySize = extractCatalogSizeLabel(query).sizeLabel;
   const compactSize = querySize ? compactCatalogText(querySize) : null;
 
@@ -282,7 +301,14 @@ function scoreItem(
   const size = compactCatalogText(item.sizeLabel ?? "");
   const blob = `${code} ${brand} ${design} ${name} ${item.sizeLabel ?? ""}`;
   const compactBlob = compactCatalogText(blob);
-  const everyTokenMatches = queryTokens.every((token) => blob.includes(token));
+  // Cada token se busca también en forma COMPACTA (sin espacios ni signos).
+  // La gente escribe «at4» y el catálogo dice «A/T4W»: normalizado con
+  // espacios eso es «a t4w» y el token «at4» no aparece contiguo — así fue
+  // como el 12 y el 14-ago el bot juró que la Wildpeak A/T4W 265/70R17 no
+  // existía teniéndola en stock. En compacto («...wildpeakat4w...») sí está.
+  const everyTokenMatches = queryTokens.every(
+    (token) => blob.includes(token) || compactBlob.includes(compactCatalogText(token)),
+  );
 
   let score = 0;
   if (compactCatalogText(code) === compactQuery) score += 180;

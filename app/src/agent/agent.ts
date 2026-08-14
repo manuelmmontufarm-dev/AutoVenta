@@ -157,6 +157,12 @@ export async function runAgent(ctx: AgentContext, userText: string): Promise<str
           : JSON.stringify({ error: `Tool desconocida: ${call.function.name}` });
       executedCalls.add(signature);
       messages.push({ role: "tool", tool_call_id: call.id, content: result });
+      // La huella del turno, para el Ángel Guardián: qué se buscó y qué volvió.
+      (ctx.toolTrace ??= []).push({
+        herramienta: call.function.name,
+        argumentos: call.function.arguments.slice(0, 300),
+        resultado: result.slice(0, 500),
+      });
       if (call.function.name === "enviar_comparacion") ctx.comparedThisTurn = true;
       const exact = exactToolReply(result);
       if (exact) {

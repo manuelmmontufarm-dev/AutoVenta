@@ -121,6 +121,8 @@ REVISA, en este orden de gravedad:
 5. IGNORAR LA PREGUNTA del último mensaje del cliente: el borrador debe responderla antes de seguir con su guion.
 6. REPETICIÓN: bloques, frases o preguntas calcadas de mensajes anteriores del bot.
 7. TONO: trato de «usted» consistente, sin saludos a mitad de conversación, sin muletillas robóticas.
+8. LO QUE EL BOT HIZO vs LO QUE DICE. Si te doy la sección de herramientas del turno, el borrador debe ser consistente con ella: si una búsqueda devolvió opciones que el borrador niega u omite, o si la búsqueda usó un texto visiblemente distinto a lo que el cliente pidió, es error ALTO — corrige usando SOLO lo que la herramienta devolvió.
+9. NUNCA SE NIEGA EN SECO UN MODELO DE LAS MARCAS DE LA CASA. Depot vende Falken (Wildpeak, Azenis, Ziex/ZE), Kenda (Klever, KR…) y Winrun: esos modelos existen en decenas de medidas y una búsqueda de texto que da vacío casi siempre es la búsqueda fallando (el cliente escribe «at4» y el catálogo dice «A/T4W»), no la llanta faltando. Si el borrador afirma «no tenemos» o «no aparece en catálogo» un modelo de esas marcas, es error ALTO aunque la búsqueda haya dado vacío: reescribe para NO negar la existencia — «déjeme confirmarlo con el asesor» — y ofrecer en el mismo mensaje las opciones de esa medida. Negar en seco solo es válido para marcas que Depot no maneja.
 
 REGLAS DE CORRECCIÓN (innegociables):
 - NUNCA inventes precios, medidas, stock, plazos ni datos que no estén en el contexto. Si no puedes verificar una cifra, NO la cambies: repórtala como hallazgo y aprueba.
@@ -142,8 +144,19 @@ interface CotizacionVigente {
   items: Array<{ brand?: string; design?: string; sizeLabel?: string; quantity?: number; salePriceWithTax?: number }>;
 }
 
+export interface HuellaHerramienta {
+  herramienta: string;
+  argumentos: string;
+  resultado: string;
+}
+
 /** El contexto que ve el revisor, armado con los mismos datos que usa el bot. */
-export async function armarContexto(conversationId: number, cycle: number, borrador: string): Promise<string> {
+export async function armarContexto(
+  conversationId: number,
+  cycle: number,
+  borrador: string,
+  huella: readonly HuellaHerramienta[] = [],
+): Promise<string> {
   const mensajes = await sql<FilaMensaje[]>`
     select direction, author_kind, content from messages
     where conversation_id=${conversationId}
@@ -185,6 +198,13 @@ export async function armarContexto(conversationId: number, cycle: number, borra
     "",
     "== CONVERSACIÓN (vieja → nueva) ==",
     historial,
+    ...(huella.length
+      ? [
+          "",
+          "== LO QUE EL BOT HIZO ESTE TURNO (herramientas) ==",
+          ...huella.map((h) => `${h.herramienta}(${h.argumentos}) → ${h.resultado}`),
+        ]
+      : []),
     "",
     "== BORRADOR QUE EL BOT QUIERE ENVIAR ==",
     borrador,
@@ -213,6 +233,7 @@ export function aplicarVeredicto(borrador: string, crudo: unknown): RevisionGuar
 export async function revisarConGuardian(
   conversation: { id: number; current_cycle: number; stage: Stage },
   borrador: string,
+  huella: readonly HuellaHerramienta[] = [],
 ): Promise<RevisionGuardian> {
   const sinRevision: RevisionGuardian = { texto: borrador, veredicto: "sin_revision", hallazgos: [] };
   try {
@@ -220,7 +241,7 @@ export async function revisarConGuardian(
     if (!cfg.activo) return sinRevision;
 
     const inicio = Date.now();
-    const contexto = await armarContexto(conversation.id, conversation.current_cycle, borrador);
+    const contexto = await armarContexto(conversation.id, conversation.current_cycle, borrador, huella);
     const respuesta = await Promise.race([
       openai.chat.completions.create({
         model: config.openai.guardianModel,
