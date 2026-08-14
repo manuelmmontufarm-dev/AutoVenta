@@ -20,6 +20,18 @@ describe("el parser entiende cómo escribe la gente la medida", () => {
     expect(leer("Oh la 245/75/16")).toEqual(["245/75R16"]);
   });
 
+  it("«rin» y «aro», como se dice en Ecuador (chat 1724 del 11-ago)", () => {
+    expect(leer("265/70 Rin17")).toEqual(["265/70R17"]);
+    expect(leer("265/70 rin 17")).toEqual(["265/70R17"]);
+    expect(leer("Yo cargo 265/70 17")).toEqual(["265/70R17"]);
+    expect(leer("265 aro 16")).toEqual(["265R16"]);
+  });
+
+  it("«rin»/«aro» sueltos no son una medida", () => {
+    expect(leer("aro 16")).toEqual([]);
+    expect(leer("rin 17")).toEqual([]);
+  });
+
   it("no rompe las formas que ya funcionaban", () => {
     expect(leer("225/70R16")).toEqual(["225/70R16"]);
     expect(leer("185/65 R14")).toEqual(["185/65R14"]);

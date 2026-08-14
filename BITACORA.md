@@ -133,10 +133,13 @@ Ya viene activado en este equipo.
 
 **Qué:** Tres arreglos encadenados a partir del chat 5499.
 (1) **El parser no entendía «265/70/16»** — la forma con tres barras, la más
-común en Ecuador. Faltaba la barra en el separador del aro (`[-./\s]`). Sin
-eso, la medida que escribe el cliente nunca se guardaba como hecho de la
-conversación: el cliente pidió después «245/75/16» dos veces y `tire_size` se
-quedó en la anterior.
+común en Ecuador. Faltaba la barra en el separador del aro. Sin eso, la medida
+que escribe el cliente nunca se guardaba como hecho de la conversación: el
+cliente pidió después «245/75/16» dos veces y `tire_size` se quedó en la
+anterior. Auditando las cotizaciones apareció el mismo agujero con **«265/70
+Rin17»** y «265 aro 16» (chat 1724): «rin» y «aro» tampoco se leían, así que
+el separador ahora los acepta. Ese arreglo era obligatorio antes de soltar el
+candado: sin él, el candado habría bloqueado cotizaciones legítimas.
 (2) **Candado de medida en `generar_cotizacion`** (`domain/medidaPedida.ts`):
 no se firma una medida que el cliente no haya pedido. Las permitidas salen de
 sus propios mensajes del ciclo más la confirmada de la conversación — así el
@@ -157,6 +160,14 @@ juego, con número de cotización que el cliente puede presentar en el local.**
 Cotizar es firmar un precio; por eso es un candado y no una línea de prompt.
 Ataca también el patrón «confirma la medida y luego la niega» que la revisión
 del día encontró en otros 3 chats.
+
+**Y no era un caso suelto:** pasando el candado por las 117 cotizaciones
+reales de los últimos 14 días salen **12 firmadas en una medida que el cliente
+nunca pidió, todas vivas, $7.243,01 en juego** (COT-MSS17CZX, COT-MSRTTIJ6,
+COT-MSRT2VCO, COT-MSQPARPI, COT-MSQIFG1W, COT-MSRML6QR, COT-MSPCZT60,
+COT-MSP0J2E3 y otras). Hay que revisarlas a mano con el asesor: algunas serán
+equivalencias que el cliente aceptó de palabra, pero cada una es un papel con
+precio que puede presentar en el local.
 
 ---
 
