@@ -32,6 +32,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-08-14 | _(este mismo)_ | Cuenta de tokens en el tab KPI: gasto día/semana/mes + IVA, vence el primer viernes, pagos con clave de dueño | 1.5 |
 | 2026-08-14 | _(este mismo)_ | Sello de medida en las opciones: MEDIDA EXACTA en verde, equivalentes en rojo | 1.0 |
 | 2026-08-14 | _(este mismo)_ | Búsqueda en escalera + 6 familias de SKUs que estaban SIN medida (invisibles) | 2.0 |
 | 2026-08-14 | _(este mismo)_ | La medida se decodifica PRIMERO y manda como filtro en la búsqueda | 1.0 |
@@ -133,6 +134,29 @@ Ya viene activado en este equipo.
 ---
 
 ## Entradas (más reciente primero)
+
+### 2026-08-14 · La cuenta de tokens en el tab KPI: cuánto va y cuándo se paga · ⏱️ 1.5 h
+
+**Qué:** Sección «Tokens y cuenta del servicio» en el Dashboard (tab KPI):
+gasto de IA de **hoy / últimos 7 días / mes en curso** en dólares (cada uno
+con su valor + IVA 15% al lado), calculado desde `ai_runs` (tokens reales por
+corrida × tarifa OpenAI por modelo, con descuento de caché). Debajo, la
+**cuenta del mes**: tokens + IVA, el mantenimiento mensual ($80 + IVA, en
+chico) y el **total a pagar** con su fecha — el **primer viernes del mes
+siguiente**. Historial mensual con estado Pagado/Pendiente; **marcar pagado
+exige OWNER_KEY** (clave de dueño, distinta de la ADMIN_KEY del cliente: solo
+Manuel puede tocar pagos). Al marcar, el mes se congela en un snapshot
+(`billing_months`) para que el historial no se mueva si cambian tarifas.
+Agosto corre desde el **12-ago** (arranque del servicio; `BILLING_START`).
+Backend: `services/billing.ts` + `GET /api/hub/billing` +
+`POST /api/hub/billing/:period/pay`.
+
+**Por qué:** Pedido de Manuel: que Depot vea solito cuánto lleva gastado y
+cuánto va a deber el primer viernes, sin pedirle el corte a nadie — y que el
+registro de pagos quede en un solo lugar, marcable solo por él. Nota: desde
+este mes el mantenimiento es **$80/mes + IVA** (antes era otro esquema).
+
+---
 
 ### 2026-08-14 · Cada opción dice si es su medida o una equivalente · ⏱️ 1.0 h
 
