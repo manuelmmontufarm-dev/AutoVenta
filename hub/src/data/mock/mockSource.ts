@@ -3,6 +3,7 @@ import {
   CIERRE_META,
   ETAPAS,
   type Atiende,
+  type Billing,
   type Cierre,
   type Cotizacion,
   type EchoHealth,
@@ -190,6 +191,28 @@ export class MockSource implements DataSource {
       ganados: llegaron.filter((t) => t.cierre === "ganado").length,
       days: [...days.values()].sort((a, b) => b.day.localeCompare(a.day)),
     };
+  }
+
+  async getBilling(): Promise<Billing> {
+    const uso = (usd: number, runs: number) => ({
+      inputTokens: runs * 18_000, cachedInputTokens: runs * 9_000, outputTokens: runs * 250,
+      runs, usd, usdConIva: Math.round(usd * 1.15 * 100) / 100,
+    });
+    return {
+      hoy: uso(1.42, 60), semana: uso(8.75, 380), mes: uso(11.9, 520),
+      ivaPorc: 0.15, mantenimiento: 80, inicioServicio: "2026-08-12",
+      meses: [{
+        period: "2026-08", desde: "2026-08-12", hasta: "2026-08-14", uso: uso(11.9, 520),
+        ivaTokens: 1.79, mantenimiento: 80, ivaMantenimiento: 12,
+        total: 105.69, vence: "2026-09-04", enCurso: true, pagado: false, pagadoEl: null,
+      }],
+    };
+  }
+
+  async setBillingPaid(period: string, paid: boolean): Promise<Billing> {
+    const billing = await this.getBilling();
+    for (const mes of billing.meses) if (mes.period === period) { mes.pagado = paid; mes.pagadoEl = paid ? new Date().toISOString() : null; }
+    return billing;
   }
 
   /**

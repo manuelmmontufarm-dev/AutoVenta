@@ -223,6 +223,17 @@ create table if not exists sales_history (
 create index if not exists sales_history_outcome_idx
   on sales_history (outcome, closed_at);
 
+-- Cuenta mensual del servicio: un registro por mes facturado ('YYYY-MM').
+-- El snapshot congela los montos al momento de marcar pagado, para que el
+-- historial no cambie si después se ajustan tarifas.
+create table if not exists billing_months (
+  period     text primary key,
+  paid_at    timestamptz,
+  paid_by    text,
+  snapshot   jsonb,
+  created_at timestamptz not null default now()
+);
+
 -- Corrige cierres antiguos mal clasificados cuando el propio cliente confirmó
 -- en el chat que la compra ya se realizó (caso observado en staging).
 update conversations c

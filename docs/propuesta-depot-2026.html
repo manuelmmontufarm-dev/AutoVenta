@@ -82,6 +82,12 @@
   .mini div{ display:flex; justify-content:space-between; gap:8px; font-size:8.2pt; color:var(--steel); line-height:1.65; }
   .mini div.t{ font-weight:800; color:var(--ink); border-top:1px solid rgba(0,0,0,.16); margin-top:3px; padding-top:3px; }
 
+  .formula{ display:flex; flex-direction:column; align-items:center; text-align:center; gap:3px;
+    background:var(--green-soft); border-radius:10px; padding:7px 14px; margin:7px 0 6px; }
+  .formula .f{ font-size:9pt; font-weight:800; color:var(--ink); line-height:1.35; }
+  .formula .f b{ color:var(--green-dark); }
+  .formula .ex{ font-size:8.2pt; color:var(--steel); line-height:1.4; }
+
   .totalbar{ display:flex; align-items:center; justify-content:space-between; gap:16px;
     background:var(--dark); border-radius:10px; padding:11px 20px; margin:10px 0 0; }
   .totalbar .lbl{ font-size:9.3pt; color:#aeb7c2; }
@@ -137,9 +143,9 @@
     <div class="party">
       <p class="k">Proveedor</p>
       <p class="nm">Manuel Montúfar</p>
-      <p class="ln">C.I.: 1722104336<br>
+      <p class="ln">C.I.: 1722104336 &nbsp;·&nbsp; +593 99 372 8763<br>
       manuelmmontufarm@gmail.com<br>
-      +593 99 372 8763</p>
+      <b>Factura:</b> Rosanna Mancino &nbsp;·&nbsp; RUC 1708782253001</p>
     </div>
     <div class="party">
       <p class="k">Cliente</p>
@@ -281,7 +287,7 @@
 
   <div class="mods">
     <div class="mod on">
-      <div class="amt">USD 100 <span style="font-size:10pt">+ IVA</span></div>
+      <div class="amt">USD 80 <span style="font-size:10pt">+ IVA</span></div>
       <p class="when">Al mes · fijo</p>
       <p>Servidor y base de datos encendidos 24/7, respaldos, monitoreo y seguridad, <b>revisiones de código</b>, mantener el programa funcionando frente a los cambios de Meta, Contífico e Interbot, y los <b>arreglos menores</b> de lo que ya está construido.</p>
     </div>
@@ -289,19 +295,17 @@
       <div class="amt">consumo <span style="font-size:10pt">+ 60%</span></div>
       <p class="when">Consumo de IA · aparte</p>
       <p><b>El costo de OpenAI</b> del mes, <b>más un 60% que son los impuestos de comprarlo en el exterior</b>:</p>
-      <div class="mini">
-        <div><span>IVA de servicios digitales</span><span>15%</span></div>
-        <div><span>Impuesto a la salida de divisas</span><span>5%</span></div>
-        <div><span>Impuesto a la renta</span><span>40%</span></div>
-        <div class="t"><span>Recargo total</span><span>60%</span></div>
+      <div class="formula">
+        <span class="f">A pagar = consumo del mes <b>+ IVA de servicios digitales 15% + salida de divisas 5% + impuesto a la renta 40%</b></span>
+        <span class="ex">Recargo total <b>60%</b>, más el IVA 15% de la venta. Ejemplo: $60 de consumo → $96 + IVA → <b>$110,40</b>.</span>
       </div>
       <p>Depot Tire elige el motor y puede cambiarlo cuando quiera. Se factura contra el reporte de consumo del proveedor.</p>
     </div>
   </div>
 
   <div class="totalbar">
-    <div class="lbl"><b>Mensualidad:</b> USD 100 fijos (USD 115 con IVA) + el consumo de IA del mes con su carga tributaria</div>
-    <div class="amt">$100 + IA</div>
+    <div class="lbl"><b>Mensualidad:</b> USD 80 fijos (USD 92 con IVA) + el consumo de IA del mes con su carga tributaria</div>
+    <div class="amt">$80 + IA</div>
   </div>
   <div class="note"><b>Todos los valores de este documento son antes de IVA.</b> A cada factura se le suma el IVA vigente (hoy 15%), tanto a la mensualidad como al consumo de IA y al pago del desarrollo.</div>
 
@@ -356,7 +360,7 @@
 
   <div class="note dark"><b>Mi recomendación, con los números en la mano:</b> quedarse en el motor máximo. La diferencia contra el alto son unos $50 al mes; la diferencia medida fueron <b>9 cotizaciones más por cada 70 conversaciones</b>. Con un juego de llantas rondando los $260, <b>una sola de esas cotizaciones que se cierre paga el año entero de diferencia</b>.</div>
 
-  <p class="fina"><b>Sobre la columna «OpenAI + impuestos».</b> OpenAI es un proveedor del exterior y sobre esa compra caen tres impuestos que no son recuperables: IVA de servicios digitales (15%), impuesto a la salida de divisas (5%) e impuesto a la renta (25% del valor facturado, que equivale al 40% del consumo). Juntos son el 60% de diferencia entre las dos columnas. <b>No es un consumo adicional ni margen comercial</b> — es la carga tributaria de comprar el servicio afuera, y el proveedor no gana nada en este rubro; cada mes se adjunta el reporte de consumo de OpenAI. La cuenta corre a nombre del proveedor porque afinar el bot exige acceso permanente a la API: Depot Tire no abre cuentas ni administra tarjetas.</p>
+  <p class="fina"><b>Sobre la columna «OpenAI + impuestos».</b> Es el consumo con el 60% de la fórmula del punto 6: tres impuestos no recuperables por comprarle a un proveedor del exterior —el de la renta es el 25% del valor facturado, equivalente al 40% del consumo—. <b>No es un consumo adicional ni margen comercial</b>: el proveedor no gana nada en este rubro y cada mes se adjunta el reporte de OpenAI. La cuenta corre a nombre del proveedor porque afinar el bot exige acceso permanente a la API: Depot Tire no abre cuentas ni administra tarjetas.</p>
 
   <div class="foot"><span>AutoVenta · Bot de ventas por WhatsApp · Manuel Montúfar</span><span>Página 4 de 6</span></div>
 </div>
@@ -369,7 +373,7 @@
   </div>
   <div class="rule"></div>
 
-  <h2><span class="n">8.</span> Qué cubren los $100 y qué no</h2>
+  <h2><span class="n">8.</span> Qué cubren los $80 y qué no</h2>
   <div class="two tight">
     <div>
       <h3 style="color:var(--green-dark)">Sí está incluido</h3>
@@ -430,22 +434,24 @@
   <h2><span class="n">11.</span> Vigencia y renovación</h2>
   <p>Este acuerdo de operación rige por <b>un (1) año</b> contado desde la fecha de firma, y vence el <b><span class="fill">&nbsp;</span></b>. Al vencer <b>se renueva por otro año</b> si ninguna de las partes avisa lo contrario con <b>30 días</b> de anticipación. La renovación es el momento natural para revisar la mensualidad según cómo hayan crecido el sistema y el negocio.</p>
   <ul>
-    <li>La mensualidad de <b>USD 100 + IVA se mantiene fija durante todo el año</b> de vigencia. No sube por volumen de conversaciones ni por cambiar de motor de IA — para eso está el consumo separado.</li>
+    <li>La mensualidad de <b>USD 80 + IVA se mantiene fija durante todo el año</b> de vigencia. No sube por volumen de conversaciones ni por cambiar de motor de IA — para eso está el consumo separado.</li>
     <li>Cualquiera de las partes puede <b>terminar antes</b> avisando por escrito con 30 días. Se paga hasta el mes en curso y no hay penalidad.</li>
     <li>Al terminar, por cualquier causa, <b>se entregan todos los datos exportados</b> —conversaciones, clientes, cotizaciones— sin costo.</li>
     <li>La mensualidad se cobra <b>el primer viernes de cada mes</b>, por transferencia y con su documento de venta. El consumo de IA del mes anterior va en la misma factura, con el reporte del proveedor adjunto (si aplica la nota de la página 4).</li>
+    <li>Todos los pagos de este acuerdo —saldo del desarrollo, mensualidad y consumo de IA— <b>se facturan y se transfieren a Rosanna Mancino</b> (RUC 1708782253001), quien lleva la facturación y el cumplimiento tributario del equipo del proveedor.</li>
   </ul>
 
   <div class="note"><b>El primer cobro es el viernes 4 de septiembre de 2026</b> y cubre el mes de agosto. Se factura así, y de la misma forma cada primer viernes:
     <br><br>
-    <b>USD 100</b> (mensualidad) &nbsp;+&nbsp; <b>la línea de IA del mes</b> &nbsp;+&nbsp; <b>IVA 15%</b> sobre las dos cosas.
+    <b>USD 80</b> (mensualidad) &nbsp;+&nbsp; <b>la línea de IA del mes</b> &nbsp;+&nbsp; <b>IVA 15%</b> sobre las dos cosas.
     <br><br>
-    Con el motor máximo y el volumen actual —<b>alrededor de $2 al día</b> medidos— la factura queda así: $100 de mensualidad + <b>$96</b> de IA (consumo del mes con su 60%) = $196, más IVA = <b>USD 225,40</b>. La cifra exacta sale del reporte del proveedor, no de una estimación.</div>
+    Con el motor máximo y el volumen actual —<b>alrededor de $2 al día</b> medidos— la factura queda así: $80 de mensualidad + <b>$96</b> de IA (consumo del mes con su 60%) = $176, más IVA = <b>USD 202,40</b>. La cifra exacta sale del reporte del proveedor, no de una estimación.</div>
 
   <div class="note dark" style="margin-top:12px">
-    <b>Datos para la transferencia</b><br>
-    Banco: <b>Produbanco</b> &nbsp;·&nbsp; Tipo: Cuenta de Ahorros Nacional &nbsp;·&nbsp; N.º de cuenta: <b>12040733985</b><br>
-    Titular: <b>Manuel María Montúfar</b> &nbsp;·&nbsp; C.I.: 1722104336 &nbsp;·&nbsp; Celular: 0993728763
+    <b>Datos de facturación y transferencia</b><br>
+    Titular: <b>Rosanna Mancino</b> &nbsp;·&nbsp; RUC: <b>1708782253001</b> &nbsp;·&nbsp; C.I.: 1708782253<br>
+    Banco: <b>Banco Guayaquil S.A.</b> &nbsp;·&nbsp; Tipo: Cuenta de Ahorros &nbsp;·&nbsp; N.º de cuenta: <b>0036341798</b><br>
+    Correo para la factura y el comprobante: rosannamancino@hotmail.com
   </div>
 
   <h2 style="margin-top:14px"><span class="n">12.</span> Aceptación</h2>

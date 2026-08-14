@@ -1,4 +1,4 @@
-import type { Atiende, BotAlert, BotPower, Cierre, EchoHealth, Etapa, FeedItem, FinalStage, FollowUpCard, HubMetrics, Mensaje, PhaseFlags, Rol, TemplatePlanPreview, Ticket } from "./types";
+import type { Atiende, Billing, BotAlert, BotPower, Cierre, EchoHealth, Etapa, FeedItem, FinalStage, FollowUpCard, HubMetrics, Mensaje, PhaseFlags, Rol, TemplatePlanPreview, Ticket } from "./types";
 
 /**
  * El contrato entre la UI y los datos. Parte 1: MockSource (fixtures + simulador).
@@ -24,6 +24,10 @@ export interface DataSource {
   getMetrics(days?: number): Promise<HubMetrics>;
   /** Quién llegó a la última columna del tablero, agrupado por día. */
   getFinalStage(): Promise<FinalStage>;
+  /** Cuenta de tokens y facturación mensual del servicio. */
+  getBilling(): Promise<Billing>;
+  /** Marca un mes como pagado; solo funciona con la clave de dueño. */
+  setBillingPaid(period: string, paid: boolean, ownerKey: string): Promise<Billing>;
   listFollowUps(): Promise<FollowUpCard[]>;
   listAlerts(): Promise<BotAlert[]>;
   followUpAction(id: number, action: "send" | "cancel" | "edit" | "generate", preview?: string): Promise<void>;

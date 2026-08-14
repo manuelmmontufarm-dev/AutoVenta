@@ -8,7 +8,7 @@
  */
 import satori from "satori";
 import { Resvg } from "@resvg/resvg-js";
-import type { CatalogAvailability, CatalogItem } from "../domain/catalog.js";
+import { compactCatalogText, type CatalogAvailability, type CatalogItem } from "../domain/catalog.js";
 import { warrantyForBrand } from "../services/quoteMessages.js";
 import { loadFonts, productPhoto, type RasterImage } from "./assets.js";
 import { DEFAULT_BRAND_PROFILES, resolveTheme, type SatoriNode, type Theme } from "./depotDesign.js";
@@ -102,6 +102,23 @@ function toPosterLine(
   };
 }
 
+/**
+ * Marca cada línea como «su medida exacta» o «equivalente», comparando contra
+ * la medida que pidió el cliente.
+ *
+ * Se calcula AQUÍ y no en quien llama para que ninguna pieza pueda olvidarse
+ * de marcarlo: si hay medida pedida, todas las tarjetas salen marcadas.
+ */
+function marcarExactitud(lines: PosterLine[], medidaPedida: string | null | undefined): PosterLine[] {
+  if (!medidaPedida) return lines;
+  const objetivo = compactCatalogText(medidaPedida);
+  if (!objetivo) return lines;
+  return lines.map((line) => ({
+    ...line,
+    medidaExacta: compactCatalogText(line.sizeLabel) === objetivo,
+  }));
+}
+
 const POSTER_WIDTH = 1440;
 
 export async function renderQuoteImage(data: QuoteRenderData): Promise<Buffer> {
@@ -145,15 +162,26 @@ export interface OptionsRenderData extends PieceTheme {
   dateLabel: string;
   /** Medida buscada, ej. "205/55R16" — va en el encabezado. */
   sizeLabel?: string | null;
+  /**
+   * La medida que pidió el cliente. Cuando viene, cada tarjeta sale marcada
+   * como MEDIDA EXACTA (verde) o como equivalente (sello rojo).
+   */
+  medidaPedida?: string | null;
   products: RenderLine[]; // quantity ignorada
 }
 
 export async function renderOptionsImage(data: OptionsRenderData): Promise<Buffer> {
+  const lines = marcarExactitud(
+    data.products.map((line) => toPosterLine(line, data.brandProfiles)),
+    data.medidaPedida,
+  );
   const node = optionsPoster(
     {
       dateLabel: data.dateLabel,
-      sizeLabel: data.sizeLabel ?? data.products[0]?.sizeLabel ?? null,
-      lines: data.products.map((line) => toPosterLine(line, data.brandProfiles)),
+      // Con medida pedida, el encabezado muestra ESA: es la referencia contra
+      // la que el cliente compara los sellos de cada tarjeta.
+      sizeLabel: data.medidaPedida ?? data.sizeLabel ?? data.products[0]?.sizeLabel ?? null,
+      lines,
     },
     themeOf(data),
   );

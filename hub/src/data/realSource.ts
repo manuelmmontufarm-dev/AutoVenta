@@ -1,6 +1,7 @@
 import type { DataSource, SourceEvent } from "./source";
 import type {
   Atiende,
+  Billing,
   Cierre,
   EchoHealth,
   Etapa,
@@ -139,6 +140,20 @@ export class RealSource implements DataSource {
 
   async getFinalStage(): Promise<FinalStage> {
     return (await this.request<{ finalStage: FinalStage }>("/api/hub/final-stage")).finalStage;
+  }
+
+  async getBilling(): Promise<Billing> {
+    return (await this.request<{ billing: Billing }>("/api/hub/billing")).billing;
+  }
+
+  async setBillingPaid(period: string, paid: boolean, ownerKey: string): Promise<Billing> {
+    return (
+      await this.request<{ billing: Billing }>(`/api/hub/billing/${period}/pay`, {
+        method: "POST",
+        body: JSON.stringify({ paid }),
+        headers: { "x-owner-key": ownerKey },
+      })
+    ).billing;
   }
 
   async listFollowUps(): Promise<FollowUpCard[]> {

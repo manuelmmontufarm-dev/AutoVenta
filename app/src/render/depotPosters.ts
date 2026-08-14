@@ -13,7 +13,7 @@ import {
   ARCHIVO_BLACK, BLACK_ITALIC, type Availability, type Child, type SatoriNode, type Theme,
   availabilityChip, availabilityDot, availabilityPill, benefitsStrip, brandAccent, brandAccentDark,
   brandMark, check, depotWordmark, el, img, posterFooter, posterHeader, racingBar, savingsBadge, speedLines,
-  stripEmoji, text,
+  stripEmoji, text, tick,
 } from "./depotDesign.js";
 import { guideTireImage } from "./assets.js";
 
@@ -55,6 +55,19 @@ export interface PosterLine {
   posicionamiento?: string | null;
   /** Etiqueta corta, ej. "MEJOR EQUILIBRIO". */
   tag?: string | null;
+  /**
+   * ¿Es exactamente la medida que pidió el cliente?
+   *
+   * `true` → se marca MEDIDA EXACTA. `false` → se marca en rojo que le entra
+   * por el aro pero NO es su medida. `null`/undefined → no se sabe (el cliente
+   * no dio medida) y no se marca nada.
+   *
+   * Existe porque la pieza de opciones se llena hasta con tres llantas y, para
+   * lograrlo, a veces entran equivalentes de otra medida. Eso está bien —son
+   * llantas que sí le montan— pero sin decirlo la imagen miente por omisión, y
+   * de ahí salió una cotización firmada en la medida equivocada (13-ago).
+   */
+  medidaExacta?: boolean | null;
 }
 
 const savingsPct = (line: PosterLine): string | null => {
@@ -384,6 +397,43 @@ export interface OptionsPosterData {
   lines: readonly PosterLine[];
 }
 
+/** El aro que se lee de una medida, para poder decir «le entra por el aro 17». */
+function aroDeMedida(sizeLabel: string): string | null {
+  return sizeLabel.match(/R(\d{2})/i)?.[1] ?? null;
+}
+
+/**
+ * El sello de medida de cada tarjeta de opciones.
+ *
+ * Verde «MEDIDA EXACTA» cuando es la que pidió; ROJO y grande cuando es una
+ * equivalente. La tarjeta no mostraba la medida por ningún lado, así que tres
+ * llantas de tres medidas distintas se veían idénticas — el cliente elegía a
+ * ciegas y el bot terminaba cotizando otra cosa.
+ */
+function selloDeMedida(line: PosterLine, t: (n: number) => number): SatoriNode | null {
+  if (line.medidaExacta == null) return null;
+  const aro = aroDeMedida(line.sizeLabel);
+  if (line.medidaExacta) {
+    return el({
+      alignItems: "center", gap: t(8), backgroundColor: "#dcf2e3", borderRadius: 999,
+      border: "2px solid #1e7a3c", padding: `${t(7)}px ${t(16)}px`, alignSelf: "flex-start",
+    },
+      tick(t(15), "#1e7a3c"),
+      text({ fontSize: t(16), fontWeight: 700, color: "#1e7a3c", whiteSpace: "nowrap" },
+        `${line.sizeLabel} · MEDIDA EXACTA`),
+    );
+  }
+  return el({
+    flexDirection: "column", gap: t(3), backgroundColor: "#ffe3e2", borderRadius: t(12),
+    border: "3px solid #d62828", padding: `${t(9)}px ${t(16)}px`, alignSelf: "flex-start",
+  },
+    text({ ...ARCHIVO_BLACK, fontSize: t(18), color: "#a51111", whiteSpace: "nowrap" },
+      `${line.sizeLabel} · NO ES SU MEDIDA`),
+    text({ fontSize: t(14), fontWeight: 700, color: "#a51111", whiteSpace: "nowrap" },
+      aro ? `Le entra por el aro ${aro}, pero es otra medida` : "Es una medida equivalente"),
+  );
+}
+
 export function optionsPoster(data: OptionsPosterData, theme: Theme): SatoriNode {
   const { p, price } = theme;
 
@@ -436,6 +486,9 @@ export function optionsPoster(data: OptionsPosterData, theme: Theme): SatoriNode
 
     const bloqueDatos = el({ flexDirection: "column", gap: t(8), ...(acostada ? { flex: 1 } : {}) },
       text({ ...BLACK_ITALIC, fontSize: t(26), letterSpacing: -0.5, color: p.dark }, line.design),
+      // El sello va ARRIBA del precio: es lo que el cliente tiene que saber
+      // antes de mirar cuánto cuesta.
+      selloDeMedida(line, t),
       text({ fontSize: t(14), color: p.tenue }, line.loadSpeedLabel ?? ""),
       el({ alignItems: "baseline", gap: t(10), marginTop: 4 },
         text({ ...price, fontSize: t(42), lineHeight: 1, letterSpacing: -1, color: p.dark }, money(line.unitConIva)),
@@ -495,10 +548,27 @@ export function optionsPoster(data: OptionsPosterData, theme: Theme): SatoriNode
 
   const filas = [...grupos.entries()].map(([marca, items]) => filaMarca(marca, items));
 
+  // «TODO EN TU MEDIDA» solo se puede prometer si TODAS lo son. Con alguna
+  // equivalente en la pieza, ese rótulo sería justo la confusión que los
+  // sellos vienen a evitar.
+  const hayEquivalentes = data.lines.some((line) => line.medidaExacta === false);
   return el({ flexDirection: "column", width: "100%", backgroundColor: p.base, fontFamily: "Archivo", color: p.dark },
-    posterHeader(theme, "TODO EN TU MEDIDA", data.sizeLabel ?? "", data.dateLabel),
+    posterHeader(
+      theme,
+      hayEquivalentes ? "OPCIONES QUE LE MONTAN" : "TODO EN TU MEDIDA",
+      data.sizeLabel ?? "",
+      data.dateLabel,
+    ),
     racingBar(theme),
     ...filas,
+    hayEquivalentes
+      ? el({ alignItems: "center", gap: 14, padding: "20px 64px", backgroundColor: "#ffe3e2",
+          borderTop: "3px solid #d62828" },
+          text({ ...ARCHIVO_BLACK, fontSize: 20, color: "#a51111", whiteSpace: "nowrap" }, "OJO"),
+          text({ fontSize: 18, fontWeight: 500, color: "#a51111", lineHeight: 1.4 },
+            "Las marcadas en rojo NO son su medida exacta: le montan en el mismo aro y son equivalentes. Confírmelas con el asesor antes de comprar."),
+        )
+      : null,
     benefitsStrip(theme, TODAS_INCLUYEN),
     posterFooter(theme, "Precios incluyen IVA y Ecovalor · por unidad · 3 y 6 meses sin intereses", SUCURSALES),
   );

@@ -1,5 +1,6 @@
 import { motion } from "framer-motion";
 import { useMemo } from "react";
+import { BillingSection } from "../components/billing";
 import { AreaChart, DonutChart, FunnelChart, MetricBars, StatTile } from "../components/charts";
 import { CIERRE_META, ETAPAS, ETAPA_META } from "../data/types";
 import { money, relTime } from "../lib/format";
@@ -372,6 +373,9 @@ export function Dashboard() {
           </div>
         </motion.section>
       )}
+
+      {/* Tokens y cuenta del servicio */}
+      <BillingSection />
 
       {/* Actividad */}
       <motion.section

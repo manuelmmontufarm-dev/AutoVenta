@@ -1086,6 +1086,9 @@ export function buildTools(ctx: AgentContext) {
           renderOptionsImage({
             dateLabel: dateLabel(),
             sizeLabel,
+            // Con esto cada tarjeta sale marcada: verde MEDIDA EXACTA, o el
+            // sello rojo de equivalente. Es la medida que el cliente pidió.
+            medidaPedida: permitidasOpciones[0] ?? null,
             ...(await getPiecesConfig()),
             brandProfiles: await brandProfilesForRender(),
             products: await Promise.all(products.map((product) => toRenderLine(product))),

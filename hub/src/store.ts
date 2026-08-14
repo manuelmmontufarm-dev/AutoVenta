@@ -11,7 +11,9 @@ const dataMode: "demo" | "real" = window.location.pathname.includes("/demo")
   ? "demo"
   : "real";
 const mockSource = new MockSource();
-const source: DataSource = dataMode === "demo" ? mockSource : new RealSource();
+// Exportada para pantallas con datos propios (p. ej. la cuenta de tokens del
+// Dashboard) que no necesitan pasar por el estado global.
+export const source: DataSource = dataMode === "demo" ? mockSource : new RealSource();
 const simulator = dataMode === "demo" ? new Simulator(mockSource) : null;
 
 export interface Toast {

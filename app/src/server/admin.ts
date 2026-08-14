@@ -60,6 +60,7 @@ import {
 } from "../services/conversations.js";
 import { getFinalStageArrivals, getHubFeed, getHubMessages, getHubMetrics, getHubTicket, listHubTickets } from "../services/hubData.js";
 import { getEchoHealth } from "../services/echoHealth.js";
+import { marcarPagado, resumenBilling } from "../services/billing.js";
 import { buildDailyReport } from "../services/dailyReport.js";
 import { enviarReporteDiario } from "../services/dailyReportDelivery.js";
 import { renderDailyReportHtml } from "../render/dailyReportHtml.js";
@@ -430,6 +431,39 @@ export function createAdminRouter(): express.Router {
         followUps: await getFollowUpMetrics(),
       },
     });
+  });
+
+  // Cuenta de tokens y facturación mensual (tab KPI). La lectura es para el
+  // cliente; marcar pagado exige la clave de dueño, que el cliente no tiene.
+  router.get("/hub/billing", async (_req, res) => {
+    try {
+      res.json({ ok: true, billing: await resumenBilling() });
+    } catch (error) {
+      res.status(500).json({ ok: false, error: mensaje(error, "No se pudo calcular la cuenta") });
+    }
+  });
+
+  router.post("/hub/billing/:period/pay", async (req, res) => {
+    const ownerKey = process.env.OWNER_KEY ?? "";
+    if (!ownerKey) {
+      res.status(503).json({ ok: false, error: "OWNER_KEY no está configurada en el servidor." });
+      return;
+    }
+    if (req.header("x-owner-key") !== ownerKey) {
+      res.status(403).json({ ok: false, error: "Solo el dueño del servicio puede marcar pagos." });
+      return;
+    }
+    const body = z.object({ paid: z.boolean() }).safeParse(req.body);
+    if (!body.success) {
+      res.status(400).json({ ok: false, error: "Falta el campo paid (true/false)." });
+      return;
+    }
+    try {
+      await marcarPagado(req.params.period, body.data.paid, "owner");
+      res.json({ ok: true, billing: await resumenBilling() });
+    } catch (error) {
+      res.status(400).json({ ok: false, error: mensaje(error, "No se pudo actualizar el pago") });
+    }
   });
 
   // Lo que de verdad llega del webhook cuando un asesor contesta desde su

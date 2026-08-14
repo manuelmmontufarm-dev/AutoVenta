@@ -32,6 +32,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-08-14 | _(este mismo)_ | Sello de medida en las opciones: MEDIDA EXACTA en verde, equivalentes en rojo | 1.0 |
 | 2026-08-14 | _(este mismo)_ | Búsqueda en escalera + 6 familias de SKUs que estaban SIN medida (invisibles) | 2.0 |
 | 2026-08-14 | _(este mismo)_ | La medida se decodifica PRIMERO y manda como filtro en la búsqueda | 1.0 |
 | 2026-08-14 | _(este mismo)_ | «at4» ya encuentra la A/T4W + el guardián ve las herramientas del turno | 1.5 |
@@ -132,6 +133,27 @@ Ya viene activado en este equipo.
 ---
 
 ## Entradas (más reciente primero)
+
+### 2026-08-14 · Cada opción dice si es su medida o una equivalente · ⏱️ 1.0 h
+
+**Qué:** La pieza de opciones se llena hasta con tres llantas y, para
+lograrlo, a veces entran equivalentes de otro perfil que sí le montan por el
+aro. Eso está bien y vende — el problema era que **la tarjeta no mostraba la
+medida por ningún lado**, así que tres medidas distintas se veían idénticas.
+Ahora cada tarjeta lleva su sello: verde «265/70R17 · MEDIDA EXACTA» o rojo
+«265/65R17 · NO ES SU MEDIDA — Le entra por el aro 17, pero es otra medida»,
+arriba del precio. Si alguna es equivalente, el rótulo del encabezado deja de
+prometer «TODO EN TU MEDIDA» (pasa a «OPCIONES QUE LE MONTAN») y al pie sale
+una franja roja: «OJO — las marcadas en rojo NO son su medida exacta…».
+La exactitud se calcula en `renderOptionsImage` (no en quien llama) para que
+ninguna pieza pueda olvidarse de marcarla.
+
+**Por qué:** Pedido de Manuel: «que salga una nota grande, un badge rojo al
+lado, para no confundir nada». Es la última capa del mismo problema del
+13-ago: el bot ya no puede COTIZAR otra medida (candado) ni BUSCAR mal
+(escalera), y ahora tampoco puede MOSTRAR una equivalente sin decirlo.
+
+---
 
 ### 2026-08-14 · Escalera de búsqueda + los SKUs invisibles · ⏱️ 2.0 h
 

@@ -392,3 +392,40 @@ export interface FinalStage {
   ganados: number;
   days: FinalStageDay[];
 }
+
+/** Uso de IA en un periodo (día, semana, mes) valorado en dólares. */
+export interface UsoTokens {
+  inputTokens: number;
+  cachedInputTokens: number;
+  outputTokens: number;
+  runs: number;
+  usd: number;
+  usdConIva: number;
+}
+
+/** Un mes de la cuenta: tokens + IVA + mantenimiento, con su vencimiento. */
+export interface MesFacturado {
+  period: string;
+  desde: string;
+  hasta: string;
+  uso: UsoTokens;
+  ivaTokens: number;
+  mantenimiento: number;
+  ivaMantenimiento: number;
+  total: number;
+  /** YYYY-MM-DD: primer viernes del mes siguiente. */
+  vence: string;
+  enCurso: boolean;
+  pagado: boolean;
+  pagadoEl: string | null;
+}
+
+export interface Billing {
+  hoy: UsoTokens;
+  semana: UsoTokens;
+  mes: UsoTokens;
+  ivaPorc: number;
+  mantenimiento: number;
+  inicioServicio: string;
+  meses: MesFacturado[];
+}
