@@ -11,13 +11,16 @@ import { z } from "zod";
 import { business } from "../config.js";
 import {
   catalogCandidates,
+  catalogStatus,
   ensureCatalogReady,
   findByCode,
   searchAlternatives,
   searchBySize,
   searchByText,
+  searchWithLadder,
   type CatalogItem,
 } from "../services/catalog.js";
+
 import { getInterbotPrice, refreshPriceForSize } from "../services/interbotPrices.js";
 import {
   buildQuote,
@@ -534,10 +537,52 @@ export function buildTools(ctx: AgentContext) {
     }),
     run: async ({ consulta }) => {
       await ensureCatalogReady();
+      const MOSTRAR =
+        "PROHIBIDO escribir estas opciones como lista en el chat. Para mostrárselas al cliente llama preparar_opciones con máximo 3 códigos (una premium, una de equilibrio y una económica) — esa herramienta manda la imagen. Si escribes precios y disponibilidad en texto, el cliente recibe un muro y no ve la pieza.";
+      // Búsqueda en escalera: lo exacto y, si no hay, QUÉ SÍ HAY. El catálogo
+      // nunca responde con un `[]` mudo — eso es lo que empujaba al modelo a
+      // inventar un «no aparece en catálogo» (14-ago). Y no se escala al
+      // asesor: con estos datos el bot arma solo una respuesta precisa.
+      const escalera = searchWithLadder(consulta, 8);
+      if (!escalera.sinCoincidenciaExacta) {
+        return JSON.stringify({
+          consulta,
+          resultados: escalera.resultados.map(toolItem),
+          siguiente_paso: MOSTRAR,
+        });
+      }
+
+      const sizeLabel = escalera.medidaPedida;
+      const enEsaMedida = escalera.enEsaMedida;
+      const elModeloEnOtrasMedidas = escalera.modeloEnOtrasMedidas;
+      const estado = catalogStatus();
+      // Catálogo vacío o caído: aquí NO se puede afirmar que algo no existe.
+      // Es un problema del sistema, no una respuesta comercial.
+      const catalogoCaido = estado.items === 0 || Boolean(estado.error);
+
       return JSON.stringify({
         consulta,
-        resultados: searchByText(consulta, 8).map(toolItem),
-        siguiente_paso: "PROHIBIDO escribir estas opciones como lista en el chat. Para mostrárselas al cliente llama preparar_opciones con máximo 3 códigos (una premium, una de equilibrio y una económica) — esa herramienta manda la imagen. Si escribes precios y disponibilidad en texto, el cliente recibe un muro y no ve la pieza.",
+        resultados: [],
+        sin_coincidencia_exacta: true,
+        medida_pedida: sizeLabel,
+        en_esa_medida: enEsaMedida.map(toolItem),
+        ese_modelo_en_otras_medidas: elModeloEnOtrasMedidas.map(toolItem),
+        catalogo: { items: estado.items, error: estado.error },
+        siguiente_paso: catalogoCaido
+          ? "El catálogo no está disponible ahora mismo: NO afirmes que no tenemos nada. Dile que lo confirmas en un momento y avisa con notificar_vendedor."
+          : [
+              "NO digas «no tenemos» en seco: responde con lo que estos datos SÍ dicen, en una sola frase corta y honesta.",
+              enEsaMedida.length
+                ? `En ${sizeLabel} SÍ hay stock (mira 'en_esa_medida'): dile que ese modelo exacto no lo manejas en esa medida y muéstrale lo que sí hay con preparar_opciones.`
+                : null,
+              elModeloEnOtrasMedidas.length
+                ? "Ese modelo SÍ existe en otras medidas (mira 'ese_modelo_en_otras_medidas'): dilo, nombrando las medidas, por si cambió de aro."
+                : null,
+              !enEsaMedida.length && !elModeloEnOtrasMedidas.length
+                ? "Ni el modelo ni la medida están en el catálogo: ahí sí dilo claro y ofrece buscar por su vehículo o por aro para no dejarlo sin nada."
+                : null,
+              MOSTRAR,
+            ].filter(Boolean).join(" "),
       });
     },
   });

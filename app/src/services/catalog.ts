@@ -11,11 +11,13 @@ import { JWT } from "google-auth-library";
 import { config } from "../config.js";
 import {
   availabilityFromStock,
+  buscarConEscalera,
   normalizeContificoProduct,
   resolveCatalogCandidates,
   searchCatalog,
   type CatalogItem,
   type ContificoProductWire,
+  type ResultadoEscalera,
 } from "../domain/catalog.js";
 import { extractTireSizes, formatTireSize, type TireSize } from "../domain/tireSize.js";
 import {
@@ -292,6 +294,11 @@ export function searchBySize(size: TireSize): CatalogItem[] {
 /** Búsqueda estilo Interbot: medida, código, marca, diseño o combinación. */
 export function searchByText(query: string, limit = 40): CatalogItem[] {
   return searchCatalog(items, query, limit);
+}
+
+/** Búsqueda en escalera sobre el catálogo cargado (ver domain/catalog.ts). */
+export function searchWithLadder(query: string, limit = 8): ResultadoEscalera {
+  return buscarConEscalera(items, query, limit);
 }
 
 /** Alternativas: mismo aro, ancho ±10mm (para cuando no hay la medida exacta). */

@@ -1,4 +1,7 @@
-import { extractFlotationSizes, extractTireSizes, formatTireSize, type TireSize } from "./tireSize.js";
+import {
+  extractConventionalSizes, extractFlotationSizes, extractTireSizes,
+  formatConventionalSize, formatTireSize, type TireSize,
+} from "./tireSize.js";
 import { resolveCatalogMedia } from "./catalogMedia.js";
 import { extractLoadSpeed, type TireLoadSpeed } from "./tireSpecs.js";
 
@@ -102,15 +105,22 @@ export function extractCatalogSizeLabel(text: string): {
   if (metric) return { size: metric, sizeLabel: formatTireSize(metric) };
 
   // El parser del dominio, no un regex local: entiende «33x12.50r17» en
-  // minúscula y con decimales, que es como lo escribe la gente. FLOTATION_RE
-  // (solo mayúsculas) se queda para los NOMBRES del catálogo, que sí vienen
-  // uniformes de Contífico.
+  // minúscula, con asterisco y sin punto decimal, que es como aparece tanto
+  // en el catálogo de Contífico como en los mensajes de la gente.
   const flotation = extractFlotationSizes(text)[0];
-  if (!flotation) return { size: null, sizeLabel: null };
-  return {
-    size: null,
-    sizeLabel: canonicalFlotationLabel(flotation.diameter, flotation.section, flotation.rim),
-  };
+  if (flotation) {
+    return {
+      size: null,
+      sizeLabel: canonicalFlotationLabel(flotation.diameter, flotation.section, flotation.rim),
+    };
+  }
+
+  // Última: la convencional de camión liviano («7.00R15»). Va al final porque
+  // su patrón es el más laxo y podría morder el ancho de una flotación.
+  const conventional = extractConventionalSizes(text)[0];
+  if (conventional) return { size: null, sizeLabel: formatConventionalSize(conventional) };
+
+  return { size: null, sizeLabel: null };
 }
 
 export function availabilityFromStock(stock: number): CatalogAvailability {
@@ -203,7 +213,10 @@ const RELLENO = new Set([
   "precios", "cuanto", "cuesta", "vale", "cotiza", "cotizar", "cotizacion",
   "llanta", "llantas", "de", "del", "la", "las", "el", "los", "un", "una",
   "en", "para", "por", "con", "y", "o", "me", "mi", "su", "rin", "aro",
-  "medida",
+  "medida", "juego", "unidades",
+  // Cortesías: el cliente saluda y agradece dentro de la misma frase.
+  "favor", "porfavor", "porfa", "gracias", "hola", "buenas", "buenos",
+  "dias", "tardes", "noches", "senor", "senora", "amigo", "disculpe",
 ]);
 
 export function searchCatalog(
@@ -229,11 +242,15 @@ export function searchCatalog(
   const querySize = extractCatalogSizeLabel(query).sizeLabel;
   const compactSize = querySize ? compactCatalogText(querySize) : null;
   let pool: readonly CatalogItem[] = items;
+  let acotadoPorMedida = false;
   if (compactSize) {
     const deLaMedida = items.filter(
       (item) => item.sizeLabel && compactCatalogText(item.sizeLabel) === compactSize,
     );
-    if (deLaMedida.length) pool = deLaMedida;
+    if (deLaMedida.length) {
+      pool = deLaMedida;
+      acotadoPorMedida = true;
+    }
   }
 
   // Las palabras de conversación no describen la llanta y exigirlas mata la
@@ -245,12 +262,32 @@ export function searchCatalog(
   const esFragmentoDeMedida = (token: string): boolean => {
     if (!compactSize) return false;
     // «rin17»/«aro17» llegan pegados: se les quita la palabra y queda el
-    // número, que sí es parte de la medida ya decodificada.
-    const nucleo = compactCatalogText(token).replace(/^(?:rin|aro)/, "");
+    // número, que sí es parte de la medida ya decodificada. Igual con el
+    // prefijo LT/P de las medidas de camioneta («LT265/70R17»), que el parser
+    // de medidas sí entiende pero el nombre del producto no siempre trae.
+    // Si el token ES la medida completa escrita de otra forma («35x12.50R20»
+    // contra la canónica «35X12.5R20»), se decodifica y se compara ya
+    // canonizado. Sin esto, la variante con el cero de más o sin punto se
+    // exigía como palabra literal y no aparecía en ningún nombre.
+    const propia = extractCatalogSizeLabel(token).sizeLabel;
+    if (propia && compactCatalogText(propia) === compactSize) return true;
+    const nucleo = compactCatalogText(token)
+      .replace(/^(?:rin|aro)/, "")
+      .replace(/^(?:lt|p)(?=\d)/, "");
     return nucleo.length > 0 && compactSize.includes(nucleo);
   };
-  const utiles = crudos.filter((token) => !RELLENO.has(token) && !esFragmentoDeMedida(token));
-  const queryTokens = utiles.length ? utiles : crudos;
+  // El relleno solo se conserva si sin él no queda NADA con qué buscar.
+  const sinRelleno = crudos.filter((token) => !RELLENO.has(token));
+  const base = sinRelleno.length ? sinRelleno : crudos;
+  // Y los pedazos de la medida salen siempre: ya filtraron el catálogo. Que
+  // la lista quede vacía es válido y frecuente —«215/75 Rin15» es SOLO una
+  // medida—; ahí manda el filtro y no se exige ninguna palabra.
+  const queryTokens = base.filter((token) => !esFragmentoDeMedida(token));
+
+  // Sin palabras y sin medida acotada no hay búsqueda posible: devolver todo
+  // el catálogo sería peor que devolver nada («tienen llantas», o una medida
+  // que no existe en stock).
+  if (!queryTokens.length && !acotadoPorMedida) return [];
 
   return pool
     .map((item) => ({ item, score: scoreItem(item, normalizedQuery, compactQuery, compactSize, queryTokens) }))
@@ -264,6 +301,84 @@ export function searchCatalog(
     })
     .slice(0, Math.max(1, Math.min(limit, 60)))
     .map((entry) => entry.item);
+}
+
+/** Lo que responde el catálogo cuando se le pregunta por una llanta. */
+export interface ResultadoEscalera {
+  /** Coincidencias en la medida pedida (o las mejores, si no se pidió medida). */
+  resultados: CatalogItem[];
+  /** true = no hay nada que sea exactamente lo pedido. */
+  sinCoincidenciaExacta: boolean;
+  medidaPedida: string | null;
+  /** Qué SÍ hay en la medida que pidió, cuando su modelo no está. */
+  enEsaMedida: CatalogItem[];
+  /** En qué medidas SÍ existe el modelo que pidió, cuando su medida no está. */
+  modeloEnOtrasMedidas: CatalogItem[];
+}
+
+/**
+ * Búsqueda en escalera: primero lo exacto, y si no hay, QUÉ SÍ HAY.
+ *
+ * Un `[]` a secas es la peor respuesta posible del catálogo: obliga al modelo
+ * a improvisar un «no tenemos» que ni él puede verificar (14-ago, la Wildpeak
+ * A/T4W que sí estaba en stock). Y escalar cada uno de esos al asesor tampoco
+ * sirve: terminaría contestando «¿tenemos esto?» todo el día. Así que el
+ * catálogo responde con datos y el bot arma una respuesta precisa solo:
+ *
+ *  · Está lo pedido            → `resultados`.
+ *  · Existe la medida, no el modelo → `enEsaMedida` («esa no, pero mire estas»).
+ *  · Existe el modelo, no la medida → `modeloEnOtrasMedidas` («la manejo en…»).
+ *  · No existe ninguno         → las dos vacías: ahí sí es un «no» honesto.
+ *
+ * Regla dura: si el cliente pidió una medida, NADA de otra medida entra en
+ * `resultados`. Presentar otra medida como si fuera la suya es el error que
+ * terminó en una cotización firmada por $82,84 menos (chat 5499).
+ */
+export function buscarConEscalera(
+  items: readonly CatalogItem[],
+  consulta: string,
+  limit = 8,
+): ResultadoEscalera {
+  const crudos = searchCatalog(items, consulta, limit);
+  const medidaPedida = extractCatalogSizeLabel(consulta).sizeLabel;
+  const compactPedida = medidaPedida ? compactCatalogText(medidaPedida) : null;
+  const enLaMedida = compactPedida
+    ? crudos.filter((item) => item.sizeLabel && compactCatalogText(item.sizeLabel) === compactPedida)
+    : crudos;
+
+  if (enLaMedida.length) {
+    return {
+      resultados: enLaMedida,
+      sinCoincidenciaExacta: false,
+      medidaPedida,
+      enEsaMedida: [],
+      modeloEnOtrasMedidas: [],
+    };
+  }
+
+  // El texto del modelo = la consulta sin los pedazos de la medida ya
+  // decodificada («265», «70r17», «rin17»): ya hicieron su trabajo de filtro.
+  const textoDelModelo = consulta
+    .split(/\s+/)
+    .filter((token) => {
+      const nucleo = compactCatalogText(token).replace(/^(?:rin|aro)/, "");
+      return !(compactPedida && nucleo.length > 0 && compactPedida.includes(nucleo));
+    })
+    .join(" ")
+    .trim();
+
+  return {
+    resultados: [],
+    sinCoincidenciaExacta: true,
+    medidaPedida,
+    enEsaMedida: medidaPedida ? searchCatalog(items, medidaPedida, limit) : [],
+    // `crudos` ya trae el modelo en otras medidas cuando la pedida no existe.
+    modeloEnOtrasMedidas: crudos.length
+      ? crudos
+      : textoDelModelo && textoDelModelo !== consulta
+        ? searchCatalog(items, textoDelModelo, limit)
+        : [],
+  };
 }
 
 /**

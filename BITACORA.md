@@ -32,6 +32,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-08-14 | _(este mismo)_ | Búsqueda en escalera + 6 familias de SKUs que estaban SIN medida (invisibles) | 2.0 |
 | 2026-08-14 | _(este mismo)_ | La medida se decodifica PRIMERO y manda como filtro en la búsqueda | 1.0 |
 | 2026-08-14 | _(este mismo)_ | «at4» ya encuentra la A/T4W + el guardián ve las herramientas del turno | 1.5 |
 | 2026-08-13 | _(este mismo)_ | El Ángel Guardián: revisión IA de cada respuesta antes de enviarla, con interruptor en Ajustes | 2.0 |
@@ -131,6 +132,43 @@ Ya viene activado en este equipo.
 ---
 
 ## Entradas (más reciente primero)
+
+### 2026-08-14 · Escalera de búsqueda + los SKUs invisibles · ⏱️ 2.0 h
+
+**Qué:** (1) `buscarConEscalera` (domain/catalog.ts, pura y testeada; envuelta
+en `searchWithLadder`): el catálogo ya no responde `[]` mudo. Da lo exacto y,
+si no hay, QUÉ SÍ HAY — lo que existe en la medida pedida y en qué medidas
+existe el modelo pedido. Con eso `buscar_catalogo` devuelve al agente datos
+para una respuesta precisa **sin escalar al asesor**, y un «no lo manejamos»
+pasa a ser una afirmación respaldada. Regla dura: si el cliente pidió una
+medida, nada de otra medida entra como `resultados` (iba a repetir el 5499
+cuando la medida pedida no existía en catálogo).
+
+(2) **Seis familias de SKUs reales estaban SIN medida — invisibles a toda
+búsqueda por medida aunque estuvieran en stock.** Medido sobre los 385 SKUs
+que entregó Depot: `30*9.50R15` y `35*12.50R17/R20` (el catálogo usa `*` en
+vez de `X`), `33X1250R20` (sin punto decimal) y las convencionales de camión
+`7.00R15`, `6.50R16`, `7.00R16` (KR12, que no tenían parser). Arreglado en
+tireSize.ts: separador `[xX*×]`, ancho de flotación sin punto («1250» → 12.50)
+y `extractConventionalSizes`. Ahora **0 de 385 SKUs sin medida**.
+
+(3) Prueba exhaustiva nueva (`medidasTodasLasFormas.test.ts`): las 153
+medidas reales × todas las formas de escribirlas (14 por métrica, 9 por
+flotación, 5 por convencional y comercial) verificando que encuentra Y que
+jamás devuelve otra medida, más los tres desenlaces del negocio. Salieron de
+ahí tres bugs más: la consulta que es SOLO medida se quedaba sin tokens y
+caía a exigir palabras inexistentes; el prefijo `LT` no se reconocía como
+parte de la medida; y las cortesías («por favor», «gracias») mataban la
+búsqueda entera.
+
+**Por qué:** Manuel: «si no hay no hay, mejor fuera que busque bien porque el
+asesor va a responder mil mensajes de no tenemos». Tenía razón: la regla que
+mandaba escalar al asesor trasladaba el problema en vez de resolverlo, y de
+paso tapaba los bugs del buscador. La cura es que el catálogo conteste con
+precisión; el guardián pasó a exigir que la negativa sea **específica y con
+alternativa**, no a escalarla.
+
+---
 
 ### 2026-08-14 · La medida se decodifica PRIMERO: filtro duro, no texto a adivinar · ⏱️ 1.0 h
 

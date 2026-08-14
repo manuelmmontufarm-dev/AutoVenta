@@ -102,15 +102,30 @@ export interface FlotationSize {
   rim: number;
 }
 
+// El separador admite `*` además de `x`: el catálogo de Depot trae la MISMA
+// llanta escrita de las dos formas («30X9.5R15LT» y «30*9.50R15LT»), y con
+// solo `x` la variante del asterisco quedaba sin medida — invisible a toda
+// búsqueda por medida aunque estuviera en stock (medido 14-ago sobre los 385
+// SKUs reales: 6 familias afectadas, incluidas las 35*12.50R17 y R20).
+// El ancho acepta hasta 4 dígitos para leer «33X1250R20», que es 33X12.50R20
+// escrito sin punto.
 const FLOTATION_TEXT_RE =
-  /(?<!\d)(\d{2})\s*[xX]\s*(\d{1,2}(?:[.,]\d{1,2})?)\s*(?:Z?R\s*|[-\s]\s*)(\d{2})(?!\d)/gi;
+  /(?<!\d)(\d{2})\s*[xX*×]\s*(\d{1,4}(?:[.,]\d{1,2})?)\s*(?:Z?R\s*|[-\s]\s*)(\d{2})(?!\d)/gi;
+
+/** «1250» → 12.5. Sin punto, los dos últimos dígitos son los decimales. */
+function anchoDeFlotacion(crudo: string): number {
+  const limpio = crudo.replace(",", ".");
+  if (limpio.includes(".")) return Number(limpio);
+  const entero = Number(limpio);
+  return limpio.length >= 3 ? entero / 100 : entero;
+}
 
 /** Extrae medidas de flotación de texto libre. */
 export function extractFlotationSizes(text: string): FlotationSize[] {
   const out: FlotationSize[] = [];
   for (const m of text.matchAll(FLOTATION_TEXT_RE)) {
     const diameter = Number(m[1]);
-    const section = Number(m[2].replace(",", "."));
+    const section = anchoDeFlotacion(m[2]);
     const rim = Number(m[3]);
     // Rangos reales: por debajo o encima no es una llanta, es otro número.
     if (diameter < 26 || diameter > 44) continue;
@@ -120,6 +135,45 @@ export function extractFlotationSizes(text: string): FlotationSize[] {
     out.push({ diameter, section, rim });
   }
   return out;
+}
+
+/**
+ * Medida CONVENCIONAL de camión liviano: «7.00R15», «6.50R16», «7.50R16».
+ *
+ * El ancho va en pulgadas con decimales y no hay perfil. Son las KR12 de
+ * Kenda que Depot vende para camión: sin este parser quedaban con medida
+ * `null` y el bot respondía «no tenemos» a un cliente que preguntaba por algo
+ * que está en bodega.
+ *
+ * El lookbehind evita comerse el ancho de una flotación («30*9.50R15» no es
+ * una 9.50R15): quien llama debe probar flotación primero, y este regex
+ * además se niega a empezar justo después de una x/asterisco.
+ */
+export interface ConventionalSize {
+  /** Ancho en pulgadas, ej. 7 para 7.00R15. */
+  width: number;
+  rim: number;
+}
+
+const CONVENTIONAL_RE =
+  /(?<![\d.,])(?<![xX*×]\s?)(\d{1,2}[.,]\d{2})\s*(?:Z?R\s*|[-\s]\s*)(\d{2})(?!\d)/gi;
+
+export function extractConventionalSizes(text: string): ConventionalSize[] {
+  const out: ConventionalSize[] = [];
+  for (const m of text.matchAll(CONVENTIONAL_RE)) {
+    const width = Number(m[1].replace(",", "."));
+    const rim = Number(m[2]);
+    if (width < 5 || width > 14) continue;
+    if (rim < 12 || rim > 24) continue;
+    if (out.some((s) => s.width === width && s.rim === rim)) continue;
+    out.push({ width, rim });
+  }
+  return out;
+}
+
+/** «7.00R15» — con los dos decimales, como se imprime en el flanco. */
+export function formatConventionalSize(size: ConventionalSize): string {
+  return `${size.width.toFixed(2)}R${size.rim}`;
 }
 
 /** Forma canónica, sin ceros de más: 30x9.50 y 30x9.5 dan lo mismo. */
