@@ -41,6 +41,7 @@ import {
   appendMessage,
   logQuote,
   logQuoteArtifact,
+  registrarMedidaQueNoCoincide,
   setStage,
   updateConversationFacts,
   type Conversation,
@@ -68,6 +69,9 @@ import { costoPorKm, respaldoCompleto, respaldoDeMarca } from "../domain/respald
 import {
   debeBloquearReenvio, medidaDesdeContenido, tipoSolicitadoEn,
 } from "../domain/opcionesCandados.js";
+import {
+  medidaEstaPedida, medidasDeProductos, medidasPermitidas,
+} from "../domain/medidaPedida.js";
 import { sendImage, sendPdf } from "../wa/client.js";
 import {
   renderCompareImage,
@@ -949,6 +953,32 @@ export function buildTools(ctx: AgentContext) {
       // seis opciones confunden y el cliente termina sin elegir ninguna.
       const products = candidatos.length > 3 ? tresOpciones(candidatos) : candidatos;
 
+      // CANDADO 3 — la medida de lo que se enseña. El 13-ago (chat 5499) el
+      // cliente pidió 265/70R16 y esta pieza salió con 215/60R16, 245/70R16 y
+      // 225/70R16: tres medidas, ninguna la suya, y rotulada con la de la
+      // primera. Aquí no se bloquea —enseñar equivalencias es válido y a veces
+      // es la única venta posible— pero deja de ser silencioso: el agente
+      // recibe la orden de decir que son de otra medida, y la imagen no se
+      // rotula con una medida que no representa a todas.
+      const medidasMostradas = medidasDeProductos(products);
+      const [medidaDeLaConversacion] = await sql<{ tire_size: string | null }[]>`
+        select tire_size from conversations where id=${ctx.conversation.id}
+      `;
+      const permitidasOpciones = medidasPermitidas(
+        [ctx.currentUserText, ...inbound.map((m) => m.content)],
+        medidaDeLaConversacion?.tire_size,
+      );
+      const fueraDeMedida = products.filter(
+        (p) => !medidaEstaPedida(p.sizeLabel, permitidasOpciones),
+      );
+      const avisoMedida = fueraDeMedida.length
+        ? `OJO: el cliente pidió ${permitidasOpciones.join(" o ")} y ${
+            fueraDeMedida.length === products.length ? "NINGUNA de estas opciones es de esa medida" : "algunas de estas opciones son de otra medida"
+          } (${fueraDeMedida.map((p) => `${p.design} es ${p.sizeLabel}`).join("; ")}). ` +
+          "Dilo con todas las letras en tu respuesta —«en su medida no me queda, estas son equivalentes que sí le entran»— y nombra la medida de cada una. " +
+          "NUNCA le digas que son de su medida, y no cotices ninguna hasta que él acepte la equivalencia."
+        : null;
+
       // CANDADO 1 — anti-reenvío. Tickets 1288 y 1415 del 6-ago-2026: la misma
       // pieza de opciones salió hasta 4 veces en la misma conversación y el
       // cliente lo único que quería era el precio. Si ya la tiene en pantalla,
@@ -990,7 +1020,12 @@ export function buildTools(ctx: AgentContext) {
 
       // Pieza visual del catálogo (agrupada por marca). Si falla, el texto
       // sigue siendo la respuesta — el cliente nunca se queda sin opciones.
-      const sizeLabel = sizeLabelActual;
+      //
+      // El rótulo solo se pone cuando las tres SON de la misma medida. Con un
+      // grupo mezclado, «Opciones disponibles en 215/60R16» —la medida de la
+      // primera— es sencillamente falso para las otras dos, y es lo que el
+      // cliente del 5499 vio antes de que le firmaran otra medida.
+      const sizeLabel = medidasMostradas.length === 1 ? sizeLabelActual : null;
       const visual = await sendVisual(
         ctx.conversation.id,
         ctx.customerPhone,
@@ -1063,6 +1098,8 @@ export function buildTools(ctx: AgentContext) {
       return JSON.stringify({
         imagen_enviada: visual.ok,
         ...(avisoTipo ? { aviso: avisoTipo } : {}),
+        ...(avisoMedida ? { aviso_medida: avisoMedida } : {}),
+        medidas_mostradas: medidasMostradas,
         recomendacion: `${recommended.brand} ${recommended.design}`,
         motivo_recomendacion: motivo.trim().replace(/\.$/, ""),
         mensaje_para_enviar: composeBlocks(
@@ -1072,8 +1109,13 @@ export function buildTools(ctx: AgentContext) {
           beneficios,
           PREGUNTA_RECOMENDACION,
         ),
-        regla:
+        regla: [
           "Responde usando exactamente mensaje_para_enviar, con sus separadores '---' intactos. No sumes alternativas ni repitas en texto lo que ya muestra la imagen. NO adelantes la recomendación en este turno: el texto ya la ofrece. Si el cliente responde que sí, recién ahí dile en UNA frase que irías por `recomendacion` porque `motivo_recomendacion`.",
+          // La única excepción a «no agregues texto»: avisar que la medida no
+          // es la suya. Callarlo es lo que terminó en una cotización firmada
+          // por otra medida (5499).
+          avisoMedida ? `EXCEPCIÓN OBLIGATORIA: ${avisoMedida}` : null,
+        ].filter(Boolean).join(" "),
       });
     },
   });
@@ -1251,8 +1293,8 @@ export function buildTools(ctx: AgentContext) {
       // 5 llantas ya dichas). Ahora cualquier cantidad ya conocida en la
       // conversación vale, y solo frenan la comparación en curso o una
       // negativa explícita del cliente.
-      const [facts] = await sql<{ selected_quantity: number | null }[]>`
-        select selected_quantity from conversations where id=${ctx.conversation.id}
+      const [facts] = await sql<{ selected_quantity: number | null; tire_size: string | null }[]>`
+        select selected_quantity, tire_size from conversations where id=${ctx.conversation.id}
       `;
       // El juego de 4 es el default comercial: si el cliente pidió precio sin
       // decir cantidad, cotizar 4 y aclarar que se ajusta vende más que
@@ -1291,6 +1333,38 @@ export function buildTools(ctx: AgentContext) {
         if (product.availability === "out") {
           return JSON.stringify({
             error: `${product.brand} ${product.design} está agotada. Busca otra opción disponible antes de cotizar.`,
+          });
+        }
+        // CANDADO DE MEDIDA — cotizar es firmar un precio, y el precio depende
+        // de la medida. El 13-ago (chat 5499) el cliente pidió 265/70R16, el
+        // modelo derivó a una búsqueda por aro y firmó una 225/70R16: $82,84
+        // menos en el juego, con número de cotización que el cliente podía
+        // presentar en el local. Aquí no se corrige al modelo con una
+        // sugerencia: no se firma una medida que el cliente nunca pidió.
+        const inboundDelCiclo = await sql<{ content: string }[]>`
+          select content from messages
+          where conversation_id=${ctx.conversation.id}
+            and cycle=${ctx.conversation.current_cycle}
+            and direction='inbound'
+          order by created_at desc limit 20
+        `;
+        const permitidas = medidasPermitidas(
+          [ctx.currentUserText, ...inboundDelCiclo.map((m) => m.content)],
+          facts?.tire_size,
+        );
+        if (!medidaEstaPedida(product.sizeLabel, permitidas)) {
+          await registrarMedidaQueNoCoincide(ctx.conversation, {
+            pedida: permitidas.join(" o "),
+            cotizada: product.sizeLabel ?? "sin medida",
+            producto: `${product.brand} ${product.design}`,
+          });
+          return JSON.stringify({
+            error: `MEDIDA DISTINTA: el cliente pidió ${permitidas.join(" o ")} y ${product.brand} ${product.design} es ${product.sizeLabel ?? "de otra medida"}. No se cotiza.`,
+            siguiente_paso:
+              `Cotiza una llanta de ${permitidas.join(" o ")}. Si en esa medida no hay stock, NO la cambies por tu cuenta: ` +
+              `dile al cliente con todas las letras que en su medida no tienes y ofrécele la equivalente nombrando su medida completa ` +
+              `(«en su ${permitidas[0]} no me queda; le entra la ${product.sizeLabel}, ¿se la cotizo?»). Solo cuando él acepte, ` +
+              `búscala con buscar_llanta y ahí sí cotízala.`,
           });
         }
         // El precio que se imprime se confirma contra el Interbot AQUÍ, con UNA

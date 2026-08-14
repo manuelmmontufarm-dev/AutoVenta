@@ -32,6 +32,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-08-13 | _(este mismo)_ | Candado de medida: el bot firmó una cotización de otra medida, $82,84 por debajo | 1.5 |
 | 2026-08-13 | _(este mismo)_ | Revisión contextual diaria: skill + corrida del 13-ago (102 hallazgos, 8 chats mudos por handoff) | 2.5 |
 | 2026-08-13 | _(este mismo)_ | Conocimiento del negocio al bot (marcas/vehículos/escalera) + «al sur» ya registra Quito Sur | 2.5 |
 | 2026-08-13 | _(este mismo)_ | Garantías e INCLUIDO en grande en la cotización + paleta «Depot Tire rojo» | 1.0 |
@@ -127,6 +128,37 @@ Ya viene activado en este equipo.
 ---
 
 ## Entradas (más reciente primero)
+
+### 2026-08-13 · El bot firmó otra medida: candado en la cotización · ⏱️ 1.5 h
+
+**Qué:** Tres arreglos encadenados a partir del chat 5499.
+(1) **El parser no entendía «265/70/16»** — la forma con tres barras, la más
+común en Ecuador. Faltaba la barra en el separador del aro (`[-./\s]`). Sin
+eso, la medida que escribe el cliente nunca se guardaba como hecho de la
+conversación: el cliente pidió después «245/75/16» dos veces y `tire_size` se
+quedó en la anterior.
+(2) **Candado de medida en `generar_cotizacion`** (`domain/medidaPedida.ts`):
+no se firma una medida que el cliente no haya pedido. Las permitidas salen de
+sus propios mensajes del ciclo más la confirmada de la conversación — así el
+camino legítimo (no hay stock → se le ofrece la equivalente → acepta → se
+busca → se cotiza) sigue abierto, y el de derivar solo se cierra. Cada bloqueo
+deja alerta `medida_no_coincide` para que se vea en la revisión del día.
+(3) **`preparar_opciones` deja de mentir el rótulo**: si las opciones son de
+varias medidas ya no se rotula la imagen con la de la primera, y el agente
+recibe la orden explícita de decir que son equivalentes y nombrar la medida de
+cada una.
+
+**Por qué:** El cliente pidió 265/70R16, el modelo derivó a una búsqueda por
+ARO cuando pidió «menor precio dispone» y presentó 215/60R16, 245/70R16 y
+225/70R16 —ninguna la suya, rotuladas como si lo fueran—, cotizó la 225/70R16
+en $499,04 y, cuando el cliente dijo «Esa medida», le confirmó que sí era la
+suya. La correcta costaba $145,47 c/u contra $124,76: **$82,84 menos en el
+juego, con número de cotización que el cliente puede presentar en el local.**
+Cotizar es firmar un precio; por eso es un candado y no una línea de prompt.
+Ataca también el patrón «confirma la medida y luego la niega» que la revisión
+del día encontró en otros 3 chats.
+
+---
 
 ### 2026-08-13 · Revisión contextual diaria: el error que ningún regex ve · ⏱️ 2.5 h
 

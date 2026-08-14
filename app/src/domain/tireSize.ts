@@ -8,6 +8,7 @@
  * Acepta lo que la gente escribe por WhatsApp:
  *   "185/65R14"  "185/65 R14"  "185 65 14"  "185-65-14"  "185/65-14"
  *   "185 R14"    "185R14"      "LT265/70R17"  "P205/55ZR16"
+ *   "265/70/16"  ← la forma con TRES barras, la más común en Ecuador
  */
 
 export interface TireSize {
@@ -31,8 +32,15 @@ const RIM_MAX = 24;
 // (?<!\d) evita partir números largos ("0991855514" no debe dar 185/55R14... sí
 // podría — por eso además validamos rangos y múltiplos de 5 en width/aspect).
 // Grupos: 1=prefijo LT/P, 2=ancho, 3=perfil (opcional), 4=aro.
+//
+// La barra entra en el separador del ARO (antes solo aceptaba «-», «.» o
+// espacio). Sin ella, «265/70/16» —la forma en que más gente escribe la medida
+// en Ecuador— no se reconocía: el 13-ago un cliente la escribió así, el dato
+// nunca se guardó como hecho de la conversación y el bot terminó cotizándole
+// otra medida. Los rangos y el múltiplo de 5 siguen filtrando lo que no es una
+// medida: una fecha como «05/08/16» no pasa porque el ancho pide 3 dígitos.
 const TIRE_RE =
-  /(?<!\d)(LT|P)?\s*(\d{3})(?:\s*[/.\-\s]\s*(\d{2}))?\s*(?:Z?R\s*|[-.\s]\s*Z?R?\s*)(\d{2})(?!\d)/gi;
+  /(?<!\d)(LT|P)?\s*(\d{3})(?:\s*[/.\-\s]\s*(\d{2}))?\s*(?:Z?R\s*|[-./\s]\s*Z?R?\s*)(\d{2})(?!\d)/gi;
 
 function isValid(width: number, aspect: number | null, rim: number): boolean {
   if (width < WIDTH_MIN || width > WIDTH_MAX || width % 5 !== 0) return false;

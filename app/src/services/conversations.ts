@@ -601,6 +601,41 @@ async function reconciliarAvisoAsesor(
   );
 }
 
+/**
+ * El bot intentó cotizar una medida que el cliente no pidió, y el candado lo
+ * frenó (ver domain/medidaPedida.ts, chat 5499 del 13-ago).
+ *
+ * Se registra aunque el cliente nunca lo vea: el intento bloqueado es la señal
+ * de que el modelo sigue derivando de medida, y es lo que hay que mirar en la
+ * revisión del día. Sin esto, un candado que funciona se vuelve invisible y
+ * nadie se entera de que el prompt sigue enfermo.
+ *
+ * La clave de deduplicación lleva las dos medidas: reintentar la misma
+ * confusión no multiplica alertas, pero derivar a OTRA medida sí es un hecho
+ * nuevo que merece su fila.
+ */
+export async function registrarMedidaQueNoCoincide(
+  conversation: { id: number; current_cycle: number },
+  detalle: { pedida: string; cotizada: string; producto: string },
+): Promise<void> {
+  await sql`
+    insert into bot_alerts (
+      conversation_id, cycle, type, priority, summary, exact_reason,
+      suggested_action, dedupe_key
+    ) values (
+      ${conversation.id}, ${conversation.current_cycle}, 'medida_no_coincide', 'high',
+      ${`El bot intentó cotizar ${detalle.cotizada} y el cliente pidió ${detalle.pedida}`},
+      ${`Se bloqueó la cotización de ${detalle.producto} (${detalle.cotizada}) porque el cliente pidió ${detalle.pedida}. Firmar otra medida es firmar otro precio.`},
+      ${"Revisa el chat: si en la medida del cliente no hay stock, el asesor debe ofrecerle la equivalente diciéndoselo con claridad."},
+      ${`medida_no_coincide:${conversation.id}:${conversation.current_cycle}:${detalle.pedida}>${detalle.cotizada}`}
+    ) on conflict do nothing
+  `;
+  emitLiveEvent("alert", conversation.id);
+  console.warn(
+    `🔒 Cotización bloqueada en conv ${conversation.id}: pidió ${detalle.pedida}, se iba a firmar ${detalle.cotizada}`,
+  );
+}
+
 export async function logQuoteArtifact(input: {
   conversationId: number;
   quoteId?: number;
