@@ -1,4 +1,4 @@
-import { extractTireSizes, formatTireSize, type TireSize } from "./tireSize.js";
+import { extractFlotationSizes, extractTireSizes, formatTireSize, type TireSize } from "./tireSize.js";
 import { resolveCatalogMedia } from "./catalogMedia.js";
 import { extractLoadSpeed, type TireLoadSpeed } from "./tireSpecs.js";
 
@@ -101,11 +101,15 @@ export function extractCatalogSizeLabel(text: string): {
   const metric = extractTireSizes(text)[0] ?? null;
   if (metric) return { size: metric, sizeLabel: formatTireSize(metric) };
 
-  const flotation = text.match(FLOTATION_RE);
+  // El parser del dominio, no un regex local: entiende «33x12.50r17» en
+  // minúscula y con decimales, que es como lo escribe la gente. FLOTATION_RE
+  // (solo mayúsculas) se queda para los NOMBRES del catálogo, que sí vienen
+  // uniformes de Contífico.
+  const flotation = extractFlotationSizes(text)[0];
   if (!flotation) return { size: null, sizeLabel: null };
   return {
     size: null,
-    sizeLabel: canonicalFlotationLabel(flotation[1], flotation[2], flotation[3]),
+    sizeLabel: canonicalFlotationLabel(flotation.diameter, flotation.section, flotation.rim),
   };
 }
 
@@ -198,7 +202,8 @@ const RELLENO = new Set([
   "maneja", "disponen", "dispone", "disponible", "disponibilidad", "precio",
   "precios", "cuanto", "cuesta", "vale", "cotiza", "cotizar", "cotizacion",
   "llanta", "llantas", "de", "del", "la", "las", "el", "los", "un", "una",
-  "en", "para", "por", "con", "y", "o", "me", "mi", "su",
+  "en", "para", "por", "con", "y", "o", "me", "mi", "su", "rin", "aro",
+  "medida",
 ]);
 
 export function searchCatalog(
@@ -209,16 +214,45 @@ export function searchCatalog(
   const normalizedQuery = normalizeCatalogText(query);
   const compactQuery = compactCatalogText(query);
   if (!normalizedQuery || !compactQuery) return [];
-  // Las palabras de conversación no describen la llanta y exigirlas mata la
-  // búsqueda: «tienen falken wildpeak at4» fallaba porque ningún producto
-  // contiene «tienen». Solo se filtran si queda algo con qué buscar.
-  const crudos = normalizedQuery.split(" ").filter(Boolean);
-  const utiles = crudos.filter((token) => !RELLENO.has(token));
-  const queryTokens = utiles.length ? utiles : crudos;
+
+  // LA MEDIDA SE DECODIFICA PRIMERO y manda como FILTRO, no como texto.
+  //
+  // El parser de medidas (tireSize.ts) entiende cómo escribe la gente
+  // («265/70/16», «265/70 Rin17», «31x10.50r15») y la canoniza. Si la consulta
+  // trae una medida y el catálogo TIENE esa medida, se busca solo dentro de
+  // ella: el texto restante («falken», «at4») elige el modelo, y es imposible
+  // que salga una llanta de otra medida — que es exactamente como una búsqueda
+  // por texto terminó firmando la cotización equivocada del 13-ago. Si en esa
+  // medida no hay nada, se cae a la búsqueda ancha: devolver el mismo modelo
+  // en otras medidas le permite al bot decir «en la suya no, pero existe en
+  // estas» en vez de un «no hay» en seco.
   const querySize = extractCatalogSizeLabel(query).sizeLabel;
   const compactSize = querySize ? compactCatalogText(querySize) : null;
+  let pool: readonly CatalogItem[] = items;
+  if (compactSize) {
+    const deLaMedida = items.filter(
+      (item) => item.sizeLabel && compactCatalogText(item.sizeLabel) === compactSize,
+    );
+    if (deLaMedida.length) pool = deLaMedida;
+  }
 
-  return items
+  // Las palabras de conversación no describen la llanta y exigirlas mata la
+  // búsqueda: «tienen falken wildpeak at4» fallaba porque ningún producto
+  // contiene «tienen». Solo se filtran si queda algo con qué buscar. Y con la
+  // medida ya decodificada, sus fragmentos («265», «70r17») tampoco son
+  // tokens de texto: ya hicieron su trabajo como filtro.
+  const crudos = normalizedQuery.split(" ").filter(Boolean);
+  const esFragmentoDeMedida = (token: string): boolean => {
+    if (!compactSize) return false;
+    // «rin17»/«aro17» llegan pegados: se les quita la palabra y queda el
+    // número, que sí es parte de la medida ya decodificada.
+    const nucleo = compactCatalogText(token).replace(/^(?:rin|aro)/, "");
+    return nucleo.length > 0 && compactSize.includes(nucleo);
+  };
+  const utiles = crudos.filter((token) => !RELLENO.has(token) && !esFragmentoDeMedida(token));
+  const queryTokens = utiles.length ? utiles : crudos;
+
+  return pool
     .map((item) => ({ item, score: scoreItem(item, normalizedQuery, compactQuery, compactSize, queryTokens) }))
     .filter((entry) => entry.score > 0)
     .sort((a, b) => {

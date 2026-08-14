@@ -32,6 +32,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-08-14 | _(este mismo)_ | La medida se decodifica PRIMERO y manda como filtro en la búsqueda | 1.0 |
 | 2026-08-14 | _(este mismo)_ | «at4» ya encuentra la A/T4W + el guardián ve las herramientas del turno | 1.5 |
 | 2026-08-13 | _(este mismo)_ | El Ángel Guardián: revisión IA de cada respuesta antes de enviarla, con interruptor en Ajustes | 2.0 |
 | 2026-08-13 | _(este mismo)_ | Candado de medida: el bot firmó una cotización de otra medida, $82,84 por debajo | 1.5 |
@@ -130,6 +131,28 @@ Ya viene activado en este equipo.
 ---
 
 ## Entradas (más reciente primero)
+
+### 2026-08-14 · La medida se decodifica PRIMERO: filtro duro, no texto a adivinar · ⏱️ 1.0 h
+
+**Qué:** Idea de Manuel tras el caso A/T4W: cuando la consulta trae una
+medida, `searchCatalog` la DECODIFICA primero con el parser del dominio (que
+entiende «265/70/16», «Rin17», «33x12.50r17») y la usa como FILTRO: si el
+catálogo tiene esa medida, se busca solo dentro de ella y es imposible que
+salga una llanta de otra medida; el texto restante («falken», «at4») solo
+elige el modelo. Si en esa medida no hay nada, cae a la búsqueda ancha para
+poder decir «en la suya no, pero existe en estas». De paso: los fragmentos de
+la medida ya decodificada («265», «70r17», «rin17») dejan de ser tokens
+obligatorios, y la flotación en la consulta se decodifica con
+`extractFlotationSizes` (el regex local del catálogo era solo-mayúsculas y
+«33x12.50r17» en minúscula no matcheaba).
+
+**Por qué:** La búsqueda por texto trataba la medida como palabras sueltas, y
+así fue como una consulta con medida terminó devolviendo llantas de tres
+medidas distintas (chat 5499) y otra juró que no existía la Wildpeak. La
+medida es un dato ESTRUCTURADO con parser propio: usarla como texto era
+regalar precisión.
+
+---
 
 ### 2026-08-14 · «at4» ya encuentra la A/T4W, y el guardián ve lo que el bot HIZO · ⏱️ 1.5 h
 
