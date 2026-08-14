@@ -14,8 +14,10 @@ import { appendMessage, pauseBot } from "../services/conversations.js";
 import { forceSyncNow, interbotPricesState } from "../services/interbotPrices.js";
 import {
   getAiConfig,
+  getGuardianConfig,
   getPiecesConfig,
   getStoreHours,
+  saveGuardianConfig,
   savePiecesConfig,
   saveStoreHours,
   listStagePrompts,
@@ -23,6 +25,7 @@ import {
   saveAiConfig,
   saveStagePromptDraft,
 } from "../services/settings.js";
+import { informeGuardian } from "../services/guardian.js";
 import {
   catalogStatus,
   catalogInventoryMetrics,
@@ -1206,6 +1209,36 @@ export function createAdminRouter(): express.Router {
     } catch {
       res.status(400).json({ ok: false, error: "Paleta o fuente inválida" });
     }
+  });
+
+  // El Ángel Guardián: interruptor + el informe con la lista documentada de
+  // lo que encontró (services/guardian.ts). El interruptor es una decisión de
+  // gasto del asesor, por eso vive aquí y no en una variable de entorno.
+  router.get("/guardian", async (_req, res) => {
+    const [config7d, informe] = await Promise.all([getGuardianConfig(), informeGuardian(7)]);
+    res.json({
+      ok: true,
+      config: config7d,
+      modelo: config.openai.guardianModel,
+      semana: {
+        revisiones: informe.revisiones,
+        correcciones: informe.correcciones,
+        hallazgos: informe.hallazgos.length,
+      },
+    });
+  });
+
+  router.put("/guardian", async (req, res) => {
+    try {
+      res.json({ ok: true, config: await saveGuardianConfig(req.body) });
+    } catch {
+      res.status(400).json({ ok: false, error: "Configuración inválida" });
+    }
+  });
+
+  router.get("/guardian/informe", async (req, res) => {
+    const dias = Math.min(90, Math.max(1, Number(req.query.dias ?? 7)));
+    res.json({ ok: true, informe: await informeGuardian(dias) });
   });
 
   router.get("/store-hours", async (_req, res) => {

@@ -32,6 +32,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-08-13 | _(este mismo)_ | El Ángel Guardián: revisión IA de cada respuesta antes de enviarla, con interruptor en Ajustes | 2.0 |
 | 2026-08-13 | _(este mismo)_ | Candado de medida: el bot firmó una cotización de otra medida, $82,84 por debajo | 1.5 |
 | 2026-08-13 | _(este mismo)_ | Revisión contextual diaria: skill + corrida del 13-ago (102 hallazgos, 8 chats mudos por handoff) | 2.5 |
 | 2026-08-13 | _(este mismo)_ | Conocimiento del negocio al bot (marcas/vehículos/escalera) + «al sur» ya registra Quito Sur | 2.5 |
@@ -128,6 +129,33 @@ Ya viene activado en este equipo.
 ---
 
 ## Entradas (más reciente primero)
+
+### 2026-08-13 · El Ángel Guardián: la revisión que ve la conversación desde afuera · ⏱️ 2.0 h
+
+**Qué:** `services/guardian.ts` + tabla `guardian_reviews` + interruptor en
+Ajustes (👼 primera tarjeta) + endpoints `/api/guardian{,/informe}`. Antes de
+enviar CADA respuesta del bot, un segundo modelo (el mismo nivel que el
+vendedor — `OPENAI_GUARDIAN_MODEL`, default el `OPENAI_MODEL` del deploy)
+recibe los hechos duros (medidas que el cliente pidió, cotización vigente con
+sus números, historial) y el borrador, y decide: aprobar o corregir. Revisa
+en orden de gravedad: precios/cotizaciones contra los datos reales, medida,
+re-preguntas, contradicciones, ignorar la pregunta, repetición y tono. Nunca
+bloquea (dejar al cliente sin respuesta es peor que cualquier error de
+estilo) y FALLA ABIERTO con timeout de 12 s: si el revisor no contesta, el
+borrador sale tal cual. Todo queda en `guardian_reviews` — aprobaciones
+incluidas — y las correcciones con hallazgo alto además alertan al asesor
+(tipo `guardian_correccion`, visible en Errores). El informe de la semana
+(botón en la misma tarjeta) es la lista documentada de errores chicos y
+grandes, por categoría y con link al chat, para atacar causas.
+
+**Por qué:** Pedido por Depot el mismo día en que se encontró la cotización
+firmada en otra medida: ahora que ellos pagan los tokens, quieren poder elegir
+entre ahorro (apagado, el bot queda como antes) y cero errores (prendido).
+Los candados determinísticos cazan patrones fijos; los errores del 13-ago
+(precio que no cuadra, re-pregunta del local, «sí, esa es su medida») solo se
+ven entendiendo la conversación — y eso es un modelo revisando, no un regex.
+
+---
 
 ### 2026-08-13 · El bot firmó otra medida: candado en la cotización · ⏱️ 1.5 h
 

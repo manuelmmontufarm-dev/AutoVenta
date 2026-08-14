@@ -47,6 +47,7 @@ import { authorizeConversationOutbound } from "./services/whatsappPolicy.js";
 import { splitBlocks } from "./services/quoteMessages.js";
 import { flagRepetitiveConversation } from "./services/conversationQuality.js";
 import { applyOutboundGuard } from "./services/outboundGuard.js";
+import { revisarConGuardian } from "./services/guardian.js";
 import { notifyPendingHumanRequests } from "./services/advisorNotifications.js";
 import { startEmbeddedFollowUpWorker } from "./workers/embeddedFollowUpWorker.js";
 import { extractExplicitStore, preguntamosElLocal } from "./domain/storeSelection.js";
@@ -213,13 +214,20 @@ const pipeline = new InboundPipeline(async ({ from, name, text, waMessageIds, re
   const vetted = await applyOutboundGuard(conversation.id, reply);
   if (!vetted.text) return;
 
+  // El Ángel Guardián (13-ago): revisión con IA de lo que se va a decir —
+  // precios contra la cotización real, re-preguntas, contradicciones. Corre
+  // DESPUÉS del guardián determinístico porque ese es gratis y este cuesta
+  // tokens; se prende y apaga desde Ajustes. Falla abierto: si no contesta,
+  // sale el borrador tal cual.
+  const custodiado = await revisarConGuardian(conversation, vetted.text);
+
   // Varios mensajes cortos en vez de uno largo: es como escribe el vendedor
   // humano de los chats que el cliente puso de ejemplo. Los bloques los separa
   // el agente con '---'; sin separadores esto envía un solo mensaje, igual que antes.
   //
   // Envío con red de seguridad: si Meta rechaza, la respuesta queda guardada
   // como "failed" y visible en el hub — nunca se pierde en silencio.
-  const bloques = splitBlocks(vetted.text);
+  const bloques = splitBlocks(custodiado.texto);
   for (const [indice, bloque] of bloques.entries()) {
     if (indice > 0) await esperar(PAUSA_ENTRE_BLOQUES_MS);
     try {

@@ -174,6 +174,7 @@ export function Ajustes() {
 
       <div className="grid gap-2.5 xl:grid-cols-[minmax(0,1fr)_460px]">
         <div className="flex flex-col gap-2.5">
+          <SeccionGuardian onError={setError} />
           <SeccionTema
             paleta={paleta} fuente={fuente} paletas={paletas} fuentes={fuentes} muestras={muestras}
             onPaleta={setPaleta} onFuente={setFuente}
@@ -226,6 +227,98 @@ const inputCls =
  * los precios cambian rara vez; cuando el proveedor avisa de un cambio, este
  * botón lo trae al instante sin esperar a la semana siguiente.
  */
+interface GuardianEstado {
+  config: { activo: boolean };
+  modelo: string;
+  semana: { revisiones: number; correcciones: number; hallazgos: number };
+}
+interface GuardianHallazgo {
+  conversationId: number; fecha: string; veredicto: string;
+  categoria: string; severidad: string; detalle: string;
+}
+
+/**
+ * El Ángel Guardián: una IA que revisa cada respuesta del bot ANTES de
+ * enviarla (precios contra la cotización real, preguntas repetidas,
+ * contradicciones) y la corrige si hace falta. Cuesta tokens por turno, así
+ * que el interruptor es del asesor: prendido = cero errores; apagado = ahorro.
+ */
+function SeccionGuardian({ onError }: { onError: (v: string) => void }) {
+  const [estado, setEstado] = useState<GuardianEstado | null>(null);
+  const [cambiando, setCambiando] = useState(false);
+  const [hallazgos, setHallazgos] = useState<GuardianHallazgo[] | null>(null);
+  const [abriendo, setAbriendo] = useState(false);
+
+  useEffect(() => {
+    api<GuardianEstado & { ok: boolean }>("/api/guardian")
+      .then((r) => setEstado(r))
+      .catch(() => setEstado(null));
+  }, []);
+
+  const alternar = async () => {
+    if (!estado) return;
+    setCambiando(true);
+    try {
+      const r = await api<{ config: { activo: boolean } }>("/api/guardian", {
+        method: "PUT",
+        body: JSON.stringify({ activo: !estado.config.activo }),
+      });
+      setEstado({ ...estado, config: r.config });
+      onError("");
+    } catch (e) { onError(e instanceof Error ? e.message : "No se pudo cambiar el guardián"); }
+    finally { setCambiando(false); }
+  };
+
+  const verInforme = async () => {
+    if (hallazgos) { setHallazgos(null); return; }
+    setAbriendo(true);
+    try {
+      const r = await api<{ informe: { hallazgos: GuardianHallazgo[] } }>("/api/guardian/informe?dias=7");
+      setHallazgos(r.informe.hallazgos);
+    } catch (e) { onError(e instanceof Error ? e.message : "No se pudo cargar el informe"); }
+    finally { setAbriendo(false); }
+  };
+
+  const activo = estado?.config.activo ?? false;
+  return <Tarjeta
+    titulo="👼 Ángel Guardián"
+    sub="Una IA revisa cada respuesta antes de enviarla: precios contra la cotización real, preguntas repetidas, contradicciones. Corrige el error antes de que el cliente lo vea y lo deja documentado. Prendido gasta tokens en cada respuesta; apáguelo cuando quiera ahorrar."
+    extra={estado
+      ? <button
+          onClick={() => void alternar()}
+          disabled={cambiando}
+          className={`rounded-full px-4 py-2 text-[12px] font-semibold disabled:opacity-50 ${
+            activo ? "bg-lime text-navy" : "bg-paper/[.10] text-faint hover:bg-paper/[.16]"
+          }`}
+        >{cambiando ? "Cambiando…" : activo ? "● Prendido" : "○ Apagado"}</button>
+      : null}
+  >
+    {!estado && <p className="text-[11px] text-faint">Cargando el estado del guardián…</p>}
+    {estado && <>
+      <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-[12px]">
+        <span><span className="text-faint">Modelo revisor:</span> <b>{estado.modelo}</b></span>
+        <span><span className="text-faint">Últimos 7 días:</span> <b>{estado.semana.revisiones}</b> revisiones · <b>{estado.semana.correcciones}</b> corregidas · <b>{estado.semana.hallazgos}</b> hallazgos</span>
+        <button onClick={() => void verInforme()} disabled={abriendo} className="rounded-full bg-paper/[.08] px-2.5 py-1 text-[10px] font-semibold hover:bg-paper/[.14] disabled:opacity-50">
+          {abriendo ? "Cargando…" : hallazgos ? "Ocultar informe" : "Ver informe de la semana"}
+        </button>
+      </div>
+      {hallazgos && !hallazgos.length && <p className="mt-2 text-[11px] text-faint">Sin hallazgos esta semana{activo ? "" : " (el guardián estuvo apagado)"}.</p>}
+      {hallazgos && hallazgos.length > 0 && <div className="mt-2 max-h-64 overflow-y-auto rounded-xl bg-paper/[.05] p-2.5">
+        {hallazgos.map((h, i) => <div key={i} className="mb-2 border-b border-paper/[.08] pb-2 text-[11px] last:mb-0 last:border-0 last:pb-0">
+          <span className={`mr-2 rounded-full px-2 py-0.5 text-[9px] font-bold uppercase ${
+            h.severidad === "alta" ? "bg-[var(--color-danger,#e2564d)]/20 text-[var(--color-danger,#e2564d)]"
+            : h.severidad === "media" ? "bg-[var(--color-warn,#e8b33a)]/20 text-[var(--color-warn,#e8b33a)]"
+            : "bg-paper/[.10] text-faint"}`}>{h.severidad}</span>
+          <b>{h.categoria}</b> · <a className="underline" href={`#/ticket/${h.conversationId}`}>chat #{h.conversationId}</a>
+          {h.veredicto === "corregir" && <span className="ml-1 text-lime">corregido antes de enviar</span>}
+          <p className="mt-0.5 text-faint">{h.detalle}</p>
+          <p className="text-[9px] text-faint">{new Date(h.fecha).toLocaleString("es-EC", { timeZone: "America/Guayaquil", day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}</p>
+        </div>)}
+      </div>}
+    </>}
+  </Tarjeta>;
+}
+
 function SeccionPrecios({ precios, setPrecios, onError }: { precios: PreciosEstado; setPrecios: (v: PreciosEstado) => void; onError: (v: string) => void }) {
   const [sync, setSync] = useState(false);
   const [listo, setListo] = useState(false);

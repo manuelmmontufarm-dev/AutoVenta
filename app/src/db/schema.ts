@@ -275,6 +275,23 @@ create table if not exists product_media (
 create index if not exists product_media_review_idx
   on product_media (rights_status, verified_at);
 
+-- El Ángel Guardián: una fila por respuesta revisada, aprobada o corregida.
+-- Es el registro con el que, al final de la semana, se arma la lista
+-- documentada de errores del bot (ver services/guardian.ts).
+create table if not exists guardian_reviews (
+  id              bigserial primary key,
+  conversation_id bigint references conversations(id) on delete cascade,
+  cycle           integer not null default 1,
+  model           text not null,
+  verdict         text not null,
+  findings        jsonb not null default '[]'::jsonb,
+  original_text   text not null,
+  corrected_text  text,
+  latency_ms      integer,
+  created_at      timestamptz not null default now()
+);
+create index if not exists guardian_reviews_created_idx on guardian_reviews (created_at);
+
 create table if not exists audit_events (
   id              bigserial primary key,
   actor           text not null default 'system',

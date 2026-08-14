@@ -202,6 +202,47 @@ export async function getPiecesConfig(): Promise<PiecesConfig> {
   }
 }
 
+/**
+ * El Ángel Guardián (revisión IA pre-envío, services/guardian.ts).
+ *
+ * Nace APAGADO: prenderlo es una decisión de gasto del asesor — cada turno
+ * revisado es una llamada extra al modelo y los tokens los paga el negocio.
+ * Cuando quiere cero errores, lo prende desde Ajustes; cuando quiere ahorrar,
+ * lo apaga y el bot queda exactamente como antes.
+ */
+export const GuardianConfigSchema = z.object({
+  activo: z.boolean().default(false),
+});
+export type GuardianConfig = z.infer<typeof GuardianConfigSchema>;
+export const DEFAULT_GUARDIAN_CONFIG: GuardianConfig = GuardianConfigSchema.parse({});
+
+let guardianCache: { value: GuardianConfig; at: number } | null = null;
+
+export async function getGuardianConfig(): Promise<GuardianConfig> {
+  if (guardianCache && Date.now() - guardianCache.at < CACHE_TTL_MS) return guardianCache.value;
+  try {
+    const [row] = await sql<{ value: unknown }[]>`select value from settings where key = 'guardian_config'`;
+    const parsed = GuardianConfigSchema.safeParse(row?.value ?? {});
+    const value = parsed.success ? parsed.data : DEFAULT_GUARDIAN_CONFIG;
+    guardianCache = { value, at: Date.now() };
+    return value;
+  } catch {
+    // Si no se pudo leer el ajuste, el bot responde igual — sin guardián.
+    return DEFAULT_GUARDIAN_CONFIG;
+  }
+}
+
+export async function saveGuardianConfig(input: unknown): Promise<GuardianConfig> {
+  const merged = GuardianConfigSchema.parse({ ...(await getGuardianConfig()), ...(input as object) });
+  await sql`
+    insert into settings (key, value)
+    values ('guardian_config', ${sql.json(merged)})
+    on conflict (key) do update set value = excluded.value, updated_at = now()
+  `;
+  guardianCache = { value: merged, at: Date.now() };
+  return merged;
+}
+
 export async function savePiecesConfig(input: unknown): Promise<PiecesConfig> {
   const merged = PiecesConfigSchema.parse({ ...(await getPiecesConfig()), ...(input as object) });
   await sql`

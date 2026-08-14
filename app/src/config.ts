@@ -180,6 +180,13 @@ export const config = {
      * modelo que ya falló 8 veces — con esta variable, escala a uno superior.
      */
     escalationModel: envOr("OPENAI_ESCALATION_MODEL", envOr("OPENAI_MODEL", "gpt-4o-mini")),
+    /**
+     * El Ángel Guardián: revisa cada respuesta antes de enviarla (precios,
+     * medidas, re-preguntas, contradicciones). Por defecto usa el MISMO modelo
+     * que el vendedor: un revisor más débil que el redactor no ve los errores
+     * que el redactor no vio. Se prende/apaga desde Ajustes, no por entorno.
+     */
+    guardianModel: envOr("OPENAI_GUARDIAN_MODEL", envOr("OPENAI_MODEL", "gpt-4o-mini")),
     apiKey: env("OPENAI_API_KEY"),
     // Se envía como `max_completion_tokens` (NO `max_tokens`): la familia GPT-5
     // rechaza el parámetro viejo con 400 «Unsupported parameter», y el nuevo lo
