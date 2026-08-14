@@ -11,3 +11,4 @@ app/scripts/eval/datos/
 # Igual con el cruce de facturación: el volcado de Contífico trae nombres, RUC,
 # correos y direcciones de clientes reales. Se vuelve a bajar cuando se necesita.
 app/scripts/cruce-facturas/datos/
+OWNER_KEY.local.txt
