@@ -32,6 +32,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-08-16 | _(este mismo)_ | Fuera los emojis de la interfaz: el panel deja de leerse como generado | 2.0 |
 | 2026-08-16 | _(este mismo)_ | El botón de salir baja con los tabs, con icono y borde | 0.25 |
 | 2026-08-16 | _(este mismo)_ | Entrar con usuario daba 401 en todo el panel: las 4 pantallas mandaban la clave vieja, no el token | 0.5 |
 | 2026-08-15 | _(este mismo)_ | El código en todos los avisos de visita, verificar antes de canjear, y el botón de salir que faltaba | 1.0 |
@@ -140,6 +141,50 @@ Ya viene activado en este equipo.
 ---
 
 ## Entradas (más reciente primero)
+
+### 2026-08-16 · Fuera los emojis de la interfaz: el panel deja de leerse como generado · ⏱️ 2.0 h
+
+**Qué:** barrido de diseño por todo el hub. Los 58 emojis que hacían de iconos
+—`💰🙋⚠️🗓📍🛞🃏⭐🔧🏁🚗📅🔒👤🔴⏰📋📷⚖🔐👼🎟️✅⛔📏💵🏬★🏷️🤖📄🔊`, repartidos en
+nueve archivos— salen y entran iconos de `icons.tsx`, que ya existía con 25 y no
+se estaba usando. Doce iconos nuevos siguiendo la convención del archivo.
+`CIERRE_META` pierde el campo `emoji` y aparece `CierreIcon`.
+
+En Oportunidades, las tres tarjetas de icono+título+texto pasan al `Segmented`
+que ya usaban Inbox y Pipeline, y ahora **sólo se pinta la alarma**: antes las
+once tarjetas llevaban el mismo bloque relleno de fecha, así que el orden por
+urgencia no se veía. Los contadores del segmentado dejan de ir todos en rojo.
+
+Textos de 9 y 9.5 px suben a 11 px en nueve archivos. «espera ayer» y «espera 15
+ago» pasan a «espera desde ayer» / «espera desde el 15 ago». «Revisar uno por
+uno» se deshabilita con cero elementos.
+
+Y un bug que estaba **en vivo**: `.pulse-dot::after` inyectaba la palabra «LIVE»
+posicionada en absoluto a 12 px de un punto de 8 px, cayendo encima del texto
+del propio chip («Conectado · Fase 4», «Bot en línea 24/7»). En todas las
+pantallas.
+
+`DESIGN.md` recoge las reglas: §2.3 emojis, §2.5 sólo se pinta lo que urge, §3.2
+piso de 11 px, §5.7 sistema de iconos, más dos greps en el criterio de
+aceptación para verificarlo sin abrir el navegador.
+
+**Por qué:** Manuel probó el skill Impeccable sobre una pantalla, le gustó cómo
+quedó y pidió llevarlo a todo el simulador. El hallazgo de fondo es que la mitad
+del «olor a AI» no era falta de gusto sino **código que ignoraba las piezas del
+propio proyecto**: el sistema de iconos y el `Segmented` estaban ahí, escritos y
+funcionando, y las pantallas nuevas no los usaban.
+
+Lo de la jerarquía es lo que más se nota: una cuadrícula donde todo lleva el
+mismo relleno no tiene jerarquía, tiene relleno — el ojo no puede elegir dónde
+empezar. La pantalla prometía «primero los que prometieron venir y no vinieron» y
+esa promesa sólo vivía en el `sort`, no en el pixel.
+
+Los emojis del **contenido** se quedan: lo que escribió el cliente por WhatsApp
+se muestra tal cual llegó. Eso es el dato.
+
+**Pendiente aparte:** `FeedItem.icono` sigue siendo un emoji en string porque lo
+llena también el backend (`app/src`); migrarlo toca los dos lados y va en su
+propio cambio.
 
 ### 2026-08-16 · El botón de salir baja con los tabs · ⏱️ 0.25 h
 

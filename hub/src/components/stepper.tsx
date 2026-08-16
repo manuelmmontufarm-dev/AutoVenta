@@ -2,6 +2,7 @@ import { motion } from "framer-motion";
 import { CIERRE_META, ETAPAS, ETAPA_META, type Ticket } from "../data/types";
 import { fechaLarga } from "../lib/format";
 import { IconCheck } from "./icons";
+import { CierreIcon } from "./ui";
 
 /** Stepper del pipeline: dónde está esta venta, de un vistazo. */
 export function PipelineStepper({ ticket }: { ticket: Ticket }) {
@@ -16,7 +17,7 @@ export function PipelineStepper({ ticket }: { ticket: Ticket }) {
           border: `1px solid color-mix(in srgb, ${meta.color} 30%, transparent)`,
         }}
       >
-        {meta.emoji} Cerrado · {meta.nombre}
+        <CierreIcon cierre={ticket.cierre} size={14} /> Cerrado · {meta.nombre}
         {ticket.cerradoEn && <span className="font-medium opacity-70">— {fechaLarga(ticket.cerradoEn)}</span>}
       </div>
     );
@@ -58,7 +59,7 @@ export function PipelineStepper({ ticket }: { ticket: Ticket }) {
                 {hecho ? <IconCheck size={12} /> : i + 1}
               </motion.div>
               <span
-                className="hidden text-[9.5px] font-bold tracking-wide whitespace-nowrap uppercase sm:block"
+                className="hidden text-[11px] font-bold tracking-wide whitespace-nowrap uppercase sm:block"
                 style={{ color: hecho || activo ? meta.color : "var(--color-faint)" }}
               >
                 {meta.corto}

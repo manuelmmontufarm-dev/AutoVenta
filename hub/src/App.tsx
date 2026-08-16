@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { ConnectionChip, ConnectionGate, SalirButton, UserChip } from "./components/admin-key";
 import { hasAdminKey } from "./data/catalog";
 import { Confetti, Toasts } from "./components/overlays";
-import { IconChart, IconInbox, IconKanban, IconPlay, IconSparkle, IconStop, IconTire, IconSliders } from "./components/icons";
+import { IconChart, IconInbox, IconKanban, IconPlay, IconSilencio, IconSonido, IconSparkle, IconStop, IconTire, IconSliders } from "./components/icons";
 import { RacingDetails } from "./components/racing-details";
 import { VersionBadge } from "./components/version-badge";
 import { setSonidoActivo, sonidoActivo, sonidoBoton } from "./lib/sound";
@@ -221,7 +221,7 @@ export default function App() {
                   setAudioOn(next);
                 }}
               >
-                <span aria-hidden>{audioOn ? "🔊" : "🔇"}</span>
+                {audioOn ? <IconSonido size={14} /> : <IconSilencio size={14} />}
                 <span className="hidden lg:inline">{audioOn ? "Sonido" : "Silenciado"}</span>
               </motion.button>
               {dataMode === "demo" ? (

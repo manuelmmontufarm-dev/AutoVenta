@@ -6,7 +6,7 @@ import { etiquetaVisita, money, relTime } from "../lib/format";
 import { navigate } from "../router";
 import { useHub, useNow } from "../store";
 import { ChatBubble } from "./chat";
-import { IconBack, IconBot, IconChevronR, IconSend, IconUser, IconX } from "./icons";
+import { IconAlert, IconBack, IconBandera, IconBot, IconCheck, IconChevronR, IconClock, IconPin, IconSend, IconTire, IconUser, IconX } from "./icons";
 
 /**
  * Revisión uno-por-uno estilo baraja: el asesor decide el destino de cada
@@ -137,7 +137,7 @@ export function SwipeReview({ titulo, items, onClose }: { titulo: string; items:
         {terminado || !ticket ? (
           <div className="glass-strong grid h-full place-items-center rounded-3xl text-center">
             <div className="p-8">
-              <p className="text-3xl">🏁</p>
+              <IconBandera size={30} className="mx-auto text-muted" />
               <p className="mt-2 text-sm font-black">{items.length ? "Revisaste todo" : "No hay chats para revisar aquí"}</p>
               <p className="mt-1 text-[11.5px] text-muted">
                 {items.length ? "Cada conversación quedó cerrada, priorizada o en su lugar." : "Cuando entren clientes a esta vista, aparecen en la baraja."}
@@ -175,7 +175,7 @@ export function SwipeReview({ titulo, items, onClose }: { titulo: string; items:
             className="flex items-center gap-2 rounded-full px-4 py-2.5 text-xs font-black disabled:opacity-40"
             style={{ background: "color-mix(in srgb, var(--color-red) 14%, transparent)", color: "var(--color-red)", border: "1px solid color-mix(in srgb, var(--color-red) 40%, transparent)" }}
           >
-            ✕ Perdida
+            <IconX size={13} /> Perdida
           </button>
           <button
             disabled={ocupado}
@@ -190,7 +190,7 @@ export function SwipeReview({ titulo, items, onClose }: { titulo: string; items:
             className="flex items-center gap-2 rounded-full px-4 py-2.5 text-xs font-black disabled:opacity-40"
             style={{ background: "color-mix(in srgb, var(--color-lime) 14%, transparent)", color: "var(--color-lime)", border: "1px solid color-mix(in srgb, var(--color-lime) 40%, transparent)" }}
           >
-            Ganada / Después ✓
+            Ganada / Después <IconCheck size={13} />
           </button>
         </div>
       )}
@@ -285,7 +285,10 @@ function SwipeCard({
             <p className="tnum shrink-0 text-right text-[17px] font-black text-lime">{money(ticket.cotizacion.total)}</p>
           )}
         </div>
-        <p className="mt-1.5 line-clamp-2 text-[10.5px] font-bold text-amber-500">⚡ {motivo}</p>
+        <p className="mt-1.5 flex items-start gap-1.5 text-[11.5px] font-bold" style={{ color: "var(--color-reddark, #b45309)" }}>
+          <IconAlert size={13} className="mt-px shrink-0" />
+          <span className="line-clamp-2">{motivo}</span>
+        </p>
         <div className="mt-2 flex flex-wrap items-center gap-1.5 text-[10px] font-bold">
           <span
             className="rounded-lg px-2 py-1"
@@ -293,12 +296,12 @@ function SwipeCard({
               ? { background: "color-mix(in srgb, var(--color-red) 12%, transparent)", color: "var(--color-red)" }
               : { background: "color-mix(in srgb, var(--color-lime) 10%, transparent)", color: "var(--color-lime)" }}
           >
-            🗓 {vencida ? `${dia ?? "Visita"} — no apareció` : dia ?? "Sin fecha de visita"}
+            <span className="inline-flex items-center gap-1">{vencida ? <IconAlert size={11} /> : <IconClock size={11} />} {vencida ? `${dia ?? "Visita"} — no apareció` : dia ?? "Sin fecha de visita"}</span>
           </span>
           {ticket.medida && <span className="medida-chip text-muted">{ticket.medida}</span>}
-          {ticket.localCercano && <span className="rounded-lg bg-paper/[.07] px-2 py-1 text-muted">📍 {ticket.localCercano}</span>}
+          {ticket.localCercano && <span className="inline-flex items-center gap-1 rounded-lg bg-paper/[.07] px-2 py-1 text-muted"><IconPin size={11} /> {ticket.localCercano}</span>}
         </div>
-        {llanta && <p className="mt-1.5 truncate text-[10.5px] text-muted">🛞 {llanta}</p>}
+        {llanta && <p className="mt-1.5 flex items-center gap-1.5 text-[11px] text-muted"><IconTire size={12} className="shrink-0" /><span className="truncate">{llanta}</span></p>}
       </div>
 
       {/* Conversación (vista previa — para escribir se abre a pantalla completa) */}
@@ -320,7 +323,7 @@ function SwipeCard({
             Responder a {ticket.nombre?.split(" ")[0] ?? "este cliente"}…
           </span>
           <span
-            className="flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-[9.5px] font-black"
+            className="flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-black"
             style={ticket.atiende === "bot"
               ? { background: "color-mix(in srgb, var(--color-violet) 14%, transparent)", color: "var(--color-violet)" }
               : { background: "color-mix(in srgb, var(--color-lime) 12%, transparent)", color: "var(--color-lime)" }}
@@ -368,7 +371,7 @@ function SwipeCard({
                       className="rounded-full py-2.5 text-xs font-black text-white disabled:opacity-50"
                       style={{ background: "var(--color-lime)" }}
                     >
-                      🏁 Venta ganada — cerrar ticket
+                      <span className="inline-flex items-center justify-center gap-1.5"><IconBandera size={13} /> Venta ganada — cerrar ticket</span>
                     </button>
                     <button
                       disabled={ocupado}
@@ -376,7 +379,7 @@ function SwipeCard({
                       className="rounded-full py-2.5 text-xs font-black disabled:opacity-50"
                       style={{ background: "color-mix(in srgb, var(--color-violet) 16%, transparent)", color: "var(--color-violet)" }}
                     >
-                      ⭐ Va bien — dejar para después
+                      <span className="inline-flex items-center justify-center gap-1.5"><IconPin size={13} /> Va bien — dejar para después</span>
                     </button>
                     <button onClick={() => onDecidir(null)} className="glass rounded-full py-2 text-xs font-bold text-muted">Cancelar</button>
                   </div>
@@ -501,7 +504,7 @@ function ChatFullScreen({
           className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-[15px] font-black"
           style={{ background: "color-mix(in srgb, var(--color-red) 14%, transparent)", color: "var(--color-red)" }}
         >
-          ✕
+          <IconX size={15} />
         </button>
         <button
           onClick={() => onDecidir("derecha")}
@@ -510,7 +513,7 @@ function ChatFullScreen({
           className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-[15px] font-black"
           style={{ background: "color-mix(in srgb, var(--color-lime) 14%, transparent)", color: "var(--color-lime)" }}
         >
-          ✓
+          <IconCheck size={15} />
         </button>
         <button
           onClick={onToggleAtiende}
@@ -534,7 +537,7 @@ function ChatFullScreen({
       {/* Composer: siempre visible encima del teclado, pegado a él */}
       <div className="glass-strong px-3 pt-2" style={{ paddingBottom: tecladoAbierto ? "0.5rem" : "max(0.625rem, env(safe-area-inset-bottom))" }}>
         {ticket.atiende === "bot" && (
-          <p className="mb-1.5 text-center text-[9.5px] text-faint">
+          <p className="mb-1.5 text-center text-[11px] text-faint">
             El bot sigue atendiendo — al enviar, el chat pasa a ustedes y el bot se pausa
           </p>
         )}

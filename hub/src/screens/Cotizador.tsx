@@ -16,10 +16,14 @@ import {
   type CatalogProduct,
 } from "../data/catalog";
 import {
+  IconCandado,
   IconCheck,
+  IconComparar,
   IconDoc,
+  IconImagen,
   IconRefresh,
   IconSearch,
+  IconSparkle,
   IconTire,
   IconX,
 } from "../components/icons";
@@ -432,14 +436,14 @@ export function Cotizador() {
           onClick={() => void copyOptions("customer")}
           className="flex-1 rounded-xl bg-paper/[.07] px-2 py-2 text-[10px] font-extrabold"
         >
-          📋 {visibleProducts.length} opciones
+          <span className="inline-flex items-center justify-center gap-1"><IconDoc size={12} /> {visibleProducts.length} opciones</span>
         </button>
         <button
           onClick={() => void createComparisonPdf()}
           disabled={compareProducts.length < 2}
           className="flex-1 rounded-xl bg-paper/[.07] px-2 py-2 text-[10px] font-extrabold disabled:opacity-35"
         >
-          ⚖ Comparar {compareProducts.length}/3
+          <span className="inline-flex items-center justify-center gap-1"><IconComparar size={12} /> Comparar {compareProducts.length}/3</span>
         </button>
         <button
           onClick={() => void createQuotePdf()}
@@ -562,7 +566,7 @@ function ProductCard({
           {product.brand}
         </span>
         <AvailabilityBadge value={product.availability} />
-        <span className="absolute right-3 bottom-3 rounded-full border border-black/[.07] bg-white/90 px-2 py-1 text-[9.5px] font-bold text-black/60 shadow-sm backdrop-blur-sm">
+        <span className="absolute right-3 bottom-3 rounded-full border border-black/[.07] bg-white/90 px-2 py-1 text-[11px] font-bold text-black/60 shadow-sm backdrop-blur-sm">
           {Math.max(0, product.stock).toLocaleString("es-EC")} en inventario
         </span>
       </button>
@@ -602,13 +606,13 @@ function ProductCard({
             }
             title="Comparar modelo"
           >
-            {selected ? <IconCheck size={18} /> : "⚖"}
+            {selected ? <IconCheck size={18} /> : <IconComparar size={16} />}
           </button>
         </div>
         <div className="mt-3 border-t border-paper/[.06] pt-3 text-[10px] leading-relaxed text-muted">
-          <p>⭐ {product.warranty.factory}</p>
+          <p className="flex items-center gap-1.5"><IconSparkle size={11} className="shrink-0" /> {product.warranty.factory}</p>
           {product.warranty.roadHazard && (
-            <p>🔒 {product.warranty.roadHazard}</p>
+            <p className="flex items-center gap-1.5"><IconCandado size={11} className="shrink-0" /> {product.warranty.roadHazard}</p>
           )}
         </div>
         <button
@@ -652,7 +656,7 @@ function FilterPanel({
     <div>
       <div className="mb-3 flex items-center justify-between">
         <p className="microlabel">Marcas visibles</p>
-        <span className="tnum text-[9px] text-faint">
+        <span className="tnum text-[11px] text-faint">
           {selectedBrands.length}/{brands.length}
         </span>
       </div>
@@ -756,17 +760,17 @@ function CheckFilter({
       }}
     >
       <span
-        className="grid h-4 w-4 place-items-center rounded-full border text-[9px]"
+        className="grid h-4 w-4 place-items-center rounded-full border text-[11px]"
         style={{
           color: checked ? "white" : "transparent",
           borderColor: color ?? "var(--color-faint)",
           background: checked ? color ?? "var(--color-violet)" : "transparent",
         }}
       >
-        ✓
+        {checked && <IconCheck size={10} />}
       </span>
       <span className="flex-1">{label}</span>
-      <span className="tnum rounded-full bg-paper/[.06] px-1.5 py-0.5 text-[9.5px]">
+      <span className="tnum rounded-full bg-paper/[.06] px-1.5 py-0.5 text-[11px]">
         {count}
       </span>
     </button>
@@ -912,20 +916,23 @@ function OptionsPanel({
           onClick={() => void copyOptions("distributor")}
           loading={action === "options-distributor"}
           disabled={Boolean(action) || !products.length}
-          label="📋 Copiar mensaje distribuidor"
+          label="Copiar mensaje distribuidor"
+          icon={<IconDoc size={14} />}
         />
         <ActionButton
           onClick={() => void copyOptions("customer")}
           loading={action === "options-customer"}
           disabled={Boolean(action) || !products.length}
-          label="📋 Copiar mensaje cliente final"
+          label="Copiar mensaje cliente final"
+          icon={<IconDoc size={14} />}
           primary
         />
         <ActionButton
           onClick={() => void createImage()}
           loading={action === "options-image"}
           disabled={Boolean(action) || !products.length}
-          label="📷 Guardar imagen para WhatsApp"
+          label="Guardar imagen para WhatsApp"
+          icon={<IconImagen size={14} />}
           success
         />
       </div>
@@ -990,7 +997,7 @@ function ComparePanel({
       </div>
       {!ready && (
         <p className="mt-4 rounded-xl bg-paper/[.04] p-3 text-[10.5px] text-muted">
-          Selecciona al menos dos modelos con el botón ⚖ de cada tarjeta.
+          Selecciona al menos dos modelos con el botón Comparar de cada tarjeta.
         </p>
       )}
       <div className="mt-auto pt-5">
@@ -998,13 +1005,15 @@ function ComparePanel({
           onClick={() => void copyMessage()}
           loading={action === "compare-message"}
           disabled={Boolean(action) || !ready}
-          label="📋 Copiar comparativa"
+          label="Copiar comparativa"
+          icon={<IconDoc size={14} />}
         />
         <ActionButton
           onClick={() => void createImage()}
           loading={action === "compare-image"}
           disabled={Boolean(action) || !ready}
-          label="📷 Imagen comparativa"
+          label="Imagen comparativa"
+          icon={<IconImagen size={14} />}
         />
         <ActionButton
           onClick={() => void createPdf()}
@@ -1111,13 +1120,15 @@ function QuotePanel({
           onClick={() => void copyMessage()}
           loading={action === "quote-message"}
           disabled={Boolean(action)}
-          label="📋 Copiar cotización"
+          label="Copiar cotización"
+          icon={<IconDoc size={14} />}
         />
         <ActionButton
           onClick={() => void createImage()}
           loading={action === "quote-image"}
           disabled={Boolean(action)}
-          label="📷 Imagen de cotización"
+          label="Imagen de cotización"
+          icon={<IconImagen size={14} />}
         />
         <ActionButton
           onClick={() => void createPdf()}
@@ -1144,7 +1155,7 @@ function PanelTab({
   return (
     <button
       onClick={onClick}
-      className="rounded-lg px-1.5 py-2 text-[9.5px] font-extrabold transition-colors"
+      className="rounded-lg px-1.5 py-2 text-[11px] font-extrabold transition-colors"
       style={{
         color: active ? "var(--color-paper)" : "var(--color-muted)",
         background: active
@@ -1317,7 +1328,7 @@ function ConnectionError({
   return (
     <div className="glass grid min-h-80 place-items-center rounded-3xl p-8 text-center">
       <div className="max-w-sm">
-        <p className="text-3xl">🔐</p>
+        <IconCandado size={30} className="mx-auto text-muted" />
         <p className="mt-4 text-sm font-extrabold">
           No pudimos abrir el catálogo
         </p>

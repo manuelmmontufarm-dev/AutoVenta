@@ -300,7 +300,7 @@ function SeccionGuardian({ onError }: { onError: (v: string) => void }) {
 
   const activo = estado?.config.activo ?? false;
   return <Tarjeta
-    titulo="👼 Ángel Guardián"
+    titulo="Ángel Guardián"
     sub="Una IA revisa cada respuesta antes de enviarla: precios contra la cotización real, preguntas repetidas, contradicciones. Corrige el error antes de que el cliente lo vea y lo deja documentado. Prendido gasta tokens en cada respuesta; apáguelo cuando quiera ahorrar."
     extra={estado
       ? <button
@@ -324,14 +324,14 @@ function SeccionGuardian({ onError }: { onError: (v: string) => void }) {
       {hallazgos && !hallazgos.length && <p className="mt-2 text-[11px] text-faint">Sin hallazgos esta semana{activo ? "" : " (el guardián estuvo apagado)"}.</p>}
       {hallazgos && hallazgos.length > 0 && <div className="mt-2 max-h-64 overflow-y-auto rounded-xl bg-paper/[.05] p-2.5">
         {hallazgos.map((h, i) => <div key={i} className="mb-2 border-b border-paper/[.08] pb-2 text-[11px] last:mb-0 last:border-0 last:pb-0">
-          <span className={`mr-2 rounded-full px-2 py-0.5 text-[9px] font-bold uppercase ${
+          <span className={`mr-2 rounded-full px-2 py-0.5 text-[11px] font-bold uppercase ${
             h.severidad === "alta" ? "bg-[var(--color-danger,#e2564d)]/20 text-[var(--color-danger,#e2564d)]"
             : h.severidad === "media" ? "bg-[var(--color-warn,#e8b33a)]/20 text-[var(--color-warn,#e8b33a)]"
             : "bg-paper/[.10] text-faint"}`}>{h.severidad}</span>
           <b>{h.categoria}</b> · <a className="underline" href={`#/ticket/${h.conversationId}`}>chat #{h.conversationId}</a>
           {h.veredicto === "corregir" && <span className="ml-1 text-lime">corregido antes de enviar</span>}
           <p className="mt-0.5 text-faint">{h.detalle}</p>
-          <p className="text-[9px] text-faint">{new Date(h.fecha).toLocaleString("es-EC", { timeZone: "America/Guayaquil", day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}</p>
+          <p className="text-[11px] text-faint">{new Date(h.fecha).toLocaleString("es-EC", { timeZone: "America/Guayaquil", day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}</p>
         </div>)}
       </div>}
     </>}
@@ -421,12 +421,12 @@ function SeccionCupones({ onError }: { onError: (v: string) => void }) {
         `/api/cupones/consulta?codigo=${encodeURIComponent(codigo.trim())}`,
       );
       if (r.resultado.ok && r.resultado.cupon) setVerificado(r.resultado.cupon);
-      else setVeredicto({ ok: false, texto: `⛔ ${r.resultado.detalle ?? "Código inválido"}` });
+      else setVeredicto({ ok: false, texto: `${r.resultado.detalle ?? "Código inválido"}` });
     } catch (e) {
       // Un código rechazado llega como 404 y eso NO es un error del panel: es la
       // respuesta. Se muestra donde el cajero está mirando, no en la franja de
       // errores de arriba.
-      setVeredicto({ ok: false, texto: `⛔ ${e instanceof Error ? e.message : "No se pudo verificar"}` });
+      setVeredicto({ ok: false, texto: `${e instanceof Error ? e.message : "No se pudo verificar"}` });
     }
     finally { setCanjeando(false); }
   };
@@ -441,18 +441,18 @@ function SeccionCupones({ onError }: { onError: (v: string) => void }) {
         { method: "POST", body: JSON.stringify({ codigo: verificado.codigo }) },
       );
       setVeredicto(r.resultado.ok
-        ? { ok: true, texto: `✅ ${verificado.codigo} canjeado — aplique el ${verificado.porcentaje} % adicional.` }
-        : { ok: false, texto: `⛔ ${r.resultado.detalle ?? "No se pudo canjear"}` });
+        ? { ok: true, texto: `${verificado.codigo} canjeado — aplique el ${verificado.porcentaje} % adicional.` }
+        : { ok: false, texto: `${r.resultado.detalle ?? "No se pudo canjear"}` });
       if (r.resultado.ok) { setCodigo(""); setVerificado(null); cargar(); }
     } catch (e) {
-      setVeredicto({ ok: false, texto: `⛔ ${e instanceof Error ? e.message : "No se pudo canjear"}` });
+      setVeredicto({ ok: false, texto: `${e instanceof Error ? e.message : "No se pudo canjear"}` });
     }
     finally { setCanjeando(false); }
   };
 
   const activo = estado?.config.activo ?? false;
   return <Tarjeta
-    titulo="🎟️ Cupón de confirmación"
+    titulo="Cupón de confirmación"
     sub="Cuando el cliente dice qué día viene, el bot le manda un código tipo DT-PUMA47. En caja se le aplica ese porcentaje adicional y el cajero copia el código en la descripción de la factura — así sabemos qué cotización terminó en venta. APAGADO hasta que los cajeros estén capacitados."
     extra={estado
       ? <button
@@ -507,18 +507,18 @@ function SeccionCupones({ onError }: { onError: (v: string) => void }) {
         {/* Verificado y sin canjear: aquí el cajero coteja contra la persona
             que tiene enfrente antes de aplicar el descuento. */}
         {verificado && <div className="mt-2 rounded-lg bg-lime/10 p-2.5 text-[11px]">
-          <p className="text-[12px] font-bold text-lime">✅ {verificado.codigo} es válido</p>
+          <p className="text-[12px] font-bold text-lime">{verificado.codigo} es válido</p>
           <p className="mt-1">
             {verificado.cliente ?? "Cliente sin nombre"}
             {verificado.telefono ? ` · ${verificado.telefono}` : ""}
           </p>
           <p className="text-faint">
-            {verificado.medida ? `📏 ${verificado.medida}` : ""}
-            {verificado.totalCotizado != null ? ` · 💵 Cotizó $${verificado.totalCotizado.toFixed(2)}` : ""}
-            {verificado.local ? ` · 🏬 ${verificado.local}` : ""}
+            {verificado.medida ? `Medida ${verificado.medida}` : ""}
+            {verificado.totalCotizado != null ? ` · Cotizó $${verificado.totalCotizado.toFixed(2)}` : ""}
+            {verificado.local ? ` · ${verificado.local}` : ""}
           </p>
           {verificado.visita && <p className="text-faint">
-            📅 Dijo que venía el {new Date(verificado.visita).toLocaleDateString("es-EC", { timeZone: "America/Guayaquil", weekday: "long", day: "numeric", month: "long" })}
+            Dijo que venía el {new Date(verificado.visita).toLocaleDateString("es-EC", { timeZone: "America/Guayaquil", weekday: "long", day: "numeric", month: "long" })}
           </p>}
           <div className="mt-2 flex flex-wrap items-center gap-2">
             <button
@@ -536,7 +536,7 @@ function SeccionCupones({ onError }: { onError: (v: string) => void }) {
       {estado.resumen.ultimos.length > 0 && <div className="mt-2 max-h-56 overflow-y-auto rounded-xl bg-paper/[.05] p-2.5">
         {estado.resumen.ultimos.map((c) => <div key={c.codigo} className="mb-1.5 flex flex-wrap items-center gap-x-2 border-b border-paper/[.08] pb-1.5 text-[11px] last:mb-0 last:border-0 last:pb-0">
           <b>{c.codigo}</b>
-          <span className={`rounded-full px-2 py-0.5 text-[9px] font-bold uppercase ${
+          <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold uppercase ${
             c.estado === "canjeado" ? "bg-lime/20 text-lime" : "bg-paper/[.10] text-faint"}`}>{c.estado}</span>
           <a className="underline" href={`#/ticket/${c.conversationId}`}>chat #{c.conversationId}</a>
           {c.canjeadoPor && <span className="text-faint">por {c.canjeadoPor}</span>}
@@ -567,7 +567,7 @@ function SeccionPrecios({ precios, setPrecios, onError }: { precios: PreciosEsta
   return <Tarjeta
     titulo="Precios del Interbot"
     sub="Se actualizan solos los miércoles a las 15:00. Si les avisan de un cambio de precios antes, actualícenlo aquí."
-    extra={<button onClick={() => void actualizar()} disabled={sync} className="rounded-full bg-lime px-4 py-2 text-[12px] font-semibold text-navy disabled:opacity-50">{sync ? "Actualizando…" : listo ? "✓ Actualizado" : "Actualizar ahora"}</button>}
+    extra={<button onClick={() => void actualizar()} disabled={sync} className="rounded-full bg-lime px-4 py-2 text-[12px] font-semibold text-navy disabled:opacity-50">{sync ? "Actualizando…" : listo ? "Actualizado" : "Actualizar ahora"}</button>}
   >
     <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-[12px]">
       <span><span className="text-faint">Última actualización:</span> <b className={viejo ? "text-[var(--color-warn,#e8b33a)]" : ""}>{cuando}</b></span>
@@ -670,7 +670,7 @@ function SeccionTema({ paleta, fuente, paletas, fuentes, muestras, onPaleta, onF
               ))}
             </span>
             {PALETA_NOTA[p] && (
-              <span className="text-[9.5px] font-normal text-faint">{PALETA_NOTA[p]}</span>
+              <span className="text-[11px] font-normal text-faint">{PALETA_NOTA[p]}</span>
             )}
           </button>
         ))}

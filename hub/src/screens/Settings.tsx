@@ -344,7 +344,7 @@ export function Settings() {
                             border: "1px solid var(--color-line)",
                           }}
                         >
-                          {active ? "✓ " : ""}
+                          
                           {tool}
                         </button>
                       );

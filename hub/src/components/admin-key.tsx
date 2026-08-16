@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { IconSalir } from "./icons";
+import { IconAlert, IconCheck, IconSalir, IconX } from "./icons";
 import {
   getStoredAdminKey,
   iniciarSesion,
@@ -126,10 +126,10 @@ function ResultadoAviso({ resultado }: { resultado: ResultadoConexion }) {
 }
 
 const TONOS = {
-  ok: { icono: "✓", color: "#059669", fondo: "rgba(5, 150, 105, 0.14)" },
-  error: { icono: "✕", color: "#e5484d", fondo: "rgba(229, 72, 77, 0.14)" },
-  alerta: { icono: "!", color: "#d97706", fondo: "rgba(217, 119, 6, 0.14)" },
-  neutral: { icono: "…", color: "var(--color-muted)", fondo: "rgba(255, 255, 255, 0.06)" },
+  ok: { icono: <IconCheck size={10} />, color: "#059669", fondo: "rgba(5, 150, 105, 0.14)" },
+  error: { icono: <IconX size={10} />, color: "#e5484d", fondo: "rgba(229, 72, 77, 0.14)" },
+  alerta: { icono: <IconAlert size={10} />, color: "#d97706", fondo: "rgba(217, 119, 6, 0.14)" },
+  neutral: { icono: <span className="block h-1 w-1 rounded-full bg-white" />, color: "var(--color-muted)", fondo: "rgba(255, 255, 255, 0.06)" },
 } as const;
 
 function Aviso({

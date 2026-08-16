@@ -362,18 +362,10 @@ html[data-theme="showroom-gp"] .medida-chip {
   box-shadow: inset 3px 0 0 var(--color-red);
 }
 
-html[data-theme="showroom-gp"] header .pulse-dot::after {
-  content: "LIVE";
-  position: absolute;
-  top: 0;
-  left: 12px;
-  color: var(--color-ok);
-  font-family: var(--font-mono);
-  font-size: 7px;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-}
-
+/* El punto verde no lleva etiqueta. La llevaba: un "LIVE" absoluto a 12px de un
+   punto de 8px, que caía justo encima del texto del propio chip ("Bot en línea
+   24/7", "Conectado · Fase 4"). El chip ya dice que está en línea, así que la
+   palabra no aportaba nada y sí tapaba información (DESIGN.md §2.2 y §2.4). */
 html[data-theme="showroom-gp"] header .pulse-dot {
   position: relative;
 }

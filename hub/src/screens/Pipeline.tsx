@@ -12,6 +12,7 @@ import {
 import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useMemo, useState } from "react";
 import { FunnelChart } from "../components/charts";
+import { IconAlert, IconAuto, IconBandera, IconCalendario, IconCandado, IconClock, IconUser } from "../components/icons";
 import { Avatar, EmptyState, Segmented } from "../components/ui";
 import { authHeaders } from "../data/realSource";
 import { CIERRE_META, ETAPAS, ETAPA_META, type Etapa, type FinalStage, type FollowUpBucket, type FollowUpCard, type Ticket } from "../data/types";
@@ -72,11 +73,11 @@ function CardKanban({ ticket, now, arrastrando = false, onMover }: { ticket: Tic
       {dia && (
         <div className="mt-1.5">
           <span
-            className="rounded-md px-1.5 py-0.5 text-[10.5px] font-bold"
+            className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-bold"
             style={{ background: "color-mix(in srgb, var(--color-lime) 14%, transparent)", color: "var(--color-lime)" }}
             title={ticket.compromisoCliente ?? undefined}
           >
-            🗓 {dia}
+            <IconClock size={11} /> {dia}
           </span>
         </div>
       )}
@@ -87,7 +88,7 @@ function CardKanban({ ticket, now, arrastrando = false, onMover }: { ticket: Tic
           className="mt-2 w-full rounded-lg py-1.5 text-[10.5px] font-black"
           style={{ background: "color-mix(in srgb, var(--color-paper) 8%, transparent)", color: "var(--color-paper)" }}
         >
-          ⇄ Mover de etapa
+          Mover de etapa
         </button>
       )}
     </div>
@@ -165,10 +166,10 @@ function ZonaCierre() {
         transform: isOver ? "scale(1.03)" : "scale(1)",
       }}
     >
-      <div className="px-3 py-6">
-        <p className="text-2xl">🏁</p>
+      <div className="grid justify-items-center px-3 py-6">
+        <IconBandera size={24} className="text-paper/70" />
         <p className="mt-1.5 text-[11px] font-bold text-paper/80">Cerrar ticket</p>
-        <p className="mt-0.5 text-[10px] text-faint">ganado · perdido</p>
+        <p className="mt-0.5 text-[11px] text-muted">ganado · perdido</p>
       </div>
     </div>
   );
@@ -265,7 +266,7 @@ function PanelFinal({ data, now, onCerrar }: { data: FinalStage; now: number; on
                       <span className="text-[12.5px] font-black">{t.nombre ?? t.telefono}</span>
                       {t.medida && <span className="text-[10.5px] text-muted">{t.medida}</span>}
                       <span
-                        className="rounded-full px-2 py-0.5 text-[9.5px] font-bold"
+                        className="rounded-full px-2 py-0.5 text-[11px] font-bold"
                         style={
                           t.cierre === "ganado"
                             ? { background: "color-mix(in srgb, var(--color-ok) 16%, transparent)", color: "var(--color-ok)" }
@@ -301,14 +302,16 @@ function PanelFinal({ data, now, onCerrar }: { data: FinalStage; now: number; on
   );
 }
 
-const FOLLOW_UP_GROUPS: Array<{ id: FollowUpBucket; label: string; icon: string; hint: string }> = [
-  { id: "attention_now", label: "Atención ahora", icon: "🔴", hint: "Vencidos o listos para actuar" },
-  { id: "today", label: "Programados para hoy", icon: "⏰", hint: "Ordenados por hora de envío" },
-  { id: "commitments", label: "Visitas y compromisos", icon: "🚗", hint: "Clientes que dijeron cuándo irían o retirarían" },
-  { id: "scheduled", label: "Programados", icon: "📅", hint: "Próximos envíos, en orden de tiempo" },
-  { id: "human_review", label: "Revisión humana", icon: "👤", hint: "Sin respuesta; decidir si continuar o marcar Perdido" },
-  { id: "window_closed", label: "Ventana cerrada", icon: "🔒", hint: "Solo se puede contactar con plantilla aprobada" },
-  { id: "cancelled_failed", label: "Cancelados o fallidos", icon: "⚠️", hint: "Casos que necesitan revisión técnica" },
+// El icono sale del sistema de icons.tsx; el color distingue la urgencia
+// (rojo = actuar ya) sin depender sólo de él: el label ya lo dice.
+const FOLLOW_UP_GROUPS: Array<{ id: FollowUpBucket; label: string; icon: React.ReactNode; hint: string }> = [
+  { id: "attention_now", label: "Atención ahora", icon: <IconAlert size={14} style={{ color: "var(--color-red)" }} />, hint: "Vencidos o listos para actuar" },
+  { id: "today", label: "Programados para hoy", icon: <IconClock size={14} />, hint: "Ordenados por hora de envío" },
+  { id: "commitments", label: "Visitas y compromisos", icon: <IconAuto size={14} />, hint: "Clientes que dijeron cuándo irían o retirarían" },
+  { id: "scheduled", label: "Programados", icon: <IconCalendario size={14} />, hint: "Próximos envíos, en orden de tiempo" },
+  { id: "human_review", label: "Revisión humana", icon: <IconUser size={14} />, hint: "Sin respuesta; decidir si continuar o marcar Perdido" },
+  { id: "window_closed", label: "Ventana cerrada", icon: <IconCandado size={14} />, hint: "Solo se puede contactar con plantilla aprobada" },
+  { id: "cancelled_failed", label: "Cancelados o fallidos", icon: <IconAlert size={14} />, hint: "Casos que necesitan revisión técnica" },
 ];
 
 function FollowUpCardView({ item, now }: { item: FollowUpCard; now: number }) {
@@ -324,30 +327,30 @@ function FollowUpCardView({ item, now }: { item: FollowUpCard; now: number }) {
   return <article className="glass rounded-xl px-3 py-2.5 shadow-soft transition-colors hover:bg-paper/[.035]">
     <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
       <button onClick={() => navigate(`ticket/${item.conversationId}`)} className="min-w-0 text-left text-[12.5px] font-black hover:text-lime hover:underline">{item.customer}</button>
-      <span className="rounded-full bg-paper/[.07] px-2 py-0.5 text-[9.5px] font-bold">{ETAPA_META[item.stage].corto}</span>
+      <span className="rounded-full bg-paper/[.07] px-2 py-0.5 text-[11px] font-bold">{ETAPA_META[item.stage].corto}</span>
       {(item.tireSize || item.selectedProductCode) && <span className="truncate text-[10.5px] text-muted">{item.tireSize ?? item.selectedProductCode}</span>}
       <span className="tnum ml-auto text-[10.5px] font-bold">{dueLabel}</span>
-      <span className="rounded-full bg-violet/10 px-2 py-0.5 text-[9.5px] font-bold">{remainingLabel}</span>
+      <span className="rounded-full bg-violet/10 px-2 py-0.5 text-[11px] font-bold">{remainingLabel}</span>
     </div>
     <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[10.5px]">
       <span className={item.unansweredDays > 0 ? "font-black text-red" : "text-faint"}>Sin responder {item.unansweredDays} {item.unansweredDays === 1 ? "día" : "días"}</span>
-      {item.commitment && <span className="line-clamp-1 text-lime">🚗 {item.commitment}</span>}
+      {item.commitment && <span className="inline-flex min-w-0 items-center gap-1 text-lime"><IconAuto size={12} className="shrink-0" /><span className="line-clamp-1">{item.commitment}</span></span>}
       {!item.commitment && <span className="line-clamp-1 min-w-0 flex-1 text-faint">{item.summary}</span>}
     </div>
     {item.preview && <div className="mt-2 rounded-lg bg-paper/[.045] px-2.5 py-2">
-      <p className="text-[9px] font-black uppercase tracking-wider text-faint">Mensaje programado</p>
+      <p className="text-[11px] font-black uppercase tracking-wider text-faint">Mensaje programado</p>
       <p className="mt-0.5 line-clamp-2 text-[11px] leading-relaxed">{item.preview}</p>
-      {item.type !== "advisor_review" && <button onClick={() => void navigator.clipboard.writeText(item.preview).then(() => { setCopied(true); window.setTimeout(() => setCopied(false), 1500); })} className="mt-1 text-[9.5px] font-black text-lime hover:underline">{copied ? "✓ Copiado" : "Copiar mensaje"}</button>}
+      {item.type !== "advisor_review" && <button onClick={() => void navigator.clipboard.writeText(item.preview).then(() => { setCopied(true); window.setTimeout(() => setCopied(false), 1500); })} className="mt-1 text-[11px] font-black text-lime hover:underline">{copied ? "Copiado" : "Copiar mensaje"}</button>}
     </div>}
     {(item.templateRequired || item.alertReason) && <p className="mt-1.5 text-[10px] font-bold text-amber-500">{item.templateRequired ? `Plantilla: ${item.templateRequired}` : `Motivo: ${item.alertReason}`}</p>}
     <div className="mt-2 flex flex-wrap gap-1">
-      <button onClick={() => navigate(`ticket/${item.conversationId}`)} className="rounded-md bg-paper/10 px-2 py-1 text-[9.5px] font-bold">Abrir chat</button>
-      {item.assignedTo === "bot" && <button onClick={() => void setAtiende(item.conversationId, "humano")} className="rounded-md bg-violet/15 px-2 py-1 text-[9.5px] font-bold">Tomar control</button>}
-      {item.bucket === "human_review" && item.assignedTo === "human" && <button onClick={() => void setAtiende(item.conversationId, "bot")} className="rounded-md bg-lime/15 px-2 py-1 text-[9.5px] font-bold">Continuar con bot</button>}
-      {item.bucket === "human_review" && <button onClick={() => { if (window.confirm(`¿Marcar a ${item.customer} como Perdido por falta de respuesta?`)) void cerrar(item.conversationId, "perdido", "Sin respuesta tras revisión humana"); }} className="rounded-md bg-red/10 px-2 py-1 text-[9.5px] font-bold text-red">Marcar Perdido</button>}
-      {item.id && item.status === "scheduled" && <button onClick={() => void followUpAction(item.id!, "send")} className="rounded-md bg-lime/15 px-2 py-1 text-[9.5px] font-bold">Enviar ahora</button>}
-      {item.id && item.status === "scheduled" && <button onClick={() => { const value = window.prompt("Editar mensaje", item.preview); if (value?.trim()) void followUpAction(item.id!, "edit", value.trim()); }} className="rounded-md bg-paper/10 px-2 py-1 text-[9.5px] font-bold">Editar</button>}
-      {item.id && ["scheduled", "blocked"].includes(item.status ?? "") && <button onClick={() => void followUpAction(item.id!, "cancel")} className="rounded-md bg-red/10 px-2 py-1 text-[9.5px] font-bold text-red">Cancelar</button>}
+      <button onClick={() => navigate(`ticket/${item.conversationId}`)} className="rounded-md bg-paper/10 px-2 py-1 text-[11px] font-bold">Abrir chat</button>
+      {item.assignedTo === "bot" && <button onClick={() => void setAtiende(item.conversationId, "humano")} className="rounded-md bg-violet/15 px-2 py-1 text-[11px] font-bold">Tomar control</button>}
+      {item.bucket === "human_review" && item.assignedTo === "human" && <button onClick={() => void setAtiende(item.conversationId, "bot")} className="rounded-md bg-lime/15 px-2 py-1 text-[11px] font-bold">Continuar con bot</button>}
+      {item.bucket === "human_review" && <button onClick={() => { if (window.confirm(`¿Marcar a ${item.customer} como Perdido por falta de respuesta?`)) void cerrar(item.conversationId, "perdido", "Sin respuesta tras revisión humana"); }} className="rounded-md bg-red/10 px-2 py-1 text-[11px] font-bold text-red">Marcar Perdido</button>}
+      {item.id && item.status === "scheduled" && <button onClick={() => void followUpAction(item.id!, "send")} className="rounded-md bg-lime/15 px-2 py-1 text-[11px] font-bold">Enviar ahora</button>}
+      {item.id && item.status === "scheduled" && <button onClick={() => { const value = window.prompt("Editar mensaje", item.preview); if (value?.trim()) void followUpAction(item.id!, "edit", value.trim()); }} className="rounded-md bg-paper/10 px-2 py-1 text-[11px] font-bold">Editar</button>}
+      {item.id && ["scheduled", "blocked"].includes(item.status ?? "") && <button onClick={() => void followUpAction(item.id!, "cancel")} className="rounded-md bg-red/10 px-2 py-1 text-[11px] font-bold text-red">Cancelar</button>}
     </div>
   </article>;
 }
@@ -570,7 +573,7 @@ function MoverSheet({ ticket, onMover, onCerrarTicket, onCancelar }: {
               >
                 <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: meta.color }} />
                 <span className="min-w-0 flex-1 truncate">{meta.nombre}</span>
-                {actual && <span className="text-[9.5px] font-black uppercase text-faint">aquí</span>}
+                {actual && <span className="text-[11px] font-black uppercase text-faint">aquí</span>}
               </button>
             );
           })}
@@ -579,7 +582,7 @@ function MoverSheet({ ticket, onMover, onCerrarTicket, onCancelar }: {
             className="mt-1 rounded-xl px-3 py-2.5 text-[12px] font-black"
             style={{ background: "color-mix(in srgb, var(--color-violet) 14%, transparent)", color: "var(--color-violet)" }}
           >
-            🏁 Cerrar ticket — ganado o perdido
+            <span className="inline-flex items-center gap-1.5"><IconBandera size={14} /> Cerrar ticket — ganado o perdido</span>
           </button>
           <button onClick={onCancelar} className="glass rounded-xl py-2.5 text-[12px] font-bold text-muted">Cancelar</button>
         </div>

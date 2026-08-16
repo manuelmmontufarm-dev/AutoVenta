@@ -1,9 +1,9 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ChatBubble, Composer, CotizacionModal, TypingBubble } from "../components/chat";
-import { IconBack, IconDoc, IconNote, IconPhone, IconPin, IconRefresh, IconX } from "../components/icons";
+import { IconAuto, IconBack, IconBot, IconDoc, IconEtiqueta, IconNote, IconPhone, IconPin, IconRefresh, IconSparkle, IconUser, IconX } from "../components/icons";
 import { PipelineStepper } from "../components/stepper";
-import { AtiendePill, Avatar, CierreBadge, MedidaChip, Modal, StageBadge } from "../components/ui";
+import { AtiendePill, Avatar, CierreBadge, CierreIcon, MedidaChip, Modal, StageBadge } from "../components/ui";
 import { CIERRE_META, type Cierre, type Mensaje, type TemplatePlanPreview, type Ticket } from "../data/types";
 import { money, relTime } from "../lib/format";
 import { navigate } from "../router";
@@ -77,7 +77,7 @@ export function TicketDetail({ id }: { id: number }) {
             <p className="tnum flex items-center gap-1.5 text-[11px] text-muted">
               <IconPhone size={10} /> {ticket.telefono} · {relTime(ticket.ultimaActividad, now)}
             </p>
-            {ticket.esRecurrente && <p className="mt-0.5 text-[9.5px] font-black text-lime">★ Ya compró antes{ticket.comprasAnteriores ? ` · ${ticket.comprasAnteriores} ${ticket.comprasAnteriores === 1 ? "compra" : "compras"}` : ""}</p>}
+            {ticket.esRecurrente && <p className="mt-0.5 flex items-center gap-1 text-[11px] font-black text-lime"><IconSparkle size={10} className="shrink-0" /> Ya compró antes{ticket.comprasAnteriores ? ` · ${ticket.comprasAnteriores} ${ticket.comprasAnteriores === 1 ? "compra" : "compras"}` : ""}</p>}
           </div>
           <div className="hidden items-center gap-1.5 sm:flex">
             {ticket.estado === "cerrado" && ticket.cierre ? (
@@ -100,7 +100,7 @@ export function TicketDetail({ id }: { id: number }) {
         </div>
 
         {ticket.cotizacion && <button onClick={() => setVerCotizacion(true)} className="mx-3 mt-2 flex items-center gap-2 rounded-xl border border-lime/15 bg-lime/[.055] px-3 py-2 text-left">
-          <span className="text-base">📄</span><span className="min-w-0 flex-1"><span className="block text-[10px] font-black uppercase tracking-wider text-lime">Cotización #{ticket.cotizacion.numero}</span><span className="block truncate text-[10.5px] text-muted">{ticket.cotizacion.items.map((item) => `${item.cantidad}× ${item.descripcion}`).join(" · ")}</span></span><span className="tnum text-xs font-black">{money(ticket.cotizacion.total)}</span>
+          <IconDoc size={16} className="shrink-0 text-lime" /><span className="min-w-0 flex-1"><span className="block text-[10px] font-black uppercase tracking-wider text-lime">Cotización #{ticket.cotizacion.numero}</span><span className="block truncate text-[10.5px] text-muted">{ticket.cotizacion.items.map((item) => `${item.cantidad}× ${item.descripcion}`).join(" · ")}</span></span><span className="tnum text-xs font-black">{money(ticket.cotizacion.total)}</span>
         </button>}
 
         <div ref={scrollRef} className="chat-bg mx-3 mt-2.5 min-h-0 flex-1 overflow-y-auto rounded-2xl px-3 py-4">
@@ -316,16 +316,16 @@ function Ficha({
         ) : (
           <p className="text-xs text-faint italic">Medida aún no identificada</p>
         )}
-        {ticket.vehiculo && <p className="mt-2.5 text-[12.5px] font-semibold text-paper/85">🚗 {ticket.vehiculo}</p>}
+        {ticket.vehiculo && <p className="mt-2.5 flex items-center gap-1.5 text-[12.5px] font-semibold text-paper/85"><IconAuto size={14} className="shrink-0" /> {ticket.vehiculo}</p>}
         {ticket.esRecurrente && (
-          <p className="mt-2 flex items-center gap-1.5 text-[11.5px] font-semibold text-lime">★ Cliente recurrente</p>
+          <p className="mt-2 flex items-center gap-1.5 text-[11.5px] font-semibold text-lime"><IconSparkle size={12} className="shrink-0" /> Cliente recurrente</p>
         )}
       </section>
 
       <section className="glass rounded-2xl p-4">
         <p className="microlabel mb-2.5">Seguimiento comercial</p>
         <p className="text-xs leading-relaxed">{ticket.resumen ?? "Resumen automático pendiente; se actualizará con la próxima interacción."}</p>
-        {ticket.followUpReason && <div className="mt-2 rounded-xl border border-amber-500/15 bg-amber-500/[.06] p-2.5"><p className="text-[9px] font-black uppercase tracking-wider text-amber-500">Por qué requiere atención</p><p className="mt-1 text-[10.5px] font-bold">{ticket.followUpReason}</p></div>}
+        {ticket.followUpReason && <div className="mt-2 rounded-xl border border-amber-500/15 bg-amber-500/[.06] p-2.5"><p className="text-[11px] font-black uppercase tracking-wider text-amber-500">Por qué requiere atención</p><p className="mt-1 text-[10.5px] font-bold">{ticket.followUpReason}</p></div>}
         <dl className="mt-3 grid gap-2 text-[11px]">
           <div><dt className="text-faint">Qué busca</dt><dd>{ticket.queBusca ?? ticket.medida ?? "Por identificar"}</dd></div>
           <div><dt className="text-faint">Opciones que comparó</dt><dd>{ticket.opcionesComparadas?.length ? ticket.opcionesComparadas.map(String).join(" · ") : "Sin comparación registrada"}</dd></div>
@@ -333,11 +333,11 @@ function Ficha({
           <div><dt className="text-faint">Compromiso o fecha</dt><dd>{ticket.compromisoCliente ?? (ticket.visitDate ? new Date(ticket.visitDate).toLocaleString("es-EC") : "Sin compromiso registrado")}</dd></div>
         </dl>
         {ticket.proximoSeguimiento ? <div className="mt-3 rounded-xl bg-paper/[.05] p-3"><p className="text-[11px] font-bold">Próximo: {new Date(ticket.proximoSeguimiento.dueAt).toLocaleString("es-EC")}</p><p className="mt-1 text-xs">{ticket.proximoSeguimiento.preview}</p>{ticket.proximoSeguimiento.templateKey && <p className="mt-1 text-[10px] font-bold text-amber-500">Plantilla: {ticket.proximoSeguimiento.templateKey}</p>}</div> : <p className="mt-3 text-[11px] text-faint">Sin envío automático: revisa el estado de seguridad o cierre.</p>}
-        {ticket.planSeguimientos && ticket.planSeguimientos.length > 0 && <div className="mt-3"><p className="microlabel mb-2">Plan hasta cierre de ventana y escalamiento</p><ol className="grid gap-1.5">{ticket.planSeguimientos.map((step, index) => <li key={step.id} className="rounded-lg bg-paper/[.035] px-2.5 py-2 text-[10.5px]"><span className="font-bold">{index + 1}. {step.channel === "advisor" ? "Revisión del asesor" : step.templateKey ? `Plantilla ${step.templateKey}` : "Mensaje WhatsApp"}</span><span className="tnum ml-1 text-faint">· {new Date(step.dueAt).toLocaleString("es-EC")}</span><p className="mt-1 text-muted">{step.preview || step.reason}</p>{step.channel !== "advisor" && <button disabled={Boolean(step.templateKey) || !ventanaAbierta} onClick={() => void navigator.clipboard.writeText(step.preview).then(() => setEstadoDescuento("Mensaje copiado."))} className="mt-1.5 text-[9.5px] font-black text-lime disabled:cursor-not-allowed disabled:text-faint">{step.templateKey ? "Enviar únicamente como plantilla" : ventanaAbierta ? "Copiar mensaje" : "Ventana cerrada: solo plantilla"}</button>}</li>)}</ol></div>}
+        {ticket.planSeguimientos && ticket.planSeguimientos.length > 0 && <div className="mt-3"><p className="microlabel mb-2">Plan hasta cierre de ventana y escalamiento</p><ol className="grid gap-1.5">{ticket.planSeguimientos.map((step, index) => <li key={step.id} className="rounded-lg bg-paper/[.035] px-2.5 py-2 text-[10.5px]"><span className="font-bold">{index + 1}. {step.channel === "advisor" ? "Revisión del asesor" : step.templateKey ? `Plantilla ${step.templateKey}` : "Mensaje WhatsApp"}</span><span className="tnum ml-1 text-faint">· {new Date(step.dueAt).toLocaleString("es-EC")}</span><p className="mt-1 text-muted">{step.preview || step.reason}</p>{step.channel !== "advisor" && <button disabled={Boolean(step.templateKey) || !ventanaAbierta} onClick={() => void navigator.clipboard.writeText(step.preview).then(() => setEstadoDescuento("Mensaje copiado."))} className="mt-1.5 text-[11px] font-black text-lime disabled:cursor-not-allowed disabled:text-faint">{step.templateKey ? "Enviar únicamente como plantilla" : ventanaAbierta ? "Copiar mensaje" : "Ventana cerrada: solo plantilla"}</button>}</li>)}</ol></div>}
         <p className="mt-3 text-[11px] font-bold" style={{ color: ticket.ventanaCierraEn && new Date(ticket.ventanaCierraEn) > new Date() ? "var(--color-ok)" : "var(--color-warn)" }}>Ventana de 24 h: {ticket.ventanaCierraEn ? (new Date(ticket.ventanaCierraEn) > new Date() ? `abierta hasta ${new Date(ticket.ventanaCierraEn).toLocaleString("es-EC")}` : "cerrada — requiere plantilla") : "sin mensaje entrante"}</p>
         {!ticket.customerOptIn && <p className="mt-1 text-[10px] text-amber-500">Sin consentimiento registrado para plantillas post-24 h.</p>}
         {ticket.ventanaCierraEn && new Date(ticket.ventanaCierraEn) <= new Date() && <button disabled={loadingTemplatePlan} onClick={() => void mostrarTemplatePlan()} className="mt-3 w-full rounded-xl bg-violet/15 px-3 py-2 text-[10.5px] font-black disabled:opacity-50">{loadingTemplatePlan ? "Cargando…" : "Continuar seguimiento con plantilla"}</button>}
-        {templatePlan && <div className="mt-3 rounded-xl border border-violet/20 bg-violet/[.045] p-2.5"><div className="flex items-center justify-between gap-2"><p className="text-[10.5px] font-black">{templatePlan.template?.template_name ?? templatePlan.template?.template_key ?? "Plantilla requerida"}</p><span className="rounded-full bg-paper/10 px-2 py-0.5 text-[9px]">{templatePlan.template?.language ?? "es"}</span></div>{templatePlan.reason && <p className="mt-2 text-[10px] font-bold text-amber-500">{templatePlan.reason}</p>}<ol className="mt-2 grid max-h-56 gap-1 overflow-y-auto">{templatePlan.days.map((day) => <li key={day.day} className="rounded-lg bg-paper/[.045] px-2 py-1.5 text-[9.5px]"><span className="font-black">Día {day.day}</span><span className="tnum ml-1 text-faint">· {new Date(day.dueAt).toLocaleString("es-EC", { weekday: "short", hour: "2-digit", minute: "2-digit" })}</span><p className="mt-0.5 line-clamp-2 text-muted">{day.preview}</p></li>)}</ol><button disabled={!templatePlan.allowed || loadingTemplatePlan} onClick={() => void confirmarTemplatePlan()} className="mt-2 w-full rounded-lg bg-lime/15 py-2 text-[10px] font-black text-lime disabled:cursor-not-allowed disabled:opacity-40">Confirmar plan de {templatePlan.days.length || 8} días</button></div>}
+        {templatePlan && <div className="mt-3 rounded-xl border border-violet/20 bg-violet/[.045] p-2.5"><div className="flex items-center justify-between gap-2"><p className="text-[10.5px] font-black">{templatePlan.template?.template_name ?? templatePlan.template?.template_key ?? "Plantilla requerida"}</p><span className="rounded-full bg-paper/10 px-2 py-0.5 text-[11px]">{templatePlan.template?.language ?? "es"}</span></div>{templatePlan.reason && <p className="mt-2 text-[10px] font-bold text-amber-500">{templatePlan.reason}</p>}<ol className="mt-2 grid max-h-56 gap-1 overflow-y-auto">{templatePlan.days.map((day) => <li key={day.day} className="rounded-lg bg-paper/[.045] px-2 py-1.5 text-[11px]"><span className="font-black">Día {day.day}</span><span className="tnum ml-1 text-faint">· {new Date(day.dueAt).toLocaleString("es-EC", { weekday: "short", hour: "2-digit", minute: "2-digit" })}</span><p className="mt-0.5 line-clamp-2 text-muted">{day.preview}</p></li>)}</ol><button disabled={!templatePlan.allowed || loadingTemplatePlan} onClick={() => void confirmarTemplatePlan()} className="mt-2 w-full rounded-lg bg-lime/15 py-2 text-[10px] font-black text-lime disabled:cursor-not-allowed disabled:opacity-40">Confirmar plan de {templatePlan.days.length || 8} días</button></div>}
         {templatePlanStatus && <p className="mt-2 text-[10px] text-muted">{templatePlanStatus}</p>}
         <div className="mt-3 border-t border-paper/10 pt-3"><p className="microlabel mb-2">Historial</p>{ticket.historialSeguimientos?.length ? <ul className="grid gap-1">{ticket.historialSeguimientos.map((item) => <li key={item.id} className="text-[10.5px] text-muted">{item.type} · {item.status} · {new Date(item.createdAt).toLocaleString("es-EC")}{item.error ? ` · ${item.error}` : ""}</li>)}</ul> : <p className="text-[10.5px] text-faint">Sin intentos todavía.</p>}</div>
       </section>
@@ -362,12 +362,12 @@ function Ficha({
       )}
 
       <section className="glass rounded-2xl border border-lime/10 p-4">
-        <div className="flex items-center justify-between gap-2"><div><p className="microlabel">Descuento comercial</p><p className="mt-1 text-[10.5px] text-muted">El bot solo ofrecerá el monto y la condición que autorices aquí.</p></div><span className="text-xl">🏷️</span></div>
+        <div className="flex items-center justify-between gap-2"><div><p className="microlabel">Descuento comercial</p><p className="mt-1 text-[10.5px] text-muted">El bot solo ofrecerá el monto y la condición que autorices aquí.</p></div><IconEtiqueta size={18} className="shrink-0 text-muted" /></div>
         {ticket.descuentoActivo && <div className="mt-2 rounded-xl bg-lime/[.07] p-2.5"><p className="text-xs font-black text-lime">−{money(ticket.descuentoActivo.amount)} · Total {money(ticket.descuentoActivo.finalTotal)}</p><p className="mt-1 text-[10.5px]">Si {ticket.descuentoActivo.condition}</p></div>}
         {ticket.descuentoPendiente && !ticket.descuentoActivo && <div className="mt-2 rounded-xl bg-amber-500/[.08] p-2.5"><p className="text-[10.5px] font-black text-amber-500">Descuento listo para la próxima cotización</p><p className="mt-1 text-[10px]">{ticket.descuentoPendiente.kind === "percentage" ? `${ticket.descuentoPendiente.value / 100}%` : money(ticket.descuentoPendiente.value / 100)} · si {ticket.descuentoPendiente.condition}</p></div>}
         {!ticket.cotizacion && <p className="mt-3 rounded-xl bg-paper/[.04] p-2.5 text-[10.5px] text-faint">Puedes autorizarlo ahora: quedará guardado y se aplicará automáticamente a la próxima cotización.</p>}
         {abierto && <button onClick={() => setVerDescuento((value) => !value)} className="mt-3 w-full rounded-xl bg-lime/10 py-2 text-xs font-bold text-lime">{ticket.descuentoActivo ? "Ajustar descuento" : "Ofrecer descuento"}</button>}
-        {verDescuento && <div className="mt-3 grid gap-2 rounded-xl border border-lime/20 bg-lime/[.04] p-3"><label className="text-[10px] font-bold">Indicación para el bot<textarea value={promptDescuento} onChange={(e) => setPromptDescuento(e.target.value)} placeholder="Ej. 5% de descuento si recoge esta semana" className="gp-field mt-1 min-h-20 w-full rounded-lg px-2.5 py-2 text-xs" /></label><div className="grid grid-cols-2 gap-2"><button type="button" onClick={() => setEntregaDescuento("now")} className={`rounded-xl border px-2 py-2 text-[10px] font-black ${entregaDescuento === "now" ? "border-lime/50 bg-lime/15 text-lime" : "border-paper/10 text-muted"}`}>Notificar ahora</button><button type="button" onClick={() => setEntregaDescuento("next_message")} className={`rounded-xl border px-2 py-2 text-[10px] font-black ${entregaDescuento === "next_message" ? "border-lime/50 bg-lime/15 text-lime" : "border-paper/10 text-muted"}`}>Incluir en el siguiente mensaje</button></div><p className="text-[9.5px] text-faint">El bot aplicará el ahorro exacto en la cotización. El descuento solo será válido en tienda presentando el número de cotización.</p><button disabled={guardandoDescuento} onClick={() => void confirmarDescuento()} className="btn-aurora rounded-xl py-2.5 text-xs font-bold disabled:opacity-50">{guardandoDescuento ? "Confirmando…" : "Confirmar descuento"}</button></div>}
+        {verDescuento && <div className="mt-3 grid gap-2 rounded-xl border border-lime/20 bg-lime/[.04] p-3"><label className="text-[10px] font-bold">Indicación para el bot<textarea value={promptDescuento} onChange={(e) => setPromptDescuento(e.target.value)} placeholder="Ej. 5% de descuento si recoge esta semana" className="gp-field mt-1 min-h-20 w-full rounded-lg px-2.5 py-2 text-xs" /></label><div className="grid grid-cols-2 gap-2"><button type="button" onClick={() => setEntregaDescuento("now")} className={`rounded-xl border px-2 py-2 text-[10px] font-black ${entregaDescuento === "now" ? "border-lime/50 bg-lime/15 text-lime" : "border-paper/10 text-muted"}`}>Notificar ahora</button><button type="button" onClick={() => setEntregaDescuento("next_message")} className={`rounded-xl border px-2 py-2 text-[10px] font-black ${entregaDescuento === "next_message" ? "border-lime/50 bg-lime/15 text-lime" : "border-paper/10 text-muted"}`}>Incluir en el siguiente mensaje</button></div><p className="text-[11px] text-faint">El bot aplicará el ahorro exacto en la cotización. El descuento solo será válido en tienda presentando el número de cotización.</p><button disabled={guardandoDescuento} onClick={() => void confirmarDescuento()} className="btn-aurora rounded-xl py-2.5 text-xs font-bold disabled:opacity-50">{guardandoDescuento ? "Confirmando…" : "Confirmar descuento"}</button></div>}
         {estadoDescuento && <p className="mt-2 text-[10.5px] text-muted">{estadoDescuento}</p>}
       </section>
 
@@ -393,7 +393,7 @@ function Ficha({
         <section className="glass flex items-center justify-between rounded-2xl p-4">
           <div>
             <p className="microlabel">Atiende</p>
-            <p className="mt-1 text-[12.5px] font-bold">{ticket.atiende === "bot" ? "🤖 Bot AutoVenta" : "👤 Vendedor"}</p>
+            <p className="mt-1 flex items-center gap-1.5 text-[12.5px] font-bold">{ticket.atiende === "bot" ? <><IconBot size={14} className="shrink-0" /> Bot AutoVenta</> : <><IconUser size={14} className="shrink-0" /> Vendedor</>}</p>
           </div>
           <button
             onClick={onToggleAtiende}
@@ -508,13 +508,13 @@ export function CerrarSheet({
                   border: `1px solid ${activo ? `color-mix(in srgb, ${meta.color} 45%, transparent)` : "color-mix(in srgb, var(--color-paper) 7%, transparent)"}`,
                 }}
               >
-                <span className="text-lg">{meta.emoji}</span>
+                <CierreIcon cierre={c} size={18} />
                 <span>
                   <span className="block text-[13px] font-bold" style={{ color: activo ? meta.color : "var(--color-paper)" }}>
                     {meta.nombre}
                   </span>
                   <span className="text-[11px] text-muted">
-                    {c === "ganado" ? "Vino y compró 🙌" : c === "perdido" ? "No compró — anota por qué" : "Se enfrió, dejó de contestar"}
+                    {c === "ganado" ? "Vino y compró" : c === "perdido" ? "No compró — anota por qué" : "Se enfrió, dejó de contestar"}
                   </span>
                 </span>
               </button>

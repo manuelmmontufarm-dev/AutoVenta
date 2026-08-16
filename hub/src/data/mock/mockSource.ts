@@ -267,7 +267,10 @@ export class MockSource implements DataSource {
     if (nota) t.notas.push(nota);
     const monto = t.cotizacion ? ` — ${money(t.cotizacion.total)}` : "";
     this.pushFeed(
-      cierre === "ganado" ? "🏁" : CIERRE_META[cierre].emoji,
+      // El icono del feed sigue siendo un emoji a propósito: `FeedItem.icono`
+      // es un string que también llena el backend (app/src). Migrarlo al
+      // sistema de iconos toca los dos lados y va en su propio cambio.
+      cierre === "ganado" ? "🏁" : cierre === "perdido" ? "✕" : "⏱",
       `Ticket ${cierre === "ganado" ? "ganado" : CIERRE_META[cierre].nombre.toLowerCase()}: ${this.nombre(t)}${monto}`,
       ticketId,
     );

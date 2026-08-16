@@ -89,3 +89,32 @@ export const IconTire = (p: P) =>
 /** Puerta con flecha saliendo: el «salir» de toda la vida. */
 export const IconSalir = (p: P) =>
   base(p, <><path d="M15 4.5h3a1.5 1.5 0 0 1 1.5 1.5v12a1.5 1.5 0 0 1-1.5 1.5h-3" /><path d="M10 8.5 13.5 12 10 15.5" /><path d="M13.5 12h-9" /></>);
+
+export const IconCandado = (p: P) =>
+  base(p, <><rect x="5" y="10.5" width="14" height="9" rx="2" /><path d="M8 10.5V8a4 4 0 0 1 8 0v2.5" /></>);
+
+export const IconCalendario = (p: P) =>
+  base(p, <><rect x="4" y="5.5" width="16" height="14.5" rx="2" /><path d="M4 10h16" /><path d="M8.5 3.5v3.5" /><path d="M15.5 3.5v3.5" /></>);
+
+export const IconAuto = (p: P) =>
+  base(p, <><path d="M4 15.5V13c0-.9.6-1.7 1.5-1.9l2-2.6c.5-.7 1.3-1 2.1-1h4.2c.8 0 1.6.4 2.1 1l1.9 2.6c.9.2 1.7 1 1.7 1.9v2.5" /><path d="M4 15.5h16" /><circle cx="8" cy="16.8" r="1.8" /><circle cx="16" cy="16.8" r="1.8" /></>);
+
+/** Bandera a cuadros: el cierre de la carrera. */
+export const IconBandera = (p: P) =>
+  base(p, <><path d="M6 21V4" /><path d="M6 5h12l-1.8 3.5L18 12H6" /><path d="M9 5v7" /><path d="M12 5v7" /><path d="M15 5v7" /><path d="M6 8.5h12" /></>);
+
+/** Dos columnas lado a lado: comparar. */
+export const IconComparar = (p: P) =>
+  base(p, <><rect x="3.5" y="6" width="7" height="12" rx="1.5" /><rect x="13.5" y="6" width="7" height="12" rx="1.5" /></>);
+
+export const IconEtiqueta = (p: P) =>
+  base(p, <><path d="M4 4h7l9 9-7 7-9-9V4Z" /><circle cx="8.5" cy="8.5" r="1.4" /></>);
+
+export const IconSonido = (p: P) =>
+  base(p, <><path d="M4 9.5h3.2L12 5.4v13.2L7.2 14.5H4Z" /><path d="M15.6 9.4a3.7 3.7 0 0 1 0 5.2" /><path d="M18.2 6.8a7.3 7.3 0 0 1 0 10.4" /></>);
+
+export const IconSilencio = (p: P) =>
+  base(p, <><path d="M4 9.5h3.2L12 5.4v13.2L7.2 14.5H4Z" /><path d="m16 9.8 5 4.4" /><path d="M21 9.8l-5 4.4" /></>);
+
+export const IconImagen = (p: P) =>
+  base(p, <><rect x="3.5" y="5" width="17" height="14" rx="2" /><circle cx="9" cy="10" r="1.6" /><path d="m3.5 16.5 4.5-4 3.5 3 3.5-3.5 5.5 5" /></>);

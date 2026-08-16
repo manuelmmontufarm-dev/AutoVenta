@@ -8,8 +8,9 @@
  * El token y el app secret solo viajan hacia arriba: el servidor jamás los
  * devuelve, así que los campos se muestran vacíos con la marca "ya configurado".
  */
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { authHeaders } from "../data/realSource";
+import { IconAlert, IconCheck } from "./icons";
 
 type CheckEstado = "ok" | "falta" | "error";
 
@@ -364,7 +365,11 @@ export function WhatsAppSetup() {
   );
 }
 
-const ICONO: Record<CheckEstado, string> = { ok: "✓", falta: "○", error: "!" };
+const ICONO: Record<CheckEstado, ReactNode> = {
+  ok: <IconCheck size={11} />,
+  falta: <span className="block h-1.5 w-1.5 rounded-full bg-white" />,
+  error: <IconAlert size={11} />,
+};
 
 function CheckRow({ check }: { check: ChannelCheck }) {
   const color =
@@ -444,7 +449,7 @@ function Campo({
       <span className="microlabel mb-1.5 flex flex-wrap items-center gap-2">
         {label}
         {marca && (
-          <span className="rounded-full bg-ok/15 px-2 py-0.5 text-[9px] font-black text-ok">
+          <span className="rounded-full bg-ok/15 px-2 py-0.5 text-[11px] font-black text-ok">
             {marca}
           </span>
         )}

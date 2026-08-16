@@ -2,7 +2,7 @@ import { motion } from "framer-motion";
 import type { ReactNode } from "react";
 import { CIERRE_META, ETAPA_META, type Cierre, type Etapa, type Ticket } from "../data/types";
 import { avatarColor, iniciales } from "../lib/format";
-import { IconBot, IconTire, IconUser } from "./icons";
+import { IconBandera, IconBot, IconClock, IconSparkle, IconTire, IconUser, IconX } from "./icons";
 
 /* ── Avatar ── */
 
@@ -24,10 +24,10 @@ export function Avatar({ ticket, size = 40 }: { ticket: Ticket; size?: number })
       {ticket.esRecurrente && (
         <span
           title="Cliente recurrente"
-          className="absolute -right-0.5 -bottom-0.5 grid place-items-center rounded-full bg-ink text-[9px]"
+          className="absolute -right-0.5 -bottom-0.5 grid place-items-center rounded-full bg-ink text-[11px]"
           style={{ width: size * 0.42, height: size * 0.42, border: "1px solid color-mix(in srgb, var(--color-paper) 15%, transparent)" }}
         >
-          ★
+          <IconSparkle size={Math.max(9, size * 0.26)} />
         </span>
       )}
     </div>
@@ -53,6 +53,17 @@ export function StageBadge({ etapa, compact = false }: { etapa: Etapa; compact?:
   );
 }
 
+/**
+ * El icono de un cierre. Vive aquí y no en CIERRE_META porque `data/types.ts`
+ * es un `.ts` sin JSX: el dato guarda el nombre y el color, la forma la pone
+ * el sistema de iconos (DESIGN.md §5.7).
+ */
+export function CierreIcon({ cierre, size = 14 }: { cierre: Cierre; size?: number }) {
+  if (cierre === "ganado") return <IconBandera size={size} />;
+  if (cierre === "perdido") return <IconX size={size} />;
+  return <IconClock size={size} />;
+}
+
 export function CierreBadge({ cierre }: { cierre: Cierre }) {
   const meta = CIERRE_META[cierre];
   return (
@@ -64,7 +75,8 @@ export function CierreBadge({ cierre }: { cierre: Cierre }) {
         border: `1px solid color-mix(in srgb, ${meta.color} 30%, transparent)`,
       }}
     >
-      {meta.emoji} {meta.nombre}
+      <span className="h-1.5 w-1.5 rounded-full" style={{ background: meta.color }} />
+      {meta.nombre}
     </span>
   );
 }
@@ -106,7 +118,8 @@ export function Segmented<T extends string>({
   onChange,
   id,
 }: {
-  opciones: { valor: T; label: string; badge?: number }[];
+  /** `tono: "neutral"` para contadores que no son alertas (11 cotizados no son 11 alarmas). */
+  opciones: { valor: T; label: string; badge?: number; tono?: "alerta" | "neutral" }[];
   valor: T;
   onChange: (v: T) => void;
   id: string;
@@ -133,7 +146,14 @@ export function Segmented<T extends string>({
             <span className="relative z-10">
               {op.label}
               {op.badge !== undefined && op.badge > 0 && (
-                <span className="tnum ml-1.5 rounded-full bg-red px-1.5 py-px text-[10px] text-white">{op.badge}</span>
+                <span
+                  className="tnum ml-1.5 rounded-full px-1.5 py-px text-[10px]"
+                  style={op.tono === "neutral"
+                    ? { background: "color-mix(in srgb, var(--color-paper) 9%, transparent)", color: "var(--color-muted)" }
+                    : { background: "var(--color-red)", color: "#fff" }}
+                >
+                  {op.badge}
+                </span>
               )}
             </span>
           </button>

@@ -99,10 +99,12 @@ export const ETAPA_META: Record<
   },
 };
 
-export const CIERRE_META: Record<Cierre, { nombre: string; color: string; emoji: string }> = {
-  ganado: { nombre: "Ganado", color: "var(--cierre-ganado)", emoji: "🏁" },
-  perdido: { nombre: "Perdido", color: "var(--cierre-perdido)", emoji: "✕" },
-  sin_respuesta: { nombre: "Sin respuesta", color: "var(--cierre-sinresp)", emoji: "⏱" },
+// Sin `emoji`: la forma de cada cierre la pone `CierreIcon` desde el sistema de
+// iconos (DESIGN.md §5.7). El dato guarda sólo el nombre y el color.
+export const CIERRE_META: Record<Cierre, { nombre: string; color: string }> = {
+  ganado: { nombre: "Ganado", color: "var(--cierre-ganado)" },
+  perdido: { nombre: "Perdido", color: "var(--cierre-perdido)" },
+  sin_respuesta: { nombre: "Sin respuesta", color: "var(--cierre-sinresp)" },
 };
 
 export interface ItemCotizacion {

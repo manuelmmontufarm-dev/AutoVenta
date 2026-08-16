@@ -38,7 +38,12 @@ La primera sensación siempre tiene prioridad. Los elementos de carreras acompa�
 ### 2.3 Automotriz, no infantil
 
 - Se prefieren ilustraciones lineales técnicas, placas de medidas, telemetría y formas inspiradas en talleres.
-- Los emojis sólo se usan como apoyo en mensajes humanos, estados o herramientas existentes; no sustituyen el sistema de iconos.
+- **Ningún emoji vive en la interfaz.** Ni en botones, ni en títulos, ni en chips, ni en estados
+  vacíos, ni como viñeta de una lista. Un emoji se dibuja distinto en cada equipo, no hereda el
+  color del texto y no tiene grosor de trazo: nunca se integra con lo que hay alrededor. Todo
+  icono sale del sistema (§5.7).
+- La única excepción es el **contenido**: el mensaje que escribió el cliente por WhatsApp se
+  muestra tal cual llegó, con sus emojis. Eso es el dato, no la decoración.
 - Las referencias a carreras deben sentirse premium, mecánicas y precisas.
 
 ### 2.4 La información gana
@@ -47,6 +52,19 @@ La primera sensación siempre tiene prioridad. Los elementos de carreras acompa�
 - Los adornos usan `aria-hidden="true"` y no reciben eventos.
 - Los estados no dependen únicamente del color: incluyen texto, cifra o forma.
 - El sonido siempre tiene control visible, se recuerda entre páginas y nunca es necesario para completar una tarea.
+
+### 2.5 Sólo se pinta lo que urge
+
+El orden de una lista es una promesa: si la pantalla dice "primero los que prometieron venir y
+no vinieron", eso tiene que **verse**, no sólo cumplirse en el `sort`.
+
+- Una cuadrícula donde todas las tarjetas llevan el mismo bloque relleno no tiene jerarquía:
+  tiene relleno. El ojo no puede elegir dónde empezar y la lista se lee entera o no se lee.
+- El fondo tonal se reserva para el estado que exige actuar hoy. Los estados normales
+  —"Sin fecha", "Programado", "En seguimiento"— son texto, y se distinguen entre sí por icono
+  y peso, no por color de fondo.
+- Regla práctica: si más de un tercio de las tarjetas de una vista están pintadas, el color
+  dejó de significar algo. Vuelve a decidir cuál es la alarma de verdad.
 
 ## 3. Identidad visual
 
@@ -75,7 +93,13 @@ El rojo se reserva para marca, selección importante, alertas y acción primaria
 - **JetBrains Mono**: medidas de llantas, telemetría, códigos, tiempos y microetiquetas técnicas.
 - Títulos: compactos y directos; nunca más largos de dos líneas.
 - Texto funcional: 12–14 px en escritorio y mínimo 12 px en móvil.
-- Microetiquetas: 7–10.5 px, mayúsculas y espaciado de `0.12em–0.18em`.
+- **Piso duro: 11 px.** Ningún texto que el usuario tenga que leer para trabajar —etiquetas de
+  campo, celdas, chips de estado, metadatos de una tarjeta, textos de botón— baja de 11 px, en
+  ninguna pantalla ni breakpoint. Estar dentro de la escala de tamaños no exime: agregar un
+  valor chico a la escala legitima el token, no la ilegibilidad.
+- Microetiquetas de 7–10.5 px: **sólo para ornamento no interactivo** que se puede ignorar sin
+  perder nada (`DT—01`, `PIT SYSTEM`, `30+ AÑOS EN PISTA`, telemetría ambiental). Si hay que
+  leerlo para decidir algo, no es microetiqueta: es texto funcional y va a 11 px o más.
 
 ### 3.3 Forma y profundidad
 
@@ -164,6 +188,8 @@ Es la firma de Showroom GP. No se replica dentro del contenido.
 - Estados: fondo tonal claro, texto oscuro y punto de color.
 - Medidas de llanta: placa navy, texto blanco monoespaciado y línea roja lateral.
 - Tiempos y cifras: números tabulares.
+- Un contador **no es una alerta**. El chip rojo relleno se reserva para lo que exige actuar;
+  once cotizaciones abiertas son trabajo, no once alarmas, y van en tono neutro.
 
 ### 5.5 Estados vacíos y carga
 
@@ -177,6 +203,23 @@ Es la firma de Showroom GP. No se replica dentro del contenido.
 - Caja blanca de máximo 420 px.
 - Título, explicación, campo y acción en ese orden.
 - El foco debe entrar al modal y el contenido de fondo no compite visualmente.
+
+### 5.7 Iconos
+
+El sistema de iconos vive en [`hub/src/components/icons.tsx`](hub/src/components/icons.tsx) y es
+la única fuente. Reglas:
+
+- `viewBox="0 0 24 24"`, `fill="none"`, `stroke="currentColor"`, `strokeWidth={1.8}`,
+  `strokeLinecap` y `strokeLinejoin` en `round`. Todos pasan por el helper `base()`.
+- Heredan el color del texto que acompañan; nunca se les pinta un color propio salvo que el
+  estado lo exija (rojo para "actuar ahora").
+- Tamaños habituales: 10–14 px dentro de una línea de texto, 16–18 px en un botón, 24–34 px en
+  un estado vacío.
+- **¿Falta un icono? Se dibuja y se agrega al archivo**, no se sustituye por un emoji ni por un
+  glifo suelto (`✓`, `✕`, `★`, `⚖`, `⇄`). Un glifo tipográfico dentro de un botón cambia de
+  forma y de peso según la fuente instalada; un `<svg>` no.
+- Los decorativos llevan `aria-hidden`; los que son la única etiqueta de un botón exigen
+  `aria-label` en el botón.
 
 ## 6. Lenguaje racing
 
@@ -300,5 +343,21 @@ Antes de publicar una pantalla:
 - ¿Funciona en móvil sin texto superpuesto?
 - ¿La reducción de movimiento y el foco de teclado funcionan?
 - ¿La pantalla se siente como parte del mismo producto?
+- ¿**No hay un solo emoji** fuera del contenido que escribió el cliente? (§2.3)
+- ¿**Ningún texto funcional baja de 11 px**, tampoco en móvil? (§3.2)
+- ¿Lo urgente **se ve** urgente, y lo normal no está pintado? (§2.5)
+- ¿Cada icono sale de `icons.tsx`, sin glifos sueltos como `✓`, `✕`, `★` o `⚖`? (§5.7)
 
 Si alguna respuesta es “no”, la pantalla todavía no cumple Showroom GP.
+
+### Comprobación rápida
+
+Los dos primeros se pueden verificar sin abrir el navegador:
+
+```bash
+grep -rnP '[\x{1F300}-\x{1FAFF}\x{2600}-\x{27BF}]' hub/src --include="*.tsx"
+grep -rn 'text-\[\(9\|9\.5\|10\|10\.5\)px\]' hub/src
+```
+
+El primero debe devolver únicamente literales que sean contenido de un mensaje. El segundo,
+únicamente ornamento no interactivo.

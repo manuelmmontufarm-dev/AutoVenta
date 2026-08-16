@@ -115,7 +115,7 @@ export function VersionBadge() {
                       <span className="serif text-[15px]">{c.version}</span>
                       {i === 0 && (
                         <span
-                          className="rounded-full px-1.5 py-0.5 text-[9.5px] font-bold"
+                          className="rounded-full px-1.5 py-0.5 text-[11px] font-bold"
                           style={{
                             background: "color-mix(in srgb, var(--color-ok) 16%, transparent)",
                             color: "var(--color-ok)",
