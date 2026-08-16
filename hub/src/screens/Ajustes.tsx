@@ -329,6 +329,18 @@ function SeccionGuardian({ onError }: { onError: (v: string) => void }) {
   </Tarjeta>;
 }
 
+interface CuponVerificado {
+  codigo: string;
+  porcentaje: number;
+  conversationId: number;
+  cliente: string | null;
+  telefono: string | null;
+  medida: string | null;
+  totalCotizado: number | null;
+  local: string | null;
+  visita: string | null;
+}
+
 interface CuponesEstado {
   config: { activo: boolean; porcentaje: number };
   resumen: {
@@ -359,6 +371,9 @@ function SeccionCupones({ onError }: { onError: (v: string) => void }) {
   const [codigo, setCodigo] = useState("");
   const [canjeando, setCanjeando] = useState(false);
   const [veredicto, setVeredicto] = useState<{ ok: boolean; texto: string } | null>(null);
+  // El cupón verificado y todavía SIN canjear: es lo que el cajero coteja con
+  // la persona que tiene enfrente antes de aplicar nada.
+  const [verificado, setVerificado] = useState<CuponVerificado | null>(null);
 
   const cargar = () => {
     api<CuponesEstado & { ok: boolean }>("/api/cupones")
@@ -381,22 +396,46 @@ function SeccionCupones({ onError }: { onError: (v: string) => void }) {
     finally { setCambiando(false); }
   };
 
-  const canjear = async () => {
+  /**
+   * Paso 1: ¿el código es real y de quién? NO lo canjea.
+   *
+   * Verificar y canjear están separados porque en caja son dos momentos: se
+   * comprueba el código cuando el cliente lo dicta, y se aplica cuando la venta
+   * se cierra. Si comprobar quemara el cupón, un cliente que se arrepiente se
+   * quedaría sin él y con el código marcado como usado.
+   */
+  const verificar = async () => {
     if (!codigo.trim()) return;
-    setCanjeando(true); setVeredicto(null);
+    setCanjeando(true); setVeredicto(null); setVerificado(null);
     try {
-      const r = await api<{ ok: boolean; resultado: { ok: boolean; codigo?: string; porcentaje?: number; detalle?: string } }>(
-        "/api/cupones/canje",
-        { method: "POST", body: JSON.stringify({ codigo: codigo.trim() }) },
+      const r = await api<{ resultado: { ok: boolean; cupon?: CuponVerificado; detalle?: string } }>(
+        `/api/cupones/consulta?codigo=${encodeURIComponent(codigo.trim())}`,
       );
-      setVeredicto(r.resultado.ok
-        ? { ok: true, texto: `✅ ${r.resultado.codigo} válido — aplique el ${r.resultado.porcentaje} % adicional.` }
-        : { ok: false, texto: `⛔ ${r.resultado.detalle ?? "No se pudo canjear"}` });
-      if (r.resultado.ok) { setCodigo(""); cargar(); }
+      if (r.resultado.ok && r.resultado.cupon) setVerificado(r.resultado.cupon);
+      else setVeredicto({ ok: false, texto: `⛔ ${r.resultado.detalle ?? "Código inválido"}` });
     } catch (e) {
-      // Un canje rechazado llega como 409, y eso NO es un error del panel: es la
+      // Un código rechazado llega como 404 y eso NO es un error del panel: es la
       // respuesta. Se muestra donde el cajero está mirando, no en la franja de
       // errores de arriba.
+      setVeredicto({ ok: false, texto: `⛔ ${e instanceof Error ? e.message : "No se pudo verificar"}` });
+    }
+    finally { setCanjeando(false); }
+  };
+
+  /** Paso 2: aplicar el descuento. Aquí sí se quema el cupón. */
+  const canjear = async () => {
+    if (!verificado) return;
+    setCanjeando(true);
+    try {
+      const r = await api<{ resultado: { ok: boolean; cupon?: CuponVerificado; detalle?: string } }>(
+        "/api/cupones/canje",
+        { method: "POST", body: JSON.stringify({ codigo: verificado.codigo }) },
+      );
+      setVeredicto(r.resultado.ok
+        ? { ok: true, texto: `✅ ${verificado.codigo} canjeado — aplique el ${verificado.porcentaje} % adicional.` }
+        : { ok: false, texto: `⛔ ${r.resultado.detalle ?? "No se pudo canjear"}` });
+      if (r.resultado.ok) { setCodigo(""); setVerificado(null); cargar(); }
+    } catch (e) {
       setVeredicto({ ok: false, texto: `⛔ ${e instanceof Error ? e.message : "No se pudo canjear"}` });
     }
     finally { setCanjeando(false); }
@@ -440,21 +479,48 @@ function SeccionCupones({ onError }: { onError: (v: string) => void }) {
       </div>
 
       <div className="mt-3 rounded-xl bg-paper/[.05] p-2.5">
-        <p className="mb-1.5 text-[11px] font-semibold">Canjear en caja</p>
+        <p className="mb-1.5 text-[11px] font-semibold">Verificar código en caja</p>
         <div className="flex flex-wrap items-center gap-2">
           <input
             value={codigo}
-            onChange={(e) => setCodigo(e.target.value)}
-            onKeyDown={(e) => { if (e.key === "Enter") void canjear(); }}
+            onChange={(e) => { setCodigo(e.target.value); setVerificado(null); setVeredicto(null); }}
+            onKeyDown={(e) => { if (e.key === "Enter") void verificar(); }}
             placeholder="DT-PUMA47"
             className="w-40 rounded-lg bg-paper/[.08] px-2.5 py-1.5 text-[12px] font-bold uppercase"
           />
           <button
-            onClick={() => void canjear()}
+            onClick={() => void verificar()}
             disabled={canjeando || !codigo.trim()}
-            className="rounded-full bg-lime px-3.5 py-1.5 text-[11px] font-semibold text-navy disabled:opacity-50"
-          >{canjeando ? "Buscando…" : "Canjear"}</button>
+            className="rounded-full bg-paper/[.12] px-3.5 py-1.5 text-[11px] font-semibold hover:bg-paper/[.18] disabled:opacity-50"
+          >{canjeando ? "Buscando…" : "Verificar"}</button>
         </div>
+
+        {/* Verificado y sin canjear: aquí el cajero coteja contra la persona
+            que tiene enfrente antes de aplicar el descuento. */}
+        {verificado && <div className="mt-2 rounded-lg bg-lime/10 p-2.5 text-[11px]">
+          <p className="text-[12px] font-bold text-lime">✅ {verificado.codigo} es válido</p>
+          <p className="mt-1">
+            {verificado.cliente ?? "Cliente sin nombre"}
+            {verificado.telefono ? ` · ${verificado.telefono}` : ""}
+          </p>
+          <p className="text-faint">
+            {verificado.medida ? `📏 ${verificado.medida}` : ""}
+            {verificado.totalCotizado != null ? ` · 💵 Cotizó $${verificado.totalCotizado.toFixed(2)}` : ""}
+            {verificado.local ? ` · 🏬 ${verificado.local}` : ""}
+          </p>
+          {verificado.visita && <p className="text-faint">
+            📅 Dijo que venía el {new Date(verificado.visita).toLocaleDateString("es-EC", { timeZone: "America/Guayaquil", weekday: "long", day: "numeric", month: "long" })}
+          </p>}
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            <button
+              onClick={() => void canjear()}
+              disabled={canjeando}
+              className="rounded-full bg-lime px-3.5 py-1.5 text-[11px] font-semibold text-navy disabled:opacity-50"
+            >{canjeando ? "Aplicando…" : `Aplicar ${verificado.porcentaje} % y canjear`}</button>
+            <a className="text-[10px] underline" href={`#/ticket/${verificado.conversationId}`}>ver el chat</a>
+          </div>
+        </div>}
+
         {veredicto && <p className={`mt-1.5 text-[11px] ${veredicto.ok ? "text-lime" : "text-faint"}`}>{veredicto.texto}</p>}
       </div>
 

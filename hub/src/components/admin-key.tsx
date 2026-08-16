@@ -367,12 +367,19 @@ export function ConnectionGate({ estado }: { estado: Extract<EstadoConexion, "cl
  * computador compartido, y saber con qué usuario estás es lo que evita que
  * alguien crea que "el sistema" hizo algo que hizo su compañero.
  */
-export function UserChip({ nombre, onSalir }: { nombre: string; onSalir: () => void }) {
+export function UserChip({ nombre, onSalir }: { nombre: string | null; onSalir: () => void }) {
+  // `nombre` puede venir vacío: es la sesión por clave administrativa, la que
+  // usan el panel central, los scripts y quien ya tenía el hub abierto antes
+  // del login. Esa sesión también tiene que poder cerrarse — mientras el chip
+  // dependió de que hubiera usuario, quien entraba con la clave se quedaba
+  // dentro sin ningún botón para salir (reportado el 15-ago).
+  const conUsuario = Boolean(nombre);
+  const etiqueta = nombre ?? "Clave admin";
   // En el teléfono solo el nombre de pila: el hub se usa como PWA en iPhone y
   // ahí la barra no da para "Joaquin Tamayo" entero. Esconder el chip en móvil
   // —que era lo primero que se hizo— dejaba a quien trabaja desde el celular
   // sin saber con qué usuario está ni cómo salir.
-  const nombreDePila = nombre.split(" ")[0];
+  const nombreDePila = etiqueta.split(" ")[0];
   return (
     <span
       className="flex items-center gap-1.5 rounded-full py-1.5 pr-1.5 pl-2.5 text-[11px] font-semibold sm:gap-2 sm:pl-3"
@@ -383,12 +390,12 @@ export function UserChip({ nombre, onSalir }: { nombre: string; onSalir: () => v
     >
       <span className="max-w-[10rem] truncate">
         <span className="sm:hidden">{nombreDePila}</span>
-        <span className="hidden sm:inline">{nombre}</span>
+        <span className="hidden sm:inline">{etiqueta}</span>
       </span>
       <button
         type="button"
         onClick={onSalir}
-        title={`Salir de la sesión de ${nombre}`}
+        title={conUsuario ? `Salir de la sesión de ${nombre}` : "Salir y olvidar la clave guardada"}
         className="rounded-full px-2.5 py-1 text-[10px] font-black tracking-wide uppercase transition-opacity active:opacity-70"
         style={{
           background: "color-mix(in srgb, var(--color-red) 14%, transparent)",

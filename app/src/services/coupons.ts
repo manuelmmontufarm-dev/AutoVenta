@@ -161,9 +161,100 @@ export async function emitirCuponDeConfirmacion(input: {
   }
 }
 
+export type MotivoRechazo = "formato" | "no_existe" | "ya_canjeado" | "anulado";
+
+export interface CuponConsultado {
+  codigo: string;
+  porcentaje: number;
+  conversationId: number;
+  /** Con quién hay que cotejarlo: el cliente que lo recibió por WhatsApp. */
+  cliente: string | null;
+  telefono: string | null;
+  medida: string | null;
+  totalCotizado: number | null;
+  local: string | null;
+  visita: Date | null;
+  emitidoEn: Date;
+}
+
+export type ResultadoConsulta =
+  | { ok: true; cupon: CuponConsultado }
+  | { ok: false; motivo: MotivoRechazo; detalle: string };
+
+/**
+ * Verifica un código SIN canjearlo — el paso que de verdad se hace en caja.
+ *
+ * Existe separado del canje por una razón práctica: en el mostrador primero se
+ * comprueba que el código sea real y de quién es, y recién cuando la venta se
+ * cierra se aplica el descuento. Si «verificar» quemara el cupón, un cliente
+ * que se arrepiente a mitad de la compra se quedaría sin él y con el código
+ * marcado como usado.
+ *
+ * Devuelve además con quién cotejarlo (nombre, teléfono, medida, total y qué
+ * día dijo que venía): eso es lo que convierte «el código existe» en «este
+ * código es de la persona que tengo enfrente».
+ */
+export async function consultarCupon(entrada: string): Promise<ResultadoConsulta> {
+  const codigo = normalizarCodigoCupon(entrada);
+  if (!codigo) {
+    return {
+      ok: false,
+      motivo: "formato",
+      detalle: "Ese código no tiene la forma de un cupón de Depot (ejemplo: DT-PUMA47). Reléalo con el cliente.",
+    };
+  }
+  const [fila] = await sql<{
+    conversation_id: number; extra_pct: string | number; status: string;
+    issued_at: Date; redeemed_at: Date | null; redeemed_by: string | null;
+    nombre: string | null; telefono: string | null; medida: string | null;
+    local: string | null; visita: Date | null; total: string | number | null;
+  }[]>`
+    select cc.conversation_id, cc.extra_pct, cc.status, cc.issued_at,
+           cc.redeemed_at, cc.redeemed_by,
+           c.name as nombre, c.phone as telefono, c.tire_size as medida,
+           c.nearest_store as local, c.visit_date as visita, q.total
+    from confirmation_coupons cc
+    join conversations c on c.id = cc.conversation_id
+    left join lateral (
+      select total from quotes
+      where conversation_id = cc.conversation_id and cycle = cc.cycle
+      order by created_at desc limit 1
+    ) q on true
+    where cc.code = ${codigo}
+  `;
+  if (!fila) {
+    return { ok: false, motivo: "no_existe", detalle: `El código ${codigo} no fue emitido por el bot.` };
+  }
+  if (fila.status === "anulado") {
+    return { ok: false, motivo: "anulado", detalle: `El código ${codigo} fue anulado.` };
+  }
+  if (fila.status === "canjeado") {
+    const cuando = fila.redeemed_at?.toLocaleString("es-EC", { timeZone: "America/Guayaquil" }) ?? "antes";
+    const quien = fila.redeemed_by ? ` por ${fila.redeemed_by}` : "";
+    return { ok: false, motivo: "ya_canjeado", detalle: `El código ${codigo} ya se canjeó el ${cuando}${quien}.` };
+  }
+  return {
+    ok: true,
+    cupon: {
+      codigo,
+      porcentaje: Number(fila.extra_pct),
+      // bigint de Postgres llega como texto; el hub arma el link al chat con
+      // esto y el tipo promete número.
+      conversationId: Number(fila.conversation_id),
+      cliente: fila.nombre,
+      telefono: fila.telefono,
+      medida: fila.medida,
+      totalCotizado: fila.total == null ? null : Number(fila.total),
+      local: fila.local,
+      visita: fila.visita,
+      emitidoEn: fila.issued_at,
+    },
+  };
+}
+
 export type ResultadoCanje =
-  | { ok: true; codigo: string; porcentaje: number; conversationId: number }
-  | { ok: false; motivo: "formato" | "no_existe" | "ya_canjeado" | "anulado"; detalle: string };
+  | { ok: true; cupon: CuponConsultado }
+  | { ok: false; motivo: MotivoRechazo; detalle: string };
 
 /**
  * Canjea un código en caja.
@@ -177,33 +268,8 @@ export async function canjearCupon(
   entrada: string,
   canjeadoPor: string | null,
 ): Promise<ResultadoCanje> {
-  const codigo = normalizarCodigoCupon(entrada);
-  if (!codigo) {
-    return {
-      ok: false,
-      motivo: "formato",
-      detalle: "Ese código no tiene la forma de un cupón de Depot (ejemplo: DT-PUMA47). Reléalo con el cliente.",
-    };
-  }
-
-  const [fila] = await sql<{
-    id: number; conversation_id: number; extra_pct: string | number;
-    status: string; redeemed_at: Date | null; redeemed_by: string | null;
-  }[]>`
-    select id, conversation_id, extra_pct, status, redeemed_at, redeemed_by
-    from confirmation_coupons where code = ${codigo}
-  `;
-  if (!fila) {
-    return { ok: false, motivo: "no_existe", detalle: `El código ${codigo} no fue emitido por el bot.` };
-  }
-  if (fila.status === "anulado") {
-    return { ok: false, motivo: "anulado", detalle: `El código ${codigo} fue anulado.` };
-  }
-  if (fila.status === "canjeado") {
-    const cuando = fila.redeemed_at?.toLocaleString("es-EC", { timeZone: "America/Guayaquil" }) ?? "antes";
-    const quien = fila.redeemed_by ? ` por ${fila.redeemed_by}` : "";
-    return { ok: false, motivo: "ya_canjeado", detalle: `El código ${codigo} ya se canjeó el ${cuando}${quien}.` };
-  }
+  const consulta = await consultarCupon(entrada);
+  if (!consulta.ok) return consulta;
 
   // La condición sobre `status` hace de candado: si dos cajas canjean el mismo
   // código a la vez, solo una actualiza la fila y la otra se va por el camino
@@ -211,17 +277,16 @@ export async function canjearCupon(
   const actualizadas = await sql`
     update confirmation_coupons
     set status = 'canjeado', redeemed_at = now(), redeemed_by = ${canjeadoPor}
-    where id = ${fila.id} and status = 'emitido'
+    where code = ${consulta.cupon.codigo} and status = 'emitido'
   `;
   if (actualizadas.count === 0) {
-    return { ok: false, motivo: "ya_canjeado", detalle: `El código ${codigo} acaba de canjearse en otra caja.` };
+    return {
+      ok: false,
+      motivo: "ya_canjeado",
+      detalle: `El código ${consulta.cupon.codigo} acaba de canjearse en otra caja.`,
+    };
   }
-  return {
-    ok: true,
-    codigo,
-    porcentaje: Number(fila.extra_pct),
-    conversationId: fila.conversation_id,
-  };
+  return { ok: true, cupon: consulta.cupon };
 }
 
 export interface ResumenCupones {

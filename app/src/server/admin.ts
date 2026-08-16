@@ -28,7 +28,7 @@ import {
   saveStagePromptDraft,
 } from "../services/settings.js";
 import { informeGuardian } from "../services/guardian.js";
-import { canjearCupon, resumenCupones } from "../services/coupons.js";
+import { canjearCupon, consultarCupon, resumenCupones } from "../services/coupons.js";
 import {
   catalogStatus,
   catalogInventoryMetrics,
@@ -1482,6 +1482,14 @@ export function createAdminRouter(): express.Router {
     } catch {
       res.status(400).json({ ok: false, error: "Configuración de cupón inválida" });
     }
+  });
+
+  // Verificar SIN canjear: es el primer paso real en caja — comprobar que el
+  // código existe y de quién es, antes de aplicar nada. Separado del canje para
+  // que comprobar no queme el cupón de un cliente que todavía no pagó.
+  router.get("/cupones/consulta", async (req, res) => {
+    const resultado = await consultarCupon(String(req.query.codigo ?? ""));
+    res.status(resultado.ok ? 200 : 404).json({ ok: resultado.ok, resultado });
   });
 
   // El canje, que es lo que hace en caja quien atiende. `redeemed_by` guarda el

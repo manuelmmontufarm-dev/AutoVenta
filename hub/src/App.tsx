@@ -1,6 +1,7 @@
 import { AnimatePresence, LayoutGroup, MotionConfig, motion } from "framer-motion";
 import { useEffect, useState } from "react";
 import { ConnectionChip, ConnectionGate, UserChip } from "./components/admin-key";
+import { hasAdminKey } from "./data/catalog";
 import { Confetti, Toasts } from "./components/overlays";
 import { IconChart, IconInbox, IconKanban, IconPlay, IconSparkle, IconStop, IconTire, IconSliders } from "./components/icons";
 import { RacingDetails } from "./components/racing-details";
@@ -223,8 +224,10 @@ export default function App() {
                   onClick={() => navigate("settings")}
                 />
               )}
-              {dataMode === "real" && usuario && (
-                <UserChip nombre={usuario.nombre} onSalir={salir} />
+              {/* Con usuario o con clave cruda: en los dos casos hay sesión
+                  abierta, y en los dos tiene que haber por dónde salir. */}
+              {dataMode === "real" && hasAdminKey() && (
+                <UserChip nombre={usuario?.nombre ?? null} onSalir={salir} />
               )}
               <VersionBadge />
               {dataMode === "demo" ? (

@@ -32,6 +32,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-08-15 | _(este mismo)_ | El código en todos los avisos de visita, verificar antes de canjear, y el botón de salir que faltaba | 1.0 |
 | 2026-08-15 | _(este mismo)_ | Cupón DT-PUMA47 completo y apagado + el panel servido llevaba un día atrasado + número de venta roto | 2.5 |
 | 2026-08-15 | _(este mismo)_ | Notas del guardián de raíz: formato único de plata, corrector de precios gratis y local sin re-pregunta | 1.5 |
 | 2026-08-15 | _(este mismo)_ | Login con usuarios y clave + base de permisos, y el Cotizador deja de dibujar sus propias piezas | 2.5 |
@@ -137,6 +138,41 @@ Ya viene activado en este equipo.
 ---
 
 ## Entradas (más reciente primero)
+
+### 2026-08-15 · El código viaja con el acuerdo, se verifica antes de canjear, y aparece el botón de salir · ⏱️ 1 h
+
+**Qué:** Tres cosas que pidió Manuel mirando el circuito completo.
+
+*El código en TODOS los avisos de visita.* `detallesDeVenta` —que alimenta los
+tres avisos: «dijo cuándo viene», «viene mañana» y «viene hoy»— ahora lleva
+también la línea del cupón. El asesor recibe el acuerdo entero en un solo
+WhatsApp: «viene el lunes a Quito Sur, cotizó $555.57, código DT-PUMA47». Con
+eso valida al cliente **leyendo su propio WhatsApp**, sin abrir el panel y sin
+consultar la base. Era la costura que el Sprint 5 dejó anotada y sin cablear.
+
+*Verificar y canjear son dos pasos.* En caja primero se comprueba el código
+—existe, y de quién es— y recién cuando la venta se cierra se aplica el 2 %.
+Nuevo `consultarCupon()` + `GET /api/cupones/consulta`, que NO quema el cupón y
+devuelve con quién cotejarlo: nombre, teléfono, medida, total cotizado, local y
+qué día dijo que venía. El panel muestra esa ficha y recién ahí ofrece el botón
+de aplicar. `canjearCupon` pasó a apoyarse en la misma consulta, así que los dos
+caminos rechazan por lo mismo y con el mismo texto.
+
+*El botón de salir no existía para media casa.* El chip de usuario se mostraba
+solo si habías entrado con login; quien entra con la clave administrativa —el
+panel central, los scripts, y cualquiera que ya tuviera el hub abierto de antes—
+se quedaba dentro sin ninguna forma de cerrar sesión. Ahora el chip sale
+siempre que haya sesión y dice «Clave admin» cuando no hay usuario.
+
+**Por qué:** El cupón solo sirve si el circuito cierra en los dos extremos. Del
+lado del cliente ya cerraba; del lado de Depot faltaban las dos puntas: que el
+asesor sepa qué código tiene ese cliente sin buscarlo, y que en caja se pueda
+distinguir un código real de uno inventado **antes** de aplicar plata. Probado
+de punta a punta contra la base real —código inexistente, palabra fuera de la
+lista, código escrito «dt tigre 99», verificación que no quema, canje, y segundo
+canje rechazado— con limpieza al final: cero cupones vivos. 713 tests en verde.
+
+---
 
 ### 2026-08-15 · El cupón que sí se puede cobrar, y el panel que llevaba un día sin actualizarse · ⏱️ 2.5 h
 

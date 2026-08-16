@@ -19,6 +19,7 @@
  * es justo la que necesita el aviso.
  */
 import { sql } from "../db/client.js";
+import { lineaCuponParaAviso } from "./coupons.js";
 import { createBotAlert } from "./followUps.js";
 import { notifyAdvisor } from "./advisorNotifications.js";
 
@@ -240,12 +241,26 @@ export async function revisarVisitasDeHoy(ahora = new Date()): Promise<number> {
   });
 }
 
-/** Medida, total cotizado y local: lo que el asesor necesita sin abrir el panel. */
+/**
+ * Medida, total cotizado, local y CUPÓN: lo que el asesor necesita sin abrir el
+ * panel.
+ *
+ * El cupón va aquí y no en un aviso aparte porque es el mismo dato del acuerdo:
+ * «viene el lunes a Quito Sur, cotizó $555.57, su código es DT-PUMA47». Con eso
+ * el asesor valida al cliente leyendo su propio WhatsApp —sin panel, sin base—
+ * y en caja pueden cotejar el código que dicta la persona contra el que se
+ * emitió. Lo pidió Manuel el 15-ago: el código tiene que viajar con todos los
+ * acuerdos de visita, no solo con el mensaje al cliente.
+ *
+ * Cuando el cupón está apagado no aparece la línea y el aviso queda idéntico a
+ * como era.
+ */
 async function detallesDeVenta(conversationId: number): Promise<string[]> {
   const [fila] = await sql<{
-    tire_size: string | null; nearest_store: string | null; total: string | number | null;
+    tire_size: string | null; nearest_store: string | null;
+    total: string | number | null; current_cycle: number;
   }[]>`
-    select c.tire_size, c.nearest_store, q.total
+    select c.tire_size, c.nearest_store, c.current_cycle, q.total
     from conversations c
     left join lateral (
       select total from quotes
@@ -254,9 +269,13 @@ async function detallesDeVenta(conversationId: number): Promise<string[]> {
     ) q on true
     where c.id = ${conversationId}
   `;
+  const cupon = fila
+    ? await lineaCuponParaAviso(conversationId, fila.current_cycle)
+    : null;
   return [
     fila?.tire_size ? `📏 ${fila.tire_size}` : "",
     fila?.total != null ? `💵 Cotizado: $${Number(fila.total).toFixed(2)}` : "📄 Sin cotización todavía",
     fila?.nearest_store ? `🏬 ${fila.nearest_store}` : "",
+    cupon ?? "",
   ].filter(Boolean);
 }
