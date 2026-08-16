@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AutoVenta · Cambios del 15 de agosto</title>
+<style>
+  :root {
+    --rojo: #e52c2a;
+    --negro: #1c1e1b;
+    --gris: #605e5e;
+    --borde: #e3e3e3;
+    --fondo: #ffffff;
+    --suave: #faf7f2;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: var(--suave); color: var(--negro); line-height: 1.45;
+    padding: 32px 16px 48px;
+  }
+  .hoja { max-width: 860px; margin: 0 auto; }
+  header { margin-bottom: 28px; }
+  .marca {
+    display: inline-block; background: var(--negro); color: #fff;
+    font-weight: 800; letter-spacing: .06em; font-size: 13px;
+    padding: 6px 12px; border-radius: 6px; text-transform: uppercase;
+  }
+  .marca span { color: var(--rojo); }
+  h1 { font-size: 30px; margin-top: 14px; letter-spacing: -0.02em; }
+  .sub { color: var(--gris); font-size: 15px; margin-top: 4px; }
+
+  h2 {
+    font-size: 14px; text-transform: uppercase; letter-spacing: .1em;
+    color: var(--rojo); margin: 34px 0 12px; padding-bottom: 6px;
+    border-bottom: 2px solid var(--rojo);
+  }
+  .tarjetas { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  @media (max-width: 640px) { .tarjetas { grid-template-columns: 1fr; } }
+  .tarjeta {
+    background: var(--fondo); border: 1px solid var(--borde); border-radius: 12px;
+    padding: 18px 18px 16px;
+  }
+  .tarjeta .emoji { font-size: 26px; }
+  .tarjeta h3 { font-size: 17px; margin: 8px 0 4px; letter-spacing: -0.01em; }
+  .tarjeta p { font-size: 14px; color: var(--gris); }
+  .tarjeta .nota {
+    display: inline-block; margin-top: 10px; font-size: 12px; font-weight: 700;
+    color: var(--rojo); background: #fdeaea; border-radius: 5px; padding: 3px 8px;
+  }
+  footer {
+    margin-top: 38px; padding-top: 14px; border-top: 1px solid var(--borde);
+    color: var(--gris); font-size: 13px; display: flex; gap: 18px; flex-wrap: wrap;
+  }
+  footer b { color: var(--negro); }
+</style>
+</head>
+<body>
+<div class="hoja">
+
+<header>
+  <div class="marca">DEPOT <span>TIRE</span> · AUTOVENTA</div>
+  <h1>Lo nuevo del bot y del panel</h1>
+  <div class="sub">15 de agosto 2026 · todo ya en producción</div>
+</header>
+
+<h2>Lo que pidió Andrés</h2>
+<div class="tarjetas">
+  <div class="tarjeta">
+    <div class="emoji">🔐</div>
+    <h3>El hub pregunta quién eres</h3>
+    <p>Cada uno entra con su usuario — Manuel, Andrés, Joaquín o Asesor — y queda registrado quién hizo qué.</p>
+    <span class="nota">Clave 1234 para todos en esta fase</span>
+  </div>
+  <div class="tarjeta">
+    <div class="emoji">🔔</div>
+    <h3>Al mostrador solo llega lo que sirve</h3>
+    <p>El asesor de local recibe sus 5 avisos: ventana por cerrar, nueva cotización, confirmó visita, viene mañana y viene hoy. Lo técnico va solo a los admins.</p>
+  </div>
+  <div class="tarjeta">
+    <div class="emoji">🖼️</div>
+    <h3>El Cotizador dibuja igual que el bot</h3>
+    <p>La imagen que se descarga del panel es la misma pieza que sale por WhatsApp — se acabó el diseño viejo de la demo.</p>
+  </div>
+  <div class="tarjeta">
+    <div class="emoji">🎟️</div>
+    <h3>Cupón por confirmar la visita</h3>
+    <p>El cliente que confirma día recibe un código con 2 % extra, canjeable en caja desde el panel.</p>
+    <span class="nota">Nace apagado — se prende al capacitar a los cajeros</span>
+  </div>
+</div>
+
+<h2>Lo que pidió Joaquín</h2>
+<div class="tarjetas">
+  <div class="tarjeta">
+    <div class="emoji">👼</div>
+    <h3>El Ángel Guardián, con menos ruido</h3>
+    <p>Sigue revisando cada respuesta antes de enviarse, pero solo alerta lo que pide acción ahora. El resto va al informe semanal de causas.</p>
+  </div>
+  <div class="tarjeta">
+    <div class="emoji">🎯</div>
+    <h3>Responde lo que le preguntan</h3>
+    <p>Si el cliente pide precio o «¿cuál me recomiendas?», recibe la recomendación de una — el bot ya no le devuelve la pregunta.</p>
+  </div>
+</div>
+
+<h2>El bot, más fino (de la lista de errores del guardián)</h2>
+<div class="tarjetas">
+  <div class="tarjeta">
+    <div class="emoji">💵</div>
+    <h3>El precio, exacto al centavo</h3>
+    <p>Un solo formato en todo el sistema y un corrector automático: la cifra que ve el cliente es la de su cotización, siempre.</p>
+  </div>
+  <div class="tarjeta">
+    <div class="emoji">📍</div>
+    <h3>No vuelve a preguntar el local</h3>
+    <p>Si el cliente ya dijo Quito Sur o Cumbayá, el bot solo pregunta qué día pasa.</p>
+  </div>
+  <div class="tarjeta">
+    <div class="emoji">🔕</div>
+    <h3>Alertas de repetición sin falsas alarmas</h3>
+    <p>Solo suena cuando el bot de verdad está dando vueltas — antes saltaban hasta 14 falsas en un día sobre chats sanos.</p>
+  </div>
+  <div class="tarjeta">
+    <div class="emoji">📏</div>
+    <h3>La medida, siempre con la verdad</h3>
+    <p>Cada opción sale sellada: verde si es la medida exacta, rojo si es equivalente — y el bot lo dice con todas las letras.</p>
+  </div>
+</div>
+
+<footer>
+  <div><b>698</b> pruebas en verde</div>
+  <div><b>324</b> respuestas auditadas en producción</div>
+  <div>Deploy automático desde <b>main</b></div>
+</footer>
+
+</div>
+</body>
+</html>
