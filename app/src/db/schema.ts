@@ -20,6 +20,8 @@ import { runAvisosEntregadosMigration } from "./migrations/013_avisos_entregados
 import { runVenderEnTodaEtapaMigration } from "./migrations/014_vender_en_toda_etapa.js";
 import { runVentanaAsesoresMigration } from "./migrations/015_ventana_asesores.js";
 import { runCumplirSolicitudMigration } from "./migrations/016_cumplir_solicitud_y_cierre.js";
+import { runRolesDeAsesorMigration } from "./migrations/018_roles_de_asesor.js";
+import { runConfirmationCouponsMigration } from "./migrations/017_confirmation_coupons.js";
 
 export const SCHEMA = /* sql */ `
 create table if not exists conversations (
@@ -368,4 +370,6 @@ export async function ensureSchema(): Promise<void> {
   await runVenderEnTodaEtapaMigration(sql);
   await runVentanaAsesoresMigration(sql);
   await runCumplirSolicitudMigration(sql);
+  await runConfirmationCouponsMigration(sql);
+  await runRolesDeAsesorMigration(sql);
 }

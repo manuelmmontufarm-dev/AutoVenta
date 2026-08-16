@@ -2,7 +2,16 @@ import { create } from "zustand";
 import type { Atiende, BotAlert, BotPower, Cierre, EchoHealth, Etapa, FeedItem, FinalStage, FollowUpCard, HubMetrics, Mensaje, PhaseFlags, Rol, TemplatePlanPreview, Ticket } from "./data/types";
 import { MockSource } from "./data/mock/mockSource";
 import { Simulator } from "./data/mock/simulator";
-import { AdminKeyError, RealSource } from "./data/realSource";
+import {
+  AdminKeyError,
+  PERMISOS_ABIERTOS,
+  RealSource,
+  cerrarSesion,
+  getSesion,
+  saveStoredAdminKey,
+  type Permisos,
+  type UsuarioSesion,
+} from "./data/realSource";
 import type { DataSource } from "./data/source";
 import { updateFavicon } from "./lib/favicon";
 import { pingNotificacion, pingVenta, sonidoArranque, sonidoPitStop } from "./lib/sound";
@@ -70,8 +79,16 @@ interface HubState {
   power: BotPower;
   /** ¿El hub está leyendo datos de verdad, o la clave/servidor falla? */
   conexion: EstadoConexion;
+  /** Quién entró. null cuando se está usando la clave administrativa cruda. */
+  usuario: UsuarioSesion | null;
+  /**
+   * Qué puede ver este usuario. HOY TODO EN `true` para todos los roles: la
+   * estructura existe para poder diferenciar después sin tocar las pantallas.
+   */
+  permisos: Permisos;
 
   init(): Promise<void>;
+  salir(): void;
   abrirTicket(id: number): Promise<void>;
   moverEtapa(id: number, etapa: Etapa): Promise<void>;
   cerrar(id: number, cierre: Cierre, nota?: string): Promise<void>;
@@ -264,6 +281,8 @@ export const useHub = create<HubState>((set, get) => {
     // preferible no gritar "apagado" en un bot que sí está trabajando.
     power: { activo: true, apagadoAt: null, motivo: "" },
     conexion: "verificando",
+    usuario: getSesion()?.user ?? null,
+    permisos: getSesion()?.permisos ?? PERMISOS_ABIERTOS,
 
     /** Recarga tickets y métricas. La usa el Pipeline tras poner el tablero al día. */
     refrescar,
@@ -278,6 +297,18 @@ export const useHub = create<HubState>((set, get) => {
       iniciado = true;
       await Promise.all([refrescar(), new Promise((r) => setTimeout(r, 650))]);
       set({ cargando: false });
+    },
+
+    /**
+     * Cerrar sesión borra TAMBIÉN la clave cruda que hubiera quedado de antes:
+     * si no, «Salir» dejaba el hub abierto igual y el botón parecía roto.
+     * Recargar es lo más limpio — el store y las pantallas se arman al arrancar.
+     */
+    salir() {
+      cerrarSesion();
+      saveStoredAdminKey("");
+      set({ usuario: null, permisos: PERMISOS_ABIERTOS, conexion: "clave-invalida" });
+      window.location.reload();
     },
 
     async abrirTicket(id) {
@@ -368,6 +399,18 @@ export const useHub = create<HubState>((set, get) => {
 // Arranque eager: sobrevive los reload parciales de HMR en dev y no depende
 // del ciclo de vida de React para tener datos.
 void useHub.getState().init();
+
+/**
+ * Los permisos del usuario que está usando el hub.
+ *
+ * Hoy devuelve todo en `true` — nada se condiciona todavía, a propósito. Está
+ * aquí para que el día que se decida qué esconde cada rol (Andrés pidió que
+ * algunos no vean lo vendido total) sea `const { verFinanzas } = usePermisos()`
+ * en la pantalla y no una refactorización.
+ */
+export function usePermisos(): Permisos {
+  return useHub((estado) => estado.permisos);
+}
 
 /** Hook: timestamp que "late" cada 30 s para refrescar los tiempos relativos. */
 import { useEffect, useState } from "react";

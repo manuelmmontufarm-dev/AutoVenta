@@ -58,6 +58,10 @@ const OPERATIVOS = new Set([
   "visit_not_confirmed",
   "visita_comprometida",
   "visita_manana",
+  "visita_hoy",
+  // Reintroducida el 14-ago SOLO como aviso de WhatsApp al asesor de local: es
+  // el reloj de Meta corriendo, sigue sin ser un error y sigue fuera del tab.
+  "ventana_por_cerrar",
   "human_requested",
   "customer_ready_to_buy",
   "quote_created",

@@ -1,6 +1,6 @@
 import { AnimatePresence, LayoutGroup, MotionConfig, motion } from "framer-motion";
 import { useEffect, useState } from "react";
-import { ConnectionChip, ConnectionGate } from "./components/admin-key";
+import { ConnectionChip, ConnectionGate, UserChip } from "./components/admin-key";
 import { Confetti, Toasts } from "./components/overlays";
 import { IconChart, IconInbox, IconKanban, IconPlay, IconSparkle, IconStop, IconTire, IconSliders } from "./components/icons";
 import { RacingDetails } from "./components/racing-details";
@@ -59,7 +59,7 @@ function navActivo(route: Route): string {
 
 export default function App() {
   const route = useRoute();
-  const { init, cargando, tickets, demo, dataMode, toggleDemo, phases, conexion, power } = useHub();
+  const { init, cargando, tickets, demo, dataMode, toggleDemo, phases, conexion, power, usuario, salir } = useHub();
   const [audioOn, setAudioOn] = useState(sonidoActivo);
 
   const navVisible = NAV.filter((item) => !item.requiere || phases[item.requiere]);
@@ -222,6 +222,9 @@ export default function App() {
                   fase={faseActiva}
                   onClick={() => navigate("settings")}
                 />
+              )}
+              {dataMode === "real" && usuario && (
+                <UserChip nombre={usuario.nombre} onSalir={salir} />
               )}
               <VersionBadge />
               {dataMode === "demo" ? (

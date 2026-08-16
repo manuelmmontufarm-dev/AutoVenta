@@ -3,28 +3,125 @@ import { sql } from "../db/client.js";
 import { sendAdvisorText } from "../wa/client.js";
 import { emitLiveEvent } from "./liveEvents.js";
 
-export type AdvisorEventType =
-  | "human_requested"
-  | "quote_created"
-  | "customer_ready_to_buy"
-  | "negative_sentiment"
-  | "customer_opt_out"
-  | "repetitive_conversation"
-  | "send_error"
+/**
+ * Todos los avisos que existen, como lista y no como unión suelta: el tipo sale
+ * de aquí, así que una prueba puede recorrerlos uno por uno y comprobar que
+ * ninguno se quedó sin cabecera ni sin decisión de a quién le llega. Un evento
+ * nuevo que se olvide en esos mapas rompe el test, no la producción.
+ */
+export const EVENTOS_AVISO = [
+  "human_requested",
+  "quote_created",
+  "customer_ready_to_buy",
+  "negative_sentiment",
+  "customer_opt_out",
+  "repetitive_conversation",
+  "send_error",
   // Guardián de salida (5-ago): el envío se bloqueó y alguien debe saberlo.
-  | "guard_bot_atascado"
-  | "guard_pide_foto"
-  | "guard_mensaje_duplicado"
-  | "guard_saludo_repetido"
+  "guard_bot_atascado",
+  "guard_pide_foto",
+  "guard_mensaje_duplicado",
+  "guard_saludo_repetido",
+  // Corrector de precios (15-ago): una cifra del borrador contradecía la
+  // cotización y se corrigió antes de enviarse. Prioridad media — nunca llega
+  // por WhatsApp; existe aquí para que el tipo quede declarado con su cabecera.
+  "guard_precio_ajustado",
   // Watchdog (6-ago): el bot quedó apagado y los clientes siguieron escribiendo.
-  | "bot_apagado_con_clientes"
+  "bot_apagado_con_clientes",
   // Visitas (7-ago): una fecha que nadie mira no sirve de nada.
-  | "visita_comprometida"
-  | "visita_manana"
+  "visita_comprometida",
+  "visita_manana",
+  // El día mismo (14-ago): la víspera sirve para preparar, hoy para atender.
+  "visita_hoy",
   // Escalamientos sin visita (8-ago): el cliente de Yantzaza pidió despacho, el
   // bot le dijo "lo revisamos con un asesor" y ningún asesor se enteró nunca.
-  | "envio_fuera_de_cobertura"
-  | "caso_sin_resolver";
+  "envio_fuera_de_cobertura",
+  "caso_sin_resolver",
+  // Ventana de 24 h a punto de cerrarse (14-ago): para Manuel era ruido, para el
+  // asesor de local es su trabajo. Ver `recibeEvento`.
+  "ventana_por_cerrar",
+] as const;
+
+export type AdvisorEventType = (typeof EVENTOS_AVISO)[number];
+
+/**
+ * Dos niveles, y la diferencia es de oficio, no de jerarquía.
+ *
+ *  · `admin` — Manuel y Joaquín. Reciben todo, como siempre: también los
+ *    reportes, los errores del bot y las fallas técnicas.
+ *  · `asesor` — quien atiende el local (Jocelyn, Jimmy). Recibe únicamente lo
+ *    que puede accionar desde el mostrador. Un asesor al que le llegan trazas
+ *    del guardián deja de leer el canal, y entonces tampoco lee lo que importa.
+ */
+export type RolAsesor = "admin" | "asesor";
+
+export const ROLES_ASESOR: readonly RolAsesor[] = ["admin", "asesor"];
+
+export function esRolAsesor(valor: unknown): valor is RolAsesor {
+  return valor === "admin" || valor === "asesor";
+}
+
+/**
+ * Los cinco avisos del asesor de local (reunión del 14-ago). El orden es el de
+ * la lista que pidió Andrés y se deja igual a propósito, para poder cotejarlos
+ * de un vistazo contra el acta.
+ */
+export const EVENTOS_ASESOR = new Set<AdvisorEventType>([
+  "ventana_por_cerrar",   // 1 · escribir antes de que se cierre la ventana de 24 h
+  "quote_created",        // 2 · nueva cotización
+  "visita_comprometida",  // 3 · dijo cuándo viene (o cambió la fecha)
+  "visita_manana",        // 4 · el día antes
+  "visita_hoy",           // 5 · el día de
+]);
+
+/** Regla de enrutamiento, aparte del SQL para poder probarla evento por evento. */
+export function recibeEvento(rol: RolAsesor, evento: AdvisorEventType): boolean {
+  return rol === "admin" || EVENTOS_ASESOR.has(evento);
+}
+
+/**
+ * Cabecera por tipo de aviso.
+ *
+ * Antes todos empezaban con `🚨` y en el celular se veían idénticos: el asesor
+ * tenía que abrir el mensaje para saber si era una venta o una traza del bot.
+ * La primera línea es ahora la que decide si lo lee ahora o después.
+ *
+ * `bot_apagado_con_clientes` y `customer_opt_out` llevan cabecera propia aunque
+ * la tabla del sprint los agrupara: un apagón con clientes esperando no es «el
+ * bot necesita ayuda», y un opt-out no es un cliente molesto — es una orden de
+ * no volver a escribirle, y confundirlas cuesta una multa de Meta.
+ */
+const CABECERAS: Record<AdvisorEventType, string> = {
+  // Venta
+  quote_created: "💰 *NUEVA COTIZACIÓN*",
+  customer_ready_to_buy: "💰 *QUIERE COMPRAR*",
+  // Visita
+  visita_comprometida: "📅 *CONFIRMÓ VISITA*",
+  visita_manana: "⏰ *VIENE MAÑANA*",
+  visita_hoy: "🎯 *VIENE HOY*",
+  // Ventana
+  ventana_por_cerrar: "⏳ *VENTANA POR CERRAR*",
+  // Cliente
+  human_requested: "🙋 *PIDE ASESOR*",
+  negative_sentiment: "😠 *CLIENTE MOLESTO*",
+  customer_opt_out: "🚫 *PIDIÓ QUE NO LE ESCRIBAN MÁS*",
+  // Bot
+  repetitive_conversation: "🤖 *EL BOT NECESITA AYUDA*",
+  guard_bot_atascado: "🤖 *EL BOT NECESITA AYUDA*",
+  guard_pide_foto: "🤖 *EL BOT NECESITA AYUDA*",
+  guard_mensaje_duplicado: "🤖 *EL BOT NECESITA AYUDA*",
+  guard_saludo_repetido: "🤖 *EL BOT NECESITA AYUDA*",
+  guard_precio_ajustado: "🤖 *EL BOT NECESITA AYUDA*",
+  caso_sin_resolver: "🤖 *EL BOT NECESITA AYUDA*",
+  envio_fuera_de_cobertura: "🤖 *EL BOT NECESITA AYUDA*",
+  bot_apagado_con_clientes: "🔴 *BOT APAGADO CON CLIENTES ESPERANDO*",
+  // Técnico
+  send_error: "⚙️ *FALLA TÉCNICA*",
+};
+
+export function cabeceraDeEvento(evento: AdvisorEventType): string {
+  return CABECERAS[evento] ?? "🚨 *AVISO DEL BOT*";
+}
 
 export interface AdvisorNotificationInput {
   conversationId: number;
@@ -37,20 +134,30 @@ export interface AdvisorNotificationInput {
   details?: string[];
 }
 
+/**
+ * El mensaje que ve el asesor en el celular.
+ *
+ * Orden pensado para leerse sin abrir nada: qué clase de aviso es, qué pasó, el
+ * dato que decide (medida, monto, local) y recién después de quién se trata. Los
+ * detalles van en una sola línea separados por «·» porque en WhatsApp cada línea
+ * suelta empuja el link fuera de la vista previa de la notificación.
+ */
 export function buildAdvisorMessage(input: AdvisorNotificationInput & {
   customer: string;
   phone: string;
 }): string {
   const link = `${config.hub.publicUrl}/#/ticket/${input.conversationId}`;
+  const detalles = (input.details ?? []).filter(Boolean).join(" · ");
   return [
-    `🚨 *${input.title}*`,
+    cabeceraDeEvento(input.eventType),
+    input.title,
+    detalles,
     `👤 ${input.customer}`,
     `📱 ${input.phone}`,
-    ...((input.details ?? []).filter(Boolean)),
     `💬 ${input.reason}`,
     `👉 ${input.action}`,
     `🔗 ${link}`,
-  ].join("\n");
+  ].filter(Boolean).join("\n");
 }
 
 /** Hora corta de Guayaquil: el asesor lee esto en el celular, no un ISO. */
@@ -127,7 +234,9 @@ export async function avisarAsesoresGlobal(texto: string): Promise<{
   error?: string;
 }> {
   try {
-    const destinatarios = await asesoresActivos();
+    // Solo administradores: encender o apagar el bot es una decisión de Manuel y
+    // Joaquín, no del mostrador. Al asesor de local no le llega ni le sirve.
+    const destinatarios = await asesoresActivos({ rol: "admin" });
     if (!destinatarios.length) {
       console.log("📣 Aviso global sin destino: no hay asesores activos configurados");
       return { enviados: 0, error: "No hay asesores activos configurados" };
@@ -161,27 +270,46 @@ export async function avisarAsesoresGlobal(texto: string): Promise<{
 export interface Asesor {
   nombre: string;
   telefono: string;
+  rol: RolAsesor;
 }
 
 /**
  * Asesores que reciben los avisos, en orden de prioridad.
  *
+ * `filtro.evento` deja solo a quienes ese aviso les corresponde; `filtro.rol`
+ * acota a un nivel (lo usa el reporte diario, que es solo de administradores).
+ *
  * Si la tabla no se puede leer (por ejemplo antes de que corra la migración),
  * cae al asesor del entorno: un aviso que no sale es una venta que nadie
- * atiende, y ese respaldo ya funcionaba.
+ * atiende, y ese respaldo ya funcionaba. Ese respaldo entra como `admin`, que es
+ * el nivel que lo recibía todo antes de que existieran los roles.
  */
-export async function asesoresActivos(): Promise<Asesor[]> {
+export async function asesoresActivos(
+  filtro: { evento?: AdvisorEventType; rol?: RolAsesor } = {},
+): Promise<Asesor[]> {
+  const aplicar = (lista: Asesor[]) => lista.filter((a) =>
+    (!filtro.rol || a.rol === filtro.rol) &&
+    (!filtro.evento || recibeEvento(a.rol, filtro.evento)));
   try {
-    const filas = await sql<{ nombre: string; telefono: string }[]>`
-      select nombre, telefono from advisors
+    const filas = await sql<{ nombre: string; telefono: string; rol: string }[]>`
+      select nombre, telefono, rol from advisors
       where active and telefono <> '' order by prioridad, id
     `;
-    if (filas.length) return filas;
+    // Un rol desconocido en la base se trata como `admin`: es el valor por
+    // defecto de la columna y equivocarse hacia «recibe de más» se nota y se
+    // corrige; hacia «no recibe nada», no.
+    if (filas.length) {
+      return aplicar(filas.map((f) => ({
+        nombre: f.nombre, telefono: f.telefono,
+        rol: f.rol === "asesor" ? "asesor" : "admin",
+      })));
+    }
   } catch (error) {
     console.error("⚠️ No se pudo leer la tabla de asesores:", error);
   }
   const respaldo = config.whatsapp.sellerPhone;
-  return respaldo ? [{ nombre: config.whatsapp.sellerName, telefono: respaldo }] : [];
+  if (!respaldo) return [];
+  return aplicar([{ nombre: config.whatsapp.sellerName, telefono: respaldo, rol: "admin" }]);
 }
 
 export async function notifyAdvisor(input: AdvisorNotificationInput): Promise<{
@@ -199,10 +327,11 @@ export async function notifyAdvisor(input: AdvisorNotificationInput): Promise<{
     phone: conversation.phone,
   });
 
-  // Un aviso por asesor activo. Antes salía a uno solo, fijado por entorno.
-  const destinatarios = await asesoresActivos();
+  // Un aviso por asesor a quien le toca ESTE evento. Antes salía a uno solo,
+  // fijado por entorno; después a todos; ahora depende del rol.
+  const destinatarios = await asesoresActivos({ evento: input.eventType });
   if (!destinatarios.length) {
-    return { sent: false, skipped: true, error: "No hay asesores activos configurados" };
+    return { sent: false, skipped: true, error: "Ningún asesor activo recibe este tipo de aviso" };
   }
   const creadas = await sql<{ id: number; recipient_phone: string; recipient_name: string }[]>`
     insert into advisor_notifications (

@@ -243,6 +243,54 @@ export async function saveGuardianConfig(input: unknown): Promise<GuardianConfig
   return merged;
 }
 
+/**
+ * Cupón de confirmación (services/coupons.ts).
+ *
+ * Nace APAGADO, y eso no es una precaución genérica: el cupón promete plata en
+ * caja. Si el bot empieza a emitir códigos antes de que Depot capacite a los
+ * cajeros, el cliente llega con un papel que nadie sabe honrar — peor que no
+ * haber prometido nada. Se prende el día de la capacitación (agendada en la
+ * reunión del 14-ago), desde Ajustes y sin tocar código.
+ *
+ * El porcentaje también vive aquí: subirlo o bajarlo es una decisión comercial
+ * de Depot, no un despliegue.
+ */
+export const CouponConfigSchema = z.object({
+  activo: z.boolean().default(false),
+  /** Tope de 10 % a propósito: más que eso no es un incentivo, es un error de tecleo. */
+  porcentaje: z.coerce.number().min(0.5).max(10).default(2),
+});
+export type CouponConfig = z.infer<typeof CouponConfigSchema>;
+export const DEFAULT_COUPON_CONFIG: CouponConfig = CouponConfigSchema.parse({});
+
+let couponCache: { value: CouponConfig; at: number } | null = null;
+
+export async function getCouponConfig(): Promise<CouponConfig> {
+  if (couponCache && Date.now() - couponCache.at < CACHE_TTL_MS) return couponCache.value;
+  try {
+    const [row] = await sql<{ value: unknown }[]>`select value from settings where key = 'coupon_config'`;
+    const parsed = CouponConfigSchema.safeParse(row?.value ?? {});
+    const value = parsed.success ? parsed.data : DEFAULT_COUPON_CONFIG;
+    couponCache = { value, at: Date.now() };
+    return value;
+  } catch {
+    // Sin poder leer el ajuste se asume apagado: no se promete un descuento
+    // que quizá nadie autorizó.
+    return DEFAULT_COUPON_CONFIG;
+  }
+}
+
+export async function saveCouponConfig(input: unknown): Promise<CouponConfig> {
+  const merged = CouponConfigSchema.parse({ ...(await getCouponConfig()), ...(input as object) });
+  await sql`
+    insert into settings (key, value)
+    values ('coupon_config', ${sql.json(merged)})
+    on conflict (key) do update set value = excluded.value, updated_at = now()
+  `;
+  couponCache = { value: merged, at: Date.now() };
+  return merged;
+}
+
 export async function savePiecesConfig(input: unknown): Promise<PiecesConfig> {
   const merged = PiecesConfigSchema.parse({ ...(await getPiecesConfig()), ...(input as object) });
   await sql`

@@ -108,6 +108,33 @@ describe("pregunta por fecha y local", () => {
     expect(qm.buildVisitPlanQuestion({ conDescuentoAutorizado: false, locales }))
       .not.toMatch(/https?:\/\//);
   });
+
+  // Convs 6275 y 6375 (informe del guardián, 15-ago): el cliente ya había
+  // elegido Quito Sur y la cotización volvió a ofrecerle los dos locales. Con
+  // local registrado se pregunta SOLO el día, confirmando el local elegido.
+  describe("con el local ya elegido (re-pregunta de las convs 6275/6375)", () => {
+    it("pregunta solo el día y nombra el local elegido", () => {
+      const pregunta = qm.buildVisitPlanQuestion({
+        conDescuentoAutorizado: false,
+        locales,
+        localElegido: "Depot Tire Quito Sur",
+      });
+      expect(pregunta).toMatch(/qué día/i);
+      expect(pregunta).toMatch(/Depot Tire Quito Sur/);
+      expect(pregunta).not.toMatch(/Cumbayá/);
+      expect(pregunta).not.toMatch(/cuál local/i);
+    });
+
+    it("mantiene el descuento como motivo", () => {
+      expect(qm.buildVisitPlanQuestion({ conDescuentoAutorizado: true, locales, localElegido: "Cumbayá" }))
+        .toMatch(/descuento extra/i);
+    });
+
+    it("con localElegido null se comporta igual que siempre", () => {
+      expect(qm.buildVisitPlanQuestion({ conDescuentoAutorizado: false, locales, localElegido: null }))
+        .toMatch(/Cumbayá o Quito Sur/);
+    });
+  });
 });
 
 /*
@@ -163,7 +190,10 @@ describe("formato WhatsApp: la imagen es el mensaje", () => {
       { product: producto({ brand: "Falken", design: "Wildpeak A/T Trail", minimumPriceWithTax: 202.87 }), quantity: 4 },
       "COT-MSKPHG6R",
     );
-    expect(caption).toBe("4 × FALKEN WILDPEAK A/T TRAIL: $811,48");
+    // Punto decimal, NUNCA coma: el mismo formato que la pieza renderizada y
+    // que los datos de la cotización. El formato es-EC («$811,48») fue 4 de
+    // los 8 precio_incorrecto ALTA del informe del guardián del 15-ago.
+    expect(caption).toBe("4 × FALKEN WILDPEAK A/T TRAIL: $811.48");
     expect(caption).not.toMatch(/COT-|c\/u|IVA|Presente|Aquí está/i);
   });
 
@@ -249,5 +279,38 @@ describe("bloque INCLUYE", () => {
     expect(benefits.requestsBenefitsAgain("¿Qué incluye la cotización?")).toBe(true);
     expect(benefits.requestsBenefitsAgain("¿Qué garantías tiene?")).toBe(true);
     expect(benefits.requestsBenefitsAgain("Mándeme otra cotización")).toBe(false);
+  });
+});
+
+/**
+ * El cierre del turno de opciones. Por defecto la recomendación se OFRECE —la
+ * regla de Joaquín del 6-ago, que acortó la cadena—, pero cuando el cliente ya
+ * preguntó el precio o ya preguntó cuál le conviene, ofrecérsela es devolverle
+ * su propia pregunta. Es el hallazgo más repetido del guardián del 15-ago.
+ */
+describe("cierre de la pieza de opciones", () => {
+  it("ofrece la recomendación cuando el cliente no ha pedido nada", () => {
+    expect(
+      qm.buildCierreOpciones({
+        entregarRecomendacion: false,
+        recomendacion: "Kenda KR203",
+        motivo: "es el mejor equilibrio entre duración y precio",
+      }),
+    ).toBe(qm.PREGUNTA_RECOMENDACION);
+  });
+
+  it("la entrega, con motivo y cierre de venta, cuando ya se la pidieron", () => {
+    const cierre = qm.buildCierreOpciones({
+      entregarRecomendacion: true,
+      recomendacion: "Kenda KR203",
+      motivo: "es el mejor equilibrio entre duración y precio.",
+    });
+    expect(cierre).toContain("Kenda KR203");
+    expect(cierre).toContain("el mejor equilibrio entre duración y precio");
+    // Ni el punto duplicado del motivo, ni la pregunta que el cliente ya hizo.
+    expect(cierre).not.toContain("precio..");
+    expect(cierre).not.toContain(qm.PREGUNTA_RECOMENDACION);
+    // El turno tiene que seguir empujando la venta.
+    expect(cierre).toMatch(/cotizo/i);
   });
 });

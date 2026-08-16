@@ -42,14 +42,17 @@ vi.mock("../src/wa/client.js", async (importOriginal) => {
 const { sql } = await import("../src/db/client.js");
 const { ensureSchema } = await import("../src/db/schema.js");
 const {
-  revisarVisitasDeManana, avisarVisitaComprometida, esHoraDeRecordar,
+  revisarVisitasDeManana, revisarVisitasDeHoy, avisarVisitaComprometida, esHoraDeRecordar,
   claveVisitaComprometida, diaGuayaquil,
 } = await import("../src/services/visitAlerts.js");
+const { asesoresActivos } = await import("../src/services/advisorNotifications.js");
 
 /** 10:00 en Guayaquil (UTC-5): dentro del horario de atención. */
 const AHORA = new Date("2026-08-10T15:00:00.000Z");
 /** Mañana a las 10:00 locales. */
 const MANANA = new Date("2026-08-11T15:00:00.000Z");
+/** Hoy a las 15:00 locales: el cliente todavía no llega cuando se avisa. */
+const HOY_TARDE = new Date("2026-08-10T20:00:00.000Z");
 
 async function crearConversacion(
   phone: string, visitDate: Date | null, status: "open" | "closed" = "open",
@@ -174,5 +177,113 @@ describe("Recordatorio de la víspera", () => {
     expect(await revisarVisitasDeManana(new Date("2026-08-10T20:00:00.000Z"))).toBe(1);
     expect(enviados).toHaveLength(antes + 2);
     expect(enviados[enviados.length - 1]).toContain("Mañana viene un cliente");
+  });
+});
+
+/**
+ * El aviso del día mismo (14-ago). La víspera sirve para preparar; hoy sirve
+ * para atender, y quien abre la tienda a las ocho no tiene por qué acordarse de
+ * una promesa de hace cinco días.
+ */
+describe("Recordatorio del día", () => {
+  it("avisa que hoy viene el cliente, una sola vez en todo el día", async () => {
+    const hoy = await crearConversacion("593900006666", HOY_TARDE);
+    const antes = enviados.length;
+
+    expect(await revisarVisitasDeHoy(AHORA)).toBe(1);
+    expect(enviados).toHaveLength(antes + 1);
+    expect(enviados[enviados.length - 1]).toContain("Hoy viene un cliente");
+    expect(enviados[enviados.length - 1]).toContain("🎯 *VIENE HOY*");
+
+    const [alerta] = await sql<{ dedupe_key: string }[]>`
+      select dedupe_key from bot_alerts
+      where type = 'visita_hoy' and conversation_id = ${hoy}
+    `;
+    expect(alerta.dedupe_key).toBe(`${hoy}:1:visita_hoy:2026-08-10`);
+
+    // El bucle pasa cada cuarto de hora desde que abre la tienda hasta que
+    // cierra: son treinta y pico de vueltas y UN mensaje.
+    expect(await revisarVisitasDeHoy(new Date("2026-08-10T17:00:00.000Z"))).toBe(0);
+    expect(await revisarVisitasDeHoy(new Date("2026-08-10T22:00:00.000Z"))).toBe(0);
+    expect(enviados).toHaveLength(antes + 1);
+  });
+
+  it("no confunde el de hoy con el de mañana", async () => {
+    // La conversación de mañana ya avisada arriba no vuelve a salir hoy, y la de
+    // hoy no se cuela en el barrido de la víspera.
+    const antes = enviados.length;
+    expect(await revisarVisitasDeManana(AHORA)).toBe(0);
+    expect(enviados).toHaveLength(antes);
+  });
+
+  it("fuera de horario tampoco despierta a nadie", async () => {
+    const antes = enviados.length;
+    expect(await revisarVisitasDeHoy(new Date("2026-08-10T06:00:00.000Z"))).toBe(0);
+    expect(enviados).toHaveLength(antes);
+  });
+});
+
+describe("Cambio de fecha de visita", () => {
+  it("re-alerta con la fecha nueva y no con la vieja", async () => {
+    const id = await crearConversacion("593900007777", null);
+    const antes = enviados.length;
+    const jueves = new Date("2026-08-13T15:00:00.000Z");
+    const sabado = new Date("2026-08-15T15:00:00.000Z");
+
+    await avisarVisitaComprometida({
+      conversationId: id, cycle: 1, texto: "Voy el jueves", visitDate: jueves,
+    });
+    expect(enviados).toHaveLength(antes + 1);
+
+    // Repetir la misma fecha no vuelve a molestar al asesor.
+    await avisarVisitaComprometida({
+      conversationId: id, cycle: 1, texto: "Confirmo, el jueves", visitDate: jueves,
+    });
+    expect(enviados).toHaveLength(antes + 1);
+
+    // Cambiarla sí: el asesor preparó las llantas para el jueves.
+    await avisarVisitaComprometida({
+      conversationId: id, cycle: 1, texto: "Mejor el sábado", visitDate: sabado,
+    });
+    expect(enviados).toHaveLength(antes + 2);
+    expect(enviados[enviados.length - 1]).toContain("📅 *CONFIRMÓ VISITA*");
+  });
+});
+
+/**
+ * El filtro por rol contra la tabla de verdad. La regla pura se prueba en
+ * avisosPorRol.test.ts; lo que falta comprobar es que el `select` lea la
+ * columna y que el respaldo por entorno no se salte el filtro.
+ */
+describe("A quién le llega, según la tabla advisors", () => {
+  it("el asesor de local queda fuera de todo lo que no sean sus cinco avisos", async () => {
+    await sql`
+      insert into advisors (nombre, telefono, prioridad, active, rol)
+      values ('Jocelyn (local)', '593988888888', 1, true, 'asesor')
+      on conflict (telefono) do update set rol = 'asesor', active = true
+    `;
+    try {
+      const telefonos = async (filtro: Parameters<typeof asesoresActivos>[0]) =>
+        (await asesoresActivos(filtro)).map((a) => a.telefono);
+
+      expect(await telefonos({ evento: "visita_hoy" })).toContain("593988888888");
+      expect(await telefonos({ evento: "quote_created" })).toContain("593988888888");
+      expect(await telefonos({ evento: "ventana_por_cerrar" })).toContain("593988888888");
+
+      // Errores del bot y fallas de envío: no los acciona desde el mostrador.
+      expect(await telefonos({ evento: "send_error" })).not.toContain("593988888888");
+      expect(await telefonos({ evento: "guard_bot_atascado" })).not.toContain("593988888888");
+
+      // El reporte de las 20:00 pide `rol: 'admin'` explícitamente.
+      expect(await telefonos({ rol: "admin" })).not.toContain("593988888888");
+      expect(await telefonos({ rol: "admin" })).toContain("593999999999");
+
+      // Y el de siempre sigue recibiéndolo todo, que es la mitad del trato.
+      for (const evento of ["send_error", "visita_hoy", "repetitive_conversation"] as const) {
+        expect(await telefonos({ evento })).toContain("593999999999");
+      }
+    } finally {
+      await sql`delete from advisors where telefono = '593988888888'`;
+    }
   });
 });

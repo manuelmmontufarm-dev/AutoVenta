@@ -76,6 +76,30 @@ export function aWhatsApp(texto: string): string {
 export const PREGUNTA_RECOMENDACION = "¿Necesita alguna recomendación?";
 
 /**
+ * El cierre del turno de opciones — la pregunta, o la recomendación ya dada.
+ *
+ * La regla de Joaquín (ofrecer y no adelantar) vale cuando el cliente todavía
+ * no ha preguntado nada: ahí la cadena corta gana. Pero el informe del guardián
+ * del 15-ago mostró el reverso — convs 6559, 6505, 6507 y 6525: el cliente
+ * escribió «a cómo salen» o «cuál me recomienda», el bot mandó la pieza y
+ * cerró preguntándole si necesitaba una recomendación. Ese turno no acorta
+ * nada: le devuelve al cliente su propia pregunta, y es la categoría de
+ * hallazgo más frecuente del guardián («ignora la pregunta», 16 en 7 días).
+ *
+ * Así que la recomendación se OFRECE por defecto y se ENTREGA cuando ya la
+ * pidieron — explícitamente o pidiendo el precio, que es la misma decisión.
+ */
+export function buildCierreOpciones(input: {
+  entregarRecomendacion: boolean;
+  recomendacion: string;
+  motivo: string;
+}): string {
+  if (!input.entregarRecomendacion) return PREGUNTA_RECOMENDACION;
+  const motivo = input.motivo.trim().replace(/[.\s]+$/, "");
+  return `Yo iría por la *${input.recomendacion}*: ${motivo}. ¿Se la cotizo por 4? 😊`;
+}
+
+/**
  * La pregunta por el día de la visita. Cierra los dos momentos en los que el
  * cliente ya tiene todo para decidir: cuando recibe la cotización y cuando ya
  * sabe a qué local ir.
@@ -110,13 +134,24 @@ export function buildVisitDayQuestion(conDescuentoAutorizado: boolean): string {
 export function buildVisitPlanQuestion(input: {
   conDescuentoAutorizado: boolean;
   locales: readonly string[];
+  /**
+   * Local ya registrado en la conversación (nearest_store). Cuando existe, la
+   * pregunta es SOLO por el día: volver a ofrecer «¿Cumbayá o Quito Sur?» a
+   * quien ya eligió es la re-pregunta que el Ángel Guardián corrigió 4 veces
+   * el 15-ago (convs 6275 y 6375) — y este texto salía fijo de aquí, no del
+   * modelo, así que se arregla aquí.
+   */
+  localElegido?: string | null;
 }): string {
-  const opciones = input.locales.length
-    ? ` ¿${input.locales.slice(0, 2).join(" o ")}?`
-    : "";
   const motivo = input.conDescuentoAutorizado
     ? "le dejo anotado su descuento extra para que se lo respeten apenas llegue"
     : "le aplican el descuento de su cotización apenas llegue";
+  if (input.localElegido) {
+    return `¿Qué día puede pasar por *${input.localElegido}*? Con ese dato le aviso al asesor y ${motivo}. 📅`;
+  }
+  const opciones = input.locales.length
+    ? ` ¿${input.locales.slice(0, 2).join(" o ")}?`
+    : "";
   return `¿Qué día puede pasar y a cuál local?${opciones} Con esos dos datos le aviso al asesor y ${motivo}. 📅`;
 }
 
@@ -372,10 +407,15 @@ function dateLabel(): string {
   }).format(new Date());
 }
 
+/**
+ * $600.96, con punto decimal — el MISMO formato que la pieza renderizada
+ * (depotPosters) y que los totales que las herramientas devuelven al modelo.
+ *
+ * Antes esto formateaba con locale es-EC, que escribe «$600,96»: el caption
+ * contradecía a la propia imagen y a los datos duros de la cotización, y el
+ * Ángel Guardián lo corrigió 4 veces en 2 días como precio_incorrecto ALTA.
+ * Un solo formato canónico en todo el stack elimina la categoría de raíz.
+ */
 function money(value: number): string {
-  return new Intl.NumberFormat("es-EC", {
-    style: "currency",
-    currency: business.currency,
-    minimumFractionDigits: 2,
-  }).format(value);
+  return `$${value.toFixed(2)}`;
 }

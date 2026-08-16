@@ -32,6 +32,8 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-08-15 | _(este mismo)_ | Notas del guardián de raíz: formato único de plata, corrector de precios gratis y local sin re-pregunta | 1.5 |
+| 2026-08-15 | _(este mismo)_ | Login con usuarios y clave + base de permisos, y el Cotizador deja de dibujar sus propias piezas | 2.5 |
 | 2026-08-14 | _(este mismo)_ | Cuenta de tokens en el tab KPI: gasto día/semana/mes + IVA, vence el primer viernes, pagos con clave de dueño | 1.5 |
 | 2026-08-14 | _(este mismo)_ | Sello de medida en las opciones: MEDIDA EXACTA en verde, equivalentes en rojo | 1.0 |
 | 2026-08-14 | _(este mismo)_ | Búsqueda en escalera + 6 familias de SKUs que estaban SIN medida (invisibles) | 2.0 |
@@ -134,6 +136,89 @@ Ya viene activado en este equipo.
 ---
 
 ## Entradas (más reciente primero)
+
+### 2026-08-15 · Las notas del guardián, atacadas de raíz: precios y local sin re-pregunta, gratis · ⏱️ 1.5 h
+
+**Qué:** Tres arreglos determinísticos sacados de los hallazgos REALES del
+Ángel Guardián (324 revisiones, 63 correcciones en 2 días de producción), para
+que esos errores no dependan de tener el guardián prendido gastando tokens:
+
+*Un solo formato de plata.* `money()` de `quoteMessages` formateaba con locale
+es-EC («$811,48») mientras la pieza renderizada, las herramientas y la base
+dicen `$811.48` — el caption contradecía a su propia imagen, y el guardián lo
+corrigió 4 veces como `precio_incorrecto` ALTA (convs 5657, 6129, 6347…).
+Ahora todo el stack escribe `$xxx.xx`.
+
+*Corrector de precios en el guardián de salida.* `corregirPrecios()` en
+`outboundGuard.ts`: normaliza la coma decimal que escriba el modelo y, si una
+cifra queda a ≤2 céntimos de un monto real de la cotización vigente sin ser
+exacta, la reemplaza por el monto real (caso 6175: el modelo multiplicó
+4 × $97.97 = $391.88 cuando la cotización registra $391.89 — el IVA redondea
+por línea). Corre siempre, guardián prendido o apagado, a costo cero; deja
+alerta `guard_precio_ajustado` (media, solo panel/admins) para ver el patrón.
+
+*El local elegido no se re-pregunta.* `generar_cotizacion` preguntaba
+«¿Cumbayá o Quito Sur?» con texto FIJO — en el candado anti-duplicado y en el
+plan de visita — aunque `nearest_store` ya estuviera registrado: las 4
+re-preguntas de las convs 6275 y 6375 salían de ahí, no del modelo. Con local
+elegido se pregunta solo el día, nombrando el local, y la `regla` al modelo
+se lo prohíbe explícitamente.
+
+**Por qué:** El guardián existe para quitar errores mientras se les encuentra
+la causa, no para pagarla en tokens para siempre. Su informe señaló qué parte
+de los `precio_incorrecto` y `re-pregunta` era **del código, no del modelo**
+(un formateador con otro locale, un template fijo): eso se arregla en la
+fuente y queda arreglado con el guardián apagado. Lo que sí es juicio
+(cifras inventadas sin cotización, promesas sin respaldo) sigue siendo
+territorio del guardián — apagarlo ahora es decisión comercial de Depot, con
+este piso determinístico ya puesto. 698 tests en verde, con los casos reales
+del informe como fixtures.
+
+---
+
+### 2026-08-15 · Quién entra al hub, y una sola fábrica de piezas · ⏱️ 2.5 h
+
+**Qué:** Dos cosas de la reunión del 14-ago con Andrés.
+
+*Login.* El hub ya no se abre con una clave anónima: pide **usuario** (Manuel
+Montufar · Andres Tamayo · Joaquin Tamayo · Asesor, lista que sirve el servidor
+en `GET /api/auth/users`) y **clave — 1234 para todos por ahora**, decisión
+explícita del cliente para esta fase. `POST /api/auth/login` devuelve un token
+HMAC firmado con la `ADMIN_KEY` (sin tabla nueva, sin dependencias, 30 días de
+vigencia) y el gate de `admin.ts` lo acepta **además** de la `x-admin-key` de
+siempre. El nombre de quien entró sale en la barra del hub, con su botón
+«Salir» — también en el teléfono, con el nombre de pila, porque el hub se usa
+como PWA en iPhone y ahí el chip había quedado escondido. El servidor sabe en
+cada petición quién pregunta (`req.usuario`) y con qué rol. Nuevo `app/src/server/auth.ts`; 23 pruebas entre `auth.test.ts` (la
+cerradura: firmas torcidas, tokens caducados, otro secreto, usuario borrado) y
+`loginHub.integration.test.ts` (el cableado HTTP).
+
+*Permisos.* Existe el objeto (`verFinanzas`, `verErrores`, `usarCotizador`…),
+viaja al hub y hay `usePermisos()` listo — **todo en `true` para todos los
+roles**, y **nada se condiciona todavía**.
+
+*Piezas.* El Cotizador dibujaba las imágenes con un canvas propio en
+`hub/src/lib/quoteImage.ts`, y ese canvas se quedó en el diseño viejo mientras
+el bot ya mandaba el nuevo. Se borró (490 líneas) y ahora el hub **descarga**
+del servidor lo que dibuja el mismo renderizador del bot:
+`POST /api/catalog/options-image`, `/compare-image` y `/quote-image`, con la
+medida buscada viajando en la petición para que cada tarjeta salga sellada
+igual que por WhatsApp.
+
+**Por qué:** El login era pedido de la reunión — el panel se queda abierto en un
+computador compartido de la tienda y «el sistema hizo tal cosa» tenía que poder
+volverse «lo hizo tal persona»; la estructura de permisos queda montada porque
+Andrés pidió poder esconder cosas (lo vendido total, por ejemplo) sin haber
+decidido todavía qué ni a quién, y esto permite decidirlo después cambiando un
+objeto en vez de reescribir el gate. La clave única y el `x-admin-key` que
+sobrevive no son descuidos: la clave la eligió el cliente para esta fase, y la
+puerta vieja sigue abierta porque el bot, los scripts y el panel central entran
+por ahí y no saben nada de usuarios. Lo de las piezas es directamente lo que
+Andrés vio en la demo (min 18:31, *«esto está en la antigua, tengo que
+actualizarlo»*): dos renderizadores para la misma imagen garantizan que uno se
+quede atrás, y la única forma de que no vuelva a pasar es que quede uno.
+
+---
 
 ### 2026-08-14 · La cuenta de tokens en el tab KPI: cuánto va y cuándo se paga · ⏱️ 1.5 h
 

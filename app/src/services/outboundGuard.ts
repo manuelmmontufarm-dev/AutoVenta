@@ -26,7 +26,7 @@ const APOLOGIA = /disculpa,?\s*tuve un problema procesando/i;
 /** Saludo de apertura: válido solo en el primer mensaje del bot del ciclo. */
 const SALUDO_INICIAL = /^\s*(?:¡\s*)?(?:hola|buen[oa]s(?:\s+(?:d[íi]as|tardes|noches))?)\s*[!.,]*\s*/i;
 
-export type GuardIssue = "mensaje_duplicado" | "bot_atascado" | "saludo_repetido";
+export type GuardIssue = "mensaje_duplicado" | "bot_atascado" | "saludo_repetido" | "precio_ajustado";
 
 export interface GuardResult {
   /** Texto listo para enviar; null = no enviar nada (ya se alertó al asesor). */
@@ -79,6 +79,61 @@ export function guardOutboundReply(
   return { text: texto, issues };
 }
 
+/**
+ * Corrector determinístico de precios: los dos errores de cifra que el Ángel
+ * Guardián corrigió con IA en producción, resueltos con texto y aritmética.
+ *
+ * Nacen del informe del guardián del 14/15-ago (8 hallazgos precio_incorrecto
+ * ALTA en 2 días); 5 eran de estas dos familias, no invención:
+ *
+ *  1. COMA DECIMAL. El modelo (o un formateador con locale) escribe «$600,96»
+ *     cuando la cotización, la pieza renderizada y las herramientas dicen
+ *     $600.96. Mismo número, formato contradictorio → se reescribe con punto.
+ *  2. CÉNTIMO TRANSCRITO MAL. El modelo recalcula en vez de copiar: escribió
+ *     $391.88 (4 × 97.97) cuando la cotización vigente registra $391.89 (el
+ *     redondeo del IVA va por línea). Si una cifra del borrador queda a ≤2
+ *     céntimos de un monto real de la cotización y no es exacta, se reemplaza
+ *     por el monto real. Una cifra genuinamente distinta (otro producto, otra
+ *     cantidad) queda lejos de esa tolerancia y no se toca.
+ *
+ * Esto NO valida cifras inventadas sin cotización (eso no se puede sin
+ * entender la conversación): solo hace imposible contradecir en formato o por
+ * un céntimo los números que SÍ están registrados.
+ */
+export function corregirPrecios(
+  texto: string,
+  montos: readonly number[] = [],
+): { texto: string; ajustes: string[] } {
+  const ajustes: string[] = [];
+
+  // Familia 1: coma decimal (con o sin puntos de miles: $1.234,56 → $1234.56).
+  // Exactamente dos decimales tras la coma, para no tocar «$1,200» estilo
+  // gringo (miles) ni cantidades sin decimales.
+  let out = texto.replace(
+    /\$\s?(\d{1,3}(?:\.\d{3})+|\d+),(\d{2})(?!\d)/g,
+    (original, entero: string, decimales: string) => {
+      const plano = `$${entero.replace(/\./g, "")}.${decimales}`;
+      ajustes.push(`${original.trim()} → ${plano}`);
+      return plano;
+    },
+  );
+
+  // Familia 2: céntimo contra los montos reales de la cotización vigente.
+  if (montos.length) {
+    const exactos = new Set(montos.map((monto) => monto.toFixed(2)));
+    out = out.replace(/\$\s?(\d+\.\d{2})(?!\d)/g, (original, cifra: string) => {
+      if (exactos.has(cifra)) return original;
+      const valor = Number(cifra);
+      const real = montos.find((monto) => Math.abs(monto - valor) <= 0.02);
+      if (real === undefined) return original;
+      ajustes.push(`$${cifra} → $${real.toFixed(2)}`);
+      return `$${real.toFixed(2)}`;
+    });
+  }
+
+  return { texto: out, ajustes };
+}
+
 const ALERTAS: Record<GuardIssue, { priority: "high" | "medium"; summary: string; reason: string; action: string }> = {
   bot_atascado: {
     priority: "high",
@@ -97,6 +152,12 @@ const ALERTAS: Record<GuardIssue, { priority: "high" | "medium"; summary: string
     summary: "El modelo volvió a saludar a mitad de conversación (recortado)",
     reason: "Un «¡Hola!» en medio del hilo delata al bot y confunde; el saludo se recortó antes de enviar.",
     action: "Nada urgente; queda registrado para la auditoría.",
+  },
+  precio_ajustado: {
+    priority: "medium",
+    summary: "El modelo escribió mal una cifra de la cotización (corregida antes de enviar)",
+    reason: "Una cifra del borrador contradecía la cotización vigente (formato con coma o un céntimo de diferencia). Al cliente le llegó la cifra correcta.",
+    action: "Nada urgente para el cliente; si se repite seguido en un mismo chat, revisar qué está transcribiendo mal el bot.",
   },
 };
 
@@ -117,6 +178,39 @@ export async function applyOutboundGuard(conversationId: number, reply: string):
     `;
     if (!row) return { text: reply, issues: [] };
     const result = guardOutboundReply(reply, row.last_outbound, row.last_outbound !== null);
+
+    // Corrector de precios: siempre que haya texto por salir. Los montos
+    // reales salen de la cotización vigente del ciclo — los mismos datos
+    // duros que ve el Ángel Guardián, sin gastar un token.
+    if (result.text) {
+      const [cotizacion] = await sql<{
+        total: string | number; subtotal: string | number; tax: string | number;
+        items: Array<{ quantity?: number; salePriceWithTax?: number; unitPrice?: number }> | null;
+      }[]>`
+        select total, subtotal, tax, items from quotes
+        where conversation_id = ${conversationId} and cycle = ${row.cycle}
+        order by created_at desc limit 1
+      `;
+      const montos = cotizacion
+        ? [
+            Number(cotizacion.total),
+            Number(cotizacion.subtotal),
+            Number(cotizacion.tax),
+            ...(cotizacion.items ?? []).flatMap((item) => {
+              const unitario = item.salePriceWithTax ?? null;
+              return unitario == null
+                ? []
+                : [unitario, Math.round(unitario * (item.quantity ?? 1) * 100) / 100];
+            }),
+          ].filter((monto) => Number.isFinite(monto) && monto > 0)
+        : [];
+      const precios = corregirPrecios(result.text, montos);
+      if (precios.ajustes.length) {
+        result.text = precios.texto;
+        result.issues.push("precio_ajustado");
+        console.warn(`💲 Precio ajustado antes de enviar (conv ${conversationId}): ${precios.ajustes.join(" · ")}`);
+      }
+    }
 
     for (const issue of result.issues) {
       // La alerta jamás debe frenar el envío al cliente.

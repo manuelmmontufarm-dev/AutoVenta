@@ -8,7 +8,7 @@ process.env.WHATSAPP_VERIFY_TOKEN ||= "test";
 process.env.WHATSAPP_PHONE_ID ||= "test";
 process.env.DATABASE_URL ||= "postgresql://manue@localhost/postgres";
 
-const { guardOutboundReply } = await import("../src/services/outboundGuard.js");
+const { guardOutboundReply, corregirPrecios } = await import("../src/services/outboundGuard.js");
 
 /**
  * El guardián de salida, probado contra los MENSAJES REALES que el bot mandó
@@ -101,5 +101,77 @@ describe("Guardián de salida — las fallas del 5-ago no pueden volver a enviar
     const r = guardOutboundReply(buena, "Otro mensaje.", true);
     expect(r.text).toBe(buena);
     expect(r.issues).toEqual([]);
+  });
+});
+
+/**
+ * Corrector de precios, probado contra los HALLAZGOS REALES del Ángel Guardián
+ * del 14/15-ago: las cifras que el guardián corrigió con IA (y tokens) tienen
+ * que corregirse ahora con texto y aritmética, gratis y con guardián apagado.
+ */
+describe("corrector de precios — los precio_incorrecto ALTA del informe del guardián", () => {
+  describe("coma decimal (convs 5657, 6129, 6347): «$600,96» contra cotización $600.96", () => {
+    it("normaliza la coma decimal a punto", () => {
+      const r = corregirPrecios("Su cotización quedó en $600,96 con IVA incluido.");
+      expect(r.texto).toBe("Su cotización quedó en $600.96 con IVA incluido.");
+      expect(r.ajustes).toHaveLength(1);
+    });
+
+    it("los casos reales: $785,76 y $339,80", () => {
+      expect(corregirPrecios("Total: $785,76 💵").texto).toBe("Total: $785.76 💵");
+      expect(corregirPrecios("El total es $339,80.").texto).toBe("El total es $339.80.");
+    });
+
+    it("aplana el estilo europeo con miles: $1.234,56 → $1234.56", () => {
+      expect(corregirPrecios("Serían $1.234,56 por el juego.").texto)
+        .toBe("Serían $1234.56 por el juego.");
+    });
+
+    it("no toca los miles estilo gringo ($1,200) ni números sin plata", () => {
+      const texto = "Rinde $1,200 en promedio y dura 50,000 km, medida 205/55R16.";
+      const r = corregirPrecios(texto);
+      expect(r.texto).toBe(texto);
+      expect(r.ajustes).toEqual([]);
+    });
+  });
+
+  describe("céntimo transcrito mal (convs 6175, 6375): el modelo recalcula en vez de copiar", () => {
+    // Caso real 6175: 4 × $97.97 = $391.88, pero la cotización registra
+    // $391.89 (el IVA se redondea por línea). El monto real manda.
+    const montos = [391.89, 97.97];
+
+    it("$391.88 → $391.89 cuando la cotización vigente dice $391.89", () => {
+      const r = corregirPrecios("El total por las 4 queda en $391.88 con IVA.", montos);
+      expect(r.texto).toBe("El total por las 4 queda en $391.89 con IVA.");
+      expect(r.ajustes).toEqual(["$391.88 → $391.89"]);
+    });
+
+    it("caso 6375: $555.56 → $555.57", () => {
+      const r = corregirPrecios("Quedó en $555.56 por el juego 👍", [555.57]);
+      expect(r.texto).toBe("Quedó en $555.57 por el juego 👍");
+    });
+
+    it("una cifra exacta de la cotización pasa intacta", () => {
+      const r = corregirPrecios("Cada una sale $97.97 y el total $391.89.", montos);
+      expect(r.ajustes).toEqual([]);
+    });
+
+    it("una cifra genuinamente distinta (otro producto) no se toca", () => {
+      const r = corregirPrecios("La económica sale $84.50 cada una.", montos);
+      expect(r.texto).toBe("La económica sale $84.50 cada una.");
+      expect(r.ajustes).toEqual([]);
+    });
+
+    it("sin cotización vigente no inventa nada: solo normaliza formato", () => {
+      const r = corregirPrecios("Le sale aproximadamente $391.88.", []);
+      expect(r.texto).toBe("Le sale aproximadamente $391.88.");
+      expect(r.ajustes).toEqual([]);
+    });
+  });
+
+  it("las dos familias juntas en un mismo mensaje", () => {
+    const r = corregirPrecios("Total $391,88, o sea $97.96 cada una.", [391.89, 97.97]);
+    expect(r.texto).toBe("Total $391.89, o sea $97.97 cada una.");
+    expect(r.ajustes).toHaveLength(3);
   });
 });

@@ -1,9 +1,12 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   getStoredAdminKey,
+  iniciarSesion,
+  listarUsuarios,
   probarClaveAdmin,
   saveStoredAdminKey,
   type ResultadoConexion,
+  type UsuarioDisponible,
 } from "../data/realSource";
 import type { EstadoConexion } from "../store";
 
@@ -162,19 +165,172 @@ function Aviso({
   );
 }
 
+// ── Login de usuario ─────────────────────────────────────────────────────────
+
+type Entrada =
+  | { fase: "cargando" }
+  | { fase: "listo"; usuarios: UsuarioDisponible[] }
+  | { fase: "sin-usuarios"; motivo: string };
+
+type Intento = { fase: "reposo" } | { fase: "entrando" } | { fase: "error"; mensaje: string };
+
+/**
+ * Quién eres + tu clave. La lista de usuarios la manda el servidor (ruta
+ * pública), así que agregar o quitar gente no obliga a redesplegar el hub.
+ *
+ * Si el servidor no tiene todavía `/api/auth/users` —un backend viejo, o el
+ * despliegue a medias— no se deja al usuario mirando un desplegable vacío: se
+ * cae al formulario de la clave administrativa, que es lo que ese servidor
+ * entiende.
+ */
+export function LoginForm({ autoFocus = false }: { autoFocus?: boolean }) {
+  const [entrada, setEntrada] = useState<Entrada>({ fase: "cargando" });
+  const [userId, setUserId] = useState("");
+  const [pin, setPin] = useState("");
+  const [intento, setIntento] = useState<Intento>({ fase: "reposo" });
+
+  useEffect(() => {
+    let vivo = true;
+    listarUsuarios()
+      .then((usuarios) => {
+        if (!vivo) return;
+        if (!usuarios.length) {
+          setEntrada({ fase: "sin-usuarios", motivo: "El servidor no tiene usuarios configurados." });
+          return;
+        }
+        setEntrada({ fase: "listo", usuarios });
+        setUserId(usuarios[0].id);
+      })
+      .catch((error: unknown) => {
+        if (!vivo) return;
+        setEntrada({
+          fase: "sin-usuarios",
+          motivo: error instanceof Error ? error.message : "No se pudo leer la lista de usuarios.",
+        });
+      });
+    return () => {
+      vivo = false;
+    };
+  }, []);
+
+  if (entrada.fase === "cargando") {
+    return <Aviso tono="neutral" texto="Preguntando al servidor quién puede entrar…" />;
+  }
+
+  if (entrada.fase === "sin-usuarios") {
+    return (
+      <div>
+        <Aviso
+          tono="alerta"
+          texto="Este servidor todavía no tiene login de usuarios"
+          detalle={`${frase(entrada.motivo)} Entra con la clave administrativa mientras tanto.`}
+        />
+        <div className="mt-4">
+          <AdminKeyForm autoFocus={autoFocus} />
+        </div>
+      </div>
+    );
+  }
+
+  async function entrar() {
+    setIntento({ fase: "entrando" });
+    const resultado = await iniciarSesion(userId, pin);
+    if (resultado.estado === "dentro") {
+      // Recarga completa: el store, las fases y el modo de datos se arman al
+      // arrancar y ninguno sabe re-leerse a media sesión.
+      window.location.reload();
+      return;
+    }
+    setIntento({ fase: "error", mensaje: resultado.mensaje });
+  }
+
+  const entrando = intento.fase === "entrando";
+
+  return (
+    <form
+      onSubmit={(event) => {
+        event.preventDefault();
+        if (!entrando) void entrar();
+      }}
+    >
+      <label className="microlabel mb-1.5 block" htmlFor="login-usuario">
+        Usuario
+      </label>
+      <select
+        id="login-usuario"
+        value={userId}
+        autoFocus={autoFocus}
+        onChange={(event) => {
+          setUserId(event.target.value);
+          setIntento({ fase: "reposo" });
+        }}
+        className="settings-input w-full"
+      >
+        {entrada.usuarios.map((usuario) => (
+          <option key={usuario.id} value={usuario.id}>
+            {usuario.nombre}
+          </option>
+        ))}
+      </select>
+
+      <label className="microlabel mt-4 mb-1.5 block" htmlFor="login-clave">
+        Clave
+      </label>
+      <div className="flex flex-col gap-2 sm:flex-row">
+        <input
+          id="login-clave"
+          type="password"
+          inputMode="numeric"
+          autoComplete="current-password"
+          value={pin}
+          placeholder="••••"
+          onChange={(event) => {
+            setPin(event.target.value);
+            setIntento({ fase: "reposo" });
+          }}
+          className="settings-input flex-1"
+        />
+        <button
+          type="submit"
+          disabled={entrando}
+          className="rounded-2xl bg-navy px-5 py-3 text-xs font-black whitespace-nowrap text-white transition-opacity active:opacity-80 disabled:opacity-60"
+        >
+          {entrando ? "Entrando…" : "Entrar"}
+        </button>
+      </div>
+
+      <div className="mt-3" aria-live="polite">
+        {intento.fase === "reposo" && (
+          <p className="text-[11px] text-faint">
+            La sesión se guarda solo en este navegador y dura 30 días.
+          </p>
+        )}
+        {entrando && <Aviso tono="neutral" texto="Comprobando con el servidor…" />}
+        {intento.fase === "error" && (
+          <Aviso tono="error" texto="No se pudo entrar" detalle={frase(intento.mensaje)} />
+        )}
+      </div>
+    </form>
+  );
+}
+
 /**
  * Pantalla completa cuando el hub no puede leer datos. Ocupa todo para que sea
- * imposible confundir "clave mal puesta" con "negocio sin conversaciones".
+ * imposible confundir "sin entrar" con "negocio sin conversaciones".
  */
 export function ConnectionGate({ estado }: { estado: Extract<EstadoConexion, "clave-invalida" | "sin-conexion"> }) {
-  const claveMala = estado === "clave-invalida";
+  const sinSesion = estado === "clave-invalida";
+  // Escotilla para el dueño y para los scripts: la ADMIN_KEY cruda sigue
+  // abriendo el hub. Sin esto, un servidor con los usuarios a medias dejaría
+  // fuera también a quien sí tiene la clave.
+  const [conClave, setConClave] = useState(false);
   return (
     <div
       className="fixed inset-0 z-50 grid place-items-center p-4"
       style={{ background: "var(--color-scrim)", backdropFilter: "blur(6px)" }}
       role="dialog"
       aria-modal="true"
-      aria-label="Conexión con el servidor"
+      aria-label="Acceso al hub"
     >
       <div
         className="w-full max-w-lg rounded-3xl p-6 shadow-pop sm:p-8"
@@ -184,18 +340,64 @@ export function ConnectionGate({ estado }: { estado: Extract<EstadoConexion, "cl
       >
         <p className="microlabel">Acceso al producto real</p>
         <h2 className="serif mt-2 text-2xl">
-          {claveMala ? "El hub está bloqueado" : "Sin conexión con el servidor"}
+          {sinSesion ? "Entra al hub" : "Sin conexión con el servidor"}
         </h2>
         <p className="mt-2.5 text-sm leading-relaxed text-muted">
-          {claveMala
-            ? "Las pantallas, los tickets y las fases se leen del servidor, y para eso hace falta la clave administrativa. Sin ella el hub se ve vacío aunque el panel tenga todas las fases encendidas."
-            : "La clave puede estar bien, pero el servidor no contestó. Cuando vuelva a responder, vuelve a conectar aquí."}
+          {sinSesion
+            ? "Los tickets, las métricas y las fases se leen del servidor. Elige tu usuario y escribe tu clave para verlos."
+            : "Tu sesión puede estar bien, pero el servidor no contestó. Cuando vuelva a responder, vuelve a entrar aquí."}
         </p>
-        <div className="mt-5">
-          <AdminKeyForm autoFocus />
-        </div>
+        <div className="mt-5">{conClave ? <AdminKeyForm autoFocus /> : <LoginForm autoFocus />}</div>
+        <button
+          type="button"
+          onClick={() => setConClave((valor) => !valor)}
+          className="mt-4 text-[11px] font-semibold text-faint underline underline-offset-2"
+        >
+          {conClave ? "Entrar con usuario y clave" : "Entrar con la clave administrativa"}
+        </button>
       </div>
     </div>
+  );
+}
+
+/**
+ * Quién está usando el hub, y la salida.
+ *
+ * El nombre no es adorno: en la tienda el panel se queda abierto en un
+ * computador compartido, y saber con qué usuario estás es lo que evita que
+ * alguien crea que "el sistema" hizo algo que hizo su compañero.
+ */
+export function UserChip({ nombre, onSalir }: { nombre: string; onSalir: () => void }) {
+  // En el teléfono solo el nombre de pila: el hub se usa como PWA en iPhone y
+  // ahí la barra no da para "Joaquin Tamayo" entero. Esconder el chip en móvil
+  // —que era lo primero que se hizo— dejaba a quien trabaja desde el celular
+  // sin saber con qué usuario está ni cómo salir.
+  const nombreDePila = nombre.split(" ")[0];
+  return (
+    <span
+      className="flex items-center gap-1.5 rounded-full py-1.5 pr-1.5 pl-2.5 text-[11px] font-semibold sm:gap-2 sm:pl-3"
+      style={{
+        background: "color-mix(in srgb, var(--color-paper) 8%, transparent)",
+        border: "1px solid var(--color-line)",
+      }}
+    >
+      <span className="max-w-[10rem] truncate">
+        <span className="sm:hidden">{nombreDePila}</span>
+        <span className="hidden sm:inline">{nombre}</span>
+      </span>
+      <button
+        type="button"
+        onClick={onSalir}
+        title={`Salir de la sesión de ${nombre}`}
+        className="rounded-full px-2.5 py-1 text-[10px] font-black tracking-wide uppercase transition-opacity active:opacity-70"
+        style={{
+          background: "color-mix(in srgb, var(--color-red) 14%, transparent)",
+          color: "var(--color-red)",
+        }}
+      >
+        Salir
+      </button>
+    </span>
   );
 }
 

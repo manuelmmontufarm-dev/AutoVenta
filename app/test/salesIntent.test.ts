@@ -4,6 +4,8 @@ import {
   extractExplicitQuantity,
   extractVehicleYear,
   hasExplicitQuantity,
+  pidePrecio,
+  pideRecomendacion,
   isComparisonRequest,
   isExplicitPurchaseConfirmation,
   isNegativeResponse,
@@ -119,5 +121,62 @@ describe("canGenerateFinalQuote: cotizar salvo comparación o negativa", () => {
     // comparedThisTurn: el cliente comparó en este mismo turno y ya dijo «dale»;
     // cotizar aquí pisaría la comparación que todavía no llegó a sus ojos.
     expect(canGenerateFinalQuote("dale", true, true)).toBe(false);
+  });
+});
+
+/**
+ * De estos dos depende que el turno de opciones entregue la recomendación en
+ * vez de preguntar si el cliente la quiere. El guardián marcó ese «ignora la
+ * pregunta» 16 veces en 7 días (convs 6559, 6505, 6507, 6525), así que un falso
+ * negativo aquí devuelve el error y un falso positivo adelanta la recomendación
+ * cuando nadie la pidió.
+ */
+describe("el cliente ya preguntó por el precio", () => {
+  it("reconoce cómo pide precio la gente en WhatsApp", () => {
+    for (const texto of [
+      "a cómo la Kenda?",
+      "cuánto sale el juego",
+      "cuánto me sale por 4",
+      "cuánto cuesta",
+      "qué precio tiene",
+      "precios por favor",
+      "cotíceme esas dos",
+      "me da el valor",
+    ]) {
+      expect(pidePrecio(texto), texto).toBe(true);
+    }
+  });
+
+  it("no confunde con mensajes que no piden plata", () => {
+    for (const texto of [
+      "tengo una Dmax 2019",
+      "205/55R16",
+      "el lunes paso por Quito Sur",
+      "cuánto dura la Falken",
+      "gracias, ahí le aviso",
+    ]) {
+      expect(pidePrecio(texto), texto).toBe(false);
+    }
+  });
+});
+
+describe("el cliente ya pidió que le recomienden", () => {
+  it("reconoce la pregunta por la recomendación", () => {
+    for (const texto of [
+      "cuál me recomienda",
+      "qué me recomienda para carretera",
+      "cuál es mejor",
+      "cuál me conviene",
+      "usted qué me aconseja",
+      "cuál me llevo",
+    ]) {
+      expect(pideRecomendacion(texto), texto).toBe(true);
+    }
+  });
+
+  it("no se dispara con una confirmación cualquiera", () => {
+    for (const texto of ["dale", "sí, esa misma", "la Kenda", "205/55R16"]) {
+      expect(pideRecomendacion(texto), texto).toBe(false);
+    }
   });
 });

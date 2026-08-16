@@ -121,8 +121,12 @@ export async function enviarReporteDiario(input: { ahora?: Date; forzar?: boolea
     if (!await reclamarDia(reporte.diaClave)) return { enviado: false, motivo: "Otro proceso ya tomó el reporte de hoy" };
   }
 
-  const destinatarios = await asesoresActivos();
-  if (!destinatarios.length) return { enviado: false, motivo: "No hay asesores activos configurados" };
+  // Solo administradores. El reporte es una foto del negocio para quien lo
+  // dirige; al asesor de local le llegaban veinte líneas de números que no
+  // acciona y un PDF de varias páginas todas las noches a las ocho (pedido
+  // explícito de la reunión del 14-ago: «nada de daily reports»).
+  const destinatarios = await asesoresActivos({ rol: "admin" });
+  if (!destinatarios.length) return { enviado: false, motivo: "No hay administradores activos configurados" };
 
   const texto = textoDelReporte(reporte);
   // El PDF se arma una vez para todos: es el mismo archivo y renderizarlo por

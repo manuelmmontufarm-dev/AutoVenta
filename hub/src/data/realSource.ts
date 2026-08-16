@@ -18,6 +18,7 @@ import type {
 } from "./types";
 
 const ADMIN_KEY_STORAGE = "autoventa_admin_key";
+const SESSION_STORAGE = "autoventa_session_v1";
 
 export function getStoredAdminKey(): string {
   return window.localStorage.getItem(ADMIN_KEY_STORAGE) ?? "";
@@ -27,6 +28,144 @@ export function saveStoredAdminKey(value: string): void {
   const key = value.trim();
   if (key) window.localStorage.setItem(ADMIN_KEY_STORAGE, key);
   else window.localStorage.removeItem(ADMIN_KEY_STORAGE);
+}
+
+// ── Sesión (usuario + permisos) ──────────────────────────────────────────────
+
+export type RolUsuario = "admin" | "asesor";
+
+export interface UsuarioSesion {
+  id: string;
+  nombre: string;
+  rol: RolUsuario;
+}
+
+/**
+ * Qué puede ver este usuario. Hoy el servidor manda todo en `true`; las
+ * pantallas ya pueden leerlo para el día que se diferencie de verdad.
+ */
+export interface Permisos {
+  verInbox: boolean;
+  verKanban: boolean;
+  verOportunidades: boolean;
+  verMetricas: boolean;
+  verFinanzas: boolean;
+  usarCotizador: boolean;
+  verAjustes: boolean;
+  verErrores: boolean;
+}
+
+export interface Sesion {
+  token: string;
+  user: UsuarioSesion;
+  permisos: Permisos;
+}
+
+/** Permisos de respaldo mientras no hay sesión (entrada por clave cruda). */
+export const PERMISOS_ABIERTOS: Permisos = {
+  verInbox: true,
+  verKanban: true,
+  verOportunidades: true,
+  verMetricas: true,
+  verFinanzas: true,
+  usarCotizador: true,
+  verAjustes: true,
+  verErrores: true,
+};
+
+export function getSesion(): Sesion | null {
+  try {
+    const crudo = window.localStorage.getItem(SESSION_STORAGE);
+    if (!crudo) return null;
+    const s = JSON.parse(crudo) as Partial<Sesion>;
+    if (!s.token || !s.user?.id) return null;
+    return {
+      token: s.token,
+      user: s.user as UsuarioSesion,
+      permisos: { ...PERMISOS_ABIERTOS, ...(s.permisos ?? {}) },
+    };
+  } catch {
+    return null;
+  }
+}
+
+export function guardarSesion(sesion: Sesion): void {
+  window.localStorage.setItem(SESSION_STORAGE, JSON.stringify(sesion));
+}
+
+export function cerrarSesion(): void {
+  window.localStorage.removeItem(SESSION_STORAGE);
+}
+
+/**
+ * Con qué se autentica cada petición del hub.
+ *
+ * La sesión manda; la clave cruda sigue valiendo mientras el usuario no haya
+ * entrado ni una vez (migración: quien ya tenía el hub abierto no se encuentra
+ * con la puerta cerrada al desplegar esto).
+ */
+export function authHeaders(): Record<string, string> {
+  const sesion = getSesion();
+  if (sesion) return { Authorization: `Bearer ${sesion.token}` };
+  const key = getStoredAdminKey();
+  return key ? { "x-admin-key": key } : {};
+}
+
+export interface UsuarioDisponible {
+  id: string;
+  nombre: string;
+  rol: RolUsuario;
+}
+
+/** Lista para el desplegable del login. Ruta pública: no necesita clave. */
+export async function listarUsuarios(): Promise<UsuarioDisponible[]> {
+  const r = await fetch("/api/auth/users");
+  if (!r.ok) throw new Error(`El servidor respondió ${r.status}`);
+  const data = (await r.json()) as { users?: UsuarioDisponible[] };
+  return data.users ?? [];
+}
+
+export type ResultadoLogin =
+  | { estado: "dentro"; sesion: Sesion }
+  | { estado: "rechazado"; mensaje: string }
+  | { estado: "sin-conexion"; mensaje: string };
+
+/** Entra con usuario + clave y deja la sesión guardada en este navegador. */
+export async function iniciarSesion(userId: string, pin: string): Promise<ResultadoLogin> {
+  if (!userId) return { estado: "rechazado", mensaje: "Elige tu usuario." };
+  if (!pin.trim()) return { estado: "rechazado", mensaje: "Escribe la clave." };
+  try {
+    const r = await fetch("/api/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId, pin }),
+    });
+    const data = (await r.json().catch(() => ({}))) as Partial<Sesion> & { error?: string };
+    if (r.status === 401) {
+      return { estado: "rechazado", mensaje: data.error ?? "Usuario o clave incorrectos." };
+    }
+    if (!r.ok || !data.token || !data.user) {
+      return {
+        estado: "sin-conexion",
+        mensaje: data.error ?? `El servidor respondió ${r.status}.`,
+      };
+    }
+    const sesion: Sesion = {
+      token: data.token,
+      user: data.user as UsuarioSesion,
+      permisos: { ...PERMISOS_ABIERTOS, ...(data.permisos ?? {}) },
+    };
+    guardarSesion(sesion);
+    // La clave cruda deja de hacer falta en cuanto hay sesión: dejarla ahí solo
+    // sería un segundo camino de entrada que nadie recuerda haber abierto.
+    saveStoredAdminKey("");
+    return { estado: "dentro", sesion };
+  } catch (error) {
+    return {
+      estado: "sin-conexion",
+      mensaje: error instanceof Error ? error.message : "No se pudo contactar el servidor.",
+    };
+  }
 }
 
 /**
@@ -360,8 +499,7 @@ export class RealSource implements DataSource {
   }
 
   private authHeaders(): Record<string, string> {
-    const key = getStoredAdminKey();
-    return key ? { "x-admin-key": key } : {};
+    return authHeaders();
   }
 
   private async readEventStream(signal: AbortSignal): Promise<void> {

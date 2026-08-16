@@ -103,9 +103,23 @@ import {
 } from "../services/channel.js";
 import { diagnoseChannel } from "../services/channelDiagnostics.js";
 import { getBotPower, setBotPower } from "../services/botPower.js";
-import { avisarAsesoresGlobal, mensajeCambioDeBot } from "../services/advisorNotifications.js";
+import {
+  avisarAsesoresGlobal,
+  esRolAsesor,
+  mensajeCambioDeBot,
+} from "../services/advisorNotifications.js";
 import { sendImage, reloadWa } from "../wa/client.js";
 import { registrarEnviado } from "../wa/outboundRegistry.js";
+import {
+  SESIONES_HABILITADAS,
+  crearToken,
+  listarUsuarios,
+  permisosDe,
+  pinValido,
+  tokenDelHeader,
+  usuarioPorId,
+  verificarToken,
+} from "./auth.js";
 
 const GRAPH = "https://graph.facebook.com/v21.0";
 const ADMIN_KEY = process.env.ADMIN_KEY ?? "";
@@ -143,6 +157,17 @@ const OptionsSchema = z.object({
   items: z.array(z.object({ id: z.string().min(1).max(80) })).min(1).max(60),
   style: z.enum(["customer", "distributor"]).default("customer"),
   customerName: z.string().max(120).default("Cliente"),
+});
+
+/**
+ * Como `OptionsSchema`, pero para la pieza visual: la pieza agrupa por marca y
+ * dibuja como mucho 3 tarjetas por marca, así que aceptar 60 solo significaría
+ * renderizar de más para tirar el resto. `medidaPedida` es lo que el usuario
+ * buscó en el Cotizador — con ella cada tarjeta lleva su sello.
+ */
+const OptionsImageSchema = z.object({
+  items: z.array(z.object({ id: z.string().min(1).max(80) })).min(1).max(24),
+  medidaPedida: z.string().max(40).optional(),
 });
 
 const QuoteSchema = z.object({
@@ -224,7 +249,7 @@ export function createAdminRouter(): express.Router {
   // x-admin-key; el preflight OPTIONS va ANTES del gate para no rebotar.
   router.use((req, res, next) => {
     res.header("Access-Control-Allow-Origin", PANEL_ORIGIN);
-    res.header("Access-Control-Allow-Headers", "Content-Type, x-admin-key");
+    res.header("Access-Control-Allow-Headers", "Content-Type, x-admin-key, Authorization");
     res.header("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS");
     res.header("Vary", "Origin");
     if (req.method === "OPTIONS") {
@@ -240,8 +265,58 @@ export function createAdminRouter(): express.Router {
     );
   }
 
+  // ── Login ───────────────────────────────────────────────────────────────────
+  // Las dos ÚNICAS rutas públicas, y van antes del gate a propósito: pedir la
+  // lista de usuarios o intentar entrar son justo lo que se hace cuando todavía
+  // no se tiene con qué autenticarse.
+
+  /** Nombres para el desplegable del login. Nunca devuelve claves. */
+  router.get("/auth/users", (_req, res) => {
+    res.json({ ok: true, users: listarUsuarios() });
+  });
+
+  router.post("/auth/login", (req, res) => {
+    if (!SESIONES_HABILITADAS) {
+      res.status(503).json({
+        ok: false,
+        error: "Este servidor no tiene ADMIN_KEY configurada: no puede firmar sesiones.",
+      });
+      return;
+    }
+    const input = z
+      .object({ userId: z.string().min(1).max(40), pin: z.string().min(1).max(60) })
+      .safeParse(req.body);
+    if (!input.success) {
+      res.status(400).json({ ok: false, error: "Elige un usuario y escribe la clave." });
+      return;
+    }
+    const usuario = usuarioPorId(input.data.userId);
+    // Mismo mensaje para usuario inexistente y clave mala: no hace falta
+    // confirmarle a nadie cuáles de los cuatro nombres existen.
+    if (!usuario || !pinValido(input.data.pin)) {
+      res.status(401).json({ ok: false, error: "Usuario o clave incorrectos." });
+      return;
+    }
+    res.json({
+      ok: true,
+      token: crearToken(usuario.id),
+      user: usuario,
+      permisos: permisosDe(usuario.rol),
+    });
+  });
+
   router.use((req, res, next) => {
+    // La sesión va primero: si trae un token válido, entra sea cual sea el
+    // estado de la clave, y el rol queda disponible para el resto del router.
+    const token = tokenDelHeader(req.header("authorization"));
+    const usuario = token ? verificarToken(token) : null;
+    if (usuario) {
+      req.usuario = usuario;
+      return next();
+    }
     if (ADMIN_KEY) {
+      // Compatibilidad: el bot, los scripts y el panel central siguen mandando
+      // la clave cruda y no tienen por qué enterarse de que existen usuarios.
       if (req.header("x-admin-key") === ADMIN_KEY) return next();
       res.status(401).json({ ok: false, error: "Clave de administración requerida" });
       return;
@@ -259,13 +334,16 @@ export function createAdminRouter(): express.Router {
   });
 
   // Estado general: las páginas lo usan para validar la clave y prellenar datos.
-  router.get("/status", (_req, res) => {
+  router.get("/status", (req, res) => {
     res.json({
       ok: true,
       negocio: business.name,
       protegido: Boolean(ADMIN_KEY),
       telefonoVendedor: config.whatsapp.sellerPhone,
       asesor: config.whatsapp.sellerName,
+      // null cuando se entró con la clave cruda (bot, scripts, panel central).
+      usuario: req.usuario ?? null,
+      permisos: req.usuario ? permisosDe(req.usuario.rol) : null,
     });
   });
 
@@ -1046,6 +1124,112 @@ export function createAdminRouter(): express.Router {
     }
   });
 
+  // ── Piezas del Cotizador (PNG) ──────────────────────────────────────────────
+  //
+  // El hub las dibujaba por su cuenta con un canvas propio, y ese canvas se
+  // quedó en el diseño viejo (azul marino, sin garantías grandes, sin sello de
+  // medida) mientras el bot ya mandaba el nuevo: en la demo del 14-ago Andrés
+  // vio dos piezas distintas para lo mismo. Ahora hay UN solo renderizador —
+  // este, el del bot— y el hub solo descarga lo que aquí sale.
+
+  /** Tema (paleta, fuente y perfiles de marca) tal como lo usa el bot. */
+  async function temaDePiezas() {
+    return { ...(await getPiecesConfig()), brandProfiles: await brandProfilesForRender() };
+  }
+
+  function fechaDePieza(): string {
+    return new Date().toLocaleDateString("es-EC", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      timeZone: "America/Guayaquil",
+    });
+  }
+
+  function enviarPng(res: express.Response, png: Buffer, filename: string): void {
+    res
+      .status(200)
+      .type("image/png")
+      .setHeader("Content-Disposition", `attachment; filename="${filename}"`)
+      .send(png);
+  }
+
+  router.post("/catalog/options-image", async (req, res) => {
+    try {
+      await ensureCatalogReady();
+      const input = OptionsImageSchema.parse(req.body);
+      const products = resolveCatalogProducts(input.items.map(({ id }) => id));
+      // El rótulo de medida solo se pone cuando TODAS son la misma: con un
+      // grupo mezclado, poner la medida de la primera es falso para las otras.
+      const medidas = new Set(products.map((p) => p.sizeLabel).filter(Boolean));
+      const png = await renderOptionsImage({
+        dateLabel: fechaDePieza(),
+        sizeLabel: medidas.size === 1 ? (products[0]?.sizeLabel ?? null) : null,
+        // La medida buscada en el Cotizador es la que pidió el cliente: con
+        // ella cada tarjeta sale sellada como exacta o como equivalente.
+        medidaPedida: input.medidaPedida?.trim() || null,
+        products: await Promise.all(products.map((p) => toRenderLine(p))),
+        ...(await temaDePiezas()),
+      });
+      enviarPng(res, png, `Opciones-${business.name.replace(/\s/g, "")}.png`);
+    } catch (error) {
+      res.status(400).json({ ok: false, error: mensaje(error, "No se pudo dibujar las opciones") });
+    }
+  });
+
+  router.post("/catalog/compare-image", async (req, res) => {
+    try {
+      await ensureCatalogReady();
+      const input = CompareSchema.parse(req.body);
+      const products = resolveCatalogProducts(input.items.map(({ id }) => id));
+      const png = await renderCompareImage({
+        dateLabel: fechaDePieza(),
+        sizeLabel: products[0]?.sizeLabel ?? null,
+        products: await Promise.all(products.map((p) => toRenderLine(p))),
+        ...(await temaDePiezas()),
+      });
+      enviarPng(res, png, `Comparativa-${business.name.replace(/\s/g, "")}.png`);
+    } catch (error) {
+      res.status(400).json({ ok: false, error: mensaje(error, "No se pudo dibujar la comparativa") });
+    }
+  });
+
+  router.post("/catalog/quote-image", async (req, res) => {
+    try {
+      await ensureCatalogReady();
+      const input = QuoteSchema.parse(req.body);
+      const [selection] = resolveCatalogSelections([input.item]);
+      const { product, quantity } = selection;
+      // Mismos números que el PDF: se arma la cotización con el mismo builder
+      // para que la imagen y el PDF de la misma selección nunca discrepen.
+      const quote = buildQuote(
+        [
+          {
+            code: product.code,
+            description: `${product.brand} ${product.design} ${product.sizeLabel ?? product.name}`,
+            quantity,
+            unitPrice: product.minimumPriceWithTax / (1 + product.taxRate),
+          },
+        ],
+        input.customerName,
+        input.customerPhone,
+      );
+      const png = await renderQuoteImage({
+        number: quote.number,
+        dateLabel: fechaDePieza(),
+        lines: [await toRenderLine(product, quantity)],
+        subtotal: quote.subtotal,
+        iva: quote.tax,
+        total: quote.total,
+        benefits: await applicableBenefitTexts({ brands: [product.brand] }),
+        ...(await temaDePiezas()),
+      });
+      enviarPng(res, png, `Cotizacion-${business.name.replace(/\s/g, "")}-${quote.number}.png`);
+    } catch (error) {
+      res.status(400).json({ ok: false, error: mensaje(error, "No se pudo dibujar la cotización") });
+    }
+  });
+
   router.post("/catalog/compare-pdf", async (req, res) => {
     try {
       await ensureCatalogReady();
@@ -1353,10 +1537,22 @@ export function createAdminRouter(): express.Router {
 
   router.get("/advisors", async (_req, res) => {
     const asesores = await sql<
-      { id: number; nombre: string; telefono: string; prioridad: number; active: boolean }[]
-    >`select id, nombre, telefono, prioridad, active from advisors order by prioridad, id`;
+      { id: number; nombre: string; telefono: string; prioridad: number; active: boolean; rol: string }[]
+    >`select id, nombre, telefono, prioridad, active, rol from advisors order by prioridad, id`;
     res.json({ ok: true, asesores });
   });
+
+  /**
+   * Un rol que no existe dejaría al asesor sin ningún aviso —el filtro no lo
+   * reconocería ni como admin ni como asesor— y nadie se enteraría hasta que un
+   * cliente se quedara sin atender. Se rechaza aquí, con nombre y apellido, en
+   * vez de dejar que reviente el check de la base con un error de Postgres.
+   */
+  const rolPedido = (valor: unknown): string | null => {
+    if (valor === undefined || valor === null || valor === "") return null;
+    if (!esRolAsesor(valor)) throw new Error("El rol debe ser 'admin' o 'asesor'");
+    return valor;
+  };
 
   router.post("/advisors", async (req, res) => {
     try {
@@ -1366,13 +1562,16 @@ export function createAdminRouter(): express.Router {
       if (!nombre || telefono.length < 8) {
         return res.status(400).json({ ok: false, error: "Hace falta nombre y un teléfono con código de país" });
       }
+      // Sin rol explícito entra como `admin`: es el default de la columna y el
+      // nivel que tenía todo el mundo antes de que existieran los roles.
+      const rol = rolPedido(req.body?.rol) ?? "admin";
       const [asesor] = await sql`
-        insert into advisors (nombre, telefono, prioridad, active)
-        values (${nombre}, ${telefono}, ${Number(req.body?.prioridad) || 10}, true)
+        insert into advisors (nombre, telefono, prioridad, active, rol)
+        values (${nombre}, ${telefono}, ${Number(req.body?.prioridad) || 10}, true, ${rol})
         on conflict (telefono) do update set
           nombre = excluded.nombre, prioridad = excluded.prioridad,
-          active = true, updated_at = now()
-        returning id, nombre, telefono, prioridad, active
+          active = true, rol = excluded.rol, updated_at = now()
+        returning id, nombre, telefono, prioridad, active, rol
       `;
       res.json({ ok: true, asesor });
     } catch (error) {
@@ -1382,14 +1581,21 @@ export function createAdminRouter(): express.Router {
 
   router.patch("/advisors/:id", async (req, res) => {
     const campos = req.body ?? {};
+    let rol: string | null;
+    try {
+      rol = rolPedido(campos.rol);
+    } catch (error) {
+      return res.status(400).json({ ok: false, error: mensaje(error, "Rol inválido") });
+    }
     const [asesor] = await sql`
       update advisors set
         nombre = coalesce(${campos.nombre ?? null}, nombre),
         prioridad = coalesce(${campos.prioridad ?? null}::int, prioridad),
         active = coalesce(${campos.active ?? null}::boolean, active),
+        rol = coalesce(${rol}, rol),
         updated_at = now()
       where id = ${Number(req.params.id)}
-      returning id, nombre, telefono, prioridad, active
+      returning id, nombre, telefono, prioridad, active, rol
     `;
     if (!asesor) return res.status(404).json({ ok: false, error: "Asesor no encontrado" });
     res.json({ ok: true, asesor });

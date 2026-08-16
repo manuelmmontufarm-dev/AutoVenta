@@ -29,6 +29,7 @@ import {
   renderQuotePdf,
 } from "../services/quotePdf.js";
 import {
+  buildCierreOpciones,
   buildComparisonCaption,
   buildComparisonMessageDetallado,
   buildCustomerOptionsMessageDetallado,
@@ -37,7 +38,6 @@ import {
   buildVisitDayQuestion,
   buildVisitPlanQuestion,
   composeBlocks,
-  PREGUNTA_RECOMENDACION,
   warrantyForBrand,
 } from "../services/quoteMessages.js";
 import {
@@ -62,7 +62,7 @@ import { arosDeCandidatos, arosDeMedidas, invitacionPorAroAmbiguo } from "../dom
 import { rangoDeAros } from "../domain/aros.js";
 import { nearestStore, resolveSector } from "../domain/locations.js";
 import { extractFlotationSizes, formatFlotationSize, formatTireSize, parseTireSize, type TireSize } from "../domain/tireSize.js";
-import { canGenerateFinalQuote } from "../domain/salesIntent.js";
+import { canGenerateFinalQuote, pidePrecio, pideRecomendacion } from "../domain/salesIntent.js";
 import { getTirePatternProfile } from "../domain/tireKnowledge.js";
 import {
   catalogoDeTipos, escalonDeMarca, infoTipo, normalizarTipo, ordenDeMarca, tipoDeProducto,
@@ -946,7 +946,7 @@ export function buildTools(ctx: AgentContext) {
   const prepararOpciones = defineTool({
     name: "preparar_opciones",
     description:
-      "Envía la imagen de opciones al cliente y devuelve el texto corto que la acompaña. Úsala después de confirmar la medida. Manda como máximo TRES: una premium, una de equilibrio y una económica — más opciones confunden y bajan el cierre. Elige UNA como recomendación con un motivo concreto, pero NO se la mandas ahora: el texto cierra ofreciéndola y tú la das en una frase solo si el cliente dice que sí. Responde con el texto que devuelve, sin reescribir precios.",
+      "Envía la imagen de opciones al cliente y devuelve el texto corto que la acompaña. Úsala después de confirmar la medida. Manda como máximo TRES: una premium, una de equilibrio y una económica — más opciones confunden y bajan el cierre. Elige UNA como recomendación con un motivo concreto: la herramienta decide sola si el texto la ofrece o ya se la entrega (se la entrega cuando el cliente pidió precio o pidió que le recomienden). Responde con el texto que devuelve, sin reescribir precios.",
     schema: z.object({
       codes: z.array(z.string().min(1)).min(1).max(6),
       nombre_cliente: z.string().default("Cliente"),
@@ -954,14 +954,14 @@ export function buildTools(ctx: AgentContext) {
         .string()
         .min(1)
         .describe(
-          "Código de la opción que TÚ recomiendas, de entre las de codes. Queda guardada para cuando el cliente pida la recomendación; no se envía en este turno.",
+          "Código de la opción que TÚ recomiendas, de entre las de codes. Se entrega en este turno si el cliente ya pidió precio o recomendación; si no, queda guardada para cuando la pida.",
         ),
       motivo: z
         .string()
         .min(8)
         .max(140)
         .describe(
-          "Una sola frase de por qué esa: el criterio real (uso, duración, precio). Sin inventar ventajas técnicas no verificadas. Es lo que dirás si el cliente pide la recomendación.",
+          "Una sola frase de por qué esa: el criterio real (uso, duración, precio). Sin inventar ventajas técnicas no verificadas. Es lo que acompaña a la recomendación cuando se entrega.",
         ),
     }),
     run: async ({ codes, nombre_cliente, recomendado, motivo }) => {
@@ -1151,22 +1151,37 @@ export function buildTools(ctx: AgentContext) {
         { brands: products.map((product) => product.brand) },
         requestsBenefitsAgain(ctx.currentUserText),
       );
+      // Si el cliente ya preguntó el precio o cuál le conviene, la
+      // recomendación se entrega en este mismo turno. Cerrar con «¿Necesita
+      // alguna recomendación?» después de esa pregunta es devolvérsela.
+      const entregarRecomendacion =
+        pidePrecio(ctx.currentUserText) || pideRecomendacion(ctx.currentUserText);
+      const recomendacion = `${recommended.brand} ${recommended.design}`;
+      const motivoLimpio = motivo.trim().replace(/\.$/, "");
       return JSON.stringify({
         imagen_enviada: visual.ok,
         ...(avisoTipo ? { aviso: avisoTipo } : {}),
         ...(avisoMedida ? { aviso_medida: avisoMedida } : {}),
         medidas_mostradas: medidasMostradas,
-        recomendacion: `${recommended.brand} ${recommended.design}`,
-        motivo_recomendacion: motivo.trim().replace(/\.$/, ""),
+        recomendacion,
+        motivo_recomendacion: motivoLimpio,
+        recomendacion_entregada: entregarRecomendacion,
         mensaje_para_enviar: composeBlocks(
           (await usarCaptionCorto(visual.ok))
             ? null
             : buildCustomerOptionsMessageDetallado(products, nombre_cliente),
           beneficios,
-          PREGUNTA_RECOMENDACION,
+          buildCierreOpciones({
+            entregarRecomendacion,
+            recomendacion,
+            motivo: motivoLimpio,
+          }),
         ),
         regla: [
-          "Responde usando exactamente mensaje_para_enviar, con sus separadores '---' intactos. No sumes alternativas ni repitas en texto lo que ya muestra la imagen. NO adelantes la recomendación en este turno: el texto ya la ofrece. Si el cliente responde que sí, recién ahí dile en UNA frase que irías por `recomendacion` porque `motivo_recomendacion`.",
+          "Responde usando exactamente mensaje_para_enviar, con sus separadores '---' intactos. No sumes alternativas ni repitas en texto lo que ya muestra la imagen.",
+          entregarRecomendacion
+            ? "El cliente YA pidió precio o recomendación, así que el texto YA se la da y ofrece cotizarla: no vuelvas a preguntarle si necesita una recomendación. Si contesta cualquier cosa que no sea un no, cotiza `recomendacion` por 4 con generar_cotizacion."
+            : "NO adelantes la recomendación en este turno: el texto ya la ofrece. Si el cliente responde que sí, recién ahí dile en UNA frase que irías por `recomendacion` porque `motivo_recomendacion`.",
           // La única excepción a «no agregues texto»: avisar que la medida no
           // es la suya. Callarlo es lo que terminó en una cotización firmada
           // por otra medida (5499).
@@ -1321,6 +1336,14 @@ export function buildTools(ctx: AgentContext) {
         .describe("true SOLO si el cliente pidió explícitamente el PDF/documento"),
     }),
     run: async ({ items, nombre_cliente, incluir_pdf = false }) => {
+      // El local ya elegido manda en TODAS las preguntas de visita de esta
+      // herramienta: re-preguntarlo es el hallazgo «re-pregunta» que el Ángel
+      // Guardián corrigió 4 veces el 15-ago (convs 6275 y 6375) — y el texto
+      // salía fijo de aquí, así que el arreglo va aquí y no en el prompt.
+      const [datosVisita] = await sql<{ nearest_store: string | null }[]>`
+        select nearest_store from conversations where id=${ctx.conversation.id}
+      `;
+      const localElegido = datosVisita?.nearest_store ?? null;
       // Candado anti-duplicado (caso KLEVER, 5-ago: dos números de cotización
       // para la misma compra en 10 minutos). Determinístico: si YA existe una
       // cotización reciente por el MISMO producto y cantidad, no se genera
@@ -1338,7 +1361,11 @@ export function buildTools(ctx: AgentContext) {
           && lineasPrevias.every((l, i) => l.code === items[i]?.code && l.quantity === items[i]?.cantidad);
         if (mismoPedido) {
           return JSON.stringify({
-          mensaje_para_enviar: `Su cotización sigue vigente por $${Number(reciente.total).toFixed(2)} 👍\n---\n¿Le queda mejor Cumbayá o Quito Sur para pasar a verlas?`,
+          mensaje_para_enviar: `Su cotización sigue vigente por $${Number(reciente.total).toFixed(2)} 👍\n---\n${
+            localElegido
+              ? `¿Qué día le queda bien pasar por *${localElegido}* a verlas?`
+              : "¿Le queda mejor Cumbayá o Quito Sur para pasar a verlas?"
+          }`,
           });
         }
       }
@@ -1663,10 +1690,12 @@ export function buildTools(ctx: AgentContext) {
           `Puede pasar sin compromiso a verlas y probarlas en su vehículo.\n${buildVisitPlanQuestion({
             conDescuentoAutorizado: Boolean(activeDiscount),
             locales: business.stores.map((store) => store.name),
+            localElegido,
           })}`,
         ),
-        regla:
-          "Responde exactamente con mensaje_para_enviar, con sus separadores '---' intactos. La cotización ya fue enviada y Manuel ya fue notificado. A partir de ahora tu objetivo es UNO: que el cliente diga qué día viene y a cuál local. No cierres ningún turno sin esa pregunta hasta tener las dos respuestas.",
+        regla: localElegido
+          ? `Responde exactamente con mensaje_para_enviar, con sus separadores '---' intactos. La cotización ya fue enviada y Manuel ya fue notificado. El cliente YA eligió local (${localElegido}): NO vuelvas a preguntarle cuál. Tu objetivo es UNO: que diga qué día viene. No cierres ningún turno sin esa pregunta hasta tener la respuesta.`
+          : "Responde exactamente con mensaje_para_enviar, con sus separadores '---' intactos. La cotización ya fue enviada y Manuel ya fue notificado. A partir de ahora tu objetivo es UNO: que el cliente diga qué día viene y a cuál local. No cierres ningún turno sin esa pregunta hasta tener las dos respuestas.",
       });
     },
   });

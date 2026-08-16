@@ -25,6 +25,34 @@ export function isNegativeResponse(text: string): boolean {
   ) && !/\bno\s+(?:hay\s+)?problema\b/.test(normalized);
 }
 
+/**
+ * El cliente preguntó por plata. Existe porque el turno de `preparar_opciones`
+ * cerraba SIEMPRE con «¿Necesita alguna recomendación?», también cuando lo que
+ * el cliente acababa de escribir era «¿a cómo la Kenda?» — el guardián lo marcó
+ * como «ignora la pregunta» en las convs 6559, 6505, 6507 y 6525 del 15-ago.
+ * Devolver una pregunta por respuesta a una pregunta es lo que hace que el
+ * cliente deje de contestar.
+ */
+export function pidePrecio(text: string): boolean {
+  const normalized = normalize(text);
+  // `coti[cz]` cubre la conjugación entera sin listarla: cotizar, cotización,
+  // cotizo y el «cotíceme» que escribe medio Quito.
+  return /\b(?:precios?|valor|presupuesto|coti[cz]\w*)\b|\ba\s+como\b|\bcuanto\s+(?:sale|cuesta|vale|esta|seria|me\s+(?:sale|cuesta|queda))\b|\bque\s+precio\b/.test(
+    normalized,
+  );
+}
+
+/**
+ * El cliente pidió que le recomienden. Misma historia: si él ya preguntó cuál
+ * le conviene, ofrecerle una recomendación es repetirle la pregunta.
+ */
+export function pideRecomendacion(text: string): boolean {
+  const normalized = normalize(text);
+  return /\brecomien\w*|\brecomend\w*|\baconsej\w*|\bsugier\w*|\bcual\s+(?:es\s+(?:la\s+)?mejor|me\s+conviene|seria\s+(?:la\s+)?mejor|me\s+llevo|escojo|elijo)\b|\bque\s+me\s+conviene\b/.test(
+    normalized,
+  );
+}
+
 export function hasExplicitQuantity(text: string): boolean {
   return extractExplicitQuantity(text) !== null;
 }

@@ -34,8 +34,11 @@ import { config } from "../config.js";
 import { sql } from "../db/client.js";
 import type { Stage } from "../domain/pipeline.js";
 import { medidasPermitidas } from "../domain/medidaPedida.js";
+import { respaldoCompleto } from "../domain/respaldoMarcas.js";
 import { logAiRun } from "./conversations.js";
+import { crearAlertaRepeticion } from "./conversationQuality.js";
 import { createBotAlert } from "./followUps.js";
+import { getActiveBenefits } from "./benefits.js";
 import { getGuardianConfig } from "./settings.js";
 
 const openai = new OpenAI({ apiKey: config.openai.apiKey });
@@ -56,6 +59,15 @@ export const CATEGORIAS = [
   "tono",
   "otro",
 ] as const;
+
+/**
+ * Categorías que NO generan aviso en el tab de Errores, por más alta que sea la
+ * severidad. No es que no importen: es que no son «mira este chat ahora», y una
+ * alerta que no pide acción entrena al asesor a ignorar las que sí la piden.
+ * Siguen contadas en el informe (`/api/guardian/informe`), que es donde se
+ * atacan las causas.
+ */
+const CATEGORIAS_SIN_ALERTA = new Set<string>(["tono", "otro"]);
 
 const HallazgoSchema = z.object({
   categoria: z.enum(CATEGORIAS),
@@ -122,7 +134,8 @@ REVISA, en este orden de gravedad:
 6. REPETICIÓN: bloques, frases o preguntas calcadas de mensajes anteriores del bot.
 7. TONO: trato de «usted» consistente, sin saludos a mitad de conversación, sin muletillas robóticas.
 8. LO QUE EL BOT HIZO vs LO QUE DICE. Si te doy la sección de herramientas del turno, el borrador debe ser consistente con ella: si una búsqueda devolvió opciones que el borrador niega u omite, o si la búsqueda usó un texto visiblemente distinto a lo que el cliente pidió, es error ALTO — corrige usando SOLO lo que la herramienta devolvió.
-9. UNA NEGATIVA TIENE QUE SER ESPECÍFICA Y VENIR CON LA ALTERNATIVA. Decir «no tenemos» a secas es un error ALTO: deja al cliente sin salida y no es lo que dicen los datos. Cuando la búsqueda no encontró el modelo exacto, la herramienta devuelve qué SÍ hay en esa medida ("en_esa_medida") y en qué medidas SÍ existe ese modelo ("ese_modelo_en_otras_medidas"); el borrador debe usar eso: «esa no la manejo en su medida, pero en 265/70R17 tengo estas», o «esa la manejo en 215/65R17 y 225/65R17». Solo cuando NO hay nada en ninguna de las dos listas vale un «no lo manejamos», y aun así tiene que ofrecer el siguiente paso (buscar por vehículo o por aro). Si la herramienta reportó el catálogo caído o vacío, NINGUNA negativa es válida: no se puede afirmar que algo no existe sin catálogo.
+9. PROMESAS DE SERVICIO. Todo lo que el borrador presente como incluido (mantenimiento, rotación, alineación, revisiones, su periodicidad en km o meses) tiene que estar respaldado por la lista de «servicios y beneficios respaldados» del contexto. Prometer un servicio o una periodicidad que NO está en esa lista es error ALTO: lo cobra el local y lo reclama el cliente. Corrige dejando solo lo que sí está. Al revés también cuenta: si el borrador promete algo que SÍ está en la lista, no lo toques — quitar un beneficio real cuesta la venta.
+10. UNA NEGATIVA TIENE QUE SER ESPECÍFICA Y VENIR CON LA ALTERNATIVA. Decir «no tenemos» a secas es un error ALTO: deja al cliente sin salida y no es lo que dicen los datos. Cuando la búsqueda no encontró el modelo exacto, la herramienta devuelve qué SÍ hay en esa medida ("en_esa_medida") y en qué medidas SÍ existe ese modelo ("ese_modelo_en_otras_medidas"); el borrador debe usar eso: «esa no la manejo en su medida, pero en 265/70R17 tengo estas», o «esa la manejo en 215/65R17 y 225/65R17». Solo cuando NO hay nada en ninguna de las dos listas vale un «no lo manejamos», y aun así tiene que ofrecer el siguiente paso (buscar por vehículo o por aro). Si la herramienta reportó el catálogo caído o vacío, NINGUNA negativa es válida: no se puede afirmar que algo no existe sin catálogo.
 
 REGLAS DE CORRECCIÓN (innegociables):
 - NUNCA inventes precios, medidas, stock, plazos ni datos que no estén en el contexto. Si no puedes verificar una cifra, NO la cambies: repórtala como hallazgo y aprueba.
@@ -176,6 +189,25 @@ export async function armarContexto(
   `;
   const inbound = mensajes.filter((m) => m.direction === "inbound").map((m) => m.content ?? "");
   const pedidas = medidasPermitidas(inbound, hechos?.tire_size);
+  // Los beneficios son datos duros, no adorno: sin ellos el revisor no puede
+  // distinguir «mantenimiento gratuito cada 10.000 km» (que Depot sí da y está
+  // en la tabla) de una cifra inventada por el redactor. Sin esta sección, el
+  // guardián marcaba las dos igual.
+  //
+  // Van las DOS fuentes. La tabla `benefits` es lo que se imprime en la pieza;
+  // `servicios_incluidos` de conocimiento-marcas.json (entregado por el negocio
+  // el 13-ago) es lo que el bot ofrece hablando — la rotación cada 10.000 km
+  // solo vive ahí. Con una sola de las dos, el guardián corregiría promesas
+  // ciertas, que es peor que no revisarlas: enseña al bot a callar algo real.
+  const beneficios = await getActiveBenefits().catch(() => []);
+  const servicios = (() => {
+    try {
+      return respaldoCompleto().serviciosIncluidos;
+    } catch {
+      return [] as string[];
+    }
+  })();
+  const respaldados = [...beneficios.map((b) => b.text), ...servicios];
 
   const historial = [...mensajes].reverse().map((m) => {
     const quien = m.direction === "inbound" ? "CLIENTE" : m.author_kind === "bot" ? "BOT" : "ASESOR";
@@ -195,6 +227,9 @@ export async function armarContexto(
         (item ? ` · ${item.quantity ?? "?"} × ${item.brand ?? ""} ${item.design ?? ""} ${item.sizeLabel ?? ""}` +
           (item.salePriceWithTax ? ` a $${Number(item.salePriceWithTax).toFixed(2)} c/u` : "") : "")
       : "Cotización vigente: ninguna",
+    respaldados.length
+      ? `Servicios y beneficios respaldados (lo ÚNICO que el bot puede prometer como incluido): ${respaldados.join(" · ")}`
+      : "Servicios y beneficios respaldados: ninguno cargado — el borrador no puede prometer nada como incluido",
     "",
     "== CONVERSACIÓN (vieja → nueva) ==",
     historial,
@@ -284,7 +319,13 @@ export async function revisarConGuardian(
 
     // Solo las correcciones con hallazgo alto llegan al tab de Errores: son
     // las que el asesor debe mirar. El resto vive en el informe del guardián.
-    const alto = revision.hallazgos.find((h) => h.severidad === "alta");
+    //
+    // `tono` y `otro` quedan fuera del aviso aunque vengan en alta: en 7 días
+    // fueron 11 de los hallazgos altos y ninguno era «mira este chat ahora».
+    // Siguen contando en el informe semanal, que es la herramienta de mejora.
+    const alto = revision.hallazgos.find(
+      (h) => h.severidad === "alta" && !CATEGORIAS_SIN_ALERTA.has(h.categoria),
+    );
     if (revision.veredicto === "corregir" && alto) {
       await createBotAlert({
         conversationId: conversation.id,
@@ -295,6 +336,27 @@ export async function revisarConGuardian(
         exactReason: alto.detalle,
         suggestedAction: "Revisa el chat: el error se corrigió antes de enviarse, pero delata qué está fallando en el bot.",
         dedupeKey: `guardian:${conversation.id}:${conversation.current_cycle}:${alto.categoria}:${alto.detalle.slice(0, 60)}`,
+      }).catch(() => undefined);
+    }
+
+    // La repetición que vale es la que el guardián ve ENTENDIENDO el chat: en 7
+    // días marcó 9, contra 14 en un solo día del detector de texto. Cuando la
+    // marca en alta, el tab de errores recibe la alerta de siempre —misma
+    // clave diaria— y así el asesor tiene una sola fuente con juicio real.
+    const repeticion = revision.hallazgos.find(
+      (h) => h.categoria === "repeticion" && h.severidad === "alta",
+    );
+    if (revision.veredicto === "corregir" && repeticion) {
+      await crearAlertaRepeticion({
+        conversationId: conversation.id,
+        cycle: conversation.current_cycle,
+        exactReason: repeticion.detalle,
+        suggestedAction:
+          "El guardián ya corrigió este mensaje, pero el bot está dando vueltas: revisa el chat.",
+        fuente: "guardian",
+        // Alerta de panel: el aviso por WhatsApp se reserva para la doble señal
+        // del detector, que es la que indica que el cliente está atascado AHORA.
+        avisarAsesor: false,
       }).catch(() => undefined);
     }
     return revision;

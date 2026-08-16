@@ -1,3 +1,5 @@
+import { authHeaders, getSesion, getStoredAdminKey, saveStoredAdminKey } from "./realSource";
+
 export type CatalogAvailability = "available" | "check" | "out";
 
 export interface CatalogProduct {
@@ -45,8 +47,6 @@ export interface QuoteSelection {
   product: CatalogProduct;
   quantity: number;
 }
-
-const ADMIN_KEY_STORAGE = "autoventa_admin_key";
 
 export async function searchCatalog(query: string): Promise<CatalogSearchResponse> {
   return requestJson<CatalogSearchResponse>(
@@ -110,7 +110,7 @@ export async function getQuoteMessage(
 export async function downloadComparisonPdf(
   products: readonly CatalogProduct[],
 ): Promise<void> {
-  await downloadPdf("/api/catalog/compare-pdf", {
+  await downloadArchivo("/api/catalog/compare-pdf", {
     items: products.map(({ id }) => ({ id })),
     style: "comparison",
   });
@@ -121,23 +121,79 @@ export async function downloadQuotePdf(
   quantity: number,
   customerName: string,
 ): Promise<void> {
-  await downloadPdf("/api/catalog/quote-pdf", {
+  await downloadArchivo("/api/catalog/quote-pdf", {
+    item: { id: product.id, quantity },
+    customerName,
+  });
+}
+
+// ── Piezas visuales ──────────────────────────────────────────────────────────
+//
+// Las dibuja el servidor, con el mismo renderizador que usa el bot para
+// mandarlas por WhatsApp. El hub solo las descarga: un render, cero divergencia
+// (el canvas propio que había aquí se quedó en el diseño viejo y en la demo del
+// 14-ago salieron dos piezas distintas para lo mismo).
+
+/** Máximo de opciones por pieza: el póster dibuja 3 tarjetas por marca. */
+export const MAX_OPCIONES_IMAGEN = 24;
+
+export async function downloadOptionsImage(
+  products: readonly CatalogProduct[],
+  medidaPedida?: string,
+): Promise<void> {
+  if (!products.length) throw new Error("No hay opciones visibles para exportar");
+  if (products.length > MAX_OPCIONES_IMAGEN) {
+    throw new Error(
+      `Reduce los filtros a máximo ${MAX_OPCIONES_IMAGEN} opciones para crear la imagen`,
+    );
+  }
+  await downloadArchivo("/api/catalog/options-image", {
+    items: products.map(({ id }) => ({ id })),
+    ...(medidaPedida ? { medidaPedida } : {}),
+  });
+}
+
+export async function downloadComparisonImage(
+  products: readonly CatalogProduct[],
+): Promise<void> {
+  if (products.length < 2 || products.length > 3) {
+    throw new Error("Selecciona dos o tres llantas para comparar");
+  }
+  await downloadArchivo("/api/catalog/compare-image", {
+    items: products.map(({ id }) => ({ id })),
+    style: "comparison",
+  });
+}
+
+export async function downloadQuoteImage(
+  product: CatalogProduct,
+  quantity: number,
+  customerName: string,
+): Promise<void> {
+  await downloadArchivo("/api/catalog/quote-image", {
     item: { id: product.id, quantity },
     customerName,
   });
 }
 
 export function saveAdminKey(value: string): void {
-  const key = value.trim();
-  if (key) localStorage.setItem(ADMIN_KEY_STORAGE, key);
-  else localStorage.removeItem(ADMIN_KEY_STORAGE);
+  saveStoredAdminKey(value);
 }
 
+/** ¿Hay con qué autenticarse? Sesión de usuario o, en su defecto, clave cruda. */
 export function hasAdminKey(): boolean {
-  return Boolean(localStorage.getItem(ADMIN_KEY_STORAGE));
+  return Boolean(getSesion()) || getStoredAdminKey().length > 0;
 }
 
-async function downloadPdf(path: string, payload: unknown): Promise<void> {
+/**
+ * Descarga un archivo binario (PDF o PNG) que arma el servidor.
+ *
+ * El ancla va al DOM antes del click y se quita después: Safari ignora en
+ * silencio el click de un ancla que no está en el documento, y el usuario se
+ * quedaba mirando un botón que "no hacía nada". El revoke tardío es por lo
+ * mismo — revocar en el acto le quita el blob a Safari antes de que lo lea.
+ */
+async function downloadArchivo(path: string, payload: unknown): Promise<void> {
   const response = await fetch(apiUrl(path), {
     method: "POST",
     headers: requestHeaders(),
@@ -151,8 +207,14 @@ async function downloadPdf(path: string, payload: unknown): Promise<void> {
   anchor.download = filenameFromDisposition(
     response.headers.get("Content-Disposition"),
   );
+  anchor.rel = "noopener";
+  anchor.style.display = "none";
+  document.body.append(anchor);
   anchor.click();
-  setTimeout(() => URL.revokeObjectURL(url), 2_000);
+  setTimeout(() => {
+    anchor.remove();
+    URL.revokeObjectURL(url);
+  }, 2_000);
 }
 
 async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
@@ -165,11 +227,7 @@ async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 function requestHeaders(): Record<string, string> {
-  const key = localStorage.getItem(ADMIN_KEY_STORAGE);
-  return {
-    "Content-Type": "application/json",
-    ...(key ? { "x-admin-key": key } : {}),
-  };
+  return { "Content-Type": "application/json", ...authHeaders() };
 }
 
 function apiUrl(path: string): string {

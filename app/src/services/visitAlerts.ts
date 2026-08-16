@@ -72,6 +72,10 @@ export function claveVisitaManana(conversationId: number, cycle: number, dia: st
   return `${conversationId}:${cycle}:visita_manana:${dia}`;
 }
 
+export function claveVisitaHoy(conversationId: number, cycle: number, dia: string): string {
+  return `${conversationId}:${cycle}:visita_hoy:${dia}`;
+}
+
 /** Aviso 1: el cliente acaba de decir cuándo viene. */
 export async function avisarVisitaComprometida(input: {
   conversationId: number;
@@ -151,46 +155,89 @@ export async function visitasDelDia(dia: string, ahora: Date): Promise<VisitaPen
 }
 
 /**
- * Aviso 2: barrido de las visitas de mañana. Lo llama el worker; devuelve
- * cuántos avisos nuevos salieron (0 si no es la hora o si ya se avisaron).
+ * Cuerpo común de los dos barridos por día. Lo único que cambia entre la víspera
+ * y el día mismo es qué día se mira y qué se le pide al asesor que haga; el
+ * resto —horario, deduplicación, detalles de venta— tiene que ser idéntico o los
+ * dos avisos se comportan distinto sin que nadie lo haya decidido.
  */
-export async function revisarVisitasDeManana(ahora = new Date()): Promise<number> {
-  if (!esHoraDeRecordar(ahora)) return 0;
-  const manana = diaGuayaquil(new Date(ahora.getTime() + 86_400_000));
-  const visitas = await visitasDelDia(manana, ahora);
+async function barrerVisitasDelDia(input: {
+  dia: string;
+  ahora: Date;
+  evento: "visita_manana" | "visita_hoy";
+  dedupe: (conversationId: number, cycle: number, dia: string) => string;
+  resumen: (cuando: string) => string;
+  accion: string;
+}): Promise<number> {
+  const visitas = await visitasDelDia(input.dia, input.ahora);
   let avisados = 0;
   for (const visita of visitas) {
-    const dedupeKey = claveVisitaManana(visita.id, visita.cycle, manana);
-    const cuando = etiquetaVisita(visita.visit_date);
-    const resumen = `Mañana viene un cliente: ${cuando}`;
+    const dedupeKey = input.dedupe(visita.id, visita.cycle, input.dia);
+    const resumen = input.resumen(etiquetaVisita(visita.visit_date));
     const razon = visita.commitment
       ? `Lo prometió él mismo: «${visita.commitment.slice(0, 200)}».`
       : "Quedó agendado en la conversación.";
-    const accion =
-      "Escríbele hoy para confirmar la hora y tener las llantas listas cuando llegue.";
     await createBotAlert({
       conversationId: visita.id,
       cycle: visita.cycle,
-      type: "visita_manana",
+      type: input.evento,
       priority: "high",
       summary: resumen,
       exactReason: razon,
-      suggestedAction: accion,
+      suggestedAction: input.accion,
       dedupeKey,
     });
     const envio = await notifyAdvisor({
       conversationId: visita.id,
       cycle: visita.cycle,
-      eventType: "visita_manana",
+      eventType: input.evento,
       dedupeKey,
       title: resumen,
       reason: razon,
-      action: accion,
+      action: input.accion,
       details: await detallesDeVenta(visita.id),
     });
     if (envio.sent) avisados += 1;
   }
   return avisados;
+}
+
+/**
+ * Aviso 2: barrido de las visitas de mañana. Lo llama el worker; devuelve
+ * cuántos avisos nuevos salieron (0 si no es la hora o si ya se avisaron).
+ */
+export async function revisarVisitasDeManana(ahora = new Date()): Promise<number> {
+  if (!esHoraDeRecordar(ahora)) return 0;
+  return barrerVisitasDelDia({
+    dia: diaGuayaquil(new Date(ahora.getTime() + 86_400_000)),
+    ahora,
+    evento: "visita_manana",
+    dedupe: claveVisitaManana,
+    resumen: (cuando) => `Mañana viene un cliente: ${cuando}`,
+    accion: "Escríbele hoy para confirmar la hora y tener las llantas listas cuando llegue.",
+  });
+}
+
+/**
+ * Aviso 3: las visitas de HOY, a primera hora hábil.
+ *
+ * La víspera sirve para preparar; hoy sirve para atender. Son dos trabajos
+ * distintos y el asesor de local necesita los dos: el recordatorio de ayer se
+ * pierde entre los mensajes de la tarde, y quien abre la tienda a las ocho no
+ * tiene por qué acordarse de una promesa de hace cinco días.
+ *
+ * Comparte la ventana horaria y la deduplicación por día con el de mañana: el
+ * bucle pasa cada cuarto de hora y el asesor recibe un solo mensaje.
+ */
+export async function revisarVisitasDeHoy(ahora = new Date()): Promise<number> {
+  if (!esHoraDeRecordar(ahora)) return 0;
+  return barrerVisitasDelDia({
+    dia: diaGuayaquil(ahora),
+    ahora,
+    evento: "visita_hoy",
+    dedupe: claveVisitaHoy,
+    resumen: (cuando) => `Hoy viene un cliente: ${cuando}`,
+    accion: "Ten listas las llantas y confírmale la hora: hoy es el día.",
+  });
 }
 
 /** Medida, total cotizado y local: lo que el asesor necesita sin abrir el panel. */

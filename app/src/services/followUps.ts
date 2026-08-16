@@ -13,7 +13,7 @@ import { isStage, type Stage } from "../domain/pipeline.js";
 import { buildContextualFollowUpMessage, inferProductCode, type FollowUpMessageKind } from "../domain/followUpMessages.js";
 import { emitLiveEvent } from "./liveEvents.js";
 import { generateFollowUpCopy } from "./followUpCopy.js";
-import { notifyAdvisor } from "./advisorNotifications.js";
+import { asesoresActivos, notifyAdvisor } from "./advisorNotifications.js";
 
 export type FollowUpJobStatus =
   | "scheduled"
@@ -616,6 +616,61 @@ export async function reconcileFollowUpAlerts(now = new Date()): Promise<void> {
     on conflict do nothing
   `).count);
   if (nuevas.some((cantidad) => cantidad > 0)) emitLiveEvent("alert");
+  await avisarVentanasPorCerrar(now);
+}
+
+/** Con cuánta antelación se avisa que la ventana de 24 h se está cerrando. */
+const AVISO_VENTANA_MS = 4 * 60 * 60 * 1000;
+const VENTANA_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * Aviso al asesor de local: quedan pocas horas de ventana en un chat vivo.
+ *
+ * Ojo con la historia, porque parece una vuelta atrás y no lo es. El 6-ago se
+ * quitó la alerta `window_closing` del tab Errores: se creaba en CADA
+ * conversación que el cliente dejaba enfriar, el contador marcaba decenas y
+ * Manuel dejó de mirarlo. Eso sigue igual — aquí no se crea ninguna alerta.
+ *
+ * Lo que vuelve es otra cosa: un WhatsApp, solo al rol `asesor`, solo en chats
+ * con la venta viva (cotización enviada o seguimiento) y una sola vez por
+ * ventana. Para quien atiende el local eso no es ruido, es su trabajo del día:
+ * pasadas las 24 h ya no se le puede escribir texto libre y hay que esperar a
+ * que el cliente vuelva solo — que casi nunca vuelve.
+ *
+ * Si nadie tiene ese rol no se consulta nada: esta función corre en cada vuelta
+ * del worker, cada pocos segundos.
+ */
+async function avisarVentanasPorCerrar(now: Date): Promise<void> {
+  const destinatarios = await asesoresActivos({ evento: "ventana_por_cerrar" });
+  if (!destinatarios.length) return;
+  const candidatos = await sql<{
+    id: number; cycle: number; last_customer_message_at: Date;
+  }[]>`
+    select c.id, c.current_cycle as cycle, c.last_customer_message_at
+    from conversations c
+    where c.status = 'open'
+      and c.stage in ('cotizacion_enviada', 'seguimiento_venta')
+      and c.last_customer_message_at is not null
+      and c.last_customer_message_at <= ${new Date(now.getTime() - (VENTANA_MS - AVISO_VENTANA_MS))}
+      and c.last_customer_message_at > ${new Date(now.getTime() - VENTANA_MS)}
+    order by c.last_customer_message_at
+    limit 20
+  `;
+  for (const fila of candidatos) {
+    const cierra = new Date(fila.last_customer_message_at.getTime() + VENTANA_MS);
+    const horas = Math.max(1, Math.round((cierra.getTime() - now.getTime()) / 3_600_000));
+    await notifyAdvisor({
+      conversationId: Number(fila.id),
+      cycle: fila.cycle,
+      // La hora del último mensaje del cliente identifica la ventana: cuando él
+      // vuelve a escribir empieza otra, y esa sí merece su propio aviso.
+      dedupeKey: `${fila.id}:${fila.cycle}:ventana_por_cerrar:${fila.last_customer_message_at.toISOString()}`,
+      eventType: "ventana_por_cerrar",
+      title: `Quedan ~${horas} h para escribirle`,
+      reason: "El cliente no escribe desde hace casi 24 h y la ventana de WhatsApp está por cerrarse.",
+      action: "Escríbele ahora desde el chat. Después solo se le puede mandar una plantilla aprobada.",
+    });
+  }
 }
 
 export async function claimDueFollowUpJobs(input: {

@@ -221,6 +221,15 @@ function Tarjeta({ titulo, sub, children, extra }: {
 const inputCls =
   "w-full rounded-xl border border-paper/[.12] bg-paper/[.04] px-3 py-2 text-[13px] outline-none focus:border-paper/30";
 
+/**
+ * Clase propia para los desplegables angostos: NO se puede reusar `inputCls`
+ * con un `w-auto` encima, porque las dos utilidades de ancho pesan igual y gana
+ * la que Tailwind deje última en la hoja — el select salía del ancho de la
+ * tarjeta y empujaba el resto de la fila fuera de la pantalla.
+ */
+const selectCls =
+  "shrink-0 rounded-xl border border-paper/[.12] bg-paper/[.04] px-2 py-2 text-[12px] outline-none focus:border-paper/30";
+
 
 /**
  * Barrido de precios del Interbot. Corre solo los miércoles a las 15:00, porque
@@ -583,22 +592,48 @@ function SeccionPromociones({ benefits, setBenefits, onError }: {
   );
 }
 
+type RolAsesor = "admin" | "asesor";
+
 interface Asesor {
   id: number;
   nombre: string;
   telefono: string;
   prioridad: number;
   active: boolean;
+  rol: RolAsesor;
 }
 
 /**
- * Quién recibe los avisos del bot. Cada aviso sale a TODOS los activos, en
- * orden de prioridad (0 = principal).
+ * Qué recibe cada nivel, en el idioma de quien lo elige desde el panel. El
+ * texto largo va en el `title` del selector porque es lo que se consulta una
+ * vez, al dar de alta a alguien, y después nunca más.
+ */
+const ROLES: { valor: RolAsesor; etiqueta: string; explica: string }[] = [
+  {
+    valor: "admin",
+    etiqueta: "Todo",
+    explica: "Todo: ventas, visitas, reporte diario de las 20:00, fallas del bot y errores técnicos.",
+  },
+  {
+    valor: "asesor",
+    etiqueta: "Solo local",
+    explica:
+      "Solo lo que se atiende desde el mostrador: nueva cotización, cuándo viene el cliente, "
+      + "el día antes, el día de la visita y los chats por vencerse. Sin reportes ni fallas del bot.",
+  },
+];
+
+/**
+ * Quién recibe los avisos del bot. Cada aviso sale a TODOS los activos a
+ * quienes les corresponda por su nivel, en orden de prioridad (0 = principal).
  */
 function SeccionAsesores({ onError }: { onError: (e: string) => void }) {
   const [asesores, setAsesores] = useState<Asesor[]>([]);
   const [nombre, setNombre] = useState("");
   const [telefono, setTelefono] = useState("");
+  // Quien se da de alta desde aquí de ahora en adelante es gente del local:
+  // Manuel y Joaquín ya están en la lista y siguen en «Todo».
+  const [rol, setRol] = useState<RolAsesor>("asesor");
 
   const cargar = useCallback(async () => {
     try {
@@ -618,9 +653,9 @@ function SeccionAsesores({ onError }: { onError: (e: string) => void }) {
     try {
       await api("/api/advisors", {
         method: "POST",
-        body: JSON.stringify({ nombre: nombre.trim(), telefono: soloDigitos, prioridad: asesores.length }),
+        body: JSON.stringify({ nombre: nombre.trim(), telefono: soloDigitos, prioridad: asesores.length, rol }),
       });
-      setNombre(""); setTelefono(""); await cargar();
+      setNombre(""); setTelefono(""); setRol("asesor"); await cargar();
     } catch (e) {
       onError(e instanceof Error ? e.message : "No se pudo agregar");
     }
@@ -647,7 +682,7 @@ function SeccionAsesores({ onError }: { onError: (e: string) => void }) {
   return (
     <Tarjeta
       titulo="Quién recibe los avisos"
-      sub="Cuando un cliente pide hablar con alguien, se genera una cotización o algo falla, el bot avisa por WhatsApp a todos los de esta lista."
+      sub="El bot avisa por WhatsApp a los de esta lista. «Todo» es para quien dirige el negocio; «Solo local» deja pasar únicamente los cinco avisos que se atienden desde el mostrador, para que el canal siga sirviendo."
     >
       <div className="flex flex-col gap-2">
         {asesores.map((a) => (
@@ -661,9 +696,17 @@ function SeccionAsesores({ onError }: { onError: (e: string) => void }) {
               value={a.nombre}
               onChange={(e) => setAsesores(asesores.map((x) => (x.id === a.id ? { ...x, nombre: e.target.value } : x)))}
               onBlur={() => void cambiar(a, { nombre: a.nombre })}
-              className={`${inputCls} ${a.active ? "" : "opacity-50"}`}
+              className={`${inputCls} min-w-0 ${a.active ? "" : "opacity-50"}`}
             />
             <span className="tnum shrink-0 text-[11.5px] text-faint">+{a.telefono}</span>
+            <select
+              value={a.rol}
+              onChange={(e) => void cambiar(a, { rol: e.target.value as RolAsesor })}
+              title={ROLES.find((r) => r.valor === a.rol)?.explica}
+              className={`${selectCls} py-1.5 text-[11.5px] ${a.active ? "" : "opacity-50"}`}
+            >
+              {ROLES.map((r) => <option key={r.valor} value={r.valor}>{r.etiqueta}</option>)}
+            </select>
             <button
               onClick={() => void quitar(a.id)}
               className="shrink-0 rounded-lg px-2 py-1 text-[16px] leading-none text-faint hover:text-[var(--color-red)]"
@@ -682,6 +725,13 @@ function SeccionAsesores({ onError }: { onError: (e: string) => void }) {
           placeholder="Nombre" className={`${inputCls} flex-1`} />
         <input value={telefono} onChange={(e) => setTelefono(e.target.value)}
           placeholder="593987654321 (con código de país)" className={`${inputCls} flex-1`} />
+        <select
+          value={rol} onChange={(e) => setRol(e.target.value as RolAsesor)}
+          title={ROLES.find((r) => r.valor === rol)?.explica}
+          className={selectCls}
+        >
+          {ROLES.map((r) => <option key={r.valor} value={r.valor}>{r.etiqueta}</option>)}
+        </select>
         <button onClick={() => void agregar()}
           className="shrink-0 rounded-xl bg-paper/[.10] px-4 text-[12px] font-semibold hover:bg-paper/[.16]">
           Agregar

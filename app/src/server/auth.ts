@@ -1,0 +1,153 @@
+/**
+ * Usuarios, sesiones y permisos del hub.
+ *
+ * Cuatro usuarios en código y una clave común (1234): es lo que pidió el
+ * cliente en la reunión del 14-ago para esta fase. Lo importante de este
+ * archivo no es la clave, es la ESTRUCTURA: cada petición autenticada llega al
+ * router sabiendo QUIÉN la hace y QUÉ puede ver, para que diferenciar permisos
+ * después sea cambiar un objeto y no reescribir el gate.
+ *
+ * El token es un HMAC firmado con la misma ADMIN_KEY: sin tabla nueva, sin
+ * dependencias y sin estado en el servidor — se puede reiniciar el proceso sin
+ * botar a nadie. La contrapartida es que no hay revocación individual: cambiar
+ * ADMIN_KEY invalida todas las sesiones de golpe, que es justo lo que se quiere
+ * si algo se filtra.
+ */
+import { createHmac, timingSafeEqual } from "node:crypto";
+
+export type Rol = "admin" | "asesor";
+
+export interface Usuario {
+  id: string;
+  nombre: string;
+  rol: Rol;
+}
+
+/**
+ * Por ahora en código. Cuando haga falta que el dueño los edite, esto se mueve
+ * a `settings` (misma forma) y el resto del archivo no cambia.
+ */
+const USERS: readonly Usuario[] = [
+  { id: "manuel", nombre: "Manuel Montufar", rol: "admin" },
+  { id: "andres", nombre: "Andres Tamayo", rol: "admin" },
+  { id: "joaquin", nombre: "Joaquin Tamayo", rol: "admin" },
+  { id: "asesor", nombre: "Asesor", rol: "asesor" },
+];
+
+/**
+ * Clave única y temporal. Decisión explícita del cliente para esta fase: la
+ * demo se hace con gente que no va a recordar cuatro claves distintas. No se
+ * "endurece" por iniciativa propia — cuando lo pidan, esto pasa a un hash por
+ * usuario en `settings` y `pinValido` recibe también el userId.
+ */
+const PIN = "1234";
+
+const VIGENCIA_MS = 30 * 24 * 60 * 60 * 1000; // 30 días
+
+const ADMIN_KEY = process.env.ADMIN_KEY ?? "";
+const IS_PRODUCTION = process.env.NODE_ENV === "production";
+
+/**
+ * Sin ADMIN_KEY no hay secreto con el que firmar. En local se usa uno fijo para
+ * poder trabajar; en producción las sesiones quedan APAGADAS a propósito: un
+ * secreto conocido y publicado en el repo sería una puerta abierta, y es
+ * preferible que el panel siga cerrado (como ya lo estaba) a que se abra solo.
+ */
+const SECRETO = ADMIN_KEY || "autoventa-sesiones-dev";
+export const SESIONES_HABILITADAS = Boolean(ADMIN_KEY) || !IS_PRODUCTION;
+
+/**
+ * Qué puede ver cada rol.
+ *
+ * HOY TODOS EN `true` PARA TODOS: en la reunión Andrés pidió poder esconder
+ * cosas (lo vendido total, por ejemplo) pero no se decidió qué ni a quién. El
+ * hub ya guarda y expone estos permisos, así que el día que se decida, se
+ * cambia aquí y las pantallas ya saben leerlo.
+ */
+export interface Permisos {
+  verInbox: boolean;
+  verKanban: boolean;
+  verOportunidades: boolean;
+  verMetricas: boolean;
+  verFinanzas: boolean;
+  usarCotizador: boolean;
+  verAjustes: boolean;
+  verErrores: boolean;
+}
+
+const TODO_PERMITIDO: Permisos = {
+  verInbox: true,
+  verKanban: true,
+  verOportunidades: true,
+  verMetricas: true,
+  verFinanzas: true,
+  usarCotizador: true,
+  verAjustes: true,
+  verErrores: true,
+};
+
+export function permisosDe(_rol: Rol): Permisos {
+  return { ...TODO_PERMITIDO };
+}
+
+/** La lista para poblar el desplegable del login. Nunca incluye la clave. */
+export function listarUsuarios(): Usuario[] {
+  return USERS.map((usuario) => ({ ...usuario }));
+}
+
+export function usuarioPorId(id: string): Usuario | null {
+  return USERS.find((usuario) => usuario.id === id) ?? null;
+}
+
+/** Comparación en tiempo constante: la clave es corta y adivinable por medida. */
+export function pinValido(pin: string): boolean {
+  const a = Buffer.from(String(pin));
+  const b = Buffer.from(PIN);
+  return a.length === b.length && timingSafeEqual(a, b);
+}
+
+function firmar(payload: string): string {
+  return createHmac("sha256", SECRETO).update(payload).digest("base64url");
+}
+
+/** `userId.expiración.firma`. El userId no lleva puntos, así que parte limpio. */
+export function crearToken(userId: string, ahora = Date.now()): string {
+  const payload = `${userId}.${ahora + VIGENCIA_MS}`;
+  return `${payload}.${firmar(payload)}`;
+}
+
+/**
+ * Devuelve el usuario si el token está firmado por nosotros y no ha caducado.
+ * Cualquier duda (formato raro, firma distinta, usuario borrado) es `null`: el
+ * gate lo trata igual que si no hubiera mandado nada.
+ */
+export function verificarToken(token: string): Usuario | null {
+  if (!SESIONES_HABILITADAS) return null;
+  const partes = token.split(".");
+  if (partes.length !== 3) return null;
+  const [userId, expiracion, firma] = partes;
+  const esperada = Buffer.from(firmar(`${userId}.${expiracion}`));
+  const recibida = Buffer.from(firma);
+  if (esperada.length !== recibida.length || !timingSafeEqual(esperada, recibida)) {
+    return null;
+  }
+  const vence = Number(expiracion);
+  if (!Number.isFinite(vence) || vence <= Date.now()) return null;
+  return usuarioPorId(userId);
+}
+
+/** El token del header `Authorization: Bearer …`, si viene bien formado. */
+export function tokenDelHeader(authorization: string | undefined): string | null {
+  const match = authorization?.match(/^Bearer\s+(\S+)$/i);
+  return match?.[1] ?? null;
+}
+
+declare global {
+  // eslint-disable-next-line @typescript-eslint/no-namespace
+  namespace Express {
+    interface Request {
+      /** Quién hizo la petición. Ausente cuando entró con `x-admin-key`. */
+      usuario?: Usuario;
+    }
+  }
+}

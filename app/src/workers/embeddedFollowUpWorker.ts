@@ -172,24 +172,35 @@ async function supervisarBotApagado(signal: AbortSignal): Promise<void> {
 }
 
 /**
- * Bucle de las visitas de mañana.
+ * Bucle de las visitas: las de mañana y las de hoy.
  *
  * Va aparte del worker de seguimientos porque ese se corta en seco cuando el
  * bot está apagado, y este NO debe cortarse: el aviso es para una persona, no
  * un mensaje al cliente. Con el bot apagado es cuando más falta hace — nadie
  * más va a acordarse de que mañana viene alguien.
+ *
+ * Los dos barridos se cobran por separado: si el de mañana se cae contra la
+ * base, el de hoy —que es el urgente— tiene que salir igual.
  */
 async function supervisarVisitas(signal: AbortSignal): Promise<void> {
+  const barridos = [
+    { etiqueta: "mañana", icono: "📅", correr: "revisarVisitasDeManana" },
+    { etiqueta: "hoy", icono: "🎯", correr: "revisarVisitasDeHoy" },
+  ] as const;
   while (!signal.aborted) {
-    try {
-      const { revisarVisitasDeManana } = await import("../services/visitAlerts.js");
-      const avisados = await revisarVisitasDeManana();
-      if (avisados > 0) console.log(`📅 ${avisados} recordatorio(s) de visita para mañana`);
-    } catch (error) {
-      console.warn(
-        "⚠️ Recordatorio de visitas falló:",
-        error instanceof Error ? error.message : error,
-      );
+    for (const barrido of barridos) {
+      try {
+        const visitAlerts = await import("../services/visitAlerts.js");
+        const avisados = await visitAlerts[barrido.correr]();
+        if (avisados > 0) {
+          console.log(`${barrido.icono} ${avisados} aviso(s) de visita para ${barrido.etiqueta}`);
+        }
+      } catch (error) {
+        console.warn(
+          `⚠️ Recordatorio de visitas (${barrido.etiqueta}) falló:`,
+          error instanceof Error ? error.message : error,
+        );
+      }
     }
     await esperar(VISITAS_MS, signal);
   }

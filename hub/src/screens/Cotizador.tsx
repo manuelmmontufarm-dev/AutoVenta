@@ -1,7 +1,10 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import {
+  downloadComparisonImage,
   downloadComparisonPdf,
+  downloadOptionsImage,
+  downloadQuoteImage,
   downloadQuotePdf,
   getComparisonMessage,
   getOptionsMessage,
@@ -20,11 +23,6 @@ import {
   IconTire,
   IconX,
 } from "../components/icons";
-import {
-  downloadComparisonImage,
-  downloadOptionsImage,
-  downloadQuoteImage,
-} from "../lib/quoteImage";
 
 type Sort = "brand" | "price-asc" | "price-desc";
 type PanelMode = "options" | "compare" | "quote";
@@ -213,7 +211,10 @@ export function Cotizador() {
 
   async function createOptionsImage() {
     await perform("options-image", async () => {
-      await downloadOptionsImage(visibleProducts);
+      // La medida buscada viaja con la petición: es la que el servidor usa para
+      // sellar cada tarjeta como MEDIDA EXACTA o como equivalente, igual que
+      // cuando la pieza sale por WhatsApp.
+      await downloadOptionsImage(visibleProducts, query.trim());
       setNotice("Imagen de opciones filtradas descargada.");
     });
   }
@@ -257,7 +258,8 @@ export function Cotizador() {
     if (!quoteProduct) return;
     await perform("quote-image", async () => {
       await downloadQuoteImage(
-        { product: quoteProduct, quantity: quoteQuantity },
+        quoteProduct,
+        quoteQuantity,
         customerName.trim() || "Cliente",
       );
       setNotice("Imagen de cotización descargada.");
