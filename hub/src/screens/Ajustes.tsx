@@ -8,18 +8,27 @@
  */
 import { motion } from "framer-motion";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { getStoredAdminKey } from "../data/realSource";
+import { authHeaders } from "../data/realSource";
 import { BotPowerSwitch } from "./Settings";
 
 // ---------------------------------------------------------------------------
 
+/**
+ * Toda llamada de esta pantalla, con la credencial que corresponda.
+ *
+ * `authHeaders()` decide: token de sesión si entraste con usuario, y la clave
+ * cruda solo como respaldo. Antes esto leía la clave directamente y NUNCA
+ * mandaba el token, así que quien entraba con su usuario —sin clave guardada en
+ * el navegador— recibía 401 en toda la pantalla: el guardián y el cupón se
+ * quedaban en «Cargando…» para siempre y la vista previa daba Error 401
+ * (reportado el 15-ago entrando como Manuel).
+ */
 async function api<T extends object = { ok: true }>(url: string, init: RequestInit = {}): Promise<T> {
-  const key = getStoredAdminKey();
   const response = await fetch(url, {
     ...init,
     headers: {
       "Content-Type": "application/json",
-      ...(key ? { "x-admin-key": key } : {}),
+      ...authHeaders(),
       ...(init.headers ?? {}),
     },
   });
@@ -1050,9 +1059,10 @@ function VistaPrevia({ pieza, setPieza, paleta, fuente, beneficios }: {
       try {
         const params = new URLSearchParams({ pieza, paleta, fuente });
         if (beneficios.length) params.set("beneficios", beneficios.join("|"));
-        const key = getStoredAdminKey();
+        // Misma credencial que el resto de la pantalla: con sesión de usuario
+        // esto daba «Error 401» dentro del recuadro de la vista previa.
         const r = await fetch(`/api/pieces/preview.png?${params}`, {
-          headers: key ? { "x-admin-key": key } : {},
+          headers: authHeaders(),
         });
         if (!r.ok) throw new Error(`Error ${r.status}`);
         const blob = await r.blob();

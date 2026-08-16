@@ -32,6 +32,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-08-16 | _(este mismo)_ | Entrar con usuario daba 401 en todo el panel: las 4 pantallas mandaban la clave vieja, no el token | 0.5 |
 | 2026-08-15 | _(este mismo)_ | El código en todos los avisos de visita, verificar antes de canjear, y el botón de salir que faltaba | 1.0 |
 | 2026-08-15 | _(este mismo)_ | Cupón DT-PUMA47 completo y apagado + el panel servido llevaba un día atrasado + número de venta roto | 2.5 |
 | 2026-08-15 | _(este mismo)_ | Notas del guardián de raíz: formato único de plata, corrector de precios gratis y local sin re-pregunta | 1.5 |
@@ -138,6 +139,28 @@ Ya viene activado en este equipo.
 ---
 
 ## Entradas (más reciente primero)
+
+### 2026-08-16 · Entrar con usuario dejaba el panel a medias: 401 en toda la pantalla · ⏱️ 0.5 h
+
+**Qué:** Cuatro pantallas del hub armaban sus peticiones leyendo la clave cruda
+del navegador (`getStoredAdminKey`) y **nunca mandaban el token de sesión**. Al
+entrar con usuario —que es justo cuando no hay clave guardada— salían sin
+credencial y el servidor respondía 401: «Clave de administración requerida» en
+la franja de arriba, el Ángel Guardián y el cupón congelados en «Cargando…», la
+vista previa con «Error 401» y el kanban sin poder mover nada. Las cuatro
+(`Ajustes`, `Settings`, `whatsapp-setup`, `Pipeline`) pasan a usar
+`authHeaders()`, que ya elegía bien: token si hay sesión, clave cruda de
+respaldo. También la vista previa de las piezas, que llamaba a
+`/api/pieces/preview.png` con la clave a mano.
+
+**Por qué:** es la mitad que faltaba del login del Sprint 2. Se construyó la
+puerta —servidor, token, pantalla de entrada— pero las pantallas que ya existían
+siguieron pidiendo la llave vieja, así que entrar «bien» era peor que entrar con
+la clave: el panel se abría y no funcionaba nada. Verificado en el navegador
+interceptando las peticiones con una sesión de prueba: las 15 llamadas de
+Ajustes ahora salen con `Authorization: Bearer`, incluida la de la vista previa.
+
+---
 
 ### 2026-08-15 · El código viaja con el acuerdo, se verifica antes de canjear, y aparece el botón de salir · ⏱️ 1 h
 

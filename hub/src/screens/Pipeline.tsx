@@ -13,7 +13,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useMemo, useState } from "react";
 import { FunnelChart } from "../components/charts";
 import { Avatar, EmptyState, Segmented } from "../components/ui";
-import { getStoredAdminKey } from "../data/realSource";
+import { authHeaders } from "../data/realSource";
 import { CIERRE_META, ETAPAS, ETAPA_META, type Etapa, type FinalStage, type FollowUpBucket, type FollowUpCard, type Ticket } from "../data/types";
 import { etiquetaVisita, money, moneyCompact, relTime } from "../lib/format";
 import { navigate } from "../router";
@@ -381,10 +381,11 @@ function AccionesPuestaAlDia({ onListo }: { onListo: () => void }) {
   const [resultado, setResultado] = useState<string | null>(null);
 
   const llamar = async (ruta: string, simular: boolean) => {
-    const key = getStoredAdminKey();
     const r = await fetch(`/api/hub/tickets/${ruta}${simular ? "?simular=1" : ""}`, {
       method: "POST",
-      headers: { "Content-Type": "application/json", ...(key ? { "x-admin-key": key } : {}) },
+      // Token de sesión o clave cruda, lo que haya: con usuario logueado esto
+      // salía sin credencial y el kanban devolvía 401.
+      headers: { "Content-Type": "application/json", ...authHeaders() },
       body: JSON.stringify({}),
     });
     const d = await r.json();

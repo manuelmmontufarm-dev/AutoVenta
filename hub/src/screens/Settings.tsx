@@ -4,7 +4,7 @@ import botPlaybook from "../../../app/BOT_PLAYBOOK.md?raw";
 import { ETAPA_META, ETAPAS, type Etapa } from "../data/types";
 import { AdminKeyForm } from "../components/admin-key";
 import { WhatsAppSetup } from "../components/whatsapp-setup";
-import { getStoredAdminKey } from "../data/realSource";
+import { authHeaders } from "../data/realSource";
 import { useHub } from "../store";
 
 type SettingsTab = "whatsapp" | "ai" | "followups" | "manual" | "business" | "connection";
@@ -798,12 +798,11 @@ async function api<T extends object = { ok: true }>(
   url: string,
   init: RequestInit = {},
 ): Promise<T> {
-  const key = getStoredAdminKey();
   const response = await fetch(url, {
     ...init,
     headers: {
       "Content-Type": "application/json",
-      ...(key ? { "x-admin-key": key } : {}),
+      ...authHeaders(),
       ...(init.headers ?? {}),
     },
   });

@@ -9,7 +9,7 @@
  * devuelve, así que los campos se muestran vacíos con la marca "ya configurado".
  */
 import { useEffect, useState } from "react";
-import { getStoredAdminKey } from "../data/realSource";
+import { authHeaders } from "../data/realSource";
 
 type CheckEstado = "ok" | "falta" | "error";
 
@@ -471,12 +471,11 @@ async function api<T extends object = { ok: true }>(
   url: string,
   init: RequestInit = {},
 ): Promise<T> {
-  const key = getStoredAdminKey();
   const response = await fetch(url, {
     ...init,
     headers: {
       "Content-Type": "application/json",
-      ...(key ? { "x-admin-key": key } : {}),
+      ...authHeaders(),
       ...(init.headers ?? {}),
     },
   });
