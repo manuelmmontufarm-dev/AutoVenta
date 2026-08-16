@@ -43,6 +43,8 @@ import {
 import { markDiscountNoticeSent } from "./services/discountOffers.js";
 import { extractCustomerCommitment, preguntamosElDia } from "./domain/customerCommitment.js";
 import { avisarVisitaComprometida } from "./services/visitAlerts.js";
+import { emitirCuponDeConfirmacion } from "./services/coupons.js";
+import { mensajeCupon } from "./domain/coupons.js";
 import { authorizeConversationOutbound } from "./services/whatsappPolicy.js";
 import { splitBlocks } from "./services/quoteMessages.js";
 import { flagRepetitiveConversation } from "./services/conversationQuality.js";
@@ -101,6 +103,17 @@ const pipeline = new InboundPipeline(async ({ from, name, text, waMessageIds, re
       visitDate: commitment.visitDate,
     }).catch((error) => console.error("⚠️ No se pudo avisar la visita comprometida:", error));
   }
+  // Cupón de confirmación: se emite en el MISMO turno en que el cliente dice
+  // cuándo viene, para que el código llegue pegado a esa confirmación y no en
+  // un mensaje suelto que se lee sin contexto. Devuelve null mientras el cupón
+  // esté apagado, que es el estado por defecto hasta la luz verde de Depot.
+  // Esperado (no `void`) porque el mensaje se anexa a la respuesta de abajo.
+  const cupon = commitment
+    ? await emitirCuponDeConfirmacion({
+        conversationId: conversation.id,
+        cycle: conversation.current_cycle,
+      })
+    : null;
   emitLiveEvent("message", conversation.id);
   emitLiveEvent("sync", conversation.id);
 
@@ -228,6 +241,17 @@ const pipeline = new InboundPipeline(async ({ from, name, text, waMessageIds, re
   // Envío con red de seguridad: si Meta rechaza, la respuesta queda guardada
   // como "failed" y visible en el hub — nunca se pierde en silencio.
   const bloques = splitBlocks(custodiado.texto);
+  // El cupón va como bloque aparte y al final: es un mensaje que el cliente va
+  // a buscar días después en el chat, y mezclado dentro del párrafo del bot se
+  // pierde. Solo cuando se acaba de emitir — si ya lo tenía, repetírselo cada
+  // vez que cambia la fecha lo convierte en ruido.
+  if (cupon && !cupon.yaExistia) {
+    bloques.push(mensajeCupon({
+      codigo: cupon.codigo,
+      porcentaje: cupon.porcentaje,
+      numeroCotizacion: cupon.numeroCotizacion,
+    }));
+  }
   for (const [indice, bloque] of bloques.entries()) {
     if (indice > 0) await esperar(PAUSA_ENTRE_BLOQUES_MS);
     try {

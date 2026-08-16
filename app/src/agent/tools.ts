@@ -1500,7 +1500,14 @@ export function buildTools(ctx: AgentContext) {
           expiresAt: activeDiscount.expiresAt,
         } : undefined,
       );
-      const saleNumber = `AV-${quote.number.replace(/\D/g, "").slice(-6)}`;
+      // El número de venta es el de cotización con otra etiqueta, NO un resumen
+      // de sus dígitos: `quote.number` es base36 de la fecha («COT-MSUX5R4W»),
+      // así que quitarle las letras dejaba cero, uno o dos caracteres. En la
+      // base de Depot eso produjo 148 cotizaciones con solo 68 números
+      // distintos, 28 de ellos literalmente «AV-», y ese texto es el que sale
+      // en el aviso al asesor. Conservando el sufijo entero es único por
+      // construcción.
+      const saleNumber = `AV-${quote.number.replace(/^COT-/, "")}`;
       const [product] = await resolvePresentedProduct(ctx.conversation.id, items[0].code);
       if (!product) throw new Error("La opción confirmada dejó de ser inequívoca; vuelve a mostrar las opciones antes de cotizar");
 

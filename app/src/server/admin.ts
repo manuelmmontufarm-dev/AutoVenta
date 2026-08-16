@@ -14,9 +14,11 @@ import { appendMessage, pauseBot } from "../services/conversations.js";
 import { forceSyncNow, interbotPricesState } from "../services/interbotPrices.js";
 import {
   getAiConfig,
+  getCouponConfig,
   getGuardianConfig,
   getPiecesConfig,
   getStoreHours,
+  saveCouponConfig,
   saveGuardianConfig,
   savePiecesConfig,
   saveStoreHours,
@@ -26,6 +28,7 @@ import {
   saveStagePromptDraft,
 } from "../services/settings.js";
 import { informeGuardian } from "../services/guardian.js";
+import { canjearCupon, resumenCupones } from "../services/coupons.js";
 import {
   catalogStatus,
   catalogInventoryMetrics,
@@ -1457,6 +1460,37 @@ export function createAdminRouter(): express.Router {
   router.get("/guardian/informe", async (req, res) => {
     const dias = Math.min(90, Math.max(1, Number(req.query.dias ?? 7)));
     res.json({ ok: true, informe: await informeGuardian(dias) });
+  });
+
+  // ── Cupón de confirmación ───────────────────────────────────────────────────
+  // El código que el cliente lleva a caja para reclamar su 2 % adicional y que,
+  // al canjearse, dice qué cotización del bot fue venta de verdad.
+  //
+  // El interruptor vive aquí y NO en una variable de entorno a propósito: es una
+  // decisión comercial de Depot (cuándo empezar, con qué porcentaje), y tiene
+  // que poder tomarse desde Ajustes el día de la capacitación de cajeros, sin
+  // esperar un deploy. Nace apagado.
+  router.get("/cupones", async (req, res) => {
+    const dias = Math.min(365, Math.max(1, Number(req.query.dias ?? 30)));
+    const [cfg, resumen] = await Promise.all([getCouponConfig(), resumenCupones(dias)]);
+    res.json({ ok: true, config: cfg, resumen });
+  });
+
+  router.put("/cupones", async (req, res) => {
+    try {
+      res.json({ ok: true, config: await saveCouponConfig(req.body) });
+    } catch {
+      res.status(400).json({ ok: false, error: "Configuración de cupón inválida" });
+    }
+  });
+
+  // El canje, que es lo que hace en caja quien atiende. `redeemed_by` guarda el
+  // usuario del login (S2) — no el asesor de WhatsApp: aquí interesa quién
+  // aplicó el descuento, que es una responsabilidad de caja.
+  router.post("/cupones/canje", async (req, res) => {
+    const codigo = String((req.body as { codigo?: unknown })?.codigo ?? "");
+    const resultado = await canjearCupon(codigo, req.usuario?.nombre ?? null);
+    res.status(resultado.ok ? 200 : 409).json({ ok: resultado.ok, resultado });
   });
 
   router.get("/store-hours", async (_req, res) => {

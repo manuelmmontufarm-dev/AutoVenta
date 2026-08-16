@@ -175,6 +175,7 @@ export function Ajustes() {
       <div className="grid gap-2.5 xl:grid-cols-[minmax(0,1fr)_460px]">
         <div className="flex flex-col gap-2.5">
           <SeccionGuardian onError={setError} />
+          <SeccionCupones onError={setError} />
           <SeccionTema
             paleta={paleta} fuente={fuente} paletas={paletas} fuentes={fuentes} muestras={muestras}
             onPaleta={setPaleta} onFuente={setFuente}
@@ -322,6 +323,148 @@ function SeccionGuardian({ onError }: { onError: (v: string) => void }) {
           {h.veredicto === "corregir" && <span className="ml-1 text-lime">corregido antes de enviar</span>}
           <p className="mt-0.5 text-faint">{h.detalle}</p>
           <p className="text-[9px] text-faint">{new Date(h.fecha).toLocaleString("es-EC", { timeZone: "America/Guayaquil", day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}</p>
+        </div>)}
+      </div>}
+    </>}
+  </Tarjeta>;
+}
+
+interface CuponesEstado {
+  config: { activo: boolean; porcentaje: number };
+  resumen: {
+    emitidos: number;
+    canjeados: number;
+    tasaCanje: number;
+    ultimos: Array<{
+      codigo: string; estado: string; porcentaje: number;
+      conversationId: number; emitidoEn: string; canjeadoEn: string | null; canjeadoPor: string | null;
+    }>;
+  };
+}
+
+/**
+ * El cupón de confirmación: el código que el cliente lleva a caja.
+ *
+ * Está APAGADO y así se queda hasta que Andrés dé la luz verde y los cajeros
+ * estén capacitados — un código que nadie sabe honrar es peor que no prometer
+ * nada. Por eso el interruptor está aquí y no en el código: el día de la
+ * capacitación se prende desde el celular, sin esperar un deploy.
+ *
+ * El canje también vive aquí porque es lo que se hace en el mostrador: se
+ * teclea lo que el cliente dicta y el panel dice si vale.
+ */
+function SeccionCupones({ onError }: { onError: (v: string) => void }) {
+  const [estado, setEstado] = useState<CuponesEstado | null>(null);
+  const [cambiando, setCambiando] = useState(false);
+  const [codigo, setCodigo] = useState("");
+  const [canjeando, setCanjeando] = useState(false);
+  const [veredicto, setVeredicto] = useState<{ ok: boolean; texto: string } | null>(null);
+
+  const cargar = () => {
+    api<CuponesEstado & { ok: boolean }>("/api/cupones")
+      .then((r) => setEstado(r))
+      .catch(() => setEstado(null));
+  };
+  useEffect(cargar, []);
+
+  const guardar = async (cambio: Partial<{ activo: boolean; porcentaje: number }>) => {
+    if (!estado) return;
+    setCambiando(true);
+    try {
+      const r = await api<{ config: CuponesEstado["config"] }>("/api/cupones", {
+        method: "PUT",
+        body: JSON.stringify(cambio),
+      });
+      setEstado({ ...estado, config: r.config });
+      onError("");
+    } catch (e) { onError(e instanceof Error ? e.message : "No se pudo guardar el cupón"); }
+    finally { setCambiando(false); }
+  };
+
+  const canjear = async () => {
+    if (!codigo.trim()) return;
+    setCanjeando(true); setVeredicto(null);
+    try {
+      const r = await api<{ ok: boolean; resultado: { ok: boolean; codigo?: string; porcentaje?: number; detalle?: string } }>(
+        "/api/cupones/canje",
+        { method: "POST", body: JSON.stringify({ codigo: codigo.trim() }) },
+      );
+      setVeredicto(r.resultado.ok
+        ? { ok: true, texto: `✅ ${r.resultado.codigo} válido — aplique el ${r.resultado.porcentaje} % adicional.` }
+        : { ok: false, texto: `⛔ ${r.resultado.detalle ?? "No se pudo canjear"}` });
+      if (r.resultado.ok) { setCodigo(""); cargar(); }
+    } catch (e) {
+      // Un canje rechazado llega como 409, y eso NO es un error del panel: es la
+      // respuesta. Se muestra donde el cajero está mirando, no en la franja de
+      // errores de arriba.
+      setVeredicto({ ok: false, texto: `⛔ ${e instanceof Error ? e.message : "No se pudo canjear"}` });
+    }
+    finally { setCanjeando(false); }
+  };
+
+  const activo = estado?.config.activo ?? false;
+  return <Tarjeta
+    titulo="🎟️ Cupón de confirmación"
+    sub="Cuando el cliente dice qué día viene, el bot le manda un código tipo DT-PUMA47. En caja se le aplica ese porcentaje adicional y el cajero copia el código en la descripción de la factura — así sabemos qué cotización terminó en venta. APAGADO hasta que los cajeros estén capacitados."
+    extra={estado
+      ? <button
+          onClick={() => void guardar({ activo: !activo })}
+          disabled={cambiando}
+          className={`rounded-full px-4 py-2 text-[12px] font-semibold disabled:opacity-50 ${
+            activo ? "bg-lime text-navy" : "bg-paper/[.10] text-faint hover:bg-paper/[.16]"
+          }`}
+        >{cambiando ? "Cambiando…" : activo ? "● Prendido" : "○ Apagado"}</button>
+      : null}
+  >
+    {!estado && <p className="text-[11px] text-faint">Cargando el estado del cupón…</p>}
+    {estado && <>
+      {!activo && <p className="mb-2 rounded-xl bg-paper/[.05] p-2.5 text-[11px] text-faint">
+        Mientras esté apagado el bot <b>no emite ni un código</b> y los clientes no ven nada. Préndalo el día que caja esté lista.
+      </p>}
+      <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-[12px]">
+        <label className="flex items-center gap-2">
+          <span className="text-faint">Descuento adicional:</span>
+          <input
+            type="number" min={0.5} max={10} step={0.5}
+            value={estado.config.porcentaje}
+            onChange={(e) => setEstado({ ...estado, config: { ...estado.config, porcentaje: Number(e.target.value) } })}
+            onBlur={(e) => void guardar({ porcentaje: Number(e.target.value) })}
+            className="w-16 rounded-lg bg-paper/[.08] px-2 py-1 text-[12px] font-bold"
+          />
+          <span className="text-faint">%</span>
+        </label>
+        <span>
+          <span className="text-faint">Últimos 30 días:</span> <b>{estado.resumen.emitidos}</b> emitidos ·{" "}
+          <b>{estado.resumen.canjeados}</b> canjeados · <b>{estado.resumen.tasaCanje} %</b> volvió
+        </span>
+      </div>
+
+      <div className="mt-3 rounded-xl bg-paper/[.05] p-2.5">
+        <p className="mb-1.5 text-[11px] font-semibold">Canjear en caja</p>
+        <div className="flex flex-wrap items-center gap-2">
+          <input
+            value={codigo}
+            onChange={(e) => setCodigo(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") void canjear(); }}
+            placeholder="DT-PUMA47"
+            className="w-40 rounded-lg bg-paper/[.08] px-2.5 py-1.5 text-[12px] font-bold uppercase"
+          />
+          <button
+            onClick={() => void canjear()}
+            disabled={canjeando || !codigo.trim()}
+            className="rounded-full bg-lime px-3.5 py-1.5 text-[11px] font-semibold text-navy disabled:opacity-50"
+          >{canjeando ? "Buscando…" : "Canjear"}</button>
+        </div>
+        {veredicto && <p className={`mt-1.5 text-[11px] ${veredicto.ok ? "text-lime" : "text-faint"}`}>{veredicto.texto}</p>}
+      </div>
+
+      {estado.resumen.ultimos.length > 0 && <div className="mt-2 max-h-56 overflow-y-auto rounded-xl bg-paper/[.05] p-2.5">
+        {estado.resumen.ultimos.map((c) => <div key={c.codigo} className="mb-1.5 flex flex-wrap items-center gap-x-2 border-b border-paper/[.08] pb-1.5 text-[11px] last:mb-0 last:border-0 last:pb-0">
+          <b>{c.codigo}</b>
+          <span className={`rounded-full px-2 py-0.5 text-[9px] font-bold uppercase ${
+            c.estado === "canjeado" ? "bg-lime/20 text-lime" : "bg-paper/[.10] text-faint"}`}>{c.estado}</span>
+          <a className="underline" href={`#/ticket/${c.conversationId}`}>chat #{c.conversationId}</a>
+          {c.canjeadoPor && <span className="text-faint">por {c.canjeadoPor}</span>}
         </div>)}
       </div>}
     </>}

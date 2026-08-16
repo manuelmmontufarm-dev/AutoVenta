@@ -1,16 +1,40 @@
 #!/bin/sh
-# Exige que cada commit actualice BITACORA.md.
+# Dos candados antes de cada commit.
 # Activar (una vez por clon):  git config core.hooksPath .githooks
 # Saltar excepcionalmente:      git commit --no-verify
 
-if git diff --cached --name-only | grep -qx "BITACORA.md"; then
-  exit 0
+archivos=$(git diff --cached --name-only)
+
+# ── 1. Bitácora ──────────────────────────────────────────────────────────────
+if ! echo "$archivos" | grep -qx "BITACORA.md"; then
+  echo "❌ Commit bloqueado: falta actualizar BITACORA.md"
+  echo ""
+  echo "   Cada commit debe registrar una entrada nueva (qué, por qué, horas)."
+  echo "   Añádela arriba de todo en BITACORA.md, haz 'git add BITACORA.md' y reintenta."
+  echo ""
+  echo "   Caso excepcional (sin registro): git commit --no-verify"
+  exit 1
 fi
 
-echo "❌ Commit bloqueado: falta actualizar BITACORA.md"
-echo ""
-echo "   Cada commit debe registrar una entrada nueva (qué, por qué, horas)."
-echo "   Añádela arriba de todo en BITACORA.md, haz 'git add BITACORA.md' y reintenta."
-echo ""
-echo "   Caso excepcional (sin registro): git commit --no-verify"
-exit 1
+# ── 2. El hub construido ─────────────────────────────────────────────────────
+# Lo que se sirve en /admin NO es hub/src: es el bundle ya compilado que vive
+# en app/site/admin y que está commiteado. Nada lo reconstruye en el deploy, así
+# que tocar hub/src sin recompilar deja el panel viejo en producción sin que
+# falle nada — pasó con el Sprint 2 del 15-ago: login, permisos y el Cotizador
+# nuevo se mergearon a main y durante un día se siguió sirviendo el bundle del
+# 14-ago. Nadie se entera porque el deploy queda verde.
+if echo "$archivos" | grep -q "^hub/src/"; then
+  if ! echo "$archivos" | grep -q "^app/site/admin/"; then
+    echo "❌ Commit bloqueado: cambiaste hub/src pero no recompilaste el panel"
+    echo ""
+    echo "   Lo que ven Manuel, Andrés y los asesores en /admin es app/site/admin,"
+    echo "   no hub/src. Sin recompilar, tu cambio no llega a producción."
+    echo ""
+    echo "   Corre:  (cd hub && npm run build) && git add app/site/admin"
+    echo ""
+    echo "   Caso excepcional (cambio que no afecta al panel): git commit --no-verify"
+    exit 1
+  fi
+fi
+
+exit 0

@@ -32,6 +32,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-08-15 | _(este mismo)_ | Cupón DT-PUMA47 completo y apagado + el panel servido llevaba un día atrasado + número de venta roto | 2.5 |
 | 2026-08-15 | _(este mismo)_ | Notas del guardián de raíz: formato único de plata, corrector de precios gratis y local sin re-pregunta | 1.5 |
 | 2026-08-15 | _(este mismo)_ | Login con usuarios y clave + base de permisos, y el Cotizador deja de dibujar sus propias piezas | 2.5 |
 | 2026-08-14 | _(este mismo)_ | Cuenta de tokens en el tab KPI: gasto día/semana/mes + IVA, vence el primer viernes, pagos con clave de dueño | 1.5 |
@@ -136,6 +137,52 @@ Ya viene activado en este equipo.
 ---
 
 ## Entradas (más reciente primero)
+
+### 2026-08-15 · El cupón que sí se puede cobrar, y el panel que llevaba un día sin actualizarse · ⏱️ 2.5 h
+
+**Qué:** Tres cosas, y la segunda explica por qué las otras dos parecían estar
+hechas y no lo estaban.
+
+*El cupón, completo y apagado.* El Sprint 4 dejó la tabla, unas funciones
+sueltas y el ajuste — **nada cableado**: ni emisión, ni canje, ni endpoints, ni
+interruptor. Ahora existe el circuito entero. Los códigos dejaron de ser
+`DT-7K3M` (cuatro caracteres al azar) y pasaron a **`DT-PUMA47`**: una de 64
+palabras cortas sin tildes ni ñ —animales, cosas del carro, lugares del país—
+más dos dígitos. Se dicta por teléfono sin deletrear («de-te puma cuarenta y
+siete»), se teclea de un tirón con cola en caja, y que la palabra venga de la
+lista **es** la verificación: al barrer las descripciones de Contífico,
+`DT-PUMA47` es nuestro y `DT-XKQZ13` no existe, sin consultar la base
+(`extraerCupones`). El mensaje al cliente ya no informa, empuja: el código va
+solo en su línea y cierra con «dígalo en caja antes de pagar; si no lo presenta,
+no le pueden aplicar el 2 %». Emisión idempotente por conversación y ciclo,
+canje con candado contra doble aplicación, y `redeemed_by` con el usuario del
+login. **Nace y queda APAGADO**, con su interruptor y el porcentaje editables en
+Ajustes.
+
+*El panel servido estaba un día atrasado.* Lo que se sirve en `/admin` no es
+`hub/src`: es `app/site/admin`, un bundle **ya compilado y commiteado**, y nada
+lo reconstruye en el deploy. El Sprint 2 se mergeó a `main`, el deploy quedó
+verde… y se siguió sirviendo el bundle del 14-ago. Por eso el Cotizador seguía
+sacando las piezas viejas —el síntoma que reportó Manuel— y por eso el login no
+aparecía por ningún lado. Reconstruido, y con candado nuevo en
+`.githooks/pre-commit`: tocar `hub/src` sin recompilar bloquea el commit.
+
+*El número de venta estaba roto.* `AV-` + los dígitos de un número base36 («COT-MSUX5R4W»)
+daba entre cero y dos caracteres: 148 cotizaciones con 68 números distintos y 28
+literalmente `AV-`, texto que salía en el aviso al asesor en cada cotización.
+Ahora conserva el sufijo entero.
+
+**Por qué:** Depot no puede saber qué vendió el bot. El cruce por teléfono dio
+0 de 61 porque `quotes` no guarda teléfono y Contífico no conoce el número de
+cotización — no hay ningún dato compartido entre los dos sistemas. El cupón lo
+crea: el cliente tiene un motivo propio para identificarse (su 2 %) y el cajero
+escribe el código donde ya está tecleando. **No escribimos en Contífico** — no
+hace falta y no queremos ese permiso. Queda apagado a propósito: un código que
+caja no sabe honrar es peor que no prometer nada, así que la luz verde es de
+Andrés, no del código. Y lo del bundle es la lección cara del día: un deploy en
+verde no prueba que lo que ve el usuario haya cambiado. 713 tests en verde.
+
+---
 
 ### 2026-08-15 · Las notas del guardián, atacadas de raíz: precios y local sin re-pregunta, gratis · ⏱️ 1.5 h
 
