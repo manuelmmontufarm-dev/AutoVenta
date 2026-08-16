@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AutoVenta · Cómo probar todo</title>
+<style>
+  :root {
+    --rojo: #e52c2a; --negro: #1c1e1b; --gris: #605e5e;
+    --borde: #e3e3e3; --fondo: #ffffff; --suave: #faf7f2; --verde: #1e7a4d;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: var(--suave); color: var(--negro); line-height: 1.5;
+    padding: 32px 16px 56px;
+  }
+  .hoja { max-width: 820px; margin: 0 auto; }
+  .marca {
+    display: inline-block; background: var(--negro); color: #fff; font-weight: 800;
+    letter-spacing: .06em; font-size: 13px; padding: 6px 12px; border-radius: 6px;
+    text-transform: uppercase;
+  }
+  .marca span { color: var(--rojo); }
+  h1 { font-size: 29px; margin-top: 14px; letter-spacing: -0.02em; }
+  .sub { color: var(--gris); font-size: 15px; margin-top: 4px; }
+
+  .aviso {
+    margin-top: 20px; background: #fff8e6; border: 1px solid #f0d894;
+    border-radius: 10px; padding: 14px 16px; font-size: 14px;
+  }
+  .aviso b { color: #8a6100; }
+
+  h2 {
+    font-size: 13px; text-transform: uppercase; letter-spacing: .1em; color: var(--rojo);
+    margin: 32px 0 12px; padding-bottom: 6px; border-bottom: 2px solid var(--rojo);
+  }
+  .item {
+    background: var(--fondo); border: 1px solid var(--borde); border-radius: 12px;
+    padding: 16px 18px; margin-bottom: 10px;
+  }
+  .item h3 { font-size: 16px; margin-bottom: 3px; }
+  .item p { font-size: 14px; color: var(--gris); }
+  .item a {
+    display: inline-block; margin-top: 9px; font-size: 13px; font-weight: 700;
+    color: #fff; background: var(--negro); text-decoration: none;
+    padding: 7px 13px; border-radius: 7px; word-break: break-all;
+  }
+  .item a:hover { background: var(--rojo); }
+  .paso {
+    margin-top: 9px; font-size: 13px; color: var(--negro);
+    background: var(--suave); border-radius: 8px; padding: 9px 12px;
+  }
+  .paso b { color: var(--verde); }
+  code {
+    background: #f0ece4; padding: 1px 6px; border-radius: 4px;
+    font-family: ui-monospace, Menlo, monospace; font-size: 13px;
+  }
+  footer {
+    margin-top: 34px; padding-top: 14px; border-top: 1px solid var(--borde);
+    color: var(--gris); font-size: 13px;
+  }
+</style>
+</head>
+<body>
+<div class="hoja">
+
+<div class="marca">DEPOT <span>TIRE</span> · AUTOVENTA</div>
+<h1>Cómo probar todo lo nuevo</h1>
+<div class="sub">15 de agosto 2026 · staging</div>
+
+<div class="aviso">
+  <b>Antes de empezar:</b> todo esto está en <b>staging</b>, no en el WhatsApp real de Depot.
+  Entra al panel con tu usuario y la clave <code>1234</code>.
+  El <b>cupón está apagado</b> a propósito — espera tu luz verde, Andrés.
+</div>
+
+<h2>El panel</h2>
+
+<div class="item">
+  <h3>🔐 Login con usuarios</h3>
+  <p>Debe pedirte quién eres antes de mostrar nada. Tu nombre queda arriba, con botón de salir.</p>
+  <a href="https://autoventa-staging.up.railway.app/admin">Abrir el panel</a>
+  <div class="paso"><b>Probar:</b> entra como Andres Tamayo con clave <code>1234</code>. Sal y vuelve a entrar como Asesor: es otro rol.</div>
+</div>
+
+<div class="item">
+  <h3>🎟️ Cupón de confirmación <span style="color:var(--gris);font-weight:400">— apagado</span></h3>
+  <p>El interruptor, el porcentaje y el canje en caja. Con el código de prueba puedes ver qué contesta.</p>
+  <a href="https://autoventa-staging.up.railway.app/admin/#/ajustes">Abrir Ajustes</a>
+  <div class="paso"><b>Probar sin prenderlo:</b> en «Canjear en caja» escribe <code>DT-PUMA47</code> → debe decir que ese código no fue emitido. Escribe <code>DT-PERRO47</code> → debe decir que no tiene forma de cupón. Así se ve que distingue lo nuestro de lo inventado.</div>
+</div>
+
+<div class="item">
+  <h3>👼 Ángel Guardián</h3>
+  <p>El interruptor y el informe de la semana: qué corrigió antes de que el cliente lo viera.</p>
+  <a href="https://autoventa-staging.up.railway.app/admin/#/ajustes">Abrir Ajustes</a>
+  <div class="paso"><b>Probar:</b> pulsa «Ver informe de la semana». Salen las 63 correcciones de los últimos días con el chat de cada una.</div>
+</div>
+
+<div class="item">
+  <h3>🔔 Quién recibe los avisos</h3>
+  <p>«Todo» para quien dirige; «Solo local» deja pasar los 5 avisos del mostrador.</p>
+  <a href="https://autoventa-staging.up.railway.app/admin/#/ajustes">Abrir Ajustes</a>
+  <div class="paso"><b>Probar:</b> pon a alguien en «Solo local» y comprueba que ya no le llegan trazas del bot.</div>
+</div>
+
+<div class="item">
+  <h3>🖼️ Cotizador — las piezas nuevas</h3>
+  <p>Esto es lo que estaba saliendo con el diseño viejo. Ya descarga la misma imagen que manda el bot.</p>
+  <a href="https://autoventa-staging.up.railway.app/admin/#/cotizador">Abrir Cotizador</a>
+  <div class="paso"><b>Probar:</b> busca <code>205/55R16</code>, pulsa «📷 Guardar imagen para WhatsApp» y mira el sello de medida en cada tarjeta: verde si es exacta, rojo si es equivalente.</div>
+</div>
+
+<h2>El bot, por WhatsApp de staging</h2>
+
+<div class="item">
+  <h3>💬 Chat de prueba de punta a punta</h3>
+  <p>Un solo chat toca casi todo: medida → opciones → precio → cotización → local → fecha.</p>
+  <div class="paso">
+    <b>Escribe, en este orden:</b><br>
+    1. «buenas, necesito llantas 205/55R16» → llegan las opciones con sello de medida<br>
+    2. «a cómo salen?» → <b>debe darte la recomendación de una</b>, no preguntarte si quieres una<br>
+    3. «dale, cotízame 4» → llega la cotización; revisa que el total esté con <b>punto</b> ($555.57, no $555,56)<br>
+    4. «voy al sur» → registra Quito Sur<br>
+    5. «paso el lunes» → <b>solo pregunta el día o confirma; NO vuelve a preguntar cuál local</b>
+  </div>
+</div>
+
+<div class="item">
+  <h3>📋 Los chats del día, uno por uno</h3>
+  <p>La revisión contextual: cada mensaje leído en contexto, buscando lo que ningún detector ve.</p>
+  <a href="https://autoventa-staging.up.railway.app/admin/#/tickets">Ver los chats</a>
+</div>
+
+<h2>Salud del sistema</h2>
+
+<div class="item">
+  <h3>❤️ ¿Qué versión está corriendo?</h3>
+  <p>Dice el commit desplegado, si el bot está activo y cuándo se sincronizó el catálogo.</p>
+  <a href="https://autoventa-staging.up.railway.app/health">Ver estado</a>
+  <div class="paso"><b>Debe decir:</b> <code>"commit":"ba97739"</code> y <code>"activo":true</code>.</div>
+</div>
+
+<footer>
+  Cuando Andrés dé la luz verde y caja esté capacitada, el cupón se prende desde Ajustes —
+  sin tocar código y sin esperar un despliegue. Nada de esto toca el WhatsApp de producción de Depot.
+</footer>
+
+</div>
+</body>
+</html>
