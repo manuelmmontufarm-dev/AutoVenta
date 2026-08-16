@@ -86,7 +86,8 @@
   <h3>🔐 El hub pregunta quién eres <span class="quien">Andrés</span></h3>
   <p>Ya no se abre con una clave anónima. Tu nombre queda arriba, con su botón de salir — también en el teléfono.</p>
   <a class="boton" href="https://autoventa-staging.up.railway.app/admin/">Abrir el panel</a>
-  <div class="paso"><b>Probar:</b> entra como <b>Andres Tamayo</b> con clave <code>1234</code>. Sal, y vuelve a entrar como <b>Asesor</b>: es otro rol, y el servidor ya sabe en cada pedido quién pregunta.</div>
+  <div class="paso"><b>Probar:</b> entra como <b>Andres Tamayo</b> con clave <code>1234</code>. Sal con el botón <b>Salir</b> de arriba a la derecha, y vuelve a entrar como <b>Asesor</b>: es otro rol, y el servidor ya sabe en cada pedido quién pregunta.</div>
+  <div class="paso"><b>Ojo con el botón Salir:</b> antes solo aparecía si entrabas con usuario. Si tu navegador tenía guardada la clave administrativa, te quedabas dentro sin forma de cerrar sesión. Ahora sale siempre, y dice «Clave admin» cuando no hay usuario.</div>
 </div>
 
 <div class="item">
@@ -128,11 +129,23 @@
   <p>Al confirmar la visita, el bot manda un código tipo <code>DT-PUMA47</code>. En caja se aplica el 2 % adicional y el cajero copia el código en la descripción de la factura. Nosotros solo leemos.</p>
   <a class="boton" href="https://autoventa-staging.up.railway.app/admin/#/ajustes">Ajustes → Cupón de confirmación</a>
   <div class="paso">
-    <b>Probar sin prenderlo</b> — en «Canjear en caja»:<br>
-    · Escribe <code>DT-PUMA47</code> → debe decir que ese código <b>no fue emitido</b> por el bot.<br>
-    · Escribe <code>DT-PERRO47</code> → debe decir que <b>no tiene forma de cupón</b> (PERRO no está en la lista).<br>
+    <b>Probar sin prenderlo</b> — en «Verificar código en caja»:<br>
+    · Escribe <code>DT-PUMA47</code> y pulsa <b>Verificar</b> → debe decir que ese código <b>no fue emitido</b> por el bot.<br>
+    · Escribe <code>DT-PERRO47</code> → debe decir que <b>no tiene forma de cupón</b> (PERRO no está en las 64 palabras).<br>
     Así se ve que distingue lo nuestro de lo inventado, que es lo que permite auditar las facturas.
   </div>
+</div>
+
+<div class="item">
+  <h3>🔎 Verificar primero, cobrar después</h3>
+  <p>En caja son dos momentos: se comprueba el código cuando el cliente lo dicta, y se aplica el 2 % cuando la venta se cierra. <b>Verificar no quema el cupón</b> — si lo quemara, un cliente que se arrepiente se quedaría sin descuento y con el código marcado como usado.</p>
+  <div class="paso"><b>Qué muestra al verificar:</b> nombre, teléfono, medida, cuánto cotizó, a qué local iba y qué día dijo que venía. Con eso el cajero coteja contra la persona que tiene enfrente, y recién ahí aparece el botón de aplicar.</div>
+</div>
+
+<div class="item">
+  <h3>📲 El código también llega al asesor por WhatsApp</h3>
+  <p>Los tres avisos de visita —«dijo cuándo viene», «viene mañana» y «viene hoy»— llevan el código dentro del mismo mensaje. El asesor valida al cliente leyendo su propio WhatsApp, sin abrir el panel.</p>
+  <div class="paso"><b>Se verá así:</b><br>📅 <b>CONFIRMÓ VISITA</b> · lunes 17 de agosto<br>📏 205/55R16 · 💵 Cotizado: $555.57 · 🏬 Quito Sur · 🎟️ <b>Cupón DT-PUMA47 (2 % extra)</b></div>
 </div>
 
 <h2>Sprint 5 · Los errores del guardián, atacados de raíz</h2>
