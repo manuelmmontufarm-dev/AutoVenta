@@ -85,3 +85,7 @@ export const IconSparkle = (p: P) =>
 
 export const IconTire = (p: P) =>
   base(p, <><circle cx="12" cy="12" r="8.5" /><circle cx="12" cy="12" r="3.4" /><path d="M12 3.5v3" /><path d="M12 17.5v3" /><path d="M3.5 12h3" /><path d="M17.5 12h3" /><path d="m6 6 2.1 2.1" /><path d="m15.9 15.9 2.1 2.1" /><path d="m18 6-2.1 2.1" /><path d="m8.1 15.9-2.1 2.1" /></>);
+
+/** Puerta con flecha saliendo: el «salir» de toda la vida. */
+export const IconSalir = (p: P) =>
+  base(p, <><path d="M15 4.5h3a1.5 1.5 0 0 1 1.5 1.5v12a1.5 1.5 0 0 1-1.5 1.5h-3" /><path d="M10 8.5 13.5 12 10 15.5" /><path d="M13.5 12h-9" /></>);

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { IconSalir } from "./icons";
 import {
   getStoredAdminKey,
   iniciarSesion,
@@ -361,28 +362,23 @@ export function ConnectionGate({ estado }: { estado: Extract<EstadoConexion, "cl
 }
 
 /**
- * Quién está usando el hub, y la salida.
+ * Quién está usando el hub. Solo el nombre — la salida vive abajo, con los tabs.
  *
  * El nombre no es adorno: en la tienda el panel se queda abierto en un
  * computador compartido, y saber con qué usuario estás es lo que evita que
  * alguien crea que "el sistema" hizo algo que hizo su compañero.
  */
-export function UserChip({ nombre, onSalir }: { nombre: string | null; onSalir: () => void }) {
+export function UserChip({ nombre }: { nombre: string | null }) {
   // `nombre` puede venir vacío: es la sesión por clave administrativa, la que
   // usan el panel central, los scripts y quien ya tenía el hub abierto antes
-  // del login. Esa sesión también tiene que poder cerrarse — mientras el chip
-  // dependió de que hubiera usuario, quien entraba con la clave se quedaba
-  // dentro sin ningún botón para salir (reportado el 15-ago).
-  const conUsuario = Boolean(nombre);
+  // del login.
   const etiqueta = nombre ?? "Clave admin";
   // En el teléfono solo el nombre de pila: el hub se usa como PWA en iPhone y
-  // ahí la barra no da para "Joaquin Tamayo" entero. Esconder el chip en móvil
-  // —que era lo primero que se hizo— dejaba a quien trabaja desde el celular
-  // sin saber con qué usuario está ni cómo salir.
+  // ahí la barra no da para "Joaquin Tamayo" entero.
   const nombreDePila = etiqueta.split(" ")[0];
   return (
     <span
-      className="flex items-center gap-1.5 rounded-full py-1.5 pr-1.5 pl-2.5 text-[11px] font-semibold sm:gap-2 sm:pl-3"
+      className="flex items-center rounded-full px-2.5 py-1.5 text-[11px] font-semibold sm:px-3"
       style={{
         background: "color-mix(in srgb, var(--color-paper) 8%, transparent)",
         border: "1px solid var(--color-line)",
@@ -392,19 +388,47 @@ export function UserChip({ nombre, onSalir }: { nombre: string | null; onSalir: 
         <span className="sm:hidden">{nombreDePila}</span>
         <span className="hidden sm:inline">{etiqueta}</span>
       </span>
-      <button
-        type="button"
-        onClick={onSalir}
-        title={conUsuario ? `Salir de la sesión de ${nombre}` : "Salir y olvidar la clave guardada"}
-        className="rounded-full px-2.5 py-1 text-[10px] font-black tracking-wide uppercase transition-opacity active:opacity-70"
-        style={{
-          background: "color-mix(in srgb, var(--color-red) 14%, transparent)",
-          color: "var(--color-red)",
-        }}
-      >
-        Salir
-      </button>
     </span>
+  );
+}
+
+/**
+ * El botón de salir, abajo con los tabs.
+ *
+ * Vivía arriba a la derecha, pegado al nombre, y ahí competía con la versión,
+ * el estado de conexión y el modo — cuatro cosas del sistema en la esquina que
+ * uno mira para saber DÓNDE está, no para navegar. Abajo, junto a los tabs,
+ * está donde la mano ya va en el teléfono y donde se busca una salida.
+ *
+ * Va con borde y sin relleno: es una acción de salida, no una acción del
+ * negocio. Si compitiera en peso con «Apagar el bot» o con los tabs, se
+ * pulsaría sin querer.
+ */
+export function SalirButton({
+  nombre,
+  onSalir,
+  className = "",
+  soloIcono = false,
+}: {
+  nombre: string | null;
+  onSalir: () => void;
+  className?: string;
+  /** En el rail de escritorio (64 px) no cabe el texto: solo el icono. */
+  soloIcono?: boolean;
+}) {
+  const titulo = nombre ? `Salir de la sesión de ${nombre}` : "Salir y olvidar la clave guardada";
+  return (
+    <button
+      type="button"
+      onClick={onSalir}
+      title={titulo}
+      aria-label={soloIcono ? titulo : undefined}
+      className={`flex items-center justify-center gap-2 rounded-full text-[13px] font-semibold text-muted transition-colors hover:text-paper active:opacity-70 ${soloIcono ? "" : "px-4 py-2"} ${className}`}
+      style={{ border: "1px solid var(--color-line)" }}
+    >
+      <IconSalir size={17} />
+      {!soloIcono && "Salir"}
+    </button>
   );
 }
 

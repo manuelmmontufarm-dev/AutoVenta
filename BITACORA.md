@@ -32,6 +32,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-08-16 | _(este mismo)_ | El botón de salir baja con los tabs, con icono y borde | 0.25 |
 | 2026-08-16 | _(este mismo)_ | Entrar con usuario daba 401 en todo el panel: las 4 pantallas mandaban la clave vieja, no el token | 0.5 |
 | 2026-08-15 | _(este mismo)_ | El código en todos los avisos de visita, verificar antes de canjear, y el botón de salir que faltaba | 1.0 |
 | 2026-08-15 | _(este mismo)_ | Cupón DT-PUMA47 completo y apagado + el panel servido llevaba un día atrasado + número de venta roto | 2.5 |
@@ -139,6 +140,24 @@ Ya viene activado en este equipo.
 ---
 
 ## Entradas (más reciente primero)
+
+### 2026-08-16 · El botón de salir baja con los tabs · ⏱️ 0.25 h
+
+**Qué:** «Salir» sale del chip de arriba y pasa abajo, junto a la navegación:
+pastilla con borde, icono de puerta y el texto, centrada encima de la tab bar en
+el teléfono; en escritorio, solo el icono al pie del rail (64 px de ancho no dan
+para texto). Arriba queda únicamente el nombre de quién está usando el panel.
+Icono nuevo `IconSalir`.
+
+**Por qué:** pedido de Manuel con la referencia visual delante. Y la esquina
+superior derecha ya cargaba cuatro cosas —nombre, conexión, versión, modo—, que
+son indicadores para saber DÓNDE estás, no acciones; la salida no se busca ahí,
+se busca donde está la navegación. En el teléfono, además, es donde la mano ya
+está. Va con borde y sin relleno a propósito: es una acción de salida y no puede
+competir en peso con los tabs ni con «Apagar el bot». Fuera de la barra, no
+dentro, porque con las 6 fases activas los tabs ya van justos de ancho.
+
+---
 
 ### 2026-08-16 · Entrar con usuario dejaba el panel a medias: 401 en toda la pantalla · ⏱️ 0.5 h
 

@@ -1,6 +1,6 @@
 import { AnimatePresence, LayoutGroup, MotionConfig, motion } from "framer-motion";
 import { useEffect, useState } from "react";
-import { ConnectionChip, ConnectionGate, UserChip } from "./components/admin-key";
+import { ConnectionChip, ConnectionGate, SalirButton, UserChip } from "./components/admin-key";
 import { hasAdminKey } from "./data/catalog";
 import { Confetti, Toasts } from "./components/overlays";
 import { IconChart, IconInbox, IconKanban, IconPlay, IconSparkle, IconStop, IconTire, IconSliders } from "./components/icons";
@@ -138,6 +138,17 @@ export default function App() {
             })}
           </LayoutGroup>
           <div className="mt-auto flex flex-col items-center gap-3">
+            {/* La salida, al pie del rail. En 64 px de ancho no cabe el texto,
+                así que aquí va solo el icono con su tooltip; el botón completo
+                se ve en el teléfono, junto a los tabs. */}
+            {dataMode === "real" && hasAdminKey() && (
+              <SalirButton
+                nombre={usuario?.nombre ?? null}
+                onSalir={salir}
+                className="h-10 w-10 !px-0 [&>svg]:mx-auto"
+                soloIcono
+              />
+            )}
             {power.activo ? (
               <span className="pulse-dot" title="Bot en línea" />
             ) : (
@@ -224,10 +235,9 @@ export default function App() {
                   onClick={() => navigate("settings")}
                 />
               )}
-              {/* Con usuario o con clave cruda: en los dos casos hay sesión
-                  abierta, y en los dos tiene que haber por dónde salir. */}
+              {/* Solo quién eres. La salida vive abajo, con los tabs. */}
               {dataMode === "real" && hasAdminKey() && (
-                <UserChip nombre={usuario?.nombre ?? null} onSalir={salir} />
+                <UserChip nombre={usuario?.nombre ?? null} />
               )}
               <VersionBadge />
               {dataMode === "demo" ? (
@@ -284,6 +294,23 @@ export default function App() {
             Cada tab reparte el ancho con flex-1: con las 6 fases activas los
             px fijos empujaban Métricas y Ajustes fuera de la pantalla, y un
             tab que no se ve es un tab que no existe. */}
+        {/* La salida, encima de los tabs y centrada: es donde la mano ya está
+            en el teléfono. Fuera de la barra para que no le robe ancho a los
+            tabs —con las 6 fases activas ya van justos— y separada para que no
+            se pulse queriendo tocar Ajustes. */}
+        {dataMode === "real" && hasAdminKey() && (
+          <div
+            className="fixed inset-x-0 z-20 flex justify-center md:hidden"
+            style={{ bottom: "calc(4.75rem + env(safe-area-inset-bottom))" }}
+          >
+            <SalirButton
+              nombre={usuario?.nombre ?? null}
+              onSalir={salir}
+              className="glass-strong shadow-soft"
+            />
+          </div>
+        )}
+
         <nav className="glass-strong fixed inset-x-2 bottom-2 z-20 flex items-stretch rounded-3xl px-1 py-2 md:hidden" style={{ paddingBottom: "max(0.5rem, env(safe-area-inset-bottom))" }}>
           {navVisible.map((item) => {
             const activo = navActivo(route) === item.id;
