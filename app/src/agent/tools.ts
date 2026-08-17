@@ -13,6 +13,7 @@ import {
   catalogCandidates,
   catalogStatus,
   ensureCatalogReady,
+  applyInterbotPrices,
   findByCode,
   searchAlternatives,
   searchBySize,
@@ -588,6 +589,12 @@ export function buildTools(ctx: AgentContext) {
       const size = { width, aspect, rim };
       const exact = searchBySize(size);
       const alternatives = exact.some((i) => i.stock > 0) ? [] : searchAlternatives(size);
+      // El playbook obliga a que todo precio que el bot afirme salga de aquí, así
+      // que aquí también se confirma contra el Interbot en vez de servir el
+      // catálogo de hasta una semana atrás. Una consulta por la medida buscada.
+      await refreshPriceForSize(formatTireSize(size));
+      applyInterbotPrices(exact);
+      applyInterbotPrices(alternatives);
       await updateConversationFacts(ctx.conversation.id, { tireSize: formatTireSize(size) });
       return JSON.stringify({
         medida: formatTireSize(size),
@@ -1134,6 +1141,25 @@ export function buildTools(ctx: AgentContext) {
           error: `Las opciones de ${sizeLabelActual ?? "esa medida"} YA se enviaron hace ${minutos} min y el cliente las tiene en pantalla. PROHIBIDO reenviarlas. Si pidió precio o eligió un modelo, llama generar_cotizacion con ese modelo (4 unidades si no dijo cantidad). Si preguntó otra cosa, respóndela directo en texto.`,
         });
       }
+
+      // EL PRECIO DE LA PIEZA SE CONFIRMA CONTRA EL INTERBOT (16-ago).
+      //
+      // Interbot es la fuente del precio de venta real. Pero la pieza de
+      // opciones dibujaba `item.minimumPriceWithTax`, que es el catálogo en
+      // memoria, y a ese campo solo lo reescribe `applyInterbotPrices` durante
+      // el barrido COMPLETO — que desde el 12-ago corre una vez por semana
+      // (miércoles 15:00). O sea: si Depot cambiaba un precio un jueves, la
+      // pieza enseñaba el viejo hasta el miércoles siguiente, mientras
+      // `generar_cotizacion` —que sí pregunta en el momento— firmaba el nuevo.
+      // El cliente veía un número en la imagen y otro en la cotización.
+      //
+      // Aquí se pregunta por las medidas que se están mostrando (una consulta
+      // por medida, no el barrido de ~156) y se vuelca sobre los productos que
+      // van a salir dibujados. Es la MISMA fuente y el MISMO momento que usa la
+      // cotización, así que los dos números coinciden por construcción.
+      const medidasAConfirmar = [...new Set(products.map((p) => p.sizeLabel).filter(Boolean))] as string[];
+      await Promise.all(medidasAConfirmar.map((medida) => refreshPriceForSize(medida)));
+      applyInterbotPrices(products);
 
       // La recomendación tiene que ser una de las opciones mostradas. Si el
       // modelo apunta a otra cosa, se cae a la primera en vez de recomendar algo

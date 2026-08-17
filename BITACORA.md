@@ -32,6 +32,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-08-16 | _(este mismo)_ | La pieza de opciones y la cotización dicen el precio del Interbot, las dos | 0.5 |
 | 2026-08-16 | _(este mismo)_ | El sello de la equivalente advierte en ámbar, ya no rechaza en rojo | 0.75 |
 | 2026-08-16 | _(este mismo)_ | Auditoría (2/2): el precio que se lee y el que se firma son el mismo | 2.0 |
 | 2026-08-16 | _(este mismo)_ | Auditoría: ningún turno se queda sin respuesta, y el caché del prompt vuelve a servir | 3.0 |
@@ -144,6 +145,32 @@ Ya viene activado en este equipo.
 ---
 
 ## Entradas (más reciente primero)
+
+### 2026-08-16 · La pieza de opciones y la cotización dicen el precio del Interbot, las dos · ⏱️ 0.5 h
+
+**Qué:** `preparar_opciones` y `buscar_llanta` confirman el precio contra el
+Interbot antes de enseñarlo — una consulta por medida (`refreshPriceForSize`),
+volcada sobre los productos con `applyInterbotPrices`.
+
+**Por qué:** quedaba un hueco del arreglo anterior. La cotización ya preguntaba
+el precio en el momento, pero la PIEZA DE OPCIONES dibujaba
+`item.minimumPriceWithTax`, que es el catálogo en memoria, y a ese campo solo lo
+reescribe el barrido COMPLETO — que desde el 12-ago corre una vez por semana
+(miércoles 15:00). Si Depot cambiaba un precio un jueves, el cliente veía el
+viejo en la imagen de opciones y el nuevo al cotizar. Interbot es la fuente del
+precio de venta real, así que las dos piezas tienen que salir de ahí y del mismo
+momento; ahora coinciden por construcción.
+
+El coste en consultas al Interbot es el que se cuidó el 12-ago: son ~1–2 por
+conversación (proporcional a clientes reales), no el barrido de ~156 ni las
+15.000 diarias que reclamaron. La contrapartida es una ida y vuelta más en el
+camino de respuesta; si la latencia molesta, el sitio para recortar es
+`buscar_llanta` —la pieza es la que el cliente mira— y se quita sin tocar nada
+más.
+
+**Verificación:** 729 pruebas en verde y `tsc` limpio. La semántica de
+`applyInterbotPrices` ya la cubren los 6 casos de `interbotPrices.test.ts`,
+incluida la regresión del precio que reclamó Depot; lo añadido aquí es cableado.
 
 ### 2026-08-16 · El sello de la equivalente advierte en ámbar, ya no rechaza en rojo · ⏱️ 0.75 h
 
