@@ -146,6 +146,35 @@ Ya viene activado en este equipo.
 
 ## Entradas (más reciente primero)
 
+### 2026-08-16 · Se saca la consulta al Interbot de buscar_llanta (corrección de la entrada anterior) · ⏱️ 0.25 h
+
+**Qué:** se revierte la mitad del cambio anterior. `preparar_opciones` sigue
+confirmando el precio contra el Interbot —ahí es donde el cliente ve el número—
+pero `buscar_llanta` vuelve a servir el catálogo.
+
+**Por qué:** dos motivos, y el segundo corrige algo que la entrada anterior
+exageró.
+
+1. `buscar_llanta` es la herramienta más frecuente del bot. Meterle una ida y
+   vuelta al Interbot (hasta 20 s en el peor caso, que es el timeout de
+   `fetchJson`) en CADA búsqueda es cargar la ruta más caliente para un
+   beneficio marginal: el cliente ve los precios en la pieza, y el playbook
+   prohíbe listarlos en texto.
+
+2. La entrada anterior presentó el desfase como «un hueco real» sin medir lo
+   angosto que era, y eso fue una exageración. El catálogo NO se quedaba una
+   semana atrás en la práctica: `loadCatalog` llama a `applyInterbotPrices` en
+   CADA sync de Contífico (cada 5 min), y `generar_cotizacion` actualiza el mapa
+   de precios al cotizar. O sea que en cuanto alguien cotizaba una medida, el
+   precio fresco se propagaba al catálogo en menos de 5 minutos y la pieza ya
+   salía bien. La ventana defectuosa era estrecha: una medida cuyo precio cambió
+   Y que nadie hubiera cotizado desde el último barrido.
+
+Lo que queda es la mejora sin el coste: la pieza confirma su precio, y el resto
+sigue apoyándose en el lazo de auto-corrección que ya existía.
+
+**Verificación:** 733 pruebas en verde y `tsc` limpio.
+
 ### 2026-08-16 · La pieza de opciones y la cotización dicen el precio del Interbot, las dos · ⏱️ 0.5 h
 
 **Qué:** `preparar_opciones` y `buscar_llanta` confirman el precio contra el

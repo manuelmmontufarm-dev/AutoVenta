@@ -589,12 +589,13 @@ export function buildTools(ctx: AgentContext) {
       const size = { width, aspect, rim };
       const exact = searchBySize(size);
       const alternatives = exact.some((i) => i.stock > 0) ? [] : searchAlternatives(size);
-      // El playbook obliga a que todo precio que el bot afirme salga de aquí, así
-      // que aquí también se confirma contra el Interbot en vez de servir el
-      // catálogo de hasta una semana atrás. Una consulta por la medida buscada.
-      await refreshPriceForSize(formatTireSize(size));
-      applyInterbotPrices(exact);
-      applyInterbotPrices(alternatives);
+      // Aquí NO se consulta al Interbot a propósito. Se probó y se sacó el
+      // 16-ago: `buscar_llanta` es la herramienta más frecuente del bot y le
+      // añadía una ida y vuelta (hasta 20 s en el peor caso) a cada búsqueda,
+      // para un beneficio marginal — el cliente ve los precios en la PIEZA, y
+      // el playbook prohíbe listarlos en texto. La confirmación contra el
+      // Interbot vive donde se enseña el número: `preparar_opciones` y
+      // `generar_cotizacion`.
       await updateConversationFacts(ctx.conversation.id, { tireSize: formatTireSize(size) });
       return JSON.stringify({
         medida: formatTireSize(size),
