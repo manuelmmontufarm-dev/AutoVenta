@@ -44,7 +44,42 @@ function modeloDelTurno(iteration: number, stage: AgentContext["conversation"]["
     : config.openai.escalationModel;
 }
 
+/**
+ * Red de seguridad del turno (16-ago).
+ *
+ * `ejecutarAgente` toca Postgres, OpenAI, el Interbot y WheelSize, y hasta hoy
+ * ninguna de esas excepciones estaba capturada en el camino principal: subían
+ * intactas hasta `pipeline/inbound.ts`, que solo hace `console.error`. El
+ * cliente se quedaba sin ninguna respuesta, sin fila en `ai_runs` y sin aviso
+ * al asesor — el fallo más caro posible, porque desde fuera parece que el bot
+ * está muerto.
+ *
+ * Un turno SIEMPRE devuelve texto. Si no hay nada que decir, se dice lo mínimo
+ * y queda registrado para que el guardián y el reporte diario lo vean.
+ */
 export async function runAgent(ctx: AgentContext, userText: string): Promise<string> {
+  try {
+    return await ejecutarAgente(ctx, userText);
+  } catch (error) {
+    const mensaje = error instanceof Error ? error.message : String(error);
+    console.error("❌ El turno del agente se cayó entero:", mensaje);
+    await logAiRun({
+      conversationId: ctx.conversation.id,
+      stage: ctx.conversation.stage,
+      model: config.openai.model,
+      latencyMs: 0,
+      inputTokens: 0,
+      outputTokens: 0,
+      iterations: 0,
+      route: "failed",
+      tools: [],
+      error: `excepcion_no_capturada: ${mensaje}`,
+    }).catch(() => {});
+    return "Disculpa, se me cruzaron los cables un momento. ¿Me repites lo último, por favor?";
+  }
+}
+
+async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<string> {
   const startedAt = Date.now();
   let inputTokens = 0;
   let outputTokens = 0;
@@ -87,12 +122,34 @@ export async function runAgent(ctx: AgentContext, userText: string): Promise<str
     type: "function",
     function: tool.function,
   }));
-  const messages: ChatCompletionMessageParam[] = [
-    { role: "system", content: systemPrompt },
+  // ORDEN DE LOS MENSAJES = PRECIO DE LA ENTRADA (16-ago).
+  //
+  // OpenAI cachea el PREFIJO del prompt y lo cobra a un décimo ($0,50/M contra
+  // $5/M). El prefijo solo vale mientras sea idéntico byte a byte, así que se
+  // corta en el primer bloque que cambie entre turnos.
+  //
+  // Hasta hoy el índice 1 era salesFactsPrompt, que lleva dentro
+  // `hace N min` — un número distinto en cada turno. Resultado medido el
+  // 10-ago en producción: 10.086 tokens cacheados por llamada contra un
+  // prompt de sistema de 10.471. Es decir, el caché cubría el system y se
+  // cortaba justo ahí; el historial y los esquemas de tools se pagaban
+  // enteros en cada llamada. Esos 4.534 tokens vivos eran el 74,8% de la
+  // factura.
+  //
+  // Ahora lo volátil va DESPUÉS del historial: el prefijo pasa a ser
+  // [system][historial], que dentro de una conversación solo crece por el
+  // final y por tanto se reutiliza. Los bloques de hechos y descuentos no
+  // pierden fuerza por ir al final — al contrario, quedan más cerca del
+  // mensaje del cliente, que es donde más se respetan.
+  const bloquesVolatiles: ChatCompletionMessageParam[] = [
     { role: "system", content: salesFactsPrompt(salesFacts, ctx.resumedFromHuman) },
     ...(activeDiscount ? [{ role: "system" as const, content: `OFERTA AUTORIZADA Y VIGENTE (fuente determinística): descuento adicional $${(activeDiscount.discountAmountCents / 100).toFixed(2)}, total final $${(activeDiscount.finalTotalCents / 100).toFixed(2)}, condición: ${activeDiscount.condition}. Motivo interno: ${activeDiscount.reason}. No cambies estos valores ni inventes otra oferta.` }] : []),
     ...(pendingDiscount ? [{ role: "system" as const, content: `DESCUENTO AUTORIZADO PENDIENTE DE COTIZACIÓN (fuente determinística): ${pendingDiscount.kind === "percentage" ? `${pendingDiscount.valueCents / 100}%` : `$${(pendingDiscount.valueCents / 100).toFixed(2)}`}, condición: ${pendingDiscount.condition}. No digas que no existe descuento. Se aplicará determinísticamente al generar la próxima cotización; antes de conocer el total no inventes ahorro ni total final.` }] : []),
+  ];
+  const messages: ChatCompletionMessageParam[] = [
+    { role: "system", content: systemPrompt },
     ...history,
+    ...bloquesVolatiles,
     { role: "user", content: userText },
   ];
 
@@ -105,19 +162,32 @@ export async function runAgent(ctx: AgentContext, userText: string): Promise<str
     modeloUsado = modeloDelTurno(iteration, ctx.conversation.stage);
     const gpt5 = modeloUsado.startsWith("gpt-5");
     const reasoningEffort = chatReasoningEffort(modeloUsado, tools.length > 0);
-    const response = await openai.chat.completions.create({
-      model: modeloUsado,
-      messages,
-      ...(tools.length > 0 ? { tools, tool_choice: "auto" as const } : {}),
-      ...(tools.length > 0 ? { parallel_tool_calls: false } : {}),
-      max_completion_tokens: config.openai.maxTokens,
-      ...(gpt5 ? {
-        // Chat Completions de GPT-5.5 solo acepta tools con `none`.
-        reasoning_effort: reasoningEffort!,
-        verbosity: "low" as const,
-        prompt_cache_retention: "24h" as const,
-      } : {}),
-    });
+    // Un 429, un 500 o un timeout de OpenAI NO tumban el turno: se sale del
+    // bucle y manda el rescate de abajo, que reintenta una sola vez con el
+    // modelo de escalación y sin herramientas. Antes esta excepción subía
+    // hasta el pipeline y el cliente no recibía nada.
+    let response: Awaited<ReturnType<typeof openai.chat.completions.create>>;
+    try {
+      response = await openai.chat.completions.create({
+        model: modeloUsado,
+        messages,
+        ...(tools.length > 0 ? { tools, tool_choice: "auto" as const } : {}),
+        ...(tools.length > 0 ? { parallel_tool_calls: false } : {}),
+        max_completion_tokens: config.openai.maxTokens,
+        ...(gpt5 ? {
+          // Chat Completions de GPT-5.5 solo acepta tools con `none`.
+          reasoning_effort: reasoningEffort!,
+          verbosity: "low" as const,
+          prompt_cache_retention: "24h" as const,
+        } : {}),
+      });
+    } catch (error) {
+      console.warn(
+        `⚠️ La llamada al modelo falló en la ronda ${iteration + 1}:`,
+        error instanceof Error ? error.message : error,
+      );
+      break;
+    }
     inputTokens += response.usage?.prompt_tokens ?? 0;
     outputTokens += response.usage?.completion_tokens ?? 0;
     cachedInputTokens += response.usage?.prompt_tokens_details?.cached_tokens ?? 0;

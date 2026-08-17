@@ -132,7 +132,44 @@ function defineTool<T extends z.ZodTypeAny>(input: {
       description: input.description,
       parameters: z.toJSONSchema(input.schema) as Record<string, unknown>,
     },
-    execute: async (args) => input.run(input.schema.parse(args)),
+    // NADA que pase por aquí puede lanzar (16-ago).
+    //
+    // Antes esto era `input.run(input.schema.parse(args))`. Los dos pedazos
+    // lanzaban y nadie los capturaba: ni el bucle del agente, ni runAgent, ni
+    // el handler del webhook — la excepción moría en un console.error del
+    // pipeline y el cliente se quedaba sin ninguna respuesta y sin alerta al
+    // asesor.
+    //
+    // 1) `parse` → `safeParse`. El modelo no está obligado a cumplir el
+    //    esquema (no se manda `strict: true`), y además `parseArguments`
+    //    devuelve {} cuando los argumentos vienen truncados por
+    //    max_completion_tokens: con eso, toda tool con campos requeridos
+    //    lanzaba ZodError garantizado. Ahora el error vuelve al modelo como
+    //    resultado de tool, que es algo que sabe leer y corregir en la
+    //    siguiente ronda.
+    // 2) `run` también se envuelve: dentro hay Postgres, la API del Interbot,
+    //    WheelSize y buildQuote — que lanza a propósito cuando un descuento
+    //    ya no cabe en el total.
+    execute: async (args) => {
+      const parsed = input.schema.safeParse(args);
+      if (!parsed.success) {
+        const detalle = parsed.error.issues
+          .map((i) => `${i.path.join(".") || "(raíz)"}: ${i.message}`)
+          .join("; ");
+        return JSON.stringify({
+          error: `Argumentos inválidos para ${input.name} — ${detalle}. Corrígelos y vuelve a llamarla; si no puedes, sigue el turno por otro camino.`,
+        });
+      }
+      try {
+        return await input.run(parsed.data);
+      } catch (error) {
+        const mensaje = error instanceof Error ? error.message : String(error);
+        console.error(`❌ La herramienta ${input.name} falló:`, mensaje);
+        return JSON.stringify({
+          error: `La herramienta ${input.name} no pudo completarse (${mensaje}). No la repitas igual: avanza con lo que ya sabes, pide el dato que falte o deriva al asesor.`,
+        });
+      }
+    },
   };
 }
 
@@ -190,6 +227,38 @@ function tresOpciones<T extends { brand: string; design: string; minimumPriceWit
     if (!actual || mejorQue(p, actual)) porEscalon.set(escalon, p);
   }
   return [...porEscalon.entries()].sort((a, b) => a[0] - b[0]).map(([, p]) => p);
+}
+
+/**
+ * Recorta la lista que se le manda al modelo SIN perder ningún escalón.
+ *
+ * `buscar_llanta` devolvía `exact.slice(0, 8)` más 5 alternativas: 1.097 tokens
+ * medidos, en un bloque que se paga a tarifa plena (va detrás del corte del
+ * caché) y que además entra al historial de todas las iteraciones siguientes.
+ * Y su propio `siguiente_paso` le ordena al modelo usar «máximo 3 códigos»:
+ * se pagaban trece productos para que eligiera tres.
+ *
+ * Un `slice` más corto se podía comer un nivel entero de la escalera, así que
+ * primero se reserva el mejor de cada escalón (la misma regla que usa
+ * `tresOpciones`) y solo después se rellena con el resto en su orden original.
+ * Resultado: nunca devuelve menos variedad de niveles que antes, y en la
+ * práctica devuelve más, porque `tresOpciones` mira la lista COMPLETA y no
+ * solo los ocho primeros.
+ */
+function recorteConEscalera<T extends { brand: string; design: string; minimumPriceWithTax: number; availability: string }>(
+  productos: readonly T[],
+  tope: number,
+): T[] {
+  if (productos.length <= tope) return [...productos];
+  const elegidos = tresOpciones(productos).slice(0, tope);
+  for (const p of productos) {
+    if (elegidos.length >= tope) break;
+    if (!elegidos.includes(p)) elegidos.push(p);
+  }
+  // Se devuelve en el orden original del catálogo, que ya viene ordenado por
+  // coincidencia y disponibilidad; la escalera decide QUIÉN entra, no en qué
+  // orden se presenta.
+  return productos.filter((p) => elegidos.includes(p));
 }
 
 /**
@@ -521,8 +590,8 @@ export function buildTools(ctx: AgentContext) {
       await updateConversationFacts(ctx.conversation.id, { tireSize: formatTireSize(size) });
       return JSON.stringify({
         medida: formatTireSize(size),
-        resultados: exact.slice(0, 8).map(toolItem),
-        alternativas_mismo_aro: alternatives.slice(0, 5).map(toolItem),
+        resultados: recorteConEscalera(exact, 5).map(toolItem),
+        alternativas_mismo_aro: recorteConEscalera(alternatives, 3).map(toolItem),
         siguiente_paso: "PROHIBIDO escribir estas opciones como lista en el chat. Para mostrárselas al cliente llama preparar_opciones con máximo 3 códigos (una premium, una de equilibrio y una económica) — esa herramienta manda la imagen. Si escribes precios y disponibilidad en texto, el cliente recibe un muro y no ve la pieza.",
       });
     },

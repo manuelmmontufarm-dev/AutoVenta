@@ -7,7 +7,7 @@
  * solo traduce el catálogo al diseño y rasteriza.
  */
 import satori from "satori";
-import { Resvg } from "@resvg/resvg-js";
+import { renderAsync } from "@resvg/resvg-js";
 import { compactCatalogText, type CatalogAvailability, type CatalogItem } from "../domain/catalog.js";
 import { warrantyForBrand } from "../services/quoteMessages.js";
 import { loadFonts, productPhoto, type RasterImage } from "./assets.js";
@@ -216,8 +216,15 @@ async function renderPng(node: SatoriNode, width: number, height?: number): Prom
     ...(height ? { height } : {}),
     fonts: loadFonts().map((f) => ({ name: f.name, data: f.data, weight: f.weight, style: f.style })),
   });
-  const resvg = new Resvg(svg, { fitTo: { mode: "width", value: width * 2 } });
-  return Buffer.from(resvg.render().asPng());
+  // renderAsync, no render() (16-ago). `render()` es SÍNCRONO: rasterizar
+  // 2.880 px de ancho por el alto que mida satori (los pósters de opciones
+  // pasan de 10 Mpx) bloqueaba el único hilo de Node cientos de milisegundos
+  // seguidos. Durante esa ventana el proceso no atiende NADA: ni el POST del
+  // webhook —que está en el camino crítico del ack a Meta—, ni /health que
+  // vigila Railway, ni el SSE del panel. La variante asíncrona hace el mismo
+  // trabajo en el threadpool de libuv y deja el event loop libre.
+  const png = await renderAsync(svg, { fitTo: { mode: "width", value: width * 2 } });
+  return Buffer.from(png.asPng());
 }
 
 // ---------------------------------------------------------------------------

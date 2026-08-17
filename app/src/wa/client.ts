@@ -14,6 +14,7 @@ import { WhatsAppAPI } from "whatsapp-api-js/middleware/express";
 import { config } from "../config.js";
 import { getChannelConfig, type ChannelConfig } from "../services/channel.js";
 import { assertConversationOutbound } from "../services/whatsappPolicy.js";
+import type { OutboundActor } from "../domain/whatsappPolicy.js";
 import { conSaludo } from "../domain/saludo.js";
 import { sql } from "../db/client.js";
 import { registrarEnviado } from "./outboundRegistry.js";
@@ -418,11 +419,24 @@ export async function sendApprovedTemplate(input: {
   language: string;
   variables: string[];
   attemptId: number;
+  /**
+   * Quién manda. El default sigue siendo `worker`, pero la campaña autorizada
+   * por un asesor tiene que llegar como `authorized_campaign` (16-ago).
+   *
+   * `processFollowUpJob` ya autorizaba el job con ese actor, que es justo el
+   * que la política deja pasar aunque la conversación esté en manos humanas.
+   * Pero aquí se revalidaba a pelo como `worker`, y ese sí choca contra
+   * `pause_on_human_control`. Como el paso previo (`advisor_review`) es
+   * precisamente el que pone `assigned_to='human'`, la segunda compuerta
+   * anulaba a la primera: el asesor autorizaba la campaña desde Oportunidades
+   * y no salía nunca.
+   */
+  actor?: OutboundActor;
 }): Promise<string | undefined> {
   await assertConversationOutbound({
     conversationId: input.conversationId,
     contentType: "template",
-    actor: "worker",
+    actor: input.actor ?? "worker",
   });
   return graphSend("la plantilla", (ch) => ({
     path: `${ch.phoneId}/messages`,

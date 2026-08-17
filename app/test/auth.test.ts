@@ -11,7 +11,7 @@
  * siga entrando con `x-admin-key`) está en loginHub.integration.test.ts.
  */
 import { createHmac } from "node:crypto";
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 
 // `auth.ts` congela la clave al importarse: se pone ANTES del import dinámico.
 const ADMIN_KEY = "clave-de-prueba-sesiones";
@@ -20,9 +20,13 @@ process.env.NODE_ENV = "test";
 
 const {
   crearToken,
+  esperaDeLogin,
   listarUsuarios,
   permisosDe,
   pinValido,
+  registrarLoginBueno,
+  registrarLoginFallido,
+  reiniciarFrenoDeLogin,
   tokenDelHeader,
   usuarioPorId,
   verificarToken,
@@ -134,5 +138,64 @@ describe("header Authorization", () => {
     expect(tokenDelHeader("Bearer")).toBeNull();
     expect(tokenDelHeader("Bearer ")).toBeNull();
     expect(tokenDelHeader(undefined)).toBeNull();
+  });
+});
+
+/**
+ * El hueco real de la clave de cuatro dígitos nunca fue el valor —esa es una
+ * decisión del cliente— sino que no había NADA que frenara diez mil intentos.
+ * Estas pruebas cubren justo el abuso, que es lo que no estaba cubierto.
+ */
+describe("freno de fuerza bruta en el login", () => {
+  beforeEach(() => reiniciarFrenoDeLogin());
+
+  it("deja probar sin estorbar mientras los fallos son pocos", () => {
+    for (let i = 0; i < 4; i += 1) {
+      registrarLoginFallido("manuel");
+      expect(esperaDeLogin("manuel")).toBe(0);
+    }
+  });
+
+  it("a partir del quinto fallo obliga a esperar, y la espera crece", () => {
+    for (let i = 0; i < 5; i += 1) registrarLoginFallido("manuel");
+    const primera = esperaDeLogin("manuel");
+    expect(primera).toBeGreaterThan(0);
+
+    registrarLoginFallido("manuel");
+    expect(esperaDeLogin("manuel")).toBeGreaterThan(primera);
+  });
+
+  it("diez mil intentos no caben: el castigo llega al tope de 15 minutos", () => {
+    for (let i = 0; i < 40; i += 1) registrarLoginFallido("manuel");
+    expect(esperaDeLogin("manuel")).toBeGreaterThan(14 * 60_000);
+    expect(esperaDeLogin("manuel")).toBeLessThanOrEqual(15 * 60_000);
+  });
+
+  it("el freno es por usuario: castigar a uno no cierra la puerta a los demás", () => {
+    for (let i = 0; i < 10; i += 1) registrarLoginFallido("manuel");
+    expect(esperaDeLogin("manuel")).toBeGreaterThan(0);
+    expect(esperaDeLogin("andres")).toBe(0);
+  });
+
+  it("entrar bien limpia la cuenta de fallos", () => {
+    for (let i = 0; i < 6; i += 1) registrarLoginFallido("asesor");
+    expect(esperaDeLogin("asesor")).toBeGreaterThan(0);
+    registrarLoginBueno("asesor");
+    expect(esperaDeLogin("asesor")).toBe(0);
+  });
+
+  it("la espera se agota sola con el tiempo", () => {
+    const t0 = Date.now();
+    for (let i = 0; i < 5; i += 1) registrarLoginFallido("joaquin", t0);
+    expect(esperaDeLogin("joaquin", t0)).toBeGreaterThan(0);
+    // Pasada la espera del quinto fallo (2 s), vuelve a poder intentar.
+    expect(esperaDeLogin("joaquin", t0 + 3_000)).toBe(0);
+  });
+
+  it("una hora sin intentar borra el historial de fallos", () => {
+    const t0 = Date.now();
+    for (let i = 0; i < 20; i += 1) registrarLoginFallido("manuel", t0);
+    expect(esperaDeLogin("manuel", t0)).toBeGreaterThan(0);
+    expect(esperaDeLogin("manuel", t0 + 61 * 60_000)).toBe(0);
   });
 });

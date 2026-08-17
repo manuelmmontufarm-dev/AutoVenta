@@ -286,7 +286,13 @@ export function localTirePhoto(brand: string, design: string): RasterImage | nul
 // Fotos remotas (columna "foto" del catálogo)
 // ---------------------------------------------------------------------------
 
-const photoCache = new Map<string, RasterImage | null>();
+/**
+ * `at` es el instante en que se guardó, y solo lo mira `remotePhoto` para no
+ * quedarse pegado a un fallo de red. Las fotos de disco (`sitePhoto`) sí
+ * cachean el negativo para siempre a propósito: si el archivo no está, no va a
+ * aparecer solo a mitad del proceso.
+ */
+const photoCache = new Map<string, { value: RasterImage | null; at: number }>();
 
 /**
  * Formato REAL del archivo, por sus bytes mágicos — no por la extensión.
@@ -320,7 +326,8 @@ export async function catalogPhoto(url: string): Promise<RasterImage | null> {
 }
 
 function sitePhoto(publicPath: string): RasterImage | null {
-  if (photoCache.has(publicPath)) return photoCache.get(publicPath)!;
+  const enCache = photoCache.get(publicPath);
+  if (enCache) return enCache.value;
   let result: RasterImage | null = null;
   // Normaliza para no salir del directorio del sitio
   const rel = path.normalize(publicPath).replace(/^(\.\.[/\\])+/, "").replace(/^[/\\]+/, "");
@@ -333,13 +340,24 @@ function sitePhoto(publicPath: string): RasterImage | null {
     if (mime) result = { dataUri: `data:${mime};base64,${buf.toString("base64")}`, width: 0, height: 0 };
     else console.warn(`⚠️ Foto de catálogo con formato no reconocido, se ignora: ${publicPath}`);
   }
-  photoCache.set(publicPath, result);
+  photoCache.set(publicPath, { value: result, at: Date.now() });
   return result;
 }
 
+const TOPE_FOTO = 3 * 1024 * 1024;
+/** Cuánto vale un fallo antes de volver a intentar la descarga. */
+const REINTENTO_FOTO_MS = 5 * 60_000;
+
 /** Descarga una foto de producto (png/jpeg, máx 3MB, timeout 6s). Cachea. */
 export async function remotePhoto(url: string): Promise<RasterImage | null> {
-  if (photoCache.has(url)) return photoCache.get(url)!;
+  // El NEGATIVO no se memoriza para siempre (16-ago). Antes, un timeout de 6 s
+  // en el primer render del día dejaba `null` cacheado sin TTL: esa llanta
+  // salía con la ilustración genérica en todas las cotizaciones hasta el
+  // siguiente deploy, y el catch vacío no dejaba ni una línea de log.
+  const enCache = photoCache.get(url);
+  if (enCache && (enCache.value !== null || Date.now() - enCache.at < REINTENTO_FOTO_MS)) {
+    return enCache.value;
+  }
   let result: RasterImage | null = null;
   try {
     const controller = new AbortController();
@@ -348,17 +366,32 @@ export async function remotePhoto(url: string): Promise<RasterImage | null> {
     clearTimeout(timer);
     const declarado = res.headers.get("content-type")?.split(";")[0] ?? "";
     if (res.ok && ["image/png", "image/jpeg", "image/jpg"].includes(declarado)) {
-      const buf = Buffer.from(await res.arrayBuffer());
-      // El content-type del servidor tampoco manda: vale la firma del archivo.
-      const mime = sniffImageMime(buf);
-      if (mime && buf.byteLength <= 3 * 1024 * 1024) {
-        result = { dataUri: `data:${mime};base64,${buf.toString("base64")}`, width: 0, height: 0 };
+      // El tope se comprueba ANTES de bajar el cuerpo: la URL sale del campo
+      // `imagen` de Contífico, que acepta cualquier http(s). Comprobarlo
+      // después (como antes) no protegía de nada — los 40 MB ya estaban en RAM.
+      const largo = Number(res.headers.get("content-length"));
+      if (Number.isFinite(largo) && largo > TOPE_FOTO) {
+        await res.body?.cancel().catch(() => {});
+        console.warn(`⚠️ Foto remota descartada por tamaño declarado (${largo} B):`, url);
+      } else {
+        const buf = Buffer.from(await res.arrayBuffer());
+        // El content-type del servidor tampoco manda: vale la firma del archivo.
+        const mime = sniffImageMime(buf);
+        if (mime && buf.byteLength <= TOPE_FOTO) {
+          result = { dataUri: `data:${mime};base64,${buf.toString("base64")}`, width: 0, height: 0 };
+        } else {
+          console.warn(`⚠️ Foto remota descartada (mime ${mime ?? "?"}, ${buf.byteLength} B):`, url);
+        }
       }
+    } else if (!res.ok) {
+      console.warn(`⚠️ Foto remota no descargada (HTTP ${res.status}):`, url);
     }
-  } catch {
-    // foto remota caída no debe tumbar la cotización — cae al fallback
+  } catch (err) {
+    // foto remota caída no debe tumbar la cotización — cae al fallback, pero
+    // ahora deja rastro: antes esto era un agujero ciego.
+    console.warn("⚠️ Foto remota no descargada:", url, err instanceof Error ? err.message : err);
   }
-  photoCache.set(url, result);
+  photoCache.set(url, { value: result, at: Date.now() });
   return result;
 }
 

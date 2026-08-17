@@ -106,6 +106,59 @@ export function pinValido(pin: string): boolean {
   return a.length === b.length && timingSafeEqual(a, b);
 }
 
+// ---------------------------------------------------------------------------
+// Freno de fuerza bruta
+// ---------------------------------------------------------------------------
+
+/**
+ * Una clave de cuatro dígitos son 10.000 combinaciones: sin freno, `/auth/login`
+ * se agota en segundos y el premio es el teléfono y el chat de todos los
+ * clientes, mandar WhatsApp como Depot Tire y reescribir las credenciales del
+ * canal. La clave la decidió el cliente y no se toca; lo que faltaba era esto.
+ *
+ * El contador va por USUARIO, no por IP, y es a propósito: el proceso corre
+ * detrás del proxy de Railway sin `trust proxy`, así que `req.ip` es la misma
+ * para todo el mundo y un límite por IP bloquearía a todos o a nadie. Con
+ * cuatro usuarios, acotar por userId cierra el espacio de claves igual.
+ *
+ * En memoria: un reinicio lo limpia. Es aceptable — reiniciar el proceso no
+ * está al alcance de quien prueba claves desde fuera.
+ */
+const TOLERANCIA = 5;
+const ESPERA_BASE_MS = 2_000;
+const ESPERA_MAXIMA_MS = 15 * 60_000;
+const OLVIDO_MS = 60 * 60_000;
+
+const intentos = new Map<string, { fallos: number; ultimo: number }>();
+
+/** Milisegundos que faltan para poder volver a intentar. 0 = puede intentar. */
+export function esperaDeLogin(userId: string, ahora = Date.now()): number {
+  const registro = intentos.get(userId);
+  if (!registro) return 0;
+  if (ahora - registro.ultimo > OLVIDO_MS) {
+    intentos.delete(userId);
+    return 0;
+  }
+  if (registro.fallos < TOLERANCIA) return 0;
+  const castigo = Math.min(ESPERA_BASE_MS * 2 ** (registro.fallos - TOLERANCIA), ESPERA_MAXIMA_MS);
+  return Math.max(0, registro.ultimo + castigo - ahora);
+}
+
+export function registrarLoginFallido(userId: string, ahora = Date.now()): void {
+  const registro = intentos.get(userId);
+  const fallos = registro && ahora - registro.ultimo <= OLVIDO_MS ? registro.fallos + 1 : 1;
+  intentos.set(userId, { fallos, ultimo: ahora });
+}
+
+export function registrarLoginBueno(userId: string): void {
+  intentos.delete(userId);
+}
+
+/** Solo para pruebas: deja el freno como recién arrancado. */
+export function reiniciarFrenoDeLogin(): void {
+  intentos.clear();
+}
+
 function firmar(payload: string): string {
   return createHmac("sha256", SECRETO).update(payload).digest("base64url");
 }

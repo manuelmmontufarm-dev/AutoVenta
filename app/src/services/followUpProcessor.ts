@@ -261,6 +261,10 @@ export async function processFollowUpJob(
           language: template!.language,
           variables: resolvedTemplateVariables,
           attemptId: Number(attempt.id),
+          // El mismo actor con el que se autorizó el job más arriba (línea
+          // 157). Sin esto, el envío se revalidaba como "worker" y la campaña
+          // autorizada se bloqueaba a sí misma.
+          actor: isAuthorizedCampaign ? "authorized_campaign" : "worker",
         })
       : await (dependencies.sendText ?? ((id, phone, body) => sendCustomerText(id, phone, body, "worker")))(
           context.id,

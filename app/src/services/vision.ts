@@ -90,7 +90,14 @@ export async function describirFotoDeLlanta(
         callType: "vision",
         route: texto ? "image_read" : "empty_image_read",
         ...(texto ? {} : { error: "empty_visible_output" }),
-      });
+        // Sin este .catch() un fallo de la BASE tiraba la lectura YA PAGADA: el
+        // throw del insert saltaba al catch de abajo, se registraba
+        // «image_error» y se devolvía null, así que el bot pedía la medida por
+        // escrito teniendo «225/65R17» en la mano. El logAiRun del camino de
+        // error (abajo) y el del guardián ya estaban blindados; este no.
+        // La auditoría es una métrica secundaria y nunca decide si el cliente
+        // recibe su medida.
+      }).catch(() => {});
     }
     if (!texto || texto.toUpperCase().includes(SIN_DATOS)) return null;
     return texto;

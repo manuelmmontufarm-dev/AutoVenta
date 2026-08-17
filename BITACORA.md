@@ -32,6 +32,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-08-16 | _(este mismo)_ | Auditoría: ningún turno se queda sin respuesta, y el caché del prompt vuelve a servir | 3.0 |
 | 2026-08-16 | _(este mismo)_ | Fuera los emojis de la interfaz: el panel deja de leerse como generado | 2.0 |
 | 2026-08-16 | _(este mismo)_ | El botón de salir baja con los tabs, con icono y borde | 0.25 |
 | 2026-08-16 | _(este mismo)_ | Entrar con usuario daba 401 en todo el panel: las 4 pantallas mandaban la clave vieja, no el token | 0.5 |
@@ -141,6 +142,76 @@ Ya viene activado en este equipo.
 ---
 
 ## Entradas (más reciente primero)
+
+### 2026-08-16 · Auditoría: ningún turno se queda sin respuesta, y el caché del prompt vuelve a servir · ⏱️ 3.0 h
+
+**Qué:** auditoría del repo con agentes en paralelo (seis lentes de bugs, cuatro
+de coste), cada hallazgo pasado por un verificador adversarial instruido para
+refutar por defecto. De 30 hallazgos únicos verificados, 14 sobrevivieron y 2
+fueron refutados. Esta tanda arregla lo que no necesita evaluación previa.
+
+*Contención de errores.* `defineTool` no podía lanzar y lanzaba por dos sitios:
+`schema.parse` pasa a `safeParse` y `run` va envuelto. El disparador realista no
+es que el modelo se invente un aro fuera de rango, es que los argumentos lleguen
+truncados por `max_completion_tokens`: ahí `parseArguments` devuelve `{}` y toda
+tool con campos requeridos reventaba. La excepción subía hasta
+`pipeline/inbound.ts`, que solo hace `console.error` — el cliente se quedaba sin
+nada y el asesor sin aviso. `runAgent` tiene ahora red de seguridad con registro
+en `ai_runs`, y un 429/500 de OpenAI sale del bucle al rescate en vez de tumbar
+el turno. En `vision.ts`, el `logAiRun` del camino feliz era el único `await` del
+archivo sin `.catch()`: un fallo de la base tiraba la lectura de la foto ya
+pagada y el bot pedía la medida por escrito teniendo «225/65R17» en la mano.
+
+*Fuerza bruta en el panel.* `/api/auth/login` no tenía ningún freno: 10.000
+combinaciones de cuatro dígitos y dentro, con premio de teléfono y chat de todos
+los clientes, envío de WhatsApp como Depot Tire y reescritura de las credenciales
+del canal. La clave la decidió el cliente el 14-ago y no se toca — lo que faltaba
+era el freno. Contador **por usuario**, no por IP: no hay `trust proxy` detrás de
+Railway, así que `req.ip` es la misma para todos y un límite por IP bloquearía a
+todos o a nadie. Espera exponencial desde el quinto fallo, tope de 15 minutos,
+429 con `Retry-After`. Siete pruebas nuevas, que es justo lo que no estaba
+cubierto: `auth.test.ts` probaba la cerradura, nunca el abuso.
+
+*Precio de la entrada.* Medido contra la telemetría real del 10-ago: 14.620
+tokens de entrada por llamada, de los cuales solo 10.086 se cacheaban. El prompt
+de sistema mide 10.471 — o sea que el caché lo cubría y se cortaba justo ahí,
+que es donde entraba `salesFactsPrompt` en el índice 1 con `hace N min` dentro,
+un número distinto en cada turno. Los bloques volátiles pasan detrás del
+historial. `buscar_llanta` devolvía 8+5 productos para que el modelo eligiera 3;
+ahora 5+3 reservando primero un hueco por escalón, así que no puede perder un
+nivel de la escalera — cosa que el `slice(0,8)` de antes sí podía. Del playbook
+salen §10 (instructivo para el humano que edita prompts, que el modelo no puede
+ejecutar) y §11 (checklist que repite reglas de `prompts.ts`); §8 describía nueve
+herramientas y omitía cinco de las catorce reales.
+
+*Otros.* Las campañas que autoriza un asesor no salían **nunca** cuando la
+conversación estaba en manos humanas: el envío revalidaba la política como
+`worker` y chocaba con el `pause_on_human_control` que el paso anterior
+(`advisor_review`) acababa de activar. Un eco saliente sobre un chat cerrado lo
+reabría y vaciaba la ficha. `reopenConversation` es idempotente. `renderPng` usa
+`renderAsync`: rasterizar 2.880 px en síncrono congelaba el event loop por el que
+pasan el ack del webhook y el healthcheck. `remotePhoto` ya no memoriza el fallo
+para siempre —un timeout de 6 s dejaba esa llanta con la ilustración genérica
+hasta el siguiente deploy— ni baja el cuerpo antes de mirar el tamaño. La
+transcripción deduce la extensión del mime real: todo audio iba como `.ogg` y los
+reenviados (`audio/mpeg`) fallaban siempre.
+
+**Por qué:** Manuel pidió una auditoría de bugs y de consumo de tokens. El
+hallazgo que reordena las prioridades es que **el 74,8 % de la factura es entrada
+sin cachear**: el prompt de sistema, que es lo que el plan de ahorro del repo
+quería recortar, ya viaja cacheado a un décimo de tarifa. Recortar 1.000 tokens
+de ahí ahorra $0,025 al día; recortar 1.000 de los que no se cachean ahorra
+$0,250. Por eso encender `COMPACT_PLAYBOOK` —que tira el 83 % del texto de las
+reglas— vale un 5,7 % y recortar dos números en `buscar_llanta` vale un 7,9 %.
+Lo que de verdad mueve la aguja sigue siendo el canary de modelo en
+`exact_tool_reply` y `routine_stage` (42,4 %), que el informe del 10-ago ya había
+concluido y sigue sin aplicarse.
+
+**Verificación:** 720 pruebas en verde (713 antes, 7 nuevas sobre el freno de
+login) y `tsc --noEmit` limpio. Lo que toca precio o comportamiento comercial
+—deduplicar el playbook, bajar el historial, el playbook compacto, el canary de
+modelo— NO entra aquí: necesita el replay previo, que es lo que cazó el fallo de
+`max_tokens` con 461/461 turnos el 7-ago.
 
 ### 2026-08-16 · Fuera los emojis de la interfaz: el panel deja de leerse como generado · ⏱️ 2.0 h
 

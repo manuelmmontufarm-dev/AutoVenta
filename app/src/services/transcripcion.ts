@@ -31,16 +31,50 @@ const VOCABULARIO =
  * Devuelve lo que dijo el cliente en el audio, o null si la API falla o el
  * audio salió mudo (el llamador entonces pide la consulta por escrito).
  */
+/**
+ * Extensión que le corresponde a cada mime que Meta puede entregar como
+ * `type: "audio"`.
+ *
+ * La API de transcripciones deduce el formato de la EXTENSIÓN del nombre, no
+ * del `type` del blob. Mandar todo como `audio.ogg` (como se hacía hasta el
+ * 16-ago) funcionaba solo con la nota de voz PTT; un audio reenviado llega
+ * como audio/mpeg y un teléfono que sube audio/mp4 también, y los dos morían
+ * con error de decodificación → el bot decía «no se pudo escuchar el audio».
+ */
+const EXTENSION_POR_MIME: Record<string, string> = {
+  "audio/ogg": "ogg",
+  "audio/opus": "ogg",
+  "audio/mpeg": "mp3",
+  "audio/mp3": "mp3",
+  "audio/mp4": "mp4",
+  "audio/m4a": "m4a",
+  "audio/x-m4a": "m4a",
+  "audio/aac": "m4a",
+  "audio/wav": "wav",
+  "audio/x-wav": "wav",
+  "audio/webm": "webm",
+  "audio/flac": "flac",
+};
+
+/** Whisper no lo soporta: se corta antes de gastar la llamada. */
+const NO_SOPORTADOS = new Set(["audio/amr", "audio/3gpp", "audio/3gpp2"]);
+
 export async function transcribirAudio(
   bytes: Buffer,
   mimeType: string,
 ): Promise<string | null> {
   try {
+    const base = (mimeType || "").split(";")[0].trim().toLowerCase();
+    if (NO_SOPORTADOS.has(base)) {
+      console.warn(`⚠️ Audio en formato no soportado por la transcripción (${base}); no se llama a la API.`);
+      return null;
+    }
     // WhatsApp manda audio/ogg con códec opus; Whisper lo acepta tal cual, así
     // que no hay que transcodificar. El nombre del archivo es obligatorio para
     // la API multipart (de ahí se deduce el formato) aunque el audio venga en
     // memoria y nunca toque el disco.
-    const file = await toFile(bytes, "audio.ogg", { type: mimeType || "audio/ogg" });
+    const ext = EXTENSION_POR_MIME[base] ?? "ogg";
+    const file = await toFile(bytes, `audio.${ext}`, { type: mimeType || "audio/ogg" });
     const response = await openai.audio.transcriptions.create({
       file,
       model: config.openai.transcribeModel,

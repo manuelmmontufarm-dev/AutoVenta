@@ -91,7 +91,8 @@ export async function handleEchoWebhook(
 /** Guarda un eco. Devuelve true solo si era ajeno Y nuevo (es decir, un handoff). */
 async function guardarEco(eco: EchoMessage): Promise<boolean> {
   const propio = esEnvioPropio(eco.id);
-  const conversation = await getOrCreateConversation(eco.to);
+  // Un eco es un mensaje que SALIÓ del negocio: nunca reabre un ciclo cerrado.
+  const conversation = await getOrCreateConversation(eco.to, undefined, false);
   const occurredAt = eco.timestamp ? new Date(Number(eco.timestamp) * 1000) : new Date();
 
   const esNuevo = await appendMessage(

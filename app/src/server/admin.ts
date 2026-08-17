@@ -116,9 +116,12 @@ import { registrarEnviado } from "../wa/outboundRegistry.js";
 import {
   SESIONES_HABILITADAS,
   crearToken,
+  esperaDeLogin,
   listarUsuarios,
   permisosDe,
   pinValido,
+  registrarLoginBueno,
+  registrarLoginFallido,
   tokenDelHeader,
   usuarioPorId,
   verificarToken,
@@ -293,13 +296,28 @@ export function createAdminRouter(): express.Router {
       res.status(400).json({ ok: false, error: "Elige un usuario y escribe la clave." });
       return;
     }
+    // El freno va ANTES de comprobar la clave: si no, cada intento bloqueado
+    // seguiría diciendo por el tiempo de respuesta si el usuario existe.
+    const espera = esperaDeLogin(input.data.userId);
+    if (espera > 0) {
+      const segundos = Math.ceil(espera / 1000);
+      res.status(429)
+        .set("Retry-After", String(segundos))
+        .json({
+          ok: false,
+          error: `Demasiados intentos fallidos. Vuelve a probar en ${segundos} s.`,
+        });
+      return;
+    }
     const usuario = usuarioPorId(input.data.userId);
     // Mismo mensaje para usuario inexistente y clave mala: no hace falta
     // confirmarle a nadie cuáles de los cuatro nombres existen.
     if (!usuario || !pinValido(input.data.pin)) {
+      registrarLoginFallido(input.data.userId);
       res.status(401).json({ ok: false, error: "Usuario o clave incorrectos." });
       return;
     }
+    registrarLoginBueno(usuario.id);
     res.json({
       ok: true,
       token: crearToken(usuario.id),

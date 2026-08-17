@@ -19,6 +19,20 @@ export interface Conversation {
 export async function getOrCreateConversation(
   phone: string,
   name?: string,
+  /**
+   * Si la conversación está cerrada, ¿se reabre un ciclo nuevo?
+   *
+   * Por defecto sí: un mensaje ENTRANTE sobre una venta cerrada es una
+   * oportunidad nueva y así estaba pensado. Pero los ECOS (los mensajes que
+   * SALIERON del negocio) también pasaban por aquí, y reabrir un ciclo por un
+   * mensaje saliente es semánticamente inválido: vaciaba la ficha de la
+   * conversación —medida, vehículo, producto, cantidad, local, fecha de
+   * visita, compromiso— la devolvía al kanban como lead nuevo, y registraba el
+   * evento con actor 'customer' y razón «Nuevo mensaje después de un cierre»,
+   * que era falso. Bastaba con que un asesor escribiera desde su WhatsApp, o
+   * con un envío desde el panel, sobre un chat ya cerrado.
+   */
+  reabrirSiCerrada = true,
 ): Promise<Conversation> {
   const [row] = await sql<Conversation[]>`
     insert into conversations (phone, name)
@@ -28,7 +42,7 @@ export async function getOrCreateConversation(
           updated_at = now()
     returning id, phone, name, stage, bot_paused_until, status, current_cycle
   `;
-  if (row.status === "closed") {
+  if (row.status === "closed" && reabrirSiCerrada) {
     return reopenConversation(row.id, "customer", "Nuevo mensaje después de un cierre");
   }
   return row;
@@ -73,10 +87,23 @@ export async function reopenConversation(
         customer_commitment_cycle = null, follow_up_reason = null,
         follow_up_reason_cycle = null,
         closed_reason = null, closed_at = null, updated_at = now()
-    where id = ${conversationId}
+    where id = ${conversationId} and status = 'closed'
     returning id, phone, name, stage, bot_paused_until, status, current_cycle
   `;
-  if (!row) throw new Error(`Conversación ${conversationId} no existe`);
+  // `and status = 'closed'` hace la reapertura IDEMPOTENTE (16-ago). El insert
+  // en sales_history ya filtraba por cerrada, pero este update no: dos llamadas
+  // seguidas (dos mensajes que entran a la vez sobre un chat recién cerrado)
+  // saltaban un ciclo y vaciaban la ficha por segunda vez SIN archivarla — el
+  // ciclo intermedio quedaba sin fila en sales_history y sus datos se perdían.
+  // Ahora la segunda llamada no toca nada y devuelve la conversación tal cual.
+  if (!row) {
+    const [actual] = await sql<Conversation[]>`
+      select id, phone, name, stage, bot_paused_until, status, current_cycle
+      from conversations where id = ${conversationId}
+    `;
+    if (!actual) throw new Error(`Conversación ${conversationId} no existe`);
+    return actual;
+  }
   await sql`
     insert into funnel_events (conversation_id, cycle, type, data)
     values (${conversationId}, ${row.current_cycle}, 'reapertura', ${sql.json({ actor, reason })})
