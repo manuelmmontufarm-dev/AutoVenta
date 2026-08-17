@@ -6,7 +6,8 @@
 import OpenAI from "openai";
 import { config } from "../config.js";
 import { logAiRun, setStage, type Conversation } from "../services/conversations.js";
-import { STAGE_ORDER, isStage } from "../domain/pipeline.js";
+import { sql } from "../db/client.js";
+import { STAGE_ORDER, isStage, type Stage } from "../domain/pipeline.js";
 import { isExplicitPurchaseConfirmation } from "../domain/salesIntent.js";
 
 const openai = new OpenAI({ apiKey: config.openai.apiKey });
@@ -74,7 +75,20 @@ Bot: ${assistantText}`,
     const { stage } = JSON.parse(text) as { stage: string };
     if (!isStage(stage)) return;
 
-    if (STAGE_ORDER[stage] > STAGE_ORDER[conversation.stage] || stage === "perdido") {
+    // La etapa se relee de la BASE, no del snapshot del inicio del turno
+    // (16-ago). `index.ts` carga la conversación una vez y le pasa ESE objeto
+    // al clasificador al final, pero durante el turno las tools ya movieron la
+    // etapa: generar_cotizacion deja `cotizacion_enviada`, local_mas_cercano y
+    // notificar_vendedor dejan `seguimiento_venta`. Comparando contra el valor
+    // viejo, la guarda de monotonía se evaluaba contra una referencia caduca y
+    // el clasificador podía RETROCEDER el funnel — devolver a «seleccionando»
+    // una conversación que ya tenía cotización enviada, con su evento de
+    // transición y todo.
+    const [fila] = await sql<{ stage: Stage }[]>`
+      select stage from conversations where id = ${conversation.id}
+    `;
+    const etapaActual = fila?.stage ?? conversation.stage;
+    if (STAGE_ORDER[stage] > STAGE_ORDER[etapaActual] || stage === "perdido") {
       await setStage(conversation.id, stage, {
         actor: "customer",
         reason: "Clasificación del último mensaje del cliente",

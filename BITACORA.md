@@ -32,6 +32,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-08-16 | _(este mismo)_ | Auditoría (2/2): el precio que se lee y el que se firma son el mismo | 2.0 |
 | 2026-08-16 | _(este mismo)_ | Auditoría: ningún turno se queda sin respuesta, y el caché del prompt vuelve a servir | 3.0 |
 | 2026-08-16 | _(este mismo)_ | Fuera los emojis de la interfaz: el panel deja de leerse como generado | 2.0 |
 | 2026-08-16 | _(este mismo)_ | El botón de salir baja con los tabs, con icono y borde | 0.25 |
@@ -142,6 +143,60 @@ Ya viene activado en este equipo.
 ---
 
 ## Entradas (más reciente primero)
+
+### 2026-08-16 · Auditoría (2/2): el precio que se lee y el que se firma son el mismo · ⏱️ 2.0 h
+
+**Qué:** segunda tanda de la auditoría, la que toca dinero y funnel.
+
+*El chat y la cotización dejan de tener dos precios.* `generar_cotizacion`
+confirma el precio contra el Interbot en el momento y con ese número arma la
+cotización y la imagen — pero el texto de WhatsApp lo armaba
+`buildSingleQuoteCaption`/`…Detallado` leyendo `product.minimumPriceWithTax`, la
+foto del catálogo en memoria, que solo se refresca en el barrido completo. Ahora
+los dos caminos reciben los mismos números (`PreciosFirmados`).
+
+*Doble IVA.* La línea quitaba el IVA con `product.taxRate` y `buildQuote` lo
+volvía a sumar con `business.taxRate`. `product.taxRate` vale **0** en toda la
+ruta de Google Sheets y en cualquier producto que Contífico devuelva sin
+`porcentaje_iva`: el unitario entraba con el IVA ya dentro y se le sumaba otro
+15%. Unas llantas anunciadas a $480 se firmaban en $552. Se quita con la misma
+tasa con la que se pone; donde ambas coinciden no cambia nada.
+
+*El descuento se recalcula.* `getActiveDiscountOffer` devuelve la oferta del
+CICLO, con un monto fijo calculado contra la cotización que existía cuando el
+asesor lo autorizó. Reinyectarlo en otra cotización daba un descuento
+desproporcionado y, cuando ya no cabía, `buildQuote` lanzaba y —sin captura en
+ninguna capa— el cliente se quedaba sin respuesta. Ahora se recalcula con `kind`
++ `valueCents`; si aun así no cabe, se cotiza sin él en vez de tumbar el turno.
+
+*El clasificador ya no retrocede el funnel.* Decidía comparando contra el objeto
+`conversation` cargado al PRINCIPIO del turno, pero durante el turno las tools ya
+habían movido la etapa en la base. Ahora relee la etapa antes de comparar.
+
+*Otros.* El candado anti-reenvío de la pieza de opciones se autodesactivaba:
+guardaba los códigos crudos del modelo (hasta 6, sin filtrar) y comparaba contra
+los renderizados (capados a 3), así que casi nunca coincidían. Un rechazo no
+capturado en `POST /webhook` mataba el proceso y con él el buffer de debounce y
+la cola FIFO. `/cotizaciones/live.png` y `/diagnostico/piezas` colgaban de la app
+raíz, fuera del gate: enseñaban el precio mínimo del catálogo real a cualquiera y
+rasterizaban tres piezas por petición. El rescate corría con 2048 tokens
+compartidos entre razonamiento y salida, así que podía volver vacío y entregar
+justo la disculpa que existe para evitar. Y las reentregas de Meta se cortan
+antes de gastar: para una foto, la reentrega ya había pagado descarga y visión
+antes de descubrir que el mensaje estaba repetido.
+
+**Por qué:** son los hallazgos que sobrevivieron a la verificación adversarial y
+tocan lo que el cliente ve o lo que Depot cobra. El de doble IVA es el más caro
+de los tres de precio, y el más silencioso: no rompe nada, solo cobra de más.
+
+**Verificación:** 728 pruebas en verde y `tsc --noEmit` limpio. Se añade
+`cotizacionCoherente.test.ts` con las dos invariantes de dinero (el IVA se quita
+y se pone con la misma tasa; el texto usa los números firmados) y la del
+descuento recalculado.
+
+**Nota:** al cerrar esta tanda había otra sesión editando `depotPosters.ts`,
+`quoteImage.ts` y `selloDeMedida.test.ts` (el sello de medida). Esos tres
+archivos NO entran en este commit y se dejaron intactos en el árbol de trabajo.
 
 ### 2026-08-16 · Auditoría: ningún turno se queda sin respuesta, y el caché del prompt vuelve a servir · ⏱️ 3.0 h
 

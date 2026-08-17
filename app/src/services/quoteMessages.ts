@@ -183,9 +183,10 @@ export function buildSingleQuoteCaption(
   selection: CatalogQuoteSelection,
   _quoteNumber?: string,
   offerDiscount?: { finalTotal: number; condition: string; expiresAt?: Date | null },
+  firmados?: PreciosFirmados,
 ): string {
   const { product, quantity } = selection;
-  const total = offerDiscount?.finalTotal ?? product.minimumPriceWithTax * quantity;
+  const total = offerDiscount?.finalTotal ?? firmados?.total ?? product.minimumPriceWithTax * quantity;
   return `${quantity} × ${product.brand} ${product.design}`.toLocaleUpperCase("es-EC") + `: ${money(total)}`;
 }
 
@@ -294,17 +295,21 @@ export function buildSingleQuoteMessageDetallado(
   quoteNumber?: string,
   saleNumber?: string,
   offerDiscount?: { amount: number; finalTotal: number; condition: string; expiresAt?: Date | null },
+  firmados?: PreciosFirmados,
 ): string {
   const { product, quantity } = selection;
   const warranty = warrantyForBrand(product.brand);
-  const total = offerDiscount?.finalTotal ?? product.minimumPriceWithTax * quantity;
+  const hoy = firmados?.unitarioConIva ?? product.minimumPriceWithTax;
+  const lista = firmados?.listaConIva ?? product.customerPriceWithTax;
+  const rebaja = firmados ? porcentaje(lista, hoy) : discount(product);
+  const total = offerDiscount?.finalTotal ?? firmados?.total ?? product.minimumPriceWithTax * quantity;
   return [
     `📄 Cotización${quoteNumber ? ` ${quoteNumber}` : ""} — ${dateLabel()}`,
     `${brandEmoji(product.brand)} ${product.brand} ${product.design} — ${product.sizeLabel ?? product.name}`,
-    `💰 ${money(product.minimumPriceWithTax)} c/u (antes ${money(product.customerPriceWithTax)}, −${discount(product)}%)`,
+    `💰 ${money(hoy)} c/u (antes ${money(lista)}, −${rebaja}%)`,
     `🛞 ${quantity} llanta${quantity === 1 ? "" : "s"}: ${money(total)}`,
     ...(offerDiscount ? [
-      `1️⃣ Descuento base Depot Tire: de ${money(product.customerPriceWithTax)} a ${money(product.minimumPriceWithTax)} c/u (−${discount(product)}%).`,
+      `1️⃣ Descuento base Depot Tire: de ${money(lista)} a ${money(hoy)} c/u (−${rebaja}%).`,
       `2️⃣ Descuento EXTRA del asesor: −${money(offerDiscount.amount)}.`,
       `⚠️ Este segundo descuento aplica ÚNICAMENTE si: ${offerDiscount.condition}.`,
       `💰 Total final cumpliendo la condición: ${money(total)}. Si no la cumple, conserva solo el precio base.`,
@@ -388,6 +393,36 @@ function discount(product: CatalogItem): number {
   return Math.round(
     (1 - product.minimumPriceWithTax / product.customerPriceWithTax) * 100,
   );
+}
+
+/**
+ * Los números QUE FIRMA la cotización, para que el texto del chat no los
+ * recalcule por su cuenta (16-ago).
+ *
+ * `generar_cotizacion` confirma el precio contra el Interbot en el momento
+ * (`refreshPriceForSize` + `getInterbotPrice`) y con ESE número construye la
+ * cotización y la imagen. Pero el texto que se le manda al cliente se armaba
+ * con `product.minimumPriceWithTax`, que es la foto del catálogo en memoria y
+ * solo se actualiza en el barrido completo. Resultado: el total que el cliente
+ * leía en el chat podía no ser el de la cotización que presenta en la tienda.
+ * Y aun coincidiendo el precio, los dos caminos redondeaban distinto y ~13 %
+ * de las combinaciones daban un centavo de diferencia.
+ *
+ * Cuando viene esto, manda esto. Es opcional para no romper a los llamadores
+ * que solo tienen el catálogo a mano.
+ */
+export interface PreciosFirmados {
+  /** Unitario con IVA, el mismo que imprime la pieza. */
+  unitarioConIva: number;
+  /** Precio anterior con IVA (el tachado). */
+  listaConIva: number;
+  /** Total con IVA de la cotización, ya por la cantidad. */
+  total: number;
+}
+
+function porcentaje(listaConIva: number, hoyConIva: number): number {
+  if (listaConIva <= 0 || hoyConIva >= listaConIva) return 0;
+  return Math.round((1 - hoyConIva / listaConIva) * 100);
 }
 
 function brandEmoji(brand: string): string {

@@ -27,6 +27,7 @@ import {
   setStage,
   setExplicitStore,
   updateConversationFacts,
+  yaProcesado,
 } from "./services/conversations.js";
 import { emitLiveEvent } from "./services/liveEvents.js";
 import { registrarMensajeDeAsesor } from "./services/advisorWindow.js";
@@ -332,6 +333,18 @@ setWaHandlers({
     void received().catch(() => {});
 
     const receivedAt = new Date(Number(message.timestamp) * 1000);
+
+    // Reentrega de Meta: se corta ANTES de gastar (16-ago). El deduplicado real
+    // sigue estando en `appendMessage`, pero llega al final: para una foto o un
+    // audio, la reentrega ya había bajado el media y pagado la llamada a la
+    // visión antes de descubrir que el mensaje estaba repetido. Meta reintrega
+    // en cuanto el 200 tarda, que es justo lo que pasa mientras se procesa una
+    // foto — así que era el caso normal, no el raro.
+    if (await yaProcesado(message.id)) {
+      console.log(`↩️ Reentrega de Meta ignorada: ${message.id}`);
+      return;
+    }
+
     switch (message.type) {
       case "text":
         // El texto entra TAL CUAL y sin esperar a nada: el agrupador (debounce)
@@ -389,9 +402,64 @@ setWaHandlers({
         await recibirMensaje(from, name, cuerpo, message.id, receivedAt);
         break;
       }
-      default:
-        // stickers, reacciones, etc. — se ignoran
+      case "document": {
+        // Mucha gente manda la foto del costado con la opción «Documento» de
+        // WhatsApp, para que no se comprima: llega como `document` con mime
+        // image/*, no como `image`. Antes caía en el `default` y se descartaba
+        // sin dejar rastro — sin fila en `messages`, sin evento en el panel, sin
+        // seguimiento y sin respuesta. Desde fuera parecía el bot caído.
+        const mime = (message.document.mime_type ?? "").toLowerCase();
+        if (mime.startsWith("image/")) {
+          const media = await downloadMedia(message.document.id);
+          const caption = message.document.caption?.trim();
+          const docConversation = await getOrCreateConversation(from, name);
+          const leido = media ? await describirFotoDeLlanta(media.bytes, media.mimeType, caption, {
+            conversationId: docConversation.id,
+            stage: docConversation.stage,
+          }) : null;
+          const cuerpo = leido
+            ? `[El cliente mandó una foto (como documento). Se lee: ${leido}]`
+            : "[El cliente mandó una foto como documento y no se pudo leer. Pídele con amabilidad que escriba lo que dice el costado de la llanta.]";
+          await recibirMensaje(
+            from,
+            name,
+            caption ? `${cuerpo}\n${caption}` : cuerpo,
+            message.id,
+            receivedAt,
+          );
+        } else {
+          await recibirMensaje(
+            from,
+            name,
+            "[El cliente mandó un archivo que el bot no puede abrir. Pídele con amabilidad la medida escrita o una foto del costado de la llanta.]",
+            message.id,
+            receivedAt,
+          );
+        }
         break;
+      }
+      default: {
+        // Una REACCIÓN no es un mensaje: es un 👍 sobre algo que ya se dijo, y
+        // contestarle «mándame la medida» es ruido. Esas y las de sistema se
+        // siguen ignorando.
+        //
+        // Lo demás que el bot no sabe leer —video, sticker, contacto— SÍ se
+        // registra, aunque no se pueda interpretar: así queda la fila, el panel
+        // lo muestra, el seguimiento se agenda y el agente contesta algo. Un
+        // cliente que graba un video del costado de la llanta y no recibe nada
+        // es un lead que se pierde en silencio, y desde fuera parece el bot
+        // caído.
+        const mudos = ["reaction", "system", "order", "unknown", "unsupported"];
+        if (mudos.includes(message.type)) break;
+        await recibirMensaje(
+          from,
+          name,
+          "[El cliente mandó un mensaje que el bot no puede ver (video, sticker o similar). Pídele con amabilidad la medida escrita o una foto del costado de la llanta.]",
+          message.id,
+          receivedAt,
+        );
+        break;
+      }
     }
   },
   status: async ({ status, id, timestamp, error, conversation, pricing }) => {

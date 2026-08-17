@@ -86,6 +86,7 @@ import {
 import { sql } from "../db/client.js";
 import { createBotAlert } from "../services/followUps.js";
 import { attachDiscountOfferToQuote, getActiveDiscountOffer, materializePendingDiscount } from "../services/discountOffers.js";
+import { calculateDiscount } from "../domain/discounts.js";
 import { notifyAdvisor } from "../services/advisorNotifications.js";
 import type { StoreHours } from "../services/settings.js";
 import { resendLatestQuoteImage } from "../services/directSalesRoutes.js";
@@ -1180,7 +1181,15 @@ export function buildTools(ctx: AgentContext) {
           status: visual.ok ? "sent" : "failed",
           // sizeLabel queda en metadata para que el candado anti-reenvío pueda
           // comparar medidas sin tener que parsear el texto del caption.
-          metadata: { piece: "options", codes, sizeLabel, ...(visual.error ? { renderError: visual.error } : {}) },
+          // `products.map(...)` y no `codes` (16-ago). El candado anti-reenvío
+          // compara lo guardado aquí contra `products.map((p) => p.code)` del
+          // turno siguiente, y `debeBloquearReenvio` se DESACTIVA en cuanto los
+          // dos conjuntos difieren. Guardar los códigos crudos del modelo —hasta
+          // 6, sin filtrar por catálogo ni por tipo, sin capar a 3— hacía que
+          // casi nunca coincidieran: el candado se apagaba solo y la pieza de
+          // opciones volvía a salir. Lo que hay que comparar son las tarjetas
+          // que el cliente tiene en pantalla.
+          metadata: { piece: "options", codes: products.map((p) => p.code), sizeLabel, ...(visual.error ? { renderError: visual.error } : {}) },
         },
       );
       // La imagen es la pieza principal: sin ella el cliente recibe solo el
@@ -1537,7 +1546,16 @@ export function buildTools(ctx: AgentContext) {
           code: product.code,
           description: `Llanta ${product.brand} ${product.design} ${product.sizeLabel}`,
           quantity: item.cantidad,
-          unitPrice: hoyConIva / (1 + product.taxRate),
+          // Se quita el IVA con la MISMA tasa con la que `buildQuote` lo vuelve
+          // a sumar (`business.taxRate`, quotePdf.ts:93). Antes se quitaba con
+          // `product.taxRate`, que es otra cosa y puede valer 0: la ruta de
+          // Google Sheets lo pone literalmente en 0 (services/catalog.ts:107) y
+          // Contífico lo deja en 0 para cualquier producto sin `porcentaje_iva`
+          // (domain/catalog.ts:167). Con tasa 0 el unitario entraba con el IVA
+          // ya dentro y buildQuote le sumaba otro 15%: unas llantas anunciadas
+          // a $480 se firmaban en $552. Donde las dos tasas coinciden —que es
+          // el caso de Contífico con porcentaje_iva 15— esto no cambia nada.
+          unitPrice: hoyConIva / (1 + business.taxRate),
           brand: product.brand,
           design: product.design,
           sizeLabel: product.sizeLabel,
@@ -1550,25 +1568,44 @@ export function buildTools(ctx: AgentContext) {
           warrantyRoadHazard: warrantyForBrand(product.brand).roadHazard,
         });
       }
+      const baseQuote = buildQuote(lines, nombre_cliente, ctx.customerPhone);
+      const baseCents = Math.round(baseQuote.total * 100);
       let activeDiscount = await getActiveDiscountOffer(ctx.conversation.id);
       if (!activeDiscount) {
-        const baseQuote = buildQuote(lines, nombre_cliente, ctx.customerPhone);
-        activeDiscount = await materializePendingDiscount(
-          ctx.conversation.id,
-          Math.round(baseQuote.total * 100),
-        );
+        activeDiscount = await materializePendingDiscount(ctx.conversation.id, baseCents);
       }
-      const quote = buildQuote(
-        lines,
-        nombre_cliente,
-        ctx.customerPhone,
-        activeDiscount ? {
-          amount: activeDiscount.discountAmountCents / 100,
-          reason: activeDiscount.reason,
-          condition: activeDiscount.condition,
-          expiresAt: activeDiscount.expiresAt,
-        } : undefined,
-      );
+      // El descuento se RECALCULA contra esta cotización (16-ago).
+      //
+      // `getActiveDiscountOffer` devuelve la oferta viva del CICLO, no de una
+      // cotización concreta, y su `discountAmountCents` es un monto fijo que se
+      // calculó una sola vez contra la cotización que existía cuando el asesor
+      // lo autorizó. Reinyectarlo tal cual en una cotización posterior daba dos
+      // resultados malos: un descuento desproporcionado si la nueva era más
+      // barata, y —cuando ya no cabía— un throw de `buildQuote` que, sin
+      // captura en ninguna capa, dejaba al cliente sin ninguna respuesta.
+      //
+      // Con `kind` + `valueCents` se recalcula: un 10 % sigue siendo el 10 % de
+      // lo que se está firmando ahora. Si aun así no cabe (un monto fijo mayor
+      // que el total nuevo), se sigue SIN descuento en vez de tumbar el turno:
+      // el aviso de la oferta lo da igual `withDiscountNotice`.
+      let descuentoAplicado: { amount: number; reason: string; condition: string; expiresAt: Date | null } | undefined;
+      if (activeDiscount) {
+        try {
+          const recalculado = calculateDiscount(baseCents, activeDiscount.kind, activeDiscount.valueCents);
+          descuentoAplicado = {
+            amount: recalculado.discountAmountCents / 100,
+            reason: activeDiscount.reason,
+            condition: activeDiscount.condition,
+            expiresAt: activeDiscount.expiresAt,
+          };
+        } catch (error) {
+          console.warn(
+            `⚠️ El descuento ${activeDiscount.id} no cabe en esta cotización (base $${baseQuote.total}); se cotiza sin él:`,
+            error instanceof Error ? error.message : error,
+          );
+        }
+      }
+      const quote = buildQuote(lines, nombre_cliente, ctx.customerPhone, descuentoAplicado);
       // El número de venta es el de cotización con otra etiqueta, NO un resumen
       // de sus dígitos: `quote.number` es base36 de la fecha («COT-MSUX5R4W»),
       // así que quitarle las letras dejaba cero, uno o dos caracteres. En la
@@ -1579,6 +1616,19 @@ export function buildTools(ctx: AgentContext) {
       const saleNumber = `AV-${quote.number.replace(/^COT-/, "")}`;
       const [product] = await resolvePresentedProduct(ctx.conversation.id, items[0].code);
       if (!product) throw new Error("La opción confirmada dejó de ser inequívoca; vuelve a mostrar las opciones antes de cotizar");
+
+      // Los números que el cliente lee en el chat salen de la MISMA cotización
+      // que se firma, no del catálogo en memoria. `lines[0]` ya trae el precio
+      // confirmado contra el Interbot unas líneas más arriba; leerlo otra vez de
+      // `product.minimumPriceWithTax` era lo que hacía que el total del chat y
+      // el de la pieza pudieran no coincidir.
+      const preciosFirmados = lines.length === 1
+        ? {
+            unitarioConIva: lines[0].salePriceWithTax,
+            listaConIva: lines[0].listPriceWithTax,
+            total: quote.total,
+          }
+        : undefined;
 
       // Los mismos beneficios que van en el texto van dibujados en la pieza,
       // filtrados por marca y cantidad de esta compra concreta.
@@ -1717,7 +1767,7 @@ export function buildTools(ctx: AgentContext) {
         details: [
           `💵 Total: $${quote.total.toFixed(2)}`,
           `🔖 Número de venta: ${saleNumber}`,
-          activeDiscount ? `🏷️ Descuento extra: $${(activeDiscount.discountAmountCents / 100).toFixed(2)} · ${activeDiscount.condition}` : "",
+          descuentoAplicado ? `🏷️ Descuento extra: $${descuentoAplicado.amount.toFixed(2)} · ${descuentoAplicado.condition}` : "",
         ],
       });
       return JSON.stringify({
@@ -1732,27 +1782,29 @@ export function buildTools(ctx: AgentContext) {
             ? buildSingleQuoteCaption(
                 { product, quantity: items[0].cantidad },
                 quote.number,
-                activeDiscount
+                descuentoAplicado
                   ? {
                       finalTotal: quote.total,
-                      condition: activeDiscount.condition,
-                      expiresAt: activeDiscount.expiresAt,
+                      condition: descuentoAplicado.condition,
+                      expiresAt: descuentoAplicado.expiresAt,
                     }
                   : undefined,
+                preciosFirmados,
               )
             : buildSingleQuoteMessageDetallado(
                 { product, quantity: items[0].cantidad },
                 nombre_cliente,
                 quote.number,
                 saleNumber,
-                activeDiscount
+                descuentoAplicado
                   ? {
-                      amount: activeDiscount.discountAmountCents / 100,
+                      amount: descuentoAplicado.amount,
                       finalTotal: quote.total,
-                      condition: activeDiscount.condition,
-                      expiresAt: activeDiscount.expiresAt,
+                      condition: descuentoAplicado.condition,
+                      expiresAt: descuentoAplicado.expiresAt,
                     }
                   : undefined,
+                preciosFirmados,
               ),
           await buildBenefitsBlockOnce(
             ctx.conversation.id,
@@ -1764,7 +1816,7 @@ export function buildTools(ctx: AgentContext) {
           // cliente, y separarlos sumaba un cuarto mensaje al turno. Con la
           // cotización enviada, estos dos datos son el objetivo del bot.
           `Puede pasar sin compromiso a verlas y probarlas en su vehículo.\n${buildVisitPlanQuestion({
-            conDescuentoAutorizado: Boolean(activeDiscount),
+            conDescuentoAutorizado: Boolean(descuentoAplicado),
             locales: business.stores.map((store) => store.name),
             localElegido,
           })}`,

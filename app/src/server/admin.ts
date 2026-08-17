@@ -246,6 +246,52 @@ function mensaje(error: unknown, respaldo: string): string {
 
 const PANEL_ORIGIN = process.env.ADMIN_PANEL_ORIGIN ?? "*";
 
+/**
+ * El gate del panel, exportado para que NADIE tenga que reimplementarlo.
+ *
+ * Vivía dentro de `createAdminRouter`, así que las rutas que cuelgan de la app
+ * raíz —`/cotizaciones/live.png` y `/diagnostico/piezas`— quedaban fuera sin
+ * que se notara: la primera dibuja la comparativa REAL del catálogo con
+ * `minimumPriceWithTax` (el precio de venta mínimo de Depot) para la medida que
+ * pida cualquiera por query, y la segunda rasteriza tres piezas por petición en
+ * el mismo proceso que atiende el webhook.
+ */
+export function exigirCredencial(
+  req: express.Request,
+  res: express.Response,
+  next: express.NextFunction,
+): void {
+  // La sesión va primero: si trae un token válido, entra sea cual sea el
+  // estado de la clave, y el rol queda disponible para el resto del router.
+  const token = tokenDelHeader(req.header("authorization"));
+  const usuario = token ? verificarToken(token) : null;
+  if (usuario) {
+    req.usuario = usuario;
+    next();
+    return;
+  }
+  if (ADMIN_KEY) {
+    // Compatibilidad: el bot, los scripts y el panel central siguen mandando
+    // la clave cruda y no tienen por qué enterarse de que existen usuarios.
+    if (req.header("x-admin-key") === ADMIN_KEY) {
+      next();
+      return;
+    }
+    res.status(401).json({ ok: false, error: "Clave de administración requerida" });
+    return;
+  }
+  // Sin ADMIN_KEY: en producción se cierra (nunca abierto en el entregable);
+  // en desarrollo local se permite para no frenar las pruebas.
+  if (IS_PRODUCTION) {
+    res.status(503).json({
+      ok: false,
+      error: "El panel no tiene ADMIN_KEY configurada. Define ADMIN_KEY antes de exponerlo.",
+    });
+    return;
+  }
+  next();
+}
+
 export function createAdminRouter(): express.Router {
   const router = express.Router();
   router.use(express.json());
@@ -326,33 +372,7 @@ export function createAdminRouter(): express.Router {
     });
   });
 
-  router.use((req, res, next) => {
-    // La sesión va primero: si trae un token válido, entra sea cual sea el
-    // estado de la clave, y el rol queda disponible para el resto del router.
-    const token = tokenDelHeader(req.header("authorization"));
-    const usuario = token ? verificarToken(token) : null;
-    if (usuario) {
-      req.usuario = usuario;
-      return next();
-    }
-    if (ADMIN_KEY) {
-      // Compatibilidad: el bot, los scripts y el panel central siguen mandando
-      // la clave cruda y no tienen por qué enterarse de que existen usuarios.
-      if (req.header("x-admin-key") === ADMIN_KEY) return next();
-      res.status(401).json({ ok: false, error: "Clave de administración requerida" });
-      return;
-    }
-    // Sin ADMIN_KEY: en producción se cierra (nunca abierto en el entregable);
-    // en desarrollo local se permite para no frenar las pruebas.
-    if (IS_PRODUCTION) {
-      res.status(503).json({
-        ok: false,
-        error: "El panel no tiene ADMIN_KEY configurada. Define ADMIN_KEY antes de exponerlo.",
-      });
-      return;
-    }
-    next();
-  });
+  router.use(exigirCredencial);
 
   // Estado general: las páginas lo usan para validar la clave y prellenar datos.
   router.get("/status", (req, res) => {

@@ -116,6 +116,27 @@ export async function reopenConversation(
 }
 
 /**
+ * ¿Ya procesamos este mensaje de Meta?
+ *
+ * El deduplicado de verdad lo hace `appendMessage` con su `on conflict do
+ * nothing`, pero eso ocurre al FINAL: para una foto o un audio, la reentrega
+ * ya había pagado la descarga del media y la llamada a la visión antes de
+ * enterarse de que el mensaje estaba repetido — factura doble por el mismo
+ * mensaje. Con esto se pregunta ANTES de gastar nada.
+ *
+ * Es una comprobación optimista, no un candado: dos reentregas simultáneas
+ * pueden pasar las dos. El `on conflict` de `appendMessage` sigue siendo la
+ * garantía; esto solo evita el gasto en el caso normal.
+ */
+export async function yaProcesado(waMessageId: string): Promise<boolean> {
+  if (!waMessageId) return false;
+  const [fila] = await sql<{ existe: boolean }[]>`
+    select true as existe from messages where wa_message_id = ${waMessageId} limit 1
+  `;
+  return Boolean(fila?.existe);
+}
+
+/**
  * Guarda un mensaje. Devuelve false si el wa_message_id ya existía
  * (webhook duplicado de Meta → el llamador debe abortar el procesamiento).
  */

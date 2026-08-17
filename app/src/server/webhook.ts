@@ -17,7 +17,7 @@ import {
   renderQuoteImage,
   toRenderLine,
 } from "../render/quoteImage.js";
-import { createAdminRouter } from "./admin.js";
+import { createAdminRouter, exigirCredencial } from "./admin.js";
 import { getBotPower } from "../services/botPower.js";
 import { shouldRunEmbeddedWorker } from "../workers/embeddedFollowUpWorker.js";
 
@@ -39,14 +39,26 @@ export function createServer(): express.Express {
       res.sendStatus(200);
       return;
     }
-    // Los ecos van antes: whatsapp-api-js solo despacha `messages` y `calls`, y
-    // tiraba a la basura lo que el asesor escribía desde WhatsApp (ticket 1286).
-    const eco = await handleEchoWebhook(String(req.body ?? ""), req.header("x-hub-signature-256"));
-    if (eco.handled) {
-      res.sendStatus(eco.status);
-      return;
+    // Express 4 NO captura promesas rechazadas de un handler `async`: cualquier
+    // throw de aquí dentro (una consulta a Postgres que falla en
+    // handleEchoWebhook o dentro de handle_post) se convertía en
+    // unhandledRejection y Node ≥15 mata el proceso. Y al morir se pierden el
+    // buffer de debounce y la cola FIFO en memoria: los mensajes que estaban
+    // esperando su ventana de 5 s no se contestan nunca, sin reintento ni
+    // rastro. Un 500 hace que Meta reintregue el lote, que es justo lo correcto.
+    try {
+      // Los ecos van antes: whatsapp-api-js solo despacha `messages` y `calls`, y
+      // tiraba a la basura lo que el asesor escribía desde WhatsApp (ticket 1286).
+      const eco = await handleEchoWebhook(String(req.body ?? ""), req.header("x-hub-signature-256"));
+      if (eco.handled) {
+        res.sendStatus(eco.status);
+        return;
+      }
+      res.sendStatus(await wa.handle_post(req));
+    } catch (error) {
+      console.error("❌ El webhook falló procesando el lote:", error instanceof Error ? error.stack ?? error.message : error);
+      if (!res.headersSent) res.sendStatus(500);
     }
-    res.sendStatus(await wa.handle_post(req));
   });
 
   app.get("/webhook", (req, res) => {
@@ -103,7 +115,7 @@ export function createServer(): express.Express {
   // Prueba en vivo del motor de imágenes con el catálogo real: renderiza la
   // comparativa de una medida (?medida=205/55R16) en este mismo servidor.
   // Sirve para verificar que satori/resvg/fuentes/fotos funcionan en Railway.
-  app.get("/cotizaciones/live.png", async (req, res) => {
+  app.get("/cotizaciones/live.png", exigirCredencial, async (req, res) => {
     try {
       const raw = String(req.query.medida ?? "205/55R16");
       const m = raw.match(/(\d{3})[/ ]?(\d{2})\s?Z?R?(\d{2})/i);
@@ -139,7 +151,7 @@ export function createServer(): express.Express {
   // Existe porque cuando una pieza no sale, el cliente recibe el texto largo y
   // hasta ahora nadie se enteraba. Reporta peso y tiempo de cada una: el tope
   // de Meta para imágenes es 5 MB y pasado eso el upload se rechaza.
-  app.get("/diagnostico/piezas", async (req, res) => {
+  app.get("/diagnostico/piezas", exigirCredencial, async (req, res) => {
     const LIMITE_META_MB = 5;
     const ALERTA_MB = 4.5;
     try {

@@ -283,6 +283,13 @@ async function uploadMedia(buf: Buffer, mime: string, filename: string): Promise
 }
 
 /**
+ * Tope de lo que se baja a memoria. Meta acepta hasta 16 MB en audio y video,
+ * pero de aquí solo salen fotos y notas de voz a la API de OpenAI: 8 MB cubre
+ * de sobra el caso real y acota el pico de memoria.
+ */
+const TOPE_MEDIA_BYTES = 8 * 1024 * 1024;
+
+/**
  * Baja media entrante (foto del cliente) de la Graph API: primero el metadato
  * del media_id (que trae una URL firmada de vida corta) y luego los bytes.
  *
@@ -324,9 +331,25 @@ export async function downloadMedia(
       console.warn(`⚠️ downloadMedia: bytes de ${mediaId} respondieron ${fileResponse.status}`);
       return null;
     }
+    // Tope explícito (16-ago). `arrayBuffer()` a pelo materializaba en RAM lo
+    // que sirviera la URL firmada, y de ahí el buffer se convierte a base64
+    // (+33%) y el SDK lo serializa a JSON: tres copias vivas por archivo, sin
+    // semáforo que limite cuántas ocurren a la vez. En la instancia chica de
+    // Railway, un par de medios pesados en paralelo es un pico que mata el
+    // proceso. El tope se mira ANTES de bajar el cuerpo.
+    const declarado = Number(fileResponse.headers.get("content-length"));
+    if (Number.isFinite(declarado) && declarado > TOPE_MEDIA_BYTES) {
+      await fileResponse.body?.cancel().catch(() => {});
+      console.warn(`⚠️ downloadMedia: ${mediaId} declara ${declarado} B, sobre el tope de ${TOPE_MEDIA_BYTES} B`);
+      return null;
+    }
     const bytes = Buffer.from(await fileResponse.arrayBuffer());
     if (!bytes.length) {
       console.warn(`⚠️ downloadMedia: ${mediaId} vino vacío`);
+      return null;
+    }
+    if (bytes.byteLength > TOPE_MEDIA_BYTES) {
+      console.warn(`⚠️ downloadMedia: ${mediaId} pesa ${bytes.byteLength} B, sobre el tope; se descarta`);
       return null;
     }
     return { bytes, mimeType: meta.mime_type ?? "image/jpeg" };

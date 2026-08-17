@@ -261,21 +261,31 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
   // herramientas lo obliga a responder al cliente con lo que ya averiguó.
   // ESCALACIÓN (7-ago): el rescate corría con el mismo modelo que acababa de
   // atascarse 8 veces; ahora es el turno del superior, con todo el contexto.
+  // PRESUPUESTO DEL RESCATE (16-ago): en los modelos de razonamiento,
+  // `max_completion_tokens` cubre el razonamiento Y la salida visible. El
+  // rescate es la llamada con MÁS contexto del turno (system + hechos + hasta
+  // 30 mensajes + 8 rondas de assistant/tool) y corría con el mismo tope de
+  // 2048 y `reasoning_effort: medium`. Si el razonamiento se comía el
+  // presupuesto, `content` volvía vacío y el código caía directo en la
+  // disculpa que este bloque existe para evitar. Ahora el tope es holgado y,
+  // si aun así vuelve cortado o vacío, hay un segundo intento sin razonamiento.
+  const MAX_RESCATE = Math.max(config.openai.maxTokens, 4096);
   try {
     modeloUsado = config.openai.escalationModel;
     const gpt5 = modeloUsado.startsWith("gpt-5");
     const reasoningEffort = chatReasoningEffort(modeloUsado, false, true);
+    const mensajesDeRescate: ChatCompletionMessageParam[] = [
+      ...messages,
+      {
+        role: "system",
+        content:
+          "Se acabaron los intentos con herramientas. Responde AHORA al cliente con lo que ya sabes de esta conversación: si tienes opciones o precios de las herramientas, dilos; si algo falló, avanza por otro camino (pide el dato que falte o deriva al asesor). Prohibido disculparte por 'problemas procesando' y prohibido pedir que repita el mensaje.",
+      },
+    ];
     const rescate = await openai.chat.completions.create({
       model: modeloUsado,
-      messages: [
-        ...messages,
-        {
-          role: "system",
-          content:
-            "Se acabaron los intentos con herramientas. Responde AHORA al cliente con lo que ya sabes de esta conversación: si tienes opciones o precios de las herramientas, dilos; si algo falló, avanza por otro camino (pide el dato que falte o deriva al asesor). Prohibido disculparte por 'problemas procesando' y prohibido pedir que repita el mensaje.",
-        },
-      ],
-      max_completion_tokens: config.openai.maxTokens,
+      messages: mensajesDeRescate,
+      max_completion_tokens: MAX_RESCATE,
       ...(gpt5 ? {
         reasoning_effort: reasoningEffort!,
         verbosity: "low" as const,
@@ -286,7 +296,27 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
     outputTokens += rescate.usage?.completion_tokens ?? 0;
     cachedInputTokens += rescate.usage?.prompt_tokens_details?.cached_tokens ?? 0;
     reasoningTokens += rescate.usage?.completion_tokens_details?.reasoning_tokens ?? 0;
-    const texto = rescate.choices[0]?.message?.content?.trim();
+    let texto = rescate.choices[0]?.message?.content?.trim();
+    // Segundo intento SIN razonamiento. `finish_reason: "length"` significa que
+    // el presupuesto se agotó antes de escribir nada visible; sin razonamiento
+    // todo el tope va a la respuesta, que es lo único que hace falta aquí.
+    if (!texto && gpt5) {
+      const cortado = rescate.choices[0]?.finish_reason;
+      console.warn(`⚠️ El rescate volvió sin texto (finish_reason: ${cortado ?? "?"}); reintento sin razonamiento.`);
+      const segundo = await openai.chat.completions.create({
+        model: modeloUsado,
+        messages: mensajesDeRescate,
+        max_completion_tokens: MAX_RESCATE,
+        reasoning_effort: "none" as const,
+        verbosity: "low" as const,
+        prompt_cache_retention: "24h" as const,
+      });
+      inputTokens += segundo.usage?.prompt_tokens ?? 0;
+      outputTokens += segundo.usage?.completion_tokens ?? 0;
+      cachedInputTokens += segundo.usage?.prompt_tokens_details?.cached_tokens ?? 0;
+      reasoningTokens += segundo.usage?.completion_tokens_details?.reasoning_tokens ?? 0;
+      texto = segundo.choices[0]?.message?.content?.trim();
+    }
     if (texto) {
       await logAiRun({
         conversationId: ctx.conversation.id,
