@@ -26,7 +26,7 @@ await admin.end();
 
 const { sql } = await import("../src/db/client.js");
 // El candado real, no una copia: si el SQL de producción cambia, esto se entera.
-const { reclamarDia, soltarDia, ultimoDiaEnviado } = await import("../src/services/dailyReportDelivery.js");
+const { rechazadosPorMeta, reclamarDia, soltarDia, ultimoDiaEnviado } = await import("../src/services/dailyReportDelivery.js");
 
 beforeAll(async () => {
   await sql`
@@ -76,5 +76,56 @@ describe("candado del reporte diario", () => {
     expect(await reclamarDia("2026-08-13")).toBe(true);
     await soltarDia("2026-08-12");
     expect(await ultimoDiaEnviado()).toBe("2026-08-13");
+  });
+});
+
+/**
+ * El candado de arriba solo sirve si `entregados` dice la verdad, y el 16-ago
+ * no la decía: Meta aceptó los dos mensajes del reporte con HTTP 200 y un wamid
+ * cada uno, los rechazó tres segundos después por el webhook con el 131047, y
+ * como el envío miraba únicamente la respuesta del POST, el reporte quedó
+ * anotado «enviado a 2/2 asesores» sin haberle llegado a nadie. El día quedó
+ * reclamado y el reintento de `soltarDia` no llegó a correr.
+ *
+ * Por eso esto se prueba contra Postgres de verdad: lo que se afirma es que la
+ * consulta a `message_status_events` encuentra el veredicto real.
+ */
+describe("el veredicto de Meta, no el acuse del POST", () => {
+  beforeAll(async () => {
+    await sql`
+      create table if not exists message_status_events (
+        id bigserial primary key,
+        message_id bigint,
+        provider_id text not null,
+        status text not null,
+        payload jsonb,
+        created_at timestamptz not null default now()
+      )
+    `;
+    await sql`
+      insert into message_status_events (provider_id, status) values
+        ('wamid.RECHAZADO', 'failed'),
+        ('wamid.ENTREGADO', 'delivered')
+    `;
+  });
+
+  it("un mensaje que Meta aceptó y luego rechazó NO cuenta como entregado", async () => {
+    const rechazados = await rechazadosPorMeta(["wamid.RECHAZADO"]);
+    expect(rechazados.has("wamid.RECHAZADO")).toBe(true);
+  });
+
+  it("uno entregado de verdad no aparece como rechazado", async () => {
+    const rechazados = await rechazadosPorMeta(["wamid.ENTREGADO"]);
+    expect(rechazados.size).toBe(0);
+  });
+
+  it("con dos asesores distingue cuál falló y cuál no", async () => {
+    // Es el caso exacto del 16-ago: a Joaquín le llegó, a Manuel no.
+    const rechazados = await rechazadosPorMeta(["wamid.ENTREGADO", "wamid.RECHAZADO"]);
+    expect([...rechazados]).toEqual(["wamid.RECHAZADO"]);
+  });
+
+  it("sin mensajes que revisar no consulta ni espera", async () => {
+    expect((await rechazadosPorMeta([])).size).toBe(0);
   });
 });

@@ -32,6 +32,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-08-16 | _(este mismo)_ | El reporte deja de creerse el acuse de Meta (aceptar no es entregar) | 1.0 |
 | 2026-08-16 | _(este mismo)_ | La pieza de opciones y la cotización dicen el precio del Interbot, las dos | 0.5 |
 | 2026-08-16 | _(este mismo)_ | El sello de la equivalente advierte en ámbar, ya no rechaza en rojo | 0.75 |
 | 2026-08-16 | _(este mismo)_ | Auditoría (2/2): el precio que se lee y el que se firma son el mismo | 2.0 |
@@ -145,6 +146,48 @@ Ya viene activado en este equipo.
 ---
 
 ## Entradas (más reciente primero)
+
+### 2026-08-16 · El reporte deja de creerse el acuse de Meta · ⏱️ 1.0 h
+
+**Qué:** `enviarReporteDiario` ya no cuenta a un asesor como entregado por que la
+Graph API haya aceptado el POST. Guarda el wamid del texto de cada uno y espera
+el veredicto real en `message_status_events` (hasta 20 s, cortando apenas todos
+tengan estado) antes de cerrar la cuenta. Los que Meta terminó rechazando se
+descuentan.
+
+**Por qué:** Meta responde el POST con **HTTP 200 y un wamid aunque la ventana de
+24 h esté cerrada**, y manda el rechazo unos segundos después por el webhook de
+estados. Hoy 16-ago el reporte de las 20:10 se anotó «enviado a 2/2 asesores»:
+los dos mensajes a Manuel (texto y PDF) habían fallado con 131047 a las 20:10:11
+y 20:10:14, y los de Joaquín sí llegaron. El log decía una cosa y el WhatsApp
+otra.
+
+Lo caro no era el log. `enviarReporteDiario` tiene una red de seguridad —si no lo
+recibió NADIE, suelta el día y el bucle lo reintenta cada 15 min hasta
+medianoche— y esa red **solo corre si `entregados === 0`**. Como el contador
+mentía diciendo 2, no se activó nunca y el candado del día quedó puesto. Con este
+arreglo, esta misma noche el reporte habría salido solo en cuanto Manuel le
+escribió al número, sin que nadie lo reenviara a mano.
+
+**Ojo, esto NO se prueba en memoria:** lo que se afirma es que la consulta a
+`message_status_events` encuentra el veredicto, así que los 4 tests nuevos van en
+`reporteCandado.integration.test.ts`, contra Postgres de verdad, igual que el
+candado. Uno cubre el caso exacto de hoy: dos asesores, a uno le llegó y al otro
+no, y la función distingue cuál. 733 tests, typecheck limpio.
+
+**Pendiente hermano de este (NO es código):** el flood de `window_closing` —
+451.433 filas en `bot_alerts`, 68.473 solo hoy sobre 650 claves distintas— no sale
+de este repo. Lo produce el servicio Railway **«AutoVenta Follow-ups Worker»**,
+que sigue desplegado desde el 8-ago con el commit `8fd3eb7a` de la rama
+`codex/producto-real-depot-tire`. Ese código **inserta** la alerta cada vuelta;
+`main` desde el 6-ago solo la **resuelve**. Como el índice único es parcial
+(`where status in ('open','snoozed')`), resolverla libera la clave y el viejo la
+vuelve a insertar: los dos procesos se pelean cada 5 segundos. El arreglo es
+apagar ese servicio (el worker embebido en el web ya hace el trabajo, `/health`
+lo confirma con `modo: "embebido"`) y después purgar las filas. Está en los dos
+entornos, staging y Depot_Tire.
+
+---
 
 ### 2026-08-16 · Se saca la consulta al Interbot de buscar_llanta (corrección de la entrada anterior) · ⏱️ 0.25 h
 

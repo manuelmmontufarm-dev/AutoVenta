@@ -17,6 +17,14 @@
  *    (token vencido, Meta caída) y ya trae los números y el link al panel. Un
  *    reporte sin adjunto sigue sirviendo; un adjunto que no llegó y ningún
  *    mensaje, no.
+ *
+ *  · **Aceptar no es entregar.** Meta responde el POST con 200 y un wamid
+ *    aunque la ventana de 24 h esté cerrada, y manda el rechazo después por el
+ *    webhook de estados. Mirar solo el POST hacía que el reporte se anotara
+ *    «enviado a 2/2 asesores» sin haberle llegado a nadie (16-ago), y de paso
+ *    desactivaba el reintento de abajo, que solo corre si NADIE lo recibió. Por
+ *    eso el envío espera el veredicto en `message_status_events` antes de
+ *    contar a alguien como entregado.
  */
 import { sql } from "../db/client.js";
 import { sendAdvisorPdf, sendAdvisorText } from "../wa/client.js";
@@ -106,6 +114,68 @@ export interface ResultadoEnvio {
 }
 
 /**
+ * Cuánto se espera el veredicto de Meta antes de dar el envío por bueno.
+ *
+ * Meta contesta el POST con 200 y un wamid **aunque la ventana de 24 h esté
+ * cerrada**, y el rechazo llega después, por el webhook de estados. El 16-ago
+ * eso hizo que el reporte se anotara «enviado a 2/2 asesores» cuando los dos
+ * mensajes a Manuel (texto y PDF) habían fallado con 131047 tres segundos
+ * antes: el log decía una cosa y el WhatsApp del asesor otra.
+ *
+ * Ese día los eventos `failed` entraron en el mismo segundo del envío. Se
+ * espera bastante más que eso porque el costo de esperar de más es nulo —el
+ * bucle del reporte gira cada 15 minutos— y el de esperar de menos es dar por
+ * entregado lo que no llegó, que es justo el fallo que esto viene a cerrar.
+ */
+const VEREDICTO_MS = 20_000;
+const VEREDICTO_PASO_MS = 2_000;
+
+const dormir = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+
+/**
+ * De los mensajes que Meta aceptó, cuáles terminó rechazando.
+ *
+ * Devuelve el conjunto de wamids con un evento `failed` en `message_status_events`,
+ * que es donde el webhook deja el veredicto real. Se consulta por pasos y se
+ * corta apenas todos tengan veredicto: en el caso bueno —todos entregados— no
+ * agrega nada de espera, porque un `sent`/`delivered` cuenta como veredicto.
+ *
+ * Ante cualquier error de base devuelve el conjunto vacío: quedarse sin saber
+ * es el estado de siempre, y no vale tumbar el envío del reporte por eso.
+ *
+ * Exportada por el mismo motivo que `reclamarDia`: lo que se afirma vive en el
+ * SQL contra `message_status_events`, no en el TypeScript de alrededor, y una
+ * copia de la consulta en el test podría quedar en verde mientras la de
+ * producción se rompe.
+ */
+export async function rechazadosPorMeta(wamids: readonly string[]): Promise<Set<string>> {
+  if (!wamids.length) return new Set();
+  const fallidos = new Set<string>();
+  const conVeredicto = new Set<string>();
+  for (let esperado = 0; esperado <= VEREDICTO_MS; esperado += VEREDICTO_PASO_MS) {
+    await dormir(VEREDICTO_PASO_MS);
+    try {
+      const filas = await sql<{ provider_id: string; status: string }[]>`
+        select provider_id, status from message_status_events
+        where provider_id in ${sql(wamids as string[])}
+      `;
+      for (const fila of filas) {
+        conVeredicto.add(fila.provider_id);
+        if (fila.status === "failed") fallidos.add(fila.provider_id);
+      }
+    } catch (error) {
+      console.warn(
+        "⚠️ No se pudo confirmar la entrega del reporte contra Meta:",
+        error instanceof Error ? error.message : error,
+      );
+      return new Set();
+    }
+    if (conVeredicto.size >= wamids.length) break;
+  }
+  return fallidos;
+}
+
+/**
  * Manda el reporte a todos los asesores activos.
  *
  * `forzar` salta el candado del día: es lo que usa el botón «mandar ahora» del
@@ -139,11 +209,17 @@ export async function enviarReporteDiario(input: { ahora?: Date; forzar?: boolea
   }
   const filename = nombreArchivoReporte(reporte);
 
+  // Se guarda el wamid del TEXTO de cada asesor —no el del PDF— porque el
+  // texto es el que decide si el reporte llegó: trae los números y el link al
+  // panel, y ya está escrito que un reporte sin adjunto sigue sirviendo. Si el
+  // PDF se cae solo, el asesor tiene lo que necesita.
+  const aceptados: { asesor: string; wamid: string }[] = [];
   let entregados = 0;
   for (const asesor of destinatarios) {
     try {
-      await sendAdvisorText(texto, asesor.telefono);
+      const wamid = await sendAdvisorText(texto, asesor.telefono);
       entregados += 1;
+      if (wamid) aceptados.push({ asesor: asesor.nombre, wamid });
     } catch (error) {
       console.error(`⚠️ Reporte del día no salió para ${asesor.nombre}:`, error instanceof Error ? error.message : error);
       continue;
@@ -153,6 +229,24 @@ export async function enviarReporteDiario(input: { ahora?: Date; forzar?: boolea
       await sendAdvisorPdf({ to: asesor.telefono, pdf, filename });
     } catch (error) {
       console.error(`⚠️ PDF del reporte no salió para ${asesor.nombre}:`, error instanceof Error ? error.message : error);
+    }
+  }
+
+  // Aceptar no es entregar. Hasta aquí `entregados` solo cuenta los POST que la
+  // Graph API no rechazó en el acto; el veredicto de verdad llega por el webhook
+  // de estados y puede ser `failed` con la ventana cerrada. Sin este descuento,
+  // un reporte que no le llegó a nadie se anotaba como entregado, el candado del
+  // día se quedaba puesto y el reintento de abajo —que existe justo para eso—
+  // no llegaba a correr nunca. Es lo que pasó el 16-ago.
+  const rechazados = await rechazadosPorMeta(aceptados.map(({ wamid }) => wamid));
+  if (rechazados.size) {
+    for (const { asesor, wamid } of aceptados) {
+      if (!rechazados.has(wamid)) continue;
+      entregados -= 1;
+      console.warn(
+        `⚠️ Meta aceptó el reporte para ${asesor} y después lo rechazó: no le llegó. ` +
+        "Causa habitual: su ventana de 24 h está cerrada — tiene que escribirle al número del negocio.",
+      );
     }
   }
 
