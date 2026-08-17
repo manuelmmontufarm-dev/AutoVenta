@@ -32,6 +32,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-08-16 | _(este mismo)_ | El sello de la equivalente advierte en ámbar, ya no rechaza en rojo | 0.75 |
 | 2026-08-16 | _(este mismo)_ | Auditoría (2/2): el precio que se lee y el que se firma son el mismo | 2.0 |
 | 2026-08-16 | _(este mismo)_ | Auditoría: ningún turno se queda sin respuesta, y el caché del prompt vuelve a servir | 3.0 |
 | 2026-08-16 | _(este mismo)_ | Fuera los emojis de la interfaz: el panel deja de leerse como generado | 2.0 |
@@ -143,6 +144,45 @@ Ya viene activado en este equipo.
 ---
 
 ## Entradas (más reciente primero)
+
+### 2026-08-16 · El sello de la equivalente advierte en ámbar, ya no rechaza en rojo · ⏱️ 0.75 h
+
+**Qué:** el sello de medida de la pieza de opciones (`selloDeMedida` en
+`depotPosters.ts`) deja el rojo. Ahora es ámbar (`#fff3d6` con borde 2 px
+`#dda017`), encabeza **`255/70R16 · LE MONTA`** y debajo, en dos renglones,
+**«No es su medida exacta, / pero le entra: mismo aro 16»**. La nota al pie va
+en el mismo ámbar y con el mismo texto.
+
+**Por qué:** el sello gritaba «NO ES SU MEDIDA» en rojo con borde de 3 px, y
+sobre la pieza el efecto era el contrario del buscado. Cuando el catálogo no
+tiene la medida pedida —el chat 6363 de hoy pidió 255/65R16, que **no existe en
+ninguna de las 385 SKUs**— las tres opciones que el bot ofrece son legítimas: mismo
+aro, con stock, las únicas que el negocio puede vender ese día. Marcadas en rojo
+se leían como tres errores, y el cliente se llevaba una imagen en la que todo
+estaba tachado. El reparo se dice igual y con todas las letras; lo que bajó es el
+volumen, no el contenido. Ámbar a propósito: el ámbar dice «mírame antes de
+decidir», el rojo decía «esto está mal» — y tiene que saltar, porque una
+equivalente que pase inadvertida es justo el fallo del 13-ago.
+
+**Ojo (bug encontrado al verificar):** el reparo va en **dos renglones** y no en
+uno porque la frase entera rompía la pieza. Los textos del sello van en `nowrap`
+a propósito (una medida partida a la mitad es peor que nada), así que con tres
+marcas en la fila —donde la tarjeta se angosta— el sello se salía de la tarjeta y
+se cortaba justo en el aro; la tercera se iba fuera del póster. Partido, el
+renglón más largo mide poco más que el título y entra en la columna más estrecha.
+No se veía en los tests: hubo que renderizar los tres casos (sin exactas, mixto y
+la fila apretada de tres marcas) y mirarlos.
+
+**De paso, verificado:** el bot hizo lo correcto en ese chat. `255/65R16` da 0
+resultados en el catálogo, y las tres que ofreció existen y tienen stock
+(255/70R16 Falken ×24, 265/70R16 Falken ×78, 245/75R16 KR628 ×48). El candado del
+13-ago funcionó — no firmó cotización en otra medida, la marcó.
+
+Test nuevo en `selloDeMedida.test.ts`: blinda que el reparo no pueda suavizarse
+hasta desaparecer y que «OJO»/«NO ES SU MEDIDA» no vuelvan por ninguna vía.
+729 tests en 71 archivos, typecheck limpio.
+
+---
 
 ### 2026-08-16 · Auditoría (2/2): el precio que se lee y el que se firma son el mismo · ⏱️ 2.0 h
 

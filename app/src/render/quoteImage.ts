@@ -164,7 +164,8 @@ export interface OptionsRenderData extends PieceTheme {
   sizeLabel?: string | null;
   /**
    * La medida que pidió el cliente. Cuando viene, cada tarjeta sale marcada
-   * como MEDIDA EXACTA (verde) o como equivalente (sello rojo).
+   * como MEDIDA EXACTA (verde) o como equivalente que LE MONTA (sello gris),
+   * y el sello de la equivalente la nombra para dar el punto de comparación.
    */
   medidaPedida?: string | null;
   products: RenderLine[]; // quantity ignorada

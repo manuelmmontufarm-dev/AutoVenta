@@ -58,9 +58,9 @@ export interface PosterLine {
   /**
    * ¿Es exactamente la medida que pidió el cliente?
    *
-   * `true` → se marca MEDIDA EXACTA. `false` → se marca en rojo que le entra
-   * por el aro pero NO es su medida. `null`/undefined → no se sabe (el cliente
-   * no dio medida) y no se marca nada.
+   * `true` → se marca MEDIDA EXACTA. `false` → se marca «LE MONTA», con la
+   * medida real a la vista y contra cuál se compara. `null`/undefined → no se
+   * sabe (el cliente no dio medida) y no se marca nada.
    *
    * Existe porque la pieza de opciones se llena hasta con tres llantas y, para
    * lograrlo, a veces entran equivalentes de otra medida. Eso está bien —son
@@ -405,10 +405,29 @@ function aroDeMedida(sizeLabel: string): string | null {
 /**
  * El sello de medida de cada tarjeta de opciones.
  *
- * Verde «MEDIDA EXACTA» cuando es la que pidió; ROJO y grande cuando es una
+ * Verde «MEDIDA EXACTA» cuando es la que pidió; ámbar cuando es una
  * equivalente. La tarjeta no mostraba la medida por ningún lado, así que tres
  * llantas de tres medidas distintas se veían idénticas — el cliente elegía a
  * ciegas y el bot terminaba cotizando otra cosa.
+ *
+ * El sello de la equivalente **advierte sin desanimar**. La primera versión
+ * gritaba «NO ES SU MEDIDA» en rojo con borde de 3 px, y el efecto sobre la
+ * pieza era el contrario del buscado: tres opciones legítimas —con stock, del
+ * mismo aro, las únicas que el negocio puede vender en ese caso— se leían como
+ * tres errores, y quien pedía una medida que el catálogo no tiene se llevaba
+ * una imagen en la que todo estaba tachado.
+ *
+ * El reparo se dice igual y con todas las letras —«no es su medida exacta»—,
+ * pero ahora encabeza el sello lo que la llanta SÍ hace (le monta) y el reparo
+ * viene abajo, pegado a su razón. Lo que cambió es el volumen, no el contenido:
+ * el dato que salvó la cotización del 13-ago sigue entero y la medida real
+ * sigue a la vista, nunca haciéndose pasar por la pedida.
+ *
+ * El color es ámbar y no rojo, y esa distinción es el punto entero: el ámbar
+ * dice «mírame antes de decidir», el rojo decía «esto está mal». Tiene que
+ * saltar —una equivalente que pase inadvertida es justo el fallo del 13-ago—
+ * pero sin leerse como error, porque estas llantas son las que el negocio de
+ * verdad puede vender ese día. El rojo queda para lo que sí es un problema.
  */
 function selloDeMedida(line: PosterLine, t: (n: number) => number): SatoriNode | null {
   if (line.medidaExacta == null) return null;
@@ -423,14 +442,28 @@ function selloDeMedida(line: PosterLine, t: (n: number) => number): SatoriNode |
         `${line.sizeLabel} · MEDIDA EXACTA`),
     );
   }
+  // La segunda línea dice las dos cosas en una sola frase, y en ese orden: que
+  // NO es su medida exacta —literal, sin eufemismo, porque de ahí salió la
+  // cotización firmada en la medida equivocada— y enseguida por qué igual le
+  // sirve. Suavizar el tono no es callar el dato: es dejar de gritarlo. La
+  // razón («tiene el mismo aro») va pegada al reparo para que se lean juntos,
+  // que es la diferencia entre advertir y desanimar.
+  // El reparo va en DOS renglones y no en uno, por una razón de layout que ya
+  // rompió la pieza: con tres marcas la fila se aprieta y la tarjeta queda
+  // angosta, y como los textos del sello van en `nowrap` —tienen que ir: una
+  // medida partida a la mitad es peor que nada— una sola frase larga se salía
+  // de la tarjeta y se cortaba justo en el aro. Partida, el renglón más largo
+  // mide poco más que el título y entra en la columna más estrecha.
+  const razon = aro ? `pero le entra: mismo aro ${aro}` : "pero le entra: es equivalente";
   return el({
-    flexDirection: "column", gap: t(3), backgroundColor: "#ffe3e2", borderRadius: t(12),
-    border: "3px solid #d62828", padding: `${t(9)}px ${t(16)}px`, alignSelf: "flex-start",
+    flexDirection: "column", gap: t(1), backgroundColor: "#fff3d6", borderRadius: t(8),
+    border: "2px solid #dda017", padding: `${t(6)}px ${t(12)}px`, alignSelf: "flex-start",
   },
-    text({ ...ARCHIVO_BLACK, fontSize: t(18), color: "#a51111", whiteSpace: "nowrap" },
-      `${line.sizeLabel} · NO ES SU MEDIDA`),
-    text({ fontSize: t(14), fontWeight: 700, color: "#a51111", whiteSpace: "nowrap" },
-      aro ? `Le entra por el aro ${aro}, pero es otra medida` : "Es una medida equivalente"),
+    text({ fontSize: t(15), fontWeight: 700, color: "#7a4e08", whiteSpace: "nowrap" },
+      `${line.sizeLabel} · LE MONTA`),
+    text({ fontSize: t(11.5), fontWeight: 600, color: "#8a5c10", whiteSpace: "nowrap" },
+      "No es su medida exacta,"),
+    text({ fontSize: t(11.5), fontWeight: 600, color: "#8a5c10", whiteSpace: "nowrap" }, razon),
   );
 }
 
@@ -562,11 +595,11 @@ export function optionsPoster(data: OptionsPosterData, theme: Theme): SatoriNode
     racingBar(theme),
     ...filas,
     hayEquivalentes
-      ? el({ alignItems: "center", gap: 14, padding: "20px 64px", backgroundColor: "#ffe3e2",
-          borderTop: "3px solid #d62828" },
-          text({ ...ARCHIVO_BLACK, fontSize: 20, color: "#a51111", whiteSpace: "nowrap" }, "OJO"),
-          text({ fontSize: 18, fontWeight: 500, color: "#a51111", lineHeight: 1.4 },
-            "Las marcadas en rojo NO son su medida exacta: le montan en el mismo aro y son equivalentes. Confírmelas con el asesor antes de comprar."),
+      ? el({ alignItems: "center", gap: 14, padding: "20px 64px", backgroundColor: "#fff3d6",
+          borderTop: "3px solid #dda017" },
+          text({ ...ARCHIVO_BLACK, fontSize: 20, color: "#7a4e08", whiteSpace: "nowrap" }, "LE MONTAN"),
+          text({ fontSize: 18, fontWeight: 500, color: "#8a5c10", lineHeight: 1.4 },
+            "Las marcadas «LE MONTA» no son su medida exacta, pero le entran: tienen el mismo aro y rinden igual de bien. Confírmelas con el asesor antes de comprar."),
         )
       : null,
     benefitsStrip(theme, TODAS_INCLUYEN),

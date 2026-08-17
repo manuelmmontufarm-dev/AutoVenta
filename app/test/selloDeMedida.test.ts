@@ -46,38 +46,57 @@ describe("sello de medida en las opciones", () => {
   it("la medida exacta sale marcada en verde, con su medida", () => {
     const texto = render([linea("WILDPEAK A/T 4W", "265/70R17", true)]);
     expect(texto).toContain("265/70R17 · MEDIDA EXACTA");
-    expect(texto).not.toContain("NO ES SU MEDIDA");
+    expect(texto).not.toContain("LE MONTA");
   });
 
-  it("la equivalente dice que NO es su medida y por qué le entra", () => {
+  it("la equivalente encabeza con que le monta, y abajo dice el reparo con su razón", () => {
     const texto = render([linea("KR628", "265/65R17", false)]);
-    expect(texto).toContain("265/65R17 · NO ES SU MEDIDA");
-    expect(texto).toContain("Le entra por el aro 17");
+    expect(texto).toContain("265/65R17 · LE MONTA");
+    expect(texto).toContain("No es su medida exacta, pero le entra: mismo aro 17");
   });
 
-  it("con alguna equivalente, el rótulo deja de prometer «TODO EN TU MEDIDA» y sale el aviso", () => {
+  /**
+   * El sello nació de una cotización firmada en la medida equivocada: puede
+   * ablandarse el tono, pero el reparo se dice con todas las letras y la medida
+   * real nunca se esconde ni se hace pasar por la pedida. Por eso esto se
+   * afirma aparte del texto exacto de arriba: si mañana alguien vuelve a
+   * suavizar la frase, que sea este test el que se caiga.
+   */
+  it("por suave que sea el sello, sigue diciendo que NO es la medida exacta", () => {
+    const texto = render([linea("KR628", "265/65R17", false)]);
+    // En minúsculas a propósito: lo que no puede desaparecer es el reparo, no
+    // una mayúscula concreta.
+    expect(texto.toLowerCase()).toContain("no es su medida exacta");
+    expect(texto).toContain("265/65R17");
+    expect(texto).not.toContain("265/65R17 · MEDIDA EXACTA");
+  });
+
+  it("con alguna equivalente, el rótulo deja de prometer «TODO EN TU MEDIDA» y sale la nota", () => {
     const texto = render([
       linea("WILDPEAK A/T 4W", "265/70R17", true),
       linea("KR628", "265/65R17", false),
     ]);
     expect(texto).toContain("OPCIONES QUE LE MONTAN");
     expect(texto).not.toContain("TODO EN TU MEDIDA");
-    expect(texto).toContain("OJO");
-    expect(texto).toContain("NO son su medida exacta");
+    expect(texto).toContain("LE MONTAN");
+    expect(texto).toContain("no son su medida exacta, pero le entran");
+    // El regaño viejo no puede volver por ninguna vía.
+    expect(texto).not.toContain("OJO");
+    expect(texto).not.toContain("NO ES SU MEDIDA");
   });
 
-  it("si TODAS son exactas, no hay aviso rojo y vuelve «TODO EN TU MEDIDA»", () => {
+  it("si TODAS son exactas, no hay nota al pie y vuelve «TODO EN TU MEDIDA»", () => {
     const texto = render([
       linea("WILDPEAK A/T 4W", "265/70R17", true),
       linea("WILDPEAK M/T", "265/70R17", true),
     ]);
     expect(texto).toContain("TODO EN TU MEDIDA");
-    expect(texto).not.toContain("OJO");
+    expect(texto).not.toContain("LE MONTAN");
   });
 
   it("sin medida pedida (llegó por vehículo o aro) no se marca nada", () => {
     const texto = render([linea("WILDPEAK A/T 4W", "265/70R17", null)]);
     expect(texto).not.toContain("MEDIDA EXACTA");
-    expect(texto).not.toContain("NO ES SU MEDIDA");
+    expect(texto).not.toContain("LE MONTA");
   });
 });
