@@ -74,6 +74,7 @@ interface ConversationForFollowUp {
   selected_quantity: number | null;
   nearest_store: string | null;
   customer_commitment: string | null;
+  visit_date: Date | null;
   follow_up_reason: string | null;
   customer_opt_in: boolean;
   opted_out_at: Date | null;
@@ -140,7 +141,7 @@ async function getConversationForFollowUp(
   const [row] = await sql<ConversationForFollowUp[]>`
     select c.id, c.phone, c.name, c.stage, c.status, c.assigned_to,
       c.current_cycle, c.tire_size, coalesce(c.selected_product_code, s.selected_option) as selected_product_code,
-      c.selected_quantity, c.nearest_store,
+      c.selected_quantity, c.nearest_store, c.visit_date,
       case when c.customer_commitment_cycle=c.current_cycle then c.customer_commitment end as customer_commitment,
       case when c.follow_up_reason_cycle=c.current_cycle then c.follow_up_reason end as follow_up_reason,
       c.customer_opt_in, c.opted_out_at,
@@ -181,6 +182,7 @@ export function buildFollowUpPreview(
     selectedProductCode: conversation.selected_product_code,
     nearestStore: conversation.nearest_store,
     customerCommitment: conversation.customer_commitment,
+    visitDate: conversation.visit_date,
     quoteNumber: conversation.quote_number,
     activeDiscountAmount: conversation.active_discount_amount === null ? null : Number(conversation.active_discount_amount),
     activeDiscountCondition: conversation.active_discount_condition,
@@ -774,6 +776,7 @@ function jobCopyContext(context: FollowUpJobContext) {
     selectedProductCode: context.selected_product_code,
     nearestStore: context.nearest_store,
     customerCommitment: commitmentCycle === context.current_cycle ? context.customer_commitment : null,
+    visitDate: context.visit_date,
     quoteNumber: context.quote_number,
     activeDiscountAmount: context.active_discount_amount === null ? null : Number(context.active_discount_amount),
     activeDiscountCondition: context.active_discount_condition,

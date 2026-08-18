@@ -142,40 +142,56 @@ export function buildVisitPlanQuestion(input: {
    * modelo, así que se arregla aquí.
    */
   localElegido?: string | null;
+  /**
+   * ¿Hay una cotización viva? El motivo que damos es el descuento de esa
+   * cotización, así que sin cotización esa frase promete algo que no existe:
+   * quien pregunta la ubicación antes de cotizar recibe la pregunta pelada.
+   */
+  conCotizacion?: boolean;
 }): string {
   const motivo = input.conDescuentoAutorizado
-    ? "le dejo anotado su descuento extra para que se lo respeten apenas llegue"
-    : "le aplican el descuento de su cotización apenas llegue";
+    ? " Con ese dato le aviso al asesor y le dejo anotado su descuento extra para que se lo respeten apenas llegue."
+    : input.conCotizacion === false
+      ? " Con ese dato le aviso al asesor para que le atienda apenas llegue."
+      : " Con ese dato le aviso al asesor y le aplican el descuento de su cotización apenas llegue.";
   if (input.localElegido) {
-    return `¿Qué día puede pasar por *${input.localElegido}*? Con ese dato le aviso al asesor y ${motivo}. 📅`;
+    return `¿Qué día puede pasar por *${input.localElegido}*?${motivo} 📅`;
   }
   const opciones = input.locales.length
     ? ` ¿${input.locales.slice(0, 2).join(" o ")}?`
     : "";
-  return `¿Qué día puede pasar y a cuál local?${opciones} Con esos dos datos le aviso al asesor y ${motivo}. 📅`;
+  return `¿Qué día puede pasar y a cuál local?${opciones}${motivo.replace(" Con ese dato ", " Con esos dos datos ")} 📅`;
 }
 
 /**
- * Los mapas de los DOS locales, juntos y una sola vez.
+ * Los mapas de los locales: una línea por local, nombre y link. Nada más.
+ *
+ * La dirección escrita salió de aquí el 18-ago. El reclamo de Manuel fue exacto
+ * —«están muy repetitivas las ubicaciones, solo con poner los links nos
+ * ahorramos los parrafotes»—: una calle y una referencia no le dicen a nadie
+ * cómo llegar, y repetidas dos veces por local convierten el cierre en un muro
+ * de texto. El link de Maps hace las dos cosas que la dirección no hace: abre
+ * la ruta y se ve de un vistazo.
  *
  * Se mandan al CONFIRMAR la ubicación, nunca al preguntarla: un link dentro de
- * una pregunta es ruido — el cliente todavía no sabe a cuál va a ir. Van los dos
- * aunque ya haya elegido porque el que eligió puede cambiar de opinión, y volver
- * a pedir el otro link cuesta un turno entero.
+ * una pregunta es ruido — el cliente todavía no sabe a cuál va a ir.
  *
- * Si se pasa `destacado`, ese local va primero: es el que el cliente eligió o el
- * que le recomendamos, y el orden es la única señal que necesita.
+ * Si se pasa `destacado`, ese local va primero. Con `soloDestacado` va SOLO ese:
+ * cuando el cliente ya eligió local o preguntó por uno, el otro link es ruido.
  */
-export function buildStoreLinksBlock(destacado?: string | null): string {
+export function buildStoreLinksBlock(
+  destacado?: string | null,
+  opciones?: { soloDestacado?: boolean },
+): string {
   const conMapa = business.stores.filter((store) => Boolean(store.mapsUrl));
   if (!conMapa.length) return "";
-  const ordenados = destacado
-    ? [...conMapa].sort((a, b) => Number(b.name === destacado) - Number(a.name === destacado))
-    : conMapa;
-  return [
-    ordenados.length > 1 ? "📍 Le dejo las ubicaciones de los dos locales:" : "📍 Le dejo la ubicación:",
-    ...ordenados.map((store) => `🏬 *${store.name}* — ${store.address}\n🗺️ ${store.mapsUrl}`),
-  ].join("\n");
+  const elegido = destacado ? conMapa.find((store) => store.name === destacado) : undefined;
+  const mostrados = !elegido
+    ? conMapa
+    : opciones?.soloDestacado
+      ? [elegido]
+      : [elegido, ...conMapa.filter((store) => store !== elegido)];
+  return mostrados.map((store) => `📍 *${store.name}*: ${store.mapsUrl}`).join("\n");
 }
 
 /** Cotización: número, total y vigencia. El desglose ya está en la imagen. */

@@ -17,6 +17,7 @@ import { buildStoreLinksBlock } from "./quoteMessages.js";
 export async function buildStoreLinksBlockOnce(
   conversationId: number,
   destacado?: string | null,
+  opciones?: { soloDestacado?: boolean },
 ): Promise<string> {
   // Los patrones salen de la config y no de un dominio escrito a mano: si mañana
   // cambia el acortador de los links, el candado sigue funcionando.
@@ -35,5 +36,5 @@ export async function buildStoreLinksBlockOnce(
     limit 1
   `;
   if (mandado) return "";
-  return buildStoreLinksBlock(destacado);
+  return buildStoreLinksBlock(destacado, opciones);
 }

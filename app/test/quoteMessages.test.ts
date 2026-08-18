@@ -167,6 +167,24 @@ describe("mapas de los locales", () => {
     const bloque = qm.buildStoreLinksBlock("Depot Tire Quito Sur");
     expect(bloque.indexOf("Quito Sur")).toBeLessThan(bloque.indexOf("Cumbayá"));
   });
+
+  /*
+   * «Están muy repetitivas las ubicaciones; solo con poner los links nos
+   * ahorramos los parrafotes» (Manuel, 18-ago). Una línea por local: nombre y
+   * link. La calle no la escribe nadie.
+   */
+  it("no escribe direcciones: una línea por local, nombre y link", () => {
+    const bloque = qm.buildStoreLinksBlock();
+    expect(bloque).not.toMatch(/Alonso de Angulo|Guayasamín|Establo/);
+    expect(lineas(bloque)).toBe(2);
+  });
+
+  it("con el local ya elegido manda solo ese link", () => {
+    const bloque = qm.buildStoreLinksBlock("Depot Tire Quito Sur", { soloDestacado: true });
+    expect(bloque).toMatch(/Quito Sur/);
+    expect(bloque).not.toMatch(/Cumbayá/);
+    expect(bloque.match(/https?:\/\/\S+/g) ?? []).toHaveLength(1);
+  });
 });
 
 /*

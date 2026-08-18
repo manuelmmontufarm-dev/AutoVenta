@@ -11,6 +11,8 @@ import {
   type Conversation,
 } from "./conversations.js";
 import { applicableBenefitTexts } from "./benefits.js";
+import { composeBlocks } from "./quoteMessages.js";
+import { buildStoreLinksBlockOnce } from "./storeLinks.js";
 import { brandProfilesForRender } from "./brandProfiles.js";
 import { getPiecesConfig } from "./settings.js";
 import { renderQuoteImage, toRenderLine } from "../render/quoteImage.js";
@@ -176,11 +178,16 @@ export async function tryDirectSalesRoute(
   const store = facts?.nearest_store ?? null;
   const visit = visitDateText(facts?.visit_date ?? null);
   const visitLabel = facts?.customer_commitment?.trim() || visit;
+  // Con el local ya decidido va su link de Maps, una sola vez en toda la
+  // conversación. Es el mensaje que un asesor tuvo que mandar a mano la noche
+  // del 17-ago porque el bot había contestado la dirección escrita: el cliente
+  // que acaba de elegir local es justo el que necesita cómo llegar.
+  const mapa = store ? await buildStoreLinksBlockOnce(ctx.conversation.id, store, { soloDestacado: true }) : "";
   let reply: string;
   if (store && visitLabel) {
-    reply = `Perfecto: *${visitLabel} en ${store}*. Ya quedó registrado para el asesor.`;
+    reply = composeBlocks(`Perfecto: *${visitLabel} en ${store}*. Ya quedó registrado para el asesor.`, mapa);
   } else if (store) {
-    reply = `Perfecto, *${store}*. ¿Qué día puede pasar?`;
+    reply = composeBlocks(`Perfecto, *${store}*. ¿Qué día puede pasar?`, mapa);
   } else {
     reply = `Perfecto${visit ? `, registré su visita para ${visit}` : ""}. ¿Le queda mejor *Cumbayá* o *Quito Sur*?`;
   }

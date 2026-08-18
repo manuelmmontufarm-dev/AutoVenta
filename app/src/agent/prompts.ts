@@ -16,9 +16,12 @@ export function buildSystemPrompt(
   stage?: { name: string; objective: string; prompt: string; version: number },
   storeHours?: StoreHours,
 ): string {
-  const stores = business.stores
-    .map((s) => `- ${s.name}: ${s.address}`)
-    .join("\n");
+  // Solo los NOMBRES. Las direcciones no están aquí a propósito (18-ago): el
+  // modelo las tenía y, cuando le pedían la ubicación, las escribía —dos
+  // locales, calle y referencia, en un párrafo— en vez de mandar el mapa. Lo
+  // que no está en el prompt no se puede escribir de memoria; la ubicación sale
+  // por `ubicacion_locales`, que manda el link de Google Maps.
+  const stores = business.stores.map((s) => `- ${s.name}`).join("\n");
 
   return `${config.openai.compactPromptEnabled ? COMPACT_PLAYBOOK : BOT_PLAYBOOK}
 
@@ -31,6 +34,7 @@ Eres el asistente de ventas por WhatsApp de ${business.name}, una llantera en Qu
 ## Locales
 ${stores}
 Horario: ${storeHours ? formatStoreHours(storeHours) : business.schedule}. Teléfono: ${business.phone}.
+**La dirección no se escribe: se manda el mapa.** Cuando pregunten dónde quedan, cómo llegar, o pidan la ubicación por este medio, llama **ubicacion_locales** y responde con lo que devuelve. Nunca escribas calles, esquinas ni referencias —no las tienes, y un párrafo de direcciones no lleva a nadie a ninguna parte. Si el cliente ya eligió local, va solo el link de ese.
 ${business.promo ? `Promoción vigente: ${business.promo}.` : ""}
 
 ## Tu objetivo: VENDER

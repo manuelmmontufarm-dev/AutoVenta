@@ -13,6 +13,13 @@ export interface FollowUpMessageContext {
   selectedProductCode?: string | null;
   nearestStore?: string | null;
   customerCommitment?: string | null;
+  /**
+   * El día que el cliente dijo que viene, ya interpretado (conversations.visit_date).
+   * Sin este dato el seguimiento volvía a preguntar «¿qué día te queda mejor?»
+   * a quien ya había contestado «el viernes» — la amnesia que Manuel cazó el
+   * 18-ago en el chat de +593 99 874 7699.
+   */
+  visitDate?: Date | null;
   quoteNumber?: string | null;
   activeDiscountAmount?: number | null;
   activeDiscountCondition?: string | null;
@@ -40,9 +47,22 @@ function questionPrefix(context: FollowUpMessageContext, kind: FollowUpMessageKi
   return kind === "post_window" && name ? `Hola, ${name} 👋 ` : "";
 }
 
+/** «viernes 22 de agosto», en hora de Ecuador: el cliente lee días, no ISO. */
+function diaVisita(fecha: Date): string {
+  return new Intl.DateTimeFormat("es-EC", {
+    timeZone: "America/Guayaquil",
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    // Sin la coma que mete Intl («viernes, 22 de agosto»): en un WhatsApp se
+    // escribe como se dice.
+  }).format(fecha).replace(",", "");
+}
+
 export function buildContextualFollowUpMessage(
   context: FollowUpMessageContext,
   kind: FollowUpMessageKind,
+  now = new Date(),
 ): string {
   const prefix = questionPrefix(context, kind);
   const size = context.tireSize ? ` ${context.tireSize}` : "";
@@ -68,6 +88,30 @@ export function buildContextualFollowUpMessage(
   if (context.customerCommitment || context.stage === "seguimiento_venta") {
     const commitment = context.customerCommitment ? ` lo que me comentaste: “${context.customerCommitment}”` : " tu visita";
     const store = context.nearestStore ? ` a ${context.nearestStore}` : "";
+    const enStore = context.nearestStore ? ` en ${context.nearestStore}` : "";
+    const visita = context.visitDate ?? null;
+    const yaPaso = visita ? visita.getTime() < now.getTime() : false;
+
+    // Día Y local ya confirmados, y el día todavía no llega: no queda NADA que
+    // preguntar. Preguntarlo igual es lo que hace que el bot parezca no haber
+    // leído la conversación. (El worker además cancela estos envíos —ver el
+    // portón «visita_agendada» en followUpProcessor—; este texto es el que ve
+    // el asesor en el panel y el que sale si el envío se fuerza a mano.)
+    if (visita && !yaPaso && context.nearestStore) {
+      return kind === "in_window_second"
+        ? `🏁 Quedamos el ${diaVisita(visita)}${enStore}. Si te queda mejor otro día, dime y lo movemos 😊`
+        : `${prefix}✅ Tu visita${enStore} quedó anotada para el ${diaVisita(visita)}. ¿Te ayudo con algo antes de que pases?`;
+    }
+
+    // El día llegó y pasó sin que viniera. Aquí volver a preguntar SÍ es nuevo:
+    // lo que se pide es una fecha distinta, y se dice por qué.
+    if (yaPaso && visita) {
+      return kind === "in_window_second"
+        ? `🚗 Te esperábamos el ${diaVisita(visita)}${enStore} y no pudimos atenderte. ¿Te reagendo para otro día? 😊`
+        : `${prefix}😊 Quedamos para el ${diaVisita(visita)}${enStore} y no alcanzaste a pasar. ¿Qué día te queda mejor y lo dejo anotado?`;
+    }
+
+    // Dijo que viene pero sin día exacto («esta semana»), o falta el local.
     return kind === "in_window_second"
       ? `🚗 Me quedé pendiente de${commitment}. ¿Qué día te quedaría más cómodo para coordinar${store}? 😊`
       : `${prefix}😊 Sobre${commitment}, ¿te ayudo a dejar lista la visita o reserva${store}?`;

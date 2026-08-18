@@ -133,6 +133,27 @@ export async function processFollowUpJob(
     return;
   }
 
+  // Portón de la visita agendada: el cliente ya dijo qué día viene y a cuál
+  // local, y ese día todavía no llega. No hay nada que preguntarle —y volver a
+  // preguntárselo es exactamente lo que hacía el bot el 18-ago: dos mensajes
+  // citando su propio «el viernes por favor» y pidiéndole el día otra vez.
+  //
+  // No se cancela cuando falta el local (ahí el seguimiento sí trae una
+  // pregunta nueva) ni cuando el día ya pasó y no vino: reagendar es información
+  // nueva, y el copy de followUpMessages lo dice con esas palabras.
+  //
+  // Al asesor no se le deja de avisar: visitAlerts le manda la víspera y el día
+  // mismo, y esos avisos no dependen de este job.
+  if (
+    !isAuthorizedCampaign &&
+    context.visit_date &&
+    context.visit_date > now &&
+    context.nearest_store
+  ) {
+    await markFollowUpJobCancelled(job.id, "visita_agendada");
+    return;
+  }
+
   const policy = await getFollowUpPolicy();
   if (policy.neverOutsideHours && !isWithinBusinessHours(now, policy)) {
     await markFollowUpJobCancelled(job.id, "outside_business_hours");

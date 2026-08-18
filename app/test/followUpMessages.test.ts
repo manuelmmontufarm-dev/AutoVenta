@@ -29,6 +29,48 @@ describe("Redacción contextual de seguimientos", () => {
     expect(message).not.toMatch(/lunes|martes|miércoles|jueves|viernes|sábado|domingo/i);
   });
 
+  /*
+   * Chat de +593 99 874 7699 (18-ago). El cliente contestó «al sur» y «el
+   * viernes por favor», quedó registrado —y los dos seguimientos siguientes le
+   * citaron su propia frase para volver a preguntarle el día. Con el día y el
+   * local en la mano no queda ninguna pregunta que hacer.
+   */
+  describe("visita ya agendada (chat 99 874 7699)", () => {
+    const AHORA = new Date("2026-08-18T14:00:00.000Z"); // martes 09:00 en Guayaquil
+    const VIERNES = new Date("2026-08-21T15:00:00.000Z");
+    const contexto = {
+      stage: "seguimiento_venta" as const,
+      customerCommitment: "el viernes por favor",
+      nearestStore: "Depot Tire Quito Sur",
+      visitDate: VIERNES,
+    };
+
+    it("no vuelve a preguntar el día ni el local en ninguno de los dos intentos", () => {
+      for (const kind of ["in_window_first", "in_window_second"] as const) {
+        const mensaje = buildContextualFollowUpMessage(contexto, kind, AHORA);
+        expect(mensaje).not.toMatch(/qué día/i);
+        expect(mensaje).not.toMatch(/cuál local/i);
+        expect(mensaje).toMatch(/viernes/i);
+        expect(mensaje).toMatch(/Depot Tire Quito Sur/);
+      }
+    });
+
+    it("sin local todavía sigue preguntando: ahí la pregunta es nueva", () => {
+      const mensaje = buildContextualFollowUpMessage(
+        { ...contexto, nearestStore: null }, "in_window_second", AHORA,
+      );
+      expect(mensaje).toMatch(/qué día/i);
+    });
+
+    it("cuando el día prometido ya pasó, propone reagendar y dice por qué", () => {
+      const mensaje = buildContextualFollowUpMessage(
+        contexto, "in_window_first", new Date("2026-08-25T14:00:00.000Z"),
+      );
+      expect(mensaje).toMatch(/viernes 21 de agosto/i);
+      expect(mensaje).toMatch(/qué día/i);
+    });
+  });
+
   it("solo menciona el descuento autorizado con sus valores exactos", () => {
     const message = buildContextualFollowUpMessage({
       stage: "cotizacion_enviada",

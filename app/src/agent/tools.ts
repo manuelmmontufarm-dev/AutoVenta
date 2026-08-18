@@ -36,6 +36,7 @@ import {
   buildCustomerOptionsMessageDetallado,
   buildSingleQuoteCaption,
   buildSingleQuoteMessageDetallado,
+  buildStoreLinksBlock,
   buildVisitDayQuestion,
   buildVisitPlanQuestion,
   composeBlocks,
@@ -943,7 +944,9 @@ export function buildTools(ctx: AgentContext) {
         opciones: muestra.map(toolItem),
         aros_en_stock: aros,
         rango_para_decir: rango,
-        locales: business.stores.map((s) => ({ nombre: s.name, direccion: s.address })),
+        // Solo los nombres: la dirección escrita no se manda nunca (va el link
+        // de Maps con ubicacion_locales), y si el modelo la ve, la escribe.
+        locales: business.stores.map((s) => s.name),
         regla:
           "Llama preparar_opciones con estos códigos AHORA: el cliente pidió opciones dos veces y esta vez las ve. En el texto que acompaña la pieza van tres cosas y ninguna más: (1) que es una muestra de lo que manejamos, NO su medida; (2) en UNA línea, por qué el aro manda — si no coincide, la llanta no entra, y por eso no le puedes afirmar precio todavía; (3) la invitación a pasar por el local a que se lo midan. PROHIBIDO afirmar que estas llantas le sirven a su carro, y PROHIBIDO cotizar sobre ellas. Si en algún momento dice el aro o el vehículo, esto se descarta y vas por buscar_por_aro_y_tipo o fitment_vehiculo.",
       });
@@ -1906,7 +1909,7 @@ export function buildTools(ctx: AgentContext) {
           const mapas = await buildStoreLinksBlockOnce(ctx.conversation.id, explicit.name);
           return JSON.stringify({
             local: explicit.name,
-            direccion: explicit.address,
+            maps: explicit.mapsUrl ?? null,
             mensaje_para_enviar: composeBlocks(
               visitKnown
                 ? `Perfecto, queda confirmado *${explicit.name}*. Ya registré también cuándo viene; no necesita repetir esos datos.`
@@ -1941,7 +1944,6 @@ export function buildTools(ctx: AgentContext) {
       const mapas = await buildStoreLinksBlockOnce(ctx.conversation.id, store.name);
       return JSON.stringify({
         local: store.name,
-        direccion: store.address,
         distancia_km: distanceKm,
         maps: store.mapsUrl ?? null,
         horario,
@@ -1951,7 +1953,6 @@ export function buildTools(ctx: AgentContext) {
         mensaje_para_enviar: composeBlocks(
           [
             `📍 El local recomendado es *${store.name}*.`,
-            `🏬 ${store.address}`,
             `🕐 ${horario}`,
             sale ? `🔖 Al llegar, indica tu número de venta *${sale}* para ubicar tu cotización.` : "",
             // Sin esta línea el turno terminaba en "te esperamos": cortés y sin
@@ -1966,6 +1967,73 @@ export function buildTools(ctx: AgentContext) {
         regla: visitKnown
           ? "Responde exactamente con mensaje_para_enviar. La visita ya está registrada: no preguntes otra vez el día ni repitas el argumento del descuento."
           : "Responde exactamente con mensaje_para_enviar, incluida la pregunta por el día. Ya tienes el local: pide únicamente la fecha.",
+      });
+    },
+  });
+
+  /**
+   * La ubicación se manda, no se cuenta.
+   *
+   * Antes no existía: el modelo tenía las direcciones en el prompt y, cuando el
+   * cliente pedía «la ubicación por este medio», contestaba escribiéndolas —dos
+   * locales, calle y referencia, en un párrafo que no lleva a nadie a ninguna
+   * parte y que encima se repetía cada vez que se hablaba de la visita. Ahora
+   * las direcciones NO están en el prompt (ver agent/prompts.ts) y este es el
+   * único camino para responder dónde queda un local: el link de Maps.
+   *
+   * Y aprovecha el turno: si todavía falta el día o el local, la pregunta va
+   * pegada al link, que es justo cuando el cliente está decidiendo a dónde va.
+   */
+  const ubicacionLocales = defineTool({
+    name: "ubicacion_locales",
+    description:
+      "Manda la ubicación de los locales como link de Google Maps. Úsala SIEMPRE que el cliente pregunte dónde quedan, pida la dirección, el mapa, cómo llegar o que le compartas la ubicación. La dirección NUNCA se escribe con palabras: se manda este link.",
+    schema: z.object({
+      local: z
+        .enum(["Depot Tire Cumbayá", "Depot Tire Quito Sur"])
+        .nullable()
+        .default(null)
+        .describe(
+          "El local por el que preguntó. null si preguntó en general o todavía no elige: ahí van los dos links y la pregunta por cuál le queda mejor.",
+        ),
+    }),
+    run: async ({ local }) => {
+      const [saved] = await sql<{
+        nearest_store: string | null;
+        visit_date: Date | null;
+        customer_commitment: string | null;
+        has_quote: boolean;
+      }[]>`
+        select c.nearest_store, c.visit_date, c.customer_commitment,
+          exists(select 1 from quotes q where q.conversation_id=c.id and q.cycle=c.current_cycle) as has_quote
+        from conversations c where c.id=${ctx.conversation.id}
+      `;
+      const elegido = local ?? saved?.nearest_store ?? null;
+      const mapas = buildStoreLinksBlock(elegido, { soloDestacado: Boolean(elegido) });
+      if (!mapas) {
+        return JSON.stringify({
+          error: "No hay links de Maps configurados. Ofrece pasar la ubicación con un asesor.",
+        });
+      }
+      const visita = saved?.customer_commitment?.trim() || null;
+      const conCotizacion = Boolean(saved?.has_quote);
+      const visitaCerrada = Boolean(elegido && (saved?.visit_date || visita));
+      const descuentoVivo = Boolean(await getActiveDiscountOffer(ctx.conversation.id));
+      const cierre = visitaCerrada
+        ? `Le esperamos ${visita ?? "el día que quedamos"} en *${elegido}*. 🏁`
+        : buildVisitPlanQuestion({
+            conDescuentoAutorizado: descuentoVivo,
+            locales: business.stores.map((store) => store.name),
+            localElegido: elegido,
+            conCotizacion,
+          });
+      return JSON.stringify({
+        local: elegido,
+        visita_registrada: visitaCerrada,
+        mensaje_para_enviar: composeBlocks(mapas, cierre),
+        regla: visitaCerrada
+          ? "Responde exactamente con mensaje_para_enviar. Ya tienes local y día: no los vuelvas a preguntar y NO escribas la dirección en texto."
+          : "Responde exactamente con mensaje_para_enviar, con sus separadores '---' intactos. NUNCA escribas la dirección, la calle ni referencias de cómo llegar: el link ya lo hace.",
       });
     },
   });
@@ -2088,6 +2156,7 @@ export function buildTools(ctx: AgentContext) {
     generarCotizacion,
     reenviarCotizacion,
     localMasCercano,
+    ubicacionLocales,
     notificarVendedor,
   ];
 }

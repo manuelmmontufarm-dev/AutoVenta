@@ -266,6 +266,50 @@ describe.sequential("Seguimientos perezosos y redacción con IA", () => {
     expect(espia.kinds).not.toContain("post_window");
   });
 
+  /*
+   * Chat de +593 99 874 7699 (18-ago): el cliente ya había dicho «al sur» y «el
+   * viernes por favor», el bot lo confirmó… y horas después le llegaron dos
+   * seguimientos citando esa misma frase y volviéndole a preguntar qué día.
+   */
+  it("con día y local ya confirmados, el seguimiento no vuelve a preguntar", async () => {
+    const conv = await conversacionLista("seguimiento_venta");
+    await appSql`
+      update conversations
+      set nearest_store = 'Depot Tire Quito Sur',
+          customer_commitment = 'el viernes por favor',
+          customer_commitment_cycle = current_cycle,
+          visit_date = ${new Date(AHORA.getTime() + 3 * 24 * 3_600_000)}
+      where id = ${conv.id}
+    `;
+    const enviados: string[] = [];
+    await reclamarYProcesar(conv.id, enviados);
+
+    expect(enviados).toHaveLength(0);
+    expect(espia.llamadas).toBe(0);
+    const [job] = await appSql<{ status: string; cancel_reason: string | null }[]>`
+      select status, cancel_reason from follow_up_jobs
+      where conversation_id = ${conv.id} and type = 'in_window_first'
+    `;
+    expect(job.status).toBe("cancelled");
+    expect(job.cancel_reason).toBe("visita_agendada");
+  });
+
+  it("si el día prometido ya pasó, el seguimiento sí sale (hay que reagendar)", async () => {
+    const conv = await conversacionLista("seguimiento_venta");
+    await appSql`
+      update conversations
+      set nearest_store = 'Depot Tire Quito Sur',
+          customer_commitment = 'el viernes por favor',
+          customer_commitment_cycle = current_cycle,
+          visit_date = ${new Date(AHORA.getTime() - 2 * 24 * 3_600_000)}
+      where id = ${conv.id}
+    `;
+    const enviados: string[] = [];
+    await reclamarYProcesar(conv.id, enviados);
+
+    expect(enviados).toHaveLength(1);
+  });
+
   it("las métricas cuentan los seguimientos que el portón evitó redactar", async () => {
     const metricas = await followUpAdmin.getFollowUpMetrics();
     expect(metricas.generations_avoided).toBeGreaterThan(0);

@@ -32,6 +32,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-08-18 | _(este mismo)_ | La ubicación se manda como link de Maps + el seguimiento deja de repreguntar la visita ya agendada | 1.5 |
 | 2026-08-16 | _(este mismo)_ | El reporte deja de creerse el acuse de Meta (aceptar no es entregar) | 1.0 |
 | 2026-08-16 | _(este mismo)_ | La pieza de opciones y la cotización dicen el precio del Interbot, las dos | 0.5 |
 | 2026-08-16 | _(este mismo)_ | El sello de la equivalente advierte en ámbar, ya no rechaza en rojo | 0.75 |
@@ -141,11 +142,67 @@ Ya viene activado en este equipo.
 | 2026-07-14 | ac09171 | Ubicaciones de locales + análisis de features del cliente | 1.5 |
 | 2026-07-13 | feadf57 | Brief + plan de desarrollo + plan financiero + catálogo | 4.0 |
 | 2026-07-13 | d997844 | Commit inicial (repo) | 0.25 |
-| | | **TOTAL** | **~99.0 h** |
+| | | **TOTAL** | **~100.5 h** |
 
 ---
 
 ## Entradas (más reciente primero)
+
+### 2026-08-18 · La ubicación va como link, y el seguimiento no repregunta una visita ya agendada · ⏱️ 1.5 h
+
+**Qué:** dos arreglos que salieron de dos capturas de WhatsApp de Manuel.
+
+1. **La dirección deja de escribirse.** Las direcciones ya NO están en el system
+   prompt (solo los nombres de los locales) y aparece una herramienta nueva,
+   `ubicacion_locales`, que devuelve el link de Google Maps: una línea por local,
+   nombre y link. `buildStoreLinksBlock` perdió la calle y el emoji de tienda;
+   `local_mas_cercano` y `opciones_sin_medida` ya no reciben `direccion` en su
+   JSON. Si el cliente ya eligió local va SOLO el link de ese, y si todavía no,
+   van los dos con la pregunta por el día y el local pegada. La ruta directa de
+   captura de visita adjunta el mapa del local elegido, una vez por conversación.
+
+2. **El seguimiento mira la fecha de visita.** `visit_date` viaja ahora hasta
+   `buildContextualFollowUpMessage`, y el worker cancela el envío con el motivo
+   `visita_agendada` cuando hay día Y local confirmados y el día todavía no
+   llega. Si falta el local, o si el día ya pasó, el seguimiento sí sale — pero
+   con el texto correcto: «te esperábamos el viernes 21 de agosto y no pudimos
+   atenderte, ¿te reagendo?».
+
+**Por qué:** las dos capturas son del mismo día y muestran el mismo defecto —el
+bot no se acuerda de lo que ya se habló, y lo tapa con párrafos.
+
+En la primera, después de cotizar, el bot mandó *«Estamos en Quito Sur y Cumbayá.
+Quito Sur: Galo Molina y Av. Alonso de Angulo. Cumbayá: C.C. La del Establo y Av.
+Oswaldo Guayasamín»* como mensaje aparte de la pregunta por el día. En la
+segunda, el cliente pidió literalmente *«ayúdeme con la ubicación por este
+medio»* y recibió la calle escrita otra vez; esa misma noche un asesor tuvo que
+mandarle el link de Maps a mano. Una dirección escrita no lleva a nadie a ninguna
+parte —el link abre la ruta— y repetida en cada turno convierte el cierre en un
+muro de texto. El modelo la escribía porque la tenía en el prompt: lo que no está
+en el prompt no se puede copiar al chat.
+
+La segunda captura tiene además el caso que Manuel pidió explicar: el cliente ya
+había contestado «al sur» y «el viernes por favor», el bot lo confirmó
+(«Perfecto: el viernes por favor en Depot Tire Quito Sur. Ya quedó registrado
+para el asesor») y aun así le llegaron dos mensajes más citándole su propia frase
+para volver a preguntarle el día. No era el modelo: era copy fijo de
+`followUpMessages.ts`, que ante un `customer_commitment` guardado disparaba
+«¿te ayudo a dejar lista la visita?» y «¿qué día te quedaría más cómodo?».
+`visit_date` estaba en la base —el kanban y los avisos al asesor lo usan— pero
+nunca llegaba a la redacción del seguimiento. Al asesor no se le deja de avisar:
+`visitAlerts` sigue mandándole la víspera y el día mismo, y esos avisos no
+dependen de este job.
+
+**Pruebas:** 5 nuevas en `ubicacionLocales.integration.test.ts` (contra Postgres:
+el mensaje no contiene ninguna calle, manda 1 o 2 links según haya local elegido,
+y con día y local confirmados no pregunta nada), 3 en `followUpMessages.test.ts`
+y 2 en `followUpsLazy.integration.test.ts` (el portón cancela con la visita
+futura; con la visita pasada el mensaje sí sale). 745 tests, typecheck limpio.
+
+**Pendiente (no es código):** los seguimientos tutean («¿te ayudo?») mientras el
+bot habla de usted. Se ve en la misma captura y no se tocó aquí.
+
+---
 
 ### 2026-08-16 · El reporte deja de creerse el acuse de Meta · ⏱️ 1.0 h
 
