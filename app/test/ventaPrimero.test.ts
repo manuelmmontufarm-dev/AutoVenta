@@ -108,6 +108,35 @@ describe.sequential("Venta primero — los arreglos de Joaquín", () => {
     });
   });
 
+  /*
+   * Caso Eulalia (19-ago, conv 7832): «¿se la cotizo por 4?» → «uyedeme porfa»
+   * → volvió a preguntar lo mismo → «list» → «¿a su nombre o como cliente
+   * final?». Tres confirmaciones para una cotización que estaba lista; salió
+   * 1 h 48 min después. La pregunta por el nombre nacía del esquema: el campo
+   * era obligatorio y el modelo preguntaba para llenarlo.
+   */
+  describe("caso Eulalia: cotizar no pregunta el nombre", () => {
+    it("nombre_cliente ya no es requerido en generar_cotizacion", async () => {
+      const { buildTools } = await import("../src/agent/tools.js");
+      const tools = buildTools({
+        conversation: { id: 1, current_cycle: 1 } as never,
+        customerPhone: "593999999999",
+        customerName: "Eulalia",
+        currentUserText: "List",
+      });
+      const cotizar = tools.find((t) => t.function.name === "generar_cotizacion");
+      const params = cotizar?.function.parameters as { required?: string[] };
+      expect(params.required ?? []).not.toContain("nombre_cliente");
+    });
+
+    it("el prompt prohíbe la pregunta y acepta «uyedeme porfa» como un sí", () => {
+      const prompt = prompts.buildSystemPrompt();
+      expect(prompt).toMatch(/cliente final/i);
+      expect(prompt).toMatch(/uyedeme/i);
+      expect(prompt).toMatch(/ayúdeme/i);
+    });
+  });
+
   describe("los prompts por etapa (base de datos) quedaron en venta-primero", () => {
     it("la migración 011 reescribió el prompt sembrado de 'nuevo'", async () => {
       const publicado = await settings.getPublishedStagePrompt("nuevo");

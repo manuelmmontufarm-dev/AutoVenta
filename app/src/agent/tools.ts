@@ -1437,13 +1437,24 @@ export function buildTools(ctx: AgentContext) {
         )
         .length(1)
         .describe("Una sola llanta ya elegida; las alternativas se comparan antes"),
-      nombre_cliente: z.string().describe("Nombre del cliente si lo conoces, o 'Cliente'"),
+      // Opcional A PROPÓSITO (caso Eulalia, 19-ago): siendo obligatorio, el
+      // modelo se inventó «¿la cotizo a su nombre o como cliente final?» para
+      // llenarlo — tres turnos y 1 h 48 min entre el «¿se la cotizo?» y la
+      // cotización. El nombre ya viene gratis del perfil de WhatsApp.
+      nombre_cliente: z
+        .string()
+        .nullable()
+        .optional()
+        .describe(
+          "Nombre del cliente SOLO si él lo dijo en la conversación. Si no, mándalo null: se usa el del perfil de WhatsApp. PROHIBIDO preguntar el nombre, «¿a nombre de quién?» o «¿cliente final?» para cotizar.",
+        ),
       incluir_pdf: z
         .boolean()
         .optional()
         .describe("true SOLO si el cliente pidió explícitamente el PDF/documento"),
     }),
-    run: async ({ items, nombre_cliente, incluir_pdf = false }) => {
+    run: async ({ items, nombre_cliente: nombreDicho, incluir_pdf = false }) => {
+      const nombre_cliente = nombreDicho?.trim() || ctx.customerName || "Cliente";
       // El local ya elegido manda en TODAS las preguntas de visita de esta
       // herramienta: re-preguntarlo es el hallazgo «re-pregunta» que el Ángel
       // Guardián corrigió 4 veces el 15-ago (convs 6275 y 6375) — y el texto

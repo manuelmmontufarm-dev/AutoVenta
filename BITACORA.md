@@ -32,6 +32,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-08-20 | _(este mismo)_ | Caso Eulalia: cotizar deja de preguntar el nombre («¿cliente final?») y «ayúdeme» es un sí | 0.5 |
 | 2026-08-18 | _(este mismo)_ | La ubicación se manda como link de Maps + el seguimiento deja de repreguntar la visita ya agendada | 1.5 |
 | 2026-08-16 | _(este mismo)_ | El reporte deja de creerse el acuse de Meta (aceptar no es entregar) | 1.0 |
 | 2026-08-16 | _(este mismo)_ | La pieza de opciones y la cotización dicen el precio del Interbot, las dos | 0.5 |
@@ -142,11 +143,39 @@ Ya viene activado en este equipo.
 | 2026-07-14 | ac09171 | Ubicaciones de locales + análisis de features del cliente | 1.5 |
 | 2026-07-13 | feadf57 | Brief + plan de desarrollo + plan financiero + catálogo | 4.0 |
 | 2026-07-13 | d997844 | Commit inicial (repo) | 0.25 |
-| | | **TOTAL** | **~100.5 h** |
+| | | **TOTAL** | **~101.0 h** |
 
 ---
 
 ## Entradas (más reciente primero)
+
+### 2026-08-20 · Caso Eulalia: cotizar no pregunta el nombre · ⏱️ 0.5 h
+
+**Qué:** `nombre_cliente` en `generar_cotizacion` pasa de obligatorio a opcional;
+si el cliente no lo dijo, se usa el nombre del perfil de WhatsApp. El prompt
+prohíbe explícitamente «¿a nombre de quién?» / «¿cliente final?», y la regla 4
+suma «ayúdeme»/«hágale» —con faltas incluidas: «uyedeme porfa», «list»— a la
+lista de confirmaciones.
+
+**Por qué:** Joaquín lo cazó en el chat de Eulalia (conv 7832, 19-ago): «no te
+parece que hace mucha pregunta para hacer una cotización?». La secuencia fue
+«¿se la cotizo por 4?» → «Uyedeme porfa» → volvió a preguntar lo mismo →
+«List» → «¿prefiere que la cotice a su nombre o como cliente final?» → recién
+ahí cotizó. Tres confirmaciones y 1 h 48 min para una cotización que estaba
+lista desde el primer sí.
+
+La pregunta del nombre no era ocurrencia del modelo: el campo `nombre_cliente`
+era OBLIGATORIO en el esquema de la herramienta, así que el modelo preguntaba
+para poder llenarlo. El nombre ya viene gratis en `ctx.customerName` (perfil de
+WhatsApp). La re-pregunta del «¿por 4?» sí era del modelo: «uyedeme porfa» no
+estaba en la lista de confirmaciones de la regla 4, ahora está con ortografía
+real de WhatsApp.
+
+**Pruebas:** 2 nuevas en `ventaPrimero.test.ts` (el JSON Schema publicado ya no
+exige `nombre_cliente`; el prompt contiene la prohibición y «uyedeme»). 749
+tests, typecheck limpio.
+
+---
 
 ### 2026-08-18 · La ubicación va como link, y el seguimiento no repregunta una visita ya agendada · ⏱️ 1.5 h
 
