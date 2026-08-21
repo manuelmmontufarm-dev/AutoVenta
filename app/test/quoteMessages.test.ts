@@ -62,6 +62,9 @@ describe("pregunta por el día de la visita", () => {
    */
   it("da el descuento como motivo en los dos casos", () => {
     expect(qm.buildVisitDayQuestion(true)).toMatch(/descuento/i);
+    // Sin cotización no se promete «su número de cotización» ni descuento
+    // (corrección real del guardián: numero_venta null y la promesa igual salía).
+    expect(qm.buildVisitDayQuestion(false, false)).not.toMatch(/descuento|cotizaci/i);
     expect(qm.buildVisitDayQuestion(false)).toMatch(/descuento/i);
   });
 
@@ -318,6 +321,17 @@ describe("cierre de la pieza de opciones", () => {
   });
 
   it("la entrega, con motivo y cierre de venta, cuando ya se la pidieron", () => {
+    // Familia nº1 del guardián (23 correcciones, semana del 14-ago): pidió
+    // precio y el cierre daba la recomendación sin número. Con precio, va.
+    expect(
+      qm.buildCierreOpciones({
+        entregarRecomendacion: true,
+        recomendacion: "Kenda KR628",
+        motivo: "equilibrada para uso mixto",
+        precioConIva: 163.4,
+      }),
+    ).toContain("$163.40 c/u con IVA");
+
     const cierre = qm.buildCierreOpciones({
       entregarRecomendacion: true,
       recomendacion: "Kenda KR203",

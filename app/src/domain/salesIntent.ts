@@ -37,7 +37,10 @@ export function pidePrecio(text: string): boolean {
   const normalized = normalize(text);
   // `coti[cz]` cubre la conjugación entera sin listarla: cotizar, cotización,
   // cotizo y el «cotíceme» que escribe medio Quito.
-  return /\b(?:precios?|valor|presupuesto|coti[cz]\w*)\b|\ba\s+como\b|\bcuanto\s+(?:sale|cuesta|vale|esta|seria|me\s+(?:sale|cuesta|queda))\b|\bque\s+precio\b/.test(
+  // «costo», «en/por cuánto sale» y «de qué precio» salieron del informe del
+  // guardián (14-ago): preguntas de precio reales que este detector no veía,
+  // y el turno respondía beneficios en vez del número.
+  return /\b(?:precios?|valor|costos?|presupuesto|coti[cz]\w*)\b|\ba\s+como\b|\b(?:en|por)\s+cuanto\b|\bcuanto\s+(?:sale|cuesta|vale|esta|seria|me\s+(?:sale|cuesta|queda))\b|\bque\s+precio\b/.test(
     normalized,
   );
 }

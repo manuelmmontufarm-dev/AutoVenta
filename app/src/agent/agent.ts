@@ -367,7 +367,29 @@ export interface AgentSalesFacts {
   visitDate: Date | null;
   customerCommitment: string | null;
   /** Última cotización del ciclo — evita mandar dos números para la misma compra. */
-  lastQuote: { number: string; total: number; minutesAgo: number } | null;
+  lastQuote: { number: string; total: number; minutesAgo: number; detalle: string | null } | null;
+}
+
+/**
+ * «4 × KENDA KR50 225/60R17» — lo que la cotización CONTIENE, para el prompt.
+ *
+ * Sin esto el hecho decía número y total, y el modelo le colgaba la medida de
+ * la conversación: la semana del 14-ago el guardián corrigió 8 borradores que
+ * atribuían la cotización vigente a otra medida o marca (COT-MT06MIVA «queda
+ * con Falken» siendo 4 × KR50, COT-MT0BS1YT «de 185/70R15» siendo 225/60R17).
+ */
+export function detalleDeItems(items: unknown): string | null {
+  if (!Array.isArray(items) || !items.length) return null;
+  const partes = items
+    .map((raw) => {
+      const linea = raw as { quantity?: unknown; brand?: unknown; design?: unknown; size?: unknown; sizeLabel?: unknown };
+      const nombre = [linea.brand, linea.design].filter(Boolean).join(" ");
+      if (!nombre) return null;
+      const medida = linea.sizeLabel ?? linea.size;
+      return `${Number(linea.quantity) || 1} × ${nombre}${medida ? ` ${medida}` : ""}`;
+    })
+    .filter(Boolean);
+  return partes.length ? partes.join(", ") : null;
 }
 
 /** Exportada para pruebas: los hechos determinísticos que frenan al modelo (anti-duplicado, medida, cantidad). */
@@ -378,23 +400,23 @@ export async function getAgentSalesFacts(conversationId: number): Promise<AgentS
     nearest_store: string | null; visit_date: Date | null; customer_commitment: string | null;
     inbound_messages: string[];
     last_quote_number: string | null; last_quote_total: string | number | null;
-    last_quote_at: Date | null;
+    last_quote_at: Date | null; last_quote_items: unknown;
   }[]>`
     select c.tire_size, c.vehicle, c.vehicle_year, c.selected_product_code,
       c.selected_quantity, c.nearest_store, c.visit_date, c.customer_commitment,
       q.quote_number as last_quote_number, q.total as last_quote_total,
-      q.created_at as last_quote_at,
+      q.created_at as last_quote_at, q.items as last_quote_items,
       coalesce(array_agg(m.content order by m.created_at desc) filter (where m.id is not null), '{}') as inbound_messages
     from conversations c
     left join lateral (
-      select quote_number, total, created_at from quotes
+      select quote_number, total, created_at, items from quotes
       where conversation_id=c.id and cycle=c.current_cycle
       order by created_at desc limit 1
     ) q on true
     left join messages m on m.conversation_id=c.id and m.cycle=c.current_cycle
       and m.direction='inbound'
     where c.id=${conversationId}
-    group by c.id, q.quote_number, q.total, q.created_at
+    group by c.id, q.quote_number, q.total, q.created_at, q.items
   `;
   const inferredYear = row?.vehicle_year ?? row?.inbound_messages
     .map(extractVehicleYear).find((value): value is number => value !== null) ?? null;
@@ -412,6 +434,7 @@ export async function getAgentSalesFacts(conversationId: number): Promise<AgentS
           number: row.last_quote_number,
           total: Number(row.last_quote_total ?? 0),
           minutesAgo: Math.round((Date.now() - row.last_quote_at.getTime()) / 60_000),
+          detalle: detalleDeItems(row.last_quote_items),
         }
       : null,
   };
@@ -419,17 +442,22 @@ export async function getAgentSalesFacts(conversationId: number): Promise<AgentS
 
 /** Exportada para pruebas: el bloque de sistema que aplica venta-primero sobre hechos de la base. */
 export function salesFactsPrompt(facts: AgentSalesFacts, resumedFromHuman = false): string {
+  // Cada línea dice el dato Y la pregunta que ese dato mata. El informe del
+  // guardián de la semana del 14-ago mostró que «no vuelvas a preguntar un dato
+  // listado aquí» (la instrucción genérica de abajo) no bastaba: el modelo
+  // volvía a pedir la medida con la medida en pantalla, y «¿se la cotizo por
+  // 4?» con la cantidad registrada. La prohibición pegada al dato sí se cumple.
   const lines = [
-    facts.tireSize ? `Medida confirmada: ${facts.tireSize}` : null,
+    facts.tireSize ? `Medida confirmada: ${facts.tireSize} — PROHIBIDO volver a pedir medida, aro o foto: ya los tienes.` : null,
     facts.vehicle ? `Vehículo mencionado: ${facts.vehicle}` : null,
     facts.vehicleYear ? `Año ya informado por el cliente: ${facts.vehicleYear}` : null,
     facts.selectedProductCode ? `Producto elegido: ${facts.selectedProductCode}` : null,
-    facts.selectedQuantity ? `Cantidad ya confirmada: ${facts.selectedQuantity}` : null,
-    facts.nearestStore ? `Local elegido/recomendado: ${facts.nearestStore}` : null,
+    facts.selectedQuantity ? `Cantidad ya confirmada: ${facts.selectedQuantity} — PROHIBIDO preguntar «¿se la cotizo por ${facts.selectedQuantity}?»: esa pregunta ya fue respondida; cotiza.` : null,
+    facts.nearestStore ? `Local elegido/recomendado: ${facts.nearestStore} — nómbralo SIEMPRE tal cual; PROHIBIDO escribir el otro local o volver a ofrecer «¿Cumbayá o Quito Sur?».` : null,
     facts.visitDate ? `Fecha de visita confirmada: ${facts.visitDate.toLocaleDateString("es-EC", { timeZone: "America/Guayaquil" })}` : null,
-    facts.customerCommitment ? `Compromiso del cliente: ${facts.customerCommitment}` : null,
+    facts.customerCommitment ? `Compromiso del cliente: ${facts.customerCommitment} — PROHIBIDO volver a preguntar qué día viene: ya lo dijo.` : null,
     facts.lastQuote
-      ? `Cotización YA ENVIADA en este ciclo: ${facts.lastQuote.number} por $${facts.lastQuote.total.toFixed(2)}, hace ${facts.lastQuote.minutesAgo} min`
+      ? `Cotización YA ENVIADA en este ciclo: ${facts.lastQuote.number}${facts.lastQuote.detalle ? ` = ${facts.lastQuote.detalle}` : ""} por $${facts.lastQuote.total.toFixed(2)}, hace ${facts.lastQuote.minutesAgo} min. Al nombrarla, di ESE contenido: PROHIBIDO atribuirle otra medida, marca o total.`
       : null,
   ].filter(Boolean);
   return [

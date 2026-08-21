@@ -88,15 +88,25 @@ export const PREGUNTA_RECOMENDACION = "¿Necesita alguna recomendación?";
  *
  * Así que la recomendación se OFRECE por defecto y se ENTREGA cuando ya la
  * pidieron — explícitamente o pidiendo el precio, que es la misma decisión.
+ *
+ * Y se entrega CON PRECIO. La familia más grande del guardián (23 correcciones
+ * en la semana del 14-ago) era esta: el cliente preguntó «a cómo», el turno
+ * respondía la recomendación sin número, y el guardián tenía que reescribirla
+ * con el precio que la herramienta ya había devuelto. La regla dura prohíbe la
+ * LISTA numerada de precios, no responder un precio preguntado: un precio, el
+ * de la recomendada, en la misma frase.
  */
 export function buildCierreOpciones(input: {
   entregarRecomendacion: boolean;
   recomendacion: string;
   motivo: string;
+  /** Precio unitario con IVA de la recomendada; null si no vino de la herramienta. */
+  precioConIva?: number | null;
 }): string {
   if (!input.entregarRecomendacion) return PREGUNTA_RECOMENDACION;
   const motivo = input.motivo.trim().replace(/[.\s]+$/, "");
-  return `Yo iría por la *${input.recomendacion}*: ${motivo}. ¿Se la cotizo por 4? 😊`;
+  const precio = input.precioConIva ? ` — $${input.precioConIva.toFixed(2)} c/u con IVA` : "";
+  return `Yo iría por la *${input.recomendacion}*${precio}: ${motivo}. ¿Se la cotizo por 4? 😊`;
 }
 
 /**
@@ -116,10 +126,15 @@ export function buildCierreOpciones(input: {
  * asesor cuando existe, el de la propia cotización cuando no. Lo que sigue
  * prohibido es inventar un descuento extra que nadie autorizó.
  */
-export function buildVisitDayQuestion(conDescuentoAutorizado: boolean): string {
-  return conDescuentoAutorizado
-    ? "¿Qué día podría pasar? Le aviso al asesor y le dejo anotado su descuento extra para que se lo respeten apenas llegue. 📅"
-    : "¿Qué día podría pasar? Le aviso al asesor con su número de cotización para que le apliquen el descuento cuando llegue. 📅";
+export function buildVisitDayQuestion(conDescuentoAutorizado: boolean, conCotizacion = true): string {
+  if (conDescuentoAutorizado) {
+    return "¿Qué día podría pasar? Le aviso al asesor y le dejo anotado su descuento extra para que se lo respeten apenas llegue. 📅";
+  }
+  // Sin cotización no hay «número de cotización» ni descuento que prometer:
+  // el guardián corrigió exactamente esa promesa vacía (numero_venta: null).
+  return conCotizacion
+    ? "¿Qué día podría pasar? Le aviso al asesor con su número de cotización para que le apliquen el descuento cuando llegue. 📅"
+    : "¿Qué día podría pasar? Le aviso al asesor para que le atienda apenas llegue. 📅";
 }
 
 /**

@@ -1112,6 +1112,16 @@ export function buildTools(ctx: AgentContext) {
           "Dilo con todas las letras en tu respuesta —«en su medida no me queda, estas son equivalentes que sí le entran»— y nombra la medida de cada una. " +
           "NUNCA le digas que son de su medida, y no cotices ninguna hasta que él acepte la equivalencia."
         : null;
+      // La aclaración va HORNEADA en el mensaje, no solo en la regla: este
+      // turno sale verbatim por exactToolReply, así que el modelo nunca tiene
+      // oportunidad de agregarla. Confiar en la regla fue el hueco que el
+      // guardián corrigió 12 veces en la semana del 14-ago («el borrador no
+      // aclara que son equivalentes»): la orden existía y nadie podía cumplirla.
+      const avisoMedidaCliente = fueraDeMedida.length && permitidasOpciones.length
+        ? (fueraDeMedida.length === products.length
+            ? `⚠️ Ojo: en *${permitidasOpciones.join(" / ")}* no me queda disponibilidad exacta. Estas son *equivalentes* de su aro: ${fueraDeMedida.map((p) => `${p.design} en ${p.sizeLabel}`).join(", ")}. Se confirma el calce al montar.`
+            : `⚠️ Ojo: no todas son de su medida *${permitidasOpciones.join(" / ")}* — ${fueraDeMedida.map((p) => `${p.design} es ${p.sizeLabel}`).join(", ")} (equivalentes de su aro).`)
+        : null;
 
       // CANDADO 1 — anti-reenvío. Tickets 1288 y 1415 del 6-ago-2026: la misma
       // pieza de opciones salió hasta 4 veces en la misma conversación y el
@@ -1278,11 +1288,13 @@ export function buildTools(ctx: AgentContext) {
           (await usarCaptionCorto(visual.ok))
             ? null
             : buildCustomerOptionsMessageDetallado(products, nombre_cliente),
+          avisoMedidaCliente,
           beneficios,
           buildCierreOpciones({
             entregarRecomendacion,
             recomendacion,
             motivo: motivoLimpio,
+            precioConIva: recommended.minimumPriceWithTax ?? null,
           }),
         ),
         regla: [
@@ -1971,7 +1983,7 @@ export function buildTools(ctx: AgentContext) {
             // cliente acaba de decidir a dónde va.
             visitKnown
               ? `✅ Visita registrada: ${saved?.customer_commitment?.trim() || "fecha confirmada"}.`
-              : buildVisitDayQuestion(descuentoVivo),
+              : buildVisitDayQuestion(descuentoVivo, Boolean(sale)),
           ].filter(Boolean).join("\n"),
           mapas,
         ),

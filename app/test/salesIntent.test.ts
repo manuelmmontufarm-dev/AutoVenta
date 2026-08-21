@@ -142,6 +142,12 @@ describe("el cliente ya preguntó por el precio", () => {
       "precios por favor",
       "cotíceme esas dos",
       "me da el valor",
+      // Del informe del guardián (14-ago): preguntas reales que se escapaban.
+      "el costo en efectivo",
+      "Por cuanto sale",
+      "En cuanto me queda el juego",
+      "De que precio",
+      "qué costo tiene la A/T",
     ]) {
       expect(pidePrecio(texto), texto).toBe(true);
     }

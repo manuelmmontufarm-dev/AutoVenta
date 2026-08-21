@@ -33,6 +33,7 @@ Ya viene activado en este equipo.
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
 | 2026-08-20 | _(este mismo)_ | Ajustes en pestañas + matriz de avisos por nivel + usuarios del panel editables (reunión Andrés) | 3.0 |
+| 2026-08-20 | _(este mismo)_ | Las 170 correcciones del guardián, atacadas por familia en su causa raíz | 1.5 |
 | 2026-08-20 | _(este mismo)_ | Caso Eulalia: cotizar deja de preguntar el nombre («¿cliente final?») y «ayúdeme» es un sí | 0.5 |
 | 2026-08-18 | _(este mismo)_ | La ubicación se manda como link de Maps + el seguimiento deja de repreguntar la visita ya agendada | 1.5 |
 | 2026-08-16 | _(este mismo)_ | El reporte deja de creerse el acuse de Meta (aceptar no es entregar) | 1.0 |
@@ -149,6 +150,44 @@ Ya viene activado en este equipo.
 ---
 
 ## Entradas (más reciente primero)
+
+### 2026-08-20 · Las 170 correcciones del guardián, por familia y en su causa · ⏱️ 1.5 h
+
+**Qué:** se bajó el informe completo del Ángel Guardián (170 correcciones en 7
+días), se categorizó, y cada familia grande se arregló en la capa que la
+producía — texto compuesto, hechos del prompt, detectores o playbook.
+
+1. **Pidió precio, el turno no lo decía (23 casos).** `buildCierreOpciones`
+   ahora entrega la recomendación CON su precio («Yo iría por la *KR628* —
+   $163.40 c/u con IVA: …»). Además `pidePrecio` aprende las formas reales del
+   informe: «costo», «por cuánto sale», «en cuánto queda», «de qué precio».
+2. **Equivalentes sin aclarar (12 casos) — bug de diseño.** El aviso «di que
+   son de otra medida» vivía en la `regla` para que el modelo lo agregara, pero
+   `exactToolReply` manda `mensaje_para_enviar` VERBATIM: la orden existía y
+   nadie podía cumplirla. La aclaración va ahora horneada en el mensaje.
+3. **Re-preguntar lo ya dado (~30 casos).** Cada hecho confirmado lleva su
+   prohibición pegada: medida → «PROHIBIDO volver a pedir medida, aro o foto»;
+   cantidad → «PROHIBIDO preguntar ¿se la cotizo por N?»; local → «PROHIBIDO
+   escribir el otro»; compromiso → «PROHIBIDO volver a preguntar qué día».
+4. **Atribuirle a la cotización otra medida/marca (8 casos).** El hecho decía
+   número y total; ahora dice el contenido («COT-MT06MIVA = 4 × KENDA KR50
+   225/60R17») con la prohibición de atribuirle otra cosa.
+5. **Inventos de ficha (10 casos).** Regla nueva en playbook y prompt: lonas,
+   origen, años de garantía, financiamiento, tarjeta y convenios sin respaldo
+   ni se afirman ni se niegan — «se lo confirma el asesor» y se sigue con el
+   precio en la misma respuesta. Y se aclara que la regla dura prohíbe la
+   LISTA de precios, no responder UN precio preguntado.
+6. **Promesa vacía del descuento.** `buildVisitDayQuestion` ya no promete «su
+   número de cotización» cuando no hay cotización (numero_venta null).
+7. **Foto ya enviada.** Playbook: a quien mandó una foto ilegible se le dice
+   «no alcanzo a ver la medida», no «¿prefiere mandar una foto?».
+
+Las ~34 de «preguntó la ubicación y respondió el guion de medida» ya cayeron
+con `ubicacion_locales` (deploy de esta tarde). **Pruebas:** 7 nuevas
+(cierre con precio, promesa sin cotización, imperativos de hechos, detalle de
+items con la forma real de `quotes.items`). 752 tests, typecheck limpio.
+
+---
 
 ### 2026-08-20 · Ajustes en pestañas, avisos por nivel y usuarios del panel · ⏱️ 3.0 h
 

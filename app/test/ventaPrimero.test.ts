@@ -244,6 +244,62 @@ describe.sequential("Venta primero — los arreglos de Joaquín", () => {
     });
   });
 
+  /*
+   * Informe del guardián, semana del 14-ago (170 correcciones): las familias
+   * grandes eran re-preguntar datos ya confirmados y atribuirle a la cotización
+   * vigente una medida o marca que no contiene. Los hechos ahora llevan la
+   * prohibición pegada al dato, y la cotización lleva su contenido.
+   */
+  describe("los hechos matan las re-preguntas del informe del guardián", () => {
+    const base = {
+      tireSize: null, vehicle: null, vehicleYear: null,
+      selectedProductCode: null, selectedQuantity: null,
+      nearestStore: null, visitDate: null, customerCommitment: null,
+      lastQuote: null,
+    };
+
+    it("cada dato confirmado lleva su prohibición pegada", () => {
+      const bloque = agent.salesFactsPrompt({
+        ...base,
+        tireSize: "235/75R15",
+        selectedQuantity: 4,
+        nearestStore: "Depot Tire Quito Sur",
+        customerCommitment: "mañana en la tarde",
+      });
+      expect(bloque).toMatch(/235\/75R15 — PROHIBIDO volver a pedir medida, aro o foto/);
+      expect(bloque).toMatch(/PROHIBIDO preguntar «¿se la cotizo por 4\?»/);
+      expect(bloque).toMatch(/PROHIBIDO escribir el otro local/);
+      expect(bloque).toMatch(/PROHIBIDO volver a preguntar qué día viene/);
+    });
+
+    it("la cotización vigente dice QUÉ contiene, no solo cuánto vale", async () => {
+      const [c] = await appSql<{ id: number }[]>`
+        insert into conversations (phone, name, status, stage, current_cycle)
+        values ('593977000111', 'Guardián detalle', 'open', 'cotizacion_enviada', 1)
+        returning id
+      `;
+      await appSql`
+        insert into quotes (conversation_id, cycle, items, subtotal, tax, total, quote_number, created_at)
+        values (${c.id}, 1,
+          ${appSql.json([{ code: "X", brand: "KENDA", design: "KR50", quantity: 4, sizeLabel: "225/60R17" }])},
+          542.30, 81.34, 623.64, 'COT-MT06MIVA', now() - interval '5 minutes')
+      `;
+      const facts = await agent.getAgentSalesFacts(c.id);
+      expect(facts.lastQuote?.detalle).toBe("4 × KENDA KR50 225/60R17");
+      const bloque = agent.salesFactsPrompt(facts);
+      expect(bloque).toContain("COT-MT06MIVA = 4 × KENDA KR50 225/60R17");
+      expect(bloque).toContain("PROHIBIDO atribuirle otra medida");
+    });
+
+    it("detalleDeItems tolera items vacíos o con otra forma", () => {
+      expect(agent.detalleDeItems([])).toBeNull();
+      expect(agent.detalleDeItems(null)).toBeNull();
+      expect(agent.detalleDeItems([{ quantity: 2 }])).toBeNull();
+      expect(agent.detalleDeItems([{ brand: "FALKEN", design: "ZE310", quantity: 2, size: "205/55R16" }]))
+        .toBe("2 × FALKEN ZE310 205/55R16");
+    });
+  });
+
   describe("la rúbrica atrapa las respuestas reales que arruinaron las ventas", () => {
     const ctxConMedida = {
       etapa: "nuevo", clienteDioMedida: true, turno: 2,
