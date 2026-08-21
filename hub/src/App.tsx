@@ -7,6 +7,7 @@ import { IconChart, IconInbox, IconKanban, IconPlay, IconSilencio, IconSonido, I
 import { RacingDetails } from "./components/racing-details";
 import { VersionBadge } from "./components/version-badge";
 import { setSonidoActivo, sonidoActivo, sonidoBoton } from "./lib/sound";
+import { Tour, TourButton } from "./components/tour";
 import { navigate, useRoute, type Route } from "./router";
 import { Ajustes } from "./screens/Ajustes";
 import { Dashboard } from "./screens/Dashboard";
@@ -139,6 +140,7 @@ export default function App() {
                   onClick={() => navigate(item.id)}
                   className="relative grid h-11 w-11 place-items-center rounded-2xl text-muted transition-colors hover:text-paper data-[activo=true]:text-paper"
                   data-activo={activo}
+                  data-tour={`nav-${item.id}`}
                   aria-label={item.label}
                   title={item.label}
                 >
@@ -233,6 +235,7 @@ export default function App() {
                   <span className="sm:hidden">Apagado</span>
                 </motion.button>
               )}
+              <TourButton />
               <motion.button
                 whileTap={{ scale: 0.94 }}
                 type="button"
@@ -345,6 +348,7 @@ export default function App() {
                 onClick={() => navigate(item.id)}
                 className="relative flex min-w-0 flex-1 flex-col items-center gap-0.5 rounded-2xl px-0.5 py-1"
                 style={{ color: activo ? "var(--color-paper)" : "var(--color-faint)" }}
+                data-tour={`nav-${item.id}`}
               >
                 <item.icon size={19} />
                 <span className="max-w-full truncate text-[8.5px] font-bold">{item.corto}</span>
@@ -360,6 +364,7 @@ export default function App() {
 
         <Toasts />
         <Confetti />
+        <Tour />
         {bloqueado && <ConnectionGate estado={conexion as "clave-invalida" | "sin-conexion"} />}
       </div>
     </MotionConfig>

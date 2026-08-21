@@ -192,7 +192,7 @@ export function Ajustes() {
   // pantalla se pasa del alto de <main> y no hay forma de bajar.
   return (
     <div className="h-full overflow-y-auto px-4 pb-10">
-      <div className="mb-2.5 flex flex-wrap gap-1.5">
+      <div className="mb-2.5 flex flex-wrap gap-1.5" data-tour="ajustes-tabs">
         {tabs.map((t) => (
           <button
             key={t.id} onClick={() => setTab(t.id)}

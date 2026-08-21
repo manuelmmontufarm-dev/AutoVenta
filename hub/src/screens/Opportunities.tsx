@@ -181,6 +181,7 @@ export function Opportunities() {
               }))}
             />
             <button
+              data-tour="revisar-uno"
               onClick={() => abrirRevision(vista)}
               disabled={vistaActiva.n === 0}
               title={vistaActiva.n === 0 ? "No hay nada que revisar en esta vista" : undefined}
