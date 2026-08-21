@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { IconAlert, IconCheck, IconSalir, IconX } from "./icons";
 import {
+  activarCuenta,
   getStoredAdminKey,
   iniciarSesion,
   listarUsuarios,
@@ -188,6 +189,10 @@ export function LoginForm({ autoFocus = false }: { autoFocus?: boolean }) {
   const [entrada, setEntrada] = useState<Entrada>({ fase: "cargando" });
   const [userId, setUserId] = useState("");
   const [pin, setPin] = useState("");
+  // Activación (cuenta nueva): crear clave + email es OBLIGATORIO antes del
+  // primer ingreso, así que estos campos reemplazan al de la clave.
+  const [email, setEmail] = useState("");
+  const [pin2, setPin2] = useState("");
   const [intento, setIntento] = useState<Intento>({ fase: "reposo" });
 
   useEffect(() => {
@@ -233,13 +238,49 @@ export function LoginForm({ autoFocus = false }: { autoFocus?: boolean }) {
     );
   }
 
+  const seleccionado = entrada.fase === "listo"
+    ? entrada.usuarios.find((u) => u.id === userId)
+    : undefined;
+  const activando = Boolean(seleccionado?.pendiente);
+
   async function entrar() {
+    if (activando) {
+      if (pin.length < 4) {
+        setIntento({ fase: "error", mensaje: "La clave necesita al menos 4 caracteres." });
+        return;
+      }
+      if (pin !== pin2) {
+        setIntento({ fase: "error", mensaje: "Las dos claves no coinciden." });
+        return;
+      }
+      setIntento({ fase: "entrando" });
+      const resultado = await activarCuenta(userId, email.trim(), pin);
+      if (resultado.estado === "dentro") {
+        window.location.reload();
+        return;
+      }
+      setIntento({ fase: "error", mensaje: resultado.mensaje });
+      return;
+    }
     setIntento({ fase: "entrando" });
     const resultado = await iniciarSesion(userId, pin);
     if (resultado.estado === "dentro") {
       // Recarga completa: el store, las fases y el modo de datos se arman al
       // arrancar y ninguno sabe re-leerse a media sesión.
       window.location.reload();
+      return;
+    }
+    if (resultado.estado === "activar") {
+      // El servidor sabe más que la lista (por ejemplo, si quedó pendiente
+      // hace un momento): se refresca la marca para mostrar el formulario.
+      setEntrada({
+        fase: "listo",
+        usuarios: entrada.fase === "listo"
+          ? entrada.usuarios.map((u) => (u.id === userId ? { ...u, pendiente: true } : u))
+          : [],
+      });
+      setPin("");
+      setIntento({ fase: "reposo" });
       return;
     }
     setIntento({ fase: "error", mensaje: resultado.mensaje });
@@ -274,29 +315,63 @@ export function LoginForm({ autoFocus = false }: { autoFocus?: boolean }) {
         ))}
       </select>
 
+      {activando && (
+        <>
+          <div className="mt-4 rounded-2xl bg-paper/[.06] p-3 text-[11px]">
+            <b>Primera vez de {seleccionado?.nombre}.</b> Antes de entrar, crea tu
+            clave y deja tu email — solo para avisos del bot y para recuperar la
+            clave, nada promocional.
+          </div>
+          <label className="microlabel mt-3 mb-1.5 block" htmlFor="login-email">
+            Tu email
+          </label>
+          <input
+            id="login-email"
+            type="email"
+            autoComplete="email"
+            required
+            value={email}
+            placeholder="nombre@correo.com"
+            onChange={(event) => { setEmail(event.target.value); setIntento({ fase: "reposo" }); }}
+            className="settings-input w-full"
+          />
+        </>
+      )}
+
       <label className="microlabel mt-4 mb-1.5 block" htmlFor="login-clave">
-        Clave
+        {activando ? "Crea tu clave" : "Clave"}
       </label>
       <div className="flex flex-col gap-2 sm:flex-row">
         <input
           id="login-clave"
           type="password"
-          inputMode="numeric"
-          autoComplete="current-password"
+          inputMode={activando ? undefined : "numeric"}
+          autoComplete={activando ? "new-password" : "current-password"}
           value={pin}
-          placeholder="••••"
+          placeholder={activando ? "mínimo 4 caracteres" : "••••"}
           onChange={(event) => {
             setPin(event.target.value);
             setIntento({ fase: "reposo" });
           }}
           className="settings-input flex-1"
         />
+        {activando && (
+          <input
+            aria-label="Repite la clave"
+            type="password"
+            autoComplete="new-password"
+            value={pin2}
+            placeholder="repítela"
+            onChange={(event) => { setPin2(event.target.value); setIntento({ fase: "reposo" }); }}
+            className="settings-input flex-1"
+          />
+        )}
         <button
           type="submit"
-          disabled={entrando}
+          disabled={entrando || (activando && (!email.trim() || !pin || !pin2))}
           className="rounded-2xl bg-navy px-5 py-3 text-xs font-black whitespace-nowrap text-white transition-opacity active:opacity-80 disabled:opacity-60"
         >
-          {entrando ? "Entrando…" : "Entrar"}
+          {entrando ? "Entrando…" : activando ? "Crear y entrar" : "Entrar"}
         </button>
       </div>
 

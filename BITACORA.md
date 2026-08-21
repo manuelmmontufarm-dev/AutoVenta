@@ -32,7 +32,8 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
-| 2026-08-20 | _(este mismo)_ | Ajustes en pestañas + matriz de avisos por nivel + usuarios del panel editables (reunión Andrés) | 3.0 |
+| 2026-08-20 | _(este mismo)_ | Clave propia obligatoria + email en el primer ingreso de usuarios nuevos; restablecer desde Ajustes | 2.0 |
+| 2026-08-20 | ed7957d | Ajustes en pestañas + matriz de avisos por nivel + usuarios del panel editables (reunión Andrés) | 3.0 |
 | 2026-08-20 | _(este mismo)_ | Línea base del guardián y seguimiento programado (medir, no adivinar) | 0.25 |
 | 2026-08-20 | _(este mismo)_ | Las 170 correcciones del guardián, atacadas por familia en su causa raíz | 1.5 |
 | 2026-08-20 | _(este mismo)_ | Caso Eulalia: cotizar deja de preguntar el nombre («¿cliente final?») y «ayúdeme» es un sí | 0.5 |
@@ -146,7 +147,7 @@ Ya viene activado en este equipo.
 | 2026-07-14 | ac09171 | Ubicaciones de locales + análisis de features del cliente | 1.5 |
 | 2026-07-13 | feadf57 | Brief + plan de desarrollo + plan financiero + catálogo | 4.0 |
 | 2026-07-13 | d997844 | Commit inicial (repo) | 0.25 |
-| | | **TOTAL** | **~104.0 h** |
+| | | **TOTAL** | **~106.0 h** |
 
 ---
 

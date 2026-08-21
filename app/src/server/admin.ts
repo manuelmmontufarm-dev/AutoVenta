@@ -114,21 +114,25 @@ import {
   saveMatrizAvisos,
 } from "../services/advisorNotifications.js";
 import {
+  activarUsuarioHub,
   actualizarUsuarioHub,
   borrarUsuarioHub,
   cargarUsuariosHub,
   crearUsuarioHub,
+  estadoClave,
+  restablecerClaveHub,
   usuariosHub,
+  type UsuarioHub,
 } from "../services/hubUsers.js";
 import { sendImage, reloadWa } from "../wa/client.js";
 import { registrarEnviado } from "../wa/outboundRegistry.js";
 import {
   SESIONES_HABILITADAS,
+  claveValidaPara,
   crearToken,
   esperaDeLogin,
   listarUsuarios,
   permisosDeUsuario,
-  pinValido,
   registrarLoginBueno,
   registrarLoginFallido,
   tokenDelHeader,
@@ -331,9 +335,19 @@ export function createAdminRouter(): express.Router {
   // lista de usuarios o intentar entrar son justo lo que se hace cuando todavía
   // no se tiene con qué autenticarse.
 
-  /** Nombres para el desplegable del login. Nunca devuelve claves. */
+  /**
+   * Nombres para el desplegable del login. Nunca devuelve claves ni hashes;
+   * `pendiente` va porque el login necesita saber a quién mostrarle el
+   * formulario de crear clave ANTES de pedirle una que no existe.
+   */
   router.get("/auth/users", (_req, res) => {
-    res.json({ ok: true, users: listarUsuarios() });
+    res.json({
+      ok: true,
+      users: listarUsuarios().map((u) => {
+        const completo = usuariosHub().find((h) => h.id === u.id);
+        return { ...u, pendiente: completo ? estadoClave(completo) === "pendiente" : false };
+      }),
+    });
   });
 
   router.post("/auth/login", (req, res) => {
@@ -365,9 +379,21 @@ export function createAdminRouter(): express.Router {
       return;
     }
     const usuario = usuarioPorId(input.data.userId);
+    const veredicto = usuario ? claveValidaPara(usuario.id, input.data.pin) : "mala";
+    // Cuenta nueva sin clave: no es un error de clave, es que el primer
+    // ingreso es OBLIGATORIAMENTE crear la suya (con su email). El hub cambia
+    // al formulario de activación al ver este código.
+    if (veredicto === "activacion_requerida") {
+      res.status(403).json({
+        ok: false,
+        code: "activacion_requerida",
+        error: "Primera vez: crea tu clave y deja tu email para entrar.",
+      });
+      return;
+    }
     // Mismo mensaje para usuario inexistente y clave mala: no hace falta
-    // confirmarle a nadie cuáles de los cuatro nombres existen.
-    if (!usuario || !pinValido(input.data.pin)) {
+    // confirmarle a nadie qué nombres existen.
+    if (!usuario || veredicto !== "ok") {
       registrarLoginFallido(input.data.userId);
       res.status(401).json({ ok: false, error: "Usuario o clave incorrectos." });
       return;
@@ -379,6 +405,44 @@ export function createAdminRouter(): express.Router {
       user: usuario,
       permisos: permisosDeUsuario(usuario.id),
     });
+  });
+
+  /**
+   * Activación: el primer ingreso de un usuario creado desde el panel. Pública
+   * como el login — quien la necesita todavía no tiene con qué autenticarse.
+   * `activarUsuarioHub` solo acepta cuentas pendientes, así que nadie puede
+   * pisar la clave de una cuenta ya activa por aquí.
+   */
+  router.post("/auth/activate", async (req, res) => {
+    if (!SESIONES_HABILITADAS) {
+      res.status(503).json({
+        ok: false,
+        error: "Este servidor no tiene ADMIN_KEY configurada: no puede firmar sesiones.",
+      });
+      return;
+    }
+    const input = z
+      .object({ userId: z.string().min(1).max(40), email: z.string().min(3).max(120), pin: z.string().min(4).max(60) })
+      .safeParse(req.body);
+    if (!input.success) {
+      res.status(400).json({ ok: false, error: "Hace falta el email y una clave de al menos 4 caracteres." });
+      return;
+    }
+    try {
+      const usuario = await activarUsuarioHub(input.data.userId, {
+        email: input.data.email,
+        pin: input.data.pin,
+      });
+      registrarLoginBueno(usuario.id);
+      res.json({
+        ok: true,
+        token: crearToken(usuario.id),
+        user: { id: usuario.id, nombre: usuario.nombre, rol: usuario.rol },
+        permisos: permisosDeUsuario(usuario.id),
+      });
+    } catch (error) {
+      res.status(400).json({ ok: false, error: mensaje(error, "No se pudo activar la cuenta") });
+    }
   });
 
   router.use(exigirCredencial);
@@ -1736,13 +1800,18 @@ export function createAdminRouter(): express.Router {
   // Distinto de /advisors a propósito: esto es QUIÉN ENTRA AL DASHBOARD y qué
   // pantallas ve; /advisors es qué teléfono recibe avisos por WhatsApp.
 
+  /** Lo que ve el panel: nunca el hash, sí el estado de la clave y el email. */
+  const usuarioParaPanel = ({ pinHash: _hash, claveCompartida: _c, ...resto }: UsuarioHub, completo: UsuarioHub) =>
+    ({ ...resto, estadoClave: estadoClave(completo) });
+
   router.get("/hub-users", exigirNivelMaximo, (_req, res) => {
-    res.json({ ok: true, usuarios: usuariosHub() });
+    res.json({ ok: true, usuarios: usuariosHub().map((u) => usuarioParaPanel(u, u)) });
   });
 
   router.post("/hub-users", exigirNivelMaximo, async (req, res) => {
     try {
-      res.json({ ok: true, usuario: await crearUsuarioHub(req.body) });
+      const usuario = await crearUsuarioHub(req.body);
+      res.json({ ok: true, usuario: usuarioParaPanel(usuario, usuario) });
     } catch (error) {
       res.status(400).json({ ok: false, error: mensaje(error, "No se pudo crear el usuario") });
     }
@@ -1750,9 +1819,20 @@ export function createAdminRouter(): express.Router {
 
   router.patch("/hub-users/:id", exigirNivelMaximo, async (req, res) => {
     try {
-      res.json({ ok: true, usuario: await actualizarUsuarioHub(String(req.params.id), req.body) });
+      const usuario = await actualizarUsuarioHub(String(req.params.id), req.body);
+      res.json({ ok: true, usuario: usuarioParaPanel(usuario, usuario) });
     } catch (error) {
       res.status(400).json({ ok: false, error: mensaje(error, "No se pudo guardar el usuario") });
+    }
+  });
+
+  /** «Se me olvidó la clave»: la cuenta vuelve a pendiente y la crea de nuevo. */
+  router.post("/hub-users/:id/reset-clave", exigirNivelMaximo, async (req, res) => {
+    try {
+      const usuario = await restablecerClaveHub(String(req.params.id));
+      res.json({ ok: true, usuario: usuarioParaPanel(usuario, usuario) });
+    } catch (error) {
+      res.status(400).json({ ok: false, error: mensaje(error, "No se pudo restablecer la clave") });
     }
   });
 

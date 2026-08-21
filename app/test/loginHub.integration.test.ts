@@ -46,6 +46,8 @@ process.env.ADMIN_KEY = ADMIN_KEY;
 process.env.NODE_ENV = "test";
 
 const { createAdminRouter } = await import("../src/server/admin.js");
+const { PERMISOS_COMPLETOS, inyectarUsuariosHub, reiniciarUsuariosHub } =
+  await import("../src/services/hubUsers.js");
 
 interface Usuario {
   id: string;
@@ -202,5 +204,40 @@ describe("compatibilidad con lo que ya estaba", () => {
     const r = await fetch(`${baseUrl}/api/status`, { method: "OPTIONS" });
     expect(r.headers.get("access-control-allow-headers")).toMatch(/authorization/i);
     expect(r.headers.get("access-control-allow-headers")).toMatch(/x-admin-key/i);
+  });
+});
+
+/**
+ * El primer ingreso de una cuenta creada desde el panel: el login NO la deja
+ * pasar con ninguna clave y contesta con el código que hace que el hub muestre
+ * el formulario de activación (crear clave + email). El flujo completo con
+ * escritura está cubierto en unidad (hubUsersClave.test.ts); aquí se prueba el
+ * contrato HTTP, que es lo que el frontend interpreta.
+ */
+describe("cuenta pendiente de activar", () => {
+  it("el login contesta 403 con code activacion_requerida, con cualquier clave", async () => {
+    inyectarUsuariosHub([
+      { id: "manuel", nombre: "Manuel Montufar", rol: "admin", permisos: { ...PERMISOS_COMPLETOS }, email: null, claveCompartida: true, pinHash: null },
+      { id: "jocelyn", nombre: "Jocelyn", rol: "asesor", permisos: { ...PERMISOS_COMPLETOS }, email: null, claveCompartida: false, pinHash: null },
+    ]);
+    try {
+      for (const clave of ["1234", "cualquier-cosa"]) {
+        const r = await fetch(`${baseUrl}/api/auth/login`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ userId: "jocelyn", pin: clave }),
+        });
+        expect(r.status).toBe(403);
+        const body = (await r.json()) as { code?: string };
+        expect(body.code).toBe("activacion_requerida");
+      }
+      // Y la lista pública marca a quién le toca activar, sin filtrar claves.
+      const lista = await fetch(`${baseUrl}/api/auth/users`);
+      const { users } = (await lista.json()) as { users: Array<{ id: string; pendiente?: boolean }> };
+      expect(users.find((u) => u.id === "jocelyn")?.pendiente).toBe(true);
+      expect(users.find((u) => u.id === "manuel")?.pendiente).toBe(false);
+    } finally {
+      reiniciarUsuariosHub();
+    }
   });
 });

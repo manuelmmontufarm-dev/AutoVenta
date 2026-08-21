@@ -1283,7 +1283,16 @@ interface UsuarioHub {
   nombre: string;
   rol: "admin" | "asesor";
   permisos: PermisosHub;
+  /** Para avisos del bot y recuperar la clave. Lo deja el usuario al activar. */
+  email: string | null;
+  estadoClave: "compartida" | "propia" | "pendiente";
 }
+
+const ESTADO_CLAVE_UI: Record<UsuarioHub["estadoClave"], { label: string; explica: string }> = {
+  compartida: { label: "clave compartida", explica: "Entra con la clave común de siempre (los cuatro originales)." },
+  propia: { label: "clave propia", explica: "Ya creó su clave personal; solo esa clave abre." },
+  pendiente: { label: "pendiente", explica: "Todavía no entra: su primer ingreso será crear su clave y dejar su email." },
+};
 
 /** Cada interruptor en el idioma de las pestañas que abre o esconde. */
 const PERMISOS_UI: { id: keyof PermisosHub; label: string }[] = [
@@ -1340,7 +1349,7 @@ function SeccionUsuarios({ onError }: { onError: (e: string) => void }) {
     }
   };
 
-  const cambiar = async (u: UsuarioHub, patch: Partial<Omit<UsuarioHub, "id" | "permisos">> & { permisos?: Partial<PermisosHub> }) => {
+  const cambiar = async (u: UsuarioHub, patch: Partial<Omit<UsuarioHub, "id" | "permisos" | "estadoClave">> & { permisos?: Partial<PermisosHub> }) => {
     setUsuarios(usuarios.map((x) => (x.id === u.id
       ? { ...x, ...patch, permisos: { ...x.permisos, ...(patch.permisos ?? {}) } }
       : x)));
@@ -1363,16 +1372,35 @@ function SeccionUsuarios({ onError }: { onError: (e: string) => void }) {
     }
   };
 
+  /** La cuenta vuelve a pendiente: la persona crea su clave de nuevo al entrar. */
+  const restablecer = async (id: string) => {
+    try {
+      const r = await api<{ usuario: UsuarioHub }>(`/api/hub-users/${encodeURIComponent(id)}/reset-clave`, { method: "POST" });
+      setUsuarios(usuarios.map((u) => (u.id === id ? r.usuario : u)));
+      onError("");
+    } catch (e) {
+      onError(e instanceof Error ? e.message : "No se pudo restablecer la clave");
+    }
+  };
+
   return (
     <Tarjeta
       titulo="Usuarios del panel"
-      sub="Quién sale en el desplegable del login y qué pestañas ve. Todos entran con la misma clave de siempre; los cambios de acceso se aplican la próxima vez que esa persona inicie sesión."
+      sub="Quién sale en el desplegable del login y qué pestañas ve. Los usuarios nuevos crean su propia clave y dejan su email la primera vez que entran; si alguien la olvida, «Restablecer clave» lo deja crearla de nuevo. Los cambios de acceso se aplican en su próximo inicio de sesión."
     >
       <div className="flex flex-col gap-2.5">
         {usuarios.map((u) => (
           <div key={u.id} className="rounded-2xl border border-paper/[.08] bg-paper/[.03] p-3">
             <div className="flex flex-wrap items-center gap-2">
               <span className="tnum shrink-0 rounded-lg bg-paper/[.08] px-2 py-1 text-[11px] font-bold">{u.id}</span>
+              <span
+                title={ESTADO_CLAVE_UI[u.estadoClave].explica}
+                className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-bold uppercase ${
+                  u.estadoClave === "pendiente"
+                    ? "bg-[var(--color-warn,#e8b33a)]/20 text-[var(--color-warn,#e8b33a)]"
+                    : "bg-paper/[.10] text-faint"
+                }`}
+              >{ESTADO_CLAVE_UI[u.estadoClave].label}</span>
               <input
                 value={u.nombre}
                 onChange={(e) => setUsuarios(usuarios.map((x) => (x.id === u.id ? { ...x, nombre: e.target.value } : x)))}
@@ -1407,6 +1435,23 @@ function SeccionUsuarios({ onError }: { onError: (e: string) => void }) {
                   {permiso.label}
                 </label>
               ))}
+            </div>
+            <div className="mt-2.5 flex flex-wrap items-center gap-2">
+              <input
+                type="email"
+                value={u.email ?? ""}
+                placeholder={u.estadoClave === "pendiente" ? "el email lo deja al activar su cuenta" : "email (avisos del bot y recuperación)"}
+                onChange={(e) => setUsuarios(usuarios.map((x) => (x.id === u.id ? { ...x, email: e.target.value || null } : x)))}
+                onBlur={() => void cambiar(u, { email: u.email })}
+                className={`${inputCls} min-w-0 flex-1`}
+              />
+              {u.estadoClave === "propia" && (
+                <button
+                  onClick={() => void restablecer(u.id)}
+                  className="shrink-0 rounded-full bg-paper/[.08] px-3 py-1.5 text-[11px] font-semibold hover:bg-paper/[.14]"
+                  title="Borra su clave: la próxima vez que entre crea una nueva. El email se conserva."
+                >Restablecer clave</button>
+              )}
             </div>
           </div>
         ))}

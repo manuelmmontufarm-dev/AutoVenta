@@ -115,6 +115,8 @@ export interface UsuarioDisponible {
   id: string;
   nombre: string;
   rol: RolUsuario;
+  /** true = cuenta nueva: su primer ingreso es crear clave + dejar email. */
+  pendiente?: boolean;
 }
 
 /** Lista para el desplegable del login. Ruta pública: no necesita clave. */
@@ -128,6 +130,8 @@ export async function listarUsuarios(): Promise<UsuarioDisponible[]> {
 export type ResultadoLogin =
   | { estado: "dentro"; sesion: Sesion }
   | { estado: "rechazado"; mensaje: string }
+  /** Cuenta nueva sin clave: toca el formulario de activación. */
+  | { estado: "activar"; mensaje: string }
   | { estado: "sin-conexion"; mensaje: string };
 
 /** Entra con usuario + clave y deja la sesión guardada en este navegador. */
@@ -140,9 +144,12 @@ export async function iniciarSesion(userId: string, pin: string): Promise<Result
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ userId, pin }),
     });
-    const data = (await r.json().catch(() => ({}))) as Partial<Sesion> & { error?: string };
+    const data = (await r.json().catch(() => ({}))) as Partial<Sesion> & { error?: string; code?: string };
     if (r.status === 401) {
       return { estado: "rechazado", mensaje: data.error ?? "Usuario o clave incorrectos." };
+    }
+    if (r.status === 403 && data.code === "activacion_requerida") {
+      return { estado: "activar", mensaje: data.error ?? "Primera vez: crea tu clave." };
     }
     if (!r.ok || !data.token || !data.user) {
       return {
@@ -158,6 +165,38 @@ export async function iniciarSesion(userId: string, pin: string): Promise<Result
     guardarSesion(sesion);
     // La clave cruda deja de hacer falta en cuanto hay sesión: dejarla ahí solo
     // sería un segundo camino de entrada que nadie recuerda haber abierto.
+    saveStoredAdminKey("");
+    return { estado: "dentro", sesion };
+  } catch (error) {
+    return {
+      estado: "sin-conexion",
+      mensaje: error instanceof Error ? error.message : "No se pudo contactar el servidor.",
+    };
+  }
+}
+
+/**
+ * Primer ingreso de una cuenta nueva: crea su clave y deja su email (para
+ * avisos del bot y recuperación — nada promocional). Si sale bien, la sesión
+ * queda abierta igual que con el login.
+ */
+export async function activarCuenta(userId: string, email: string, pin: string): Promise<ResultadoLogin> {
+  try {
+    const r = await fetch("/api/auth/activate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId, email, pin }),
+    });
+    const data = (await r.json().catch(() => ({}))) as Partial<Sesion> & { error?: string };
+    if (!r.ok || !data.token || !data.user) {
+      return { estado: "rechazado", mensaje: data.error ?? `El servidor respondió ${r.status}.` };
+    }
+    const sesion: Sesion = {
+      token: data.token,
+      user: data.user as UsuarioSesion,
+      permisos: { ...PERMISOS_ABIERTOS, ...(data.permisos ?? {}) },
+    };
+    guardarSesion(sesion);
     saveStoredAdminKey("");
     return { estado: "dentro", sesion };
   } catch (error) {

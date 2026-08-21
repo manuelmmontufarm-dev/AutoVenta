@@ -14,7 +14,7 @@
  * si algo se filtra.
  */
 import { createHmac, timingSafeEqual } from "node:crypto";
-import { PERMISOS_COMPLETOS, usuarioHubPorId, usuariosHub } from "../services/hubUsers.js";
+import { PERMISOS_COMPLETOS, claveCoincide, usuarioHubPorId, usuariosHub } from "../services/hubUsers.js";
 
 export type Rol = "admin" | "asesor";
 
@@ -109,6 +109,23 @@ export function pinValido(pin: string): boolean {
   const a = Buffer.from(String(pin));
   const b = Buffer.from(PIN);
   return a.length === b.length && timingSafeEqual(a, b);
+}
+
+export type VeredictoClave = "ok" | "mala" | "activacion_requerida";
+
+/**
+ * Qué clave abre cada cuenta:
+ *  · clave propia creada → solo esa clave (la compartida deja de valer).
+ *  · los cuatro originales sin clave propia → la compartida de siempre.
+ *  · cuenta nueva sin clave → nadie entra: primero la activación obligatoria
+ *    (crear clave + email), que es su propia ruta.
+ */
+export function claveValidaPara(userId: string, pin: string): VeredictoClave {
+  const usuario = usuarioHubPorId(userId);
+  if (!usuario) return "mala";
+  if (usuario.pinHash) return claveCoincide(pin, usuario.pinHash) ? "ok" : "mala";
+  if (usuario.claveCompartida) return pinValido(pin) ? "ok" : "mala";
+  return "activacion_requerida";
 }
 
 // ---------------------------------------------------------------------------
