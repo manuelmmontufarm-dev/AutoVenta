@@ -33,6 +33,7 @@ Ya viene activado en este equipo.
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
 | 2026-08-20 | _(este mismo)_ | Ajustes en pestañas + matriz de avisos por nivel + usuarios del panel editables (reunión Andrés) | 3.0 |
+| 2026-08-20 | _(este mismo)_ | Línea base del guardián y seguimiento programado (medir, no adivinar) | 0.25 |
 | 2026-08-20 | _(este mismo)_ | Las 170 correcciones del guardián, atacadas por familia en su causa raíz | 1.5 |
 | 2026-08-20 | _(este mismo)_ | Caso Eulalia: cotizar deja de preguntar el nombre («¿cliente final?») y «ayúdeme» es un sí | 0.5 |
 | 2026-08-18 | _(este mismo)_ | La ubicación se manda como link de Maps + el seguimiento deja de repreguntar la visita ya agendada | 1.5 |
@@ -150,6 +151,49 @@ Ya viene activado en este equipo.
 ---
 
 ## Entradas (más reciente primero)
+
+### 2026-08-20 · Línea base del guardián y seguimiento programado · ⏱️ 0.25 h
+
+**Qué:** queda anotada la línea base ANTES del deploy `c446123` para medir el
+efecto real y detectar tanto errores nuevos como regresiones.
+
+**Correcciones del Ángel Guardián por día (hora de Guayaquil):**
+
+| 13-ago | 14-ago | 15-ago | 17-ago | 18-ago | 19-ago | 20-ago |
+|---|---|---|---|---|---|---|
+| 1 | 15 | 24 | 18 | 32 | 48 | 32 |
+
+Promedio de la semana: **~24/día** (170 en 7 días). El deploy `c446123` salió
+el 20-ago ~22:55, así que **el primer día completo con los arreglos es el
+21-ago**.
+
+**Cómo se revisa (próxima sesión, ~lunes 24-ago):**
+
+```sql
+select left(exact_reason, 150), count(*)
+from bot_alerts
+where type='guardian_correccion' and created_at > '2026-08-21 05:00:00Z'
+group by 1 order by 2 desc;
+```
+
+1. Si la tasa bajó pero quedan familias vivas → son las colas: arreglarlas con
+   el mismo método (categoría → capa que la produce → prueba de regresión).
+2. Si aparece una familia NUEVA que no estaba en el informe del 14–20 ago →
+   puede ser efecto de los cambios (p. ej. el precio en el cierre de opciones o
+   los imperativos de hechos produciendo textos raros): comparar contra las
+   familias documentadas en la entrada anterior antes de tocar nada.
+3. Vigilar también `guard_precio_ajustado`, `guard_mensaje_duplicado` y
+   `conversationQuality` (repetitivas): si el guardián baja pero esos suben, el
+   error solo se movió de capa.
+
+**Contexto operativo del día:** Manuel ya le escribió al número del bot, así
+que su ventana de avisos quedó reabierta (llevaba cerrada desde el martes 18,
+17:08, con 153 avisos rebotados con Meta 131047 — entre ellos Edgar,
+099 701 3296, compra confirmada el 20-ago 14:05, pendiente de atención humana).
+El arreglo de fondo para avisos críticos sin depender de la ventana (plantilla
+aprobada de Meta) sigue pendiente y NO se hizo aquí.
+
+---
 
 ### 2026-08-20 · Las 170 correcciones del guardián, por familia y en su causa · ⏱️ 1.5 h
 
