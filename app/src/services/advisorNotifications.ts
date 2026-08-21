@@ -1,3 +1,4 @@
+import { z } from "zod";
 import { config } from "../config.js";
 import { sql } from "../db/client.js";
 import { sendAdvisorText } from "../wa/client.js";
@@ -62,21 +63,104 @@ export function esRolAsesor(valor: unknown): valor is RolAsesor {
 }
 
 /**
- * Los cinco avisos del asesor de local (reunión del 14-ago). El orden es el de
- * la lista que pidió Andrés y se deja igual a propósito, para poder cotejarlos
- * de un vistazo contra el acta.
+ * Categorías de aviso: el idioma en el que el negocio decide quién recibe qué
+ * desde Ajustes → Avisos (reunión con Andrés, 19-ago). Antes la regla era fija
+ * en código («los cinco del mostrador»); ahora es una matriz nivel × categoría
+ * que se edita desde el panel. Cada evento pertenece a exactamente una
+ * categoría — el test recorre la lista y no deja que un evento nuevo se quede
+ * sin casilla.
  */
-export const EVENTOS_ASESOR = new Set<AdvisorEventType>([
-  "ventana_por_cerrar",   // 1 · escribir antes de que se cierre la ventana de 24 h
-  "quote_created",        // 2 · nueva cotización
-  "visita_comprometida",  // 3 · dijo cuándo viene (o cambió la fecha)
-  "visita_manana",        // 4 · el día antes
-  "visita_hoy",           // 5 · el día de
-]);
+export const CATEGORIAS_AVISO = ["ventas", "visitas", "ventana", "cliente", "bot", "tecnico"] as const;
+export type CategoriaAviso = (typeof CATEGORIAS_AVISO)[number];
 
-/** Regla de enrutamiento, aparte del SQL para poder probarla evento por evento. */
-export function recibeEvento(rol: RolAsesor, evento: AdvisorEventType): boolean {
-  return rol === "admin" || EVENTOS_ASESOR.has(evento);
+export const CATEGORIA_DE_EVENTO: Record<AdvisorEventType, CategoriaAviso> = {
+  quote_created: "ventas",
+  customer_ready_to_buy: "ventas",
+  visita_comprometida: "visitas",
+  visita_manana: "visitas",
+  visita_hoy: "visitas",
+  ventana_por_cerrar: "ventana",
+  human_requested: "cliente",
+  negative_sentiment: "cliente",
+  customer_opt_out: "cliente",
+  repetitive_conversation: "bot",
+  guard_bot_atascado: "bot",
+  guard_pide_foto: "bot",
+  guard_mensaje_duplicado: "bot",
+  guard_saludo_repetido: "bot",
+  guard_precio_ajustado: "bot",
+  caso_sin_resolver: "bot",
+  envio_fuera_de_cobertura: "bot",
+  bot_apagado_con_clientes: "bot",
+  send_error: "tecnico",
+};
+
+/** Qué categorías recibe cada nivel. Es lo que se edita desde el panel. */
+export type MatrizAvisos = Record<RolAsesor, CategoriaAviso[]>;
+
+/**
+ * El punto de partida (y el respaldo si la base calla). Sale de la reunión con
+ * Andrés del 19-ago:
+ *  · `ventana` no la recibe NADIE por defecto — los avisos de «se va a cerrar
+ *    la ventana de escribirle al cliente» eran demasiados. La categoría sigue
+ *    existiendo para poder re-encenderla desde el panel sin deploy.
+ *  · el asesor de local recibe ventas y visitas: lo que acciona en mostrador.
+ */
+export const MATRIZ_DEFECTO: MatrizAvisos = {
+  admin: ["ventas", "visitas", "cliente", "bot", "tecnico"],
+  asesor: ["ventas", "visitas"],
+};
+
+const MatrizSchema = z.object({
+  admin: z.array(z.enum(CATEGORIAS_AVISO)).default([]),
+  asesor: z.array(z.enum(CATEGORIAS_AVISO)).default([]),
+});
+
+const MATRIZ_TTL_MS = 30_000;
+let matrizCache: { value: MatrizAvisos; at: number } | null = null;
+
+/** La matriz vigente. Con cache corto: se consulta en cada aviso del worker. */
+export async function getMatrizAvisos(): Promise<MatrizAvisos> {
+  if (matrizCache && Date.now() - matrizCache.at < MATRIZ_TTL_MS) return matrizCache.value;
+  let value: MatrizAvisos = MATRIZ_DEFECTO;
+  try {
+    const [row] = await sql<{ value: unknown }[]>`select value from settings where key = 'aviso_matrix'`;
+    if (row) {
+      const parsed = MatrizSchema.safeParse(row.value);
+      if (parsed.success) value = parsed.data;
+    }
+  } catch (error) {
+    console.error("⚠️ No se pudo leer la matriz de avisos:", error instanceof Error ? error.message : error);
+  }
+  matrizCache = { value, at: Date.now() };
+  return value;
+}
+
+export async function saveMatrizAvisos(input: unknown): Promise<MatrizAvisos> {
+  const value = MatrizSchema.parse(input);
+  await sql`
+    insert into settings (key, value) values ('aviso_matrix', ${sql.json(value)})
+    on conflict (key) do update set value = excluded.value, updated_at = now()
+  `;
+  matrizCache = { value, at: Date.now() };
+  return value;
+}
+
+/** Solo para pruebas: fuerza a releer la matriz de la base. */
+export function olvidarMatrizAvisos(): void {
+  matrizCache = null;
+}
+
+/**
+ * Regla de enrutamiento, pura para poder probarla evento por evento: un nivel
+ * recibe un evento si su fila de la matriz incluye la categoría del evento.
+ */
+export function recibeEvento(
+  rol: RolAsesor,
+  evento: AdvisorEventType,
+  matriz: MatrizAvisos = MATRIZ_DEFECTO,
+): boolean {
+  return matriz[rol].includes(CATEGORIA_DE_EVENTO[evento]);
 }
 
 /**
@@ -287,9 +371,12 @@ export interface Asesor {
 export async function asesoresActivos(
   filtro: { evento?: AdvisorEventType; rol?: RolAsesor } = {},
 ): Promise<Asesor[]> {
+  // La matriz editable decide qué categoría recibe cada nivel; si la base no
+  // contesta, getMatrizAvisos ya devolvió el defecto y el aviso sale igual.
+  const matriz = filtro.evento ? await getMatrizAvisos() : MATRIZ_DEFECTO;
   const aplicar = (lista: Asesor[]) => lista.filter((a) =>
     (!filtro.rol || a.rol === filtro.rol) &&
-    (!filtro.evento || recibeEvento(a.rol, filtro.evento)));
+    (!filtro.evento || recibeEvento(a.rol, filtro.evento, matriz)));
   try {
     const filas = await sql<{ nombre: string; telefono: string; rol: string }[]>`
       select nombre, telefono, rol from advisors

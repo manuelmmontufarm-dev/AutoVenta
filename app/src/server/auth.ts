@@ -14,6 +14,7 @@
  * si algo se filtra.
  */
 import { createHmac, timingSafeEqual } from "node:crypto";
+import { PERMISOS_COMPLETOS, usuarioHubPorId, usuariosHub } from "../services/hubUsers.js";
 
 export type Rol = "admin" | "asesor";
 
@@ -24,15 +25,11 @@ export interface Usuario {
 }
 
 /**
- * Por ahora en código. Cuando haga falta que el dueño los edite, esto se mueve
- * a `settings` (misma forma) y el resto del archivo no cambia.
+ * La lista vive ahora en `settings` (key `hub_users`) y se administra desde
+ * Ajustes → Usuarios; `hubUsers.ts` mantiene el espejo en memoria que este
+ * archivo consulta de forma síncrona. La semilla sigue siendo los cuatro de la
+ * reunión del 14-ago, así que sin base todo funciona igual que antes.
  */
-const USERS: readonly Usuario[] = [
-  { id: "manuel", nombre: "Manuel Montufar", rol: "admin" },
-  { id: "andres", nombre: "Andres Tamayo", rol: "admin" },
-  { id: "joaquin", nombre: "Joaquin Tamayo", rol: "admin" },
-  { id: "asesor", nombre: "Asesor", rol: "asesor" },
-];
 
 /**
  * Clave única y temporal. Decisión explícita del cliente para esta fase: la
@@ -57,12 +54,9 @@ const SECRETO = ADMIN_KEY || "autoventa-sesiones-dev";
 export const SESIONES_HABILITADAS = Boolean(ADMIN_KEY) || !IS_PRODUCTION;
 
 /**
- * Qué puede ver cada rol.
- *
- * HOY TODOS EN `true` PARA TODOS: en la reunión Andrés pidió poder esconder
- * cosas (lo vendido total, por ejemplo) pero no se decidió qué ni a quién. El
- * hub ya guarda y expone estos permisos, así que el día que se decida, se
- * cambia aquí y las pantallas ya saben leerlo.
+ * Qué puede ver cada usuario. Desde la reunión con Andrés (19-ago) esto se
+ * decide por USUARIO con los interruptores de Ajustes → Usuarios, no por rol:
+ * `permisosDeUsuario` lee lo guardado y esta interfaz es solo la forma.
  */
 export interface Permisos {
   verInbox: boolean;
@@ -90,13 +84,24 @@ export function permisosDe(_rol: Rol): Permisos {
   return { ...TODO_PERMITIDO };
 }
 
+/**
+ * Los permisos GUARDADOS de un usuario concreto. Si no está en la lista (lo
+ * borraron con la sesión viva) devuelve todo permitido — da igual, porque
+ * `verificarToken` ya lo rebotó antes de llegar aquí.
+ */
+export function permisosDeUsuario(id: string): Permisos {
+  const usuario = usuarioHubPorId(id);
+  return usuario ? { ...PERMISOS_COMPLETOS, ...usuario.permisos } : { ...TODO_PERMITIDO };
+}
+
 /** La lista para poblar el desplegable del login. Nunca incluye la clave. */
 export function listarUsuarios(): Usuario[] {
-  return USERS.map((usuario) => ({ ...usuario }));
+  return usuariosHub().map(({ id, nombre, rol }) => ({ id, nombre, rol }));
 }
 
 export function usuarioPorId(id: string): Usuario | null {
-  return USERS.find((usuario) => usuario.id === id) ?? null;
+  const usuario = usuarioHubPorId(id);
+  return usuario ? { id: usuario.id, nombre: usuario.nombre, rol: usuario.rol } : null;
 }
 
 /** Comparación en tiempo constante: la clave es corta y adivinable por medida. */

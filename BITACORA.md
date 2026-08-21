@@ -32,6 +32,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-08-20 | _(este mismo)_ | Ajustes en pestañas + matriz de avisos por nivel + usuarios del panel editables (reunión Andrés) | 3.0 |
 | 2026-08-20 | _(este mismo)_ | Caso Eulalia: cotizar deja de preguntar el nombre («¿cliente final?») y «ayúdeme» es un sí | 0.5 |
 | 2026-08-18 | _(este mismo)_ | La ubicación se manda como link de Maps + el seguimiento deja de repreguntar la visita ya agendada | 1.5 |
 | 2026-08-16 | _(este mismo)_ | El reporte deja de creerse el acuse de Meta (aceptar no es entregar) | 1.0 |
@@ -143,11 +144,33 @@ Ya viene activado en este equipo.
 | 2026-07-14 | ac09171 | Ubicaciones de locales + análisis de features del cliente | 1.5 |
 | 2026-07-13 | feadf57 | Brief + plan de desarrollo + plan financiero + catálogo | 4.0 |
 | 2026-07-13 | d997844 | Commit inicial (repo) | 0.25 |
-| | | **TOTAL** | **~101.0 h** |
+| | | **TOTAL** | **~104.0 h** |
 
 ---
 
 ## Entradas (más reciente primero)
+
+### 2026-08-20 · Ajustes en pestañas, avisos por nivel y usuarios del panel · ⏱️ 3.0 h
+
+**Qué:** Tres pedidos de la reunión con Andrés Tamayo. (1) `Ajustes` se parte en
+cinco pestañas —Bot, Negocio, Piezas, Avisos, Usuarios— porque la página única ya
+no se podía navegar. (2) Los avisos de WhatsApp se enrutan por una **matriz
+nivel × categoría** editable desde el panel (`aviso_matrix` en `settings`): seis
+categorías (ventas, visitas, ventana, cliente, bot, técnico) × dos niveles; la
+**ventana de 24 h queda apagada para todos** por defecto — eran demasiados
+mensajes — y se re-enciende con una casilla, sin deploy. (3) Los usuarios del
+hub salen del código y pasan a `settings` (`hub_users`, espejo síncrono en
+memoria para el gate): el nivel más alto crea usuarios desde Ajustes → Usuarios,
+elige el username del desplegable del login y reparte con interruptores qué
+pestañas ve cada uno; el nav del hub obedece esos permisos.
+
+**Por qué:** Andrés pidió controlar quién recibe qué aviso sin depender de
+Manuel, y poder dar de alta gente al panel con accesos a la medida (esconder
+cifras de venta, por ejemplo). Y el canal de avisos se estaba quemando: un
+asesor que recibe ruido deja de leer el canal, y entonces tampoco lee la
+cotización nueva.
+
+---
 
 ### 2026-08-20 · Caso Eulalia: cotizar no pregunta el nombre · ⏱️ 0.5 h
 

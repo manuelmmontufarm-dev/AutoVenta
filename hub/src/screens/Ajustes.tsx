@@ -9,6 +9,7 @@
 import { motion } from "framer-motion";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { authHeaders } from "../data/realSource";
+import { useHub } from "../store";
 import { BotPowerSwitch } from "./Settings";
 
 // ---------------------------------------------------------------------------
@@ -86,6 +87,22 @@ const PIEZAS = [
 
 // ---------------------------------------------------------------------------
 
+/**
+ * Ajustes creció hasta volverse una sola página interminable; estas pestañas
+ * lo parten en lo que el negocio busca: el bot, el local, las piezas que ve el
+ * cliente, los avisos de WhatsApp y quién entra al panel.
+ */
+type TabAjustes = "bot" | "negocio" | "piezas" | "avisos" | "usuarios";
+const TABS_AJUSTES: { id: TabAjustes; label: string; soloAdmin?: boolean }[] = [
+  { id: "bot", label: "Bot" },
+  { id: "negocio", label: "Negocio" },
+  { id: "piezas", label: "Piezas" },
+  { id: "avisos", label: "Avisos" },
+  // Crear usuarios y repartir accesos es del nivel más alto (Joaquín, Andrés,
+  // Manuel). Entrar con la clave cruda también vale: esa llave ya abre todo.
+  { id: "usuarios", label: "Usuarios", soloAdmin: true },
+];
+
 export function Ajustes() {
   const [paleta, setPaleta] = useState("grafito");
   const [fuente, setFuente] = useState("exo");
@@ -161,6 +178,12 @@ export function Ajustes() {
     [benefits],
   );
 
+  // Entrar con la clave cruda deja `usuario` en null: esa llave ya abre todo.
+  const usuario = useHub((s) => s.usuario);
+  const esNivelMaximo = !usuario || usuario.rol === "admin";
+  const [tab, setTab] = useState<TabAjustes>("bot");
+  const tabs = TABS_AJUSTES.filter((t) => !t.soloAdmin || esNivelMaximo);
+
   if (cargando) {
     return <div className="p-6 text-sm text-faint">Cargando ajustes…</div>;
   }
@@ -169,39 +192,70 @@ export function Ajustes() {
   // pantalla se pasa del alto de <main> y no hay forma de bajar.
   return (
     <div className="h-full overflow-y-auto px-4 pb-10">
+      <div className="mb-2.5 flex flex-wrap gap-1.5">
+        {tabs.map((t) => (
+          <button
+            key={t.id} onClick={() => setTab(t.id)}
+            className={`rounded-full px-4 py-2 text-[12px] transition ${
+              t.id === tab ? "bg-paper/[.14] font-semibold" : "bg-paper/[.04] text-faint hover:bg-paper/[.08]"
+            }`}
+          >{t.label}</button>
+        ))}
+      </div>
+
       {error && (
         <div className="glass mb-2.5 rounded-2xl border border-[var(--color-red)]/40 p-4 text-[13px] text-[var(--color-red)]">
           {error}
         </div>
       )}
 
-      {/* El interruptor va primero: apagar el bot tiene que ser lo más fácil
-          de encontrar en toda la pantalla. */}
-      <div className="mb-2.5">
-        <BotPowerSwitch />
-      </div>
-
-      <div className="grid gap-2.5 xl:grid-cols-[minmax(0,1fr)_460px]">
+      {tab === "bot" && (
         <div className="flex flex-col gap-2.5">
+          {/* El interruptor va primero: apagar el bot tiene que ser lo más
+              fácil de encontrar en toda la pantalla. */}
+          <BotPowerSwitch />
           <SeccionGuardian onError={setError} />
-          <SeccionCupones onError={setError} />
-          <SeccionTema
-            paleta={paleta} fuente={fuente} paletas={paletas} fuentes={fuentes} muestras={muestras}
-            onPaleta={setPaleta} onFuente={setFuente}
-            sinAplicar={sinAplicar} guardando={guardando} onAplicar={aplicar}
-          />
-          {hours && <SeccionHorarios hours={hours} setHours={setHours} onError={setError} />}
           {precios && <SeccionPrecios precios={precios} setPrecios={setPrecios} onError={setError} />}
-          <SeccionPromociones benefits={benefits} setBenefits={setBenefits} onError={setError} />
-          <SeccionMarcas profiles={profiles} setProfiles={setProfiles} onError={setError} />
-          <SeccionAsesores onError={setError} />
         </div>
+      )}
 
-        <VistaPrevia
-          pieza={pieza} setPieza={setPieza}
-          paleta={paleta} fuente={fuente} beneficios={beneficiosPreview}
-        />
-      </div>
+      {tab === "negocio" && (
+        <div className="flex flex-col gap-2.5">
+          {hours && <SeccionHorarios hours={hours} setHours={setHours} onError={setError} />}
+          <SeccionCupones onError={setError} />
+        </div>
+      )}
+
+      {tab === "piezas" && (
+        <div className="grid gap-2.5 xl:grid-cols-[minmax(0,1fr)_460px]">
+          <div className="flex flex-col gap-2.5">
+            <SeccionTema
+              paleta={paleta} fuente={fuente} paletas={paletas} fuentes={fuentes} muestras={muestras}
+              onPaleta={setPaleta} onFuente={setFuente}
+              sinAplicar={sinAplicar} guardando={guardando} onAplicar={aplicar}
+            />
+            <SeccionPromociones benefits={benefits} setBenefits={setBenefits} onError={setError} />
+            <SeccionMarcas profiles={profiles} setProfiles={setProfiles} onError={setError} />
+          </div>
+          <VistaPrevia
+            pieza={pieza} setPieza={setPieza}
+            paleta={paleta} fuente={fuente} beneficios={beneficiosPreview}
+          />
+        </div>
+      )}
+
+      {tab === "avisos" && (
+        <div className="flex flex-col gap-2.5">
+          <SeccionAsesores onError={setError} />
+          <SeccionMatrizAvisos editable={esNivelMaximo} onError={setError} />
+        </div>
+      )}
+
+      {tab === "usuarios" && esNivelMaximo && (
+        <div className="flex flex-col gap-2.5">
+          <SeccionUsuarios onError={setError} />
+        </div>
+      )}
     </div>
   );
 }
@@ -900,7 +954,7 @@ function SeccionAsesores({ onError }: { onError: (e: string) => void }) {
   return (
     <Tarjeta
       titulo="Quién recibe los avisos"
-      sub="El bot avisa por WhatsApp a los de esta lista. «Todo» es para quien dirige el negocio; «Solo local» deja pasar únicamente los cinco avisos que se atienden desde el mostrador, para que el canal siga sirviendo."
+      sub="El bot avisa por WhatsApp a los de esta lista. El nivel de cada número decide qué tipo de avisos le llegan; qué recibe cada nivel se ajusta en la tarjeta de abajo."
     >
       <div className="flex flex-col gap-2">
         {asesores.map((a) => (
@@ -1119,5 +1173,262 @@ function VistaPrevia({ pieza, setPieza, paleta, fuente, beneficios }: {
         )}
       </div>
     </motion.aside>
+  );
+}
+
+// ---------------------------------------------------------------------------
+
+type NivelAviso = "admin" | "asesor";
+type MatrizAvisos = Record<NivelAviso, string[]>;
+
+/**
+ * Las categorías en el idioma del negocio. El detalle enumera los avisos que
+ * caen dentro, para que marcar una casilla no sea un acto de fe.
+ */
+const CATEGORIAS_UI: { id: string; label: string; detalle: string }[] = [
+  { id: "ventas", label: "Ventas", detalle: "Nueva cotización · el cliente quiere comprar" },
+  { id: "visitas", label: "Visitas", detalle: "Confirmó cuándo viene · viene mañana · viene hoy" },
+  {
+    id: "ventana", label: "Ventana de 24 h",
+    detalle: "Aviso antes de que se cierre la ventana para escribirle a un cliente. Apagada para todos: eran demasiados mensajes (reunión 19-ago).",
+  },
+  { id: "cliente", label: "Cliente", detalle: "Pide un asesor · está molesto · pidió que no le escriban más" },
+  { id: "bot", label: "El bot necesita ayuda", detalle: "Conversaciones trabadas y bloqueos del guardián" },
+  { id: "tecnico", label: "Fallas técnicas", detalle: "Errores al enviar mensajes de WhatsApp" },
+];
+
+const NIVELES_UI: { id: NivelAviso; label: string }[] = [
+  { id: "admin", label: "Todo" },
+  { id: "asesor", label: "Solo local" },
+];
+
+/**
+ * Qué tipo de aviso recibe cada nivel. Cada casilla guarda al soltarla; si el
+ * servidor la rechaza, la casilla vuelve a como estaba para no mentir.
+ */
+function SeccionMatrizAvisos({ editable, onError }: { editable: boolean; onError: (e: string) => void }) {
+  const [matriz, setMatriz] = useState<MatrizAvisos | null>(null);
+  useEffect(() => {
+    api<{ matriz: MatrizAvisos }>("/api/aviso-matrix")
+      .then((r) => setMatriz(r.matriz))
+      .catch((e) => onError(e instanceof Error ? e.message : "No se pudo cargar la matriz de avisos"));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const alternar = async (nivel: NivelAviso, categoria: string) => {
+    if (!matriz) return;
+    const fila = matriz[nivel].includes(categoria)
+      ? matriz[nivel].filter((c) => c !== categoria)
+      : [...matriz[nivel], categoria];
+    const siguiente = { ...matriz, [nivel]: fila };
+    setMatriz(siguiente);
+    try {
+      const r = await api<{ matriz: MatrizAvisos }>("/api/aviso-matrix", {
+        method: "PUT", body: JSON.stringify({ matriz: siguiente }),
+      });
+      setMatriz(r.matriz);
+      onError("");
+    } catch (e) {
+      setMatriz(matriz);
+      onError(e instanceof Error ? e.message : "No se pudo guardar la matriz");
+    }
+  };
+
+  return (
+    <Tarjeta
+      titulo="Qué recibe cada nivel"
+      sub="Cada aviso del bot cae en una de estas categorías; aquí se decide qué categoría le llega a cada nivel. El reporte diario de las 20:00 va siempre y solo al nivel «Todo»."
+    >
+      {!matriz && <p className="text-[11px] text-faint">Cargando la matriz…</p>}
+      {matriz && (
+        <div className="flex flex-col gap-2">
+          <div className="flex items-center gap-2 px-3 text-[10px] font-semibold uppercase text-faint">
+            <span className="flex-1">Tipo de aviso</span>
+            {NIVELES_UI.map((n) => <span key={n.id} className="w-20 text-center">{n.label}</span>)}
+          </div>
+          {CATEGORIAS_UI.map((c) => (
+            <div key={c.id} className="flex items-center gap-2 rounded-2xl border border-paper/[.08] bg-paper/[.03] p-3">
+              <div className="min-w-0 flex-1">
+                <p className="text-[12.5px] font-semibold">{c.label}</p>
+                <p className="mt-0.5 text-[10.5px] text-faint">{c.detalle}</p>
+              </div>
+              {NIVELES_UI.map((n) => (
+                <label key={n.id} className="flex w-20 justify-center" title={editable ? undefined : "Solo un administrador puede cambiarlo"}>
+                  <input
+                    type="checkbox"
+                    checked={matriz[n.id].includes(c.id)}
+                    disabled={!editable}
+                    onChange={() => void alternar(n.id, c.id)}
+                    className="size-4 accent-[var(--color-ok)] disabled:opacity-40"
+                  />
+                </label>
+              ))}
+            </div>
+          ))}
+        </div>
+      )}
+    </Tarjeta>
+  );
+}
+
+// ---------------------------------------------------------------------------
+
+interface PermisosHub {
+  verInbox: boolean; verKanban: boolean; verOportunidades: boolean; verMetricas: boolean;
+  verFinanzas: boolean; usarCotizador: boolean; verAjustes: boolean; verErrores: boolean;
+}
+
+interface UsuarioHub {
+  id: string;
+  nombre: string;
+  rol: "admin" | "asesor";
+  permisos: PermisosHub;
+}
+
+/** Cada interruptor en el idioma de las pestañas que abre o esconde. */
+const PERMISOS_UI: { id: keyof PermisosHub; label: string }[] = [
+  { id: "verInbox", label: "Inbox" },
+  { id: "verKanban", label: "Pipeline" },
+  { id: "verOportunidades", label: "Oportunidades" },
+  { id: "usarCotizador", label: "Cotizador" },
+  { id: "verMetricas", label: "Métricas" },
+  { id: "verFinanzas", label: "Cifras de venta ($)" },
+  { id: "verErrores", label: "Alertas del bot" },
+  { id: "verAjustes", label: "Ajustes" },
+];
+
+const ROLES_HUB: { valor: "admin" | "asesor"; etiqueta: string; explica: string }[] = [
+  { valor: "admin", etiqueta: "Administrador", explica: "Puede crear usuarios, repartir accesos y cambiar la matriz de avisos." },
+  { valor: "asesor", etiqueta: "Asesor", explica: "Usa el panel; no administra usuarios ni avisos." },
+];
+
+/**
+ * Quién entra al panel y qué ve. Distinto de «Quién recibe los avisos»: esto
+ * son cuentas del dashboard; aquello, teléfonos de WhatsApp.
+ *
+ * El username es lo que sale en el desplegable del login, por eso se elige a
+ * mano y no se inventa desde el nombre. La clave sigue siendo la misma para
+ * todos (decisión del cliente, 14-ago).
+ */
+function SeccionUsuarios({ onError }: { onError: (e: string) => void }) {
+  const [usuarios, setUsuarios] = useState<UsuarioHub[]>([]);
+  const [username, setUsername] = useState("");
+  const [nombre, setNombre] = useState("");
+  const [rol, setRol] = useState<"admin" | "asesor">("asesor");
+  const yo = useHub((s) => s.usuario);
+
+  const cargar = useCallback(async () => {
+    try {
+      setUsuarios((await api<{ usuarios: UsuarioHub[] }>("/api/hub-users")).usuarios);
+    } catch (e) {
+      onError(e instanceof Error ? e.message : "No se pudieron cargar los usuarios");
+    }
+  }, [onError]);
+  useEffect(() => { void cargar(); }, [cargar]);
+
+  const crear = async () => {
+    try {
+      await api("/api/hub-users", {
+        method: "POST",
+        body: JSON.stringify({ id: username.trim().toLowerCase(), nombre: nombre.trim(), rol }),
+      });
+      setUsername(""); setNombre(""); setRol("asesor");
+      onError("");
+      await cargar();
+    } catch (e) {
+      onError(e instanceof Error ? e.message : "No se pudo crear el usuario");
+    }
+  };
+
+  const cambiar = async (u: UsuarioHub, patch: Partial<Omit<UsuarioHub, "id" | "permisos">> & { permisos?: Partial<PermisosHub> }) => {
+    setUsuarios(usuarios.map((x) => (x.id === u.id
+      ? { ...x, ...patch, permisos: { ...x.permisos, ...(patch.permisos ?? {}) } }
+      : x)));
+    try {
+      await api(`/api/hub-users/${encodeURIComponent(u.id)}`, { method: "PATCH", body: JSON.stringify(patch) });
+      onError("");
+    } catch (e) {
+      onError(e instanceof Error ? e.message : "No se pudo guardar");
+      await cargar();
+    }
+  };
+
+  const borrar = async (id: string) => {
+    try {
+      await api(`/api/hub-users/${encodeURIComponent(id)}`, { method: "DELETE" });
+      setUsuarios(usuarios.filter((u) => u.id !== id));
+      onError("");
+    } catch (e) {
+      onError(e instanceof Error ? e.message : "No se pudo borrar");
+    }
+  };
+
+  return (
+    <Tarjeta
+      titulo="Usuarios del panel"
+      sub="Quién sale en el desplegable del login y qué pestañas ve. Todos entran con la misma clave de siempre; los cambios de acceso se aplican la próxima vez que esa persona inicie sesión."
+    >
+      <div className="flex flex-col gap-2.5">
+        {usuarios.map((u) => (
+          <div key={u.id} className="rounded-2xl border border-paper/[.08] bg-paper/[.03] p-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="tnum shrink-0 rounded-lg bg-paper/[.08] px-2 py-1 text-[11px] font-bold">{u.id}</span>
+              <input
+                value={u.nombre}
+                onChange={(e) => setUsuarios(usuarios.map((x) => (x.id === u.id ? { ...x, nombre: e.target.value } : x)))}
+                onBlur={() => void cambiar(u, { nombre: u.nombre })}
+                className={`${inputCls} min-w-0 flex-1`}
+              />
+              <select
+                value={u.rol}
+                onChange={(e) => void cambiar(u, { rol: e.target.value as "admin" | "asesor" })}
+                title={ROLES_HUB.find((r) => r.valor === u.rol)?.explica}
+                className={`${selectCls} py-1.5 text-[11.5px]`}
+                disabled={u.id === yo?.id}
+              >
+                {ROLES_HUB.map((r) => <option key={r.valor} value={r.valor}>{r.etiqueta}</option>)}
+              </select>
+              <button
+                onClick={() => void borrar(u.id)}
+                disabled={u.id === yo?.id}
+                className="shrink-0 rounded-lg px-2 py-1 text-[16px] leading-none text-faint hover:text-[var(--color-red)] disabled:opacity-30"
+                title={u.id === yo?.id ? "No puedes borrarte a ti mismo" : "Borrar usuario"}
+              >×</button>
+            </div>
+            <div className="mt-2.5 grid grid-cols-2 gap-x-4 gap-y-1.5 sm:grid-cols-4">
+              {PERMISOS_UI.map((permiso) => (
+                <label key={permiso.id} className="flex items-center gap-1.5 text-[11px]">
+                  <input
+                    type="checkbox"
+                    checked={u.permisos[permiso.id]}
+                    onChange={(e) => void cambiar(u, { permisos: { [permiso.id]: e.target.checked } })}
+                    className="size-3.5 accent-[var(--color-ok)]"
+                  />
+                  {permiso.label}
+                </label>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+      <div className="mt-3 flex flex-wrap gap-2">
+        <input
+          value={username}
+          onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9._-]/g, ""))}
+          placeholder="username (para el login)" className={`${inputCls} flex-1`}
+        />
+        <input value={nombre} onChange={(e) => setNombre(e.target.value)}
+          placeholder="Nombre completo" className={`${inputCls} flex-1`} />
+        <select value={rol} onChange={(e) => setRol(e.target.value as "admin" | "asesor")}
+          title={ROLES_HUB.find((r) => r.valor === rol)?.explica} className={selectCls}>
+          {ROLES_HUB.map((r) => <option key={r.valor} value={r.valor}>{r.etiqueta}</option>)}
+        </select>
+        <button
+          onClick={() => void crear()}
+          disabled={username.trim().length < 2 || !nombre.trim()}
+          className="shrink-0 rounded-xl bg-paper/[.10] px-4 text-[12px] font-semibold hover:bg-paper/[.16] disabled:opacity-40"
+        >Crear</button>
+      </div>
+    </Tarjeta>
   );
 }

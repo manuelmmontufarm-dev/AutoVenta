@@ -268,7 +268,9 @@ describe("A quién le llega, según la tabla advisors", () => {
 
       expect(await telefonos({ evento: "visita_hoy" })).toContain("593988888888");
       expect(await telefonos({ evento: "quote_created" })).toContain("593988888888");
-      expect(await telefonos({ evento: "ventana_por_cerrar" })).toContain("593988888888");
+      // Ventana de 24 h: apagada por defecto para TODOS desde la reunión con
+      // Andrés (19-ago) — eran demasiados mensajes. Se re-enciende en Ajustes.
+      expect(await telefonos({ evento: "ventana_por_cerrar" })).toHaveLength(0);
 
       // Errores del bot y fallas de envío: no los acciona desde el mostrador.
       expect(await telefonos({ evento: "send_error" })).not.toContain("593988888888");

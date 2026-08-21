@@ -17,6 +17,15 @@ import { beforeEach, describe, expect, it } from "vitest";
 const ADMIN_KEY = "clave-de-prueba-sesiones";
 process.env.ADMIN_KEY = ADMIN_KEY;
 process.env.NODE_ENV = "test";
+// auth.ts consulta ahora el espejo de usuarios (hubUsers → db/client → config):
+// la config exige estas variables al importarse. No se conecta a nada — sin
+// base, el espejo se queda en la semilla, que es justo lo que se prueba aquí.
+process.env.OPENAI_API_KEY ||= "test";
+process.env.WHATSAPP_TOKEN ||= "test";
+process.env.WHATSAPP_APP_SECRET ||= "test";
+process.env.WHATSAPP_VERIFY_TOKEN ||= "test";
+process.env.WHATSAPP_PHONE_ID ||= "test";
+process.env.DATABASE_URL ||= "postgresql://localhost/autoventa_no_se_conecta";
 
 const {
   crearToken,

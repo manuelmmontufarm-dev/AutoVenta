@@ -109,8 +109,17 @@ import { getBotPower, setBotPower } from "../services/botPower.js";
 import {
   avisarAsesoresGlobal,
   esRolAsesor,
+  getMatrizAvisos,
   mensajeCambioDeBot,
+  saveMatrizAvisos,
 } from "../services/advisorNotifications.js";
+import {
+  actualizarUsuarioHub,
+  borrarUsuarioHub,
+  cargarUsuariosHub,
+  crearUsuarioHub,
+  usuariosHub,
+} from "../services/hubUsers.js";
 import { sendImage, reloadWa } from "../wa/client.js";
 import { registrarEnviado } from "../wa/outboundRegistry.js";
 import {
@@ -118,7 +127,7 @@ import {
   crearToken,
   esperaDeLogin,
   listarUsuarios,
-  permisosDe,
+  permisosDeUsuario,
   pinValido,
   registrarLoginBueno,
   registrarLoginFallido,
@@ -368,11 +377,32 @@ export function createAdminRouter(): express.Router {
       ok: true,
       token: crearToken(usuario.id),
       user: usuario,
-      permisos: permisosDe(usuario.rol),
+      permisos: permisosDeUsuario(usuario.id),
     });
   });
 
   router.use(exigirCredencial);
+
+  // El espejo de usuarios del hub se puebla al arrancar: el login y el gate lo
+  // leen síncrono y no pueden esperar a la base petición por petición.
+  void cargarUsuariosHub();
+
+  /**
+   * Solo el nivel más alto administra usuarios y la matriz de avisos. Entrar
+   * con la clave cruda (sin usuario) también pasa: es el camino del panel
+   * central y de los scripts, que ya implican tener la llave de todo.
+   */
+  const exigirNivelMaximo = (
+    req: express.Request,
+    res: express.Response,
+    next: express.NextFunction,
+  ): void => {
+    if (!req.usuario || req.usuario.rol === "admin") {
+      next();
+      return;
+    }
+    res.status(403).json({ ok: false, error: "Solo un administrador puede cambiar esto" });
+  };
 
   // Estado general: las páginas lo usan para validar la clave y prellenar datos.
   router.get("/status", (req, res) => {
@@ -384,7 +414,7 @@ export function createAdminRouter(): express.Router {
       asesor: config.whatsapp.sellerName,
       // null cuando se entró con la clave cruda (bot, scripts, panel central).
       usuario: req.usuario ?? null,
-      permisos: req.usuario ? permisosDe(req.usuario.rol) : null,
+      permisos: req.usuario ? permisosDeUsuario(req.usuario.id) : null,
     });
   });
 
@@ -1684,6 +1714,55 @@ export function createAdminRouter(): express.Router {
   router.delete("/advisors/:id", async (req, res) => {
     await sql`delete from advisors where id = ${Number(req.params.id)}`;
     res.json({ ok: true });
+  });
+
+  // ── Matriz de avisos (Ajustes → Avisos) ────────────────────────────────────
+  // Qué categoría de aviso recibe cada nivel. Leerla puede cualquiera del hub
+  // (la pantalla la pinta); cambiarla es de administradores.
+
+  router.get("/aviso-matrix", async (_req, res) => {
+    res.json({ ok: true, matriz: await getMatrizAvisos() });
+  });
+
+  router.put("/aviso-matrix", exigirNivelMaximo, async (req, res) => {
+    try {
+      res.json({ ok: true, matriz: await saveMatrizAvisos(req.body?.matriz ?? req.body) });
+    } catch (error) {
+      res.status(400).json({ ok: false, error: mensaje(error, "No se pudo guardar la matriz") });
+    }
+  });
+
+  // ── Usuarios del hub (Ajustes → Usuarios) ──────────────────────────────────
+  // Distinto de /advisors a propósito: esto es QUIÉN ENTRA AL DASHBOARD y qué
+  // pantallas ve; /advisors es qué teléfono recibe avisos por WhatsApp.
+
+  router.get("/hub-users", exigirNivelMaximo, (_req, res) => {
+    res.json({ ok: true, usuarios: usuariosHub() });
+  });
+
+  router.post("/hub-users", exigirNivelMaximo, async (req, res) => {
+    try {
+      res.json({ ok: true, usuario: await crearUsuarioHub(req.body) });
+    } catch (error) {
+      res.status(400).json({ ok: false, error: mensaje(error, "No se pudo crear el usuario") });
+    }
+  });
+
+  router.patch("/hub-users/:id", exigirNivelMaximo, async (req, res) => {
+    try {
+      res.json({ ok: true, usuario: await actualizarUsuarioHub(String(req.params.id), req.body) });
+    } catch (error) {
+      res.status(400).json({ ok: false, error: mensaje(error, "No se pudo guardar el usuario") });
+    }
+  });
+
+  router.delete("/hub-users/:id", exigirNivelMaximo, async (req, res) => {
+    try {
+      await borrarUsuarioHub(String(req.params.id));
+      res.json({ ok: true });
+    } catch (error) {
+      res.status(400).json({ ok: false, error: mensaje(error, "No se pudo borrar el usuario") });
+    }
   });
 
   router.get("/brand-profiles", async (_req, res) => {

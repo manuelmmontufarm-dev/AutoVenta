@@ -17,18 +17,19 @@ process.env.WHATSAPP_PHONE_ID ||= "test";
 process.env.DATABASE_URL ||= "postgresql://localhost/autoventa_no_se_conecta";
 
 const {
-  EVENTOS_AVISO, EVENTOS_ASESOR, ROLES_ASESOR, buildAdvisorMessage,
-  cabeceraDeEvento, esRolAsesor, recibeEvento,
+  CATEGORIAS_AVISO, CATEGORIA_DE_EVENTO, EVENTOS_AVISO, MATRIZ_DEFECTO,
+  ROLES_ASESOR, buildAdvisorMessage, cabeceraDeEvento, esRolAsesor, recibeEvento,
 } = await import("../src/services/advisorNotifications.js");
 
 /**
- * Los cinco de la reunión del 14-ago, escritos a mano y no leídos del código:
- * si alguien cambia la lista de producción, este literal es el acta contra la
- * que se compara.
+ * El acta de la reunión con Andrés (19-ago), escrita a mano y no leída del
+ * código: el asesor de local recibe ventas y visitas, y los avisos de ventana
+ * de 24 h no le llegan a NADIE por defecto — eran demasiados. La matriz es
+ * editable desde Ajustes; esto prueba el punto de partida.
  */
-const LOS_CINCO = [
-  "ventana_por_cerrar",
+const DEL_MOSTRADOR = [
   "quote_created",
+  "customer_ready_to_buy",
   "visita_comprometida",
   "visita_manana",
   "visita_hoy",
@@ -46,22 +47,39 @@ describe("Rol del asesor", () => {
   });
 });
 
-describe("Quién recibe cada aviso", () => {
-  it("el admin lo recibe todo, sin excepción", () => {
+describe("Quién recibe cada aviso (matriz por defecto)", () => {
+  it("cada evento tiene exactamente una categoría conocida", () => {
     for (const evento of EVENTOS_AVISO) {
-      expect(recibeEvento("admin", evento), `admin debería recibir ${evento}`).toBe(true);
+      expect(CATEGORIAS_AVISO, `categoría de ${evento}`).toContain(CATEGORIA_DE_EVENTO[evento]);
     }
   });
 
-  it("el asesor de local recibe exactamente los cinco de la reunión", () => {
+  it("el admin recibe todo MENOS la ventana de 24 h", () => {
     for (const evento of EVENTOS_AVISO) {
-      const esperado = (LOS_CINCO as readonly string[]).includes(evento);
+      const esperado = evento !== "ventana_por_cerrar";
+      expect(recibeEvento("admin", evento), `admin y ${evento}`).toBe(esperado);
+    }
+  });
+
+  it("el asesor de local recibe exactamente ventas y visitas", () => {
+    for (const evento of EVENTOS_AVISO) {
+      const esperado = (DEL_MOSTRADOR as readonly string[]).includes(evento);
       expect(recibeEvento("asesor", evento), `asesor y ${evento}`).toBe(esperado);
     }
-    expect([...EVENTOS_ASESOR].sort()).toEqual([...LOS_CINCO].sort());
   });
 
-  it("nada de reportes, guardián, sentimiento ni fallas técnicas para el asesor", () => {
+  it("la matriz manda: re-encender la ventana desde el panel vuelve a avisar", () => {
+    const conVentana = {
+      admin: [...MATRIZ_DEFECTO.admin, "ventana" as const],
+      asesor: [...MATRIZ_DEFECTO.asesor, "ventana" as const],
+    };
+    expect(recibeEvento("admin", "ventana_por_cerrar", conVentana)).toBe(true);
+    expect(recibeEvento("asesor", "ventana_por_cerrar", conVentana)).toBe(true);
+    // Y apagarle las ventas al asesor también obedece.
+    expect(recibeEvento("asesor", "quote_created", { admin: [], asesor: ["visitas"] })).toBe(false);
+  });
+
+  it("nada de guardián, sentimiento ni fallas técnicas para el asesor", () => {
     // Los que motivaron la separación: el asesor que recibe esto deja de leer
     // el canal, y entonces tampoco lee la cotización nueva.
     for (const ruido of [

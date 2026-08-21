@@ -19,6 +19,7 @@ import { Opportunities } from "./screens/Opportunities";
 import { useHub } from "./store";
 
 import type { PhaseFlags } from "./data/types";
+import type { Permisos } from "./data/realSource";
 
 // `requiere`: fase que desbloquea cada pantalla (null = núcleo, Fase 1, siempre).
 // Inbox y Pipeline son el núcleo. Cotizador y Métricas = Fase 3.
@@ -36,8 +37,25 @@ const NAV = [
   { id: "ajustes", label: "Ajustes", corto: "Ajustes", icon: IconSliders, requiere: null },
 ] as const;
 
-/** ¿La pantalla está permitida con las fases activas? */
-function pantallaPermitida(vista: string, phases: PhaseFlags): boolean {
+/**
+ * Qué permiso del usuario abre cada pantalla. Los interruptores se editan en
+ * Ajustes → Usuarios; quien no tiene el permiso no ve la pestaña ni entra por
+ * URL. `ticket` cuelga del Inbox.
+ */
+const PERMISO_DE_VISTA: Record<string, keyof Permisos> = {
+  inbox: "verInbox",
+  ticket: "verInbox",
+  opportunities: "verOportunidades",
+  pipeline: "verKanban",
+  cotizador: "usarCotizador",
+  dashboard: "verMetricas",
+  ajustes: "verAjustes",
+};
+
+/** ¿La pantalla está permitida con las fases activas y los permisos del usuario? */
+function pantallaPermitida(vista: string, phases: PhaseFlags, permisos: Permisos): boolean {
+  const llave = PERMISO_DE_VISTA[vista];
+  if (llave && !permisos[llave]) return false;
   if (vista === "cotizador" || vista === "dashboard") return phases.fase3;
   if (vista === "opportunities") return phases.fase4;
   return true;
@@ -48,7 +66,7 @@ const TITULOS: Record<string, { titulo: string; sub: string }> = {
   opportunities: { titulo: "Oportunidades", sub: "clientes por recuperar y ventas en recta final" },
   pipeline: { titulo: "Pipeline", sub: "tu guion de venta, en vivo" },
   dashboard: { titulo: "Métricas", sub: "el negocio de un vistazo" },
-  ajustes: { titulo: "Ajustes", sub: "promociones, colores y qué dice el bot de cada marca" },
+  ajustes: { titulo: "Ajustes", sub: "bot, negocio, piezas, avisos y usuarios" },
   cotizador: { titulo: "Cotizador", sub: "inventario y precios reales de Contífico" },
   settings: { titulo: "Configuración técnica", sub: "canal, prompts y salud del sistema" },
   ticket: { titulo: "Conversación", sub: "ticket en detalle" },
@@ -60,10 +78,11 @@ function navActivo(route: Route): string {
 
 export default function App() {
   const route = useRoute();
-  const { init, cargando, tickets, demo, dataMode, toggleDemo, phases, conexion, power, usuario, salir } = useHub();
+  const { init, cargando, tickets, demo, dataMode, toggleDemo, phases, conexion, power, usuario, permisos, salir } = useHub();
   const [audioOn, setAudioOn] = useState(sonidoActivo);
 
-  const navVisible = NAV.filter((item) => !item.requiere || phases[item.requiere]);
+  const navVisible = NAV.filter((item) =>
+    (!item.requiere || phases[item.requiere]) && pantallaPermitida(item.id, phases, permisos));
   const faseActiva = phases.fase4 ? 4 : phases.fase3 ? 3 : phases.fase2 ? 2 : 1;
   // El gate solo aplica al producto real; el demo usa fixtures y no tiene clave.
   const bloqueado =
@@ -71,8 +90,14 @@ export default function App() {
 
   // Si la fase que habilitaba esta pantalla se apaga, se vuelve al Inbox.
   useEffect(() => {
-    if (!pantallaPermitida(route.vista, phases)) navigate("inbox");
-  }, [route.vista, phases]);
+    if (!pantallaPermitida(route.vista, phases, permisos)) {
+      // El refugio es la primera pantalla que este usuario SÍ puede ver: a
+      // alguien sin Inbox no se lo puede mandar al Inbox en bucle.
+      const refugio = NAV.find((n) =>
+        (!n.requiere || phases[n.requiere]) && pantallaPermitida(n.id, phases, permisos));
+      navigate((refugio?.id ?? "inbox") as Parameters<typeof navigate>[0]);
+    }
+  }, [route.vista, phases, permisos]);
 
   useEffect(() => {
     void init();
