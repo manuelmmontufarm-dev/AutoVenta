@@ -4,6 +4,19 @@
  */
 import { config } from "./config.js";
 import { createServer } from "./server/webhook.js";
+
+// Las rutas async del panel (admin.ts) corren sin try/catch y Express 4 no
+// captura sus promesas rechazadas: un ECONNRESET de Postgres en medio de una
+// consulta (p. ej. listFollowUpBoard) se volvía unhandledRejection y Node ≥15
+// mataba el proceso entero — así se cayó Depot Tire el 20-ago. El bot debe
+// sobrevivir a un corte puntual de red con la base; la request afectada se
+// pierde, el proceso no.
+process.on("unhandledRejection", (reason) => {
+  console.error(
+    "🧯 Promesa rechazada sin capturar (el proceso sigue vivo):",
+    reason instanceof Error ? reason.stack ?? reason.message : reason,
+  );
+});
 import { initWa, setWaHandlers, sendCustomerText, showTyping, downloadMedia } from "./wa/client.js";
 import { describirFotoDeLlanta } from "./services/vision.js";
 import { transcribirAudio } from "./services/transcripcion.js";

@@ -32,6 +32,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-08-23 | _(este mismo)_ | Depot Tire caído desde el 20-ago: un ECONNRESET de Postgres en el panel mataba el proceso; salvavidas de unhandledRejection en HTTP y worker + redeploy | 0.5 |
 | 2026-08-21 | _(este mismo)_ | Tour interactivo del hub para usuarios nuevos, filtrado por permisos | 1.5 |
 | 2026-08-20 | 5b0ed4a | Clave propia obligatoria + email en el primer ingreso de usuarios nuevos; restablecer desde Ajustes | 2.0 |
 | 2026-08-20 | ed7957d | Ajustes en pestañas + matriz de avisos por nivel + usuarios del panel editables (reunión Andrés) | 3.0 |
@@ -153,6 +154,25 @@ Ya viene activado en este equipo.
 ---
 
 ## Entradas (más reciente primero)
+
+### 2026-08-23 · Depot Tire caído: ECONNRESET de Postgres mataba el proceso · ⏱️ 0.5 h
+
+**Qué:** el servicio `AutoVenta` del entorno `Depot_Tire` en Railway llevaba
+CRASHED desde el deploy del 20-ago ~23:17. No fue el build (salió SUCCESS):
+horas después, una consulta de `listFollowUpBoard` (GET `/hub/follow-ups` del
+panel) recibió un `read ECONNRESET` de Postgres, la promesa quedó sin capturar
+y Node ≥15 mató el proceso. Railway no lo volvió a levantar. Staging nunca se
+cayó, por eso pasó desapercibido.
+
+**Por qué:** las rutas async de `admin.ts` no tienen try/catch y Express 4 no
+captura promesas rechazadas de handlers async — el mismo modo de fallo ya
+documentado y parchado en `/webhook` (webhook.ts), pero el panel quedó sin
+proteger.
+
+**Arreglo:** `process.on("unhandledRejection")` en los dos entrypoints
+(`index.ts` y `worker.ts`): se loguea con 🧯 y el proceso sigue vivo; se pierde
+la request afectada, no el bot. Además, redeploy inmediato del servicio caído
+para restaurar Depot Tire antes del fix.
 
 ### 2026-08-20 · Línea base del guardián y seguimiento programado · ⏱️ 0.25 h
 

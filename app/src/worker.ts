@@ -4,6 +4,15 @@ import { sql } from "./db/client.js";
 import { processFollowUpJob } from "./services/followUpProcessor.js";
 import { startFollowUpWorker } from "./workers/followUpWorker.js";
 
+// Mismo salvavidas que en index.ts: un ECONNRESET de Postgres dentro de una
+// promesa suelta no debe matar el worker (Node ≥15 lo haría por defecto).
+process.on("unhandledRejection", (reason) => {
+  console.error(
+    "🧯 Promesa rechazada sin capturar (el worker sigue vivo):",
+    reason instanceof Error ? reason.stack ?? reason.message : reason,
+  );
+});
+
 await ensureSchema();
 const controller = new AbortController();
 for (const signal of ["SIGTERM", "SIGINT"] as const) {
