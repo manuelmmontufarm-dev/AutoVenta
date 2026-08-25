@@ -1,5 +1,29 @@
 # Revisión del 17-ago — comprobar la auditoría del 16-ago
 
+> **✅ CORRIDA el 25-ago-2026** (con 8 días de atraso). Veredictos, medidos en producción:
+>
+> 1. **Caché:** la predicción «69 % → 78–80 %» quedó obsoleta antes del deploy: el caché ya
+>    estaba en 84 % desde el 11-ago (deploy del plan de eficiencia; el salto fue 70 % → 81,6 %
+>    ese día). Tras el reorden del 16-ago quedó en 81–83 %: **no se puede atribuir mejora al
+>    reorden**, pero tampoco empeoró nada que amerite revertir. Por encima de la meta.
+> 2. **`OPENAI_ROUTINE_MODEL=gpt-5.4-mini`: SÍ tomó efecto.** 68 corridas `routine_stage` en
+>    mini en 72 h, 0 errores, latencia 1,8 s contra 3,9 s del comercial. Se queda.
+> 3. **Doble IVA: estaba DORMIDO.** Las 126 cotizaciones de los últimos 10 días dan
+>    total = items × 1,1500 exacto, sin una sola excepción. **No hay que avisarle a Depot de
+>    ningún precio mal cobrado**; la recomendación del 16-ago sobra.
+> 4. **Regresiones:** 768 tests y typecheck limpios; `failed` = 0 en 3 semanas. Los rescates
+>    subieron (2 → 9 → 7/semana): es el rescate HACIENDO su trabajo (`max_iterations_salvaged`,
+>    el cliente sí recibió respuesta), pero la tasa ~2,5 % merece un ojo. Ningún
+>    document/video entrante en 7 días para juzgar ese arreglo.
+> 5. **Guardián (línea base 24/día):** 76 correcciones en 21–25 ago = **15,2/día, −37 %**.
+>    Familias vivas y una nueva («¿necesita recomendación?» con la recomendación ya preparada)
+>    en la entrada del 25-ago de la BITACORA.
+>
+> El flood de `window_closing` está en CERO hace 5 días: el worker zombi ya fue apagado.
+
+---
+
+
 Pégale esto a Claude Code en `/Users/manue/AutoVenta`. Está escrito para que
 **pueda salir mal**: cada punto tiene un número esperado y qué hacer si no sale.
 

@@ -156,6 +156,43 @@ Ya viene activado en este equipo.
 
 ## Entradas (más reciente primero)
 
+### 2026-08-25 · La revisión del 17-ago, corrida al fin — y la re-revisión del guardián · ⏱️ 1.0 h
+
+**Qué:** se corrió contra producción la verificación que REVISION_17_AGO.md
+dejó escrita (veredictos resumidos en ese mismo doc): caché 81–83 % (la mejora
+real llegó el 11-ago con el plan de eficiencia, no con el reorden del 16);
+`OPENAI_ROUTINE_MODEL=gpt-5.4-mini` en efecto con 0 errores y latencia a la
+mitad; **doble IVA dormido** — 126/126 cotizaciones exactas en ×1,15, no hay
+precios mal cobrados que avisar; `failed`=0 en 3 semanas; y el flood de
+`window_closing` en cero (el worker zombi ya fue apagado).
+
+**Re-revisión del Ángel Guardián (cita del 24-ago, línea base 24/día):**
+76 correcciones del 21 al 25-ago = **15,2/día (−37 %)**, con los días 24 y 25
+subiendo otra vez (21 y 22). Por familia:
+
+1. **Pregunta directa del cliente ignorada (~20).** «¿Dónde están ubicados?»,
+   dirección, tarjeta, crédito, formas de pago, enllantaje, garantía — el
+   borrador responde el guion (medida/recomendación) en vez de la pregunta.
+   La familia MÁS grande y la más ofensiva para el cliente.
+2. **«¿Necesita alguna recomendación?» con la recomendación ya preparada (~10).**
+   FAMILIA NUEVA post-c446123: la herramienta ya eligió (KR203, KR628, KR41,
+   KR605, KR601, KR20…) y el borrador pregunta en vez de entregarla. Es la
+   cola del arreglo de `buildCierreOpciones`: el cierre lleva el precio, pero
+   el borrador que NO usa el cierre sigue preguntando.
+3. **Re-preguntar lo ya dado (~15).** Medida, aro, cantidad («¿se la cotizo
+   por 4?» ×2), local ya elegido ×3, foto ya enviada ×2. Era ~30 la semana
+   anterior: bajó a la mitad pero sigue viva.
+4. **Afirmaciones sin respaldo (~12).** «Ya quedó listo» sin cotización,
+   alternativas inventadas (35X12.5R17), «desde aro 15» contradiciendo la
+   herramienta, negar la WINRUN que sí se ofreció.
+5. **Equivalentes/M-T sin aclarar (~6).** No dice que lo enviado es otra
+   medida o que no hay M/T pura verificada.
+
+`guard_mensaje_duplicado` bajó 33 → 20 → 6 por semana y `guard_precio_ajustado`
+5 → 2: el error no se movió de capa, está bajando de verdad.
+
+---
+
 ### 2026-08-25 · El turno exacto deja de pagar el cerebro grande: canary de OPENAI_EXACT_TOOL_MODEL · ⏱️ 1.5 h
 
 **Qué:** variable nueva `OPENAI_EXACT_TOOL_MODEL` (+ `AI_EXACT_TOOL_ROLLOUT`,
