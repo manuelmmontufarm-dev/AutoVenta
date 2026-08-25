@@ -32,6 +32,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-08-25 | _(este mismo)_ | «Les molesto» dejó de ser un cliente enojado: en Ecuador es cortesía para anunciar la visita, y el falso positivo pausaba el hilo para siempre | 0.5 |
 | 2026-08-23 | _(este mismo)_ | Depot Tire caído desde el 20-ago: un ECONNRESET de Postgres en el panel mataba el proceso; salvavidas de unhandledRejection en HTTP y worker + redeploy | 0.5 |
 | 2026-08-21 | _(este mismo)_ | Tour interactivo del hub para usuarios nuevos, filtrado por permisos | 1.5 |
 | 2026-08-20 | 5b0ed4a | Clave propia obligatoria + email en el primer ingreso de usuarios nuevos; restablecer desde Ajustes | 2.0 |
@@ -154,6 +155,32 @@ Ya viene activado en este equipo.
 ---
 
 ## Entradas (más reciente primero)
+
+### 2026-08-25 · «Les molesto» no es un cliente molesto: es cortesía ecuatoriana · ⏱️ 0.5 h
+
+**Qué:** el aviso `😠 CLIENTE MOLESTO` del ticket 10438 salió por el mensaje
+«ya que me entreguen les molesto para visitarlos por favor». Ese cliente está
+CONTENTO: avisa que va a pasar por el local. `detectNegativeSentiment` marcaba
+negativo cualquier aparición de la palabra `molesto`, sin mirar cómo se usa.
+
+**Por qué importa:** aquí un falso positivo no es una alerta de más. La misma
+rama pone `bot_paused_until = 'infinity'`, asigna la conversación a un humano y
+cancela la campaña de seguimiento: el bot se apaga para siempre en ese hilo por
+un cliente que solo estaba siendo educado. Y en Ecuador «molestar» es LA fórmula
+de cortesía para pedir algo o anunciar una visita, así que el caso no es raro.
+
+**Arreglo:** la distinción es gramatical, no de vocabulario. Verbo con pronombre
+de 2ª/3ª persona («les molesto», «molesto con una cotización», «si no le
+molesta», «disculpe que le moleste») es cortesía; adjetivo de estado («estoy
+molesto», «la clienta está molesta», «me tienen molesto», «me molesta que...»)
+es enojo. `detectNegativeSentiment` busca PRIMERO la molestia de estado, que gana
+siempre —«disculpe que le moleste, pero estoy molesto con el trato» sigue
+disparando—, y solo si no aparece tacha los usos corteses para juzgar el resto.
+Ojo con «me»: «me molesta» sí es queja, por eso no entra como clítico cortés,
+pero «no me molesta» queda fuera. Trece casos nuevos en `followUps.test.ts`.
+El prompt del agente aprende el mismo modismo, para que tampoco conteste como si
+le estuvieran reclamando: a ese cliente hay que agradecerle y ayudarlo a
+concretar la visita.
 
 ### 2026-08-23 · Depot Tire caído: ECONNRESET de Postgres mataba el proceso · ⏱️ 0.5 h
 

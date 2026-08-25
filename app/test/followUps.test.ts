@@ -82,4 +82,28 @@ describe("Fase B — reloj, horario y seguridad del scheduler", () => {
     expect(detectNegativeSentiment("no insistas, ya te dije que no")).toBe(true);
     expect(detectOptOut("ahora no, lo reviso mañana")).toBe(false);
   });
+
+  it("no confunde el «molestar» de cortesía ecuatoriano con un cliente molesto", () => {
+    // El caso que lo destapó: el cliente avisa que va a pasar por el local.
+    expect(
+      detectNegativeSentiment("ya que me entreguen les molesto para visitarlos por favor"),
+    ).toBe(false);
+    expect(detectNegativeSentiment("Buenas, molesto con una cotización de 235/50R18")).toBe(false);
+    expect(detectNegativeSentiment("le molesto con el precio del juego completo")).toBe(false);
+    expect(detectNegativeSentiment("disculpe que le moleste, ¿ya llegaron las llantas?")).toBe(false);
+    expect(detectNegativeSentiment("no quiero molestar, cuando pueda me avisa")).toBe(false);
+    expect(detectNegativeSentiment("¿le molesta si paso el lunes en la tarde?")).toBe(false);
+    expect(detectNegativeSentiment("vuelvo a molestarles por el tema del descuento")).toBe(false);
+  });
+
+  it("sigue detectando la molestia de verdad, aunque venga envuelta en cortesía", () => {
+    expect(detectNegativeSentiment("estoy molesto, nadie me responde")).toBe(true);
+    expect(detectNegativeSentiment("la señora está molesta por la demora")).toBe(true);
+    expect(detectNegativeSentiment("me molesta que me escriban a cada rato")).toBe(true);
+    expect(detectNegativeSentiment("me tienen molesto con tantos mensajes")).toBe(true);
+    expect(
+      detectNegativeSentiment("disculpe que le moleste, pero estoy molesto con el trato"),
+    ).toBe(true);
+    expect(detectNegativeSentiment("ya dejen de estar fastidiando")).toBe(true);
+  });
 });
