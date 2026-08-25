@@ -22,6 +22,7 @@ import {
   type CatalogItem,
 } from "../services/catalog.js";
 
+import { aroDeMedida, enLaMedidaConfirmada } from "../domain/catalog.js";
 import { getInterbotPrice, refreshPriceForSize } from "../services/interbotPrices.js";
 import {
   buildQuote,
@@ -275,11 +276,15 @@ function recorteConEscalera<T extends { brand: string; design: string; minimumPr
  *
  * Quien la llame debe haber hecho `ensureCatalogReady()` antes.
  */
-function opcionesEnAro(aro: number, tipo: string | null): {
+function opcionesEnAro(aro: number, tipo: string | null, medidaConfirmada?: string | null): {
   pedido: string | null;
   enElAro: CatalogItem[];
   delTipo: CatalogItem[];
   seleccion: CatalogItem[];
+  /** La medida de la ficha, y solo si es de ESTE aro. Null = no manda aquí. */
+  suMedida: string | null;
+  /** Tiene medida confirmada en este aro y de ese tipo no hay NADA en ella. */
+  sinTipoEnSuMedida: boolean;
 } {
   const pedido = tipo ? normalizarTipo(tipo) : null;
   // Se busca por aro en el catálogo real y se filtra por el tipo que dice la
@@ -288,7 +293,22 @@ function opcionesEnAro(aro: number, tipo: string | null): {
   const delTipo = pedido
     ? enElAro.filter((item) => normalizarTipo(tipoDeProducto(item.code, item.design) ?? "") === pedido)
     : enElAro;
-  return { pedido: pedido || null, enElAro, delTipo, seleccion: tresOpciones(delTipo) };
+  // Su medida le gana al aro (25-ago). El aro se compara aparte y a propósito:
+  // si el cliente CAMBIÓ de rines —el caso que esta misma herramienta invita a
+  // atender— su medida vieja ya no aplica, y filtrar por ella dejaría la
+  // búsqueda en cero. Fuera de ese caso, lo que él confirmó manda sobre el aro.
+  const suMedida = aroDeMedida(medidaConfirmada) === aro ? medidaConfirmada ?? null : null;
+  const enSuMedida = enLaMedidaConfirmada(delTipo, suMedida);
+  return {
+    pedido: pedido || null,
+    enElAro,
+    delTipo,
+    // Con algo en su medida, la selección sale SOLO de ahí; si no hay, se cae al
+    // aro completo — pero eso deja de ser silencioso (`sinTipoEnSuMedida`).
+    seleccion: tresOpciones(enSuMedida.length ? enSuMedida : delTipo),
+    suMedida,
+    sinTipoEnSuMedida: Boolean(suMedida) && !enSuMedida.length,
+  };
 }
 
 /** Aros que existen en el mercado ecuatoriano; fuera de este rango es ruido del modelo. */
@@ -685,7 +705,15 @@ export function buildTools(ctx: AgentContext) {
     }),
     run: async ({ aro, tipo, uso }) => {
       await ensureCatalogReady();
-      const { pedido, enElAro, delTipo, seleccion } = opcionesEnAro(aro, tipo);
+      // La medida que el cliente ya confirmó entra al filtro. Sin esto, «una
+      // A/T» con 265/65R18 en la ficha devolvía A/T de cualquier medida del
+      // aro 18 (25-ago): el aro llega por el parámetro, la medida se quedaba
+      // en la conversación.
+      const [ficha] = await sql<{ tire_size: string | null }[]>`
+        select tire_size from conversations where id=${ctx.conversation.id}
+      `;
+      const { pedido, enElAro, delTipo, seleccion, suMedida, sinTipoEnSuMedida } =
+        opcionesEnAro(aro, tipo, ficha?.tire_size);
 
       if (!delTipo.length) {
         return JSON.stringify({
@@ -710,11 +738,21 @@ export function buildTools(ctx: AgentContext) {
           ? { nombre: info.nombre, definicion: info.definicion, cuando_va: info.cuandoOfrecerla, cuando_no: info.noOfrecerlaSi }
           : null,
         uso_declarado: uso,
+        su_medida: suMedida,
+        sin_tipo_en_su_medida: sinTipoEnSuMedida,
         // Tres y no seis: una por escalón de marca.
         opciones: seleccion.map(toolItem),
         otras_en_ese_aro: delTipo.length - seleccion.length,
-        regla:
+        regla: [
           "PROHIBIDO listarlas en texto. Llama preparar_opciones con estos códigos para que salga la imagen (una premium, una de equilibrio, una económica). Si el cliente no dijo el uso ni el tipo, se lo preguntas DESPUÉS de mandarle la imagen — nunca retengas las opciones para preguntar primero. No afirmes un tipo que no venga en 'tipo'.",
+          // Estas opciones NO son de su medida y hay que decirlo. `preparar_opciones`
+          // ya hornea el aviso de equivalentes en el mensaje que sale verbatim
+          // (candado 3), así que aquí basta con que el modelo no las presente
+          // como suyas mientras tanto.
+          sinTipoEnSuMedida
+            ? `En su medida ${suMedida} NO hay ${pedido ?? "de ese tipo"}: estas son de OTRAS medidas del aro ${aro}. Dilo con todas las letras —«en su ${suMedida} no me queda ${pedido ?? "de ese tipo"}, estas son equivalentes que sí le entran»— y nombra la medida de cada una. Nunca las llames «su medida».`
+            : null,
+        ].filter(Boolean).join(" "),
       });
     },
   });
@@ -1522,6 +1560,15 @@ export function buildTools(ctx: AgentContext) {
       }
       await ensureCatalogReady();
       const lines = [];
+      /**
+       * Lo que se pidió contra lo que hay HOY (P-02, reunión del 25-ago).
+       *
+       * Joaquín: «hay una medida 195/55R15 con UNA unidad y el bot cotiza las 4
+       * llantas de esa unidad». No se bloquea la cotización: el stock que llega
+       * de Contífico viene desfasado y negarse pierde la venta justo cuando en
+       * bodega sí están — que es el caso más común. Se avisa.
+       */
+      let stockCorto: { stock_hoy: number; solicitadas: number } | null = null;
       for (const item of items) {
         const candidatos = await resolvePresentedProduct(ctx.conversation.id, item.code);
         if (candidatos.length > 1) {
@@ -1548,6 +1595,11 @@ export function buildTools(ctx: AgentContext) {
           return JSON.stringify({
             error: `${product.brand} ${product.design} está agotada. Busca otra opción disponible antes de cotizar.`,
           });
+        }
+        // El cero ya lo atajó `availability === "out"`; lo que queda aquí es el
+        // stock corto de verdad: 1, 2 o 3 unidades contra un juego de 4.
+        if (item.cantidad > product.stock) {
+          stockCorto = { stock_hoy: product.stock, solicitadas: item.cantidad };
         }
         // CANDADO DE MEDIDA — cotizar es firmar un precio, y el precio depende
         // de la medida. El 13-ago (chat 5499) el cliente pidió 265/70R16, el
@@ -1798,6 +1850,21 @@ export function buildTools(ctx: AgentContext) {
         actor: "customer",
         reason: "Cliente confirmó un modelo y cantidad",
       });
+      if (stockCorto) {
+        await createBotAlert({
+          conversationId: ctx.conversation.id,
+          cycle: ctx.conversation.current_cycle,
+          type: "stock_insuficiente",
+          priority: "high",
+          summary: `Stock corto en ${quote.number}: ${stockCorto.solicitadas} pedidas y ${stockCorto.stock_hoy} en catálogo`,
+          exactReason: `${stockCorto.solicitadas} × ${product.brand} ${product.design} ${product.sizeLabel} (código ${product.code}); el catálogo marca ${stockCorto.stock_hoy}.`,
+          suggestedAction: "Confirmar en bodega cuántas hay de verdad y avisarle al cliente antes de que venga al local.",
+          // Por conversación, ciclo y producto: una segunda cotización del mismo
+          // producto en el mismo ciclo no vuelve a avisar, pero una oportunidad
+          // nueva (ciclo nuevo) sí — el stock de la semana pasada no dice nada.
+          dedupeKey: `${ctx.conversation.id}:${ctx.conversation.current_cycle}:stock_insuficiente:${product.code}`,
+        });
+      }
       const quoteAlertKey = `${ctx.conversation.id}:${ctx.conversation.current_cycle}:quote_created:${quote.number}`;
       await createBotAlert({
         conversationId: ctx.conversation.id,
@@ -1823,6 +1890,16 @@ export function buildTools(ctx: AgentContext) {
           descuentoAplicado ? `🏷️ Descuento extra: $${descuentoAplicado.amount.toFixed(2)} · ${descuentoAplicado.condition}` : "",
         ],
       });
+      // El aviso va HORNEADO en el texto, no en la `regla`: este turno sale
+      // verbatim por exactToolReply y ahí el modelo no tiene dónde agregarlo
+      // (misma lección que el aviso de equivalentes, 20-ago). Y pegado a la
+      // cotización, no como bloque aparte: el tope son 4 bloques y el último
+      // —el que pide día y local— es el objetivo del turno.
+      const avisoStock = stockCorto
+        ? `⚠️ Ojo: de esa llanta hoy tengo *${stockCorto.stock_hoy}* ${
+            stockCorto.stock_hoy === 1 ? "disponible" : "disponibles"
+          } y usted pidió *${stockCorto.solicitadas}*. Se la cotizo completa y el resto se lo confirma el asesor en el local.`
+        : null;
       return JSON.stringify({
         enviada: true,
         numero: quote.number,
@@ -1830,8 +1907,9 @@ export function buildTools(ctx: AgentContext) {
         iva: quote.tax,
         total_con_iva: quote.total,
         numero_venta: saleNumber,
+        ...(stockCorto ? { stock_insuficiente: stockCorto } : {}),
         mensaje_para_enviar: composeBlocks(
-          (await usarCaptionCorto(visual.ok))
+          [(await usarCaptionCorto(visual.ok))
             ? buildSingleQuoteCaption(
                 { product, quantity: items[0].cantidad },
                 quote.number,
@@ -1859,6 +1937,8 @@ export function buildTools(ctx: AgentContext) {
                   : undefined,
                 preciosFirmados,
               ),
+            avisoStock,
+          ].filter(Boolean).join("\n\n"),
           await buildBenefitsBlockOnce(
             ctx.conversation.id,
             ctx.conversation.current_cycle,
@@ -1874,9 +1954,14 @@ export function buildTools(ctx: AgentContext) {
             localElegido,
           })}`,
         ),
-        regla: localElegido
-          ? `Responde exactamente con mensaje_para_enviar, con sus separadores '---' intactos. La cotización ya fue enviada y Manuel ya fue notificado. El cliente YA eligió local (${localElegido}): NO vuelvas a preguntarle cuál. Tu objetivo es UNO: que diga qué día viene. No cierres ningún turno sin esa pregunta hasta tener la respuesta.`
-          : "Responde exactamente con mensaje_para_enviar, con sus separadores '---' intactos. La cotización ya fue enviada y Manuel ya fue notificado. A partir de ahora tu objetivo es UNO: que el cliente diga qué día viene y a cuál local. No cierres ningún turno sin esa pregunta hasta tener las dos respuestas.",
+        regla: [
+          localElegido
+            ? `Responde exactamente con mensaje_para_enviar, con sus separadores '---' intactos. La cotización ya fue enviada y Manuel ya fue notificado. El cliente YA eligió local (${localElegido}): NO vuelvas a preguntarle cuál. Tu objetivo es UNO: que diga qué día viene. No cierres ningún turno sin esa pregunta hasta tener la respuesta.`
+            : "Responde exactamente con mensaje_para_enviar, con sus separadores '---' intactos. La cotización ya fue enviada y Manuel ya fue notificado. A partir de ahora tu objetivo es UNO: que el cliente diga qué día viene y a cuál local. No cierres ningún turno sin esa pregunta hasta tener las dos respuestas.",
+          stockCorto
+            ? `Hoy hay ${stockCorto.stock_hoy} de esa llanta y el cliente pidió ${stockCorto.solicitadas}: el aviso ya va en mensaje_para_enviar. NO prometas las que faltan ni des fecha de llegada — el resto lo confirma el asesor.`
+            : null,
+        ].filter(Boolean).join(" "),
       });
     },
   });

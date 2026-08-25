@@ -599,3 +599,42 @@ function round2(value: number): number {
 function validDivisor(value: number, fallback: number): number {
   return Number.isFinite(value) && value > 0 && value <= 1 ? value : fallback;
 }
+
+/**
+ * El aro de una etiqueta de medida, sea métrica («265/65R18») o de flotación
+ * («33X12.5R17»). Null cuando la etiqueta no dice ningún aro reconocible.
+ */
+export function aroDeMedida(etiqueta: string | null | undefined): number | null {
+  if (!etiqueta) return null;
+  return extractTireSizes(etiqueta)[0]?.rim ?? extractFlotationSizes(etiqueta)[0]?.rim ?? null;
+}
+
+/**
+ * De un montón de llantas, las que son de la medida que el cliente YA confirmó.
+ *
+ * Nace del chat del 25-ago que trajo Joaquín: el cliente tenía confirmada
+ * 265/65R18, pidió «una A/T para 4x4», y el bot le ofreció A/T de 225/50R18
+ * —otra medida del mismo aro— **teniendo cuatro Falken A/T en 265/65R18 con
+ * stock**. La búsqueda por aro nunca miraba la medida de la conversación: el
+ * aro entra por el parámetro de la herramienta y la medida se quedaba en la
+ * ficha, sin llegar nunca al filtro. El cliente termina con una equivalente sin
+ * ningún motivo, y encima sin que nadie se lo diga.
+ *
+ * Devuelve `[]` cuando no hay medida confirmada o cuando en esa medida no hay
+ * nada: los dos son «no filtres», y quien llama decide qué hacer con el vacío
+ * (mostrar el aro entero, pero avisando que son equivalentes).
+ *
+ * La comparación es la misma de `buscarConEscalera`: `compactCatalogText` sobre
+ * dos etiquetas ya canónicas («265/65R18»), que es como las guardan tanto el
+ * catálogo (`extractCatalogSizeLabel`) como la ficha de la conversación
+ * (`formatTireSize`).
+ */
+export function enLaMedidaConfirmada<T extends { sizeLabel: string | null }>(
+  items: readonly T[],
+  medidaConfirmada: string | null | undefined,
+): T[] {
+  if (!medidaConfirmada) return [];
+  const compacta = compactCatalogText(medidaConfirmada);
+  if (!compacta) return [];
+  return items.filter((item) => item.sizeLabel && compactCatalogText(item.sizeLabel) === compacta);
+}
