@@ -220,10 +220,14 @@ describe("formato WhatsApp: la imagen es el mensaje", () => {
 
   // Joaquín, 6-ago, viendo un chat real: «este mensaje le quitaría porque se
   // vuelve una cadena muy larga y los mijines ya no leen». El preámbulo con la
-  // recomendación desapareció; el turno cierra ofreciéndola.
-  it("las opciones cierran ofreciendo la recomendación, sin adelantarla", () => {
-    expect(qm.PREGUNTA_RECOMENDACION).toBe("¿Necesita alguna recomendación?");
-    expect(lineas(qm.PREGUNTA_RECOMENDACION)).toBe(1);
+  // recomendación desapareció. Y el 25-ago pidió cambiar el ofrecimiento
+  // genérico por la pregunta de preferencia: precio / equilibrada / premium.
+  it("las opciones cierran preguntando la preferencia, sin adelantar la recomendación", () => {
+    expect(qm.PREGUNTA_PREFERENCIA).toContain("mejor precio");
+    expect(qm.PREGUNTA_PREFERENCIA).toContain("equilibrado");
+    expect(qm.PREGUNTA_PREFERENCIA).toContain("premium");
+    expect(qm.PREGUNTA_PREFERENCIA).not.toContain("¿Necesita alguna recomendación?");
+    expect(lineas(qm.PREGUNTA_PREFERENCIA)).toBe(1);
   });
 
   it("el muro completo sigue disponible para cuando la imagen no sale", () => {
@@ -232,22 +236,36 @@ describe("formato WhatsApp: la imagen es el mensaje", () => {
     expect(lineas(muro)).toBeGreaterThan(5);
   });
 
-  it("con la imagen enviada el turno son 2 bloques: INCLUYE y la pregunta", () => {
+  // P-07 (25-ago): con la imagen enviada el INCLUYE va SOLO en la franja de la
+  // pieza — el texto ya no lo duplica. El bloque de texto vuelve únicamente
+  // cuando la imagen falló (la composición con beneficios sigue funcionando).
+  it("con la imagen enviada el turno es un solo bloque: la pregunta de preferencia", () => {
     const respuesta = qm.composeBlocks(
       null, // el caption de presentación ya no existe
+      null, // el INCLUYE ya lo dice la franja de la imagen (P-07)
+      qm.PREGUNTA_PREFERENCIA,
+    );
+    const bloques = qm.splitBlocks(respuesta);
+    expect(bloques).toHaveLength(1);
+    expect(bloques[0]).toBe(qm.PREGUNTA_PREFERENCIA);
+    // Nada de la cadena vieja: ni «Yo iría por», ni precios repetidos.
+    expect(respuesta).not.toMatch(/yo ir[íi]a/i);
+    expect(respuesta).not.toContain("113.49");
+  });
+
+  it("con la imagen fallida el INCLUYE sí va en texto, antes de la pregunta", () => {
+    const respuesta = qm.composeBlocks(
+      null,
       benefits.formatBenefitsBlock([
         { id: 1, text: "Seguro gratuito contra golpes", position: 0, active: true,
           brand: null, minQuantity: null, store: null, startsAt: null, expiresAt: null },
       ]),
-      qm.PREGUNTA_RECOMENDACION,
+      qm.PREGUNTA_PREFERENCIA,
     );
     const bloques = qm.splitBlocks(respuesta);
     expect(bloques).toHaveLength(2);
     expect(bloques[0]).toMatch(/^\*INCLUYE\*/);
-    expect(bloques.at(-1)).toBe(qm.PREGUNTA_RECOMENDACION);
-    // Nada de la cadena vieja: ni «Yo iría por», ni precios repetidos.
-    expect(respuesta).not.toMatch(/yo ir[íi]a/i);
-    expect(respuesta).not.toContain("113.49");
+    expect(bloques.at(-1)).toBe(qm.PREGUNTA_PREFERENCIA);
   });
 
   it("nunca manda más de 4 bloques por turno", () => {
@@ -310,14 +328,14 @@ describe("bloque INCLUYE", () => {
  * su propia pregunta. Es el hallazgo más repetido del guardián del 15-ago.
  */
 describe("cierre de la pieza de opciones", () => {
-  it("ofrece la recomendación cuando el cliente no ha pedido nada", () => {
+  it("pregunta la preferencia cuando el cliente no ha pedido nada", () => {
     expect(
       qm.buildCierreOpciones({
         entregarRecomendacion: false,
         recomendacion: "Kenda KR203",
         motivo: "es el mejor equilibrio entre duración y precio",
       }),
-    ).toBe(qm.PREGUNTA_RECOMENDACION);
+    ).toBe(qm.PREGUNTA_PREFERENCIA);
   });
 
   it("la entrega, con motivo y cierre de venta, cuando ya se la pidieron", () => {
@@ -341,7 +359,7 @@ describe("cierre de la pieza de opciones", () => {
     expect(cierre).toContain("el mejor equilibrio entre duración y precio");
     // Ni el punto duplicado del motivo, ni la pregunta que el cliente ya hizo.
     expect(cierre).not.toContain("precio..");
-    expect(cierre).not.toContain(qm.PREGUNTA_RECOMENDACION);
+    expect(cierre).not.toContain(qm.PREGUNTA_PREFERENCIA);
     // El turno tiene que seguir empujando la venta.
     expect(cierre).toMatch(/cotizo/i);
   });

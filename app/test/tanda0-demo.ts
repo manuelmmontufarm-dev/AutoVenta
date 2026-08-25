@@ -21,7 +21,7 @@ const { buildBenefitsBlock, getActiveBenefits } = await import("../src/services/
 const {
   buildCustomerOptionsMessageDetallado,
   composeBlocks,
-  PREGUNTA_RECOMENDACION,
+  PREGUNTA_PREFERENCIA,
   splitBlocks,
 } = await import("../src/services/quoteMessages.js");
 
@@ -75,7 +75,7 @@ console.log("AHORA — imagen + bloques cortos");
 console.log("═".repeat(70));
 const ahora = composeBlocks(
   await buildBenefitsBlock({ brands: productos.map((p) => p.brand) }),
-  PREGUNTA_RECOMENDACION,
+  PREGUNTA_PREFERENCIA,
 );
 const bloques = splitBlocks(ahora);
 bloques.forEach((bloque, i) => {

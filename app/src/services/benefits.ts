@@ -131,6 +131,40 @@ export async function buildBenefitsBlockOnce(
   return buildBenefitsBlock(ctx);
 }
 
+/**
+ * ¿El bloque INCLUYE va también en TEXTO en el turno de opciones?
+ *
+ * P-03/P-07 de la reunión del 25-ago: el INCLUYE salía dos veces (texto y
+ * franja de la imagen) y el muro duplicado era justo lo que Joaquín pidió
+ * quitar. Con la imagen enviada, la franja de la pieza ya lo dice — el texto
+ * sobra. Solo vuelve al texto cuando la imagen falló (nadie se queda sin la
+ * info) o cuando el cliente preguntó expresamente qué incluye.
+ */
+export function debeLlevarIncluyeEnTexto(imagenOk: boolean, clienteLoPidio: boolean): boolean {
+  return !imagenOk || clienteLoPidio;
+}
+
+/**
+ * Los beneficios vigentes como HECHO del agente (P-03, reunión 25-ago): el bot
+ * dijo «el balanceo es aparte» mientras la cotización imprimía «alineación y
+ * balanceo incluidos». La pieza lee la tabla `benefits`; el modelo no la leía,
+ * así que contradecía a su propia cotización. Este bloque entra a los mensajes
+ * volátiles del agente (detrás del historial, para no romper el prefijo del
+ * caché) y convierte la tabla en la única fuente.
+ *
+ * Sin contexto de marca/cantidad/local a esta altura del turno, solo los
+ * beneficios INCONDICIONALES se afirman como hechos generales: uno condicionado
+ * a una marca o a un mínimo de unidades no es un hecho de toda compra.
+ */
+export async function activeBenefitFactsBlock(): Promise<string | null> {
+  const textos = await applicableBenefitTexts();
+  if (!textos.length) return null;
+  return [
+    `INCLUIDO CON LA COMPRA (fuente determinística): ${textos.join("; ")}.`,
+    "Si el cliente pregunta si algo está incluido (alineación, balanceo, instalación…): lo que está en esta lista se AFIRMA con seguridad — es exactamente lo que imprime su cotización. PROHIBIDO decir que algo de esta lista «es aparte», «tiene costo» o «se lo confirma el asesor». Lo que NO está en la lista ni se afirma ni se niega: «se lo confirma el asesor en tienda», y sigues con la venta en la misma respuesta.",
+  ].join("\n");
+}
+
 /** Pedido explícito que autoriza volver a mostrar el bloque. */
 export function requestsBenefitsAgain(text: string): boolean {
   const normalized = text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();

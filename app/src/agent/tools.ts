@@ -54,6 +54,7 @@ import {
 import {
   applicableBenefitTexts,
   buildBenefitsBlockOnce,
+  debeLlevarIncluyeEnTexto,
   requestsBenefitsAgain,
 } from "../services/benefits.js";
 import { buildStoreLinksBlockOnce } from "../services/storeLinks.js";
@@ -64,7 +65,10 @@ import { arosDeCandidatos, arosDeMedidas, invitacionPorAroAmbiguo } from "../dom
 import { rangoDeAros } from "../domain/aros.js";
 import { nearestStore, resolveSector } from "../domain/locations.js";
 import { extractFlotationSizes, formatFlotationSize, formatTireSize, parseTireSize, type TireSize } from "../domain/tireSize.js";
-import { canGenerateFinalQuote, pidePrecio, pideRecomendacion } from "../domain/salesIntent.js";
+import {
+  canGenerateFinalQuote, describeUso, escalonesDeOpciones, pidePrecio, pideRecomendacion,
+  respuestaDePreferencia,
+} from "../domain/salesIntent.js";
 import { getTirePatternProfile } from "../domain/tireKnowledge.js";
 import {
   catalogoDeTipos, escalonDeMarca, infoTipo, normalizarTipo, ordenDeMarca, tipoDeProducto,
@@ -1189,6 +1193,11 @@ export function buildTools(ctx: AgentContext) {
       // primera— es sencillamente falso para las otras dos, y es lo que el
       // cliente del 5499 vio antes de que le firmaran otra medida.
       const sizeLabel = medidasMostradas.length === 1 ? sizeLabelActual : null;
+      // Los beneficios vigentes van a la FRANJA de la pieza (P-07): la imagen
+      // los dice resaltados y el texto ya no los repite cuando la imagen salió.
+      const beneficiosPieza = await applicableBenefitTexts({
+        brands: products.map((product) => product.brand),
+      });
       const visual = await sendVisual(
         ctx.conversation.id,
         ctx.customerPhone,
@@ -1199,6 +1208,7 @@ export function buildTools(ctx: AgentContext) {
             // Con esto cada tarjeta sale marcada: verde MEDIDA EXACTA, o el
             // sello rojo de equivalente. Es la medida que el cliente pidió.
             medidaPedida: permitidasOpciones[0] ?? null,
+            benefits: beneficiosPieza,
             ...(await getPiecesConfig()),
             brandProfiles: await brandProfilesForRender(),
             products: await Promise.all(products.map((product) => toRenderLine(product))),
@@ -1208,6 +1218,18 @@ export function buildTools(ctx: AgentContext) {
         "opciones",
       );
       const resumenProductos = products.map((p) => `${p.brand} ${p.design}`).join(" · ");
+      // Los tres escalones DE LO QUE ESTÁ EN PANTALLA, para que la respuesta
+      // a la pregunta de preferencia («la más barata», «la del medio», «la
+      // mejor») se pueda entregar al siguiente turno sin volver a buscar.
+      // Quedan también en la metadata del mensaje: es de ahí que los hechos
+      // del agente (getAgentSalesFacts) los recuperan en el turno siguiente.
+      const escalones = escalonesDeOpciones(
+        products.map((p) => ({
+          codigo: p.code,
+          nombre: `${p.brand} ${p.design}`,
+          precio_con_iva: p.minimumPriceWithTax,
+        })),
+      );
       await appendMessage(
         ctx.conversation.id,
         "assistant",
@@ -1229,7 +1251,7 @@ export function buildTools(ctx: AgentContext) {
           // casi nunca coincidieran: el candado se apagaba solo y la pieza de
           // opciones volvía a salir. Lo que hay que comparar son las tarjetas
           // que el cliente tiene en pantalla.
-          metadata: { piece: "options", codes: products.map((p) => p.code), sizeLabel, ...(visual.error ? { renderError: visual.error } : {}) },
+          metadata: { piece: "options", codes: products.map((p) => p.code), sizeLabel, escalones, ...(visual.error ? { renderError: visual.error } : {}) },
         },
       );
       // La imagen es la pieza principal: sin ella el cliente recibe solo el
@@ -1260,21 +1282,39 @@ export function buildTools(ctx: AgentContext) {
         })),
       });
       // La imagen es el mensaje: si salió, el texto no la presenta ni la
-      // resume — solo los beneficios y el ofrecimiento de recomendar. Si no
-      // salió, el cliente recibe el detalle completo en texto: feo, pero nunca
-      // se queda sin las opciones.
-      const beneficios = await buildBenefitsBlockOnce(
-        ctx.conversation.id,
-        ctx.conversation.current_cycle,
-        { brands: products.map((product) => product.brand) },
-        requestsBenefitsAgain(ctx.currentUserText),
+      // resume — y el INCLUYE tampoco va en texto, porque la franja de la
+      // pieza ya lo dice resaltado (P-07, reunión 25-ago: «se manda dos
+      // veces»). El texto solo lo lleva si la imagen falló (nadie se queda
+      // sin la info) o si el cliente preguntó expresamente qué incluye.
+      const clientePidioIncluye = requestsBenefitsAgain(ctx.currentUserText);
+      const beneficios = debeLlevarIncluyeEnTexto(visual.ok, clientePidioIncluye)
+        ? await buildBenefitsBlockOnce(
+            ctx.conversation.id,
+            ctx.conversation.current_cycle,
+            { brands: products.map((product) => product.brand) },
+            clientePidioIncluye,
+          )
+        : null;
+      // La recomendación se entrega en este mismo turno cuando el cliente ya
+      // preguntó el precio, ya pidió que le recomienden, ya contó PARA QUÉ la
+      // quiere (familia 2 del guardián: «¿necesita recomendación?» con la
+      // recomendación ya preparada), o ya contestó la pregunta de preferencia.
+      const preferencia = respuestaDePreferencia(ctx.currentUserText);
+      const dijoSuUso = [ctx.currentUserText, ...inbound.map((m) => m.content)].some((texto) =>
+        describeUso(texto ?? ""),
       );
-      // Si el cliente ya preguntó el precio o cuál le conviene, la
-      // recomendación se entrega en este mismo turno. Cerrar con «¿Necesita
-      // alguna recomendación?» después de esa pregunta es devolvérsela.
       const entregarRecomendacion =
-        pidePrecio(ctx.currentUserText) || pideRecomendacion(ctx.currentUserText);
-      const recomendacion = `${recommended.brand} ${recommended.design}`;
+        pidePrecio(ctx.currentUserText) ||
+        pideRecomendacion(ctx.currentUserText) ||
+        dijoSuUso ||
+        preferencia !== null;
+      // Si contestó la preferencia, la recomendada ES la de ese escalón — no
+      // la que eligió el modelo: «la más barata» no admite otra respuesta.
+      const porPreferencia = preferencia
+        ? products.find((p) => p.code === escalones[preferencia === "precio" ? "economica" : preferencia]?.codigo)
+        : undefined;
+      const entregada = porPreferencia ?? recommended;
+      const recomendacion = `${entregada.brand} ${entregada.design}`;
       const motivoLimpio = motivo.trim().replace(/\.$/, "");
       return JSON.stringify({
         imagen_enviada: visual.ok,
@@ -1284,6 +1324,7 @@ export function buildTools(ctx: AgentContext) {
         recomendacion,
         motivo_recomendacion: motivoLimpio,
         recomendacion_entregada: entregarRecomendacion,
+        escalones,
         mensaje_para_enviar: composeBlocks(
           (await usarCaptionCorto(visual.ok))
             ? null
@@ -1294,14 +1335,14 @@ export function buildTools(ctx: AgentContext) {
             entregarRecomendacion,
             recomendacion,
             motivo: motivoLimpio,
-            precioConIva: recommended.minimumPriceWithTax ?? null,
+            precioConIva: entregada.minimumPriceWithTax ?? null,
           }),
         ),
         regla: [
           "Responde usando exactamente mensaje_para_enviar, con sus separadores '---' intactos. No sumes alternativas ni repitas en texto lo que ya muestra la imagen.",
           entregarRecomendacion
-            ? "El cliente YA pidió precio o recomendación, así que el texto YA se la da y ofrece cotizarla: no vuelvas a preguntarle si necesita una recomendación. Si contesta cualquier cosa que no sea un no, cotiza `recomendacion` por 4 con generar_cotizacion."
-            : "NO adelantes la recomendación en este turno: el texto ya la ofrece. Si el cliente responde que sí, recién ahí dile en UNA frase que irías por `recomendacion` porque `motivo_recomendacion`.",
+            ? "El cliente YA pidió precio, recomendación, dijo su uso o contestó su preferencia, así que el texto YA le da la recomendación y ofrece cotizarla: no vuelvas a preguntarle si necesita una recomendación ni su preferencia. Si contesta cualquier cosa que no sea un no, cotiza `recomendacion` por 4 con generar_cotizacion."
+            : "NO adelantes la recomendación en este turno: el texto cierra preguntando su preferencia. Si el cliente responde «mejor precio», «equilibrada» o «premium» (o «la más barata», «la del medio», «la mejor»), entrega la opción de ESE escalón de `escalones` — nombre y precio con IVA — y ofrece cotizarla por 4, sin volver a preguntar nada. Si responde un sí genérico, dile en UNA frase que irías por `recomendacion` porque `motivo_recomendacion`.",
           // La única excepción a «no agregues texto»: avisar que la medida no
           // es la suya. Callarlo es lo que terminó en una cotización firmada
           // por otra medida (5499).

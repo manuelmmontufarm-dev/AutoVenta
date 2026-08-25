@@ -11,7 +11,7 @@
  */
 import {
   ARCHIVO_BLACK, BLACK_ITALIC, type Availability, type Child, type SatoriNode, type Theme,
-  availabilityChip, availabilityDot, availabilityPill, benefitsStrip, brandAccent, brandAccentDark,
+  availabilityChip, availabilityDot, availabilityPill, brandAccent, brandAccentDark,
   brandMark, check, depotWordmark, el, img, posterFooter, posterHeader, racingBar, savingsBadge, speedLines,
   stripEmoji, text, tick,
 } from "./depotDesign.js";
@@ -35,7 +35,30 @@ const money = (n: number) => `$${n.toFixed(2)}`;
 const CONDICIONES = "Precios incluyen IVA y Ecovalor · por unidad · 3 y 6 meses sin intereses";
 const SUCURSALES = "Cumbayá · Quito Sur · 30 años";
 const TODAS_INCLUYEN =
-  "Todas incluyen: instalación completa · seguro contra golpes y cortes · mantenimiento cada 10.000 km · revisión del vehículo";
+  "Instalación completa · seguro contra golpes y cortes · mantenimiento cada 10.000 km · revisión del vehículo";
+
+/**
+ * La franja INCLUYE de opciones y comparativa, resaltada (P-07, reunión
+ * 25-ago). El bloque salía dos veces —en texto y en la foto— y la decisión fue
+ * dejarlo SOLO en la foto: para eso la franja tiene que leerse, y la anterior
+ * (benefitsStrip, 17 px en gris) era letra de trámite. Misma jerarquía visual
+ * que el «INCLUIDO CON TU COMPRA» de la cotización, pero en UNA franja —
+ * etiqueta y una sola línea, sin amontonar.
+ *
+ * Con `beneficios` de la tabla, la franja dice EXACTAMENTE lo que dice la
+ * cotización y lo que el bot afirma en el chat; sin ellos cae el genérico.
+ */
+function franjaIncluye(theme: Theme, beneficios?: readonly string[]): SatoriNode {
+  const p = theme.p;
+  const texto = beneficios?.length ? beneficios.map(stripEmoji).join(" · ") : TODAS_INCLUYEN;
+  return el({ alignItems: "center", gap: 18, padding: "28px 64px", borderTop: `3px solid ${p.gold}`,
+    backgroundImage: `linear-gradient(180deg,${p.base} 0%,${p.wash} 100%)` },
+    el({ width: 8, height: 30, backgroundColor: p.accent, transform: "skewX(-22deg)" }),
+    text({ fontSize: 22, fontWeight: 700, letterSpacing: 3, color: p.dark, whiteSpace: "nowrap" }, "INCLUYE"),
+    check(24),
+    text({ fontSize: 21, fontWeight: 600, color: p.dark, lineHeight: 1.45 }, texto),
+  );
+}
 
 /** Lo que cada pieza necesita saber de una llanta. */
 export interface PosterLine {
@@ -375,7 +398,7 @@ export function comparePoster(data: ComparePosterData, theme: Theme): SatoriNode
     posterHeader(theme, "COMPARATIVA", data.sizeLabel ?? "", data.dateLabel),
     racingBar(theme),
     el({ padding: "48px 40px 40px", alignItems: "stretch" }, ...lines.map(columna)),
-    benefitsStrip(theme, TODAS_INCLUYEN),
+    franjaIncluye(theme),
     posterFooter(theme, CONDICIONES, SUCURSALES),
   );
 }
@@ -395,6 +418,8 @@ export interface OptionsPosterData {
   dateLabel: string;
   sizeLabel?: string | null;
   lines: readonly PosterLine[];
+  /** Beneficios vigentes de la tabla; vacío o ausente = texto genérico del diseño. */
+  benefits?: readonly string[];
 }
 
 /** El aro que se lee de una medida, para poder decir «le entra por el aro 17». */
@@ -602,7 +627,7 @@ export function optionsPoster(data: OptionsPosterData, theme: Theme): SatoriNode
             "Las marcadas «LE MONTA» no son su medida exacta, pero le entran: tienen el mismo aro y rinden igual de bien. Confírmelas con el asesor antes de comprar."),
         )
       : null,
-    benefitsStrip(theme, TODAS_INCLUYEN),
+    franjaIncluye(theme, data.benefits),
     posterFooter(theme, "Precios incluyen IVA y Ecovalor · por unidad · 3 y 6 meses sin intereses", SUCURSALES),
   );
 }
