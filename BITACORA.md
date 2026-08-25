@@ -7,34 +7,6 @@
 
 ---
 
-### 2026-08-14 · Reporte histórico del mes 1 para la reunión con Depot · ⏱️ 1.5 h
-
-**Qué:** `docs/reportes-historicos/` — carpeta nueva para los reportes de periodo largo
-(los de reunión), separada del reporte diario automático de las 20:00.
-
-- **`2026-08-13-mes-1.html`**: una sola página, casi puro gráfico, con el formato y la
-  paleta del reporte diario. KPIs del corte, dona de lo cotizado en la semana contra todo
-  lo cotizado en la historia (95,5 %), movimiento del kanban, barras día por día, las cinco
-  semanas desde el arranque, errores del censo del 5-ago, calidad antes/después del juez
-  (12 → 0 fallos críticos), costo de IA (−69,4 % por conversación) y lo que sigue sin cerrar.
-- **Calculadora interactiva** al final: modelo + perfil de consumo + conversaciones al mes
-  → costo mensual, por conversación y por día, con la comparación GPT-5.5 vs GPT-5.4-mini.
-  Las constantes salen de la auditoría de costos; con el perfil del 8-ago devuelve los
-  $13,41 reales de ese día.
-- **`README.md`** de la carpeta: reglas del formato, tabla de qué bloque sale de qué reporte
-  guardado, las consultas SQL de la serie por semana y cómo actualizar la calculadora.
-
-**Por qué:** la reunión con Andrés Tamayo necesitaba el acumulado, no un día suelto, y hasta
-ahora eso se armaba a mano cada vez. Dejarlo versionado con su README convierte el reporte de
-reunión en algo repetible: se copia el último, se cambia la fecha de corte y se reemplazan los
-números desde las fuentes ya listadas.
-
-**Estado / próximos pasos:**
-- ⚠️ Las semanas 1 a 3 salen de la bitácora y no de la base: ese día el Postgres de Depot no
-  se pudo alcanzar (timeout al puerto del proxy de Railway). El README deja las consultas
-  listas para que el próximo reporte use la serie real por semana.
-
-
 ## 📌 Reglas (obligatorio)
 
 1. **Cada commit añade una entrada nueva aquí**, arriba de todo (más reciente primero).
@@ -921,6 +893,35 @@ por ahí y no saben nada de usuarios. Lo de las piezas es directamente lo que
 Andrés vio en la demo (min 18:31, *«esto está en la antigua, tengo que
 actualizarlo»*): dos renderizadores para la misma imagen garantizan que uno se
 quede atrás, y la única forma de que no vuelva a pasar es que quede uno.
+
+---
+
+### 2026-08-14 · Reporte histórico del mes 1 para la reunión con Depot · ⏱️ 1.5 h
+
+**Qué:** `docs/reportes-historicos/` — carpeta nueva para los reportes de periodo largo
+(los de reunión), separada del reporte diario automático de las 20:00.
+
+- **`2026-08-13-mes-1.html`**: una sola página, casi puro gráfico, con el formato y la
+  paleta del reporte diario. KPIs del corte, dona de lo cotizado en la semana contra todo
+  lo cotizado en la historia (95,5 %), movimiento del kanban, barras día por día, las cinco
+  semanas desde el arranque, errores del censo del 5-ago, calidad antes/después del juez
+  (12 → 0 fallos críticos), costo de IA (−69,4 % por conversación) y lo que sigue sin cerrar.
+- **Calculadora interactiva** al final: modelo + perfil de consumo + conversaciones al mes
+  → costo mensual, por conversación y por día, con la comparación GPT-5.5 vs GPT-5.4-mini.
+  Las constantes salen de la auditoría de costos; con el perfil del 8-ago devuelve los
+  $13,41 reales de ese día.
+- **`README.md`** de la carpeta: reglas del formato, tabla de qué bloque sale de qué reporte
+  guardado, las consultas SQL de la serie por semana y cómo actualizar la calculadora.
+
+**Por qué:** la reunión con Andrés Tamayo necesitaba el acumulado, no un día suelto, y hasta
+ahora eso se armaba a mano cada vez. Dejarlo versionado con su README convierte el reporte de
+reunión en algo repetible: se copia el último, se cambia la fecha de corte y se reemplazan los
+números desde las fuentes ya listadas.
+
+**Estado / próximos pasos:**
+- ⚠️ Las semanas 1 a 3 salen de la bitácora y no de la base: ese día el Postgres de Depot no
+  se pudo alcanzar (timeout al puerto del proxy de Railway). El README deja las consultas
+  listas para que el próximo reporte use la serie real por semana.
 
 ---
 
