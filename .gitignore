@@ -15,3 +15,6 @@ OWNER_KEY.local.txt
 
 # Basura de Finder
 .DS_Store
+
+# raíz: caches de herramientas de sesión
+node_modules/
