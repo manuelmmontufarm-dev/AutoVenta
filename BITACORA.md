@@ -156,6 +156,49 @@ Ya viene activado en este equipo.
 
 ## Entradas (más reciente primero)
 
+### 2026-08-25 · El turno exacto deja de pagar el cerebro grande: canary de OPENAI_EXACT_TOOL_MODEL · ⏱️ 1.5 h
+
+**Qué:** variable nueva `OPENAI_EXACT_TOOL_MODEL` (+ `AI_EXACT_TOOL_ROLLOUT`,
+0–100 por conversación, estable por id). Con ella puesta, las dos primeras
+rondas de las etapas NO rutinarias van con el modelo barato, bajo una regla
+dura: **el barato solo enruta**. Si contesta texto libre (prosa comercial:
+territorio del principal) o llama una herramienta con efectos reales
+(`generar_cotizacion`, `notificar_vendedor`), la ronda se repite con el
+principal y lo del barato se descarta SIN ejecutarse — el marcador
+`escalado_a_cerebro:<motivo>` queda en `tools` para medir la tasa de
+escalación. Sin la variable, cero cambios (mismo patrón que
+OPENAI_ROUTINE_MODEL y OPENAI_ESCALATION_MODEL).
+
+**Por qué:** era «el ahorro grande» pendiente desde el informe del 10-ago
+(42,4 % moviendo exact_tool_reply + routine_stage a mini; la variable de
+routine solo cubría el 12,9 %). Medido hoy 25-ago contra producción:
+`exact_tool_reply` es el **45 % de las corridas** (1.064 de 2.363 en 14 días)
+y la mayor entrada viva (2,85 M de tokens no cacheados), con la MAYOR entrada
+promedio (19 k por corrida). En esos turnos el texto que ve el cliente lo
+compone la herramienta (`mensaje_para_enviar` verbatim) — el modelo solo
+eligió cuál llamar: pagar GPT-5.5 por enrutar es el gasto más caro que
+quedaba. El desglose por herramienta final dice que el 80 % termina en
+`preparar_opciones`/`guia_medida`/`local_mas_cercano`/`reenviar_cotizacion`
+(sin efectos: contenido determinístico) y el 20 % en `generar_cotizacion` —
+por eso la lista negra: una cotización firmada con argumentos mal elegidos
+no se corrige con retry, así que esa llamada jamás es del barato.
+
+**Cómo se enciende (Railway, sin deploy):** `OPENAI_EXACT_TOOL_MODEL=gpt-5.4-mini`
+y de arranque `AI_EXACT_TOOL_ROLLOUT=10` (canary chico). Subir a 50 y 100
+cuando `ai_runs` muestre: (1) `route='exact_tool_reply' and model='gpt-5.4-mini'`
+creciendo, (2) tasa de `escalado_a_cerebro:%` estable (cada escalación cuesta
+una llamada mini extra, ~10 % del turno), (3) el guardián sin familias nuevas.
+Revertir = borrar la variable.
+
+**Pruebas:** 6 nuevas en `exactoBarato.integration.test.ts` con el stub HTTP
+de escalacionModelos (se ve el `model` real de cada request): el barato cierra
+un turno exacto solo y la auditoría lo registra a él; su texto NUNCA llega al
+cliente (responde el principal); `generar_cotizacion` pedida por él no crea
+ninguna fila en `quotes`; las etapas rutinarias no cambian; sin variable nada
+cambia; rollout 0 no alcanza a nadie. 768 tests, typecheck limpio.
+
+---
+
 ### 2026-08-25 · «Les molesto» no es un cliente molesto: es cortesía ecuatoriana · ⏱️ 0.5 h
 
 **Qué:** el aviso `😠 CLIENTE MOLESTO` del ticket 10438 salió por el mensaje

@@ -36,12 +36,46 @@ const openai = new OpenAI({ apiKey: config.openai.apiKey });
  * Con OPENAI_ESCALATION_MODEL sin definir, config lo iguala al principal: sin
  * variable de entorno esto no cambia absolutamente nada.
  */
-function modeloDelTurno(iteration: number, stage: AgentContext["conversation"]["stage"]): string {
+function modeloDelTurno(
+  iteration: number,
+  stage: AgentContext["conversation"]["stage"],
+  exactoBarato = false,
+): string {
   const routineStage = stage === "cotizacion_enviada" || stage === "seguimiento_venta";
   if (routineStage && iteration < 2) return config.openai.routineModel;
+  if (exactoBarato && iteration < 2) return config.openai.exactToolModel!;
   return iteration < Math.min(4, config.openai.maxToolIterations)
     ? config.openai.model
     : config.openai.escalationModel;
+}
+
+/**
+ * CANARY DEL TURNO EXACTO (25-ago).
+ *
+ * El 45 % de las corridas de producción termina en `exact_tool_reply`: la
+ * herramienta devuelve `mensaje_para_enviar` y ese texto sale VERBATIM — el
+ * modelo no redactó nada, solo eligió la herramienta. Pagar el cerebro grande
+ * por enrutar es el gasto más grande que queda (2,85 M de tokens vivos en 14
+ * días, medido el 25-ago). Con OPENAI_EXACT_TOOL_MODEL, las dos primeras
+ * rondas de las etapas NO rutinarias van con el barato, con una regla dura:
+ * el barato SOLO puede enrutar. Si contesta texto libre (eso es prosa
+ * comercial: territorio del principal) o llama una herramienta con efectos
+ * reales, la ronda se repite con el principal y lo del barato se descarta
+ * SIN ejecutarse. Las etapas rutinarias no cambian: ya tienen su propio
+ * canary con OPENAI_ROUTINE_MODEL.
+ *
+ * Estas dos herramientas firman cosas (una cotización real, un WhatsApp al
+ * asesor): un argumento mal elegido no se corrige con retry. El barato no
+ * las toca ni para acertar.
+ */
+const HERRAMIENTAS_CON_EFECTOS = new Set(["generar_cotizacion", "notificar_vendedor"]);
+
+/** Rollout estable por conversación: la misma conversación siempre cae del mismo lado. */
+function turnoExactoBarato(conversationId: number, stage: AgentContext["conversation"]["stage"]): boolean {
+  if (!config.openai.exactToolModel || config.openai.exactToolModel === config.openai.model) return false;
+  const etapaRutinaria = stage === "cotizacion_enviada" || stage === "seguimiento_venta";
+  if (etapaRutinaria) return false;
+  return conversationId % 100 < config.openai.exactToolRollout;
 }
 
 /**
@@ -156,10 +190,11 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
   // Modelo que produjo la respuesta que se devuelve al cliente. Se actualiza
   // ANTES de cada llamada (no después) para que la auditoría vea quién atendió
   // incluso si esa llamada revienta: interesa saber que ya se había escalado.
-  let modeloUsado = modeloDelTurno(0, ctx.conversation.stage);
+  let exactoBarato = turnoExactoBarato(ctx.conversation.id, ctx.conversation.stage);
+  let modeloUsado = modeloDelTurno(0, ctx.conversation.stage, exactoBarato);
 
   for (let iteration = 0; iteration < config.openai.maxToolIterations; iteration += 1) {
-    modeloUsado = modeloDelTurno(iteration, ctx.conversation.stage);
+    modeloUsado = modeloDelTurno(iteration, ctx.conversation.stage, exactoBarato);
     const gpt5 = modeloUsado.startsWith("gpt-5");
     const reasoningEffort = chatReasoningEffort(modeloUsado, tools.length > 0);
     // Un 429, un 500 o un timeout de OpenAI NO tumban el turno: se sale del
@@ -194,6 +229,27 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
     reasoningTokens += response.usage?.completion_tokens_details?.reasoning_tokens ?? 0;
     const message = response.choices[0]?.message;
     if (!message) break;
+
+    // La red de seguridad del canary: el barato SOLO enruta. Texto libre es
+    // prosa comercial (del principal); una herramienta con efectos firma cosas.
+    // En los dos casos se descarta lo del barato SIN ejecutar nada y la MISMA
+    // ronda se repite con el principal. `exactoBarato` se apaga, así que esto
+    // ocurre a lo sumo una vez por turno. Los tokens del intento descartado
+    // quedan sumados: son costo real del turno.
+    if (exactoBarato && iteration < 2 && modeloUsado === config.openai.exactToolModel) {
+      const primeraCall = message.tool_calls?.[0];
+      const motivo = !message.tool_calls?.length
+        ? "texto"
+        : primeraCall?.type === "function" && HERRAMIENTAS_CON_EFECTOS.has(primeraCall.function.name)
+          ? primeraCall.function.name
+          : null;
+      if (motivo) {
+        usedTools.push(`escalado_a_cerebro:${motivo}`);
+        exactoBarato = false;
+        iteration -= 1;
+        continue;
+      }
+    }
     messages.push(message);
 
     if (!message.tool_calls?.length) {

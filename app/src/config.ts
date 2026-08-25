@@ -168,6 +168,23 @@ export const config = {
      * de validar la tasa de éxito, sin volver a desplegar código.
      */
     routineModel: envOr("OPENAI_ROUTINE_MODEL", envOr("OPENAI_MODEL", "gpt-4o-mini")),
+    /**
+     * Modelo barato para los turnos que terminan en respuesta EXACTA de
+     * herramienta (`exact_tool_reply`, el 45 % de las corridas): ahí el texto
+     * que ve el cliente lo compone la HERRAMIENTA, no el modelo — el modelo
+     * solo elige cuál llamar y con qué argumentos. Sin la variable no cambia
+     * absolutamente nada. La red de seguridad vive en agent.ts: si el barato
+     * intenta escribir texto libre o llamar una herramienta con efectos
+     * (cotizar, notificar), la ronda se repite con el principal sin ejecutar
+     * nada de lo que el barato pidió.
+     */
+    exactToolModel: process.env.OPENAI_EXACT_TOOL_MODEL || null,
+    /**
+     * Rollout por conversación (0–100) del modelo de arriba, estable por id:
+     * la misma conversación siempre cae del mismo lado. 10 → canary chico,
+     * 100 → todas. Solo aplica si OPENAI_EXACT_TOOL_MODEL está definido.
+     */
+    exactToolRollout: Math.min(100, Math.max(0, Number(envOr("AI_EXACT_TOOL_ROLLOUT", "100")) || 0)),
     classifierModel: envOr("OPENAI_CLASSIFIER_MODEL", "gpt-4o-mini"),
     researchModel: envOr("OPENAI_RESEARCH_MODEL", envOr("OPENAI_MODEL", "gpt-4o-mini")),
     /** Lee fotos del cliente (medida en el costado, etiqueta de la puerta). */
