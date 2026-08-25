@@ -1,0 +1,488 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Depot Tire · Reporte de todas las semanas</title>
+<style>
+  :root{
+    --rojo:#E11B22; --rojo2:#8C1014; --vino:#2A1210; --negro:#141414;
+    --amarillo:#F5B301; --rosa:#F3B4B4; --gris:#D9DCE1; --grisT:#EEF0F3;
+    --papel:#fff; --fondo:#F4F5F7; --texto:#1a1a1a; --suave:#6B7280; --linea:#E5E7EB;
+    --verde:#0F9D58;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--fondo);color:var(--texto);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Helvetica,Arial,sans-serif;
+    -webkit-font-smoothing:antialiased}
+  .sheet{max-width:1080px;margin:22px auto;background:var(--papel);border-radius:16px;overflow:hidden;
+    box-shadow:0 1px 3px rgba(0,0,0,.07),0 12px 40px rgba(0,0,0,.06)}
+  .pad{padding:26px 34px}
+  h1,h2,h3{margin:0;letter-spacing:-.02em;line-height:1.1}
+  .lbl{font-size:11px;font-weight:800;letter-spacing:.13em;text-transform:uppercase;color:var(--suave)}
+
+  /* HERO */
+  .hero{background:var(--vino);color:#fff;padding:26px 34px 30px;position:relative;overflow:hidden}
+  .hero::after{content:"";position:absolute;inset:0;
+    background:repeating-linear-gradient(115deg,rgba(255,255,255,.03) 0 14px,transparent 14px 40px)}
+  .hero>*{position:relative}
+  .hero-top{display:flex;justify-content:space-between;align-items:center;gap:16px}
+  .logo{font-weight:900;font-size:19px;letter-spacing:.02em}
+  .logo span{color:var(--rojo)}
+  .hero h1{font-size:40px;margin:16px 0 6px}
+  .hero p{margin:0;color:#C9B9B6;font-size:14px}
+  .rule{height:6px;display:flex}
+  .rule i{height:100%}
+  .rule i:nth-child(1){background:var(--rojo);width:28%}
+  .rule i:nth-child(2){background:var(--amarillo);width:16%}
+  .rule i:nth-child(3){background:var(--negro);flex:1}
+
+  /* KPI STRIP */
+  .kpis{display:grid;grid-template-columns:repeat(6,1fr);gap:14px}
+  @media(max-width:900px){.kpis{grid-template-columns:repeat(3,1fr)}}
+  @media(max-width:560px){.kpis{grid-template-columns:repeat(2,1fr)}}
+  .kpi .cap{height:7px;background:var(--amarillo);border-radius:2px;margin-bottom:9px}
+  .kpi .t{font-size:10.5px;font-weight:800;letter-spacing:.09em;text-transform:uppercase;color:#4b5563;line-height:1.3}
+  .kpi .n{font-size:31px;font-weight:800;letter-spacing:-.03em;margin-top:4px;font-variant-numeric:tabular-nums}
+  .kpi .s{font-size:11.5px;color:var(--rojo);font-weight:700;margin-top:2px}
+  .kpi.dark{background:var(--negro);color:#fff;border-radius:9px;padding:11px 13px 13px;margin-top:-4px}
+  .kpi.dark .cap{background:var(--amarillo)}
+  .kpi.dark .t{color:#9ca3af}.kpi.dark .n{color:var(--amarillo);font-size:27px}.kpi.dark .s{color:#9ca3af}
+
+  .grid2{display:grid;grid-template-columns:1fr 1.15fr;gap:30px}
+  @media(max-width:860px){.grid2{grid-template-columns:1fr}}
+  .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:22px}
+  @media(max-width:800px){.grid3{grid-template-columns:1fr}}
+  .block h2{font-size:15.5px;letter-spacing:.02em;text-transform:uppercase}
+  .block .sub{font-size:12.5px;color:var(--suave);margin:3px 0 14px}
+  hr{border:0;border-top:1px solid var(--linea);margin:0}
+  .band{background:#FAFAFB;border-top:1px solid var(--linea);border-bottom:1px solid var(--linea)}
+  svg{display:block;width:100%;height:auto}
+  .lg{display:flex;gap:14px;flex-wrap:wrap;font-size:11.5px;color:var(--suave);margin-top:10px;font-weight:600}
+  .lg i{width:11px;height:11px;border-radius:3px;display:inline-block;margin-right:5px;vertical-align:-1px}
+  .chip{display:inline-block;background:var(--rojo);color:#fff;font-size:10.5px;font-weight:800;
+    letter-spacing:.08em;text-transform:uppercase;padding:3px 9px;border-radius:4px}
+  .chip.rosa{background:var(--rosa);color:#8C1014}
+  .chip.gris{background:var(--grisT);color:#4b5563}
+
+  /* TIMELINE */
+  .tl{display:grid;grid-template-columns:repeat(5,1fr);gap:12px}
+  @media(max-width:860px){.tl{grid-template-columns:repeat(2,1fr)}}
+  @media(max-width:520px){.tl{grid-template-columns:1fr}}
+  .tw{border:1px solid var(--linea);border-radius:11px;padding:13px 14px;background:#fff}
+  .tw .w{font-size:10.5px;font-weight:800;letter-spacing:.09em;text-transform:uppercase;color:var(--suave)}
+  .tw .big{font-size:24px;font-weight:800;letter-spacing:-.02em;margin:6px 0 2px}
+  .tw .txt{font-size:12px;color:#374151;line-height:1.45}
+  .tw.live{border-color:var(--rojo);box-shadow:0 0 0 2px rgba(225,27,34,.08)}
+
+  /* CALC */
+  .calc select,.calc input[type=number]{width:100%;margin-top:6px;padding:9px 11px;border:1px solid var(--linea);
+    border-radius:9px;font-size:14px;font-family:inherit;font-weight:700;color:var(--texto);background:#fff}
+  .calc label{display:block;font-size:10.5px;font-weight:800;letter-spacing:.09em;text-transform:uppercase;color:var(--suave)}
+  .calc-controls{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+  @media(max-width:700px){.calc-controls{grid-template-columns:1fr}}
+  #c-slider{width:100%;margin:16px 0 6px;accent-color:var(--rojo)}
+  .quick{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:18px}
+  .quick button{border:1px solid var(--linea);background:#fff;border-radius:999px;padding:4px 11px;
+    font-size:11.5px;font-weight:700;color:var(--suave);cursor:pointer;font-family:inherit}
+  .quick button:hover{border-color:var(--rojo);color:var(--rojo)}
+  .out{display:grid;grid-template-columns:minmax(200px,.9fr) 1.3fr;gap:18px;align-items:center}
+  @media(max-width:700px){.out{grid-template-columns:1fr}}
+  .outbox{background:var(--negro);color:#fff;border-radius:12px;padding:18px 20px}
+  .outbox .t{font-size:10.5px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#9ca3af}
+  .outbox .n{font-size:40px;font-weight:800;letter-spacing:-.03em;color:var(--amarillo);line-height:1.05;margin-top:4px}
+  .outbox .s{font-size:11.5px;color:#9ca3af;margin-top:6px}
+  .rows>div{display:flex;justify-content:space-between;gap:10px;padding:7px 0;border-bottom:1px solid var(--linea);
+    font-size:12.5px;color:var(--suave)}
+  .rows b{color:var(--texto);font-variant-numeric:tabular-nums;font-size:13.5px}
+  .cb{display:grid;grid-template-columns:96px 1fr 78px;gap:10px;align-items:center;font-size:12px;
+    font-weight:700;margin-top:8px}
+  .cb .track{background:var(--grisT);border-radius:5px;height:14px;overflow:hidden}
+  .cb .track div{height:100%;background:var(--rojo);width:0;transition:width .2s ease;border-radius:5px}
+  .cb b{text-align:right;font-variant-numeric:tabular-nums}
+
+  footer{background:var(--negro);color:#8b8f96;font-size:11.5px;padding:18px 34px;line-height:1.6}
+  footer b{color:#fff}
+  .fuente{font-size:11px;color:#9ca3af;margin-top:10px}
+</style>
+</head>
+<body>
+<div class="sheet">
+
+  <!-- HERO -->
+  <div class="hero">
+    <div class="hero-top">
+      <div class="logo">DEP<span>O</span>T TIRE</div>
+      <div class="lbl" style="color:#C9B9B6">Reporte de todas las semanas</div>
+    </div>
+    <h1>13 de julio → 13 de agosto</h1>
+    <p>Un mes de AutoVenta · las 4 semanas de construcción y la primera semana a volumen completo</p>
+  </div>
+  <div class="rule"><i></i><i></i><i></i></div>
+
+  <!-- KPIs -->
+  <div class="pad">
+    <div class="kpis">
+      <div class="kpi"><div class="cap"></div><div class="t">Clientes que<br>escribieron</div>
+        <div class="n">506</div><div class="s">últimos 7 días</div></div>
+      <div class="kpi"><div class="cap"></div><div class="t">Cotizado en<br>la semana</div>
+        <div class="n">$72.3k</div><div class="s">$75.7k desde siempre</div></div>
+      <div class="kpi"><div class="cap"></div><div class="t">Cotizaciones<br>del jueves</div>
+        <div class="n">33</div><div class="s">$18,827.14</div></div>
+      <div class="kpi"><div class="cap"></div><div class="t">Dijeron que<br>vienen</div>
+        <div class="n">6</div><div class="s">jue 13</div></div>
+      <div class="kpi"><div class="cap"></div><div class="t">Ventas<br>cerradas</div>
+        <div class="n">2</div><div class="s">$1,186.20</div></div>
+      <div class="kpi dark"><div class="cap"></div><div class="t">En juego<br>sin cerrar</div>
+        <div class="n">$64,438</div><div class="s">152 pendientes</div></div>
+    </div>
+  </div>
+
+  <hr>
+
+  <!-- DONUT + KANBAN -->
+  <div class="pad grid2">
+    <div class="block">
+      <h2>Cuánto se cotizó</h2>
+      <p class="sub">La semana dentro de todo lo cotizado en la historia del bot</p>
+      <svg viewBox="0 0 300 230" role="img" aria-label="Dona: la semana es el 95,5% de todo lo cotizado">
+        <circle cx="115" cy="112" r="70" fill="none" stroke="#EEF0F3" stroke-width="26"/>
+        <circle cx="115" cy="112" r="70" fill="none" stroke="var(--rojo)" stroke-width="26"
+                stroke-dasharray="420 20" stroke-linecap="butt" transform="rotate(-90 115 112)"/>
+        <circle cx="115" cy="112" r="52" fill="#fff"/>
+        <text x="115" y="108" text-anchor="middle" font-size="30" font-weight="800" fill="#1a1a1a"
+              font-family="inherit" letter-spacing="-1">$72.3k</text>
+        <text x="115" y="128" text-anchor="middle" font-size="9.5" font-weight="800" fill="#6B7280"
+              font-family="inherit" letter-spacing="1.2">95,5% DE TODO</text>
+        <g font-family="inherit" font-size="12">
+          <rect x="18" y="200" width="11" height="11" rx="3" fill="var(--rojo)"/>
+          <text x="36" y="210" fill="#374151" font-weight="700">Esta semana</text>
+          <text x="282" y="210" text-anchor="end" font-weight="800" fill="#1a1a1a">$72,347</text>
+        </g>
+      </svg>
+      <div style="display:flex;justify-content:space-between;font-size:12px;font-weight:700;
+                  color:#6B7280;border-top:1px solid var(--linea);padding-top:9px;margin-top:6px">
+        <span><i style="display:inline-block;width:11px;height:11px;border-radius:3px;background:#EEF0F3;
+          margin-right:6px;vertical-align:-1px"></i>Desde siempre</span><b style="color:#1a1a1a">$75,740</b>
+      </div>
+    </div>
+
+    <div class="block">
+      <h2>Movimiento del kanban</h2>
+      <p class="sub">Cuánta gente entró a cada columna esta semana</p>
+      <svg viewBox="0 0 520 250" role="img" aria-label="Barras del movimiento del kanban">
+        <g font-family="inherit" font-size="12" font-weight="700" fill="#374151">
+          <text x="0" y="24">Medida</text><text x="0" y="61">Eligiendo</text>
+          <text x="0" y="98">Cotización</text><text x="0" y="135">Seguimiento</text>
+          <text x="0" y="172">Ganado</text><text x="0" y="209">Perdido</text>
+        </g>
+        <g stroke="#E5E7EB" stroke-dasharray="3 4">
+          <line x1="95" y1="6" x2="95" y2="222"/><line x1="305" y1="6" x2="305" y2="222"/>
+          <line x1="515" y1="6" x2="515" y2="222"/>
+        </g>
+        <g>
+          <rect x="95" y="10"  width="420"  height="18" rx="3" fill="#9CA3AF"/>
+          <rect x="95" y="47"  width="144.2" height="18" rx="3" fill="#C98C8C"/>
+          <rect x="95" y="84"  width="144.2" height="18" rx="3" fill="#E38B8B"/>
+          <rect x="95" y="121" width="159.4" height="18" rx="3" fill="#F0A28A"/>
+          <rect x="95" y="158" width="10.1"  height="18" rx="3" fill="var(--amarillo)"/>
+          <rect x="95" y="195" width="20.2"  height="18" rx="3" fill="#C6CAD1"/>
+          <rect x="95" y="10"  width="120"  height="18" rx="3" fill="#1a1a1a"/>
+          <rect x="95" y="47"  width="46"   height="18" rx="3" fill="#8C1014"/>
+          <rect x="95" y="84"  width="46"   height="18" rx="3" fill="var(--rojo)"/>
+          <rect x="95" y="121" width="34"   height="18" rx="3" fill="#EC6A34"/>
+        </g>
+        <g font-family="inherit" font-size="13" font-weight="800" fill="#1a1a1a" font-style="italic">
+          <text x="519" y="24" text-anchor="end">332</text>
+          <text x="519" y="61" text-anchor="end">114</text><text x="519" y="98" text-anchor="end">114</text>
+          <text x="519" y="135" text-anchor="end">126</text><text x="519" y="172" text-anchor="end">8</text>
+          <text x="519" y="209" text-anchor="end">16</text>
+        </g>
+        <g font-family="inherit" font-size="10.5" font-weight="700" fill="#9CA3AF">
+          <text x="95" y="240">0</text><text x="305" y="240" text-anchor="middle">166</text>
+          <text x="515" y="240" text-anchor="end">332</text>
+        </g>
+      </svg>
+      <div class="lg"><span><i style="background:#1a1a1a"></i>Jueves 13</span>
+        <span><i style="background:#C98C8C"></i>La semana</span></div>
+    </div>
+  </div>
+
+  <!-- DIA A DIA -->
+  <div class="band"><div class="pad block">
+    <h2>La semana, día por día</h2>
+    <p class="sub">Clientes que escribieron · 7 al 13 de agosto</p>
+    <svg viewBox="0 0 760 230" role="img" aria-label="Barras de clientes por día">
+      <g stroke="#E5E7EB"><line x1="34" y1="20" x2="756" y2="20"/><line x1="34" y1="88" x2="756" y2="88"/>
+        <line x1="34" y1="156" x2="756" y2="156"/></g>
+      <g font-family="inherit" font-size="10.5" font-weight="700" fill="#9CA3AF">
+        <text x="0" y="24">120</text><text x="0" y="92">60</text><text x="0" y="160">0</text></g>
+      <!-- max 120 -> 136px alto; y = 156 - v/120*136 -->
+      <g>
+        <rect x="52"  y="92.5"  width="62" height="63.5" rx="4" fill="var(--rosa)"/>
+        <rect x="152" y="72.1"  width="62" height="83.9" rx="4" fill="var(--rosa)"/>
+        <rect x="252" y="122"   width="62" height="34"   rx="4" fill="var(--rosa)"/>
+        <rect x="352" y="129.9" width="62" height="26.1" rx="4" fill="var(--rosa)"/>
+        <rect x="452" y="51.7"  width="62" height="104.3" rx="4" fill="var(--rosa)"/>
+        <rect x="552" y="25.7"  width="62" height="130.3" rx="4" fill="#EE8E8E"/>
+        <rect x="652" y="24.5"  width="62" height="131.5" rx="4" fill="var(--rojo)"/>
+      </g>
+      <g font-family="inherit" font-size="13" font-weight="800" fill="#4b5563" font-style="italic" text-anchor="middle">
+        <text x="83" y="85">56</text><text x="183" y="65">74</text><text x="283" y="115">30</text>
+        <text x="383" y="123">23</text><text x="483" y="45">92</text><text x="583" y="19">115</text>
+        <text x="683" y="18" fill="var(--rojo)">116</text>
+      </g>
+      <g font-family="inherit" font-size="12" font-weight="700" fill="#6B7280" text-anchor="middle">
+        <text x="83" y="178">vie 7</text><text x="183" y="178">sáb 8</text><text x="283" y="178">dom 9</text>
+        <text x="383" y="178">lun 10</text><text x="483" y="178">mar 11</text><text x="583" y="178">mié 12</text>
+        <text x="683" y="178" fill="var(--rojo)">jue 13</text>
+      </g>
+      <g font-family="inherit" font-size="11.5" font-weight="700" fill="#9CA3AF">
+        <text x="34" y="206">506 clientes en 7 días · promedio 72 al día · pico el jueves con 116</text>
+      </g>
+    </svg>
+  </div></div>
+
+  <!-- LINEA DE TIEMPO SEMANAL -->
+  <div class="pad block">
+    <h2>Semana a semana</h2>
+    <p class="sub">Qué pasó en cada una, desde el arranque hasta hoy</p>
+    <div class="tl">
+      <div class="tw"><div class="w">13 – 19 jul</div><div class="big">Semana 1</div>
+        <p class="txt"><span class="chip gris">construcción</span><br>Webhook de WhatsApp en vivo y primera prueba
+          punta a punta con Meta.</p></div>
+      <div class="tw"><div class="w">20 – 26 jul</div><div class="big">Semana 2</div>
+        <p class="txt"><span class="chip gris">construcción</span><br>Catálogo real, cotizaciones y el panel del negocio.</p></div>
+      <div class="tw"><div class="w">27 jul – 2 ago</div><div class="big">Semana 3</div>
+        <p class="txt"><span class="chip gris">pruebas</span><br><b>10 de 10</b> criterios de carga aprobados.
+          0 mensajes perdidos, acuse en 25 ms.</p></div>
+      <div class="tw"><div class="w">3 – 9 ago</div><div class="big">Semana 4</div>
+        <p class="txt"><span class="chip rosa">corrección</span><br>Censo de 164 chats: <b>15,2 %</b> con error.
+          Se apagó, se corrigió y volvió con <b>12 → 0</b> fallos críticos.</p></div>
+      <div class="tw live"><div class="w">10 – 13 ago</div><div class="big" style="color:var(--rojo)">Semana 5</div>
+        <p class="txt"><span class="chip">a volumen</span><br><b>506</b> clientes en 7 días y <b>$72.3k</b>
+          cotizados — el 95,5 % de todo lo cotizado en la historia.</p></div>
+    </div>
+  </div>
+
+  <!-- ERRORES -->
+  <div class="band"><div class="pad grid2">
+    <div class="block">
+      <h2>Errores corregidos</h2>
+      <p class="sub">Censo del 5 de agosto · incidencias por tipo de falla</p>
+      <svg viewBox="0 0 500 200" role="img" aria-label="Barras de fallas del censo">
+        <g font-family="inherit" font-size="11.5" font-weight="600" fill="#4b5563">
+          <text x="0" y="16">Pide foto que no puede leer</text><text x="0" y="46">Error de procesamiento</text>
+          <text x="0" y="76">Saludo repetido</text><text x="0" y="106">Disculpas seguidas</text>
+          <text x="0" y="136">Mensaje duplicado</text><text x="0" y="166">Cotización duplicada</text>
+        </g>
+        <g>
+          <rect x="215" y="4"   width="255" height="15" rx="3" fill="var(--rojo)"/>
+          <rect x="215" y="34"  width="102" height="15" rx="3" fill="var(--rojo)" opacity=".82"/>
+          <rect x="215" y="64"  width="51"  height="15" rx="3" fill="var(--rojo)" opacity=".66"/>
+          <rect x="215" y="94"  width="42"  height="15" rx="3" fill="var(--rojo)" opacity=".55"/>
+          <rect x="215" y="124" width="42"  height="15" rx="3" fill="var(--rojo)" opacity=".55"/>
+          <rect x="215" y="154" width="17"  height="15" rx="3" fill="var(--rojo)" opacity=".4"/>
+        </g>
+        <g font-family="inherit" font-size="12" font-weight="800" fill="#1a1a1a" font-style="italic">
+          <text x="460" y="16" fill="#fff" text-anchor="end">30</text><text x="325" y="46">12</text>
+          <text x="274" y="76">6</text><text x="265" y="106">5</text>
+          <text x="265" y="136">5</text><text x="240" y="166">2</text>
+        </g>
+        <g font-family="inherit" font-size="11.5" font-weight="700" fill="#9CA3AF">
+          <text x="0" y="194">25 de 164 chats afectados · 15,2 %</text></g>
+      </svg>
+    </div>
+    <div class="block">
+      <h2>Calidad del bot, antes y después</h2>
+      <p class="sub">Misma batería de 17 turnos · juez automático de 1 a 5 · 8 de agosto</p>
+      <svg viewBox="0 0 500 210" role="img" aria-label="Calificaciones antes y después">
+        <g stroke="#E5E7EB"><line x1="34" y1="12" x2="496" y2="12"/><line x1="34" y1="56" x2="496" y2="56"/>
+          <line x1="34" y1="100" x2="496" y2="100"/><line x1="34" y1="144" x2="496" y2="144"/></g>
+        <g font-family="inherit" font-size="10.5" font-weight="700" fill="#9CA3AF">
+          <text x="0" y="16">5,0</text><text x="0" y="60">4,5</text><text x="0" y="104">4,0</text><text x="0" y="148">3,5</text></g>
+        <!-- y = 12 + (5-v)*88 ; base 144 (3,5) -->
+        <g>
+          <rect x="62"  y="132"   width="38" height="12"  rx="3" fill="#C6CAD1"/>
+          <rect x="104" y="78.9"  width="38" height="65.1" rx="3" fill="var(--rojo)"/>
+          <rect x="174" y="142.8" width="38" height="1.2" rx="3" fill="#C6CAD1"/>
+          <rect x="216" y="84.2"  width="38" height="59.8" rx="3" fill="var(--rojo)"/>
+          <rect x="286" y="100"   width="38" height="44"  rx="3" fill="#C6CAD1"/>
+          <rect x="328" y="48.1"  width="38" height="95.9" rx="3" fill="var(--rojo)"/>
+          <rect x="398" y="132.5" width="38" height="11.5" rx="3" fill="#C6CAD1"/>
+          <rect x="440" y="63.9"  width="38" height="80.1" rx="3" fill="var(--rojo)"/>
+        </g>
+        <g font-family="inherit" font-size="11.5" font-weight="800" fill="#1a1a1a" text-anchor="middle" font-style="italic">
+          <text x="81" y="127">3,41</text><text x="123" y="74">4,24</text>
+          <text x="193" y="138">3,65</text><text x="235" y="79">4,18</text>
+          <text x="305" y="95">4,00</text><text x="347" y="43">4,59</text>
+          <text x="417" y="128">3,29</text><text x="459" y="59">4,41</text>
+        </g>
+        <g font-family="inherit" font-size="11.5" font-weight="700" fill="#6B7280" text-anchor="middle">
+          <text x="102" y="164">Utilidad</text><text x="214" y="164">Naturalidad</text>
+          <text x="326" y="164">Precisión</text><text x="438" y="164">Acción</text></g>
+        <g font-family="inherit" font-size="12" font-weight="800">
+          <text x="34" y="192" fill="var(--verde)">Fallos críticos: 12 → 0</text>
+          <text x="496" y="192" text-anchor="end" fill="#9CA3AF" font-weight="700" font-size="11.5">corrida en verde</text></g>
+      </svg>
+      <div class="lg"><span><i style="background:#C6CAD1"></i>Antes</span><span><i style="background:var(--rojo)"></i>Después</span></div>
+    </div>
+  </div></div>
+
+  <!-- COSTO -->
+  <div class="pad block">
+    <h2>Costo de la inteligencia artificial</h2>
+    <p class="sub">Auditoría del 9 de agosto · mismo horario, mismos clientes externos</p>
+    <div class="grid3">
+      <div>
+        <svg viewBox="0 0 240 120" role="img" aria-label="Caída del costo por conversación">
+          <text x="0" y="34" font-family="inherit" font-size="38" font-weight="800" fill="var(--verde)">−69,4 %</text>
+          <text x="0" y="56" font-family="inherit" font-size="12" font-weight="700" fill="#4b5563">costo por conversación</text>
+          <rect x="0" y="72" width="230" height="14" rx="4" fill="#EEF0F3"/>
+          <rect x="0" y="72" width="230" height="14" rx="4" fill="#C6CAD1"/>
+          <rect x="0" y="94" width="70.4" height="14" rx="4" fill="var(--rojo)"/>
+          <text x="238" y="83" text-anchor="end" font-family="inherit" font-size="10.5" font-weight="800" fill="#4b5563">antes</text>
+          <text x="238" y="105" text-anchor="end" font-family="inherit" font-size="10.5" font-weight="800" fill="var(--rojo)">ahora</text>
+        </svg>
+      </div>
+      <div>
+        <svg viewBox="0 0 240 120" role="img" aria-label="Caída del costo por mensaje">
+          <text x="0" y="34" font-family="inherit" font-size="38" font-weight="800" fill="var(--verde)">−27,5 %</text>
+          <text x="0" y="56" font-family="inherit" font-size="12" font-weight="700" fill="#4b5563">costo por mensaje del bot</text>
+          <rect x="0" y="72" width="230" height="14" rx="4" fill="#C6CAD1"/>
+          <rect x="0" y="94" width="166.8" height="14" rx="4" fill="var(--rojo)"/>
+          <text x="238" y="83" text-anchor="end" font-family="inherit" font-size="10.5" font-weight="800" fill="#4b5563">antes</text>
+          <text x="238" y="105" text-anchor="end" font-family="inherit" font-size="10.5" font-weight="800" fill="var(--rojo)">ahora</text>
+        </svg>
+      </div>
+      <div>
+        <svg viewBox="0 0 240 120" role="img" aria-label="Cache de tokens">
+          <circle cx="46" cy="60" r="38" fill="none" stroke="#EEF0F3" stroke-width="14"/>
+          <circle cx="46" cy="60" r="38" fill="none" stroke="var(--amarillo)" stroke-width="14"
+                  stroke-dasharray="172 67" transform="rotate(-90 46 60)"/>
+          <text x="46" y="66" text-anchor="middle" font-family="inherit" font-size="18" font-weight="800" fill="#1a1a1a">72%</text>
+          <text x="100" y="52" font-family="inherit" font-size="12" font-weight="700" fill="#4b5563">de los tokens</text>
+          <text x="100" y="70" font-family="inherit" font-size="12" font-weight="700" fill="#4b5563">llegan cacheados</text>
+          <text x="100" y="88" font-family="inherit" font-size="11" font-weight="700" fill="#9CA3AF">10× más baratos</text>
+        </svg>
+      </div>
+    </div>
+  </div>
+
+  <!-- CALCULADORA -->
+  <div class="band"><div class="pad block calc">
+    <h2>Calculadora · cuánto costaría al mes</h2>
+    <p class="sub">Escoja modelo y volumen. Usa el consumo real medido por conversación y las tarifas de la auditoría.</p>
+    <div class="calc-controls">
+      <label>Modelo
+        <select id="c-modelo">
+          <option value="g55" selected>GPT-5.5 — el que corre hoy</option>
+          <option value="g54m">GPT-5.4-mini — alternativa económica</option>
+        </select>
+      </label>
+      <label>Perfil de consumo
+        <select id="c-perfil">
+          <option value="opt" selected>Actual, ya optimizado</option>
+          <option value="pre">Antes de optimizar</option>
+        </select>
+      </label>
+      <label>Conversaciones al mes
+        <input id="c-conv" type="number" min="1" max="20000" step="50" value="2000">
+      </label>
+    </div>
+    <input id="c-slider" type="range" min="50" max="6000" step="50" value="2000" aria-label="Conversaciones al mes">
+    <div class="quick">
+      <button data-c="600">600 · 20 al día</button>
+      <button data-c="1500">1.500 · 50 al día</button>
+      <button data-c="2200">2.200 · el ritmo de esta semana</button>
+      <button data-c="4000">4.000 · el doble</button>
+    </div>
+    <div class="out">
+      <div class="outbox"><div class="t">Costo de IA al mes</div><div class="n" id="c-mes">$0</div>
+        <div class="s" id="c-year">—</div></div>
+      <div>
+        <div class="rows">
+          <div><span>Por conversación</span><b id="c-cc">—</b></div>
+          <div><span>Por día</span><b id="c-dia">—</b></div>
+          <div><span>Tokens de entrada por conversación</span><b id="c-tin">—</b></div>
+          <div><span>De esos, cacheados</span><b id="c-cache">—</b></div>
+          <div><span>Tokens de salida por conversación</span><b id="c-tout">—</b></div>
+        </div>
+        <div class="cb"><span>GPT-5.5</span><div class="track"><div id="b-g55"></div></div><b id="v-g55">—</b></div>
+        <div class="cb"><span>GPT-5.4-mini</span><div class="track"><div id="b-g54m"></div></div><b id="v-g54m">—</b></div>
+      </div>
+    </div>
+    <p class="fuente">Tarifas por millón de tokens — GPT-5.5: $5 entrada / $0,50 cacheada / $30 salida ·
+      GPT-5.4-mini: $0,75 / $0,075 / $4,50. Consumo por conversación medido el 9-ago (perfil actual: 29.472 tokens
+      de entrada, 70,7 % cacheados, 178 de salida) y el 8-ago (perfil anterior: 79.660 / 70,3 % / 1.246).
+      Solo cubre IA: no incluye WhatsApp, servidor ni base de datos.</p>
+  </div></div>
+
+  <!-- PENDIENTES -->
+  <div class="pad block">
+    <h2>Lo que falta cerrar</h2>
+    <p class="sub">Revisión del 13 de agosto · medido, no estimado</p>
+    <svg viewBox="0 0 760 150" role="img" aria-label="Pendientes medidos">
+      <g>
+        <rect x="0" y="14" width="240" height="120" rx="11" fill="#FFF7E8" stroke="#F0D89B"/>
+        <text x="18" y="52" font-family="inherit" font-size="34" font-weight="800" fill="#8A6100">8</text>
+        <text x="18" y="76" font-family="inherit" font-size="10.5" font-weight="800" fill="#8A6100">CHATS CALIENTES SIN RESPUESTA</text>
+        <text x="18" y="98" font-family="inherit" font-size="11.5" fill="#7c6a45">El bot se pausa al pedir asesor</text>
+        <text x="18" y="115" font-family="inherit" font-size="11.5" fill="#7c6a45">y solo hubo 2 mensajes humanos.</text>
+
+        <rect x="260" y="14" width="240" height="120" rx="11" fill="#FFF1F1" stroke="#F0BDBD"/>
+        <text x="278" y="52" font-family="inherit" font-size="34" font-weight="800" fill="#A11117">3</text>
+        <text x="278" y="76" font-family="inherit" font-size="10.5" font-weight="800" fill="#A11117">MEDIDA CONFIRMADA Y LUEGO NEGADA</text>
+        <text x="278" y="98" font-family="inherit" font-size="11.5" fill="#8a5a5c">Ya corregido con el sello verde/rojo</text>
+        <text x="278" y="115" font-family="inherit" font-size="11.5" fill="#8a5a5c">de medida exacta o equivalente.</text>
+
+        <rect x="520" y="14" width="240" height="120" rx="11" fill="#F1F5FF" stroke="#C3D1F5"/>
+        <text x="538" y="52" font-family="inherit" font-size="34" font-weight="800" fill="#1D4ED8">9,1 %</text>
+        <text x="538" y="76" font-family="inherit" font-size="10.5" font-weight="800" fill="#1D4ED8">DE PIDE PRECIO A COTIZACIÓN</text>
+        <text x="538" y="98" font-family="inherit" font-size="11.5" fill="#5b6a8a">1 de 11 el 9-ago. Ruta directa ya</text>
+        <text x="538" y="115" font-family="inherit" font-size="11.5" fill="#5b6a8a">definida, meta puesta en 60 %.</text>
+      </g>
+    </svg>
+  </div>
+
+  <div class="rule"><i></i><i></i><i></i></div>
+  <footer>
+    <b>Depot Tire · AutoVenta</b> — 13 jul al 13 ago 2026.
+    Fuentes: reporte automático del 13-ago, censo del 5-ago (164 conversaciones), auditoría de costos del 9-ago,
+    suite de evaluación del 8-ago y prueba de carga del 27-jul. Todas quedan guardadas y son reproducibles.
+  </footer>
+</div>
+
+<script>
+(function(){
+  var T = { g55:{n:"GPT-5.5",inp:5,cach:.5,out:30}, g54m:{n:"GPT-5.4-mini",inp:.75,cach:.075,out:4.5} };
+  var P = { opt:{inT:618905/21, cach:437760/21, out:3749/21},
+            pre:{inT:5815150/73, cach:5815150*0.7031/73, out:90929/73} };
+  var $=function(i){return document.getElementById(i)};
+  var f=function(n,d){return n.toLocaleString("es-EC",{minimumFractionDigits:d,maximumFractionDigits:d})};
+  var usd=function(n){return "$"+f(n, n<10?2:(n<100?1:0))};
+  function costo(m,p){var t=T[m],x=P[p];return ((x.inT-x.cach)*t.inp + x.cach*t.cach + x.out*t.out)/1e6;}
+  function render(){
+    var m=$("c-modelo").value, pf=$("c-perfil").value;
+    var c=Math.max(1,Math.min(20000,parseInt($("c-conv").value,10)||0));
+    var p=P[pf], pc=costo(m,pf), mes=pc*c;
+    $("c-mes").textContent=usd(mes);
+    $("c-year").textContent=usd(mes*12)+" al año · "+c.toLocaleString("es-EC")+" conversaciones al mes";
+    $("c-cc").textContent="$"+f(pc,4); $("c-dia").textContent=usd(mes/30);
+    $("c-tin").textContent=f(p.inT,0); $("c-cache").textContent=f(p.cach/p.inT*100,1)+" %";
+    $("c-tout").textContent=f(p.out,0);
+    var a=costo("g55",pf)*c, b=costo("g54m",pf)*c, top=Math.max(a,b)||1;
+    $("b-g55").style.width=(a/top*100)+"%"; $("b-g54m").style.width=(b/top*100)+"%";
+    $("b-g55").style.opacity=m==="g55"?1:.35; $("b-g54m").style.opacity=m==="g54m"?1:.35;
+    $("v-g55").textContent=usd(a); $("v-g54m").textContent=usd(b);
+  }
+  ["c-modelo","c-perfil"].forEach(function(i){$(i).addEventListener("change",render)});
+  $("c-conv").addEventListener("input",function(){$("c-slider").value=Math.min(6000,this.value||50);render()});
+  $("c-slider").addEventListener("input",function(){$("c-conv").value=this.value;render()});
+  Array.prototype.forEach.call(document.querySelectorAll(".quick button"),function(b){
+    b.addEventListener("click",function(){$("c-conv").value=b.dataset.c;$("c-slider").value=b.dataset.c;render()})});
+  render();
+})();
+</script>
+</body>
+</html>
