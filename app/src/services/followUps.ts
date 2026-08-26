@@ -202,8 +202,13 @@ function conMapasPegados(
   kind: FollowUpMessageKind,
 ): string {
   if (!followUpNeedsStoreLinks(context, kind)) return text;
-  if (/https?:\/\//.test(text)) return text;
-  return `${text}\n${context.storeLinks!.trim()}`;
+  // El modelo no recibe los links (ver `ensureFollowUpJobCopy`), pero puede
+  // copiarlos del historial — y un maps.app.goo.gl reproducido a mano por un
+  // LLM sale mutilado con facilidad. Cualquier URL que haya escrito se quita
+  // y el bloque canónico se pega SIEMPRE: los links solo salen de
+  // `buildStoreLinksBlock`, nunca de la pluma del modelo.
+  const sinUrls = text.replace(/https?:\/\/\S+/g, "").replace(/[ \t]+(?=\n|$)/g, "").trim();
+  return `${sinUrls}\n${context.storeLinks!.trim()}`;
 }
 
 export function buildFollowUpPreview(
@@ -840,8 +845,12 @@ export async function ensureFollowUpJobCopy(input: {
     return { text: stored, generated: false };
   }
   const copyContext = jobCopyContext(context);
+  // Al modelo, los hechos SIN los links: las URLs de Maps son exactamente el
+  // tipo de string que un LLM copia mal, y una mutilada en el chat es peor
+  // que ninguna. El bloque canónico lo pega `conMapasPegados` después, sobre
+  // el texto final.
   const copy = await generateFollowUpCopy(
-    copyContext,
+    { ...copyContext, storeLinks: undefined },
     kind,
     policy.stagePrompts?.[context.stage],
   );

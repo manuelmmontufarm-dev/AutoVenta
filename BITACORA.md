@@ -32,6 +32,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-08-25 | _(este mismo)_ | Revisión del sprint final: la IA del seguimiento ya no ve (ni puede mutilar) los links de Maps | 0.25 |
 | 2026-08-25 | _(este mismo)_ | La ubicación deja de esperar el pin: los links van con la pregunta, el seguimiento los repite y «al sur» ya registra el local | 1.5 |
 | 2026-08-25 | _(este mismo)_ | «Les molesto» dejó de ser un cliente enojado: en Ecuador es cortesía para anunciar la visita, y el falso positivo pausaba el hilo para siempre | 0.5 |
 | 2026-08-23 | _(este mismo)_ | Depot Tire caído desde el 20-ago: un ECONNRESET de Postgres en el panel mataba el proceso; salvavidas de unhandledRejection en HTTP y worker + redeploy | 0.5 |
@@ -151,11 +152,24 @@ Ya viene activado en este equipo.
 | 2026-07-14 | ac09171 | Ubicaciones de locales + análisis de features del cliente | 1.5 |
 | 2026-07-13 | feadf57 | Brief + plan de desarrollo + plan financiero + catálogo | 4.0 |
 | 2026-07-13 | d997844 | Commit inicial (repo) | 0.25 |
-| | | **TOTAL** | **~109.0 h** |
+| | | **TOTAL** | **~109.25 h** |
 
 ---
 
 ## Entradas (más reciente primero)
+
+### 2026-08-25 · Los links de Maps, fuera del alcance de la pluma del modelo · ⏱️ 0.25 h
+
+**Qué:** dos candados en `ensureFollowUpJobCopy`/`conMapasPegados`: el contexto
+que se manda al modelo de copy va sin `storeLinks`, y cualquier URL que el
+modelo escriba igual (copiada del historial) se quita antes de pegar SIEMPRE
+el bloque canónico de `buildStoreLinksBlock`.
+
+**Por qué:** la revisión del sprint final encontró que los links con URLs
+reales entraban a los hechos del modelo, y la guarda vieja («si ya hay un
+link, no pego nada») convertía un `maps.app.goo.gl` mutilado por el LLM en el
+link que recibía el cliente — rompía el invariante «nadie escribe URLs a
+mano» por la puerta de atrás. Test nuevo con el link mutilado forzado.
 
 ### 2026-08-25 · La ubicación deja de esperar el pin · ⏱️ 1.5 h
 

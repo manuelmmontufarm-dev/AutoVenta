@@ -9,7 +9,7 @@
 import postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
-const espia = vi.hoisted(() => ({ llamadas: 0, kinds: [] as string[] }));
+const espia = vi.hoisted(() => ({ llamadas: 0, kinds: [] as string[], textoForzado: null as string | null }));
 
 vi.mock("../src/services/followUpCopy.js", () => ({
   generateFollowUpCopy: async (
@@ -18,7 +18,7 @@ vi.mock("../src/services/followUpCopy.js", () => ({
   ) => {
     espia.llamadas += 1;
     espia.kinds.push(kind);
-    return { text: `Redacción IA (${kind}) para ${context.name ?? "cliente"}`, source: "ai" as const };
+    return { text: espia.textoForzado ?? `Redacción IA (${kind}) para ${context.name ?? "cliente"}`, source: "ai" as const };
   },
 }));
 
@@ -124,7 +124,7 @@ describe.sequential("Seguimientos perezosos y redacción con IA", () => {
     await admin.end();
   });
 
-  beforeEach(() => { espia.llamadas = 0; espia.kinds = []; });
+  beforeEach(() => { espia.llamadas = 0; espia.kinds = []; espia.textoForzado = null; });
 
   it("programar no cuesta ni una redacción", async () => {
     const conv = await conversacionLista();
@@ -341,6 +341,24 @@ describe.sequential("Seguimientos perezosos y redacción con IA", () => {
     expect(espia.llamadas).toBe(1); // el texto sí lo redactó la IA…
     expect(enviados[0]).toContain("Redacción IA");
     expect(enviados[0].match(/https?:\/\/\S+/g) ?? []).toHaveLength(2); // …y los mapas no.
+  });
+
+  it("un link escrito por la IA no sale: se quita y se pega el bloque canónico", async () => {
+    // El bloqueante de la revisión del sprint final: los maps.app.goo.gl son
+    // exactamente el tipo de string que un modelo reproduce mal, y la guarda
+    // vieja («si ya hay un link, no pego nada») dejaba pasar el mutilado
+    // VERBATIM al cliente. Ahora lo que escriba el modelo se quita y los
+    // links salen siempre de buildStoreLinksBlock.
+    const conv = await conversacionLista();
+    await conCotizacion(conv.id, "COT-MAPAS-3");
+    espia.textoForzado = "Le esperamos 🚗 https://maps.app.goo.gl/MUT1LADO ¿qué día puede pasar?";
+
+    const enviados: string[] = [];
+    await reclamarYProcesar(conv.id, enviados);
+
+    expect(enviados).toHaveLength(1);
+    expect(enviados[0]).not.toContain("MUT1LADO");
+    expect(enviados[0].match(/https?:\/\/\S+/g) ?? []).toHaveLength(2);
   });
 
   it("con el local ya elegido va solo su mapa, no los dos", async () => {
