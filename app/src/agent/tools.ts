@@ -1562,6 +1562,27 @@ export function buildTools(ctx: AgentContext) {
     }),
     run: async ({ items, nombre_cliente: nombreDicho, incluir_pdf = false }) => {
       const nombre_cliente = nombreDicho?.trim() || ctx.customerName || "Cliente";
+      // «2» después del menú de preferencia es el ESCALÓN, no la cantidad.
+      // Visto en vivo el 26-ago (conv 3): el cliente contestó «2» al menú
+      // 1 Costo / 2 Equilibrio / 3 Premium, el modelo eligió bien la llanta
+      // equilibrada… y cotizó DOS unidades. Candado determinístico: si el
+      // mensaje es el puro número del menú, la cantidad no fue dicha — juego
+      // de 4 con su aclaración horneada. El prompt ya lo pide; esto lo
+      // garantiza aunque el turno lo atienda el modelo barato del canary.
+      let avisoJuego: string | null = null;
+      const eleccionDeMenu = (ctx.currentUserText ?? "").trim().match(/^(?:la\s+|el\s+|opci[oó]n\s+)?([123])\)?\.?$/i);
+      if (eleccionDeMenu && items[0].cantidad === Number(eleccionDeMenu[1])) {
+        const [ultimoSaliente] = await sql<{ content: string | null }[]>`
+          select content from messages
+          where conversation_id=${ctx.conversation.id} and cycle=${ctx.conversation.current_cycle}
+            and role='assistant' and type='text'
+          order by created_at desc limit 1
+        `;
+        if (ultimoSaliente?.content?.includes("¿qué prioriza usted?")) {
+          items = [{ ...items[0], cantidad: 4 }];
+          avisoJuego = "Se la hice por juego de 4; si necesita otra cantidad, me avisa y se la ajusto al toque.";
+        }
+      }
       // El local ya elegido manda en TODAS las preguntas de visita de esta
       // herramienta: re-preguntarlo es el hallazgo «re-pregunta» que el Ángel
       // Guardián corrigió 4 veces el 15-ago (convs 6275 y 6375) — y el texto
@@ -1995,6 +2016,7 @@ export function buildTools(ctx: AgentContext) {
                 preciosFirmados,
               ),
             avisoStock,
+            avisoJuego,
           ].filter(Boolean).join("\n\n"),
           // Misma regla que el turno de opciones (P-07): la pieza de la
           // cotización ya trae la franja INCLUYE resaltada. Sin este candado,

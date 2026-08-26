@@ -32,6 +32,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-08-26 | _(este mismo)_ | Candado: el «2» del menú de preferencia ya no se cotiza como 2 unidades — juego de 4 con aclaración horneada | 0.5 |
 | 2026-08-26 | _(este mismo)_ | Prueba en vivo caza al guardián leyendo ciclos viejos («mañana por Quito Sur» que nadie dijo) + «una A/T» ya no es cantidad 1 | 0.5 |
 | 2026-08-26 | _(este mismo)_ | El texto de cierre DE JOAQUÍN (menú 1/2/3) entra al bot, «Vlle de los chillos» resuelve a Quito Sur, y el beneficio 1 ya nombra alineación y balanceo | 0.75 |
 | 2026-08-26 | _(este mismo)_ | Sprint final de la reunión del 25-ago: revisión de los 3 PRs (4 bloqueantes cazados), merges S1→S3→S2 verificados en vivo y cupón del 2 % encendido | 1.0 |
@@ -159,11 +160,28 @@ Ya viene activado en este equipo.
 | 2026-07-14 | ac09171 | Ubicaciones de locales + análisis de features del cliente | 1.5 |
 | 2026-07-13 | feadf57 | Brief + plan de desarrollo + plan financiero + catálogo | 4.0 |
 | 2026-07-13 | d997844 | Commit inicial (repo) | 0.25 |
-| | | **TOTAL** | **~116.5 h** |
+| | | **TOTAL** | **~117 h** |
 
 ---
 
 ## Entradas (más reciente primero)
+
+### 2026-08-26 · El número del menú no es una cantidad · ⏱️ 0.5 h
+
+**Qué:** candado determinístico en `generar_cotizacion`: si el mensaje del
+cliente es el puro número del menú de preferencia («1»/«2»/«3», con el menú
+como último saliente) y la cantidad pedida coincide con ese número, la
+cantidad no fue dicha — se cotiza el juego de 4 con la aclaración horneada
+(«si necesita otra cantidad, me avisa»). Tres tests de integración: el caso
+del menú, el «2» sin menú (se respeta) y el «quiero 2 llantas» explícito
+(jamás se pisa).
+
+**Por qué:** la ronda 2 de la prueba en vivo lo mostró: «2» eligió bien la
+llanta equilibrada… y cotizó DOS unidades. El prompt ya pedía juego de 4 sin
+cantidad dicha, pero el turno exacto lo atiende el modelo barato del canary:
+la regla de la casa manda hornear, no pedir. Nota: interbotSync.test tiene
+un flake pre-existente los miércoles (fecha real en el test) — anotado como
+tarea aparte, no lo toca este commit.
 
 ### 2026-08-26 · El guardián leía la vida entera del cliente, no el ciclo · ⏱️ 0.5 h
 

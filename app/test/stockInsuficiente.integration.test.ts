@@ -107,12 +107,12 @@ async function conversacion(phone: string, cantidadConfirmada: number): Promise<
   return fila;
 }
 
-async function cotizar(fila: Fila, phone: string, cantidad: number) {
+async function cotizar(fila: Fila, phone: string, cantidad: number, texto = "sí, cotíceme esas por favor") {
   const tools = buildTools({
     conversation: { id: fila.id, phone, name: "Cliente", stage: "opciones_enviadas", bot_paused_until: null, status: "open", current_cycle: fila.current_cycle },
     customerPhone: phone,
     customerName: "Cliente",
-    currentUserText: "sí, cotíceme esas por favor",
+    currentUserText: texto,
   } as never);
   const tool = tools.find((t) => t.function.name === "generar_cotizacion");
   if (!tool) throw new Error("generar_cotizacion no está registrada");
@@ -223,5 +223,60 @@ describe.sequential("generar_cotizacion · cotizar más de lo que hay avisa, no 
     expect(salida.regla).toMatch(/confirma el asesor/);
     // Y no perdió la orden de siempre.
     expect(salida.regla).toMatch(/mensaje_para_enviar/);
+  });
+});
+
+describe.sequential("generar_cotizacion · el número del menú no es una cantidad", () => {
+  /*
+   * Visto en vivo el 26-ago (conv 3): el cliente contestó «2» al menú
+   * 1 Costo / 2 Equilibrio / 3 Premium; el modelo eligió bien la llanta
+   * equilibrada… y cotizó DOS unidades. Con el menú como último saliente y el
+   * mensaje siendo el puro número, la cantidad no fue dicha: juego de 4.
+   */
+  it("«2» tras el menú de preferencia cotiza el juego de 4 y lo aclara", async () => {
+    const fila = await conversacion("593977100301", 4);
+    await sql`
+      insert into messages (conversation_id, cycle, role, direction, content, type)
+      values (${fila.id}, ${fila.current_cycle}, 'assistant', 'outbound',
+        'Para afinarle la recomendación sobre las opciones que le envié, dígame una sola cosa: ¿qué prioriza usted?', 'text')
+    `;
+
+    const salida = await cotizar(fila, "593977100301", 2, "2");
+
+    expect(salida.cotizacion_generada).not.toBe(false);
+    const [quote] = await sql<{ items: { quantity: number }[] }[]>`
+      select items from quotes where conversation_id=${fila.id} order by created_at desc limit 1
+    `;
+    expect(quote.items[0].quantity).toBe(4);
+    expect(salida.mensaje_para_enviar).toMatch(/juego de 4/i);
+  });
+
+  it("sin el menú de por medio, un «2» con cantidad 2 se respeta", async () => {
+    const fila = await conversacion("593977100302", 2);
+
+    const salida = await cotizar(fila, "593977100302", 2, "2");
+
+    expect(salida.cotizacion_generada).not.toBe(false);
+    const [quote] = await sql<{ items: { quantity: number }[] }[]>`
+      select items from quotes where conversation_id=${fila.id} order by created_at desc limit 1
+    `;
+    expect(quote.items[0].quantity).toBe(2);
+    expect(salida.mensaje_para_enviar ?? "").not.toMatch(/juego de 4/i);
+  });
+
+  it("«quiero 2 llantas» explícito jamás se pisa, aunque el menú esté arriba", async () => {
+    const fila = await conversacion("593977100303", 2);
+    await sql`
+      insert into messages (conversation_id, cycle, role, direction, content, type)
+      values (${fila.id}, ${fila.current_cycle}, 'assistant', 'outbound',
+        '…dígame una sola cosa: ¿qué prioriza usted?', 'text')
+    `;
+
+    const salida = await cotizar(fila, "593977100303", 2, "quiero 2 llantas");
+
+    const [quote] = await sql<{ items: { quantity: number }[] }[]>`
+      select items from quotes where conversation_id=${fila.id} order by created_at desc limit 1
+    `;
+    expect(quote.items[0].quantity).toBe(2);
   });
 });
