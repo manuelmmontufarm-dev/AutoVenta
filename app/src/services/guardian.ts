@@ -170,9 +170,14 @@ export async function armarContexto(
   borrador: string,
   huella: readonly HuellaHerramienta[] = [],
 ): Promise<string> {
+  // SOLO el ciclo vigente. Sin este filtro el revisor leía ciclos cerrados y
+  // «corregía» con datos rancios: en el ciclo 5 de la conv 3 (26-ago) vio el
+  // «al de quito sur / mañana» del ciclo 4 y reescribió la pregunta de visita
+  // nueva —con sus dos links— por un «Como ya me indicó, puede pasar mañana
+  // por Quito Sur» que el cliente jamás dijo en este ciclo.
   const mensajes = await sql<FilaMensaje[]>`
     select direction, author_kind, content from messages
-    where conversation_id=${conversationId}
+    where conversation_id=${conversationId} and cycle=${cycle}
     order by created_at desc limit ${MENSAJES_DE_CONTEXTO}
   `;
   const [hechos] = await sql<{

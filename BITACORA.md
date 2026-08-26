@@ -32,6 +32,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-08-26 | _(este mismo)_ | Prueba en vivo caza al guardián leyendo ciclos viejos («mañana por Quito Sur» que nadie dijo) + «una A/T» ya no es cantidad 1 | 0.5 |
 | 2026-08-26 | _(este mismo)_ | El texto de cierre DE JOAQUÍN (menú 1/2/3) entra al bot, «Vlle de los chillos» resuelve a Quito Sur, y el beneficio 1 ya nombra alineación y balanceo | 0.75 |
 | 2026-08-26 | _(este mismo)_ | Sprint final de la reunión del 25-ago: revisión de los 3 PRs (4 bloqueantes cazados), merges S1→S3→S2 verificados en vivo y cupón del 2 % encendido | 1.0 |
 | 2026-08-25 | _(este mismo)_ | Revisión del sprint final: agotada en su medida ya no esconde las equivalentes vendibles | 0.25 |
@@ -158,11 +159,28 @@ Ya viene activado en este equipo.
 | 2026-07-14 | ac09171 | Ubicaciones de locales + análisis de features del cliente | 1.5 |
 | 2026-07-13 | feadf57 | Brief + plan de desarrollo + plan financiero + catálogo | 4.0 |
 | 2026-07-13 | d997844 | Commit inicial (repo) | 0.25 |
-| | | **TOTAL** | **~116 h** |
+| | | **TOTAL** | **~116.5 h** |
 
 ---
 
 ## Entradas (más reciente primero)
+
+### 2026-08-26 · El guardián leía la vida entera del cliente, no el ciclo · ⏱️ 0.5 h
+
+**Qué:** la prueba en vivo del sprint final (conv 3, ciclo recién reabierto)
+cazó dos cosas: (1) `armarContexto` del guardián cargaba mensajes SIN filtrar
+por ciclo — leyó el «al de quito sur / mañana» del ciclo 4 cerrado y
+«corrigió» la pregunta de visita nueva (con sus dos links) por un «Como ya me
+indicó, puede pasar mañana por Quito Sur» que el cliente jamás dijo; ahora la
+query filtra `cycle` (test de integración con el caso). (2) El modelo leyó
+«necesito UNA A/T» como cantidad 1 y cotizó una sola llanta de una: regla
+afinada en prompt + compacto — el artículo nombra el TIPO, cantidad 1 solo
+con «una sola»/«solo una». De paso el compacto vuelve a caber (<4.500).
+
+**Por qué:** el guardián con memoria de ciclos muertos es peor que sin
+guardián: deshace lo que el determinismo hornea bien. Y es exactamente la
+familia «re-pregunta/datos rancios» que la vigilancia post-deploy debía
+vigilar — cazada antes, en la primera conversación de prueba.
 
 ### 2026-08-26 · Las fotos de Joaquín, reproducidas y rematadas · ⏱️ 0.75 h
 
