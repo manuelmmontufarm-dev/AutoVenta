@@ -32,6 +32,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-08-26 | _(este mismo)_ | El simulador: un WhatsApp de mentira contra el bot de verdad, para reproducir un caso las veces que haga falta | 3.0 |
 | 2026-08-26 | _(este mismo)_ | El cierre nuevo no promete «su medida» cuando las opciones son equivalentes (lo cazó el guardián el día del deploy) | 0.5 |
 | 2026-08-26 | _(este mismo)_ | Candado: el «2» del menú de preferencia ya no se cotiza como 2 unidades — juego de 4 con aclaración horneada | 0.5 |
 | 2026-08-26 | _(este mismo)_ | Prueba en vivo caza al guardián leyendo ciclos viejos («mañana por Quito Sur» que nadie dijo) + «una A/T» ya no es cantidad 1 | 0.5 |
@@ -166,6 +167,61 @@ Ya viene activado en este equipo.
 ---
 
 ## Entradas (más reciente primero)
+
+### 2026-08-26 · El simulador: WhatsApp de mentira, bot de verdad · ⏱️ 3.0 h
+
+**Qué:** `npm run sim` (scripts/sim) levanta el bot ENTERO —`dist/index.js`,
+sin un mock adentro— contra una base local desechable, una Graph API de
+mentira que guarda las piezas en vez de mandarlas, y una FOTO del catálogo de
+Contífico con el stock editable desde la pantalla. La configuración se copia
+de producción (settings, prompts por etapa, beneficios, marcas, asesores) y
+las variables del servicio se leen de Railway, así que los modelos y los
+interruptores del agente son los de Depot. La pantalla es un chat como el del
+teléfono —con las piezas dibujadas, y 📎 para mandar una foto del costado o
+una nota de voz que la visión y la transcripción leen de verdad— más un panel
+de rayos X: herramientas del turno, veredicto del guardián con sus hallazgos,
+alertas al asesor y la cotización vigente.
+
+**Por qué:** probar un arreglo escribiéndole al número real tiene tres
+problemas — le llega a un cliente si uno se equivoca de chat, no se puede
+repetir el caso (el stock de Contífico cambia solo: la KR203 185/70R14 pasó de
+3 a 2 unidades entre el reporte y la prueba) y no se ve nada de lo que pasó por
+dentro. La primera corrida ya pagó el costo: reprodujo el error de stock de la
+conv 11061 con el mismo mecanismo, incluido el guardián reescribiendo el
+borrador en un «4 × … total $262.60» sin el aviso de que hay 3.
+
+**Tres cosas que costaron descubrir:**
+
+1. `OPENAI_BASE_URL` heredada del shell se borra siempre. El SDK de OpenAI la
+   lee sola, y la primera corrida salió contra un proxy local: las respuestas
+   no eran del modelo configurado. Un simulador que miente sobre quién
+   contestó no sirve para nada.
+2. Los modelos y los interruptores viven en Railway, no en `app/.env`, y se
+   separan sin que nadie se entere: el `.env` decía `gpt-5.4` con producción en
+   `gpt-5.5`, y `AI_COMPACT_PROMPT_ENABLED` —que reemplaza el prompt entero del
+   vendedor— estaba prendido allá y apagado acá.
+3. Si la copia de configuración falla, el simulador NO arranca. Pasó durante el
+   desarrollo: la copia se rompió, el bot quedó en fase 1 sin guardián, y la
+   prueba de humo igual daba casi todo verde. Un simulador degradado es peor
+   que uno roto, porque se usa para decidir.
+
+**Para que no se pudra:** `npm run sim:humo` levanta todo contra un doble local
+de OpenAI (cero tokens, sin red) y verifica el turno completo con código de
+salida; `test/simuladorFidelidad.test.ts` (11 pruebas estáticas) falla si
+aparece una tabla de configuración o una variable de entorno que el simulador
+no sabe copiar. Las dos quedan anotadas en `CLAUDE.md` para cualquier sesión.
+
+**De paso, dos hallazgos sobre producción:** el canary del turno exacto barato
+NO está encendido (`OPENAI_EXACT_TOOL_MODEL` no existe en `Depot_Tire`; lo que
+se veía era una etapa rutinaria usando `OPENAI_ROUTINE_MODEL`), y Depot corre
+en **fase 1** —sin fila `phase_config`, cae al default del entorno— o sea con
+`fitment_vehiculo` y `enviar_comparacion` apagadas. Pendiente confirmar si es a
+propósito.
+
+**Costo:** la clave de OpenAI del simulador es propia (`app/.env.sim`, fuera de
+git) y sin ella no arranca: los tokens del bot se le facturan a Depot, los de
+nuestras pruebas no.
+
 
 ### 2026-08-26 · La promesa del cierre no puede desmentir al aviso de equivalentes · ⏱️ 0.5 h
 

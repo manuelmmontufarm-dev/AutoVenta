@@ -244,12 +244,19 @@ export function levantar({ port = 4699, log = null, latencia = 5 } = {}) {
 
       const body = (() => { try { return JSON.parse(crudo); } catch { return {}; } })();
       await new Promise((r) => setTimeout(r, latencia));
-      const mensaje = body.response_format?.type === "json_object"
-        ? respuestaJson(body)
-        : siguientePaso(body);
+      // El Ángel Guardián no pide `json_object` sino un `json_schema` con
+      // nombre. Sin esta rama, su llamada caía en el camino del agente, la
+      // validación con zod la rechazaba y el guardián devolvía «sin_revision»:
+      // en el `--dry` y en la prueba de humo parecía que el revisor no existe.
+      const esquema = body.response_format?.json_schema?.name ?? null;
+      const mensaje = esquema === "revision_guardian"
+        ? { role: "assistant", content: JSON.stringify({ veredicto: "aprobar", texto_corregido: "", hallazgos: [] }) }
+        : body.response_format?.type === "json_object"
+          ? respuestaJson(body)
+          : siguientePaso(body);
       anotar({
         at: new Date().toISOString(),
-        tipo: body.response_format?.type === "json_object" ? "json" : "agente",
+        tipo: esquema ?? (body.response_format?.type === "json_object" ? "json" : "agente"),
         model: body.model,
         tool: mensaje.tool_calls?.[0]?.function?.name ?? null,
       });

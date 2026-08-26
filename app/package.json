@@ -20,7 +20,9 @@
     "seed:depot": "tsx src/db/seed-depot.ts",
     "test:carga": "node scripts/loadtest/run.mjs",
     "test:calidad": "node scripts/eval/run.mjs",
-    "ops:backup": "node scripts/ops/backup-restore.mjs"
+    "ops:backup": "node scripts/ops/backup-restore.mjs",
+    "sim": "node scripts/sim/sim.mjs",
+    "sim:humo": "node scripts/sim/sim.mjs --humo"
   },
   "dependencies": {
     "@date-fns/tz": "^1.5.0",

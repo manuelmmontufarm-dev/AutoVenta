@@ -1,0 +1,362 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Simulador · AutoVenta</title>
+<style>
+  :root{
+    --fondo:#0b1014; --panel:#121a21; --panel2:#0f161c; --borde:#1e2b35;
+    --texto:#e6edf3; --tenue:#8ba0b0; --verde:#005c4b; --burbuja:#1f2c33;
+    --acento:#e63946; --oro:#e0a71c; --ok:#2a9d8f;
+    --mono:ui-monospace,SFMono-Regular,Menlo,monospace;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;height:100vh;display:flex;background:var(--fondo);color:var(--texto);
+       font:14px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif}
+
+  /* ── Chat ───────────────────────────────────────────────────────── */
+  .chat{flex:1 1 520px;min-width:380px;display:flex;flex-direction:column;border-right:1px solid var(--borde)}
+  .barra{display:flex;align-items:center;gap:12px;padding:12px 16px;background:var(--panel);border-bottom:1px solid var(--borde)}
+  .avatar{width:34px;height:34px;border-radius:50%;background:var(--acento);display:grid;place-items:center;font-weight:800;font-size:13px}
+  .barra h1{font-size:15px;margin:0;font-weight:600}
+  .barra small{color:var(--tenue);font-size:12px}
+  .barra .crece{flex:1}
+  button{background:var(--panel2);color:var(--texto);border:1px solid var(--borde);border-radius:8px;
+         padding:6px 12px;font-size:12px;cursor:pointer;font-family:inherit}
+  button:hover{border-color:#3a4d5c}
+  button.primario{background:var(--verde);border-color:var(--verde)}
+
+  .hilo{flex:1;overflow-y:auto;padding:18px 16px;display:flex;flex-direction:column;gap:8px;
+        background:#0b1014 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='40'%3E%3Cpath d='M0 39h40M39 0v40' stroke='%23131c22' stroke-width='1'/%3E%3C/svg%3E")}
+  .msg{max-width:78%;padding:8px 11px;border-radius:10px;position:relative;white-space:pre-wrap;word-break:break-word;
+       box-shadow:0 1px 1px rgba(0,0,0,.3);font-size:14px}
+  .msg.bot{align-self:flex-start;background:var(--burbuja);border-top-left-radius:2px}
+  .msg.yo{align-self:flex-end;background:var(--verde);border-top-right-radius:2px}
+  .msg .hora{display:block;text-align:right;font-size:10px;color:rgba(230,237,243,.45);margin-top:3px}
+  .msg img{max-width:100%;border-radius:6px;display:block;margin-bottom:6px;cursor:zoom-in}
+  .doc{display:flex;align-items:center;gap:9px;background:rgba(0,0,0,.25);padding:9px;border-radius:6px;margin-bottom:6px}
+  .doc a{color:var(--texto);text-decoration:none;font-size:13px}
+  .escribiendo{align-self:flex-start;color:var(--tenue);font-size:12px;font-style:italic;padding:4px 6px}
+
+  .redactar{display:flex;gap:8px;padding:12px;background:var(--panel);border-top:1px solid var(--borde)}
+  .redactar textarea{flex:1;resize:none;height:42px;background:var(--panel2);color:var(--texto);
+                     border:1px solid var(--borde);border-radius:10px;padding:11px 13px;font:inherit}
+  .redactar textarea:focus{outline:none;border-color:#3a4d5c}
+  .redactar button{align-self:stretch}
+  #adjunto-listo{position:absolute;bottom:64px;left:16px;background:var(--panel);border:1px solid var(--borde);
+                 border-radius:8px;padding:6px 10px;font-size:12px;display:none;gap:8px;align-items:center}
+  #adjunto-listo b{color:var(--oro)}
+  .chat{position:relative}
+
+  /* ── Rayos X ────────────────────────────────────────────────────── */
+  .rayos{flex:0 0 460px;display:flex;flex-direction:column;background:var(--panel2);overflow:hidden}
+  .pestanas{display:flex;border-bottom:1px solid var(--borde);background:var(--panel)}
+  .pestanas button{border:0;border-radius:0;border-bottom:2px solid transparent;padding:11px 12px;flex:1;color:var(--tenue)}
+  .pestanas button.on{color:var(--texto);border-bottom-color:var(--acento);background:var(--panel2)}
+  .cuerpo{flex:1;overflow-y:auto;padding:14px}
+  .hechos{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;font-size:12px;margin-bottom:14px}
+  .hechos dt{color:var(--tenue)}
+  .hechos dd{margin:0;font-family:var(--mono)}
+  .tarjeta{border:1px solid var(--borde);border-radius:9px;padding:10px;margin-bottom:9px;background:var(--panel)}
+  .tarjeta h4{margin:0 0 6px;font-size:12px;display:flex;gap:8px;align-items:center}
+  .tarjeta p{margin:4px 0;font-size:12px;color:#c4d3de}
+  .etiqueta{font-size:10px;padding:2px 7px;border-radius:99px;font-weight:700;letter-spacing:.3px;text-transform:uppercase}
+  .e-ok{background:rgba(42,157,143,.18);color:#5ad3c4}
+  .e-mal{background:rgba(230,57,70,.18);color:#ff8a92}
+  .e-oro{background:rgba(224,167,28,.18);color:#f0c65a}
+  .e-gris{background:rgba(139,160,176,.15);color:var(--tenue)}
+  .mono{font-family:var(--mono);font-size:11px;color:var(--tenue);word-break:break-all}
+  .vacio{color:var(--tenue);font-size:12px;text-align:center;padding:26px 0}
+  .buscar{display:flex;gap:6px;margin-bottom:10px}
+  .buscar input{flex:1;background:var(--panel);border:1px solid var(--borde);border-radius:8px;
+                padding:8px 10px;color:var(--texto);font:inherit;font-size:13px}
+  .fila-stock{display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--borde);padding:8px 0;font-size:12px}
+  .fila-stock .nom{flex:1;line-height:1.25}
+  .fila-stock input{width:52px;background:var(--panel);border:1px solid var(--borde);border-radius:6px;
+                    padding:4px 6px;color:var(--texto);text-align:center;font:inherit}
+  pre.log{font-family:var(--mono);font-size:10.5px;color:#9fb3c2;white-space:pre-wrap;word-break:break-all;margin:0}
+  .lupa{position:fixed;inset:0;background:rgba(0,0,0,.85);display:none;place-items:center;z-index:9;cursor:zoom-out}
+  .lupa img{max-width:92vw;max-height:92vh;border-radius:8px}
+</style>
+</head>
+<body>
+
+<section class="chat">
+  <header class="barra">
+    <div class="avatar">DT</div>
+    <div>
+      <h1>Depot Tire · simulador</h1>
+      <small id="sub">conectando…</small>
+    </div>
+    <div class="crece"></div>
+    <button id="reiniciar">Conversación nueva</button>
+  </header>
+  <div class="hilo" id="hilo"></div>
+  <div id="adjunto-listo">📎 <b id="adjunto-nombre"></b> <button id="quitar-adjunto">quitar</button></div>
+  <div class="redactar">
+    <input type="file" id="archivo" accept="image/*,audio/*" hidden>
+    <button id="adjuntar" title="Mandar una foto del costado o una nota de voz">📎</button>
+    <button id="ubicar" title="Compartir ubicación">📍</button>
+    <textarea id="entrada" placeholder="Escribí como si fueras el cliente…  (Enter manda, Shift+Enter salta línea)"></textarea>
+    <button class="primario" id="mandar">Enviar</button>
+  </div>
+</section>
+
+<aside class="rayos">
+  <nav class="pestanas">
+    <button data-tab="turnos" class="on">Turnos</button>
+    <button data-tab="guardian">Guardián</button>
+    <button data-tab="alertas">Alertas</button>
+    <button data-tab="stock">Stock</button>
+    <button data-tab="log">Log</button>
+  </nav>
+  <div class="cuerpo" id="cuerpo"></div>
+</aside>
+
+<div class="lupa" id="lupa"><img alt=""></div>
+
+<script>
+const $ = (s) => document.querySelector(s);
+let ultimo = 0;              // último envío del bot ya pintado
+let mios = [];               // lo que yo mandé (el servidor no me lo devuelve como mensaje)
+let estado = null;
+let esperando = false;
+let tab = "turnos";
+
+/* ── Chat ─────────────────────────────────────────────────────────── */
+let adjunto = null;   // { nombre, mime, base64 }
+
+async function mandar(extra = {}) {
+  const caja = $("#entrada");
+  const texto = caja.value.trim();
+  if (!texto && !adjunto && !extra.ubicacion) return;
+  caja.value = "";
+  const cuerpo = { texto, adjunto, ...extra };
+  mios.push({
+    texto: extra.ubicacion ? `📍 ubicación compartida (${extra.ubicacion.lat}, ${extra.ubicacion.lng})` : texto,
+    en: new Date().toISOString(),
+    vistaPrevia: adjunto && adjunto.mime.startsWith("image/") ? `data:${adjunto.mime};base64,${adjunto.base64}` : null,
+    nombreAdjunto: adjunto?.nombre ?? null,
+  });
+  adjunto = null;
+  $("#adjunto-listo").style.display = "none";
+  esperando = true;
+  pintarHilo();
+  try {
+    await fetch("/api/enviar", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(cuerpo),
+    });
+  } catch { esperando = false; }
+}
+
+$("#adjuntar").onclick = () => $("#archivo").click();
+$("#quitar-adjunto").onclick = () => { adjunto = null; $("#adjunto-listo").style.display = "none"; };
+$("#archivo").onchange = async (e) => {
+  const f = e.target.files[0];
+  if (!f) return;
+  const base64 = await new Promise((ok) => {
+    const r = new FileReader();
+    r.onload = () => ok(String(r.result).split(",")[1]);
+    r.readAsDataURL(f);
+  });
+  adjunto = { nombre: f.name, mime: f.type || "image/jpeg", base64 };
+  $("#adjunto-nombre").textContent = f.name;
+  $("#adjunto-listo").style.display = "flex";
+  e.target.value = "";
+  $("#entrada").focus();
+};
+$("#ubicar").onclick = () => {
+  // Cumbayá por defecto: es uno de los dos locales y sirve para probar el
+  // camino de «local más cercano» sin inventar coordenadas cada vez.
+  const cru = prompt("Ubicación a compartir (lat, lng):", "-0.2050, -78.4290");
+  if (!cru) return;
+  const [lat, lng] = cru.split(",").map((n) => Number(n.trim()));
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return alert("Coordenadas inválidas");
+  mandar({ ubicacion: { lat, lng } });
+};
+
+$("#mandar").onclick = () => mandar();
+$("#entrada").addEventListener("keydown", (e) => {
+  if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); mandar(); }
+});
+$("#reiniciar").onclick = async () => {
+  if (!confirm("¿Empezar una conversación nueva? Se borra el hilo (la configuración queda).")) return;
+  await fetch("/api/reiniciar", { method: "POST" });
+  mios = []; ultimo = 0; salientes = []; pintarHilo();
+};
+
+let salientes = [];
+const hora = (iso) => new Date(iso).toLocaleTimeString("es-EC", { hour: "2-digit", minute: "2-digit" });
+const escapar = (t) => String(t ?? "").replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
+/* *negritas* de WhatsApp y links, para que se lea como en el teléfono. */
+const formato = (t) => escapar(t)
+  .replace(/\*([^*\n]+)\*/g, "<b>$1</b>")
+  .replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank" style="color:#7fd0ff">$1</a>');
+
+function pintarHilo() {
+  const hilo = $("#hilo");
+  const abajo = hilo.scrollHeight - hilo.scrollTop - hilo.clientHeight < 120;
+  const items = [
+    ...mios.map((m) => ({ lado: "yo", en: m.en, texto: m.texto })),
+    ...salientes.map((s) => ({ lado: "bot", en: s.en, ...s })),
+  ].sort((a, b) => a.en.localeCompare(b.en));
+
+  hilo.innerHTML = items.map((m) => {
+    if (m.lado === "yo") {
+      const previa = m.vistaPrevia ? `<img src="${m.vistaPrevia}" data-lupa alt="adjunto">`
+        : m.nombreAdjunto ? `<div class="doc">🎤 ${escapar(m.nombreAdjunto)}</div>` : "";
+      return `<div class="msg yo">${previa}${formato(m.texto)}<span class="hora">${hora(m.en)}</span></div>`;
+    }
+    let dentro = "";
+    if (m.tipo === "image" && m.pieza) dentro += `<img src="${m.pieza}" data-lupa alt="pieza">`;
+    if (m.tipo === "document") {
+      dentro += `<div class="doc">📄 <a href="${m.pieza ?? "#"}" target="_blank">${escapar(m.nombreArchivo ?? "documento.pdf")}</a></div>`;
+    }
+    const cuerpo = m.texto ?? m.caption ?? (m.plantilla ? `[plantilla ${m.plantilla}]` : "");
+    dentro += formato(cuerpo);
+    return `<div class="msg bot">${dentro}<span class="hora">${hora(m.en)}</span></div>`;
+  }).join("") + (esperando ? '<div class="escribiendo">escribiendo…</div>' : "");
+
+  hilo.querySelectorAll("[data-lupa]").forEach((img) => {
+    img.onclick = () => { $("#lupa img").src = img.src; $("#lupa").style.display = "grid"; };
+  });
+  if (abajo) hilo.scrollTop = hilo.scrollHeight;
+}
+$("#lupa").onclick = () => { $("#lupa").style.display = "none"; };
+
+/* ── Sondeo ───────────────────────────────────────────────────────── */
+let silencioDesde = 0;
+async function sondear() {
+  try {
+    const r = await fetch(`/api/estado?desde=${ultimo}`);
+    const d = await r.json();
+    estado = d;
+    if (d.salientes?.length) {
+      // El asesor recibe avisos por el mismo canal; el hilo del cliente es el del cliente.
+      const delCliente = d.salientes.filter((s) => !s.para || s.para === d.cliente);
+      // El bot marca «leído» y «escribiendo» antes de contestar: eso no es un
+      // mensaje, es justo la señal de que está pensando.
+      const visibles = delCliente.filter((s) => s.tipo !== "lectura" && s.tipo !== "escribiendo");
+      if (delCliente.some((s) => s.tipo === "escribiendo")) esperando = true;
+      salientes.push(...visibles);
+      ultimo = d.salientes[d.salientes.length - 1].n;
+      if (visibles.length) silencioDesde = Date.now();
+    }
+    // «escribiendo…» se apaga tras 5 s sin nada nuevo: el bot manda en bloques.
+    if (esperando && silencioDesde && Date.now() - silencioDesde > 5000) esperando = false;
+    $("#sub").textContent = d.conv
+      ? `conv ${d.conv.id} · etapa ${d.conv.stage} · ciclo ${d.conv.current_cycle}` + (d.conv.tire_size ? ` · ${d.conv.tire_size}` : "")
+      : "sin conversación todavía — escribí el primer mensaje";
+    pintarHilo();
+    if (tab !== "stock") pintarRayos();
+  } catch { /* el servidor está reiniciando */ }
+  setTimeout(sondear, 800);
+}
+
+/* ── Rayos X ──────────────────────────────────────────────────────── */
+document.querySelectorAll(".pestanas button").forEach((b) => {
+  b.onclick = () => {
+    tab = b.dataset.tab;
+    document.querySelectorAll(".pestanas button").forEach((x) => x.classList.toggle("on", x === b));
+    tab === "stock" ? pintarStock() : pintarRayos();
+  };
+});
+
+function pintarRayos() {
+  const c = $("#cuerpo");
+  if (!estado) return;
+  if (tab === "turnos") {
+    const hechos = estado.conv ? `
+      <dl class="hechos">
+        <dt>etapa</dt><dd>${estado.conv.stage}</dd>
+        <dt>medida</dt><dd>${estado.conv.tire_size ?? "—"}</dd>
+        <dt>cantidad</dt><dd>${estado.conv.selected_quantity ?? "—"}</dd>
+        <dt>producto</dt><dd>${estado.conv.selected_product_code ?? "—"}</dd>
+        <dt>local</dt><dd>${estado.conv.nearest_store ?? "—"}</dd>
+        <dt>compromiso</dt><dd>${estado.conv.customer_commitment ?? "—"}</dd>
+      </dl>` : "";
+    const cots = (estado.cotizaciones ?? []).map((q) => {
+      const it = (q.items ?? [])[0] ?? {};
+      return `<div class="tarjeta"><h4>🧾 ${q.quote_number} <span class="etiqueta e-oro">$${Number(q.total).toFixed(2)}</span></h4>
+        <p>${it.quantity ?? "?"} × ${escapar(`${it.brand ?? ""} ${it.design ?? ""} ${it.sizeLabel ?? ""}`)} · disponibilidad <b>${it.availability ?? "?"}</b></p></div>`;
+    }).join("");
+    const runs = (estado.corridas ?? []).map((r) => `
+      <div class="tarjeta">
+        <h4><span class="etiqueta ${r.error ? "e-mal" : "e-gris"}">${r.route}</span> ${escapar(r.model)}
+            <span style="margin-left:auto;color:var(--tenue);font-weight:400">${hora(r.created_at)}</span></h4>
+        <p>${(r.tools ?? []).length ? (r.tools ?? []).map((t) => `<code>${escapar(t)}</code>`).join(" → ") : "<i>sin herramientas</i>"}</p>
+        <p class="mono">${r.input_tokens}+${r.output_tokens} tok · ${r.latency_ms} ms · ${r.iterations} vuelta(s)${r.error ? ` · ⚠️ ${escapar(r.error)}` : ""}</p>
+      </div>`).join("");
+    c.innerHTML = hechos + cots + (runs || '<p class="vacio">Todavía no hay turnos.</p>');
+  }
+  if (tab === "guardian") {
+    c.innerHTML = (estado.guardian ?? []).map((g) => `
+      <div class="tarjeta">
+        <h4><span class="etiqueta ${g.verdict === "corregir" ? "e-mal" : "e-ok"}">${g.verdict}</span>
+            <span style="margin-left:auto;color:var(--tenue);font-weight:400">${hora(g.created_at)} · ${g.latency_ms} ms</span></h4>
+        ${(g.findings ?? []).map((h) => `<p>· <b>${escapar(h.categoria)}</b> (${escapar(h.severidad)}) — ${escapar(h.detalle)}</p>`).join("") || "<p><i>sin hallazgos</i></p>"}
+        <details><summary class="mono" style="cursor:pointer">ver borrador y corrección</summary>
+          <p class="mono"><b>borrador:</b> ${escapar(g.original_text ?? "")}</p>
+          ${g.corrected_text ? `<p class="mono"><b>corregido:</b> ${escapar(g.corrected_text)}</p>` : ""}
+        </details>
+      </div>`).join("") || '<p class="vacio">El guardián no ha revisado nada todavía.</p>';
+  }
+  if (tab === "alertas") {
+    c.innerHTML = (estado.alertas ?? []).map((a) => `
+      <div class="tarjeta">
+        <h4><span class="etiqueta ${a.priority === "high" || a.priority === "critical" ? "e-mal" : "e-gris"}">${a.priority}</span>
+            ${escapar(a.type)}<span style="margin-left:auto;color:var(--tenue);font-weight:400">${hora(a.created_at)}</span></h4>
+        <p>${escapar(a.summary)}</p><p class="mono">${escapar(a.exact_reason ?? "")}</p>
+      </div>`).join("") || '<p class="vacio">Sin alertas al asesor.</p>';
+  }
+  if (tab === "log") {
+    c.innerHTML = `<pre class="log">${escapar((estado.registro ?? []).map((l) => l.linea).join("\n"))}</pre>`;
+    c.scrollTop = c.scrollHeight;
+  }
+}
+
+/* ── Stock ────────────────────────────────────────────────────────── */
+async function pintarStock() {
+  const c = $("#cuerpo");
+  c.innerHTML = `
+    <p style="font-size:12px;color:var(--tenue);margin:0 0 10px">
+      El catálogo es una <b>foto</b> del real. Acá se le pisa el stock a un código para poder
+      montar el caso otra vez. El bot lo toma en la próxima sincronización (≤8 s).
+    </p>
+    <div class="buscar"><input id="q" placeholder="kenda 185/70r14, o el código"><button id="ir">Buscar</button></div>
+    <div id="resultados"></div>`;
+  const buscar = async () => {
+    const q = $("#q").value.trim();
+    if (!q) return;
+    const filas = await (await fetch(`/api/catalogo?q=${encodeURIComponent(q)}`)).json();
+    $("#resultados").innerHTML = filas.length ? filas.map((f) => `
+      <div class="fila-stock">
+        <div class="nom">${escapar(f.nombre)}<br><span class="mono">${f.codigo}</span></div>
+        <input type="number" min="0" value="${f.stock}" data-cod="${f.codigo}">
+        <button data-fijar="${f.codigo}">fijar</button>
+      </div>`).join("") : '<p class="vacio">Nada con eso.</p>';
+    $("#resultados").querySelectorAll("[data-fijar]").forEach((b) => {
+      b.onclick = async () => {
+        const cod = b.dataset.fijar;
+        const caja = $(`input[data-cod="${cod}"]`);
+        await fetch("/api/stock", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ codigo: cod, cantidad: Number(caja.value) }),
+        });
+        b.textContent = "✓ fijado";
+        setTimeout(() => { b.textContent = "fijar"; }, 1800);
+      };
+    });
+  };
+  $("#ir").onclick = buscar;
+  $("#q").addEventListener("keydown", (e) => { if (e.key === "Enter") buscar(); });
+  $("#q").focus();
+}
+
+sondear();
+$("#entrada").focus();
+</script>
+</body>
+</html>
