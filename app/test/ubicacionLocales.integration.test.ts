@@ -34,6 +34,8 @@ const { sql } = await import("../src/db/client.js");
 const { ensureSchema } = await import("../src/db/schema.js");
 const { buildTools } = await import("../src/agent/tools.js");
 const { buildSystemPrompt } = await import("../src/agent/prompts.js");
+const { extractExplicitStore, preguntamosElLocal } = await import("../src/domain/storeSelection.js");
+const { extractCustomerCommitment, preguntamosElDia } = await import("../src/domain/customerCommitment.js");
 
 /** Las calles de los dos locales, tal como salían escritas en el chat. */
 const CALLES = /Galo Molina|Alonso de Angulo|La del Establo|Guayasam[ií]n/;
@@ -52,16 +54,20 @@ async function conversacion(phone: string): Promise<Fila> {
   return fila;
 }
 
-function herramienta(fila: Fila, phone: string, texto = "ayúdeme con la ubicación por este medio") {
+function herramientaLlamada(nombre: string, fila: Fila, phone: string, texto: string) {
   const tools = buildTools({
     conversation: { id: fila.id, current_cycle: fila.current_cycle } as never,
     customerPhone: phone,
     customerName: "Cliente",
     currentUserText: texto,
   });
-  const tool = tools.find((t) => t.function.name === "ubicacion_locales");
-  if (!tool) throw new Error("ubicacion_locales no está registrada");
+  const tool = tools.find((t) => t.function.name === nombre);
+  if (!tool) throw new Error(`${nombre} no está registrada`);
   return tool;
+}
+
+function herramienta(fila: Fila, phone: string, texto = "ayúdeme con la ubicación por este medio") {
+  return herramientaLlamada("ubicacion_locales", fila, phone, texto);
 }
 
 beforeAll(async () => {
@@ -132,5 +138,134 @@ describe("ubicacion_locales", () => {
     expect(prompt).not.toMatch(CALLES);
     expect(prompt).toMatch(/ubicacion_locales/);
     expect(prompt).toMatch(/Depot Tire Quito Sur/);
+  });
+});
+
+/*
+ * «La gente se queda sin ubicación porque el bot espera el pin. Que cuando diga
+ * los lugares, mande los links de una» — Joaquín, 25-ago.
+ *
+ * `local_mas_cercano` tenía un callejón sin salida: si no reconocía el sector
+ * devolvía un error que mandaba a pedir el pin de WhatsApp, y ahí se quedaba el
+ * hilo. El cliente no necesita que le adivinemos el sector para elegir local:
+ * necesita ver los dos y decidir.
+ */
+describe("local_mas_cercano", () => {
+  function local(fila: Fila, phone: string, texto = "estoy por el sector") {
+    return herramientaLlamada("local_mas_cercano", fila, phone, texto);
+  }
+
+  it("con un sector que no reconoce manda igual los dos links, sin exigir el pin", async () => {
+    const phone = "593980002001";
+    const fila = await conversacion(phone);
+
+    const salida = JSON.parse(
+      await local(fila, phone).execute({ lat: null, lng: null, sector: "por mi barrio" }),
+    );
+    const mensaje: string = salida.mensaje_para_enviar;
+
+    expect(salida.error).toBeUndefined();
+    expect(salida.sector_reconocido).toBe(false);
+    expect(mensaje.match(/https?:\/\/\S+/g) ?? []).toHaveLength(2);
+    expect(mensaje).toMatch(/cuál local/i);
+    expect(mensaje).not.toMatch(CALLES);
+    // El pin sigue existiendo, pero como ofrecimiento — nunca como requisito.
+    expect(mensaje).toMatch(/Si prefiere, compárteme su ubicación/i);
+    expect(salida.regla).toMatch(/PROHIBIDO condicionar los links/i);
+  });
+
+  /*
+   * La cadena completa del chat que trajo Joaquín: «el cliente puso "al sur por
+   * favor el viernes" y el seguimiento volvió a preguntar el lugar».
+   *
+   * No fallaba el seguimiento: fallaba lo que el bot había dicho ANTES. Con el
+   * callejón del pin, nuestro último mensaje era «¿de qué sector nos escribe?»
+   * —sin los dos locales y sin preguntar el día—, así que ni «al sur» era una
+   * elección de local ni «el viernes» era una fecha. Los dos hechos se perdían
+   * y el seguimiento no tenía con qué callarse.
+   *
+   * Aquí se corre esa cadena tal como la corre index.ts, sobre el mensaje que
+   * de verdad devuelve la herramienta.
+   */
+  it("su respuesta deja legible el «al sur por favor el viernes» del turno siguiente", async () => {
+    const phone = "593980002005";
+    const fila = await conversacion(phone);
+    const salida = JSON.parse(
+      await local(fila, phone).execute({ lat: null, lng: null, sector: "por mi barrio" }),
+    );
+    const ultimoNuestro: string = salida.mensaje_para_enviar;
+
+    const ENTRANTE = "al sur por favor el viernes";
+    expect(preguntamosElLocal(ultimoNuestro)).toBe(true);
+    expect(preguntamosElDia(ultimoNuestro)).toBe(true);
+    expect(extractExplicitStore(ENTRANTE, { respondiendoAlLocal: true }))
+      .toBe("Depot Tire Quito Sur");
+    expect(extractCustomerCommitment(ENTRANTE, new Date("2026-08-25T15:00:00.000Z"), {
+      respondiendoAlDia: true,
+    })?.visitDate).toBeInstanceOf(Date);
+  });
+
+  /*
+   * «Al sur», a secas, es como media Quito dice dónde vive — y era justo el
+   * sector que no resolvía nada. Es el chat que trajo Joaquín: «al sur por favor
+   * el viernes», y el bot volvió a preguntar el lugar.
+   */
+  it("«al sur» ya resuelve y recomienda Quito Sur con su mapa", async () => {
+    const phone = "593980002002";
+    const fila = await conversacion(phone);
+
+    const salida = JSON.parse(
+      await local(fila, phone).execute({ lat: null, lng: null, sector: "al sur" }),
+    );
+    const mensaje: string = salida.mensaje_para_enviar;
+
+    expect(salida.local).toBe("Depot Tire Quito Sur");
+    expect(salida.ubicacion_cliente).toBe("sur de Quito");
+    expect(mensaje.match(/https?:\/\/\S+/g) ?? []).toHaveLength(1);
+    expect(mensaje).toMatch(/Quito Sur/);
+    expect(mensaje).toMatch(/qué día/i);
+    // Un solo bloque. Si el mapa saliera como mensaje aparte quedaría él de
+    // último saliente y `preguntamosElDia` dejaría de reconocer el «el viernes»
+    // que llega en el turno siguiente — que es como se perdía el dato.
+    expect(mensaje).not.toContain("---");
+  });
+
+  it("con el pin compartido el mapa y la pregunta por el día viajan juntos", async () => {
+    const phone = "593980002003";
+    const fila = await conversacion(phone);
+
+    const salida = JSON.parse(
+      await local(fila, phone).execute({ lat: -0.199, lng: -78.44, sector: null }),
+    );
+    const mensaje: string = salida.mensaje_para_enviar;
+
+    expect(salida.local).toBe("Depot Tire Cumbayá");
+    expect(mensaje.match(/https?:\/\/\S+/g) ?? []).toHaveLength(1);
+    expect(mensaje).toMatch(/qué día/i);
+    expect(mensaje).not.toContain("---");
+    expect(mensaje).not.toMatch(CALLES);
+  });
+
+  it("al local ya elegido explícitamente le manda su mapa, no los dos", async () => {
+    const phone = "593980002004";
+    const fila = await conversacion(phone);
+    await sql`
+      update conversations
+      set nearest_store='Depot Tire Cumbayá',
+          location_label='Local elegido explícitamente por el cliente: Depot Tire Cumbayá'
+      where id=${fila.id}
+    `;
+
+    const salida = JSON.parse(
+      await local(fila, phone, "prefiero cumbayá").execute({ lat: null, lng: null, sector: null }),
+    );
+    const mensaje: string = salida.mensaje_para_enviar;
+
+    expect(salida.local).toBe("Depot Tire Cumbayá");
+    expect(mensaje.match(/https?:\/\/\S+/g) ?? []).toHaveLength(1);
+    expect(mensaje).toMatch(/Cumbayá/);
+    expect(mensaje).not.toMatch(/Quito Sur/);
+    expect(mensaje).toMatch(/qué día/i);
+    expect(mensaje).not.toContain("---");
   });
 });

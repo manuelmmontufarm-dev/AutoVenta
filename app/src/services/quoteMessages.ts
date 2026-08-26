@@ -145,6 +145,16 @@ export function buildVisitDayQuestion(conDescuentoAutorizado: boolean, conCotiza
  * le puede avisar a nadie, y un local sin fecha no entra en la agenda de nadie.
  * Después de mandar la cotización, conseguir estos dos datos ES el objetivo del
  * bot — no un cierre de cortesía.
+ *
+ * Y la pregunta viaja con los mapas pegados (Joaquín, 25-ago). Preguntarle a
+ * alguien «¿Cumbayá o Quito Sur?» sin decirle dónde queda cada uno es pedirle
+ * que elija a ciegas: el propio Manuel recibió esta pregunta pelada y tuvo que
+ * pedir la ubicación aparte. Los links van DESPUÉS de la pregunta y en el MISMO
+ * bloque, no como mensaje suelto, por dos razones: se lee «te pregunto esto,
+ * aquí están las dos opciones», y el mensaje que queda como último saliente
+ * contiene a la vez la pregunta por el día y los dos nombres de local — que es
+ * lo que `preguntamosElDia` y `preguntamosElLocal` necesitan ver para entender
+ * un «al sur por favor el viernes» en el turno siguiente.
  */
 export function buildVisitPlanQuestion(input: {
   conDescuentoAutorizado: boolean;
@@ -163,19 +173,33 @@ export function buildVisitPlanQuestion(input: {
    * quien pregunta la ubicación antes de cotizar recibe la pregunta pelada.
    */
   conCotizacion?: boolean;
+  /**
+   * Apágalo cuando quien llama ya compuso el bloque de mapas por su cuenta
+   * (`ubicacion_locales` los pone arriba, porque ahí el mapa ES la respuesta).
+   * Nadie más debería apagarlo: sin links la pregunta vuelve a ser la de antes.
+   */
+  enlaces?: boolean;
 }): string {
   const motivo = input.conDescuentoAutorizado
     ? " Con ese dato le aviso al asesor y le dejo anotado su descuento extra para que se lo respeten apenas llegue."
     : input.conCotizacion === false
       ? " Con ese dato le aviso al asesor para que le atienda apenas llegue."
       : " Con ese dato le aviso al asesor y le aplican el descuento de su cotización apenas llegue.";
+  // Con local elegido va SOLO su mapa: el otro link es ruido y reabre una
+  // decisión ya tomada. Sin local elegido van los dos, que es la pregunta.
+  const mapas = input.enlaces === false
+    ? ""
+    : buildStoreLinksBlock(input.localElegido, { soloDestacado: Boolean(input.localElegido) });
+  const conMapas = (pregunta: string) => (mapas ? `${pregunta}\n${mapas}` : pregunta);
   if (input.localElegido) {
-    return `¿Qué día puede pasar por *${input.localElegido}*?${motivo} 📅`;
+    return conMapas(`¿Qué día puede pasar por *${input.localElegido}*?${motivo} 📅`);
   }
   const opciones = input.locales.length
     ? ` ¿${input.locales.slice(0, 2).join(" o ")}?`
     : "";
-  return `¿Qué día puede pasar y a cuál local?${opciones}${motivo.replace(" Con ese dato ", " Con esos dos datos ")} 📅`;
+  return conMapas(
+    `¿Qué día puede pasar y a cuál local?${opciones}${motivo.replace(" Con ese dato ", " Con esos dos datos ")} 📅`,
+  );
 }
 
 /**
@@ -188,8 +212,17 @@ export function buildVisitPlanQuestion(input: {
  * de texto. El link de Maps hace las dos cosas que la dirección no hace: abre
  * la ruta y se ve de un vistazo.
  *
- * Se mandan al CONFIRMAR la ubicación, nunca al preguntarla: un link dentro de
- * una pregunta es ruido — el cliente todavía no sabe a cuál va a ir.
+ * El 18-ago se decidió mandarlos al CONFIRMAR la ubicación y nunca al
+ * preguntarla —«un link dentro de una pregunta es ruido»—. Joaquín revirtió esa
+ * regla el 25-ago viendo los chats: «la gente se queda sin ubicación porque el
+ * bot espera el pin; que cuando diga los lugares, mande los links de una». Y le
+ * pasó al propio Manuel, que recibió «¿qué día puede pasar y cuál local?» sin
+ * un solo mapa. El link no es el ruido: PREGUNTAR a cuál local va sin decirle
+ * dónde quedan es lo que deja al cliente sin poder contestar.
+ *
+ * Así que ahora la pregunta por el local los lleva pegados (ver
+ * `buildVisitPlanQuestion`). Dos líneas, una por local, siguen sin ser un muro
+ * de texto — lo que era muro eran las calles escritas, y esas no volvieron.
  *
  * Si se pasa `destacado`, ese local va primero. Con `soloDestacado` va SOLO ese:
  * cuando el cliente ya eligió local o preguntó por uno, el otro link es ruido.
@@ -200,7 +233,12 @@ export function buildStoreLinksBlock(
 ): string {
   const conMapa = business.stores.filter((store) => Boolean(store.mapsUrl));
   if (!conMapa.length) return "";
-  const elegido = destacado ? conMapa.find((store) => store.name === destacado) : undefined;
+  // El nombre llega completo desde la base («Depot Tire Quito Sur»), pero
+  // también abreviado desde quien solo tiene «Cumbayá» a mano. Un `soloDestacado`
+  // que no calza devolvía los DOS links contradiciendo al texto que lo acompaña.
+  const elegido = destacado
+    ? conMapa.find((store) => store.name === destacado) ?? conMapa.find((store) => store.name.includes(destacado))
+    : undefined;
   const mostrados = !elegido
     ? conMapa
     : opciones?.soloDestacado

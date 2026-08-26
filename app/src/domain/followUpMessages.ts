@@ -24,6 +24,40 @@ export interface FollowUpMessageContext {
   activeDiscountAmount?: number | null;
   activeDiscountCondition?: string | null;
   activeDiscountFinalTotal?: number | null;
+  /**
+   * El bloque de mapas ya armado por quien llama (`buildStoreLinksBlock`): los
+   * dos locales, o solo el suyo si ya eligió. Llega hecho para que este módulo
+   * siga siendo dominio puro — aquí no se sabe qué locales tiene el negocio.
+   */
+  storeLinks?: string | null;
+}
+
+/**
+ * ¿Este seguimiento tiene que llevar los mapas pegados?
+ *
+ * Joaquín, 25-ago: «si a las ~3 horas no contesta, que el seguimiento mande las
+ * ubicaciones (los dos links)». El caso es el cliente que recibió la cotización
+ * y la pregunta por día y local, y no contestó ninguna de las dos: mandarle otra
+ * vez la pregunta pelada no le agrega nada — los mapas sí, porque el dato que le
+ * falta para contestar es justamente dónde queda cada local.
+ *
+ * Sí se repiten a propósito, aunque ya hayan salido con la pregunta. Ese es el
+ * punto: el turno anterior no logró respuesta.
+ *
+ * Condiciones: solo en ventana (fuera de ella manda una plantilla de Meta, con
+ * su copy fijo), solo con cotización viva —sin cotización todavía no hay visita
+ * que coordinar y el mapa es ruido— y solo si falta el local o el día. Con los
+ * dos datos en la mano el portón `visita_agendada` ni siquiera deja salir el
+ * seguimiento.
+ */
+export function followUpNeedsStoreLinks(
+  context: FollowUpMessageContext,
+  kind: FollowUpMessageKind,
+): boolean {
+  if (kind !== "in_window_first" && kind !== "in_window_second") return false;
+  if (!context.storeLinks?.trim()) return false;
+  if (!context.quoteNumber) return false;
+  return !context.nearestStore || !context.visitDate;
 }
 
 /** Extrae un código de modelo escrito explícitamente por un asesor (ej. R380, KR33A). */
@@ -63,6 +97,17 @@ export function buildContextualFollowUpMessage(
   context: FollowUpMessageContext,
   kind: FollowUpMessageKind,
   now = new Date(),
+): string {
+  const texto = redactarSeguimiento(context, kind, now);
+  return followUpNeedsStoreLinks(context, kind)
+    ? `${texto}\n${context.storeLinks!.trim()}`
+    : texto;
+}
+
+function redactarSeguimiento(
+  context: FollowUpMessageContext,
+  kind: FollowUpMessageKind,
+  now: Date,
 ): string {
   const prefix = questionPrefix(context, kind);
   const size = context.tireSize ? ` ${context.tireSize}` : "";

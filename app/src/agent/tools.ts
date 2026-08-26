@@ -56,7 +56,6 @@ import {
   buildBenefitsBlockOnce,
   requestsBenefitsAgain,
 } from "../services/benefits.js";
-import { buildStoreLinksBlockOnce } from "../services/storeLinks.js";
 import { brandProfilesForRender } from "../services/brandProfiles.js";
 import { getAiConfig, getPiecesConfig } from "../services/settings.js";
 import { researchVehicleFitment } from "../services/vehicleFitmentResearch.js";
@@ -1928,27 +1927,64 @@ export function buildTools(ctx: AgentContext) {
       if (saved?.nearest_store && saved.location_label?.startsWith("Local elegido explícitamente")) {
         const explicit = business.stores.find((store) => store.name === saved.nearest_store);
         if (explicit) {
-          // El cliente ya eligió: este es el momento de los mapas, y van los dos.
-          const mapas = await buildStoreLinksBlockOnce(ctx.conversation.id, explicit.name);
+          // El cliente ya eligió: va SOLO su mapa —el otro reabre una decisión
+          // tomada— y va SIEMPRE, sin el candado de «una vez por conversación».
+          // Desde que la pregunta de visita lleva los links pegados (25-ago),
+          // ese candado se gastaba antes y dejaba justo a este turno sin mapa:
+          // el peor sitio para perderlo, porque es el turno en el que el cliente
+          // decide a dónde va. Una línea con un link no es un parrafote.
+          const mapas = buildStoreLinksBlock(explicit.name, { soloDestacado: true });
           return JSON.stringify({
             local: explicit.name,
             maps: explicit.mapsUrl ?? null,
-            mensaje_para_enviar: composeBlocks(
+            // Un solo bloque, con la pregunta al final. Si el mapa sale como
+            // mensaje aparte queda él de último saliente y `preguntamosElDia`
+            // ya no reconoce el «el viernes» que llega en el turno siguiente.
+            mensaje_para_enviar: [
               visitKnown
                 ? `Perfecto, queda confirmado *${explicit.name}*. Ya registré también cuándo viene; no necesita repetir esos datos.`
-                : `Perfecto, queda confirmado *${explicit.name}*. ¿Qué día puede pasar?`,
+                : `Perfecto, queda confirmado *${explicit.name}*.`,
               mapas,
-            ),
+              visitKnown ? "" : "¿Qué día puede pasar? 📅",
+            ].filter(Boolean).join("\n"),
             regla: visitKnown
               ? "Responde exactamente con mensaje_para_enviar. No vuelvas a preguntar local ni fecha."
-              : "Responde exactamente con mensaje_para_enviar y pregunta únicamente la fecha.",
+              : "Responde exactamente con mensaje_para_enviar, con el link de Maps incluido, y pregunta únicamente la fecha.",
           });
         }
       }
       const resolved = lat != null && lng != null ? { lat, lng, label: "ubicación compartida" } : sector ? resolveSector(sector) : null;
+      // No saber de qué sector escribe NO es un callejón sin salida.
+      //
+      // Antes esta rama devolvía un error que mandaba a pedir el pin de
+      // WhatsApp, y ahí se quedaba el hilo: «la gente se queda sin ubicación
+      // porque el bot espera el pin» (Joaquín, 25-ago). El cliente no necesita
+      // que adivinemos su sector para elegir local — necesita ver los dos y
+      // decidir. Así que los links salen igual y el pin baja a ofrecimiento.
       if (!resolved) {
+        // La pregunta es la de siempre —día Y local, con los dos mapas pegados—
+        // y no una inventada aquí. Importa por lo que pasa DESPUÉS: a este
+        // mensaje el cliente contesta «al sur por favor el viernes», y esos dos
+        // hechos solo se registran si nuestro último mensaje puso los dos
+        // locales sobre la mesa (`preguntamosElLocal`) y preguntó el día
+        // (`preguntamosElDia`). El «¿de qué sector nos escribe?» que salía antes
+        // no cumplía ninguna de las dos: por eso el seguimiento volvía a
+        // preguntar el lugar que el cliente ya había dicho.
+        const sale = await latestSaleNumber(ctx.conversation.id);
+        const descuentoVivo = Boolean(await getActiveDiscountOffer(ctx.conversation.id));
         return JSON.stringify({
-          error: "No puedo ubicar ese sector con seguridad. Pide que comparta el pin de ubicación de WhatsApp.",
+          local: null,
+          sector_reconocido: false,
+          mensaje_para_enviar: [
+            buildVisitPlanQuestion({
+              conDescuentoAutorizado: descuentoVivo,
+              locales: business.stores.map((store) => store.name),
+              conCotizacion: Boolean(sale),
+            }),
+            "Si prefiere, compárteme su ubicación de WhatsApp y le digo cuál le queda más cerca. 📲",
+          ].filter(Boolean).join("\n"),
+          regla:
+            "Responde exactamente con mensaje_para_enviar. PROHIBIDO condicionar los links a que el cliente mande el pin o diga su sector: los mapas ya van en el mensaje. El pin es opcional y solo sirve si él pide que le digamos cuál le queda más cerca.",
         });
       }
       const { store, distanceKm } = nearestStore(business.stores, resolved.lat, resolved.lng);
@@ -1963,8 +1999,11 @@ export function buildTools(ctx: AgentContext) {
       const sale = await latestSaleNumber(ctx.conversation.id);
       const descuentoVivo = Boolean(await getActiveDiscountOffer(ctx.conversation.id));
       const horario = storeSchedule(store.name, ctx.storeHours);
-      // La ubicación quedó resuelta: aquí sí van los mapas, los dos y una vez.
-      const mapas = await buildStoreLinksBlockOnce(ctx.conversation.id, store.name);
+      // La ubicación quedó resuelta: va el mapa del local recomendado, solo ese
+      // y sin candado. Es LA respuesta de este turno —el cliente acaba de decir
+      // dónde está— y perderlo porque los links ya salieron con la pregunta de
+      // visita sería dejarlo justo donde empezó esta corrección.
+      const mapas = buildStoreLinksBlock(store.name, { soloDestacado: true });
       return JSON.stringify({
         local: store.name,
         distancia_km: distanceKm,
@@ -1973,20 +2012,21 @@ export function buildTools(ctx: AgentContext) {
         ubicacion_cliente: resolved.label,
         distancia_es_aproximada: sector != null,
         numero_venta: sale,
-        mensaje_para_enviar: composeBlocks(
-          [
-            `📍 El local recomendado es *${store.name}*.`,
-            `🕐 ${horario}`,
-            sale ? `🔖 Al llegar, indica tu número de venta *${sale}* para ubicar tu cotización.` : "",
-            // Sin esta línea el turno terminaba en "te esperamos": cortés y sin
-            // fecha. La ubicación es el mejor momento para pedir el día porque el
-            // cliente acaba de decidir a dónde va.
-            visitKnown
-              ? `✅ Visita registrada: ${saved?.customer_commitment?.trim() || "fecha confirmada"}.`
-              : buildVisitDayQuestion(descuentoVivo, Boolean(sale)),
-          ].filter(Boolean).join("\n"),
+        // Todo en UN bloque y la pregunta por el día al final: con el mapa como
+        // mensaje aparte, el último saliente dejaba de contener la pregunta y
+        // `preguntamosElDia` ya no entendía el «el viernes» de la respuesta.
+        mensaje_para_enviar: [
+          `📍 El local recomendado es *${store.name}*.`,
           mapas,
-        ),
+          `🕐 ${horario}`,
+          sale ? `🔖 Al llegar, indica tu número de venta *${sale}* para ubicar tu cotización.` : "",
+          // Sin esta línea el turno terminaba en "te esperamos": cortés y sin
+          // fecha. La ubicación es el mejor momento para pedir el día porque el
+          // cliente acaba de decidir a dónde va.
+          visitKnown
+            ? `✅ Visita registrada: ${saved?.customer_commitment?.trim() || "fecha confirmada"}.`
+            : buildVisitDayQuestion(descuentoVivo, Boolean(sale)),
+        ].filter(Boolean).join("\n"),
         regla: visitKnown
           ? "Responde exactamente con mensaje_para_enviar. La visita ya está registrada: no preguntes otra vez el día ni repitas el argumento del descuento."
           : "Responde exactamente con mensaje_para_enviar, incluida la pregunta por el día. Ya tienes el local: pide únicamente la fecha.",
@@ -2049,6 +2089,10 @@ export function buildTools(ctx: AgentContext) {
             locales: business.stores.map((store) => store.name),
             localElegido: elegido,
             conCotizacion,
+            // Aquí el mapa ES la respuesta —el cliente preguntó dónde quedan—,
+            // así que va arriba, en su propio bloque, y la pregunta cierra.
+            // Sin este `false` los links saldrían dos veces en el mismo turno.
+            enlaces: false,
           });
       return JSON.stringify({
         local: elegido,
@@ -2056,7 +2100,7 @@ export function buildTools(ctx: AgentContext) {
         mensaje_para_enviar: composeBlocks(mapas, cierre),
         regla: visitaCerrada
           ? "Responde exactamente con mensaje_para_enviar. Ya tienes local y día: no los vuelvas a preguntar y NO escribas la dirección en texto."
-          : "Responde exactamente con mensaje_para_enviar, con sus separadores '---' intactos. NUNCA escribas la dirección, la calle ni referencias de cómo llegar: el link ya lo hace.",
+          : "Responde exactamente con mensaje_para_enviar, con sus separadores '---' intactos. NUNCA escribas la dirección, la calle ni referencias de cómo llegar: el link ya lo hace. Y NUNCA condiciones los mapas a que el cliente diga su sector o mande el pin — ya van en el mensaje.",
       });
     },
   });

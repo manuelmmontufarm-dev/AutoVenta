@@ -33,11 +33,23 @@ export function nearestStore(
   return { store: best, distanceKm: Math.round(bestDist * 10) / 10 };
 }
 
+/**
+ * El orden importa: la búsqueda es por subcadena y se queda con el PRIMERO que
+ * calza, así que lo específico va antes que lo genérico. «al sur de Quito»
+ * contiene las dos palabras y tiene que resolver al sur, no al centro.
+ */
 const QUITO_SECTORS: Record<string, { lat: number; lng: number; label: string }> = {
   itulcachi: { lat: -0.157, lng: -78.337, label: "Itulcachi" },
   cumbaya: { lat: -0.2, lng: -78.43, label: "Cumbayá" },
   tumbaco: { lat: -0.211, lng: -78.402, label: "Tumbaco" },
   pifo: { lat: -0.225, lng: -78.339, label: "Pifo" },
+  // «al sur», a secas, es como la mitad de Quito dice dónde vive — y era un
+  // sector que no resolvía nada: `local_mas_cercano` devolvía «no puedo ubicar
+  // ese sector, pide el pin» y el hilo se moría ahí (chat del 25-ago: «al sur
+  // por favor el viernes» y el bot volvió a preguntar el lugar). El punto es el
+  // centro del sur de Quito, a ~4 km del local de Quito Sur y a ~15 del de
+  // Cumbayá: la recomendación no tiene vuelta.
+  sur: { lat: -0.28, lng: -78.545, label: "sur de Quito" },
   quito: { lat: -0.18, lng: -78.49, label: "Quito" },
 };
 
