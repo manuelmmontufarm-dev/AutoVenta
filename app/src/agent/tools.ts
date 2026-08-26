@@ -1315,7 +1315,19 @@ export function buildTools(ctx: AgentContext) {
         : undefined;
       const entregada = porPreferencia ?? recommended;
       const recomendacion = `${entregada.brand} ${entregada.design}`;
-      const motivoLimpio = motivo.trim().replace(/\.$/, "");
+      // El `motivo` lo escribió el modelo para SU recomendada. Si la
+      // preferencia del cliente eligió OTRA llanta, ese motivo describe a la
+      // equivocada y saldría verbatim en el cierre («la mejor duración» sobre
+      // la más barata): el escalón elegido trae su propio porqué.
+      const motivoDelEscalon: Record<string, string> = {
+        precio: "es la de mejor precio de las tres",
+        equilibrada: "es el punto medio entre precio y rendimiento",
+        premium: "es la premium de las tres",
+      };
+      const motivoLimpio =
+        porPreferencia && porPreferencia.code !== recommended.code
+          ? motivoDelEscalon[preferencia!]
+          : motivo.trim().replace(/\.$/, "");
       return JSON.stringify({
         imagen_enviada: visual.ok,
         ...(avisoTipo ? { aviso: avisoTipo } : {}),
@@ -1900,12 +1912,19 @@ export function buildTools(ctx: AgentContext) {
                   : undefined,
                 preciosFirmados,
               ),
-          await buildBenefitsBlockOnce(
-            ctx.conversation.id,
-            ctx.conversation.current_cycle,
-            { brands: [product.brand], quantity: items[0].cantidad },
-            requestsBenefitsAgain(ctx.currentUserText),
-          ),
+          // Misma regla que el turno de opciones (P-07): la pieza de la
+          // cotización ya trae la franja INCLUYE resaltada. Sin este candado,
+          // quitar el texto de las opciones solo MUDABA la duplicación un
+          // turno: el candado por contenido de buildBenefitsBlockOnce nunca
+          // se ponía y el bloque reaparecía en texto junto a esta imagen.
+          debeLlevarIncluyeEnTexto(visual.ok, requestsBenefitsAgain(ctx.currentUserText))
+            ? await buildBenefitsBlockOnce(
+                ctx.conversation.id,
+                ctx.conversation.current_cycle,
+                { brands: [product.brand], quantity: items[0].cantidad },
+                requestsBenefitsAgain(ctx.currentUserText),
+              )
+            : null,
           // Local y día en el MISMO bloque: son la misma decisión para el
           // cliente, y separarlos sumaba un cuarto mensaje al turno. Con la
           // cotización enviada, estos dos datos son el objetivo del bot.

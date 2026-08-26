@@ -32,6 +32,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-08-25 | _(este mismo)_ | Revisión del sprint final: el INCLUYE tampoco se duplica en la cotización, y el motivo ya no cruza de llanta | 0.25 |
 | 2026-08-25 | _(este mismo)_ | Cierre por preferencia (precio/equilibrada/premium), INCLUYE una sola vez y resaltado, beneficios como hechos, y las dos familias del guardián (S2 reunión Joaquín) | 3.0 |
 | 2026-08-25 | _(este mismo)_ | «Les molesto» dejó de ser un cliente enojado: en Ecuador es cortesía para anunciar la visita, y el falso positivo pausaba el hilo para siempre | 0.5 |
 | 2026-08-23 | _(este mismo)_ | Depot Tire caído desde el 20-ago: un ECONNRESET de Postgres en el panel mataba el proceso; salvavidas de unhandledRejection en HTTP y worker + redeploy | 0.5 |
@@ -151,11 +152,26 @@ Ya viene activado en este equipo.
 | 2026-07-14 | ac09171 | Ubicaciones de locales + análisis de features del cliente | 1.5 |
 | 2026-07-13 | feadf57 | Brief + plan de desarrollo + plan financiero + catálogo | 4.0 |
 | 2026-07-13 | d997844 | Commit inicial (repo) | 0.25 |
-| | | **TOTAL** | **~110.5 h** |
+| | | **TOTAL** | **~110.75 h** |
 
 ---
 
 ## Entradas (más reciente primero)
+
+### 2026-08-25 · Dos remaches de la revisión del sprint final · ⏱️ 0.25 h
+
+**Qué:** (1) `generar_cotizacion` ahora condiciona su bloque INCLUYE de texto
+con el mismo `debeLlevarIncluyeEnTexto` del turno de opciones; (2) cuando la
+preferencia del cliente elige otra llanta que la recomendada del modelo, el
+motivo del cierre sale del escalón, no del texto que el modelo escribió para
+la suya.
+
+**Por qué:** (1) quitar el INCLUYE del texto de opciones dejaba sin poner el
+candado por contenido de `buildBenefitsBlockOnce`, y la duplicación que
+Joaquín pidió quitar solo se MUDABA al turno de cotización (la pieza de la
+cotización también trae la franja). (2) «Yo iría por la más barata: la mejor
+duración de las tres» — el motivo describía a la equivocada, verbatim al
+cliente.
 
 ### 2026-08-25 · El cierre por preferencia y el conocimiento del negocio (SPRINT 2, reunión Joaquín) · ⏱️ 3.0 h
 
