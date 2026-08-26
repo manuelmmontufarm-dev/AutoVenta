@@ -32,6 +32,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-08-26 | _(este mismo)_ | Sprint final de la reunión del 25-ago: revisión de los 3 PRs (4 bloqueantes cazados), merges S1→S3→S2 verificados en vivo y cupón del 2 % encendido | 1.0 |
 | 2026-08-25 | _(este mismo)_ | Revisión del sprint final: agotada en su medida ya no esconde las equivalentes vendibles | 0.25 |
 | 2026-08-25 | _(este mismo)_ | Su medida le gana al aro (la A/T de otra medida teniendo la suya en stock) + cotizar más de lo que hay ahora avisa | 1.5 |
 | 2026-08-25 | _(este mismo)_ | Revisión del sprint final: la IA del seguimiento ya no ve (ni puede mutilar) los links de Maps | 0.25 |
@@ -156,11 +157,31 @@ Ya viene activado en este equipo.
 | 2026-07-14 | ac09171 | Ubicaciones de locales + análisis de features del cliente | 1.5 |
 | 2026-07-13 | feadf57 | Brief + plan de desarrollo + plan financiero + catálogo | 4.0 |
 | 2026-07-13 | d997844 | Commit inicial (repo) | 0.25 |
-| | | **TOTAL** | **~114.25 h** |
+| | | **TOTAL** | **~115.25 h** |
 
 ---
 
 ## Entradas (más reciente primero)
+
+### 2026-08-26 · El plan de la reunión del 25-ago queda en producción · ⏱️ 1.0 h
+
+**Qué:** sprint final del plan maestro. Tres revisiones independientes de los
+PRs #7/#8/#9 contra la lista R-01…R-14 cazaron 4 bloqueantes (agotadas que
+escondían equivalentes, INCLUYE mudándose a la cotización, motivo cruzado de
+llanta, y los links de Maps al alcance de la pluma del modelo de copy); se
+arreglaron en sus ramas, se mergeó por riesgo S1→S3→S2 con la suite completa
+en verde tras cada merge (819 tests), y los dos entornos Railway quedaron en
+`f963c40` con catálogo, worker y bot sanos. `coupon_config` se encendió en
+producción ({activo: true, porcentaje: 2}) — Joaquín re-pidió el código en la
+reunión; si la capacitación de cajeros sigue pendiente, se apaga desde Ajustes.
+
+**Por qué:** el valor del sprint final es que nadie mergea su propio examen:
+la lista maestra la verificó otro par de ojos por PR, y los 4 bloqueantes
+eran exactamente del tipo que los tests de cada sprint no podían ver (bordes
+entre zonas de PRs distintos). Pendiente: re-probar los casos de Joaquín en
+el chat real (requiere el WhatsApp de Manuel) y vigilar las familias del
+guardián 48 h (línea base: 31 correcciones el 25-ago; familia 1 debe caer
+>50 %, familia 2 a ~0).
 
 ### 2026-08-25 · Agotada en su medida = como si no hubiera · ⏱️ 0.25 h
 
