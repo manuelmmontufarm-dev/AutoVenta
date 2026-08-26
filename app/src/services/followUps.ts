@@ -10,7 +10,14 @@ import {
   type FollowUpPolicy,
 } from "../domain/followUps.js";
 import { isStage, type Stage } from "../domain/pipeline.js";
-import { buildContextualFollowUpMessage, inferProductCode, type FollowUpMessageKind } from "../domain/followUpMessages.js";
+import {
+  buildContextualFollowUpMessage,
+  followUpNeedsStoreLinks,
+  inferProductCode,
+  type FollowUpMessageContext,
+  type FollowUpMessageKind,
+} from "../domain/followUpMessages.js";
+import { buildStoreLinksBlock } from "./quoteMessages.js";
 import { emitLiveEvent } from "./liveEvents.js";
 import { generateFollowUpCopy } from "./followUpCopy.js";
 import { asesoresActivos, notifyAdvisor } from "./advisorNotifications.js";
@@ -171,6 +178,39 @@ async function getConversationForFollowUp(
   return row ?? null;
 }
 
+/**
+ * Los mapas que le tocan a esta conversación: el suyo si ya eligió local, los
+ * dos si todavía no. Se calcula aquí —no en el dominio— porque los locales y
+ * sus links viven en la config del negocio.
+ */
+function mapasDelSeguimiento(nearestStore: string | null | undefined): string {
+  return buildStoreLinksBlock(nearestStore ?? null, { soloDestacado: Boolean(nearestStore) });
+}
+
+/**
+ * Los mapas van pegados al texto FINAL, venga de donde venga.
+ *
+ * El copy determinístico ya los añade solo (`buildContextualFollowUpMessage`),
+ * pero el de IA no: reemplaza el texto entero. Y la promesa de Joaquín —«que el
+ * seguimiento mande las ubicaciones»— no puede depender de lo que un modelo
+ * decida copiar. Así que se comprueba aquí también, sobre el texto que de
+ * verdad se va a enviar, y solo se añade si todavía no hay ningún link.
+ */
+function conMapasPegados(
+  text: string,
+  context: FollowUpMessageContext,
+  kind: FollowUpMessageKind,
+): string {
+  if (!followUpNeedsStoreLinks(context, kind)) return text;
+  // El modelo no recibe los links (ver `ensureFollowUpJobCopy`), pero puede
+  // copiarlos del historial — y un maps.app.goo.gl reproducido a mano por un
+  // LLM sale mutilado con facilidad. Cualquier URL que haya escrito se quita
+  // y el bloque canónico se pega SIEMPRE: los links solo salen de
+  // `buildStoreLinksBlock`, nunca de la pluma del modelo.
+  const sinUrls = text.replace(/https?:\/\/\S+/g, "").replace(/[ \t]+(?=\n|$)/g, "").trim();
+  return `${sinUrls}\n${context.storeLinks!.trim()}`;
+}
+
 export function buildFollowUpPreview(
   conversation: ConversationForFollowUp,
   kind: FollowUpMessageKind = "in_window_first",
@@ -183,6 +223,7 @@ export function buildFollowUpPreview(
     nearestStore: conversation.nearest_store,
     customerCommitment: conversation.customer_commitment,
     visitDate: conversation.visit_date,
+    storeLinks: mapasDelSeguimiento(conversation.nearest_store),
     quoteNumber: conversation.quote_number,
     activeDiscountAmount: conversation.active_discount_amount === null ? null : Number(conversation.active_discount_amount),
     activeDiscountCondition: conversation.active_discount_condition,
@@ -777,6 +818,7 @@ function jobCopyContext(context: FollowUpJobContext) {
     nearestStore: context.nearest_store,
     customerCommitment: commitmentCycle === context.current_cycle ? context.customer_commitment : null,
     visitDate: context.visit_date,
+    storeLinks: mapasDelSeguimiento(context.nearest_store),
     quoteNumber: context.quote_number,
     activeDiscountAmount: context.active_discount_amount === null ? null : Number(context.active_discount_amount),
     activeDiscountCondition: context.active_discount_condition,
@@ -802,12 +844,17 @@ export async function ensureFollowUpJobCopy(input: {
   if (!kind || (!context.job_payload.aiPending && !force)) {
     return { text: stored, generated: false };
   }
+  const copyContext = jobCopyContext(context);
+  // Al modelo, los hechos SIN los links: las URLs de Maps son exactamente el
+  // tipo de string que un LLM copia mal, y una mutilada en el chat es peor
+  // que ninguna. El bloque canónico lo pega `conMapasPegados` después, sobre
+  // el texto final.
   const copy = await generateFollowUpCopy(
-    jobCopyContext(context),
+    { ...copyContext, storeLinks: undefined },
     kind,
     policy.stagePrompts?.[context.stage],
   );
-  const text = copy.text.trim() || stored;
+  const text = conMapasPegados(copy.text.trim() || stored, copyContext, kind);
   await sql`
     update follow_up_jobs
     set payload = payload

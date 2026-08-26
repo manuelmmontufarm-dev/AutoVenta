@@ -71,6 +71,65 @@ describe("Redacción contextual de seguimientos", () => {
     });
   });
 
+  /*
+   * «Si a las ~3 horas no contesta, que el seguimiento mande las ubicaciones
+   * (los dos links)» — Joaquín, reunión del 25-ago. El caso es el cliente que
+   * recibió la cotización y la pregunta por día y local y no contestó ninguna
+   * de las dos: repetirle la pregunta pelada no le agrega nada; el dato que le
+   * falta para poder contestar es dónde queda cada local.
+   */
+  describe("los mapas del seguimiento (pedido de Joaquín, 25-ago)", () => {
+    const MAPAS_DOS = "📍 *Depot Tire Cumbayá*: https://maps.example/c\n📍 *Depot Tire Quito Sur*: https://maps.example/s";
+    const MAPA_UNO = "📍 *Depot Tire Quito Sur*: https://maps.example/s";
+    const base = {
+      stage: "cotizacion_enviada" as const,
+      quoteNumber: "COT-1042",
+      storeLinks: MAPAS_DOS,
+    };
+
+    it("con cotización y sin local todavía, van los dos links", () => {
+      for (const kind of ["in_window_first", "in_window_second"] as const) {
+        const mensaje = buildContextualFollowUpMessage(base, kind);
+        expect(mensaje).toContain(MAPAS_DOS);
+        // Los mapas van al final: el mensaje sigue empezando por lo que se
+        // quiere decir, no por dos URLs.
+        expect(mensaje.indexOf("http")).toBeGreaterThan(20);
+      }
+    });
+
+    it("con el local ya elegido va solo el suyo, no los dos", () => {
+      const mensaje = buildContextualFollowUpMessage(
+        { ...base, nearestStore: "Depot Tire Quito Sur", storeLinks: MAPA_UNO }, "in_window_first",
+      );
+      expect(mensaje).toContain(MAPA_UNO);
+      expect(mensaje.match(/https?:\/\/\S+/g) ?? []).toHaveLength(1);
+    });
+
+    it("con día y local confirmados no va ninguno: no queda nada que preguntar", () => {
+      const mensaje = buildContextualFollowUpMessage({
+        ...base,
+        stage: "seguimiento_venta",
+        nearestStore: "Depot Tire Quito Sur",
+        customerCommitment: "el viernes por favor",
+        visitDate: new Date("2026-08-21T15:00:00.000Z"),
+      }, "in_window_first", new Date("2026-08-18T14:00:00.000Z"));
+      expect(mensaje).not.toMatch(/https?:\/\//);
+    });
+
+    it("sin cotización no van: todavía no hay visita que coordinar", () => {
+      const mensaje = buildContextualFollowUpMessage(
+        { ...base, quoteNumber: null }, "in_window_first",
+      );
+      expect(mensaje).not.toMatch(/https?:\/\//);
+    });
+
+    it("la nota interna del asesor y la plantilla de Meta no los llevan", () => {
+      for (const kind of ["advisor_review", "post_window"] as const) {
+        expect(buildContextualFollowUpMessage(base, kind)).not.toMatch(/https?:\/\//);
+      }
+    });
+  });
+
   it("solo menciona el descuento autorizado con sus valores exactos", () => {
     const message = buildContextualFollowUpMessage({
       stage: "cotizacion_enviada",

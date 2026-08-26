@@ -101,14 +101,46 @@ describe("pregunta por fecha y local", () => {
   });
 
   it("sigue siendo una pregunta legible sin locales configurados", () => {
-    const pregunta = qm.buildVisitPlanQuestion({ conDescuentoAutorizado: false, locales: [] });
+    // La pregunta es la primera línea; debajo van los mapas, que salen de la
+    // config del negocio y no de esta lista.
+    const [pregunta] = qm.buildVisitPlanQuestion({ conDescuentoAutorizado: false, locales: [] }).split("\n");
     expect(pregunta).toMatch(/qué día/i);
     expect(pregunta).not.toMatch(/¿\s*\?/);
     expect(lineas(pregunta)).toBe(1);
   });
 
-  it("pregunta sin links: el mapa se manda al confirmar, no al preguntar", () => {
-    expect(qm.buildVisitPlanQuestion({ conDescuentoAutorizado: false, locales }))
+  /*
+   * El 18-ago la regla era la contraria —«un link dentro de una pregunta es
+   * ruido: el cliente todavía no sabe a cuál va a ir»— y Joaquín la revirtió el
+   * 25-ago leyendo los chats: «la gente se queda sin ubicación porque el bot
+   * espera el pin; que cuando diga los lugares, mande los links de una».
+   * Preguntar «¿Cumbayá o Quito Sur?» sin decir dónde queda cada uno es pedirle
+   * al cliente que elija a ciegas — le pasó al propio Manuel.
+   */
+  it("la pregunta lleva los dos mapas pegados", () => {
+    const pregunta = qm.buildVisitPlanQuestion({ conDescuentoAutorizado: false, locales });
+    expect(pregunta.match(/https?:\/\/\S+/g) ?? []).toHaveLength(2);
+    // Y la pregunta va PRIMERO: el mensaje que queda como último saliente tiene
+    // que contener el «qué día» y los dos nombres de local a la vez, porque es
+    // lo que leen preguntamosElDia y preguntamosElLocal para entender el
+    // «al sur por favor el viernes» del turno siguiente.
+    expect(pregunta.indexOf("Qué día")).toBeLessThan(pregunta.indexOf("http"));
+  });
+
+  it("con el local ya elegido manda solo el mapa de ese local", () => {
+    const pregunta = qm.buildVisitPlanQuestion({
+      conDescuentoAutorizado: false,
+      locales,
+      localElegido: "Depot Tire Quito Sur",
+    });
+    expect(pregunta.match(/https?:\/\/\S+/g) ?? []).toHaveLength(1);
+    expect(pregunta).not.toMatch(/Cumbayá/);
+  });
+
+  it("quien ya compuso su propio bloque de mapas puede apagarlos", () => {
+    // `ubicacion_locales` los pone arriba —ahí el mapa ES la respuesta—, así que
+    // sin este interruptor saldrían dos veces en el mismo turno.
+    expect(qm.buildVisitPlanQuestion({ conDescuentoAutorizado: false, locales, enlaces: false }))
       .not.toMatch(/https?:\/\//);
   });
 

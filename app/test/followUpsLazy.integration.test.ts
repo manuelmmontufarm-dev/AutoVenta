@@ -9,7 +9,7 @@
 import postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
-const espia = vi.hoisted(() => ({ llamadas: 0, kinds: [] as string[] }));
+const espia = vi.hoisted(() => ({ llamadas: 0, kinds: [] as string[], textoForzado: null as string | null }));
 
 vi.mock("../src/services/followUpCopy.js", () => ({
   generateFollowUpCopy: async (
@@ -18,7 +18,7 @@ vi.mock("../src/services/followUpCopy.js", () => ({
   ) => {
     espia.llamadas += 1;
     espia.kinds.push(kind);
-    return { text: `Redacción IA (${kind}) para ${context.name ?? "cliente"}`, source: "ai" as const };
+    return { text: espia.textoForzado ?? `Redacción IA (${kind}) para ${context.name ?? "cliente"}`, source: "ai" as const };
   },
 }));
 
@@ -30,6 +30,9 @@ let conversations: typeof import("../src/services/conversations.js");
 let followUps: typeof import("../src/services/followUps.js");
 let processor: typeof import("../src/services/followUpProcessor.js");
 let followUpAdmin: typeof import("../src/services/followUpAdmin.js");
+let quoteMessages: typeof import("../src/services/quoteMessages.js");
+let storeSelection: typeof import("../src/domain/storeSelection.js");
+let compromiso: typeof import("../src/domain/customerCommitment.js");
 
 /** Lunes 20-jul-2026, 10:00 en Guayaquil → dentro del horario comercial. */
 const AHORA = new Date("2026-07-20T15:00:00.000Z");
@@ -52,6 +55,14 @@ async function conversacionLista(stage = "cotizacion_enviada") {
   `;
   await followUps.scheduleConversationFollowUps(conversation.id, AHORA);
   return conversation;
+}
+
+/** Una cotización viva en el ciclo actual: sin ella no hay visita que coordinar. */
+async function conCotizacion(conversationId: number, numero: string) {
+  await appSql`
+    insert into quotes (conversation_id, cycle, items, subtotal, tax, total, quote_number)
+    values (${conversationId}, 1, ${appSql.json([])}, 100, 15, 115, ${numero})
+  `;
 }
 
 async function primerJob(conversationId: number) {
@@ -102,6 +113,9 @@ describe.sequential("Seguimientos perezosos y redacción con IA", () => {
     followUps = await import("../src/services/followUps.js");
     processor = await import("../src/services/followUpProcessor.js");
     followUpAdmin = await import("../src/services/followUpAdmin.js");
+    quoteMessages = await import("../src/services/quoteMessages.js");
+    storeSelection = await import("../src/domain/storeSelection.js");
+    compromiso = await import("../src/domain/customerCommitment.js");
   });
 
   afterAll(async () => {
@@ -110,7 +124,7 @@ describe.sequential("Seguimientos perezosos y redacción con IA", () => {
     await admin.end();
   });
 
-  beforeEach(() => { espia.llamadas = 0; espia.kinds = []; });
+  beforeEach(() => { espia.llamadas = 0; espia.kinds = []; espia.textoForzado = null; });
 
   it("programar no cuesta ni una redacción", async () => {
     const conv = await conversacionLista();
@@ -308,6 +322,162 @@ describe.sequential("Seguimientos perezosos y redacción con IA", () => {
     await reclamarYProcesar(conv.id, enviados);
 
     expect(enviados).toHaveLength(1);
+  });
+
+  /*
+   * «Si a las ~3 horas no contesta, que el seguimiento mande las ubicaciones
+   * (los dos links)» — Joaquín, 25-ago. Lo que se prueba aquí es que la promesa
+   * no depende de la IA: el copy que sale al cliente lo escribió el modelo (está
+   * mockeado arriba) y los mapas van igual, pegados por la capa determinística.
+   */
+  it("el seguimiento de quien no eligió local sale con los dos mapas", async () => {
+    const conv = await conversacionLista();
+    await conCotizacion(conv.id, "COT-MAPAS-1");
+
+    const enviados: string[] = [];
+    await reclamarYProcesar(conv.id, enviados);
+
+    expect(enviados).toHaveLength(1);
+    expect(espia.llamadas).toBe(1); // el texto sí lo redactó la IA…
+    expect(enviados[0]).toContain("Redacción IA");
+    expect(enviados[0].match(/https?:\/\/\S+/g) ?? []).toHaveLength(2); // …y los mapas no.
+  });
+
+  it("un link escrito por la IA no sale: se quita y se pega el bloque canónico", async () => {
+    // El bloqueante de la revisión del sprint final: los maps.app.goo.gl son
+    // exactamente el tipo de string que un modelo reproduce mal, y la guarda
+    // vieja («si ya hay un link, no pego nada») dejaba pasar el mutilado
+    // VERBATIM al cliente. Ahora lo que escriba el modelo se quita y los
+    // links salen siempre de buildStoreLinksBlock.
+    const conv = await conversacionLista();
+    await conCotizacion(conv.id, "COT-MAPAS-3");
+    espia.textoForzado = "Le esperamos 🚗 https://maps.app.goo.gl/MUT1LADO ¿qué día puede pasar?";
+
+    const enviados: string[] = [];
+    await reclamarYProcesar(conv.id, enviados);
+
+    expect(enviados).toHaveLength(1);
+    expect(enviados[0]).not.toContain("MUT1LADO");
+    expect(enviados[0].match(/https?:\/\/\S+/g) ?? []).toHaveLength(2);
+  });
+
+  it("con el local ya elegido va solo su mapa, no los dos", async () => {
+    const conv = await conversacionLista();
+    await conCotizacion(conv.id, "COT-MAPAS-2");
+    await appSql`update conversations set nearest_store='Depot Tire Quito Sur' where id=${conv.id}`;
+
+    const enviados: string[] = [];
+    await reclamarYProcesar(conv.id, enviados);
+
+    expect(enviados[0].match(/https?:\/\/\S+/g) ?? []).toHaveLength(1);
+    expect(enviados[0]).toContain("Quito Sur");
+  });
+
+  it("sin cotización todavía no van mapas: el mapa ahí es ruido", async () => {
+    const conv = await conversacionLista();
+
+    const enviados: string[] = [];
+    await reclamarYProcesar(conv.id, enviados);
+
+    expect(enviados).toHaveLength(1);
+    expect(enviados[0]).not.toMatch(/https?:\/\//);
+  });
+
+  /*
+   * El caso que trajo Joaquín el 25-ago: «el cliente puso "al sur por favor el
+   * viernes" y el seguimiento volvió a preguntar el lugar».
+   *
+   * El portón `visita_agendada` ya existía desde el 18-ago y funciona —lo prueba
+   * el caso de más abajo—, así que lo que fallaba estaba antes: los HECHOS. «Al
+   * sur» solo se lee como elección de local si nuestro último mensaje puso los
+   * dos locales sobre la mesa, y «el viernes» solo cuenta como fecha si ese
+   * mismo mensaje preguntó el día. Por eso la pregunta de visita tiene que
+   * llevar las dos cosas en UN solo mensaje: es lo que el turno siguiente lee.
+   *
+   * Esta prueba corre la misma cadena que index.ts sobre el texto real.
+   */
+  it("«al sur por favor el viernes» queda registrado y el seguimiento ya no repregunta", async () => {
+    const conv = await conversacionLista("seguimiento_venta");
+    await conCotizacion(conv.id, "COT-ALSUR");
+    // Lo último que mandó el bot, tal cual sale hoy de la herramienta.
+    const preguntaDelBot = quoteMessages.buildVisitPlanQuestion({
+      conDescuentoAutorizado: false,
+      locales: ["Depot Tire Cumbayá", "Depot Tire Quito Sur"],
+    });
+    await appSql`
+      insert into messages (conversation_id, role, direction, type, content)
+      values (${conv.id}, 'assistant', 'outbound', 'text', ${preguntaDelBot})
+    `;
+
+    const ENTRANTE = "al sur por favor el viernes";
+    const ultimoNuestro = await conversations.lastOutboundText(conv.id);
+    const local = storeSelection.extractExplicitStore(ENTRANTE, {
+      respondiendoAlLocal: storeSelection.preguntamosElLocal(ultimoNuestro),
+    });
+    const visita = compromiso.extractCustomerCommitment(ENTRANTE, AHORA, {
+      respondiendoAlDia: compromiso.preguntamosElDia(ultimoNuestro),
+    });
+
+    expect(local).toBe("Depot Tire Quito Sur");
+    expect(visita?.visitDate).toBeInstanceOf(Date);
+
+    await conversations.setExplicitStore(conv.id, local!);
+    await conversations.updateConversationFacts(conv.id, {
+      customerCommitment: visita!.text,
+      visitDate: visita!.visitDate,
+    });
+
+    const enviados: string[] = [];
+    await reclamarYProcesar(conv.id, enviados);
+
+    expect(enviados).toHaveLength(0);
+    const [job] = await appSql<{ status: string; cancel_reason: string | null }[]>`
+      select status, cancel_reason from follow_up_jobs
+      where conversation_id = ${conv.id} and type = 'in_window_first'
+    `;
+    expect(job.cancel_reason).toBe("visita_agendada");
+  });
+
+  /*
+   * El sticker que descarriló el hilo (mismo reporte del 25-ago). Un sticker
+   * entra al historial como un texto que dice «el bot no puede ver esto, pide la
+   * medida» — y el miedo es que el seguimiento siguiente hable de medidas y se
+   * olvide de la visita que ya se estaba coordinando.
+   */
+  it("un sticker no descarrila el seguimiento: sigue hablando de la visita", async () => {
+    const conv = await conversacionLista("seguimiento_venta");
+    await conCotizacion(conv.id, "COT-STICKER");
+    await appSql`
+      update conversations set customer_commitment = 'paso el viernes',
+        customer_commitment_cycle = current_cycle
+      where id = ${conv.id}
+    `;
+    const STICKER =
+      "[El cliente mandó un mensaje que el bot no puede ver (video, sticker o similar). Pídele con amabilidad la medida escrita o una foto del costado de la llanta.]";
+
+    // Primero: el sticker no puede leerse como enojo ni como opt-out. Esa rama
+    // pausa el hilo para siempre y cancela la campaña.
+    const estado = await followUps.handleInboundFollowUpState(conv.id, STICKER);
+    expect(estado).toEqual({ optedOut: false, negative: false, requestedHuman: false });
+
+    // El bot le contestó al sticker y se reprograma el seguimiento.
+    const respuesta = new Date(AHORA.getTime() + 60_000);
+    await appSql`
+      update conversations set last_customer_message_at = ${AHORA},
+        last_assistant_message_at = ${respuesta}
+      where id = ${conv.id}
+    `;
+    await followUps.scheduleConversationFollowUps(conv.id, new Date(respuesta.getTime() + 60_000));
+
+    const [job] = await appSql<{ payload: Record<string, unknown> }[]>`
+      select payload from follow_up_jobs
+      where conversation_id = ${conv.id} and type = 'in_window_first' and status = 'scheduled'
+      order by id desc limit 1
+    `;
+    const borrador = String(job.payload.preview);
+    expect(borrador).toContain("paso el viernes");
+    expect(borrador).not.toMatch(/medida/i);
+    expect(borrador.match(/https?:\/\/\S+/g) ?? []).toHaveLength(2);
   });
 
   it("las métricas cuentan los seguimientos que el portón evitó redactar", async () => {

@@ -34,6 +34,8 @@ Ya viene activado en este equipo.
 |---|---|---|---|
 | 2026-08-25 | _(este mismo)_ | Revisión del sprint final: agotada en su medida ya no esconde las equivalentes vendibles | 0.25 |
 | 2026-08-25 | _(este mismo)_ | Su medida le gana al aro (la A/T de otra medida teniendo la suya en stock) + cotizar más de lo que hay ahora avisa | 1.5 |
+| 2026-08-25 | _(este mismo)_ | Revisión del sprint final: la IA del seguimiento ya no ve (ni puede mutilar) los links de Maps | 0.25 |
+| 2026-08-25 | _(este mismo)_ | La ubicación deja de esperar el pin: los links van con la pregunta, el seguimiento los repite y «al sur» ya registra el local | 1.5 |
 | 2026-08-25 | _(este mismo)_ | «Les molesto» dejó de ser un cliente enojado: en Ecuador es cortesía para anunciar la visita, y el falso positivo pausaba el hilo para siempre | 0.5 |
 | 2026-08-23 | _(este mismo)_ | Depot Tire caído desde el 20-ago: un ECONNRESET de Postgres en el panel mataba el proceso; salvavidas de unhandledRejection en HTTP y worker + redeploy | 0.5 |
 | 2026-08-21 | _(este mismo)_ | Tour interactivo del hub para usuarios nuevos, filtrado por permisos | 1.5 |
@@ -152,7 +154,7 @@ Ya viene activado en este equipo.
 | 2026-07-14 | ac09171 | Ubicaciones de locales + análisis de features del cliente | 1.5 |
 | 2026-07-13 | feadf57 | Brief + plan de desarrollo + plan financiero + catálogo | 4.0 |
 | 2026-07-13 | d997844 | Commit inicial (repo) | 0.25 |
-| | | **TOTAL** | **~109.25 h** |
+| | | **TOTAL** | **~111 h** |
 
 ---
 
@@ -212,6 +214,88 @@ verificaron en rojo contra el código de antes.
 **Queda fuera, a propósito:** el mismo aviso de stock en `preparar_opciones`
 (R-03 lo pide «si la cantidad elegida ya se conoce») — esa función es zona
 exclusiva del SPRINT 2 y se propone en el PR en vez de tocarla.
+### 2026-08-25 · Los links de Maps, fuera del alcance de la pluma del modelo · ⏱️ 0.25 h
+
+**Qué:** dos candados en `ensureFollowUpJobCopy`/`conMapasPegados`: el contexto
+que se manda al modelo de copy va sin `storeLinks`, y cualquier URL que el
+modelo escriba igual (copiada del historial) se quita antes de pegar SIEMPRE
+el bloque canónico de `buildStoreLinksBlock`.
+
+**Por qué:** la revisión del sprint final encontró que los links con URLs
+reales entraban a los hechos del modelo, y la guarda vieja («si ya hay un
+link, no pego nada») convertía un `maps.app.goo.gl` mutilado por el LLM en el
+link que recibía el cliente — rompía el invariante «nadie escribe URLs a
+mano» por la puerta de atrás. Test nuevo con el link mutilado forzado.
+
+### 2026-08-25 · La ubicación deja de esperar el pin · ⏱️ 1.5 h
+
+**Qué:** cuatro arreglos que salen de la reunión con Joaquín del 25-ago
+(P-04, P-05, P-10) y que son el mismo defecto visto por cuatro lados.
+
+1. **La pregunta por el local va con los mapas pegados.** `buildVisitPlanQuestion`
+   —el cierre de toda cotización— ahora devuelve la pregunta y debajo los links:
+   los dos si el cliente no ha elegido, solo el suyo si ya eligió.
+2. **`local_mas_cercano` dejó de tener callejón sin salida.** Si no reconoce el
+   sector ya no devuelve «no puedo ubicarlo, pide el pin»: manda la pregunta de
+   siempre con los dos mapas y ofrece el pin como alternativa, no como requisito.
+   Y «al sur» pasó a ser un sector de verdad (`resolveSector`), que resuelve al
+   local de Quito Sur.
+3. **El seguimiento en ventana repite los mapas.** Con cotización viva y sin
+   local o sin día, el seguimiento sale con los links pegados. Determinístico:
+   se pegan sobre el texto FINAL, así que también cuando lo redactó la IA.
+4. **Los mapas y la pregunta viajan en UN solo mensaje.** En las dos tools de
+   ubicación el mapa salía como bloque aparte, es decir como mensaje aparte.
+
+**Por qué:** Joaquín lo dijo con sus palabras — «la gente se queda sin ubicación
+porque el bot espera el pin; que cuando diga los lugares, mande los links de
+una»— y «si a las ~3 horas no contesta, que el seguimiento mande las ubicaciones».
+Le pasó al propio Manuel: recibió «¿qué día puede pasar y cuál local?» sin un
+solo mapa. Esto **revierte a propósito** la regla del 18-ago («se mandan al
+confirmar la ubicación, nunca al preguntarla: un link dentro de una pregunta es
+ruido»). Aquella regla resolvía un problema real —las calles escritas y
+repetidas— pero se pasó de largo: lo que era muro eran los parrafotes, no dos
+líneas con un link. Preguntarle a alguien «¿Cumbayá o Quito Sur?» sin decirle
+dónde queda cada uno es pedirle que elija a ciegas.
+
+**Lo que no se veía, y es la causa del cuarto punto.** El pedido P-10 —«el
+cliente puso "al sur por favor el viernes" y el seguimiento volvió a preguntar
+el lugar»— NO era del seguimiento: el portón `visita_agendada` del 18-ago
+funciona y sus pruebas lo demuestran. Fallaba antes, en los HECHOS. «Al sur»
+solo cuenta como elección de local si nuestro último mensaje puso los dos
+locales sobre la mesa (`preguntamosElLocal`), y «el viernes» solo cuenta como
+fecha si ese mismo mensaje preguntó el día (`preguntamosElDia`). Las dos leen
+`lastOutboundText`, o sea el ÚLTIMO mensaje enviado. Con el callejón del pin,
+ese último mensaje era «¿de qué sector nos escribe?»: ni locales ni día, así que
+los dos hechos se perdían y el seguimiento no tenía con qué callarse. Y con el
+mapa saliendo como bloque aparte, el último mensaje era el mapa — mismo efecto.
+Por eso la pregunta y los links van juntos y en ese orden, y por eso el arreglo
+del callejón usa la pregunta de visita completa y no una inventada.
+
+**Decisión sobre el candado.** `buildStoreLinksBlockOnce` («un mapa por
+conversación») deja de usarse en `local_mas_cercano`: ahora que la pregunta de
+visita manda mapas de rutina, el candado se gastaba ahí y dejaba sin link justo
+al turno en el que el cliente acaba de decir dónde está. Sigue vivo para
+`directSalesRoutes`. En el seguimiento la repetición es deliberada: si el
+cliente no contestó, ese es el punto.
+
+**Cadencia:** no se tocó nada en código. Producción ya tiene
+`follow_up_policies.first_delay_minutes = 180` — las ~3 horas que pidió Joaquín.
+
+**Pruebas:** 17 nuevas. En `ubicacionLocales.integration.test.ts` (6) el sector
+irreconocible responde con los dos links sin exigir el pin, «al sur» resuelve a
+Quito Sur, el pin y el local ya elegido mandan un solo mapa, y la cadena
+completa del chat: sobre el mensaje que devuelve la herramienta,
+`preguntamosElLocal` y `preguntamosElDia` dan true y «al sur por favor el
+viernes» se convierte en local + fecha. En `followUpMessages.test.ts` (5) y
+`followUpsLazy.integration.test.ts` (6) los mapas del seguimiento, incluido que
+llegan aunque el texto lo haya escrito la IA, que el sticker no descarrila el
+hilo y que con día y local no va ninguno. Diez de ellas fallan contra el código
+de `main`. 785 tests, typecheck limpio.
+
+**Pendiente (no es código):** los seguimientos siguen tuteando mientras el bot
+habla de usted — sigue anotado desde el 18-ago y sigue sin tocarse.
+
+---
 
 ### 2026-08-25 · La revisión del 17-ago, corrida al fin — y la re-revisión del guardián · ⏱️ 1.0 h
 
