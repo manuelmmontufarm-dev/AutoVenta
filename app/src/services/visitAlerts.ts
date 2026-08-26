@@ -31,13 +31,21 @@ export function diaGuayaquil(fecha: Date): string {
   }).format(fecha);
 }
 
-/** «sábado 9 de agosto, 10:00» — el asesor lee esto en el celular, no un ISO. */
-export function etiquetaVisita(fecha: Date): string {
-  return new Intl.DateTimeFormat("es-EC", {
+/**
+ * «sábado 9 de agosto, de 4 a 5 pm» — el asesor lee esto en el celular.
+ *
+ * La hora que lleva dentro `visit_date` casi nunca la dijo nadie: es el relleno
+ * con el que se armó la fecha. Cuando el cliente SÍ dio una («de 4 a 5»,
+ * guardada en `visit_time_label`), esa manda; cuando no, se escribe solo el
+ * día. Escribir «10:00» de un cliente que dijo «de 4 a 5» es peor que no poner
+ * hora: el asesor lo espera cuando no es.
+ */
+export function etiquetaVisita(fecha: Date, franja?: string | null): string {
+  const dia = new Intl.DateTimeFormat("es-EC", {
     timeZone: "America/Guayaquil",
     weekday: "long", day: "numeric", month: "long",
-    hour: "2-digit", minute: "2-digit", hour12: false,
-  }).format(fecha);
+  }).format(fecha).replace(",", "");
+  return franja?.trim() ? `${dia}, ${franja.trim()}` : dia;
 }
 
 /**
@@ -84,11 +92,15 @@ export async function avisarVisitaComprometida(input: {
   /** Lo que escribió el cliente, tal cual. */
   texto: string;
   visitDate?: Date | null;
+  /** «de 4 a 5 pm», si la dijo. */
+  visitTimeLabel?: string | null;
 }): Promise<void> {
   const dedupeKey = claveVisitaComprometida(input.conversationId, input.cycle, input.visitDate);
   const cuando = input.visitDate
-    ? etiquetaVisita(input.visitDate)
-    : "sin día exacto (dio un tramo, no una fecha)";
+    ? etiquetaVisita(input.visitDate, input.visitTimeLabel)
+    : input.visitTimeLabel
+      ? `sin día exacto (dijo ${input.visitTimeLabel}, falta la fecha)`
+      : "sin día exacto (dio un tramo, no una fecha)";
   const resumen = input.visitDate
     ? `Cliente dijo cuándo viene: ${cuando}`
     : "Cliente dijo que viene, sin día exacto";
@@ -123,6 +135,7 @@ interface VisitaPendiente {
   id: number;
   cycle: number;
   visit_date: Date;
+  visit_time_label: string | null;
   commitment: string | null;
 }
 
@@ -136,7 +149,7 @@ interface VisitaPendiente {
  */
 export async function visitasDelDia(dia: string, ahora: Date): Promise<VisitaPendiente[]> {
   return sql<VisitaPendiente[]>`
-    select c.id, c.current_cycle as cycle, c.visit_date,
+    select c.id, c.current_cycle as cycle, c.visit_date, c.visit_time_label,
       case when c.customer_commitment_cycle = c.current_cycle
         then c.customer_commitment end as commitment
     from conversations c
@@ -173,7 +186,7 @@ async function barrerVisitasDelDia(input: {
   let avisados = 0;
   for (const visita of visitas) {
     const dedupeKey = input.dedupe(visita.id, visita.cycle, input.dia);
-    const resumen = input.resumen(etiquetaVisita(visita.visit_date));
+    const resumen = input.resumen(etiquetaVisita(visita.visit_date, visita.visit_time_label));
     const razon = visita.commitment
       ? `Lo prometió él mismo: «${visita.commitment.slice(0, 200)}».`
       : "Quedó agendado en la conversación.";

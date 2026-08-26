@@ -9,6 +9,8 @@ import {
   markFollowUpJobCancelled,
   type FollowUpJob,
 } from "./followUps.js";
+import { revisarConGuardian } from "./guardian.js";
+import { asegurarAvisoDeStock } from "./stockCorto.js";
 import { authorizeConversationOutbound } from "./whatsappPolicy.js";
 import { emitLiveEvent } from "./liveEvents.js";
 import { sendApprovedTemplate, sendCustomerText } from "../wa/client.js";
@@ -133,26 +135,21 @@ export async function processFollowUpJob(
     return;
   }
 
-  // Portón de la visita agendada: el cliente ya dijo qué día viene y a cuál
-  // local, y ese día todavía no llega. No hay nada que preguntarle —y volver a
-  // preguntárselo es exactamente lo que hacía el bot el 18-ago: dos mensajes
-  // citando su propio «el viernes por favor» y pidiéndole el día otra vez.
+  // La visita agendada YA NO cancela el seguimiento: le cambia el libreto.
   //
-  // No se cancela cuando falta el local (ahí el seguimiento sí trae una
-  // pregunta nueva) ni cuando el día ya pasó y no vino: reagendar es información
-  // nueva, y el copy de followUpMessages lo dice con esas palabras.
+  // Desde el 18-ago este portón cancelaba el envío, y con razón — el bot estaba
+  // repreguntando el día a quien acababa de dárselo. Pero cancelar tira el bebé
+  // con el agua: un cliente que dijo «el jueves de 4 a 5» y no volvió a
+  // escribir sí quiere saber de nosotros; lo que no quiere es que le
+  // preguntemos otra vez. Manuel y Joaquín lo decidieron el 26-ago: los dos
+  // seguimientos salen igual, el primero confirmando el plan y el segundo como
+  // «no se olvide». El texto vive en followUpMessages (rama `visita && !yaPaso`).
   //
-  // Al asesor no se le deja de avisar: visitAlerts le manda la víspera y el día
-  // mismo, y esos avisos no dependen de este job.
-  if (
-    !isAuthorizedCampaign &&
-    context.visit_date &&
-    context.visit_date > now &&
-    context.nearest_store
-  ) {
-    await markFollowUpJobCancelled(job.id, "visita_agendada");
-    return;
-  }
+  // Lo que sí se marca es el modo, para que la redacción con IA sepa que aquí
+  // no se pregunta nada — y para que el guardián lo revise con esa vara.
+  const visitaAgendada = Boolean(
+    !isAuthorizedCampaign && context.visit_date && context.visit_date > now && context.nearest_store,
+  );
 
   const policy = await getFollowUpPolicy();
   if (policy.neverOutsideHours && !isWithinBusinessHours(now, policy)) {
@@ -256,9 +253,48 @@ export async function processFollowUpJob(
 
   // Último momento: ya pasaron todos los portones, este mensaje sí se envía.
   // Recién aquí se paga la redacción con IA (si el asesor no la generó antes).
-  const preview = isPostWindow
+  const redactado = isPostWindow
     ? String(context.job_payload.preview ?? "").trim()
     : (await ensureFollowUpJobCopy({ context, policy })).text;
+
+  // EL GUARDIÁN TAMBIÉN MIRA LOS SEGUIMIENTOS (26-ago).
+  //
+  // Hasta hoy solo revisaba las respuestas: los dos mensajes que le repitieron
+  // la pregunta del día a un cliente que ya había contestado —24-ago, conv.
+  // 9878— salieron sin que nadie los leyera, y en `guardian_reviews` no hay
+  // rastro de ellos. Un seguimiento es exactamente igual de visible para el
+  // cliente que una respuesta; que se revisara solo la mitad de lo que sale del
+  // bot era un agujero, no una decisión.
+  //
+  // Las plantillas fuera de ventana quedan fuera: su texto lo fija Meta y no se
+  // puede corregir, así que pagar una revisión sería tirar el dinero.
+  const revisado = isPostWindow
+    ? redactado
+    : (await revisarConGuardian(
+        { id: context.id, current_cycle: context.current_cycle, stage: context.stage },
+        redactado,
+        [],
+        { tipo: "seguimiento" },
+      )).texto;
+  // El seguimiento también afirma la cotización («su cotización de $262.60
+  // sigue vigente»), y sale días después: si en ese rato el stock bajó, es el
+  // peor mensaje para prometer un juego que no existe. La plantilla fuera de
+  // ventana queda afuera porque su texto lo fija Meta y no se puede tocar.
+  const preview = isPostWindow
+    ? revisado
+    : (await asegurarAvisoDeStock(context.id, context.current_cycle, revisado)).texto;
+  if (!isPostWindow) {
+    // `modo` queda en el payload para que el panel y las pruebas puedan ver con
+    // qué libreto salió este seguimiento sin tener que releer el texto.
+    await sql`
+      update follow_up_jobs
+      set payload = payload || jsonb_build_object(
+        'preview', ${preview}::text,
+        'modo', ${visitaAgendada ? "confirmacion_de_visita" : "seguimiento"}::text,
+        'guardianCorrigio', ${preview !== redactado}::boolean)
+      where id = ${job.id}
+    `;
+  }
 
   const attemptNumber = context.attempt_count + 1;
   const [attempt] = await sql<{ id: number }[]>`

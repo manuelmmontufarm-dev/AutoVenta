@@ -20,6 +20,12 @@ export interface FollowUpMessageContext {
    * 18-ago en el chat de +593 99 874 7699.
    */
   visitDate?: Date | null;
+  /**
+   * La hora en palabras del cliente («de 4 a 5 pm»), de
+   * `conversations.visit_time_label`. La hora que lleva dentro `visitDate` es
+   * relleno: escribirla convierte el recordatorio en una cita inventada.
+   */
+  visitTimeLabel?: string | null;
   quoteNumber?: string | null;
   activeDiscountAmount?: number | null;
   activeDiscountCondition?: string | null;
@@ -93,6 +99,12 @@ function diaVisita(fecha: Date): string {
   }).format(fecha).replace(",", "");
 }
 
+/** «viernes 22 de agosto de 4 a 5 pm» — el día, y la hora solo si la dijo él. */
+function cuandoVisita(fecha: Date, franja?: string | null): string {
+  const dia = diaVisita(fecha);
+  return franja?.trim() ? `${dia} ${franja.trim()}` : dia;
+}
+
 export function buildContextualFollowUpMessage(
   context: FollowUpMessageContext,
   kind: FollowUpMessageKind,
@@ -139,21 +151,33 @@ function redactarSeguimiento(
 
     // Día Y local ya confirmados, y el día todavía no llega: no queda NADA que
     // preguntar. Preguntarlo igual es lo que hace que el bot parezca no haber
-    // leído la conversación. (El worker además cancela estos envíos —ver el
-    // portón «visita_agendada» en followUpProcessor—; este texto es el que ve
-    // el asesor en el panel y el que sale si el envío se fuerza a mano.)
+    // leído la conversación.
+    //
+    // Hasta el 26-ago estos dos mensajes ni salían: el portón «visita_agendada»
+    // los cancelaba. Joaquín y Manuel decidieron lo contrario —que salgan, pero
+    // CONFIRMANDO—: el primero devuelve el plan tal como quedó y abre la puerta
+    // a preguntas; el segundo es el «no se olvide». Un cliente que ya dijo
+    // cuándo viene no necesita que le pregunten, necesita que se lo recuerden.
+    //
+    // Van en «usted» como el resto del cierre: en el chat del 24-ago el bot
+    // trató de usted toda la conversación y el seguimiento le salió con un «tu
+    // visita» que delataba que lo escribió otra parte del sistema.
     if (visita && !yaPaso && context.nearestStore) {
+      const cuando = cuandoVisita(visita, context.visitTimeLabel);
+      const cotizacion = context.quoteNumber
+        ? ` Lleve a mano su cotización *${context.quoteNumber}* para que le respeten el precio.`
+        : "";
       return kind === "in_window_second"
-        ? `🏁 Quedamos el ${diaVisita(visita)}${enStore}. Si te queda mejor otro día, dime y lo movemos 😊`
-        : `${prefix}✅ Tu visita${enStore} quedó anotada para el ${diaVisita(visita)}. ¿Te ayudo con algo antes de que pases?`;
+        ? `🔔 No se olvide: le esperamos el *${cuando}*${enStore}.${cotizacion} Si necesita moverlo a otro día, dígame y lo reagendo 😊`
+        : `✅ Perfecto, le esperamos el *${cuando}*${enStore}. Si tiene cualquier pregunta antes de pasar, dígame nomás 😊`;
     }
 
     // El día llegó y pasó sin que viniera. Aquí volver a preguntar SÍ es nuevo:
     // lo que se pide es una fecha distinta, y se dice por qué.
     if (yaPaso && visita) {
       return kind === "in_window_second"
-        ? `🚗 Te esperábamos el ${diaVisita(visita)}${enStore} y no pudimos atenderte. ¿Te reagendo para otro día? 😊`
-        : `${prefix}😊 Quedamos para el ${diaVisita(visita)}${enStore} y no alcanzaste a pasar. ¿Qué día te queda mejor y lo dejo anotado?`;
+        ? `🚗 Te esperábamos el ${cuandoVisita(visita, context.visitTimeLabel)}${enStore} y no pudimos atenderte. ¿Te reagendo para otro día? 😊`
+        : `${prefix}😊 Quedamos para el ${cuandoVisita(visita, context.visitTimeLabel)}${enStore} y no alcanzaste a pasar. ¿Qué día te queda mejor y lo dejo anotado?`;
     }
 
     // Dijo que viene pero sin día exacto («esta semana»), o falta el local.

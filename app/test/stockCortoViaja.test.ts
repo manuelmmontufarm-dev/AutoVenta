@@ -157,4 +157,13 @@ describe("el orden de los candados en el turno", () => {
       expect(texto, `${archivo} no consulta el faltante de stock`).toMatch(/stockCorto\.js/);
     }
   });
+
+  it("el seguimiento automático también pasa por el aviso", () => {
+    // La cuarta puerta: el mensaje que sale solo tras el silencio del cliente
+    // repite la cotización con sus números («su cotización por 4 sigue
+    // vigente») — y sin este candado, la repetía limpia. Se cableó junto con
+    // la revisión de seguimientos del guardián (26-ago).
+    const followUpProcessor = readFileSync(resolve(__dirname, "../src/services/followUpProcessor.ts"), "utf8");
+    expect(followUpProcessor).toContain("asegurarAvisoDeStock(context.id");
+  });
 });

@@ -159,7 +159,39 @@ function visitDateText(value: Date | null): string | null {
     weekday: "long",
     day: "numeric",
     month: "long",
-  }) ?? null;
+  }).replace(",", "") ?? null;
+}
+
+/**
+ * Cómo se le devuelve la visita al cliente.
+ *
+ * Manda la fecha YA INTERPRETADA, no lo que él tecleó. Desde que el extractor
+ * tolera faltas (26-ago), `customer_commitment` puede ser literalmente «X eso
+ * el juebes», y esta ruta lo escupía de vuelta entre asteriscos como si fuera
+ * la fecha: «Perfecto: *X eso el juebes en Depot Tire Quito Sur*». Repetirle su
+ * propio typo formateado como dato es peor que no confirmar nada.
+ *
+ * Sin fecha devuelve null: el turno cae en la rama que confirma lo que sí se
+ * sabe y pide el día que falta, en vez de dar por registrado lo que no está.
+ */
+function etiquetaDeVisita(visitDate: Date | null, franja: string | null): string | null {
+  const dia = visitDateText(visitDate);
+  if (!dia) return null;
+  return franja?.trim() ? `${dia} ${franja.trim()}` : dia;
+}
+
+/**
+ * Un tramo sin día («esta semana») sí se le repite al cliente; una frase entera
+ * no. `customer_commitment` guarda lo que él escribió tal cual, y eso puede ser
+ * un párrafo: devolvérselo entre asteriscos como si fuera el dato registrado es
+ * lo que hacía esta ruta antes de que se le pusiera este filtro.
+ */
+function tramoBreve(crudo: string | null): string | null {
+  const valor = crudo?.trim();
+  if (!valor || valor.length > 30) return null;
+  return /\b(?:semana|finde|fin de semana|manana|mañana|hoy)\b/i.test(
+    valor.normalize("NFD").replace(/[\u0300-\u036f]/g, ""),
+  ) ? valor : null;
 }
 
 export async function tryDirectSalesRoute(
@@ -176,10 +208,11 @@ export async function tryDirectSalesRoute(
   const [facts] = await sql<{
     nearest_store: string | null;
     visit_date: Date | null;
+    visit_time_label: string | null;
     customer_commitment: string | null;
     has_quote: boolean;
   }[]>`
-    select c.nearest_store, c.visit_date, c.customer_commitment,
+    select c.nearest_store, c.visit_date, c.visit_time_label, c.customer_commitment,
       exists(select 1 from quotes q where q.conversation_id=c.id and q.cycle=c.current_cycle) as has_quote
     from conversations c where c.id=${ctx.conversation.id}
   `;
@@ -189,12 +222,21 @@ export async function tryDirectSalesRoute(
     stage: ctx.conversation.stage,
     hasQuote: facts?.has_quote ?? false,
     hasExplicitStore: Boolean(ctx.explicitStore),
-    hasCommitment: Boolean(ctx.commitment),
+    // Con FECHA, no con cualquier compromiso. Desde que el extractor también
+    // reconoce una hora suelta (26-ago), «X la tarde de 4 a 5 x yo soy de
+    // probincia i ese día paso x ai» cuenta como compromiso — y esta ruta le
+    // quitaba el turno al agente para contestarlo con una plantilla, perdiendo
+    // el «si viene desde provincia, un asesor le atiende al llegar» que el bot
+    // sí supo decir. Esta ruta es para la respuesta SECA con día («el jueves»);
+    // lo demás lo contesta el vendedor.
+    hasCommitment: Boolean(ctx.commitment?.visitDate),
     text,
   })) return null;
   const store = facts?.nearest_store ?? null;
   const visit = visitDateText(facts?.visit_date ?? null);
-  const visitLabel = facts?.customer_commitment?.trim() || visit;
+  const franja = facts?.visit_time_label?.trim() || null;
+  const visitLabel = etiquetaDeVisita(facts?.visit_date ?? null, franja);
+  const parcial = franja ?? tramoBreve(facts?.customer_commitment ?? null);
   // Con el local ya decidido va su link de Maps, una sola vez en toda la
   // conversación. Es el mensaje que un asesor tuvo que mandar a mano la noche
   // del 17-ago porque el bot había contestado la dirección escrita: el cliente
@@ -203,6 +245,11 @@ export async function tryDirectSalesRoute(
   let reply: string;
   if (store && visitLabel) {
     reply = composeBlocks(`Perfecto: *${visitLabel} en ${store}*. Ya quedó registrado para el asesor.`, mapa);
+  } else if (store && parcial) {
+    // Sabemos el local y algo del cuándo, pero NO el día. Se confirma lo que hay
+    // y se pide solo lo que falta: decir «ya quedó registrado» sin fecha es la
+    // confirmación falsa que costó la visita del 24-ago.
+    reply = composeBlocks(`Perfecto, le anoto *${parcial}* en *${store}*. ¿Qué día sería?`, mapa);
   } else if (store) {
     reply = composeBlocks(`Perfecto, *${store}*. ¿Qué día puede pasar?`, mapa);
   } else {

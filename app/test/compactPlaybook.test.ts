@@ -10,7 +10,18 @@ describe("playbook compacto", () => {
     expect(COMPACT_PLAYBOOK).toMatch(/notificar_vendedor/);
   });
 
+  it("no puede olvidar registrar la visita", () => {
+    expect(COMPACT_PLAYBOOK).toMatch(/agendar_visita/);
+  });
+
+  /*
+   * El guardarraíl es contra la tentación de volver a pegar el playbook largo,
+   * que son 18.400 caracteres. El techo subió de 4.500 a 5.000 el 26-ago para
+   * que entrara la regla de `agendar_visita`: sin ella el bot confirma la
+   * visita por escrito y no la registra, que es exactamente el fallo que se
+   * llevó dos seguimientos y un cupón el 24-ago. Sigue siendo ~1/4 del largo.
+   */
   it("es materialmente menor que el prompt histórico", () => {
-    expect(COMPACT_PLAYBOOK.length).toBeLessThan(4_500);
+    expect(COMPACT_PLAYBOOK.length).toBeLessThan(5_000);
   });
 });

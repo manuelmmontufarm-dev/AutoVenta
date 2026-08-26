@@ -49,7 +49,9 @@ import {
   appendMessage,
   logQuote,
   logQuoteArtifact,
+  registrarCompromisoDeVisita,
   registrarMedidaQueNoCoincide,
+  setExplicitStore,
   setStage,
   updateConversationFacts,
   type Conversation,
@@ -92,10 +94,15 @@ import {
   toRenderLine,
 } from "../render/quoteImage.js";
 import { sql } from "../db/client.js";
-import { createBotAlert } from "../services/followUps.js";
+import { cancelPendingFollowUps, createBotAlert, scheduleConversationFollowUps } from "../services/followUps.js";
 import { attachDiscountOfferToQuote, getActiveDiscountOffer, materializePendingDiscount } from "../services/discountOffers.js";
 import { calculateDiscount } from "../domain/discounts.js";
 import { notifyAdvisor } from "../services/advisorNotifications.js";
+import { avisarVisitaComprometida, etiquetaVisita } from "../services/visitAlerts.js";
+import { emitirCuponDeConfirmacion } from "../services/coupons.js";
+import { mensajeCupon } from "../domain/coupons.js";
+import { franjaHoraria } from "../domain/diasEnEspanol.js";
+import { fechaDelDia } from "../domain/customerCommitment.js";
 import type { StoreHours } from "../services/settings.js";
 import { resendLatestQuoteImage } from "../services/directSalesRoutes.js";
 
@@ -2295,6 +2302,123 @@ export function buildTools(ctx: AgentContext) {
     },
   });
 
+  /**
+   * EL BOT ESCRIBE LO QUE PROMETE.
+   *
+   * Hasta el 26-ago la fecha de visita solo entraba por una regex que corría
+   * ANTES del modelo, sobre el texto crudo del cliente. El 24-ago un cliente
+   * escribió «X eso el juebes»: el modelo entendió y contestó «Listo, jueves de
+   * 4 a 5 pm», la regex no reconoció el typo, y la visita no existió para
+   * nadie. Sin `visit_date` no hubo aviso al asesor, no salió el cupón, y el
+   * portón `visita_agendada` dejó pasar dos seguimientos preguntándole otra vez
+   * qué día venía.
+   *
+   * La regex ahora tolera faltas (ver `diasEnEspanol`), pero el arreglo de
+   * fondo es este: si el bot lo dice, el bot lo escribe. Ninguna promesa del
+   * chat puede depender de que una expresión regular haya adivinado igual que
+   * el modelo.
+   */
+  const agendarVisita = defineTool({
+    name: "agendar_visita",
+    description:
+      "Registra el día (y la hora, si la dijo) en que el cliente confirmó que va a pasar por el local. Llámala SIEMPRE en el mismo turno en que el cliente confirma, cambia o precisa su visita — aunque lo escriba con faltas («el juebes», «savado»), aunque solo dé la hora, y aunque tú ya lo hayas confirmado en palabras. Sin esta llamada el asesor no se entera, no sale el cupón, y el bot le vuelve a preguntar el día que acaba de darte.",
+    schema: z.object({
+      dia: z
+        .string()
+        .describe(
+          "El día tal como lo entendiste: «jueves», «mañana», «pasado mañana», «hoy», «esta semana», o una fecha «2026-08-27». Si el cliente dio la hora pero todavía no el día, manda cadena vacía.",
+        ),
+      franja: z
+        .string()
+        .nullable()
+        .default(null)
+        .describe("La hora que dijo, en sus palabras: «de 4 a 5 pm», «en la tarde», «a las 9». null si no dijo hora."),
+      local: z
+        .enum(["Depot Tire Cumbayá", "Depot Tire Quito Sur"])
+        .nullable()
+        .default(null)
+        .describe("El local al que va, si ya lo eligió en esta conversación. null si todavía no lo dijo."),
+    }),
+    run: async ({ dia, franja, local }) => {
+      const ahora = new Date();
+      const fecha = fechaDelDia(dia, ahora);
+      const franjaTexto = franja?.trim() || null;
+      // La hora que resuelva el texto del cliente manda sobre el relleno del
+      // día: «jueves de 4 a 5» es el jueves a las 16:00, no a las 10:00.
+      const hora = franjaTexto ? franjaHoraria(franjaTexto)?.hora ?? null : null;
+      const conHora = fecha && hora !== null
+        ? new Date(Date.UTC(fecha.getUTCFullYear(), fecha.getUTCMonth(), fecha.getUTCDate(), hora + 5, 0, 0))
+        : fecha;
+      const etiquetaFranja = franjaTexto ? franjaHoraria(franjaTexto)?.etiqueta ?? franjaTexto : null;
+
+      if (!conHora && !etiquetaFranja) {
+        return JSON.stringify({
+          error: "No entendí qué día ni a qué hora viene. Pregúntale el día concreto antes de registrar nada.",
+        });
+      }
+      if (local) await setExplicitStore(ctx.conversation.id, local);
+      // Por `registrarCompromisoDeVisita` y no por `updateConversationFacts`:
+      // si el cliente dio la hora un turno antes, esa hora se pega a este día.
+      const registrado = await registrarCompromisoDeVisita(ctx.conversation.id, {
+        texto: [dia.trim(), franjaTexto].filter(Boolean).join(" ").slice(0, 180)
+          || ctx.currentUserText.trim().slice(0, 180),
+        visitDate: conHora,
+        visitTimeLabel: etiquetaFranja,
+      });
+
+      const [guardado] = await sql<{ nearest_store: string | null }[]>`
+        select nearest_store from conversations where id=${ctx.conversation.id}
+      `;
+      const localFinal = local ?? guardado?.nearest_store ?? null;
+
+      // Los dos efectos que el 24-ago no ocurrieron. Van con `await` porque el
+      // cupón se anexa al mensaje, y el aviso al asesor es justamente lo que
+      // convierte esta llamada en algo más que una fila en una tabla.
+      await avisarVisitaComprometida({
+        conversationId: ctx.conversation.id,
+        cycle: ctx.conversation.current_cycle,
+        texto: ctx.currentUserText.trim().slice(0, 200) || dia,
+        visitDate: registrado.visitDate,
+        visitTimeLabel: registrado.visitTimeLabel,
+      }).catch((error) => console.error("⚠️ No se pudo avisar la visita:", error));
+      const cupon = await emitirCuponDeConfirmacion({
+        conversationId: ctx.conversation.id,
+        cycle: ctx.conversation.current_cycle,
+      }).catch(() => null);
+
+      // Los seguimientos vigentes se planearon contra un estado que ya cambió:
+      // se rehacen para que salgan confirmando la visita, no preguntándola.
+      await cancelPendingFollowUps(ctx.conversation.id, "visita_registrada", ctx.conversation.current_cycle)
+        .catch(() => undefined);
+      await scheduleConversationFollowUps(ctx.conversation.id, ahora).catch(() => undefined);
+
+      const cuando = registrado.visitDate
+        ? etiquetaVisita(registrado.visitDate, registrado.visitTimeLabel)
+        : `${registrado.visitTimeLabel} (falta el día)`;
+      const confirmacion = registrado.visitDate
+        ? `Listo, le esperamos el *${cuando}*${localFinal ? ` en *${localFinal}*` : ""}. Queda avisado el asesor 🤝`
+        : `Anotado *${registrado.visitTimeLabel}*${localFinal ? ` en *${localFinal}*` : ""}. ¿Qué día sería?`;
+      const bloques = [confirmacion];
+      if (cupon && !cupon.yaExistia) {
+        bloques.push(mensajeCupon({
+          codigo: cupon.codigo,
+          porcentaje: cupon.porcentaje,
+          numeroCotizacion: cupon.numeroCotizacion,
+        }));
+      }
+
+      return JSON.stringify({
+        visita_registrada: Boolean(registrado.visitDate),
+        cuando,
+        local: localFinal,
+        mensaje_para_enviar: composeBlocks(...bloques),
+        regla: registrado.visitDate
+          ? "Responde exactamente con mensaje_para_enviar, con sus separadores '---' intactos. La visita YA está registrada: no vuelvas a preguntar el día ni el local."
+          : "Responde exactamente con mensaje_para_enviar: tienes la hora pero te falta el día, y es lo único que debes pedir.",
+      });
+    },
+  });
+
   const notificarVendedor = defineTool({
     name: "notificar_vendedor",
     description:
@@ -2414,6 +2538,7 @@ export function buildTools(ctx: AgentContext) {
     reenviarCotizacion,
     localMasCercano,
     ubicacionLocales,
+    agendarVisita,
     notificarVendedor,
   ];
 }

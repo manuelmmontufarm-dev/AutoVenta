@@ -22,6 +22,7 @@ import { runVentanaAsesoresMigration } from "./migrations/015_ventana_asesores.j
 import { runCumplirSolicitudMigration } from "./migrations/016_cumplir_solicitud_y_cierre.js";
 import { runRolesDeAsesorMigration } from "./migrations/018_roles_de_asesor.js";
 import { runConfirmationCouponsMigration } from "./migrations/017_confirmation_coupons.js";
+import { runFranjaDeVisitaMigration } from "./migrations/019_franja_de_visita.js";
 
 export const SCHEMA = /* sql */ `
 create table if not exists conversations (
@@ -372,4 +373,5 @@ export async function ensureSchema(): Promise<void> {
   await runCumplirSolicitudMigration(sql);
   await runConfirmationCouponsMigration(sql);
   await runRolesDeAsesorMigration(sql);
+  await runFranjaDeVisitaMigration(sql);
 }

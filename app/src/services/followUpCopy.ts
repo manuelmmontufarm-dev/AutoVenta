@@ -5,11 +5,34 @@ import { buildContextualFollowUpMessage } from "../domain/followUpMessages.js";
 
 const openai = new OpenAI({ apiKey: config.openai.apiKey });
 
-function isSafeCopy(value: unknown, context: FollowUpMessageContext): value is string {
+/**
+ * El filtro determinístico sobre lo que redactó el modelo. Se exporta para
+ * poder probarlo: desde que el seguimiento de una visita agendada SÍ sale, este
+ * filtro es lo único que impide que una redacción con IA vuelva a preguntar el
+ * día por su cuenta.
+ */
+export function isSafeCopy(value: unknown, context: FollowUpMessageContext): value is string {
   if (typeof value !== "string" || value.trim().length < 12 || value.length > 420) return false;
   if (/\b(?:stock|disponibles?|últimas?|se agota|ahorras?|descuento|oferta)\b/i.test(value) && !context.activeDiscountAmount) return false;
   if (/%|\$\s*\d/.test(value) && !context.activeDiscountAmount) return false;
-  if (/\b(?:lunes|martes|miércoles|jueves|viernes|sábado|domingo|hoy|mañana)\b/i.test(value) && !context.customerCommitment) return false;
+  // Nombrar un día solo se permite si el cliente dio uno. `visitDate` entra a
+  // la condición desde el 26-ago: sin él, al seguimiento que CONFIRMA la visita
+  // se le prohibía decir «el jueves» —justo la palabra que lo hace útil— y
+  // caía al texto determinístico por una regla pensada para lo contrario.
+  if (
+    /\b(?:lunes|martes|miércoles|jueves|viernes|sábado|domingo|hoy|mañana)\b/i.test(value) &&
+    !context.customerCommitment && !context.visitDate
+  ) return false;
+  // Con la visita ya registrada, cualquier redacción que la vuelva a proponer
+  // contradice el estado: gana el texto determinístico, que confirma. La lista
+  // sale de los dos mensajes que de verdad salieron el 24-ago —«¿te ayudo a
+  // dejar lista la visita?» y «¿qué día te quedaría más cómodo?»—; ninguno de
+  // los dos decía «qué día» a secas, así que un filtro más estrecho los habría
+  // dejado pasar igual.
+  if (
+    context.visitDate &&
+    /qu[eé]\s+d[ií]a|cu[aá]ndo\s+(?:te|le|puede|podr|vendr|pasar)|(?:te|le)\s+queda\s+m[eá]s\s+c[oó]modo|coordinar|agendar|reservar?\b|dejar\s+lista|(?:te|le)\s+ayudo\s+a|cu[aá]l\s+local|qu[eé]\s+local/i.test(value)
+  ) return false;
   return true;
 }
 

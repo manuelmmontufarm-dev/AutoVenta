@@ -254,7 +254,7 @@ describe.sequential("Venta primero — los arreglos de Joaquín", () => {
     const base = {
       tireSize: null, vehicle: null, vehicleYear: null,
       selectedProductCode: null, selectedQuantity: null,
-      nearestStore: null, visitDate: null, customerCommitment: null,
+      nearestStore: null, visitDate: null, visitTimeLabel: null, customerCommitment: null,
       lastQuote: null,
     };
 
@@ -264,12 +264,37 @@ describe.sequential("Venta primero — los arreglos de Joaquín", () => {
         tireSize: "235/75R15",
         selectedQuantity: 4,
         nearestStore: "Depot Tire Quito Sur",
+        // La prohibición de repreguntar el día cuelga de la FECHA REGISTRADA,
+        // no del texto del cliente (cambio del 26-ago, ver el caso de abajo).
+        visitDate: new Date("2026-08-27T15:00:00.000Z"),
         customerCommitment: "mañana en la tarde",
       });
       expect(bloque).toMatch(/235\/75R15 — PROHIBIDO volver a pedir medida, aro o foto/);
       expect(bloque).toMatch(/PROHIBIDO preguntar «¿se la cotizo por 4\?»/);
       expect(bloque).toMatch(/PROHIBIDO escribir el otro local/);
       expect(bloque).toMatch(/PROHIBIDO volver a preguntar qué día viene/);
+    });
+
+    /*
+     * Cazado en el simulador el 26-ago, y es el reverso exacto del bug del
+     * 24-ago: antes, CUALQUIER compromiso —aunque fuera solo una hora— imprimía
+     * «PROHIBIDO volver a preguntar qué día viene». Al cliente que escribió «de
+     * 4 a 5 … ese día paso», el modelo se encontró con la pregunta prohibida y
+     * sin el dato, y rellenó el hueco: «Listo, jueves de 4 a 5 pm». Nadie dijo
+     * jueves. Un hecho que miente es peor que un hecho que falta.
+     */
+    it("un compromiso SIN fecha pide el día en vez de prohibir la pregunta", () => {
+      const bloque = agent.salesFactsPrompt({
+        ...base,
+        nearestStore: "Depot Tire Quito Sur",
+        visitDate: null,
+        visitTimeLabel: "de 4 a 5 pm",
+        customerCommitment: "X la tarde de 4 a 5 x yo soy de probincia i ese día paso x ai",
+      });
+      expect(bloque).toMatch(/el DÍA todavía NO lo dijo/);
+      expect(bloque).toMatch(/PROHIBIDO escribir un día de la semana/);
+      expect(bloque).not.toMatch(/PROHIBIDO volver a preguntar qué día viene/);
+      expect(bloque).not.toMatch(/Local y visita ya están confirmados/);
     });
 
     it("la cotización vigente dice QUÉ contiene, no solo cuánto vale", async () => {

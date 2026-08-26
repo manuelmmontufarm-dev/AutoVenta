@@ -32,6 +32,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-08-26 | _(este mismo)_ | El «juebes» que costó una visita: los días se leen por sonido, el bot escribe lo que promete, y el seguimiento confirma en vez de repreguntar | 4.0 |
 | 2026-08-26 | _(este mismo)_ | Cruce de facturación Contífico: llave nueva, segunda señal (SKU + día de visita) y las sucursales con nombre | 2.5 |
 | 2026-08-26 | _(este mismo)_ | El aviso de stock corto deja de morirse en el turno en que nace: viaja pegado a la cotización por las tres puertas | 2.0 |
 | 2026-08-26 | _(este mismo)_ | El simulador: un WhatsApp de mentira contra el bot de verdad, para reproducir un caso las veces que haga falta | 3.0 |
@@ -169,6 +170,77 @@ Ya viene activado en este equipo.
 ---
 
 ## Entradas (más reciente primero)
+
+### 2026-08-26 · El «juebes» que costó una visita · ⏱️ 4.0 h
+
+**Qué:** `domain/diasEnEspanol.ts` (nuevo): los días de la semana por CLAVE
+FONÉTICA (b=v, s=z=c, j=g, h muda, ll=y, qu=k, dobles colapsadas) + distancia de
+Damerau-Levenshtein con umbral corto, más las fechas de calendario («3 de
+septiembre», «3/9», «setiembre») y la franja horaria («de 4 a 5» → `de 4 a 5
+pm`, con la convención local: las 4 son la tarde). Tres candados contra el falso
+positivo —lista de palabras que suenan a día y no lo son, umbral corto, y primera
+letra igual si la distancia es 2— porque leer «¿cuándo vienes?» como viernes
+agenda una visita que nadie prometió. Columna `visit_time_label` (migración 019)
+y `registrarCompromisoDeVisita`, que junta la hora de un turno con el día del
+siguiente. Herramienta `agendar_visita` para que el modelo ESCRIBA lo que
+entiende. El portón `visita_agendada` deja de cancelar el seguimiento y le cambia
+el libreto: confirmar y recordar, en «usted». El Ángel Guardián pasa a revisar
+también los seguimientos, con rúbrica propia, y estrena la categoría
+`estado_desincronizado`. 104 pruebas nuevas; la suite queda en 954.
+
+**Por qué:** Joaquín trajo una captura: «aquí le hizo doble seguimiento cuando ya
+confirmó». Conversación 9878, cotización COT-MT7H1534. El cliente escribió «X eso
+el **juebes**», el bot entendió perfecto y contestó «Listo, jueves de 4 a 5 pm en
+Depot Tire Quito Sur»… y `visit_date` quedó en NULL. La única vía al registro era
+una regex que buscaba la cadena literal «jueves». Una letra cambiada, y para el
+sistema esa visita no existió: **no hubo aviso al asesor** (Cesar viajaba desde
+provincia y nadie lo esperaba), **no salió el cupón del 2 %**, y el portón
+`visita_agendada` —que estaba bien hecho— dejó pasar los dos seguimientos porque
+le llegó el estado vacío. El síntoma era el seguimiento; la causa, que el bot
+podía prometer algo sin poder anotarlo.
+
+Tres cosas que solo aparecieron probando en el simulador, y que valen más que el
+arreglo original:
+
+1. **Un hecho que miente es peor que un hecho que falta.** Al ensanchar la
+   captura, un mensaje con solo la hora ya contaba como compromiso, y los HECHOS
+   le imprimían al modelo «PROHIBIDO volver a preguntar qué día viene». Con la
+   pregunta prohibida y sin el dato, el modelo rellenó el hueco: «Listo, jueves
+   de 4 a 5 pm» a un cliente que nunca dijo jueves. Ahora la prohibición cuelga
+   de la FECHA REGISTRADA, y sin fecha va la orden contraria: pedila y no
+   inventes ningún día.
+2. **El cupón sale como bloque aparte y tapaba la pregunta.** «Lo último que
+   dijimos» era un solo mensaje, así que tras el bloque del cupón el cliente
+   podía reagendar y su respuesta dejaba de leerse como respuesta. Un
+   reagendamiento entero se perdió en silencio. `lastOutboundText` ahora devuelve
+   el turno (últimos 3 salientes), no el último bloque.
+3. **La ruta directa es la tercera puerta y se la estaba comiendo.** Con el
+   compromiso ensanchado, `tryDirectSalesRoute` le quitaba el turno al agente y
+   devolvía la frase cruda del cliente entre asteriscos como si fuera la fecha:
+   «Perfecto: *X eso el juebes en Depot Tire Quito Sur*». Ahora esa ruta solo se
+   queda con el turno cuando hay FECHA, y confirma la fecha interpretada.
+
+**Probado en el simulador** (bot real, gpt-5.5, config de producción), repitiendo
+la conversación de Cesar mensaje por mensaje: «de 4 a 5 … ese día paso» → confirma
+la hora y pide el día sin inventar ninguno; «X eso el juebes» → `visit_date` =
+jueves 27-ago 16:00, aviso al asesor con la hora que él dijo, cupón emitido;
+«mejor el 3 de septiembre» → la fecha se mueve, el asesor se entera, y los dos
+seguimientos se replanifican contra la fecha nueva. Cero hallazgos de
+`estado_desincronizado` en la corrida final.
+
+**El guardián, comprobado contra el modelo real** con los borradores exactos del
+24-ago: al mensaje que confirma una visita no registrada le pone
+`estado_desincronizado / alta` y **aprueba el texto** (el mensaje al cliente
+estaba bien; lo que falla es el registro), y al seguimiento «¿te ayudo a dejar
+lista la visita?» le pone `re-pregunta / alta` y lo reescribe como confirmación.
+Un control con el seguimiento correcto pasa limpio, sin ruido.
+
+**Nota de gasto:** el guardián sobre seguimientos es ~1 llamada extra por
+seguimiento enviado (línea base 31/día). Se apaga desde Ajustes con el resto del
+guardián. El techo del playbook compacto subió de 4.500 a 5.000 caracteres para
+que entrara la regla de `agendar_visita`; sigue siendo ~1/4 del playbook largo.
+
+---
 
 ### 2026-08-26 · El aviso de stock corto sobrevive al turno en que nace · ⏱️ 2.0 h
 

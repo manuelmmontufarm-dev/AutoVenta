@@ -55,6 +55,44 @@ describe("Redacción contextual de seguimientos", () => {
       }
     });
 
+    /*
+     * 26-ago: estos dos mensajes pasaron de estar cancelados a salir de verdad.
+     * El primero devuelve el plan y abre la puerta a preguntas; el segundo es el
+     * «no se olvide». Los dos en «usted», como el resto del cierre — en el chat
+     * del 24-ago el bot trataba de usted y el seguimiento le salió con «tu
+     * visita», delatando que lo escribía otra parte del sistema.
+     */
+    it("el primero confirma el plan y ofrece resolver dudas", () => {
+      const mensaje = buildContextualFollowUpMessage(
+        { ...contexto, visitTimeLabel: "de 4 a 5 pm" }, "in_window_first", AHORA,
+      );
+      expect(mensaje).toMatch(/le esperamos/i);
+      expect(mensaje).toMatch(/viernes 21 de agosto de 4 a 5 pm/i);
+      expect(mensaje).toMatch(/pregunta/i);
+      expect(mensaje).not.toMatch(/\btu\b|\bte\b/i);
+    });
+
+    it("el segundo es el «no se olvide», con la cotización a mano", () => {
+      const mensaje = buildContextualFollowUpMessage(
+        { ...contexto, visitTimeLabel: "de 4 a 5 pm", quoteNumber: "COT-MT7H1534" },
+        "in_window_second", AHORA,
+      );
+      expect(mensaje).toMatch(/no se olvide/i);
+      expect(mensaje).toMatch(/viernes 21 de agosto de 4 a 5 pm/i);
+      expect(mensaje).toMatch(/COT-MT7H1534/);
+      expect(mensaje).not.toMatch(/qué día/i);
+    });
+
+    /*
+     * La hora que lleva dentro `visitDate` es relleno (las 10:00 con las que se
+     * construye un día de la semana). Solo se escribe la que dijo el cliente.
+     */
+    it("sin franja dicha no aparece ninguna hora", () => {
+      const mensaje = buildContextualFollowUpMessage(contexto, "in_window_first", AHORA);
+      expect(mensaje).toMatch(/viernes 21 de agosto/i);
+      expect(mensaje).not.toMatch(/\d{1,2}:\d{2}|\b(?:am|pm)\b/i);
+    });
+
     it("sin local todavía sigue preguntando: ahí la pregunta es nueva", () => {
       const mensaje = buildContextualFollowUpMessage(
         { ...contexto, nearestStore: null }, "in_window_second", AHORA,

@@ -58,6 +58,7 @@ export const CATEGORIAS = [
   "contradiccion",
   "repeticion",
   "ignora-pregunta",
+  "estado_desincronizado",
   "tono",
   "otro",
 ] as const;
@@ -140,12 +141,32 @@ REVISA, en este orden de gravedad:
 10. DISPONIBILIDAD. Si los HECHOS traen la línea «STOCK CORTO», la cotización vigente promete más llantas de las que hay hoy. Entonces: TODO borrador que afirme esa cotización —su número, su cantidad («4 × …», «4 unidades», «el juego de 4») o su total— tiene que decir cuántas hay hoy y que el resto lo confirma el asesor. Omitirlo es error ALTO de categoría **stock_prometido**: el cliente se lleva un número por un juego que no existe y se entera en el local, que es el peor momento posible. La corrección AGREGA el dato, no borra la venta ni cambia la cantidad cotizada. Ojo con las dos formas de equivocarse: si el borrador NO menciona la cotización (por ejemplo solo pregunta el día de la visita), no le metas el aviso — repetirlo en cada turno lo vuelve ruido; y si ya lo trae con sus palabras, tampoco lo dupliques.
 11. UNA NEGATIVA TIENE QUE SER ESPECÍFICA Y VENIR CON LA ALTERNATIVA. Decir «no tenemos» a secas es un error ALTO: deja al cliente sin salida y no es lo que dicen los datos. Cuando la búsqueda no encontró el modelo exacto, la herramienta devuelve qué SÍ hay en esa medida ("en_esa_medida") y en qué medidas SÍ existe ese modelo ("ese_modelo_en_otras_medidas"); el borrador debe usar eso: «esa no la manejo en su medida, pero en 265/70R17 tengo estas», o «esa la manejo en 215/65R17 y 225/65R17». Solo cuando NO hay nada en ninguna de las dos listas vale un «no lo manejamos», y aun así tiene que ofrecer el siguiente paso (buscar por vehículo o por aro). Si la herramienta reportó el catálogo caído o vacío, NINGUNA negativa es válida: no se puede afirmar que algo no existe sin catálogo.
 
+12. LO QUE EL BOT PROMETE vs LO QUE EL SISTEMA TIENE ANOTADO. Compara el borrador y lo que el BOT ya dijo en la conversación contra la sección de HECHOS REGISTRADOS. Si el bot confirmó una visita («listo, el jueves de 4 a 5 en Quito Sur») y los hechos dicen «Visita registrada: ninguna», eso es **estado_desincronizado** de severidad ALTA: el asesor no se va a enterar, no sale el cupón y el seguimiento le va a repreguntar el día. Lo mismo con el local, la medida o la cantidad confirmadas de palabra y ausentes de los hechos. IMPORTANTE: este hallazgo NO se arregla reescribiendo el mensaje al cliente —el mensaje está bien, lo que falla es el registro—. Repórtalo y APRUEBA el texto tal cual. Solo corrige si el borrador además promete algo que contradice un hecho que SÍ está anotado.
+
 REGLAS DE CORRECCIÓN (innegociables):
 - NUNCA inventes precios, medidas, stock, plazos ni datos que no estén en el contexto. Si no puedes verificar una cifra, NO la cambies: repórtala como hallazgo y aprueba.
 - La corrección conserva la intención de venta del borrador, su idioma y su formato (los separadores '---' se respetan; los *negritas* de WhatsApp también).
 - La corrección debe ser un mensaje COMPLETO y natural, listo para el cliente. Nunca entregues un texto vacío ni notas para el bot.
 - Corrige solo cuando haga falta: un borrador correcto se aprueba sin tocar. Corregir por gusto es ruido.
 - En la duda, aprueba y reporta el hallazgo. Peor que un error de estilo es un guardián que rompe una venta.`;
+
+/**
+ * Lo que cambia cuando lo revisado NO es una respuesta sino un seguimiento
+ * automático — el mensaje que sale solo cuando el cliente lleva horas callado.
+ *
+ * Es otro animal: no contesta a nadie, no puede saludar como si empezara la
+ * conversación, y sobre todo no puede preguntar lo que ya está anotado. Los dos
+ * seguimientos del 24-ago («¿te ayudo a dejar lista la visita?» y «¿qué día te
+ * quedaría más cómodo?») salieron DESPUÉS de que el bot confirmara «jueves de 4
+ * a 5 pm», y ninguno pasó por aquí: el guardián solo miraba las respuestas.
+ */
+const INSTRUCCIONES_SEGUIMIENTO = `
+== ESTO ES UN SEGUIMIENTO AUTOMÁTICO, NO UNA RESPUESTA ==
+El cliente NO acaba de escribir: este mensaje sale solo tras un rato de silencio. Revísalo con esta vara:
+- Si los HECHOS ya traen la visita registrada (día y local), el seguimiento CONFIRMA y recuerda; preguntar otra vez el día, el local o «¿te ayudo a coordinar?» es **re-pregunta** de severidad ALTA. Corrígelo por una confirmación que diga el día y el local que están en los hechos.
+- No puede contradecir lo que el bot ya dijo en la conversación, ni pedir un dato que el cliente ya dio.
+- No saluda de nuevo dentro de una conversación viva, no inventa urgencia, escasez ni descuentos, y no nombra un día que no esté en los hechos.
+- Es un solo mensaje corto de WhatsApp. Si está bien, apruébalo sin tocarlo.`;
 
 interface FilaMensaje {
   direction: string;
@@ -167,11 +188,20 @@ export interface HuellaHerramienta {
 }
 
 /** El contexto que ve el revisor, armado con los mismos datos que usa el bot. */
+export interface OpcionesRevision {
+  /**
+   * `respuesta` es el turno normal; `seguimiento` es el mensaje automático que
+   * sale tras el silencio del cliente y que hasta el 26-ago no se revisaba.
+   */
+  tipo?: "respuesta" | "seguimiento";
+}
+
 export async function armarContexto(
   conversationId: number,
   cycle: number,
   borrador: string,
   huella: readonly HuellaHerramienta[] = [],
+  opciones: OpcionesRevision = {},
 ): Promise<string> {
   // SOLO el ciclo vigente. Sin este filtro el revisor leía ciclos cerrados y
   // «corregía» con datos rancios: en el ciclo 5 de la conv 3 (26-ago) vio el
@@ -186,8 +216,10 @@ export async function armarContexto(
   const [hechos] = await sql<{
     tire_size: string | null; vehicle: string | null; selected_quantity: number | null;
     nearest_store: string | null; customer_commitment: string | null; visit_date: Date | null;
+    visit_time_label: string | null;
   }[]>`
-    select tire_size, vehicle, selected_quantity, nearest_store, customer_commitment, visit_date
+    select tire_size, vehicle, selected_quantity, nearest_store, customer_commitment, visit_date,
+      visit_time_label
     from conversations where id=${conversationId}
   `;
   const [cotizacion] = await sql<CotizacionVigente[]>`
@@ -233,8 +265,17 @@ export async function armarContexto(
     `Medidas que el cliente pidió: ${pedidas.length ? pedidas.join(", ") : "(ninguna todavía)"}`,
     hechos?.vehicle ? `Vehículo: ${hechos.vehicle}` : null,
     hechos?.selected_quantity != null ? `Cantidad elegida: ${hechos.selected_quantity}` : null,
-    hechos?.nearest_store ? `Local ya elegido: ${hechos.nearest_store}` : null,
-    hechos?.customer_commitment ? `Compromiso de visita: ${hechos.customer_commitment}` : null,
+    // Estas dos líneas se escriben SIEMPRE, también cuando están vacías. Es lo
+    // que permite el hallazgo `estado_desincronizado`: sin un «(ninguno)»
+    // explícito, el revisor no puede notar que el bot acaba de confirmar una
+    // visita que el sistema no tiene anotada — que fue el fallo del 24-ago.
+    `Local ya elegido: ${hechos?.nearest_store ?? "(ninguno)"}`,
+    `Visita registrada: ${
+      hechos?.visit_date
+        ? `${hechos.visit_date.toLocaleDateString("es-EC", { timeZone: "America/Guayaquil", weekday: "long", day: "numeric", month: "long" }).replace(",", "")}${hechos.visit_time_label ? ` ${hechos.visit_time_label}` : ""}`
+        : "(ninguna)"
+    }`,
+    `Compromiso de visita en palabras del cliente: ${hechos?.customer_commitment ?? "(ninguno)"}`,
     // SIN ESTA LÍNEA EL REVISOR ES CIEGO AL STOCK.
     //
     // El 26-ago (conv 11061) el guardián corrigió un borrador y en su
@@ -265,8 +306,11 @@ export async function armarContexto(
           ...huella.map((h) => `${h.herramienta}(${h.argumentos}) → ${h.resultado}`),
         ]
       : []),
+    ...(opciones.tipo === "seguimiento" ? ["", INSTRUCCIONES_SEGUIMIENTO] : []),
     "",
-    "== BORRADOR QUE EL BOT QUIERE ENVIAR ==",
+    opciones.tipo === "seguimiento"
+      ? "== SEGUIMIENTO QUE EL BOT QUIERE ENVIAR =="
+      : "== BORRADOR QUE EL BOT QUIERE ENVIAR ==",
     borrador,
   ].filter((linea) => linea !== null).join("\n");
 }
@@ -294,6 +338,7 @@ export async function revisarConGuardian(
   conversation: { id: number; current_cycle: number; stage: Stage },
   borrador: string,
   huella: readonly HuellaHerramienta[] = [],
+  opciones: OpcionesRevision = {},
 ): Promise<RevisionGuardian> {
   const sinRevision: RevisionGuardian = { texto: borrador, veredicto: "sin_revision", hallazgos: [] };
   try {
@@ -301,7 +346,9 @@ export async function revisarConGuardian(
     if (!cfg.activo) return sinRevision;
 
     const inicio = Date.now();
-    const contexto = await armarContexto(conversation.id, conversation.current_cycle, borrador, huella);
+    const contexto = await armarContexto(
+      conversation.id, conversation.current_cycle, borrador, huella, opciones,
+    );
     const respuesta = await Promise.race([
       openai.chat.completions.create({
         model: config.openai.guardianModel,
@@ -327,7 +374,7 @@ export async function revisarConGuardian(
       inputTokens: respuesta.usage?.prompt_tokens ?? 0,
       outputTokens: respuesta.usage?.completion_tokens ?? 0,
       cachedInputTokens: respuesta.usage?.prompt_tokens_details?.cached_tokens ?? 0,
-      route: "guardian",
+      route: opciones.tipo === "seguimiento" ? "guardian_seguimiento" : "guardian",
       callType: "guardian",
       tools: [],
     }).catch(() => undefined);

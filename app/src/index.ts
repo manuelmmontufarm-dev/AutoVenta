@@ -39,6 +39,7 @@ import {
   recordMessageStatus,
   setStage,
   setExplicitStore,
+  registrarCompromisoDeVisita,
   updateConversationFacts,
   yaProcesado,
 } from "./services/conversations.js";
@@ -104,8 +105,16 @@ const pipeline = new InboundPipeline(async ({ from, name, text, waMessageIds, re
     ...(parsedFlotation ? { tireSize: formatFlotationSize(parsedFlotation) } : {}),
     ...(parsedQuantity ? { selectedQuantity: parsedQuantity } : {}),
     ...(parsedVehicleYear ? { vehicleYear: parsedVehicleYear } : {}),
-    ...(commitment ? { customerCommitment: commitment.text, visitDate: commitment.visitDate } : {}),
   });
+  // La visita va aparte porque hay que JUNTARLA con lo dicho antes: la hora
+  // suele llegar en un mensaje y el día en el siguiente.
+  const visitaRegistrada = commitment
+    ? await registrarCompromisoDeVisita(conversation.id, {
+        texto: commitment.text,
+        visitDate: commitment.visitDate,
+        visitTimeLabel: commitment.visitTimeLabel,
+      })
+    : null;
   if (explicitStore) await setExplicitStore(conversation.id, explicitStore);
   // El aviso va aunque el bot esté apagado: apagado significa que contesta una
   // persona, y esa persona es justo la que tiene que enterarse de que este
@@ -115,7 +124,8 @@ const pipeline = new InboundPipeline(async ({ from, name, text, waMessageIds, re
       conversationId: conversation.id,
       cycle: conversation.current_cycle,
       texto: commitment.text,
-      visitDate: commitment.visitDate,
+      visitDate: visitaRegistrada?.visitDate,
+      visitTimeLabel: visitaRegistrada?.visitTimeLabel,
     }).catch((error) => console.error("⚠️ No se pudo avisar la visita comprometida:", error));
   }
   // Cupón de confirmación: se emite en el MISMO turno en que el cliente dice
@@ -123,7 +133,10 @@ const pipeline = new InboundPipeline(async ({ from, name, text, waMessageIds, re
   // un mensaje suelto que se lee sin contexto. Devuelve null mientras el cupón
   // esté apagado, que es el estado por defecto hasta la luz verde de Depot.
   // Esperado (no `void`) porque el mensaje se anexa a la respuesta de abajo.
-  const cupon = commitment
+  // `solo_hora` no cobra cupón: el texto dice «por confirmar su visita» y en
+  // caja se paga de verdad. Quien dijo «de 4 a 5» y todavía no el día no
+  // confirmó ninguna visita — se le anota y se le pregunta la fecha.
+  const cupon = commitment && commitment.tipo !== "solo_hora"
     ? await emitirCuponDeConfirmacion({
         conversationId: conversation.id,
         cycle: conversation.current_cycle,

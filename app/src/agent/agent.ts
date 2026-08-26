@@ -69,7 +69,7 @@ function modeloDelTurno(
  * asesor): un argumento mal elegido no se corrige con retry. El barato no
  * las toca ni para acertar.
  */
-const HERRAMIENTAS_CON_EFECTOS = new Set(["generar_cotizacion", "notificar_vendedor"]);
+const HERRAMIENTAS_CON_EFECTOS = new Set(["generar_cotizacion", "notificar_vendedor", "agendar_visita"]);
 
 /** Rollout estable por conversación: la misma conversación siempre cae del mismo lado. */
 function turnoExactoBarato(conversationId: number, stage: AgentContext["conversation"]["stage"]): boolean {
@@ -428,6 +428,8 @@ export interface AgentSalesFacts {
   selectedQuantity: number | null;
   nearestStore: string | null;
   visitDate: Date | null;
+  /** «de 4 a 5 pm»: la hora que dijo el cliente, para no inventarle otra. */
+  visitTimeLabel: string | null;
   customerCommitment: string | null;
   /** Última cotización del ciclo — evita mandar dos números para la misma compra. */
   lastQuote: { number: string; total: number; minutesAgo: number; detalle: string | null } | null;
@@ -468,14 +470,16 @@ export async function getAgentSalesFacts(conversationId: number): Promise<AgentS
   const [row] = await sql<{
     tire_size: string | null; vehicle: string | null; vehicle_year: number | null;
     selected_product_code: string | null; selected_quantity: number | null;
-    nearest_store: string | null; visit_date: Date | null; customer_commitment: string | null;
+    nearest_store: string | null; visit_date: Date | null; visit_time_label: string | null;
+    customer_commitment: string | null;
     inbound_messages: string[];
     last_quote_number: string | null; last_quote_total: string | number | null;
     last_quote_at: Date | null; last_quote_items: unknown;
     escalones: Escalones | null;
   }[]>`
     select c.tire_size, c.vehicle, c.vehicle_year, c.selected_product_code,
-      c.selected_quantity, c.nearest_store, c.visit_date, c.customer_commitment,
+      c.selected_quantity, c.nearest_store, c.visit_date, c.visit_time_label,
+      c.customer_commitment,
       q.quote_number as last_quote_number, q.total as last_quote_total,
       q.created_at as last_quote_at, q.items as last_quote_items,
       o.escalones,
@@ -507,6 +511,7 @@ export async function getAgentSalesFacts(conversationId: number): Promise<AgentS
     selectedQuantity: row?.selected_quantity ?? null,
     nearestStore: row?.nearest_store ?? null,
     visitDate: row?.visit_date ?? null,
+    visitTimeLabel: row?.visit_time_label ?? null,
     customerCommitment: row?.customer_commitment ?? null,
     lastQuote: row?.last_quote_number && row.last_quote_at
       ? {
@@ -534,8 +539,25 @@ export function salesFactsPrompt(facts: AgentSalesFacts, resumedFromHuman = fals
     facts.selectedProductCode ? `Producto elegido: ${facts.selectedProductCode}` : null,
     facts.selectedQuantity ? `Cantidad ya confirmada: ${facts.selectedQuantity} — PROHIBIDO preguntar «¿se la cotizo por ${facts.selectedQuantity}?»: esa pregunta ya fue respondida; cotiza.` : null,
     facts.nearestStore ? `Local elegido/recomendado: ${facts.nearestStore} — nómbralo SIEMPRE tal cual; PROHIBIDO escribir el otro local o volver a ofrecer «¿Cumbayá o Quito Sur?».` : null,
-    facts.visitDate ? `Fecha de visita confirmada: ${facts.visitDate.toLocaleDateString("es-EC", { timeZone: "America/Guayaquil" })}` : null,
-    facts.customerCommitment ? `Compromiso del cliente: ${facts.customerCommitment} — PROHIBIDO volver a preguntar qué día viene: ya lo dijo.` : null,
+    // Con FECHA y sin fecha son dos hechos distintos, y confundirlos cuesta caro
+    // en las dos direcciones. Hasta el 26-ago, cualquier compromiso —aunque
+    // fuera solo una hora— imprimía «PROHIBIDO volver a preguntar qué día
+    // viene». Probado en el simulador: al cliente que escribió «de 4 a 5 … ese
+    // día paso», el modelo, con la pregunta prohibida y sin el dato, se inventó
+    // el día: «Listo, jueves de 4 a 5 pm». El cliente nunca dijo jueves.
+    facts.visitDate
+      ? `Día de visita YA REGISTRADO: ${facts.visitDate.toLocaleDateString("es-EC", { timeZone: "America/Guayaquil", weekday: "long", day: "numeric", month: "long" }).replace(",", "")}${facts.visitTimeLabel ? ` ${facts.visitTimeLabel}` : ""} — PROHIBIDO volver a preguntar qué día viene: ya lo dijo.`
+      : facts.visitTimeLabel
+        ? `Hora que dijo el cliente: ${facts.visitTimeLabel} — pero el DÍA todavía NO lo dijo. Confírmale la hora y pídele únicamente la fecha.`
+        : null,
+    facts.customerCommitment
+      ? `Lo que escribió el cliente sobre su visita: «${facts.customerCommitment}»`
+      : null,
+    // El freno directo a la confabulación. El modelo no puede escribir un día
+    // que no esté arriba: si no está, es que nadie lo dijo.
+    facts.visitDate
+      ? null
+      : "PROHIBIDO escribir un día de la semana, «mañana» o una fecha para la visita: todavía no hay ninguno registrado. Invéntalo y le confirmas al cliente una cita que no existe.",
     facts.lastQuote
       ? `Cotización YA ENVIADA en este ciclo: ${facts.lastQuote.number}${facts.lastQuote.detalle ? ` = ${facts.lastQuote.detalle}` : ""} por $${facts.lastQuote.total.toFixed(2)}, hace ${facts.lastQuote.minutesAgo} min. Al nombrarla, di ESE contenido: PROHIBIDO atribuirle otra medida, marca o total.`
       : null,
@@ -548,9 +570,19 @@ export function salesFactsPrompt(facts: AgentSalesFacts, resumedFromHuman = fals
     "HECHOS COMERCIALES CONFIRMADOS (fuente determinística):",
     ...(lines.length ? lines : ["Todavía no hay datos estructurados confirmados."]),
     "No vuelvas a preguntar un dato listado aquí. Pregunta únicamente lo que falte.",
-    facts.nearestStore && (facts.visitDate || facts.customerCommitment)
+    facts.nearestStore && facts.visitDate
       ? "Local y visita ya están confirmados. Confirma el plan una sola vez y NO vuelvas a pedir local ni fecha."
       : null,
+    // El puente entre entender y registrar: sin esta línea el modelo confirma
+    // la visita por escrito y el sistema no se entera (conv. 9878, 24-ago).
+    //
+    // Va en los DOS casos. Cuando solo cubría «todavía no hay fecha», el
+    // simulador cazó el reverso: el cliente reagendó («mejor el 3 de
+    // septiembre»), el bot le dijo que sí, y el registro se quedó en el jueves
+    // anterior — el modelo no tenía ninguna instrucción para ese turno.
+    facts.visitDate
+      ? "Si el cliente CAMBIA el día o la hora de su visita, llama agendar_visita en ese mismo turno con los datos nuevos: el registro no se actualiza solo, y confirmarle el cambio por escrito sin llamarla deja al asesor esperándolo el día viejo."
+      : "Apenas el cliente diga el DÍA, llama agendar_visita en ese mismo turno con lo que entendiste — aunque lo escriba con faltas («el juebes», «savado») o dé una fecha de calendario («el 3 de septiembre»). Decírselo por escrito NO lo registra.",
     "Si modelo y cantidad ya están confirmados, genera la cotización inmediatamente y después pregunta si está bien; no pidas otra confirmación.",
     // Sin este freno el modelo volvía a cotizar lo mismo cuando el cliente
     // reafirmaba la medida o la cantidad, y el cliente terminaba con dos

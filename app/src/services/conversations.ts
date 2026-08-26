@@ -1,6 +1,7 @@
 import { sql } from "../db/client.js";
 import { config } from "../config.js";
 import { isStage, type Stage } from "../domain/pipeline.js";
+import { franjaHoraria } from "../domain/diasEnEspanol.js";
 import { cancelPendingFollowUps, scheduleConversationFollowUps } from "./followUps.js";
 import { emitLiveEvent } from "./liveEvents.js";
 
@@ -82,7 +83,8 @@ export async function reopenConversation(
         vehicle_year = null,
         selected_product_code = null, selected_quantity = null,
         location_label = null, nearest_store = null,
-        pickup_date = null, visit_date = null, offer_expires_at = null,
+        pickup_date = null, visit_date = null, visit_time_label = null,
+        offer_expires_at = null,
         savings_amount = null, customer_commitment = null,
         customer_commitment_cycle = null, follow_up_reason = null,
         follow_up_reason_cycle = null,
@@ -313,13 +315,29 @@ export async function setStage(
  * Sirve para leer su respuesta en contexto: "el sábado" solo significa una
  * visita si lo anterior fue una pregunta por el día.
  */
+/**
+ * Lo último que le dijimos al cliente — el TURNO entero, no el último bloque.
+ *
+ * Un turno del bot sale partido en varios mensajes («---» del agente, el mapa,
+ * el cupón), y de eso depende leer bien su respuesta: `preguntamosElDia` y
+ * `preguntamosElLocal` miran lo que preguntamos antes. Con un solo bloque, el
+ * cupón —que se anexa al final y no pregunta nada— tapaba la pregunta.
+ *
+ * Probado en el simulador (26-ago): el bot confirmó «jueves 27 de agosto de 4 a
+ * 5 pm», detrás salió el bloque del cupón, y el «mejor el 3 de septiembre» del
+ * cliente dejó de leerse como respuesta sobre el día. La visita se quedó en el
+ * jueves y el asesor lo habría esperado una semana antes.
+ *
+ * Se toman los últimos 3 salientes seguidos: un turno no manda más.
+ */
 export async function lastOutboundText(conversationId: number): Promise<string | null> {
-  const [row] = await sql<{ content: string }[]>`
+  const filas = await sql<{ content: string }[]>`
     select content from messages
     where conversation_id = ${conversationId} and direction = 'outbound' and type <> 'note'
-    order by created_at desc limit 1
+    order by created_at desc limit 3
   `;
-  return row?.content ?? null;
+  if (!filas.length) return null;
+  return filas.map((f) => f.content).reverse().join("\n");
 }
 
 export async function updateConversationFacts(
@@ -334,6 +352,7 @@ export async function updateConversationFacts(
     nearestStore?: string;
     pickupDate?: Date;
     visitDate?: Date;
+    visitTimeLabel?: string;
     offerExpiresAt?: Date;
     savingsAmount?: number;
     customerCommitment?: string;
@@ -351,6 +370,7 @@ export async function updateConversationFacts(
       nearest_store = coalesce(${facts.nearestStore ?? null}, nearest_store),
       pickup_date = coalesce(${facts.pickupDate ?? null}, pickup_date),
       visit_date = coalesce(${facts.visitDate ?? null}, visit_date),
+      visit_time_label = coalesce(${facts.visitTimeLabel ?? null}, visit_time_label),
       offer_expires_at = coalesce(${facts.offerExpiresAt ?? null}, offer_expires_at),
       savings_amount = coalesce(${facts.savingsAmount ?? null}, savings_amount),
       customer_commitment = coalesce(${facts.customerCommitment ?? null}, customer_commitment),
@@ -362,6 +382,49 @@ export async function updateConversationFacts(
       updated_at = now()
     where id = ${conversationId}
   `;
+}
+
+/**
+ * Registra el compromiso de visita juntando lo que el cliente dijo en TURNOS
+ * DISTINTOS.
+ *
+ * Casi nadie da el día y la hora en el mismo mensaje. Cesar, 24-ago: a las
+ * 11:57 escribió «de 4 a 5 … ese día paso» y a las 11:58 «X eso el juebes». El
+ * bot lo juntó solo al contestar («jueves de 4 a 5 pm») pero el registro no:
+ * guardaba el jueves con la hora de relleno (10:00) y la franja de la frase
+ * anterior quedaba huérfana. El asesor lo habría esperado seis horas antes.
+ *
+ * Devuelve lo que quedó efectivamente registrado, para que el aviso al asesor y
+ * el cupón hablen de lo mismo que la base.
+ */
+export async function registrarCompromisoDeVisita(
+  conversationId: number,
+  input: { texto: string; visitDate?: Date | null; visitTimeLabel?: string | null },
+): Promise<{ visitDate: Date | null; visitTimeLabel: string | null }> {
+  const [fila] = await sql<{ visit_time_label: string | null }[]>`
+    select visit_time_label from conversations where id = ${conversationId}
+  `;
+  const franja = input.visitTimeLabel ?? fila?.visit_time_label ?? null;
+  let fecha = input.visitDate ?? null;
+  // La hora que ya sabíamos manda sobre el relleno del día recién dicho.
+  if (fecha && franja && !input.visitTimeLabel) {
+    const hora = franjaHoraria(franja)?.hora;
+    if (hora != null) fecha = aLaHoraDeGuayaquil(fecha, hora);
+  }
+  await updateConversationFacts(conversationId, {
+    customerCommitment: input.texto,
+    ...(fecha ? { visitDate: fecha } : {}),
+    ...(input.visitTimeLabel ? { visitTimeLabel: input.visitTimeLabel } : {}),
+  });
+  return { visitDate: fecha, visitTimeLabel: franja };
+}
+
+/** Guayaquil es UTC-5 sin horario de verano: mover la hora es aritmética directa. */
+function aLaHoraDeGuayaquil(fecha: Date, hora: number): Date {
+  const local = new Date(fecha.getTime() - 5 * 3_600_000);
+  return new Date(Date.UTC(
+    local.getUTCFullYear(), local.getUTCMonth(), local.getUTCDate(), hora + 5, 0, 0,
+  ));
 }
 
 /** Una elección explícita del cliente reemplaza cualquier recomendación previa. */
