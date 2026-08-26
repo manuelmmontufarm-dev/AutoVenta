@@ -27,6 +27,7 @@ export const EVENTOS_AVISO = [
   // cotización y se corrigió antes de enviarse. Prioridad media — nunca llega
   // por WhatsApp; existe aquí para que el tipo quede declarado con su cabecera.
   "guard_precio_ajustado",
+  "guard_stock_recordado",
   // Watchdog (6-ago): el bot quedó apagado y los clientes siguieron escribiendo.
   "bot_apagado_con_clientes",
   // Visitas (7-ago): una fecha que nadie mira no sirve de nada.
@@ -89,6 +90,7 @@ export const CATEGORIA_DE_EVENTO: Record<AdvisorEventType, CategoriaAviso> = {
   guard_mensaje_duplicado: "bot",
   guard_saludo_repetido: "bot",
   guard_precio_ajustado: "bot",
+  guard_stock_recordado: "bot",
   caso_sin_resolver: "bot",
   envio_fuera_de_cobertura: "bot",
   bot_apagado_con_clientes: "bot",
@@ -196,6 +198,7 @@ const CABECERAS: Record<AdvisorEventType, string> = {
   guard_mensaje_duplicado: "🤖 *EL BOT NECESITA AYUDA*",
   guard_saludo_repetido: "🤖 *EL BOT NECESITA AYUDA*",
   guard_precio_ajustado: "🤖 *EL BOT NECESITA AYUDA*",
+  guard_stock_recordado: "🤖 *EL BOT NECESITA AYUDA*",
   caso_sin_resolver: "🤖 *EL BOT NECESITA AYUDA*",
   envio_fuera_de_cobertura: "🤖 *EL BOT NECESITA AYUDA*",
   bot_apagado_con_clientes: "🔴 *BOT APAGADO CON CLIENTES ESPERANDO*",

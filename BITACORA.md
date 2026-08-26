@@ -33,6 +33,7 @@ Ya viene activado en este equipo.
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
 | 2026-08-26 | _(este mismo)_ | Cruce de facturación Contífico: llave nueva, segunda señal (SKU + día de visita) y las sucursales con nombre | 2.5 |
+| 2026-08-26 | _(este mismo)_ | El aviso de stock corto deja de morirse en el turno en que nace: viaja pegado a la cotización por las tres puertas | 2.0 |
 | 2026-08-26 | _(este mismo)_ | El simulador: un WhatsApp de mentira contra el bot de verdad, para reproducir un caso las veces que haga falta | 3.0 |
 | 2026-08-26 | _(este mismo)_ | El cierre nuevo no promete «su medida» cuando las opciones son equivalentes (lo cazó el guardián el día del deploy) | 0.5 |
 | 2026-08-26 | _(este mismo)_ | Candado: el «2» del menú de preferencia ya no se cotiza como 2 unidades — juego de 4 con aclaración horneada | 0.5 |
@@ -168,6 +169,54 @@ Ya viene activado en este equipo.
 ---
 
 ## Entradas (más reciente primero)
+
+### 2026-08-26 · El aviso de stock corto sobrevive al turno en que nace · ⏱️ 2.0 h
+
+**Qué:** `domain/stockCorto.ts` (puro: el texto del aviso, cuándo un mensaje
+está afirmando la cotización, si ya avisa) + `services/stockCorto.ts` (el
+faltante de la cotización vigente contra el stock de HOY, y
+`asegurarAvisoDeStock`). Enchufado en las tres puertas por las que sale la
+misma cotización —el agente (`reenviar_cotizacion`), la ruta directa que NO
+pasa por el agente (`directSalesRoutes`) y el envío (`index.ts`)—, más el
+seguimiento automático. Al guardián se le da el faltante como HECHO duro y una
+regla de rúbrica nueva (10. DISPONIBILIDAD) con su categoría `stock_prometido`.
+22 pruebas puras + 9 de integración con los textos reales de la conv 11061.
+
+**Por qué:** Manuel reportó una captura donde el bot promete «4 × KENDA KR203 …
+total $262.60» con 3 en stock. El candado del 25-ago SÍ había funcionado —la
+alerta se creó y a las 12:04:11 salió el ⚠️ con los dos números—, pero el aviso
+era una variable local de `generar_cotizacion` que moría ahí. 35 s después el
+reenvío de la pieza («4 unidades cotizadas») y 11 s más tarde el resumen
+volvieron a prometer las 4 limpias. **El último mensaje que leyó el cliente lo
+escribió el Ángel Guardián**, corrigiendo otra cosa: tenía el aviso en su
+ventana de historial y no lo repitió, porque su rúbrica no hablaba de
+disponibilidad y sus HECHOS no traían el stock.
+
+**Las dos cosas que hacen que esto no vuelva:**
+
+1. **El candado va DESPUÉS del que reescribe.** El orden del turno es
+   `runAgent → applyOutboundGuard → revisarConGuardian → enviar`, así que un
+   candado en `applyOutboundGuard` no protege de lo que el guardián escriba
+   después — que es exactamente lo que pasó. `asegurarAvisoDeStock` corre al
+   final, cuando ya nadie toca el texto. Hay una prueba que fija ese orden.
+2. **Se cuenta contra el stock de HOY, no el de la firma.** Si en bodega
+   repusieron, el aviso desaparece solo y la cotización no se toca.
+
+**Probado en el simulador** (`npm run sim`, stock forzado a 3): la conversación
+de Edison repetida entera. El mensaje que antes prometía las 4 ahora sale con
+«⚠️ Recuerde que de esa llanta hoy hay *3* y la cotización es por *4*», el
+reenvío también, y el cierre que solo pregunta el día sigue SIN aviso (repetirlo
+en cada turno es ruido). Verificado el mecanismo, no solo el resultado: la marca
+del candado en el log y la alerta `guard_stock_recordado` al asesor. Y el
+guardián, con el borrador exacto de producción, ahora lo caza solo:
+`stock_prometido`, severidad alta, y corrige insertando el aviso.
+
+**Nota de coordinación:** `guardian.ts` va en este commit con cambios de otra
+sesión que trabajaba en paralelo (la revisión de seguimientos y
+`estado_desincronizado`); las dos numeramos una regla nueva como 11 y se
+resolvió dejando la de estado como 12. `followUpProcessor.ts` queda SIN
+commitear por lo mismo: su cambio de stock viaja con el trabajo de esa sesión.
+
 
 ### 2026-08-26 · El cruce con Contífico deja de ser una promesa · ⏱️ 2.5 h
 

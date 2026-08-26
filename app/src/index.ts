@@ -63,6 +63,7 @@ import { authorizeConversationOutbound } from "./services/whatsappPolicy.js";
 import { splitBlocks } from "./services/quoteMessages.js";
 import { flagRepetitiveConversation } from "./services/conversationQuality.js";
 import { applyOutboundGuard } from "./services/outboundGuard.js";
+import { asegurarAvisoDeStock } from "./services/stockCorto.js";
 import { revisarConGuardian } from "./services/guardian.js";
 import { notifyPendingHumanRequests } from "./services/advisorNotifications.js";
 import { startEmbeddedFollowUpWorker } from "./workers/embeddedFollowUpWorker.js";
@@ -248,13 +249,21 @@ const pipeline = new InboundPipeline(async ({ from, name, text, waMessageIds, re
   // sale el borrador tal cual.
   const custodiado = await revisarConGuardian(conversation, vetted.text, agentContext.toolTrace ?? []);
 
+  // El stock, al final de todo. El guardián de IA acaba de reescribir el texto
+  // y es justo quien borró este aviso el 26-ago (conv 11061): su corrección
+  // repitió «4 × KENDA KR203 … $262.60» cuando había 3. Un candado que corre
+  // antes del que reescribe no es un candado — ver services/stockCorto.ts.
+  const conStock = await asegurarAvisoDeStock(
+    conversation.id, conversation.current_cycle, custodiado.texto,
+  );
+
   // Varios mensajes cortos en vez de uno largo: es como escribe el vendedor
   // humano de los chats que el cliente puso de ejemplo. Los bloques los separa
   // el agente con '---'; sin separadores esto envía un solo mensaje, igual que antes.
   //
   // Envío con red de seguridad: si Meta rechaza, la respuesta queda guardada
   // como "failed" y visible en el hub — nunca se pierde en silencio.
-  const bloques = splitBlocks(custodiado.texto);
+  const bloques = splitBlocks(conStock.texto);
   // El cupón va como bloque aparte y al final: es un mensaje que el cliente va
   // a buscar días después en el chat, y mezclado dentro del párrafo del bot se
   // pierde. Solo cuando se acaba de emitir — si ya lo tenía, repetírselo cada

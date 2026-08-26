@@ -1,6 +1,8 @@
 import { sql } from "../db/client.js";
 import { createBotAlert } from "./followUps.js";
 import { notifyAdvisor } from "./advisorNotifications.js";
+import { recordatorioQueFalta } from "../domain/stockCorto.js";
+import { faltanteDeCotizacion } from "./stockCorto.js";
 
 /**
  * Guardián de salida: la última línea de defensa ANTES de enviar al cliente.
@@ -26,7 +28,8 @@ const APOLOGIA = /disculpa,?\s*tuve un problema procesando/i;
 /** Saludo de apertura: válido solo en el primer mensaje del bot del ciclo. */
 const SALUDO_INICIAL = /^\s*(?:¡\s*)?(?:hola|buen[oa]s(?:\s+(?:d[íi]as|tardes|noches))?)\s*[!.,]*\s*/i;
 
-export type GuardIssue = "mensaje_duplicado" | "bot_atascado" | "saludo_repetido" | "precio_ajustado";
+export type GuardIssue =
+  | "mensaje_duplicado" | "bot_atascado" | "saludo_repetido" | "precio_ajustado" | "stock_recordado";
 
 export interface GuardResult {
   /** Texto listo para enviar; null = no enviar nada (ya se alertó al asesor). */
@@ -153,6 +156,14 @@ const ALERTAS: Record<GuardIssue, { priority: "high" | "medium"; summary: string
     reason: "Un «¡Hola!» en medio del hilo delata al bot y confunde; el saludo se recortó antes de enviar.",
     action: "Nada urgente; queda registrado para la auditoría.",
   },
+  stock_recordado: {
+    priority: "medium",
+    summary: "El bot repitió la cotización sin decir que no hay tantas (se le pegó el aviso)",
+    reason:
+      "El mensaje afirmaba la cotización vigente —número, cantidad o total— y no mencionaba que hoy hay menos unidades " +
+      "de las cotizadas. Al cliente le llegó con el recordatorio pegado, pero el modelo lo había omitido.",
+    action: "Confirmar en bodega cuántas hay de verdad; si se repite, el cliente está recibiendo el aviso a medias.",
+  },
   precio_ajustado: {
     priority: "medium",
     summary: "El modelo escribió mal una cifra de la cotización (corregida antes de enviar)",
@@ -184,10 +195,11 @@ export async function applyOutboundGuard(conversationId: number, reply: string):
     // duros que ve el Ángel Guardián, sin gastar un token.
     if (result.text) {
       const [cotizacion] = await sql<{
+        quote_number: string | null;
         total: string | number; subtotal: string | number; tax: string | number;
-        items: Array<{ quantity?: number; salePriceWithTax?: number; unitPrice?: number }> | null;
+        items: Array<{ code?: string; quantity?: number; salePriceWithTax?: number; unitPrice?: number }> | null;
       }[]>`
-        select total, subtotal, tax, items from quotes
+        select quote_number, total, subtotal, tax, items from quotes
         where conversation_id = ${conversationId} and cycle = ${row.cycle}
         order by created_at desc limit 1
       `;
@@ -209,6 +221,32 @@ export async function applyOutboundGuard(conversationId: number, reply: string):
         result.text = precios.texto;
         result.issues.push("precio_ajustado");
         console.warn(`💲 Precio ajustado antes de enviar (conv ${conversationId}): ${precios.ajustes.join(" · ")}`);
+      }
+
+      /**
+       * EL AVISO DE STOCK CORTO NO SE PIERDE DESPUÉS DEL PRIMER TURNO.
+       *
+       * `generar_cotizacion` lo hornea una vez y ahí moría: el reenvío de la
+       * pieza y cualquier resumen posterior volvían a prometer las 4 unidades
+       * limpias (conv 11061, 26-ago — y el mensaje sin aviso lo escribió el
+       * propio Ángel Guardián al corregir otra cosa). Acá es determinístico y
+       * no depende de que ningún modelo se acuerde: si el texto afirma la
+       * cotización vigente y hoy no hay tantas, sale con el recordatorio.
+       *
+       * Contra el stock de HOY, no contra el de cuando se firmó: si en bodega
+       * repusieron, el aviso desaparece solo.
+       */
+      const corto = faltanteDeCotizacion(cotizacion ?? null);
+      if (corto) {
+        const recordatorio = recordatorioQueFalta(result.text, corto);
+        if (recordatorio) {
+          result.text = `${result.text}\n\n${recordatorio}`;
+          result.issues.push("stock_recordado");
+          console.warn(
+            `📦 Aviso de stock corto pegado antes de enviar (conv ${conversationId}): ` +
+            `${corto.cantidad} cotizadas, ${corto.stockHoy} en catálogo`,
+          );
+        }
       }
     }
 

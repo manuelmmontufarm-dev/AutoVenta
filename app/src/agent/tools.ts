@@ -23,6 +23,8 @@ import {
 } from "../services/catalog.js";
 
 import { aroDeMedida, enLaMedidaConfirmada } from "../domain/catalog.js";
+import { avisoStockCorto, recordatorioStockCorto } from "../domain/stockCorto.js";
+import { faltanteDeLaCotizacionVigente } from "../services/stockCorto.js";
 import { getInterbotPrice, refreshPriceForSize } from "../services/interbotPrices.js";
 import {
   buildQuote,
@@ -1978,9 +1980,7 @@ export function buildTools(ctx: AgentContext) {
       // cotización, no como bloque aparte: el tope son 4 bloques y el último
       // —el que pide día y local— es el objetivo del turno.
       const avisoStock = stockCorto
-        ? `⚠️ Ojo: de esa llanta hoy tengo *${stockCorto.stock_hoy}* ${
-            stockCorto.stock_hoy === 1 ? "disponible" : "disponibles"
-          } y usted pidió *${stockCorto.solicitadas}*. Se la cotizo completa y el resto se lo confirma el asesor en el local.`
+        ? avisoStockCorto(stockCorto.stock_hoy, stockCorto.solicitadas)
         : null;
       return JSON.stringify({
         enviada: true,
@@ -2066,9 +2066,23 @@ export function buildTools(ctx: AgentContext) {
         console.error("❌ No se pudo reenviar la cotización:", error);
         return null;
       });
-      return message
-        ? JSON.stringify({ enviada: true, mensaje_para_enviar: message })
-        : JSON.stringify({ error: "No existe una cotización previa que se pueda reenviar." });
+      if (!message) return JSON.stringify({ error: "No existe una cotización previa que se pueda reenviar." });
+
+      /**
+       * La pieza que se reenvía dice «4 unidades cotizadas» — y si hoy hay 3,
+       * el reenvío estaba volviendo a prometer las 4 sin una palabra (conv
+       * 11061, 26-ago: el aviso salió a las 12:04:11 y el reenvío de las
+       * 12:04:46 lo tapó). El recordatorio va HORNEADO en el texto porque este
+       * turno sale verbatim y el modelo no tiene dónde agregarlo.
+       */
+      const corto = await faltanteDeLaCotizacionVigente(ctx.conversation.id, ctx.conversation.current_cycle);
+      return JSON.stringify({
+        enviada: true,
+        mensaje_para_enviar: corto
+          ? `${message}\n---\n${recordatorioStockCorto(corto.stockHoy, corto.cantidad)}`
+          : message,
+        ...(corto ? { stock_insuficiente: { stock_hoy: corto.stockHoy, solicitadas: corto.cantidad } } : {}),
+      });
     },
   });
 

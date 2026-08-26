@@ -27,6 +27,7 @@
  *   npm run sim -- --sin-prod              # config por defecto, sin tocar prod
  */
 import { createServer } from "node:http";
+import { createServer as crearServidorTcp } from "node:net";
 import { spawn, execFileSync } from "node:child_process";
 import { readFileSync, existsSync, mkdirSync, rmSync } from "node:fs";
 import { resolve, dirname } from "node:path";
@@ -142,6 +143,7 @@ async function main() {
   mkdirSync(dirDatos, { recursive: true });
 
   await comprobarLaClave();
+  await comprobarLosPuertos();
 
   console.log("🧹 Base local desechable…");
   const admin = postgres(`postgresql://${process.env.PGUSER ?? process.env.USER}@localhost/postgres`, { prepare: false, max: 1 });
@@ -280,7 +282,19 @@ async function main() {
   app.stdout.on("data", (d) => String(d).split("\n").filter(Boolean).forEach(anotar));
   app.stderr.on("data", (d) => String(d).split("\n").filter(Boolean).forEach(anotar));
 
-  if (!(await esperarSalud())) throw new Error("el bot no arrancó — corré con --verboso para ver por qué");
+  // Si el proceso del bot se cae, no tiene sentido seguir esperando un
+  // `/health` que podría estar contestando otro. `esperarSalud` mira las dos
+  // cosas: que el puerto responda y que NUESTRO hijo siga vivo.
+  let botMurio = null;
+  app.once("exit", (code, señal) => { botMurio = señal ?? `código ${code}`; });
+
+  if (!(await esperarSalud(() => botMurio))) {
+    const cola = registroBot.slice(-12).map((l) => `      ${l.linea}`).join("\n");
+    throw new Error(
+      (botMurio ? `el bot se murió al arrancar (${botMurio})` : "el bot no arrancó a tiempo") +
+      `\n${cola}`,
+    );
+  }
   const items = await esperarCatalogo();
   console.log(`📋 Catálogo cargado en el bot: ${items} llantas`);
 
@@ -291,6 +305,47 @@ async function main() {
   console.log(`\n  ✅  Simulador listo → http://localhost:${PUERTO_UI}\n`);
   console.log(`      cliente ${TELEFONO_CLIENTE} · base ${DB} · piezas en scripts/sim/datos/piezas`);
   console.log("      Ctrl-C para cerrar (la base se borra sola).\n");
+}
+
+/**
+ * Que los puertos estén libres ANTES de arrancar.
+ *
+ * Sin esto, un simulador de una corrida anterior que quedó vivo se roba el
+ * papel: el bot nuevo muere con EADDRINUSE, `/health` responde igual —lo
+ * contesta el VIEJO, enganchado a una base que ya se borró— y el simulador
+ * anuncia «listo». Después los mensajes entran a un bot fantasma y en pantalla
+ * no pasa nada. Medido el 26-ago: media conversación tirada al vacío antes de
+ * entender que el proceso que contestaba no era el que se acababa de compilar.
+ */
+async function comprobarLosPuertos() {
+  const puertos = [
+    [PUERTO_UI, "la pantalla"],
+    [PUERTO_APP, "el bot"],
+    [PUERTO_GRAPH, "la Graph de mentira"],
+    [PUERTO_CONTIFICO, "el catálogo"],
+    ...(MODO_HUMO ? [[PUERTO_STUB, "el doble de OpenAI"]] : []),
+  ];
+  const ocupados = [];
+  for (const [puerto, quién] of puertos) {
+    if (await estáOcupado(puerto)) ocupados.push(`${puerto} (${quién})`);
+  }
+  if (ocupados.length) {
+    throw new Error(
+      `Estos puertos ya están ocupados: ${ocupados.join(", ")}.\n` +
+      "   Lo más probable es que haya otro simulador corriendo. Cerralo con Ctrl-C, o:\n" +
+      "     pkill -f scripts/sim/sim.mjs\n" +
+      "   (o corré este con --puerto / --puerto-bot para no chocar).",
+    );
+  }
+}
+
+function estáOcupado(puerto) {
+  return new Promise((ok) => {
+    const prueba = crearServidorTcp();
+    prueba.once("error", () => ok(true));
+    prueba.once("listening", () => prueba.close(() => ok(false)));
+    prueba.listen(puerto, "127.0.0.1");
+  });
 }
 
 /**
@@ -777,8 +832,9 @@ function leerEnv(ruta) {
   return salida;
 }
 
-async function esperarSalud() {
+async function esperarSalud(murió = () => null) {
   for (let i = 0; i < 60; i += 1) {
+    if (murió()) return false;
     try {
       const r = await fetch(`http://127.0.0.1:${PUERTO_APP}/health`, { signal: AbortSignal.timeout(2000) });
       if (r.ok) return true;

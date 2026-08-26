@@ -3,6 +3,8 @@ import type { CustomerCommitment } from "../domain/customerCommitment.js";
 import type { ExplicitStore } from "../domain/storeSelection.js";
 import { sql } from "../db/client.js";
 import { ensureCatalogReady, findByCode } from "./catalog.js";
+import { faltanteDeCotizacion } from "./stockCorto.js";
+import { recordatorioStockCorto } from "../domain/stockCorto.js";
 import {
   appendMessage,
   logFunnelEvent,
@@ -133,7 +135,22 @@ export async function resendLatestQuoteImage(
     providerId,
   });
   await logFunnelEvent(conversationId, "respuesta_directa", { route: "quote_resend" });
-  return "Se la envié nuevamente 👆";
+
+  /**
+   * La pieza reenviada dice «4 unidades cotizadas». Si hoy hay 3, este camino
+   * estaba volviendo a prometer las 4 sin una palabra — y es un camino que NO
+   * pasa por el agente ni por su tool, así que el candado de `tools.ts` no lo
+   * cubre. Tres puertas para la misma cotización: las tres tienen que decir lo
+   * mismo (ver `domain/stockCorto.ts`).
+   */
+  const corto = faltanteDeCotizacion({
+    quote_number: quote.quote_number,
+    total: quote.total,
+    items: quote.items as Array<{ code?: string; quantity?: number }>,
+  });
+  return corto
+    ? `Se la envié nuevamente 👆\n---\n${recordatorioStockCorto(corto.stockHoy, corto.cantidad)}`
+    : "Se la envié nuevamente 👆";
 }
 
 function visitDateText(value: Date | null): string | null {

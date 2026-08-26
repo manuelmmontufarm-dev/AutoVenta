@@ -40,6 +40,7 @@ import { crearAlertaRepeticion } from "./conversationQuality.js";
 import { createBotAlert } from "./followUps.js";
 import { getActiveBenefits } from "./benefits.js";
 import { getGuardianConfig } from "./settings.js";
+import { faltanteDeCotizacion } from "./stockCorto.js";
 
 const openai = new OpenAI({ apiKey: config.openai.apiKey });
 
@@ -50,6 +51,7 @@ const TIMEOUT_MS = 12_000;
 const MENSAJES_DE_CONTEXTO = 16;
 
 export const CATEGORIAS = [
+  "stock_prometido",
   "precio_incorrecto",
   "medida_incorrecta",
   "re-pregunta",
@@ -135,7 +137,8 @@ REVISA, en este orden de gravedad:
 7. TONO: trato de «usted» consistente, sin saludos a mitad de conversación, sin muletillas robóticas.
 8. LO QUE EL BOT HIZO vs LO QUE DICE. Si te doy la sección de herramientas del turno, el borrador debe ser consistente con ella: si una búsqueda devolvió opciones que el borrador niega u omite, o si la búsqueda usó un texto visiblemente distinto a lo que el cliente pidió, es error ALTO — corrige usando SOLO lo que la herramienta devolvió.
 9. PROMESAS DE SERVICIO. Todo lo que el borrador presente como incluido (mantenimiento, rotación, alineación, revisiones, su periodicidad en km o meses) tiene que estar respaldado por la lista de «servicios y beneficios respaldados» del contexto. Prometer un servicio o una periodicidad que NO está en esa lista es error ALTO: lo cobra el local y lo reclama el cliente. Corrige dejando solo lo que sí está. Al revés también cuenta: si el borrador promete algo que SÍ está en la lista, no lo toques — quitar un beneficio real cuesta la venta.
-10. UNA NEGATIVA TIENE QUE SER ESPECÍFICA Y VENIR CON LA ALTERNATIVA. Decir «no tenemos» a secas es un error ALTO: deja al cliente sin salida y no es lo que dicen los datos. Cuando la búsqueda no encontró el modelo exacto, la herramienta devuelve qué SÍ hay en esa medida ("en_esa_medida") y en qué medidas SÍ existe ese modelo ("ese_modelo_en_otras_medidas"); el borrador debe usar eso: «esa no la manejo en su medida, pero en 265/70R17 tengo estas», o «esa la manejo en 215/65R17 y 225/65R17». Solo cuando NO hay nada en ninguna de las dos listas vale un «no lo manejamos», y aun así tiene que ofrecer el siguiente paso (buscar por vehículo o por aro). Si la herramienta reportó el catálogo caído o vacío, NINGUNA negativa es válida: no se puede afirmar que algo no existe sin catálogo.
+10. DISPONIBILIDAD. Si los HECHOS traen la línea «STOCK CORTO», la cotización vigente promete más llantas de las que hay hoy. Entonces: TODO borrador que afirme esa cotización —su número, su cantidad («4 × …», «4 unidades», «el juego de 4») o su total— tiene que decir cuántas hay hoy y que el resto lo confirma el asesor. Omitirlo es error ALTO de categoría **stock_prometido**: el cliente se lleva un número por un juego que no existe y se entera en el local, que es el peor momento posible. La corrección AGREGA el dato, no borra la venta ni cambia la cantidad cotizada. Ojo con las dos formas de equivocarse: si el borrador NO menciona la cotización (por ejemplo solo pregunta el día de la visita), no le metas el aviso — repetirlo en cada turno lo vuelve ruido; y si ya lo trae con sus palabras, tampoco lo dupliques.
+11. UNA NEGATIVA TIENE QUE SER ESPECÍFICA Y VENIR CON LA ALTERNATIVA. Decir «no tenemos» a secas es un error ALTO: deja al cliente sin salida y no es lo que dicen los datos. Cuando la búsqueda no encontró el modelo exacto, la herramienta devuelve qué SÍ hay en esa medida ("en_esa_medida") y en qué medidas SÍ existe ese modelo ("ese_modelo_en_otras_medidas"); el borrador debe usar eso: «esa no la manejo en su medida, pero en 265/70R17 tengo estas», o «esa la manejo en 215/65R17 y 225/65R17». Solo cuando NO hay nada en ninguna de las dos listas vale un «no lo manejamos», y aun así tiene que ofrecer el siguiente paso (buscar por vehículo o por aro). Si la herramienta reportó el catálogo caído o vacío, NINGUNA negativa es válida: no se puede afirmar que algo no existe sin catálogo.
 
 REGLAS DE CORRECCIÓN (innegociables):
 - NUNCA inventes precios, medidas, stock, plazos ni datos que no estén en el contexto. Si no puedes verificar una cifra, NO la cambies: repórtala como hallazgo y aprueba.
@@ -154,7 +157,7 @@ interface CotizacionVigente {
   quote_number: string;
   total: string | number;
   created_at: Date;
-  items: Array<{ brand?: string; design?: string; sizeLabel?: string; quantity?: number; salePriceWithTax?: number }>;
+  items: Array<{ code?: string; brand?: string; design?: string; sizeLabel?: string; quantity?: number; salePriceWithTax?: number }>;
 }
 
 export interface HuellaHerramienta {
@@ -192,6 +195,11 @@ export async function armarContexto(
     where conversation_id=${conversationId} and cycle=${cycle}
     order by created_at desc limit 1
   `;
+  const faltante = faltanteDeCotizacion(
+    cotizacion
+      ? { quote_number: cotizacion.quote_number, total: cotizacion.total, items: cotizacion.items }
+      : null,
+  );
   const inbound = mensajes.filter((m) => m.direction === "inbound").map((m) => m.content ?? "");
   const pedidas = medidasPermitidas(inbound, hechos?.tire_size);
   // Los beneficios son datos duros, no adorno: sin ellos el revisor no puede
@@ -227,6 +235,18 @@ export async function armarContexto(
     hechos?.selected_quantity != null ? `Cantidad elegida: ${hechos.selected_quantity}` : null,
     hechos?.nearest_store ? `Local ya elegido: ${hechos.nearest_store}` : null,
     hechos?.customer_commitment ? `Compromiso de visita: ${hechos.customer_commitment}` : null,
+    // SIN ESTA LÍNEA EL REVISOR ES CIEGO AL STOCK.
+    //
+    // El 26-ago (conv 11061) el guardián corrigió un borrador y en su
+    // reescritura puso «la cotización vigente … 4 × KENDA KR203 … $262.60»
+    // cuando había 3. Tenía el aviso del bot en su ventana de historial y no lo
+    // repitió: para él las 4 unidades eran un hecho firme, porque los HECHOS se
+    // lo decían así y su rúbrica no hablaba de disponibilidad. Ahora el
+    // faltante es un hecho más, y la regla 10 lo exige.
+    faltante
+      ? `STOCK CORTO: la cotización vigente es por ${faltante.cantidad} y hoy hay ${faltante.stockHoy} ` +
+        `de ${faltante.etiqueta || faltante.codigo}. El resto lo confirma el asesor.`
+      : null,
     cotizacion
       ? `Cotización vigente: ${cotizacion.quote_number} · total $${Number(cotizacion.total).toFixed(2)}` +
         (item ? ` · ${item.quantity ?? "?"} × ${item.brand ?? ""} ${item.design ?? ""} ${item.sizeLabel ?? ""}` +
