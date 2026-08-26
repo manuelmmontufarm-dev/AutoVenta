@@ -32,6 +32,8 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-08-25 | _(este mismo)_ | Revisión del sprint final: agotada en su medida ya no esconde las equivalentes vendibles | 0.25 |
+| 2026-08-25 | _(este mismo)_ | Su medida le gana al aro (la A/T de otra medida teniendo la suya en stock) + cotizar más de lo que hay ahora avisa | 1.5 |
 | 2026-08-25 | _(este mismo)_ | «Les molesto» dejó de ser un cliente enojado: en Ecuador es cortesía para anunciar la visita, y el falso positivo pausaba el hilo para siempre | 0.5 |
 | 2026-08-23 | _(este mismo)_ | Depot Tire caído desde el 20-ago: un ECONNRESET de Postgres en el panel mataba el proceso; salvavidas de unhandledRejection en HTTP y worker + redeploy | 0.5 |
 | 2026-08-21 | _(este mismo)_ | Tour interactivo del hub para usuarios nuevos, filtrado por permisos | 1.5 |
@@ -150,11 +152,66 @@ Ya viene activado en este equipo.
 | 2026-07-14 | ac09171 | Ubicaciones de locales + análisis de features del cliente | 1.5 |
 | 2026-07-13 | feadf57 | Brief + plan de desarrollo + plan financiero + catálogo | 4.0 |
 | 2026-07-13 | d997844 | Commit inicial (repo) | 0.25 |
-| | | **TOTAL** | **~107.5 h** |
+| | | **TOTAL** | **~109.25 h** |
 
 ---
 
 ## Entradas (más reciente primero)
+
+### 2026-08-25 · Agotada en su medida = como si no hubiera · ⏱️ 0.25 h
+
+**Qué:** la revisión del sprint final encontró un borde en el candado nuevo de
+`opcionesEnAro`: filtraba por EXISTENCIA del tipo en la medida confirmada, no
+por stock. Ahora `enSuMedida` pasa por `conStock` antes de decidir.
+
+**Por qué:** el requisito dice «si existe con stock». Si la única A/T de su
+medida está en cero, quedarse en ella dejaba al cliente con UNA opción
+incotizable (`generar_cotizacion` bloquea agotadas) y le escondía las
+equivalentes vendibles del aro — peor que antes del arreglo. Agotado en su
+medida ahora cae al aro completo y lo declara (`sin_tipo_en_su_medida`),
+que es justo lo que el mensaje de equivalentes sabe explicar.
+
+### 2026-08-25 · Su medida le gana al aro · y cotizar más de lo que hay ahora avisa · ⏱️ 1.5 h
+
+**Qué:** dos bugs que Joaquín trajo a la reunión del 25-ago, atacados en su capa
+determinística (SPRINT 1 del plan de la reunión).
+
+1. **La búsqueda por aro ignoraba la medida confirmada.** El cliente tenía
+   265/65R18 en la ficha, pidió «una A/T 4x4» y el bot le ofreció A/T de
+   225/50R18 — otra medida del mismo aro — **teniendo la Falken Wildpeak A/T4W
+   en su medida exacta con 4 unidades**. `opcionesEnAro` buscaba `R18` en todo
+   el catálogo y filtraba por tipo; la medida vivía en `conversations.tire_size`
+   y no llegaba nunca al filtro. Ahora entra: con algo de ese tipo en su medida,
+   la selección sale SOLO de ahí. El aro se compara aparte y a propósito — si el
+   cliente cambió de rines (caso que esta misma herramienta invita a atender) su
+   medida vieja ya no aplica y filtrar por ella dejaría la búsqueda en cero.
+2. **Cuando el tipo no existe en su medida, se dice.** La caída al aro completo
+   sigue —enseñar equivalencias es válido y a veces es la única venta posible—
+   pero deja de ser silenciosa: el resultado trae `sin_tipo_en_su_medida` y una
+   `regla` que obliga a nombrarlas como equivalentes. El aviso al cliente ya lo
+   hornea el candado 3 de `preparar_opciones`, que lee la misma `tire_size`.
+3. **Cotizar 4 con 1 en stock.** «Hay una medida 195/55R15 con UNA unidad y el
+   bot cotiza las 4 llantas de esa unidad». La cotización SÍ se genera y el
+   mensaje dice cuántas hay hoy y que el resto lo confirma el asesor; además se
+   abre una alerta `stock_insuficiente` con el stock real.
+
+**Por qué así:** el aviso de stock **no bloquea**. Negarse a cotizar pierde la
+venta justo cuando el snapshot de Contífico está viejo y en bodega sí están, que
+es el caso más común — y el cero de verdad ya lo ataja el candado de `out`. El
+texto va **horneado** en `mensaje_para_enviar` y no en la `regla`: este turno
+sale verbatim por `exactToolReply` y ahí el modelo no tiene dónde agregar nada
+(misma lección que el aviso de equivalentes del 20-ago). Y va pegado a la
+cotización en lugar de como bloque aparte, porque el tope son 4 bloques y el
+último —el que pide día y local— es el objetivo del turno.
+
+**Pruebas:** 12 nuevas (780 en total, verde). El caso de Joaquín reproducido con
+los códigos REALES de la base de tipos: la selección devolvía `351821`
+(225/50R18) y ahora devuelve `356530` (265/65R18, stock 4). Las dos suites se
+verificaron en rojo contra el código de antes.
+
+**Queda fuera, a propósito:** el mismo aviso de stock en `preparar_opciones`
+(R-03 lo pide «si la cantidad elegida ya se conoce») — esa función es zona
+exclusiva del SPRINT 2 y se propone en el PR en vez de tocarla.
 
 ### 2026-08-25 · La revisión del 17-ago, corrida al fin — y la re-revisión del guardián · ⏱️ 1.0 h
 
