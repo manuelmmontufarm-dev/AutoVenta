@@ -168,6 +168,12 @@ export interface OptionsRenderData extends PieceTheme {
    * y el sello de la equivalente la nombra para dar el punto de comparación.
    */
   medidaPedida?: string | null;
+  /**
+   * Beneficios vigentes (tabla `benefits`) para la franja INCLUYE. Con la
+   * franja diciendo lo mismo que la tabla, la pieza y el bot nunca se
+   * contradicen; vacío = cae el texto genérico del diseño.
+   */
+  benefits?: readonly string[];
   products: RenderLine[]; // quantity ignorada
 }
 
@@ -183,6 +189,7 @@ export async function renderOptionsImage(data: OptionsRenderData): Promise<Buffe
       // la que el cliente compara los sellos de cada tarjeta.
       sizeLabel: data.medidaPedida ?? data.sizeLabel ?? data.products[0]?.sizeLabel ?? null,
       lines,
+      benefits: data.benefits,
     },
     themeOf(data),
   );

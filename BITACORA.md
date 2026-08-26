@@ -36,6 +36,8 @@ Ya viene activado en este equipo.
 | 2026-08-25 | _(este mismo)_ | Su medida le gana al aro (la A/T de otra medida teniendo la suya en stock) + cotizar más de lo que hay ahora avisa | 1.5 |
 | 2026-08-25 | _(este mismo)_ | Revisión del sprint final: la IA del seguimiento ya no ve (ni puede mutilar) los links de Maps | 0.25 |
 | 2026-08-25 | _(este mismo)_ | La ubicación deja de esperar el pin: los links van con la pregunta, el seguimiento los repite y «al sur» ya registra el local | 1.5 |
+| 2026-08-25 | _(este mismo)_ | Revisión del sprint final: el INCLUYE tampoco se duplica en la cotización, y el motivo ya no cruza de llanta | 0.25 |
+| 2026-08-25 | _(este mismo)_ | Cierre por preferencia (precio/equilibrada/premium), INCLUYE una sola vez y resaltado, beneficios como hechos, y las dos familias del guardián (S2 reunión Joaquín) | 3.0 |
 | 2026-08-25 | _(este mismo)_ | «Les molesto» dejó de ser un cliente enojado: en Ecuador es cortesía para anunciar la visita, y el falso positivo pausaba el hilo para siempre | 0.5 |
 | 2026-08-23 | _(este mismo)_ | Depot Tire caído desde el 20-ago: un ECONNRESET de Postgres en el panel mataba el proceso; salvavidas de unhandledRejection en HTTP y worker + redeploy | 0.5 |
 | 2026-08-21 | _(este mismo)_ | Tour interactivo del hub para usuarios nuevos, filtrado por permisos | 1.5 |
@@ -154,7 +156,7 @@ Ya viene activado en este equipo.
 | 2026-07-14 | ac09171 | Ubicaciones de locales + análisis de features del cliente | 1.5 |
 | 2026-07-13 | feadf57 | Brief + plan de desarrollo + plan financiero + catálogo | 4.0 |
 | 2026-07-13 | d997844 | Commit inicial (repo) | 0.25 |
-| | | **TOTAL** | **~111 h** |
+| | | **TOTAL** | **~114.25 h** |
 
 ---
 
@@ -296,6 +298,63 @@ de `main`. 785 tests, typecheck limpio.
 habla de usted — sigue anotado desde el 18-ago y sigue sin tocarse.
 
 ---
+### 2026-08-25 · Dos remaches de la revisión del sprint final · ⏱️ 0.25 h
+
+**Qué:** (1) `generar_cotizacion` ahora condiciona su bloque INCLUYE de texto
+con el mismo `debeLlevarIncluyeEnTexto` del turno de opciones; (2) cuando la
+preferencia del cliente elige otra llanta que la recomendada del modelo, el
+motivo del cierre sale del escalón, no del texto que el modelo escribió para
+la suya.
+
+**Por qué:** (1) quitar el INCLUYE del texto de opciones dejaba sin poner el
+candado por contenido de `buildBenefitsBlockOnce`, y la duplicación que
+Joaquín pidió quitar solo se MUDABA al turno de cotización (la pieza de la
+cotización también trae la franja). (2) «Yo iría por la más barata: la mejor
+duración de las tres» — el motivo describía a la equivocada, verbatim al
+cliente.
+
+### 2026-08-25 · El cierre por preferencia y el conocimiento del negocio (SPRINT 2, reunión Joaquín) · ⏱️ 3.0 h
+
+**Qué:** (R-04…R-10 del plan de la reunión del 25-ago,
+`docs/planning/PLAN-REUNION-25AGO-MASTER-PROMPT.md`)
+
+1. **Cierre nuevo (R-04/R-05).** `PREGUNTA_RECOMENDACION` → `PREGUNTA_PREFERENCIA`
+   («¿mejor precio, equilibrada o premium?», una sola constante para cuando
+   Joaquín mande su texto). `respuestaDePreferencia` en `salesIntent.ts` lee la
+   respuesta con las variantes reales («la más barata», «la del medio», «la mas
+   varata»), `preparar_opciones` expone `escalones` (mapeados por PRECIO sobre
+   lo que está en pantalla) y los guarda en la metadata de la pieza; los hechos
+   del agente los recuperan al turno siguiente para entregar LA opción con su
+   precio sin re-preguntar.
+2. **R-06 (familia 2 del guardián).** «Describió su uso» (`describeUso`) también
+   entrega la recomendación en el mismo turno — adiós «¿necesita recomendación?»
+   con la recomendación ya preparada.
+3. **R-07.** Con la imagen de opciones enviada, el bloque INCLUYE ya NO va en
+   texto (`debeLlevarIncluyeEnTexto`): la franja de la pieza lo dice, ahora
+   resaltada (`franjaIncluye`, misma jerarquía que el INCLUIDO de la cotización)
+   y con los textos REALES de la tabla `benefits`, no el genérico.
+4. **R-08 (P-03).** Los beneficios incondicionales vigentes entran a los bloques
+   volátiles del agente como «INCLUIDO CON LA COMPRA (fuente determinística)»:
+   el bot ya no puede decir «el balanceo es aparte» mientras su cotización
+   imprime que está incluido.
+5. **R-09.** Descuento en efectivo: «puede haber uno adicional; se lo confirman
+   en la sucursal» — sin monto y sin negarlo (prompt + playbook compacto).
+6. **R-10 (familia 1, ~20 casos).** Regla nueva nº1 del prompt: toda pregunta
+   directa se contesta en la PRIMERA parte de la respuesta, con los
+   contraejemplos reales del guardián citados.
+
+**Por qué:** los pedidos textuales de Joaquín en la reunión del 25-ago (P-03,
+P-06, P-07, P-08) más las dos familias grandes del Ángel Guardián (~30 casos
+del 21–25 ago) atacadas en su causa raíz: el texto que ve el cliente se hornea
+en la capa determinística (regla 5 de la casa) y las reglas viven en los DOS
+prompts (regla 4: compacto encendido en prod desde el 25-ago).
+
+**Nota de alcance:** `agent.ts` se tocó un pelo más allá de la excepción del
+plan (además de los beneficios, los `escalones` de la última pieza entran a
+`getAgentSalesFacts`/`salesFactsPrompt`): era la vía más simple para que la
+respuesta de preferencia se pudiera entregar al turno siguiente, porque el
+historial solo persiste texto y el JSON de la tool se pierde. Ni una línea del
+loop ni de los modelos.
 
 ### 2026-08-25 · La revisión del 17-ago, corrida al fin — y la re-revisión del guardián · ⏱️ 1.0 h
 

@@ -56,6 +56,84 @@ export function pideRecomendacion(text: string): boolean {
   );
 }
 
+/**
+ * Los tres escalones que ofrece el cierre nuevo de opciones (reunión con
+ * Joaquín, 25-ago): «¿busca el mejor precio, algo equilibrado o lo premium?».
+ * Este detector lee la RESPUESTA a esa pregunta, con las variantes reales de
+ * WhatsApp («la más barata», «la del medio», «la mejor») y sus faltas («la mas
+ * varata»). Null = el mensaje no es una respuesta de preferencia.
+ *
+ * El orden de los chequeos importa: «algo equilibrado entre precio y calidad»
+ * contiene la palabra «precio», así que equilibrada se evalúa primero.
+ */
+export type Preferencia = "precio" | "equilibrada" | "premium";
+
+export function respuestaDePreferencia(text: string): Preferencia | null {
+  const normalized = normalize(text);
+  if (/\bequilibr\w+\b|\bintermedi\w+\b|\bla\s+del?\s+(?:en\s+)?medio\b|\bla\s+mediana\b|\bbalancead\w+\b/.test(normalized)) {
+    return "equilibrada";
+  }
+  // `[bv]arat` cubre «barata» y la falta real «varata»; «economica» llega sin
+  // tilde porque normalize() ya la quitó.
+  if (/\bmejor\s+precio\b|\b(?:la\s+)?mas\s+[bv]arat\w*\b|\b[bv]arat\w+\b|\beconomic\w+\b|^(?:el\s+|por\s+)?precio$/.test(normalized)) {
+    return "precio";
+  }
+  if (/\bpremium\b|\bla\s+mejor\b|\bmejor\s+calidad\b|\bla\s+(?:mas\s+)?top\b|\bla\s+mas\s+cara\b|\bla\s+buena\b/.test(normalized)) {
+    return "premium";
+  }
+  return null;
+}
+
+/**
+ * El cliente ya contó PARA QUÉ quiere la llanta. Con el uso dicho, cerrar con
+ * la pregunta de preferencia es ignorarlo: la recomendación se entrega con su
+ * motivo (familia 2 del guardián, ~10 casos del 21–25 ago). Cubre los usos que
+ * aparecen en los chats reales: carretera, ciudad, viajes, trabajo, carga,
+ * ripio, barro, campo, y las fórmulas «uso mixto» / «todo terreno».
+ */
+export function describeUso(text: string): boolean {
+  const normalized = normalize(text);
+  return /\bpara\s+(?:la\s+|el\s+)?(?:carretera|ciudad|viaj\w+|trabaj\w+|carga|ripio|barro|lastre|montana|obra|campo|tierra|asfalto|finca|playa|costa|oriente|sierra)\b|\buso\s+(?:mixto|urbano|rudo|diario|pesado)\b|\btodo\s+terreno\b|\bdoble\s+proposito\b/.test(
+    normalized,
+  );
+}
+
+/**
+ * Los escalones de la pieza de opciones, mapeados por PRECIO sobre lo que el
+ * cliente tiene en pantalla: la más cara es la premium, la más barata la
+ * económica, la del medio la equilibrada. Se mapea por precio y no por la
+ * escalera de marcas porque la respuesta del cliente («la más barata») se
+ * refiere a lo que está VIENDO, no al posicionamiento comercial de la marca.
+ *
+ * Con dos opciones no hay «del medio» (equilibrada = null); con UNA, las tres
+ * apuntan a la misma — cualquier preferencia entrega la única que hay, que es
+ * mejor que responderle que ese escalón no existe.
+ */
+export interface OpcionDeEscalon {
+  codigo: string;
+  nombre: string;
+  precio_con_iva: number;
+}
+
+export interface Escalones {
+  premium: OpcionDeEscalon | null;
+  equilibrada: OpcionDeEscalon | null;
+  economica: OpcionDeEscalon | null;
+}
+
+export function escalonesDeOpciones(opciones: readonly OpcionDeEscalon[]): Escalones {
+  if (!opciones.length) return { premium: null, equilibrada: null, economica: null };
+  const porPrecio = [...opciones].sort((a, b) => b.precio_con_iva - a.precio_con_iva);
+  if (porPrecio.length === 1) {
+    return { premium: porPrecio[0], equilibrada: porPrecio[0], economica: porPrecio[0] };
+  }
+  return {
+    premium: porPrecio[0],
+    equilibrada: porPrecio.length >= 3 ? porPrecio[1] : null,
+    economica: porPrecio[porPrecio.length - 1],
+  };
+}
+
 export function hasExplicitQuantity(text: string): boolean {
   return extractExplicitQuantity(text) !== null;
 }

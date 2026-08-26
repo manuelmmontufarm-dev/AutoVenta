@@ -72,8 +72,16 @@ export function aWhatsApp(texto: string): string {
  * perdía en el muro. Ahora la recomendación no se adelanta: se OFRECE. El bot
  * la tiene lista (`recomendado` + `motivo` de preparar_opciones) y la da en una
  * frase solo si el cliente dice que sí, cuando ya está mirando la pieza.
+ *
+ * El 25-ago Joaquín pidió cambiar el ofrecimiento genérico («¿Necesita alguna
+ * recomendación?») por la pregunta de PREFERENCIA: mejor precio / equilibrada /
+ * premium. La pregunta abierta invitaba un «sí» que no decía nada; la de tres
+ * escalones devuelve una respuesta con la que se cierra al siguiente turno.
+ * Joaquín va a mandar su propio texto: cuando llegue, se cambia SOLO esta
+ * constante — es el único lugar.
  */
-export const PREGUNTA_RECOMENDACION = "¿Necesita alguna recomendación?";
+export const PREGUNTA_PREFERENCIA =
+  "Para recomendarle la mejor: ¿busca el *mejor precio*, algo *equilibrado* entre precio y rendimiento, o lo *premium*? 😊";
 
 /**
  * El cierre del turno de opciones — la pregunta, o la recomendación ya dada.
@@ -103,7 +111,7 @@ export function buildCierreOpciones(input: {
   /** Precio unitario con IVA de la recomendada; null si no vino de la herramienta. */
   precioConIva?: number | null;
 }): string {
-  if (!input.entregarRecomendacion) return PREGUNTA_RECOMENDACION;
+  if (!input.entregarRecomendacion) return PREGUNTA_PREFERENCIA;
   const motivo = input.motivo.trim().replace(/[.\s]+$/, "");
   const precio = input.precioConIva ? ` — $${input.precioConIva.toFixed(2)} c/u con IVA` : "";
   return `Yo iría por la *${input.recomendacion}*${precio}: ${motivo}. ¿Se la cotizo por 4? 😊`;

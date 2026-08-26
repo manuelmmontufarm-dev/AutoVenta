@@ -18,7 +18,8 @@ import {
   pendingDiscountNoticeMessage,
 } from "../services/discountOffers.js";
 import { sql } from "../db/client.js";
-import { extractVehicleYear } from "../domain/salesIntent.js";
+import { activeBenefitFactsBlock } from "../services/benefits.js";
+import { extractVehicleYear, type Escalones } from "../domain/salesIntent.js";
 import { chatReasoningEffort } from "./aiRequestPolicy.js";
 
 const openai = new OpenAI({ apiKey: config.openai.apiKey });
@@ -122,7 +123,7 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
   const usedTools: string[] = [];
   const executedCalls = new Set<string>();
   // El estilo se edita en /configuracion/ia; getAiConfig cachea 30 s en memoria.
-  const [aiConfig, stagePrompt, activeDiscount, pendingDiscount, salesFacts, phaseFlags, storeHours] =
+  const [aiConfig, stagePrompt, activeDiscount, pendingDiscount, salesFacts, phaseFlags, storeHours, benefitFacts] =
     await Promise.all([
       getAiConfig(),
       getPublishedStagePrompt(ctx.conversation.stage),
@@ -131,6 +132,7 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
       getAgentSalesFacts(ctx.conversation.id),
       getPhaseFlags(),
       getStoreHours(),
+      activeBenefitFactsBlock(),
     ]);
   const systemPrompt = buildSystemPrompt(aiConfig, {
     name: stagePrompt.stage,
@@ -177,6 +179,11 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
   // mensaje del cliente, que es donde más se respetan.
   const bloquesVolatiles: ChatCompletionMessageParam[] = [
     { role: "system", content: salesFactsPrompt(salesFacts, ctx.resumedFromHuman) },
+    // Los beneficios vigentes de la tabla, como hecho (P-03, reunión 25-ago):
+    // sin esto el bot decía «el balanceo es aparte» mientras su propia
+    // cotización imprimía «alineación y balanceo incluidos». Va en los bloques
+    // volátiles —detrás del historial— para no romper el prefijo del caché.
+    ...(benefitFacts ? [{ role: "system" as const, content: benefitFacts }] : []),
     ...(activeDiscount ? [{ role: "system" as const, content: `OFERTA AUTORIZADA Y VIGENTE (fuente determinística): descuento adicional $${(activeDiscount.discountAmountCents / 100).toFixed(2)}, total final $${(activeDiscount.finalTotalCents / 100).toFixed(2)}, condición: ${activeDiscount.condition}. Motivo interno: ${activeDiscount.reason}. No cambies estos valores ni inventes otra oferta.` }] : []),
     ...(pendingDiscount ? [{ role: "system" as const, content: `DESCUENTO AUTORIZADO PENDIENTE DE COTIZACIÓN (fuente determinística): ${pendingDiscount.kind === "percentage" ? `${pendingDiscount.valueCents / 100}%` : `$${(pendingDiscount.valueCents / 100).toFixed(2)}`}, condición: ${pendingDiscount.condition}. No digas que no existe descuento. Se aplicará determinísticamente al generar la próxima cotización; antes de conocer el total no inventes ahorro ni total final.` }] : []),
   ];
@@ -424,6 +431,14 @@ export interface AgentSalesFacts {
   customerCommitment: string | null;
   /** Última cotización del ciclo — evita mandar dos números para la misma compra. */
   lastQuote: { number: string; total: number; minutesAgo: number; detalle: string | null } | null;
+  /**
+   * Escalones (premium/equilibrada/económica) de la ÚLTIMA pieza de opciones
+   * del ciclo, guardados por preparar_opciones en la metadata del mensaje.
+   * Es lo que permite entregar «la más barata» al turno siguiente sin volver
+   * a buscar (cierre por preferencia, reunión 25-ago). Opcional: los tests
+   * viejos y los ciclos sin pieza de opciones no lo traen.
+   */
+  escalones?: Escalones | null;
 }
 
 /**
@@ -457,11 +472,13 @@ export async function getAgentSalesFacts(conversationId: number): Promise<AgentS
     inbound_messages: string[];
     last_quote_number: string | null; last_quote_total: string | number | null;
     last_quote_at: Date | null; last_quote_items: unknown;
+    escalones: Escalones | null;
   }[]>`
     select c.tire_size, c.vehicle, c.vehicle_year, c.selected_product_code,
       c.selected_quantity, c.nearest_store, c.visit_date, c.customer_commitment,
       q.quote_number as last_quote_number, q.total as last_quote_total,
       q.created_at as last_quote_at, q.items as last_quote_items,
+      o.escalones,
       coalesce(array_agg(m.content order by m.created_at desc) filter (where m.id is not null), '{}') as inbound_messages
     from conversations c
     left join lateral (
@@ -469,10 +486,16 @@ export async function getAgentSalesFacts(conversationId: number): Promise<AgentS
       where conversation_id=c.id and cycle=c.current_cycle
       order by created_at desc limit 1
     ) q on true
+    left join lateral (
+      select metadata->'escalones' as escalones from messages
+      where conversation_id=c.id and cycle=c.current_cycle
+        and metadata->>'piece'='options'
+      order by created_at desc limit 1
+    ) o on true
     left join messages m on m.conversation_id=c.id and m.cycle=c.current_cycle
       and m.direction='inbound'
     where c.id=${conversationId}
-    group by c.id, q.quote_number, q.total, q.created_at, q.items
+    group by c.id, q.quote_number, q.total, q.created_at, q.items, o.escalones
   `;
   const inferredYear = row?.vehicle_year ?? row?.inbound_messages
     .map(extractVehicleYear).find((value): value is number => value !== null) ?? null;
@@ -493,6 +516,7 @@ export async function getAgentSalesFacts(conversationId: number): Promise<AgentS
           detalle: detalleDeItems(row.last_quote_items),
         }
       : null,
+    escalones: row?.escalones ?? null,
   };
 }
 
@@ -515,6 +539,10 @@ export function salesFactsPrompt(facts: AgentSalesFacts, resumedFromHuman = fals
     facts.lastQuote
       ? `Cotización YA ENVIADA en este ciclo: ${facts.lastQuote.number}${facts.lastQuote.detalle ? ` = ${facts.lastQuote.detalle}` : ""} por $${facts.lastQuote.total.toFixed(2)}, hace ${facts.lastQuote.minutesAgo} min. Al nombrarla, di ESE contenido: PROHIBIDO atribuirle otra medida, marca o total.`
       : null,
+    // El cierre de opciones pregunta la preferencia (mejor precio / equilibrada
+    // / premium, reunión 25-ago). La respuesta llega en el turno SIGUIENTE, y
+    // sin este hecho el modelo ya no tiene los precios de la pieza a mano.
+    escalonesLine(facts.escalones ?? null),
   ].filter(Boolean);
   return [
     "HECHOS COMERCIALES CONFIRMADOS (fuente determinística):",
@@ -537,6 +565,24 @@ export function salesFactsPrompt(facts: AgentSalesFacts, resumedFromHuman = fals
     "Si falta la medida: pídela escrita (ej. 225/65R17) o pide una foto del costado de la llanta — sí puedes leer fotos. Siempre ofreciendo algo concreto en la misma respuesta.",
     resumedFromHuman ? "El asesor devolvió la conversación al bot con un mensaje del cliente pendiente. Responde directamente ese último mensaje y retoma el hilo; nunca lo dejes sin contestar." : null,
   ].filter(Boolean).join("\n");
+}
+
+/**
+ * Los escalones de la última pieza de opciones, como hecho con instrucción de
+ * entrega: si el cliente contesta la pregunta de preferencia («la más barata»,
+ * «la del medio», «la mejor»), el turno entrega ESA opción con su precio —
+ * sin volver a preguntar nada, que era la familia 2 del guardián.
+ */
+function escalonesLine(escalones: Escalones | null): string | null {
+  if (!escalones) return null;
+  const partes = (["premium", "equilibrada", "economica"] as const)
+    .map((nivel) => {
+      const opcion = escalones[nivel];
+      return opcion ? `${nivel}: ${opcion.nombre} ($${opcion.precio_con_iva.toFixed(2)} c/u con IVA, código ${opcion.codigo})` : null;
+    })
+    .filter(Boolean);
+  if (!partes.length) return null;
+  return `Escalones de la última pieza de opciones enviada — ${partes.join("; ")}. Si el cliente responde su preferencia («mejor precio», «la más barata», «equilibrada», «la del medio», «premium», «la mejor»), entrega LA opción de ese escalón con su precio y ofrece cotizarla por 4 — PROHIBIDO volver a preguntarle qué prefiere o si necesita una recomendación.`;
 }
 
 function withDiscountNotice(
