@@ -232,6 +232,26 @@ describe("buscar_por_aro_y_tipo · cuando el tipo no existe en su medida, se dic
     expect(salida.regla).not.toMatch(/equivalentes/i);
   });
 
+  it("agotada en su medida = como si no hubiera: salen las equivalentes vendibles", async () => {
+    // «Con stock» es parte del pedido. Si la única A/T de su medida está en
+    // cero, quedarse en ella dejaba UNA opción incotizable (generar_cotizacion
+    // bloquea agotadas) y escondía las equivalentes vendibles del aro.
+    medidaEnLaFicha = "265/65R18";
+    catalogo = [
+      llanta({ code: "356530", brand: "FALKEN", design: "WILDPEAK A/T4W",
+        medida: "265/65R18", width: 265, aspect: 65, rim: 18, stock: 0, precio: 260 }),
+      FALKEN_AT_OTRA_MEDIDA, KENDA_AT_OTRA_MEDIDA, FALKEN_HT_EN_SU_MEDIDA,
+    ];
+
+    const salida = await buscar(18, "A/T");
+
+    expect(salida.encontrado).toBe(true);
+    expect(salida.sin_tipo_en_su_medida).toBe(true);
+    expect(salida.opciones.map((o: { code: string }) => o.code)).not.toContain("356530");
+    expect(salida.opciones.length).toBeGreaterThan(0);
+    expect(salida.regla).toMatch(/equivalentes/i);
+  });
+
   it("sin nada de ese tipo en el aro sigue siendo «no encontrado», no un equivalente", async () => {
     // M/T no existe en el aro 18 en toda la base: esa rama no cambió.
     medidaEnLaFicha = "265/65R18";

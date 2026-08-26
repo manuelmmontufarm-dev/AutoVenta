@@ -32,6 +32,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-08-25 | _(este mismo)_ | Revisión del sprint final: agotada en su medida ya no esconde las equivalentes vendibles | 0.25 |
 | 2026-08-25 | _(este mismo)_ | Su medida le gana al aro (la A/T de otra medida teniendo la suya en stock) + cotizar más de lo que hay ahora avisa | 1.5 |
 | 2026-08-25 | _(este mismo)_ | «Les molesto» dejó de ser un cliente enojado: en Ecuador es cortesía para anunciar la visita, y el falso positivo pausaba el hilo para siempre | 0.5 |
 | 2026-08-23 | _(este mismo)_ | Depot Tire caído desde el 20-ago: un ECONNRESET de Postgres en el panel mataba el proceso; salvavidas de unhandledRejection en HTTP y worker + redeploy | 0.5 |
@@ -151,11 +152,24 @@ Ya viene activado en este equipo.
 | 2026-07-14 | ac09171 | Ubicaciones de locales + análisis de features del cliente | 1.5 |
 | 2026-07-13 | feadf57 | Brief + plan de desarrollo + plan financiero + catálogo | 4.0 |
 | 2026-07-13 | d997844 | Commit inicial (repo) | 0.25 |
-| | | **TOTAL** | **~109 h** |
+| | | **TOTAL** | **~109.25 h** |
 
 ---
 
 ## Entradas (más reciente primero)
+
+### 2026-08-25 · Agotada en su medida = como si no hubiera · ⏱️ 0.25 h
+
+**Qué:** la revisión del sprint final encontró un borde en el candado nuevo de
+`opcionesEnAro`: filtraba por EXISTENCIA del tipo en la medida confirmada, no
+por stock. Ahora `enSuMedida` pasa por `conStock` antes de decidir.
+
+**Por qué:** el requisito dice «si existe con stock». Si la única A/T de su
+medida está en cero, quedarse en ella dejaba al cliente con UNA opción
+incotizable (`generar_cotizacion` bloquea agotadas) y le escondía las
+equivalentes vendibles del aro — peor que antes del arreglo. Agotado en su
+medida ahora cae al aro completo y lo declara (`sin_tipo_en_su_medida`),
+que es justo lo que el mensaje de equivalentes sabe explicar.
 
 ### 2026-08-25 · Su medida le gana al aro · y cotizar más de lo que hay ahora avisa · ⏱️ 1.5 h
 

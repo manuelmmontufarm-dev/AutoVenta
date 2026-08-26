@@ -298,13 +298,18 @@ function opcionesEnAro(aro: number, tipo: string | null, medidaConfirmada?: stri
   // atender— su medida vieja ya no aplica, y filtrar por ella dejaría la
   // búsqueda en cero. Fuera de ese caso, lo que él confirmó manda sobre el aro.
   const suMedida = aroDeMedida(medidaConfirmada) === aro ? medidaConfirmada ?? null : null;
-  const enSuMedida = enLaMedidaConfirmada(delTipo, suMedida);
+  // «Con stock» es parte del requisito: si en su medida el tipo existe pero
+  // TODO está agotado, quedarse ahí dejaría al cliente con una sola opción
+  // incotizable (generar_cotizacion bloquea agotadas) y le esconderíamos las
+  // equivalentes vendibles del aro. Agotado en su medida = como si no hubiera.
+  const enSuMedida = conStock(enLaMedidaConfirmada(delTipo, suMedida));
   return {
     pedido: pedido || null,
     enElAro,
     delTipo,
-    // Con algo en su medida, la selección sale SOLO de ahí; si no hay, se cae al
-    // aro completo — pero eso deja de ser silencioso (`sinTipoEnSuMedida`).
+    // Con algo vendible en su medida, la selección sale SOLO de ahí; si no
+    // hay, se cae al aro completo — pero eso deja de ser silencioso
+    // (`sinTipoEnSuMedida`).
     seleccion: tresOpciones(enSuMedida.length ? enSuMedida : delTipo),
     suMedida,
     sinTipoEnSuMedida: Boolean(suMedida) && !enSuMedida.length,
