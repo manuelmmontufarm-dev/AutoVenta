@@ -32,6 +32,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-08-26 | _(este mismo)_ | Cruce de facturación Contífico: llave nueva, segunda señal (SKU + día de visita) y las sucursales con nombre | 2.5 |
 | 2026-08-26 | _(este mismo)_ | El simulador: un WhatsApp de mentira contra el bot de verdad, para reproducir un caso las veces que haga falta | 3.0 |
 | 2026-08-26 | _(este mismo)_ | El cierre nuevo no promete «su medida» cuando las opciones son equivalentes (lo cazó el guardián el día del deploy) | 0.5 |
 | 2026-08-26 | _(este mismo)_ | Candado: el «2» del menú de preferencia ya no se cotiza como 2 unidades — juego de 4 con aclaración horneada | 0.5 |
@@ -167,6 +168,49 @@ Ya viene activado en este equipo.
 ---
 
 ## Entradas (más reciente primero)
+
+### 2026-08-26 · El cruce con Contífico deja de ser una promesa · ⏱️ 2.5 h
+
+**Qué:** con la API key de sincronización nueva (la anterior devolvía el padrón
+recortado: 273 de 2 189 personas, y por eso el cruce del 12-ago dio 0 aciertos
+de 61) se corrió el cruce real contra 4 424 documentos y 2 189 clientes.
+Resultado: **9 ventas facturadas, $4 244,54**, cada una con número de factura
+auditable en Contífico. Entra `senales.mjs`, que cuando el teléfono no
+encuentra al cliente cruza por nombre, por código de producto seleccionado y
+por día de visita prometido; y `poner-llave.sh`, que mete una credencial al
+`.env` desde el portapapeles sin imprimirla nunca. El README queda con la tabla
+de sucursales confirmada por Joaquín: `002-001` es Cumbayá y `001-001` es
+Quito.
+
+**Por qué:** hasta hoy «venta ganada» era lo que alguien marcaba a mano en el
+Kanban, que dice 28 ventas cuando las facturas confirman 9 — el conteo manual
+infla 5,6× aunque el monto quede cerca ($3 906 marcados contra $4 244
+verificados). Sin esto no había forma de saber cuál de los dos números era el
+bueno, ni de responderle a Joaquín si el servicio le sale rentable.
+
+**Lo que el cruce NO ve, y hay que decirlo siempre:** de 1 205 personas que
+escribieron al bot, solo **20 existen en el padrón de Contífico**. Dos de las 9
+ventas facturaron a nombre de un tercero (una con el RUC de la empresa, otra a
+nombre de otra persona), así que el teléfono se las pierde. El número es un
+**piso**: la estimación por captura-recaptura da 12 a 18 ventas reales. Rutas
+probadas y descartadas: `placa` (0 de 3 301 facturas la tiene), `adicional1`,
+vendedor asignado, nombre de WhatsApp contra razón social (los perfiles son
+apodos y emojis) y teléfono con tolerancia de un dígito.
+
+**El hallazgo que sirve para el producto:** de los 4 clientes que llegaron a
+elegir una llanta concreta, 3 compraron exactamente esa; de los 7 que
+prometieron un día, 6 fueron ese mismo día y el séptimo al día siguiente. El
+bot no pierde gente después del compromiso — la pierde antes: solo 50 de 1 205
+conversaciones llegan a tener un día acordado. Ahí está la palanca.
+
+**Rentabilidad para Depot:** Contífico no tiene costos cargados (0 de 1 104
+productos con `costo_maximo`), así que su margen no es derivable. El número que
+sí se puede afirmar es el punto de equilibrio: $3 690,90 sin IVA en 21 días
+≈ $5 272/mes, contra $160/mes más el setup amortizado, **necesitan 4,0 % de
+margen bruto para que el bot se pague**. Y el bot no canibaliza margen: cotiza
+al 75 % del pvp1 mientras el mostrador cobra en promedio el 72,5 %.
+
+---
 
 ### 2026-08-26 · El simulador: WhatsApp de mentira, bot de verdad · ⏱️ 3.0 h
 
