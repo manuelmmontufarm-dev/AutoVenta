@@ -1390,6 +1390,10 @@ export function buildTools(ctx: AgentContext) {
             recomendacion,
             motivo: motivoLimpio,
             precioConIva: entregada.minimumPriceWithTax ?? null,
+            // Con equivalentes en la pieza, el cierre no puede prometer «su
+            // medida»: el mensaje acaba de avisar lo contrario dos líneas
+            // arriba (guardián del 26-ago).
+            hayEquivalentes: fueraDeMedida.length > 0,
           }),
         ),
         regla: [

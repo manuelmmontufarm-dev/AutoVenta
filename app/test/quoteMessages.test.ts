@@ -265,6 +265,35 @@ describe("formato WhatsApp: la imagen es el mensaje", () => {
     expect(qm.PREGUNTA_PREFERENCIA).not.toMatch(/buenos días/i);
   });
 
+  /*
+   * Cazado por el guardián el mismo día del deploy (26-ago, casos 190/50R15 y
+   * 245/50R18): «el borrador cierra diciendo "la opción exacta para su
+   * medida", pero la herramienta indica que no hay disponibilidad exacta». El
+   * mensaje avisa arriba que son equivalentes y lo desmentía al pie.
+   */
+  it("con equivalentes el cierre promete la mejor DE ESTAS, no «su medida»", () => {
+    const cierre = qm.buildCierreOpciones({
+      entregarRecomendacion: false, recomendacion: "", motivo: "", hayEquivalentes: true,
+    });
+    expect(cierre).toContain("¿qué prioriza usted?");
+    expect(cierre).toContain("1) *Costo*");
+    expect(cierre).not.toMatch(/para su medida/i);
+    expect(cierre).toContain("cuál de estas le conviene más");
+  });
+
+  it("sin equivalentes sigue prometiendo la opción exacta para su medida", () => {
+    const cierre = qm.buildCierreOpciones({
+      entregarRecomendacion: false, recomendacion: "", motivo: "",
+    });
+    expect(cierre).toBe(qm.PREGUNTA_PREFERENCIA);
+    expect(cierre).toMatch(/la opción exacta para su medida/i);
+  });
+
+  it("los dos cierres comparten el menú, palabra por palabra", () => {
+    const menu = (t: string) => t.split("\n").slice(0, 6).join("\n");
+    expect(menu(qm.PREGUNTA_PREFERENCIA_EQUIVALENTES)).toBe(menu(qm.PREGUNTA_PREFERENCIA));
+  });
+
   it("el muro completo sigue disponible para cuando la imagen no sale", () => {
     const muro = qm.buildCustomerOptionsMessageDetallado([kenda, falken], "Manuel");
     expect(muro).toMatch(/garantía/i);

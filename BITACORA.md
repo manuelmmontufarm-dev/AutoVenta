@@ -32,6 +32,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-08-26 | _(este mismo)_ | El cierre nuevo no promete «su medida» cuando las opciones son equivalentes (lo cazó el guardián el día del deploy) | 0.5 |
 | 2026-08-26 | _(este mismo)_ | Candado: el «2» del menú de preferencia ya no se cotiza como 2 unidades — juego de 4 con aclaración horneada | 0.5 |
 | 2026-08-26 | _(este mismo)_ | Prueba en vivo caza al guardián leyendo ciclos viejos («mañana por Quito Sur» que nadie dijo) + «una A/T» ya no es cantidad 1 | 0.5 |
 | 2026-08-26 | _(este mismo)_ | El texto de cierre DE JOAQUÍN (menú 1/2/3) entra al bot, «Vlle de los chillos» resuelve a Quito Sur, y el beneficio 1 ya nombra alineación y balanceo | 0.75 |
@@ -160,11 +161,27 @@ Ya viene activado en este equipo.
 | 2026-07-14 | ac09171 | Ubicaciones de locales + análisis de features del cliente | 1.5 |
 | 2026-07-13 | feadf57 | Brief + plan de desarrollo + plan financiero + catálogo | 4.0 |
 | 2026-07-13 | d997844 | Commit inicial (repo) | 0.25 |
-| | | **TOTAL** | **~117 h** |
+| | | **TOTAL** | **~117.5 h** |
 
 ---
 
 ## Entradas (más reciente primero)
+
+### 2026-08-26 · La promesa del cierre no puede desmentir al aviso de equivalentes · ⏱️ 0.5 h
+
+**Qué:** `PREGUNTA_PREFERENCIA_EQUIVALENTES` — el mismo menú de Joaquín, pero
+cerrando con «Con eso le digo cuál de estas le conviene más» en vez de «la
+opción exacta para su medida». `buildCierreOpciones` la elige con el flag
+`hayEquivalentes`, que `preparar_opciones` calcula del `fueraDeMedida` que ya
+tenía.
+
+**Por qué:** la vigilancia post-deploy del guardián lo cazó el mismo día
+(casos 190/50R15 y 245/50R18): «el borrador cierra diciendo "la opción exacta
+para su medida", pero la herramienta indica que no hay disponibilidad
+exacta». Dos líneas más arriba el mensaje ya avisaba «en su medida no me
+queda, estas son equivalentes» — y el cierre lo desmentía al pie. Era una
+familia NUEVA nacida del texto nuevo, justo lo que el sprint final mandaba
+vigilar. Balance del día: familia 2 (recomendación) en 0, familia 1 en 2.
 
 ### 2026-08-26 · El número del menú no es una cantidad · ⏱️ 0.5 h
 

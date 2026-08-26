@@ -82,14 +82,35 @@ export function aWhatsApp(texto: string): string {
  * no abriendo conversación. Menú numerado a propósito: invita a contestar
  * «1», «2» o «3», y `respuestaDePreferencia` entiende esas respuestas.
  */
-export const PREGUNTA_PREFERENCIA = [
+const MENU_PREFERENCIA = [
   "Para afinarle la recomendación sobre las opciones que le envié, dígame una sola cosa: ¿qué prioriza usted?",
   "",
   "1) *Costo* — la más conveniente de precio",
   "2) *Equilibrio* — la que mejor balancea precio y rendimiento",
   "3) *Premium* — la de máxima calidad y durabilidad",
   "",
+];
+
+export const PREGUNTA_PREFERENCIA = [
+  ...MENU_PREFERENCIA,
   "Con eso le dejo la opción exacta para su medida.",
+].join("\n");
+
+/**
+ * El mismo menú, pero SIN prometer «su medida».
+ *
+ * El cierre de Joaquín termina en «la opción exacta para su medida» — perfecto
+ * cuando las opciones son de su medida, y una contradicción cuando son
+ * equivalentes. El guardián lo cazó el mismo día del deploy (26-ago, casos
+ * 190/50R15 y 245/50R18): «el borrador cierra diciendo "la opción exacta para
+ * su medida", pero la herramienta indica que no hay disponibilidad exacta».
+ * Dos frases arriba el mensaje ya avisó que son equivalentes; prometer lo
+ * contrario al pie lo desmiente. Con equivalentes se promete la mejor DE
+ * ESTAS, que es lo que de verdad se puede cumplir.
+ */
+export const PREGUNTA_PREFERENCIA_EQUIVALENTES = [
+  ...MENU_PREFERENCIA,
+  "Con eso le digo cuál de estas le conviene más.",
 ].join("\n");
 
 /**
@@ -119,8 +140,12 @@ export function buildCierreOpciones(input: {
   motivo: string;
   /** Precio unitario con IVA de la recomendada; null si no vino de la herramienta. */
   precioConIva?: number | null;
+  /** Alguna opción NO es de la medida pedida: no se promete «su medida». */
+  hayEquivalentes?: boolean;
 }): string {
-  if (!input.entregarRecomendacion) return PREGUNTA_PREFERENCIA;
+  if (!input.entregarRecomendacion) {
+    return input.hayEquivalentes ? PREGUNTA_PREFERENCIA_EQUIVALENTES : PREGUNTA_PREFERENCIA;
+  }
   const motivo = input.motivo.trim().replace(/[.\s]+$/, "");
   const precio = input.precioConIva ? ` — $${input.precioConIva.toFixed(2)} c/u con IVA` : "";
   return `Yo iría por la *${input.recomendacion}*${precio}: ${motivo}. ¿Se la cotizo por 4? 😊`;
