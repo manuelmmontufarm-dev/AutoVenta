@@ -71,12 +71,31 @@ describe.sequential("Cierre por preferencia — reunión del 25-ago", () => {
       expect(respuestaDePreferencia("deme la más cara nomás")).toBe("premium");
     });
 
+    it("el menú numerado de Joaquín: «1», «2», «3» y sus palabras", () => {
+      // El texto que Joaquín reenvió el 25-ago cierra con «1) Costo / 2)
+      // Equilibrio / 3) Premium»: la respuesta natural es el puro número.
+      expect(respuestaDePreferencia("1")).toBe("precio");
+      expect(respuestaDePreferencia("2")).toBe("equilibrada");
+      expect(respuestaDePreferencia("3)")).toBe("premium");
+      expect(respuestaDePreferencia("la 2")).toBe("equilibrada");
+      expect(respuestaDePreferencia("opcion 3")).toBe("premium");
+      expect(respuestaDePreferencia("Costo")).toBe("precio");
+      expect(respuestaDePreferencia("equilibrio")).toBe("equilibrada");
+      expect(respuestaDePreferencia("la de máxima calidad")).toBe("premium");
+      expect(respuestaDePreferencia("durabilidad")).toBe("premium");
+    });
+
     it("lo que no es una preferencia devuelve null", () => {
       expect(respuestaDePreferencia("sí")).toBeNull();
       expect(respuestaDePreferencia("cuánto sale")).toBeNull();
       expect(respuestaDePreferencia("¿qué día pueden instalar?")).toBeNull();
       expect(respuestaDePreferencia("no gracias")).toBeNull();
       expect(respuestaDePreferencia("225/65R17")).toBeNull();
+      // «costo» dentro de una frase es un pedido de precio, no el escalón 1
+      // (caso real del guardián: «costo para 4 llantas rin 15 todo terreno»).
+      expect(respuestaDePreferencia("costo para 4 llantas rin 15 todo terreno")).toBeNull();
+      // «4» es una cantidad, no una opción del menú.
+      expect(respuestaDePreferencia("4")).toBeNull();
     });
   });
 
@@ -216,7 +235,7 @@ describe.sequential("Cierre por preferencia — reunión del 25-ago", () => {
 
     it("el cierre por preferencia y la entrega del escalón están en el prompt", () => {
       const texto = prompts.buildSystemPrompt();
-      expect(texto).toMatch(/cierra preguntando la PREFERENCIA/);
+      expect(texto).toMatch(/cierra con el menú de PREFERENCIA/);
       expect(texto).toMatch(/entrega LA opción de ese escalón/);
       expect(texto).not.toContain("¿Necesita alguna recomendación?");
       // R-06: el uso descrito también entrega la recomendación.

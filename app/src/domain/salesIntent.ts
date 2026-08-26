@@ -70,15 +70,22 @@ export type Preferencia = "precio" | "equilibrada" | "premium";
 
 export function respuestaDePreferencia(text: string): Preferencia | null {
   const normalized = normalize(text);
+  // El menú de Joaquín es numerado (1 Costo / 2 Equilibrio / 3 Premium), así
+  // que la respuesta más natural es el puro número. Solo cuenta si el mensaje
+  // ES el número: un «1» suelto dentro de otra frase suele ser cantidad.
+  const porNumero = normalized.match(/^(?:la\s+|el\s+|opcion\s+)?([123])\)?\.?$/);
+  if (porNumero) return porNumero[1] === "1" ? "precio" : porNumero[1] === "2" ? "equilibrada" : "premium";
   if (/\bequilibr\w+\b|\bintermedi\w+\b|\bla\s+del?\s+(?:en\s+)?medio\b|\bla\s+mediana\b|\bbalancead\w+\b/.test(normalized)) {
     return "equilibrada";
   }
   // `[bv]arat` cubre «barata» y la falta real «varata»; «economica» llega sin
-  // tilde porque normalize() ya la quitó.
-  if (/\bmejor\s+precio\b|\b(?:la\s+)?mas\s+[bv]arat\w*\b|\b[bv]arat\w+\b|\beconomic\w+\b|^(?:el\s+|por\s+)?precio$/.test(normalized)) {
+  // tilde porque normalize() ya la quitó. «costo» solo como respuesta seca:
+  // dentro de una frase («costo de 4 llantas») es un pedido de precio, no la
+  // elección del escalón 1.
+  if (/\bmejor\s+precio\b|\b(?:la\s+)?mas\s+[bv]arat\w*\b|\b[bv]arat\w+\b|\beconomic\w+\b|^(?:el\s+|por\s+)?precio$|^(?:el\s+|la\s+de\s+)?costo$/.test(normalized)) {
     return "precio";
   }
-  if (/\bpremium\b|\bla\s+mejor\b|\bmejor\s+calidad\b|\bla\s+(?:mas\s+)?top\b|\bla\s+mas\s+cara\b|\bla\s+buena\b/.test(normalized)) {
+  if (/\bpremium\b|\bla\s+mejor\b|\bmejor\s+calidad\b|\bmaxima\s+calidad\b|\bdurabilidad\b|\bmas\s+durad\w+\b|\bla\s+(?:mas\s+)?top\b|\bla\s+mas\s+cara\b|\bla\s+buena\b/.test(normalized)) {
     return "premium";
   }
   return null;

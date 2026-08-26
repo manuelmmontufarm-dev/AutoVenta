@@ -230,6 +230,24 @@ describe("local_mas_cercano", () => {
     expect(mensaje).not.toContain("---");
   });
 
+  /*
+   * Foto del 25-ago: el cliente escribió «Vlle de los chillos» (con esa falta)
+   * y el bot le pidió el pin. El Valle de los Chillos baja a Quito por la
+   * Rumiñahui y cae al sur: el local que le queda es Quito Sur.
+   */
+  it("«Vlle de los chillos», con la falta real, resuelve a Quito Sur", async () => {
+    const phone = "593980002006";
+    const fila = await conversacion(phone);
+
+    const salida = JSON.parse(
+      await local(fila, phone).execute({ lat: null, lng: null, sector: "Vlle de los chillos" }),
+    );
+
+    expect(salida.local).toBe("Depot Tire Quito Sur");
+    expect(salida.ubicacion_cliente).toBe("Valle de los Chillos");
+    expect((salida.mensaje_para_enviar.match(/https?:\/\/\S+/g) ?? [])).toHaveLength(1);
+  });
+
   it("con el pin compartido el mapa y la pregunta por el día viajan juntos", async () => {
     const phone = "593980002003";
     const fila = await conversacion(phone);

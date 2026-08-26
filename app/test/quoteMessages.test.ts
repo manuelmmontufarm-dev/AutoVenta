@@ -253,13 +253,16 @@ describe("formato WhatsApp: la imagen es el mensaje", () => {
   // Joaquín, 6-ago, viendo un chat real: «este mensaje le quitaría porque se
   // vuelve una cadena muy larga y los mijines ya no leen». El preámbulo con la
   // recomendación desapareció. Y el 25-ago pidió cambiar el ofrecimiento
-  // genérico por la pregunta de preferencia: precio / equilibrada / premium.
-  it("las opciones cierran preguntando la preferencia, sin adelantar la recomendación", () => {
-    expect(qm.PREGUNTA_PREFERENCIA).toContain("mejor precio");
-    expect(qm.PREGUNTA_PREFERENCIA).toContain("equilibrado");
-    expect(qm.PREGUNTA_PREFERENCIA).toContain("premium");
+  // genérico por la pregunta de preferencia — con SU texto, que reenvió por
+  // WhatsApp ese mismo día: el menú numerado Costo / Equilibrio / Premium.
+  it("las opciones cierran con el menú de preferencia de Joaquín, sin adelantar la recomendación", () => {
+    expect(qm.PREGUNTA_PREFERENCIA).toContain("1) *Costo*");
+    expect(qm.PREGUNTA_PREFERENCIA).toContain("2) *Equilibrio*");
+    expect(qm.PREGUNTA_PREFERENCIA).toContain("3) *Premium*");
+    expect(qm.PREGUNTA_PREFERENCIA).toContain("¿qué prioriza usted?");
     expect(qm.PREGUNTA_PREFERENCIA).not.toContain("¿Necesita alguna recomendación?");
-    expect(lineas(qm.PREGUNTA_PREFERENCIA)).toBe(1);
+    // Sin «Buenos días»: va pegado a la pieza, no abriendo conversación.
+    expect(qm.PREGUNTA_PREFERENCIA).not.toMatch(/buenos días/i);
   });
 
   it("el muro completo sigue disponible para cuando la imagen no sale", () => {

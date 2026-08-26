@@ -77,11 +77,20 @@ export function aWhatsApp(texto: string): string {
  * recomendación?») por la pregunta de PREFERENCIA: mejor precio / equilibrada /
  * premium. La pregunta abierta invitaba un «sí» que no decía nada; la de tres
  * escalones devuelve una respuesta con la que se cierra al siguiente turno.
- * Joaquín va a mandar su propio texto: cuando llegue, se cambia SOLO esta
- * constante — es el único lugar.
+ * El texto es el que JOAQUÍN mandó (reenviado el 25-ago por WhatsApp), casi
+ * verbatim — solo se le quitó el «Buenos días» porque va pegado a la pieza,
+ * no abriendo conversación. Menú numerado a propósito: invita a contestar
+ * «1», «2» o «3», y `respuestaDePreferencia` entiende esas respuestas.
  */
-export const PREGUNTA_PREFERENCIA =
-  "Para recomendarle la mejor: ¿busca el *mejor precio*, algo *equilibrado* entre precio y rendimiento, o lo *premium*? 😊";
+export const PREGUNTA_PREFERENCIA = [
+  "Para afinarle la recomendación sobre las opciones que le envié, dígame una sola cosa: ¿qué prioriza usted?",
+  "",
+  "1) *Costo* — la más conveniente de precio",
+  "2) *Equilibrio* — la que mejor balancea precio y rendimiento",
+  "3) *Premium* — la de máxima calidad y durabilidad",
+  "",
+  "Con eso le dejo la opción exacta para su medida.",
+].join("\n");
 
 /**
  * El cierre del turno de opciones — la pregunta, o la recomendación ya dada.

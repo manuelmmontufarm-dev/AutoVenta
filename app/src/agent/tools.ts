@@ -1396,7 +1396,7 @@ export function buildTools(ctx: AgentContext) {
           "Responde usando exactamente mensaje_para_enviar, con sus separadores '---' intactos. No sumes alternativas ni repitas en texto lo que ya muestra la imagen.",
           entregarRecomendacion
             ? "El cliente YA pidió precio, recomendación, dijo su uso o contestó su preferencia, así que el texto YA le da la recomendación y ofrece cotizarla: no vuelvas a preguntarle si necesita una recomendación ni su preferencia. Si contesta cualquier cosa que no sea un no, cotiza `recomendacion` por 4 con generar_cotizacion."
-            : "NO adelantes la recomendación en este turno: el texto cierra preguntando su preferencia. Si el cliente responde «mejor precio», «equilibrada» o «premium» (o «la más barata», «la del medio», «la mejor»), entrega la opción de ESE escalón de `escalones` — nombre y precio con IVA — y ofrece cotizarla por 4, sin volver a preguntar nada. Si responde un sí genérico, dile en UNA frase que irías por `recomendacion` porque `motivo_recomendacion`.",
+            : "NO adelantes la recomendación en este turno: el texto cierra con el menú de preferencia (1 Costo / 2 Equilibrio / 3 Premium). Si el cliente responde «1», «2», «3», «costo», «equilibrio», «premium» (o «la más barata», «la del medio», «la mejor»), entrega la opción de ESE escalón de `escalones` — nombre y precio con IVA — y ofrece cotizarla por 4, sin volver a preguntar nada. Si responde un sí genérico, dile en UNA frase que irías por `recomendacion` porque `motivo_recomendacion`.",
           // La única excepción a «no agregues texto»: avisar que la medida no
           // es la suya. Callarlo es lo que terminó en una cotización firmada
           // por otra medida (5499).

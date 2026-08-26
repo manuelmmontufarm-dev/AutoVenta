@@ -32,6 +32,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-08-26 | _(este mismo)_ | El texto de cierre DE JOAQUÍN (menú 1/2/3) entra al bot, «Vlle de los chillos» resuelve a Quito Sur, y el beneficio 1 ya nombra alineación y balanceo | 0.75 |
 | 2026-08-26 | _(este mismo)_ | Sprint final de la reunión del 25-ago: revisión de los 3 PRs (4 bloqueantes cazados), merges S1→S3→S2 verificados en vivo y cupón del 2 % encendido | 1.0 |
 | 2026-08-25 | _(este mismo)_ | Revisión del sprint final: agotada en su medida ya no esconde las equivalentes vendibles | 0.25 |
 | 2026-08-25 | _(este mismo)_ | Su medida le gana al aro (la A/T de otra medida teniendo la suya en stock) + cotizar más de lo que hay ahora avisa | 1.5 |
@@ -157,11 +158,34 @@ Ya viene activado en este equipo.
 | 2026-07-14 | ac09171 | Ubicaciones de locales + análisis de features del cliente | 1.5 |
 | 2026-07-13 | feadf57 | Brief + plan de desarrollo + plan financiero + catálogo | 4.0 |
 | 2026-07-13 | d997844 | Commit inicial (repo) | 0.25 |
-| | | **TOTAL** | **~115.25 h** |
+| | | **TOTAL** | **~116 h** |
 
 ---
 
 ## Entradas (más reciente primero)
+
+### 2026-08-26 · Las fotos de Joaquín, reproducidas y rematadas · ⏱️ 0.75 h
+
+**Qué:** tres remates que salieron de reproducir las capturas de la reunión
+contra el catálogo REAL de Contífico: (1) `PREGUNTA_PREFERENCIA` ahora es el
+texto que Joaquín reenvió el 25-ago (menú numerado 1 Costo / 2 Equilibrio /
+3 Premium) y `respuestaDePreferencia` entiende «1»/«2»/«3», «costo»,
+«equilibrio» y «durabilidad» — con sus espejos en la `regla`, el prompt y el
+playbook compacto; (2) `resolveSector` aprende «chillos»/«sangolqui» (la falta
+real «Vlle de los chillos» del chat incluida) → Quito Sur; (3) en la base de
+prod, el beneficio 1 pasa de «Todos los servicios de instalación y
+beneficios» a «…, incluidos alineación y balanceo» (dato, no código).
+
+**Por qué:** (1) el plan dejó la constante como único lugar justo para este
+momento — el texto del cliente manda; el menú numerado invita a responder el
+puro número y el detector tenía que saber leerlo (pero «costo» DENTRO de una
+frase sigue siendo pedido de precio, no escalón — caso real del guardián).
+(2) El cliente de la foto escribió «Vlle de los chillos» y el bot le pidió el
+pin. (3) Era la causa raíz de la contradicción de la foto 2: el bot decía
+«va aparte» mientras la pieza decía «todos los servicios» — Manuel lo
+diagnosticó en la reunión (7:31): faltaba especificarlo en el documento.
+Verificado además con el catálogo real: el caso Falken (265/65R18 + «una
+A/T») ya devuelve SOLO la 356530 en su medida, con 18 en stock.
 
 ### 2026-08-26 · El plan de la reunión del 25-ago queda en producción · ⏱️ 1.0 h
 

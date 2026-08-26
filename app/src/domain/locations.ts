@@ -43,6 +43,12 @@ const QUITO_SECTORS: Record<string, { lat: number; lng: number; label: string }>
   cumbaya: { lat: -0.2, lng: -78.43, label: "Cumbayá" },
   tumbaco: { lat: -0.211, lng: -78.402, label: "Tumbaco" },
   pifo: { lat: -0.225, lng: -78.339, label: "Pifo" },
+  // El Valle de los Chillos baja a Quito por la Rumiñahui y cae al sur: el
+  // local que le queda es Quito Sur. Caso real del 25-ago (foto de Joaquín):
+  // «Vlle de los chillos» no resolvía y el bot pedía el pin. La clave
+  // «chillos» aguanta esa falta («vlledeloschillos» ⊃ «chillos»).
+  chillos: { lat: -0.33, lng: -78.45, label: "Valle de los Chillos" },
+  sangolqui: { lat: -0.33, lng: -78.445, label: "Sangolquí" },
   // «al sur», a secas, es como la mitad de Quito dice dónde vive — y era un
   // sector que no resolvía nada: `local_mas_cercano` devolvía «no puedo ubicar
   // ese sector, pide el pin» y el hilo se moría ahí (chat del 25-ago: «al sur
