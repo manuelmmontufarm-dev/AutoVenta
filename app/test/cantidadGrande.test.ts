@@ -1,0 +1,72 @@
+/**
+ * «SABE QUE QUIERO 20 LLANTAS EN VEZ» — conv 3 ciclo 9, producción, 27-ago 22:21.
+ *
+ * Lo que salió, textual:
+ *
+ *   CLIENTE: «sabe que quiero 20 llantas en vez»
+ *   BOT:     «Para *20 llantas WINRUN MAXCLAW A/T 215/75R14* hay que actualizar
+ *             la cotización antes de confirmarle el total. No le confirmo el
+ *             precio final todavía para no darle un valor incorrecto.»
+ *
+ * Sin precio y sin siguiente paso. No fue el modelo inventando: era un tope de
+ * 8 en el esquema de `generar_cotizacion` y en `extractExplicitQuantity`, que
+ * nadie le había contado. La prueba está en el mismo chat — 30 s después
+ * escribió «perdon deme 8 llantas» y se recotizó al instante.
+ *
+ * Regla de Manuel: con más de 8 se pregunta si escribió bien, y si dice que sí
+ * no hay tope y se cotiza. El tope deja de ser un muro y pasa a ser una pregunta.
+ */
+import { describe, expect, it } from "vitest";
+import {
+  cantidadGrandePedida, cantidadQueConfirmamos, preguntaDeConfirmacion, TOPE_SIN_CONFIRMAR,
+} from "../src/domain/cantidadGrande.js";
+import { extractExplicitQuantity } from "../src/domain/salesIntent.js";
+
+describe("notar el número raro sin tocar el extractor de siempre", () => {
+  it("EL BUG: el mensaje real ahora SÍ se entiende", () => {
+    const real = "sabe que quiero 20 llantas en vez";
+    // El extractor de siempre sigue igual: 1–8 y nada más. No se tocó.
+    expect(extractExplicitQuantity(real)).toBeNull();
+    // El detector nuevo es el que lo nota.
+    expect(cantidadGrandePedida(real)).toBe(20);
+  });
+
+  it("lee las formas en que la gente lo escribe", () => {
+    expect(cantidadGrandePedida("quiero 12 llantas")).toBe(12);
+    expect(cantidadGrandePedida("deme 20")).toBe(20);
+    expect(cantidadGrandePedida("necesito 10 unidades")).toBe(10);
+    expect(cantidadGrandePedida("póngame 16 llantas")).toBe(16);
+  });
+
+  it("EL CASO QUE NO DEBE DISPARAR: lo normal lo sigue atendiendo el extractor viejo", () => {
+    for (const texto of ["perdon deme 8 llantas", "deme 4", "son 3", "quiero 2 llantas"]) {
+      expect(cantidadGrandePedida(texto), texto).toBeNull();
+      expect(extractExplicitQuantity(texto), texto).not.toBeNull();
+    }
+    expect(TOPE_SIN_CONFIRMAR).toBe(8);
+  });
+
+  it("no confunde horas ni medidas con cantidades", () => {
+    expect(cantidadGrandePedida("paso a las 20")).toBeNull();
+    expect(cantidadGrandePedida("215/75R14")).toBeNull();
+    expect(cantidadGrandePedida("mi carro es del 2019")).toBeNull();
+  });
+
+  it("EL BORDE: un número absurdo no se ofrece a cotizar", () => {
+    // 1000 llantas no es un cliente con un cero de más: es otra conversación.
+    expect(cantidadGrandePedida("quiero 1000 llantas")).toBeNull();
+    expect(cantidadGrandePedida("quiero 9 llantas")).toBe(9);
+  });
+});
+
+describe("la pregunta y su respuesta", () => {
+  it("nombra el número en negrita, que es lo único que hay que revisar", () => {
+    expect(preguntaDeConfirmacion(20)).toBe("Antes de cotizarle: ¿me confirma que son *20 llantas*? 👍");
+  });
+
+  it("se lee de vuelta: un «sí» pelado solo vale contra la pregunta que lo provocó", () => {
+    expect(cantidadQueConfirmamos(preguntaDeConfirmacion(20))).toBe(20);
+    expect(cantidadQueConfirmamos("¿Cuál le queda mejor, *Cumbayá* o *Quito Sur*?")).toBeNull();
+    expect(cantidadQueConfirmamos(null)).toBeNull();
+  });
+});

@@ -5,8 +5,19 @@ export function isComparisonRequest(text: string): boolean {
   return /\b(compar|diferencia|cual es mejor|cu[aá]l conviene|mejor entre)\w*/.test(normalized);
 }
 
+/**
+ * «Ya compré» EN OTRO LADO no es una venta ganada, es una perdida.
+ *
+ * Cazado el 27-ago escribiendo la prueba del cierre: «ya compre en otro lado»
+ * caía en el patrón de «ya compré» y la conversación se marcaba **ganado**.
+ * Es el peor error posible de los dos: un cliente que se fue a la competencia
+ * entrando al conteo de ventas del negocio, y encima cerrando la conversación.
+ */
+const EN_OTRO_LADO = /\b(?:en|con|a)\s+(?:otro|otra)\s+(?:lado|lugar|parte|tienda|llantera|local|sitio)\b|\bcon\s+otros?\b|\ben\s+otro\s+lado\b/;
+
 export function isExplicitPurchaseConfirmation(text: string): boolean {
   const normalized = normalize(text);
+  if (EN_OTRO_LADO.test(normalized)) return false;
   return /\b(ya (?:las? )?compr[eé]|acabo de comprar|ya pagu[eé]|compra (?:hecha|realizada)|pago realizado)\b/.test(
     normalized,
   );
@@ -217,13 +228,32 @@ export function extractVehicleYear(text: string): number | null {
  * cotizar es lo correcto salvo que el cliente esté comparando o haya dicho
  * que NO. La cantidad sale del texto, del hecho guardado o del juego de 4.
  */
+/**
+ * Frases con las que el cliente se está yendo, no corrigiendo.
+ *
+ * Se separan del «no» pelado porque un «no» con una cantidad al lado es otra
+ * cosa: «no, perdón, deme 2» está PIDIENDO dos llantas. Hasta el 27-ago eso se
+ * leía como negativa y `canGenerateFinalQuote` bloqueaba la cotización, así que
+ * el bot le contestaba «¿qué le falta para decidirse?» a alguien que acababa de
+ * decirle cuántas quería. Un «no gracias» o un «mejor no» sí siguen frenando,
+ * aunque nombren un número («no gracias, ya tengo 4 llantas»).
+ */
+const RECHAZO_BLANDO =
+  /\b(?:no\s+gracias|todavia no|aun no|ahorita no|por ahora no|mejor no|dejeme pensar(?:lo)?|dejame pensar(?:lo)?|lo pienso|voy a pensar|solo (?:estoy )?pregunt\w*|solo (?:era|es) (?:una )?consulta|despues le aviso|luego le aviso|mas tarde le aviso|otro dia|cancel\w*)\b/;
+
+/** ¿El «no» viene a corregir la cantidad, en vez de a cerrar la puerta? */
+export function esCorreccionDeCantidad(text: string): boolean {
+  if (!hasExplicitQuantity(text)) return false;
+  return !RECHAZO_BLANDO.test(normalize(text));
+}
+
 export function canGenerateFinalQuote(
   text: string,
   comparedThisTurn = false,
   confirmedQuantity = false,
 ): boolean {
   if (comparedThisTurn || isComparisonRequest(text)) return false;
-  if (isNegativeResponse(text)) return false;
+  if (isNegativeResponse(text) && !esCorreccionDeCantidad(text)) return false;
   return hasExplicitQuantity(text) || confirmedQuantity;
 }
 

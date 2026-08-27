@@ -105,11 +105,23 @@ const ctx = (fila: Fila, previousOutbound: string | null) => ({
   previousOutbound,
 } as never);
 
+/**
+ * Guarda lo que el bot dijo. Hace falta de verdad: el candado de cantidad
+ * grande lee la confirmación de `lastOutboundText`, o sea de la BASE, no del
+ * contexto — que es exactamente como ocurre en producción.
+ */
+async function botDijo(id: number, texto: string) {
+  await sql`
+    insert into messages (conversation_id, role, content, direction, type, cycle, author_kind)
+    values (${id}, 'assistant', ${texto}, 'outbound', 'text', 1, 'bot')
+  `;
+}
+
 const cotizaciones = (id: number) => sql<{ items: Array<{ quantity: number }>; total: string }[]>`
   select items, total from quotes where conversation_id=${id} order by created_at
 `;
 
-const PREGUNTA_LOCAL = "¿A cuál de los dos le queda mejor ir? 📍";
+const PREGUNTA_LOCAL = "¿Cuál le queda mejor, *Cumbayá* o *Quito Sur*? 📍";
 
 beforeAll(async () => { await ensureSchema(); });
 afterAll(async () => {
@@ -171,6 +183,44 @@ describe.sequential("recotizar por cantidad · la pieza sale, no la promesa", ()
     `;
     expect(await tryRecotizarPorCantidad(ctx(fila, PREGUNTA_LOCAL), "deme 3")).toBeNull();
     expect(await cotizaciones(fila.id)).toHaveLength(0);
+  });
+
+  it("EL PEDIDO GRANDE: con más de 8 pregunta antes de firmar, no cotiza", async () => {
+    const fila = await conversacionConCotizacion("593980005007", 4);
+    const reply = await tryRecotizarPorCantidad(ctx(fila, PREGUNTA_LOCAL), "sabe que quiero 20 llantas en vez");
+
+    expect(reply).toBe("Antes de cotizarle: ¿me confirma que son *20 llantas*? 👍");
+    // Y NO se firmó nada todavía.
+    expect(await cotizaciones(fila.id)).toHaveLength(1);
+  });
+
+  it("y con el «sí» se cotiza, sin tope", async () => {
+    const fila = await conversacionConCotizacion("593980005008", 4);
+    const pregunta = "Antes de cotizarle: ¿me confirma que son *20 llantas*? 👍";
+    await botDijo(fila.id, pregunta);
+    const reply = await tryRecotizarPorCantidad(ctx(fila, pregunta), "si");
+
+    expect(reply).toContain("se la ajusté a 20");
+    const todas = await cotizaciones(fila.id);
+    expect(todas[1].items[0].quantity).toBe(20);
+    expect(Number(todas[1].total)).toBeCloseTo(159.49 * 20, 2);
+  });
+
+  it("si se corrige en vez de confirmar, manda la corrección", async () => {
+    const fila = await conversacionConCotizacion("593980005009", 4);
+    const pregunta = "Antes de cotizarle: ¿me confirma que son *20 llantas*? 👍";
+    await botDijo(fila.id, pregunta);
+    const reply = await tryRecotizarPorCantidad(ctx(fila, pregunta), "no, perdon, deme 2");
+
+    expect(reply).toContain("se la ajusté a 2");
+    expect((await cotizaciones(fila.id))[1].items[0].quantity).toBe(2);
+  });
+
+  it("un «no» pelado no firma nada", async () => {
+    const fila = await conversacionConCotizacion("593980005010", 4);
+    const pregunta = "Antes de cotizarle: ¿me confirma que son *20 llantas*? 👍";
+    expect(await tryRecotizarPorCantidad(ctx(fila, pregunta), "no")).toBeNull();
+    expect(await cotizaciones(fila.id)).toHaveLength(1);
   });
 
   it("un mensaje sin cantidad no toca nada", async () => {

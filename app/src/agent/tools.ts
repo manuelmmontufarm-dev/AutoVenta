@@ -49,6 +49,7 @@ import {
   appendMessage,
   logQuote,
   logQuoteArtifact,
+  lastOutboundText,
   registrarCompromisoDeVisita,
   registrarMedidaQueNoCoincide,
   setExplicitStore,
@@ -86,6 +87,7 @@ import {
   medidaEstaPedida, medidasDeProductos, medidasPermitidas, mensajesDeLaVisitaActual,
 } from "../domain/medidaPedida.js";
 import { ahorroDeLaCotizacion } from "../domain/ahorro.js";
+import { cantidadQueConfirmamos, preguntaDeConfirmacion, TOPE_SIN_CONFIRMAR } from "../domain/cantidadGrande.js";
 import { medidasDelPedido } from "../services/medidasDelPedido.js";
 import { sendImage, sendPdf } from "../wa/client.js";
 import {
@@ -1590,7 +1592,13 @@ export function buildTools(ctx: AgentContext) {
         .array(
           z.object({
             code: z.string().describe("Código del producto tal como lo devolvió buscar_llanta"),
-            cantidad: z.number().int().min(1).max(8),
+            // Sin tope duro desde el 27-ago. El de 8 no era una regla del
+            // negocio escrita en ningún lado: era un límite del esquema que
+            // nadie le había contado al modelo, y con «quiero 20 llantas» el
+            // bot se quedó sin poder cotizar y sin qué decir. Ahora más de
+            // `TOPE_SIN_CONFIRMAR` se CONFIRMA con el cliente y después se
+            // cotiza. Ver `domain/cantidadGrande.ts`.
+            cantidad: z.number().int().min(1).max(500),
           }),
         )
         .length(1)
@@ -1632,6 +1640,22 @@ export function buildTools(ctx: AgentContext) {
         if (ultimoSaliente?.content?.includes("¿qué prioriza usted?")) {
           items = [{ ...items[0], cantidad: 4 }];
           avisoJuego = "Se la hice por juego de 4; si necesita otra cantidad, me avisa y se la ajusto al toque.";
+        }
+      }
+      // PEDIDO GRANDE: se confirma antes de firmarlo. Manuel, 27-ago: «cuando
+      // piden más de 8 que pregunte si escribió bien, y si dice que sí no hay
+      // tope y se cotiza nomás, porque puede que se equivocaron». Un 20 puede
+      // ser una flota o un cero de más, y las dos merecen la misma pregunta.
+      if (items[0].cantidad > TOPE_SIN_CONFIRMAR) {
+        const yaConfirmada =
+          cantidadQueConfirmamos(await lastOutboundText(ctx.conversation.id)) === items[0].cantidad;
+        if (!yaConfirmada) {
+          return JSON.stringify({
+            mensaje_para_enviar: preguntaDeConfirmacion(items[0].cantidad),
+            regla:
+              "Responde EXACTAMENTE con mensaje_para_enviar y nada más. NO cotices todavía y NO le des ningún total: " +
+              "primero que confirme la cantidad. Si dice que sí, cotizas esa cantidad; si te corrige, cotizas la nueva.",
+          });
         }
       }
       // El local ya elegido manda en TODAS las preguntas de visita de esta

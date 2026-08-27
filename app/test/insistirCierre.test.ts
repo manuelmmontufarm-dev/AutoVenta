@@ -65,3 +65,39 @@ describe("reconocer si el turno YA preguntaba", () => {
     expect(preguntamosElLocal(`${PREGUNTA_DE_LOCAL} 📍`)).toBe(true);
   });
 });
+
+/**
+ * 27-ago, segunda captura: el bot cerró su respuesta con «¿A cuál local le
+ * queda mejor ir?» —su propia forma de decirlo, sin nombrar las sucursales— y
+ * el candado del cierre, que solo reconocía la frase canónica y los dos
+ * nombres, le pegó la pregunta OTRA VEZ. El cliente la vio dos veces seguidas.
+ * Reconocer solo la frase propia es reconocer al bot de ayer, no la intención.
+ */
+describe("reconocer la pregunta del local venga como venga", () => {
+  it("EL BUG: la forma en que el modelo la escribió cuenta como preguntar", () => {
+    expect(preguntamosElLocal(
+      "Puede pasar sin compromiso a verla y revisamos que le calce bien. ¿A cuál local le queda mejor ir? 📍",
+    )).toBe(true);
+  });
+
+  it("y las otras formas que usa", () => {
+    for (const texto of [
+      "¿En qué sucursal prefiere que se lo dejemos?",
+      "¿A cuál de las dos tiendas le queda mejor?",
+      "📍 *Depot Tire Cumbayá*: x\n📍 *Depot Tire Quito Sur*: y",
+      `${PREGUNTA_DE_LOCAL} 📍`,
+    ]) expect(preguntamosElLocal(texto), texto).toBe(true);
+  });
+
+  it("la pregunta nombra el LOCAL y las dos sucursales (Manuel, 27-ago)", () => {
+    expect(PREGUNTA_DE_LOCAL).toMatch(/local/i);
+    expect(PREGUNTA_DE_LOCAL).toMatch(/Cumbayá/);
+    expect(PREGUNTA_DE_LOCAL).toMatch(/Quito Sur/);
+  });
+
+  it("EL CASO QUE NO DEBE DISPARAR: hablar del local no es preguntarlo", () => {
+    expect(preguntamosElLocal("Le esperamos en el local de Cumbayá el jueves.")).toBe(false);
+    expect(preguntamosElLocal("¿Qué día cree que puede pasar?")).toBe(false);
+    expect(preguntamosElLocal("¿Me confirma la medida?")).toBe(false);
+  });
+});

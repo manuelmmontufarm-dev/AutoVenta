@@ -76,9 +76,14 @@ describe("el orden que pidió Joaquín: ubicaciones primero, la pregunta sola de
 
   it("y NO pregunta nada: la pregunta es el mensaje siguiente", () => {
     expect(ubicaciones).not.toContain("?");
-    expect(pregunta).toMatch(/cu[áa]l de los dos/i);
+    // 27-ago (Manuel): «"a cuál de los dos" está como vago; que diga cuál de
+    // los dos locales, Quito o Cumbayá». Sale en un mensaje aparte de los
+    // links, así que «los dos» no señalaba nada.
+    expect(pregunta).toMatch(/Cumbayá/);
+    expect(pregunta).toMatch(/Quito Sur/);
     // Corta de verdad: una línea. Es lo último que le queda en pantalla.
     expect(pregunta.split("\n")).toHaveLength(1);
+    expect(pregunta.length).toBeLessThan(70);
   });
 
   it("el día NO se pregunta en este turno — se pregunta cuando ya eligió local", () => {

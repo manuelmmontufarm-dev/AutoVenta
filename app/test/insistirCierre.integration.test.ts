@@ -77,7 +77,8 @@ describe.sequential("insistir con lo que falta", () => {
     const fila = await conversacion("593980006002", { local: null });
     const r = await insistirConLoQueFalta(fila.id, 1, "Sí, incluye alineación y balanceo sin costo.");
     expect(r.agregado).toBe("local");
-    expect(r.texto).toMatch(/a cuál de los dos le queda mejor ir/i);
+    expect(r.texto).toMatch(/Cumbayá/);
+    expect(r.texto).toMatch(/Quito Sur/);
   });
 
   it("EL CASO QUE NO DEBE DISPARAR: si el turno YA pregunta, no se toca", async () => {

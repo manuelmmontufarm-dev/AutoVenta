@@ -10,13 +10,33 @@ export type ExplicitStore = "Depot Tire Cumbayá" | "Depot Tire Quito Sur";
  * preguntar «¿Cumbayá o Quito Sur?», la respuesta se lee contra esa pregunta.
  * Espeja `preguntamosElDia` de customerCommitment — misma idea, otro dato.
  */
-export const PREGUNTA_DE_LOCAL = "¿A cuál de los dos le queda mejor ir?";
+/**
+ * La pregunta que cierra la cotización, nombrando los dos locales.
+ *
+ * Antes decía «¿A cuál de los dos le queda mejor ir?» y Manuel (27-ago) la vio
+ * vaga: salía en un mensaje aparte de los links, así que «los dos» no señalaba
+ * nada — el cliente tenía que subir a buscar de qué dos se hablaba. Nombrarlos
+ * cuesta cuatro palabras y la deja contestable sola.
+ *
+ * Vive acá, en el dominio, porque la usan el que pregunta
+ * (`buildStoreChoiceBlocks`), el que insiste (`insistirConLoQueFalta`) y el que
+ * la reconoce (`preguntamosElLocal`): si se reescribe en un solo lado, el bot
+ * deja de entender la respuesta del cliente.
+ */
+export const PREGUNTA_DE_LOCAL = "¿A cuál local le queda mejor ir, *Cumbayá* o *Quito Sur*?";
 
 export function preguntamosElLocal(ultimoMensajeNuestro: string | null | undefined): boolean {
   if (!ultimoMensajeNuestro) return false;
   const n = normalize(ultimoMensajeNuestro);
   // Los dos nombres sobre la mesa: la señal de siempre.
   if (n.includes("cumbaya") && n.includes("sur")) return true;
+  // Y CUALQUIER forma de preguntarlo. El 27-ago el bot cerró su respuesta con
+  // «¿A cuál local le queda mejor ir?» —sin nombrar las sucursales— y este
+  // detector dijo que no había preguntado, así que el candado del cierre le
+  // pegó la pregunta otra vez: el cliente la vio dos veces seguidas. Reconocer
+  // solo la frase propia era reconocer al bot de ayer, no la intención.
+  if (/\?/.test(n) && /\b(?:cual|que|donde|a cual)\b[^?]{0,60}\b(?:local|locales|sucursal|sucursales|tienda|tiendas)\b/.test(n)) return true;
+  if (/\b(?:local|sucursal|tienda)\b[^?]{0,40}\b(?:le queda|prefiere|le conviene|le sirve)\b/.test(n)) return true;
   // Y la pregunta corta, que desde el 26-ago sale en un mensaje APARTE de los
   // links (Joaquín: «que no pregunte a cuál local en el mismo mensaje que las
   // ubicaciones, sino uno corto después»). Ese cambio dejó a esta función sin

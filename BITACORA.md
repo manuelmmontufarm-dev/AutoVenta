@@ -32,6 +32,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-08-27 | _(este mismo)_ | Pedido grande con confirmación, la pregunta del local que se nombra sola, y la queja de precio que borraba la venta | 2.5 |
 | 2026-08-27 | _(este mismo)_ | La cantidad en grande en la pieza, y ningún turno con cotización cierra sin pedir el local o el día | 1.5 |
 | 2026-08-27 | _(este mismo)_ | «Deme solo 3»: cambiar la cantidad manda la pieza nueva, y las tres fallas que salieron con ella (el «2» del menú, «al de quito», la pregunta corta del local) | 2.5 |
 | 2026-08-26 | _(este mismo)_ | Las preguntas de más se quitan con candado: pedírselo al guardián no alcanzó (marcó la falta y la repitió en su corrección) | 0.75 |
@@ -175,6 +176,47 @@ Ya viene activado en este equipo.
 ---
 
 ## Entradas (más reciente primero)
+
+### 2026-08-27 · Cuatro fallas que salieron de un solo chat de prueba · ⏱️ 2.5 h
+
+**Qué:** (1) `domain/cantidadGrande.ts` (nuevo): más de 8 llantas ya no es un
+muro sino una pregunta — se confirma («¿me confirma que son *20 llantas*?») y
+con el sí se cotiza sin tope (el esquema pasa de `max(8)` a `max(500)`), con
+candado en la herramienta por si el modelo se salta el paso. (2)
+`PREGUNTA_DE_LOCAL` nombra el local y las dos sucursales, y `preguntamosElLocal`
+reconoce CUALQUIER forma de preguntarlo, no solo la frase propia. (3)
+`domain/cierrePerdido.ts` (nuevo): el clasificador ya no puede cerrar una venta
+como perdida sin evidencia de rechazo en el texto del cliente. (4)
+`isExplicitPurchaseConfirmation` deja de leer «ya compré en otro lado» como
+compra. Además, el candado del cierre no encima una segunda pregunta mientras
+espera una confirmación, y un «no» que viene con cantidad («no, deme 2») dejó de
+bloquear la cotización. 24 pruebas nuevas; la suite queda en 1049.
+
+**Por qué:** las cuatro salieron del mismo chat de Manuel. (1) «Quiero 20
+llantas» dejó al bot sin poder cotizar y sin qué decir: había un tope de 8 en el
+esquema y en `extractExplicitQuantity` que nadie le había contado al modelo — la
+prueba es que 30 s después «deme 8 llantas» funcionó al instante. (2) «¿A cuál
+de los dos le queda mejor ir?» sale en un mensaje aparte de los links, así que
+«los dos» no señalaba nada; y cuando el modelo la escribió con SUS palabras
+(«¿a cuál local le queda mejor ir?»), el candado del cierre no la reconoció y le
+pegó la pregunta otra vez — el cliente la vio dos veces seguidas. (3) La peor:
+un **«chuta ta carisisimo oe»** sobre una cotización de $821.53 se clasificó
+como venta perdida, y como cerrar deja `status='closed'`, el mensaje siguiente
+reabrió en un ciclo nuevo y borró medida, producto, cantidad y cotización. Por
+eso el bot terminó pidiendo la medida que ya tenía. Quejarse del precio es la
+objeción más común del oficio: es donde un vendedor empieza a trabajar, no donde
+cierra. (4) Apareció escribiendo la prueba de (3): irse a la competencia
+contaba como venta ganada.
+
+**Probado:** conversación completa en el simulador. «Sabe que quiero 20 llantas
+en vez» → «¿me confirma que son *20 llantas*?» SOLA (sin encimarle la del
+local), y con el «sí» salió la cotización por 20 a $2053.80. La queja de precio
+dejó la conversación abierta, en `cotizacion_enviada`, con la medida intacta. Y
+el salvavidas del cierre se probó con el clasificador FORZADO a decir
+«perdido»: 4 de 4 frenados, y los rechazos de verdad sí cierran. **Dos vueltas
+extra**: el guardián se comió la pregunta de confirmación con la categoría
+`pregunta_de_mas` que se estrenó ayer (hizo falta la excepción en su rúbrica), y
+después el candado del cierre le encimó la pregunta del local.
 
 ### 2026-08-27 · La cantidad se ve, y el cierre no se suelta · ⏱️ 1.5 h
 

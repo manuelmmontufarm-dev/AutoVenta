@@ -7,6 +7,7 @@ import OpenAI from "openai";
 import { config } from "../config.js";
 import { logAiRun, setStage, type Conversation } from "../services/conversations.js";
 import { sql } from "../db/client.js";
+import { puedeCerrarComoPerdido } from "../domain/cierrePerdido.js";
 import { STAGE_ORDER, isStage, type Stage } from "../domain/pipeline.js";
 import { isExplicitPurchaseConfirmation } from "../domain/salesIntent.js";
 
@@ -42,7 +43,7 @@ Etapas:
 - seleccionando: el cliente está evaluando opciones, marcas, precios o pide comparar 2–3 modelos. Opciones y comparación son una sola sección.
 - cotizacion_enviada: el cliente confirmó un único modelo y cantidad, por lo que se generó la cotización final.
 - seguimiento_venta: visita, ubicación, reserva, handoff o seguimiento comercial hasta concretar la venta.
-- perdido: el cliente rechazó explícitamente continuar.
+- perdido: el cliente rechazó explícitamente continuar («no me interesa», «ya compré en otro lado», «no me escriba más»). QUEJARSE DEL PRECIO NO ES PERDIDO: «está carísimo», «uf qué caro», «no me alcanza» son la objeción más común de la venta y la conversación sigue viva. Pedir tiempo para pensarlo tampoco cierra nada.
 
 Usa "ganado" únicamente si el cliente afirma en pasado que ya compró o pagó.
 El mensaje del bot nunca mueve la etapa por sí solo. Clasifica únicamente evidencia del mensaje del cliente; si no hay evidencia nueva, conserva la etapa actual.
@@ -88,6 +89,18 @@ Bot: ${assistantText}`,
       select stage from conversations where id = ${conversation.id}
     `;
     const etapaActual = fila?.stage ?? conversation.stage;
+    // CERRAR COMO PERDIDA BORRA LA CONVERSACIÓN, así que se exige evidencia y
+    // no basta con que el modelo lo crea. El 27-ago (conv 3) un «chuta ta
+    // carisisimo oe» sobre una cotización de $821.53 cerró la venta, y el
+    // mensaje siguiente la reabrió en un ciclo nuevo sin medida, sin producto y
+    // sin cotización: el bot terminó pidiendo la medida que ya tenía. Ver
+    // `domain/cierrePerdido.ts`.
+    if (stage === "perdido" && !puedeCerrarComoPerdido(userText)) {
+      console.log(
+        `🛟 Cierre como perdida frenado en la conv ${conversation.id}: «${userText.slice(0, 60)}» no es un rechazo`,
+      );
+      return;
+    }
     if (STAGE_ORDER[stage] > STAGE_ORDER[etapaActual] || stage === "perdido") {
       await setStage(conversation.id, stage, {
         actor: "customer",
