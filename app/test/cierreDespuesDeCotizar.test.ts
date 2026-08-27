@@ -18,6 +18,7 @@
 import { beforeAll, describe, expect, it } from "vitest";
 import { ahorroDeLaCotizacion, fraseDeAhorro } from "../src/domain/ahorro.js";
 import { JUEGO_COMPLETO, opcionesQueAlcanzan } from "../src/domain/opcionesCandados.js";
+import { sinPreguntasProhibidas } from "../src/domain/preguntasProhibidas.js";
 
 // `quoteMessages` arrastra la config del negocio (los locales y sus mapas), que
 // exige el entorno completo. Los módulos de dominio de arriba no: son puros.
@@ -168,5 +169,56 @@ describe("la rúbrica del guardián cubre el cierre nuevo", () => {
       expect(sinAlerta.has("pregunta_de_mas")).toBe(false);
       expect(sinAlerta.has("promesa_incumplible")).toBe(false);
     }
+  });
+});
+
+/**
+ * EL CANDADO, porque pedírselo al guardián NO alcanzó.
+ *
+ * Con la regla ya puesta en su rúbrica se le dieron estos tres borradores
+ * (simulador, 26-ago) y el resultado fue: marcó la falta en ALTA y su propia
+ * corrección volvió a preguntar la cantidad; dejó intacta la del nombre; y
+ * clasificó la tercera en otra categoría. El guardián es la última mano que
+ * toca el texto, así que lo que tiene que ser cierto sí o sí corre después.
+ */
+describe("las preguntas de más se quitan aunque las escriba el guardián", () => {
+  it("la que el guardián reintrodujo en su propia corrección", () => {
+    const r = sinPreguntasProhibidas(
+      "Perfecto. Le cotizo la FALKEN a $208.09 c/u. El juego de 4 sería $832.36. ¿Cuántas llantas desea llevar?",
+    );
+    expect(r.texto).toBe("Perfecto. Le cotizo la FALKEN a $208.09 c/u. El juego de 4 sería $832.36.");
+    expect(r.quitadas).toEqual(["¿Cuántas llantas desea llevar?"]);
+  });
+
+  it("pedir permiso para la cantidad es pedir la cantidad", () => {
+    const r = sinPreguntasProhibidas("Buenísimo, la *FALKEN WILDPEAK A/T 4W* es muy buena opción. ¿Se la cotizo por 4?");
+    expect(r.texto).toBe("Buenísimo, la *FALKEN WILDPEAK A/T 4W* es muy buena opción.");
+  });
+
+  it("y la del nombre, que el guardián dejó pasar entera (caso Eulalia, 19-ago)", () => {
+    const r = sinPreguntasProhibidas("Con gusto. ¿A nombre de quién le hago la cotización, o la dejo como cliente final?");
+    expect(r.texto).toBe("Con gusto.");
+    expect(r.quitadas).toHaveLength(1);
+  });
+
+  it("EL CASO QUE NO DEBE DISPARAR: «¿se la cotizo?» a secas es la oferta legítima", () => {
+    // Es la frase con la que se ofrece una equivalente y la que destrabó el
+    // caso 4732. Confundirla con una pregunta de más rompería esa venta.
+    const legitimas = [
+      "En *235/70R15* no me queda la Falken, pero sí le sirve la equivalente en *235/75R15*. Si le parece, ¿se la cotizo?",
+      "¿A cuál de los dos le queda mejor ir? 📍",
+      "¿Qué día cree que puede pasar? Le aviso al asesor con *25 %* de descuento, *$277.44* menos. 📅",
+      "¿Me confirma la medida o prefiere mandarme una foto del costado?",
+    ];
+    for (const texto of legitimas) {
+      const r = sinPreguntasProhibidas(texto);
+      expect(r.quitadas, `no debía tocar: ${texto}`).toHaveLength(0);
+      expect(r.texto).toBe(texto);
+    }
+  });
+
+  it("un bloque que era SOLO la pregunta de más desaparece, no queda vacío", () => {
+    const r = sinPreguntasProhibidas("Su cotización está lista.\n---\n¿Cuántas llantas necesita?");
+    expect(r.texto).toBe("Su cotización está lista.");
   });
 });

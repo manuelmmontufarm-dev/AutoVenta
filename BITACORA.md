@@ -32,6 +32,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-08-26 | _(este mismo)_ | Las preguntas de más se quitan con candado: pedírselo al guardián no alcanzó (marcó la falta y la repitió en su corrección) | 0.75 |
 | 2026-08-26 | _(este mismo)_ | El cierre después de cotizar: dos mensajes en vez de uno, el monto del descuento a la vista, y no se ofrece ni se pregunta lo que no hace falta | 2.0 |
 | 2026-08-26 | _(este mismo)_ | La cotización de otra medida: la compra de hace dos semanas dejó de firmar la de hoy, y la foto habla sola | 3.0 |
 | 2026-08-26 | _(este mismo)_ | El «juebes» que costó una visita: los días se leen por sonido, el bot escribe lo que promete, y el seguimiento confirma en vez de repreguntar | 4.0 |
@@ -172,6 +173,35 @@ Ya viene activado en este equipo.
 ---
 
 ## Entradas (más reciente primero)
+
+### 2026-08-26 · Las preguntas de más, con candado y no con prompt · ⏱️ 0.75 h
+
+**Qué:** `domain/preguntasProhibidas.ts` (nuevo) quita del texto ya revisado las
+preguntas que le cuestan un turno a la venta y no cambian la respuesta:
+«¿cuántas llantas necesita?», «¿se la cotizo por 4?», «¿a nombre de quién?»,
+«¿cliente final?». Corre al final de la cadena —después del Ángel Guardián,
+junto al aviso de stock y los números de cotización— y deja alerta
+`pregunta_de_mas` cuando dispara, para poder medir cuántas veces pasa. Recorta
+la ORACIÓN, no el mensaje, y si un bloque queda vacío desaparece.
+
+**Por qué:** porque pedírselo al guardián NO alcanzó, y está medido. Con la
+regla ya puesta en su rúbrica se le dieron sus propios borradores en el
+simulador y el resultado fue: ante «¿Cuántas llantas necesita?» marcó la falta
+en ALTA —«no se debe preguntar cuántas llantas necesita»— y su corrección
+terminó con «¿Cuántas llantas desea llevar?»; ante «¿A nombre de quién…?» la
+dejó entera. Dos de dos. El vendedor sí obedece (en las conversaciones
+completas del simulador cotiza 4 de una), pero el guardián es la ÚLTIMA mano
+que toca el texto y a esta familia no la respeta. Es la tercera vez en dos días
+que el guardián resulta ser el autor del problema —los `COT-`, el ahorro
+borrado, y ahora esto—: lo que tiene que ser cierto sí o sí no se le pide a un
+modelo, se le pone un candado detrás.
+
+**Probado:** las cuatro preguntas y sus cuatro negativos en pruebas puras, con
+los textos que el guardián escribió de verdad; y end-to-end contra el guardián
+real (simulador, gpt-5.5): dejó las dos preguntas intactas y el candado las
+quitó dejando el mensaje coherente («Perfecto. La Falken Wildpeak A/T 4W en
+255/70R16 está a $208.09 c/u.»). En la conversación completa, sin que el cliente
+diga cantidad, el bot cotiza 4 de una y no dispara el candado. Suite en 991.
 
 ### 2026-08-26 · El cierre después de cotizar, como lo dictó Joaquín · ⏱️ 2.0 h
 

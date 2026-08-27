@@ -52,6 +52,7 @@ import {
 import { extractExplicitQuantity, extractVehicleYear } from "./domain/salesIntent.js";
 import { getHubMetrics } from "./services/hubData.js";
 import {
+  createBotAlert,
   handleInboundFollowUpState,
   scheduleConversationFollowUps,
 } from "./services/followUps.js";
@@ -67,6 +68,7 @@ import { applyOutboundGuard } from "./services/outboundGuard.js";
 import { asegurarAvisoDeStock } from "./services/stockCorto.js";
 import { revisarConGuardian } from "./services/guardian.js";
 import { sinNumerosDeCotizacion } from "./domain/numerosDeCotizacion.js";
+import { sinPreguntasProhibidas } from "./domain/preguntasProhibidas.js";
 import { notifyPendingHumanRequests } from "./services/advisorNotifications.js";
 import { startEmbeddedFollowUpWorker } from "./workers/embeddedFollowUpWorker.js";
 import { extractExplicitStore, preguntamosElLocal } from "./domain/storeSelection.js";
@@ -283,11 +285,28 @@ const pipeline = new InboundPipeline(async ({ from, name, text, waMessageIds, re
   //
   // Envío con red de seguridad: si Meta rechaza, la respuesta queda guardada
   // como "failed" y visible en el hub — nunca se pierde en silencio.
-  // Los números de cotización, al final de todo y por la misma razón que el
-  // stock: el que los escribió en el chat de Andrés Tamayo (26-ago) fue el
-  // Ángel Guardián, que corre DESPUÉS de todos los candados deterministas.
-  // Ver domain/numerosDeCotizacion.ts.
-  const bloques = splitBlocks(sinNumerosDeCotizacion(conStock.texto));
+  // Las preguntas de más, también al final y por la misma razón que el stock y
+  // los números: quien las escribe es el Ángel Guardián, que corre DESPUÉS de
+  // todos los candados deterministas. Y con esta familia no alcanza con
+  // pedírselo: puesto a revisar «¿Cuántas llantas necesita?» la marcó en ALTA y
+  // su propia corrección terminó con «¿Cuántas llantas desea llevar?»
+  // (simulador, 26-ago). Ver domain/preguntasProhibidas.ts.
+  const depurado = sinPreguntasProhibidas(conStock.texto);
+  if (depurado.quitadas.length) {
+    console.warn(`✂️ Pregunta de más quitada en la conv ${conversation.id}: ${depurado.quitadas.join(" | ")}`);
+    await createBotAlert({
+      conversationId: conversation.id,
+      cycle: conversation.current_cycle,
+      type: "pregunta_de_mas",
+      priority: "medium",
+      summary: "Se quitó una pregunta que le costaba un turno a la venta",
+      exactReason: `El bot iba a preguntar: «${depurado.quitadas.join(" | ")}». Se quitó antes de enviarla.`,
+      suggestedAction: "El cliente NO la recibió. Delata que el modelo o el guardián se saltaron el contrato de cierre.",
+      dedupeKey: `${conversation.id}:${conversation.current_cycle}:pregunta_de_mas:${depurado.quitadas[0].slice(0, 60)}`,
+    }).catch(() => undefined);
+  }
+  // Los números de cotización, por la misma razón. Ver domain/numerosDeCotizacion.ts.
+  const bloques = splitBlocks(sinNumerosDeCotizacion(depurado.texto));
   // El cupón va como bloque aparte y al final: es un mensaje que el cliente va
   // a buscar días después en el chat, y mezclado dentro del párrafo del bot se
   // pierde. Solo cuando se acaba de emitir — si ya lo tenía, repetírselo cada

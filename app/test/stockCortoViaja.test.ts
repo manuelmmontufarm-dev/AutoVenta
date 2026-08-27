@@ -146,9 +146,12 @@ describe("el orden de los candados en el turno", () => {
 
   it("los bloques que se envían salen del texto con el aviso ya puesto", () => {
     // Si alguien vuelve a partir `custodiado.texto`, el aviso se pierde en el
-    // último metro sin que ninguna otra prueba lo note. Desde el 26-ago pasa
-    // además por `sinNumerosDeCotizacion`, que es otro candado del final.
-    expect(index).toContain("splitBlocks(sinNumerosDeCotizacion(conStock.texto))");
+    // último metro sin que ninguna otra prueba lo note. Desde el 26-ago el texto
+    // pasa además por los otros dos candados del final —las preguntas de más y
+    // los números de cotización—, y el orden importa: los tres corren DESPUÉS
+    // del guardián, que es quien reescribe.
+    expect(index).toContain("sinPreguntasProhibidas(conStock.texto)");
+    expect(index).toContain("splitBlocks(sinNumerosDeCotizacion(depurado.texto))");
   });
 
   it("las tres puertas de la cotización usan el mismo módulo", () => {

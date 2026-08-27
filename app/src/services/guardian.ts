@@ -135,7 +135,7 @@ const INSTRUCCIONES = `Eres el ÁNGEL GUARDIÁN del bot de ventas de Depot Tire 
 REVISA, en este orden de gravedad:
 1. PRECIOS Y COTIZACIONES. Todo número que el borrador afirme (precio unitario, total, número de cotización, meses de garantía) debe coincidir EXACTAMENTE con los datos duros del contexto. Si el borrador confirma que una cotización corresponde a una medida y los datos dicen otra medida, eso es un error ALTO.
 2. MEDIDA. Si el cliente pidió una medida concreta y el borrador ofrece o confirma otra sin decirle con todas las letras que es una equivalente, error ALTO.
-3. RE-PREGUNTAS. Si el borrador pregunta algo que el cliente ya respondió en la conversación (local, fecha, medida, cantidad, uso), error ALTO. La corrección usa el dato ya dado y avanza.
+3. RE-PREGUNTAS. Si el borrador pregunta algo que el cliente ya respondió en la conversación (local, fecha, medida, uso), error ALTO. La corrección usa el dato ya dado y avanza. OJO: preguntar CUÁNTAS llantas quiere no es re-pregunta aunque lo parezca —el cliente puede no haberlo dicho nunca— y tiene su propia categoría en la regla 15; clasifícalo ahí.
 4. CONTRADICCIONES con lo que el propio bot dijo antes.
 5. IGNORAR LA PREGUNTA del último mensaje del cliente: el borrador debe responderla antes de seguir con su guion.
 6. REPETICIÓN: bloques, frases o preguntas calcadas de mensajes anteriores del bot.
