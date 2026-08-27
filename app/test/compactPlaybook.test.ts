@@ -19,9 +19,12 @@ describe("playbook compacto", () => {
    * que son 18.400 caracteres. El techo subió de 4.500 a 5.000 el 26-ago para
    * que entrara la regla de `agendar_visita`: sin ella el bot confirma la
    * visita por escrito y no la registra, que es exactamente el fallo que se
-   * llevó dos seguimientos y un cupón el 24-ago. Sigue siendo ~1/4 del largo.
+   * llevó dos seguimientos y un cupón el 24-ago. Y de 5.000 a 5.100 el 27-ago
+   * para la regla de la unidad («se dice 4 llantas, nunca el número a secas»),
+   * que tiene que estar en los DOS playbooks o producción no la lee. Sigue
+   * siendo ~1/4 del largo, que es lo que este techo protege.
    */
   it("es materialmente menor que el prompt histórico", () => {
-    expect(COMPACT_PLAYBOOK.length).toBeLessThan(5_000);
+    expect(COMPACT_PLAYBOOK.length).toBeLessThan(5_100);
   });
 });

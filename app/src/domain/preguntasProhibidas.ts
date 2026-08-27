@@ -44,6 +44,32 @@ const PREGUNTAS = [
   /¿[^?¿]*\bcliente final\b[^?¿]*\?/gi,
 ];
 
+/**
+ * La pregunta con la que NOSOTROS cerramos la recomendación.
+ *
+ * Vive acá, y no en la plantilla, por dos razones que van juntas. Una: el
+ * candado tiene que poder reconocerla para no borrarla, y un candado que
+ * importa de `services/` sería la flecha al revés (services → domain, nunca
+ * domain → services). Dos: si el texto y la exención viven en archivos
+ * distintos, alguien cambia uno y el otro se queda viejo — que es exactamente
+ * lo que pasó el 27-ago, cuando la plantilla decía «¿Se la cotizo por 4?» y el
+ * candado se la comía sin que nadie los relacionara.
+ *
+ * Dice «4 llantas» y no «4» a secas por pedido de Manuel (27-ago): un número
+ * suelto se lee como precio o como cuotas, y el cliente vuelve a preguntar.
+ */
+export const CIERRE_COTIZAR = "¿Le cotizo el juego de 4 llantas?";
+
+/**
+ * Las preguntas que escribe la casa y el candado no puede tocar.
+ *
+ * La exención es por coincidencia EXACTA, no por parecido: «¿Se la cotizo por
+ * 6?» escrita por el modelo sigue siendo la pregunta que gasta un turno y se
+ * sigue yendo. Lo que se exenta es un texto que ya pasó por revisión humana,
+ * no una familia de frases.
+ */
+export const FRASES_NUESTRAS: readonly string[] = [CIERRE_COTIZAR];
+
 export interface TextoDepurado {
   texto: string;
   /** Las preguntas que se quitaron, tal cual estaban. Sirven para el aviso. */
@@ -61,6 +87,7 @@ export function sinPreguntasProhibidas(texto: string): TextoDepurado {
   let salida = texto;
   for (const patron of PREGUNTAS) {
     salida = salida.replace(patron, (encontrada) => {
+      if (FRASES_NUESTRAS.includes(encontrada.trim())) return encontrada;
       quitadas.push(encontrada.trim());
       return "";
     });

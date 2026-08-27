@@ -1,5 +1,6 @@
 import { business } from "../config.js";
 import { fraseDeAhorro, type AhorroDeLaCotizacion } from "../domain/ahorro.js";
+import { CIERRE_COTIZAR } from "../domain/preguntasProhibidas.js";
 import { ETIQUETA_DEL_ESCALON } from "../domain/salesIntent.js";
 import { PREGUNTA_DE_LOCAL } from "../domain/storeSelection.js";
 import type { CatalogItem } from "../domain/catalog.js";
@@ -196,7 +197,10 @@ export function buildCierreOpciones(input: {
   }
   const motivo = input.motivo.trim().replace(/[.\s]+$/, "");
   const precio = input.precioConIva ? ` — $${input.precioConIva.toFixed(2)} c/u con IVA` : "";
-  return `Yo iría por la *${input.recomendacion}*${precio}: ${motivo}. ¿Se la cotizo por 4? 😊`;
+  // El cierre sale de `CIERRE_COTIZAR` y no escrito a mano: el candado de
+  // preguntas prohibidas exenta esa constante exacta. Escribirlo aquí otra vez
+  // es volver al 27-ago, cuando el candado se comía nuestro propio pedido.
+  return `Yo iría por la *${input.recomendacion}*${precio}: ${motivo}. ${CIERRE_COTIZAR} 😊`;
 }
 
 /**

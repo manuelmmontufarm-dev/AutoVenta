@@ -632,7 +632,7 @@ function escalonesLine(escalones: Escalones | null): string | null {
     })
     .filter(Boolean);
   if (!partes.length) return null;
-  return `Escalones de la última pieza de opciones enviada — ${partes.join("; ")}. Si el cliente responde su preferencia («mejor precio», «la más barata», «equilibrada», «la del medio», «premium», «la mejor»), entrega LA opción de ese escalón con su precio y ofrece cotizarla por 4 — PROHIBIDO volver a preguntarle qué prefiere o si necesita una recomendación.`;
+  return `Escalones de la última pieza de opciones enviada — ${partes.join("; ")}. Si el cliente responde su preferencia («mejor precio», «la más barata», «equilibrada», «la del medio», «premium», «la mejor»), entrega LA opción de ese escalón con su precio y ofrece cotizarla por 4 llantas — PROHIBIDO volver a preguntarle qué prefiere o si necesita una recomendación.`;
 }
 
 function withDiscountNotice(
