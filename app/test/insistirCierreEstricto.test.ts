@@ -51,8 +51,11 @@ describe("el turno que confirma la visita deja la puerta abierta", () => {
     ({ PREGUNTA_DE_CIERRE } = await import("../src/domain/preguntaPendiente.js"));
   });
 
-  it("es una pregunta, no un punto final", () => {
-    expect(PREGUNTA_DE_CIERRE).toMatch(/^¿.+\?$/);
+  it("lleva una pregunta, para que el hilo no muera en un punto", () => {
+    // Ya no tiene que TERMINAR en «?»: desde el 27-ago cierra con «Ahí le
+    // esperamos», que es lo que pidió Manuel. Lo que no puede faltar es la
+    // pregunta — es la única razón por la que este bloque existe.
+    expect(PREGUNTA_DE_CIERRE).toMatch(/¿[^?]+\?/);
   });
 
   it("no pide ninguno de los datos que ya se tienen", () => {

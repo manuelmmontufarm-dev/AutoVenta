@@ -55,7 +55,7 @@ export interface EstadoDelCierre {
  * No pide un dato: los tres que importan (medida, local, día) ya están. Deja la
  * puerta abierta, que es lo único que queda por hacer.
  */
-export const PREGUNTA_DE_CIERRE = "¿Le queda alguna otra duda antes de su visita?";
+export const PREGUNTA_DE_CIERRE = "¿Le queda alguna otra duda? Ahí le esperamos. 🤝";
 
 export function datoQueFalta(estado: EstadoDelCierre): DatoPendiente | null {
   if (!estado.hayCotizacion) return null;

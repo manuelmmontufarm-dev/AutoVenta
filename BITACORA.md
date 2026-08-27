@@ -32,6 +32,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-08-27 | _(este mismo)_ | «el 30» se entiende como fecha, el cierre deja de repreguntar, y /restart para poder probar sin esperar | 1.5 |
 | 2026-08-27 | _(este mismo)_ | La escalera vuelve a contestarse escribiendo, «Otro día» pregunta cuál, y ningún JSON sale al cliente | 1.5 |
 | 2026-08-27 | _(este mismo)_ | Botones de WhatsApp en las tres preguntas cerradas: escalera, local y día | 2.0 |
 | 2026-08-27 | _(este mismo)_ | El menú ofrece solo los escalones que hay, y una cantidad grande vuelve a poder cotizarse | 1.0 |
@@ -180,6 +181,57 @@ Ya viene activado en este equipo.
 ---
 
 ## Entradas (más reciente primero)
+
+### 2026-08-27 · El día que el bot dijo haber guardado y no guardó · ⏱️ 1.5 h
+
+**Qué:** tres cosas.
+
+1. **Un día del mes suelto ya es una fecha.** `diaDelMesSuelto`: «el 30», «voy
+   el 30», «paso el 3», o el número a secas.
+
+2. **El cierre deja de repreguntar** cuando ya hay medida, local y día — que era
+   consecuencia de lo anterior, no una falla aparte. Y cierra con
+   `PREGUNTA_DE_CIERRE`, ahora «¿Le queda alguna otra duda? Ahí le esperamos 🤝».
+
+3. **`/restart`** (también `/reiniciar` y `/reset`): reinicia la conversación de
+   quien lo escribe, sin esperar. Manuel: «para que yo, Andrés, Joaquín y el que
+   sea pueda testearlo sin tener que esperar esas dos horas».
+
+**Por qué, con el caso delante.** Producción, conv 3 ciclo 17. El bot preguntó
+el día, el cliente contestó **«el 30»**, y en la base quedaron `visit_date` y
+`customer_commitment` en **null**. Pero al cliente le dijo «Listo, 30 en Depot
+Tire Quito Sur y ya le avisé al asesor», y al vendedor le mandó la alerta
+«QUIERE COMPRAR · confirma visita para el 30». Una visita que existía en dos
+mensajes y en ninguna fila. El candado del cierre sí veía el hueco y le volvió a
+preguntar el día — eso fue lo que Manuel notó («no sé por qué me volvió a
+preguntar»), pero la repregunta era el síntoma sano: lo grave era la
+confirmación falsa.
+
+La causa: `fechaDeCalendario` exige el mes («30 de agosto») o el separador
+(«30/8») para no leer una medida de llanta como fecha, y un día pelado no
+entraba por ningún lado.
+
+**Lo que hace seguro al parser nuevo es el artículo.** Solo cuenta si el número
+viene detrás de «el», «del», «día» o «para el», o si ES el mensaje entero. Así
+«a las 4» sigue siendo una hora, «4 llantas» una cantidad y «205/55» una medida.
+Y encima el llamador solo lo usa con `respondiendoAlDia`: fuera de la pregunta
+del día, «el 30» no agenda nada.
+
+**`/restart` no inventa un camino nuevo:** cierra y reabre con el mismo
+`reopenConversation` de siempre. Eso sube el ciclo, y como `getHistory` filtra
+por `cycle = current_cycle`, el agente arranca sin memoria y la ficha se vacía
+en el mismo update. Los ciclos anteriores quedan archivados y visibles en el
+panel — que es justo lo que hace falta para revisar una prueba después. Alcanza
+solo a la conversación de quien lo escribe, así que puede quedar abierto sin
+riesgo: quien lo escribiera por accidente perdería su propio hilo, no el de
+nadie más. Y se exige que el comando SEA el mensaje entero, para que «¿qué hace
+/restart?» siga siendo una pregunta.
+
+**Pruebas:** 1122 en verde (25 nuevas). En el simulador, el caso textual: toca
+«Otro día» → repregunta sin botones → escribe «el 30» → «domingo 30 de agosto…
+¿Le queda alguna otra duda? Ahí le esperamos», `visit_date` guardada y **sin**
+repreguntar. Y `/restart`: ciclo 1 → 2, ficha en blanco, y al preguntarle por la
+cotización anterior contesta «no tengo una cotización anterior registrada».
 
 ### 2026-08-27 · Lo que Manuel vio en su teléfono · ⏱️ 1.5 h
 

@@ -276,6 +276,51 @@ function mesDeLaPalabra(palabra: string): number | null {
  * Si la fecha ya pasó, se entiende para el año que viene: en diciembre, «el 3
  * de enero» es enero del año siguiente, no el que ya pasó.
  */
+/**
+ * Un día del mes SUELTO: «el 30», «para el 3», o el número a secas.
+ *
+ * Producción, 27-ago-2026 (conv 3, ciclo 17). El bot preguntó el día, el cliente
+ * contestó «el 30», y no se guardó NADA: `visit_date` y `customer_commitment`
+ * quedaron en null. Peor que perder el dato, el bot le dijo igual «Listo, 30 en
+ * Depot Tire Quito Sur y ya le avisé al asesor» y le mandó la alerta al vendedor
+ * — una visita confirmada de palabra que no existía para el sistema. Y como el
+ * candado del cierre sí veía el hueco, le volvió a preguntar el día al cliente
+ * en el mensaje siguiente. Manuel lo vio en su teléfono: «no sé por qué me
+ * volvió a preguntar».
+ *
+ * `fechaDeCalendario` no lo cubría a propósito: exige el mes («30 de agosto») o
+ * el separador («30/8») para no leer una medida de llanta como una fecha.
+ *
+ * LA REGLA QUE LO HACE SEGURO es el artículo. Solo cuenta si el número viene
+ * detrás de «el», «del», «día» o «para el», o si ES el mensaje entero. Así «a
+ * las 4» sigue siendo una hora, «4 llantas» una cantidad y «205/55» una medida.
+ * Y aun así el llamador solo debe usarla cuando acabamos de preguntar el día.
+ */
+export function diaDelMesSuelto(texto: string, ahora: Date): { mes: number; dia: number; anio: number } | null {
+  const n = normalizarTexto(texto);
+  // Una medida o una fracción nunca es un día: se descarta el mensaje entero.
+  if (/\d\s*[\/-]\s*\d/.test(n)) return null;
+  const conArticulo = n.match(/\b(?:para\s+)?(?:el|del|dia)\s+(\d{1,2})\b/);
+  const soloElNumero = n.trim().match(/^(\d{1,2})$/);
+  const crudo = conArticulo?.[1] ?? soloElNumero?.[1];
+  if (!crudo) return null;
+  const dia = Number(crudo);
+  if (dia < 1 || dia > 31) return null;
+
+  // El próximo día con ese número: si ya pasó este mes, es el mes que viene.
+  const local = new Date(ahora.getTime() - 5 * 3_600_000);
+  const hoy = local.getUTCDate();
+  let mes = local.getUTCMonth();
+  let anio = local.getUTCFullYear();
+  if (dia < hoy) {
+    mes += 1;
+    if (mes > 11) { mes = 0; anio += 1; }
+  }
+  // El mes que viene puede no tener ese día (un «31» en septiembre).
+  if (new Date(Date.UTC(anio, mes, dia)).getUTCMonth() !== mes) return null;
+  return { mes, dia, anio };
+}
+
 export function fechaDeCalendario(texto: string, ahora: Date): { mes: number; dia: number; anio: number } | null {
   const n = normalizarTexto(texto);
   let dia: number | null = null;

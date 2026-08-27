@@ -206,6 +206,27 @@ export async function appendMessage(
 }
 
 /** Historial reciente en el formato que espera el agente (solo texto). */
+/**
+ * Reinicia una conversación a mano (`/restart`), para poder probar el bot sin
+ * esperar a que se cierre sola. Ver `domain/reinicio.ts`.
+ *
+ * Cierra y reabre con el MISMO camino de siempre: así el ciclo que se va queda
+ * archivado en `sales_history` igual que cualquier otro, y la reapertura vacía
+ * la ficha con el update que ya está probado. Inventar aquí un `update` propio
+ * sería tener dos formas distintas de empezar de cero, y una de las dos se
+ * quedaría atrás.
+ */
+export async function reiniciarConversacion(conversationId: number): Promise<Conversation | null> {
+  await sql`
+    update conversations
+    set status = 'closed', closed_reason = ${"Reinicio manual (/restart)"},
+        closed_at = now(), assigned_to = 'bot', bot_paused_until = null,
+        updated_at = now()
+    where id = ${conversationId}
+  `;
+  return reopenConversation(conversationId, "customer", "Reinicio manual (/restart)");
+}
+
 export async function getHistory(
   conversationId: number,
   limit = 30,

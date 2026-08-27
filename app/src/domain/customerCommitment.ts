@@ -1,4 +1,4 @@
-import { diaEnTexto, fechaDeCalendario, franjaHoraria, normalizarTexto, relativoEnTexto } from "./diasEnEspanol.js";
+import { diaDelMesSuelto, diaEnTexto, fechaDeCalendario, franjaHoraria, normalizarTexto, relativoEnTexto } from "./diasEnEspanol.js";
 
 const INTENT = /\b(?:voy|ire|iré|vamos|paso|pasare|pasaré|recojo|recogeré|retiro|retiraré|compro|compraré|visito|visitaré|llego|llegaré|bisito|voi)\b/i;
 
@@ -144,7 +144,10 @@ export function extractCustomerCommitment(
   const normalized = normalizar(text);
   const dia = diaEnTexto(text);
   const relativo = relativoEnTexto(text);
-  const calendario = fechaDeCalendario(text, now);
+  // El día del mes suelto («el 30») SOLO cuando acabamos de preguntar el día.
+  // Fuera de esa pregunta, «el 4» es una cantidad o un precio, no una fecha.
+  const calendario = fechaDeCalendario(text, now)
+    ?? (options.respondiendoAlDia ? diaDelMesSuelto(text, now) : null);
   const franja = franjaHoraria(text);
   const mencionaFecha = dia != null || relativo != null || calendario != null || VAGO.test(normalized);
   // Una hora sin día («de 4 a 5») también es una respuesta a la pregunta de

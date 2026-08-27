@@ -41,6 +41,7 @@ import {
   setExplicitStore,
   registrarCompromisoDeVisita,
   updateConversationFacts,
+  reiniciarConversacion,
   yaProcesado,
 } from "./services/conversations.js";
 import { emitLiveEvent } from "./services/liveEvents.js";
@@ -80,6 +81,7 @@ import { tryRecotizarPorCantidad } from "./services/recotizar.js";
 import { firstContactReply, isGenericFirstContact } from "./domain/firstContact.js";
 import { botonesParaBloque, recortarTitulo, textoDeBoton, type BloqueConBotones } from "./domain/botones.js";
 import { sinJsonCrudo } from "./domain/jsonCrudo.js";
+import { esComandoDeReinicio, MENSAJE_DE_REINICIO } from "./domain/reinicio.js";
 import { algunLocalAbre, getStoreHours } from "./services/settings.js";
 
 /** Pausa entre bloques: suficiente para que se lean como mensajes seguidos y no como spam. */
@@ -476,6 +478,27 @@ async function recibirMensaje(
   const esNuevo = await appendMessage(conversation.id, "user", texto, waMessageId, { occurredAt: receivedAt });
   if (!esNuevo) return; // reentrega de Meta: ya estaba guardado
   emitLiveEvent("message", conversation.id);
+
+  // `/restart`: empezar de cero sin esperar. El mensaje del cliente ya quedó
+  // guardado ARRIBA, en el ciclo que se va a archivar, así que el reinicio no
+  // pierde el rastro de quién lo pidió. No entra al pipeline: no hay nada que
+  // contestarle al agente y hacerlo correr sería gastar un turno de modelo.
+  if (esComandoDeReinicio(texto)) {
+    const reiniciada = await reiniciarConversacion(conversation.id);
+    console.log(`🔄 Reinicio manual en la conv ${conversation.id}: ciclo ${reiniciada?.current_cycle ?? "?"}`);
+    try {
+      const sentId = await sendCustomerText(conversation.id, from, MENSAJE_DE_REINICIO, "owner");
+      await appendMessage(conversation.id, "assistant", MENSAJE_DE_REINICIO, sentId, {
+        authorKind: "bot", status: "sent",
+      });
+    } catch (error) {
+      console.error(`❌ No se pudo avisar del reinicio a ${from}:`, error);
+    }
+    emitLiveEvent("message", conversation.id);
+    emitLiveEvent("sync", conversation.id);
+    return;
+  }
+
   pipeline.push(from, waMessageId, texto, name, receivedAt);
 }
 
