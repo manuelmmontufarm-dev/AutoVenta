@@ -1,3 +1,5 @@
+import { MAXIMO_NORMAL } from "./cantidadGrande.js";
+
 /**
  * EL AVISO DE STOCK CORTO, Y POR QUÉ TIENE QUE VIAJAR PEGADO A LA COTIZACIÓN.
  *
@@ -31,6 +33,68 @@
  * La cantidad se compara SIEMPRE contra el stock de hoy, no contra el que había
  * cuando se firmó: si en bodega repusieron, el aviso desaparece solo.
  */
+
+/**
+ * ¿EL STOCK DE HOY ALCANZA PARA FIRMAR ESTA CANTIDAD?
+ *
+ * Esta es la línea que faltaba, y por eso el stock seguía fallando después de
+ * tres arreglos. Hasta hoy el sistema tenía TRES capas mirando el stock y
+ * ninguna que dijera que no:
+ *
+ *   · la vitrina (`opcionesQueAlcanzan`) filtraba… y su red de emergencia
+ *     devolvía cualquier cosa con más de cero;
+ *   · la caja (`generar_cotizacion`) decidía explícitamente NO bloquear;
+ *   · el candado de salida (`asegurarAvisoDeStock`) solo PEGA un aviso detrás
+ *     de una promesa que ya se hizo.
+ *
+ * Resultado, producción 27-ago conv 11720: 215/50R17 con UNA unidad de KENDA
+ * KR20; la vitrina la enseñó, la caja firmó *4 × $105.88 = $423.52*, y el aviso
+ * salió después. Tres candados, cero negativas. Manuel: «le cotizó una llanta
+ * que solo hay 1 unidad».
+ *
+ * LA DISTINCIÓN QUE RECONCILIA LAS DOS DECISIONES. Joaquín (25-ago) dijo que
+ * con 3 de 4 NO se bloquea, porque el stock de Contífico viene desfasado y
+ * negarse pierde la venta cuando en bodega sí están. Tenía razón para 3 de 4 —
+ * y su propio ejemplo de lo que estaba MAL era «una medida con UNA unidad y el
+ * bot cotiza las 4 llantas de esa unidad». Las dos cosas son ciertas porque no
+ * son el mismo caso:
+ *
+ *   3 de 4 → desfase plausible. Se cotiza y se avisa.
+ *   1 de 4 → no hay. Firmar un juego ahí no es optimismo, es una promesa falsa.
+ *
+ * La raya se pone en la MITAD de lo pedido: por debajo de la mitad ya no es
+ * desfase, es faltante. Es un número, no un criterio, y por eso se puede
+ * mover en un solo sitio.
+ */
+export const PISO_DE_DESFASE = 0.5;
+
+/**
+ * ARRIBA DEL JUEGO GRANDE ESTA RAYA NO APLICA.
+ *
+ * «Quiero 20 llantas» con 8 en bodega no es una promesa falsa: es un pedido de
+ * flota, y esa conversación la termina el asesor con el proveedor. Bloquearlo
+ * mataría la venta más grande del mes por una regla escrita para el juego de
+ * cuatro. Ahí siguen valiendo el aviso de stock corto y la alerta al asesor,
+ * que es exactamente lo que Joaquín pidió el 25-ago.
+ */
+const PEDIDO_DE_FLOTA = MAXIMO_NORMAL;
+
+/** El mínimo de unidades que hacen creíble que en bodega estén las demás. */
+export function minimoParaVender(pedidas: number): number {
+  return Math.max(1, Math.ceil(Math.max(1, pedidas) * PISO_DE_DESFASE));
+}
+
+/**
+ * `true` cuando se puede firmar la cantidad pedida (con aviso si falta algo),
+ * `false` cuando lo honesto es decir cuántas hay.
+ */
+export function alcanzaParaVender(stockHoy: number, pedidas: number): boolean {
+  const hay = Number(stockHoy ?? 0);
+  if (hay <= 0) return false;
+  if (hay >= pedidas) return true;
+  if (pedidas > PEDIDO_DE_FLOTA) return true;
+  return hay >= minimoParaVender(pedidas);
+}
 
 /** Lo que se dice la primera vez, con la cotización recién hecha. */
 export function avisoStockCorto(stockHoy: number, solicitadas: number): string {

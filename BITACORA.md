@@ -32,6 +32,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-08-27 | _(este mismo)_ | El stock puede decir que no, «gracias» es un sí, y al que ya compró no se le insiste | 3.0 |
 | 2026-08-27 | _(este mismo)_ | La vitrina deja de mostrar lo que no hay, y el bot no ofrece locales que no existen | 1.0 |
 | 2026-08-27 | _(este mismo)_ | La cantidad se dice con su unidad («4 llantas») y el cierre de venta deja de borrarse solo | 1.5 |
 | 2026-08-27 | _(este mismo)_ | Cada pregunta en su propio mensaje, y la pregunta en imperativo deja de duplicarse | 1.0 |
@@ -179,11 +180,79 @@ Ya viene activado en este equipo.
 | 2026-07-14 | ac09171 | Ubicaciones de locales + análisis de features del cliente | 1.5 |
 | 2026-07-13 | feadf57 | Brief + plan de desarrollo + plan financiero + catálogo | 4.0 |
 | 2026-07-13 | d997844 | Commit inicial (repo) | 0.25 |
-| | | **TOTAL** | **~117.5 h** |
+| | | **TOTAL** | **~120.5 h** |
 
 ---
 
 ## Entradas (más reciente primero)
+
+### 2026-08-27 · El stock puede decir que no, «gracias» es un sí, y al que ya compró no se le insiste
+
+**Qué.** Tres fallas que Manuel vio en su teléfono el mismo día, con sus tres
+conversaciones de producción, más la segunda línea de defensa para las tres.
+
+1. **conv 11720 · se firmaron 4 llantas de las que había 1.** `alcanzaParaVender`
+   (`domain/stockCorto.ts`) es la raya nueva: por debajo de la MITAD de lo pedido
+   ya no es desfase de inventario, es que no hay. La usa la vitrina
+   (`opcionesQueAlcanzan` baja el listón hasta ahí, no hasta «que tenga algo») y
+   la usa la caja (`generar_cotizacion` devuelve `stock_no_alcanza`, no firma, y
+   le dice al modelo que ofrezca las que hay o el pedido por el asesor).
+   Exento el pedido de flota: con más de 8 pedidas la regla no aplica.
+2. **conv 11070 · «Gracias» leído como duda.** `domain/ofertaAceptada.ts` detecta
+   que el mensaje anterior del bot OFRECIÓ cotizar y que el cliente contestó un
+   acuse a secas, y le mete al turno la orden de cotizar ya.
+3. **conv 4732 · al que compró en otro lado se le insistió con el descuento.**
+   `puedeCerrarComoPerdido` se volvió rotundo, y `prepararSalida` tiene un paso
+   nuevo, `despedida_de_venta_perdida`, que reemplaza el cierre por una
+   despedida cálida.
+
+**Por qué.** El stock es lo que Manuel marcó como «lo más importante que no
+puede fallar», y es el que más veces se arregló: 25-ago se decide avisar, 26-ago
+el aviso viaja pegado a la cotización, 27-ago la vitrina deja de mostrar el
+stock cero. Tres capas mirando el stock **y ninguna que dijera que no**. La
+vitrina filtraba pero su red de emergencia devolvía cualquier cosa con más de
+cero; la caja decidía explícitamente no bloquear; el candado de salida solo PEGA
+un aviso detrás de una promesa ya hecha. Un aviso detrás de una promesa no
+deshace la promesa: el cliente igual se llevó un papel por $423.52 de una llanta
+de la que hay una. Lo que faltaba no era un cuarto candado sino la línea que
+separa «falta una» de «no hay», en un solo sitio y usada por las dos puertas.
+
+Lo de la despedida es lo mismo visto desde otro lado: el mensaje que insistía no
+lo escribió el modelo, lo pegó `insistirConLoQueFalta`, que lee la base y no al
+cliente. Y el clasificador que cierra como perdida corre DESPUÉS de enviar, así
+que la etapa todavía decía `seguimiento_venta`. El único dato que llegaba a
+tiempo era el mensaje del cliente, y la cadena no lo tenía: ahora sí
+(`textoDelCliente` en `ContextoDeSalida`).
+
+De paso salió un error que nadie había reportado: `puedeCerrarComoPerdido`
+terminaba en `isNegativeResponse`, que marca **«otro día»** — uno de los tres
+BOTONES que el propio bot le pone al cliente en la pregunta de visita. Tocar el
+botón del bot cerraba la venta como perdida y le borraba el ciclo entero:
+medida, producto, cantidad y cotización. Y `en otro lado` disparaba suelto, sin
+verbo de compra, así que «en otro lado me dan más barato» —una negociación, el
+mejor momento de la venta— también cerraba. Las dos cosas están probadas en el
+simulador como controles: ninguna cierra ya.
+
+**El Ángel Guardián.** Manuel lo pidió explícito: que si le das las
+conversaciones, entienda el error solo. Categorías nuevas `insiste_tras_rechazo`
+y `reofrece_lo_aceptado`, reglas 17–19 en la rúbrica, y tres hechos duros nuevos
+en `armarContexto` (`STOCK NO ALCANZA`, `EL CLIENTE SE DESPIDIÓ`, `EL CLIENTE YA
+ACEPTÓ`) — porque el revisor no puede juzgar lo que no recibe: el 27-ago aprobó
+la cotización de las 4 llantas sin un solo hallazgo, y con razón, porque su
+única regla de stock le pedía que exigiera el aviso y el aviso estaba.
+`scripts/guardian/probar-rubrica.mjs` le da los borradores exactos que salieron
+en producción y comprueba que devuelva el hallazgo: 4/4 a la primera, con el
+caso de control incluido para que no marque de más.
+
+**Probado.** Las tres conversaciones repetidas en el simulador con el bot real
+(gpt-5.5, config de producción, stock fijado a mano), más cuatro controles: 3 de
+4 sigue cotizándose con aviso (la regla de Joaquín del 25-ago, intacta), «Otro
+día» no cierra, «en otro lado me dan más barato» no cierra, y el guardián no
+marca un turno sano. 1215 pruebas en verde.
+
+**Horas.** ~3.0 h.
+
+---
 
 ### 2026-08-27 · La vitrina con llantas que no hay, y el local que no existe · ⏱️ 1.0 h
 

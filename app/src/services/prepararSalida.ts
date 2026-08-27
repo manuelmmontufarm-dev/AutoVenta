@@ -37,6 +37,7 @@ import { sinJsonCrudo } from "../domain/jsonCrudo.js";
 import { conLocalesReales } from "./localesReales.js";
 import { sinNumerosDeCotizacion } from "../domain/numerosDeCotizacion.js";
 import { conPreguntaEnSuPropioMensaje } from "../domain/preguntaSola.js";
+import { despedidaQueCorresponde } from "../domain/cierrePerdido.js";
 
 /**
  * De qué puerta viene el texto.
@@ -58,6 +59,17 @@ export interface ContextoDeSalida {
   tipo: TipoDeSalida;
   /** Las herramientas que llamó el agente en este turno, para el Ángel Guardián. */
   huella?: readonly HuellaHerramienta[];
+  /**
+   * Lo que el cliente acaba de escribir en ESTE turno.
+   *
+   * La cadena leía solo la base, y por eso el 27-ago (conv 4732) le insistió
+   * con el descuento a alguien que acababa de decir «ya compré en otro lugar»:
+   * en la base seguía faltando la fecha de visita, y eso era todo lo que
+   * `insistirConLoQueFalta` miraba. El clasificador que cierra como perdida
+   * corre DESPUÉS de enviar, así que la etapa todavía decía `seguimiento_venta`.
+   * El único sitio donde ese «ya compré» existe a tiempo es el mensaje mismo.
+   */
+  textoDelCliente?: string | null;
 }
 
 export interface PasoDeSalida {
@@ -117,6 +129,45 @@ export const PASOS: readonly PasoDeSalida[] = [
     },
   },
   {
+    // LA DESPEDIDA, CUANDO LA VENTA SE PERDIÓ DE VERDAD.
+    //
+    // Va antes de `insistir_con_lo_que_falta` porque es exactamente ese paso el
+    // que hay que callar: el 27-ago (conv 4732) el cliente escribió «Gracias ya
+    // compré en otro lugar», el modelo contestó bien —«Entendido, gracias por
+    // avisar»— y el candado del cierre le pegó detrás «¿Qué día cree que puede
+    // pasar… con 25 % de descuento, $73.92 menos». Nadie escribió ese mensaje:
+    // lo pegó una regla que lee la base y no al cliente.
+    //
+    // Y va DESPUÉS del Ángel Guardián por la razón de siempre: el guardián
+    // reescribe, y lo que tiene que ser cierto sí o sí va al final. Reemplaza
+    // el texto entero: cuando alguien acaba de decir que compró en otro lado,
+    // lo único que corresponde es despedirse bien. Ver `domain/cierrePerdido.ts`.
+    nombre: "despedida_de_venta_perdida",
+    corre: ["respuesta", "retomada"],
+    async aplicar(texto, ctx) {
+      const despedida = despedidaQueCorresponde(ctx.textoDelCliente ?? "");
+      if (!despedida) return texto;
+      if (texto.trim() === despedida) return texto;
+      console.log(
+        `👋 Venta perdida en la conv ${ctx.conversation.id}: se reemplazó el cierre por la despedida`,
+      );
+      await createBotAlert({
+        conversationId: ctx.conversation.id,
+        cycle: ctx.conversation.current_cycle,
+        type: "venta_perdida_despedida",
+        priority: "medium",
+        summary: "El cliente dijo que ya no sigue: el bot se despidió y dejó de insistir",
+        exactReason:
+          `El cliente escribió: «${(ctx.textoDelCliente ?? "").slice(0, 160)}». `
+          + `El borrador que iba a salir era: «${texto.slice(0, 200)}».`,
+        suggestedAction:
+          "El bot ya no le insiste. Si te consta que la venta sigue viva, retomala vos desde el panel.",
+        dedupeKey: `venta_perdida_despedida:${ctx.conversation.id}:${ctx.conversation.current_cycle}`,
+      }).catch(() => undefined);
+      return despedida;
+    },
+  },
+  {
     // Y la pregunta que falta, si el turno se fue por otro lado. Manuel,
     // 27-ago: «si hago preguntas se desvía la conversación y no acaba con una
     // pregunta». Ver domain/preguntaPendiente.ts. Fuera del seguimiento: ese
@@ -125,7 +176,7 @@ export const PASOS: readonly PasoDeSalida[] = [
     corre: ["respuesta", "retomada"],
     async aplicar(texto, ctx) {
       const insistido = await insistirConLoQueFalta(
-        ctx.conversation.id, ctx.conversation.current_cycle, texto,
+        ctx.conversation.id, ctx.conversation.current_cycle, texto, ctx.textoDelCliente,
       );
       if (insistido.agregado) {
         console.log(

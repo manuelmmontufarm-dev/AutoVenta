@@ -14,6 +14,7 @@ import { sql } from "../db/client.js";
 import { ahorroDeLaCotizacion, type LineaCotizada } from "../domain/ahorro.js";
 import { preguntaElDia } from "../domain/customerCommitment.js";
 import { datoQueFalta } from "../domain/preguntaPendiente.js";
+import { despedidaQueCorresponde } from "../domain/cierrePerdido.js";
 import { PREGUNTA_DE_LOCAL, preguntaElLocal } from "../domain/storeSelection.js";
 import { buildVisitPlanQuestion, composeBlocks, MAX_BLOCKS } from "./quoteMessages.js";
 
@@ -30,7 +31,17 @@ export async function insistirConLoQueFalta(
   conversationId: number,
   cycle: number,
   texto: string,
+  textoDelCliente?: string | null,
 ): Promise<CierreInsistido> {
+  // AL QUE SE DESPIDIÓ NO SE LE INSISTE. Este candado lee la base —¿hay
+  // cotización?, ¿hay local?, ¿hay fecha?— y con eso decide que falta la
+  // pregunta del día. Nada de eso cambia porque el cliente acabe de escribir
+  // «ya compré en otro lugar»: la etapa la mueve el clasificador DESPUÉS de
+  // enviar, así que en este momento sigue diciendo `seguimiento_venta`. Por eso
+  // el 27-ago (conv 4732) salió «¿Qué día cree que puede pasar… con 25 % de
+  // descuento, $73.92 menos» pegado a un adiós. El único dato que llega a
+  // tiempo es el mensaje del cliente. Ver `domain/cierrePerdido.ts`.
+  if (despedidaQueCorresponde(textoDelCliente ?? "")) return { texto, agregado: null };
   const [facts] = await sql<{
     nearest_store: string | null; visit_date: Date | null;
   }[]>`

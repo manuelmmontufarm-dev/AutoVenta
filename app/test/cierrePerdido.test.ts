@@ -16,7 +16,9 @@
  * recién empieza a trabajar.
  */
 import { describe, expect, it } from "vitest";
-import { puedeCerrarComoPerdido } from "../src/domain/cierrePerdido.js";
+import {
+  DESPEDIDA_SIN_COMPRA, DESPEDIDA_VENTA_PERDIDA, despedidaQueCorresponde, puedeCerrarComoPerdido,
+} from "../src/domain/cierrePerdido.js";
 import { isExplicitPurchaseConfirmation } from "../src/domain/salesIntent.js";
 
 describe("una queja de precio no cierra una venta", () => {
@@ -40,10 +42,52 @@ describe("una queja de precio no cierra una venta", () => {
 describe("un rechazo de verdad sí cierra", () => {
   it("los que dicen que no siguen", () => {
     for (const texto of [
-      "no me interesa", "no gracias", "ya compre en otro lado",
-      "deje de escribirme", "no me escriban mas", "mejor no",
-      "solo estoy preguntando",
+      "no me interesa", "ya no me interesa", "ya compre en otro lado",
+      "gracias ya compre en otro lugar", "deje de escribirme", "no me escriban mas",
+      "ya no necesito", "consegui en otra llantera",
     ]) expect(puedeCerrarComoPerdido(texto), texto).toBe(true);
+  });
+
+  /**
+   * SOLO LO SUPER OBVIO CIERRA (Manuel, 27-ago-2026).
+   *
+   * Estas siete cerraban antes, porque el colador terminaba en
+   * `isNegativeResponse`. Ninguna es una venta muerta:
+   *
+   *  · «mejor no» y «no gracias» son un no a ESTE paso, no a la compra.
+   *  · «solo estoy preguntando» es media conversación de venta.
+   *  · **«otro día» es uno de los tres BOTONES que el propio bot le pone al
+   *    cliente** en la pregunta de visita (`domain/botones.ts`). Tocar el botón
+   *    del bot cerraba la venta como perdida y le borraba el ciclo entero:
+   *    medida, producto, cantidad y cotización.
+   *  · «en otro lado me dan más barato» es una NEGOCIACIÓN, el mejor momento
+   *    de la venta, y disparaba por el `en otro lado` suelto.
+   *
+   * Cerrar de más borra el ciclo del cliente; cerrar de menos le cuesta al
+   * asesor un clic en el panel. No son comparables.
+   */
+  it("EL CASO QUE NO DEBE DISPARAR: el no blando y el botón del propio bot", () => {
+    for (const texto of [
+      "mejor no", "no gracias", "solo estoy preguntando", "otro dia",
+      "Otro día", "todavia no", "dejeme pensarlo",
+      "en otro lado me dan mas barato", "vi en otro lugar a 80",
+      "ya compre las llantas con ustedes",
+    ]) expect(puedeCerrarComoPerdido(texto), texto).toBe(false);
+  });
+
+  it("la despedida cambia según haya comprado o no", () => {
+    expect(despedidaQueCorresponde("Gracias ya compré en otro lugar"))
+      .toBe(DESPEDIDA_VENTA_PERDIDA);
+    expect(despedidaQueCorresponde("no me interesa")).toBe(DESPEDIDA_SIN_COMPRA);
+    // Y la conversación viva no tiene despedida: null es «seguí vendiendo».
+    expect(despedidaQueCorresponde("esta muy caro")).toBeNull();
+    expect(despedidaQueCorresponde("otro dia")).toBeNull();
+  });
+
+  it("la despedida de compra se alegra y no pide nada", () => {
+    expect(DESPEDIDA_VENTA_PERDIDA).toMatch(/Me alegro por su compra/);
+    expect(DESPEDIDA_VENTA_PERDIDA).not.toMatch(/\?/);
+    expect(DESPEDIDA_SIN_COMPRA).not.toMatch(/\?/);
   });
 
   it("EL BORDE: rechazo Y queja de precio juntos — manda el rechazo", () => {

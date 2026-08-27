@@ -24,7 +24,7 @@ import {
 } from "../services/catalog.js";
 
 import { aroDeMedida, enLaMedidaConfirmada } from "../domain/catalog.js";
-import { avisoStockCorto, recordatorioStockCorto } from "../domain/stockCorto.js";
+import { alcanzaParaVender, avisoStockCorto, recordatorioStockCorto } from "../domain/stockCorto.js";
 import { faltanteDeLaCotizacionVigente } from "../services/stockCorto.js";
 import { getInterbotPrice, refreshPriceForSize } from "../services/interbotPrices.js";
 import {
@@ -1836,6 +1836,49 @@ export function buildTools(ctx: AgentContext) {
         // stock corto de verdad: 1, 2 o 3 unidades contra un juego de 4. Va
         // DESPUÉS del candado de medida: si el rescate cambió la llanta, el
         // stock que importa es el de la que de verdad se va a cotizar.
+        //
+        // LA CAJA TAMBIÉN SABE DECIR QUE NO (27-ago, conv 11720). Hasta hoy
+        // esto solo AVISABA: se firmaba el juego completo y detrás salía «hoy
+        // tengo 1 y usted pidió 4». Un aviso pegado detrás de una promesa no
+        // deshace la promesa — el cliente se lleva al local un papel por
+        // $423.52 de una llanta de la que hay una. Por debajo de
+        // `alcanzaParaVender` no se firma: se dice cuántas hay y se ofrece.
+        // Por encima —3 de 4, el desfase de Contífico del que habló Joaquín—
+        // se firma y se avisa, igual que antes.
+        if (!alcanzaParaVender(product.stock, item.cantidad)) {
+          await createBotAlert({
+            conversationId: ctx.conversation.id,
+            cycle: ctx.conversation.current_cycle,
+            type: "stock_insuficiente",
+            priority: "high",
+            summary: `No se firmó el juego: ${item.cantidad} pedidas y ${product.stock} en catálogo`,
+            exactReason:
+              `El bot iba a cotizar ${item.cantidad} × ${product.brand} ${product.design} ${product.sizeLabel} ` +
+              `y hoy hay ${product.stock} en el catálogo. Por debajo de la mitad de lo pedido no se firma: ` +
+              "se le dijo al cliente cuántas hay y se le ofreció el pedido o la equivalente.",
+            suggestedAction:
+              `Confirmar en bodega cuántas ${product.brand} ${product.design} ${product.sizeLabel} hay de verdad. ` +
+              "Si están, avisale al cliente y se cotiza el juego completo.",
+            dedupeKey: `${ctx.conversation.id}:${ctx.conversation.current_cycle}:stock_no_alcanza:${product.code}`,
+          }).catch(() => undefined);
+          console.warn(
+            `🚫 Cotización no firmada por stock en la conv ${ctx.conversation.id}: ` +
+            `${item.cantidad} pedidas, ${product.stock} de ${product.code}`,
+          );
+          return JSON.stringify({
+            error: "stock_no_alcanza",
+            stock_hoy: product.stock,
+            solicitadas: item.cantidad,
+            llanta: `${product.brand} ${product.design} ${product.sizeLabel}`,
+            regla:
+              `NO se cotiza. De ${product.brand} ${product.design} ${product.sizeLabel} hoy hay ` +
+              `${product.stock} y el pedido es de ${item.cantidad}: firmar el juego completo sería prometerle ` +
+              "al cliente algo que no está. Dile en UNA línea cuántas hay hoy, sin rodeos, y ofrécele en el " +
+              "MISMO mensaje las dos salidas: (1) cotizarle las que hay ahora, (2) que el asesor le consiga " +
+              "el resto por pedido. Si acepta las que hay, vuelve a llamar generar_cotizacion con esa cantidad. " +
+              "PROHIBIDO cotizar la cantidad original, y PROHIBIDO terminar el turno solo con la mala noticia.",
+          });
+        }
         if (item.cantidad > product.stock) {
           stockCorto = { stock_hoy: product.stock, solicitadas: item.cantidad };
         }

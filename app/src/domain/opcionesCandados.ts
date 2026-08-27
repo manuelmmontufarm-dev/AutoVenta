@@ -11,6 +11,7 @@
  * La lógica vive aquí y no en tools.ts porque es pura (sin base ni catálogo) y
  * así se puede probar sin levantar nada.
  */
+import { alcanzaParaVender } from "./stockCorto.js";
 import { normalizarTipo } from "./tireTypes.js";
 
 /** Ventana en la que se considera que el cliente todavía tiene la pieza a mano. */
@@ -130,7 +131,14 @@ export const JUEGO_COMPLETO = 4;
  * puede comprar. Manuel: «¿por qué mandaría eso? va en contra de toda la
  * lógica».
  *
- * Cero no es «poco»: es que no hay. Y si no queda ninguna con stock, la lista
+ * Y BAJARLO HASTA UNO TAMPOCO SERVÍA. El mismo día, conv 11720: en 215/50R17
+ * la única KENDA KR20 tenía UNA unidad, la red la dejó entrar, y de esa
+ * vitrina salió una cotización firmada por 4 × $105.88 = $423.52. La red no
+ * baja el listón hasta «que tenga algo»: lo baja hasta `alcanzaParaVender`, la
+ * mitad de lo pedido, que es donde el desfase de Contífico deja de ser una
+ * explicación creíble. Ver `domain/stockCorto.ts`.
+ *
+ * Cero no es «poco»: es que no hay. Y si no queda ninguna vendible, la lista
  * vuelve VACÍA a propósito — el llamador tiene que decirle al cliente que en
  * esa medida no hay, no dibujarle una pieza de llantas que no existen.
  */
@@ -141,5 +149,5 @@ export function opcionesQueAlcanzan<T extends { stock?: number | null }>(
   const minimo = Math.max(1, Math.round(cantidadPedida));
   const alcanzan = productos.filter((p) => Number(p.stock ?? 0) >= minimo);
   if (alcanzan.length) return alcanzan;
-  return productos.filter((p) => Number(p.stock ?? 0) > 0);
+  return productos.filter((p) => alcanzaParaVender(Number(p.stock ?? 0), minimo));
 }

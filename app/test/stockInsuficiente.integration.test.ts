@@ -9,10 +9,18 @@ import type { CatalogItem } from "../src/domain/catalog.js";
  * llantas de esa unidad». El cliente se lleva un número de cotización por un
  * juego que no existe y se entera en el local, que es el peor momento posible.
  *
- * La decisión NO es bloquear: el stock que llega de Contífico viene desfasado y
- * negarse a cotizar pierde la venta justo cuando en bodega sí están — el caso
- * más común. Se cotiza, se dice cuántas hay hoy, y se le abre una tarea al
- * asesor para que confirme el resto.
+ * La decisión de Joaquín NO era bloquear: el stock que llega de Contífico viene
+ * desfasado y negarse a cotizar pierde la venta justo cuando en bodega sí están.
+ * Se cotiza, se dice cuántas hay hoy, y se le abre una tarea al asesor.
+ *
+ * PERO ESO VALE MIENTRAS EL DESFASE SEA CREÍBLE (Manuel, 27-ago-2026). Se hizo
+ * tal cual y el caso de Joaquín volvió a pasar, con su misma forma: conv 11720,
+ * 215/50R17, UNA unidad, cotización firmada por 4 × $105.88 = $423.52 con el
+ * aviso pegado detrás. Un aviso detrás de una promesa no deshace la promesa.
+ * Así que la raya se puso en la mitad de lo pedido (`alcanzaParaVender`):
+ *
+ *   3 de 4 → se cotiza y se avisa, como quería Joaquín.
+ *   1 de 4 → NO se firma; se dice cuántas hay y se ofrece pedido o las que hay.
  *
  * Va de integración porque dos de las tres cosas que se afirman viven en la
  * base: la alerta que se crea y la cotización que sí se registra.
@@ -137,11 +145,13 @@ afterAll(async () => {
 });
 
 beforeEach(() => {
-  catalogo = [llanta(1)];
+  // 3 de 4: el desfase creíble, que SÍ se cotiza con aviso. El caso de 1 de 4
+  // tiene su propio bloque abajo, y ahí ya no se firma.
+  catalogo = [llanta(3)];
 });
 
-describe.sequential("generar_cotizacion · cotizar más de lo que hay avisa, no bloquea", () => {
-  it("con 1 en stock y 4 pedidas: cotiza igual, lo dice y abre la tarea al asesor", async () => {
+describe.sequential("generar_cotizacion · faltando poco se cotiza y se avisa", () => {
+  it("con 3 en stock y 4 pedidas: cotiza igual, lo dice y abre la tarea al asesor", async () => {
     const phone = "593980002001";
     const fila = await conversacion(phone, 4);
 
@@ -156,11 +166,11 @@ describe.sequential("generar_cotizacion · cotizar más de lo que hay avisa, no 
     expect(guardada.n).toBe("1");
 
     // (a) el resultado lo declara
-    expect(salida.stock_insuficiente).toEqual({ stock_hoy: 1, solicitadas: 4 });
+    expect(salida.stock_insuficiente).toEqual({ stock_hoy: 3, solicitadas: 4 });
 
     // (b) el mensaje al cliente dice cuántas hay hoy y quién confirma el resto
     const mensaje: string = salida.mensaje_para_enviar;
-    expect(mensaje).toMatch(/hoy tengo \*1\* disponible/);
+    expect(mensaje).toMatch(/hoy tengo \*3\* disponibles/);
     expect(mensaje).toMatch(/usted pidió \*4\*/);
     expect(mensaje).toMatch(/asesor/i);
     // Y el objetivo del turno sigue en pie: el aviso no desplazó la visita.
@@ -169,7 +179,7 @@ describe.sequential("generar_cotizacion · cotizar más de lo que hay avisa, no 
     // (c) la alerta para el asesor
     const alertas = await alertasDe(fila.id, "stock_insuficiente");
     expect(alertas).toHaveLength(1);
-    expect(alertas[0].summary).toMatch(/4 pedidas y 1 en catálogo/);
+    expect(alertas[0].summary).toMatch(/4 pedidas y 3 en catálogo/);
     expect(alertas[0].exact_reason).toMatch(/KENDA KR203 195\/55R15/);
     expect(alertas[0].priority).toBe("high");
   });
@@ -223,6 +233,73 @@ describe.sequential("generar_cotizacion · cotizar más de lo que hay avisa, no 
     expect(salida.regla).toMatch(/confirma el asesor/);
     // Y no perdió la orden de siempre.
     expect(salida.regla).toMatch(/mensaje_para_enviar/);
+  });
+});
+
+/**
+ * EL ESCALÓN DE ARRIBA: cuando falta más de la mitad, no se firma.
+ *
+ * Producción, 27-ago, conv 11720. Es el mismo caso que Joaquín reportó el
+ * 25-ago —una medida con una unidad y el bot cotizando las cuatro— y que el
+ * aviso del 26-ago no evitó, porque avisar no es negarse.
+ */
+describe.sequential("generar_cotizacion · faltando más de la mitad NO se firma", () => {
+  beforeEach(() => { catalogo = [llanta(1)]; });
+
+  it("con 1 en stock y 4 pedidas: no hay cotización, hay una salida ofrecida", async () => {
+    const phone = "593980002010";
+    const fila = await conversacion(phone, 4);
+
+    const salida = await cotizar(fila, phone, 4);
+
+    // (0) NO se firmó nada: ni número, ni fila en quotes.
+    expect(salida.error).toBe("stock_no_alcanza");
+    expect(salida.enviada).toBeUndefined();
+    const [guardada] = await sql<{ n: string }[]>`
+      select count(*)::text as n from quotes where conversation_id=${fila.id}
+    `;
+    expect(guardada.n).toBe("0");
+
+    // (a) el resultado trae los números para que el modelo los diga
+    expect(salida.stock_hoy).toBe(1);
+    expect(salida.solicitadas).toBe(4);
+    expect(salida.llanta).toMatch(/KENDA KR203 195\/55R15/);
+
+    // (b) la regla no lo deja terminar el turno con la mala noticia sola
+    expect(salida.regla).toMatch(/hoy hay 1/);
+    expect(salida.regla).toMatch(/cotizarle las que hay/);
+    expect(salida.regla).toMatch(/pedido/);
+    expect(salida.regla).toMatch(/PROHIBIDO cotizar la cantidad original/);
+
+    // (c) el asesor se entera igual: es la mitad del valor del candado.
+    const alertas = await alertasDe(fila.id, "stock_insuficiente");
+    expect(alertas).toHaveLength(1);
+    expect(alertas[0].priority).toBe("high");
+    expect(alertas[0].summary).toMatch(/No se firmó el juego/);
+  });
+
+  it("EL CASO QUE NO DEBE DISPARAR: pedir 1 con 1 en stock se cotiza normal", async () => {
+    // El candado mira la distancia, no el número: si pide una y hay una,
+    // alcanza y no pasa nada.
+    const phone = "593980002011";
+    const fila = await conversacion(phone, 1);
+
+    const salida = await cotizar(fila, phone, 1);
+
+    expect(salida.error).toBeUndefined();
+    expect(salida.enviada).toBe(true);
+    expect(await alertasDe(fila.id, "stock_insuficiente")).toHaveLength(0);
+  });
+
+  it("EL BORDE: 2 de 4 todavía se firma con aviso", async () => {
+    catalogo = [llanta(2)];
+    const phone = "593980002012";
+    const fila = await conversacion(phone, 4);
+
+    const salida = await cotizar(fila, phone, 4);
+
+    expect(salida.enviada).toBe(true);
+    expect(salida.stock_insuficiente).toEqual({ stock_hoy: 2, solicitadas: 4 });
   });
 });
 

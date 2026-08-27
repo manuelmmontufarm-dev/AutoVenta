@@ -44,6 +44,9 @@ import { createBotAlert } from "./followUps.js";
 import { getActiveBenefits } from "./benefits.js";
 import { getGuardianConfig } from "./settings.js";
 import { faltanteDeCotizacion } from "./stockCorto.js";
+import { alcanzaParaVender } from "../domain/stockCorto.js";
+import { despedidaQueCorresponde } from "../domain/cierrePerdido.js";
+import { ofertaDeCotizarAceptada } from "../domain/ofertaAceptada.js";
 
 const openai = new OpenAI({ apiKey: config.openai.apiKey });
 
@@ -64,6 +67,8 @@ export const CATEGORIAS = [
   "estado_desincronizado",
   "promesa_incumplible",
   "pregunta_de_mas",
+  "insiste_tras_rechazo",
+  "reofrece_lo_aceptado",
   "tono",
   "otro",
 ] as const;
@@ -98,7 +103,7 @@ export interface RevisionGuardian {
   hallazgos: z.infer<typeof HallazgoSchema>[];
 }
 
-const ESQUEMA_SALIDA = {
+export const ESQUEMA_SALIDA = {
   type: "json_schema",
   json_schema: {
     name: "revision_guardian",
@@ -131,7 +136,7 @@ const ESQUEMA_SALIDA = {
   },
 } as const;
 
-const INSTRUCCIONES = `Eres el ÁNGEL GUARDIÁN del bot de ventas de Depot Tire (llantas, Quito). Revisas el BORRADOR que el bot está por enviar y lo apruebas o lo corriges. No eres el vendedor: eres el auditor que ve la conversación desde afuera.
+export const INSTRUCCIONES = `Eres el ÁNGEL GUARDIÁN del bot de ventas de Depot Tire (llantas, Quito). Revisas el BORRADOR que el bot está por enviar y lo apruebas o lo corriges. No eres el vendedor: eres el auditor que ve la conversación desde afuera.
 
 REVISA, en este orden de gravedad:
 1. PRECIOS Y COTIZACIONES. Todo número que el borrador afirme (precio unitario, total, número de cotización, meses de garantía) debe coincidir EXACTAMENTE con los datos duros del contexto. Si el borrador confirma que una cotización corresponde a una medida y los datos dicen otra medida, eso es un error ALTO.
@@ -153,6 +158,12 @@ REVISA, en este orden de gravedad:
 14. NÚMEROS DE COTIZACIÓN: NUNCA en el mensaje al cliente. Ni «COT-…» ni «AV-…». El cliente no llega al local recitándolos y ponerlos compite con lo único que sí tiene que recordar, su código de cupón. Si el borrador los trae, quítalos y habla de la cotización por su contenido («su cotización de 4 Falken Wildpeak en 235/75R15»). Y jamás los uses TÚ para explicarle al cliente por qué algo está mal: discutir números de cotización con él es ruido, no servicio.
 
 15. LO QUE EL BOT TIENE PROHIBIDO PREGUNTAR, TÚ TAMPOCO. Tu corrección ES un mensaje del bot y hereda sus prohibiciones. La que más se cuela: **preguntar cuántas llantas quiere**. No se pregunta nunca — sin cantidad dicha son 4, que es el juego, y se cotizan de una; si después el cliente dice otra cantidad, se cotiza de nuevo con esa. Tampoco se pregunta el nombre, ni «¿cliente final?», ni nada que los HECHOS ya traigan. **LA EXCEPCIÓN, y es una sola:** «${CIERRE_COTIZAR}» es el cierre de venta que escribe la PLANTILLA de la casa, palabra por palabra. Esa frase no es una pregunta de más: es el pedido con el que se cierra la recomendación, y sin ella el mensaje queda contando una llanta y sin pedir nada. Déjala pasar tal cual y NO la marques. Cualquier otra forma de pedir permiso para la cantidad («¿se la cotizo por 6?», «¿cuántas lleva?») sigue siendo error. **OJO con lo que NO es una pregunta:** cuando la cantidad se sale de lo normal (menos de 4 o más de 8) el bot AVISA al mandar la pieza —«Aquí le mando la cotización con *9 llantas* 👍»—. Eso es una afirmación correcta y pedida por el negocio: no la toques ni la marques. Si el borrador trae una de las preguntas prohibidas es **pregunta_de_mas** de severidad ALTA —cada una cuesta un turno para llegar a la misma respuesta— y la corrección la reemplaza por el paso que sí corresponde (cotizar), no la reescribe más bonita.
+
+17. AVISAR DEL STOCK NO SIEMPRE ALCANZA. Si los HECHOS traen «STOCK NO ALCANZA», el bot firmó —o está por firmar— una cantidad de la que hoy hay menos de la mitad. Ahí la regla 10 se queda corta: pegarle el aviso a una promesa no deshace la promesa, y el cliente igual se lleva un número por un juego que no existe. Cualquier borrador que presente esa cantidad como cotizada —su total, su «4 × …», su «el juego»— es error ALTO de categoría **stock_prometido** AUNQUE traiga el aviso pegado. La corrección dice cuántas hay hoy y ofrece las dos salidas reales: cotizar las que hay, o que el asesor consiga el resto por pedido. Y no inventes un total nuevo: si no tienes el precio unitario en los datos duros, hablas de unidades y no de plata.
+
+18. AL QUE SE DESPIDIÓ NO SE LE INSISTE. Si los HECHOS traen «EL CLIENTE SE DESPIDIÓ», el cliente acaba de decir que ya compró en otro lado, que no le interesa o que no le escriban más. Cualquier borrador que le pregunte el día de la visita, le ofrezca un descuento, le mande links del local o le proponga cualquier siguiente paso comercial es error ALTO de categoría **insiste_tras_rechazo**. Pasó el 27-ago (conv 4732): el cliente escribió «Gracias ya compré en otro lugar» y en el mismo turno recibió «¿Qué día cree que puede pasar por Depot Tire Cumbayá? … con 25 % de descuento, $73.92 menos». La corrección es una despedida corta y cálida que agradece, se alegra por su compra si compró, y deja la puerta abierta sin pedir nada. Ninguna pregunta.
+
+19. AL QUE YA DIJO QUE SÍ NO SE LE VUELVE A PREGUNTAR. Si los HECHOS traen «EL CLIENTE YA ACEPTÓ», el bot ofreció la cotización y el cliente contestó «gracias», «ok», «listo» o parecido. Eso es un sí. Un borrador que vuelve a ofrecer lo mismo —«si desea, le dejo la cotización formal», «¿quiere que se la cotice?»— es error ALTO de categoría **reofrece_lo_aceptado**: son dos turnos para llegar al mismo sitio y es donde el cliente deja de contestar. Pasó el 27-ago (conv 11070). OJO con lo que NO puedes hacer: TÚ no puedes generar la cotización, así que no prometas que sale ni inventes su total. Corrige a un mensaje que confirme que va en camino solo si el turno la lleva; si no, repórtalo ALTO y aprueba — el que tiene que llamar a la herramienta es el bot.
 
 16. EL CIERRE DESPUÉS DE LA COTIZACIÓN VA EN DOS MENSAJES. Primero los dos locales con sus links y un «sin compromiso»; después, en mensaje aparte, la pregunta de a cuál le queda mejor. El DÍA no se pregunta en ese turno: se pregunta recién cuando el cliente ya eligió local. Si el borrador junta las dos preguntas —local y día— o mete la pregunta dentro del bloque de los links, corrígelo respetando los separadores '---'.
 
@@ -270,6 +281,12 @@ export async function armarContexto(
   })();
   const respaldados = [...beneficios.map((b) => b.text), ...servicios];
 
+  // Los dos últimos turnos, sueltos: son la materia prima de los hechos de
+  // despedida y de oferta aceptada. `mensajes` viene del más nuevo al más viejo.
+  const ultimoDelCliente = mensajes.find((m) => m.direction === "inbound")?.content ?? "";
+  const ultimoDelBot =
+    mensajes.find((m) => m.direction !== "inbound" && m.author_kind === "bot")?.content ?? null;
+
   const historial = [...mensajes].reverse().map((m) => {
     const quien = m.direction === "inbound" ? "CLIENTE" : m.author_kind === "bot" ? "BOT" : "ASESOR";
     return `${quien}: ${(m.content ?? "").slice(0, 380)}`;
@@ -301,9 +318,30 @@ export async function armarContexto(
     // repitió: para él las 4 unidades eran un hecho firme, porque los HECHOS se
     // lo decían así y su rúbrica no hablaba de disponibilidad. Ahora el
     // faltante es un hecho más, y la regla 10 lo exige.
-    faltante
+    faltante && alcanzaParaVender(faltante.stockHoy, faltante.cantidad)
       ? `STOCK CORTO: la cotización vigente es por ${faltante.cantidad} y hoy hay ${faltante.stockHoy} ` +
         `de ${faltante.etiqueta || faltante.codigo}. El resto lo confirma el asesor.`
+      : null,
+    // Y EL ESCALÓN DE ARRIBA: no es que falte una, es que casi no hay.
+    //
+    // 27-ago, conv 11720: 215/50R17 con UNA unidad, cotización firmada por 4 a
+    // $423.52. El guardián la aprobó sin un hallazgo, y con razón: su única
+    // regla de stock (la 10) le pedía que EXIGIERA EL AVISO, y el aviso estaba.
+    // Nada le decía que a esa distancia el aviso ya no alcanza. Ahora la
+    // distancia es un hecho, con su nombre.
+    faltante && !alcanzaParaVender(faltante.stockHoy, faltante.cantidad)
+      ? `STOCK NO ALCANZA: la cotización vigente es por ${faltante.cantidad} y hoy hay ${faltante.stockHoy} ` +
+        `de ${faltante.etiqueta || faltante.codigo} — menos de la mitad de lo pedido. Esto NO es un desfase ` +
+        "de inventario: es que no hay. Avisar no basta; esa cantidad no se debió firmar."
+      : null,
+    // El cliente se despidió en ESTE turno. Lo miran las reglas 17 y 18.
+    despedidaQueCorresponde(ultimoDelCliente)
+      ? `EL CLIENTE SE DESPIDIÓ: su último mensaje fue «${ultimoDelCliente.slice(0, 120)}». ` +
+        "La venta está cerrada. No se le insiste con nada."
+      : null,
+    ofertaDeCotizarAceptada(ultimoDelBot, ultimoDelCliente)
+      ? `EL CLIENTE YA ACEPTÓ: el bot le ofreció la cotización y él contestó «${ultimoDelCliente.slice(0, 60)}». ` +
+        "Eso es un sí. Lo que corresponde es la cotización, no volver a ofrecerla."
       : null,
     // La cotización vigente puede ser de OTRA medida que la que el cliente está
     // comprando (conv 4732: se firmó una 265/65R17 a quien compraba 235/70R15).

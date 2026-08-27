@@ -6,6 +6,7 @@
 import OpenAI from "openai";
 import type { ChatCompletionMessageParam, ChatCompletionTool } from "openai/resources/chat/completions";
 import { config } from "../config.js";
+import { ofertaDeCotizarAceptada, ordenDeCotizarYa } from "../domain/ofertaAceptada.js";
 import { getHistory, logAiRun } from "../services/conversations.js";
 import { getAiConfig, getPublishedStagePrompt, getStoreHours } from "../services/settings.js";
 import { getPhaseFlags, toolEnabled } from "../services/phases.js";
@@ -143,6 +144,14 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
     version: stagePrompt.version,
   }, storeHours);
   const history = await getHistory(ctx.conversation.id, config.openai.historyLimit);
+  // ¿Le ofrecimos cotizar y contestó «gracias»? Eso es un sí (conv 11070,
+  // 27-ago). Se calcula acá porque el último saliente ya está en `history`.
+  // Ver `domain/ofertaAceptada.ts`.
+  const ultimoDelBot = [...history].reverse().find((m) => m.role === "assistant");
+  const aceptoLaOferta = ofertaDeCotizarAceptada(
+    typeof ultimoDelBot?.content === "string" ? ultimoDelBot.content : null,
+    userText,
+  );
   if (history.at(-1)?.role === "user" && history.at(-1)?.content === userText) history.pop();
   ctx.currentUserText = userText;
   ctx.storeHours = storeHours;
@@ -181,6 +190,7 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
   // mensaje del cliente, que es donde más se respetan.
   const bloquesVolatiles: ChatCompletionMessageParam[] = [
     { role: "system", content: salesFactsPrompt(salesFacts, ctx.resumedFromHuman) },
+    ...(aceptoLaOferta ? [{ role: "system" as const, content: ordenDeCotizarYa(userText) }] : []),
     // Los beneficios vigentes de la tabla, como hecho (P-03, reunión 25-ago):
     // sin esto el bot decía «el balanceo es aparte» mientras su propia
     // cotización imprimía «alineación y balanceo incluidos». Va en los bloques

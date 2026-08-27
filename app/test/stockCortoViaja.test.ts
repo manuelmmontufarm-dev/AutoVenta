@@ -153,6 +153,7 @@ describe("el orden de los candados en el turno", () => {
       "guardian_deterministico",
       "angel_guardian",
       "aviso_de_stock",
+      "despedida_de_venta_perdida",
       "insistir_con_lo_que_falta",
       "sin_preguntas_prohibidas",
       "sin_json_crudo",

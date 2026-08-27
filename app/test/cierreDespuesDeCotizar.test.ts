@@ -140,11 +140,21 @@ describe("no se ofrece lo que no alcanza para la compra", () => {
     expect(opcionesQueAlcanzan(productos, 8).map((p) => p.code)).toEqual(["A"]);
   });
 
-  it("EL BORDE QUE IMPORTA: si nada alcanza, se muestra todo igual", () => {
+  it("EL BORDE QUE IMPORTA: si nada alcanza, se muestra lo que llega a la mitad", () => {
     // Quedarse sin opciones es peor que mostrar una de la que hay pocas: el
     // stock de Contífico viene desfasado y ahí entra el aviso de stock corto.
+    // Pero «pocas» tiene un piso. 27-ago, conv 11720: la red dejaba entrar la
+    // de UNA unidad y de esa vitrina salió una cotización firmada por 4 a
+    // $423.52. Con 4 pedidas, 2 todavía es desfase creíble y 1 ya no lo es.
     const pocas = [llanta("B", 2), llanta("D", 1)];
-    expect(opcionesQueAlcanzan(pocas).map((p) => p.code)).toEqual(["B", "D"]);
+    expect(opcionesQueAlcanzan(pocas).map((p) => p.code)).toEqual(["B"]);
+  });
+
+  it("y si NINGUNA llega a la mitad, la lista vuelve vacía", () => {
+    // Vacía a propósito: la tool corta antes de dibujar y el agente le dice al
+    // cliente que en esa medida no hay, con pedido o equivalente. Ver
+    // `sin_stock_en_la_medida` en tools.ts.
+    expect(opcionesQueAlcanzan([llanta("D", 1)]).map((p) => p.code)).toEqual([]);
   });
 
   it("el juego completo de Depot son 4", () => {

@@ -23,8 +23,15 @@ describe("playbook compacto", () => {
    * para la regla de la unidad («se dice 4 llantas, nunca el número a secas»),
    * que tiene que estar en los DOS playbooks o producción no la lee. Sigue
    * siendo ~1/4 del largo, que es lo que este techo protege.
+   *
+   * Y de 5.100 a 5.800 el 27-ago por dos reglas que producción no tenía y que
+   * costaron dos fallas del mismo día: «si no es un NO, es un SÍ» (conv 11070,
+   * el bot ofreció la cotización, el cliente dijo «Gracias» y el bot volvió a
+   * ofrecerla — la regla existía en el playbook LARGO, que producción no lee) y
+   * «el stock manda sobre la cotización» (conv 11720, se firmaron 4 llantas de
+   * las que había 1). Las dos son de conversión y de verdad, no de estilo.
    */
   it("es materialmente menor que el prompt histórico", () => {
-    expect(COMPACT_PLAYBOOK.length).toBeLessThan(5_100);
+    expect(COMPACT_PLAYBOOK.length).toBeLessThan(5_800);
   });
 });
