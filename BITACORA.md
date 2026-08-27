@@ -184,6 +184,93 @@ Ya viene activado en este equipo.
 
 ## Entradas (más reciente primero)
 
+### 2026-08-27 · La medida que se contaba como llantas · ⏱️ 0.5 h
+
+**Qué:** `cantidadGrandePedida` deja de leer la medida del cliente como si
+fuera una cantidad. `tireSize.ts` expone `enmascararMedidas`, y el detector
+busca el número sobre el texto con las medidas ya tapadas.
+
+**Por qué:** salió revisando este mismo PR antes de mergearlo. El detector
+existía desde el 27-ago pero vivía solo en `recotizar.ts`, donde para llegar
+hace falta una cotización viva; al llevarlo al turno normal pasó a correr en el
+**primer mensaje**, que es justo donde el cliente escribe su medida y nada más.
+Sus verbos son los mismos con los que se pide una cantidad, así que «quiero
+265/65R17» dejaba `selected_quantity = 265`.
+
+Y no se quedaba en la ficha: ese número entra en el prompt del modelo como
+«Cantidad ya confirmada: 265 — PROHIBIDO preguntar…, cotiza», en los hechos
+duros del Ángel Guardián (que entonces lo **protege** en vez de corregirlo) y
+sale al chat como «Aquí le mando la cotización con *265 llantas* 👍».
+
+La prueba que debía cuidar este caso —«busco 205/55R16»— usaba un verbo que
+**no está** en la lista del detector, así que pasaba sin ejercitar nada. Ahora
+la prueba usa los verbos de verdad: quiero, necesito, deme, son, cotízame,
+llevo, póngame.
+
+El arreglo va en la fuente y no en el llamador, así que la recotización queda
+tapada también. Quién decide qué es una medida sigue siendo `tireSize.ts`, con
+sus rangos y sus múltiplos de 5: repetir esa regla en `cantidadGrande.ts` sería
+tener dos definiciones de «medida» destinadas a separarse.
+
+**Verificado:** `tsc --noEmit` limpio · 1159/1159 · `sim:humo` 8/8 ·
+`simuladorFidelidad` 11/11.
+
+
+### 2026-08-27 · Las cuatro puertas, y la cantidad que no se anotaba · ⏱️ 1.5 h
+
+**Qué:** dos cosas que no se tocan entre sí, y las dos son el mismo tipo de
+falla — un arreglo que se hizo en un solo sitio cuando había varios.
+
+1. **Toda la cadena de candados vive ahora en `services/prepararSalida.ts`**, y
+   las tres puertas por las que el bot le habla a un cliente pasan por ella.
+   Hasta hoy la cadena era una tira de líneas sueltas en `index.ts`, y su orden
+   lo sostenía nada más que el orden de esas líneas. `grep sendCustomerText`
+   devuelve **cuatro** llamadas: `index.ts` corría los ocho candados,
+   `followUpProcessor` corría tres, y **`resumeBot` corría uno**. Esa última es
+   la que duele: `resumeBot` llama al **mismo `runAgent` con las mismas
+   herramientas**, así que la fuga del JSON crudo que se tapó ayer seguía
+   entera por esa puerta, y el aviso de stock corto no salía nunca cuando el
+   bot retomaba un chat después de un humano.
+
+   El orden ahora es un **dato** (`PASOS`), no el orden de unas líneas. Cada
+   paso dice en qué puertas corre. La plantilla fuera de ventana entra igual a
+   la cadena, con `tipo: "plantilla"` y **cero pasos**: su texto lo fija Meta,
+   no se toca, y que esté en la lista es justamente lo que lo deja escrito.
+
+   De paso, la prueba que vigilaba el orden dejó de leer `src/index.ts` **como
+   texto** con `indexOf`. Esa prueba miraba una sola de las cuatro puertas y no
+   tenía forma de enterarse de que las otras no llamaban a nada; ahora afirma
+   sobre la lista y falla si se reordena o se quita un paso.
+
+2. **«Quiero 20 llantas» queda anotado.** Producción, conv 3 del 27-ago. La
+   ruta de recotización sí lo entendía —`recotizar.ts` compone los dos
+   detectores desde ayer— así que el cliente recibía su pieza por 20 mientras
+   la ficha decía `selected_quantity = null`, porque `index.ts` solo llamaba a
+   `extractExplicitQuantity`, que tope en 8. No es un dato decorativo: de él
+   depende `opcionesQueAlcanzan`, el filtro que decide qué llantas se pueden
+   **enseñar**. Con la ficha vacía filtra contra el juego de 4, y entonces una
+   llanta con 4 unidades en bodega se le ofrece a alguien que pidió 20.
+
+**Lo que hay que saber antes de tocarlo.** El porqué del orden no cambió y está
+copiado entero en el archivo nuevo: **los candados deterministas corren DESPUÉS
+del Ángel Guardián porque el guardián es el último que reescribe**. Un candado
+que corre antes de quien reescribe no es un candado — el 26-ago (conv 11061) la
+corrección del guardián volvió a prometer 4 llantas habiendo 3, borrando el
+aviso que un candado anterior ya había pegado.
+
+**Lo que hay que confirmar con Manuel:** la puerta `retomada` ahora paga la
+llamada del Ángel Guardián, que antes no pagaba. Pasa solo cuando un humano le
+devuelve el chat al bot, y es una respuesta real a un cliente real, así que
+parece bien gastado — pero es plata y la decisión no es técnica.
+
+**Pruebas:** 1157 en verde (18 nuevas, de 1139). Las cinco pruebas nuevas del
+sprint fallan contra `19d4867` y pasan con el cambio: por la vía de `resumeBot`
+el JSON de `notificar_vendedor` **llegaba** al cliente; en un seguimiento
+también; y «quiero 20 llantas» dejaba la ficha en `null`. `sim:humo` 8/8 y
+`simuladorFidelidad` 11/11.
+
+---
+
 ### 2026-08-27 · «4 llantas», no «4» · y el cierre que se borraba solo · ⏱️ 1.5 h
 
 **Qué:** dos arreglos que había que hacer juntos, porque uno rompía al otro.

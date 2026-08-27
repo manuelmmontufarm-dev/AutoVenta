@@ -6,7 +6,7 @@ import { sendCustomerText } from "../wa/client.js";
 import { isBotActive } from "./botPower.js";
 import { appendMessage, type Conversation } from "./conversations.js";
 import { markDiscountNoticeSent } from "./discountOffers.js";
-import { applyOutboundGuard } from "./outboundGuard.js";
+import { prepararSalida } from "./prepararSalida.js";
 import { createBotAlert, scheduleConversationFollowUps } from "./followUps.js";
 import { emitLiveEvent } from "./liveEvents.js";
 import { authorizeConversationOutbound } from "./whatsappPolicy.js";
@@ -90,14 +90,21 @@ export async function resumeBotIfUnanswered(conversationId: number): Promise<Res
     };
     const reply = await runAgent(ctx, claimed.last_text);
     await flagRepetitiveConversation(conversationId, reply);
-    // Mismo guardián que el camino normal: lo que el bot no debe decir, no lo
-    // dice tampoco al retomar tras un humano.
-    const vetted = await applyOutboundGuard(conversationId, reply);
-    // El guardián bloqueó el envío (duplicado/atascado): ya alertó al asesor y
+    // LA MISMA CADENA QUE EL CAMINO NORMAL, no un pedazo de ella.
+    //
+    // Hasta hoy aquí corría un solo candado —`applyOutboundGuard`— de los ocho
+    // del turno normal. Y esta puerta llama al MISMO `runAgent` con las MISMAS
+    // herramientas: la fuga del JSON crudo que se tapó el 27-ago en `index.ts`
+    // seguía viva por aquí, y el aviso de stock corto no salía nunca. Ver
+    // services/prepararSalida.ts.
+    const salida = await prepararSalida(reply, {
+      conversation, tipo: "retomada", huella: ctx.toolTrace ?? [],
+    });
+    // Un candado bloqueó el envío (duplicado/atascado): ya alertó al asesor y
     // para el que llama esto equivale a que no había nada seguro que responder.
-    if (!vetted.text) return "nothing_pending";
-    const providerId = await sendCustomerText(conversationId, claimed.phone, vetted.text);
-    await appendMessage(conversationId, "assistant", vetted.text, providerId, {
+    if (!salida.texto) return "nothing_pending";
+    const providerId = await sendCustomerText(conversationId, claimed.phone, salida.texto);
+    await appendMessage(conversationId, "assistant", salida.texto, providerId, {
       authorKind: "bot", status: "sent", metadata: { resumedAfterHuman: true },
     });
     if (ctx.discountNotice) {

@@ -4,6 +4,17 @@ import { describe, expect, it } from "vitest";
 import {
   afirmaLaCotizacion, avisoStockCorto, recordatorioQueFalta, recordatorioStockCorto, yaAvisaDelStock,
 } from "../src/domain/stockCorto.js";
+// La cadena de candados arrastra la config de la app al importarse (el
+// guardián, la base). Estos valores de mentira son solo para que el import no
+// se caiga: ninguna prueba de este archivo toca la red ni la base.
+process.env.OPENAI_API_KEY ||= "test";
+process.env.WHATSAPP_TOKEN ||= "test";
+process.env.WHATSAPP_APP_SECRET ||= "test";
+process.env.WHATSAPP_VERIFY_TOKEN ||= "test";
+process.env.WHATSAPP_PHONE_ID ||= "test";
+process.env.DATABASE_URL ||= "postgresql://manue@localhost/postgres";
+
+const { PASOS, pasosPara } = await import("../src/services/prepararSalida.js");
 
 /**
  * EL AVISO DE STOCK CORTO TIENE QUE SOBREVIVIR AL TURNO EN QUE NACIÓ.
@@ -126,6 +137,31 @@ describe("la decisión completa: ¿hay que pegar el recordatorio?", () => {
 
 describe("el orden de los candados en el turno", () => {
   /**
+   * El orden es un DATO, no el orden de unas líneas en un archivo.
+   *
+   * Hasta el 27-ago esta prueba leía `src/index.ts` como texto y comparaba
+   * posiciones con `indexOf`. Vigilaba una sola de las cuatro puertas por las
+   * que el bot le habla a un cliente, y no se enteraba de que `resumeBot`
+   * corría UN candado de los ocho. Ahora la cadena vive en `PASOS`
+   * (services/prepararSalida.ts) y esto afirma sobre esa lista: falla si se
+   * reordena o se quita un paso, y NO falla por mover una línea de `index.ts`.
+   */
+  const nombres = PASOS.map((p) => p.nombre);
+
+  it("la cadena es exactamente esta, en este orden", () => {
+    expect(nombres).toEqual([
+      "guardian_deterministico",
+      "angel_guardian",
+      "aviso_de_stock",
+      "insistir_con_lo_que_falta",
+      "sin_preguntas_prohibidas",
+      "sin_json_crudo",
+      "sin_numeros_de_cotizacion",
+      "pregunta_en_su_propio_mensaje",
+    ]);
+  });
+
+  /**
    * El aviso de stock tiene que ser LO ÚLTIMO que se decide sobre el texto.
    *
    * En producción el mensaje que prometió las 4 llantas lo escribió el Ángel
@@ -134,57 +170,74 @@ describe("el orden de los candados en el turno", () => {
    * el candado no se enteraría. Esta prueba fija el orden: quien reescribe va
    * primero, el aviso de stock va después.
    */
-  const index = readFileSync(resolve(__dirname, "../src/index.ts"), "utf8");
-
-  it("asegurarAvisoDeStock corre DESPUÉS de revisarConGuardian", () => {
-    const guardian = index.indexOf("revisarConGuardian(conversation");
-    const stock = index.indexOf("asegurarAvisoDeStock(");
-    expect(guardian, "no se encontró la llamada al guardián").toBeGreaterThan(0);
-    expect(stock, "no se encontró la llamada al aviso de stock").toBeGreaterThan(0);
-    expect(stock).toBeGreaterThan(guardian);
-  });
-
-  it("los bloques que se envían salen del texto con el aviso ya puesto", () => {
-    // Si alguien vuelve a partir `custodiado.texto`, el aviso se pierde en el
-    // último metro sin que ninguna otra prueba lo note. Desde el 26-ago el texto
-    // pasa además por los otros dos candados del final —las preguntas de más y
-    // los números de cotización—, y el orden importa: los tres corren DESPUÉS
-    // del guardián, que es quien reescribe.
-    // Desde el 27-ago son CUATRO: se sumó el candado del JSON crudo, después de
-    // que el simulador dejara salir el resultado de una herramienta como
-    // respuesta al cliente. La cadena tiene que llegar entera hasta splitBlocks.
-    expect(index).toContain("insistirConLoQueFalta(");
-    expect(index).toContain("sinPreguntasProhibidas(insistido.texto)");
-    expect(index).toContain("sinJsonCrudo(depurado.texto)");
-    // Desde el 27-ago la pregunta se separa en su propio bloque al final de todo,
-    // así que splitBlocks recibe el texto ya partido.
-    expect(index).toContain("conPreguntaEnSuPropioMensaje(");
-    expect(index).toContain("splitBlocks(conPreguntaAparte.texto)");
+  it("el aviso de stock corre DESPUÉS del Ángel Guardián", () => {
+    expect(nombres.indexOf("aviso_de_stock"))
+      .toBeGreaterThan(nombres.indexOf("angel_guardian"));
   });
 
   it("el candado del JSON crudo también corre DESPUÉS del guardián", () => {
     // Misma razón que el aviso de stock: quien puede dejar salir el JSON es el
     // Ángel Guardián, que reescribe el texto entero al final.
-    const guardian = index.indexOf("revisarConGuardian(conversation");
-    const json = index.indexOf("sinJsonCrudo(depurado.texto)");
-    expect(json, "no se encontró el candado del JSON crudo").toBeGreaterThan(0);
-    expect(json).toBeGreaterThan(guardian);
+    expect(nombres.indexOf("sin_json_crudo"))
+      .toBeGreaterThan(nombres.indexOf("angel_guardian"));
   });
 
-  it("las tres puertas de la cotización usan el mismo módulo", () => {
-    // El agente (tools), la ruta directa (sin agente) y el envío (index).
-    for (const archivo of ["../src/agent/tools.ts", "../src/services/directSalesRoutes.ts", "../src/index.ts"]) {
-      const texto = readFileSync(resolve(__dirname, archivo), "utf8");
-      expect(texto, `${archivo} no consulta el faltante de stock`).toMatch(/stockCorto\.js/);
+  it("los tres candados deterministas del final van después de quien reescribe", () => {
+    // Las preguntas de más, el JSON crudo y los números de cotización: los tres
+    // corren DESPUÉS del guardián, que es quien reescribe.
+    for (const candado of ["sin_preguntas_prohibidas", "sin_json_crudo", "sin_numeros_de_cotizacion"]) {
+      expect(nombres.indexOf(candado), candado)
+        .toBeGreaterThan(nombres.indexOf("angel_guardian"));
     }
   });
 
-  it("el seguimiento automático también pasa por el aviso", () => {
-    // La cuarta puerta: el mensaje que sale solo tras el silencio del cliente
-    // repite la cotización con sus números («su cotización por 4 sigue
-    // vigente») — y sin este candado, la repetía limpia. Se cableó junto con
-    // la revisión de seguimientos del guardián (26-ago).
-    const followUpProcessor = readFileSync(resolve(__dirname, "../src/services/followUpProcessor.ts"), "utf8");
-    expect(followUpProcessor).toContain("asegurarAvisoDeStock(context.id");
+  it("la pregunta se separa LO ÚLTIMO, con la cadena ya terminada", () => {
+    // Los candados de arriba todavía pueden pegar o reescribir la pregunta del
+    // cierre, así que separarla antes no serviría de nada (27-ago).
+    expect(nombres[nombres.length - 1]).toBe("pregunta_en_su_propio_mensaje");
+  });
+
+  it("el turno normal corre la cadena entera", () => {
+    expect(pasosPara("respuesta").map((p) => p.nombre)).toEqual(nombres);
+  });
+
+  it("el bot que retoma tras un humano corre los mismos candados", () => {
+    // La fuga que motivó todo esto: `resumeBot` llama al MISMO `runAgent` con
+    // las MISMAS herramientas y corría UNO de los ocho.
+    const retomada = pasosPara("retomada").map((p) => p.nombre);
+    for (const candado of ["guardian_deterministico", "angel_guardian", "aviso_de_stock",
+      "sin_preguntas_prohibidas", "sin_json_crudo", "sin_numeros_de_cotizacion"]) {
+      expect(retomada, candado).toContain(candado);
+    }
+  });
+
+  it("el seguimiento corre los deterministas, sin bloquear el envío", () => {
+    const seguimiento = pasosPara("seguimiento").map((p) => p.nombre);
+    for (const candado of ["angel_guardian", "aviso_de_stock",
+      "sin_preguntas_prohibidas", "sin_json_crudo", "sin_numeros_de_cotizacion"]) {
+      expect(seguimiento, candado).toContain(candado);
+    }
+    // El guardián determinístico puede DEVOLVER null (no enviar), y en un
+    // seguimiento eso dejaría el job contabilizado como enviado sin mensaje.
+    expect(seguimiento).not.toContain("guardian_deterministico");
+    // Y la pregunta no se separa: el seguimiento sale como un solo mensaje, así
+    // que el «---» le quedaría a la vista al cliente.
+    expect(seguimiento).not.toContain("pregunta_en_su_propio_mensaje");
+  });
+
+  it("la plantilla fuera de ventana no recibe NADA", () => {
+    // Su texto lo fija Meta y no se puede tocar. Pasa igual por la cadena para
+    // que no quede ninguna puerta suelta — con la lista vacía.
+    expect(pasosPara("plantilla")).toEqual([]);
+  });
+
+  it("las dos puertas que COTIZAN usan el mismo módulo", () => {
+    // El agente (tools) y la ruta directa (sin agente). El envío ya no aparece
+    // acá: desde el 27-ago las tres puertas de SALIDA consultan el faltante a
+    // través de `PASOS`, y eso lo prueba la lista de arriba en vez del fuente.
+    for (const archivo of ["../src/agent/tools.ts", "../src/services/directSalesRoutes.ts"]) {
+      const texto = readFileSync(resolve(__dirname, archivo), "utf8");
+      expect(texto, `${archivo} no consulta el faltante de stock`).toMatch(/stockCorto\.js/);
+    }
   });
 });
