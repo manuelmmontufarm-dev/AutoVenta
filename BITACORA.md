@@ -184,6 +184,25 @@ Ya viene activado en este equipo.
 
 ## Entradas (más reciente primero)
 
+### 2026-08-27 · El cruce de los dos sprints, con prueba propia · ⏱️ 0.3 h
+
+**Qué:** `test/cierreSobreviveLaCadena.test.ts` — el cierre que arma la
+plantilla de la casa pasa entero por la cadena de `prepararSalida` por las tres
+puertas, y por el camino real de `resumeBot`. Y la contraparte: «¿Se la cotizo
+por 6?», escrita por el modelo, se sigue yendo por las tres.
+
+**Por qué:** es lo único que ninguno de los dos sprints podía probar solo. S2
+cambió el cierre y lo exentó del candado; S1 hizo que ese candado corriera en
+tres sitios donde antes corría en uno. La frase nueva contiene «de 4», así que
+vuelve a caer en la misma regex que borraba a la vieja — lo único que la salva
+es la exención, y hasta ahora nadie había comprobado que la salve **en las tres
+puertas**. Comprobado además que la prueba no es de adorno: quitando la
+exención se caen 4 de sus 6 casos.
+
+**Verificado:** `tsc --noEmit` limpio · `sim:humo` 8/8 · `simuladorFidelidad`
+11/11 · suite completa en verde.
+
+
 ### 2026-08-27 · La medida que se contaba como llantas · ⏱️ 0.5 h
 
 **Qué:** `cantidadGrandePedida` deja de leer la medida del cliente como si
