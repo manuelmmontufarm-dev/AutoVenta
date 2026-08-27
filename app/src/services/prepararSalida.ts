@@ -34,6 +34,7 @@ import { createBotAlert } from "./followUps.js";
 import { MAX_BLOCKS } from "./quoteMessages.js";
 import { sinPreguntasProhibidas } from "../domain/preguntasProhibidas.js";
 import { sinJsonCrudo } from "../domain/jsonCrudo.js";
+import { conLocalesReales } from "./localesReales.js";
 import { sinNumerosDeCotizacion } from "../domain/numerosDeCotizacion.js";
 import { conPreguntaEnSuPropioMensaje } from "../domain/preguntaSola.js";
 
@@ -187,6 +188,36 @@ export const PASOS: readonly PasoDeSalida[] = [
         });
       }
       return limpio.texto;
+    },
+  },
+  {
+    // Ningún local inventado sobrevive el turno.
+    //
+    // Producción, 27-ago, conv 11302: el bot ofreció «¿Le queda mejor el sector
+    // *Quito Norte* o *Quito Sur*?» y Depot Tire no tiene local en el norte. El
+    // cliente contestó «en el norte» y el turno siguiente hubo que desdecirse.
+    // Va aquí, después del Ángel Guardián, porque ese nombre lo escribió el
+    // modelo y el guardián lo dejó pasar. Ver domain/localesInventados.ts.
+    nombre: "sin_locales_inventados",
+    corre: ["respuesta", "retomada", "seguimiento"],
+    async aplicar(texto, ctx) {
+      const conLocales = conLocalesReales(texto);
+      if (conLocales.inventados.length) {
+        console.warn(
+          `✂️ Local inventado en la conv ${ctx.conversation.id}: ${conLocales.inventados.join(" | ")}`,
+        );
+        await createBotAlert({
+          conversationId: ctx.conversation.id,
+          cycle: ctx.conversation.current_cycle,
+          type: "local_inventado",
+          priority: "high",
+          summary: "El bot ofreció un local que no existe",
+          exactReason: `Ofreció: ${conLocales.inventados.join(" | ")}`,
+          suggestedAction: "Se reemplazó por la pregunta de los dos locales reales. Revisá el turno.",
+          dedupeKey: `local_inventado:${ctx.conversation.id}:${ctx.conversation.current_cycle}`,
+        });
+      }
+      return conLocales.texto;
     },
   },
   {

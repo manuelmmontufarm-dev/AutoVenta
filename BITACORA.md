@@ -32,6 +32,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-08-27 | _(este mismo)_ | La vitrina deja de mostrar lo que no hay, y el bot no ofrece locales que no existen | 1.0 |
 | 2026-08-27 | _(este mismo)_ | La cantidad se dice con su unidad («4 llantas») y el cierre de venta deja de borrarse solo | 1.5 |
 | 2026-08-27 | _(este mismo)_ | Cada pregunta en su propio mensaje, y la pregunta en imperativo deja de duplicarse | 1.0 |
 | 2026-08-27 | _(este mismo)_ | «el 30» se entiende como fecha, el cierre deja de repreguntar, y /restart para poder probar sin esperar | 1.5 |
@@ -183,6 +184,67 @@ Ya viene activado en este equipo.
 ---
 
 ## Entradas (más reciente primero)
+
+### 2026-08-27 · La vitrina con llantas que no hay, y el local que no existe · ⏱️ 1.0 h
+
+**Qué:** dos candados nacidos del mismo chat de producción — conv 11302, Enrique
+Molina, medida 195/55R15.
+
+**1 · Ninguna llanta sin stock entra a la pieza de opciones.**
+
+A las 21:01 la pieza salió con UNA sola llanta, la KENDA KR20, que era la única
+que alcanzaba: correcto. A las 14:02 del día siguiente salió con TRES, y dos
+rotuladas *Sin stock* en la propia imagen. Manuel: «¿por qué mandaría eso? va en
+contra de toda la lógica».
+
+La causa estaba escrita y era una red de emergencia: `opcionesQueAlcanzan`
+filtraba por «stock ≥ 4» y, si no quedaba ninguna, devolvía **todas**. El
+comentario justificaba mostrar «una de la que hay pocas» —el stock de Contífico
+viene desfasado y negarse pierde ventas—, pero «pocas» y «cero» no son lo mismo.
+Entre las 21:01 y las 14:02 el stock de la KR20 bajó de cuatro, el filtro quedó
+vacío, y la red devolvió las tres.
+
+Ahora la red baja el listón hasta «que tenga algo», no hasta cero. Y si NINGUNA
+tiene stock, la lista vuelve vacía a propósito: la tool corta antes de renderizar
+y le ordena al agente decir que en esa medida no hay, ofrecer el pedido por
+asesor y proponer una equivalente. Probado con el stock clavado en el simulador:
+con dos en cero y una en dos, la pieza sale con una sola llanta; con las tres en
+cero no sale pieza y el bot lo dice en una línea.
+
+**2 · El bot no ofrece un local que no existe.**
+
+En ese mismo chat, ante un audio que preguntaba dónde queda el negocio:
+
+> «¿Le queda mejor el sector *Quito Norte* o *Quito Sur* para pasarle la
+> ubicación que más le convenga?»
+
+Depot Tire no tiene local en Quito Norte. El cliente contestó «en el norte» y el
+turno siguiente el bot tuvo que desdecirse. «Quito Norte» no está en ningún
+prompt ni en el playbook: el modelo lo inventó por simetría con «Quito Sur».
+
+`sin_locales_inventados` valida contra `business.stores` y sustituye la pregunta
+por `PREGUNTA_DE_LOCAL`, que nombra los dos reales. Solo toca preguntas que
+OFRECEN elegir: decir «no tenemos local en el norte» es correcto y necesario, y
+eso se queda.
+
+**Lo que casi sale mal, y vale más que los dos arreglos.** Mientras trabajaba
+entró en `main` el Sprint Final —PR #10, #11 y el refactor que mudó la cadena de
+candados de `index.ts` a `services/prepararSalida.ts`—. Yo venía de `19d4867` y
+al resolver un conflicto de `stash` me quedé con MI `index.ts`, que era el viejo:
+eso habría revertido el refactor entero. Lo delató una prueba —«el seguimiento
+automático también pasa por el aviso»— que fallaba pidiendo un símbolo que en mi
+árbol ya no existía. El arreglo fue devolver `index.ts` y su prueba a la versión
+del sprint y re-aplicar lo mío como un PASO más de la cadena nueva, que es donde
+tenía que vivir desde el principio.
+
+También quedó un susto anotado: `agendarVisita.integration.test` falló dos veces
+seguidas y el experimento de control (con los cambios guardados) pasó — parecía
+mío. No lo era: esas pruebas llaman al modelo de verdad y venían de machacar el
+simulador. Repetido con los cambios puestos, 6/6 en 17 s.
+
+**Pruebas:** 1194 en verde (21 nuevas). Y el candado del JSON crudo, que en la
+entrada anterior quedó marcado como no visto disparar en vivo, ahora se lo ve
+dispararse en la suite: `✂️ JSON crudo quitado en la conv 1/2/5`.
 
 ### 2026-08-27 · Sprint Final: los dos sprints en producción · ⏱️ 1.0 h
 

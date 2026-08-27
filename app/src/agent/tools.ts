@@ -1163,6 +1163,19 @@ export function buildTools(ctx: AgentContext) {
       const vendibles = opcionesQueAlcanzan(
         candidatos, cantidadDelCliente?.selected_quantity ?? JUEGO_COMPLETO,
       );
+      // NINGUNA con stock: no se dibuja la pieza. Antes esto era imposible
+      // —la red de emergencia devolvía todo— y por eso salían llantas
+      // rotuladas «Sin stock» en la vitrina (conv 11302, 27-ago). Decirlo en
+      // una línea y ofrecer al asesor vende más que una imagen de lo que no hay.
+      if (!vendibles.length) {
+        return JSON.stringify({
+          error: "sin_stock_en_la_medida",
+          regla: "NINGUNA de esas llantas tiene stock. NO mandes la pieza de opciones. "
+            + "Dile al cliente en una línea que en esa medida no hay stock ahora mismo, "
+            + "ofrécele que el asesor se lo confirme o consiga por pedido, y pregúntale "
+            + "si quiere que le busques una medida equivalente.",
+        });
+      }
       // Tope de tres, una por escalón de marca. El cliente lo pidió explícito:
       // seis opciones confunden y el cliente termina sin elegir ninguna.
       const products = vendibles.length > 3 ? tresOpciones(vendibles) : vendibles;

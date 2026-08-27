@@ -156,6 +156,7 @@ describe("el orden de los candados en el turno", () => {
       "insistir_con_lo_que_falta",
       "sin_preguntas_prohibidas",
       "sin_json_crudo",
+      "sin_locales_inventados",
       "sin_numeros_de_cotizacion",
       "pregunta_en_su_propio_mensaje",
     ]);

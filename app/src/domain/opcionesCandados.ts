@@ -115,11 +115,24 @@ export const JUEGO_COMPLETO = 4;
  * medida con UNA unidad y el bot cotiza las 4 llantas de esa unidad» del 25-ago,
  * atacado un paso antes — en la vitrina y no en la caja.
  *
- * OJO con la salida de emergencia: si al filtrar no queda NINGUNA, se devuelven
- * todas. Quedarse sin opciones que mostrar es peor que mostrar una de la que
- * hay pocas —ahí sí entra el aviso de stock corto, que para eso existe—, y el
- * stock de Contífico viene desfasado: negarse pierde la venta justo cuando en
- * bodega sí están.
+ * LA SALIDA DE EMERGENCIA BAJA EL LISTÓN, PERO NO HASTA CERO.
+ *
+ * Si al filtrar no queda ninguna se devuelven las que TENGAN algo, aunque no
+ * alcancen: mostrar una de la que hay dos es discutible —para eso existe el
+ * aviso de stock corto— y el stock de Contífico viene desfasado, así que
+ * negarse pierde la venta justo cuando en bodega sí están.
+ *
+ * Pero antes devolvía TODAS, y ahí se colaba el cero. Producción, 27-ago-2026,
+ * conv 11302 (Enrique Molina, 195/55R15): a las 21:01 la KENDA KR20 alcanzaba y
+ * la pieza salió con ESA SOLA, correcto. Para las 14:02 el stock había bajado
+ * de cuatro, el filtro quedó vacío, y la red de emergencia devolvió las tres —
+ * dos rotuladas *Sin stock* en la propia imagen. Una vitrina de lo que no se
+ * puede comprar. Manuel: «¿por qué mandaría eso? va en contra de toda la
+ * lógica».
+ *
+ * Cero no es «poco»: es que no hay. Y si no queda ninguna con stock, la lista
+ * vuelve VACÍA a propósito — el llamador tiene que decirle al cliente que en
+ * esa medida no hay, no dibujarle una pieza de llantas que no existen.
  */
 export function opcionesQueAlcanzan<T extends { stock?: number | null }>(
   productos: readonly T[],
@@ -127,5 +140,6 @@ export function opcionesQueAlcanzan<T extends { stock?: number | null }>(
 ): T[] {
   const minimo = Math.max(1, Math.round(cantidadPedida));
   const alcanzan = productos.filter((p) => Number(p.stock ?? 0) >= minimo);
-  return alcanzan.length ? alcanzan : [...productos];
+  if (alcanzan.length) return alcanzan;
+  return productos.filter((p) => Number(p.stock ?? 0) > 0);
 }
