@@ -86,10 +86,26 @@ export function fechaDelDia(texto: string, now = new Date()): Date | null {
  * no preguntaba nada.
  */
 export function preguntaElDia(bloque: string | null | undefined): boolean {
-  if (!bloque || !bloque.includes("?")) return false;
-  const n = normalizar(bloque);
-  return /\b(?:que|cual|cuando)\b[^.?!]{0,40}\b(?:dia|fecha|finde|fin de semana)\b/.test(n)
-    || /\bcuando\b[^.?!]{0,25}\b(?:puede|podria|pudiera|le queda|viene|vendria|pasa|pasaria|visita)\b/.test(n);
+  if (!bloque) return false;
+  // Las negritas de WhatsApp parten las palabras: «Dígame *qué día* sí le
+  // queda» tiene asteriscos justo en medio de lo que hay que reconocer.
+  const n = normalizar(bloque).replace(/[*_]/g, "");
+  const interrogativo = /\b(?:que|cual|cuando)\b[^.?!]{0,40}\b(?:dia|fecha|finde|fin de semana)\b/;
+  const pideCuando = /\bcuando\b[^.?!]{0,25}\b(?:puede|podria|pudiera|le queda|viene|vendria|pasa|pasaria|visita)\b/;
+  if (bloque.includes("?") && (interrogativo.test(n) || pideCuando.test(n))) return true;
+
+  // LA PREGUNTA EN IMPERATIVO, QUE NO LLEVA SIGNOS.
+  //
+  // Producción, 27-ago (conv 3, 13:15): el bot escribió «Dígame *qué día* sí le
+  // queda y se lo registro». Preguntó, pero sin «?», así que este candado dijo
+  // que no y el del cierre le pegó la pregunta otra vez — el cliente la vio dos
+  // veces seguidas en dos mensajes.
+  //
+  // Exige el interrogativo «qué/cuál día» PEGADO al verbo, y ahí está la
+  // diferencia con el caso contrario: «cuando tenga claro el día que puede
+  // pasar, me avisa» dice «el día», no «qué día», y no pregunta nada — es un
+  // «avíseme usted cuando sepa», que es exactamente lo que NO cierra una venta.
+  return /\b(?:digame|dime|me dice|me dices|aviseme|avisame|cuenteme|cuentame|indiqueme|confirmeme)\b[^.?!]{0,30}\b(?:que|cual)\s+dia\b/.test(n);
 }
 
 export function preguntamosElDia(ultimoMensajeNuestro: string | null | undefined): boolean {

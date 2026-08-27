@@ -32,6 +32,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-08-27 | _(este mismo)_ | Cada pregunta en su propio mensaje, y la pregunta en imperativo deja de duplicarse | 1.0 |
 | 2026-08-27 | _(este mismo)_ | «el 30» se entiende como fecha, el cierre deja de repreguntar, y /restart para poder probar sin esperar | 1.5 |
 | 2026-08-27 | _(este mismo)_ | La escalera vuelve a contestarse escribiendo, «Otro día» pregunta cuál, y ningún JSON sale al cliente | 1.5 |
 | 2026-08-27 | _(este mismo)_ | Botones de WhatsApp en las tres preguntas cerradas: escalera, local y día | 2.0 |
@@ -181,6 +182,47 @@ Ya viene activado en este equipo.
 ---
 
 ## Entradas (más reciente primero)
+
+### 2026-08-27 · La pregunta, sola y una sola vez · ⏱️ 1.0 h
+
+**Qué:** dos cosas, y la segunda es consecuencia de haber arreglado mal la
+primera hace dos entradas.
+
+1. **Cada pregunta sale en su propio mensaje.** `conPreguntaEnSuPropioMensaje`
+   corre al final de toda la cadena y separa la pregunta final del párrafo que
+   la traía pegada. Manuel: «trata que las preguntas vayan en su propio
+   mensaje». La razón se ve en su captura: pegada al final de un párrafo con el
+   precio, el modelo y el local, la pregunta se lee como parte del relato y no
+   como algo que hay que contestar. Sola, ocupa una burbuja entera y es lo
+   último que queda en pantalla. De paso le sirve a los botones, que miran el
+   ÚLTIMO bloque: ahora el mensaje con botones sale limpio.
+
+2. **La pregunta en imperativo ya cuenta como pregunta.** Producción, conv 3,
+   13:15:36 — el bot escribió «Dígame *qué día* sí le queda y se lo registro».
+   Preguntó, pero sin «?», y `preguntaElDia` exigía el signo: dijo que no había
+   preguntado y el candado del cierre le pegó la pregunta otra vez. El cliente
+   la vio dos veces seguidas, en dos mensajes.
+
+**El filo que hay entre las dos fallas.** Anteayer el detector era LAXO y se
+callaba de más: «cuando tenga claro el día que puede pasar, me avisa» le bastaba
+para dar la pregunta por hecha, y el turno terminaba sin pedir nada. Lo hicimos
+estricto exigiendo «?», y ahora preguntaba de más. Las dos frases hablan del
+día, ninguna lleva signos, y la diferencia está en una palabra: «**qué** día» es
+preguntar, «**el** día» es «avíseme usted cuando sepa». Por eso la rama nueva
+exige el interrogativo pegado al verbo imperativo, y hay una prueba para cada
+lado del filo — si alguien afloja una, la otra se enciende.
+
+**Detalle que costó una vuelta:** la coletilla. `PREGUNTA_DE_CIERRE` es «¿Le
+queda alguna otra duda? Ahí le esperamos 🤝», y la primera versión del separador
+exigía que el bloque TERMINARA en «?», así que dejaba sin separar justo a la
+pregunta para la que se escribió. Ahora corta desde el último «¿» hasta el final
+del bloque, con un tope de 60 caracteres detrás del signo: más que eso significa
+que la pregunta no era el cierre y separarla partiría una idea por la mitad.
+
+**Pruebas:** 1139 en verde (17 nuevas). En el simulador, el caso textual de la
+captura: toca «Otro día» → **una sola** pregunta → escribe «el 30» → la
+confirmación y la pregunta de cierre salen en **dos mensajes separados**, con la
+visita guardada. Y `/restart` sigue en pie: ciclo 1 → 2, ficha en blanco.
 
 ### 2026-08-27 · El día que el bot dijo haber guardado y no guardó · ⏱️ 1.5 h
 

@@ -38,11 +38,15 @@ export const PREGUNTA_DE_LOCAL = "¿A cuál local le queda mejor ir, *Cumbayá* 
  * estén sobre la mesa.
  */
 export function preguntaElLocal(bloque: string | null | undefined): boolean {
-  if (!bloque || !bloque.includes("?")) return false;
-  const n = normalize(bloque);
-  if (n.includes(normalize(PREGUNTA_DE_LOCAL))) return true;
-  return /\b(?:cual|que|donde|a cual)\b[^?]{0,60}\b(?:local|locales|sucursal|sucursales|tienda|tiendas)\b/.test(n)
-    || /\b(?:local|sucursal|tienda)\b[^?]{0,40}\b(?:le queda|prefiere|le conviene|le sirve)\b/.test(n);
+  if (!bloque) return false;
+  const n = normalize(bloque).replace(/[*_]/g, "");
+  if (bloque.includes("?")) {
+    if (n.includes(normalize(PREGUNTA_DE_LOCAL).replace(/[*_]/g, ""))) return true;
+    if (/\b(?:cual|que|donde|a cual)\b[^?]{0,60}\b(?:local|locales|sucursal|sucursales|tienda|tiendas)\b/.test(n)) return true;
+    if (/\b(?:local|sucursal|tienda)\b[^?]{0,40}\b(?:le queda|prefiere|le conviene|le sirve)\b/.test(n)) return true;
+  }
+  // Y la pregunta en imperativo, sin signos — misma razón que `preguntaElDia`.
+  return /\b(?:digame|dime|me dice|me dices|indiqueme|confirmeme)\b[^.?!]{0,30}\b(?:a\s+)?(?:que|cual)\s+(?:local|sucursal|tienda)\b/.test(n);
 }
 
 export function preguntamosElLocal(ultimoMensajeNuestro: string | null | undefined): boolean {

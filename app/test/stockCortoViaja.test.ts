@@ -156,7 +156,10 @@ describe("el orden de los candados en el turno", () => {
     expect(index).toContain("insistirConLoQueFalta(");
     expect(index).toContain("sinPreguntasProhibidas(insistido.texto)");
     expect(index).toContain("sinJsonCrudo(depurado.texto)");
-    expect(index).toContain("splitBlocks(sinNumerosDeCotizacion(limpio.texto))");
+    // Desde el 27-ago la pregunta se separa en su propio bloque al final de todo,
+    // así que splitBlocks recibe el texto ya partido.
+    expect(index).toContain("conPreguntaEnSuPropioMensaje(");
+    expect(index).toContain("splitBlocks(conPreguntaAparte.texto)");
   });
 
   it("el candado del JSON crudo también corre DESPUÉS del guardián", () => {

@@ -65,7 +65,7 @@ import { avisarVisitaComprometida } from "./services/visitAlerts.js";
 import { emitirCuponDeConfirmacion } from "./services/coupons.js";
 import { mensajeCupon } from "./domain/coupons.js";
 import { authorizeConversationOutbound } from "./services/whatsappPolicy.js";
-import { splitBlocks } from "./services/quoteMessages.js";
+import { MAX_BLOCKS, splitBlocks } from "./services/quoteMessages.js";
 import { flagRepetitiveConversation } from "./services/conversationQuality.js";
 import { applyOutboundGuard } from "./services/outboundGuard.js";
 import { asegurarAvisoDeStock } from "./services/stockCorto.js";
@@ -81,6 +81,7 @@ import { tryRecotizarPorCantidad } from "./services/recotizar.js";
 import { firstContactReply, isGenericFirstContact } from "./domain/firstContact.js";
 import { botonesParaBloque, recortarTitulo, textoDeBoton, type BloqueConBotones } from "./domain/botones.js";
 import { sinJsonCrudo } from "./domain/jsonCrudo.js";
+import { conPreguntaEnSuPropioMensaje } from "./domain/preguntaSola.js";
 import { esComandoDeReinicio, MENSAJE_DE_REINICIO } from "./domain/reinicio.js";
 import { algunLocalAbre, getStoreHours } from "./services/settings.js";
 
@@ -356,7 +357,14 @@ const pipeline = new InboundPipeline(async ({ from, name, text, waMessageIds, re
       dedupeKey: `json_crudo:${conversation.id}:${conversation.current_cycle}`,
     });
   }
-  const bloques = splitBlocks(sinNumerosDeCotizacion(limpio.texto));
+  // Y la pregunta, sola en su mensaje. Va LO ÚLTIMO de la cadena: los candados
+  // de arriba todavía pueden pegar o reescribir la pregunta del cierre, así que
+  // separarla antes no serviría de nada. Manuel, 27-ago: «trata que las
+  // preguntas vayan en su propio mensaje».
+  const conPreguntaAparte = conPreguntaEnSuPropioMensaje(
+    sinNumerosDeCotizacion(limpio.texto), MAX_BLOCKS,
+  );
+  const bloques = splitBlocks(conPreguntaAparte.texto);
   // El cupón va como bloque aparte y al final: es un mensaje que el cliente va
   // a buscar días después en el chat, y mezclado dentro del párrafo del bot se
   // pierde. Solo cuando se acaba de emitir — si ya lo tenía, repetírselo cada

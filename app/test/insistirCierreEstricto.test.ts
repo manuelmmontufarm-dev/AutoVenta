@@ -28,6 +28,38 @@ describe("el candado del cierre no se calla con un mensaje que solo MENCIONA el 
   });
 });
 
+describe("la pregunta en imperativo TAMBIÉN cuenta (doble pregunta del 27-ago)", () => {
+  // El texto EXACTO del mensaje 14130 en producción, conv 3, 13:15:36. Preguntó
+  // el día sin usar «?», así que el candado creyó que no había preguntado y le
+  // pegó la pregunta otra vez: el cliente la vio dos veces en dos mensajes.
+  const IMPERATIVO =
+    "Claro, *Depot Tire Cumbayá* ya quedó anotado.  \n" +
+    "Dígame *qué día* sí le queda y se lo registro; la cotización ya la tiene por " +
+    "*4 WINRUN R330 205/45R17* por *$286.88*.";
+
+  it("se reconoce como pregunta aunque no lleve signos", () => {
+    expect(preguntaElDia(IMPERATIVO)).toBe(true);
+  });
+
+  it("y el «avíseme usted cuando sepa» sigue SIN contar", () => {
+    // La otra cara del mismo filo: si esto contara, volvería la falla anterior
+    // —el turno que termina sin pedir nada y deja morir el hilo—.
+    expect(preguntaElDia(EL_QUE_FALLO)).toBe(false);
+  });
+
+  it.each([
+    "Dígame qué día le queda mejor.",
+    "Me dice qué día puede pasar y lo agendo.",
+    "Avíseme cuál día le sirve.",
+  ])("reconoce «%s»", (texto) => expect(preguntaElDia(texto)).toBe(true));
+
+  it.each([
+    "Le confirmo el día con el asesor.",
+    "Dígame la medida que busca.",
+    "Ya quedó registrado para el asesor.",
+  ])("no se dispara con «%s»", (texto) => expect(preguntaElDia(texto)).toBe(false));
+});
+
 describe("lo mismo con el local", () => {
   const MAPAS =
     "Puede pasar sin compromiso a verlas y probarlas en su vehículo.\n" +
