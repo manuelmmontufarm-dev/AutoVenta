@@ -19,6 +19,7 @@ import {
 } from "../domain/followUpMessages.js";
 import { buildStoreLinksBlock } from "./quoteMessages.js";
 import { emitLiveEvent } from "./liveEvents.js";
+import { pideUnAsesor } from "../domain/pideAsesor.js";
 import { generateFollowUpCopy } from "./followUpCopy.js";
 import { asesoresActivos, notifyAdvisor } from "./advisorNotifications.js";
 
@@ -399,7 +400,27 @@ export async function handleInboundFollowUpState(
 ): Promise<{ optedOut: boolean; negative: boolean; requestedHuman: boolean }> {
   const optedOut = detectOptOut(text);
   const negative = optedOut || detectNegativeSentiment(text);
-  const requestedHuman = /\b(?:asesor|humano|persona|vendedor|hablar con alguien)\b/i.test(text);
+  // LA PALABRA SUELTA NO ES UN PEDIDO. El bot dice «se lo confirma el asesor en
+  // tienda» en casi todos los turnos; con el detector viejo bastaba con que el
+  // cliente lo repitiera para quedar en `assigned_to='human'` y pausa infinita.
+  // Ver `domain/pideAsesor.ts` y la auditoría de los 151 clientes callados.
+  const requestedHuman = pideUnAsesor(text);
+  // INFINITY SOLO PARA EL OPT-OUT.
+  //
+  // "No me escriban más" es consentimiento y no vence. Estar MOLESTO o pedir un
+  // asesor no es pedir la baja, y con infinity el chat quedaba mudo para
+  // siempre: devolverAlBotSiVencioLaPausa (la red del 8-ago) solo devuelve el
+  // chat cuando la pausa VENCE. La decisión del negocio ya estaba tomada para
+  // el handoff normal —"un chat olvidado que se queda mudo cuesta más que un
+  // bot que retoma de más, y el asesor siempre puede volver a tomarlo desde el
+  // panel"—; este camino se la había saltado, y le costó 151 clientes.
+  const enHoras = (horas: number) => new Date(Date.now() + horas * 3_600_000);
+  // El opt-out conserva 'infinity' —tiene significado propio en la base y es
+  // consentimiento, no un plazo—; el resto lleva una pausa que sí vence.
+  const pausaHasta = optedOut
+    ? sql`'infinity'::timestamptz`
+    : sql`${enHoras(config.pipeline.botPauseHours)}`;
+  const pausaDelHandoff = enHoras(config.pipeline.botPauseHours);
   await sql.begin(async (tx) => {
     await tx`
       update follow_up_jobs set status = 'cancelled',
@@ -417,7 +438,7 @@ export async function handleInboundFollowUpState(
           opted_out_at = case when ${optedOut} then now() else opted_out_at end,
           customer_opt_in = case when ${optedOut} then false else customer_opt_in end,
           negative_sentiment_at = case when ${negative} then now() else negative_sentiment_at end,
-          bot_paused_until = 'infinity'::timestamptz,
+          bot_paused_until = ${pausaHasta},
           assigned_to = 'human', updated_at = now()
         where id = ${conversationId}
       `;
@@ -442,7 +463,7 @@ export async function handleInboundFollowUpState(
     }
     if (requestedHuman && !negative) {
       const [conversation] = await tx<{ current_cycle: number }[]>`
-        update conversations set assigned_to = 'human', bot_paused_until = 'infinity'::timestamptz,
+        update conversations set assigned_to = 'human', bot_paused_until = ${pausaDelHandoff},
           follow_up_reason = 'Cliente pidió atención de un asesor y todavía requiere respuesta',
           follow_up_reason_cycle = current_cycle,
           updated_at = now() where id = ${conversationId} returning current_cycle

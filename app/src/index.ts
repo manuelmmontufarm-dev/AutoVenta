@@ -67,6 +67,7 @@ import { mensajeCupon } from "./domain/coupons.js";
 import { authorizeConversationOutbound } from "./services/whatsappPolicy.js";
 import { splitBlocks } from "./services/quoteMessages.js";
 import { prepararSalida } from "./services/prepararSalida.js";
+import { AVISO_DE_TRASPASO } from "./domain/pideAsesor.js";
 import { flagRepetitiveConversation } from "./services/conversationQuality.js";
 import { notifyPendingHumanRequests } from "./services/advisorNotifications.js";
 import { startEmbeddedFollowUpWorker } from "./workers/embeddedFollowUpWorker.js";
@@ -163,7 +164,16 @@ const pipeline = new InboundPipeline(async ({ from, name, text, waMessageIds, re
   emitLiveEvent("sync", conversation.id);
 
   // Opt-out o molestia detienen el bot antes de typing, IA o cualquier envío.
-  if (inboundSafety.optedOut || inboundSafety.negative || inboundSafety.requestedHuman) return;
+  //
+  // ESTE es el corte de verdad cuando el cliente pide un asesor: pasa acá,
+  // antes de `isBotPaused` y antes de la política. Por eso el pedido salía MUDO
+  // — el cliente no sabía si su mensaje había llegado ni cuándo le iban a
+  // contestar. En la auditoría del 27-ago eso les pasó a 151 clientes, muchos
+  // preguntando un precio o poniendo el día de la visita.
+  if (inboundSafety.optedOut || inboundSafety.negative || inboundSafety.requestedHuman) {
+    await avisarTraspasoSiLoPidio(conversation.id, from, inboundSafety);
+    return;
+  }
 
   if (conversation.stage === "nuevo") {
     await logFunnelEvent(conversation.id, "primer_mensaje");
@@ -353,6 +363,32 @@ const pipeline = new InboundPipeline(async ({ from, name, text, waMessageIds, re
     })
     .catch((error) => console.error("⚠️ No se pudo programar seguimiento:", error));
 });
+
+/**
+ * EL PEDIDO DE ASESOR NO SE CONTESTA CON SILENCIO.
+ *
+ * Se llama desde el ÚNICO sitio que de verdad corta este turno: el corte por
+ * `inboundSafety`, que pasa antes de `isBotPaused` y antes de la política. Lo
+ * probé primero en esas dos puertas de más abajo y el aviso no salía nunca,
+ * porque el turno ya había muerto arriba.
+ *
+ * Sin esto, el turno donde el cliente pide una persona sale MUDO: no sabe si su
+ * mensaje llegó ni cuándo le contestan. En la auditoría del 27-ago eso les pasó
+ * a 151 clientes. Ver `domain/pideAsesor.ts`.
+ */
+async function avisarTraspasoSiLoPidio(
+  conversationId: number,
+  telefono: string,
+  inboundSafety: { requestedHuman: boolean; optedOut: boolean },
+): Promise<void> {
+  if (!inboundSafety.requestedHuman || inboundSafety.optedOut) return;
+  const providerId = await sendCustomerText(conversationId, telefono, AVISO_DE_TRASPASO)
+    .catch(() => null);
+  await appendMessage(conversationId, "assistant", AVISO_DE_TRASPASO, providerId ?? undefined, {
+    authorKind: "bot", status: providerId ? "sent" : "failed",
+  }).catch(() => undefined);
+  console.log(`🤝 Traspaso avisado en la conv ${conversationId}: el cliente pidió un asesor.`);
+}
 
 // Handlers del webhook: se registran una vez y se re-aplican solos cada vez que
 // la instancia de WhatsApp se reconstruye (token pegado desde el panel).

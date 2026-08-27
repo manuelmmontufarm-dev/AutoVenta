@@ -32,6 +32,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-08-27 | _(este mismo)_ | Auditoría de 1.244 conversaciones: 151 clientes callados para siempre, y el tuteo de los seguimientos | 3.0 |
 | 2026-08-27 | _(este mismo)_ | «Santo Domingo» no es domingo, el mapa no espera turno, y la vitrina vieja no se re-etiqueta | 2.5 |
 | 2026-08-27 | _(este mismo)_ | El guardián recibe el catálogo: todo precio y todo stock que el bot afirme se verifica | 1.0 |
 | 2026-08-27 | _(este mismo)_ | El stock puede decir que no, «gracias» es un sí, y al que ya compró no se le insiste | 3.0 |
@@ -182,11 +183,70 @@ Ya viene activado en este equipo.
 | 2026-07-14 | ac09171 | Ubicaciones de locales + análisis de features del cliente | 1.5 |
 | 2026-07-13 | feadf57 | Brief + plan de desarrollo + plan financiero + catálogo | 4.0 |
 | 2026-07-13 | d997844 | Commit inicial (repo) | 0.25 |
-| | | **TOTAL** | **~124 h** |
+| | | **TOTAL** | **~127 h** |
 
 ---
 
 ## Entradas (más reciente primero)
+
+### 2026-08-27 · Auditoría de producción: 151 clientes callados para siempre
+
+**Qué.** Manuel pidió leer las conversaciones «con ojo, como si fueras Joaquín»
+y buscar unos 20 errores históricos. Salieron 21. El primero vale más que los
+otros veinte juntos.
+
+**EL AGUJERO NEGRO.** De 1.244 conversaciones, **167 clientes escribieron
+último y nunca recibieron respuesta**; 155 estaban en `assigned_to='human'` sin
+que ningún asesor hubiera escrito NUNCA, y 151 con `bot_paused_until =
+'infinity'`. 55 en los últimos 7 días. Lo que dijeron para merecerlo:
+
+    «Precio dd cada llanta rim 15 /55»                        conv 6439
+    «En qué precio está está versión»                         conv 11274
+    «Cumbaya si va bien este sábado, quiero ver las llantas»   conv 11251
+    «Valor de la Kenda en las medidas R14_60_195»              conv 1939
+
+Tres fallas encadenadas:
+
+1. El detector era `/\b(asesor|humano|persona|vendedor)\b/` — LA PALABRA
+   SUELTA. El bot dice «se lo confirma el asesor en tienda» en casi todos los
+   turnos, así que al cliente le bastaba con repetirlo. Ahora se exige un
+   PEDIDO (`domain/pideAsesor.ts`), probado contra 13 frases reales de esos
+   clientes: ninguna dispara.
+2. La pausa era `'infinity'`, y `devolverAlBotSiVencioLaPausa` —la red del
+   8-ago— solo devuelve el chat cuando la pausa VENCE. Infinity no vence. Ahora
+   es finita (`botPauseHours`); `'infinity'` queda SOLO para el opt-out, que es
+   consentimiento y no un plazo.
+3. El turno del pedido salía MUDO: el corte está en la línea 167 de `index.ts`,
+   antes de `isBotPaused` y antes de la política. El cliente no sabía si su
+   mensaje había llegado. Ahora sale un acuse.
+
+**EL TUTEO.** 695 mensajes en 367 conversaciones. Todos los seguimientos
+tuteaban («¿Te ayudo?», «tu medida», «¿Prefieres?») mientras la venta entera va
+en «usted». Una rama ya se había migrado el 24-ago y las otras cinco quedaron
+sin tocar. Ahora las plantillas están todas en usted: `grep` da 0.
+
+**Por qué.** Manuel: «uno puede pasar todo el día haciendo arreglos y todavía no
+veo que llegue ni cerca a perfecto». Los errores que se ven en una captura son
+los baratos. Este no se ve en ninguna captura —el cliente simplemente deja de
+recibir respuestas— y solo aparece contando. 151 ventas vivas, muchas con el
+día de visita puesto.
+
+**Probado.** El pedido de asesor repetido en el simulador con el bot real: sale
+el acuse, la pausa queda en +6 h y no en infinity; y el control —«ok que me
+confirme el asesor entonces, y cuánto sale por 4?»— ya no pausa nada y el bot
+cotiza. 1249 pruebas en verde.
+
+**Lo que NO se arregló** (queda escrito para no perderlo): la cotización pegada
+a una medida equivocada de la que el bot no sabe salir (conv 10182, cuatro
+turnos disculpándose sin cotizar nunca); el bucle de «no hay stock» repetido
+seis veces en tres días (conv 10548); los seguimientos que preguntan por una
+opción que nunca se envió (14 mensajes); «pues la 2» leído como cantidad 2
+(conv 10280); y el autorespondedor de otro negocio al que el bot le contesta
+tres veces (conv 9856).
+
+**Horas.** ~3.0 h.
+
+---
 
 ### 2026-08-27 · Un número que cuenta otra cosa no es una cantidad · ⏱️ 1.0 h
 
