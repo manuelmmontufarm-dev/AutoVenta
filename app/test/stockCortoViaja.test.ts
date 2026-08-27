@@ -150,7 +150,8 @@ describe("el orden de los candados en el turno", () => {
     // pasa además por los otros dos candados del final —las preguntas de más y
     // los números de cotización—, y el orden importa: los tres corren DESPUÉS
     // del guardián, que es quien reescribe.
-    expect(index).toContain("sinPreguntasProhibidas(conStock.texto)");
+    expect(index).toContain("insistirConLoQueFalta(");
+    expect(index).toContain("sinPreguntasProhibidas(insistido.texto)");
     expect(index).toContain("splitBlocks(sinNumerosDeCotizacion(depurado.texto))");
   });
 

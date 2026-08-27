@@ -174,9 +174,19 @@ export function quotePoster(data: QuotePosterData, theme: Theme): SatoriNode {
         line.loadSpeedTranslation
           ? text({ fontSize: 21, color: p.tenue }, line.loadSpeedTranslation)
           : null,
+        // LA CANTIDAD, EN GRANDE. Manuel, 27-ago: «pondría más grande el número
+        // de llantas en el PDF para que se note más». Iba en 17 px grises al
+        // lado de la píldora de disponibilidad, y es el dato que cambia el
+        // total: el cliente que pidió 3 tiene que ver 3 de un vistazo, sin
+        // buscarlo. Va con el borde del acento para que compita con el precio.
         el({ alignItems: "center", gap: 16, marginTop: 6 },
           availabilityPill(line.availability, theme),
-          text({ fontSize: 17, fontWeight: 700, color: p.tenue }, `${line.quantity} unidades cotizadas`),
+          el({ alignItems: "center", gap: 9, border: `3px solid ${p.dark}`, borderRadius: 999,
+            padding: "6px 22px" },
+            text({ ...ARCHIVO_BLACK, fontSize: 32, lineHeight: 1.1, color: p.dark }, `${line.quantity}`),
+            text({ fontSize: 19, fontWeight: 700, letterSpacing: 1, color: p.dark },
+              line.quantity === 1 ? "LLANTA" : "LLANTAS"),
+          ),
         ),
       ),
     ),
@@ -273,7 +283,7 @@ export function quotePoster(data: QuotePosterData, theme: Theme): SatoriNode {
       backgroundImage: `linear-gradient(135deg,${p.dark} 0%,${p.dark} 55%,rgba(0,0,0,0.35) 100%)` },
       speedLines(3, 0.08, 520),
       el({ gap: 52 },
-        totalCell(theme, "CANTIDAD", `${line.quantity} llantas`),
+        totalCell(theme, "CANTIDAD", `${line.quantity} ${line.quantity === 1 ? "llanta" : "llantas"}`, true),
         totalCell(theme, "SUBTOTAL", money(data.subtotal)),
         totalCell(theme, "IVA 15%", money(data.iva)),
       ),
@@ -318,10 +328,10 @@ function warrantySealLocal(numero: string, unidad: string, rotulo: string): Sato
 
 const divider = (color: string) => el({ width: 1, height: 190, backgroundColor: color });
 
-function totalCell(theme: Theme, rotulo: string, valor: string): SatoriNode {
+function totalCell(theme: Theme, rotulo: string, valor: string, destacado = false): SatoriNode {
   return el({ flexDirection: "column", gap: 2 },
     text({ fontSize: 13, letterSpacing: 2, color: theme.p.darkSub }, rotulo),
-    text({ fontSize: 26, fontWeight: 700, color: theme.p.paper }, valor),
+    text({ fontSize: destacado ? 38 : 26, fontWeight: 700, color: theme.p.paper }, valor),
   );
 }
 

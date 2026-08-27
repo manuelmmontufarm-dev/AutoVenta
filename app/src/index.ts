@@ -71,6 +71,7 @@ import { asegurarAvisoDeStock } from "./services/stockCorto.js";
 import { revisarConGuardian } from "./services/guardian.js";
 import { sinNumerosDeCotizacion } from "./domain/numerosDeCotizacion.js";
 import { sinPreguntasProhibidas } from "./domain/preguntasProhibidas.js";
+import { insistirConLoQueFalta } from "./services/insistirCierre.js";
 import { notifyPendingHumanRequests } from "./services/advisorNotifications.js";
 import { startEmbeddedFollowUpWorker } from "./workers/embeddedFollowUpWorker.js";
 import { extractExplicitStore, preguntamosElLocal } from "./domain/storeSelection.js";
@@ -302,13 +303,23 @@ const pipeline = new InboundPipeline(async ({ from, name, text, waMessageIds, re
   //
   // Envío con red de seguridad: si Meta rechaza, la respuesta queda guardada
   // como "failed" y visible en el hub — nunca se pierde en silencio.
+  // Y la pregunta que falta, si el turno se fue por otro lado. Manuel, 27-ago:
+  // «si hago preguntas se desvía la conversación y no acaba con una pregunta».
+  // Ver domain/preguntaPendiente.ts.
+  const insistido = await insistirConLoQueFalta(
+    conversation.id, conversation.current_cycle, conStock.texto,
+  );
+  if (insistido.agregado) {
+    console.log(`📌 Turno cerrado sin pedir ${insistido.agregado} en la conv ${conversation.id}: se agregó la pregunta`);
+  }
+
   // Las preguntas de más, también al final y por la misma razón que el stock y
   // los números: quien las escribe es el Ángel Guardián, que corre DESPUÉS de
   // todos los candados deterministas. Y con esta familia no alcanza con
   // pedírselo: puesto a revisar «¿Cuántas llantas necesita?» la marcó en ALTA y
   // su propia corrección terminó con «¿Cuántas llantas desea llevar?»
   // (simulador, 26-ago). Ver domain/preguntasProhibidas.ts.
-  const depurado = sinPreguntasProhibidas(conStock.texto);
+  const depurado = sinPreguntasProhibidas(insistido.texto);
   if (depurado.quitadas.length) {
     console.warn(`✂️ Pregunta de más quitada en la conv ${conversation.id}: ${depurado.quitadas.join(" | ")}`);
     await createBotAlert({

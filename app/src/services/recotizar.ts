@@ -29,13 +29,12 @@
  * las dos digan cosas distintas.
  */
 import { sql } from "../db/client.js";
-import { ahorroDeLaCotizacion } from "../domain/ahorro.js";
 import { esRespuestaDelMenuDePreferencia, extractExplicitQuantity } from "../domain/salesIntent.js";
 import { buildTools, type AgentContext } from "../agent/tools.js";
 import { buildStoreLinksBlockOnce } from "./storeLinks.js";
-import { PREGUNTA_DE_LOCAL, preguntamosElLocal } from "../domain/storeSelection.js";
-import { buildVisitPlanQuestion, composeBlocks } from "./quoteMessages.js";
-import { business, config } from "../config.js";
+import { preguntamosElLocal } from "../domain/storeSelection.js";
+import { composeBlocks } from "./quoteMessages.js";
+import { config } from "../config.js";
 import { logFunnelEvent } from "./conversations.js";
 
 interface LineaCotizada {
@@ -111,36 +110,16 @@ export async function tryRecotizarPorCantidad(
     .catch(() => undefined);
 
   // El texto NO repite lo que la pieza ya muestra (Joaquín, 26-ago): la foto
-  // nueva trae la cantidad, el unitario y el total. Acá solo va el paso que
-  // falta del cierre, y los mapas únicamente si todavía no se enviaron.
-  const [facts] = await sql<{ nearest_store: string | null }[]>`
-    select nearest_store from conversations where id=${ctx.conversation.id}
-  `;
-  const localElegido = facts?.nearest_store ?? null;
-  const [nuevaCotizacion] = await sql<{ items: LineaCotizada[] | null }[]>`
-    select items from quotes
-    where conversation_id=${ctx.conversation.id} and cycle=${ctx.conversation.current_cycle}
-    order by created_at desc limit 1
-  `;
-  const ahorro = ahorroDeLaCotizacion(nuevaCotizacion?.items ?? null);
-  if (localElegido) {
-    return composeBlocks(buildVisitPlanQuestion({
-      conDescuentoAutorizado: false,
-      locales: business.stores.map((store) => store.name),
-      localElegido,
-      ahorro,
-    }));
-  }
-  // El acuse es corto y NO repite la cotización: la foto nueva ya trae la
-  // cantidad, el unitario y el total. Existe porque sin él el turno se quedaba
-  // mudo — la pregunta del local, idéntica a la de 30 segundos antes, la
-  // bloqueaba el guardián determinístico por duplicada (visto en el simulador),
-  // y el cliente recibía una foto sin una sola palabra.
-  const yaPreguntamosElLocal = preguntamosElLocal(ctx.previousOutbound);
-  const mapas = yaPreguntamosElLocal ? "" : await buildStoreLinksBlockOnce(ctx.conversation.id);
+  // nueva trae la cantidad, el unitario y el total. Acá va SOLO el acuse; la
+  // pregunta que falte —el local o el día con su descuento— la pone el candado
+  // del final (`insistirConLoQueFalta`), que es el único dueño de esa decisión
+  // en todo el turno. Sin ese acuse el turno se quedaba mudo: la pregunta
+  // repetida la bloqueaba el guardián determinístico por duplicada.
+  const mapas = preguntamosElLocal(ctx.previousOutbound)
+    ? ""
+    : await buildStoreLinksBlockOnce(ctx.conversation.id);
   return composeBlocks(
     `Listo, se la ajusté a ${nueva} 👍`,
     mapas ? `Puede pasar sin compromiso a verlas y probarlas en su vehículo.\n${mapas}` : null,
-    yaPreguntamosElLocal ? null : `${PREGUNTA_DE_LOCAL} 📍`,
   );
 }

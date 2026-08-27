@@ -32,6 +32,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-08-27 | _(este mismo)_ | La cantidad en grande en la pieza, y ningún turno con cotización cierra sin pedir el local o el día | 1.5 |
 | 2026-08-27 | _(este mismo)_ | «Deme solo 3»: cambiar la cantidad manda la pieza nueva, y las tres fallas que salieron con ella (el «2» del menú, «al de quito», la pregunta corta del local) | 2.5 |
 | 2026-08-26 | _(este mismo)_ | Las preguntas de más se quitan con candado: pedírselo al guardián no alcanzó (marcó la falta y la repitió en su corrección) | 0.75 |
 | 2026-08-26 | _(este mismo)_ | El cierre después de cotizar: dos mensajes en vez de uno, el monto del descuento a la vista, y no se ofrece ni se pregunta lo que no hace falta | 2.0 |
@@ -174,6 +175,41 @@ Ya viene activado en este equipo.
 ---
 
 ## Entradas (más reciente primero)
+
+### 2026-08-27 · La cantidad se ve, y el cierre no se suelta · ⏱️ 1.5 h
+
+**Qué:** la cantidad de llantas pasa a leerse de un vistazo en la pieza — una
+píldora con el número en 32 px junto a la de disponibilidad («3 LLANTAS», antes
+«3 unidades cotizadas» en 17 px grises) y la celda CANTIDAD del pie a 38 px,
+destacada sobre subtotal e IVA. Y `domain/preguntaPendiente.ts` +
+`services/insistirCierre.ts` (nuevos): con una cotización viva, ningún turno se
+envía sin pedir lo que falta — primero el local, después el día con su monto de
+descuento—, y si el turno ya lo pregunta no se toca. Corre al FINAL, después
+del Ángel Guardián, y le hace sitio soltando el bloque más viejo si el turno
+venía lleno (`splitBlocks` manda 4 mensajes como máximo y la pregunta se
+perdería en silencio). De paso, la ruta de recotización dejó de decidir qué
+preguntar: ahora ese dueño es uno solo. 13 pruebas nuevas; la suite queda en 1022.
+
+**Por qué:** Manuel, sobre su chat de prueba: «pondría más grande el número de
+llantas en el PDF para que se note más» —es el dato que cambia el total, y
+quien pidió 3 tiene que ver 3 sin buscarlo— y «si hago preguntas se desvía la
+conversación y no acaba con una pregunta; debería insistir con el local, o si ya
+dijo eso, el día, molestando hasta que se respondan». Lo que lo destapó (conv 3
+ciclo 8, 21:50): con el local ya dado, el cliente mandó dos preguntas seguidas,
+se atendieron en dos turnos, y el segundo cerró con «…más apta que una de calle
+para tierra y camino irregular. Si quiere, le dejo la visita en Depot Tire
+Cumbayá y el asesor se la confirma en tienda». Sin pregunta: el bot contestó
+bien y dejó de vender. El prompt YA lo pedía —«ningún turno posterior a la
+cotización cierra sin esa pregunta»— y no alcanzó, que es la historia de toda la
+semana; por eso es candado y por eso va después del guardián, que reescribe el
+texto entero y puede comerse la pregunta al resumir.
+
+**Probado:** conversación completa en el simulador. El candado se vio disparar
+en vivo: en el turno de «solo quiero 3 llantas» el guardián aprobó exactamente
+«Listo, se la ajusté a 3 👍» —sin pregunta— y salieron TRES mensajes, el tercero
+«¿A cuál de los dos le queda mejor ir? 📍», que solo pudo agregar el candado.
+La pieza de 3 llantas se revisó renderizada. En los otros 5 turnos el modelo
+preguntó solo y el candado no tocó nada, que es exactamente lo que debe pasar.
 
 ### 2026-08-27 · «Deme solo 3» — cinco fallas de la misma familia · ⏱️ 2.5 h
 

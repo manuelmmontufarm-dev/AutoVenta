@@ -136,16 +136,18 @@ describe.sequential("recotizar por cantidad · la pieza sale, no la promesa", ()
     expect(reply).not.toContain("¿A cuál de los dos");
   });
 
-  it("con el local ya elegido, pide el día con el monto del descuento recalculado", async () => {
+  it("con el local ya elegido también recotiza, y la pregunta la pone el candado del final", async () => {
+    // Esta ruta NO decide qué preguntar: su único trabajo es que salga la pieza
+    // nueva. Quién pide el local o el día es `insistirConLoQueFalta`, que es el
+    // único dueño de esa decisión en todo el turno (ver su suite).
     const fila = await conversacionConCotizacion("593980005002", 4, "Depot Tire Quito Sur");
     const reply = await tryRecotizarPorCantidad(ctx(fila, PREGUNTA_LOCAL), "mejor 2");
 
     const todas = await cotizaciones(fila.id);
     expect(todas[1].items[0].quantity).toBe(2);
-    expect(reply).toMatch(/qué día cree que puede pasar/i);
-    expect(reply).toContain("*25 %*");
-    // 2 × (212.65 − 159.49) = 106.32 — el ahorro de la cotización NUEVA.
-    expect(reply).toContain("$106.32");
+    expect(Number(todas[1].total)).toBeCloseTo(159.49 * 2, 2);
+    expect(reply).toContain("se la ajusté a 2");
+    expect(reply).not.toMatch(/qué día/i);
   });
 
   it("EL CASO QUE NO DEBE DISPARAR: la misma cantidad no recotiza", async () => {
