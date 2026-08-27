@@ -82,6 +82,42 @@ export interface TextoDepurado {
  * Si al sacarlas un bloque queda vacío, el bloque desaparece: un mensaje que
  * solo era una pregunta de más no tiene nada que decir.
  */
+
+/**
+ * EL CONECTOR QUE SE QUEDÓ SIN SU PREGUNTA.
+ *
+ * Simulador, 27-ago-2026, reproduciendo la conv 11901. El borrador decía:
+ *
+ *   «Perfecto, para Santo Domingo un asesor le confirma si se puede despachar,
+ *    costo y tiempo de entrega.
+ *    Para avanzar, ¿le cotizo la Kenda KR15 por 4 llantas o prefiere KR33A?»
+ *
+ * El candado se llevó la pregunta —correcto— y le mandó al cliente el resto tal
+ * cual: **«… tiempo de entrega. Para avanzar,»**. Una frase que se corta a la
+ * mitad se lee como un bot roto, que es peor que la pregunta de más que este
+ * módulo existe para quitar.
+ *
+ * Se limpia lo que queda del renglón cuando ya no tiene verbo propio: un
+ * arranque de frase corto que termina en coma o en dos puntos y nada más.
+ */
+const CONECTOR_SUELTO =
+  /(?:^|(?<=[.!?¡¿\n]))\s*(?:y\s+)?(?:para\s+avanzar|para\s+seguir|para\s+continuar|entonces|as[ií]\s+que|dicho\s+esto|ahora\s+bien|de\s+una|ah[ií]\s+mismo|entonces\s+bien|con\s+eso)\s*[,:;]?\s*(?=\n|$)/gi;
+
+/** Y el residuo más tonto de todos: un renglón que es solo puntuación. */
+const RENGLON_SIN_LETRAS = /^[\s,.:;¿?¡!\-–—]*$/;
+
+function limpiarConectoresHuerfanos(texto: string): string {
+  return texto
+    .split("\n")
+    .map((linea) => linea.replace(CONECTOR_SUELTO, "").trimEnd())
+    .map((linea) => (RENGLON_SIN_LETRAS.test(linea) ? "" : linea))
+    // Una coma o un «y» colgando al final de un renglón que sí tiene texto:
+    // «… tiempo de entrega. Para avanzar,» ya cayó arriba, pero «… se la dejo y»
+    // no, y se lee igual de roto.
+    .map((linea) => linea.replace(/[\s]*(?:,|;|:|\by\b|\bo\b|\bpero\b)\s*$/i, ""))
+    .join("\n");
+}
+
 export function sinPreguntasProhibidas(texto: string): TextoDepurado {
   const quitadas: string[] = [];
   let salida = texto;
@@ -93,6 +129,7 @@ export function sinPreguntasProhibidas(texto: string): TextoDepurado {
     });
   }
   if (!quitadas.length) return { texto, quitadas: [] };
+  salida = limpiarConectoresHuerfanos(salida);
   salida = salida
     .split("\n")
     .map((linea) => linea.replace(/[ \t]{2,}/g, " ").replace(/[ \t]+$/g, "").replace(/^[ \t]+(?=\S)/, ""))

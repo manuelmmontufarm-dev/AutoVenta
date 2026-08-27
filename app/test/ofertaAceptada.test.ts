@@ -55,8 +55,36 @@ describe("el «gracias» que era un sí", () => {
 
   it("la orden que se le mete al modelo le prohíbe volver a ofrecer", () => {
     const orden = ordenDeCotizarYa("Gracias");
-    expect(orden).toMatch(/generar_cotizacion AHORA/);
-    expect(orden).toMatch(/PROHIBIDO volver a ofrec/);
+    expect(orden).toMatch(/ENTREGA ESO MISMO EN ESTE TURNO/);
+    expect(orden).toMatch(/generar_cotizacion/);
+    expect(orden).toMatch(/preparar_opciones/);
+    expect(orden).toMatch(/PROHIBIDO volver a ofrecer lo mismo/);
     expect(orden).toMatch(/«Gracias»/);
+  });
+
+  /**
+   * EL SEGUNDO CASO REAL, conv 11001 del 26-ago. El bot ofreció OPCIONES, no
+   * una cotización, y la primera versión de este detector solo miraba la
+   * palabra «cotización»:
+   *
+   *   15:05  BOT: «Perfecto, sin problema 👍 Si quiere, le dejo 2–3 opciones
+   *          para esa medida y usted compara costo, equilibrio o premium.»
+   *   15:20  CLIENTE: «Ok gracias»
+   *   15:20  BOT: «Con gusto. Si luego quiere comparar opciones para esa
+   *          medida, se las dejo al toque.»
+   *
+   * Ahí murió la conversación: nunca vio una opción.
+   */
+  it("EL OTRO CASO QUE FALLÓ: ofrecer OPCIONES también cuenta", () => {
+    const oferta = "Perfecto, sin problema 👍\nSi quiere, le dejo 2–3 opciones para esa medida y usted compara costo, equilibrio o premium.";
+    expect(ofertaDeCotizarAceptada(oferta, "Ok gracias")).toBe(true);
+    expect(ofertaDeCotizarAceptada(oferta, "dale")).toBe(true);
+    // Y un no sigue siendo un no.
+    expect(ofertaDeCotizarAceptada(oferta, "no gracias")).toBe(false);
+  });
+
+  it("ofrecer una comparación también cuenta", () => {
+    const oferta = "Si desea le preparo una comparación de las dos para que elija tranquilo.";
+    expect(ofertaDeCotizarAceptada(oferta, "listo")).toBe(true);
   });
 });

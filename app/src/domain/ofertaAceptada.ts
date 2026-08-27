@@ -29,15 +29,32 @@ const normalizar = (texto: string) =>
   (texto ?? "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").trim();
 
 /**
- * El último mensaje del bot OFRECIÓ cotizar (en vez de cotizar de una).
+ * El último mensaje del bot OFRECIÓ algo (en vez de entregarlo de una).
  *
  * Lista positiva y cerrada a propósito. La primera versión era «un verbo de
  * entrega cerca de la palabra cotización» y se comía «Aquí le mando su
  * cotización 👍» — que no es una oferta sino la entrega, y donde un «gracias»
  * es de verdad solo un gracias. Forzar ahí una cotización sería duplicarla.
+ *
+ * Y LA SEGUNDA VERSIÓN SOLO MIRABA LA COTIZACIÓN, que era la mitad del
+ * problema. Conv 11001, 26-ago: el bot ofreció OPCIONES —«Si quiere, le dejo
+ * 2–3 opciones para esa medida y usted compara costo, equilibrio o premium»—,
+ * el cliente contestó «Ok gracias» y el bot volvió a ofrecer lo mismo con otras
+ * palabras: «Con gusto. Si luego quiere comparar opciones para esa medida, se
+ * las dejo al toque». Dos turnos, la misma oferta, cero opciones enviadas — y
+ * ahí murió la conversación. Un «gracias» es un sí para TODO lo que el bot
+ * pueda entregar en ese turno, no solo para la cotización.
  */
-const OFRECIO_COTIZAR =
-  /(?:puedo|podemos|podria|podriamos)\s+(?:\w+\s+){0,2}cotiz|¿\s*le\s+cotizo|\ble\s+cotizo\b[^.?!]{0,60}\?|(?:si\s+(?:desea|gusta|quiere)|si\s+le\s+parece|quiere\s+que|desea\s+que)[^.?!]{0,60}cotiz|(?:le|se\s+la|te\s+la)\s+(?:dejo|paso|hago|armo|preparo)\s+(?:la\s+|una\s+)?cotiza/;
+const LO_QUE_SE_OFRECE = "(?:cotiza|opcion|opciones|alternativ|comparaci|comparar|precios)";
+
+const OFRECIO_ALGO =
+  new RegExp(
+    `(?:puedo|podemos|podria|podriamos)\\s+(?:\\w+\\s+){0,3}${LO_QUE_SE_OFRECE}`
+    + `|¿\\s*le\\s+cotizo|\\ble\\s+cotizo\\b[^.?!]{0,60}\\?`
+    + `|(?:si\\s+(?:desea|gusta|quiere)|si\\s+le\\s+parece|si\\s+quiere|quiere\\s+que|desea\\s+que)[^.?!]{0,70}${LO_QUE_SE_OFRECE}`
+    + `|(?:le|se\\s+la|se\\s+las|te\\s+la|te\\s+las)\\s+(?:dejo|paso|hago|armo|preparo)\\s+(?:\\w+\\s+){0,4}${LO_QUE_SE_OFRECE}`
+    + `|\\ble\\s+dejo\\s+\\d\\s*[-–]\\s*\\d\\s+${LO_QUE_SE_OFRECE}`,
+  );
 
 /**
  * El cliente contestó con un acuse y nada más.
@@ -64,7 +81,7 @@ export function ofertaDeCotizarAceptada(
   mensajeDelCliente: string,
 ): boolean {
   const bot = normalizar(ultimoMensajeDelBot ?? "");
-  if (!bot || !OFRECIO_COTIZAR.test(bot)) return false;
+  if (!bot || !OFRECIO_ALGO.test(bot)) return false;
   const cliente = normalizar(mensajeDelCliente);
   if (!cliente || NEGATIVA_CORTA.test(cliente)) return false;
   return ACUSE_SIN_MAS.test(cliente);
@@ -77,10 +94,12 @@ export function ofertaDeCotizarAceptada(
  */
 export function ordenDeCotizarYa(mensajeDelCliente: string): string {
   return (
-    "EL CLIENTE ACEPTÓ (fuente determinística): tu mensaje anterior le OFRECIÓ la cotización y él " +
-    `respondió «${mensajeDelCliente.trim().slice(0, 60)}», que no es una negativa. Eso es un SÍ. ` +
-    "Llama generar_cotizacion AHORA con la llanta que le ofreciste y la cantidad ya conocida " +
-    "(4 llantas si no dijo otra). PROHIBIDO volver a ofrecérsela, PROHIBIDO preguntar «¿le dejo la " +
-    "cotización?» otra vez y PROHIBIDO pedir cualquier confirmación adicional: ya la diste una vez."
+    "EL CLIENTE ACEPTÓ (fuente determinística): tu mensaje anterior le OFRECIÓ algo —la cotización, " +
+    `las opciones o una comparación— y él respondió «${mensajeDelCliente.trim().slice(0, 60)}», que no ` +
+    "es una negativa. Eso es un SÍ. ENTREGA ESO MISMO EN ESTE TURNO con la herramienta que " +
+    "corresponda: generar_cotizacion si ofreciste cotizar (4 llantas si no dijo otra cantidad), " +
+    "preparar_opciones si ofreciste opciones, la comparación si ofreciste comparar. PROHIBIDO volver " +
+    "a ofrecer lo mismo con otras palabras, PROHIBIDO condicionarlo a un «si luego quiere» y " +
+    "PROHIBIDO pedir cualquier confirmación adicional: ya la pediste una vez y te dijo que sí."
   );
 }

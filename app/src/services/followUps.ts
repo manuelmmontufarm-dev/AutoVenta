@@ -840,8 +840,10 @@ export async function ensureFollowUpJobCopy(input: {
   context: FollowUpJobContext;
   policy: FollowUpPolicy;
   force?: boolean;
+  /** El reloj del trabajo. Ver `generateFollowUpCopy`. */
+  now?: Date;
 }): Promise<{ text: string; generated: boolean }> {
-  const { context, policy, force = false } = input;
+  const { context, policy, force = false, now = new Date() } = input;
   const stored = String(context.job_payload.preview ?? "").trim();
   const kind = followUpJobCopyKind(context.job_type);
   if (!kind || (!context.job_payload.aiPending && !force)) {
@@ -856,6 +858,7 @@ export async function ensureFollowUpJobCopy(input: {
     { ...copyContext, storeLinks: undefined },
     kind,
     policy.stagePrompts?.[context.stage],
+    now,
   );
   const text = conMapasPegados(copy.text.trim() || stored, copyContext, kind);
   await sql`

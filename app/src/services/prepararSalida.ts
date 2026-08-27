@@ -38,6 +38,10 @@ import { conLocalesReales } from "./localesReales.js";
 import { sinNumerosDeCotizacion } from "../domain/numerosDeCotizacion.js";
 import { conPreguntaEnSuPropioMensaje } from "../domain/preguntaSola.js";
 import { despedidaQueCorresponde } from "../domain/cierrePerdido.js";
+import { motivoDeUbicacion } from "../domain/ubicacionPedida.js";
+import { buildStoreLinksBlock } from "./quoteMessages.js";
+import { buildStoreLinksBlockOnce } from "./storeLinks.js";
+import { business } from "../config.js";
 
 /**
  * De qué puerta viene el texto.
@@ -165,6 +169,41 @@ export const PASOS: readonly PasoDeSalida[] = [
         dedupeKey: `venta_perdida_despedida:${ctx.conversation.id}:${ctx.conversation.current_cycle}`,
       }).catch(() => undefined);
       return despedida;
+    },
+  },
+  {
+    // EL MAPA NO ESPERA SU TURNO EN EL EMBUDO.
+    //
+    // Manuel, 27-ago: «si preguntan dónde estamos, o si son de una provincia,
+    // que solo mande los links de las ubicaciones para que vean rápido —
+    // no siempre la conversación va en el orden que queremos». Conv 11901: el
+    // cliente preguntó «De donde son», el bot contestó «Son *Kenda*»; después
+    // dijo «Soy de provincia de santo domingo» y el bot habló de Cumbayá y
+    // Quito Sur SIN UN SOLO LINK, y tuvo que entrar el asesor a mano.
+    //
+    // Va después del Ángel Guardián por lo de siempre —él reescribe— y antes
+    // del cierre, para que la pregunta del día quede al final del turno.
+    // Ver `domain/ubicacionPedida.ts`.
+    nombre: "ubicacion_cuando_la_piden",
+    corre: ["respuesta", "retomada"],
+    async aplicar(texto, ctx) {
+      const motivo = motivoDeUbicacion(ctx.textoDelCliente ?? "");
+      if (!motivo) return texto;
+      // Si el turno YA lleva los mapas (la cotización los manda), no se duplican.
+      const yaLosLleva = business.stores.some(
+        (store) => store.mapsUrl && texto.includes(store.mapsUrl),
+      );
+      if (yaLosLleva) return texto;
+      // Preguntó: el mapa sale aunque ya se lo hayamos mandado — si vuelve a
+      // preguntar es porque no lo encontró. Solo nombró su ciudad: sale una vez.
+      const mapas = motivo === "la_pidio"
+        ? buildStoreLinksBlock()
+        : await buildStoreLinksBlockOnce(ctx.conversation.id);
+      if (!mapas) return texto;
+      console.log(
+        `📍 Ubicación pegada en la conv ${ctx.conversation.id} (${motivo})`,
+      );
+      return `${texto}\n---\n${mapas}`;
     },
   },
   {

@@ -111,3 +111,42 @@ describe("la rúbrica del guardián conoce el cierre de la casa", () => {
     expect(fuente).toContain('import { CIERRE_COTIZAR } from "../domain/preguntasProhibidas.js";');
   });
 });
+
+/**
+ * EL CONECTOR QUE SE QUEDÓ SIN SU PREGUNTA.
+ *
+ * Simulador, 27-ago-2026, reproduciendo la conv 11901. El candado se llevó la
+ * pregunta —correcto— y le mandó al cliente el resto tal cual, cortado a la
+ * mitad: «… costo y tiempo de entrega. Para avanzar,». Una frase que se corta
+ * se lee como un bot roto, que es peor que la pregunta que se estaba quitando.
+ */
+describe("lo que queda después de quitar la pregunta se lee entero", () => {
+  it("EL CASO QUE FALLÓ: «Para avanzar,» no se queda colgando", () => {
+    const borrador =
+      "Perfecto, para Santo Domingo un asesor le confirma si se puede despachar, costo y tiempo de entrega.\n"
+      + "Para avanzar, ¿le cotizo la Kenda KR15 por 4 llantas o prefiere KR33A?";
+    const { texto, quitadas } = sinPreguntasProhibidas(borrador);
+    expect(quitadas.length).toBeGreaterThan(0);
+    expect(texto).not.toMatch(/Para avanzar,?\s*$/);
+    expect(texto).toMatch(/tiempo de entrega\.$/);
+  });
+
+  it("una coma huérfana al final tampoco sobrevive", () => {
+    const { texto } = sinPreguntasProhibidas(
+      "Le dejo la KR15 a $99.69,\n¿cuántas llantas necesita?",
+    );
+    expect(texto).not.toMatch(/,\s*$/);
+  });
+
+  it("EL CASO QUE NO DEBE DISPARAR: un texto sin preguntas prohibidas no se toca", () => {
+    const intacto = "Para avanzar, le dejo la cotización por 4 llantas.\nAhí la tiene 👍";
+    expect(sinPreguntasProhibidas(intacto).texto).toBe(intacto);
+  });
+
+  it("y un «Para avanzar» que SÍ lleva frase propia se respeta", () => {
+    const { texto } = sinPreguntasProhibidas(
+      "Para avanzar le mando la cotización.\n¿Cuántas llantas quiere?",
+    );
+    expect(texto).toMatch(/Para avanzar le mando la cotización\./);
+  });
+});

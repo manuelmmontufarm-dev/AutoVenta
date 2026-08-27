@@ -137,11 +137,32 @@ export function diaDeLaPalabra(palabra: string): { nombre: string; indice: numbe
   return mejor ? { nombre: mejor.nombre, indice: mejor.indice } : null;
 }
 
+/**
+ * «SANTO DOMINGO» ES UNA PROVINCIA, NO UN DÍA.
+ *
+ * Producción, 27-ago-2026, conv 11901. El cliente escribió «Soy de provincia de
+ * santo domingo» y el sistema le anotó `visit_date = 2026-08-30` —el domingo—,
+ * puso su frase como compromiso de visita y le abrió al asesor la tarea
+ * «Prometió: "Soy de provincia de santo domingo"». Nunca prometió nada: dijo de
+ * dónde es. Un cliente de Santo Domingo de los Tsáchilas es exactamente el que
+ * NO puede pasar por el local, así que el dato se guardó al revés de lo que
+ * significaba.
+ *
+ * El candado es por PALABRA ANTERIOR, no por mensaje entero: «soy de santo
+ * domingo pero voy el sábado» tiene que seguir agendando el sábado. Por eso no
+ * alcanzaba con meter «domingo» en `NUNCA_ES_DIA` —ahí se perdería el domingo
+ * de verdad— ni con silenciar los mensajes que digan «soy de».
+ */
+const ANTES_ES_LUGAR = new Set(["santo", "sto", "santa", "sta", "san"]);
+
 /** El primer día de la semana que aparezca en la frase, escrito como sea. */
 export function diaEnTexto(texto: string): { nombre: string; indice: number } | null {
-  for (const palabra of normalizarTexto(texto).split(/[^a-zñ0-9]+/)) {
-    const dia = diaDeLaPalabra(palabra);
-    if (dia) return dia;
+  const palabras = normalizarTexto(texto).split(/[^a-zñ0-9]+/);
+  for (let i = 0; i < palabras.length; i += 1) {
+    const dia = diaDeLaPalabra(palabras[i]);
+    if (!dia) continue;
+    if (i > 0 && ANTES_ES_LUGAR.has(palabras[i - 1])) continue;
+    return dia;
   }
   return null;
 }

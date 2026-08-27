@@ -32,6 +32,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-08-27 | _(este mismo)_ | «Santo Domingo» no es domingo, el mapa no espera turno, y la vitrina vieja no se re-etiqueta | 2.5 |
 | 2026-08-27 | _(este mismo)_ | El guardián recibe el catálogo: todo precio y todo stock que el bot afirme se verifica | 1.0 |
 | 2026-08-27 | _(este mismo)_ | El stock puede decir que no, «gracias» es un sí, y al que ya compró no se le insiste | 3.0 |
 | 2026-08-27 | _(este mismo)_ | La vitrina deja de mostrar lo que no hay, y el bot no ofrece locales que no existen | 1.0 |
@@ -181,11 +182,63 @@ Ya viene activado en este equipo.
 | 2026-07-14 | ac09171 | Ubicaciones de locales + análisis de features del cliente | 1.5 |
 | 2026-07-13 | feadf57 | Brief + plan de desarrollo + plan financiero + catálogo | 4.0 |
 | 2026-07-13 | d997844 | Commit inicial (repo) | 0.25 |
-| | | **TOTAL** | **~121.5 h** |
+| | | **TOTAL** | **~124 h** |
 
 ---
 
 ## Entradas (más reciente primero)
+
+### 2026-08-27 · «Santo Domingo» no es domingo, el mapa no espera turno, y la vitrina vieja no se re-etiqueta
+
+**Qué.** Cuatro fallas que Manuel pegó de tres conversaciones de producción, más
+dos que aparecieron al reproducirlas.
+
+1. **conv 11901 · «Soy de provincia de santo domingo» se guardó como una
+   visita el domingo 30** (`visit_date = 2026-08-30`, su frase como compromiso,
+   y una tarea al asesor que decía «Prometió: …»). `diaEnTexto` mira ahora la
+   palabra anterior: un día precedido de santo/sto/san/santa es un lugar. Es por
+   OCURRENCIA, no por mensaje: «soy de santo domingo pero voy el sábado» sigue
+   agendando el sábado.
+2. **conv 11901 · el mapa nunca salió.** Paso nuevo `ubicacion_cuando_la_piden`
+   en `prepararSalida`: si el cliente pregunta dónde quedan, los links salen
+   SIEMPRE; si solo nombra su ciudad o provincia, salen una vez.
+   Ver `domain/ubicacionPedida.ts`.
+3. **conv 11881 · precios de otra medida.** La pieza salió como muestra por aro
+   (`sizeLabel: null`) y, cuando llegó «225/70/15», el modelo le colgó esos
+   precios a la medida nueva — la WINRUN R330 de $58.69 es una 185/55R15. El
+   cliente eligió ese precio y hubo que desdecirse. `domain/vitrinaVieja.ts`
+   compara la pieza previa contra la medida del turno y mete la prohibición
+   como hecho duro.
+4. **conv 11001 · «Ok gracias» tras ofrecer OPCIONES.** El detector del 27-ago
+   solo miraba la palabra «cotización»; acá el bot había ofrecido opciones y
+   volvió a ofrecerlas. Se amplió a opciones, comparaciones y precios.
+
+Y dos que salieron reproduciendo:
+
+5. **El seguimiento decidía «ya pasó la visita» con el reloj de pared.**
+   `followUpCopy` no le pasaba el `now` del trabajo al redactor. En producción
+   las dos fechas suelen coincidir, por eso no se veía; el 27 de agosto de
+   verdad, `visitaJuebes.integration` empezó a leer «no alcanzaste a pasar» para
+   una visita que en su reloj todavía no llegaba.
+6. **El candado de preguntas dejaba el conector huérfano.** Quitó la pregunta y
+   mandó «…costo y tiempo de entrega. **Para avanzar,**». Visto en vivo en el
+   simulador. Una frase cortada se lee peor que la pregunta que se quitaba.
+
+**Por qué.** Manuel: «demasiados errores todavía, no sé si deberíamos subir el
+modelo». No es el modelo —ya corre gpt-5.5, el tope— y las seis tienen la misma
+forma: **la regla estaba escrita en el prompt y el prompt es una petición**. La
+ubicación tenía su regla desde agosto («la ubicación se manda con
+ubicacion_locales») y no salió; «no re-etiquetes la vitrina» es obvio y se
+re-etiquetó. Lo que cambia el resultado no es pedirlo mejor, es que el dato
+llegue como hecho duro o que un candado corra después del que redacta.
+
+**Probado.** Las tres conversaciones repetidas en el simulador con el bot real,
+y el guardián subió a 8/8 en `probar-rubrica.mjs` — caza solo el cruce de
+medidas comparando contra el CATÁLOGO DE HOY. 1238 pruebas en verde.
+
+**Horas.** ~2.5 h.
+
+---
 
 ### 2026-08-27 · El guardián recibe el catálogo: precios y stock verificables
 

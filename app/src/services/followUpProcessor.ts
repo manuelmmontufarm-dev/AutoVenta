@@ -254,7 +254,7 @@ export async function processFollowUpJob(
   // Recién aquí se paga la redacción con IA (si el asesor no la generó antes).
   const redactado = isPostWindow
     ? String(context.job_payload.preview ?? "").trim()
-    : (await ensureFollowUpJobCopy({ context, policy })).text;
+    : (await ensureFollowUpJobCopy({ context, policy, now })).text;
 
   // LA MISMA CADENA QUE LAS OTRAS PUERTAS, con los pasos que le tocan a un
   // seguimiento. Ver services/prepararSalida.ts.

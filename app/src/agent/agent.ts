@@ -7,6 +7,8 @@ import OpenAI from "openai";
 import type { ChatCompletionMessageParam, ChatCompletionTool } from "openai/resources/chat/completions";
 import { config } from "../config.js";
 import { ofertaDeCotizarAceptada, ordenDeCotizarYa } from "../domain/ofertaAceptada.js";
+import { ordenDeNoReusarLaVitrina, vitrinaQueNoEsSuMedida } from "../domain/vitrinaVieja.js";
+import { extractTireSizes, formatTireSize } from "../domain/tireSize.js";
 import { getHistory, logAiRun } from "../services/conversations.js";
 import { getAiConfig, getPublishedStagePrompt, getStoreHours } from "../services/settings.js";
 import { getPhaseFlags, toolEnabled } from "../services/phases.js";
@@ -152,6 +154,30 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
     typeof ultimoDelBot?.content === "string" ? ultimoDelBot.content : null,
     userText,
   );
+  // ¿La vitrina que ya salió es de otra medida que la que acaba de pedir?
+  // (conv 11881, 27-ago: muestra por aro 15 re-etiquetada como 225/70R15, con
+  // el precio de una 185/55R15 adentro). La medida sale del mensaje de ESTE
+  // turno porque la etapa la mueve el clasificador recién al final.
+  // Ver `domain/vitrinaVieja.ts`.
+  const medidaDelTurno =
+    extractTireSizes(userText).map(formatTireSize)[0] ?? salesFacts.tireSize ?? null;
+  const [piezaPrevia] = await sql<{ metadata: { sizeLabel?: string | null; escalones?: Record<string, { nombre?: string }> } | null }[]>`
+    select metadata from messages
+    where conversation_id=${ctx.conversation.id} and cycle=${ctx.conversation.current_cycle}
+      and role='assistant' and metadata->>'piece' = 'options'
+    order by created_at desc limit 1
+  `;
+  const vitrinaAjena = piezaPrevia
+    ? vitrinaQueNoEsSuMedida(
+        {
+          sizeLabel: piezaPrevia.metadata?.sizeLabel ?? null,
+          etiquetas: Object.values(piezaPrevia.metadata?.escalones ?? {})
+            .map((e) => e?.nombre ?? "")
+            .filter(Boolean),
+        },
+        medidaDelTurno,
+      )
+    : null;
   if (history.at(-1)?.role === "user" && history.at(-1)?.content === userText) history.pop();
   ctx.currentUserText = userText;
   ctx.storeHours = storeHours;
@@ -191,6 +217,9 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
   const bloquesVolatiles: ChatCompletionMessageParam[] = [
     { role: "system", content: salesFactsPrompt(salesFacts, ctx.resumedFromHuman) },
     ...(aceptoLaOferta ? [{ role: "system" as const, content: ordenDeCotizarYa(userText) }] : []),
+    ...(vitrinaAjena && medidaDelTurno
+      ? [{ role: "system" as const, content: ordenDeNoReusarLaVitrina(vitrinaAjena, medidaDelTurno) }]
+      : []),
     // Los beneficios vigentes de la tabla, como hecho (P-03, reunión 25-ago):
     // sin esto el bot decía «el balanceo es aparte» mientras su propia
     // cotización imprimía «alineación y balanceo incluidos». Va en los bloques

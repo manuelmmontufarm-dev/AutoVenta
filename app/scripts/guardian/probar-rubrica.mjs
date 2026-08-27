@@ -206,6 +206,35 @@ CLIENTE: Precio
 La más económica en 245/70R16 es *KENDA KR628* a *$144.44 c/u con IVA*.
 Se la puedo cotizar por *4 llantas*; si prefiere equilibrio o premium, también le paso esa.`,
   },
+  {
+    nombre: "conv 11881 · precios de OTRA medida colgados a la que pidió",
+    espera: { categoria: "precio_incorrecto", severidad: "alta" },
+    familias: ["precio_incorrecto", "medida_incorrecta", "stock_prometido"],
+    contexto: `== HECHOS REGISTRADOS ==
+Medidas que el cliente pidió: 225/70R15
+Local ya elegido: (ninguno)
+Visita registrada: (ninguna)
+Compromiso de visita en palabras del cliente: (ninguno)
+Cotización vigente: ninguna
+Servicios y beneficios respaldados: ninguno cargado — el borrador no puede prometer nada como incluido
+
+== CATÁLOGO DE HOY (fuente determinística: Contífico + precios Interbot, el mismo número que imprimen las piezas) ==
+· KENDA KR15 225/70R15 — hoy $99.69 c/u con IVA · stock hoy: 12
+· KENDA KR33A 225/70R15 — hoy $132.84 c/u con IVA · stock hoy: 8
+· KENDA KR100 225/70R15 — hoy $148.60 c/u con IVA · stock hoy: 6
+
+== CONVERSACIÓN (lo más reciente al final) ==
+CLIENTE: Ron 15
+BOT: Opciones enviadas: FALKEN WILDPEAK A/T 4W · KENDA KR20 · WINRUN R330
+CLIENTE: 225/70/15
+
+== BORRADOR QUE EL BOT VA A ENVIAR ==
+Perfecto, en *225/70R15* ya le envié estas opciones: *Costo* WINRUN R330 $58.69 c/u, *Equilibrio* KENDA KR20 $71.77 c/u y *Premium* FALKEN WILDPEAK A/T 4W $208.48 c/u.`,
+    verificar: (salida) =>
+      salida.veredicto === "corregir" && !/58\.69/.test(salida.texto_corregido ?? "")
+        ? null
+        : "la corrección siguió arrastrando el precio de la otra medida ($58.69)",
+  },
 ];
 
 const FAMILIAS_GLOBALES = ["stock_prometido", "insiste_tras_rechazo", "reofrece_lo_aceptado"];

@@ -52,8 +52,23 @@ export async function generateFollowUpCopy(
   context: FollowUpMessageContext & { summary?: string | null },
   kind: FollowUpMessageKind,
   stagePrompt?: string,
+  /**
+   * EL RELOJ DEL TRABAJO, NO EL DE LA PARED.
+   *
+   * `redactarSeguimiento` decide con esta fecha si la visita YA PASÓ («quedamos
+   * el jueves y no alcanzaste a pasar») o si todavía viene («le esperamos el
+   * jueves»). Hasta hoy este llamador no lo pasaba, así que el redactor caía a
+   * `new Date()`: el texto se elegía con la hora en que se GENERA la copia, no
+   * con la del seguimiento que se está armando. En producción las dos suelen
+   * estar cerca y por eso no se notaba; en `visitaJuebes.integration` el
+   * seguimiento se arma con un `now` del 24-ago para una visita del 27, y el
+   * 27 de agosto de verdad el test empezó a leer «no alcanzaste a pasar».
+   * Un mensaje que le dice a alguien que no vino a una cita que todavía no
+   * llegó es el peor de los dos errores posibles.
+   */
+  now = new Date(),
 ): Promise<{ text: string; source: "ai" | "fallback" }> {
-  const fallback = buildContextualFollowUpMessage(context, kind);
+  const fallback = buildContextualFollowUpMessage(context, kind, now);
   if (!stagePrompt?.trim() || process.env.NODE_ENV === "test" || process.env.VITEST) {
     return { text: fallback, source: "fallback" };
   }
