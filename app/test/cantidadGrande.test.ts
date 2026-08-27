@@ -18,7 +18,7 @@
  */
 import { describe, expect, it } from "vitest";
 import {
-  cantidadGrandePedida, cantidadQueConfirmamos, preguntaDeConfirmacion, TOPE_SIN_CONFIRMAR,
+  avisoDeCantidad, cantidadGrandePedida, esCantidadInusual, MAXIMO_NORMAL, MINIMO_NORMAL,
 } from "../src/domain/cantidadGrande.js";
 import { extractExplicitQuantity } from "../src/domain/salesIntent.js";
 
@@ -43,7 +43,8 @@ describe("notar el número raro sin tocar el extractor de siempre", () => {
       expect(cantidadGrandePedida(texto), texto).toBeNull();
       expect(extractExplicitQuantity(texto), texto).not.toBeNull();
     }
-    expect(TOPE_SIN_CONFIRMAR).toBe(8);
+    expect(MAXIMO_NORMAL).toBe(8);
+    expect(MINIMO_NORMAL).toBe(4);
   });
 
   it("no confunde horas ni medidas con cantidades", () => {
@@ -59,14 +60,24 @@ describe("notar el número raro sin tocar el extractor de siempre", () => {
   });
 });
 
-describe("la pregunta y su respuesta", () => {
-  it("nombra el número en negrita, que es lo único que hay que revisar", () => {
-    expect(preguntaDeConfirmacion(20)).toBe("Antes de cotizarle: ¿me confirma que son *20 llantas*? 👍");
+/**
+ * La primera versión PREGUNTABA («¿me confirma que son 20 llantas?»). Manuel la
+ * probó y la bajó: «mejor que solo cotice, pero si son más de 8 o menos de 4
+ * que diga en un mensaje corto "aquí le mando la cotización con X llantas"».
+ * Preguntar cuesta un turno para llegar a la misma respuesta.
+ */
+describe("la cantidad rara se avisa, no se pregunta", () => {
+  it("fuera del juego normal (4–8) se nombra el número", () => {
+    for (const n of [1, 2, 3, 9, 12, 20]) expect(esCantidadInusual(n), String(n)).toBe(true);
   });
 
-  it("se lee de vuelta: un «sí» pelado solo vale contra la pregunta que lo provocó", () => {
-    expect(cantidadQueConfirmamos(preguntaDeConfirmacion(20))).toBe(20);
-    expect(cantidadQueConfirmamos("¿Cuál le queda mejor, *Cumbayá* o *Quito Sur*?")).toBeNull();
-    expect(cantidadQueConfirmamos(null)).toBeNull();
+  it("EL CASO QUE NO DEBE DISPARAR: lo normal sale sin comentarios", () => {
+    for (const n of [4, 5, 6, 7, 8]) expect(esCantidadInusual(n), String(n)).toBe(false);
+  });
+
+  it("el aviso es una AFIRMACIÓN corta, no una pregunta", () => {
+    expect(avisoDeCantidad(9)).toBe("Aquí le mando la cotización con *9 llantas* 👍");
+    expect(avisoDeCantidad(1)).toBe("Aquí le mando la cotización con *1 llanta* 👍");
+    expect(avisoDeCantidad(20)).not.toContain("?");
   });
 });

@@ -12,7 +12,6 @@
 import { business } from "../config.js";
 import { sql } from "../db/client.js";
 import { ahorroDeLaCotizacion, type LineaCotizada } from "../domain/ahorro.js";
-import { cantidadQueConfirmamos } from "../domain/cantidadGrande.js";
 import { preguntamosElDia } from "../domain/customerCommitment.js";
 import { datoQueFalta } from "../domain/preguntaPendiente.js";
 import { PREGUNTA_DE_LOCAL, preguntamosElLocal } from "../domain/storeSelection.js";
@@ -49,13 +48,6 @@ export async function insistirConLoQueFalta(
   });
   if (!falta) return { texto, agregado: null };
 
-  // Si el turno está esperando OTRA respuesta que bloquea el funnel —confirmar
-  // una cantidad grande antes de firmarla—, no se le encima una segunda
-  // pregunta. Visto en el simulador el 27-ago: al «quiero 20 llantas» le
-  // salieron juntas «¿me confirma que son 20?» y «¿a cuál local le queda mejor
-  // ir?», y dos preguntas en un mensaje son la forma más rápida de que
-  // conteste una sola.
-  if (cantidadQueConfirmamos(texto) !== null) return { texto, agregado: null };
 
   // Si el turno YA la pregunta, no se toca: repetirla sería el ruido que este
   // candado quiere evitar, no arreglar.

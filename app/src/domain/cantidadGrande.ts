@@ -1,6 +1,5 @@
 /**
- * «SABE QUE QUIERO 20 LLANTAS EN VEZ» — el pedido grande, confirmado antes de
- * firmarlo.
+ * LA CANTIDAD RARA SE AVISA, NO SE PREGUNTA.
  *
  * Producción, 27-ago-2026 (conv 3, ciclo 9). El cliente tenía cotizada 1 llanta
  * y escribió «sabe que quiero 20 llantas en vez». El bot contestó:
@@ -9,62 +8,62 @@
  *    cotización antes de confirmarle el total. No le confirmo el precio final
  *    todavía para no darle un valor incorrecto.»
  *
- * Honesto e inútil: lo dejó sin precio y sin siguiente paso. Y no fue el modelo
- * inventando — fue un TOPE DE 8 que nadie le había contado. `extractExplicitQuantity`
- * solo lee 1–8 (así que devolvía `null` y la ruta determinística ni se enteraba)
- * y el esquema de `generar_cotizacion` topaba en 8. La prueba está en el mismo
- * chat: 30 segundos después escribió «perdon deme 8 llantas» y se recotizó al
- * instante.
+ * Honesto e inútil: lo dejó sin precio y sin siguiente paso. La causa era un
+ * TOPE DE 8 que nadie le había contado al modelo —`extractExplicitQuantity`
+ * solo lee 1–8 y el esquema de `generar_cotizacion` topaba ahí—. La prueba
+ * está en el mismo chat: 30 s después escribió «perdon deme 8 llantas» y se
+ * recotizó al instante.
  *
- * La regla la puso Manuel: «cuando piden más de 8 que pregunte si escribió bien,
- * y si dice que sí no hay tope y se cotiza nomás, porque puede que se
- * equivocaron». O sea: el tope deja de ser un muro y pasa a ser una pregunta.
+ * El primer arreglo preguntaba «¿me confirma que son 20 llantas?». Manuel lo
+ * probó y lo bajó: «no me gustó que pregunte que confirme el número; mejor que
+ * solo cotice, pero si son más de 8 o menos de 4 que diga en un mensaje corto
+ * "aquí le mando la cotización con X llantas"». Tiene razón — preguntar cuesta
+ * un turno para llegar a la misma respuesta, y el aviso hace el mismo trabajo:
+ * si se equivocó, lo ve y lo corrige; si no, ya tiene su precio.
  *
  * OJO: esto NO reemplaza a `extractExplicitQuantity`, que sigue leyendo 1–8 y
- * es lo que alimenta `selected_quantity` y el resto del sistema. Es un detector
- * aparte, con un solo trabajo: notar el número raro para poder preguntarlo.
+ * es lo que alimenta `selected_quantity`. Es un detector aparte, con un solo
+ * trabajo: notar el número que aquél no sabe leer.
  */
 
-/** Hasta acá se cotiza sin preguntar: 4 es el juego y 5 con repuesto. */
-export const TOPE_SIN_CONFIRMAR = 8;
+/** El juego es 4; con repuesto, 5. Fuera de 4–8 la cantidad se avisa. */
+export const MINIMO_NORMAL = 4;
+export const MAXIMO_NORMAL = 8;
 
-/** Más de esto ya no es un error de tipeo, es otra cosa: no se ofrece cotizar. */
+/** Más de esto ya no es un cliente con un cero de más: es otra conversación. */
 const TOPE_ABSURDO = 500;
 
 const NUMERO_GRANDE =
   /\b(\d{1,3})\s*(?:llantas?|unidades?|neum[áa]ticos?)\b|\b(?:quiero|necesito|deme|dame|dele|cotiza(?:me)?|ser[íi]an?|son|llevo|p[oó]ngame|mandeme)\s+(?:las?\s+|los\s+)?(\d{1,3})\b/i;
 
 /**
- * El número que el cliente pidió, solo si pasa del tope. `null` para todo lo
- * demás — incluido lo que ya sabe leer el extractor de siempre.
+ * El número que el cliente pidió, solo si pasa del juego máximo. `null` para
+ * todo lo demás — incluido lo que ya sabe leer el extractor de siempre.
  */
 export function cantidadGrandePedida(text: string): number | null {
   const m = text.match(NUMERO_GRANDE);
   const crudo = m?.[1] ?? m?.[2];
   if (!crudo) return null;
   const n = Number(crudo);
-  if (!Number.isFinite(n) || n <= TOPE_SIN_CONFIRMAR || n > TOPE_ABSURDO) return null;
+  if (!Number.isFinite(n) || n <= MAXIMO_NORMAL || n > TOPE_ABSURDO) return null;
   return n;
 }
 
 /**
- * Lo que se le pregunta. Corta y sin drama: no se lo trata de equivocado, se le
- * confirma. Lleva el número en negrita porque es lo único que tiene que revisar.
+ * ¿Merece que el bot la nombre al mandar la cotización?
+ *
+ * Fuera de 4–8: o pidió menos de un juego (1, 2, 3 — puede ser a propósito o un
+ * dedo) o pidió más de lo normal (9, 20). En los dos casos vale decirlo en una
+ * línea, porque es el número que multiplica el total.
  */
-export function preguntaDeConfirmacion(cantidad: number): string {
-  return `Antes de cotizarle: ¿me confirma que son *${cantidad} llantas*? 👍`;
+export function esCantidadInusual(cantidad: number): boolean {
+  return cantidad < MINIMO_NORMAL || cantidad > MAXIMO_NORMAL;
 }
 
 /**
- * ¿Nuestro último mensaje preguntó por una cantidad, y por cuál?
- *
- * Es lo que convierte un «sí» pelado en una orden de cotizar. Misma idea que
- * `preguntamosElLocal` y `preguntamosElDia`: la respuesta seca solo significa
- * algo contra la pregunta que la provocó.
+ * La línea que acompaña a la pieza. Corta y sin preguntar nada: el número va
+ * en negrita porque es lo único que el cliente tiene que revisar de un vistazo.
  */
-export function cantidadQueConfirmamos(ultimoMensajeNuestro: string | null | undefined): number | null {
-  if (!ultimoMensajeNuestro) return null;
-  const m = ultimoMensajeNuestro.match(/¿me confirma que son \*(\d{1,3}) llantas\*\?/i);
-  const n = m ? Number(m[1]) : NaN;
-  return Number.isFinite(n) ? n : null;
+export function avisoDeCantidad(cantidad: number): string {
+  return `Aquí le mando la cotización con *${cantidad} ${cantidad === 1 ? "llanta" : "llantas"}* 👍`;
 }

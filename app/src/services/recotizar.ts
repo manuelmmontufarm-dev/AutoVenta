@@ -29,12 +29,8 @@
  * las dos digan cosas distintas.
  */
 import { sql } from "../db/client.js";
-import {
-  esRespuestaDelMenuDePreferencia, extractExplicitQuantity, isNegativeResponse,
-} from "../domain/salesIntent.js";
-import {
-  cantidadGrandePedida, cantidadQueConfirmamos, preguntaDeConfirmacion,
-} from "../domain/cantidadGrande.js";
+import { esRespuestaDelMenuDePreferencia, extractExplicitQuantity } from "../domain/salesIntent.js";
+import { cantidadGrandePedida } from "../domain/cantidadGrande.js";
 import { buildTools, type AgentContext } from "../agent/tools.js";
 import { buildStoreLinksBlockOnce } from "./storeLinks.js";
 import { preguntamosElLocal } from "../domain/storeSelection.js";
@@ -69,32 +65,11 @@ export async function tryRecotizarPorCantidad(
   // El «2» del menú de preferencia no es una cantidad.
   if (esRespuestaDelMenuDePreferencia(text, ctx.previousOutbound)) return null;
 
-  // EL PEDIDO GRANDE, en dos pasos. Con más de 8 no se firma de una: se
-  // pregunta si escribió bien, y recién con su «sí» se cotiza —sin tope—.
-  // «Quiero 20 llantas» puede ser una flota o un cero de más, y las dos
-  // merecen la misma pregunta. Ver `domain/cantidadGrande.ts`.
-  const yaPreguntada = cantidadQueConfirmamos(ctx.previousOutbound);
-  const grande = cantidadGrandePedida(text);
-  let nueva: number | null;
-  if (yaPreguntada && !isNegativeResponse(text) && !grande && !extractExplicitQuantity(text)) {
-    // Contestó que sí a la cantidad que le preguntamos.
-    nueva = yaPreguntada;
-  } else if (grande) {
-    // Pidió un número grande (o corrigió por otro grande): se confirma primero.
-    // Solo si hay una cotización viva: cotizar la primera vez es del agente,
-    // que además tiene que elegir la llanta.
-    const [hayCotizacion] = await sql<{ existe: boolean }[]>`
-      select exists(
-        select 1 from quotes
-        where conversation_id=${ctx.conversation.id} and cycle=${ctx.conversation.current_cycle}
-      ) as existe
-    `;
-    if (!hayCotizacion?.existe) return null;
-    if (yaPreguntada === grande) return null; // ya se la preguntamos y no contestó: que siga el agente
-    return preguntaDeConfirmacion(grande);
-  } else {
-    nueva = extractExplicitQuantity(text);
-  }
+  // Un número más grande que el juego máximo también recotiza, y DIRECTO: el
+  // aviso de la cantidad va en la pieza, no en una pregunta previa (Manuel,
+  // 27-ago). `extractExplicitQuantity` no sabe leer más de 8, por eso hace
+  // falta el detector aparte. Ver `domain/cantidadGrande.ts`.
+  const nueva = cantidadGrandePedida(text) ?? extractExplicitQuantity(text);
   if (!nueva) return null;
 
   const [vigente] = await sql<{ items: LineaCotizada[] | null }[]>`

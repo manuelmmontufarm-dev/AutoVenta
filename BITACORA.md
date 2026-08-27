@@ -32,6 +32,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-08-27 | _(este mismo)_ | La pieza avisa cuando no es su medida, el turno sigue al menú, y la cantidad rara se avisa en vez de preguntarse | 1.5 |
 | 2026-08-27 | _(este mismo)_ | Pedido grande con confirmación, la pregunta del local que se nombra sola, y la queja de precio que borraba la venta | 2.5 |
 | 2026-08-27 | _(este mismo)_ | La cantidad en grande en la pieza, y ningún turno con cotización cierra sin pedir el local o el día | 1.5 |
 | 2026-08-27 | _(este mismo)_ | «Deme solo 3»: cambiar la cantidad manda la pieza nueva, y las tres fallas que salieron con ella (el «2» del menú, «al de quito», la pregunta corta del local) | 2.5 |
@@ -176,6 +177,39 @@ Ya viene activado en este equipo.
 ---
 
 ## Entradas (más reciente primero)
+
+### 2026-08-27 · La pieza dice la verdad, y el turno no se frena · ⏱️ 1.5 h
+
+**Qué:** buscando por ARO, la pieza de opciones deja de prometer «TODO EN TU
+MEDIDA» con la medida de la primera llanta: la cabecera pasa a «OPCIONES EN SU
+ARO · RIN 16», cada tarjeta muestra SU medida con el sello «LE MONTA · no es su
+medida exacta», y el pie lleva la franja «FALTA SU MEDIDA» pidiéndola. Con eso
+el cierre ya no promete «la opción exacta para su medida» y el turno sigue
+DIRECTO al menú de preferencia. Y la cantidad fuera de 4–8 se AVISA en una línea
+(«Aquí le mando la cotización con *9 llantas* 👍») en vez de preguntarse: la
+confirmación previa que se había puesto horas antes queda eliminada, tanto en la
+herramienta como en la ruta determinística.
+
+**Por qué:** Manuel, sobre «tiene at rin 16?» (conv 3 ciclo 11): «prefiero que
+en el PDF avise que no es la medida exacta y que continúe directamente con el
+menú». La pieza salía rotulada con la medida de la PRIMERA de tres llantas de
+tres medidas distintas —215/65R16, 245/70R16, 225/70R16— y sin decirlo en
+ninguna parte, porque `marcarExactitud` no marca nada cuando no hay medida
+pedida. El cierre además prometía «para su medida» sin que el cliente hubiera
+dado ninguna, y el Ángel Guardián lo corrigió bien —`medida_incorrecta` en
+alta— pero llevándose el menú entero: el turno terminó pidiéndole otra vez la
+medida en vez de avanzar. Sobre la cantidad: «no me gustó que pregunte que
+confirme el número; mejor que solo cotice, pero si son más de 8 o menos de 4 que
+diga en un mensaje corto». Preguntar costaba un turno para llegar a la misma
+respuesta.
+
+**Probado:** en el simulador, «tiene at rin 16?» sale con la pieza rotulada
+«OPCIONES EN SU ARO · RIN 16», los tres sellos con su medida real y la franja
+«FALTA SU MEDIDA» —revisada renderizada—, y detrás el menú de preferencia
+completo con el guardián en `aprobar` y cero hallazgos. La cantidad se probó por
+las DOS puertas: «quiero 9 llantas» recotiza directo por la ruta determinística
+(`recotizar_cantidad` en `funnel_events`, $1050.39) y la primera cotización por
+el agente sale con «Aquí le mando la cotización con *2 llantas* 👍».
 
 ### 2026-08-27 · Cuatro fallas que salieron de un solo chat de prueba · ⏱️ 2.5 h
 

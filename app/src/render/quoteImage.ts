@@ -177,18 +177,36 @@ export interface OptionsRenderData extends PieceTheme {
   products: RenderLine[]; // quantity ignorada
 }
 
+/** El aro de una medida: «215/65R16» → «16». */
+function aroDe(sizeLabel: string | null | undefined): string | null {
+  return sizeLabel?.match(/R(\d{2})/i)?.[1] ?? null;
+}
+
 export async function renderOptionsImage(data: OptionsRenderData): Promise<Buffer> {
-  const lines = marcarExactitud(
-    data.products.map((line) => toPosterLine(line, data.brandProfiles)),
-    data.medidaPedida,
-  );
+  const base = data.products.map((line) => toPosterLine(line, data.brandProfiles));
+  // SIN MEDIDA PEDIDA, NADA ES «SU MEDIDA EXACTA».
+  //
+  // Cuando el cliente busca por ARO («¿tiene A/T rin 16?») no hay medida
+  // contra la que comparar, y `marcarExactitud` dejaba las tarjetas sin marcar:
+  // la pieza salía rotulada «TODO EN TU MEDIDA · 215/65R16» —la medida de la
+  // PRIMERA— con tres llantas de tres medidas distintas debajo y sin decirlo
+  // en ningún lado (visto en producción el 27-ago, conv 3 ciclo 11). Marcarlas
+  // todas como equivalentes hace que la pieza diga lo que es: son del aro que
+  // pidió, y la medida exacta está por confirmar.
+  const lines = data.medidaPedida ? marcarExactitud(base, data.medidaPedida) : base.map((line) => ({
+    ...line,
+    medidaExacta: false,
+  }));
+  const aro = data.medidaPedida ? null : aroDe(base[0]?.sizeLabel);
   const node = optionsPoster(
     {
       dateLabel: data.dateLabel,
       // Con medida pedida, el encabezado muestra ESA: es la referencia contra
-      // la que el cliente compara los sellos de cada tarjeta.
-      sizeLabel: data.medidaPedida ?? data.sizeLabel ?? data.products[0]?.sizeLabel ?? null,
+      // la que el cliente compara los sellos de cada tarjeta. Sin ella, el aro
+      // —que sí es lo que el cliente dijo— y nunca la medida de una de las tres.
+      sizeLabel: data.medidaPedida ?? (aro ? `RIN ${aro}` : null) ?? data.sizeLabel ?? null,
       lines,
+      medidaConocida: Boolean(data.medidaPedida),
       benefits: data.benefits,
     },
     themeOf(data),

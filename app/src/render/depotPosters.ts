@@ -428,6 +428,12 @@ export interface OptionsPosterData {
   dateLabel: string;
   sizeLabel?: string | null;
   lines: readonly PosterLine[];
+  /**
+   * ¿Sabemos qué medida pidió? Con `false` (buscó por aro o por vehículo) la
+   * pieza no puede hablar de «su medida»: dice de qué aro son y que la exacta
+   * está por confirmar.
+   */
+  medidaConocida?: boolean;
   /** Beneficios vigentes de la tabla; vacío o ausente = texto genérico del diseño. */
   benefits?: readonly string[];
 }
@@ -623,7 +629,9 @@ export function optionsPoster(data: OptionsPosterData, theme: Theme): SatoriNode
   return el({ flexDirection: "column", width: "100%", backgroundColor: p.base, fontFamily: "Archivo", color: p.dark },
     posterHeader(
       theme,
-      hayEquivalentes ? "OPCIONES QUE LE MONTAN" : "TODO EN TU MEDIDA",
+      hayEquivalentes
+        ? (data.medidaConocida === false ? "OPCIONES EN SU ARO" : "OPCIONES QUE LE MONTAN")
+        : "TODO EN TU MEDIDA",
       data.sizeLabel ?? "",
       data.dateLabel,
     ),
@@ -632,9 +640,12 @@ export function optionsPoster(data: OptionsPosterData, theme: Theme): SatoriNode
     hayEquivalentes
       ? el({ alignItems: "center", gap: 14, padding: "20px 64px", backgroundColor: "#fff3d6",
           borderTop: "3px solid #dda017" },
-          text({ ...ARCHIVO_BLACK, fontSize: 20, color: "#7a4e08", whiteSpace: "nowrap" }, "LE MONTAN"),
+          text({ ...ARCHIVO_BLACK, fontSize: 20, color: "#7a4e08", whiteSpace: "nowrap" },
+            data.medidaConocida === false ? "FALTA SU MEDIDA" : "LE MONTAN"),
           text({ fontSize: 18, fontWeight: 500, color: "#8a5c10", lineHeight: 1.4 },
-            "Las marcadas «LE MONTA» no son su medida exacta, pero le entran: tienen el mismo aro y rinden igual de bien. Confírmelas con el asesor antes de comprar."),
+            data.medidaConocida === false
+              ? "Estas son del aro que usted pidió, en distintas medidas. Para dejarle la exacta, mándeme la medida del costado de su llanta o confírmela con el asesor."
+              : "Las marcadas «LE MONTA» no son su medida exacta, pero le entran: tienen el mismo aro y rinden igual de bien. Confírmelas con el asesor antes de comprar."),
         )
       : null,
     franjaIncluye(theme, data.benefits),

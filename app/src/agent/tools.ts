@@ -87,7 +87,7 @@ import {
   medidaEstaPedida, medidasDeProductos, medidasPermitidas, mensajesDeLaVisitaActual,
 } from "../domain/medidaPedida.js";
 import { ahorroDeLaCotizacion } from "../domain/ahorro.js";
-import { cantidadQueConfirmamos, preguntaDeConfirmacion, TOPE_SIN_CONFIRMAR } from "../domain/cantidadGrande.js";
+import { avisoDeCantidad, esCantidadInusual } from "../domain/cantidadGrande.js";
 import { medidasDelPedido } from "../services/medidasDelPedido.js";
 import { sendImage, sendPdf } from "../wa/client.js";
 import {
@@ -1439,10 +1439,14 @@ export function buildTools(ctx: AgentContext) {
             recomendacion,
             motivo: motivoLimpio,
             precioConIva: entregada.minimumPriceWithTax ?? null,
-            // Con equivalentes en la pieza, el cierre no puede prometer «su
-            // medida»: el mensaje acaba de avisar lo contrario dos líneas
-            // arriba (guardián del 26-ago).
-            hayEquivalentes: fueraDeMedida.length > 0,
+            // El cierre no puede prometer «la opción exacta para su medida» en
+            // dos casos: cuando hay equivalentes en la pieza (guardián del
+            // 26-ago) y cuando NO SABEMOS su medida —buscó por aro o por
+            // vehículo—. El 27-ago (conv 3, «tiene at rin 16?») el menú salió
+            // prometiendo «para su medida» sin que el cliente hubiera dado
+            // ninguna, y el guardián lo corrigió llevándose el menú entero: el
+            // turno terminó pidiéndole otra vez la medida en vez de avanzar.
+            hayEquivalentes: fueraDeMedida.length > 0 || permitidasOpciones.length === 0,
           }),
         ),
         regla: [
@@ -1628,6 +1632,10 @@ export function buildTools(ctx: AgentContext) {
       // mensaje es el puro número del menú, la cantidad no fue dicha — juego
       // de 4 con su aclaración horneada. El prompt ya lo pide; esto lo
       // garantiza aunque el turno lo atienda el modelo barato del canary.
+      // LA CANTIDAD RARA SE AVISA (Manuel, 27-ago): fuera de 4–8 el bot nombra
+      // el número al mandar la pieza, en una línea. No se pregunta —eso cuesta
+      // un turno para llegar a la misma respuesta—: si se equivocó lo ve y lo
+      // corrige, y si no, ya tiene su precio. Ver `domain/cantidadGrande.ts`.
       let avisoJuego: string | null = null;
       const eleccionDeMenu = (ctx.currentUserText ?? "").trim().match(/^(?:la\s+|el\s+|opci[oó]n\s+)?([123])\)?\.?$/i);
       if (eleccionDeMenu && items[0].cantidad === Number(eleccionDeMenu[1])) {
@@ -1640,22 +1648,6 @@ export function buildTools(ctx: AgentContext) {
         if (ultimoSaliente?.content?.includes("¿qué prioriza usted?")) {
           items = [{ ...items[0], cantidad: 4 }];
           avisoJuego = "Se la hice por juego de 4; si necesita otra cantidad, me avisa y se la ajusto al toque.";
-        }
-      }
-      // PEDIDO GRANDE: se confirma antes de firmarlo. Manuel, 27-ago: «cuando
-      // piden más de 8 que pregunte si escribió bien, y si dice que sí no hay
-      // tope y se cotiza nomás, porque puede que se equivocaron». Un 20 puede
-      // ser una flota o un cero de más, y las dos merecen la misma pregunta.
-      if (items[0].cantidad > TOPE_SIN_CONFIRMAR) {
-        const yaConfirmada =
-          cantidadQueConfirmamos(await lastOutboundText(ctx.conversation.id)) === items[0].cantidad;
-        if (!yaConfirmada) {
-          return JSON.stringify({
-            mensaje_para_enviar: preguntaDeConfirmacion(items[0].cantidad),
-            regla:
-              "Responde EXACTAMENTE con mensaje_para_enviar y nada más. NO cotices todavía y NO le des ningún total: " +
-              "primero que confirme la cantidad. Si dice que sí, cotizas esa cantidad; si te corrige, cotizas la nueva.",
-          });
         }
       }
       // El local ya elegido manda en TODAS las preguntas de visita de esta
@@ -2092,6 +2084,9 @@ export function buildTools(ctx: AgentContext) {
       const avisoStock = stockCorto
         ? avisoStockCorto(stockCorto.stock_hoy, stockCorto.solicitadas)
         : null;
+      const avisoCantidad = !avisoJuego && esCantidadInusual(items[0].cantidad)
+        ? avisoDeCantidad(items[0].cantidad)
+        : null;
       const cierre = buildStoreChoiceBlocks();
       return JSON.stringify({
         enviada: true,
@@ -2119,6 +2114,7 @@ export function buildTools(ctx: AgentContext) {
                 : undefined,
               preciosFirmados,
             ),
+            avisoCantidad,
             avisoStock,
             avisoJuego,
           ].filter(Boolean).join("\n\n"),
