@@ -32,6 +32,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-08-27 | _(este mismo)_ | El guardián recibe el catálogo: todo precio y todo stock que el bot afirme se verifica | 1.0 |
 | 2026-08-27 | _(este mismo)_ | El stock puede decir que no, «gracias» es un sí, y al que ya compró no se le insiste | 3.0 |
 | 2026-08-27 | _(este mismo)_ | La vitrina deja de mostrar lo que no hay, y el bot no ofrece locales que no existen | 1.0 |
 | 2026-08-27 | _(este mismo)_ | La cantidad se dice con su unidad («4 llantas») y el cierre de venta deja de borrarse solo | 1.5 |
@@ -180,11 +181,47 @@ Ya viene activado en este equipo.
 | 2026-07-14 | ac09171 | Ubicaciones de locales + análisis de features del cliente | 1.5 |
 | 2026-07-13 | feadf57 | Brief + plan de desarrollo + plan financiero + catálogo | 4.0 |
 | 2026-07-13 | d997844 | Commit inicial (repo) | 0.25 |
-| | | **TOTAL** | **~120.5 h** |
+| | | **TOTAL** | **~121.5 h** |
 
 ---
 
 ## Entradas (más reciente primero)
+
+### 2026-08-27 · El guardián recibe el catálogo: precios y stock verificables
+
+**Qué.** `armarContexto` (guardian.ts) arma una sección nueva, `CATÁLOGO DE
+HOY`, con las llantas de las medidas que el cliente pidió: marca, diseño,
+medida, el precio con IVA que imprimen las piezas (`minimumPriceWithTax`, que
+ya lleva el Interbot aplicado) y el stock de hoy, con las agotadas marcadas. La
+regla 1 de la rúbrica le quita al revisor su vía de escape: con la sección
+presente, un precio dicho fuera de una cotización que no coincida con la fila
+es `precio_incorrecto` ALTO corregido con el número del catálogo, y ofrecer una
+llanta con stock 0 es `stock_prometido` ALTO corregido con las que sí hay. El
+precio de una cotización vigente sigue comparándose contra la cotización — es
+un número firmado — y una llanta que no aparece en la sección se reporta y se
+aprueba, como antes. Falla en silencio: sin catálogo, el guardián revisa igual
+que ayer.
+
+**Por qué.** Conv 11070, 27-ago: el bot afirmó «KENDA KR628 a $144.44 c/u con
+IVA» y el guardián escribió, con razón, «no hay cotización vigente ni datos
+duros de precios para verificarlo … se reporta y se aprueba». No era vagancia:
+nadie le pasaba el catálogo, así que TODO precio dicho fuera de una cotización
+era invisible para él — el agujero de la misma familia que el stock del mismo
+día. Manuel: «no quiero ni una falla más de catálogo; las reglas están ahí y
+hay acceso a Interbot y Contífico».
+
+**Probado.** `probar-rubrica.mjs` subió a 7 casos —precio inventado corregido a
+$144.44, agotada reemplazada por la que sí hay, y un control con el precio
+correcto que no se marca— y dio 7/7 a la primera contra el guardián real. En el
+simulador se repitió TODA la historia de fallas de stock (11302, 11061, 11720,
+más el borde de la mitad y el restock), y de yapa el guardián corrigió en vivo
+un borrador que NEGABA stock habiendo 1 — la sección funciona en las dos
+direcciones: ni prometer lo que no hay, ni negar lo que sí. 1217 pruebas en
+verde.
+
+**Horas.** ~1.0 h.
+
+---
 
 ### 2026-08-27 · El stock puede decir que no, «gracias» es un sí, y al que ya compró no se le insiste
 

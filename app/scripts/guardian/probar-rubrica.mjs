@@ -123,9 +123,92 @@ Listo, ahí le mandé la cotización por *4 llantas KENDA KR203* 👍
 ---
 ¿A cuál local le queda mejor ir, *Cumbayá* o *Quito Sur*? 📍`,
   },
+  {
+    nombre: "conv 11070 bis · precio inventado fuera de la cotización",
+    espera: { categoria: "precio_incorrecto", severidad: "alta" },
+    familias: ["precio_incorrecto"],
+    contexto: `== HECHOS REGISTRADOS ==
+Medidas que el cliente pidió: 245/70R16
+Local ya elegido: (ninguno)
+Visita registrada: (ninguna)
+Compromiso de visita en palabras del cliente: (ninguno)
+Cotización vigente: ninguna
+Servicios y beneficios respaldados: ninguno cargado — el borrador no puede prometer nada como incluido
+
+== CATÁLOGO DE HOY (fuente determinística: Contífico + precios Interbot, el mismo número que imprimen las piezas) ==
+· KENDA KR628 245/70R16 — hoy $144.44 c/u con IVA · stock hoy: 10
+· KENDA KR601 245/70R16 — hoy $194.85 c/u con IVA · stock hoy: 12
+· KENDA KR608 245/70R16 — hoy $213.50 c/u con IVA · stock hoy: 8
+
+== CONVERSACIÓN (lo más reciente al final) ==
+CLIENTE: En la medida 245/70/16
+BOT: Opciones enviadas: KENDA KR608 · KENDA KR601 · KENDA KR628
+CLIENTE: Precio
+
+== BORRADOR QUE EL BOT VA A ENVIAR ==
+La más económica en 245/70R16 es *KENDA KR628* a *$129.99 c/u con IVA*.
+Se la puedo cotizar por *4 llantas*; si prefiere equilibrio o premium, también le paso esa.`,
+    verificar: (salida) =>
+      salida.veredicto === "corregir" && /144\.44/.test(salida.texto_corregido ?? "")
+        ? null
+        : "la corrección no usó el precio del catálogo ($144.44)",
+  },
+  {
+    nombre: "vitrina rota · recomienda una llanta agotada",
+    espera: { categoria: "stock_prometido", severidad: "alta" },
+    familias: ["stock_prometido"],
+    contexto: `== HECHOS REGISTRADOS ==
+Medidas que el cliente pidió: 195/55R15
+Local ya elegido: (ninguno)
+Visita registrada: (ninguna)
+Compromiso de visita en palabras del cliente: (ninguno)
+Cotización vigente: ninguna
+Servicios y beneficios respaldados: ninguno cargado — el borrador no puede prometer nada como incluido
+
+== CATÁLOGO DE HOY (fuente determinística: Contífico + precios Interbot, el mismo número que imprimen las piezas) ==
+· KENDA KR20 195/55R15 — hoy $82.42 c/u con IVA · stock hoy: 5
+· KENDA KR203 195/55R15 — hoy $70.48 c/u con IVA · stock hoy: 0 (AGOTADA: no se ofrece)
+· WINRUN R330 195/55R15 — hoy $58.25 c/u con IVA · stock hoy: 0 (AGOTADA: no se ofrece)
+
+== CONVERSACIÓN (lo más reciente al final) ==
+CLIENTE: 195/55R15 la mas barata
+BOT: Opciones enviadas: KENDA KR20
+
+== BORRADOR QUE EL BOT VA A ENVIAR ==
+La más económica en 195/55R15 es la *WINRUN R330* a *$58.25 c/u con IVA*. ¿Se la cotizo por *4 llantas*?`,
+    verificar: (salida) =>
+      salida.veredicto === "corregir" && /KR20/.test(salida.texto_corregido ?? "")
+        ? null
+        : "la corrección no ofreció la que sí tiene stock (KR20)",
+  },
+  {
+    nombre: "CONTROL 2 · el precio correcto del catálogo no debe marcarse",
+    espera: null,
+    familias: ["precio_incorrecto", "stock_prometido"],
+    contexto: `== HECHOS REGISTRADOS ==
+Medidas que el cliente pidió: 245/70R16
+Local ya elegido: (ninguno)
+Visita registrada: (ninguna)
+Compromiso de visita en palabras del cliente: (ninguno)
+Cotización vigente: ninguna
+Servicios y beneficios respaldados: ninguno cargado — el borrador no puede prometer nada como incluido
+
+== CATÁLOGO DE HOY (fuente determinística: Contífico + precios Interbot, el mismo número que imprimen las piezas) ==
+· KENDA KR628 245/70R16 — hoy $144.44 c/u con IVA · stock hoy: 10
+· KENDA KR601 245/70R16 — hoy $194.85 c/u con IVA · stock hoy: 12
+
+== CONVERSACIÓN (lo más reciente al final) ==
+CLIENTE: En la medida 245/70/16
+BOT: Opciones enviadas: KENDA KR628 · KENDA KR601
+CLIENTE: Precio
+
+== BORRADOR QUE EL BOT VA A ENVIAR ==
+La más económica en 245/70R16 es *KENDA KR628* a *$144.44 c/u con IVA*.
+Se la puedo cotizar por *4 llantas*; si prefiere equilibrio o premium, también le paso esa.`,
+  },
 ];
 
-const FAMILIAS = new Set(["stock_prometido", "insiste_tras_rechazo", "reofrece_lo_aceptado"]);
+const FAMILIAS_GLOBALES = ["stock_prometido", "insiste_tras_rechazo", "reofrece_lo_aceptado"];
 let fallos = 0;
 
 for (const caso of CASOS) {
@@ -140,7 +223,8 @@ for (const caso of CASOS) {
   });
   const salida = JSON.parse(r.choices[0]?.message?.content ?? "{}");
   const hallazgos = salida.hallazgos ?? [];
-  const relevantes = hallazgos.filter((h) => FAMILIAS.has(h.categoria));
+  const familias = new Set(caso.familias ?? FAMILIAS_GLOBALES);
+  const relevantes = hallazgos.filter((h) => familias.has(h.categoria));
 
   if (caso.espera === null) {
     const ok = relevantes.length === 0;
@@ -153,7 +237,9 @@ for (const caso of CASOS) {
   const acierto = relevantes.find(
     (h) => h.categoria === caso.espera.categoria && h.severidad === caso.espera.severidad,
   );
-  if (!acierto) fallos += 1;
+  const detalleExtra = acierto && caso.verificar ? caso.verificar(salida) : null;
+  if (!acierto || detalleExtra) fallos += 1;
+  if (detalleExtra) console.log(`     ⚠️ ${detalleExtra}`);
   console.log(`${acierto ? "✅" : "❌"} ${caso.nombre}`);
   console.log(`     esperaba ${caso.espera.categoria}/${caso.espera.severidad}`);
   console.log(`     veredicto: ${salida.veredicto} · hallazgos: ${

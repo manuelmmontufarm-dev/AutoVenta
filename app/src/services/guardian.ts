@@ -37,6 +37,8 @@ import { ahorroDeLaCotizacion } from "../domain/ahorro.js";
 import { medidaEstaPedida } from "../domain/medidaPedida.js";
 import { CIERRE_COTIZAR } from "../domain/preguntasProhibidas.js";
 import { medidasDelPedido } from "./medidasDelPedido.js";
+import { ensureCatalogReady, searchBySize, searchByText } from "./catalog.js";
+import { parseTireSize } from "../domain/tireSize.js";
 import { respaldoCompleto } from "../domain/respaldoMarcas.js";
 import { logAiRun } from "./conversations.js";
 import { crearAlertaRepeticion } from "./conversationQuality.js";
@@ -139,7 +141,7 @@ export const ESQUEMA_SALIDA = {
 export const INSTRUCCIONES = `Eres el ÁNGEL GUARDIÁN del bot de ventas de Depot Tire (llantas, Quito). Revisas el BORRADOR que el bot está por enviar y lo apruebas o lo corriges. No eres el vendedor: eres el auditor que ve la conversación desde afuera.
 
 REVISA, en este orden de gravedad:
-1. PRECIOS Y COTIZACIONES. Todo número que el borrador afirme (precio unitario, total, número de cotización, meses de garantía) debe coincidir EXACTAMENTE con los datos duros del contexto. Si el borrador confirma que una cotización corresponde a una medida y los datos dicen otra medida, eso es un error ALTO.
+1. PRECIOS Y COTIZACIONES. Todo número que el borrador afirme (precio unitario, total, número de cotización, meses de garantía) debe coincidir EXACTAMENTE con los datos duros del contexto. Si el borrador confirma que una cotización corresponde a una medida y los datos dicen otra medida, eso es un error ALTO. Si el contexto trae la sección CATÁLOGO DE HOY, los precios de esas medidas SÍ son verificables — nada de «no puedo verificar la cifra»: un precio dicho FUERA de una cotización (una oferta, una recomendación, «la más económica es…») tiene que coincidir con la fila de esa llanta, y si no coincide es error ALTO **precio_incorrecto** cuya corrección usa el número del catálogo. El precio de la COTIZACIÓN vigente es aparte: es un número ya firmado y se compara contra la cotización, no contra el catálogo. La DISPONIBILIDAD sale de la misma sección: ofrecer, recomendar o prometer una llanta cuya fila dice «stock hoy: 0 (AGOTADA)» es error ALTO **stock_prometido**, y la corrección la quita y ofrece las que sí tienen stock según el catálogo. Solo si la llanta que el borrador nombra NO aparece en la sección se reporta y se aprueba sin cambiar la cifra.
 2. MEDIDA. Si el cliente pidió una medida concreta y el borrador ofrece o confirma otra sin decirle con todas las letras que es una equivalente, error ALTO.
 3. RE-PREGUNTAS. Si el borrador pregunta algo que el cliente ya respondió en la conversación (local, fecha, medida, uso), error ALTO. La corrección usa el dato ya dado y avanza. OJO: preguntar CUÁNTAS llantas quiere no es re-pregunta aunque lo parezca —el cliente puede no haberlo dicho nunca— y tiene su propia categoría en la regla 15; clasifícalo ahí.
 4. CONTRADICCIONES con lo que el propio bot dijo antes.
@@ -220,6 +222,48 @@ export interface OpcionesRevision {
   tipo?: "respuesta" | "seguimiento";
 }
 
+/**
+ * EL CATÁLOGO DE HOY, PARA LAS MEDIDAS DE ESTA CONVERSACIÓN.
+ *
+ * Sin esto el guardián era ciego a los precios: la conv 11070 (27-ago) afirmó
+ * «KENDA KR628 a $144.44 c/u con IVA» y el revisor escribió, con razón, «no
+ * hay cotización vigente ni datos duros de precios para verificarlo … se
+ * reporta y se aprueba». La cifra era del turno ANTERIOR del propio bot; el
+ * revisor no tenía contra qué compararla. Manuel: «no quiero ni una falla más
+ * de catálogo — las reglas están ahí y hay acceso a Interbot y Contífico».
+ *
+ * Los precios son EXACTAMENTE los que imprimen las herramientas: el catálogo
+ * en memoria ya lleva el Interbot aplicado (`applyInterbotPrices` pisa
+ * `minimumPriceWithTax` con el precio de hoy, promo incluida), así que esta
+ * lista y la pieza de opciones salen de la misma celda. Falla en silencio a
+ * propósito: un guardián sin catálogo revisa como antes, no revienta el turno.
+ */
+async function catalogoParaElGuardian(pedidas: readonly string[]): Promise<string[]> {
+  if (!pedidas.length) return [];
+  try {
+    await ensureCatalogReady();
+    const filas: string[] = [];
+    for (const medida of pedidas.slice(0, 3)) {
+      const size = parseTireSize(medida);
+      const encontrados = size ? searchBySize(size) : searchByText(medida, 12);
+      for (const p of encontrados.slice(0, 8)) {
+        filas.push(
+          `· ${p.brand} ${p.design} ${p.sizeLabel} — hoy $${p.minimumPriceWithTax.toFixed(2)} c/u con IVA · ` +
+          `stock hoy: ${p.stock}${p.stock <= 0 ? " (AGOTADA: no se ofrece)" : ""}`,
+        );
+      }
+      if (!encontrados.length) filas.push(`· en ${medida} el catálogo no tiene NINGUNA llanta hoy`);
+    }
+    if (!filas.length) return [];
+    return [
+      "== CATÁLOGO DE HOY (fuente determinística: Contífico + precios Interbot, el mismo número que imprimen las piezas) ==",
+      ...filas,
+    ];
+  } catch {
+    return [];
+  }
+}
+
 export async function armarContexto(
   conversationId: number,
   cycle: number,
@@ -280,6 +324,7 @@ export async function armarContexto(
     }
   })();
   const respaldados = [...beneficios.map((b) => b.text), ...servicios];
+  const catalogoHoy = await catalogoParaElGuardian(pedidas);
 
   // Los dos últimos turnos, sueltos: son la materia prima de los hechos de
   // despedida y de oferta aceptada. `mensajes` viene del más nuevo al más viejo.
@@ -373,6 +418,7 @@ export async function armarContexto(
     respaldados.length
       ? `Servicios y beneficios respaldados (lo ÚNICO que el bot puede prometer como incluido): ${respaldados.join(" · ")}`
       : "Servicios y beneficios respaldados: ninguno cargado — el borrador no puede prometer nada como incluido",
+    ...(catalogoHoy.length ? ["", ...catalogoHoy] : []),
     "",
     "== CONVERSACIÓN (vieja → nueva) ==",
     historial,
