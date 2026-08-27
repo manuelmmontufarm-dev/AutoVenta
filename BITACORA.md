@@ -32,6 +32,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-08-27 | _(este mismo)_ | La cantidad se dice con su unidad («4 llantas») y el cierre de venta deja de borrarse solo | 1.5 |
 | 2026-08-27 | _(este mismo)_ | Cada pregunta en su propio mensaje, y la pregunta en imperativo deja de duplicarse | 1.0 |
 | 2026-08-27 | _(este mismo)_ | «el 30» se entiende como fecha, el cierre deja de repreguntar, y /restart para poder probar sin esperar | 1.5 |
 | 2026-08-27 | _(este mismo)_ | La escalera vuelve a contestarse escribiendo, «Otro día» pregunta cuál, y ningún JSON sale al cliente | 1.5 |
@@ -182,6 +183,77 @@ Ya viene activado en este equipo.
 ---
 
 ## Entradas (más reciente primero)
+
+### 2026-08-27 · «4 llantas», no «4» · y el cierre que se borraba solo · ⏱️ 1.5 h
+
+**Qué:** dos arreglos que había que hacer juntos, porque uno rompía al otro.
+
+1. **El cierre de venta volvía mutilado.** La plantilla de recomendación
+   (`buildCierreOpciones`) cerraba con «¿Se la cotizo por 4?», y esa frase caía
+   en la regex de `sinPreguntasProhibidas` —la que quita «¿se la cotizo por
+   N?», puesta el 26-ago porque pedir permiso para la cantidad es pedir la
+   cantidad—. Al cliente le llegaba «…es la premium de las tres. 😊»: sin
+   pedido y con el emoji colgando. Y encima le salía al asesor una alerta
+   `pregunta_de_mas` culpando al modelo por un texto que escribimos nosotros.
+
+2. **«Por 4» no se entiende.** Pedido de Manuel: donde el bot nombre una
+   cantidad, dice la unidad. «¿Se la cotizo por 4?» se puede leer como 4
+   llantas, $4 o 4 cuotas, y el cliente pregunta de nuevo.
+
+**Por qué van juntos:** la redacción nueva —«¿Le cotizo el juego de 4
+llantas?»— **también** matchea la regex (contiene «de 4»). Arreglar solo la
+redacción dejaba el cierre borrándose igual.
+
+**El arreglo de fondo, no la regex aflojada.** `preguntasProhibidas.ts` exporta
+`CIERRE_COTIZAR` (la frase, una sola vez) y `FRASES_NUESTRAS`, y el candado
+exenta por **coincidencia exacta**. `quoteMessages.ts` importa la constante en
+vez de escribirla a mano — la flecha va services → domain, y el texto y su
+exención ya no se pueden separar. Lo que escriba el modelo por su cuenta sigue
+cayendo: «¿Se la cotizo por 6?» se sigue yendo, y «¿Se la cotizo por 4?»
+tampoco está exenta, porque la exención es la frase entera, no la familia.
+
+**El segundo culpable, que solo apareció probando en vivo.** Con el candado ya
+arreglado, el cierre seguía sin llegar. El Ángel Guardián lo marcaba
+«pregunta_de_mas (alta) — El borrador pregunta "¿Le cotizo el juego de 4
+llantas?"» y lo borraba: su regla 15 le prohíbe pedir permiso para la cantidad
+y tampoco distinguía quién había escrito la frase. Corre ANTES de los candados
+deterministas y es la última mano que reescribe, así que exentar solo el
+candado no cambiaba nada para el cliente. Su rúbrica ahora interpola la MISMA
+constante, no una copia. Verificado en el simulador: el guardián pasa a
+**APROBAR, sin hallazgos**, y el cierre llega en su propia burbuja.
+
+**La unidad, en los seis lugares y en los tres prompts.** `quoteMessages.ts`,
+`prompts.ts`, `compactPlaybook.ts`, `BOT_PLAYBOOK.md`, `agent.ts` (línea de
+escalones) y `tools.ts` (instrucciones de `preparar_opciones` y el aviso «se la
+hice por juego de 4 llantas»). La regla nueva —«la cantidad SIEMPRE lleva su
+unidad»— está en los **dos** playbooks y en el prompt operativo, porque
+`AI_COMPACT_PROMPT_ENABLED=true` en producción y escribirla solo en el largo es
+escribirla donde nadie la lee.
+
+**Lo vigila una prueba, no una revisión a ojo.** `unidadEnLaCantidad.test.ts`
+recorre esos seis archivos y falla si aparece un número de 1 a 8 pegado a
+«por/de» sin `llanta(s)` detrás — saltándose comentarios, horas («de 4 a 5 pm»)
+y rangos («fuera de 4–8»). Cuando falla dice la frase, el archivo y la línea. Se
+escribió porque el «por 4» se vuelve a colar cada vez que alguien redacta una
+regla nueva copiando el estilo de la de al lado.
+
+**Lo que costó una vuelta:** el techo del playbook compacto. La regla nueva lo
+subía de 4.978 a 5.083 y reventaba el guardarraíl de 5.000. Se acortó la regla
+a una línea y se subió el techo a 5.100 (segunda subida documentada, la
+primera fue el 26-ago por `agendar_visita`). El guardarraíl protege que el
+compacto siga siendo ~1/4 del playbook largo (18.400), y a 5.100 lo sigue
+siendo.
+
+**Fuera del alcance del sprint, y hecho igual porque el arreglo no servía sin
+ello:** `guardian.ts` (la rúbrica), `tools.ts:1657` (el aviso del juego) y
+`BOT_PLAYBOOK.md` no estaban en la lista de archivos permitidos del sprint. Los
+tres son copy, ningún otro sprint los toca, y sin ellos R-06 y R-07 quedaban a
+medias. Anotado en el PR.
+
+**Pruebas:** 1139 → 1153 (14 nuevas), `tsc` limpio, `sim:humo` 8/8,
+`simuladorFidelidad` en verde.
+
+---
 
 ### 2026-08-27 · La pregunta, sola y una sola vez · ⏱️ 1.0 h
 
