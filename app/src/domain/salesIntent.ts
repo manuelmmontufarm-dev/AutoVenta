@@ -145,6 +145,34 @@ export function hasExplicitQuantity(text: string): boolean {
   return extractExplicitQuantity(text) !== null;
 }
 
+/**
+ * El texto con el que el cierre de opciones pregunta la preferencia. Vive acá
+ * para que quien lo escribe y quien lo reconoce no se separen nunca.
+ */
+export const MARCA_DEL_MENU = "¿qué prioriza usted?";
+
+/**
+ * ¿Ese «2» es el escalón del menú, o son dos llantas?
+ *
+ * El cierre de opciones pregunta «1) Costo / 2) Equilibrio / 3) Premium», y a
+ * eso el cliente contesta con el número pelado. `extractExplicitQuantity` lee
+ * cualquier 1–8 suelto como cantidad, así que ese «2» quedaba guardado como
+ * «quiere 2 llantas»: pasó en producción el 27-ago (conv 3, ciclo 7) —el
+ * cliente contestó «2», compró un juego de 4, y la ficha decía 2—.
+ *
+ * `generar_cotizacion` ya tenía su propio candado para no COTIZAR 2 (26-ago),
+ * pero el dato igual se escribía en la conversación y de ahí lo leen otras
+ * cosas: el filtro de opciones vendibles usa esa cantidad para decidir qué
+ * enseñar. Un candado en la caja no arregla un dato mal anotado en la ficha.
+ */
+export function esRespuestaDelMenuDePreferencia(
+  text: string,
+  ultimoMensajeNuestro: string | null | undefined,
+): boolean {
+  if (!ultimoMensajeNuestro?.toLowerCase().includes(MARCA_DEL_MENU)) return false;
+  return /^(?:la\s+|el\s+|opci[oó]n\s+)?([123])\)?\.?$/i.test(text.trim());
+}
+
 export function extractExplicitQuantity(text: string): number | null {
   const normalized = normalize(text);
   if (/^[1-8]$/.test(normalized)) return Number(normalized);

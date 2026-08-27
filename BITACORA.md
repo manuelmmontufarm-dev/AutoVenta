@@ -32,6 +32,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-08-27 | _(este mismo)_ | «Deme solo 3»: cambiar la cantidad manda la pieza nueva, y las tres fallas que salieron con ella (el «2» del menú, «al de quito», la pregunta corta del local) | 2.5 |
 | 2026-08-26 | _(este mismo)_ | Las preguntas de más se quitan con candado: pedírselo al guardián no alcanzó (marcó la falta y la repitió en su corrección) | 0.75 |
 | 2026-08-26 | _(este mismo)_ | El cierre después de cotizar: dos mensajes en vez de uno, el monto del descuento a la vista, y no se ofrece ni se pregunta lo que no hace falta | 2.0 |
 | 2026-08-26 | _(este mismo)_ | La cotización de otra medida: la compra de hace dos semanas dejó de firmar la de hoy, y la foto habla sola | 3.0 |
@@ -173,6 +174,53 @@ Ya viene activado en este equipo.
 ---
 
 ## Entradas (más reciente primero)
+
+### 2026-08-27 · «Deme solo 3» — cinco fallas de la misma familia · ⏱️ 2.5 h
+
+**Qué:** `services/recotizar.ts` (nuevo): una ruta determinística que, cuando el
+cliente dice una cantidad distinta a la que tiene cotizada, **genera la pieza
+nueva** con la MISMA herramienta del agente (`generar_cotizacion`, no una copia)
+y devuelve un acuse corto que no repite lo que la foto ya muestra. Corre antes
+de la ruta de visita y antes del agente. Además: el «2» del menú de preferencia
+dejó de guardarse como cantidad (`esRespuestaDelMenuDePreferencia`); «al de
+quito» / «el de quito» / «quito» se reconocen como Quito Sur cuando acabamos de
+preguntar el local; `preguntamosElLocal` reconoce la pregunta corta nueva
+(`PREGUNTA_DE_LOCAL`, que ahora vive en el dominio y la usan el que pregunta y
+el que reconoce); y contestar el menú de preferencia COTIZA en vez de ofrecer
+cotizar. 18 pruebas nuevas; la suite queda en 1009.
+
+**Por qué:** producción, conv 3 ciclo 7. El bot cotizó 4 × FALKEN ZE310R por
+$637.96, el cliente escribió «deme solo 3» y el bot contestó «si quiere le
+ajusto la cotización al toque»; dijo «dale» y el bot solo anotó «queda anotado
+que necesita 3 unidades» y siguió con el local. Nunca salió una pieza por 3, y
+cuando el cliente pidió ver lo cotizado le reenviaron la de 4. Manuel: «el
+cliente ni sabe cuánto le va a salir con 3 llantas». En los DOS turnos el modelo
+no llamó una sola herramienta (`ai_runs`: routine_stage, tools: []). El guardián
+sí lo vio —`promesa_incumplible` en alta, la categoría estrenada el día
+anterior— pero solo reescribe texto. Cuarta vez esta semana que la conclusión es
+la misma: lo que tiene que pasar sí o sí no se le pide al modelo.
+
+Tirando de ese hilo aparecieron cuatro más en la misma conversación, todas de la
+familia «el sistema anota algo que el cliente nunca ve, o no anota lo que sí
+dijo»: (1) el «2» con que contestó el menú de preferencia quedó guardado como
+«quiere 2 llantas» —el candado de la cotización ya lo atajaba, pero el dato mal
+anotado lo leen otras cosas, como el filtro de opciones vendibles—; (2) «al de
+quito» no se reconocía como local, así que no se registró la sucursal, la
+pregunta del día salió sin el monto del descuento y un turno después el bot le
+volvió a preguntar a cuál local quería ir; (3) una REGRESIÓN propia del 26-ago:
+al partir el cierre en dos mensajes, la pregunta corta dejó de nombrar los
+locales y `preguntamosElLocal` —que exige verlos— se apagaba en cuanto algo se
+enviaba detrás, porque la ventana son los últimos 3 salientes; (4) contestar el
+menú con «2» hacía que el bot OFRECIERA cotizar en vez de cotizar, gastando un
+turno para llegar a la misma respuesta.
+
+**Probado:** la conversación entera repetida en el simulador con el stock
+fijado. «deme solo 3» produce COT-… por 3 a $463.47 con su foto y el acuse
+«Listo, se la ajusté a 3 👍» (ruta `recotizar_cantidad` en `funnel_events`, no
+el modelo); «al de quito» registra *Depot Tire Quito Sur* y pide el día con
+«*25 %* de descuento, *$154.47* menos» —el ahorro recalculado sobre la
+cotización de 3, verificado contra sus `items`—; y las 5 revisiones del guardián
+salieron `aprobar` con cero hallazgos, sin un solo `estado_desincronizado`.
 
 ### 2026-08-26 · Las preguntas de más, con candado y no con prompt · ⏱️ 0.75 h
 

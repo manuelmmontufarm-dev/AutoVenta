@@ -1,5 +1,6 @@
 import { business } from "../config.js";
 import { fraseDeAhorro, type AhorroDeLaCotizacion } from "../domain/ahorro.js";
+import { PREGUNTA_DE_LOCAL } from "../domain/storeSelection.js";
 import type { CatalogItem } from "../domain/catalog.js";
 import { getTirePatternProfile } from "../domain/tireKnowledge.js";
 
@@ -278,7 +279,7 @@ export function buildStoreChoiceBlocks(): { ubicaciones: string; pregunta: strin
       "Puede pasar sin compromiso a verlas y probarlas en su vehículo.",
       mapas,
     ].filter(Boolean).join("\n"),
-    pregunta: "¿A cuál de los dos le queda mejor ir? 📍",
+    pregunta: `${PREGUNTA_DE_LOCAL} 📍`,
   };
 }
 

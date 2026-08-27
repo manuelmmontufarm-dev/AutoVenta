@@ -49,7 +49,9 @@ import { isBotActive } from "./services/botPower.js";
 import {
   extractFlotationSizes, extractTireSizes, formatFlotationSize, formatTireSize,
 } from "./domain/tireSize.js";
-import { extractExplicitQuantity, extractVehicleYear } from "./domain/salesIntent.js";
+import {
+  esRespuestaDelMenuDePreferencia, extractExplicitQuantity, extractVehicleYear,
+} from "./domain/salesIntent.js";
 import { getHubMetrics } from "./services/hubData.js";
 import {
   createBotAlert,
@@ -73,6 +75,7 @@ import { notifyPendingHumanRequests } from "./services/advisorNotifications.js";
 import { startEmbeddedFollowUpWorker } from "./workers/embeddedFollowUpWorker.js";
 import { extractExplicitStore, preguntamosElLocal } from "./domain/storeSelection.js";
 import { tryDirectSalesRoute } from "./services/directSalesRoutes.js";
+import { tryRecotizarPorCantidad } from "./services/recotizar.js";
 import { firstContactReply, isGenericFirstContact } from "./domain/firstContact.js";
 
 /** Pausa entre bloques: suficiente para que se lean como mensajes seguidos y no como spam. */
@@ -89,9 +92,14 @@ const pipeline = new InboundPipeline(async ({ from, name, text, waMessageIds, re
   // esta segunda, el bot no registraba nada y terminaba diciendo que no había.
   const parsedSize = extractTireSizes(text)[0];
   const parsedFlotation = parsedSize ? null : extractFlotationSizes(text)[0];
-  const parsedQuantity = extractExplicitQuantity(text);
   const parsedVehicleYear = extractVehicleYear(text);
   const previousOutbound = await lastOutboundText(conversation.id);
+  // El «2» del menú de preferencia es el ESCALÓN, no dos llantas. Ver
+  // `esRespuestaDelMenuDePreferencia`: sin esto la ficha del cliente quedaba
+  // diciendo que quería 2 cuando compró un juego de 4 (conv 3, 27-ago).
+  const parsedQuantity = esRespuestaDelMenuDePreferencia(text, previousOutbound)
+    ? null
+    : extractExplicitQuantity(text);
   // «Al sur me resulta más fácil» solo es elección de local si acabamos de
   // preguntar el local — la misma lógica contextual que el día de visita.
   const respondiendoAlLocal = preguntamosElLocal(previousOutbound);
@@ -246,12 +254,21 @@ const pipeline = new InboundPipeline(async ({ from, name, text, waMessageIds, re
   const isFirstGenericMessage = conversation.stage === "nuevo"
     && previousOutbound === null
     && isGenericFirstContact(textoConLinks);
+  // Un cambio de cantidad NO se contesta con palabras: sale la pieza nueva.
+  // El 27-ago (conv 3) el modelo prometió el ajuste dos turnos seguidos sin
+  // llamar una sola herramienta, y el cliente nunca supo cuánto costaban 3
+  // llantas. Va ANTES de la ruta de visita porque «deme solo 3» no es una
+  // respuesta sobre el local ni sobre el día. Ver services/recotizar.ts.
   const directReply = isFirstGenericMessage
     ? firstContactReply()
-    : await tryDirectSalesRoute(
-      { conversation, customerPhone: from, explicitStore, commitment },
-      textoConLinks,
-    );
+    : (await tryRecotizarPorCantidad(
+        { conversation, customerPhone: from, customerName: name, previousOutbound },
+        textoConLinks,
+      ))
+      ?? await tryDirectSalesRoute(
+        { conversation, customerPhone: from, explicitStore, commitment },
+        textoConLinks,
+      );
   if (isFirstGenericMessage) {
     await logFunnelEvent(conversation.id, "respuesta_directa", { route: "first_contact" });
   }
