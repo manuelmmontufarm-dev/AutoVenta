@@ -593,14 +593,14 @@ async function levantarUI({ registroBot }) {
       }
 
       if (url.pathname === "/api/enviar" && req.method === "POST") {
-        const { texto, adjunto, ubicacion } = await cuerpoJson(req);
-        if (!String(texto ?? "").trim() && !adjunto && !ubicacion) {
+        const { texto, adjunto, ubicacion, boton } = await cuerpoJson(req);
+        if (!String(texto ?? "").trim() && !adjunto && !ubicacion && !boton?.id) {
           return json(res, 400, { error: "no hay nada que mandar" });
         }
         const r = await deliverWebhook({
           baseUrl: `http://127.0.0.1:${PUERTO_APP}`,
           appSecret: APP_SECRET,
-          payload: payloadEntrante({ texto, adjunto, ubicacion }),
+          payload: payloadEntrante({ texto, adjunto, ubicacion, boton }),
         });
         return json(res, 200, { ok: r.status === 200, status: r.status, ackMs: Math.round(r.ackMs), error: r.error ?? null });
       }
@@ -651,7 +651,7 @@ async function levantarUI({ registroBot }) {
  * media conversación de Depot —la que empieza con la foto del costado— no se
  * podría probar acá.
  */
-function payloadEntrante({ texto, adjunto, ubicacion }) {
+function payloadEntrante({ texto, adjunto, ubicacion, boton }) {
   const base = buildInboundPayload({
     from: TELEFONO_CLIENTE,
     name: valor("nombre", "Cliente Sim"),
@@ -660,6 +660,21 @@ function payloadEntrante({ texto, adjunto, ubicacion }) {
     phoneId: PHONE_ID,
   });
   const mensaje = base.entry[0].changes[0].value.messages[0];
+
+  // Tocar un botón NO es escribir su título: Meta manda un `interactive` con el
+  // id exacto, y el bot lo traduce con `textoDeBoton`. El simulador arma ese
+  // mismo payload para que se pruebe el camino de verdad y no un atajo — si
+  // aquí se mandara texto, el `case "interactive"` de index.ts no se probaría
+  // nunca y el error aparecería recién en el teléfono del cliente.
+  if (boton?.id) {
+    delete mensaje.text;
+    mensaje.type = "interactive";
+    mensaje.interactive = {
+      type: "button_reply",
+      button_reply: { id: String(boton.id), title: String(boton.titulo ?? "") },
+    };
+    return base;
+  }
 
   if (ubicacion) {
     delete mensaje.text;
@@ -757,8 +772,12 @@ async function pruebaDeHumo() {
   }
 
   const alCliente = graph.enviados().filter((e) => e.para === TELEFONO_CLIENTE);
-  const textos = alCliente.filter((e) => e.tipo === "text");
-  revisar(textos.length > 0, `el bot le contestó al cliente (${textos.length} mensajes de texto)`);
+  // `interactive` cuenta como respuesta: desde los botones, el turno que cierra
+  // con una pregunta cerrada (la escalera, el local, el día) sale como
+  // interactivo y no como texto. Contando solo `text`, el humo daba al bot por
+  // mudo justo cuando había contestado bien.
+  const textos = alCliente.filter((e) => e.tipo === "text" || e.tipo === "interactive");
+  revisar(textos.length > 0, `el bot le contestó al cliente (${textos.length} mensajes al cliente)`);
 
   const [ajustes] = await sql`select count(*)::int as n from settings where key = any(${AJUSTES_QUE_IMPORTAN})`;
   revisar(

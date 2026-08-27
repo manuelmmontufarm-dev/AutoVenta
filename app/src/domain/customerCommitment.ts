@@ -75,6 +75,23 @@ export function fechaDelDia(texto: string, now = new Date()): Date | null {
  * respuesta no se guardaba y la tarjeta quedaba sin día justo en el caso en el
  * que el cliente sí lo dijo.
  */
+/**
+ * ¿Este bloque PREGUNTA el día? Estricto, a diferencia de `preguntamosElDia`.
+ *
+ * El laxo cae a `diaEnTexto(n) != null` a propósito: para leer la respuesta del
+ * cliente basta con que nuestro mensaje tuviera un día sobre la mesa. Para
+ * decidir si se pintan botones eso es demasiado — probado en el simulador el
+ * 27-ago: el bot contestó «sí, para carretera van bien… le aplican la visita
+ * que ya agendó» y se llevó tres botones de fecha debajo de una respuesta que
+ * no preguntaba nada.
+ */
+export function preguntaElDia(bloque: string | null | undefined): boolean {
+  if (!bloque || !bloque.includes("?")) return false;
+  const n = normalizar(bloque);
+  return /\b(?:que|cual|cuando)\b[^.?!]{0,40}\b(?:dia|fecha|finde|fin de semana)\b/.test(n)
+    || /\bcuando\b[^.?!]{0,25}\b(?:puede|podria|pudiera|le queda|viene|vendria|pasa|pasaria|visita)\b/.test(n);
+}
+
 export function preguntamosElDia(ultimoMensajeNuestro: string | null | undefined): boolean {
   if (!ultimoMensajeNuestro) return false;
   const n = normalizar(ultimoMensajeNuestro);

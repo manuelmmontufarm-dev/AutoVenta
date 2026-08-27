@@ -37,6 +37,11 @@
   .msg img{max-width:100%;border-radius:6px;display:block;margin-bottom:6px;cursor:zoom-in}
   .doc{display:flex;align-items:center;gap:9px;background:rgba(0,0,0,.25);padding:9px;border-radius:6px;margin-bottom:6px}
   .doc a{color:var(--texto);text-decoration:none;font-size:13px}
+  .wabtns{margin:6px -10px -6px;border-top:1px solid #2a3942;display:flex;flex-direction:column}
+  .wabtn{background:none;border:none;border-bottom:1px solid #2a3942;border-radius:0;
+         color:#53bdeb;padding:9px 0;font-size:14px;cursor:pointer}
+  .wabtn:last-child{border-bottom:none}
+  .wabtn:disabled{opacity:.45;cursor:default}
   .escribiendo{align-self:flex-start;color:var(--tenue);font-size:12px;font-style:italic;padding:4px 6px}
 
   .redactar{display:flex;gap:8px;padding:12px;background:var(--panel);border-top:1px solid var(--borde)}
@@ -216,9 +221,23 @@ function pintarHilo() {
     }
     const cuerpo = m.texto ?? m.caption ?? (m.plantilla ? `[plantilla ${m.plantilla}]` : "");
     dentro += formato(cuerpo);
+    // Los botones se pintan y se pueden TOCAR: mandan el webhook interactive.
+    const botones = (m.botones ?? []).filter((b) => b.id).map((b) =>
+      `<button class="wabtn" data-boton-id="${escapar(b.id)}" data-boton-titulo="${escapar(b.titulo ?? "")}">${escapar(b.titulo ?? "")}</button>`).join("");
+    if (botones) dentro += `<div class="wabtns">${botones}</div>`;
     return `<div class="msg bot">${dentro}<span class="hora">${hora(m.en)}</span></div>`;
   }).join("") + (esperando ? '<div class="escribiendo">escribiendo…</div>' : "");
 
+  hilo.querySelectorAll("[data-boton-id]").forEach((b) => {
+    b.onclick = async () => {
+      hilo.querySelectorAll("[data-boton-id]").forEach((o) => { o.disabled = true; });
+      await fetch("/api/enviar", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ boton: { id: b.dataset.botonId, titulo: b.dataset.botonTitulo } }),
+      });
+    };
+  });
   hilo.querySelectorAll("[data-lupa]").forEach((img) => {
     img.onclick = () => { $("#lupa img").src = img.src; $("#lupa").style.display = "grid"; };
   });

@@ -25,6 +25,26 @@ export type ExplicitStore = "Depot Tire Cumbayá" | "Depot Tire Quito Sur";
  */
 export const PREGUNTA_DE_LOCAL = "¿A cuál local le queda mejor ir, *Cumbayá* o *Quito Sur*?";
 
+/**
+ * ¿Este bloque PREGUNTA el local? Estricto, a diferencia de `preguntamosElLocal`.
+ *
+ * Los dos parecen lo mismo y no lo son. El laxo sirve para INTERPRETAR al
+ * cliente: ahí pasarse es gratis —como mucho se entiende un «al sur» que ya era
+ * obvio—. Este decide si se PINTAN BOTONES, y ahí pasarse cuesta: el mensaje
+ * con los dos links de Google Maps nombra Cumbayá y Quito Sur sin preguntar
+ * nada, y con el detector laxo se habría llevado dos botones debajo.
+ *
+ * Por eso exige la pregunta explícita y no se conforma con que los nombres
+ * estén sobre la mesa.
+ */
+export function preguntaElLocal(bloque: string | null | undefined): boolean {
+  if (!bloque || !bloque.includes("?")) return false;
+  const n = normalize(bloque);
+  if (n.includes(normalize(PREGUNTA_DE_LOCAL))) return true;
+  return /\b(?:cual|que|donde|a cual)\b[^?]{0,60}\b(?:local|locales|sucursal|sucursales|tienda|tiendas)\b/.test(n)
+    || /\b(?:local|sucursal|tienda)\b[^?]{0,40}\b(?:le queda|prefiere|le conviene|le sirve)\b/.test(n);
+}
+
 export function preguntamosElLocal(ultimoMensajeNuestro: string | null | undefined): boolean {
   if (!ultimoMensajeNuestro) return false;
   const n = normalize(ultimoMensajeNuestro);

@@ -80,6 +80,20 @@ export function pideRecomendacion(text: string): boolean {
  */
 export type Preferencia = "precio" | "equilibrada" | "premium";
 
+/**
+ * El nombre con el que el cliente ve cada escalón.
+ *
+ * Vive acá y no en `quoteMessages` porque ahora lo usan dos: el menú numerado
+ * que se escribe y los botones que se tocan. Si el texto del menú y el título
+ * del botón se escriben por separado, un día dejan de decir lo mismo y el
+ * cliente elige una cosa creyendo que elige otra.
+ */
+export const ETIQUETA_DEL_ESCALON: Record<Preferencia, string> = {
+  precio: "Costo",
+  equilibrada: "Equilibrio",
+  premium: "Premium",
+};
+
 export function respuestaDePreferencia(text: string): Preferencia | null {
   const normalized = normalize(text);
   // El menú de Joaquín es numerado (1 Costo / 2 Equilibrio / 3 Premium), así

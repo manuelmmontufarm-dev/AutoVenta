@@ -221,6 +221,47 @@ async function graphSend(
   throw lastError instanceof Error ? lastError : new Error(String(lastError));
 }
 
+/**
+ * Manda un mensaje con botones de respuesta (hasta 3), con el mismo gate de
+ * política que el texto.
+ *
+ * El CUERPO que se envía es el mismo texto que se guarda en `messages`: los
+ * detectores del dominio (`preguntamosElLocal`, `preguntamosElDia`) leen los
+ * últimos salientes para entender la respuesta del cliente, y si aquí saliera
+ * un texto distinto del que se persiste, el bot dejaría de reconocer lo que él
+ * mismo preguntó.
+ *
+ * No lleva el saludo de `sendCustomerText`: un mensaje con botones nunca es el
+ * primer texto de una conversación — siempre cierra un turno que ya venía.
+ */
+export async function sendCustomerButtons(
+  conversationId: number,
+  to: string,
+  cuerpo: string,
+  botones: readonly { id: string; titulo: string }[],
+  actor: "bot" | "owner" | "worker" = "bot",
+): Promise<string | undefined> {
+  await assertConversationOutbound({ conversationId, contentType: "text", actor });
+  return graphSend("el mensaje con botones", (ch) => ({
+    path: `${ch.phoneId}/messages`,
+    body: {
+      messaging_product: "whatsapp",
+      to,
+      type: "interactive",
+      interactive: {
+        type: "button",
+        body: { text: cuerpo },
+        action: {
+          buttons: botones.slice(0, 3).map((b) => ({
+            type: "reply",
+            reply: { id: b.id, title: b.titulo },
+          })),
+        },
+      },
+    },
+  }));
+}
+
 export async function sendText(to: string, body: string): Promise<string | undefined> {
   return graphSend("el mensaje", (ch) => ({
     path: `${ch.phoneId}/messages`,

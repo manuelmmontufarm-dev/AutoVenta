@@ -17,7 +17,7 @@ process.on("unhandledRejection", (reason) => {
     reason instanceof Error ? reason.stack ?? reason.message : reason,
   );
 });
-import { initWa, setWaHandlers, sendCustomerText, showTyping, downloadMedia } from "./wa/client.js";
+import { initWa, setWaHandlers, sendCustomerText, sendCustomerButtons, showTyping, downloadMedia } from "./wa/client.js";
 import { describirFotoDeLlanta } from "./services/vision.js";
 import { transcribirAudio } from "./services/transcripcion.js";
 import { conResumenDeLinks } from "./services/linkPreview.js";
@@ -78,6 +78,8 @@ import { extractExplicitStore, preguntamosElLocal } from "./domain/storeSelectio
 import { tryDirectSalesRoute } from "./services/directSalesRoutes.js";
 import { tryRecotizarPorCantidad } from "./services/recotizar.js";
 import { firstContactReply, isGenericFirstContact } from "./domain/firstContact.js";
+import { botonesParaBloque, recortarTitulo, textoDeBoton, type BloqueConBotones } from "./domain/botones.js";
+import { algunLocalAbre, getStoreHours } from "./services/settings.js";
 
 /** Pausa entre bloques: suficiente para que se lean como mensajes seguidos y no como spam. */
 const PAUSA_ENTRE_BLOQUES_MS = 900;
@@ -345,10 +347,21 @@ const pipeline = new InboundPipeline(async ({ from, name, text, waMessageIds, re
       porcentaje: cupon.porcentaje,
     }));
   }
+  // Los botones van SOLO en el último bloque: son la pregunta con la que cierra
+  // el turno, y dos mensajes con botones seguidos se leen como formulario.
+  // `null` es la respuesta normal — la mayoría de los turnos no terminan en una
+  // pregunta de conjunto cerrado y salen como texto, igual que siempre.
+  const conBotones = await botonesDelUltimoBloque(conversation, bloques);
   for (const [indice, bloque] of bloques.entries()) {
     if (indice > 0) await esperar(PAUSA_ENTRE_BLOQUES_MS);
     try {
-      const sentId = await sendCustomerText(conversation.id, from, bloque);
+      const botones = indice === bloques.length - 1 ? conBotones : null;
+      // Se GUARDA el bloque completo, no el cuerpo recortado: los detectores
+      // del dominio leen los últimos salientes para entender la respuesta del
+      // cliente, y tienen que ver la misma pregunta que se hizo.
+      const sentId = botones
+        ? await sendCustomerButtons(conversation.id, from, botones.cuerpo, botones.botones)
+        : await sendCustomerText(conversation.id, from, bloque);
       await appendMessage(conversation.id, "assistant", bloque, sentId, {
         authorKind: "bot",
         status: "sent",
@@ -399,6 +412,34 @@ const pipeline = new InboundPipeline(async ({ from, name, text, waMessageIds, re
  * fila con su wa_message_id, que es lo que permite que la deduplicación
  * definitiva sea la de la base (unique) y no un Map que muere con el proceso.
  */
+/**
+ * Los botones del último bloque, o null si esa pregunta no es de conjunto
+ * cerrado. Nunca lanza: un botón es un atajo, y ningún atajo puede impedir que
+ * la respuesta salga como texto.
+ */
+async function botonesDelUltimoBloque(
+  conversation: { id: number; current_cycle: number },
+  bloques: readonly string[],
+): Promise<BloqueConBotones | null> {
+  const ultimo = bloques[bloques.length - 1];
+  if (!ultimo) return null;
+  try {
+    const hours = await getStoreHours();
+    const propuesta = botonesParaBloque(ultimo, {
+      ciclo: conversation.current_cycle,
+      estaAbierto: (fecha) => algunLocalAbre(hours, fecha),
+    });
+    if (!propuesta || propuesta.botones.length < 2) return null;
+    return {
+      ...propuesta,
+      botones: propuesta.botones.map((b) => ({ ...b, titulo: recortarTitulo(b.titulo) })),
+    };
+  } catch (error) {
+    console.warn("⚠️ No se pudieron armar los botones; sale como texto:", error);
+    return null;
+  }
+}
+
 async function recibirMensaje(
   from: string,
   name: string | undefined,
@@ -445,6 +486,33 @@ setWaHandlers({
         // encendido.
         await recibirMensaje(from, name, message.text.body, message.id, receivedAt);
         break;
+      case "interactive": {
+        // UN TOQUE ES UN MENSAJE DE TEXTO.
+        //
+        // Se traduce al texto que el cliente habría escrito y entra por el
+        // MISMO pipeline: el agente, los candados y los parsers de siempre.
+        // Así el bot no tiene un camino nuevo que mantener, y un cliente que
+        // ignora los botones y escribe recorre exactamente el mismo flujo.
+        // La unión de la librería discrimina por la clave presente, así que se
+        // estrecha con `in`: un `interactive` que no sea respuesta a un botón
+        // ni a una lista (un flow, por ejemplo) se ignora sin romper nada.
+        const inter = message.interactive;
+        const respuesta = "button_reply" in inter
+          ? inter.button_reply
+          : "list_reply" in inter
+            ? inter.list_reply
+            : null;
+        if (!respuesta) break;
+        const conv = await getOrCreateConversation(from, name);
+        await recibirMensaje(
+          from,
+          name,
+          textoDeBoton(respuesta.id, respuesta.title, conv.current_cycle),
+          message.id,
+          receivedAt,
+        );
+        break;
+      }
       case "location":
         await recibirMensaje(
           from,

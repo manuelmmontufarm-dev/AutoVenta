@@ -121,6 +121,27 @@ export function excepcionDelDia(
  * 31 de diciembre necesita saber que ese día se cierra temprano, y el bot no
  * puede deducirlo del horario semanal.
  */
+/**
+ * ¿ALGÚN local atiende ese día? Es la pregunta que decide si un día puede ser
+ * un botón: ofrecer un día cerrado agenda una visita a puerta cerrada.
+ *
+ * Basta con que abra uno de los dos porque el botón del día sale después del
+ * botón del local — para cuando se pregunta la fecha, la sucursal ya está
+ * elegida y el asesor confirma sobre esa. Lee la config real y no un supuesto:
+ * el fin de semana lo decide el negocio desde Ajustes, no este archivo.
+ */
+export function algunLocalAbre(hours: StoreHours, fecha: Date): boolean {
+  // El día se lee en la zona del negocio, no en UTC: a las 22:00 de Quito ya es
+  // el día siguiente en UTC, y el botón habría ofrecido el día equivocado.
+  const abreviatura = new Intl.DateTimeFormat("en-US", {
+    weekday: "short",
+    timeZone: "America/Guayaquil",
+  }).format(fecha);
+  const esFinde = abreviatura === "Sat" || abreviatura === "Sun";
+  const periodo = (s: StoreHours["cumbaya"]) => (esFinde ? s.weekend : s.weekday);
+  return !periodo(hours.cumbaya).closed || !periodo(hours.quitoSur).closed;
+}
+
 export function formatStoreHours(hours: StoreHours, hoy = hoyEnEcuador()): string {
   const fmt = (p: { open: string; close: string; closed: boolean }) =>
     p.closed ? "cerrado" : `${p.open}–${p.close}`;

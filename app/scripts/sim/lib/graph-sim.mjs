@@ -132,7 +132,14 @@ export async function levantarGraphSim({ puerto, dirPiezas }) {
       en: new Date().toISOString(),
       para: cuerpo.to ?? null,
       tipo,
-      texto: cuerpo.text?.body ?? null,
+      // Un mensaje con botones trae su texto en `interactive.body`, no en
+      // `text.body`: sin esto la pantalla pintaba la burbuja vacía justo en el
+      // turno que se quería revisar.
+      texto: cuerpo.text?.body ?? cuerpo.interactive?.body?.text ?? null,
+      botones: (cuerpo.interactive?.action?.buttons ?? []).map((b) => ({
+        id: b.reply?.id ?? null,
+        titulo: b.reply?.title ?? null,
+      })),
       caption: cuerpo.image?.caption ?? cuerpo.document?.caption ?? null,
       nombreArchivo: cuerpo.document?.filename ?? null,
       mediaId,

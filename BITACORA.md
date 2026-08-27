@@ -32,6 +32,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-08-27 | _(este mismo)_ | Botones de WhatsApp en las tres preguntas cerradas: escalera, local y día | 2.0 |
 | 2026-08-27 | _(este mismo)_ | El menú ofrece solo los escalones que hay, y una cantidad grande vuelve a poder cotizarse | 1.0 |
 | 2026-08-27 | _(este mismo)_ | La pieza avisa cuando no es su medida, el turno sigue al menú, y la cantidad rara se avisa en vez de preguntarse | 1.5 |
 | 2026-08-27 | _(este mismo)_ | Pedido grande con confirmación, la pregunta del local que se nombra sola, y la queja de precio que borraba la venta | 2.5 |
@@ -178,6 +179,60 @@ Ya viene activado en este equipo.
 ---
 
 ## Entradas (más reciente primero)
+
+### 2026-08-27 · Las tres preguntas cerradas ahora se tocan · ⏱️ 2.0 h
+
+**Qué:** el bot manda **botones de respuesta de WhatsApp** en las tres preguntas
+que tienen un conjunto cerrado de respuestas: la **escalera de precio**
+(Costo / Equilibrio / Premium), el **local** (Cumbayá / Quito Sur) y el **día de
+la visita** (dos fechas concretas + «Otro día»). Tocar un botón entra por el
+webhook como `interactive` y se traduce al texto que el cliente habría escrito,
+así que sigue por el MISMO pipeline: mismo agente, mismos candados, mismos
+parsers. Un cliente que ignora los botones y escribe recorre exactamente el
+mismo flujo — el bot funciona igual, solo que ahora además se puede tocar.
+
+**Por qué:** esas tres preguntas ya tenían código peleando contra la respuesta.
+`storeSelection` lleva ~50 líneas de regex para entender «al de quito» y el
+13-ago se cayó igual; la escalera se preguntaba con una lista numerada y el
+26-ago (26ce2fe) hubo que arreglar que ofreciera un escalón inexistente. Un
+botón devuelve un id exacto: es el mismo candado determinista de siempre, pero
+puesto ANTES de la ambigüedad en vez de después.
+
+Los botones se arman en `domain/botones.ts` (puro) leyendo el ÚLTIMO bloque del
+turno, y solo ahí: son la pregunta con la que cierra el turno, y dos mensajes
+con botones seguidos se leen como formulario. La etiqueta de cada escalón se
+mudó a `ETIQUETA_DEL_ESCALON` en `salesIntent` para que el menú escrito y el
+título del botón no puedan decir cosas distintas.
+
+**Lo que encontró el simulador y los tests no:** tres fallas, las tres del mismo
+tipo —afirmar el mecanismo en vez del efecto—.
+
+1. **Los días se contaban en UTC.** A las 23:00 de Quito ya es el día siguiente
+   en UTC: el botón rotulado «Mañana» llevaba la fecha de pasado mañana. Ahora
+   `diaCivilEcuador` fija el día civil del negocio a mediodía UTC.
+2. **Una respuesta que solo MENCIONA la visita se llevaba los botones del día.**
+   `preguntamosElDia` es laxo a propósito —sirve para interpretar al cliente,
+   donde pasarse es gratis—. Decidir si se pintan botones necesita lo contrario,
+   así que ahora hay `preguntaElDia` / `preguntaElLocal`, estrictos, al lado de
+   los laxos y en el mismo archivo para que nadie los confunda.
+3. **El toque a un botón de un ciclo viejo cambiaba el local igual.** WhatsApp
+   deja los botones tocables para siempre. La primera versión devolvía el título
+   («Quito Sur») y el test pasaba en verde — pero ese texto es justo el que
+   `extractExplicitStore` entiende. Ahora entra como nota entre corchetes, y la
+   nota se prueba contra los tres parsers: la primera redacción decía «ahora» al
+   final y `extractCustomerCommitment` la leía como una fecha.
+
+**Pruebas:** 21 nuevas en `test/botones.test.ts`, escritas contra el efecto y no
+contra el mecanismo (cada texto que genera un botón se le pasa al parser que
+tiene que entenderlo). Suite completa: 1077 en verde. Y la conversación entera
+repetida en el simulador con el bot real: medida → toca Premium → cotiza →
+toca Cumbayá → toca Mañana → visita registrada y cupón emitido.
+
+**El simulador aprendió a tocar botones.** El Graph de mentira captura el cuerpo
+y los títulos de un `interactive`, la pantalla los pinta, y al tocarlos manda un
+webhook `interactive` de verdad — no un atajo con el título como texto. Sin eso,
+el `case "interactive"` de `index.ts` no se probaría hasta el teléfono de un
+cliente.
 
 ### 2026-08-27 · El escalón que no existía y la cotización que nunca salió · ⏱️ 1.0 h
 

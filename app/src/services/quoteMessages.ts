@@ -1,5 +1,6 @@
 import { business } from "../config.js";
 import { fraseDeAhorro, type AhorroDeLaCotizacion } from "../domain/ahorro.js";
+import { ETIQUETA_DEL_ESCALON } from "../domain/salesIntent.js";
 import { PREGUNTA_DE_LOCAL } from "../domain/storeSelection.js";
 import type { CatalogItem } from "../domain/catalog.js";
 import { getTirePatternProfile } from "../domain/tireKnowledge.js";
@@ -84,10 +85,17 @@ export function aWhatsApp(texto: string): string {
  * no abriendo conversación. Menú numerado a propósito: invita a contestar
  * «1», «2» o «3», y `respuestaDePreferencia` entiende esas respuestas.
  */
+const DESCRIPCION_DEL_MENU = {
+  precio: "la más conveniente de precio",
+  equilibrada: "la que mejor balancea precio y rendimiento",
+  premium: "la de máxima calidad y durabilidad",
+} as const;
+
+/** La etiqueta la pone `ETIQUETA_DEL_ESCALON`: la comparten menú y botones. */
 const OPCION_DEL_MENU = {
-  precio: "*Costo* — la más conveniente de precio",
-  equilibrada: "*Equilibrio* — la que mejor balancea precio y rendimiento",
-  premium: "*Premium* — la de máxima calidad y durabilidad",
+  precio: `*${ETIQUETA_DEL_ESCALON.precio}* — ${DESCRIPCION_DEL_MENU.precio}`,
+  equilibrada: `*${ETIQUETA_DEL_ESCALON.equilibrada}* — ${DESCRIPCION_DEL_MENU.equilibrada}`,
+  premium: `*${ETIQUETA_DEL_ESCALON.premium}* — ${DESCRIPCION_DEL_MENU.premium}`,
 } as const;
 
 /**

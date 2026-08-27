@@ -80,6 +80,18 @@ export async function sendCustomerText(conversationId, to, body, actor = "bot") 
   return registrar("texto", { conversationId, to, caption: body, bytes: body?.length ?? 0 });
 }
 
+export async function sendCustomerButtons(conversationId, to, cuerpo, botones, actor = "bot") {
+  // Los títulos van en el registro para que el simulador y la evaluación puedan
+  // afirmar sobre QUÉ se le ofreció al cliente, no solo sobre el texto.
+  return registrar("botones", {
+    conversationId,
+    to,
+    caption: cuerpo,
+    bytes: cuerpo?.length ?? 0,
+    botones: (botones ?? []).map((b) => ({ id: b.id, titulo: b.titulo })),
+  });
+}
+
 export async function sendAdvisorText(body, telefono) {
   return registrar("aviso_asesor", { to: telefono ?? null, caption: body });
 }
