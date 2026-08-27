@@ -51,7 +51,7 @@ import {
   extractFlotationSizes, extractTireSizes, formatFlotationSize, formatTireSize,
 } from "./domain/tireSize.js";
 import {
-  esRespuestaDelMenuDePreferencia, extractExplicitQuantity, extractVehicleYear,
+  cantidadPedidaPorElCliente, extractVehicleYear,
 } from "./domain/salesIntent.js";
 import { getHubMetrics } from "./services/hubData.js";
 import {
@@ -65,14 +65,9 @@ import { avisarVisitaComprometida } from "./services/visitAlerts.js";
 import { emitirCuponDeConfirmacion } from "./services/coupons.js";
 import { mensajeCupon } from "./domain/coupons.js";
 import { authorizeConversationOutbound } from "./services/whatsappPolicy.js";
-import { MAX_BLOCKS, splitBlocks } from "./services/quoteMessages.js";
+import { splitBlocks } from "./services/quoteMessages.js";
+import { prepararSalida } from "./services/prepararSalida.js";
 import { flagRepetitiveConversation } from "./services/conversationQuality.js";
-import { applyOutboundGuard } from "./services/outboundGuard.js";
-import { asegurarAvisoDeStock } from "./services/stockCorto.js";
-import { revisarConGuardian } from "./services/guardian.js";
-import { sinNumerosDeCotizacion } from "./domain/numerosDeCotizacion.js";
-import { sinPreguntasProhibidas } from "./domain/preguntasProhibidas.js";
-import { insistirConLoQueFalta } from "./services/insistirCierre.js";
 import { notifyPendingHumanRequests } from "./services/advisorNotifications.js";
 import { startEmbeddedFollowUpWorker } from "./workers/embeddedFollowUpWorker.js";
 import { extractExplicitStore, preguntamosElLocal } from "./domain/storeSelection.js";
@@ -80,8 +75,6 @@ import { tryDirectSalesRoute } from "./services/directSalesRoutes.js";
 import { tryRecotizarPorCantidad } from "./services/recotizar.js";
 import { firstContactReply, isGenericFirstContact } from "./domain/firstContact.js";
 import { botonesParaBloque, recortarTitulo, textoDeBoton, type BloqueConBotones } from "./domain/botones.js";
-import { sinJsonCrudo } from "./domain/jsonCrudo.js";
-import { conPreguntaEnSuPropioMensaje } from "./domain/preguntaSola.js";
 import { esComandoDeReinicio, MENSAJE_DE_REINICIO } from "./domain/reinicio.js";
 import { algunLocalAbre, getStoreHours } from "./services/settings.js";
 
@@ -101,12 +94,12 @@ const pipeline = new InboundPipeline(async ({ from, name, text, waMessageIds, re
   const parsedFlotation = parsedSize ? null : extractFlotationSizes(text)[0];
   const parsedVehicleYear = extractVehicleYear(text);
   const previousOutbound = await lastOutboundText(conversation.id);
-  // El «2» del menú de preferencia es el ESCALÓN, no dos llantas. Ver
-  // `esRespuestaDelMenuDePreferencia`: sin esto la ficha del cliente quedaba
-  // diciendo que quería 2 cuando compró un juego de 4 (conv 3, 27-ago).
-  const parsedQuantity = esRespuestaDelMenuDePreferencia(text, previousOutbound)
-    ? null
-    : extractExplicitQuantity(text);
+  // La cantidad que pidió el cliente, con sus dos candados: el «2» del menú de
+  // preferencia es el ESCALÓN y no dos llantas, y «quiero 20 llantas» tiene que
+  // quedar anotado aunque `extractExplicitQuantity` tope en 8 —de ese dato
+  // depende qué opciones se pueden enseñar como vendibles—. Es la misma
+  // composición que ya usaba `recotizar.ts`. Ver `cantidadPedidaPorElCliente`.
+  const parsedQuantity = cantidadPedidaPorElCliente(text, previousOutbound);
   // «Al sur me resulta más fácil» solo es elección de local si acabamos de
   // preguntar el local — la misma lógica contextual que el día de visita.
   const respondiendoAlLocal = preguntamosElLocal(previousOutbound);
@@ -282,26 +275,14 @@ const pipeline = new InboundPipeline(async ({ from, name, text, waMessageIds, re
   const reply = directReply ?? await runAgent(agentContext, textoConLinks);
   await flagRepetitiveConversation(conversation.id, reply);
 
-  // Guardián de salida (5-ago): determinístico, corre sobre TODO lo que el bot
-  // va a decir. Bloquea pedir fotos, la disculpa repetida, el mensaje calcado y
-  // el saludo a mitad de conversación — y alerta al asesor. null = no enviar.
-  const vetted = await applyOutboundGuard(conversation.id, reply);
-  if (!vetted.text) return;
-
-  // El Ángel Guardián (13-ago): revisión con IA de lo que se va a decir —
-  // precios contra la cotización real, re-preguntas, contradicciones. Corre
-  // DESPUÉS del guardián determinístico porque ese es gratis y este cuesta
-  // tokens; se prende y apaga desde Ajustes. Falla abierto: si no contesta,
-  // sale el borrador tal cual.
-  const custodiado = await revisarConGuardian(conversation, vetted.text, agentContext.toolTrace ?? []);
-
-  // El stock, al final de todo. El guardián de IA acaba de reescribir el texto
-  // y es justo quien borró este aviso el 26-ago (conv 11061): su corrección
-  // repitió «4 × KENDA KR203 … $262.60» cuando había 3. Un candado que corre
-  // antes del que reescribe no es un candado — ver services/stockCorto.ts.
-  const conStock = await asegurarAvisoDeStock(
-    conversation.id, conversation.current_cycle, custodiado.texto,
-  );
+  // Toda la cadena de candados vive en services/prepararSalida.ts, para que
+  // valga igual por las cuatro puertas por las que el bot le habla a un cliente
+  // —esta, `resumeBot` y `followUpProcessor`— y no solo por esta. El orden y su
+  // porqué están allí, en `PASOS`.
+  const salida = await prepararSalida(reply, {
+    conversation, tipo: "respuesta", huella: agentContext.toolTrace ?? [],
+  });
+  if (!salida.texto) return;
 
   // Varios mensajes cortos en vez de uno largo: es como escribe el vendedor
   // humano de los chats que el cliente puso de ejemplo. Los bloques los separa
@@ -309,62 +290,7 @@ const pipeline = new InboundPipeline(async ({ from, name, text, waMessageIds, re
   //
   // Envío con red de seguridad: si Meta rechaza, la respuesta queda guardada
   // como "failed" y visible en el hub — nunca se pierde en silencio.
-  // Y la pregunta que falta, si el turno se fue por otro lado. Manuel, 27-ago:
-  // «si hago preguntas se desvía la conversación y no acaba con una pregunta».
-  // Ver domain/preguntaPendiente.ts.
-  const insistido = await insistirConLoQueFalta(
-    conversation.id, conversation.current_cycle, conStock.texto,
-  );
-  if (insistido.agregado) {
-    console.log(`📌 Turno cerrado sin pedir ${insistido.agregado} en la conv ${conversation.id}: se agregó la pregunta`);
-  }
-
-  // Las preguntas de más, también al final y por la misma razón que el stock y
-  // los números: quien las escribe es el Ángel Guardián, que corre DESPUÉS de
-  // todos los candados deterministas. Y con esta familia no alcanza con
-  // pedírselo: puesto a revisar «¿Cuántas llantas necesita?» la marcó en ALTA y
-  // su propia corrección terminó con «¿Cuántas llantas desea llevar?»
-  // (simulador, 26-ago). Ver domain/preguntasProhibidas.ts.
-  const depurado = sinPreguntasProhibidas(insistido.texto);
-  if (depurado.quitadas.length) {
-    console.warn(`✂️ Pregunta de más quitada en la conv ${conversation.id}: ${depurado.quitadas.join(" | ")}`);
-    await createBotAlert({
-      conversationId: conversation.id,
-      cycle: conversation.current_cycle,
-      type: "pregunta_de_mas",
-      priority: "medium",
-      summary: "Se quitó una pregunta que le costaba un turno a la venta",
-      exactReason: `El bot iba a preguntar: «${depurado.quitadas.join(" | ")}». Se quitó antes de enviarla.`,
-      suggestedAction: "El cliente NO la recibió. Delata que el modelo o el guardián se saltaron el contrato de cierre.",
-      dedupeKey: `${conversation.id}:${conversation.current_cycle}:pregunta_de_mas:${depurado.quitadas[0].slice(0, 60)}`,
-    }).catch(() => undefined);
-  }
-  // Los números de cotización, por la misma razón. Ver domain/numerosDeCotizacion.ts.
-  // El JSON de una herramienta, al final y por la misma razón que el stock y las
-  // preguntas de más: quien lo puede dejar pasar es el Ángel Guardián, que
-  // reescribe DESPUÉS de todos los candados deterministas.
-  const limpio = sinJsonCrudo(depurado.texto);
-  if (limpio.quitados.length) {
-    console.warn(`✂️ JSON crudo quitado en la conv ${conversation.id}: ${limpio.quitados.join(" | ").slice(0, 300)}`);
-    await createBotAlert({
-      conversationId: conversation.id,
-      cycle: conversation.current_cycle,
-      type: "json_crudo",
-      priority: "high",
-      summary: "El bot casi le manda al cliente el JSON de una herramienta",
-      exactReason: limpio.quitados.join(" | ").slice(0, 500),
-      suggestedAction: "Revisá el turno: el modelo devolvió el resultado de una herramienta como respuesta.",
-      dedupeKey: `json_crudo:${conversation.id}:${conversation.current_cycle}`,
-    });
-  }
-  // Y la pregunta, sola en su mensaje. Va LO ÚLTIMO de la cadena: los candados
-  // de arriba todavía pueden pegar o reescribir la pregunta del cierre, así que
-  // separarla antes no serviría de nada. Manuel, 27-ago: «trata que las
-  // preguntas vayan en su propio mensaje».
-  const conPreguntaAparte = conPreguntaEnSuPropioMensaje(
-    sinNumerosDeCotizacion(limpio.texto), MAX_BLOCKS,
-  );
-  const bloques = splitBlocks(conPreguntaAparte.texto);
+  const bloques = splitBlocks(salida.texto);
   // El cupón va como bloque aparte y al final: es un mensaje que el cliente va
   // a buscar días después en el chat, y mezclado dentro del párrafo del bot se
   // pierde. Solo cuando se acaba de emitir — si ya lo tenía, repetírselo cada

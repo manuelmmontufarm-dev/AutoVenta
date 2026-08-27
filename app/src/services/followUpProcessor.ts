@@ -9,11 +9,9 @@ import {
   markFollowUpJobCancelled,
   type FollowUpJob,
 } from "./followUps.js";
-import { revisarConGuardian } from "./guardian.js";
-import { sinNumerosDeCotizacion } from "../domain/numerosDeCotizacion.js";
-import { asegurarAvisoDeStock } from "./stockCorto.js";
 import { authorizeConversationOutbound } from "./whatsappPolicy.js";
 import { emitLiveEvent } from "./liveEvents.js";
+import { prepararSalida } from "./prepararSalida.js";
 import { sendApprovedTemplate, sendCustomerText } from "../wa/client.js";
 
 interface ProcessorDependencies {
@@ -258,39 +256,41 @@ export async function processFollowUpJob(
     ? String(context.job_payload.preview ?? "").trim()
     : (await ensureFollowUpJobCopy({ context, policy })).text;
 
-  // EL GUARDIÁN TAMBIÉN MIRA LOS SEGUIMIENTOS (26-ago).
+  // LA MISMA CADENA QUE LAS OTRAS PUERTAS, con los pasos que le tocan a un
+  // seguimiento. Ver services/prepararSalida.ts.
   //
-  // Hasta hoy solo revisaba las respuestas: los dos mensajes que le repitieron
-  // la pregunta del día a un cliente que ya había contestado —24-ago, conv.
-  // 9878— salieron sin que nadie los leyera, y en `guardian_reviews` no hay
-  // rastro de ellos. Un seguimiento es exactamente igual de visible para el
-  // cliente que una respuesta; que se revisara solo la mitad de lo que sale del
-  // bot era un agujero, no una decisión.
+  // EL GUARDIÁN TAMBIÉN MIRA LOS SEGUIMIENTOS (26-ago). Hasta entonces solo
+  // revisaba las respuestas: los dos mensajes que le repitieron la pregunta del
+  // día a un cliente que ya había contestado —24-ago, conv. 9878— salieron sin
+  // que nadie los leyera, y en `guardian_reviews` no hay rastro de ellos. Un
+  // seguimiento es exactamente igual de visible para el cliente que una
+  // respuesta; que se revisara solo la mitad de lo que sale del bot era un
+  // agujero, no una decisión.
   //
-  // Las plantillas fuera de ventana quedan fuera: su texto lo fija Meta y no se
-  // puede corregir, así que pagar una revisión sería tirar el dinero.
-  const revisado = isPostWindow
-    ? redactado
-    : (await revisarConGuardian(
-        { id: context.id, current_cycle: context.current_cycle, stage: context.stage },
-        redactado,
-        [],
-        { tipo: "seguimiento" },
-      )).texto;
   // El seguimiento también afirma la cotización («su cotización de $262.60
-  // sigue vigente»), y sale días después: si en ese rato el stock bajó, es el
-  // peor mensaje para prometer un juego que no existe. La plantilla fuera de
-  // ventana queda afuera porque su texto lo fija Meta y no se puede tocar.
-  // Y los números de cotización tampoco viajan en el seguimiento: mismo motivo
-  // que en el turno normal, y aquí el guardián acaba de reescribir el texto.
-  const preview = isPostWindow
-    ? revisado
-    : sinNumerosDeCotizacion(
-        (await asegurarAvisoDeStock(context.id, context.current_cycle, revisado)).texto,
-      );
+  // sigue vigente») y sale días después: si en ese rato el stock bajó, es el
+  // peor mensaje para prometer un juego que no existe. Desde el 27-ago le
+  // corren además los dos candados que le faltaban —las preguntas de más y el
+  // JSON crudo—, por la misma razón que en el turno normal: el guardián
+  // reescribe DESPUÉS de todo y es quien los puede dejar pasar.
+  //
+  // La plantilla fuera de ventana no recibe NADA: su texto lo fija Meta, no se
+  // puede corregir, y pagar una revisión sería tirar el dinero. Va igual por
+  // `prepararSalida` —con `tipo: "plantilla"`, que no tiene ningún paso— para
+  // que no quede ninguna puerta sin pasar por la cadena.
+  const salida = await prepararSalida(redactado, {
+    conversation: { id: context.id, current_cycle: context.current_cycle, stage: context.stage },
+    tipo: isPostWindow ? "plantilla" : "seguimiento",
+  });
+  const preview = salida.texto ?? redactado;
   if (!isPostWindow) {
     // `modo` queda en el payload para que el panel y las pruebas puedan ver con
     // qué libreto salió este seguimiento sin tener que releer el texto.
+    // `guardianCorrigio` dice si el texto cambió entre el borrador y lo que
+    // salió. Desde el 27-ago eso incluye a los candados deterministas que se
+    // sumaron al seguimiento, no solo al Ángel Guardián: nadie lo lee todavía
+    // más que el panel, y para lo que sirve —«esto no salió como se redactó»—
+    // la respuesta sigue siendo la correcta.
     await sql`
       update follow_up_jobs
       set payload = payload || jsonb_build_object(

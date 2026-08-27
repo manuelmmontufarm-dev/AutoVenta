@@ -210,6 +210,31 @@ export function esRespuestaDelMenuDePreferencia(
   return /^(?:la\s+|el\s+|opci[oó]n\s+)?([123])\)?\.?$/i.test(text.trim());
 }
 
+/**
+ * LA CANTIDAD QUE PIDIÓ EL CLIENTE, con sus dos candados puestos.
+ *
+ * Producción, 27-ago-2026 (conv 3). El cliente escribió «quiero 20 llantas» y
+ * la ficha se quedó en blanco: `index.ts` solo llamaba a
+ * `extractExplicitQuantity`, que tope en 8. La ruta de recotización sí lo
+ * entendía —`recotizar.ts` compone los dos detectores desde el 27-ago—, así que
+ * el cliente recibía su pieza por 20 mientras `selected_quantity` seguía en
+ * `null`. Y de ese dato depende `opcionesQueAlcanzan`, el filtro que decide qué
+ * llantas se pueden ENSEÑAR: con la ficha vacía filtra contra el juego de 4, y
+ * entonces una llanta con 4 unidades en bodega se le ofrece a quien pidió 20.
+ *
+ * Los dos candados, en este orden:
+ * 1. El «2» del menú de preferencia es el ESCALÓN, no dos llantas.
+ * 2. El número grande lo lee `cantidadGrandePedida`, que es el único que sabe
+ *    pasar de 8.
+ */
+export function cantidadPedidaPorElCliente(
+  text: string,
+  ultimoMensajeNuestro: string | null | undefined,
+): number | null {
+  if (esRespuestaDelMenuDePreferencia(text, ultimoMensajeNuestro)) return null;
+  return cantidadGrandePedida(text) ?? extractExplicitQuantity(text);
+}
+
 export function extractExplicitQuantity(text: string): number | null {
   const normalized = normalize(text);
   if (/^[1-8]$/.test(normalized)) return Number(normalized);
