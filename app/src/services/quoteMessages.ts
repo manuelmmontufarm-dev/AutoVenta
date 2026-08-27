@@ -290,15 +290,32 @@ export function buildStoreLinksBlock(
 }
 
 /** Cotización: número, total y vigencia. El desglose ya está en la imagen. */
-export function buildSingleQuoteCaption(
+/**
+ * El texto que acompaña a la cotización — y con la foto enviada, NINGUNO.
+ *
+ * Hasta el 26-ago este turno mandaba la imagen y debajo un resumen en palabras
+ * («1 × FALKEN WILDPEAK A/T 4W: $221.77»). Joaquín, viendo el chat de Andrés
+ * Tamayo: «quiero reducir la cantidad de texto… ese mensaje que ya no haya y
+ * sea más por las fotos». Tiene razón por partida doble: el resumen no agrega
+ * nada que la pieza no muestre mejor, y —al repetir cifras y número de
+ * cotización— es la superficie donde el bot se contradice consigo mismo. En ese
+ * chat esa línea fue justo el borrador que el guardián tuvo que corregir tres
+ * veces.
+ *
+ * Cuando la foto NO salió sigue yendo el detalle completo: ahí el texto es lo
+ * único que le queda al cliente y quedarse sin cotización es peor que leer de
+ * más (fallo del demo del 20-jul).
+ */
+export function textoDeLaCotizacion(
+  soloLaFoto: boolean,
   selection: CatalogQuoteSelection,
-  _quoteNumber?: string,
-  offerDiscount?: { finalTotal: number; condition: string; expiresAt?: Date | null },
+  customerName = "",
+  offerDiscount?: { amount: number; finalTotal: number; condition: string; expiresAt?: Date | null },
   firmados?: PreciosFirmados,
-): string {
-  const { product, quantity } = selection;
-  const total = offerDiscount?.finalTotal ?? firmados?.total ?? product.minimumPriceWithTax * quantity;
-  return `${quantity} × ${product.brand} ${product.design}`.toLocaleUpperCase("es-EC") + `: ${money(total)}`;
+): string | null {
+  return soloLaFoto
+    ? null
+    : buildSingleQuoteMessageDetallado(selection, customerName, offerDiscount, firmados);
 }
 
 /** Comparativa: una línea por modelo con la diferencia práctica, no la ficha. */
@@ -400,11 +417,19 @@ export function buildDistributorOptionsMessage(
 }
 
 /** Cotización completa en texto. Respaldo para cuando la imagen y el PDF fallan. */
+/**
+ * El respaldo en texto cuando la pieza no salió.
+ *
+ * Sin número de cotización ni número de venta desde el 26-ago (Joaquín):
+ * «número de cotización más código de descuento ya demasiadas vainas… lo
+ * dejaría solo con el código de descuento del 2 %». El cliente no llega al
+ * local recitando un COT-MTACN72K; llega con el cupón, que sí es corto y sí se
+ * dicta en caja. Los números siguen vivos donde hacen falta: en la pieza, en el
+ * aviso al asesor y en la base.
+ */
 export function buildSingleQuoteMessageDetallado(
   selection: CatalogQuoteSelection,
   customerName = "",
-  quoteNumber?: string,
-  saleNumber?: string,
   offerDiscount?: { amount: number; finalTotal: number; condition: string; expiresAt?: Date | null },
   firmados?: PreciosFirmados,
 ): string {
@@ -415,7 +440,7 @@ export function buildSingleQuoteMessageDetallado(
   const rebaja = firmados ? porcentaje(lista, hoy) : discount(product);
   const total = offerDiscount?.finalTotal ?? firmados?.total ?? product.minimumPriceWithTax * quantity;
   return [
-    `📄 Cotización${quoteNumber ? ` ${quoteNumber}` : ""} — ${dateLabel()}`,
+    `📄 Cotización — ${dateLabel()}`,
     `${brandEmoji(product.brand)} ${product.brand} ${product.design} — ${product.sizeLabel ?? product.name}`,
     `💰 ${money(hoy)} c/u (antes ${money(lista)}, −${rebaja}%)`,
     `🛞 ${quantity} llanta${quantity === 1 ? "" : "s"}: ${money(total)}`,
@@ -424,7 +449,6 @@ export function buildSingleQuoteMessageDetallado(
       `2️⃣ Descuento EXTRA del asesor: −${money(offerDiscount.amount)}.`,
       `⚠️ Este segundo descuento aplica ÚNICAMENTE si: ${offerDiscount.condition}.`,
       `💰 Total final cumpliendo la condición: ${money(total)}. Si no la cumple, conserva solo el precio base.`,
-      quoteNumber ? `🔖 Para validar el descuento en tienda, presenta la cotización *${quoteNumber}*.` : "",
     ] : []),
     ...(specLine(product) ? [`📦 ${specLine(product)}`] : []),
     availabilityLine(product),
@@ -434,7 +458,6 @@ export function buildSingleQuoteMessageDetallado(
     offerDiscount?.expiresAt
       ? `Precio incluye IVA y Ecovalor. Oferta vigente hasta ${offerDiscount.expiresAt.toLocaleString("es-EC", { timeZone: "America/Guayaquil" })}.`
       : "Precio incluye IVA y Ecovalor. Vigencia por confirmar con el asesor.",
-    saleNumber ? `🔖 Número de venta: ${saleNumber}` : "",
     // Aquí NO va ninguna pregunta por la ubicación: este bloque sale en el mismo
     // turno que buildVisitPlanQuestion, que ya pregunta el día y el local. Tener
     // las dos era lo que hacía que el bot enumerara los locales y acto seguido

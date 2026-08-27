@@ -217,7 +217,11 @@ describe.sequential("Venta primero — los arreglos de Joaquín", () => {
       // Con cotización de hace 5 min, el prompt PROHÍBE generar otra.
       const bloque = agent.salesFactsPrompt(facts);
       expect(bloque).toContain("NO generes otra cotización");
-      expect(bloque).toContain("COT-MSGJQPAK");
+      // El número sigue siendo un HECHO (facts.lastQuote.number, arriba), pero
+      // desde el 26-ago no viaja al prompt: si el modelo no puede decírselo al
+      // cliente, tenerlo a la vista solo lo tienta. Ver domain/numerosDeCotizacion.
+      expect(bloque).not.toContain("COT-MSGJQPAK");
+      expect(bloque).toContain("Cotización YA ENVIADA en este ciclo");
     });
 
     it("pasados 30 minutos ya no bloquea (el cliente pudo cambiar de pedido)", () => {
@@ -227,8 +231,10 @@ describe.sequential("Venta primero — los arreglos de Joaquín", () => {
         lastQuote: { number: "COT-VIEJA", total: 638.59, minutesAgo: 45 },
       });
       expect(bloque).not.toContain("NO generes otra cotización");
-      // Pero la cotización sigue listada como hecho.
-      expect(bloque).toContain("COT-VIEJA");
+      // Pero la cotización sigue listada como hecho — por su contenido, no por
+      // su número.
+      expect(bloque).toContain("Cotización YA ENVIADA en este ciclo");
+      expect(bloque).not.toContain("COT-VIEJA");
     });
 
     it("siempre recuerda: con medida no se pregunta vehículo, y la foto es una opción válida", () => {
@@ -312,7 +318,8 @@ describe.sequential("Venta primero — los arreglos de Joaquín", () => {
       const facts = await agent.getAgentSalesFacts(c.id);
       expect(facts.lastQuote?.detalle).toBe("4 × KENDA KR50 225/60R17");
       const bloque = agent.salesFactsPrompt(facts);
-      expect(bloque).toContain("COT-MT06MIVA = 4 × KENDA KR50 225/60R17");
+      expect(bloque).toContain("Cotización YA ENVIADA en este ciclo: 4 × KENDA KR50 225/60R17");
+      expect(bloque).not.toContain("COT-MT06MIVA");
       expect(bloque).toContain("PROHIBIDO atribuirle otra medida");
     });
 

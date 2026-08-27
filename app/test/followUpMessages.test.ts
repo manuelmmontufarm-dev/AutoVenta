@@ -13,7 +13,10 @@ describe("Redacción contextual de seguimientos", () => {
     const second = buildContextualFollowUpMessage(context, "in_window_second");
     expect(first).not.toBe(second);
     expect(first).toContain("📄");
-    expect(first).toContain("COT-1042");
+    // Sin número de cotización desde el 26-ago (Joaquín): el seguimiento la
+    // nombra por su medida, que es lo que el cliente reconoce.
+    expect(first).not.toMatch(/COT-|AV-/);
+    expect(first).toContain("215/65R16");
     expect(second).toContain("🛞");
     expect(first.toLowerCase()).not.toMatch(/^hola/);
   });
@@ -79,7 +82,9 @@ describe("Redacción contextual de seguimientos", () => {
       );
       expect(mensaje).toMatch(/no se olvide/i);
       expect(mensaje).toMatch(/viernes 21 de agosto de 4 a 5 pm/i);
-      expect(mensaje).toMatch(/COT-MT7H1534/);
+      // La lleva a mano, pero sin recitar su número (26-ago, Joaquín).
+      expect(mensaje).toMatch(/lleve a mano su cotización/i);
+      expect(mensaje).not.toMatch(/COT-|AV-/);
       expect(mensaje).not.toMatch(/qué día/i);
     });
 

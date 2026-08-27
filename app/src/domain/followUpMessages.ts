@@ -129,7 +129,7 @@ function redactarSeguimiento(
     const detail = context.customerCommitment
       ? `Prometió: “${context.customerCommitment}”.`
       : context.quoteNumber
-        ? `Tiene la cotización ${context.quoteNumber} pendiente.`
+        ? "Tiene una cotización pendiente."
         : `La conversación quedó en ${context.stage.replaceAll("_", " ")}.`;
     return `Revisar personalmente: ${detail} Decidir si conviene continuar la conversación o marcarla como Perdida; nunca cerrarla automáticamente.`;
   }
@@ -138,8 +138,8 @@ function redactarSeguimiento(
     const amount = context.activeDiscountAmount.toFixed(2);
     const total = context.activeDiscountFinalTotal.toFixed(2);
     return kind === "in_window_second"
-      ? `😊 Recuerda que tienes $${amount} de descuento EXTRA sobre el precio base. Este segundo descuento aplica únicamente si ${context.activeDiscountCondition}; cumpliéndolo, el total queda en $${total}.${context.quoteNumber ? ` Preséntalo con la cotización ${context.quoteNumber}.` : ""} ¿Te ayudo a coordinarlo?`
-      : `${prefix}✨ Tienes $${amount} de descuento EXTRA sobre el precio base. Para recibir este segundo descuento debes cumplir: ${context.activeDiscountCondition}; así el total queda en $${total}.${context.quoteNumber ? ` Preséntalo con la cotización ${context.quoteNumber}.` : ""} ¿Coordinamos el siguiente paso?`;
+      ? `😊 Recuerda que tienes $${amount} de descuento EXTRA sobre el precio base. Este segundo descuento aplica únicamente si ${context.activeDiscountCondition}; cumpliéndolo, el total queda en $${total}. ¿Te ayudo a coordinarlo?`
+      : `${prefix}✨ Tienes $${amount} de descuento EXTRA sobre el precio base. Para recibir este segundo descuento debes cumplir: ${context.activeDiscountCondition}; así el total queda en $${total}. ¿Coordinamos el siguiente paso?`;
   }
 
   if (context.customerCommitment || context.stage === "seguimiento_venta") {
@@ -165,7 +165,7 @@ function redactarSeguimiento(
     if (visita && !yaPaso && context.nearestStore) {
       const cuando = cuandoVisita(visita, context.visitTimeLabel);
       const cotizacion = context.quoteNumber
-        ? ` Lleve a mano su cotización *${context.quoteNumber}* para que le respeten el precio.`
+        ? " Lleve a mano su cotización para que le respeten el precio."
         : "";
       return kind === "in_window_second"
         ? `🔔 No se olvide: le esperamos el *${cuando}*${enStore}.${cotizacion} Si necesita moverlo a otro día, dígame y lo reagendo 😊`
@@ -187,7 +187,9 @@ function redactarSeguimiento(
   }
 
   if (context.stage === "cotizacion_enviada") {
-    const quote = context.quoteNumber ? ` ${context.quoteNumber}` : "";
+    // El número no se le escribe al cliente (26-ago): `quoteNumber` sigue
+    // siendo la señal de que HAY cotización, no un texto para mostrarle.
+    const quote = "";
     return kind === "in_window_second"
       ? `🛞 Solo quería saber qué te pareció la opción${product || size} de la cotización${quote}. ¿Hay algo que quieras revisar antes de decidir? 😊`
       : `${prefix}📄 ¿Qué te pareció la cotización${quote}${size}? Si quieres, revisamos juntos cualquier duda para que elijas tranquilo 😊`;

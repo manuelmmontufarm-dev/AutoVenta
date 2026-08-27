@@ -37,8 +37,7 @@ import {
   buildComparisonCaption,
   buildComparisonMessageDetallado,
   buildCustomerOptionsMessageDetallado,
-  buildSingleQuoteCaption,
-  buildSingleQuoteMessageDetallado,
+  textoDeLaCotizacion,
   buildStoreLinksBlock,
   buildVisitDayQuestion,
   buildVisitPlanQuestion,
@@ -83,8 +82,9 @@ import {
   debeBloquearReenvio, medidaDesdeContenido, tipoSolicitadoEn,
 } from "../domain/opcionesCandados.js";
 import {
-  medidaEstaPedida, medidasDeProductos, medidasPermitidas,
+  medidaEstaPedida, medidasDeProductos, medidasPermitidas, mensajesDeLaVisitaActual,
 } from "../domain/medidaPedida.js";
+import { medidasDelPedido } from "../services/medidasDelPedido.js";
 import { sendImage, sendPdf } from "../wa/client.js";
 import {
   renderCompareImage,
@@ -495,7 +495,11 @@ function dateLabel(): string {
  * «Falken Wildpeak M/T» son las ocho medidas que Depot surte de ese modelo y
  * nunca resolvía. Con ella, es una.
  */
-async function resolvePresentedProduct(conversationId: number, reference: string): Promise<CatalogItem[]> {
+/**
+ * Las llantas de la última pieza que el cliente tiene EN PANTALLA (opciones o
+ * comparativa). Es lo único que él pudo haber señalado al decir «la Falken».
+ */
+async function productosPresentados(conversationId: number): Promise<CatalogItem[]> {
   const [artifact] = await sql<{ products: Array<{ code?: string; brand?: string; design?: string }> }[]>`
     select products from quote_artifacts
     where conversation_id=${conversationId}
@@ -503,9 +507,13 @@ async function resolvePresentedProduct(conversationId: number, reference: string
       and kind in ('options','comparison')
     order by created_at desc, id desc limit 1
   `;
-  const products = (Array.isArray(artifact?.products) ? artifact.products : [])
+  return (Array.isArray(artifact?.products) ? artifact.products : [])
     .map((item) => findByCode(String(item.code ?? "")))
     .filter((item): item is NonNullable<typeof item> => Boolean(item));
+}
+
+async function resolvePresentedProduct(conversationId: number, reference: string): Promise<CatalogItem[]> {
+  const products = await productosPresentados(conversationId);
   const clean = reference.trim().toLowerCase().replace(/[$,]/g, "");
   const numeric = Number(clean);
   const matches = products.filter((product) => {
@@ -543,14 +551,16 @@ function etiquetaOpcion(item: CatalogItem): string {
  * sí: el cliente recibía el texto y en el panel no quedaba rastro.
  */
 /**
- * ¿El texto acompaña a la imagen (corto) o la reemplaza (detallado)?
+ * ¿Alcanza con la foto, o el texto tiene que traer la cotización entera?
  *
- * Detallado en dos casos: cuando el dueño lo pidió desde el panel, y siempre que
- * la pieza no haya salido — ahí el texto largo es lo único que le queda al
- * cliente. Si no se puede leer la configuración, se asume detallado: de más
- * información nadie se queda sin cotización.
+ * Solo la foto cuando la pieza salió Y el dueño eligió «imagen_primero» en
+ * Ajustes. El texto completo queda para los dos casos en que hace falta de
+ * verdad: cuando el dueño pidió expresamente «texto_completo», y siempre que la
+ * pieza NO haya salido — ahí el texto es lo único que le queda al cliente. Si no
+ * se puede leer la configuración, se asume texto completo: de más información
+ * nadie se queda sin cotización.
  */
-async function usarCaptionCorto(imagenEnviada: boolean): Promise<boolean> {
+async function soloLaFoto(imagenEnviada: boolean): Promise<boolean> {
   if (!imagenEnviada) return false;
   try {
     return (await getAiConfig()).formato === "imagen_primero";
@@ -1114,8 +1124,8 @@ export function buildTools(ctx: AgentContext) {
       // cliente pidió «265/70/17 AT» y recibió un FALKEN WILDPEAK M/T y una
       // KENDA sin tipo verificado: dos de tres no eran lo que pidió. El modelo
       // elige los códigos, pero el filtro por tipo no se negocia.
-      const inbound = await sql<{ content: string }[]>`
-        select content from messages
+      const inbound = await sql<{ content: string; created_at: Date }[]>`
+        select content, created_at from messages
         where conversation_id=${ctx.conversation.id}
           and cycle=${ctx.conversation.current_cycle}
           and direction='inbound'
@@ -1153,8 +1163,10 @@ export function buildTools(ctx: AgentContext) {
       const [medidaDeLaConversacion] = await sql<{ tire_size: string | null }[]>`
         select tire_size from conversations where id=${ctx.conversation.id}
       `;
+      // Misma ventana que el candado de la cotización: lo que pidió en otra
+      // visita no vuelve «de su medida» a una llanta que no lo es.
       const permitidasOpciones = medidasPermitidas(
-        [ctx.currentUserText, ...inbound.map((m) => m.content)],
+        [ctx.currentUserText, ...mensajesDeLaVisitaActual(inbound).map((m) => m.content)],
         medidaDeLaConversacion?.tire_size,
       );
       const fueraDeMedida = products.filter(
@@ -1302,7 +1314,21 @@ export function buildTools(ctx: AgentContext) {
           // casi nunca coincidieran: el candado se apagaba solo y la pieza de
           // opciones volvía a salir. Lo que hay que comparar son las tarjetas
           // que el cliente tiene en pantalla.
-          metadata: { piece: "options", codes: products.map((p) => p.code), sizeLabel, escalones, ...(visual.error ? { renderError: visual.error } : {}) },
+          // `equivalentes` es el HECHO de que el bot le dijo con todas las letras
+          // «en su medida no me queda, estas son equivalentes». Sin él, esa
+          // declaración vivía un solo turno: el cliente aceptaba («me gusta la
+          // Falken», «ok») y la cotización de la equivalente se bloqueaba por
+          // ser «otra medida», porque nadie había anotado que él ya la aceptó.
+          // Eso es la mitad del caso 4732 —«nunca le mandó la cotización»— y
+          // por qué esto se guarda en vez de confiar en el historial.
+          metadata: {
+            piece: "options",
+            codes: products.map((p) => p.code),
+            sizeLabel,
+            escalones,
+            ...(avisoMedidaCliente ? { equivalentes: medidasDeProductos(fueraDeMedida) } : {}),
+            ...(visual.error ? { renderError: visual.error } : {}),
+          },
         },
       );
       // La imagen es la pieza principal: sin ella el cliente recibe solo el
@@ -1389,7 +1415,7 @@ export function buildTools(ctx: AgentContext) {
         recomendacion_entregada: entregarRecomendacion,
         escalones,
         mensaje_para_enviar: composeBlocks(
-          (await usarCaptionCorto(visual.ok))
+          (await soloLaFoto(visual.ok))
             ? null
             : buildCustomerOptionsMessageDetallado(products, nombre_cliente),
           avisoMedidaCliente,
@@ -1523,7 +1549,7 @@ export function buildTools(ctx: AgentContext) {
         providerId,
       });
       const comparisonText = composeBlocks(
-        (await usarCaptionCorto(visual.ok))
+        (await soloLaFoto(visual.ok))
           ? buildComparisonCaption(selected)
           : buildComparisonMessageDetallado(selected),
         buildTechnicalGuidance(selected, ctx.currentUserText),
@@ -1650,6 +1676,22 @@ export function buildTools(ctx: AgentContext) {
         });
       }
       await ensureCatalogReady();
+      // CANDADO DE MEDIDA — cotizar es firmar un precio, y el precio depende
+      // de la medida. El 13-ago (chat 5499) el cliente pidió 265/70R16, el
+      // modelo derivó a una búsqueda por aro y firmó una 225/70R16: $82,84
+      // menos en el juego, con número de cotización que el cliente podía
+      // presentar en el local. Aquí no se corrige al modelo con una
+      // sugerencia: no se firma una medida que el cliente nunca pidió.
+      //
+      // Y solo cuenta lo que pidió en ESTA visita. El 26-ago (conv 4732) el
+      // mismo cliente había comprado 13 días antes en 265/65R17 y volvió por
+      // una 235/70R15: como el ciclo solo rota al cerrar la conversación, las
+      // dos medidas figuraban «pedidas» y el candado se dio vuelta —bloqueó la
+      // equivalente correcta y aprobó la de hace 13 días—. Ver
+      // `mensajesDeLaVisitaActual`.
+      const permitidas = await medidasDelPedido(
+        ctx.conversation.id, ctx.conversation.current_cycle, ctx.currentUserText,
+      );
       const lines = [];
       /**
        * Lo que se pidió contra lo que hay HOY (P-02, reunión del 25-ago).
@@ -1676,7 +1718,7 @@ export function buildTools(ctx: AgentContext) {
               "y vuelve a llamar preparar_cotizacion con el CÓDIGO exacto de la que elija.",
           });
         }
-        const product = candidatos[0];
+        let product = candidatos[0];
         if (!product) {
           return JSON.stringify({
             error: `Código ${item.code} no existe en el catálogo. Vuelve a buscar la llanta.`,
@@ -1687,28 +1729,46 @@ export function buildTools(ctx: AgentContext) {
             error: `${product.brand} ${product.design} está agotada. Busca otra opción disponible antes de cotizar.`,
           });
         }
-        // El cero ya lo atajó `availability === "out"`; lo que queda aquí es el
-        // stock corto de verdad: 1, 2 o 3 unidades contra un juego de 4.
-        if (item.cantidad > product.stock) {
-          stockCorto = { stock_hoy: product.stock, solicitadas: item.cantidad };
+        if (!medidaEstaPedida(product.sizeLabel, permitidas)) {
+          // RESCATE ANTES DE BLOQUEAR — el caso 4732 no fue el modelo eligiendo
+          // mal una llanta: fue arrastrando el CÓDIGO de la compra anterior
+          // («la Falken» del 13-ago) cuando el cliente estaba señalando la
+          // Falken que acababa de ver en pantalla, el mismo modelo en su
+          // medida. Si entre las opciones presentadas hay UNA sola de ese
+          // mismo modelo y su medida sí está pedida, esa es la que el cliente
+          // señaló y esa se cotiza. No es adivinar una medida: es respetar la
+          // que él vio y aceptó. Cualquier duda —ninguna o varias— cae al
+          // bloqueo de siempre.
+          const mismoModelo = (await productosPresentados(ctx.conversation.id)).filter(
+            (candidato) =>
+              `${candidato.brand} ${candidato.design}`.trim().toLowerCase()
+                === `${product.brand} ${product.design}`.trim().toLowerCase()
+              && medidaEstaPedida(candidato.sizeLabel, permitidas)
+              && candidato.availability !== "out",
+          );
+          if (mismoModelo.length === 1) {
+            const enPantalla = mismoModelo[0];
+            console.log(
+              `🔁 Cotización redirigida a la opción presentada: ${item.code} (${product.sizeLabel}) → `
+              + `${enPantalla.code} (${enPantalla.sizeLabel}) en la conv ${ctx.conversation.id}`,
+            );
+            await createBotAlert({
+              conversationId: ctx.conversation.id,
+              cycle: ctx.conversation.current_cycle,
+              type: "medida_no_coincide",
+              priority: "medium",
+              summary: `Se corrigió la medida antes de cotizar: ${product.sizeLabel} → ${enPantalla.sizeLabel}`,
+              exactReason:
+                `El bot iba a cotizar ${product.brand} ${product.design} ${product.sizeLabel} (código ${item.code}), `
+                + `que no es de lo que pidió el cliente (${permitidas.join(" o ")}). Se cotizó la misma llanta en `
+                + `${enPantalla.sizeLabel} (código ${enPantalla.code}), que es la que él tenía en pantalla.`,
+              suggestedAction: "Revisar que la cotización enviada sea la medida que el cliente está comprando.",
+              dedupeKey: `${ctx.conversation.id}:${ctx.conversation.current_cycle}:medida_redirigida:${enPantalla.code}`,
+            }).catch(() => undefined);
+            items = [{ ...items[0], code: enPantalla.code }];
+            product = enPantalla;
+          }
         }
-        // CANDADO DE MEDIDA — cotizar es firmar un precio, y el precio depende
-        // de la medida. El 13-ago (chat 5499) el cliente pidió 265/70R16, el
-        // modelo derivó a una búsqueda por aro y firmó una 225/70R16: $82,84
-        // menos en el juego, con número de cotización que el cliente podía
-        // presentar en el local. Aquí no se corrige al modelo con una
-        // sugerencia: no se firma una medida que el cliente nunca pidió.
-        const inboundDelCiclo = await sql<{ content: string }[]>`
-          select content from messages
-          where conversation_id=${ctx.conversation.id}
-            and cycle=${ctx.conversation.current_cycle}
-            and direction='inbound'
-          order by created_at desc limit 20
-        `;
-        const permitidas = medidasPermitidas(
-          [ctx.currentUserText, ...inboundDelCiclo.map((m) => m.content)],
-          facts?.tire_size,
-        );
         if (!medidaEstaPedida(product.sizeLabel, permitidas)) {
           await registrarMedidaQueNoCoincide(ctx.conversation, {
             pedida: permitidas.join(" o "),
@@ -1723,6 +1783,13 @@ export function buildTools(ctx: AgentContext) {
               `(«en su ${permitidas[0]} no me queda; le entra la ${product.sizeLabel}, ¿se la cotizo?»). Solo cuando él acepte, ` +
               `búscala con buscar_llanta y ahí sí cotízala.`,
           });
+        }
+        // El cero ya lo atajó `availability === "out"`; lo que queda aquí es el
+        // stock corto de verdad: 1, 2 o 3 unidades contra un juego de 4. Va
+        // DESPUÉS del candado de medida: si el rescate cambió la llanta, el
+        // stock que importa es el de la que de verdad se va a cotizar.
+        if (item.cantidad > product.stock) {
+          stockCorto = { stock_hoy: product.stock, solicitadas: item.cantidad };
         }
         // El precio que se imprime se confirma contra el Interbot AQUÍ, con UNA
         // consulta por la medida que se está cotizando. Antes esto dependía del
@@ -1998,34 +2065,23 @@ export function buildTools(ctx: AgentContext) {
         numero_venta: saleNumber,
         ...(stockCorto ? { stock_insuficiente: stockCorto } : {}),
         mensaje_para_enviar: composeBlocks(
-          [(await usarCaptionCorto(visual.ok))
-            ? buildSingleQuoteCaption(
-                { product, quantity: items[0].cantidad },
-                quote.number,
-                descuentoAplicado
-                  ? {
-                      finalTotal: quote.total,
-                      condition: descuentoAplicado.condition,
-                      expiresAt: descuentoAplicado.expiresAt,
-                    }
-                  : undefined,
-                preciosFirmados,
-              )
-            : buildSingleQuoteMessageDetallado(
-                { product, quantity: items[0].cantidad },
-                nombre_cliente,
-                quote.number,
-                saleNumber,
-                descuentoAplicado
-                  ? {
-                      amount: descuentoAplicado.amount,
-                      finalTotal: quote.total,
-                      condition: descuentoAplicado.condition,
-                      expiresAt: descuentoAplicado.expiresAt,
-                    }
-                  : undefined,
-                preciosFirmados,
-              ),
+          [
+            // Con la foto enviada, aquí no va NADA de la cotización: la pieza ya
+            // la muestra. Ver `textoDeLaCotizacion`.
+            textoDeLaCotizacion(
+              await soloLaFoto(visual.ok),
+              { product, quantity: items[0].cantidad },
+              nombre_cliente,
+              descuentoAplicado
+                ? {
+                    amount: descuentoAplicado.amount,
+                    finalTotal: quote.total,
+                    condition: descuentoAplicado.condition,
+                    expiresAt: descuentoAplicado.expiresAt,
+                  }
+                : undefined,
+              preciosFirmados,
+            ),
             avisoStock,
             avisoJuego,
           ].filter(Boolean).join("\n\n"),
@@ -2403,7 +2459,6 @@ export function buildTools(ctx: AgentContext) {
         bloques.push(mensajeCupon({
           codigo: cupon.codigo,
           porcentaje: cupon.porcentaje,
-          numeroCotizacion: cupon.numeroCotizacion,
         }));
       }
 

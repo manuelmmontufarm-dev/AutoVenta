@@ -155,14 +155,17 @@ export function extraerCupones(texto: string): string[] {
  * Dice «adicional sobre su cotización» y nombra el número porque el 2 % no
  * reemplaza el descuento que ya tenga: se suma en caja.
  */
+/**
+ * Sin el número de cotización desde el 26-ago (Joaquín): «número de cotización
+ * más código de descuento ya demasiadas vainas». Este mensaje existe para que
+ * el cliente memorice UNA cosa —su cupón— y meterle un COT- al lado competía
+ * con eso justamente en el mensaje donde menos podía permitírselo.
+ */
 export function mensajeCupon(input: {
   codigo: string;
   porcentaje: number;
-  numeroCotizacion?: string | null;
 }): string {
-  const sobre = input.numeroCotizacion
-    ? `sobre su cotización *${input.numeroCotizacion}*`
-    : "sobre su cotización";
+  const sobre = "sobre su cotización";
   return [
     `🎟️ Su código de descuento es *${input.codigo}*`,
     "",

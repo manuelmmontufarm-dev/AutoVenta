@@ -19,6 +19,8 @@ import {
 } from "../services/discountOffers.js";
 import { sql } from "../db/client.js";
 import { activeBenefitFactsBlock } from "../services/benefits.js";
+import { medidaEstaPedida } from "../domain/medidaPedida.js";
+import { medidasDelPedido } from "../services/medidasDelPedido.js";
 import { extractVehicleYear, type Escalones } from "../domain/salesIntent.js";
 import { chatReasoningEffort } from "./aiRequestPolicy.js";
 
@@ -432,7 +434,9 @@ export interface AgentSalesFacts {
   visitTimeLabel: string | null;
   customerCommitment: string | null;
   /** Última cotización del ciclo — evita mandar dos números para la misma compra. */
-  lastQuote: { number: string; total: number; minutesAgo: number; detalle: string | null } | null;
+  lastQuote: { number: string; total: number; minutesAgo: number; detalle: string | null; medida: string | null } | null;
+  /** Las medidas que hoy se le pueden cotizar. Ver services/medidasDelPedido. */
+  medidasDelPedido?: string[];
   /**
    * Escalones (premium/equilibrada/económica) de la ÚLTIMA pieza de opciones
    * del ciclo, guardados por preparar_opciones en la metadata del mensaje.
@@ -469,6 +473,7 @@ export function detalleDeItems(items: unknown): string | null {
 export async function getAgentSalesFacts(conversationId: number): Promise<AgentSalesFacts> {
   const [row] = await sql<{
     tire_size: string | null; vehicle: string | null; vehicle_year: number | null;
+    current_cycle: number;
     selected_product_code: string | null; selected_quantity: number | null;
     nearest_store: string | null; visit_date: Date | null; visit_time_label: string | null;
     customer_commitment: string | null;
@@ -477,7 +482,7 @@ export async function getAgentSalesFacts(conversationId: number): Promise<AgentS
     last_quote_at: Date | null; last_quote_items: unknown;
     escalones: Escalones | null;
   }[]>`
-    select c.tire_size, c.vehicle, c.vehicle_year, c.selected_product_code,
+    select c.tire_size, c.vehicle, c.vehicle_year, c.current_cycle, c.selected_product_code,
       c.selected_quantity, c.nearest_store, c.visit_date, c.visit_time_label,
       c.customer_commitment,
       q.quote_number as last_quote_number, q.total as last_quote_total,
@@ -505,6 +510,7 @@ export async function getAgentSalesFacts(conversationId: number): Promise<AgentS
     .map(extractVehicleYear).find((value): value is number => value !== null) ?? null;
   return {
     tireSize: row?.tire_size ?? null,
+    medidasDelPedido: await medidasDelPedido(conversationId, row?.current_cycle ?? 1),
     vehicle: row?.vehicle ?? null,
     vehicleYear: inferredYear,
     selectedProductCode: row?.selected_product_code ?? null,
@@ -519,6 +525,7 @@ export async function getAgentSalesFacts(conversationId: number): Promise<AgentS
           total: Number(row.last_quote_total ?? 0),
           minutesAgo: Math.round((Date.now() - row.last_quote_at.getTime()) / 60_000),
           detalle: detalleDeItems(row.last_quote_items),
+          medida: (Array.isArray(row.last_quote_items) ? row.last_quote_items : [])[0]?.sizeLabel ?? null,
         }
       : null,
     escalones: row?.escalones ?? null,
@@ -559,7 +566,18 @@ export function salesFactsPrompt(facts: AgentSalesFacts, resumedFromHuman = fals
       ? null
       : "PROHIBIDO escribir un día de la semana, «mañana» o una fecha para la visita: todavía no hay ninguno registrado. Invéntalo y le confirmas al cliente una cita que no existe.",
     facts.lastQuote
-      ? `Cotización YA ENVIADA en este ciclo: ${facts.lastQuote.number}${facts.lastQuote.detalle ? ` = ${facts.lastQuote.detalle}` : ""} por $${facts.lastQuote.total.toFixed(2)}, hace ${facts.lastQuote.minutesAgo} min. Al nombrarla, di ESE contenido: PROHIBIDO atribuirle otra medida, marca o total.`
+      ? `Cotización YA ENVIADA en este ciclo${facts.lastQuote.detalle ? `: ${facts.lastQuote.detalle}` : ""} por $${facts.lastQuote.total.toFixed(2)}, hace ${facts.lastQuote.minutesAgo} min. Al nombrarla, di ESE contenido: PROHIBIDO atribuirle otra medida, marca o total, y PROHIBIDO escribirle su número al cliente.`
+      : null,
+    // LA COTIZACIÓN QUE YA NO SIRVE (26-ago, conv 4732). Cuando la medida de
+    // trabajo cambió después de cotizar, el número viejo no es «la cotización
+    // del cliente»: es de otra llanta. Ahí el bot se quedó tres turnos
+    // explicándole al cliente que su cotización no valía y prometiendo la
+    // buena «apenas esté lista» — una promesa que nadie iba a cumplir, porque
+    // nada la generaba. La salida es una sola y es una herramienta, no una
+    // frase: cotizar de nuevo en la medida correcta.
+    facts.lastQuote?.medida && (facts.medidasDelPedido?.length ?? 0) > 0
+      && !medidaEstaPedida(facts.lastQuote.medida, facts.medidasDelPedido ?? [])
+      ? `OJO: la cotización que enviaste es de ${facts.lastQuote.medida} y el cliente está comprando ${(facts.medidasDelPedido ?? []).join(" o ")}. Esa cotización NO le sirve. NO la menciones como válida, NO discutas medidas con él y NUNCA le prometas una cotización «que le paso apenas esté lista»: llama generar_cotizacion AHORA con la llanta correcta — la pieza nueva es la respuesta, no el texto.`
       : null,
     // El cierre de opciones pregunta la preferencia (mejor precio / equilibrada
     // / premium, reunión 25-ago). La respuesta llega en el turno SIGUIENTE, y
@@ -588,7 +606,7 @@ export function salesFactsPrompt(facts: AgentSalesFacts, resumedFromHuman = fals
     // reafirmaba la medida o la cantidad, y el cliente terminaba con dos
     // números distintos para una sola compra.
     facts.lastQuote && facts.lastQuote.minutesAgo < 30
-      ? `Ya cotizaste hace ${facts.lastQuote.minutesAgo} min. NO generes otra cotización por el mismo pedido: si el cliente reafirma la medida, el modelo o la cantidad, remítelo a ${facts.lastQuote.number} y avanza al cierre (ubicación, visita, asesor). Solo cotiza de nuevo si cambia el producto o la cantidad.`
+      ? `Ya cotizaste hace ${facts.lastQuote.minutesAgo} min. NO generes otra cotización por el mismo pedido: si el cliente reafirma la medida, el modelo o la cantidad, remítelo a la que ya tiene —por modelo, cantidad y total, nunca por su número— y avanza al cierre (ubicación, visita, asesor). Solo cotiza de nuevo si cambia el producto o la cantidad.`
       : null,
     "Si el cliente ya dio una medida, cotiza con esa medida. No pidas versión, año ni etiqueta del vehículo, y nunca condiciones la cotización a confirmar el auto.",
     // Desde el 6-ago el bot SÍ lee fotos (visión); la instrucción vieja

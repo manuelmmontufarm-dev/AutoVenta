@@ -85,9 +85,13 @@ describe("barrer las descripciones de las facturas", () => {
 describe("el mensaje al cliente", () => {
   const mensaje = mensajeCupon({ codigo: "DT-PUMA47", porcentaje: 2, numeroCotizacion: "COT-MSUX5R4W" });
 
-  it("pone el código donde se ve y nombra la cotización", () => {
+  // 26-ago (Joaquín): «número de cotización más código de descuento ya
+  // demasiadas vainas». Este mensaje existe para que el cliente memorice UNA
+  // cosa; el COT- competía con ella justo acá.
+  it("pone el código donde se ve y NO nombra ningún número de cotización", () => {
     expect(mensaje).toContain("*DT-PUMA47*");
-    expect(mensaje).toContain("COT-MSUX5R4W");
+    expect(mensaje).toContain("su cotización");
+    expect(mensaje).not.toMatch(/COT-|AV-/);
   });
 
   // Lo que pidió Andrés el 15-ago: si el cliente cree que el descuento es

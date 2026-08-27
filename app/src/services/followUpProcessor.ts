@@ -10,6 +10,7 @@ import {
   type FollowUpJob,
 } from "./followUps.js";
 import { revisarConGuardian } from "./guardian.js";
+import { sinNumerosDeCotizacion } from "../domain/numerosDeCotizacion.js";
 import { asegurarAvisoDeStock } from "./stockCorto.js";
 import { authorizeConversationOutbound } from "./whatsappPolicy.js";
 import { emitLiveEvent } from "./liveEvents.js";
@@ -280,9 +281,13 @@ export async function processFollowUpJob(
   // sigue vigente»), y sale días después: si en ese rato el stock bajó, es el
   // peor mensaje para prometer un juego que no existe. La plantilla fuera de
   // ventana queda afuera porque su texto lo fija Meta y no se puede tocar.
+  // Y los números de cotización tampoco viajan en el seguimiento: mismo motivo
+  // que en el turno normal, y aquí el guardián acaba de reescribir el texto.
   const preview = isPostWindow
     ? revisado
-    : (await asegurarAvisoDeStock(context.id, context.current_cycle, revisado)).texto;
+    : sinNumerosDeCotizacion(
+        (await asegurarAvisoDeStock(context.id, context.current_cycle, revisado)).texto,
+      );
   if (!isPostWindow) {
     // `modo` queda en el payload para que el panel y las pruebas puedan ver con
     // qué libreto salió este seguimiento sin tener que releer el texto.

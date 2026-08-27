@@ -180,7 +180,10 @@ describe.sequential("«X eso el juebes» (conversación 9878)", () => {
     expect(enviados[0]).not.toMatch(/me quedé pendiente de tu visita/i);
     expect(enviados[0]).toMatch(/no se olvide/i);
     expect(enviados[0]).toMatch(/jueves 27 de agosto de 4 a 5 pm/i);
-    expect(enviados[0]).toMatch(/COT-MT7H1534/);
+    // El número de cotización ya no se le escribe al cliente (26-ago, Joaquín):
+    // el recordatorio le dice que la lleve, no cómo se llama.
+    expect(enviados[0]).toMatch(/lleve a mano su cotización/i);
+    expect(enviados[0]).not.toMatch(/COT-|AV-/);
   });
 
   /*

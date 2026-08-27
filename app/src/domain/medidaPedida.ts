@@ -48,6 +48,53 @@ export function medidasPermitidas(
   return [...todas];
 }
 
+/**
+ * El silencio que separa una compra de la siguiente.
+ *
+ * `medidasPermitidas` no tiene noción del tiempo: junta TODO lo que el cliente
+ * haya nombrado alguna vez. Eso alcanzaba mientras un ciclo durara una tarde,
+ * pero el ciclo solo rota cuando la conversación se CIERRA, y una que nadie
+ * cierra vive semanas. El 26-ago (conv 4732, Andrés Tamayo) eso invirtió el
+ * candado: el cliente había pedido 265/65R17 para una Dongfeng el 13-ago y
+ * volvió 13 días después por una 235/70R15 de otro carro. Con las dos medidas
+ * «pedidas» a la vez, el candado BLOQUEÓ la equivalente correcta (235/75R15) y
+ * 75 minutos más tarde DEJÓ PASAR la de hace 13 días: se firmó y se envió una
+ * cotización de 265/65R17 a alguien que estaba comprando 235/70R15.
+ *
+ * Doce horas es el corte porque separa dos visitas sin partir una: quien
+ * escribe de noche y confirma en la mañana sigue en la misma compra, y de todos
+ * modos la medida de trabajo viaja aparte en `tire_size`, que no caduca.
+ */
+export const HORAS_QUE_CIERRAN_LA_VISITA = 12;
+
+/**
+ * Los mensajes de la visita que está pasando AHORA: se recorre del más nuevo al
+ * más viejo y se corta en el primer silencio largo. Lo de antes de ese silencio
+ * es otra compra y no dice nada sobre esta.
+ *
+ * Recibe la lista tal como sale de la base (`order by created_at desc`).
+ */
+export function mensajesDeLaVisitaActual<T extends { created_at: Date | string }>(
+  nuevoAViejo: readonly T[],
+  horasDeCorte: number = HORAS_QUE_CIERRAN_LA_VISITA,
+): T[] {
+  const corteMs = horasDeCorte * 3_600_000;
+  const dentro: T[] = [];
+  let anterior: number | null = null;
+  for (const mensaje of nuevoAViejo) {
+    const fecha = new Date(mensaje.created_at).getTime();
+    // Una fecha ilegible no puede justificar un corte: se conserva el mensaje y
+    // se sigue comparando contra el último bueno. Perder contexto por un dato
+    // sucio es peor que arrastrar uno de más.
+    if (Number.isFinite(fecha)) {
+      if (anterior !== null && anterior - fecha > corteMs) break;
+      anterior = fecha;
+    }
+    dentro.push(mensaje);
+  }
+  return dentro;
+}
+
 /** Normaliza una etiqueta del catálogo («LT265/75R16 123/120S») a «265/75R16». */
 function canonica(sizeLabel: string): string | null {
   return medidasEnTexto(sizeLabel)[0] ?? null;

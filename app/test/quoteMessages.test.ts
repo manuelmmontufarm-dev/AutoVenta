@@ -183,8 +183,6 @@ describe("mapas de los locales", () => {
     const mensaje = qm.buildSingleQuoteMessageDetallado(
       { product: producto(), quantity: 4 },
       "Manuel",
-      "COT-1",
-      "AV-000001",
     );
     expect(mensaje).not.toMatch(/en qué sector/i);
     expect(mensaje).not.toMatch(/comparti[rt] tu ubicaci[oó]n/i);
@@ -231,23 +229,32 @@ describe("formato WhatsApp: la imagen es el mensaje", () => {
   const falken = producto({ id: "2", code: "DEF", brand: "Falken", design: "ZE310", minimumPriceWithTax: 96.4 });
 
   it("ninguna pieza acompañada de imagen pasa de 5 líneas de texto", () => {
-    const captions = [
-      qm.buildSingleQuoteCaption({ product: kenda, quantity: 4 }, "AV-000123"),
-      qm.buildComparisonCaption([kenda, falken]),
-    ];
-    for (const caption of captions) expect(lineas(caption)).toBeLessThanOrEqual(5);
+    expect(lineas(qm.buildComparisonCaption([kenda, falken]))).toBeLessThanOrEqual(5);
   });
 
-  it("después de la foto de cotización solo resume cantidad, modelo y total", () => {
-    const caption = qm.buildSingleQuoteCaption(
-      { product: producto({ brand: "Falken", design: "Wildpeak A/T Trail", minimumPriceWithTax: 202.87 }), quantity: 4 },
-      "COT-MSKPHG6R",
-    );
+  // 26-ago (Joaquín, sobre el chat de Andrés Tamayo): «eliminemos el mensaje
+  // que manda después de la foto, que básicamente dice lo mismo que dice la
+  // foto… que ya no haya y sea más por las fotos». Antes de esto el turno
+  // mandaba la imagen y debajo «4 × FALKEN …: $811.48».
+  it("después de la foto de cotización el texto NO repite la cotización", () => {
+    const seleccion = {
+      product: producto({ brand: "Falken", design: "Wildpeak A/T Trail", minimumPriceWithTax: 202.87 }),
+      quantity: 4,
+    };
+    expect(qm.textoDeLaCotizacion(true, seleccion, "Manuel")).toBeNull();
+  });
+
+  it("si la foto NO salió, el respaldo trae la cotización entera y sin números de cotización", () => {
+    const seleccion = {
+      product: producto({ brand: "Falken", design: "Wildpeak A/T Trail", minimumPriceWithTax: 202.87 }),
+      quantity: 4,
+    };
+    const texto = qm.textoDeLaCotizacion(false, seleccion, "Manuel");
     // Punto decimal, NUNCA coma: el mismo formato que la pieza renderizada y
     // que los datos de la cotización. El formato es-EC («$811,48») fue 4 de
     // los 8 precio_incorrecto ALTA del informe del guardián del 15-ago.
-    expect(caption).toBe("4 × FALKEN WILDPEAK A/T TRAIL: $811.48");
-    expect(caption).not.toMatch(/COT-|c\/u|IVA|Presente|Aquí está/i);
+    expect(texto).toContain("$811.48");
+    expect(texto).not.toMatch(/COT-|AV-/);
   });
 
   // Joaquín, 6-ago, viendo un chat real: «este mensaje le quitaría porque se

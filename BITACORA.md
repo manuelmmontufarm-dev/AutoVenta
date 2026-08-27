@@ -32,6 +32,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-08-26 | _(este mismo)_ | La cotización de otra medida: la compra de hace dos semanas dejó de firmar la de hoy, y la foto habla sola | 3.0 |
 | 2026-08-26 | _(este mismo)_ | El «juebes» que costó una visita: los días se leen por sonido, el bot escribe lo que promete, y el seguimiento confirma en vez de repreguntar | 4.0 |
 | 2026-08-26 | _(este mismo)_ | Cruce de facturación Contífico: llave nueva, segunda señal (SKU + día de visita) y las sucursales con nombre | 2.5 |
 | 2026-08-26 | _(este mismo)_ | El aviso de stock corto deja de morirse en el turno en que nace: viaja pegado a la cotización por las tres puertas | 2.0 |
@@ -170,6 +171,61 @@ Ya viene activado en este equipo.
 ---
 
 ## Entradas (más reciente primero)
+
+### 2026-08-26 · La cotización de otra medida (conv 4732, Andrés Tamayo) · ⏱️ 3.0 h
+
+**Qué:** `domain/medidaPedida.ts` estrena `mensajesDeLaVisitaActual`: los
+mensajes se recorren del más nuevo al más viejo y se cortan en el primer
+silencio de 12 h, porque lo de antes de ese silencio es otra compra.
+`services/medidasDelPedido.ts` (nuevo) es ahora la ÚNICA respuesta a «¿qué
+medidas se le pueden cotizar a este cliente?», y la usan los tres que la
+necesitan: el candado de `generar_cotizacion`, el Ángel Guardián y los hechos
+del vendedor. La pieza de opciones anota en su metadata las **equivalentes que
+el bot declaró** (`equivalentes`), así que la 235/75R15 que el cliente vio y
+aceptó se puede cotizar. Cuando el modelo manda un código cuya medida no está
+pedida pero entre las opciones en pantalla hay UNA sola de ese mismo modelo en
+una medida que sí lo está, se cotiza esa y queda alerta `medida_no_coincide`
+para el asesor; si hay duda, se bloquea como siempre. Menos texto: con la foto
+enviada el turno ya NO repite la cotización en palabras (`textoDeLaCotizacion`
+reemplaza a `buildSingleQuoteCaption`), y los números `COT-…`/`AV-…` salen del
+prompt, del playbook compacto, del cupón, de los seguimientos y del respaldo en
+texto, con `domain/numerosDeCotizacion.ts` como candado final —después del
+guardián, junto al aviso de stock—. El guardián estrena la categoría
+`promesa_incumplible` y el hecho duro `COTIZACIÓN DESALINEADA`. 15 pruebas
+nuevas; la suite queda en 971.
+
+**Por qué:** Joaquín, sobre el chat de su papá: «pidió una medida que no había,
+le dio la opción alterna correcta, pero cuando mandó la cotización le mandó de
+otra medida completamente diferente, y luego nunca le mandó la cotización».
+Leído en producción, el candado de medida había hecho exactamente lo CONTRARIO
+de su trabajo: a las 15:55 bloqueó la 235/75R15, que era la correcta, y a las
+17:10 dejó pasar una 265/65R17. La causa es que `medidasPermitidas` no tenía
+noción del tiempo y el ciclo solo rota cuando la conversación se CIERRA — esta
+llevaba 13 días abierta, así que la medida del carro que el cliente compró el
+13-ago seguía contando como «pedida». La otra mitad —«nunca le mandó la
+cotización»— es el mismo patrón de siempre: el bot le DIJO «le sirve la
+equivalente en 235/75R15», el cliente aceptó, y esa declaración no quedó
+anotada en ninguna parte, así que cotizar la equivalente se bloqueaba para
+siempre. El Ángel Guardián sí vio el error —tres veces, `medida_incorrecta` en
+alta— pero él solo reescribe texto y la foto ya había salido: por eso el bot
+quedó tres turnos prometiendo una cotización que nada iba a generar, y esos son
+los mensajes «sin foto» que Joaquín marcó. Lo del número de cotización es suyo
+también: «le veo imposible que un cliente llegue y dé eso, se ve muy repetitivo
+y puede hasta confundir; lo dejaría solo con el código de descuento del 2 %».
+Va como candado y no como línea de prompt porque el texto al cliente lo
+escriben tres manos y solo una obedece al prompt — en este mismo chat fue el
+GUARDIÁN quien llenó cuatro mensajes de «COT-MTACN72K».
+
+**Probado:** la conversación entera repetida en el simulador desde el estado
+real del 13-ago (`--copiar-conv 4732`, rebobinada, stock fijado en 4). Antes:
+cotización en 265/65R17, 4 correcciones del guardián y ninguna cotización
+buena. Después: `COT-…` por la FALKEN WILDPEAK A/T 4W **235/75R15** en el
+turno del «Me gusta la Falken» —uno antes que en producción—, las 3 revisiones
+del guardián en `aprobar` con cero hallazgos, y el texto reducido a la pregunta
+de día y local. El rescate se comprobó aparte con el código exacto que mandó el
+modelo (`🔁 356398 → 356521`), y el guardián real, contra los tres borradores
+que salieron mal ese día, los marca los tres en alta —incluido el nuevo
+`promesa_incumplible`.
 
 ### 2026-08-26 · El «juebes» que costó una visita · ⏱️ 4.0 h
 

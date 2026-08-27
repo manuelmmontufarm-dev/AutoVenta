@@ -96,19 +96,19 @@ describe("el IVA se quita y se pone con la MISMA tasa", () => {
 describe("el texto del chat usa los números de la cotización firmada", () => {
   const seleccion = { product: producto(), quantity: 4 };
 
-  it("el resumen corto respeta el total firmado, no el del catálogo", () => {
-    // El catálogo dice 85.12 c/u → 340.48. El Interbot confirmó 90 c/u → 360.
-    const caption = qm.buildSingleQuoteCaption(seleccion, "COT-1", undefined, {
+  // Desde el 26-ago, con la foto enviada NO hay resumen en texto (Joaquín:
+  // «ese mensaje que ya no haya y sea más por las fotos»), así que lo que se
+  // comprueba es el respaldo: el texto que sale cuando la pieza NO salió.
+  it("con la foto enviada no hay ningún texto de cotización", () => {
+    expect(qm.textoDeLaCotizacion(true, seleccion, "Manuel", undefined, {
       unitarioConIva: 90,
       listaConIva: 113.49,
       total: 360,
-    });
-    expect(caption).toContain("360");
-    expect(caption).not.toContain("340.48");
+    })).toBeNull();
   });
 
   it("el mensaje detallado muestra el unitario firmado y su porcentaje real", () => {
-    const texto = qm.buildSingleQuoteMessageDetallado(seleccion, "Manuel", "COT-1", "AV-1", undefined, {
+    const texto = qm.buildSingleQuoteMessageDetallado(seleccion, "Manuel", undefined, {
       unitarioConIva: 90,
       listaConIva: 120,
       total: 360,
@@ -120,9 +120,9 @@ describe("el texto del chat usa los números de la cotización firmada", () => {
     expect(texto).not.toContain("85.12");
   });
 
-  it("sin precios firmados se comporta como siempre (catálogo)", () => {
-    const caption = qm.buildSingleQuoteCaption(seleccion, "COT-1");
-    expect(caption).toContain("340.48");
+  it("sin precios firmados el respaldo se comporta como siempre (catálogo)", () => {
+    const texto = qm.textoDeLaCotizacion(false, seleccion, "Manuel");
+    expect(texto).toContain("340.48");
   });
 });
 

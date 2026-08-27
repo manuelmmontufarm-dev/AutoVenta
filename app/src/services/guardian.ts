@@ -33,7 +33,8 @@ import { z } from "zod";
 import { config } from "../config.js";
 import { sql } from "../db/client.js";
 import type { Stage } from "../domain/pipeline.js";
-import { medidasPermitidas } from "../domain/medidaPedida.js";
+import { medidaEstaPedida } from "../domain/medidaPedida.js";
+import { medidasDelPedido } from "./medidasDelPedido.js";
 import { respaldoCompleto } from "../domain/respaldoMarcas.js";
 import { logAiRun } from "./conversations.js";
 import { crearAlertaRepeticion } from "./conversationQuality.js";
@@ -59,6 +60,7 @@ export const CATEGORIAS = [
   "repeticion",
   "ignora-pregunta",
   "estado_desincronizado",
+  "promesa_incumplible",
   "tono",
   "otro",
 ] as const;
@@ -142,6 +144,10 @@ REVISA, en este orden de gravedad:
 11. UNA NEGATIVA TIENE QUE SER ESPECÍFICA Y VENIR CON LA ALTERNATIVA. Decir «no tenemos» a secas es un error ALTO: deja al cliente sin salida y no es lo que dicen los datos. Cuando la búsqueda no encontró el modelo exacto, la herramienta devuelve qué SÍ hay en esa medida ("en_esa_medida") y en qué medidas SÍ existe ese modelo ("ese_modelo_en_otras_medidas"); el borrador debe usar eso: «esa no la manejo en su medida, pero en 265/70R17 tengo estas», o «esa la manejo en 215/65R17 y 225/65R17». Solo cuando NO hay nada en ninguna de las dos listas vale un «no lo manejamos», y aun así tiene que ofrecer el siguiente paso (buscar por vehículo o por aro). Si la herramienta reportó el catálogo caído o vacío, NINGUNA negativa es válida: no se puede afirmar que algo no existe sin catálogo.
 
 12. LO QUE EL BOT PROMETE vs LO QUE EL SISTEMA TIENE ANOTADO. Compara el borrador y lo que el BOT ya dijo en la conversación contra la sección de HECHOS REGISTRADOS. Si el bot confirmó una visita («listo, el jueves de 4 a 5 en Quito Sur») y los hechos dicen «Visita registrada: ninguna», eso es **estado_desincronizado** de severidad ALTA: el asesor no se va a enterar, no sale el cupón y el seguimiento le va a repreguntar el día. Lo mismo con el local, la medida o la cantidad confirmadas de palabra y ausentes de los hechos. IMPORTANTE: este hallazgo NO se arregla reescribiendo el mensaje al cliente —el mensaje está bien, lo que falla es el registro—. Repórtalo y APRUEBA el texto tal cual. Solo corrige si el borrador además promete algo que contradice un hecho que SÍ está anotado.
+
+13. PROMESAS QUE EL BOT NO PUEDE CUMPLIR. El bot solo puede prometer lo que está saliendo en ESE mismo turno. «Le paso la cotización correcta apenas esté confirmada», «se la mando en un momento», «le envío el PDF enseguida» son **promesa_incumplible** de severidad ALTA cuando el turno no lleva esa pieza: nada la genera después, y el cliente se queda esperando un archivo que no existe. Pasó el 26-ago (Andrés Tamayo): tres turnos seguidos prometiendo la cotización buena y ninguna salió. La corrección NO repite la promesa: si la pieza no se puede mandar, el borrador dice lo que sí es cierto y pide el dato que falta. Si los HECHOS traen «COTIZACIÓN DESALINEADA», el borrador tiene PROHIBIDO presentar esa cotización como válida y PROHIBIDO prometer la nueva — quien la genera es la herramienta, no el texto.
+
+14. NÚMEROS DE COTIZACIÓN: NUNCA en el mensaje al cliente. Ni «COT-…» ni «AV-…». El cliente no llega al local recitándolos y ponerlos compite con lo único que sí tiene que recordar, su código de cupón. Si el borrador los trae, quítalos y habla de la cotización por su contenido («su cotización de 4 Falken Wildpeak en 235/75R15»). Y jamás los uses TÚ para explicarle al cliente por qué algo está mal: discutir números de cotización con él es ruido, no servicio.
 
 REGLAS DE CORRECCIÓN (innegociables):
 - NUNCA inventes precios, medidas, stock, plazos ni datos que no estén en el contexto. Si no puedes verificar una cifra, NO la cambies: repórtala como hallazgo y aprueba.
@@ -232,8 +238,11 @@ export async function armarContexto(
       ? { quote_number: cotizacion.quote_number, total: cotizacion.total, items: cotizacion.items }
       : null,
   );
-  const inbound = mensajes.filter((m) => m.direction === "inbound").map((m) => m.content ?? "");
-  const pedidas = medidasPermitidas(inbound, hechos?.tire_size);
+  // La MISMA cuenta que hace el candado de la cotización, y por eso sale de la
+  // misma función: el 26-ago (conv 4732) el candado miraba todo el ciclo y el
+  // revisor solo los 16 mensajes recientes, y esa diferencia fue justo la
+  // grieta por la que se firmó una medida vieja.
+  const pedidas = await medidasDelPedido(conversationId, cycle);
   // Los beneficios son datos duros, no adorno: sin ellos el revisor no puede
   // distinguir «mantenimiento gratuito cada 10.000 km» (que Depot sí da y está
   // en la tabla) de una cifra inventada por el redactor. Sin esta sección, el
@@ -287,6 +296,15 @@ export async function armarContexto(
     faltante
       ? `STOCK CORTO: la cotización vigente es por ${faltante.cantidad} y hoy hay ${faltante.stockHoy} ` +
         `de ${faltante.etiqueta || faltante.codigo}. El resto lo confirma el asesor.`
+      : null,
+    // La cotización vigente puede ser de OTRA medida que la que el cliente está
+    // comprando (conv 4732: se firmó una 265/65R17 a quien compraba 235/70R15).
+    // Sin esta línea el revisor tiene que deducirlo cruzando dos datos sueltos,
+    // y lo que hizo en vivo fue corregir el texto y dejar que el bot prometiera
+    // una cotización que nadie iba a mandar.
+    cotizacion && item?.sizeLabel && pedidas.length && !medidaEstaPedida(item.sizeLabel, pedidas)
+      ? `COTIZACIÓN DESALINEADA: la cotización vigente es de ${item.sizeLabel} y el cliente está comprando ${pedidas.join(" o ")}. ` +
+        "Esa cotización NO le sirve y el bot NO puede arreglarla escribiendo: la única salida es generar una nueva."
       : null,
     cotizacion
       ? `Cotización vigente: ${cotizacion.quote_number} · total $${Number(cotizacion.total).toFixed(2)}` +

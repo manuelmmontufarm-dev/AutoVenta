@@ -146,8 +146,9 @@ describe("el orden de los candados en el turno", () => {
 
   it("los bloques que se envían salen del texto con el aviso ya puesto", () => {
     // Si alguien vuelve a partir `custodiado.texto`, el aviso se pierde en el
-    // último metro sin que ninguna otra prueba lo note.
-    expect(index).toContain("splitBlocks(conStock.texto)");
+    // último metro sin que ninguna otra prueba lo note. Desde el 26-ago pasa
+    // además por `sinNumerosDeCotizacion`, que es otro candado del final.
+    expect(index).toContain("splitBlocks(sinNumerosDeCotizacion(conStock.texto))");
   });
 
   it("las tres puertas de la cotización usan el mismo módulo", () => {

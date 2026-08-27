@@ -66,6 +66,7 @@ import { flagRepetitiveConversation } from "./services/conversationQuality.js";
 import { applyOutboundGuard } from "./services/outboundGuard.js";
 import { asegurarAvisoDeStock } from "./services/stockCorto.js";
 import { revisarConGuardian } from "./services/guardian.js";
+import { sinNumerosDeCotizacion } from "./domain/numerosDeCotizacion.js";
 import { notifyPendingHumanRequests } from "./services/advisorNotifications.js";
 import { startEmbeddedFollowUpWorker } from "./workers/embeddedFollowUpWorker.js";
 import { extractExplicitStore, preguntamosElLocal } from "./domain/storeSelection.js";
@@ -276,7 +277,11 @@ const pipeline = new InboundPipeline(async ({ from, name, text, waMessageIds, re
   //
   // Envío con red de seguridad: si Meta rechaza, la respuesta queda guardada
   // como "failed" y visible en el hub — nunca se pierde en silencio.
-  const bloques = splitBlocks(conStock.texto);
+  // Los números de cotización, al final de todo y por la misma razón que el
+  // stock: el que los escribió en el chat de Andrés Tamayo (26-ago) fue el
+  // Ángel Guardián, que corre DESPUÉS de todos los candados deterministas.
+  // Ver domain/numerosDeCotizacion.ts.
+  const bloques = splitBlocks(sinNumerosDeCotizacion(conStock.texto));
   // El cupón va como bloque aparte y al final: es un mensaje que el cliente va
   // a buscar días después en el chat, y mezclado dentro del párrafo del bot se
   // pierde. Solo cuando se acaba de emitir — si ya lo tenía, repetírselo cada
@@ -285,7 +290,6 @@ const pipeline = new InboundPipeline(async ({ from, name, text, waMessageIds, re
     bloques.push(mensajeCupon({
       codigo: cupon.codigo,
       porcentaje: cupon.porcentaje,
-      numeroCotizacion: cupon.numeroCotizacion,
     }));
   }
   for (const [indice, bloque] of bloques.entries()) {
