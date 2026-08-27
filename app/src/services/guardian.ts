@@ -33,6 +33,7 @@ import { z } from "zod";
 import { config } from "../config.js";
 import { sql } from "../db/client.js";
 import type { Stage } from "../domain/pipeline.js";
+import { ahorroDeLaCotizacion } from "../domain/ahorro.js";
 import { medidaEstaPedida } from "../domain/medidaPedida.js";
 import { medidasDelPedido } from "./medidasDelPedido.js";
 import { respaldoCompleto } from "../domain/respaldoMarcas.js";
@@ -61,6 +62,7 @@ export const CATEGORIAS = [
   "ignora-pregunta",
   "estado_desincronizado",
   "promesa_incumplible",
+  "pregunta_de_mas",
   "tono",
   "otro",
 ] as const;
@@ -148,6 +150,10 @@ REVISA, en este orden de gravedad:
 13. PROMESAS QUE EL BOT NO PUEDE CUMPLIR. El bot solo puede prometer lo que está saliendo en ESE mismo turno. «Le paso la cotización correcta apenas esté confirmada», «se la mando en un momento», «le envío el PDF enseguida» son **promesa_incumplible** de severidad ALTA cuando el turno no lleva esa pieza: nada la genera después, y el cliente se queda esperando un archivo que no existe. Pasó el 26-ago (Andrés Tamayo): tres turnos seguidos prometiendo la cotización buena y ninguna salió. La corrección NO repite la promesa: si la pieza no se puede mandar, el borrador dice lo que sí es cierto y pide el dato que falta. Si los HECHOS traen «COTIZACIÓN DESALINEADA», el borrador tiene PROHIBIDO presentar esa cotización como válida y PROHIBIDO prometer la nueva — quien la genera es la herramienta, no el texto.
 
 14. NÚMEROS DE COTIZACIÓN: NUNCA en el mensaje al cliente. Ni «COT-…» ni «AV-…». El cliente no llega al local recitándolos y ponerlos compite con lo único que sí tiene que recordar, su código de cupón. Si el borrador los trae, quítalos y habla de la cotización por su contenido («su cotización de 4 Falken Wildpeak en 235/75R15»). Y jamás los uses TÚ para explicarle al cliente por qué algo está mal: discutir números de cotización con él es ruido, no servicio.
+
+15. LO QUE EL BOT TIENE PROHIBIDO PREGUNTAR, TÚ TAMPOCO. Tu corrección ES un mensaje del bot y hereda sus prohibiciones. La que más se cuela: **preguntar cuántas llantas quiere**. No se pregunta nunca — sin cantidad dicha son 4, que es el juego, y se cotizan de una; si después el cliente dice otra cantidad, se cotiza de nuevo con esa. Tampoco se pregunta el nombre, ni «¿cliente final?», ni nada que los HECHOS ya traigan. Si el borrador trae una de esas preguntas es **pregunta_de_mas** de severidad ALTA —cada una cuesta un turno para llegar a la misma respuesta— y la corrección la reemplaza por el paso que sí corresponde (cotizar), no la reescribe más bonita.
+
+16. EL CIERRE DESPUÉS DE LA COTIZACIÓN VA EN DOS MENSAJES. Primero los dos locales con sus links y un «sin compromiso»; después, en mensaje aparte, la pregunta de a cuál le queda mejor. El DÍA no se pregunta en ese turno: se pregunta recién cuando el cliente ya eligió local. Si el borrador junta las dos preguntas —local y día— o mete la pregunta dentro del bloque de los links, corrígelo respetando los separadores '---'.
 
 REGLAS DE CORRECCIÓN (innegociables):
 - NUNCA inventes precios, medidas, stock, plazos ni datos que no estén en el contexto. Si no puedes verificar una cifra, NO la cambies: repórtala como hallazgo y aprueba.
@@ -269,6 +275,7 @@ export async function armarContexto(
   }).join("\n");
 
   const item = cotizacion?.items?.[0];
+  const ahorro = ahorroDeLaCotizacion(cotizacion?.items ?? null);
   return [
     "== HECHOS REGISTRADOS ==",
     `Medidas que el cliente pidió: ${pedidas.length ? pedidas.join(", ") : "(ninguna todavía)"}`,
@@ -311,6 +318,19 @@ export async function armarContexto(
         (item ? ` · ${item.quantity ?? "?"} × ${item.brand ?? ""} ${item.design ?? ""} ${item.sizeLabel ?? ""}` +
           (item.salePriceWithTax ? ` a $${Number(item.salePriceWithTax).toFixed(2)} c/u` : "") : "")
       : "Cotización vigente: ninguna",
+    // SIN ESTA LÍNEA EL REVISOR BORRA EL DESCUENTO.
+    //
+    // Probado en el simulador el 26-ago: la ruta directa preguntó el día con
+    // «*25 %* de descuento, *$277.44* menos» —cierto, y calculado de la propia
+    // cotización— y el guardián lo tachó por `precio_incorrecto`: «esos datos
+    // no aparecen en los hechos registrados». Tenía razón con lo que le
+    // dábamos. Un dato que el revisor no puede verificar es un dato que el
+    // revisor borra, así que el ahorro viaja como hecho igual que el faltante
+    // de stock.
+    ahorro
+      ? `Ahorro de esa cotización: ${ahorro.porcentaje} % menos que el precio de lista, o sea $${ahorro.monto.toFixed(2)} en toda la compra. ` +
+        "Es real y sale de la misma cotización: el bot PUEDE decirlo, y no depende de que el cliente dé el día."
+      : null,
     respaldados.length
       ? `Servicios y beneficios respaldados (lo ÚNICO que el bot puede prometer como incluido): ${respaldados.join(" · ")}`
       : "Servicios y beneficios respaldados: ninguno cargado — el borrador no puede prometer nada como incluido",

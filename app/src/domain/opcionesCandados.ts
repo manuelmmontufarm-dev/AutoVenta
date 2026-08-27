@@ -95,3 +95,37 @@ export function debeBloquearReenvio(
   }
   return mismaMedida(previo.sizeLabel, sizeActual);
 }
+
+/**
+ * El juego completo es el default comercial de Depot: cuatro.
+ *
+ * Joaquín, 26-ago-2026: «que ya no dé de opción si tiene menos de 4 llantas, y
+ * que no pregunte cuántas quiere sino que solo cotice 4 de una — nos ahorramos
+ * un mensaje; si responden "no, yo quiero 8, 2, 3", ahí se vuelve a mandar con
+ * el número que dicen».
+ */
+export const JUEGO_COMPLETO = 4;
+
+/**
+ * Las opciones que se pueden ENSEÑAR: solo las que alcanzan para la compra.
+ *
+ * Enseñar una llanta de la que hay dos, cuando el cliente viene por cuatro, es
+ * vender un problema: elige esa, se cotiza, y el aviso de stock corto tiene que
+ * salir a desdecir la pieza que acaba de verse. Es exactamente el «hay una
+ * medida con UNA unidad y el bot cotiza las 4 llantas de esa unidad» del 25-ago,
+ * atacado un paso antes — en la vitrina y no en la caja.
+ *
+ * OJO con la salida de emergencia: si al filtrar no queda NINGUNA, se devuelven
+ * todas. Quedarse sin opciones que mostrar es peor que mostrar una de la que
+ * hay pocas —ahí sí entra el aviso de stock corto, que para eso existe—, y el
+ * stock de Contífico viene desfasado: negarse pierde la venta justo cuando en
+ * bodega sí están.
+ */
+export function opcionesQueAlcanzan<T extends { stock?: number | null }>(
+  productos: readonly T[],
+  cantidadPedida: number = JUEGO_COMPLETO,
+): T[] {
+  const minimo = Math.max(1, Math.round(cantidadPedida));
+  const alcanzan = productos.filter((p) => Number(p.stock ?? 0) >= minimo);
+  return alcanzan.length ? alcanzan : [...productos];
+}

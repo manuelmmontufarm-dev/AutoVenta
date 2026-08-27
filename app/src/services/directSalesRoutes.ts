@@ -15,6 +15,8 @@ import {
 import { applicableBenefitTexts } from "./benefits.js";
 import { composeBlocks } from "./quoteMessages.js";
 import { buildStoreLinksBlockOnce } from "./storeLinks.js";
+import { fraseDeAhorro } from "../domain/ahorro.js";
+import { ahorroVigente } from "./ahorroVigente.js";
 import { brandProfilesForRender } from "./brandProfiles.js";
 import { getPiecesConfig } from "./settings.js";
 import { renderQuoteImage, toRenderLine } from "../render/quoteImage.js";
@@ -251,7 +253,20 @@ export async function tryDirectSalesRoute(
     // confirmación falsa que costó la visita del 24-ago.
     reply = composeBlocks(`Perfecto, le anoto *${parcial}* en *${store}*. ¿Qué día sería?`, mapa);
   } else if (store) {
-    reply = composeBlocks(`Perfecto, *${store}*. ¿Qué día puede pasar?`, mapa);
+    // Acaba de elegir local: es el turno de pedirle el día, y el que Joaquín
+    // quiere «corto pero valioso» — con la cifra del descuento a la vista,
+    // porque el número de plata es lo que hace que contesten. El descuento no
+    // depende de que dé el día: ya está en el precio que la pieza imprime, así
+    // que la frase dice lo que ES, no lo que ganaría. Ver `domain/ahorro.ts`.
+    const ahorro = await ahorroVigente(ctx.conversation.id, ctx.conversation.current_cycle);
+    reply = composeBlocks(
+      // La confirmación y el mapa son el MISMO mensaje; la pregunta va sola en
+      // el siguiente, que es lo que hace que la contesten.
+      mapa ? `Perfecto, *${store}*.\n${mapa}` : `Perfecto, *${store}*.`,
+      ahorro
+        ? `¿Qué día cree que puede pasar? Le aviso al asesor para que le tenga lista su cotización con ${fraseDeAhorro(ahorro)}. 📅`
+        : "¿Qué día cree que puede pasar? Le aviso al asesor para que le atienda apenas llegue. 📅",
+    );
   } else {
     reply = `Perfecto${visit ? `, registré su visita para ${visit}` : ""}. ¿Le queda mejor *Cumbayá* o *Quito Sur*?`;
   }

@@ -40,6 +40,7 @@ import {
   textoDeLaCotizacion,
   buildStoreLinksBlock,
   buildVisitDayQuestion,
+  buildStoreChoiceBlocks,
   buildVisitPlanQuestion,
   composeBlocks,
   warrantyForBrand,
@@ -79,11 +80,12 @@ import {
 import { nivelDeLinea, ordenDeNivel, reglasEscalera } from "../domain/escalera.js";
 import { costoPorKm, respaldoCompleto, respaldoDeMarca } from "../domain/respaldoMarcas.js";
 import {
-  debeBloquearReenvio, medidaDesdeContenido, tipoSolicitadoEn,
+  debeBloquearReenvio, JUEGO_COMPLETO, medidaDesdeContenido, opcionesQueAlcanzan, tipoSolicitadoEn,
 } from "../domain/opcionesCandados.js";
 import {
   medidaEstaPedida, medidasDeProductos, medidasPermitidas, mensajesDeLaVisitaActual,
 } from "../domain/medidaPedida.js";
+import { ahorroDeLaCotizacion } from "../domain/ahorro.js";
 import { medidasDelPedido } from "../services/medidasDelPedido.js";
 import { sendImage, sendPdf } from "../wa/client.js";
 import {
@@ -1148,9 +1150,19 @@ export function buildTools(ctx: AgentContext) {
           avisoTipo = `El cliente pidió ${tipoPedido} y ninguna de estas opciones es de ese tipo verificado: dilo en una línea y ofrece lo más cercano.`;
         }
       }
+      // Solo se enseña lo que alcanza para la compra (Joaquín, 26-ago): con
+      // menos de un juego, elegir esa opción termina en un aviso de stock corto
+      // que desdice la pieza. Va ANTES del tope de tres para que las tres que
+      // se muestran sean tres vendibles. Ver `opcionesQueAlcanzan`.
+      const [cantidadDelCliente] = await sql<{ selected_quantity: number | null }[]>`
+        select selected_quantity from conversations where id=${ctx.conversation.id}
+      `;
+      const vendibles = opcionesQueAlcanzan(
+        candidatos, cantidadDelCliente?.selected_quantity ?? JUEGO_COMPLETO,
+      );
       // Tope de tres, una por escalón de marca. El cliente lo pidió explícito:
       // seis opciones confunden y el cliente termina sin elegir ninguna.
-      const products = candidatos.length > 3 ? tresOpciones(candidatos) : candidatos;
+      const products = vendibles.length > 3 ? tresOpciones(vendibles) : vendibles;
 
       // CANDADO 3 — la medida de lo que se enseña. El 13-ago (chat 5499) el
       // cliente pidió 265/70R16 y esta pieza salió con 215/60R16, 245/70R16 y
@@ -2056,6 +2068,7 @@ export function buildTools(ctx: AgentContext) {
       const avisoStock = stockCorto
         ? avisoStockCorto(stockCorto.stock_hoy, stockCorto.solicitadas)
         : null;
+      const cierre = buildStoreChoiceBlocks();
       return JSON.stringify({
         enviada: true,
         numero: quote.number,
@@ -2098,19 +2111,24 @@ export function buildTools(ctx: AgentContext) {
                 requestsBenefitsAgain(ctx.currentUserText),
               )
             : null,
-          // Local y día en el MISMO bloque: son la misma decisión para el
-          // cliente, y separarlos sumaba un cuarto mensaje al turno. Con la
-          // cotización enviada, estos dos datos son el objetivo del bot.
-          `Puede pasar sin compromiso a verlas y probarlas en su vehículo.\n${buildVisitPlanQuestion({
-            conDescuentoAutorizado: Boolean(descuentoAplicado),
-            locales: business.stores.map((store) => store.name),
-            localElegido,
-          })}`,
+          // El cierre va en DOS mensajes cuando todavía no eligió local: los
+          // links en uno y la pregunta sola en el siguiente (Joaquín, 26-ago —
+          // ver `buildStoreChoiceBlocks`). Con el local ya elegido no hay nada
+          // que preguntar ahí y queda un solo bloque: el día, con la cifra del
+          // descuento.
+          ...(localElegido
+            ? [buildVisitPlanQuestion({
+                conDescuentoAutorizado: Boolean(descuentoAplicado),
+                locales: business.stores.map((store) => store.name),
+                localElegido,
+                ahorro: ahorroDeLaCotizacion(quote.lines),
+              })]
+            : [cierre.ubicaciones, cierre.pregunta]),
         ),
         regla: [
           localElegido
             ? `Responde exactamente con mensaje_para_enviar, con sus separadores '---' intactos. La cotización ya fue enviada y Manuel ya fue notificado. El cliente YA eligió local (${localElegido}): NO vuelvas a preguntarle cuál. Tu objetivo es UNO: que diga qué día viene. No cierres ningún turno sin esa pregunta hasta tener la respuesta.`
-            : "Responde exactamente con mensaje_para_enviar, con sus separadores '---' intactos. La cotización ya fue enviada y Manuel ya fue notificado. A partir de ahora tu objetivo es UNO: que el cliente diga qué día viene y a cuál local. No cierres ningún turno sin esa pregunta hasta tener las dos respuestas.",
+            : "Responde exactamente con mensaje_para_enviar, con sus separadores '---' intactos: son mensajes distintos a propósito y juntarlos arruina el cierre. La cotización ya fue enviada y Manuel ya fue notificado. En ESTE turno tu objetivo es UNO SOLO: que el cliente diga a cuál local le queda mejor ir. NO le preguntes todavía qué día viene — eso se le pregunta recién cuando haya elegido local, y ahí va con el monto del descuento.",
           stockCorto
             ? `Hoy hay ${stockCorto.stock_hoy} de esa llanta y el cliente pidió ${stockCorto.solicitadas}: el aviso ya va en mensaje_para_enviar. NO prometas las que faltan ni des fecha de llegada — el resto lo confirma el asesor.`
             : null,

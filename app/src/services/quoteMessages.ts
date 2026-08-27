@@ -1,4 +1,5 @@
 import { business } from "../config.js";
+import { fraseDeAhorro, type AhorroDeLaCotizacion } from "../domain/ahorro.js";
 import type { CatalogItem } from "../domain/catalog.js";
 import { getTirePatternProfile } from "../domain/tireKnowledge.js";
 
@@ -221,12 +222,21 @@ export function buildVisitPlanQuestion(input: {
    * Nadie más debería apagarlo: sin links la pregunta vuelve a ser la de antes.
    */
   enlaces?: boolean;
+  /**
+   * El ahorro de la cotización viva. Cuando está, el motivo deja de ser «le
+   * aplican el descuento» —abstracto— y pasa a ser la cifra: «*25 %* de
+   * descuento, *$277.44* menos». Pedido por Joaquín el 26-ago: el número de
+   * plata es lo que hace que contesten. Ver `domain/ahorro.ts`.
+   */
+  ahorro?: AhorroDeLaCotizacion | null;
 }): string {
   const motivo = input.conDescuentoAutorizado
     ? " Con ese dato le aviso al asesor y le dejo anotado su descuento extra para que se lo respeten apenas llegue."
     : input.conCotizacion === false
       ? " Con ese dato le aviso al asesor para que le atienda apenas llegue."
-      : " Con ese dato le aviso al asesor y le aplican el descuento de su cotización apenas llegue.";
+      : input.ahorro
+        ? ` Con ese dato le aviso al asesor y le dejan lista su cotización con ${fraseDeAhorro(input.ahorro)}.`
+        : " Con ese dato le aviso al asesor y le aplican el descuento de su cotización apenas llegue.";
   // Con local elegido va SOLO su mapa: el otro link es ruido y reabre una
   // decisión ya tomada. Sin local elegido van los dos, que es la pregunta.
   const mapas = input.enlaces === false
@@ -234,7 +244,7 @@ export function buildVisitPlanQuestion(input: {
     : buildStoreLinksBlock(input.localElegido, { soloDestacado: Boolean(input.localElegido) });
   const conMapas = (pregunta: string) => (mapas ? `${pregunta}\n${mapas}` : pregunta);
   if (input.localElegido) {
-    return conMapas(`¿Qué día puede pasar por *${input.localElegido}*?${motivo} 📅`);
+    return conMapas(`¿Qué día cree que puede pasar por *${input.localElegido}*?${motivo} 📅`);
   }
   const opciones = input.locales.length
     ? ` ¿${input.locales.slice(0, 2).join(" o ")}?`
@@ -242,6 +252,34 @@ export function buildVisitPlanQuestion(input: {
   return conMapas(
     `¿Qué día puede pasar y a cuál local?${opciones}${motivo.replace(" Con ese dato ", " Con esos dos datos ")} 📅`,
   );
+}
+
+/**
+ * El cierre de la cotización, en DOS mensajes en vez de uno.
+ *
+ * Joaquín, 26-ago-2026, dictando el orden que quiere: «foto; mensaje corto con
+ * las dos ubicaciones que igual diga sin compromiso en algún lado; y otro
+ * mensaje diciendo a cuál de las dos le queda mejor ir».
+ *
+ * El motivo es de venta y no de estética: metida dentro del bloque de los dos
+ * links, la pregunta se lee como pie de página de dos URLs y el cliente la
+ * saltea. Sola, en un mensaje de una línea, es lo último que le queda en
+ * pantalla — y es una pregunta de dos opciones, la más fácil de contestar que
+ * tiene el bot.
+ *
+ * El día NO se pregunta acá a propósito: se pregunta cuando ya eligió local,
+ * junto con la cifra del descuento (ver `buildVisitPlanQuestion`). Dos datos en
+ * un mismo mensaje era lo que hacía que contestaran uno solo.
+ */
+export function buildStoreChoiceBlocks(): { ubicaciones: string; pregunta: string } {
+  const mapas = buildStoreLinksBlock();
+  return {
+    ubicaciones: [
+      "Puede pasar sin compromiso a verlas y probarlas en su vehículo.",
+      mapas,
+    ].filter(Boolean).join("\n"),
+    pregunta: "¿A cuál de los dos le queda mejor ir? 📍",
+  };
 }
 
 /**

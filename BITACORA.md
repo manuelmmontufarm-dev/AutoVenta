@@ -32,6 +32,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-08-26 | _(este mismo)_ | El cierre después de cotizar: dos mensajes en vez de uno, el monto del descuento a la vista, y no se ofrece ni se pregunta lo que no hace falta | 2.0 |
 | 2026-08-26 | _(este mismo)_ | La cotización de otra medida: la compra de hace dos semanas dejó de firmar la de hoy, y la foto habla sola | 3.0 |
 | 2026-08-26 | _(este mismo)_ | El «juebes» que costó una visita: los días se leen por sonido, el bot escribe lo que promete, y el seguimiento confirma en vez de repreguntar | 4.0 |
 | 2026-08-26 | _(este mismo)_ | Cruce de facturación Contífico: llave nueva, segunda señal (SKU + día de visita) y las sucursales con nombre | 2.5 |
@@ -171,6 +172,46 @@ Ya viene activado en este equipo.
 ---
 
 ## Entradas (más reciente primero)
+
+### 2026-08-26 · El cierre después de cotizar, como lo dictó Joaquín · ⏱️ 2.0 h
+
+**Qué:** el turno de la cotización pasa a mandar DOS mensajes en vez de uno
+(`buildStoreChoiceBlocks`): los dos links con un «sin compromiso», y aparte la
+pregunta sola de a cuál local le queda mejor. El día ya no se pregunta ahí:
+se pregunta cuando el cliente YA eligió local, y ahí va con la plata a la vista
+—`domain/ahorro.ts` calcula el ahorro real de la cotización firmada
+(`$277.44`, `25 %`) y `services/ahorroVigente.ts` lo lee una sola vez para los
+dos que lo nombran—. `opcionesQueAlcanzan` saca de la vitrina lo que no llega a
+un juego, con salida de emergencia si eso deja la pieza vacía. Prohibido
+preguntar cuántas llantas quiere: sin cantidad dicha son 4 y se cotiza de una;
+si después dice otra, se cotiza de nuevo con esa. El Ángel Guardián estrena
+`pregunta_de_mas` y recibe el ahorro como hecho duro. 15 pruebas nuevas; la
+suite queda en 986.
+
+**Por qué:** Joaquín, sobre el chat de +593 98 634 5988: «el orden es foto,
+mensaje corto con las dos ubicaciones que igual diga sin compromiso, y otro
+mensaje diciendo a cuál de las dos le queda mejor ir. Después que le pregunte
+qué día cree que va a poder ir… el 25 % mostrado en la cotización, que calcule
+ese monto y lo muestre: es más probable que lo den si pueden ver el número de
+plata». Metida dentro del bloque de los dos links, la pregunta se leía como pie
+de página de dos URLs; sola, es una pregunta de dos opciones, la más fácil de
+contestar que tiene el bot. Y lo de la cantidad: «que no pregunte cuántas
+llantas quiere sino que solo cotice 4 — nos ahorramos un mensaje»; enseñar una
+llanta de la que hay dos era además vender un problema, porque elegirla termina
+en un aviso de stock corto que desdice la pieza que se acaba de ver.
+
+**Probado:** el chat de la captura repetido en el simulador, con el stock de la
+Falken fijado en 4. Sale la cotización por $832.36 —el mismo número— y detrás
+los dos mensajes en el orden pedido; al contestar «Cumbaya» llega «¿Qué día
+cree que puede pasar? … *25 %* de descuento, *$277.44* menos», con el guardián
+en `aprobar` y cero hallazgos. Dos cosas las cazó el simulador y no los tests:
+el guardián METIÓ «¿Cuántas llantas necesita?» en una corrección (su rúbrica no
+lo prohibía) y después BORRÓ la cifra del descuento por no poder verificarla
+—«esos datos no aparecen en los hechos registrados», y tenía razón con lo que
+le dábamos—. Las dos cosas se arreglaron en su rúbrica y en sus hechos. También
+verificado en vivo: la pieza de 195/65R15 salió con 2 opciones y dejó fuera la
+de stock 2; «La Kenda» cotizó 4 sin preguntar; «en realidad quiero 2 nomás»
+volvió a cotizar por 2.
 
 ### 2026-08-26 · La cotización de otra medida (conv 4732, Andrés Tamayo) · ⏱️ 3.0 h
 

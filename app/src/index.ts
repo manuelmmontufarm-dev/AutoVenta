@@ -92,14 +92,20 @@ const pipeline = new InboundPipeline(async ({ from, name, text, waMessageIds, re
   const previousOutbound = await lastOutboundText(conversation.id);
   // «Al sur me resulta más fácil» solo es elección de local si acabamos de
   // preguntar el local — la misma lógica contextual que el día de visita.
-  const explicitStore = extractExplicitStore(text, {
-    respondiendoAlLocal: preguntamosElLocal(previousOutbound),
-  });
+  const respondiendoAlLocal = preguntamosElLocal(previousOutbound);
+  const explicitStore = extractExplicitStore(text, { respondiendoAlLocal });
   // El día de la visita llega casi siempre como respuesta seca ("el sábado")
   // a la pregunta que el bot hace tras cotizar. Sin mirar lo que preguntamos
   // antes, esa respuesta no era un compromiso para nadie.
+  // Haber preguntado el LOCAL también abre la puerta al día. Desde el 26-ago el
+  // turno de la cotización pregunta solo el local (Joaquín: primero a cuál va,
+  // después qué día), así que nuestro último mensaje ya no nombra ningún día —
+  // y sin esto un «al sur el viernes» registraba el local y tiraba el viernes,
+  // que el bot volvía a preguntar en el turno siguiente. Los dos nombres de
+  // local en nuestro mensaje son señal suficiente de que estamos planificando
+  // la visita: un día suelto en la respuesta es sobre eso.
   const commitment = extractCustomerCommitment(text, receivedAt, {
-    respondiendoAlDia: preguntamosElDia(previousOutbound),
+    respondiendoAlDia: preguntamosElDia(previousOutbound) || respondiendoAlLocal,
   });
   await updateConversationFacts(conversation.id, {
     ...(parsedSize ? { tireSize: formatTireSize(parsedSize) } : {}),
