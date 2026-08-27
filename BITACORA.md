@@ -184,6 +184,58 @@ Ya viene activado en este equipo.
 
 ## Entradas (más reciente primero)
 
+### 2026-08-27 · Sprint Final: los dos sprints en producción · ⏱️ 1.0 h
+
+**Qué:** revisados los PRs [#10](https://github.com/manuelmmontufarm-dev/AutoVenta/pull/10)
+y [#11](https://github.com/manuelmmontufarm-dev/AutoVenta/pull/11) contra la
+lista maestra del plan, mergeados (S2 primero por riesgo, S1 después) y
+promovidos. `main` = `dea655e`, vivo en los **dos** servicios.
+
+**Un bloqueante encontrado y arreglado antes de mergear.** S1 movió
+`cantidadGrandePedida` al turno normal, donde corre en el **primer mensaje** —
+justo donde el cliente escribe su medida y nada más. Sus verbos son los mismos
+con los que se pide una cantidad, así que «quiero 265/65R17» dejaba
+`selected_quantity = 265`, y de ahí pasaba al prompt del modelo («Cantidad ya
+confirmada: 265 … cotiza»), a los hechos duros del Ángel Guardián y al chat
+(«…cotización con *265 llantas*»). Arreglado en la fuente (`enmascararMedidas`
+en `tireSize.ts`), así que la recotización queda tapada también. Detalle en la
+entrada de arriba.
+
+**El cruce de los dos sprints**, que es lo único que ninguno podía probar solo,
+tiene prueba propia: `test/cierreSobreviveLaCadena.test.ts`.
+
+| R-xx | Estado | Evidencia |
+|---|---|---|
+| R-01 un solo dueño del orden | ✅ | `services/prepararSalida.ts`; `stockCortoViaja.test.ts` afirma sobre `PASOS` |
+| R-02 `resumeBot` con la cadena completa | ✅ | `puertasDeSalida.test.ts` corre `resumeBotIfUnanswered` de verdad; en `main` fallaba |
+| R-03 seguimiento con sus candados, plantilla intacta | ✅ | `puertasDeSalida.test.ts`: `tipo: "plantilla"` sale byte por byte, 0 pasos |
+| R-04 el test del orden deja de leer `index.ts` como texto | ✅ | el `indexOf` sobre el fuente ya no está |
+| R-05 «quiero 20 llantas» queda anotado | ✅ | `cantidadGrandeSeGuarda.test.ts` — **más** el bloqueante de la medida |
+| R-06 el candado no borra nuestro propio cierre | ✅ | `cierreSobreviveLaCadena.test.ts`: sin la exención se caen 4 de 6 |
+| R-07 la cantidad siempre lleva su unidad | ✅ | `unidadEnLaCantidad.test.ts` recorre los 6 archivos de copy |
+| R-08 la regla en los dos playbooks | ✅ | mismo archivo, segundo `describe` |
+| R-09 nada se rompe | ✅ | `tsc` limpio · **1180/1180** · `sim:humo` 8/8 · `simuladorFidelidad` 11/11 |
+| R-10 merge, promoción y verificación en vivo | ✅ | `/health` de los dos servicios en `dea655e`, catálogo 382 ítems, worker latiendo |
+
+**Decidido por Manuel en el merge:** la puerta `retomada` **sí** paga la llamada
+del Ángel Guardián. Es el mismo `runAgent` con las mismas herramientas que el
+turno normal, así que se equivoca igual, y solo pasa cuando un humano le
+devuelve el chat al bot.
+
+**Pendientes conocidos, no tocados a propósito** (cambian comportamiento
+visible y este plan era de «no romper nada»):
+- El aviso de stock se sigue pegando en **dos** sitios: `outboundGuard.ts:239`
+  y `services/stockCorto.ts`.
+- `insistirCierre.ts:76` descarta en silencio el bloque que sobra cuando el
+  turno ya tiene 4 mensajes.
+- Cambio de comportamiento benigno que conviene tener presente: si un paso de
+  la cadena falla, `prepararSalida` sigue con el texto que traía. Antes un
+  fallo de `insistirConLoQueFalta` tumbaba el turno entero.
+- En un **seguimiento**, si los candados vacían el texto, sale el borrador sin
+  filtrar (`preview = salida.texto ?? redactado`). Es raro, pero es la única
+  puerta donde un candado que borra todo no impide el envío.
+
+
 ### 2026-08-27 · El cruce de los dos sprints, con prueba propia · ⏱️ 0.3 h
 
 **Qué:** `test/cierreSobreviveLaCadena.test.ts` — el cierre que arma la
