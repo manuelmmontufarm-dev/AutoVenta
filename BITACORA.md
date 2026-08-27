@@ -32,6 +32,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-08-27 | _(este mismo)_ | El menú ofrece solo los escalones que hay, y una cantidad grande vuelve a poder cotizarse | 1.0 |
 | 2026-08-27 | _(este mismo)_ | La pieza avisa cuando no es su medida, el turno sigue al menú, y la cantidad rara se avisa en vez de preguntarse | 1.5 |
 | 2026-08-27 | _(este mismo)_ | Pedido grande con confirmación, la pregunta del local que se nombra sola, y la queja de precio que borraba la venta | 2.5 |
 | 2026-08-27 | _(este mismo)_ | La cantidad en grande en la pieza, y ningún turno con cotización cierra sin pedir el local o el día | 1.5 |
@@ -177,6 +178,36 @@ Ya viene activado en este equipo.
 ---
 
 ## Entradas (más reciente primero)
+
+### 2026-08-27 · El escalón que no existía y la cotización que nunca salió · ⏱️ 1.0 h
+
+**Qué:** el menú de preferencia deja de ser texto fijo — `menuDePreferencia`
+arma la lista con los escalones que la pieza SÍ trae y renumera, y con una sola
+opción no pregunta nada: la entrega («Es la única que tengo para lo que me
+pidió: *X* — $Y c/u. ¿Se la cotizo?»). Y `hasExplicitQuantity` pasa a contar
+también los números que `extractExplicitQuantity` no sabe leer, que topa en 8.
+
+**Por qué:** las dos salieron del mismo chat (conv 3 ciclo 12). (1) La pieza
+salió con DOS llantas, así que `escalonesDeOpciones` —que reparte por precio—
+dejó `equilibrada: null`; el menú ofreció igual «2) Equilibrio», el cliente
+escribió «equilibro» y el bot tuvo que contestarle que «no quedó disponible en
+esta pieza». Ofrecer algo que no se puede entregar es peor que ofrecer dos
+cosas. (2) Después escribió «dale con las kenda deme 20» y NO salió ninguna
+cotización: el bot le dio el total en texto y le dijo que «no me dejó generar la
+imagen de cotización» — una invención, porque la herramienta ni llegó a
+renderizar. La causa era el MISMO tope de 8, escondido en otra puerta:
+`hasExplicitQuantity` no veía el 20, así que para `canGenerateFinalQuote` el
+cliente no había dicho cuántas quería y la cotización se bloqueó con «el cliente
+está comparando o acaba de decir que no». Cero filas en `quotes` para ese ciclo
+lo confirman.
+
+**Probado:** los dos casos repetidos en el simulador. «una rin 14» saca la pieza
+de dos opciones y el menú ofrece exactamente dos, renumeradas —«1) Costo /
+2) Premium»— sin nombrar Equilibrio. Y «dale con las kenda deme 20», que antes
+no dejaba rastro en `quotes`, ahora manda la pieza por 20 a $1383.00 con su
+línea «Aquí le mando la cotización con *20 llantas* 👍». El error exacto se
+confirmó invocando la herramienta a mano contra la base del simulador antes de
+tocar nada.
 
 ### 2026-08-27 · La pieza dice la verdad, y el turno no se frena · ⏱️ 1.5 h
 

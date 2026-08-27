@@ -1447,6 +1447,12 @@ export function buildTools(ctx: AgentContext) {
             // ninguna, y el guardián lo corrigió llevándose el menú entero: el
             // turno terminó pidiéndole otra vez la medida en vez de avanzar.
             hayEquivalentes: fueraDeMedida.length > 0 || permitidasOpciones.length === 0,
+            // El menú ofrece SOLO los escalones que la pieza trae: con dos
+            // opciones el del medio queda vacío y ofrecerlo igual es prometer
+            // algo que no se puede entregar (conv 3, 27-ago).
+            escalonesDisponibles: (["precio", "equilibrada", "premium"] as const).filter(
+              (k) => escalones[k === "precio" ? "economica" : k] != null,
+            ),
           }),
         ),
         regla: [

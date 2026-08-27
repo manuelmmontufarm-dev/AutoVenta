@@ -84,14 +84,37 @@ export function aWhatsApp(texto: string): string {
  * no abriendo conversación. Menú numerado a propósito: invita a contestar
  * «1», «2» o «3», y `respuestaDePreferencia` entiende esas respuestas.
  */
-const MENU_PREFERENCIA = [
-  "Para afinarle la recomendación sobre las opciones que le envié, dígame una sola cosa: ¿qué prioriza usted?",
-  "",
-  "1) *Costo* — la más conveniente de precio",
-  "2) *Equilibrio* — la que mejor balancea precio y rendimiento",
-  "3) *Premium* — la de máxima calidad y durabilidad",
-  "",
-];
+const OPCION_DEL_MENU = {
+  precio: "*Costo* — la más conveniente de precio",
+  equilibrada: "*Equilibrio* — la que mejor balancea precio y rendimiento",
+  premium: "*Premium* — la de máxima calidad y durabilidad",
+} as const;
+
+/**
+ * El menú OFRECE SOLO LO QUE HAY.
+ *
+ * Era texto fijo con tres escalones, y la pieza no siempre trae tres: los
+ * escalones se reparten por precio y con dos opciones el del medio queda en
+ * `null` (`escalonesDeOpciones`). El 27-ago (conv 3) la pieza salió con dos
+ * KENDA —premium y económica—, el menú igual ofreció «2) Equilibrio», el
+ * cliente escribió «equilibro» y el bot tuvo que contestarle que «la opción de
+ * equilibrio no quedó disponible en esta pieza». Ofrecerle algo que no se puede
+ * entregar es peor que ofrecer dos cosas.
+ *
+ * La numeración se rehace sobre lo que queda, para que «1», «2» sigan
+ * señalando lo que el cliente ve.
+ */
+export function menuDePreferencia(disponibles: readonly ("precio" | "equilibrada" | "premium")[]): string[] {
+  const orden = (["precio", "equilibrada", "premium"] as const).filter((k) => disponibles.includes(k));
+  return [
+    "Para afinarle la recomendación sobre las opciones que le envié, dígame una sola cosa: ¿qué prioriza usted?",
+    "",
+    ...orden.map((k, i) => `${i + 1}) ${OPCION_DEL_MENU[k]}`),
+    "",
+  ];
+}
+
+const MENU_PREFERENCIA = menuDePreferencia(["precio", "equilibrada", "premium"]);
 
 export const PREGUNTA_PREFERENCIA = [
   ...MENU_PREFERENCIA,
@@ -144,9 +167,24 @@ export function buildCierreOpciones(input: {
   precioConIva?: number | null;
   /** Alguna opción NO es de la medida pedida: no se promete «su medida». */
   hayEquivalentes?: boolean;
+  /**
+   * Los escalones que la pieza SÍ trae. Con menos de tres, el menú ofrece solo
+   * esos; con uno solo no hay menú que valga y se entrega esa opción.
+   */
+  escalonesDisponibles?: readonly ("precio" | "equilibrada" | "premium")[];
 }): string {
   if (!input.entregarRecomendacion) {
-    return input.hayEquivalentes ? PREGUNTA_PREFERENCIA_EQUIVALENTES : PREGUNTA_PREFERENCIA;
+    const hay = input.escalonesDisponibles ?? ["precio", "equilibrada", "premium"];
+    // Con una sola opción no se pregunta nada: preguntar «¿qué prioriza?» sobre
+    // una lista de uno es una pregunta sin respuesta posible. Se entrega.
+    if (hay.length <= 1) {
+      const precio = input.precioConIva ? ` — $${input.precioConIva.toFixed(2)} c/u con IVA` : "";
+      return `Es la única que tengo para lo que me pidió: *${input.recomendacion}*${precio}. ¿Se la cotizo? 😊`;
+    }
+    const cierre = input.hayEquivalentes
+      ? "Con eso le digo cuál de estas le conviene más."
+      : "Con eso le dejo la opción exacta para su medida.";
+    return [...menuDePreferencia(hay), cierre].join("\n");
   }
   const motivo = input.motivo.trim().replace(/[.\s]+$/, "");
   const precio = input.precioConIva ? ` — $${input.precioConIva.toFixed(2)} c/u con IVA` : "";

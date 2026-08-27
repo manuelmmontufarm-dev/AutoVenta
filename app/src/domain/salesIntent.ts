@@ -1,3 +1,4 @@
+import { cantidadGrandePedida } from "./cantidadGrande.js";
 /** Guardas deterministas del flujo: el LLM no puede saltárselas. */
 
 export function isComparisonRequest(text: string): boolean {
@@ -152,8 +153,19 @@ export function escalonesDeOpciones(opciones: readonly OpcionDeEscalon[]): Escal
   };
 }
 
+/**
+ * ¿El cliente dijo cuántas quiere? Cuenta también los números que
+ * `extractExplicitQuantity` no sabe leer, que topa en 8.
+ *
+ * El 27-ago (conv 3) un «dale con las kenda deme 20» no pasó el candado de
+ * `canGenerateFinalQuote` —«el cliente está comparando o acaba de decir que
+ * no»— porque para el sistema NO había dicho ninguna cantidad. La herramienta
+ * devolvió ese error y el modelo improvisó: le dio el total en texto y le dijo
+ * que «no me dejó generar la imagen de cotización». Nunca hubo una cotización.
+ * Es el mismo tope de 8, escondido en otra puerta.
+ */
 export function hasExplicitQuantity(text: string): boolean {
-  return extractExplicitQuantity(text) !== null;
+  return extractExplicitQuantity(text) !== null || cantidadGrandePedida(text) !== null;
 }
 
 /**
