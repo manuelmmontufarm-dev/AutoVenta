@@ -183,6 +183,38 @@ Ya viene activado en este equipo.
 
 ## Entradas (más reciente primero)
 
+### 2026-08-27 · La medida que se contaba como llantas · ⏱️ 0.5 h
+
+**Qué:** `cantidadGrandePedida` deja de leer la medida del cliente como si
+fuera una cantidad. `tireSize.ts` expone `enmascararMedidas`, y el detector
+busca el número sobre el texto con las medidas ya tapadas.
+
+**Por qué:** salió revisando este mismo PR antes de mergearlo. El detector
+existía desde el 27-ago pero vivía solo en `recotizar.ts`, donde para llegar
+hace falta una cotización viva; al llevarlo al turno normal pasó a correr en el
+**primer mensaje**, que es justo donde el cliente escribe su medida y nada más.
+Sus verbos son los mismos con los que se pide una cantidad, así que «quiero
+265/65R17» dejaba `selected_quantity = 265`.
+
+Y no se quedaba en la ficha: ese número entra en el prompt del modelo como
+«Cantidad ya confirmada: 265 — PROHIBIDO preguntar…, cotiza», en los hechos
+duros del Ángel Guardián (que entonces lo **protege** en vez de corregirlo) y
+sale al chat como «Aquí le mando la cotización con *265 llantas* 👍».
+
+La prueba que debía cuidar este caso —«busco 205/55R16»— usaba un verbo que
+**no está** en la lista del detector, así que pasaba sin ejercitar nada. Ahora
+la prueba usa los verbos de verdad: quiero, necesito, deme, son, cotízame,
+llevo, póngame.
+
+El arreglo va en la fuente y no en el llamador, así que la recotización queda
+tapada también. Quién decide qué es una medida sigue siendo `tireSize.ts`, con
+sus rangos y sus múltiplos de 5: repetir esa regla en `cantidadGrande.ts` sería
+tener dos definiciones de «medida» destinadas a separarse.
+
+**Verificado:** `tsc --noEmit` limpio · 1159/1159 · `sim:humo` 8/8 ·
+`simuladorFidelidad` 11/11.
+
+
 ### 2026-08-27 · Las cuatro puertas, y la cantidad que no se anotaba · ⏱️ 1.5 h
 
 **Qué:** dos cosas que no se tocan entre sí, y las dos son el mismo tipo de

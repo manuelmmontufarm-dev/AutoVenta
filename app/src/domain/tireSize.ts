@@ -68,6 +68,44 @@ export function extractTireSizes(text: string): TireSize[] {
   return sizes;
 }
 
+/**
+ * EL TEXTO CON LAS MEDIDAS TAPADAS, para quien busca otros números en él.
+ *
+ * Una medida es un número con la misma forma que cualquier otro, y quien lea
+ * el texto buscando cantidades la va a contar: «quiero 265/65R17» le daba 265
+ * llantas al detector de cantidades grandes (ver `domain/cantidadGrande.ts`).
+ * El único que sabe qué es una medida es este archivo —con sus rangos y sus
+ * múltiplos de 5—, así que la respuesta se da acá y no se reimplementa afuera.
+ *
+ * Se tapa con espacios y no se borra: las posiciones del resto del texto no se
+ * mueven, y dos palabras que estaban separadas no quedan pegadas.
+ */
+export function enmascararMedidas(text: string): string {
+  const tapar = (dentro: string, re: RegExp, valido: (m: RegExpMatchArray) => boolean): string => {
+    let salida = dentro;
+    for (const m of dentro.matchAll(re)) {
+      if (m.index === undefined || !valido(m)) continue;
+      salida =
+        salida.slice(0, m.index) + " ".repeat(m[0].length) + salida.slice(m.index + m[0].length);
+    }
+    return salida;
+  };
+  let limpio = tapar(text, TIRE_RE, (m) =>
+    isValid(Number(m[2]), m[3] !== undefined ? Number(m[3]) : null, Number(m[4])),
+  );
+  limpio = tapar(limpio, FLOTATION_TEXT_RE, (m) => {
+    const diameter = Number(m[1]);
+    const section = anchoDeFlotacion(m[2]);
+    const rim = Number(m[3]);
+    return diameter >= 26 && diameter <= 44 && section >= 6 && section <= 20 && rim >= 12 && rim <= 24;
+  });
+  return tapar(limpio, CONVENTIONAL_RE, (m) => {
+    const width = Number(m[1].replace(",", "."));
+    const rim = Number(m[2]);
+    return width >= 5 && width <= 14 && rim >= 12 && rim <= 24;
+  });
+}
+
 /** Parsea un texto que debería ser UNA medida. Null si no se reconoce. */
 export function parseTireSize(text: string): TireSize | null {
   const sizes = extractTireSizes(text);

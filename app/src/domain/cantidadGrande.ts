@@ -26,6 +26,8 @@
  * trabajo: notar el número que aquél no sabe leer.
  */
 
+import { enmascararMedidas } from "./tireSize.js";
+
 /** El juego es 4; con repuesto, 5. Fuera de 4–8 la cantidad se avisa. */
 export const MINIMO_NORMAL = 4;
 export const MAXIMO_NORMAL = 8;
@@ -39,9 +41,27 @@ const NUMERO_GRANDE =
 /**
  * El número que el cliente pidió, solo si pasa del juego máximo. `null` para
  * todo lo demás — incluido lo que ya sabe leer el extractor de siempre.
+ *
+ * LA MEDIDA NO ES UNA CANTIDAD.
+ *
+ * El cliente pide su medida con los mismos verbos con los que pide una
+ * cantidad: «quiero 265/65R17», «deme 225/65R17». Con la medida a la vista,
+ * `NUMERO_GRANDE` leía el ancho —265, 225— como si fueran llantas. Mientras
+ * este detector vivió solo en la recotización casi no se notaba, porque para
+ * llegar ahí hace falta una cotización viva; desde que también llena la ficha
+ * de la conversación en el PRIMER mensaje, es justo el caso más común del chat.
+ *
+ * Y el dato no se queda quieto: `selected_quantity` entra en el prompt del
+ * modelo («Cantidad ya confirmada: 265 … cotiza»), en los hechos duros del
+ * Ángel Guardián, y sale al chat como «Aquí le mando la cotización con
+ * *265 llantas*».
+ *
+ * Quién decide qué es una medida es `tireSize.ts`, que ya filtra por rango y
+ * por múltiplo de 5. Repetir esa regla acá sería tener dos definiciones de
+ * «medida» destinadas a separarse.
  */
 export function cantidadGrandePedida(text: string): number | null {
-  const m = text.match(NUMERO_GRANDE);
+  const m = enmascararMedidas(text).match(NUMERO_GRANDE);
   const crudo = m?.[1] ?? m?.[2];
   if (!crudo) return null;
   const n = Number(crudo);

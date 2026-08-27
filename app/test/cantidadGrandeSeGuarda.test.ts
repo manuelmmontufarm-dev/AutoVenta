@@ -42,6 +42,42 @@ describe("la cantidad que el cliente pide queda en la ficha", () => {
   it("no confunde la medida con una cantidad enorme", () => {
     expect(cantidadPedidaPorElCliente("busco 205/55R16", null)).toBeNull();
   });
+
+  /*
+   * EL VERBO PEGADO A LA MEDIDA, que es como escribe el cliente de verdad.
+   *
+   * El detector de cantidades grandes lee «<verbo> <número>», y la lista de
+   * verbos incluye los mismos con los que se pide una medida: «quiero
+   * 265/65R17» le daba 265. Mientras vivió solo en `recotizar.ts` casi no se
+   * notaba —ahí hace falta una cotización viva para llegar—, pero desde que la
+   * ficha se llena en `index.ts` corre en el PRIMER mensaje, que es justo
+   * donde el cliente escribe su medida y nada más.
+   *
+   * Y no es un dato que se quede quieto: `selected_quantity` entra en el
+   * prompt del modelo como «Cantidad ya confirmada: 265 … cotiza», en los
+   * hechos duros del Ángel Guardián, y sale al chat como «Aquí le mando la
+   * cotización con *265 llantas*».
+   */
+  it("un verbo pegado a la medida no es una cantidad", () => {
+    for (const texto of [
+      "quiero 265/65R17",
+      "necesito 235/70R15",
+      "deme 225/65R17",
+      "son 245/70R16",
+      "cotizame 265/70R17",
+      "llevo 195/65R15",
+      "quiero las 285/60R18",
+      "pongame 215/75R14",
+      "quiero 33X12.50R20",
+    ]) {
+      expect(cantidadPedidaPorElCliente(texto, null), texto).toBeNull();
+    }
+  });
+
+  it("la cantidad se sigue leyendo aunque venga con la medida", () => {
+    expect(cantidadPedidaPorElCliente("quiero 20 llantas 265/65R17", null)).toBe(20);
+    expect(cantidadPedidaPorElCliente("deme 4 llantas en 205/55R16", null)).toBe(4);
+  });
 });
 
 describe("el filtro de opciones vendibles usa esa cantidad", () => {
