@@ -235,8 +235,35 @@ export function cantidadPedidaPorElCliente(
   return cantidadGrandePedida(text) ?? extractExplicitQuantity(text);
 }
 
+/**
+ * LO QUE PARECE UNA CANTIDAD PERO CUENTA OTRA COSA.
+ *
+ * Se tapa con espacios antes de buscar la cantidad, igual que
+ * `enmascararMedidas` hace con las medidas. Tres familias, las tres vistas en
+ * producción el 26 y 27-ago:
+ *
+ * 1. LA HORA de la visita. Ya se tapaba «a las 3» y «tipo 3»; faltaban
+ *    «pasado las 5» (conv 11357), «después de las 6» y «a partir de las 5».
+ * 2. EL SUSTANTIVO QUE NO ES LLANTA. «Las 3 de ir marcas manejan ustedes»
+ *    (conv 11005) es una pregunta por las marcas, y salió cotizada por 3.
+ *    Se mira lo que viene DESPUÉS del número, hasta tres palabras más allá,
+ *    porque el cliente escribe rápido y mete palabras en el medio.
+ * 3. Se deja pasar a propósito lo que no está en la lista: «por las 4 llatas»
+ *    —con la falta de ortografía— tiene que seguir contando como 4. Por eso
+ *    esto es una lista de lo que NO es llanta, y no una lista de lo que sí.
+ */
+const LA_HORA =
+  /\b(?:a\s+(?:eso\s+de\s+)?(?:las?\s+)?|tipo\s+|(?:hasta|desde)\s+las?\s+|pasad[oa]s?\s+(?:de\s+)?las?\s+|despues\s+de\s+las?\s+|luego\s+de\s+las?\s+|a\s+partir\s+de\s+las?\s+)[0-9]{1,2}(?:\s*(?:h|am|pm|de la (?:mañana|tarde|noche)))?\b/g;
+
+const NO_ES_LLANTA =
+  /\b(?:las|los)\s+[1-8]\b(?=(?:\s+\S+){0,3}\s+\b(?:marcas?|opciones?|medidas?|modelos?|alternativas?|locales?|sucursales?|fotos?)\b)/g;
+
+function sinLoQueCuentaOtraCosa(normalized: string): string {
+  return normalized.replace(LA_HORA, " ").replace(NO_ES_LLANTA, " ").replace(/\s+/g, " ").trim();
+}
+
 export function extractExplicitQuantity(text: string): number | null {
-  const normalized = normalize(text);
+  const normalized = sinLoQueCuentaOtraCosa(normalize(text));
   if (/^[1-8]$/.test(normalized)) return Number(normalized);
   const words: Record<string, number> = {
     un: 1, uno: 1, una: 1, dos: 2, tres: 3, cuatro: 4,
@@ -249,21 +276,45 @@ export function extractExplicitQuantity(text: string): number | null {
   const juego = /\bjuego\b/.test(normalized);
   const match = normalized.match(
     // El lookbehind «(?<!a )» evita leer «paso a las 3» (una hora de visita)
-    // como si fueran 3 llantas.
-    /\b([1-8]|un|uno|una|dos|tres|cuatro|cinco|seis|siete|ocho)\s+(?:llantas?|unidades?)\b|\b(?:quiero|necesito|deme|dame|cotiza(?:me)?|llevo|cambiar|cambio|serian|serían|son)\s+(?:las?\s+|los\s+)?([1-8]|un|uno|una|dos|tres|cuatro|cinco|seis|siete|ocho)\b|\bjuego\s+de\s+([1-8]|cuatro|cinco)\b|(?<!\ba\s)(?<!\bde\s)\b(?:las|los)\s+([1-8]|dos|tres|cuatro|cinco|seis|siete|ocho)\b/,
+    // como si fueran 3 llantas. Y el «solo» opcional después del verbo es
+    // «deme solo 3», que antes solo se leía por el número del borde — el
+    // mismo atajo que confundía «Para arrizo 5» con cinco llantas.
+    /\b([1-8]|un|uno|una|dos|tres|cuatro|cinco|seis|siete|ocho)\s+(?:llantas?|unidades?)\b|\b(?:quiero|necesito|deme|dame|cotiza(?:me)?|llevo|cambiar|cambio|serian|serían|son)\s+(?:solo\s+|solamente\s+|unicamente\s+|nomas\s+|no\s+mas\s+)?(?:las?\s+|los\s+)?([1-8]|un|uno|una|dos|tres|cuatro|cinco|seis|siete|ocho)\b|\bjuego\s+de\s+([1-8]|cuatro|cinco)\b|(?<!\ba\s)(?<!\bde\s)\b(?:las|los)\s+([1-8]|dos|tres|cuatro|cinco|seis|siete|ocho)\b/,
   );
   const value = match?.[1] ?? match?.[2] ?? match?.[3] ?? match?.[4];
   if (value) return /^\d$/.test(value) ? Number(value) : words[value] ?? null;
   if (juego) return 4;
-  // Número suelto al inicio o al final del mensaje: el agrupador de entrada
-  // pega mensajes seguidos («Las son para mi carro» + «4» → un solo texto) y
-  // el «4» del cliente quedaba invisible (caso J.F.R.C, 6-ago). Solo en los
-  // extremos para no confundirse con medidas o años dentro de la frase.
-  // Las HORAS se quitan antes: «paso a las 3» es una visita, no 3 llantas.
-  const sinHoras = normalized.replace(/\b(?:a\s+(?:eso\s+de\s+)?(?:las?\s+)?|tipo\s+|(?:hasta|desde)\s+las?\s+)[0-9]{1,2}(?:\s*(?:h|am|pm|de la (?:mañana|tarde|noche)))?\b/g, " ").replace(/\s+/g, " ").trim();
-  const suelto = sinHoras.match(/^([1-8])\s|\s([1-8])$/);
-  const borde = suelto?.[1] ?? suelto?.[2];
-  return borde ? Number(borde) : null;
+  // UN NÚMERO AL FINAL, CUANDO EL MENSAJE HABLA DE CUÁNTAS.
+  //
+  // «mejor 2» y «que sean 3» son cantidades sin verbo de la lista de arriba, y
+  // se leían por un atajo que miraba el final del texto entero. Ese atajo es el
+  // que confundió «Para arrizo 5» —el modelo del auto— con cinco llantas
+  // (conv 11366, 26-ago) y lo dejó cotizado en $456.40.
+  //
+  // Lo que separa un caso del otro no es dónde está el número, sino si el
+  // mensaje trae alguna señal de que se está hablando de cuántas. La lista es
+  // corta y cada palabra salió de un mensaje real: preferir de menos y que el
+  // cliente lo repita es más barato que firmar una cantidad que nadie pidió.
+  const senalDeCantidad = /\b(?:mejor|ahora|solo|solamente|unicamente|nomas|serian|sean|total|llantas?|unidades?|neumaticos?|juego)\b/.test(normalized);
+  if (senalDeCantidad) {
+    const borde = normalized.match(/^([1-8])\s|\s([1-8])$/);
+    const n = borde?.[1] ?? borde?.[2];
+    if (n) return Number(n);
+  }
+
+  // EL NÚMERO QUE LLEGÓ SOLO, EN SU PROPIO MENSAJE.
+  //
+  // El agrupador de entrada pega los mensajes seguidos con «\n»
+  // (pipeline/inbound.ts:102), así que «su propio mensaje» es «su propia
+  // línea». El cliente que escribió «Las son para mi carro» y después «4» no
+  // puede quedarse sin su cantidad (caso J.F.R.C, 6-ago).
+  //
+  // Antes esto miraba los EXTREMOS del texto entero, y ahí se colaba el nombre
+  // del auto: «Para arrizo 5» termina en un número y salió cotizada por 5
+  // (conv 11366, 26-ago). La línea propia es lo que separa un caso del otro —
+  // el «4» que el cliente mandó aparte del «5» que es parte del modelo.
+  const solo = text.split(/\r?\n/).map(normalize).find((linea) => /^[1-8]$/.test(linea));
+  return solo ? Number(solo) : null;
 }
 
 export function extractVehicleYear(text: string): number | null {

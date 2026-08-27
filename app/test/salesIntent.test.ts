@@ -58,11 +58,18 @@ describe("cantidad: cómo pide la gente en un chat de llantera", () => {
     expect(extractExplicitQuantity("las 4")).toBe(4);
   });
 
-  it("lee el número suelto en el borde del mensaje agrupado (caso J.F.R.C)", () => {
-    // El agrupador de entrada pega mensajes seguidos en un solo texto; el «4»
-    // que el cliente mandó aparte quedaba invisible al final de la frase.
-    expect(extractExplicitQuantity("La son para mi carro 4")).toBe(4);
+  it("lee el número que llegó en su propio mensaje (caso J.F.R.C)", () => {
+    // El agrupador de entrada pega los mensajes seguidos con «\n»
+    // (pipeline/inbound.ts:102). Hasta el 27-ago esta prueba lo modelaba con un
+    // ESPACIO, y por eso pasaba una regla que miraba los extremos del texto
+    // entero: cualquier frase terminada en dígito contaba como cantidad, y así
+    // «Para arrizo 5» —el modelo del auto— salió cotizada por 5 (conv 11366).
+    // Ahora se mira la línea propia, que es lo que de verdad distingue el «4»
+    // que el cliente mandó aparte.
+    expect(extractExplicitQuantity("La son para mi carro\n4")).toBe(4);
     expect(extractExplicitQuantity("4")).toBe(4);
+    // Y la forma que ANTES colaba: frase de una sola línea terminada en número.
+    expect(extractExplicitQuantity("La son para mi carro 4")).toBeNull();
   });
 
   it("no confunde años ni medidas con cantidades", () => {
@@ -76,8 +83,11 @@ describe("cantidad: cómo pide la gente en un chat de llantera", () => {
     expect(extractExplicitQuantity("paso a las 3")).toBeNull();
     expect(extractExplicitQuantity("llego tipo 5")).toBeNull();
     expect(extractExplicitQuantity("voy a eso de las 4")).toBeNull();
-    // Pero una cantidad real al borde sigue viva:
-    expect(extractExplicitQuantity("las son para mi carro 4")).toBe(4);
+    expect(extractExplicitQuantity("paso pasado las 5")).toBeNull();
+    expect(extractExplicitQuantity("voy despues de las 6")).toBeNull();
+    // Pero una cantidad real sigue viva, en su línea o con su verbo:
+    expect(extractExplicitQuantity("las son para mi carro\n4")).toBe(4);
+    expect(extractExplicitQuantity("deme solo 3")).toBe(3);
   });
 });
 

@@ -188,6 +188,55 @@ Ya viene activado en este equipo.
 
 ## Entradas (más reciente primero)
 
+### 2026-08-27 · Un número que cuenta otra cosa no es una cantidad · ⏱️ 1.0 h
+
+**Qué:** `extractExplicitQuantity` deja de leer como cantidad de llantas el
+número que pertenece a otra cosa. Tres familias, las tres sacadas de
+conversaciones reales del 26 y 27-ago:
+
+| conv | el cliente escribió | lo que salió |
+|---|---|---|
+| 11366 | «Para arrizo 5» — el modelo del auto | cotización **5 × KENDA KR20, $456.40** |
+| 11005 | «Las 3 de ir marcas manejan ustedes» — una pregunta | cotización **3 × KENDA KR605, $620.55** |
+| 11357 | «…medio dia o pasado las 5…» — la hora de la visita | `selected_quantity = 5` |
+
+**Por qué:** es la misma familia que la medida leída como cantidad
+(`cantidadGrande.ts`, arreglada esta mañana), por otra puerta. Y no se queda en
+la ficha: `selected_quantity` entra al prompt del modelo como «Cantidad ya
+confirmada: N — PROHIBIDO preguntar…, cotiza», entra a los hechos duros del
+Ángel Guardián —que entonces la **defiende** en vez de corregirla— y sale al
+chat convertida en una cotización con número de venta. Desde el commit de la
+vitrina hay un daño más: `opcionesQueAlcanzan` filtra contra esa cantidad, así
+que un 5 inventado esconde las llantas de las que hay 4.
+
+Tres cambios, cada uno con su caso real detrás:
+
+1. **La hora se tapa antes de buscar la cantidad.** Ya se tapaban «a las 3» y
+   «tipo 3»; faltaban «pasado las 5», «después de las 6» y «a partir de las 5».
+2. **El número seguido de un sustantivo que no es llanta se ignora** («las 3
+   marcas», «los 2 locales»). Es una lista de lo que NO es llanta y no de lo
+   que sí, para que «por las 4 llatas» —con la falta de ortografía— siga
+   contando como 4.
+3. **El número al final del mensaje ya no cuenta solo por estar al final.** Ese
+   atajo es el que confundió «Para arrizo 5» con cinco llantas. Ahora cuenta si
+   el mensaje trae una señal de cantidad («mejor 2», «deme solo 3») o si el
+   número llegó **en su propia línea** — que es como el agrupador de entrada
+   pega los mensajes seguidos (`pipeline/inbound.ts:102`), o sea el «4» que el
+   cliente mandó aparte.
+
+**Dos pruebas viejas quedaron corregidas, no apagadas.** `salesIntent.test.ts`
+modelaba el mensaje agrupado con un ESPACIO («La son para mi carro 4») cuando
+el pipeline lo pega con `\n`. Esa inexactitud es justo la que dejaba pasar la
+regla del borde. Ahora la prueba usa el salto de línea real y además fija que
+la forma de una sola línea **no** cuente.
+
+**Verificado:** `tsc --noEmit` limpio · **1246/1246** · `sim:humo` 8/8 ·
+`simuladorFidelidad` 11/11 · y las tres conversaciones repetidas en el
+simulador con gpt-5.5: «Para arrizo 5» ahora deja la ficha en 4 y cotiza
+**4 × KENDA KR20 por $365.13** (antes 5 × $456.40); «Las 3 … marcas» y «pasado
+las 5» ya no mueven la cantidad.
+
+
 ### 2026-08-27 · «Santo Domingo» no es domingo, el mapa no espera turno, y la vitrina vieja no se re-etiqueta
 
 **Qué.** Cuatro fallas que Manuel pegó de tres conversaciones de producción, más
