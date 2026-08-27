@@ -9,6 +9,7 @@
  */
 import { z } from "zod";
 import { business } from "../config.js";
+import { PREGUNTA_DE_CIERRE } from "../domain/preguntaPendiente.js";
 import {
   catalogCandidates,
   catalogStatus,
@@ -2217,7 +2218,7 @@ export function buildTools(ctx: AgentContext) {
         const plan = saved.customer_commitment?.trim() || "la fecha indicada";
         return JSON.stringify({
           local: saved.nearest_store,
-          mensaje_para_enviar: `Perfecto: *${plan} en ${saved.nearest_store}*. Ya quedó registrado para el asesor.`,
+          mensaje_para_enviar: `Perfecto: *${plan} en ${saved.nearest_store}*. Ya quedó registrado para el asesor.\n\n${PREGUNTA_DE_CIERRE}`,
           regla: "Responde exactamente con mensaje_para_enviar. No repitas dirección, descuento, local ni fecha.",
         });
       }

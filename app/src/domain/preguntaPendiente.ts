@@ -43,6 +43,20 @@ export interface EstadoDelCierre {
  * contestara solo uno (26-ago). Preguntar de a uno convierte el cierre en dos
  * preguntas fáciles en vez de una difícil.
  */
+/**
+ * Con qué se cierra el turno cuando ya no falta ningún dato.
+ *
+ * Manuel, 27-ago, viendo el cierre en su teléfono: «cuando confirma todo que
+ * solo pregunte si tiene otra pregunta o algo así». Sin esto, el turno que
+ * registra la visita terminaba en punto —«Ya quedó registrado para el asesor.»—
+ * y el hilo moría ahí. El bot dejó de vender en el mensaje en que más cerca
+ * estaba de cerrar.
+ *
+ * No pide un dato: los tres que importan (medida, local, día) ya están. Deja la
+ * puerta abierta, que es lo único que queda por hacer.
+ */
+export const PREGUNTA_DE_CIERRE = "¿Le queda alguna otra duda antes de su visita?";
+
 export function datoQueFalta(estado: EstadoDelCierre): DatoPendiente | null {
   if (!estado.hayCotizacion) return null;
   if (!estado.localElegido) return "local";

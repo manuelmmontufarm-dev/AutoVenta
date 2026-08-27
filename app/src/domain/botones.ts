@@ -71,8 +71,31 @@ function sinLineasNumeradas(bloque: string): string {
     .trim();
 }
 
+/**
+ * El texto en que se traduce el toque a «Otro día».
+ *
+ * Es una frase entera y no «otro día» a secas. Con las dos palabras sueltas el
+ * agente no entendía qué se le pedía y llamaba a `escalar_a_asesor`: en el
+ * simulador (27-ago) el toque abrió una alerta `caso_sin_resolver` y le avisó a
+ * un humano porque el cliente quería cambiar de fecha. Dicha como la diría un
+ * cliente, el turno se resuelve solo.
+ *
+ * No puede traer un día ni un verbo de intención: `extractCustomerCommitment`
+ * la leería como una fecha y registraría una visita que nadie agendó.
+ */
+export const TEXTO_OTRO_DIA = "ninguno de esos días me queda bien, prefiero otro";
+
+const normalizar = (v: string) => v.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+
+/** ¿El cliente acaba de decir que ninguno de los días ofrecidos le sirve? */
+export function pidioOtroDia(mensajeDelCliente: string | null | undefined): boolean {
+  return normalizar(mensajeDelCliente ?? "") === normalizar(TEXTO_OTRO_DIA);
+}
+
 export interface OpcionesDeBotones {
   ciclo: number;
+  /** Lo último que dijo el cliente, para no re-ofrecerle lo que ya rechazó. */
+  mensajeDelCliente?: string | null;
   /** Ahora, para calcular «mañana» y el día siguiente hábil. */
   ahora?: Date;
   /** ¿El local atiende ese día? Sin predicado se asume que sí. */
@@ -136,24 +159,24 @@ export function botonesParaBloque(
   bloque: string,
   opciones: OpcionesDeBotones,
 ): BloqueConBotones | null {
-  const { ciclo, ahora = new Date(), estaAbierto } = opciones;
+  const { ciclo, ahora = new Date(), estaAbierto, mensajeDelCliente } = opciones;
   const sufijo = `:c${ciclo}`;
 
-  // 1 · La escalera de precio. Con un solo escalón no se pregunta nada.
-  const escalones = escalonesDelMenu(bloque);
-  if (escalones.length >= 2) {
-    return {
-      cuerpo: sinLineasNumeradas(bloque),
-      // El título del botón ES la etiqueta del menú, sin adornos: el cliente
-      // acaba de leer «*Costo* — la más conveniente de precio» y toca «Costo».
-      // Un «La costo» pegado delante no lo ayuda y encima está mal escrito
-      // (visto en el simulador, 27-ago).
-      botones: escalones.map((k) => ({
-        id: `escalera:${k}${sufijo}`,
-        titulo: ETIQUETA_DEL_ESCALON[k],
-      })),
-    };
-  }
+  // LA ESCALERA NO LLEVA BOTONES, A PROPÓSITO.
+  //
+  // Manuel, 27-ago, después de probarlo en su teléfono: «prefiero que respondan
+  // naturalmente ese primer mensaje, para que sientan los que escriben que sí
+  // están hablando con un bot competente que responde mensajes más complejos, y
+  // después vamos con esas plantillas».
+  //
+  // Es una decisión de producto y no una limitación: la primera respuesta del
+  // cliente es la que le dice si del otro lado hay alguien que entiende o un
+  // menú de call center. Tres botones ahí lo resuelven más rápido y lo hacen
+  // sentir más tonto. Los botones entran después —local y día—, cuando ya sabe
+  // con qué está hablando y lo único que queda son datos de cierre.
+  //
+  // El menú numerado de Joaquín se queda tal cual: se contesta escribiendo «2»
+  // o «la equilibrio», que es lo que `respuestaDePreferencia` entiende.
 
   // 2 · El local. Son exactamente dos y viven en la config del negocio.
   if (preguntaElLocal(bloque)) {
@@ -168,6 +191,13 @@ export function botonesParaBloque(
 
   // 3 · El día de la visita. Dos días concretos y la salida a texto libre.
   if (preguntaElDia(bloque)) {
+    // SI ACABA DE TOCAR «OTRO DÍA», LA REPREGUNTA VA SIN BOTONES.
+    //
+    // Manuel, 27-ago: «no nos compliquemos por usar botones; si elige otro día,
+    // que solo pregunte cuál por chat». Y probado en el simulador: volver a
+    // pintar los mismos tres —«Otro día» incluido— es un bucle, y el cliente que
+    // ya dijo que ninguno le sirve tiene que poder escribir el suyo.
+    if (pidioOtroDia(mensajeDelCliente)) return null;
     const dias = diasSugeridos(ahora, estaAbierto);
     if (!dias.length) return null;
     return {
@@ -231,7 +261,7 @@ export function textoDeBoton(id: string, titulo: string, ciclo: number, ahora = 
     if (valor === "quito_sur") return "Quito Sur";
   }
   if (familia === "dia") {
-    if (valor === "otro") return "otro día";
+    if (valor === "otro") return TEXTO_OTRO_DIA;
     const fecha = new Date(`${valor}T12:00:00Z`);
     if (Number.isNaN(fecha.getTime())) return titulo;
     const manana = new Date(diaCivilEcuador(ahora).getTime() + 86_400_000);

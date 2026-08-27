@@ -12,9 +12,9 @@
 import { business } from "../config.js";
 import { sql } from "../db/client.js";
 import { ahorroDeLaCotizacion, type LineaCotizada } from "../domain/ahorro.js";
-import { preguntamosElDia } from "../domain/customerCommitment.js";
+import { preguntaElDia } from "../domain/customerCommitment.js";
 import { datoQueFalta } from "../domain/preguntaPendiente.js";
-import { PREGUNTA_DE_LOCAL, preguntamosElLocal } from "../domain/storeSelection.js";
+import { PREGUNTA_DE_LOCAL, preguntaElLocal } from "../domain/storeSelection.js";
 import { buildVisitPlanQuestion, composeBlocks, MAX_BLOCKS } from "./quoteMessages.js";
 
 /** El mismo separador que parte el turno en mensajes (`splitBlocks`). */
@@ -51,8 +51,17 @@ export async function insistirConLoQueFalta(
 
   // Si el turno YA la pregunta, no se toca: repetirla sería el ruido que este
   // candado quiere evitar, no arreglar.
-  if (falta === "local" && preguntamosElLocal(texto)) return { texto, agregado: null };
-  if (falta === "dia" && preguntamosElDia(texto)) return { texto, agregado: null };
+  //
+  // ESTRICTOS, no los laxos. `preguntamosElDia` se conforma con que el mensaje
+  // NOMBRE un día, porque su trabajo es interpretar al cliente y ahí pasarse es
+  // gratis. Acá decide si se calla el candado, y pasarse cuesta la venta:
+  // producción, 27-ago, conv 3 c15 — el cliente tocó «Otro día» y el bot
+  // contestó «cuando tenga claro *el día* que puede pasar, me avisa». El laxo
+  // leyó «el día» como pregunta hecha, el candado se calló, y el turno terminó
+  // sin preguntar nada. Manuel lo vio en su teléfono: «aquí debería preguntarle
+  // qué día puede ir».
+  if (falta === "local" && preguntaElLocal(texto)) return { texto, agregado: null };
+  if (falta === "dia" && preguntaElDia(texto)) return { texto, agregado: null };
 
   const pregunta = falta === "local"
     ? `${PREGUNTA_DE_LOCAL} 📍`

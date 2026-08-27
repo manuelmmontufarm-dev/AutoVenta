@@ -16,6 +16,7 @@ import { applicableBenefitTexts } from "./benefits.js";
 import { composeBlocks } from "./quoteMessages.js";
 import { buildStoreLinksBlockOnce } from "./storeLinks.js";
 import { fraseDeAhorro } from "../domain/ahorro.js";
+import { PREGUNTA_DE_CIERRE } from "../domain/preguntaPendiente.js";
 import { ahorroVigente } from "./ahorroVigente.js";
 import { brandProfilesForRender } from "./brandProfiles.js";
 import { getPiecesConfig } from "./settings.js";
@@ -246,7 +247,12 @@ export async function tryDirectSalesRoute(
   const mapa = store ? await buildStoreLinksBlockOnce(ctx.conversation.id, store, { soloDestacado: true }) : "";
   let reply: string;
   if (store && visitLabel) {
-    reply = composeBlocks(`Perfecto: *${visitLabel} en ${store}*. Ya quedó registrado para el asesor.`, mapa);
+    // Las dos puertas dicen lo mismo: esta ruta NO pasa por el agente, así que
+    // sin esto el cierre quedaba mudo justo por el camino más rápido.
+    reply = composeBlocks(
+      `Perfecto: *${visitLabel} en ${store}*. Ya quedó registrado para el asesor.\n\n${PREGUNTA_DE_CIERRE}`,
+      mapa,
+    );
   } else if (store && parcial) {
     // Sabemos el local y algo del cuándo, pero NO el día. Se confirma lo que hay
     // y se pide solo lo que falta: decir «ya quedó registrado» sin fecha es la

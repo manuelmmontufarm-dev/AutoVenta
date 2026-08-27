@@ -150,9 +150,22 @@ describe("el orden de los candados en el turno", () => {
     // pasa además por los otros dos candados del final —las preguntas de más y
     // los números de cotización—, y el orden importa: los tres corren DESPUÉS
     // del guardián, que es quien reescribe.
+    // Desde el 27-ago son CUATRO: se sumó el candado del JSON crudo, después de
+    // que el simulador dejara salir el resultado de una herramienta como
+    // respuesta al cliente. La cadena tiene que llegar entera hasta splitBlocks.
     expect(index).toContain("insistirConLoQueFalta(");
     expect(index).toContain("sinPreguntasProhibidas(insistido.texto)");
-    expect(index).toContain("splitBlocks(sinNumerosDeCotizacion(depurado.texto))");
+    expect(index).toContain("sinJsonCrudo(depurado.texto)");
+    expect(index).toContain("splitBlocks(sinNumerosDeCotizacion(limpio.texto))");
+  });
+
+  it("el candado del JSON crudo también corre DESPUÉS del guardián", () => {
+    // Misma razón que el aviso de stock: quien puede dejar salir el JSON es el
+    // Ángel Guardián, que reescribe el texto entero al final.
+    const guardian = index.indexOf("revisarConGuardian(conversation");
+    const json = index.indexOf("sinJsonCrudo(depurado.texto)");
+    expect(json, "no se encontró el candado del JSON crudo").toBeGreaterThan(0);
+    expect(json).toBeGreaterThan(guardian);
   });
 
   it("las tres puertas de la cotización usan el mismo módulo", () => {

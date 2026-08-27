@@ -32,6 +32,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-08-27 | _(este mismo)_ | La escalera vuelve a contestarse escribiendo, «Otro día» pregunta cuál, y ningún JSON sale al cliente | 1.5 |
 | 2026-08-27 | _(este mismo)_ | Botones de WhatsApp en las tres preguntas cerradas: escalera, local y día | 2.0 |
 | 2026-08-27 | _(este mismo)_ | El menú ofrece solo los escalones que hay, y una cantidad grande vuelve a poder cotizarse | 1.0 |
 | 2026-08-27 | _(este mismo)_ | La pieza avisa cuando no es su medida, el turno sigue al menú, y la cantidad rara se avisa en vez de preguntarse | 1.5 |
@@ -179,6 +180,69 @@ Ya viene activado en este equipo.
 ---
 
 ## Entradas (más reciente primero)
+
+### 2026-08-27 · Lo que Manuel vio en su teléfono · ⏱️ 1.5 h
+
+**Qué:** cinco cambios sobre los botones, los cinco salidos de probarlos en
+WhatsApp de verdad.
+
+1. **La escalera vuelve a contestarse escribiendo.** Se le quitaron los botones;
+   el menú numerado de Joaquín se queda igual. Manuel: «prefiero que respondan
+   naturalmente ese primer mensaje, para que sientan los que escriben que sí
+   están hablando con un bot competente que responde mensajes más complejos, y
+   después vamos con esas plantillas». Es decisión de producto: la primera
+   respuesta del cliente es la que le dice si del otro lado hay alguien que
+   entiende o un menú de call center. Los botones quedan donde ya no hay nada
+   que demostrar —local y día—, que son puro dato de cierre.
+
+2. **«Otro día» ahora pregunta cuál.** Producción, conv 3 c15: el cliente tocó
+   «Otro día» y el bot contestó «cuando tenga claro el día que puede pasar, me
+   avisa» — sin pregunta, y ahí murió el hilo. La causa es la misma de ayer:
+   `insistirCierre` decidía callarse con `preguntamosElDia`, el detector LAXO,
+   que se conforma con que el mensaje NOMBRE un día. «El día que puede pasar» le
+   bastó. Ahora usa los estrictos.
+
+3. **Y la repregunta va sin botones.** Volver a pintar los mismos tres —«Otro
+   día» incluido— es un bucle. Manuel: «no nos compliquemos por usar botones».
+
+4. **El toque a «Otro día» ya no escala a un humano.** Se traducía a «otro día»
+   a secas, el agente no entendía qué se le pedía y llamaba a
+   `escalar_a_asesor`: en el simulador abrió una alerta `caso_sin_resolver` por
+   un cliente que solo quería otra fecha. Ahora se traduce a la frase entera que
+   diría un cliente.
+
+5. **Ningún JSON crudo sale al cliente.** Esa misma escalada dejó salir el
+   resultado de la herramienta TAL CUAL: `{"motivo":"caso_sin_resolver",
+   "resumen":"Cliente con cotización ya enviada de 4 × FALKEN ZE310R…"}`. No es
+   solo feo: le enseña al cliente cómo se llaman las herramientas por dentro y
+   le muestra el resumen interno que el bot le manda al asesor. `sinJsonCrudo`
+   se cae el BLOQUE y no el turno —en ese mismo mensaje venía después la
+   pregunta del día— y le abre alerta al asesor.
+
+Además, el turno que confirma la visita ya no termina en punto: cierra con
+`PREGUNTA_DE_CIERRE` («¿Le queda alguna otra duda antes de su visita?»), en las
+DOS puertas —la tool del agente y la ruta directa, que no pasa por el agente—.
+Manuel: «cuando confirma todo que solo pregunte si tiene otra pregunta».
+
+**El cupón del 2 % quedó APAGADO en producción** (`coupon_config.activo=false`).
+Es ajuste y no código: se prende desde Ajustes cuando Depot dé la luz verde.
+Manuel: «me gustó lo del 2 % pero no lo implementemos todavía».
+
+**Por qué importa el patrón:** tres de estas cinco son el mismo error —usar un
+detector laxo para TOMAR una decisión—. Los laxos existen para interpretar al
+cliente, donde pasarse es gratis; decidir si se pinta un botón o si se calla un
+candado necesita lo contrario. Por eso `preguntaElDia` y `preguntaElLocal` viven
+pegados a sus versiones laxas, con el comentario que explica cuál va dónde.
+
+**Pruebas:** 1097 en verde (11 nuevas). La conversación entera repetida en el
+simulador: medida → escribe «la premium» (sin botones) → toca Cumbayá → toca
+«Otro día» → repregunta sin botones y sin escalar → escribe «voy el sábado» →
+confirmación con la pregunta de cierre y sin cupón.
+
+**Lo que NO quedó probado en vivo:** el candado del JSON crudo. Tiene sus 8
+pruebas y el test de orden confirma que corre después del Ángel Guardián, pero
+en la corrida de verificación el modelo no repitió la falla, así que no se lo
+vio dispararse de punta a punta.
 
 ### 2026-08-27 · Las tres preguntas cerradas ahora se tocan · ⏱️ 2.0 h
 

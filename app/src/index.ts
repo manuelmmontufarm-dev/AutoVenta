@@ -79,6 +79,7 @@ import { tryDirectSalesRoute } from "./services/directSalesRoutes.js";
 import { tryRecotizarPorCantidad } from "./services/recotizar.js";
 import { firstContactReply, isGenericFirstContact } from "./domain/firstContact.js";
 import { botonesParaBloque, recortarTitulo, textoDeBoton, type BloqueConBotones } from "./domain/botones.js";
+import { sinJsonCrudo } from "./domain/jsonCrudo.js";
 import { algunLocalAbre, getStoreHours } from "./services/settings.js";
 
 /** Pausa entre bloques: suficiente para que se lean como mensajes seguidos y no como spam. */
@@ -336,7 +337,24 @@ const pipeline = new InboundPipeline(async ({ from, name, text, waMessageIds, re
     }).catch(() => undefined);
   }
   // Los números de cotización, por la misma razón. Ver domain/numerosDeCotizacion.ts.
-  const bloques = splitBlocks(sinNumerosDeCotizacion(depurado.texto));
+  // El JSON de una herramienta, al final y por la misma razón que el stock y las
+  // preguntas de más: quien lo puede dejar pasar es el Ángel Guardián, que
+  // reescribe DESPUÉS de todos los candados deterministas.
+  const limpio = sinJsonCrudo(depurado.texto);
+  if (limpio.quitados.length) {
+    console.warn(`✂️ JSON crudo quitado en la conv ${conversation.id}: ${limpio.quitados.join(" | ").slice(0, 300)}`);
+    await createBotAlert({
+      conversationId: conversation.id,
+      cycle: conversation.current_cycle,
+      type: "json_crudo",
+      priority: "high",
+      summary: "El bot casi le manda al cliente el JSON de una herramienta",
+      exactReason: limpio.quitados.join(" | ").slice(0, 500),
+      suggestedAction: "Revisá el turno: el modelo devolvió el resultado de una herramienta como respuesta.",
+      dedupeKey: `json_crudo:${conversation.id}:${conversation.current_cycle}`,
+    });
+  }
+  const bloques = splitBlocks(sinNumerosDeCotizacion(limpio.texto));
   // El cupón va como bloque aparte y al final: es un mensaje que el cliente va
   // a buscar días después en el chat, y mezclado dentro del párrafo del bot se
   // pierde. Solo cuando se acaba de emitir — si ya lo tenía, repetírselo cada
@@ -351,7 +369,7 @@ const pipeline = new InboundPipeline(async ({ from, name, text, waMessageIds, re
   // el turno, y dos mensajes con botones seguidos se leen como formulario.
   // `null` es la respuesta normal — la mayoría de los turnos no terminan en una
   // pregunta de conjunto cerrado y salen como texto, igual que siempre.
-  const conBotones = await botonesDelUltimoBloque(conversation, bloques);
+  const conBotones = await botonesDelUltimoBloque(conversation, bloques, textoConLinks);
   for (const [indice, bloque] of bloques.entries()) {
     if (indice > 0) await esperar(PAUSA_ENTRE_BLOQUES_MS);
     try {
@@ -420,6 +438,7 @@ const pipeline = new InboundPipeline(async ({ from, name, text, waMessageIds, re
 async function botonesDelUltimoBloque(
   conversation: { id: number; current_cycle: number },
   bloques: readonly string[],
+  mensajeDelCliente: string,
 ): Promise<BloqueConBotones | null> {
   const ultimo = bloques[bloques.length - 1];
   if (!ultimo) return null;
@@ -427,6 +446,7 @@ async function botonesDelUltimoBloque(
     const hours = await getStoreHours();
     const propuesta = botonesParaBloque(ultimo, {
       ciclo: conversation.current_cycle,
+      mensajeDelCliente,
       estaAbierto: (fecha) => algunLocalAbre(hours, fecha),
     });
     if (!propuesta || propuesta.botones.length < 2) return null;

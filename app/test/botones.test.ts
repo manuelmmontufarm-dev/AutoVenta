@@ -2,10 +2,10 @@ import { beforeAll, describe, it, expect } from "vitest";
 import {
   botonesParaBloque,
   diasSugeridos,
-  escalonesDelMenu,
   recortarTitulo,
   textoDeBoton,
   MAX_TITULO,
+  TEXTO_OTRO_DIA,
 } from "../src/domain/botones.js";
 import { respuestaDePreferencia } from "../src/domain/salesIntent.js";
 import { extractExplicitStore, PREGUNTA_DE_LOCAL } from "../src/domain/storeSelection.js";
@@ -32,29 +32,24 @@ beforeAll(async () => {
 const CICLO = 9;
 const opts = { ciclo: CICLO, ahora: new Date("2026-08-27T15:00:00Z") };
 
-describe("escalera", () => {
-  it("ofrece un botón por escalón que el menú realmente trae", () => {
-    const bloque = qm.menuDePreferencia(["precio", "equilibrada", "premium"]).join("\n");
-    expect(escalonesDelMenu(bloque)).toEqual(["precio", "equilibrada", "premium"]);
-    const r = botonesParaBloque(bloque, opts);
-    expect(r?.botones.map((b) => b.titulo)).toEqual(["Costo", "Equilibrio", "Premium"]);
-  });
-
-  it("con dos escalones NO ofrece el que no existe (la falla del 27-ago)", () => {
-    const bloque = qm.menuDePreferencia(["precio", "premium"]).join("\n");
-    const r = botonesParaBloque(bloque, opts);
-    expect(r?.botones).toHaveLength(2);
-    expect(r?.botones.some((b) => /equilibrio/i.test(b.titulo))).toBe(false);
-  });
-
-  it("con un solo escalón no pregunta nada", () => {
-    const bloque = qm.menuDePreferencia(["premium"]).join("\n");
+describe("la escalera NO lleva botones (decisión de producto, 27-ago)", () => {
+  // Manuel lo probó en su teléfono y lo bajó: la primera respuesta del cliente
+  // es la que le dice si del otro lado hay alguien que entiende o un menú de
+  // call center. El menú numerado de Joaquín se queda; se contesta escribiendo.
+  it.each([
+    ["los tres escalones", ["precio", "equilibrada", "premium"]],
+    ["solo dos", ["precio", "premium"]],
+    ["uno solo", ["premium"]],
+  ])("con %s sigue saliendo como texto", (_caso, escalones) => {
+    const bloque = qm.menuDePreferencia(escalones).join("\n");
     expect(botonesParaBloque(bloque, opts)).toBeNull();
   });
 
-  it("no repite las líneas numeradas en el cuerpo", () => {
-    const bloque = qm.menuDePreferencia(["precio", "premium"]).join("\n");
-    expect(botonesParaBloque(bloque, opts)!.cuerpo).not.toMatch(/^\s*\d\)/m);
+  it("y el menú numerado sigue intacto para que se conteste escribiendo", () => {
+    const bloque = qm.menuDePreferencia(["precio", "equilibrada", "premium"]).join("\n");
+    expect(bloque).toMatch(/1\) \*Costo\*/);
+    expect(respuestaDePreferencia("2")).toBe("equilibrada");
+    expect(respuestaDePreferencia("la equilibrio")).toBe("equilibrada");
   });
 });
 
@@ -78,6 +73,23 @@ describe("día", () => {
   });
 });
 
+describe("«Otro día» no vuelve a ofrecer los mismos días (bucle del simulador)", () => {
+  const pregunta = "¿Qué día cree que puede pasar por *Depot Tire Cumbayá*? 📅";
+
+  it("sin contexto sí ofrece los días", () => {
+    expect(botonesParaBloque(pregunta, opts)?.botones).toHaveLength(3);
+  });
+
+  it("pero si el cliente acaba de tocar «Otro día», la repregunta va sin botones", () => {
+    expect(botonesParaBloque(pregunta, { ...opts, mensajeDelCliente: TEXTO_OTRO_DIA })).toBeNull();
+    expect(botonesParaBloque(pregunta, { ...opts, mensajeDelCliente: TEXTO_OTRO_DIA.toUpperCase() })).toBeNull();
+  });
+
+  it("y una respuesta cualquiera no apaga los botones", () => {
+    expect(botonesParaBloque(pregunta, { ...opts, mensajeDelCliente: "gracias" })?.botones).toHaveLength(3);
+  });
+});
+
 describe("un turno normal no lleva botones", () => {
   it.each([
     "Le confirmo que las 4 están disponibles en Cumbayá.",
@@ -89,12 +101,6 @@ describe("un turno normal no lleva botones", () => {
 });
 
 describe("el toque se traduce al texto que los parsers YA entendían", () => {
-  it("la escalera cae en respuestaDePreferencia", () => {
-    expect(respuestaDePreferencia(textoDeBoton(`escalera:precio:c${CICLO}`, "x", CICLO))).toBe("precio");
-    expect(respuestaDePreferencia(textoDeBoton(`escalera:equilibrada:c${CICLO}`, "x", CICLO))).toBe("equilibrada");
-    expect(respuestaDePreferencia(textoDeBoton(`escalera:premium:c${CICLO}`, "x", CICLO))).toBe("premium");
-  });
-
   it("el local cae en extractExplicitStore", () => {
     expect(extractExplicitStore(textoDeBoton(`local:cumbaya:c${CICLO}`, "x", CICLO))).toBe("Depot Tire Cumbayá");
     expect(extractExplicitStore(textoDeBoton(`local:quito_sur:c${CICLO}`, "x", CICLO))).toBe("Depot Tire Quito Sur");
@@ -108,8 +114,13 @@ describe("el toque se traduce al texto que los parsers YA entendían", () => {
     expect(c?.visitDate).toBeInstanceOf(Date);
   });
 
-  it("«otro día» no inventa una fecha", () => {
-    expect(textoDeBoton(`dia:otro:c${CICLO}`, "Otro día", CICLO)).toBe("otro día");
+  it("«otro día» no inventa una fecha ni escala a un humano", () => {
+    const texto = textoDeBoton(`dia:otro:c${CICLO}`, "Otro día", CICLO);
+    expect(texto).toBe(TEXTO_OTRO_DIA);
+    // Lo que importa: que ningún parser lo lea como una visita agendada.
+    expect(
+      extractCustomerCommitment(texto, new Date("2026-08-27T15:00:00Z"), { respondiendoAlDia: true }),
+    ).toBeNull();
   });
 });
 
@@ -123,7 +134,6 @@ describe("un toque a un mensaje viejo no se lee como respuesta de hoy", () => {
 
   it("ningún parser lo lee como una respuesta", () => {
     expect(extractExplicitStore(nota)).toBeNull();
-    expect(respuestaDePreferencia(textoDeBoton("escalera:premium:c3", "Premium", 9))).toBeNull();
     expect(
       extractCustomerCommitment(textoDeBoton("dia:2026-08-28:c3", "Mañana", 9), new Date("2026-08-27T15:00:00Z"), {
         respondiendoAlDia: true,
@@ -172,11 +182,7 @@ describe("los títulos respetan el tope de Meta", () => {
   });
 
   it("ningún título generado se pasa", () => {
-    const bloques = [
-      qm.menuDePreferencia(["precio", "equilibrada", "premium"]).join("\n"),
-      PREGUNTA_DE_LOCAL,
-      "¿Qué día cree que puede pasar? 📅",
-    ];
+    const bloques = [PREGUNTA_DE_LOCAL, "¿Qué día cree que puede pasar? 📅"];
     for (const b of bloques) {
       for (const boton of botonesParaBloque(b, opts)?.botones ?? []) {
         expect(boton.titulo.length).toBeLessThanOrEqual(MAX_TITULO);
