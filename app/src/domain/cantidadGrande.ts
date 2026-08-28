@@ -21,9 +21,11 @@
  * un turno para llegar a la misma respuesta, y el aviso hace el mismo trabajo:
  * si se equivocó, lo ve y lo corrige; si no, ya tiene su precio.
  *
- * OJO: esto NO reemplaza a `extractExplicitQuantity`, que sigue leyendo 1–8 y
- * es lo que alimenta `selected_quantity`. Es un detector aparte, con un solo
- * trabajo: notar el número que aquél no sabe leer.
+ * OJO: esto NO reemplaza a `extractExplicitQuantity`, que sigue leyendo 1–8.
+ * Los dos son respaldo de `preparar_opciones.cantidad` y de la recotización
+ * determinística; ya no corren en el webhook antes de que el agente entienda
+ * el mensaje. Este detector tiene un solo trabajo: notar el número grande que
+ * aquél no sabe leer.
  */
 
 import { enmascararMedidas } from "./tireSize.js";
@@ -48,8 +50,9 @@ const NUMERO_GRANDE =
  * cantidad: «quiero 265/65R17», «deme 225/65R17». Con la medida a la vista,
  * `NUMERO_GRANDE` leía el ancho —265, 225— como si fueran llantas. Mientras
  * este detector vivió solo en la recotización casi no se notaba, porque para
- * llegar ahí hace falta una cotización viva; desde que también llena la ficha
- * de la conversación en el PRIMER mensaje, es justo el caso más común del chat.
+ * llegar ahí hace falta una cotización viva; cuando se conectó al webhook en
+ * el PRIMER mensaje se volvió justo el caso más común del chat. Ese cableado se
+ * retiró el 27-ago: hoy solo respalda una herramienta o una recotización.
  *
  * Y el dato no se queda quieto: `selected_quantity` entra en el prompt del
  * modelo («Cantidad ya confirmada: 265 … cotiza»), en los hechos duros del

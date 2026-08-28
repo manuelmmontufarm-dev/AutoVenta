@@ -212,18 +212,16 @@ export function esRespuestaDelMenuDePreferencia(
 }
 
 /**
- * LA CANTIDAD QUE PIDIÓ EL CLIENTE, con sus dos candados puestos.
+ * RESPALDO TEXTUAL de la cantidad, con sus dos candados puestos.
  *
  * Producción, 27-ago-2026 (conv 3). El cliente escribió «quiero 20 llantas» y
- * la ficha se quedó en blanco: `index.ts` solo llamaba a
- * `extractExplicitQuantity`, que tope en 8. La ruta de recotización sí lo
- * entendía —`recotizar.ts` compone los dos detectores desde el 27-ago—, así que
- * el cliente recibía su pieza por 20 mientras `selected_quantity` seguía en
- * `null`. Y de ese dato depende `opcionesQueAlcanzan`, el filtro que decide qué
- * llantas se pueden ENSEÑAR: con la ficha vacía filtra contra el juego de 4, y
- * entonces una llanta con 4 unidades en bodega se le ofrece a quien pidió 20.
+ * el lector viejo, limitado a 8, no lo vio. Esta composición nació para que la
+ * ruta determinística de recotización y la vitrina pudieran rescatar esa frase.
+ * Desde las convs 11366/11005/11357 ya NO corre en el webhook ni decide primero:
+ * `preparar_opciones.cantidad` es la fuente principal y esto se consulta solo
+ * si el agente omitió el argumento.
  *
- * Los dos candados, en este orden:
+ * Los dos candados del respaldo, en este orden:
  * 1. El «2» del menú de preferencia es el ESCALÓN, no dos llantas.
  * 2. El número grande lo lee `cantidadGrandePedida`, que es el único que sabe
  *    pasar de 8.
@@ -234,6 +232,37 @@ export function cantidadPedidaPorElCliente(
 ): number | null {
   if (esRespuestaDelMenuDePreferencia(text, ultimoMensajeNuestro)) return null;
   return cantidadGrandePedida(text) ?? extractExplicitQuantity(text);
+}
+
+export type OrigenDeCantidad = "herramienta" | "respaldo_textual" | "ficha" | "default";
+
+/**
+ * Cantidad con la que `preparar_opciones` filtra la vitrina.
+ *
+ * La declaración estructurada del agente manda: a diferencia de un regex,
+ * entiende si «5» es cantidad, modelo del carro u hora. El lector histórico
+ * queda de respaldo para expresiones que ya demostraron ser inequívocas
+ * («deme solo 3», «un juego», «quiero 20 llantas») si el modelo omite el
+ * argumento. La ficha conserva una declaración confiable de un turno anterior
+ * y, sin ninguna señal, el contrato comercial son cuatro.
+ */
+export function cantidadParaPrepararOpciones(input: {
+  declarada: number | null | undefined;
+  guardada: number | null | undefined;
+  textoActual: string;
+  ultimoMensajeNuestro: string | null | undefined;
+}): { cantidad: number; origen: OrigenDeCantidad; guardar: boolean } {
+  if (Number.isInteger(input.declarada) && Number(input.declarada) >= 1) {
+    return { cantidad: Number(input.declarada), origen: "herramienta", guardar: true };
+  }
+  const respaldo = cantidadPedidaPorElCliente(input.textoActual, input.ultimoMensajeNuestro);
+  if (respaldo !== null) {
+    return { cantidad: respaldo, origen: "respaldo_textual", guardar: true };
+  }
+  if (Number.isInteger(input.guardada) && Number(input.guardada) >= 1) {
+    return { cantidad: Number(input.guardada), origen: "ficha", guardar: false };
+  }
+  return { cantidad: 4, origen: "default", guardar: false };
 }
 
 /**

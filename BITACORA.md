@@ -32,6 +32,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-08-27 | _(este mismo)_ | La cantidad entra estructurada por la herramienta; las regex quedan de respaldo | 1.25 |
 | 2026-08-27 | _(este mismo)_ | Reabrir a los minutos conserva la medida, el carro y el local; después de 12 h sí empieza otra visita | 0.75 |
 | 2026-08-27 | _(este mismo)_ | La vitrina solo recomienda juegos completos y una compra ajena termina sin mapas ni piezas | 1.5 |
 | 2026-08-27 | _(este mismo)_ | El guardián sigue fallando abierto, pero nunca más sin fila ni alerta | 0.75 |
@@ -187,11 +188,52 @@ Ya viene activado en este equipo.
 | 2026-07-14 | ac09171 | Ubicaciones de locales + análisis de features del cliente | 1.5 |
 | 2026-07-13 | feadf57 | Brief + plan de desarrollo + plan financiero + catálogo | 4.0 |
 | 2026-07-13 | d997844 | Commit inicial (repo) | 0.25 |
-| | | **TOTAL** | **~131.5 h** |
+| | | **TOTAL** | **~133 h** |
 
 ---
 
 ## Entradas (más reciente primero)
+
+### 2026-08-27 · La cantidad deja de adivinarse antes de entender el mensaje · ⏱️ 1.25 h
+
+**Qué.** El webhook ya no ejecuta regex ni escribe `selected_quantity` apenas
+llega texto libre. `preparar_opciones` recibe ahora `cantidad` en su esquema:
+el agente manda un entero cuando entendió una cantidad de llantas y `null`
+cuando el número es del carro, una hora, el conteo de opciones o el menú. Esa
+declaración filtra el stock y se guarda como dato confirmado. Si el argumento
+se omite, el lector viejo rescata únicamente las expresiones inequívocas que ya
+tenían contrato («deme solo 3», «mejor 2», «un juego», «quiero 20 llantas»);
+después vienen la ficha previa y el default comercial de 4. La cotización sigue
+siendo la última autoridad y persiste la cantidad que realmente firmó.
+
+La misma regla está en `prompts.ts` y en el playbook compacto que usa
+producción. Las pruebas viejas del respaldo mantienen sus afirmaciones; solo se
+actualizaron sus comentarios para que no sigan diciendo que el webhook es la
+fuente principal.
+
+**Por qué.** Las convs 11366, 11005 y 11357 no eran tres excepciones: eran la
+familia «un número que pertenece a otra cosa». Añadir sustantivos y horarios a
+una lista negra no crea una frontera; mover la interpretación semántica al
+argumento tipado sí. El respaldo se conserva porque frases comerciales cortas
+y claras no deben perderse si el modelo olvida completar un campo. Ante duda no
+se escribe nada y se opera con 4: es más barato que defender y firmar un 5 falso.
+
+**Pruebas.** En rojo, 1/1 falló porque el esquema de `preparar_opciones` no
+tenía la propiedad `cantidad`. Primera vuelta: 35/35 funcionales, pero
+`tsc --noEmit` marcó dos template literals rotos por backticks sin escapar.
+Segunda vuelta: 92/92 entre esquema, familia real, menú, 2/3/20,
+recotización contra Postgres y stock; `tsc --noEmit` limpio. La primera suite
+completa (1266/1269) encontró dos contratos de copy: el compacto medía 6.384
+caracteres contra un techo de 5.800 y la descripción decía «juego de 4» sin la
+unidad. No se subió el techo ni se apagó la prueba: se comprimieron cuatro
+reglas conservando sus órdenes y se escribió «4 llantas». Los tres archivos que
+habían fallado cerraron 33/33 antes de repetir la compuerta. La segunda suite
+quedó 1268/1269: al comprimir se había perdido la marca contractual en mayúscula
+`PREFERENCIA`; se restauró la palabra exacta sin subir el techo. La primera
+redacción quedó en 5.812 caracteres, 12 sobre el límite; se compactó la misma
+oración, sin retirar la orden de cotizar el escalón ni subir el umbral.
+
+---
 
 ### 2026-08-27 · Cerrar el ciclo ya no borra una visita que sigue viva · ⏱️ 0.75 h
 

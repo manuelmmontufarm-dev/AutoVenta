@@ -1,5 +1,5 @@
 /**
- * «QUIERO 20 LLANTAS» TIENE QUE QUEDAR ANOTADO.
+ * «QUIERO 20 LLANTAS» TIENE QUE SEGUIR TENIENDO UN RESPALDO.
  *
  * Producción, 27-ago-2026 (conv 3). El cliente pidió 20 llantas. La ruta de
  * recotización sí lo entendió —`recotizar.ts` compone los dos detectores— pero
@@ -8,9 +8,9 @@
  * quedó en `null`.
  *
  * No es un dato decorativo. De esa cantidad depende `opcionesQueAlcanzan`, el
- * filtro que decide qué llantas se pueden ENSEÑAR como vendibles. Con la ficha
- * en blanco filtra contra el juego de 4 por defecto, y entonces una llanta con
- * 4 unidades en bodega se le ofrece a alguien que pidió 20.
+ * filtro que decide qué llantas se pueden ENSEÑAR como vendibles. Hoy el camino
+ * principal es `preparar_opciones.cantidad`; estas pruebas conservan el lector
+ * como respaldo si el agente omite ese argumento y para la recotización directa.
  */
 import { describe, expect, it } from "vitest";
 import { cantidadPedidaPorElCliente } from "../src/domain/salesIntent.js";
@@ -20,7 +20,7 @@ import { opcionesQueAlcanzan } from "../src/domain/opcionesCandados.js";
 const MENU_DE_PREFERENCIA =
   `¿Qué prioriza usted?\n1) Costo\n2) Equilibrio\n3) Premium`;
 
-describe("la cantidad que el cliente pide queda en la ficha", () => {
+describe("el respaldo textual conserva cantidades inequívocas", () => {
   it("lee el número que no cabe en 1–8", () => {
     expect(cantidadPedidaPorElCliente("sabe que quiero 20 llantas en vez", null)).toBe(20);
   });
@@ -49,9 +49,10 @@ describe("la cantidad que el cliente pide queda en la ficha", () => {
    * El detector de cantidades grandes lee «<verbo> <número>», y la lista de
    * verbos incluye los mismos con los que se pide una medida: «quiero
    * 265/65R17» le daba 265. Mientras vivió solo en `recotizar.ts` casi no se
-   * notaba —ahí hace falta una cotización viva para llegar—, pero desde que la
-   * ficha se llena en `index.ts` corre en el PRIMER mensaje, que es justo
-   * donde el cliente escribe su medida y nada más.
+   * notaba —ahí hace falta una cotización viva para llegar—, pero cuando se
+   * conectó a `index.ts` empezó a correr en el PRIMER mensaje, justo donde el
+   * cliente escribe su medida y nada más. Ese cableado ya fue retirado; el caso
+   * queda acá porque el respaldo sigue obligado a no confundirla.
    *
    * Y no es un dato que se quede quieto: `selected_quantity` entra en el
    * prompt del modelo como «Cantidad ya confirmada: 265 … cotiza», en los

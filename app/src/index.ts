@@ -51,7 +51,7 @@ import {
   extractFlotationSizes, extractTireSizes, formatFlotationSize, formatTireSize,
 } from "./domain/tireSize.js";
 import {
-  cantidadPedidaPorElCliente, extractVehicleYear,
+  extractVehicleYear,
 } from "./domain/salesIntent.js";
 import { getHubMetrics } from "./services/hubData.js";
 import {
@@ -96,12 +96,6 @@ const pipeline = new InboundPipeline(async ({ from, name, text, waMessageIds, re
   const parsedFlotation = parsedSize ? null : extractFlotationSizes(text)[0];
   const parsedVehicleYear = extractVehicleYear(text);
   const previousOutbound = await lastOutboundText(conversation.id);
-  // La cantidad que pidió el cliente, con sus dos candados: el «2» del menú de
-  // preferencia es el ESCALÓN y no dos llantas, y «quiero 20 llantas» tiene que
-  // quedar anotado aunque `extractExplicitQuantity` tope en 8 —de ese dato
-  // depende qué opciones se pueden enseñar como vendibles—. Es la misma
-  // composición que ya usaba `recotizar.ts`. Ver `cantidadPedidaPorElCliente`.
-  const parsedQuantity = cantidadPedidaPorElCliente(text, previousOutbound);
   // «Al sur me resulta más fácil» solo es elección de local si acabamos de
   // preguntar el local — la misma lógica contextual que el día de visita.
   const respondiendoAlLocal = preguntamosElLocal(previousOutbound);
@@ -122,7 +116,6 @@ const pipeline = new InboundPipeline(async ({ from, name, text, waMessageIds, re
   await updateConversationFacts(conversation.id, {
     ...(parsedSize ? { tireSize: formatTireSize(parsedSize) } : {}),
     ...(parsedFlotation ? { tireSize: formatFlotationSize(parsedFlotation) } : {}),
-    ...(parsedQuantity ? { selectedQuantity: parsedQuantity } : {}),
     ...(parsedVehicleYear ? { vehicleYear: parsedVehicleYear } : {}),
   });
   // La visita va aparte porque hay que JUNTARLA con lo dicho antes: la hora

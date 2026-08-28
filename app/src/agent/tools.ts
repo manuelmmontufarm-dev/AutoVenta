@@ -72,8 +72,8 @@ import { rangoDeAros } from "../domain/aros.js";
 import { nearestStore, resolveSector } from "../domain/locations.js";
 import { extractFlotationSizes, formatFlotationSize, formatTireSize, parseTireSize, type TireSize } from "../domain/tireSize.js";
 import {
-  canGenerateFinalQuote, describeUso, escalonesDeOpciones, pidePrecio, pideRecomendacion,
-  respuestaDePreferencia,
+  canGenerateFinalQuote, cantidadParaPrepararOpciones, describeUso, escalonesDeOpciones,
+  pidePrecio, pideRecomendacion, respuestaDePreferencia,
 } from "../domain/salesIntent.js";
 import { getTirePatternProfile } from "../domain/tireKnowledge.js";
 import {
@@ -82,7 +82,7 @@ import {
 import { nivelDeLinea, ordenDeNivel, reglasEscalera } from "../domain/escalera.js";
 import { costoPorKm, respaldoCompleto, respaldoDeMarca } from "../domain/respaldoMarcas.js";
 import {
-  debeBloquearReenvio, JUEGO_COMPLETO, medidaDesdeContenido, opcionesQueAlcanzan, tipoSolicitadoEn,
+  debeBloquearReenvio, medidaDesdeContenido, opcionesQueAlcanzan, tipoSolicitadoEn,
 } from "../domain/opcionesCandados.js";
 import {
   medidaEstaPedida, medidasDeProductos, medidasPermitidas, mensajesDeLaVisitaActual,
@@ -1114,8 +1114,18 @@ export function buildTools(ctx: AgentContext) {
         .describe(
           "Una sola frase de por qué esa: el criterio real (uso, duración, precio). Sin inventar ventajas técnicas no verificadas. Es lo que acompaña a la recomendación cuando se entrega.",
         ),
+      cantidad: z
+        .number()
+        .int()
+        .min(1)
+        .max(500)
+        .nullable()
+        .default(null)
+        .describe(
+          "Cantidad de LLANTAS que el cliente pidió de forma inequívoca. Null si no dijo cantidad o si el número pertenece al modelo del carro, una hora, las marcas/opciones o el menú. Sin cantidad se usa el juego de 4 llantas; PROHIBIDO preguntar.",
+        ),
     }),
-    run: async ({ codes, nombre_cliente, recomendado, motivo }) => {
+    run: async ({ codes, nombre_cliente, recomendado, motivo, cantidad }) => {
       await ensureCatalogReady();
       const encontrados = codes
         .map((code) => findByCode(code))
@@ -1160,8 +1170,24 @@ export function buildTools(ctx: AgentContext) {
       const [cantidadDelCliente] = await sql<{ selected_quantity: number | null }[]>`
         select selected_quantity from conversations where id=${ctx.conversation.id}
       `;
+      const cantidadResuelta = cantidadParaPrepararOpciones({
+        declarada: cantidad,
+        guardada: cantidadDelCliente?.selected_quantity,
+        textoActual: ctx.currentUserText,
+        ultimoMensajeNuestro: await lastOutboundText(ctx.conversation.id),
+      });
+      // Convs 11366, 11005 y 11357, 26–27-ago-2026: antes el webhook escribía
+      // 5 por «Arrizo 5», 3 por «las 3 marcas» y 5 por «pasado las 5» ANTES de
+      // que el agente entendiera el mensaje. Ahora la ficha se toca aquí: por
+      // argumento estructurado o, si el modelo lo omitió, por una frase que el
+      // respaldo reconoce sin ambigüedad. El default 4 no se finge confirmado.
+      if (cantidadResuelta.guardar) {
+        await updateConversationFacts(ctx.conversation.id, {
+          selectedQuantity: cantidadResuelta.cantidad,
+        });
+      }
       const vendibles = opcionesQueAlcanzan(
-        candidatos, cantidadDelCliente?.selected_quantity ?? JUEGO_COMPLETO,
+        candidatos, cantidadResuelta.cantidad,
       );
       // NINGUNA con stock: no se dibuja la pieza. Antes esto era imposible
       // —la red de emergencia devolvía todo— y por eso salían llantas
