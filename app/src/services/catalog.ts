@@ -19,6 +19,7 @@ import {
   type ContificoProductWire,
   type ResultadoEscalera,
 } from "../domain/catalog.js";
+import { mencionaProducto } from "../domain/guardianNoVendeSolo.js";
 import { extractTireSizes, formatTireSize, type TireSize } from "../domain/tireSize.js";
 import {
   ensureInterbotPricesFresh,
@@ -294,6 +295,19 @@ export function searchBySize(size: TireSize): CatalogItem[] {
 /** Búsqueda estilo Interbot: medida, código, marca, diseño o combinación. */
 export function searchByText(query: string, limit = 40): CatalogItem[] {
   return searchCatalog(items, query, limit);
+}
+
+/**
+ * Productos reales que aparecen nombrados en un texto.
+ *
+ * Nació por las correcciones de las convs 11986 y 11972 (27-ago-2026): el
+ * Ángel Guardián leyó el catálogo y agregó modelos que el borrador no traía.
+ * El candado posterior necesita comparar contra el catálogo completo —no solo
+ * contra la medida pedida— porque inventar una llanta de otra medida también
+ * tiene que frenarse.
+ */
+export function productosDelCatalogoMencionados(texto: string): CatalogItem[] {
+  return items.filter((item) => mencionaProducto(texto, item));
 }
 
 /** Búsqueda en escalera sobre el catálogo cargado (ver domain/catalog.ts). */

@@ -78,8 +78,9 @@ describe("armarContexto · el catálogo de hoy viaja como hecho duro", () => {
     expect(contexto).toContain("== CATÁLOGO DE HOY");
     // El número exacto que imprime la pieza, verificable letra por letra.
     expect(contexto).toContain("KENDA KR628 245/70R16 — hoy $144.44 c/u con IVA · stock hoy: 10");
-    // Y la agotada viene marcada para la regla 1.
-    expect(contexto).toContain("KENDA KR608 245/70R16 — hoy $213.50 c/u con IVA · stock hoy: 0 (AGOTADA: no se ofrece)");
+    // Y la agotada viene marcada con la regla comercial completa: no pasa el
+    // mismo filtro que arma la vitrina para un juego de cuatro.
+    expect(contexto).toContain("KENDA KR608 245/70R16 — hoy $213.50 c/u con IVA · stock hoy: 0 (NO VENDIBLE para el juego de 4: no se ofrece)");
   });
 
   it("EL CASO QUE NO DEBE DISPARAR: sin medida pedida no hay sección ni ruido", async () => {

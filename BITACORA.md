@@ -32,6 +32,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-08-27 | _(este mismo)_ | El Ángel Guardián vuelve a revisar: ya no arma ofertas nuevas con el catálogo | 1.75 |
 | 2026-08-27 | _(este mismo)_ | Auditoría de 1.244 conversaciones: 151 clientes callados para siempre, y el tuteo de los seguimientos | 3.0 |
 | 2026-08-27 | _(este mismo)_ | «Santo Domingo» no es domingo, el mapa no espera turno, y la vitrina vieja no se re-etiqueta | 2.5 |
 | 2026-08-27 | _(este mismo)_ | El guardián recibe el catálogo: todo precio y todo stock que el bot afirme se verifica | 1.0 |
@@ -183,11 +184,52 @@ Ya viene activado en este equipo.
 | 2026-07-14 | ac09171 | Ubicaciones de locales + análisis de features del cliente | 1.5 |
 | 2026-07-13 | feadf57 | Brief + plan de desarrollo + plan financiero + catálogo | 4.0 |
 | 2026-07-13 | d997844 | Commit inicial (repo) | 0.25 |
-| | | **TOTAL** | **~127 h** |
+| | | **TOTAL** | **~127.25 h** |
 
 ---
 
 ## Entradas (más reciente primero)
+
+### 2026-08-27 · El Ángel Guardián ya no vende por su cuenta · ⏱️ 1.75 h
+
+**Qué.** El catálogo de hoy sigue llegando como hecho duro al revisor, pero
+ahora trae la misma frontera comercial que la vitrina: una fila que no alcanza
+queda marcada como NO VENDIBLE y el stock corto no se convierte en oferta de
+unidades sueltas. La rúbrica dice explícitamente que auditar no autoriza a crear
+un producto, precio, cantidad o disponibilidad que el borrador no afirmaba.
+
+La garantía vive después de la IA, en `prepararSalida`: el paso
+`guardian_no_vende_solo` compara borrador y corrección. Si aparecen un precio
+nuevo donde no había ninguno, un producto nuevo del catálogo o una oferta de
+1–3 unidades, vuelve al borrador completo y deja alerta consultable. Corre en
+respuesta normal, retomada y seguimiento; las plantillas y `/restart` tienen
+texto fijo y no pasan por el Ángel Guardián.
+
+**Por qué.** El 27-ago las convs 11986 y 11972 probaron que darle hechos ciertos
+a un revisor sin limitar su autoridad crea otra clase de mentira. En 11986 el
+borrador era un menú sin precios y la corrección armó una vitrina nueva, incluida
+FALKEN WILDPEAK M/T a $282.10. En 11972 el borrador negó stock vendible y la
+corrección ofreció una sola KENDA KR20 a $82.42. El fallback conserva el
+borrador entero porque «corregir la corrección» sería una tercera redacción
+automática sobre plata real.
+
+**Pruebas.** La regresión nueva usa los dos textos exactos de producción y dos
+controles. Primero falló porque el módulo no existía; en la primera vuelta del
+arreglo detectó precio/producto pero no el singular «1 unidad», y en la segunda
+quedó expuesta la diferencia regex entre `unidades?` y `unidad(?:es)?`. Tercera
+vuelta: 43/43 focalizadas, incluida la posición inmediata después del guardián;
+`tsc --noEmit` limpio. La primera corrida real de los dos borradores encontró
+una contradicción dentro de la propia rúbrica: las reglas 1 y 11 todavía le
+ordenaban ofrecer «las que sí hay» aunque la regla 0 se lo prohibía. El candado
+posterior bloqueó las dos correcciones, pero la redacción del revisor seguía mal.
+La prueba de precedencia falló 1/6; se aclaró que la regla 0 manda y que solo la
+huella de una herramienta —no el catálogo solo— autoriza a nombrar alternativas.
+Después: 15/15 focalizadas y TypeScript limpio. En la segunda corrida real,
+11986 corrigió únicamente la referencia al historial y 11972 contestó de forma
+genérica: ninguna nombró producto, precio ni unidades; el candado dejó pasar
+ambas porque ya eran correcciones legales.
+
+---
 
 ### 2026-08-27 · Auditoría de producción: 151 clientes callados para siempre
 

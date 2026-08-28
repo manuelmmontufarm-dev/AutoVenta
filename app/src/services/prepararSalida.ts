@@ -42,6 +42,8 @@ import { motivoDeUbicacion } from "../domain/ubicacionPedida.js";
 import { buildStoreLinksBlock } from "./quoteMessages.js";
 import { buildStoreLinksBlockOnce } from "./storeLinks.js";
 import { business } from "../config.js";
+import { productosDelCatalogoMencionados } from "./catalog.js";
+import { frenarHechosNuevosDelGuardian } from "../domain/guardianNoVendeSolo.js";
 
 /**
  * De qué puerta viene el texto.
@@ -74,6 +76,8 @@ export interface ContextoDeSalida {
    * El único sitio donde ese «ya compré» existe a tiempo es el mensaje mismo.
    */
   textoDelCliente?: string | null;
+  /** Estado interno de la cadena: el texto que recibió el Ángel Guardián. */
+  textoAntesDelGuardian?: string;
 }
 
 export interface PasoDeSalida {
@@ -111,11 +115,49 @@ export const PASOS: readonly PasoDeSalida[] = [
     nombre: "angel_guardian",
     corre: ["respuesta", "retomada", "seguimiento"],
     async aplicar(texto, ctx) {
+      ctx.textoAntesDelGuardian = texto;
       const revision = await revisarConGuardian(
         ctx.conversation, texto, ctx.huella ?? [],
         { tipo: ctx.tipo === "seguimiento" ? "seguimiento" : "respuesta" },
       );
       return revision.texto;
+    },
+  },
+  {
+    // EL GUARDIÁN REVISA; NO VENDE POR SU CUENTA.
+    //
+    // 27-ago-2026, conv 11986: recibió un menú sin modelos ni precios y lo
+    // convirtió en una vitrina nueva con FALKEN WILDPEAK M/T a $282.10.
+    // Conv 11972: convirtió «no hay stock disponible» en una oferta de UNA
+    // KENDA KR20 a $82.42. Pedírselo en la rúbrica ayuda, pero no garantiza:
+    // por eso este paso determinístico corre INMEDIATAMENTE DESPUÉS de quien
+    // reescribe y restaura el borrador si aparecen hechos comerciales nuevos.
+    nombre: "guardian_no_vende_solo",
+    corre: ["respuesta", "retomada", "seguimiento"],
+    async aplicar(texto, ctx) {
+      const borrador = ctx.textoAntesDelGuardian ?? texto;
+      const productos = productosDelCatalogoMencionados(`${borrador}\n${texto}`);
+      const resultado = frenarHechosNuevosDelGuardian(borrador, texto, productos);
+      if (!resultado.bloqueado) return texto;
+
+      console.warn(
+        `🛑 Corrección comercial frenada en la conv ${ctx.conversation.id}: ${resultado.motivos.join(", ")}`,
+      );
+      await createBotAlert({
+        conversationId: ctx.conversation.id,
+        cycle: ctx.conversation.current_cycle,
+        type: "guardian_hecho_nuevo_bloqueado",
+        priority: "high",
+        summary: "El guardián intentó agregar una oferta que el borrador no traía",
+        exactReason:
+          `Se frenó la corrección por: ${resultado.motivos.join(", ")}. `
+          + `Borrador: «${borrador.slice(0, 180)}». Corrección: «${texto.slice(0, 180)}».`,
+        suggestedAction:
+          "El cliente recibió el borrador original. Revisa por qué el guardián intentó vender con datos del catálogo.",
+        dedupeKey:
+          `guardian_hecho_nuevo:${ctx.conversation.id}:${ctx.conversation.current_cycle}:${resultado.motivos.join("-")}`,
+      }).catch(() => undefined);
+      return resultado.texto;
     },
   },
   {

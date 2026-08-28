@@ -152,6 +152,7 @@ describe("el orden de los candados en el turno", () => {
     expect(nombres).toEqual([
       "guardian_deterministico",
       "angel_guardian",
+      "guardian_no_vende_solo",
       "aviso_de_stock",
       "despedida_de_venta_perdida",
       "ubicacion_cuando_la_piden",
@@ -176,6 +177,11 @@ describe("el orden de los candados en el turno", () => {
   it("el aviso de stock corre DESPUÉS del Ángel Guardián", () => {
     expect(nombres.indexOf("aviso_de_stock"))
       .toBeGreaterThan(nombres.indexOf("angel_guardian"));
+  });
+
+  it("el freno de ofertas nuevas corre inmediatamente DESPUÉS del Ángel Guardián", () => {
+    expect(nombres.indexOf("guardian_no_vende_solo"))
+      .toBe(nombres.indexOf("angel_guardian") + 1);
   });
 
   it("el candado del JSON crudo también corre DESPUÉS del guardián", () => {
@@ -208,7 +214,7 @@ describe("el orden de los candados en el turno", () => {
     // La fuga que motivó todo esto: `resumeBot` llama al MISMO `runAgent` con
     // las MISMAS herramientas y corría UNO de los ocho.
     const retomada = pasosPara("retomada").map((p) => p.nombre);
-    for (const candado of ["guardian_deterministico", "angel_guardian", "aviso_de_stock",
+    for (const candado of ["guardian_deterministico", "angel_guardian", "guardian_no_vende_solo", "aviso_de_stock",
       "sin_preguntas_prohibidas", "sin_json_crudo", "sin_numeros_de_cotizacion"]) {
       expect(retomada, candado).toContain(candado);
     }
@@ -216,7 +222,7 @@ describe("el orden de los candados en el turno", () => {
 
   it("el seguimiento corre los deterministas, sin bloquear el envío", () => {
     const seguimiento = pasosPara("seguimiento").map((p) => p.nombre);
-    for (const candado of ["angel_guardian", "aviso_de_stock",
+    for (const candado of ["angel_guardian", "guardian_no_vende_solo", "aviso_de_stock",
       "sin_preguntas_prohibidas", "sin_json_crudo", "sin_numeros_de_cotizacion"]) {
       expect(seguimiento, candado).toContain(candado);
     }
