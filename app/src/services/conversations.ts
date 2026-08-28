@@ -2,6 +2,7 @@ import { sql } from "../db/client.js";
 import { config } from "../config.js";
 import { isStage, type Stage } from "../domain/pipeline.js";
 import { franjaHoraria } from "../domain/diasEnEspanol.js";
+import { esMismaVisitaPorSilencio } from "../domain/medidaPedida.js";
 import { cancelPendingFollowUps, scheduleConversationFollowUps } from "./followUps.js";
 import { emitLiveEvent } from "./liveEvents.js";
 
@@ -44,7 +45,12 @@ export async function getOrCreateConversation(
     returning id, phone, name, stage, bot_paused_until, status, current_cycle
   `;
   if (row.status === "closed" && reabrirSiCerrada) {
-    return reopenConversation(row.id, "customer", "Nuevo mensaje después de un cierre");
+    return reopenConversation(
+      row.id,
+      "customer",
+      "Nuevo mensaje después de un cierre",
+      { conservarFichaSiEsMismaVisita: true },
+    );
   }
   return row;
 }
@@ -53,7 +59,17 @@ export async function reopenConversation(
   conversationId: number,
   actor: "customer" | "bot" | "owner" | "system" = "system",
   reason = "Nueva oportunidad comercial",
+  options: { conservarFichaSiEsMismaVisita?: boolean; ahora?: Date } = {},
 ): Promise<Conversation> {
+  const [antesDeReabrir] = await sql<{ last_customer_message_at: Date | null }[]>`
+    select last_customer_message_at
+    from conversations
+    where id = ${conversationId} and status = 'closed'
+  `;
+  const conservarFicha = Boolean(
+    options.conservarFichaSiEsMismaVisita
+    && esMismaVisitaPorSilencio(antesDeReabrir?.last_customer_message_at, options.ahora),
+  );
   await sql`
     insert into sales_history (
       conversation_id, cycle, outcome, reason, tire_size, vehicle,
@@ -79,10 +95,17 @@ export async function reopenConversation(
     update conversations
     set current_cycle = current_cycle + 1,
         stage = 'nuevo', status = 'open', assigned_to = 'bot',
-        bot_paused_until = null, tire_size = null, vehicle = null,
-        vehicle_year = null,
+        bot_paused_until = null,
+        -- Conv 11274, 27-ago-2026: cuatro minutos después del cierre, borrar
+        -- medida, carro y local hizo que el bot interrogara de nuevo a quien
+        -- todavía estaba en la misma compra. Solo estos datos describen al
+        -- cliente; todo lo firmado o prometido en el ciclo sí caduca abajo.
+        tire_size = case when ${conservarFicha} then tire_size else null end,
+        vehicle = case when ${conservarFicha} then vehicle else null end,
+        vehicle_year = case when ${conservarFicha} then vehicle_year else null end,
         selected_product_code = null, selected_quantity = null,
-        location_label = null, nearest_store = null,
+        location_label = case when ${conservarFicha} then location_label else null end,
+        nearest_store = case when ${conservarFicha} then nearest_store else null end,
         pickup_date = null, visit_date = null, visit_time_label = null,
         offer_expires_at = null,
         savings_amount = null, customer_commitment = null,

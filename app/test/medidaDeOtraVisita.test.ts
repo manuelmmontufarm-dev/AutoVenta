@@ -31,7 +31,8 @@
  */
 import { describe, expect, it } from "vitest";
 import {
-  HORAS_QUE_CIERRAN_LA_VISITA, medidaEstaPedida, medidasPermitidas, mensajesDeLaVisitaActual,
+  esMismaVisitaPorSilencio, HORAS_QUE_CIERRAN_LA_VISITA, medidaEstaPedida,
+  medidasPermitidas, mensajesDeLaVisitaActual,
 } from "../src/domain/medidaPedida.js";
 import { sinNumerosDeCotizacion, tieneNumeroDeCotizacion } from "../src/domain/numerosDeCotizacion.js";
 
@@ -80,6 +81,8 @@ describe("la compra de hace dos semanas no es la de hoy", () => {
     ];
     expect(mensajesDeLaVisitaActual(casi)).toHaveLength(2);
     expect(mensajesDeLaVisitaActual(pasado)).toHaveLength(1);
+    expect(esMismaVisitaPorSilencio(casi[1].created_at, casi[0].created_at)).toBe(true);
+    expect(esMismaVisitaPorSilencio(pasado[1].created_at, pasado[0].created_at)).toBe(false);
   });
 
   it("una fecha ilegible no corta la visita", () => {

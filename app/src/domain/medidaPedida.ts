@@ -68,6 +68,27 @@ export function medidasPermitidas(
 export const HORAS_QUE_CIERRAN_LA_VISITA = 12;
 
 /**
+ * ¿Dos momentos siguen perteneciendo a la misma visita comercial?
+ *
+ * Comparte el corte de `mensajesDeLaVisitaActual`; no hay otro reloj escondido
+ * para la ficha de la conversación. Una fecha ausente o ilegible no alcanza
+ * para conservar datos viejos al abrir un ciclo nuevo. Exactamente 12 horas
+ * todavía entran: igual que en la lista de mensajes, el corte ocurre cuando el
+ * silencio es MAYOR al límite.
+ */
+export function esMismaVisitaPorSilencio(
+  ultimoMensaje: Date | string | null | undefined,
+  ahora: Date = new Date(),
+  horasDeCorte: number = HORAS_QUE_CIERRAN_LA_VISITA,
+): boolean {
+  if (!ultimoMensaje) return false;
+  const ultimoMs = new Date(ultimoMensaje).getTime();
+  const ahoraMs = ahora.getTime();
+  if (!Number.isFinite(ultimoMs) || !Number.isFinite(ahoraMs)) return false;
+  return ahoraMs - ultimoMs <= horasDeCorte * 3_600_000;
+}
+
+/**
  * Los mensajes de la visita que está pasando AHORA: se recorre del más nuevo al
  * más viejo y se corta en el primer silencio largo. Lo de antes de ese silencio
  * es otra compra y no dice nada sobre esta.

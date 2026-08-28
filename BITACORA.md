@@ -32,6 +32,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-08-27 | _(este mismo)_ | Reabrir a los minutos conserva la medida, el carro y el local; después de 12 h sí empieza otra visita | 0.75 |
 | 2026-08-27 | _(este mismo)_ | La vitrina solo recomienda juegos completos y una compra ajena termina sin mapas ni piezas | 1.5 |
 | 2026-08-27 | _(este mismo)_ | El guardián sigue fallando abierto, pero nunca más sin fila ni alerta | 0.75 |
 | 2026-08-27 | _(este mismo)_ | El Ángel Guardián vuelve a revisar: ya no arma ofertas nuevas con el catálogo | 1.75 |
@@ -186,11 +187,38 @@ Ya viene activado en este equipo.
 | 2026-07-14 | ac09171 | Ubicaciones de locales + análisis de features del cliente | 1.5 |
 | 2026-07-13 | feadf57 | Brief + plan de desarrollo + plan financiero + catálogo | 4.0 |
 | 2026-07-13 | d997844 | Commit inicial (repo) | 0.25 |
-| | | **TOTAL** | **~127.25 h** |
+| | | **TOTAL** | **~131.5 h** |
 
 ---
 
 ## Entradas (más reciente primero)
+
+### 2026-08-27 · Cerrar el ciclo ya no borra una visita que sigue viva · ⏱️ 0.75 h
+
+**Qué.** La reapertura causada por un mensaje nuevo conserva `tire_size`,
+`vehicle`, `vehicle_year`, `location_label` y `nearest_store` cuando el último
+mensaje del cliente fue hace 12 horas o menos. Producto, cantidad, compromiso,
+fecha, ahorro, oferta y las demás promesas del ciclo se siguen limpiando.
+`/restart` y la reapertura manual siguen empezando de cero aunque haya actividad
+reciente.
+
+El corte sale de la misma fuente que ya limita las medidas cotizables:
+`HORAS_QUE_CIERRAN_LA_VISITA`. `esMismaVisitaPorSilencio` vuelve explícito que
+exactamente 12 horas todavía pertenecen a la visita y que una fecha ausente o
+ilegible no autoriza a arrastrar la ficha.
+
+**Por qué.** Conv 11274 tenía cotización viva en 255/70R16 y, cuatro minutos
+después de un cierre, el bot volvió a pedir la medida porque la reapertura había
+puesto 19 campos en `null`. Conservar todo para siempre tampoco era seguro:
+conv 4732 volvió 13 días después por otro carro y otra medida. La frontera no es
+«cerrado/abierto», sino el silencio que separa dos compras.
+
+**Pruebas.** En rojo, 1/3 falló: la reapertura a los cuatro minutos devolvía
+`null` para medida, vehículo, año y ambos datos del local. Los controles tardío
+y `/restart` ya pasaban. Después: 14/14 entre la integración nueva y el candado
+de medidas; `tsc --noEmit` limpio.
+
+---
 
 ### 2026-08-27 · No se ofrece un juego que no se puede completar · ⏱️ 1.5 h
 
