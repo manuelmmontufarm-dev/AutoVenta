@@ -32,6 +32,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-08-27 | _(este mismo)_ | El guardián sigue fallando abierto, pero nunca más sin fila ni alerta | 0.75 |
 | 2026-08-27 | _(este mismo)_ | El Ángel Guardián vuelve a revisar: ya no arma ofertas nuevas con el catálogo | 1.75 |
 | 2026-08-27 | _(este mismo)_ | Auditoría de 1.244 conversaciones: 151 clientes callados para siempre, y el tuteo de los seguimientos | 3.0 |
 | 2026-08-27 | _(este mismo)_ | «Santo Domingo» no es domingo, el mapa no espera turno, y la vitrina vieja no se re-etiqueta | 2.5 |
@@ -189,6 +190,33 @@ Ya viene activado en este equipo.
 ---
 
 ## Entradas (más reciente primero)
+
+### 2026-08-27 · Fallar abierto ya no es fallar en silencio · ⏱️ 0.75 h
+
+**Qué.** Cuando el Ángel Guardián está activo y agota el tiempo o lanza una
+excepción, el borrador sigue saliendo —la venta no depende del revisor—, pero
+ahora se inserta una fila `guardian_reviews` con veredicto `sin_revision`, texto
+original, latencia y causa. En paralelo se abre una alerta alta
+`guardian_sin_revision`; las dos escrituras son independientes y ninguna puede
+bloquear el mensaje.
+
+El timeout pasa de 12 a 15 segundos. La medición del 26-ago fue p90=10,6 s,
+p95=11,1 s y máxima=12,3 s: 12 s cortaba dentro de la cola real y dejó 31/496
+mensajes sin revisar. Quince cubre la máxima observada con 2,7 s de margen sin
+dejar que un proveedor caído retenga indefinidamente una respuesta.
+
+**Por qué.** Un `console.warn` se pierde al reiniciar Railway y no permite ni
+contar ni abrir el chat que salió sin segunda defensa. La fila mide la tasa real;
+la alerta le da al asesor una acción. El fail-open se conserva porque un
+guardián caído no puede tumbar la venta.
+
+**Pruebas.** La integración fuerza un timeout de 8 ms. En rojo, el borrador sí
+salía pero no existía fila (`expected undefined to be sin_revision`). Primera
+vuelta del arreglo: la fila y la alerta aparecieron, pero el tipo de OpenAI era
+demasiado ancho y el detalle no nombraba el tiempo máximo. Segunda vuelta:
+8/8 focalizadas y `tsc --noEmit` limpio.
+
+---
 
 ### 2026-08-27 · El Ángel Guardián ya no vende por su cuenta · ⏱️ 1.75 h
 

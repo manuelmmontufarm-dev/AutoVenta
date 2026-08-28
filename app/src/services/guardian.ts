@@ -53,8 +53,15 @@ import { JUEGO_COMPLETO, opcionesQueAlcanzan } from "../domain/opcionesCandados.
 
 const openai = new OpenAI({ apiKey: config.openai.apiKey });
 
-/** Tiempo máximo de la revisión. Pasado esto, gana el borrador original. */
-const TIMEOUT_MS = 12_000;
+/**
+ * Tiempo máximo de la revisión. Pasado esto, gana el borrador original.
+ *
+ * Medición del 26-ago-2026: p90=10,6 s, p95=11,1 s y máxima=12,3 s. El corte
+ * viejo de 12 s estaba dentro de la cola real y dejó 31/496 mensajes sin
+ * revisar. Quince segundos cubren esa máxima con 2,7 s de margen sin permitir
+ * que un revisor caído frene indefinidamente la venta.
+ */
+export const GUARDIAN_TIMEOUT_MS = 15_000;
 
 /** Mensajes de contexto que ve el revisor. Más historia ≈ más tokens del cliente. */
 const MENSAJES_DE_CONTEXTO = 16;
@@ -223,6 +230,74 @@ export interface OpcionesRevision {
    * sale tras el silencio del cliente y que hasta el 26-ago no se revisaba.
    */
   tipo?: "respuesta" | "seguimiento";
+}
+
+type RespuestaOpenAI = OpenAI.Chat.Completions.ChatCompletion;
+
+/** Inyección mínima para poder probar un timeout real sin esperar 15 segundos. */
+export interface DependenciasGuardian {
+  timeoutMs?: number;
+  completar?: () => Promise<RespuestaOpenAI>;
+}
+
+async function conTiempoMaximo<T>(promesa: Promise<T>, timeoutMs: number): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  try {
+    return await Promise.race([
+      promesa,
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(
+          () => reject(new Error(`Guardián sin respuesta en ${timeoutMs} ms`)),
+          timeoutMs,
+        );
+      }),
+    ]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
+async function registrarFalloAbierto(input: {
+  conversation: { id: number; current_cycle: number };
+  borrador: string;
+  model: string;
+  latencyMs: number;
+  timeoutMs: number;
+  error: unknown;
+}): Promise<void> {
+  const mensaje = input.error instanceof Error ? input.error.message : String(input.error);
+  const fueTimeout = /sin respuesta|timeout|timed out/i.test(mensaje);
+  const detalle = fueTimeout
+    ? `Mensaje enviado sin revisión: el guardián agotó el tiempo máximo de ${input.timeoutMs} ms.`
+    : `Mensaje enviado sin revisión: el guardián falló (${mensaje.slice(0, 180)}).`;
+  const hallazgos = [{ categoria: "otro", severidad: "alta", detalle }] as const;
+
+  // 27-ago-2026: 31/496 mensajes fallaron abierto y no dejaron ni fila ni
+  // alerta. Las dos escrituras son independientes: si una falla, la otra puede
+  // conservar el rastro. Ninguna puede bloquear el mensaje al cliente.
+  await Promise.allSettled([
+    sql`
+      insert into guardian_reviews (
+        conversation_id, cycle, model, verdict, findings, original_text,
+        corrected_text, latency_ms
+      ) values (
+        ${input.conversation.id}, ${input.conversation.current_cycle}, ${input.model},
+        'sin_revision', ${sql.json(hallazgos as never)}, ${input.borrador}, null,
+        ${input.latencyMs}
+      )
+    `,
+    createBotAlert({
+      conversationId: input.conversation.id,
+      cycle: input.conversation.current_cycle,
+      type: "guardian_sin_revision",
+      priority: "high",
+      summary: "Un mensaje salió sin revisar por el Ángel Guardián",
+      exactReason: `${detalle} El borrador que salió fue: «${input.borrador.slice(0, 220)}».`,
+      suggestedAction:
+        "Revisa este turno: el bot siguió contestando, pero la segunda línea de defensa no estuvo disponible.",
+      dedupeKey: `guardian_sin_revision:${input.conversation.id}:${input.conversation.current_cycle}`,
+    }),
+  ]);
 }
 
 /**
@@ -473,18 +548,22 @@ export async function revisarConGuardian(
   borrador: string,
   huella: readonly HuellaHerramienta[] = [],
   opciones: OpcionesRevision = {},
+  dependencias: DependenciasGuardian = {},
 ): Promise<RevisionGuardian> {
   const sinRevision: RevisionGuardian = { texto: borrador, veredicto: "sin_revision", hallazgos: [] };
+  let activo = false;
+  let inicio = Date.now();
+  const timeoutMs = dependencias.timeoutMs ?? GUARDIAN_TIMEOUT_MS;
   try {
     const cfg = await getGuardianConfig();
     if (!cfg.activo) return sinRevision;
+    activo = true;
 
-    const inicio = Date.now();
+    inicio = Date.now();
     const contexto = await armarContexto(
       conversation.id, conversation.current_cycle, borrador, huella, opciones,
     );
-    const respuesta = await Promise.race([
-      openai.chat.completions.create({
+    const completar = dependencias.completar ?? (() => openai.chat.completions.create({
         model: config.openai.guardianModel,
         messages: [
           { role: "system", content: INSTRUCCIONES },
@@ -492,10 +571,9 @@ export async function revisarConGuardian(
         ],
         response_format: ESQUEMA_SALIDA as never,
         max_completion_tokens: 1200,
-      }),
-      new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error(`Guardián sin respuesta en ${TIMEOUT_MS} ms`)), TIMEOUT_MS)),
-    ]);
+        stream: false,
+      }));
+    const respuesta = await conTiempoMaximo(completar(), timeoutMs);
     const ms = Date.now() - inicio;
     const texto = respuesta.choices[0]?.message?.content ?? "";
     const revision = aplicarVeredicto(borrador, texto ? JSON.parse(texto) : null);
@@ -568,6 +646,16 @@ export async function revisarConGuardian(
     return revision;
   } catch (error) {
     console.warn("👼 Guardián falló abierto (se envía el borrador):", error instanceof Error ? error.message : error);
+    if (activo) {
+      await registrarFalloAbierto({
+        conversation,
+        borrador,
+        model: config.openai.guardianModel,
+        latencyMs: Date.now() - inicio,
+        timeoutMs,
+        error,
+      });
+    }
     return sinRevision;
   }
 }
