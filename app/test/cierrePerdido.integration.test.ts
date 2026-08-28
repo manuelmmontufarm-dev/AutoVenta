@@ -1,5 +1,5 @@
 import postgres from "postgres";
-import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 /**
  * EL SALVAVIDAS, CON EL CLASIFICADOR FORZADO A DECIR «PERDIDO».
@@ -28,13 +28,14 @@ const admin = postgres("postgresql://manue@localhost/postgres", { prepare: false
 await admin.unsafe(`drop database if exists ${BASE}`);
 await admin.unsafe(`create database ${BASE}`);
 
-/** El clasificador siempre dice «perdido»: es el peor caso posible. */
+/** La respuesta del modelo se puede forzar: el candado debe ganarle. */
+const respuestaClasificador = vi.hoisted(() => ({ stage: "perdido" }));
 vi.mock("openai", () => ({
   default: class {
     chat = {
       completions: {
         create: async () => ({
-          choices: [{ message: { content: JSON.stringify({ stage: "perdido" }) } }],
+          choices: [{ message: { content: JSON.stringify({ stage: respuestaClasificador.stage }) } }],
           usage: { prompt_tokens: 1, completion_tokens: 1 },
         }),
       },
@@ -62,6 +63,7 @@ const estado = (id: number) => sql<{ stage: string; status: string; tire_size: s
 `;
 
 beforeAll(async () => { await ensureSchema(); });
+beforeEach(() => { respuestaClasificador.stage = "perdido"; });
 afterAll(async () => {
   await sql.end();
   await admin.unsafe(`drop database if exists ${BASE}`);
@@ -102,5 +104,16 @@ describe.sequential("el clasificador no cierra una venta por una queja de precio
     const fila = await conversacionConCotizacion("593980007006");
     await classifyStage(fila as never, "ya compre en otro lado", "…");
     expect((await estado(fila.id))[0].stage).toBe("perdido");
+  });
+
+  it("conv 11818: aunque la IA diga ganado, comprar en Ibarra queda perdido", async () => {
+    respuestaClasificador.stage = "ganado";
+    const fila = await conversacionConCotizacion("593980007007");
+
+    await classifyStage(fila as never, "Ya Ise el pedido aquí en Ibarra gracias", "…");
+
+    const [despues] = await estado(fila.id);
+    expect(despues.stage).toBe("perdido");
+    expect(despues.status).toBe("closed");
   });
 });

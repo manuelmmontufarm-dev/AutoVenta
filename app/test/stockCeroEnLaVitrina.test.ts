@@ -9,7 +9,14 @@ const R330 = { code: "R330", stock: 0 };    // «Sin stock»
 
 describe("la vitrina no muestra lo que no se puede comprar", () => {
   it("con ninguna que alcance, solo salen las que TIENEN algo", () => {
-    expect(opcionesQueAlcanzan([KR20, KR203, R330], JUEGO_COMPLETO)).toEqual([KR20]);
+    expect(opcionesQueAlcanzan([KR20, KR203, R330], JUEGO_COMPLETO)).toEqual([]);
+  });
+
+  it("conv 11818: ni 2 ni 3 alcanzan para ofrecer cotizar un juego de 4", () => {
+    expect(opcionesQueAlcanzan([
+      { code: "KR33", stock: 3 },
+      { code: "KR203", stock: 2 },
+    ], JUEGO_COMPLETO)).toEqual([]);
   });
 
   it("si ninguna tiene stock, la lista vuelve vacía y no se dibuja nada", () => {

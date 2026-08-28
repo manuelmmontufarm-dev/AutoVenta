@@ -75,6 +75,7 @@ import { extractExplicitStore, preguntamosElLocal } from "./domain/storeSelectio
 import { tryDirectSalesRoute } from "./services/directSalesRoutes.js";
 import { tryRecotizarPorCantidad } from "./services/recotizar.js";
 import { firstContactReply, isGenericFirstContact } from "./domain/firstContact.js";
+import { despedidaQueCorresponde } from "./domain/cierrePerdido.js";
 import { botonesParaBloque, recortarTitulo, textoDeBoton, type BloqueConBotones } from "./domain/botones.js";
 import { esComandoDeReinicio, MENSAJE_DE_REINICIO } from "./domain/reinicio.js";
 import { algunLocalAbre, getStoreHours } from "./services/settings.js";
@@ -264,25 +265,34 @@ const pipeline = new InboundPipeline(async ({ from, name, text, waMessageIds, re
   const isFirstGenericMessage = conversation.stage === "nuevo"
     && previousOutbound === null
     && isGenericFirstContact(textoConLinks);
+  // Conv 11818, 27-ago-2026: «Ya Ise el pedido aquí en Ibarra gracias» terminó
+  // recibiendo los mapas. El candado de `prepararSalida` sí cambiaba el texto
+  // final por una despedida, pero una herramienta ya había mandado el mapa (y
+  // en el simulador, la guía de medida) antes de que ese candado pudiera verlo.
+  // Una salida terminal se reconoce aquí: las herramientas sirven para vender,
+  // y cuando el cliente ya compró en otro lado no deben ejecutarse siquiera.
+  const cierreAntesDeHerramientas = despedidaQueCorresponde(textoConLinks);
   // Un cambio de cantidad NO se contesta con palabras: sale la pieza nueva.
   // El 27-ago (conv 3) el modelo prometió el ajuste dos turnos seguidos sin
   // llamar una sola herramienta, y el cliente nunca supo cuánto costaban 3
   // llantas. Va ANTES de la ruta de visita porque «deme solo 3» no es una
   // respuesta sobre el local ni sobre el día. Ver services/recotizar.ts.
-  const directReply = isFirstGenericMessage
-    ? firstContactReply()
-    : (await tryRecotizarPorCantidad(
-        { conversation, customerPhone: from, customerName: name, previousOutbound },
-        textoConLinks,
-      ))
-      ?? await tryDirectSalesRoute(
-        { conversation, customerPhone: from, explicitStore, commitment },
-        textoConLinks,
-      );
+  const directReply = cierreAntesDeHerramientas
+    ? null
+    : isFirstGenericMessage
+      ? firstContactReply()
+      : (await tryRecotizarPorCantidad(
+          { conversation, customerPhone: from, customerName: name, previousOutbound },
+          textoConLinks,
+        ))
+        ?? await tryDirectSalesRoute(
+          { conversation, customerPhone: from, explicitStore, commitment },
+          textoConLinks,
+        );
   if (isFirstGenericMessage) {
     await logFunnelEvent(conversation.id, "respuesta_directa", { route: "first_contact" });
   }
-  const reply = directReply ?? await runAgent(agentContext, textoConLinks);
+  const reply = cierreAntesDeHerramientas ?? directReply ?? await runAgent(agentContext, textoConLinks);
   await flagRepetitiveConversation(conversation.id, reply);
 
   // Toda la cadena de candados vive en services/prepararSalida.ts, para que

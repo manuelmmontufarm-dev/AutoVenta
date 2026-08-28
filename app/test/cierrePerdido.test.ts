@@ -45,7 +45,18 @@ describe("un rechazo de verdad sí cierra", () => {
       "no me interesa", "ya no me interesa", "ya compre en otro lado",
       "gracias ya compre en otro lugar", "deje de escribirme", "no me escriban mas",
       "ya no necesito", "consegui en otra llantera",
+      "Ya Ise el pedido aquí en Ibarra gracias",
+      "Ya conseguí acá en manabi",
     ]) expect(puedeCerrarComoPerdido(texto), texto).toBe(true);
+  });
+
+  it("nombrar otra ciudad sin una compra hecha no cierra", () => {
+    for (const texto of [
+      "hice la cotización acá en Cayambe",
+      "estoy aquí en Ibarra",
+      "ya compré con ustedes acá en Cumbayá",
+      "ya hice el pedido con Depot Tire",
+    ]) expect(puedeCerrarComoPerdido(texto), texto).toBe(false);
   });
 
   /**
@@ -78,6 +89,8 @@ describe("un rechazo de verdad sí cierra", () => {
   it("la despedida cambia según haya comprado o no", () => {
     expect(despedidaQueCorresponde("Gracias ya compré en otro lugar"))
       .toBe(DESPEDIDA_VENTA_PERDIDA);
+    expect(despedidaQueCorresponde("Ya Ise el pedido aquí en Ibarra gracias"))
+      .toBe(DESPEDIDA_VENTA_PERDIDA);
     expect(despedidaQueCorresponde("no me interesa")).toBe(DESPEDIDA_SIN_COMPRA);
     // Y la conversación viva no tiene despedida: null es «seguí vendiendo».
     expect(despedidaQueCorresponde("esta muy caro")).toBeNull();
@@ -109,6 +122,8 @@ describe("comprar en otro lado no es una venta ganada", () => {
     for (const texto of [
       "ya compre en otro lado", "ya compre con otro",
       "ya compre en otra llantera", "ya las compre en otra parte",
+      "Ya Ise el pedido aquí en Ibarra gracias",
+      "Ya conseguí acá en manabi",
     ]) expect(isExplicitPurchaseConfirmation(texto), texto).toBe(false);
   });
 

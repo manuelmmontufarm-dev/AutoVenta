@@ -27,6 +27,18 @@ export async function classifyStage(
     });
     return;
   }
+  // Conv 11818, 27-ago-2026: «Ya Ise el pedido aquí en Ibarra gracias» es una
+  // venta perdida, pero el clasificador leyó «ya hice el pedido» y la marcó
+  // como GANADA. Esta frontera ya es determinística para decidir si se puede
+  // cerrar y para impedir mapas; también manda sobre el nombre de la etapa. No
+  // gastamos una llamada de IA para volver a discutir un cierre rotundo.
+  if (puedeCerrarComoPerdido(userText)) {
+    await setStage(conversation.id, "perdido", {
+      actor: "customer",
+      reason: "Cliente rechazó continuar o compró en otro lugar",
+    });
+    return;
+  }
   try {
     const response = await openai.chat.completions.create({
       model: config.openai.classifierModel,

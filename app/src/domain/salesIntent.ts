@@ -1,4 +1,5 @@
 import { cantidadGrandePedida } from "./cantidadGrande.js";
+import { comproEnOtroLugar } from "./cierrePerdido.js";
 /** Guardas deterministas del flujo: el LLM no puede saltárselas. */
 
 export function isComparisonRequest(text: string): boolean {
@@ -18,7 +19,7 @@ const EN_OTRO_LADO = /\b(?:en|con|a)\s+(?:otro|otra)\s+(?:lado|lugar|parte|tiend
 
 export function isExplicitPurchaseConfirmation(text: string): boolean {
   const normalized = normalize(text);
-  if (EN_OTRO_LADO.test(normalized)) return false;
+  if (EN_OTRO_LADO.test(normalized) || comproEnOtroLugar(text)) return false;
   return /\b(ya (?:las? )?compr[eé]|acabo de comprar|ya pagu[eé]|compra (?:hecha|realizada)|pago realizado)\b/.test(
     normalized,
   );

@@ -32,6 +32,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-08-27 | _(este mismo)_ | La vitrina solo recomienda juegos completos y una compra ajena termina sin mapas ni piezas | 1.5 |
 | 2026-08-27 | _(este mismo)_ | El guardián sigue fallando abierto, pero nunca más sin fila ni alerta | 0.75 |
 | 2026-08-27 | _(este mismo)_ | El Ángel Guardián vuelve a revisar: ya no arma ofertas nuevas con el catálogo | 1.75 |
 | 2026-08-27 | _(este mismo)_ | Auditoría de 1.244 conversaciones: 151 clientes callados para siempre, y el tuteo de los seguimientos | 3.0 |
@@ -190,6 +191,51 @@ Ya viene activado en este equipo.
 ---
 
 ## Entradas (más reciente primero)
+
+### 2026-08-27 · No se ofrece un juego que no se puede completar · ⏱️ 1.5 h
+
+**Qué.** `opcionesQueAlcanzan` deja de bajar el listón a 2–3 cuando el cliente
+pide 4. La recomendación ya se elegía después de ese filtro; lo incorrecto era
+que el propio filtro llamaba “vendible” a una opción que no completaba la
+compra. Si ninguna alcanza, no hay pieza ni pregunta «¿Le cotizo el juego?»:
+se ofrece pedido por asesor o una alternativa.
+
+La compra ajena gana una sola fuente: `comproEnOtroLugar`. Además de «compré en
+otro lado», entiende «Ya Ise el pedido aquí en Ibarra» (conv 11818) y «Ya
+conseguí acá en manabi» (conv 7085), sin confundir «hice la cotización acá en
+Cayambe» ni una compra con Depot. La usan el cierre perdido y el conteo de
+compra ganada. En `prepararSalida`, una despedida de venta perdida queda marcada
+como salida terminal: ningún paso posterior puede anexarle mapas, preguntas ni
+descuento. La reproducción completa encontró una puerta anterior a ese candado:
+una herramienta podía mandar por su cuenta un mapa o una imagen antes de que
+existiera texto final para limpiar. El turno normal ahora reconoce la despedida
+antes de las rutas directas y de `runAgent`; una venta ya perdida no ejecuta
+herramientas con efectos laterales.
+
+**Por qué.** Conv 11818: el bot recomendó KENDA KR203, pidió permiso para
+cotizar el juego de 4, recibió «Ok» y recién entonces negó stock. El cliente
+compró en Ibarra 50 segundos después y todavía recibió los mapas de Depot. El
+primer error era una frontera de stock demasiado permisiva; el segundo, una
+despedida que no detenía la cadena.
+
+**Pruebas.** En rojo: 5 fallos textuales —stock 2/3 todavía entraba, la frase de
+Ibarra no cerraba y la cadena anexaba ambos links de Maps. La primera vuelta del
+arreglo dejó una prueba vieja en rojo porque fijaba la política reemplazada de
+«bajar hasta la mitad»; no se apagó, se cambió para exigir el contrato nuevo y
+se agregaron controles de ciudad/compra. La suite completa encontró una segunda
+prueba con esa misma política vieja en `cierreDespuesDeCotizar`; también se
+actualizó para exigir lista vacía, con la razón de la conv 11818 escrita al lado.
+Resultado focalizado: 64/64 iniciales más 21/21 del cierre; `tsc --noEmit` limpio.
+En la primera vuelta del simulador el texto quedó bien, pero salió antes la guía
+de medida: el mecanismo todavía estaba roto. La regresión nueva falló 1/3 porque
+el corte previo no existía; después quedaron 43/43 pruebas de cierre y TypeScript
+limpio. Al repetir, la despedida salió sola pero la IA clasificó como ganada la
+compra en Ibarra. La integración la forzó a responder `ganado` y falló 1/5; la
+misma frontera ahora fija `perdido` antes del clasificador. Cerró 48/48 con
+TypeScript limpio. Esa conversación se repite otra vez desde cero antes de
+publicar.
+
+---
 
 ### 2026-08-27 · Fallar abierto ya no es fallar en silencio · ⏱️ 0.75 h
 

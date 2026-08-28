@@ -11,7 +11,6 @@
  * La lógica vive aquí y no en tools.ts porque es pura (sin base ni catálogo) y
  * así se puede probar sin levantar nada.
  */
-import { alcanzaParaVender } from "./stockCorto.js";
 import { normalizarTipo } from "./tireTypes.js";
 
 /** Ventana en la que se considera que el cliente todavía tiene la pieza a mano. */
@@ -116,14 +115,15 @@ export const JUEGO_COMPLETO = 4;
  * medida con UNA unidad y el bot cotiza las 4 llantas de esa unidad» del 25-ago,
  * atacado un paso antes — en la vitrina y no en la caja.
  *
- * LA SALIDA DE EMERGENCIA BAJA EL LISTÓN, PERO NO HASTA CERO.
+ * La salida de emergencia que bajaba el listón fue retirada el 27-ago-2026.
+ * Antes devolvía lo que tuviera 2–3 aunque el pedido fuera 4: la pieza lo
+ * recomendaba, el cliente aceptaba y la caja recién entonces decía que no.
+ * Conv 11818: recomendó KENDA KR203, preguntó «¿Le cotizo el juego de 4?», el
+ * cliente dijo «Ok» y el turno siguiente negó stock. Compró en Ibarra 50 s
+ * después. Una vitrina que no completa la compra no es una vitrina vendible.
  *
- * Si al filtrar no queda ninguna se devuelven las que TENGAN algo, aunque no
- * alcancen: mostrar una de la que hay dos es discutible —para eso existe el
- * aviso de stock corto— y el stock de Contífico viene desfasado, así que
- * negarse pierde la venta justo cuando en bodega sí están.
- *
- * Pero antes devolvía TODAS, y ahí se colaba el cero. Producción, 27-ago-2026,
+ * La salida anterior incluso devolvía TODO cuando no quedaba ninguna, y ahí se
+ * colaba el cero. Producción, 27-ago-2026,
  * conv 11302 (Enrique Molina, 195/55R15): a las 21:01 la KENDA KR20 alcanzaba y
  * la pieza salió con ESA SOLA, correcto. Para las 14:02 el stock había bajado
  * de cuatro, el filtro quedó vacío, y la red de emergencia devolvió las tres —
@@ -131,23 +131,14 @@ export const JUEGO_COMPLETO = 4;
  * puede comprar. Manuel: «¿por qué mandaría eso? va en contra de toda la
  * lógica».
  *
- * Y BAJARLO HASTA UNO TAMPOCO SERVÍA. El mismo día, conv 11720: en 215/50R17
- * la única KENDA KR20 tenía UNA unidad, la red la dejó entrar, y de esa
- * vitrina salió una cotización firmada por 4 × $105.88 = $423.52. La red no
- * baja el listón hasta «que tenga algo»: lo baja hasta `alcanzaParaVender`, la
- * mitad de lo pedido, que es donde el desfase de Contífico deja de ser una
- * explicación creíble. Ver `domain/stockCorto.ts`.
- *
- * Cero no es «poco»: es que no hay. Y si no queda ninguna vendible, la lista
- * vuelve VACÍA a propósito — el llamador tiene que decirle al cliente que en
- * esa medida no hay, no dibujarle una pieza de llantas que no existen.
+ * El stock desfasado se escala al asesor; no se resuelve prometiéndole al
+ * cliente un juego que el dato duro no completa. Si no queda ninguna, la lista
+ * vuelve VACÍA a propósito y el llamador ofrece pedido o alternativa.
  */
 export function opcionesQueAlcanzan<T extends { stock?: number | null }>(
   productos: readonly T[],
   cantidadPedida: number = JUEGO_COMPLETO,
 ): T[] {
   const minimo = Math.max(1, Math.round(cantidadPedida));
-  const alcanzan = productos.filter((p) => Number(p.stock ?? 0) >= minimo);
-  if (alcanzan.length) return alcanzan;
-  return productos.filter((p) => alcanzaParaVender(Number(p.stock ?? 0), minimo));
+  return productos.filter((p) => Number(p.stock ?? 0) >= minimo);
 }

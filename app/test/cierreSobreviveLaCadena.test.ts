@@ -60,6 +60,7 @@ let prepararSalida: typeof import("../src/services/prepararSalida.js").prepararS
  *  variables de entorno en cuanto se lo importa. */
 let CIERRE_COTIZAR: string;
 let EL_CIERRE_DE_LA_CASA: string;
+let DESPEDIDA_VENTA_PERDIDA: string;
 
 async function conversacionHuerfana(telefono: string, texto: string): Promise<number> {
   const [conv] = await appSql<{ id: number; current_cycle: number }[]>`
@@ -92,6 +93,7 @@ describe.sequential("el cierre nuevo sobrevive a la cadena entera", () => {
     resumeBot = await import("../src/services/resumeBot.js");
     prepararSalida = (await import("../src/services/prepararSalida.js")).prepararSalida;
     CIERRE_COTIZAR = (await import("../src/domain/preguntasProhibidas.js")).CIERRE_COTIZAR;
+    DESPEDIDA_VENTA_PERDIDA = (await import("../src/domain/cierrePerdido.js")).DESPEDIDA_VENTA_PERDIDA;
     EL_CIERRE_DE_LA_CASA = (await import("../src/services/quoteMessages.js")).buildCierreOpciones({
       // `entregarRecomendacion` es la rama de la recomendación; sin él la
       // plantilla devuelve el menú de preferencia, que no lleva este cierre.
@@ -149,5 +151,20 @@ describe.sequential("el cierre nuevo sobrevive a la cadena entera", () => {
       expect(salida.texto ?? "", tipo).not.toMatch(/cotizo por 6/i);
       expect(salida.texto ?? "", tipo).toContain("FALKEN");
     }
+  });
+
+  it("conv 11818: «ya hice el pedido en Ibarra» termina en despedida, sin mapas después", async () => {
+    const salida = await prepararSalida(
+      "Listo, gracias por avisarnos. En 205/60R13 no le genero otra cotización. 🤝",
+      {
+        conversation: { id: 3, current_cycle: 1, stage: "seguimiento_venta" },
+        tipo: "respuesta",
+        textoDelCliente: "Ya Ise el pedido aquí en Ibarra gracias",
+      },
+    );
+
+    expect(salida.texto).toBe(DESPEDIDA_VENTA_PERDIDA);
+    expect(salida.texto).not.toContain("maps.app.goo.gl");
+    expect(salida.pasosCorridos.at(-1)).toBe("despedida_de_venta_perdida");
   });
 });

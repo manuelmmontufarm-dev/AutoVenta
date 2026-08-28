@@ -140,14 +140,14 @@ describe("no se ofrece lo que no alcanza para la compra", () => {
     expect(opcionesQueAlcanzan(productos, 8).map((p) => p.code)).toEqual(["A"]);
   });
 
-  it("EL BORDE QUE IMPORTA: si nada alcanza, se muestra lo que llega a la mitad", () => {
-    // Quedarse sin opciones es peor que mostrar una de la que hay pocas: el
-    // stock de Contífico viene desfasado y ahí entra el aviso de stock corto.
-    // Pero «pocas» tiene un piso. 27-ago, conv 11720: la red dejaba entrar la
-    // de UNA unidad y de esa vitrina salió una cotización firmada por 4 a
-    // $423.52. Con 4 pedidas, 2 todavía es desfase creíble y 1 ya no lo es.
+  it("EL BORDE QUE IMPORTA: si nada completa la compra, la vitrina queda vacía", () => {
+    // Esta prueba conservaba la política anterior: dejar entrar 2 de 4 como
+    // «desfase creíble». Conv 11818, 27-ago-2026, demostró el costo: la vitrina
+    // recomendó una llanta, preguntó si cotizaba el juego y recién después del
+    // «Ok» confesó que no alcanzaba. El cliente compró en Ibarra 50 s después.
+    // El desfase se escala al asesor; no se convierte en una oferta incompleta.
     const pocas = [llanta("B", 2), llanta("D", 1)];
-    expect(opcionesQueAlcanzan(pocas).map((p) => p.code)).toEqual(["B"]);
+    expect(opcionesQueAlcanzan(pocas).map((p) => p.code)).toEqual([]);
   });
 
   it("y si NINGUNA llega a la mitad, la lista vuelve vacía", () => {

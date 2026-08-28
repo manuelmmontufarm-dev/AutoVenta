@@ -60,6 +60,26 @@ const COMPRO_EN_OTRO_LADO =
   /\b(?:compre|comprado|consegui|encontre|adquiri|pedi|puse|cambie|monte)\b[^.!?]{0,40}\b(?:en otro|otro lugar|otro lado|otra parte|otra llantera|en otra)\b/;
 
 /**
+ * La compra quedó hecha «acá/aquí en» otra ciudad.
+ *
+ * Conv 11818, 27-ago-2026: «Ya Ise el pedido aquí en Ibarra gracias». No dice
+ * «otro lado», pero 50 segundos después de aceptar nuestra recomendación está
+ * avisando que ya compró allá. Conv 7085: «Ya conseguí acá en manabi». Se
+ * exige un verbo de compra o «hice/ise el pedido»: «hice la cotización acá en
+ * Cayambe» sigue siendo negociación. Y se excluyen los dos locales reales y
+ * «con ustedes/Depot», que son una venta ganada.
+ */
+const COMPRO_EN_OTRA_CIUDAD =
+  /\b(?:(?:ya\s+)?(?:hice|ise)\s+(?:el\s+)?pedido|(?:ya\s+)?(?:compre|consegui|adquiri|pedi|monte|cambie))\b[^.!?]{0,40}\b(?:aqui|aca)\s+en\s+(?!(?:cumbaya|quito\s+sur|depot)\b)/;
+
+/** Fuente única para cierre perdido y para no contar la compra como nuestra. */
+export function comproEnOtroLugar(mensajeDelCliente: string): boolean {
+  const n = normalizar(mensajeDelCliente);
+  if (/\b(?:con ustedes|en depot|depot tire)\b/.test(n)) return false;
+  return COMPRO_EN_OTRO_LADO.test(n) || COMPRO_EN_OTRA_CIUDAD.test(n);
+}
+
+/**
  * Quejarse del precio NUNCA cierra, ni con un «no» al lado.
  *
  * «No me alcanza» tiene un «no» y `isNegativeResponse` lo marca, pero es la
@@ -85,7 +105,7 @@ export function puedeCerrarComoPerdido(mensajeDelCliente: string): boolean {
   const n = normalizar(mensajeDelCliente);
   // Un rechazo rotundo manda siempre: si dice «no me interesa» aunque además
   // se queje del precio, se respeta.
-  if (RECHAZO_ROTUNDO.test(n) || COMPRO_EN_OTRO_LADO.test(n)) return true;
+  if (RECHAZO_ROTUNDO.test(n) || comproEnOtroLugar(n)) return true;
   // En la duda NO se cierra: dejar viva una conversación muerta la cierra el
   // asesor con un clic; cerrar una viva le borra el ciclo al cliente. Y en la
   // duda entra TODO lo demás — el no blando, la queja de precio, el «otro
@@ -124,7 +144,7 @@ export const DESPEDIDA_SIN_COMPRA =
  */
 export function despedidaQueCorresponde(mensajeDelCliente: string): string | null {
   const n = normalizar(mensajeDelCliente);
-  if (COMPRO_EN_OTRO_LADO.test(n)) return DESPEDIDA_VENTA_PERDIDA;
+  if (comproEnOtroLugar(n)) return DESPEDIDA_VENTA_PERDIDA;
   if (RECHAZO_ROTUNDO.test(n)) return DESPEDIDA_SIN_COMPRA;
   return null;
 }

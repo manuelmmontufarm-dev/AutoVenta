@@ -78,6 +78,8 @@ export interface ContextoDeSalida {
   textoDelCliente?: string | null;
   /** Estado interno de la cadena: el texto que recibió el Ángel Guardián. */
   textoAntesDelGuardian?: string;
+  /** Un cierre definitivo: ningún paso posterior puede anexar nada. */
+  salidaTerminal?: boolean;
 }
 
 export interface PasoDeSalida {
@@ -193,6 +195,11 @@ export const PASOS: readonly PasoDeSalida[] = [
     async aplicar(texto, ctx) {
       const despedida = despedidaQueCorresponde(ctx.textoDelCliente ?? "");
       if (!despedida) return texto;
+      // Conv 11818, 27-ago-2026: después de «ya hice el pedido aquí en Ibarra»
+      // la despedida recibió los mapas de Depot porque ubicación corre después.
+      // Marcarla terminal protege también de cualquier paso que se agregue en
+      // el futuro: después de una compra ajena no hay otro mensaje comercial.
+      ctx.salidaTerminal = true;
       if (texto.trim() === despedida) return texto;
       console.log(
         `👋 Venta perdida en la conv ${ctx.conversation.id}: se reemplazó el cierre por la despedida`,
@@ -403,11 +410,13 @@ export async function prepararSalida(
 ): Promise<SalidaPreparada> {
   let texto: string | null = borrador;
   const pasosCorridos: string[] = [];
+  ctx.salidaTerminal = false;
   for (const paso of pasosPara(ctx.tipo)) {
     if (!texto) break;
     pasosCorridos.push(paso.nombre);
     try {
       texto = await paso.aplicar(texto, ctx);
+      if (ctx.salidaTerminal) break;
     } catch (error) {
       console.error(`⚠️ El candado ${paso.nombre} falló en la conv ${ctx.conversation.id}:`, error);
     }

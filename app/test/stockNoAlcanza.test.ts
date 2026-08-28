@@ -68,8 +68,8 @@ describe("la vitrina no enseña lo que no se puede comprar", () => {
     expect(opcionesQueAlcanzan(opciones, 4).map((p) => p.code)).toEqual(["A"]);
   });
 
-  it("la red baja el listón hasta la mitad, no hasta uno", () => {
+  it("conv 11818 reemplaza la red vieja: si no completa el juego, no entra a la vitrina", () => {
     const opciones = [llanta("A", 3), llanta("B", 2), llanta("C", 1), llanta("D", 0)];
-    expect(opcionesQueAlcanzan(opciones, 4).map((p) => p.code)).toEqual(["A", "B"]);
+    expect(opcionesQueAlcanzan(opciones, 4).map((p) => p.code)).toEqual([]);
   });
 });
