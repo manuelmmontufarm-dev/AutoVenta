@@ -32,6 +32,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-08-29 | _(este mismo)_ | Kanban resumido en barras porcentuales con tickets desplegables | 1.0 |
 | 2026-08-29 | _(este mismo)_ | Prompt y herramientas cortos por fase operativa no lineal | 2.5 |
 | 2026-08-29 | _(este mismo)_ | Una sola política administrable: 49.663 caracteres de reglas repetidas bajan a 5.203 | 2.0 |
 | 2026-08-27 | _(este mismo)_ | La cantidad entra estructurada por la herramienta; las regex quedan de respaldo | 1.25 |
@@ -190,11 +191,33 @@ Ya viene activado en este equipo.
 | 2026-07-14 | ac09171 | Ubicaciones de locales + análisis de features del cliente | 1.5 |
 | 2026-07-13 | feadf57 | Brief + plan de desarrollo + plan financiero + catálogo | 4.0 |
 | 2026-07-13 | d997844 | Commit inicial (repo) | 0.25 |
-| | | **TOTAL** | **~137.5 h** |
+| | | **TOTAL** | **~138.5 h** |
 
 ---
 
 ## Entradas (más reciente primero)
+
+### 2026-08-29 · El Kanban muestra el embudo antes que cientos de tarjetas · ⏱️ 1.0 h
+
+**Qué.** Cada etapa del Pipeline aparece cerrada como una barra con su
+porcentaje. Al tocarla se despliegan sus tickets en una cuadrícula y al tocarla
+de nuevo se ocultan. En escritorio se conserva el arrastre: una tarjeta abierta
+se puede soltar sobre cualquier barra, aunque esa etapa esté cerrada. En móvil
+la barra ocupa una segunda línea completa y cada tarjeta conserva el botón
+explícito para moverla. El control expone su estado a lectores de pantalla y
+funciona con teclado.
+
+**Por qué.** Con cientos de conversaciones, mostrar todas las tarjetas al abrir
+la pantalla convirtió el Kanban en una lista inmanejable. El uso principal es
+entender dónde se concentra el trabajo; el detalle de nombres, medidas y montos
+solo hace falta cuando alguien decide entrar a una etapa. La divulgación
+progresiva conserva toda la operación sin pagar su ruido visual todo el tiempo.
+
+**Pruebas.** `npm run build` del hub pasó completo. Se verificó en el navegador
+con los 18 tickets del demo: cerrado mostró 17 %, 22 %, 0 %, 44 % y 17 %;
+“Cotización enviada” abrió sus 8 tickets y volvió a cerrarse. Se revisó a
+1280 px y 390 px; en móvil se corrigió la primera versión porque la barra
+quedaba demasiado corta. El detector de diseño terminó sin hallazgos (`[]`).
 
 ### 2026-08-29 · Un prompt corto para la necesidad de este turno, no para todo el embudo · ⏱️ 2.5 h
 

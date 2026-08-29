@@ -12,7 +12,7 @@ import {
 import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useMemo, useState } from "react";
 import { FunnelChart } from "../components/charts";
-import { IconAlert, IconAuto, IconBandera, IconCalendario, IconCandado, IconClock, IconUser } from "../components/icons";
+import { IconAlert, IconAuto, IconBandera, IconCalendario, IconCandado, IconChevronR, IconClock, IconUser } from "../components/icons";
 import { Avatar, EmptyState, Segmented } from "../components/ui";
 import { authHeaders } from "../data/realSource";
 import { CIERRE_META, ETAPAS, ETAPA_META, type Etapa, type FinalStage, type FollowUpBucket, type FollowUpCard, type Ticket } from "../data/types";
@@ -116,40 +116,92 @@ function CardArrastrable({ ticket, now, movil, onMover }: { ticket: Ticket; now:
   );
 }
 
-function Columna({ etapa, tickets, now, grupo, movil, onMover }: { etapa: Etapa; tickets: Ticket[]; now: number; grupo: string; movil: boolean; onMover: (t: Ticket) => void }) {
+function EtapaResumen({
+  etapa, tickets, total, now, grupo, movil, abierta, onAlternar, onMover,
+}: {
+  etapa: Etapa; tickets: Ticket[]; total: number; now: number; grupo: string;
+  movil: boolean; abierta: boolean; onAlternar: () => void; onMover: (t: Ticket) => void;
+}) {
   const meta = ETAPA_META[etapa];
   const { setNodeRef, isOver } = useDroppable({ id: `${grupo}:${etapa}`, disabled: movil });
   const potencial = tickets.reduce((s, t) => s + (t.cotizacion?.total ?? 0), 0);
+  const porcentaje = total > 0 ? Math.round((tickets.length / total) * 100) : 0;
+  const panelId = `tickets-${grupo}-${etapa}`;
 
   return (
-    <div className="flex w-60 shrink-0 flex-col" ref={setNodeRef}>
-      <div className="mb-2 flex items-center gap-2 px-1">
-        <span className="h-2 w-2 rounded-full" style={{ background: meta.color, boxShadow: `0 0 8px ${meta.color}` }} />
-        <span className="text-xs font-bold tracking-wide uppercase" style={{ color: meta.color }}>
-          {meta.nombre}
-        </span>
-        <span className="tnum rounded-full px-1.5 text-[10.5px] font-bold text-muted" style={{ background: "color-mix(in srgb, var(--color-paper) 6%, transparent)" }}>
-          {tickets.length}
-        </span>
-        <span className="tnum ml-auto text-[10.5px] font-bold text-faint">{potencial > 0 ? moneyCompact(potencial) : ""}</span>
-      </div>
-      <p className="mb-2 px-1 text-[10px] leading-snug text-faint">{meta.descripcion}</p>
-      <div
-        className="flex min-h-24 flex-1 flex-col gap-2 rounded-2xl p-2 transition-colors"
-        style={{
-          background: isOver ? `color-mix(in srgb, ${meta.color} 7%, transparent)` : "color-mix(in srgb, var(--color-paper) 2%, transparent)",
-          border: `1px dashed ${isOver ? `color-mix(in srgb, ${meta.color} 45%, transparent)` : "color-mix(in srgb, var(--color-paper) 6%, transparent)"}`,
-        }}
+    <div
+      ref={setNodeRef}
+      className="overflow-hidden rounded-2xl transition-colors"
+      style={{
+        background: isOver
+          ? `color-mix(in srgb, ${meta.color} 10%, var(--color-ink2))`
+          : "var(--color-ink2)",
+        outline: isOver ? `2px solid ${meta.color}` : "1px solid var(--color-line)",
+        outlineOffset: "-1px",
+      }}
+    >
+      <button
+        type="button"
+        aria-expanded={abierta}
+        aria-controls={panelId}
+        onClick={onAlternar}
+        className="group grid min-h-17 w-full grid-cols-[1fr_auto] items-center gap-x-3 gap-y-2 px-4 py-3 text-left focus-visible:outline-2 focus-visible:outline-offset-[-3px] focus-visible:outline-red md:grid-cols-[minmax(11rem,15rem)_1fr_auto] md:gap-y-0"
+        title={meta.descripcion}
       >
-        <AnimatePresence mode="popLayout" initial={false}>
-          {tickets.map((t) => (
-            <CardArrastrable key={t.id} ticket={t} now={now} movil={movil} onMover={onMover} />
-          ))}
-        </AnimatePresence>
-        {tickets.length === 0 && (
-          <p className="py-6 text-center text-[10.5px] text-faint italic">{movil ? "Sin tickets en esta etapa" : "Suelta un ticket aquí"}</p>
+        <span className="flex min-w-0 items-center gap-2.5">
+          <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: meta.color }} />
+          <span className="truncate text-[12px] font-bold" style={{ color: meta.color }}>{meta.nombre}</span>
+        </span>
+        <span className="relative col-span-2 row-start-2 h-2.5 overflow-hidden rounded-full bg-ink md:col-span-1 md:col-start-2 md:row-start-1" aria-hidden="true">
+          <motion.span
+            className="absolute inset-y-0 left-0 rounded-full"
+            initial={false}
+            animate={{ width: `${porcentaje}%` }}
+            transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+            style={{ background: meta.color, minWidth: porcentaje > 0 ? 6 : 0 }}
+          />
+        </span>
+        <span className="flex items-center gap-2">
+          <span className="tnum min-w-11 text-right text-[15px] font-black text-paper">{porcentaje}%</span>
+          <IconChevronR
+            size={16}
+            className="text-faint transition-transform duration-200"
+            style={{ transform: abierta ? "rotate(90deg)" : "rotate(0deg)" }}
+            aria-hidden="true"
+          />
+        </span>
+      </button>
+
+      <AnimatePresence initial={false}>
+        {abierta && (
+          <motion.div
+            id={panelId}
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+            className="overflow-hidden"
+          >
+            <div className="border-t border-line px-4 pt-3 pb-4">
+              <div className="mb-3 flex flex-wrap items-center gap-2 text-[11px] text-muted">
+                <span className="tnum font-bold text-paper">{tickets.length} ticket{tickets.length === 1 ? "" : "s"}</span>
+                {potencial > 0 && <span className="tnum">{moneyCompact(potencial)} en cotizaciones</span>}
+                <span>{meta.descripcion}</span>
+              </div>
+              <div className="grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-2.5">
+                <AnimatePresence mode="popLayout" initial={false}>
+                  {tickets.map((t) => (
+                    <CardArrastrable key={t.id} ticket={t} now={now} movil={movil} onMover={onMover} />
+                  ))}
+                </AnimatePresence>
+                {tickets.length === 0 && (
+                  <p className="col-span-full py-4 text-center text-[11px] text-faint">Sin tickets en esta etapa</p>
+                )}
+              </div>
+            </div>
+          </motion.div>
         )}
-      </div>
+      </AnimatePresence>
     </div>
   );
 }
@@ -494,6 +546,13 @@ function TableroVentana({
   movil: boolean; onMover: (t: Ticket) => void;
 }) {
   const sinLeer = tickets.reduce((s, t) => s + (t.sinLeer ?? 0), 0);
+  const [abiertas, setAbiertas] = useState<Set<Etapa>>(() => new Set());
+  const alternar = (etapa: Etapa) => setAbiertas((actuales) => {
+    const siguientes = new Set(actuales);
+    if (siguientes.has(etapa)) siguientes.delete(etapa);
+    else siguientes.add(etapa);
+    return siguientes;
+  });
   return (
     <section className="mb-4">
       <div className="mb-2 flex flex-wrap items-center gap-2.5 px-4">
@@ -516,14 +575,29 @@ function TableroVentana({
           {vacio}
         </p>
       ) : (
-        <div className="kanban-scroll flex gap-3 overflow-x-auto px-4">
-          {ETAPAS.map((e) => (
-            <Columna key={e} etapa={e} tickets={porEtapa[e]} now={now} grupo={grupo} movil={movil} onMover={onMover} />
-          ))}
-          {/* La zona de soltar solo tiene sentido con drag: en móvil se cierra
-              desde la hoja "Mover de etapa". */}
-          {conZonaCierre && !movil && <ZonaCierre />}
-          {alFinal}
+        <div className="px-4">
+          <div className="grid gap-2">
+            {ETAPAS.map((e) => (
+              <EtapaResumen
+                key={e}
+                etapa={e}
+                tickets={porEtapa[e]}
+                total={tickets.length}
+                now={now}
+                grupo={grupo}
+                movil={movil}
+                abierta={abiertas.has(e)}
+                onAlternar={() => alternar(e)}
+                onMover={onMover}
+              />
+            ))}
+          </div>
+          {(conZonaCierre && !movil) || alFinal ? (
+            <div className="mt-3 flex min-h-24 gap-3 overflow-x-auto">
+              {conZonaCierre && !movil && <ZonaCierre />}
+              {alFinal}
+            </div>
+          ) : null}
         </div>
       )}
     </section>
