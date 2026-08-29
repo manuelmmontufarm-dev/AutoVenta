@@ -32,6 +32,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-08-29 | _(este mismo)_ | Una sola política administrable: 49.663 caracteres de reglas repetidas bajan a 5.203 | 2.0 |
 | 2026-08-27 | _(este mismo)_ | La cantidad entra estructurada por la herramienta; las regex quedan de respaldo | 1.25 |
 | 2026-08-27 | _(este mismo)_ | Reabrir a los minutos conserva la medida, el carro y el local; después de 12 h sí empieza otra visita | 0.75 |
 | 2026-08-27 | _(este mismo)_ | La vitrina solo recomienda juegos completos y una compra ajena termina sin mapas ni piezas | 1.5 |
@@ -188,11 +189,56 @@ Ya viene activado en este equipo.
 | 2026-07-14 | ac09171 | Ubicaciones de locales + análisis de features del cliente | 1.5 |
 | 2026-07-13 | feadf57 | Brief + plan de desarrollo + plan financiero + catálogo | 4.0 |
 | 2026-07-13 | d997844 | Commit inicial (repo) | 0.25 |
-| | | **TOTAL** | **~133 h** |
+| | | **TOTAL** | **~135 h** |
 
 ---
 
 ## Entradas (más reciente primero)
+
+### 2026-08-29 · Una sola política administrable, sin reglas que compitan · ⏱️ 2.0 h
+
+**Qué.** El agente recibe ahora una sola política comercial, en
+`src/agent/compactPlaybook.ts`. Se retiraron el manual paralelo, las historias
+de incidentes, la explicación interna de herramientas, los saludos que ya arma
+el código y las instrucciones de candados determinísticos. Los cinco prompts
+activos por etapa conservan objetivo y herramientas, pero dejan vacío el campo
+de reglas repetidas. El tono y la personalidad salen únicamente de Ajustes; la
+configuración histórica se migra una vez al tono neutral que ya usaba Depot,
+sin la orden contradictoria de responder en un solo mensaje.
+
+La política permite hasta cuatro mensajes breves, pone la pregunta final en un
+mensaje aparte, pide primero el local y después el día, permite cotizar con aro
+aunque falte vehículo, y no ofrece de iniciativa una llanta con menos de cuatro
+unidades aunque sí respeta un pedido explícito de una a tres. Los cierres
+determinísticos también terminan ofreciendo ayuda, salvo que el cliente haya
+pedido no recibir más mensajes. Los mapas siguen saliendo por la herramienta y
+por el candado posterior con los mismos links oficiales. El manual del panel
+ahora muestra esta misma fuente, en vez de una copia muerta.
+
+**Por qué.** La política generada medía 49.663 caracteres y decía cosas
+incompatibles: «un solo mensaje» y «separa la pregunta», «local primero» y
+«día y local», además de repetir reglas globales en cada etapa. Con varias
+fuentes nadie podía saber cuál ganaba y cada arreglo agrandaba el guion. Una
+sola fuente corta deja al modelo decidir cómo conversar, mientras precios,
+stock, preguntas prohibidas y cierres siguen protegidos por código después del
+modelo. La decisión sobre mostrar el número de venta se retiró del prompt,
+como pidió Manuel. El comportamiento determinístico queda como estaba hasta
+que haya una decisión comercial; el modelo ya no recibe una regla que la dé
+por resuelta.
+
+**Pruebas.** La regresión nueva empezó con 8/9 fallos: el prompt medía 49.663
+caracteres, mantenía el tono fijo, repetía `ubicacion_locales` tres veces y
+conservaba las contradicciones de mensajes, local/día y stock. Después pasó
+10/10; la migración contra Postgres pasó 1/1. La prueba de cierres empezó con
+2 fallos y terminó 12/12. `tsc --noEmit` quedó limpio y la suite completa pasó
+1.284/1.284 en 123 archivos. La prueba que retira la decisión pendiente sobre
+el número de venta empezó 1/11 en rojo y terminó 11/11. El humo falló primero
+4 checks porque copió de
+producción el interruptor apagado; se aisló ese estado solo en la base
+desechable y la segunda vuelta pasó 8/8. La fidelidad del simulador pasó 12/12.
+En el simulador con GPT-5.5 real, «necesito llantas aro 16 para carretera»
+produjo opciones, una recomendación y la pregunta de cotización como mensaje
+separado; no repreguntó el vehículo y el guardián aprobó sin reescribir.
 
 ### 2026-08-27 · La cantidad deja de adivinarse antes de entender el mensaje · ⏱️ 1.25 h
 

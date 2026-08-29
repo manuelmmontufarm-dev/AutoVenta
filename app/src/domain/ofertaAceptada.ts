@@ -14,13 +14,10 @@
  * gracias no sabe si es gracias de "sí, cotíceme" o gracias de "no quiero";
  * que solo asuma que sí, al menos de que sea obvio que es no».
  *
- * POR QUÉ EL PROMPT NO ALCANZABA. La regla existía —«Si no es un NO, es un SÍ»,
- * regla 5 de `prompts.ts`— pero producción corre con
- * `AI_COMPACT_PROMPT_ENABLED=true`, y el playbook compacto **reemplaza el
- * prompt entero del vendedor**. La regla 5 nunca se copió: el bot de los
- * clientes nunca la tuvo. Se copia (ver `compactPlaybook.ts`) y además se
- * hornea acá, porque una regla de estilo puesta en un prompt es una petición y
- * esto tiene que pasar siempre.
+ * POR QUÉ EL PROMPT NO ALCANZABA. La regla existía en un manual que producción
+ * no recibía. Hoy hay una sola política activa (`compactPlaybook.ts`) y además
+ * se hornea acá, porque una instrucción al modelo es una petición y esto tiene
+ * que pasar siempre.
  *
  * Puro a propósito: se prueba sin base y sin modelo.
  */
@@ -65,7 +62,7 @@ const OFRECIO_ALGO =
  * `domain/cierrePerdido.ts`, que además cierra la venta).
  */
 const ACUSE_SIN_MAS =
-  /^(?:muchas\s+|mil\s+)?(?:gracias|grax|ok|oka|okay|okey|listo|list|dale|ya|bueno|buenos|perfecto|de\s+una|hagale|por\s+favor|porfa|porfis|si|sip|claro|va|bien|excelente|genial|de\s+acuerdo|correcto|👍|🙏|😊|🤝)(?:\s+(?:gracias|amigo|amiga|men|ps|pues|senor|senora|don|dona|master|bro))?[\s.,!¡👍🙏😊🤝🙌✅]*$/;
+  /^(?:muchas\s+|mil\s+)?(?:gracias|grax|ok|oka|okay|okey|listo|list|dale|ya|bueno|buenos|perfecto|de\s+una|hagale|por\s+favor|porfa|porfis|si|sip|claro|va|bien|excelente|genial|de\s+acuerdo|correcto|ayudeme|uyedeme|👍|🙏|😊|🤝)(?:\s+(?:por\s+favor|porfa|porfis|gracias|amigo|amiga|men|ps|pues|senor|senora|don|dona|master|bro))?[\s.,!¡👍🙏😊🤝🙌✅]*$/;
 
 /** Un «no» a secas nunca es un sí, por más corto que sea. */
 const NEGATIVA_CORTA = /^(?:no|nop|nel|no\s+gracias|todavia\s+no|aun\s+no|ahorita\s+no|por\s+ahora\s+no|mejor\s+no|otro\s+dia|luego|despues|mas\s+tarde)[\s.,!]*$/;

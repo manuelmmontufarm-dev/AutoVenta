@@ -2,7 +2,13 @@ import type { Sql } from "../client.js";
 
 export const CUMPLIR_SOLICITUD_MIGRATION_ID = "016_cumplir_solicitud_y_cierre";
 
-/** Habilita reenvío/comparación en prompts publicados y corrige el cierre repetitivo. */
+/**
+ * Habilita reenvío/comparación en las etapas de cierre.
+ *
+ * La versión original también volvía a pegar un párrafo de reglas en cada
+ * prompt por etapa en TODOS los arranques. Esas reglas ya viven en la política
+ * única y en las herramientas; aquí solo corresponde habilitar capacidades.
+ */
 export async function runCumplirSolicitudMigration(sql: Sql): Promise<void> {
   const closing = ["cotizacion_enviada", "seguimiento_venta"];
   await sql.begin(async (tx) => {
@@ -14,8 +20,7 @@ export async function runCumplirSolicitudMigration(sql: Sql): Promise<void> {
       const allowed = [...new Set([...(row.allowed_tools ?? []), "enviar_comparacion", "reenviar_cotizacion"])];
       await tx`
         update stage_prompt_versions
-        set allowed_tools=${tx.json(allowed as never)},
-            prompt='Cumple primero la solicitud actual: si pide la cotización otra vez usa reenviar_cotizacion; si pide otras opciones o una comparación, envía esa pieza. Después pide únicamente el dato de visita que falte. Si local y fecha/compromiso ya están guardados, confirma el plan una vez y no los vuelvas a preguntar. El local elegido explícitamente por el cliente gana sobre cualquier recomendación.'
+        set allowed_tools=${tx.json(allowed as never)}
         where id=${row.id}
       `;
     }

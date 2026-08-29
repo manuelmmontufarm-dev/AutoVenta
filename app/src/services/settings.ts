@@ -11,7 +11,9 @@ import { PIPELINE_STAGES, type Stage } from "../domain/pipeline.js";
 export const AiConfigSchema = z.object({
   /** Texto libre que se suma al prompt: personalidad extra del asistente. */
   personalidad: z.string().max(600).default(""),
-  tono: z.enum(["calido", "neutral", "formal"]).default("calido"),
+  // Neutral es el tono actual de Depot. A partir de aquí, cualquier cambio de
+  // voz se hace desde Ajustes y no volviendo a fijarlo en el prompt base.
+  tono: z.enum(["calido", "neutral", "formal"]).default("neutral"),
   emojis: z.enum(["ninguno", "pocos", "muchos"]).default("pocos"),
   longitud: z.enum(["corta", "media", "larga"]).default("corta"),
   /**
@@ -354,8 +356,7 @@ export interface StagePromptVersion extends StagePromptInput {
 const DEFAULT_STAGE_PROMPTS: Record<Stage, StagePromptInput> = {
   nuevo: {
     objective: "Conseguir el aro o la medida y llegar a un precio lo antes posible.",
-    prompt:
-      "Si el cliente ya dio una medida, esa manda: busca y muestra opciones DE UNA, sin confirmar el vehículo ni pedir versión. Si además dio modelo y cantidad, cotiza de inmediato. Si no hay medida, lo que necesitas es el ARO: sin él ninguna cotización es segura. Pídelo mandando guia_medida, que enseña dónde se lee en el costado, y acepta las dos vías — medida escrita o foto de la llanta, que sí sabes leer. Si solo da el vehículo, usa fitment_vehiculo y ofrece la medida más probable sin frenar la venta; si ese vehículo tiene dos aros de fábrica y hay stock para los dos, díselo e invítalo al local en vez de preguntarle la versión.",
+    prompt: "",
     allowedTools: [
       "buscar_llanta",
       "buscar_catalogo",
@@ -371,8 +372,7 @@ const DEFAULT_STAGE_PROMPTS: Record<Stage, StagePromptInput> = {
   },
   medida_confirmada: {
     objective: "Presentar opciones reales y avanzar hacia la cotización.",
-    prompt:
-      "Usa el catálogo real y presenta opciones agrupadas con preparar_opciones. Si el cliente pide un tipo (A/T, todo terreno, carretera), eso es lo que busca: usa buscar_por_aro_y_tipo y ofrécele de ese tipo. Si ya eligió modelo y cantidad, cotiza de inmediato sin pedir otra confirmación. No decidas por el cliente ni sumes alternativas.",
+    prompt: "",
     allowedTools: [
       "buscar_llanta",
       "buscar_catalogo",
@@ -389,8 +389,7 @@ const DEFAULT_STAGE_PROMPTS: Record<Stage, StagePromptInput> = {
   },
   seleccionando: {
     objective: "Resolver dudas y comparar hasta que el cliente elija un modelo.",
-    prompt:
-      "Aclara diferencias entre 2–3 opciones. Usa enviar_comparacion si la duda está acotada. Si el cliente pide un tipo (A/T, todo terreno), usa buscar_por_aro_y_tipo o tipos_de_llanta: te está diciendo qué quiere comprar, no algo que verificar. En cuanto confirme un modelo y una cantidad, cotiza de inmediato; nunca cotices dos veces lo mismo.",
+    prompt: "",
     allowedTools: [
       "buscar_llanta",
       "buscar_catalogo",
@@ -407,8 +406,7 @@ const DEFAULT_STAGE_PROMPTS: Record<Stage, StagePromptInput> = {
   },
   cotizacion_enviada: {
     objective: "Conseguir dos datos: qué día viene y a cuál local.",
-    prompt:
-      "Cumple primero la solicitud actual: si pide la cotización otra vez usa reenviar_cotizacion; si pide otras opciones o comparación, envía esa pieza. No crees otra cotización salvo que cambien modelo o cantidad. Después pide únicamente el dato de visita que falte. Si local y fecha/compromiso ya están guardados, confírmalos una vez y no los vuelvas a preguntar. El local elegido explícitamente por el cliente siempre gana sobre una recomendación.",
+    prompt: "",
     // Con la cotización enviada el objetivo es fecha+local, pero el cliente no
     // se entera de eso: si vuelve a pedir opciones o pregunta por otra medida,
     // el bot tiene que poder mostrárselas. Sin estas tools lo único que le
@@ -431,8 +429,7 @@ const DEFAULT_STAGE_PROMPTS: Record<Stage, StagePromptInput> = {
   },
   seguimiento_venta: {
     objective: "Dar seguimiento comercial hasta la venta, incluyendo visita, reserva y handoff.",
-    prompt:
-      "Cumple primero lo que pide: reenvía la cotización, opciones o comparación cuando corresponda. Resume lo acordado sin inventar datos y pregunta solo el dato de visita que falte. Con local y fecha/compromiso confirmados, no los vuelvas a pedir. Mantén el caso abierto hasta una venta o rechazo verificados.",
+    prompt: "",
     // Esta es la etapa del ticket 2150: el cliente pidió una cotización y el bot
     // no tenía UNA sola herramienta de venta con qué contestarle, así que repitió
     // la pregunta por la foto tres turnos seguidos hasta que el dueño mandó las

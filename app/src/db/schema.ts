@@ -350,6 +350,42 @@ update settings
 set value = jsonb_set(value, '{emojis}', '"pocos"'::jsonb, true),
     updated_at = now()
 where key = 'ai_config' and exists (select 1 from migration);
+
+-- La personalidad de producción fijaba «un solo mensaje», pero el cierre real
+-- separa la pregunta para que no se pierda. Se retira solo esa configuración
+-- histórica, una vez; después el dueño vuelve a mandar desde Ajustes.
+with migration as (
+  insert into settings (key, value)
+  values ('migration_prompt_administrable_v1', 'true'::jsonb)
+  on conflict (key) do nothing
+  returning key
+)
+update settings
+set value = jsonb_set(
+      value,
+      '{personalidad}',
+      to_jsonb('Directo, claro y atento. Evita relleno, cortesías largas y repetir información ya dicha.'::text),
+      true
+    ),
+    updated_at = now()
+where key = 'ai_config'
+  and exists (select 1 from migration)
+  and value->>'personalidad' ilike '%No dividas la respuesta en varios mensajes seguidos:%un solo mensaje breve%';
+
+-- Las cinco etapas activas repetían el contrato global casi palabra por
+-- palabra. El objetivo y las herramientas permitidas se conservan; el campo
+-- editable queda vacío para que solo se use cuando haya una diferencia real.
+with migration as (
+  insert into settings (key, value)
+  values ('migration_stage_prompt_administrable_v1', 'true'::jsonb)
+  on conflict (key) do nothing
+  returning key
+)
+update stage_prompt_versions
+set prompt = ''
+where status = 'published'
+  and stage in ('nuevo', 'medida_confirmada', 'seleccionando', 'cotizacion_enviada', 'seguimiento_venta')
+  and exists (select 1 from migration);
 `;
 
 /** Aplica el esquema (idempotente). Se llama al arrancar el bot. */

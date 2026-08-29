@@ -116,7 +116,7 @@ describe.sequential("El bot puede vender en las etapas de cierre (ticket 2150)",
     expect(tools.length).toBe(new Set(tools).size);
   });
 
-  it("una base existente recibe reenvío y comparación en las etapas de cierre", async () => {
+  it("una base existente recibe capacidades sin que la migración reescriba su prompt", async () => {
     await appSql`
       update stage_prompt_versions
       set allowed_tools=${appSql.json(ANTES_COTIZACION as never)}, prompt='prompt anterior'
@@ -130,6 +130,6 @@ describe.sequential("El bot puede vender en las etapas de cierre (ticket 2150)",
       select prompt from stage_prompt_versions
       where stage='cotizacion_enviada' and status='published'
     `;
-    expect(row.prompt).toMatch(/Cumple primero la solicitud/);
+    expect(row.prompt).toBe("prompt anterior");
   });
 });

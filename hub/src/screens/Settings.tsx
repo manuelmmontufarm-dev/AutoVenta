@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { marked } from "marked";
-import botPlaybook from "../../../app/BOT_PLAYBOOK.md?raw";
+import compactPlaybookSource from "../../../app/src/agent/compactPlaybook.ts?raw";
 import { ETAPA_META, ETAPAS, type Etapa } from "../data/types";
 import { AdminKeyForm } from "../components/admin-key";
 import { WhatsAppSetup } from "../components/whatsapp-setup";
@@ -36,6 +36,14 @@ interface StagePrompt {
 }
 
 const ALL_STAGES: Etapa[] = [...ETAPAS, "ganado", "perdido"];
+
+/** La pestaña Manual muestra la misma constante que recibe el bot, no una copia. */
+const botPlaybook = (() => {
+  const inicio = compactPlaybookSource.indexOf("`# Contrato comercial Depot Tire");
+  const fin = compactPlaybookSource.lastIndexOf("`;\n");
+  if (inicio < 0 || fin <= inicio) return "No se pudo leer la política activa.";
+  return compactPlaybookSource.slice(inicio + 1, fin);
+})();
 // Mismo orden que buildTools() en el bot. Si aquí falta una, el dueño no puede
 // ver ni encender una herramienta que su bot sí tiene — que fue justo lo que
 // pasó con guia_medida y buscar_por_aro_y_tipo.

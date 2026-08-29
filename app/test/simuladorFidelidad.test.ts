@@ -150,6 +150,15 @@ describe("simulador · sigue siendo el bot de verdad", () => {
     expect(sim).toContain("con-clave-de-produccion");
     expect(sim).toContain(".env.sim");
   });
+
+  it("el humo enciende el bot solo dentro de su base desechable", () => {
+    // Producción puede estar apagada justamente porque estamos investigando un
+    // incidente. Copiar ese interruptor hacía que el humo recibiera el webhook
+    // pero no ejercitara agente, guardián ni salida: fallaba por haber copiado
+    // demasiado bien una decisión operativa que no pertenece a la prueba.
+    expect(sim).toContain("MODO_HUMO && await encenderBotParaElHumo()");
+    expect(sim).toContain("'bot_power'");
+  });
 });
 
 describe("simulador · la Graph de mentira cubre lo que el bot usa", () => {

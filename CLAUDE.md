@@ -35,7 +35,8 @@ bot, y lo que se pruebe ahí deja de decir algo del que atiende a los clientes.
 
 ## Dos cosas que se olvidan
 
-- **El prompt compacto está prendido en producción** (`AI_COMPACT_PROMPT_ENABLED=true`).
-  Toda regla del bot se edita en `prompts.ts` **y** en `compactPlaybook.ts`.
+- La política comercial tiene una sola fuente: `app/src/agent/compactPlaybook.ts`.
+  `prompts.ts` solo agrega negocio, estilo administrable y objetivo de etapa;
+  no vuelvas a copiar reglas allí.
 - La suite completa es `npm test` (unas 825 pruebas). Las de integración
   necesitan un Postgres local escuchando.

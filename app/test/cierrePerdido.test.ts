@@ -17,7 +17,8 @@
  */
 import { describe, expect, it } from "vitest";
 import {
-  DESPEDIDA_SIN_COMPRA, DESPEDIDA_VENTA_PERDIDA, despedidaQueCorresponde, puedeCerrarComoPerdido,
+  DESPEDIDA_NO_CONTACTAR, DESPEDIDA_SIN_COMPRA, DESPEDIDA_VENTA_PERDIDA,
+  despedidaQueCorresponde, puedeCerrarComoPerdido,
 } from "../src/domain/cierrePerdido.js";
 import { isExplicitPurchaseConfirmation } from "../src/domain/salesIntent.js";
 
@@ -92,15 +93,17 @@ describe("un rechazo de verdad sí cierra", () => {
     expect(despedidaQueCorresponde("Ya Ise el pedido aquí en Ibarra gracias"))
       .toBe(DESPEDIDA_VENTA_PERDIDA);
     expect(despedidaQueCorresponde("no me interesa")).toBe(DESPEDIDA_SIN_COMPRA);
+    expect(despedidaQueCorresponde("no me escriban más")).toBe(DESPEDIDA_NO_CONTACTAR);
     // Y la conversación viva no tiene despedida: null es «seguí vendiendo».
     expect(despedidaQueCorresponde("esta muy caro")).toBeNull();
     expect(despedidaQueCorresponde("otro dia")).toBeNull();
   });
 
-  it("la despedida de compra se alegra y no pide nada", () => {
+  it("la despedida deja una pregunta de ayuda, salvo cuando pidió no contactar", () => {
     expect(DESPEDIDA_VENTA_PERDIDA).toMatch(/Me alegro por su compra/);
-    expect(DESPEDIDA_VENTA_PERDIDA).not.toMatch(/\?/);
-    expect(DESPEDIDA_SIN_COMPRA).not.toMatch(/\?/);
+    expect(DESPEDIDA_VENTA_PERDIDA).toMatch(/¿Necesita ayuda con algo más\?/);
+    expect(DESPEDIDA_SIN_COMPRA).toMatch(/¿Necesita ayuda con algo más\?/);
+    expect(DESPEDIDA_NO_CONTACTAR).not.toMatch(/\?/);
   });
 
   it("EL BORDE: rechazo Y queja de precio juntos — manda el rechazo", () => {

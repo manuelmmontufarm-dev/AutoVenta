@@ -47,6 +47,10 @@
 const RECHAZO_ROTUNDO =
   /\b(?:no me interesa|ya no me interesa|no me sirve|deje?n? de escribir\w*|no me escriba\w*|no me contacte\w*|no me moleste\w*|dar de baja|desuscribir\w*|ya no necesito)\b/;
 
+/** Pedir que no lo contacten manda incluso sobre la pregunta final comercial. */
+const PIDIO_NO_CONTACTAR =
+  /\b(?:deje?n? de escribir\w*|no me escriba\w*|no me contacte\w*|no me moleste\w*|dar de baja|desuscribir\w*)\b/;
+
 // «Ya compré» A SECAS no cierra: puede ser «ya compré con ustedes», que es una
 // venta GANADA. Para cerrar como perdida hace falta que nombre el otro lado —
 // eso lo decide COMPRO_EN_OTRO_LADO.
@@ -128,7 +132,7 @@ export function puedeCerrarComoPerdido(mensajeDelCliente: string): boolean {
  */
 export const DESPEDIDA_VENTA_PERDIDA =
   "Me alegro por su compra 🙌 Cualquier revisión, mantenimiento o llantas que necesite " +
-  "después, aquí estamos para ayudarle 🤝";
+  "después, aquí estamos para ayudarle 🤝\n---\n¿Necesita ayuda con algo más?";
 
 /**
  * Y cuando el no es rotundo pero NO fue una compra («no me interesa», «no me
@@ -136,7 +140,12 @@ export const DESPEDIDA_VENTA_PERDIDA =
  * agradece y se deja la puerta abierta, sin insistir.
  */
 export const DESPEDIDA_SIN_COMPRA =
-  "Entendido, gracias por avisar 🤝 Aquí estamos para cuando lo necesite.";
+  "Entendido, gracias por avisar 🤝 Aquí estamos para cuando lo necesite.\n---\n" +
+  "¿Necesita ayuda con algo más?";
+
+/** Un opt-out se confirma sin abrir otra pregunta. */
+export const DESPEDIDA_NO_CONTACTAR =
+  "Entendido. No volveremos a escribirle.";
 
 /**
  * ¿Cuál de las dos despedidas le toca a este mensaje? `null` si el mensaje no
@@ -144,6 +153,7 @@ export const DESPEDIDA_SIN_COMPRA =
  */
 export function despedidaQueCorresponde(mensajeDelCliente: string): string | null {
   const n = normalizar(mensajeDelCliente);
+  if (PIDIO_NO_CONTACTAR.test(n)) return DESPEDIDA_NO_CONTACTAR;
   if (comproEnOtroLugar(n)) return DESPEDIDA_VENTA_PERDIDA;
   if (RECHAZO_ROTUNDO.test(n)) return DESPEDIDA_SIN_COMPRA;
   return null;

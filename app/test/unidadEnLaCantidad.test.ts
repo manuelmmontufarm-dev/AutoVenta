@@ -27,7 +27,6 @@ const FUENTES_DE_COPY = [
   "src/agent/agent.ts",
   "src/agent/tools.ts",
   "src/services/quoteMessages.ts",
-  "BOT_PLAYBOOK.md",
 ] as const;
 
 /**
@@ -66,26 +65,28 @@ describe("el bot siempre dice la unidad cuando nombra una cantidad", () => {
   }
 });
 
-/*
- * La regla tiene que estar en LOS DOS playbooks y en el prompt operativo.
- * `AI_COMPACT_PROMPT_ENABLED=true` en producción (ver CLAUDE.md): escribir la
- * regla solo en el playbook largo es escribirla donde producción no la lee.
- */
+/* La regla tiene una fuente única y buildSystemPrompt la incluye por import. */
 const REGLA_DE_LA_UNIDAD =
   "La cantidad SIEMPRE lleva su unidad: se dice «4 llantas», nunca el número a secas.";
 
 /** Sin negritas ni saltos: cada archivo resalta a su manera, la regla es la misma. */
 const sinFormato = (texto: string) => texto.replace(/\*/g, "").replace(/\s+/g, " ");
 
-describe("la regla de la unidad está en los dos playbooks y en el prompt operativo", () => {
-  for (const archivo of ["src/agent/prompts.ts", "src/agent/compactPlaybook.ts", "BOT_PLAYBOOK.md"] as const) {
-    it(`${archivo} la dice`, () => {
-      const texto = sinFormato(readFileSync(join(raiz, archivo), "utf8"));
-      // Sin el mensaje, el fallo escupe el playbook entero y no se lee nada.
-      expect(
-        texto.includes(REGLA_DE_LA_UNIDAD),
-        `${archivo} no dice la regla de la unidad: «${REGLA_DE_LA_UNIDAD}»`,
-      ).toBe(true);
-    });
-  }
+describe("la regla de la unidad está en la política única y en el prompt generado", () => {
+  it("vive una sola vez en la política comercial", async () => {
+    const { COMPACT_PLAYBOOK } = await import("../src/agent/compactPlaybook.js");
+    expect(sinFormato(COMPACT_PLAYBOOK)).toContain(REGLA_DE_LA_UNIDAD);
+  });
+
+  it("llega una sola vez al prompt que recibe el modelo", async () => {
+    process.env.OPENAI_API_KEY ||= "test";
+    process.env.WHATSAPP_TOKEN ||= "test";
+    process.env.WHATSAPP_APP_SECRET ||= "test";
+    process.env.WHATSAPP_VERIFY_TOKEN ||= "test";
+    process.env.WHATSAPP_PHONE_ID ||= "test";
+    process.env.DATABASE_URL ||= "postgresql://manue@localhost/autoventa_test";
+    const { buildSystemPrompt } = await import("../src/agent/prompts.js");
+    const prompt = sinFormato(buildSystemPrompt());
+    expect(prompt.split(REGLA_DE_LA_UNIDAD)).toHaveLength(2);
+  });
 });

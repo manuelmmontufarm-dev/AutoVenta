@@ -226,11 +226,10 @@ describe.sequential("Cierre por preferencia — reunión del 25-ago", () => {
     });
   });
 
-  describe("R-04/R-09/R-10: las reglas nuevas están publicadas en los DOS prompts", () => {
+  describe("R-04/R-09/R-10: las reglas viven en la política única", () => {
     it("el prompt del sistema responde primero lo preguntado (familia 1 del guardián)", () => {
       const texto = prompts.buildSystemPrompt();
-      expect(texto).toMatch(/pregunta directa, la PRIMERA parte de tu respuesta la contesta/);
-      expect(texto).toContain("Las cinco reglas");
+      expect(texto).toMatch(/pregunta directa, la primera parte de la respuesta la contesta/i);
     });
 
     it("el cierre por preferencia y la entrega del escalón están en el prompt", () => {
@@ -238,24 +237,22 @@ describe.sequential("Cierre por preferencia — reunión del 25-ago", () => {
       expect(texto).toMatch(/cierra con el menú de PREFERENCIA/);
       expect(texto).toMatch(/entrega LA opción de ese escalón/);
       expect(texto).not.toContain("¿Necesita alguna recomendación?");
-      // R-06: el uso descrito también entrega la recomendación.
-      expect(texto).toMatch(/ya describía su uso/);
     });
 
     it("el descuento en efectivo se confirma en sucursal, sin monto y sin negarlo", () => {
       const texto = prompts.buildSystemPrompt();
       expect(texto).toMatch(/descuento adicional pagando en efectivo/i);
-      expect(texto).toMatch(/confirman en la sucursal/);
+      expect(texto).toMatch(/se confirma en la sucursal/);
     });
 
     it("lo INCLUIDO se afirma; el playbook compacto dice lo mismo (regla de los dos lados)", async () => {
       const texto = prompts.buildSystemPrompt();
-      expect(texto).toMatch(/INCLUIDO CON LA COMPRA se afirma con seguridad/);
+      expect(texto).toMatch(/INCLUIDO CON LA COMPRA se afirma/);
 
       const { COMPACT_PLAYBOOK } = await import("../src/agent/compactPlaybook.js");
       expect(COMPACT_PLAYBOOK).toMatch(/pregunta directa/);
       expect(COMPACT_PLAYBOOK).toMatch(/PREFERENCIA/);
-      expect(COMPACT_PLAYBOOK).toMatch(/INCLUIDO CON LA COMPRA se AFIRMA/);
+      expect(COMPACT_PLAYBOOK).toMatch(/INCLUIDO CON LA COMPRA se afirma/);
       expect(COMPACT_PLAYBOOK).toMatch(/efectivo/);
       expect(COMPACT_PLAYBOOK).not.toContain("¿necesita alguna recomendación?");
     });

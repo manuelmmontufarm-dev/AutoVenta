@@ -205,6 +205,13 @@ async function main() {
     on conflict (key) do update set value = excluded.value
   `;
 
+  // El 29-ago producción estaba apagada por una emergencia. El humo copió ese
+  // interruptor y recibió el webhook, pero obedeció el apagado antes de llamar
+  // al agente: cuatro checks fallaron aunque el simulador estaba sano. El humo
+  // tiene que probar el recorrido completo; por eso lo encendemos SOLO en su
+  // base desechable. El simulador normal conserva el estado real de Depot.
+  MODO_HUMO && await encenderBotParaElHumo();
+
   const conv = valor("copiar-conv", null);
   if (conv) await copiarConversacion(env.DATABASE_URL, Number(conv));
 
@@ -305,6 +312,16 @@ async function main() {
   console.log(`\n  ✅  Simulador listo → http://localhost:${PUERTO_UI}\n`);
   console.log(`      cliente ${TELEFONO_CLIENTE} · base ${DB} · piezas en scripts/sim/datos/piezas`);
   console.log("      Ctrl-C para cerrar (la base se borra sola).\n");
+}
+
+async function encenderBotParaElHumo() {
+  await sql`
+    insert into settings (key, value) values (
+      'bot_power',
+      ${sql.json({ activo: true, apagadoAt: null, motivo: "Prueba de humo" })}
+    )
+    on conflict (key) do update set value = excluded.value
+  `;
 }
 
 /**

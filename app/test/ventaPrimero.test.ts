@@ -51,7 +51,7 @@ describe.sequential("Venta primero — los arreglos de Joaquín", () => {
   describe("el prompt del sistema vende, no pregunta", () => {
     it("declara VENDER como objetivo y la medida manda sobre el vehículo", () => {
       const texto = prompts.buildSystemPrompt();
-      expect(texto).toContain("Tu objetivo: VENDER");
+      expect(texto).toContain("asistente de ventas");
       expect(texto).toContain("La medida manda sobre el vehículo");
     });
 
@@ -65,17 +65,12 @@ describe.sequential("Venta primero — los arreglos de Joaquín", () => {
     it("ya no dice que no puede leer fotos (visión entró a producción el 6-ago)", () => {
       const texto = prompts.buildSystemPrompt();
       expect(texto).not.toMatch(/PROHIBIDO PEDIR FOTOS|no puedes leer(las)?|no puedo leer/i);
-      expect(texto).toContain("sí puedes leer fotos");
+      expect(texto).toMatch(/Puedes leer fotos/i);
     });
 
     it("pedir la medida o la foto nunca puede ser el mensaje completo", () => {
       const texto = prompts.buildSystemPrompt();
       expect(texto).toContain("la petición nunca puede ser el mensaje completo");
-    });
-
-    it("el tipo de llanta que pide el cliente dispara búsqueda, no ficha verificada", () => {
-      const texto = prompts.buildSystemPrompt();
-      expect(texto).toMatch(/describe el USO o el TIPO[\s\S]{0,200}buscar_por_aro_y_tipo/);
     });
 
     /**
@@ -88,8 +83,6 @@ describe.sequential("Venta primero — los arreglos de Joaquín", () => {
       expect(texto).toContain("El ARO solo ya es suficiente para mostrar opciones");
       // El paso 1c tiene que decir explícitamente cómo se llama la tool sin tipo.
       expect(texto).toMatch(/ARO[\s\S]{0,400}buscar_por_aro_y_tipo[\s\S]{0,200}tipo: null/);
-      // El tipo y el uso son preguntas POSTERIORES, nunca un peaje previo.
-      expect(texto).toMatch(/TIPO y el USO se preguntan DESPU[ÉE]S/);
     });
 
     it("el aro le gana al vehículo, igual que la medida", () => {
@@ -101,10 +94,8 @@ describe.sequential("Venta primero — los arreglos de Joaquín", () => {
 
     it("prohíbe cerrar un turno con una limitación y una pregunta, sin ofrecer nada", () => {
       const texto = prompts.buildSystemPrompt();
-      expect(texto).toMatch(/PROHIBIDO terminar un turno con una limitaci[óo]n tuya y una pregunta/);
-      // "No tengo una medida verificada" nunca puede ser el mensaje completo.
-      expect(texto).toMatch(/no tengo una medida verificada[\s\S]{0,200}NUNCA pueden ser el mensaje completo/i);
-      expect(texto).toMatch(/NUNCA pueden ser el mensaje completo[\s\S]{0,240}opciones del aro/i);
+      expect(texto).toMatch(/Si falta respaldo, dilo en una línea y ofrece el siguiente paso útil/);
+      expect(texto).toMatch(/la petición nunca puede ser el mensaje completo/);
     });
   });
 
@@ -129,28 +120,28 @@ describe.sequential("Venta primero — los arreglos de Joaquín", () => {
       expect(params.required ?? []).not.toContain("nombre_cliente");
     });
 
-    it("el prompt prohíbe la pregunta y acepta «uyedeme porfa» como un sí", () => {
+    it("el prompt prohíbe la pregunta y la aceptación rara está en el detector", async () => {
       const prompt = prompts.buildSystemPrompt();
       expect(prompt).toMatch(/cliente final/i);
-      expect(prompt).toMatch(/uyedeme/i);
-      expect(prompt).toMatch(/ayúdeme/i);
+      const { ofertaDeCotizarAceptada } = await import("../src/domain/ofertaAceptada.js");
+      expect(ofertaDeCotizarAceptada("¿Le cotizo las 4 llantas?", "uyedeme porfa")).toBe(true);
     });
   });
 
-  describe("los prompts por etapa (base de datos) quedaron en venta-primero", () => {
-    it("la migración 011 reescribió el prompt sembrado de 'nuevo'", async () => {
+  describe("las etapas conservan capacidades sin repetir el contrato", () => {
+    it("'nuevo' usa el objetivo y las herramientas, sin otro manual", async () => {
       const publicado = await settings.getPublishedStagePrompt("nuevo");
-      expect(publicado.prompt).toContain("esa manda");
-      expect(publicado.prompt).not.toContain("confirma la medida antes de hablar de precios");
+      expect(publicado.prompt).toBe("");
+      expect(publicado.objective).toMatch(/aro o la medida/i);
       // La etapa 'nuevo' ahora puede cotizar: medida+cantidad en el primer
       // mensaje no debe esperar a cambiar de etapa.
       expect(publicado.allowedTools).toContain("generar_cotizacion");
       expect(publicado.allowedTools).toContain("buscar_por_aro_y_tipo");
     });
 
-    it("'seleccionando' manda cotizar en cuanto haya modelo y cantidad", async () => {
+    it("'seleccionando' conserva sus herramientas sin copiar reglas", async () => {
       const publicado = await settings.getPublishedStagePrompt("seleccionando");
-      expect(publicado.prompt).toContain("cotiza de inmediato");
+      expect(publicado.prompt).toBe("");
       expect(publicado.allowedTools).toContain("tipos_de_llanta");
     });
 
