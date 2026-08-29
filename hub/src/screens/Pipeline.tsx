@@ -117,21 +117,22 @@ function CardArrastrable({ ticket, now, movil, onMover }: { ticket: Ticket; now:
 }
 
 function EtapaResumen({
-  etapa, tickets, total, now, grupo, movil, abierta, onAlternar, onMover,
+  etapa, tickets, total, grupo, movil, abierta, onAlternar,
 }: {
-  etapa: Etapa; tickets: Ticket[]; total: number; now: number; grupo: string;
-  movil: boolean; abierta: boolean; onAlternar: () => void; onMover: (t: Ticket) => void;
+  etapa: Etapa; tickets: Ticket[]; total: number; grupo: string;
+  movil: boolean; abierta: boolean; onAlternar: () => void;
 }) {
   const meta = ETAPA_META[etapa];
   const { setNodeRef, isOver } = useDroppable({ id: `${grupo}:${etapa}`, disabled: movil });
-  const potencial = tickets.reduce((s, t) => s + (t.cotizacion?.total ?? 0), 0);
   const porcentaje = total > 0 ? Math.round((tickets.length / total) * 100) : 0;
   const panelId = `tickets-${grupo}-${etapa}`;
+  const radio = 34;
+  const circunferencia = 2 * Math.PI * radio;
 
   return (
     <div
       ref={setNodeRef}
-      className="overflow-hidden rounded-2xl transition-colors"
+      className="aspect-square min-w-35 overflow-hidden rounded-2xl transition-colors"
       style={{
         background: isOver
           ? `color-mix(in srgb, ${meta.color} 10%, var(--color-ink2))`
@@ -145,64 +146,68 @@ function EtapaResumen({
         aria-expanded={abierta}
         aria-controls={panelId}
         onClick={onAlternar}
-        className="group grid min-h-17 w-full grid-cols-[1fr_auto] items-center gap-x-3 gap-y-2 px-4 py-3 text-left focus-visible:outline-2 focus-visible:outline-offset-[-3px] focus-visible:outline-red md:grid-cols-[minmax(11rem,15rem)_1fr_auto] md:gap-y-0"
+        className="group flex h-full w-full flex-col items-center justify-center gap-2 p-3 text-center focus-visible:outline-2 focus-visible:outline-offset-[-3px] focus-visible:outline-red"
         title={meta.descripcion}
       >
-        <span className="flex min-w-0 items-center gap-2.5">
-          <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: meta.color }} />
-          <span className="truncate text-[12px] font-bold" style={{ color: meta.color }}>{meta.nombre}</span>
+        <span className="relative grid h-20 w-20 shrink-0 place-items-center" aria-hidden="true">
+          <svg viewBox="0 0 80 80" className="absolute inset-0 h-full w-full -rotate-90">
+            <circle cx="40" cy="40" r={radio} fill="none" stroke="var(--color-ink)" strokeWidth="7" />
+            <motion.circle
+              cx="40" cy="40" r={radio} fill="none" stroke={meta.color} strokeWidth="7"
+              strokeLinecap="round"
+              initial={false}
+              animate={{ strokeDashoffset: circunferencia * (1 - porcentaje / 100) }}
+              transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+              style={{ strokeDasharray: circunferencia }}
+            />
+          </svg>
+          <span className="tnum text-[17px] font-black text-paper">{porcentaje}%</span>
         </span>
-        <span className="relative col-span-2 row-start-2 h-2.5 overflow-hidden rounded-full bg-ink md:col-span-1 md:col-start-2 md:row-start-1" aria-hidden="true">
-          <motion.span
-            className="absolute inset-y-0 left-0 rounded-full"
-            initial={false}
-            animate={{ width: `${porcentaje}%` }}
-            transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
-            style={{ background: meta.color, minWidth: porcentaje > 0 ? 6 : 0 }}
-          />
-        </span>
-        <span className="flex items-center gap-2">
-          <span className="tnum min-w-11 text-right text-[15px] font-black text-paper">{porcentaje}%</span>
+        <span className="flex min-w-0 items-center justify-center gap-1.5">
+          <span className="line-clamp-2 text-[11px] leading-tight font-bold" style={{ color: meta.color }}>{meta.nombre}</span>
           <IconChevronR
-            size={16}
-            className="text-faint transition-transform duration-200"
+            size={14}
+            className="shrink-0 text-faint transition-transform duration-200"
             style={{ transform: abierta ? "rotate(90deg)" : "rotate(0deg)" }}
             aria-hidden="true"
           />
         </span>
+        <span className="tnum text-[11px] text-faint">{tickets.length} ticket{tickets.length === 1 ? "" : "s"}</span>
       </button>
-
-      <AnimatePresence initial={false}>
-        {abierta && (
-          <motion.div
-            id={panelId}
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: "auto", opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
-            className="overflow-hidden"
-          >
-            <div className="border-t border-line px-4 pt-3 pb-4">
-              <div className="mb-3 flex flex-wrap items-center gap-2 text-[11px] text-muted">
-                <span className="tnum font-bold text-paper">{tickets.length} ticket{tickets.length === 1 ? "" : "s"}</span>
-                {potencial > 0 && <span className="tnum">{moneyCompact(potencial)} en cotizaciones</span>}
-                <span>{meta.descripcion}</span>
-              </div>
-              <div className="grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-2.5">
-                <AnimatePresence mode="popLayout" initial={false}>
-                  {tickets.map((t) => (
-                    <CardArrastrable key={t.id} ticket={t} now={now} movil={movil} onMover={onMover} />
-                  ))}
-                </AnimatePresence>
-                {tickets.length === 0 && (
-                  <p className="col-span-full py-4 text-center text-[11px] text-faint">Sin tickets en esta etapa</p>
-                )}
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
     </div>
+  );
+}
+
+function TicketsDeEtapa({ etapa, tickets, now, grupo, movil, onMover }: {
+  etapa: Etapa; tickets: Ticket[]; now: number; grupo: string;
+  movil: boolean; onMover: (t: Ticket) => void;
+}) {
+  const meta = ETAPA_META[etapa];
+  const potencial = tickets.reduce((s, t) => s + (t.cotizacion?.total ?? 0), 0);
+  return (
+    <motion.div
+      id={`tickets-${grupo}-${etapa}`}
+      initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}
+      transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+      className="mt-3 rounded-2xl bg-ink2 p-4 outline-1 outline-line"
+    >
+      <div className="mb-3 flex flex-wrap items-center gap-2 text-[11px] text-muted">
+        <span className="font-bold" style={{ color: meta.color }}>{meta.nombre}</span>
+        <span className="tnum font-bold text-paper">{tickets.length} ticket{tickets.length === 1 ? "" : "s"}</span>
+        {potencial > 0 && <span className="tnum">{moneyCompact(potencial)} en cotizaciones</span>}
+        <span>{meta.descripcion}</span>
+      </div>
+      <div className="grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-2.5">
+        <AnimatePresence mode="popLayout" initial={false}>
+          {tickets.map((t) => (
+            <CardArrastrable key={t.id} ticket={t} now={now} movil={movil} onMover={onMover} />
+          ))}
+        </AnimatePresence>
+        {tickets.length === 0 && (
+          <p className="col-span-full py-4 text-center text-[11px] text-faint">Sin tickets en esta etapa</p>
+        )}
+      </div>
+    </motion.div>
   );
 }
 
@@ -546,13 +551,7 @@ function TableroVentana({
   movil: boolean; onMover: (t: Ticket) => void;
 }) {
   const sinLeer = tickets.reduce((s, t) => s + (t.sinLeer ?? 0), 0);
-  const [abiertas, setAbiertas] = useState<Set<Etapa>>(() => new Set());
-  const alternar = (etapa: Etapa) => setAbiertas((actuales) => {
-    const siguientes = new Set(actuales);
-    if (siguientes.has(etapa)) siguientes.delete(etapa);
-    else siguientes.add(etapa);
-    return siguientes;
-  });
+  const [abierta, setAbierta] = useState<Etapa | null>(null);
   return (
     <section className="mb-4">
       <div className="mb-2 flex flex-wrap items-center gap-2.5 px-4">
@@ -569,29 +568,40 @@ function TableroVentana({
         )}
         <span className="text-[10.5px] text-faint">{detalle}</span>
       </div>
-      {tickets.length === 0 && vacio ? (
-        <p className="mx-4 rounded-2xl border border-dashed px-4 py-5 text-center text-[11.5px] text-faint"
-           style={{ borderColor: "color-mix(in srgb, var(--color-paper) 12%, transparent)" }}>
-          {vacio}
-        </p>
-      ) : (
-        <div className="px-4">
-          <div className="grid gap-2">
+      <div className="px-4">
+          <div className="kanban-scroll grid auto-cols-[minmax(140px,1fr)] grid-flow-col gap-2 overflow-x-auto pb-1 md:grid-flow-row md:grid-cols-5">
             {ETAPAS.map((e) => (
               <EtapaResumen
                 key={e}
                 etapa={e}
                 tickets={porEtapa[e]}
                 total={tickets.length}
-                now={now}
                 grupo={grupo}
                 movil={movil}
-                abierta={abiertas.has(e)}
-                onAlternar={() => alternar(e)}
-                onMover={onMover}
+                abierta={abierta === e}
+                onAlternar={() => setAbierta((actual) => actual === e ? null : e)}
               />
             ))}
           </div>
+          <AnimatePresence mode="wait">
+            {abierta && (
+              <TicketsDeEtapa
+                key={abierta}
+                etapa={abierta}
+                tickets={porEtapa[abierta]}
+                now={now}
+                grupo={grupo}
+                movil={movil}
+                onMover={onMover}
+              />
+            )}
+          </AnimatePresence>
+          {tickets.length === 0 && vacio && !abierta && (
+            <p className="mt-3 rounded-2xl border border-dashed px-4 py-4 text-center text-[11.5px] text-faint"
+               style={{ borderColor: "color-mix(in srgb, var(--color-paper) 12%, transparent)" }}>
+              {vacio}
+            </p>
+          )}
           {(conZonaCierre && !movil) || alFinal ? (
             <div className="mt-3 flex min-h-24 gap-3 overflow-x-auto">
               {conZonaCierre && !movil && <ZonaCierre />}
@@ -599,7 +609,6 @@ function TableroVentana({
             </div>
           ) : null}
         </div>
-      )}
     </section>
   );
 }
@@ -786,7 +795,7 @@ export function Pipeline() {
             />
             <TableroVentana
               grupo="cerrada"
-              titulo="Solo tú puedes responder"
+              titulo="Histórico (solo tú puedes responder)"
               detalle="Pasaron 24 h desde el último mensaje. WhatsApp ya no deja que el bot escriba texto libre: estos hay que contestarlos a mano."
               color="var(--color-red)"
               tickets={fueraVentana}

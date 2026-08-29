@@ -32,6 +32,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-08-29 | _(este mismo)_ | Etapas en cuadrados con progreso circular e Histórico visible | 0.5 |
 | 2026-08-29 | _(este mismo)_ | Kanban resumido en barras porcentuales con tickets desplegables | 1.0 |
 | 2026-08-29 | _(este mismo)_ | Prompt y herramientas cortos por fase operativa no lineal | 2.5 |
 | 2026-08-29 | _(este mismo)_ | Una sola política administrable: 49.663 caracteres de reglas repetidas bajan a 5.203 | 2.0 |
@@ -191,11 +192,29 @@ Ya viene activado en este equipo.
 | 2026-07-14 | ac09171 | Ubicaciones de locales + análisis de features del cliente | 1.5 |
 | 2026-07-13 | feadf57 | Brief + plan de desarrollo + plan financiero + catálogo | 4.0 |
 | 2026-07-13 | d997844 | Commit inicial (repo) | 0.25 |
-| | | **TOTAL** | **~138.5 h** |
+| | | **TOTAL** | **~139 h** |
 
 ---
 
 ## Entradas (más reciente primero)
+
+### 2026-08-29 · Progreso circular y el Histórico ya no desaparece vacío · ⏱️ 0.5 h
+
+**Qué.** Las cinco etapas vuelven a presentarse como cuadrados contiguos, cada
+uno con un anillo de progreso, porcentaje y número de tickets. Al abrir una,
+los tickets aparecen debajo de toda la fila; solo una etapa queda abierta a la
+vez. La segunda sección se llama “Histórico (solo tú puedes responder)” y
+muestra sus cinco indicadores incluso cuando todos están en cero.
+
+**Por qué.** Las barras lineales apiladas ocupaban toda la pantalla y se
+alejaban de la lectura rápida que Manuel quería conservar. Los círculos permiten
+comparar las cinco fases de un vistazo; esconder el Histórico cuando estaba
+vacío impedía comprobar que el mismo resumen también existía ahí.
+
+**Pruebas.** El build del hub pasó. Se verificó en navegador a 1280 px con los
+cinco cuadrados en una fila y 8 tickets desplegados debajo de Cotización; en
+vista estrecha los cuadrados permanecen lado a lado mediante desplazamiento
+horizontal. El detector de diseño terminó sin hallazgos (`[]`).
 
 ### 2026-08-29 · El Kanban muestra el embudo antes que cientos de tarjetas · ⏱️ 1.0 h
 
