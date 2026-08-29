@@ -32,6 +32,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-08-29 | _(este mismo)_ | Prompt y herramientas cortos por fase operativa no lineal | 2.5 |
 | 2026-08-29 | _(este mismo)_ | Una sola política administrable: 49.663 caracteres de reglas repetidas bajan a 5.203 | 2.0 |
 | 2026-08-27 | _(este mismo)_ | La cantidad entra estructurada por la herramienta; las regex quedan de respaldo | 1.25 |
 | 2026-08-27 | _(este mismo)_ | Reabrir a los minutos conserva la medida, el carro y el local; después de 12 h sí empieza otra visita | 0.75 |
@@ -189,11 +190,48 @@ Ya viene activado en este equipo.
 | 2026-07-14 | ac09171 | Ubicaciones de locales + análisis de features del cliente | 1.5 |
 | 2026-07-13 | feadf57 | Brief + plan de desarrollo + plan financiero + catálogo | 4.0 |
 | 2026-07-13 | d997844 | Commit inicial (repo) | 0.25 |
-| | | **TOTAL** | **~135 h** |
+| | | **TOTAL** | **~137.5 h** |
 
 ---
 
 ## Entradas (más reciente primero)
+
+### 2026-08-29 · Un prompt corto para la necesidad de este turno, no para todo el embudo · ⏱️ 2.5 h
+
+**Qué.** El bot conserva la etapa más alta en el Kanban, pero elige en cada
+mensaje una fase operativa que puede avanzar o retroceder. Si alguien ya tenía
+cotización y pregunta por otra medida, recibe el módulo de medida y solo las
+herramientas de búsqueda; después puede retomar el cierre. El núcleo común
+viaja siempre y solo se añade un módulo: nuevo, medida, selección, cotización o
+visita. La selección es auditable en `ai_runs` como `fase_operativa:<fase>`.
+También se completaron en la configuración publicada las herramientas que sus
+etapas ya necesitaban y el Manual del panel muestra la fuente real.
+
+**Por qué.** El cliente no camina en línea recta: compara después de cotizar,
+cambia de medida durante la visita o pregunta ubicación al principio. Mandar
+todo el manual y 16 esquemas de herramientas en cada turno gastaba contexto y
+hacía competir reglas ajenas al pedido actual. A la vez, mover hacia atrás la
+tarjeta del Kanban borraría el avance comercial. Separar “máximo alcanzado” de
+“necesidad actual” permite responder el cambio y luego empujar la venta con una
+sola pregunta útil. El simulador encontró además que el candado final aún leía
+la etapa vieja y pegaba una pregunta de local después de mostrar opciones; por
+eso ahora también respeta la fase operativa.
+
+**Tamaño.** El playbook que viaja bajó de 5.203 a 3.010–3.129 caracteres
+(aprox. 753–783 tokens). Los esquemas ofrecidos bajaron de 16 herramientas y
+15.851 caracteres a 5–7 herramientas y 4.020–7.914 caracteres según el turno.
+
+**Pruebas.** La prueba de selección empezó en rojo porque el módulo no existía;
+después apareció un falso positivo real —«paso pasado las 5» se confundía con
+visita— y terminó 16/16. La integración no lineal comenzó fallando porque una
+venta en seguimiento no recibía herramientas de medida y terminó verde. En la
+primera vuelta del simulador el agente volvió correctamente de seguimiento a
+medida, pero el candado añadió «¿a cuál local?»; la regresión nueva empezó
+1/7 en rojo (`local` en vez de `null`). En la segunda vuelta, la misma secuencia
+205/55R16 → Equilibrio → Sí → «También necesito ver opciones en 185/70R14»
+mostró la nueva opción y cerró solo con «¿Le cotizo el juego de 4 llantas?».
+`tsc --noEmit` quedó limpio; la suite pasó 1.303/1.303 en 124 archivos; humo
+8/8 y fidelidad 12/12.
 
 ### 2026-08-29 · Una sola política administrable, sin reglas que compitan · ⏱️ 2.0 h
 

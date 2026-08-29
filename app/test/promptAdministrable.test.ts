@@ -96,22 +96,65 @@ describe("el prompt administrable", () => {
 
   it("la etapa aporta el objetivo y solo añade texto si el administrador lo escribió", () => {
     const prompt = buildSystemPrompt(AiConfigSchema.parse({ tono: "neutral" }), {
+      key: "cotizacion_enviada",
       name: "Cotización enviada",
       objective: "Conseguir primero el local y después el día.",
       prompt: "",
       version: 99,
     });
 
-    expect(prompt).toContain("# Etapa actual: Cotización enviada");
+    expect(prompt).toContain("# Fase operativa de este turno: Cotización enviada");
+    expect(prompt).toContain("La fase puede avanzar o volver");
     expect(prompt).toContain("Conseguir primero el local y después el día.");
     expect(prompt).not.toContain("Indicación adicional publicada");
 
     const personalizado = buildSystemPrompt(AiConfigSchema.parse({ tono: "neutral" }), {
+      key: "cotizacion_enviada",
       name: "Cotización enviada",
       objective: "Conseguir primero el local y después el día.",
       prompt: "Prioriza clientes de flota cuando ellos mismos lo indiquen.",
       version: 100,
     });
     expect(personalizado).toContain("Prioriza clientes de flota cuando ellos mismos lo indiquen.");
+
+    const noLineal = buildSystemPrompt(AiConfigSchema.parse({ tono: "neutral" }), {
+      key: "medida_confirmada",
+      name: "Medida confirmada",
+      objective: "Presentar opciones reales.",
+      prompt: "",
+      version: 101,
+      storedStage: "seguimiento_venta",
+    });
+    expect(noLineal).toContain("La tarjeta del Kanban sigue en seguimiento_venta");
+    expect(noLineal).toContain("no borres los datos ni la cotización ya conseguida");
+  });
+
+  it("manda solo las reglas de la fase operativa elegida", () => {
+    const config = AiConfigSchema.parse({ tono: "neutral" });
+    const visita = buildSystemPrompt(config, {
+      key: "seguimiento_venta",
+      name: "seguimiento_venta",
+      objective: "Coordinar la visita.",
+      prompt: "",
+      version: 1,
+    });
+    const opciones = buildSystemPrompt(config, {
+      key: "medida_confirmada",
+      name: "medida_confirmada",
+      objective: "Mostrar opciones.",
+      prompt: "",
+      version: 1,
+    });
+
+    expect(visita).toContain("ubicacion_locales");
+    expect(visita).toContain("primero local y después día");
+    expect(visita).not.toContain("fitment_vehiculo");
+    expect(visita).not.toContain("menú de PREFERENCIA");
+    expect(opciones).toContain("preparar_opciones");
+    expect(opciones).toContain("menos de 4 unidades");
+    expect(opciones).not.toContain("agendar_visita");
+    expect(opciones).not.toContain("Google Maps");
+    expect(visita.length).toBeLessThan(4_500);
+    expect(opciones.length).toBeLessThan(4_500);
   });
 });

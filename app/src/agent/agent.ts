@@ -26,6 +26,7 @@ import { medidaEstaPedida } from "../domain/medidaPedida.js";
 import { medidasDelPedido } from "../services/medidasDelPedido.js";
 import { extractVehicleYear, type Escalones } from "../domain/salesIntent.js";
 import { chatReasoningEffort } from "./aiRequestPolicy.js";
+import { elegirFaseOperativa, herramientasParaElTurno } from "./faseOperativa.js";
 
 const openai = new OpenAI({ apiKey: config.openai.apiKey });
 
@@ -128,24 +129,17 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
   const usedTools: string[] = [];
   const executedCalls = new Set<string>();
   // El estilo se edita en /configuracion/ia; getAiConfig cachea 30 s en memoria.
-  const [aiConfig, stagePrompt, activeDiscount, pendingDiscount, salesFacts, phaseFlags, storeHours, benefitFacts] =
+  const [aiConfig, activeDiscount, pendingDiscount, salesFacts, phaseFlags, storeHours, benefitFacts, history] =
     await Promise.all([
       getAiConfig(),
-      getPublishedStagePrompt(ctx.conversation.stage),
       getActiveDiscountOffer(ctx.conversation.id),
       getPendingDiscountRule(ctx.conversation.id),
       getAgentSalesFacts(ctx.conversation.id),
       getPhaseFlags(),
       getStoreHours(),
       activeBenefitFactsBlock(),
+      getHistory(ctx.conversation.id, config.openai.historyLimit),
     ]);
-  const systemPrompt = buildSystemPrompt(aiConfig, {
-    name: stagePrompt.stage,
-    objective: stagePrompt.objective,
-    prompt: stagePrompt.prompt,
-    version: stagePrompt.version,
-  }, storeHours);
-  const history = await getHistory(ctx.conversation.id, config.openai.historyLimit);
   // ¿Le ofrecimos cotizar y contestó «gracias»? Eso es un sí (conv 11070,
   // 27-ago). Se calcula acá porque el último saliente ya está en `history`.
   // Ver `domain/ofertaAceptada.ts`.
@@ -154,6 +148,28 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
     typeof ultimoDelBot?.content === "string" ? ultimoDelBot.content : null,
     userText,
   );
+  const faseOperativa = elegirFaseOperativa({
+    etapaGuardada: ctx.conversation.stage,
+    texto: userText,
+    tieneCotizacion: Boolean(salesFacts.lastQuote),
+    aceptoCotizar: aceptoLaOferta,
+  });
+  ctx.faseOperativa = faseOperativa;
+  if (faseOperativa !== ctx.conversation.stage) {
+    usedTools.push(`fase_operativa:${faseOperativa}`);
+  }
+  // La tarjeta del Kanban conserva el avance comercial. El prompt y las tools
+  // siguen la necesidad del mensaje actual: una venta en seguimiento puede
+  // volver a opciones sin borrar lo ya cotizado, y después retomar el cierre.
+  const stagePrompt = await getPublishedStagePrompt(faseOperativa);
+  const systemPrompt = buildSystemPrompt(aiConfig, {
+    key: faseOperativa,
+    name: stagePrompt.stage,
+    objective: stagePrompt.objective,
+    prompt: stagePrompt.prompt,
+    version: stagePrompt.version,
+    storedStage: ctx.conversation.stage,
+  }, storeHours);
   // ¿La vitrina que ya salió es de otra medida que la que acaba de pedir?
   // (conv 11881, 27-ago: muestra por aro 15 re-etiquetada como 225/70R15, con
   // el precio de una 185/55R15 adentro). La medida sale del mensaje de ESTE
@@ -182,7 +198,7 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
   ctx.currentUserText = userText;
   ctx.storeHours = storeHours;
   const allTools = buildTools(ctx);
-  const allowed = new Set(stagePrompt.allowedTools);
+  const allowed = new Set(herramientasParaElTurno(faseOperativa, stagePrompt.allowedTools));
   // Gate de fases: aunque el prompt permita una tool, si está gateada solo se
   // ofrece con su fase encendida. Las no gateadas pasan siempre.
   const localTools =
@@ -238,11 +254,11 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
   // Modelo que produjo la respuesta que se devuelve al cliente. Se actualiza
   // ANTES de cada llamada (no después) para que la auditoría vea quién atendió
   // incluso si esa llamada revienta: interesa saber que ya se había escalado.
-  let exactoBarato = turnoExactoBarato(ctx.conversation.id, ctx.conversation.stage);
-  let modeloUsado = modeloDelTurno(0, ctx.conversation.stage, exactoBarato);
+  let exactoBarato = turnoExactoBarato(ctx.conversation.id, faseOperativa);
+  let modeloUsado = modeloDelTurno(0, faseOperativa, exactoBarato);
 
   for (let iteration = 0; iteration < config.openai.maxToolIterations; iteration += 1) {
-    modeloUsado = modeloDelTurno(iteration, ctx.conversation.stage, exactoBarato);
+    modeloUsado = modeloDelTurno(iteration, faseOperativa, exactoBarato);
     const gpt5 = modeloUsado.startsWith("gpt-5");
     const reasoningEffort = chatReasoningEffort(modeloUsado, tools.length > 0);
     // Un 429, un 500 o un timeout de OpenAI NO tumban el turno: se sale del

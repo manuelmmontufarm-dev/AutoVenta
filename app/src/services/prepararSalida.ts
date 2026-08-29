@@ -63,6 +63,8 @@ export type TipoDeSalida = "respuesta" | "retomada" | "seguimiento" | "plantilla
 export interface ContextoDeSalida {
   conversation: { id: number; current_cycle: number; stage: Stage };
   tipo: TipoDeSalida;
+  /** Fase real de este turno; no necesariamente coincide con el máximo guardado en el Kanban. */
+  faseOperativa?: Stage;
   /** Las herramientas que llamó el agente en este turno, para el Ángel Guardián. */
   huella?: readonly HuellaHerramienta[];
   /**
@@ -265,6 +267,7 @@ export const PASOS: readonly PasoDeSalida[] = [
     async aplicar(texto, ctx) {
       const insistido = await insistirConLoQueFalta(
         ctx.conversation.id, ctx.conversation.current_cycle, texto, ctx.textoDelCliente,
+        ctx.faseOperativa,
       );
       if (insistido.agregado) {
         console.log(

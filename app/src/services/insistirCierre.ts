@@ -17,6 +17,7 @@ import { datoQueFalta } from "../domain/preguntaPendiente.js";
 import { despedidaQueCorresponde } from "../domain/cierrePerdido.js";
 import { PREGUNTA_DE_LOCAL, preguntaElLocal } from "../domain/storeSelection.js";
 import { buildVisitPlanQuestion, composeBlocks, MAX_BLOCKS } from "./quoteMessages.js";
+import type { Stage } from "./conversations.js";
 
 /** El mismo separador que parte el turno en mensajes (`splitBlocks`). */
 const BLOCK_SEPARATOR_RE = /\n\s*-{3,}\s*\n/;
@@ -32,6 +33,7 @@ export async function insistirConLoQueFalta(
   cycle: number,
   texto: string,
   textoDelCliente?: string | null,
+  faseOperativa?: Stage,
 ): Promise<CierreInsistido> {
   // AL QUE SE DESPIDIÓ NO SE LE INSISTE. Este candado lee la base —¿hay
   // cotización?, ¿hay local?, ¿hay fecha?— y con eso decide que falta la
@@ -42,6 +44,14 @@ export async function insistirConLoQueFalta(
   // descuento, $73.92 menos» pegado a un adiós. El único dato que llega a
   // tiempo es el mensaje del cliente. Ver `domain/cierrePerdido.ts`.
   if (despedidaQueCorresponde(textoDelCliente ?? "")) return { texto, agregado: null };
+  // Simulador, 29-ago: una venta ya estaba en seguimiento, pero el cliente
+  // pidió opciones para otra medida. El agente volvió bien a medir y mostró
+  // opciones; este candado leyó el máximo histórico del Kanban y le pegó además
+  // «¿a cuál local?». La pregunta de cierre solo corresponde cuando ESTE turno
+  // sigue cerrando, no cuando el cliente acaba de volver a explorar.
+  if (faseOperativa && !["cotizacion_enviada", "seguimiento_venta"].includes(faseOperativa)) {
+    return { texto, agregado: null };
+  }
   const [facts] = await sql<{
     nearest_store: string | null; visit_date: Date | null;
   }[]>`

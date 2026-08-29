@@ -116,6 +116,8 @@ export interface AgentContext {
   customerPhone: string;
   customerName?: string;
   currentUserText: string;
+  /** Fase elegida para este turno; puede retroceder sin mover el Kanban guardado. */
+  faseOperativa?: Conversation["stage"];
   comparedThisTurn?: boolean;
   resumedFromHuman?: boolean;
   discountNotice?: { source: "pending" | "offer"; id: number };

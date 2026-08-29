@@ -58,12 +58,18 @@ describe.sequential("la configuración administrable reemplaza la contradicción
     expect(row.value.personalidad).not.toContain("un solo mensaje");
 
     await (await import("../src/services/settings.js")).ensureDefaultStagePrompts();
-    const etapas = await appSql<{ stage: string; prompt: string }[]>`
-      select stage, prompt from stage_prompt_versions
+    const etapas = await appSql<{ stage: string; prompt: string; allowed_tools: string[] }[]>`
+      select stage, prompt, allowed_tools from stage_prompt_versions
       where status='published'
         and stage in ('nuevo', 'medida_confirmada', 'seleccionando', 'cotizacion_enviada', 'seguimiento_venta')
     `;
     expect(etapas).toHaveLength(5);
     expect(etapas.every((etapa) => etapa.prompt === "")).toBe(true);
+    expect(etapas.find((e) => e.stage === "seleccionando")?.allowed_tools)
+      .toContain("respaldo_marcas");
+    for (const stage of ["cotizacion_enviada", "seguimiento_venta"]) {
+      expect(etapas.find((e) => e.stage === stage)?.allowed_tools)
+        .toEqual(expect.arrayContaining(["ubicacion_locales", "agendar_visita"]));
+    }
   });
 });

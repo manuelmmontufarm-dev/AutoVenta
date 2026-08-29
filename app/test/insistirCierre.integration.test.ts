@@ -95,6 +95,17 @@ describe.sequential("insistir con lo que falta", () => {
     expect(r.agregado).toBeNull();
   });
 
+  it("si el cliente volvió a pedir otra medida no salta a preguntarle el local", async () => {
+    const fila = await conversacion("593980006014", { local: null });
+    const texto = "Opciones enviadas para 185/70R14.\n---\n¿Qué prioriza: costo, equilibrio o premium?";
+    const r = await insistirConLoQueFalta(
+      fila.id, 1, texto, "También necesito ver opciones en 185/70R14", "medida_confirmada",
+    );
+
+    expect(r.agregado).toBeNull();
+    expect(r.texto).toBe(texto);
+  });
+
   it("con local Y visita registrados deja de molestar", async () => {
     const fila = await conversacion("593980006005", { local: "Depot Tire Quito Sur", visita: true });
     const r = await insistirConLoQueFalta(fila.id, 1, "Sí, le sirven para uso mixto.");

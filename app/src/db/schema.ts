@@ -386,6 +386,33 @@ set prompt = ''
 where status = 'published'
   and stage in ('nuevo', 'medida_confirmada', 'seleccionando', 'cotizacion_enviada', 'seguimiento_venta')
   and exists (select 1 from migration);
+
+-- La fase operativa elige pocas herramientas por turno, pero primero tienen
+-- que existir en la lista publicada. El 29-ago se comprobó que el prompt pedía
+-- respaldo_marcas, ubicacion_locales y agendar_visita mientras ninguna etapa
+-- publicada se las ofrecía al modelo. Se agregan una vez, sin tocar objetivos
+-- ni decisiones posteriores del administrador.
+insert into settings (key, value)
+values ('migration_herramientas_fase_operativa_v1', 'true'::jsonb)
+on conflict (key) do nothing;
+
+update stage_prompt_versions
+set allowed_tools = allowed_tools || '["respaldo_marcas"]'::jsonb
+where status = 'published'
+  and stage = 'seleccionando'
+  and not (allowed_tools ? 'respaldo_marcas');
+
+update stage_prompt_versions
+set allowed_tools = allowed_tools || '["ubicacion_locales"]'::jsonb
+where status = 'published'
+  and stage in ('cotizacion_enviada', 'seguimiento_venta')
+  and not (allowed_tools ? 'ubicacion_locales');
+
+update stage_prompt_versions
+set allowed_tools = allowed_tools || '["agendar_visita"]'::jsonb
+where status = 'published'
+  and stage in ('cotizacion_enviada', 'seguimiento_venta')
+  and not (allowed_tools ? 'agendar_visita');
 `;
 
 /** Aplica el esquema (idempotente). Se llama al arrancar el bot. */

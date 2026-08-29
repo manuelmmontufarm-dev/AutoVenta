@@ -294,7 +294,7 @@ const pipeline = new InboundPipeline(async ({ from, name, text, waMessageIds, re
   // porqué están allí, en `PASOS`.
   const salida = await prepararSalida(reply, {
     conversation, tipo: "respuesta", huella: agentContext.toolTrace ?? [],
-    textoDelCliente: textoConLinks,
+    textoDelCliente: textoConLinks, faseOperativa: agentContext.faseOperativa,
   });
   if (!salida.texto) return;
 

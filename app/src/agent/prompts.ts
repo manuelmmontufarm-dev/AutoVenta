@@ -1,6 +1,7 @@
 import { business } from "../config.js";
+import type { Stage } from "../domain/pipeline.js";
 import { DEFAULT_AI_CONFIG, formatStoreHours, type AiConfig, type StoreHours } from "../services/settings.js";
-import { COMPACT_PLAYBOOK } from "./compactPlaybook.js";
+import { COMPACT_PLAYBOOK, playbookParaFase } from "./compactPlaybook.js";
 
 /**
  * Prompt estable del agente. La política comercial tiene una sola fuente
@@ -11,12 +12,14 @@ import { COMPACT_PLAYBOOK } from "./compactPlaybook.js";
  */
 export function buildSystemPrompt(
   ai: AiConfig = DEFAULT_AI_CONFIG,
-  stage?: { name: string; objective: string; prompt: string; version: number },
+  stage?: { key?: Stage; name: string; objective: string; prompt: string; version: number; storedStage?: string },
   storeHours?: StoreHours,
 ): string {
   const stores = business.stores.map((store) => `- ${store.name}`).join("\n");
 
-  return `${COMPACT_PLAYBOOK}
+  const policy = stage?.key ? playbookParaFase(stage.key) : COMPACT_PLAYBOOK;
+
+  return `${policy}
 
 ---
 
@@ -33,8 +36,10 @@ ${business.promo ? `Promoción vigente: ${business.promo}.` : ""}
 Estas preferencias vienen de Ajustes y son la única fuente del tono y la personalidad:
 ${styleRules(ai)}
 
-${stage ? `# Etapa actual: ${stage.name}
-Objetivo: ${stage.objective}${stage.prompt.trim() ? `
+${stage ? `# Fase operativa de este turno: ${stage.name}
+La fase puede avanzar o volver según lo que acaba de pedir el cliente. Resuelve primero esa necesidad y después haz una sola pregunta que empuje al siguiente dato comercial que falte.
+Objetivo: ${stage.objective}${stage.storedStage && stage.storedStage !== stage.name ? `
+La tarjeta del Kanban sigue en ${stage.storedStage}; no borres los datos ni la cotización ya conseguida.` : ""}${stage.prompt.trim() ? `
 Indicación adicional publicada: ${stage.prompt.trim()}` : ""}` : ""}`.trim();
 }
 

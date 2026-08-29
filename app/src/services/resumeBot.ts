@@ -98,7 +98,7 @@ export async function resumeBotIfUnanswered(conversationId: number): Promise<Res
     // seguía viva por aquí, y el aviso de stock corto no salía nunca. Ver
     // services/prepararSalida.ts.
     const salida = await prepararSalida(reply, {
-      conversation, tipo: "retomada", huella: ctx.toolTrace ?? [],
+      conversation, tipo: "retomada", huella: ctx.toolTrace ?? [], faseOperativa: ctx.faseOperativa,
       textoDelCliente: claimed.last_text,
     });
     // Un candado bloqueó el envío (duplicado/atascado): ya alertó al asesor y

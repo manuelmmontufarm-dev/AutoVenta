@@ -32,7 +32,7 @@ const MODELO_BARATO = "gpt-5.4-mini-test";
 let stub: Server;
 let puerto = 0;
 
-let llamadas: { model: string; conTools: boolean }[] = [];
+let llamadas: { model: string; conTools: boolean; tools: string[] }[] = [];
 /** Guion del stub: una respuesta por llamada, en orden. Al agotarse, texto. */
 let guion: Array<{ tool?: string; args?: string; texto?: string }> = [];
 
@@ -95,9 +95,16 @@ describe.sequential("Canary del turno exacto (OPENAI_EXACT_TOOL_MODEL)", () => {
       let body = "";
       req.on("data", (c) => { body += c; });
       req.on("end", () => {
-        const parsed = JSON.parse(body || "{}") as { model?: string; tools?: unknown[] };
+        const parsed = JSON.parse(body || "{}") as {
+          model?: string;
+          tools?: Array<{ function?: { name?: string } }>;
+        };
         const conTools = Array.isArray(parsed.tools) && parsed.tools.length > 0;
-        llamadas.push({ model: parsed.model ?? "", conTools });
+        llamadas.push({
+          model: parsed.model ?? "",
+          conTools,
+          tools: parsed.tools?.map((tool) => tool.function?.name ?? "").filter(Boolean) ?? [],
+        });
         const paso = guion.shift();
         const message = paso?.tool
           ? { role: "assistant", content: null, tool_calls: [{ id: `call_${llamadas.length}`, type: "function", function: { name: paso.tool, arguments: paso.args ?? "{}" } }] }
@@ -201,6 +208,30 @@ describe.sequential("Canary del turno exacto (OPENAI_EXACT_TOOL_MODEL)", () => {
       // y el texto del barato jamás entra en juego.
       expect(llamadas.map((l) => l.model)).toEqual([MODELO_PRINCIPAL]);
       expect(respuesta).toContain("visita");
+    }, 30_000);
+
+    it("(g) seguimiento vuelve a opciones si el cliente pide otra medida", async () => {
+      llamadas = [];
+      guion = [
+        { texto: "Texto del enrutador que obliga a escalar." },
+        { texto: "Claro, revisemos opciones para esa nueva medida." },
+      ];
+      const id = await conversacionNueva(sql, "593990000407", "seguimiento_venta");
+      const respuesta = await agent.runAgent(
+        contexto(id, "593990000407", "seguimiento_venta"),
+        "Ahora quiero otra medida 215/60R16, ¿qué opciones tienen?",
+      );
+
+      expect(llamadas[0].tools).toEqual(expect.arrayContaining([
+        "buscar_llanta", "buscar_por_aro_y_tipo", "preparar_opciones",
+      ]));
+      expect(llamadas[0].tools).not.toContain("local_mas_cercano");
+      expect(llamadas[0].tools).not.toContain("notificar_vendedor");
+      expect(respuesta).toContain("nueva medida");
+      const [run] = await sql<{ tools: string[] }[]>`
+        select tools from ai_runs where conversation_id=${id} order by id desc limit 1
+      `;
+      expect(run.tools).toContain("fase_operativa:medida_confirmada");
     }, 30_000);
   });
 
