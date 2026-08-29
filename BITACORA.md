@@ -32,6 +32,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-08-29 | _(este mismo)_ | Lote real de 50 conversaciones y la pregunta del local ya no sale dos veces | 1.5 |
 | 2026-08-29 | _(este mismo)_ | Etapas en cuadrados con progreso circular e Histórico visible | 0.5 |
 | 2026-08-29 | _(este mismo)_ | Kanban resumido en barras porcentuales con tickets desplegables | 1.0 |
 | 2026-08-29 | _(este mismo)_ | Prompt y herramientas cortos por fase operativa no lineal | 2.5 |
@@ -197,6 +198,33 @@ Ya viene activado en este equipo.
 ---
 
 ## Entradas (más reciente primero)
+
+### 2026-08-29 · Lote real de 50 conversaciones y la pregunta del local ya no sale dos veces · ⏱️ 1.5 h
+
+**Qué.** Se corrió un lote de 50 conversaciones reales contra el bot de la rama
+(`scripts/sim/lote-50.mjs`, clave de pruebas, base limpia por caso) y un lote
+corto de 8 casos contra `main` para comparar. Del lote salió un solo defecto
+real: cuando el modelo preguntaba el local nombrando las sucursales sin decir
+la palabra «local» («¿Cumbayá o Quito Sur?»), el detector estricto no lo
+reconocía y el candado del cierre pegaba la pregunta otra vez — el cliente la
+veía dos veces en el mismo mensaje. `preguntaElLocal` ahora también cuenta como
+pregunta un segmento interrogativo que nombre los dos locales; el mensaje de
+los mapas (nombres sin «?») sigue sin contar, porque este detector también
+decide los botones.
+
+**Por qué.** Antes de publicar la rama había que saber si funciona mejor que lo
+que está en producción, con datos y no con impresiones. La comparación con la
+misma rúbrica dio: 3 casos donde la rama es mejor (no pregunta el local fuera
+de fase al pedir otra medida, no duplica la pregunta del local, difiere suave
+cuando el cliente se va de viaje), 5 empates y 0 donde `main` gane. Además la
+rama gasta 59 % menos tokens de entrada en los mismos 8 casos (202k vs 493k).
+
+**Pruebas.** Suite completa 1308/1308. Los 4 casos que duplicaban la pregunta
+(35–37 y 44 del lote) se repitieron contra el bot vivo con el arreglo: la
+pregunta salió una sola vez en los cuatro. Los demás rojos del lote se
+auditaron uno por uno contra el texto real: eran reglas del evaluador
+disparándose sobre precios ya cotizados y sobre el ahorro determinístico del
+cupón, no errores del bot.
 
 ### 2026-08-29 · Progreso circular y el Histórico ya no desaparece vacío · ⏱️ 0.5 h
 

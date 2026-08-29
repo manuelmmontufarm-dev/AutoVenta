@@ -75,6 +75,22 @@ describe("lo mismo con el local", () => {
     expect(preguntaElLocal("¿A cuál local le queda mejor ir, *Cumbayá* o *Quito Sur*? 📍")).toBe(true);
     expect(preguntaElLocal("¿A cuál local le queda mejor ir?")).toBe(true);
   });
+
+  // Lote del 29-ago, casos 35–37 y 44: el modelo preguntó el local nombrando
+  // las sucursales sin decir «local», el estricto no lo reconoció y el candado
+  // pegó la pregunta otra vez — el cliente la vio dos veces en el mismo turno.
+  it.each([
+    "¿Cumbayá o Quito Sur? 🤝",
+    "📍 ¿Le queda mejor Cumbayá o Quito Sur?",
+    "Para coordinar su visita, ¿le queda mejor ir a *Cumbayá* o *Quito Sur*? 📍",
+    "si me dice cuál le queda mejor, le envío solo ese mapa. ¿Cumbayá o Quito Sur? 🤝",
+  ])("los dos nombres dentro de una pregunta bastan: «%s»", (texto) => {
+    expect(preguntaElLocal(texto)).toBe(true);
+  });
+
+  it("los nombres en líneas sin pregunta siguen sin contar (los mapas)", () => {
+    expect(preguntaElLocal(`${MAPAS}\n¿Le queda alguna otra duda?`)).toBe(false);
+  });
 });
 
 describe("el turno que confirma la visita deja la puerta abierta", () => {

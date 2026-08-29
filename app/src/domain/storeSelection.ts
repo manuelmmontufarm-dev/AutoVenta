@@ -44,6 +44,17 @@ export function preguntaElLocal(bloque: string | null | undefined): boolean {
     if (n.includes(normalize(PREGUNTA_DE_LOCAL).replace(/[*_]/g, ""))) return true;
     if (/\b(?:cual|que|donde|a cual)\b[^?]{0,60}\b(?:local|locales|sucursal|sucursales|tienda|tiendas)\b/.test(n)) return true;
     if (/\b(?:local|sucursal|tienda)\b[^?]{0,40}\b(?:le queda|prefiere|le conviene|le sirve)\b/.test(n)) return true;
+    // «¿Cumbayá o Quito Sur?» a secas TAMBIÉN pregunta el local, aunque no
+    // diga la palabra. Visto en el lote del 29-ago (casos 35–37 y 44): el
+    // modelo cerró así y este detector dijo que no había pregunta, con lo que
+    // el candado del cierre la pegó otra vez y el cliente la vio dos veces
+    // seguidas. Exige los dos nombres DENTRO del mismo segmento de pregunta
+    // (cortado por puntuación o salto de línea): el mensaje de los mapas
+    // nombra los dos locales en líneas sin «?», y no debe contar — este
+    // detector también decide si se pintan botones.
+    for (const segmento of n.split(/[.!\n]/)) {
+      if (segmento.includes("?") && /\bcumbaya\b/.test(segmento) && /\bsur\b/.test(segmento)) return true;
+    }
   }
   // Y la pregunta en imperativo, sin signos — misma razón que `preguntaElDia`.
   return /\b(?:digame|dime|me dice|me dices|indiqueme|confirmeme)\b[^.?!]{0,30}\b(?:a\s+)?(?:que|cual)\s+(?:local|sucursal|tienda)\b/.test(n);
