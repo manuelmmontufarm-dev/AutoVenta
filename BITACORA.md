@@ -32,6 +32,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-08-29 | _(este mismo)_ | El embudo del Pipeline cabe entero en el teléfono, sin arrastrar | 0.75 |
 | 2026-08-29 | _(este mismo)_ | El hub en el teléfono: el chat se comporta como WhatsApp y la baraja como una app de tarjetas | 2.5 |
 | 2026-08-29 | _(este mismo)_ | Los cinco pendientes conocidos, cerrados: el reloj de las 12 horas y cuatro más | 2.0 |
 | 2026-08-29 | _(este mismo)_ | Lote real de 50 conversaciones y la pregunta del local ya no sale dos veces | 1.5 |
@@ -200,6 +201,31 @@ Ya viene activado en este equipo.
 ---
 
 ## Entradas (más reciente primero)
+
+### 2026-08-29 · El embudo del Pipeline cabe entero en el teléfono, sin arrastrar · ⏱️ 0.75 h
+
+**Qué.** Las cinco etapas del Pipeline entran en una pantalla de teléfono sin
+scroll horizontal. La tarjeta se encoge en pantallas de mano —anillo de 44 px,
+el nombre CORTO (`ETAPA_META.corto`, el mismo que usan el Inbox y las alertas) y
+el conteo a secas— y conserva su tamaño completo en escritorio: cuadrado, anillo
+de 80 px, nombre largo, chevron y «N tickets». La etapa abierta se marca ahora
+en la propia tarjeta (aro y tinte de su color), porque el chevron no cabe a ese
+tamaño y sin esa señal no se veía de qué etapa eran los tickets de abajo. La
+tarjeta «Llegaron al final» ocupa la fila entera en el teléfono y vuelve a sus
+144 px junto a la zona de cierre en escritorio.
+
+**Por qué.** Pedido de Manuel: «que no haya scroll horizontal, hazle un buen
+layout». La causa era `min-w-35` + `aspect-square`: cinco tarjetas de 140 px son
+700 px contra los 370 que da un iPhone, así que se veían dos y media. El carril
+a sangre del cambio anterior arregló que el corte no PARECIERA un defecto, pero
+no el problema de fondo: un embudo cuyo valor es ver la forma de las cinco
+etapas de una mirada deja de servir si hay que arrastrarlo para contarlas.
+
+**Pruebas.** `tsc` limpio, build del hub correcto, detector de diseño sin
+hallazgos. En el iPhone 17 Pro: las cinco etapas visibles a la vez en las dos
+secciones (17 % · 22 % · 0 % · 44 % · 17 %), sin scroll lateral; al tocar
+«Cotización» la tarjeta queda marcada con su aro rojo y los 8 tickets aparecen
+debajo. Escritorio verificado sin regresión.
 
 ### 2026-08-29 · El hub en el teléfono: el chat se comporta como WhatsApp y la baraja como una app de tarjetas · ⏱️ 2.5 h
 

@@ -132,12 +132,18 @@ function EtapaResumen({
   return (
     <div
       ref={setNodeRef}
-      className="aspect-square min-w-35 overflow-hidden rounded-2xl transition-colors"
+      // El cuadrado perfecto es de escritorio: en una columna de 70 px obliga a
+      // una tarjeta de 70 px de alto donde no entra el anillo con su nombre.
+      // En el teléfono manda el contenido.
+      className="overflow-hidden rounded-xl transition-colors md:aspect-square md:rounded-2xl"
+      // La etapa abierta se marca en la propia tarjeta y no solo con el
+      // chevron: en el teléfono el chevron no cabe, y sin esta señal no se ve
+      // de qué etapa son los tickets que aparecen debajo.
       style={{
-        background: isOver
+        background: isOver || abierta
           ? `color-mix(in srgb, ${meta.color} 10%, var(--color-ink2))`
           : "var(--color-ink2)",
-        outline: isOver ? `2px solid ${meta.color}` : "1px solid var(--color-line)",
+        outline: isOver || abierta ? `2px solid ${meta.color}` : "1px solid var(--color-line)",
         outlineOffset: "-1px",
       }}
     >
@@ -146,10 +152,12 @@ function EtapaResumen({
         aria-expanded={abierta}
         aria-controls={panelId}
         onClick={onAlternar}
-        className="group flex h-full w-full flex-col items-center justify-center gap-2 p-3 text-center focus-visible:outline-2 focus-visible:outline-offset-[-3px] focus-visible:outline-red"
+        className="group flex h-full w-full flex-col items-center justify-center gap-1 p-1.5 text-center focus-visible:outline-2 focus-visible:outline-offset-[-3px] focus-visible:outline-red md:gap-2 md:p-3"
         title={meta.descripcion}
       >
-        <span className="relative grid h-20 w-20 shrink-0 place-items-center" aria-hidden="true">
+        {/* El SVG es un viewBox de 80: al encoger la caja, el anillo y su grosor
+            escalan solos. */}
+        <span className="relative grid h-11 w-11 shrink-0 place-items-center md:h-20 md:w-20" aria-hidden="true">
           <svg viewBox="0 0 80 80" className="absolute inset-0 h-full w-full -rotate-90">
             <circle cx="40" cy="40" r={radio} fill="none" stroke="var(--color-ink)" strokeWidth="7" />
             <motion.circle
@@ -161,18 +169,26 @@ function EtapaResumen({
               style={{ strokeDasharray: circunferencia }}
             />
           </svg>
-          <span className="tnum text-[17px] font-black text-paper">{porcentaje}%</span>
+          <span className="tnum text-[11.5px] font-black text-paper md:text-[17px]">{porcentaje}%</span>
         </span>
         <span className="flex min-w-0 items-center justify-center gap-1.5">
-          <span className="line-clamp-2 text-[11px] leading-tight font-bold" style={{ color: meta.color }}>{meta.nombre}</span>
+          {/* «Opciones y comparación» no cabe en 70 px; el nombre corto sí, y
+              es el mismo que usan el Inbox y las alertas. */}
+          <span className="line-clamp-2 text-[9.5px] leading-tight font-bold md:text-[11px]" style={{ color: meta.color }}>
+            <span className="md:hidden">{meta.corto}</span>
+            <span className="hidden md:inline">{meta.nombre}</span>
+          </span>
           <IconChevronR
             size={14}
-            className="shrink-0 text-faint transition-transform duration-200"
+            className="hidden shrink-0 text-faint transition-transform duration-200 md:block"
             style={{ transform: abierta ? "rotate(90deg)" : "rotate(0deg)" }}
             aria-hidden="true"
           />
         </span>
-        <span className="tnum text-[11px] text-faint">{tickets.length} ticket{tickets.length === 1 ? "" : "s"}</span>
+        <span className="tnum text-[10px] text-faint md:text-[11px]">
+          <span className="md:hidden">{tickets.length}</span>
+          <span className="hidden md:inline">{tickets.length} ticket{tickets.length === 1 ? "" : "s"}</span>
+        </span>
       </button>
     </div>
   );
@@ -261,7 +277,10 @@ function ZonaFinal({ total, onAbrir }: { total: number; onAbrir: () => void }) {
   return (
     <button
       onClick={onAbrir}
-      className="grid w-36 shrink-0 place-items-center rounded-2xl text-center transition-all hover:scale-[1.03]"
+      // Ancho fijo de 144 px: en escritorio va en una fila junto a la zona de
+      // cierre; en el teléfono queda sola y un tercio de ancho se lee como una
+      // tarjeta a medio cargar, así que ahí ocupa la fila entera.
+      className="grid w-full shrink-0 place-items-center rounded-2xl text-center transition-all md:w-36 md:hover:scale-[1.03]"
       style={{
         background: "color-mix(in srgb, var(--color-lime) 8%, transparent)",
         border: "1px dashed color-mix(in srgb, var(--color-lime) 35%, transparent)",
@@ -569,12 +588,15 @@ function TableroVentana({
         <span className="text-[10.5px] text-faint">{detalle}</span>
       </div>
       <div className="px-4">
-          {/* A sangre en el teléfono: dentro del `px-4` la última tarjeta se
-              cortaba 16 px antes del borde y eso se lee como un defecto, no
-              como «hay más al lado». Sangrando el carril hasta el borde real
-              de la pantalla el asomo es el de un carrusel, que es lo que es.
-              El snap por columna ya vive en tokens.css. */}
-          <div className="kanban-scroll -mx-4 grid auto-cols-[minmax(140px,1fr)] grid-flow-col gap-2 overflow-x-auto px-4 pb-1 md:mx-0 md:grid-flow-row md:grid-cols-5 md:px-0">
+          {/* LAS CINCO ETAPAS CABEN EN LA PANTALLA — SIN SCROLL HORIZONTAL.
+              El carril arrastrable venía de `min-w-35` + `aspect-square`: cinco
+              tarjetas de 140 px son 700 px, casi el doble de los 370 que da un
+              teléfono. Y un embudo que hay que arrastrar deja de ser un embudo:
+              su valor es ver la FORMA de las cinco etapas de una sola mirada,
+              y con dos y media visibles eso no pasa. Las tarjetas se encogen en
+              el teléfono (anillo de 44 px y el nombre corto) y conservan su
+              tamaño completo en escritorio. */}
+          <div className="grid grid-cols-5 gap-1.5 md:gap-2">
             {ETAPAS.map((e) => (
               <EtapaResumen
                 key={e}
@@ -608,7 +630,7 @@ function TableroVentana({
             </p>
           )}
           {(conZonaCierre && !movil) || alFinal ? (
-            <div className="mt-3 flex min-h-24 gap-3 overflow-x-auto">
+            <div className="mt-3 grid min-h-24 gap-3 md:flex md:overflow-x-auto">
               {conZonaCierre && !movil && <ZonaCierre />}
               {alFinal}
             </div>
