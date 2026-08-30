@@ -339,7 +339,11 @@ export default function App() {
           </div>
         )}
 
-        <nav className="glass-strong fixed inset-x-2 bottom-2 z-20 flex items-stretch rounded-3xl px-1 py-2 md:hidden" style={{ paddingBottom: "max(0.5rem, env(safe-area-inset-bottom))" }}>
+        {/* Dentro de una conversación no hay tabs, como en cualquier app de
+            mensajes: el chat ocupa la pantalla entera y se sale con la flecha
+            de atrás. Con la barra puesta se comía 72 px del alto útil y encima
+            quedaba flotando sobre el composer cuando subía el teclado. */}
+        <nav className={`glass-strong fixed inset-x-2 bottom-2 z-20 items-stretch rounded-3xl px-1 py-2 md:hidden ${route.vista === "ticket" ? "hidden" : "flex"}`} style={{ paddingBottom: "max(0.5rem, env(safe-area-inset-bottom))" }}>
           {navVisible.map((item) => {
             const activo = navActivo(route) === item.id;
             return (

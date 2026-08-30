@@ -569,7 +569,12 @@ function TableroVentana({
         <span className="text-[10.5px] text-faint">{detalle}</span>
       </div>
       <div className="px-4">
-          <div className="kanban-scroll grid auto-cols-[minmax(140px,1fr)] grid-flow-col gap-2 overflow-x-auto pb-1 md:grid-flow-row md:grid-cols-5">
+          {/* A sangre en el teléfono: dentro del `px-4` la última tarjeta se
+              cortaba 16 px antes del borde y eso se lee como un defecto, no
+              como «hay más al lado». Sangrando el carril hasta el borde real
+              de la pantalla el asomo es el de un carrusel, que es lo que es.
+              El snap por columna ya vive en tokens.css. */}
+          <div className="kanban-scroll -mx-4 grid auto-cols-[minmax(140px,1fr)] grid-flow-col gap-2 overflow-x-auto px-4 pb-1 md:mx-0 md:grid-flow-row md:grid-cols-5 md:px-0">
             {ETAPAS.map((e) => (
               <EtapaResumen
                 key={e}

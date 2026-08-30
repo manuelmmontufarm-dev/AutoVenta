@@ -32,6 +32,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-08-29 | _(este mismo)_ | El hub en el teléfono: el chat se comporta como WhatsApp y la baraja como una app de tarjetas | 2.5 |
 | 2026-08-29 | _(este mismo)_ | Los cinco pendientes conocidos, cerrados: el reloj de las 12 horas y cuatro más | 2.0 |
 | 2026-08-29 | _(este mismo)_ | Lote real de 50 conversaciones y la pregunta del local ya no sale dos veces | 1.5 |
 | 2026-08-29 | _(este mismo)_ | Etapas en cuadrados con progreso circular e Histórico visible | 0.5 |
@@ -199,6 +200,41 @@ Ya viene activado en este equipo.
 ---
 
 ## Entradas (más reciente primero)
+
+### 2026-08-29 · El hub en el teléfono: el chat se comporta como WhatsApp y la baraja como una app de tarjetas · ⏱️ 2.5 h
+
+**Qué.** Rediseño de la experiencia móvil, verificada en un iPhone 17 Pro real
+(simulador de iOS). (1) **La conversación se comporta como una app de
+mensajes**: ocupa el área visible medida con `visualViewport` —no `100dvh`, que
+en iOS no se encoge con el teclado—, va a sangre completa sin márgenes ni
+tarjetas flotantes, la barra de tabs desaparece dentro de un chat, tocar los
+mensajes baja el teclado, el input es de 16 px (por debajo iOS hace zoom) y el
+foco no se pierde entre mensajes. (2) **Quién atiende se cambia desde la
+cabecera**, con un interruptor Bot/Yo de un toque. (3) **El composer ya no
+bloquea**: se escribe siempre y al enviar el chat pasa solo a la persona.
+(4) Los mandos de la baraja pasan a **círculos** con la etiqueta debajo.
+(5) El carril de etapas del Pipeline sangra hasta el borde real de la pantalla,
+el badge de versión se esconde en el teléfono, y el carro y el sello «30+ AÑOS
+EN PISTA» se retiran en pantallas de mano.
+
+**Por qué.** Pedido de Manuel: «que responder chats se sienta igual que
+WhatsApp, que sea fácil escribir, bajar el teclado y leer, y poder cambiar si
+atiende el vendedor o el bot desde la pantalla del chat». Lo que había no era
+un problema de gusto sino tres defectos concretos: el composer quedaba DEBAJO
+del teclado (se escribía a ciegas), no existía forma de tomar el chat sin abrir
+un modal y bajar seis secciones, y el carro decorativo caía encima de las
+tarjetas. El más caro de los tres estaba en el código: **`Composer` declaraba
+`onTomar` en su tipo pero nunca lo desestructuraba**, así que quien lo llamaba
+lo pasaba y el componente lo ignoraba — por eso «el bot está atendiendo» era un
+callejón sin salida y no una decisión.
+
+**Pruebas.** `tsc` limpio, build del hub correcto, detector de diseño sin
+hallazgos en lo tocado. En el iPhone 17 Pro, con el bot real: el teclado sube y
+el composer queda pegado a él sin zoom; tocar la conversación lo baja; escribir
+y enviar pasó el chat de Bot a Yo solo y dejó el foco puesto; el interruptor de
+la cabecera devuelve el chat al bot con un toque; en la baraja el arrastre
+sigue pidiendo confirmación antes de cerrar una venta. Escritorio verificado
+sin regresión: stepper, ficha lateral y márgenes intactos.
 
 ### 2026-08-29 · Los cinco pendientes conocidos, cerrados: el reloj de las 12 horas y cuatro más · ⏱️ 2.0 h
 

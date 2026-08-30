@@ -330,7 +330,11 @@ html[data-theme="showroom-gp"] main .glass {
   overflow: hidden;
 }
 
-html[data-theme="showroom-gp"] main .glass::after {
+/* El acento de carreras es una pestaña de SUPERFICIE: pertenece a las tarjetas.
+   Sobre un botón redondo se recorta contra la curva y se lee como una muesca
+   rota — se veía en la X de cerrar y saltó a la vista en los mandos redondos de
+   la baraja. Los círculos quedan fuera. */
+html[data-theme="showroom-gp"] main .glass:not(.rounded-full)::after {
   content: "";
   position: absolute;
   top: 0;
@@ -417,16 +421,16 @@ html[data-theme="showroom-gp"] .gp-sound-control[aria-pressed="false"] {
     width: 62px;
   }
 
-  html[data-theme="showroom-gp"] .gp-car {
-    right: -16%;
-    bottom: 7%;
-    width: 76vw;
-    opacity: 0.65;
-  }
-
+  /* En el teléfono no hay margen donde poner el adorno: el carro a 76vw y el
+     sello «30+ AÑOS EN PISTA» caían ENCIMA de las tarjetas del Pipeline y del
+     Histórico —se leían atravesados por los anillos de progreso—. La regla del
+     propio sistema manda que lo racing acompañe y nunca compita con el
+     contenido (DESIGN.md §1), así que en pantallas de mano se retiran los dos
+     elementos grandes. El mundo sigue presente en lo que no estorba: la
+     bandera de cuadros de arriba, el mini-carro al 9 % y la rueda del borde. */
+  html[data-theme="showroom-gp"] .gp-car,
   html[data-theme="showroom-gp"] .gp-corner-mark-a {
-    right: 14px;
-    bottom: 82px;
+    display: none;
   }
 }
 

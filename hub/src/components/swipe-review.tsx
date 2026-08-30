@@ -166,32 +166,39 @@ export function SwipeReview({ titulo, items, onClose }: { titulo: string; items:
         )}
       </div>
 
-      {/* Controles (siempre visibles: en desktop nadie adivina que hay que arrastrar) */}
+      {/* Controles (siempre visibles: en desktop nadie adivina que hay que
+          arrastrar). Redondos y a la altura del pulgar — el gesto que la gente
+          ya conoce de las apps de tarjetas. Antes eran tres píldoras del mismo
+          tamaño y peso: se leían como una barra de formulario, no como
+          «izquierda o derecha», y en el teléfono había que apuntar a un blanco
+          de 34 px de alto. La etiqueta se queda debajo porque aquí «derecha»
+          cierra una venta: el icono solo no puede cargar esa consecuencia. */}
       {!terminado && ticket && (
-        <div className="mx-auto flex w-full max-w-lg items-center justify-center gap-3 px-4 pb-5" style={{ paddingBottom: "max(1.25rem, env(safe-area-inset-bottom))", visibility: escribiendo ? "hidden" : "visible" }}>
-          <button
+        <div className="mx-auto flex w-full max-w-lg items-start justify-center gap-7 px-4 pb-5" style={{ paddingBottom: "max(1.25rem, env(safe-area-inset-bottom))", visibility: escribiendo ? "hidden" : "visible" }}>
+          <MandoBaraja
             disabled={ocupado}
             onClick={() => setDecision("perdida")}
-            className="flex items-center gap-2 rounded-full px-4 py-2.5 text-xs font-black disabled:opacity-40"
-            style={{ background: "color-mix(in srgb, var(--color-red) 14%, transparent)", color: "var(--color-red)", border: "1px solid color-mix(in srgb, var(--color-red) 40%, transparent)" }}
-          >
-            <IconX size={13} /> Perdida
-          </button>
-          <button
+            color="var(--color-red)"
+            etiqueta="Perdida"
+            tamano={62}
+            icono={<IconX size={26} />}
+          />
+          <MandoBaraja
             disabled={ocupado}
             onClick={() => void ejecutar("saltar")}
-            className="glass rounded-full px-4 py-2.5 text-xs font-bold text-muted"
-          >
-            Saltar
-          </button>
-          <button
+            color="var(--color-muted)"
+            etiqueta="Saltar"
+            tamano={48}
+            icono={<IconChevronR size={20} />}
+          />
+          <MandoBaraja
             disabled={ocupado}
             onClick={() => setDecision("derecha")}
-            className="flex items-center gap-2 rounded-full px-4 py-2.5 text-xs font-black disabled:opacity-40"
-            style={{ background: "color-mix(in srgb, var(--color-lime) 14%, transparent)", color: "var(--color-lime)", border: "1px solid color-mix(in srgb, var(--color-lime) 40%, transparent)" }}
-          >
-            Ganada / Después <IconCheck size={13} />
-          </button>
+            color="var(--color-lime)"
+            etiqueta="Ganada"
+            tamano={62}
+            icono={<IconCheck size={26} />}
+          />
         </div>
       )}
 
@@ -210,6 +217,42 @@ export function SwipeReview({ titulo, items, onClose }: { titulo: string; items:
         )}
       </AnimatePresence>
     </motion.div>
+  );
+}
+
+/** Un mando redondo de la baraja: círculo tocable, etiqueta debajo. */
+function MandoBaraja({
+  onClick, disabled, color, etiqueta, icono, tamano,
+}: {
+  onClick: () => void;
+  disabled: boolean;
+  color: string;
+  etiqueta: string;
+  icono: React.ReactNode;
+  tamano: number;
+}) {
+  return (
+    <div className="flex flex-col items-center gap-1.5">
+      <motion.button
+        whileTap={{ scale: 0.88 }}
+        disabled={disabled}
+        onClick={onClick}
+        aria-label={etiqueta}
+        // `glass` da la superficie del tema (blanca en Showroom GP); el color
+        // vive en el icono y el aro. Pintar el fondo con `--color-paper` los
+        // dejaba negros: en este tema `paper` es el color del TEXTO, no el de
+        // la superficie.
+        className="glass grid place-items-center rounded-full disabled:opacity-40"
+        style={{
+          width: tamano, height: tamano, color,
+          border: `2px solid color-mix(in srgb, ${color} 55%, transparent)`,
+          boxShadow: `0 6px 18px color-mix(in srgb, ${color} 22%, transparent)`,
+        }}
+      >
+        {icono}
+      </motion.button>
+      <span className="text-[10.5px] font-black" style={{ color }}>{etiqueta}</span>
+    </div>
   );
 }
 

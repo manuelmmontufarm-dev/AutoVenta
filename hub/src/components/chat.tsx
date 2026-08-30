@@ -213,24 +213,37 @@ export function TypingBubble({ rol }: { rol: Rol }) {
 export function Composer({
   ticket,
   onEnviar,
+  // Estaba declarado en el tipo pero NUNCA se desestructuraba: quien llamaba lo
+  // pasaba, el componente lo ignoraba, y por eso no había forma de tomar el
+  // chat desde aquí. Ese era el bug de raíz, no una falta de diseño.
+  onTomar,
 }: {
   ticket: Ticket;
   onEnviar: (texto: string) => void;
   onTomar?: () => void;
 }) {
   const [texto, setTexto] = useState("");
-  const puedeEscribir = ticket.atiende === "humano" && ticket.estado === "abierto";
   const ref = useRef<HTMLInputElement>(null);
+  // El bot atendiendo NO bloquea el teclado. Antes esta pantalla solo decía «el
+  // bot está atendiendo» y para escribir había que abrir la Ficha y mover un
+  // interruptor enterrado: tres toques y una pantalla de por medio para
+  // contestarle a un cliente que está esperando. Ahora se escribe siempre y el
+  // traspaso ocurre al enviar, que es cuando de verdad hace falta.
+  const atiendeBot = ticket.atiende === "bot";
 
   useEffect(() => {
-    if (puedeEscribir) ref.current?.focus();
-  }, [puedeEscribir]);
+    if (!atiendeBot) ref.current?.focus();
+  }, [atiendeBot]);
 
   function enviar() {
     const limpio = texto.trim();
     if (!limpio) return;
+    // Primero el traspaso, después el mensaje: si se manda antes, el bot puede
+    // contestar encima en ese hueco.
+    if (atiendeBot) onTomar?.();
     onEnviar(limpio);
     setTexto("");
+    ref.current?.focus(); // el teclado no se cierra entre mensajes (WhatsApp)
   }
 
   if (ticket.estado === "cerrado") {
@@ -241,18 +254,14 @@ export function Composer({
     );
   }
 
-  if (!puedeEscribir) {
-    return (
-      <div className="flex items-center gap-3 px-4 py-2.5">
-        <p className="flex items-center gap-2 text-xs text-muted">
-          <span className="pulse-dot" /> El bot está atendiendo esta conversación
-        </p>
-      </div>
-    );
-  }
-
   return (
-    <div className="flex items-center gap-2 px-3 py-2.5">
+    <div className="px-3 py-2.5">
+      {atiendeBot && (
+        <p className="mb-1.5 flex items-center justify-center gap-1.5 text-center text-[11px] text-faint">
+          <span className="pulse-dot" /> Contesta el bot — al enviar, el chat pasa a ustedes
+        </p>
+      )}
+      <div className="flex items-center gap-2">
       <input
         ref={ref}
         value={texto}
@@ -260,8 +269,11 @@ export function Composer({
         onKeyDown={(e) => {
           if ((e.key === "Enter" || e.key === "Return") && !e.nativeEvent.isComposing) enviar();
         }}
-        placeholder="Escribe como vendedor…"
-        className="gp-field min-w-0 flex-1 rounded-full px-4 py-2.5 text-[13.5px] placeholder:text-faint"
+        enterKeyHint="send"
+        placeholder={atiendeBot ? "Escribe para tomar el chat…" : "Escribe como vendedor…"}
+        // 16px en el teléfono: por debajo de eso iOS hace zoom al enfocar y la
+        // pantalla queda corrida. En escritorio vuelve al tamaño del sistema.
+        className="gp-field min-w-0 flex-1 rounded-full px-4 py-2.5 text-[16px] placeholder:text-faint sm:text-[13.5px]"
       />
       <motion.button
         whileTap={{ scale: 0.88 }}
@@ -272,6 +284,7 @@ export function Composer({
       >
         <IconSend size={17} />
       </motion.button>
+      </div>
     </div>
   );
 }

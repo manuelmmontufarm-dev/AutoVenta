@@ -26,6 +26,38 @@ export function TicketDetail({ id }: { id: number }) {
 
   const scrollRef = useRef<HTMLDivElement>(null);
 
+  /**
+   * EL CHAT SE CALZA SOBRE LO QUE EL TECLADO DEJA LIBRE.
+   *
+   * En iOS el teclado NO encoge `100dvh`: la página se queda del alto entero y
+   * el composer termina debajo del teclado, escribiendo a ciegas. La única
+   * medida fiable es `visualViewport` —lo mismo que ya hacía el chat de la
+   * baraja—, y hay que escuchar `scroll` además de `resize` porque el pan de
+   * Safari con el teclado abierto solo dispara el primero.
+   */
+  const [marco, setMarco] = useState<{ alto: number; top: number } | null>(null);
+  const [movil, setMovil] = useState(() => window.matchMedia("(max-width: 767px)").matches);
+
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 767px)");
+    const sync = () => setMovil(mq.matches);
+    mq.addEventListener("change", sync);
+    return () => mq.removeEventListener("change", sync);
+  }, []);
+
+  useEffect(() => {
+    const vv = window.visualViewport;
+    if (!vv) return;
+    const sync = () => setMarco({ alto: vv.height, top: vv.offsetTop });
+    sync();
+    vv.addEventListener("resize", sync);
+    vv.addEventListener("scroll", sync);
+    return () => {
+      vv.removeEventListener("resize", sync);
+      vv.removeEventListener("scroll", sync);
+    };
+  }, []);
+
   useEffect(() => {
     setCargandoTicket(true);
     void abrirTicket(id).finally(() => setCargandoTicket(false));
@@ -36,6 +68,12 @@ export function TicketDetail({ id }: { id: number }) {
     const el = scrollRef.current;
     if (el) el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
   }, [msgs.length, escribiendo]);
+
+  // El teclado sube y el último mensaje tiene que seguir a la vista.
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (el) el.scrollTo({ top: el.scrollHeight });
+  }, [marco?.alto]);
 
   // marcar leído cuando llegan mensajes mientras se está viendo
   useEffect(() => {
@@ -59,17 +97,33 @@ export function TicketDetail({ id }: { id: number }) {
     );
   }
 
+  const abierto = ticket.estado === "abierto";
+  // Lo visible contra la ventana entera: si falta un buen pedazo, el teclado
+  // está arriba. `dvh` no sirve para saberlo en iOS.
+  const tecladoAbierto = marco !== null && window.innerHeight - marco.alto - marco.top > 80;
+
   return (
-    <div className="flex h-full min-h-0">
+    <div
+      className="flex h-full min-h-0"
+      // En el teléfono la conversación se comporta como una app de mensajes:
+      // ocupa EXACTAMENTE el área visible (no la ventana entera), por encima de
+      // la barra de tabs, para que el composer quede pegado al teclado y no
+      // debajo. En escritorio no se toca nada: sigue en el flujo del panel.
+      style={movil && marco
+        ? { position: "fixed", left: 0, right: 0, top: marco.top, height: marco.alto, zIndex: 30, background: "var(--color-ink)" }
+        : undefined}
+    >
       {/* ── Columna principal: header + stepper + chat ── */}
       <div className="flex min-w-0 flex-1 flex-col">
-        <div className="glass mx-3 flex items-center gap-3 rounded-2xl px-3 py-2.5">
+        {/* A sangre en el teléfono, tarjeta flotante en escritorio: un chat con
+            márgenes a los lados no se lee como un chat. */}
+        <div className="glass flex items-center gap-2.5 px-3 py-2 md:mx-3 md:gap-3 md:rounded-2xl md:py-2.5">
           <button
             onClick={() => navigate("inbox")}
-            className="grid h-8 w-8 shrink-0 place-items-center rounded-full text-muted transition-colors hover:bg-paper/5 hover:text-paper"
+            className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-muted transition-colors hover:bg-paper/5 hover:text-paper"
             aria-label="Volver"
           >
-            <IconBack size={17} />
+            <IconBack size={18} />
           </button>
           <Avatar ticket={ticket} size={36} />
           <div className="min-w-0 flex-1">
@@ -85,17 +139,28 @@ export function TicketDetail({ id }: { id: number }) {
             ) : (
               <StageBadge etapa={ticket.etapa} />
             )}
-            <AtiendePill atiende={ticket.atiende} />
           </div>
+          {/* QUIÉN ATIENDE, EN LA CABECERA Y DE UN TOQUE.
+              Vivía enterrado en la Ficha: para tomar un chat había que abrir un
+              modal, bajar seis secciones y mover un interruptor. Es la decisión
+              más frecuente de esta pantalla y ahora está siempre a la vista. */}
+          {abierto && (
+            <AtiendeSwitch
+              atiende={ticket.atiende}
+              onCambiar={() => void setAtiende(ticket.id, ticket.atiende === "bot" ? "humano" : "bot")}
+            />
+          )}
           <button
             onClick={() => setFichaMovil(true)}
-            className="rounded-full px-2.5 py-1.5 text-[11px] font-bold text-muted hover:bg-paper/5 lg:hidden"
+            className="shrink-0 rounded-full px-2.5 py-1.5 text-[11px] font-bold text-muted hover:bg-paper/5 lg:hidden"
           >
             Ficha
           </button>
         </div>
 
-        <div className="mx-3 mt-2.5">
+        {/* El stepper es contexto, no conversación: en el teléfono se lleva una
+            franja entera de alto que el chat necesita. Vive en la Ficha. */}
+        <div className="mx-3 mt-2.5 hidden md:block">
           <PipelineStepper ticket={ticket} />
         </div>
 
@@ -103,7 +168,17 @@ export function TicketDetail({ id }: { id: number }) {
           <IconDoc size={16} className="shrink-0 text-lime" /><span className="min-w-0 flex-1"><span className="block text-[10px] font-black uppercase tracking-wider text-lime">Cotización #{ticket.cotizacion.numero}</span><span className="block truncate text-[10.5px] text-muted">{ticket.cotizacion.items.map((item) => `${item.cantidad}× ${item.descripcion}`).join(" · ")}</span></span><span className="tnum text-xs font-black">{money(ticket.cotizacion.total)}</span>
         </button>}
 
-        <div ref={scrollRef} className="chat-bg mx-3 mt-2.5 min-h-0 flex-1 overflow-y-auto rounded-2xl px-3 py-4">
+        <div
+          ref={scrollRef}
+          className="chat-bg min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 py-4 md:mx-3 md:mt-2.5 md:rounded-2xl"
+          // Tocar la conversación baja el teclado, como en WhatsApp: con el
+          // teclado arriba solo se ven dos burbujas y para leer hay que poder
+          // quitarlo sin buscar ningún botón.
+          onTouchStart={() => {
+            const foco = document.activeElement;
+            if (foco instanceof HTMLInputElement || foco instanceof HTMLTextAreaElement) foco.blur();
+          }}
+        >
           <div className="mx-auto flex max-w-2xl flex-col gap-2">
             <AvisoMonologo ticket={ticket} mensajes={msgs} />
             {msgs.map((m) => (
@@ -113,7 +188,12 @@ export function TicketDetail({ id }: { id: number }) {
           </div>
         </div>
 
-        <div className="glass mx-3 my-2.5 rounded-2xl">
+        <div
+          className="glass md:mx-3 md:my-2.5 md:rounded-2xl"
+          // Con el teclado abierto la barra del home queda detrás de él: el
+          // safe-area se volvería una franja muerta entre composer y teclado.
+          style={{ paddingBottom: movil && !tecladoAbierto ? "max(0.25rem, env(safe-area-inset-bottom))" : undefined }}
+        >
           <Composer
             ticket={ticket}
             onEnviar={(texto) => void enviarMensaje(ticket.id, texto)}
@@ -176,6 +256,53 @@ export function TicketDetail({ id }: { id: number }) {
         )}
       </AnimatePresence>
     </div>
+  );
+}
+
+/**
+ * QUIÉN CONTESTA ESTE CHAT — el control, no el letrero.
+ *
+ * Antes la cabecera mostraba `AtiendePill`, que solo INFORMA, y para cambiarlo
+ * había que abrir la Ficha, bajar hasta «Atiende» y mover un interruptor: tres
+ * toques y un modal encima de la conversación. Es la decisión más frecuente de
+ * esta pantalla —el cliente está escribiendo AHORA y hay que decidir si
+ * contesta el bot o una persona—, así que es un botón de un toque con las dos
+ * caras a la vista: se lee el estado y se cambia en el mismo gesto.
+ */
+function AtiendeSwitch({ atiende, onCambiar }: { atiende: Ticket["atiende"]; onCambiar: () => void }) {
+  const bot = atiende === "bot";
+  return (
+    <button
+      onClick={onCambiar}
+      role="switch"
+      aria-checked={!bot}
+      aria-label={bot ? "Contesta el bot. Tocar para tomar el chat." : "Contestan ustedes. Tocar para devolvérselo al bot."}
+      title={bot ? "Contesta el bot — tocar para tomarlo" : "Contestan ustedes — tocar para devolvérselo al bot"}
+      className="relative flex shrink-0 items-center gap-1 rounded-full p-0.5 text-[10.5px] font-black"
+      style={{ background: "color-mix(in srgb, var(--color-paper) 8%, transparent)" }}
+    >
+      {/* La pastilla viaja entre las dos caras: el cambio se ve, no se adivina. */}
+      <motion.span
+        layout
+        transition={{ type: "spring", stiffness: 520, damping: 34 }}
+        className="absolute top-0.5 bottom-0.5 rounded-full"
+        style={bot
+          ? { left: "2px", right: "50%", background: "color-mix(in srgb, var(--color-violet) 22%, transparent)" }
+          : { left: "50%", right: "2px", background: "color-mix(in srgb, var(--color-lime) 22%, transparent)" }}
+      />
+      <span
+        className="relative z-10 flex items-center gap-1 rounded-full px-2 py-1.5"
+        style={{ color: bot ? "var(--color-violet)" : "var(--color-faint)" }}
+      >
+        <IconBot size={12} /> Bot
+      </span>
+      <span
+        className="relative z-10 flex items-center gap-1 rounded-full px-2 py-1.5"
+        style={{ color: bot ? "var(--color-faint)" : "var(--color-lime)" }}
+      >
+        <IconUser size={12} /> Yo
+      </span>
+    </button>
   );
 }
 

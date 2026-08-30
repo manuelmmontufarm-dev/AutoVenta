@@ -46,7 +46,10 @@ export function VersionBadge() {
         type="button"
         onClick={abrir}
         title={`Panel ${VERSION} · compilado en ${COMMIT}${desajustado ? ` · el servidor corre ${commitServidor}` : ""}`}
-        className="relative rounded-full px-2.5 py-1 text-[10.5px] font-bold tracking-wide transition-colors"
+        // Fuera del teléfono: en 402 pt la cabecera no cierra y el badge era
+        // lo único prescindible ahí (la versión y el commit se consultan en
+        // Ajustes). Sin esto, el botón del final se salía de la pantalla.
+        className="relative hidden rounded-full px-2.5 py-1 text-[10.5px] font-bold tracking-wide transition-colors sm:inline-block"
         style={{
           background: desajustado
             ? "color-mix(in srgb, var(--color-sand) 18%, transparent)"
