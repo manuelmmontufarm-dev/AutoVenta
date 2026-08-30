@@ -32,6 +32,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-08-29 | _(este mismo)_ | Los cinco pendientes conocidos, cerrados: el reloj de las 12 horas y cuatro más | 2.0 |
 | 2026-08-29 | _(este mismo)_ | Lote real de 50 conversaciones y la pregunta del local ya no sale dos veces | 1.5 |
 | 2026-08-29 | _(este mismo)_ | Etapas en cuadrados con progreso circular e Histórico visible | 0.5 |
 | 2026-08-29 | _(este mismo)_ | Kanban resumido en barras porcentuales con tickets desplegables | 1.0 |
@@ -198,6 +199,45 @@ Ya viene activado en este equipo.
 ---
 
 ## Entradas (más reciente primero)
+
+### 2026-08-29 · Los cinco pendientes conocidos, cerrados: el reloj de las 12 horas y cuatro más · ⏱️ 2.0 h
+
+**Qué.** Los cinco pendientes que las auditorías venían anotando quedan
+cerrados. (1) **El reloj del chat olvidado** (decisión de Manuel: 12 horas):
+`rescatarChatsOlvidados` en `hubMaintenance` barre cada 15 min desde el worker
+embebido — un chat asignado a un humano cuyo último mensaje del cliente lleva
+`HUMAN_RESCUE_HOURS` (12) sin respuesta vuelve al bot, el bot contesta y el
+asesor recibe la alerta `rescate_chat_olvidado`; excluidos el opt-out, el
+cliente molesto y lo que ya salió de la ventana de 24 h. (2) La **reapertura
+manual desde el panel** usa la misma regla de las 12 h que la reapertura por
+mensaje: deshacer un cierre equivocado ya no borra la ficha. (3) El
+**seguimiento nunca imprime el SKU crudo**: `selectedProductLabel` (marca +
+diseño, del catálogo) va al texto; el código queda como señal. (4) El candado
+de preguntas prohibidas atrapa **«¿Cuántas necesita de cada medida?»** —
+«cuántas» + verbo de cantidad, sin exigir el sustantivo; «¿cuántos km dura?»
+sobrevive. (5) El **aviso de stock corto tiene una sola fuente**:
+`asegurarAvisoDeStock` en `prepararSalida` (después del Ángel Guardián); la
+copia de `outboundGuard` — que corría ANTES de quien reescribe, o sea inútil —
+se eliminó, y sus pruebas se migraron a la fuente única.
+
+**Por qué.** Eran las cinco deudas del catálogo `docs/ERRORES-DEL-BOT.md`
+(nuevo en este commit). La más cara era el reloj: conv 10201 quedó 3 días con
+26 mensajes sin responder, con cotización y visita acordadas, porque la red
+del 8-ago solo corría cuando el cliente volvía a escribir.
+
+**Pruebas.** Suite 1324/1324 (18 nuevas: 6 de integración del rescate contra
+Postgres, el candado de cantidad, el SKU, y la migración del aviso de stock).
+El guardia de fidelidad del simulador cazó `HUMAN_RESCUE_HOURS` sin clasificar
+— clasificada en LISTA_BLANCA. La revisión de código del propio diff cazó dos
+más, corregidos aquí mismo: el reloj le arrebataba el chat a un asesor que lo
+ACABABA de tomar (faltaba respetar `bot_paused_until` vigente) y el SKU crudo
+todavía podía filtrarse por la redacción con IA de los seguimientos (el
+contexto viajaba entero al modelo; ahora va sin el código). En el simulador: lote de 20 casos (2 por cada
+familia del catálogo) con el bot real — 20/20 en lo que cada caso medía (los
+rojos del log son las reglas del evaluador ya documentadas como falsas sobre
+precios cotizados). Y la prueba viva del reloj: una conversación sembrada con
+13 h sin respuesta del asesor fue rescatada por el tick real del worker — el
+chat volvió al bot, la alerta se creó y el cliente recibió respuesta.
 
 ### 2026-08-29 · Lote real de 50 conversaciones y la pregunta del local ya no sale dos veces · ⏱️ 1.5 h
 

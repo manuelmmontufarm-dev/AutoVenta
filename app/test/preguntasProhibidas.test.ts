@@ -150,3 +150,32 @@ describe("lo que queda después de quitar la pregunta se lee entero", () => {
     expect(texto).toMatch(/Para avanzar le mando la cotización\./);
   });
 });
+
+/*
+ * PENDIENTE DEL 27-AGO, CERRADO EL 29-AGO: «¿Cuántas necesita de cada
+ * medida…?» se escapaba porque la regex exigía el sustantivo (llantas,
+ * unidades) dentro de la pregunta. La forma sin sustantivo es la misma
+ * pregunta prohibida; «¿cuántos km dura?» no lo es y tiene que sobrevivir.
+ */
+describe("la pregunta de cantidad sin el sustantivo también se borra", () => {
+  it.each([
+    "¿Cuántas necesita de cada medida?",
+    "¿Cuántas quiere que le cotice?",
+    "¿Cuántas va a llevar?",
+    "¿Cuántas serían en total?",
+  ])("«%s» se quita", (pregunta) => {
+    const r = sinPreguntasProhibidas(`La KENDA KR20 es muy buena opción. ${pregunta}`);
+    expect(r.quitadas).toEqual([pregunta]);
+    expect(r.texto).toBe("La KENDA KR20 es muy buena opción.");
+  });
+
+  it.each([
+    "¿Cuántos kilómetros dura la Falken?",
+    "¿Cuántos meses de seguro incluye?",
+    "¿En cuánto tiempo me la instalan?",
+  ])("«%s» sobrevive: no pide cantidad", (pregunta) => {
+    const r = sinPreguntasProhibidas(pregunta);
+    expect(r.quitadas).toHaveLength(0);
+    expect(r.texto).toBe(pregunta);
+  });
+});

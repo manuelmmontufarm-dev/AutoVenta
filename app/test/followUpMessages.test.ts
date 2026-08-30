@@ -190,3 +190,28 @@ describe("Redacción contextual de seguimientos", () => {
     expect(inferProductCode("la medida es R16")).toBeNull();
   });
 });
+
+/*
+ * EL SKU CRUDO NO SALE AL CLIENTE (pendiente del 27-ago, cerrado 29-ago).
+ * `selectedProductCode` es interno («35405026») y llegó a imprimirse tal cual
+ * («¿Cómo vio la opción 35405026?»). Al texto va la etiqueta legible o nada.
+ */
+describe("el SKU crudo nunca sale en el seguimiento", () => {
+  it("con etiqueta, sale la etiqueta y no el código", () => {
+    const texto = buildContextualFollowUpMessage(
+      { stage: "cotizacion_enviada", selectedProductCode: "35405026", selectedProductLabel: "KENDA KR20", tireSize: "205/55R16", quoteNumber: "COT-X" },
+      "in_window_second",
+    );
+    expect(texto).toContain("KENDA KR20");
+    expect(texto).not.toContain("35405026");
+  });
+
+  it("sin etiqueta (el catálogo ya no conoce el código), la medida lo cubre", () => {
+    const texto = buildContextualFollowUpMessage(
+      { stage: "seleccionando", selectedProductCode: "35405026", tireSize: "205/55R16" },
+      "in_window_first",
+    );
+    expect(texto).not.toContain("35405026");
+    expect(texto).toContain("205/55R16");
+  });
+});

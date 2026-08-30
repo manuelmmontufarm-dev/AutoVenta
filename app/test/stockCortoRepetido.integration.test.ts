@@ -11,9 +11,11 @@ import type { CatalogItem } from "../src/domain/catalog.js";
  * prometer 4 llantas cuando había 3, y el último de esos mensajes —el que el
  * cliente se lleva al local— lo escribió el propio Ángel Guardián.
  *
- * Va de integración porque el candado vive en `applyOutboundGuard`, que lee la
- * cotización vigente de la base y el stock del catálogo: probarlo con la
- * función pura no diría nada del camino real por el que sale un mensaje.
+ * Desde el 29-ago el candado vive en UN solo lugar: `asegurarAvisoDeStock`
+ * (services/stockCorto.ts), que `prepararSalida` corre DESPUÉS del Ángel
+ * Guardián en las tres puertas. La copia que vivía en `applyOutboundGuard`
+ * —antes del guardián, o sea inútil contra quien reescribe— se eliminó; esta
+ * prueba ejercita la fuente única contra base y catálogo reales.
  */
 
 process.env.OPENAI_API_KEY ||= "test";
@@ -58,7 +60,8 @@ vi.mock("../src/services/advisorNotifications.js", () => ({ notifyAdvisor: async
 
 const { sql } = await import("../src/db/client.js");
 const { ensureSchema } = await import("../src/db/schema.js");
-const { applyOutboundGuard } = await import("../src/services/outboundGuard.js");
+const { asegurarAvisoDeStock } = await import("../src/services/stockCorto.js");
+const { PASOS } = await import("../src/services/prepararSalida.js");
 
 /** El resumen de las 12:04:57, tal cual salió en producción. */
 const EL_RESUMEN_CULPABLE =
@@ -93,51 +96,53 @@ afterAll(async () => {
 });
 beforeEach(() => { stockDeHoy = 3; });
 
-describe.sequential("outboundGuard · el aviso de stock viaja con la cotización", () => {
+describe.sequential("asegurarAvisoDeStock · el aviso viaja con la cotización (fuente única)", () => {
+  it("corre en las tres puertas, después del Ángel Guardián", () => {
+    const paso = PASOS.find((p) => p.nombre === "aviso_de_stock");
+    expect(paso).toBeDefined();
+    expect(paso!.corre).toEqual(expect.arrayContaining(["respuesta", "retomada", "seguimiento"]));
+    const iGuardian = PASOS.findIndex((p) => p.nombre === "angel_guardian");
+    const iStock = PASOS.findIndex((p) => p.nombre === "aviso_de_stock");
+    expect(iStock).toBeGreaterThan(iGuardian);
+  });
+
   it("EL CASO: el resumen que prometía 4 sale con el recordatorio pegado", async () => {
     const id = await conversacionConCotizacion("593982770963");
 
-    const salida = await applyOutboundGuard(id, EL_RESUMEN_CULPABLE);
+    const salida = await asegurarAvisoDeStock(id, 1, EL_RESUMEN_CULPABLE);
 
-    expect(salida.text).toContain("Por ahora la cotización vigente"); // la venta no se toca
-    expect(salida.text).toMatch(/hoy hay \*3\*/);
-    expect(salida.text).toMatch(/cotización es por \*4\*/);
-    expect(salida.text).toMatch(/asesor/);
-    expect(salida.issues).toContain("stock_recordado");
+    expect(salida.texto).toContain("Por ahora la cotización vigente"); // la venta no se toca
+    expect(salida.texto).toMatch(/hoy hay \*3\*/);
+    expect(salida.texto).toMatch(/cotización es por \*4\*/);
+    expect(salida.texto).toMatch(/asesor/);
+    expect(salida.pegado).toBe(true);
   });
 
   it("le queda registrado al asesor que el bot lo había omitido", async () => {
     const id = await conversacionConCotizacion("593982770964");
-    await applyOutboundGuard(id, EL_RESUMEN_CULPABLE);
+    await asegurarAvisoDeStock(id, 1, EL_RESUMEN_CULPABLE);
 
-    // La alerta se crea sin bloquear el envío (`void (async () => …)()` en
-    // applyOutboundGuard): al cliente nunca se le hace esperar por el aviso
-    // interno. Por eso acá se sondea en vez de leer de una.
-    let alertas: { summary: string }[] = [];
-    for (let intento = 0; intento < 20 && alertas.length === 0; intento += 1) {
-      await new Promise((ok) => setTimeout(ok, 50));
-      alertas = await sql<{ summary: string }[]>`
-        select summary from bot_alerts where conversation_id=${id} and type='guard_stock_recordado'
-      `;
-    }
+    const alertas = await sql<{ summary: string }[]>`
+      select summary from bot_alerts where conversation_id=${id} and type='guard_stock_recordado'
+    `;
     expect(alertas).toHaveLength(1);
     expect(alertas[0].summary).toMatch(/sin decir que no hay tantas/i);
   });
 
   it("el reenvío de la pieza también lo lleva", async () => {
     const id = await conversacionConCotizacion("593982770965");
-    const salida = await applyOutboundGuard(id, "Aquí está de nuevo su cotización *COT-MTACEW5X* 🏁");
-    expect(salida.text).toMatch(/hoy hay \*3\*/);
+    const salida = await asegurarAvisoDeStock(id, 1, "Aquí está de nuevo su cotización *COT-MTACEW5X* 🏁");
+    expect(salida.texto).toMatch(/hoy hay \*3\*/);
   });
 
   it("preguntar el día NO lleva aviso: repetirlo en cada turno es ruido", async () => {
     const id = await conversacionConCotizacion("593982770966");
     const cierre = "¿Qué día puede pasar y a cuál local? ¿Depot Tire Cumbayá o Depot Tire Quito Sur?";
 
-    const salida = await applyOutboundGuard(id, cierre);
+    const salida = await asegurarAvisoDeStock(id, 1, cierre);
 
-    expect(salida.text).toBe(cierre);
-    expect(salida.issues).not.toContain("stock_recordado");
+    expect(salida.texto).toBe(cierre);
+    expect(salida.pegado).toBe(false);
   });
 
   it("si el mensaje ya avisa, no se duplica", async () => {
@@ -146,30 +151,31 @@ describe.sequential("outboundGuard · el aviso de stock viaja con la cotización
       "4 × KENDA KR203: $262.60\n\n⚠️ Ojo: de esa llanta hoy tengo *3* disponibles y usted pidió *4*. " +
       "Se la cotizo completa y el resto se lo confirma el asesor en el local.";
 
-    const salida = await applyOutboundGuard(id, conAviso);
+    const salida = await asegurarAvisoDeStock(id, 1, conAviso);
 
-    expect(salida.text).toBe(conAviso);
-    expect(salida.issues).not.toContain("stock_recordado");
+    expect(salida.texto).toBe(conAviso);
+    expect(salida.pegado).toBe(false);
   });
 
   it("con stock de sobra el mensaje sale intacto", async () => {
     stockDeHoy = 12;
     const id = await conversacionConCotizacion("593982770968");
 
-    const salida = await applyOutboundGuard(id, EL_RESUMEN_CULPABLE);
+    const salida = await asegurarAvisoDeStock(id, 1, EL_RESUMEN_CULPABLE);
 
-    expect(salida.text).toBe(EL_RESUMEN_CULPABLE);
-    expect(salida.issues).not.toContain("stock_recordado");
+    expect(salida.texto).toBe(EL_RESUMEN_CULPABLE);
+    expect(salida.pegado).toBe(false);
   });
 
   it("si reponen en bodega, el aviso deja de salir sin tocar la cotización", async () => {
     // El stock se compara contra el de HOY: la cotización sigue siendo por 4.
     const id = await conversacionConCotizacion("593982770969");
-    expect((await applyOutboundGuard(id, EL_RESUMEN_CULPABLE)).issues).toContain("stock_recordado");
+    expect((await asegurarAvisoDeStock(id, 1, EL_RESUMEN_CULPABLE)).pegado).toBe(true);
 
     stockDeHoy = 6;
-    const despues = await applyOutboundGuard(id, EL_RESUMEN_CULPABLE);
-    expect(despues.issues).not.toContain("stock_recordado");
+    const despues = await asegurarAvisoDeStock(id, 1, EL_RESUMEN_CULPABLE);
+    expect(despues.pegado).toBe(false);
+    expect(despues.texto).toBe(EL_RESUMEN_CULPABLE);
   });
 });
 

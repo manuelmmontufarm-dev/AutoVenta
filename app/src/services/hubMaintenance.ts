@@ -13,9 +13,11 @@
  *    y únicamente dentro de la ventana de 24 h de WhatsApp.
  */
 import { sql } from "../db/client.js";
+import { config } from "../config.js";
 import { setStage } from "./conversations.js";
 import { resumeBotIfUnanswered, type ResumeBotResult } from "./resumeBot.js";
 import { isBotActive } from "./botPower.js";
+import { createBotAlert } from "./followUps.js";
 import type { Stage } from "../domain/pipeline.js";
 
 export interface MovimientoEtapa {
@@ -170,4 +172,77 @@ export async function atenderPendientes(
     }
   }
   return { candidatos: filas.length, botEncendido, resultados };
+}
+
+/**
+ * EL RELOJ DEL CHAT OLVIDADO (29-ago-2026, decisión de Manuel: 12 horas).
+ *
+ * Un asesor toma el chat, el cliente escribe, y nadie contesta. La red del
+ * 8-ago (`devolverAlBotSiVencioLaPausa`) solo corre cuando el cliente vuelve a
+ * escribir; si no insiste, el chat queda mudo para siempre — conv 10201:
+ * 26 mensajes sin responder en 3 días, con cotización y visita acordadas.
+ *
+ * Este barrido corre en el worker embebido: todo chat abierto asignado a un
+ * humano cuyo último mensaje es del cliente y lleva `HUMAN_RESCUE_HOURS` sin
+ * respuesta vuelve al bot, y el bot contesta en el momento. Acotado a la
+ * ventana de 24 h de Meta: pasada la ventana no se puede mandar texto libre y
+ * el caso sigue siendo de una persona (el watchdog de avisos ya existe para
+ * eso). Se excluyen el opt-out (consentimiento, no un plazo) y el cliente
+ * molesto (devolverle el bot a quien pidió NO hablar con el bot es peor que el
+ * silencio: ahí el aviso al asesor es el camino).
+ *
+ * Al asesor no se le quita nada en silencio: cada rescate deja una alerta con
+ * el motivo, y siempre puede volver a tomar el chat desde el panel.
+ */
+export async function rescatarChatsOlvidados(
+  { horas = config.pipeline.humanRescueHours, limite = 10 }: { horas?: number; limite?: number } = {},
+): Promise<ResultadoAtencion[]> {
+  if (!(await isBotActive())) return [];
+  const filas = await sql<{ id: number; name: string | null; phone: string; cycle: number }[]>`
+    update conversations c
+    set assigned_to = 'bot', bot_paused_until = null, updated_at = now()
+    where c.id in (
+      select id from conversations
+      where status = 'open'
+        and assigned_to = 'human'
+        and opted_out_at is null
+        and negative_sentiment_at is null
+        -- La pausa del asesor se respeta: si alguien acaba de tomar el chat
+        -- desde el panel (pausa de BOT_PAUSE_HOURS vigente), el reloj no se lo
+        -- arrebata — el mensaje viejo del cliente ya es responsabilidad suya.
+        and (bot_paused_until is null or bot_paused_until <= now())
+        and last_customer_message_at is not null
+        and (last_assistant_message_at is null or last_assistant_message_at < last_customer_message_at)
+        and last_customer_message_at <= now() - make_interval(hours => ${horas})
+        and last_customer_message_at > now() - interval '24 hours'
+      order by last_customer_message_at asc
+      limit ${limite}
+    )
+    returning c.id, c.name, c.phone, c.current_cycle as cycle
+  `;
+  const resultados: ResultadoAtencion[] = [];
+  for (const fila of filas) {
+    await createBotAlert({
+      conversationId: Number(fila.id),
+      cycle: Number(fila.cycle),
+      type: "rescate_chat_olvidado",
+      priority: "medium",
+      summary: `El bot retomó un chat con ${horas} h sin respuesta del asesor`,
+      exactReason:
+        `El chat estaba asignado a un humano y el último mensaje del cliente llevaba más de ${horas} horas ` +
+        "sin respuesta. El bot lo retomó y contestó para no perder la venta.",
+      suggestedAction: "Revisar la respuesta del bot; si el caso es tuyo, vuelve a tomar el chat desde el panel.",
+      dedupeKey: `rescate_olvidado:${fila.id}:${fila.cycle}`,
+    }).catch(() => {});
+    try {
+      const resultado = await resumeBotIfUnanswered(Number(fila.id));
+      resultados.push({ id: Number(fila.id), nombre: fila.name, telefono: fila.phone, resultado });
+    } catch (error) {
+      resultados.push({
+        id: Number(fila.id), nombre: fila.name, telefono: fila.phone, resultado: "error",
+        detalle: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+  return resultados;
 }

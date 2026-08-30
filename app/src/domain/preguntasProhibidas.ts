@@ -35,6 +35,11 @@
 const PREGUNTAS = [
   // «¿Cuántas llantas necesita?», «¿cuántas unidades va a llevar?»
   /¿[^?¿]*\bcu[áa]nt[ao]s?\b[^?¿]*\b(?:llantas?|unidades?|neum[áa]ticos?)\b[^?¿]*\?/gi,
+  // «¿Cuántas necesita de cada medida?» — la misma pregunta SIN el sustantivo,
+  // que se escapaba de la regla de arriba (pendiente anotado en la auditoría
+  // del 27-ago). Se exige el verbo de cantidad pegado a «cuántas» para no
+  // comerse preguntas legítimas como «¿cuántos km dura?».
+  /¿[^?¿]*\bcu[áa]nt[ao]s?\s+(?:necesita|quiere|quisiera|desea|desear[ií]a|busca|lleva|llevar[ií]a|va[ns]? a llevar|pongo|le cotizo|ser[ií]an)\b[^?¿]*\?/gi,
   // «¿Se la cotizo por 4?» — pedir permiso para la cantidad es pedir la
   // cantidad. Ojo: «¿se la cotizo?» a secas NO entra: esa es la pregunta
   // legítima con la que se ofrece una equivalente.

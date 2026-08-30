@@ -293,6 +293,15 @@ export const config = {
     /** Cuánto se silencia el bot en un chat cuando el dueño responde a mano. */
     botPauseHours: Number(envOr("BOT_PAUSE_HOURS", "6")),
     /**
+     * El reloj del chat olvidado: cuántas horas puede quedarse un mensaje de
+     * cliente sin respuesta en un chat asignado a un humano antes de que el
+     * bot lo retome y conteste. Decisión de Manuel, 29-ago-2026 (12 h), tras
+     * la conv 10201: 26 mensajes sin responder en 3 días, con cotización y
+     * visita acordadas — el rescate de entonces solo corría cuando el cliente
+     * volvía a escribir.
+     */
+    humanRescueHours: Number(envOr("HUMAN_RESCUE_HOURS", "12")),
+    /**
      * Tope global de handlers en vuelo. El FIFO por usuario no limita nada
      * cuando escriben N clientes a la vez: N llamadas simultáneas al LLM →
      * rate limit de OpenAI → el cliente ve el mensaje de error. Con el tope,

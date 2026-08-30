@@ -63,6 +63,9 @@ const OPERATIVOS = new Set([
   // el reloj de Meta corriendo, sigue sin ser un error y sigue fuera del tab.
   "ventana_por_cerrar",
   "human_requested",
+  // El reloj del chat olvidado (29-ago): el bot retomó un chat con 12 h sin
+  // respuesta del asesor. Operativo, no error: es información para el asesor.
+  "rescate_chat_olvidado",
   "customer_ready_to_buy",
   "quote_created",
   "envio_fuera_de_cobertura",

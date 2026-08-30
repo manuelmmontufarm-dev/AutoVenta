@@ -80,7 +80,10 @@ export async function generateFollowUpCopy(
       response_format: { type: "json_object" },
       messages: [
         { role: "system", content: "Redactas seguimientos de WhatsApp para una llantera en Ecuador. Devuelve JSON con una sola clave `text`. Debe sonar humano, amable, persuasivo y breve. Usa máximo 2 emojis. No reinicies con saludo dentro de la conversación activa. Nunca inventes descuentos, precios, stock, disponibilidad, fechas, ahorro, escasez ni compromisos. Solo usa los hechos suministrados. Haz una pregunta fácil de responder." },
-        { role: "user", content: JSON.stringify({ instructionForStage: stagePrompt, instructionForKind: KIND_INSTRUCTION[kind], facts: context, deterministicFallback: fallback }) },
+        // El SKU crudo no se le da al redactor: es un código interno y el modelo
+        // puede copiarlo al texto («la opción 35405026») — el mismo error que la
+        // ruta determinística ya tapó. La etiqueta legible sí viaja.
+        { role: "user", content: JSON.stringify({ instructionForStage: stagePrompt, instructionForKind: KIND_INSTRUCTION[kind], facts: { ...context, selectedProductCode: undefined }, deterministicFallback: fallback }) },
       ],
     });
     const parsed = JSON.parse(response.choices[0]?.message.content ?? "{}") as Record<string, unknown>;

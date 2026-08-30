@@ -207,6 +207,31 @@ async function supervisarVisitas(signal: AbortSignal): Promise<void> {
 }
 
 /**
+ * El reloj del chat olvidado (29-ago): cada cuarto de hora se buscan chats
+ * asignados a un humano cuyo último mensaje del cliente lleva 12 h sin
+ * respuesta, se devuelven al bot y el bot contesta. Ver
+ * `hubMaintenance.rescatarChatsOlvidados` — ahí viven la regla, los excluidos
+ * (opt-out, cliente molesto) y la alerta que le avisa al asesor.
+ */
+async function supervisarChatsOlvidados(signal: AbortSignal): Promise<void> {
+  while (!signal.aborted) {
+    try {
+      const { rescatarChatsOlvidados } = await import("../services/hubMaintenance.js");
+      const rescatados = await rescatarChatsOlvidados();
+      if (rescatados.length > 0) {
+        console.log(
+          `⏰ ${rescatados.length} chat(s) olvidados por el asesor devueltos al bot: ` +
+          rescatados.map((r) => `${r.id}:${r.resultado}`).join(", "),
+        );
+      }
+    } catch (error) {
+      console.warn("⚠️ El rescate de chats olvidados falló:", error instanceof Error ? error.message : error);
+    }
+    await esperar(VISITAS_MS, signal);
+  }
+}
+
+/**
  * Bucle de las ventanas de 24 h de los asesores.
  *
  * Comparte el ritmo de las visitas y el motivo para no depender del bot: si el
@@ -302,6 +327,7 @@ export function startEmbeddedFollowUpWorker(): void {
   // Bucles aparte: con el bot apagado el worker de seguimientos se corta antes
   // de hacer nada, y es justo entonces cuando hay que vigilar y avisar.
   void supervisarBotApagado(controller.signal);
+  void supervisarChatsOlvidados(controller.signal);
   void supervisarVisitas(controller.signal);
   void supervisarVentanas(controller.signal);
   void supervisarReporteDiario(controller.signal);

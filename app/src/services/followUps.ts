@@ -21,6 +21,7 @@ import { buildStoreLinksBlock } from "./quoteMessages.js";
 import { emitLiveEvent } from "./liveEvents.js";
 import { pideUnAsesor } from "../domain/pideAsesor.js";
 import { generateFollowUpCopy } from "./followUpCopy.js";
+import { findByCode } from "./catalog.js";
 import { asesoresActivos, notifyAdvisor } from "./advisorNotifications.js";
 
 export type FollowUpJobStatus =
@@ -213,6 +214,20 @@ function conMapasPegados(
   return `${sinUrls}\n${context.storeLinks!.trim()}`;
 }
 
+
+/**
+ * La etiqueta legible de un SKU («KENDA KR20»), para el texto del seguimiento.
+ * El código crudo llegó a salirle al cliente («la opción 35405026»); al texto
+ * solo va esto, y si el catálogo ya no lo conoce, nada — la medida lo cubre.
+ */
+function etiquetaDelProducto(codigo: string | null | undefined): string | null {
+  if (!codigo) return null;
+  const producto = findByCode(codigo);
+  if (!producto) return null;
+  const etiqueta = [producto.brand, producto.design].filter(Boolean).join(" ").trim();
+  return etiqueta || null;
+}
+
 export function buildFollowUpPreview(
   conversation: ConversationForFollowUp,
   kind: FollowUpMessageKind = "in_window_first",
@@ -222,6 +237,7 @@ export function buildFollowUpPreview(
     stage: conversation.stage,
     tireSize: conversation.tire_size,
     selectedProductCode: conversation.selected_product_code,
+    selectedProductLabel: etiquetaDelProducto(conversation.selected_product_code),
     nearestStore: conversation.nearest_store,
     customerCommitment: conversation.customer_commitment,
     visitDate: conversation.visit_date,
@@ -838,6 +854,7 @@ function jobCopyContext(context: FollowUpJobContext) {
     stage: context.stage,
     tireSize: context.tire_size,
     selectedProductCode: context.selected_product_code,
+    selectedProductLabel: etiquetaDelProducto(context.selected_product_code),
     nearestStore: context.nearest_store,
     customerCommitment: commitmentCycle === context.current_cycle ? context.customer_commitment : null,
     visitDate: context.visit_date,

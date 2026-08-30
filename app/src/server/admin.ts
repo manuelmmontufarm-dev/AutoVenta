@@ -1142,7 +1142,13 @@ export function createAdminRouter(): express.Router {
     if (!Number.isInteger(id)) {
       return res.status(400).json({ ok: false, error: "id inválido" });
     }
-    await reopenConversation(id, "owner", "Conversación reabierta manualmente");
+    // La misma regla de las 12 h que la reapertura por mensaje del cliente:
+    // reabrir a los minutos de un cierre (p. ej. un cierre equivocado que el
+    // asesor deshace desde el panel) conserva la medida, el carro y el local;
+    // pasadas las 12 h de silencio sí empieza una visita limpia.
+    await reopenConversation(id, "owner", "Conversación reabierta manualmente", {
+      conservarFichaSiEsMismaVisita: true,
+    });
     emitLiveEvent("sync", id);
     res.json({ ok: true });
   });

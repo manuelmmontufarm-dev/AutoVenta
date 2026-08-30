@@ -11,6 +11,15 @@ export interface FollowUpMessageContext {
   stage: Stage;
   tireSize?: string | null;
   selectedProductCode?: string | null;
+  /**
+   * El nombre legible de la llanta elegida («KENDA KR20»), para escribirlo en
+   * el mensaje. `selectedProductCode` es un SKU interno («35405026») y llegó a
+   * salirle al cliente tal cual — «la opción 35405026» — porque era lo único
+   * que este contexto traía (pendiente anotado en la auditoría del 27-ago).
+   * El código queda como SEÑAL de que hay producto elegido; al texto solo va
+   * esta etiqueta, y si falta, la medida.
+   */
+  selectedProductLabel?: string | null;
   nearestStore?: string | null;
   customerCommitment?: string | null;
   /**
@@ -123,7 +132,8 @@ function redactarSeguimiento(
 ): string {
   const prefix = questionPrefix(context, kind);
   const size = context.tireSize ? ` ${context.tireSize}` : "";
-  const product = context.selectedProductCode ? ` ${context.selectedProductCode}` : "";
+  // NUNCA el SKU crudo: al texto va la etiqueta legible o nada.
+  const product = context.selectedProductLabel?.trim() ? ` ${context.selectedProductLabel.trim()}` : "";
 
   if (kind === "advisor_review") {
     const detail = context.customerCommitment
