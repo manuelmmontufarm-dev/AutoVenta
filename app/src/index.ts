@@ -82,6 +82,8 @@ import { firstContactReply, isGenericFirstContact } from "./domain/firstContact.
 import { despedidaQueCorresponde } from "./domain/cierrePerdido.js";
 import { botonesParaBloque, recortarTitulo, textoDeBoton, type BloqueConBotones } from "./domain/botones.js";
 import { esComandoDeReinicio, MENSAJE_DE_REINICIO } from "./domain/reinicio.js";
+import { esSoloPregunta } from "./domain/preguntaSola.js";
+import { sql } from "./db/client.js";
 import { algunLocalAbre, getStoreHours } from "./services/settings.js";
 import { respuestaDeCierreDelTurno, tipoDeCierreDelTurno } from "./domain/cierreTurno.js";
 
@@ -105,6 +107,13 @@ const pipeline = new InboundPipeline(async ({ from, name, text, waMessageIds, qu
   // nada, cuando citó un mensaje suyo o cuando lo citado es de otro ciclo:
   // en los tres casos se sigue con la heurística de `previousOutbound`.
   const mensajeCitado = await outboundTextByWaMessageId(conversation.id, quotedWaMessageId);
+  // El último mensaje del cliente que este turno está contestando. Si mientras
+  // redactamos entra otro, el cierre de ESTE turno ya no corresponde.
+  const [ultimoEntranteDelTurno] = await sql<{ id: number }[]>`
+    select max(id) as id from messages
+    where conversation_id=${conversation.id} and direction='inbound'
+  `;
+  const idEntranteAlEmpezar = Number(ultimoEntranteDelTurno?.id ?? 0);
   // «Al sur me resulta más fácil» solo es elección de local si acabamos de
   // preguntar el local — la misma lógica contextual que el día de visita.
   const respondiendoAlLocal = preguntamosElLocal(previousOutbound);
@@ -344,8 +353,35 @@ const pipeline = new InboundPipeline(async ({ from, name, text, waMessageIds, qu
   // `null` es la respuesta normal — la mayoría de los turnos no terminan en una
   // pregunta de conjunto cerrado y salen como texto, igual que siempre.
   const conBotones = await botonesDelUltimoBloque(conversation, bloques, textoConLinks);
+  /**
+   * ¿El cliente escribió otra cosa mientras redactábamos?
+   *
+   * Producción, 31-ago 20:07 (Manuel probando): mandó «y en llantas 185/70R15
+   * qué cuesta» mientras salía el turno anterior, y el bot siguió con la
+   * cotización y «¿a cuál local le queda mejor?» — cerrando un turno que el
+   * cliente ya había dejado atrás. Su mensaje sí se atendió después, pero para
+   * él el bot lo ignoró y le habló de otra cosa.
+   *
+   * Lo ya dicho no se puede desdecir, pero lo que FALTA por decir sí se puede
+   * callar: si entró un mensaje nuevo, los bloques que quedan y son solo una
+   * pregunta de cierre no salen. El turno siguiente los vuelve a plantear si
+   * todavía hacen falta.
+   */
+  const clienteYaEscribioDeNuevo = async (): Promise<boolean> => {
+    const [fila] = await sql<{ id: number }[]>`
+      select max(id) as id from messages
+      where conversation_id=${conversation.id} and direction='inbound'
+    `;
+    return Number(fila?.id ?? 0) > idEntranteAlEmpezar;
+  };
   for (const [indice, bloque] of bloques.entries()) {
     if (indice > 0) await esperar(PAUSA_ENTRE_BLOQUES_MS);
+    if (indice > 0 && esSoloPregunta(bloque) && await clienteYaEscribioDeNuevo()) {
+      console.log(
+        `⏭️ Bloque de cierre omitido en la conv ${conversation.id}: el cliente ya escribió otra cosa`,
+      );
+      break;
+    }
     try {
       const botones = indice === bloques.length - 1 ? conBotones : null;
       // Se GUARDA el bloque completo, no el cuerpo recortado: los detectores

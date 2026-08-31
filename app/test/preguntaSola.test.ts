@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { conPreguntaEnSuPropioMensaje } from "../src/domain/preguntaSola.js";
+import { esSoloPregunta, conPreguntaEnSuPropioMensaje } from "../src/domain/preguntaSola.js";
 
 const bloques = (t: string) => t.split(/\n\s*-{3,}\s*\n/);
 
@@ -65,5 +65,36 @@ describe("la pregunta final sale en su propio mensaje", () => {
     expect(bloques(conPreguntaEnSuPropioMensaje(t).texto)).toEqual([
       "Primero esto.", "Y luego.", "¿Qué día cree que puede pasar? 📅",
     ]);
+  });
+});
+
+/**
+ * Producción, 31-ago 20:07 (Manuel probando): mandó «y en llantas 185/70R15 qué
+ * cuesta» mientras salía el turno anterior, y el bot siguió con «¿a cuál local
+ * le queda mejor?» — cerrando un turno que el cliente ya había dejado atrás.
+ * Ese bloque se puede callar; un bloque con datos, jamás.
+ */
+describe("esSoloPregunta — qué se puede callar cuando el cliente ya siguió", () => {
+  it.each([
+    "¿A cuál local le queda mejor ir, *Cumbayá* o *Quito Sur*? 📍",
+    "¿Qué día cree que puede pasar? Le aviso al asesor para que le atienda apenas llegue. 📅",
+    "¿Le queda alguna otra duda? Ahí le esperamos. 🤝",
+    "¿Me dice la medida, o prefiere mandarme una foto del costado y la leo yo? 📸",
+  ])("«%s» es solo cierre", (bloque) => {
+    expect(esSoloPregunta(bloque)).toBe(true);
+  });
+
+  it.each([
+    "Cotización COT-MTHO6QN8 enviada por $391.89",
+    "Yo iría por la *KENDA KR20* — $91.28 c/u con IVA: es la equilibrada. ¿Le sirve?",
+    "Opciones enviadas: FALKEN ZE310R · KENDA KR20 · WINRUN R330",
+    "Para *185/70R15* no me aparece stock exacto disponible en este momento.",
+  ])("«%s» NO se calla: trae datos", (bloque) => {
+    expect(esSoloPregunta(bloque)).toBe(false);
+  });
+
+  it("un párrafo largo con una pregunta al final tampoco se calla", () => {
+    const largo = "Le cuento que la Falken es japonesa, con cinco años de garantía de fábrica contra defectos y doce meses de seguro contra golpes, y además incluye instalación, alineación y balanceo sin costo en cualquiera de los dos locales. ¿Le interesa?";
+    expect(esSoloPregunta(largo)).toBe(false);
   });
 });

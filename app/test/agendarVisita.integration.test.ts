@@ -174,5 +174,7 @@ describe("agendar_visita", () => {
     const segundo = (await hechos(fila.id)).visit_date!.toISOString();
 
     expect(segundo).not.toBe(primero);
-  });
+    // 15s como su gemelo de arriba: dos agendamientos completos contra la
+    // base rozan el tope de 5s cuando la suite corre en paralelo.
+  }, 15_000);
 });

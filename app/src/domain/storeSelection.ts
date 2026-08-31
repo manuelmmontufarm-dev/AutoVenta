@@ -42,8 +42,17 @@ export function preguntaElLocal(bloque: string | null | undefined): boolean {
   const n = normalize(bloque).replace(/[*_]/g, "");
   if (bloque.includes("?")) {
     if (n.includes(normalize(PREGUNTA_DE_LOCAL).replace(/[*_]/g, ""))) return true;
-    if (/\b(?:cual|que|donde|a cual)\b[^?]{0,60}\b(?:local|locales|sucursal|sucursales|tienda|tiendas)\b/.test(n)) return true;
-    if (/\b(?:local|sucursal|tienda)\b[^?]{0,40}\b(?:le queda|prefiere|le conviene|le sirve)\b/.test(n)) return true;
+    // LOS PATRONES SE BUSCAN DENTRO DE UN SEGMENTO QUE PREGUNTE, no en todo el
+    // bloque. Producción, 31-ago 20:02: «eso sí tendría QUE revisarlo el asesor
+    // en el LOCAL» —una afirmación— casó con «que … local», y el «?» del menú
+    // de preferencia que venía más abajo dejó pasar el filtro. Resultado: el
+    // menú «1) Costo 2) Equilibrio 3) Premium» salió con botones de Cumbayá y
+    // Quito Sur. La pregunta y su pregunta tienen que vivir en la misma frase.
+    const preguntas = n.split(/(?<=\?)|[\n]/).filter((seg) => seg.includes("?"));
+    for (const seg of preguntas) {
+      if (/\b(?:cual|que|donde|a cual)\b[^?]{0,60}\b(?:local|locales|sucursal|sucursales|tienda|tiendas)\b/.test(seg)) return true;
+      if (/\b(?:local|sucursal|tienda)\b[^?]{0,40}\b(?:le queda|prefiere|le conviene|le sirve)\b/.test(seg)) return true;
+    }
     // «¿Cumbayá o Quito Sur?» a secas TAMBIÉN pregunta el local, aunque no
     // diga la palabra. Visto en el lote del 29-ago (casos 35–37 y 44): el
     // modelo cerró así y este detector dijo que no había pregunta, con lo que

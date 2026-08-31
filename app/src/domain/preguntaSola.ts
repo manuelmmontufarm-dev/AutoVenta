@@ -72,3 +72,24 @@ export function conPreguntaEnSuPropioMensaje(texto: string, maxBloques = 4): Tur
     : nuevos;
   return { texto: conSitio.join("\n---\n"), separada: true };
 }
+
+/**
+ * ¿Este bloque es SOLO el cierre del turno — una pregunta corta, sin datos?
+ *
+ * Sirve para callarlo cuando ya no corresponde: si el cliente escribió otra
+ * cosa mientras redactábamos, la pregunta con la que cerrábamos el turno
+ * anterior llega tarde y encima tapa lo que él acaba de preguntar (producción,
+ * 31-ago 20:07 — «¿a cuál local le queda mejor?» salió después de que el
+ * cliente ya había cambiado de medida).
+ *
+ * Deliberadamente conservador: un bloque con precio, número de cotización o
+ * texto largo NUNCA es «solo una pregunta», por más que traiga un signo. Callar
+ * un dato sería peor que repetir una pregunta.
+ */
+export function esSoloPregunta(bloque: string): boolean {
+  const texto = (bloque ?? "").trim();
+  if (!texto.includes("?")) return false;
+  if (texto.length > 220) return false;
+  if (/\$\s*\d|COT-[A-Z0-9]|\bcotizaci[oó]n\s+(?:COT|N°)/i.test(texto)) return false;
+  return true;
+}
