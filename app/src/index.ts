@@ -84,6 +84,7 @@ import { botonesParaBloque, recortarTitulo, textoDeBoton, type BloqueConBotones 
 import { esComandoDeReinicio, MENSAJE_DE_REINICIO } from "./domain/reinicio.js";
 import { esSoloPregunta } from "./domain/preguntaSola.js";
 import { sql } from "./db/client.js";
+import { presentacionDeApertura } from "./domain/saludo.js";
 import { algunLocalAbre, getStoreHours } from "./services/settings.js";
 import { respuestaDeCierreDelTurno, tipoDeCierreDelTurno } from "./domain/cierreTurno.js";
 
@@ -280,6 +281,27 @@ const pipeline = new InboundPipeline(async ({ from, name, text, waMessageIds, qu
   const isFirstGenericMessage = conversation.stage === "nuevo"
     && (previousOutbound === null || previousOutbound === MENSAJE_DE_REINICIO)
     && isGenericFirstContact(textoConLinks);
+  // Al abrirse la conversación el negocio se presenta ANTES de ponerse a
+  // trabajar (decisión de Manuel, 31-ago). Va como mensaje propio y va aquí,
+  // antes del agente, porque las herramientas mandan sus piezas —las opciones,
+  // la cotización— mientras el agente corre: pegarle la presentación al texto
+  // final la dejaba DETRÁS de una imagen, y el cliente veía llantas antes de
+  // saber con quién habla (simulador, 31-ago: «Opciones disponibles 🏁» salió
+  // primero). Cuando el turno es un saludo pelado no hace falta: la bienvenida
+  // de `firstContactReply` ya es la presentación entera.
+  if (!isFirstGenericMessage && previousOutbound === null) {
+    const presentacion = presentacionDeApertura(name);
+    try {
+      const sentId = await sendCustomerText(conversation.id, from, presentacion);
+      await appendMessage(conversation.id, "assistant", presentacion, sentId, {
+        authorKind: "bot", status: "sent",
+      });
+      await esperar(PAUSA_ENTRE_BLOQUES_MS);
+    } catch (error) {
+      // Que falle la presentación no puede costarle al cliente su respuesta.
+      console.error(`❌ No se pudo presentar el bot a ${from}:`, error);
+    }
+  }
   // Conv 11818, 27-ago-2026: «Ya Ise el pedido aquí en Ibarra gracias» terminó
   // recibiendo los mapas. El candado de `prepararSalida` sí cambiaba el texto
   // final por una despedida, pero una herramienta ya había mandado el mapa (y

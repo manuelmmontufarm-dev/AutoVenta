@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { conSaludo, nombreSaludable, yaSaluda } from "../src/domain/saludo.js";
+import { conPresentacion, conSaludo, nombreSaludable, yaSaluda } from "../src/domain/saludo.js";
 
 describe("el primer mensaje al cliente siempre saluda", () => {
   it("reconoce los saludos que de verdad usa la gente", () => {
@@ -56,5 +56,55 @@ describe("el primer mensaje al cliente siempre saluda", () => {
   it("un texto vacío se queda vacío: no se inventa un mensaje", () => {
     expect(conSaludo("", "Juan")).toBe("");
     expect(conSaludo("   ", "Juan")).toBe("");
+  });
+});
+
+/*
+ * Decisión de Manuel, 31-ago-2026: al abrirse la conversación el bot se
+ * presenta SIEMPRE, no manda un «hola» pelado. Y si el cliente ya dio la
+ * medida en ese primer mensaje, la presentación encabeza y debajo va la
+ * cotización — no se le vuelve a preguntar lo que ya dijo.
+ */
+describe("la presentación al abrirse la conversación", () => {
+  const FIRMA = "Soy el asistente de Depot Tire";
+
+  it("se presenta y debajo deja lo que el turno traía", () => {
+    const salida = conPresentacion("En *195/55R16* tengo estas 3 opciones disponibles.", null);
+    expect(salida.startsWith("¡Hola! 👋 Soy el asistente de Depot Tire.")).toBe(true);
+    expect(salida).toContain("stock y precios reales");
+    expect(salida).toContain("En *195/55R16* tengo estas 3 opciones disponibles.");
+  });
+
+  it("usa el nombre cuando el pushname sirve", () => {
+    expect(conPresentacion("¿Qué aro usa?", "María Fernanda Pérez"))
+      .toContain("¡Hola, María! 👋 Soy el asistente de Depot Tire.");
+  });
+
+  it("no se presenta dos veces", () => {
+    const ya = `¡Hola! 👋 ${FIRMA}. Le cotizo al instante.`;
+    expect(conPresentacion(ya, "Angel")).toBe(ya);
+  });
+
+  it("le quita al modelo su «hola» suelto para no tartamudear", () => {
+    const salida = conPresentacion("¡Hola, Manuel! 👋 ¿Qué medida necesita?", "Manuel");
+    expect(salida).toBe(
+      "¡Hola, Manuel! 👋 Soy el asistente de Depot Tire. Le cotizo al instante con stock"
+      + " y precios reales, comparo modelos y le armo su cotización para tienda."
+      + "\n\n¿Qué medida necesita?",
+    );
+    // Una sola vez, no dos.
+    expect(salida.match(/¡Hola/g)).toHaveLength(1);
+  });
+
+  it("si el turno era solo un saludo, queda la presentación sola", () => {
+    expect(conPresentacion("Hola 👋", null)).toBe(
+      "¡Hola! 👋 Soy el asistente de Depot Tire. Le cotizo al instante con stock"
+      + " y precios reales, comparo modelos y le armo su cotización para tienda.",
+    );
+  });
+
+  it("un texto vacío se queda vacío", () => {
+    expect(conPresentacion("", "Juan")).toBe("");
+    expect(conPresentacion("   ", "Juan")).toBe("");
   });
 });

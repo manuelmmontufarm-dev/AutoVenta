@@ -50,3 +50,41 @@ export function conSaludo(texto: string, nombre: string | null | undefined): str
   const quien = nombreSaludable(nombre);
   return `${quien ? `¡Hola, ${quien}! 👋` : "¡Hola! 👋"}\n${limpio}`;
 }
+
+/**
+ * La frase por la que se reconoce que el negocio ya se presentó. Si aparece en
+ * el texto, no se vuelve a anteponer nada.
+ */
+export const FIRMA_DE_PRESENTACION = "Soy el asistente de Depot Tire";
+
+/** Un saludo pelado al arranque, para quitarlo antes de poner la presentación. */
+const SALUDO_PELADO =
+  /^[\s¡!¿?"'*_~`]*(?:\p{Extended_Pictographic}[\s¡!]*)*(?:hola|buenas|buen(?:os)? d[íi]as|buenas tardes|buenas noches|qu[ée] tal|saludos)(?:\s*,?\s*[\p{L}]+)?\s*[!¡.,:;—-]*\s*(?:\p{Extended_Pictographic}\s*)*/iu;
+
+/**
+ * Lo PRIMERO que el negocio le dice a alguien en una conversación es quién es y
+ * qué puede hacer por él — no un «hola» suelto ni, peor, la pregunta por el aro.
+ *
+ * Decisión de Manuel (31-ago-2026): al abrirse la conversación la presentación
+ * sale SIEMPRE, incluso cuando el cliente ya mandó la medida en su primer
+ * mensaje. En ese caso la presentación encabeza y el turno sigue con lo que
+ * toca —las opciones, la cotización—, para no preguntarle un dato que ya dio.
+ *
+ * Si el modelo abrió con un «hola» propio, se le quita: la presentación ya
+ * saluda y dos saludos pegados se leen como un bot tartamudo.
+ */
+export function presentacionDeApertura(nombre: string | null | undefined): string {
+  const quien = nombreSaludable(nombre);
+  return `¡Hola${quien ? `, ${quien}` : ""}! 👋 ${FIRMA_DE_PRESENTACION}.`
+    + " Le cotizo al instante con stock y precios reales, comparo modelos y le armo"
+    + " su cotización para tienda.";
+}
+
+export function conPresentacion(texto: string, nombre: string | null | undefined): string {
+  const limpio = (texto ?? "").trim();
+  if (!limpio) return limpio;
+  if (limpio.includes(FIRMA_DE_PRESENTACION)) return limpio;
+  const resto = limpio.replace(SALUDO_PELADO, "").trim();
+  const cabecera = presentacionDeApertura(nombre);
+  return resto ? `${cabecera}\n\n${resto}` : cabecera;
+}

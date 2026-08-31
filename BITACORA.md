@@ -1,3 +1,25 @@
+## 31-ago-2026 · Saludos en general, y la presentación abre SIEMPRE la conversación
+
+**Qué:** Dos cosas. (1) `isGenericFirstContact` era una lista cerrada de frases
+exactas: tenía «hola» y «buenos dias» por separado pero no «hola buenos dias».
+Ahora razona en vez de listar — le quita al texto el saludo y la cortesía, y lo
+que sobra decide: si no sobra nada, o solo un pedido genérico de precios, es un
+saludo; si sobra un dato de venta (número, marca, vehículo, servicio), manda el
+agente. (2) Al abrirse la conversación la presentación sale SIEMPRE, como
+mensaje propio y ANTES de que corra el agente. Iba pegada al texto final, y como
+las herramientas mandan sus piezas mientras el agente trabaja, el cliente veía
+la imagen de opciones antes de saber con quién hablaba.
+
+**Por qué:** Producción, conv 3 ciclos 36-38 (31-ago 15:55): «hola» recibió la
+bienvenida, y «Hola, buenos días» y «hola buenos dias» recibieron la guía de
+medidas sin presentarse. Manuel: «cuando se abra la conversación que siempre
+mande ese mensaje», y con saludo + medida el bot se presenta y cotiza en el
+mismo turno, sin repreguntar lo que el cliente ya dijo. De paso, el gancho de
+`wa/client.ts` miraba todos los ciclos: tras un reinicio la conversación no se
+volvía a presentar.
+
+**Horas:** ~1
+
 ## 31-ago-2026 · El reply de WhatsApp decide el «2» + cambiar de aro suelta la medida vieja
 
 **Qué:** Dos arreglos encadenados. (1) El webhook ahora lee `message.context.id`

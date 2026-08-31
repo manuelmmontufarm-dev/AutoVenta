@@ -15,7 +15,7 @@ import { config } from "../config.js";
 import { getChannelConfig, type ChannelConfig } from "../services/channel.js";
 import { assertConversationOutbound } from "../services/whatsappPolicy.js";
 import type { OutboundActor } from "../domain/whatsappPolicy.js";
-import { conSaludo } from "../domain/saludo.js";
+import { conPresentacion } from "../domain/saludo.js";
 import { sql } from "../db/client.js";
 import { registrarEnviado } from "./outboundRegistry.js";
 
@@ -65,13 +65,22 @@ async function conSaludoSiEsElPrimerTexto(conversationId: number, body: string):
       where conversation_id = ${conversationId}
         and direction = 'outbound'
         and type = 'text'
+        -- Solo del CICLO vigente (31-ago): tras un reinicio —manual o por las
+        -- 15 h de inactividad— la conversación empieza otra vez, y con ella la
+        -- presentación. Sin este filtro, el saliente de un ciclo viejo hacía
+        -- que el chat reabierto arrancara sin presentarse (producción, conv 3
+        -- ciclos 36 y 37: «Hola, buenos días» recibió la guía de medidas).
+        and cycle = (select current_cycle from conversations where id = ${conversationId})
       limit 1
     `;
     if (previo) return body;
     const [conv] = await sql<{ name: string | null }[]>`
       select name from conversations where id = ${conversationId}
     `;
-    return conSaludo(body, conv?.name ?? null);
+    // Al abrirse la conversación va la presentación completa, no un «hola»
+    // pelado: decisión de Manuel del 31-ago. Si el turno ya trae la medida, la
+    // presentación encabeza y debajo sigue la cotización.
+    return conPresentacion(body, conv?.name ?? null);
   } catch {
     return body;
   }
