@@ -1,3 +1,25 @@
+## 31-ago-2026 · El «hola» saluda siempre + la memoria del chat caduca a las 15 h
+
+**Qué:** Un saludo genérico al arranque de cualquier ciclo recibe la bienvenida
+determinística (texto nuevo aprobado por Manuel: se presenta como asistente de
+Depot Tire y ofrece las tres puertas), en vez de la guía de medidas sin saludo.
+Tres piezas: `lastOutboundText` ahora mira solo el ciclo vigente (leía preguntas
+de hace días como recién hechas y desarmaba el candado del primer contacto), el
+aviso del `/restart` se guarda ANTES de rotar el ciclo (caía en el ciclo nuevo y
+también desarmaba el candado), y nace `reiniciarSiLaMemoriaVencio`: si nadie
+escribió en más de 15 horas, el mensaje que llega abre ciclo limpio (ficha e
+historial olvidados, ciclo viejo archivado). Es perezoso —ningún timer cierra
+chats— y el reloj se mide contra el último mensaje de CUALQUIERA de los dos
+lados, para que responder «sí» a un seguimiento reciente no borre la venta.
+Guardado contra mensajes simultáneos: el cierre exige el ciclo que se leyó.
+
+**Por qué:** Conv 3 (31-ago, 13:36): tras días de silencio, un «hola» recibió la
+infografía de medidas de una, sin presentarse — Manuel lo pidió explícito: el
+bot debe saludar siempre que se inicia una conversación, y olvidar el contexto
+viejo cuando el cliente vuelve por otro motivo.
+
+**Horas:** ~1.5
+
 ## 31-ago-2026 · Apagado del bot con chat de pruebas vivo
 
 **Qué:** Al apagar el bot desde el panel, el teléfono del vendedor (o los

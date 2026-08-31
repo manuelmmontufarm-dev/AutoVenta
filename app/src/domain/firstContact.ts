@@ -41,13 +41,16 @@ export function isGenericFirstContact(text: string): boolean {
 }
 
 /**
- * Entrada estable y sin IA: prioriza el dato más rápido sin hacer creer que el
- * bot es un formulario que únicamente acepta una medida.
+ * Entrada estable y sin IA: se presenta, dice qué sabe hacer y deja claras las
+ * TRES puertas (medida escrita, foto del costado, vehículo) antes de pedir
+ * nada. Texto aprobado por Manuel el 31-ago-2026 — cambiarlo se consulta.
  */
 export function firstContactReply(): string {
   return [
-    "¡Hola! 👋 Le cotizo con stock y precios reales.",
-    "Lo más rápido es enviarme la *medida de la llanta* (ej. 225/65R17) o una foto del costado.",
-    "Si no la tiene, dígame *marca, modelo y año del vehículo* o el aro; también puedo orientarle según su uso y comparar opciones.",
+    "¡Hola! 👋 Soy el asistente de Depot Tire. Le cotizo al instante con stock y precios reales, comparo modelos y le armo su cotización para tienda.",
+    "",
+    "Puede mandarme la medida escrita, una foto del costado de la llanta o decirme su vehículo.",
+    "",
+    "¿Qué medida usa? Ej: 225/65R17",
   ].join("\n");
 }

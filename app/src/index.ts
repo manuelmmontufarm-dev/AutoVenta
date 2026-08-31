@@ -43,6 +43,7 @@ import {
   previousInboundText,
   updateConversationFacts,
   reiniciarConversacion,
+  reiniciarSiLaMemoriaVencio,
   yaProcesado,
 } from "./services/conversations.js";
 import { emitLiveEvent } from "./services/liveEvents.js";
@@ -484,7 +485,12 @@ async function recibirMensaje(
   void registrarMensajeDeAsesor(from, receivedAt).catch((error) =>
     console.warn("⚠️ No se pudo refrescar la ventana del asesor:", error),
   );
-  const conversation = await getOrCreateConversation(from, name);
+  const creada = await getOrCreateConversation(from, name);
+  // Chat frío (>15 h sin mensajes de nadie): ciclo nuevo ANTES de guardar este
+  // mensaje, para que caiga en la conversación que empieza y no en la que se
+  // archiva — y para que el silencio se mida contra el mensaje anterior, no
+  // contra este. Ver `reiniciarSiLaMemoriaVencio`.
+  const conversation = await reiniciarSiLaMemoriaVencio(creada, receivedAt);
   const esNuevo = await appendMessage(conversation.id, "user", texto, waMessageId, { occurredAt: receivedAt });
   if (!esNuevo) return; // reentrega de Meta: ya estaba guardado
   emitLiveEvent("message", conversation.id);
@@ -494,8 +500,11 @@ async function recibirMensaje(
   // pierde el rastro de quién lo pidió. No entra al pipeline: no hay nada que
   // contestarle al agente y hacerlo correr sería gastar un turno de modelo.
   if (esComandoDeReinicio(texto)) {
-    const reiniciada = await reiniciarConversacion(conversation.id);
-    console.log(`🔄 Reinicio manual en la conv ${conversation.id}: ciclo ${reiniciada?.current_cycle ?? "?"}`);
+    // El aviso de reinicio se manda y se guarda ANTES de rotar el ciclo: es la
+    // despedida del ciclo que se archiva. Guardado después (como estaba hasta el
+    // 31-ago), caía en el ciclo NUEVO y el candado del primer contacto veía «ya
+    // hubo saliente»: el «hola» siguiente se iba al agente con herramientas en
+    // vez de recibir el saludo — justo lo que el /restart quería probar.
     try {
       const sentId = await sendCustomerText(conversation.id, from, MENSAJE_DE_REINICIO, "owner");
       // Como SYSTEM, no como bot: si cuenta como saliente del vendedor, el
@@ -507,6 +516,8 @@ async function recibirMensaje(
     } catch (error) {
       console.error(`❌ No se pudo avisar del reinicio a ${from}:`, error);
     }
+    const reiniciada = await reiniciarConversacion(conversation.id);
+    console.log(`🔄 Reinicio manual en la conv ${conversation.id}: ciclo ${reiniciada?.current_cycle ?? "?"}`);
     emitLiveEvent("message", conversation.id);
     emitLiveEvent("sync", conversation.id);
     return;

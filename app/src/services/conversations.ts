@@ -3,6 +3,7 @@ import { config } from "../config.js";
 import { isStage, type Stage } from "../domain/pipeline.js";
 import { franjaHoraria } from "../domain/diasEnEspanol.js";
 import { esMismaVisitaPorSilencio } from "../domain/medidaPedida.js";
+import { memoriaDelChatVencida } from "../domain/memoriaDelChat.js";
 import { cancelPendingFollowUps, scheduleConversationFollowUps } from "./followUps.js";
 import { emitLiveEvent } from "./liveEvents.js";
 
@@ -250,6 +251,90 @@ export async function reiniciarConversacion(conversationId: number): Promise<Con
   return reopenConversation(conversationId, "customer", "Reinicio manual (/restart)");
 }
 
+/**
+ * Reinicia el chat si nadie escribió en más de 15 horas (`memoriaDelChatVencida`).
+ *
+ * Se llama al RECIBIR un mensaje del cliente, antes de guardarlo: `appendMessage`
+ * pisa `last_customer_message_at`, así que después ya no se puede saber cuánto
+ * silencio hubo. Es deliberadamente perezoso —ningún timer cierra chats solos—
+ * para que los seguimientos automáticos sigan saliendo sobre el ciclo vigente;
+ * cada mensaje del bot (seguimiento incluido) refresca el reloj.
+ *
+ * El cierre va condicionado EN el update (silencio comprobado contra la base,
+ * no contra memoria) para que dos mensajes que entren a la vez no dupliquen el
+ * reinicio: solo el que de verdad cierra la fila reabre el ciclo, con el mismo
+ * camino probado del `/restart`.
+ */
+export async function reiniciarSiLaMemoriaVencio(
+  conversation: Conversation,
+  ahora: Date = new Date(),
+): Promise<Conversation> {
+  if (conversation.status !== "open") return conversation;
+  const [marcas] = await sql<
+    {
+      last_customer_message_at: Date | null;
+      last_assistant_message_at: Date | null;
+      assigned_to: string;
+      bot_paused_until: Date | null;
+    }[]
+  >`
+    select last_customer_message_at, last_assistant_message_at, assigned_to, bot_paused_until
+    from conversations where id = ${conversation.id}
+  `;
+  const duenio = marcas
+    ? { assigned_to: marcas.assigned_to, bot_paused_until: marcas.bot_paused_until }
+    : null;
+  if (
+    !marcas
+    || !memoriaDelChatVencida(
+      marcas.last_customer_message_at,
+      marcas.last_assistant_message_at,
+      ahora,
+    )
+  ) {
+    return conversation;
+  }
+  const razon = "Reinicio por inactividad (>15 h)";
+  const [cerrada] = await sql<{ id: number }[]>`
+    update conversations
+    set status = 'closed', closed_reason = ${razon}, closed_at = now(),
+        assigned_to = 'bot', bot_paused_until = null, updated_at = now()
+    where id = ${conversation.id} and status = 'open'
+      -- Si el ciclo ya rotó (otro mensaje simultáneo llegó primero), no hay
+      -- nada que reiniciar: sin esta condición, el segundo cierre volvía a
+      -- pasar el filtro de silencio —la reapertura no toca los last_*— y el
+      -- chat saltaba DOS ciclos por un solo regreso.
+      and current_cycle = ${conversation.current_cycle}
+      and greatest(
+        coalesce(last_customer_message_at, '-infinity'::timestamptz),
+        coalesce(last_assistant_message_at, '-infinity'::timestamptz)
+      ) < ${ahora} - interval '15 hours'
+    returning id
+  `;
+  if (!cerrada) return conversation;
+  console.log(`🕒 Memoria vencida en la conv ${conversation.id}: se abre ciclo nuevo`);
+  const reabierta = await reopenConversation(conversation.id, "system", razon);
+  // Olvidar el contexto NO es quitarle el chat a quien lo está atendiendo.
+  // `reopenConversation` devuelve la conversación al bot —correcto cuando la
+  // reapertura nace de una venta cerrada—, pero aquí nace del reloj: medido en
+  // producción el 31-ago, 1085 chats con asesor llevaban más de 15 h en
+  // silencio, y sin esto el primer mensaje de cada uno se los habría arrebatado
+  // al asesor sin que nadie lo pidiera. La pausa y el dueño se conservan tal
+  // como estaban; lo único que caduca es la memoria.
+  if (duenio && (duenio.assigned_to !== "bot" || duenio.bot_paused_until)) {
+    const [conDuenio] = await sql<Conversation[]>`
+      update conversations
+      set assigned_to = ${duenio.assigned_to},
+          bot_paused_until = ${duenio.bot_paused_until},
+          updated_at = now()
+      where id = ${conversation.id}
+      returning id, phone, name, stage, bot_paused_until, status, current_cycle
+    `;
+    return conDuenio ?? reabierta;
+  }
+  return reabierta;
+}
+
 export async function getHistory(
   conversationId: number,
   limit = 30,
@@ -390,11 +475,19 @@ export async function setStage(
  * jueves y el asesor lo habría esperado una semana antes.
  *
  * Se toman los últimos 3 salientes seguidos: un turno no manda más.
+ *
+ * Solo del CICLO vigente (31-ago): tras un reinicio —manual o por inactividad—
+ * lo que dijimos en el ciclo anterior es de otra conversación. Sin este filtro,
+ * el candado del primer contacto nunca veía «conversación sin salientes» y un
+ * «hola» de un cliente que volvía recibía herramientas en vez del saludo; y
+ * `preguntamosElDia`/`preguntamosElLocal` leían preguntas de hace días como si
+ * las acabáramos de hacer.
  */
 export async function lastOutboundText(conversationId: number): Promise<string | null> {
   const filas = await sql<{ content: string }[]>`
     select content from messages
     where conversation_id = ${conversationId} and direction = 'outbound' and type <> 'note'
+      and cycle = (select current_cycle from conversations where id = ${conversationId})
     order by created_at desc limit 3
   `;
   if (!filas.length) return null;

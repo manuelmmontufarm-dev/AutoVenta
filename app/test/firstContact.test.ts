@@ -15,14 +15,14 @@ describe("primer contacto inteligente", () => {
     expect(isGenericFirstContact("Quiero más información de llantas aro 17")).toBe(false);
   });
 
-  it("prioriza la medida sin esconder las otras formas de asesorar", () => {
+  it("saluda, se presenta y ofrece las tres puertas antes de pedir nada", () => {
     const reply = firstContactReply();
-    expect(reply).toContain("*medida de la llanta*");
-    expect(reply).toContain("225/65R17");
-    expect(reply).toContain("foto del costado");
-    expect(reply).toContain("*marca, modelo y año del vehículo*");
-    expect(reply).toContain("aro");
-    expect(reply).toContain("según su uso");
-    expect(reply).toContain("comparar opciones");
+    expect(reply.startsWith("¡Hola! 👋")).toBe(true);
+    expect(reply).toContain("Soy el asistente de Depot Tire");
+    expect(reply).toContain("stock y precios reales");
+    expect(reply).toContain("medida escrita");
+    expect(reply).toContain("foto del costado de la llanta");
+    expect(reply).toContain("decirme su vehículo");
+    expect(reply).toContain("¿Qué medida usa? Ej: 225/65R17");
   });
 });
