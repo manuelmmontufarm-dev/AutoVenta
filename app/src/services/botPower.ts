@@ -93,6 +93,33 @@ export async function isBotActive(): Promise<boolean> {
 }
 
 /**
+ * Excepción de pruebas: con el bot apagado, estos teléfonos SÍ reciben
+ * respuesta. Así el dueño apaga el bot para los clientes reales y sigue
+ * probando desde su propio chat sin encenderlo para todo el mundo.
+ *
+ * Quiénes: los números de `BOT_APAGADO_EXCEPTO` (separados por coma) y, si esa
+ * variable no está definida, el teléfono del vendedor (Ajustes → Canal /
+ * SELLER_PHONE). Solo aplica a la respuesta al mensaje entrante: los
+ * seguimientos programados quedan apagados también para estos números, porque
+ * apagado significa que el bot no le escribe solo a nadie.
+ */
+export async function contestaAunApagado(telefono: string): Promise<boolean> {
+  const soloDigitos = (t: string) => t.replace(/\D+/g, "");
+  const quien = soloDigitos(telefono);
+  if (!quien) return false;
+  const crudo = process.env.BOT_APAGADO_EXCEPTO;
+  let lista: string[];
+  if (crudo !== undefined) {
+    lista = crudo.split(",").map(soloDigitos).filter(Boolean);
+  } else {
+    const { getChannelConfig } = await import("./channel.js");
+    const vendedor = soloDigitos((await getChannelConfig()).sellerPhone);
+    lista = vendedor ? [vendedor] : [];
+  }
+  return lista.includes(quien);
+}
+
+/**
  * Lo que el panel PUEDE mandar, y nada más.
  *
  * NO es `BotPowerSchema.partial()`: en zod 4 `.partial()` deja vivos los

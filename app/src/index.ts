@@ -47,7 +47,7 @@ import {
 } from "./services/conversations.js";
 import { emitLiveEvent } from "./services/liveEvents.js";
 import { registrarMensajeDeAsesor } from "./services/advisorWindow.js";
-import { isBotActive } from "./services/botPower.js";
+import { contestaAunApagado, isBotActive } from "./services/botPower.js";
 import {
   extractFlotationSizes, extractTireSizes, formatFlotationSize, formatTireSize,
 } from "./domain/tireSize.js";
@@ -182,7 +182,9 @@ const pipeline = new InboundPipeline(async ({ from, name, text, waMessageIds, re
   // Interruptor global (Ajustes → apagar el bot). Va DESPUÉS de guardar el
   // mensaje: apagado el bot no contesta, pero el dueño sigue viendo todo lo que
   // le escriben y puede responder a mano desde el panel.
-  if (!(await isBotActive())) return;
+  // Excepción: el teléfono de pruebas del dueño sigue recibiendo respuesta
+  // aun con el bot apagado (ver contestaAunApagado en botPower).
+  if (!(await isBotActive()) && !(await contestaAunApagado(from))) return;
 
   // Handoff: si el dueño está atendiendo este chat a mano, el bot calla — pero
   // lo del cliente ya quedó guardado arriba para que el dueño lo lea en /mensajes.

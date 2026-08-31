@@ -1,3 +1,15 @@
+## 31-ago-2026 · Apagado del bot con chat de pruebas vivo
+
+**Qué:** Al apagar el bot desde el panel, el teléfono del vendedor (o los
+listados en `BOT_APAGADO_EXCEPTO`) sigue recibiendo respuesta del bot; el resto
+de clientes queda en silencio y los seguimientos programados se apagan para
+todos. Prueba unitaria nueva y variable clasificada para el simulador.
+
+**Por qué:** Manuel necesita probar en producción desde su propio WhatsApp sin
+que el bot le conteste a clientes reales mientras tanto.
+
+**Horas:** ~0.5
+
 ## 31-ago-2026 · Campaña de calidad: 51/51 certificado + endurecimiento del corpus T115
 
 **Qué:** El set de 10 conversaciones históricas (51 comprobaciones) pasa completo
