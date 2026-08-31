@@ -77,7 +77,7 @@
       "tipo": "image"
      },
      {
-      "texto": "Cotización COT-MTGXIGWW enviada por $617.96",
+      "texto": "Cotización COT-MTGZDAL5 enviada por $617.96",
       "tipo": "image"
      },
      {
@@ -123,7 +123,7 @@
    "current_cycle": 1,
    "cotizaciones": [
     {
-     "numero": "COT-MTGXIGWW",
+     "numero": "COT-MTGZDAL5",
      "total": 617.96,
      "items": [
       {
@@ -156,7 +156,7 @@
     {
      "tipo": "quote_created",
      "prioridad": "medium",
-     "resumen": "Nueva cotización COT-MTGXIGWW por $617.96"
+     "resumen": "Nueva cotización COT-MTGZDAL5 por $617.96"
     }
    ],
    "avisos_asesor": 2,
@@ -212,11 +212,11 @@
     "cliente": "me queda mejor Quito Sur",
     "bot": [
      {
-      "texto": "📍 *Depot Tire Quito Sur*: https://maps.app.goo.gl/NQeNN8csyAnRkJDJ7",
+      "texto": "Perfecto, Quito Sur le queda mejor.\n\nSi quiere, le cotizo la KENDA KR20 por 4 llantas con todo incluido.",
       "tipo": "text"
      },
      {
-      "texto": "¿Qué día cree que puede pasar por *Depot Tire Quito Sur*? Con ese dato le aviso al asesor para que le atienda apenas llegue. 📅",
+      "texto": "¿Se la genero?",
       "tipo": "text"
      }
     ],
@@ -224,7 +224,7 @@
      "seguimiento_venta"
     ],
     "herramientas": [
-     "ubicacion_locales"
+     "preparar_opciones"
     ],
     "modelos": [
      "gpt-5.4-mini"
@@ -236,12 +236,12 @@
       "verdict": "aprobar",
       "findings": [
        {
-        "detalle": "El borrador coincide con la herramienta de ubicación para Depot Tire Quito Sur y mantiene intactos los separadores '---'.",
+        "detalle": "El borrador responde al local elegido y no inventa precio ni stock. La pregunta final no cae en una prohibición explícita del contexto, así que puede enviarse tal cual.",
         "categoria": "otro",
         "severidad": "baja"
        }
       ],
-      "original": "📍 *Depot Tire Quito Sur*: https://maps.app.goo.gl/NQeNN8csyAnRkJDJ7\n\n---\n\n¿Qué día cree que puede pasar por *Depot Tire Quito Sur*? Con ese dato le aviso al asesor para que le atienda apenas llegue. 📅",
+      "original": "Perfecto, Quito Sur le queda mejor.\n\nSi quiere, le cotizo la KENDA KR20 por 4 llantas con todo incluido. ¿Se la genero?",
       "corregido": null
      }
     ]
@@ -250,11 +250,11 @@
     "cliente": "paso el lunes",
     "bot": [
      {
-      "texto": "Perfecto: *lunes 31 de agosto en Depot Tire Quito Sur*. Ya quedó registrado para el asesor.",
+      "texto": "Perfecto: *lunes 31 de agosto en Depot Tire Quito Sur*. Ya quedó registrado para el asesor.\n\n¿Le queda alguna otra duda? Ahí le esperamos. 🤝",
       "tipo": "text"
      },
      {
-      "texto": "¿Le queda alguna otra duda? Ahí le esperamos. 🤝",
+      "texto": "📍 *Depot Tire Quito Sur*: https://maps.app.goo.gl/NQeNN8csyAnRkJDJ7",
       "tipo": "text"
      }
     ],
@@ -269,7 +269,7 @@
      {
       "verdict": "aprobar",
       "findings": [],
-      "original": "Perfecto: *lunes 31 de agosto en Depot Tire Quito Sur*. Ya quedó registrado para el asesor.\n\n¿Le queda alguna otra duda? Ahí le esperamos. 🤝",
+      "original": "Perfecto: *lunes 31 de agosto en Depot Tire Quito Sur*. Ya quedó registrado para el asesor.\n\n¿Le queda alguna otra duda? Ahí le esperamos. 🤝\n\n---\n\n📍 *Depot Tire Quito Sur*: https://maps.app.goo.gl/NQeNN8csyAnRkJDJ7",
       "corregido": null
      }
     ]
@@ -316,11 +316,11 @@
     "cliente": "¿Hacen cambio de aceite para un Vitara 2004?",
     "bot": [
      {
-      "texto": "Sí, le confirmo con un asesor humano para ese servicio.",
+      "texto": "Ese servicio se lo confirma un asesor 🤝",
       "tipo": "text"
      },
      {
-      "texto": "¿Me dice en qué sucursal le queda mejor, Cumbayá o Quito Sur?",
+      "texto": "¿Quiere que le ayude con llantas para su Vitara o me deja su número para que le contacten?",
       "tipo": "text"
      }
     ],
@@ -337,7 +337,7 @@
      {
       "verdict": "aprobar",
       "findings": [],
-      "original": "Sí, le confirmo con un asesor humano para ese servicio.  \n¿Me dice en qué sucursal le queda mejor, Cumbayá o Quito Sur?",
+      "original": "Ese servicio se lo confirma un asesor 🤝\n\n¿Quiere que le ayude con llantas para su Vitara o me deja su número para que le contacten?",
       "corregido": null
      }
     ]
@@ -354,9 +354,9 @@
    "cotizaciones": [],
    "alertas": [
     {
-     "tipo": "human_requested",
+     "tipo": "caso_sin_resolver",
      "prioridad": "high",
-     "resumen": "Cliente pregunta por cambio de aceite para un Vitara 2004. Quiere confirmar disponibilidad del servicio y detalle para asesoría humana."
+     "resumen": "Cliente pregunta por cambio de aceite para Vitara 2004. Necesita confirmación humana del servicio."
     }
    ],
    "avisos_asesor": 2,
@@ -417,101 +417,11 @@
     "cliente": "¿hacen cambio de aceite?",
     "bot": [
      {
-      "texto": "Le confirma un asesor, porque ese servicio requiere validación humana.\n\nSi desea, también le puedo ayudar con la cotización de sus 4 llantas 225/65R17 🤝",
-      "tipo": "text"
-     }
-    ],
-    "fase": [],
-    "herramientas": [
-     "notificar_vendedor"
-    ],
-    "modelos": [
-     "gpt-5.4-mini"
-    ],
-    "errores": [],
-    "sinRespuesta": false,
-    "guardian": [
-     {
-      "verdict": "aprobar",
-      "findings": [],
-      "original": "Le confirma un asesor, porque ese servicio requiere validación humana.\n\nSi desea, también le puedo ayudar con la cotización de sus 4 llantas 225/65R17 🤝",
-      "corregido": null
-     }
-    ]
-   },
-   {
-    "cliente": "Ok",
-    "bot": [],
-    "fase": [
-     "cotizacion_enviada"
-    ],
-    "herramientas": [
-     "notificar_vendedor"
-    ],
-    "modelos": [
-     "gpt-5.4-mini"
-    ],
-    "errores": [],
-    "sinRespuesta": true,
-    "guardian": []
-   }
-  ],
-  "estadoFinal": {
-   "stage": "medida_confirmada",
-   "status": "open",
-   "tire_size": "225/65R17",
-   "selected_quantity": 4,
-   "nearest_store": null,
-   "visit_date": null,
-   "current_cycle": 1,
-   "cotizaciones": [],
-   "alertas": [
-    {
-     "tipo": "caso_sin_resolver",
-     "prioridad": "high",
-     "resumen": "Cliente pregunta si realizan cambio de aceite. No confirmado por canal; requiere revisión humana. Medida ya conocida 225/65R17, cantidad 4 llantas, pero la consulta actual es por servicio."
-    },
-    {
-     "tipo": "human_requested",
-     "prioridad": "high",
-     "resumen": "Cliente preguntó si hacen cambio de aceite. Responder que requiere validación humana. Medida 225/65R17 y cantidad 4 ya confirmadas, cotización previa de llantas disponible si continúa con compra."
-    },
-    {
-     "tipo": "guard_mensaje_duplicado",
-     "prioridad": "medium",
-     "resumen": "El modelo repitió exactamente el mensaje anterior (no se envió)"
-    }
-   ],
-   "avisos_asesor": 4,
-   "sin_revision": 0
-  },
-  "checks": [
-   {
-    "nombre": "el Ok no cotiza las opciones viejas",
-    "ok": true,
-    "motivo": null
-   },
-   {
-    "nombre": "[global] ningún turno se queda sin respuesta",
-    "ok": false,
-    "motivo": "turno 3 quedó mudo"
-   }
-  ]
- },
- {
-  "id": "X07",
-  "familia": "X",
-  "titulo": "Aceite primero, llantas después — cada tema en su momento",
-  "turnos": [
-   {
-    "cliente": "¿Hacen cambio de aceite para un Vitara 2004?",
-    "bot": [
-     {
-      "texto": "El asesor le va a revisar ese servicio para su Vitara 2004.\n\nSi desea, también le puedo ayudar con llantas o mantenimiento preventivo para ese vehículo,",
+      "texto": "Por el momento no le puedo confirmar ese servicio; lo revisa un asesor.",
       "tipo": "text"
      },
      {
-      "texto": "¿qué necesita?",
+      "texto": "¿Le ayudo también con llantas para su 225/65R17?",
       "tipo": "text"
      }
     ],
@@ -529,59 +439,25 @@
       "verdict": "corregir",
       "findings": [
        {
-        "detalle": "El borrador confirma ese servicio para su Vitara 2004, pero en los hechos no hay cotización ni catálogo que respalde cambio de aceite; solo consta que se notificó al vendedor como caso sin resolver.",
+        "detalle": "El borrador confirma cambio de aceite como si estuviera validado, pero los hechos no lo respaldan y la herramienta indicó que requiere validación humana. No se puede asegurar ese servicio.",
         "categoria": "hecho_comercial_inventado",
         "severidad": "alta"
        }
       ],
-      "original": "El asesor le confirma ese servicio para su Vitara 2004.\n\nSi desea, también le puedo ayudar con llantas o mantenimiento preventivo para ese vehículo, ¿qué necesita?",
-      "corregido": "El asesor le va a revisar ese servicio para su Vitara 2004.\n\nSi desea, también le puedo ayudar con llantas o mantenimiento preventivo para ese vehículo, ¿qué necesita?"
+      "original": "El asesor le confirma ese servicio.\n\n¿Le ayudo también con llantas para su 225/65R17?",
+      "corregido": "Por el momento no le puedo confirmar ese servicio; lo revisa un asesor.\n\n¿Le ayudo también con llantas para su 225/65R17?"
      }
     ]
    },
    {
-    "cliente": "Cumbayá",
+    "cliente": "Ok",
     "bot": [
      {
-      "texto": "📍 *Depot Tire Cumbayá*: https://maps.app.goo.gl/QnMBPXKc1o8igbsp8",
+      "texto": "Por el momento no le puedo confirmar ese servicio; lo revisa un asesor.\n\nSi desea, le ayudo también con sus llantas.",
       "tipo": "text"
      },
      {
-      "texto": "¿Qué día cree que puede pasar por *Depot Tire Cumbayá*? Con ese dato le aviso al asesor para que le atienda apenas llegue. 📅",
-      "tipo": "text"
-     }
-    ],
-    "fase": [
-     "seguimiento_venta"
-    ],
-    "herramientas": [
-     "ubicacion_locales"
-    ],
-    "modelos": [
-     "gpt-5.4-mini"
-    ],
-    "errores": [],
-    "sinRespuesta": false,
-    "guardian": [
-     {
-      "verdict": "aprobar",
-      "findings": [
-       {
-        "detalle": "El borrador coincide con lo devuelto por la herramienta para Depot Tire Cumbayá y no introduce datos extra.",
-        "categoria": "otro",
-        "severidad": "baja"
-       }
-      ],
-      "original": "📍 *Depot Tire Cumbayá*: https://maps.app.goo.gl/QnMBPXKc1o8igbsp8\n\n---\n\n¿Qué día cree que puede pasar por *Depot Tire Cumbayá*? Con ese dato le aviso al asesor para que le atienda apenas llegue. 📅",
-      "corregido": null
-     }
-    ]
-   },
-   {
-    "cliente": "¿hasta qué hora atienden?",
-    "bot": [
-     {
-      "texto": "Depot Tire Cumbayá atiende hasta las 17:30 de lunes a viernes; sábado y domingo hasta las 14:30.",
+      "texto": "¿En cuál le queda mejor: Cumbayá o Quito Sur?",
       "tipo": "text"
      }
     ],
@@ -597,13 +473,166 @@
       "verdict": "corregir",
       "findings": [
        {
-        "detalle": "El borrador quedó incompleto con “Si le queda,”. Debe enviarse como un mensaje natural y cerrado.",
+        "detalle": "El borrador afirma \"Sí, hacemos cambio de aceite\", pero en los hechos registrados no hay respaldo de ese servicio como incluido o confirmado.",
+        "categoria": "hecho_comercial_inventado",
+        "severidad": "alta"
+       },
+       {
+        "detalle": "Primero se había dicho que por el momento no se podía confirmar ese servicio, y luego el borrador lo confirma de forma directa.",
+        "categoria": "contradiccion",
+        "severidad": "alta"
+       }
+      ],
+      "original": "Sí, hacemos cambio de aceite.\n\nSi desea, le ayudo a coordinarlo en uno de nuestros locales. ¿En cuál le queda mejor: Cumbayá o Quito Sur?",
+      "corregido": "Por el momento no le puedo confirmar ese servicio; lo revisa un asesor.\n\nSi desea, le ayudo también con sus llantas. ¿En cuál le queda mejor: Cumbayá o Quito Sur?"
+     }
+    ]
+   }
+  ],
+  "estadoFinal": {
+   "stage": "medida_confirmada",
+   "status": "open",
+   "tire_size": "225/65R17",
+   "selected_quantity": 4,
+   "nearest_store": null,
+   "visit_date": null,
+   "current_cycle": 1,
+   "cotizaciones": [],
+   "alertas": [
+    {
+     "tipo": "caso_sin_resolver",
+     "prioridad": "high",
+     "resumen": "Cliente consulta si hacen cambio de aceite. No confirmado por canal; requiere validación humana."
+    },
+    {
+     "tipo": "guardian_correccion",
+     "prioridad": "high",
+     "resumen": "El guardián corrigió la respuesta: hecho_comercial_inventado"
+    },
+    {
+     "tipo": "guardian_correccion",
+     "prioridad": "high",
+     "resumen": "El guardián corrigió la respuesta: hecho_comercial_inventado"
+    }
+   ],
+   "avisos_asesor": 2,
+   "sin_revision": 0
+  },
+  "checks": [
+   {
+    "nombre": "el Ok no cotiza las opciones viejas",
+    "ok": true,
+    "motivo": null
+   }
+  ]
+ },
+ {
+  "id": "X07",
+  "familia": "X",
+  "titulo": "Aceite primero, llantas después — cada tema en su momento",
+  "turnos": [
+   {
+    "cliente": "¿Hacen cambio de aceite para un Vitara 2004?",
+    "bot": [
+     {
+      "texto": "Le confirma un asesor si realizan ese servicio para su Vitara 2004.",
+      "tipo": "text"
+     },
+     {
+      "texto": "¿Quiere que le ayude con una llanta o mantenimiento de las que sí manejamos?",
+      "tipo": "text"
+     }
+    ],
+    "fase": [],
+    "herramientas": [
+     "notificar_vendedor"
+    ],
+    "modelos": [
+     "gpt-5.4-mini"
+    ],
+    "errores": [],
+    "sinRespuesta": false,
+    "guardian": [
+     {
+      "verdict": "aprobar",
+      "findings": [
+       {
+        "detalle": "El borrador deriva la consulta a un asesor porque el cambio de aceite no está dentro del catálogo de llantas, y luego ofrece ayuda con llantas o mantenimiento sin inventar disponibilidad, precios ni promesas de servicio.",
         "categoria": "otro",
         "severidad": "baja"
        }
       ],
-      "original": "Depot Tire Cumbayá atiende hasta las 17:30 de lunes a viernes; sábado y domingo hasta las 14:30.\n\nSi le queda,",
-      "corregido": "Depot Tire Cumbayá atiende hasta las 17:30 de lunes a viernes; sábado y domingo hasta las 14:30."
+      "original": "Le confirma un asesor si realizan ese servicio para su Vitara 2004.\n\n¿Quiere que le ayude con una llanta o mantenimiento de las que sí manejamos?",
+      "corregido": null
+     }
+    ]
+   },
+   {
+    "cliente": "Cumbayá",
+    "bot": [
+     {
+      "texto": "En Depot Tire Cumbayá le confirman si hacen ese cambio para su Vitara 2004.",
+      "tipo": "text"
+     }
+    ],
+    "fase": [
+     "seguimiento_venta"
+    ],
+    "herramientas": [
+     "notificar_vendedor"
+    ],
+    "modelos": [
+     "gpt-5.4-mini"
+    ],
+    "errores": [],
+    "sinRespuesta": false,
+    "guardian": [
+     {
+      "verdict": "corregir",
+      "findings": [
+       {
+        "detalle": "Pregunta por la ubicación de Cumbayá, pero el cliente ya la indicó en su último mensaje. Esa información ya está dada y no debe volver a preguntarse.",
+        "categoria": "re-pregunta",
+        "severidad": "alta"
+       }
+      ],
+      "original": "En Depot Tire Cumbayá le confirman si hacen ese cambio para su Vitara 2004.\n\n¿Quiere que le deje también la ubicación de Cumbayá? 🤝",
+      "corregido": "En Depot Tire Cumbayá le confirman si hacen ese cambio para su Vitara 2004."
+     }
+    ]
+   },
+   {
+    "cliente": "¿hasta qué hora atienden?",
+    "bot": [
+     {
+      "texto": "Depot Tire Cumbayá atiende hoy hasta las 17:30.",
+      "tipo": "text"
+     }
+    ],
+    "fase": [],
+    "herramientas": [],
+    "modelos": [
+     "gpt-5.4-mini"
+    ],
+    "errores": [],
+    "sinRespuesta": false,
+    "guardian": [
+     {
+      "verdict": "corregir",
+      "findings": [
+       {
+        "detalle": "Vuelve a preguntar por el cambio de aceite para su Vitara 2004, cuando el cliente ya lo había consultado al inicio de la conversación.",
+        "categoria": "re-pregunta",
+        "severidad": "alta"
+       },
+       {
+        "detalle": "Repite la misma línea de ayuda sobre el servicio para su Vitara 2004 sin avanzar la conversación.",
+        "categoria": "repeticion",
+        "severidad": "baja"
+       }
+      ],
+      "original": "Depot Tire Cumbayá atiende hoy hasta las 17:30.\n\n¿Desea que le confirmen el cambio de aceite para su Vitara 2004?",
+      "corregido": "Depot Tire Cumbayá atiende hoy hasta las 17:30."
      }
     ]
    },
@@ -642,7 +671,7 @@
    }
   ],
   "estadoFinal": {
-   "stage": "seguimiento_venta",
+   "stage": "medida_confirmada",
    "status": "open",
    "tire_size": "235/60R16",
    "selected_quantity": 4,
@@ -652,17 +681,27 @@
    "cotizaciones": [],
    "alertas": [
     {
+     "tipo": "human_requested",
+     "prioridad": "high",
+     "resumen": "Cliente pregunta por cambio de aceite para Vitara 2004. Servicio fuera del catálogo de llantas; requiere confirmación humana."
+    },
+    {
      "tipo": "caso_sin_resolver",
      "prioridad": "high",
-     "resumen": "Cliente pregunta por cambio de aceite para Vitara 2004. Solicita confirmación de servicio fuera del catálogo desde WhatsApp."
+     "resumen": "Cliente consulta cambio de aceite para Vitara 2004 en Depot Tire Cumbayá. Necesita confirmación humana sobre si realizan ese servicio para ese vehículo."
     },
     {
      "tipo": "guardian_correccion",
      "prioridad": "high",
-     "resumen": "El guardián corrigió la respuesta: hecho_comercial_inventado"
+     "resumen": "El guardián corrigió la respuesta: re-pregunta"
+    },
+    {
+     "tipo": "guardian_correccion",
+     "prioridad": "high",
+     "resumen": "El guardián corrigió la respuesta: re-pregunta"
     }
    ],
-   "avisos_asesor": 2,
+   "avisos_asesor": 4,
    "sin_revision": 0
   },
   "checks": [

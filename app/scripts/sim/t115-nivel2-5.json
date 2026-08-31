@@ -4459,5 +4459,1564 @@
    ]
   },
   "_codigoArnes": 1
+ },
+ {
+  "id": "P10",
+  "familia": "P",
+  "titulo": "«¿Tienen Kenda?» — consulta catálogo y nombra la marca",
+  "turnos": [
+   {
+    "cliente": "¿Tienen Kenda?",
+    "bot": [
+     {
+      "texto": "Sí, sí manejamos Kenda.  \n\nSi me pasa la medida escrita, o una foto clara del costado de la llanta, le digo opciones exactas.",
+      "tipo": "text"
+     },
+     {
+      "texto": "¿Cuál medida busca?",
+      "tipo": "text"
+     }
+    ],
+    "fase": [],
+    "herramientas": [
+     "buscar_catalogo",
+     "buscar_catalogo"
+    ],
+    "modelos": [
+     "gpt-5.4-mini"
+    ],
+    "errores": [],
+    "sinRespuesta": false,
+    "guardian": [
+     {
+      "verdict": "aprobar",
+      "findings": [],
+      "original": "Sí, sí manejamos Kenda.  \n\nSi me pasa la medida escrita, o una foto clara del costado de la llanta, le digo opciones exactas. ¿Cuál medida busca?",
+      "corregido": null
+     }
+    ]
+   }
+  ],
+  "estadoFinal": {
+   "stage": "nuevo",
+   "status": "open",
+   "tire_size": null,
+   "selected_quantity": null,
+   "nearest_store": null,
+   "visit_date": null,
+   "current_cycle": 1,
+   "cotizaciones": [],
+   "alertas": [],
+   "avisos_asesor": 0,
+   "sin_revision": 0
+  },
+  "checks": [
+   {
+    "nombre": "consulta el catálogo",
+    "ok": true,
+    "motivo": null
+   },
+   {
+    "nombre": "la respuesta nombra a Kenda",
+    "ok": true,
+    "motivo": null
+   }
+  ]
+ },
+ {
+  "id": "Q05",
+  "familia": "Q",
+  "titulo": "«quiero la Falken» → «solo dos» — Falken por 2, no 4",
+  "turnos": [
+   {
+    "cliente": "205/55R16",
+    "bot": [
+     {
+      "texto": "Opciones enviadas: FALKEN ZE310R · KENDA KR20 · WINRUN R330",
+      "tipo": "image"
+     },
+     {
+      "texto": "Para afinarle la recomendación sobre las opciones que le envié, dígame una sola cosa: ¿qué prioriza usted?\n\n1) *Costo* — la más conveniente de precio\n2) *Equilibrio* — la que mejor balancea precio y rendimiento\n3) *Premium* — la de máxima calidad y durabilidad\n\nCon eso le dejo la opción exacta para su medida.",
+      "tipo": "text"
+     }
+    ],
+    "fase": [
+     "medida_confirmada"
+    ],
+    "herramientas": [
+     "buscar_llanta",
+     "preparar_opciones"
+    ],
+    "modelos": [
+     "gpt-5.4-mini"
+    ],
+    "errores": [],
+    "sinRespuesta": false,
+    "guardian": [
+     {
+      "verdict": "aprobar",
+      "findings": [],
+      "original": "Para afinarle la recomendación sobre las opciones que le envié, dígame una sola cosa: ¿qué prioriza usted?\n\n1) *Costo* — la más conveniente de precio\n2) *Equilibrio* — la que mejor balancea precio y rendimiento\n3) *Premium* — la de máxima calidad y durabilidad\n\nCon eso le dejo la opción exacta para su medida.",
+      "corregido": null
+     }
+    ]
+   },
+   {
+    "cliente": "quiero la Falken",
+    "bot": [
+     {
+      "texto": "Cotización COT-MTGZDM2K enviada por $445.44",
+      "tipo": "image"
+     },
+     {
+      "texto": "Puede pasar sin compromiso a verlas y probarlas en su vehículo.\n📍 *Depot Tire Cumbayá*: https://maps.app.goo.gl/QnMBPXKc1o8igbsp8\n📍 *Depot Tire Quito Sur*: https://maps.app.goo.gl/NQeNN8csyAnRkJDJ7",
+      "tipo": "text"
+     },
+     {
+      "texto": "¿A cuál local le queda mejor ir, *Cumbayá* o *Quito Sur*? 📍",
+      "tipo": "text"
+     }
+    ],
+    "fase": [
+     "cotizacion_enviada"
+    ],
+    "herramientas": [
+     "buscar_catalogo",
+     "generar_cotizacion"
+    ],
+    "modelos": [
+     "gpt-5.4-mini"
+    ],
+    "errores": [],
+    "sinRespuesta": false,
+    "guardian": [
+     {
+      "verdict": "aprobar",
+      "findings": [],
+      "original": "Puede pasar sin compromiso a verlas y probarlas en su vehículo.\n📍 *Depot Tire Cumbayá*: https://maps.app.goo.gl/QnMBPXKc1o8igbsp8\n📍 *Depot Tire Quito Sur*: https://maps.app.goo.gl/NQeNN8csyAnRkJDJ7\n\n---\n\n¿A cuál local le queda mejor ir, *Cumbayá* o *Quito Sur*? 📍",
+      "corregido": null
+     }
+    ]
+   },
+   {
+    "cliente": "solo dos",
+    "bot": [
+     {
+      "texto": "Cotización COT-MTGZDUSX enviada por $222.72",
+      "tipo": "image"
+     },
+     {
+      "texto": "Listo, se la ajusté a 2 👍",
+      "tipo": "text"
+     }
+    ],
+    "fase": [],
+    "herramientas": [],
+    "modelos": [
+     "gpt-5.4-mini"
+    ],
+    "errores": [],
+    "sinRespuesta": false,
+    "guardian": [
+     {
+      "verdict": "aprobar",
+      "findings": [],
+      "original": "Listo, se la ajusté a 2 👍",
+      "corregido": null
+     }
+    ]
+   }
+  ],
+  "estadoFinal": {
+   "stage": "cotizacion_enviada",
+   "status": "open",
+   "tire_size": "205/55R16",
+   "selected_quantity": 2,
+   "nearest_store": null,
+   "visit_date": null,
+   "current_cycle": 1,
+   "cotizaciones": [
+    {
+     "numero": "COT-MTGZDM2K",
+     "total": 445.44,
+     "items": [
+      {
+       "code": "352165",
+       "brand": "FALKEN",
+       "design": "ZE310R",
+       "imageUrl": "/assets/catalog/falken-ze310r.jpg",
+       "quantity": 4,
+       "loadSpeed": {
+        "code": "91V",
+        "loadKg": 615,
+        "speedKmh": 240,
+        "loadIndex": 91,
+        "speedSymbol": "V"
+       },
+       "sizeLabel": "205/55R16",
+       "unitPrice": 96.83478260869566,
+       "description": "Llanta FALKEN ZE310R 205/55R16",
+       "availability": "available",
+       "warrantyFactory": "5 años garantía de fábrica contra defectos de fabricación",
+       "listPriceWithTax": 148.48,
+       "salePriceWithTax": 111.36,
+       "warrantyRoadHazard": "18 meses contra golpes y estalladuras"
+      }
+     ],
+     "cycle": 1
+    },
+    {
+     "numero": "COT-MTGZDUSX",
+     "total": 222.72,
+     "items": [
+      {
+       "code": "352165",
+       "brand": "FALKEN",
+       "design": "ZE310R",
+       "imageUrl": "/assets/catalog/falken-ze310r.jpg",
+       "quantity": 2,
+       "loadSpeed": {
+        "code": "91V",
+        "loadKg": 615,
+        "speedKmh": 240,
+        "loadIndex": 91,
+        "speedSymbol": "V"
+       },
+       "sizeLabel": "205/55R16",
+       "unitPrice": 96.83478260869566,
+       "description": "Llanta FALKEN ZE310R 205/55R16",
+       "availability": "available",
+       "warrantyFactory": "5 años garantía de fábrica contra defectos de fabricación",
+       "listPriceWithTax": 148.48,
+       "salePriceWithTax": 111.36,
+       "warrantyRoadHazard": "18 meses contra golpes y estalladuras"
+      }
+     ],
+     "cycle": 1
+    }
+   ],
+   "alertas": [
+    {
+     "tipo": "quote_created",
+     "prioridad": "medium",
+     "resumen": "Nueva cotización COT-MTGZDM2K por $445.44"
+    },
+    {
+     "tipo": "quote_created",
+     "prioridad": "medium",
+     "resumen": "Nueva cotización COT-MTGZDUSX por $222.72"
+    }
+   ],
+   "avisos_asesor": 4,
+   "sin_revision": 0
+  },
+  "checks": [
+   {
+    "nombre": "cotiza exactamente 2",
+    "ok": true,
+    "motivo": null
+   },
+   {
+    "nombre": "cotiza la Falken pedida",
+    "ok": true,
+    "motivo": null
+   }
+  ]
+ },
+ {
+  "id": "O13",
+  "familia": "O",
+  "titulo": "«Lo voy a pensar» — cierre suave, sin perder ni insistir",
+  "turnos": [
+   {
+    "cliente": "205/55R16",
+    "bot": [
+     {
+      "texto": "Opciones enviadas: FALKEN ZE310R · KENDA KR20 · WINRUN R330",
+      "tipo": "image"
+     },
+     {
+      "texto": "Para afinarle la recomendación sobre las opciones que le envié, dígame una sola cosa: ¿qué prioriza usted?\n\n1) *Costo* — la más conveniente de precio\n2) *Equilibrio* — la que mejor balancea precio y rendimiento\n3) *Premium* — la de máxima calidad y durabilidad\n\nCon eso le dejo la opción exacta para su medida.",
+      "tipo": "text"
+     }
+    ],
+    "fase": [
+     "medida_confirmada"
+    ],
+    "herramientas": [
+     "buscar_llanta",
+     "preparar_opciones"
+    ],
+    "modelos": [
+     "gpt-5.4-mini"
+    ],
+    "errores": [],
+    "sinRespuesta": false,
+    "guardian": [
+     {
+      "verdict": "aprobar",
+      "findings": [],
+      "original": "Para afinarle la recomendación sobre las opciones que le envié, dígame una sola cosa: ¿qué prioriza usted?\n\n1) *Costo* — la más conveniente de precio\n2) *Equilibrio* — la que mejor balancea precio y rendimiento\n3) *Premium* — la de máxima calidad y durabilidad\n\nCon eso le dejo la opción exacta para su medida.",
+      "corregido": null
+     }
+    ]
+   },
+   {
+    "cliente": "lo voy a pensar",
+    "bot": [
+     {
+      "texto": "Perfecto, lo dejamos abierto.\n\nSi luego quiere, le cotizo la 205/55R16 que ya revisamos y le ayudo a escoger la opción más conveniente 🤝",
+      "tipo": "text"
+     }
+    ],
+    "fase": [
+     "seguimiento_venta"
+    ],
+    "herramientas": [],
+    "modelos": [
+     "gpt-5.4-mini"
+    ],
+    "errores": [],
+    "sinRespuesta": false,
+    "guardian": [
+     {
+      "verdict": "aprobar",
+      "findings": [],
+      "original": "Perfecto, lo dejamos abierto.\n\nSi luego quiere, le cotizo la 205/55R16 que ya revisamos y le ayudo a escoger la opción más conveniente 🤝",
+      "corregido": null
+     }
+    ]
+   }
+  ],
+  "estadoFinal": {
+   "stage": "medida_confirmada",
+   "status": "open",
+   "tire_size": "205/55R16",
+   "selected_quantity": 4,
+   "nearest_store": null,
+   "visit_date": null,
+   "current_cycle": 1,
+   "cotizaciones": [],
+   "alertas": [],
+   "avisos_asesor": 0,
+   "sin_revision": 0
+  },
+  "checks": [
+   {
+    "nombre": "no marca perdido",
+    "ok": true,
+    "motivo": null
+   },
+   {
+    "nombre": "no insiste con visita",
+    "ok": true,
+    "motivo": null
+   }
+  ]
+ },
+ {
+  "id": "E01",
+  "familia": "E",
+  "titulo": "«Quiero hablar con una persona» — notifica ya, sin interrogar",
+  "turnos": [
+   {
+    "cliente": "Quiero hablar con una persona",
+    "bot": [
+     {
+      "texto": "Listo, ya le avisé a un asesor para que le escriba por aquí 🤝\nSi mientras tanto necesita un precio o una medida, dígame nomás y se lo paso al toque.",
+      "tipo": "text"
+     }
+    ],
+    "fase": [],
+    "herramientas": [],
+    "modelos": [],
+    "errores": [],
+    "sinRespuesta": false,
+    "guardian": []
+   }
+  ],
+  "estadoFinal": {
+   "stage": "nuevo",
+   "status": "open",
+   "tire_size": null,
+   "selected_quantity": null,
+   "nearest_store": null,
+   "visit_date": null,
+   "current_cycle": 1,
+   "cotizaciones": [],
+   "alertas": [
+    {
+     "tipo": "human_requested",
+     "prioridad": "high",
+     "resumen": "Cliente solicitó atención humana"
+    }
+   ],
+   "avisos_asesor": 2,
+   "sin_revision": 0
+  },
+  "checks": [
+   {
+    "nombre": "notifica al asesor en el primer turno",
+    "ok": true,
+    "motivo": null
+   }
+  ]
+ },
+ {
+  "id": "C09",
+  "familia": "C",
+  "titulo": "Cierre → vuelve con una medida — ciclo nuevo, venta normal",
+  "turnos": [
+   {
+    "cliente": "205/55R16",
+    "bot": [
+     {
+      "texto": "Opciones enviadas: FALKEN ZE310R · KENDA KR20 · WINRUN R330",
+      "tipo": "image"
+     },
+     {
+      "texto": "Para afinarle la recomendación sobre las opciones que le envié, dígame una sola cosa: ¿qué prioriza usted?\n\n1) *Costo* — la más conveniente de precio\n2) *Equilibrio* — la que mejor balancea precio y rendimiento\n3) *Premium* — la de máxima calidad y durabilidad\n\nCon eso le dejo la opción exacta para su medida.",
+      "tipo": "text"
+     }
+    ],
+    "fase": [
+     "medida_confirmada"
+    ],
+    "herramientas": [
+     "buscar_llanta",
+     "preparar_opciones"
+    ],
+    "modelos": [
+     "gpt-5.4-mini"
+    ],
+    "errores": [],
+    "sinRespuesta": false,
+    "guardian": [
+     {
+      "verdict": "aprobar",
+      "findings": [],
+      "original": "Para afinarle la recomendación sobre las opciones que le envié, dígame una sola cosa: ¿qué prioriza usted?\n\n1) *Costo* — la más conveniente de precio\n2) *Equilibrio* — la que mejor balancea precio y rendimiento\n3) *Premium* — la de máxima calidad y durabilidad\n\nCon eso le dejo la opción exacta para su medida.",
+      "corregido": null
+     }
+    ]
+   },
+   {
+    "cliente": "No gracias, ya no necesito",
+    "bot": [
+     {
+      "texto": "Entendido, gracias por avisar 🤝 Aquí estamos para cuando lo necesite.",
+      "tipo": "text"
+     },
+     {
+      "texto": "¿Necesita ayuda con algo más?",
+      "tipo": "text"
+     }
+    ],
+    "fase": [],
+    "herramientas": [],
+    "modelos": [],
+    "errores": [],
+    "sinRespuesta": false,
+    "guardian": []
+   },
+   {
+    "cliente": "Hola, necesito 235/60R16",
+    "bot": [
+     {
+      "texto": "Opciones enviadas: FALKEN ZE310R · KENDA KR50 · WINRUN MAXCLAW H/T2",
+      "tipo": "image"
+     },
+     {
+      "texto": "Para afinarle la recomendación sobre las opciones que le envié, dígame una sola cosa: ¿qué prioriza usted?\n\n1) *Costo* — la más conveniente de precio\n2) *Equilibrio* — la que mejor balancea precio y rendimiento\n3) *Premium* — la de máxima calidad y durabilidad\n\nCon eso le dejo la opción exacta para su medida.",
+      "tipo": "text"
+     }
+    ],
+    "fase": [
+     "medida_confirmada"
+    ],
+    "herramientas": [
+     "buscar_llanta",
+     "preparar_opciones"
+    ],
+    "modelos": [
+     "gpt-5.4-mini"
+    ],
+    "errores": [],
+    "sinRespuesta": false,
+    "guardian": [
+     {
+      "verdict": "aprobar",
+      "findings": [],
+      "original": "Para afinarle la recomendación sobre las opciones que le envié, dígame una sola cosa: ¿qué prioriza usted?\n\n1) *Costo* — la más conveniente de precio\n2) *Equilibrio* — la que mejor balancea precio y rendimiento\n3) *Premium* — la de máxima calidad y durabilidad\n\nCon eso le dejo la opción exacta para su medida.",
+      "corregido": null
+     }
+    ]
+   }
+  ],
+  "estadoFinal": {
+   "stage": "medida_confirmada",
+   "status": "open",
+   "tire_size": "235/60R16",
+   "selected_quantity": 4,
+   "nearest_store": null,
+   "visit_date": null,
+   "current_cycle": 2,
+   "cotizaciones": [],
+   "alertas": [],
+   "avisos_asesor": 0,
+   "sin_revision": 0
+  },
+  "checks": [
+   {
+    "nombre": "vende con normalidad la petición nueva",
+    "ok": true,
+    "motivo": null
+   },
+   {
+    "nombre": "no arrastra el rechazo viejo",
+    "ok": true,
+    "motivo": null
+   }
+  ]
+ },
+ {
+  "id": "X01",
+  "familia": "X",
+  "titulo": "Corolla 2019 → económica → 4 → sábado Quito Sur",
+  "turnos": [
+   {
+    "cliente": "Busco llantas",
+    "bot": [
+     {
+      "texto": "Le manejo llantas del 13 al 21.  \nPara darle opciones rápidas,",
+      "tipo": "text"
+     },
+     {
+      "texto": "¿qué aro/rin busca?",
+      "tipo": "text"
+     }
+    ],
+    "fase": [],
+    "herramientas": [
+     "opciones_sin_medida"
+    ],
+    "modelos": [
+     "gpt-5.4-mini"
+    ],
+    "errores": [],
+    "sinRespuesta": false,
+    "guardian": [
+     {
+      "verdict": "aprobar",
+      "findings": [],
+      "original": "Le manejo llantas del 13 al 21.  \nPara darle opciones rápidas, ¿qué aro/rin busca?",
+      "corregido": null
+     }
+    ]
+   },
+   {
+    "cliente": "Corolla 2019",
+    "bot": [
+     {
+      "texto": "Opciones enviadas: FALKEN ZE310R · KENDA KR20 · WINRUN R330",
+      "tipo": "image"
+     },
+     {
+      "texto": "Para afinarle la recomendación sobre las opciones que le envié, dígame una sola cosa: ¿qué prioriza usted?\n\n1) *Costo* — la más conveniente de precio\n2) *Equilibrio* — la que mejor balancea precio y rendimiento\n3) *Premium* — la de máxima calidad y durabilidad\n\nCon eso le digo cuál de estas le conviene más.",
+      "tipo": "text"
+     }
+    ],
+    "fase": [],
+    "herramientas": [
+     "fitment_vehiculo",
+     "preparar_opciones"
+    ],
+    "modelos": [
+     "gpt-5.4-mini"
+    ],
+    "errores": [],
+    "sinRespuesta": false,
+    "guardian": [
+     {
+      "verdict": "aprobar",
+      "findings": [],
+      "original": "Para afinarle la recomendación sobre las opciones que le envié, dígame una sola cosa: ¿qué prioriza usted?\n\n1) *Costo* — la más conveniente de precio\n2) *Equilibrio* — la que mejor balancea precio y rendimiento\n3) *Premium* — la de máxima calidad y durabilidad\n\nCon eso le digo cuál de estas le conviene más.",
+      "corregido": null
+     }
+    ]
+   },
+   {
+    "cliente": "uso ciudad",
+    "bot": [
+     {
+      "texto": "Para uso en ciudad, le recomiendo la Falken ZE310R.\n\nSi desea, le ayudo a afinar la opción según lo que priorice: costo, equilibrio o premium.",
+      "tipo": "text"
+     }
+    ],
+    "fase": [],
+    "herramientas": [
+     "generar_cotizacion"
+    ],
+    "modelos": [
+     "gpt-5.4-mini"
+    ],
+    "errores": [],
+    "sinRespuesta": false,
+    "guardian": [
+     {
+      "verdict": "corregir",
+      "findings": [
+       {
+        "detalle": "El borrador promete cotizar 4 llantas, pero la herramienta devolvió que la cotización está bloqueada y que este turno no autorizó cotizar. No se puede prometer esa pieza en este mensaje.",
+        "categoria": "promesa_incumplible",
+        "severidad": "alta"
+       },
+       {
+        "detalle": "\"¿Le va bien?\" empuja un paso de compra cuando la herramienta indicó que no corresponde cotizar en este turno. Debe limitarse a responder la consulta actual sin pedir autorización de compra.",
+        "categoria": "pregunta_de_mas",
+        "severidad": "alta"
+       },
+       {
+        "detalle": "\"Es la opción premium\" no queda respaldado en el contexto mostrado para esa llanta específica; conviene dejar la recomendación sin esa atribución.",
+        "categoria": "otro",
+        "severidad": "media"
+       }
+      ],
+      "original": "Para uso en ciudad, le recomiendo la Falken ZE310R. Es la opción premium de las que ya le mostré.\n\nEstá en $111.36 c/u con IVA. Si quiere, le cotizo 4 llantas de esa opción. ¿Le va bien?",
+      "corregido": "Para uso en ciudad, le recomiendo la Falken ZE310R.\n\nSi desea, le ayudo a afinar la opción según lo que priorice: costo, equilibrio o premium."
+     }
+    ]
+   },
+   {
+    "cliente": "la económica",
+    "bot": [
+     {
+      "texto": "Cotización COT-MTGZL4OQ enviada por $242.68",
+      "tipo": "image"
+     },
+     {
+      "texto": "Puede pasar sin compromiso a verlas y probarlas en su vehículo.\n📍 *Depot Tire Cumbayá*: https://maps.app.goo.gl/QnMBPXKc1o8igbsp8\n📍 *Depot Tire Quito Sur*: https://maps.app.goo.gl/NQeNN8csyAnRkJDJ7",
+      "tipo": "text"
+     },
+     {
+      "texto": "¿A cuál local le queda mejor ir, *Cumbayá* o *Quito Sur*? 📍",
+      "tipo": "text"
+     }
+    ],
+    "fase": [],
+    "herramientas": [
+     "generar_cotizacion"
+    ],
+    "modelos": [
+     "gpt-5.4-mini"
+    ],
+    "errores": [],
+    "sinRespuesta": false,
+    "guardian": [
+     {
+      "verdict": "aprobar",
+      "findings": [
+       {
+        "detalle": "El borrador coincide con el mensaje de la herramienta, respeta los separadores y no inventa datos.",
+        "categoria": "otro",
+        "severidad": "baja"
+       }
+      ],
+      "original": "Puede pasar sin compromiso a verlas y probarlas en su vehículo.\n📍 *Depot Tire Cumbayá*: https://maps.app.goo.gl/QnMBPXKc1o8igbsp8\n📍 *Depot Tire Quito Sur*: https://maps.app.goo.gl/NQeNN8csyAnRkJDJ7\n\n---\n\n¿A cuál local le queda mejor ir, *Cumbayá* o *Quito Sur*? 📍",
+      "corregido": null
+     }
+    ]
+   },
+   {
+    "cliente": "4",
+    "bot": [
+     {
+      "texto": "Perfecto, registré su visita para viernes 4 de septiembre.",
+      "tipo": "text"
+     }
+    ],
+    "fase": [],
+    "herramientas": [],
+    "modelos": [
+     "gpt-5.4-mini"
+    ],
+    "errores": [],
+    "sinRespuesta": false,
+    "guardian": [
+     {
+      "verdict": "aprobar",
+      "findings": [
+       {
+        "detalle": "El borrador registra la visita para viernes 4 de septiembre, y en los hechos ya consta esa visita. No hay desalineación.",
+        "categoria": "estado_desincronizado",
+        "severidad": "alta"
+       }
+      ],
+      "original": "Perfecto, registré su visita para viernes 4 de septiembre.",
+      "corregido": null
+     }
+    ]
+   },
+   {
+    "cliente": "paso el sábado",
+    "bot": [
+     {
+      "texto": "Perfecto, registré su visita para sábado 5 de septiembre.",
+      "tipo": "text"
+     },
+     {
+      "texto": "¿Le queda mejor *Cumbayá* o *Quito Sur*?",
+      "tipo": "text"
+     }
+    ],
+    "fase": [],
+    "herramientas": [],
+    "modelos": [
+     "gpt-5.4-mini"
+    ],
+    "errores": [],
+    "sinRespuesta": false,
+    "guardian": [
+     {
+      "verdict": "aprobar",
+      "findings": [],
+      "original": "Perfecto, registré su visita para sábado 5 de septiembre. ¿Le queda mejor *Cumbayá* o *Quito Sur*?",
+      "corregido": null
+     }
+    ]
+   },
+   {
+    "cliente": "Quito Sur",
+    "bot": [
+     {
+      "texto": "Perfecto: *sábado 5 de septiembre en Depot Tire Quito Sur*. Ya quedó registrado para el asesor.",
+      "tipo": "text"
+     },
+     {
+      "texto": "¿Le queda alguna otra duda? Ahí le esperamos. 🤝",
+      "tipo": "text"
+     }
+    ],
+    "fase": [],
+    "herramientas": [],
+    "modelos": [
+     "gpt-5.4-mini"
+    ],
+    "errores": [],
+    "sinRespuesta": false,
+    "guardian": [
+     {
+      "verdict": "aprobar",
+      "findings": [],
+      "original": "Perfecto: *sábado 5 de septiembre en Depot Tire Quito Sur*. Ya quedó registrado para el asesor.\n\n¿Le queda alguna otra duda? Ahí le esperamos. 🤝",
+      "corregido": null
+     }
+    ]
+   }
+  ],
+  "estadoFinal": {
+   "stage": "seguimiento_venta",
+   "status": "open",
+   "tire_size": null,
+   "selected_quantity": 4,
+   "nearest_store": "Depot Tire Quito Sur",
+   "visit_date": "2026-09-05T15:00:00.000Z",
+   "current_cycle": 1,
+   "cotizaciones": [
+    {
+     "numero": "COT-MTGZL4OQ",
+     "total": 242.68,
+     "items": [
+      {
+       "code": "2055516WNR330",
+       "brand": "WINRUN",
+       "design": "R330",
+       "imageUrl": "/assets/catalog/winrun-r330.jpg",
+       "quantity": 4,
+       "loadSpeed": {
+        "code": "91V",
+        "loadKg": 615,
+        "speedKmh": 240,
+        "loadIndex": 91,
+        "speedSymbol": "V"
+       },
+       "sizeLabel": "205/55R16",
+       "unitPrice": 52.75652173913044,
+       "description": "Llanta WINRUN R330 205/55R16",
+       "availability": "available",
+       "warrantyFactory": "5 años garantía de fábrica contra defectos de fabricación",
+       "listPriceWithTax": 80.9,
+       "salePriceWithTax": 60.67,
+       "warrantyRoadHazard": "6 meses contra golpes y estalladuras"
+      }
+     ],
+     "cycle": 1
+    }
+   ],
+   "alertas": [
+    {
+     "tipo": "guardian_correccion",
+     "prioridad": "high",
+     "resumen": "El guardián corrigió la respuesta: promesa_incumplible"
+    },
+    {
+     "tipo": "quote_created",
+     "prioridad": "medium",
+     "resumen": "Nueva cotización COT-MTGZL4OQ por $242.68"
+    },
+    {
+     "tipo": "visita_comprometida",
+     "prioridad": "high",
+     "resumen": "Cliente dijo cuándo viene: viernes 4 de septiembre"
+    },
+    {
+     "tipo": "visita_comprometida",
+     "prioridad": "high",
+     "resumen": "Cliente dijo cuándo viene: sábado 5 de septiembre"
+    }
+   ],
+   "avisos_asesor": 6,
+   "sin_revision": 0
+  },
+  "checks": [
+   {
+    "nombre": "fitment respaldado y opciones tempranas",
+    "ok": true,
+    "motivo": null
+   },
+   {
+    "nombre": "cotiza 4",
+    "ok": true,
+    "motivo": null
+   },
+   {
+    "nombre": "visita registrada en Quito Sur",
+    "ok": true,
+    "motivo": null
+   }
+  ]
+ },
+ {
+  "id": "M01",
+  "familia": "M",
+  "titulo": "«235/75/15» — normaliza y busca",
+  "turnos": [
+   {
+    "cliente": "235/75/15",
+    "bot": [
+     {
+      "texto": "Opciones enviadas: FALKEN WILDPEAK A/T 4W · KENDA KR601 · KENDA KR29",
+      "tipo": "image"
+     },
+     {
+      "texto": "Para afinarle la recomendación sobre las opciones que le envié, dígame una sola cosa: ¿qué prioriza usted?\n\n1) *Costo* — la más conveniente de precio\n2) *Equilibrio* — la que mejor balancea precio y rendimiento\n3) *Premium* — la de máxima calidad y durabilidad\n\nCon eso le dejo la opción exacta para su medida.",
+      "tipo": "text"
+     }
+    ],
+    "fase": [
+     "medida_confirmada"
+    ],
+    "herramientas": [
+     "buscar_llanta",
+     "preparar_opciones"
+    ],
+    "modelos": [
+     "gpt-5.4-mini"
+    ],
+    "errores": [],
+    "sinRespuesta": false,
+    "guardian": [
+     {
+      "verdict": "aprobar",
+      "findings": [],
+      "original": "Para afinarle la recomendación sobre las opciones que le envié, dígame una sola cosa: ¿qué prioriza usted?\n\n1) *Costo* — la más conveniente de precio\n2) *Equilibrio* — la que mejor balancea precio y rendimiento\n3) *Premium* — la de máxima calidad y durabilidad\n\nCon eso le dejo la opción exacta para su medida.",
+      "corregido": null
+     }
+    ]
+   }
+  ],
+  "estadoFinal": {
+   "stage": "medida_confirmada",
+   "status": "open",
+   "tire_size": "235/75R15",
+   "selected_quantity": 4,
+   "nearest_store": null,
+   "visit_date": null,
+   "current_cycle": 1,
+   "cotizaciones": [],
+   "alertas": [],
+   "avisos_asesor": 0,
+   "sin_revision": 0
+  },
+  "checks": [
+   {
+    "nombre": "normaliza a 235/75R15 y busca",
+    "ok": true,
+    "motivo": null
+   },
+   {
+    "nombre": "no trata /15 como cantidad o precio",
+    "ok": true,
+    "motivo": null
+   }
+  ]
+ },
+ {
+  "id": "Q06",
+  "familia": "Q",
+  "titulo": "«Mándame una cotización de 225/65R17» — la emite sin vueltas",
+  "turnos": [
+   {
+    "cliente": "Mándame una cotización de 225/65R17",
+    "bot": [
+     {
+      "texto": "Opciones enviadas: FALKEN ZE310R · KENDA KR28 · WINRUN MAXCLAW H/T2",
+      "tipo": "image"
+     },
+     {
+      "texto": "Cotización COT-MTGZDAL5 enviada por $617.96",
+      "tipo": "image"
+     },
+     {
+      "texto": "Puede pasar sin compromiso a verlas y probarlas en su vehículo.\n📍 *Depot Tire Cumbayá*: https://maps.app.goo.gl/QnMBPXKc1o8igbsp8\n📍 *Depot Tire Quito Sur*: https://maps.app.goo.gl/NQeNN8csyAnRkJDJ7",
+      "tipo": "text"
+     },
+     {
+      "texto": "¿A cuál local le queda mejor ir, *Cumbayá* o *Quito Sur*? 📍",
+      "tipo": "text"
+     }
+    ],
+    "fase": [
+     "medida_confirmada"
+    ],
+    "herramientas": [
+     "buscar_llanta",
+     "preparar_opciones",
+     "vuelta_forzada:atajo_exacto",
+     "generar_cotizacion"
+    ],
+    "modelos": [
+     "gpt-5.4-mini"
+    ],
+    "errores": [],
+    "sinRespuesta": false,
+    "guardian": [
+     {
+      "verdict": "aprobar",
+      "findings": [],
+      "original": "Puede pasar sin compromiso a verlas y probarlas en su vehículo.\n📍 *Depot Tire Cumbayá*: https://maps.app.goo.gl/QnMBPXKc1o8igbsp8\n📍 *Depot Tire Quito Sur*: https://maps.app.goo.gl/NQeNN8csyAnRkJDJ7\n\n---\n\n¿A cuál local le queda mejor ir, *Cumbayá* o *Quito Sur*? 📍",
+      "corregido": null
+     }
+    ]
+   }
+  ],
+  "estadoFinal": {
+   "stage": "cotizacion_enviada",
+   "status": "open",
+   "tire_size": "225/65R17",
+   "selected_quantity": 4,
+   "nearest_store": null,
+   "visit_date": null,
+   "current_cycle": 1,
+   "cotizaciones": [
+    {
+     "numero": "COT-MTGZDAL5",
+     "total": 617.96,
+     "items": [
+      {
+       "code": "K307B772",
+       "brand": "KENDA",
+       "design": "KR28",
+       "imageUrl": "/assets/catalog/kenda-kr28.jpg",
+       "quantity": 4,
+       "loadSpeed": {
+        "code": "102T",
+        "loadKg": 850,
+        "speedKmh": 190,
+        "loadIndex": 102,
+        "speedSymbol": "T"
+       },
+       "sizeLabel": "225/65R17",
+       "unitPrice": 134.33913043478262,
+       "description": "Llanta KENDA KR28 225/65R17",
+       "availability": "available",
+       "warrantyFactory": "5 años garantía de fábrica contra defectos de fabricación",
+       "listPriceWithTax": 205.98,
+       "salePriceWithTax": 154.49,
+       "warrantyRoadHazard": "12 meses contra golpes y estalladuras"
+      }
+     ],
+     "cycle": 1
+    }
+   ],
+   "alertas": [
+    {
+     "tipo": "quote_created",
+     "prioridad": "medium",
+     "resumen": "Nueva cotización COT-MTGZDAL5 por $617.96"
+    }
+   ],
+   "avisos_asesor": 2,
+   "sin_revision": 0
+  },
+  "checks": [
+   {
+    "nombre": "emite la cotización en el turno",
+    "ok": true,
+    "motivo": null
+   }
+  ]
+ },
+ {
+  "id": "V05",
+  "familia": "V",
+  "titulo": "«Paso el lunes» con local elegido — registra sin repreguntar",
+  "turnos": [
+   {
+    "cliente": "205/55R16",
+    "bot": [
+     {
+      "texto": "Opciones enviadas: FALKEN ZE310R · KENDA KR20 · WINRUN R330",
+      "tipo": "image"
+     },
+     {
+      "texto": "Para afinarle la recomendación sobre las opciones que le envié, dígame una sola cosa: ¿qué prioriza usted?\n\n1) *Costo* — la más conveniente de precio\n2) *Equilibrio* — la que mejor balancea precio y rendimiento\n3) *Premium* — la de máxima calidad y durabilidad\n\nCon eso le dejo la opción exacta para su medida.",
+      "tipo": "text"
+     }
+    ],
+    "fase": [
+     "medida_confirmada"
+    ],
+    "herramientas": [
+     "buscar_llanta",
+     "preparar_opciones"
+    ],
+    "modelos": [
+     "gpt-5.4-mini"
+    ],
+    "errores": [],
+    "sinRespuesta": false,
+    "guardian": [
+     {
+      "verdict": "aprobar",
+      "findings": [],
+      "original": "Para afinarle la recomendación sobre las opciones que le envié, dígame una sola cosa: ¿qué prioriza usted?\n\n1) *Costo* — la más conveniente de precio\n2) *Equilibrio* — la que mejor balancea precio y rendimiento\n3) *Premium* — la de máxima calidad y durabilidad\n\nCon eso le dejo la opción exacta para su medida.",
+      "corregido": null
+     }
+    ]
+   },
+   {
+    "cliente": "me queda mejor Quito Sur",
+    "bot": [
+     {
+      "texto": "Perfecto, Quito Sur le queda mejor.\n\nSi quiere, le cotizo la KENDA KR20 por 4 llantas con todo incluido.",
+      "tipo": "text"
+     },
+     {
+      "texto": "¿Se la genero?",
+      "tipo": "text"
+     }
+    ],
+    "fase": [
+     "seguimiento_venta"
+    ],
+    "herramientas": [
+     "preparar_opciones"
+    ],
+    "modelos": [
+     "gpt-5.4-mini"
+    ],
+    "errores": [],
+    "sinRespuesta": false,
+    "guardian": [
+     {
+      "verdict": "aprobar",
+      "findings": [
+       {
+        "detalle": "El borrador responde al local elegido y no inventa precio ni stock. La pregunta final no cae en una prohibición explícita del contexto, así que puede enviarse tal cual.",
+        "categoria": "otro",
+        "severidad": "baja"
+       }
+      ],
+      "original": "Perfecto, Quito Sur le queda mejor.\n\nSi quiere, le cotizo la KENDA KR20 por 4 llantas con todo incluido. ¿Se la genero?",
+      "corregido": null
+     }
+    ]
+   },
+   {
+    "cliente": "paso el lunes",
+    "bot": [
+     {
+      "texto": "Perfecto: *lunes 31 de agosto en Depot Tire Quito Sur*. Ya quedó registrado para el asesor.\n\n¿Le queda alguna otra duda? Ahí le esperamos. 🤝",
+      "tipo": "text"
+     },
+     {
+      "texto": "📍 *Depot Tire Quito Sur*: https://maps.app.goo.gl/NQeNN8csyAnRkJDJ7",
+      "tipo": "text"
+     }
+    ],
+    "fase": [],
+    "herramientas": [],
+    "modelos": [
+     "gpt-5.4-mini"
+    ],
+    "errores": [],
+    "sinRespuesta": false,
+    "guardian": [
+     {
+      "verdict": "aprobar",
+      "findings": [],
+      "original": "Perfecto: *lunes 31 de agosto en Depot Tire Quito Sur*. Ya quedó registrado para el asesor.\n\n¿Le queda alguna otra duda? Ahí le esperamos. 🤝\n\n---\n\n📍 *Depot Tire Quito Sur*: https://maps.app.goo.gl/NQeNN8csyAnRkJDJ7",
+      "corregido": null
+     }
+    ]
+   }
+  ],
+  "estadoFinal": {
+   "stage": "seguimiento_venta",
+   "status": "open",
+   "tire_size": "205/55R16",
+   "selected_quantity": 4,
+   "nearest_store": "Depot Tire Quito Sur",
+   "visit_date": "2026-08-31T15:00:00.000Z",
+   "current_cycle": 1,
+   "cotizaciones": [],
+   "alertas": [
+    {
+     "tipo": "visita_comprometida",
+     "prioridad": "high",
+     "resumen": "Cliente dijo cuándo viene: lunes 31 de agosto"
+    }
+   ],
+   "avisos_asesor": 2,
+   "sin_revision": 0
+  },
+  "checks": [
+   {
+    "nombre": "registra la visita",
+    "ok": true,
+    "motivo": null
+   },
+   {
+    "nombre": "no repregunta día ni local",
+    "ok": true,
+    "motivo": null
+   }
+  ]
+ },
+ {
+  "id": "E02",
+  "familia": "E",
+  "titulo": "«¿Cambio de aceite para Vitara 2004?» — sin colar llantas",
+  "turnos": [
+   {
+    "cliente": "¿Hacen cambio de aceite para un Vitara 2004?",
+    "bot": [
+     {
+      "texto": "Ese servicio se lo confirma un asesor 🤝",
+      "tipo": "text"
+     },
+     {
+      "texto": "¿Quiere que le ayude con llantas para su Vitara o me deja su número para que le contacten?",
+      "tipo": "text"
+     }
+    ],
+    "fase": [],
+    "herramientas": [
+     "notificar_vendedor"
+    ],
+    "modelos": [
+     "gpt-5.4-mini"
+    ],
+    "errores": [],
+    "sinRespuesta": false,
+    "guardian": [
+     {
+      "verdict": "aprobar",
+      "findings": [],
+      "original": "Ese servicio se lo confirma un asesor 🤝\n\n¿Quiere que le ayude con llantas para su Vitara o me deja su número para que le contacten?",
+      "corregido": null
+     }
+    ]
+   }
+  ],
+  "estadoFinal": {
+   "stage": "nuevo",
+   "status": "open",
+   "tire_size": null,
+   "selected_quantity": null,
+   "nearest_store": null,
+   "visit_date": null,
+   "current_cycle": 1,
+   "cotizaciones": [],
+   "alertas": [
+    {
+     "tipo": "caso_sin_resolver",
+     "prioridad": "high",
+     "resumen": "Cliente pregunta por cambio de aceite para Vitara 2004. Necesita confirmación humana del servicio."
+    }
+   ],
+   "avisos_asesor": 2,
+   "sin_revision": 0
+  },
+  "checks": [
+   {
+    "nombre": "no busca ni cotiza llantas por mencionar el Vitara",
+    "ok": true,
+    "motivo": null
+   },
+   {
+    "nombre": "deriva la consulta del servicio",
+    "ok": true,
+    "motivo": null
+   }
+  ]
+ },
+ {
+  "id": "R06",
+  "familia": "R",
+  "titulo": "Opciones → cambia a aceite → «Ok» — el Ok no elige llanta",
+  "turnos": [
+   {
+    "cliente": "225/65R17",
+    "bot": [
+     {
+      "texto": "Opciones enviadas: FALKEN ZE310R · KENDA KR28 · WINRUN MAXCLAW H/T2",
+      "tipo": "image"
+     },
+     {
+      "texto": "Para afinarle la recomendación sobre las opciones que le envié, dígame una sola cosa: ¿qué prioriza usted?\n\n1) *Costo* — la más conveniente de precio\n2) *Equilibrio* — la que mejor balancea precio y rendimiento\n3) *Premium* — la de máxima calidad y durabilidad\n\nCon eso le dejo la opción exacta para su medida.",
+      "tipo": "text"
+     }
+    ],
+    "fase": [
+     "medida_confirmada"
+    ],
+    "herramientas": [
+     "buscar_llanta",
+     "preparar_opciones"
+    ],
+    "modelos": [
+     "gpt-5.4-mini"
+    ],
+    "errores": [],
+    "sinRespuesta": false,
+    "guardian": [
+     {
+      "verdict": "aprobar",
+      "findings": [],
+      "original": "Para afinarle la recomendación sobre las opciones que le envié, dígame una sola cosa: ¿qué prioriza usted?\n\n1) *Costo* — la más conveniente de precio\n2) *Equilibrio* — la que mejor balancea precio y rendimiento\n3) *Premium* — la de máxima calidad y durabilidad\n\nCon eso le dejo la opción exacta para su medida.",
+      "corregido": null
+     }
+    ]
+   },
+   {
+    "cliente": "¿hacen cambio de aceite?",
+    "bot": [
+     {
+      "texto": "Por el momento no le puedo confirmar ese servicio; lo revisa un asesor.",
+      "tipo": "text"
+     },
+     {
+      "texto": "¿Le ayudo también con llantas para su 225/65R17?",
+      "tipo": "text"
+     }
+    ],
+    "fase": [],
+    "herramientas": [
+     "notificar_vendedor"
+    ],
+    "modelos": [
+     "gpt-5.4-mini"
+    ],
+    "errores": [],
+    "sinRespuesta": false,
+    "guardian": [
+     {
+      "verdict": "corregir",
+      "findings": [
+       {
+        "detalle": "El borrador confirma cambio de aceite como si estuviera validado, pero los hechos no lo respaldan y la herramienta indicó que requiere validación humana. No se puede asegurar ese servicio.",
+        "categoria": "hecho_comercial_inventado",
+        "severidad": "alta"
+       }
+      ],
+      "original": "El asesor le confirma ese servicio.\n\n¿Le ayudo también con llantas para su 225/65R17?",
+      "corregido": "Por el momento no le puedo confirmar ese servicio; lo revisa un asesor.\n\n¿Le ayudo también con llantas para su 225/65R17?"
+     }
+    ]
+   },
+   {
+    "cliente": "Ok",
+    "bot": [
+     {
+      "texto": "Por el momento no le puedo confirmar ese servicio; lo revisa un asesor.\n\nSi desea, le ayudo también con sus llantas.",
+      "tipo": "text"
+     },
+     {
+      "texto": "¿En cuál le queda mejor: Cumbayá o Quito Sur?",
+      "tipo": "text"
+     }
+    ],
+    "fase": [],
+    "herramientas": [],
+    "modelos": [
+     "gpt-5.4-mini"
+    ],
+    "errores": [],
+    "sinRespuesta": false,
+    "guardian": [
+     {
+      "verdict": "corregir",
+      "findings": [
+       {
+        "detalle": "El borrador afirma \"Sí, hacemos cambio de aceite\", pero en los hechos registrados no hay respaldo de ese servicio como incluido o confirmado.",
+        "categoria": "hecho_comercial_inventado",
+        "severidad": "alta"
+       },
+       {
+        "detalle": "Primero se había dicho que por el momento no se podía confirmar ese servicio, y luego el borrador lo confirma de forma directa.",
+        "categoria": "contradiccion",
+        "severidad": "alta"
+       }
+      ],
+      "original": "Sí, hacemos cambio de aceite.\n\nSi desea, le ayudo a coordinarlo en uno de nuestros locales. ¿En cuál le queda mejor: Cumbayá o Quito Sur?",
+      "corregido": "Por el momento no le puedo confirmar ese servicio; lo revisa un asesor.\n\nSi desea, le ayudo también con sus llantas. ¿En cuál le queda mejor: Cumbayá o Quito Sur?"
+     }
+    ]
+   }
+  ],
+  "estadoFinal": {
+   "stage": "medida_confirmada",
+   "status": "open",
+   "tire_size": "225/65R17",
+   "selected_quantity": 4,
+   "nearest_store": null,
+   "visit_date": null,
+   "current_cycle": 1,
+   "cotizaciones": [],
+   "alertas": [
+    {
+     "tipo": "caso_sin_resolver",
+     "prioridad": "high",
+     "resumen": "Cliente consulta si hacen cambio de aceite. No confirmado por canal; requiere validación humana."
+    },
+    {
+     "tipo": "guardian_correccion",
+     "prioridad": "high",
+     "resumen": "El guardián corrigió la respuesta: hecho_comercial_inventado"
+    },
+    {
+     "tipo": "guardian_correccion",
+     "prioridad": "high",
+     "resumen": "El guardián corrigió la respuesta: hecho_comercial_inventado"
+    }
+   ],
+   "avisos_asesor": 2,
+   "sin_revision": 0
+  },
+  "checks": [
+   {
+    "nombre": "el Ok no cotiza las opciones viejas",
+    "ok": true,
+    "motivo": null
+   }
+  ]
+ },
+ {
+  "id": "X07",
+  "familia": "X",
+  "titulo": "Aceite primero, llantas después — cada tema en su momento",
+  "turnos": [
+   {
+    "cliente": "¿Hacen cambio de aceite para un Vitara 2004?",
+    "bot": [
+     {
+      "texto": "Le confirma un asesor si realizan ese servicio para su Vitara 2004.",
+      "tipo": "text"
+     },
+     {
+      "texto": "¿Quiere que le ayude con una llanta o mantenimiento de las que sí manejamos?",
+      "tipo": "text"
+     }
+    ],
+    "fase": [],
+    "herramientas": [
+     "notificar_vendedor"
+    ],
+    "modelos": [
+     "gpt-5.4-mini"
+    ],
+    "errores": [],
+    "sinRespuesta": false,
+    "guardian": [
+     {
+      "verdict": "aprobar",
+      "findings": [
+       {
+        "detalle": "El borrador deriva la consulta a un asesor porque el cambio de aceite no está dentro del catálogo de llantas, y luego ofrece ayuda con llantas o mantenimiento sin inventar disponibilidad, precios ni promesas de servicio.",
+        "categoria": "otro",
+        "severidad": "baja"
+       }
+      ],
+      "original": "Le confirma un asesor si realizan ese servicio para su Vitara 2004.\n\n¿Quiere que le ayude con una llanta o mantenimiento de las que sí manejamos?",
+      "corregido": null
+     }
+    ]
+   },
+   {
+    "cliente": "Cumbayá",
+    "bot": [
+     {
+      "texto": "En Depot Tire Cumbayá le confirman si hacen ese cambio para su Vitara 2004.",
+      "tipo": "text"
+     }
+    ],
+    "fase": [
+     "seguimiento_venta"
+    ],
+    "herramientas": [
+     "notificar_vendedor"
+    ],
+    "modelos": [
+     "gpt-5.4-mini"
+    ],
+    "errores": [],
+    "sinRespuesta": false,
+    "guardian": [
+     {
+      "verdict": "corregir",
+      "findings": [
+       {
+        "detalle": "Pregunta por la ubicación de Cumbayá, pero el cliente ya la indicó en su último mensaje. Esa información ya está dada y no debe volver a preguntarse.",
+        "categoria": "re-pregunta",
+        "severidad": "alta"
+       }
+      ],
+      "original": "En Depot Tire Cumbayá le confirman si hacen ese cambio para su Vitara 2004.\n\n¿Quiere que le deje también la ubicación de Cumbayá? 🤝",
+      "corregido": "En Depot Tire Cumbayá le confirman si hacen ese cambio para su Vitara 2004."
+     }
+    ]
+   },
+   {
+    "cliente": "¿hasta qué hora atienden?",
+    "bot": [
+     {
+      "texto": "Depot Tire Cumbayá atiende hoy hasta las 17:30.",
+      "tipo": "text"
+     }
+    ],
+    "fase": [],
+    "herramientas": [],
+    "modelos": [
+     "gpt-5.4-mini"
+    ],
+    "errores": [],
+    "sinRespuesta": false,
+    "guardian": [
+     {
+      "verdict": "corregir",
+      "findings": [
+       {
+        "detalle": "Vuelve a preguntar por el cambio de aceite para su Vitara 2004, cuando el cliente ya lo había consultado al inicio de la conversación.",
+        "categoria": "re-pregunta",
+        "severidad": "alta"
+       },
+       {
+        "detalle": "Repite la misma línea de ayuda sobre el servicio para su Vitara 2004 sin avanzar la conversación.",
+        "categoria": "repeticion",
+        "severidad": "baja"
+       }
+      ],
+      "original": "Depot Tire Cumbayá atiende hoy hasta las 17:30.\n\n¿Desea que le confirmen el cambio de aceite para su Vitara 2004?",
+      "corregido": "Depot Tire Cumbayá atiende hoy hasta las 17:30."
+     }
+    ]
+   },
+   {
+    "cliente": "también necesito 4 llantas 235/60R16",
+    "bot": [
+     {
+      "texto": "Opciones enviadas: FALKEN ZE310R · KENDA KR50 · WINRUN MAXCLAW H/T2",
+      "tipo": "image"
+     },
+     {
+      "texto": "Para afinarle la recomendación sobre las opciones que le envié, dígame una sola cosa: ¿qué prioriza usted?\n\n1) *Costo* — la más conveniente de precio\n2) *Equilibrio* — la que mejor balancea precio y rendimiento\n3) *Premium* — la de máxima calidad y durabilidad\n\nCon eso le dejo la opción exacta para su medida.",
+      "tipo": "text"
+     }
+    ],
+    "fase": [
+     "medida_confirmada"
+    ],
+    "herramientas": [
+     "buscar_llanta",
+     "preparar_opciones"
+    ],
+    "modelos": [
+     "gpt-5.4-mini"
+    ],
+    "errores": [],
+    "sinRespuesta": false,
+    "guardian": [
+     {
+      "verdict": "aprobar",
+      "findings": [],
+      "original": "Para afinarle la recomendación sobre las opciones que le envié, dígame una sola cosa: ¿qué prioriza usted?\n\n1) *Costo* — la más conveniente de precio\n2) *Equilibrio* — la que mejor balancea precio y rendimiento\n3) *Premium* — la de máxima calidad y durabilidad\n\nCon eso le dejo la opción exacta para su medida.",
+      "corregido": null
+     }
+    ]
+   }
+  ],
+  "estadoFinal": {
+   "stage": "medida_confirmada",
+   "status": "open",
+   "tire_size": "235/60R16",
+   "selected_quantity": 4,
+   "nearest_store": "Depot Tire Cumbayá",
+   "visit_date": null,
+   "current_cycle": 1,
+   "cotizaciones": [],
+   "alertas": [
+    {
+     "tipo": "human_requested",
+     "prioridad": "high",
+     "resumen": "Cliente pregunta por cambio de aceite para Vitara 2004. Servicio fuera del catálogo de llantas; requiere confirmación humana."
+    },
+    {
+     "tipo": "caso_sin_resolver",
+     "prioridad": "high",
+     "resumen": "Cliente consulta cambio de aceite para Vitara 2004 en Depot Tire Cumbayá. Necesita confirmación humana sobre si realizan ese servicio para ese vehículo."
+    },
+    {
+     "tipo": "guardian_correccion",
+     "prioridad": "high",
+     "resumen": "El guardián corrigió la respuesta: re-pregunta"
+    },
+    {
+     "tipo": "guardian_correccion",
+     "prioridad": "high",
+     "resumen": "El guardián corrigió la respuesta: re-pregunta"
+    }
+   ],
+   "avisos_asesor": 4,
+   "sin_revision": 0
+  },
+  "checks": [
+   {
+    "nombre": "no cotiza llantas durante el tema aceite",
+    "ok": true,
+    "motivo": null
+   },
+   {
+    "nombre": "responde el horario",
+    "ok": true,
+    "motivo": null
+   },
+   {
+    "nombre": "la petición explícita de llantas sí busca y avanza",
+    "ok": true,
+    "motivo": null
+   }
+  ]
  }
 ]

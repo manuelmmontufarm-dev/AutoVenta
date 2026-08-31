@@ -314,10 +314,17 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
   const penultimoDelCliente = String(usuariosPrevios.at(-2)?.content ?? usuariosPrevios.at(-1)?.content ?? "");
   const objecionPrevia = /me\s+sale\s+m[aá]s|m[aá]s\s+con\s+cuenta|[bv]oy\s+a\s+(?:mirar|ver|comparar|pensar)|est[aá]\s+car[oa]|muy\s+car[oa]s?|no\s+me\s+alcanza|lo\s+(?:voy\s+a\s+)?pienso/i
     .test(penultimoDelCliente.normalize("NFD").replace(/[̀-ͯ]/g, ""));
+  // LA OBJECIÓN MANDA SOBRE LA OFERTA: tras «me sale más con cuenta», la
+  // re-oferta suave del bot + un «Gracias» disparaba «aceptó la oferta» y la
+  // orden de cotizar — el cliente que se despedía recibía otro empuje con
+  // precio (T115 H05 t10, corrida 5 del 31-ago). Si hubo objeción y el
+  // cliente solo acusa, el descanso gana aunque el último mensaje ofreciera.
+  const acuseTrasObjecion = objecionPrevia && esAcuseSimple(userText);
   const descansoDelAcuse =
-    !aceptoLaOferta && !ctx.aceptoCotizacion
-    && esAcuseSimple(userText)
-    && (preguntaElLocal(textoUltimoDelBot) || preguntaElDia(textoUltimoDelBot) || visitaCerrada || objecionPrevia);
+    (acuseTrasObjecion || (!aceptoLaOferta && !ctx.aceptoCotizacion
+      && esAcuseSimple(userText)
+      && (preguntaElLocal(textoUltimoDelBot) || preguntaElDia(textoUltimoDelBot) || visitaCerrada)));
+  if (acuseTrasObjecion) ctx.aceptoCotizacion = false;
   // LA ZANAHORIA DEL ASESOR SE EJECUTA O SE SUELTA (T115 conv 8288, corrida 4):
   // si algún turno ya ofreció asesor y el aviso nunca salió, el modelo recibe
   // la obligación por delante. La negativa del cliente la apaga.
@@ -353,7 +360,8 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
   let recordatorioDeObligacion: string | null = null;
   const bloquesVolatiles: ChatCompletionMessageParam[] = [
     { role: "system", content: salesFactsPrompt(salesFacts, ctx.resumedFromHuman) },
-    ...(aceptoLaOferta ? [{ role: "system" as const, content: ordenDeCotizarYa(userText) }] : []),
+    ...(aceptoLaOferta && !acuseTrasObjecion
+      ? [{ role: "system" as const, content: ordenDeCotizarYa(userText) }] : []),
     ...(!aceptoLaOferta && aceptoOfertaPendiente
       ? [{ role: "system" as const, content: recordatorioDeOfertaPendiente(userText) }]
       : []),

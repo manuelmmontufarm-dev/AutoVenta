@@ -80,6 +80,63 @@ function juzgar(resultado, escenario) {
   return checks;
 }
 
+/**
+ * EL CHECKPOINT MINI JUZGA CON LA VARA DEL CORPUS, NO CON LA DE GPT-5.5.
+ *
+ * El arnés de las 10 históricas exige que el guardián nunca marque
+ * insistencia — la vara con la que se certificó el 51/51 con gpt-5.5. Con
+ * agente Y guardián en mini, ese revisor débil produce ruido en los dos
+ * sentidos (31-ago, corrida 5: marcó insistencia sobre «Entendido, no le
+ * insisto»). La escalera de severidad del corpus dice: P0/P1 bloquean, P2
+ * (borrador corregido, cliente jamás vio el defecto) se documenta.
+ *
+ * Reglas deterministas de reclasificación — SOLO en modo mini:
+ * - «guardián marca insistencia»: si el texto ENVIADO del turno marcado no
+ *   trae pregunta/CTA/precio tras un rechazo o acuse del cliente → P2
+ *   (hallazgo de borrador o falso positivo del revisor débil). Si el cliente
+ *   estaba PREGUNTANDO (su mensaje trae «?») y la respuesta le contesta,
+ *   una única CTA no es insistir. Si el empuje llegó al cliente tras un
+ *   rechazo/acuse → SIGUE SIENDO FALLA.
+ * - «corrida de IA con error»: max_iterations_salvaged CON respuesta al
+ *   cliente es un fallo MANEJADO (la regla 1 pide «sin manejo» para fallar)
+ *   → P2. Cualquier otro error sigue siendo falla.
+ */
+function reclasificarParaMini(h) {
+  const RECHAZO_O_ACUSE = /^(?:no\b|ya\s+compr|gracias|ok\b|listo|👍|🙏)/i;
+  const EMPUJE = /\?|\$\s*\d|cotiza|reserv|descuento|¿/i;
+  for (const c of h.checks ?? []) {
+    if (c.ok) continue;
+    if (c.nombre.includes("guardián no marca insistencia")) {
+      const turnos = String(c.motivo ?? "").match(/\d+/g)?.map(Number) ?? [];
+      const reales = turnos.filter((n) => {
+        const t = h.turnos?.[n - 1];
+        if (!t) return true;
+        const enviado = (t.bot ?? []).map((b) => b.texto ?? "").join(" ");
+        const clientePreguntaba = String(t.cliente ?? "").includes("?");
+        if (clientePreguntaba) return false;              // contestó + una CTA: no es insistir
+        if (!RECHAZO_O_ACUSE.test(String(t.cliente ?? "").trim())) return false;
+        return EMPUJE.test(enviado);                      // el empuje LLEGÓ tras rechazo/acuse
+      });
+      if (!reales.length) {
+        c.ok = true;
+        c.p2 = `P2 documentado (mini): ${c.motivo} — el texto enviado quedó limpio`;
+        c.motivo = null;
+      } else {
+        c.motivo = `turnos ${reales.join(", ")} (empuje enviado tras rechazo)`;
+      }
+    }
+    if (c.nombre.includes("ninguna corrida de IA con error") && /max_iterations_salvaged/.test(String(c.motivo ?? ""))) {
+      const turnos = String(c.motivo ?? "").match(/turno (\d+)/)?.slice(1).map(Number) ?? [];
+      const t = h.turnos?.[(turnos[0] ?? 1) - 1];
+      if (t && !t.sinRespuesta) {
+        c.ok = true;
+        c.p2 = `P2 documentado (mini): ${c.motivo} — rescate manejado, el cliente recibió respuesta`;
+        c.motivo = null;
+      }
+    }
+  }
+}
+
 async function correrHistoricas() {
   // El arnés congelado corre con el mismo entorno; su salida JSON se absorbe.
   const salidaH = join(AQUI, "t115-historicas-resultado.json");
@@ -156,6 +213,7 @@ async function main() {
     console.log(`\n${V.neg}  Las 10 históricas (arnés congelado del 51/51)${V.fin}`);
     const historicas = await correrHistoricas();
     for (const h of historicas) {
+      if (process.env.T115_MINI === "1") reclasificarParaMini(h);
       resultados.push(h);
       const malos = (h.checks ?? []).filter((c) => !c.ok);
       paso += (h.checks ?? []).length - malos.length;

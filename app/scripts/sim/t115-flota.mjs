@@ -134,6 +134,7 @@ async function main() {
         SIM_DATABASE_URL: `postgresql://${process.env.PGUSER ?? process.env.USER}@localhost/${s.db}`,
         // El corredor decide históricas con --ids: el carril 0 las agrega vía flag propio.
         T115_HISTORICAS: llevaHistoricas ? "1" : "0",
+        ...(MINI ? { T115_MINI: "1" } : {}),
       };
       const logW = createWriteStream(join(DIR_LOGS, `trabajador-c${s.carril}.log`));
       const proc = spawn("node", [join(AQUI, "t115.mjs"), ...flags], { env });

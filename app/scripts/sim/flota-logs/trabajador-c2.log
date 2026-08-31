@@ -3,9 +3,8 @@
 [1m  V05[0m [90m«Paso el lunes» con local elegido — registra sin repreguntar[0m
 [1m  E02[0m [90m«¿Cambio de aceite para Vitara 2004?» — sin colar llantas[0m
 [1m  R06[0m [90mOpciones → cambia a aceite → «Ok» — el Ok no elige llanta[0m
-      [31m✗ [global] ningún turno se queda sin respuesta[0m[31m — turno 3 quedó mudo[0m
 [1m  X07[0m [90mAceite primero, llantas después — cada tema en su momento[0m
 
 [1m  ─────────────────────────────────────────[0m
-  comprobaciones: [32m11 pasaron[0m · [31m1 fallaron[0m
+  comprobaciones: [32m11 pasaron[0m
 [90m  detalle → /Users/manue/AutoVenta/.claude/worktrees/threshold-t115/app/scripts/sim/flota-logs/resultado-c2.json[0m
