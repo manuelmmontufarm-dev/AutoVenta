@@ -3,6 +3,13 @@
 Bot de ventas de llantas por WhatsApp. Cliente: **Depot Tire** (Quito).
 Producción y staging deployan de `main`: **un push a `main` sale a los dos**.
 
+## Antes de arreglar un error: leé el orden
+
+[`docs/COMO-ARREGLAR-EL-BOT.md`](docs/COMO-ARREGLAR-EL-BOT.md) — el lazo de seis
+pasos (buscar la familia, reproducir, prueba en rojo, elegir la capa, arreglar
+en la fuente única, verificar). Está escrito a partir de los errores que hubo
+que arreglar dos y tres veces por saltarse un paso.
+
 ## Probar un cambio: el simulador, no el WhatsApp real
 
 ```bash

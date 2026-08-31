@@ -59,6 +59,29 @@ export function pidePrecio(text: string): boolean {
 }
 
 /**
+ * Permiso del TURNO para firmar una cotización.
+ *
+ * Tener una cantidad guardada (o usar el juego comercial de 4) resuelve
+ * CUÁNTAS llantas cotizar, pero no significa que el cliente esté comprando
+ * ahora. Ese atajo hizo que un «Ok» sobre cambio de aceite terminara firmando
+ * una cotización de llantas. El turno tiene que pedir precio, elegir una
+ * opción/producto, declarar cantidad o aceptar la oferta de cotizar del bot.
+ */
+export function autorizaCotizacionEnEsteTurno(
+  text: string,
+  aceptoOfertaDeCotizar = false,
+): boolean {
+  if (aceptoOfertaDeCotizar) return true;
+  if (pidePrecio(text) || hasExplicitQuantity(text) || respuestaDePreferencia(text) !== null) {
+    return true;
+  }
+  const normalized = normalize(text);
+  return /\b(?:quiero|deme|dame|llevo|elijo|escojo|prefiero)\b/.test(normalized)
+    || /\b(?:me\s+quedo|vamos|dale)\s+con\b/.test(normalized)
+    || /^(?:si\s+)?(?:esa|esa\s+misma|ese|ese\s+mismo)$/.test(normalized);
+}
+
+/**
  * El cliente pidió que le recomienden. Misma historia: si él ya preguntó cuál
  * le conviene, ofrecerle una recomendación es repetirle la pregunta.
  */

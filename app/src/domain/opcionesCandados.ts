@@ -92,6 +92,10 @@ export function debeBloquearReenvio(
     const before = [...previo.codes].map((code) => code.toLowerCase()).sort().join("|");
     const after = [...codesActuales].map((code) => code.toLowerCase()).sort().join("|");
     if (before !== after) return false;
+    // Los códigos son una identidad más fuerte que el rótulo de medida. Las
+    // piezas antiguas no siempre guardaron `sizeLabel`; si el mismo conjunto
+    // reaparece dentro de la ventana, sigue siendo el mismo reenvío.
+    return true;
   }
   return mismaMedida(previo.sizeLabel, sizeActual);
 }

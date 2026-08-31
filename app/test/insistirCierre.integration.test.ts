@@ -21,7 +21,7 @@ await admin.unsafe(`create database ${BASE}`);
 
 const { sql } = await import("../src/db/client.js");
 const { ensureSchema } = await import("../src/db/schema.js");
-const { insistirConLoQueFalta } = await import("../src/services/insistirCierre.js");
+const { insistirConLoQueFalta, sinPreguntaPendienteConsecutiva } = await import("../src/services/insistirCierre.js");
 
 const EL_QUE_CERRO_SIN_PREGUNTAR =
   "Sí, le sirven para uso mixto; la *WINRUN MAXCLAW A/T* es A/T, más apta que una de calle "
@@ -120,5 +120,31 @@ describe.sequential("insistir con lo que falta", () => {
     const bloques = r.texto.split(/\n\s*-{3,}\s*\n/).map((b) => b.trim()).filter(Boolean);
     expect(bloques).toHaveLength(4);
     expect(bloques.at(-1)).toMatch(/qué día cree que puede pasar/i);
+  });
+
+  it("un no gracias no recibe la pregunta de local que estaba pendiente", async () => {
+    const fila = await conversacion("593980006007", { local: null });
+    const r = await insistirConLoQueFalta(
+      fila.id, 1, "Entendido, quedamos a las órdenes.", "No gracias",
+    );
+    expect(r.agregado).toBeNull();
+    expect(r.texto).not.toMatch(/Cumbayá|Quito Sur/);
+  });
+
+  it("no repite local en dos turnos y conserva la respuesta útil", async () => {
+    const fila = await conversacion("593980006008", { local: null });
+    await sql`
+      insert into messages (conversation_id, cycle, role, direction, content, type, author_kind)
+      values (${fila.id}, 1, 'assistant', 'outbound',
+        '¿Le queda mejor Cumbayá o Quito Sur para pasar a verlas?', 'text', 'bot')
+    `;
+    await sql`
+      insert into messages (conversation_id, cycle, role, direction, content, type)
+      values (${fila.id}, 1, 'user', 'inbound', '¿Y la garantía cuánto dura?', 'text')
+    `;
+    const borrador = "La garantía es de 5 años.\n\n---\n\n¿Le queda mejor Cumbayá o Quito Sur para pasar a verlas?";
+    const limpio = await sinPreguntaPendienteConsecutiva(fila.id, 1, borrador);
+
+    expect(limpio).toBe("La garantía es de 5 años.");
   });
 });

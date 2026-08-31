@@ -150,10 +150,12 @@ describe("el orden de los candados en el turno", () => {
 
   it("la cadena es exactamente esta, en este orden", () => {
     expect(nombres).toEqual([
+      "sin_pregunta_pendiente_consecutiva",
       "guardian_deterministico",
       "angel_guardian",
       "guardian_no_vende_solo",
       "aviso_de_stock",
+      "alcance_fuera_de_catalogo",
       "despedida_de_venta_perdida",
       "ubicacion_cuando_la_piden",
       "insistir_con_lo_que_falta",
@@ -163,6 +165,20 @@ describe("el orden de los candados en el turno", () => {
       "sin_numeros_de_cotizacion",
       "pregunta_en_su_propio_mensaje",
     ]);
+  });
+
+  it("la política de aceite propio queda respaldada aunque el modelo afirme que sí", async () => {
+    const paso = PASOS.find((p) => p.nombre === "alcance_fuera_de_catalogo")!;
+    const salida = await paso.aplicar("Sí, puede llevar su aceite.", {
+      conversation: { id: 1, current_cycle: 1, stage: "nuevo" },
+      tipo: "respuesta",
+      textoDelCliente: "¿Puedo llevar mi aceite?",
+      consultaFueraDeCatalogo: true,
+    } as never);
+
+    expect(salida).toMatch(/no puedo confirmarle/i);
+    expect(salida).toMatch(/asesor/i);
+    expect(salida).not.toMatch(/^s[íi]/i);
   });
 
   /**

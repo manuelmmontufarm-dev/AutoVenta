@@ -35,10 +35,10 @@ describe("la venta perdida se corta antes de cualquier herramienta", () => {
     expect(rutas).toBeGreaterThan(corte);
     expect(agente).toBeGreaterThan(rutas);
     expect(indexSource.slice(rutas, agente)).toMatch(
-      /const directReply = cierreAntesDeHerramientas\s*\?\s*null/,
+      /const directReply = cierreAntesDeHerramientas \|\| cierreDelTurno\s*\?\s*null/,
     );
-    expect(indexSource.slice(rutas, agente)).toContain(
-      "const reply = cierreAntesDeHerramientas ?? directReply ??",
+    expect(indexSource.slice(rutas, agente)).toMatch(
+      /const reply = cierreAntesDeHerramientas\s*\?\?\s*\(cierreDelTurno[\s\S]*?\?\? directReply\s*\?\?\s*$/,
     );
   });
 

@@ -6,7 +6,11 @@
 import OpenAI from "openai";
 import type { ChatCompletionMessageParam, ChatCompletionTool } from "openai/resources/chat/completions";
 import { config } from "../config.js";
-import { ofertaDeCotizarAceptada, ordenDeCotizarYa } from "../domain/ofertaAceptada.js";
+import {
+  ofertaDeCotizacionAceptada,
+  ofertaDeCotizarAceptada,
+  ordenDeCotizarYa,
+} from "../domain/ofertaAceptada.js";
 import { ordenDeNoReusarLaVitrina, vitrinaQueNoEsSuMedida } from "../domain/vitrinaVieja.js";
 import { extractTireSizes, formatTireSize } from "../domain/tireSize.js";
 import { getHistory, logAiRun } from "../services/conversations.js";
@@ -26,7 +30,12 @@ import { medidaEstaPedida } from "../domain/medidaPedida.js";
 import { medidasDelPedido } from "../services/medidasDelPedido.js";
 import { extractVehicleYear, type Escalones } from "../domain/salesIntent.js";
 import { chatReasoningEffort } from "./aiRequestPolicy.js";
-import { elegirFaseOperativa, herramientasParaElTurno } from "./faseOperativa.js";
+import { elegirFaseOperativa } from "./faseOperativa.js";
+import {
+  consultaFueraDeCatalogoActiva,
+  ORDEN_FUERA_DE_CATALOGO,
+} from "../domain/alcanceComercial.js";
+import { hechosDeRestricciones, restriccionesDeLlanta } from "../domain/restriccionesLlanta.js";
 
 const openai = new OpenAI({ apiKey: config.openai.apiKey });
 
@@ -148,11 +157,25 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
     typeof ultimoDelBot?.content === "string" ? ultimoDelBot.content : null,
     userText,
   );
+  ctx.aceptoOfertaComercial = aceptoLaOferta;
+  ctx.aceptoCotizacion = ofertaDeCotizacionAceptada(
+    typeof ultimoDelBot?.content === "string" ? ultimoDelBot.content : null,
+    userText,
+  );
+  const textosDelCliente = [
+    ...history.filter((m) => m.role === "user").map((m) => m.content),
+    userText,
+  ];
+  const fueraDeCatalogo = consultaFueraDeCatalogoActiva(textosDelCliente);
+  ctx.consultaFueraDeCatalogo = fueraDeCatalogo;
+  const restricciones = restriccionesDeLlanta(textosDelCliente);
+  const hechoRestricciones = hechosDeRestricciones(restricciones);
   const faseOperativa = elegirFaseOperativa({
     etapaGuardada: ctx.conversation.stage,
     texto: userText,
     tieneCotizacion: Boolean(salesFacts.lastQuote),
     aceptoCotizar: aceptoLaOferta,
+    ultimoMensajeBot: typeof ultimoDelBot?.content === "string" ? ultimoDelBot.content : null,
   });
   ctx.faseOperativa = faseOperativa;
   if (faseOperativa !== ctx.conversation.stage) {
@@ -198,7 +221,18 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
   ctx.currentUserText = userText;
   ctx.storeHours = storeHours;
   const allTools = buildTools(ctx);
-  const allowed = new Set(herramientasParaElTurno(faseOperativa, stagePrompt.allowedTools));
+  // La lista publicada por el administrador vuelve a ser la autoridad completa
+  // para esta necesidad del turno. Un segundo recorte fijo por fase revivió el
+  // dead-state del ticket 2150 (conv 8318, 29-ago): seguimiento no podía buscar
+  // una medida que el cliente acababa de pedir.
+  const HERRAMIENTAS_FUERA_DE_CATALOGO = new Set([
+    "notificar_vendedor", "ubicacion_locales", "local_mas_cercano", "agendar_visita",
+  ]);
+  const allowed = new Set(
+    fueraDeCatalogo
+      ? stagePrompt.allowedTools.filter((name) => HERRAMIENTAS_FUERA_DE_CATALOGO.has(name))
+      : stagePrompt.allowedTools,
+  );
   // Gate de fases: aunque el prompt permita una tool, si está gateada solo se
   // ofrece con su fase encendida. Las no gateadas pasan siempre.
   const localTools =
@@ -241,6 +275,12 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
     // cotización imprimía «alineación y balanceo incluidos». Va en los bloques
     // volátiles —detrás del historial— para no romper el prefijo del caché.
     ...(benefitFacts ? [{ role: "system" as const, content: benefitFacts }] : []),
+    ...(fueraDeCatalogo
+      ? [{ role: "system" as const, content: ORDEN_FUERA_DE_CATALOGO }]
+      : []),
+    ...(hechoRestricciones
+      ? [{ role: "system" as const, content: hechoRestricciones }]
+      : []),
     ...(activeDiscount ? [{ role: "system" as const, content: `OFERTA AUTORIZADA Y VIGENTE (fuente determinística): descuento adicional $${(activeDiscount.discountAmountCents / 100).toFixed(2)}, total final $${(activeDiscount.finalTotalCents / 100).toFixed(2)}, condición: ${activeDiscount.condition}. Motivo interno: ${activeDiscount.reason}. No cambies estos valores ni inventes otra oferta.` }] : []),
     ...(pendingDiscount ? [{ role: "system" as const, content: `DESCUENTO AUTORIZADO PENDIENTE DE COTIZACIÓN (fuente determinística): ${pendingDiscount.kind === "percentage" ? `${pendingDiscount.valueCents / 100}%` : `$${(pendingDiscount.valueCents / 100).toFixed(2)}`}, condición: ${pendingDiscount.condition}. No digas que no existe descuento. Se aplicará determinísticamente al generar la próxima cotización; antes de conocer el total no inventes ahorro ni total final.` }] : []),
   ];
@@ -256,6 +296,9 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
   // incluso si esa llamada revienta: interesa saber que ya se había escalado.
   let exactoBarato = turnoExactoBarato(ctx.conversation.id, faseOperativa);
   let modeloUsado = modeloDelTurno(0, faseOperativa, exactoBarato);
+  let llamadasDeHerramienta = 0;
+  let llamadasDuplicadas = 0;
+  let falloEnLoop = false;
 
   for (let iteration = 0; iteration < config.openai.maxToolIterations; iteration += 1) {
     modeloUsado = modeloDelTurno(iteration, faseOperativa, exactoBarato);
@@ -281,6 +324,7 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
         } : {}),
       });
     } catch (error) {
+      falloEnLoop = true;
       console.warn(
         `⚠️ La llamada al modelo falló en la ronda ${iteration + 1}:`,
         error instanceof Error ? error.message : error,
@@ -292,7 +336,10 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
     cachedInputTokens += response.usage?.prompt_tokens_details?.cached_tokens ?? 0;
     reasoningTokens += response.usage?.completion_tokens_details?.reasoning_tokens ?? 0;
     const message = response.choices[0]?.message;
-    if (!message) break;
+    if (!message) {
+      falloEnLoop = true;
+      break;
+    }
 
     // La red de seguridad del canary: el barato SOLO enruta. Texto libre es
     // prosa comercial (del principal); una herramienta con efectos firma cosas.
@@ -337,10 +384,13 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
 
     for (const call of message.tool_calls) {
       if (call.type !== "function") continue;
+      llamadasDeHerramienta += 1;
       usedTools.push(call.function.name);
       const signature = `${call.function.name}:${call.function.arguments.trim()}`;
       const tool = localTools.find((candidate) => candidate.function.name === call.function.name);
-      const result = executedCalls.has(signature)
+      const repetida = executedCalls.has(signature);
+      if (repetida) llamadasDuplicadas += 1;
+      const result = repetida
         ? JSON.stringify({ error: "Esta misma herramienta con los mismos argumentos ya se ejecutó en este turno. Usa el resultado anterior y responde ahora; no la repitas." })
         : tool
           ? await tool.execute(parseArguments(call.function.arguments))
@@ -438,6 +488,13 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
       texto = segundo.choices[0]?.message?.content?.trim();
     }
     if (texto) {
+      // Llegar al límite no implica estar en bucle. Con el límite operativo de
+      // tres, «buscar medida → ampliar catálogo → avisar al asesor» es una
+      // cadena sana que solo necesita la ronda final de redacción. Se registra
+      // como error únicamente si hubo fallo real o repetición de herramientas.
+      const cadenaSanaFinalizada = !falloEnLoop
+        && llamadasDuplicadas === 0
+        && llamadasDeHerramienta === config.openai.maxToolIterations;
       await logAiRun({
         conversationId: ctx.conversation.id,
         stage: ctx.conversation.stage,
@@ -449,9 +506,9 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
         cachedInputTokens,
         reasoningTokens,
         iterations: config.openai.maxToolIterations + 1,
-        route: "rescue",
+        route: cadenaSanaFinalizada ? "tool_chain_finalized" : "rescue",
         tools: usedTools,
-        error: "max_iterations_salvaged",
+        error: cadenaSanaFinalizada ? undefined : "max_iterations_salvaged",
       });
       return withDiscountNotice(texto, ctx, activeDiscount, pendingDiscount);
     }

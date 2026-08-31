@@ -15,6 +15,7 @@ import { ahorroDeLaCotizacion, type LineaCotizada } from "../domain/ahorro.js";
 import { preguntaElDia } from "../domain/customerCommitment.js";
 import { datoQueFalta } from "../domain/preguntaPendiente.js";
 import { despedidaQueCorresponde } from "../domain/cierrePerdido.js";
+import { esCierreComercialDelTurno } from "../domain/cierreTurno.js";
 import { PREGUNTA_DE_LOCAL, preguntaElLocal } from "../domain/storeSelection.js";
 import { buildVisitPlanQuestion, composeBlocks, MAX_BLOCKS } from "./quoteMessages.js";
 import type { Stage } from "./conversations.js";
@@ -26,6 +27,53 @@ export interface CierreInsistido {
   texto: string;
   /** Qué se agregó, o `null` si el turno ya preguntaba lo que había que preguntar. */
   agregado: "local" | "dia" | null;
+}
+
+async function ultimoTextoDelBot(conversationId: number, cycle: number): Promise<string | null> {
+  const [row] = await sql<{ content: string | null }[]>`
+    select content from messages
+    where conversation_id=${conversationId} and cycle=${cycle}
+      and role='assistant' and type='text' and author_kind='bot'
+      and id < coalesce((
+        select max(id) from messages
+        where conversation_id=${conversationId} and cycle=${cycle} and direction='inbound'
+      ), 9223372036854775807)
+    order by created_at desc, id desc limit 1
+  `;
+  return row?.content ?? null;
+}
+
+function quitarPreguntaFinal(texto: string, esLaPregunta: (bloque: string) => boolean): string {
+  const bloques = texto.split(BLOCK_SEPARATOR_RE).map((b) => b.trim()).filter(Boolean);
+  if (bloques.length > 1) {
+    return esLaPregunta(bloques[bloques.length - 1])
+      ? composeBlocks(...bloques.slice(0, -1))
+      : texto;
+  }
+  const unico = bloques[0] ?? texto;
+  const abre = unico.lastIndexOf("¿");
+  return abre > 0 && esLaPregunta(unico.slice(abre)) ? unico.slice(0, abre).trim() : unico;
+}
+
+/**
+ * Si la misma pregunta quedó al final de dos turnos consecutivos, este turno
+ * responde lo que el cliente preguntó y descansa. En el siguiente puede volver
+ * a pedir el dato: no se abandona el cierre, se evita sonar como un bucle.
+ */
+export async function sinPreguntaPendienteConsecutiva(
+  conversationId: number,
+  cycle: number,
+  texto: string,
+): Promise<string> {
+  const anterior = await ultimoTextoDelBot(conversationId, cycle);
+  if (!anterior) return texto;
+  if (preguntaElLocal(anterior) && preguntaElLocal(texto)) {
+    return quitarPreguntaFinal(texto, preguntaElLocal);
+  }
+  if (preguntaElDia(anterior) && preguntaElDia(texto)) {
+    return quitarPreguntaFinal(texto, preguntaElDia);
+  }
+  return texto;
 }
 
 export async function insistirConLoQueFalta(
@@ -43,7 +91,10 @@ export async function insistirConLoQueFalta(
   // el 27-ago (conv 4732) salió «¿Qué día cree que puede pasar… con 25 % de
   // descuento, $73.92 menos» pegado a un adiós. El único dato que llega a
   // tiempo es el mensaje del cliente. Ver `domain/cierrePerdido.ts`.
-  if (despedidaQueCorresponde(textoDelCliente ?? "")) return { texto, agregado: null };
+  if (
+    despedidaQueCorresponde(textoDelCliente ?? "")
+    || esCierreComercialDelTurno(textoDelCliente ?? "")
+  ) return { texto, agregado: null };
   // Simulador, 29-ago: una venta ya estaba en seguimiento, pero el cliente
   // pidió opciones para otra medida. El agente volvió bien a medir y mostró
   // opciones; este candado leyó el máximo histórico del Kanban y le pegó además
@@ -68,6 +119,10 @@ export async function insistirConLoQueFalta(
     visitaRegistrada: Boolean(facts?.visit_date),
   });
   if (!falta) return { texto, agregado: null };
+
+  const anterior = await ultimoTextoDelBot(conversationId, cycle);
+  if (falta === "local" && preguntaElLocal(anterior ?? "")) return { texto, agregado: null };
+  if (falta === "dia" && preguntaElDia(anterior ?? "")) return { texto, agregado: null };
 
 
   // Si el turno YA la pregunta, no se toca: repetirla sería el ruido que este

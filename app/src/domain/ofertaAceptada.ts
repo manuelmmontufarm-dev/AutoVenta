@@ -53,6 +53,10 @@ const OFRECIO_ALGO =
     + `|\\ble\\s+dejo\\s+\\d\\s*[-–]\\s*\\d\\s+${LO_QUE_SE_OFRECE}`,
   );
 
+/** Oferta inequívoca de FIRMA, no de opciones ni de comparación. */
+const OFRECIO_COTIZAR =
+  /(?:puedo|podemos|podria|podriamos)\s+(?:\w+\s+){0,3}cotiza\w*|¿\s*le\s+cotizo|\ble\s+cotizo\b[^.?!]{0,60}\?|(?:si\s+(?:desea|gusta|quiere)|si\s+le\s+parece|quiere\s+que|desea\s+que)[^.?!]{0,70}cotiza\w*|(?:le|se\s+la|te\s+la)\s+(?:dejo|paso|hago|armo|preparo)\s+(?:\w+\s+){0,4}cotiza\w*/;
+
 /**
  * El cliente contestó con un acuse y nada más.
  *
@@ -79,6 +83,24 @@ export function ofertaDeCotizarAceptada(
 ): boolean {
   const bot = normalizar(ultimoMensajeDelBot ?? "");
   if (!bot || !OFRECIO_ALGO.test(bot)) return false;
+  const cliente = normalizar(mensajeDelCliente);
+  if (!cliente || NEGATIVA_CORTA.test(cliente)) return false;
+  return ACUSE_SIN_MAS.test(cliente);
+}
+
+/**
+ * Versión estricta para autorizar `generar_cotizacion`.
+ *
+ * `ofertaDeCotizarAceptada` conserva su semántica histórica amplia porque
+ * también hace avanzar ofertas de opciones/comparación. Esta función no: un
+ * «Ok» solo permite firmar si el bot realmente ofreció una cotización.
+ */
+export function ofertaDeCotizacionAceptada(
+  ultimoMensajeDelBot: string | null | undefined,
+  mensajeDelCliente: string,
+): boolean {
+  const bot = normalizar(ultimoMensajeDelBot ?? "");
+  if (!bot || !OFRECIO_COTIZAR.test(bot)) return false;
   const cliente = normalizar(mensajeDelCliente);
   if (!cliente || NEGATIVA_CORTA.test(cliente)) return false;
   return ACUSE_SIN_MAS.test(cliente);

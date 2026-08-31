@@ -1,4 +1,11 @@
 import type { Stage } from "../domain/pipeline.js";
+import { extractCustomerCommitment, preguntamosElDia } from "../domain/customerCommitment.js";
+import { fitmentTable } from "../domain/fitment.js";
+import {
+  extractConventionalSizes,
+  extractFlotationSizes,
+  extractTireSizes,
+} from "../domain/tireSize.js";
 
 /**
  * La tarjeta del Kanban mide cuánto avanzó la venta y por eso no retrocede.
@@ -12,21 +19,44 @@ const normalizar = (texto: string) => texto
   .replace(/[\u0300-\u036f]/g, "")
   .toLowerCase();
 
-const MEDIDA = /\b\d{3}\s*[\/-]\s*\d{2,3}\s*(?:z?r\s*)?\d{2}\b|\b\d{2,3}(?:\.\d{1,2})?\s*x\s*\d{1,2}(?:\.\d{1,2})?\s*(?:r\s*)?\d{2}\b/;
 const ARO = /\b(?:aro|rin)\s*(?:numero\s*)?(?:r\s*)?\d{2}\b/;
 const OTRA_BUSQUEDA = /\b(?:otra|otras|diferente|cambiar|cambio)\s+(?:medida|llanta|llantas|opcion|opciones|marca|marcas)\b/;
 const OPCIONES = /\b(?:que|cuales|otras?)\s+(?:opciones|marcas|llantas)\b|\b(?:opciones|alternativas)\s+(?:tienen|manejan|hay)\b/;
 const COMPARAR = /\b(?:compara|comparame|comparacion|diferencia|diferencias|versus|vs)\b|\b(?:cual|que)\s+(?:es\s+)?mejor\b/;
 const RESPALDO = /\b(?:garantia|garantias|duracion|dura|kilometros|origen|fabricada|seguro|respaldo|por\s+que\s+(?:cuesta|vale))\b/;
-const COTIZAR = /\b(?:cotiza|cotice|cotizame|cotizacion|proforma|presupuesto)\b|\b(?:deme|dame|quiero|llevo|elijo|escojo|prefiero)\b[^.?!]{0,55}\b(?:llanta|llantas|falken|kenda|sunoco|winrun|maxxis|bridgestone|continental)\b/;
-const VISITA = /\b(?:local|locales|sucursal|sucursales|ubicacion|direccion|mapa|maps|cumbaya|quito\s+sur|asesor|vendedor|agendar|visita|visitar|voy|vamos|ire|mañana|manana|domingo|lunes|martes|miercoles|jueves|viernes|sabado)\b|\b(?:puedo|podria|quiero|quisiera)\s+pasar\b/;
-const VEHICULO = /\b(?:para\s+(?:un|una|mi)|tengo\s+(?:un|una))\s+[a-z][a-z0-9-]+(?:\s+[a-z0-9-]+){0,3}\b/;
+const COTIZAR = /\b(?:cotiza|cotice|cotizame|cotizacion|proforma)\b|\b(?:deme|dame|quiero|llevo|elijo|escojo|prefiero)\b[^.?!]{0,55}\b(?:llanta|llantas|falken|kenda|sunoco|winrun|maxxis|bridgestone|continental)\b/;
+const PIDE_PRESUPUESTO = /\b(?:deme|dame|hagame|hazme|quiero|necesito|envie|envieme|mande|mandeme)\b[^.?!]{0,35}\bpresupuesto\b|\bpresupuesto\b[^.?!]{0,35}\b(?:para|de)\b[^.?!]{0,35}\bllantas?\b/;
+const OBJECION_DE_PRESUPUESTO = /\b(?:no\s+me\s+alcanza|no\s+alcanza|no\s+se\s+ajusta|no\s+ajusta|fuera\s+de|se\s+sale\s+de|se\s+pasa\s+de|sobrepasa|excede|no\s+entra\s+en|demasiado\s+para)\b[^.?!]{0,35}\b(?:mi\s+|el\s+)?presupuesto\b|\b(?:mi\s+|el\s+)?presupuesto\b[^.?!]{0,25}\b(?:es|esta)\s+(?:bajo|limitado)\b/;
+const VISITA_EXPLICITA = /\b(?:local|locales|sucursal|sucursales|ubicacion|direccion|mapa|maps|cumbaya|quito\s+sur|asesor|vendedor|agendar|visita|visitar|voy|vamos|ire)\b|\b(?:puedo|podria|quiero|quisiera)\s+(?:ir|pasar|acercarme|visitar)\b/;
+const NOMBRE_DE_VEHICULO = /\b(?:vehiculo|carro|auto|automovil|camioneta|camion|pickup|suv|furgoneta|moto)\b/;
+const CONTEXTO_DE_VEHICULO = /\b(?:para\s+(?:un|una|mi)|tengo\s+(?:un|una))\b/;
+
+const escaparRegex = (texto: string) => texto.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+const aliasDeMarcas = [...new Set(fitmentTable().flatMap((entry) => {
+  const marca = normalizar(entry.make);
+  const principal = marca.replace(/\s*\([^)]*\)\s*/g, " ").trim();
+  const parentesis = [...marca.matchAll(/\(([^)]+)\)/g)].map((m) => m[1].trim());
+  return [principal, ...parentesis].filter(Boolean);
+}))];
+const MARCA_DE_VEHICULO = new RegExp(`\\b(?:${aliasDeMarcas.map(escaparRegex).join("|")})\\b`);
+
+function mencionaVehiculo(texto: string): boolean {
+  if (NOMBRE_DE_VEHICULO.test(texto)) return true;
+  return CONTEXTO_DE_VEHICULO.test(texto) && MARCA_DE_VEHICULO.test(texto);
+}
+
+function contieneMedida(texto: string): boolean {
+  return extractTireSizes(texto).length > 0
+    || extractFlotationSizes(texto).length > 0
+    || extractConventionalSizes(texto).length > 0;
+}
 
 export interface EntradaFaseOperativa {
   etapaGuardada: Stage;
   texto: string;
   tieneCotizacion: boolean;
   aceptoCotizar?: boolean;
+  ultimoMensajeBot?: string | null;
 }
 
 export function elegirFaseOperativa(input: EntradaFaseOperativa): Stage {
@@ -43,69 +73,29 @@ export function elegirFaseOperativa(input: EntradaFaseOperativa): Stage {
   // Una medida, aro u «otra medida» reabre la búsqueda aunque la tarjeta esté
   // en cotización o seguimiento. Esa fue la grieta del ticket 2150: asumir que
   // seguimiento significa que el cliente dejó de comprar.
-  if (MEDIDA.test(texto) || ARO.test(texto) || OTRA_BUSQUEDA.test(texto)) {
+  if (contieneMedida(input.texto) || ARO.test(texto) || OTRA_BUSQUEDA.test(texto)) {
     return "medida_confirmada";
   }
 
-  if (input.aceptoCotizar || COTIZAR.test(texto)) return "cotizacion_enviada";
-  if (VISITA.test(texto)) return "seguimiento_venta";
+  // Una objeción de precio pide alternativas, no una nueva cotización a ciegas.
+  // «No se ajusta a mi presupuesto» fue el turno 6 de la conv 8318.
+  if (OBJECION_DE_PRESUPUESTO.test(texto)) return "seleccionando";
+
+  if (input.aceptoCotizar || COTIZAR.test(texto) || PIDE_PRESUPUESTO.test(texto)) {
+    return "cotizacion_enviada";
+  }
+
+  // Un día solo es visita si el cliente expresa intención de ir o si responde
+  // a la pregunta de fecha del bot. «Me entregan la camioneta el jueves» no es
+  // una visita; «jueves» después de «¿qué día puede pasar?» sí lo es.
+  const compromiso = extractCustomerCommitment(input.texto, new Date(), {
+    respondiendoAlDia: preguntamosElDia(input.ultimoMensajeBot),
+  });
+  if (VISITA_EXPLICITA.test(texto) || compromiso) return "seguimiento_venta";
   if (OPCIONES.test(texto)) return "seleccionando";
-  if (VEHICULO.test(texto)) return "nuevo";
+  if (mencionaVehiculo(texto)) return "nuevo";
 
   // Sin una señal clara no adivinamos. La etapa guardada suele estar cerca y
   // es el respaldo más seguro para un «ok», «gracias» o una pregunta lateral.
   return input.etapaGuardada;
-}
-
-const HERRAMIENTAS_POR_FASE: Record<Stage, readonly string[]> = {
-  nuevo: [
-    "fitment_vehiculo",
-    "guia_medida",
-    "opciones_sin_medida",
-    "buscar_por_aro_y_tipo",
-    "buscar_llanta",
-    "preparar_opciones",
-  ],
-  medida_confirmada: [
-    "buscar_llanta",
-    "buscar_catalogo",
-    "buscar_por_aro_y_tipo",
-    "tipos_de_llanta",
-    "preparar_opciones",
-    "generar_cotizacion",
-  ],
-  seleccionando: [
-    "buscar_llanta",
-    "buscar_catalogo",
-    "buscar_por_aro_y_tipo",
-    "preparar_opciones",
-    "enviar_comparacion",
-    "generar_cotizacion",
-    "respaldo_marcas",
-  ],
-  cotizacion_enviada: [
-    "generar_cotizacion",
-    "reenviar_cotizacion",
-    "buscar_llanta",
-    "buscar_catalogo",
-    "preparar_opciones",
-  ],
-  seguimiento_venta: [
-    "local_mas_cercano",
-    "ubicacion_locales",
-    "agendar_visita",
-    "notificar_vendedor",
-    "reenviar_cotizacion",
-  ],
-  ganado: [],
-  perdido: [],
-};
-
-/** Respeta lo publicado por el administrador: este selector solo puede quitar. */
-export function herramientasParaElTurno(
-  fase: Stage,
-  publicadas: readonly string[],
-): string[] {
-  const permitidas = new Set(publicadas);
-  return HERRAMIENTAS_POR_FASE[fase].filter((nombre) => permitidas.has(nombre));
 }

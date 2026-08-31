@@ -31,6 +31,21 @@ const { armarContexto } = await import("../src/services/guardian.js");
 
 beforeAll(async () => {
   await ensureSchema();
+  await sql`
+    insert into settings (key, value) values ('store_hours', ${sql.json({
+      cumbaya: {
+        weekday: { open: "07:45", close: "17:15", closed: false },
+        weekend: { open: "08:30", close: "13:00", closed: false },
+        excepciones: [],
+      },
+      quitoSur: {
+        weekday: { open: "08:15", close: "18:00", closed: false },
+        weekend: { open: "09:00", close: "14:00", closed: false },
+        excepciones: [],
+      },
+    } as never)})
+    on conflict (key) do update set value=excluded.value
+  `;
 });
 
 describe("armarContexto · el ciclo cerrado no contamina al vigente", () => {
@@ -70,6 +85,18 @@ describe("armarContexto · el ciclo cerrado no contamina al vigente", () => {
  * puede ver, y la instrucción 11 le dice cómo llamarla.
  */
 describe("armarContexto · la ausencia también es un hecho", () => {
+  it("incluye los horarios configurados como hechos verificables", async () => {
+    const [conv] = await sql<{ id: number }[]>`
+      insert into conversations (phone, name, status, stage, current_cycle)
+      values ('593998447909', 'Horarios', 'open', 'nuevo', 1)
+      returning id
+    `;
+    const contexto = await armarContexto(conv.id, 1, "Atendemos hasta las 17:15.");
+    expect(contexto).toContain("Horarios confirmados:");
+    expect(contexto).toContain("Cumbayá: lunes a viernes 07:45–17:15");
+    expect(contexto).toContain("Quito Sur: lunes a viernes 08:15–18:00");
+  });
+
   it("dice «(ninguna)» cuando el bot confirmó una visita que nadie registró", async () => {
     const [conv] = await sql<{ id: number }[]>`
       insert into conversations (phone, name, status, stage, current_cycle, nearest_store)

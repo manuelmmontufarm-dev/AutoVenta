@@ -1,8 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  elegirFaseOperativa,
-  herramientasParaElTurno,
-} from "../src/agent/faseOperativa.js";
+import { elegirFaseOperativa } from "../src/agent/faseOperativa.js";
 
 describe("fase operativa · el cliente puede moverse sin romper el Kanban", () => {
   it("vuelve de seguimiento a opciones cuando pide otra medida", () => {
@@ -35,6 +32,80 @@ describe("fase operativa · el cliente puede moverse sin romper el Kanban", () =
       texto: "Puedo ir mañana al local de Quito Sur",
       tieneCotizacion: false,
     })).toBe("seguimiento_venta");
+  });
+
+  it.each([
+    "235/75/15",
+    "195/50/16",
+    "205 55 16",
+    "255 70 R16",
+    "165/80/R13",
+    "225/65R17",
+    "31x10.50R15LT",
+    "7.00R15",
+  ])("usa el lector real para la medida escrita como en WhatsApp: %s", (texto) => {
+    expect(elegirFaseOperativa({
+      etapaGuardada: "seguimiento_venta",
+      texto,
+      tieneCotizacion: true,
+    })).toBe("medida_confirmada");
+  });
+
+  it("un día de entrega del vehículo no inventa una visita", () => {
+    expect(elegirFaseOperativa({
+      etapaGuardada: "medida_confirmada",
+      texto: "Me entregan la camioneta el jueves de esta semana",
+      tieneCotizacion: false,
+    })).toBe("nuevo");
+  });
+
+  it("un día seco sí es visita cuando responde la pregunta del bot", () => {
+    expect(elegirFaseOperativa({
+      etapaGuardada: "cotizacion_enviada",
+      texto: "el jueves",
+      tieneCotizacion: true,
+      ultimoMensajeBot: "¿Qué día puede pasar por Depot Tire?",
+    })).toBe("seguimiento_venta");
+  });
+
+  it("la intención explícita de pasar sigue siendo visita", () => {
+    expect(elegirFaseOperativa({
+      etapaGuardada: "medida_confirmada",
+      texto: "Quiero pasar el jueves",
+      tieneCotizacion: false,
+    })).toBe("seguimiento_venta");
+  });
+
+  it("una objeción de presupuesto vuelve a elección de alternativas", () => {
+    expect(elegirFaseOperativa({
+      etapaGuardada: "seguimiento_venta",
+      texto: "No se ajusta a mi presupuesto",
+      tieneCotizacion: true,
+    })).toBe("seleccionando");
+  });
+
+  it("un pedido de presupuesto sí va a cotización", () => {
+    expect(elegirFaseOperativa({
+      etapaGuardada: "seleccionando",
+      texto: "Necesito un presupuesto para 4 llantas",
+      tieneCotizacion: false,
+    })).toBe("cotizacion_enviada");
+  });
+
+  it("«tengo una oferta» no se confunde con un vehículo", () => {
+    expect(elegirFaseOperativa({
+      etapaGuardada: "seguimiento_venta",
+      texto: "Tengo una oferta más económica",
+      tieneCotizacion: true,
+    })).toBe("seguimiento_venta");
+  });
+
+  it("una marca y modelo reales sí se reconocen como vehículo", () => {
+    expect(elegirFaseOperativa({
+      etapaGuardada: "seguimiento_venta",
+      texto: "Tengo una Toyota Hilux 2022",
+      tieneCotizacion: false,
+    })).toBe("nuevo");
   });
 
   it("una respuesta ambigua conserva la etapa cercana", () => {
@@ -84,38 +155,5 @@ describe("fase operativa · el cliente puede moverse sin romper el Kanban", () =
       texto,
       tieneCotizacion: false,
     })).toBe(esperada);
-  });
-});
-
-describe("herramientas del turno · carga solo lo necesario", () => {
-  const publicadas = [
-    "buscar_llanta", "buscar_catalogo", "buscar_por_aro_y_tipo", "tipos_de_llanta",
-    "guia_medida", "opciones_sin_medida", "fitment_vehiculo", "preparar_opciones",
-    "enviar_comparacion", "generar_cotizacion", "reenviar_cotizacion",
-    "local_mas_cercano", "notificar_vendedor",
-  ];
-
-  it("otra medida en seguimiento recibe búsqueda y opciones, no herramientas de visita", () => {
-    const tools = herramientasParaElTurno("medida_confirmada", publicadas);
-    expect(tools).toEqual(expect.arrayContaining([
-      "buscar_llanta", "buscar_por_aro_y_tipo", "preparar_opciones",
-    ]));
-    expect(tools).not.toContain("local_mas_cercano");
-    expect(tools).not.toContain("notificar_vendedor");
-    expect(tools.length).toBeLessThan(publicadas.length);
-  });
-
-  it("visita recibe cierre y no arrastra el catálogo entero", () => {
-    const tools = herramientasParaElTurno("seguimiento_venta", publicadas);
-    expect(tools).toEqual(expect.arrayContaining([
-      "local_mas_cercano", "notificar_vendedor", "reenviar_cotizacion",
-    ]));
-    expect(tools).not.toContain("buscar_catalogo");
-    expect(tools).not.toContain("fitment_vehiculo");
-  });
-
-  it("nunca habilita una herramienta que el administrador no publicó", () => {
-    expect(herramientasParaElTurno("cotizacion_enviada", ["generar_cotizacion"]))
-      .toEqual(["generar_cotizacion"]);
   });
 });

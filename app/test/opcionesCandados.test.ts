@@ -59,6 +59,15 @@ describe("candado 1 — anti-reenvío de la pieza de opciones", () => {
     )).toBe(true);
   });
 
+  it("bloquea los mismos códigos aunque una pieza vieja no tenga medida", () => {
+    expect(debeBloquearReenvio(
+      { sizeLabel: null, minutos: 10, codes: ["A", "B", "C"] },
+      "205/55R16",
+      "precio",
+      ["C", "A", "B"],
+    )).toBe(true);
+  });
+
   it("permite pasadas las 2 horas", () => {
     expect(debeBloquearReenvio(previo("265/75R16", 121), "265/75R16", "precio")).toBe(false);
   });

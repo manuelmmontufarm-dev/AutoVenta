@@ -72,7 +72,7 @@ import { rangoDeAros } from "../domain/aros.js";
 import { nearestStore, resolveSector } from "../domain/locations.js";
 import { extractFlotationSizes, formatFlotationSize, formatTireSize, parseTireSize, type TireSize } from "../domain/tireSize.js";
 import {
-  canGenerateFinalQuote, cantidadParaPrepararOpciones, describeUso, escalonesDeOpciones,
+  autorizaCotizacionEnEsteTurno, canGenerateFinalQuote, cantidadParaPrepararOpciones, describeUso, escalonesDeOpciones,
   pidePrecio, pideRecomendacion, respuestaDePreferencia,
 } from "../domain/salesIntent.js";
 import { getTirePatternProfile } from "../domain/tireKnowledge.js";
@@ -110,6 +110,7 @@ import { franjaHoraria } from "../domain/diasEnEspanol.js";
 import { fechaDelDia } from "../domain/customerCommitment.js";
 import type { StoreHours } from "../services/settings.js";
 import { resendLatestQuoteImage } from "../services/directSalesRoutes.js";
+import { restriccionesDeLlanta, violaRestriccionesDeLlanta } from "../domain/restriccionesLlanta.js";
 
 export interface AgentContext {
   conversation: Conversation;
@@ -118,6 +119,12 @@ export interface AgentContext {
   currentUserText: string;
   /** Fase elegida para este turno; puede retroceder sin mover el Kanban guardado. */
   faseOperativa?: Conversation["stage"];
+  /** El mensaje actual aceptó una oferta comercial hecha en el turno anterior. */
+  aceptoOfertaComercial?: boolean;
+  /** El mensaje actual aceptó específicamente una oferta de cotización. */
+  aceptoCotizacion?: boolean;
+  /** La intención activa es un servicio fuera del catálogo de llantas. */
+  consultaFueraDeCatalogo?: boolean;
   comparedThisTurn?: boolean;
   resumedFromHuman?: boolean;
   discountNotice?: { source: "pending" | "offer"; id: number };
@@ -1148,17 +1155,32 @@ export function buildTools(ctx: AgentContext) {
           and direction='inbound'
         order by created_at desc limit 12
       `;
+      const restricciones = restriccionesDeLlanta([
+        ...mensajesDeLaVisitaActual(inbound).map((m) => m.content).reverse(),
+        ctx.currentUserText,
+      ]);
+      const encontradosPermitidos = encontrados.filter(
+        (product) => !violaRestriccionesDeLlanta(product.sizeLabel, restricciones),
+      );
+      if (!encontradosPermitidos.length) {
+        return JSON.stringify({
+          error: "opciones_rechazadas_por_el_cliente",
+          anchos_rechazados: restricciones.anchosRechazados,
+          regla:
+            "PROHIBIDO reenviar, recomendar o cotizar esas opciones: el cliente ya rechazó ese ancho por calce, roce o consumo. Busca una medida que respete su restricción o deriva al asesor si el calce requiere confirmación.",
+        });
+      }
       const tipoPedido = tipoSolicitadoEn([
         ctx.currentUserText,
         ...inbound.map((m) => m.content),
       ]);
       let avisoTipo: string | null = null;
-      let candidatos = encontrados;
+      let candidatos = encontradosPermitidos;
       if (tipoPedido) {
-        const coinciden = encontrados.filter(
+        const coinciden = encontradosPermitidos.filter(
           (p) => tipoDeProducto(p.code, p.design) === tipoPedido,
         );
-        const resto = encontrados.filter((p) => !coinciden.includes(p));
+        const resto = encontradosPermitidos.filter((p) => !coinciden.includes(p));
         if (coinciden.length >= 2) candidatos = coinciden;
         else if (coinciden.length === 1) candidatos = [...coinciden, ...resto];
         else {
@@ -1698,6 +1720,23 @@ export function buildTools(ctx: AgentContext) {
           avisoJuego = "Se la hice por juego de 4 llantas; si necesita otra cantidad, me avisa y se la ajusto al toque.";
         }
       }
+      const [facts] = await sql<{ selected_quantity: number | null; tire_size: string | null }[]>`
+        select selected_quantity, tire_size from conversations where id=${ctx.conversation.id}
+      `;
+      const quantityWasConfirmed = facts?.selected_quantity != null || items[0]?.cantidad === 4;
+      const autorizada = !ctx.consultaFueraDeCatalogo && autorizaCotizacionEnEsteTurno(
+        ctx.currentUserText,
+        Boolean(ctx.aceptoCotizacion),
+      );
+      if (
+        !autorizada
+        || !canGenerateFinalQuote(ctx.currentUserText, ctx.comparedThisTurn, quantityWasConfirmed)
+      ) {
+        return JSON.stringify({
+          error:
+            "Cotización bloqueada: este turno no autorizó cotizar llantas, está comparando o acaba de decir que no. No uses una cantidad guardada ni el juego completo de cuatro llantas como permiso de compra. Responde la consulta actual sin empujar una cotización.",
+        });
+      }
       // El local ya elegido manda en TODAS las preguntas de visita de esta
       // herramienta: re-preguntarlo es el hallazgo «re-pregunta» que el Ángel
       // Guardián corrigió 4 veces el 15-ago (convs 6275 y 6375) — y el texto
@@ -1731,27 +1770,20 @@ export function buildTools(ctx: AgentContext) {
           });
         }
       }
-      // Regla del 6-ago: si no es un NO, es un sí. Antes este candado exigía
-      // que el ÚLTIMO mensaje trajera una cantidad con verbo y que coincidiera
-      // exacta con la guardada; un «Si», un «4» suelto o un «juego» rebotaban
-      // y el modelo volvía a pedir confirmación (Rodrigo: 4 confirmaciones por
-      // 5 llantas ya dichas). Ahora cualquier cantidad ya conocida en la
-      // conversación vale, y solo frenan la comparación en curso o una
-      // negativa explícita del cliente.
-      const [facts] = await sql<{ selected_quantity: number | null; tire_size: string | null }[]>`
-        select selected_quantity, tire_size from conversations where id=${ctx.conversation.id}
-      `;
-      // El juego de 4 es el default comercial: si el cliente pidió precio sin
-      // decir cantidad, cotizar 4 y aclarar que se ajusta vende más que
-      // preguntar. Cualquier otra cantidad sí necesita venir del cliente.
-      const quantityWasConfirmed = facts?.selected_quantity != null || items[0]?.cantidad === 4;
-      if (!canGenerateFinalQuote(ctx.currentUserText, ctx.comparedThisTurn, quantityWasConfirmed)) {
-        return JSON.stringify({
-          error:
-            "Cotización bloqueada: el cliente está comparando o acaba de decir que no. Si está comparando, termina la comparación; si dijo que no, respeta el no y pregunta qué le falta para decidirse. No envíes PDF de cotización.",
-        });
-      }
       await ensureCatalogReady();
+      const inboundParaRestricciones = await sql<{ content: string; created_at: Date }[]>`
+        select content, created_at from messages
+        where conversation_id=${ctx.conversation.id}
+          and cycle=${ctx.conversation.current_cycle}
+          and direction='inbound'
+        order by created_at asc, id asc
+      `;
+      const restricciones = restriccionesDeLlanta([
+        ...mensajesDeLaVisitaActual([...inboundParaRestricciones].reverse())
+          .map((m) => m.content)
+          .reverse(),
+        ctx.currentUserText,
+      ]);
       // CANDADO DE MEDIDA — cotizar es firmar un precio, y el precio depende
       // de la medida. El 13-ago (chat 5499) el cliente pidió 265/70R16, el
       // modelo derivó a una búsqueda por aro y firmó una 225/70R16: $82,84
@@ -1803,6 +1835,13 @@ export function buildTools(ctx: AgentContext) {
         if (product.availability === "out") {
           return JSON.stringify({
             error: `${product.brand} ${product.design} está agotada. Busca otra opción disponible antes de cotizar.`,
+          });
+        }
+        if (violaRestriccionesDeLlanta(product.sizeLabel, restricciones)) {
+          return JSON.stringify({
+            error: `MEDIDA RECHAZADA: el cliente ya descartó el ancho ${product.sizeLabel ?? "de esa llanta"} por calce, roce o consumo. No se cotiza.`,
+            siguiente_paso:
+              "Busca una opción que respete la restricción que dio el cliente o deriva al asesor si hace falta confirmar equivalencias. No vuelvas a ofrecer la medida rechazada.",
           });
         }
         if (!medidaEstaPedida(product.sizeLabel, permitidas)) {

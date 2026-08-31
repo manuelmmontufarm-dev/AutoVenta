@@ -269,6 +269,23 @@ export async function getHistory(
   return rows;
 }
 
+/**
+ * El mensaje anterior del cliente dentro del ciclo vigente. El mensaje actual
+ * ya fue persistido cuando empieza el pipeline, por eso OFFSET 1 devuelve el
+ * anterior y permite reconocer un "Ok" que solo acusa una despedida.
+ */
+export async function previousInboundText(conversationId: number): Promise<string | null> {
+  const [row] = await sql<{ content: string | null }[]>`
+    select content from messages
+    where conversation_id=${conversationId}
+      and cycle=(select current_cycle from conversations where id=${conversationId})
+      and direction='inbound'
+    order by created_at desc, id desc
+    offset 1 limit 1
+  `;
+  return row?.content ?? null;
+}
+
 export async function setStage(
   conversationId: number,
   stage: Stage,

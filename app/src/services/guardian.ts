@@ -44,12 +44,13 @@ import { logAiRun } from "./conversations.js";
 import { crearAlertaRepeticion } from "./conversationQuality.js";
 import { createBotAlert } from "./followUps.js";
 import { getActiveBenefits } from "./benefits.js";
-import { getGuardianConfig } from "./settings.js";
+import { formatStoreHours, getGuardianConfig, getStoreHours } from "./settings.js";
 import { faltanteDeCotizacion } from "./stockCorto.js";
 import { alcanzaParaVender } from "../domain/stockCorto.js";
 import { despedidaQueCorresponde } from "../domain/cierrePerdido.js";
 import { ofertaDeCotizarAceptada } from "../domain/ofertaAceptada.js";
 import { JUEGO_COMPLETO, opcionesQueAlcanzan } from "../domain/opcionesCandados.js";
+import { chatReasoningEffort } from "../agent/aiRequestPolicy.js";
 
 const openai = new OpenAI({ apiKey: config.openai.apiKey });
 
@@ -58,10 +59,11 @@ const openai = new OpenAI({ apiKey: config.openai.apiKey });
  *
  * Medición del 26-ago-2026: p90=10,6 s, p95=11,1 s y máxima=12,3 s. El corte
  * viejo de 12 s estaba dentro de la cola real y dejó 31/496 mensajes sin
- * revisar. Quince segundos cubren esa máxima con 2,7 s de margen sin permitir
- * que un revisor caído frene indefinidamente la venta.
+ * revisar. En el lote real del 30-ago, 4/110 revisiones todavía agotaron 15 s;
+ * veinte cubre esa cola sin permitir que un revisor caído frene
+ * indefinidamente la venta.
  */
-export const GUARDIAN_TIMEOUT_MS = 15_000;
+export const GUARDIAN_TIMEOUT_MS = 20_000;
 
 /** Mensajes de contexto que ve el revisor. Más historia ≈ más tokens del cliente. */
 const MENSAJES_DE_CONTEXTO = 16;
@@ -401,7 +403,10 @@ export async function armarContexto(
   // el 13-ago) es lo que el bot ofrece hablando — la rotación cada 10.000 km
   // solo vive ahí. Con una sola de las dos, el guardián corregiría promesas
   // ciertas, que es peor que no revisarlas: enseña al bot a callar algo real.
-  const beneficios = await getActiveBenefits().catch(() => []);
+  const [beneficios, storeHours] = await Promise.all([
+    getActiveBenefits().catch(() => []),
+    getStoreHours(),
+  ]);
   const servicios = (() => {
     try {
       return respaldoCompleto().serviciosIncluidos;
@@ -441,6 +446,7 @@ export async function armarContexto(
         : "(ninguna)"
     }`,
     `Compromiso de visita en palabras del cliente: ${hechos?.customer_commitment ?? "(ninguno)"}`,
+    `Horarios confirmados: ${formatStoreHours(storeHours)}`,
     // SIN ESTA LÍNEA EL REVISOR ES CIEGO AL STOCK.
     //
     // El 26-ago (conv 11061) el guardián corrigió un borrador y en su
@@ -527,7 +533,17 @@ export async function armarContexto(
 /** Interpreta la salida del modelo con la red de seguridad puesta. */
 export function aplicarVeredicto(borrador: string, crudo: unknown): RevisionGuardian {
   const parsed = VeredictoSchema.safeParse(crudo);
-  if (!parsed.success) return { texto: borrador, veredicto: "sin_revision", hallazgos: [] };
+  if (!parsed.success) {
+    return {
+      texto: borrador,
+      veredicto: "sin_revision",
+      hallazgos: [{
+        categoria: "otro",
+        severidad: "alta",
+        detalle: "Mensaje enviado sin revisión: el guardián devolvió una salida estructurada inválida.",
+      }],
+    };
+  }
   const v = parsed.data;
   const corregido = v.texto_corregido.trim();
   // Una «corrección» vacía o idéntica no es corrección: se aprueba con hallazgos.
@@ -563,6 +579,7 @@ export async function revisarConGuardian(
     const contexto = await armarContexto(
       conversation.id, conversation.current_cycle, borrador, huella, opciones,
     );
+    const reasoningEffort = chatReasoningEffort(config.openai.guardianModel, false);
     const completar = dependencias.completar ?? (() => openai.chat.completions.create({
         model: config.openai.guardianModel,
         messages: [
@@ -570,7 +587,10 @@ export async function revisarConGuardian(
           { role: "user", content: contexto },
         ],
         response_format: ESQUEMA_SALIDA as never,
-        max_completion_tokens: 1200,
+        // GPT-5 comparte este presupuesto entre razonamiento y JSON visible.
+        // Con 1200, 16/110 turnos del lote real no produjeron un objeto válido.
+        max_completion_tokens: 2000,
+        ...(reasoningEffort ? { reasoning_effort: reasoningEffort } : {}),
         stream: false,
       }));
     const respuesta = await conTiempoMaximo(completar(), timeoutMs);

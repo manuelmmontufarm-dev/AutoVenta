@@ -29,10 +29,15 @@ import type { Stage } from "./conversations.js";
 import { applyOutboundGuard } from "./outboundGuard.js";
 import { revisarConGuardian, type HuellaHerramienta } from "./guardian.js";
 import { asegurarAvisoDeStock } from "./stockCorto.js";
-import { insistirConLoQueFalta } from "./insistirCierre.js";
+import { insistirConLoQueFalta, sinPreguntaPendienteConsecutiva } from "./insistirCierre.js";
 import { createBotAlert } from "./followUps.js";
 import { MAX_BLOCKS } from "./quoteMessages.js";
 import { sinPreguntasProhibidas } from "../domain/preguntasProhibidas.js";
+import {
+  afirmaQueAceptanAceiteDelCliente,
+  preguntaSiPuedeLlevarSuAceite,
+  RESPUESTA_SEGURA_SOBRE_ACEITE,
+} from "../domain/alcanceComercial.js";
 import { sinJsonCrudo } from "../domain/jsonCrudo.js";
 import { conLocalesReales } from "./localesReales.js";
 import { sinNumerosDeCotizacion } from "../domain/numerosDeCotizacion.js";
@@ -82,6 +87,10 @@ export interface ContextoDeSalida {
   textoAntesDelGuardian?: string;
   /** Un cierre definitivo: ningún paso posterior puede anexar nada. */
   salidaTerminal?: boolean;
+  /** Este turno termina sin empuje comercial, pero no cierra ni borra el ciclo. */
+  suprimirEmpujeComercial?: boolean;
+  /** La intención vigente es un servicio que no está en el catálogo de llantas. */
+  consultaFueraDeCatalogo?: boolean;
 }
 
 export interface PasoDeSalida {
@@ -98,6 +107,18 @@ export interface PasoDeSalida {
  * puertas a la vez — que es exactamente el punto.
  */
 export const PASOS: readonly PasoDeSalida[] = [
+  {
+    // Un dato pendiente se vuelve spam si se pregunta en dos turnos seguidos.
+    // Se limpia ANTES del guardián para que el revisor vea el borrador real que
+    // queremos producir, no tenga que corregirlo y no dependa de IA para esto.
+    nombre: "sin_pregunta_pendiente_consecutiva",
+    corre: ["respuesta", "retomada"],
+    async aplicar(texto, ctx) {
+      return sinPreguntaPendienteConsecutiva(
+        ctx.conversation.id, ctx.conversation.current_cycle, texto,
+      );
+    },
+  },
   {
     // Guardián de salida (5-ago): determinístico, corre sobre TODO lo que el
     // bot va a decir. Bloquea pedir fotos, la disculpa repetida, el mensaje
@@ -176,6 +197,22 @@ export const PASOS: readonly PasoDeSalida[] = [
         ctx.conversation.id, ctx.conversation.current_cycle, texto,
       );
       return conStock.texto;
+    },
+  },
+  {
+    // La política de servicios ajenos al catálogo no puede depender de que el
+    // revisor la vea. Si el cliente pregunta por usar su propio aceite, una
+    // afirmación del modelo compromete al taller; se reemplaza por lo único
+    // respaldado: confirmación directa de un asesor.
+    nombre: "alcance_fuera_de_catalogo",
+    corre: ["respuesta", "retomada"],
+    async aplicar(texto, ctx) {
+      if (
+        !ctx.consultaFueraDeCatalogo
+        || !preguntaSiPuedeLlevarSuAceite(ctx.textoDelCliente ?? "")
+        || !afirmaQueAceptanAceiteDelCliente(texto)
+      ) return texto;
+      return RESPUESTA_SEGURA_SOBRE_ACEITE;
     },
   },
   {
@@ -265,6 +302,7 @@ export const PASOS: readonly PasoDeSalida[] = [
     nombre: "insistir_con_lo_que_falta",
     corre: ["respuesta", "retomada"],
     async aplicar(texto, ctx) {
+      if (ctx.suprimirEmpujeComercial) return texto;
       const insistido = await insistirConLoQueFalta(
         ctx.conversation.id, ctx.conversation.current_cycle, texto, ctx.textoDelCliente,
         ctx.faseOperativa,

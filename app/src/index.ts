@@ -40,6 +40,7 @@ import {
   setStage,
   setExplicitStore,
   registrarCompromisoDeVisita,
+  previousInboundText,
   updateConversationFacts,
   reiniciarConversacion,
   yaProcesado,
@@ -55,6 +56,7 @@ import {
 } from "./domain/salesIntent.js";
 import { getHubMetrics } from "./services/hubData.js";
 import {
+  cancelPendingFollowUps,
   createBotAlert,
   handleInboundFollowUpState,
   scheduleConversationFollowUps,
@@ -79,6 +81,7 @@ import { despedidaQueCorresponde } from "./domain/cierrePerdido.js";
 import { botonesParaBloque, recortarTitulo, textoDeBoton, type BloqueConBotones } from "./domain/botones.js";
 import { esComandoDeReinicio, MENSAJE_DE_REINICIO } from "./domain/reinicio.js";
 import { algunLocalAbre, getStoreHours } from "./services/settings.js";
+import { respuestaDeCierreDelTurno, tipoDeCierreDelTurno } from "./domain/cierreTurno.js";
 
 /** Pausa entre bloques: suficiente para que se lean como mensajes seguidos y no como spam. */
 const PAUSA_ENTRE_BLOQUES_MS = 900;
@@ -265,12 +268,18 @@ const pipeline = new InboundPipeline(async ({ from, name, text, waMessageIds, re
   // Una salida terminal se reconoce aquí: las herramientas sirven para vender,
   // y cuando el cliente ya compró en otro lado no deben ejecutarse siquiera.
   const cierreAntesDeHerramientas = despedidaQueCorresponde(textoConLinks);
+  const cierreDelTurno = cierreAntesDeHerramientas
+    ? null
+    : tipoDeCierreDelTurno(
+        textoConLinks,
+        await previousInboundText(conversation.id),
+      );
   // Un cambio de cantidad NO se contesta con palabras: sale la pieza nueva.
   // El 27-ago (conv 3) el modelo prometió el ajuste dos turnos seguidos sin
   // llamar una sola herramienta, y el cliente nunca supo cuánto costaban 3
   // llantas. Va ANTES de la ruta de visita porque «deme solo 3» no es una
   // respuesta sobre el local ni sobre el día. Ver services/recotizar.ts.
-  const directReply = cierreAntesDeHerramientas
+  const directReply = cierreAntesDeHerramientas || cierreDelTurno
     ? null
     : isFirstGenericMessage
       ? firstContactReply()
@@ -285,7 +294,10 @@ const pipeline = new InboundPipeline(async ({ from, name, text, waMessageIds, re
   if (isFirstGenericMessage) {
     await logFunnelEvent(conversation.id, "respuesta_directa", { route: "first_contact" });
   }
-  const reply = cierreAntesDeHerramientas ?? directReply ?? await runAgent(agentContext, textoConLinks);
+  const reply = cierreAntesDeHerramientas
+    ?? (cierreDelTurno ? respuestaDeCierreDelTurno(cierreDelTurno) : null)
+    ?? directReply
+    ?? await runAgent(agentContext, textoConLinks);
   await flagRepetitiveConversation(conversation.id, reply);
 
   // Toda la cadena de candados vive en services/prepararSalida.ts, para que
@@ -295,6 +307,8 @@ const pipeline = new InboundPipeline(async ({ from, name, text, waMessageIds, re
   const salida = await prepararSalida(reply, {
     conversation, tipo: "respuesta", huella: agentContext.toolTrace ?? [],
     textoDelCliente: textoConLinks, faseOperativa: agentContext.faseOperativa,
+    suprimirEmpujeComercial: Boolean(cierreAntesDeHerramientas || cierreDelTurno),
+    consultaFueraDeCatalogo: agentContext.consultaFueraDeCatalogo,
   });
   if (!salida.texto) return;
 
@@ -353,6 +367,24 @@ const pipeline = new InboundPipeline(async ({ from, name, text, waMessageIds, re
   }
   emitLiveEvent("message", conversation.id);
   emitLiveEvent("sync", conversation.id);
+
+  // «No gracias» cierra el empuje de ESTA visita sin falsear una venta
+  // perdida ni borrar el historial. También cancela lo ya agendado: respetar
+  // el no solo durante treinta segundos y escribirle mañana sería insistir.
+  if (cierreDelTurno) {
+    // Una compra explícitamente terminada sí es evidencia de funnel y debe
+    // quedar en ventas. El clasificador resuelve este caso de forma
+    // determinística (sin llamada de IA) antes de cortar los seguimientos.
+    if (cierreDelTurno === "compra_terminada") {
+      await classifyStage(conversation, text, reply);
+    }
+    await cancelPendingFollowUps(
+      conversation.id,
+      `cierre_comercial_del_turno:${cierreDelTurno}`,
+      conversation.current_cycle,
+    ).catch((error) => console.error("⚠️ No se pudo cancelar seguimiento tras cierre:", error));
+    return;
+  }
 
   // Post-turno: primero consolida la etapa y luego agenda contra ese estado.
   // Los seguimientos (Oportunidades) solo se agendan si la Fase 4 está activa.

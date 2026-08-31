@@ -210,7 +210,7 @@ describe.sequential("Canary del turno exacto (OPENAI_EXACT_TOOL_MODEL)", () => {
       expect(respuesta).toContain("visita");
     }, 30_000);
 
-    it("(g) seguimiento vuelve a opciones si el cliente pide otra medida", async () => {
+    it("(g) conv 8318: seguimiento vuelve a opciones con la medida 235/75/15", async () => {
       llamadas = [];
       guion = [
         { texto: "Texto del enrutador que obliga a escalar." },
@@ -219,14 +219,13 @@ describe.sequential("Canary del turno exacto (OPENAI_EXACT_TOOL_MODEL)", () => {
       const id = await conversacionNueva(sql, "593990000407", "seguimiento_venta");
       const respuesta = await agent.runAgent(
         contexto(id, "593990000407", "seguimiento_venta"),
-        "Ahora quiero otra medida 215/60R16, ¿qué opciones tienen?",
+        "Busco una 235/75/15",
       );
 
       expect(llamadas[0].tools).toEqual(expect.arrayContaining([
-        "buscar_llanta", "buscar_por_aro_y_tipo", "preparar_opciones",
+        "buscar_llanta", "buscar_por_aro_y_tipo", "preparar_opciones", "notificar_vendedor",
       ]));
       expect(llamadas[0].tools).not.toContain("local_mas_cercano");
-      expect(llamadas[0].tools).not.toContain("notificar_vendedor");
       expect(respuesta).toContain("nueva medida");
       const [run] = await sql<{ tools: string[] }[]>`
         select tools from ai_runs where conversation_id=${id} order by id desc limit 1

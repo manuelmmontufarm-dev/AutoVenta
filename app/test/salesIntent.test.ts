@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  autorizaCotizacionEnEsteTurno,
   canGenerateFinalQuote,
   extractExplicitQuantity,
   extractVehicleYear,
@@ -10,6 +11,29 @@ import {
   isExplicitPurchaseConfirmation,
   isNegativeResponse,
 } from "../src/domain/salesIntent.js";
+
+describe("permiso del turno para cotizar", () => {
+  it("un acuse genérico no convierte contexto viejo en una compra", () => {
+    expect(autorizaCotizacionEnEsteTurno("Ok")).toBe(false);
+    expect(autorizaCotizacionEnEsteTurno("Perfecto")).toBe(false);
+  });
+
+  it("sí permite intención comercial inequívoca", () => {
+    expect(autorizaCotizacionEnEsteTurno("¿Cuánto sale el juego?")).toBe(true);
+    expect(autorizaCotizacionEnEsteTurno("deme 4 Kenda")).toBe(true);
+    expect(autorizaCotizacionEnEsteTurno("dale con esa")).toBe(true);
+    expect(autorizaCotizacionEnEsteTurno("esa misma")).toBe(true);
+  });
+
+  it("una aceptación solo vale cuando la oferta previa era de cotización", () => {
+    expect(autorizaCotizacionEnEsteTurno("Ok", true)).toBe(true);
+  });
+
+  it("no interpreta cualquier sustantivo con artículo como elección", () => {
+    expect(autorizaCotizacionEnEsteTurno("la dirección")).toBe(false);
+    expect(autorizaCotizacionEnEsteTurno("la garantía")).toBe(false);
+  });
+});
 
 describe("guardas del flujo comercial", () => {
   it("bloquea cotización durante una comparación", () => {

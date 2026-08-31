@@ -141,12 +141,21 @@ async function conversacion(phone: string, opciones: {
   return fila;
 }
 
-async function cotizar(fila: Fila, phone: string, code: string, texto = "Ok") {
+async function cotizar(
+  fila: Fila,
+  phone: string,
+  code: string,
+  texto = "Ok",
+  permiso: { aceptoCotizacion?: boolean; consultaFueraDeCatalogo?: boolean } = {
+    aceptoCotizacion: true,
+  },
+) {
   const tools = buildTools({
     conversation: { id: fila.id, phone, name: "Andres Tamayo", stage: "opciones_enviadas", bot_paused_until: null, status: "open", current_cycle: fila.current_cycle },
     customerPhone: phone,
     customerName: "Andres Tamayo",
     currentUserText: texto,
+    ...permiso,
   } as never);
   const tool = tools.find((t) => t.function.name === "generar_cotizacion");
   if (!tool) throw new Error("generar_cotizacion no está registrada");
@@ -171,6 +180,21 @@ beforeEach(() => {
 });
 
 describe.sequential("generar_cotizacion · la medida de la compra anterior no firma la de hoy", () => {
+  it("un «Ok» sobre cambio de aceite no firma una cotización de llantas", async () => {
+    const phone = "593980004730";
+    const fila = await conversacion(phone, {
+      tireSize: "265/65R17", conEquivalentesDeclaradas: false, conVisitaNueva: false,
+    });
+
+    const salida = await cotizar(fila, phone, VIEJA, "Ok", {
+      aceptoCotizacion: false,
+      consultaFueraDeCatalogo: true,
+    });
+
+    expect(salida.error).toMatch(/no autorizó cotizar llantas/i);
+    expect(await cotizacionesDe(fila.id)).toHaveLength(0);
+  });
+
   it("EL BUG: con el código de hace 13 días, se cotiza la que el cliente SÍ vio", async () => {
     const phone = "593980004732";
     const fila = await conversacion(phone, { tireSize: "235/70R15", conEquivalentesDeclaradas: true });

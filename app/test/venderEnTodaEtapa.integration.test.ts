@@ -7,6 +7,7 @@ const admin = postgres("postgresql://manue@localhost/postgres", { prepare: false
 let appSql: typeof import("../src/db/client.js").sql;
 let migracion: typeof import("../src/db/migrations/014_vender_en_toda_etapa.js");
 let migracionCumplir: typeof import("../src/db/migrations/016_cumplir_solicitud_y_cierre.js");
+let migracionAsesor: typeof import("../src/db/migrations/020_asesor_en_toda_etapa.js");
 
 /** Lo que la etapa tenía ANTES del arreglo — el estado real de staging y Depot. */
 const ANTES_SEGUIMIENTO = ["fitment_vehiculo", "local_mas_cercano", "notificar_vendedor"];
@@ -50,6 +51,7 @@ describe.sequential("El bot puede vender en las etapas de cierre (ticket 2150)",
     await settings.ensureDefaultStagePrompts();
     migracion = await import("../src/db/migrations/014_vender_en_toda_etapa.js");
     migracionCumplir = await import("../src/db/migrations/016_cumplir_solicitud_y_cierre.js");
+    migracionAsesor = await import("../src/db/migrations/020_asesor_en_toda_etapa.js");
   });
 
   afterAll(async () => {
@@ -66,6 +68,24 @@ describe.sequential("El bot puede vender en las etapas de cierre (ticket 2150)",
     expect(tools).toContain("opciones_sin_medida");
     // Y no perdió lo suyo.
     for (const previa of ANTES_SEGUIMIENTO) expect(tools).toContain(previa);
+  });
+
+  it("toda etapa abierta puede avisar al asesor", async () => {
+    for (const stage of ["nuevo", "medida_confirmada", "seleccionando", "cotizacion_enviada", "seguimiento_venta"]) {
+      expect(await toolsDe(stage)).toContain("notificar_vendedor");
+    }
+    expect(await toolsDe("ganado")).not.toContain("notificar_vendedor");
+    expect(await toolsDe("perdido")).not.toContain("notificar_vendedor");
+  });
+
+  it("agrega el aviso a una base existente sin pisar sus herramientas", async () => {
+    await appSql`
+      update stage_prompt_versions
+      set allowed_tools=${appSql.json(["buscar_llanta"] as never)}
+      where stage='medida_confirmada' and status='published'
+    `;
+    await migracionAsesor.runAsesorEnTodaEtapaMigration(appSql);
+    expect(await toolsDe("medida_confirmada")).toEqual(["buscar_llanta", "notificar_vendedor"]);
   });
 
   it("con la cotización enviada también puede volver a mostrar opciones", async () => {

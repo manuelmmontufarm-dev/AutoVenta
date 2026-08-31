@@ -12,7 +12,11 @@
  * Dos turnos, la misma oferta, cero cotizaciones.
  */
 import { describe, expect, it } from "vitest";
-import { ofertaDeCotizarAceptada, ordenDeCotizarYa } from "../src/domain/ofertaAceptada.js";
+import {
+  ofertaDeCotizacionAceptada,
+  ofertaDeCotizarAceptada,
+  ordenDeCotizarYa,
+} from "../src/domain/ofertaAceptada.js";
 
 const OFERTA_REAL =
   "La más económica en 245/70R16 es *KENDA KR628* a *$144.44 c/u con IVA*.\n" +
@@ -81,10 +85,17 @@ describe("el «gracias» que era un sí", () => {
     expect(ofertaDeCotizarAceptada(oferta, "dale")).toBe(true);
     // Y un no sigue siendo un no.
     expect(ofertaDeCotizarAceptada(oferta, "no gracias")).toBe(false);
+    expect(ofertaDeCotizacionAceptada(oferta, "Ok gracias")).toBe(false);
   });
 
   it("ofrecer una comparación también cuenta", () => {
     const oferta = "Si desea le preparo una comparación de las dos para que elija tranquilo.";
     expect(ofertaDeCotizarAceptada(oferta, "listo")).toBe(true);
+    expect(ofertaDeCotizacionAceptada(oferta, "listo")).toBe(false);
+  });
+
+  it("solo una oferta de cotización autoriza firmarla con un acuse", () => {
+    expect(ofertaDeCotizacionAceptada(OFERTA_REAL, "Ok")).toBe(true);
+    expect(ofertaDeCotizacionAceptada("Aquí le mando su cotización 👍", "Ok")).toBe(false);
   });
 });
