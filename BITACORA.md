@@ -1,3 +1,38 @@
+## 31-ago-2026 · La misma pregunta dos veces en el mismo turno
+
+**Qué:** Paso nuevo `sin_pregunta_repetida_en_el_turno`, entre el que separa la
+pregunta en su propio mensaje y el del calco: si el turno cierra preguntando dos
+veces lo mismo con otras palabras, se queda la ÚLTIMA. Solo descarta bloques
+que son SOLO una pregunta — uno que además lleve precio o número de cotización
+no se calla nunca, porque perder un dato es peor que repetir una pregunta.
+
+La ÚLTIMA y no la primera, que era la primera versión de este paso: el turno
+tiene que TERMINAR preguntando (Manuel, 27-ago) y los botones se pintan sobre el
+último bloque (`botonesDelUltimoBloque`). Quedándose con la primera, un turno
+«pregunta · datos · pregunta» cerraba con los datos y SIN botones — se cambiaba
+una pregunta repetida por una venta más lenta. Lo señaló la sesión que trabaja
+en `storeSelection`; verificado con el caso armado: salen dos bloques, el último
+es la pregunta, y los botones «Cumbayá | Quito Sur» caen donde deben.
+
+**Por qué:** Simulador, 20:38, repitiendo la ráfaga de la conv 3: el turno
+terminó con «¿A cuál local le queda mejor?» y, en el mensaje siguiente,
+«¿Depot Tire Cumbayá o Depot Tire Quito Sur?». Los tres candados que ya existían
+no lo podían ver, cada uno por una razón distinta: `sin_calco_reciente` compara
+contra mensajes YA ENVIADOS y exige texto idéntico; el detector de idea repetida
+de `applyOutboundGuard` pide 8 palabras y una pregunta corta nunca las tiene
+—además corre antes del Ángel Guardián—; y `insistirConLoQueFalta` sí mira si el
+turno ya pregunta, pero él no las escribió: las dos las escribió el modelo, y
+separarlas en dos mensajes es justo lo que las vuelve evidentes. El hueco era el
+turno por dentro.
+
+Cómo apareció, porque importa: probando la combinación de la presentación como
+mensaje propio (f15da61) con el candado del calco. El resultado en el simulador
+salió BIEN de casualidad —el modelo escribió una sola pregunta esa vez— y fue el
+log el que delató que ningún candado había disparado. Verificado después
+forzando el texto exacto por `prepararSalida` contra la base del simulador.
+
+**Horas:** ~0.75
+
 ## 31-ago-2026 · Saludos en general, y la presentación abre SIEMPRE la conversación
 
 **Qué:** Dos cosas. (1) `isGenericFirstContact` era una lista cerrada de frases
@@ -184,6 +219,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-08-31 | _(este mismo)_ | La misma pregunta dos veces en el mismo turno | 0.75 |
 | 2026-08-31 | _(este mismo)_ | Los tres errores del chat de Manuel: calco tras el guardián, medida rechazada y «no puedo esos días» | 2.5 |
 | 2026-08-29 | _(este mismo)_ | El embudo del Pipeline cabe entero en el teléfono, sin arrastrar | 0.75 |
 | 2026-08-29 | _(este mismo)_ | El hub en el teléfono: el chat se comporta como WhatsApp y la baraja como una app de tarjetas | 2.5 |

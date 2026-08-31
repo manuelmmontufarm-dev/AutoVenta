@@ -175,6 +175,10 @@ describe("el orden de los candados en el turno", () => {
       // locales enviado 7 segundos antes, y el chequeo de duplicados de
       // `applyOutboundGuard` ya había corrido. Corre después del split para
       // comparar bloque a bloque contra los mensajes ya enviados.
+      // La misma pregunta dos veces en un turno: va DESPUÉS del split (antes,
+      // las dos preguntas viven en un solo bloque y no se pueden comparar) y
+      // antes del calco, que mira mensajes ya enviados (sim 31-ago 20:38).
+      "sin_pregunta_repetida_en_el_turno",
       "sin_calco_reciente",
     ]);
   });
@@ -234,7 +238,7 @@ describe("el orden de los candados en el turno", () => {
     // ella solo corre `sin_calco_reciente`, que QUITA bloques repetidos y jamás
     // agrega ni reescribe nada.
     const despues = nombres.slice(nombres.indexOf("pregunta_en_su_propio_mensaje") + 1);
-    expect(despues).toEqual(["sin_calco_reciente"]);
+    expect(despues).toEqual(["sin_pregunta_repetida_en_el_turno", "sin_calco_reciente"]);
   });
 
   it("el turno normal corre la cadena entera", () => {

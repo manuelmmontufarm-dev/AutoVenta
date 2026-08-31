@@ -52,6 +52,7 @@ import { business } from "../config.js";
 import { productosDelCatalogoMencionados } from "./catalog.js";
 import { frenarHechosNuevosDelGuardian } from "../domain/guardianNoVendeSolo.js";
 import { sinBloquesCalcados } from "../domain/calcoReciente.js";
+import { sinPreguntaRepetidaEnElTurno } from "../domain/preguntaRepetidaEnElTurno.js";
 
 /**
  * De qué puerta viene el texto.
@@ -492,6 +493,31 @@ export const PASOS: readonly PasoDeSalida[] = [
     // veces seguidas. La ventana es corta (10 minutos) a propósito: repetir un
     // dato pedido de nuevo media hora después es servicio; repetirlo a los
     // segundos es un bot con eco. Ver domain/calcoReciente.ts.
+    nombre: "sin_pregunta_repetida_en_el_turno",
+    corre: ["respuesta", "retomada"],
+    async aplicar(texto, ctx) {
+      const limpio = sinPreguntaRepetidaEnElTurno(texto);
+      if (!limpio.quitadas.length) return texto;
+      console.warn(
+        `✂️ Pregunta repetida en el turno de la conv ${ctx.conversation.id}: ${limpio.quitadas.join(" | ").slice(0, 200)}`,
+      );
+      await createBotAlert({
+        conversationId: ctx.conversation.id,
+        cycle: ctx.conversation.current_cycle,
+        type: "pregunta_repetida_en_turno",
+        priority: "medium",
+        summary: "El bot iba a preguntar lo mismo dos veces en el mismo turno (recortado)",
+        exactReason:
+          `El turno preguntaba dos veces lo mismo con otras palabras. Se quitó: «${limpio.quitadas.join(" | ").slice(0, 300)}»`,
+        suggestedAction:
+          "El cliente recibió una sola pregunta. Si se repite seguido, el modelo está cerrando dos veces el mismo turno.",
+        dedupeKey: `pregunta_repetida_turno:${ctx.conversation.id}:${ctx.conversation.current_cycle}`,
+      }).catch(() => undefined);
+      return limpio.texto;
+    },
+  },
+  {
+    // EL CALCO DE HACE UN MOMENTO, LO ÚLTIMO DE TODO. Ver domain/calcoReciente.ts.
     nombre: "sin_calco_reciente",
     corre: ["respuesta", "retomada"],
     async aplicar(texto, ctx) {
