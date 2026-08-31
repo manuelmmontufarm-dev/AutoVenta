@@ -1,3 +1,21 @@
+## 31-ago-2026 · Campaña de calidad: 51/51 certificado + endurecimiento del corpus T115
+
+**Qué:** El set de 10 conversaciones históricas (51 comprobaciones) pasa completo
+en corrida real con gpt-5.5, guardián al 100%. Se sellaron ~20 familias de
+defectos con reglas deterministas: oferta de cotizar que no caduca ni revive tras
+objeción, dedupe de preguntas también después del guardián, promesa de aviso que
+se ejecuta de verdad, obligaciones con vuelta forzada (cotización pedida se
+genera, humano pedido se notifica), marca preguntada se consulta en catálogo,
+anti-bucle de ideas, acuse neutro en vez de silencio, replay de llamadas
+idénticas, cierres con «ya no necesito», industrial fuera de catálogo. Además:
+arnés ejecutable del corpus T115 (105 escenarios + flota paralela + modo stub) y
+suite en 1411 tests.
+
+**Por qué:** Cada regla nace de una falla medida en el simulador (30/31-ago),
+no de una hipótesis; el detalle vive en los mensajes de commit de la rama.
+
+**Horas:** ~9 (sesión nocturna automatizada, supervisada por Manuel).
+
 # Bitácora AutoVenta
 
 > **Qué es esto:** el registro cronológico de TODO lo que se hace en el proyecto.
