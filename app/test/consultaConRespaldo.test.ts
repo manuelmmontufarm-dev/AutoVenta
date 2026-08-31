@@ -18,8 +18,10 @@ process.env.DATABASE_URL ||= "postgresql://manue@localhost/postgres";
 
 import {
   marcaPreguntada,
+  ofrecioAsesor,
   ordenDeConsultarRespaldo,
   ordenDeNombrarLaMarca,
+  ordenDeNotificarLoPrometido,
   preguntaTecnicaDeRespaldo,
 } from "../src/domain/consultaConRespaldo.js";
 
@@ -93,5 +95,30 @@ describe("orden de la cadena de salida", () => {
     expect(dedupeTardio).toBeGreaterThan(freno);
     // Y antes de que insistir decida agregar la pregunta que falta.
     expect(dedupeTardio).toBeLessThan(nombres.indexOf("insistir_con_lo_que_falta"));
+  });
+});
+
+
+describe("ofrecioAsesor (T115 conv 8288, corrida 4)", () => {
+  it.each([
+    "Le puedo dejar como siguiente paso que un asesor le confirme cuándo vuelve a ingresar esa medida",
+    "¿Desea que le pase con un asesor para que le confirme ingreso de 165/80R13?",
+    "Ya le aviso a un asesor para que le ayude",
+    "Dejé el caso con el asesor del local",
+  ])("«%s» es ofrecer/prometer asesor", (t) => {
+    expect(ofrecioAsesor(t)).toBe(true);
+  });
+
+  it.each([
+    "Nuestros asesores están de 08:30 a 17:30",
+    "Opciones enviadas: KENDA KR33 · WINRUN R380",
+  ])("«%s» no lo es", (t) => {
+    expect(ofrecioAsesor(t)).toBe(false);
+  });
+
+  it("la orden exige ejecutar o soltar la zanahoria", () => {
+    const orden = ordenDeNotificarLoPrometido();
+    expect(orden).toContain("notificar_vendedor");
+    expect(orden).toMatch(/PROHIBIDO/);
   });
 });

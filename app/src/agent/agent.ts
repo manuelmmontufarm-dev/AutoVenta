@@ -14,7 +14,8 @@ import {
   recordatorioDeOfertaPendiente,
 } from "../domain/ofertaAceptada.js";
 import {
-  marcaPreguntada, ordenDeConsultarRespaldo, ordenDeNombrarLaMarca, preguntaTecnicaDeRespaldo,
+  marcaPreguntada, ofrecioAsesor, ordenDeConsultarRespaldo, ordenDeNombrarLaMarca,
+  ordenDeNotificarLoPrometido, preguntaTecnicaDeRespaldo,
 } from "../domain/consultaConRespaldo.js";
 import { esAcuseSimple } from "../domain/ofertaAceptada.js";
 import { respaldoCompleto } from "../domain/respaldoMarcas.js";
@@ -284,10 +285,24 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
   // borrador NO debe volver a empujar — el guardián lo corregía, pero un
   // borrador que necesita rescate ya es la falla. Determinístico.
   const textoUltimoDelBot = typeof ultimoDelBot?.content === "string" ? ultimoDelBot.content : "";
+  // Y su prima (T115 conv 12682 turno 6, corrida 4): visita YA registrada con
+  // local elegido y el cliente solo acusa — el borrador tampoco debe reabrir
+  // gestión comercial; el guardián lo rescataba, pero el borrador es la falla.
+  const visitaCerrada = Boolean(salesFacts.visitDate && salesFacts.nearestStore);
   const descansoDelAcuse =
     !aceptoLaOferta && !ctx.aceptoCotizacion
     && esAcuseSimple(userText)
-    && (preguntaElLocal(textoUltimoDelBot) || preguntaElDia(textoUltimoDelBot));
+    && (preguntaElLocal(textoUltimoDelBot) || preguntaElDia(textoUltimoDelBot) || visitaCerrada);
+  // LA ZANAHORIA DEL ASESOR SE EJECUTA O SE SUELTA (T115 conv 8288, corrida 4):
+  // si algún turno ya ofreció asesor y el aviso nunca salió, el modelo recibe
+  // la obligación por delante. La negativa del cliente la apaga.
+  const ofrecioAsesorSinAvisar =
+    history.some((m) => m.role === "assistant" && typeof m.content === "string" && ofrecioAsesor(m.content))
+    && !(await sql<{ existe: number }[]>`
+      select 1 as existe from advisor_notifications
+      where conversation_id=${ctx.conversation.id} and cycle=${ctx.conversation.current_cycle}
+      limit 1
+    `).length;
   // LA CONSULTA TÉCNICA SE EJECUTA, NO SE SUGIERE (T115 conv 11274 turno 8,
   // 30-ago): pedírselo al modelo no alcanzó — llamó dos veces al catálogo y
   // dijo «no tengo el dato». respaldo_marcas es determinística y barata: se
@@ -311,13 +326,17 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
             + JSON.stringify(respaldoCompleto()),
         }]
       : []),
+    ...(ofrecioAsesorSinAvisar
+      ? [{ role: "system" as const, content: ordenDeNotificarLoPrometido() }]
+      : []),
     ...(descansoDelAcuse
       ? [{
           role: "system" as const,
           content:
-            "ACUSE TRAS TU PROPIA PREGUNTA (fuente determinística): en tu último mensaje ya pediste "
-            + "el local o el día y el cliente respondió solo un acuse. PROHIBIDO repetir esa pregunta y "
-            + "PROHIBIDO empujar visita, ubicación, cierre o cotización en este turno: agradece en una "
+            "ACUSE SIN NADA PENDIENTE (fuente determinística): el cliente respondió solo un acuse "
+            + "cuando tú ya pediste el local o el día, o su visita ya está registrada con local elegido. "
+            + "PROHIBIDO repetir preguntas ya hechas y PROHIBIDO abrir gestión comercial nueva (visita, "
+            + "ubicación, cierre, cotización, beneficios) en este turno: agradece o confirma en una "
             + "línea, quédate disponible y nada más.",
         }]
       : []),

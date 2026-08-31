@@ -76,3 +76,25 @@ export function ordenDeConsultarRespaldo(): string {
     "la llanta al momento de la revisión."
   );
 }
+
+/**
+ * ¿Este texto del bot ofrece o promete un asesor? Alineado con la falla real:
+ * T115 conv 8288 (ancla H02), corrida 4 del 30-ago — el bot ofreció el asesor
+ * en DIEZ turnos («¿desea que le pase con un asesor para que le confirme
+ * ingreso?») y jamás ejecutó notificar_vendedor. La zanahoria eterna es la
+ * falla original de producción que esta ancla existe para impedir.
+ */
+export function ofrecioAsesor(textoDelBot: string): boolean {
+  const n = normalizar(textoDelBot);
+  return /(?:asesor|vendedor)[^.?!\n]{0,60}(?:revis|confirm|ayud|contact|respond|valid|ingres)|le\s+(?:paso|pase|dejo)\s+con\s+(?:un|el)\s+asesor|le\s+aviso\s+(?:a|con)\s+(?:un|el)\s+asesor|dej[eo]\s+el\s+caso\s+con/.test(n);
+}
+
+export function ordenDeNotificarLoPrometido(): string {
+  return (
+    "OFRECISTE ASESOR Y NO LO NOTIFICASTE (fuente determinística): en esta conversación ya "
+    + "ofreciste o prometiste que un asesor ayudaría, y notificar_vendedor no se ha ejecutado. Si el "
+    + "caso del cliente sigue sin resolverse y no ha rechazado la ayuda, llama notificar_vendedor "
+    + "AHORA, una sola vez, con un resumen accionable (medida pedida, qué falta, teléfono) — y dile "
+    + "al cliente que ya quedó avisado. PROHIBIDO volver a ofrecer al asesor sin ejecutarlo."
+  );
+}
