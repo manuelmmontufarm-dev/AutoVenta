@@ -1,8 +1,10 @@
-import { motion } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import type { Mensaje, Rol, Ticket } from "../data/types";
 import { horaCorta, money } from "../lib/format";
-import { IconAlert, IconBot, IconCheck, IconClock, IconDoc, IconDoubleCheck, IconPin, IconSend, IconUser } from "./icons";
+import { IconAlert, IconBot, IconCheck, IconChevronR, IconClock, IconDoc, IconDoubleCheck, IconPin, IconSend, IconUser, IconX } from "./icons";
+import { Modal } from "./ui";
 
 /* ── Burbuja ── */
 
@@ -21,10 +23,8 @@ export function ChatBubble({ msg, onVerPdf }: { msg: Mensaje; onVerPdf?: () => v
             <IconUser size={10} /> Vendedor
           </p>
         )}
-        {msg.tipo === "pdf" ? (
-          <PdfCard titulo={msg.contenido} onVer={onVerPdf} />
-        ) : msg.tipo === "imagen" ? (
-          <PiezaEnviada msg={msg} />
+        {msg.tipo === "pdf" || msg.tipo === "imagen" ? (
+          <PiezaAdjunta msg={msg} onFallback={onVerPdf} />
         ) : msg.tipo === "ubicacion" ? (
           <MapCard etiqueta={msg.contenido} />
         ) : (
@@ -89,24 +89,39 @@ function motivoDeFallo(msg: Mensaje): string | null {
 /* ── Pieza visual enviada (cotización, comparativa, opciones) ── */
 
 /**
- * Dibuja la pieza que se le mandó al cliente.
+ * Dibuja en el chat la pieza que se le mandó al cliente — cotización,
+ * comparativa u opciones — y deja revisarla sin salir de la conversación.
  *
  * El PNG no se guarda —se sube a Meta y se descarta—, así que el servidor la
  * vuelve a dibujar desde los códigos del mensaje. Eso significa que usa los
  * precios de HOY: sirve para comprobar que la pieza se ve bien, no como copia
  * exacta de lo que recibió el cliente.
  *
+ * Antes esto se veía de dos maneras y ninguna servía para revisar: la imagen
+ * salía en una miniatura de 260 px sin forma de ampliarla, y el documento era
+ * una tarjeta que abría la cotización *actual del ticket*, no la de ese
+ * mensaje. Para leer los precios había que abrir la imagen en otra pestaña y
+ * perder el hilo del chat. Ahora la pieza se ve dentro de la burbuja, se
+ * aplasta a una línea cuando estorba y se amplía encima del chat.
+ *
  * El estado del envío sale del mensaje, no de que la imagen cargue: una pieza
  * que falló se vuelve a dibujar igual, y confundir eso sería peor que no
- * mostrarla.
+ * mostrarla. Si el servidor no la puede dibujar (o el panel corre en demo, sin
+ * sesión), queda la tarjeta de documento de siempre.
  */
-function PiezaEnviada({ msg }: { msg: Mensaje }) {
+function PiezaAdjunta({ msg, onFallback }: { msg: Mensaje; onFallback?: () => void }) {
   const [falló, setFalló] = useState(false);
+  const [aplastada, setAplastada] = useState(false);
+  const [ampliada, setAmpliada] = useState(false);
   const fallida = msg.estado === "failed";
   const error = (msg.metadata as { renderError?: string } | undefined)?.renderError;
+  const src = `/api/hub/messages/${msg.id}/pieza.png`;
+  const titulo = tituloDePieza(msg);
+
+  if (falló) return <PdfCard titulo={msg.contenido} onVer={onFallback} />;
 
   return (
-    <div className="flex flex-col gap-1.5">
+    <div className="flex w-full max-w-[260px] flex-col gap-1.5">
       {fallida ? (
         <div
           className="rounded-xl px-3 py-2 text-[11px]"
@@ -117,23 +132,89 @@ function PiezaEnviada({ msg }: { msg: Mensaje }) {
         </div>
       ) : null}
 
-      {falló ? (
-        <p className="m-0 text-[11px] italic opacity-70">
-          No se pudo volver a dibujar la pieza (el producto pudo salir del catálogo).
-        </p>
-      ) : (
-        <img
-          src={`/api/hub/messages/${msg.id}/pieza.png`}
-          alt={msg.contenido}
-          loading="lazy"
-          onError={() => setFalló(true)}
-          className="block w-full max-w-[260px] rounded-xl"
-          style={{ background: "color-mix(in srgb, var(--color-paper) 4%, transparent)" }}
-        />
+      <button
+        onClick={() => setAplastada((v) => !v)}
+        aria-expanded={!aplastada}
+        className="flex w-full items-center gap-2 rounded-xl p-2 text-left transition-colors"
+        style={{ background: "rgba(0,0,0,.22)", border: "1px solid color-mix(in srgb, var(--color-paper) 10%, transparent)" }}
+      >
+        {/* El icono del doc es papel literal (un PDF es blanco en cualquier tema) */}
+        <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg" style={{ background: "#f5f4ee", color: "#262624" }}>
+          <IconDoc size={14} />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-[12px] font-semibold">{titulo}</span>
+          <span className="block text-[10px]" style={{ color: "var(--color-bubble-meta)" }}>
+            {aplastada ? "toca para verlo" : "toca para aplastarlo"}
+          </span>
+        </span>
+        <span
+          className="shrink-0 transition-transform"
+          style={{ transform: aplastada ? "rotate(0deg)" : "rotate(90deg)", color: "var(--color-bubble-meta)" }}
+        >
+          <IconChevronR size={14} />
+        </span>
+      </button>
+
+      {!aplastada && (
+        <button
+          onClick={() => setAmpliada(true)}
+          className="block w-full overflow-hidden rounded-xl transition-transform hover:-translate-y-px"
+          aria-label={`Ampliar ${titulo}`}
+        >
+          <img
+            src={src}
+            alt={titulo}
+            loading="lazy"
+            onError={() => setFalló(true)}
+            className="block w-full"
+            style={{ background: "color-mix(in srgb, var(--color-paper) 4%, transparent)" }}
+          />
+        </button>
       )}
+
       <p className="m-0 text-[11px] opacity-75">{msg.contenido}</p>
+
+      {/* Al body: la burbuja lleva un transform de framer-motion y un `fixed`
+          dentro de ella se posiciona contra la burbuja, no contra la pantalla —
+          el visor salía encajado detrás del chat. */}
+      {createPortal(
+        <AnimatePresence>
+        {ampliada && (
+          <Modal onClose={() => setAmpliada(false)} ancho={640}>
+            <div className="p-3">
+              <div className="mb-2 flex items-center justify-between gap-2 px-1">
+                <p className="text-[13px] font-bold">{titulo}</p>
+                <button onClick={() => setAmpliada(false)} className="text-muted hover:text-paper" aria-label="Cerrar">
+                  <IconX size={17} />
+                </button>
+              </div>
+              <img src={src} alt={titulo} className="block w-full rounded-2xl" style={{ background: "#f5f4ee" }} />
+              <p className="mt-2 px-1 text-[11px] text-muted">{msg.contenido}</p>
+            </div>
+          </Modal>
+        )}
+        </AnimatePresence>,
+        document.body,
+      )}
     </div>
   );
+}
+
+/**
+ * Cómo se llama la pieza en el chat.
+ *
+ * El texto del mensaje es un resumen para el registro («Opciones enviadas: …»)
+ * y puede medir tres líneas. En la cabecera va el nombre corto, que es lo que
+ * el asesor busca cuando repasa la conversación.
+ */
+function tituloDePieza(msg: Mensaje): string {
+  const meta = msg.metadata as { quoteNumber?: string | number; piece?: string } | undefined;
+  if (meta?.quoteNumber) return `Cotización #${meta.quoteNumber}`;
+  if (meta?.piece === "comparison") return "Comparativa de opciones";
+  if (meta?.piece === "options") return "Opciones enviadas";
+  if (meta?.piece === "quote") return "Cotización";
+  return msg.contenido;
 }
 
 /* ── Mensaje PDF como card de documento ── */

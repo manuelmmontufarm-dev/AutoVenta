@@ -27,11 +27,12 @@ export const CAMBIOS: Cambio[] = [
   {
     version: "v0.13.1",
     fecha: "31 de agosto de 2026",
-    titulo: "La ficha del chat muestra solo lo que importa",
+    titulo: "La ficha del chat muestra solo lo que importa y las piezas se leen ahí mismo",
     puntos: [
       "Se quitó el bloque \"Plan hasta cierre de ventana y escalamiento\" con los mensajes programados, la ventana de 24 h y el historial de intentos: ocupaba media pantalla y no se usaba al atender.",
       "Queda el resumen de la conversación —qué busca, qué comparó, qué eligió y qué se comprometió—, el descuento, quién atiende, las notas y el botón de cerrar.",
       "El seguimiento automático sigue funcionando igual por detrás; solo dejó de mostrarse.",
+      "Las cotizaciones, comparativas y opciones que se le mandaron al cliente ahora se ven dentro de la conversación: se aplastan a una línea cuando estorban y se abren en grande encima del chat, sin cambiar de pestaña.",
     ],
   },
   {
