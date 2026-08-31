@@ -51,6 +51,8 @@ export interface RecotizarContext {
   customerName?: string;
   /** Lo último que le dijimos: distingue el «2» del menú de dos llantas. */
   previousOutbound: string | null;
+  /** Y si hizo reply, el mensaje citado: ese sí lo dice sin adivinar. */
+  mensajeCitado?: string | null;
 }
 
 /**
@@ -63,7 +65,7 @@ export async function tryRecotizarPorCantidad(
 ): Promise<string | null> {
   if (!config.openai.directSalesRoutesEnabled) return null;
   // El «2» del menú de preferencia no es una cantidad.
-  if (esRespuestaDelMenuDePreferencia(text, ctx.previousOutbound)) return null;
+  if (esRespuestaDelMenuDePreferencia(text, ctx.previousOutbound, ctx.mensajeCitado)) return null;
 
   // Un número más grande que el juego máximo también recotiza, y DIRECTO: el
   // aviso de la cantidad va en la pieza, no en una pregunta previa (Manuel,

@@ -233,9 +233,19 @@ export const MARCA_DEL_MENU = "¿qué prioriza usted?";
 export function esRespuestaDelMenuDePreferencia(
   text: string,
   ultimoMensajeNuestro: string | null | undefined,
+  mensajeCitado?: string | null,
 ): boolean {
-  if (!ultimoMensajeNuestro?.toLowerCase().includes(MARCA_DEL_MENU)) return false;
-  return /^(?:la\s+|el\s+|opci[oó]n\s+)?([123])\)?\.?$/i.test(text.trim());
+  if (!/^(?:la\s+|el\s+|opci[oó]n\s+)?([123])\)?\.?$/i.test(text.trim())) return false;
+  // EL REPLY MANDA. Cuando WhatsApp dice a qué mensaje contestó el cliente, ese
+  // mensaje es la pregunta —no hay que adivinarla— y decide en las DOS
+  // direcciones: citar el menú confirma el escalón, y citar cualquier otra cosa
+  // (la vitrina, la cotización) descarta que ese «2» sea el escalón, cosa que la
+  // heurística de abajo no sabía hacer. Producción, 31-ago 14:04: el cliente
+  // contestó «2» CON REPLY al menú y el bot lo leyó como «quiero 2 llantas».
+  if (mensajeCitado != null) return mensajeCitado.toLowerCase().includes(MARCA_DEL_MENU);
+  // Sin reply (el cliente escribió el número suelto) queda la heurística de
+  // siempre: ¿lo último que dijimos traía el menú?
+  return Boolean(ultimoMensajeNuestro?.toLowerCase().includes(MARCA_DEL_MENU));
 }
 
 /**
@@ -256,8 +266,9 @@ export function esRespuestaDelMenuDePreferencia(
 export function cantidadPedidaPorElCliente(
   text: string,
   ultimoMensajeNuestro: string | null | undefined,
+  mensajeCitado?: string | null,
 ): number | null {
-  if (esRespuestaDelMenuDePreferencia(text, ultimoMensajeNuestro)) return null;
+  if (esRespuestaDelMenuDePreferencia(text, ultimoMensajeNuestro, mensajeCitado)) return null;
   return cantidadGrandePedida(text) ?? extractExplicitQuantity(text);
 }
 
@@ -278,11 +289,15 @@ export function cantidadParaPrepararOpciones(input: {
   guardada: number | null | undefined;
   textoActual: string;
   ultimoMensajeNuestro: string | null | undefined;
+  /** El saliente al que el cliente le hizo reply, si WhatsApp lo informó. */
+  mensajeCitado?: string | null;
 }): { cantidad: number; origen: OrigenDeCantidad; guardar: boolean } {
   if (Number.isInteger(input.declarada) && Number(input.declarada) >= 1) {
     return { cantidad: Number(input.declarada), origen: "herramienta", guardar: true };
   }
-  const respaldo = cantidadPedidaPorElCliente(input.textoActual, input.ultimoMensajeNuestro);
+  const respaldo = cantidadPedidaPorElCliente(
+    input.textoActual, input.ultimoMensajeNuestro, input.mensajeCitado,
+  );
   if (respaldo !== null) {
     return { cantidad: respaldo, origen: "respaldo_textual", guardar: true };
   }

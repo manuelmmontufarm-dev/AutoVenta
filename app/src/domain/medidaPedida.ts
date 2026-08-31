@@ -29,6 +29,19 @@ export function medidasEnTexto(texto: string): string[] {
 }
 
 /**
+ * El aro de una medida ya canónica (la de trabajo, guardada en `tire_size`).
+ *
+ * Responde una sola pregunta: ¿la medida que la conversación viene arrastrando
+ * es del aro que el cliente acaba de pedir? Métrica («235/75R15» → 15) y
+ * flotación («33X12.5R20» → 20) se leen igual. Null si el texto no trae una
+ * medida legible — sin aro no se decide nada, y en la duda no se borra nada.
+ */
+export function aroDeLaMedida(medida: string | null | undefined): number | null {
+  if (!medida) return null;
+  return extractTireSizes(medida)[0]?.rim ?? extractFlotationSizes(medida)[0]?.rim ?? null;
+}
+
+/**
  * Las medidas que el cliente nombró, más la que la conversación tiene
  * confirmada. Es el conjunto de lo que se le puede cotizar sin sorprenderlo.
  *

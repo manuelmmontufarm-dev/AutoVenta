@@ -1,3 +1,32 @@
+## 31-ago-2026 · El reply de WhatsApp decide el «2» + cambiar de aro suelta la medida vieja
+
+**Qué:** Dos arreglos encadenados. (1) El webhook ahora lee `message.context.id`
+—el reply de WhatsApp— y lo lleva por el pipeline hasta resolverlo al texto del
+mensaje citado (`outboundTextByWaMessageId`, solo salientes del ciclo vigente).
+`esRespuestaDelMenuDePreferencia` lo prefiere sobre la heurística de «los tres
+últimos salientes» y decide en las DOS direcciones: citar el menú confirma el
+escalón, citar la vitrina descarta que ese número lo sea. Cuando el reply
+confirma el escalón, el agente recibe `ordenDeResponderElEscalon` como orden
+dura —entrega esa opción, prohibido leerlo como cantidad y prohibido cambiar de
+llanta—. (2) Nace `olvidarMedidaDeTrabajo`: el aro del turno pasa de dos casos a
+tres —sin medida activa dispara vitrina, aro que coincide con la medida activa
+no dispara (se conserva el arreglo de `96c8b54`), y aro que NO coincide borra la
+medida vieja y el producto elegido antes de armar el prompt, para que ese mismo
+turno ya no la vea—. La cantidad se conserva: cuántas llantas quiere no depende
+de la medida.
+
+**Por qué:** Prueba en vivo del 31-ago 14:02–14:04. Manuel venía trabajando una
+33X12.5R20, pidió «rin 15» y recibió bien tres opciones de aro 15 con el menú de
+preferencia. Contestó «2» CON REPLY a ese menú y le salió una WILDPEAK M/T01
+33X12.5R20 rotulada «MEDIDA EXACTA». El reply se tiraba a la basura en el
+webhook, así que el «2» se leyó como «quiero 2 llantas»; y la medida de trabajo
+solo se borraba al cerrar el ciclo (`/restart` o chat frío a las 15 h), nunca al
+cambiar de llanta dentro del mismo ciclo — así que la 33X12.5R20 seguía entrando
+al prompt como «medida confirmada» y al filtro de medidas permitidas, que es lo
+que hizo legítima esa etiqueta.
+
+**Horas:** ~1.5
+
 ## 31-ago-2026 · El candado anti-repetición se comía el saludo tras un reinicio
 
 **Qué:** `sin_calco_reciente` miraba los salientes de los últimos 10 minutos sin

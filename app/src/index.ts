@@ -35,6 +35,7 @@ import {
   getOrCreateConversation,
   isBotPaused,
   lastOutboundText,
+  outboundTextByWaMessageId,
   logFunnelEvent,
   recordMessageStatus,
   setStage,
@@ -89,7 +90,7 @@ const PAUSA_ENTRE_BLOQUES_MS = 900;
 
 const esperar = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-const pipeline = new InboundPipeline(async ({ from, name, text, waMessageIds, receivedAt }) => {
+const pipeline = new InboundPipeline(async ({ from, name, text, waMessageIds, quotedWaMessageId, receivedAt }) => {
   // El mensaje ya quedó guardado en recibirMensaje(), antes de responderle 200
   // a Meta. Aquí solo se elabora la respuesta sobre el texto ya agrupado.
   const conversation = await getOrCreateConversation(from, name);
@@ -100,6 +101,10 @@ const pipeline = new InboundPipeline(async ({ from, name, text, waMessageIds, re
   const parsedFlotation = parsedSize ? null : extractFlotationSizes(text)[0];
   const parsedVehicleYear = extractVehicleYear(text);
   const previousOutbound = await lastOutboundText(conversation.id);
+  // El mensaje al que le hizo reply, ya resuelto a texto. Null cuando no citó
+  // nada, cuando citó un mensaje suyo o cuando lo citado es de otro ciclo:
+  // en los tres casos se sigue con la heurística de `previousOutbound`.
+  const mensajeCitado = await outboundTextByWaMessageId(conversation.id, quotedWaMessageId);
   // «Al sur me resulta más fácil» solo es elección de local si acabamos de
   // preguntar el local — la misma lógica contextual que el día de visita.
   const respondiendoAlLocal = preguntamosElLocal(previousOutbound);
@@ -256,7 +261,7 @@ const pipeline = new InboundPipeline(async ({ from, name, text, waMessageIds, re
   }
 
   const agentContext: AgentContext = { conversation, customerPhone: from, customerName: name,
-    currentUserText: textoConLinks };
+    currentUserText: textoConLinks, mensajeCitado };
   // El saludo genérico de los anuncios no necesita gastar un turno de IA. Esta
   // respuesta fija deja claro que la medida es la vía rápida, no la única: el
   // bot también puede arrancar por vehículo, aro o uso. Si el cliente ya dio
@@ -289,7 +294,7 @@ const pipeline = new InboundPipeline(async ({ from, name, text, waMessageIds, re
     : isFirstGenericMessage
       ? firstContactReply()
       : (await tryRecotizarPorCantidad(
-          { conversation, customerPhone: from, customerName: name, previousOutbound },
+          { conversation, customerPhone: from, customerName: name, previousOutbound, mensajeCitado },
           textoConLinks,
         ))
         ?? await tryDirectSalesRoute(
@@ -479,6 +484,12 @@ async function recibirMensaje(
   texto: string,
   waMessageId: string,
   receivedAt: Date,
+  /**
+   * Id del mensaje NUESTRO que el cliente citó con el reply de WhatsApp
+   * (`message.context.id`). Es la única señal que dice, sin adivinar, a qué
+   * pregunta está contestando — ver `outboundTextByWaMessageId`.
+   */
+  quotedWaMessageId: string | null = null,
 ): Promise<void> {
   // Si escribe un asesor, su ventana de 24 h se reabre. No lo desvía del
   // pipeline a propósito: un asesor probando el bot tiene que ver que contesta.
@@ -523,7 +534,7 @@ async function recibirMensaje(
     return;
   }
 
-  pipeline.push(from, waMessageId, texto, name, receivedAt);
+  pipeline.push(from, waMessageId, texto, name, receivedAt, quotedWaMessageId);
 }
 
 setWaHandlers({
@@ -533,6 +544,12 @@ setWaHandlers({
     void received().catch(() => {});
 
     const receivedAt = new Date(Number(message.timestamp) * 1000);
+    // EL REPLY DE WHATSAPP, que hasta hoy se tiraba a la basura. `context.id` es
+    // el id del mensaje citado; un «2» que cita el menú de preferencia es el
+    // escalón 2, y el mismo «2» citando la vitrina son dos llantas. Sin este
+    // dato el bot tenía que adivinarlo por el texto de los últimos salientes, y
+    // el 31-ago 14:04 adivinó mal.
+    const citado = message.context?.id ?? null;
 
     // Reentrega de Meta: se corta ANTES de gastar (16-ago). El deduplicado real
     // sigue estando en `appendMessage`, pero llega al final: para una foto o un
@@ -551,7 +568,7 @@ setWaHandlers({
         // necesita ver los mensajes en el orden en que llegaron. Los links que
         // traiga se abren después, dentro del pipeline, con el "escribiendo…" ya
         // encendido.
-        await recibirMensaje(from, name, message.text.body, message.id, receivedAt);
+        await recibirMensaje(from, name, message.text.body, message.id, receivedAt, citado);
         break;
       case "interactive": {
         // UN TOQUE ES UN MENSAJE DE TEXTO.
@@ -577,6 +594,7 @@ setWaHandlers({
           textoDeBoton(respuesta.id, respuesta.title, conv.current_cycle),
           message.id,
           receivedAt,
+          citado,
         );
         break;
       }
@@ -612,6 +630,7 @@ setWaHandlers({
           caption ? `${cuerpo}\n${caption}` : cuerpo,
           message.id,
           receivedAt,
+          citado,
         );
         break;
       }

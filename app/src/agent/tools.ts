@@ -118,6 +118,12 @@ export interface AgentContext {
   customerPhone: string;
   customerName?: string;
   currentUserText: string;
+  /**
+   * El mensaje NUESTRO que el cliente citó con el reply de WhatsApp, ya
+   * resuelto a texto. Null/ausente cuando no hubo reply: ahí se vuelve a la
+   * heurística de «lo último que dijimos». Ver `outboundTextByWaMessageId`.
+   */
+  mensajeCitado?: string | null;
   /** Fase elegida para este turno; puede retroceder sin mover el Kanban guardado. */
   faseOperativa?: Conversation["stage"];
   /** El mensaje actual aceptó una oferta comercial hecha en el turno anterior. */
@@ -1284,6 +1290,7 @@ export function buildTools(ctx: AgentContext) {
         guardada: cantidadDelCliente?.selected_quantity,
         textoActual: ctx.currentUserText,
         ultimoMensajeNuestro: await lastOutboundText(ctx.conversation.id),
+        mensajeCitado: ctx.mensajeCitado,
       });
       // Convs 11366, 11005 y 11357, 26–27-ago-2026: antes el webhook escribía
       // 5 por «Arrizo 5», 3 por «las 3 marcas» y 5 por «pasado las 5» ANTES de

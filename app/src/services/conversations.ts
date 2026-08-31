@@ -494,6 +494,56 @@ export async function lastOutboundText(conversationId: number): Promise<string |
   return filas.map((f) => f.content).reverse().join("\n");
 }
 
+/**
+ * EL MENSAJE AL QUE EL CLIENTE LE HIZO REPLY, tal cual salió.
+ *
+ * WhatsApp manda `context.id` con el id del mensaje citado; esto lo convierte en
+ * el texto que ese mensaje tenía. Es la única forma de saber SIN ADIVINAR qué
+ * pregunta está contestando un «2» pelado — `lastOutboundText` junta los tres
+ * últimos salientes y no distingue cuál de ellos preguntó qué.
+ *
+ * Solo salientes del ciclo vigente: citar algo de otro ciclo (o el mensaje de
+ * otro cliente reenviado) no es contestar una pregunta nuestra de ahora.
+ */
+export async function outboundTextByWaMessageId(
+  conversationId: number,
+  waMessageId: string | null | undefined,
+): Promise<string | null> {
+  if (!waMessageId) return null;
+  const [fila] = await sql<{ content: string }[]>`
+    select content from messages
+    where conversation_id = ${conversationId} and wa_message_id = ${waMessageId}
+      and direction = 'outbound' and type <> 'note'
+      and cycle = (select current_cycle from conversations where id = ${conversationId})
+    limit 1
+  `;
+  return fila?.content ?? null;
+}
+
+/**
+ * OLVIDAR LA MEDIDA DE TRABAJO dentro del mismo ciclo.
+ *
+ * `updateConversationFacts` solo sabe FIJAR la medida (`coalesce`), y la
+ * reapertura de ciclo solo la borra cuando la conversación se cierra —por
+ * `/restart` o por la caducidad del chat frío—. Faltaba el caso del medio: el
+ * cliente sigue en la misma conversación y CAMBIA de llanta. Producción, 31-ago
+ * 14:02: venía trabajando una 33X12.5R20, pidió «rin 15», y la medida vieja
+ * siguió entrando al prompt como «medida confirmada» y al filtro de medidas
+ * permitidas — hasta que una 33X12.5R20 salió rotulada «MEDIDA EXACTA» para
+ * alguien que había pedido aro 15.
+ *
+ * Se lleva por delante el producto elegido: era de la medida que se va, así que
+ * dejarlo es la misma trampa con otro nombre. La cantidad se conserva —cuántas
+ * llantas quiere no depende de la medida—.
+ */
+export async function olvidarMedidaDeTrabajo(conversationId: number): Promise<void> {
+  await sql`
+    update conversations
+    set tire_size = null, selected_product_code = null, updated_at = now()
+    where id = ${conversationId}
+  `;
+}
+
 export async function updateConversationFacts(
   conversationId: number,
   facts: {

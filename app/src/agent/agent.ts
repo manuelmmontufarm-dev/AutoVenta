@@ -16,8 +16,8 @@ import {
 import {
   aroPedido, marcaPreguntada, ofrecioAsesor, ordenDeConsultarRespaldo, ordenDeCotizarLoPedido,
   ordenDeMostrarPorAro, ordenDeNombrarLaMarca, ordenDeNotificarHumano, ordenDeNotificarLoPrometido,
-  ordenDeRecotizarCantidad, pidioCotizacionExplicita, pidioHumanoExplicito,
-  preguntaTecnicaDeRespaldo,
+  ordenDeRecotizarCantidad, ordenDeResponderElEscalon, pidioCotizacionExplicita,
+  pidioHumanoExplicito, preguntaTecnicaDeRespaldo,
 } from "../domain/consultaConRespaldo.js";
 import { esAcuseSimple } from "../domain/ofertaAceptada.js";
 import { respaldoCompleto } from "../domain/respaldoMarcas.js";
@@ -25,7 +25,7 @@ import { preguntaElLocal } from "../domain/storeSelection.js";
 import { preguntaElDia } from "../domain/customerCommitment.js";
 import { ordenDeNoReusarLaVitrina, vitrinaQueNoEsSuMedida } from "../domain/vitrinaVieja.js";
 import { extractTireSizes, formatTireSize } from "../domain/tireSize.js";
-import { getHistory, logAiRun } from "../services/conversations.js";
+import { getHistory, logAiRun, olvidarMedidaDeTrabajo } from "../services/conversations.js";
 import { getAiConfig, getPublishedStagePrompt, getStoreHours } from "../services/settings.js";
 import { getPhaseFlags, toolEnabled } from "../services/phases.js";
 import { buildSystemPrompt } from "./prompts.js";
@@ -38,9 +38,12 @@ import {
 } from "../services/discountOffers.js";
 import { sql } from "../db/client.js";
 import { activeBenefitFactsBlock } from "../services/benefits.js";
-import { medidaEstaPedida } from "../domain/medidaPedida.js";
+import { aroDeLaMedida, medidaEstaPedida } from "../domain/medidaPedida.js";
 import { medidasDelPedido } from "../services/medidasDelPedido.js";
-import { extractExplicitQuantity, extractVehicleYear, type Escalones } from "../domain/salesIntent.js";
+import {
+  esRespuestaDelMenuDePreferencia, ETIQUETA_DEL_ESCALON, extractExplicitQuantity,
+  extractVehicleYear, respuestaDePreferencia, type Escalones,
+} from "../domain/salesIntent.js";
 import { searchByText } from "../services/catalog.js";
 import { chatReasoningEffort } from "./aiRequestPolicy.js";
 import { elegirFaseOperativa } from "./faseOperativa.js";
@@ -356,11 +359,37 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
   // con la obligación sin cumplir, se le recuerda UNA vez y se le devuelve el
   // control (T115 nivel 2, 31-ago: el mini recomendaba y aún así preguntaba
   // «¿le cotizo?» a quien ya la había pedido con todas sus letras).
-  // Con una medida YA activa, «en rin 20» es una aclaración de la misma
-  // llanta, no un pedido de vitrina por aro (producción, 31-ago 17:32: el
-  // cliente dio 33X12.5R20, agregó «en rin 20» y la regla recién estrenada
-  // mandó equivalentes de calle absurdas para una llanta de lodo).
-  const aroDelTurno = salesFacts.tireSize ? null : aroPedido(userText);
+  // EL ARO PEDIDO CONTRA LA MEDIDA QUE VENÍA ACTIVA. Tres casos, no dos:
+  //
+  // 1. Sin medida activa: el aro manda la vitrina, como siempre.
+  // 2. Aro que COINCIDE con la medida activa: es una aclaración de la MISMA
+  //    llanta, no un pedido nuevo (producción, 31-ago 17:32: el cliente dio
+  //    33X12.5R20, agregó «en rin 20» y la regla recién estrenada le mandó
+  //    equivalentes de calle absurdas para una llanta de lodo). No dispara.
+  // 3. Aro que NO coincide (rin 15 con una 33X12.5R20 en la ficha): el cliente
+  //    CAMBIÓ de llanta. Hasta hoy no había este caso: la medida vieja no se
+  //    borraba nunca dentro del ciclo —solo al reiniciar el chat o al caducar—
+  //    y seguía entrando al prompt como «medida confirmada» y al filtro de
+  //    medidas permitidas, hasta que una 33X12.5R20 salió rotulada «MEDIDA
+  //    EXACTA» a quien había pedido aro 15 (producción, 31-ago 14:02).
+  //    Se olvida la medida vieja AQUÍ, antes de armar el prompt, para que este
+  //    mismo turno ya no la vea.
+  const aroCrudo = aroPedido(userText);
+  const aroDeLaFicha = aroDeLaMedida(salesFacts.tireSize);
+  const cambioDeAro = aroCrudo !== null && aroDeLaFicha !== null && aroCrudo !== aroDeLaFicha;
+  if (cambioDeAro) {
+    await olvidarMedidaDeTrabajo(ctx.conversation.id);
+    salesFacts.tireSize = null;
+    salesFacts.selectedProductCode = null;
+  }
+  const aroDelTurno = salesFacts.tireSize ? null : aroCrudo;
+  // EL ESCALÓN CONTESTADO CON REPLY. Solo cuando WhatsApp confirma que el
+  // cliente citó el menú: ahí «2» es el escalón y no dos llantas, sin que el
+  // modelo tenga que deducirlo de los últimos salientes.
+  const escalonPorReply =
+    esRespuestaDelMenuDePreferencia(userText, null, ctx.mensajeCitado ?? null)
+      ? respuestaDePreferencia(userText)
+      : null;
   let vueltaForzadaUsada = false;
   let recordatorioDeObligacion: string | null = null;
   const bloquesVolatiles: ChatCompletionMessageParam[] = [
@@ -375,6 +404,12 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
     ...((marcaDelTurno) ? [{ role: "system" as const, content: ordenDeNombrarLaMarca(marcaDelTurno) }] : []),
     ...(hechoDeMarca ? [{ role: "system" as const, content: hechoDeMarca }] : []),
     ...(aroDelTurno ? [{ role: "system" as const, content: ordenDeMostrarPorAro(aroDelTurno) }] : []),
+    ...(escalonPorReply
+      ? [{
+          role: "system" as const,
+          content: ordenDeResponderElEscalon(ETIQUETA_DEL_ESCALON[escalonPorReply]),
+        }]
+      : []),
     ...(esPreguntaTecnica
       ? [{
           role: "system" as const,

@@ -10,7 +10,7 @@
 import { config } from "../config.js";
 
 interface PendingBuffer {
-  parts: { text: string; waMessageId: string; receivedAt: Date }[];
+  parts: { text: string; waMessageId: string; quotedWaMessageId: string | null; receivedAt: Date }[];
   timer: NodeJS.Timeout;
   name?: string;
 }
@@ -20,6 +20,11 @@ export type InboundHandler = (job: {
   name?: string;
   text: string;
   waMessageIds: string[];
+  /**
+   * El mensaje NUESTRO al que el cliente le hizo reply (id de WhatsApp), si
+   * alguno de los mensajes de la ráfaga fue una respuesta citada. Ver `flush`.
+   */
+  quotedWaMessageId: string | null;
   receivedAt: Date;
 }) => Promise<void>;
 
@@ -68,19 +73,26 @@ export class InboundPipeline {
     else this.enVuelo -= 1;
   }
 
-  push(from: string, waMessageId: string, text: string, name?: string, receivedAt = new Date()): void {
+  push(
+    from: string,
+    waMessageId: string,
+    text: string,
+    name?: string,
+    receivedAt = new Date(),
+    quotedWaMessageId: string | null = null,
+  ): void {
     if (this.seen.has(waMessageId)) return; // webhook duplicado
     this.seen.set(waMessageId, Date.now());
 
     const existing = this.buffers.get(from);
     if (existing) {
       clearTimeout(existing.timer);
-      existing.parts.push({ text, waMessageId, receivedAt });
+      existing.parts.push({ text, waMessageId, quotedWaMessageId, receivedAt });
       existing.timer = this.startTimer(from);
       if (name) existing.name = name;
     } else {
       this.buffers.set(from, {
-        parts: [{ text, waMessageId, receivedAt }],
+        parts: [{ text, waMessageId, quotedWaMessageId, receivedAt }],
         timer: this.startTimer(from),
         name,
       });
@@ -110,6 +122,11 @@ export class InboundPipeline {
       name: buffer.name,
       text: buffer.parts.map((p) => p.text).join("\n"),
       waMessageIds: buffer.parts.map((p) => p.waMessageId),
+      // El reply MÁS RECIENTE de la ráfaga. Si el cliente cita el menú y después
+      // agrega un mensaje suelto, lo citado sigue valiendo; si cita dos cosas
+      // distintas, la última es la que está contestando ahora.
+      quotedWaMessageId:
+        [...buffer.parts].reverse().find((p) => p.quotedWaMessageId)?.quotedWaMessageId ?? null,
       receivedAt: new Date(Math.max(...buffer.parts.map((p) => p.receivedAt.getTime()))),
     };
 

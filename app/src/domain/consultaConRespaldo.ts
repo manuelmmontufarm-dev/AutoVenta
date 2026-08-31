@@ -161,6 +161,29 @@ export function aroPedido(texto: string): number | null {
   return m ? Number(m[1]) : null;
 }
 
+/**
+ * EL CLIENTE CONTESTÓ EL MENÚ CON UN REPLY (producción, 31-ago 14:04).
+ *
+ * Manuel respondió «2» citando el mensaje que preguntaba la preferencia, y el
+ * bot lo leyó como «quiero 2 llantas»: le mandó una llanta de otra medida en vez
+ * de la opción equilibrada. Hasta hoy esto era una pista blanda del prompt
+ * (`escalonesLine`) y el modelo podía irse por cualquier lado; el reply es un
+ * hecho comprobable, así que la instrucción es dura como las demás.
+ *
+ * `escalon` viene de `respuestaDePreferencia`, que ya sabe que 1=costo,
+ * 2=equilibrio, 3=premium — el mapeo no se reescribe acá para que no se
+ * separen nunca.
+ */
+export function ordenDeResponderElEscalon(escalon: string): string {
+  return (
+    `RESPUESTA AL MENÚ DE PREFERENCIA, CONFIRMADA POR EL REPLY (fuente determinística): el `
+    + `cliente citó con reply el mensaje donde le preguntaste qué prioriza, y eligió el escalón `
+    + `«${escalon}». Entrega ESA opción de la última pieza de opciones —nombre y precio con IVA— y `
+    + `ofrécele cotizarla. PROHIBIDO leer ese número como una CANTIDAD de llantas, PROHIBIDO buscar `
+    + `otra medida o cambiar de llanta, y PROHIBIDO volver a preguntarle qué prefiere: ya contestó.`
+  );
+}
+
 export function ordenDeMostrarPorAro(aro: number): string {
   return (
     `EL CLIENTE DIO EL ARO ${aro} (fuente determinística). Llama buscar_por_aro_y_tipo EN ESTE `
