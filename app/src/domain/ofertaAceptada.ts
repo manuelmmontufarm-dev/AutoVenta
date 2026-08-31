@@ -58,8 +58,12 @@ const OFRECIO_ALGO =
   );
 
 /** Oferta inequívoca de FIRMA, no de opciones ni de comparación. */
+// La raíz `cotiz` y no `cotiza`: el modelo también ofrece con «¿le cotice…?»
+// y «¿Le genero la cotización…?» — la corrida T115 del 30-ago (conv 9684,
+// corrida 3) mostró al modelo ACEPTANDO el «Ok» y al candado bloqueándolo
+// porque su propio verbo no estaba en esta lista.
 const OFRECIO_COTIZAR =
-  /(?:puedo|podemos|podria|podriamos)\s+(?:\w+\s+){0,3}cotiza\w*|¿\s*le\s+cotizo|\ble\s+cotizo\b[^.?!]{0,60}\?|(?:si\s+(?:desea|gusta|quiere)|si\s+le\s+parece|quiere\s+que|desea\s+que)[^.?!]{0,70}cotiza\w*|(?:le|se\s+la|te\s+la)\s+(?:dejo|paso|hago|armo|preparo)\s+(?:\w+\s+){0,4}cotiza\w*/;
+  /(?:puedo|podemos|podria|podriamos)\s+(?:\w+\s+){0,3}coti[zc]\w*|¿\s*le\s+(?:cotizo|genero)|\ble\s+cotizo\b[^.?!]{0,60}\?|\ble\s+genero\b[^.?!]{0,60}coti[zc]\w*|(?:si\s+(?:desea|gusta|quiere)|si\s+le\s+parece|quiere\s+que|desea\s+que|prefiere\s+que)[^.?!]{0,70}coti[zc]\w*|(?:le|se\s+la|te\s+la)\s+(?:dejo|paso|hago|armo|preparo|genero)\s+(?:\w+\s+){0,4}coti[zc]\w*/;
 
 /**
  * El cliente contestó con un acuse y nada más.

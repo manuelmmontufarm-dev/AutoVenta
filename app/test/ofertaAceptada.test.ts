@@ -189,3 +189,30 @@ describe("esAcuseSimple y las señales de comparación", () => {
     expect(ofertaDeCotizacionVigenteAceptada(conComparacion, "Gracias")).toBe(false);
   });
 });
+
+
+/**
+ * Corrida T115 conv 9684, corrida 3 (30-ago 23:21): el bot ofreció con
+ * «¿Le genero la cotización por las 4 Winrun…?» y «¿Prefiere que le cotice…?»,
+ * el cliente dijo «Ok», el modelo llamó generar_cotizacion DOS veces y el
+ * candado la bloqueó porque su lista de verbos no conocía «genero» ni «cotice».
+ */
+describe("los verbos reales con los que el bot ofrece cotizar", () => {
+  it("«¿Le genero la cotización…?» + «Ok» autoriza", () => {
+    expect(ofertaDeCotizacionAceptada(
+      "Sí, son precios finales con IVA. ¿Le genero la cotización por las 4 Winrun, Kenda KR203 o Kenda KR20?",
+      "Ok",
+    )).toBe(true);
+  });
+
+  it("«¿Prefiere que le cotice la Kenda premium…?» + «Ok» autoriza", () => {
+    expect(ofertaDeCotizacionAceptada(
+      "¿Prefiere que le cotice la Kenda premium o la Winrun más económica?",
+      "Ok",
+    )).toBe(true);
+  });
+
+  it("una pregunta sin oferta de cotizar sigue sin autorizar", () => {
+    expect(ofertaDeCotizacionAceptada("¿Le queda mejor Cumbayá o Quito Sur?", "Ok")).toBe(false);
+  });
+});
