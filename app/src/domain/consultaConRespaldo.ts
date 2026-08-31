@@ -64,7 +64,12 @@ export function ordenDeNombrarLaMarca(marca: string): string {
  */
 export function preguntaTecnicaDeRespaldo(texto: string): boolean {
   const n = normalizar(texto);
-  return /\bfabricacion\b|\bde\s+(?:que|donde)\s+(?:pais\s+)?(?:es|son|viene)\b|\borigen\b|\bfrenado\b|\bmojado\b|\bdurabilidad\b|\bcuanto\s+dura\w*\b|\bgarantia\b|\bseguro\b|\brendimiento\b|\bkilometr\w+\b|\bdesgaste\b|\bdot\b|\btraccion\b/.test(n);
+  // «procedencia» y «de qué país» entraron el 31-ago (producción, conv 671):
+  // Manuel preguntó «¿De qué procedencia son?» y el bot contestó «la procedencia
+  // exacta no la tengo confirmada aquí» — teniendo el dato en la ficha de la
+  // marca («Falken es una marca japonesa…»). El detector no conocía la palabra,
+  // así que nunca fue a buscarlo y el modelo respondió de memoria, hedgeando.
+  return /\bfabricacion\b|\bprocedenc\w*\b|\bde\s+(?:que|donde)\s+(?:pais\s+)?(?:es|son|vienen?|proceden)\b|\bde\s+que\s+pais\b|\bdonde\s+(?:se\s+)?(?:fabric|hacen|producen)\w*\b|\bmarca\s+de\s+donde\b|\borigen\b|\bfrenado\b|\bmojado\b|\bdurabilidad\b|\bcuanto\s+dura\w*\b|\bgarantia\b|\bseguro\b|\brendimiento\b|\bkilometr\w+\b|\bdesgaste\b|\bdot\b|\btraccion\b/.test(n);
 }
 
 export function ordenDeConsultarRespaldo(): string {
@@ -191,4 +196,31 @@ export function ordenDeMostrarPorAro(aro: number): string {
     + `o la medida exacta se afinan DESPUÉS de que vea algo. PROHIBIDO responder solo con la guía de `
     + `medida y PROHIBIDO pedir la medida completa sin haber mostrado opciones del aro.`
   );
+}
+
+/**
+ * La última marca que el cliente PIDIÓ en esta visita — la restricción viva
+ * que una cotización tiene que respetar, igual que la medida.
+ *
+ * Producción, 31-ago-2026 (conv 671): «necesito falken r17 265 70» → el bot
+ * cotizó KENDA $961.32; «y de las falken?» + «coticeme 4 at» → el candado
+ * anti-duplicado le repitió «su cotización sigue vigente por $961.32» — la de
+ * la OTRA marca. El cliente detectó el precio incoherente; uno real se lleva
+ * un número equivocado.
+ *
+ * La última mención manda (pedir Kenda después de Falken cambia el pedido), y
+ * «cualquier marca» / «la que sea» / «no importa la marca» lo libera.
+ */
+export function ultimaMarcaPedida(textosCronologicos: readonly string[]): string | null {
+  let marca: string | null = null;
+  for (const texto of textosCronologicos) {
+    const n = normalizar(texto ?? "");
+    if (/cualquier\s+marca|la\s+que\s+sea|no\s+importa\s+la\s+marca|la\s+marca\s+no\s+importa|me\s+da\s+igual\s+la\s+marca/.test(n)) {
+      marca = null;
+      continue;
+    }
+    const pedida = marcaPreguntada(texto ?? "");
+    if (pedida) marca = pedida;
+  }
+  return marca;
 }

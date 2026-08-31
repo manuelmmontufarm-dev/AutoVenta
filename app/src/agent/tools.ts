@@ -71,7 +71,7 @@ import { arosDeCandidatos, arosDeMedidas, invitacionPorAroAmbiguo } from "../dom
 import { aroVigenteDeLaVisita, rangoDeAros } from "../domain/aros.js";
 import { nearestStore, resolveSector } from "../domain/locations.js";
 import { extractFlotationSizes, formatFlotationSize, formatTireSize, parseTireSize, type TireSize } from "../domain/tireSize.js";
-import { marcaPreguntada } from "../domain/consultaConRespaldo.js";
+import { marcaPreguntada, ultimaMarcaPedida } from "../domain/consultaConRespaldo.js";
 import {
   autorizaCotizacionEnEsteTurno, canGenerateFinalQuote, cantidadParaPrepararOpciones, describeUso, escalonesDeOpciones,
   pidePrecio, pideRecomendacion, respuestaDePreferencia,
@@ -1852,6 +1852,28 @@ export function buildTools(ctx: AgentContext) {
         select nearest_store from conversations where id=${ctx.conversation.id}
       `;
       const localElegido = datosVisita?.nearest_store ?? null;
+      // Lo que el cliente dijo en ESTA visita, en orden — alimenta las
+      // restricciones y la marca pedida, y se lee ANTES del anti-duplicado
+      // porque ese candado también tiene que respetarlas.
+      const inboundParaContexto = await sql<{ content: string; created_at: Date }[]>`
+        select content, created_at from messages
+        where conversation_id=${ctx.conversation.id}
+          and cycle=${ctx.conversation.current_cycle}
+          and direction='inbound'
+        order by created_at asc, id asc
+      `;
+      const textosDeLaVisita = [
+        ...mensajesDeLaVisitaActual([...inboundParaContexto].reverse())
+          .map((m) => m.content)
+          .reverse(),
+        ctx.currentUserText,
+      ];
+      // LA MARCA PEDIDA ES UNA RESTRICCIÓN, IGUAL QUE LA MEDIDA. Producción,
+      // 31-ago (conv 671): pidió «falken r17 265 70», se cotizó KENDA, y al
+      // pedir «las falken» el anti-duplicado le repitió la cotización de la
+      // otra marca. Ver domain/consultaConRespaldo.ultimaMarcaPedida.
+      const marcaPedidaVigente = ultimaMarcaPedida(textosDeLaVisita);
+
       // Candado anti-duplicado (caso KLEVER, 5-ago: dos números de cotización
       // para la misma compra en 10 minutos). Determinístico: si YA existe una
       // cotización reciente por el MISMO producto y cantidad, no se genera
@@ -1864,10 +1886,14 @@ export function buildTools(ctx: AgentContext) {
         order by created_at desc limit 1
       `;
       if (reciente?.quote_number) {
-        const lineasPrevias = Array.isArray(reciente.items) ? reciente.items as Array<{ code?: string; quantity?: number }> : [];
+        const lineasPrevias = Array.isArray(reciente.items) ? reciente.items as Array<{ code?: string; quantity?: number; brand?: string }> : [];
         const mismoPedido = lineasPrevias.length === items.length
           && lineasPrevias.every((l, i) => l.code === items[i]?.code && l.quantity === items[i]?.cantidad);
-        if (mismoPedido) {
+        // «Sigue vigente» SOLO si la vigente es de la marca que el cliente
+        // está pidiendo: la de KENDA no responde un pedido de FALKEN.
+        const marcaCoincide = !marcaPedidaVigente
+          || lineasPrevias.some((l) => String(l.brand ?? "").toUpperCase().includes(marcaPedidaVigente));
+        if (mismoPedido && marcaCoincide) {
           return JSON.stringify({
           mensaje_para_enviar: `Su cotización sigue vigente por $${Number(reciente.total).toFixed(2)} 👍\n---\n${
             localElegido
@@ -1878,19 +1904,7 @@ export function buildTools(ctx: AgentContext) {
         }
       }
       await ensureCatalogReady();
-      const inboundParaRestricciones = await sql<{ content: string; created_at: Date }[]>`
-        select content, created_at from messages
-        where conversation_id=${ctx.conversation.id}
-          and cycle=${ctx.conversation.current_cycle}
-          and direction='inbound'
-        order by created_at asc, id asc
-      `;
-      const restricciones = restriccionesDeLlanta([
-        ...mensajesDeLaVisitaActual([...inboundParaRestricciones].reverse())
-          .map((m) => m.content)
-          .reverse(),
-        ctx.currentUserText,
-      ]);
+      const restricciones = restriccionesDeLlanta(textosDeLaVisita);
       // CANDADO DE MEDIDA — cotizar es firmar un precio, y el precio depende
       // de la medida. El 13-ago (chat 5499) el cliente pidió 265/70R16, el
       // modelo derivó a una búsqueda por aro y firmó una 225/70R16: $82,84
@@ -1950,6 +1964,58 @@ export function buildTools(ctx: AgentContext) {
             siguiente_paso:
               "Busca una opción que respete la restricción que dio el cliente o deriva al asesor si hace falta confirmar equivalencias. No vuelvas a ofrecer la medida rechazada.",
           });
+        }
+        // CANDADO DE MARCA — gemelo del de medida. Producción, 31-ago
+        // (conv 671): «necesito falken r17 265 70» terminó en cotización de
+        // KENDA. Cotizar es firmar; si el cliente pidió una marca, la firma es
+        // de ESA marca. Rescate antes de bloquear: si entre lo presentado hay
+        // una sola de la marca pedida (afinada por tipo si lo dijo), esa es la
+        // que él está señalando y esa se cotiza. Ninguna o varias → error con
+        // instrucciones, nunca una cotización de otra marca en silencio.
+        if (marcaPedidaVigente && !(product.brand ?? "").toUpperCase().includes(marcaPedidaVigente)) {
+          const presentadosDeLaMarca = (await productosPresentados(ctx.conversation.id)).filter(
+            (candidato) =>
+              (candidato.brand ?? "").toUpperCase().includes(marcaPedidaVigente)
+              && candidato.availability !== "out"
+              && !violaRestriccionesDeLlanta(candidato.sizeLabel, restricciones)
+              && (permitidas.length === 0 || medidaEstaPedida(candidato.sizeLabel, permitidas)),
+          );
+          const tipo = tipoSolicitadoEn([ctx.currentUserText]);
+          const afinados = tipo
+            ? presentadosDeLaMarca.filter((c) => `${c.design} ${c.sizeLabel}`.toUpperCase().includes(tipo.toUpperCase()))
+            : presentadosDeLaMarca;
+          const candidatosDeMarca = afinados.length ? afinados : presentadosDeLaMarca;
+          if (candidatosDeMarca.length === 1) {
+            const delaMarca = candidatosDeMarca[0];
+            console.log(
+              `🔁 Cotización redirigida a la marca pedida: ${item.code} (${product.brand}) → `
+              + `${delaMarca.code} (${delaMarca.brand}) en la conv ${ctx.conversation.id}`,
+            );
+            await createBotAlert({
+              conversationId: ctx.conversation.id,
+              cycle: ctx.conversation.current_cycle,
+              type: "marca_no_coincide",
+              priority: "medium",
+              summary: `Se corrigió la marca antes de cotizar: ${product.brand} → ${delaMarca.brand}`,
+              exactReason:
+                `El bot iba a cotizar ${product.brand} ${product.design} y el cliente pidió ${marcaPedidaVigente}. `
+                + `Se cotizó ${delaMarca.brand} ${delaMarca.design} ${delaMarca.sizeLabel} (código ${delaMarca.code}), presentada en pantalla.`,
+              suggestedAction: "Revisar que la cotización enviada sea la marca que el cliente está pidiendo.",
+              dedupeKey: `${ctx.conversation.id}:${ctx.conversation.current_cycle}:marca_redirigida:${delaMarca.code}`,
+            }).catch(() => undefined);
+            items = [{ ...items[0], code: delaMarca.code }];
+            product = delaMarca;
+          } else {
+            return JSON.stringify({
+              error: `MARCA PEDIDA: el cliente pidió ${marcaPedidaVigente} y esta llanta es ${product.brand ?? "de otra marca"}. No se cotiza otra marca en silencio.`,
+              ...(candidatosDeMarca.length > 1
+                ? { opciones: candidatosDeMarca.slice(0, 5).map(etiquetaOpcion) }
+                : {}),
+              siguiente_paso: candidatosDeMarca.length > 1
+                ? `Hay varias ${marcaPedidaVigente} presentadas: pregúntale cuál quiere (la diferencia en media línea) y vuelve a cotizar con ese código.`
+                : `Busca ${marcaPedidaVigente} en la medida con buscar_llanta y muéstrala; si no hay, dilo con claridad y ofrece alternativas SIN cotizarlas hasta que él acepte el cambio de marca.`,
+            });
+          }
         }
         if (!medidaEstaPedida(product.sizeLabel, permitidas)) {
           // RESCATE ANTES DE BLOQUEAR — el caso 4732 no fue el modelo eligiendo

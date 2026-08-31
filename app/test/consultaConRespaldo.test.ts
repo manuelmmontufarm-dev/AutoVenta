@@ -18,6 +18,7 @@ process.env.DATABASE_URL ||= "postgresql://manue@localhost/postgres";
 
 import {
   aroPedido,
+  ultimaMarcaPedida,
   marcaPreguntada,
   ofrecioAsesor,
   pidioCotizacionExplicita,
@@ -173,5 +174,38 @@ describe("aroPedido", () => {
     "a las 15 paso",       // hora, no aro
   ])("«%s» no dispara el aro", (t) => {
     expect(aroPedido(t)).toBeNull();
+  });
+});
+
+
+/**
+ * Producción, 31-ago-2026, conv 671: «necesito falken r17 265 70» terminó en
+ * cotización de KENDA, y al pedir «las falken» el anti-duplicado repitió «su
+ * cotización sigue vigente por \$961.32» — la de la otra marca.
+ */
+describe("ultimaMarcaPedida — la marca pedida es una restricción viva", () => {
+  it("la conversación real de la conv 671", () => {
+    expect(ultimaMarcaPedida([
+      "necesito falken r17 265 70",
+      "cuanto sale las 4?",
+      "y de las falken?",
+      "coticeme 4 at",
+    ])).toBe("FALKEN");
+  });
+
+  it("la última marca pedida manda", () => {
+    expect(ultimaMarcaPedida(["¿tienen Falken?", "mejor quiero kenda"])).toBe("KENDA");
+  });
+
+  it("«cualquier marca» libera la restricción", () => {
+    expect(ultimaMarcaPedida(["necesito falken 205/55R16", "cualquier marca está bien"])).toBeNull();
+  });
+
+  it("sin marca pedida no hay restricción", () => {
+    expect(ultimaMarcaPedida(["205/55R16", "cuanto sale las 4?"])).toBeNull();
+  });
+
+  it("nombrar la marca sin pedirla no restringe", () => {
+    expect(ultimaMarcaPedida(["mis falken rozan cargado"])).toBeNull();
   });
 });
