@@ -14,8 +14,10 @@ import {
   recordatorioDeOfertaPendiente,
 } from "../domain/ofertaAceptada.js";
 import {
-  marcaPreguntada, ofrecioAsesor, ordenDeConsultarRespaldo, ordenDeNombrarLaMarca,
-  ordenDeNotificarLoPrometido, preguntaTecnicaDeRespaldo,
+  marcaPreguntada, ofrecioAsesor, ordenDeConsultarRespaldo, ordenDeCotizarLoPedido,
+  ordenDeNombrarLaMarca, ordenDeNotificarHumano, ordenDeNotificarLoPrometido,
+  ordenDeRecotizarCantidad, pidioCotizacionExplicita, pidioHumanoExplicito,
+  preguntaTecnicaDeRespaldo,
 } from "../domain/consultaConRespaldo.js";
 import { esAcuseSimple } from "../domain/ofertaAceptada.js";
 import { respaldoCompleto } from "../domain/respaldoMarcas.js";
@@ -38,7 +40,7 @@ import { sql } from "../db/client.js";
 import { activeBenefitFactsBlock } from "../services/benefits.js";
 import { medidaEstaPedida } from "../domain/medidaPedida.js";
 import { medidasDelPedido } from "../services/medidasDelPedido.js";
-import { extractVehicleYear, type Escalones } from "../domain/salesIntent.js";
+import { extractExplicitQuantity, extractVehicleYear, type Escalones } from "../domain/salesIntent.js";
 import { chatReasoningEffort } from "./aiRequestPolicy.js";
 import { elegirFaseOperativa } from "./faseOperativa.js";
 import {
@@ -309,6 +311,14 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
   // corre aquí y el resultado le llega como hecho, registrado en la huella.
   const esPreguntaTecnica = preguntaTecnicaDeRespaldo(userText);
   if (esPreguntaTecnica) usedTools.push("respaldo_marcas");
+  // Las tres obligaciones del modelo débil (nivel 2 del T115, 31-ago):
+  // pedir humano notifica, pedir cotización cotiza, cambiar cantidad recotiza.
+  const pidioHumano = pidioHumanoExplicito(userText);
+  const pidioCotizar = !pidioHumano && pidioCotizacionExplicita(userText);
+  const cantidadNueva = extractExplicitQuantity(userText);
+  const cantidadCambia = cantidadNueva !== null
+    && salesFacts.lastQuote !== null
+    && !ctx.consultaFueraDeCatalogo;
   const bloquesVolatiles: ChatCompletionMessageParam[] = [
     { role: "system", content: salesFactsPrompt(salesFacts, ctx.resumedFromHuman) },
     ...(aceptoLaOferta ? [{ role: "system" as const, content: ordenDeCotizarYa(userText) }] : []),
@@ -329,6 +339,9 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
     ...(ofrecioAsesorSinAvisar
       ? [{ role: "system" as const, content: ordenDeNotificarLoPrometido() }]
       : []),
+    ...(pidioHumano ? [{ role: "system" as const, content: ordenDeNotificarHumano() }] : []),
+    ...(pidioCotizar ? [{ role: "system" as const, content: ordenDeCotizarLoPedido() }] : []),
+    ...(cantidadCambia ? [{ role: "system" as const, content: ordenDeRecotizarCantidad(cantidadNueva) }] : []),
     ...(descansoDelAcuse
       ? [{
           role: "system" as const,

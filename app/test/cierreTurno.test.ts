@@ -29,3 +29,21 @@ describe("cierre comercial del turno", () => {
     expect(tipoDeCierreDelTurno("No gracias, deme la Kenda")).toBeNull();
   });
 });
+
+
+/** T115 C09 (31-ago): «No gracias, ya no necesito» no activaba el cierre y el
+ *  modelo débil despidió con una pregunta pegada. */
+import { tipoDeCierreDelTurno as _cierreVariante } from "../src/domain/cierreTurno.js";
+describe("variantes con «ya no necesito»", () => {
+  it.each([
+    "No gracias, ya no necesito",
+    "ya no lo necesito, gracias",
+    "no gracias ya no ocupo",
+  ])("«%s» cierra el turno", (t) => {
+    expect(_cierreVariante(t)).not.toBeNull();
+  });
+
+  it("«ya no me queda claro» no cierra nada", () => {
+    expect(_cierreVariante("ya no me queda claro el precio")).toBeNull();
+  });
+});

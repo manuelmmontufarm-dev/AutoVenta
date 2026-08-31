@@ -156,7 +156,7 @@ describe("simulador · sigue siendo el bot de verdad", () => {
     // incidente. Copiar ese interruptor hacía que el humo recibiera el webhook
     // pero no ejercitara agente, guardián ni salida: fallaba por haber copiado
     // demasiado bien una decisión operativa que no pertenece a la prueba.
-    expect(sim).toContain("MODO_HUMO && await encenderBotParaElHumo()");
+    expect(sim).toContain("CON_DOBLES && await encenderBotParaElHumo()");
     expect(sim).toContain("'bot_power'");
   });
 });

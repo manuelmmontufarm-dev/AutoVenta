@@ -44,9 +44,26 @@ export async function levantarContificoSim({ puerto, snapshot, apiKey, urlReal, 
       return forzados.has(clave) ? { ...p, cantidad_stock: forzados.get(clave) } : p;
     });
 
+  // Inyección de fallos para el corpus T115 (E09/R01): el arnés PROVOCA la
+  // caída del catálogo y mide que el bot la maneje sin inventar «no hay stock».
+  //   PUT /averia {"modo":"caido"}    → todo /producto responde 503
+  //   PUT /averia {"modo":"timeout"}  → todo /producto se cuelga 45 s
+  //   PUT /averia {"modo":"sano"}     → se repara
+  let averia = "sano";
   const server = createServer((req, res) => {
     const url = new URL(req.url ?? "/", `http://127.0.0.1:${puerto}`);
+    if (url.pathname === "/averia" && req.method === "PUT") {
+      let cuerpo = "";
+      req.on("data", (c) => { cuerpo += c; });
+      req.on("end", () => {
+        try { averia = JSON.parse(cuerpo).modo ?? "sano"; } catch { averia = "sano"; }
+        json(res, 200, { averia });
+      });
+      return;
+    }
     if (!url.pathname.startsWith("/producto")) return json(res, 404, { error: "ruta no simulada" });
+    if (averia === "caido") return json(res, 503, { error: "Contífico simulado caído (avería inyectada)" });
+    if (averia === "timeout") return void setTimeout(() => json(res, 503, { error: "timeout inyectado" }), 45_000);
     const pagina = Math.max(1, Number(url.searchParams.get("page") ?? "1"));
     const todos = conStockForzado();
     const trozo = todos.slice((pagina - 1) * POR_PAGINA, pagina * POR_PAGINA);

@@ -1,31 +1,12 @@
-[1m  P03[0m [90m«Rin 15» — busca por aro y manda opciones reales[0m
-[1m  P07[0m [90m«Económicas para ciudad» — pide el mínimo dato, no inventa[0m
 [1m  M01[0m [90m«235/75/15» — normaliza y busca[0m
-[1m  M05[0m [90m«31x10.50R15LT» — flotación, sin métrica inventada[0m
-[1m  M09[0m [90m«Para rin 16» → «es una D-Max 2020» — el aro declarado manda[0m
-[1m  M13[0m [90m«La llanta dice DOT 2324» — explica, no lo confunde con medida[0m
-[1m  Q02[0m [90m«Necesito 4 205/55R16» — no vuelve a preguntar cantidad[0m
 [1m  Q06[0m [90m«Mándame una cotización de 225/65R17» — la emite sin vueltas[0m
-[1m  Q10[0m [90m«La más barata pero que sea A/T» — el tipo filtra primero[0m
-[1m  Q14[0m [90m«Solo estoy averiguando» — sin presión y sin cerrar[0m
-[1m  O03[0m [90m«voy a comparar» — puerta abierta, sin pedir local[0m
-[1m  O07[0m [90m«No quiero perfil tan bajo por los baches» — adapta[0m
-[1m  O11[0m [90m«¿Solo esas dos marcas dispone?» — catálogo, no memoria[0m
-[1m  O15[0m [90mRechaza Kenda → pregunta Winrun → vuelve a Kenda — sin veto eterno[0m
-[1m  V04[0m [90m«¿Hasta qué hora atienden en Cumbayá?» — horario confirmado[0m
-[1m  V08[0m [90m«Me entregan el carro el jueves» — no es visita[0m
+      [31m✗ emite la cotización en el turno[0m[31m — pidió cotización explícita y no salió ninguna[0m
+[1m  V05[0m [90m«Paso el lunes» con local elegido — registra sin repreguntar[0m
 [1m  E02[0m [90m«¿Cambio de aceite para Vitara 2004?» — sin colar llantas[0m
-[1m  E06[0m [90m«¿Envían a Ibarra?» — sin inventar cobertura, escala[0m
-[1m  E10[0m [90m«Fecha de fabricación exacta de estas cuatro» — general sí, exacto escala[0m
-[1m  C04[0m [90m«No me interesa, no me escriban» — cierre y silencio comercial[0m
-[1m  C08[0m [90m«👍» tras visita confirmada — sin reabrir preguntas[0m
-[1m  R02[0m [90mFalla la imagen de opciones — requiere inyección[0m
+      [31m✗ deriva la consulta del servicio[0m[31m — ni notificó ni derivó[0m
 [1m  R06[0m [90mOpciones → cambia a aceite → «Ok» — el Ok no elige llanta[0m
-[1m  R10[0m [90mVisita confirmada + «ya compré» antes de la fecha — cierra todo[0m
-[1m  X04[0m [90mPeugeot 206: 205 roza, perfil bajo no — memoria y cierre suave[0m
-      [31m✗ [global] no repite el mismo mensaje una y otra vez[0m[31m — un mensaje salió 3 veces: «listo quedo armada la cotizacion…»[0m
-[1m  X08[0m [90mNueve fotos industriales — cero cotización, asesor con resumen[0m
+[1m  X07[0m [90mAceite primero, llantas después — cada tema en su momento[0m
 
 [1m  ─────────────────────────────────────────[0m
-  comprobaciones: [32m25 pasaron[0m · [31m1 fallaron[0m
+  comprobaciones: [32m9 pasaron[0m · [31m2 fallaron[0m
 [90m  detalle → /Users/manue/AutoVenta/.claude/worktrees/threshold-t115/app/scripts/sim/flota-logs/resultado-c2.json[0m

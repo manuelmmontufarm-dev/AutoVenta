@@ -48,8 +48,9 @@ export function marcaPreguntada(texto: string): string | null {
 
 export function ordenDeNombrarLaMarca(marca: string): string {
   return (
-    `EL CLIENTE PREGUNTÓ POR LA MARCA ${marca} (fuente determinística). Tu respuesta DEBE decir ` +
-    `explícitamente si hay ${marca} disponible según lo que devuelvan las herramientas de búsqueda: ` +
+    `EL CLIENTE PREGUNTÓ POR LA MARCA ${marca} (fuente determinística). BUSCA EN EL CATÁLOGO EN ` +
+    `ESTE TURNO (buscar_llanta / buscar_por_aro_y_tipo / buscar_catalogo) — PROHIBIDO afirmar o ` +
+    `negar disponibilidad sin búsqueda. Tu respuesta DEBE decir explícitamente si hay ${marca} según los resultados: ` +
     `si los resultados no la traen, dilo con claridad («De ${marca} no tengo disponibilidad en esa ` +
     `medida») ANTES de ofrecer alternativas. PROHIBIDO mandar opciones de otras marcas sin nombrar ` +
     `a ${marca} en el texto.`
@@ -96,5 +97,51 @@ export function ordenDeNotificarLoPrometido(): string {
     + "caso del cliente sigue sin resolverse y no ha rechazado la ayuda, llama notificar_vendedor "
     + "AHORA, una sola vez, con un resumen accionable (medida pedida, qué falta, teléfono) — y dile "
     + "al cliente que ya quedó avisado. PROHIBIDO volver a ofrecer al asesor sin ejecutarlo."
+  );
+}
+
+/**
+ * Peticiones que el modelo débil deja pasar si nadie se las pone por delante.
+ * Medidas el 31-ago en el nivel 2 del T115 (agente en gpt-5.4-mini):
+ * - E01: «Quiero hablar con una persona» → cero herramientas, y encima el
+ *   texto decía «ya le avisé» (mentira que ataja lo_prometido_se_ejecuta).
+ * - Q06: «Mándame una cotización de 225/65R17» → mostró opciones y PREGUNTÓ
+ *   «¿le cotizo?» a quien ya la había pedido.
+ * - Q05: «solo dos» con cotización de 4 vigente → entendió el 2 y no recotizó.
+ */
+export function pidioHumanoExplicito(texto: string): boolean {
+  const n = normalizar(texto);
+  return /quiero\s+hablar\s+con\s+(?:una\s+persona|alguien|un\s+humano|un\s+asesor)|me\s+atienda?\s+una\s+persona|con\s+un\s+humano|p[aá]s[ae]me\s+con\s+(?:un[oa]?|el)\s+(?:asesor|persona|vendedor)|que\s+me\s+(?:llame|escriba|contacte)\s+(?:alguien|una\s+persona|un\s+asesor)/.test(n);
+}
+
+export function ordenDeNotificarHumano(): string {
+  return (
+    "SOLICITUD HUMANA EXPLÍCITA (fuente determinística): el cliente pidió hablar con una persona. "
+    + "Llama notificar_vendedor EN ESTE TURNO con un resumen accionable de lo que necesita, y dile "
+    + "que el aviso ya está hecho. PROHIBIDO seguir interrogando antes del aviso y PROHIBIDO decir "
+    + "que avisaste sin haber llamado la herramienta."
+  );
+}
+
+export function pidioCotizacionExplicita(texto: string): boolean {
+  const n = normalizar(texto);
+  return /(?:m[aá]nd[ae]me|env[ií][ae]me|p[aá]s[ae]me|h[aá]game|hazme|quiero|necesito|deme|dame)\s+(?:una?\s+|la\s+)?(?:cotizaci[oó]n|proforma)|cot[ií]za?me|me\s+cotiza[sr]?\b|una\s+proforma/.test(n);
+}
+
+export function ordenDeCotizarLoPedido(): string {
+  return (
+    "PEDIDO EXPLÍCITO DE COTIZACIÓN (fuente determinística): el cliente YA pidió la cotización con "
+    + "todas sus letras. Búscala si hace falta y GENÉRALA con generar_cotizacion EN ESTE TURNO "
+    + "(juego de 4 llantas si no dijo otra cantidad, sobre la recomendación válida). PROHIBIDO "
+    + "preguntarle si la quiere: ya la pidió."
+  );
+}
+
+export function ordenDeRecotizarCantidad(cantidad: number): string {
+  return (
+    `CANTIDAD NUEVA SOBRE COTIZACIÓN VIGENTE (fuente determinística): el cliente acaba de fijar la `
+    + `cantidad en ${cantidad} y la cotización vigente tiene otra. REGENERA la cotización por `
+    + `${cantidad} con generar_cotizacion en este turno, mismo producto, y entrégala. PROHIBIDO `
+    + `dejar la cotización vieja como respuesta.`
   );
 }

@@ -19,6 +19,8 @@ process.env.DATABASE_URL ||= "postgresql://manue@localhost/postgres";
 import {
   marcaPreguntada,
   ofrecioAsesor,
+  pidioCotizacionExplicita,
+  pidioHumanoExplicito,
   ordenDeConsultarRespaldo,
   ordenDeNombrarLaMarca,
   ordenDeNotificarLoPrometido,
@@ -120,5 +122,32 @@ describe("ofrecioAsesor (T115 conv 8288, corrida 4)", () => {
     const orden = ordenDeNotificarLoPrometido();
     expect(orden).toContain("notificar_vendedor");
     expect(orden).toMatch(/PROHIBIDO/);
+  });
+});
+
+
+describe("las obligaciones del modelo débil (nivel 2 del T115, 31-ago)", () => {
+  it.each([
+    "Quiero hablar con una persona",
+    "páseme con un asesor",
+    "que me llame alguien por favor",
+  ])("«%s» es solicitud humana explícita", (t) => {
+    expect(pidioHumanoExplicito(t)).toBe(true);
+  });
+
+  it("preguntar por el horario no es pedir un humano", () => {
+    expect(pidioHumanoExplicito("¿Hasta qué hora atienden?")).toBe(false);
+  });
+
+  it.each([
+    "Mándame una cotización de 225/65R17",
+    "cotízame 4",
+    "necesito una proforma",
+  ])("«%s» es pedido explícito de cotización", (t) => {
+    expect(pidioCotizacionExplicita(t)).toBe(true);
+  });
+
+  it("preguntar el precio no es pedir la cotización formal", () => {
+    expect(pidioCotizacionExplicita("¿qué precio tienen?")).toBe(false);
   });
 });

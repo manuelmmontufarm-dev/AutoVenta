@@ -4,7 +4,7 @@ const normalizar = (texto: string) =>
   (texto ?? "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
 
 const CIERRE_SUAVE =
-  /^(?:no\s+(?:muchas\s+)?gracias(?:[\s,]+(?:esto|esta|queda)\s+fuera\s+de\s+mi\s+presupuesto)?|no\s+por\s+el\s+momento(?:[\s,]+gracias)?|por\s+ahora\s+no|mejor\s+no|dejeme\s+pensar(?:lo)?|lo\s+pienso|despues\s+le\s+aviso|luego\s+le\s+aviso|ya\s+tengo\s+una\s+oferta(?:\s+de\s+llantas)?(?:\s+\d{3}\s*[/ -]\s*\d{2}\s*(?:[/ -]\s*|r)\s*\d{2})?|sin\s+compromiso[^.!?]{0,40}gracias|bueno\s+gracias)[\s.,!¡🙏🤝]*$/;
+  /^(?:no\s+(?:muchas\s+)?gracias(?:[\s,]+(?:esto|esta|queda)\s+fuera\s+de\s+mi\s+presupuesto|[\s,]+ya\s+no\s+(?:lo\s+)?(?:necesito|ocupo|quiero))?|ya\s+no\s+(?:lo\s+)?(?:necesito|ocupo)(?:[\s,]+gracias)?|no\s+por\s+el\s+momento(?:[\s,]+gracias)?|por\s+ahora\s+no|mejor\s+no|dejeme\s+pensar(?:lo)?|lo\s+pienso|despues\s+le\s+aviso|luego\s+le\s+aviso|ya\s+tengo\s+una\s+oferta(?:\s+de\s+llantas)?(?:\s+\d{3}\s*[/ -]\s*\d{2}\s*(?:[/ -]\s*|r)\s*\d{2})?|sin\s+compromiso[^.!?]{0,40}gracias|bueno\s+gracias)[\s.,!¡🙏🤝]*$/;
 
 /**
  * Un "no" puede traer información que sí hay que conservar: "205 muy ancha,

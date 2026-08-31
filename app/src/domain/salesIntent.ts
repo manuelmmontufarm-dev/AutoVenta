@@ -75,6 +75,10 @@ export function autorizaCotizacionEnEsteTurno(
   if (pidePrecio(text) || hasExplicitQuantity(text) || respuestaDePreferencia(text) !== null) {
     return true;
   }
+  // «Mándame una cotización» es la autorización más explícita que existe;
+  // medido 31-ago (T115 Q06): pidePrecio no la reconocía y el candado
+  // bloqueaba lo que el cliente había pedido con todas sus letras.
+  if (/cotizaci[oó]n|cot[ií]za?me|proforma/i.test(text)) return true;
   const normalized = normalize(text);
   return /\b(?:quiero|deme|dame|llevo|elijo|escojo|prefiero)\b/.test(normalized)
     || /\b(?:me\s+quedo|vamos|dale)\s+con\b/.test(normalized)

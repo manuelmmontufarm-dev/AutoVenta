@@ -1,9 +1,10 @@
+🔑 Clave de OpenAI verificada.
 🧹 Base local desechable…
 {
   severity_local: 'NOTICE',
   severity: 'NOTICE',
   code: '00000',
-  message: 'database "autoventa_sim_t115_c2_mtgrrvg2" does not exist, skipping',
+  message: 'database "autoventa_sim_t115_c2_mtgs8ekn" does not exist, skipping',
   file: 'dbcommands.c',
   line: '1622',
   routine: 'dropdb'
@@ -25,7 +26,6 @@
    · follow_up_policies: 1
    · pending_discount_rules: vacía
 📞 Graph API de mentira…
-🚬 Modo humo: OpenAI y Contífico de mentira en :3753 (cero tokens)
 📦 Catálogo…
 📸 Catálogo desde la foto: 1099 productos (/Users/manue/AutoVenta/.claude/worktrees/threshold-t115/app/scripts/sim/datos/catalogo.json)
 🎯 Configuración del servicio de producción (Railway):
@@ -43,11 +43,11 @@
    · OPENAI_TRANSCRIBE_MODEL            gpt-4o-transcribe  ✓
    · OPENAI_VISION_MODEL                gpt-5.5  ✓
 🤖 Levantando el bot…
-📋 Catálogo cargado en el bot: 24 llantas
+📋 Catálogo cargado en el bot: 405 llantas
 
   ✅  Simulador listo → http://localhost:3750
 
-      cliente 593900000101 · base autoventa_sim_t115_c2_mtgrrvg2 · piezas en scripts/sim/datos/piezas
+      cliente 593900000101 · base autoventa_sim_t115_c2_mtgs8ekn · piezas en scripts/sim/datos/piezas
       Ctrl-C para cerrar (la base se borra sola).
 
 

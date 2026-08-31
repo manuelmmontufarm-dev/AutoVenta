@@ -40,6 +40,8 @@ import {
 } from "../domain/alcanceComercial.js";
 import { sinJsonCrudo } from "../domain/jsonCrudo.js";
 import { conLocalesReales } from "./localesReales.js";
+import { notifyAdvisor } from "./advisorNotifications.js";
+import { sql } from "../db/client.js";
 import { sinNumerosDeCotizacion } from "../domain/numerosDeCotizacion.js";
 import { conPreguntaEnSuPropioMensaje } from "../domain/preguntaSola.js";
 import { despedidaQueCorresponde } from "../domain/cierrePerdido.js";
@@ -140,6 +142,11 @@ export const PASOS: readonly PasoDeSalida[] = [
     nombre: "angel_guardian",
     corre: ["respuesta", "retomada", "seguimiento"],
     async aplicar(texto, ctx) {
+      // Una despedida de cierre determinista es una CONSTANTE: revisarla con
+      // IA es pagar para que un modelo dude de un texto fijo. Medido 31-ago
+      // (T115 nivel 2, guardián en mini): marcó insiste_tras_rechazo sobre la
+      // propia despedida canónica en H05, H06 y H09.
+      if (ctx.suprimirEmpujeComercial) return texto;
       ctx.textoAntesDelGuardian = texto;
       const revision = await revisarConGuardian(
         ctx.conversation, texto, ctx.huella ?? [],
@@ -331,6 +338,38 @@ export const PASOS: readonly PasoDeSalida[] = [
         );
       }
       return insistido.texto;
+    },
+  },
+  {
+    // LO PROMETIDO SE EJECUTA. Regla 3 del corpus T115: «si el bot afirma que
+    // avisó, la acción ocurrió realmente». Medido 31-ago (nivel 2, mini,
+    // escenario E01): el modelo escribió «ya le avisé a un asesor» sin llamar
+    // ninguna herramienta. Este paso lee el texto FINAL: si afirma un aviso y
+    // no existe ninguno en el ciclo, lo ejecuta de verdad — una sola vez, con
+    // dedupe — para que el cliente nunca reciba una promesa hueca.
+    nombre: "lo_prometido_se_ejecuta",
+    corre: ["respuesta", "retomada"],
+    async aplicar(texto, ctx) {
+      const afirmaAviso = /ya\s+(?:le\s+)?avis[eé]|ya\s+notifiqu|ya\s+(?:le\s+)?pas[eé]\s+(?:su|el)\s+(?:caso|consulta|pedido)|dej[eé]\s+(?:notificad|avisad|su\s+caso)|qued[oó]\s+(?:avisad|notificad)/i
+        .test(texto.normalize("NFD").replace(/[\u0300-\u036f]/g, ""));
+      if (!afirmaAviso) return texto;
+      const [ya] = await sql`
+        select 1 as x from advisor_notifications
+        where conversation_id=${ctx.conversation.id} and cycle=${ctx.conversation.current_cycle}
+        limit 1
+      `;
+      if (ya) return texto;
+      await notifyAdvisor({
+        conversationId: ctx.conversation.id,
+        cycle: ctx.conversation.current_cycle,
+        eventType: "human_requested",
+        dedupeKey: `prometido_ejecutado:${ctx.conversation.id}:${ctx.conversation.current_cycle}`,
+        title: "El bot prometió un aviso — ejecutado por el candado",
+        reason: `El texto saliente afirmaba haber avisado y no existía aviso. Último mensaje del cliente: «${(ctx.textoDelCliente ?? "").slice(0, 160)}»`,
+        action: "Revisa la conversación y contacta al cliente.",
+      }).catch((err) => console.warn(`⚠️ lo_prometido_se_ejecuta no pudo avisar en la conv ${ctx.conversation.id}:`, err.message));
+      console.log(`📣 Aviso prometido y no ejecutado: el candado lo mandó de verdad (conv ${ctx.conversation.id})`);
+      return texto;
     },
   },
   {

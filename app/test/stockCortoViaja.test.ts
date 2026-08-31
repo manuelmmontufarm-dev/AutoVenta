@@ -162,6 +162,9 @@ describe("el orden de los candados en el turno", () => {
       "despedida_de_venta_perdida",
       "ubicacion_cuando_la_piden",
       "insistir_con_lo_que_falta",
+      // Regla 3 del corpus: si el texto afirma un aviso, el aviso existe
+      // (T115 E01, 31-ago: el mini escribió «ya le avisé» sin avisar).
+      "lo_prometido_se_ejecuta",
       "sin_preguntas_prohibidas",
       "sin_json_crudo",
       "sin_locales_inventados",
