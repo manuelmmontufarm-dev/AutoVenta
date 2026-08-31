@@ -88,7 +88,7 @@ describe("Guardián de salida — las fallas del 5-ago no pueden volver a enviar
     it("recorta el «¡Buenas tardes!» real y recapitaliza", () => {
       const real =
         "¡Buenas tardes! ¿Qué medida necesita para sus llantas? Puede encontrarla en el costado de su llanta actual.";
-      const r = guardOutboundReply(real, "Mensaje anterior del bot.", true);
+      const r = guardOutboundReply(real, "Mensaje anterior del bot.", true, ["¡Hola! Bienvenido a Depot Tire."]);
       expect(r.issues).toContain("saludo_repetido");
       expect(r.text).toMatch(/^¿Qué medida necesita/);
     });
@@ -208,5 +208,25 @@ describe("idea repetida por tercera vez", () => {
     const { guardOutboundReply } = await import("../src/services/outboundGuard.js");
     const r = guardOutboundReply("Con gusto 🤝", "x", true, ["Con gusto 🤝", "Con gusto 🤝"]);
     expect(r.issues).not.toContain("idea_repetida");
+  });
+});
+
+
+/** Producción, 31-ago 13:30: tras el «empezamos de cero» del /restart, el
+ *  «hola» recibió la guía sin saludo — la confirmación del reinicio contaba
+ *  como mensaje anterior y el filtro recortaba la bienvenida legítima. */
+describe("el saludo se recorta solo si ya se saludó en el ciclo", () => {
+  it("con mensajes previos SIN saludo, la bienvenida se conserva", async () => {
+    const { guardOutboundReply } = await import("../src/services/outboundGuard.js");
+    const bienvenida = "¡Hola! Bienvenido a Depot Tire. ¿Qué medida necesita?";
+    const r = guardOutboundReply(bienvenida, "Listo, empezamos de cero. Dígame qué medida busca.", true, ["Listo, empezamos de cero. Dígame qué medida busca."]);
+    expect(r.text).toBe(bienvenida);
+    expect(r.issues).toEqual([]);
+  });
+
+  it("con un saludo previo en el ciclo, el segundo se recorta", async () => {
+    const { guardOutboundReply } = await import("../src/services/outboundGuard.js");
+    const r = guardOutboundReply("¡Hola! Le cuento las opciones que tenemos disponibles.", "x", true, ["¡Buenos días! Bienvenido a Depot Tire."]);
+    expect(r.issues).toContain("saludo_repetido");
   });
 });

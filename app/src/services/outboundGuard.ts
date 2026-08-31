@@ -110,16 +110,27 @@ export function guardOutboundReply(
 
   let texto = reply;
 
+  // El saludo se recorta solo si el bot YA SALUDÓ en este ciclo — no porque
+  // haya dicho cualquier cosa antes. Producción, 31-ago 13:30: tras el
+  // «empezamos de cero» del /restart, el «hola» del cliente recibió la guía
+  // sin ningún saludo, porque la confirmación del reinicio contaba como
+  // «mensaje anterior» y el filtro recortaba la bienvenida legítima.
+  const yaSaludoEnElCiclo = salientesRecientes.some((t) => SALUDO_INICIAL.test(t))
+    || (lastOutbound !== null && SALUDO_INICIAL.test(lastOutbound));
   if (hasPriorOutbound && SALUDO_INICIAL.test(texto)) {
     const sinSaludo = texto.replace(SALUDO_INICIAL, "").trim();
-    if (sinSaludo.length >= 5) {
+    if (sinSaludo.length < 5) {
+      // El mensaje ERA solo un saludo: a mitad de conversación no aporta nada
+      // (caso Jordian, 5-ago) — se bloquea aunque nadie haya saludado antes.
+      return { text: null, issues: [...issues, "saludo_repetido"] };
+    }
+    if (yaSaludoEnElCiclo) {
       issues.push("saludo_repetido");
       // Recapitalizar el arranque para que no quede «¿qué medida…» tras «¡Hola! »
       texto = sinSaludo.charAt(0).toUpperCase() + sinSaludo.slice(1);
-    } else {
-      // El mensaje ERA solo un saludo: a mitad de conversación no aporta nada.
-      return { text: null, issues: [...issues, "saludo_repetido"] };
     }
+    // Si nadie saludó todavía en el ciclo, la bienvenida se queda: el
+    // «empezamos de cero» del /restart no es un saludo (31-ago, 13:30).
   }
 
   return { text: texto, issues };
