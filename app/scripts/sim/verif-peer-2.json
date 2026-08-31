@@ -1,0 +1,317 @@
+[
+ {
+  "id": "O07",
+  "familia": "O",
+  "titulo": "«No quiero perfil tan bajo por los baches» — adapta",
+  "turnos": [
+   {
+    "cliente": "205/50R16",
+    "bot": [
+     {
+      "texto": "Opciones enviadas: KENDA KR20 · KENDA KR20",
+      "tipo": "image"
+     },
+     {
+      "texto": "Para afinarle la recomendación sobre las opciones que le envié, dígame una sola cosa: ¿qué prioriza usted?\n\n1) *Costo* — la más conveniente de precio\n2) *Premium* — la de máxima calidad y durabilidad\n\nCon eso le dejo la opción exacta para su medida.",
+      "tipo": "text"
+     }
+    ],
+    "fase": [
+     "medida_confirmada"
+    ],
+    "herramientas": [
+     "buscar_llanta",
+     "preparar_opciones"
+    ],
+    "modelos": [
+     "gpt-5.5",
+     "gpt-5.4-mini"
+    ],
+    "errores": [],
+    "sinRespuesta": false,
+    "guardian": [
+     {
+      "verdict": "aprobar",
+      "findings": [],
+      "original": "Para afinarle la recomendación sobre las opciones que le envié, dígame una sola cosa: ¿qué prioriza usted?\n\n1) *Costo* — la más conveniente de precio\n2) *Premium* — la de máxima calidad y durabilidad\n\nCon eso le dejo la opción exacta para su medida.",
+      "corregido": null
+     }
+    ]
+   },
+   {
+    "cliente": "No quiero perfil tan bajo por los baches",
+    "bot": [
+     {
+      "texto": "Entiendo. En 205/50R16 sí es un perfil más bajo; para ganar más altura habría que revisar una medida equivalente segura para su vehículo, porque no conviene cambiarla sin validar compatibilidad.\n\nSi desea, le puedo pasar con un asesor para revisar la alternativa correcta para baches y uso en Quito.",
+      "tipo": "text"
+     },
+     {
+      "texto": "¿Quiere que lo coordine con un asesor?",
+      "tipo": "text"
+     }
+    ],
+    "fase": [],
+    "herramientas": [],
+    "modelos": [
+     "gpt-5.5",
+     "gpt-5.4-mini"
+    ],
+    "errores": [],
+    "sinRespuesta": false,
+    "guardian": [
+     {
+      "verdict": "aprobar",
+      "findings": [],
+      "original": "Entiendo. En 205/50R16 sí es un perfil más bajo; para ganar más altura habría que revisar una medida equivalente segura para su vehículo, porque no conviene cambiarla sin validar compatibilidad.\n\nSi desea, le puedo pasar con un asesor para revisar la alternativa correcta para baches y uso en Quito. ¿Quiere que lo coordine con un asesor?",
+      "corregido": null
+     }
+    ]
+   }
+  ],
+  "estadoFinal": {
+   "stage": "medida_confirmada",
+   "status": "open",
+   "tire_size": "205/50R16",
+   "selected_quantity": null,
+   "nearest_store": null,
+   "visit_date": null,
+   "current_cycle": 1,
+   "cotizaciones": [],
+   "alertas": [],
+   "avisos_asesor": 0,
+   "sin_revision": 0
+  },
+  "checks": [
+   {
+    "nombre": "responde adaptando, no repitiendo el perfil rechazado",
+    "ok": true,
+    "motivo": null
+   }
+  ]
+ },
+ {
+  "id": "O15",
+  "familia": "O",
+  "titulo": "Rechaza Kenda → pregunta Winrun → vuelve a Kenda — sin veto eterno",
+  "turnos": [
+   {
+    "cliente": "205/55R16",
+    "bot": [
+     {
+      "texto": "Opciones enviadas: FALKEN ZE310R · KENDA KR20 · KENDA KR203",
+      "tipo": "image"
+     },
+     {
+      "texto": "Para afinarle la recomendación sobre las opciones que le envié, dígame una sola cosa: ¿qué prioriza usted?\n\n1) *Costo* — la más conveniente de precio\n2) *Equilibrio* — la que mejor balancea precio y rendimiento\n3) *Premium* — la de máxima calidad y durabilidad\n\nCon eso le dejo la opción exacta para su medida.",
+      "tipo": "text"
+     }
+    ],
+    "fase": [
+     "medida_confirmada"
+    ],
+    "herramientas": [
+     "buscar_llanta",
+     "preparar_opciones"
+    ],
+    "modelos": [
+     "gpt-5.5",
+     "gpt-5.4-mini"
+    ],
+    "errores": [],
+    "sinRespuesta": false,
+    "guardian": [
+     {
+      "verdict": "aprobar",
+      "findings": [],
+      "original": "Para afinarle la recomendación sobre las opciones que le envié, dígame una sola cosa: ¿qué prioriza usted?\n\n1) *Costo* — la más conveniente de precio\n2) *Equilibrio* — la que mejor balancea precio y rendimiento\n3) *Premium* — la de máxima calidad y durabilidad\n\nCon eso le dejo la opción exacta para su medida.",
+      "corregido": null
+     }
+    ]
+   },
+   {
+    "cliente": "la Kenda no me gusta",
+    "bot": [
+     {
+      "texto": "Claro, descartamos Kenda.\n\nPara 205/55R16 le queda la opción Falken ZE310R a $111.36 c/u con IVA incluido. Es la alternativa premium de las opciones enviadas.",
+      "tipo": "text"
+     },
+     {
+      "texto": "Incluye instalación, alineación, balanceo, seguro gratuito por daños, mantenimiento cada 10.000 km y revisión gratuita del vehículo.",
+      "tipo": "text"
+     },
+     {
+      "texto": "¿Le cotizo el juego de 4 llantas?",
+      "tipo": "text"
+     }
+    ],
+    "fase": [],
+    "herramientas": [],
+    "modelos": [
+     "gpt-5.5",
+     "gpt-5.4-mini"
+    ],
+    "errores": [],
+    "sinRespuesta": false,
+    "guardian": [
+     {
+      "verdict": "corregir",
+      "findings": [
+       {
+        "detalle": "El borrador pregunta “¿Le cotizo las 4 llantas Falken ZE310R?”, pero la única forma permitida por la plantilla es exactamente “¿Le cotizo el juego de 4 llantas?”. La corrección usa la frase autorizada.",
+        "categoria": "pregunta_de_mas",
+        "severidad": "alta"
+       }
+      ],
+      "original": "Claro, descartamos Kenda.\n\nPara 205/55R16 le queda la opción Falken ZE310R a $111.36 c/u con IVA incluido. Es la alternativa premium de las opciones enviadas.\n\n---\n\nIncluye instalación, alineación, balanceo, seguro gratuito por daños, mantenimiento cada 10.000 km y revisión gratuita del vehículo.\n\n---\n\n¿Le cotizo las 4 llantas Falken ZE310R?",
+      "corregido": "Claro, descartamos Kenda.\n\nPara 205/55R16 le queda la opción Falken ZE310R a $111.36 c/u con IVA incluido. Es la alternativa premium de las opciones enviadas.\n\n---\n\nIncluye instalación, alineación, balanceo, seguro gratuito por daños, mantenimiento cada 10.000 km y revisión gratuita del vehículo.\n\n---\n\n¿Le cotizo el juego de 4 llantas?"
+     }
+    ]
+   },
+   {
+    "cliente": "¿la Winrun qué precio tiene?",
+    "bot": [
+     {
+      "texto": "Sí hay WINRUN disponible en 205/55R16.\n\nLa WINRUN R330 está en $60.67 c/u con IVA incluido, stock 4 unidades. Es la opción económica en esa medida.",
+      "tipo": "text"
+     },
+     {
+      "texto": "También mantiene incluido: instalación, alineación, balanceo, seguro gratuito por daños, mantenimiento cada 10.000 km y revisión gratuita del vehículo.",
+      "tipo": "text"
+     }
+    ],
+    "fase": [],
+    "herramientas": [
+     "buscar_llanta"
+    ],
+    "modelos": [
+     "gpt-5.5",
+     "gpt-5.4-mini"
+    ],
+    "errores": [],
+    "sinRespuesta": false,
+    "guardian": [
+     {
+      "verdict": "corregir",
+      "findings": [
+       {
+        "detalle": "El cierre «¿Le cotizo las 4 WINRUN?» no es la frase exacta permitida por la plantilla. Debe usarse «¿Le cotizo el juego de 4 llantas?».",
+        "categoria": "pregunta_de_mas",
+        "severidad": "alta"
+       }
+      ],
+      "original": "Sí hay WINRUN disponible en 205/55R16.\n\nLa WINRUN R330 está en $60.67 c/u con IVA incluido, stock 4 unidades. Es la opción económica en esa medida.  \n\n---\n\nTambién mantiene incluido: instalación, alineación, balanceo, seguro gratuito por daños, mantenimiento cada 10.000 km y revisión gratuita del vehículo.\n\n---\n\n¿Le cotizo las 4 WINRUN?",
+      "corregido": "Sí hay WINRUN disponible en 205/55R16.\n\nLa WINRUN R330 está en $60.67 c/u con IVA incluido, stock 4 unidades. Es la opción económica en esa medida.  \n\n---\n\nTambién mantiene incluido: instalación, alineación, balanceo, seguro gratuito por daños, mantenimiento cada 10.000 km y revisión gratuita del vehículo.\n\n---\n\n¿Le cotizo el juego de 4 llantas?"
+     }
+    ]
+   },
+   {
+    "cliente": "mejor sí dame la Kenda",
+    "bot": [
+     {
+      "texto": "Cotización COT-MTHL26JZ enviada por $365.13",
+      "tipo": "image"
+     },
+     {
+      "texto": "Puede pasar sin compromiso a verlas y probarlas en su vehículo.\n📍 *Depot Tire Cumbayá*: https://maps.app.goo.gl/QnMBPXKc1o8igbsp8\n📍 *Depot Tire Quito Sur*: https://maps.app.goo.gl/NQeNN8csyAnRkJDJ7",
+      "tipo": "text"
+     },
+     {
+      "texto": "¿A cuál local le queda mejor ir, *Cumbayá* o *Quito Sur*? 📍",
+      "tipo": "text"
+     }
+    ],
+    "fase": [
+     "cotizacion_enviada"
+    ],
+    "herramientas": [
+     "generar_cotizacion"
+    ],
+    "modelos": [
+     "gpt-5.4-mini",
+     "gpt-5.5"
+    ],
+    "errores": [],
+    "sinRespuesta": false,
+    "guardian": [
+     {
+      "verdict": "aprobar",
+      "findings": [],
+      "original": "Puede pasar sin compromiso a verlas y probarlas en su vehículo.\n📍 *Depot Tire Cumbayá*: https://maps.app.goo.gl/QnMBPXKc1o8igbsp8\n📍 *Depot Tire Quito Sur*: https://maps.app.goo.gl/NQeNN8csyAnRkJDJ7\n\n---\n\n¿A cuál local le queda mejor ir, *Cumbayá* o *Quito Sur*? 📍",
+      "corregido": null
+     }
+    ]
+   }
+  ],
+  "estadoFinal": {
+   "stage": "seguimiento_venta",
+   "status": "open",
+   "tire_size": "205/55R16",
+   "selected_quantity": 4,
+   "nearest_store": null,
+   "visit_date": null,
+   "current_cycle": 1,
+   "cotizaciones": [
+    {
+     "numero": "COT-MTHL26JZ",
+     "total": 365.13,
+     "items": [
+      {
+       "code": "K217B607",
+       "brand": "KENDA",
+       "design": "KR20",
+       "imageUrl": "/assets/catalog/kenda-kr20.jpg",
+       "quantity": 4,
+       "loadSpeed": {
+        "code": "91V",
+        "loadKg": 615,
+        "speedKmh": 240,
+        "loadIndex": 91,
+        "speedSymbol": "V"
+       },
+       "sizeLabel": "205/55R16",
+       "unitPrice": 79.37391304347827,
+       "description": "Llanta KENDA KR20 205/55R16",
+       "availability": "available",
+       "warrantyFactory": "5 años garantía de fábrica contra defectos de fabricación",
+       "listPriceWithTax": 121.69,
+       "salePriceWithTax": 91.28,
+       "warrantyRoadHazard": "12 meses contra golpes y estalladuras"
+      }
+     ],
+     "cycle": 1
+    }
+   ],
+   "alertas": [
+    {
+     "tipo": "guardian_correccion",
+     "prioridad": "high",
+     "resumen": "El guardián corrigió la respuesta: pregunta_de_mas"
+    },
+    {
+     "tipo": "guardian_correccion",
+     "prioridad": "high",
+     "resumen": "El guardián corrigió la respuesta: pregunta_de_mas"
+    },
+    {
+     "tipo": "calco_reciente",
+     "prioridad": "medium",
+     "resumen": "El bot iba a repetir un mensaje que acababa de enviar (recortado)"
+    },
+    {
+     "tipo": "quote_created",
+     "prioridad": "medium",
+     "resumen": "Nueva cotización COT-MTHL26JZ por $365.13"
+    }
+   ],
+   "avisos_asesor": 2,
+   "sin_revision": 0
+  },
+  "checks": [
+   {
+    "nombre": "permite la Kenda reabierta explícitamente",
+    "ok": false,
+    "motivo": "mantuvo el veto contra la petición explícita"
+   }
+  ]
+ }
+]

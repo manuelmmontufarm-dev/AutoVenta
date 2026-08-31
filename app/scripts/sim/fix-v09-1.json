@@ -1,0 +1,843 @@
+[
+ {
+  "id": "O07",
+  "familia": "O",
+  "titulo": "«No quiero perfil tan bajo por los baches» — adapta",
+  "turnos": [
+   {
+    "cliente": "205/50R16",
+    "bot": [
+     {
+      "texto": "Opciones enviadas: KENDA KR20 · KENDA KR20",
+      "tipo": "image"
+     },
+     {
+      "texto": "Para afinarle la recomendación sobre las opciones que le envié, dígame una sola cosa: ¿qué prioriza usted?\n\n1) *Costo* — la más conveniente de precio\n2) *Premium* — la de máxima calidad y durabilidad\n\nCon eso le dejo la opción exacta para su medida.",
+      "tipo": "text"
+     }
+    ],
+    "fase": [
+     "medida_confirmada"
+    ],
+    "herramientas": [
+     "buscar_llanta",
+     "preparar_opciones"
+    ],
+    "modelos": [
+     "gpt-5.4-mini",
+     "gpt-5.5"
+    ],
+    "errores": [],
+    "sinRespuesta": false,
+    "guardian": [
+     {
+      "verdict": "aprobar",
+      "findings": [],
+      "original": "Para afinarle la recomendación sobre las opciones que le envié, dígame una sola cosa: ¿qué prioriza usted?\n\n1) *Costo* — la más conveniente de precio\n2) *Premium* — la de máxima calidad y durabilidad\n\nCon eso le dejo la opción exacta para su medida.",
+      "corregido": null
+     }
+    ]
+   },
+   {
+    "cliente": "No quiero perfil tan bajo por los baches",
+    "bot": [
+     {
+      "texto": "Entiendo. En su medida 205/50R16 no puedo afirmar una alternativa de perfil más alto sin validar compatibilidad con el vehículo, porque podría rozar o afectar la lectura del tablero.",
+      "tipo": "text"
+     },
+     {
+      "texto": "La opción más práctica es revisar en tienda una medida equivalente con más perfil y confirmar que calce seguro. En 205/50R16 ya tiene opciones desde $85.72 c/u con IVA.",
+      "tipo": "text"
+     },
+     {
+      "texto": "¿Prefiere que lo revise un asesor para buscar una medida con más perfil que le calce seguro?",
+      "tipo": "text"
+     }
+    ],
+    "fase": [],
+    "herramientas": [
+     "preparar_opciones"
+    ],
+    "modelos": [
+     "gpt-5.5",
+     "gpt-5.4-mini"
+    ],
+    "errores": [],
+    "sinRespuesta": false,
+    "guardian": [
+     {
+      "verdict": "corregir",
+      "findings": [
+       {
+        "detalle": "El borrador pregunta si quiere cotizar las 4 llantas en 205/50R16 con una formulación distinta a la excepción permitida. Además el cliente está rechazando el perfil bajo, así que corresponde avanzar con revisión de compatibilidad sin pedir permiso para la cantidad.",
+        "categoria": "pregunta_de_mas",
+        "severidad": "alta"
+       }
+      ],
+      "original": "Entiendo. En su medida 205/50R16 no puedo afirmar una alternativa de perfil más alto sin validar compatibilidad con el vehículo, porque podría rozar o afectar lectura del tablero.\n\n---\n\nLa opción más práctica es revisar en tienda una medida equivalente con más perfil y confirmar que calce seguro. En 205/50R16 ya tiene opciones desde $85.72 c/u con IVA.\n\n---\n\n¿Quiere que le coticemos igual las 4 llantas en 205/50R16 o prefiere que lo revise un asesor para buscar más perfil?",
+      "corregido": "Entiendo. En su medida 205/50R16 no puedo afirmar una alternativa de perfil más alto sin validar compatibilidad con el vehículo, porque podría rozar o afectar la lectura del tablero.\n\n---\n\nLa opción más práctica es revisar en tienda una medida equivalente con más perfil y confirmar que calce seguro. En 205/50R16 ya tiene opciones desde $85.72 c/u con IVA.\n\n---\n\n¿Prefiere que lo revise un asesor para buscar una medida con más perfil que le calce seguro?"
+     }
+    ]
+   }
+  ],
+  "estadoFinal": {
+   "stage": "seleccionando",
+   "status": "open",
+   "tire_size": "205/50R16",
+   "selected_quantity": 4,
+   "nearest_store": null,
+   "visit_date": null,
+   "current_cycle": 1,
+   "cotizaciones": [],
+   "alertas": [
+    {
+     "tipo": "guardian_correccion",
+     "prioridad": "high",
+     "resumen": "El guardián corrigió la respuesta: pregunta_de_mas"
+    }
+   ],
+   "avisos_asesor": 0,
+   "sin_revision": 0
+  },
+  "checks": [
+   {
+    "nombre": "responde adaptando, no repitiendo el perfil rechazado",
+    "ok": false,
+    "motivo": "turno 2: propuso el perfil 50 rechazado"
+   }
+  ]
+ },
+ {
+  "id": "O15",
+  "familia": "O",
+  "titulo": "Rechaza Kenda → pregunta Winrun → vuelve a Kenda — sin veto eterno",
+  "turnos": [
+   {
+    "cliente": "205/55R16",
+    "bot": [
+     {
+      "texto": "Opciones enviadas: FALKEN ZE310R · KENDA KR20 · WINRUN R330",
+      "tipo": "image"
+     },
+     {
+      "texto": "Para afinarle la recomendación sobre las opciones que le envié, dígame una sola cosa: ¿qué prioriza usted?\n\n1) *Costo* — la más conveniente de precio\n2) *Equilibrio* — la que mejor balancea precio y rendimiento\n3) *Premium* — la de máxima calidad y durabilidad\n\nCon eso le dejo la opción exacta para su medida.",
+      "tipo": "text"
+     }
+    ],
+    "fase": [
+     "medida_confirmada"
+    ],
+    "herramientas": [
+     "buscar_llanta",
+     "preparar_opciones"
+    ],
+    "modelos": [
+     "gpt-5.4-mini",
+     "gpt-5.5"
+    ],
+    "errores": [],
+    "sinRespuesta": false,
+    "guardian": [
+     {
+      "verdict": "aprobar",
+      "findings": [],
+      "original": "Para afinarle la recomendación sobre las opciones que le envié, dígame una sola cosa: ¿qué prioriza usted?\n\n1) *Costo* — la más conveniente de precio\n2) *Equilibrio* — la que mejor balancea precio y rendimiento\n3) *Premium* — la de máxima calidad y durabilidad\n\nCon eso le dejo la opción exacta para su medida.",
+      "corregido": null
+     }
+    ]
+   },
+   {
+    "cliente": "la Kenda no me gusta",
+    "bot": [
+     {
+      "texto": "Perfecto, descartamos Kenda.\n\nLe quedan estas 2 opciones en 205/55R16:\n- Falken ZE310R: $111.36 c/u con IVA\n- Winrun R330: $60.67 c/u con IVA\n\nComo son 4 llantas,",
+      "tipo": "text"
+     },
+     {
+      "texto": "¿prefiere que le cotice la Falken o la Winrun?",
+      "tipo": "text"
+     }
+    ],
+    "fase": [],
+    "herramientas": [],
+    "modelos": [
+     "gpt-5.5",
+     "gpt-5.4-mini"
+    ],
+    "errores": [],
+    "sinRespuesta": false,
+    "guardian": [
+     {
+      "verdict": "aprobar",
+      "findings": [],
+      "original": "Perfecto, descartamos Kenda.\n\nLe quedan estas 2 opciones en 205/55R16:\n- Falken ZE310R: $111.36 c/u con IVA\n- Winrun R330: $60.67 c/u con IVA\n\nComo son 4 llantas, ¿prefiere que le cotice la Falken o la Winrun?",
+      "corregido": null
+     }
+    ]
+   },
+   {
+    "cliente": "¿la Winrun qué precio tiene?",
+    "bot": [
+     {
+      "texto": "Sí hay WINRUN en 205/55R16: Winrun R330 está en $60.67 c/u con IVA.\n\nPara las 4 llantas sería $242.68 con IVA. Incluye instalación, alineación, balanceo, seguro contra daños, revisión y mantenimiento cada 10.000 km.",
+      "tipo": "text"
+     },
+     {
+      "texto": "¿Le cotizo el juego de 4 llantas?",
+      "tipo": "text"
+     }
+    ],
+    "fase": [],
+    "herramientas": [
+     "buscar_llanta"
+    ],
+    "modelos": [
+     "gpt-5.5",
+     "gpt-5.4-mini"
+    ],
+    "errores": [],
+    "sinRespuesta": false,
+    "guardian": [
+     {
+      "verdict": "corregir",
+      "findings": [
+       {
+        "detalle": "El cierre pregunta “¿Le genero la cotización de la Winrun R330 por las 4 llantas?”, una forma distinta a la plantilla permitida para cerrar la recomendación. La frase aprobada es “¿Le cotizo el juego de 4 llantas?”.",
+        "categoria": "pregunta_de_mas",
+        "severidad": "alta"
+       }
+      ],
+      "original": "Sí hay WINRUN en 205/55R16: Winrun R330 está en $60.67 c/u con IVA.\n\nPara las 4 llantas sería $242.68 con IVA. Incluye instalación, alineación, balanceo, seguro contra daños, revisión y mantenimiento cada 10.000 km.\n\n---\n\n¿Le genero la cotización de la Winrun R330 por las 4 llantas?",
+      "corregido": "Sí hay WINRUN en 205/55R16: Winrun R330 está en $60.67 c/u con IVA.\n\nPara las 4 llantas sería $242.68 con IVA. Incluye instalación, alineación, balanceo, seguro contra daños, revisión y mantenimiento cada 10.000 km.\n\n---\n\n¿Le cotizo el juego de 4 llantas?"
+     }
+    ]
+   },
+   {
+    "cliente": "mejor sí dame la Kenda",
+    "bot": [
+     {
+      "texto": "Cotización COT-MTHLBY3J enviada por $365.13",
+      "tipo": "image"
+     },
+     {
+      "texto": "Puede pasar sin compromiso a verlas y probarlas en su vehículo.\n📍 *Depot Tire Cumbayá*: https://maps.app.goo.gl/QnMBPXKc1o8igbsp8\n📍 *Depot Tire Quito Sur*: https://maps.app.goo.gl/NQeNN8csyAnRkJDJ7",
+      "tipo": "text"
+     },
+     {
+      "texto": "¿A cuál local le queda mejor ir, *Cumbayá* o *Quito Sur*? 📍",
+      "tipo": "text"
+     }
+    ],
+    "fase": [
+     "cotizacion_enviada"
+    ],
+    "herramientas": [
+     "generar_cotizacion"
+    ],
+    "modelos": [
+     "gpt-5.4-mini",
+     "gpt-5.5"
+    ],
+    "errores": [],
+    "sinRespuesta": false,
+    "guardian": [
+     {
+      "verdict": "aprobar",
+      "findings": [],
+      "original": "Puede pasar sin compromiso a verlas y probarlas en su vehículo.\n📍 *Depot Tire Cumbayá*: https://maps.app.goo.gl/QnMBPXKc1o8igbsp8\n📍 *Depot Tire Quito Sur*: https://maps.app.goo.gl/NQeNN8csyAnRkJDJ7\n\n---\n\n¿A cuál local le queda mejor ir, *Cumbayá* o *Quito Sur*? 📍",
+      "corregido": null
+     }
+    ]
+   }
+  ],
+  "estadoFinal": {
+   "stage": "cotizacion_enviada",
+   "status": "open",
+   "tire_size": "205/55R16",
+   "selected_quantity": 4,
+   "nearest_store": null,
+   "visit_date": null,
+   "current_cycle": 1,
+   "cotizaciones": [
+    {
+     "numero": "COT-MTHLBY3J",
+     "total": 365.13,
+     "items": [
+      {
+       "code": "K217B607",
+       "brand": "KENDA",
+       "design": "KR20",
+       "imageUrl": "/assets/catalog/kenda-kr20.jpg",
+       "quantity": 4,
+       "loadSpeed": {
+        "code": "91V",
+        "loadKg": 615,
+        "speedKmh": 240,
+        "loadIndex": 91,
+        "speedSymbol": "V"
+       },
+       "sizeLabel": "205/55R16",
+       "unitPrice": 79.37391304347827,
+       "description": "Llanta KENDA KR20 205/55R16",
+       "availability": "available",
+       "warrantyFactory": "5 años garantía de fábrica contra defectos de fabricación",
+       "listPriceWithTax": 121.69,
+       "salePriceWithTax": 91.28,
+       "warrantyRoadHazard": "12 meses contra golpes y estalladuras"
+      }
+     ],
+     "cycle": 1
+    }
+   ],
+   "alertas": [
+    {
+     "tipo": "guardian_correccion",
+     "prioridad": "high",
+     "resumen": "El guardián corrigió la respuesta: pregunta_de_mas"
+    },
+    {
+     "tipo": "quote_created",
+     "prioridad": "medium",
+     "resumen": "Nueva cotización COT-MTHLBY3J por $365.13"
+    }
+   ],
+   "avisos_asesor": 2,
+   "sin_revision": 0
+  },
+  "checks": [
+   {
+    "nombre": "permite la Kenda reabierta explícitamente",
+    "ok": true,
+    "motivo": null
+   }
+  ]
+ },
+ {
+  "id": "V05",
+  "familia": "V",
+  "titulo": "«Paso el lunes» con local elegido — registra sin repreguntar",
+  "turnos": [
+   {
+    "cliente": "205/55R16",
+    "bot": [
+     {
+      "texto": "Opciones enviadas: FALKEN ZE310R · KENDA KR20 · WINRUN R330",
+      "tipo": "image"
+     },
+     {
+      "texto": "Para afinarle la recomendación sobre las opciones que le envié, dígame una sola cosa: ¿qué prioriza usted?\n\n1) *Costo* — la más conveniente de precio\n2) *Equilibrio* — la que mejor balancea precio y rendimiento\n3) *Premium* — la de máxima calidad y durabilidad\n\nCon eso le dejo la opción exacta para su medida.",
+      "tipo": "text"
+     }
+    ],
+    "fase": [
+     "medida_confirmada"
+    ],
+    "herramientas": [
+     "buscar_llanta",
+     "preparar_opciones"
+    ],
+    "modelos": [
+     "gpt-5.5",
+     "gpt-5.4-mini"
+    ],
+    "errores": [],
+    "sinRespuesta": false,
+    "guardian": [
+     {
+      "verdict": "aprobar",
+      "findings": [],
+      "original": "Para afinarle la recomendación sobre las opciones que le envié, dígame una sola cosa: ¿qué prioriza usted?\n\n1) *Costo* — la más conveniente de precio\n2) *Equilibrio* — la que mejor balancea precio y rendimiento\n3) *Premium* — la de máxima calidad y durabilidad\n\nCon eso le dejo la opción exacta para su medida.",
+      "corregido": null
+     }
+    ]
+   },
+   {
+    "cliente": "me queda mejor Quito Sur",
+    "bot": [
+     {
+      "texto": "📍 *Depot Tire Quito Sur*: https://maps.app.goo.gl/NQeNN8csyAnRkJDJ7",
+      "tipo": "text"
+     },
+     {
+      "texto": "¿Qué día cree que puede pasar por *Depot Tire Quito Sur*? Con ese dato le aviso al asesor para que le atienda apenas llegue. 📅",
+      "tipo": "text"
+     }
+    ],
+    "fase": [
+     "seguimiento_venta"
+    ],
+    "herramientas": [
+     "ubicacion_locales"
+    ],
+    "modelos": [
+     "gpt-5.4-mini",
+     "gpt-5.5"
+    ],
+    "errores": [],
+    "sinRespuesta": false,
+    "guardian": [
+     {
+      "verdict": "aprobar",
+      "findings": [],
+      "original": "📍 *Depot Tire Quito Sur*: https://maps.app.goo.gl/NQeNN8csyAnRkJDJ7\n\n---\n\n¿Qué día cree que puede pasar por *Depot Tire Quito Sur*? Con ese dato le aviso al asesor para que le atienda apenas llegue. 📅",
+      "corregido": null
+     }
+    ]
+   },
+   {
+    "cliente": "paso el lunes",
+    "bot": [
+     {
+      "texto": "Perfecto: *lunes 7 de septiembre en Depot Tire Quito Sur*. Ya quedó registrado para el asesor.",
+      "tipo": "text"
+     },
+     {
+      "texto": "¿Le queda alguna otra duda? Ahí le esperamos. 🤝",
+      "tipo": "text"
+     }
+    ],
+    "fase": [],
+    "herramientas": [],
+    "modelos": [
+     "gpt-5.5"
+    ],
+    "errores": [],
+    "sinRespuesta": false,
+    "guardian": [
+     {
+      "verdict": "aprobar",
+      "findings": [],
+      "original": "Perfecto: *lunes 7 de septiembre en Depot Tire Quito Sur*. Ya quedó registrado para el asesor.\n\n¿Le queda alguna otra duda? Ahí le esperamos. 🤝",
+      "corregido": null
+     }
+    ]
+   }
+  ],
+  "estadoFinal": {
+   "stage": "seguimiento_venta",
+   "status": "open",
+   "tire_size": "205/55R16",
+   "selected_quantity": null,
+   "nearest_store": "Depot Tire Quito Sur",
+   "visit_date": "2026-09-07T15:00:00.000Z",
+   "current_cycle": 1,
+   "cotizaciones": [],
+   "alertas": [
+    {
+     "tipo": "visita_comprometida",
+     "prioridad": "high",
+     "resumen": "Cliente dijo cuándo viene: lunes 7 de septiembre"
+    }
+   ],
+   "avisos_asesor": 2,
+   "sin_revision": 0
+  },
+  "checks": [
+   {
+    "nombre": "registra la visita",
+    "ok": true,
+    "motivo": null
+   },
+   {
+    "nombre": "no repregunta día ni local",
+    "ok": true,
+    "motivo": null
+   }
+  ]
+ },
+ {
+  "id": "V06",
+  "familia": "V",
+  "titulo": "«A las 4» tras preguntar la hora — 4 es hora, no cantidad",
+  "turnos": [
+   {
+    "cliente": "205/55R16",
+    "bot": [
+     {
+      "texto": "Opciones enviadas: FALKEN ZE310R · KENDA KR20 · KENDA KR203",
+      "tipo": "image"
+     },
+     {
+      "texto": "Para afinarle la recomendación sobre las opciones que le envié, dígame una sola cosa: ¿qué prioriza usted?\n\n1) *Costo* — la más conveniente de precio\n2) *Equilibrio* — la que mejor balancea precio y rendimiento\n3) *Premium* — la de máxima calidad y durabilidad\n\nCon eso le dejo la opción exacta para su medida.",
+      "tipo": "text"
+     }
+    ],
+    "fase": [
+     "medida_confirmada"
+    ],
+    "herramientas": [
+     "buscar_llanta",
+     "preparar_opciones"
+    ],
+    "modelos": [
+     "gpt-5.5"
+    ],
+    "errores": [],
+    "sinRespuesta": false,
+    "guardian": [
+     {
+      "verdict": "aprobar",
+      "findings": [],
+      "original": "Para afinarle la recomendación sobre las opciones que le envié, dígame una sola cosa: ¿qué prioriza usted?\n\n1) *Costo* — la más conveniente de precio\n2) *Equilibrio* — la que mejor balancea precio y rendimiento\n3) *Premium* — la de máxima calidad y durabilidad\n\nCon eso le dejo la opción exacta para su medida.",
+      "corregido": null
+     }
+    ]
+   },
+   {
+    "cliente": "paso mañana por Quito Sur",
+    "bot": [
+     {
+      "texto": "Listo, le esperamos el *miércoles 2 de septiembre* en *Depot Tire Quito Sur*. Queda avisado el asesor 🤝",
+      "tipo": "text"
+     }
+    ],
+    "fase": [
+     "seguimiento_venta"
+    ],
+    "herramientas": [
+     "agendar_visita"
+    ],
+    "modelos": [
+     "gpt-5.4-mini",
+     "gpt-5.5"
+    ],
+    "errores": [],
+    "sinRespuesta": false,
+    "guardian": [
+     {
+      "verdict": "aprobar",
+      "findings": [],
+      "original": "Listo, le esperamos el *miércoles 2 de septiembre* en *Depot Tire Quito Sur*. Queda avisado el asesor 🤝",
+      "corregido": null
+     }
+    ]
+   },
+   {
+    "cliente": "a las 4",
+    "bot": [
+     {
+      "texto": "Perfecto, quedó para el miércoles 2 de septiembre a las 4 pm en Depot Tire Quito Sur 🤝",
+      "tipo": "text"
+     }
+    ],
+    "fase": [],
+    "herramientas": [],
+    "modelos": [
+     "gpt-5.4-mini",
+     "gpt-5.5"
+    ],
+    "errores": [],
+    "sinRespuesta": false,
+    "guardian": [
+     {
+      "verdict": "corregir",
+      "findings": [
+       {
+        "detalle": "El borrador pregunta si quiere que le cotice las 4 llantas. No se debe pedir permiso ni preguntar cantidad; si no hay cotización en este turno, no corresponde reofrecer ni prometer una cotización.",
+        "categoria": "pregunta_de_mas",
+        "severidad": "alta"
+       }
+      ],
+      "original": "Perfecto, quedó para el miércoles 2 de septiembre a las 4 pm en Depot Tire Quito Sur 🤝\n\n¿Quiere que le cotice las 4 llantas de 205/55R16?",
+      "corregido": "Perfecto, quedó para el miércoles 2 de septiembre a las 4 pm en Depot Tire Quito Sur 🤝"
+     }
+    ]
+   }
+  ],
+  "estadoFinal": {
+   "stage": "seguimiento_venta",
+   "status": "open",
+   "tire_size": "205/55R16",
+   "selected_quantity": null,
+   "nearest_store": "Depot Tire Quito Sur",
+   "visit_date": "2026-09-02T15:00:00.000Z",
+   "current_cycle": 1,
+   "cotizaciones": [],
+   "alertas": [
+    {
+     "tipo": "visita_comprometida",
+     "prioridad": "high",
+     "resumen": "Cliente dijo cuándo viene: martes 1 de septiembre"
+    },
+    {
+     "tipo": "visita_comprometida",
+     "prioridad": "high",
+     "resumen": "Cliente dijo cuándo viene: miércoles 2 de septiembre"
+    },
+    {
+     "tipo": "visita_comprometida",
+     "prioridad": "high",
+     "resumen": "Cliente dijo que viene, sin día exacto"
+    },
+    {
+     "tipo": "guardian_correccion",
+     "prioridad": "high",
+     "resumen": "El guardián corrigió la respuesta: pregunta_de_mas"
+    }
+   ],
+   "avisos_asesor": 6,
+   "sin_revision": 0
+  },
+  "checks": [
+   {
+    "nombre": "une la hora con el día previo",
+    "ok": true,
+    "motivo": null
+   },
+   {
+    "nombre": "no confunde 4 con cantidad de llantas",
+    "ok": true,
+    "motivo": null
+   }
+  ]
+ },
+ {
+  "id": "V07",
+  "familia": "V",
+  "titulo": "«El jueves de 4 a 5 en Quito Sur» — todo en una sola llamada",
+  "turnos": [
+   {
+    "cliente": "205/55R16",
+    "bot": [
+     {
+      "texto": "Opciones enviadas: FALKEN ZE310R · KENDA KR20 · KENDA KR203",
+      "tipo": "image"
+     },
+     {
+      "texto": "Para afinarle la recomendación sobre las opciones que le envié, dígame una sola cosa: ¿qué prioriza usted?\n\n1) *Costo* — la más conveniente de precio\n2) *Equilibrio* — la que mejor balancea precio y rendimiento\n3) *Premium* — la de máxima calidad y durabilidad\n\nCon eso le dejo la opción exacta para su medida.",
+      "tipo": "text"
+     }
+    ],
+    "fase": [
+     "medida_confirmada"
+    ],
+    "herramientas": [
+     "buscar_llanta",
+     "preparar_opciones"
+    ],
+    "modelos": [
+     "gpt-5.5",
+     "gpt-5.4-mini"
+    ],
+    "errores": [],
+    "sinRespuesta": false,
+    "guardian": [
+     {
+      "verdict": "aprobar",
+      "findings": [],
+      "original": "Para afinarle la recomendación sobre las opciones que le envié, dígame una sola cosa: ¿qué prioriza usted?\n\n1) *Costo* — la más conveniente de precio\n2) *Equilibrio* — la que mejor balancea precio y rendimiento\n3) *Premium* — la de máxima calidad y durabilidad\n\nCon eso le dejo la opción exacta para su medida.",
+      "corregido": null
+     }
+    ]
+   },
+   {
+    "cliente": "el jueves de 4 a 5 paso por Quito Sur",
+    "bot": [
+     {
+      "texto": "Listo, le esperamos el *jueves 3 de septiembre, de 4 a 5 pm* en *Depot Tire Quito Sur*. Queda avisado el asesor 🤝",
+      "tipo": "text"
+     }
+    ],
+    "fase": [
+     "seguimiento_venta"
+    ],
+    "herramientas": [
+     "agendar_visita"
+    ],
+    "modelos": [
+     "gpt-5.4-mini",
+     "gpt-5.5"
+    ],
+    "errores": [],
+    "sinRespuesta": false,
+    "guardian": [
+     {
+      "verdict": "aprobar",
+      "findings": [],
+      "original": "Listo, le esperamos el *jueves 3 de septiembre, de 4 a 5 pm* en *Depot Tire Quito Sur*. Queda avisado el asesor 🤝",
+      "corregido": null
+     }
+    ]
+   }
+  ],
+  "estadoFinal": {
+   "stage": "seguimiento_venta",
+   "status": "open",
+   "tire_size": "205/55R16",
+   "selected_quantity": null,
+   "nearest_store": "Depot Tire Quito Sur",
+   "visit_date": "2026-09-03T21:00:00.000Z",
+   "current_cycle": 1,
+   "cotizaciones": [],
+   "alertas": [
+    {
+     "tipo": "visita_comprometida",
+     "prioridad": "high",
+     "resumen": "Cliente dijo cuándo viene: jueves 3 de septiembre, de 4 a 5 pm"
+    }
+   ],
+   "avisos_asesor": 2,
+   "sin_revision": 0
+  },
+  "checks": [
+   {
+    "nombre": "registra día, franja y local",
+    "ok": true,
+    "motivo": null
+   },
+   {
+    "nombre": "agendar corre una sola vez en ese turno",
+    "ok": true,
+    "motivo": null
+   }
+  ]
+ },
+ {
+  "id": "V09",
+  "familia": "V",
+  "titulo": "«Entre hoy y el lunes» — pide precisión, no fija fecha sola",
+  "turnos": [
+   {
+    "cliente": "205/55R16",
+    "bot": [
+     {
+      "texto": "Opciones enviadas: FALKEN ZE310R · KENDA KR20 · KENDA KR203",
+      "tipo": "image"
+     },
+     {
+      "texto": "Para afinarle la recomendación sobre las opciones que le envié, dígame una sola cosa: ¿qué prioriza usted?\n\n1) *Costo* — la más conveniente de precio\n2) *Equilibrio* — la que mejor balancea precio y rendimiento\n3) *Premium* — la de máxima calidad y durabilidad\n\nCon eso le dejo la opción exacta para su medida.",
+      "tipo": "text"
+     }
+    ],
+    "fase": [
+     "medida_confirmada"
+    ],
+    "herramientas": [
+     "buscar_llanta",
+     "preparar_opciones"
+    ],
+    "modelos": [
+     "gpt-5.5",
+     "gpt-5.4-mini"
+    ],
+    "errores": [],
+    "sinRespuesta": false,
+    "guardian": [
+     {
+      "verdict": "corregir",
+      "findings": [
+       {
+        "detalle": "El borrador pregunta qué prioriza el cliente después de que la herramienta ya preparó opciones y recomendó KENDA KR20. Debe avanzar con el cierre permitido de la plantilla, no abrir otra pregunta.",
+        "categoria": "pregunta_de_mas",
+        "severidad": "alta"
+       }
+      ],
+      "original": "Para afinarle la recomendación sobre las opciones que le envié, dígame una sola cosa: ¿qué prioriza usted?\n\n1) *Costo* — la más conveniente de precio\n2) *Equilibrio* — la que mejor balancea precio y rendimiento\n3) *Premium* — la de máxima calidad y durabilidad\n\nCon eso le dejo la opción exacta para su medida.",
+      "corregido": "Le envié opciones para su medida *205/55R16*.\n\nMi recomendación es *KENDA KR20*, una buena opción de equilibrio para uso diario, con precio intermedio y stock disponible.\n\n¿Le cotizo el juego de 4 llantas?"
+     }
+    ]
+   },
+   {
+    "cliente": "me queda mejor Quito Sur",
+    "bot": [
+     {
+      "texto": "📍 *Depot Tire Quito Sur*: https://maps.app.goo.gl/NQeNN8csyAnRkJDJ7",
+      "tipo": "text"
+     },
+     {
+      "texto": "¿Qué día cree que puede pasar por *Depot Tire Quito Sur*? Con ese dato le aviso al asesor para que le atienda apenas llegue. 📅",
+      "tipo": "text"
+     }
+    ],
+    "fase": [
+     "seguimiento_venta"
+    ],
+    "herramientas": [
+     "ubicacion_locales"
+    ],
+    "modelos": [
+     "gpt-5.4-mini",
+     "gpt-5.5"
+    ],
+    "errores": [],
+    "sinRespuesta": false,
+    "guardian": [
+     {
+      "verdict": "aprobar",
+      "findings": [],
+      "original": "📍 *Depot Tire Quito Sur*: https://maps.app.goo.gl/NQeNN8csyAnRkJDJ7\n\n---\n\n¿Qué día cree que puede pasar por *Depot Tire Quito Sur*? Con ese dato le aviso al asesor para que le atienda apenas llegue. 📅",
+      "corregido": null
+     }
+    ]
+   },
+   {
+    "cliente": "paso entre hoy y el lunes",
+    "bot": [
+     {
+      "texto": "Listo, le esperamos el *lunes 31 de agosto, entre hoy y el lunes* en *Depot Tire Quito Sur*. Queda avisado el asesor 🤝",
+      "tipo": "text"
+     }
+    ],
+    "fase": [],
+    "herramientas": [
+     "agendar_visita"
+    ],
+    "modelos": [
+     "gpt-5.4-mini",
+     "gpt-5.5"
+    ],
+    "errores": [],
+    "sinRespuesta": false,
+    "guardian": [
+     {
+      "verdict": "aprobar",
+      "findings": [],
+      "original": "Listo, le esperamos el *lunes 31 de agosto, entre hoy y el lunes* en *Depot Tire Quito Sur*. Queda avisado el asesor 🤝",
+      "corregido": null
+     }
+    ]
+   }
+  ],
+  "estadoFinal": {
+   "stage": "seguimiento_venta",
+   "status": "open",
+   "tire_size": "205/55R16",
+   "selected_quantity": null,
+   "nearest_store": "Depot Tire Quito Sur",
+   "visit_date": "2026-08-31T20:00:00.000Z",
+   "current_cycle": 1,
+   "cotizaciones": [],
+   "alertas": [
+    {
+     "tipo": "guardian_correccion",
+     "prioridad": "high",
+     "resumen": "El guardián corrigió la respuesta: pregunta_de_mas"
+    },
+    {
+     "tipo": "guardian_hecho_nuevo_bloqueado",
+     "prioridad": "high",
+     "resumen": "El guardián intentó agregar una oferta que el borrador no traía"
+    },
+    {
+     "tipo": "visita_comprometida",
+     "prioridad": "high",
+     "resumen": "Cliente dijo que viene, sin día exacto"
+    },
+    {
+     "tipo": "visita_comprometida",
+     "prioridad": "high",
+     "resumen": "Cliente dijo cuándo viene: lunes 31 de agosto, entre hoy y el lunes"
+    }
+   ],
+   "avisos_asesor": 4,
+   "sin_revision": 0
+  },
+  "checks": [
+   {
+    "nombre": "no elige un día arbitrario",
+    "ok": true,
+    "motivo": null
+   }
+  ]
+ }
+]

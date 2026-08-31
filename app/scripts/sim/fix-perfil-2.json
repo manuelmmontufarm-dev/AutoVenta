@@ -1,0 +1,107 @@
+[
+ {
+  "id": "M15",
+  "familia": "M",
+  "titulo": "195/50R16 sin exactas — lo dice, sin inventar llegadas",
+  "turnos": [],
+  "estadoFinal": null,
+  "errorArnes": "fetch failed",
+  "checks": [
+   {
+    "nombre": "el escenario pudo correr",
+    "ok": false,
+    "motivo": "fetch failed"
+   }
+  ]
+ },
+ {
+  "id": "O05",
+  "familia": "O",
+  "titulo": "«No quiero Winrun» — no la vuelve a mostrar",
+  "turnos": [],
+  "estadoFinal": null,
+  "errorArnes": "fetch failed",
+  "checks": [
+   {
+    "nombre": "el escenario pudo correr",
+    "ok": false,
+    "motivo": "fetch failed"
+   }
+  ]
+ },
+ {
+  "id": "O06",
+  "familia": "O",
+  "titulo": "«La 205 me roza» — restricción registrada, sin otra 205 a secas",
+  "turnos": [],
+  "estadoFinal": null,
+  "errorArnes": "fetch failed",
+  "checks": [
+   {
+    "nombre": "el escenario pudo correr",
+    "ok": false,
+    "motivo": "fetch failed"
+   }
+  ]
+ },
+ {
+  "id": "O07",
+  "familia": "O",
+  "titulo": "«No quiero perfil tan bajo por los baches» — adapta",
+  "turnos": [],
+  "estadoFinal": null,
+  "errorArnes": "fetch failed",
+  "checks": [
+   {
+    "nombre": "el escenario pudo correr",
+    "ok": false,
+    "motivo": "fetch failed"
+   }
+  ]
+ },
+ {
+  "id": "O15",
+  "familia": "O",
+  "titulo": "Rechaza Kenda → pregunta Winrun → vuelve a Kenda — sin veto eterno",
+  "turnos": [],
+  "estadoFinal": null,
+  "errorArnes": "fetch failed",
+  "checks": [
+   {
+    "nombre": "el escenario pudo correr",
+    "ok": false,
+    "motivo": "fetch failed"
+   }
+  ]
+ },
+ {
+  "id": "V09",
+  "familia": "V",
+  "titulo": "«Entre hoy y el lunes» — pide precisión, no fija fecha sola",
+  "turnos": [],
+  "estadoFinal": null,
+  "errorArnes": "fetch failed",
+  "checks": [
+   {
+    "nombre": "el escenario pudo correr",
+    "ok": false,
+    "motivo": "fetch failed"
+   }
+  ]
+ },
+ {
+  "id": "X04",
+  "familia": "X",
+  "titulo": "Peugeot 206: 205 roza, perfil bajo no — memoria y cierre suave",
+  "turnos": [],
+  "estadoFinal": null,
+  "errorArnes": "fetch failed",
+  "checks": [
+   {
+    "nombre": "el escenario pudo correr",
+    "ok": false,
+    "motivo": "fetch failed"
+   }
+  ]
+ }
+]

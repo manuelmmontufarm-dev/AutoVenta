@@ -64,3 +64,39 @@ describe("preguntamosElDia", () => {
     expect(preguntamosElDia(null)).toBe(false);
   });
 });
+
+/**
+ * V09 del corpus T115, medido el 31-ago-2026 contra producción:
+ *   CLIENTE: «paso entre hoy y el lunes»
+ *   BOT:     «Perfecto: *lunes 31 de agosto*. Ya quedó registrado.»
+ * El cliente nombró DOS momentos y no eligió ninguno; el bot se quedó con el
+ * segundo y agendó una visita que nadie pidió. Un rango vale como compromiso
+ * («va a pasar») pero NO como fecha: el día sigue debiéndose.
+ */
+describe("un rango de días no fija fecha", () => {
+  const now = new Date("2026-08-31T20:00:00.000Z");
+
+  it.each([
+    "paso entre hoy y el lunes",
+    "voy entre el jueves y el viernes",
+    "paso desde hoy hasta el sábado",
+    "voy el lunes o el martes",
+  ])("«%s» es compromiso sin fecha", (texto) => {
+    const r = extractCustomerCommitment(texto, now, { respondiendoAlDia: true });
+    expect(r, texto).not.toBeNull();
+    expect(r?.tipo, texto).toBe("tramo");
+    expect(r?.visitDate, texto).toBeUndefined();
+  });
+
+  it("un día solo SÍ fija la fecha: el rango no se come lo que sí es concreto", () => {
+    const r = extractCustomerCommitment("paso el jueves", now, { respondiendoAlDia: true });
+    expect(r?.tipo).toBe("fecha");
+    expect(r?.visitDate).toBeInstanceOf(Date);
+  });
+
+  it("una fecha de calendario manda sobre el rango", () => {
+    const r = extractCustomerCommitment("paso el 4 de septiembre", now, { respondiendoAlDia: true });
+    expect(r?.tipo).toBe("fecha");
+    expect(r?.visitDate?.toISOString()).toContain("2026-09-04");
+  });
+});

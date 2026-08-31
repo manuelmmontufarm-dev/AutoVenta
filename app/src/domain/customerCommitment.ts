@@ -5,6 +5,23 @@ const INTENT = /\b(?:voy|ire|iré|vamos|paso|pasare|pasaré|recojo|recogeré|ret
 /** Compromisos sin fecha exacta: valen como respuesta, no como día del calendario. */
 const VAGO = /\b(?:esta semana|en la semana|este finde|el finde|fin de semana|proxima semana|la otra semana|la siguiente semana)\b/;
 
+/**
+ * UN RANGO NO ES UNA FECHA. «Paso entre hoy y el lunes» nombra DOS momentos y
+ * no elige ninguno; leerlo como fecha concreta agenda un día que el cliente
+ * nunca dijo.
+ *
+ * Medido el 31-ago-2026 (corpus T115, escenario V09): el cliente escribió
+ * «paso entre hoy y el lunes» y el bot contestó «Perfecto: lunes 31 de agosto,
+ * ya quedó registrado». `relativoEnTexto` encontraba «hoy», `diaEnTexto`
+ * encontraba «lunes», y la rama de fecha concreta se quedaba con el segundo.
+ *
+ * Se comprueba ANTES que todo lo demás y cae en `tramo`, que ya significa
+ * exactamente esto: se comprometió, pero el día sigue pendiente — así el
+ * candado del cierre vuelve a pedirlo en vez de darlo por resuelto.
+ */
+const RANGO_DE_DIAS =
+  /\b(?:entre|desde)\s+(?:el\s+|este\s+)?[a-z]+\s+(?:y|hasta|a)\s+(?:el\s+|este\s+)?[a-z]+|\b(?:hoy|manana|lunes|martes|miercoles|jueves|viernes|sabado|domingo)\s+o\s+(?:el\s+)?(?:hoy|manana|lunes|martes|miercoles|jueves|viernes|sabado|domingo)\b/;
+
 export interface CustomerCommitment {
   text: string;
   visitDate?: Date;
@@ -200,6 +217,16 @@ export function extractCustomerCommitment(
 
   const compact = text.trim().replace(/\s+/g, " ").slice(0, 180);
   const etiqueta = franja?.etiqueta;
+
+  // El rango manda sobre cualquier día suelto que aparezca dentro de él: si el
+  // cliente dio DOS momentos, no eligió ninguno (V09 del corpus, 31-ago).
+  if (RANGO_DE_DIAS.test(normalized) && !calendario) {
+    return {
+      text: compact,
+      ...(etiqueta ? { visitTimeLabel: etiqueta } : {}),
+      tipo: "tramo",
+    };
+  }
   const conFranja = (porDefecto: number, offset: number): CustomerCommitment => ({
     text: compact,
     visitDate: localDateAt(franja?.hora ?? porDefecto, offset, now),
