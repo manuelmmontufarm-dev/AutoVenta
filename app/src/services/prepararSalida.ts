@@ -495,10 +495,18 @@ export const PASOS: readonly PasoDeSalida[] = [
     nombre: "sin_calco_reciente",
     corre: ["respuesta", "retomada"],
     async aplicar(texto, ctx) {
+      // Solo del CICLO vigente: tras un reinicio —manual o por inactividad— lo
+      // que dijimos antes es de otra conversación, y repetirlo no es pereza
+      // sino lo correcto. Sin este filtro, un `/restart` seguido de «hola» se
+      // quedaba sin bienvenida: el saludo del ciclo anterior seguía dentro de
+      // la ventana de 10 minutos y este candado se comía el bloque entero
+      // (simulador, 31-ago: el turno salió sin presentarse, solo con la
+      // pregunta suelta «¿Qué medida usa?»).
       const recientes = await sql<{ content: string | null }[]>`
         select content from messages
         where conversation_id=${ctx.conversation.id}
           and direction='outbound' and author_kind='bot' and type='text'
+          and cycle=(select current_cycle from conversations where id=${ctx.conversation.id})
           and created_at > now() - interval '10 minutes'
         order by created_at desc limit 8
       `;

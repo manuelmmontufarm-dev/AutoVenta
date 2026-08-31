@@ -1,3 +1,20 @@
+## 31-ago-2026 · El candado anti-repetición se comía el saludo tras un reinicio
+
+**Qué:** `sin_calco_reciente` miraba los salientes de los últimos 10 minutos sin
+filtrar por ciclo. Tras un `/restart`, la bienvenida del ciclo anterior seguía
+dentro de esa ventana y el candado borraba el bloque entero: al cliente le
+llegaba la pregunta suelta «¿Qué medida usa? Ej: 225/65R17» sin una palabra de
+presentación. Ahora la consulta se limita al ciclo vigente.
+
+**Por qué:** Encontrado en el simulador al verificar el saludo (31-ago 14:20),
+no en los tests: la pieza pura `sinBloquesCalcados` estaba bien, el error vivía
+en la consulta que la alimenta — misma familia que `lastOutboundText` esta
+mañana. Tras un reinicio el ciclo viejo es otra conversación y volver a
+presentarse es lo correcto; dentro del mismo ciclo el candado sigue mordiendo
+igual (el caso conv 3 c20 que lo hizo nacer).
+
+**Horas:** ~0.5
+
 ## 31-ago-2026 · Los tres errores del chat de Manuel (conv 3, 13:20-13:27): calco, medida rechazada y «no puedo esos días»
 
 **Qué:** Cuatro candados, todos probados en el simulador con la conversación
