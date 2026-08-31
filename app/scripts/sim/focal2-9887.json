@@ -1,0 +1,451 @@
+[
+  {
+    "conv": 9887,
+    "titulo": "Cotizó y se fue a comparar a Ibarra; termina con «Ya compre»",
+    "checks": [
+      {
+        "nombre": "ningún turno se queda sin respuesta",
+        "ok": true,
+        "motivo": null
+      },
+      {
+        "nombre": "ninguna corrida de IA con error",
+        "ok": true,
+        "motivo": null
+      },
+      {
+        "nombre": "el guardián no marca insistencia tras rechazo",
+        "ok": true,
+        "motivo": null
+      },
+      {
+        "nombre": "no pregunta el local después de «No gracias»",
+        "ok": true,
+        "motivo": null
+      },
+      {
+        "nombre": "no pregunta el local después de «Ya compre»",
+        "ok": true,
+        "motivo": null
+      },
+      {
+        "nombre": "no repite la pregunta del local en turnos seguidos",
+        "ok": true,
+        "motivo": null
+      }
+    ],
+    "turnos": [
+      {
+        "cliente": "¡Hola! Quiero más información",
+        "bot": [
+          {
+            "texto": "¡Hola! 👋 Le cotizo con stock y precios reales.\nLo más rápido es enviarme la *medida de la llanta* (ej. 225/65R17) o una foto del costado.\nSi no la tiene, dígame *marca, modelo y año del vehículo* o el aro; también puedo orientarle según su uso y comparar opciones.",
+            "tipo": "text"
+          }
+        ],
+        "fase": [],
+        "herramientas": [],
+        "modelos": [
+          "gpt-5.5"
+        ],
+        "errores": [],
+        "sinRespuesta": false,
+        "guardian": [
+          {
+            "verdict": "aprobar",
+            "findings": [],
+            "original": "¡Hola! 👋 Le cotizo con stock y precios reales.\nLo más rápido es enviarme la *medida de la llanta* (ej. 225/65R17) o una foto del costado.\nSi no la tiene, dígame *marca, modelo y año del vehículo* o el aro; también puedo orientarle según su uso y comparar opciones.",
+            "corregido": null
+          }
+        ]
+      },
+      {
+        "cliente": "31x10.50R15LT",
+        "bot": [
+          {
+            "texto": "Opciones enviadas: KENDA KR29",
+            "tipo": "image"
+          },
+          {
+            "texto": "Para afinarle la recomendación sobre las opciones que le envié, dígame una sola cosa: ¿qué prioriza usted?\n\n1) *Costo* — la más conveniente de precio\n2) *Equilibrio* — la que mejor balancea precio y rendimiento\n3) *Premium* — la de máxima calidad y durabilidad\n\nCon eso le dejo la opción exacta para su medida.",
+            "tipo": "text"
+          }
+        ],
+        "fase": [
+          "medida_confirmada"
+        ],
+        "herramientas": [
+          "buscar_llanta",
+          "preparar_opciones"
+        ],
+        "modelos": [
+          "gpt-5.4-mini",
+          "gpt-5.5"
+        ],
+        "errores": [],
+        "sinRespuesta": false,
+        "guardian": [
+          {
+            "verdict": "corregir",
+            "findings": [
+              {
+                "detalle": "El borrador pregunta qué prioriza entre costo/equilibrio/premium aunque la herramienta ya dejó una sola opción vendible enviada: KENDA KR29. Esto agrega un turno innecesario; corresponde cerrar con la plantilla permitida para cotizar el juego de 4.",
+                "categoria": "pregunta_de_mas",
+                "severidad": "alta"
+              }
+            ],
+            "original": "Para afinarle la recomendación sobre las opciones que le envié, dígame una sola cosa: ¿qué prioriza usted?\n\n1) *Costo* — la más conveniente de precio\n2) *Equilibrio* — la que mejor balancea precio y rendimiento\n3) *Premium* — la de máxima calidad y durabilidad\n\nCon eso le dejo la opción exacta para su medida.",
+            "corregido": "Para su medida *31X10.5R15*, la opción disponible que le envié es *KENDA KR29*.\n\n¿Le cotizo el juego de 4 llantas?"
+          }
+        ]
+      },
+      {
+        "cliente": "Que balor tiene",
+        "bot": [
+          {
+            "texto": "La Kenda KR29 en medida 31x10.50R15LT está en *$210.06 c/u con IVA*.\n\nPara el juego de *4 llantas*, el valor referencial es *$840.24 con IVA*.\n\nIncluye instalación, alineación, balanceo, seguro gratuito contra daños, mantenimiento cada 10.000 km y revisión gratuita del vehículo.",
+            "tipo": "text"
+          }
+        ],
+        "fase": [],
+        "herramientas": [
+          "generar_cotizacion"
+        ],
+        "modelos": [
+          "gpt-5.5",
+          "gpt-5.4-mini"
+        ],
+        "errores": [],
+        "sinRespuesta": false,
+        "guardian": [
+          {
+            "verdict": "corregir",
+            "findings": [
+              {
+                "detalle": "El borrador pregunta “¿Desea que le genere la cotización formal por 4 llantas?”, pero la herramienta bloqueó la cotización en este turno e indicó responder la consulta actual sin empujar una cotización.",
+                "categoria": "pregunta_de_mas",
+                "severidad": "alta"
+              }
+            ],
+            "original": "La Kenda KR29 en medida 31x10.50R15LT está en $210.06 c/u con IVA.\n\nPara 4 llantas, el valor referencial es $840.24 con IVA. Incluye instalación, alineación, balanceo, seguro gratuito contra daños, mantenimiento cada 10.000 km y revisión del vehículo.\n\n¿Desea que le genere la cotización formal por 4 llantas?",
+            "corregido": "La Kenda KR29 en medida 31x10.50R15LT está en *$210.06 c/u con IVA*.\n\nPara el juego de *4 llantas*, el valor referencial es *$840.24 con IVA*.\n\nIncluye instalación, alineación, balanceo, seguro gratuito contra daños, mantenimiento cada 10.000 km y revisión gratuita del vehículo."
+          }
+        ]
+      },
+      {
+        "cliente": "[El cliente mandó una foto. Se lee: 31x10.50R15LT 109S 6PR]",
+        "bot": [
+          {
+            "texto": "Sí, la foto confirma la medida: *31x10.50R15LT 109S 6PR*.\n\nPara esa medida tenemos la *Kenda KR29* en *$210.06 c/u con IVA*. Para *4 llantas* sería *$840.24 con IVA*.",
+            "tipo": "text"
+          },
+          {
+            "texto": "Incluye instalación, alineación, balanceo, seguro gratuito contra daños, mantenimiento cada 10.000 km y revisión gratuita del vehículo.",
+            "tipo": "text"
+          },
+          {
+            "texto": "¿Le cotizo el juego de 4 llantas?",
+            "tipo": "text"
+          }
+        ],
+        "fase": [
+          "medida_confirmada"
+        ],
+        "herramientas": [
+          "generar_cotizacion"
+        ],
+        "modelos": [
+          "gpt-5.5",
+          "gpt-5.4-mini"
+        ],
+        "errores": [],
+        "sinRespuesta": false,
+        "guardian": [
+          {
+            "verdict": "corregir",
+            "findings": [
+              {
+                "detalle": "El borrador pregunta “¿Desea que le genere la cotización formal de las 4 llantas?”, pero la única forma permitida por la plantilla es “¿Le cotizo el juego de 4 llantas?”. Además, la herramienta de cotización fue bloqueada en este turno, así que no debe prometer generar una cotización formal distinta de lo permitido.",
+                "categoria": "pregunta_de_mas",
+                "severidad": "alta"
+              }
+            ],
+            "original": "Sí, la foto confirma la medida: *31x10.50R15LT 109S 6PR*.\n\nPara esa medida tenemos la *Kenda KR29* en *$210.06 c/u con IVA*. Para *4 llantas* sería *$840.24 con IVA*.\n\n---\nIncluye instalación, alineación, balanceo, seguro gratuito contra daños, mantenimiento cada 10.000 km y revisión gratuita del vehículo.\n\n¿Desea que le genere la cotización formal de las 4 llantas?",
+            "corregido": "Sí, la foto confirma la medida: *31x10.50R15LT 109S 6PR*.\n\nPara esa medida tenemos la *Kenda KR29* en *$210.06 c/u con IVA*. Para *4 llantas* sería *$840.24 con IVA*.\n\n---\nIncluye instalación, alineación, balanceo, seguro gratuito contra daños, mantenimiento cada 10.000 km y revisión gratuita del vehículo.\n\n¿Le cotizo el juego de 4 llantas?"
+          }
+        ]
+      },
+      {
+        "cliente": "Si",
+        "bot": [
+          {
+            "texto": "Cotización COT-MTGN5LBP enviada por $840.24",
+            "tipo": "image"
+          },
+          {
+            "texto": "Puede pasar sin compromiso a verlas y probarlas en su vehículo.\n📍 *Depot Tire Cumbayá*: https://maps.app.goo.gl/QnMBPXKc1o8igbsp8\n📍 *Depot Tire Quito Sur*: https://maps.app.goo.gl/NQeNN8csyAnRkJDJ7",
+            "tipo": "text"
+          },
+          {
+            "texto": "¿A cuál local le queda mejor ir, *Cumbayá* o *Quito Sur*? 📍",
+            "tipo": "text"
+          }
+        ],
+        "fase": [
+          "cotizacion_enviada"
+        ],
+        "herramientas": [
+          "generar_cotizacion"
+        ],
+        "modelos": [
+          "gpt-5.4-mini",
+          "gpt-5.5"
+        ],
+        "errores": [],
+        "sinRespuesta": false,
+        "guardian": [
+          {
+            "verdict": "aprobar",
+            "findings": [],
+            "original": "Puede pasar sin compromiso a verlas y probarlas en su vehículo.\n📍 *Depot Tire Cumbayá*: https://maps.app.goo.gl/QnMBPXKc1o8igbsp8\n📍 *Depot Tire Quito Sur*: https://maps.app.goo.gl/NQeNN8csyAnRkJDJ7\n\n---\n\n¿A cuál local le queda mejor ir, *Cumbayá* o *Quito Sur*? 📍",
+            "corregido": null
+          }
+        ]
+      },
+      {
+        "cliente": "Donde esta ubicado",
+        "bot": [
+          {
+            "texto": "📍 *Depot Tire Cumbayá*: https://maps.app.goo.gl/QnMBPXKc1o8igbsp8\n📍 *Depot Tire Quito Sur*: https://maps.app.goo.gl/NQeNN8csyAnRkJDJ7",
+            "tipo": "text"
+          }
+        ],
+        "fase": [],
+        "herramientas": [
+          "ubicacion_locales"
+        ],
+        "modelos": [
+          "gpt-5.4-mini",
+          "gpt-5.5"
+        ],
+        "errores": [],
+        "sinRespuesta": false,
+        "guardian": [
+          {
+            "verdict": "aprobar",
+            "findings": [],
+            "original": "📍 *Depot Tire Cumbayá*: https://maps.app.goo.gl/QnMBPXKc1o8igbsp8\n📍 *Depot Tire Quito Sur*: https://maps.app.goo.gl/NQeNN8csyAnRkJDJ7",
+            "corregido": null
+          }
+        ]
+      },
+      {
+        "cliente": "Ya mire",
+        "bot": [
+          {
+            "texto": "Perfecto, ya tiene la ubicación de ambos locales.\n\nSi desea, le ayudo a elegir el más cercano o coordinamos su visita; ¿cuál le queda mejor?",
+            "tipo": "text"
+          },
+          {
+            "texto": "¿A cuál local le queda mejor ir, *Cumbayá* o *Quito Sur*? 📍",
+            "tipo": "text"
+          }
+        ],
+        "fase": [],
+        "herramientas": [],
+        "modelos": [
+          "gpt-5.4-mini",
+          "gpt-5.5"
+        ],
+        "errores": [],
+        "sinRespuesta": false,
+        "guardian": [
+          {
+            "verdict": "aprobar",
+            "findings": [],
+            "original": "Perfecto, ya tiene la ubicación de ambos locales.\n\nSi desea, le ayudo a elegir el más cercano o coordinamos su visita; ¿cuál le queda mejor?",
+            "corregido": null
+          }
+        ]
+      },
+      {
+        "cliente": "Boy a mirar aca en ibarra",
+        "bot": [
+          {
+            "texto": "Perfecto. Si está en Ibarra, no le queda un local de Depot Tire cerca.\n\nSi desea, le puedo ayudar a coordinar su visita en Quito o dejarle la cotización lista para cuando venga 🤝",
+            "tipo": "text"
+          }
+        ],
+        "fase": [],
+        "herramientas": [],
+        "modelos": [
+          "gpt-5.4-mini",
+          "gpt-5.5"
+        ],
+        "errores": [],
+        "sinRespuesta": false,
+        "guardian": [
+          {
+            "verdict": "corregir",
+            "findings": [
+              {
+                "detalle": "El cliente ya aceptó la cotización con “Si” y ya existe una cotización vigente por 4 KENDA KR29; el borrador vuelve a ofrecer “dejarle la cotización lista”, como si aún faltara aceptarla o generarla.",
+                "categoria": "reofrece_lo_aceptado",
+                "severidad": "alta"
+              }
+            ],
+            "original": "Perfecto. Si está en Ibarra, no le queda un local de Depot Tire cerca.\n\nSi desea, le puedo ayudar a coordinar su visita en Quito o dejarle la cotización lista para cuando venga 🤝",
+            "corregido": "Perfecto. Si está en Ibarra, no le queda un local de Depot Tire cerca.\n\nSu cotización del juego de *4 Kenda KR29 en 31x10.50R15LT* queda lista para cuando pueda venir a Quito 🤝"
+          }
+        ]
+      },
+      {
+        "cliente": "Creo me sale mas con cuenta",
+        "bot": [
+          {
+            "texto": "Entiendo, ya tiene la cotización de 4 llantas KENDA KR29 31X10.5R15 por $840.24.\n\nYa le avisé a un asesor para que lo revise y le ayude con su duda 🤝",
+            "tipo": "text"
+          },
+          {
+            "texto": "¿A cuál local le queda mejor ir, *Cumbayá* o *Quito Sur*? 📍",
+            "tipo": "text"
+          }
+        ],
+        "fase": [],
+        "herramientas": [
+          "notificar_vendedor"
+        ],
+        "modelos": [
+          "gpt-5.4-mini",
+          "gpt-5.5"
+        ],
+        "errores": [],
+        "sinRespuesta": false,
+        "guardian": [
+          {
+            "verdict": "corregir",
+            "findings": [
+              {
+                "detalle": "La herramienta del turno indica que ya se notificó al vendedor ({\"notificado\":true}); el borrador dice en futuro “Le aviso”, aunque la acción ya ocurrió. Debe ser consistente con lo hecho en el turno.",
+                "categoria": "otro",
+                "severidad": "media"
+              }
+            ],
+            "original": "Entiendo, ya tiene la cotización de 4 llantas KENDA KR29 31X10.5R15 por $840.24.\n\nLe aviso a un asesor para que lo revise y le ayude con su duda 🤝",
+            "corregido": "Entiendo, ya tiene la cotización de 4 llantas KENDA KR29 31X10.5R15 por $840.24.\n\nYa le avisé a un asesor para que lo revise y le ayude con su duda 🤝"
+          }
+        ]
+      },
+      {
+        "cliente": "Gracias",
+        "bot": [
+          {
+            "texto": "La cotización ya está lista para 4 llantas KENDA KR29 31X10.5R15 por $840.24.\n\nIncluye instalación, alineación y balanceo, más los beneficios de la compra.",
+            "tipo": "text"
+          }
+        ],
+        "fase": [],
+        "herramientas": [],
+        "modelos": [
+          "gpt-5.4-mini",
+          "gpt-5.5"
+        ],
+        "errores": [],
+        "sinRespuesta": false,
+        "guardian": [
+          {
+            "verdict": "aprobar",
+            "findings": [],
+            "original": "La cotización ya está lista para 4 llantas KENDA KR29 31X10.5R15 por $840.24.\n\nIncluye instalación, alineación y balanceo, más los beneficios de la compra.",
+            "corregido": null
+          }
+        ]
+      },
+      {
+        "cliente": "No gracias",
+        "bot": [
+          {
+            "texto": "Entendido, gracias por avisar. Quedamos a las órdenes si más adelante lo necesita. 🤝",
+            "tipo": "text"
+          }
+        ],
+        "fase": [],
+        "herramientas": [],
+        "modelos": [
+          "gpt-5.5"
+        ],
+        "errores": [],
+        "sinRespuesta": false,
+        "guardian": [
+          {
+            "verdict": "aprobar",
+            "findings": [],
+            "original": "Entendido, gracias por avisar. Quedamos a las órdenes si más adelante lo necesita. 🤝",
+            "corregido": null
+          }
+        ]
+      },
+      {
+        "cliente": "Ok",
+        "bot": [
+          {
+            "texto": "Con gusto. Quedamos a las órdenes. 🤝",
+            "tipo": "text"
+          }
+        ],
+        "fase": [],
+        "herramientas": [],
+        "modelos": [
+          "gpt-5.5"
+        ],
+        "errores": [],
+        "sinRespuesta": false,
+        "guardian": [
+          {
+            "verdict": "aprobar",
+            "findings": [],
+            "original": "Con gusto. Quedamos a las órdenes. 🤝",
+            "corregido": null
+          }
+        ]
+      },
+      {
+        "cliente": "Ya compre gracias",
+        "bot": [
+          {
+            "texto": "Gracias por avisarnos. Me alegra que ya haya resuelto su compra. Quedamos a las órdenes para otra ocasión. 🤝",
+            "tipo": "text"
+          }
+        ],
+        "fase": [],
+        "herramientas": [],
+        "modelos": [
+          "gpt-5.5"
+        ],
+        "errores": [],
+        "sinRespuesta": false,
+        "guardian": [
+          {
+            "verdict": "aprobar",
+            "findings": [],
+            "original": "Gracias por avisarnos. Me alegra que ya haya resuelto su compra. Quedamos a las órdenes para otra ocasión. 🤝",
+            "corregido": null
+          }
+        ]
+      }
+    ],
+    "estadoFinal": {
+      "stage": "ganado",
+      "medida": "31X10.5R15",
+      "cotizaciones": 1,
+      "alertas": [
+        "guardian_correccion/high",
+        "guardian_hecho_nuevo_bloqueado/high",
+        "guardian_correccion/high",
+        "quote_created/medium",
+        "guardian_correccion/high",
+        "caso_sin_resolver/high"
+      ]
+    }
+  }
+]

@@ -13,6 +13,7 @@
  */
 import { describe, expect, it } from "vitest";
 import {
+  esAcuseSimple,
   ofertaDeCotizacionAceptada,
   ofertaDeCotizacionVigenteAceptada,
   ofertaDeCotizarAceptada,
@@ -165,5 +166,26 @@ describe("ofertaDeCotizacionVigenteAceptada", () => {
       { role: "user", content: "Ok" },
     ];
     expect(ofertaDeCotizacionVigenteAceptada(sinOferta, "Ok")).toBe(false);
+  });
+});
+
+
+describe("esAcuseSimple y las señales de comparación", () => {
+  it.each(["Gracias", "Ok", "👍🏻", "Listo"])("«%s» es un acuse", (t) => {
+    expect(esAcuseSimple(t)).toBe(true);
+  });
+
+  it.each(["Ok, ¿y en aro 17?", "No gracias", "Quito sur"])("«%s» no lo es", (t) => {
+    expect(esAcuseSimple(t)).toBe(false);
+  });
+
+  it("«Boy a mirar aca en ibarra» (typo real de 9887) mata la oferta pendiente", () => {
+    const conComparacion = [
+      { role: "assistant", content: "¿Le cotizo el juego de 4 llantas?" },
+      { role: "user", content: "Boy a mirar aca en ibarra" },
+      { role: "assistant", content: "Perfecto, coordine con el local." },
+      { role: "user", content: "Gracias" },
+    ];
+    expect(ofertaDeCotizacionVigenteAceptada(conComparacion, "Gracias")).toBe(false);
   });
 });

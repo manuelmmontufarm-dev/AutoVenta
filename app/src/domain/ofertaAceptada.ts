@@ -23,7 +23,11 @@
  */
 
 const normalizar = (texto: string) =>
-  (texto ?? "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").trim();
+  (texto ?? "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "")
+    // Tono de piel y selector de variante: «👍🏻» (turno real de la conv 11620)
+    // es el mismo acuse que «👍», pero el modificador rompía el ancla del regex.
+    .replace(/[\u{1F3FB}-\u{1F3FF}\u{FE0F}]/gu, "")
+    .trim();
 
 /**
  * El último mensaje del bot OFRECIÓ algo (en vez de entregarlo de una).
@@ -140,6 +144,12 @@ export function ordenDeCotizarYa(mensajeDelCliente: string): string {
  * - el acuse sigue siendo el mismo `ACUSE_SIN_MAS` anclado: «Ok, ¿y en aro
  *   17?» no dispara nada.
  */
+/** El acuse anclado, exportado para el descanso del acuse en agent.ts. */
+export function esAcuseSimple(mensajeDelCliente: string): boolean {
+  const cliente = normalizar(mensajeDelCliente);
+  return Boolean(cliente) && !NEGATIVA_CORTA.test(cliente) && ACUSE_SIN_MAS.test(cliente);
+}
+
 export function ofertaDeCotizacionVigenteAceptada(
   historial: readonly { role: string; content: unknown }[],
   mensajeDelCliente: string,
@@ -156,7 +166,9 @@ export function ofertaDeCotizacionVigenteAceptada(
     const m = previos[i];
     const texto = typeof m.content === "string" ? normalizar(m.content) : "";
     if (m.role === "user") {
-      if (NEGATIVA_CORTA.test(texto) || /\bno\s+gracias\b|\bya\s+compre\b|\bya\s+no\b/.test(texto)) return false;
+      // «Voy a mirar en Ibarra», «lo voy a pensar» (y el typo real «boy»):
+      // el cliente se apartó a comparar; la oferta vieja ya no se acepta sola.
+      if (NEGATIVA_CORTA.test(texto) || /\bno\s+gracias\b|\bya\s+compre\b|\bya\s+no\b|\b[bv]oy\s+a\s+(?:mirar|ver|pensar|comparar)\b|\blo\s+(?:voy\s+a\s+)?pienso\b/.test(texto)) return false;
       clientesEnMedio += 1;
     } else if (m.role === "assistant" && OFRECIO_COTIZAR.test(texto)) {
       return true;

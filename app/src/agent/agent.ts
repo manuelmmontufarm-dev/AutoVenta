@@ -16,6 +16,10 @@ import {
 import {
   marcaPreguntada, ordenDeConsultarRespaldo, ordenDeNombrarLaMarca, preguntaTecnicaDeRespaldo,
 } from "../domain/consultaConRespaldo.js";
+import { esAcuseSimple } from "../domain/ofertaAceptada.js";
+import { respaldoCompleto } from "../domain/respaldoMarcas.js";
+import { preguntaElLocal } from "../domain/storeSelection.js";
+import { preguntaElDia } from "../domain/customerCommitment.js";
 import { ordenDeNoReusarLaVitrina, vitrinaQueNoEsSuMedida } from "../domain/vitrinaVieja.js";
 import { extractTireSizes, formatTireSize } from "../domain/tireSize.js";
 import { getHistory, logAiRun } from "../services/conversations.js";
@@ -275,6 +279,21 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
   // pierden fuerza por ir al final — al contrario, quedan más cerca del
   // mensaje del cliente, que es donde más se respetan.
   const marcaDelTurno = marcaPreguntada(userText);
+  // EL DESCANSO DEL ACUSE (T115 conv 9887 turno 10, 30-ago): el turno pasado
+  // el bot ya preguntó local o día y el cliente respondió un puro acuse. El
+  // borrador NO debe volver a empujar — el guardián lo corregía, pero un
+  // borrador que necesita rescate ya es la falla. Determinístico.
+  const textoUltimoDelBot = typeof ultimoDelBot?.content === "string" ? ultimoDelBot.content : "";
+  const descansoDelAcuse =
+    !aceptoLaOferta && !ctx.aceptoCotizacion
+    && esAcuseSimple(userText)
+    && (preguntaElLocal(textoUltimoDelBot) || preguntaElDia(textoUltimoDelBot));
+  // LA CONSULTA TÉCNICA SE EJECUTA, NO SE SUGIERE (T115 conv 11274 turno 8,
+  // 30-ago): pedírselo al modelo no alcanzó — llamó dos veces al catálogo y
+  // dijo «no tengo el dato». respaldo_marcas es determinística y barata: se
+  // corre aquí y el resultado le llega como hecho, registrado en la huella.
+  const esPreguntaTecnica = preguntaTecnicaDeRespaldo(userText);
+  if (esPreguntaTecnica) usedTools.push("respaldo_marcas");
   const bloquesVolatiles: ChatCompletionMessageParam[] = [
     { role: "system", content: salesFactsPrompt(salesFacts, ctx.resumedFromHuman) },
     ...(aceptoLaOferta ? [{ role: "system" as const, content: ordenDeCotizarYa(userText) }] : []),
@@ -284,8 +303,23 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
     // Marca preguntada y dato técnico: los dos hechos de T115 conv 11274
     // (30-ago). Ver domain/consultaConRespaldo.ts.
     ...((marcaDelTurno) ? [{ role: "system" as const, content: ordenDeNombrarLaMarca(marcaDelTurno) }] : []),
-    ...(preguntaTecnicaDeRespaldo(userText)
-      ? [{ role: "system" as const, content: ordenDeConsultarRespaldo() }]
+    ...(esPreguntaTecnica
+      ? [{
+          role: "system" as const,
+          content:
+            `${ordenDeConsultarRespaldo()}\n\nRESULTADO DE respaldo_marcas (ya consultado por el sistema): `
+            + JSON.stringify(respaldoCompleto()),
+        }]
+      : []),
+    ...(descansoDelAcuse
+      ? [{
+          role: "system" as const,
+          content:
+            "ACUSE TRAS TU PROPIA PREGUNTA (fuente determinística): en tu último mensaje ya pediste "
+            + "el local o el día y el cliente respondió solo un acuse. PROHIBIDO repetir esa pregunta y "
+            + "PROHIBIDO empujar visita, ubicación, cierre o cotización en este turno: agradece en una "
+            + "línea, quédate disponible y nada más.",
+        }]
       : []),
     ...(vitrinaAjena && medidaDelTurno
       ? [{ role: "system" as const, content: ordenDeNoReusarLaVitrina(vitrinaAjena, medidaDelTurno) }]
