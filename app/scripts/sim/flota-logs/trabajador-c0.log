@@ -14,10 +14,10 @@
 
   [1mconv 7946[0m [90mCambió de medida tres veces y terminó en «No gracias»[0m
 [90m    · ¡Hola! Quiero más información[0m[90m → 1
-[0m[90m    · Ese rin mismo es[0m[90m → 3
+[0m[90m    · Ese rin mismo es[0m[90m → 1
 [0m[90m    · 225/65R17[0m[90m → 2
-[0m[90m    · Es ese mismo rin que cuesta las llantas[0m[90m → 4
-[0m[90m    · [El cliente mandó una foto. Se lee: 225/60R1[0m[90m → 2
+[0m[90m    · Es ese mismo rin que cuesta las llantas[0m[90m → 1
+[0m[90m    · [El cliente mandó una foto. Se lee: 225/60R1[0m[90m → 3
 [0m[90m    · Necesito más económicas[0m[90m → 3
 [0m[90m    · Si por favor[0m[90m → 3
 [0m[90m    · Y en llantas 185/70R15 que cuesta gracias[0m[90m → 3
@@ -31,32 +31,32 @@
 
   [1mconv 8288[0m [90mQuiere UNA llanta 165/80R13, que no hay[0m
 [90m    · Necesito una llanta 165/80/R13[0m[90m → 3
-[0m[90m    · La necesito de esa medida[0m[90m → 1
+[0m[90m    · La necesito de esa medida[0m[90m → 3
 [0m[90m    · Xfvr[0m[90m → 1
 [0m[90m    · Xfvr[0m[90m → 1
-[0m[90m    · Xvr[0m[90m → 1
+[0m[90m    · Xvr[0m[90m → 2
 [0m[90m    · Necesito esa m dida[0m[90m → 2
-[0m[90m    · Medida[0m[90m → 3
-[0m[90m    · 👍🤝[0m[90m → 1
+[0m[90m    · Medida[0m[90m → 1
+[0m[90m    · 👍🤝[0m[90m → 3
 [0m[90m    · 👍[0m[90m → 1
 [0m[90m    · ?[0m[90m → 2
 [0m      [32m✓[0m ningún turno se queda sin respuesta
       [32m✓[0m ninguna corrida de IA con error
       [32m✓[0m el guardián no marca insistencia tras rechazo
       [32m✓[0m si promete asesor, lo avisa de verdad
-      [31m✗[0m no repite el mismo mensaje una y otra vez[31m — repitió 4 veces casi el mismo mensaje: «la medida 16580r13 no tiene stock exacto ahora mismosi le si…»[0m
+      [32m✓[0m no repite el mismo mensaje una y otra vez
 
   [1mconv 8318[0m [90mDio la medida como 235/75/15 después de elegir local[0m
 [90m    · ¡Hola! Quiero más información,  donde están [0m[90m → 2
-[0m[90m    · En que lugar de Quito porfavor[0m[90m → 2
+[0m[90m    · En que lugar de Quito porfavor[0m[90m → 1
 [0m[90m    · El de Quito sur porfavor gracias[0m[90m → 2
 [0m[90m    · Busco una 235/75/15[0m[90m → 2
-[0m[90m    · Más modelos talvez[0m[90m → 2
+[0m[90m    · Más modelos talvez[0m[90m → 1
 [0m[90m    · No se ajusta a mi presupuesto[0m[90m → 1
 [0m[90m    · 120[0m[90m → 2
 [0m[90m    · Si 120 por llanta[0m[90m → 1
-[0m[90m    · Para el juego de 4 llantas[0m[90m → 3
-[0m[90m    · Solo esas dos marcas dispone[0m[90m → 2
+[0m[90m    · Para el juego de 4 llantas[0m[90m → 2
+[0m[90m    · Solo esas dos marcas dispone[0m[90m → 1
 [0m[90m    · No muchas gracias esta fuera de mi presupues[0m[90m → 1
 [0m[90m    · Muy gentil gracias[0m[90m → 1
 [0m      [32m✓[0m ningún turno se queda sin respuesta
@@ -70,7 +70,7 @@
 [90m    · ¡Hola! Quiero más información[0m[90m → 1
 [0m[90m    · Buenas tardes don Rin 15[0m[90m → 2
 [0m[90m    · Es para un Corsa evolution[0m[90m → 2
-[0m[90m    · [El cliente mandó una foto. Se lee: Marca AP[0m[90m → 1
+[0m[90m    · [El cliente mandó una foto. Se lee: Marca AP[0m[90m → 2
 [0m[90m    · [El cliente mandó una foto. Se lee: 195/55R1[0m[90m → 2
 [0m[90m    · Es precio es fijo[0m[90m → 3
 [0m[90m    · Ok[0m[90m → 1
@@ -90,31 +90,31 @@
 [90m    · ¡Hola! Quiero más información[0m[90m → 1
 [0m[90m    · 31x10.50R15LT[0m[90m → 2
 [0m[90m    · Que balor tiene[0m[90m → 1
-[0m[90m    · [El cliente mandó una foto. Se lee: 31x10.50[0m[90m → 3
-[0m[90m    · Si[0m[90m → 2
+[0m[90m    · [El cliente mandó una foto. Se lee: 31x10.50[0m[90m → 1
+[0m[90m    · Si[0m[90m → 1
 [0m[90m    · Donde esta ubicado[0m[90m → 2
-[0m[90m    · Ya mire[0m[90m → 1
+[0m[90m    · Ya mire[0m[90m → 2
 [0m[90m    · Boy a mirar aca en ibarra[0m[90m → 1
-[0m[90m    · Creo me sale mas con cuenta[0m[90m → 2
+[0m[90m    · Creo me sale mas con cuenta[0m[90m → 1
 [0m[90m    · Gracias[0m[90m → 1
 [0m[90m    · No gracias[0m[90m → 1
 [0m[90m    · Ok[0m[90m → 1
 [0m[90m    · Ya compre gracias[0m[90m → 1
 [0m      [32m✓[0m ningún turno se queda sin respuesta
       [32m✓[0m ninguna corrida de IA con error
-      [32m✓[0m el guardián no marca insistencia tras rechazo
+      [31m✗[0m el guardián no marca insistencia tras rechazo[31m — turnos 10[0m
       [32m✓[0m no pregunta el local después de «No gracias»
       [32m✓[0m no pregunta el local después de «Ya compre»
       [32m✓[0m no repite la pregunta del local en turnos seguidos
 
   [1mconv 10002[0m [90mNo quería comprar: quería que le recibieran sus llantas nuevas[0m
 [90m    · Buenas tardes, estoy al norte[0m[90m → 2
-[0m[90m    · [El cliente mandó un audio. Dice: Buenas tar[0m[90m → 2
+[0m[90m    · [El cliente mandó un audio. Dice: Buenas tar[0m[90m → 1
 [0m[90m    · RELY R8 4x4[0m[90m → 2
 [0m[90m    · [El cliente mandó una foto. Se lee: 265/65R1[0m[90m → 2
 [0m[90m    · Esta es una foto que me envió el concesionar[0m[90m → 1
-[0m[90m    · Las llantas no han sido usadas nunca nuevas [0m[90m → 2
-[0m[90m    · [El cliente mandó un audio. Dice: Pero yo es[0m[90m → 1
+[0m[90m    · Las llantas no han sido usadas nunca nuevas [0m[90m → 1
+[0m[90m    · [El cliente mandó un audio. Dice: Pero yo es[0m[90m → 2
 [0m[90m    · Disculpa pero sólo estoy buscando cambio[0m[90m → 1
 [0m[90m    · No gracias[0m[90m → 1
 [0m      [32m✓[0m ningún turno se queda sin respuesta
@@ -124,26 +124,26 @@
 
   [1mconv 10859[0m [90mLlantas industriales de montacargas, nueve fotos[0m
 [90m    · Hola, buenos días[0m[90m → 2
-[0m[90m    · [El cliente mandó una foto que no se pudo le[0m[90m → 3
-[0m[90m    · [El cliente mandó una foto. Se lee: 9.00-6 G[0m[90m → 3
+[0m[90m    · [El cliente mandó una foto que no se pudo le[0m[90m → 1
+[0m[90m    · [El cliente mandó una foto. Se lee: 9.00-6 G[0m[90m → 1
 [0m[90m    · [El cliente mandó una foto. Se lee: 7.00-12 [0m[90m → 2
 [0m[90m    · [El cliente mandó una foto. Se lee: SOLIDEAL[0m[90m → 1
 [0m[90m    · [El cliente mandó una foto. Se lee: 16x6.0-1[0m[90m → 2
-[0m[90m    · [El cliente mandó una foto. Se lee: 23.1-26,[0m[90m → 3
+[0m[90m    · [El cliente mandó una foto. Se lee: 23.1-26,[0m[90m → 1
 [0m[90m    · [El cliente mandó una foto. Se lee: 40.00x57[0m[90m → 1
-[0m[90m    · [El cliente mandó una foto. Se lee: 6.50-10 [0m[90m → 3
-[0m[90m    · [El cliente mandó una foto. Se lee: 355/65-1[0m[90m → 1
+[0m[90m    · [El cliente mandó una foto. Se lee: 6.50-10 [0m[90m → 1
+[0m[90m    · [El cliente mandó una foto. Se lee: 355/65-1[0m[90m → 2
 [0m      [32m✓[0m ningún turno se queda sin respuesta
       [32m✓[0m ninguna corrida de IA con error
       [32m✓[0m el guardián no marca insistencia tras rechazo
       [32m✓[0m no cotiza una llanta industrial
-      [31m✗[0m deriva el caso a un asesor[31m — nunca llamó notificar_vendedor[0m
+      [32m✓[0m deriva el caso a un asesor
 
   [1mconv 11274[0m [90mPidió Falken y preguntó fabricación y frenado en mojado[0m
 [90m    · ¡Hola! Quiero más información[0m[90m → 1
-[0m[90m    · Buenas tardes  Me interesa[0m[90m → 4
+[0m[90m    · Buenas tardes  Me interesa[0m[90m → 2
 [0m[90m    · Disponen de llantas  255 70 R16 A / T  Neces[0m[90m → 3
-[0m[90m    · Que porcentaje es el descuento que aplican[0m[90m → 3
+[0m[90m    · Que porcentaje es el descuento que aplican[0m[90m → 1
 [0m[90m    · OK[0m[90m → 1
 [0m[90m    · Voy a revisar, con éste precio, no me alcanz[0m[90m → 2
 [0m[90m    · De que fabricación es[0m[90m → 2
@@ -159,14 +159,14 @@
 [90m    · ¡Hola! Quiero más información[0m[90m → 1
 [0m[90m    · 195/50/16[0m[90m → 3
 [0m[90m    · no, gracias, 205 muy ancha más consumo y car[0m[90m → 1
-[0m[90m    · No, muy bajo el perfil, cada bache estresa e[0m[90m → 2
+[0m[90m    · No, muy bajo el perfil, cada bache estresa e[0m[90m → 1
 [0m[90m    · 👍🏻[0m[90m → 2
-[0m[90m    · las llantas originales son rin 14[0m[90m → 2
-[0m[90m    · pero tengo unos rin 16 originales para peuge[0m[90m → 1
-[0m[90m    · esas 205/55/16 ví recién instaladas en un Pe[0m[90m → 1
-[0m[90m    · si tengo opciones en 205/50/16 Pero prefiero[0m[90m → 2
+[0m[90m    · las llantas originales son rin 14[0m[90m → 3
+[0m[90m    · pero tengo unos rin 16 originales para peuge[0m[90m → 2
+[0m[90m    · esas 205/55/16 ví recién instaladas en un Pe[0m[90m → 2
+[0m[90m    · si tengo opciones en 205/50/16 Pero prefiero[0m[90m → 1
 [0m[90m    · esquebya he visto instaladas 205/50/16 en  o[0m[90m → 2
-[0m[90m    · ya tengo los aros Rin 16 originales peugeot[0m[90m → 1
+[0m[90m    · ya tengo los aros Rin 16 originales peugeot[0m[90m → 3
 [0m[90m    · no por el momento, gracias[0m[90m → 1
 [0m[90m    · ya tengo una oferta de llantas 195/50/16[0m[90m → 1
 [0m[90m    · Sin compromiso, bueno gracias[0m[90m → 1
@@ -179,12 +179,12 @@
   [1mconv 12682[0m [90mPreguntó por un cambio de aceite (no vende eso)[0m
 [90m    · Buenos días[0m[90m → 1
 [0m[90m    · Quisiera saber el valor del cambio de aceite[0m[90m → 2
-[0m[90m    · ???[0m[90m → 1
+[0m[90m    · ???[0m[90m → 2
 [0m[90m    · Si tiene para hoy o para esta semana[0m[90m → 2
-[0m[90m    · Cumbaya[0m[90m → 1
-[0m[90m    · Ok[0m[90m → 1
-[0m[90m    · Puedo llevar mi aceite? Que n regalaron reci[0m[90m → 1
-[0m[90m    · Hasta qué hora están?[0m[90m → 1
+[0m[90m    · Cumbaya[0m[90m → 2
+[0m[90m    · Ok[0m[90m → 2
+[0m[90m    · Puedo llevar mi aceite? Que n regalaron reci[0m[90m → 2
+[0m[90m    · Hasta qué hora están?[0m[90m → 2
 [0m[90m    · Listo no hay problema.[0m[90m → 1
 [0m[90m    · Me paso por ahí entre hoy y el lunes[0m[90m → 2
 [0m      [32m✓[0m ningún turno se queda sin respuesta
@@ -194,11 +194,11 @@
       [32m✓[0m no inventa horarios
 
 [1m  ─────────────────────────────────────────[0m
-  comprobaciones: [32m49 pasaron[0m · [31m2 fallaron[0m
-[90m  110 turnos · guardián: 45 correcciones, 0 sin revisar (0%)[0m
+  comprobaciones: [32m50 pasaron[0m · [31m1 fallaron[0m
+[90m  110 turnos · guardián: 36 correcciones, 0 sin revisar (0%)[0m
 [90m  detalle → /Users/manue/AutoVenta/.claude/worktrees/threshold-t115/app/scripts/sim/t115-historicas-resultado.json
 [0m
 
 [1m  ─────────────────────────────────────────[0m
-  comprobaciones: [32m57 pasaron[0m · [31m2 fallaron[0m
+  comprobaciones: [32m58 pasaron[0m · [31m1 fallaron[0m
 [90m  detalle → /Users/manue/AutoVenta/.claude/worktrees/threshold-t115/app/scripts/sim/flota-logs/resultado-c0.json[0m

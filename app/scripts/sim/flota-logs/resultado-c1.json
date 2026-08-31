@@ -8,22 +8,14 @@
     "cliente": "¿Tienen Kenda?",
     "bot": [
      {
-      "texto": "Guía de medida enviada",
-      "tipo": "image"
-     },
-     {
-      "texto": "Lo que más necesito es el *aro* — el número después de la R (ej. la R*17* de 225/65R17). Sin ese dato no le puedo asegurar que la llanta entre.",
-      "tipo": "text"
-     },
-     {
-      "texto": "¿Me dice la medida, o prefiere mandarme una foto del costado y la leo yo? 📸",
+      "texto": "Sí, sí manejamos Kenda 🤝\n\nPara afinarle opciones y precio, envíeme la medida escrita o una foto clara del costado de la llanta.",
       "tipo": "text"
      }
     ],
     "fase": [],
     "herramientas": [
-     "opciones_sin_medida",
-     "guia_medida"
+     "buscar_catalogo",
+     "buscar_catalogo"
     ],
     "modelos": [
      "gpt-5.4-mini"
@@ -34,7 +26,7 @@
      {
       "verdict": "aprobar",
       "findings": [],
-      "original": "Lo que más necesito es el *aro* — el número después de la R (ej. la R*17* de 225/65R17). Sin ese dato no le puedo asegurar que la llanta entre.\n\n---\n\n¿Me dice la medida, o prefiere mandarme una foto del costado y la leo yo? 📸",
+      "original": "Sí, sí manejamos Kenda 🤝\n\nPara afinarle opciones y precio, envíeme la medida escrita o una foto clara del costado de la llanta.",
       "corregido": null
      }
     ]
@@ -56,13 +48,13 @@
   "checks": [
    {
     "nombre": "consulta el catálogo",
-    "ok": false,
-    "motivo": "respondió sí/no sin consultar"
+    "ok": true,
+    "motivo": null
    },
    {
     "nombre": "la respuesta nombra a Kenda",
-    "ok": false,
-    "motivo": "preguntaron por Kenda y ni la nombra"
+    "ok": true,
+    "motivo": null
    }
   ]
  },
@@ -75,7 +67,7 @@
     "cliente": "205/55R16",
     "bot": [
      {
-      "texto": "Opciones enviadas: FALKEN ZE310R · KENDA KR20 · KENDA KR203",
+      "texto": "Opciones enviadas: FALKEN ZE310R · KENDA KR20 · WINRUN R330",
       "tipo": "image"
      },
      {
@@ -108,15 +100,11 @@
     "cliente": "quiero la Falken",
     "bot": [
      {
-      "texto": "Cotización COT-MTGTKQU4 enviada por $445.44",
-      "tipo": "image"
-     },
-     {
-      "texto": "Puede pasar sin compromiso a verlas y probarlas en su vehículo.\n📍 *Depot Tire Cumbayá*: https://maps.app.goo.gl/QnMBPXKc1o8igbsp8\n📍 *Depot Tire Quito Sur*: https://maps.app.goo.gl/NQeNN8csyAnRkJDJ7",
+      "texto": "Sí hay Falken en 205/55R16: ZE310R, $111.36 c/u con IVA.",
       "tipo": "text"
      },
      {
-      "texto": "¿A cuál local le queda mejor ir, *Cumbayá* o *Quito Sur*? 📍",
+      "texto": "¿Le cotizo el juego de 4 llantas?",
       "tipo": "text"
      }
     ],
@@ -124,33 +112,9 @@
      "cotizacion_enviada"
     ],
     "herramientas": [
-     "buscar_catalogo",
-     "generar_cotizacion"
+     "buscar_llanta",
+     "preparar_opciones"
     ],
-    "modelos": [
-     "gpt-5.4-mini"
-    ],
-    "errores": [],
-    "sinRespuesta": false,
-    "guardian": [
-     {
-      "verdict": "aprobar",
-      "findings": [],
-      "original": "Puede pasar sin compromiso a verlas y probarlas en su vehículo.\n📍 *Depot Tire Cumbayá*: https://maps.app.goo.gl/QnMBPXKc1o8igbsp8\n📍 *Depot Tire Quito Sur*: https://maps.app.goo.gl/NQeNN8csyAnRkJDJ7\n\n---\n\n¿A cuál local le queda mejor ir, *Cumbayá* o *Quito Sur*? 📍",
-      "corregido": null
-     }
-    ]
-   },
-   {
-    "cliente": "solo dos",
-    "bot": [
-     {
-      "texto": "Perfecto, le queda la cotización por 2 llantas FALKEN ZE310R 205/55R16.  \nSi quiere, le dejo lista la visita para cuando pase al local.",
-      "tipo": "text"
-     }
-    ],
-    "fase": [],
-    "herramientas": [],
     "modelos": [
      "gpt-5.4-mini"
     ],
@@ -161,86 +125,88 @@
       "verdict": "corregir",
       "findings": [
        {
-        "detalle": "El borrador dice \"por 2 llantas\", pero la cotización vigente registrada es por 4 llantas FALKEN ZE310R 205/55R16 con total $445.44.",
-        "categoria": "contradiccion",
+        "detalle": "El borrador pregunta \"Le cotizo 4 llantas con esa medida?\", que es una forma no permitida de pedir permiso por la cantidad. La plantilla válida es \"¿Le cotizo el juego de 4 llantas?\".",
+        "categoria": "pregunta_de_mas",
         "severidad": "alta"
        }
       ],
-      "original": "Perfecto, le queda la cotización por 2 llantas FALKEN ZE310R 205/55R16.  \nSi quiere, le dejo lista la visita para cuando pase al local.",
-      "corregido": "Perfecto, le queda la cotización por 4 llantas FALKEN ZE310R 205/55R16 por $445.44.\n\nSi quiere, le dejo lista la visita para cuando pase al local."
+      "original": "Sí hay Falken en 205/55R16: ZE310R, $111.36 c/u con IVA.\n\nLe cotizo 4 llantas con esa medida?",
+      "corregido": "Sí hay Falken en 205/55R16: ZE310R, $111.36 c/u con IVA.\n\n¿Le cotizo el juego de 4 llantas?"
+     }
+    ]
+   },
+   {
+    "cliente": "solo dos",
+    "bot": [
+     {
+      "texto": "Perfecto, entonces serían 2 Falken ZE310R en 205/55R16. \nIncluye instalación, alineación y balanceo; además seguro y mantenimiento gratuito.",
+      "tipo": "text"
+     }
+    ],
+    "fase": [],
+    "herramientas": [
+     "generar_cotizacion"
+    ],
+    "modelos": [
+     "gpt-5.4-mini"
+    ],
+    "errores": [],
+    "sinRespuesta": false,
+    "guardian": [
+     {
+      "verdict": "corregir",
+      "findings": [
+       {
+        "detalle": "Cierra con «¿Quiere que le deje la cotización de esas 2 o prefiere verlo por 4?», pero el cliente ya dijo que solo quiere dos y no se debe volver a preguntar por la cantidad.",
+        "categoria": "pregunta_de_mas",
+        "severidad": "alta"
+       },
+       {
+        "detalle": "Dice «le cotizo 2 Falken ZE310R», pero la herramienta bloqueó la cotización de este turno y pidió no empujar una cotización.",
+        "categoria": "promesa_incumplible",
+        "severidad": "alta"
+       }
+      ],
+      "original": "Perfecto, le cotizo 2 Falken ZE310R a $111.36 c/u.  \nIncluye instalación, alineación y balanceo; además seguro y mantenimiento gratuito.\n\n¿Quiere que le deje la cotización de esas 2 o prefiere verlo por 4?",
+      "corregido": "Perfecto, entonces serían 2 Falken ZE310R en 205/55R16. \nIncluye instalación, alineación y balanceo; además seguro y mantenimiento gratuito."
      }
     ]
    }
   ],
   "estadoFinal": {
-   "stage": "seguimiento_venta",
+   "stage": "seleccionando",
    "status": "open",
    "tire_size": "205/55R16",
    "selected_quantity": 4,
    "nearest_store": null,
    "visit_date": null,
    "current_cycle": 1,
-   "cotizaciones": [
-    {
-     "numero": "COT-MTGTKQU4",
-     "total": 445.44,
-     "items": [
-      {
-       "code": "352165",
-       "brand": "FALKEN",
-       "design": "ZE310R",
-       "imageUrl": "/assets/catalog/falken-ze310r.jpg",
-       "quantity": 4,
-       "loadSpeed": {
-        "code": "91V",
-        "loadKg": 615,
-        "speedKmh": 240,
-        "loadIndex": 91,
-        "speedSymbol": "V"
-       },
-       "sizeLabel": "205/55R16",
-       "unitPrice": 96.83478260869566,
-       "description": "Llanta FALKEN ZE310R 205/55R16",
-       "availability": "available",
-       "warrantyFactory": "5 años garantía de fábrica contra defectos de fabricación",
-       "listPriceWithTax": 148.48,
-       "salePriceWithTax": 111.36,
-       "warrantyRoadHazard": "18 meses contra golpes y estalladuras"
-      }
-     ],
-     "cycle": 1
-    }
-   ],
+   "cotizaciones": [],
    "alertas": [
     {
-     "tipo": "quote_created",
-     "prioridad": "medium",
-     "resumen": "Nueva cotización COT-MTGTKQU4 por $445.44"
+     "tipo": "guardian_correccion",
+     "prioridad": "high",
+     "resumen": "El guardián corrigió la respuesta: pregunta_de_mas"
     },
     {
      "tipo": "guardian_correccion",
      "prioridad": "high",
-     "resumen": "El guardián corrigió la respuesta: contradiccion"
-    },
-    {
-     "tipo": "guardian_hecho_nuevo_bloqueado",
-     "prioridad": "high",
-     "resumen": "El guardián intentó agregar una oferta que el borrador no traía"
+     "resumen": "El guardián corrigió la respuesta: pregunta_de_mas"
     }
    ],
-   "avisos_asesor": 2,
+   "avisos_asesor": 0,
    "sin_revision": 0
   },
   "checks": [
    {
     "nombre": "cotiza exactamente 2",
     "ok": false,
-    "motivo": "cotizó 4 llantas en vez de 2"
+    "motivo": "nunca cotizó"
    },
    {
     "nombre": "cotiza la Falken pedida",
-    "ok": true,
-    "motivo": null
+    "ok": false,
+    "motivo": "nunca cotizó"
    }
   ]
  },
@@ -286,7 +252,7 @@
     "cliente": "lo voy a pensar",
     "bot": [
      {
-      "texto": "Claro, tómese su tiempo.  \n\nSi luego quiere, le dejo lista la opción más conveniente para su 205/55R16 o le ayudo con la visita al local 🤝",
+      "texto": "Entendido, cuando guste.\n\nSi desea, le mantengo la opción de 205/55R16 lista para cotizar o le ayudo a comparar entre precio y rendimiento 🤝",
       "tipo": "text"
      }
     ],
@@ -304,12 +270,12 @@
       "verdict": "aprobar",
       "findings": [
        {
-        "detalle": "El borrador es breve y responde bien al “lo voy a pensar” sin insistir ni re-preguntar. No introduce precios, stock ni datos no verificados.",
+        "detalle": "El borrador es consistente con la conversación y no inventa precio, stock ni una cotización; puede enviarse tal como está.",
         "categoria": "otro",
         "severidad": "baja"
        }
       ],
-      "original": "Claro, tómese su tiempo.  \n\nSi luego quiere, le dejo lista la opción más conveniente para su 205/55R16 o le ayudo con la visita al local 🤝",
+      "original": "Entendido, cuando guste.\n\nSi desea, le mantengo la opción de 205/55R16 lista para cotizar o le ayudo a comparar entre precio y rendimiento 🤝",
       "corregido": null
      }
     ]
@@ -540,13 +506,7 @@
     "guardian": [
      {
       "verdict": "aprobar",
-      "findings": [
-       {
-        "detalle": "El borrador coincide exactamente con el mensaje que devolvió la herramienta guia_medida, con los separadores '---' intactos y sin agregar datos nuevos.",
-        "categoria": "otro",
-        "severidad": "baja"
-       }
-      ],
+      "findings": [],
       "original": "Lo que más necesito es el *aro* — el número después de la R (ej. la R*17* de 225/65R17). Sin ese dato no le puedo asegurar que la llanta entre.\n\n---\n\n¿Me dice la medida, o prefiere mandarme una foto del costado y la leo yo? 📸",
       "corregido": null
      }
@@ -587,14 +547,15 @@
     "cliente": "uso ciudad",
     "bot": [
      {
-      "texto": "Para uso en ciudad, la más conveniente de las opciones enviadas es la *KENDA KR20*: es la de equilibrio.",
+      "texto": "Para uso en ciudad, en su Corolla 2019 le conviene una de las opciones que ya le envié; si me confirma la medida o el aro, le afino la recomendación.",
       "tipo": "text"
      }
     ],
     "fase": [],
     "herramientas": [
-     "preparar_opciones",
-     "generar_cotizacion"
+     "buscar_catalogo",
+     "fitment_vehiculo",
+     "preparar_opciones"
     ],
     "modelos": [
      "gpt-5.4-mini"
@@ -606,13 +567,18 @@
       "verdict": "corregir",
       "findings": [
        {
-        "detalle": "Cierra con «Si quiere, le preparo esa misma opción en 4 llantas cuando me confirme si le sirve», pero el turno de herramientas indicó que no se debe empujar una cotización aquí. Además, la cantidad ya consta como 4 en los hechos, así que esa confirmación sobra.",
-        "categoria": "pregunta_de_mas",
+        "detalle": "El borrador afirma \"KENDA KR20: $91.28 c/u con IVA\" y un total de $365.12, pero en el contexto no hay una cotización ni un dato duro que respalde ese precio.",
+        "categoria": "precio_incorrecto",
+        "severidad": "alta"
+       },
+       {
+        "detalle": "Presenta una recomendación concreta con precio y total sin respaldo verificable en la cotización vigente ni en el catálogo del contexto.",
+        "categoria": "hecho_comercial_inventado",
         "severidad": "alta"
        }
       ],
-      "original": "Para uso en ciudad, la más conveniente de las opciones enviadas es la **KENDA KR20**: es la de equilibrio.\n\nSi quiere, le preparo esa misma opción en **4 llantas** cuando me confirme si le sirve.",
-      "corregido": "Para uso en ciudad, la más conveniente de las opciones enviadas es la **KENDA KR20**: es la de equilibrio."
+      "original": "Para uso en ciudad, le recomiendo la **KENDA KR20**: **$91.28 c/u con IVA**.  \nPor **4 llantas** son **$365.12**.\n\n---\nIncluye instalación, alineación y balanceo.  \n¿Le dejo la cotización de esa opción? 🤝",
+      "corregido": "Para uso en ciudad, en su Corolla 2019 le conviene una de las opciones que ya le envié; si me confirma la medida o el aro, le afino la recomendación."
      }
     ]
    },
@@ -620,7 +586,7 @@
     "cliente": "la económica",
     "bot": [
      {
-      "texto": "Cotización COT-MTGTS7RV enviada por $242.68",
+      "texto": "Cotización COT-MTGVUL50 enviada por $242.68",
       "tipo": "image"
      },
      {
@@ -644,13 +610,7 @@
     "guardian": [
      {
       "verdict": "aprobar",
-      "findings": [
-       {
-        "detalle": "El borrador coincide con el mensaje devuelto por la herramienta, incluyendo los separadores y la pregunta final.",
-        "categoria": "otro",
-        "severidad": "baja"
-       }
-      ],
+      "findings": [],
       "original": "Puede pasar sin compromiso a verlas y probarlas en su vehículo.\n📍 *Depot Tire Cumbayá*: https://maps.app.goo.gl/QnMBPXKc1o8igbsp8\n📍 *Depot Tire Quito Sur*: https://maps.app.goo.gl/NQeNN8csyAnRkJDJ7\n\n---\n\n¿A cuál local le queda mejor ir, *Cumbayá* o *Quito Sur*? 📍",
       "corregido": null
      }
@@ -702,13 +662,7 @@
     "guardian": [
      {
       "verdict": "aprobar",
-      "findings": [
-       {
-        "detalle": "En la conversación previa el bot registró por error «viernes 4 de septiembre», pero los hechos anotados dicen que la visita quedó para «sábado 5 de septiembre». El borrador ya corrige eso, así que solo queda aprobado.",
-        "categoria": "estado_desincronizado",
-        "severidad": "alta"
-       }
-      ],
+      "findings": [],
       "original": "Perfecto, registré su visita para sábado 5 de septiembre. ¿Le queda mejor *Cumbayá* o *Quito Sur*?",
       "corregido": null
      }
@@ -753,7 +707,7 @@
    "current_cycle": 1,
    "cotizaciones": [
     {
-     "numero": "COT-MTGTS7RV",
+     "numero": "COT-MTGVUL50",
      "total": 242.68,
      "items": [
       {
@@ -786,12 +740,12 @@
     {
      "tipo": "guardian_correccion",
      "prioridad": "high",
-     "resumen": "El guardián corrigió la respuesta: pregunta_de_mas"
+     "resumen": "El guardián corrigió la respuesta: precio_incorrecto"
     },
     {
      "tipo": "quote_created",
      "prioridad": "medium",
-     "resumen": "Nueva cotización COT-MTGTS7RV por $242.68"
+     "resumen": "Nueva cotización COT-MTGVUL50 por $242.68"
     },
     {
      "tipo": "visita_comprometida",

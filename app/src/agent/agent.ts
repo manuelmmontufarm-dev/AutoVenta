@@ -305,20 +305,31 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
   // local elegido y el cliente solo acusa — el borrador tampoco debe reabrir
   // gestión comercial; el guardián lo rescataba, pero el borrador es la falla.
   const visitaCerrada = Boolean(salesFacts.visitDate && salesFacts.nearestStore);
+  // Y el acuse que viene tras una objeción o comparación («me sale más con
+  // cuenta» → «Gracias») tampoco quiere otro empuje: T115 H05 turno 10,
+  // 31-ago — el borrador del mini reofreció opciones y preguntó «¿cuál
+  // prefiere?» a quien se estaba yendo a comparar.
+  const usuariosPrevios = history.filter((m) => m.role === "user" && typeof m.content === "string");
+  const penultimoDelCliente = String(usuariosPrevios.at(-2)?.content ?? usuariosPrevios.at(-1)?.content ?? "");
+  const objecionPrevia = /me\s+sale\s+m[aá]s|m[aá]s\s+con\s+cuenta|[bv]oy\s+a\s+(?:mirar|ver|comparar|pensar)|est[aá]\s+car[oa]|muy\s+car[oa]s?|no\s+me\s+alcanza|lo\s+(?:voy\s+a\s+)?pienso/i
+    .test(penultimoDelCliente.normalize("NFD").replace(/[̀-ͯ]/g, ""));
   const descansoDelAcuse =
     !aceptoLaOferta && !ctx.aceptoCotizacion
     && esAcuseSimple(userText)
-    && (preguntaElLocal(textoUltimoDelBot) || preguntaElDia(textoUltimoDelBot) || visitaCerrada);
+    && (preguntaElLocal(textoUltimoDelBot) || preguntaElDia(textoUltimoDelBot) || visitaCerrada || objecionPrevia);
   // LA ZANAHORIA DEL ASESOR SE EJECUTA O SE SUELTA (T115 conv 8288, corrida 4):
   // si algún turno ya ofreció asesor y el aviso nunca salió, el modelo recibe
   // la obligación por delante. La negativa del cliente la apaga.
-  const ofrecioAsesorSinAvisar =
-    history.some((m) => m.role === "assistant" && typeof m.content === "string" && ofrecioAsesor(m.content))
-    && !(await sql<{ existe: number }[]>`
-      select 1 as existe from advisor_notifications
-      where conversation_id=${ctx.conversation.id} and cycle=${ctx.conversation.current_cycle}
-      limit 1
-    `).length;
+  const hayAvisoEnCiclo = (await sql<{ existe: number }[]>`
+    select 1 as existe from advisor_notifications
+    where conversation_id=${ctx.conversation.id} and cycle=${ctx.conversation.current_cycle}
+    limit 1
+  `).length > 0;
+  const ofrecioAsesorSinAvisar = !hayAvisoEnCiclo
+    && history.some((m) => m.role === "assistant" && typeof m.content === "string" && ofrecioAsesor(m.content));
+  // Tema fuera del catálogo sin aviso todavía: derivar es la respuesta, no un
+  // adorno (T115 E02, 31-ago: el mini explicó el servicio sin derivarlo nunca).
+  const fueraDeCatalogoSinAviso = Boolean(ctx.consultaFueraDeCatalogo) && !hayAvisoEnCiclo;
   // LA CONSULTA TÉCNICA SE EJECUTA, NO SE SUGIERE (T115 conv 11274 turno 8,
   // 30-ago): pedírselo al modelo no alcanzó — llamó dos veces al catálogo y
   // dijo «no tengo el dato». respaldo_marcas es determinística y barata: se
@@ -338,6 +349,7 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
   // control (T115 nivel 2, 31-ago: el mini recomendaba y aún así preguntaba
   // «¿le cotizo?» a quien ya la había pedido con todas sus letras).
   let vueltaForzadaUsada = false;
+  let recordatorioDeObligacion: string | null = null;
   const bloquesVolatiles: ChatCompletionMessageParam[] = [
     { role: "system", content: salesFactsPrompt(salesFacts, ctx.resumedFromHuman) },
     ...(aceptoLaOferta ? [{ role: "system" as const, content: ordenDeCotizarYa(userText) }] : []),
@@ -360,6 +372,16 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
       ? [{ role: "system" as const, content: ordenDeNotificarLoPrometido() }]
       : []),
     ...(pidioHumano ? [{ role: "system" as const, content: ordenDeNotificarHumano() }] : []),
+    ...(fueraDeCatalogoSinAviso && !pidioHumano
+      ? [{
+          role: "system" as const,
+          content:
+            "TEMA FUERA DEL CATÁLOGO SIN DERIVAR (fuente determinística): la consulta activa es un "
+            + "servicio que este canal no confirma. Llama notificar_vendedor UNA VEZ en este turno con "
+            + "el resumen del pedido, dile al cliente que el asesor le confirma, y no lo interrogues. "
+            + "PROHIBIDO afirmar o negar el servicio por tu cuenta.",
+        }]
+      : []),
     ...(pidioCotizar ? [{ role: "system" as const, content: ordenDeCotizarLoPedido() }] : []),
     ...(cantidadCambia ? [{ role: "system" as const, content: ordenDeRecotizarCantidad(cantidadNueva) }] : []),
     ...(descansoDelAcuse
@@ -526,6 +548,25 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
       });
       if (call.function.name === "enviar_comparacion") ctx.comparedThisTurn = true;
       const exact = exactToolReply(result);
+      // El atajo del texto exacto NO puede saltarse la obligación del turno:
+      // T115 Q06 (31-ago), «Mándame una cotización» terminó en el menú de
+      // opciones porque preparar_opciones devolvió mensaje exacto y el turno
+      // se fue por aquí sin pasar por la vuelta forzada.
+      const obligacionPendiente =
+        ((pidioCotizar || cantidadCambia) && !usedTools.includes("generar_cotizacion"))
+        || (pidioHumano && !usedTools.includes("notificar_vendedor"));
+      if (exact && obligacionPendiente && !vueltaForzadaUsada && !ctx.consultaFueraDeCatalogo) {
+        // El recordatorio NO se mete aquí: los resultados de herramientas
+        // deben seguir pegados al mensaje del asistente. Se anota y se
+        // agrega al terminar el bloque de llamadas.
+        vueltaForzadaUsada = true;
+        recordatorioDeObligacion =
+          "OBLIGACIÓN PENDIENTE: el cliente pidió explícitamente cotización/persona y todavía no llamaste "
+          + "la herramienta que la cumple (generar_cotizacion / notificar_vendedor). Llámala AHORA — el "
+          + "texto de opciones que ya salió no reemplaza lo pedido.";
+        usedTools.push("vuelta_forzada:atajo_exacto");
+        continue;
+      }
       if (exact) {
         await logAiRun({
           conversationId: ctx.conversation.id,
@@ -543,6 +584,10 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
         });
         return withDiscountNotice(exact, ctx, activeDiscount, pendingDiscount);
       }
+    }
+    if (recordatorioDeObligacion) {
+      messages.push({ role: "system", content: recordatorioDeObligacion });
+      recordatorioDeObligacion = null;
     }
   }
 

@@ -340,6 +340,11 @@ export function extractExplicitQuantity(text: string): number | null {
   );
   const value = match?.[1] ?? match?.[2] ?? match?.[3] ?? match?.[4];
   if (value) return /^\d$/.test(value) ? Number(value) : words[value] ?? null;
+  // «solo dos» / «solamente 2» A SECAS: el mensaje entero ES la cantidad.
+  // T115 Q05 (31-ago): tras «quiero la Falken», el «solo dos» no parseaba,
+  // la autorización caía y el candado bloqueó una cotización legítima.
+  const aSecas = normalized.match(/^(?:solo|solamente|unicamente|nomas|no\s+mas)\s+([1-8]|un|uno|una|dos|tres|cuatro|cinco|seis|siete|ocho)$/);
+  if (aSecas) return /^\d$/.test(aSecas[1]) ? Number(aSecas[1]) : words[aSecas[1]] ?? null;
   if (juego) return 4;
   // UN NÚMERO AL FINAL, CUANDO EL MENSAJE HABLA DE CUÁNTAS.
   //

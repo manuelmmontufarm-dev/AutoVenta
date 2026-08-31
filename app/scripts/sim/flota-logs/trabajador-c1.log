@@ -1,13 +1,12 @@
 [1m  P10[0m [90m«¿Tienen Kenda?» — consulta catálogo y nombra la marca[0m
-      [31m✗ consulta el catálogo[0m[31m — respondió sí/no sin consultar[0m
-      [31m✗ la respuesta nombra a Kenda[0m[31m — preguntaron por Kenda y ni la nombra[0m
 [1m  Q05[0m [90m«quiero la Falken» → «solo dos» — Falken por 2, no 4[0m
-      [31m✗ cotiza exactamente 2[0m[31m — cotizó 4 llantas en vez de 2[0m
+      [31m✗ cotiza exactamente 2[0m[31m — nunca cotizó[0m
+      [31m✗ cotiza la Falken pedida[0m[31m — nunca cotizó[0m
 [1m  O13[0m [90m«Lo voy a pensar» — cierre suave, sin perder ni insistir[0m
 [1m  E01[0m [90m«Quiero hablar con una persona» — notifica ya, sin interrogar[0m
 [1m  C09[0m [90mCierre → vuelve con una medida — ciclo nuevo, venta normal[0m
 [1m  X01[0m [90mCorolla 2019 → económica → 4 → sábado Quito Sur[0m
 
 [1m  ─────────────────────────────────────────[0m
-  comprobaciones: [32m9 pasaron[0m · [31m3 fallaron[0m
+  comprobaciones: [32m10 pasaron[0m · [31m2 fallaron[0m
 [90m  detalle → /Users/manue/AutoVenta/.claude/worktrees/threshold-t115/app/scripts/sim/flota-logs/resultado-c1.json[0m
