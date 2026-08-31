@@ -186,6 +186,24 @@ export const PASOS: readonly PasoDeSalida[] = [
     },
   },
   {
+    // EL DEDUPE OTRA VEZ, PORQUE EL GUARDIÁN REESCRIBE DESPUÉS DE ÉL.
+    //
+    // 30-ago-2026, corrida T115 conv 9887 turnos 9-10: el primer
+    // `sin_pregunta_pendiente_consecutiva` limpió el borrador, pero el Ángel
+    // Guardián reescribió («el cliente no eligió local») y REINTRODUJO la
+    // pregunta del local — dos turnos seguidos con la misma pregunta, que es
+    // exactamente lo que el paso 1 existe para impedir. Todo lo que reescribe
+    // tiene que volver a pasar por el dedupe; corre tras `guardian_no_vende_solo`
+    // para ver el texto ya definitivo del guardián.
+    nombre: "sin_pregunta_consecutiva_tras_guardian",
+    corre: ["respuesta", "retomada"],
+    async aplicar(texto, ctx) {
+      return sinPreguntaPendienteConsecutiva(
+        ctx.conversation.id, ctx.conversation.current_cycle, texto,
+      );
+    },
+  },
+  {
     // El stock, después del que reescribe. El seguimiento también afirma la
     // cotización («su cotización de $262.60 sigue vigente») y sale días
     // después: si en ese rato el stock bajó, es el peor mensaje para prometer

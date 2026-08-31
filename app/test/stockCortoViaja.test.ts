@@ -154,6 +154,9 @@ describe("el orden de los candados en el turno", () => {
       "guardian_deterministico",
       "angel_guardian",
       "guardian_no_vende_solo",
+      // El dedupe repite DESPUÉS del guardián porque él reescribe y puede
+      // reintroducir la pregunta ya vetada (T115 conv 9887, 30-ago).
+      "sin_pregunta_consecutiva_tras_guardian",
       "aviso_de_stock",
       "alcance_fuera_de_catalogo",
       "despedida_de_venta_perdida",

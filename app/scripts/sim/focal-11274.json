@@ -1,0 +1,368 @@
+[
+  {
+    "conv": 11274,
+    "titulo": "Pidió Falken y preguntó fabricación y frenado en mojado",
+    "checks": [
+      {
+        "nombre": "ningún turno se queda sin respuesta",
+        "ok": true,
+        "motivo": null
+      },
+      {
+        "nombre": "ninguna corrida de IA con error",
+        "ok": true,
+        "motivo": null
+      },
+      {
+        "nombre": "el guardián no marca insistencia tras rechazo",
+        "ok": true,
+        "motivo": null
+      },
+      {
+        "nombre": "contesta si hay Falken o no",
+        "ok": false,
+        "motivo": "turno 3: pidió Falken explícitamente y la respuesta ni la nombra"
+      },
+      {
+        "nombre": "responde las preguntas técnicas",
+        "ok": true,
+        "motivo": null
+      }
+    ],
+    "turnos": [
+      {
+        "cliente": "¡Hola! Quiero más información",
+        "bot": [
+          {
+            "texto": "¡Hola! 👋 Le cotizo con stock y precios reales.\nLo más rápido es enviarme la *medida de la llanta* (ej. 225/65R17) o una foto del costado.\nSi no la tiene, dígame *marca, modelo y año del vehículo* o el aro; también puedo orientarle según su uso y comparar opciones.",
+            "tipo": "text"
+          }
+        ],
+        "fase": [],
+        "herramientas": [],
+        "modelos": [
+          "gpt-5.5"
+        ],
+        "errores": [],
+        "sinRespuesta": false,
+        "guardian": [
+          {
+            "verdict": "aprobar",
+            "findings": [],
+            "original": "¡Hola! 👋 Le cotizo con stock y precios reales.\nLo más rápido es enviarme la *medida de la llanta* (ej. 225/65R17) o una foto del costado.\nSi no la tiene, dígame *marca, modelo y año del vehículo* o el aro; también puedo orientarle según su uso y comparar opciones.",
+            "corregido": null
+          }
+        ]
+      },
+      {
+        "cliente": "Buenas tardes \nMe interesa",
+        "bot": [
+          {
+            "texto": "Guía de medida enviada",
+            "tipo": "image"
+          },
+          {
+            "texto": "Lo que más necesito es el *aro* — el número después de la R (ej. la R*17* de 225/65R17). Sin ese dato no le puedo asegurar que la llanta entre.",
+            "tipo": "text"
+          },
+          {
+            "texto": "¿Me dice la medida, o prefiere mandarme una foto del costado y la leo yo? 📸",
+            "tipo": "text"
+          }
+        ],
+        "fase": [],
+        "herramientas": [
+          "guia_medida"
+        ],
+        "modelos": [
+          "gpt-5.5",
+          "gpt-5.4-mini"
+        ],
+        "errores": [],
+        "sinRespuesta": false,
+        "guardian": [
+          {
+            "verdict": "aprobar",
+            "findings": [],
+            "original": "Lo que más necesito es el *aro* — el número después de la R (ej. la R*17* de 225/65R17). Sin ese dato no le puedo asegurar que la llanta entre.\n\n---\n\n¿Me dice la medida, o prefiere mandarme una foto del costado y la leo yo? 📸",
+            "corregido": null
+          }
+        ]
+      },
+      {
+        "cliente": "Disponen de llantas \n255 70 R16 A / T \nNecesito 4 unid.\nEn Falken\nMe confirma por favor \nGracias",
+        "bot": [
+          {
+            "texto": "Opciones enviadas: KENDA KR628 · KENDA KR28 · WINRUN MAXCLAW A/T",
+            "tipo": "image"
+          },
+          {
+            "texto": "Para afinarle la recomendación sobre las opciones que le envié, dígame una sola cosa: ¿qué prioriza usted?\n\n1) *Costo* — la más conveniente de precio\n2) *Equilibrio* — la que mejor balancea precio y rendimiento\n3) *Premium* — la de máxima calidad y durabilidad\n\nCon eso le dejo la opción exacta para su medida.",
+            "tipo": "text"
+          }
+        ],
+        "fase": [
+          "medida_confirmada"
+        ],
+        "herramientas": [
+          "buscar_llanta",
+          "preparar_opciones"
+        ],
+        "modelos": [
+          "gpt-5.5",
+          "gpt-5.4-mini"
+        ],
+        "errores": [],
+        "sinRespuesta": false,
+        "guardian": [
+          {
+            "verdict": "corregir",
+            "findings": [
+              {
+                "detalle": "El cliente pidió específicamente confirmar 4 unidades en Falken 255/70R16 A/T. El borrador no responde que Falken está sin stock y cambia a una pregunta de preferencias.",
+                "categoria": "ignora-pregunta",
+                "severidad": "alta"
+              }
+            ],
+            "original": "Para afinarle la recomendación sobre las opciones que le envié, dígame una sola cosa: ¿qué prioriza usted?\n\n1) *Costo* — la más conveniente de precio\n2) *Equilibrio* — la que mejor balancea precio y rendimiento\n3) *Premium* — la de máxima calidad y durabilidad\n\nCon eso le dejo la opción exacta para su medida.",
+            "corregido": "En *Falken Wildpeak A/T 4W* para su medida *255/70R16* no tengo stock disponible hoy para el juego de 4.\n\nSí le envié opciones A/T disponibles en esa misma medida para 4 llantas: *KENDA KR628*, *KENDA KR28* y *WINRUN MAXCLAW A/T*.\n\nMi recomendación es *KENDA KR628*, porque es A/T y tiene buen equilibrio entre precio y disponibilidad para las 4 llantas.\n\n¿Le cotizo el juego de 4 llantas?"
+          }
+        ]
+      },
+      {
+        "cliente": "Que porcentaje es el descuento que aplican",
+        "bot": [
+          {
+            "texto": "El descuento exacto no lo puedo afirmar sin generar la cotización, porque depende de la opción elegida.\n\nPara su medida 255/70R16 A/T, la opción de mejor precio enviada es WINRUN MAXCLAW A/T a $133.11 c/u con IVA; por 4 llantas sería $532.44 con IVA antes de cualquier ajuste de cotización.",
+            "tipo": "text"
+          },
+          {
+            "texto": "También le incluye instalación, alineación, balanceo, seguro gratuito por daños, mantenimiento cada 10.000 km y revisión gratuita del vehículo.",
+            "tipo": "text"
+          },
+          {
+            "texto": "¿Le cotizo el juego de 4 llantas?",
+            "tipo": "text"
+          }
+        ],
+        "fase": [],
+        "herramientas": [],
+        "modelos": [
+          "gpt-5.5",
+          "gpt-5.4-mini"
+        ],
+        "errores": [],
+        "sinRespuesta": false,
+        "guardian": [
+          {
+            "verdict": "corregir",
+            "findings": [
+              {
+                "detalle": "El borrador pregunta “¿Desea que le genere la cotización de las 4 llantas…?”, una forma prohibida de pedir permiso/cantidad. La plantilla permitida es exactamente: “¿Le cotizo el juego de 4 llantas?”",
+                "categoria": "pregunta_de_mas",
+                "severidad": "alta"
+              }
+            ],
+            "original": "El descuento exacto no lo puedo afirmar sin generar la cotización, porque depende de la opción elegida.\n\nPara su medida 255/70R16 A/T, la opción de mejor precio enviada es WINRUN MAXCLAW A/T a $133.11 c/u con IVA; por 4 llantas sería $532.44 con IVA antes de cualquier ajuste de cotización.\n\n---\n\nTambién le incluye instalación, alineación, balanceo, seguro gratuito por daños, mantenimiento cada 10.000 km y revisión gratuita del vehículo.\n\n---\n\n¿Desea que le genere la cotización de las 4 llantas en la opción de mejor precio?",
+            "corregido": "El descuento exacto no lo puedo afirmar sin generar la cotización, porque depende de la opción elegida.\n\nPara su medida 255/70R16 A/T, la opción de mejor precio enviada es WINRUN MAXCLAW A/T a $133.11 c/u con IVA; por 4 llantas sería $532.44 con IVA antes de cualquier ajuste de cotización.\n\n---\n\nTambién le incluye instalación, alineación, balanceo, seguro gratuito por daños, mantenimiento cada 10.000 km y revisión gratuita del vehículo.\n\n---\n\n¿Le cotizo el juego de 4 llantas?"
+          }
+        ]
+      },
+      {
+        "cliente": "OK",
+        "bot": [
+          {
+            "texto": "Cotización COT-MTGLUKBY enviada por $532.44",
+            "tipo": "image"
+          },
+          {
+            "texto": "Puede pasar sin compromiso a verlas y probarlas en su vehículo.\n📍 *Depot Tire Cumbayá*: https://maps.app.goo.gl/QnMBPXKc1o8igbsp8\n📍 *Depot Tire Quito Sur*: https://maps.app.goo.gl/NQeNN8csyAnRkJDJ7",
+            "tipo": "text"
+          },
+          {
+            "texto": "¿A cuál local le queda mejor ir, *Cumbayá* o *Quito Sur*? 📍",
+            "tipo": "text"
+          }
+        ],
+        "fase": [
+          "cotizacion_enviada"
+        ],
+        "herramientas": [
+          "generar_cotizacion"
+        ],
+        "modelos": [
+          "gpt-5.4-mini",
+          "gpt-5.5"
+        ],
+        "errores": [],
+        "sinRespuesta": false,
+        "guardian": [
+          {
+            "verdict": "aprobar",
+            "findings": [],
+            "original": "Puede pasar sin compromiso a verlas y probarlas en su vehículo.\n📍 *Depot Tire Cumbayá*: https://maps.app.goo.gl/QnMBPXKc1o8igbsp8\n📍 *Depot Tire Quito Sur*: https://maps.app.goo.gl/NQeNN8csyAnRkJDJ7\n\n---\n\n¿A cuál local le queda mejor ir, *Cumbayá* o *Quito Sur*? 📍",
+            "corregido": null
+          }
+        ]
+      },
+      {
+        "cliente": "Voy a revisar, con éste precio, no me alcanza el presupuesto",
+        "bot": [
+          {
+            "texto": "Entiendo. La cotización vigente es por 4 WINRUN MAXCLAW A/T 255/70R16 en $532.44 con IVA, y ya es la opción más económica que tenemos en esa medida.",
+            "tipo": "text"
+          },
+          {
+            "texto": "Si le sirve, puede revisar en tienda si aplica algún ajuste adicional según forma de pago; ese monto lo confirma directamente el asesor.",
+            "tipo": "text"
+          },
+          {
+            "texto": "¿Quiere que le deje listo el contacto con un asesor para ver si puede ayudarle con una alternativa de pago?",
+            "tipo": "text"
+          }
+        ],
+        "fase": [
+          "seleccionando"
+        ],
+        "herramientas": [],
+        "modelos": [
+          "gpt-5.5",
+          "gpt-5.4-mini"
+        ],
+        "errores": [],
+        "sinRespuesta": false,
+        "guardian": [
+          {
+            "verdict": "aprobar",
+            "findings": [],
+            "original": "Entiendo. La cotización vigente es por 4 WINRUN MAXCLAW A/T 255/70R16 en $532.44 con IVA, y ya es la opción más económica que tenemos en esa medida.\n\n---\n\nSi le sirve, puede revisar en tienda si aplica algún ajuste adicional según forma de pago; ese monto lo confirma directamente el asesor.\n\n---\n\n¿Quiere que le deje listo el contacto con un asesor para ver si puede ayudarle con una alternativa de pago?",
+            "corregido": null
+          }
+        ]
+      },
+      {
+        "cliente": "De que fabricación es",
+        "bot": [
+          {
+            "texto": "La MAXCLAW A/T cotizada es marca WINRUN. El dato exacto de fabricación/DOT de una llanta física no lo tengo en catálogo; se verifica en el costado de la llanta al momento de revisarla en tienda.",
+            "tipo": "text"
+          },
+          {
+            "texto": "¿A cuál local le queda mejor ir, *Cumbayá* o *Quito Sur*? 📍",
+            "tipo": "text"
+          }
+        ],
+        "fase": [],
+        "herramientas": [
+          "buscar_catalogo",
+          "buscar_catalogo"
+        ],
+        "modelos": [
+          "gpt-5.5",
+          "gpt-5.4-mini"
+        ],
+        "errores": [],
+        "sinRespuesta": false,
+        "guardian": [
+          {
+            "verdict": "aprobar",
+            "findings": [],
+            "original": "La MAXCLAW A/T cotizada es marca WINRUN. El dato exacto de fabricación/DOT de una llanta física no lo tengo en catálogo; se verifica en el costado de la llanta al momento de revisarla en tienda.",
+            "corregido": null
+          }
+        ]
+      },
+      {
+        "cliente": "El frenado en mojado de que clase",
+        "bot": [
+          {
+            "texto": "Opciones enviadas: KENDA KR628 · WINRUN MAXCLAW A/T",
+            "tipo": "image"
+          },
+          {
+            "texto": "Para afinarle la recomendación sobre las opciones que le envié, dígame una sola cosa: ¿qué prioriza usted?\n\n1) *Costo* — la más conveniente de precio\n2) *Premium* — la de máxima calidad y durabilidad\n\nCon eso le dejo la opción exacta para su medida.",
+            "tipo": "text"
+          }
+        ],
+        "fase": [],
+        "herramientas": [
+          "buscar_catalogo",
+          "preparar_opciones"
+        ],
+        "modelos": [
+          "gpt-5.4-mini",
+          "gpt-5.5"
+        ],
+        "errores": [],
+        "sinRespuesta": false,
+        "guardian": [
+          {
+            "verdict": "corregir",
+            "findings": [
+              {
+                "detalle": "El cliente preguntó específicamente “El frenado en mojado de qué clase” y el borrador no responde ese dato; cambia a una pregunta de priorización.",
+                "categoria": "ignora-pregunta",
+                "severidad": "alta"
+              },
+              {
+                "detalle": "El borrador pide al cliente elegir qué prioriza después de que ya existe una cotización vigente por 4 WINRUN y la herramienta envió opciones; agrega un turno en lugar de responder la duda técnica.",
+                "categoria": "pregunta_de_mas",
+                "severidad": "alta"
+              }
+            ],
+            "original": "Para afinarle la recomendación sobre las opciones que le envié, dígame una sola cosa: ¿qué prioriza usted?\n\n1) *Costo* — la más conveniente de precio\n2) *Premium* — la de máxima calidad y durabilidad\n\nCon eso le dejo la opción exacta para su medida.",
+            "corregido": "No tengo en catálogo la clase exacta de *frenado en mojado* de la WINRUN MAXCLAW A/T; ese dato se verifica en la etiqueta/ficha técnica de la llanta física en tienda.\n\nPara su medida *255/70R16*, las opciones que le envié son *WINRUN MAXCLAW A/T* y *KENDA KR628*. Si prioriza menor costo, va WINRUN; si prioriza una opción más premium, va KENDA KR628."
+          }
+        ]
+      },
+      {
+        "cliente": "En qué precio está está versión",
+        "bot": [
+          {
+            "texto": "La versión económica que ya tiene enviada es la WINRUN MAXCLAW A/T 255/70R16, y está en $133.11 c/u con IVA.\n\nPara el juego de 4 llantas, la cotización vigente queda en $532.44 con IVA.",
+            "tipo": "text"
+          },
+          {
+            "texto": "¿A cuál local le queda mejor ir, *Cumbayá* o *Quito Sur*? 📍",
+            "tipo": "text"
+          }
+        ],
+        "fase": [],
+        "herramientas": [],
+        "modelos": [
+          "gpt-5.4-mini",
+          "gpt-5.5"
+        ],
+        "errores": [],
+        "sinRespuesta": false,
+        "guardian": [
+          {
+            "verdict": "corregir",
+            "findings": [
+              {
+                "detalle": "El borrador pregunta si quiere dejarla como referencia para 4 llantas, pero la cantidad elegida ya está registrada como 4 y ya existe cotización vigente por 4 WINRUN MAXCLAW A/T 255/70R16.",
+                "categoria": "pregunta_de_mas",
+                "severidad": "alta"
+              }
+            ],
+            "original": "La versión económica que ya tiene enviada es la WINRUN MAXCLAW A/T 255/70R16, y está en $133.11 c/u con IVA.\n\n¿Quiere que se la deje como referencia para 4 llantas?",
+            "corregido": "La versión económica que ya tiene enviada es la WINRUN MAXCLAW A/T 255/70R16, y está en $133.11 c/u con IVA.\n\nPara el juego de 4 llantas, la cotización vigente queda en $532.44 con IVA."
+          }
+        ]
+      }
+    ],
+    "estadoFinal": {
+      "stage": "seguimiento_venta",
+      "medida": "255/70R16",
+      "cotizaciones": 1,
+      "alertas": [
+        "guardian_correccion/high",
+        "guardian_hecho_nuevo_bloqueado/high",
+        "guardian_correccion/high",
+        "quote_created/medium",
+        "guardian_correccion/high",
+        "guardian_correccion/high"
+      ]
+    }
+  }
+]

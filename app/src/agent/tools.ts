@@ -71,6 +71,7 @@ import { arosDeCandidatos, arosDeMedidas, invitacionPorAroAmbiguo } from "../dom
 import { rangoDeAros } from "../domain/aros.js";
 import { nearestStore, resolveSector } from "../domain/locations.js";
 import { extractFlotationSizes, formatFlotationSize, formatTireSize, parseTireSize, type TireSize } from "../domain/tireSize.js";
+import { marcaPreguntada } from "../domain/consultaConRespaldo.js";
 import {
   autorizaCotizacionEnEsteTurno, canGenerateFinalQuote, cantidadParaPrepararOpciones, describeUso, escalonesDeOpciones,
   pidePrecio, pideRecomendacion, respuestaDePreferencia,
@@ -1441,6 +1442,16 @@ export function buildTools(ctx: AgentContext) {
       // pieza ya lo dice resaltado (P-07, reunión 25-ago: «se manda dos
       // veces»). El texto solo lo lleva si la imagen falló (nadie se queda
       // sin la info) o si el cliente preguntó expresamente qué incluye.
+      // El cliente preguntó por una marca puntual y la pieza no la trae: se le
+      // dice ANTES de las opciones, con los datos de esta misma búsqueda.
+      // T115 conv 11274 (ancla H08), 30-ago: pidió Falken 255/70R16, recibió
+      // KENDA y WINRUN, y ningún texto le dijo si había Falken o no — el
+      // mensaje sale de esta plantilla, así que el aviso tiene que nacer aquí.
+      const marcaPedida = marcaPreguntada(ctx.currentUserText ?? "");
+      const avisoMarcaCliente =
+        marcaPedida && !products.some((p) => (p.brand ?? "").toUpperCase().includes(marcaPedida))
+          ? `De *${marcaPedida}* no tengo disponibilidad en esta medida por ahora; estas son las alternativas que sí le puedo entregar:`
+          : null;
       const clientePidioIncluye = requestsBenefitsAgain(ctx.currentUserText);
       const beneficios = debeLlevarIncluyeEnTexto(visual.ok, clientePidioIncluye)
         ? await buildBenefitsBlockOnce(
@@ -1496,6 +1507,7 @@ export function buildTools(ctx: AgentContext) {
           (await soloLaFoto(visual.ok))
             ? null
             : buildCustomerOptionsMessageDetallado(products, nombre_cliente),
+          avisoMarcaCliente,
           avisoMedidaCliente,
           beneficios,
           buildCierreOpciones({

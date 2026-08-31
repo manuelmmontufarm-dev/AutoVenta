@@ -14,6 +14,7 @@
 import { describe, expect, it } from "vitest";
 import {
   ofertaDeCotizacionAceptada,
+  ofertaDeCotizacionVigenteAceptada,
   ofertaDeCotizarAceptada,
   ordenDeCotizarYa,
 } from "../src/domain/ofertaAceptada.js";
@@ -97,5 +98,72 @@ describe("el «gracias» que era un sí", () => {
   it("solo una oferta de cotización autoriza firmarla con un acuse", () => {
     expect(ofertaDeCotizacionAceptada(OFERTA_REAL, "Ok")).toBe(true);
     expect(ofertaDeCotizacionAceptada("Aquí le mando su cotización 👍", "Ok")).toBe(false);
+  });
+});
+
+
+/**
+ * LA OFERTA NO CADUCA POR UNA PREGUNTA EN EL MEDIO.
+ *
+ * Corrida T115, 30-ago-2026, conv 9684 (ancla H04), textos reales:
+ *
+ *   BOT: «¿Le cotizo el juego de 4 llantas?»
+ *   CLIENTE: [foto: 195/55R15 85V]
+ *   BOT: «Opciones enviadas… ¿qué prioriza usted?»
+ *   CLIENTE: «Es precio es fijo»
+ *   BOT: «Sí, esos precios ya son finales con IVA…»
+ *   CLIENTE: «Ok»   ← esto ES aceptar la oferta que sigue viva
+ *
+ * El detector viejo solo miraba el último saliente y el «Ok» no autorizó
+ * nada: la conversación entera terminó sin cotización.
+ */
+describe("ofertaDeCotizacionVigenteAceptada", () => {
+  const conversacion9684 = [
+    { role: "assistant", content: "Para Corsa Evolution le recomendaría la Kenda KR20. ¿Le cotizo el juego de 4 llantas?" },
+    { role: "user", content: "[Foto: 195/55R15 85V]" },
+    { role: "assistant", content: "Opciones enviadas: KENDA KR20 · KENDA KR203 · WINRUN R330. ¿Qué prioriza usted?" },
+    { role: "user", content: "Es precio es fijo" },
+    { role: "assistant", content: "Sí, esos precios ya son finales con IVA por llanta según la opción." },
+    { role: "user", content: "Ok" },
+  ];
+
+  it("un «Ok» acepta la oferta que quedó dos turnos atrás", () => {
+    expect(ofertaDeCotizacionVigenteAceptada(conversacion9684, "Ok")).toBe(true);
+  });
+
+  it("una negativa en el medio mata la oferta", () => {
+    const conRechazo = [
+      ...conversacion9684.slice(0, 3),
+      { role: "user", content: "no gracias" },
+      { role: "assistant", content: "Entendido, quedamos a las órdenes." },
+      { role: "user", content: "👍🏻" },
+    ];
+    expect(ofertaDeCotizacionVigenteAceptada(conRechazo, "👍🏻")).toBe(false);
+  });
+
+  it("una oferta de hace más de dos mensajes del cliente ya no vive", () => {
+    const vieja = [
+      { role: "assistant", content: "¿Le cotizo el juego de 4 llantas?" },
+      { role: "user", content: "¿Y tienen aro 17?" },
+      { role: "assistant", content: "Sí, tenemos varias en aro 17." },
+      { role: "user", content: "¿Y en qué horario atienden?" },
+      { role: "assistant", content: "De 08:30 a 17:30." },
+      { role: "user", content: "¿Hacen envíos?" },
+      { role: "assistant", content: "Solo en la ciudad." },
+      { role: "user", content: "Ok" },
+    ];
+    expect(ofertaDeCotizacionVigenteAceptada(vieja, "Ok")).toBe(false);
+  });
+
+  it("un acuse con pedido nuevo no dispara nada", () => {
+    expect(ofertaDeCotizacionVigenteAceptada(conversacion9684, "Ok, ¿y en aro 17?")).toBe(false);
+  });
+
+  it("sin ninguna oferta previa, el acuse no autoriza", () => {
+    const sinOferta = [
+      { role: "assistant", content: "Su visita quedó registrada para el domingo." },
+      { role: "user", content: "Ok" },
+    ];
+    expect(ofertaDeCotizacionVigenteAceptada(sinOferta, "Ok")).toBe(false);
   });
 });

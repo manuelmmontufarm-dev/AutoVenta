@@ -122,3 +122,61 @@ export function ordenDeCotizarYa(mensajeDelCliente: string): string {
     "PROHIBIDO pedir cualquier confirmación adicional: ya la pediste una vez y te dijo que sí."
   );
 }
+
+/**
+ * La oferta de cotizar no caduca porque el cliente meta una pregunta en el
+ * medio.
+ *
+ * 30-ago-2026, corrida T115 conv 9684: el bot ofreció «¿Le cotizo el juego de
+ * 4?», el cliente preguntó si el precio era fijo, el bot contestó, y el «Ok»
+ * siguiente ya no autorizó nada porque `ofertaDeCotizacionAceptada` solo mira
+ * el último saliente. El turno terminó preguntando «¿cuál opción le cotizo?»
+ * — la misma oferta con otras palabras — y la venta nunca tuvo cotización.
+ *
+ * Esta versión recorre los últimos mensajes buscando la oferta viva:
+ * - muere con cualquier negativa o despedida del cliente en el medio;
+ * - aguanta como mucho DOS mensajes del cliente desde la oferta — una oferta
+ *   no vive para siempre;
+ * - el acuse sigue siendo el mismo `ACUSE_SIN_MAS` anclado: «Ok, ¿y en aro
+ *   17?» no dispara nada.
+ */
+export function ofertaDeCotizacionVigenteAceptada(
+  historial: readonly { role: string; content: unknown }[],
+  mensajeDelCliente: string,
+): boolean {
+  const cliente = normalizar(mensajeDelCliente);
+  if (!cliente || NEGATIVA_CORTA.test(cliente) || !ACUSE_SIN_MAS.test(cliente)) return false;
+  // El mensaje actual ya suele estar guardado y llega al final del historial:
+  // no cuenta como «mensaje en el medio».
+  const previos = historial.length && historial[historial.length - 1].role === "user"
+    ? historial.slice(0, -1)
+    : historial;
+  let clientesEnMedio = 0;
+  for (let i = previos.length - 1; i >= 0 && clientesEnMedio <= 2; i--) {
+    const m = previos[i];
+    const texto = typeof m.content === "string" ? normalizar(m.content) : "";
+    if (m.role === "user") {
+      if (NEGATIVA_CORTA.test(texto) || /\bno\s+gracias\b|\bya\s+compre\b|\bya\s+no\b/.test(texto)) return false;
+      clientesEnMedio += 1;
+    } else if (m.role === "assistant" && OFRECIO_COTIZAR.test(texto)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * El hecho suave para la oferta que quedó pendiente unos turnos atrás. No es
+ * `ordenDeCotizarYa` a propósito: aquella ORDENA porque el sí llegó pegado a
+ * la oferta; esta recuerda una oferta viva pero deja que el modelo confirme
+ * que el contexto sigue siendo esa compra (el acuse pudo ser de otra cosa).
+ */
+export function recordatorioDeOfertaPendiente(mensajeDelCliente: string): string {
+  return (
+    "OFERTA DE COTIZACIÓN PENDIENTE (fuente determinística): hace uno o dos turnos ofreciste " +
+    `cotizar y el cliente acaba de responder «${mensajeDelCliente.trim().slice(0, 60)}», un acuse sin ` +
+    "pedido nuevo ni negativa. Si el contexto sigue siendo esa compra, GENERA la cotización en este " +
+    "turno con generar_cotizacion (juego de 4 llantas si no dijo otra cantidad, sobre el producto " +
+    "recomendado vigente) en vez de volver a ofrecerla o pedir otra confirmación."
+  );
+}

@@ -8,9 +8,14 @@ import type { ChatCompletionMessageParam, ChatCompletionTool } from "openai/reso
 import { config } from "../config.js";
 import {
   ofertaDeCotizacionAceptada,
+  ofertaDeCotizacionVigenteAceptada,
   ofertaDeCotizarAceptada,
   ordenDeCotizarYa,
+  recordatorioDeOfertaPendiente,
 } from "../domain/ofertaAceptada.js";
+import {
+  marcaPreguntada, ordenDeConsultarRespaldo, ordenDeNombrarLaMarca, preguntaTecnicaDeRespaldo,
+} from "../domain/consultaConRespaldo.js";
 import { ordenDeNoReusarLaVitrina, vitrinaQueNoEsSuMedida } from "../domain/vitrinaVieja.js";
 import { extractTireSizes, formatTireSize } from "../domain/tireSize.js";
 import { getHistory, logAiRun } from "../services/conversations.js";
@@ -162,6 +167,11 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
     typeof ultimoDelBot?.content === "string" ? ultimoDelBot.content : null,
     userText,
   );
+  // La oferta que quedó pendiente uno o dos turnos atrás también cuenta
+  // (T115 conv 9684, 30-ago): el acuse la acepta mientras no haya negativa.
+  const aceptoOfertaPendiente = !ctx.aceptoCotizacion
+    && ofertaDeCotizacionVigenteAceptada(history, userText);
+  if (aceptoOfertaPendiente) ctx.aceptoCotizacion = true;
   const textosDelCliente = [
     ...history.filter((m) => m.role === "user").map((m) => m.content),
     userText,
@@ -264,9 +274,19 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
   // final y por tanto se reutiliza. Los bloques de hechos y descuentos no
   // pierden fuerza por ir al final — al contrario, quedan más cerca del
   // mensaje del cliente, que es donde más se respetan.
+  const marcaDelTurno = marcaPreguntada(userText);
   const bloquesVolatiles: ChatCompletionMessageParam[] = [
     { role: "system", content: salesFactsPrompt(salesFacts, ctx.resumedFromHuman) },
     ...(aceptoLaOferta ? [{ role: "system" as const, content: ordenDeCotizarYa(userText) }] : []),
+    ...(!aceptoLaOferta && aceptoOfertaPendiente
+      ? [{ role: "system" as const, content: recordatorioDeOfertaPendiente(userText) }]
+      : []),
+    // Marca preguntada y dato técnico: los dos hechos de T115 conv 11274
+    // (30-ago). Ver domain/consultaConRespaldo.ts.
+    ...((marcaDelTurno) ? [{ role: "system" as const, content: ordenDeNombrarLaMarca(marcaDelTurno) }] : []),
+    ...(preguntaTecnicaDeRespaldo(userText)
+      ? [{ role: "system" as const, content: ordenDeConsultarRespaldo() }]
+      : []),
     ...(vitrinaAjena && medidaDelTurno
       ? [{ role: "system" as const, content: ordenDeNoReusarLaVitrina(vitrinaAjena, medidaDelTurno) }]
       : []),

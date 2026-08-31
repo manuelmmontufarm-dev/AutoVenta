@@ -1,0 +1,355 @@
+[
+  {
+    "conv": 11274,
+    "titulo": "Pidió Falken y preguntó fabricación y frenado en mojado",
+    "checks": [
+      {
+        "nombre": "ningún turno se queda sin respuesta",
+        "ok": true,
+        "motivo": null
+      },
+      {
+        "nombre": "ninguna corrida de IA con error",
+        "ok": true,
+        "motivo": null
+      },
+      {
+        "nombre": "el guardián no marca insistencia tras rechazo",
+        "ok": true,
+        "motivo": null
+      },
+      {
+        "nombre": "contesta si hay Falken o no",
+        "ok": true,
+        "motivo": null
+      },
+      {
+        "nombre": "responde las preguntas técnicas",
+        "ok": true,
+        "motivo": null
+      }
+    ],
+    "turnos": [
+      {
+        "cliente": "¡Hola! Quiero más información",
+        "bot": [
+          {
+            "texto": "¡Hola! 👋 Le cotizo con stock y precios reales.\nLo más rápido es enviarme la *medida de la llanta* (ej. 225/65R17) o una foto del costado.\nSi no la tiene, dígame *marca, modelo y año del vehículo* o el aro; también puedo orientarle según su uso y comparar opciones.",
+            "tipo": "text"
+          }
+        ],
+        "fase": [],
+        "herramientas": [],
+        "modelos": [
+          "gpt-5.5"
+        ],
+        "errores": [],
+        "sinRespuesta": false,
+        "guardian": [
+          {
+            "verdict": "aprobar",
+            "findings": [],
+            "original": "¡Hola! 👋 Le cotizo con stock y precios reales.\nLo más rápido es enviarme la *medida de la llanta* (ej. 225/65R17) o una foto del costado.\nSi no la tiene, dígame *marca, modelo y año del vehículo* o el aro; también puedo orientarle según su uso y comparar opciones.",
+            "corregido": null
+          }
+        ]
+      },
+      {
+        "cliente": "Buenas tardes \nMe interesa",
+        "bot": [
+          {
+            "texto": "Guía de medida enviada",
+            "tipo": "image"
+          },
+          {
+            "texto": "Lo que más necesito es el *aro* — el número después de la R (ej. la R*17* de 225/65R17). Sin ese dato no le puedo asegurar que la llanta entre.",
+            "tipo": "text"
+          },
+          {
+            "texto": "¿Me dice la medida, o prefiere mandarme una foto del costado y la leo yo? 📸",
+            "tipo": "text"
+          }
+        ],
+        "fase": [],
+        "herramientas": [
+          "guia_medida"
+        ],
+        "modelos": [
+          "gpt-5.5",
+          "gpt-5.4-mini"
+        ],
+        "errores": [],
+        "sinRespuesta": false,
+        "guardian": [
+          {
+            "verdict": "aprobar",
+            "findings": [],
+            "original": "Lo que más necesito es el *aro* — el número después de la R (ej. la R*17* de 225/65R17). Sin ese dato no le puedo asegurar que la llanta entre.\n\n---\n\n¿Me dice la medida, o prefiere mandarme una foto del costado y la leo yo? 📸",
+            "corregido": null
+          }
+        ]
+      },
+      {
+        "cliente": "Disponen de llantas \n255 70 R16 A / T \nNecesito 4 unid.\nEn Falken\nMe confirma por favor \nGracias",
+        "bot": [
+          {
+            "texto": "Opciones enviadas: KENDA KR628 · KENDA KR28",
+            "tipo": "image"
+          },
+          {
+            "texto": "De *FALKEN* no tengo disponibilidad en esta medida por ahora; estas son las alternativas que sí le puedo entregar:",
+            "tipo": "text"
+          },
+          {
+            "texto": "Para afinarle la recomendación sobre las opciones que le envié, dígame una sola cosa: ¿qué prioriza usted?\n\n1) *Costo* — la más conveniente de precio\n2) *Premium* — la de máxima calidad y durabilidad\n\nCon eso le dejo la opción exacta para su medida.",
+            "tipo": "text"
+          }
+        ],
+        "fase": [
+          "medida_confirmada"
+        ],
+        "herramientas": [
+          "buscar_llanta",
+          "preparar_opciones"
+        ],
+        "modelos": [
+          "gpt-5.4-mini",
+          "gpt-5.5"
+        ],
+        "errores": [],
+        "sinRespuesta": false,
+        "guardian": [
+          {
+            "verdict": "aprobar",
+            "findings": [],
+            "original": "De *FALKEN* no tengo disponibilidad en esta medida por ahora; estas son las alternativas que sí le puedo entregar:\n\n---\n\nPara afinarle la recomendación sobre las opciones que le envié, dígame una sola cosa: ¿qué prioriza usted?\n\n1) *Costo* — la más conveniente de precio\n2) *Premium* — la de máxima calidad y durabilidad\n\nCon eso le dejo la opción exacta para su medida.",
+            "corregido": null
+          }
+        ]
+      },
+      {
+        "cliente": "Que porcentaje es el descuento que aplican",
+        "bot": [
+          {
+            "texto": "El descuento exacto no lo puedo afirmar en porcentaje sin generar la cotización; las opciones enviadas ya muestran precio final con IVA por llanta.",
+            "tipo": "text"
+          },
+          {
+            "texto": "Para su medida 255/70R16 A/T, la más conveniente es KENDA KR28 a $154.07 c/u con IVA, total $616.28 por 4 llantas.",
+            "tipo": "text"
+          },
+          {
+            "texto": "¿Le cotizo el juego de 4 llantas?",
+            "tipo": "text"
+          }
+        ],
+        "fase": [],
+        "herramientas": [],
+        "modelos": [
+          "gpt-5.5",
+          "gpt-5.4-mini"
+        ],
+        "errores": [],
+        "sinRespuesta": false,
+        "guardian": [
+          {
+            "verdict": "corregir",
+            "findings": [
+              {
+                "detalle": "El borrador pregunta “¿Le genero la cotización por 4 llantas KENDA KR28...?”, pero no se debe pedir permiso por cantidad. Solo se permite la frase exacta de cierre: “¿Le cotizo el juego de 4 llantas?”",
+                "categoria": "pregunta_de_mas",
+                "severidad": "alta"
+              }
+            ],
+            "original": "El descuento exacto no lo puedo afirmar en porcentaje sin generar la cotización; las opciones enviadas ya muestran precio final con IVA por llanta.\n\n---\n\nPara su medida 255/70R16 A/T, la más conveniente es KENDA KR28 a $154.07 c/u con IVA, total $616.28 por 4 llantas.\n\n---\n\n¿Le genero la cotización por 4 llantas KENDA KR28 para que vea el detalle final incluido?",
+            "corregido": "El descuento exacto no lo puedo afirmar en porcentaje sin generar la cotización; las opciones enviadas ya muestran precio final con IVA por llanta.\n\n---\n\nPara su medida 255/70R16 A/T, la más conveniente es KENDA KR28 a $154.07 c/u con IVA, total $616.28 por 4 llantas.\n\n---\n\n¿Le cotizo el juego de 4 llantas?"
+          }
+        ]
+      },
+      {
+        "cliente": "OK",
+        "bot": [
+          {
+            "texto": "Cotización COT-MTGM000K enviada por $616.28",
+            "tipo": "image"
+          },
+          {
+            "texto": "Puede pasar sin compromiso a verlas y probarlas en su vehículo.\n📍 *Depot Tire Cumbayá*: https://maps.app.goo.gl/QnMBPXKc1o8igbsp8\n📍 *Depot Tire Quito Sur*: https://maps.app.goo.gl/NQeNN8csyAnRkJDJ7",
+            "tipo": "text"
+          },
+          {
+            "texto": "¿A cuál local le queda mejor ir, *Cumbayá* o *Quito Sur*? 📍",
+            "tipo": "text"
+          }
+        ],
+        "fase": [
+          "cotizacion_enviada"
+        ],
+        "herramientas": [
+          "generar_cotizacion"
+        ],
+        "modelos": [
+          "gpt-5.4-mini",
+          "gpt-5.5"
+        ],
+        "errores": [],
+        "sinRespuesta": false,
+        "guardian": [
+          {
+            "verdict": "aprobar",
+            "findings": [],
+            "original": "Puede pasar sin compromiso a verlas y probarlas en su vehículo.\n📍 *Depot Tire Cumbayá*: https://maps.app.goo.gl/QnMBPXKc1o8igbsp8\n📍 *Depot Tire Quito Sur*: https://maps.app.goo.gl/NQeNN8csyAnRkJDJ7\n\n---\n\n¿A cuál local le queda mejor ir, *Cumbayá* o *Quito Sur*? 📍",
+            "corregido": null
+          }
+        ]
+      },
+      {
+        "cliente": "Voy a revisar, con éste precio, no me alcanza el presupuesto",
+        "bot": [
+          {
+            "texto": "Entiendo. Con ese presupuesto, la opción más económica disponible en 255/70R16 A/T es justamente la KENDA KR28 a $154.07 c/u con IVA; el juego de 4 queda en $616.28.",
+            "tipo": "text"
+          },
+          {
+            "texto": "La cotización ya le queda enviada por 4 KENDA KR28. Incluye instalación, alineación, balanceo, seguro gratuito contra daños, mantenimiento cada 10.000 km y revisión gratuita del vehículo.",
+            "tipo": "text"
+          },
+          {
+            "texto": "Si desea, en tienda pueden revisar opciones de pago o alternativas que se ajusten mejor.",
+            "tipo": "text"
+          },
+          {
+            "texto": "¿Quiere que le derive con un asesor para revisar una opción dentro de su presupuesto?",
+            "tipo": "text"
+          }
+        ],
+        "fase": [
+          "seleccionando"
+        ],
+        "herramientas": [],
+        "modelos": [
+          "gpt-5.5",
+          "gpt-5.4-mini"
+        ],
+        "errores": [],
+        "sinRespuesta": false,
+        "guardian": [
+          {
+            "verdict": "aprobar",
+            "findings": [],
+            "original": "Entiendo. Con ese presupuesto, la opción más económica disponible en 255/70R16 A/T es justamente la KENDA KR28 a $154.07 c/u con IVA; el juego de 4 queda en $616.28.\n\n---\n\nLa cotización ya le queda enviada por 4 KENDA KR28. Incluye instalación, alineación, balanceo, seguro gratuito contra daños, mantenimiento cada 10.000 km y revisión gratuita del vehículo.\n\n---\n\nSi desea, en tienda pueden revisar opciones de pago o alternativas que se ajusten mejor.\n\n---\n\n¿Quiere que le derive con un asesor para revisar una opción dentro de su presupuesto?",
+            "corregido": null
+          }
+        ]
+      },
+      {
+        "cliente": "De que fabricación es",
+        "bot": [
+          {
+            "texto": "La Kenda KR28 es marca Kenda; el dato exacto de fabricación/DOT de esa llanta física se verifica directamente en el costado de la llanta al momento de revisarla en tienda.",
+            "tipo": "text"
+          },
+          {
+            "texto": "¿A cuál local le queda mejor ir, *Cumbayá* o *Quito Sur*? 📍",
+            "tipo": "text"
+          }
+        ],
+        "fase": [],
+        "herramientas": [
+          "buscar_catalogo",
+          "buscar_catalogo"
+        ],
+        "modelos": [
+          "gpt-5.5",
+          "gpt-5.4-mini"
+        ],
+        "errores": [],
+        "sinRespuesta": false,
+        "guardian": [
+          {
+            "verdict": "aprobar",
+            "findings": [],
+            "original": "La Kenda KR28 es marca Kenda; el dato exacto de fabricación/DOT de esa llanta física se verifica directamente en el costado de la llanta al momento de revisarla en tienda.",
+            "corregido": null
+          }
+        ]
+      },
+      {
+        "cliente": "El frenado en mojado de que clase",
+        "bot": [
+          {
+            "texto": "En la información disponible del catálogo no tengo la clase exacta de frenado en mojado para la Kenda KR28 255/70R16. Ese dato debe verificarse en la etiqueta/ficha técnica de la llanta física en tienda.",
+            "tipo": "text"
+          },
+          {
+            "texto": "Lo que sí está incluido con su compra: instalación, alineación, balanceo, seguro gratuito contra daños, mantenimiento cada 10.000 km y revisión gratuita del vehículo.",
+            "tipo": "text"
+          },
+          {
+            "texto": "¿Quiere que le derive con un asesor para confirmar esa clase técnica antes de decidir?",
+            "tipo": "text"
+          }
+        ],
+        "fase": [],
+        "herramientas": [
+          "buscar_catalogo",
+          "buscar_catalogo"
+        ],
+        "modelos": [
+          "gpt-5.5",
+          "gpt-5.4-mini"
+        ],
+        "errores": [],
+        "sinRespuesta": false,
+        "guardian": [
+          {
+            "verdict": "aprobar",
+            "findings": [],
+            "original": "En la información disponible del catálogo no tengo la clase exacta de frenado en mojado para la Kenda KR28 255/70R16. Ese dato debe verificarse en la etiqueta/ficha técnica de la llanta física en tienda.  \n\n---  \n\nLo que sí está incluido con su compra: instalación, alineación, balanceo, seguro gratuito contra daños, mantenimiento cada 10.000 km y revisión gratuita del vehículo.  \n\n---  \n\n¿Quiere que le derive con un asesor para confirmar esa clase técnica antes de decidir?",
+            "corregido": null
+          }
+        ]
+      },
+      {
+        "cliente": "En qué precio está está versión",
+        "bot": [
+          {
+            "texto": "Su cotización sigue vigente por $616.28 👍",
+            "tipo": "text"
+          },
+          {
+            "texto": "¿Le queda mejor Cumbayá o Quito Sur para pasar a verlas?",
+            "tipo": "text"
+          }
+        ],
+        "fase": [],
+        "herramientas": [
+          "generar_cotizacion"
+        ],
+        "modelos": [
+          "gpt-5.4-mini",
+          "gpt-5.5"
+        ],
+        "errores": [],
+        "sinRespuesta": false,
+        "guardian": [
+          {
+            "verdict": "aprobar",
+            "findings": [],
+            "original": "Su cotización sigue vigente por $616.28 👍\n---\n¿Le queda mejor Cumbayá o Quito Sur para pasar a verlas?",
+            "corregido": null
+          }
+        ]
+      }
+    ],
+    "estadoFinal": {
+      "stage": "seguimiento_venta",
+      "medida": "255/70R16",
+      "cotizaciones": 1,
+      "alertas": [
+        "guardian_correccion/high",
+        "quote_created/medium"
+      ]
+    }
+  }
+]

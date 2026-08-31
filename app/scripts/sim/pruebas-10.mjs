@@ -166,7 +166,15 @@ const CASOS = {
       ["no vuelve a ofrecer la 205 que ya rechazó", (t) => {
         const i = t.findIndex((x) => /205 muy ancha/i.test(x.cliente));
         if (i < 0) return null;
-        const reincide = t.slice(i + 1).findIndex((x) => x.bot.some((b) => /\b205\/5[05]\s*R?16\b/i.test(b.texto) && !/no le recomend|no conviene|ya comprob|rozan/i.test(b.texto)));
+        // Mención ≠ reoferta: «no le recomiendo 205/55R16» es respetar el rechazo.
+        // Enumerar conjugaciones era una carrera perdida (el 30-ago fallaron
+        // «recomiendo», «roza» y «volver a mostrar», una por una). El criterio es
+        // por ORACIÓN: si la oración donde aparece la 205 trae una negación, es
+        // respeto al rechazo; si no la trae —como el «Estas son equivalentes:
+        // … 205/55R16 …» de la línea base— es reoferta.
+        const reincide = t.slice(i + 1).findIndex((x) => x.bot.some((b) =>
+          b.texto.split(/(?<=[.!?…])\s+|\n+/).some((frase) =>
+            /\b205\/5[05]\s*R?16\b/i.test(frase) && !/\bno\b|\bni\b|\btampoco\b|rechaz|roza|ya comprob/i.test(frase))));
         return reincide < 0 ? null : `turno ${i + 2 + reincide}: vuelve a ofrecer la 205 después del rechazo`;
       }],
       ["no repite la misma pieza de opciones", (t) => repetido(t, 3)],
@@ -179,13 +187,21 @@ const CASOS = {
         for (const [i, x] of t.entries()) {
           const txt = x.bot.map((b) => b.texto).join(" ");
           if (/s[íi],? (?:le )?(?:podemos|hacemos|realizamos)[^.]{0,40}(?:cambio de aceite|aceite)/i.test(txt)) return `turno ${i + 1}: afirma el servicio`;
-          if (/s[íi],? puede llevar su (?:propio )?aceite/i.test(txt)) return `turno ${i + 1}: afirma que puede llevar su aceite`;
+          // Solo la afirmación cuenta: «Sí, puede llevar su aceite». El condicional
+          // «le confirma el asesor si puede llevar su aceite» es la respuesta correcta
+          // y no debe marcarse (falso positivo medido el 30-ago 20:02).
+          if (/(?:^|[.!?\n]\s*)s[íi],\s*puede (?:llevar|traer) (?:su|el) (?:propio )?aceite|sí puede (?:llevar|traer) (?:su|el) (?:propio )?aceite|claro que puede (?:llevar|traer)/i.test(txt)) return `turno ${i + 1}: afirma que puede llevar su aceite`;
         }
         return null;
       }],
       ["no inventa horarios", (t) => {
-        const hay = t.some((x) => (x.guardian ?? []).some((g) => (g.findings ?? []).some((f) => /horario/i.test(f.detalle ?? ""))));
-        return hay ? "el guardián marcó los horarios (revisar si son ciertos y si él los recibe)" : null;
+        // Falla solo si el guardián dice que los horarios fueron INVENTADOS
+        // (hecho_comercial_inventado). Un hallazgo tipo «el borrador no respondió
+        // el horario» es el guardián corrigiendo bien, no el bot inventando —
+        // ese falso positivo costó el punto 51 el 30-ago.
+        const hay = t.some((x) => (x.guardian ?? []).some((g) => (g.findings ?? []).some((f) =>
+          /inventad|hecho_comercial/i.test(f.categoria ?? "") && /horario/i.test(f.detalle ?? ""))));
+        return hay ? "el guardián marcó horarios inventados" : null;
       }],
     ],
   },

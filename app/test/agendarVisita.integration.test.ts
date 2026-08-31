@@ -147,7 +147,10 @@ describe("agendar_visita", () => {
     const estado = await hechos(fila.id);
     expect(estado.visit_date!.toISOString()).toMatch(/T21:00:00/);
     expect(estado.visit_time_label).toBe("de 4 a 5 pm");
-  });
+    // 15s: este caso ejecuta DOS agendamientos completos contra la base y medía
+    // 4.87s con la máquina sola — el tope global de 5s lo volvía una moneda al
+    // aire cuando algo más usa CPU (medido 30-ago: pasó y falló sin tocar código).
+  }, 15_000);
 
   it("sin día ni hora no inventa nada y lo dice", async () => {
     const phone = "593980002005";

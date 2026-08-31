@@ -1,0 +1,475 @@
+[
+  {
+    "conv": 9684,
+    "titulo": "Camino feliz: aro 15 → foto → medida → cotización → visita",
+    "checks": [
+      {
+        "nombre": "ningún turno se queda sin respuesta",
+        "ok": true,
+        "motivo": null
+      },
+      {
+        "nombre": "ninguna corrida de IA con error",
+        "ok": true,
+        "motivo": null
+      },
+      {
+        "nombre": "el guardián no marca insistencia tras rechazo",
+        "ok": true,
+        "motivo": null
+      },
+      {
+        "nombre": "cierra la venta",
+        "ok": true,
+        "motivo": null
+      },
+      {
+        "nombre": "no reabre la venta después de «ya compré»",
+        "ok": true,
+        "motivo": null
+      }
+    ],
+    "turnos": [
+      {
+        "cliente": "¡Hola! Quiero más información",
+        "bot": [
+          {
+            "texto": "¡Hola! 👋 Le cotizo con stock y precios reales.\nLo más rápido es enviarme la *medida de la llanta* (ej. 225/65R17) o una foto del costado.\nSi no la tiene, dígame *marca, modelo y año del vehículo* o el aro; también puedo orientarle según su uso y comparar opciones.",
+            "tipo": "text"
+          }
+        ],
+        "fase": [],
+        "herramientas": [],
+        "modelos": [
+          "gpt-5.5"
+        ],
+        "errores": [],
+        "sinRespuesta": false,
+        "guardian": [
+          {
+            "verdict": "aprobar",
+            "findings": [],
+            "original": "¡Hola! 👋 Le cotizo con stock y precios reales.\nLo más rápido es enviarme la *medida de la llanta* (ej. 225/65R17) o una foto del costado.\nSi no la tiene, dígame *marca, modelo y año del vehículo* o el aro; también puedo orientarle según su uso y comparar opciones.",
+            "corregido": null
+          }
+        ]
+      },
+      {
+        "cliente": "Buenas tardes don Rin 15",
+        "bot": [
+          {
+            "texto": "Opciones enviadas: FALKEN WILDPEAK A/T 4W · KENDA KR20 · WINRUN R330",
+            "tipo": "image"
+          },
+          {
+            "texto": "Para afinarle la recomendación sobre las opciones que le envié, dígame una sola cosa: ¿qué prioriza usted?\n\n1) *Costo* — la más conveniente de precio\n2) *Equilibrio* — la que mejor balancea precio y rendimiento\n3) *Premium* — la de máxima calidad y durabilidad\n\nCon eso le digo cuál de estas le conviene más.",
+            "tipo": "text"
+          }
+        ],
+        "fase": [
+          "medida_confirmada"
+        ],
+        "herramientas": [
+          "buscar_por_aro_y_tipo",
+          "preparar_opciones"
+        ],
+        "modelos": [
+          "gpt-5.4-mini",
+          "gpt-5.5"
+        ],
+        "errores": [],
+        "sinRespuesta": false,
+        "guardian": [
+          {
+            "verdict": "aprobar",
+            "findings": [],
+            "original": "Para afinarle la recomendación sobre las opciones que le envié, dígame una sola cosa: ¿qué prioriza usted?\n\n1) *Costo* — la más conveniente de precio\n2) *Equilibrio* — la que mejor balancea precio y rendimiento\n3) *Premium* — la de máxima calidad y durabilidad\n\nCon eso le digo cuál de estas le conviene más.",
+            "corregido": null
+          }
+        ]
+      },
+      {
+        "cliente": "Es para un Corsa evolution",
+        "bot": [
+          {
+            "texto": "Opciones enviadas: KENDA KR20 · WINRUN R380",
+            "tipo": "image"
+          },
+          {
+            "texto": "Para su *Chevrolet Corsa Evolution rin 15*, la medida más probable es *185/55R15*; también puede aparecer *195/50R15* según versión.\n\nComo las opciones que se enviaron quedaron en otra medida, mejor confirmemos la medida exacta que aparece en el costado de su llanta para cotizarle correctamente con stock real.",
+            "tipo": "text"
+          }
+        ],
+        "fase": [],
+        "herramientas": [
+          "fitment_vehiculo",
+          "preparar_opciones"
+        ],
+        "modelos": [
+          "gpt-5.4-mini",
+          "gpt-5.5"
+        ],
+        "errores": [],
+        "sinRespuesta": false,
+        "guardian": [
+          {
+            "verdict": "corregir",
+            "findings": [
+              {
+                "detalle": "La herramienta identificó para Corsa Evolution rin 15 medidas 185/55R15 y 195/50R15, pero las opciones preparadas/enviadas quedaron en 185/60R14. El borrador sigue pidiendo prioridad sobre opciones que no corresponden al rin 15 sin aclararlo.",
+                "categoria": "medida_incorrecta",
+                "severidad": "alta"
+              },
+              {
+                "detalle": "El borrador repite casi calcado el mensaje anterior de priorización que ya se había enviado antes.",
+                "categoria": "repeticion",
+                "severidad": "media"
+              }
+            ],
+            "original": "Para afinarle la recomendación sobre las opciones que le envié, dígame una sola cosa: ¿qué prioriza usted?\n\n1) *Costo* — la más conveniente de precio\n2) *Premium* — la de máxima calidad y durabilidad\n\nCon eso le digo cuál de estas le conviene más.",
+            "corregido": "Para su *Chevrolet Corsa Evolution rin 15*, la medida más probable es *185/55R15*; también puede aparecer *195/50R15* según versión.\n\nComo las opciones que se enviaron quedaron en otra medida, mejor confirmemos la medida exacta que aparece en el costado de su llanta para cotizarle correctamente con stock real."
+          }
+        ]
+      },
+      {
+        "cliente": "[El cliente mandó una foto. Se lee: Marca APLUS; aro: MODEL 739, RACING SPEC]",
+        "bot": [
+          {
+            "texto": "La foto muestra marca/modelo, pero no la medida completa; con ese dato no puedo validar precio ni stock exacto.\n\nPara su Corsa Evolution rin 15, le puedo manejar las opciones ya enviadas en medida probable, pero para cotizar sin error necesito una foto donde se vea algo como 185/55R15 o 195/50R15.",
+            "tipo": "text"
+          },
+          {
+            "texto": "¿Me envía una foto del costado donde se vea la medida completa?",
+            "tipo": "text"
+          }
+        ],
+        "fase": [],
+        "herramientas": [
+          "buscar_catalogo"
+        ],
+        "modelos": [
+          "gpt-5.5",
+          "gpt-5.4-mini"
+        ],
+        "errores": [],
+        "sinRespuesta": false,
+        "guardian": [
+          {
+            "verdict": "aprobar",
+            "findings": [],
+            "original": "La foto muestra marca/modelo, pero no la medida completa; con ese dato no puedo validar precio ni stock exacto.\n\nPara su Corsa Evolution rin 15, le puedo manejar las opciones ya enviadas en medida probable, pero para cotizar sin error necesito una foto donde se vea algo como 185/55R15 o 195/50R15.\n\n¿Me envía una foto del costado donde se vea la medida completa?",
+            "corregido": null
+          }
+        ]
+      },
+      {
+        "cliente": "[El cliente mandó una foto. Se lee: 195/55R15 85V]",
+        "bot": [
+          {
+            "texto": "Opciones enviadas: KENDA KR20 · KENDA KR203 · WINRUN R330",
+            "tipo": "image"
+          },
+          {
+            "texto": "Perfecto, ya quedó confirmada la medida *195/55R15* para su Corsa Evolution.\n\nPara recomendarle la opción que más le conviene entre las que le envié, dígame qué prioriza:\n\n1) *Costo* — la más conveniente de precio\n2) *Equilibrio* — buen balance entre precio y rendimiento\n3) *Premium* — mayor calidad y durabilidad\n\nCon eso le dejo la recomendación exacta para su medida.",
+            "tipo": "text"
+          }
+        ],
+        "fase": [],
+        "herramientas": [
+          "buscar_llanta",
+          "preparar_opciones"
+        ],
+        "modelos": [
+          "gpt-5.4-mini",
+          "gpt-5.5"
+        ],
+        "errores": [],
+        "sinRespuesta": false,
+        "guardian": [
+          {
+            "verdict": "corregir",
+            "findings": [
+              {
+                "detalle": "El borrador repite casi calcado el bloque de priorización que el bot ya había enviado antes. Conviene reformularlo y anclarlo a la medida ya confirmada 195/55R15.",
+                "categoria": "repeticion",
+                "severidad": "media"
+              }
+            ],
+            "original": "Para afinarle la recomendación sobre las opciones que le envié, dígame una sola cosa: ¿qué prioriza usted?\n\n1) *Costo* — la más conveniente de precio\n2) *Equilibrio* — la que mejor balancea precio y rendimiento\n3) *Premium* — la de máxima calidad y durabilidad\n\nCon eso le dejo la opción exacta para su medida.",
+            "corregido": "Perfecto, ya quedó confirmada la medida *195/55R15* para su Corsa Evolution.\n\nPara recomendarle la opción que más le conviene entre las que le envié, dígame qué prioriza:\n\n1) *Costo* — la más conveniente de precio\n2) *Equilibrio* — buen balance entre precio y rendimiento\n3) *Premium* — mayor calidad y durabilidad\n\nCon eso le dejo la recomendación exacta para su medida."
+          }
+        ]
+      },
+      {
+        "cliente": "Es precio es fijo",
+        "bot": [
+          {
+            "texto": "Sí, los precios que le envié son finales con IVA según stock actual.\n\nPara su medida *195/55R15*:\n- KENDA KR20: *$82.42 c/u*\n- KENDA KR203: *$70.48 c/u*\n- WINRUN R330: *$58.25 c/u*",
+            "tipo": "text"
+          },
+          {
+            "texto": "¿Cuál opción prefiere para dejarle la cotización del juego de 4 llantas?",
+            "tipo": "text"
+          }
+        ],
+        "fase": [],
+        "herramientas": [],
+        "modelos": [
+          "gpt-5.5",
+          "gpt-5.4-mini"
+        ],
+        "errores": [],
+        "sinRespuesta": false,
+        "guardian": [
+          {
+            "verdict": "corregir",
+            "findings": [
+              {
+                "detalle": "El borrador pregunta “¿Le genero la cotización por 4 llantas en cuál opción?”, una forma no permitida de pedir autorización/cantidad. La cantidad ya registrada es 4; corresponde avanzar pidiendo solo la opción para cotizar el juego.",
+                "categoria": "pregunta_de_mas",
+                "severidad": "alta"
+              }
+            ],
+            "original": "Sí, los precios que le envié son finales con IVA según stock actual.\n\nPara su medida 195/55R15:\n- KENDA KR20: $82.42 c/u\n- KENDA KR203: $70.48 c/u\n- WINRUN R330: $58.25 c/u\n\n¿Le genero la cotización por 4 llantas en cuál opción?",
+            "corregido": "Sí, los precios que le envié son finales con IVA según stock actual.\n\nPara su medida *195/55R15*:\n- KENDA KR20: *$82.42 c/u*\n- KENDA KR203: *$70.48 c/u*\n- WINRUN R330: *$58.25 c/u*\n\n¿Cuál opción prefiere para dejarle la cotización del juego de 4 llantas?"
+          }
+        ]
+      },
+      {
+        "cliente": "Ok",
+        "bot": [
+          {
+            "texto": "Listo. Como no indicó otra preferencia, le recomiendo la *KENDA KR203* a *$70.48 c/u con IVA*: es la opción equilibrada en precio y rendimiento.\n\nIncluye instalación, alineación, balanceo, seguro gratuito contra daños, mantenimiento cada 10.000 km y revisión gratuita del vehículo.",
+            "tipo": "text"
+          },
+          {
+            "texto": "¿Le cotizo el juego de 4 llantas?",
+            "tipo": "text"
+          }
+        ],
+        "fase": [],
+        "herramientas": [
+          "generar_cotizacion"
+        ],
+        "modelos": [
+          "gpt-5.5",
+          "gpt-5.4-mini"
+        ],
+        "errores": [],
+        "sinRespuesta": false,
+        "guardian": [
+          {
+            "verdict": "corregir",
+            "findings": [
+              {
+                "detalle": "El borrador pregunta “¿Le dejo la cotización por las 4 KENDA KR203?”, una forma no permitida de pedir permiso por cantidad. La única excepción autorizada como cierre es la frase exacta: “¿Le cotizo el juego de 4 llantas?”",
+                "categoria": "pregunta_de_mas",
+                "severidad": "alta"
+              }
+            ],
+            "original": "Listo. Como no indicó otra preferencia, le recomiendo la *KENDA KR203* a *$70.48 c/u con IVA*: es la opción equilibrada en precio y rendimiento.\n\nIncluye instalación, alineación, balanceo, seguro gratuito contra daños, mantenimiento cada 10.000 km y revisión gratuita del vehículo.\n\n---\n\n¿Le dejo la cotización por las 4 KENDA KR203?",
+            "corregido": "Listo. Como no indicó otra preferencia, le recomiendo la *KENDA KR203* a *$70.48 c/u con IVA*: es la opción equilibrada en precio y rendimiento.\n\nIncluye instalación, alineación, balanceo, seguro gratuito contra daños, mantenimiento cada 10.000 km y revisión gratuita del vehículo.\n\n---\n\n¿Le cotizo el juego de 4 llantas?"
+          }
+        ]
+      },
+      {
+        "cliente": "Ok muchas gracias amigo el lunes m acerco a su lokal",
+        "bot": [
+          {
+            "texto": "Con gusto, le esperamos en Depot Tire. La opción recomendada fue *KENDA KR203 195/55R15* a *$70.48 c/u con IVA*.\n\nIncluye instalación, alineación, balanceo, seguro gratuito contra daños, mantenimiento cada 10.000 km y revisión gratuita del vehículo.",
+            "tipo": "text"
+          },
+          {
+            "texto": "No le registro cita todavía, pero puede acercarse directamente al local dentro del horario de atención. 🤝",
+            "tipo": "text"
+          },
+          {
+            "texto": "¿A cuál local piensa acercarse: Cumbayá o Quito Sur?",
+            "tipo": "text"
+          }
+        ],
+        "fase": [],
+        "herramientas": [
+          "generar_cotizacion"
+        ],
+        "modelos": [
+          "gpt-5.5",
+          "gpt-5.4-mini"
+        ],
+        "errores": [],
+        "sinRespuesta": false,
+        "guardian": [
+          {
+            "verdict": "aprobar",
+            "findings": [],
+            "original": "Con gusto, le esperamos en Depot Tire. La opción recomendada fue *KENDA KR203 195/55R15* a *$70.48 c/u con IVA*.\n\nIncluye instalación, alineación, balanceo, seguro gratuito contra daños, mantenimiento cada 10.000 km y revisión gratuita del vehículo.\n\n---\n\nNo le registro cita todavía, pero puede acercarse directamente al local dentro del horario de atención. 🤝\n\n¿A cuál local piensa acercarse: Cumbayá o Quito Sur?",
+            "corregido": null
+          }
+        ]
+      },
+      {
+        "cliente": "Quito sur",
+        "bot": [
+          {
+            "texto": "Perfecto, *Depot Tire Quito Sur*.\n📍 *Depot Tire Quito Sur*: https://maps.app.goo.gl/NQeNN8csyAnRkJDJ7",
+            "tipo": "text"
+          },
+          {
+            "texto": "¿Qué día cree que puede pasar? Le aviso al asesor para que le atienda apenas llegue. 📅",
+            "tipo": "text"
+          }
+        ],
+        "fase": [],
+        "herramientas": [],
+        "modelos": [
+          "gpt-5.5"
+        ],
+        "errores": [],
+        "sinRespuesta": false,
+        "guardian": [
+          {
+            "verdict": "aprobar",
+            "findings": [],
+            "original": "Perfecto, *Depot Tire Quito Sur*.\n📍 *Depot Tire Quito Sur*: https://maps.app.goo.gl/NQeNN8csyAnRkJDJ7\n\n---\n\n¿Qué día cree que puede pasar? Le aviso al asesor para que le atienda apenas llegue. 📅",
+            "corregido": null
+          }
+        ]
+      },
+      {
+        "cliente": "Ok gracias",
+        "bot": [
+          {
+            "texto": "Cotización COT-MTGLP4XX enviada por $281.92",
+            "tipo": "image"
+          },
+          {
+            "texto": "¿Qué día cree que puede pasar por *Depot Tire Quito Sur*? Con ese dato le aviso al asesor y le dejan lista su cotización con *25 %* de descuento, *$94.00* menos. 📅\n📍 *Depot Tire Quito Sur*: https://maps.app.goo.gl/NQeNN8csyAnRkJDJ7",
+            "tipo": "text"
+          }
+        ],
+        "fase": [],
+        "herramientas": [
+          "generar_cotizacion"
+        ],
+        "modelos": [
+          "gpt-5.4-mini",
+          "gpt-5.5"
+        ],
+        "errores": [],
+        "sinRespuesta": false,
+        "guardian": [
+          {
+            "verdict": "aprobar",
+            "findings": [],
+            "original": "¿Qué día cree que puede pasar por *Depot Tire Quito Sur*? Con ese dato le aviso al asesor y le dejan lista su cotización con *25 %* de descuento, *$94.00* menos. 📅\n📍 *Depot Tire Quito Sur*: https://maps.app.goo.gl/NQeNN8csyAnRkJDJ7",
+            "corregido": null
+          }
+        ]
+      },
+      {
+        "cliente": "👍",
+        "bot": [
+          {
+            "texto": "Perfecto, ya quedó su cotización de *4 KENDA KR203 195/55R15* por *$281.92*.\n\nEstá incluida la instalación con alineación y balanceo, seguro contra daños, mantenimiento cada 10.000 km y revisión gratuita.\n\nLo esperamos en *Depot Tire Quito Sur* el lunes dentro del horario de atención: 08:30–17:30.",
+            "tipo": "text"
+          }
+        ],
+        "fase": [],
+        "herramientas": [],
+        "modelos": [
+          "gpt-5.4-mini",
+          "gpt-5.5"
+        ],
+        "errores": [],
+        "sinRespuesta": false,
+        "guardian": [
+          {
+            "verdict": "corregir",
+            "findings": [
+              {
+                "detalle": "El cliente ya dijo antes que se acercará el lunes y eligió Quito Sur; el borrador no aprovecha ese dato ni cierra con el horario del local elegido.",
+                "categoria": "ignora-pregunta",
+                "severidad": "alta"
+              },
+              {
+                "detalle": "El mensaje confirma una visita implícita para el lunes en Quito Sur, pero en HECHOS REGISTRADOS figura 'Visita registrada: (ninguna)'. Esto requiere sincronizar el estado; el texto al cliente puede ser correcto.",
+                "categoria": "estado_desincronizado",
+                "severidad": "alta"
+              }
+            ],
+            "original": "Perfecto, ya quedó su cotización de *4 KENDA KR203 195/55R15* por *$281.92*.\n\nEstá incluida la instalación con alineación y balanceo, seguro contra daños, mantenimiento cada 10.000 km y revisión gratuita.",
+            "corregido": "Perfecto, ya quedó su cotización de *4 KENDA KR203 195/55R15* por *$281.92*.\n\nEstá incluida la instalación con alineación y balanceo, seguro contra daños, mantenimiento cada 10.000 km y revisión gratuita.\n\nLo esperamos en *Depot Tire Quito Sur* el lunes dentro del horario de atención: 08:30–17:30."
+          }
+        ]
+      },
+      {
+        "cliente": "Disculpe ya compré",
+        "bot": [
+          {
+            "texto": "Gracias por avisarnos. Me alegra que ya haya resuelto su compra. Quedamos a las órdenes para otra ocasión. 🤝",
+            "tipo": "text"
+          }
+        ],
+        "fase": [],
+        "herramientas": [],
+        "modelos": [
+          "gpt-5.5"
+        ],
+        "errores": [],
+        "sinRespuesta": false,
+        "guardian": [
+          {
+            "verdict": "aprobar",
+            "findings": [],
+            "original": "Gracias por avisarnos. Me alegra que ya haya resuelto su compra. Quedamos a las órdenes para otra ocasión. 🤝",
+            "corregido": null
+          }
+        ]
+      },
+      {
+        "cliente": "Muchas gracias",
+        "bot": [
+          {
+            "texto": "Opciones enviadas: KENDA KR20 · KENDA KR203 · WINRUN R330",
+            "tipo": "image"
+          },
+          {
+            "texto": "Para afinarle la recomendación sobre las opciones que le envié, dígame una sola cosa: ¿qué prioriza usted?\n\n1) *Costo* — la más conveniente de precio\n2) *Equilibrio* — la que mejor balancea precio y rendimiento\n3) *Premium* — la de máxima calidad y durabilidad\n\nCon eso le dejo la opción exacta para su medida.",
+            "tipo": "text"
+          }
+        ],
+        "fase": [],
+        "herramientas": [
+          "buscar_llanta",
+          "preparar_opciones"
+        ],
+        "modelos": [
+          "gpt-5.4-mini",
+          "gpt-5.5"
+        ],
+        "errores": [],
+        "sinRespuesta": false,
+        "guardian": [
+          {
+            "verdict": "aprobar",
+            "findings": [],
+            "original": "Para afinarle la recomendación sobre las opciones que le envié, dígame una sola cosa: ¿qué prioriza usted?\n\n1) *Costo* — la más conveniente de precio\n2) *Equilibrio* — la que mejor balancea precio y rendimiento\n3) *Premium* — la de máxima calidad y durabilidad\n\nCon eso le dejo la opción exacta para su medida.",
+            "corregido": null
+          }
+        ]
+      }
+    ],
+    "estadoFinal": {
+      "stage": "nuevo",
+      "medida": "195/55R15",
+      "cotizaciones": 1,
+      "alertas": [
+        "guardian_correccion/high",
+        "guardian_correccion/high",
+        "guardian_correccion/high",
+        "quote_created/medium",
+        "guardian_correccion/high"
+      ]
+    }
+  }
+]
