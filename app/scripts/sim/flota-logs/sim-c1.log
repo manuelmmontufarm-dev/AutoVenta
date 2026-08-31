@@ -1,0 +1,54 @@
+🧹 Base local desechable…
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '00000',
+  message: 'database "autoventa_sim_t115_c1_mtgrrvg2" does not exist, skipping',
+  file: 'dbcommands.c',
+  line: '1622',
+  routine: 'dropdb'
+}
+🔨 Compilando el bot (npm run build)…
+
+> autoventa-bot@0.1.0 build
+> tsc
+
+📐 Esquema…
+⚙️  Copiando la configuración de producción (solo lectura)…
+   · settings: 21
+   · stage_prompt_versions: 27
+   · benefits: 5
+   · brand_profiles: 3
+   · product_media: vacía
+   · advisors: 2
+   · follow_up_templates: 3
+   · follow_up_policies: 1
+   · pending_discount_rules: vacía
+📞 Graph API de mentira…
+🚬 Modo humo: OpenAI y Contífico de mentira en :3733 (cero tokens)
+📦 Catálogo…
+📸 Catálogo desde la foto: 1099 productos (/Users/manue/AutoVenta/.claude/worktrees/threshold-t115/app/scripts/sim/datos/catalogo.json)
+🎯 Configuración del servicio de producción (Railway):
+   · AI_COMPACT_PROMPT_ENABLED          true  ← se alinea (acá había nada)
+   · AI_EXACT_TOOL_ROLLOUT              10  ← se alinea (acá había nada)
+   · AI_HISTORY_LIMIT                   10  ← se alinea (acá había nada)
+   · AI_MAX_TOOL_ITERATIONS             3  ← se alinea (acá había nada)
+   · DIRECT_SALES_ROUTES_ENABLED        true  ← se alinea (acá había nada)
+   · OPENAI_CLASSIFIER_MODEL            gpt-5.4-mini  ✓
+   · OPENAI_ESCALATION_MODEL            gpt-5.5  ✓
+   · OPENAI_EXACT_TOOL_MODEL            gpt-5.4-mini  ← se alinea (acá había nada)
+   · OPENAI_MODEL                       gpt-5.5  ← se alinea (acá había gpt-5.4)
+   · OPENAI_RESEARCH_MODEL              gpt-5.5  ✓
+   · OPENAI_ROUTINE_MODEL               gpt-5.4-mini  ← se alinea (acá había nada)
+   · OPENAI_TRANSCRIBE_MODEL            gpt-4o-transcribe  ✓
+   · OPENAI_VISION_MODEL                gpt-5.5  ✓
+🤖 Levantando el bot…
+📋 Catálogo cargado en el bot: 24 llantas
+
+  ✅  Simulador listo → http://localhost:3730
+
+      cliente 593900000101 · base autoventa_sim_t115_c1_mtgrrvg2 · piezas en scripts/sim/datos/piezas
+      Ctrl-C para cerrar (la base se borra sola).
+
+
+🧹 Cerrando…

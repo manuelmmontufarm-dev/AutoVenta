@@ -1,0 +1,422 @@
+[
+  {
+    "conv": 8288,
+    "titulo": "Quiere UNA llanta 165/80R13, que no hay",
+    "checks": [
+      {
+        "nombre": "ningún turno se queda sin respuesta",
+        "ok": true,
+        "motivo": null
+      },
+      {
+        "nombre": "ninguna corrida de IA con error",
+        "ok": true,
+        "motivo": null
+      },
+      {
+        "nombre": "el guardián no marca insistencia tras rechazo",
+        "ok": true,
+        "motivo": null
+      },
+      {
+        "nombre": "si promete asesor, lo avisa de verdad",
+        "ok": true,
+        "motivo": null
+      },
+      {
+        "nombre": "no repite el mismo mensaje una y otra vez",
+        "ok": true,
+        "motivo": null
+      }
+    ],
+    "turnos": [
+      {
+        "cliente": "Necesito una llanta 165/80/R13",
+        "bot": [
+          {
+            "texto": "Opciones enviadas: KENDA KR33 · KENDA KR20 · WINRUN R380",
+            "tipo": "image"
+          },
+          {
+            "texto": "⚠️ Ojo: en *165/80R13* no me queda disponibilidad exacta. Estas son *equivalentes* de su aro: KR33 en 155R13, KR20 en 175/60R13, R380 en 165/65R13. Se confirma el calce al montar.",
+            "tipo": "text"
+          },
+          {
+            "texto": "Para afinarle la recomendación sobre las opciones que le envié, dígame una sola cosa: ¿qué prioriza usted?\n\n1) *Costo* — la más conveniente de precio\n2) *Equilibrio* — la que mejor balancea precio y rendimiento\n3) *Premium* — la de máxima calidad y durabilidad\n\nCon eso le digo cuál de estas le conviene más.",
+            "tipo": "text"
+          }
+        ],
+        "fase": [
+          "medida_confirmada"
+        ],
+        "herramientas": [
+          "buscar_llanta",
+          "preparar_opciones"
+        ],
+        "modelos": [
+          "gpt-5.4-mini",
+          "gpt-5.5"
+        ],
+        "errores": [],
+        "sinRespuesta": false,
+        "guardian": [
+          {
+            "verdict": "aprobar",
+            "findings": [],
+            "original": "⚠️ Ojo: en *165/80R13* no me queda disponibilidad exacta. Estas son *equivalentes* de su aro: KR33 en 155R13, KR20 en 175/60R13, R380 en 165/65R13. Se confirma el calce al montar.\n\n---\n\nPara afinarle la recomendación sobre las opciones que le envié, dígame una sola cosa: ¿qué prioriza usted?\n\n1) *Costo* — la más conveniente de precio\n2) *Equilibrio* — la que mejor balancea precio y rendimiento\n3) *Premium* — la de máxima calidad y durabilidad\n\nCon eso le digo cuál de estas le conviene más.",
+            "corregido": null
+          }
+        ]
+      },
+      {
+        "cliente": "La necesito de esa medida",
+        "bot": [
+          {
+            "texto": "Tiene razón: si debe ser exactamente *165/80R13*, no tengo stock exacto disponible en este momento.",
+            "tipo": "text"
+          },
+          {
+            "texto": "Lo que salió antes son alternativas del mismo aro, pero no son la misma medida; para esa medida exacta no le debo cotizar otra como si fuera igual.",
+            "tipo": "text"
+          },
+          {
+            "texto": "¿Desea que le deje con un asesor para revisar si se puede conseguir la 165/80R13 bajo pedido?",
+            "tipo": "text"
+          }
+        ],
+        "fase": [],
+        "herramientas": [
+          "buscar_llanta",
+          "preparar_opciones"
+        ],
+        "modelos": [
+          "gpt-5.5",
+          "gpt-5.4-mini"
+        ],
+        "errores": [],
+        "sinRespuesta": false,
+        "guardian": [
+          {
+            "verdict": "aprobar",
+            "findings": [],
+            "original": "Tiene razón: si debe ser exactamente *165/80R13*, no tengo stock exacto disponible en este momento.\n\n---\n\nLo que salió antes son alternativas del mismo aro, pero no son la misma medida; para esa medida exacta no le debo cotizar otra como si fuera igual.\n\n---\n\n¿Desea que le deje con un asesor para revisar si se puede conseguir la 165/80R13 bajo pedido?",
+            "corregido": null
+          }
+        ]
+      },
+      {
+        "cliente": "Xfvr",
+        "bot": [
+          {
+            "texto": "Claro. Revisé nuevamente la medida exacta *165/80R13* y no aparece stock disponible en catálogo.",
+            "tipo": "text"
+          },
+          {
+            "texto": "Ya dejé avisado a un asesor para que revise si se puede conseguir esa medida bajo pedido y le ayude directamente por este WhatsApp.",
+            "tipo": "text"
+          }
+        ],
+        "fase": [],
+        "herramientas": [
+          "buscar_llanta",
+          "notificar_vendedor"
+        ],
+        "modelos": [
+          "gpt-5.5",
+          "gpt-5.4-mini"
+        ],
+        "errores": [],
+        "sinRespuesta": false,
+        "guardian": [
+          {
+            "verdict": "corregir",
+            "findings": [
+              {
+                "detalle": "El borrador cierra con una pregunta innecesaria sobre si mantener solo la medida exacta. El cliente ya insistió en que necesita esa medida y pidió ayuda del asesor; volver a preguntar frena el avance.",
+                "categoria": "pregunta_de_mas",
+                "severidad": "alta"
+              }
+            ],
+            "original": "Claro. Revisé nuevamente la medida exacta *165/80R13* y no aparece stock disponible en catálogo.\n\n---\n\nYa dejé avisado a un asesor para que revise si se puede conseguir esa medida bajo pedido y le ayude directamente por este WhatsApp.\n\n---\n\n¿Desea que mientras tanto le mantenga solo esa medida exacta, sin revisar equivalentes?",
+            "corregido": "Claro. Revisé nuevamente la medida exacta *165/80R13* y no aparece stock disponible en catálogo.\n\n---\n\nYa dejé avisado a un asesor para que revise si se puede conseguir esa medida bajo pedido y le ayude directamente por este WhatsApp."
+          }
+        ]
+      },
+      {
+        "cliente": "Xfvr",
+        "bot": [
+          {
+            "texto": "Sí, por favor. Ya escalé su pedido para que un asesor revise la *165/80R13 exacta* bajo pedido, porque en catálogo no aparece stock disponible ahora.\n\nLe van a ayudar directamente por este mismo WhatsApp.",
+            "tipo": "text"
+          }
+        ],
+        "fase": [],
+        "herramientas": [
+          "buscar_llanta",
+          "preparar_opciones"
+        ],
+        "modelos": [
+          "gpt-5.5",
+          "gpt-5.4-mini"
+        ],
+        "errores": [],
+        "sinRespuesta": false,
+        "guardian": [
+          {
+            "verdict": "corregir",
+            "findings": [
+              {
+                "detalle": "El cliente ya pidió ayuda bajo pedido con “Xfvr” y el bot ya dijo que le ayudarían por este WhatsApp. Preguntar si desea que le contacten por este mismo WhatsApp repite un dato ya resuelto y frena el avance.",
+                "categoria": "re-pregunta",
+                "severidad": "alta"
+              }
+            ],
+            "original": "Sí, por favor. Ya escalé su pedido para que un asesor revise la *165/80R13 exacta* bajo pedido, porque en catálogo no aparece stock disponible ahora.  \n\n¿Desea que le contacten por este mismo WhatsApp?",
+            "corregido": "Sí, por favor. Ya escalé su pedido para que un asesor revise la *165/80R13 exacta* bajo pedido, porque en catálogo no aparece stock disponible ahora.\n\nLe van a ayudar directamente por este mismo WhatsApp."
+          }
+        ]
+      },
+      {
+        "cliente": "Xvr",
+        "bot": [
+          {
+            "texto": "Por favor, le confirmo: en la medida exacta *165/80R13* no aparece stock disponible en catálogo ahora.",
+            "tipo": "text"
+          },
+          {
+            "texto": "Lo disponible es alternativa del mismo aro, pero no la misma medida; por eso no la cotizo como equivalente sin validación técnica.",
+            "tipo": "text"
+          },
+          {
+            "texto": "Ya dejé avisado para que un asesor revise si se puede conseguir la *165/80R13 exacta* bajo pedido y le responda por este WhatsApp.",
+            "tipo": "text"
+          }
+        ],
+        "fase": [],
+        "herramientas": [
+          "buscar_llanta",
+          "preparar_opciones"
+        ],
+        "modelos": [
+          "gpt-5.5",
+          "gpt-5.4-mini"
+        ],
+        "errores": [],
+        "sinRespuesta": false,
+        "guardian": [
+          {
+            "verdict": "corregir",
+            "findings": [
+              {
+                "detalle": "El borrador vuelve a preguntar si desea que un asesor revise bajo pedido, pero el cliente ya lo pidió con “Xfvr” y el bot ya dijo que escaló el pedido.",
+                "categoria": "re-pregunta",
+                "severidad": "alta"
+              }
+            ],
+            "original": "Por favor, le confirmo: en la medida exacta 165/80R13 no aparece stock disponible en catálogo ahora.\n\n---\n\nLo disponible es alternativa del mismo aro, pero no la misma medida; por eso no la cotizo como equivalente sin validación técnica.\n\n---\n\n¿Desea que un asesor revise bajo pedido la 165/80R13 exacta y le responda por este WhatsApp?",
+            "corregido": "Por favor, le confirmo: en la medida exacta *165/80R13* no aparece stock disponible en catálogo ahora.\n\n---\n\nLo disponible es alternativa del mismo aro, pero no la misma medida; por eso no la cotizo como equivalente sin validación técnica.\n\n---\n\nYa dejé avisado para que un asesor revise si se puede conseguir la *165/80R13 exacta* bajo pedido y le responda por este WhatsApp."
+          }
+        ]
+      },
+      {
+        "cliente": "Necesito esa m dida",
+        "bot": [
+          {
+            "texto": "Para la medida exacta *165/80R13* no aparece stock disponible ahora en catálogo.\n\nLe mostré alternativas de aro 13, pero no las cotizo como equivalentes a su medida sin validación técnica.",
+            "tipo": "text"
+          },
+          {
+            "texto": "Ya dejé su pedido con un asesor para revisar si se consigue la *165/80R13 exacta* bajo pedido.\n\nLe ayudarán directamente por este mismo WhatsApp.",
+            "tipo": "text"
+          }
+        ],
+        "fase": [],
+        "herramientas": [
+          "buscar_llanta",
+          "preparar_opciones"
+        ],
+        "modelos": [
+          "gpt-5.5",
+          "gpt-5.4-mini"
+        ],
+        "errores": [],
+        "sinRespuesta": false,
+        "guardian": [
+          {
+            "verdict": "corregir",
+            "findings": [
+              {
+                "detalle": "El cliente ya pidió ayuda para esa medida varias veces ('Xfvr', 'Xvr', 'Necesito esa medida') y el bot ya dijo que escaló el pedido. Preguntar otra vez si desea ayuda repite un dato ya respondido y frena el avance.",
+                "categoria": "re-pregunta",
+                "severidad": "alta"
+              }
+            ],
+            "original": "Para la medida exacta 165/80R13 no aparece stock disponible ahora en catálogo.\n\nLe mostré alternativas de aro 13, pero no las cotizo como equivalentes a su medida sin validación técnica.  \n---\nPuedo dejar su pedido con un asesor para revisar si se consigue la 165/80R13 exacta bajo pedido.\n\n¿Desea que le ayuden a buscar esa medida exacta?",
+            "corregido": "Para la medida exacta *165/80R13* no aparece stock disponible ahora en catálogo.\n\nLe mostré alternativas de aro 13, pero no las cotizo como equivalentes a su medida sin validación técnica.\n---\nYa dejé su pedido con un asesor para revisar si se consigue la *165/80R13 exacta* bajo pedido.\n\nLe ayudarán directamente por este mismo WhatsApp."
+          }
+        ]
+      },
+      {
+        "cliente": "Medida",
+        "bot": [
+          {
+            "texto": "La medida exacta que necesita es *165/80R13*.\n\nEsa medida no aparece disponible en catálogo ahora, por eso ya quedó escalado con un asesor para revisar si se puede conseguir bajo pedido.\n\nLe ayudarán directamente por este mismo WhatsApp.",
+            "tipo": "text"
+          }
+        ],
+        "fase": [],
+        "herramientas": [
+          "buscar_llanta",
+          "preparar_opciones"
+        ],
+        "modelos": [
+          "gpt-5.5",
+          "gpt-5.4-mini"
+        ],
+        "errores": [],
+        "sinRespuesta": false,
+        "guardian": [
+          {
+            "verdict": "corregir",
+            "findings": [
+              {
+                "detalle": "El borrador vuelve a preguntar si desea escalarlo, pero el cliente ya pidió ayuda varias veces y el bot ya confirmó que lo escaló para revisar la 165/80R13 bajo pedido.",
+                "categoria": "re-pregunta",
+                "severidad": "alta"
+              },
+              {
+                "detalle": "Repite casi el mismo bloque de mensajes anteriores sobre que no hay stock exacto y que se puede revisar bajo pedido.",
+                "categoria": "repeticion",
+                "severidad": "media"
+              }
+            ],
+            "original": "La medida exacta *165/80R13* no aparece disponible en catálogo ahora.\n\nLo que sí hay es alternativa del mismo aro, pero no la puedo tratar como equivalente sin validación técnica.\n\n---\n\nLe puedo dejar con un asesor para revisar si se consigue la *165/80R13 exacta* bajo pedido.\n\n¿Desea que lo escale para revisión?",
+            "corregido": "La medida exacta que necesita es *165/80R13*.\n\nEsa medida no aparece disponible en catálogo ahora, por eso ya quedó escalado con un asesor para revisar si se puede conseguir bajo pedido.\n\nLe ayudarán directamente por este mismo WhatsApp."
+          }
+        ]
+      },
+      {
+        "cliente": "👍🤝",
+        "bot": [
+          {
+            "texto": "Perfecto 🤝\n\nLa medida exacta *165/80R13* no aparece disponible ahora; por eso no le cotizo una alternativa como equivalente sin revisión técnica.\n\nYa quedó escalado para que un asesor revise si se puede conseguir bajo pedido y le ayude por este mismo WhatsApp.",
+            "tipo": "text"
+          }
+        ],
+        "fase": [],
+        "herramientas": [
+          "buscar_llanta",
+          "preparar_opciones"
+        ],
+        "modelos": [
+          "gpt-5.5",
+          "gpt-5.4-mini"
+        ],
+        "errores": [],
+        "sinRespuesta": false,
+        "guardian": [
+          {
+            "verdict": "corregir",
+            "findings": [
+              {
+                "detalle": "El borrador vuelve a preguntar si desea que un asesor confirme bajo pedido, pero el cliente ya respondió afirmativamente antes y el bot ya le dijo varias veces que quedó escalado.",
+                "categoria": "re-pregunta",
+                "severidad": "alta"
+              },
+              {
+                "detalle": "La pregunta del borrador repite casi literalmente mensajes anteriores del bot sobre pasar a un asesor para revisar la 165/80R13 bajo pedido.",
+                "categoria": "repeticion",
+                "severidad": "media"
+              }
+            ],
+            "original": "Perfecto 🤝\n\nLa medida exacta 165/80R13 no aparece disponible ahora; por eso no le cotizo una alternativa como equivalente sin revisión técnica.\n\n¿Desea que un asesor le confirme si se puede conseguir la 165/80R13 bajo pedido?",
+            "corregido": "Perfecto 🤝\n\nLa medida exacta *165/80R13* no aparece disponible ahora; por eso no le cotizo una alternativa como equivalente sin revisión técnica.\n\nYa quedó escalado para que un asesor revise si se puede conseguir bajo pedido y le ayude por este mismo WhatsApp."
+          }
+        ]
+      },
+      {
+        "cliente": "👍",
+        "bot": [
+          {
+            "texto": "👍\n\nRevisé de nuevo la medida exacta *165/80R13* y no aparece stock disponible ahora. Las opciones vistas son medidas alternativas del mismo aro, no equivalentes exactas.\n\nYa quedó avisado para que un asesor revise disponibilidad bajo pedido de la *165/80R13* exacta y le ayude por este mismo WhatsApp.",
+            "tipo": "text"
+          }
+        ],
+        "fase": [],
+        "herramientas": [
+          "buscar_llanta",
+          "preparar_opciones"
+        ],
+        "modelos": [
+          "gpt-5.5",
+          "gpt-5.4-mini"
+        ],
+        "errores": [],
+        "sinRespuesta": false,
+        "guardian": [
+          {
+            "verdict": "corregir",
+            "findings": [
+              {
+                "detalle": "El borrador pregunta si desea que un asesor revise bajo pedido, pero eso ya se afirmó varias veces en la conversación: “ya quedó escalado/dejé avisado”. Debe avanzar con ese dato, no volver a pedir confirmación.",
+                "categoria": "re-pregunta",
+                "severidad": "alta"
+              }
+            ],
+            "original": "👍\n\nRevisé de nuevo la medida exacta *165/80R13* y no aparece stock disponible ahora. Las opciones vistas son medidas alternativas del mismo aro, no equivalentes exactas.\n\n¿Desea que un asesor revise disponibilidad bajo pedido de la *165/80R13* exacta?",
+            "corregido": "👍\n\nRevisé de nuevo la medida exacta *165/80R13* y no aparece stock disponible ahora. Las opciones vistas son medidas alternativas del mismo aro, no equivalentes exactas.\n\nYa quedó avisado para que un asesor revise disponibilidad bajo pedido de la *165/80R13* exacta y le ayude por este mismo WhatsApp."
+          }
+        ]
+      },
+      {
+        "cliente": "?",
+        "bot": [
+          {
+            "texto": "Sí, la medida exacta *165/80R13* sigue sin stock disponible ahora.\n\nLo que hay son alternativas del mismo aro, pero no las puedo presentar como equivalentes exactas sin revisión técnica.\n\nYa quedó escalado para que un asesor revise si se consigue la *165/80R13* bajo pedido y le ayude por este mismo WhatsApp.",
+            "tipo": "text"
+          }
+        ],
+        "fase": [],
+        "herramientas": [
+          "buscar_llanta",
+          "preparar_opciones"
+        ],
+        "modelos": [
+          "gpt-5.5",
+          "gpt-5.4-mini"
+        ],
+        "errores": [],
+        "sinRespuesta": false,
+        "guardian": [
+          {
+            "verdict": "corregir",
+            "findings": [
+              {
+                "detalle": "El borrador pregunta si desea que un asesor revise bajo pedido, pero eso ya quedó aceptado y repetido en la conversación: el bot dijo varias veces que ya lo escaló para revisión bajo pedido.",
+                "categoria": "re-pregunta",
+                "severidad": "alta"
+              }
+            ],
+            "original": "Sí, la medida exacta *165/80R13* sigue sin stock disponible ahora.\n\nLo que hay son alternativas del mismo aro, pero no las puedo presentar como equivalentes exactas sin revisión técnica.\n\n¿Desea que un asesor revise si se consigue la 165/80R13 bajo pedido?",
+            "corregido": "Sí, la medida exacta *165/80R13* sigue sin stock disponible ahora.\n\nLo que hay son alternativas del mismo aro, pero no las puedo presentar como equivalentes exactas sin revisión técnica.\n\nYa quedó escalado para que un asesor revise si se consigue la *165/80R13* bajo pedido y le ayude por este mismo WhatsApp."
+          }
+        ]
+      }
+    ],
+    "estadoFinal": {
+      "stage": "seguimiento_venta",
+      "medida": "165/80R13",
+      "cotizaciones": 0,
+      "alertas": [
+        "caso_sin_resolver/high",
+        "guardian_correccion/high",
+        "guardian_correccion/high",
+        "guardian_correccion/high",
+        "guardian_correccion/high",
+        "guardian_correccion/high",
+        "guardian_correccion/high",
+        "guardian_correccion/high"
+      ]
+    }
+  }
+]

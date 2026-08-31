@@ -1,0 +1,31 @@
+[1m  P04[0m [90m«Chevrolet Sail 2018» — fitment y opciones con advertencia[0m
+[1m  P08[0m [90m«Hilux 2021, uso mixto» — fitment, opciones y recomendación[0m
+[1m  M02[0m [90m«205 55 16» — normaliza sin repreguntar[0m
+[1m  M06[0m [90m«7.00R15» — formato convencional, 7 no es cantidad[0m
+[1m  M10[0m [90m«Toyota» — pide modelo/año, no inventa fitment[0m
+[1m  M14[0m [90m«Quiero 4 de 205/55R16» — 4 es cantidad, no aro[0m
+[1m  Q03[0m [90m«205/55R16» → «Ok» — puede avanzar; solo cotiza lo mostrado[0m
+[1m  Q07[0m [90m«¿Cuánto las cuatro?» tras opciones — cotiza 4 sin cambiar nada[0m
+[1m  Q11[0m [90m«¿Me mejora el precio?» — descuentos reales, no inventados[0m
+[1m  Q15[0m [90m«No sé cuántas, normalmente cambio todas» — juego de 4 como propuesta[0m
+[1m  O04[0m [90m«en otro lado me dan a 90» — hechos, no promesas de igualar[0m
+[1m  O08[0m [90m«Prefiero algo más angosto» — sin prometer calce no verificado[0m
+[1m  O12[0m [90m«Tengo una oferta de 195/50R16» — oferta comercial, no vehículo[0m
+[1m  V01[0m [90m«¿Dónde están?» — ambos locales con mapas, sin inventar un tercero[0m
+[1m  V05[0m [90m«Paso el lunes» con local elegido — registra sin repreguntar[0m
+[1m  V09[0m [90m«Entre hoy y el lunes» — pide precisión, no fija fecha sola[0m
+[1m  E03[0m [90m«¿Puedo llevar mi propio aceite?» — escala, no confirma[0m
+[1m  E07[0m [90m«Factura para flota de 40 camiones» — volumen escala[0m
+[1m  C01[0m [90m«No gracias» — despedida breve sin CTA posterior[0m
+[1m  C05[0m [90m«Está caro» — objeción, no rechazo[0m
+[1m  C09[0m [90mCierre → vuelve con una medida — ciclo nuevo, venta normal[0m
+[1m  R03[0m [90mFalla generar_cotizacion — requiere inyección[0m
+[1m  R07[0m [90mAceite → «también necesito 4 llantas 235/60R16» — desbloquea[0m
+[1m  X01[0m [90mCorolla 2019 → económica → 4 → sábado Quito Sur[0m
+      [31m✗ [global] no repite el mismo mensaje una y otra vez[0m[31m — un mensaje salió 3 veces: «listo quedo armada la cotizacion…»[0m
+[1m  X05[0m [90mUna 165/80R13 sin stock → asesor una vez, sin bucle[0m
+[1m  X09[0m [90m225/65R17 caras → 185/70R15 — contexto nuevo, final sin CTA[0m
+
+[1m  ─────────────────────────────────────────[0m
+  comprobaciones: [32m25 pasaron[0m · [31m1 fallaron[0m
+[90m  detalle → /Users/manue/AutoVenta/.claude/worktrees/threshold-t115/app/scripts/sim/flota-logs/resultado-c3.json[0m

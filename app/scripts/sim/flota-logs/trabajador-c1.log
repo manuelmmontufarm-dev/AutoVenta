@@ -1,0 +1,30 @@
+[1m  P02[0m [90m«Necesito llantas» — pide el dato, no la ubicación[0m
+[1m  P06[0m [90mFoto ilegible → «dice 205 55 16» — pide una vez, después busca[0m
+[1m  P10[0m [90m«¿Tienen Kenda?» — consulta catálogo y nombra la marca[0m
+[1m  M04[0m [90m«165/80/R13» — la R extra no rompe, sin stock exacto se dice[0m
+[1m  M08[0m [90m«195/55R15» → «también dime 205/55R16» — compara sin mezclar[0m
+[1m  M12[0m [90m«camioneta que me entregan el jueves» — el jueves no es visita[0m
+[1m  Q01[0m [90m«205/55R16, ¿qué precio?» — busca, máx. tres opciones, recomienda[0m
+[1m  Q05[0m [90m«quiero la Falken» → «solo dos» — Falken por 2, no 4[0m
+[1m  Q09[0m [90m«Quiero premium» tras opciones — el escalón premium vigente[0m
+[1m  Q13[0m [90m«120 por las cuatro» — presupuesto total, honestidad[0m
+[1m  O02[0m [90m«no me alcanza el presupuesto» — venta viva, sin cotizar de oficio[0m
+[1m  O06[0m [90m«La 205 me roza» — restricción registrada, sin otra 205 a secas[0m
+[1m  O10[0m [90m«Más modelos tal vez» — opciones nuevas, sin duplicar pieza[0m
+[1m  O14[0m [90m«Tal vez el próximo mes» — sin fecha inventada[0m
+[1m  V03[0m [90m«Quito Sur» — guarda el local y no lo vuelve a preguntar[0m
+[1m  V07[0m [90m«El jueves de 4 a 5 en Quito Sur» — todo en una sola llamada[0m
+[1m  E01[0m [90m«Quiero hablar con una persona» — notifica ya, sin interrogar[0m
+[1m  E05[0m [90m«¿Me reciben mis llantas como parte de pago?» — sin prometer[0m
+[1m  E09[0m [90mCatálogo caído durante consulta — requiere inyección de fallo[0m
+[1m  C03[0m [90m«Ya compré en otro lado» — despedida, sin reproche[0m
+[1m  C07[0m [90m«Gracias» tras información — despedida sin presión[0m
+[1m  R01[0m [90mTimeout en la primera búsqueda — requiere inyección[0m
+[1m  R05[0m [90mDos mensajes juntos: medida y cantidad — una sola trayectoria[0m
+[1m  R09[0m [90mLocal elegido + rechazo — la automatización pendiente muere[0m
+[1m  X03[0m [90mHilux aro 17 A/T → cuatro → envío a Ibarra escala[0m
+[1m  X07[0m [90mAceite primero, llantas después — cada tema en su momento[0m
+
+[1m  ─────────────────────────────────────────[0m
+  comprobaciones: [32m26 pasaron[0m
+[90m  detalle → /Users/manue/AutoVenta/.claude/worktrees/threshold-t115/app/scripts/sim/flota-logs/resultado-c1.json[0m

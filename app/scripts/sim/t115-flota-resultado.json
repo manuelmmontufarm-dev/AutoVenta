@@ -1,0 +1,321 @@
+[
+ {
+  "id": "P01",
+  "familia": "P",
+  "titulo": "«Hola» — bienvenida corta, sin herramientas",
+  "turnos": [
+   {
+    "cliente": "Hola",
+    "bot": [
+     {
+      "texto": "¡Hola! 👋 Le cotizo con stock y precios reales.\nLo más rápido es enviarme la *medida de la llanta* (ej. 225/65R17) o una foto del costado.\nSi no la tiene, dígame *marca, modelo y año del vehículo* o el aro; también puedo orientarle según su uso y comparar opciones.",
+      "tipo": "text"
+     }
+    ],
+    "fase": [],
+    "herramientas": [],
+    "modelos": [
+     "gpt-5.5"
+    ],
+    "errores": [],
+    "sinRespuesta": false,
+    "guardian": [
+     {
+      "verdict": "aprobar",
+      "findings": [],
+      "original": "¡Hola! 👋 Le cotizo con stock y precios reales.\nLo más rápido es enviarme la *medida de la llanta* (ej. 225/65R17) o una foto del costado.\nSi no la tiene, dígame *marca, modelo y año del vehículo* o el aro; también puedo orientarle según su uso y comparar opciones.",
+      "corregido": null
+     }
+    ]
+   }
+  ],
+  "estadoFinal": {
+   "stage": "nuevo",
+   "status": "open",
+   "tire_size": null,
+   "selected_quantity": null,
+   "nearest_store": null,
+   "visit_date": null,
+   "current_cycle": 1,
+   "cotizaciones": [],
+   "alertas": [],
+   "avisos_asesor": 0,
+   "sin_revision": 0
+  },
+  "checks": [
+   {
+    "nombre": "da bienvenida y pide medida/foto/vehículo",
+    "ok": true,
+    "motivo": null
+   },
+   {
+    "nombre": "no busca ni cotiza sin datos",
+    "ok": true,
+    "motivo": null
+   }
+  ]
+ },
+ {
+  "id": "M01",
+  "familia": "M",
+  "titulo": "«235/75/15» — normaliza y busca",
+  "turnos": [
+   {
+    "cliente": "235/75/15",
+    "bot": [
+     {
+      "texto": "Opciones enviadas: MICHELIN LLANTA PRIMACY 4 · BRIDGESTONE LLANTA TURANZA T005 · KENDA KR23",
+      "tipo": "image"
+     },
+     {
+      "texto": "Para afinarle la recomendación sobre las opciones que le envié, dígame una sola cosa: ¿qué prioriza usted?\n\n1) *Costo* — la más conveniente de precio\n2) *Equilibrio* — la que mejor balancea precio y rendimiento\n3) *Premium* — la de máxima calidad y durabilidad\n\nCon eso le dejo la opción exacta para su medida.",
+      "tipo": "text"
+     }
+    ],
+    "fase": [
+     "medida_confirmada"
+    ],
+    "herramientas": [
+     "buscar_llanta",
+     "preparar_opciones"
+    ],
+    "modelos": [
+     "gpt-5.4-mini",
+     "gpt-5.5"
+    ],
+    "errores": [],
+    "sinRespuesta": false,
+    "guardian": [
+     {
+      "verdict": "aprobar",
+      "findings": [],
+      "original": "Para afinarle la recomendación sobre las opciones que le envié, dígame una sola cosa: ¿qué prioriza usted?\n\n1) *Costo* — la más conveniente de precio\n2) *Equilibrio* — la que mejor balancea precio y rendimiento\n3) *Premium* — la de máxima calidad y durabilidad\n\nCon eso le dejo la opción exacta para su medida.",
+      "corregido": null
+     }
+    ]
+   }
+  ],
+  "estadoFinal": {
+   "stage": "medida_confirmada",
+   "status": "open",
+   "tire_size": "235/75R15",
+   "selected_quantity": null,
+   "nearest_store": null,
+   "visit_date": null,
+   "current_cycle": 1,
+   "cotizaciones": [],
+   "alertas": [],
+   "avisos_asesor": 0,
+   "sin_revision": 0
+  },
+  "checks": [
+   {
+    "nombre": "normaliza a 235/75R15 y busca",
+    "ok": true,
+    "motivo": null
+   },
+   {
+    "nombre": "no trata /15 como cantidad o precio",
+    "ok": true,
+    "motivo": null
+   }
+  ]
+ },
+ {
+  "id": "Q06",
+  "familia": "Q",
+  "titulo": "«Mándame una cotización de 225/65R17» — la emite sin vueltas",
+  "turnos": [
+   {
+    "cliente": "Mándame una cotización de 225/65R17",
+    "bot": [
+     {
+      "texto": "Opciones enviadas: MICHELIN LLANTA PRIMACY 4 · BRIDGESTONE LLANTA TURANZA T005 · KENDA KR23",
+      "tipo": "image"
+     },
+     {
+      "texto": "Yo iría por la *MICHELIN LLANTA PRIMACY 4* — $95.07 c/u con IVA: rinde más kilómetros en ciudad y carretera por el mismo precio.",
+      "tipo": "text"
+     },
+     {
+      "texto": "¿Le cotizo el juego de 4 llantas? 😊",
+      "tipo": "text"
+     }
+    ],
+    "fase": [
+     "medida_confirmada"
+    ],
+    "herramientas": [
+     "buscar_llanta",
+     "preparar_opciones"
+    ],
+    "modelos": [
+     "gpt-5.4-mini",
+     "gpt-5.5"
+    ],
+    "errores": [],
+    "sinRespuesta": false,
+    "guardian": [
+     {
+      "verdict": "aprobar",
+      "findings": [],
+      "original": "Yo iría por la *MICHELIN LLANTA PRIMACY 4* — $95.07 c/u con IVA: rinde más kilómetros en ciudad y carretera por el mismo precio. ¿Le cotizo el juego de 4 llantas? 😊",
+      "corregido": null
+     }
+    ]
+   }
+  ],
+  "estadoFinal": {
+   "stage": "medida_confirmada",
+   "status": "open",
+   "tire_size": "225/65R17",
+   "selected_quantity": null,
+   "nearest_store": null,
+   "visit_date": null,
+   "current_cycle": 1,
+   "cotizaciones": [],
+   "alertas": [],
+   "avisos_asesor": 0,
+   "sin_revision": 0
+  },
+  "checks": [
+   {
+    "nombre": "emite la cotización en el turno",
+    "ok": false,
+    "motivo": "pidió cotización explícita y no salió ninguna"
+   }
+  ]
+ },
+ {
+  "id": "V04",
+  "familia": "V",
+  "titulo": "«¿Hasta qué hora atienden en Cumbayá?» — horario confirmado",
+  "turnos": [
+   {
+    "cliente": "¿Hasta qué hora atienden en Cumbayá?",
+    "bot": [
+     {
+      "texto": "Opciones enviadas: MICHELIN LLANTA PRIMACY 4 · BRIDGESTONE LLANTA TURANZA T005 · KENDA KR23",
+      "tipo": "image"
+     },
+     {
+      "texto": "Para afinarle la recomendación sobre las opciones que le envié, dígame una sola cosa: ¿qué prioriza usted?\n\n1) *Costo* — la más conveniente de precio\n2) *Equilibrio* — la que mejor balancea precio y rendimiento\n3) *Premium* — la de máxima calidad y durabilidad\n\nCon eso le dejo la opción exacta para su medida.",
+      "tipo": "text"
+     }
+    ],
+    "fase": [
+     "seguimiento_venta"
+    ],
+    "herramientas": [
+     "buscar_llanta",
+     "preparar_opciones"
+    ],
+    "modelos": [
+     "gpt-5.4-mini",
+     "gpt-5.5"
+    ],
+    "errores": [],
+    "sinRespuesta": false,
+    "guardian": [
+     {
+      "verdict": "aprobar",
+      "findings": [],
+      "original": "Para afinarle la recomendación sobre las opciones que le envié, dígame una sola cosa: ¿qué prioriza usted?\n\n1) *Costo* — la más conveniente de precio\n2) *Equilibrio* — la que mejor balancea precio y rendimiento\n3) *Premium* — la de máxima calidad y durabilidad\n\nCon eso le dejo la opción exacta para su medida.",
+      "corregido": null
+     }
+    ]
+   }
+  ],
+  "estadoFinal": {
+   "stage": "medida_confirmada",
+   "status": "open",
+   "tire_size": "225/65R17",
+   "selected_quantity": null,
+   "nearest_store": "Depot Tire Cumbayá",
+   "visit_date": null,
+   "current_cycle": 1,
+   "cotizaciones": [],
+   "alertas": [],
+   "avisos_asesor": 0,
+   "sin_revision": 0
+  },
+  "checks": [
+   {
+    "nombre": "responde con una hora concreta",
+    "ok": false,
+    "motivo": "no dio ninguna hora"
+   },
+   {
+    "nombre": "no dice que no tiene el dato",
+    "ok": true,
+    "motivo": null
+   }
+  ]
+ },
+ {
+  "id": "R05",
+  "familia": "R",
+  "titulo": "Dos mensajes juntos: medida y cantidad — una sola trayectoria",
+  "turnos": [
+   {
+    "cliente": "205/55R16 ⧸ quiero 2",
+    "bot": [
+     {
+      "texto": "Opciones enviadas: MICHELIN LLANTA PRIMACY 4 · BRIDGESTONE LLANTA TURANZA T005 · KENDA KR23",
+      "tipo": "image"
+     },
+     {
+      "texto": "Para afinarle la recomendación sobre las opciones que le envié, dígame una sola cosa: ¿qué prioriza usted?\n\n1) *Costo* — la más conveniente de precio\n2) *Equilibrio* — la que mejor balancea precio y rendimiento\n3) *Premium* — la de máxima calidad y durabilidad\n\nCon eso le dejo la opción exacta para su medida.",
+      "tipo": "text"
+     }
+    ],
+    "fase": [
+     "medida_confirmada"
+    ],
+    "herramientas": [
+     "buscar_llanta",
+     "preparar_opciones"
+    ],
+    "modelos": [
+     "gpt-5.4-mini",
+     "gpt-5.5"
+    ],
+    "errores": [],
+    "sinRespuesta": false,
+    "guardian": [
+     {
+      "verdict": "aprobar",
+      "findings": [],
+      "original": "Para afinarle la recomendación sobre las opciones que le envié, dígame una sola cosa: ¿qué prioriza usted?\n\n1) *Costo* — la más conveniente de precio\n2) *Equilibrio* — la que mejor balancea precio y rendimiento\n3) *Premium* — la de máxima calidad y durabilidad\n\nCon eso le dejo la opción exacta para su medida.",
+      "corregido": null
+     }
+    ]
+   }
+  ],
+  "estadoFinal": {
+   "stage": "medida_confirmada",
+   "status": "open",
+   "tire_size": "205/55R16",
+   "selected_quantity": 2,
+   "nearest_store": null,
+   "visit_date": null,
+   "current_cycle": 1,
+   "cotizaciones": [],
+   "alertas": [],
+   "avisos_asesor": 0,
+   "sin_revision": 0
+  },
+  "checks": [
+   {
+    "nombre": "no manda piezas ni cotizaciones duplicadas",
+    "ok": true,
+    "motivo": null
+   },
+   {
+    "nombre": "procesa medida y cantidad en una trayectoria",
+    "ok": true,
+    "motivo": null
+   }
+  ]
+ }
+]

@@ -86,7 +86,7 @@ function claveDePruebas() {
   // El humo no habla con OpenAI: corre contra un doble local. Exigirle una
   // clave sería pedir una credencial para no usarla, y eso deja la prueba
   // fuera del alcance de una máquina de integración continua.
-  if (bandera("humo")) return "humo";
+  if (bandera("humo") || bandera("stub")) return "humo";
   const archivo = leerEnv(resolve(raízApp, ".env.sim"));
   const clave = process.env.OPENAI_API_KEY_SIM ?? archivo.OPENAI_API_KEY ?? archivo.OPENAI_API_KEY_SIM ?? null;
   if (clave) {
@@ -127,6 +127,11 @@ const URL_SIM = `postgresql://${process.env.PGUSER ?? process.env.USER}@localhos
 if (!/@localhost\/|@127\.0\.0\.1\//.test(URL_SIM)) throw new Error("El simulador solo trabaja contra Postgres local.");
 
 const MODO_HUMO = bandera("humo");
+// --stub: los mismos dobles del humo (OpenAI y Contífico de mentira, cero
+// tokens) pero el simulador SE QUEDA SIRVIENDO. Es el nivel 1 del corpus
+// T115: correr las 115 conversaciones de plomería sin gastar un centavo.
+const MODO_STUB = bandera("stub");
+const CON_DOBLES = MODO_HUMO || MODO_STUB;
 const PUERTO_STUB = Number(valor("puerto-stub", "4722"));
 let stubHumo = null;
 let modelosAlineados = {};
@@ -210,7 +215,7 @@ async function main() {
   // al agente: cuatro checks fallaron aunque el simulador estaba sano. El humo
   // tiene que probar el recorrido completo; por eso lo encendemos SOLO en su
   // base desechable. El simulador normal conserva el estado real de Depot.
-  MODO_HUMO && await encenderBotParaElHumo();
+  CON_DOBLES && await encenderBotParaElHumo();
 
   const conv = valor("copiar-conv", null);
   if (conv) await copiarConversacion(env.DATABASE_URL, Number(conv));
@@ -218,7 +223,7 @@ async function main() {
   console.log("📞 Graph API de mentira…");
   graph = await levantarGraphSim({ puerto: PUERTO_GRAPH, dirPiezas: resolve(dirDatos, "piezas") });
 
-  if (MODO_HUMO) {
+  if (CON_DOBLES) {
     const stub = await import("../eval/lib/stub-eval.mjs");
     stubHumo = await stub.levantar({ port: PUERTO_STUB });
     console.log(`🚬 Modo humo: OpenAI y Contífico de mentira en :${PUERTO_STUB} (cero tokens)`);
@@ -250,10 +255,14 @@ async function main() {
       PORT: String(PUERTO_APP),
       OPENAI_API_KEY: claveOpenAI,
       GRAPH_BASE_URL: `http://127.0.0.1:${PUERTO_GRAPH}`,
-      CONTIFICO_BASE_URL: MODO_HUMO
+      CONTIFICO_BASE_URL: CON_DOBLES
         ? `http://127.0.0.1:${PUERTO_STUB}/contifico`
         : `http://127.0.0.1:${PUERTO_CONTIFICO}`,
-      ...(MODO_HUMO ? { OPENAI_BASE_URL: `http://127.0.0.1:${PUERTO_STUB}/v1` } : {}),
+      ...(CON_DOBLES ? { OPENAI_BASE_URL: `http://127.0.0.1:${PUERTO_STUB}/v1` } : {}),
+      // El checkpoint MINI del T115 fuerza modelos SIN perder las banderas de
+      // producción: la alineación con Railway corre igual y solo los modelos
+      // nombrados aquí se pisan al final. JSON: {"OPENAI_MODEL":"gpt-5.4-mini"}.
+      ...(process.env.SIM_MODELOS_FORZADOS ? JSON.parse(process.env.SIM_MODELOS_FORZADOS) : {}),
       // Que el stock que se fuerza desde la pantalla entre en segundos.
       CONTIFICO_CATALOG_SYNC_INTERVAL_MS: "8000",
       WHATSAPP_TOKEN: "sim",
@@ -340,7 +349,7 @@ async function comprobarLosPuertos() {
     [PUERTO_APP, "el bot"],
     [PUERTO_GRAPH, "la Graph de mentira"],
     [PUERTO_CONTIFICO, "el catálogo"],
-    ...(MODO_HUMO ? [[PUERTO_STUB, "el doble de OpenAI"]] : []),
+    ...(CON_DOBLES ? [[PUERTO_STUB, "el doble de OpenAI"]] : []),
   ];
   const ocupados = [];
   for (const [puerto, quién] of puertos) {
@@ -374,7 +383,7 @@ function estáOcupado(puerto) {
  * no gasta tokens y responde en un segundo.
  */
 async function comprobarLaClave() {
-  if (MODO_HUMO) return;
+  if (CON_DOBLES) return;
   try {
     const base = (env.OPENAI_BASE_URL ?? "https://api.openai.com/v1").replace(/\/$/, "");
     const r = await fetch(`${base}/models`, {

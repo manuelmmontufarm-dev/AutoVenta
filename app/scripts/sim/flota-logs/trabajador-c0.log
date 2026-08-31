@@ -1,0 +1,31 @@
+[1m  P01[0m [90m«Hola» — bienvenida corta, sin herramientas[0m
+[1m  P05[0m [90mFoto legible 195/55R15 — extrae, busca y muestra[0m
+[1m  P09[0m [90m«Aro 17 A/T» — busca por aro y tipo[0m
+[1m  M03[0m [90m«255 70 R16» → «que sea A/T» — conserva el tipo[0m
+[1m  M07[0m [90m«225/65R17» → «perdón, es 225/60R17» — reemplaza la medida[0m
+[1m  M11[0m [90m«Peugeot 206 con rines 16 originales» — no vuelve al rin 14[0m
+[1m  M15[0m [90m195/50R16 sin exactas — lo dice, sin inventar llegadas[0m
+[1m  Q04[0m [90m«205/55R16» → «la económica» — selecciona esa y avanza[0m
+[1m  Q08[0m [90m«Una sola 165/80R13» sin stock — no cotiza agotado[0m
+[1m  Q12[0m [90m«120 por llanta» — presupuesto unitario, no total[0m
+[1m  O01[0m [90mOpciones → «están muy caras» — alternativa, no cierre[0m
+[1m  O05[0m [90m«No quiero Winrun» — no la vuelve a mostrar[0m
+[1m  O09[0m [90m«¿Y en 185/70R15?» tras cotizar otra — cambia el contexto[0m
+[1m  O13[0m [90m«Lo voy a pensar» — cierre suave, sin perder ni insistir[0m
+[1m  V02[0m [90m«Estoy en el norte» — recomienda sin inventar distancias[0m
+[1m  V06[0m [90m«A las 4» tras preguntar la hora — 4 es hora, no cantidad[0m
+[1m  V10[0m [90m«Voy a pasar algún día» — invita, no registra[0m
+[1m  E04[0m [90mFoto de llanta industrial — fuera de catálogo, aviso[0m
+[1m  E08[0m [90m«Busco aro y batería» — atiende lo suyo, separa lo ajeno[0m
+[1m  C02[0m [90m«Ya compré, gracias» — cierra sin seguir vendiendo[0m
+[1m  C06[0m [90m«Voy a revisar» — abierto con cierre suave[0m
+[1m  C10[0m [90m«No gracias» → «aunque muéstrame la económica» — reabre[0m
+[1m  R04[0m [90mGuardián devuelve salida inválida — requiere inyección[0m
+[1m  R08[0m [90mPresupuesto + cambio de cantidad + cambio de medida — recalcula[0m
+[1m  X02[0m [90m235/75/15 → presupuesto 120 c/u → cotiza y visita[0m
+[1m  X06[0m [90mFlotación → cotiza 4 → compara en Ibarra → cierre definitivo[0m
+[1m  X10[0m [90mCorsa rin 15 → foto → ok → lunes Quito Sur → ya compré[0m
+
+[1m  ─────────────────────────────────────────[0m
+  comprobaciones: [32m27 pasaron[0m
+[90m  detalle → /Users/manue/AutoVenta/.claude/worktrees/threshold-t115/app/scripts/sim/flota-logs/resultado-c0.json[0m
