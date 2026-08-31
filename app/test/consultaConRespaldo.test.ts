@@ -17,6 +17,7 @@ process.env.SELLER_PHONE ||= "593999000111";
 process.env.DATABASE_URL ||= "postgresql://manue@localhost/postgres";
 
 import {
+  aroPedido,
   marcaPreguntada,
   ofrecioAsesor,
   pidioCotizacionExplicita,
@@ -149,5 +150,28 @@ describe("las obligaciones del modelo débil (nivel 2 del T115, 31-ago)", () => 
 
   it("preguntar el precio no es pedir la cotización formal", () => {
     expect(pidioCotizacionExplicita("¿qué precio tienen?")).toBe(false);
+  });
+});
+
+
+/** Producción, 31-ago 13:21 (Manuel en vivo): «una rin 15 porf» recibió la
+ *  guía de medida en vez de opciones y tuvo que repetirlo. P03 manda mostrar. */
+describe("aroPedido", () => {
+  it.each([
+    ["una rin 15 porf", 15],
+    ["Rin 15", 15],
+    ["Buenas tardes don Rin 15", 15],
+    ["aro 17 por favor", 17],
+  ])("«%s» → aro %i", (t, aro) => {
+    expect(aroPedido(t)).toBe(aro);
+  });
+
+  it.each([
+    "225/65R17",           // medida completa: manda la medida, no el aro
+    "205 55 16",
+    "tengo rines de lujo", // sin número
+    "a las 15 paso",       // hora, no aro
+  ])("«%s» no dispara el aro", (t) => {
+    expect(aroPedido(t)).toBeNull();
   });
 });

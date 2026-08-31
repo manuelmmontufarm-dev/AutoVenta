@@ -145,3 +145,27 @@ export function ordenDeRecotizarCantidad(cantidad: number): string {
     + `dejar la cotización vieja como respuesta.`
   );
 }
+
+/**
+ * «una rin 15 porf» (producción, 31-ago 13:21, Manuel probando en vivo): el
+ * bot mandó la guía de medida y pidió la medida completa; el cliente tuvo que
+ * repetir «una rin 15» para ver opciones. La política del corpus (P03) es la
+ * contraria: el aro YA permite mostrar opciones; el uso se afina después.
+ * Detector determinista del aro pedido — solo cuando NO viene una medida
+ * completa en el mismo mensaje (ahí manda la medida).
+ */
+export function aroPedido(texto: string): number | null {
+  const n = normalizar(texto);
+  if (/\b\d{3}\s*[\/x-]\s*\d{2}\b|\b\d{3}\/\d{2}r\d{2}\b/.test(n)) return null; // trae medida completa
+  const m = n.match(/\b(?:rin(?:es)?|aro(?:s)?|ring)\s*(1[2-9]|2[0-4])\b/);
+  return m ? Number(m[1]) : null;
+}
+
+export function ordenDeMostrarPorAro(aro: number): string {
+  return (
+    `EL CLIENTE DIO EL ARO ${aro} (fuente determinística). Llama buscar_por_aro_y_tipo EN ESTE `
+    + `TURNO y manda opciones reales con preparar_opciones — el aro ya alcanza para mostrar. El uso `
+    + `o la medida exacta se afinan DESPUÉS de que vea algo. PROHIBIDO responder solo con la guía de `
+    + `medida y PROHIBIDO pedir la medida completa sin haber mostrado opciones del aro.`
+  );
+}

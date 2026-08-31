@@ -1,0 +1,63 @@
+[
+ {
+  "id": "P03",
+  "familia": "P",
+  "titulo": "«una rin 15 porf» — busca por aro y manda opciones a la primera",
+  "turnos": [
+   {
+    "cliente": "una rin 15 porf",
+    "bot": [
+     {
+      "texto": "Opciones enviadas: FALKEN WILDPEAK A/T 4W · KENDA KR20 · WINRUN R330",
+      "tipo": "image"
+     },
+     {
+      "texto": "Para afinarle la recomendación sobre las opciones que le envié, dígame una sola cosa: ¿qué prioriza usted?\n\n1) *Costo* — la más conveniente de precio\n2) *Equilibrio* — la que mejor balancea precio y rendimiento\n3) *Premium* — la de máxima calidad y durabilidad\n\nCon eso le digo cuál de estas le conviene más.",
+      "tipo": "text"
+     }
+    ],
+    "fase": [
+     "medida_confirmada"
+    ],
+    "herramientas": [
+     "buscar_por_aro_y_tipo",
+     "preparar_opciones"
+    ],
+    "modelos": [
+     "gpt-5.4-mini",
+     "gpt-5.5"
+    ],
+    "errores": [],
+    "sinRespuesta": false,
+    "guardian": [
+     {
+      "verdict": "aprobar",
+      "findings": [],
+      "original": "Para afinarle la recomendación sobre las opciones que le envié, dígame una sola cosa: ¿qué prioriza usted?\n\n1) *Costo* — la más conveniente de precio\n2) *Equilibrio* — la que mejor balancea precio y rendimiento\n3) *Premium* — la de máxima calidad y durabilidad\n\nCon eso le digo cuál de estas le conviene más.",
+      "corregido": null
+     }
+    ]
+   }
+  ],
+  "estadoFinal": {
+   "stage": "medida_confirmada",
+   "status": "open",
+   "tire_size": null,
+   "selected_quantity": 4,
+   "nearest_store": null,
+   "visit_date": null,
+   "current_cycle": 1,
+   "cotizaciones": [],
+   "alertas": [],
+   "avisos_asesor": 0,
+   "sin_revision": 0
+  },
+  "checks": [
+   {
+    "nombre": "busca por aro y envía opciones",
+    "ok": true,
+    "motivo": null
+   }
+  ]
+ }
+]

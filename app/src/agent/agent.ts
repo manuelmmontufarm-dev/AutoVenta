@@ -14,8 +14,8 @@ import {
   recordatorioDeOfertaPendiente,
 } from "../domain/ofertaAceptada.js";
 import {
-  marcaPreguntada, ofrecioAsesor, ordenDeConsultarRespaldo, ordenDeCotizarLoPedido,
-  ordenDeNombrarLaMarca, ordenDeNotificarHumano, ordenDeNotificarLoPrometido,
+  aroPedido, marcaPreguntada, ofrecioAsesor, ordenDeConsultarRespaldo, ordenDeCotizarLoPedido,
+  ordenDeMostrarPorAro, ordenDeNombrarLaMarca, ordenDeNotificarHumano, ordenDeNotificarLoPrometido,
   ordenDeRecotizarCantidad, pidioCotizacionExplicita, pidioHumanoExplicito,
   preguntaTecnicaDeRespaldo,
 } from "../domain/consultaConRespaldo.js";
@@ -356,6 +356,7 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
   // con la obligación sin cumplir, se le recuerda UNA vez y se le devuelve el
   // control (T115 nivel 2, 31-ago: el mini recomendaba y aún así preguntaba
   // «¿le cotizo?» a quien ya la había pedido con todas sus letras).
+  const aroDelTurno = aroPedido(userText);
   let vueltaForzadaUsada = false;
   let recordatorioDeObligacion: string | null = null;
   const bloquesVolatiles: ChatCompletionMessageParam[] = [
@@ -369,6 +370,7 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
     // (30-ago). Ver domain/consultaConRespaldo.ts.
     ...((marcaDelTurno) ? [{ role: "system" as const, content: ordenDeNombrarLaMarca(marcaDelTurno) }] : []),
     ...(hechoDeMarca ? [{ role: "system" as const, content: hechoDeMarca }] : []),
+    ...(aroDelTurno ? [{ role: "system" as const, content: ordenDeMostrarPorAro(aroDelTurno) }] : []),
     ...(esPreguntaTecnica
       ? [{
           role: "system" as const,
@@ -505,14 +507,18 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
       // más, con el recordatorio pegado al final, y de nuevo el control.
       const debeCotizar = (pidioCotizar || cantidadCambia) && !usedTools.includes("generar_cotizacion");
       const debeNotificar = pidioHumano && !usedTools.includes("notificar_vendedor");
-      if ((debeCotizar || debeNotificar) && !vueltaForzadaUsada && !ctx.consultaFueraDeCatalogo) {
+      const debeBuscarPorAro = aroDelTurno !== null
+        && !["buscar_por_aro_y_tipo", "buscar_llanta", "fitment_vehiculo"].some((h) => usedTools.includes(h));
+      if ((debeCotizar || debeNotificar || debeBuscarPorAro) && !vueltaForzadaUsada && !ctx.consultaFueraDeCatalogo) {
         vueltaForzadaUsada = true;
-        usedTools.push(`vuelta_forzada:${debeCotizar ? "cotizar" : "notificar"}`);
+        usedTools.push(`vuelta_forzada:${debeCotizar ? "cotizar" : debeNotificar ? "notificar" : "buscar_aro"}`);
         messages.push({
           role: "system",
           content: debeCotizar
             ? "TE FALTÓ LA OBLIGACIÓN DEL TURNO: el cliente pidió la cotización (o fijó una cantidad nueva) y no llamaste generar_cotizacion. Llámala AHORA con el producto recomendado vigente y la cantidad dicha (4 si no dijo). No escribas texto final sin la herramienta."
-            : "TE FALTÓ LA OBLIGACIÓN DEL TURNO: el cliente pidió hablar con una persona y no llamaste notificar_vendedor. Llámala AHORA con un resumen accionable. No escribas texto final sin la herramienta.",
+            : debeNotificar
+              ? "TE FALTÓ LA OBLIGACIÓN DEL TURNO: el cliente pidió hablar con una persona y no llamaste notificar_vendedor. Llámala AHORA con un resumen accionable. No escribas texto final sin la herramienta."
+              : `TE FALTÓ LA OBLIGACIÓN DEL TURNO: el cliente dio el aro ${aroDelTurno} y no buscaste nada. Llama buscar_por_aro_y_tipo AHORA y muéstrale opciones con preparar_opciones. No escribas texto final sin haber mostrado algo.`,
         });
         continue;
       }
