@@ -1,6 +1,5 @@
 import { business } from "../config.js";
 import { fraseDeAhorro, type AhorroDeLaCotizacion } from "../domain/ahorro.js";
-import { CIERRE_COTIZAR } from "../domain/preguntasProhibidas.js";
 import { ETIQUETA_DEL_ESCALON } from "../domain/salesIntent.js";
 import { PREGUNTA_DE_LOCAL } from "../domain/storeSelection.js";
 import type { CatalogItem } from "../domain/catalog.js";
@@ -197,10 +196,18 @@ export function buildCierreOpciones(input: {
   }
   const motivo = input.motivo.trim().replace(/[.\s]+$/, "");
   const precio = input.precioConIva ? ` — $${input.precioConIva.toFixed(2)} c/u con IVA` : "";
-  // El cierre sale de `CIERRE_COTIZAR` y no escrito a mano: el candado de
-  // preguntas prohibidas exenta esa constante exacta. Escribirlo aquí otra vez
-  // es volver al 27-ago, cuando el candado se comía nuestro propio pedido.
-  return `Yo iría por la *${input.recomendacion}*${precio}: ${motivo}. ${CIERRE_COTIZAR} 😊`;
+  // NO SE PIDE PERMISO PARA COTIZAR (Manuel, 31-ago-2026, viendo su propia
+  // prueba en vivo: «no debería preguntar eso, sino… automáticamente cotizarle
+  // las 4»). Cuando el cliente ya pidió precio, pidió recomendación, contó su
+  // uso o eligió del menú, preguntar «¿le cotizo?» gasta un turno para llegar
+  // a la misma respuesta — la política de herramientas del corpus ya permite
+  // el juego de 4 como propuesta con producto vigente.
+  //
+  // El texto NO promete la cotización: la manda `generar_cotizacion` en este
+  // mismo turno (la orden va en `regla` y la obligación la fuerza `agent.ts`).
+  // Prometerla aquí sería la familia «dijo que hizo algo que no hizo» si la
+  // herramienta se bloquea — el cliente igual se queda con la recomendación.
+  return `Yo iría por la *${input.recomendacion}*${precio}: ${motivo}.`;
 }
 
 /**

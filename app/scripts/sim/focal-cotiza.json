@@ -1,0 +1,448 @@
+[
+ {
+  "id": "Q01",
+  "familia": "Q",
+  "titulo": "«205/55R16, ¿qué precio?» — busca, máx. tres opciones, recomienda",
+  "turnos": [
+   {
+    "cliente": "205/55R16, ¿qué precio?",
+    "bot": [
+     {
+      "texto": "Opciones enviadas: FALKEN ZE310R · KENDA KR20 · WINRUN R330",
+      "tipo": "image"
+     },
+     {
+      "texto": "Cotización COT-MTHK00XW enviada por $365.13",
+      "tipo": "image"
+     },
+     {
+      "texto": "Puede pasar sin compromiso a verlas y probarlas en su vehículo.\n📍 *Depot Tire Cumbayá*: https://maps.app.goo.gl/QnMBPXKc1o8igbsp8\n📍 *Depot Tire Quito Sur*: https://maps.app.goo.gl/NQeNN8csyAnRkJDJ7",
+      "tipo": "text"
+     },
+     {
+      "texto": "¿A cuál local le queda mejor ir, *Cumbayá* o *Quito Sur*? 📍",
+      "tipo": "text"
+     }
+    ],
+    "fase": [
+     "medida_confirmada"
+    ],
+    "herramientas": [
+     "buscar_llanta",
+     "preparar_opciones",
+     "vuelta_forzada:atajo_exacto",
+     "generar_cotizacion"
+    ],
+    "modelos": [
+     "gpt-5.5",
+     "gpt-5.4-mini"
+    ],
+    "errores": [],
+    "sinRespuesta": false,
+    "guardian": [
+     {
+      "verdict": "aprobar",
+      "findings": [],
+      "original": "Puede pasar sin compromiso a verlas y probarlas en su vehículo.\n📍 *Depot Tire Cumbayá*: https://maps.app.goo.gl/QnMBPXKc1o8igbsp8\n📍 *Depot Tire Quito Sur*: https://maps.app.goo.gl/NQeNN8csyAnRkJDJ7\n\n---\n\n¿A cuál local le queda mejor ir, *Cumbayá* o *Quito Sur*? 📍",
+      "corregido": null
+     }
+    ]
+   }
+  ],
+  "estadoFinal": {
+   "stage": "cotizacion_enviada",
+   "status": "open",
+   "tire_size": "205/55R16",
+   "selected_quantity": 4,
+   "nearest_store": null,
+   "visit_date": null,
+   "current_cycle": 1,
+   "cotizaciones": [
+    {
+     "numero": "COT-MTHK00XW",
+     "total": 365.13,
+     "items": [
+      {
+       "code": "K217B607",
+       "brand": "KENDA",
+       "design": "KR20",
+       "imageUrl": "/assets/catalog/kenda-kr20.jpg",
+       "quantity": 4,
+       "loadSpeed": {
+        "code": "91V",
+        "loadKg": 615,
+        "speedKmh": 240,
+        "loadIndex": 91,
+        "speedSymbol": "V"
+       },
+       "sizeLabel": "205/55R16",
+       "unitPrice": 79.37391304347827,
+       "description": "Llanta KENDA KR20 205/55R16",
+       "availability": "available",
+       "warrantyFactory": "5 años garantía de fábrica contra defectos de fabricación",
+       "listPriceWithTax": 121.69,
+       "salePriceWithTax": 91.28,
+       "warrantyRoadHazard": "12 meses contra golpes y estalladuras"
+      }
+     ],
+     "cycle": 1
+    }
+   ],
+   "alertas": [
+    {
+     "tipo": "quote_created",
+     "prioridad": "medium",
+     "resumen": "Nueva cotización COT-MTHK00XW por $365.13"
+    }
+   ],
+   "avisos_asesor": 2,
+   "sin_revision": 0
+  },
+  "checks": [
+   {
+    "nombre": "busca antes de dar precio",
+    "ok": true,
+    "motivo": null
+   },
+   {
+    "nombre": "muestra opciones",
+    "ok": true,
+    "motivo": null
+   }
+  ]
+ },
+ {
+  "id": "Q04",
+  "familia": "Q",
+  "titulo": "«205/55R16» → «la económica» — selecciona esa y avanza",
+  "turnos": [
+   {
+    "cliente": "205/55R16",
+    "bot": [
+     {
+      "texto": "Opciones enviadas: FALKEN ZE310R · KENDA KR20 · WINRUN R330",
+      "tipo": "image"
+     },
+     {
+      "texto": "Para afinarle la recomendación sobre las opciones que le envié, dígame una sola cosa: ¿qué prioriza usted?\n\n1) *Costo* — la más conveniente de precio\n2) *Equilibrio* — la que mejor balancea precio y rendimiento\n3) *Premium* — la de máxima calidad y durabilidad\n\nCon eso le dejo la opción exacta para su medida.",
+      "tipo": "text"
+     }
+    ],
+    "fase": [
+     "medida_confirmada"
+    ],
+    "herramientas": [
+     "buscar_llanta",
+     "preparar_opciones"
+    ],
+    "modelos": [
+     "gpt-5.4-mini",
+     "gpt-5.5"
+    ],
+    "errores": [],
+    "sinRespuesta": false,
+    "guardian": [
+     {
+      "verdict": "aprobar",
+      "findings": [],
+      "original": "Para afinarle la recomendación sobre las opciones que le envié, dígame una sola cosa: ¿qué prioriza usted?\n\n1) *Costo* — la más conveniente de precio\n2) *Equilibrio* — la que mejor balancea precio y rendimiento\n3) *Premium* — la de máxima calidad y durabilidad\n\nCon eso le dejo la opción exacta para su medida.",
+      "corregido": null
+     }
+    ]
+   },
+   {
+    "cliente": "la económica",
+    "bot": [
+     {
+      "texto": "Cotización COT-MTHK0KB6 enviada por $242.68",
+      "tipo": "image"
+     },
+     {
+      "texto": "Puede pasar sin compromiso a verlas y probarlas en su vehículo.\n📍 *Depot Tire Cumbayá*: https://maps.app.goo.gl/QnMBPXKc1o8igbsp8\n📍 *Depot Tire Quito Sur*: https://maps.app.goo.gl/NQeNN8csyAnRkJDJ7",
+      "tipo": "text"
+     },
+     {
+      "texto": "¿A cuál local le queda mejor ir, *Cumbayá* o *Quito Sur*? 📍",
+      "tipo": "text"
+     }
+    ],
+    "fase": [],
+    "herramientas": [
+     "generar_cotizacion"
+    ],
+    "modelos": [
+     "gpt-5.5",
+     "gpt-5.4-mini"
+    ],
+    "errores": [],
+    "sinRespuesta": false,
+    "guardian": [
+     {
+      "verdict": "aprobar",
+      "findings": [],
+      "original": "Puede pasar sin compromiso a verlas y probarlas en su vehículo.\n📍 *Depot Tire Cumbayá*: https://maps.app.goo.gl/QnMBPXKc1o8igbsp8\n📍 *Depot Tire Quito Sur*: https://maps.app.goo.gl/NQeNN8csyAnRkJDJ7\n\n---\n\n¿A cuál local le queda mejor ir, *Cumbayá* o *Quito Sur*? 📍",
+      "corregido": null
+     }
+    ]
+   }
+  ],
+  "estadoFinal": {
+   "stage": "seguimiento_venta",
+   "status": "open",
+   "tire_size": "205/55R16",
+   "selected_quantity": 4,
+   "nearest_store": null,
+   "visit_date": null,
+   "current_cycle": 1,
+   "cotizaciones": [
+    {
+     "numero": "COT-MTHK0KB6",
+     "total": 242.68,
+     "items": [
+      {
+       "code": "2055516WNR330",
+       "brand": "WINRUN",
+       "design": "R330",
+       "imageUrl": "/assets/catalog/winrun-r330.jpg",
+       "quantity": 4,
+       "loadSpeed": {
+        "code": "91V",
+        "loadKg": 615,
+        "speedKmh": 240,
+        "loadIndex": 91,
+        "speedSymbol": "V"
+       },
+       "sizeLabel": "205/55R16",
+       "unitPrice": 52.75652173913044,
+       "description": "Llanta WINRUN R330 205/55R16",
+       "availability": "available",
+       "warrantyFactory": "5 años garantía de fábrica contra defectos de fabricación",
+       "listPriceWithTax": 80.9,
+       "salePriceWithTax": 60.67,
+       "warrantyRoadHazard": "6 meses contra golpes y estalladuras"
+      }
+     ],
+     "cycle": 1
+    }
+   ],
+   "alertas": [
+    {
+     "tipo": "quote_created",
+     "prioridad": "medium",
+     "resumen": "Nueva cotización COT-MTHK0KB6 por $242.68"
+    }
+   ],
+   "avisos_asesor": 2,
+   "sin_revision": 0
+  },
+  "checks": [
+   {
+    "nombre": "cotiza o entrega la económica vigente",
+    "ok": true,
+    "motivo": null
+   }
+  ]
+ },
+ {
+  "id": "Q14",
+  "familia": "Q",
+  "titulo": "«Solo estoy averiguando» — sin presión y sin cerrar",
+  "turnos": [
+   {
+    "cliente": "205/55R16",
+    "bot": [
+     {
+      "texto": "Opciones enviadas: FALKEN ZE310R · KENDA KR20 · WINRUN R330",
+      "tipo": "image"
+     },
+     {
+      "texto": "Para afinarle la recomendación sobre las opciones que le envié, dígame una sola cosa: ¿qué prioriza usted?\n\n1) *Costo* — la más conveniente de precio\n2) *Equilibrio* — la que mejor balancea precio y rendimiento\n3) *Premium* — la de máxima calidad y durabilidad\n\nCon eso le dejo la opción exacta para su medida.",
+      "tipo": "text"
+     }
+    ],
+    "fase": [
+     "medida_confirmada"
+    ],
+    "herramientas": [
+     "buscar_llanta",
+     "preparar_opciones"
+    ],
+    "modelos": [
+     "gpt-5.4-mini",
+     "gpt-5.5"
+    ],
+    "errores": [],
+    "sinRespuesta": false,
+    "guardian": [
+     {
+      "verdict": "aprobar",
+      "findings": [],
+      "original": "Para afinarle la recomendación sobre las opciones que le envié, dígame una sola cosa: ¿qué prioriza usted?\n\n1) *Costo* — la más conveniente de precio\n2) *Equilibrio* — la que mejor balancea precio y rendimiento\n3) *Premium* — la de máxima calidad y durabilidad\n\nCon eso le dejo la opción exacta para su medida.",
+      "corregido": null
+     }
+    ]
+   },
+   {
+    "cliente": "solo estoy averiguando",
+    "bot": [
+     {
+      "texto": "Claro, sin compromiso.\n\nPara su medida 205/55R16, ya tiene tres rangos: económica WINRUN, equilibrada KENDA y premium FALKEN.",
+      "tipo": "text"
+     },
+     {
+      "texto": "La compra incluye instalación, alineación, balanceo, seguro gratuito por daños, mantenimiento cada 10.000 km y revisión del vehículo.",
+      "tipo": "text"
+     },
+     {
+      "texto": "Si quiere solo comparar, le puedo dejar la mejor opción por precio o la más equilibrada.",
+      "tipo": "text"
+     },
+     {
+      "texto": "¿Cuál prefiere revisar: costo, equilibrio o premium?",
+      "tipo": "text"
+     }
+    ],
+    "fase": [],
+    "herramientas": [],
+    "modelos": [
+     "gpt-5.5",
+     "gpt-5.4-mini"
+    ],
+    "errores": [],
+    "sinRespuesta": false,
+    "guardian": [
+     {
+      "verdict": "aprobar",
+      "findings": [],
+      "original": "Claro, sin compromiso.\n\nPara su medida 205/55R16, ya tiene tres rangos: económica WINRUN, equilibrada KENDA y premium FALKEN.\n\n---\n\nLa compra incluye instalación, alineación, balanceo, seguro gratuito por daños, mantenimiento cada 10.000 km y revisión del vehículo.\n\n---\n\nSi quiere solo comparar, le puedo dejar la mejor opción por precio o la más equilibrada.\n\n¿Cuál prefiere revisar: costo, equilibrio o premium?",
+      "corregido": null
+     }
+    ]
+   }
+  ],
+  "estadoFinal": {
+   "stage": "medida_confirmada",
+   "status": "open",
+   "tire_size": "205/55R16",
+   "selected_quantity": 4,
+   "nearest_store": null,
+   "visit_date": null,
+   "current_cycle": 1,
+   "cotizaciones": [],
+   "alertas": [],
+   "avisos_asesor": 0,
+   "sin_revision": 0
+  },
+  "checks": [
+   {
+    "nombre": "no cierra la conversación como perdida",
+    "ok": true,
+    "motivo": null
+   },
+   {
+    "nombre": "no exige compromiso ni visita",
+    "ok": true,
+    "motivo": null
+   }
+  ]
+ },
+ {
+  "id": "E02",
+  "familia": "E",
+  "titulo": "«¿Cambio de aceite para Vitara 2004?» — sin colar llantas",
+  "turnos": [
+   {
+    "cliente": "¿Hacen cambio de aceite para un Vitara 2004?",
+    "bot": [
+     {
+      "texto": "Un asesor le confirma ese servicio para su Vitara 2004 por este medio.",
+      "tipo": "text"
+     },
+     {
+      "texto": "¿Desea que le escriban aquí o prefiere llamar al +593 98 280 1766?",
+      "tipo": "text"
+     }
+    ],
+    "fase": [],
+    "herramientas": [
+     "notificar_vendedor"
+    ],
+    "modelos": [
+     "gpt-5.5",
+     "gpt-5.4-mini"
+    ],
+    "errores": [],
+    "sinRespuesta": false,
+    "guardian": [
+     {
+      "verdict": "aprobar",
+      "findings": [],
+      "original": "Un asesor le confirma ese servicio para su Vitara 2004 por este medio.\n\n---\n\n¿Desea que le escriban aquí o prefiere llamar al +593 98 280 1766?",
+      "corregido": null
+     }
+    ]
+   }
+  ],
+  "estadoFinal": {
+   "stage": "medida_confirmada",
+   "status": "open",
+   "tire_size": null,
+   "selected_quantity": null,
+   "nearest_store": null,
+   "visit_date": null,
+   "current_cycle": 1,
+   "cotizaciones": [],
+   "alertas": [
+    {
+     "tipo": "caso_sin_resolver",
+     "prioridad": "high",
+     "resumen": "Cliente consulta si realizan cambio de aceite para Suzuki Vitara año 2004. Servicio fuera del catálogo confirmado por este canal; requiere confirmación de asesor."
+    }
+   ],
+   "avisos_asesor": 2,
+   "sin_revision": 0
+  },
+  "checks": [
+   {
+    "nombre": "no busca ni cotiza llantas por mencionar el Vitara",
+    "ok": true,
+    "motivo": null
+   },
+   {
+    "nombre": "deriva la consulta del servicio",
+    "ok": true,
+    "motivo": null
+   }
+  ]
+ },
+ {
+  "id": "R06",
+  "familia": "R",
+  "titulo": "Opciones → cambia a aceite → «Ok» — el Ok no elige llanta",
+  "turnos": [],
+  "estadoFinal": null,
+  "errorArnes": "fetch failed",
+  "checks": [
+   {
+    "nombre": "el escenario pudo correr",
+    "ok": false,
+    "motivo": "fetch failed"
+   }
+  ]
+ },
+ {
+  "id": "X07",
+  "familia": "X",
+  "titulo": "Aceite primero, llantas después — cada tema en su momento",
+  "turnos": [],
+  "estadoFinal": null,
+  "errorArnes": "fetch failed",
+  "checks": [
+   {
+    "nombre": "el escenario pudo correr",
+    "ok": false,
+    "motivo": "fetch failed"
+   }
+  ]
+ }
+]

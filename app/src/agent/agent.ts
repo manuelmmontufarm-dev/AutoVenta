@@ -509,7 +509,7 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
     if (!message.tool_calls?.length) {
       // ¿La obligación determinística del turno quedó sin cumplir? Una vuelta
       // más, con el recordatorio pegado al final, y de nuevo el control.
-      const debeCotizar = (pidioCotizar || cantidadCambia || ctx.aceptoCotizacion)
+      const debeCotizar = (pidioCotizar || cantidadCambia || ctx.aceptoCotizacion || ctx.recomendacionEntregada)
         && !usedTools.includes("generar_cotizacion");
       const debeNotificar = pidioHumano && !usedTools.includes("notificar_vendedor");
       const debeBuscarPorAro = aroDelTurno !== null
@@ -581,7 +581,8 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
       // opciones porque preparar_opciones devolvió mensaje exacto y el turno
       // se fue por aquí sin pasar por la vuelta forzada.
       const obligacionPendiente =
-        ((pidioCotizar || cantidadCambia || ctx.aceptoCotizacion) && !usedTools.includes("generar_cotizacion"))
+        ((pidioCotizar || cantidadCambia || ctx.aceptoCotizacion || ctx.recomendacionEntregada)
+          && !usedTools.includes("generar_cotizacion"))
         || (pidioHumano && !usedTools.includes("notificar_vendedor"));
       if (exact && obligacionPendiente && !vueltaForzadaUsada && !ctx.consultaFueraDeCatalogo) {
         // El recordatorio NO se mete aquí: los resultados de herramientas

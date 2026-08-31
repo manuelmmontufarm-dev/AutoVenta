@@ -409,7 +409,7 @@ describe("cierre de la pieza de opciones", () => {
     ).toBe(qm.PREGUNTA_PREFERENCIA);
   });
 
-  it("la entrega, con motivo y cierre de venta, cuando ya se la pidieron", () => {
+  it("la entrega, con motivo y precio, cuando ya se la pidieron — sin pedir permiso", () => {
     // Familia nº1 del guardián (23 correcciones, semana del 14-ago): pidió
     // precio y el cierre daba la recomendación sin número. Con precio, va.
     expect(
@@ -431,7 +431,9 @@ describe("cierre de la pieza de opciones", () => {
     // Ni el punto duplicado del motivo, ni la pregunta que el cliente ya hizo.
     expect(cierre).not.toContain("precio..");
     expect(cierre).not.toContain(qm.PREGUNTA_PREFERENCIA);
-    // El turno tiene que seguir empujando la venta.
-    expect(cierre).toMatch(/cotizo/i);
+    // 31-ago-2026 (Manuel): el turno empuja la venta ENTREGANDO, no pidiendo
+    // permiso. La cotización de 4 la manda `generar_cotizacion` en el mismo
+    // turno; este texto no pregunta nada.
+    expect(cierre).not.toMatch(/\?/);
   });
 });

@@ -124,6 +124,9 @@ export interface AgentContext {
   aceptoOfertaComercial?: boolean;
   /** El mensaje actual aceptó específicamente una oferta de cotización. */
   aceptoCotizacion?: boolean;
+  /** `preparar_opciones` entregó una recomendación con precio en este turno:
+   *  la cotización de 4 sale sola, sin pedir permiso (Manuel, 31-ago). */
+  recomendacionEntregada?: boolean;
   /** La intención activa es un servicio fuera del catálogo de llantas. */
   consultaFueraDeCatalogo?: boolean;
   comparedThisTurn?: boolean;
@@ -1494,6 +1497,10 @@ export function buildTools(ctx: AgentContext) {
         porPreferencia && porPreferencia.code !== recommended.code
           ? motivoDelEscalon[preferencia!]
           : motivo.trim().replace(/\.$/, "");
+      // La recomendación entregada AUTORIZA la cotización de este turno: el
+      // cliente ya dio la señal (precio, recomendación, uso o menú) y la
+      // política del corpus permite el juego de 4 como propuesta.
+      if (entregarRecomendacion) ctx.recomendacionEntregada = true;
       return JSON.stringify({
         imagen_enviada: visual.ok,
         ...(avisoTipo ? { aviso: avisoTipo } : {}),
@@ -1534,7 +1541,7 @@ export function buildTools(ctx: AgentContext) {
         regla: [
           "Responde usando exactamente mensaje_para_enviar, con sus separadores '---' intactos. No sumes alternativas ni repitas en texto lo que ya muestra la imagen.",
           entregarRecomendacion
-            ? "El cliente YA pidió precio, recomendación, dijo su uso o contestó su preferencia, así que el texto YA le da la recomendación y ofrece cotizarla: no vuelvas a preguntarle si necesita una recomendación ni su preferencia. Si contesta cualquier cosa que no sea un no, cotiza `recomendacion` por 4 llantas con generar_cotizacion."
+            ? "El cliente YA pidió precio, recomendación, dijo su uso o contestó su preferencia: el texto le entrega la recomendación y AHORA MISMO, EN ESTE MISMO TURNO, llamas generar_cotizacion por `recomendacion` con 4 llantas (o la cantidad que el cliente haya dicho). PROHIBIDO preguntarle si la quiere y PROHIBIDO terminar el turno sin la cotización: ya te dio la señal."
             : "NO adelantes la recomendación en este turno: el texto cierra con el menú de preferencia (1 Costo / 2 Equilibrio / 3 Premium). Si el cliente responde «1», «2», «3», «costo», «equilibrio», «premium» (o «la más barata», «la del medio», «la mejor»), entrega la opción de ESE escalón de `escalones` — nombre y precio con IVA — y ofrece cotizarla por 4 llantas, sin volver a preguntar nada. Si responde un sí genérico, dile en UNA frase que irías por `recomendacion` porque `motivo_recomendacion`.",
           // La única excepción a «no agregues texto»: avisar que la medida no
           // es la suya. Callarlo es lo que terminó en una cotización firmada
@@ -1736,9 +1743,9 @@ export function buildTools(ctx: AgentContext) {
         select selected_quantity, tire_size from conversations where id=${ctx.conversation.id}
       `;
       const quantityWasConfirmed = facts?.selected_quantity != null || items[0]?.cantidad === 4;
-      const autorizada = !ctx.consultaFueraDeCatalogo && autorizaCotizacionEnEsteTurno(
-        ctx.currentUserText,
-        Boolean(ctx.aceptoCotizacion),
+      const autorizada = !ctx.consultaFueraDeCatalogo && (
+        Boolean(ctx.recomendacionEntregada)
+        || autorizaCotizacionEnEsteTurno(ctx.currentUserText, Boolean(ctx.aceptoCotizacion))
       );
       if (
         !autorizada

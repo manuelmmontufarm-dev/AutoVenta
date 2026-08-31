@@ -3,6 +3,14 @@
  *
  * S2 cambió el cierre de venta de la plantilla a «¿Le cotizo el juego de 4
  * llantas?» y exentó esa frase EXACTA del candado de preguntas prohibidas.
+ *
+ * 31-AGO-2026 — Manuel, viendo su prueba en vivo: «no debería preguntar eso,
+ * sino… automáticamente cotizarle las 4». La plantilla ya NO pide permiso: la
+ * cotización sale sola en el mismo turno. El invariante que estos tests
+ * protegen sigue siendo el mismo y sigue importando: el cierre que escribe la
+ * casa llega ENTERO al cliente por las tres puertas —ahora es la
+ * recomendación con su precio y su motivo— y la pregunta que escribe el
+ * modelo por su cuenta se sigue yendo.
  * S1, en paralelo, se llevó la cadena de candados de `index.ts` a
  * `prepararSalida.ts` y la hizo correr por las tres puertas.
  *
@@ -112,9 +120,13 @@ describe.sequential("el cierre nuevo sobrevive a la cadena entera", () => {
 
   beforeEach(() => { enviados.length = 0; });
 
-  it("la plantilla de la casa sí escribe la frase que el candado exenta", () => {
-    // Si S2 vuelve a escribir el cierre a mano, esto se cae antes que nada.
-    expect(EL_CIERRE_DE_LA_CASA).toContain(CIERRE_COTIZAR);
+  it("la plantilla entrega la recomendación y NO pide permiso para cotizar", () => {
+    // El cierre lleva qué llanta, cuánto cuesta y por qué — y ninguna
+    // pregunta: la cotización la manda `generar_cotizacion` en el mismo turno.
+    expect(EL_CIERRE_DE_LA_CASA).toContain("FALKEN WILDPEAK AT3W");
+    expect(EL_CIERRE_DE_LA_CASA).toContain("221.77");
+    expect(EL_CIERRE_DE_LA_CASA).not.toContain(CIERRE_COTIZAR);
+    expect(EL_CIERRE_DE_LA_CASA).not.toMatch(/\?/);
   });
 
   for (const tipo of ["respuesta", "retomada", "seguimiento"] as const) {
@@ -124,9 +136,8 @@ describe.sequential("el cierre nuevo sobrevive a la cadena entera", () => {
         tipo,
       });
       expect(salida.texto, `la cadena vació el mensaje por la puerta ${tipo}`).toBeTruthy();
-      expect(salida.texto).toContain(CIERRE_COTIZAR);
-      // Y el resto del mensaje tampoco se mutila: el 27-ago quedó
-      // «…es la premium de las tres. 😊» sin pedido y con el emoji colgando.
+      // El mensaje no se mutila: el 27-ago quedó «…es la premium de las tres.
+      // 😊» sin llanta y con el emoji colgando.
       expect(salida.texto).toContain("FALKEN WILDPEAK AT3W");
       expect(salida.texto).toContain("221.77");
     });
@@ -138,7 +149,8 @@ describe.sequential("el cierre nuevo sobrevive a la cadena entera", () => {
 
     await resumeBot.resumeBotIfUnanswered(id);
 
-    expect(enviados.join("\n")).toContain(CIERRE_COTIZAR);
+    expect(enviados.join("\n")).toContain("FALKEN WILDPEAK AT3W");
+    expect(enviados.join("\n")).toContain("221.77");
   });
 
   it("pero la que escribe el modelo por su cuenta se sigue yendo, por las tres puertas", async () => {

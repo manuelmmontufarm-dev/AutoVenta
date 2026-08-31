@@ -48,7 +48,10 @@ describe("el candado no borra lo que escribe la casa", () => {
     const r = sinPreguntasProhibidas(cierre);
     expect(r.quitadas).toHaveLength(0);
     expect(r.texto).toBe(cierre);
-    expect(r.texto).toContain(CIERRE_COTIZAR);
+    // 31-ago: el cierre ya no pide permiso; lo que tiene que sobrevivir es la
+    // recomendación con su precio (la cotización sale sola en el mismo turno).
+    expect(r.texto).toContain("FALKEN ZE310R");
+    expect(r.texto).toContain("221.77");
   });
 
   it("la frase canónica sola tampoco se toca", () => {
@@ -76,14 +79,24 @@ describe("el candado no borra lo que escribe la casa", () => {
     expect(r.quitadas).toEqual(["¿Se la cotizo por 4?"]);
   });
 
-  /* La plantilla y el candado leen la MISMA constante: una sola fuente. */
-  it("la plantilla usa la constante del dominio, no una copia a mano", () => {
+  /* La constante sigue exenta para el GUARDIÁN: su rúbrica la nombra como la
+     única forma legítima de pedir la cotización, y si un día vuelve a hacer
+     falta pedir permiso, el candado no puede comérsela. La plantilla ya no la
+     escribe (31-ago), pero la exención tiene que seguir viva. */
+  it("la constante de la casa sigue exenta del candado", () => {
+    const r = sinPreguntasProhibidas(`Yo iría por la *Kenda KR203*. ${CIERRE_COTIZAR}`);
+    expect(r.quitadas).toHaveLength(0);
+    expect(r.texto).toContain(CIERRE_COTIZAR);
+  });
+
+  it("la plantilla ya no pide permiso para cotizar", () => {
     const cierre = buildCierreOpciones({
       entregarRecomendacion: true,
       recomendacion: "Kenda KR203",
       motivo: "es el mejor equilibrio entre duración y precio",
     });
-    expect(cierre).toContain(CIERRE_COTIZAR);
+    expect(cierre).not.toContain(CIERRE_COTIZAR);
+    expect(cierre).toContain("Kenda KR203");
   });
 });
 
