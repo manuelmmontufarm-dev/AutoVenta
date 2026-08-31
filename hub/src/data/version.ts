@@ -9,7 +9,7 @@
  * responde el servidor no coincide con este, el panel avisa: significa que una
  * mitad se desplegó y la otra no.
  */
-export const VERSION = "v0.13.0";
+export const VERSION = "v0.13.1";
 
 /** SHA corto del commit con el que se compiló este panel. */
 export const COMMIT: string =
@@ -24,6 +24,16 @@ export interface Cambio {
 
 /** Más reciente primero. Cada entrada es lo que el negocio nota, no el diff. */
 export const CAMBIOS: Cambio[] = [
+  {
+    version: "v0.13.1",
+    fecha: "31 de agosto de 2026",
+    titulo: "La ficha del chat muestra solo lo que importa",
+    puntos: [
+      "Se quitó el bloque \"Plan hasta cierre de ventana y escalamiento\" con los mensajes programados, la ventana de 24 h y el historial de intentos: ocupaba media pantalla y no se usaba al atender.",
+      "Queda el resumen de la conversación —qué busca, qué comparó, qué eligió y qué se comprometió—, el descuento, quién atiende, las notas y el botón de cerrar.",
+      "El seguimiento automático sigue funcionando igual por detrás; solo dejó de mostrarse.",
+    ],
+  },
   {
     version: "v0.13.0",
     fecha: "9 de agosto de 2026",
