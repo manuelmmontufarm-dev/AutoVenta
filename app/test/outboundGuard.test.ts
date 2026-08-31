@@ -31,11 +31,21 @@ describe("Guardián de salida — las fallas del 5-ago no pueden volver a enviar
       expect(r.issues).toEqual([]);
     });
 
-    it("un mensaje calcado al anterior no se envía, sea cual sea su contenido", () => {
+    it("un mensaje calcado al anterior no se envía; sale el acuse neutro", () => {
+      // El calcado sigue sin salir (intención del 5-ago intacta). Lo que subió
+      // es el silencio: el contrato T115 exige que ningún turno quede mudo
+      // (31-ago, R06: el cliente dijo «Ok» y nadie le contestó nada).
       const texto = "Estas son las opciones disponibles para su medida.";
       const r = guardOutboundReply(texto, texto, true);
-      expect(r.text).toBeNull();
+      expect(r.text).not.toBe(texto);
+      expect(r.text).toContain("Quedo atento");
       expect(r.issues).toContain("mensaje_duplicado");
+    });
+
+    it("si el acuse neutro TAMBIÉN acaba de salir, ahí sí silencio", () => {
+      const neutro = "Quedo atento a lo que necesite. 🤝";
+      const r = guardOutboundReply(neutro, neutro, true);
+      expect(r.text).toBeNull();
     });
 
     it("el duplicado se detecta aunque cambien espacios o mayúsculas", () => {
@@ -44,7 +54,8 @@ describe("Guardián de salida — las fallas del 5-ago no pueden volver a enviar
         "estas son las opciones DISPONIBLES.",
         true,
       );
-      expect(r.text).toBeNull();
+      expect(r.issues).toContain("mensaje_duplicado");
+      expect(r.text).not.toContain("opciones disponibles");
     });
   });
 

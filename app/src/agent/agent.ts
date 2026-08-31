@@ -150,6 +150,7 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
   let reasoningTokens = 0;
   const usedTools: string[] = [];
   const executedCalls = new Set<string>();
+  const resultadosPorFirma = new Map<string, string>();
   // El estilo se edita en /configuracion/ia; getAiConfig cachea 30 s en memoria.
   const [aiConfig, activeDiscount, pendingDiscount, salesFacts, phaseFlags, storeHours, benefitFacts, history] =
     await Promise.all([
@@ -533,12 +534,20 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
       const tool = localTools.find((candidate) => candidate.function.name === call.function.name);
       const repetida = executedCalls.has(signature);
       if (repetida) llamadasDuplicadas += 1;
+      // La primera repetición idéntica se RESPONDE con el resultado original:
+      // el modelo la repite porque quiere el dato, y regañarlo lo dejaba
+      // insistiendo hasta chocar el tope de iteraciones (T115 H09, 31-ago,
+      // mini: 8 rondas y rescate por re-buscar la misma medida). A la segunda
+      // repetición sí es un bucle y se le corta.
       const result = repetida
-        ? JSON.stringify({ error: "Esta misma herramienta con los mismos argumentos ya se ejecutó en este turno. Usa el resultado anterior y responde ahora; no la repitas." })
+        ? (llamadasDuplicadas <= 1 && resultadosPorFirma.has(signature)
+            ? resultadosPorFirma.get(signature)!
+            : JSON.stringify({ error: "Esta misma herramienta con los mismos argumentos ya se ejecutó en este turno. Usa el resultado anterior y responde ahora; no la repitas." }))
         : tool
           ? await tool.execute(parseArguments(call.function.arguments))
           : JSON.stringify({ error: `Tool desconocida: ${call.function.name}` });
       executedCalls.add(signature);
+      if (!repetida) resultadosPorFirma.set(signature, result);
       messages.push({ role: "tool", tool_call_id: call.id, content: result });
       // La huella del turno, para el Ángel Guardián: qué se buscó y qué volvió.
       (ctx.toolTrace ??= []).push({

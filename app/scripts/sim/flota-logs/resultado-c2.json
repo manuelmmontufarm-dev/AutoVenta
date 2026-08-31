@@ -77,11 +77,15 @@
       "tipo": "image"
      },
      {
-      "texto": "Yo iría por la *KENDA KR28* — $154.49 c/u con IVA: Equilibra precio y uso diario con stock disponible.",
+      "texto": "Cotización COT-MTGXIGWW enviada por $617.96",
+      "tipo": "image"
+     },
+     {
+      "texto": "Puede pasar sin compromiso a verlas y probarlas en su vehículo.\n📍 *Depot Tire Cumbayá*: https://maps.app.goo.gl/QnMBPXKc1o8igbsp8\n📍 *Depot Tire Quito Sur*: https://maps.app.goo.gl/NQeNN8csyAnRkJDJ7",
       "tipo": "text"
      },
      {
-      "texto": "¿Le cotizo el juego de 4 llantas? 😊",
+      "texto": "¿A cuál local le queda mejor ir, *Cumbayá* o *Quito Sur*? 📍",
       "tipo": "text"
      }
     ],
@@ -90,7 +94,9 @@
     ],
     "herramientas": [
      "buscar_llanta",
-     "preparar_opciones"
+     "preparar_opciones",
+     "vuelta_forzada:atajo_exacto",
+     "generar_cotizacion"
     ],
     "modelos": [
      "gpt-5.4-mini"
@@ -101,30 +107,66 @@
      {
       "verdict": "aprobar",
       "findings": [],
-      "original": "Yo iría por la *KENDA KR28* — $154.49 c/u con IVA: Equilibra precio y uso diario con stock disponible. ¿Le cotizo el juego de 4 llantas? 😊",
+      "original": "Puede pasar sin compromiso a verlas y probarlas en su vehículo.\n📍 *Depot Tire Cumbayá*: https://maps.app.goo.gl/QnMBPXKc1o8igbsp8\n📍 *Depot Tire Quito Sur*: https://maps.app.goo.gl/NQeNN8csyAnRkJDJ7\n\n---\n\n¿A cuál local le queda mejor ir, *Cumbayá* o *Quito Sur*? 📍",
       "corregido": null
      }
     ]
    }
   ],
   "estadoFinal": {
-   "stage": "nuevo",
+   "stage": "cotizacion_enviada",
    "status": "open",
    "tire_size": "225/65R17",
    "selected_quantity": 4,
    "nearest_store": null,
    "visit_date": null,
    "current_cycle": 1,
-   "cotizaciones": [],
-   "alertas": [],
-   "avisos_asesor": 0,
+   "cotizaciones": [
+    {
+     "numero": "COT-MTGXIGWW",
+     "total": 617.96,
+     "items": [
+      {
+       "code": "K307B772",
+       "brand": "KENDA",
+       "design": "KR28",
+       "imageUrl": "/assets/catalog/kenda-kr28.jpg",
+       "quantity": 4,
+       "loadSpeed": {
+        "code": "102T",
+        "loadKg": 850,
+        "speedKmh": 190,
+        "loadIndex": 102,
+        "speedSymbol": "T"
+       },
+       "sizeLabel": "225/65R17",
+       "unitPrice": 134.33913043478262,
+       "description": "Llanta KENDA KR28 225/65R17",
+       "availability": "available",
+       "warrantyFactory": "5 años garantía de fábrica contra defectos de fabricación",
+       "listPriceWithTax": 205.98,
+       "salePriceWithTax": 154.49,
+       "warrantyRoadHazard": "12 meses contra golpes y estalladuras"
+      }
+     ],
+     "cycle": 1
+    }
+   ],
+   "alertas": [
+    {
+     "tipo": "quote_created",
+     "prioridad": "medium",
+     "resumen": "Nueva cotización COT-MTGXIGWW por $617.96"
+    }
+   ],
+   "avisos_asesor": 2,
    "sin_revision": 0
   },
   "checks": [
    {
     "nombre": "emite la cotización en el turno",
-    "ok": false,
-    "motivo": "pidió cotización explícita y no salió ninguna"
+    "ok": true,
+    "motivo": null
    }
   ]
  },
@@ -192,7 +234,13 @@
     "guardian": [
      {
       "verdict": "aprobar",
-      "findings": [],
+      "findings": [
+       {
+        "detalle": "El borrador coincide con la herramienta de ubicación para Depot Tire Quito Sur y mantiene intactos los separadores '---'.",
+        "categoria": "otro",
+        "severidad": "baja"
+       }
+      ],
       "original": "📍 *Depot Tire Quito Sur*: https://maps.app.goo.gl/NQeNN8csyAnRkJDJ7\n\n---\n\n¿Qué día cree que puede pasar por *Depot Tire Quito Sur*? Con ese dato le aviso al asesor para que le atienda apenas llegue. 📅",
       "corregido": null
      }
@@ -220,13 +268,7 @@
     "guardian": [
      {
       "verdict": "aprobar",
-      "findings": [
-       {
-        "detalle": "El texto confirma correctamente la visita registrada para el lunes 31 de agosto en Depot Tire Quito Sur; no hay desalineación con los hechos.",
-        "categoria": "estado_desincronizado",
-        "severidad": "baja"
-       }
-      ],
+      "findings": [],
       "original": "Perfecto: *lunes 31 de agosto en Depot Tire Quito Sur*. Ya quedó registrado para el asesor.\n\n¿Le queda alguna otra duda? Ahí le esperamos. 🤝",
       "corregido": null
      }
@@ -274,16 +316,18 @@
     "cliente": "¿Hacen cambio de aceite para un Vitara 2004?",
     "bot": [
      {
-      "texto": "Gracias por su consulta. Por este medio le podemos ayudar con servicios de llantas, como instalación, alineación y balanceo, revisión gratuita y mantenimiento incluido.\n\nSi desea, le ayudo a agendarlo en Depot Tire Cumbayá o Quito Sur;",
+      "texto": "Sí, le confirmo con un asesor humano para ese servicio.",
       "tipo": "text"
      },
      {
-      "texto": "¿en cuál local le queda mejor?",
+      "texto": "¿Me dice en qué sucursal le queda mejor, Cumbayá o Quito Sur?",
       "tipo": "text"
      }
     ],
     "fase": [],
-    "herramientas": [],
+    "herramientas": [
+     "notificar_vendedor"
+    ],
     "modelos": [
      "gpt-5.4-mini"
     ],
@@ -291,16 +335,10 @@
     "sinRespuesta": false,
     "guardian": [
      {
-      "verdict": "corregir",
-      "findings": [
-       {
-        "detalle": "El borrador afirma que hacemos mantenimiento preventivo automotriz y que el cambio de aceite está incluido, pero eso no está respaldado en los servicios y beneficios autorizados. Solo constan servicios de llantas y revisión/mantenimiento de llantas.",
-        "categoria": "hecho_comercial_inventado",
-        "severidad": "alta"
-       }
-      ],
-      "original": "Sí, hacemos mantenimiento preventivo automotriz, y el cambio de aceite está dentro de ese servicio. ✅\n\nSi desea, le ayudo a agendarlo en Depot Tire Cumbayá o Quito Sur; ¿en cuál local le queda mejor?",
-      "corregido": "Gracias por su consulta. Por este medio le podemos ayudar con servicios de llantas, como instalación, alineación y balanceo, revisión gratuita y mantenimiento incluido.\n\nSi desea, le ayudo a agendarlo en Depot Tire Cumbayá o Quito Sur; ¿en cuál local le queda mejor?"
+      "verdict": "aprobar",
+      "findings": [],
+      "original": "Sí, le confirmo con un asesor humano para ese servicio.  \n¿Me dice en qué sucursal le queda mejor, Cumbayá o Quito Sur?",
+      "corregido": null
      }
     ]
    }
@@ -316,12 +354,12 @@
    "cotizaciones": [],
    "alertas": [
     {
-     "tipo": "guardian_correccion",
+     "tipo": "human_requested",
      "prioridad": "high",
-     "resumen": "El guardián corrigió la respuesta: hecho_comercial_inventado"
+     "resumen": "Cliente pregunta por cambio de aceite para un Vitara 2004. Quiere confirmar disponibilidad del servicio y detalle para asesoría humana."
     }
    ],
-   "avisos_asesor": 0,
+   "avisos_asesor": 2,
    "sin_revision": 0
   },
   "checks": [
@@ -332,8 +370,8 @@
    },
    {
     "nombre": "deriva la consulta del servicio",
-    "ok": false,
-    "motivo": "ni notificó ni derivó"
+    "ok": true,
+    "motivo": null
    }
   ]
  },
@@ -346,7 +384,7 @@
     "cliente": "225/65R17",
     "bot": [
      {
-      "texto": "Opciones enviadas: FALKEN ZE310R · KENDA KR28 · WINRUN MAXCLAW A/T",
+      "texto": "Opciones enviadas: FALKEN ZE310R · KENDA KR28 · WINRUN MAXCLAW H/T2",
       "tipo": "image"
      },
      {
@@ -379,16 +417,14 @@
     "cliente": "¿hacen cambio de aceite?",
     "bot": [
      {
-      "texto": "Por este medio le ayudo con llantas y con el mantenimiento incluido de las llantas.\n\nSi busca cambio de aceite, en tienda le confirman ese servicio.",
-      "tipo": "text"
-     },
-     {
-      "texto": "¿Desea que le ayude con una cita o con llantas para su vehículo?",
+      "texto": "Le confirma un asesor, porque ese servicio requiere validación humana.\n\nSi desea, también le puedo ayudar con la cotización de sus 4 llantas 225/65R17 🤝",
       "tipo": "text"
      }
     ],
     "fase": [],
-    "herramientas": [],
+    "herramientas": [
+     "notificar_vendedor"
+    ],
     "modelos": [
      "gpt-5.4-mini"
     ],
@@ -396,48 +432,28 @@
     "sinRespuesta": false,
     "guardian": [
      {
-      "verdict": "corregir",
-      "findings": [
-       {
-        "detalle": "El borrador afirma \"Sí, ofrecemos mantenimiento preventivo automotriz\" para responder sobre cambio de aceite, pero en los hechos solo están respaldados servicios de llantas y su mantenimiento incluido; no hay respaldo explícito para cambio de aceite.",
-        "categoria": "hecho_comercial_inventado",
-        "severidad": "alta"
-       }
-      ],
-      "original": "Sí, ofrecemos mantenimiento preventivo automotriz.  \nEl detalle de cambio de aceite se lo confirma el asesor en tienda.\n\n¿Desea que le ayude con una cita o con llantas para su vehículo?",
-      "corregido": "Por este medio le ayudo con llantas y con el mantenimiento incluido de las llantas.\n\nSi busca cambio de aceite, en tienda le confirman ese servicio.\n\n¿Desea que le ayude con una cita o con llantas para su vehículo?"
+      "verdict": "aprobar",
+      "findings": [],
+      "original": "Le confirma un asesor, porque ese servicio requiere validación humana.\n\nSi desea, también le puedo ayudar con la cotización de sus 4 llantas 225/65R17 🤝",
+      "corregido": null
      }
     ]
    },
    {
     "cliente": "Ok",
-    "bot": [
-     {
-      "texto": "Sí, le ayudan en tienda con cambio de aceite.\n\nY seguimos con llantas para su 225/65R17.",
-      "tipo": "text"
-     }
+    "bot": [],
+    "fase": [
+     "cotizacion_enviada"
     ],
-    "fase": [],
-    "herramientas": [],
+    "herramientas": [
+     "notificar_vendedor"
+    ],
     "modelos": [
      "gpt-5.4-mini"
     ],
     "errores": [],
-    "sinRespuesta": false,
-    "guardian": [
-     {
-      "verdict": "corregir",
-      "findings": [
-       {
-        "detalle": "El cliente ya respondió \"Ok\" a la oferta anterior de seguir con llantas o contacto con asesor, y el borrador vuelve a preguntar casi lo mismo: \"¿Desea que le contacte un asesor o seguimos con llantas...?\".",
-        "categoria": "reofrece_lo_aceptado",
-        "severidad": "alta"
-       }
-      ],
-      "original": "Sí, le ayudan en tienda con cambio de aceite.\n\n¿Desea que le contacte un asesor o seguimos con llantas para su 225/65R17?",
-      "corregido": "Sí, le ayudan en tienda con cambio de aceite.\n\nY seguimos con llantas para su 225/65R17."
-     }
-    ]
+    "sinRespuesta": true,
+    "guardian": []
    }
   ],
   "estadoFinal": {
@@ -451,17 +467,22 @@
    "cotizaciones": [],
    "alertas": [
     {
-     "tipo": "guardian_correccion",
+     "tipo": "caso_sin_resolver",
      "prioridad": "high",
-     "resumen": "El guardián corrigió la respuesta: hecho_comercial_inventado"
+     "resumen": "Cliente pregunta si realizan cambio de aceite. No confirmado por canal; requiere revisión humana. Medida ya conocida 225/65R17, cantidad 4 llantas, pero la consulta actual es por servicio."
     },
     {
-     "tipo": "guardian_correccion",
+     "tipo": "human_requested",
      "prioridad": "high",
-     "resumen": "El guardián corrigió la respuesta: reofrece_lo_aceptado"
+     "resumen": "Cliente preguntó si hacen cambio de aceite. Responder que requiere validación humana. Medida 225/65R17 y cantidad 4 ya confirmadas, cotización previa de llantas disponible si continúa con compra."
+    },
+    {
+     "tipo": "guard_mensaje_duplicado",
+     "prioridad": "medium",
+     "resumen": "El modelo repitió exactamente el mensaje anterior (no se envió)"
     }
    ],
-   "avisos_asesor": 0,
+   "avisos_asesor": 4,
    "sin_revision": 0
   },
   "checks": [
@@ -469,6 +490,11 @@
     "nombre": "el Ok no cotiza las opciones viejas",
     "ok": true,
     "motivo": null
+   },
+   {
+    "nombre": "[global] ningún turno se queda sin respuesta",
+    "ok": false,
+    "motivo": "turno 3 quedó mudo"
    }
   ]
  },
@@ -481,16 +507,18 @@
     "cliente": "¿Hacen cambio de aceite para un Vitara 2004?",
     "bot": [
      {
-      "texto": "Para el cambio de aceite de su Vitara 2004 se lo confirma el asesor en tienda.",
+      "texto": "El asesor le va a revisar ese servicio para su Vitara 2004.\n\nSi desea, también le puedo ayudar con llantas o mantenimiento preventivo para ese vehículo,",
       "tipo": "text"
      },
      {
-      "texto": "¿Desea que le ayude con una cita o con llantas para su vehículo?",
+      "texto": "¿qué necesita?",
       "tipo": "text"
      }
     ],
     "fase": [],
-    "herramientas": [],
+    "herramientas": [
+     "notificar_vendedor"
+    ],
     "modelos": [
      "gpt-5.4-mini"
     ],
@@ -501,13 +529,13 @@
       "verdict": "corregir",
       "findings": [
        {
-        "detalle": "El borrador afirma \"hacemos mantenimiento preventivo automotriz\" como si fuera un servicio incluido, pero en los servicios respaldados no aparece cambio de aceite ni mantenimiento preventivo general.",
+        "detalle": "El borrador confirma ese servicio para su Vitara 2004, pero en los hechos no hay cotización ni catálogo que respalde cambio de aceite; solo consta que se notificó al vendedor como caso sin resolver.",
         "categoria": "hecho_comercial_inventado",
         "severidad": "alta"
        }
       ],
-      "original": "Sí, hacemos mantenimiento preventivo automotriz; para el cambio de aceite de su Vitara 2004 se lo confirma el asesor en tienda.\n---\n¿Desea que le ayude con una cita o con llantas para su vehículo?",
-      "corregido": "Para el cambio de aceite de su Vitara 2004 se lo confirma el asesor en tienda.\n---\n¿Desea que le ayude con una cita o con llantas para su vehículo?"
+      "original": "El asesor le confirma ese servicio para su Vitara 2004.\n\nSi desea, también le puedo ayudar con llantas o mantenimiento preventivo para ese vehículo, ¿qué necesita?",
+      "corregido": "El asesor le va a revisar ese servicio para su Vitara 2004.\n\nSi desea, también le puedo ayudar con llantas o mantenimiento preventivo para ese vehículo, ¿qué necesita?"
      }
     ]
    },
@@ -537,7 +565,13 @@
     "guardian": [
      {
       "verdict": "aprobar",
-      "findings": [],
+      "findings": [
+       {
+        "detalle": "El borrador coincide con lo devuelto por la herramienta para Depot Tire Cumbayá y no introduce datos extra.",
+        "categoria": "otro",
+        "severidad": "baja"
+       }
+      ],
       "original": "📍 *Depot Tire Cumbayá*: https://maps.app.goo.gl/QnMBPXKc1o8igbsp8\n\n---\n\n¿Qué día cree que puede pasar por *Depot Tire Cumbayá*? Con ese dato le aviso al asesor para que le atienda apenas llegue. 📅",
       "corregido": null
      }
@@ -547,11 +581,7 @@
     "cliente": "¿hasta qué hora atienden?",
     "bot": [
      {
-      "texto": "Depot Tire Cumbayá atiende hoy hasta las 17:30.",
-      "tipo": "text"
-     },
-     {
-      "texto": "¿Le queda bien pasar antes de esa hora?",
+      "texto": "Depot Tire Cumbayá atiende hasta las 17:30 de lunes a viernes; sábado y domingo hasta las 14:30.",
       "tipo": "text"
      }
     ],
@@ -564,10 +594,16 @@
     "sinRespuesta": false,
     "guardian": [
      {
-      "verdict": "aprobar",
-      "findings": [],
-      "original": "Depot Tire Cumbayá atiende hoy hasta las 17:30.\n\n¿Le queda bien pasar antes de esa hora?",
-      "corregido": null
+      "verdict": "corregir",
+      "findings": [
+       {
+        "detalle": "El borrador quedó incompleto con “Si le queda,”. Debe enviarse como un mensaje natural y cerrado.",
+        "categoria": "otro",
+        "severidad": "baja"
+       }
+      ],
+      "original": "Depot Tire Cumbayá atiende hasta las 17:30 de lunes a viernes; sábado y domingo hasta las 14:30.\n\nSi le queda,",
+      "corregido": "Depot Tire Cumbayá atiende hasta las 17:30 de lunes a viernes; sábado y domingo hasta las 14:30."
      }
     ]
    },
@@ -616,12 +652,17 @@
    "cotizaciones": [],
    "alertas": [
     {
+     "tipo": "caso_sin_resolver",
+     "prioridad": "high",
+     "resumen": "Cliente pregunta por cambio de aceite para Vitara 2004. Solicita confirmación de servicio fuera del catálogo desde WhatsApp."
+    },
+    {
      "tipo": "guardian_correccion",
      "prioridad": "high",
      "resumen": "El guardián corrigió la respuesta: hecho_comercial_inventado"
     }
    ],
-   "avisos_asesor": 0,
+   "avisos_asesor": 2,
    "sin_revision": 0
   },
   "checks": [

@@ -97,6 +97,14 @@ export function guardOutboundReply(
   }
 
   if (lastOutbound && normalizar(reply) === normalizar(lastOutbound)) {
+    // Contrato T115, regla 1: ningún turno del cliente se queda sin respuesta.
+    // El duplicado exacto no se manda — pero el silencio es peor que un acuse
+    // corto (31-ago, R06: el cliente dijo «Ok» y nadie le contestó nada).
+    // Si el acuse neutro TAMBIÉN acaba de salir, ahí sí silencio + alerta.
+    const neutro = "Quedo atento a lo que necesite. 🤝";
+    if (normalizar(neutro) !== normalizar(lastOutbound)) {
+      return { text: neutro, issues: ["mensaje_duplicado"] };
+    }
     return { text: null, issues: ["mensaje_duplicado"] };
   }
 

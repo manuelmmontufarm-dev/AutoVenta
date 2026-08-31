@@ -58,7 +58,15 @@
         "cliente": "Ese rin mismo es",
         "bot": [
           {
-            "texto": "Entiendo: quiere confirmar que es ese rin.\n\nMándeme solo el número del aro, por ejemplo 15, 16 o 17, y le saco opciones reales de inmediato.",
+            "texto": "Si ya tiene el rin, solo necesito que me escriba el número exacto del aro: por ejemplo 15, 16 o 17.",
+            "tipo": "text"
+          },
+          {
+            "texto": "Con ese dato le muestro opciones reales y precios.",
+            "tipo": "text"
+          },
+          {
+            "texto": "¿Me pasa el aro escrito o una foto clara del costado de la llanta?",
             "tipo": "text"
           }
         ],
@@ -75,7 +83,7 @@
           {
             "verdict": "aprobar",
             "findings": [],
-            "original": "Entiendo: quiere confirmar que es ese rin.\n\nMándeme solo el número del aro, por ejemplo 15, 16 o 17, y le saco opciones reales de inmediato.",
+            "original": "Si ya tiene el rin, solo necesito que me escriba el número exacto del aro: por ejemplo 15, 16 o 17.\n\n---\nCon ese dato le muestro opciones reales y precios.\n\n¿Me pasa el aro escrito o una foto clara del costado de la llanta?",
             "corregido": null
           }
         ]
@@ -117,13 +125,21 @@
         "cliente": "Es ese mismo rin que cuesta las llantas",
         "bot": [
           {
-            "texto": "Sí, ese mismo rin.\n\nPara esa medida le puedo preparar la cotización de la opción más conveniente o la premium; dígame cuál prefiere.",
+            "texto": "Sí, ese rin ya es el correcto: 17.",
+            "tipo": "text"
+          },
+          {
+            "texto": "Para una opción económica en esa medida, la que le mostré está en $99.52 c/u con IVA.",
+            "tipo": "text"
+          },
+          {
+            "texto": "¿Quiere que le deje la recomendación de la del medio o la premium?",
             "tipo": "text"
           }
         ],
         "fase": [],
         "herramientas": [
-          "preparar_opciones"
+          "generar_cotizacion"
         ],
         "modelos": [
           "gpt-5.4-mini"
@@ -132,21 +148,16 @@
         "sinRespuesta": false,
         "guardian": [
           {
-            "verdict": "corregir",
+            "verdict": "aprobar",
             "findings": [
               {
-                "detalle": "El cliente estaba confirmando si era ese mismo rin, y el borrador cambia de tema demasiado rápido a pedir una preferencia de cotización.",
-                "categoria": "ignora-pregunta",
+                "detalle": "La herramienta bloqueó la cotización porque este turno no autorizó cotizar llantas; el borrador no debe interpretarse como un cierre de compra. Aun así, el texto solo responde con la medida/aro y sigue la conversación sin prometer una cotización formal.",
+                "categoria": "otro",
                 "severidad": "media"
-              },
-              {
-                "detalle": "Aunque no pide cantidad, el borrador abre una nueva decisión comercial innecesaria en vez de responder directo a la confirmación del cliente.",
-                "categoria": "pregunta_de_mas",
-                "severidad": "alta"
               }
             ],
-            "original": "Sí, ese mismo rin. Ya le envié las opciones para 225/65R17.\n\nSi quiere, le cotizo de una vez la más conveniente o la premium. ¿Cuál prefiere?",
-            "corregido": "Sí, ese mismo rin.\n\nPara esa medida le puedo preparar la cotización de la opción más conveniente o la premium; dígame cuál prefiere."
+            "original": "Sí, ese rin ya es el correcto: 17.\n---\nPara una opción económica en esa medida, la que le mostré está en $99.52 c/u con IVA.\n---\n¿Quiere que le deje la recomendación de la del medio o la premium?",
+            "corregido": null
           }
         ]
       },
@@ -158,17 +169,11 @@
             "tipo": "image"
           },
           {
-            "texto": "Perfecto, para *225/60R17* tengo estas opciones.",
-            "tipo": "text"
-          },
-          {
-            "texto": "¿Le cotizo el juego de 4 llantas?",
+            "texto": "Perfecto, le dejo la recomendación para su medida.",
             "tipo": "text"
           }
         ],
-        "fase": [
-          "medida_confirmada"
-        ],
+        "fase": [],
         "herramientas": [
           "buscar_llanta",
           "preparar_opciones"
@@ -183,18 +188,13 @@
             "verdict": "corregir",
             "findings": [
               {
-                "detalle": "El borrador vuelve a hacer la misma pregunta de prioridad que ya había formulado antes: “¿qué prioriza usted? 1) Costo 2) Equilibrio 3) Premium”. Eso repite el turno en lugar de avanzar.",
-                "categoria": "repeticion",
-                "severidad": "alta"
-              },
-              {
-                "detalle": "No corresponde re-preguntar la prioridad en este punto. Ya hay medida confirmada y cantidad elegida de 4; lo correcto es avanzar con el cierre permitido.",
-                "categoria": "pregunta_de_mas",
+                "detalle": "Vuelve a pedirle al cliente que diga qué prioriza (costo, equilibrio o premium), pero eso ya se le había preguntado en el turno anterior. Es una re-pregunta innecesaria.",
+                "categoria": "re-pregunta",
                 "severidad": "alta"
               }
             ],
             "original": "Para afinarle la recomendación sobre las opciones que le envié, dígame una sola cosa: ¿qué prioriza usted?\n\n1) *Costo* — la más conveniente de precio\n2) *Equilibrio* — la que mejor balancea precio y rendimiento\n3) *Premium* — la de máxima calidad y durabilidad\n\nCon eso le dejo la opción exacta para su medida.",
-            "corregido": "Perfecto, para *225/60R17* tengo estas opciones.\n\n¿Le cotizo el juego de 4 llantas?"
+            "corregido": "Perfecto, le dejo la recomendación para su medida."
           }
         ]
       },
@@ -206,7 +206,7 @@
             "tipo": "image"
           },
           {
-            "texto": "Yo iría por la *WINRUN R380* — $92.40 c/u con IVA: Es la opción más económica para su medida sin salir de 225/60R17.",
+            "texto": "Yo iría por la *WINRUN R380* — $92.40 c/u con IVA: Es la opción más conveniente de precio para su medida.",
             "tipo": "text"
           },
           {
@@ -227,7 +227,7 @@
           {
             "verdict": "aprobar",
             "findings": [],
-            "original": "Yo iría por la *WINRUN R380* — $92.40 c/u con IVA: Es la opción más económica para su medida sin salir de 225/60R17. ¿Le cotizo el juego de 4 llantas? 😊",
+            "original": "Yo iría por la *WINRUN R380* — $92.40 c/u con IVA: Es la opción más conveniente de precio para su medida. ¿Le cotizo el juego de 4 llantas? 😊",
             "corregido": null
           }
         ]
@@ -236,7 +236,7 @@
         "cliente": "Si por favor",
         "bot": [
           {
-            "texto": "Cotización COT-MTGVTM7Q enviada por $369.60",
+            "texto": "Cotización COT-MTGXPHCS enviada por $369.60",
             "tipo": "image"
           },
           {
@@ -272,15 +272,15 @@
         "cliente": "Y en llantas 185/70R15 que cuesta gracias",
         "bot": [
           {
-            "texto": "Opciones enviadas: KENDA KR20 · WINRUN R330 · KENDA KR20",
+            "texto": "Opciones enviadas: KENDA KR20 · KENDA KR20 · WINRUN R330",
             "tipo": "image"
           },
           {
-            "texto": "⚠️ Ojo: en *185/70R15* no me queda disponibilidad exacta. Estas son *equivalentes* de su aro: KR20 en *195/45R15*, R330 en *195/55R15* y KR20 en *185/55R15*.",
+            "texto": "⚠️ Ojo: en *185/70R15* no me queda disponibilidad exacta. Sí le puedo mostrar opciones *equivalentes* para ese aro: KR20 en *195/45R15*, KR20 en *185/55R15* y R330 en *195/55R15*. Se confirma el calce al montar.",
             "tipo": "text"
           },
           {
-            "texto": "Si le sirve una de esas equivalentes, con gusto le ayudo a cotizarla.",
+            "texto": "Para afinarle la recomendación sobre las opciones que le envié, dígame una sola cosa: ¿qué prioriza usted?\n\n1) *Costo* — la más conveniente de precio\n2) *Equilibrio* — la que mejor balancea precio y rendimiento\n3) *Premium* — la de máxima calidad y durabilidad\n\nCon eso le digo cuál de estas le conviene más.",
             "tipo": "text"
           }
         ],
@@ -301,18 +301,18 @@
             "verdict": "corregir",
             "findings": [
               {
-                "detalle": "El cliente preguntó cuánto cuesta en 185/70R15 y el borrador no le responde; en su lugar cambia a pedirle que elija una prioridad.",
+                "detalle": "El cliente preguntó cuánto cuesta la 185/70R15, pero el borrador no responde el precio y pasa directo a pedir una preferencia.",
                 "categoria": "ignora-pregunta",
                 "severidad": "alta"
               },
               {
-                "detalle": "La frase 'Se confirma el calce al montar' promete una confirmación de compatibilidad que no está respaldada por el contexto dado.",
-                "categoria": "otro",
-                "severidad": "media"
+                "detalle": "La respuesta dice que esas opciones son equivalentes de 185/70R15 / 225/60R17 / 225/65R17 sin aclarar que no son de esa medida; la herramienta indicó que son 195/45R15, 185/55R15 y 195/55R15.",
+                "categoria": "medida_incorrecta",
+                "severidad": "alta"
               }
             ],
-            "original": "⚠️ Ojo: en *185/70R15 / 225/60R17 / 225/65R17* no me queda disponibilidad exacta. Estas son *equivalentes* de su aro: KR20 en 195/45R15, R330 en 195/55R15, KR20 en 185/55R15. Se confirma el calce al montar.\n\n---\n\nPara afinarle la recomendación sobre las opciones que le envié, dígame una sola cosa: ¿qué prioriza usted?\n\n1) *Costo* — la más conveniente de precio\n2) *Equilibrio* — la que mejor balancea precio y rendimiento\n3) *Premium* — la de máxima calidad y durabilidad\n\nCon eso le digo cuál de estas le conviene más.",
-            "corregido": "⚠️ Ojo: en *185/70R15* no me queda disponibilidad exacta. Estas son *equivalentes* de su aro: KR20 en *195/45R15*, R330 en *195/55R15* y KR20 en *185/55R15*.\n\n---\n\nSi le sirve una de esas equivalentes, con gusto le ayudo a cotizarla."
+            "original": "⚠️ Ojo: en *185/70R15 / 225/60R17 / 225/65R17* no me queda disponibilidad exacta. Estas son *equivalentes* de su aro: KR20 en 195/45R15, KR20 en 185/55R15, R330 en 195/55R15. Se confirma el calce al montar.\n\n---\n\nPara afinarle la recomendación sobre las opciones que le envié, dígame una sola cosa: ¿qué prioriza usted?\n\n1) *Costo* — la más conveniente de precio\n2) *Equilibrio* — la que mejor balancea precio y rendimiento\n3) *Premium* — la de máxima calidad y durabilidad\n\nCon eso le digo cuál de estas le conviene más.",
+            "corregido": "⚠️ Ojo: en *185/70R15* no me queda disponibilidad exacta. Sí le puedo mostrar opciones *equivalentes* para ese aro: KR20 en *195/45R15*, KR20 en *185/55R15* y R330 en *195/55R15*. Se confirma el calce al montar.\n\n---\n\nPara afinarle la recomendación sobre las opciones que le envié, dígame una sola cosa: ¿qué prioriza usted?\n\n1) *Costo* — la más conveniente de precio\n2) *Equilibrio* — la que mejor balancea precio y rendimiento\n3) *Premium* — la de máxima calidad y durabilidad\n\nCon eso le digo cuál de estas le conviene más."
           }
         ]
       },
@@ -320,11 +320,7 @@
         "cliente": "Mucho está en rin 17 gracias por su tiempo si hay más económicas",
         "bot": [
           {
-            "texto": "Sí, la más económica que sí tengo en su aro es la WINRUN R330.  \nSi le sirve, se la cotizo en 4 llantas.",
-            "tipo": "text"
-          },
-          {
-            "texto": "¿Quiere esa opción?",
+            "texto": "Sí, hay una más económica: la *WINRUN R330*.\n\nSi quiere, le cotizo esa opción para *4 llantas* 🤝",
             "tipo": "text"
           }
         ],
@@ -345,18 +341,13 @@
             "verdict": "corregir",
             "findings": [
               {
-                "detalle": "El cliente preguntó cuánto cuesta en 185/70R15 y el borrador no responde el precio; en su lugar vuelve a pedir permiso para cotizar.",
-                "categoria": "ignora-pregunta",
-                "severidad": "alta"
-              },
-              {
-                "detalle": "El borrador cierra con \"¿Quiere esa opción?\", aunque la consulta ya era por precio y la herramienta indicó responder directo en texto.",
-                "categoria": "pregunta_de_mas",
+                "detalle": "El borrador agrega \"otra alternativa para rin 17\", pero en este turno no se devolvió ninguna opción nueva de rin 17 y no puede inventarse una alternativa adicional.",
+                "categoria": "hecho_comercial_inventado",
                 "severidad": "alta"
               }
             ],
-            "original": "Sí, la más económica que sí tengo en su aro es la WINRUN R330.  \nSi le sirve, se la cotizo en 4 llantas.\n\n¿Quiere esa opción?",
-            "corregido": "Sí, la más económica que sí tengo en su aro es la *WINRUN R330* en *195/55R15* a *$58.25 c/u con IVA*.\n\nSi le sirve, le cotizo el juego de 4 llantas."
+            "original": "Sí, hay una más económica: la *WINRUN R330*.\n\nSi quiere, le cotizo esa opción para *4 llantas* o le muestro otra alternativa para *rin 17* 🤝",
+            "corregido": "Sí, hay una más económica: la *WINRUN R330*.\n\nSi quiere, le cotizo esa opción para *4 llantas* 🤝"
           }
         ]
       },
@@ -382,11 +373,9 @@
       "cotizaciones": 1,
       "alertas": [
         "guardian_correccion/high",
-        "guardian_correccion/high",
-        "repetitive_conversation/medium",
         "quote_created/medium",
         "guardian_correccion/high",
-        "guardian_hecho_nuevo_bloqueado/high"
+        "guardian_correccion/high"
       ]
     }
   },
@@ -425,11 +414,11 @@
         "cliente": "Necesito una llanta 165/80/R13",
         "bot": [
           {
-            "texto": "Opciones enviadas: KENDA KR33 · KENDA KR20 · WINRUN R380",
+            "texto": "Opciones enviadas: KENDA KR33 · WINRUN R380 · KENDA KR20",
             "tipo": "image"
           },
           {
-            "texto": "⚠️ Ojo: en *165/80R13* no me queda disponibilidad exacta. Estas son *equivalentes* de su aro: KR33 en 155R13, KR20 en 175/60R13, R380 en 165/65R13. Se confirma el calce al montar.",
+            "texto": "⚠️ Ojo: en *165/80R13* no me queda disponibilidad exacta. Estas son *equivalentes* de su aro: KR33 en 155R13, R380 en 165/65R13, KR20 en 175/60R13. Se confirma el calce al montar.",
             "tipo": "text"
           },
           {
@@ -453,7 +442,7 @@
           {
             "verdict": "aprobar",
             "findings": [],
-            "original": "⚠️ Ojo: en *165/80R13* no me queda disponibilidad exacta. Estas son *equivalentes* de su aro: KR33 en 155R13, KR20 en 175/60R13, R380 en 165/65R13. Se confirma el calce al montar.\n\n---\n\nPara afinarle la recomendación sobre las opciones que le envié, dígame una sola cosa: ¿qué prioriza usted?\n\n1) *Costo* — la más conveniente de precio\n2) *Equilibrio* — la que mejor balancea precio y rendimiento\n3) *Premium* — la de máxima calidad y durabilidad\n\nCon eso le digo cuál de estas le conviene más.",
+            "original": "⚠️ Ojo: en *165/80R13* no me queda disponibilidad exacta. Estas son *equivalentes* de su aro: KR33 en 155R13, R380 en 165/65R13, KR20 en 175/60R13. Se confirma el calce al montar.\n\n---\n\nPara afinarle la recomendación sobre las opciones que le envié, dígame una sola cosa: ¿qué prioriza usted?\n\n1) *Costo* — la más conveniente de precio\n2) *Equilibrio* — la que mejor balancea precio y rendimiento\n3) *Premium* — la de máxima calidad y durabilidad\n\nCon eso le digo cuál de estas le conviene más.",
             "corregido": null
           }
         ]
@@ -462,48 +451,7 @@
         "cliente": "La necesito de esa medida",
         "bot": [
           {
-            "texto": "La medida 165/80R13 no salió en stock exacto, pero sí hay alternativas en el mismo aro.",
-            "tipo": "text"
-          },
-          {
-            "texto": "Si quiere, le cotizo una de estas 4 llantas:\n- KENDA KR33\n- KENDA KR20\n- WINRUN R380",
-            "tipo": "text"
-          },
-          {
-            "texto": "¿Cuál le interesa?",
-            "tipo": "text"
-          }
-        ],
-        "fase": [],
-        "herramientas": [
-          "buscar_llanta",
-          "preparar_opciones"
-        ],
-        "modelos": [
-          "gpt-5.4-mini"
-        ],
-        "errores": [],
-        "sinRespuesta": false,
-        "guardian": [
-          {
-            "verdict": "aprobar",
-            "findings": [
-              {
-                "detalle": "El borrador responde que no salió la medida exacta y ofrece avanzar con alternativas del mismo aro. No afirma precios, stock ni una cotización no generada.",
-                "categoria": "otro",
-                "severidad": "baja"
-              }
-            ],
-            "original": "La medida 165/80R13 no salió en stock exacto, pero sí hay alternativas en el mismo aro.\n\n---\nSi quiere, le cotizo una de estas 4 llantas:\n- KENDA KR33\n- KENDA KR20\n- WINRUN R380\n\n---\n¿Cuál le interesa?",
-            "corregido": null
-          }
-        ]
-      },
-      {
-        "cliente": "Xfvr",
-        "bot": [
-          {
-            "texto": "La medida 165/80R13 no salió exacta en stock.\n\nSí puedo cotizarle las alternativas de aro 13 que sí hay.",
+            "texto": "En *165/80R13* no me aparece disponibilidad exacta.\n\nYa le dejé en pantalla las opciones equivalentes que sí hay; si desea, le ayudo a revisar cuál le conviene más.",
             "tipo": "text"
           }
         ],
@@ -522,58 +470,30 @@
             "verdict": "corregir",
             "findings": [
               {
-                "detalle": "Vuelve a preguntar si le interesa la opción más barata, equilibrada o premium, cuando el cliente ya había pedido la medida y el turno de herramienta indicó que debe responderse directo en texto. Esa re-pregunta vuelve a abrir un paso que no corresponde.",
-                "categoria": "pregunta_de_mas",
+                "detalle": "El borrador menciona la *KENDA KR20*, pero esa llanta no aparece en la herramienta de este turno ni en el catálogo visible, así que no se puede nombrar como opción.",
+                "categoria": "hecho_comercial_inventado",
                 "severidad": "alta"
-              }
-            ],
-            "original": "La medida 165/80R13 no salió exacta en stock.\n\nSí puedo cotizarle las alternativas de aro 13 que sí hay. ¿Le interesa la más barata, la equilibrada o la premium?",
-            "corregido": "La medida 165/80R13 no salió exacta en stock.\n\nSí puedo cotizarle las alternativas de aro 13 que sí hay."
-          }
-        ]
-      },
-      {
-        "cliente": "Xfvr",
-        "bot": [
-          {
-            "texto": "La medida 165/80R13 no salió exacta en stock.\n\nSí puedo cotizarle las alternativas de aro 13 que sí hay, si gusta avanzar con una de ellas.",
-            "tipo": "text"
-          }
-        ],
-        "fase": [],
-        "herramientas": [
-          "buscar_llanta",
-          "preparar_opciones"
-        ],
-        "modelos": [
-          "gpt-5.4-mini"
-        ],
-        "errores": [],
-        "sinRespuesta": false,
-        "guardian": [
-          {
-            "verdict": "corregir",
-            "findings": [
+              },
               {
-                "detalle": "Vuelve a preguntar «¿Cuál le interesa?» después de haber pedido ya esa misma precisión en el turno anterior, y la herramienta indicó que esas opciones ya estaban enviadas hace 1 min y no deben reenviarse.",
+                "detalle": "Vuelve a reenviar opciones que ya estaban en pantalla, cuando la herramienta indicó que estaban prohibidas de reenviar.",
                 "categoria": "repeticion",
-                "severidad": "alta"
+                "severidad": "media"
               }
             ],
-            "original": "La medida 165/80R13 no salió exacta en stock.\n\nSí puedo cotizarle las alternativas de aro 13 que sí hay. ¿Cuál le interesa?",
-            "corregido": "La medida 165/80R13 no salió exacta en stock.\n\nSí puedo cotizarle las alternativas de aro 13 que sí hay, si gusta avanzar con una de ellas."
+            "original": "Ya tiene las opciones en pantalla.\n\nSi quiere, le cotizo la KENDA KR20 como opción de equilibrio o la WINRUN R380 como la más económica, ¿cuál le sirve?",
+            "corregido": "En *165/80R13* no me aparece disponibilidad exacta.\n\nYa le dejé en pantalla las opciones equivalentes que sí hay; si desea, le ayudo a revisar cuál le conviene más."
           }
         ]
       },
       {
-        "cliente": "Xvr",
+        "cliente": "Xfvr",
         "bot": [
           {
-            "texto": "La medida 165/80R13 no salió exacta en stock.\n\nSí hay alternativas en aro 13 y ya le dejé una vitrina con opciones para que compare.",
+            "texto": "La medida 165/80R13 no me sale en stock exacto.\n\nSi quiere, le cotizo una equivalente de 13\" y le digo cuál le conviene más.",
             "tipo": "text"
           },
           {
-            "texto": "¿Quiere que le cotice la más conveniente?",
+            "texto": "¿Le interesa la más económica, la equilibrada o la premium?",
             "tipo": "text"
           }
         ],
@@ -591,28 +511,27 @@
           {
             "verdict": "aprobar",
             "findings": [],
-            "original": "La medida 165/80R13 no salió exacta en stock.\n\nSí hay alternativas en aro 13 y ya le dejé una vitrina con opciones para que compare. ¿Quiere que le cotice la más conveniente?",
+            "original": "La medida 165/80R13 no me sale en stock exacto.\n\nSi quiere, le cotizo una equivalente de 13\" y le digo cuál le conviene más. ¿Le interesa la más económica, la equilibrada o la premium?",
             "corregido": null
           }
         ]
       },
       {
-        "cliente": "Necesito esa m dida",
+        "cliente": "Xfvr",
         "bot": [
           {
-            "texto": "La 165/80R13 exacta no salió en stock.\n\nSí tengo estas alternativas en aro 13:\n- KENDA KR33 155R13 — $66.86 c/u\n- WINRUN R380 165/65R13 — $41.05 c/u",
+            "texto": "La medida *165/80R13* no me aparece en stock exacto.\n\nSí le puedo cotizar una equivalente de aro 13 o, si prefiere, le dejo el precio de la opción que mejor balancea valor y uso.",
             "tipo": "text"
           },
           {
-            "texto": "¿Cuál le cotizo?",
+            "texto": "¿Le cotizo la más conveniente?",
             "tipo": "text"
           }
         ],
         "fase": [],
         "herramientas": [
           "buscar_llanta",
-          "preparar_opciones",
-          "generar_cotizacion"
+          "preparar_opciones"
         ],
         "modelos": [
           "gpt-5.4-mini"
@@ -621,24 +540,18 @@
         "sinRespuesta": false,
         "guardian": [
           {
-            "verdict": "corregir",
-            "findings": [
-              {
-                "detalle": "El borrador agrega KENDA KR20 175/60R13, pero en la huella de herramientas de este turno esa alternativa no salió como opción devuelta. Solo se pueden usar las opciones que la herramienta devolvió.",
-                "categoria": "otro",
-                "severidad": "alta"
-              }
-            ],
-            "original": "La 165/80R13 exacta no salió en stock.\n\nSí tengo estas alternativas en aro 13:\n- KENDA KR33 155R13 — $66.86 c/u\n- KENDA KR20 175/60R13 — $59.18 c/u\n- WINRUN R380 165/65R13 — $41.05 c/u\n\n¿Cuál le cotizo?",
-            "corregido": "La 165/80R13 exacta no salió en stock.\n\nSí tengo estas alternativas en aro 13:\n- KENDA KR33 155R13 — $66.86 c/u\n- WINRUN R380 165/65R13 — $41.05 c/u\n\n¿Cuál le cotizo?"
+            "verdict": "aprobar",
+            "findings": [],
+            "original": "La medida *165/80R13* no me aparece en stock exacto.\n\nSí le puedo cotizar una equivalente de aro 13 o, si prefiere, le dejo el precio de la opción que mejor balancea valor y uso. ¿Le cotizo la más conveniente?",
+            "corregido": null
           }
         ]
       },
       {
-        "cliente": "Medida",
+        "cliente": "Xvr",
         "bot": [
           {
-            "texto": "Sí hay opción en aro 13, pero la 165/80R13 exacta no salió en stock.\n\nSi quiere, le cotizo la Winrun R380 para 4 llantas, que sí aparece como alternativa.",
+            "texto": "Sí, la de equilibrio que ya tiene en pantalla.\n\nSi desea, se la dejamos lista.",
             "tipo": "text"
           }
         ],
@@ -657,18 +570,83 @@
             "verdict": "corregir",
             "findings": [
               {
-                "detalle": "El borrador menciona la Kenda KR20, pero en la huella de herramientas de este turno no salió esa opción; además, la herramienta indicó que las opciones de 155R13 ya se enviaron y está prohibido reenviarlas.",
-                "categoria": "contradiccion",
+                "detalle": "El borrador pregunta «¿Se la genero por 4 llantas?», y preguntar cuántas llantas quiere está prohibido. La cantidad ya consta como 4 en los hechos, así que no debe repreguntarse.",
+                "categoria": "pregunta_de_mas",
                 "severidad": "alta"
               },
               {
-                "detalle": "El cliente respondió \"Medida\"; el borrador no le contesta de forma directa y se va de frente a re-ofrecer modelos.",
-                "categoria": "ignora-pregunta",
-                "severidad": "media"
+                "detalle": "«Sí le cotizo...» promete una cotización que este turno no genera. Como no hay cotización vigente en los hechos y la herramienta no la produjo, no se debe prometer su emisión.",
+                "categoria": "promesa_incumplible",
+                "severidad": "alta"
               }
             ],
-            "original": "Sí hay opciones en aro 13, pero la 165/80R13 exacta no salió en stock.\n\nSi quiere, le cotizo una de estas para 4 llantas: la Kenda KR20 (equilibrada) o la Winrun R380 (más económica).",
-            "corregido": "Sí hay opción en aro 13, pero la 165/80R13 exacta no salió en stock.\n\nSi quiere, le cotizo la Winrun R380 para 4 llantas, que sí aparece como alternativa."
+            "original": "Sí le cotizo la de equilibrio que ya tiene en pantalla: KENDA KR20.\n\n¿Se la genero por 4 llantas?",
+            "corregido": "Sí, la de equilibrio que ya tiene en pantalla.\n\nSi desea, se la dejamos lista."
+          }
+        ]
+      },
+      {
+        "cliente": "Necesito esa m dida",
+        "bot": [
+          {
+            "texto": "Ya tengo la medida: *165/80R13*.\n\nNo me sale stock exacto en esa medida; si desea, le ayudo a revisar una equivalente de aro 13 o a buscar por vehículo.",
+            "tipo": "text"
+          }
+        ],
+        "fase": [],
+        "herramientas": [
+          "buscar_llanta",
+          "preparar_opciones"
+        ],
+        "modelos": [
+          "gpt-5.4-mini"
+        ],
+        "errores": [],
+        "sinRespuesta": false,
+        "guardian": [
+          {
+            "verdict": "corregir",
+            "findings": [
+              {
+                "detalle": "El borrador ofrece *175/60R13* como opción más cercana, pero esa medida no aparece en el catálogo de hoy ni en la herramienta de este turno. No se puede nombrar ni cotizar una alternativa que el turno no devolvió.",
+                "categoria": "hecho_comercial_inventado",
+                "severidad": "alta"
+              },
+              {
+                "detalle": "Pregunta: «¿Le cotizo esa por 4 llantas?». La cantidad ya consta como 4 en los hechos y además el turno no habilita una cotización concreta para esa medida.",
+                "categoria": "pregunta_de_mas",
+                "severidad": "alta"
+              }
+            ],
+            "original": "Ya tengo la medida: *165/80R13*.\n\nNo me sale stock exacto; la opción más cercana disponible es *175/60R13* de equilibrio. ¿Le cotizo esa por 4 llantas?",
+            "corregido": "Ya tengo la medida: *165/80R13*.\n\nNo me sale stock exacto en esa medida; si desea, le ayudo a revisar una equivalente de aro 13 o a buscar por vehículo."
+          }
+        ]
+      },
+      {
+        "cliente": "Medida",
+        "bot": [
+          {
+            "texto": "La medida 165/80R13 no tiene stock exacto.\n\nSí tengo equivalentes de aro 13 en pantalla. Si quiere, le cotizo la equilibrada o la más barata por 4 llantas.",
+            "tipo": "text"
+          }
+        ],
+        "fase": [],
+        "herramientas": [
+          "buscar_llanta",
+          "preparar_opciones"
+        ],
+        "modelos": [
+          "gpt-5.4-mini"
+        ],
+        "errores": [],
+        "sinRespuesta": false,
+        "guardian": [
+          {
+            "verdict": "aprobar",
+            "findings": [],
+            "original": "La medida 165/80R13 no tiene stock exacto.\n\nSí tengo equivalentes de aro 13 en pantalla. Si quiere, le cotizo la equilibrada o la más barata por 4 llantas.",
+            "corregido": null
           }
         ]
       },
@@ -676,15 +654,45 @@
         "cliente": "👍🤝",
         "bot": [
           {
-            "texto": "Cotización COT-MTGVZHVD enviada por $236.72",
-            "tipo": "image"
-          },
-          {
-            "texto": "Puede pasar sin compromiso a verlas y probarlas en su vehículo.\n📍 *Depot Tire Cumbayá*: https://maps.app.goo.gl/QnMBPXKc1o8igbsp8\n📍 *Depot Tire Quito Sur*: https://maps.app.goo.gl/NQeNN8csyAnRkJDJ7",
+            "texto": "La medida 165/80R13 no tiene stock exacto.\n\nLe puedo cotizar una equivalente en aro 13, la equilibrada que ya tiene en pantalla.",
             "tipo": "text"
-          },
+          }
+        ],
+        "fase": [],
+        "herramientas": [
+          "buscar_llanta",
+          "preparar_opciones"
+        ],
+        "modelos": [
+          "gpt-5.4-mini"
+        ],
+        "errores": [],
+        "sinRespuesta": false,
+        "guardian": [
           {
-            "texto": "¿A cuál local le queda mejor ir, *Cumbayá* o *Quito Sur*? 📍",
+            "verdict": "corregir",
+            "findings": [
+              {
+                "detalle": "El borrador pregunta «¿Quiere que se la saque por 4 llantas?» aunque la cantidad ya está registrada como 4 y además no se debe volver a pedir permiso para esa cantidad.",
+                "categoria": "pregunta_de_mas",
+                "severidad": "alta"
+              },
+              {
+                "detalle": "El cliente ya respondió con aceptación («👍🤝») al flujo anterior, y el borrador vuelve a ofrecer lo mismo en lugar de cerrar o avanzar.",
+                "categoria": "reofrece_lo_aceptado",
+                "severidad": "alta"
+              }
+            ],
+            "original": "La medida 165/80R13 no tiene stock exacto.\n\nLe puedo cotizar una equivalente en aro 13: la equilibrada queda bien para uso diario. ¿Quiere que se la saque por 4 llantas?",
+            "corregido": "La medida 165/80R13 no tiene stock exacto.\n\nLe puedo cotizar una equivalente en aro 13, la equilibrada que ya tiene en pantalla."
+          }
+        ]
+      },
+      {
+        "cliente": "👍",
+        "bot": [
+          {
+            "texto": "Perfecto, ya veo la medida confirmada.\n\nEsa medida no me sale exacta; si desea, le ayudo a revisar otra medida o a buscar por vehículo.",
             "tipo": "text"
           }
         ],
@@ -693,34 +701,6 @@
         ],
         "herramientas": [
           "buscar_llanta",
-          "preparar_opciones",
-          "generar_cotizacion"
-        ],
-        "modelos": [
-          "gpt-5.4-mini"
-        ],
-        "errores": [],
-        "sinRespuesta": false,
-        "guardian": [
-          {
-            "verdict": "aprobar",
-            "findings": [],
-            "original": "Puede pasar sin compromiso a verlas y probarlas en su vehículo.\n📍 *Depot Tire Cumbayá*: https://maps.app.goo.gl/QnMBPXKc1o8igbsp8\n📍 *Depot Tire Quito Sur*: https://maps.app.goo.gl/NQeNN8csyAnRkJDJ7\n\n---\n\n¿A cuál local le queda mejor ir, *Cumbayá* o *Quito Sur*? 📍",
-            "corregido": null
-          }
-        ]
-      },
-      {
-        "cliente": "👍",
-        "bot": [
-          {
-            "texto": "Le queda la cotización anterior de 4 llantas por $236.72.\n\nSi desea, puedo avanzar con el local para que pase a verlas.",
-            "tipo": "text"
-          }
-        ],
-        "fase": [],
-        "herramientas": [
-          "buscar_llanta",
           "preparar_opciones"
         ],
         "modelos": [
@@ -730,10 +710,21 @@
         "sinRespuesta": false,
         "guardian": [
           {
-            "verdict": "aprobar",
-            "findings": [],
-            "original": "Le queda la cotización anterior de 4 llantas por $236.72.\n\nSi desea, puedo avanzar con el local para que pase a verlas.",
-            "corregido": null
+            "verdict": "corregir",
+            "findings": [
+              {
+                "detalle": "El cliente ya había aceptado con 👍, así que no corresponde volver a ofrecer la cotización ni rematar con «¿Le va bien?». El texto reabre la venta en vez de avanzar.",
+                "categoria": "reofrece_lo_aceptado",
+                "severidad": "alta"
+              },
+              {
+                "detalle": "Después del sí del cliente, el borrador vuelve a pedir permiso con una pregunta innecesaria. Debía responder directo sin reofrecer la cotización.",
+                "categoria": "pregunta_de_mas",
+                "severidad": "alta"
+              }
+            ],
+            "original": "Perfecto, ya veo la medida confirmada.\n\nNo le repito la vitrina; si quiere, le saco la cotización de la opción de equilibrio que tiene en pantalla por 4 llantas. ¿Le va bien?",
+            "corregido": "Perfecto, ya veo la medida confirmada.\n\nEsa medida no me sale exacta; si desea, le ayudo a revisar otra medida o a buscar por vehículo."
           }
         ]
       },
@@ -741,11 +732,11 @@
         "cliente": "?",
         "bot": [
           {
-            "texto": "La cotización anterior ya está enviada para 4 llantas por $236.72.\n\nSi desea, le paso el local más cercano para que vaya a verla en tienda.",
+            "texto": "La medida 165/80R13 no tiene stock exacto.\n\nSí puedo cotizarle la equilibrada en aro 13 que ya tiene en pantalla.",
             "tipo": "text"
           },
           {
-            "texto": "¿Cumbayá o Quito Sur?",
+            "texto": "¿Quiere que se la deje por 4 llantas?",
             "tipo": "text"
           }
         ],
@@ -764,27 +755,27 @@
             "verdict": "aprobar",
             "findings": [
               {
-                "detalle": "Vuelve a preguntar por el local con la misma formulación general ya usada antes en la conversación, pero no cambia la intención ni agrega un error comercial.",
-                "categoria": "repeticion",
-                "severidad": "baja"
+                "detalle": "El borrador responde que la medida 165/80R13 no tiene stock exacto y no inventa precio ni disponibilidad. No encuentro un error alto que obligue a corregirlo.",
+                "categoria": "otro",
+                "severidad": "media"
               }
             ],
-            "original": "La cotización anterior ya está enviada para 4 llantas por $236.72.\n\nSi desea, le paso el local más cercano para que vaya a verla en tienda. ¿Cumbayá o Quito Sur?",
+            "original": "La medida 165/80R13 no tiene stock exacto.\n\nSí puedo cotizarle la equilibrada en aro 13 que ya tiene en pantalla. ¿Quiere que se la deje por 4 llantas?",
             "corregido": null
           }
         ]
       }
     ],
     "estadoFinal": {
-      "stage": "seguimiento_venta",
+      "stage": "seleccionando",
       "medida": "165/80R13",
-      "cotizaciones": 1,
+      "cotizaciones": 0,
       "alertas": [
         "guardian_correccion/high",
         "guardian_correccion/high",
-        "repetitive_conversation/medium",
         "guardian_correccion/high",
-        "quote_created/medium"
+        "guardian_correccion/high",
+        "guardian_correccion/high"
       ]
     }
   },
@@ -828,43 +819,11 @@
         "cliente": "¡Hola! Quiero más información,  donde están ubicados",
         "bot": [
           {
-            "texto": "Sí, le comparto la ubicación:\n\nDepot Tire Cumbayá\n\nDepot Tire Quito Sur\n\nHorario:\nCumbayá: lunes a viernes 08:30–17:30; sábado y domingo 08:30–14:30\nQuito Sur: lunes a viernes 08:30–17:30; sábado y domingo 08:30–17:30\n\nSi desea, también le paso el número de contacto o le ayudo a cotizar una medida.",
+            "texto": "Claro. Tenemos dos locales en Quito:\n\nDepot Tire Cumbayá  \nDepot Tire Quito Sur\n\nHorario:\n- Cumbayá: lunes a viernes 08:30–17:30; sábado y domingo 08:30–14:30\n- Quito Sur: lunes a viernes 08:30–17:30; sábado y domingo 08:30–17:30\n\n¿En cuál le queda mejor?",
             "tipo": "text"
           },
           {
             "texto": "📍 *Depot Tire Cumbayá*: https://maps.app.goo.gl/QnMBPXKc1o8igbsp8\n📍 *Depot Tire Quito Sur*: https://maps.app.goo.gl/NQeNN8csyAnRkJDJ7",
-            "tipo": "text"
-          }
-        ],
-        "fase": [],
-        "herramientas": [
-          "notificar_vendedor"
-        ],
-        "modelos": [
-          "gpt-5.4-mini"
-        ],
-        "errores": [],
-        "sinRespuesta": false,
-        "guardian": [
-          {
-            "verdict": "corregir",
-            "findings": [
-              {
-                "detalle": "El borrador inventa una dirección para Cumbayá ('Av. Francisco de Orellana y …'), pero en los hechos no aparece ninguna dirección física; solo están confirmados los horarios.",
-                "categoria": "hecho_comercial_inventado",
-                "severidad": "alta"
-              }
-            ],
-            "original": "Sí, le comparto la ubicación:\n\nDepot Tire Cumbayá  \nAv. Francisco de Orellana y … (Cumbayá)\n\nDepot Tire Quito Sur  \nQuito Sur\n\nHorario:\nCumbayá: lun a vie 08:30–17:30; sáb y dom 08:30–14:30\nQuito Sur: lun a vie 08:30–17:30; sáb y dom 08:30–17:30\n\nSi desea, también le paso el número de contacto o le ayudo a cotizar una medida.",
-            "corregido": "Sí, le comparto la ubicación:\n\nDepot Tire Cumbayá\n\nDepot Tire Quito Sur\n\nHorario:\nCumbayá: lunes a viernes 08:30–17:30; sábado y domingo 08:30–14:30\nQuito Sur: lunes a viernes 08:30–17:30; sábado y domingo 08:30–17:30\n\nSi desea, también le paso el número de contacto o le ayudo a cotizar una medida."
-          }
-        ]
-      },
-      {
-        "cliente": "En que lugar de Quito porfavor",
-        "bot": [
-          {
-            "texto": "Depot Tire Quito Sur.  \nSi desea, le paso la referencia exacta o le ayudo con una medida para cotizar.",
             "tipo": "text"
           }
         ],
@@ -878,14 +837,20 @@
         "guardian": [
           {
             "verdict": "aprobar",
-            "findings": [],
-            "original": "Depot Tire Quito Sur.  \nSi desea, le paso la referencia exacta o le ayudo con una medida para cotizar.",
+            "findings": [
+              {
+                "detalle": "El cliente preguntó dónde están ubicados, pero en los hechos no constan direcciones exactas; el borrador solo puede mencionar que hay locales en Cumbayá y Quito Sur sin inventar más.",
+                "categoria": "otro",
+                "severidad": "baja"
+              }
+            ],
+            "original": "Claro. Tenemos dos locales en Quito:\n\nDepot Tire Cumbayá  \nDepot Tire Quito Sur\n\nHorario:\n- Cumbayá: lunes a viernes 08:30–17:30; sábado y domingo 08:30–14:30\n- Quito Sur: lunes a viernes 08:30–17:30; sábado y domingo 08:30–17:30\n\n¿En cuál le queda mejor?",
             "corregido": null
           }
         ]
       },
       {
-        "cliente": "El de Quito sur porfavor gracias",
+        "cliente": "En que lugar de Quito porfavor",
         "bot": [
           {
             "texto": "Perfecto, *Depot Tire Quito Sur*.",
@@ -913,6 +878,36 @@
         ]
       },
       {
+        "cliente": "El de Quito sur porfavor gracias",
+        "bot": [
+          {
+            "texto": "Perfecto, *Depot Tire Quito Sur*.",
+            "tipo": "text"
+          }
+        ],
+        "fase": [],
+        "herramientas": [],
+        "modelos": [
+          "gpt-5.4-mini"
+        ],
+        "errores": [],
+        "sinRespuesta": false,
+        "guardian": [
+          {
+            "verdict": "aprobar",
+            "findings": [
+              {
+                "detalle": "Es una confirmación muy breve y repite lo ya establecido en el turno anterior, pero no introduce un error comercial ni contradice los hechos.",
+                "categoria": "repeticion",
+                "severidad": "baja"
+              }
+            ],
+            "original": "Perfecto, *Depot Tire Quito Sur*.",
+            "corregido": null
+          }
+        ]
+      },
+      {
         "cliente": "Busco una 235/75/15",
         "bot": [
           {
@@ -929,40 +924,6 @@
         ],
         "herramientas": [
           "buscar_llanta",
-          "buscar_catalogo",
-          "preparar_opciones"
-        ],
-        "modelos": [
-          "gpt-5.4-mini"
-        ],
-        "errores": [],
-        "sinRespuesta": false,
-        "guardian": [
-          {
-            "verdict": "aprobar",
-            "findings": [
-              {
-                "detalle": "El borrador es coherente con las opciones ya preparadas y no inventa precios, medidas ni disponibilidad. La pregunta por prioridad no repregunta un dato ya dado ni cae en las prohibiciones.",
-                "categoria": "otro",
-                "severidad": "baja"
-              }
-            ],
-            "original": "Para afinarle la recomendación sobre las opciones que le envié, dígame una sola cosa: ¿qué prioriza usted?\n\n1) *Costo* — la más conveniente de precio\n2) *Equilibrio* — la que mejor balancea precio y rendimiento\n3) *Premium* — la de máxima calidad y durabilidad\n\nCon eso le dejo la opción exacta para su medida.",
-            "corregido": null
-          }
-        ]
-      },
-      {
-        "cliente": "Más modelos talvez",
-        "bot": [
-          {
-            "texto": "Sí, hay más modelos.  \n\nSi quiere, le cotizo la opción que mejor le convenga o una más económica para *Depot Tire Quito Sur* 🤝",
-            "tipo": "text"
-          }
-        ],
-        "fase": [],
-        "herramientas": [
-          "buscar_llanta",
           "preparar_opciones"
         ],
         "modelos": [
@@ -974,8 +935,49 @@
           {
             "verdict": "aprobar",
             "findings": [],
-            "original": "Sí, hay más modelos.  \n\nSi quiere, le cotizo la opción que mejor le convenga o una más económica para *Depot Tire Quito Sur* 🤝",
+            "original": "Para afinarle la recomendación sobre las opciones que le envié, dígame una sola cosa: ¿qué prioriza usted?\n\n1) *Costo* — la más conveniente de precio\n2) *Equilibrio* — la que mejor balancea precio y rendimiento\n3) *Premium* — la de máxima calidad y durabilidad\n\nCon eso le dejo la opción exacta para su medida.",
             "corregido": null
+          }
+        ]
+      },
+      {
+        "cliente": "Más modelos talvez",
+        "bot": [
+          {
+            "texto": "Sí, ya tiene 3 opciones claras en pantalla.\n\nSi quiere, le puedo cotizar una de esas:\n- FALKEN WILDPEAK A/T 4W\n- KENDA KR29\n- KENDA KR601",
+            "tipo": "text"
+          },
+          {
+            "texto": "¿Cuál le interesa?",
+            "tipo": "text"
+          }
+        ],
+        "fase": [],
+        "herramientas": [
+          "preparar_opciones"
+        ],
+        "modelos": [
+          "gpt-5.4-mini"
+        ],
+        "errores": [],
+        "sinRespuesta": false,
+        "guardian": [
+          {
+            "verdict": "corregir",
+            "findings": [
+              {
+                "detalle": "El borrador reenvía las mismas opciones que, según la herramienta, ya se enviaron hace 1 minuto y están en pantalla. La herramienta lo prohíbe.",
+                "categoria": "repeticion",
+                "severidad": "alta"
+              },
+              {
+                "detalle": "Dice \"cuatro\" opciones, pero solo lista tres.",
+                "categoria": "otro",
+                "severidad": "media"
+              }
+            ],
+            "original": "Sí, ya tiene 3 opciones claras en pantalla.\n\nSi quiere, le puedo cotizar una de estas cuatro:\n- FALKEN WILDPEAK A/T 4W\n- KENDA KR29\n- KENDA KR601\n\n¿Cuál le interesa?",
+            "corregido": "Sí, ya tiene 3 opciones claras en pantalla.\n\nSi quiere, le puedo cotizar una de esas:\n- FALKEN WILDPEAK A/T 4W\n- KENDA KR29\n- KENDA KR601\n\n¿Cuál le interesa?"
           }
         ]
       },
@@ -983,13 +985,85 @@
         "cliente": "No se ajusta a mi presupuesto",
         "bot": [
           {
-            "texto": "Sí le entiendo. En esa medida la opción más accesible que tengo es KENDA KR601.",
+            "texto": "Le ajusto al presupuesto con la opción económica: KENDA KR601, $181.69 c/u.  \nSi quiere, se la cotizo por las 4 llantas para Depot Tire Quito Sur 🤝",
+            "tipo": "text"
+          },
+          {
+            "texto": "¿Le cotizo esa?",
             "tipo": "text"
           }
         ],
         "fase": [
           "seleccionando"
         ],
+        "herramientas": [
+          "respaldo_marcas"
+        ],
+        "modelos": [
+          "gpt-5.4-mini"
+        ],
+        "errores": [],
+        "sinRespuesta": false,
+        "guardian": [
+          {
+            "verdict": "aprobar",
+            "findings": [],
+            "original": "Le ajusto al presupuesto con la opción económica: KENDA KR601, $181.69 c/u.  \nSi quiere, se la cotizo por las 4 llantas para Depot Tire Quito Sur 🤝\n\n¿Le cotizo esa?",
+            "corregido": null
+          }
+        ]
+      },
+      {
+        "cliente": "120",
+        "bot": [
+          {
+            "texto": "Con $120 no le alcanza para una opción vendible en 235/75R15. La KENDA KR601 está en $181.69 c/u e incluye instalación, alineación y balanceo.\n\nSi quiere, puedo seguir buscando una medida o modelo que se acerque más a ese presupuesto.",
+            "tipo": "text"
+          }
+        ],
+        "fase": [],
+        "herramientas": [
+          "generar_cotizacion"
+        ],
+        "modelos": [
+          "gpt-5.4-mini"
+        ],
+        "errores": [],
+        "sinRespuesta": false,
+        "guardian": [
+          {
+            "verdict": "corregir",
+            "findings": [
+              {
+                "detalle": "El cliente escribió '120' como presupuesto y el borrador no responde a ese dato; solo reafirma un precio y cambia de tema.",
+                "categoria": "ignora-pregunta",
+                "severidad": "alta"
+              },
+              {
+                "detalle": "Cierra con '¿le cotizo esa?' cuando ya venía de un intento de cotización bloqueado por la herramienta; el turno debía responder al presupuesto actual sin empujar otra cotización.",
+                "categoria": "pregunta_de_mas",
+                "severidad": "alta"
+              },
+              {
+                "detalle": "'otra opción más económica' suena a oferta abierta sin sustento inmediato; conviene dejar una salida genérica y no sugerir alternativas no confirmadas en el mensaje.",
+                "categoria": "tono",
+                "severidad": "baja"
+              }
+            ],
+            "original": "Sí, la KENDA KR601 queda en $181.69 c/u.\n\nIncluye instalación, alineación y balanceo.  \n¿Quiere que le deje otra opción más económica o le cotizo esa?",
+            "corregido": "Con $120 no le alcanza para una opción vendible en 235/75R15. La KENDA KR601 está en $181.69 c/u e incluye instalación, alineación y balanceo.\n\nSi quiere, puedo seguir buscando una medida o modelo que se acerque más a ese presupuesto."
+          }
+        ]
+      },
+      {
+        "cliente": "Si 120 por llanta",
+        "bot": [
+          {
+            "texto": "Sí, con $120 por llanta el presupuesto le quedó corto para esta medida.\n\nLa opción más accesible disponible sigue siendo KENDA KR601 en $181.69 c/u, pero no baja a $120.\n\nSi quiere, le busco otra medida más económica para ese presupuesto.",
+            "tipo": "text"
+          }
+        ],
+        "fase": [],
         "herramientas": [
           "buscar_llanta",
           "preparar_opciones"
@@ -1004,86 +1078,13 @@
             "verdict": "corregir",
             "findings": [
               {
-                "detalle": "El borrador ofrece buscar \"una alternativa más económica en otra medida o tipo\", pero esa alternativa no fue validada en este turno. No puede inventarse una nueva medida ni un nuevo camino comercial.",
-                "categoria": "hecho_comercial_inventado",
+                "detalle": "El cliente ya respondió el tope: \"$120 por llanta\". El borrador vuelve a preguntar \"qué monto máximo quiere mantener?\", repitiendo un dato ya dado.",
+                "categoria": "re-pregunta",
                 "severidad": "alta"
-              },
-              {
-                "detalle": "\"¿Quiere que le muestre una opción más barata?\" vuelve a empujar una alternativa cuando el cliente ya dijo que no se ajusta a su presupuesto. El turno debe responder de forma directa sin abrir otra pregunta.",
-                "categoria": "pregunta_de_mas",
-                "severidad": "media"
               }
             ],
-            "original": "Sí le entiendo. En esa medida la opción más accesible que tengo es KENDA KR601, y si aún está fuera de presupuesto puedo buscarle una alternativa más económica en otra medida o tipo.\n\n¿Quiere que le muestre una opción más barata?",
-            "corregido": "Sí le entiendo. En esa medida la opción más accesible que tengo es KENDA KR601."
-          }
-        ]
-      },
-      {
-        "cliente": "120",
-        "bot": [
-          {
-            "texto": "Ese modelo sí entra en *Depot Tire Quito Sur* por *$181.69 c/u con IVA*.  \n\nPara 4 llantas, sería la opción más ajustada al presupuesto de las que le mostré.",
-            "tipo": "text"
-          },
-          {
-            "texto": "¿Quiere que le deje esa opción para revisión en tienda?",
-            "tipo": "text"
-          }
-        ],
-        "fase": [],
-        "herramientas": [
-          "generar_cotizacion"
-        ],
-        "modelos": [
-          "gpt-5.4-mini"
-        ],
-        "errores": [],
-        "sinRespuesta": false,
-        "guardian": [
-          {
-            "verdict": "corregir",
-            "findings": [
-              {
-                "detalle": "El borrador promete dejarla \"reservada\", pero no hay respaldo para una reserva ni se generó cotización en este turno. Debe quedarse en una invitación genérica a revisión en tienda.",
-                "categoria": "promesa_incumplible",
-                "severidad": "media"
-              }
-            ],
-            "original": "Ese modelo sí entra en *Depot Tire Quito Sur* por *$181.69 c/u con IVA*.  \n\nPara 4 llantas, sería la opción más ajustada al presupuesto de las que le mostré.  \n¿Quiere que se la deje reservada para revisión en tienda?",
-            "corregido": "Ese modelo sí entra en *Depot Tire Quito Sur* por *$181.69 c/u con IVA*.  \n\nPara 4 llantas, sería la opción más ajustada al presupuesto de las que le mostré.  \n¿Quiere que le deje esa opción para revisión en tienda?"
-          }
-        ]
-      },
-      {
-        "cliente": "Si 120 por llanta",
-        "bot": [
-          {
-            "texto": "Sí, $120 por llanta.\n\nLa opción más ajustada que le puedo dejar es KENDA KR601, a $181.69 c/u con IVA; no entra en $120.\n\nSi desea, revisamos otra medida o una opción que se ajuste mejor a su presupuesto.",
-            "tipo": "text"
-          }
-        ],
-        "fase": [],
-        "herramientas": [
-          "generar_cotizacion"
-        ],
-        "modelos": [
-          "gpt-5.4-mini"
-        ],
-        "errores": [],
-        "sinRespuesta": false,
-        "guardian": [
-          {
-            "verdict": "corregir",
-            "findings": [
-              {
-                "detalle": "La frase «¿Quiere que le muestre una alternativa más barata si la hay?» sugiere una nueva oferta sin respaldo del turno. El contexto no autoriza a prometer otra opción más barata en esa medida; corresponde cerrar con una salida genérica.",
-                "categoria": "otro",
-                "severidad": "media"
-              }
-            ],
-            "original": "Sí, $120 por llanta.\n\nLa opción más ajustada que le puedo dejar es KENDA KR601, a $181.69 c/u con IVA; no entra en $120.  \n¿Quiere que le muestre una alternativa más barata si la hay?",
-            "corregido": "Sí, $120 por llanta.\n\nLa opción más ajustada que le puedo dejar es KENDA KR601, a $181.69 c/u con IVA; no entra en $120.\n\nSi desea, revisamos otra medida o una opción que se ajuste mejor a su presupuesto."
+            "original": "Sí, el presupuesto le quedó corto para esta medida.\n\nLa más accesible disponible sigue siendo KENDA KR601 en $181.69 c/u, pero no baja a $120.\n\nSi quiere, le busco otra medida más económica para su presupuesto, ¿qué monto máximo quiere mantener?",
+            "corregido": "Sí, con $120 por llanta el presupuesto le quedó corto para esta medida.\n\nLa opción más accesible disponible sigue siendo KENDA KR601 en $181.69 c/u, pero no baja a $120.\n\nSi quiere, le busco otra medida más económica para ese presupuesto."
           }
         ]
       },
@@ -1091,7 +1092,7 @@
         "cliente": "Para el juego de 4 llantas",
         "bot": [
           {
-            "texto": "Cotización COT-MTGW2KU2 enviada por $726.77",
+            "texto": "Cotización COT-MTGXY8U1 enviada por $726.77",
             "tipo": "image"
           },
           {
@@ -1113,7 +1114,7 @@
             "verdict": "aprobar",
             "findings": [
               {
-                "detalle": "La herramienta generó la cotización y el mensaje para enviar, pero en los hechos no hay visita registrada ni compromiso de visita; eso no invalida el texto al cliente, solo indica que el registro interno sigue vacío.",
+                "detalle": "La cotización ya fue enviada por la herramienta, pero en los hechos registrados no hay visita registrada. Eso es un desalineo de estado, aunque el texto al cliente sí puede enviarse tal como está.",
                 "categoria": "estado_desincronizado",
                 "severidad": "alta"
               }
@@ -1127,13 +1128,13 @@
         "cliente": "Solo esas dos marcas dispone",
         "bot": [
           {
-            "texto": "Tenemos más opciones, pero para esa medida y disponibilidad inmediata le mostré las que mejor encajan.\n\nSi quiere, revisamos otra opción o me quedo con la Kenda que ya tiene cotizada para *Depot Tire Quito Sur*.",
+            "texto": "Sí, para 235/75R15 tengo esas opciones de Falken y Kenda.\n\nSi quiere, le muestro la opción más barata, la intermedia y la premium para que elija cuál le conviene más 🤝",
             "tipo": "text"
           }
         ],
         "fase": [],
         "herramientas": [
-          "notificar_vendedor"
+          "buscar_llanta"
         ],
         "modelos": [
           "gpt-5.4-mini"
@@ -1142,16 +1143,10 @@
         "sinRespuesta": false,
         "guardian": [
           {
-            "verdict": "corregir",
-            "findings": [
-              {
-                "detalle": "El borrador afirma \"Tenemos más marcas\" y ofrece \"otra marca\", pero el contexto no autoriza a inventar marcas nuevas fuera de las opciones ya mostradas.",
-                "categoria": "hecho_comercial_inventado",
-                "severidad": "alta"
-              }
-            ],
-            "original": "Tenemos más marcas, pero para esa medida y disponibilidad inmediata le mostré las opciones que mejor encajan.\n\nSi quiere, le busco otra marca o me quedo con la Kenda que ya tiene cotizada para *Depot Tire Quito Sur*.",
-            "corregido": "Tenemos más opciones, pero para esa medida y disponibilidad inmediata le mostré las que mejor encajan.\n\nSi quiere, revisamos otra opción o me quedo con la Kenda que ya tiene cotizada para *Depot Tire Quito Sur*."
+            "verdict": "aprobar",
+            "findings": [],
+            "original": "Sí, para 235/75R15 tengo esas opciones de Falken y Kenda.\n\nSi quiere, le muestro la opción más barata, la intermedia y la premium para que elija cuál le conviene más 🤝",
+            "corregido": null
           }
         ]
       },
@@ -1191,11 +1186,11 @@
       "medida": "235/75R15",
       "cotizaciones": 1,
       "alertas": [
-        "caso_sin_resolver/high",
+        "guardian_correccion/high",
+        "repetitive_conversation/medium",
         "guardian_correccion/high",
         "guardian_correccion/high",
-        "quote_created/medium",
-        "guardian_correccion/high"
+        "quote_created/medium"
       ]
     }
   },
@@ -1311,16 +1306,10 @@
         "sinRespuesta": false,
         "guardian": [
           {
-            "verdict": "corregir",
-            "findings": [
-              {
-                "detalle": "Vuelve a preguntar lo mismo que ya había preguntado antes: «¿qué prioriza usted?», en lugar de avanzar con la recomendación.",
-                "categoria": "repeticion",
-                "severidad": "media"
-              }
-            ],
+            "verdict": "aprobar",
+            "findings": [],
             "original": "Para afinarle la recomendación sobre las opciones que le envié, dígame una sola cosa: ¿qué prioriza usted?\n\n1) *Costo* — la más conveniente de precio\n2) *Premium* — la de máxima calidad y durabilidad\n\nCon eso le digo cuál de estas le conviene más.",
-            "corregido": "Para su *Corsa Evolution* en aro 15, le puedo orientar entre *KENDA KR20* y *WINRUN R330*.\n\nCon eso le digo cuál de estas le conviene más."
+            "corregido": null
           }
         ]
       },
@@ -1328,16 +1317,17 @@
         "cliente": "[El cliente mandó una foto. Se lee: Marca APLUS; aro: MODEL 739, RACING SPEC]",
         "bot": [
           {
-            "texto": "La foto no me deja una medida/código comercial claro para cotizar exacto. Con su *Chevrolet Corsa Evolution* puedo seguir por aro para no dejarlo sin nada.",
+            "texto": "No me aparece ese modelo exacto en el catálogo.\n\nSi gusta, le muestro opciones reales para *aro 15* o le busco alternativas compatibles para su *Chevrolet Corsa Evolution*.",
             "tipo": "text"
           },
           {
-            "texto": "¿Me confirma el aro?",
+            "texto": "¿Cuál prefiere?",
             "tipo": "text"
           }
         ],
         "fase": [],
         "herramientas": [
+          "buscar_llanta",
           "buscar_catalogo"
         ],
         "modelos": [
@@ -1350,13 +1340,13 @@
             "verdict": "corregir",
             "findings": [
               {
-                "detalle": "El borrador vuelve a pedir el vehículo, pero en los hechos ya consta: *Chevrolet Corsa Evolution*. Debe avanzar con ese dato y no repreguntarlo.",
+                "detalle": "El borrador le pide que diga su vehículo, pero ya consta en la conversación: Chevrolet Corsa Evolution. No debe repreguntarse un dato ya dado.",
                 "categoria": "re-pregunta",
                 "severidad": "alta"
               }
             ],
-            "original": "La foto no me deja una medida/código comercial claro para cotizar exacto.  \nSi me dice *marca, modelo y año del vehículo* o solo el *aro*, le saco opciones reales enseguida.\n\n¿Qué vehículo es?",
-            "corregido": "La foto no me deja una medida/código comercial claro para cotizar exacto. Con su *Chevrolet Corsa Evolution* puedo seguir por aro para no dejarlo sin nada.\n\n¿Me confirma el aro?"
+            "original": "No me aparece ese modelo exacto en el catálogo.\n\nSi gusta, le muestro opciones reales para *aro 15* o me dice su vehículo y le saco alternativas compatibles. ¿Cuál prefiere?",
+            "corregido": "No me aparece ese modelo exacto en el catálogo.\n\nSi gusta, le muestro opciones reales para *aro 15* o le busco alternativas compatibles para su *Chevrolet Corsa Evolution*. ¿Cuál prefiere?"
           }
         ]
       },
@@ -1368,7 +1358,7 @@
             "tipo": "image"
           },
           {
-            "texto": "Para afinarle la recomendación sobre las opciones que le envié, dígame una sola cosa: ¿qué prioriza usted?\n\n1) *Costo* — la más conveniente de precio\n2) *Equilibrio* — la que mejor balancea precio y rendimiento\n3) *Premium* — la de máxima calidad y durabilidad\n\nCon eso le digo cuál le conviene más para su medida.",
+            "texto": "Para afinarle la recomendación sobre las opciones que le envié, dígame una sola cosa: ¿qué prioriza usted?\n\n1) *Costo* — la más conveniente de precio\n2) *Equilibrio* — la que mejor balancea precio y rendimiento\n3) *Premium* — la de máxima calidad y durabilidad\n\nCon eso le dejo la opción exacta para su medida.",
             "tipo": "text"
           }
         ],
@@ -1387,13 +1377,13 @@
             "verdict": "corregir",
             "findings": [
               {
-                "detalle": "El borrador repite casi literal la misma pregunta y estructura que el bot ya usó antes en la conversación, lo que añade ruido sin avanzar.",
-                "categoria": "repeticion",
-                "severidad": "baja"
+                "detalle": "Vuelve a pedirle al cliente qué prioriza, pero eso ya se preguntó en la conversación. El mensaje debe avanzar con la recomendación en lugar de repetir la misma pregunta.",
+                "categoria": "re-pregunta",
+                "severidad": "alta"
               }
             ],
             "original": "Para afinarle la recomendación sobre las opciones que le envié, dígame una sola cosa: ¿qué prioriza usted?\n\n1) *Costo* — la más conveniente de precio\n2) *Equilibrio* — la que mejor balancea precio y rendimiento\n3) *Premium* — la de máxima calidad y durabilidad\n\nCon eso le dejo la opción exacta para su medida.",
-            "corregido": "Para afinarle la recomendación sobre las opciones que le envié, dígame una sola cosa: ¿qué prioriza usted?\n\n1) *Costo* — la más conveniente de precio\n2) *Equilibrio* — la que mejor balancea precio y rendimiento\n3) *Premium* — la de máxima calidad y durabilidad\n\nCon eso le digo cuál le conviene más para su medida."
+            "corregido": "Con lo que me indicó, la mejor opción para su medida es la *KENDA KR20*.\n\nSi prefiere, también le puedo dejar la cotización del juego de *4 llantas* para su *Chevrolet Corsa Evolution*."
           }
         ]
       },
@@ -1401,7 +1391,7 @@
         "cliente": "Es precio es fijo",
         "bot": [
           {
-            "texto": "Cotización COT-MTGW9QHA enviada por $281.92",
+            "texto": "Cotización COT-MTGY5HS1 enviada por $281.92",
             "tipo": "image"
           },
           {
@@ -1435,7 +1425,7 @@
         "cliente": "Ok",
         "bot": [
           {
-            "texto": "Quedo atento.",
+            "texto": "Perfecto, quedo atento.",
             "tipo": "text"
           }
         ],
@@ -1450,7 +1440,7 @@
           {
             "verdict": "aprobar",
             "findings": [],
-            "original": "Quedo atento.",
+            "original": "Perfecto, quedo atento.",
             "corregido": null
           }
         ]
@@ -1515,7 +1505,7 @@
         "cliente": "Ok gracias",
         "bot": [
           {
-            "texto": "Con gusto, aquí le esperamos.",
+            "texto": "Gracias, queda atento.",
             "tipo": "text"
           }
         ],
@@ -1530,7 +1520,7 @@
           {
             "verdict": "aprobar",
             "findings": [],
-            "original": "Con gusto, aquí le esperamos.",
+            "original": "Gracias, queda atento.",
             "corregido": null
           }
         ]
@@ -1539,7 +1529,7 @@
         "cliente": "👍",
         "bot": [
           {
-            "texto": "Perfecto, aquí lo esperamos.",
+            "texto": "Gracias, quedamos atentos.",
             "tipo": "text"
           }
         ],
@@ -1554,7 +1544,7 @@
           {
             "verdict": "aprobar",
             "findings": [],
-            "original": "Perfecto, aquí lo esperamos.",
+            "original": "Gracias, quedamos atentos.",
             "corregido": null
           }
         ]
@@ -1578,18 +1568,13 @@
         "cliente": "Muchas gracias",
         "bot": [
           {
-            "texto": "Opciones enviadas: KENDA KR20 · KENDA KR203 · WINRUN R330",
-            "tipo": "image"
-          },
-          {
-            "texto": "Para afinarle la recomendación sobre las opciones que le envié, dígame una sola cosa: ¿qué prioriza usted?\n\n1) *Costo* — la más conveniente de precio\n2) *Equilibrio* — la que mejor balancea precio y rendimiento\n3) *Premium* — la de máxima calidad y durabilidad\n\nCon eso le dejo la opción exacta para su medida.",
+            "texto": "Con gusto. \n\nQuedo atento por si en otro momento desea revisar opciones para su Chevrolet Corsa Evolution en 195/55R15.",
             "tipo": "text"
           }
         ],
         "fase": [],
         "herramientas": [
-          "buscar_llanta",
-          "preparar_opciones"
+          "buscar_llanta"
         ],
         "modelos": [
           "gpt-5.4-mini"
@@ -1598,10 +1583,21 @@
         "sinRespuesta": false,
         "guardian": [
           {
-            "verdict": "aprobar",
-            "findings": [],
-            "original": "Para afinarle la recomendación sobre las opciones que le envié, dígame una sola cosa: ¿qué prioriza usted?\n\n1) *Costo* — la más conveniente de precio\n2) *Equilibrio* — la que mejor balancea precio y rendimiento\n3) *Premium* — la de máxima calidad y durabilidad\n\nCon eso le dejo la opción exacta para su medida.",
-            "corregido": null
+            "verdict": "corregir",
+            "findings": [
+              {
+                "detalle": "El cliente cerró con \"Muchas gracias\" y el borrador vuelve a ofrecer opciones y pide que se las muestre. Eso reabre la venta sin necesidad.",
+                "categoria": "reofrece_lo_aceptado",
+                "severidad": "alta"
+              },
+              {
+                "detalle": "\"¿Desea que le muestre las mejores opciones?\" es una pregunta comercial innecesaria en un cierre de agradecimiento.",
+                "categoria": "pregunta_de_mas",
+                "severidad": "alta"
+              }
+            ],
+            "original": "Con gusto.\n\nTengo opciones en 195/55R15 para su Chevrolet Corsa Evolution.  \n¿Desea que le muestre las mejores opciones?",
+            "corregido": "Con gusto. \n\nQuedo atento por si en otro momento desea revisar opciones para su Chevrolet Corsa Evolution en 195/55R15."
           }
         ]
       }
@@ -1611,10 +1607,12 @@
       "medida": "195/55R15",
       "cotizaciones": 1,
       "alertas": [
-        "guardian_hecho_nuevo_bloqueado/high",
         "guardian_correccion/high",
+        "guardian_correccion/high",
+        "guardian_hecho_nuevo_bloqueado/high",
         "quote_created/medium",
-        "visita_comprometida/high"
+        "visita_comprometida/high",
+        "guardian_correccion/high"
       ]
     }
   },
@@ -1634,8 +1632,8 @@
       },
       {
         "nombre": "el guardián no marca insistencia tras rechazo",
-        "ok": false,
-        "motivo": "turnos 10"
+        "ok": true,
+        "motivo": null
       },
       {
         "nombre": "no pregunta el local después de «No gracias»",
@@ -1658,7 +1656,7 @@
         "cliente": "¡Hola! Quiero más información",
         "bot": [
           {
-            "texto": "¡Hola! 👋 Le cotizo con stock y precios reales.\nLo más rápido es enviarme la *medida de la llanta* (ej. 225/65R17) o una foto del costado.\nSi no la tiene, dígame *marca, modelo y año del vehículo* o el aro; también puedo orientarle según su uso y comparar opciones.",
+            "texto": "¡Hola! 👋\n\nLo más rápido es enviarme la *medida de la llanta* (ej. 225/65R17) o una foto del costado.\n\nSi no la tiene, dígame *marca, modelo y año del vehículo* o el aro; también puedo orientarle según su uso y comparar opciones.",
             "tipo": "text"
           }
         ],
@@ -1671,10 +1669,16 @@
         "sinRespuesta": false,
         "guardian": [
           {
-            "verdict": "aprobar",
-            "findings": [],
+            "verdict": "corregir",
+            "findings": [
+              {
+                "detalle": "El borrador promete \"stock y precios reales\" sin tener una cotización ni catálogo en este turno. Mejor dejar solo la solicitud de datos para poder orientar.",
+                "categoria": "promesa_incumplible",
+                "severidad": "media"
+              }
+            ],
             "original": "¡Hola! 👋 Le cotizo con stock y precios reales.\nLo más rápido es enviarme la *medida de la llanta* (ej. 225/65R17) o una foto del costado.\nSi no la tiene, dígame *marca, modelo y año del vehículo* o el aro; también puedo orientarle según su uso y comparar opciones.",
-            "corregido": null
+            "corregido": "¡Hola! 👋\n\nLo más rápido es enviarme la *medida de la llanta* (ej. 225/65R17) o una foto del costado.\n\nSi no la tiene, dígame *marca, modelo y año del vehículo* o el aro; también puedo orientarle según su uso y comparar opciones."
           }
         ]
       },
@@ -1715,7 +1719,7 @@
         "cliente": "Que balor tiene",
         "bot": [
           {
-            "texto": "Sí, esa KENDA KR29 para su medida está en $210.06 c/u con IVA.",
+            "texto": "Tiene un valor de $210.06 c/u con IVA.\n\nSi desea, le comparto más detalles de esta opción para su medida.",
             "tipo": "text"
           }
         ],
@@ -1733,13 +1737,18 @@
             "verdict": "corregir",
             "findings": [
               {
-                "detalle": "El cierre \"le preparo la cotización si me confirma con un ‘sí’. ¿Se la envío?\" promete avanzar a una cotización que la herramienta bloqueó en este turno. El turno debe responder solo el precio consultado, sin empujar esa cotización.",
+                "detalle": "El borrador dice \"La cotización para 4 llantas incluye...\" aunque la herramienta bloqueó la cotización en este turno y pidió no empujarla.",
                 "categoria": "promesa_incumplible",
+                "severidad": "alta"
+              },
+              {
+                "detalle": "\"¿Le envío la opción para avanzar con la compra?\" vuelve a empujar la compra/cotización cuando el turno solo debía responder el precio actual.",
+                "categoria": "reofrece_lo_aceptado",
                 "severidad": "alta"
               }
             ],
-            "original": "Sí, esa KENDA KR29 para su medida está en $210.06 c/u con IVA.\n---\nPara 4 llantas, le preparo la cotización si me confirma con un “sí”. ¿Se la envío?",
-            "corregido": "Sí, esa KENDA KR29 para su medida está en $210.06 c/u con IVA."
+            "original": "Tiene un valor de $210.06 c/u con IVA.\n\nLa cotización para 4 llantas incluye instalación, alineación y balanceo.\n\n¿Le envío la opción para avanzar con la compra? 🤝",
+            "corregido": "Tiene un valor de $210.06 c/u con IVA.\n\nSi desea, le comparto más detalles de esta opción para su medida."
           }
         ]
       },
@@ -1747,46 +1756,7 @@
         "cliente": "[El cliente mandó una foto. Se lee: 31x10.50R15LT 109S 6PR]",
         "bot": [
           {
-            "texto": "La medida es 31x10.50R15LT.\n\nLa KENDA KR29 está en $210.06 c/u con IVA.",
-            "tipo": "text"
-          }
-        ],
-        "fase": [
-          "medida_confirmada"
-        ],
-        "herramientas": [
-          "generar_cotizacion"
-        ],
-        "modelos": [
-          "gpt-5.4-mini"
-        ],
-        "errores": [],
-        "sinRespuesta": false,
-        "guardian": [
-          {
-            "verdict": "corregir",
-            "findings": [
-              {
-                "detalle": "El borrador ofrece \"le dejo la cotización exacta de las 4 llantas\", pero la herramienta de este turno bloqueó la cotización y ordenó no usar el juego de cuatro como permiso de compra.",
-                "categoria": "promesa_incumplible",
-                "severidad": "alta"
-              },
-              {
-                "detalle": "\"¿Le avanzo?\" empuja una cotización que este turno no está autorizado a generar, así que añade una pregunta innecesaria y fuera de flujo.",
-                "categoria": "pregunta_de_mas",
-                "severidad": "alta"
-              }
-            ],
-            "original": "La medida es 31x10.50R15LT.\n\nLa KENDA KR29 está en $210.06 c/u con IVA.  \nSi desea, le dejo la cotización exacta de las 4 llantas. ¿Le avanzo?",
-            "corregido": "La medida es 31x10.50R15LT.\n\nLa KENDA KR29 está en $210.06 c/u con IVA."
-          }
-        ]
-      },
-      {
-        "cliente": "Si",
-        "bot": [
-          {
-            "texto": "Incluye instalación, alineación y balanceo, además de seguro y mantenimiento gratuito cada 10.000 km.\n\nLa KENDA KR29 queda en $210.06 c/u con IVA.",
+            "texto": "Sí, es esa medida: 31x10.50R15LT.\n\nLa opción disponible queda en $210.06 c/u con IVA, y para 4 llantas serían $840.24 con IVA.\n\nSi desea, le comparto más detalles de esta opción para su medida.",
             "tipo": "text"
           }
         ],
@@ -1804,13 +1774,47 @@
             "verdict": "corregir",
             "findings": [
               {
-                "detalle": "El cliente ya respondió \"Si\" a la cotización y el borrador vuelve a preguntar \"¿Desea que le deje la cotización lista?\". Eso reabre algo ya aceptado.",
-                "categoria": "reofrece_lo_aceptado",
+                "detalle": "El borrador ofrece dejar \"esta cotización lista\", pero en este turno la herramienta bloqueó la cotización y no autorizó generarla. No se puede prometer una pieza que no salió.",
+                "categoria": "promesa_incumplible",
                 "severidad": "alta"
               }
             ],
-            "original": "Incluye instalación, alineación y balanceo, además de seguro y mantenimiento gratuito cada 10.000 km.\n\nLa KENDA KR29 queda en $210.06 c/u con IVA.\n¿Desea que le deje la cotización lista?",
-            "corregido": "Incluye instalación, alineación y balanceo, además de seguro y mantenimiento gratuito cada 10.000 km.\n\nLa KENDA KR29 queda en $210.06 c/u con IVA."
+            "original": "Sí, es esa medida: 31x10.50R15LT.\n\nLa opción disponible queda en $210.06 c/u con IVA, y para 4 llantas serían $840.24 con IVA.\n\n¿Quiere que le deje esta cotización lista o prefiere comparar con otra opción?",
+            "corregido": "Sí, es esa medida: 31x10.50R15LT.\n\nLa opción disponible queda en $210.06 c/u con IVA, y para 4 llantas serían $840.24 con IVA.\n\nSi desea, le comparto más detalles de esta opción para su medida."
+          }
+        ]
+      },
+      {
+        "cliente": "Si",
+        "bot": [
+          {
+            "texto": "Perfecto. Le ayudo a elegir el local para pasar por ellas 🤝",
+            "tipo": "text"
+          }
+        ],
+        "fase": [
+          "cotizacion_enviada"
+        ],
+        "herramientas": [
+          "generar_cotizacion"
+        ],
+        "modelos": [
+          "gpt-5.4-mini"
+        ],
+        "errores": [],
+        "sinRespuesta": false,
+        "guardian": [
+          {
+            "verdict": "corregir",
+            "findings": [
+              {
+                "detalle": "El borrador afirma que \"la cotización está lista\", pero la herramienta devolvió que la cotización está bloqueada y que este turno no autorizó cotizar llantas. No se puede prometer una cotización generada en este mensaje.",
+                "categoria": "promesa_incumplible",
+                "severidad": "alta"
+              }
+            ],
+            "original": "La cotización está lista para 4 llantas de esa medida.\n\nIncluye instalación, alineación, balanceo, seguro contra golpes/cortes y mantenimiento gratuito cada 10.000 km.\n\n¿Quiere que le ayude a elegir el local para pasar por ellas? 🤝",
+            "corregido": "Perfecto. Le ayudo a elegir el local para pasar por ellas 🤝"
           }
         ]
       },
@@ -1818,7 +1822,7 @@
         "cliente": "Donde esta ubicado",
         "bot": [
           {
-            "texto": "Tenemos dos locales:\nDepot Tire Cumbayá y Depot Tire Quito Sur.\n\nSi me dice su sector, le indico cuál le queda más cerca 🤝",
+            "texto": "Tenemos dos locales en Quito:\n\n- Depot Tire Cumbayá\n- Depot Tire Quito Sur\n\nSi me dice a cuál quiere ir, le indico la mejor opción para su visita 🤝",
             "tipo": "text"
           },
           {
@@ -1838,12 +1842,12 @@
             "verdict": "aprobar",
             "findings": [
               {
-                "detalle": "Responde que cuentan con dos locales (Cumbayá y Quito Sur) y pide el sector para orientar cuál le queda más cerca. No hay contradicción con los hechos registrados.",
+                "detalle": "El borrador responde de forma muy general dónde están ubicados, pero no incluye ninguna referencia adicional de ubicación. No hay datos duros para corregir más allá de los dos locales ya mencionados.",
                 "categoria": "otro",
                 "severidad": "baja"
               }
             ],
-            "original": "Tenemos dos locales:\nDepot Tire Cumbayá y Depot Tire Quito Sur.\n\nSi me dice su sector, le indico cuál le queda más cerca 🤝",
+            "original": "Tenemos dos locales en Quito:\n\n- Depot Tire Cumbayá\n- Depot Tire Quito Sur\n\nSi me dice a cuál quiere ir, le indico la mejor opción para su visita 🤝",
             "corregido": null
           }
         ]
@@ -1852,17 +1856,17 @@
         "cliente": "Ya mire",
         "bot": [
           {
-            "texto": "📍 *Depot Tire Cumbayá*: https://maps.app.goo.gl/QnMBPXKc1o8igbsp8\n📍 *Depot Tire Quito Sur*: https://maps.app.goo.gl/NQeNN8csyAnRkJDJ7",
+            "texto": "Gracias.\n\nLa Kenda KR29 para su medida queda en $210.06 c/u con IVA. Incluye instalación, alineación y balanceo.",
             "tipo": "text"
           },
           {
-            "texto": "¿A cuál local le queda mejor? ¿Depot Tire Cumbayá o Depot Tire Quito Sur? Con eso le aviso al asesor para que le atienda apenas llegue. 📅",
+            "texto": "¿Le queda mejor Cumbayá o Quito Sur?",
             "tipo": "text"
           }
         ],
         "fase": [],
         "herramientas": [
-          "ubicacion_locales"
+          "generar_cotizacion"
         ],
         "modelos": [
           "gpt-5.4-mini"
@@ -1874,13 +1878,13 @@
             "verdict": "corregir",
             "findings": [
               {
-                "detalle": "El borrador pregunta también “¿Qué día puede pasar?”, pero todavía no se ha elegido local. La regla 16 pide separar primero la elección del local y dejar el día para después.",
-                "categoria": "pregunta_de_mas",
+                "detalle": "\"¿Le agendo una visita\" promete una gestión que no está respaldada por una visita registrada ni por una herramienta de agenda en este turno.",
+                "categoria": "promesa_incumplible",
                 "severidad": "alta"
               }
             ],
-            "original": "📍 *Depot Tire Cumbayá*: https://maps.app.goo.gl/QnMBPXKc1o8igbsp8\n📍 *Depot Tire Quito Sur*: https://maps.app.goo.gl/NQeNN8csyAnRkJDJ7\n\n---\n\n¿Qué día puede pasar y a cuál local? ¿Depot Tire Cumbayá o Depot Tire Quito Sur? Con esos dos datos le aviso al asesor para que le atienda apenas llegue. 📅",
-            "corregido": "📍 *Depot Tire Cumbayá*: https://maps.app.goo.gl/QnMBPXKc1o8igbsp8\n📍 *Depot Tire Quito Sur*: https://maps.app.goo.gl/NQeNN8csyAnRkJDJ7\n\n---\n\n¿A cuál local le queda mejor? ¿Depot Tire Cumbayá o Depot Tire Quito Sur? Con eso le aviso al asesor para que le atienda apenas llegue. 📅"
+            "original": "Gracias.\n\nLa Kenda KR29 para su medida queda en $210.06 c/u con IVA. Incluye instalación, alineación y balanceo.\n\n¿Le agendo una visita en Cumbayá o en Quito Sur?",
+            "corregido": "Gracias.\n\nLa Kenda KR29 para su medida queda en $210.06 c/u con IVA. Incluye instalación, alineación y balanceo.\n\n¿Le queda mejor Cumbayá o Quito Sur?"
           }
         ]
       },
@@ -1888,71 +1892,7 @@
         "cliente": "Boy a mirar aca en ibarra",
         "bot": [
           {
-            "texto": "¿Qué día puede pasar y a cuál local?",
-            "tipo": "text"
-          }
-        ],
-        "fase": [],
-        "herramientas": [
-          "local_mas_cercano"
-        ],
-        "modelos": [
-          "gpt-5.4-mini"
-        ],
-        "errores": [],
-        "sinRespuesta": false,
-        "guardian": [
-          {
-            "verdict": "corregir",
-            "findings": [
-              {
-                "detalle": "El borrador omitió el bloque completo devuelto por la herramienta: los dos links de locales y la opción de compartir ubicación de WhatsApp. La respuesta debe seguir exactamente el mensaje_para_enviar.",
-                "categoria": "otro",
-                "severidad": "alta"
-              }
-            ],
-            "original": "¿Qué día puede pasar y a cuál local?",
-            "corregido": "¿Qué día puede pasar y a cuál local? ¿Depot Tire Cumbayá o Depot Tire Quito Sur? Con esos dos datos le aviso al asesor para que le atienda apenas llegue. 📅\n📍 *Depot Tire Cumbayá*: https://maps.app.goo.gl/QnMBPXKc1o8igbsp8\n📍 *Depot Tire Quito Sur*: https://maps.app.goo.gl/NQeNN8csyAnRkJDJ7\nSi prefiere, compárteme su ubicación de WhatsApp y le digo cuál le queda más cerca. 📲"
-          }
-        ]
-      },
-      {
-        "cliente": "Creo me sale mas con cuenta",
-        "bot": [
-          {
-            "texto": "Entiendo.",
-            "tipo": "text"
-          }
-        ],
-        "fase": [],
-        "herramientas": [
-          "agendar_visita"
-        ],
-        "modelos": [
-          "gpt-5.4-mini"
-        ],
-        "errores": [],
-        "sinRespuesta": false,
-        "guardian": [
-          {
-            "verdict": "corregir",
-            "findings": [
-              {
-                "detalle": "El borrador no responde ni avanza con el pedido del cliente y queda cortado en \"Entonces,\". Además, la herramienta devolvió que primero debe preguntarse el día concreto antes de registrar la visita.",
-                "categoria": "ignora-pregunta",
-                "severidad": "alta"
-              }
-            ],
-            "original": "Entiendo.  \nEntonces,",
-            "corregido": "Entiendo. ¿Qué día puede pasar y a cuál local?"
-          }
-        ]
-      },
-      {
-        "cliente": "Gracias",
-        "bot": [
-          {
-            "texto": "Con gusto, gracias a usted. Si más adelante desea retomar la cotización, con gusto le ayudo.",
+            "texto": "De acuerdo.\n\nSi le queda más cerca Ibarra, un asesor puede ayudarle a coordinar la visita. Quedo atento.",
             "tipo": "text"
           }
         ],
@@ -1968,18 +1908,69 @@
             "verdict": "corregir",
             "findings": [
               {
-                "detalle": "El cliente cerró con \"Gracias\" después de indicar que le sale más con cuenta, y el borrador vuelve a ofrecer la cotización y pregunta cuál prefiere. Eso insiste en avanzar comercialmente cuando el cliente ya se está retirando.",
-                "categoria": "insiste_tras_rechazo",
-                "severidad": "alta"
-              },
-              {
-                "detalle": "La pregunta \"¿Cuál prefiere?\" vuelve a pedir una decisión comercial innecesaria en este punto, en lugar de despedir la conversación.",
+                "detalle": "Después de que el cliente dijo que va a mirar en Ibarra, el borrador vuelve a preguntar si quiere que le avisen al vendedor. Esa pregunta agrega un paso innecesario y no responde nada nuevo.",
                 "categoria": "pregunta_de_mas",
                 "severidad": "alta"
               }
             ],
-            "original": "Con gusto. Si quiere, le cotizo también con mejor precio o le reenvío la opción que ya vimos. ¿Cuál prefiere?",
-            "corregido": "Con gusto, gracias a usted. Si más adelante desea retomar la cotización, con gusto le ayudo."
+            "original": "De acuerdo.\n\nSi le queda más cerca Ibarra, un asesor puede ayudarle a coordinar la visita. ¿Quiere que le avise al vendedor?",
+            "corregido": "De acuerdo.\n\nSi le queda más cerca Ibarra, un asesor puede ayudarle a coordinar la visita. Quedo atento."
+          }
+        ]
+      },
+      {
+        "cliente": "Creo me sale mas con cuenta",
+        "bot": [
+          {
+            "texto": "Ya quedó avisado un asesor para que le apoye con eso.\n\nSi gusta, le puedo ayudar con cualquier otra consulta 🤝",
+            "tipo": "text"
+          }
+        ],
+        "fase": [],
+        "herramientas": [
+          "notificar_vendedor"
+        ],
+        "modelos": [
+          "gpt-5.4-mini"
+        ],
+        "errores": [],
+        "sinRespuesta": false,
+        "guardian": [
+          {
+            "verdict": "corregir",
+            "findings": [
+              {
+                "detalle": "El borrador dice \"le puedo dejar la cotización lista\" aunque en este turno no salió ninguna cotización ni la herramienta generó esa pieza. No se puede prometer después algo que no está saliendo ahora.",
+                "categoria": "promesa_incumplible",
+                "severidad": "alta"
+              }
+            ],
+            "original": "Ya quedó avisado un asesor para que le apoye con eso.\n\nSi quiere, también le puedo dejar la cotización lista para 4 llantas 31X10.5R15 🤝",
+            "corregido": "Ya quedó avisado un asesor para que le apoye con eso.\n\nSi gusta, le puedo ayudar con cualquier otra consulta 🤝"
+          }
+        ]
+      },
+      {
+        "cliente": "Gracias",
+        "bot": [
+          {
+            "texto": "Con gusto, aquí estoy disponible.",
+            "tipo": "text"
+          }
+        ],
+        "fase": [],
+        "herramientas": [],
+        "modelos": [
+          "gpt-5.4-mini"
+        ],
+        "errores": [],
+        "sinRespuesta": false,
+        "guardian": [
+          {
+            "verdict": "aprobar",
+            "findings": [],
+            "original": "Con gusto, aquí estoy disponible.",
+            "corregido": null
           }
         ]
       },
@@ -2039,6 +2030,7 @@
         "guardian_correccion/high",
         "guardian_correccion/high",
         "guardian_correccion/high",
+        "caso_sin_resolver/high",
         "guardian_correccion/high"
       ]
     }
@@ -2073,16 +2065,18 @@
         "cliente": "Buenas tardes, estoy al norte",
         "bot": [
           {
-            "texto": "Buenas tardes.  \nEstamos en Depot Tire Cumbayá, al norte de Quito.",
+            "texto": "Buenas tardes. Trabajamos llantas del 13 al 21 en Quito norte y sur.\n\nLe comparto la guía para ubicar el aro en la llanta y seguimos con opciones:",
             "tipo": "text"
           },
           {
-            "texto": "¿Busca llantas o mantenimiento para su vehículo?",
+            "texto": "¿qué aro tiene o qué medida ve en el costado?",
             "tipo": "text"
           }
         ],
         "fase": [],
-        "herramientas": [],
+        "herramientas": [
+          "opciones_sin_medida"
+        ],
         "modelos": [
           "gpt-5.4-mini"
         ],
@@ -2092,7 +2086,7 @@
           {
             "verdict": "aprobar",
             "findings": [],
-            "original": "Buenas tardes.  \nEstamos en Depot Tire Cumbayá, al norte de Quito.\n\n¿Busca llantas o mantenimiento para su vehículo?",
+            "original": "Buenas tardes. Trabajamos llantas del 13 al 21 en Quito norte y sur.\n\nLe comparto la guía para ubicar el aro en la llanta y seguimos con opciones: ¿qué aro tiene o qué medida ve en el costado?",
             "corregido": null
           }
         ]
@@ -2101,7 +2095,11 @@
         "cliente": "[El cliente mandó un audio. Dice: Buenas tardes, le comento, es una camioneta que me van a entregar el día jueves de esta semana, es una camioneta nueva. Ya le doy el modelo.]",
         "bot": [
           {
-            "texto": "Perfecto, apenas me comparta el modelo le digo qué le va.  \nSi tiene el aro/rin también, mejor para afinar la opción.",
+            "texto": "Perfecto, cuando me pase el modelo le digo las opciones.  \nSi no tiene la medida, también me puede enviar una foto del costado de la llanta cuando la tenga o solo el aro.",
+            "tipo": "text"
+          },
+          {
+            "texto": "¿Qué modelo es?",
             "tipo": "text"
           }
         ],
@@ -2116,7 +2114,7 @@
           {
             "verdict": "aprobar",
             "findings": [],
-            "original": "Perfecto, apenas me comparta el modelo le digo qué le va.  \nSi tiene el aro/rin también, mejor para afinar la opción.",
+            "original": "Perfecto, cuando me pase el modelo le digo las opciones.  \nSi no tiene la medida, también me puede enviar una foto del costado de la llanta cuando la tenga o solo el aro. ¿Qué modelo es?",
             "corregido": null
           }
         ]
@@ -2125,17 +2123,18 @@
         "cliente": "RELY R8 4x4",
         "bot": [
           {
-            "texto": "Ese modelo no me aparece en catálogo.  \nSi me da el aro o la medida de la llanta, le saco opciones reales; si quiere, también puedo buscar por el vehículo.",
-            "tipo": "text"
+            "texto": "Opciones enviadas: FALKEN ZE310R · KENDA KR50 · WINRUN MAXCLAW A/T",
+            "tipo": "image"
           },
           {
-            "texto": "¿Qué dato me comparte?",
+            "texto": "Para afinarle la recomendación sobre las opciones que le envié, dígame una sola cosa: ¿qué prioriza usted?\n\n1) *Costo* — la más conveniente de precio\n2) *Equilibrio* — la que mejor balancea precio y rendimiento\n3) *Premium* — la de máxima calidad y durabilidad\n\nCon eso le digo cuál de estas le conviene más.",
             "tipo": "text"
           }
         ],
         "fase": [],
         "herramientas": [
-          "buscar_catalogo"
+          "fitment_vehiculo",
+          "preparar_opciones"
         ],
         "modelos": [
           "gpt-5.4-mini"
@@ -2146,7 +2145,7 @@
           {
             "verdict": "aprobar",
             "findings": [],
-            "original": "Ese modelo no me aparece en catálogo.  \nSi me da el aro o la medida de la llanta, le saco opciones reales; si quiere, también puedo buscar por el vehículo. ¿Qué dato me comparte?",
+            "original": "Para afinarle la recomendación sobre las opciones que le envié, dígame una sola cosa: ¿qué prioriza usted?\n\n1) *Costo* — la más conveniente de precio\n2) *Equilibrio* — la que mejor balancea precio y rendimiento\n3) *Premium* — la de máxima calidad y durabilidad\n\nCon eso le digo cuál de estas le conviene más.",
             "corregido": null
           }
         ]
@@ -2155,133 +2154,18 @@
         "cliente": "[El cliente mandó una foto. Se lee: 265/65R17 116T, CHAOYANG, SU318 H/T]",
         "bot": [
           {
-            "texto": "Opciones enviadas: FALKEN WILDPEAK A/T 4W · KENDA KR628 · KENDA KR28",
+            "texto": "Opciones enviadas: KENDA KR50 · FALKEN WILDPEAK A/T 4W · WINRUN MAXCLAW R/T",
             "tipo": "image"
           },
           {
-            "texto": "Le comento en una línea: para su medida no tengo una opción H/T verificada en estas alternativas, pero sí le puedo dejar la más cercana según lo que priorice usted:\n\n1) *Costo* — la más conveniente de precio\n2) *Equilibrio* — la que mejor balancea precio y rendimiento\n3) *Premium* — la de máxima calidad y durabilidad\n\nCon eso le dejo la opción exacta para su medida.",
+            "texto": "Para afinarle la recomendación sobre las opciones que le envié, dígame una sola cosa: ¿qué prioriza usted?\n\n1) *Costo* — la más conveniente de precio\n2) *Equilibrio* — la que mejor balancea precio y rendimiento\n3) *Premium* — la de máxima calidad y durabilidad\n\nCon eso le dejo la opción exacta para su medida.",
             "tipo": "text"
           }
         ],
         "fase": [],
         "herramientas": [
-          "buscar_catalogo",
+          "buscar_llanta",
           "preparar_opciones"
-        ],
-        "modelos": [
-          "gpt-5.4-mini"
-        ],
-        "errores": [],
-        "sinRespuesta": false,
-        "guardian": [
-          {
-            "verdict": "corregir",
-            "findings": [
-              {
-                "detalle": "El cliente envió la medida 265/65R17 y la referencia H/T de la llanta; el borrador no responde eso y salta directo a preguntar una prioridad.",
-                "categoria": "ignora-pregunta",
-                "severidad": "alta"
-              },
-              {
-                "detalle": "La herramienta indicó que ninguna de las opciones enviadas es de tipo H/T verificado; el borrador no incluye esa aclaración y la petición de una sola línea con la opción más cercana.",
-                "categoria": "otro",
-                "severidad": "media"
-              }
-            ],
-            "original": "Para afinarle la recomendación sobre las opciones que le envié, dígame una sola cosa: ¿qué prioriza usted?\n\n1) *Costo* — la más conveniente de precio\n2) *Equilibrio* — la que mejor balancea precio y rendimiento\n3) *Premium* — la de máxima calidad y durabilidad\n\nCon eso le dejo la opción exacta para su medida.",
-            "corregido": "Le comento en una línea: para su medida no tengo una opción H/T verificada en estas alternativas, pero sí le puedo dejar la más cercana según lo que priorice usted:\n\n1) *Costo* — la más conveniente de precio\n2) *Equilibrio* — la que mejor balancea precio y rendimiento\n3) *Premium* — la de máxima calidad y durabilidad\n\nCon eso le dejo la opción exacta para su medida."
-          }
-        ]
-      },
-      {
-        "cliente": "Esta es una foto que me envió el concesionario",
-        "bot": [
-          {
-            "texto": "Sí, ya vi la medida de la foto: 265/65R17.\n\nSi gusta, le dejo cotizada una de las opciones que ya revisó; me dice cuál prefiere.",
-            "tipo": "text"
-          }
-        ],
-        "fase": [],
-        "herramientas": [
-          "preparar_opciones"
-        ],
-        "modelos": [
-          "gpt-5.4-mini"
-        ],
-        "errores": [],
-        "sinRespuesta": false,
-        "guardian": [
-          {
-            "verdict": "corregir",
-            "findings": [
-              {
-                "detalle": "El borrador vuelve a reenviar las tres opciones que el turno ya dejó en pantalla, y la herramienta indicó que está prohibido reenviarlas.",
-                "categoria": "repeticion",
-                "severidad": "alta"
-              }
-            ],
-            "original": "Sí, ya vi la medida de la foto: 265/65R17.\n\nSi quiere, le cotizo una de estas tres opciones que ya quedaron disponibles:\n- KENDA KR628: la más económica\n- KENDA KR28: equilibrio\n- FALKEN WILDPEAK A/T 4W: premium 🤝\n\n¿Cuál le dejo cotizada?",
-            "corregido": "Sí, ya vi la medida de la foto: 265/65R17.\n\nSi gusta, le dejo cotizada una de las opciones que ya revisó; me dice cuál prefiere."
-          }
-        ]
-      },
-      {
-        "cliente": "Las llantas no han sido usadas nunca nuevas nuevas",
-        "bot": [
-          {
-            "texto": "Sí, son nuevas de fábrica; no usadas.",
-            "tipo": "text"
-          }
-        ],
-        "fase": [],
-        "herramientas": [
-          "generar_cotizacion"
-        ],
-        "modelos": [
-          "gpt-5.4-mini"
-        ],
-        "errores": [],
-        "sinRespuesta": false,
-        "guardian": [
-          {
-            "verdict": "corregir",
-            "findings": [
-              {
-                "detalle": "Menciona la KENDA KR28 en $178.79 c/u, pero esa llanta y ese precio no aparecen en los datos duros del turno. No se puede agregar un modelo ni una cifra nueva.",
-                "categoria": "hecho_comercial_inventado",
-                "severidad": "alta"
-              },
-              {
-                "detalle": "El precio $178.79 c/u no coincide con ningún precio verificable del catálogo para 265/65R17. No debe afirmarse sin respaldo.",
-                "categoria": "precio_incorrecto",
-                "severidad": "alta"
-              },
-              {
-                "detalle": "Cierra con '¿Quiere que le deje esa opción o prefiere la más barata?', pero el turno no autorizó cotizar y la herramienta bloqueó la generación de cotización. No debe empujar una venta en este turno.",
-                "categoria": "pregunta_de_mas",
-                "severidad": "alta"
-              }
-            ],
-            "original": "Sí, son nuevas de fábrica; no usadas.  \nLa equilibrada para su medida es la KENDA KR28 en $178.79 c/u.\n\n¿Quiere que le deje esa opción o prefiere la más barata?",
-            "corregido": "Sí, son nuevas de fábrica; no usadas."
-          }
-        ]
-      },
-      {
-        "cliente": "[El cliente mandó un audio. Dice: Pero yo estoy buscando una empresa que me reciba las llantas nuevas para no tener que gastar tanto.]",
-        "bot": [
-          {
-            "texto": "Entiendo: usted busca que le reciban sus llantas nuevas para bajar el gasto.  \nEso no lo puedo confirmar por aquí; se lo verifica en tienda con un asesor.\n\nSi desea, le puedo ayudar a elegir una opción nueva que le salga más conveniente dentro de su medida 265/65R17.",
-            "tipo": "text"
-          },
-          {
-            "texto": "¿Quiere la más económica o la equilibrada?",
-            "tipo": "text"
-          }
-        ],
-        "fase": [],
-        "herramientas": [
-          "generar_cotizacion"
         ],
         "modelos": [
           "gpt-5.4-mini"
@@ -2291,17 +2175,66 @@
         "guardian": [
           {
             "verdict": "aprobar",
-            "findings": [],
-            "original": "Entiendo: usted busca que le reciban sus llantas nuevas para bajar el gasto.  \nEso no lo puedo confirmar por aquí; se lo verifica en tienda con un asesor.\n\nSi desea, le puedo ayudar a elegir una opción nueva que le salga más conveniente dentro de su medida 265/65R17. ¿Quiere la más económica o la equilibrada?",
+            "findings": [
+              {
+                "detalle": "Vuelve a pedir la prioridad de compra con la misma formulación que ya se había usado antes en la conversación, pero no cambia el contenido ni añade un dato incorrecto.",
+                "categoria": "repeticion",
+                "severidad": "baja"
+              }
+            ],
+            "original": "Para afinarle la recomendación sobre las opciones que le envié, dígame una sola cosa: ¿qué prioriza usted?\n\n1) *Costo* — la más conveniente de precio\n2) *Equilibrio* — la que mejor balancea precio y rendimiento\n3) *Premium* — la de máxima calidad y durabilidad\n\nCon eso le dejo la opción exacta para su medida.",
             "corregido": null
           }
         ]
       },
       {
-        "cliente": "Disculpa pero sólo estoy buscando cambio",
+        "cliente": "Esta es una foto que me envió el concesionario",
         "bot": [
           {
-            "texto": "Entendido, solo cambio. \nEn su caso sí está incluido alineación, balanceo e instalación en la compra.\n\nSi gusta, le ayudo a elegir la opción que mejor le convenga para 265/65R17.",
+            "texto": "La foto sí confirma la medida 265/65R17.\n\nDe las opciones que le compartí, la KENDA KR50 queda como la de equilibrio. Si desea, seguimos con esa.",
+            "tipo": "text"
+          }
+        ],
+        "fase": [],
+        "herramientas": [
+          "buscar_llanta",
+          "preparar_opciones",
+          "generar_cotizacion"
+        ],
+        "modelos": [
+          "gpt-5.4-mini"
+        ],
+        "errores": [],
+        "sinRespuesta": false,
+        "guardian": [
+          {
+            "verdict": "corregir",
+            "findings": [
+              {
+                "detalle": "El borrador vuelve a enumerar opciones que ya fueron enviadas al cliente. La herramienta indicó expresamente que está prohibido reenviarlas; debe responder sin repetir el listado completo.",
+                "categoria": "otro",
+                "severidad": "alta"
+              },
+              {
+                "detalle": "Cierra con una pregunta para volver a elegir entre equilibrio, premium o económica, cuando el turno no autoriza empujar una cotización ni reabrir ese filtro. Debe limitarse a confirmar la medida y continuar sin insistir.",
+                "categoria": "promesa_incumplible",
+                "severidad": "alta"
+              }
+            ],
+            "original": "La foto confirma la medida 265/65R17.  \nPara esa medida, la opción de equilibrio es KENDA KR50 a $202.33 c/u con IVA; premium FALKEN WILDPEAK A/T 4W a $221.77; económica WINRUN MAXCLAW R/T a $175.15.\n\n¿Cuál le dejo: equilibrio, premium o económica?",
+            "corregido": "La foto sí confirma la medida 265/65R17.\n\nDe las opciones que le compartí, la KENDA KR50 queda como la de equilibrio. Si desea, seguimos con esa."
+          }
+        ]
+      },
+      {
+        "cliente": "Las llantas no han sido usadas nunca nuevas nuevas",
+        "bot": [
+          {
+            "texto": "Perfecto, nuevas sí son.\n\nLe cotizo 4 unidades de la medida 265/65R17 con la KENDA KR50, que es la opción de equilibrio: $202.33 c/u, total $809.32 con IVA.",
+            "tipo": "text"
+          },
+          {
+            "texto": "¿Le parece bien esa opción o prefiere la premium o la más económica?",
             "tipo": "text"
           }
         ],
@@ -2314,16 +2247,75 @@
         "sinRespuesta": false,
         "guardian": [
           {
+            "verdict": "aprobar",
+            "findings": [],
+            "original": "Perfecto, nuevas sí son.\n\nLe cotizo 4 unidades de la medida 265/65R17 con la KENDA KR50, que es la opción de equilibrio: $202.33 c/u, total $809.32 con IVA.\n\n¿Le parece bien esa opción o prefiere la premium o la más económica?",
+            "corregido": null
+          }
+        ]
+      },
+      {
+        "cliente": "[El cliente mandó un audio. Dice: Pero yo estoy buscando una empresa que me reciba las llantas nuevas para no tener que gastar tanto.]",
+        "bot": [
+          {
+            "texto": "Si usted busca que le reciban las llantas nuevas para gastar menos, eso se revisa en tienda con un asesor.\n\nLas llantas que le compartí sí son nuevas.",
+            "tipo": "text"
+          }
+        ],
+        "fase": [],
+        "herramientas": [
+          "generar_cotizacion"
+        ],
+        "modelos": [
+          "gpt-5.4-mini"
+        ],
+        "errores": [],
+        "sinRespuesta": false,
+        "guardian": [
+          {
             "verdict": "corregir",
             "findings": [
               {
-                "detalle": "Vuelve a preguntar lo mismo que el bot ya había planteado antes: «¿Quiere la opción económica o la equilibrada para 265/65R17?». Conviene evitar repetir esa misma disyuntiva.",
+                "detalle": "El borrador repite que las llantas ya compartidas son nuevas y vuelve a empujar la opción equilibrada, aunque el cliente ya está preguntando por otra salida comercial.",
                 "categoria": "repeticion",
+                "severidad": "baja"
+              },
+              {
+                "detalle": "Cierra con una pregunta para volver a hablar de precio, cuando el cliente ya planteó una consulta distinta sobre recibir las llantas nuevas.",
+                "categoria": "pregunta_de_mas",
                 "severidad": "media"
               }
             ],
-            "original": "Entendido, solo cambio.  \nEn su caso sí está incluido alineación, balanceo e instalación en la compra.\n\n¿Quiere que le deje la opción económica o la equilibrada para 265/65R17?",
-            "corregido": "Entendido, solo cambio. \nEn su caso sí está incluido alineación, balanceo e instalación en la compra.\n\nSi gusta, le ayudo a elegir la opción que mejor le convenga para 265/65R17."
+            "original": "Si usted busca que le reciban las llantas nuevas para gastar menos, eso se revisa en tienda con un asesor.\n\nLas llantas que ya le compartí sí son nuevas y la opción equilibrada sigue siendo la KENDA KR50.\n\n¿Quiere que le diga cuál de las tres opciones le conviene más por precio?",
+            "corregido": "Si usted busca que le reciban las llantas nuevas para gastar menos, eso se revisa en tienda con un asesor.\n\nLas llantas que le compartí sí son nuevas."
+          }
+        ]
+      },
+      {
+        "cliente": "Disculpa pero sólo estoy buscando cambio",
+        "bot": [
+          {
+            "texto": "Entiendo: usted solo quiere hacer el cambio.\n\nLa KENDA KR50 sigue siendo la opción de equilibrio para su 265/65R17, y la cotización por 4 queda en $809.32 con IVA. Incluye instalación, alineación, balanceo, seguro, mantenimiento cada 10.000 km y revisión gratis.",
+            "tipo": "text"
+          },
+          {
+            "texto": "¿Le sirve esa opción para avanzar?",
+            "tipo": "text"
+          }
+        ],
+        "fase": [],
+        "herramientas": [],
+        "modelos": [
+          "gpt-5.4-mini"
+        ],
+        "errores": [],
+        "sinRespuesta": false,
+        "guardian": [
+          {
+            "verdict": "aprobar",
+            "findings": [],
+            "original": "Entiendo: usted solo quiere hacer el cambio.\n\nLa KENDA KR50 sigue siendo la opción de equilibrio para su 265/65R17, y la cotización por 4 queda en $809.32 con IVA. Incluye instalación, alineación, balanceo, seguro, mantenimiento cada 10.000 km y revisión gratis.\n\n¿Le sirve esa opción para avanzar?",
+            "corregido": null
           }
         ]
       },
@@ -2344,13 +2336,10 @@
       }
     ],
     "estadoFinal": {
-      "stage": "seguimiento_venta",
+      "stage": "seleccionando",
       "medida": "265/65R17",
       "cotizaciones": 0,
       "alertas": [
-        "guardian_correccion/high",
-        "guardian_correccion/high",
-        "repetitive_conversation/medium",
         "guardian_correccion/high"
       ]
     }
@@ -2390,11 +2379,11 @@
         "cliente": "Hola, buenos días",
         "bot": [
           {
-            "texto": "Buenos días, gracias por escribir a Depot Tire.",
+            "texto": "Buenos días,",
             "tipo": "text"
           },
           {
-            "texto": "¿Me indica la medida de su llanta o me envía una foto del costado?",
+            "texto": "¿en qué medida de llanta le ayudo?",
             "tipo": "text"
           }
         ],
@@ -2409,7 +2398,7 @@
           {
             "verdict": "aprobar",
             "findings": [],
-            "original": "Buenos días, gracias por escribir a Depot Tire.\n\n¿Me indica la medida de su llanta o me envía una foto del costado?",
+            "original": "Buenos días, ¿en qué medida de llanta le ayudo?",
             "corregido": null
           }
         ]
@@ -2418,7 +2407,11 @@
         "cliente": "[El cliente mandó una foto que no se pudo leer. Pídele con amabilidad que escriba lo que dice el costado de la llanta.]",
         "bot": [
           {
-            "texto": "No pude leer la foto.  \nEscríbame la medida tal como aparece en el costado, por ejemplo 205/55R16, y le cotizo de una vez.",
+            "texto": "No se alcanzó a leer la foto.  \nPor favor escríbame la medida tal como aparece en el costado, por ejemplo 205/55R16, y le cotizo de una vez",
+            "tipo": "text"
+          },
+          {
+            "texto": "¿me la pasa?",
             "tipo": "text"
           }
         ],
@@ -2433,7 +2426,7 @@
           {
             "verdict": "aprobar",
             "findings": [],
-            "original": "No pude leer la foto.  \nEscríbame la medida tal como aparece en el costado, por ejemplo 205/55R16, y le cotizo de una vez.",
+            "original": "No se alcanzó a leer la foto.  \nPor favor escríbame la medida tal como aparece en el costado, por ejemplo 205/55R16, y le cotizo de una vez ¿me la pasa?",
             "corregido": null
           }
         ]
@@ -2442,7 +2435,11 @@
         "cliente": "[El cliente mandó una foto. Se lee: 9.00-6 GOLDS SOLID]",
         "bot": [
           {
-            "texto": "Esa referencia no aparece en catálogo como medida estándar.  \nSi quiere, le busco por el aro o por el vehículo para darle opciones reales.",
+            "texto": "No encontré esa referencia exacta en el catálogo.  \nSi quiere, le busco por el aro o por el vehículo para darle opciones reales.",
+            "tipo": "text"
+          },
+          {
+            "texto": "¿Me pasa el aro o el modelo del carro?",
             "tipo": "text"
           }
         ],
@@ -2459,7 +2456,7 @@
           {
             "verdict": "aprobar",
             "findings": [],
-            "original": "Esa referencia no aparece en catálogo como medida estándar.  \nSi quiere, le busco por el aro o por el vehículo para darle opciones reales.",
+            "original": "No encontré esa referencia exacta en el catálogo.  \nSi quiere, le busco por el aro o por el vehículo para darle opciones reales. ¿Me pasa el aro o el modelo del carro?",
             "corregido": null
           }
         ]
@@ -2468,11 +2465,7 @@
         "cliente": "[El cliente mandó una foto. Se lee: 7.00-12 GOLD SOLID MADE IN INDIA]",
         "bot": [
           {
-            "texto": "No aparece ese modelo ni esa medida en el catálogo.  \nSi me dice el aro o el vehículo, le busco opciones reales para ese uso.",
-            "tipo": "text"
-          },
-          {
-            "texto": "¿Me pasa uno de esos dos datos?",
+            "texto": "No encontré esa referencia exacta en el catálogo.  \nSi me pasa el aro o el modelo del carro, le busco opciones reales para esa medida.",
             "tipo": "text"
           }
         ],
@@ -2489,7 +2482,7 @@
           {
             "verdict": "aprobar",
             "findings": [],
-            "original": "No aparece ese modelo ni esa medida en el catálogo.  \nSi me dice el aro o el vehículo, le busco opciones reales para ese uso. ¿Me pasa uno de esos dos datos?",
+            "original": "No encontré esa referencia exacta en el catálogo.  \nSi me pasa el aro o el modelo del carro, le busco opciones reales para esa medida.",
             "corregido": null
           }
         ]
@@ -2498,12 +2491,14 @@
         "cliente": "[El cliente mandó una foto. Se lee: SOLIDEAL]",
         "bot": [
           {
-            "texto": "Para ubicarle una opción real, necesito la medida o el aro.  \nSi la foto no muestra números, escríbame lo que dice el costado completo o envíeme otra donde se vea la medida.",
+            "texto": "Ese modelo no me sale en el catálogo.  \nSi me pasa el aro o el vehículo, le muestro opciones reales para avanzar con la cotización.",
             "tipo": "text"
           }
         ],
         "fase": [],
-        "herramientas": [],
+        "herramientas": [
+          "buscar_catalogo"
+        ],
         "modelos": [
           "gpt-5.4-mini"
         ],
@@ -2512,8 +2507,14 @@
         "guardian": [
           {
             "verdict": "aprobar",
-            "findings": [],
-            "original": "Para ubicarle una opción real, necesito la medida o el aro.  \nSi la foto no muestra números, escríbame lo que dice el costado completo o envíeme otra donde se vea la medida.",
+            "findings": [
+              {
+                "detalle": "El texto es consistente con la herramienta: no hubo coincidencia exacta para SOLIDEAL y se ofrece buscar por aro o vehículo sin inventar catálogo ni stock.",
+                "categoria": "otro",
+                "severidad": "baja"
+              }
+            ],
+            "original": "Ese modelo no me sale en el catálogo.  \nSi me pasa el aro o el vehículo, le muestro opciones reales para avanzar con la cotización.",
             "corregido": null
           }
         ]
@@ -2522,11 +2523,11 @@
         "cliente": "[El cliente mandó una foto. Se lee: 16x6.0-10, 28x9-15]",
         "bot": [
           {
-            "texto": "Para 28X9R15 no tengo stock en catálogo.  \nSi quiere, le paso con un asesor para revisar alternativas o disponibilidad en tienda 🤝",
+            "texto": "Para 28x9R15 no tengo stock exacto ahora mismo.  \nSi quiere, le paso con un asesor para revisar alternativas disponibles.",
             "tipo": "text"
           },
           {
-            "texto": "¿Desea que lo derive?",
+            "texto": "¿Le ayudo con eso?",
             "tipo": "text"
           }
         ],
@@ -2542,8 +2543,14 @@
         "guardian": [
           {
             "verdict": "aprobar",
-            "findings": [],
-            "original": "Para 28X9R15 no tengo stock en catálogo.  \nSi quiere, le paso con un asesor para revisar alternativas o disponibilidad en tienda 🤝\n\n¿Desea que lo derive?",
+            "findings": [
+              {
+                "detalle": "El borrador es consistente con la herramienta: para 28X9R15 no hay resultados y la salida sugerida es consultar con un asesor. No inventa alternativas ni precios.",
+                "categoria": "otro",
+                "severidad": "baja"
+              }
+            ],
+            "original": "Para 28x9R15 no tengo stock exacto ahora mismo.  \nSi quiere, le paso con un asesor para revisar alternativas disponibles.\n\n¿Le ayudo con eso?",
             "corregido": null
           }
         ]
@@ -2552,12 +2559,17 @@
         "cliente": "[El cliente mandó una foto. Se lee: 23.1-26, www.irctyre.com]",
         "bot": [
           {
-            "texto": "Ya quedó avisado el asesor para revisar esa medida industrial.  \nSi desea, también puedo ayudarle a buscar una alternativa equivalente en tienda 🤝",
+            "texto": "No me sale esa medida ni ese modelo exacto en catálogo. Ya quedó avisado un asesor para revisarlo.  \nSi quiere, le busco por el aro o por el vehículo para darle opciones reales,",
+            "tipo": "text"
+          },
+          {
+            "texto": "¿me pasa uno de esos datos?",
             "tipo": "text"
           }
         ],
         "fase": [],
         "herramientas": [
+          "buscar_catalogo",
           "notificar_vendedor"
         ],
         "modelos": [
@@ -2568,14 +2580,8 @@
         "guardian": [
           {
             "verdict": "aprobar",
-            "findings": [
-              {
-                "detalle": "La herramienta sí notificó al vendedor el caso sin resolver, así que el mensaje puede cerrar con ese aviso y una oferta genérica de ayuda sin inventar stock ni alternativas específicas.",
-                "categoria": "otro",
-                "severidad": "baja"
-              }
-            ],
-            "original": "Ya quedó avisado el asesor para revisar esa medida industrial.  \nSi desea, también puedo ayudarle a buscar una alternativa equivalente en tienda 🤝",
+            "findings": [],
+            "original": "No me sale esa medida ni ese modelo exacto en catálogo. Ya quedó avisado un asesor para revisarlo.  \nSi quiere, le busco por el aro o por el vehículo para darle opciones reales, ¿me pasa uno de esos datos?",
             "corregido": null
           }
         ]
@@ -2584,14 +2590,12 @@
         "cliente": "[El cliente mandó una foto. Se lee: 40.00x57, SOLIDO]",
         "bot": [
           {
-            "texto": "No me aparece esa medida exacta en catálogo.  \nSi me dice el aro o el vehículo, le paso opciones reales para ese uso.",
+            "texto": "No encuentro esa medida exacta en catálogo.  \nSi desea, le busco opciones por aro para ver qué sí hay disponible.",
             "tipo": "text"
           }
         ],
         "fase": [],
-        "herramientas": [
-          "buscar_catalogo"
-        ],
+        "herramientas": [],
         "modelos": [
           "gpt-5.4-mini"
         ],
@@ -2600,8 +2604,14 @@
         "guardian": [
           {
             "verdict": "aprobar",
-            "findings": [],
-            "original": "No me aparece esa medida exacta en catálogo.  \nSi me dice el aro o el vehículo, le paso opciones reales para ese uso.",
+            "findings": [
+              {
+                "detalle": "El borrador solo informa que no encuentra la medida exacta y ofrece seguir por aro; no inventa precio, stock ni medida. No hay un error que obligue a corregir.",
+                "categoria": "otro",
+                "severidad": "baja"
+              }
+            ],
+            "original": "No encuentro esa medida exacta en catálogo.  \nSi desea, le busco opciones por aro para ver qué sí hay disponible.",
             "corregido": null
           }
         ]
@@ -2610,12 +2620,13 @@
         "cliente": "[El cliente mandó una foto. Se lee: 6.50-10 DIAMOND]",
         "bot": [
           {
-            "texto": "No me aparece esa medida/modelo en catálogo.  \nSi me dice el aro o el vehículo, le paso opciones reales para ese uso 🤝",
+            "texto": "No me sale la 6.50-10 DIAMOND en el catálogo.  \nSi quiere, le busco por el vehículo o por el aro para mostrarle opciones reales.",
             "tipo": "text"
           }
         ],
         "fase": [],
         "herramientas": [
+          "buscar_llanta",
           "buscar_catalogo"
         ],
         "modelos": [
@@ -2627,7 +2638,7 @@
           {
             "verdict": "aprobar",
             "findings": [],
-            "original": "No me aparece esa medida/modelo en catálogo.  \nSi me dice el aro o el vehículo, le paso opciones reales para ese uso 🤝",
+            "original": "No me sale la 6.50-10 DIAMOND en el catálogo.  \nSi quiere, le busco por el vehículo o por el aro para mostrarle opciones reales.",
             "corregido": null
           }
         ]
@@ -2636,17 +2647,14 @@
         "cliente": "[El cliente mandó una foto. Se lee: 355/65-15 Solideal, PLATINUM, VOLTA 350TR]",
         "bot": [
           {
-            "texto": "Esa medida/modelo no me aparece en catálogo.  \nSi me dice el vehículo o el aro, le paso opciones reales para ese uso.",
-            "tipo": "text"
-          },
-          {
-            "texto": "¿Qué vehículo es?",
+            "texto": "De la 355/65R15 no me sale stock hoy. Tenemos aros del 13 al 21; si me confirma el aro, le muestro opciones reales de esa medida.",
             "tipo": "text"
           }
         ],
         "fase": [],
         "herramientas": [
-          "buscar_catalogo"
+          "buscar_llanta",
+          "opciones_sin_medida"
         ],
         "modelos": [
           "gpt-5.4-mini"
@@ -2655,10 +2663,16 @@
         "sinRespuesta": false,
         "guardian": [
           {
-            "verdict": "aprobar",
-            "findings": [],
-            "original": "Esa medida/modelo no me aparece en catálogo.  \nSi me dice el vehículo o el aro, le paso opciones reales para ese uso. ¿Qué vehículo es?",
-            "corregido": null
+            "verdict": "corregir",
+            "findings": [
+              {
+                "detalle": "El borrador afirma \"Le sirve un juego de 4 llantas 355/65R15\" sin respaldo en la conversación ni en el catálogo; además, para esa medida el catálogo indica que hoy no hay ninguna llanta.",
+                "categoria": "hecho_comercial_inventado",
+                "severidad": "alta"
+              }
+            ],
+            "original": "Le sirve un juego de 4 llantas 355/65R15.  \nTenemos aros del 13 al 21; si me confirma el aro, le muestro opciones reales de esa medida.",
+            "corregido": "De la 355/65R15 no me sale stock hoy. Tenemos aros del 13 al 21; si me confirma el aro, le muestro opciones reales de esa medida."
           }
         ]
       }
@@ -2669,7 +2683,7 @@
       "cotizaciones": 0,
       "alertas": [
         "caso_sin_resolver/high",
-        "repetitive_conversation/medium"
+        "guardian_correccion/high"
       ]
     }
   },
@@ -2732,11 +2746,7 @@
         "cliente": "Buenas tardes \nMe interesa",
         "bot": [
           {
-            "texto": "Con gusto le ayudo con llantas o mantenimiento.\n\nPara avanzar rápido, envíeme la *medida de la llanta* (ej. 225/65R17) o una foto del costado. Si no la tiene, también me sirve el aro o el vehículo.",
-            "tipo": "text"
-          },
-          {
-            "texto": "¿Qué necesita?",
+            "texto": "Le ayudo con gusto.\n\nEnvíeme la *medida de la llanta* escrita o una foto clara del costado, y le paso opciones con stock y precio real.\nSi no la encuentra, también sirve el *aro* o la *marca, modelo y año* del vehículo.",
             "tipo": "text"
           }
         ],
@@ -2749,16 +2759,10 @@
         "sinRespuesta": false,
         "guardian": [
           {
-            "verdict": "corregir",
-            "findings": [
-              {
-                "detalle": "El borrador ofrece \"lubricantes\", pero en los hechos y en el contexto no aparece ese producto como parte de lo que se puede atender o prometer.",
-                "categoria": "hecho_comercial_inventado",
-                "severidad": "media"
-              }
-            ],
-            "original": "Con gusto le ayudo con llantas, mantenimiento o lubricantes.\n\nPara avanzar rápido, envíeme la medida de la llanta (ej. 225/65R17) o una foto del costado. Si no la tiene, también me sirve el aro o el vehículo. ¿Qué necesita?",
-            "corregido": "Con gusto le ayudo con llantas o mantenimiento.\n\nPara avanzar rápido, envíeme la *medida de la llanta* (ej. 225/65R17) o una foto del costado. Si no la tiene, también me sirve el aro o el vehículo. ¿Qué necesita?"
+            "verdict": "aprobar",
+            "findings": [],
+            "original": "Le ayudo con gusto.\n\nEnvíeme la *medida de la llanta* escrita o una foto clara del costado, y le paso opciones con stock y precio real.\nSi no la encuentra, también sirve el *aro* o la *marca, modelo y año* del vehículo.",
+            "corregido": null
           }
         ]
       },
@@ -2766,21 +2770,58 @@
         "cliente": "Disponen de llantas \n255 70 R16 A / T \nNecesito 4 unid.\nEn Falken\nMe confirma por favor \nGracias",
         "bot": [
           {
-            "texto": "Opciones enviadas: KENDA KR628 · KENDA KR28",
-            "tipo": "image"
-          },
-          {
-            "texto": "De *FALKEN* no tengo disponibilidad en esta medida por ahora; estas son las alternativas que sí le puedo entregar:",
+            "texto": "Sí hay Falken en 255/70R16 A/T: WILDPEAK A/T 4W.  \nEn esta medida la opción aparece sin stock ahora mismo.\n\nSi quiere, le muestro alternativas en la misma medida para que compare y le paso la recomendación.",
             "tipo": "text"
           },
           {
-            "texto": "Para afinarle la recomendación sobre las opciones que le envié, dígame una sola cosa: ¿qué prioriza usted?\n\n1) *Costo* — la más conveniente de precio\n2) *Premium* — la de máxima calidad y durabilidad\n\nCon eso le dejo la opción exacta para su medida.",
+            "texto": "¿Desea ver opciones?",
             "tipo": "text"
           }
         ],
         "fase": [
           "medida_confirmada"
         ],
+        "herramientas": [
+          "buscar_catalogo"
+        ],
+        "modelos": [
+          "gpt-5.4-mini"
+        ],
+        "errores": [],
+        "sinRespuesta": false,
+        "guardian": [
+          {
+            "verdict": "corregir",
+            "findings": [
+              {
+                "detalle": "El borrador dice \"Sí hay Falken\" y nombra la WILDPEAK A/T 4W, pero la herramienta la devolvió con stock 0 (out), así que no puede presentarse como disponible.",
+                "categoria": "stock_prometido",
+                "severidad": "alta"
+              },
+              {
+                "detalle": "Ofrece \"alternativas en la misma medida\" sin que la herramienta haya devuelto opciones alternas para mostrar en el chat.",
+                "categoria": "hecho_comercial_inventado",
+                "severidad": "alta"
+              }
+            ],
+            "original": "Sí hay Falken en 255/70R16 A/T: WILDPEAK A/T 4W.  \nEn esta medida la opción aparece sin stock ahora mismo.\n\nSi quiere, le muestro alternativas en la misma medida para que compare y le paso la recomendación. ¿Desea ver opciones?",
+            "corregido": "La *FALKEN WILDPEAK A/T 4W* en *255/70R16* figura sin stock hoy.\n\nSi desea, puedo revisar otras opciones en esa misma medida para que compare y le paso la recomendación. ¿Desea ver opciones?"
+          }
+        ]
+      },
+      {
+        "cliente": "Que porcentaje es el descuento que aplican",
+        "bot": [
+          {
+            "texto": "Opciones enviadas: KENDA KR628 · KENDA KR28",
+            "tipo": "image"
+          },
+          {
+            "texto": "La opción *económica* tiene *25% de descuento*.\n\nPara afinarle la recomendación sobre las opciones que le envié, dígame una sola cosa: ¿qué prioriza usted?\n\n1) *Costo* — la más conveniente de precio\n2) *Premium* — la de máxima calidad y durabilidad\n\nCon eso le dejo la opción exacta para su medida.",
+            "tipo": "text"
+          }
+        ],
+        "fase": [],
         "herramientas": [
           "buscar_llanta",
           "preparar_opciones"
@@ -2795,50 +2836,13 @@
             "verdict": "corregir",
             "findings": [
               {
-                "detalle": "El borrador pide al cliente que priorice «Costo» o «Premium», aunque ya tiene la medida y la cantidad y el turno ya llevó opciones. Esa repregunta retrasa sin necesidad la recomendación.",
-                "categoria": "pregunta_de_mas",
-                "severidad": "alta"
-              }
-            ],
-            "original": "De *FALKEN* no tengo disponibilidad en esta medida por ahora; estas son las alternativas que sí le puedo entregar:\n\n---\n\nPara afinarle la recomendación sobre las opciones que le envié, dígame una sola cosa: ¿qué prioriza usted?\n\n1) *Costo* — la más conveniente de precio\n2) *Premium* — la de máxima calidad y durabilidad\n\nCon eso le dejo la opción exacta para su medida.",
-            "corregido": "De *FALKEN* no tengo disponibilidad en esta medida por ahora; estas son las alternativas que sí le puedo entregar:\n\n---\n\n*KENDA KR628* o *KENDA KR28*.\n\nSi gusta, le dejo la opción que más le convenga para su medida."
-          }
-        ]
-      },
-      {
-        "cliente": "Que porcentaje es el descuento que aplican",
-        "bot": [
-          {
-            "texto": "Ese descuento no lo puedo confirmar por chat; se valida en sucursal.\n\nLo que sí le queda incluido en la compra es instalación, alineación, balanceo, seguro contra daños, mantenimiento cada 10.000 km y revisión del vehículo.",
-            "tipo": "text"
-          }
-        ],
-        "fase": [],
-        "herramientas": [
-          "generar_cotizacion"
-        ],
-        "modelos": [
-          "gpt-5.4-mini"
-        ],
-        "errores": [],
-        "sinRespuesta": false,
-        "guardian": [
-          {
-            "verdict": "corregir",
-            "findings": [
-              {
-                "detalle": "El cliente preguntó: «¿Qué porcentaje es el descuento que aplican?». El borrador no responde esa pregunta y se va a otro tema.",
+                "detalle": "El cliente preguntó: «Que porcentaje es el descuento que aplican», pero el borrador no le responde y salta directo a pedirle que priorice costo o premium.",
                 "categoria": "ignora-pregunta",
                 "severidad": "alta"
-              },
-              {
-                "detalle": "Cierra preguntando si quiere «la opción Falken» o «la más económica», aunque el turno solo pedía el descuento y la cotización está bloqueada.",
-                "categoria": "reofrece_lo_aceptado",
-                "severidad": "alta"
               }
             ],
-            "original": "Ese descuento no lo puedo confirmar por chat; se valida en sucursal.\n\nLo que sí le queda incluido en la compra es instalación, alineación, balanceo, seguro contra daños, mantenimiento cada 10.000 km y revisión del vehículo.\n\n¿Quiere que le deje la opción Falken que estaba viendo o prefiere la más económica?",
-            "corregido": "Ese descuento no lo puedo confirmar por chat; se valida en sucursal.\n\nLo que sí le queda incluido en la compra es instalación, alineación, balanceo, seguro contra daños, mantenimiento cada 10.000 km y revisión del vehículo."
+            "original": "Para afinarle la recomendación sobre las opciones que le envié, dígame una sola cosa: ¿qué prioriza usted?\n\n1) *Costo* — la más conveniente de precio\n2) *Premium* — la de máxima calidad y durabilidad\n\nCon eso le dejo la opción exacta para su medida.",
+            "corregido": "La opción *económica* tiene *25% de descuento*.\n\nPara afinarle la recomendación sobre las opciones que le envié, dígame una sola cosa: ¿qué prioriza usted?\n\n1) *Costo* — la más conveniente de precio\n2) *Premium* — la de máxima calidad y durabilidad\n\nCon eso le dejo la opción exacta para su medida."
           }
         ]
       },
@@ -2846,11 +2850,13 @@
         "cliente": "OK",
         "bot": [
           {
-            "texto": "El descuento se confirma en sucursal.\n\nSí le quedan incluidos instalación, alineación, balanceo, seguro contra daños, mantenimiento cada 10.000 km y revisión del vehículo.",
+            "texto": "La opción premium es *KENDA KR628* a *$157.57 c/u con IVA*.\n\nViene con instalación, alineación y balanceo incluidos, más seguro y mantenimiento gratuitos.",
             "tipo": "text"
           }
         ],
-        "fase": [],
+        "fase": [
+          "cotizacion_enviada"
+        ],
         "herramientas": [
           "generar_cotizacion"
         ],
@@ -2864,18 +2870,18 @@
             "verdict": "corregir",
             "findings": [
               {
-                "detalle": "El cliente ya respondió \"OK\" y el borrador vuelve a ofrecer \"la opción Falken\" o una alternativa económica. Eso reabre una decisión que ya quedó atendida en este turno.",
-                "categoria": "reofrece_lo_aceptado",
+                "detalle": "Cierra con «¿Le cotizo las *4* unidades con esa opción?», pero el cliente ya dijo «OK» y además la herramienta indicó que este turno no está autorizado para cotizar.",
+                "categoria": "pregunta_de_mas",
                 "severidad": "alta"
               },
               {
-                "detalle": "\"El descuento adicional por efectivo\" agrega una condición de pago que no aparece en los hechos ni en la conversación de este turno.",
-                "categoria": "hecho_comercial_inventado",
-                "severidad": "media"
+                "detalle": "Después del «OK» del cliente, el borrador vuelve a pedir permiso para cotizar las 4 unidades, en vez de avanzar con lo ya aceptado o limitarse a informar.",
+                "categoria": "reofrece_lo_aceptado",
+                "severidad": "alta"
               }
             ],
-            "original": "El descuento adicional por efectivo se confirma en la sucursal.\n\nSí le quedan incluidos instalación, alineación, balanceo, seguro contra daños, mantenimiento cada 10.000 km y revisión del vehículo.\n\n¿Quiere que le deje la opción *Falken* o prefiere revisar una alternativa más económica?",
-            "corregido": "El descuento se confirma en sucursal.\n\nSí le quedan incluidos instalación, alineación, balanceo, seguro contra daños, mantenimiento cada 10.000 km y revisión del vehículo."
+            "original": "La opción premium es *KENDA KR628* a *$157.57 c/u con IVA*.\n\nViene con instalación, alineación y balanceo incluidos, más seguro y mantenimiento gratuitos.\n\n¿Le cotizo las *4* unidades con esa opción?",
+            "corregido": "La opción premium es *KENDA KR628* a *$157.57 c/u con IVA*.\n\nViene con instalación, alineación y balanceo incluidos, más seguro y mantenimiento gratuitos."
           }
         ]
       },
@@ -2883,18 +2889,18 @@
         "cliente": "Voy a revisar, con éste precio, no me alcanza el presupuesto",
         "bot": [
           {
-            "texto": "Entiendo.  \nFalken es japonesa y le rinde aprox. 86.500 km, con mantenimiento y rotación cada 10.000 km incluidos.\n\nSi quiere bajar presupuesto, puedo dejarle una opción más económica para su medida 255/70R16 A/T.",
+            "texto": "Entiendo.\n\nSi luego quiere mantener la medida 255/70R16 A/T, la opción económica fue la KENDA KR28 a $154.07 c/u con IVA.",
             "tipo": "text"
           },
           {
-            "texto": "¿Le muestro esa alternativa?",
+            "texto": "¿Quiere que le deje esa alternativa lista para comparar?",
             "tipo": "text"
           }
         ],
-        "fase": [],
-        "herramientas": [
-          "respaldo_marcas"
+        "fase": [
+          "seleccionando"
         ],
+        "herramientas": [],
         "modelos": [
           "gpt-5.4-mini"
         ],
@@ -2904,7 +2910,7 @@
           {
             "verdict": "aprobar",
             "findings": [],
-            "original": "Entiendo.  \nFalken es japonesa y le rinde aprox. 86.500 km, con mantenimiento y rotación cada 10.000 km incluidos.\n\nSi quiere bajar presupuesto, puedo dejarle una opción más económica para su medida 255/70R16 A/T. ¿Le muestro esa alternativa?",
+            "original": "Entiendo.\n\nSi luego quiere mantener la medida 255/70R16 A/T, la opción económica fue la KENDA KR28 a $154.07 c/u con IVA.\n\n¿Quiere que le deje esa alternativa lista para comparar?",
             "corregido": null
           }
         ]
@@ -2913,11 +2919,50 @@
         "cliente": "De que fabricación es",
         "bot": [
           {
-            "texto": "Falken es japonesa. Tecnología y control de calidad japones en cada llanta.\n\nAdemás trae 5 años de garantía de fábrica y hasta 18 meses de seguro contra daños.",
+            "texto": "Con gusto le confirmo la fabricación del modelo que le interese. Si me indica cuál de las opciones le interesa, se lo reviso.",
+            "tipo": "text"
+          }
+        ],
+        "fase": [],
+        "herramientas": [
+          "respaldo_marcas",
+          "buscar_catalogo",
+          "preparar_opciones"
+        ],
+        "modelos": [
+          "gpt-5.4-mini"
+        ],
+        "errores": [],
+        "sinRespuesta": false,
+        "guardian": [
+          {
+            "verdict": "corregir",
+            "findings": [
+              {
+                "detalle": "El borrador inventa el origen de fabricación: \"japonesa en Falken, taiwanesa en Kenda y china con ingeniería alemana en Winrun\". Ese dato no está respaldado por los hechos ni por la herramienta.",
+                "categoria": "hecho_comercial_inventado",
+                "severidad": "alta"
+              },
+              {
+                "detalle": "La frase \"Si me dice cuál modelo le interesa\" vuelve a pedir una especificación para poder responder, cuando el cliente ya está preguntando por la fabricación de las opciones mostradas. Se puede responder sin afirmar orígenes inventados.",
+                "categoria": "pregunta_de_mas",
+                "severidad": "media"
+              }
+            ],
+            "original": "Es de fabricación japonesa en Falken, taiwanesa en Kenda y china con ingeniería alemana en Winrun.\n\nSi me dice cuál modelo le interesa, le cotizo ese exacto por 4 llantas.",
+            "corregido": "Con gusto le confirmo la fabricación del modelo que le interese. Si me indica cuál de las opciones le interesa, se lo reviso."
+          }
+        ]
+      },
+      {
+        "cliente": "El frenado en mojado de que clase",
+        "bot": [
+          {
+            "texto": "Es *clasificación de frenado en mojado*, y eso sí le puedo dar por la llanta exacta si me dice cuál modelo vio.\n\nSi se refiere a la *Kenda*, es una marca intermedia; para comparar ese desempeño con la Falken o la Winrun, le recomiendo ver la opción exacta.",
             "tipo": "text"
           },
           {
-            "texto": "¿Quiere que le deje la opción más económica para bajar presupuesto?",
+            "texto": "¿Cuál de las dos le interesa revisar?",
             "tipo": "text"
           }
         ],
@@ -2935,41 +2980,8 @@
           {
             "verdict": "aprobar",
             "findings": [],
-            "original": "Falken es japonesa. Tecnología y control de calidad japones en cada llanta.\n\nAdemás trae 5 años de garantía de fábrica y hasta 18 meses de seguro contra daños. ¿Quiere que le deje la opción más económica para bajar presupuesto?",
+            "original": "Es *clasificación de frenado en mojado*, y eso sí le puedo dar por la llanta exacta si me dice cuál modelo vio.\n\nSi se refiere a la *Kenda*, es una marca intermedia; para comparar ese desempeño con la Falken o la Winrun, le recomiendo ver la opción exacta. ¿Cuál de las dos le interesa revisar?",
             "corregido": null
-          }
-        ]
-      },
-      {
-        "cliente": "El frenado en mojado de que clase",
-        "bot": [
-          {
-            "texto": "No tengo confirmada por aquí la clase exacta de frenado en mojado.\n\nLo que sí le puedo confirmar es que *FALKEN* es una opción *premium* de su medida 255/70R16.\n\nSi quiere, le comparo esa con una opción más económica de su medida 255/70R16.",
-            "tipo": "text"
-          }
-        ],
-        "fase": [],
-        "herramientas": [
-          "respaldo_marcas",
-          "respaldo_marcas"
-        ],
-        "modelos": [
-          "gpt-5.4-mini"
-        ],
-        "errores": [],
-        "sinRespuesta": false,
-        "guardian": [
-          {
-            "verdict": "corregir",
-            "findings": [
-              {
-                "detalle": "El borrador afirma \"Es de clase premium en frenado en mojado\", pero no hay respaldo en los hechos ni en la herramienta para esa clasificación específica.",
-                "categoria": "hecho_comercial_inventado",
-                "severidad": "alta"
-              }
-            ],
-            "original": "Es de clase premium en frenado en mojado.\n\nSi quiere, le comparo esa con una opción más económica de su medida 255/70R16.",
-            "corregido": "No tengo confirmada por aquí la clase exacta de frenado en mojado.\n\nLo que sí le puedo confirmar es que *FALKEN* es una opción *premium* de su medida 255/70R16.\n\nSi quiere, le comparo esa con una opción más económica de su medida 255/70R16."
           }
         ]
       },
@@ -2977,7 +2989,7 @@
         "cliente": "En qué precio está está versión",
         "bot": [
           {
-            "texto": "Cotización COT-MTGWY3U7 enviada por $630.28",
+            "texto": "Cotización COT-MTGYTYEE enviada por $630.28",
             "tipo": "image"
           },
           {
@@ -3009,7 +3021,7 @@
       }
     ],
     "estadoFinal": {
-      "stage": "cotizacion_enviada",
+      "stage": "seguimiento_venta",
       "medida": "255/70R16",
       "cotizaciones": 1,
       "alertas": [
@@ -3034,8 +3046,8 @@
       },
       {
         "nombre": "ninguna corrida de IA con error",
-        "ok": true,
-        "motivo": null
+        "ok": false,
+        "motivo": "turno 8: [\"max_iterations_salvaged\"]"
       },
       {
         "nombre": "el guardián no marca insistencia tras rechazo",
@@ -3119,7 +3131,11 @@
         "cliente": "no, gracias, 205 muy ancha más consumo y cargado el auto rozan",
         "bot": [
           {
-            "texto": "Entendido.\n\nCon *195/50R16* no salió stock exacto; para respetar su calce, necesito que me diga otro aro o una medida que sí quiera considerar, o se lo revisa el asesor.",
+            "texto": "Entendido: no le mando 205.\n\nCon 195/50R16 no salió stock exacto; si quiere, le busco otra medida de *16* que respete ese ancho y no le roce.",
+            "tipo": "text"
+          },
+          {
+            "texto": "¿Qué uso le da al carro: ciudad, mixto o trabajo?",
             "tipo": "text"
           }
         ],
@@ -3137,16 +3153,10 @@
         "sinRespuesta": false,
         "guardian": [
           {
-            "verdict": "corregir",
-            "findings": [
-              {
-                "detalle": "La respuesta actual pide revisar una opción en 195, pero el catálogo indica que en 195/50R16 no hay ninguna llanta hoy. Conviene evitar sugerir una búsqueda que no tiene opciones.",
-                "categoria": "otro",
-                "severidad": "media"
-              }
-            ],
-            "original": "Entendido: no le paso 205.\n\nCon 195/50R16 no salió stock exacto; para respetar su calce toca buscar otra medida sin 205. ¿Quiere que revise una opción en 195 o me da otro aro/medida que sí quiera considerar?",
-            "corregido": "Entendido.\n\nCon *195/50R16* no salió stock exacto; para respetar su calce, necesito que me diga otro aro o una medida que sí quiera considerar, o se lo revisa el asesor."
+            "verdict": "aprobar",
+            "findings": [],
+            "original": "Entendido: no le mando 205.\n\nCon 195/50R16 no salió stock exacto; si quiere, le busco otra medida de *16* que respete ese ancho y no le roce.\n\n¿Qué uso le da al carro: ciudad, mixto o trabajo?",
+            "corregido": null
           }
         ]
       },
@@ -3154,7 +3164,86 @@
         "cliente": "No, muy bajo el perfil, cada bache estresa el aro, a la larga dañan el aro",
         "bot": [
           {
-            "texto": "Entendido.\n\nEn 195/50R16 no salió stock exacto; y como usted ya descartó 205 por calce, no le voy a insistir con esa medida.\n\nSi quiere, le reviso otra medida más cómoda para el aro 16 o le paso con un asesor de tienda 🤝",
+            "texto": "Entendido.\n\nNo le vuelvo a ofrecer 205. Con su medida 195/50R16 no salió stock exacto; si quiere, le busco una alternativa en 16 que respete ese ancho y suba un poco el perfil para cuidar el aro.",
+            "tipo": "text"
+          },
+          {
+            "texto": "¿Le muestro opciones en 16?",
+            "tipo": "text"
+          }
+        ],
+        "fase": [],
+        "herramientas": [
+          "buscar_llanta",
+          "preparar_opciones"
+        ],
+        "modelos": [
+          "gpt-5.4-mini"
+        ],
+        "errores": [],
+        "sinRespuesta": false,
+        "guardian": [
+          {
+            "verdict": "aprobar",
+            "findings": [
+              {
+                "detalle": "El borrador responde al rechazo del ancho 205 y mantiene una salida genérica en 16 sin nombrar opciones prohibidas; no hay afirmaciones verificables nuevas ni contradicciones con los hechos.",
+                "categoria": "otro",
+                "severidad": "media"
+              }
+            ],
+            "original": "Entendido.\n\nNo le vuelvo a ofrecer 205. Con su medida 195/50R16 no salió stock exacto; si quiere, le busco una alternativa en 16 que respete ese ancho y suba un poco el perfil para cuidar el aro. ¿Le muestro opciones en 16?",
+            "corregido": null
+          }
+        ]
+      },
+      {
+        "cliente": "👍🏻",
+        "bot": [
+          {
+            "texto": "Entendido.\n\nCon su restricción de no usar 205, tomo en cuenta esa observación para seguir con una opción más conservadora en aro 16 y cuidar el aro.",
+            "tipo": "text"
+          }
+        ],
+        "fase": [],
+        "herramientas": [
+          "buscar_llanta",
+          "preparar_opciones"
+        ],
+        "modelos": [
+          "gpt-5.4-mini"
+        ],
+        "errores": [],
+        "sinRespuesta": false,
+        "guardian": [
+          {
+            "verdict": "corregir",
+            "findings": [
+              {
+                "detalle": "El cliente ya aceptó con su 👍🏻 que le muestre opciones en 16, y el borrador vuelve a pedir permiso: «¿Le parece que revise otra medida en aro 16?». Eso reabre lo ya aceptado.",
+                "categoria": "reofrece_lo_aceptado",
+                "severidad": "alta"
+              },
+              {
+                "detalle": "La pregunta final no avanza la conversación y pide confirmación innecesaria cuando el cliente ya dio su visto bueno para seguir.",
+                "categoria": "pregunta_de_mas",
+                "severidad": "alta"
+              }
+            ],
+            "original": "Entendido.\n\nCon su restricción de no usar 205, no le repito esas opciones. Si quiere, le busco una medida de 16 más conservadora de ancho y perfil para cuidar el aro.\n\n¿Le parece que revise otra medida en aro 16?",
+            "corregido": "Entendido.\n\nCon su restricción de no usar 205, tomo en cuenta esa observación para seguir con una opción más conservadora en aro 16 y cuidar el aro."
+          }
+        ]
+      },
+      {
+        "cliente": "las llantas originales son rin 14",
+        "bot": [
+          {
+            "texto": "Entendido: si las originales son rin 14, entonces 16 no le sirve.\n\nCon la restricción de no usar 205, toca buscar en 14 la medida correcta para no rozar ni cargar el consumo.",
+            "tipo": "text"
+          },
+          {
+            "texto": "¿Le busco opciones en rin 14?",
             "tipo": "text"
           }
         ],
@@ -3172,20 +3261,88 @@
           {
             "verdict": "aprobar",
             "findings": [],
-            "original": "Entendido.\n\nEn 195/50R16 no salió stock exacto; y como usted ya descartó 205 por calce, no le voy a insistir con esa medida.\n\nSi quiere, le reviso otra medida más cómoda para el aro 16 o le paso con un asesor de tienda 🤝",
+            "original": "Entendido: si las originales son rin 14, entonces 16 no le sirve.\n\nCon la restricción de no usar 205, toca buscar en 14 la medida correcta para no rozar ni cargar el consumo. ¿Le busco opciones en rin 14?",
             "corregido": null
           }
         ]
       },
       {
-        "cliente": "👍🏻",
+        "cliente": "pero tengo unos rin 16 originales para peugeot",
         "bot": [
           {
-            "texto": "Ya quedó avisado el asesor.\n\nEn *195/50R16* no salió stock exacto y usted descartó 205 por calce/consumo. Para no insistirle con algo que no le sirve, lo correcto es revisar una medida alternativa que mantenga el perfil más cómodo y cuide el aro.",
+            "texto": "Entendido, entonces sí trabaja con rin 16.\n\nCon esa restricción, no le vuelvo a ofrecer 205. Si quiere, le apoyo a revisar con el asesor una medida que respete el calce del Peugeot sin comprometer roce ni consumo.",
+            "tipo": "text"
+          }
+        ],
+        "fase": [],
+        "herramientas": [
+          "buscar_llanta",
+          "preparar_opciones"
+        ],
+        "modelos": [
+          "gpt-5.4-mini"
+        ],
+        "errores": [],
+        "sinRespuesta": false,
+        "guardian": [
+          {
+            "verdict": "corregir",
+            "findings": [
+              {
+                "detalle": "Ya consta que usted busca medidas en 16 y el cliente recién aclaró que sí tiene rin 16 originales para Peugeot. Volver a pedir que confirme la medida exacta o una foto del costado repite una información que ya se está resolviendo en la conversación.",
+                "categoria": "re-pregunta",
+                "severidad": "alta"
+              },
+              {
+                "detalle": "La frase \"¿me confirma la medida exacta que desea usar o le tomo una foto del costado para verla?\" agrega un paso comercial no sustentado por los hechos ni por la herramienta, cuando además la herramienta indicó que las opciones con 205 fueron rechazadas por el cliente.",
+                "categoria": "hecho_comercial_inventado",
+                "severidad": "alta"
+              }
+            ],
+            "original": "Entendido, 205 queda descartado.\n\nCon 16 y esa restricción toca buscar una medida que respete el calce del Peugeot sin subir al ancho 205. ¿Me confirma la medida exacta que desea usar o le tomo una foto del costado para verla?",
+            "corregido": "Entendido, entonces sí trabaja con rin 16.\n\nCon esa restricción, no le vuelvo a ofrecer 205. Si quiere, le apoyo a revisar con el asesor una medida que respete el calce del Peugeot sin comprometer roce ni consumo."
+          }
+        ]
+      },
+      {
+        "cliente": "esas 205/55/16 ví recién instaladas en un Peugeot 206 y casi casi rozaban la bahía de la llanta",
+        "bot": [
+          {
+            "texto": "Entendido: si en el 206 casi roza, 205/55R16 no la tomo como opción para usted.\n\nCon esa restricción, lo correcto es que un asesor revise una medida segura para ese Peugeot y evite roce.",
             "tipo": "text"
           },
           {
-            "texto": "¿Quiere que le oriente con otra medida compatible o prefiere pasar a tienda? 🤝",
+            "texto": "¿Le derivo con un asesor para revisar una medida segura?",
+            "tipo": "text"
+          }
+        ],
+        "fase": [],
+        "herramientas": [
+          "buscar_llanta",
+          "buscar_llanta",
+          "preparar_opciones"
+        ],
+        "modelos": [
+          "gpt-5.4-mini"
+        ],
+        "errores": [
+          "max_iterations_salvaged"
+        ],
+        "sinRespuesta": false,
+        "guardian": [
+          {
+            "verdict": "aprobar",
+            "findings": [],
+            "original": "Entendido: si en el 206 casi roza, 205/55R16 no la tomo como opción para usted.\n\nCon esa restricción, lo correcto es que un asesor revise una medida segura para ese Peugeot y evite roce.\n\n¿Le derivo con un asesor para revisar una medida segura?",
+            "corregido": null
+          }
+        ]
+      },
+      {
+        "cliente": "si tengo opciones en 205/50/16 Pero prefiero un poco más delgadas para evitar roces cuando el auto está muy cargado y evitar mayor consumo de combustible",
+        "bot": [
+          {
+            "texto": "Ya quedó avisado el asesor para revisar una medida más delgada y segura para su Peugeot, evitando roce y exceso de consumo.\n\nQuedo atento.",
             "tipo": "text"
           }
         ],
@@ -3202,124 +3359,30 @@
         "sinRespuesta": false,
         "guardian": [
           {
-            "verdict": "aprobar",
-            "findings": [],
-            "original": "Ya quedó avisado el asesor.\n\nEn *195/50R16* no salió stock exacto y usted descartó 205 por calce/consumo. Para no insistirle con algo que no le sirve, lo correcto es revisar una medida alternativa que mantenga el perfil más cómodo y cuide el aro.\n\n¿Quiere que le oriente con otra medida compatible o prefiere pasar a tienda? 🤝",
-            "corregido": null
-          }
-        ]
-      },
-      {
-        "cliente": "las llantas originales son rin 14",
-        "bot": [
-          {
-            "texto": "Guía de medida enviada",
-            "tipo": "image"
-          },
-          {
-            "texto": "Con aro 14 ya podemos avanzar. Si me confirma la medida completa del costado (ej. 225/65R17), le cotizo exacto.",
-            "tipo": "text"
-          },
-          {
-            "texto": "¿Me dice la medida, o prefiere mandarme una foto del costado y la leo yo? 📸",
-            "tipo": "text"
-          }
-        ],
-        "fase": [],
-        "herramientas": [
-          "guia_medida"
-        ],
-        "modelos": [
-          "gpt-5.4-mini"
-        ],
-        "errores": [],
-        "sinRespuesta": false,
-        "guardian": [
-          {
-            "verdict": "aprobar",
-            "findings": [],
-            "original": "Con aro 14 ya podemos avanzar. Si me confirma la medida completa del costado (ej. 225/65R17), le cotizo exacto.\n\n---\n\n¿Me dice la medida, o prefiere mandarme una foto del costado y la leo yo? 📸",
-            "corregido": null
-          }
-        ]
-      },
-      {
-        "cliente": "pero tengo unos rin 16 originales para peugeot",
-        "bot": [
-          {
-            "texto": "Entendido: en Peugeot con rin 16 no le vuelvo a insistir con 205.\n\nPara cuidar el calce, hay que buscar otra medida que respete esa restricción.",
-            "tipo": "text"
-          },
-          {
-            "texto": "¿Quiere que le revise una alternativa más adecuada para rin 16?",
-            "tipo": "text"
-          }
-        ],
-        "fase": [],
-        "herramientas": [
-          "buscar_llanta",
-          "preparar_opciones"
-        ],
-        "modelos": [
-          "gpt-5.4-mini"
-        ],
-        "errores": [],
-        "sinRespuesta": false,
-        "guardian": [
-          {
-            "verdict": "aprobar",
+            "verdict": "corregir",
             "findings": [
               {
-                "detalle": "El borrador no inventa productos ni precios, no repite una re-pregunta y mantiene la restricción de no insistir con 205. La pregunta final es coherente con el avance de la conversación.",
-                "categoria": "otro",
-                "severidad": "baja"
+                "detalle": "El borrador pregunta si le responden apenas confirmen la opción correcta. Eso promete un seguimiento o entrega futura que no está garantizada por el turno y no debe ofrecerse.",
+                "categoria": "promesa_incumplible",
+                "severidad": "alta"
               }
             ],
-            "original": "Entendido: en Peugeot con rin 16 no le vuelvo a insistir con 205.\n\nPara cuidar el calce, hay que buscar otra medida que respete esa restricción. ¿Quiere que le revise una alternativa más adecuada para rin 16?",
-            "corregido": null
+            "original": "Ya quedó avisado el asesor para revisar una medida más delgada y segura para su Peugeot, evitando roce y exceso de consumo.\n\n¿Quiere que le responda apenas me confirmen la opción correcta?",
+            "corregido": "Ya quedó avisado el asesor para revisar una medida más delgada y segura para su Peugeot, evitando roce y exceso de consumo.\n\nQuedo atento."
           }
         ]
       },
       {
-        "cliente": "esas 205/55/16 ví recién instaladas en un Peugeot 206 y casi casi rozaban la bahía de la llanta",
+        "cliente": "esquebya he visto instaladas 205/50/16 en  otros Peugeot  206 y quedan bonitas Pero como dije, cargado el auto rozan las de atrás y las de adelante cuando se curva pronunciadamente",
         "bot": [
           {
-            "texto": "Entendido. No le vuelvo a insistir con 205.\n\nComo ya rozaban en el 206, hay que buscar una medida más adecuada para ese Peugeot y no arriesgar el calce.",
-            "tipo": "text"
-          },
-          {
-            "texto": "¿Quiere que le revise una alternativa compatible para rin 16?",
+            "texto": "Entendido: no le vuelvo a ofrecer 205.\n\nCon esa restricción, lo mejor es revisar con un asesor una medida más angosta que sí cuide el calce en su Peugeot y evite roce cuando vaya cargado.",
             "tipo": "text"
           }
         ],
-        "fase": [],
-        "herramientas": [
-          "buscar_llanta",
-          "preparar_opciones"
+        "fase": [
+          "medida_confirmada"
         ],
-        "modelos": [
-          "gpt-5.4-mini"
-        ],
-        "errores": [],
-        "sinRespuesta": false,
-        "guardian": [
-          {
-            "verdict": "aprobar",
-            "findings": [],
-            "original": "Entendido. No le vuelvo a insistir con 205.\n\nComo ya rozaban en el 206, hay que buscar una medida más adecuada para ese Peugeot y no arriesgar el calce. ¿Quiere que le revise una alternativa compatible para rin 16?",
-            "corregido": null
-          }
-        ]
-      },
-      {
-        "cliente": "si tengo opciones en 205/50/16 Pero prefiero un poco más delgadas para evitar roces cuando el auto está muy cargado y evitar mayor consumo de combustible",
-        "bot": [
-          {
-            "texto": "Entendido. No le vuelvo a mostrar 205 ni 206.\n\nEn *195/55R16* no me salió stock exacto. Si quiere, le paso con un asesor para revisar una medida que respete su restricción de calce y consumo.",
-            "tipo": "text"
-          }
-        ],
-        "fase": [],
         "herramientas": [
           "buscar_llanta",
           "preparar_opciones"
@@ -3334,44 +3397,13 @@
             "verdict": "corregir",
             "findings": [
               {
-                "detalle": "El borrador ofrece \"195/55R16 o similar\" como si hubiera opciones para mostrar, pero la búsqueda devolvió resultados vacíos en esa medida. No se puede prometer opciones que el turno no encontró.",
+                "detalle": "El borrador propone buscar 195/50R16, pero en el catálogo de hoy no hay ninguna llanta para 195/50R16. No se debe ofrecer una búsqueda de una medida sin stock exacto.",
                 "categoria": "hecho_comercial_inventado",
                 "severidad": "alta"
               }
             ],
-            "original": "Entendido. No le vuelvo a mostrar 205 ni 206.\n\nLa medida que sí conviene revisar para reducir roce y consumo es una más delgada; le busco opciones en 195/55R16 o similar. ¿Le muestro esas?",
-            "corregido": "Entendido. No le vuelvo a mostrar 205 ni 206.\n\nEn *195/55R16* no me salió stock exacto. Si quiere, le paso con un asesor para revisar una medida que respete su restricción de calce y consumo."
-          }
-        ]
-      },
-      {
-        "cliente": "esquebya he visto instaladas 205/50/16 en  otros Peugeot  206 y quedan bonitas Pero como dije, cargado el auto rozan las de atrás y las de adelante cuando se curva pronunciadamente",
-        "bot": [
-          {
-            "texto": "Entendido: no le vuelvo a mostrar 205 ni 206.\n\nCon ese roce que comenta, lo correcto es buscar una medida más angosta para ese rin 16 y respetar el calce.",
-            "tipo": "text"
-          },
-          {
-            "texto": "¿Quiere que le revise una alternativa segura para su Peugeot 206?",
-            "tipo": "text"
-          }
-        ],
-        "fase": [],
-        "herramientas": [
-          "buscar_llanta",
-          "preparar_opciones"
-        ],
-        "modelos": [
-          "gpt-5.4-mini"
-        ],
-        "errores": [],
-        "sinRespuesta": false,
-        "guardian": [
-          {
-            "verdict": "aprobar",
-            "findings": [],
-            "original": "Entendido: no le vuelvo a mostrar 205 ni 206.\n\nCon ese roce que comenta, lo correcto es buscar una medida más angosta para ese rin 16 y respetar el calce. ¿Quiere que le revise una alternativa segura para su Peugeot 206?",
-            "corregido": null
+            "original": "Entendido: no le vuelvo a ofrecer 205.\n\nCon esa restricción, el siguiente paso es revisar una medida más angosta que sí cuide el calce en su Peugeot. ¿Quiere que le busque opciones seguras en 195/50R16?",
+            "corregido": "Entendido: no le vuelvo a ofrecer 205.\n\nCon esa restricción, lo mejor es revisar con un asesor una medida más angosta que sí cuide el calce en su Peugeot y evite roce cuando vaya cargado."
           }
         ]
       },
@@ -3379,20 +3411,19 @@
         "cliente": "ya tengo los aros Rin 16 originales peugeot",
         "bot": [
           {
-            "texto": "Opciones enviadas: KENDA KR20",
-            "tipo": "image"
-          },
-          {
-            "texto": "⚠️ Ojo: en *205/50R16 / 205/55R16 / 195/50R16 / 195R16* no me queda disponibilidad exacta. Estas son *equivalentes* de su aro: KR20 en 195/45R16. Se confirma el calce al montar.",
+            "texto": "Perfecto, con rin 16 originales ya no hay que cambiar aro.\n\nComo usted ya descartó 205/206 por roce y consumo, no le ofrezco esa medida.",
             "tipo": "text"
           },
           {
-            "texto": "Para afinarle la recomendación sobre las opciones que le envié, dígame una sola cosa: ¿qué prioriza usted?\n\n1) *Costo* — la más conveniente de precio\n2) *Equilibrio* — la que mejor balancea precio y rendimiento\n3) *Premium* — la de máxima calidad y durabilidad\n\nCon eso le digo cuál de estas le conviene más.",
+            "texto": "¿Le derivo con un asesor para revisar una medida más angosta y segura para su Peugeot?",
             "tipo": "text"
           }
         ],
-        "fase": [],
+        "fase": [
+          "medida_confirmada"
+        ],
         "herramientas": [
+          "buscar_llanta",
           "buscar_llanta",
           "preparar_opciones"
         ],
@@ -3404,8 +3435,14 @@
         "guardian": [
           {
             "verdict": "aprobar",
-            "findings": [],
-            "original": "⚠️ Ojo: en *205/50R16 / 205/55R16 / 195/50R16 / 195R16* no me queda disponibilidad exacta. Estas son *equivalentes* de su aro: KR20 en 195/45R16. Se confirma el calce al montar.\n\n---\n\nPara afinarle la recomendación sobre las opciones que le envié, dígame una sola cosa: ¿qué prioriza usted?\n\n1) *Costo* — la más conveniente de precio\n2) *Equilibrio* — la que mejor balancea precio y rendimiento\n3) *Premium* — la de máxima calidad y durabilidad\n\nCon eso le digo cuál de estas le conviene más.",
+            "findings": [
+              {
+                "detalle": "El borrador es consistente con el rechazo de esas opciones por calce/roce y no inventa precios ni stock. La derivación al asesor es un paso válido.",
+                "categoria": "otro",
+                "severidad": "baja"
+              }
+            ],
+            "original": "Perfecto, con rin 16 originales ya no hay que cambiar aro.\n\nComo usted ya descartó 205/206 por roce y consumo, no le ofrezco esa medida.  \n\n¿Le derivo con un asesor para revisar una medida más angosta y segura para su Peugeot?",
             "corregido": null
           }
         ]
@@ -3457,11 +3494,14 @@
       }
     ],
     "estadoFinal": {
-      "stage": "medida_confirmada",
+      "stage": "seleccionando",
       "medida": "195/50R16",
       "cotizaciones": 0,
       "alertas": [
+        "guardian_correccion/high",
+        "guardian_correccion/high",
         "caso_sin_resolver/high",
+        "guardian_correccion/high",
         "guardian_correccion/high"
       ]
     }
@@ -3525,11 +3565,7 @@
         "cliente": "Quisiera saber el valor del cambio de aceite para un Vitara 3p, 2004",
         "bot": [
           {
-            "texto": "Ese servicio no lo puedo cotizar con datos confirmados aquí.\nYa dejé su consulta a un asesor para que le confirme el valor del cambio de aceite para su Vitara 3p 2004.",
-            "tipo": "text"
-          },
-          {
-            "texto": "¿Desea que le ayude con llantas?",
+            "texto": "Ese servicio lo confirma un asesor.\n\nSi desea, le puedo ayudar con llantas para su Vitara 2004 o le paso el contacto del local más cercano 🤝",
             "tipo": "text"
           }
         ],
@@ -3537,6 +3573,30 @@
         "herramientas": [
           "notificar_vendedor"
         ],
+        "modelos": [
+          "gpt-5.4-mini"
+        ],
+        "errores": [],
+        "sinRespuesta": false,
+        "guardian": [
+          {
+            "verdict": "aprobar",
+            "findings": [],
+            "original": "Ese servicio lo confirma un asesor.\n\nSi desea, le puedo ayudar con llantas para su Vitara 2004 o le paso el contacto del local más cercano 🤝",
+            "corregido": null
+          }
+        ]
+      },
+      {
+        "cliente": "???",
+        "bot": [
+          {
+            "texto": "No tengo el valor del cambio de aceite en este chat.\n\nSi gusta, le paso con un asesor o le ayudo con llantas para su Vitara 2004.",
+            "tipo": "text"
+          }
+        ],
+        "fase": [],
+        "herramientas": [],
         "modelos": [
           "gpt-5.4-mini"
         ],
@@ -3547,43 +3607,13 @@
             "verdict": "corregir",
             "findings": [
               {
-                "detalle": "El borrador ofrece \"mantenimiento preventivo\", pero esa formulación no está respaldada de forma explícita en los servicios y beneficios confirmados para prometerla como incluido.",
-                "categoria": "otro",
-                "severidad": "media"
+                "detalle": "El cliente ya indicó que quiere saber el valor del cambio de aceite para su Vitara 2004. Cerrar con \"¿qué necesita?\" repite una pregunta innecesaria en vez de avanzar.",
+                "categoria": "re-pregunta",
+                "severidad": "alta"
               }
             ],
-            "original": "Ese servicio no lo puedo cotizar con datos confirmados aquí.\nYa dejé su consulta a un asesor para que le confirme el valor del cambio de aceite para su Vitara 3p 2004.\n\n¿Desea que le ayude con llantas o mantenimiento preventivo?",
-            "corregido": "Ese servicio no lo puedo cotizar con datos confirmados aquí.\nYa dejé su consulta a un asesor para que le confirme el valor del cambio de aceite para su Vitara 3p 2004.\n\n¿Desea que le ayude con llantas?"
-          }
-        ]
-      },
-      {
-        "cliente": "???",
-        "bot": [
-          {
-            "texto": "Ese servicio no lo puedo cotizar con datos confirmados aquí.\nYa dejé su consulta a un asesor para que le confirme el valor del cambio de aceite para su Vitara 3p 2004.",
-            "tipo": "text"
-          },
-          {
-            "texto": "¿Desea que le ayude con llantas?",
-            "tipo": "text"
-          }
-        ],
-        "fase": [],
-        "herramientas": [
-          "notificar_vendedor"
-        ],
-        "modelos": [
-          "gpt-5.4-mini"
-        ],
-        "errores": [],
-        "sinRespuesta": false,
-        "guardian": [
-          {
-            "verdict": "aprobar",
-            "findings": [],
-            "original": "Ese servicio no lo puedo cotizar con datos confirmados aquí.\nYa dejé su consulta a un asesor para que le confirme el valor del cambio de aceite para su Vitara 3p 2004.\n\n¿Desea que le ayude con llantas?",
-            "corregido": null
+            "original": "No tengo el valor del cambio de aceite en este chat.\n\nSi gusta, le paso con un asesor o le ayudo con llantas para su Vitara 2004; ¿qué necesita?",
+            "corregido": "No tengo el valor del cambio de aceite en este chat.\n\nSi gusta, le paso con un asesor o le ayudo con llantas para su Vitara 2004."
           }
         ]
       },
@@ -3591,11 +3621,11 @@
         "cliente": "Si tiene para hoy o para esta semana",
         "bot": [
           {
-            "texto": "No puedo confirmar disponibilidad de agenda desde aquí.\nYa dejé su consulta a un asesor para que le confirme si hay para hoy o esta semana.",
+            "texto": "Para hoy o esta semana no lo puedo confirmar por este chat.\n\nLe dejo con un asesor para que le revise agenda y valor,",
             "tipo": "text"
           },
           {
-            "texto": "¿Quiere que le ayude con llantas mientras tanto?",
+            "texto": "¿quiere que le ayude con eso?",
             "tipo": "text"
           }
         ],
@@ -3611,8 +3641,14 @@
         "guardian": [
           {
             "verdict": "aprobar",
-            "findings": [],
-            "original": "No puedo confirmar disponibilidad de agenda desde aquí.\nYa dejé su consulta a un asesor para que le confirme si hay para hoy o esta semana.\n\n¿Quiere que le ayude con llantas mientras tanto?",
+            "findings": [
+              {
+                "detalle": "Responde que no puede confirmarlo por este chat y deriva a un asesor, sin inventar precio ni disponibilidad. No veo infracción alta en el borrador.",
+                "categoria": "otro",
+                "severidad": "baja"
+              }
+            ],
+            "original": "Para hoy o esta semana no lo puedo confirmar por este chat.\n\nLe dejo con un asesor para que le revise agenda y valor, ¿quiere que le ayude con eso?",
             "corregido": null
           }
         ]
@@ -3649,77 +3685,7 @@
         "cliente": "Ok",
         "bot": [
           {
-            "texto": "No tengo aún el modelo guardado para cotizar.\nSi me escribe la medida o el modelo de la llanta, le saco la opción correcta de inmediato.",
-            "tipo": "text"
-          },
-          {
-            "texto": "¿Qué medida necesita?",
-            "tipo": "text"
-          }
-        ],
-        "fase": [],
-        "herramientas": [
-          "generar_cotizacion"
-        ],
-        "modelos": [
-          "gpt-5.4-mini"
-        ],
-        "errores": [],
-        "sinRespuesta": false,
-        "guardian": [
-          {
-            "verdict": "aprobar",
-            "findings": [
-              {
-                "detalle": "El borrador no inventa producto, precio ni stock; solo pide la medida/modelo para poder continuar la cotización. No hay contradicción con los hechos ni con la herramienta.",
-                "categoria": "otro",
-                "severidad": "baja"
-              }
-            ],
-            "original": "No tengo aún el modelo guardado para cotizar.\nSi me escribe la medida o el modelo de la llanta, le saco la opción correcta de inmediato. ¿Qué medida necesita?",
-            "corregido": null
-          }
-        ]
-      },
-      {
-        "cliente": "Puedo llevar mi aceite? Que n regalaron recién. Me avisa por favor",
-        "bot": [
-          {
-            "texto": "Sí, eso se lo confirma el asesor en tienda.\n\nYa dejé su consulta para que le avisen.",
-            "tipo": "text"
-          },
-          {
-            "texto": "¿Quiere que también le confirmen horario para pasar a Depot Tire Cumbayá? 🤝",
-            "tipo": "text"
-          }
-        ],
-        "fase": [],
-        "herramientas": [
-          "notificar_vendedor"
-        ],
-        "modelos": [
-          "gpt-5.4-mini"
-        ],
-        "errores": [],
-        "sinRespuesta": false,
-        "guardian": [
-          {
-            "verdict": "aprobar",
-            "findings": [],
-            "original": "Sí, eso se lo confirma el asesor en tienda.\n\nYa dejé su consulta para que le avisen. ¿Quiere que también le confirmen horario para pasar a Depot Tire Cumbayá? 🤝",
-            "corregido": null
-          }
-        ]
-      },
-      {
-        "cliente": "Hasta qué hora están?",
-        "bot": [
-          {
-            "texto": "Depot Tire Cumbayá atiende hoy hasta las 17:30.",
-            "tipo": "text"
-          },
-          {
-            "texto": "¿Quiere que le avise al asesor para su visita?",
+            "texto": "Perfecto, quedó pendiente que me diga el día.",
             "tipo": "text"
           }
         ],
@@ -3733,23 +3699,17 @@
         "guardian": [
           {
             "verdict": "aprobar",
-            "findings": [
-              {
-                "detalle": "El borrador responde correctamente el horario de Cumbayá con un dato confirmado (17:30) y no inventa cotización ni stock. La segunda pregunta no choca con los hechos registrados.",
-                "categoria": "otro",
-                "severidad": "baja"
-              }
-            ],
-            "original": "Depot Tire Cumbayá atiende hoy hasta las 17:30.\n---\n¿Quiere que le avise al asesor para su visita?",
+            "findings": [],
+            "original": "Perfecto, quedó pendiente que me diga el día.",
             "corregido": null
           }
         ]
       },
       {
-        "cliente": "Listo no hay problema.",
+        "cliente": "Puedo llevar mi aceite? Que n regalaron recién. Me avisa por favor",
         "bot": [
           {
-            "texto": "Perfecto, lo revisa el asesor en tienda.\n\nSi luego necesita algo más, con gusto le ayudo.",
+            "texto": "Eso se lo confirman en tienda al revisar el servicio.\n\nSi quiere, le aviso al asesor para que lo atienda en *Depot Tire Cumbayá* 🤝",
             "tipo": "text"
           }
         ],
@@ -3765,18 +3725,75 @@
             "verdict": "corregir",
             "findings": [
               {
-                "detalle": "El borrador afirma 'entonces sí puede llevar su aceite', pero en la conversación solo se dijo que eso se lo confirma el asesor en tienda. No está confirmado en los hechos.",
-                "categoria": "hecho_comercial_inventado",
-                "severidad": "alta"
-              },
-              {
-                "detalle": "El cliente ya cerró con 'Listo no hay problema.', y el borrador vuelve a ofrecer '¿Quiere que le ayude...?', reabriendo una gestión ya aceptada.",
-                "categoria": "reofrece_lo_aceptado",
+                "detalle": "Vuelve a preguntar por el día: «¿Me dice el día que piensa pasar?», pero esa misma pregunta ya se había hecho antes en la conversación.",
+                "categoria": "re-pregunta",
                 "severidad": "alta"
               }
             ],
-            "original": "Perfecto, entonces sí puede llevar su aceite.\n\n¿Quiere que le ayude con una cita en Depot Tire Cumbayá o con otra consulta? 🤝",
-            "corregido": "Perfecto, lo revisa el asesor en tienda.\n\nSi luego necesita algo más, con gusto le ayudo."
+            "original": "Sí, puede llevar su aceite; eso se lo confirman en tienda al revisar el servicio.\n\nSi quiere, le aviso al asesor para que lo atienda en *Depot Tire Cumbayá* 🤝  \n¿Me dice el día que piensa pasar?",
+            "corregido": "Eso se lo confirman en tienda al revisar el servicio.\n\nSi quiere, le aviso al asesor para que lo atienda en *Depot Tire Cumbayá* 🤝"
+          }
+        ]
+      },
+      {
+        "cliente": "Hasta qué hora están?",
+        "bot": [
+          {
+            "texto": "📍 *Depot Tire Cumbayá*: https://maps.app.goo.gl/QnMBPXKc1o8igbsp8\n\nEstamos hasta las *17:30* de *lunes a viernes*; *sábado y domingo* atendemos de *08:30 a 14:30*.",
+            "tipo": "text"
+          },
+          {
+            "texto": "¿Qué día cree que puede pasar por *Depot Tire Cumbayá*? Con ese dato le aviso al asesor para que le atienda apenas llegue. 📅",
+            "tipo": "text"
+          }
+        ],
+        "fase": [],
+        "herramientas": [
+          "ubicacion_locales"
+        ],
+        "modelos": [
+          "gpt-5.4-mini"
+        ],
+        "errores": [],
+        "sinRespuesta": false,
+        "guardian": [
+          {
+            "verdict": "corregir",
+            "findings": [
+              {
+                "detalle": "El cliente preguntó \"Hasta qué hora están?\" y el borrador no responde el horario; solo repite la pregunta por el día.",
+                "categoria": "ignora-pregunta",
+                "severidad": "alta"
+              }
+            ],
+            "original": "📍 *Depot Tire Cumbayá*: https://maps.app.goo.gl/QnMBPXKc1o8igbsp8\n\n---\n\n¿Qué día cree que puede pasar por *Depot Tire Cumbayá*? Con ese dato le aviso al asesor para que le atienda apenas llegue. 📅",
+            "corregido": "📍 *Depot Tire Cumbayá*: https://maps.app.goo.gl/QnMBPXKc1o8igbsp8\n\nEstamos hasta las *17:30* de *lunes a viernes*; *sábado y domingo* atendemos de *08:30 a 14:30*.\n\n---\n\n¿Qué día cree que puede pasar por *Depot Tire Cumbayá*? Con ese dato le aviso al asesor para que le atienda apenas llegue. 📅"
+          }
+        ]
+      },
+      {
+        "cliente": "Listo no hay problema.",
+        "bot": [
+          {
+            "texto": "Perfecto, solo me falta el *día* para registrarlo en *Depot Tire Cumbayá*.",
+            "tipo": "text"
+          }
+        ],
+        "fase": [],
+        "herramientas": [
+          "agendar_visita"
+        ],
+        "modelos": [
+          "gpt-5.4-mini"
+        ],
+        "errores": [],
+        "sinRespuesta": false,
+        "guardian": [
+          {
+            "verdict": "aprobar",
+            "findings": [],
+            "original": "Perfecto, solo me falta el *día* para registrarlo en *Depot Tire Cumbayá*.",
+            "corregido": null
           }
         ]
       },
@@ -3802,7 +3819,13 @@
         "guardian": [
           {
             "verdict": "aprobar",
-            "findings": [],
+            "findings": [
+              {
+                "detalle": "El borrador es consistente con los hechos registrados: usa el día ya anotado (lunes 31 de agosto) y el local ya elegido (Depot Tire Cumbayá), sin agregar datos nuevos ni volver a preguntar algo ya respondido.",
+                "categoria": "otro",
+                "severidad": "baja"
+              }
+            ],
             "original": "Perfecto: *lunes 31 de agosto en Depot Tire Cumbayá*. Ya quedó registrado para el asesor.\n\n¿Le queda alguna otra duda? Ahí le esperamos. 🤝",
             "corregido": null
           }
@@ -3815,6 +3838,8 @@
       "cotizaciones": 0,
       "alertas": [
         "caso_sin_resolver/high",
+        "guardian_correccion/high",
+        "guardian_correccion/high",
         "guardian_correccion/high",
         "visita_comprometida/high"
       ]
