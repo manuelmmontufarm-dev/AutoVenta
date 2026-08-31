@@ -4,7 +4,7 @@ import { ChatBubble, Composer, CotizacionModal, TypingBubble } from "../componen
 import { IconAuto, IconBack, IconBot, IconDoc, IconEtiqueta, IconNote, IconPhone, IconPin, IconRefresh, IconSparkle, IconUser, IconX } from "../components/icons";
 import { PipelineStepper } from "../components/stepper";
 import { AtiendePill, Avatar, CierreBadge, CierreIcon, MedidaChip, Modal, StageBadge } from "../components/ui";
-import { CIERRE_META, type Cierre, type Mensaje, type TemplatePlanPreview, type Ticket } from "../data/types";
+import { CIERRE_META, type Cierre, type Mensaje, type Ticket } from "../data/types";
 import { money, relTime } from "../lib/format";
 import { navigate } from "../router";
 import { useHub, useNow } from "../store";
@@ -388,18 +388,14 @@ function Ficha({
   onToggleAtiende: () => void;
   onNota: (texto: string) => void;
 }) {
-  const { crearDescuento, getTemplatePlan, authorizeTemplatePlan } = useHub();
+  const { crearDescuento } = useHub();
   const [nota, setNota] = useState("");
   const [verDescuento, setVerDescuento] = useState(false);
   const [promptDescuento, setPromptDescuento] = useState("");
   const [entregaDescuento, setEntregaDescuento] = useState<"now" | "next_message">("next_message");
   const [estadoDescuento, setEstadoDescuento] = useState<string | null>(null);
   const [guardandoDescuento, setGuardandoDescuento] = useState(false);
-  const [templatePlan, setTemplatePlan] = useState<TemplatePlanPreview | null>(null);
-  const [templatePlanStatus, setTemplatePlanStatus] = useState<string | null>(null);
-  const [loadingTemplatePlan, setLoadingTemplatePlan] = useState(false);
   const abierto = ticket.estado === "abierto";
-  const ventanaAbierta = Boolean(ticket.ventanaCierraEn && new Date(ticket.ventanaCierraEn) > new Date());
 
   const confirmarDescuento = async () => {
     if (promptDescuento.trim().length < 3) {
@@ -414,23 +410,6 @@ function Ficha({
     } catch (error) {
       setEstadoDescuento(error instanceof Error ? error.message : "No se pudo crear la oferta.");
     } finally { setGuardandoDescuento(false); }
-  };
-
-  const mostrarTemplatePlan = async () => {
-    setLoadingTemplatePlan(true); setTemplatePlanStatus(null);
-    try { setTemplatePlan(await getTemplatePlan(ticket.id)); }
-    catch (error) { setTemplatePlanStatus(error instanceof Error ? error.message : "No se pudo cargar el plan."); }
-    finally { setLoadingTemplatePlan(false); }
-  };
-
-  const confirmarTemplatePlan = async () => {
-    setLoadingTemplatePlan(true); setTemplatePlanStatus(null);
-    try {
-      const result = await authorizeTemplatePlan(ticket.id);
-      setTemplatePlan(result);
-      setTemplatePlanStatus("Plan autorizado. Se cancelará automáticamente si el cliente responde, rechaza, compra o se molesta.");
-    } catch (error) { setTemplatePlanStatus(error instanceof Error ? error.message : "No se pudo autorizar el plan."); }
-    finally { setLoadingTemplatePlan(false); }
   };
 
   return (
@@ -450,7 +429,7 @@ function Ficha({
       </section>
 
       <section className="glass rounded-2xl p-4">
-        <p className="microlabel mb-2.5">Seguimiento comercial</p>
+        <p className="microlabel mb-2.5">Resumen de la conversación</p>
         <p className="text-xs leading-relaxed">{ticket.resumen ?? "Resumen automático pendiente; se actualizará con la próxima interacción."}</p>
         {ticket.followUpReason && <div className="mt-2 rounded-xl border border-amber-500/15 bg-amber-500/[.06] p-2.5"><p className="text-[11px] font-black uppercase tracking-wider text-amber-500">Por qué requiere atención</p><p className="mt-1 text-[10.5px] font-bold">{ticket.followUpReason}</p></div>}
         <dl className="mt-3 grid gap-2 text-[11px]">
@@ -459,14 +438,6 @@ function Ficha({
           <div><dt className="text-faint">Qué eligió</dt><dd>{ticket.opcionElegida ?? "Aún no eligió"}</dd></div>
           <div><dt className="text-faint">Compromiso o fecha</dt><dd>{ticket.compromisoCliente ?? (ticket.visitDate ? new Date(ticket.visitDate).toLocaleString("es-EC") : "Sin compromiso registrado")}</dd></div>
         </dl>
-        {ticket.proximoSeguimiento ? <div className="mt-3 rounded-xl bg-paper/[.05] p-3"><p className="text-[11px] font-bold">Próximo: {new Date(ticket.proximoSeguimiento.dueAt).toLocaleString("es-EC")}</p><p className="mt-1 text-xs">{ticket.proximoSeguimiento.preview}</p>{ticket.proximoSeguimiento.templateKey && <p className="mt-1 text-[10px] font-bold text-amber-500">Plantilla: {ticket.proximoSeguimiento.templateKey}</p>}</div> : <p className="mt-3 text-[11px] text-faint">Sin envío automático: revisa el estado de seguridad o cierre.</p>}
-        {ticket.planSeguimientos && ticket.planSeguimientos.length > 0 && <div className="mt-3"><p className="microlabel mb-2">Plan hasta cierre de ventana y escalamiento</p><ol className="grid gap-1.5">{ticket.planSeguimientos.map((step, index) => <li key={step.id} className="rounded-lg bg-paper/[.035] px-2.5 py-2 text-[10.5px]"><span className="font-bold">{index + 1}. {step.channel === "advisor" ? "Revisión del asesor" : step.templateKey ? `Plantilla ${step.templateKey}` : "Mensaje WhatsApp"}</span><span className="tnum ml-1 text-faint">· {new Date(step.dueAt).toLocaleString("es-EC")}</span><p className="mt-1 text-muted">{step.preview || step.reason}</p>{step.channel !== "advisor" && <button disabled={Boolean(step.templateKey) || !ventanaAbierta} onClick={() => void navigator.clipboard.writeText(step.preview).then(() => setEstadoDescuento("Mensaje copiado."))} className="mt-1.5 text-[11px] font-black text-lime disabled:cursor-not-allowed disabled:text-faint">{step.templateKey ? "Enviar únicamente como plantilla" : ventanaAbierta ? "Copiar mensaje" : "Ventana cerrada: solo plantilla"}</button>}</li>)}</ol></div>}
-        <p className="mt-3 text-[11px] font-bold" style={{ color: ticket.ventanaCierraEn && new Date(ticket.ventanaCierraEn) > new Date() ? "var(--color-ok)" : "var(--color-warn)" }}>Ventana de 24 h: {ticket.ventanaCierraEn ? (new Date(ticket.ventanaCierraEn) > new Date() ? `abierta hasta ${new Date(ticket.ventanaCierraEn).toLocaleString("es-EC")}` : "cerrada — requiere plantilla") : "sin mensaje entrante"}</p>
-        {!ticket.customerOptIn && <p className="mt-1 text-[10px] text-amber-500">Sin consentimiento registrado para plantillas post-24 h.</p>}
-        {ticket.ventanaCierraEn && new Date(ticket.ventanaCierraEn) <= new Date() && <button disabled={loadingTemplatePlan} onClick={() => void mostrarTemplatePlan()} className="mt-3 w-full rounded-xl bg-violet/15 px-3 py-2 text-[10.5px] font-black disabled:opacity-50">{loadingTemplatePlan ? "Cargando…" : "Continuar seguimiento con plantilla"}</button>}
-        {templatePlan && <div className="mt-3 rounded-xl border border-violet/20 bg-violet/[.045] p-2.5"><div className="flex items-center justify-between gap-2"><p className="text-[10.5px] font-black">{templatePlan.template?.template_name ?? templatePlan.template?.template_key ?? "Plantilla requerida"}</p><span className="rounded-full bg-paper/10 px-2 py-0.5 text-[11px]">{templatePlan.template?.language ?? "es"}</span></div>{templatePlan.reason && <p className="mt-2 text-[10px] font-bold text-amber-500">{templatePlan.reason}</p>}<ol className="mt-2 grid max-h-56 gap-1 overflow-y-auto">{templatePlan.days.map((day) => <li key={day.day} className="rounded-lg bg-paper/[.045] px-2 py-1.5 text-[11px]"><span className="font-black">Día {day.day}</span><span className="tnum ml-1 text-faint">· {new Date(day.dueAt).toLocaleString("es-EC", { weekday: "short", hour: "2-digit", minute: "2-digit" })}</span><p className="mt-0.5 line-clamp-2 text-muted">{day.preview}</p></li>)}</ol><button disabled={!templatePlan.allowed || loadingTemplatePlan} onClick={() => void confirmarTemplatePlan()} className="mt-2 w-full rounded-lg bg-lime/15 py-2 text-[10px] font-black text-lime disabled:cursor-not-allowed disabled:opacity-40">Confirmar plan de {templatePlan.days.length || 8} días</button></div>}
-        {templatePlanStatus && <p className="mt-2 text-[10px] text-muted">{templatePlanStatus}</p>}
-        <div className="mt-3 border-t border-paper/10 pt-3"><p className="microlabel mb-2">Historial</p>{ticket.historialSeguimientos?.length ? <ul className="grid gap-1">{ticket.historialSeguimientos.map((item) => <li key={item.id} className="text-[10.5px] text-muted">{item.type} · {item.status} · {new Date(item.createdAt).toLocaleString("es-EC")}{item.error ? ` · ${item.error}` : ""}</li>)}</ul> : <p className="text-[10.5px] text-faint">Sin intentos todavía.</p>}</div>
       </section>
 
       {/* Cotización */}
