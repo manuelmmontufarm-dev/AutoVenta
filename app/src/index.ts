@@ -260,8 +260,10 @@ const pipeline = new InboundPipeline(async ({ from, name, text, waMessageIds, re
   // respuesta fija deja claro que la medida es la vía rápida, no la única: el
   // bot también puede arrancar por vehículo, aro o uso. Si el cliente ya dio
   // cualquier dato concreto, sigue al agente completo para que lo aproveche.
+  // El aviso del /restart no cuenta como conversación previa: si cuenta, el
+  // siguiente «hola» pierde la bienvenida (producción, 31-ago 17:30 y 17:36).
   const isFirstGenericMessage = conversation.stage === "nuevo"
-    && previousOutbound === null
+    && (previousOutbound === null || previousOutbound === MENSAJE_DE_REINICIO)
     && isGenericFirstContact(textoConLinks);
   // Conv 11818, 27-ago-2026: «Ya Ise el pedido aquí en Ibarra gracias» terminó
   // recibiendo los mapas. El candado de `prepararSalida` sí cambiaba el texto
@@ -496,8 +498,11 @@ async function recibirMensaje(
     console.log(`🔄 Reinicio manual en la conv ${conversation.id}: ciclo ${reiniciada?.current_cycle ?? "?"}`);
     try {
       const sentId = await sendCustomerText(conversation.id, from, MENSAJE_DE_REINICIO, "owner");
+      // Como SYSTEM, no como bot: si cuenta como saliente del vendedor, el
+      // siguiente «hola» ya no es primer contacto y se queda sin bienvenida
+      // (producción, 31-ago 17:30 y 17:36 — dos veces seguidas).
       await appendMessage(conversation.id, "assistant", MENSAJE_DE_REINICIO, sentId, {
-        authorKind: "bot", status: "sent",
+        authorKind: "system", status: "sent",
       });
     } catch (error) {
       console.error(`❌ No se pudo avisar del reinicio a ${from}:`, error);

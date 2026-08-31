@@ -94,6 +94,15 @@ export class InboundPipeline {
   private flush(from: string): void {
     const buffer = this.buffers.get(from);
     if (!buffer) return;
+    // Un turno de este chat sigue en vuelo: la ráfaga espera y entra JUNTA al
+    // siguiente turno, en vez de un turno por mensajito. Producción, 31-ago
+    // 17:32: «en rin 20» y «si» llegaron mientras el bot contestaba lo
+    // anterior y generaron tres vitrinas seguidas — el cliente lo llamó
+    // «se volvió loco», con razón.
+    if (this.tails.has(from)) {
+      buffer.timer = setTimeout(() => this.flush(from), 500);
+      return;
+    }
     this.buffers.delete(from);
 
     const job = {

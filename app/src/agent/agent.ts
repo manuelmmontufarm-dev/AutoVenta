@@ -356,7 +356,11 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
   // con la obligación sin cumplir, se le recuerda UNA vez y se le devuelve el
   // control (T115 nivel 2, 31-ago: el mini recomendaba y aún así preguntaba
   // «¿le cotizo?» a quien ya la había pedido con todas sus letras).
-  const aroDelTurno = aroPedido(userText);
+  // Con una medida YA activa, «en rin 20» es una aclaración de la misma
+  // llanta, no un pedido de vitrina por aro (producción, 31-ago 17:32: el
+  // cliente dio 33X12.5R20, agregó «en rin 20» y la regla recién estrenada
+  // mandó equivalentes de calle absurdas para una llanta de lodo).
+  const aroDelTurno = salesFacts.tireSize ? null : aroPedido(userText);
   let vueltaForzadaUsada = false;
   let recordatorioDeObligacion: string | null = null;
   const bloquesVolatiles: ChatCompletionMessageParam[] = [
@@ -505,7 +509,8 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
     if (!message.tool_calls?.length) {
       // ¿La obligación determinística del turno quedó sin cumplir? Una vuelta
       // más, con el recordatorio pegado al final, y de nuevo el control.
-      const debeCotizar = (pidioCotizar || cantidadCambia) && !usedTools.includes("generar_cotizacion");
+      const debeCotizar = (pidioCotizar || cantidadCambia || ctx.aceptoCotizacion)
+        && !usedTools.includes("generar_cotizacion");
       const debeNotificar = pidioHumano && !usedTools.includes("notificar_vendedor");
       const debeBuscarPorAro = aroDelTurno !== null
         && !["buscar_por_aro_y_tipo", "buscar_llanta", "fitment_vehiculo"].some((h) => usedTools.includes(h));
@@ -576,7 +581,7 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
       // opciones porque preparar_opciones devolvió mensaje exacto y el turno
       // se fue por aquí sin pasar por la vuelta forzada.
       const obligacionPendiente =
-        ((pidioCotizar || cantidadCambia) && !usedTools.includes("generar_cotizacion"))
+        ((pidioCotizar || cantidadCambia || ctx.aceptoCotizacion) && !usedTools.includes("generar_cotizacion"))
         || (pidioHumano && !usedTools.includes("notificar_vendedor"));
       if (exact && obligacionPendiente && !vueltaForzadaUsada && !ctx.consultaFueraDeCatalogo) {
         // El recordatorio NO se mete aquí: los resultados de herramientas
