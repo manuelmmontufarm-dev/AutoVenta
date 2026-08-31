@@ -175,3 +175,27 @@ describe("corrector de precios — los precio_incorrecto ALTA del informe del gu
     expect(r.ajustes).toHaveLength(3);
   });
 });
+
+
+/** T115 H02 (31-ago, agente en mini): cuatro veces «la medida 165/80R13 no
+ *  tiene stock exacto» con maquillaje distinto. La tercera corta y deriva —
+ *  y la promesa la ejecuta de verdad lo_prometido_se_ejecuta. */
+describe("idea repetida por tercera vez", () => {
+  const IDEA = "La medida 165/80R13 no tiene stock exacto ahora mismo. Si le sirve, reviso equivalencias del aro 13.";
+  const VARIANTE = "La medida *165/80R13* no tiene stock exacto ahora. Si le sirve reviso equivalencias del aro 13!!";
+
+  it("dos repeticiones se toleran; la tercera deriva", async () => {
+    const { guardOutboundReply, RESPUESTA_ANTI_BUCLE } = await import("../src/services/outboundGuard.js");
+    const tolerada = guardOutboundReply(VARIANTE, "otro texto", true, [IDEA]);
+    expect(tolerada.issues).not.toContain("idea_repetida");
+    const cortada = guardOutboundReply(VARIANTE, "otro texto", true, [IDEA, "algo distinto", IDEA]);
+    expect(cortada.issues).toContain("idea_repetida");
+    expect(cortada.text).toBe(RESPUESTA_ANTI_BUCLE);
+  });
+
+  it("mensajes cortos nunca disparan el corte", async () => {
+    const { guardOutboundReply } = await import("../src/services/outboundGuard.js");
+    const r = guardOutboundReply("Con gusto 🤝", "x", true, ["Con gusto 🤝", "Con gusto 🤝"]);
+    expect(r.issues).not.toContain("idea_repetida");
+  });
+});

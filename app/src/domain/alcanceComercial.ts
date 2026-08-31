@@ -4,7 +4,7 @@ const normalizar = (texto: string) =>
   (texto ?? "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 
 const FUERA_DE_CATALOGO =
-  /\b(?:cambio\s+de\s+aceite|cambiar\s+el\s+aceite|aceite\s+de\s+motor|filtro\s+de\s+aceite|lavado|pintura|matriculacion|revision\s+tecnica|mecanica\s+general)\b/;
+  /\b(?:cambio\s+de\s+aceite|cambiar\s+el\s+aceite|aceite\s+de\s+motor|filtro\s+de\s+aceite|lavado|pintura|matriculacion|revision\s+tecnica|mecanica\s+general|llanta\s+industrial|llantas?\s+solid[oa]s?|montacargas|uso\s+industrial|maquinaria\s+pesada)\b/;
 
 const HABLA_DE_LLANTAS =
   /\b(?:llant\w*|neumatic\w*|caucho\w*|rin(?:es)?|aro(?:s)?|falken|kenda|winrun|medida\s+de\s+la\s+llanta)\b/;

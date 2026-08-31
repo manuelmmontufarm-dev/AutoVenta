@@ -33,7 +33,8 @@ const APOLOGIA = /disculpa,?\s*tuve un problema procesando/i;
 const SALUDO_INICIAL = /^\s*(?:¡\s*)?(?:hola|buen[oa]s(?:\s+(?:d[íi]as|tardes|noches))?)\s*[!.,]*\s*/i;
 
 export type GuardIssue =
-  | "mensaje_duplicado" | "bot_atascado" | "saludo_repetido" | "precio_ajustado";
+  | "mensaje_duplicado" | "bot_atascado" | "saludo_repetido" | "precio_ajustado"
+  | "idea_repetida";
 
 export interface GuardResult {
   /** Texto listo para enviar; null = no enviar nada (ya se alertó al asesor). */
@@ -42,6 +43,26 @@ export interface GuardResult {
 }
 
 const normalizar = (t: string) => t.trim().replace(/\s+/g, " ").toLowerCase();
+// La MISMA IDEA con distinto maquillaje no comparte los bytes pero sí las
+// palabras: «no tiene stock exacto ahora mismo» y «no tiene stock exacto
+// ahora» difieren en una. Se compara el conjunto de palabras (Jaccard ≥ 0.85
+// con al menos 8 palabras): determinista, barato y sin modelos.
+const palabrasDe = (t: string): Set<string> => new Set(
+  t.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase()
+    .replace(/[^a-z0-9\s]/g, " ").split(/\s+/).filter((w) => w.length >= 3),
+);
+const esMismaIdea = (a: Set<string>, b: Set<string>): boolean => {
+  if (a.size < 8 || b.size < 8) return false;
+  let comunes = 0;
+  for (const w of a) if (b.has(w)) comunes += 1;
+  return comunes / (a.size + b.size - comunes) >= 0.85;
+};
+
+/** El texto con el que se corta un bucle de idea repetida. La promesa que
+ *  contiene la ejecuta de verdad `lo_prometido_se_ejecuta` en la cadena de
+ *  salida — por eso puede afirmar el aviso. */
+export const RESPUESTA_ANTI_BUCLE =
+  "Para no repetirle lo mismo: dejé su caso avisado a un asesor, que le confirma apenas haya novedad. 🤝";
 
 /**
  * Núcleo puro (exportado para pruebas). Reglas, en orden de gravedad:
@@ -56,8 +77,18 @@ export function guardOutboundReply(
   reply: string,
   lastOutbound: string | null,
   hasPriorOutbound: boolean,
+  salientesRecientes: readonly string[] = [],
 ): GuardResult {
   const issues: GuardIssue[] = [];
+
+  // T115 nivel 2 (31-ago, H02 con el agente en mini): cuatro veces «la medida
+  // 165/80R13 no tiene stock exacto» con maquillaje distinto. La primera
+  // repetición se tolera (reafirmar una vez es humano); la TERCERA vez de la
+  // misma idea corta el bucle y deriva — y la derivación se ejecuta de verdad.
+  const palabras = palabrasDe(reply);
+  if (salientesRecientes.filter((t) => esMismaIdea(palabras, palabrasDe(t))).length >= 2) {
+    return { text: RESPUESTA_ANTI_BUCLE, issues: ["idea_repetida"] };
+  }
 
   // Antes que el duplicado genérico: dos disculpas seguidas (idénticas o no)
   // son un bot atascado — la alerta ALTA que le llega al asesor por WhatsApp.
@@ -160,6 +191,12 @@ const ALERTAS: Record<GuardIssue, { priority: "high" | "medium"; summary: string
     reason: "Un «¡Hola!» en medio del hilo delata al bot y confunde; el saludo se recortó antes de enviar.",
     action: "Nada urgente; queda registrado para la auditoría.",
   },
+  idea_repetida: {
+    priority: "medium",
+    summary: "El bot repetía la misma idea por tercera vez: se cortó el bucle y se derivó al asesor",
+    reason: "Tres mensajes con la misma idea con distinto maquillaje. El tercero se reemplazó por una derivación real al asesor.",
+    action: "Revisar el ticket: al cliente le falta algo que el bot no le está resolviendo.",
+  },
   precio_ajustado: {
     priority: "medium",
     summary: "El modelo escribió mal una cifra de la cotización (corregida antes de enviar)",
@@ -184,7 +221,16 @@ export async function applyOutboundGuard(conversationId: number, reply: string):
       from conversations c where c.id = ${conversationId}
     `;
     if (!row) return { text: reply, issues: [] };
-    const result = guardOutboundReply(reply, row.last_outbound, row.last_outbound !== null);
+    const recientes = await sql<{ content: string | null }[]>`
+      select content from messages
+      where conversation_id = ${conversationId} and cycle = ${row.cycle}
+        and direction = 'outbound' and author_kind = 'bot' and type = 'text'
+      order by created_at desc limit 5
+    `;
+    const result = guardOutboundReply(
+      reply, row.last_outbound, row.last_outbound !== null,
+      recientes.map((m) => m.content ?? ""),
+    );
 
     // Corrector de precios: siempre que haya texto por salir. Los montos
     // reales salen de la cotización vigente del ciclo — los mismos datos

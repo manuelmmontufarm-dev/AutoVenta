@@ -41,6 +41,7 @@ import { activeBenefitFactsBlock } from "../services/benefits.js";
 import { medidaEstaPedida } from "../domain/medidaPedida.js";
 import { medidasDelPedido } from "../services/medidasDelPedido.js";
 import { extractExplicitQuantity, extractVehicleYear, type Escalones } from "../domain/salesIntent.js";
+import { searchByText } from "../services/catalog.js";
 import { chatReasoningEffort } from "./aiRequestPolicy.js";
 import { elegirFaseOperativa } from "./faseOperativa.js";
 import {
@@ -282,6 +283,19 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
   // pierden fuerza por ir al final — al contrario, quedan más cerca del
   // mensaje del cliente, que es donde más se respetan.
   const marcaDelTurno = marcaPreguntada(userText);
+  // Marca preguntada SIN medida en juego: la consulta al catálogo se hace
+  // aquí, determinística, y el resultado le llega al modelo como hecho
+  // (T115 P10, 31-ago: el mini mandó la guía de medida sin nombrar a Kenda).
+  let hechoDeMarca: string | null = null;
+  if (marcaDelTurno && !salesFacts.tireSize && extractTireSizes(userText).length === 0) {
+    const deLaMarca = searchByText(marcaDelTurno, 40).filter((p) =>
+      (p.brand ?? "").toUpperCase().includes(marcaDelTurno));
+    usedTools.push("buscar_catalogo");
+    const aros = [...new Set(deLaMarca.map((p) => p.sizeLabel).filter(Boolean))].slice(0, 5);
+    hechoDeMarca = deLaMarca.length
+      ? `CATÁLOGO CONSULTADO (fuente determinística): SÍ hay ${marcaDelTurno} disponible — ${deLaMarca.length} llantas (ej. ${aros.join(", ")}). Dile que sí la manejan y pide la medida, foto o vehículo para afinar.`
+      : `CATÁLOGO CONSULTADO (fuente determinística): NO hay ${marcaDelTurno} en el catálogo ahora. Dilo con claridad y ofrece las marcas que sí maneja (Falken, Kenda, Winrun).`;
+  }
   // EL DESCANSO DEL ACUSE (T115 conv 9887 turno 10, 30-ago): el turno pasado
   // el bot ya preguntó local o día y el cliente respondió un puro acuse. El
   // borrador NO debe volver a empujar — el guardián lo corregía, pero un
@@ -319,6 +333,11 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
   const cantidadCambia = cantidadNueva !== null
     && salesFacts.lastQuote !== null
     && !ctx.consultaFueraDeCatalogo;
+  // Una sola vuelta forzada por turno: si el modelo intenta cerrar el turno
+  // con la obligación sin cumplir, se le recuerda UNA vez y se le devuelve el
+  // control (T115 nivel 2, 31-ago: el mini recomendaba y aún así preguntaba
+  // «¿le cotizo?» a quien ya la había pedido con todas sus letras).
+  let vueltaForzadaUsada = false;
   const bloquesVolatiles: ChatCompletionMessageParam[] = [
     { role: "system", content: salesFactsPrompt(salesFacts, ctx.resumedFromHuman) },
     ...(aceptoLaOferta ? [{ role: "system" as const, content: ordenDeCotizarYa(userText) }] : []),
@@ -328,6 +347,7 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
     // Marca preguntada y dato técnico: los dos hechos de T115 conv 11274
     // (30-ago). Ver domain/consultaConRespaldo.ts.
     ...((marcaDelTurno) ? [{ role: "system" as const, content: ordenDeNombrarLaMarca(marcaDelTurno) }] : []),
+    ...(hechoDeMarca ? [{ role: "system" as const, content: hechoDeMarca }] : []),
     ...(esPreguntaTecnica
       ? [{
           role: "system" as const,
@@ -450,6 +470,21 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
     messages.push(message);
 
     if (!message.tool_calls?.length) {
+      // ¿La obligación determinística del turno quedó sin cumplir? Una vuelta
+      // más, con el recordatorio pegado al final, y de nuevo el control.
+      const debeCotizar = (pidioCotizar || cantidadCambia) && !usedTools.includes("generar_cotizacion");
+      const debeNotificar = pidioHumano && !usedTools.includes("notificar_vendedor");
+      if ((debeCotizar || debeNotificar) && !vueltaForzadaUsada && !ctx.consultaFueraDeCatalogo) {
+        vueltaForzadaUsada = true;
+        usedTools.push(`vuelta_forzada:${debeCotizar ? "cotizar" : "notificar"}`);
+        messages.push({
+          role: "system",
+          content: debeCotizar
+            ? "TE FALTÓ LA OBLIGACIÓN DEL TURNO: el cliente pidió la cotización (o fijó una cantidad nueva) y no llamaste generar_cotizacion. Llámala AHORA con el producto recomendado vigente y la cantidad dicha (4 si no dijo). No escribas texto final sin la herramienta."
+            : "TE FALTÓ LA OBLIGACIÓN DEL TURNO: el cliente pidió hablar con una persona y no llamaste notificar_vendedor. Llámala AHORA con un resumen accionable. No escribas texto final sin la herramienta.",
+        });
+        continue;
+      }
       const text = message.content?.trim();
       await logAiRun({
         conversationId: ctx.conversation.id,

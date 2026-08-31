@@ -20,6 +20,7 @@ export const EVENTOS_AVISO = [
   "send_error",
   // Guardián de salida (5-ago): el envío se bloqueó y alguien debe saberlo.
   "guard_bot_atascado",
+  "guard_idea_repetida",
   "guard_pide_foto",
   "guard_mensaje_duplicado",
   "guard_saludo_repetido",
@@ -86,6 +87,7 @@ export const CATEGORIA_DE_EVENTO: Record<AdvisorEventType, CategoriaAviso> = {
   customer_opt_out: "cliente",
   repetitive_conversation: "bot",
   guard_bot_atascado: "bot",
+  guard_idea_repetida: "bot",
   guard_pide_foto: "bot",
   guard_mensaje_duplicado: "bot",
   guard_saludo_repetido: "bot",
@@ -194,6 +196,7 @@ const CABECERAS: Record<AdvisorEventType, string> = {
   // Bot
   repetitive_conversation: "🤖 *EL BOT NECESITA AYUDA*",
   guard_bot_atascado: "🤖 *EL BOT NECESITA AYUDA*",
+  guard_idea_repetida: "🔁 *EL BOT ESTABA EN BUCLE*",
   guard_pide_foto: "🤖 *EL BOT NECESITA AYUDA*",
   guard_mensaje_duplicado: "🤖 *EL BOT NECESITA AYUDA*",
   guard_saludo_repetido: "🤖 *EL BOT NECESITA AYUDA*",

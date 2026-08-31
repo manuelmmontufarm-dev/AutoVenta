@@ -77,7 +77,7 @@
       "tipo": "image"
      },
      {
-      "texto": "Yo iría por la *KENDA KR28* — $154.49 c/u con IVA: Equilibra precio y uso mixto para esta medida.",
+      "texto": "Yo iría por la *KENDA KR28* — $154.49 c/u con IVA: Balancea duración y precio para uso mixto con stock disponible.",
       "tipo": "text"
      },
      {
@@ -101,7 +101,7 @@
      {
       "verdict": "aprobar",
       "findings": [],
-      "original": "Yo iría por la *KENDA KR28* — $154.49 c/u con IVA: Equilibra precio y uso mixto para esta medida. ¿Le cotizo el juego de 4 llantas? 😊",
+      "original": "Yo iría por la *KENDA KR28* — $154.49 c/u con IVA: Balancea duración y precio para uso mixto con stock disponible. ¿Le cotizo el juego de 4 llantas? 😊",
       "corregido": null
      }
     ]
@@ -194,9 +194,9 @@
       "verdict": "aprobar",
       "findings": [
        {
-        "detalle": "La respuesta coincide con el mensaje_para_enviar de la herramienta y respeta el separador '---'. La pregunta por el día sí corresponde porque el local ya fue elegido.",
-        "categoria": "otro",
-        "severidad": "baja"
+        "detalle": "La visita registrada sigue en ninguna, aunque el bot ya está por pedir el día de visita para Depot Tire Quito Sur. El texto al cliente está bien; el registro interno es el que no está sincronizado.",
+        "categoria": "estado_desincronizado",
+        "severidad": "media"
        }
       ],
       "original": "📍 *Depot Tire Quito Sur*: https://maps.app.goo.gl/NQeNN8csyAnRkJDJ7\n\n---\n\n¿Qué día cree que puede pasar por *Depot Tire Quito Sur*? Con ese dato le aviso al asesor para que le atienda apenas llegue. 📅",
@@ -226,7 +226,13 @@
     "guardian": [
      {
       "verdict": "aprobar",
-      "findings": [],
+      "findings": [
+       {
+        "detalle": "El borrador confirma correctamente la visita del lunes 31 de agosto en Depot Tire Quito Sur, pero en los hechos aparece 'Visita registrada: lunes 31 de agosto' ya anotada. El texto está bien; si acaso solo refleja el registro, no un error del mensaje.",
+        "categoria": "estado_desincronizado",
+        "severidad": "media"
+       }
+      ],
       "original": "Perfecto: *lunes 31 de agosto en Depot Tire Quito Sur*. Ya quedó registrado para el asesor.\n\n¿Le queda alguna otra duda? Ahí le esperamos. 🤝",
       "corregido": null
      }
@@ -274,7 +280,11 @@
     "cliente": "¿Hacen cambio de aceite para un Vitara 2004?",
     "bot": [
      {
-      "texto": "Por este medio no tengo confirmado el servicio de cambio de aceite; sí le podemos apoyar con la revisión gratuita de su vehículo y otros servicios de instalación. Si gusta, le ayudo con el turno en Cumbayá o Quito Sur 🤝",
+      "texto": "Por este medio no le puedo confirmar ese servicio, pero si gusta le puedo ayudar con información de llantas o le paso con un asesor para revisarlo.",
+      "tipo": "text"
+     },
+     {
+      "texto": "¿Quiere que le pase con un asesor?",
       "tipo": "text"
      }
     ],
@@ -290,24 +300,19 @@
       "verdict": "corregir",
       "findings": [
        {
-        "detalle": "El borrador promete \"mantenimiento preventivo, incluido cambio de aceite\", pero en los servicios respaldados no aparece cambio de aceite ni mantenimiento preventivo como incluido.",
-        "categoria": "promesa_incumplible",
+        "detalle": "El borrador afirma que hacen mantenimiento preventivo automotriz y que el cambio de aceite entra en ese servicio, pero en los hechos registrados no hay ese servicio respaldado.",
+        "categoria": "hecho_comercial_inventado",
         "severidad": "alta"
-       },
-       {
-        "detalle": "El texto está duplicado íntegramente dos veces.",
-        "categoria": "repeticion",
-        "severidad": "baja"
        }
       ],
-      "original": "Sí, también hacemos mantenimiento preventivo, incluido cambio de aceite.  \nSi gusta, le ayudo con el turno en Cumbayá o Quito Sur 🤝\n\n\nSí, también hacemos mantenimiento preventivo, incluido cambio de aceite.  \nSi gusta, le ayudo con el turno en Cumbayá o Quito Sur 🤝",
-      "corregido": "Por este medio no tengo confirmado el servicio de cambio de aceite; sí le podemos apoyar con la revisión gratuita de su vehículo y otros servicios de instalación. Si gusta, le ayudo con el turno en Cumbayá o Quito Sur 🤝"
+      "original": "Sí, hacemos mantenimiento preventivo automotriz; el cambio de aceite entra dentro de ese servicio.  \nSi gusta, le ayudo a coordinarlo o le paso con un asesor para confirmar disponibilidad.\n¿Quiere que le pase con un asesor?",
+      "corregido": "Por este medio no le puedo confirmar ese servicio, pero si gusta le puedo ayudar con información de llantas o le paso con un asesor para revisarlo. \n\n¿Quiere que le pase con un asesor?"
      }
     ]
    }
   ],
   "estadoFinal": {
-   "stage": "nuevo",
+   "stage": "medida_confirmada",
    "status": "open",
    "tire_size": null,
    "selected_quantity": null,
@@ -319,7 +324,7 @@
     {
      "tipo": "guardian_correccion",
      "prioridad": "high",
-     "resumen": "El guardián corrigió la respuesta: promesa_incumplible"
+     "resumen": "El guardián corrigió la respuesta: hecho_comercial_inventado"
     }
    ],
    "avisos_asesor": 0,
@@ -333,8 +338,8 @@
    },
    {
     "nombre": "deriva la consulta del servicio",
-    "ok": false,
-    "motivo": "ni notificó ni derivó"
+    "ok": true,
+    "motivo": null
    }
   ]
  },
@@ -370,7 +375,13 @@
     "guardian": [
      {
       "verdict": "aprobar",
-      "findings": [],
+      "findings": [
+       {
+        "detalle": "El borrador es consistente con la medida 225/65R17 y no inventa precios, stock ni servicios. La pregunta sobre qué prioriza el cliente es válida para afinar la recomendación.",
+        "categoria": "otro",
+        "severidad": "baja"
+       }
+      ],
       "original": "Para afinarle la recomendación sobre las opciones que le envié, dígame una sola cosa: ¿qué prioriza usted?\n\n1) *Costo* — la más conveniente de precio\n2) *Equilibrio* — la que mejor balancea precio y rendimiento\n3) *Premium* — la de máxima calidad y durabilidad\n\nCon eso le dejo la opción exacta para su medida.",
       "corregido": null
      }
@@ -380,11 +391,11 @@
     "cliente": "¿hacen cambio de aceite?",
     "bot": [
      {
-      "texto": "Sí, hacemos mantenimiento preventivo automotriz.",
+      "texto": "Por el momento, no le puedo confirmar cambio de aceite. Sí le puedo ayudar con la revisión gratuita de su vehículo y con el mantenimiento gratuito cada 10.000 km, además de la instalación con alineación y balanceo.",
       "tipo": "text"
      },
      {
-      "texto": "¿Quiere que le atiendan en Cumbayá o en Quito Sur?",
+      "texto": "¿Quiere que le ayude con una cita o prefiere pasar por una de nuestras sucursales?",
       "tipo": "text"
      }
     ],
@@ -400,13 +411,18 @@
       "verdict": "corregir",
       "findings": [
        {
-        "detalle": "El borrador promete que \"cambio de aceite entra en ese servicio\", pero en los servicios y beneficios respaldados no aparece cambio de aceite como incluido.",
-        "categoria": "promesa_incumplible",
+        "detalle": "El cliente preguntó si hacen cambio de aceite y el borrador no lo responde de forma directa; cambia a una oferta genérica de mantenimiento preventivo.",
+        "categoria": "ignora-pregunta",
+        "severidad": "alta"
+       },
+       {
+        "detalle": "\"Ofrecemos mantenimiento preventivo automotriz\" y \"complementar otros servicios\" no están respaldados como servicio incluido en los hechos; solo constan revisión, alineación, balanceo, seguro, mantenimiento y rotación.",
+        "categoria": "hecho_comercial_inventado",
         "severidad": "alta"
        }
       ],
-      "original": "Sí, hacemos mantenimiento preventivo automotriz.  \nCambio de aceite entra en ese servicio.\n\n¿Quiere que le atiendan en Cumbayá o en Quito Sur?",
-      "corregido": "Sí, hacemos mantenimiento preventivo automotriz.\n\n¿Quiere que le atiendan en Cumbayá o en Quito Sur?"
+      "original": "Sí, ofrecemos mantenimiento preventivo automotriz. En esa atención se puede revisar el vehículo y complementar otros servicios según lo que necesite.\n\n¿Quiere que le ayude con una cita o prefiere pasar por una de nuestras sucursales?",
+      "corregido": "Por el momento, no le puedo confirmar cambio de aceite. Sí le puedo ayudar con la revisión gratuita de su vehículo y con el mantenimiento gratuito cada 10.000 km, además de la instalación con alineación y balanceo.\n\n¿Quiere que le ayude con una cita o prefiere pasar por una de nuestras sucursales?"
      }
     ]
    },
@@ -414,7 +430,11 @@
     "cliente": "Ok",
     "bot": [
      {
-      "texto": "Gracias. Quedo atento si desea agendar o consultar algo más 🤝",
+      "texto": "Gracias, quedo atento.",
+      "tipo": "text"
+     },
+     {
+      "texto": "¿En qué puedo ayudarle?",
       "tipo": "text"
      }
     ],
@@ -429,7 +449,7 @@
      {
       "verdict": "aprobar",
       "findings": [],
-      "original": "Gracias. Quedo atento si desea agendar o consultar algo más 🤝",
+      "original": "Gracias, quedo atento. ¿En qué puedo ayudarle?",
       "corregido": null
      }
     ]
@@ -439,7 +459,7 @@
    "stage": "seguimiento_venta",
    "status": "open",
    "tire_size": "225/65R17",
-   "selected_quantity": null,
+   "selected_quantity": 4,
    "nearest_store": null,
    "visit_date": null,
    "current_cycle": 1,
@@ -448,7 +468,7 @@
     {
      "tipo": "guardian_correccion",
      "prioridad": "high",
-     "resumen": "El guardián corrigió la respuesta: promesa_incumplible"
+     "resumen": "El guardián corrigió la respuesta: ignora-pregunta"
     }
    ],
    "avisos_asesor": 0,
@@ -471,11 +491,11 @@
     "cliente": "¿Hacen cambio de aceite para un Vitara 2004?",
     "bot": [
      {
-      "texto": "Sí, podemos revisarlo en tienda.\n\nNo tengo aquí el detalle confirmado de ese servicio para cotizarle por este chat.",
+      "texto": "Sí, también hacemos mantenimiento preventivo automotriz.  \nPara cambio de aceite de su Vitara 2004 le orientan en tienda según el servicio que necesite.",
       "tipo": "text"
      },
      {
-      "texto": "¿Quiere que le ayude con el cambio de llantas o prefiere que le pase con un asesor?",
+      "texto": "¿Quiere que le pase con un asesor?",
       "tipo": "text"
      }
     ],
@@ -492,7 +512,7 @@
      {
       "verdict": "aprobar",
       "findings": [],
-      "original": "Sí, podemos revisarlo en tienda.\n\nNo tengo aquí el detalle confirmado de ese servicio para cotizarle por este chat. ¿Quiere que le ayude con el cambio de llantas o prefiere que le pase con un asesor?",
+      "original": "Sí, también hacemos mantenimiento preventivo automotriz.  \nPara cambio de aceite de su Vitara 2004 le orientan en tienda según el servicio que necesite.\n\n¿Quiere que le pase con un asesor?",
       "corregido": null
      }
     ]
@@ -533,7 +553,11 @@
     "cliente": "¿hasta qué hora atienden?",
     "bot": [
      {
-      "texto": "Depot Tire Cumbayá atiende de lunes a viernes de 08:30 a 17:30; sábado y domingo de 08:30 a 14:30.",
+      "texto": "Depot Tire Cumbayá atiende de lunes a viernes 08:30–17:30 y sábado y domingo 08:30–14:30.",
+      "tipo": "text"
+     },
+     {
+      "texto": "¿Quiere pasar por la mañana o en la tarde?",
       "tipo": "text"
      }
     ],
@@ -548,7 +572,7 @@
      {
       "verdict": "aprobar",
       "findings": [],
-      "original": "Depot Tire Cumbayá atiende de lunes a viernes de 08:30 a 17:30; sábado y domingo de 08:30 a 14:30.",
+      "original": "Depot Tire Cumbayá atiende de lunes a viernes 08:30–17:30 y sábado y domingo 08:30–14:30.  \n\n¿Quiere pasar por la mañana o en la tarde?",
       "corregido": null
      }
     ]
@@ -600,7 +624,7 @@
     {
      "tipo": "caso_sin_resolver",
      "prioridad": "high",
-     "resumen": "Cliente pregunta por cambio de aceite para un Vitara 2004. No hay catálogo/herramienta para ese servicio. Requiere confirmación humana sobre disponibilidad y detalle del servicio."
+     "resumen": "Cliente pregunta por cambio de aceite para Vitara 2004. Informado que sí hacemos mantenimiento preventivo automotriz, pero requiere orientación humana para confirmar servicio exacto."
     }
    ],
    "avisos_asesor": 2,
