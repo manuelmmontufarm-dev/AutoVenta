@@ -108,6 +108,30 @@ export function preguntaElDia(bloque: string | null | undefined): boolean {
   return /\b(?:digame|dime|me dice|me dices|aviseme|avisame|cuenteme|cuentame|indiqueme|confirmeme)\b[^.?!]{0,30}\b(?:que|cual)\s+dia\b/.test(n);
 }
 
+/**
+ * ¿El cliente RECHAZÓ los días propuestos sin proponer otro?
+ *
+ * Producción, 31-ago (conv 3 c20): a «¿Qué día cree que puede pasar?» el
+ * cliente contestó «no puedo esos dias» y el bot respondió «Entendido, aún no
+ * queda agendada la visita.» — y nada más. El candado anti-bucle calló la
+ * pregunta del día porque el turno anterior ya la había hecho, pero un rechazo
+ * ES una respuesta: ahí lo que corresponde es preguntar qué día SÍ puede.
+ *
+ * Estricto a propósito: si el mensaje nombra un día concreto («no puedo el
+ * jueves, mejor el viernes») no es un rechazo en seco y esta función dice que
+ * no — la captura normal ya lee ese día.
+ */
+export function rechazaLosDiasPropuestos(texto: string | null | undefined): boolean {
+  if (!texto) return false;
+  const n = normalizar(texto);
+  if (diaEnTexto(n) != null || relativoEnTexto(n) != null) return false;
+  return (
+    /\b(?:no\s+(?:puedo|podria|podre|me\s+sirven?|me\s+quedan?|me\s+vienen?)|imposible|ningun[oa]?)\b[^.?!]{0,30}\b(?:dias?|fechas?|semanas?)\b/.test(n)
+    || /\b(?:esos|estos)\s+dias?\b[^.?!]{0,15}\bno\b/.test(n)
+    || /\bninguno\s+de\s+esos\b/.test(n)
+  );
+}
+
 export function preguntamosElDia(ultimoMensajeNuestro: string | null | undefined): boolean {
   if (!ultimoMensajeNuestro) return false;
   const n = normalizar(ultimoMensajeNuestro);

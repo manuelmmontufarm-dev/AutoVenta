@@ -1,8 +1,12 @@
 const normalizar = (texto: string) =>
   (texto ?? "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 
+// «no me gusta» y «ya no quiero» entraron el 31-ago (conv 3 c20, producción):
+// el cliente escribió «esta muy ya no 185 no me gusta que otras tiene» y el
+// patrón no lo reconoció — el turno siguiente le reenvió dos 185. El rechazo
+// con gusto («no me gusta») pesa igual que el rechazo con calce.
 const RECHAZA_POR_CALCE =
-  /\b(?:muy\s+anch\w*|prefiero\s+(?:un\s+poco\s+)?mas\s+delgad\w*|prefiero\s+(?:un\s+poco\s+)?mas\s+angost\w*|roz\w*|no\s+(?:la\s+)?(?:quiero|deseo)|no\s+(?:me\s+)?(?:sirve|conviene|recomiend\w*)|evitar\s+(?:mayor\s+)?consumo)\b/;
+  /\b(?:muy\s+anch\w*|prefiero\s+(?:un\s+poco\s+)?mas\s+delgad\w*|prefiero\s+(?:un\s+poco\s+)?mas\s+angost\w*|roz\w*|no\s+(?:la\s+)?(?:quiero|deseo)|no\s+(?:me\s+)?gusta\w*|ya\s+no\s+(?:quiero|la\s+quiero|me\s+gusta\w*)|ya\s+no\s+(?=\d)|no\s+(?:me\s+)?(?:sirve|conviene|recomiend\w*)|evitar\s+(?:mayor\s+)?consumo)\b/;
 
 const REHABILITA_ANCHO =
   /\b(?:si\s+(?:quiero|me\s+sirve)|esta\s+bien|deme|dame|quiero|prefiero|acepto|vamos\s+con|me\s+quedo\s+con)\b/;

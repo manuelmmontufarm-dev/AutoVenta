@@ -12,7 +12,7 @@
 import { business } from "../config.js";
 import { sql } from "../db/client.js";
 import { ahorroDeLaCotizacion, type LineaCotizada } from "../domain/ahorro.js";
-import { preguntaElDia } from "../domain/customerCommitment.js";
+import { preguntaElDia, rechazaLosDiasPropuestos } from "../domain/customerCommitment.js";
 import { datoQueFalta } from "../domain/preguntaPendiente.js";
 import { despedidaQueCorresponde } from "../domain/cierrePerdido.js";
 import { esCierreComercialDelTurno } from "../domain/cierreTurno.js";
@@ -64,6 +64,7 @@ export async function sinPreguntaPendienteConsecutiva(
   conversationId: number,
   cycle: number,
   texto: string,
+  textoDelCliente?: string | null,
 ): Promise<string> {
   const anterior = await ultimoTextoDelBot(conversationId, cycle);
   if (!anterior) return texto;
@@ -71,6 +72,11 @@ export async function sinPreguntaPendienteConsecutiva(
     return quitarPreguntaFinal(texto, preguntaElLocal);
   }
   if (preguntaElDia(anterior) && preguntaElDia(texto)) {
+    // «No puedo esos días» ES una respuesta a la pregunta del día: repreguntar
+    // qué día SÍ puede no es un bucle, es lo único que hace avanzar la venta.
+    // Producción 31-ago (conv 3 c20): este candado calló la repregunta y el
+    // turno terminó en «aún no queda agendada la visita» sin preguntar nada.
+    if (rechazaLosDiasPropuestos(textoDelCliente)) return texto;
     return quitarPreguntaFinal(texto, preguntaElDia);
   }
   return texto;
@@ -120,9 +126,13 @@ export async function insistirConLoQueFalta(
   });
   if (!falta) return { texto, agregado: null };
 
+  // El rechazo de los días propuestos cambia la regla del bucle: la pregunta
+  // anterior YA fue contestada (con un «no»), así que repreguntar «¿qué día sí?»
+  // no es insistir dos veces con lo mismo — es la única salida que avanza.
+  const rechazoDias = falta === "dia" && rechazaLosDiasPropuestos(textoDelCliente);
   const anterior = await ultimoTextoDelBot(conversationId, cycle);
   if (falta === "local" && preguntaElLocal(anterior ?? "")) return { texto, agregado: null };
-  if (falta === "dia" && preguntaElDia(anterior ?? "")) return { texto, agregado: null };
+  if (falta === "dia" && !rechazoDias && preguntaElDia(anterior ?? "")) return { texto, agregado: null };
 
 
   // Si el turno YA la pregunta, no se toca: repetirla sería el ruido que este
@@ -141,6 +151,11 @@ export async function insistirConLoQueFalta(
 
   const pregunta = falta === "local"
     ? `${PREGUNTA_DE_LOCAL} 📍`
+    : rechazoDias
+    // Tras un «no puedo esos días» la pregunta estándar sonaría a bucle; se
+    // repregunta reconociendo el no y pidiendo el día que SÍ (Manuel, 31-ago:
+    // «debería preguntar bueno entonces qué día sí podría»).
+    ? `¿Qué día sí le vendría bien pasar${facts?.nearest_store ? ` por *${facts.nearest_store}*` : ""}? Lo anoto y le aviso al asesor. 📅`
     : buildVisitPlanQuestion({
         conDescuentoAutorizado: false,
         locales: business.stores.map((store) => store.name),

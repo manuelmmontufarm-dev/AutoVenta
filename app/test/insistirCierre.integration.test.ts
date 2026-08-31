@@ -147,4 +147,69 @@ describe.sequential("insistir con lo que falta", () => {
 
     expect(limpio).toBe("La garantía es de 5 años.");
   });
+
+  // Producción, 31-ago-2026, conv 3 c20 (Manuel Montufar): a «¿Qué día cree que
+  // puede pasar?…» el cliente contestó «no puedo esos dias» y el turno terminó
+  // en «Entendido, aún no queda agendada la visita.» sin preguntar nada. El
+  // rechazo de los días propuestos ES una respuesta: se repregunta qué día SÍ.
+  const PREGUNTA_DEL_DIA_ANTERIOR =
+    "¿Qué día cree que puede pasar? Le aviso al asesor para que le tenga lista su cotización con *25 %* de descuento, *$95.72* menos. 📅";
+
+  it("EL CASO DE MANUEL: «no puedo esos dias» recibe la repregunta de qué día SÍ", async () => {
+    const fila = await conversacion("593980006021", { local: "Depot Tire Quito Sur" });
+    await sql`
+      insert into messages (conversation_id, cycle, role, direction, content, type, author_kind)
+      values (${fila.id}, 1, 'assistant', 'outbound', ${PREGUNTA_DEL_DIA_ANTERIOR}, 'text', 'bot')
+    `;
+    await sql`
+      insert into messages (conversation_id, cycle, role, direction, content, type)
+      values (${fila.id}, 1, 'user', 'inbound', 'no puedo esos dias', 'text')
+    `;
+    const r = await insistirConLoQueFalta(
+      fila.id, 1, "Entendido, aún no queda agendada la visita.", "no puedo esos dias",
+    );
+    expect(r.agregado).toBe("dia");
+    expect(r.texto).toMatch(/qué día sí le vendría bien/i);
+    expect(r.texto).toContain("Depot Tire Quito Sur");
+  });
+
+  it("EL CASO QUE NO DEBE DISPARAR: sin rechazo, la pregunta del turno anterior sigue callando al candado", async () => {
+    const fila = await conversacion("593980006022", { local: "Depot Tire Quito Sur" });
+    await sql`
+      insert into messages (conversation_id, cycle, role, direction, content, type, author_kind)
+      values (${fila.id}, 1, 'assistant', 'outbound', ${PREGUNTA_DEL_DIA_ANTERIOR}, 'text', 'bot')
+    `;
+    const r = await insistirConLoQueFalta(
+      fila.id, 1, "La garantía es de 5 años.", "¿y la garantía cuánto dura?",
+    );
+    expect(r.agregado).toBeNull();
+    expect(r.texto).toBe("La garantía es de 5 años.");
+  });
+
+  it("EL BORDE: si el cliente rechaza pero nombra un día, no es rechazo en seco y no se repregunta", async () => {
+    const fila = await conversacion("593980006023", { local: "Depot Tire Quito Sur" });
+    await sql`
+      insert into messages (conversation_id, cycle, role, direction, content, type, author_kind)
+      values (${fila.id}, 1, 'assistant', 'outbound', ${PREGUNTA_DEL_DIA_ANTERIOR}, 'text', 'bot')
+    `;
+    const r = await insistirConLoQueFalta(
+      fila.id, 1, "Perfecto, el viernes entonces.", "no puedo esos dias, mejor el viernes",
+    );
+    expect(r.agregado).toBeNull();
+  });
+
+  it("el dedupe conserva la repregunta del día cuando el cliente acaba de rechazar los días", async () => {
+    const fila = await conversacion("593980006024", { local: "Depot Tire Quito Sur" });
+    await sql`
+      insert into messages (conversation_id, cycle, role, direction, content, type, author_kind)
+      values (${fila.id}, 1, 'assistant', 'outbound', ${PREGUNTA_DEL_DIA_ANTERIOR}, 'text', 'bot')
+    `;
+    await sql`
+      insert into messages (conversation_id, cycle, role, direction, content, type)
+      values (${fila.id}, 1, 'user', 'inbound', 'no puedo esos dias', 'text')
+    `;
+    const borrador = "Entendido, no hay problema.\n\n---\n\n¿Qué día sí le vendría bien pasar? 📅";
+    const limpio = await sinPreguntaPendienteConsecutiva(fila.id, 1, borrador, "no puedo esos dias");
+    expect(limpio).toBe(borrador);
+  });
 });

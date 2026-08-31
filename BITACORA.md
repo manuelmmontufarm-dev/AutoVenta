@@ -1,3 +1,35 @@
+## 31-ago-2026 · Los tres errores del chat de Manuel (conv 3, 13:20-13:27): calco, medida rechazada y «no puedo esos días»
+
+**Qué:** Cuatro candados, todos probados en el simulador con la conversación
+real repetida mensaje a mensaje. (1) `sin_calco_reciente`, paso NUEVO al final
+de la cadena de salida: un bloque idéntico a un mensaje enviado en los últimos
+10 minutos no se manda dos veces (las preguntas solo cuentan contra los 2
+salientes inmediatos, para no comerse la repregunta legítima del cierre).
+(2) El rechazo de medida entiende «no me gusta» y «ya no 185» (antes solo «no
+quiero»/«muy ancha»), `buscar_por_aro_y_tipo` filtra los anchos rechazados —era
+la puerta por la que volvían a salir— y responde «en ese aro solo manejo esa
+medida» cuando no queda nada; el Ángel Guardián recibe el rechazo como HECHO
+(RESTRICCIONES) y la regla 20 lo marca `insiste_tras_rechazo` en alta.
+(3) `preparar_opciones` exige coherencia de aro: si el cliente dijo «rin 15»,
+una opción de otro aro no sale salvo que él haya nombrado esa medida completa
+(el modelo barato había inventado una 205/55R16). (4) «no puedo esos días» es
+una respuesta, no un silencio: `insistirCierre` repregunta «¿Qué día sí le
+vendría bien pasar…?» en vez de callarse por el candado anti-bucle.
+
+**Por qué:** El chat real de Manuel Montufar (31-ago 13:23-13:27) tuvo los tres
+errores seguidos: el bloque de locales salió duplicado a los 7 segundos —el
+chequeo de duplicados corre ANTES del Ángel Guardián y fue el guardián quien
+reescribió el segundo borrador dejándolo idéntico (review 2716: lo detectó en su
+hallazgo… y su corrección lo reprodujo textual)—; «sabe que esta muy ya no 185
+no me gusta que otras tiene» no registró rechazo y el turno siguiente le mandó
+dos 185; y «no puedo esos dias» terminó en «aún no queda agendada la visita»
+sin preguntar qué día sí. La regla de la casa otra vez: lo que tiene que ser
+cierto sí o sí corre DESPUÉS de quien reescribe, y un dato del cliente (el
+rechazo, su aro) tiene que ser un hecho consultable, no una esperanza de que el
+modelo se acuerde.
+
+**Horas:** ~2.5
+
 ## 31-ago-2026 · El «hola» saluda siempre + la memoria del chat caduca a las 15 h
 
 **Qué:** Un saludo genérico al arranque de cualquier ciclo recibe la bienvenida
@@ -84,6 +116,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-08-31 | _(este mismo)_ | Los tres errores del chat de Manuel: calco tras el guardián, medida rechazada y «no puedo esos días» | 2.5 |
 | 2026-08-29 | _(este mismo)_ | El embudo del Pipeline cabe entero en el teléfono, sin arrastrar | 0.75 |
 | 2026-08-29 | _(este mismo)_ | El hub en el teléfono: el chat se comporta como WhatsApp y la baraja como una app de tarjetas | 2.5 |
 | 2026-08-29 | _(este mismo)_ | Los cinco pendientes conocidos, cerrados: el reloj de las 12 horas y cuatro más | 2.0 |

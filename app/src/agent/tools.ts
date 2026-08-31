@@ -68,7 +68,7 @@ import { brandProfilesForRender } from "../services/brandProfiles.js";
 import { getAiConfig, getPiecesConfig } from "../services/settings.js";
 import { researchVehicleFitment } from "../services/vehicleFitmentResearch.js";
 import { arosDeCandidatos, arosDeMedidas, invitacionPorAroAmbiguo } from "../domain/fitmentResearch.js";
-import { rangoDeAros } from "../domain/aros.js";
+import { aroVigenteDeLaVisita, rangoDeAros } from "../domain/aros.js";
 import { nearestStore, resolveSector } from "../domain/locations.js";
 import { extractFlotationSizes, formatFlotationSize, formatTireSize, parseTireSize, type TireSize } from "../domain/tireSize.js";
 import { marcaPreguntada } from "../domain/consultaConRespaldo.js";
@@ -760,6 +760,54 @@ export function buildTools(ctx: AgentContext) {
       const { pedido, enElAro, delTipo, seleccion, suMedida, sinTipoEnSuMedida } =
         opcionesEnAro(aro, tipo, ficha?.tire_size);
 
+      // El ancho que el cliente rechazó no vuelve a salir por esta puerta.
+      // 31-ago (conv 3 c20, producción): «ya no 185, ¿qué otras tiene?» y esta
+      // búsqueda devolvió dos 185 igual — el rechazo se filtraba en
+      // `preparar_opciones` pero no aquí, y el modelo eligió los códigos de
+      // esta lista. La restricción se lee de los mensajes de la visita, con el
+      // mismo criterio que `preparar_opciones`.
+      const inboundVisita = await sql<{ content: string; created_at: Date }[]>`
+        select content, created_at from messages
+        where conversation_id=${ctx.conversation.id}
+          and cycle=${ctx.conversation.current_cycle}
+          and direction='inbound'
+        order by created_at desc limit 12
+      `;
+      const restricciones = restriccionesDeLlanta([
+        ...mensajesDeLaVisitaActual(inboundVisita).map((m) => m.content).reverse(),
+        ctx.currentUserText,
+      ]);
+      const delTipoPermitido = delTipo.filter(
+        (p) => !violaRestriccionesDeLlanta(p.sizeLabel, restricciones),
+      );
+      // Hay stock en el aro pero TODO es del ancho rechazado: eso no es «no
+      // encontrado» a secas — la respuesta honesta es que no hay otra medida.
+      if (delTipo.length && !delTipoPermitido.length) {
+        return JSON.stringify({
+          encontrado: false,
+          aro,
+          tipo_pedido: pedido || null,
+          anchos_rechazados: restricciones.anchosRechazados,
+          medidas_que_hay_pero_rechazo: [...new Set(delTipo.map((p) => p.sizeLabel))],
+          regla:
+            `En el aro ${aro} TODO el stock es de anchos que el cliente YA rechazó (${restricciones.anchosRechazados.join(", ")}). `
+            + "Díselo con todas las letras — «en ese aro solo manejo esa medida y usted me dijo que ya no la quiere» — y "
+            + "PROHIBIDO volver a mandarle esas opciones o la pieza. Ofrece las dos salidas reales: que te diga marca, modelo y año "
+            + "de su vehículo para confirmar qué medida alternativa sí le calza, o que un asesor se lo confirme en el local.",
+        });
+      }
+      // La selección original (que prefiere su medida confirmada) se respeta
+      // mientras sobreviva al filtro; si el rechazo la vació, se rearma la
+      // escalera con lo que sí se puede ofrecer.
+      const seleccionFiltrada = seleccion.filter(
+        (p) => !violaRestriccionesDeLlanta(p.sizeLabel, restricciones),
+      );
+      const seleccionPermitida = seleccionFiltrada.length
+        ? seleccionFiltrada
+        : tresOpciones(
+            conStock(delTipoPermitido).length ? conStock(delTipoPermitido) : delTipoPermitido,
+          );
+
       if (!delTipo.length) {
         return JSON.stringify({
           encontrado: false,
@@ -786,10 +834,16 @@ export function buildTools(ctx: AgentContext) {
         su_medida: suMedida,
         sin_tipo_en_su_medida: sinTipoEnSuMedida,
         // Tres y no seis: una por escalón de marca.
-        opciones: seleccion.map(toolItem),
-        otras_en_ese_aro: delTipo.length - seleccion.length,
+        opciones: seleccionPermitida.map(toolItem),
+        otras_en_ese_aro: delTipoPermitido.length - seleccionPermitida.length,
+        ...(restricciones.anchosRechazados.length
+          ? { anchos_rechazados_excluidos: restricciones.anchosRechazados }
+          : {}),
         regla: [
           "PROHIBIDO listarlas en texto. Llama preparar_opciones con estos códigos para que salga la imagen (una premium, una de equilibrio, una económica). Si el cliente no dijo el uso ni el tipo, se lo preguntas DESPUÉS de mandarle la imagen — nunca retengas las opciones para preguntar primero. No afirmes un tipo que no venga en 'tipo'.",
+          restricciones.anchosRechazados.length
+            ? `Se EXCLUYERON los anchos ${restricciones.anchosRechazados.join(", ")} que el cliente rechazó: no los vuelvas a ofrecer ni a cotizar.`
+            : null,
           // Estas opciones NO son de su medida y hay que decirlo. `preparar_opciones`
           // ya hornea el aviso de equivalentes en el mensaje que sale verbatim
           // (candado 3), así que aquí basta con que el modelo no las presente
@@ -1174,17 +1228,44 @@ export function buildTools(ctx: AgentContext) {
             "PROHIBIDO reenviar, recomendar o cotizar esas opciones: el cliente ya rechazó ese ancho por calce, roce o consumo. Busca una medida que respete su restricción o deriva al asesor si el calce requiere confirmación.",
         });
       }
+      // EL ARO DEL CLIENTE MANDA. 31-ago (conv 3 c20): venía de «una rin 15»,
+      // rechazó el 185, y el modelo barato buscó una 205/55R16 inventada — la
+      // pieza salió con aro 16 para un cliente de aro 15. El aro dicho por el
+      // cliente es un dato suyo: una opción de otro aro solo pasa si él nombró
+      // esa medida completa con sus propias palabras.
+      const textosDeLaVisita = [
+        ...mensajesDeLaVisitaActual(inbound).map((m) => m.content).reverse(),
+        ctx.currentUserText,
+      ];
+      const aroVigente = aroVigenteDeLaVisita(textosDeLaVisita);
+      const medidasDichas = medidasPermitidas(textosDeLaVisita, null);
+      const coherentes = aroVigente
+        ? encontradosPermitidos.filter(
+            (p) => p.size?.rim === aroVigente || medidaEstaPedida(p.sizeLabel, medidasDichas),
+          )
+        : encontradosPermitidos;
+      if (aroVigente && !coherentes.length) {
+        return JSON.stringify({
+          error: "opciones_de_otro_aro",
+          aro_del_cliente: aroVigente,
+          aros_de_las_opciones: [...new Set(encontradosPermitidos.map((p) => p.size?.rim).filter(Boolean))],
+          regla:
+            `El cliente pidió aro ${aroVigente} y TODAS estas opciones son de otro aro: no se le mandan. `
+            + `Busca con buscar_por_aro_y_tipo (aro: ${aroVigente}) y arma la pieza con lo que esa búsqueda devuelva; `
+            + "si ahí no hay nada que respete lo que pidió, díselo con todas las letras en vez de mostrarle otra cosa.",
+        });
+      }
       const tipoPedido = tipoSolicitadoEn([
         ctx.currentUserText,
         ...inbound.map((m) => m.content),
       ]);
       let avisoTipo: string | null = null;
-      let candidatos = encontradosPermitidos;
+      let candidatos = coherentes;
       if (tipoPedido) {
-        const coinciden = encontradosPermitidos.filter(
+        const coinciden = coherentes.filter(
           (p) => tipoDeProducto(p.code, p.design) === tipoPedido,
         );
-        const resto = encontradosPermitidos.filter((p) => !coinciden.includes(p));
+        const resto = coherentes.filter((p) => !coinciden.includes(p));
         if (coinciden.length >= 2) candidatos = coinciden;
         else if (coinciden.length === 1) candidatos = [...coinciden, ...resto];
         else {

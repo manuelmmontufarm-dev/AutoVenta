@@ -26,3 +26,33 @@ export function rangoDeAros(aros: readonly number[]): string | null {
   if (corridos) return `${limpios[0]} al ${limpios[limpios.length - 1]}`;
   return `${limpios.slice(0, -1).join(", ")} y ${limpios[limpios.length - 1]}`;
 }
+
+/**
+ * El aro que el cliente tiene sobre la mesa en un texto suyo.
+ *
+ * Producción, 31-ago-2026 (conv 3 c20): el cliente venía de «una rin 15»,
+ * rechazó el ancho 185, y el turno siguiente le mandó opciones de 205/55R16 —
+ * aro 16 — porque el modelo barato inventó la medida al buscar. El aro dicho
+ * por el cliente es un dato suyo y tiene que poder leerse determinísticamente.
+ *
+ * Una medida completa manda sobre el aro suelto: «mejor una 205/55R16» cambia
+ * el aro aunque antes haya dicho «rin 15».
+ */
+export function aroEnTexto(texto: string): number | null {
+  const n = (texto ?? "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+  const completas = [...n.matchAll(/\b\d{3}\/\d{2,3}\s*z?r?\s*(1[2-9]|2[0-4])\b/g)]
+    .map((m) => Number(m[1]));
+  if (completas.length) return completas[completas.length - 1];
+  const sueltos = [...n.matchAll(/\b(?:rin(?:es)?|aros?|ring)\s*(1[2-9]|2[0-4])\b|\br(1[2-9]|2[0-4])\b/g)]
+    .map((m) => Number(m[1] ?? m[2]));
+  return sueltos.length ? sueltos[sueltos.length - 1] : null;
+}
+
+/** El aro vigente de la visita: la última mención del cliente manda. */
+export function aroVigenteDeLaVisita(textosCronologicos: readonly string[]): number | null {
+  for (let i = textosCronologicos.length - 1; i >= 0; i--) {
+    const aro = aroEnTexto(textosCronologicos[i] ?? "");
+    if (aro != null) return aro;
+  }
+  return null;
+}

@@ -170,6 +170,12 @@ describe("el orden de los candados en el turno", () => {
       "sin_locales_inventados",
       "sin_numeros_de_cotizacion",
       "pregunta_en_su_propio_mensaje",
+      // El calco de hace un momento, LO ÚLTIMO de todo: el 31-ago (conv 3 c20)
+      // el guardián reescribió el borrador dejándolo idéntico al bloque de
+      // locales enviado 7 segundos antes, y el chequeo de duplicados de
+      // `applyOutboundGuard` ya había corrido. Corre después del split para
+      // comparar bloque a bloque contra los mensajes ya enviados.
+      "sin_calco_reciente",
     ]);
   });
 
@@ -222,10 +228,13 @@ describe("el orden de los candados en el turno", () => {
     }
   });
 
-  it("la pregunta se separa LO ÚLTIMO, con la cadena ya terminada", () => {
+  it("la pregunta se separa con la cadena de reescritura ya terminada", () => {
     // Los candados de arriba todavía pueden pegar o reescribir la pregunta del
-    // cierre, así que separarla antes no serviría de nada (27-ago).
-    expect(nombres[nombres.length - 1]).toBe("pregunta_en_su_propio_mensaje");
+    // cierre, así que separarla antes no serviría de nada (27-ago). Después de
+    // ella solo corre `sin_calco_reciente`, que QUITA bloques repetidos y jamás
+    // agrega ni reescribe nada.
+    const despues = nombres.slice(nombres.indexOf("pregunta_en_su_propio_mensaje") + 1);
+    expect(despues).toEqual(["sin_calco_reciente"]);
   });
 
   it("el turno normal corre la cadena entera", () => {

@@ -34,7 +34,8 @@ import { config } from "../config.js";
 import { sql } from "../db/client.js";
 import type { Stage } from "../domain/pipeline.js";
 import { ahorroDeLaCotizacion } from "../domain/ahorro.js";
-import { medidaEstaPedida } from "../domain/medidaPedida.js";
+import { medidaEstaPedida, mensajesDeLaVisitaActual } from "../domain/medidaPedida.js";
+import { hechosDeRestricciones, restriccionesDeLlanta } from "../domain/restriccionesLlanta.js";
 import { CIERRE_COTIZAR } from "../domain/preguntasProhibidas.js";
 import { medidasDelPedido } from "./medidasDelPedido.js";
 import { ensureCatalogReady, searchBySize, searchByText } from "./catalog.js";
@@ -178,6 +179,8 @@ REVISA, en este orden de gravedad:
 18. AL QUE SE DESPIDIÓ NO SE LE INSISTE. Si los HECHOS traen «EL CLIENTE SE DESPIDIÓ», el cliente acaba de decir que ya compró en otro lado, que no le interesa o que no le escriban más. Cualquier borrador que le pregunte el día de la visita, le ofrezca un descuento, le mande links del local o le proponga cualquier siguiente paso comercial es error ALTO de categoría **insiste_tras_rechazo**. Pasó el 27-ago (conv 4732): el cliente escribió «Gracias ya compré en otro lugar» y en el mismo turno recibió «¿Qué día cree que puede pasar por Depot Tire Cumbayá? … con 25 % de descuento, $73.92 menos». La corrección es una despedida corta y cálida que agradece, se alegra por su compra si compró, y deja la puerta abierta sin pedir nada. Ninguna pregunta.
 
 19. AL QUE YA DIJO QUE SÍ NO SE LE VUELVE A PREGUNTAR. Si los HECHOS traen «EL CLIENTE YA ACEPTÓ», el bot ofreció la cotización y el cliente contestó «gracias», «ok», «listo» o parecido. Eso es un sí. Un borrador que vuelve a ofrecer lo mismo —«si desea, le dejo la cotización formal», «¿quiere que se la cotice?»— es error ALTO de categoría **reofrece_lo_aceptado**: son dos turnos para llegar al mismo sitio y es donde el cliente deja de contestar. Pasó el 27-ago (conv 11070). OJO con lo que NO puedes hacer: TÚ no puedes generar la cotización, así que no prometas que sale ni inventes su total. Corrige a un mensaje que confirme que va en camino solo si el turno la lleva; si no, repórtalo ALTO y aprueba — el que tiene que llamar a la herramienta es el bot.
+
+20. EL ANCHO QUE EL CLIENTE RECHAZÓ NO SE LE VUELVE A OFRECER. Si los HECHOS traen «RESTRICCIONES DEL CLIENTE», el cliente ya dijo que ese ancho no lo quiere (por calce, roce, consumo o simple gusto). Cualquier borrador que le ofrezca, recomiende, muestre o cotice una llanta de un ancho rechazado es error ALTO de categoría **insiste_tras_rechazo**. Pasó el 31-ago (conv 3): el cliente escribió «ya no 185, ¿qué otras tiene?» y el turno siguiente le mandó dos 185. La corrección quita ESAS llantas; si con eso el borrador se queda sin opciones, la corrección lo dice con todas las letras —«en su aro solo manejo esa medida»— y ofrece confirmar por su vehículo o con el asesor qué medida alternativa sí le calza. La regla 0 sigue mandando: no inventes tú la alternativa.
 
 16. EL CIERRE DESPUÉS DE LA COTIZACIÓN VA EN DOS MENSAJES. Primero los dos locales con sus links y un «sin compromiso»; después, en mensaje aparte, la pregunta de a cuál le queda mejor. El DÍA no se pregunta en ese turno: se pregunta recién cuando el cliente ya eligió local. Si el borrador junta las dos preguntas —local y día— o mete la pregunta dentro del bloque de los links, corrígelo respetando los separadores '---'.
 
@@ -417,6 +420,20 @@ export async function armarContexto(
   const respaldados = [...beneficios.map((b) => b.text), ...servicios];
   const catalogoHoy = await catalogoParaElGuardian(pedidas);
 
+  // El rechazo de medida como HECHO, no como deducción. 31-ago (conv 3 c20):
+  // el cliente escribió «ya no 185, ¿qué otras tiene?» y el revisor aprobó una
+  // pieza con dos 185 — tenía el mensaje en su historial, pero nada en los
+  // hechos ni en la rúbrica le decía que eso era un rechazo vigente. La misma
+  // fuente determinística que usan las tools (`restriccionesDeLlanta`).
+  const inboundVisita = await sql<{ content: string; created_at: Date }[]>`
+    select content, created_at from messages
+    where conversation_id=${conversationId} and cycle=${cycle} and direction='inbound'
+    order by created_at desc limit 12
+  `;
+  const hechoRestricciones = hechosDeRestricciones(
+    restriccionesDeLlanta(mensajesDeLaVisitaActual(inboundVisita).map((m) => m.content).reverse()),
+  );
+
   // Los dos últimos turnos, sueltos: son la materia prima de los hechos de
   // despedida y de oferta aceptada. `mensajes` viene del más nuevo al más viejo.
   const ultimoDelCliente = mensajes.find((m) => m.direction === "inbound")?.content ?? "";
@@ -446,6 +463,8 @@ export async function armarContexto(
         : "(ninguna)"
     }`,
     `Compromiso de visita en palabras del cliente: ${hechos?.customer_commitment ?? "(ninguno)"}`,
+    // El rechazo de ancho, como hecho. Lo mira la regla 20.
+    hechoRestricciones,
     `Horarios confirmados: ${formatStoreHours(storeHours)}`,
     // SIN ESTA LÍNEA EL REVISOR ES CIEGO AL STOCK.
     //

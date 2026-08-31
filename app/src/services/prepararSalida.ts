@@ -51,6 +51,7 @@ import { buildStoreLinksBlockOnce } from "./storeLinks.js";
 import { business } from "../config.js";
 import { productosDelCatalogoMencionados } from "./catalog.js";
 import { frenarHechosNuevosDelGuardian } from "../domain/guardianNoVendeSolo.js";
+import { sinBloquesCalcados } from "../domain/calcoReciente.js";
 
 /**
  * De qué puerta viene el texto.
@@ -117,7 +118,7 @@ export const PASOS: readonly PasoDeSalida[] = [
     corre: ["respuesta", "retomada"],
     async aplicar(texto, ctx) {
       return sinPreguntaPendienteConsecutiva(
-        ctx.conversation.id, ctx.conversation.current_cycle, texto,
+        ctx.conversation.id, ctx.conversation.current_cycle, texto, ctx.textoDelCliente,
       );
     },
   },
@@ -206,7 +207,7 @@ export const PASOS: readonly PasoDeSalida[] = [
     corre: ["respuesta", "retomada"],
     async aplicar(texto, ctx) {
       return sinPreguntaPendienteConsecutiva(
-        ctx.conversation.id, ctx.conversation.current_cycle, texto,
+        ctx.conversation.id, ctx.conversation.current_cycle, texto, ctx.textoDelCliente,
       );
     },
   },
@@ -479,6 +480,48 @@ export const PASOS: readonly PasoDeSalida[] = [
     corre: ["respuesta"],
     async aplicar(texto) {
       return conPreguntaEnSuPropioMensaje(texto, MAX_BLOCKS).texto;
+    },
+  },
+  {
+    // EL CALCO DE HACE UN MOMENTO, LO ÚLTIMO DE TODO.
+    //
+    // `applyOutboundGuard` ya frena el mensaje idéntico… pero corre ANTES del
+    // Ángel Guardián, y el 31-ago (conv 3 c20) fue el guardián quien reescribió
+    // el borrador dejándolo idéntico al bloque de locales que había salido 7
+    // segundos antes — el cliente recibió los mapas y la pregunta del local dos
+    // veces seguidas. La ventana es corta (10 minutos) a propósito: repetir un
+    // dato pedido de nuevo media hora después es servicio; repetirlo a los
+    // segundos es un bot con eco. Ver domain/calcoReciente.ts.
+    nombre: "sin_calco_reciente",
+    corre: ["respuesta", "retomada"],
+    async aplicar(texto, ctx) {
+      const recientes = await sql<{ content: string | null }[]>`
+        select content from messages
+        where conversation_id=${ctx.conversation.id}
+          and direction='outbound' and author_kind='bot' and type='text'
+          and created_at > now() - interval '10 minutes'
+        order by created_at desc limit 8
+      `;
+      const resultado = sinBloquesCalcados(texto, recientes.map((m) => m.content ?? ""));
+      if (!resultado.calcados.length) return texto;
+      console.warn(
+        `✂️ Calco reciente quitado en la conv ${ctx.conversation.id}: ${resultado.calcados.map((b) => b.slice(0, 80)).join(" | ")}`,
+      );
+      await createBotAlert({
+        conversationId: ctx.conversation.id,
+        cycle: ctx.conversation.current_cycle,
+        type: "calco_reciente",
+        priority: "medium",
+        summary: "El bot iba a repetir un mensaje que acababa de enviar (recortado)",
+        exactReason:
+          `Bloques idénticos a mensajes de los últimos 10 minutos: «${resultado.calcados.join(" | ").slice(0, 300)}»`,
+        suggestedAction:
+          resultado.texto
+            ? "Al cliente le llegó el turno sin la repetición. Nada urgente."
+            : "El turno entero era una repetición y no se envió. Revisa si el cliente esperaba algo distinto.",
+        dedupeKey: `calco_reciente:${ctx.conversation.id}:${ctx.conversation.current_cycle}`,
+      }).catch(() => undefined);
+      return resultado.texto;
     },
   },
 ];
