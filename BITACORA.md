@@ -79,6 +79,35 @@ y con prueba.
 
 **Horas:** ~2
 
+## 1-sep-2026 · «La más conveniente» no cotizaba: el detector no entendía las palabras de su propio menú
+
+**Qué:** `respuestaDePreferencia` ahora lee el ECO del menú: «la más
+conveniente» / «la que más convenga» son el escalón 1 (Costo) y «la que
+(mejor) balancea» el escalón 2 (Equilibrio). Se exige la palabra completa para
+que «balanceo» —el servicio— no cuente. Además se reforzó la regla 15 del
+Ángel Guardián: al recortar la pregunta con la que cerraba un borrador, la
+corrección no puede dejar el mensaje mudo — tiene que terminar con el paso que
+corresponde (la cotización si salió, o la pregunta de local si quedó
+bloqueada). Tests nuevos en `test/cierrePreferencia.test.ts` con el caso, el
+borde que no debe disparar y la autorización del turno.
+
+**Por qué:** Producción, 1-sep 13:12 (conv 13617, Carlitos). El menú ofreció
+«1) *Costo* — la más conveniente de precio» y el cliente contestó «La más
+conveniente» — las palabras del propio menú. El detector devolvió null, la
+autorización de `generar_cotizacion` cayó y la herramienta rebotó con
+«Cotización bloqueada». El vendedor improvisó un «¿Le genero la cotización?»,
+el guardián lo recortó (desde el 31-ago no se pide permiso) y el mensaje quedó
+dando el precio y nada más: un cliente que ya había elegido, sin cotización,
+sin pregunta de local y sin cierre. La causa raíz es que el texto del menú
+(`DESCRIPCION_DEL_MENU`, quoteMessages.ts) y el detector que lee sus
+respuestas (salesIntent.ts) se habían separado: el bot preguntaba con palabras
+que él mismo no sabía leer. Verificado repitiendo la conversación entera en el
+simulador: con «La más conveniente» ahora sale la cotización (COT-MTIZGZ2W,
+4 × KENDA en 235/75R15), los dos locales con sus links y la pregunta de a cuál
+le queda mejor — exactamente el cierre que faltó en producción.
+
+**Horas:** ~1.5
+
 ## 31-ago-2026 · La misma pregunta dos veces en el mismo turno
 
 **Qué:** Paso nuevo `sin_pregunta_repetida_en_el_turno`, entre el que separa la
@@ -303,6 +332,7 @@ Ya viene activado en este equipo.
 | 2026-09-01 | _(este mismo)_ | «No hay A/T» teniendo 89 en bodega: recorte por tipo, re-búsqueda obligada y guardián con tipos | 2.0 |
 | 2026-09-01 | _(este mismo)_ | Las piezas del chat del hub se ven de nuevo (auth del visor) | 1 |
 | 2026-09-01 | _(este mismo)_ | Preguntar el precio ya no firma la cotización: opciones, elegir, cotizar | 2 |
+| 2026-09-01 | _(este mismo)_ | «La más conveniente» no cotizaba: eco del menú en el detector de preferencia | 1.5 |
 | 2026-08-31 | _(este mismo)_ | La misma pregunta dos veces en el mismo turno | 0.75 |
 | 2026-08-31 | _(este mismo)_ | Los tres errores del chat de Manuel: calco tras el guardián, medida rechazada y «no puedo esos días» | 2.5 |
 | 2026-08-29 | _(este mismo)_ | El embudo del Pipeline cabe entero en el teléfono, sin arrastrar | 0.75 |
