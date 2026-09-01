@@ -1,3 +1,22 @@
+## 1-sep-2026 · Las piezas del chat del hub se ven de nuevo: el visor manda la clave
+
+**Qué:** En el hub, la cotización y las opciones dentro del chat salían como
+tarjeta de documento muerta («PDF · 1 página · toca para ver» que no abría
+nada). La pieza ahora se pide con `fetch` y los headers de autenticación del
+hub (`authHeaders()`: el Bearer de la sesión o la x-admin-key) y se muestra
+como blob, con un lienzo de carga para que el chat no salte. Verificado en el
+navegador contra el bot del simulador corriendo con ADMIN_KEY puesta: la pieza
+de opciones y la de cotización se ven en la burbuja y se amplían encima del
+chat.
+
+**Por qué:** El componente metía la pieza con un `<img src="/api/hub/messages/
+…/pieza.png">` plano, y un `<img>` no manda headers: en producción —donde
+ADMIN_KEY siempre está— cada pieza respondía 401, saltaba el `onError` y
+quedaba la tarjeta de respaldo. En local sin clave el `<img>` pasaba, por eso
+no se vio antes de desplegar.
+
+**Horas:** ~1
+
 ## 1-sep-2026 · Preguntar el precio ya no firma la cotización: opciones primero, elegir, y recién ahí cotizar
 
 **Qué:** El pedido de Manuel viendo la conv 13615 (Hugo, «Favor costo de las
@@ -252,6 +271,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-09-01 | _(este mismo)_ | Las piezas del chat del hub se ven de nuevo (auth del visor) | 1 |
 | 2026-09-01 | _(este mismo)_ | Preguntar el precio ya no firma la cotización: opciones, elegir, cotizar | 2 |
 | 2026-08-31 | _(este mismo)_ | La misma pregunta dos veces en el mismo turno | 0.75 |
 | 2026-08-31 | _(este mismo)_ | Los tres errores del chat de Manuel: calco tras el guardián, medida rechazada y «no puedo esos días» | 2.5 |
