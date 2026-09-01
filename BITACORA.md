@@ -1,3 +1,32 @@
+## 1-sep-2026 · «No hay A/T» teniendo 89 en bodega: el recorte escondía tipos enteros
+
+**Qué:** Tres capas sobre el mismo error (conv 13645: el cliente pidió A/T en
+265/65R17 y el bot lo negó, con la KR28 A/T en 89 unidades y la KR608 en 74).
+(1) `recorteConEscalera` garantiza que de cada TIPO con stock de juego presente
+en la medida entre su mejor representante, aunque se pase del tope de 5.
+(2) `buscar_por_aro_y_tipo` ahora se declara obligatoria cuando ya hay medida y
+el cliente pide un tipo después, y `buscar_llanta` lo recuerda en su
+`siguiente_paso`; el playbook (medida_confirmada y seleccionando) lo prohíbe en
+la fuente única. (3) El Ángel Guardián recibe el TIPO en cada fila del CATÁLOGO
+DE HOY (`[A/T]`, `[H/T]`…), 12 filas en vez de 8, la regla 21 con la categoría
+nueva `tipo_negado_con_stock`, y la excepción quirúrgica a la regla 0 para que
+su corrección pueda NOMBRAR la llanta del tipo pedido en vez de un genérico.
+
+**Por qué:** La cadena fue de tres eslabones y cada uno necesitaba su capa. El
+recorte por escalón de PRECIO no miraba el tipo: la KR28 (precio de lista
+$238.37, sin la promo que solo tenía el cotizador web) perdió el escalón
+económico contra la Maxclaw R/T y desapareció — el modelo no puede ofrecer lo
+que no ve. Con «En at», el modelo contestó SIN llamar herramientas (run 10336,
+`tools: []`) porque nada le exigía re-buscar. Y el guardián, que sí tenía la
+KR28 con 89 en su catálogo, no sabía que era A/T —las filas no traían tipo— y
+«corrigió» la mentira del borrador (KR50 H/T presentada como A/T) con otra
+mentira: «no hay A/T para juego de 4». De paso: el tope de 1200 tokens de
+`probar-rubrica.mjs` se quedaba corto con el modelo razonador y tumbaba la
+corrida entera con un JSON vacío; quedó en 4000. Dos casos viejos del script
+(«conv 11881» y el `verificar` de «vitrina rota») fallan de forma intermitente
+también SIN estos cambios — flakiness preexistente, anotado aquí para no
+perseguirlo como regresión.
+
 ## 31-ago-2026 · La misma pregunta dos veces en el mismo turno
 
 **Qué:** Paso nuevo `sin_pregunta_repetida_en_el_turno`, entre el que separa la
@@ -219,6 +248,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-09-01 | _(este mismo)_ | «No hay A/T» teniendo 89 en bodega: recorte por tipo, re-búsqueda obligada y guardián con tipos | 2.0 |
 | 2026-08-31 | _(este mismo)_ | La misma pregunta dos veces en el mismo turno | 0.75 |
 | 2026-08-31 | _(este mismo)_ | Los tres errores del chat de Manuel: calco tras el guardián, medida rechazada y «no puedo esos días» | 2.5 |
 | 2026-08-29 | _(este mismo)_ | El embudo del Pipeline cabe entero en el teléfono, sin arrastrar | 0.75 |

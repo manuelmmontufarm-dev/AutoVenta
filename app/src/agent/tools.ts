@@ -83,7 +83,7 @@ import {
 import { nivelDeLinea, ordenDeNivel, reglasEscalera } from "../domain/escalera.js";
 import { costoPorKm, respaldoCompleto, respaldoDeMarca } from "../domain/respaldoMarcas.js";
 import {
-  debeBloquearReenvio, medidaDesdeContenido, opcionesQueAlcanzan, tipoSolicitadoEn,
+  debeBloquearReenvio, JUEGO_COMPLETO, medidaDesdeContenido, opcionesQueAlcanzan, tipoSolicitadoEn,
 } from "../domain/opcionesCandados.js";
 import {
   medidaEstaPedida, medidasDeProductos, medidasPermitidas, mensajesDeLaVisitaActual,
@@ -285,7 +285,7 @@ function tresOpciones<T extends { brand: string; design: string; minimumPriceWit
  * práctica devuelve más, porque `tresOpciones` mira la lista COMPLETA y no
  * solo los ocho primeros.
  */
-function recorteConEscalera<T extends { brand: string; design: string; minimumPriceWithTax: number; availability: string }>(
+function recorteConEscalera<T extends { code: string; brand: string; design: string; minimumPriceWithTax: number; availability: string; stock: number }>(
   productos: readonly T[],
   tope: number,
 ): T[] {
@@ -294,6 +294,29 @@ function recorteConEscalera<T extends { brand: string; design: string; minimumPr
   for (const p of productos) {
     if (elegidos.length >= tope) break;
     if (!elegidos.includes(p)) elegidos.push(p);
+  }
+  // NINGÚN TIPO vendible se queda fuera, aunque se pase del tope. 1-sep
+  // (conv 13645): en 265/65R17 el escalón «intermedia» lo ganó la KR50 H/T y
+  // el «económico» la Maxclaw R/T — la KR28 A/T (89 unidades) perdió los dos
+  // por precio y quedó invisible junto con la KR608 A/T (74). El modelo
+  // respondió «no hay A/T» y el guardián lo confirmó con la misma lista
+  // recortada. La escalera compara precio dentro del escalón; el TIPO es otra
+  // dimensión y se garantiza aparte: de cada tipo con stock para el juego
+  // presente en la lista COMPLETA entra su mejor representante (el más
+  // barato entre los que alcanzan para el juego).
+  const tipoDe = (p: T) => normalizarTipo(tipoDeProducto(p.code, p.design) ?? "");
+  const cubiertos = new Set(
+    elegidos.filter((p) => p.stock >= JUEGO_COMPLETO).map(tipoDe).filter(Boolean),
+  );
+  for (const p of productos) {
+    if (p.stock < JUEGO_COMPLETO) continue;
+    const tipo = tipoDe(p);
+    if (!tipo || cubiertos.has(tipo)) continue;
+    const mejor = productos
+      .filter((q) => q.stock >= JUEGO_COMPLETO && tipoDe(q) === tipo)
+      .sort((a, b) => a.minimumPriceWithTax - b.minimumPriceWithTax)[0];
+    if (mejor && !elegidos.includes(mejor)) elegidos.push(mejor);
+    cubiertos.add(tipo);
   }
   // Se devuelve en el orden original del catálogo, que ya viene ordenado por
   // coincidencia y disponibilidad; la escalera decide QUIÉN entra, no en qué
@@ -673,7 +696,7 @@ export function buildTools(ctx: AgentContext) {
         medida: formatTireSize(size),
         resultados: recorteConEscalera(exact, 5).map(toolItem),
         alternativas_mismo_aro: recorteConEscalera(alternatives, 3).map(toolItem),
-        siguiente_paso: "PROHIBIDO escribir estas opciones como lista en el chat. Para mostrárselas al cliente llama preparar_opciones con máximo 3 códigos (una premium, una de equilibrio y una económica) — esa herramienta manda la imagen. Si escribes precios y disponibilidad en texto, el cliente recibe un muro y no ve la pieza.",
+        siguiente_paso: "PROHIBIDO escribir estas opciones como lista en el chat. Para mostrárselas al cliente llama preparar_opciones con máximo 3 códigos (una premium, una de equilibrio y una económica) — esa herramienta manda la imagen. Si escribes precios y disponibilidad en texto, el cliente recibe un muro y no ve la pieza. Y si el cliente pide un TIPO (A/T, H/T, R/T, M/T…) en cualquier turno, esta lista NO responde eso: busca de nuevo con buscar_por_aro_y_tipo pasándole el aro y ese tipo antes de afirmar o negar disponibilidad.",
       });
     },
   });
@@ -740,7 +763,7 @@ export function buildTools(ctx: AgentContext) {
   const buscarPorAroYTipo = defineTool({
     name: "buscar_por_aro_y_tipo",
     description:
-      "Busca por ARO y (opcional) TIPO de llanta: H/T, A/T, R/T, M/T, turismo, turismo SUV, turismo UHP, comercial. EL ARO SOLO YA ALCANZA: si el cliente dijo 'para rin 19' o 'aro 16' sin decir el tipo, llámala igual con tipo: null y te devuelve todas las medidas que existen en ese aro. Úsala también cuando pida 'una R17 A/T' o 'todo terreno para aro 16', o cuando cambió los aros y ya no sirve la medida original. El aro le gana al vehículo: si el cliente dio aro y carro en el mismo mensaje, usa esta y no fitment_vehiculo. Devuelve las medidas que existen en ese aro con su tipo y precio.",
+      "Busca por ARO y (opcional) TIPO de llanta: H/T, A/T, R/T, M/T, turismo, turismo SUV, turismo UHP, comercial. EL ARO SOLO YA ALCANZA: si el cliente dijo 'para rin 19' o 'aro 16' sin decir el tipo, llámala igual con tipo: null y te devuelve todas las medidas que existen en ese aro. Úsala también cuando pida 'una R17 A/T' o 'todo terreno para aro 16', o cuando cambió los aros y ya no sirve la medida original. Y OBLIGATORIA cuando el cliente ya tiene medida y DESPUÉS pide un tipo ('en A/T', 'pero M/T', 'la quiero todo terreno'): llámala con el aro de su medida y ese tipo — la medida confirmada filtra sola. PROHIBIDO afirmar o negar que hay un tipo usando resultados de una búsqueda anterior sin tipo: esa lista viene recortada y esconde opciones. El aro le gana al vehículo: si el cliente dio aro y carro en el mismo mensaje, usa esta y no fitment_vehiculo. Devuelve las medidas que existen en ese aro con su tipo y precio.",
     schema: z.object({
       aro: z.number().int().min(12).max(24).describe("Aro en pulgadas, ej. 17"),
       tipo: z

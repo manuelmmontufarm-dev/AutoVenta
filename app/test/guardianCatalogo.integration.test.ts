@@ -76,11 +76,13 @@ describe("armarContexto · el catálogo de hoy viaja como hecho duro", () => {
     const contexto = await armarContexto(conv.id, 1, "La más económica es KENDA KR628 a $144.44 c/u con IVA.");
 
     expect(contexto).toContain("== CATÁLOGO DE HOY");
-    // El número exacto que imprime la pieza, verificable letra por letra.
-    expect(contexto).toContain("KENDA KR628 245/70R16 — hoy $144.44 c/u con IVA · stock hoy: 10");
+    // El número exacto que imprime la pieza, verificable letra por letra. El
+    // tipo viaja entre corchetes desde el 1-sep (conv 13645): sin él, el
+    // revisor no podía juzgar un «no hay A/T» teniendo la llanta a la vista.
+    expect(contexto).toContain("KENDA KR628 245/70R16 [A/T] — hoy $144.44 c/u con IVA · stock hoy: 10");
     // Y la agotada viene marcada con la regla comercial completa: no pasa el
     // mismo filtro que arma la vitrina para un juego de cuatro.
-    expect(contexto).toContain("KENDA KR608 245/70R16 — hoy $213.50 c/u con IVA · stock hoy: 0 (NO VENDIBLE para el juego de 4: no se ofrece)");
+    expect(contexto).toContain("KENDA KR608 245/70R16 [A/T] — hoy $213.50 c/u con IVA · stock hoy: 0 (NO VENDIBLE para el juego de 4: no se ofrece)");
   });
 
   it("EL CASO QUE NO DEBE DISPARAR: sin medida pedida no hay sección ni ruido", async () => {

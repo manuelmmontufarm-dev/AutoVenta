@@ -182,6 +182,109 @@ La más económica en 195/55R15 es la *WINRUN R330* a *$58.25 c/u con IVA*. ¿Se
         : "la corrección no ofreció la que sí tiene stock (KR20)",
   },
   {
+    nombre: "conv 13645 · presenta la KR50 [H/T] como la A/T pedida",
+    espera: { categoria: "tipo_negado_con_stock", severidad: "alta" },
+    familias: ["tipo_negado_con_stock"],
+    contexto: `== HECHOS REGISTRADOS ==
+Medidas que el cliente pidió: 265/65R17
+Local ya elegido: (ninguno)
+Visita registrada: (ninguna)
+Compromiso de visita en palabras del cliente: (ninguno)
+Cotización vigente: ninguna
+Servicios y beneficios respaldados: instalación, alineación, balanceo, seguro gratuito contra daños, mantenimiento cada 10.000 km, revisión del vehículo
+
+== CATÁLOGO DE HOY (fuente determinística: Contífico + precios Interbot, el mismo número que imprimen las piezas) ==
+· KENDA KR50 265/65R17 [H/T] — hoy $202.33 c/u con IVA · stock hoy: 48
+· FALKEN WILDPEAK A/T4W 265/65R17 [A/T] — hoy $256.50 c/u con IVA · stock hoy: 1 (STOCK CORTO para el juego de 4: no ofrecer 1 unidades sueltas; el resto lo confirma el asesor)
+· KENDA KR29 265/65R17 [M/T] — hoy $263.40 c/u con IVA · stock hoy: 80
+· WINRUN MAXCLAW R/T 265/65R17 [R/T] — hoy $206.60 c/u con IVA · stock hoy: 44
+· WINRUN MAXCLAW A/T 265/65R17 [A/T] — hoy $170.70 c/u con IVA · stock hoy: 3 (STOCK CORTO para el juego de 4: no ofrecer 3 unidades sueltas; el resto lo confirma el asesor)
+· KENDA KR608 265/65R17 [A/T] — hoy $262.90 c/u con IVA · stock hoy: 74
+· KENDA KR28 265/65R17 [A/T] — hoy $238.37 c/u con IVA · stock hoy: 89
+· KENDA KR601 265/65R17 [R/T] — hoy $274.60 c/u con IVA · stock hoy: 44
+· KENDA KR628 265/65R17 [A/T] — hoy $209.60 c/u con IVA · stock hoy: 3 (STOCK CORTO para el juego de 4: no ofrecer 3 unidades sueltas; el resto lo confirma el asesor)
+
+== CONVERSACIÓN (lo más reciente al final) ==
+CLIENTE: En 265 65 17
+BOT: Opciones enviadas: KENDA KR50 · KENDA KR29 · WINRUN MAXCLAW R/T
+CLIENTE: En at
+
+== BORRADOR QUE EL BOT VA A ENVIAR ==
+Para 265/65R17 A/T, la opción equilibrada es KENDA KR50 a $202.33 c/u con IVA.
+
+Incluye instalación, alineación, balanceo, seguro gratuito contra daños, mantenimiento cada 10.000 km y revisión del vehículo.`,
+    verificar: (salida) =>
+      salida.veredicto === "corregir" && /KR28|KR608/.test(salida.texto_corregido ?? "")
+        ? null
+        : "la corrección no ofreció una A/T real con stock (KR28 o KR608)",
+  },
+  {
+    nombre: "conv 13645 bis · niega que haya A/T teniendo dos con stock de juego",
+    espera: { categoria: "tipo_negado_con_stock", severidad: "alta" },
+    familias: ["tipo_negado_con_stock"],
+    contexto: `== HECHOS REGISTRADOS ==
+Medidas que el cliente pidió: 265/65R17
+Local ya elegido: (ninguno)
+Visita registrada: (ninguna)
+Compromiso de visita en palabras del cliente: (ninguno)
+Cotización vigente: ninguna
+Servicios y beneficios respaldados: instalación, alineación, balanceo, seguro gratuito contra daños, mantenimiento cada 10.000 km, revisión del vehículo
+
+== CATÁLOGO DE HOY (fuente determinística: Contífico + precios Interbot, el mismo número que imprimen las piezas) ==
+· KENDA KR50 265/65R17 [H/T] — hoy $202.33 c/u con IVA · stock hoy: 48
+· FALKEN WILDPEAK A/T4W 265/65R17 [A/T] — hoy $256.50 c/u con IVA · stock hoy: 1 (STOCK CORTO para el juego de 4: no ofrecer 1 unidades sueltas; el resto lo confirma el asesor)
+· KENDA KR29 265/65R17 [M/T] — hoy $263.40 c/u con IVA · stock hoy: 80
+· WINRUN MAXCLAW R/T 265/65R17 [R/T] — hoy $206.60 c/u con IVA · stock hoy: 44
+· WINRUN MAXCLAW A/T 265/65R17 [A/T] — hoy $170.70 c/u con IVA · stock hoy: 3 (STOCK CORTO para el juego de 4: no ofrecer 3 unidades sueltas; el resto lo confirma el asesor)
+· KENDA KR608 265/65R17 [A/T] — hoy $262.90 c/u con IVA · stock hoy: 74
+· KENDA KR28 265/65R17 [A/T] — hoy $238.37 c/u con IVA · stock hoy: 89
+· KENDA KR601 265/65R17 [R/T] — hoy $274.60 c/u con IVA · stock hoy: 44
+· KENDA KR628 265/65R17 [A/T] — hoy $209.60 c/u con IVA · stock hoy: 3 (STOCK CORTO para el juego de 4: no ofrecer 3 unidades sueltas; el resto lo confirma el asesor)
+
+== CONVERSACIÓN (lo más reciente al final) ==
+CLIENTE: En 265 65 17
+BOT: Opciones enviadas: KENDA KR50 · KENDA KR29 · WINRUN MAXCLAW R/T
+CLIENTE: En at
+
+== BORRADOR QUE EL BOT VA A ENVIAR ==
+Para 265/65R17, la opción equilibrada disponible es *KENDA KR50* a *$202.33 c/u con IVA*.
+
+Si busca específicamente *A/T*, por ahora no le ofrezco una A/T disponible para juego de 4 en esa medida.
+
+Incluye instalación, alineación, balanceo, seguro gratuito contra daños, mantenimiento cada 10.000 km y revisión del vehículo.`,
+    verificar: (salida) =>
+      salida.veredicto === "corregir" && /KR28|KR608/.test(salida.texto_corregido ?? "")
+        ? null
+        : "la corrección no ofreció una A/T real con stock (KR28 o KR608)",
+  },
+  {
+    nombre: "CONTROL 3 · ofrecer la A/T correcta del catálogo no debe marcarse",
+    espera: null,
+    familias: ["tipo_negado_con_stock"],
+    contexto: `== HECHOS REGISTRADOS ==
+Medidas que el cliente pidió: 265/65R17
+Local ya elegido: (ninguno)
+Visita registrada: (ninguna)
+Compromiso de visita en palabras del cliente: (ninguno)
+Cotización vigente: ninguna
+Servicios y beneficios respaldados: instalación, alineación, balanceo, seguro gratuito contra daños
+
+== CATÁLOGO DE HOY (fuente determinística: Contífico + precios Interbot, el mismo número que imprimen las piezas) ==
+· KENDA KR50 265/65R17 [H/T] — hoy $202.33 c/u con IVA · stock hoy: 48
+· KENDA KR28 265/65R17 [A/T] — hoy $238.37 c/u con IVA · stock hoy: 89
+· KENDA KR608 265/65R17 [A/T] — hoy $262.90 c/u con IVA · stock hoy: 74
+
+== CONVERSACIÓN (lo más reciente al final) ==
+CLIENTE: En 265 65 17
+BOT: Opciones enviadas: KENDA KR50 · KENDA KR28
+CLIENTE: En at
+
+== BORRADOR QUE EL BOT VA A ENVIAR ==
+En *A/T* para su 265/65R17 sí tengo: la *KENDA KR28* a *$238.37 c/u con IVA*, con stock para el juego de 4.
+---
+¿Le preparo la cotización con esa?`,
+  },
+  {
     nombre: "CONTROL 2 · el precio correcto del catálogo no debe marcarse",
     espera: null,
     familias: ["precio_incorrecto", "stock_prometido"],
@@ -248,7 +351,10 @@ for (const caso of CASOS) {
       { role: "user", content: caso.contexto },
     ],
     response_format: ESQUEMA_SALIDA,
-    max_completion_tokens: 1200,
+    // 1200 se quedaba corto: el modelo razonador gastaba el tope pensando y
+    // devolvía el content vacío (1-sep, caso «vitrina rota»), y el JSON.parse
+    // tumbaba la corrida entera antes de llegar a los casos nuevos.
+    max_completion_tokens: 4000,
   });
   const salida = JSON.parse(r.choices[0]?.message?.content ?? "{}");
   const hallazgos = salida.hallazgos ?? [];
