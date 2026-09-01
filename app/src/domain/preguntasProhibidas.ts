@@ -73,7 +73,17 @@ export const CIERRE_COTIZAR = "¿Le cotizo el juego de 4 llantas?";
  * sigue yendo. Lo que se exenta es un texto que ya pasó por revisión humana,
  * no una familia de frases.
  */
-export const FRASES_NUESTRAS: readonly string[] = [CIERRE_COTIZAR];
+/**
+ * VACÍA desde el 31-ago-2026 (Manuel: «no debería preguntar eso, sino
+ * automáticamente cotizarle las 4»). La plantilla ya no escribe la pregunta de
+ * permiso, pero el MODELO la seguía escribiendo por su cuenta —producción,
+ * 23:59: «las. winrun» → precio + «¿Le cotizo el juego de 4 llantas?»— y la
+ * exención la dejaba pasar. Sin exención, la pregunta de permiso se va como
+ * cualquier otra pregunta de más, y la cotización sale por la obligación del
+ * turno. `CIERRE_COTIZAR` se conserva como constante porque el guardián y
+ * pruebas viejas la referencian, no porque nadie deba escribirla.
+ */
+export const FRASES_NUESTRAS: readonly string[] = [];
 
 export interface TextoDepurado {
   texto: string;

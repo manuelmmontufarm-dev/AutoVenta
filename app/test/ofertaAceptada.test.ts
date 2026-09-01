@@ -216,3 +216,17 @@ describe("los verbos reales con los que el bot ofrece cotizar", () => {
     expect(ofertaDeCotizacionAceptada("¿Le queda mejor Cumbayá o Quito Sur?", "Ok")).toBe(false);
   });
 });
+
+
+/** Producción, 31-ago 23:59: «dele pue» respondía a «¿Le cotizo el juego de
+ *  4?» y no contó como sí — «dele» y «pue» (sin s) no estaban en el
+ *  diccionario. El modelo narró el precio sin generar la cotización. */
+describe("los acuses como habla la gente", () => {
+  it.each(["dele pue", "dele", "dale pues", "hagalo"])("«%s» acepta la oferta", (t) => {
+    expect(ofertaDeCotizacionAceptada("¿Le cotizo el juego de 4 llantas?", t)).toBe(true);
+  });
+
+  it("«dele pue pero en otra medida» no es un acuse a secas", () => {
+    expect(ofertaDeCotizacionAceptada("¿Le cotizo el juego de 4 llantas?", "dele pue pero en otra medida")).toBe(false);
+  });
+});

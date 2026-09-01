@@ -54,10 +54,10 @@ describe("el candado no borra lo que escribe la casa", () => {
     expect(r.texto).toContain("221.77");
   });
 
-  it("la frase canónica sola tampoco se toca", () => {
+  it("la frase canónica sola también se va (31-ago: nadie pide permiso para cotizar)", () => {
     const r = sinPreguntasProhibidas(CIERRE_COTIZAR);
-    expect(r.texto).toBe(CIERRE_COTIZAR);
-    expect(r.quitadas).toHaveLength(0);
+    expect(r.quitadas).toEqual([CIERRE_COTIZAR]);
+    expect(r.texto).not.toContain(CIERRE_COTIZAR);
   });
 
   /*
@@ -79,14 +79,16 @@ describe("el candado no borra lo que escribe la casa", () => {
     expect(r.quitadas).toEqual(["¿Se la cotizo por 4?"]);
   });
 
-  /* La constante sigue exenta para el GUARDIÁN: su rúbrica la nombra como la
-     única forma legítima de pedir la cotización, y si un día vuelve a hacer
-     falta pedir permiso, el candado no puede comérsela. La plantilla ya no la
-     escribe (31-ago), pero la exención tiene que seguir viva. */
-  it("la constante de la casa sigue exenta del candado", () => {
+  /* 31-ago 23:59, producción: la plantilla ya no escribía la pregunta de
+     permiso, pero el MODELO la escribió por su cuenta («las. winrun» → precio
+     + «¿Le cotizo el juego de 4 llantas?») y la exención la dejaba pasar. La
+     exención murió: la pregunta de permiso se va como cualquier pregunta de
+     más — la cotización sale por la obligación del turno, no por permiso. */
+  it("la pregunta de permiso ya NO está exenta: se va", () => {
     const r = sinPreguntasProhibidas(`Yo iría por la *Kenda KR203*. ${CIERRE_COTIZAR}`);
-    expect(r.quitadas).toHaveLength(0);
-    expect(r.texto).toContain(CIERRE_COTIZAR);
+    expect(r.quitadas).toEqual([CIERRE_COTIZAR]);
+    expect(r.texto).not.toContain(CIERRE_COTIZAR);
+    expect(r.texto).toContain("Kenda KR203");
   });
 
   it("la plantilla ya no pide permiso para cotizar", () => {
@@ -114,13 +116,16 @@ describe("el candado no borra lo que escribe la casa", () => {
  * La exención de su rúbrica interpola la MISMA constante, no una copia: si
  * alguien cambia el texto del cierre, la regla del guardián cambia con él.
  */
-describe("la rúbrica del guardián conoce el cierre de la casa", () => {
-  it("exenta la frase interpolando la constante del dominio", () => {
+describe("la rúbrica del guardián conoce la política del cierre", () => {
+  it("desde el 31-ago la frase de permiso es pregunta_de_mas, interpolando la constante", () => {
     const fuente = readFileSync(
       join(fileURLToPath(new URL("..", import.meta.url)), "src/services/guardian.ts"),
       "utf8",
     );
-    expect(fuente).toContain("«${CIERRE_COTIZAR}» es el cierre de venta que escribe la PLANTILLA");
+    // La rúbrica PROHÍBE la frase (no la exenta) y conserva la única pregunta
+    // de permiso legítima: el cambio de medida necesita consentimiento.
+    expect(fuente).toContain("«${CIERRE_COTIZAR}» y sus variantes son pregunta_de_mas");
+    expect(fuente).toContain("CAMBIO DE MEDIDA");
     expect(fuente).toContain('import { CIERRE_COTIZAR } from "../domain/preguntasProhibidas.js";');
   });
 });

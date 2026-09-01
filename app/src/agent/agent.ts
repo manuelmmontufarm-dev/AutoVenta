@@ -14,7 +14,7 @@ import {
   recordatorioDeOfertaPendiente,
 } from "../domain/ofertaAceptada.js";
 import {
-  aroPedido, marcaPreguntada, ofrecioAsesor, ordenDeConsultarRespaldo, ordenDeCotizarLoPedido,
+  aroPedido, marcaElegidaASecas, marcaPreguntada, ofrecioAsesor, ordenDeConsultarRespaldo, ordenDeCotizarLoPedido,
   ordenDeMostrarPorAro, ordenDeNombrarLaMarca, ordenDeNotificarHumano, ordenDeNotificarLoPrometido,
   ordenDeRecotizarCantidad, ordenDeResponderElEscalon, pidioCotizacionExplicita,
   pidioHumanoExplicito, preguntaTecnicaDeRespaldo,
@@ -350,7 +350,16 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
   // Las tres obligaciones del modelo débil (nivel 2 del T115, 31-ago):
   // pedir humano notifica, pedir cotización cotiza, cambiar cantidad recotiza.
   const pidioHumano = pidioHumanoExplicito(userText);
-  const pidioCotizar = !pidioHumano && pidioCotizacionExplicita(userText);
+  // «las. winrun» tras la vitrina: eligió una opción por su nombre — se cotiza
+  // en este turno, sin preguntarle si quiere (producción, 31-ago 23:59; misma
+  // familia que «la económica» de Q04).
+  const marcaElegida = !pidioHumano && salesFacts.escalones !== null
+    ? marcaElegidaASecas(userText)
+    : null;
+  const pidioCotizar = !pidioHumano && (pidioCotizacionExplicita(userText) || marcaElegida !== null);
+  // Elegir una de las opciones mostradas ES la autorización: abre el candado
+  // de generar_cotizacion igual que un «sí» a la oferta.
+  if (marcaElegida) ctx.aceptoCotizacion = true;
   const cantidadNueva = extractExplicitQuantity(userText);
   const cantidadCambia = cantidadNueva !== null
     && salesFacts.lastQuote !== null
@@ -432,7 +441,16 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
             + "PROHIBIDO afirmar o negar el servicio por tu cuenta.",
         }]
       : []),
-    ...(pidioCotizar ? [{ role: "system" as const, content: ordenDeCotizarLoPedido() }] : []),
+    ...(pidioCotizar && !marcaElegida ? [{ role: "system" as const, content: ordenDeCotizarLoPedido() }] : []),
+    ...(marcaElegida
+      ? [{
+          role: "system" as const,
+          content:
+            `EL CLIENTE ELIGIÓ ${marcaElegida} de las opciones mostradas (fuente determinística). `
+            + `Cotízala AHORA con generar_cotizacion — 4 llantas si no dijo otra cantidad, el producto `
+            + `de ${marcaElegida} que le mostraste. PROHIBIDO preguntarle si la quiere: ya eligió.`,
+        }]
+      : []),
     ...(cantidadCambia ? [{ role: "system" as const, content: ordenDeRecotizarCantidad(cantidadNueva) }] : []),
     ...(descansoDelAcuse
       ? [{

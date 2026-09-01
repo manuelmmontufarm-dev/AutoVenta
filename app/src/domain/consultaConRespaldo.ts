@@ -69,7 +69,7 @@ export function preguntaTecnicaDeRespaldo(texto: string): boolean {
   // exacta no la tengo confirmada aquí» — teniendo el dato en la ficha de la
   // marca («Falken es una marca japonesa…»). El detector no conocía la palabra,
   // así que nunca fue a buscarlo y el modelo respondió de memoria, hedgeando.
-  return /\bfabricacion\b|\bprocedenc\w*\b|\bde\s+(?:que|donde)\s+(?:pais\s+)?(?:es|son|vienen?|proceden)\b|\bde\s+que\s+pais\b|\bdonde\s+(?:se\s+)?(?:fabric|hacen|producen)\w*\b|\bmarca\s+de\s+donde\b|\borigen\b|\bfrenado\b|\bmojado\b|\bdurabilidad\b|\bcuanto\s+dura\w*\b|\bgarantia\b|\bseguro\b|\brendimiento\b|\bkilometr\w+\b|\bdesgaste\b|\bdot\b|\btraccion\b/.test(n);
+  return /\bfabricacion\b|\bpro[cs]edenc\w*\b|\bde\s+(?:que|donde)\s+(?:pais\s+)?(?:es|son|vienen?|proceden)\b|\bde\s+que\s+pais\b|\bdonde\s+(?:se\s+)?(?:fabric|hacen|producen)\w*\b|\bmarca\s+de\s+donde\b|\borigen\b|\bfrenado\b|\bmojado\b|\bdurabilidad\b|\bcuanto\s+dura\w*\b|\bgarantia\b|\bseguro\b|\brendimiento\b|\bkilometr\w+\b|\bdesgaste\b|\bdot\b|\btraccion\b/.test(n);
 }
 
 export function ordenDeConsultarRespaldo(): string {
@@ -219,8 +219,27 @@ export function ultimaMarcaPedida(textosCronologicos: readonly string[]): string
       marca = null;
       continue;
     }
-    const pedida = marcaPreguntada(texto ?? "");
+    const pedida = marcaPreguntada(texto ?? "") ?? marcaElegidaASecas(texto ?? "");
     if (pedida) marca = pedida;
   }
   return marca;
+}
+
+/**
+ * «las. winrun» — el cliente ELIGIÓ una de las opciones mostradas, nombrándola
+ * a secas. Producción, 31-ago 23:59: tras la vitrina con Falken/Kenda/Winrun
+ * escribió eso, y el bot le contestó el precio unitario y le preguntó «¿le
+ * cotizo?» — a quien ya había elegido. Una elección vale más que una pregunta:
+ * se cotiza en ese turno.
+ *
+ * Solo dispara cuando el mensaje ES la marca con relleno alrededor (artículos,
+ * «mejor», «dame», puntuación). «mis winrun rozan» no es una elección.
+ */
+export function marcaElegidaASecas(texto: string): string | null {
+  const n = normalizar(texto ?? "")
+    .replace(/[.,!¡?¿]/g, " ")
+    .replace(/\b(?:las?|los?|el|la|esa?s?|este?|mejor|dame|deme|quiero|prefiero|me\s+quedo\s+con|vamos\s+con|con|si|sí|dale|dele|pue|pues|entonces|de\s+una)\b/g, " ")
+    .replace(/\s+/g, " ").trim();
+  const marca = MARCAS_CONOCIDAS.find((m) => n === m);
+  return marca ? marca.toUpperCase() : null;
 }

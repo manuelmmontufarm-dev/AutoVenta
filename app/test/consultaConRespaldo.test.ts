@@ -18,6 +18,7 @@ process.env.DATABASE_URL ||= "postgresql://manue@localhost/postgres";
 
 import {
   aroPedido,
+  marcaElegidaASecas,
   ultimaMarcaPedida,
   marcaPreguntada,
   ofrecioAsesor,
@@ -207,5 +208,37 @@ describe("ultimaMarcaPedida — la marca pedida es una restricción viva", () =>
 
   it("nombrar la marca sin pedirla no restringe", () => {
     expect(ultimaMarcaPedida(["mis falken rozan cargado"])).toBeNull();
+  });
+});
+
+
+/** Producción, 31-ago 23:59: «las. winrun» tras la vitrina era una ELECCIÓN y
+ *  el bot preguntó «¿le cotizo?». Y «cual es la prosedencia» —con S, como
+ *  escribe la gente— no disparaba la consulta de la ficha. */
+describe("la elección a secas y el typo real", () => {
+  it.each([
+    ["las. winrun", "WINRUN"],
+    ["la falken", "FALKEN"],
+    ["mejor la kenda", "KENDA"],
+    ["dele pue la winrun", "WINRUN"],
+  ])("«%s» elige %s", (t, marca) => {
+    expect(marcaElegidaASecas(t)).toBe(marca);
+  });
+
+  it.each([
+    "mis winrun rozan cargado",
+    "¿la winrun qué precio tiene?",
+    "las llantas para camioneta",
+  ])("«%s» NO es elección a secas", (t) => {
+    expect(marcaElegidaASecas(t)).toBeNull();
+  });
+
+  it("la elección actualiza la marca pedida vigente (el candado deja de exigir la vieja)", () => {
+    expect(ultimaMarcaPedida(["necesito falken r17 265 70", "las. winrun"])).toBe("WINRUN");
+  });
+
+  it("«cual es la prosedencia» dispara la ficha aunque venga con S", () => {
+    expect(preguntaTecnicaDeRespaldo("cual es la prosedencia")).toBe(true);
+    expect(preguntaTecnicaDeRespaldo("de qué procedencia son?")).toBe(true);
   });
 });
