@@ -1,4 +1,5 @@
 import { business } from "../config.js";
+import { CIERRE_COTIZAR } from "../domain/preguntasProhibidas.js";
 import { fraseDeAhorro, type AhorroDeLaCotizacion } from "../domain/ahorro.js";
 import { ETIQUETA_DEL_ESCALON } from "../domain/salesIntent.js";
 import { PREGUNTA_DE_LOCAL } from "../domain/storeSelection.js";
@@ -172,6 +173,13 @@ export const PREGUNTA_PREFERENCIA_EQUIVALENTES = [
  * LISTA numerada de precios, no responder un precio preguntado: un precio, el
  * de la recomendada, en la misma frase.
  */
+/**
+ * Cierre de la pieza de opciones cuando la medida salió del vehículo o del
+ * aro. No hay menú: lo que falta no es elegir, es confirmar que entran.
+ */
+export const CIERRE_PIDE_MEDIDA =
+  "Estas son las que más se usan en su vehículo, pero para cotizarle con seguridad necesito la medida exacta. ¿Me escribe la que dice el filo de la llanta (ej. 225/65R17), o me manda una foto del costado? 📸";
+
 export function buildCierreOpciones(input: {
   entregarRecomendacion: boolean;
   recomendacion: string;
@@ -185,7 +193,26 @@ export function buildCierreOpciones(input: {
    * esos; con uno solo no hay menú que valga y se entrega esa opción.
    */
   escalonesDisponibles?: readonly ("precio" | "equilibrada" | "premium")[];
+  /**
+   * La medida de estas opciones la dedujo el bot (por vehículo o por aro) y el
+   * cliente no la confirmó: el cierre pide la medida en vez del menú, porque
+   * sin ella no se cotiza (Manuel, 1-sep, conv 13862: Suzuki SZ 2016).
+   */
+  pedirMedida?: boolean;
+  /**
+   * El cliente pidió recomendación o contó su uso, pero no pidió la cotización
+   * ni eligió del menú: se le entrega la recomendación y se le OFRECE cotizar
+   * (Manuel, 1-sep). Un «sí» a esa oferta es lo que la autoriza al turno
+   * siguiente.
+   */
+  ofrecerCotizar?: boolean;
 }): string {
+  if (input.pedirMedida) {
+    if (!input.entregarRecomendacion) return CIERRE_PIDE_MEDIDA;
+    const motivo = input.motivo.trim().replace(/[.\s]+$/, "");
+    const precio = input.precioConIva ? ` — $${input.precioConIva.toFixed(2)} c/u con IVA` : "";
+    return `Yo iría por la *${input.recomendacion}*${precio}: ${motivo}.\n${CIERRE_PIDE_MEDIDA}`;
+  }
   if (!input.entregarRecomendacion) {
     const hay = input.escalonesDisponibles ?? ["precio", "equilibrada", "premium"];
     // Con una sola opción no se pregunta nada: preguntar «¿qué prioriza?» sobre
@@ -212,6 +239,9 @@ export function buildCierreOpciones(input: {
   // mismo turno (la orden va en `regla` y la obligación la fuerza `agent.ts`).
   // Prometerla aquí sería la familia «dijo que hizo algo que no hizo» si la
   // herramienta se bloquea — el cliente igual se queda con la recomendación.
+  if (input.ofrecerCotizar) {
+    return `Yo iría por la *${input.recomendacion}*${precio}: ${motivo}. ${CIERRE_COTIZAR}`;
+  }
   return `Yo iría por la *${input.recomendacion}*${precio}: ${motivo}.`;
 }
 

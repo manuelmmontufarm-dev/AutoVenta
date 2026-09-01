@@ -1,3797 +1,4162 @@
 {
- "version": "2.0",
- "generado": "2026-08-13",
- "proposito": "Tabla de aplicaciones vehiculo->medida y motor de equivalencia por diametro para el agente de WhatsApp de Pit Stop.",
- "como_usarlo": [
-  "1. El cliente da vehiculo y/o medida. Si da la medida, usarla directo y saltar la tabla.",
-  "2. Si da solo el vehiculo, buscar en 'aplicaciones' y tomar la medida de fabrica del aro que menciona.",
-  "3. Si el cliente menciona un aro que NO esta en 'aros_de_fabrica', significa que cambio de aro: tomar el diametro de la medida original y correr el motor de equivalencia contra ese aro nuevo.",
-  "4. Si el vehiculo no esta en la tabla, o la confianza es 'media', pedir foto del flanco de la llanta actual o de la etiqueta del marco de la puerta. Nunca adivinar.",
-  "5. Cruzar el resultado contra base_llantas_tipos.json por codigo para traer stock, linea y tipo."
- ],
- "motor_equivalencia": {
-  "formula_diametro_mm": "aro_pulgadas * 25.4 + 2 * ancho_mm * (perfil / 100)",
-  "formula_flotacion": "Para medidas tipo 33X12.50R17: diametro_mm = primer_numero * 25.4",
-  "tolerancia": {
-   "ideal_pct": 3.0,
-   "maximo_aceptable_pct": 3.5,
-   "regla": "Fuera de +-3% se altera velocimetro, ABS y control de estabilidad, y puede rozar en el guardafango."
-  },
-  "pasos": [
-   "a. Calcular diametro_objetivo de la medida original.",
-   "b. Filtrar el inventario por el aro que pide el cliente.",
-   "c. Calcular la diferencia porcentual de cada candidato: (diametro_candidato / diametro_objetivo - 1) * 100.",
-   "d. Descartar todo lo que supere +-3%.",
-   "e. Descartar stock menor a 4 unidades (no alcanza para juego); si el cliente pide una sola, si mostrarlo y avisar que es unidad suelta.",
-   "f. Si el cliente pidio un tipo (H/T, A/T, R/T, M/T), filtrar por ese tipo antes de responder.",
-   "g. Ordenar por diferencia absoluta ascendente y presentar maximo 3 opciones.",
-   "h. Verificar que el indice de carga del candidato no sea menor al original. Si lo es, descartarlo en camioneta, van o SUV."
+  "version": "2.1",
+  "generado": "2026-08-13",
+  "proposito": "Tabla de aplicaciones vehiculo->medida y motor de equivalencia por diametro para el agente de WhatsApp de Pit Stop.",
+  "como_usarlo": [
+    "1. El cliente da vehiculo y/o medida. Si da la medida, usarla directo y saltar la tabla.",
+    "2. Si da solo el vehiculo, buscar en 'aplicaciones' y tomar la medida de fabrica del aro que menciona.",
+    "3. Si el cliente menciona un aro que NO esta en 'aros_de_fabrica', significa que cambio de aro: tomar el diametro de la medida original y correr el motor de equivalencia contra ese aro nuevo.",
+    "4. Si el vehiculo no esta en la tabla, o la confianza es 'media', pedir foto del flanco de la llanta actual o de la etiqueta del marco de la puerta. Nunca adivinar.",
+    "5. Cruzar el resultado contra base_llantas_tipos.json por codigo para traer stock, linea y tipo."
   ],
-  "orden_de_marca_al_cotizar": [
-   "FALKEN",
-   "KENDA",
-   "GITI",
-   "WINRUN"
+  "motor_equivalencia": {
+    "formula_diametro_mm": "aro_pulgadas * 25.4 + 2 * ancho_mm * (perfil / 100)",
+    "formula_flotacion": "Para medidas tipo 33X12.50R17: diametro_mm = primer_numero * 25.4",
+    "tolerancia": {
+      "ideal_pct": 3.0,
+      "maximo_aceptable_pct": 3.5,
+      "regla": "Fuera de +-3% se altera velocimetro, ABS y control de estabilidad, y puede rozar en el guardafango."
+    },
+    "pasos": [
+      "a. Calcular diametro_objetivo de la medida original.",
+      "b. Filtrar el inventario por el aro que pide el cliente.",
+      "c. Calcular la diferencia porcentual de cada candidato: (diametro_candidato / diametro_objetivo - 1) * 100.",
+      "d. Descartar todo lo que supere +-3%.",
+      "e. Descartar stock menor a 4 unidades (no alcanza para juego); si el cliente pide una sola, si mostrarlo y avisar que es unidad suelta.",
+      "f. Si el cliente pidio un tipo (H/T, A/T, R/T, M/T), filtrar por ese tipo antes de responder.",
+      "g. Ordenar por diferencia absoluta ascendente y presentar maximo 3 opciones.",
+      "h. Verificar que el indice de carga del candidato no sea menor al original. Si lo es, descartarlo en camioneta, van o SUV."
+    ],
+    "orden_de_marca_al_cotizar": [
+      "FALKEN",
+      "KENDA",
+      "GITI",
+      "WINRUN"
+    ],
+    "pseudocodigo": "objetivo = diametro(medida_original); candidatos = [s for s in skus if s.aro == aro_pedido and s.stock >= 4]; for c in candidatos: c.dif = (c.diametro_mm/objetivo - 1)*100; resultado = sorted([c for c in candidatos if abs(c.dif) <= 3 and (tipo is None or c.tipo == tipo)], key=lambda c: abs(c.dif))[:3]"
+  },
+  "ejemplos_resueltos": [
+    {
+      "consulta": "Creta 2027 aro 17",
+      "medida_original": "215/60R17",
+      "diametro_objetivo_mm": 690.4,
+      "razonamiento": "El aro 17 si es de fabrica en la Creta, entonces se cotiza la medida original tal cual. Es SUV de asfalto: ofrecer H/T o turismo SUV, nunca A/T."
+    },
+    {
+      "consulta": "Hilux con aro 18",
+      "medida_original": "265/65R17",
+      "diametro_objetivo_mm": 776.3,
+      "razonamiento": "El aro 18 no es de fabrica en esa version, el cliente cambio de aro. Se mantiene el diametro 776.3 mm y se busca en aro 18: 265/60R18 da 775.2 mm (-0.1%), calce perfecto. Como es camioneta, ofrecer A/T o R/T y verificar indice de carga LT."
+    },
+    {
+      "consulta": "Cliente manda solo una foto de llanta gastada",
+      "medida_original": null,
+      "razonamiento": "Pedir foto legible del flanco. Sin medida confirmada no se cotiza."
+    }
   ],
-  "pseudocodigo": "objetivo = diametro(medida_original); candidatos = [s for s in skus if s.aro == aro_pedido and s.stock >= 4]; for c in candidatos: c.dif = (c.diametro_mm/objetivo - 1)*100; resultado = sorted([c for c in candidatos if abs(c.dif) <= 3 and (tipo is None or c.tipo == tipo)], key=lambda c: abs(c.dif))[:3]"
- },
- "ejemplos_resueltos": [
-  {
-   "consulta": "Creta 2027 aro 17",
-   "medida_original": "215/60R17",
-   "diametro_objetivo_mm": 690.4,
-   "razonamiento": "El aro 17 si es de fabrica en la Creta, entonces se cotiza la medida original tal cual. Es SUV de asfalto: ofrecer H/T o turismo SUV, nunca A/T."
-  },
-  {
-   "consulta": "Hilux con aro 18",
-   "medida_original": "265/65R17",
-   "diametro_objetivo_mm": 776.3,
-   "razonamiento": "El aro 18 no es de fabrica en esa version, el cliente cambio de aro. Se mantiene el diametro 776.3 mm y se busca en aro 18: 265/60R18 da 775.2 mm (-0.1%), calce perfecto. Como es camioneta, ofrecer A/T o R/T y verificar indice de carga LT."
-  },
-  {
-   "consulta": "Cliente manda solo una foto de llanta gastada",
-   "medida_original": null,
-   "razonamiento": "Pedir foto legible del flanco. Sin medida confirmada no se cotiza."
-  }
- ],
- "preguntas_que_debe_hacer_el_agente": [
-  "Que vehiculo es y de que ano?",
-  "Que medida dice el flanco de la llanta actual? (pedir foto si no la tiene)",
-  "El uso es ciudad, carretera, tierra u obra? (define H/T, A/T, R/T o M/T)",
-  "Cambio los aros originales alguna vez?",
-  "Necesita juego de 4 o unidades sueltas?"
- ],
- "aplicaciones": [
-  {
-   "marca": "Hyundai",
-   "modelo": "Creta",
-   "anios": "2020-2027",
-   "medidas_de_fabrica": [
-    {
-     "medida": "205/65R16",
-     "ancho": 205,
-     "perfil": 65,
-     "aro": 16,
-     "diametro_mm": 672.9
-    },
-    {
-     "medida": "215/60R17",
-     "ancho": 215,
-     "perfil": 60,
-     "aro": 17,
-     "diametro_mm": 689.8
-    },
-    {
-     "medida": "225/55R17",
-     "ancho": 225,
-     "perfil": 55,
-     "aro": 17,
-     "diametro_mm": 679.3
-    },
-    {
-     "medida": "215/55R18",
-     "ancho": 215,
-     "perfil": 55,
-     "aro": 18,
-     "diametro_mm": 693.7
-    },
-    {
-     "medida": "225/50R18",
-     "ancho": 225,
-     "perfil": 50,
-     "aro": 18,
-     "diametro_mm": 682.2
-    }
-   ],
-   "aros_de_fabrica": [
-    16,
-    17,
-    18
-   ],
-   "confianza": "alta",
-   "verificado_contra_fuente": true,
-   "nota": "Verificado contra wheel-size: OE 205/65R16 95H y 215/60R17 96H. Las otras tres son opcionales de fabrica."
-  },
-  {
-   "marca": "Hyundai",
-   "modelo": "Tucson",
-   "anios": "2019-2027",
-   "medidas_de_fabrica": [
-    {
-     "medida": "235/65R17",
-     "ancho": 235,
-     "perfil": 65,
-     "aro": 17,
-     "diametro_mm": 737.3
-    },
-    {
-     "medida": "235/60R18",
-     "ancho": 235,
-     "perfil": 60,
-     "aro": 18,
-     "diametro_mm": 739.2
-    },
-    {
-     "medida": "235/55R19",
-     "ancho": 235,
-     "perfil": 55,
-     "aro": 19,
-     "diametro_mm": 741.1
-    }
-   ],
-   "aros_de_fabrica": [
-    17,
-    18,
-    19
-   ],
-   "confianza": "alta",
-   "verificado_contra_fuente": false
-  },
-  {
-   "marca": "Hyundai",
-   "modelo": "Santa Fe",
-   "anios": "2019-2027",
-   "medidas_de_fabrica": [
-    {
-     "medida": "235/65R17",
-     "ancho": 235,
-     "perfil": 65,
-     "aro": 17,
-     "diametro_mm": 737.3
-    },
-    {
-     "medida": "235/60R18",
-     "ancho": 235,
-     "perfil": 60,
-     "aro": 18,
-     "diametro_mm": 739.2
-    },
-    {
-     "medida": "255/45R20",
-     "ancho": 255,
-     "perfil": 45,
-     "aro": 20,
-     "diametro_mm": 737.5
-    }
-   ],
-   "aros_de_fabrica": [
-    17,
-    18,
-    20
-   ],
-   "confianza": "media",
-   "verificado_contra_fuente": false
-  },
-  {
-   "marca": "Hyundai",
-   "modelo": "Accent",
-   "anios": "2018-2027",
-   "medidas_de_fabrica": [
-    {
-     "medida": "185/65R15",
-     "ancho": 185,
-     "perfil": 65,
-     "aro": 15,
-     "diametro_mm": 621.5
-    },
-    {
-     "medida": "195/55R16",
-     "ancho": 195,
-     "perfil": 55,
-     "aro": 16,
-     "diametro_mm": 620.9
-    },
-    {
-     "medida": "205/45R17",
-     "ancho": 205,
-     "perfil": 45,
-     "aro": 17,
-     "diametro_mm": 616.3
-    }
-   ],
-   "aros_de_fabrica": [
-    15,
-    16,
-    17
-   ],
-   "confianza": "alta",
-   "verificado_contra_fuente": false
-  },
-  {
-   "marca": "Hyundai",
-   "modelo": "Elantra",
-   "anios": "2019-2027",
-   "medidas_de_fabrica": [
-    {
-     "medida": "205/55R16",
-     "ancho": 205,
-     "perfil": 55,
-     "aro": 16,
-     "diametro_mm": 631.9
-    },
-    {
-     "medida": "225/45R17",
-     "ancho": 225,
-     "perfil": 45,
-     "aro": 17,
-     "diametro_mm": 634.3
-    },
-    {
-     "medida": "225/40R18",
-     "ancho": 225,
-     "perfil": 40,
-     "aro": 18,
-     "diametro_mm": 637.2
-    }
-   ],
-   "aros_de_fabrica": [
-    16,
-    17,
-    18
-   ],
-   "confianza": "media",
-   "verificado_contra_fuente": false
-  },
-  {
-   "marca": "Hyundai",
-   "modelo": "Grand i10",
-   "anios": "2018-2027",
-   "medidas_de_fabrica": [
-    {
-     "medida": "165/65R14",
-     "ancho": 165,
-     "perfil": 65,
-     "aro": 14,
-     "diametro_mm": 570.1
-    },
-    {
-     "medida": "175/60R15",
-     "ancho": 175,
-     "perfil": 60,
-     "aro": 15,
-     "diametro_mm": 591.0
-    }
-   ],
-   "aros_de_fabrica": [
-    14,
-    15
-   ],
-   "confianza": "media",
-   "verificado_contra_fuente": false
-  },
-  {
-   "marca": "Hyundai",
-   "modelo": "Venue",
-   "anios": "2020-2027",
-   "medidas_de_fabrica": [
-    {
-     "medida": "195/65R15",
-     "ancho": 195,
-     "perfil": 65,
-     "aro": 15,
-     "diametro_mm": 634.5
-    },
-    {
-     "medida": "205/55R16",
-     "ancho": 205,
-     "perfil": 55,
-     "aro": 16,
-     "diametro_mm": 631.9
-    },
-    {
-     "medida": "215/60R16",
-     "ancho": 215,
-     "perfil": 60,
-     "aro": 16,
-     "diametro_mm": 664.4
-    }
-   ],
-   "aros_de_fabrica": [
-    15,
-    16
-   ],
-   "confianza": "media",
-   "verificado_contra_fuente": false
-  },
-  {
-   "marca": "Hyundai",
-   "modelo": "Palisade",
-   "anios": "2020-2027",
-   "medidas_de_fabrica": [
-    {
-     "medida": "245/60R18",
-     "ancho": 245,
-     "perfil": 60,
-     "aro": 18,
-     "diametro_mm": 751.2
-    },
-    {
-     "medida": "245/50R20",
-     "ancho": 245,
-     "perfil": 50,
-     "aro": 20,
-     "diametro_mm": 753.0
-    }
-   ],
-   "aros_de_fabrica": [
-    18,
-    20
-   ],
-   "confianza": "media",
-   "verificado_contra_fuente": false
-  },
-  {
-   "marca": "Hyundai",
-   "modelo": "H1 / Starex",
-   "anios": "2010-2027",
-   "medidas_de_fabrica": [
-    {
-     "medida": "215/70R16",
-     "ancho": 215,
-     "perfil": 70,
-     "aro": 16,
-     "diametro_mm": 707.4
-    },
-    {
-     "medida": "225/70R16",
-     "ancho": 225,
-     "perfil": 70,
-     "aro": 16,
-     "diametro_mm": 721.4
-    }
-   ],
-   "aros_de_fabrica": [
-    16
-   ],
-   "confianza": "media",
-   "verificado_contra_fuente": false
-  },
-  {
-   "marca": "Hyundai",
-   "modelo": "Porter / H100",
-   "anios": "2005-2027",
-   "medidas_de_fabrica": [
-    {
-     "medida": "195R15C",
-     "aro": 15,
-     "diametro_mm": null,
-     "nota": "medida convencional o comercial, calcular aparte"
-    },
-    {
-     "medida": "215/75R15C",
-     "ancho": 215,
-     "perfil": 75,
-     "aro": 15,
-     "diametro_mm": 703.5,
-     "nota": "medida comercial C: solo llantas de carga"
-    }
-   ],
-   "aros_de_fabrica": [
-    15
-   ],
-   "confianza": "media",
-   "verificado_contra_fuente": false,
-   "nota": "Camion liviano, siempre medida comercial C"
-  },
-  {
-   "marca": "Kia",
-   "modelo": "Sportage",
-   "anios": "2019-2027",
-   "medidas_de_fabrica": [
-    {
-     "medida": "235/65R17",
-     "ancho": 235,
-     "perfil": 65,
-     "aro": 17,
-     "diametro_mm": 737.3
-    },
-    {
-     "medida": "235/60R18",
-     "ancho": 235,
-     "perfil": 60,
-     "aro": 18,
-     "diametro_mm": 739.2
-    },
-    {
-     "medida": "235/55R19",
-     "ancho": 235,
-     "perfil": 55,
-     "aro": 19,
-     "diametro_mm": 741.1
-    }
-   ],
-   "aros_de_fabrica": [
-    17,
-    18,
-    19
-   ],
-   "confianza": "alta",
-   "verificado_contra_fuente": false
-  },
-  {
-   "marca": "Kia",
-   "modelo": "Seltos",
-   "anios": "2020-2027",
-   "medidas_de_fabrica": [
-    {
-     "medida": "215/60R17",
-     "ancho": 215,
-     "perfil": 60,
-     "aro": 17,
-     "diametro_mm": 689.8
-    },
-    {
-     "medida": "235/55R18",
-     "ancho": 235,
-     "perfil": 55,
-     "aro": 18,
-     "diametro_mm": 715.7
-    }
-   ],
-   "aros_de_fabrica": [
-    17,
-    18
-   ],
-   "confianza": "alta",
-   "verificado_contra_fuente": false
-  },
-  {
-   "marca": "Kia",
-   "modelo": "Rio",
-   "anios": "2018-2027",
-   "medidas_de_fabrica": [
-    {
-     "medida": "185/65R15",
-     "ancho": 185,
-     "perfil": 65,
-     "aro": 15,
-     "diametro_mm": 621.5
-    },
-    {
-     "medida": "195/55R16",
-     "ancho": 195,
-     "perfil": 55,
-     "aro": 16,
-     "diametro_mm": 620.9
-    },
-    {
-     "medida": "205/45R17",
-     "ancho": 205,
-     "perfil": 45,
-     "aro": 17,
-     "diametro_mm": 616.3
-    }
-   ],
-   "aros_de_fabrica": [
-    15,
-    16,
-    17
-   ],
-   "confianza": "alta",
-   "verificado_contra_fuente": false
-  },
-  {
-   "marca": "Kia",
-   "modelo": "Soluto",
-   "anios": "2020-2027",
-   "medidas_de_fabrica": [
-    {
-     "medida": "175/70R14",
-     "ancho": 175,
-     "perfil": 70,
-     "aro": 14,
-     "diametro_mm": 600.6
-    },
-    {
-     "medida": "185/65R15",
-     "ancho": 185,
-     "perfil": 65,
-     "aro": 15,
-     "diametro_mm": 621.5
-    }
-   ],
-   "aros_de_fabrica": [
-    14,
-    15
-   ],
-   "confianza": "media",
-   "verificado_contra_fuente": false
-  },
-  {
-   "marca": "Kia",
-   "modelo": "Picanto",
-   "anios": "2018-2027",
-   "medidas_de_fabrica": [
-    {
-     "medida": "165/65R14",
-     "ancho": 165,
-     "perfil": 65,
-     "aro": 14,
-     "diametro_mm": 570.1
-    },
-    {
-     "medida": "175/50R15",
-     "ancho": 175,
-     "perfil": 50,
-     "aro": 15,
-     "diametro_mm": 556.0
-    },
-    {
-     "medida": "195/45R16",
-     "ancho": 195,
-     "perfil": 45,
-     "aro": 16,
-     "diametro_mm": 581.9
-    }
-   ],
-   "aros_de_fabrica": [
-    14,
-    15,
-    16
-   ],
-   "confianza": "media",
-   "verificado_contra_fuente": false
-  },
-  {
-   "marca": "Kia",
-   "modelo": "Cerato / Forte",
-   "anios": "2019-2027",
-   "medidas_de_fabrica": [
-    {
-     "medida": "205/55R16",
-     "ancho": 205,
-     "perfil": 55,
-     "aro": 16,
-     "diametro_mm": 631.9
-    },
-    {
-     "medida": "225/45R17",
-     "ancho": 225,
-     "perfil": 45,
-     "aro": 17,
-     "diametro_mm": 634.3
-    },
-    {
-     "medida": "225/40R18",
-     "ancho": 225,
-     "perfil": 40,
-     "aro": 18,
-     "diametro_mm": 637.2
-    }
-   ],
-   "aros_de_fabrica": [
-    16,
-    17,
-    18
-   ],
-   "confianza": "media",
-   "verificado_contra_fuente": false
-  },
-  {
-   "marca": "Kia",
-   "modelo": "Sorento",
-   "anios": "2019-2027",
-   "medidas_de_fabrica": [
-    {
-     "medida": "235/65R17",
-     "ancho": 235,
-     "perfil": 65,
-     "aro": 17,
-     "diametro_mm": 737.3
-    },
-    {
-     "medida": "235/60R18",
-     "ancho": 235,
-     "perfil": 60,
-     "aro": 18,
-     "diametro_mm": 739.2
-    },
-    {
-     "medida": "255/45R20",
-     "ancho": 255,
-     "perfil": 45,
-     "aro": 20,
-     "diametro_mm": 737.5
-    }
-   ],
-   "aros_de_fabrica": [
-    17,
-    18,
-    20
-   ],
-   "confianza": "media",
-   "verificado_contra_fuente": false
-  },
-  {
-   "marca": "Kia",
-   "modelo": "Carnival",
-   "anios": "2020-2027",
-   "medidas_de_fabrica": [
-    {
-     "medida": "235/65R17",
-     "ancho": 235,
-     "perfil": 65,
-     "aro": 17,
-     "diametro_mm": 737.3
-    },
-    {
-     "medida": "235/60R18",
-     "ancho": 235,
-     "perfil": 60,
-     "aro": 18,
-     "diametro_mm": 739.2
-    }
-   ],
-   "aros_de_fabrica": [
-    17,
-    18
-   ],
-   "confianza": "media",
-   "verificado_contra_fuente": false
-  },
-  {
-   "marca": "Kia",
-   "modelo": "K2500 / Frontier",
-   "anios": "2010-2027",
-   "medidas_de_fabrica": [
-    {
-     "medida": "195R15C",
-     "aro": 15,
-     "diametro_mm": null,
-     "nota": "medida convencional o comercial, calcular aparte"
-    },
-    {
-     "medida": "205/75R14C",
-     "ancho": 205,
-     "perfil": 75,
-     "aro": 14,
-     "diametro_mm": 663.1,
-     "nota": "medida comercial C: solo llantas de carga"
-    }
-   ],
-   "aros_de_fabrica": [
-    14,
-    15
-   ],
-   "confianza": "media",
-   "verificado_contra_fuente": false,
-   "nota": "Camion liviano"
-  },
-  {
-   "marca": "Toyota",
-   "modelo": "Hilux",
-   "anios": "2016-2027",
-   "medidas_de_fabrica": [
-    {
-     "medida": "265/65R17",
-     "ancho": 265,
-     "perfil": 65,
-     "aro": 17,
-     "diametro_mm": 776.3
-    },
-    {
-     "medida": "265/60R18",
-     "ancho": 265,
-     "perfil": 60,
-     "aro": 18,
-     "diametro_mm": 775.2
-    },
-    {
-     "medida": "205R16C",
-     "aro": 16,
-     "diametro_mm": null,
-     "nota": "medida convencional o comercial, calcular aparte"
-    },
-    {
-     "medida": "255/70R15",
-     "ancho": 255,
-     "perfil": 70,
-     "aro": 15,
-     "diametro_mm": 738.0
-    }
-   ],
-   "aros_de_fabrica": [
-    15,
-    16,
-    17,
-    18
-   ],
-   "confianza": "alta",
-   "verificado_contra_fuente": false,
-   "nota": "El 4x2 base usa 205R16C; el 4x4 usa 265/65R17"
-  },
-  {
-   "marca": "Toyota",
-   "modelo": "Fortuner",
-   "anios": "2016-2027",
-   "medidas_de_fabrica": [
-    {
-     "medida": "265/65R17",
-     "ancho": 265,
-     "perfil": 65,
-     "aro": 17,
-     "diametro_mm": 776.3
-    },
-    {
-     "medida": "265/60R18",
-     "ancho": 265,
-     "perfil": 60,
-     "aro": 18,
-     "diametro_mm": 775.2
-    }
-   ],
-   "aros_de_fabrica": [
-    17,
-    18
-   ],
-   "confianza": "alta",
-   "verificado_contra_fuente": false
-  },
-  {
-   "marca": "Toyota",
-   "modelo": "Corolla",
-   "anios": "2019-2027",
-   "medidas_de_fabrica": [
-    {
-     "medida": "205/55R16",
-     "ancho": 205,
-     "perfil": 55,
-     "aro": 16,
-     "diametro_mm": 631.9
-    },
-    {
-     "medida": "225/40R18",
-     "ancho": 225,
-     "perfil": 40,
-     "aro": 18,
-     "diametro_mm": 637.2
-    }
-   ],
-   "aros_de_fabrica": [
-    16,
-    18
-   ],
-   "confianza": "alta",
-   "verificado_contra_fuente": false
-  },
-  {
-   "marca": "Toyota",
-   "modelo": "Corolla Cross",
-   "anios": "2022-2027",
-   "medidas_de_fabrica": [
-    {
-     "medida": "215/60R17",
-     "ancho": 215,
-     "perfil": 60,
-     "aro": 17,
-     "diametro_mm": 689.8
-    },
-    {
-     "medida": "225/50R18",
-     "ancho": 225,
-     "perfil": 50,
-     "aro": 18,
-     "diametro_mm": 682.2
-    }
-   ],
-   "aros_de_fabrica": [
-    17,
-    18
-   ],
-   "confianza": "media",
-   "verificado_contra_fuente": false
-  },
-  {
-   "marca": "Toyota",
-   "modelo": "Yaris sedan / hatchback",
-   "anios": "2018-2027",
-   "medidas_de_fabrica": [
-    {
-     "medida": "175/65R15",
-     "ancho": 175,
-     "perfil": 65,
-     "aro": 15,
-     "diametro_mm": 608.5
-    },
-    {
-     "medida": "185/60R15",
-     "ancho": 185,
-     "perfil": 60,
-     "aro": 15,
-     "diametro_mm": 603.0
-    },
-    {
-     "medida": "195/50R16",
-     "ancho": 195,
-     "perfil": 50,
-     "aro": 16,
-     "diametro_mm": 601.4
-    }
-   ],
-   "aros_de_fabrica": [
-    15,
-    16
-   ],
-   "confianza": "media",
-   "verificado_contra_fuente": false
-  },
-  {
-   "marca": "Toyota",
-   "modelo": "Yaris Cross",
-   "anios": "2021-2027",
-   "medidas_de_fabrica": [
-    {
-     "medida": "205/65R16",
-     "ancho": 205,
-     "perfil": 65,
-     "aro": 16,
-     "diametro_mm": 672.9
-    },
-    {
-     "medida": "215/55R17",
-     "ancho": 215,
-     "perfil": 55,
-     "aro": 17,
-     "diametro_mm": 668.3
-    }
-   ],
-   "aros_de_fabrica": [
-    16,
-    17
-   ],
-   "confianza": "media",
-   "verificado_contra_fuente": false
-  },
-  {
-   "marca": "Toyota",
-   "modelo": "RAV4",
-   "anios": "2019-2027",
-   "medidas_de_fabrica": [
-    {
-     "medida": "225/65R17",
-     "ancho": 225,
-     "perfil": 65,
-     "aro": 17,
-     "diametro_mm": 724.3
-    },
-    {
-     "medida": "235/55R19",
-     "ancho": 235,
-     "perfil": 55,
-     "aro": 19,
-     "diametro_mm": 741.1
-    }
-   ],
-   "aros_de_fabrica": [
-    17,
-    19
-   ],
-   "confianza": "alta",
-   "verificado_contra_fuente": false
-  },
-  {
-   "marca": "Toyota",
-   "modelo": "4Runner",
-   "anios": "2010-2027",
-   "medidas_de_fabrica": [
-    {
-     "medida": "265/70R17",
-     "ancho": 265,
-     "perfil": 70,
-     "aro": 17,
-     "diametro_mm": 802.8
-    },
-    {
-     "medida": "265/65R17",
-     "ancho": 265,
-     "perfil": 65,
-     "aro": 17,
-     "diametro_mm": 776.3
-    },
-    {
-     "medida": "265/60R18",
-     "ancho": 265,
-     "perfil": 60,
-     "aro": 18,
-     "diametro_mm": 775.2
-    }
-   ],
-   "aros_de_fabrica": [
-    17,
-    18
-   ],
-   "confianza": "media",
-   "verificado_contra_fuente": false
-  },
-  {
-   "marca": "Toyota",
-   "modelo": "Land Cruiser Prado",
-   "anios": "2010-2027",
-   "medidas_de_fabrica": [
-    {
-     "medida": "265/65R17",
-     "ancho": 265,
-     "perfil": 65,
-     "aro": 17,
-     "diametro_mm": 776.3
-    },
-    {
-     "medida": "265/60R18",
-     "ancho": 265,
-     "perfil": 60,
-     "aro": 18,
-     "diametro_mm": 775.2
-    }
-   ],
-   "aros_de_fabrica": [
-    17,
-    18
-   ],
-   "confianza": "alta",
-   "verificado_contra_fuente": false
-  },
-  {
-   "marca": "Toyota",
-   "modelo": "Land Cruiser 70 / 79",
-   "anios": "1990-2027",
-   "medidas_de_fabrica": [
-    {
-     "medida": "7.50R16",
-     "aro": 16,
-     "diametro_mm": null,
-     "nota": "medida convencional o comercial, calcular aparte"
-    },
-    {
-     "medida": "265/70R16",
-     "ancho": 265,
-     "perfil": 70,
-     "aro": 16,
-     "diametro_mm": 777.4
-    },
-    {
-     "medida": "255/85R16",
-     "ancho": 255,
-     "perfil": 85,
-     "aro": 16,
-     "diametro_mm": 839.9
-    }
-   ],
-   "aros_de_fabrica": [
-    16
-   ],
-   "confianza": "media",
-   "verificado_contra_fuente": false,
-   "nota": "Version de trabajo, medidas convencionales"
-  },
-  {
-   "marca": "Toyota",
-   "modelo": "HiAce",
-   "anios": "2015-2027",
-   "medidas_de_fabrica": [
-    {
-     "medida": "195R15C",
-     "aro": 15,
-     "diametro_mm": null,
-     "nota": "medida convencional o comercial, calcular aparte"
-    },
-    {
-     "medida": "215/70R15C",
-     "ancho": 215,
-     "perfil": 70,
-     "aro": 15,
-     "diametro_mm": 682.0,
-     "nota": "medida comercial C: solo llantas de carga"
-    },
-    {
-     "medida": "205R16C",
-     "aro": 16,
-     "diametro_mm": null,
-     "nota": "medida convencional o comercial, calcular aparte"
-    }
-   ],
-   "aros_de_fabrica": [
-    15,
-    16
-   ],
-   "confianza": "media",
-   "verificado_contra_fuente": false
-  },
-  {
-   "marca": "Toyota",
-   "modelo": "Rush / Raize",
-   "anios": "2019-2027",
-   "medidas_de_fabrica": [
-    {
-     "medida": "215/60R17",
-     "ancho": 215,
-     "perfil": 60,
-     "aro": 17,
-     "diametro_mm": 689.8
-    },
-    {
-     "medida": "195/65R16",
-     "ancho": 195,
-     "perfil": 65,
-     "aro": 16,
-     "diametro_mm": 659.9
-    }
-   ],
-   "aros_de_fabrica": [
-    16,
-    17
-   ],
-   "confianza": "baja",
-   "verificado_contra_fuente": false,
-   "nota": "Confirmar siempre con el cliente"
-  },
-  {
-   "marca": "Toyota",
-   "modelo": "Avanza",
-   "anios": "2016-2027",
-   "medidas_de_fabrica": [
-    {
-     "medida": "185/65R15",
-     "ancho": 185,
-     "perfil": 65,
-     "aro": 15,
-     "diametro_mm": 621.5
-    },
-    {
-     "medida": "205/65R15",
-     "ancho": 205,
-     "perfil": 65,
-     "aro": 15,
-     "diametro_mm": 647.5
-    }
-   ],
-   "aros_de_fabrica": [
-    15
-   ],
-   "confianza": "baja",
-   "verificado_contra_fuente": false
-  },
-  {
-   "marca": "Chevrolet",
-   "modelo": "D-Max",
-   "anios": "2013-2027",
-   "medidas_de_fabrica": [
-    {
-     "medida": "255/65R17",
-     "ancho": 255,
-     "perfil": 65,
-     "aro": 17,
-     "diametro_mm": 763.3
-    },
-    {
-     "medida": "245/70R16",
-     "ancho": 245,
-     "perfil": 70,
-     "aro": 16,
-     "diametro_mm": 749.4
-    },
-    {
-     "medida": "255/70R16",
-     "ancho": 255,
-     "perfil": 70,
-     "aro": 16,
-     "diametro_mm": 763.4
-    },
-    {
-     "medida": "265/60R18",
-     "ancho": 265,
-     "perfil": 60,
-     "aro": 18,
-     "diametro_mm": 775.2
-    }
-   ],
-   "aros_de_fabrica": [
-    16,
-    17,
-    18
-   ],
-   "confianza": "alta",
-   "verificado_contra_fuente": false
-  },
-  {
-   "marca": "Chevrolet",
-   "modelo": "Colorado",
-   "anios": "2016-2027",
-   "medidas_de_fabrica": [
-    {
-     "medida": "255/65R17",
-     "ancho": 255,
-     "perfil": 65,
-     "aro": 17,
-     "diametro_mm": 763.3
-    },
-    {
-     "medida": "265/60R18",
-     "ancho": 265,
-     "perfil": 60,
-     "aro": 18,
-     "diametro_mm": 775.2
-    }
-   ],
-   "aros_de_fabrica": [
-    17,
-    18
-   ],
-   "confianza": "media",
-   "verificado_contra_fuente": false
-  },
-  {
-   "marca": "Chevrolet",
-   "modelo": "Captiva",
-   "anios": "2019-2027",
-   "medidas_de_fabrica": [
-    {
-     "medida": "215/60R17",
-     "ancho": 215,
-     "perfil": 60,
-     "aro": 17,
-     "diametro_mm": 689.8
-    },
-    {
-     "medida": "225/55R18",
-     "ancho": 225,
-     "perfil": 55,
-     "aro": 18,
-     "diametro_mm": 704.7
-    },
-    {
-     "medida": "235/50R19",
-     "ancho": 235,
-     "perfil": 50,
-     "aro": 19,
-     "diametro_mm": 717.6
-    }
-   ],
-   "aros_de_fabrica": [
-    17,
-    18,
-    19
-   ],
-   "confianza": "media",
-   "verificado_contra_fuente": false
-  },
-  {
-   "marca": "Chevrolet",
-   "modelo": "Tracker",
-   "anios": "2020-2027",
-   "medidas_de_fabrica": [
-    {
-     "medida": "215/60R17",
-     "ancho": 215,
-     "perfil": 60,
-     "aro": 17,
-     "diametro_mm": 689.8
-    },
-    {
-     "medida": "215/55R18",
-     "ancho": 215,
-     "perfil": 55,
-     "aro": 18,
-     "diametro_mm": 693.7
-    }
-   ],
-   "aros_de_fabrica": [
-    17,
-    18
-   ],
-   "confianza": "media",
-   "verificado_contra_fuente": false
-  },
-  {
-   "marca": "Chevrolet",
-   "modelo": "Groove",
-   "anios": "2021-2027",
-   "medidas_de_fabrica": [
-    {
-     "medida": "215/55R17",
-     "ancho": 215,
-     "perfil": 55,
-     "aro": 17,
-     "diametro_mm": 668.3
-    },
-    {
-     "medida": "215/50R18",
-     "ancho": 215,
-     "perfil": 50,
-     "aro": 18,
-     "diametro_mm": 672.2
-    }
-   ],
-   "aros_de_fabrica": [
-    17,
-    18
-   ],
-   "confianza": "media",
-   "verificado_contra_fuente": false
-  },
-  {
-   "marca": "Chevrolet",
-   "modelo": "Trailblazer",
-   "anios": "2013-2027",
-   "medidas_de_fabrica": [
-    {
-     "medida": "265/60R18",
-     "ancho": 265,
-     "perfil": 60,
-     "aro": 18,
-     "diametro_mm": 775.2
-    },
-    {
-     "medida": "255/65R17",
-     "ancho": 255,
-     "perfil": 65,
-     "aro": 17,
-     "diametro_mm": 763.3
-    }
-   ],
-   "aros_de_fabrica": [
-    17,
-    18
-   ],
-   "confianza": "media",
-   "verificado_contra_fuente": false
-  },
-  {
-   "marca": "Chevrolet",
-   "modelo": "Onix / Onix Turbo",
-   "anios": "2020-2027",
-   "medidas_de_fabrica": [
-    {
-     "medida": "185/65R15",
-     "ancho": 185,
-     "perfil": 65,
-     "aro": 15,
-     "diametro_mm": 621.5
-    },
-    {
-     "medida": "195/55R16",
-     "ancho": 195,
-     "perfil": 55,
-     "aro": 16,
-     "diametro_mm": 620.9
-    },
-    {
-     "medida": "205/55R16",
-     "ancho": 205,
-     "perfil": 55,
-     "aro": 16,
-     "diametro_mm": 631.9
-    }
-   ],
-   "aros_de_fabrica": [
-    15,
-    16
-   ],
-   "confianza": "media",
-   "verificado_contra_fuente": false
-  },
-  {
-   "marca": "Chevrolet",
-   "modelo": "Sail",
-   "anios": "2015-2027",
-   "medidas_de_fabrica": [
-    {
-     "medida": "185/65R15",
-     "ancho": 185,
-     "perfil": 65,
-     "aro": 15,
-     "diametro_mm": 621.5
-    },
-    {
-     "medida": "185/60R14",
-     "ancho": 185,
-     "perfil": 60,
-     "aro": 14,
-     "diametro_mm": 577.6
-    }
-   ],
-   "aros_de_fabrica": [
-    14,
-    15
-   ],
-   "confianza": "alta",
-   "verificado_contra_fuente": false
-  },
-  {
-   "marca": "Chevrolet",
-   "modelo": "Spark GT",
-   "anios": "2015-2027",
-   "medidas_de_fabrica": [
-    {
-     "medida": "185/55R15",
-     "ancho": 185,
-     "perfil": 55,
-     "aro": 15,
-     "diametro_mm": 584.5
-    }
-   ],
-   "aros_de_fabrica": [
-    15
-   ],
-   "confianza": "alta",
-   "verificado_contra_fuente": false
-  },
-  {
-   "marca": "Chevrolet",
-   "modelo": "Beat",
-   "anios": "2018-2027",
-   "medidas_de_fabrica": [
-    {
-     "medida": "175/70R14",
-     "ancho": 175,
-     "perfil": 70,
-     "aro": 14,
-     "diametro_mm": 600.6
-    },
-    {
-     "medida": "185/65R15",
-     "ancho": 185,
-     "perfil": 65,
-     "aro": 15,
-     "diametro_mm": 621.5
-    }
-   ],
-   "aros_de_fabrica": [
-    14,
-    15
-   ],
-   "confianza": "media",
-   "verificado_contra_fuente": false
-  },
-  {
-   "marca": "Chevrolet",
-   "modelo": "Aveo Family",
-   "anios": "2010-2022",
-   "medidas_de_fabrica": [
-    {
-     "medida": "185/60R14",
-     "ancho": 185,
-     "perfil": 60,
-     "aro": 14,
-     "diametro_mm": 577.6
-    },
-    {
-     "medida": "185/65R14",
-     "ancho": 185,
-     "perfil": 65,
-     "aro": 14,
-     "diametro_mm": 596.1
-    },
-    {
-     "medida": "195/55R15",
-     "ancho": 195,
-     "perfil": 55,
-     "aro": 15,
-     "diametro_mm": 595.5
-    }
-   ],
-   "aros_de_fabrica": [
-    14,
-    15
-   ],
-   "confianza": "media",
-   "verificado_contra_fuente": false,
-   "nota": "Medida muy pedida en aro 14"
-  },
-  {
-   "marca": "Chevrolet",
-   "modelo": "Optra",
-   "anios": "2005-2018",
-   "medidas_de_fabrica": [
-    {
-     "medida": "185/65R14",
-     "ancho": 185,
-     "perfil": 65,
-     "aro": 14,
-     "diametro_mm": 596.1
-    },
-    {
-     "medida": "195/60R15",
-     "ancho": 195,
-     "perfil": 60,
-     "aro": 15,
-     "diametro_mm": 615.0
-    },
-    {
-     "medida": "205/55R16",
-     "ancho": 205,
-     "perfil": 55,
-     "aro": 16,
-     "diametro_mm": 631.9
-    }
-   ],
-   "aros_de_fabrica": [
-    14,
-    15,
-    16
-   ],
-   "confianza": "baja",
-   "verificado_contra_fuente": false,
-   "nota": "Modelo antiguo, confirmar con el cliente"
-  },
-  {
-   "marca": "Chevrolet",
-   "modelo": "N300 / N400 van",
-   "anios": "2015-2027",
-   "medidas_de_fabrica": [
-    {
-     "medida": "175/70R14C",
-     "ancho": 175,
-     "perfil": 70,
-     "aro": 14,
-     "diametro_mm": 600.6,
-     "nota": "medida comercial C: solo llantas de carga"
-    },
-    {
-     "medida": "185R14C",
-     "aro": 14,
-     "diametro_mm": null,
-     "nota": "medida convencional o comercial, calcular aparte"
-    },
-    {
-     "medida": "195/70R15C",
-     "ancho": 195,
-     "perfil": 70,
-     "aro": 15,
-     "diametro_mm": 654.0,
-     "nota": "medida comercial C: solo llantas de carga"
-    }
-   ],
-   "aros_de_fabrica": [
-    14,
-    15
-   ],
-   "confianza": "media",
-   "verificado_contra_fuente": false
-  },
-  {
-   "marca": "Chevrolet",
-   "modelo": "Silverado",
-   "anios": "2015-2027",
-   "medidas_de_fabrica": [
-    {
-     "medida": "265/65R18",
-     "ancho": 265,
-     "perfil": 65,
-     "aro": 18,
-     "diametro_mm": 801.7
-    },
-    {
-     "medida": "275/60R20",
-     "ancho": 275,
-     "perfil": 60,
-     "aro": 20,
-     "diametro_mm": 838.0
-    }
-   ],
-   "aros_de_fabrica": [
-    18,
-    20
-   ],
-   "confianza": "media",
-   "verificado_contra_fuente": false
-  },
-  {
-   "marca": "Ford",
-   "modelo": "Ranger",
-   "anios": "2016-2027",
-   "medidas_de_fabrica": [
-    {
-     "medida": "265/65R17",
-     "ancho": 265,
-     "perfil": 65,
-     "aro": 17,
-     "diametro_mm": 776.3
-    },
-    {
-     "medida": "265/60R18",
-     "ancho": 265,
-     "perfil": 60,
-     "aro": 18,
-     "diametro_mm": 775.2
-    },
-    {
-     "medida": "255/70R16",
-     "ancho": 255,
-     "perfil": 70,
-     "aro": 16,
-     "diametro_mm": 763.4
-    },
-    {
-     "medida": "255/65R17",
-     "ancho": 255,
-     "perfil": 65,
-     "aro": 17,
-     "diametro_mm": 763.3
-    }
-   ],
-   "aros_de_fabrica": [
-    16,
-    17,
-    18
-   ],
-   "confianza": "alta",
-   "verificado_contra_fuente": false
-  },
-  {
-   "marca": "Ford",
-   "modelo": "Everest",
-   "anios": "2016-2027",
-   "medidas_de_fabrica": [
-    {
-     "medida": "265/65R17",
-     "ancho": 265,
-     "perfil": 65,
-     "aro": 17,
-     "diametro_mm": 776.3
-    },
-    {
-     "medida": "265/60R18",
-     "ancho": 265,
-     "perfil": 60,
-     "aro": 18,
-     "diametro_mm": 775.2
-    }
-   ],
-   "aros_de_fabrica": [
-    17,
-    18
-   ],
-   "confianza": "media",
-   "verificado_contra_fuente": false
-  },
-  {
-   "marca": "Ford",
-   "modelo": "EcoSport",
-   "anios": "2013-2022",
-   "medidas_de_fabrica": [
-    {
-     "medida": "205/65R15",
-     "ancho": 205,
-     "perfil": 65,
-     "aro": 15,
-     "diametro_mm": 647.5
-    },
-    {
-     "medida": "205/60R16",
-     "ancho": 205,
-     "perfil": 60,
-     "aro": 16,
-     "diametro_mm": 652.4
-    }
-   ],
-   "aros_de_fabrica": [
-    15,
-    16
-   ],
-   "confianza": "alta",
-   "verificado_contra_fuente": false
-  },
-  {
-   "marca": "Ford",
-   "modelo": "Escape",
-   "anios": "2019-2027",
-   "medidas_de_fabrica": [
-    {
-     "medida": "225/65R17",
-     "ancho": 225,
-     "perfil": 65,
-     "aro": 17,
-     "diametro_mm": 724.3
-    },
-    {
-     "medida": "225/60R18",
-     "ancho": 225,
-     "perfil": 60,
-     "aro": 18,
-     "diametro_mm": 727.2
-    },
-    {
-     "medida": "245/45R19",
-     "ancho": 245,
-     "perfil": 45,
-     "aro": 19,
-     "diametro_mm": 703.1
-    }
-   ],
-   "aros_de_fabrica": [
-    17,
-    18,
-    19
-   ],
-   "confianza": "media",
-   "verificado_contra_fuente": false
-  },
-  {
-   "marca": "Ford",
-   "modelo": "Territory",
-   "anios": "2021-2027",
-   "medidas_de_fabrica": [
-    {
-     "medida": "225/60R18",
-     "ancho": 225,
-     "perfil": 60,
-     "aro": 18,
-     "diametro_mm": 727.2
-    },
-    {
-     "medida": "235/50R19",
-     "ancho": 235,
-     "perfil": 50,
-     "aro": 19,
-     "diametro_mm": 717.6
-    }
-   ],
-   "aros_de_fabrica": [
-    18,
-    19
-   ],
-   "confianza": "media",
-   "verificado_contra_fuente": false
-  },
-  {
-   "marca": "Ford",
-   "modelo": "Explorer",
-   "anios": "2018-2027",
-   "medidas_de_fabrica": [
-    {
-     "medida": "255/65R18",
-     "ancho": 255,
-     "perfil": 65,
-     "aro": 18,
-     "diametro_mm": 788.7
-    },
-    {
-     "medida": "255/55R20",
-     "ancho": 255,
-     "perfil": 55,
-     "aro": 20,
-     "diametro_mm": 788.5
-    }
-   ],
-   "aros_de_fabrica": [
-    18,
-    20
-   ],
-   "confianza": "media",
-   "verificado_contra_fuente": false
-  },
-  {
-   "marca": "Ford",
-   "modelo": "F-150",
-   "anios": "2015-2027",
-   "medidas_de_fabrica": [
-    {
-     "medida": "265/70R17",
-     "ancho": 265,
-     "perfil": 70,
-     "aro": 17,
-     "diametro_mm": 802.8
-    },
-    {
-     "medida": "275/65R18",
-     "ancho": 275,
-     "perfil": 65,
-     "aro": 18,
-     "diametro_mm": 814.7
-    },
-    {
-     "medida": "275/60R20",
-     "ancho": 275,
-     "perfil": 60,
-     "aro": 20,
-     "diametro_mm": 838.0
-    }
-   ],
-   "aros_de_fabrica": [
-    17,
-    18,
-    20
-   ],
-   "confianza": "media",
-   "verificado_contra_fuente": false
-  },
-  {
-   "marca": "Ford",
-   "modelo": "Maverick",
-   "anios": "2022-2027",
-   "medidas_de_fabrica": [
-    {
-     "medida": "225/65R17",
-     "ancho": 225,
-     "perfil": 65,
-     "aro": 17,
-     "diametro_mm": 724.3
-    },
-    {
-     "medida": "225/60R18",
-     "ancho": 225,
-     "perfil": 60,
-     "aro": 18,
-     "diametro_mm": 727.2
-    }
-   ],
-   "aros_de_fabrica": [
-    17,
-    18
-   ],
-   "confianza": "baja",
-   "verificado_contra_fuente": false
-  },
-  {
-   "marca": "Nissan",
-   "modelo": "Frontier / Navara / NP300",
-   "anios": "2016-2027",
-   "medidas_de_fabrica": [
-    {
-     "medida": "255/65R17",
-     "ancho": 255,
-     "perfil": 65,
-     "aro": 17,
-     "diametro_mm": 763.3
-    },
-    {
-     "medida": "255/60R18",
-     "ancho": 255,
-     "perfil": 60,
-     "aro": 18,
-     "diametro_mm": 763.2
-    },
-    {
-     "medida": "255/70R16",
-     "ancho": 255,
-     "perfil": 70,
-     "aro": 16,
-     "diametro_mm": 763.4
-    }
-   ],
-   "aros_de_fabrica": [
-    16,
-    17,
-    18
-   ],
-   "confianza": "alta",
-   "verificado_contra_fuente": false
-  },
-  {
-   "marca": "Nissan",
-   "modelo": "X-Trail",
-   "anios": "2018-2027",
-   "medidas_de_fabrica": [
-    {
-     "medida": "225/65R17",
-     "ancho": 225,
-     "perfil": 65,
-     "aro": 17,
-     "diametro_mm": 724.3
-    },
-    {
-     "medida": "225/60R18",
-     "ancho": 225,
-     "perfil": 60,
-     "aro": 18,
-     "diametro_mm": 727.2
-    },
-    {
-     "medida": "235/55R19",
-     "ancho": 235,
-     "perfil": 55,
-     "aro": 19,
-     "diametro_mm": 741.1
-    }
-   ],
-   "aros_de_fabrica": [
-    17,
-    18,
-    19
-   ],
-   "confianza": "alta",
-   "verificado_contra_fuente": false
-  },
-  {
-   "marca": "Nissan",
-   "modelo": "Qashqai",
-   "anios": "2019-2027",
-   "medidas_de_fabrica": [
-    {
-     "medida": "215/65R16",
-     "ancho": 215,
-     "perfil": 65,
-     "aro": 16,
-     "diametro_mm": 685.9
-    },
-    {
-     "medida": "215/60R17",
-     "ancho": 215,
-     "perfil": 60,
-     "aro": 17,
-     "diametro_mm": 689.8
-    },
-    {
-     "medida": "215/55R18",
-     "ancho": 215,
-     "perfil": 55,
-     "aro": 18,
-     "diametro_mm": 693.7
-    }
-   ],
-   "aros_de_fabrica": [
-    16,
-    17,
-    18
-   ],
-   "confianza": "media",
-   "verificado_contra_fuente": false
-  },
-  {
-   "marca": "Nissan",
-   "modelo": "Kicks",
-   "anios": "2019-2027",
-   "medidas_de_fabrica": [
-    {
-     "medida": "205/60R16",
-     "ancho": 205,
-     "perfil": 60,
-     "aro": 16,
-     "diametro_mm": 652.4
-    },
-    {
-     "medida": "215/55R17",
-     "ancho": 215,
-     "perfil": 55,
-     "aro": 17,
-     "diametro_mm": 668.3
-    }
-   ],
-   "aros_de_fabrica": [
-    16,
-    17
-   ],
-   "confianza": "media",
-   "verificado_contra_fuente": false
-  },
-  {
-   "marca": "Nissan",
-   "modelo": "Sentra",
-   "anios": "2019-2027",
-   "medidas_de_fabrica": [
-    {
-     "medida": "205/55R16",
-     "ancho": 205,
-     "perfil": 55,
-     "aro": 16,
-     "diametro_mm": 631.9
-    },
-    {
-     "medida": "215/50R17",
-     "ancho": 215,
-     "perfil": 50,
-     "aro": 17,
-     "diametro_mm": 646.8
-    },
-    {
-     "medida": "215/45R18",
-     "ancho": 215,
-     "perfil": 45,
-     "aro": 18,
-     "diametro_mm": 650.7
-    }
-   ],
-   "aros_de_fabrica": [
-    16,
-    17,
-    18
-   ],
-   "confianza": "media",
-   "verificado_contra_fuente": false
-  },
-  {
-   "marca": "Nissan",
-   "modelo": "Versa",
-   "anios": "2019-2027",
-   "medidas_de_fabrica": [
-    {
-     "medida": "185/65R15",
-     "ancho": 185,
-     "perfil": 65,
-     "aro": 15,
-     "diametro_mm": 621.5
-    },
-    {
-     "medida": "205/55R16",
-     "ancho": 205,
-     "perfil": 55,
-     "aro": 16,
-     "diametro_mm": 631.9
-    }
-   ],
-   "aros_de_fabrica": [
-    15,
-    16
-   ],
-   "confianza": "media",
-   "verificado_contra_fuente": false
-  },
-  {
-   "marca": "Nissan",
-   "modelo": "March",
-   "anios": "2015-2027",
-   "medidas_de_fabrica": [
-    {
-     "medida": "165/70R14",
-     "ancho": 165,
-     "perfil": 70,
-     "aro": 14,
-     "diametro_mm": 586.6
-    },
-    {
-     "medida": "185/60R15",
-     "ancho": 185,
-     "perfil": 60,
-     "aro": 15,
-     "diametro_mm": 603.0
-    }
-   ],
-   "aros_de_fabrica": [
-    14,
-    15
-   ],
-   "confianza": "media",
-   "verificado_contra_fuente": false
-  },
-  {
-   "marca": "Nissan",
-   "modelo": "Patrol",
-   "anios": "2010-2027",
-   "medidas_de_fabrica": [
-    {
-     "medida": "265/70R17",
-     "ancho": 265,
-     "perfil": 70,
-     "aro": 17,
-     "diametro_mm": 802.8
-    },
-    {
-     "medida": "275/60R20",
-     "ancho": 275,
-     "perfil": 60,
-     "aro": 20,
-     "diametro_mm": 838.0
-    },
-    {
-     "medida": "265/65R17",
-     "ancho": 265,
-     "perfil": 65,
-     "aro": 17,
-     "diametro_mm": 776.3
-    }
-   ],
-   "aros_de_fabrica": [
-    17,
-    20
-   ],
-   "confianza": "media",
-   "verificado_contra_fuente": false
-  },
-  {
-   "marca": "Nissan",
-   "modelo": "Urvan / NV350",
-   "anios": "2015-2027",
-   "medidas_de_fabrica": [
-    {
-     "medida": "195R15C",
-     "aro": 15,
-     "diametro_mm": null,
-     "nota": "medida convencional o comercial, calcular aparte"
-    },
-    {
-     "medida": "215/70R15C",
-     "ancho": 215,
-     "perfil": 70,
-     "aro": 15,
-     "diametro_mm": 682.0,
-     "nota": "medida comercial C: solo llantas de carga"
-    }
-   ],
-   "aros_de_fabrica": [
-    15
-   ],
-   "confianza": "media",
-   "verificado_contra_fuente": false
-  },
-  {
-   "marca": "Mazda",
-   "modelo": "BT-50",
-   "anios": "2013-2027",
-   "medidas_de_fabrica": [
-    {
-     "medida": "265/65R17",
-     "ancho": 265,
-     "perfil": 65,
-     "aro": 17,
-     "diametro_mm": 776.3
-    },
-    {
-     "medida": "255/70R16",
-     "ancho": 255,
-     "perfil": 70,
-     "aro": 16,
-     "diametro_mm": 763.4
-    },
-    {
-     "medida": "265/60R18",
-     "ancho": 265,
-     "perfil": 60,
-     "aro": 18,
-     "diametro_mm": 775.2
-    }
-   ],
-   "aros_de_fabrica": [
-    16,
-    17,
-    18
-   ],
-   "confianza": "media",
-   "verificado_contra_fuente": false
-  },
-  {
-   "marca": "Mazda",
-   "modelo": "CX-5",
-   "anios": "2018-2027",
-   "medidas_de_fabrica": [
-    {
-     "medida": "225/65R17",
-     "ancho": 225,
-     "perfil": 65,
-     "aro": 17,
-     "diametro_mm": 724.3
-    },
-    {
-     "medida": "225/55R19",
-     "ancho": 225,
-     "perfil": 55,
-     "aro": 19,
-     "diametro_mm": 730.1
-    }
-   ],
-   "aros_de_fabrica": [
-    17,
-    19
-   ],
-   "confianza": "alta",
-   "verificado_contra_fuente": false
-  },
-  {
-   "marca": "Mazda",
-   "modelo": "CX-30",
-   "anios": "2020-2027",
-   "medidas_de_fabrica": [
-    {
-     "medida": "215/55R18",
-     "ancho": 215,
-     "perfil": 55,
-     "aro": 18,
-     "diametro_mm": 693.7
-    }
-   ],
-   "aros_de_fabrica": [
-    18
-   ],
-   "confianza": "media",
-   "verificado_contra_fuente": false
-  },
-  {
-   "marca": "Mazda",
-   "modelo": "CX-3",
-   "anios": "2016-2027",
-   "medidas_de_fabrica": [
-    {
-     "medida": "215/60R16",
-     "ancho": 215,
-     "perfil": 60,
-     "aro": 16,
-     "diametro_mm": 664.4
-    },
-    {
-     "medida": "215/50R18",
-     "ancho": 215,
-     "perfil": 50,
-     "aro": 18,
-     "diametro_mm": 672.2
-    }
-   ],
-   "aros_de_fabrica": [
-    16,
-    18
-   ],
-   "confianza": "media",
-   "verificado_contra_fuente": false
-  },
-  {
-   "marca": "Mazda",
-   "modelo": "CX-50 / CX-60",
-   "anios": "2022-2027",
-   "medidas_de_fabrica": [
-    {
-     "medida": "235/65R17",
-     "ancho": 235,
-     "perfil": 65,
-     "aro": 17,
-     "diametro_mm": 737.3
-    },
-    {
-     "medida": "235/55R19",
-     "ancho": 235,
-     "perfil": 55,
-     "aro": 19,
-     "diametro_mm": 741.1
-    },
-    {
-     "medida": "235/50R20",
-     "ancho": 235,
-     "perfil": 50,
-     "aro": 20,
-     "diametro_mm": 743.0
-    }
-   ],
-   "aros_de_fabrica": [
-    17,
-    19,
-    20
-   ],
-   "confianza": "baja",
-   "verificado_contra_fuente": false
-  },
-  {
-   "marca": "Mazda",
-   "modelo": "3",
-   "anios": "2019-2027",
-   "medidas_de_fabrica": [
-    {
-     "medida": "205/60R16",
-     "ancho": 205,
-     "perfil": 60,
-     "aro": 16,
-     "diametro_mm": 652.4
-    },
-    {
-     "medida": "215/45R18",
-     "ancho": 215,
-     "perfil": 45,
-     "aro": 18,
-     "diametro_mm": 650.7
-    }
-   ],
-   "aros_de_fabrica": [
-    16,
-    18
-   ],
-   "confianza": "media",
-   "verificado_contra_fuente": false
-  },
-  {
-   "marca": "Mazda",
-   "modelo": "2",
-   "anios": "2018-2027",
-   "medidas_de_fabrica": [
-    {
-     "medida": "185/65R15",
-     "ancho": 185,
-     "perfil": 65,
-     "aro": 15,
-     "diametro_mm": 621.5
-    },
-    {
-     "medida": "185/60R16",
-     "ancho": 185,
-     "perfil": 60,
-     "aro": 16,
-     "diametro_mm": 628.4
-    }
-   ],
-   "aros_de_fabrica": [
-    15,
-    16
-   ],
-   "confianza": "media",
-   "verificado_contra_fuente": false
-  },
-  {
-   "marca": "Mitsubishi",
-   "modelo": "L200 / Montero Sport",
-   "anios": "2016-2027",
-   "medidas_de_fabrica": [
-    {
-     "medida": "245/70R16",
-     "ancho": 245,
-     "perfil": 70,
-     "aro": 16,
-     "diametro_mm": 749.4
-    },
-    {
-     "medida": "265/60R18",
-     "ancho": 265,
-     "perfil": 60,
-     "aro": 18,
-     "diametro_mm": 775.2
-    },
-    {
-     "medida": "265/65R17",
-     "ancho": 265,
-     "perfil": 65,
-     "aro": 17,
-     "diametro_mm": 776.3
-    }
-   ],
-   "aros_de_fabrica": [
-    16,
-    17,
-    18
-   ],
-   "confianza": "alta",
-   "verificado_contra_fuente": false
-  },
-  {
-   "marca": "Mitsubishi",
-   "modelo": "Outlander",
-   "anios": "2018-2027",
-   "medidas_de_fabrica": [
-    {
-     "medida": "225/55R18",
-     "ancho": 225,
-     "perfil": 55,
-     "aro": 18,
-     "diametro_mm": 704.7
-    },
-    {
-     "medida": "225/60R18",
-     "ancho": 225,
-     "perfil": 60,
-     "aro": 18,
-     "diametro_mm": 727.2
-    },
-    {
-     "medida": "255/45R20",
-     "ancho": 255,
-     "perfil": 45,
-     "aro": 20,
-     "diametro_mm": 737.5
-    }
-   ],
-   "aros_de_fabrica": [
-    18,
-    20
-   ],
-   "confianza": "media",
-   "verificado_contra_fuente": false
-  },
-  {
-   "marca": "Mitsubishi",
-   "modelo": "ASX",
-   "anios": "2018-2027",
-   "medidas_de_fabrica": [
-    {
-     "medida": "215/70R16",
-     "ancho": 215,
-     "perfil": 70,
-     "aro": 16,
-     "diametro_mm": 707.4
-    },
-    {
-     "medida": "225/55R18",
-     "ancho": 225,
-     "perfil": 55,
-     "aro": 18,
-     "diametro_mm": 704.7
-    }
-   ],
-   "aros_de_fabrica": [
-    16,
-    18
-   ],
-   "confianza": "media",
-   "verificado_contra_fuente": false
-  },
-  {
-   "marca": "Mitsubishi",
-   "modelo": "Mirage",
-   "anios": "2016-2027",
-   "medidas_de_fabrica": [
-    {
-     "medida": "165/65R14",
-     "ancho": 165,
-     "perfil": 65,
-     "aro": 14,
-     "diametro_mm": 570.1
-    },
-    {
-     "medida": "175/55R15",
-     "ancho": 175,
-     "perfil": 55,
-     "aro": 15,
-     "diametro_mm": 573.5
-    }
-   ],
-   "aros_de_fabrica": [
-    14,
-    15
-   ],
-   "confianza": "baja",
-   "verificado_contra_fuente": false
-  },
-  {
-   "marca": "Suzuki",
-   "modelo": "Grand Vitara SZ",
-   "anios": "2010-2027",
-   "medidas_de_fabrica": [
-    {
-     "medida": "225/65R17",
-     "ancho": 225,
-     "perfil": 65,
-     "aro": 17,
-     "diametro_mm": 724.3
-    },
-    {
-     "medida": "225/70R16",
-     "ancho": 225,
-     "perfil": 70,
-     "aro": 16,
-     "diametro_mm": 721.4
-    }
-   ],
-   "aros_de_fabrica": [
-    16,
-    17
-   ],
-   "confianza": "media",
-   "verificado_contra_fuente": false
-  },
-  {
-   "marca": "Suzuki",
-   "modelo": "Vitara Live",
-   "anios": "2000-2018",
-   "medidas_de_fabrica": [
-    {
-     "medida": "215/65R16",
-     "ancho": 215,
-     "perfil": 65,
-     "aro": 16,
-     "diametro_mm": 685.9
-    },
-    {
-     "medida": "235/60R16",
-     "ancho": 235,
-     "perfil": 60,
-     "aro": 16,
-     "diametro_mm": 688.4
-    }
-   ],
-   "aros_de_fabrica": [
-    16
-   ],
-   "confianza": "media",
-   "verificado_contra_fuente": false
-  },
-  {
-   "marca": "Suzuki",
-   "modelo": "S-Cross",
-   "anios": "2019-2027",
-   "medidas_de_fabrica": [
-    {
-     "medida": "215/60R16",
-     "ancho": 215,
-     "perfil": 60,
-     "aro": 16,
-     "diametro_mm": 664.4
-    },
-    {
-     "medida": "215/55R17",
-     "ancho": 215,
-     "perfil": 55,
-     "aro": 17,
-     "diametro_mm": 668.3
-    }
-   ],
-   "aros_de_fabrica": [
-    16,
-    17
-   ],
-   "confianza": "media",
-   "verificado_contra_fuente": false
-  },
-  {
-   "marca": "Suzuki",
-   "modelo": "Swift",
-   "anios": "2018-2027",
-   "medidas_de_fabrica": [
-    {
-     "medida": "185/55R16",
-     "ancho": 185,
-     "perfil": 55,
-     "aro": 16,
-     "diametro_mm": 609.9
-    },
-    {
-     "medida": "175/65R15",
-     "ancho": 175,
-     "perfil": 65,
-     "aro": 15,
-     "diametro_mm": 608.5
-    }
-   ],
-   "aros_de_fabrica": [
-    15,
-    16
-   ],
-   "confianza": "media",
-   "verificado_contra_fuente": false
-  },
-  {
-   "marca": "Suzuki",
-   "modelo": "Baleno",
-   "anios": "2019-2027",
-   "medidas_de_fabrica": [
-    {
-     "medida": "185/65R15",
-     "ancho": 185,
-     "perfil": 65,
-     "aro": 15,
-     "diametro_mm": 621.5
-    },
-    {
-     "medida": "195/55R16",
-     "ancho": 195,
-     "perfil": 55,
-     "aro": 16,
-     "diametro_mm": 620.9
-    }
-   ],
-   "aros_de_fabrica": [
-    15,
-    16
-   ],
-   "confianza": "baja",
-   "verificado_contra_fuente": false
-  },
-  {
-   "marca": "Suzuki",
-   "modelo": "Jimny",
-   "anios": "2019-2027",
-   "medidas_de_fabrica": [
-    {
-     "medida": "195/80R15",
-     "ancho": 195,
-     "perfil": 80,
-     "aro": 15,
-     "diametro_mm": 693.0
-    }
-   ],
-   "aros_de_fabrica": [
-    15
-   ],
-   "confianza": "alta",
-   "verificado_contra_fuente": false,
-   "nota": "Medida unica, poco comun en inventario"
-  },
-  {
-   "marca": "Suzuki",
-   "modelo": "Ertiga / APV",
-   "anios": "2018-2027",
-   "medidas_de_fabrica": [
-    {
-     "medida": "185/65R15",
-     "ancho": 185,
-     "perfil": 65,
-     "aro": 15,
-     "diametro_mm": 621.5
-    },
-    {
-     "medida": "205/65R15",
-     "ancho": 205,
-     "perfil": 65,
-     "aro": 15,
-     "diametro_mm": 647.5
-    }
-   ],
-   "aros_de_fabrica": [
-    15
-   ],
-   "confianza": "baja",
-   "verificado_contra_fuente": false
-  },
-  {
-   "marca": "Renault",
-   "modelo": "Duster",
-   "anios": "2016-2027",
-   "medidas_de_fabrica": [
-    {
-     "medida": "215/65R16",
-     "ancho": 215,
-     "perfil": 65,
-     "aro": 16,
-     "diametro_mm": 685.9
-    },
-    {
-     "medida": "215/60R17",
-     "ancho": 215,
-     "perfil": 60,
-     "aro": 17,
-     "diametro_mm": 689.8
-    }
-   ],
-   "aros_de_fabrica": [
-    16,
-    17
-   ],
-   "confianza": "alta",
-   "verificado_contra_fuente": false
-  },
-  {
-   "marca": "Renault",
-   "modelo": "Logan / Sandero",
-   "anios": "2016-2027",
-   "medidas_de_fabrica": [
-    {
-     "medida": "185/65R15",
-     "ancho": 185,
-     "perfil": 65,
-     "aro": 15,
-     "diametro_mm": 621.5
-    },
-    {
-     "medida": "205/55R16",
-     "ancho": 205,
-     "perfil": 55,
-     "aro": 16,
-     "diametro_mm": 631.9
-    }
-   ],
-   "aros_de_fabrica": [
-    15,
-    16
-   ],
-   "confianza": "media",
-   "verificado_contra_fuente": false
-  },
-  {
-   "marca": "Renault",
-   "modelo": "Stepway",
-   "anios": "2018-2027",
-   "medidas_de_fabrica": [
-    {
-     "medida": "205/60R16",
-     "ancho": 205,
-     "perfil": 60,
-     "aro": 16,
-     "diametro_mm": 652.4
-    },
-    {
-     "medida": "205/55R17",
-     "ancho": 205,
-     "perfil": 55,
-     "aro": 17,
-     "diametro_mm": 657.3
-    }
-   ],
-   "aros_de_fabrica": [
-    16,
-    17
-   ],
-   "confianza": "media",
-   "verificado_contra_fuente": false
-  },
-  {
-   "marca": "Renault",
-   "modelo": "Kwid",
-   "anios": "2019-2027",
-   "medidas_de_fabrica": [
-    {
-     "medida": "165/70R14",
-     "ancho": 165,
-     "perfil": 70,
-     "aro": 14,
-     "diametro_mm": 586.6
-    },
-    {
-     "medida": "175/60R15",
-     "ancho": 175,
-     "perfil": 60,
-     "aro": 15,
-     "diametro_mm": 591.0
-    }
-   ],
-   "aros_de_fabrica": [
-    14,
-    15
-   ],
-   "confianza": "media",
-   "verificado_contra_fuente": false
-  },
-  {
-   "marca": "Renault",
-   "modelo": "Captur",
-   "anios": "2018-2027",
-   "medidas_de_fabrica": [
-    {
-     "medida": "215/60R17",
-     "ancho": 215,
-     "perfil": 60,
-     "aro": 17,
-     "diametro_mm": 689.8
-    },
-    {
-     "medida": "215/55R18",
-     "ancho": 215,
-     "perfil": 55,
-     "aro": 18,
-     "diametro_mm": 693.7
-    }
-   ],
-   "aros_de_fabrica": [
-    17,
-    18
-   ],
-   "confianza": "media",
-   "verificado_contra_fuente": false
-  },
-  {
-   "marca": "Renault",
-   "modelo": "Koleos",
-   "anios": "2018-2027",
-   "medidas_de_fabrica": [
-    {
-     "medida": "225/60R18",
-     "ancho": 225,
-     "perfil": 60,
-     "aro": 18,
-     "diametro_mm": 727.2
-    },
-    {
-     "medida": "225/55R19",
-     "ancho": 225,
-     "perfil": 55,
-     "aro": 19,
-     "diametro_mm": 730.1
-    }
-   ],
-   "aros_de_fabrica": [
-    18,
-    19
-   ],
-   "confianza": "baja",
-   "verificado_contra_fuente": false
-  },
-  {
-   "marca": "Renault",
-   "modelo": "Oroch",
-   "anios": "2018-2027",
-   "medidas_de_fabrica": [
-    {
-     "medida": "215/65R16",
-     "ancho": 215,
-     "perfil": 65,
-     "aro": 16,
-     "diametro_mm": 685.9
-    },
-    {
-     "medida": "215/60R17",
-     "ancho": 215,
-     "perfil": 60,
-     "aro": 17,
-     "diametro_mm": 689.8
-    }
-   ],
-   "aros_de_fabrica": [
-    16,
-    17
-   ],
-   "confianza": "media",
-   "verificado_contra_fuente": false
-  },
-  {
-   "marca": "Volkswagen",
-   "modelo": "Amarok",
-   "anios": "2013-2027",
-   "medidas_de_fabrica": [
-    {
-     "medida": "245/70R16",
-     "ancho": 245,
-     "perfil": 70,
-     "aro": 16,
-     "diametro_mm": 749.4
-    },
-    {
-     "medida": "255/60R18",
-     "ancho": 255,
-     "perfil": 60,
-     "aro": 18,
-     "diametro_mm": 763.2
-    },
-    {
-     "medida": "255/65R17",
-     "ancho": 255,
-     "perfil": 65,
-     "aro": 17,
-     "diametro_mm": 763.3
-    }
-   ],
-   "aros_de_fabrica": [
-    16,
-    17,
-    18
-   ],
-   "confianza": "media",
-   "verificado_contra_fuente": false
-  },
-  {
-   "marca": "Volkswagen",
-   "modelo": "T-Cross",
-   "anios": "2020-2027",
-   "medidas_de_fabrica": [
-    {
-     "medida": "205/60R16",
-     "ancho": 205,
-     "perfil": 60,
-     "aro": 16,
-     "diametro_mm": 652.4
-    },
-    {
-     "medida": "215/50R17",
-     "ancho": 215,
-     "perfil": 50,
-     "aro": 17,
-     "diametro_mm": 646.8
-    }
-   ],
-   "aros_de_fabrica": [
-    16,
-    17
-   ],
-   "confianza": "media",
-   "verificado_contra_fuente": false
-  },
-  {
-   "marca": "Volkswagen",
-   "modelo": "Taos / Tiguan",
-   "anios": "2019-2027",
-   "medidas_de_fabrica": [
-    {
-     "medida": "215/65R17",
-     "ancho": 215,
-     "perfil": 65,
-     "aro": 17,
-     "diametro_mm": 711.3
-    },
-    {
-     "medida": "235/55R18",
-     "ancho": 235,
-     "perfil": 55,
-     "aro": 18,
-     "diametro_mm": 715.7
-    },
-    {
-     "medida": "235/50R19",
-     "ancho": 235,
-     "perfil": 50,
-     "aro": 19,
-     "diametro_mm": 717.6
-    }
-   ],
-   "aros_de_fabrica": [
-    17,
-    18,
-    19
-   ],
-   "confianza": "media",
-   "verificado_contra_fuente": false
-  },
-  {
-   "marca": "Volkswagen",
-   "modelo": "Gol / Polo",
-   "anios": "2016-2027",
-   "medidas_de_fabrica": [
-    {
-     "medida": "175/70R14",
-     "ancho": 175,
-     "perfil": 70,
-     "aro": 14,
-     "diametro_mm": 600.6
-    },
-    {
-     "medida": "185/60R15",
-     "ancho": 185,
-     "perfil": 60,
-     "aro": 15,
-     "diametro_mm": 603.0
-    },
-    {
-     "medida": "195/55R16",
-     "ancho": 195,
-     "perfil": 55,
-     "aro": 16,
-     "diametro_mm": 620.9
-    }
-   ],
-   "aros_de_fabrica": [
-    14,
-    15,
-    16
-   ],
-   "confianza": "media",
-   "verificado_contra_fuente": false
-  },
-  {
-   "marca": "Volkswagen",
-   "modelo": "Saveiro",
-   "anios": "2016-2027",
-   "medidas_de_fabrica": [
-    {
-     "medida": "175/70R14C",
-     "ancho": 175,
-     "perfil": 70,
-     "aro": 14,
-     "diametro_mm": 600.6,
-     "nota": "medida comercial C: solo llantas de carga"
-    },
-    {
-     "medida": "195/65R15",
-     "ancho": 195,
-     "perfil": 65,
-     "aro": 15,
-     "diametro_mm": 634.5
-    }
-   ],
-   "aros_de_fabrica": [
-    14,
-    15
-   ],
-   "confianza": "baja",
-   "verificado_contra_fuente": false
-  },
-  {
-   "marca": "Jeep",
-   "modelo": "Wrangler",
-   "anios": "2018-2027",
-   "medidas_de_fabrica": [
-    {
-     "medida": "245/75R17",
-     "ancho": 245,
-     "perfil": 75,
-     "aro": 17,
-     "diametro_mm": 799.3
-    },
-    {
-     "medida": "255/70R18",
-     "ancho": 255,
-     "perfil": 70,
-     "aro": 18,
-     "diametro_mm": 814.2
-    },
-    {
-     "medida": "285/70R17",
-     "ancho": 285,
-     "perfil": 70,
-     "aro": 17,
-     "diametro_mm": 830.8
-    },
-    {
-     "medida": "255/75R17",
-     "ancho": 255,
-     "perfil": 75,
-     "aro": 17,
-     "diametro_mm": 814.3
-    }
-   ],
-   "aros_de_fabrica": [
-    17,
-    18
-   ],
-   "confianza": "alta",
-   "verificado_contra_fuente": false,
-   "nota": "Cliente frecuente de M/T y R/T; muchos con levante y aro cambiado"
-  },
-  {
-   "marca": "Jeep",
-   "modelo": "Gladiator",
-   "anios": "2020-2027",
-   "medidas_de_fabrica": [
-    {
-     "medida": "245/75R17",
-     "ancho": 245,
-     "perfil": 75,
-     "aro": 17,
-     "diametro_mm": 799.3
-    },
-    {
-     "medida": "255/70R18",
-     "ancho": 255,
-     "perfil": 70,
-     "aro": 18,
-     "diametro_mm": 814.2
-    },
-    {
-     "medida": "285/70R17",
-     "ancho": 285,
-     "perfil": 70,
-     "aro": 17,
-     "diametro_mm": 830.8
-    }
-   ],
-   "aros_de_fabrica": [
-    17,
-    18
-   ],
-   "confianza": "media",
-   "verificado_contra_fuente": false
-  },
-  {
-   "marca": "Jeep",
-   "modelo": "Compass",
-   "anios": "2018-2027",
-   "medidas_de_fabrica": [
-    {
-     "medida": "225/60R17",
-     "ancho": 225,
-     "perfil": 60,
-     "aro": 17,
-     "diametro_mm": 701.8
-    },
-    {
-     "medida": "225/55R18",
-     "ancho": 225,
-     "perfil": 55,
-     "aro": 18,
-     "diametro_mm": 704.7
-    },
-    {
-     "medida": "235/45R19",
-     "ancho": 235,
-     "perfil": 45,
-     "aro": 19,
-     "diametro_mm": 694.1
-    }
-   ],
-   "aros_de_fabrica": [
-    17,
-    18,
-    19
-   ],
-   "confianza": "media",
-   "verificado_contra_fuente": false
-  },
-  {
-   "marca": "Jeep",
-   "modelo": "Renegade",
-   "anios": "2018-2027",
-   "medidas_de_fabrica": [
-    {
-     "medida": "215/65R16",
-     "ancho": 215,
-     "perfil": 65,
-     "aro": 16,
-     "diametro_mm": 685.9
-    },
-    {
-     "medida": "215/60R17",
-     "ancho": 215,
-     "perfil": 60,
-     "aro": 17,
-     "diametro_mm": 689.8
-    },
-    {
-     "medida": "235/45R19",
-     "ancho": 235,
-     "perfil": 45,
-     "aro": 19,
-     "diametro_mm": 694.1
-    }
-   ],
-   "aros_de_fabrica": [
-    16,
-    17,
-    19
-   ],
-   "confianza": "media",
-   "verificado_contra_fuente": false
-  },
-  {
-   "marca": "Jeep",
-   "modelo": "Grand Cherokee",
-   "anios": "2015-2027",
-   "medidas_de_fabrica": [
-    {
-     "medida": "265/60R18",
-     "ancho": 265,
-     "perfil": 60,
-     "aro": 18,
-     "diametro_mm": 775.2
-    },
-    {
-     "medida": "265/50R20",
-     "ancho": 265,
-     "perfil": 50,
-     "aro": 20,
-     "diametro_mm": 773.0
-    }
-   ],
-   "aros_de_fabrica": [
-    18,
-    20
-   ],
-   "confianza": "media",
-   "verificado_contra_fuente": false
-  },
-  {
-   "marca": "Great Wall (GWM)",
-   "modelo": "Poer / Wingle",
-   "anios": "2019-2027",
-   "medidas_de_fabrica": [
-    {
-     "medida": "245/70R16",
-     "ancho": 245,
-     "perfil": 70,
-     "aro": 16,
-     "diametro_mm": 749.4
-    },
-    {
-     "medida": "265/65R17",
-     "ancho": 265,
-     "perfil": 65,
-     "aro": 17,
-     "diametro_mm": 776.3
-    },
-    {
-     "medida": "255/60R18",
-     "ancho": 255,
-     "perfil": 60,
-     "aro": 18,
-     "diametro_mm": 763.2
-    }
-   ],
-   "aros_de_fabrica": [
-    16,
-    17,
-    18
-   ],
-   "confianza": "media",
-   "verificado_contra_fuente": false
-  },
-  {
-   "marca": "Great Wall (GWM)",
-   "modelo": "Tank 300",
-   "anios": "2022-2027",
-   "medidas_de_fabrica": [
-    {
-     "medida": "265/65R17",
-     "ancho": 265,
-     "perfil": 65,
-     "aro": 17,
-     "diametro_mm": 776.3
-    },
-    {
-     "medida": "265/60R18",
-     "ancho": 265,
-     "perfil": 60,
-     "aro": 18,
-     "diametro_mm": 775.2
-    }
-   ],
-   "aros_de_fabrica": [
-    17,
-    18
-   ],
-   "confianza": "baja",
-   "verificado_contra_fuente": false
-  },
-  {
-   "marca": "Haval",
-   "modelo": "Jolion",
-   "anios": "2021-2027",
-   "medidas_de_fabrica": [
-    {
-     "medida": "225/65R17",
-     "ancho": 225,
-     "perfil": 65,
-     "aro": 17,
-     "diametro_mm": 724.3
-    },
-    {
-     "medida": "225/60R18",
-     "ancho": 225,
-     "perfil": 60,
-     "aro": 18,
-     "diametro_mm": 727.2
-    }
-   ],
-   "aros_de_fabrica": [
-    17,
-    18
-   ],
-   "confianza": "media",
-   "verificado_contra_fuente": false
-  },
-  {
-   "marca": "Haval",
-   "modelo": "H6",
-   "anios": "2021-2027",
-   "medidas_de_fabrica": [
-    {
-     "medida": "225/60R18",
-     "ancho": 225,
-     "perfil": 60,
-     "aro": 18,
-     "diametro_mm": 727.2
-    },
-    {
-     "medida": "235/55R19",
-     "ancho": 235,
-     "perfil": 55,
-     "aro": 19,
-     "diametro_mm": 741.1
-    }
-   ],
-   "aros_de_fabrica": [
-    18,
-    19
-   ],
-   "confianza": "media",
-   "verificado_contra_fuente": false
-  },
-  {
-   "marca": "JAC",
-   "modelo": "T6 / T8",
-   "anios": "2019-2027",
-   "medidas_de_fabrica": [
-    {
-     "medida": "245/65R17",
-     "ancho": 245,
-     "perfil": 65,
-     "aro": 17,
-     "diametro_mm": 750.3
-    },
-    {
-     "medida": "235/65R17",
-     "ancho": 235,
-     "perfil": 65,
-     "aro": 17,
-     "diametro_mm": 737.3
-    },
-    {
-     "medida": "265/65R17",
-     "ancho": 265,
-     "perfil": 65,
-     "aro": 17,
-     "diametro_mm": 776.3
-    }
-   ],
-   "aros_de_fabrica": [
-    17
-   ],
-   "confianza": "media",
-   "verificado_contra_fuente": false
-  },
-  {
-   "marca": "JAC",
-   "modelo": "JS3 / JS4 / JS8",
-   "anios": "2020-2027",
-   "medidas_de_fabrica": [
-    {
-     "medida": "205/60R16",
-     "ancho": 205,
-     "perfil": 60,
-     "aro": 16,
-     "diametro_mm": 652.4
-    },
-    {
-     "medida": "215/55R17",
-     "ancho": 215,
-     "perfil": 55,
-     "aro": 17,
-     "diametro_mm": 668.3
-    },
-    {
-     "medida": "225/60R18",
-     "ancho": 225,
-     "perfil": 60,
-     "aro": 18,
-     "diametro_mm": 727.2
-    }
-   ],
-   "aros_de_fabrica": [
-    16,
-    17,
-    18
-   ],
-   "confianza": "baja",
-   "verificado_contra_fuente": false
-  },
-  {
-   "marca": "JAC",
-   "modelo": "X200 / camion liviano",
-   "anios": "2015-2027",
-   "medidas_de_fabrica": [
-    {
-     "medida": "195R15C",
-     "aro": 15,
-     "diametro_mm": null,
-     "nota": "medida convencional o comercial, calcular aparte"
-    },
-    {
-     "medida": "215/75R15C",
-     "ancho": 215,
-     "perfil": 75,
-     "aro": 15,
-     "diametro_mm": 703.5,
-     "nota": "medida comercial C: solo llantas de carga"
-    },
-    {
-     "medida": "7.00R16",
-     "aro": 16,
-     "diametro_mm": null,
-     "nota": "medida convencional o comercial, calcular aparte"
-    }
-   ],
-   "aros_de_fabrica": [
-    15,
-    16
-   ],
-   "confianza": "media",
-   "verificado_contra_fuente": false
-  },
-  {
-   "marca": "Chery",
-   "modelo": "Tiggo 2 / 4 / 7 / 8",
-   "anios": "2020-2027",
-   "medidas_de_fabrica": [
-    {
-     "medida": "205/60R16",
-     "ancho": 205,
-     "perfil": 60,
-     "aro": 16,
-     "diametro_mm": 652.4
-    },
-    {
-     "medida": "215/60R17",
-     "ancho": 215,
-     "perfil": 60,
-     "aro": 17,
-     "diametro_mm": 689.8
-    },
-    {
-     "medida": "225/60R17",
-     "ancho": 225,
-     "perfil": 60,
-     "aro": 17,
-     "diametro_mm": 701.8
-    },
-    {
-     "medida": "235/50R18",
-     "ancho": 235,
-     "perfil": 50,
-     "aro": 18,
-     "diametro_mm": 692.2
-    }
-   ],
-   "aros_de_fabrica": [
-    16,
-    17,
-    18
-   ],
-   "confianza": "media",
-   "verificado_contra_fuente": false
-  },
-  {
-   "marca": "Chery",
-   "modelo": "Arrizo 5",
-   "anios": "2020-2027",
-   "medidas_de_fabrica": [
-    {
-     "medida": "195/60R16",
-     "ancho": 195,
-     "perfil": 60,
-     "aro": 16,
-     "diametro_mm": 640.4
-    },
-    {
-     "medida": "205/55R16",
-     "ancho": 205,
-     "perfil": 55,
-     "aro": 16,
-     "diametro_mm": 631.9
-    }
-   ],
-   "aros_de_fabrica": [
-    16
-   ],
-   "confianza": "baja",
-   "verificado_contra_fuente": false
-  },
-  {
-   "marca": "Changan",
-   "modelo": "CS15 / CS35 / CS55",
-   "anios": "2019-2027",
-   "medidas_de_fabrica": [
-    {
-     "medida": "205/60R16",
-     "ancho": 205,
-     "perfil": 60,
-     "aro": 16,
-     "diametro_mm": 652.4
-    },
-    {
-     "medida": "215/55R17",
-     "ancho": 215,
-     "perfil": 55,
-     "aro": 17,
-     "diametro_mm": 668.3
-    },
-    {
-     "medida": "225/60R18",
-     "ancho": 225,
-     "perfil": 60,
-     "aro": 18,
-     "diametro_mm": 727.2
-    }
-   ],
-   "aros_de_fabrica": [
-    16,
-    17,
-    18
-   ],
-   "confianza": "baja",
-   "verificado_contra_fuente": false
-  },
-  {
-   "marca": "Changan",
-   "modelo": "Alsvin",
-   "anios": "2020-2027",
-   "medidas_de_fabrica": [
-    {
-     "medida": "185/60R15",
-     "ancho": 185,
-     "perfil": 60,
-     "aro": 15,
-     "diametro_mm": 603.0
-    },
-    {
-     "medida": "195/55R16",
-     "ancho": 195,
-     "perfil": 55,
-     "aro": 16,
-     "diametro_mm": 620.9
-    }
-   ],
-   "aros_de_fabrica": [
-    15,
-    16
-   ],
-   "confianza": "baja",
-   "verificado_contra_fuente": false
-  },
-  {
-   "marca": "Changan",
-   "modelo": "Hunter",
-   "anios": "2022-2027",
-   "medidas_de_fabrica": [
-    {
-     "medida": "245/70R16",
-     "ancho": 245,
-     "perfil": 70,
-     "aro": 16,
-     "diametro_mm": 749.4
-    },
-    {
-     "medida": "265/65R17",
-     "ancho": 265,
-     "perfil": 65,
-     "aro": 17,
-     "diametro_mm": 776.3
-    }
-   ],
-   "aros_de_fabrica": [
-    16,
-    17
-   ],
-   "confianza": "baja",
-   "verificado_contra_fuente": false
-  },
-  {
-   "marca": "Foton",
-   "modelo": "Tunland",
-   "anios": "2016-2027",
-   "medidas_de_fabrica": [
-    {
-     "medida": "245/70R16",
-     "ancho": 245,
-     "perfil": 70,
-     "aro": 16,
-     "diametro_mm": 749.4
-    },
-    {
-     "medida": "265/65R17",
-     "ancho": 265,
-     "perfil": 65,
-     "aro": 17,
-     "diametro_mm": 776.3
-    }
-   ],
-   "aros_de_fabrica": [
-    16,
-    17
-   ],
-   "confianza": "baja",
-   "verificado_contra_fuente": false
-  },
-  {
-   "marca": "JMC",
-   "modelo": "Vigus",
-   "anios": "2019-2027",
-   "medidas_de_fabrica": [
-    {
-     "medida": "245/70R16",
-     "ancho": 245,
-     "perfil": 70,
-     "aro": 16,
-     "diametro_mm": 749.4
-    },
-    {
-     "medida": "265/65R17",
-     "ancho": 265,
-     "perfil": 65,
-     "aro": 17,
-     "diametro_mm": 776.3
-    }
-   ],
-   "aros_de_fabrica": [
-    16,
-    17
-   ],
-   "confianza": "baja",
-   "verificado_contra_fuente": false
-  },
-  {
-   "marca": "BYD",
-   "modelo": "Song / Yuan / Dolphin",
-   "anios": "2022-2027",
-   "medidas_de_fabrica": [
-    {
-     "medida": "215/60R17",
-     "ancho": 215,
-     "perfil": 60,
-     "aro": 17,
-     "diametro_mm": 689.8
-    },
-    {
-     "medida": "225/60R18",
-     "ancho": 225,
-     "perfil": 60,
-     "aro": 18,
-     "diametro_mm": 727.2
-    },
-    {
-     "medida": "235/50R19",
-     "ancho": 235,
-     "perfil": 50,
-     "aro": 19,
-     "diametro_mm": 717.6
-    }
-   ],
-   "aros_de_fabrica": [
-    17,
-    18,
-    19
-   ],
-   "confianza": "baja",
-   "verificado_contra_fuente": false,
-   "nota": "Electricos, confirmar siempre; muchos piden indice de carga alto"
-  },
-  {
-   "marca": "Honda",
-   "modelo": "CR-V",
-   "anios": "2018-2027",
-   "medidas_de_fabrica": [
-    {
-     "medida": "235/65R17",
-     "ancho": 235,
-     "perfil": 65,
-     "aro": 17,
-     "diametro_mm": 737.3
-    },
-    {
-     "medida": "235/60R18",
-     "ancho": 235,
-     "perfil": 60,
-     "aro": 18,
-     "diametro_mm": 739.2
-    },
-    {
-     "medida": "235/55R19",
-     "ancho": 235,
-     "perfil": 55,
-     "aro": 19,
-     "diametro_mm": 741.1
-    }
-   ],
-   "aros_de_fabrica": [
-    17,
-    18,
-    19
-   ],
-   "confianza": "media",
-   "verificado_contra_fuente": false
-  },
-  {
-   "marca": "Honda",
-   "modelo": "HR-V",
-   "anios": "2018-2027",
-   "medidas_de_fabrica": [
-    {
-     "medida": "215/60R16",
-     "ancho": 215,
-     "perfil": 60,
-     "aro": 16,
-     "diametro_mm": 664.4
-    },
-    {
-     "medida": "215/55R17",
-     "ancho": 215,
-     "perfil": 55,
-     "aro": 17,
-     "diametro_mm": 668.3
-    },
-    {
-     "medida": "225/50R18",
-     "ancho": 225,
-     "perfil": 50,
-     "aro": 18,
-     "diametro_mm": 682.2
-    }
-   ],
-   "aros_de_fabrica": [
-    16,
-    17,
-    18
-   ],
-   "confianza": "media",
-   "verificado_contra_fuente": false
-  },
-  {
-   "marca": "Honda",
-   "modelo": "Civic",
-   "anios": "2019-2027",
-   "medidas_de_fabrica": [
-    {
-     "medida": "215/55R16",
-     "ancho": 215,
-     "perfil": 55,
-     "aro": 16,
-     "diametro_mm": 642.9
-    },
-    {
-     "medida": "215/50R17",
-     "ancho": 215,
-     "perfil": 50,
-     "aro": 17,
-     "diametro_mm": 646.8
-    },
-    {
-     "medida": "235/40R18",
-     "ancho": 235,
-     "perfil": 40,
-     "aro": 18,
-     "diametro_mm": 645.2
-    }
-   ],
-   "aros_de_fabrica": [
-    16,
-    17,
-    18
-   ],
-   "confianza": "media",
-   "verificado_contra_fuente": false
-  },
-  {
-   "marca": "Honda",
-   "modelo": "Fit",
-   "anios": "2015-2027",
-   "medidas_de_fabrica": [
-    {
-     "medida": "185/60R15",
-     "ancho": 185,
-     "perfil": 60,
-     "aro": 15,
-     "diametro_mm": 603.0
-    },
-    {
-     "medida": "185/55R16",
-     "ancho": 185,
-     "perfil": 55,
-     "aro": 16,
-     "diametro_mm": 609.9
-    }
-   ],
-   "aros_de_fabrica": [
-    15,
-    16
-   ],
-   "confianza": "baja",
-   "verificado_contra_fuente": false
-  },
-  {
-   "marca": "Subaru",
-   "modelo": "Forester",
-   "anios": "2019-2027",
-   "medidas_de_fabrica": [
-    {
-     "medida": "225/60R17",
-     "ancho": 225,
-     "perfil": 60,
-     "aro": 17,
-     "diametro_mm": 701.8
-    },
-    {
-     "medida": "225/55R18",
-     "ancho": 225,
-     "perfil": 55,
-     "aro": 18,
-     "diametro_mm": 704.7
-    }
-   ],
-   "aros_de_fabrica": [
-    17,
-    18
-   ],
-   "confianza": "media",
-   "verificado_contra_fuente": false
-  },
-  {
-   "marca": "Subaru",
-   "modelo": "XV / Crosstrek",
-   "anios": "2018-2027",
-   "medidas_de_fabrica": [
-    {
-     "medida": "225/60R17",
-     "ancho": 225,
-     "perfil": 60,
-     "aro": 17,
-     "diametro_mm": 701.8
-    },
-    {
-     "medida": "225/55R18",
-     "ancho": 225,
-     "perfil": 55,
-     "aro": 18,
-     "diametro_mm": 704.7
-    }
-   ],
-   "aros_de_fabrica": [
-    17,
-    18
-   ],
-   "confianza": "media",
-   "verificado_contra_fuente": false
-  },
-  {
-   "marca": "Subaru",
-   "modelo": "Outback",
-   "anios": "2018-2027",
-   "medidas_de_fabrica": [
-    {
-     "medida": "225/65R17",
-     "ancho": 225,
-     "perfil": 65,
-     "aro": 17,
-     "diametro_mm": 724.3
-    },
-    {
-     "medida": "225/60R18",
-     "ancho": 225,
-     "perfil": 60,
-     "aro": 18,
-     "diametro_mm": 727.2
-    }
-   ],
-   "aros_de_fabrica": [
-    17,
-    18
-   ],
-   "confianza": "baja",
-   "verificado_contra_fuente": false
-  },
-  {
-   "marca": "Isuzu",
-   "modelo": "NHR / NKR",
-   "anios": "2010-2027",
-   "medidas_de_fabrica": [
-    {
-     "medida": "7.00R16",
-     "aro": 16,
-     "diametro_mm": null,
-     "nota": "medida convencional o comercial, calcular aparte"
-    },
-    {
-     "medida": "205R16C",
-     "aro": 16,
-     "diametro_mm": null,
-     "nota": "medida convencional o comercial, calcular aparte"
-    },
-    {
-     "medida": "7.50R16",
-     "aro": 16,
-     "diametro_mm": null,
-     "nota": "medida convencional o comercial, calcular aparte"
-    }
-   ],
-   "aros_de_fabrica": [
-    16
-   ],
-   "confianza": "media",
-   "verificado_contra_fuente": false,
-   "nota": "Camion liviano"
-  },
-  {
-   "marca": "Hino",
-   "modelo": "300 Series",
-   "anios": "2010-2027",
-   "medidas_de_fabrica": [
-    {
-     "medida": "7.00R16",
-     "aro": 16,
-     "diametro_mm": null,
-     "nota": "medida convencional o comercial, calcular aparte"
-    },
-    {
-     "medida": "7.50R16",
-     "aro": 16,
-     "diametro_mm": null,
-     "nota": "medida convencional o comercial, calcular aparte"
-    }
-   ],
-   "aros_de_fabrica": [
-    16
-   ],
-   "confianza": "media",
-   "verificado_contra_fuente": false,
-   "nota": "Camion liviano"
-  }
- ],
- "advertencia_de_exactitud": {
-  "estado": "NO VERIFICADO en su mayoria",
-  "detalle": "Solo Hyundai Creta fue contrastado contra una base de fitment externa. El resto proviene de conocimiento general de los modelos, no de una fuente verificada version por version. Las versiones que entran a Ecuador varian por ano, trim y lote de importacion.",
-  "significado_de_confianza": {
-   "alta": "Medida de fabrica ampliamente conocida y estable entre versiones. Igual se confirma con el cliente antes de cotizar.",
-   "media": "Varia segun version o ano. Confirmar SIEMPRE con el cliente.",
-   "baja": "Estimacion. No cotizar sobre esta fila sin confirmacion del cliente."
-  },
-  "regla_dura": "La tabla es una AYUDA para orientar la conversacion, nunca la fuente final. Antes de cotizar, el agente confirma la medida con el cliente: foto del flanco de la llanta o de la etiqueta en el marco de la puerta del conductor.",
-  "como_verificar_de_verdad": [
-   "1. Historial propio: cada venta cerrada con medida confirmada en Kommo o WhatsApp es un dato real del mercado ecuatoriano. Es la mejor fuente y ya la tienen.",
-   "2. API de fitment: wheel-size.com ofrece una API de ajuste por vehiculo (developer.wheel-size.com). Reemplaza esta tabla estatica por una consulta en vivo y elimina el problema de mantenimiento.",
-   "3. Catalogos de los distribuidores de marca en Ecuador para las versiones locales."
-  ]
- }
+  "preguntas_que_debe_hacer_el_agente": [
+    "Que vehiculo es y de que ano?",
+    "Que medida dice el flanco de la llanta actual? (pedir foto si no la tiene)",
+    "El uso es ciudad, carretera, tierra u obra? (define H/T, A/T, R/T o M/T)",
+    "Cambio los aros originales alguna vez?",
+    "Necesita juego de 4 o unidades sueltas?"
+  ],
+  "aplicaciones": [
+    {
+      "marca": "Hyundai",
+      "modelo": "Creta",
+      "anios": "2020-2027",
+      "medidas_de_fabrica": [
+        {
+          "medida": "205/65R16",
+          "ancho": 205,
+          "perfil": 65,
+          "aro": 16,
+          "diametro_mm": 672.9
+        },
+        {
+          "medida": "215/60R17",
+          "ancho": 215,
+          "perfil": 60,
+          "aro": 17,
+          "diametro_mm": 689.8
+        },
+        {
+          "medida": "225/55R17",
+          "ancho": 225,
+          "perfil": 55,
+          "aro": 17,
+          "diametro_mm": 679.3
+        },
+        {
+          "medida": "215/55R18",
+          "ancho": 215,
+          "perfil": 55,
+          "aro": 18,
+          "diametro_mm": 693.7
+        },
+        {
+          "medida": "225/50R18",
+          "ancho": 225,
+          "perfil": 50,
+          "aro": 18,
+          "diametro_mm": 682.2
+        }
+      ],
+      "aros_de_fabrica": [
+        16,
+        17,
+        18
+      ],
+      "confianza": "alta",
+      "verificado_contra_fuente": true,
+      "nota": "Verificado contra wheel-size: OE 205/65R16 95H y 215/60R17 96H. Las otras tres son opcionales de fabrica."
+    },
+    {
+      "marca": "Hyundai",
+      "modelo": "Tucson",
+      "anios": "2019-2027",
+      "medidas_de_fabrica": [
+        {
+          "medida": "235/65R17",
+          "ancho": 235,
+          "perfil": 65,
+          "aro": 17,
+          "diametro_mm": 737.3
+        },
+        {
+          "medida": "235/60R18",
+          "ancho": 235,
+          "perfil": 60,
+          "aro": 18,
+          "diametro_mm": 739.2
+        },
+        {
+          "medida": "235/55R19",
+          "ancho": 235,
+          "perfil": 55,
+          "aro": 19,
+          "diametro_mm": 741.1
+        }
+      ],
+      "aros_de_fabrica": [
+        17,
+        18,
+        19
+      ],
+      "confianza": "alta",
+      "verificado_contra_fuente": false
+    },
+    {
+      "marca": "Hyundai",
+      "modelo": "Santa Fe",
+      "anios": "2019-2027",
+      "medidas_de_fabrica": [
+        {
+          "medida": "235/65R17",
+          "ancho": 235,
+          "perfil": 65,
+          "aro": 17,
+          "diametro_mm": 737.3
+        },
+        {
+          "medida": "235/60R18",
+          "ancho": 235,
+          "perfil": 60,
+          "aro": 18,
+          "diametro_mm": 739.2
+        },
+        {
+          "medida": "255/45R20",
+          "ancho": 255,
+          "perfil": 45,
+          "aro": 20,
+          "diametro_mm": 737.5
+        }
+      ],
+      "aros_de_fabrica": [
+        17,
+        18,
+        20
+      ],
+      "confianza": "media",
+      "verificado_contra_fuente": false
+    },
+    {
+      "marca": "Hyundai",
+      "modelo": "Accent",
+      "anios": "2018-2027",
+      "medidas_de_fabrica": [
+        {
+          "medida": "185/65R15",
+          "ancho": 185,
+          "perfil": 65,
+          "aro": 15,
+          "diametro_mm": 621.5
+        },
+        {
+          "medida": "195/55R16",
+          "ancho": 195,
+          "perfil": 55,
+          "aro": 16,
+          "diametro_mm": 620.9
+        },
+        {
+          "medida": "205/45R17",
+          "ancho": 205,
+          "perfil": 45,
+          "aro": 17,
+          "diametro_mm": 616.3
+        }
+      ],
+      "aros_de_fabrica": [
+        15,
+        16,
+        17
+      ],
+      "confianza": "alta",
+      "verificado_contra_fuente": false
+    },
+    {
+      "marca": "Hyundai",
+      "modelo": "Elantra",
+      "anios": "2019-2027",
+      "medidas_de_fabrica": [
+        {
+          "medida": "205/55R16",
+          "ancho": 205,
+          "perfil": 55,
+          "aro": 16,
+          "diametro_mm": 631.9
+        },
+        {
+          "medida": "225/45R17",
+          "ancho": 225,
+          "perfil": 45,
+          "aro": 17,
+          "diametro_mm": 634.3
+        },
+        {
+          "medida": "225/40R18",
+          "ancho": 225,
+          "perfil": 40,
+          "aro": 18,
+          "diametro_mm": 637.2
+        }
+      ],
+      "aros_de_fabrica": [
+        16,
+        17,
+        18
+      ],
+      "confianza": "media",
+      "verificado_contra_fuente": false
+    },
+    {
+      "marca": "Hyundai",
+      "modelo": "Grand i10",
+      "anios": "2018-2027",
+      "medidas_de_fabrica": [
+        {
+          "medida": "165/65R14",
+          "ancho": 165,
+          "perfil": 65,
+          "aro": 14,
+          "diametro_mm": 570.1
+        },
+        {
+          "medida": "175/60R15",
+          "ancho": 175,
+          "perfil": 60,
+          "aro": 15,
+          "diametro_mm": 591.0
+        }
+      ],
+      "aros_de_fabrica": [
+        14,
+        15
+      ],
+      "confianza": "media",
+      "verificado_contra_fuente": false
+    },
+    {
+      "marca": "Hyundai",
+      "modelo": "Venue",
+      "anios": "2020-2027",
+      "medidas_de_fabrica": [
+        {
+          "medida": "195/65R15",
+          "ancho": 195,
+          "perfil": 65,
+          "aro": 15,
+          "diametro_mm": 634.5
+        },
+        {
+          "medida": "205/55R16",
+          "ancho": 205,
+          "perfil": 55,
+          "aro": 16,
+          "diametro_mm": 631.9
+        },
+        {
+          "medida": "215/60R16",
+          "ancho": 215,
+          "perfil": 60,
+          "aro": 16,
+          "diametro_mm": 664.4
+        }
+      ],
+      "aros_de_fabrica": [
+        15,
+        16
+      ],
+      "confianza": "media",
+      "verificado_contra_fuente": false
+    },
+    {
+      "marca": "Hyundai",
+      "modelo": "Palisade",
+      "anios": "2020-2027",
+      "medidas_de_fabrica": [
+        {
+          "medida": "245/60R18",
+          "ancho": 245,
+          "perfil": 60,
+          "aro": 18,
+          "diametro_mm": 751.2
+        },
+        {
+          "medida": "245/50R20",
+          "ancho": 245,
+          "perfil": 50,
+          "aro": 20,
+          "diametro_mm": 753.0
+        }
+      ],
+      "aros_de_fabrica": [
+        18,
+        20
+      ],
+      "confianza": "media",
+      "verificado_contra_fuente": false
+    },
+    {
+      "marca": "Hyundai",
+      "modelo": "H1 / Starex",
+      "anios": "2010-2027",
+      "medidas_de_fabrica": [
+        {
+          "medida": "215/70R16",
+          "ancho": 215,
+          "perfil": 70,
+          "aro": 16,
+          "diametro_mm": 707.4
+        },
+        {
+          "medida": "225/70R16",
+          "ancho": 225,
+          "perfil": 70,
+          "aro": 16,
+          "diametro_mm": 721.4
+        }
+      ],
+      "aros_de_fabrica": [
+        16
+      ],
+      "confianza": "media",
+      "verificado_contra_fuente": false
+    },
+    {
+      "marca": "Hyundai",
+      "modelo": "Porter / H100",
+      "anios": "2005-2027",
+      "medidas_de_fabrica": [
+        {
+          "medida": "195R15C",
+          "aro": 15,
+          "diametro_mm": null,
+          "nota": "medida convencional o comercial, calcular aparte"
+        },
+        {
+          "medida": "215/75R15C",
+          "ancho": 215,
+          "perfil": 75,
+          "aro": 15,
+          "diametro_mm": 703.5,
+          "nota": "medida comercial C: solo llantas de carga"
+        }
+      ],
+      "aros_de_fabrica": [
+        15
+      ],
+      "confianza": "media",
+      "verificado_contra_fuente": false,
+      "nota": "Camion liviano, siempre medida comercial C"
+    },
+    {
+      "marca": "Kia",
+      "modelo": "Sportage",
+      "anios": "2022-2027",
+      "medidas_de_fabrica": [
+        {
+          "medida": "235/65R17",
+          "ancho": 235,
+          "perfil": 65,
+          "aro": 17,
+          "diametro_mm": 737.3
+        },
+        {
+          "medida": "235/60R18",
+          "ancho": 235,
+          "perfil": 60,
+          "aro": 18,
+          "diametro_mm": 739.2
+        },
+        {
+          "medida": "235/55R19",
+          "ancho": 235,
+          "perfil": 55,
+          "aro": 19,
+          "diametro_mm": 741.1
+        }
+      ],
+      "aros_de_fabrica": [
+        17,
+        18,
+        19
+      ],
+      "confianza": "alta",
+      "verificado_contra_fuente": false,
+      "nota": " Generación NQ5 (2022+). La 2016-2021 (QL) tiene su propia ficha."
+    },
+    {
+      "marca": "Kia",
+      "modelo": "Seltos",
+      "anios": "2020-2027",
+      "medidas_de_fabrica": [
+        {
+          "medida": "215/60R17",
+          "ancho": 215,
+          "perfil": 60,
+          "aro": 17,
+          "diametro_mm": 689.8
+        },
+        {
+          "medida": "235/55R18",
+          "ancho": 235,
+          "perfil": 55,
+          "aro": 18,
+          "diametro_mm": 715.7
+        }
+      ],
+      "aros_de_fabrica": [
+        17,
+        18
+      ],
+      "confianza": "alta",
+      "verificado_contra_fuente": false
+    },
+    {
+      "marca": "Kia",
+      "modelo": "Rio",
+      "anios": "2018-2027",
+      "medidas_de_fabrica": [
+        {
+          "medida": "185/65R15",
+          "ancho": 185,
+          "perfil": 65,
+          "aro": 15,
+          "diametro_mm": 621.5
+        },
+        {
+          "medida": "195/55R16",
+          "ancho": 195,
+          "perfil": 55,
+          "aro": 16,
+          "diametro_mm": 620.9
+        },
+        {
+          "medida": "205/45R17",
+          "ancho": 205,
+          "perfil": 45,
+          "aro": 17,
+          "diametro_mm": 616.3
+        }
+      ],
+      "aros_de_fabrica": [
+        15,
+        16,
+        17
+      ],
+      "confianza": "alta",
+      "verificado_contra_fuente": false
+    },
+    {
+      "marca": "Kia",
+      "modelo": "Soluto",
+      "anios": "2020-2027",
+      "medidas_de_fabrica": [
+        {
+          "medida": "175/70R14",
+          "ancho": 175,
+          "perfil": 70,
+          "aro": 14,
+          "diametro_mm": 600.6
+        },
+        {
+          "medida": "185/65R15",
+          "ancho": 185,
+          "perfil": 65,
+          "aro": 15,
+          "diametro_mm": 621.5
+        }
+      ],
+      "aros_de_fabrica": [
+        14,
+        15
+      ],
+      "confianza": "media",
+      "verificado_contra_fuente": false
+    },
+    {
+      "marca": "Kia",
+      "modelo": "Picanto",
+      "anios": "2018-2027",
+      "medidas_de_fabrica": [
+        {
+          "medida": "165/65R14",
+          "ancho": 165,
+          "perfil": 65,
+          "aro": 14,
+          "diametro_mm": 570.1
+        },
+        {
+          "medida": "175/50R15",
+          "ancho": 175,
+          "perfil": 50,
+          "aro": 15,
+          "diametro_mm": 556.0
+        },
+        {
+          "medida": "195/45R16",
+          "ancho": 195,
+          "perfil": 45,
+          "aro": 16,
+          "diametro_mm": 581.9
+        }
+      ],
+      "aros_de_fabrica": [
+        14,
+        15,
+        16
+      ],
+      "confianza": "media",
+      "verificado_contra_fuente": false
+    },
+    {
+      "marca": "Kia",
+      "modelo": "Cerato / Forte",
+      "anios": "2019-2027",
+      "medidas_de_fabrica": [
+        {
+          "medida": "205/55R16",
+          "ancho": 205,
+          "perfil": 55,
+          "aro": 16,
+          "diametro_mm": 631.9
+        },
+        {
+          "medida": "225/45R17",
+          "ancho": 225,
+          "perfil": 45,
+          "aro": 17,
+          "diametro_mm": 634.3
+        },
+        {
+          "medida": "225/40R18",
+          "ancho": 225,
+          "perfil": 40,
+          "aro": 18,
+          "diametro_mm": 637.2
+        }
+      ],
+      "aros_de_fabrica": [
+        16,
+        17,
+        18
+      ],
+      "confianza": "media",
+      "verificado_contra_fuente": false
+    },
+    {
+      "marca": "Kia",
+      "modelo": "Sorento",
+      "anios": "2019-2027",
+      "medidas_de_fabrica": [
+        {
+          "medida": "235/65R17",
+          "ancho": 235,
+          "perfil": 65,
+          "aro": 17,
+          "diametro_mm": 737.3
+        },
+        {
+          "medida": "235/60R18",
+          "ancho": 235,
+          "perfil": 60,
+          "aro": 18,
+          "diametro_mm": 739.2
+        },
+        {
+          "medida": "255/45R20",
+          "ancho": 255,
+          "perfil": 45,
+          "aro": 20,
+          "diametro_mm": 737.5
+        }
+      ],
+      "aros_de_fabrica": [
+        17,
+        18,
+        20
+      ],
+      "confianza": "media",
+      "verificado_contra_fuente": false
+    },
+    {
+      "marca": "Kia",
+      "modelo": "Carnival",
+      "anios": "2020-2027",
+      "medidas_de_fabrica": [
+        {
+          "medida": "235/65R17",
+          "ancho": 235,
+          "perfil": 65,
+          "aro": 17,
+          "diametro_mm": 737.3
+        },
+        {
+          "medida": "235/60R18",
+          "ancho": 235,
+          "perfil": 60,
+          "aro": 18,
+          "diametro_mm": 739.2
+        }
+      ],
+      "aros_de_fabrica": [
+        17,
+        18
+      ],
+      "confianza": "media",
+      "verificado_contra_fuente": false
+    },
+    {
+      "marca": "Kia",
+      "modelo": "K2500 / Frontier",
+      "anios": "2010-2027",
+      "medidas_de_fabrica": [
+        {
+          "medida": "195R15C",
+          "aro": 15,
+          "diametro_mm": null,
+          "nota": "medida convencional o comercial, calcular aparte"
+        },
+        {
+          "medida": "205/75R14C",
+          "ancho": 205,
+          "perfil": 75,
+          "aro": 14,
+          "diametro_mm": 663.1,
+          "nota": "medida comercial C: solo llantas de carga"
+        }
+      ],
+      "aros_de_fabrica": [
+        14,
+        15
+      ],
+      "confianza": "media",
+      "verificado_contra_fuente": false,
+      "nota": "Camion liviano"
+    },
+    {
+      "marca": "Toyota",
+      "modelo": "Hilux",
+      "anios": "2016-2027",
+      "medidas_de_fabrica": [
+        {
+          "medida": "265/65R17",
+          "ancho": 265,
+          "perfil": 65,
+          "aro": 17,
+          "diametro_mm": 776.3
+        },
+        {
+          "medida": "265/60R18",
+          "ancho": 265,
+          "perfil": 60,
+          "aro": 18,
+          "diametro_mm": 775.2
+        },
+        {
+          "medida": "205R16C",
+          "aro": 16,
+          "diametro_mm": null,
+          "nota": "medida convencional o comercial, calcular aparte"
+        },
+        {
+          "medida": "255/70R15",
+          "ancho": 255,
+          "perfil": 70,
+          "aro": 15,
+          "diametro_mm": 738.0
+        }
+      ],
+      "aros_de_fabrica": [
+        15,
+        16,
+        17,
+        18
+      ],
+      "confianza": "alta",
+      "verificado_contra_fuente": false,
+      "nota": "El 4x2 base usa 205R16C; el 4x4 usa 265/65R17"
+    },
+    {
+      "marca": "Toyota",
+      "modelo": "Fortuner",
+      "anios": "2016-2027",
+      "medidas_de_fabrica": [
+        {
+          "medida": "265/65R17",
+          "ancho": 265,
+          "perfil": 65,
+          "aro": 17,
+          "diametro_mm": 776.3
+        },
+        {
+          "medida": "265/60R18",
+          "ancho": 265,
+          "perfil": 60,
+          "aro": 18,
+          "diametro_mm": 775.2
+        }
+      ],
+      "aros_de_fabrica": [
+        17,
+        18
+      ],
+      "confianza": "alta",
+      "verificado_contra_fuente": false
+    },
+    {
+      "marca": "Toyota",
+      "modelo": "Corolla",
+      "anios": "2019-2027",
+      "medidas_de_fabrica": [
+        {
+          "medida": "205/55R16",
+          "ancho": 205,
+          "perfil": 55,
+          "aro": 16,
+          "diametro_mm": 631.9
+        },
+        {
+          "medida": "225/40R18",
+          "ancho": 225,
+          "perfil": 40,
+          "aro": 18,
+          "diametro_mm": 637.2
+        }
+      ],
+      "aros_de_fabrica": [
+        16,
+        18
+      ],
+      "confianza": "alta",
+      "verificado_contra_fuente": false
+    },
+    {
+      "marca": "Toyota",
+      "modelo": "Corolla Cross",
+      "anios": "2022-2027",
+      "medidas_de_fabrica": [
+        {
+          "medida": "215/60R17",
+          "ancho": 215,
+          "perfil": 60,
+          "aro": 17,
+          "diametro_mm": 689.8
+        },
+        {
+          "medida": "225/50R18",
+          "ancho": 225,
+          "perfil": 50,
+          "aro": 18,
+          "diametro_mm": 682.2
+        }
+      ],
+      "aros_de_fabrica": [
+        17,
+        18
+      ],
+      "confianza": "media",
+      "verificado_contra_fuente": false
+    },
+    {
+      "marca": "Toyota",
+      "modelo": "Yaris sedan / hatchback",
+      "anios": "2018-2027",
+      "medidas_de_fabrica": [
+        {
+          "medida": "175/65R15",
+          "ancho": 175,
+          "perfil": 65,
+          "aro": 15,
+          "diametro_mm": 608.5
+        },
+        {
+          "medida": "185/60R15",
+          "ancho": 185,
+          "perfil": 60,
+          "aro": 15,
+          "diametro_mm": 603.0
+        },
+        {
+          "medida": "195/50R16",
+          "ancho": 195,
+          "perfil": 50,
+          "aro": 16,
+          "diametro_mm": 601.4
+        }
+      ],
+      "aros_de_fabrica": [
+        15,
+        16
+      ],
+      "confianza": "media",
+      "verificado_contra_fuente": false
+    },
+    {
+      "marca": "Toyota",
+      "modelo": "Yaris Cross",
+      "anios": "2021-2027",
+      "medidas_de_fabrica": [
+        {
+          "medida": "205/65R16",
+          "ancho": 205,
+          "perfil": 65,
+          "aro": 16,
+          "diametro_mm": 672.9
+        },
+        {
+          "medida": "215/55R17",
+          "ancho": 215,
+          "perfil": 55,
+          "aro": 17,
+          "diametro_mm": 668.3
+        }
+      ],
+      "aros_de_fabrica": [
+        16,
+        17
+      ],
+      "confianza": "media",
+      "verificado_contra_fuente": false
+    },
+    {
+      "marca": "Toyota",
+      "modelo": "RAV4",
+      "anios": "2019-2027",
+      "medidas_de_fabrica": [
+        {
+          "medida": "225/65R17",
+          "ancho": 225,
+          "perfil": 65,
+          "aro": 17,
+          "diametro_mm": 724.3
+        },
+        {
+          "medida": "235/55R19",
+          "ancho": 235,
+          "perfil": 55,
+          "aro": 19,
+          "diametro_mm": 741.1
+        }
+      ],
+      "aros_de_fabrica": [
+        17,
+        19
+      ],
+      "confianza": "alta",
+      "verificado_contra_fuente": false
+    },
+    {
+      "marca": "Toyota",
+      "modelo": "4Runner",
+      "anios": "2010-2027",
+      "medidas_de_fabrica": [
+        {
+          "medida": "265/70R17",
+          "ancho": 265,
+          "perfil": 70,
+          "aro": 17,
+          "diametro_mm": 802.8
+        },
+        {
+          "medida": "265/65R17",
+          "ancho": 265,
+          "perfil": 65,
+          "aro": 17,
+          "diametro_mm": 776.3
+        },
+        {
+          "medida": "265/60R18",
+          "ancho": 265,
+          "perfil": 60,
+          "aro": 18,
+          "diametro_mm": 775.2
+        }
+      ],
+      "aros_de_fabrica": [
+        17,
+        18
+      ],
+      "confianza": "media",
+      "verificado_contra_fuente": false
+    },
+    {
+      "marca": "Toyota",
+      "modelo": "Land Cruiser Prado",
+      "anios": "2010-2027",
+      "medidas_de_fabrica": [
+        {
+          "medida": "265/65R17",
+          "ancho": 265,
+          "perfil": 65,
+          "aro": 17,
+          "diametro_mm": 776.3
+        },
+        {
+          "medida": "265/60R18",
+          "ancho": 265,
+          "perfil": 60,
+          "aro": 18,
+          "diametro_mm": 775.2
+        }
+      ],
+      "aros_de_fabrica": [
+        17,
+        18
+      ],
+      "confianza": "alta",
+      "verificado_contra_fuente": false
+    },
+    {
+      "marca": "Toyota",
+      "modelo": "Land Cruiser 70 / 79",
+      "anios": "1990-2027",
+      "medidas_de_fabrica": [
+        {
+          "medida": "7.50R16",
+          "aro": 16,
+          "diametro_mm": null,
+          "nota": "medida convencional o comercial, calcular aparte"
+        },
+        {
+          "medida": "265/70R16",
+          "ancho": 265,
+          "perfil": 70,
+          "aro": 16,
+          "diametro_mm": 777.4
+        },
+        {
+          "medida": "255/85R16",
+          "ancho": 255,
+          "perfil": 85,
+          "aro": 16,
+          "diametro_mm": 839.9
+        }
+      ],
+      "aros_de_fabrica": [
+        16
+      ],
+      "confianza": "media",
+      "verificado_contra_fuente": false,
+      "nota": "Version de trabajo, medidas convencionales"
+    },
+    {
+      "marca": "Toyota",
+      "modelo": "HiAce",
+      "anios": "2015-2027",
+      "medidas_de_fabrica": [
+        {
+          "medida": "195R15C",
+          "aro": 15,
+          "diametro_mm": null,
+          "nota": "medida convencional o comercial, calcular aparte"
+        },
+        {
+          "medida": "215/70R15C",
+          "ancho": 215,
+          "perfil": 70,
+          "aro": 15,
+          "diametro_mm": 682.0,
+          "nota": "medida comercial C: solo llantas de carga"
+        },
+        {
+          "medida": "205R16C",
+          "aro": 16,
+          "diametro_mm": null,
+          "nota": "medida convencional o comercial, calcular aparte"
+        }
+      ],
+      "aros_de_fabrica": [
+        15,
+        16
+      ],
+      "confianza": "media",
+      "verificado_contra_fuente": false
+    },
+    {
+      "marca": "Toyota",
+      "modelo": "Rush / Raize",
+      "anios": "2019-2027",
+      "medidas_de_fabrica": [
+        {
+          "medida": "215/60R17",
+          "ancho": 215,
+          "perfil": 60,
+          "aro": 17,
+          "diametro_mm": 689.8
+        },
+        {
+          "medida": "195/65R16",
+          "ancho": 195,
+          "perfil": 65,
+          "aro": 16,
+          "diametro_mm": 659.9
+        }
+      ],
+      "aros_de_fabrica": [
+        16,
+        17
+      ],
+      "confianza": "baja",
+      "verificado_contra_fuente": false,
+      "nota": "Confirmar siempre con el cliente"
+    },
+    {
+      "marca": "Toyota",
+      "modelo": "Avanza",
+      "anios": "2016-2027",
+      "medidas_de_fabrica": [
+        {
+          "medida": "185/65R15",
+          "ancho": 185,
+          "perfil": 65,
+          "aro": 15,
+          "diametro_mm": 621.5
+        },
+        {
+          "medida": "205/65R15",
+          "ancho": 205,
+          "perfil": 65,
+          "aro": 15,
+          "diametro_mm": 647.5
+        }
+      ],
+      "aros_de_fabrica": [
+        15
+      ],
+      "confianza": "baja",
+      "verificado_contra_fuente": false
+    },
+    {
+      "marca": "Chevrolet",
+      "modelo": "D-Max",
+      "anios": "2013-2027",
+      "medidas_de_fabrica": [
+        {
+          "medida": "255/65R17",
+          "ancho": 255,
+          "perfil": 65,
+          "aro": 17,
+          "diametro_mm": 763.3
+        },
+        {
+          "medida": "245/70R16",
+          "ancho": 245,
+          "perfil": 70,
+          "aro": 16,
+          "diametro_mm": 749.4
+        },
+        {
+          "medida": "255/70R16",
+          "ancho": 255,
+          "perfil": 70,
+          "aro": 16,
+          "diametro_mm": 763.4
+        },
+        {
+          "medida": "265/60R18",
+          "ancho": 265,
+          "perfil": 60,
+          "aro": 18,
+          "diametro_mm": 775.2
+        }
+      ],
+      "aros_de_fabrica": [
+        16,
+        17,
+        18
+      ],
+      "confianza": "alta",
+      "verificado_contra_fuente": false
+    },
+    {
+      "marca": "Chevrolet",
+      "modelo": "Colorado",
+      "anios": "2016-2027",
+      "medidas_de_fabrica": [
+        {
+          "medida": "255/65R17",
+          "ancho": 255,
+          "perfil": 65,
+          "aro": 17,
+          "diametro_mm": 763.3
+        },
+        {
+          "medida": "265/60R18",
+          "ancho": 265,
+          "perfil": 60,
+          "aro": 18,
+          "diametro_mm": 775.2
+        }
+      ],
+      "aros_de_fabrica": [
+        17,
+        18
+      ],
+      "confianza": "media",
+      "verificado_contra_fuente": false
+    },
+    {
+      "marca": "Chevrolet",
+      "modelo": "Captiva",
+      "anios": "2019-2027",
+      "medidas_de_fabrica": [
+        {
+          "medida": "215/60R17",
+          "ancho": 215,
+          "perfil": 60,
+          "aro": 17,
+          "diametro_mm": 689.8
+        },
+        {
+          "medida": "225/55R18",
+          "ancho": 225,
+          "perfil": 55,
+          "aro": 18,
+          "diametro_mm": 704.7
+        },
+        {
+          "medida": "235/50R19",
+          "ancho": 235,
+          "perfil": 50,
+          "aro": 19,
+          "diametro_mm": 717.6
+        }
+      ],
+      "aros_de_fabrica": [
+        17,
+        18,
+        19
+      ],
+      "confianza": "media",
+      "verificado_contra_fuente": false
+    },
+    {
+      "marca": "Chevrolet",
+      "modelo": "Tracker",
+      "anios": "2020-2027",
+      "medidas_de_fabrica": [
+        {
+          "medida": "215/60R17",
+          "ancho": 215,
+          "perfil": 60,
+          "aro": 17,
+          "diametro_mm": 689.8
+        },
+        {
+          "medida": "215/55R18",
+          "ancho": 215,
+          "perfil": 55,
+          "aro": 18,
+          "diametro_mm": 693.7
+        }
+      ],
+      "aros_de_fabrica": [
+        17,
+        18
+      ],
+      "confianza": "media",
+      "verificado_contra_fuente": false
+    },
+    {
+      "marca": "Chevrolet",
+      "modelo": "Groove",
+      "anios": "2021-2027",
+      "medidas_de_fabrica": [
+        {
+          "medida": "215/55R17",
+          "ancho": 215,
+          "perfil": 55,
+          "aro": 17,
+          "diametro_mm": 668.3
+        },
+        {
+          "medida": "215/50R18",
+          "ancho": 215,
+          "perfil": 50,
+          "aro": 18,
+          "diametro_mm": 672.2
+        }
+      ],
+      "aros_de_fabrica": [
+        17,
+        18
+      ],
+      "confianza": "media",
+      "verificado_contra_fuente": false
+    },
+    {
+      "marca": "Chevrolet",
+      "modelo": "Trailblazer",
+      "anios": "2013-2027",
+      "medidas_de_fabrica": [
+        {
+          "medida": "265/60R18",
+          "ancho": 265,
+          "perfil": 60,
+          "aro": 18,
+          "diametro_mm": 775.2
+        },
+        {
+          "medida": "255/65R17",
+          "ancho": 255,
+          "perfil": 65,
+          "aro": 17,
+          "diametro_mm": 763.3
+        }
+      ],
+      "aros_de_fabrica": [
+        17,
+        18
+      ],
+      "confianza": "media",
+      "verificado_contra_fuente": false
+    },
+    {
+      "marca": "Chevrolet",
+      "modelo": "Onix / Onix Turbo",
+      "anios": "2020-2027",
+      "medidas_de_fabrica": [
+        {
+          "medida": "185/65R15",
+          "ancho": 185,
+          "perfil": 65,
+          "aro": 15,
+          "diametro_mm": 621.5
+        },
+        {
+          "medida": "195/55R16",
+          "ancho": 195,
+          "perfil": 55,
+          "aro": 16,
+          "diametro_mm": 620.9
+        },
+        {
+          "medida": "205/55R16",
+          "ancho": 205,
+          "perfil": 55,
+          "aro": 16,
+          "diametro_mm": 631.9
+        }
+      ],
+      "aros_de_fabrica": [
+        15,
+        16
+      ],
+      "confianza": "media",
+      "verificado_contra_fuente": false
+    },
+    {
+      "marca": "Chevrolet",
+      "modelo": "Sail",
+      "anios": "2015-2027",
+      "medidas_de_fabrica": [
+        {
+          "medida": "185/65R15",
+          "ancho": 185,
+          "perfil": 65,
+          "aro": 15,
+          "diametro_mm": 621.5
+        },
+        {
+          "medida": "185/60R14",
+          "ancho": 185,
+          "perfil": 60,
+          "aro": 14,
+          "diametro_mm": 577.6
+        }
+      ],
+      "aros_de_fabrica": [
+        14,
+        15
+      ],
+      "confianza": "alta",
+      "verificado_contra_fuente": false
+    },
+    {
+      "marca": "Chevrolet",
+      "modelo": "Spark GT",
+      "anios": "2015-2027",
+      "medidas_de_fabrica": [
+        {
+          "medida": "185/55R15",
+          "ancho": 185,
+          "perfil": 55,
+          "aro": 15,
+          "diametro_mm": 584.5
+        }
+      ],
+      "aros_de_fabrica": [
+        15
+      ],
+      "confianza": "alta",
+      "verificado_contra_fuente": false
+    },
+    {
+      "marca": "Chevrolet",
+      "modelo": "Beat",
+      "anios": "2018-2027",
+      "medidas_de_fabrica": [
+        {
+          "medida": "175/70R14",
+          "ancho": 175,
+          "perfil": 70,
+          "aro": 14,
+          "diametro_mm": 600.6
+        },
+        {
+          "medida": "185/65R15",
+          "ancho": 185,
+          "perfil": 65,
+          "aro": 15,
+          "diametro_mm": 621.5
+        }
+      ],
+      "aros_de_fabrica": [
+        14,
+        15
+      ],
+      "confianza": "media",
+      "verificado_contra_fuente": false
+    },
+    {
+      "marca": "Chevrolet",
+      "modelo": "Aveo Family",
+      "anios": "2010-2022",
+      "medidas_de_fabrica": [
+        {
+          "medida": "185/60R14",
+          "ancho": 185,
+          "perfil": 60,
+          "aro": 14,
+          "diametro_mm": 577.6
+        },
+        {
+          "medida": "185/65R14",
+          "ancho": 185,
+          "perfil": 65,
+          "aro": 14,
+          "diametro_mm": 596.1
+        },
+        {
+          "medida": "195/55R15",
+          "ancho": 195,
+          "perfil": 55,
+          "aro": 15,
+          "diametro_mm": 595.5
+        }
+      ],
+      "aros_de_fabrica": [
+        14,
+        15
+      ],
+      "confianza": "media",
+      "verificado_contra_fuente": false,
+      "nota": "Medida muy pedida en aro 14"
+    },
+    {
+      "marca": "Chevrolet",
+      "modelo": "Optra",
+      "anios": "2005-2018",
+      "medidas_de_fabrica": [
+        {
+          "medida": "185/65R14",
+          "ancho": 185,
+          "perfil": 65,
+          "aro": 14,
+          "diametro_mm": 596.1
+        },
+        {
+          "medida": "195/60R15",
+          "ancho": 195,
+          "perfil": 60,
+          "aro": 15,
+          "diametro_mm": 615.0
+        },
+        {
+          "medida": "205/55R16",
+          "ancho": 205,
+          "perfil": 55,
+          "aro": 16,
+          "diametro_mm": 631.9
+        }
+      ],
+      "aros_de_fabrica": [
+        14,
+        15,
+        16
+      ],
+      "confianza": "baja",
+      "verificado_contra_fuente": false,
+      "nota": "Modelo antiguo, confirmar con el cliente"
+    },
+    {
+      "marca": "Chevrolet",
+      "modelo": "N300 / N400 van",
+      "anios": "2015-2027",
+      "medidas_de_fabrica": [
+        {
+          "medida": "175/70R14C",
+          "ancho": 175,
+          "perfil": 70,
+          "aro": 14,
+          "diametro_mm": 600.6,
+          "nota": "medida comercial C: solo llantas de carga"
+        },
+        {
+          "medida": "185R14C",
+          "aro": 14,
+          "diametro_mm": null,
+          "nota": "medida convencional o comercial, calcular aparte"
+        },
+        {
+          "medida": "195/70R15C",
+          "ancho": 195,
+          "perfil": 70,
+          "aro": 15,
+          "diametro_mm": 654.0,
+          "nota": "medida comercial C: solo llantas de carga"
+        }
+      ],
+      "aros_de_fabrica": [
+        14,
+        15
+      ],
+      "confianza": "media",
+      "verificado_contra_fuente": false
+    },
+    {
+      "marca": "Chevrolet",
+      "modelo": "Silverado",
+      "anios": "2015-2027",
+      "medidas_de_fabrica": [
+        {
+          "medida": "265/65R18",
+          "ancho": 265,
+          "perfil": 65,
+          "aro": 18,
+          "diametro_mm": 801.7
+        },
+        {
+          "medida": "275/60R20",
+          "ancho": 275,
+          "perfil": 60,
+          "aro": 20,
+          "diametro_mm": 838.0
+        }
+      ],
+      "aros_de_fabrica": [
+        18,
+        20
+      ],
+      "confianza": "media",
+      "verificado_contra_fuente": false
+    },
+    {
+      "marca": "Ford",
+      "modelo": "Ranger",
+      "anios": "2016-2027",
+      "medidas_de_fabrica": [
+        {
+          "medida": "265/65R17",
+          "ancho": 265,
+          "perfil": 65,
+          "aro": 17,
+          "diametro_mm": 776.3
+        },
+        {
+          "medida": "265/60R18",
+          "ancho": 265,
+          "perfil": 60,
+          "aro": 18,
+          "diametro_mm": 775.2
+        },
+        {
+          "medida": "255/70R16",
+          "ancho": 255,
+          "perfil": 70,
+          "aro": 16,
+          "diametro_mm": 763.4
+        },
+        {
+          "medida": "255/65R17",
+          "ancho": 255,
+          "perfil": 65,
+          "aro": 17,
+          "diametro_mm": 763.3
+        }
+      ],
+      "aros_de_fabrica": [
+        16,
+        17,
+        18
+      ],
+      "confianza": "alta",
+      "verificado_contra_fuente": false
+    },
+    {
+      "marca": "Ford",
+      "modelo": "Everest",
+      "anios": "2016-2027",
+      "medidas_de_fabrica": [
+        {
+          "medida": "265/65R17",
+          "ancho": 265,
+          "perfil": 65,
+          "aro": 17,
+          "diametro_mm": 776.3
+        },
+        {
+          "medida": "265/60R18",
+          "ancho": 265,
+          "perfil": 60,
+          "aro": 18,
+          "diametro_mm": 775.2
+        }
+      ],
+      "aros_de_fabrica": [
+        17,
+        18
+      ],
+      "confianza": "media",
+      "verificado_contra_fuente": false
+    },
+    {
+      "marca": "Ford",
+      "modelo": "EcoSport",
+      "anios": "2013-2022",
+      "medidas_de_fabrica": [
+        {
+          "medida": "205/65R15",
+          "ancho": 205,
+          "perfil": 65,
+          "aro": 15,
+          "diametro_mm": 647.5
+        },
+        {
+          "medida": "205/60R16",
+          "ancho": 205,
+          "perfil": 60,
+          "aro": 16,
+          "diametro_mm": 652.4
+        }
+      ],
+      "aros_de_fabrica": [
+        15,
+        16
+      ],
+      "confianza": "alta",
+      "verificado_contra_fuente": false
+    },
+    {
+      "marca": "Ford",
+      "modelo": "Escape",
+      "anios": "2019-2027",
+      "medidas_de_fabrica": [
+        {
+          "medida": "225/65R17",
+          "ancho": 225,
+          "perfil": 65,
+          "aro": 17,
+          "diametro_mm": 724.3
+        },
+        {
+          "medida": "225/60R18",
+          "ancho": 225,
+          "perfil": 60,
+          "aro": 18,
+          "diametro_mm": 727.2
+        },
+        {
+          "medida": "245/45R19",
+          "ancho": 245,
+          "perfil": 45,
+          "aro": 19,
+          "diametro_mm": 703.1
+        }
+      ],
+      "aros_de_fabrica": [
+        17,
+        18,
+        19
+      ],
+      "confianza": "media",
+      "verificado_contra_fuente": false
+    },
+    {
+      "marca": "Ford",
+      "modelo": "Territory",
+      "anios": "2021-2027",
+      "medidas_de_fabrica": [
+        {
+          "medida": "225/60R18",
+          "ancho": 225,
+          "perfil": 60,
+          "aro": 18,
+          "diametro_mm": 727.2
+        },
+        {
+          "medida": "235/50R19",
+          "ancho": 235,
+          "perfil": 50,
+          "aro": 19,
+          "diametro_mm": 717.6
+        }
+      ],
+      "aros_de_fabrica": [
+        18,
+        19
+      ],
+      "confianza": "media",
+      "verificado_contra_fuente": false
+    },
+    {
+      "marca": "Ford",
+      "modelo": "Explorer",
+      "anios": "2018-2027",
+      "medidas_de_fabrica": [
+        {
+          "medida": "255/65R18",
+          "ancho": 255,
+          "perfil": 65,
+          "aro": 18,
+          "diametro_mm": 788.7
+        },
+        {
+          "medida": "255/55R20",
+          "ancho": 255,
+          "perfil": 55,
+          "aro": 20,
+          "diametro_mm": 788.5
+        }
+      ],
+      "aros_de_fabrica": [
+        18,
+        20
+      ],
+      "confianza": "media",
+      "verificado_contra_fuente": false
+    },
+    {
+      "marca": "Ford",
+      "modelo": "F-150",
+      "anios": "2015-2027",
+      "medidas_de_fabrica": [
+        {
+          "medida": "265/70R17",
+          "ancho": 265,
+          "perfil": 70,
+          "aro": 17,
+          "diametro_mm": 802.8
+        },
+        {
+          "medida": "275/65R18",
+          "ancho": 275,
+          "perfil": 65,
+          "aro": 18,
+          "diametro_mm": 814.7
+        },
+        {
+          "medida": "275/60R20",
+          "ancho": 275,
+          "perfil": 60,
+          "aro": 20,
+          "diametro_mm": 838.0
+        }
+      ],
+      "aros_de_fabrica": [
+        17,
+        18,
+        20
+      ],
+      "confianza": "media",
+      "verificado_contra_fuente": false
+    },
+    {
+      "marca": "Ford",
+      "modelo": "Maverick",
+      "anios": "2022-2027",
+      "medidas_de_fabrica": [
+        {
+          "medida": "225/65R17",
+          "ancho": 225,
+          "perfil": 65,
+          "aro": 17,
+          "diametro_mm": 724.3
+        },
+        {
+          "medida": "225/60R18",
+          "ancho": 225,
+          "perfil": 60,
+          "aro": 18,
+          "diametro_mm": 727.2
+        }
+      ],
+      "aros_de_fabrica": [
+        17,
+        18
+      ],
+      "confianza": "baja",
+      "verificado_contra_fuente": false
+    },
+    {
+      "marca": "Nissan",
+      "modelo": "Frontier / Navara / NP300",
+      "anios": "2016-2027",
+      "medidas_de_fabrica": [
+        {
+          "medida": "255/65R17",
+          "ancho": 255,
+          "perfil": 65,
+          "aro": 17,
+          "diametro_mm": 763.3
+        },
+        {
+          "medida": "255/60R18",
+          "ancho": 255,
+          "perfil": 60,
+          "aro": 18,
+          "diametro_mm": 763.2
+        },
+        {
+          "medida": "255/70R16",
+          "ancho": 255,
+          "perfil": 70,
+          "aro": 16,
+          "diametro_mm": 763.4
+        }
+      ],
+      "aros_de_fabrica": [
+        16,
+        17,
+        18
+      ],
+      "confianza": "alta",
+      "verificado_contra_fuente": false
+    },
+    {
+      "marca": "Nissan",
+      "modelo": "X-Trail",
+      "anios": "2014-2027",
+      "medidas_de_fabrica": [
+        {
+          "medida": "225/65R17",
+          "ancho": 225,
+          "perfil": 65,
+          "aro": 17,
+          "diametro_mm": 724.3
+        },
+        {
+          "medida": "225/60R18",
+          "ancho": 225,
+          "perfil": 60,
+          "aro": 18,
+          "diametro_mm": 727.2
+        },
+        {
+          "medida": "235/55R19",
+          "ancho": 235,
+          "perfil": 55,
+          "aro": 19,
+          "diametro_mm": 741.1
+        }
+      ],
+      "aros_de_fabrica": [
+        17,
+        18,
+        19
+      ],
+      "confianza": "alta",
+      "verificado_contra_fuente": false,
+      "nota": " Rango ampliado a 2014 (T32) el 1-sep-2026; confirmar en 2014-2017."
+    },
+    {
+      "marca": "Nissan",
+      "modelo": "Qashqai",
+      "anios": "2019-2027",
+      "medidas_de_fabrica": [
+        {
+          "medida": "215/65R16",
+          "ancho": 215,
+          "perfil": 65,
+          "aro": 16,
+          "diametro_mm": 685.9
+        },
+        {
+          "medida": "215/60R17",
+          "ancho": 215,
+          "perfil": 60,
+          "aro": 17,
+          "diametro_mm": 689.8
+        },
+        {
+          "medida": "215/55R18",
+          "ancho": 215,
+          "perfil": 55,
+          "aro": 18,
+          "diametro_mm": 693.7
+        }
+      ],
+      "aros_de_fabrica": [
+        16,
+        17,
+        18
+      ],
+      "confianza": "media",
+      "verificado_contra_fuente": false
+    },
+    {
+      "marca": "Nissan",
+      "modelo": "Kicks",
+      "anios": "2019-2027",
+      "medidas_de_fabrica": [
+        {
+          "medida": "205/60R16",
+          "ancho": 205,
+          "perfil": 60,
+          "aro": 16,
+          "diametro_mm": 652.4
+        },
+        {
+          "medida": "215/55R17",
+          "ancho": 215,
+          "perfil": 55,
+          "aro": 17,
+          "diametro_mm": 668.3
+        }
+      ],
+      "aros_de_fabrica": [
+        16,
+        17
+      ],
+      "confianza": "media",
+      "verificado_contra_fuente": false
+    },
+    {
+      "marca": "Nissan",
+      "modelo": "Sentra",
+      "anios": "2019-2027",
+      "medidas_de_fabrica": [
+        {
+          "medida": "205/55R16",
+          "ancho": 205,
+          "perfil": 55,
+          "aro": 16,
+          "diametro_mm": 631.9
+        },
+        {
+          "medida": "215/50R17",
+          "ancho": 215,
+          "perfil": 50,
+          "aro": 17,
+          "diametro_mm": 646.8
+        },
+        {
+          "medida": "215/45R18",
+          "ancho": 215,
+          "perfil": 45,
+          "aro": 18,
+          "diametro_mm": 650.7
+        }
+      ],
+      "aros_de_fabrica": [
+        16,
+        17,
+        18
+      ],
+      "confianza": "media",
+      "verificado_contra_fuente": false
+    },
+    {
+      "marca": "Nissan",
+      "modelo": "Versa",
+      "anios": "2019-2027",
+      "medidas_de_fabrica": [
+        {
+          "medida": "185/65R15",
+          "ancho": 185,
+          "perfil": 65,
+          "aro": 15,
+          "diametro_mm": 621.5
+        },
+        {
+          "medida": "205/55R16",
+          "ancho": 205,
+          "perfil": 55,
+          "aro": 16,
+          "diametro_mm": 631.9
+        }
+      ],
+      "aros_de_fabrica": [
+        15,
+        16
+      ],
+      "confianza": "media",
+      "verificado_contra_fuente": false
+    },
+    {
+      "marca": "Nissan",
+      "modelo": "March",
+      "anios": "2015-2027",
+      "medidas_de_fabrica": [
+        {
+          "medida": "165/70R14",
+          "ancho": 165,
+          "perfil": 70,
+          "aro": 14,
+          "diametro_mm": 586.6
+        },
+        {
+          "medida": "185/60R15",
+          "ancho": 185,
+          "perfil": 60,
+          "aro": 15,
+          "diametro_mm": 603.0
+        }
+      ],
+      "aros_de_fabrica": [
+        14,
+        15
+      ],
+      "confianza": "media",
+      "verificado_contra_fuente": false
+    },
+    {
+      "marca": "Nissan",
+      "modelo": "Patrol",
+      "anios": "2010-2027",
+      "medidas_de_fabrica": [
+        {
+          "medida": "265/70R17",
+          "ancho": 265,
+          "perfil": 70,
+          "aro": 17,
+          "diametro_mm": 802.8
+        },
+        {
+          "medida": "275/60R20",
+          "ancho": 275,
+          "perfil": 60,
+          "aro": 20,
+          "diametro_mm": 838.0
+        },
+        {
+          "medida": "265/65R17",
+          "ancho": 265,
+          "perfil": 65,
+          "aro": 17,
+          "diametro_mm": 776.3
+        }
+      ],
+      "aros_de_fabrica": [
+        17,
+        20
+      ],
+      "confianza": "media",
+      "verificado_contra_fuente": false
+    },
+    {
+      "marca": "Nissan",
+      "modelo": "Urvan / NV350",
+      "anios": "2015-2027",
+      "medidas_de_fabrica": [
+        {
+          "medida": "195R15C",
+          "aro": 15,
+          "diametro_mm": null,
+          "nota": "medida convencional o comercial, calcular aparte"
+        },
+        {
+          "medida": "215/70R15C",
+          "ancho": 215,
+          "perfil": 70,
+          "aro": 15,
+          "diametro_mm": 682.0,
+          "nota": "medida comercial C: solo llantas de carga"
+        }
+      ],
+      "aros_de_fabrica": [
+        15
+      ],
+      "confianza": "media",
+      "verificado_contra_fuente": false
+    },
+    {
+      "marca": "Mazda",
+      "modelo": "BT-50",
+      "anios": "2013-2027",
+      "medidas_de_fabrica": [
+        {
+          "medida": "265/65R17",
+          "ancho": 265,
+          "perfil": 65,
+          "aro": 17,
+          "diametro_mm": 776.3
+        },
+        {
+          "medida": "255/70R16",
+          "ancho": 255,
+          "perfil": 70,
+          "aro": 16,
+          "diametro_mm": 763.4
+        },
+        {
+          "medida": "265/60R18",
+          "ancho": 265,
+          "perfil": 60,
+          "aro": 18,
+          "diametro_mm": 775.2
+        }
+      ],
+      "aros_de_fabrica": [
+        16,
+        17,
+        18
+      ],
+      "confianza": "media",
+      "verificado_contra_fuente": false
+    },
+    {
+      "marca": "Mazda",
+      "modelo": "CX-5",
+      "anios": "2018-2027",
+      "medidas_de_fabrica": [
+        {
+          "medida": "225/65R17",
+          "ancho": 225,
+          "perfil": 65,
+          "aro": 17,
+          "diametro_mm": 724.3
+        },
+        {
+          "medida": "225/55R19",
+          "ancho": 225,
+          "perfil": 55,
+          "aro": 19,
+          "diametro_mm": 730.1
+        }
+      ],
+      "aros_de_fabrica": [
+        17,
+        19
+      ],
+      "confianza": "alta",
+      "verificado_contra_fuente": false
+    },
+    {
+      "marca": "Mazda",
+      "modelo": "CX-30",
+      "anios": "2020-2027",
+      "medidas_de_fabrica": [
+        {
+          "medida": "215/55R18",
+          "ancho": 215,
+          "perfil": 55,
+          "aro": 18,
+          "diametro_mm": 693.7
+        }
+      ],
+      "aros_de_fabrica": [
+        18
+      ],
+      "confianza": "media",
+      "verificado_contra_fuente": false
+    },
+    {
+      "marca": "Mazda",
+      "modelo": "CX-3",
+      "anios": "2016-2027",
+      "medidas_de_fabrica": [
+        {
+          "medida": "215/60R16",
+          "ancho": 215,
+          "perfil": 60,
+          "aro": 16,
+          "diametro_mm": 664.4
+        },
+        {
+          "medida": "215/50R18",
+          "ancho": 215,
+          "perfil": 50,
+          "aro": 18,
+          "diametro_mm": 672.2
+        }
+      ],
+      "aros_de_fabrica": [
+        16,
+        18
+      ],
+      "confianza": "media",
+      "verificado_contra_fuente": false
+    },
+    {
+      "marca": "Mazda",
+      "modelo": "CX-50 / CX-60",
+      "anios": "2022-2027",
+      "medidas_de_fabrica": [
+        {
+          "medida": "235/65R17",
+          "ancho": 235,
+          "perfil": 65,
+          "aro": 17,
+          "diametro_mm": 737.3
+        },
+        {
+          "medida": "235/55R19",
+          "ancho": 235,
+          "perfil": 55,
+          "aro": 19,
+          "diametro_mm": 741.1
+        },
+        {
+          "medida": "235/50R20",
+          "ancho": 235,
+          "perfil": 50,
+          "aro": 20,
+          "diametro_mm": 743.0
+        }
+      ],
+      "aros_de_fabrica": [
+        17,
+        19,
+        20
+      ],
+      "confianza": "baja",
+      "verificado_contra_fuente": false
+    },
+    {
+      "marca": "Mazda",
+      "modelo": "3",
+      "anios": "2019-2027",
+      "medidas_de_fabrica": [
+        {
+          "medida": "205/60R16",
+          "ancho": 205,
+          "perfil": 60,
+          "aro": 16,
+          "diametro_mm": 652.4
+        },
+        {
+          "medida": "215/45R18",
+          "ancho": 215,
+          "perfil": 45,
+          "aro": 18,
+          "diametro_mm": 650.7
+        }
+      ],
+      "aros_de_fabrica": [
+        16,
+        18
+      ],
+      "confianza": "media",
+      "verificado_contra_fuente": false
+    },
+    {
+      "marca": "Mazda",
+      "modelo": "2",
+      "anios": "2018-2027",
+      "medidas_de_fabrica": [
+        {
+          "medida": "185/65R15",
+          "ancho": 185,
+          "perfil": 65,
+          "aro": 15,
+          "diametro_mm": 621.5
+        },
+        {
+          "medida": "185/60R16",
+          "ancho": 185,
+          "perfil": 60,
+          "aro": 16,
+          "diametro_mm": 628.4
+        }
+      ],
+      "aros_de_fabrica": [
+        15,
+        16
+      ],
+      "confianza": "media",
+      "verificado_contra_fuente": false
+    },
+    {
+      "marca": "Mitsubishi",
+      "modelo": "L200 / Montero Sport",
+      "anios": "2016-2027",
+      "medidas_de_fabrica": [
+        {
+          "medida": "245/70R16",
+          "ancho": 245,
+          "perfil": 70,
+          "aro": 16,
+          "diametro_mm": 749.4
+        },
+        {
+          "medida": "265/60R18",
+          "ancho": 265,
+          "perfil": 60,
+          "aro": 18,
+          "diametro_mm": 775.2
+        },
+        {
+          "medida": "265/65R17",
+          "ancho": 265,
+          "perfil": 65,
+          "aro": 17,
+          "diametro_mm": 776.3
+        }
+      ],
+      "aros_de_fabrica": [
+        16,
+        17,
+        18
+      ],
+      "confianza": "alta",
+      "verificado_contra_fuente": false
+    },
+    {
+      "marca": "Mitsubishi",
+      "modelo": "Outlander",
+      "anios": "2018-2027",
+      "medidas_de_fabrica": [
+        {
+          "medida": "225/55R18",
+          "ancho": 225,
+          "perfil": 55,
+          "aro": 18,
+          "diametro_mm": 704.7
+        },
+        {
+          "medida": "225/60R18",
+          "ancho": 225,
+          "perfil": 60,
+          "aro": 18,
+          "diametro_mm": 727.2
+        },
+        {
+          "medida": "255/45R20",
+          "ancho": 255,
+          "perfil": 45,
+          "aro": 20,
+          "diametro_mm": 737.5
+        }
+      ],
+      "aros_de_fabrica": [
+        18,
+        20
+      ],
+      "confianza": "media",
+      "verificado_contra_fuente": false
+    },
+    {
+      "marca": "Mitsubishi",
+      "modelo": "ASX",
+      "anios": "2018-2027",
+      "medidas_de_fabrica": [
+        {
+          "medida": "215/70R16",
+          "ancho": 215,
+          "perfil": 70,
+          "aro": 16,
+          "diametro_mm": 707.4
+        },
+        {
+          "medida": "225/55R18",
+          "ancho": 225,
+          "perfil": 55,
+          "aro": 18,
+          "diametro_mm": 704.7
+        }
+      ],
+      "aros_de_fabrica": [
+        16,
+        18
+      ],
+      "confianza": "media",
+      "verificado_contra_fuente": false
+    },
+    {
+      "marca": "Mitsubishi",
+      "modelo": "Mirage",
+      "anios": "2016-2027",
+      "medidas_de_fabrica": [
+        {
+          "medida": "165/65R14",
+          "ancho": 165,
+          "perfil": 65,
+          "aro": 14,
+          "diametro_mm": 570.1
+        },
+        {
+          "medida": "175/55R15",
+          "ancho": 175,
+          "perfil": 55,
+          "aro": 15,
+          "diametro_mm": 573.5
+        }
+      ],
+      "aros_de_fabrica": [
+        14,
+        15
+      ],
+      "confianza": "baja",
+      "verificado_contra_fuente": false
+    },
+    {
+      "marca": "Suzuki",
+      "modelo": "Grand Vitara SZ",
+      "anios": "2010-2027",
+      "medidas_de_fabrica": [
+        {
+          "medida": "225/65R17",
+          "ancho": 225,
+          "perfil": 65,
+          "aro": 17,
+          "diametro_mm": 724.3
+        },
+        {
+          "medida": "225/70R16",
+          "ancho": 225,
+          "perfil": 70,
+          "aro": 16,
+          "diametro_mm": 721.4
+        }
+      ],
+      "aros_de_fabrica": [
+        16,
+        17
+      ],
+      "confianza": "media",
+      "verificado_contra_fuente": false,
+      "nota": " En Ecuador se escribe también «Gran Vitara», «Vitara SZ» o solo «SZ»."
+    },
+    {
+      "marca": "Suzuki",
+      "modelo": "Vitara Live",
+      "anios": "2000-2018",
+      "medidas_de_fabrica": [
+        {
+          "medida": "215/65R16",
+          "ancho": 215,
+          "perfil": 65,
+          "aro": 16,
+          "diametro_mm": 685.9
+        },
+        {
+          "medida": "235/60R16",
+          "ancho": 235,
+          "perfil": 60,
+          "aro": 16,
+          "diametro_mm": 688.4
+        }
+      ],
+      "aros_de_fabrica": [
+        16
+      ],
+      "confianza": "media",
+      "verificado_contra_fuente": false
+    },
+    {
+      "marca": "Suzuki",
+      "modelo": "S-Cross",
+      "anios": "2019-2027",
+      "medidas_de_fabrica": [
+        {
+          "medida": "215/60R16",
+          "ancho": 215,
+          "perfil": 60,
+          "aro": 16,
+          "diametro_mm": 664.4
+        },
+        {
+          "medida": "215/55R17",
+          "ancho": 215,
+          "perfil": 55,
+          "aro": 17,
+          "diametro_mm": 668.3
+        }
+      ],
+      "aros_de_fabrica": [
+        16,
+        17
+      ],
+      "confianza": "media",
+      "verificado_contra_fuente": false
+    },
+    {
+      "marca": "Suzuki",
+      "modelo": "Swift",
+      "anios": "2018-2027",
+      "medidas_de_fabrica": [
+        {
+          "medida": "185/55R16",
+          "ancho": 185,
+          "perfil": 55,
+          "aro": 16,
+          "diametro_mm": 609.9
+        },
+        {
+          "medida": "175/65R15",
+          "ancho": 175,
+          "perfil": 65,
+          "aro": 15,
+          "diametro_mm": 608.5
+        }
+      ],
+      "aros_de_fabrica": [
+        15,
+        16
+      ],
+      "confianza": "media",
+      "verificado_contra_fuente": false
+    },
+    {
+      "marca": "Suzuki",
+      "modelo": "Baleno",
+      "anios": "2019-2027",
+      "medidas_de_fabrica": [
+        {
+          "medida": "185/65R15",
+          "ancho": 185,
+          "perfil": 65,
+          "aro": 15,
+          "diametro_mm": 621.5
+        },
+        {
+          "medida": "195/55R16",
+          "ancho": 195,
+          "perfil": 55,
+          "aro": 16,
+          "diametro_mm": 620.9
+        }
+      ],
+      "aros_de_fabrica": [
+        15,
+        16
+      ],
+      "confianza": "baja",
+      "verificado_contra_fuente": false
+    },
+    {
+      "marca": "Suzuki",
+      "modelo": "Jimny",
+      "anios": "2019-2027",
+      "medidas_de_fabrica": [
+        {
+          "medida": "195/80R15",
+          "ancho": 195,
+          "perfil": 80,
+          "aro": 15,
+          "diametro_mm": 693.0
+        }
+      ],
+      "aros_de_fabrica": [
+        15
+      ],
+      "confianza": "alta",
+      "verificado_contra_fuente": false,
+      "nota": "Medida unica, poco comun en inventario"
+    },
+    {
+      "marca": "Suzuki",
+      "modelo": "Ertiga / APV",
+      "anios": "2018-2027",
+      "medidas_de_fabrica": [
+        {
+          "medida": "185/65R15",
+          "ancho": 185,
+          "perfil": 65,
+          "aro": 15,
+          "diametro_mm": 621.5
+        },
+        {
+          "medida": "205/65R15",
+          "ancho": 205,
+          "perfil": 65,
+          "aro": 15,
+          "diametro_mm": 647.5
+        }
+      ],
+      "aros_de_fabrica": [
+        15
+      ],
+      "confianza": "baja",
+      "verificado_contra_fuente": false
+    },
+    {
+      "marca": "Renault",
+      "modelo": "Duster",
+      "anios": "2016-2027",
+      "medidas_de_fabrica": [
+        {
+          "medida": "215/65R16",
+          "ancho": 215,
+          "perfil": 65,
+          "aro": 16,
+          "diametro_mm": 685.9
+        },
+        {
+          "medida": "215/60R17",
+          "ancho": 215,
+          "perfil": 60,
+          "aro": 17,
+          "diametro_mm": 689.8
+        }
+      ],
+      "aros_de_fabrica": [
+        16,
+        17
+      ],
+      "confianza": "alta",
+      "verificado_contra_fuente": false
+    },
+    {
+      "marca": "Renault",
+      "modelo": "Logan / Sandero",
+      "anios": "2016-2027",
+      "medidas_de_fabrica": [
+        {
+          "medida": "185/65R15",
+          "ancho": 185,
+          "perfil": 65,
+          "aro": 15,
+          "diametro_mm": 621.5
+        },
+        {
+          "medida": "205/55R16",
+          "ancho": 205,
+          "perfil": 55,
+          "aro": 16,
+          "diametro_mm": 631.9
+        }
+      ],
+      "aros_de_fabrica": [
+        15,
+        16
+      ],
+      "confianza": "media",
+      "verificado_contra_fuente": false
+    },
+    {
+      "marca": "Renault",
+      "modelo": "Stepway",
+      "anios": "2018-2027",
+      "medidas_de_fabrica": [
+        {
+          "medida": "205/60R16",
+          "ancho": 205,
+          "perfil": 60,
+          "aro": 16,
+          "diametro_mm": 652.4
+        },
+        {
+          "medida": "205/55R17",
+          "ancho": 205,
+          "perfil": 55,
+          "aro": 17,
+          "diametro_mm": 657.3
+        }
+      ],
+      "aros_de_fabrica": [
+        16,
+        17
+      ],
+      "confianza": "media",
+      "verificado_contra_fuente": false
+    },
+    {
+      "marca": "Renault",
+      "modelo": "Kwid",
+      "anios": "2019-2027",
+      "medidas_de_fabrica": [
+        {
+          "medida": "165/70R14",
+          "ancho": 165,
+          "perfil": 70,
+          "aro": 14,
+          "diametro_mm": 586.6
+        },
+        {
+          "medida": "175/60R15",
+          "ancho": 175,
+          "perfil": 60,
+          "aro": 15,
+          "diametro_mm": 591.0
+        }
+      ],
+      "aros_de_fabrica": [
+        14,
+        15
+      ],
+      "confianza": "media",
+      "verificado_contra_fuente": false
+    },
+    {
+      "marca": "Renault",
+      "modelo": "Captur",
+      "anios": "2018-2027",
+      "medidas_de_fabrica": [
+        {
+          "medida": "215/60R17",
+          "ancho": 215,
+          "perfil": 60,
+          "aro": 17,
+          "diametro_mm": 689.8
+        },
+        {
+          "medida": "215/55R18",
+          "ancho": 215,
+          "perfil": 55,
+          "aro": 18,
+          "diametro_mm": 693.7
+        }
+      ],
+      "aros_de_fabrica": [
+        17,
+        18
+      ],
+      "confianza": "media",
+      "verificado_contra_fuente": false
+    },
+    {
+      "marca": "Renault",
+      "modelo": "Koleos",
+      "anios": "2018-2027",
+      "medidas_de_fabrica": [
+        {
+          "medida": "225/60R18",
+          "ancho": 225,
+          "perfil": 60,
+          "aro": 18,
+          "diametro_mm": 727.2
+        },
+        {
+          "medida": "225/55R19",
+          "ancho": 225,
+          "perfil": 55,
+          "aro": 19,
+          "diametro_mm": 730.1
+        }
+      ],
+      "aros_de_fabrica": [
+        18,
+        19
+      ],
+      "confianza": "baja",
+      "verificado_contra_fuente": false
+    },
+    {
+      "marca": "Renault",
+      "modelo": "Oroch",
+      "anios": "2018-2027",
+      "medidas_de_fabrica": [
+        {
+          "medida": "215/65R16",
+          "ancho": 215,
+          "perfil": 65,
+          "aro": 16,
+          "diametro_mm": 685.9
+        },
+        {
+          "medida": "215/60R17",
+          "ancho": 215,
+          "perfil": 60,
+          "aro": 17,
+          "diametro_mm": 689.8
+        }
+      ],
+      "aros_de_fabrica": [
+        16,
+        17
+      ],
+      "confianza": "media",
+      "verificado_contra_fuente": false
+    },
+    {
+      "marca": "Volkswagen",
+      "modelo": "Amarok",
+      "anios": "2013-2027",
+      "medidas_de_fabrica": [
+        {
+          "medida": "245/70R16",
+          "ancho": 245,
+          "perfil": 70,
+          "aro": 16,
+          "diametro_mm": 749.4
+        },
+        {
+          "medida": "255/60R18",
+          "ancho": 255,
+          "perfil": 60,
+          "aro": 18,
+          "diametro_mm": 763.2
+        },
+        {
+          "medida": "255/65R17",
+          "ancho": 255,
+          "perfil": 65,
+          "aro": 17,
+          "diametro_mm": 763.3
+        }
+      ],
+      "aros_de_fabrica": [
+        16,
+        17,
+        18
+      ],
+      "confianza": "media",
+      "verificado_contra_fuente": false
+    },
+    {
+      "marca": "Volkswagen",
+      "modelo": "T-Cross",
+      "anios": "2020-2027",
+      "medidas_de_fabrica": [
+        {
+          "medida": "205/60R16",
+          "ancho": 205,
+          "perfil": 60,
+          "aro": 16,
+          "diametro_mm": 652.4
+        },
+        {
+          "medida": "215/50R17",
+          "ancho": 215,
+          "perfil": 50,
+          "aro": 17,
+          "diametro_mm": 646.8
+        }
+      ],
+      "aros_de_fabrica": [
+        16,
+        17
+      ],
+      "confianza": "media",
+      "verificado_contra_fuente": false
+    },
+    {
+      "marca": "Volkswagen",
+      "modelo": "Taos / Tiguan",
+      "anios": "2019-2027",
+      "medidas_de_fabrica": [
+        {
+          "medida": "215/65R17",
+          "ancho": 215,
+          "perfil": 65,
+          "aro": 17,
+          "diametro_mm": 711.3
+        },
+        {
+          "medida": "235/55R18",
+          "ancho": 235,
+          "perfil": 55,
+          "aro": 18,
+          "diametro_mm": 715.7
+        },
+        {
+          "medida": "235/50R19",
+          "ancho": 235,
+          "perfil": 50,
+          "aro": 19,
+          "diametro_mm": 717.6
+        }
+      ],
+      "aros_de_fabrica": [
+        17,
+        18,
+        19
+      ],
+      "confianza": "media",
+      "verificado_contra_fuente": false
+    },
+    {
+      "marca": "Volkswagen",
+      "modelo": "Gol / Polo",
+      "anios": "2016-2027",
+      "medidas_de_fabrica": [
+        {
+          "medida": "175/70R14",
+          "ancho": 175,
+          "perfil": 70,
+          "aro": 14,
+          "diametro_mm": 600.6
+        },
+        {
+          "medida": "185/60R15",
+          "ancho": 185,
+          "perfil": 60,
+          "aro": 15,
+          "diametro_mm": 603.0
+        },
+        {
+          "medida": "195/55R16",
+          "ancho": 195,
+          "perfil": 55,
+          "aro": 16,
+          "diametro_mm": 620.9
+        }
+      ],
+      "aros_de_fabrica": [
+        14,
+        15,
+        16
+      ],
+      "confianza": "media",
+      "verificado_contra_fuente": false
+    },
+    {
+      "marca": "Volkswagen",
+      "modelo": "Saveiro",
+      "anios": "2016-2027",
+      "medidas_de_fabrica": [
+        {
+          "medida": "175/70R14C",
+          "ancho": 175,
+          "perfil": 70,
+          "aro": 14,
+          "diametro_mm": 600.6,
+          "nota": "medida comercial C: solo llantas de carga"
+        },
+        {
+          "medida": "195/65R15",
+          "ancho": 195,
+          "perfil": 65,
+          "aro": 15,
+          "diametro_mm": 634.5
+        }
+      ],
+      "aros_de_fabrica": [
+        14,
+        15
+      ],
+      "confianza": "baja",
+      "verificado_contra_fuente": false
+    },
+    {
+      "marca": "Jeep",
+      "modelo": "Wrangler",
+      "anios": "2018-2027",
+      "medidas_de_fabrica": [
+        {
+          "medida": "245/75R17",
+          "ancho": 245,
+          "perfil": 75,
+          "aro": 17,
+          "diametro_mm": 799.3
+        },
+        {
+          "medida": "255/70R18",
+          "ancho": 255,
+          "perfil": 70,
+          "aro": 18,
+          "diametro_mm": 814.2
+        },
+        {
+          "medida": "285/70R17",
+          "ancho": 285,
+          "perfil": 70,
+          "aro": 17,
+          "diametro_mm": 830.8
+        },
+        {
+          "medida": "255/75R17",
+          "ancho": 255,
+          "perfil": 75,
+          "aro": 17,
+          "diametro_mm": 814.3
+        }
+      ],
+      "aros_de_fabrica": [
+        17,
+        18
+      ],
+      "confianza": "alta",
+      "verificado_contra_fuente": false,
+      "nota": "Cliente frecuente de M/T y R/T; muchos con levante y aro cambiado"
+    },
+    {
+      "marca": "Jeep",
+      "modelo": "Gladiator",
+      "anios": "2020-2027",
+      "medidas_de_fabrica": [
+        {
+          "medida": "245/75R17",
+          "ancho": 245,
+          "perfil": 75,
+          "aro": 17,
+          "diametro_mm": 799.3
+        },
+        {
+          "medida": "255/70R18",
+          "ancho": 255,
+          "perfil": 70,
+          "aro": 18,
+          "diametro_mm": 814.2
+        },
+        {
+          "medida": "285/70R17",
+          "ancho": 285,
+          "perfil": 70,
+          "aro": 17,
+          "diametro_mm": 830.8
+        }
+      ],
+      "aros_de_fabrica": [
+        17,
+        18
+      ],
+      "confianza": "media",
+      "verificado_contra_fuente": false
+    },
+    {
+      "marca": "Jeep",
+      "modelo": "Compass",
+      "anios": "2018-2027",
+      "medidas_de_fabrica": [
+        {
+          "medida": "225/60R17",
+          "ancho": 225,
+          "perfil": 60,
+          "aro": 17,
+          "diametro_mm": 701.8
+        },
+        {
+          "medida": "225/55R18",
+          "ancho": 225,
+          "perfil": 55,
+          "aro": 18,
+          "diametro_mm": 704.7
+        },
+        {
+          "medida": "235/45R19",
+          "ancho": 235,
+          "perfil": 45,
+          "aro": 19,
+          "diametro_mm": 694.1
+        }
+      ],
+      "aros_de_fabrica": [
+        17,
+        18,
+        19
+      ],
+      "confianza": "media",
+      "verificado_contra_fuente": false
+    },
+    {
+      "marca": "Jeep",
+      "modelo": "Renegade",
+      "anios": "2018-2027",
+      "medidas_de_fabrica": [
+        {
+          "medida": "215/65R16",
+          "ancho": 215,
+          "perfil": 65,
+          "aro": 16,
+          "diametro_mm": 685.9
+        },
+        {
+          "medida": "215/60R17",
+          "ancho": 215,
+          "perfil": 60,
+          "aro": 17,
+          "diametro_mm": 689.8
+        },
+        {
+          "medida": "235/45R19",
+          "ancho": 235,
+          "perfil": 45,
+          "aro": 19,
+          "diametro_mm": 694.1
+        }
+      ],
+      "aros_de_fabrica": [
+        16,
+        17,
+        19
+      ],
+      "confianza": "media",
+      "verificado_contra_fuente": false
+    },
+    {
+      "marca": "Jeep",
+      "modelo": "Grand Cherokee",
+      "anios": "2015-2027",
+      "medidas_de_fabrica": [
+        {
+          "medida": "265/60R18",
+          "ancho": 265,
+          "perfil": 60,
+          "aro": 18,
+          "diametro_mm": 775.2
+        },
+        {
+          "medida": "265/50R20",
+          "ancho": 265,
+          "perfil": 50,
+          "aro": 20,
+          "diametro_mm": 773.0
+        }
+      ],
+      "aros_de_fabrica": [
+        18,
+        20
+      ],
+      "confianza": "media",
+      "verificado_contra_fuente": false
+    },
+    {
+      "marca": "Great Wall (GWM)",
+      "modelo": "Poer / Wingle",
+      "anios": "2019-2027",
+      "medidas_de_fabrica": [
+        {
+          "medida": "245/70R16",
+          "ancho": 245,
+          "perfil": 70,
+          "aro": 16,
+          "diametro_mm": 749.4
+        },
+        {
+          "medida": "265/65R17",
+          "ancho": 265,
+          "perfil": 65,
+          "aro": 17,
+          "diametro_mm": 776.3
+        },
+        {
+          "medida": "255/60R18",
+          "ancho": 255,
+          "perfil": 60,
+          "aro": 18,
+          "diametro_mm": 763.2
+        }
+      ],
+      "aros_de_fabrica": [
+        16,
+        17,
+        18
+      ],
+      "confianza": "media",
+      "verificado_contra_fuente": false
+    },
+    {
+      "marca": "Great Wall (GWM)",
+      "modelo": "Tank 300",
+      "anios": "2022-2027",
+      "medidas_de_fabrica": [
+        {
+          "medida": "265/65R17",
+          "ancho": 265,
+          "perfil": 65,
+          "aro": 17,
+          "diametro_mm": 776.3
+        },
+        {
+          "medida": "265/60R18",
+          "ancho": 265,
+          "perfil": 60,
+          "aro": 18,
+          "diametro_mm": 775.2
+        }
+      ],
+      "aros_de_fabrica": [
+        17,
+        18
+      ],
+      "confianza": "baja",
+      "verificado_contra_fuente": false
+    },
+    {
+      "marca": "Haval",
+      "modelo": "Jolion",
+      "anios": "2021-2027",
+      "medidas_de_fabrica": [
+        {
+          "medida": "225/65R17",
+          "ancho": 225,
+          "perfil": 65,
+          "aro": 17,
+          "diametro_mm": 724.3
+        },
+        {
+          "medida": "225/60R18",
+          "ancho": 225,
+          "perfil": 60,
+          "aro": 18,
+          "diametro_mm": 727.2
+        }
+      ],
+      "aros_de_fabrica": [
+        17,
+        18
+      ],
+      "confianza": "media",
+      "verificado_contra_fuente": false
+    },
+    {
+      "marca": "Haval",
+      "modelo": "H6",
+      "anios": "2021-2027",
+      "medidas_de_fabrica": [
+        {
+          "medida": "225/60R18",
+          "ancho": 225,
+          "perfil": 60,
+          "aro": 18,
+          "diametro_mm": 727.2
+        },
+        {
+          "medida": "235/55R19",
+          "ancho": 235,
+          "perfil": 55,
+          "aro": 19,
+          "diametro_mm": 741.1
+        }
+      ],
+      "aros_de_fabrica": [
+        18,
+        19
+      ],
+      "confianza": "media",
+      "verificado_contra_fuente": false
+    },
+    {
+      "marca": "JAC",
+      "modelo": "T6 / T8",
+      "anios": "2019-2027",
+      "medidas_de_fabrica": [
+        {
+          "medida": "245/65R17",
+          "ancho": 245,
+          "perfil": 65,
+          "aro": 17,
+          "diametro_mm": 750.3
+        },
+        {
+          "medida": "235/65R17",
+          "ancho": 235,
+          "perfil": 65,
+          "aro": 17,
+          "diametro_mm": 737.3
+        },
+        {
+          "medida": "265/65R17",
+          "ancho": 265,
+          "perfil": 65,
+          "aro": 17,
+          "diametro_mm": 776.3
+        }
+      ],
+      "aros_de_fabrica": [
+        17
+      ],
+      "confianza": "media",
+      "verificado_contra_fuente": false
+    },
+    {
+      "marca": "JAC",
+      "modelo": "JS3 / JS4 / JS8",
+      "anios": "2020-2027",
+      "medidas_de_fabrica": [
+        {
+          "medida": "205/60R16",
+          "ancho": 205,
+          "perfil": 60,
+          "aro": 16,
+          "diametro_mm": 652.4
+        },
+        {
+          "medida": "215/55R17",
+          "ancho": 215,
+          "perfil": 55,
+          "aro": 17,
+          "diametro_mm": 668.3
+        },
+        {
+          "medida": "225/60R18",
+          "ancho": 225,
+          "perfil": 60,
+          "aro": 18,
+          "diametro_mm": 727.2
+        }
+      ],
+      "aros_de_fabrica": [
+        16,
+        17,
+        18
+      ],
+      "confianza": "baja",
+      "verificado_contra_fuente": false
+    },
+    {
+      "marca": "JAC",
+      "modelo": "X200 / camion liviano",
+      "anios": "2015-2027",
+      "medidas_de_fabrica": [
+        {
+          "medida": "195R15C",
+          "aro": 15,
+          "diametro_mm": null,
+          "nota": "medida convencional o comercial, calcular aparte"
+        },
+        {
+          "medida": "215/75R15C",
+          "ancho": 215,
+          "perfil": 75,
+          "aro": 15,
+          "diametro_mm": 703.5,
+          "nota": "medida comercial C: solo llantas de carga"
+        },
+        {
+          "medida": "7.00R16",
+          "aro": 16,
+          "diametro_mm": null,
+          "nota": "medida convencional o comercial, calcular aparte"
+        }
+      ],
+      "aros_de_fabrica": [
+        15,
+        16
+      ],
+      "confianza": "media",
+      "verificado_contra_fuente": false
+    },
+    {
+      "marca": "Chery",
+      "modelo": "Tiggo 2 / 4 / 7 / 8",
+      "anios": "2020-2027",
+      "medidas_de_fabrica": [
+        {
+          "medida": "205/60R16",
+          "ancho": 205,
+          "perfil": 60,
+          "aro": 16,
+          "diametro_mm": 652.4
+        },
+        {
+          "medida": "215/60R17",
+          "ancho": 215,
+          "perfil": 60,
+          "aro": 17,
+          "diametro_mm": 689.8
+        },
+        {
+          "medida": "225/60R17",
+          "ancho": 225,
+          "perfil": 60,
+          "aro": 17,
+          "diametro_mm": 701.8
+        },
+        {
+          "medida": "235/50R18",
+          "ancho": 235,
+          "perfil": 50,
+          "aro": 18,
+          "diametro_mm": 692.2
+        }
+      ],
+      "aros_de_fabrica": [
+        16,
+        17,
+        18
+      ],
+      "confianza": "media",
+      "verificado_contra_fuente": false
+    },
+    {
+      "marca": "Chery",
+      "modelo": "Arrizo 5",
+      "anios": "2020-2027",
+      "medidas_de_fabrica": [
+        {
+          "medida": "195/60R16",
+          "ancho": 195,
+          "perfil": 60,
+          "aro": 16,
+          "diametro_mm": 640.4
+        },
+        {
+          "medida": "205/55R16",
+          "ancho": 205,
+          "perfil": 55,
+          "aro": 16,
+          "diametro_mm": 631.9
+        }
+      ],
+      "aros_de_fabrica": [
+        16
+      ],
+      "confianza": "baja",
+      "verificado_contra_fuente": false
+    },
+    {
+      "marca": "Changan",
+      "modelo": "CS15 / CS35 / CS55",
+      "anios": "2019-2027",
+      "medidas_de_fabrica": [
+        {
+          "medida": "205/60R16",
+          "ancho": 205,
+          "perfil": 60,
+          "aro": 16,
+          "diametro_mm": 652.4
+        },
+        {
+          "medida": "215/55R17",
+          "ancho": 215,
+          "perfil": 55,
+          "aro": 17,
+          "diametro_mm": 668.3
+        },
+        {
+          "medida": "225/60R18",
+          "ancho": 225,
+          "perfil": 60,
+          "aro": 18,
+          "diametro_mm": 727.2
+        }
+      ],
+      "aros_de_fabrica": [
+        16,
+        17,
+        18
+      ],
+      "confianza": "baja",
+      "verificado_contra_fuente": false
+    },
+    {
+      "marca": "Changan",
+      "modelo": "Alsvin",
+      "anios": "2020-2027",
+      "medidas_de_fabrica": [
+        {
+          "medida": "185/60R15",
+          "ancho": 185,
+          "perfil": 60,
+          "aro": 15,
+          "diametro_mm": 603.0
+        },
+        {
+          "medida": "195/55R16",
+          "ancho": 195,
+          "perfil": 55,
+          "aro": 16,
+          "diametro_mm": 620.9
+        }
+      ],
+      "aros_de_fabrica": [
+        15,
+        16
+      ],
+      "confianza": "baja",
+      "verificado_contra_fuente": false
+    },
+    {
+      "marca": "Changan",
+      "modelo": "Hunter",
+      "anios": "2022-2027",
+      "medidas_de_fabrica": [
+        {
+          "medida": "245/70R16",
+          "ancho": 245,
+          "perfil": 70,
+          "aro": 16,
+          "diametro_mm": 749.4
+        },
+        {
+          "medida": "265/65R17",
+          "ancho": 265,
+          "perfil": 65,
+          "aro": 17,
+          "diametro_mm": 776.3
+        }
+      ],
+      "aros_de_fabrica": [
+        16,
+        17
+      ],
+      "confianza": "baja",
+      "verificado_contra_fuente": false
+    },
+    {
+      "marca": "Foton",
+      "modelo": "Tunland",
+      "anios": "2016-2027",
+      "medidas_de_fabrica": [
+        {
+          "medida": "245/70R16",
+          "ancho": 245,
+          "perfil": 70,
+          "aro": 16,
+          "diametro_mm": 749.4
+        },
+        {
+          "medida": "265/65R17",
+          "ancho": 265,
+          "perfil": 65,
+          "aro": 17,
+          "diametro_mm": 776.3
+        }
+      ],
+      "aros_de_fabrica": [
+        16,
+        17
+      ],
+      "confianza": "baja",
+      "verificado_contra_fuente": false
+    },
+    {
+      "marca": "JMC",
+      "modelo": "Vigus",
+      "anios": "2019-2027",
+      "medidas_de_fabrica": [
+        {
+          "medida": "245/70R16",
+          "ancho": 245,
+          "perfil": 70,
+          "aro": 16,
+          "diametro_mm": 749.4
+        },
+        {
+          "medida": "265/65R17",
+          "ancho": 265,
+          "perfil": 65,
+          "aro": 17,
+          "diametro_mm": 776.3
+        }
+      ],
+      "aros_de_fabrica": [
+        16,
+        17
+      ],
+      "confianza": "baja",
+      "verificado_contra_fuente": false
+    },
+    {
+      "marca": "BYD",
+      "modelo": "Song / Yuan / Dolphin",
+      "anios": "2022-2027",
+      "medidas_de_fabrica": [
+        {
+          "medida": "215/60R17",
+          "ancho": 215,
+          "perfil": 60,
+          "aro": 17,
+          "diametro_mm": 689.8
+        },
+        {
+          "medida": "225/60R18",
+          "ancho": 225,
+          "perfil": 60,
+          "aro": 18,
+          "diametro_mm": 727.2
+        },
+        {
+          "medida": "235/50R19",
+          "ancho": 235,
+          "perfil": 50,
+          "aro": 19,
+          "diametro_mm": 717.6
+        }
+      ],
+      "aros_de_fabrica": [
+        17,
+        18,
+        19
+      ],
+      "confianza": "baja",
+      "verificado_contra_fuente": false,
+      "nota": "Electricos, confirmar siempre; muchos piden indice de carga alto"
+    },
+    {
+      "marca": "Honda",
+      "modelo": "CR-V",
+      "anios": "2018-2027",
+      "medidas_de_fabrica": [
+        {
+          "medida": "235/65R17",
+          "ancho": 235,
+          "perfil": 65,
+          "aro": 17,
+          "diametro_mm": 737.3
+        },
+        {
+          "medida": "235/60R18",
+          "ancho": 235,
+          "perfil": 60,
+          "aro": 18,
+          "diametro_mm": 739.2
+        },
+        {
+          "medida": "235/55R19",
+          "ancho": 235,
+          "perfil": 55,
+          "aro": 19,
+          "diametro_mm": 741.1
+        }
+      ],
+      "aros_de_fabrica": [
+        17,
+        18,
+        19
+      ],
+      "confianza": "media",
+      "verificado_contra_fuente": false
+    },
+    {
+      "marca": "Honda",
+      "modelo": "HR-V",
+      "anios": "2018-2027",
+      "medidas_de_fabrica": [
+        {
+          "medida": "215/60R16",
+          "ancho": 215,
+          "perfil": 60,
+          "aro": 16,
+          "diametro_mm": 664.4
+        },
+        {
+          "medida": "215/55R17",
+          "ancho": 215,
+          "perfil": 55,
+          "aro": 17,
+          "diametro_mm": 668.3
+        },
+        {
+          "medida": "225/50R18",
+          "ancho": 225,
+          "perfil": 50,
+          "aro": 18,
+          "diametro_mm": 682.2
+        }
+      ],
+      "aros_de_fabrica": [
+        16,
+        17,
+        18
+      ],
+      "confianza": "media",
+      "verificado_contra_fuente": false
+    },
+    {
+      "marca": "Honda",
+      "modelo": "Civic",
+      "anios": "2019-2027",
+      "medidas_de_fabrica": [
+        {
+          "medida": "215/55R16",
+          "ancho": 215,
+          "perfil": 55,
+          "aro": 16,
+          "diametro_mm": 642.9
+        },
+        {
+          "medida": "215/50R17",
+          "ancho": 215,
+          "perfil": 50,
+          "aro": 17,
+          "diametro_mm": 646.8
+        },
+        {
+          "medida": "235/40R18",
+          "ancho": 235,
+          "perfil": 40,
+          "aro": 18,
+          "diametro_mm": 645.2
+        }
+      ],
+      "aros_de_fabrica": [
+        16,
+        17,
+        18
+      ],
+      "confianza": "media",
+      "verificado_contra_fuente": false
+    },
+    {
+      "marca": "Honda",
+      "modelo": "Fit",
+      "anios": "2015-2027",
+      "medidas_de_fabrica": [
+        {
+          "medida": "185/60R15",
+          "ancho": 185,
+          "perfil": 60,
+          "aro": 15,
+          "diametro_mm": 603.0
+        },
+        {
+          "medida": "185/55R16",
+          "ancho": 185,
+          "perfil": 55,
+          "aro": 16,
+          "diametro_mm": 609.9
+        }
+      ],
+      "aros_de_fabrica": [
+        15,
+        16
+      ],
+      "confianza": "baja",
+      "verificado_contra_fuente": false
+    },
+    {
+      "marca": "Subaru",
+      "modelo": "Forester",
+      "anios": "2019-2027",
+      "medidas_de_fabrica": [
+        {
+          "medida": "225/60R17",
+          "ancho": 225,
+          "perfil": 60,
+          "aro": 17,
+          "diametro_mm": 701.8
+        },
+        {
+          "medida": "225/55R18",
+          "ancho": 225,
+          "perfil": 55,
+          "aro": 18,
+          "diametro_mm": 704.7
+        }
+      ],
+      "aros_de_fabrica": [
+        17,
+        18
+      ],
+      "confianza": "media",
+      "verificado_contra_fuente": false
+    },
+    {
+      "marca": "Subaru",
+      "modelo": "XV / Crosstrek",
+      "anios": "2018-2027",
+      "medidas_de_fabrica": [
+        {
+          "medida": "225/60R17",
+          "ancho": 225,
+          "perfil": 60,
+          "aro": 17,
+          "diametro_mm": 701.8
+        },
+        {
+          "medida": "225/55R18",
+          "ancho": 225,
+          "perfil": 55,
+          "aro": 18,
+          "diametro_mm": 704.7
+        }
+      ],
+      "aros_de_fabrica": [
+        17,
+        18
+      ],
+      "confianza": "media",
+      "verificado_contra_fuente": false
+    },
+    {
+      "marca": "Subaru",
+      "modelo": "Outback",
+      "anios": "2018-2027",
+      "medidas_de_fabrica": [
+        {
+          "medida": "225/65R17",
+          "ancho": 225,
+          "perfil": 65,
+          "aro": 17,
+          "diametro_mm": 724.3
+        },
+        {
+          "medida": "225/60R18",
+          "ancho": 225,
+          "perfil": 60,
+          "aro": 18,
+          "diametro_mm": 727.2
+        }
+      ],
+      "aros_de_fabrica": [
+        17,
+        18
+      ],
+      "confianza": "baja",
+      "verificado_contra_fuente": false
+    },
+    {
+      "marca": "Isuzu",
+      "modelo": "NHR / NKR",
+      "anios": "2010-2027",
+      "medidas_de_fabrica": [
+        {
+          "medida": "7.00R16",
+          "aro": 16,
+          "diametro_mm": null,
+          "nota": "medida convencional o comercial, calcular aparte"
+        },
+        {
+          "medida": "205R16C",
+          "aro": 16,
+          "diametro_mm": null,
+          "nota": "medida convencional o comercial, calcular aparte"
+        },
+        {
+          "medida": "7.50R16",
+          "aro": 16,
+          "diametro_mm": null,
+          "nota": "medida convencional o comercial, calcular aparte"
+        }
+      ],
+      "aros_de_fabrica": [
+        16
+      ],
+      "confianza": "media",
+      "verificado_contra_fuente": false,
+      "nota": "Camion liviano"
+    },
+    {
+      "marca": "Hino",
+      "modelo": "300 Series",
+      "anios": "2010-2027",
+      "medidas_de_fabrica": [
+        {
+          "medida": "7.00R16",
+          "aro": 16,
+          "diametro_mm": null,
+          "nota": "medida convencional o comercial, calcular aparte"
+        },
+        {
+          "medida": "7.50R16",
+          "aro": 16,
+          "diametro_mm": null,
+          "nota": "medida convencional o comercial, calcular aparte"
+        }
+      ],
+      "aros_de_fabrica": [
+        16
+      ],
+      "confianza": "media",
+      "verificado_contra_fuente": false,
+      "nota": "Camion liviano"
+    },
+    {
+      "marca": "Toyota",
+      "modelo": "Fortuner",
+      "anios": "2005-2015",
+      "medidas_de_fabrica": [
+        {
+          "medida": "265/65R17",
+          "ancho": 265,
+          "perfil": 65,
+          "aro": 17,
+          "diametro_mm": 776.3
+        }
+      ],
+      "aros_de_fabrica": [
+        17
+      ],
+      "confianza": "media",
+      "verificado_contra_fuente": false,
+      "nota": "1ª generación (2005-2015) en Ecuador: 265/65R17 en 4x2 y 4x4. Agregada 1-sep-2026 por pedidos reales en producción (autos anteriores a los rangos de la tabla); confirmar con la medida escrita o la foto."
+    },
+    {
+      "marca": "Toyota",
+      "modelo": "Land Cruiser Prado",
+      "anios": "2003-2009",
+      "medidas_de_fabrica": [
+        {
+          "medida": "265/65R17",
+          "ancho": 265,
+          "perfil": 65,
+          "aro": 17,
+          "diametro_mm": 776.3
+        },
+        {
+          "medida": "265/70R16",
+          "ancho": 265,
+          "perfil": 70,
+          "aro": 16,
+          "diametro_mm": 777.4
+        }
+      ],
+      "aros_de_fabrica": [
+        16,
+        17
+      ],
+      "confianza": "media",
+      "verificado_contra_fuente": false,
+      "nota": "Prado 120: VX en 265/65R17; algunas TX en 265/70R16. Agregada 1-sep-2026 por pedidos reales en producción (autos anteriores a los rangos de la tabla); confirmar con la medida escrita o la foto."
+    },
+    {
+      "marca": "Toyota",
+      "modelo": "Hilux",
+      "anios": "2005-2015",
+      "medidas_de_fabrica": [
+        {
+          "medida": "265/65R17",
+          "ancho": 265,
+          "perfil": 65,
+          "aro": 17,
+          "diametro_mm": 776.3
+        },
+        {
+          "medida": "225/70R17",
+          "ancho": 225,
+          "perfil": 70,
+          "aro": 17,
+          "diametro_mm": 746.8
+        }
+      ],
+      "aros_de_fabrica": [
+        17
+      ],
+      "confianza": "media",
+      "verificado_contra_fuente": false,
+      "nota": "7ª generación: 4x4 en 265/65R17 (o 225/70R17 en versiones base); el 4x2 chasis usa 205R16C. Agregada 1-sep-2026 por pedidos reales en producción (autos anteriores a los rangos de la tabla); confirmar con la medida escrita o la foto."
+    },
+    {
+      "marca": "Toyota",
+      "modelo": "4Runner",
+      "anios": "2003-2009",
+      "medidas_de_fabrica": [
+        {
+          "medida": "265/70R16",
+          "ancho": 265,
+          "perfil": 70,
+          "aro": 16,
+          "diametro_mm": 777.4
+        },
+        {
+          "medida": "265/65R17",
+          "ancho": 265,
+          "perfil": 65,
+          "aro": 17,
+          "diametro_mm": 776.3
+        }
+      ],
+      "aros_de_fabrica": [
+        16,
+        17
+      ],
+      "confianza": "media",
+      "verificado_contra_fuente": false,
+      "nota": "4ª generación. Agregada 1-sep-2026 por pedidos reales en producción (autos anteriores a los rangos de la tabla); confirmar con la medida escrita o la foto."
+    },
+    {
+      "marca": "Toyota",
+      "modelo": "4Runner",
+      "anios": "1996-2002",
+      "medidas_de_fabrica": [
+        {
+          "medida": "265/70R16",
+          "ancho": 265,
+          "perfil": 70,
+          "aro": 16,
+          "diametro_mm": 777.4
+        },
+        {
+          "medida": "225/75R15",
+          "ancho": 225,
+          "perfil": 75,
+          "aro": 15,
+          "diametro_mm": 718.5
+        }
+      ],
+      "aros_de_fabrica": [
+        15,
+        16
+      ],
+      "confianza": "media",
+      "verificado_contra_fuente": false,
+      "nota": "3ª generación. Agregada 1-sep-2026 por pedidos reales en producción (autos anteriores a los rangos de la tabla); confirmar con la medida escrita o la foto."
+    },
+    {
+      "marca": "Toyota",
+      "modelo": "Yaris sedan",
+      "anios": "2006-2017",
+      "medidas_de_fabrica": [
+        {
+          "medida": "185/60R15",
+          "ancho": 185,
+          "perfil": 60,
+          "aro": 15,
+          "diametro_mm": 603.0
+        },
+        {
+          "medida": "175/65R14",
+          "ancho": 175,
+          "perfil": 65,
+          "aro": 14,
+          "diametro_mm": 583.1
+        }
+      ],
+      "aros_de_fabrica": [
+        14,
+        15
+      ],
+      "confianza": "media",
+      "verificado_contra_fuente": false,
+      "nota": "Sedán (Belta/Vios): 185/60R15 en la mayoría; 175/65R14 en base. Agregada 1-sep-2026 por pedidos reales en producción (autos anteriores a los rangos de la tabla); confirmar con la medida escrita o la foto."
+    },
+    {
+      "marca": "Kia",
+      "modelo": "Sportage",
+      "anios": "2016-2021",
+      "medidas_de_fabrica": [
+        {
+          "medida": "225/60R17",
+          "ancho": 225,
+          "perfil": 60,
+          "aro": 17,
+          "diametro_mm": 701.8
+        },
+        {
+          "medida": "245/45R19",
+          "ancho": 245,
+          "perfil": 45,
+          "aro": 19,
+          "diametro_mm": 703.1
+        },
+        {
+          "medida": "215/70R16",
+          "ancho": 215,
+          "perfil": 70,
+          "aro": 16,
+          "diametro_mm": 707.4
+        }
+      ],
+      "aros_de_fabrica": [
+        16,
+        17,
+        19
+      ],
+      "confianza": "media",
+      "verificado_contra_fuente": false,
+      "nota": "Generación QL. Agregada 1-sep-2026 por pedidos reales en producción (autos anteriores a los rangos de la tabla); confirmar con la medida escrita o la foto."
+    },
+    {
+      "marca": "Kia",
+      "modelo": "Picanto",
+      "anios": "2011-2017",
+      "medidas_de_fabrica": [
+        {
+          "medida": "165/60R14",
+          "ancho": 165,
+          "perfil": 60,
+          "aro": 14,
+          "diametro_mm": 553.6
+        },
+        {
+          "medida": "175/50R15",
+          "ancho": 175,
+          "perfil": 50,
+          "aro": 15,
+          "diametro_mm": 556.0
+        }
+      ],
+      "aros_de_fabrica": [
+        14,
+        15
+      ],
+      "confianza": "media",
+      "verificado_contra_fuente": false,
+      "nota": "Generación TA. Agregada 1-sep-2026 por pedidos reales en producción (autos anteriores a los rangos de la tabla); confirmar con la medida escrita o la foto."
+    },
+    {
+      "marca": "Kia",
+      "modelo": "Picanto",
+      "anios": "2004-2010",
+      "medidas_de_fabrica": [
+        {
+          "medida": "155/70R13",
+          "ancho": 155,
+          "perfil": 70,
+          "aro": 13,
+          "diametro_mm": 547.2
+        },
+        {
+          "medida": "165/60R14",
+          "ancho": 165,
+          "perfil": 60,
+          "aro": 14,
+          "diametro_mm": 553.6
+        }
+      ],
+      "aros_de_fabrica": [
+        13,
+        14
+      ],
+      "confianza": "media",
+      "verificado_contra_fuente": false,
+      "nota": "Generación SA. Agregada 1-sep-2026 por pedidos reales en producción (autos anteriores a los rangos de la tabla); confirmar con la medida escrita o la foto."
+    },
+    {
+      "marca": "Nissan",
+      "modelo": "X-Trail",
+      "anios": "2007-2013",
+      "medidas_de_fabrica": [
+        {
+          "medida": "215/65R16",
+          "ancho": 215,
+          "perfil": 65,
+          "aro": 16,
+          "diametro_mm": 685.9
+        },
+        {
+          "medida": "225/60R17",
+          "ancho": 225,
+          "perfil": 60,
+          "aro": 17,
+          "diametro_mm": 701.8
+        }
+      ],
+      "aros_de_fabrica": [
+        16,
+        17
+      ],
+      "confianza": "media",
+      "verificado_contra_fuente": false,
+      "nota": "Generación T31. Agregada 1-sep-2026 por pedidos reales en producción (autos anteriores a los rangos de la tabla); confirmar con la medida escrita o la foto."
+    },
+    {
+      "marca": "Nissan",
+      "modelo": "Frontier / NP300 (D22)",
+      "anios": "1998-2015",
+      "medidas_de_fabrica": [
+        {
+          "medida": "235/75R15",
+          "ancho": 235,
+          "perfil": 75,
+          "aro": 15,
+          "diametro_mm": 733.5
+        },
+        {
+          "medida": "255/70R15",
+          "ancho": 255,
+          "perfil": 70,
+          "aro": 15,
+          "diametro_mm": 738.0
+        }
+      ],
+      "aros_de_fabrica": [
+        15
+      ],
+      "confianza": "media",
+      "verificado_contra_fuente": false,
+      "nota": "D22: 4x4 en 235/75R15 o 255/70R15; el 4x2 puede usar 205/70R15 o 215/70R15 — confirmar. Agregada 1-sep-2026 por pedidos reales en producción (autos anteriores a los rangos de la tabla); confirmar con la medida escrita o la foto."
+    },
+    {
+      "marca": "Chevrolet",
+      "modelo": "D-Max",
+      "anios": "2003-2012",
+      "medidas_de_fabrica": [
+        {
+          "medida": "245/70R16",
+          "ancho": 245,
+          "perfil": 70,
+          "aro": 16,
+          "diametro_mm": 749.4
+        },
+        {
+          "medida": "225/75R16",
+          "ancho": 225,
+          "perfil": 75,
+          "aro": 16,
+          "diametro_mm": 743.9
+        }
+      ],
+      "aros_de_fabrica": [
+        16
+      ],
+      "confianza": "media",
+      "verificado_contra_fuente": false,
+      "nota": "1ª generación: 4x4 en 245/70R16; 4x2 en 225/75R16 o 205/75R16 — confirmar. Agregada 1-sep-2026 por pedidos reales en producción (autos anteriores a los rangos de la tabla); confirmar con la medida escrita o la foto."
+    },
+    {
+      "marca": "Mazda",
+      "modelo": "BT-50",
+      "anios": "2007-2012",
+      "medidas_de_fabrica": [
+        {
+          "medida": "245/70R16",
+          "ancho": 245,
+          "perfil": 70,
+          "aro": 16,
+          "diametro_mm": 749.4
+        },
+        {
+          "medida": "235/75R15",
+          "ancho": 235,
+          "perfil": 75,
+          "aro": 15,
+          "diametro_mm": 733.5
+        }
+      ],
+      "aros_de_fabrica": [
+        15,
+        16
+      ],
+      "confianza": "media",
+      "verificado_contra_fuente": false,
+      "nota": "1ª generación (base Ranger): 4x4 en 245/70R16; 4x2 en 235/75R15 — confirmar. Agregada 1-sep-2026 por pedidos reales en producción (autos anteriores a los rangos de la tabla); confirmar con la medida escrita o la foto."
+    }
+  ],
+  "advertencia_de_exactitud": {
+    "estado": "NO VERIFICADO en su mayoria",
+    "detalle": "Solo Hyundai Creta fue contrastado contra una base de fitment externa. El resto proviene de conocimiento general de los modelos, no de una fuente verificada version por version. Las versiones que entran a Ecuador varian por ano, trim y lote de importacion.",
+    "significado_de_confianza": {
+      "alta": "Medida de fabrica ampliamente conocida y estable entre versiones. Igual se confirma con el cliente antes de cotizar.",
+      "media": "Varia segun version o ano. Confirmar SIEMPRE con el cliente.",
+      "baja": "Estimacion. No cotizar sobre esta fila sin confirmacion del cliente."
+    },
+    "regla_dura": "La tabla es una AYUDA para orientar la conversacion, nunca la fuente final. Antes de cotizar, el agente confirma la medida con el cliente: foto del flanco de la llanta o de la etiqueta en el marco de la puerta del conductor.",
+    "como_verificar_de_verdad": [
+      "1. Historial propio: cada venta cerrada con medida confirmada en Kommo o WhatsApp es un dato real del mercado ecuatoriano. Es la mejor fuente y ya la tienen.",
+      "2. API de fitment: wheel-size.com ofrece una API de ajuste por vehiculo (developer.wheel-size.com). Reemplaza esta tabla estatica por una consulta en vivo y elimina el problema de mantenimiento.",
+      "3. Catalogos de los distribuidores de marca en Ecuador para las versiones locales."
+    ]
+  },
+  "actualizado": "2026-09-01: +13 fichas de autos anteriores a los rangos originales (pedidos reales de producción), Sportage QL/NQ5 separados, X-Trail desde 2014."
 }

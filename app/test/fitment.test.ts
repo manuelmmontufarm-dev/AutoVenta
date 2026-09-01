@@ -69,3 +69,32 @@ describe("researchVehicleFitment con aro del cliente", () => {
     expect(r.nextQuestion).toMatch(/foto/i);
   });
 });
+
+/**
+ * La tabla con confianza MEDIA también contesta (1-sep-2026). Antes solo
+ * pasaba «alta» y el Grand Vitara SZ —en la tabla, con las medidas
+ * correctas— se iba a la web.
+ */
+describe("researchVehicleFitment con ficha de confianza media", () => {
+  it("Suzuki SZ 2016 sale de la tabla, como referencia y pidiendo la medida", async () => {
+    const r = await researchVehicleFitment("Suzuki", "SZ", 2016, null);
+    expect(r.provider).toBe("curated");
+    expect(r.status).toBe("reference");
+    expect(r.sizes).toEqual(["225/65R17", "225/70R16"]);
+    expect(r.candidatos.every((c) => c.confianza === "media")).toBe(true);
+    expect(r.nextQuestion).toMatch(/medida/);
+  });
+
+  it("con el aro del cliente se queda con la de ese aro, sin subir la confianza", async () => {
+    const r = await researchVehicleFitment("Suzuki", "Gran Vitara", 2016, 16);
+    expect(r.sizes).toEqual(["225/70R16"]);
+    expect(r.status).toBe("reference");
+    expect(r.candidatos[0].confianza).toBe("media");
+  });
+
+  it("un Fortuner 2010 ya tiene ficha (rango ampliado)", async () => {
+    const r = await researchVehicleFitment("Toyota", "Fortuner", 2010, null);
+    expect(r.provider).toBe("curated");
+    expect(r.sizes).toContain("265/65R17");
+  });
+});

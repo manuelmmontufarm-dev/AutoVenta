@@ -151,7 +151,7 @@ export function promptCandidatosFitment(vehicle: string, aro: number | null | un
     `y devuelve ese candidato con confianza "baja" explicando en "porque" de dónde lo sacaste. ` +
     `Niveles: "alta" = ficha oficial del fabricante para ese año y esa versión; ` +
     `"media" = fuente secundaria confiable, o ficha oficial de una versión que no confirmaste que sea la del cliente; ` +
-    `"baja" = inferido por analogía. ` +
+    `"baja" = inferido por analogía. Un candidato "baja" NO se le ofrece al cliente como opción (solo orienta al vendedor), así que no infles la confianza para que aparezca: mejor "baja" honesta que "media" adivinada. ` +
     `Escribe cada medida en formato 235/45R19. Máximo 4 candidatos, ordenados de más a menos probable para ESTE cliente. ` +
     `"nota" = una línea con el límite de lo que sabes, redactada para que el vendedor se la diga al cliente tal cual. ` +
     `"siguiente_pregunta" = UNA sola pregunta que discrimine entre los candidatos (versión, motor). ` +

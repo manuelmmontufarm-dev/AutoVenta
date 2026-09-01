@@ -251,21 +251,64 @@ describe("candado de fitment_vehiculo", () => {
       expect(r.origen_opciones).toBe("medida_cercana");
       expect(r.opciones.map((o: { code: string }) => o.code)).toContain("FAL-225");
       // El vendedor tiene que saber que NO son las de fábrica.
-      expect(r.regla).toContain("cercanas");
+      expect(r.regla).toContain("equivalentes");
     });
   });
 
-  describe("escalón (d): no hay ni medida ni aro", () => {
-    it("muestra stock real en vez de cerrar el turno con una pregunta", async () => {
+  /**
+   * ESCALÓN (d) RETIRADO (Manuel, 1-sep-2026): «que no dé llantas que con las
+   * justas le van a entrar o nada que ver». Sin medida confiable ni aro, una
+   * llanta cualquiera del stock no es una opción — es ruido con precio. Lo que
+   * toca es pedir la medida (o la foto), y la regla lo dice.
+   */
+  describe("sin medida confiable ni aro: se calla y pide la medida", () => {
+    it("no manda una muestra al azar", async () => {
       catalogo = [llanta({ code: "FAL-16", brand: "FALKEN", size: R16_205_65 })];
       investigacion = resultado({ status: "not_found", sizes: [] });
 
       const r = await correrFitment({ marca: "Marca", modelo: "Inventada", anio: null, aro: null });
 
-      expect(r.origen_opciones).toBe("muestra_del_stock");
+      expect(r.opciones).toEqual([]);
+      expect(r.origen_opciones).toBeNull();
+      expect(r.regla).toMatch(/NO mandes una muestra/);
+      expect(r.regla).toMatch(/medida completa/);
+    });
+
+    it("una medida de confianza BAJA no se convierte en opciones", async () => {
+      catalogo = [llanta({ code: "FAL-235", brand: "FALKEN", size: R19_235_45 })];
+      investigacion = resultado({
+        status: "ambiguous",
+        sizes: ["235/45R19"],
+        candidatos: [{ medida: "235/45R19", confianza: "baja", porque: "por analogía con otro mercado" }],
+      });
+
+      const r = await correrFitment({ marca: "Hyundai", modelo: "Creta", anio: 2027, aro: null });
+
+      expect(r.opciones).toEqual([]);
+      expect(r.medidas_descartadas_por_confianza).toEqual(["235/45R19"]);
+      expect(r.regla).toContain("confianza BAJA");
+    });
+
+    it("una equivalente con más del 3 % de diámetro no es equivalente", async () => {
+      // 255/50R19 mide 737.6 mm; 235/45R19 mide 694.1 mm: 6 % de diferencia.
+      catalogo = [llanta({ code: "GIT-255", brand: "GITI", size: R19_255_50 })];
+      investigacion = resultado({ sizes: ["235/45R19"] });
+
+      const r = await correrFitment({ marca: "Hyundai", modelo: "Creta", anio: 2027, aro: null });
+
+      expect(r.opciones).toEqual([]);
+      expect(r.origen_opciones).toBeNull();
+    });
+
+    it("con medida deducida, la regla prohíbe cotizar en ese turno", async () => {
+      catalogo = [llanta({ code: "FAL-235", brand: "FALKEN", size: R19_235_45 })];
+      investigacion = resultado({ sizes: ["235/45R19"] });
+
+      const r = await correrFitment({ marca: "Hyundai", modelo: "Creta", anio: 2027, aro: 19 });
+
       expect(r.opciones.length).toBeGreaterThanOrEqual(1);
-      // Es una muestra, no una recomendación para ese carro: la regla lo exige.
-      expect(r.regla).toContain("MUESTRA");
+      expect(r.regla).toMatch(/PROHIBIDO llamar generar_cotizacion/);
+      expect(r.regla).toMatch(/medida completa/);
     });
   });
 
@@ -274,8 +317,9 @@ describe("candado de fitment_vehiculo", () => {
       { nombre: "medida investigada con stock", sizes: ["235/45R19"], aro: 19, estado: "reference" as const },
       { nombre: "medida investigada sin stock, con aro", sizes: ["185/60R14"], aro: 19, estado: "reference" as const },
       { nombre: "sin medida, con aro", sizes: [], aro: 19, estado: "not_found" as const },
-      { nombre: "sin medida, sin aro", sizes: [], aro: null, estado: "not_found" as const },
-      { nombre: "medida de otro aro, sin aro del cliente", sizes: ["185/60R14"], aro: null, estado: "ambiguous" as const },
+      // «sin medida, sin aro» y «medida de otro aro sin aro del cliente» salieron
+      // de esta lista el 1-sep-2026: ahí el candado ya no promete opciones,
+      // promete pedir la medida (ver «se calla y pide la medida»).
     ];
 
     for (const escenario of escenarios) {

@@ -112,6 +112,8 @@ import { fechaDelDia } from "../domain/customerCommitment.js";
 import type { StoreHours } from "../services/settings.js";
 import { resendLatestQuoteImage } from "../services/directSalesRoutes.js";
 import { restriccionesDeLlanta, violaRestriccionesDeLlanta } from "../domain/restriccionesLlanta.js";
+import type { CandidatoFitment } from "../domain/fitmentResearch.js";
+import type { FitmentResearchResult } from "../services/vehicleFitmentResearch.js";
 
 export interface AgentContext {
   conversation: Conversation;
@@ -133,6 +135,13 @@ export interface AgentContext {
   /** `preparar_opciones` entregó una recomendación con precio en este turno:
    *  la cotización de 4 sale sola, sin pedir permiso (Manuel, 31-ago). */
   recomendacionEntregada?: boolean;
+  /**
+   * La medida en juego la dedujo el bot (por vehículo o por aro) y el cliente
+   * no la escribió ni la mandó en foto. Con esto puesto se muestran opciones
+   * pero NO se cotiza: se pide la medida (Manuel, 1-sep, conv 13862).
+   * Lo calcula `agent.ts` con `medidaConfirmadaPorCliente`.
+   */
+  medidaSinConfirmar?: boolean;
   /** La intención activa es un servicio fuera del catálogo de llantas. */
   consultaFueraDeCatalogo?: boolean;
   comparedThisTurn?: boolean;
@@ -461,13 +470,48 @@ type OrigenOpciones = "medida_investigada" | "aro_del_cliente" | "medida_cercana
  * al menos una opción; no hay stock ⇒ `[]` y `origen: null`. El candado promete
  * no callarse teniendo qué vender, no promete tener qué vender.
  */
+/** Diámetro exterior en mm: aro + dos veces el flanco. */
+function diametroMm(size: TireSize): number {
+  return size.rim * 25.4 + 2 * size.width * ((size.aspect ?? 0) / 100);
+}
+
+/**
+ * ±3 % de diámetro es lo que el propio archivo del negocio declara como
+ * equivalencia aceptable (`motor_equivalencia`). Fuera de eso la llanta
+ * «con las justas entra» o no tiene nada que ver, y eso ya no se ofrece
+ * (Manuel, 1-sep-2026).
+ */
+const TOLERANCIA_DIAMETRO = 0.03;
+function equivaleEnDiametro(a: TireSize, b: TireSize): boolean {
+  const da = diametroMm(a);
+  const db = diametroMm(b);
+  return Math.abs(da - db) / da <= TOLERANCIA_DIAMETRO;
+}
+
 async function opcionesDeFitment(
-  medidas: readonly string[],
+  resultado: Pick<FitmentResearchResult, "sizes" | "candidatos">,
   aro: number | null,
-): Promise<{ opciones: CatalogItem[]; origen: OrigenOpciones | null; medidasConStock: string[]; medidasAgotadas: string[] }> {
+): Promise<{
+  opciones: CatalogItem[];
+  origen: OrigenOpciones | null;
+  medidasConStock: string[];
+  medidasAgotadas: string[];
+  /** Medidas que la investigación trajo con confianza baja: no se ofrecen. */
+  medidasDescartadas: string[];
+}> {
   await ensureCatalogReady();
-  const parseadas = medidas
-    .map((etiqueta) => ({ etiqueta, size: parseTireSize(etiqueta) }))
+  // Los proveedores reales llenan `candidatos`; si solo hay `sizes` (fixtures
+  // viejos) se toman como confianza media para no perderlas.
+  const candidatos: CandidatoFitment[] = resultado.candidatos.length
+    ? resultado.candidatos
+    : resultado.sizes.map((medida) => ({ medida, confianza: "media" as const, porque: "" }));
+  // SOLO LO QUE SE PUEDE DECIR CON CONFIANZA (Manuel, 1-sep-2026): una medida
+  // «baja» —inferida por analogía— no se convierte en llantas en la pantalla
+  // del cliente. Se reporta aparte para que el vendedor sepa que existe.
+  const medidasDescartadas = candidatos.filter((c) => c.confianza === "baja").map((c) => c.medida);
+  const parseadas = candidatos
+    .filter((c) => c.confianza !== "baja")
+    .map((c) => ({ etiqueta: c.medida, size: parseTireSize(c.medida) }))
     .filter((m): m is { etiqueta: string; size: TireSize } => m.size !== null);
 
   const listasDisponibles: CatalogItem[][] = [];
@@ -486,7 +530,7 @@ async function opcionesDeFitment(
   }
 
   const porMedida = tresOpciones(sinRepetir(...listasDisponibles));
-  if (porMedida.length) return { opciones: porMedida, origen: "medida_investigada", medidasConStock, medidasAgotadas };
+  if (porMedida.length) return { opciones: porMedida, origen: "medida_investigada", medidasConStock, medidasAgotadas, medidasDescartadas };
 
   if (aro) {
     // Se filtra por stock ANTES de elegir las tres: `opcionesEnAro` comparte
@@ -494,26 +538,30 @@ async function opcionesDeFitment(
     // filtrara después, un escalón de marca cuya única llanta está en cero
     // dejaría fuera a la disponible de ese mismo escalón.
     const delAro = tresOpciones(conStock(opcionesEnAro(aro, null).enElAro));
-    if (delAro.length) return { opciones: delAro, origen: "aro_del_cliente", medidasConStock, medidasAgotadas };
+    if (delAro.length) return { opciones: delAro, origen: "aro_del_cliente", medidasConStock, medidasAgotadas, medidasDescartadas };
   }
 
-  // `searchAlternatives` ya filtra stock en el catálogo real; se vuelve a
-  // filtrar para que la invariante no dependa de las tripas de esa búsqueda.
-  const cercanas = tresOpciones(conStock(sinRepetir(...parseadas.map(({ size }) => searchAlternatives(size)))));
-  if (cercanas.length) return { opciones: cercanas, origen: "medida_cercana", medidasConStock, medidasAgotadas };
+  // Equivalentes de verdad: mismo aro Y diámetro dentro del ±3 %. Antes bastaba
+  // el mismo aro con ±10 mm de ancho, y así salía una 255/50 «por» una 235/45.
+  const cercanas = tresOpciones(conStock(sinRepetir(
+    ...parseadas.map(({ size }) => searchAlternatives(size).filter((item) => item.size !== null && equivaleEnDiametro(item.size, size))),
+  )));
+  if (cercanas.length) return { opciones: cercanas, origen: "medida_cercana", medidasConStock, medidasAgotadas, medidasDescartadas };
 
-  const muestra = muestraDelStock();
-  return { opciones: muestra, origen: muestra.length ? "muestra_del_stock" : null, medidasConStock, medidasAgotadas };
+  // Ya no hay «muestra del stock» por esta puerta: una llanta que no tiene
+  // nada que ver con el carro no es una opción, es ruido con precio. Sin
+  // medida confiable ni aro, lo que toca es pedir la medida (o la foto).
+  return { opciones: [], origen: null, medidasConStock, medidasAgotadas, medidasDescartadas };
 }
 
 /** Qué puede afirmar el vendedor sobre unas opciones, según de dónde salieron. */
 const REGLA_POR_ORIGEN: Record<OrigenOpciones, string> = {
   medida_investigada:
-    "Estas opciones SON de la medida investigada. Mándalas ya con preparar_opciones (una premium, una de equilibrio, una económica) y di en UNA línea que la medida se confirma al instalar.",
+    "Estas opciones SON de la medida que más usa ese vehículo. Mándalas ya con preparar_opciones (una premium, una de equilibrio, una económica). La medida la dedujiste tú, no la dio el cliente: PROHIBIDO generar_cotizacion en este turno; el cierre pide la medida escrita del filo de la llanta o una foto del costado, y con ella cotizas.",
   aro_del_cliente:
-    "La investigación no dio una medida con stock, pero el cliente dijo su ARO y estas opciones son de ese aro. Ofrécelas como lo que son —opciones de su aro— y de paso pídele la medida exacta. No afirmes que son las de fábrica de su vehículo.",
+    "La investigación no dio una medida con stock, pero el cliente dijo su ARO y estas opciones son de ese aro. Ofrécelas como lo que son —opciones de su aro— y pídele la medida completa. No afirmes que son las de fábrica de su vehículo y NO cotices hasta tenerla.",
   medida_cercana:
-    "No hay stock de las medidas investigadas. Estas son las medidas más cercanas que SÍ existen. Dilo tal cual: son parecidas, no las de fábrica, y hay que confirmar en el local antes de montar.",
+    "No hay stock de las medidas investigadas. Estas son equivalentes de verdad (mismo aro, diámetro dentro del 3 %). Dilo tal cual: son equivalentes, no las de fábrica, y pide la medida escrita o la foto antes de cotizar.",
   muestra_del_stock:
     "Esto es una MUESTRA del stock, no una recomendación para ese vehículo. Mándala solo para que vea marcas y precios, y en la misma respuesta pide la medida o la foto del costado.",
 };
@@ -1140,7 +1188,7 @@ export function buildTools(ctx: AgentContext) {
       const vehicle = `${marca} ${modelo}${anio ? ` ${anio}` : ""}`.trim();
       await updateConversationFacts(ctx.conversation.id, { vehicle, ...(anio ? { vehicleYear: anio } : {}) });
       const result = await researchVehicleFitment(marca, modelo, anio, aro);
-      const { opciones, origen, medidasConStock, medidasAgotadas } = await opcionesDeFitment(result.sizes, aro);
+      const { opciones, origen, medidasConStock, medidasAgotadas, medidasDescartadas } = await opcionesDeFitment(result, aro);
 
       // El caso «o rin 15 o rin 17». Solo se calcula cuando el cliente NO dijo
       // su aro: si lo dijo, la ambigüedad ya la resolvió él y recordársela sería
@@ -1169,11 +1217,17 @@ export function buildTools(ctx: AgentContext) {
         fuentes: result.sources,
         medidas_con_stock: medidasConStock,
         medidas_agotadas: medidasAgotadas,
+        medidas_descartadas_por_confianza: medidasDescartadas,
         opciones: opciones.map(toolItem),
         origen_opciones: origen,
         siguiente_pregunta: result.nextQuestion,
         regla: [
-          "PROHIBIDO cerrar el turno con la limitación y una pregunta sola: en 'opciones' ya tienes llantas reales del catálogo, listas para preparar_opciones sin volver a buscar.",
+          opciones.length
+            ? "En 'opciones' ya tienes llantas reales del catálogo, listas para preparar_opciones sin volver a buscar: mándalas. PROHIBIDO llamar generar_cotizacion en este turno — la medida salió del vehículo, no del cliente — y PROHIBIDO cerrar con el menú de preferencia: el cierre pide la medida completa (escrita del filo de la llanta, ej. 225/65R17, o una foto del costado). Cuando la mande, búscala con buscar_llanta y ahí sí cotizas."
+            : "No hay una medida confiable para ese vehículo en el catálogo con stock. NO mandes una muestra al azar ni cotices: pide la medida completa escrita del filo de la llanta (ej. 225/65R17) o una foto del costado; si el cliente no la ubica, manda guia_medida. Ofrece también pasar por el local a medirla.",
+          medidasDescartadas.length
+            ? `Medidas que la investigación trajo con confianza BAJA y por eso NO se ofrecen: ${medidasDescartadas.join(", ")}. No las nombres como si fueran las de su carro.`
+            : null,
           reglaOrigen,
           result.sources.length ? "Menciona la fuente cuando afirmes una medida." : null,
           // El aro ambiguo se resuelve en el local, no por chat: preguntar la
@@ -1602,11 +1656,20 @@ export function buildTools(ctx: AgentContext) {
       const dijoSuUso = [ctx.currentUserText, ...inbound.map((m) => m.content)].some((texto) =>
         describeUso(texto ?? ""),
       );
+      // PEDIR RECOMENDACIÓN O CONTAR EL USO TAMPOCO CUENTAN (Manuel, 1-sep, conv
+      // 13862 «Suzuki SZ 2016, ¿qué llantas me recomienda?»): el turno mandaba
+      // opciones Y cotización. Ahora son dos decisiones distintas: el texto
+      // ENTREGA la recomendación (el cliente la pidió, no se le repregunta),
+      // pero la cotización solo la AUTORIZA pedirla con todas sus letras o
+      // contestar el menú de preferencia. Y nunca con la medida sin confirmar.
       const entregarRecomendacion =
         pidioCotizacionExplicita(ctx.currentUserText) ||
         pideRecomendacion(ctx.currentUserText) ||
         dijoSuUso ||
         preferencia !== null;
+      const autorizaCotizar =
+        !ctx.medidaSinConfirmar &&
+        (pidioCotizacionExplicita(ctx.currentUserText) || preferencia !== null);
       // Si contestó la preferencia, la recomendada ES la de ese escalón — no
       // la que eligió el modelo: «la más barata» no admite otra respuesta.
       const porPreferencia = preferencia
@@ -1630,7 +1693,7 @@ export function buildTools(ctx: AgentContext) {
       // La recomendación entregada AUTORIZA la cotización de este turno: el
       // cliente ya dio la señal (precio, recomendación, uso o menú) y la
       // política del corpus permite el juego de 4 como propuesta.
-      if (entregarRecomendacion) ctx.recomendacionEntregada = true;
+      if (autorizaCotizar) ctx.recomendacionEntregada = true;
       return JSON.stringify({
         imagen_enviada: visual.ok,
         ...(avisoTipo ? { aviso: avisoTipo } : {}),
@@ -1638,7 +1701,7 @@ export function buildTools(ctx: AgentContext) {
         medidas_mostradas: medidasMostradas,
         recomendacion,
         motivo_recomendacion: motivoLimpio,
-        recomendacion_entregada: entregarRecomendacion,
+        recomendacion_entregada: autorizaCotizar,
         escalones,
         mensaje_para_enviar: composeBlocks(
           (await soloLaFoto(visual.ok))
@@ -1649,6 +1712,8 @@ export function buildTools(ctx: AgentContext) {
           beneficios,
           buildCierreOpciones({
             entregarRecomendacion,
+            ofrecerCotizar: entregarRecomendacion && !autorizaCotizar,
+            pedirMedida: Boolean(ctx.medidaSinConfirmar),
             recomendacion,
             motivo: motivo.trim().replace(/\.$/, ""),
             precioConIva: entregada.minimumPriceWithTax ?? null,
@@ -1670,8 +1735,12 @@ export function buildTools(ctx: AgentContext) {
         ),
         regla: [
           "Responde usando exactamente mensaje_para_enviar, con sus separadores '---' intactos. No sumes alternativas ni repitas en texto lo que ya muestra la imagen.",
-          entregarRecomendacion
-            ? "El cliente YA pidió la cotización, pidió recomendación, dijo su uso o contestó su preferencia: el texto le entrega la recomendación y AHORA MISMO, EN ESTE MISMO TURNO, llamas generar_cotizacion por `recomendacion` con 4 llantas (o la cantidad que el cliente haya dicho). PROHIBIDO preguntarle si la quiere y PROHIBIDO terminar el turno sin la cotización: ya te dio la señal."
+          ctx.medidaSinConfirmar
+            ? "LA MEDIDA DE ESTAS OPCIONES NO LA CONFIRMÓ EL CLIENTE (salió del vehículo o del aro): el texto ya cierra pidiendo la medida escrita o la foto. PROHIBIDO llamar generar_cotizacion en este turno y PROHIBIDO ofrecer el menú de preferencia. Cuando el cliente mande la medida, búscala con buscar_llanta y cotiza."
+            : autorizaCotizar
+            ? "El cliente YA pidió la cotización o contestó su preferencia: el texto le entrega la recomendación y AHORA MISMO, EN ESTE MISMO TURNO, llamas generar_cotizacion por `recomendacion` con 4 llantas (o la cantidad que el cliente haya dicho). PROHIBIDO preguntarle si la quiere y PROHIBIDO terminar el turno sin la cotización: ya te dio la señal."
+            : entregarRecomendacion
+            ? "El cliente pidió recomendación o contó su uso: el texto ya le entrega la recomendación y le ofrece cotizarla. NO llames generar_cotizacion todavía: la cotización sale cuando el cliente diga que sí, la pida, dé cantidad o elija del menú."
             : "NO adelantes la recomendación en este turno: el texto cierra con el menú de preferencia (1 Costo / 2 Equilibrio / 3 Premium). Si el cliente responde «1», «2», «3», «costo», «equilibrio», «premium» (o «la más barata», «la del medio», «la mejor»), entrega la opción de ESE escalón de `escalones` — nombre y precio con IVA — y ofrece cotizarla por 4 llantas, sin volver a preguntar nada. Si responde un sí genérico, dile en UNA frase que irías por `recomendacion` porque `motivo_recomendacion`.",
           // La única excepción a «no agregues texto»: avisar que la medida no
           // es la suya. Callarlo es lo que terminó en una cotización firmada
@@ -1873,6 +1942,15 @@ export function buildTools(ctx: AgentContext) {
         select selected_quantity, tire_size from conversations where id=${ctx.conversation.id}
       `;
       const quantityWasConfirmed = facts?.selected_quantity != null || items[0]?.cantidad === 4;
+      // SIN MEDIDA DEL CLIENTE NO HAY COTIZACIÓN (Manuel, 1-sep, conv 13862):
+      // la medida la dedujo el bot por el vehículo o por el aro. Se muestran
+      // opciones, se pide la medida, y se cotiza recién cuando la manda.
+      if (ctx.medidaSinConfirmar) {
+        return JSON.stringify({
+          error:
+            "Cotización bloqueada: la medida de estas llantas la dedujo el bot (por vehículo o por aro) y el cliente todavía no la confirmó. No cotices. Si aún no le mostraste opciones, muéstralas con preparar_opciones; y pide la medida completa del filo de la llanta (ej. 225/65R17) o una foto del costado — si no la ubica, manda guia_medida. En cuanto la mande, búscala con buscar_llanta y ahí sí cotizas.",
+        });
+      }
       const autorizada = !ctx.consultaFueraDeCatalogo && (
         Boolean(ctx.recomendacionEntregada)
         || autorizaCotizacionEnEsteTurno(ctx.currentUserText, Boolean(ctx.aceptoCotizacion))
