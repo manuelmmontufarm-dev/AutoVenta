@@ -71,10 +71,10 @@ import { arosDeCandidatos, arosDeMedidas, invitacionPorAroAmbiguo } from "../dom
 import { aroVigenteDeLaVisita, rangoDeAros } from "../domain/aros.js";
 import { nearestStore, resolveSector } from "../domain/locations.js";
 import { extractFlotationSizes, formatFlotationSize, formatTireSize, parseTireSize, type TireSize } from "../domain/tireSize.js";
-import { marcaPreguntada, ultimaMarcaPedida } from "../domain/consultaConRespaldo.js";
+import { marcaPreguntada, pidioCotizacionExplicita, ultimaMarcaPedida } from "../domain/consultaConRespaldo.js";
 import {
   autorizaCotizacionEnEsteTurno, canGenerateFinalQuote, cantidadParaPrepararOpciones, describeUso, escalonesDeOpciones,
-  pidePrecio, pideRecomendacion, respuestaDePreferencia,
+  pideRecomendacion, respuestaDePreferencia,
 } from "../domain/salesIntent.js";
 import { getTirePatternProfile } from "../domain/tireKnowledge.js";
 import {
@@ -1576,15 +1576,22 @@ export function buildTools(ctx: AgentContext) {
           )
         : null;
       // La recomendación se entrega en este mismo turno cuando el cliente ya
-      // preguntó el precio, ya pidió que le recomienden, ya contó PARA QUÉ la
-      // quiere (familia 2 del guardián: «¿necesita recomendación?» con la
-      // recomendación ya preparada), o ya contestó la pregunta de preferencia.
+      // pidió la cotización con todas sus letras, ya pidió que le recomienden,
+      // ya contó PARA QUÉ la quiere (familia 2 del guardián: «¿necesita
+      // recomendación?» con la recomendación ya preparada), o ya contestó la
+      // pregunta de preferencia.
+      //
+      // PREGUNTAR EL PRECIO YA NO CUENTA (Manuel, 1-sep, conv 13615 «Favor
+      // costo de las 235/60 R 18»): el turno mandaba opciones Y cotización a la
+      // vez, sin dejar al cliente elegir. El precio lo responde la propia pieza
+      // de opciones (trae los precios de las tres); el flujo es opciones →
+      // el cliente elige escalón → recién ahí la cotización.
       const preferencia = respuestaDePreferencia(ctx.currentUserText);
       const dijoSuUso = [ctx.currentUserText, ...inbound.map((m) => m.content)].some((texto) =>
         describeUso(texto ?? ""),
       );
       const entregarRecomendacion =
-        pidePrecio(ctx.currentUserText) ||
+        pidioCotizacionExplicita(ctx.currentUserText) ||
         pideRecomendacion(ctx.currentUserText) ||
         dijoSuUso ||
         preferencia !== null;
@@ -1652,7 +1659,7 @@ export function buildTools(ctx: AgentContext) {
         regla: [
           "Responde usando exactamente mensaje_para_enviar, con sus separadores '---' intactos. No sumes alternativas ni repitas en texto lo que ya muestra la imagen.",
           entregarRecomendacion
-            ? "El cliente YA pidió precio, recomendación, dijo su uso o contestó su preferencia: el texto le entrega la recomendación y AHORA MISMO, EN ESTE MISMO TURNO, llamas generar_cotizacion por `recomendacion` con 4 llantas (o la cantidad que el cliente haya dicho). PROHIBIDO preguntarle si la quiere y PROHIBIDO terminar el turno sin la cotización: ya te dio la señal."
+            ? "El cliente YA pidió la cotización, pidió recomendación, dijo su uso o contestó su preferencia: el texto le entrega la recomendación y AHORA MISMO, EN ESTE MISMO TURNO, llamas generar_cotizacion por `recomendacion` con 4 llantas (o la cantidad que el cliente haya dicho). PROHIBIDO preguntarle si la quiere y PROHIBIDO terminar el turno sin la cotización: ya te dio la señal."
             : "NO adelantes la recomendación en este turno: el texto cierra con el menú de preferencia (1 Costo / 2 Equilibrio / 3 Premium). Si el cliente responde «1», «2», «3», «costo», «equilibrio», «premium» (o «la más barata», «la del medio», «la mejor»), entrega la opción de ESE escalón de `escalones` — nombre y precio con IVA — y ofrece cotizarla por 4 llantas, sin volver a preguntar nada. Si responde un sí genérico, dile en UNA frase que irías por `recomendacion` porque `motivo_recomendacion`.",
           // La única excepción a «no agregues texto»: avisar que la medida no
           // es la suya. Callarlo es lo que terminó en una cotización firmada

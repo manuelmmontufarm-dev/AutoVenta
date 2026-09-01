@@ -27,6 +27,58 @@ corrida entera con un JSON vacío; quedó en 4000. Dos casos viejos del script
 también SIN estos cambios — flakiness preexistente, anotado aquí para no
 perseguirlo como regresión.
 
+## 1-sep-2026 · Las piezas del chat del hub se ven de nuevo: el visor manda la clave
+
+**Qué:** En el hub, la cotización y las opciones dentro del chat salían como
+tarjeta de documento muerta («PDF · 1 página · toca para ver» que no abría
+nada). La pieza ahora se pide con `fetch` y los headers de autenticación del
+hub (`authHeaders()`: el Bearer de la sesión o la x-admin-key) y se muestra
+como blob, con un lienzo de carga para que el chat no salte. Verificado en el
+navegador contra el bot del simulador corriendo con ADMIN_KEY puesta: la pieza
+de opciones y la de cotización se ven en la burbuja y se amplían encima del
+chat.
+
+**Por qué:** El componente metía la pieza con un `<img src="/api/hub/messages/
+…/pieza.png">` plano, y un `<img>` no manda headers: en producción —donde
+ADMIN_KEY siempre está— cada pieza respondía 401, saltaba el `onError` y
+quedaba la tarjeta de respaldo. En local sin clave el `<img>` pasaba, por eso
+no se vio antes de desplegar.
+
+**Horas:** ~1
+
+## 1-sep-2026 · Preguntar el precio ya no firma la cotización: opciones primero, elegir, y recién ahí cotizar
+
+**Qué:** El pedido de Manuel viendo la conv 13615 (Hugo, «Favor costo de las
+235/60 R 18»): el bot mandó las opciones Y la cotización COT-MTIWP1SI en el
+mismo turno, sin dejarlo elegir. Ahora preguntar el precio deja de contar como
+señal de cotizar en tres lugares: `preparar_opciones` ya no entrega la
+recomendación por `pidePrecio` (solo por pedido explícito de cotización,
+pedido de recomendación, uso contado o preferencia contestada), la puerta
+`autorizaCotizacionEnEsteTurno` ya no acepta `pidePrecio`, y el guardián
+recibe el hecho duro «opciones recién mostradas sin elección» con la categoría
+nueva `cotizacion_sin_eleccion` en la rúbrica. El precio no se queda sin
+responder: la pieza de opciones trae los precios de los tres escalones y el
+turno cierra con el menú de preferencia; la cotización sale cuando el cliente
+contesta (verificado en el simulador: «2» → cotiza el KENDA KR605, $605.56,
+mismo producto y total que producción). «Mándame una cotización» explícito
+sigue cotizando en el mismo turno (T115 Q06 intacto, verificado también).
+
+**Por qué:** El flujo de venta que Manuel quiere es conversacional: opciones →
+el cliente dice qué prioriza → la cotización del escalón elegido. Cotizar de
+una sobre una pregunta de precio elige la llanta POR el cliente y quema el
+turno de la elección. La causa raíz no era el modelo: `pidePrecio` estaba
+cableado como autorización en la tool y en la puerta, y la vuelta forzada de
+`agent.ts` OBLIGABA a cotizar en ese mismo turno.
+
+De pasada, dos huecos reales que la prueba destapó: el chequeo de «cotización
+con todas sus letras» en `autorizaCotizacionEnEsteTurno` tenía \x08
+(backspace) donde debía decir \b — nunca matcheó nada desde que se escribió;
+lo tapaba `pidePrecio` — y «Quiero más información» disparaba el verbo
+«quiero» como si fuera la elección de una llanta. Los dos quedaron arreglados
+y con prueba.
+
+**Horas:** ~2
+
 ## 31-ago-2026 · La misma pregunta dos veces en el mismo turno
 
 **Qué:** Paso nuevo `sin_pregunta_repetida_en_el_turno`, entre el que separa la
@@ -249,6 +301,8 @@ Ya viene activado en este equipo.
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
 | 2026-09-01 | _(este mismo)_ | «No hay A/T» teniendo 89 en bodega: recorte por tipo, re-búsqueda obligada y guardián con tipos | 2.0 |
+| 2026-09-01 | _(este mismo)_ | Las piezas del chat del hub se ven de nuevo (auth del visor) | 1 |
+| 2026-09-01 | _(este mismo)_ | Preguntar el precio ya no firma la cotización: opciones, elegir, cotizar | 2 |
 | 2026-08-31 | _(este mismo)_ | La misma pregunta dos veces en el mismo turno | 0.75 |
 | 2026-08-31 | _(este mismo)_ | Los tres errores del chat de Manuel: calco tras el guardián, medida rechazada y «no puedo esos días» | 2.5 |
 | 2026-08-29 | _(este mismo)_ | El embudo del Pipeline cabe entero en el teléfono, sin arrastrar | 0.75 |

@@ -158,7 +158,11 @@ export const PREGUNTA_PREFERENCIA_EQUIVALENTES = [
  * hallazgo más frecuente del guardián («ignora la pregunta», 16 en 7 días).
  *
  * Así que la recomendación se OFRECE por defecto y se ENTREGA cuando ya la
- * pidieron — explícitamente o pidiendo el precio, que es la misma decisión.
+ * pidieron explícitamente (recomendación, uso, preferencia o cotización con
+ * todas sus letras). Preguntar el precio YA NO la entrega (Manuel, 1-sep,
+ * conv 13615): la pieza de opciones trae los precios de los tres escalones,
+ * así que el «¿a cómo?» queda respondido por la pieza misma y el turno cierra
+ * con el menú de preferencia — la cotización sale cuando el cliente elige.
  *
  * Y se entrega CON PRECIO. La familia más grande del guardián (23 correcciones
  * en la semana del 14-ago) era esta: el cliente preguntó «a cómo», el turno
