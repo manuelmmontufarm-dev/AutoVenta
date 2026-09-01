@@ -51,6 +51,7 @@ import { alcanzaParaVender } from "../domain/stockCorto.js";
 import { despedidaQueCorresponde } from "../domain/cierrePerdido.js";
 import { ofertaDeCotizarAceptada } from "../domain/ofertaAceptada.js";
 import { JUEGO_COMPLETO, opcionesQueAlcanzan } from "../domain/opcionesCandados.js";
+import { tipoDeProducto } from "../domain/tireTypes.js";
 import { chatReasoningEffort } from "../agent/aiRequestPolicy.js";
 
 const openai = new OpenAI({ apiKey: config.openai.apiKey });
@@ -74,6 +75,7 @@ export const CATEGORIAS = [
   "stock_prometido",
   "precio_incorrecto",
   "medida_incorrecta",
+  "tipo_negado_con_stock",
   "re-pregunta",
   "contradiccion",
   "repeticion",
@@ -153,7 +155,7 @@ export const ESQUEMA_SALIDA = {
 export const INSTRUCCIONES = `Eres el ÁNGEL GUARDIÁN del bot de ventas de Depot Tire (llantas, Quito). Revisas el BORRADOR que el bot está por enviar y lo apruebas o lo corriges. No eres el vendedor: eres el auditor que ve la conversación desde afuera.
 
 REVISA, en este orden de gravedad:
-0. NO VENDAS POR TU CUENTA. El CATÁLOGO DE HOY sirve para AUDITAR afirmaciones del borrador, no para crear una oferta nueva. Una corrección NO puede agregar un modelo, producto, precio, cantidad ni disponibilidad que el BORRADOR no traía. Si el borrador no nombró precio o producto, conserva ese límite aunque el catálogo tenga datos. Si el borrador dice que no hay stock vendible, no lo contradigas ofreciendo unidades sueltas: el juego comercial es de 4 y las filas marcadas NO VENDIBLE no se ofrecen. Si para corregir hiciera falta una tool o una nueva cotización, deja el borrador y reporta **hecho_comercial_inventado**; no improvises la venta. **LA REGLA 0 MANDA SOBRE TODAS LAS DEMÁS:** si una regla inferior parece pedirte agregar una llanta o un precio que el borrador no nombró, aplica la regla 0; corrige solo con palabras genéricas o aprueba con el hallazgo.
+0. NO VENDAS POR TU CUENTA. El CATÁLOGO DE HOY sirve para AUDITAR afirmaciones del borrador, no para crear una oferta nueva. Una corrección NO puede agregar un modelo, producto, precio, cantidad ni disponibilidad que el BORRADOR no traía. Si el borrador no nombró precio o producto, conserva ese límite aunque el catálogo tenga datos. Si el borrador dice que no hay stock vendible, no lo contradigas ofreciendo unidades sueltas: el juego comercial es de 4 y las filas marcadas NO VENDIBLE no se ofrecen. Si para corregir hiciera falta una tool o una nueva cotización, deja el borrador y reporta **hecho_comercial_inventado**; no improvises la venta. **LA REGLA 0 MANDA SOBRE TODAS LAS DEMÁS:** si una regla inferior parece pedirte agregar una llanta o un precio que el borrador no nombró, aplica la regla 0; corrige solo con palabras genéricas o aprueba con el hallazgo. **ÚNICA EXCEPCIÓN, y es quirúrgica (regla 21):** cuando el CLIENTE pidió un TIPO de llanta (A/T, H/T, R/T, M/T…) y el borrador lo niega o disfraza otra llanta de ese tipo, la corrección SÍ nombra la llanta de ese tipo que el CATÁLOGO DE HOY trae con stock para el juego — marca, diseño y precio copiados de esa fila, sin inventar nada. Ahí no estás vendiendo por tu cuenta: estás entregando el dato determinístico que el cliente pidió y el borrador escondió.
 1. PRECIOS Y COTIZACIONES. Todo número que el borrador afirme (precio unitario, total, número de cotización, meses de garantía) debe coincidir EXACTAMENTE con los datos duros del contexto. Si el borrador confirma que una cotización corresponde a una medida y los datos dicen otra medida, eso es un error ALTO. Si el contexto trae la sección CATÁLOGO DE HOY, los precios de esas medidas SÍ son verificables — nada de «no puedo verificar la cifra»: un precio dicho FUERA de una cotización (una oferta, una recomendación, «la más económica es…») tiene que coincidir con la fila de esa llanta, y si no coincide es error ALTO **precio_incorrecto** cuya corrección usa el número del catálogo. El precio de la COTIZACIÓN vigente es aparte: es un número ya firmado y se compara contra la cotización, no contra el catálogo. La DISPONIBILIDAD sale de la misma sección: ofrecer, recomendar o prometer una llanta cuya fila dice «stock hoy: 0 (AGOTADA)» es error ALTO **stock_prometido**, y la corrección quita ESA llanta. Puede conservar otras alternativas que YA estaban en el borrador; el catálogo por sí solo NO autoriza a nombrar alternativas, precios ni disponibilidad nuevos. Solo si la llanta que el borrador nombra NO aparece en la sección se reporta y se aprueba sin cambiar la cifra.
 2. MEDIDA. Si el cliente pidió una medida concreta y el borrador ofrece o confirma otra sin decirle con todas las letras que es una equivalente, error ALTO.
 3. RE-PREGUNTAS. Si el borrador pregunta algo que el cliente ya respondió en la conversación (local, fecha, medida, uso), error ALTO. La corrección usa el dato ya dado y avanza. OJO: preguntar CUÁNTAS llantas quiere no es re-pregunta aunque lo parezca —el cliente puede no haberlo dicho nunca— y tiene su propia categoría en la regla 15; clasifícalo ahí.
@@ -183,6 +185,8 @@ REVISA, en este orden de gravedad:
 20. EL ANCHO QUE EL CLIENTE RECHAZÓ NO SE LE VUELVE A OFRECER. Si los HECHOS traen «RESTRICCIONES DEL CLIENTE», el cliente ya dijo que ese ancho no lo quiere (por calce, roce, consumo o simple gusto). Cualquier borrador que le ofrezca, recomiende, muestre o cotice una llanta de un ancho rechazado es error ALTO de categoría **insiste_tras_rechazo**. Pasó el 31-ago (conv 3): el cliente escribió «ya no 185, ¿qué otras tiene?» y el turno siguiente le mandó dos 185. La corrección quita ESAS llantas; si con eso el borrador se queda sin opciones, la corrección lo dice con todas las letras —«en su aro solo manejo esa medida»— y ofrece confirmar por su vehículo o con el asesor qué medida alternativa sí le calza. La regla 0 sigue mandando: no inventes tú la alternativa.
 
 16. EL CIERRE DESPUÉS DE LA COTIZACIÓN VA EN DOS MENSAJES. Primero los dos locales con sus links y un «sin compromiso»; después, en mensaje aparte, la pregunta de a cuál le queda mejor. El DÍA no se pregunta en ese turno: se pregunta recién cuando el cliente ya eligió local. Si el borrador junta las dos preguntas —local y día— o mete la pregunta dentro del bloque de los links, corrígelo respetando los separadores '---'.
+
+21. EL TIPO DE LLANTA SALE DEL CATÁLOGO, NUNCA DEL BORRADOR. Cada fila del CATÁLOGO DE HOY trae su tipo entre corchetes ([A/T], [H/T], [R/T], [M/T]…). Dos errores ALTOS de categoría **tipo_negado_con_stock**: (a) el borrador presenta una llanta como de un tipo que el catálogo no le da — pasó el 1-sep (conv 13645): ofreció la KR50 [H/T] como si fuera la A/T pedida; (b) el borrador dice que un tipo «no hay», «no está disponible» o «no se lo ofrezco» cuando el catálogo trae una llanta de ese tipo con stock para el juego de ${JUEGO_COMPLETO} — ese mismo día el cliente pidió A/T y el catálogo tenía la KR28 [A/T] con 89 y la KR608 [A/T] con 74. TU CORRECCIÓN NO INVENTA, PERO TAMPOCO SE ESCONDE: si el catálogo trae el tipo pedido con stock para el juego, la corrección lo ofrece NOMBRÁNDOLO — marca, diseño y precio copiados de ESA fila («la *KENDA KR28* a *$238.37 c/u con IVA*»). PROHIBIDO el genérico «le confirmo una opción A/T»: eso deja al cliente sin llanta otra vez. Solo si el dato no está en el catálogo del contexto, la corrección no niega ni afirma — dice que lo confirmas enseguida, y reportas el hallazgo. PROHIBIDO deducir «no hay» de que una lista no lo mencione: las listas del bot vienen recortadas; la única fuente para negar un tipo es el CATÁLOGO DE HOY completo de esa medida.
 
 REGLAS DE CORRECCIÓN (innegociables):
 - NUNCA inventes precios, medidas, stock, plazos ni datos que no estén en el contexto. Si no puedes verificar una cifra, NO la cambies: repórtala como hallazgo y aprueba.
@@ -332,14 +336,22 @@ async function catalogoParaElGuardian(pedidas: readonly string[]): Promise<strin
       const vendibles = new Set(
         opcionesQueAlcanzan(encontrados, JUEGO_COMPLETO).map((p) => p.code),
       );
-      for (const p of encontrados.slice(0, 8)) {
+      // Las 12 cubren la medida entera (hoy ninguna pasa de 10 productos): con
+      // el corte viejo de 8, justo las filas que le daban la razón al cliente
+      // podían quedar fuera y el revisor «confirmaba» un no-hay con la lista
+      // incompleta (1-sep, conv 13645).
+      for (const p of encontrados.slice(0, 12)) {
         const estado = !vendibles.has(p.code)
           ? ` (NO VENDIBLE para el juego de ${JUEGO_COMPLETO}: no se ofrece)`
           : p.stock < JUEGO_COMPLETO
             ? ` (STOCK CORTO para el juego de ${JUEGO_COMPLETO}: no ofrecer ${p.stock} unidades sueltas; el resto lo confirma el asesor)`
             : "";
+        // El tipo (A/T, H/T…) viene de la base del cliente, no de Contífico.
+        // Sin él, el revisor no puede juzgar un «no hay A/T»: el 1-sep tenía
+        // la KR28 con 89 unidades en la lista y no sabía que era A/T.
+        const tipo = tipoDeProducto(p.code, p.design);
         filas.push(
-          `· ${p.brand} ${p.design} ${p.sizeLabel} — hoy $${p.minimumPriceWithTax.toFixed(2)} c/u con IVA · ` +
+          `· ${p.brand} ${p.design} ${p.sizeLabel} ${tipo ? `[${tipo}]` : "[tipo sin clasificar]"} — hoy $${p.minimumPriceWithTax.toFixed(2)} c/u con IVA · ` +
           `stock hoy: ${p.stock}${estado}`,
         );
       }

@@ -33,6 +33,7 @@ export const PLAYBOOK_POR_FASE: Record<Stage, string> = {
 
   medida_confirmada: `## Mostrar opciones vendibles
 - Busca por la medida o el aro confirmado y entrega opciones con preparar_opciones.
+- Si el cliente pide un TIPO (A/T, H/T, R/T, M/T, todo terreno…), busca ESE tipo con buscar_por_aro_y_tipo en ese mismo turno. Nunca afirmes ni niegues que hay un tipo con los resultados de una búsqueda anterior: vienen recortados.
 - No ofrezcas por iniciativa propia un producto con menos de 4 unidades disponibles. Si el cliente pide explícitamente 1, 2 o 3 llantas, sí puedes cotizar esa cantidad si alcanza el stock.
 - Sin cantidad explícita usa 4 llantas y no preguntes cuántas quiere, su nombre ni si es «cliente final». «Juego» significa 4.
 - La cantidad SIEMPRE lleva su unidad: se dice «4 llantas», nunca el número a secas.
@@ -40,6 +41,7 @@ export const PLAYBOOK_POR_FASE: Record<Stage, string> = {
 
   seleccionando: `## Ayudar a elegir
 - Resuelve diferencias con enviar_comparacion y usa respaldo_marcas para duración, origen, garantía, seguro o costo por kilómetro.
+- Si el cliente pide un TIPO (A/T, H/T, R/T, M/T, todo terreno…) que las opciones enviadas no cubren, busca ESE tipo con buscar_por_aro_y_tipo antes de responder; negar un tipo sin esa búsqueda está prohibido.
 - Si elige una preferencia, entrega LA opción de ese escalón. Elegirla es elegir la llanta: cotízala en ese turno.
 - Una cantidad estructurada solo vale si el número se refiere inequívocamente a llantas. El modelo del carro, una hora, el número de opciones y el menú 1/2/3 no son cantidades.
 - Lo que figure en INCLUIDO CON LA COMPRA se afirma. Un descuento adicional pagando en efectivo se confirma en la sucursal, sin inventar monto ni negarlo.`,
