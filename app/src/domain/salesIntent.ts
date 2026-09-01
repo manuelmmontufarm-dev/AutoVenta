@@ -179,7 +179,10 @@ export function respuestaDePreferencia(text: string): Preferencia | null {
  */
 export function describeUso(text: string): boolean {
   const normalized = normalize(text);
-  return /\bpara\s+(?:la\s+|el\s+)?(?:carretera|ciudad|viaj\w+|trabaj\w+|carga|ripio|barro|lastre|montana|obra|campo|tierra|asfalto|finca|playa|costa|oriente|sierra)\b|\buso\s+(?:mixto|urbano|rudo|diario|pesado)\b|\btodo\s+terreno\b|\bdoble\s+proposito\b/.test(
+  // «Que se adiera» / «Al pavimento» / «que no derrape» (chat del 1-sep-2026)
+  // describen el uso igual que «para carretera»: el cliente está diciendo qué
+  // necesita de la llanta, y eso ya es pedir la recomendación.
+  return /\bpara\s+(?:la\s+|el\s+)?(?:carretera|ciudad|viaj\w+|trabaj\w+|carga|ripio|barro|lastre|montana|obra|campo|tierra|asfalto|pavimento|finca|playa|costa|oriente|sierra)\b|\buso\s+(?:mixto|urbano|rudo|diario|pesado)\b|\btodo\s+terreno\b|\bdoble\s+proposito\b|\b(?:al|en|sobre)\s+(?:el\s+)?(?:pavimento|asfalto)\b|\b(?:adhier\w*|adier\w*|adherencia|agarre|derrap\w*)\b/.test(
     normalized,
   );
 }

@@ -29,21 +29,29 @@ describe("candado 2 — tipo pedido por el cliente", () => {
   });
 });
 
-describe("candado 1 — anti-reenvío de la pieza de opciones", () => {
+describe("candado 1 — solo el doble envío del mismo turno", () => {
   const previo = (sizeLabel: string | null, minutos: number) => ({ sizeLabel, minutos });
 
-  it("bloquea la misma medida dentro de la ventana", () => {
-    // Tickets 1288 y 1415: la misma pieza salió 4 veces.
-    expect(debeBloquearReenvio(previo("265/75R16", 10), "265/75R16", "Presio por favor")).toBe(true);
+  it("bloquea la misma pieza si acaba de salir en este turno", () => {
+    expect(debeBloquearReenvio(previo("265/75R16", 0.2), "265/75R16", "Presio por favor")).toBe(true);
+  });
+
+  it("ya no hay candado por tiempo: a los 2 minutos la pieza vuelve a salir si la piden", () => {
+    // Manuel, 1-sep-2026: el candado de 120 min mandaba la recomendación a texto
+    // repetido. Pedir opciones o recomendación con la medida confirmada = pieza.
+    // (En producción la consulta ya solo trae piezas de ESTE turno; el techo
+    // de minutos es un seguro por si un turno se alarga.)
+    expect(debeBloquearReenvio(previo("265/75R16", 10), "265/75R16", "Presio por favor")).toBe(false);
+    expect(debeBloquearReenvio(previo("265/75R16", 121), "265/75R16", "precio")).toBe(false);
   });
 
   it("permite si la medida es distinta", () => {
-    expect(debeBloquearReenvio(previo("265/75R16", 10), "225/65R17", "y en r17?")).toBe(false);
+    expect(debeBloquearReenvio(previo("265/75R16", 0.2), "225/65R17", "y en r17?")).toBe(false);
   });
 
   it("permite productos distintos de la misma medida cuando el cliente pide otras opciones", () => {
     expect(debeBloquearReenvio(
-      { sizeLabel: "265/75R16", minutos: 10, codes: ["A", "B", "C"] },
+      { sizeLabel: "265/75R16", minutos: 0.2, codes: ["A", "B", "C"] },
       "265/75R16",
       "quiero ver otras",
       ["D", "E", "F"],
@@ -52,7 +60,7 @@ describe("candado 1 — anti-reenvío de la pieza de opciones", () => {
 
   it("bloquea exactamente el mismo conjunto aunque cambie el orden", () => {
     expect(debeBloquearReenvio(
-      { sizeLabel: "265/75R16", minutos: 10, codes: ["A", "B", "C"] },
+      { sizeLabel: "265/75R16", minutos: 0.5, codes: ["A", "B", "C"] },
       "265/75R16",
       "precio",
       ["C", "A", "B"],
@@ -61,20 +69,16 @@ describe("candado 1 — anti-reenvío de la pieza de opciones", () => {
 
   it("bloquea los mismos códigos aunque una pieza vieja no tenga medida", () => {
     expect(debeBloquearReenvio(
-      { sizeLabel: null, minutos: 10, codes: ["A", "B", "C"] },
+      { sizeLabel: null, minutos: 0.5, codes: ["A", "B", "C"] },
       "205/55R16",
       "precio",
       ["C", "A", "B"],
     )).toBe(true);
   });
 
-  it("permite pasadas las 2 horas", () => {
-    expect(debeBloquearReenvio(previo("265/75R16", 121), "265/75R16", "precio")).toBe(false);
-  });
-
-  it("permite si el cliente dice que no le llegó", () => {
+  it("permite si el cliente dice que no le llegó, aunque sea en el mismo turno", () => {
     for (const texto of ["no me llegó la imagen", "mándamelas de nuevo", "reenvíamelas", "no las veo"]) {
-      expect(debeBloquearReenvio(previo("265/75R16", 5), "265/75R16", texto)).toBe(false);
+      expect(debeBloquearReenvio(previo("265/75R16", 0.3), "265/75R16", texto)).toBe(false);
     }
   });
 
@@ -83,7 +87,7 @@ describe("candado 1 — anti-reenvío de la pieza de opciones", () => {
   });
 
   it("no bloquea cuando no se sabe la medida previa", () => {
-    expect(debeBloquearReenvio(previo(null, 5), "265/75R16", "precio")).toBe(false);
+    expect(debeBloquearReenvio(previo(null, 0.3), "265/75R16", "precio")).toBe(false);
   });
 
   it("compara medidas escritas de forma distinta", () => {

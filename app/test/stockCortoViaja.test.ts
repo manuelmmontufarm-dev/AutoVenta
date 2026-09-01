@@ -179,6 +179,11 @@ describe("el orden de los candados en el turno", () => {
       // las dos preguntas viven en un solo bloque y no se pueden comparar) y
       // antes del calco, que mira mensajes ya enviados (sim 31-ago 20:38).
       "sin_pregunta_repetida_en_el_turno",
+      // La forma del turno [respuesta] [links] [pregunta] (Manuel, 1-sep): va
+      // después de todo lo que agrega o quita contenido y ANTES del calco, que
+      // compara bloque a bloque contra lo enviado y tiene que ver los mismos
+      // bloques que van a salir (los links solos, la pregunta sola).
+      "estructura_del_turno",
       "sin_calco_reciente",
     ]);
   });
@@ -235,10 +240,12 @@ describe("el orden de los candados en el turno", () => {
   it("la pregunta se separa con la cadena de reescritura ya terminada", () => {
     // Los candados de arriba todavía pueden pegar o reescribir la pregunta del
     // cierre, así que separarla antes no serviría de nada (27-ago). Después de
-    // ella solo corre `sin_calco_reciente`, que QUITA bloques repetidos y jamás
-    // agrega ni reescribe nada.
+    // ella solo corren pasos que QUITAN o REORDENAN bloques y jamás agregan
+    // ni reescriben contenido: el dedupe de preguntas, la forma del turno
+    // (junta la respuesta, aparta los links, deja la pregunta al final) y el
+    // calco reciente.
     const despues = nombres.slice(nombres.indexOf("pregunta_en_su_propio_mensaje") + 1);
-    expect(despues).toEqual(["sin_pregunta_repetida_en_el_turno", "sin_calco_reciente"]);
+    expect(despues).toEqual(["sin_pregunta_repetida_en_el_turno", "estructura_del_turno", "sin_calco_reciente"]);
   });
 
   it("el turno normal corre la cadena entera", () => {

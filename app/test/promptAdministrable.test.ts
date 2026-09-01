@@ -40,7 +40,8 @@ describe("el prompt administrable", () => {
   it("manda mensajes breves y deja la pregunta final en una burbuja aparte", () => {
     const prompt = promptNeutral();
 
-    expect(prompt).toContain("Hasta 4 mensajes breves por turno");
+    expect(prompt).toContain("UN solo mensaje de respuesta");
+    expect(prompt).toContain("los links en su propio mensaje");
     expect(prompt).toContain("La pregunta final va sola en el último mensaje");
     expect(prompt).not.toContain("entrega todo en un solo mensaje");
   });

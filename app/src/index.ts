@@ -78,6 +78,7 @@ import { startEmbeddedFollowUpWorker } from "./workers/embeddedFollowUpWorker.js
 import { extractExplicitStore, preguntamosElLocal } from "./domain/storeSelection.js";
 import { tryDirectSalesRoute } from "./services/directSalesRoutes.js";
 import { tryRecotizarPorCantidad } from "./services/recotizar.js";
+import { tryRecomendarConLaPieza } from "./services/recomendarConLaPieza.js";
 import { firstContactReply, isGenericFirstContact } from "./domain/firstContact.js";
 import { despedidaQueCorresponde } from "./domain/cierrePerdido.js";
 import { botonesParaBloque, recortarTitulo, textoDeBoton, type BloqueConBotones } from "./domain/botones.js";
@@ -328,6 +329,12 @@ const pipeline = new InboundPipeline(async ({ from, name, text, waMessageIds, qu
           { conversation, customerPhone: from, customerName: name, previousOutbound, mensajeCitado },
           textoConLinks,
         ))
+        // Pedir recomendación o contar el uso con la pieza ya enviada: sale
+        // la pieza con la recomendada, no un texto. Ver domain/recomendacionConPieza.ts.
+        ?? await tryRecomendarConLaPieza(
+          { conversation, customerPhone: from, customerName: name },
+          textoConLinks,
+        )
         ?? await tryDirectSalesRoute(
           { conversation, customerPhone: from, explicitStore, commitment },
           textoConLinks,

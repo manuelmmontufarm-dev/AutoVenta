@@ -1383,10 +1383,11 @@ export function buildTools(ctx: AgentContext) {
             : `⚠️ Ojo: no todas son de su medida *${permitidasOpciones.join(" / ")}* — ${fueraDeMedida.map((p) => `${p.design} es ${p.sizeLabel}`).join(", ")} (equivalentes de su aro).`)
         : null;
 
-      // CANDADO 1 — anti-reenvío. Tickets 1288 y 1415 del 6-ago-2026: la misma
-      // pieza de opciones salió hasta 4 veces en la misma conversación y el
-      // cliente lo único que quería era el precio. Si ya la tiene en pantalla,
-      // no se reenvía: se le responde lo que preguntó.
+      // CANDADO 1 — solo el doble envío del MISMO turno. Nació el 6-ago
+      // (tickets 1288 y 1415: la misma pieza salió 4 veces) como un candado de
+      // 120 minutos; el 1-sep Manuel lo redujo a un minuto porque bloqueaba la
+      // pieza justo cuando el cliente pedía la recomendación, y el modelo la
+      // escribía en texto repetido. Ver domain/opcionesCandados.ts.
       const sizeLabelActual = products[0]?.sizeLabel ?? null;
       const [previo] = await sql<{ metadata: Record<string, unknown> | null; content: string; minutos: number }[]>`
         select content, metadata,
@@ -1396,6 +1397,12 @@ export function buildTools(ctx: AgentContext) {
           and cycle=${ctx.conversation.current_cycle}
           and type='image'
           and metadata->>'piece'='options'
+          -- Solo lo que salió en ESTE turno: después del último mensaje del
+          -- cliente. Una pieza de un turno anterior nunca bloquea (1-sep).
+          and created_at > coalesce(
+            (select max(created_at) from messages
+             where conversation_id=${ctx.conversation.id} and direction='inbound'),
+            'epoch'::timestamptz)
         order by created_at desc limit 1
       `;
       const previoNormalizado = previo
@@ -1412,7 +1419,7 @@ export function buildTools(ctx: AgentContext) {
       if (debeBloquearReenvio(previoNormalizado, sizeLabelActual, ctx.currentUserText, products.map((p) => p.code))) {
         const minutos = Math.max(1, Math.round(previoNormalizado!.minutos));
         return JSON.stringify({
-          error: `Las opciones de ${sizeLabelActual ?? "esa medida"} YA se enviaron hace ${minutos} min y el cliente las tiene en pantalla. PROHIBIDO reenviarlas. Si pidió precio o eligió un modelo, llama generar_cotizacion con ese modelo (4 unidades si no dijo cantidad). Si preguntó otra cosa, respóndela directo en texto.`,
+          error: `Las opciones de ${sizeLabelActual ?? "esa medida"} acaban de salir en este mismo turno (hace ${minutos} min): no las mandes dos veces. Si pidió precio o eligió un modelo, llama generar_cotizacion con ese modelo (4 unidades si no dijo cantidad). Si preguntó otra cosa, contéstala en una sola línea; la pieza ya lleva el detalle, no lo repitas en texto.`,
         });
       }
 
@@ -1519,6 +1526,11 @@ export function buildTools(ctx: AgentContext) {
             codes: products.map((p) => p.code),
             sizeLabel,
             escalones,
+            // La recomendada y su porqué, para que la ruta directa pueda
+            // volver a entregar la pieza cuando el cliente pida criterio
+            // (services/recomendarConLaPieza.ts, 1-sep).
+            recomendado: recommended.code,
+            motivo: motivo.trim().replace(/\.$/, ""),
             ...(avisoMedidaCliente ? { equivalentes: medidasDeProductos(fueraDeMedida) } : {}),
             ...(visual.error ? { renderError: visual.error } : {}),
           },
@@ -1638,7 +1650,7 @@ export function buildTools(ctx: AgentContext) {
           buildCierreOpciones({
             entregarRecomendacion,
             recomendacion,
-            motivo: motivoLimpio,
+            motivo: motivo.trim().replace(/\.$/, ""),
             precioConIva: entregada.minimumPriceWithTax ?? null,
             // El cierre no puede prometer «la opción exacta para su medida» en
             // dos casos: cuando hay equivalentes en la pieza (guardián del

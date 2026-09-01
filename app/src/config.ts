@@ -288,8 +288,15 @@ export const config = {
     : null,
 
   pipeline: {
-    /** Espera tras el último mensaje antes de responder (la gente escribe en ráfagas). */
-    debounceMs: Number(envOr("DEBOUNCE_MS", "5000")),
+    /**
+     * Espera tras el último mensaje antes de responder (la gente escribe en
+     * ráfagas). Eran 5 s hasta el 1-sep-2026: dos chats reales («Mándeme las
+     * dos» y «Yo estoy en el valle» con 5 s exactos de diferencia; «Busco una
+     * llanta» / «Que se adiera» / «Al pavimento») se partieron en la frontera y
+     * el bot contestó dos y tres veces lo mismo. Con 12 s el ritmo normal de
+     * escribir de a pedacitos entra en un solo turno.
+     */
+    debounceMs: Number(envOr("DEBOUNCE_MS", "12000")),
     /** Cuánto se silencia el bot en un chat cuando el dueño responde a mano. */
     botPauseHours: Number(envOr("BOT_PAUSE_HOURS", "6")),
     /**

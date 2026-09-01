@@ -130,7 +130,7 @@ bot sigue desde ahí, como si el cliente acabara de escribir.
 | `--sin-alinear` | Usa la configuración del `.env` en vez de la de producción. |
 | `--humo` | Prueba de humo con doble local de OpenAI: no gasta tokens y sale con código. |
 | `--con-clave-de-produccion` | Corre con la clave de Depot (te lo va a cobrar a él). |
-| `--debounce N` | Acorta el agrupador de mensajes (producción usa 5000 ms; avisa que diverge). |
+| `--debounce N` | Acorta el agrupador de mensajes (producción usa 12000 ms; avisa que diverge). |
 | `--exact-tool-model M` `--rollout N` | Fuerza el canary del turno exacto barato. |
 | `--sin-build` | No recompila (útil cuando no cambiaste `src/`). |
 | `--verboso` | Vuelca el log del bot a la terminal (también está en la pestaña Log). |

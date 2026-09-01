@@ -3,7 +3,8 @@
  *
  *  1. Idempotencia — Meta reintenta webhooks; cada message.id se procesa una vez.
  *     (Primera línea aquí en memoria; la definitiva es el unique de wa_message_id en DB.)
- *  2. Debounce — la gente escribe 3 mensajes seguidos; se agrupan y se responde una vez.
+ *  2. Debounce — la gente escribe 3 mensajes seguidos; se agrupan y se responde una vez
+ *     (12 s desde el último: ver config.pipeline.debounceMs).
  *  3. FIFO por usuario — nunca hay dos respuestas en vuelo para el mismo chat.
  *  4. Tope global — como mucho config.pipeline.maxConcurrent handlers a la vez.
  */

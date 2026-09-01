@@ -13,8 +13,21 @@
  */
 import { normalizarTipo } from "./tireTypes.js";
 
-/** Ventana en la que se considera que el cliente todavía tiene la pieza a mano. */
-export const MINUTOS_PIEZA_VIGENTE = 120;
+/**
+ * Techo de seguridad: la consulta de tools.ts ya se limita a las piezas que
+ * salieron DESPUÉS del último mensaje del cliente (o sea, en este turno); un
+ * turno no dura más que esto.
+ *
+ * Hasta el 1-sep-2026 acá había un candado de 120 minutos: «el cliente ya la
+ * tiene en pantalla, PROHIBIDO reenviarla, contéstale en texto». Manuel lo
+ * quitó viendo el chat de las 16:02: el cliente pidió una recomendación con la
+ * medida ya confirmada, la pieza estaba bloqueada, y la recomendación salió en
+ * cuatro burbujas de texto repetido. La pieza ES la respuesta; si la piden,
+ * sale, aunque haya salido hace diez minutos. La ráfaga que motivó el candado
+ * (31-ago, tres vitrinas seguidas) la resuelve el agrupador de entrada, que
+ * mete los mensajes que llegan durante un turno en el turno siguiente.
+ */
+export const MINUTOS_MISMO_TURNO = 10;
 
 /** El cliente dice explícitamente que no le llegó o que la quiere de nuevo. */
 const PIDE_REENVIO = /de nuevo|otra vez|reenv[ií]|no me lleg|no las veo|mand[ae]me?las/i;
@@ -76,8 +89,8 @@ export function medidaDesdeContenido(content: string | null | undefined): string
 
 /**
  * ¿Hay que bloquear el reenvío de la pieza de opciones?
- * Solo si ya salió una de la MISMA medida, sigue vigente, y el cliente no está
- * pidiendo explícitamente que se la vuelvan a mandar.
+ * Solo si la MISMA pieza acaba de salir en este mismo turno (menos de un
+ * minuto) y el cliente no está diciendo que no le llegó. Fuera de eso, nunca.
  */
 export function debeBloquearReenvio(
   previo: { sizeLabel: string | null; minutos: number; codes?: string[] } | null,
@@ -86,7 +99,7 @@ export function debeBloquearReenvio(
   codesActuales?: string[],
 ): boolean {
   if (!previo) return false;
-  if (previo.minutos >= MINUTOS_PIEZA_VIGENTE) return false;
+  if (previo.minutos >= MINUTOS_MISMO_TURNO) return false;
   if (PIDE_REENVIO.test(textoCliente ?? "")) return false;
   if (previo.codes?.length && codesActuales?.length) {
     const before = [...previo.codes].map((code) => code.toLowerCase()).sort().join("|");

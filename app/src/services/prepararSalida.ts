@@ -53,6 +53,7 @@ import { productosDelCatalogoMencionados } from "./catalog.js";
 import { frenarHechosNuevosDelGuardian } from "../domain/guardianNoVendeSolo.js";
 import { sinBloquesCalcados } from "../domain/calcoReciente.js";
 import { sinPreguntaRepetidaEnElTurno } from "../domain/preguntaRepetidaEnElTurno.js";
+import { estructurarTurno } from "../domain/estructuraDelTurno.js";
 
 /**
  * De qué puerta viene el texto.
@@ -517,6 +518,28 @@ export const PASOS: readonly PasoDeSalida[] = [
     },
   },
   {
+    // LA FORMA DEL TURNO: [respuesta] [links] [pregunta]. Manuel, 1-sep-2026.
+    //
+    // Corre después de todos los pasos que agregan o quitan contenido (la
+    // ubicación pega los mapas, insistir agrega la pregunta, el guardián
+    // reescribe) y ANTES del calco reciente, que compara bloque a bloque contra
+    // lo ya enviado: tiene que ver los mismos bloques que van a salir —los
+    // links solos, la pregunta sola— o el bloque de mapas repetido se le pasa
+    // pegado a un párrafo distinto. Solo en el turno normal, la única puerta
+    // que parte el texto en mensajes. Ver domain/estructuraDelTurno.ts.
+    nombre: "estructura_del_turno",
+    corre: ["respuesta"],
+    async aplicar(texto, ctx) {
+      const forma = estructurarTurno(texto);
+      if (forma.repetidosQuitados.length) {
+        console.warn(
+          `✂️ Idea repetida en el turno de la conv ${ctx.conversation.id}: ${forma.repetidosQuitados.map((p) => p.slice(0, 80)).join(" | ")}`,
+        );
+      }
+      return forma.texto;
+    },
+  },
+  {
     // EL CALCO DE HACE UN MOMENTO, LO ÚLTIMO DE TODO. Ver domain/calcoReciente.ts.
     nombre: "sin_calco_reciente",
     corre: ["respuesta", "retomada"],
@@ -536,7 +559,17 @@ export const PASOS: readonly PasoDeSalida[] = [
           and created_at > now() - interval '10 minutes'
         order by created_at desc limit 8
       `;
-      const resultado = sinBloquesCalcados(texto, recientes.map((m) => m.content ?? ""));
+      // Si el cliente PIDIÓ los mapas con todas las letras («mándeme las dos»),
+      // el bloque de links no es un calco aunque haya salido hace segundos:
+      // quitarlo dejaba el texto prometiendo «le dejo nuevamente las dos
+      // ubicaciones:» sin nada debajo (simulador, 1-sep 23:14). Solo el
+      // bloque de links se salva; el resto del turno sigue bajo el candado.
+      const pidioMapas = motivoDeUbicacion(ctx.textoDelCliente ?? "") === "la_pidio";
+      const conLink = /https?:\/\//i;
+      const resultado = sinBloquesCalcados(
+        texto,
+        recientes.map((m) => m.content ?? "").filter((m) => !(pidioMapas && conLink.test(m))),
+      );
       if (!resultado.calcados.length) return texto;
       console.warn(
         `✂️ Calco reciente quitado en la conv ${ctx.conversation.id}: ${resultado.calcados.map((b) => b.slice(0, 80)).join(" | ")}`,

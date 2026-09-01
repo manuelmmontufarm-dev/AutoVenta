@@ -241,7 +241,7 @@ async function main() {
   modelosAlineados = bandera("sin-alinear") ? {} : await copiarConfiguracionDelServicio(env.DATABASE_URL);
 
   if (valor("debounce", null)) {
-    console.warn(`⚠️  Debounce en ${valor("debounce")} ms (producción usa ${env.DEBOUNCE_MS ?? 5000}): los mensajes seguidos se van a agrupar distinto.`);
+    console.warn(`⚠️  Debounce en ${valor("debounce")} ms (producción usa ${env.DEBOUNCE_MS ?? 12000}): los mensajes seguidos se van a agrupar distinto.`);
   }
 
   console.log("🤖 Levantando el bot…");
@@ -278,7 +278,7 @@ async function main() {
       // entonces el simulador tendría herramientas que el cliente no tiene.
       //
       // El debounce agrupa los mensajes seguidos del cliente en UN turno. En
-      // producción son 5 s; acortarlo hace que tres mensajes rápidos se
+      // producción son 12 s; acortarlo hace que tres mensajes rápidos se
       // contesten como tres turnos, que es otro comportamiento. Se puede
       // acortar a propósito con --debounce, y se avisa.
       ...(valor("debounce", null) ? { DEBOUNCE_MS: valor("debounce") } : {}),

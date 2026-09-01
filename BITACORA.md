@@ -1,3 +1,41 @@
+## 1-sep-2026 · La recomendación va en la pieza y el turno tiene forma fija
+
+**Qué:** Dos chats reales de la tarde (+593 98 229 0818 a las 16:02 y conv
+13831 a las 16:37) mostraron al bot repitiendo: cuatro burbujas con la misma
+recomendación en texto (modelo, precio, beneficios) y los mapas tres veces en
+veinte segundos. Seis cambios, todos en la fuente única: (1) se quita el
+candado de 120 minutos de la pieza de opciones —solo bloquea el doble envío del
+MISMO turno, mirando piezas posteriores al último mensaje del cliente—. (2)
+Ruta directa `recomendarConLaPieza`: pedir recomendación o describir el uso con
+la pieza ya enviada reenvía la pieza con la recomendada y su cotización de 4,
+sin pasar por el modelo; la pieza guarda `recomendado` y `motivo` en metadata.
+(3) Paso `estructura_del_turno` en la cadena de salida: un solo mensaje de
+respuesta, los links en su propio mensaje, la pregunta al final; las frases que
+repiten una idea del mismo turno se quitan; un «---» al inicio ya no sale. (4)
+El agrupador de mensajes pasa de 5 a 12 segundos y el guardián de salida corta
+el casi idéntico (75 % de palabras) cuando el anterior salió hace menos de un
+minuto. (5) Los mapas pedidos con todas las letras se salvan del calco
+reciente. (6) «pavimento», «agarre», «que se adhiera», «que no derrape» cuentan
+como describir el uso; el playbook dice la forma fija del turno y que el
+separador va ENTRE mensajes.
+
+**Por qué:** El candado de 120 minutos le decía al modelo, con esas palabras,
+«contéstale en texto»: la recomendación no tenía otro camino que la prosa. Al
+quitarlo, tres corridas seguidas del simulador mostraron que el modelo TAMPOCO
+llama `preparar_opciones` aunque el manual lo diga —regla de prompt que no se
+cumple, familia conocida—, así que la decisión pasó a una ruta determinista
+antes del agente, igual que `recotizar.ts`. Los tres mensajitos se partían en
+la frontera de los 5 segundos y cada turno tenía derecho a cuatro burbujas; los
+filtros de repetidos solo frenaban copias exactas. La forma fija del turno la
+decidió Manuel («un bloque de respuesta si es necesaria, los links siempre en
+otra, las preguntas al final y en otro mensaje») en vez de «un bloque por
+producto», que se lee robótico. Probado en el simulador con los dos chats
+reales, `npm test` (1563), fidelidad y humo. Sabido y aceptado: la ruta directa
+entrega la recomendada que la pieza guardó al salir, no una recalculada con el
+uso que el cliente acaba de contar.
+
+**Horas:** 3.5
+
 ## 1-sep-2026 · «No hay A/T» teniendo 89 en bodega: el recorte escondía tipos enteros
 
 **Qué:** Tres capas sobre el mismo error (conv 13645: el cliente pidió A/T en

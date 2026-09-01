@@ -205,8 +205,7 @@ describe("idea repetida por tercera vez", () => {
   });
 
   it("mensajes cortos nunca disparan el corte", async () => {
-    const { guardOutboundReply } = await import("../src/services/outboundGuard.js");
-    const r = guardOutboundReply("Con gusto 🤝", "x", true, ["Con gusto 🤝", "Con gusto 🤝"]);
+      const r = guardOutboundReply("Con gusto 🤝", "x", true, ["Con gusto 🤝", "Con gusto 🤝"]);
     expect(r.issues).not.toContain("idea_repetida");
   });
 });
@@ -217,7 +216,6 @@ describe("idea repetida por tercera vez", () => {
  *  como mensaje anterior y el filtro recortaba la bienvenida legítima. */
 describe("el saludo se recorta solo si ya se saludó en el ciclo", () => {
   it("con mensajes previos SIN saludo, la bienvenida se conserva", async () => {
-    const { guardOutboundReply } = await import("../src/services/outboundGuard.js");
     const bienvenida = "¡Hola! Bienvenido a Depot Tire. ¿Qué medida necesita?";
     const r = guardOutboundReply(bienvenida, "Listo, empezamos de cero. Dígame qué medida busca.", true, ["Listo, empezamos de cero. Dígame qué medida busca."]);
     expect(r.text).toBe(bienvenida);
@@ -225,8 +223,29 @@ describe("el saludo se recorta solo si ya se saludó en el ciclo", () => {
   });
 
   it("con un saludo previo en el ciclo, el segundo se recorta", async () => {
-    const { guardOutboundReply } = await import("../src/services/outboundGuard.js");
     const r = guardOutboundReply("¡Hola! Le cuento las opciones que tenemos disponibles.", "x", true, ["¡Buenos días! Bienvenido a Depot Tire."]);
     expect(r.issues).toContain("saludo_repetido");
+  });
+});
+
+describe("casi idéntico y reciente (1-sep, conv 13831)", () => {
+  const a = "Para decirle con seguridad cuál le queda más cerca, ¿me puede compartir su ubicación por WhatsApp? Mientras tanto, le dejo nuevamente los dos locales para que pueda revisarlos.";
+  const b = "Para decirle con seguridad cuál le queda más cerca, puede compartirme su ubicación por WhatsApp. Mientras tanto, le dejo los dos locales para que los revise.";
+
+  it("a los segundos, parecido es repetido: sale el acuse corto y no el eco", () => {
+    const r = guardOutboundReply(b, a, true, [a], 6);
+    expect(r.issues).toContain("mensaje_duplicado");
+    expect(r.text).not.toBe(b);
+  });
+
+  it("media hora después la misma respuesta sí sale", () => {
+    const r = guardOutboundReply(b, a, true, [a], 1800);
+    expect(r.text).toBe(b);
+    expect(r.issues).toEqual([]);
+  });
+
+  it("sin saber la hora no cambia nada", () => {
+    const r = guardOutboundReply(b, a, true, [a]);
+    expect(r.text).toBe(b);
   });
 });

@@ -51,11 +51,11 @@ const palabrasDe = (t: string): Set<string> => new Set(
   t.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase()
     .replace(/[^a-z0-9\s]/g, " ").split(/\s+/).filter((w) => w.length >= 3),
 );
-const esMismaIdea = (a: Set<string>, b: Set<string>): boolean => {
+const esMismaIdea = (a: Set<string>, b: Set<string>, umbral = 0.85): boolean => {
   if (a.size < 8 || b.size < 8) return false;
   let comunes = 0;
   for (const w of a) if (b.has(w)) comunes += 1;
-  return comunes / (a.size + b.size - comunes) >= 0.85;
+  return comunes / (a.size + b.size - comunes) >= umbral;
 };
 
 /** El texto con el que se corta un bucle de idea repetida. La promesa que
@@ -78,6 +78,8 @@ export function guardOutboundReply(
   lastOutbound: string | null,
   hasPriorOutbound: boolean,
   salientesRecientes: readonly string[] = [],
+  /** Hace cuántos segundos salió `lastOutbound`; null si no se sabe. */
+  segundosDesdeUltimoSaliente: number | null = null,
 ): GuardResult {
   const issues: GuardIssue[] = [];
 
@@ -102,7 +104,16 @@ export function guardOutboundReply(
   // idéntico dos veces en 7 segundos, con otro mensaje en el medio).
   const firmaDeReply = normalizar(reply);
   const yaSalio = (t: string | null) => t !== null && normalizar(t) === firmaDeReply;
-  if (yaSalio(lastOutbound) || salientesRecientes.some((t) => yaSalio(t))) {
+  // Y el CASI idéntico de hace segundos (1-sep, conv 13831: «Mándeme las dos» y
+  // «Yo estoy en el valle» llegaron con 5 s de diferencia y salieron dos
+  // respuestas con el 83 % de las palabras en común, 6 s una de otra). A esa
+  // distancia, parecido es repetido: la vara baja de 0.85 a 0.75 y basta con
+  // el último. Media hora después, la misma respuesta es servicio, no eco.
+  const casiIgualYReciente = segundosDesdeUltimoSaliente !== null
+    && segundosDesdeUltimoSaliente < 60
+    && lastOutbound !== null
+    && esMismaIdea(palabras, palabrasDe(lastOutbound), 0.75);
+  if (yaSalio(lastOutbound) || salientesRecientes.some((t) => yaSalio(t)) || casiIgualYReciente) {
     // Contrato T115, regla 1: ningún turno del cliente se queda sin respuesta.
     // El duplicado exacto no se manda — pero el silencio es peor que un acuse
     // corto (31-ago, R06: el cliente dijo «Ok» y nadie le contestó nada).
@@ -239,12 +250,16 @@ const ALERTAS: Record<GuardIssue, { priority: "high" | "medium"; summary: string
  */
 export async function applyOutboundGuard(conversationId: number, reply: string): Promise<GuardResult> {
   try {
-    const [row] = await sql<{ cycle: number; last_outbound: string | null }[]>`
+    const [row] = await sql<{ cycle: number; last_outbound: string | null; hace_segundos: number | null }[]>`
       select c.current_cycle as cycle,
         (select content from messages
          where conversation_id = c.id and cycle = c.current_cycle
            and direction = 'outbound' and author_kind = 'bot' and type = 'text'
-         order by created_at desc limit 1) as last_outbound
+         order by created_at desc limit 1) as last_outbound,
+        (select extract(epoch from (now() - created_at)) from messages
+         where conversation_id = c.id and cycle = c.current_cycle
+           and direction = 'outbound' and author_kind = 'bot' and type = 'text'
+         order by created_at desc limit 1) as hace_segundos
       from conversations c where c.id = ${conversationId}
     `;
     if (!row) return { text: reply, issues: [] };
@@ -257,6 +272,7 @@ export async function applyOutboundGuard(conversationId: number, reply: string):
     const result = guardOutboundReply(
       reply, row.last_outbound, row.last_outbound !== null,
       recientes.map((m) => m.content ?? ""),
+      row.hace_segundos === null ? null : Number(row.hace_segundos),
     );
 
     // Corrector de precios: siempre que haya texto por salir. Los montos

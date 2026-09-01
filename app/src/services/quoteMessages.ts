@@ -35,8 +35,9 @@ export function composeBlocks(...blocks: (string | null | undefined)[]): string 
  * Tolerante con el modelo: acepta 3 o más guiones y espacios alrededor.
  */
 export function splitBlocks(reply: string): string[] {
+  // También al inicio o al final: un «---» suelto no es un mensaje.
   return reply
-    .split(/\n\s*-{3,}\s*\n/)
+    .split(/(?:^|\n)\s*-{3,}\s*(?:\n|$)/)
     .map((block) => aWhatsApp(block.trim()))
     .filter(Boolean)
     .slice(0, MAX_BLOCKS);
