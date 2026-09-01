@@ -64,23 +64,40 @@ export function pidePrecio(text: string): boolean {
  * Tener una cantidad guardada (o usar el juego comercial de 4) resuelve
  * CUÁNTAS llantas cotizar, pero no significa que el cliente esté comprando
  * ahora. Ese atajo hizo que un «Ok» sobre cambio de aceite terminara firmando
- * una cotización de llantas. El turno tiene que pedir precio, elegir una
- * opción/producto, declarar cantidad o aceptar la oferta de cotizar del bot.
+ * una cotización de llantas. El turno tiene que pedir la cotización, elegir
+ * una opción/producto, declarar cantidad o aceptar la oferta de cotizar.
+ *
+ * PREGUNTAR EL PRECIO TAMPOCO AUTORIZA (Manuel, 1-sep, conv 13615: «Favor
+ * costo de las 235/60 R 18» terminó en opciones y cotización en el mismo
+ * turno). El precio se responde con la pieza de opciones —que trae los
+ * precios— o con el número en texto; la cotización se firma recién cuando el
+ * cliente elige escalón/producto, da cantidad, la pide con todas sus letras
+ * o acepta la oferta.
  */
 export function autorizaCotizacionEnEsteTurno(
   text: string,
   aceptoOfertaDeCotizar = false,
 ): boolean {
   if (aceptoOfertaDeCotizar) return true;
-  if (pidePrecio(text) || hasExplicitQuantity(text) || respuestaDePreferencia(text) !== null) {
+  if (hasExplicitQuantity(text) || respuestaDePreferencia(text) !== null) {
     return true;
   }
   // «Mándame una cotización» es la autorización más explícita que existe;
   // medido 31-ago (T115 Q06): pidePrecio no la reconocía y el candado
   // bloqueaba lo que el cliente había pedido con todas sus letras.
-  if (/cotizaci[oó]n|cot[ií]za?me|proforma/i.test(text)) return true;
+  // Se chequea sobre el texto NORMALIZADO (minúsculas y sin tildes): el patrón
+  // viejo iba sobre el texto crudo y además traía \x08 (backspace) donde debía
+  // decir \b — nunca matcheó nada; lo tapaba pidePrecio en la primera condición.
   const normalized = normalize(text);
-  return /\b(?:quiero|deme|dame|llevo|elijo|escojo|prefiero)\b/.test(normalized)
+  // `coti[cz]\w*` cubre la conjugación entera (cotización, cotízame, «me
+  // cotizas», cotíceme) — el mismo alcance que pidioCotizacionExplicita usa en
+  // agent.ts para FORZAR generar_cotizacion: si la puerta reconociera menos
+  // que la orden, el turno se quedaría en «Cotización bloqueada» en bucle.
+  if (/\bcoti[cz]\w*\b|\bproforma\b/.test(normalized)) return true;
+  // «Quiero más información» / «quiero saber…» es cortesía de apertura, no la
+  // elección de una llanta (conv 13615: ese «quiero» autorizaba la cotización
+  // del primer mensaje). El verbo solo cuenta cuando NO pide información.
+  return /\b(?:quiero|deme|dame|llevo|elijo|escojo|prefiero)\b(?!\s+(?:mas\s+)?(?:informacion|info|saber|consultar|preguntar|conocer)\b)/.test(normalized)
     || /\b(?:me\s+quedo|vamos|dale)\s+con\b/.test(normalized)
     || /^(?:si\s+)?(?:esa|esa\s+misma|ese|ese\s+mismo)$/.test(normalized);
 }
