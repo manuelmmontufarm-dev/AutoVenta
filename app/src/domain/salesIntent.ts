@@ -64,15 +64,22 @@ export function pidePrecio(text: string): boolean {
  * Tener una cantidad guardada (o usar el juego comercial de 4) resuelve
  * CUÁNTAS llantas cotizar, pero no significa que el cliente esté comprando
  * ahora. Ese atajo hizo que un «Ok» sobre cambio de aceite terminara firmando
- * una cotización de llantas. El turno tiene que pedir precio, elegir una
- * opción/producto, declarar cantidad o aceptar la oferta de cotizar del bot.
+ * una cotización de llantas. El turno tiene que pedir la cotización, elegir
+ * una opción/producto, declarar cantidad o aceptar la oferta de cotizar.
+ *
+ * PREGUNTAR EL PRECIO TAMPOCO AUTORIZA (Manuel, 1-sep, conv 13615: «Favor
+ * costo de las 235/60 R 18» terminó en opciones y cotización en el mismo
+ * turno). El precio se responde con la pieza de opciones —que trae los
+ * precios— o con el número en texto; la cotización se firma recién cuando el
+ * cliente elige escalón/producto, da cantidad, la pide con todas sus letras
+ * o acepta la oferta.
  */
 export function autorizaCotizacionEnEsteTurno(
   text: string,
   aceptoOfertaDeCotizar = false,
 ): boolean {
   if (aceptoOfertaDeCotizar) return true;
-  if (pidePrecio(text) || hasExplicitQuantity(text) || respuestaDePreferencia(text) !== null) {
+  if (hasExplicitQuantity(text) || respuestaDePreferencia(text) !== null) {
     return true;
   }
   // «Mándame una cotización» es la autorización más explícita que existe;
@@ -129,14 +136,22 @@ export function respuestaDePreferencia(text: string): Preferencia | null {
   // ES el número: un «1» suelto dentro de otra frase suele ser cantidad.
   const porNumero = normalized.match(/^(?:la\s+|el\s+|opcion\s+)?([123])\)?\.?$/);
   if (porNumero) return porNumero[1] === "1" ? "precio" : porNumero[1] === "2" ? "equilibrada" : "premium";
-  if (/\bequilibr\w+\b|\bintermedi\w+\b|\bla\s+del?\s+(?:en\s+)?medio\b|\bla\s+mediana\b|\bbalancead\w+\b/.test(normalized)) {
+  // EL ECO DEL MENÚ CUENTA. Producción, 1-sep (conv 13617): el menú ofreció
+  // «1) *Costo* — la más conveniente de precio», el cliente contestó «La más
+  // conveniente» —las palabras del propio menú— y esto devolvía null: la
+  // autorización de cotizar caía y el turno se quedó sin cotización y sin
+  // cierre. Cada descripción de `DESCRIPCION_DEL_MENU` (quoteMessages.ts)
+  // tiene que poder leerse aquí repetida por el cliente: «conveniente» y
+  // «convenga» son el escalón 1, «la que (mejor) balancea» el 2. Se exige la
+  // palabra completa: «balanceo» (el servicio) no cuenta.
+  if (/\bequilibr\w+\b|\bintermedi\w+\b|\bla\s+del?\s+(?:en\s+)?medio\b|\bla\s+mediana\b|\bbalancead\w+\b|\bque\s+(?:mejor\s+)?balancea\b/.test(normalized)) {
     return "equilibrada";
   }
   // `[bv]arat` cubre «barata» y la falta real «varata»; «economica» llega sin
   // tilde porque normalize() ya la quitó. «costo» solo como respuesta seca:
   // dentro de una frase («costo de 4 llantas») es un pedido de precio, no la
   // elección del escalón 1.
-  if (/\bmejor\s+precio\b|\b(?:la\s+)?mas\s+[bv]arat\w*\b|\b[bv]arat\w+\b|\beconomic\w+\b|^(?:el\s+|por\s+)?precio$|^(?:el\s+|la\s+de\s+)?costo$/.test(normalized)) {
+  if (/\bmejor\s+precio\b|\b(?:la\s+)?mas\s+[bv]arat\w*\b|\b[bv]arat\w+\b|\beconomic\w+\b|\bmas\s+conveniente\b|\bla\s+que\s+(?:mas\s+)?convenga\b|^(?:el\s+|por\s+)?precio$|^(?:el\s+|la\s+de\s+)?costo$/.test(normalized)) {
     return "precio";
   }
   if (/\bpremium\b|\bla\s+mejor\b|\bmejor\s+calidad\b|\bmaxima\s+calidad\b|\bdurabilidad\b|\bmas\s+durad\w+\b|\bla\s+(?:mas\s+)?top\b|\bla\s+mas\s+cara\b|\bla\s+buena\b/.test(normalized)) {

@@ -1,7 +1,7 @@
 import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 // salesIntent es dominio puro (sin db ni config): el import estático es seguro.
-import { describeUso, escalonesDeOpciones, respuestaDePreferencia } from "../src/domain/salesIntent.js";
+import { autorizaCotizacionEnEsteTurno, describeUso, escalonesDeOpciones, respuestaDePreferencia } from "../src/domain/salesIntent.js";
 
 const testDatabase = `autoventa_cierre_preferencia_${process.pid}`;
 const admin = postgres("postgresql://manue@localhost/postgres", { prepare: false, max: 1 });
@@ -96,6 +96,29 @@ describe.sequential("Cierre por preferencia — reunión del 25-ago", () => {
       expect(respuestaDePreferencia("costo para 4 llantas rin 15 todo terreno")).toBeNull();
       // «4» es una cantidad, no una opción del menú.
       expect(respuestaDePreferencia("4")).toBeNull();
+    });
+
+    it("el eco del menú cuenta: «la más conveniente» y «la que mejor balancea» (conv 13617, 1-sep)", () => {
+      // El menú describe el escalón 1 como «la más conveniente de precio» y el
+      // 2 como «la que mejor balancea precio y rendimiento». El cliente
+      // contesta con esas mismas palabras — Carlitos escribió «La más
+      // conveniente», la autorización de cotizar cayó y el turno se quedó sin
+      // cotización y sin cierre.
+      expect(respuestaDePreferencia("La más conveniente")).toBe("precio");
+      expect(respuestaDePreferencia("la mas conveniente")).toBe("precio");
+      expect(respuestaDePreferencia("la que más convenga")).toBe("precio");
+      expect(respuestaDePreferencia("la que mejor balancea")).toBe("equilibrada");
+      expect(respuestaDePreferencia("la que balancea precio y rendimiento")).toBe("equilibrada");
+      // Y esa respuesta AUTORIZA la cotización del turno: ahí fue donde
+      // rebotó generar_cotizacion en producción.
+      expect(autorizaCotizacionEnEsteTurno("La más conveniente")).toBe(true);
+    });
+
+    it("el borde que NO debe disparar: «balanceo» es el servicio, no el escalón", () => {
+      expect(respuestaDePreferencia("¿incluye alineación y balanceo?")).toBeNull();
+      expect(respuestaDePreferencia("cuánto cuesta el balanceo")).toBeNull();
+      // «conviene» en pregunta abierta es pedir recomendación, no elegir escalón.
+      expect(respuestaDePreferencia("¿cuál me conviene?")).toBeNull();
     });
   });
 
