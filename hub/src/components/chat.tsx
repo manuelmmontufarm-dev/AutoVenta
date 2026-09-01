@@ -1,6 +1,7 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { authHeaders } from "../data/realSource";
 import type { Mensaje, Rol, Ticket } from "../data/types";
 import { horaCorta, money } from "../lib/format";
 import { IconAlert, IconBot, IconCheck, IconChevronR, IconClock, IconDoc, IconDoubleCheck, IconPin, IconSend, IconUser, IconX } from "./icons";
@@ -109,13 +110,48 @@ function motivoDeFallo(msg: Mensaje): string | null {
  * mostrarla. Si el servidor no la puede dibujar (o el panel corre en demo, sin
  * sesión), queda la tarjeta de documento de siempre.
  */
-function PiezaAdjunta({ msg, onFallback }: { msg: Mensaje; onFallback?: () => void }) {
+/**
+ * La pieza se pide CON la autenticación del hub y se muestra como blob.
+ *
+ * Un `<img src="/api/…">` plano no manda ni el Bearer de la sesión ni la
+ * x-admin-key, así que en producción —donde ADMIN_KEY siempre está puesta—
+ * cada pieza respondía 401, saltaba el `onError` y el chat mostraba la
+ * tarjeta de documento muerta: «no se abren los pdfs» (Manuel, 1-sep). En
+ * local sin clave el `<img>` pasaba, por eso no se vio antes de desplegar.
+ */
+function usePiezaAutenticada(url: string): { src: string | null; falló: boolean } {
+  const [src, setSrc] = useState<string | null>(null);
   const [falló, setFalló] = useState(false);
+  useEffect(() => {
+    let vivo = true;
+    let objeto: string | null = null;
+    setSrc(null);
+    setFalló(false);
+    fetch(url, { headers: authHeaders() })
+      .then(async (r) => {
+        if (!r.ok) throw new Error(`pieza ${r.status}`);
+        const blob = await r.blob();
+        if (!vivo) return;
+        objeto = URL.createObjectURL(blob);
+        setSrc(objeto);
+      })
+      .catch(() => {
+        if (vivo) setFalló(true);
+      });
+    return () => {
+      vivo = false;
+      if (objeto) URL.revokeObjectURL(objeto);
+    };
+  }, [url]);
+  return { src, falló };
+}
+
+function PiezaAdjunta({ msg, onFallback }: { msg: Mensaje; onFallback?: () => void }) {
   const [aplastada, setAplastada] = useState(false);
   const [ampliada, setAmpliada] = useState(false);
   const fallida = msg.estado === "failed";
   const error = (msg.metadata as { renderError?: string } | undefined)?.renderError;
-  const src = `/api/hub/messages/${msg.id}/pieza.png`;
+  const { src, falló } = usePiezaAutenticada(`/api/hub/messages/${msg.id}/pieza.png`);
   const titulo = tituloDePieza(msg);
 
   if (falló) return <PdfCard titulo={msg.contenido} onVer={onFallback} />;
@@ -156,7 +192,7 @@ function PiezaAdjunta({ msg, onFallback }: { msg: Mensaje; onFallback?: () => vo
         </span>
       </button>
 
-      {!aplastada && (
+      {!aplastada && (src ? (
         <button
           onClick={() => setAmpliada(true)}
           className="block w-full overflow-hidden rounded-xl transition-transform hover:-translate-y-px"
@@ -165,13 +201,18 @@ function PiezaAdjunta({ msg, onFallback }: { msg: Mensaje; onFallback?: () => vo
           <img
             src={src}
             alt={titulo}
-            loading="lazy"
-            onError={() => setFalló(true)}
             className="block w-full"
             style={{ background: "color-mix(in srgb, var(--color-paper) 4%, transparent)" }}
           />
         </button>
-      )}
+      ) : (
+        // Mientras la pieza baja: un lienzo del alto aproximado para que el
+        // chat no salte cuando llegue la imagen.
+        <div
+          className="w-full animate-pulse rounded-xl"
+          style={{ height: 150, background: "color-mix(in srgb, var(--color-paper) 6%, transparent)" }}
+        />
+      ))}
 
       <p className="m-0 text-[11px] opacity-75">{msg.contenido}</p>
 
@@ -189,7 +230,7 @@ function PiezaAdjunta({ msg, onFallback }: { msg: Mensaje; onFallback?: () => vo
                   <IconX size={17} />
                 </button>
               </div>
-              <img src={src} alt={titulo} className="block w-full rounded-2xl" style={{ background: "#f5f4ee" }} />
+              <img src={src ?? undefined} alt={titulo} className="block w-full rounded-2xl" style={{ background: "#f5f4ee" }} />
               <p className="mt-2 px-1 text-[11px] text-muted">{msg.contenido}</p>
             </div>
           </Modal>
