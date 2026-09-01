@@ -64,7 +64,7 @@ describe("el prompt administrable", () => {
   it("cotiza con aro confirmado sin exigir el vehículo", () => {
     const prompt = promptNeutral();
 
-    expect(prompt).toContain("Con la medida completa dada por el cliente");
+    expect(prompt).toContain("Medida dada por el cliente");
   });
 
   it("conserva una sola vez la regla comercial de que si no es no, es sí", () => {

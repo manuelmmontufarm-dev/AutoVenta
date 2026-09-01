@@ -46,6 +46,16 @@ real. Producción ya investiga con gpt-5.5 (variable de Railway; el
 elige del menú sin haber dado medida ya no recibe cotización hasta mandarla
 (escrita o foto) — es la decisión de Manuel; si cuesta ventas, la salida es
 un «cotizar sujeto a confirmar» explícito, no volver a firmar sin medida.
+Después del rebase sobre la forma fija del turno (017a1a5): el tope de
+`COMPACT_PLAYBOOK` subió de 5 800 a 6 000 (las dos familias de reglas del día
+no entraban; el porqué está en el test), y el escalón contestado SIN reply
+justo después del menú («La 2») ahora fuerza `generar_cotizacion` con la misma
+heurística que ya usaba la propia herramienta — en el simulador el modelo daba
+el precio y no cotizaba. Probado en el simulador con la conversación de Víctor
+en 4 turnos: opciones + pedir medida → «cotíceme la 2» no cotiza y pide foto →
+«225/70R16» opciones en su medida → «La 2» cotiza 4 × KR50 $511.72. El
+guardián real marca el borrador original como `cotizacion_sin_medida`/alta
+(scripts/guardian/probar-rubrica.mjs, 12/12).
 
 ## 1-sep-2026 · La recomendación va en la pieza y el turno tiene forma fija
 

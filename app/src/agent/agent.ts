@@ -408,6 +408,17 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
     esRespuestaDelMenuDePreferencia(userText, null, ctx.mensajeCitado ?? null)
       ? respuestaDePreferencia(userText)
       : null;
+  // EL ESCALÓN CONTESTADO SIN REPLY, cuando lo último que dijimos fue el menú
+  // (simulador, 1-sep, caso 13862 turno 4: «La 2» tras el menú → el modelo dio
+  // el precio y no cotizó). Misma heurística que ya usa `generar_cotizacion`
+  // para leer ese «2» como escalón y no como cantidad. Con la medida sin
+  // confirmar NO aplica: ahí lo que toca es pedir la medida.
+  const escalonSinReply =
+    !escalonPorReply && !ctx.medidaSinConfirmar && salesFacts.escalones
+      && esRespuestaDelMenuDePreferencia(userText, textoUltimoDelBot, null)
+      ? respuestaDePreferencia(userText)
+      : null;
+  if (escalonSinReply) ctx.aceptoCotizacion = true;
   let vueltaForzadaUsada = false;
   let recordatorioDeObligacion: string | null = null;
   const bloquesVolatiles: ChatCompletionMessageParam[] = [
@@ -427,6 +438,12 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
       ? [{
           role: "system" as const,
           content: ordenDeResponderElEscalon(ETIQUETA_DEL_ESCALON[escalonPorReply]),
+        }]
+      : []),
+    ...(escalonSinReply
+      ? [{
+          role: "system" as const,
+          content: `RESPUESTA AL MENÚ DE PREFERENCIA (fuente determinística: lo último que le dijiste fue el menú): el cliente eligió el escalón «${ETIQUETA_DEL_ESCALON[escalonSinReply]}». Entrega ESA opción de la última pieza de opciones y llama generar_cotizacion en este mismo turno con 4 llantas (o la cantidad que haya dicho). PROHIBIDO leer ese número como cantidad, PROHIBIDO volver a preguntar qué prefiere.`,
         }]
       : []),
     ...(esPreguntaTecnica

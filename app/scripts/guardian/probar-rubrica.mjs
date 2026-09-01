@@ -43,6 +43,30 @@ const MODELO = process.env.OPENAI_GUARDIAN_MODEL || process.env.OPENAI_MODEL || 
 /** Los casos, con los textos tal como salieron de producción. */
 const CASOS = [
   {
+    nombre: "conv 13862 · cotiza sobre una medida que el cliente nunca dio (Suzuki SZ 2016)",
+    espera: { categoria: "cotizacion_sin_medida", severidad: "alta" },
+    familias: ["cotizacion_sin_medida", "cotizacion_sin_eleccion"],
+    contexto: `== HECHOS REGISTRADOS ==
+Medidas que el cliente pidió: (ninguna todavía)
+Vehículo: Suzuki SZ 2016
+MEDIDA NO CONFIRMADA POR EL CLIENTE: el vehículo está registrado pero el cliente no escribió ninguna medida completa ni mandó foto en esta visita. Toda medida en juego la dedujo el bot. Opciones sí; cotización no; el cierre pide la medida.
+Local ya elegido: (ninguno)
+Visita registrada: (ninguna)
+Compromiso de visita en palabras del cliente: (ninguno)
+Cotización vigente: ninguna
+
+== CONVERSACIÓN (lo más reciente al final) ==
+CLIENTE: ¡Hola! Quiero más información, tengo un Susuki Sz 2016, que llantas me recomienda
+BOT: Opciones enviadas: FALKEN ZE310R · KENDA KR50 · WINRUN MAXCLAW A/T
+
+== BORRADOR QUE EL BOT VA A ENVIAR ==
+Yo iría por la *KENDA KR50 225/70R16* — $127.93 c/u con IVA: es la opción equilibrada para su Suzuki.
+---
+Ahí le dejé la cotización por *4 llantas KENDA KR50 225/70R16*, total *$511.72 con IVA*. 👍
+---
+¿A cuál local le queda mejor ir, *Cumbayá* o *Quito Sur*? 📍`,
+  },
+  {
     nombre: "conv 11720 · firma 4 llantas de las que hay 1",
     espera: { categoria: "stock_prometido", severidad: "alta" },
     contexto: `== HECHOS REGISTRADOS ==

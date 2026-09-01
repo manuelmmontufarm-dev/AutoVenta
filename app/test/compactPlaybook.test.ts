@@ -16,6 +16,11 @@ describe("playbook compacto", () => {
 
   /** Evita volver a pegar incidentes y el manual histórico al prompt vivo. */
   it("es materialmente menor que el prompt histórico", () => {
-    expect(COMPACT_PLAYBOOK.length).toBeLessThan(5_800);
+    // 5 800 → 6 000 el 1-sep-2026: ese día entraron dos familias de reglas a
+    // la vez (la forma fija del turno y «sin medida del cliente no se cotiza»)
+    // y las dos son del negocio, no incidentes pegados. El tope sigue siendo
+    // una fracción del prompt histórico; si vuelve a apretar, se recorta, no
+    // se sube otra vez.
+    expect(COMPACT_PLAYBOOK.length).toBeLessThan(6_000);
   });
 });
