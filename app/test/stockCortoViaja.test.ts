@@ -169,6 +169,10 @@ describe("el orden de los candados en el turno", () => {
       "sin_json_crudo",
       "sin_locales_inventados",
       "sin_numeros_de_cotizacion",
+      // La cotización que no existe no se anuncia (conv 13635, 1-sep): agrega
+      // la pregunta de consentimiento, así que va ANTES de los dos que dan
+      // forma al turno (pregunta sola y estructura).
+      "sin_cotizacion_prometida",
       "pregunta_en_su_propio_mensaje",
       // El calco de hace un momento, LO ÚLTIMO de todo: el 31-ago (conv 3 c20)
       // el guardián reescribió el borrador dejándolo idéntico al bloque de

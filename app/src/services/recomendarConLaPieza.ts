@@ -23,6 +23,9 @@ import {
   type PiezaDeOpciones,
 } from "../domain/recomendacionConPieza.js";
 import type { Conversation } from "./conversations.js";
+import { findByCode } from "./catalog.js";
+import { tipoDeProducto } from "../domain/tireTypes.js";
+import { elegirRecomendadaPorUso, usoDeclarado } from "../domain/recomendacionPorUso.js";
 
 export interface RecomendarContext {
   conversation: Conversation;
@@ -50,7 +53,29 @@ export async function tryRecomendarConLaPieza(
     limit 1
   `;
   if (!pideLaRecomendacionConPiezaEnviada(text, pieza?.metadata ?? null, Boolean(cotizacion))) return null;
-  const { recomendado, motivo } = recomendadaDeLaPieza(pieza!.metadata!);
+  const guardada = recomendadaDeLaPieza(pieza!.metadata!);
+  // Si contó PARA QUÉ la quiere, la recomendada se reelige con ese uso entre
+  // las opciones que ya tiene en pantalla (Manuel, 1-sep: la pieza guardaba
+  // la elegida ANTES de saber el uso). Ver domain/recomendacionPorUso.ts.
+  const uso = usoDeclarado(text);
+  const porUso = uso
+    ? elegirRecomendadaPorUso(
+        uso,
+        pieza!.metadata!.codes.map((codigo) => {
+          const item = findByCode(codigo);
+          return {
+            codigo,
+            tipo: item ? tipoDeProducto(item.code, item.design) : null,
+            precioConIva: item?.minimumPriceWithTax ?? null,
+          };
+        }),
+        guardada.recomendado,
+      )
+    : null;
+  const { recomendado, motivo } = porUso ? { recomendado: porUso.codigo, motivo: porUso.motivo } : guardada;
+  if (porUso && porUso.codigo !== guardada.recomendado) {
+    console.log(`🎯 Recomendada reelegida por uso «${uso}» en la conv ${ctx.conversation.id}: ${guardada.recomendado} → ${porUso.codigo}`);
+  }
 
   const agentCtx = {
     conversation: ctx.conversation,
@@ -63,7 +88,13 @@ export async function tryRecomendarConLaPieza(
   const cotizar = tools.find((t) => t.function.name === "generar_cotizacion");
   if (!opciones || !cotizar) return null;
 
-  let salida: { error?: string; mensaje_para_enviar?: string; recomendacion_entregada?: boolean };
+  let salida: {
+    error?: string;
+    mensaje_para_enviar?: string;
+    recomendacion_entregada?: boolean;
+    /** La recomendada es una equivalente: el texto pregunta «¿le cotizo…?» y la cotización espera su sí. */
+    consentimiento_pendiente?: boolean;
+  };
   try {
     salida = JSON.parse(await opciones.execute({
       codes: pieza!.metadata!.codes,
@@ -84,8 +115,10 @@ export async function tryRecomendarConLaPieza(
 
   // La cotización del juego de 4, como en el turno normal. Si se niega (stock,
   // candado), el cliente igual se queda con la pieza y la recomendación.
+  // Si la recomendada es una EQUIVALENTE, el texto ya cerró con «¿Le cotizo la
+  // X en MEDIDA?» y la cotización espera el sí del cliente (conv 13635).
   let textoCotizacion: string | null = null;
-  if (salida.recomendacion_entregada) {
+  if (salida.recomendacion_entregada && !salida.consentimiento_pendiente) {
     try {
       const cot = JSON.parse(await cotizar.execute({
         items: [{ code: recomendado, cantidad: 4 }],

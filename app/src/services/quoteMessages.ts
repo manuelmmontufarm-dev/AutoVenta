@@ -1,6 +1,7 @@
 import { business } from "../config.js";
 import { fraseDeAhorro, type AhorroDeLaCotizacion } from "../domain/ahorro.js";
 import { ETIQUETA_DEL_ESCALON } from "../domain/salesIntent.js";
+import { preguntaDeEquivalente } from "../domain/equivalentePendiente.js";
 import { PREGUNTA_DE_LOCAL } from "../domain/storeSelection.js";
 import type { CatalogItem } from "../domain/catalog.js";
 import { getTirePatternProfile } from "../domain/tireKnowledge.js";
@@ -185,6 +186,13 @@ export function buildCierreOpciones(input: {
    * esos; con uno solo no hay menú que valga y se entrega esa opción.
    */
   escalonesDisponibles?: readonly ("precio" | "equilibrada" | "premium")[];
+  /**
+   * La recomendada es de OTRA medida que la pedida (conv 13635, 1-sep): se
+   * entrega igual, pero el cierre no es «yo iría por…» a secas sino esa frase
+   * MÁS la pregunta de consentimiento en su propio mensaje. `medida` es la de
+   * la recomendada. Ver domain/equivalentePendiente.ts.
+   */
+  equivalentePendiente?: { medida: string | null };
 }): string {
   if (!input.entregarRecomendacion) {
     const hay = input.escalonesDisponibles ?? ["precio", "equilibrada", "premium"];
@@ -212,7 +220,18 @@ export function buildCierreOpciones(input: {
   // mismo turno (la orden va en `regla` y la obligación la fuerza `agent.ts`).
   // Prometerla aquí sería la familia «dijo que hizo algo que no hizo» si la
   // herramienta se bloquea — el cliente igual se queda con la recomendación.
-  return `Yo iría por la *${input.recomendacion}*${precio}: ${motivo}.`;
+  const recomendada = `Yo iría por la *${input.recomendacion}*${precio}: ${motivo}.`;
+  // La excepción, y es la única: una EQUIVALENTE sí pide permiso, porque es
+  // otra medida. La pregunta va sola en su mensaje para que el «ok» que le
+  // siga sea inequívoco (antes cerraba «…si acepta esa equivalente», sin
+  // preguntar, y el «Ok» del cliente se perdió — conv 13635).
+  if (input.equivalentePendiente) {
+    return `${recomendada}${BLOCK_SEPARATOR}${preguntaDeEquivalente({
+      recomendacion: input.recomendacion,
+      medida: input.equivalentePendiente.medida,
+    })}`;
+  }
+  return recomendada;
 }
 
 /**

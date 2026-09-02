@@ -16,6 +16,10 @@ describe("playbook compacto", () => {
 
   /** Evita volver a pegar incidentes y el manual histórico al prompt vivo. */
   it("es materialmente menor que el prompt histórico", () => {
-    expect(COMPACT_PLAYBOOK.length).toBeLessThan(5_800);
+    // 5 800 → 6 200 el 1-sep-2026: ese día entraron tres familias a la vez
+    // (forma fija del turno, equivalente con pregunta clara, y —al integrar—
+    // «sin medida del cliente no se cotiza»). El tope sigue siendo una
+    // fracción del prompt histórico; si vuelve a apretar, se recorta.
+    expect(COMPACT_PLAYBOOK.length).toBeLessThan(6_200);
   });
 });

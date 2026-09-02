@@ -1614,6 +1614,15 @@ export function buildTools(ctx: AgentContext) {
         : undefined;
       const entregada = porPreferencia ?? recommended;
       const recomendacion = `${entregada.brand} ${entregada.design}`;
+      // LA EQUIVALENTE NO SE COTIZA SIN SU SÍ, Y SU SÍ SE PIDE CON UNA PREGUNTA
+      // (conv 13635, 1-sep). Cuando la recomendada es de OTRA medida que la
+      // pedida, el turno la entrega y cierra con «¿Le cotizo la X en MEDIDA?»
+      // en su propio mensaje; la cotización sale en el turno del «ok». Antes
+      // salía «…la opción recomendada es WINRUN R330 en 205/55R16, si acepta
+      // esa equivalente.» —sin pregunta—, el cliente dijo «Ok» y el bot no
+      // supo a qué. Ver domain/equivalentePendiente.ts.
+      const consentimientoPendiente =
+        entregarRecomendacion && fueraDeMedida.some((p) => p.code === entregada.code);
       // El `motivo` lo escribió el modelo para SU recomendada. Si la
       // preferencia del cliente eligió OTRA llanta, ese motivo describe a la
       // equivocada y saldría verbatim en el cierre («la mejor duración» sobre
@@ -1630,9 +1639,12 @@ export function buildTools(ctx: AgentContext) {
       // La recomendación entregada AUTORIZA la cotización de este turno: el
       // cliente ya dio la señal (precio, recomendación, uso o menú) y la
       // política del corpus permite el juego de 4 como propuesta.
-      if (entregarRecomendacion) ctx.recomendacionEntregada = true;
+      if (entregarRecomendacion && !consentimientoPendiente) ctx.recomendacionEntregada = true;
       return JSON.stringify({
         imagen_enviada: visual.ok,
+        // Va primero a propósito: la huella que lee el guardián recorta el
+        // resultado a 500 caracteres y `aviso_medida` es largo.
+        consentimiento_pendiente: consentimientoPendiente,
         ...(avisoTipo ? { aviso: avisoTipo } : {}),
         ...(avisoMedida ? { aviso_medida: avisoMedida } : {}),
         medidas_mostradas: medidasMostradas,
@@ -1666,11 +1678,16 @@ export function buildTools(ctx: AgentContext) {
             escalonesDisponibles: (["precio", "equilibrada", "premium"] as const).filter(
               (k) => escalones[k === "precio" ? "economica" : k] != null,
             ),
+            equivalentePendiente: consentimientoPendiente
+              ? { medida: entregada.sizeLabel ?? null }
+              : undefined,
           }),
         ),
         regla: [
           "Responde usando exactamente mensaje_para_enviar, con sus separadores '---' intactos. No sumes alternativas ni repitas en texto lo que ya muestra la imagen.",
-          entregarRecomendacion
+          consentimientoPendiente
+            ? "La recomendada es una EQUIVALENTE (otra medida que la pedida): el texto ya la entrega y ya cierra, en su propio mensaje, con la pregunta de consentimiento «¿Le cotizo la … en …?». NO llames generar_cotizacion en este turno —falta su sí a la otra medida— y NO agregues otra pregunta, ni «si acepta esa equivalente», ni «¿quiere que le envíe esa opción?»: la pregunta ya está y es la única. Cuando conteste «ok», «sí» o «dale», ESE turno cotiza esa llanta."
+            : entregarRecomendacion
             ? "El cliente YA pidió la cotización, pidió recomendación, dijo su uso o contestó su preferencia: el texto le entrega la recomendación y AHORA MISMO, EN ESTE MISMO TURNO, llamas generar_cotizacion por `recomendacion` con 4 llantas (o la cantidad que el cliente haya dicho). PROHIBIDO preguntarle si la quiere y PROHIBIDO terminar el turno sin la cotización: ya te dio la señal."
             : "NO adelantes la recomendación en este turno: el texto cierra con el menú de preferencia (1 Costo / 2 Equilibrio / 3 Premium). Si el cliente responde «1», «2», «3», «costo», «equilibrio», «premium» (o «la más barata», «la del medio», «la mejor»), entrega la opción de ESE escalón de `escalones` — nombre y precio con IVA — y ofrece cotizarla por 4 llantas, sin volver a preguntar nada. Si responde un sí genérico, dile en UNA frase que irías por `recomendacion` porque `motivo_recomendacion`.",
           // La única excepción a «no agregues texto»: avisar que la medida no

@@ -1,3 +1,67 @@
+## 1-sep-2026 · La recomendada se reelige con el uso que el cliente cuenta
+
+**Qué:** `domain/recomendacionPorUso.ts` + cableado en
+`services/recomendarConLaPieza.ts`. Cuando la ruta directa reenvía la pieza
+porque el cliente contó para qué la quiere, la recomendada ya no es la que la
+pieza guardó al salir: el uso declarado («que se adhiera al pavimento»,
+«carretera», «mixto», «lodo», «carga») se traduce al orden de tipos de la tabla
+de Depot (H/T para asfalto, TURISMO UHP para agarre, A/T para mixto, M/T para
+lodo…) y se elige, SOLO entre las opciones que ya tiene en pantalla, la que
+mejor calza; empates dentro del tipo: la original si calza, si no la más cara
+para «agarre» y la del medio para el resto. El motivo lo pone el uso. Sin tipo
+conocido, se queda la original.
+
+**Por qué:** Manuel, viendo la prueba del simulador tras el commit 017a1a5: el
+bot recomendó la Kenda «de precio intermedio» a quien acababa de decir «al
+pavimento», porque la pieza guardaba la elegida ANTES de saber el uso. Coherente
+pero tonto. Simulador con el mismo chat: ahora «Yo iría por la FALKEN ZE310R —
+$161.08: para agarre y frenado en pavimento es la de mejor desempeño de las que
+le mostré».
+
+**Horas:** 0.7
+
+## 1-sep-2026 · La equivalente se ofrece con una pregunta clara y el «Ok» la cotiza
+
+**Qué:** Conv 13635 (593995548655, 205/65R16 sin stock exacto): el bot
+recomendó la equivalente sin preguntar nada («…la opción recomendada es *WINRUN
+R330* en *205/55R16*, si acepta esa equivalente.»), el cliente contestó «Ok»
+tres veces y recibió cinco piezas de opciones, tres veces el menú de
+preferencia y dos veces «Le preparo la cotización por 4 WINRUN R380… total
+$342.08» — con cero cotizaciones en `quotes`. Cinco cambios: (1) cuando la
+recomendada es de OTRA medida que la pedida, `preparar_opciones` no autoriza la
+cotización del turno y el cierre son dos mensajes: «Yo iría por la X…» y, solo,
+«¿Le cotizo la X en MEDIDA?» (`domain/equivalentePendiente.ts`); la ruta
+directa de recomendación respeta lo mismo. (2) Los detectores de «el cliente
+aceptó» reconocen «¿Se la(s) cotizo…?» además de «¿Le cotizo…?». (3) En
+`agent.ts`, con equivalentes en pantalla y sin cotización, dos órdenes
+determinísticas: la preferencia contestada entrega la del escalón y cierra con
+esa pregunta; el «Ok» a la pregunta cotiza esa llanta por código, sin volver a
+buscar ni a mandar opciones. (4) La vuelta forzada ya no consume la ronda que
+necesita para cumplirse (`rondasDelTurno += 1`) y el rescate tiene prohibido
+anunciar una cotización que no generó. (5) Candado nuevo al final de la cadena,
+`sin_cotizacion_prometida`: si el texto anuncia una cotización y en el ciclo no
+existe ninguna, se quita la promesa y el turno cierra con la pregunta de
+consentimiento (alerta `cotizacion_prometida_sin_pieza`). El guardián recibe el
+hecho duro «recomendada equivalente pendiente de consentimiento», la categoría
+`recomendacion_sin_pregunta`, y la regla 13 le prohíbe prometer la cotización
+en su propia corrección.
+
+**Por qué:** Manuel: «un ok es ambiguo porque no fue pregunta… si haría la
+pregunta clara, la respuesta fuera clara». La frase «si acepta esa equivalente»
+no la reconocía ningún detector de oferta, así que el «Ok» no abría nada. Y
+cuando sí abría (el «Ok» al «le preparo la cotización»), el modelo gastaba las
+tres rondas de producción en buscar_llanta + preparar_opciones y el
+recordatorio «te faltó generar_cotizacion» se anotaba en la ronda que el `for`
+ya no tenía: caía al rescate, que sin herramientas escribió la cotización que
+no existía; al turno siguiente el guardián corrigió «¿quiere que le genere…?»
+por «le preparo la cotización» — la misma promesa. Cada capa que podía
+inventar la cotización quedó con su candado; la única que la genera es la
+herramienta. El candado anti-reenvío de opciones NO se tocó (Manuel: tiene que
+poder mandar más opciones si se las piden). Probado en el simulador con la
+conversación real mensaje a mensaje (ver cuadro en el chat de trabajo).
+
+**Horas:** ~3
+
 ## 1-sep-2026 · La recomendación va en la pieza y el turno tiene forma fija
 
 **Qué:** Dos chats reales de la tarde (+593 98 229 0818 a las 16:02 y conv
@@ -371,6 +435,8 @@ Ya viene activado en este equipo.
 | 2026-09-01 | _(este mismo)_ | Las piezas del chat del hub se ven de nuevo (auth del visor) | 1 |
 | 2026-09-01 | _(este mismo)_ | Preguntar el precio ya no firma la cotización: opciones, elegir, cotizar | 2 |
 | 2026-09-01 | _(este mismo)_ | «La más conveniente» no cotizaba: eco del menú en el detector de preferencia | 1.5 |
+| 2026-09-01 | _(este mismo)_ | La equivalente se ofrece con pregunta clara y el «Ok» la cotiza (conv 13635) | 3 |
+| 2026-09-01 | _(este mismo)_ | La recomendada se reelige con el uso que el cliente cuenta | 0.7 |
 | 2026-08-31 | _(este mismo)_ | La misma pregunta dos veces en el mismo turno | 0.75 |
 | 2026-08-31 | _(este mismo)_ | Los tres errores del chat de Manuel: calco tras el guardián, medida rechazada y «no puedo esos días» | 2.5 |
 | 2026-08-29 | _(este mismo)_ | El embudo del Pipeline cabe entero en el teléfono, sin arrastrar | 0.75 |

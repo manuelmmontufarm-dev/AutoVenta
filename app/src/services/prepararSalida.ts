@@ -54,6 +54,8 @@ import { frenarHechosNuevosDelGuardian } from "../domain/guardianNoVendeSolo.js"
 import { sinBloquesCalcados } from "../domain/calcoReciente.js";
 import { sinPreguntaRepetidaEnElTurno } from "../domain/preguntaRepetidaEnElTurno.js";
 import { estructurarTurno } from "../domain/estructuraDelTurno.js";
+import { anunciaCotizacion, preguntaDeEquivalente, sinCotizacionPrometida } from "../domain/equivalentePendiente.js";
+import { findByCode } from "./catalog.js";
 
 /**
  * De qué puerta viene el texto.
@@ -478,6 +480,53 @@ export const PASOS: readonly PasoDeSalida[] = [
     // Solo en el turno normal: es la única puerta que parte el texto en varios
     // mensajes (`splitBlocks`). Separar la pregunta donde después se envía todo
     // junto no la separaría — dejaría un «---» a la vista del cliente.
+    // LA COTIZACIÓN QUE NO EXISTE NO SE ANUNCIA (conv 13635, 1-sep-2026).
+    //
+    // Dos turnos seguidos le dijeron al cliente «Le preparo la cotización por 4
+    // WINRUN R380… total $342.08» y la tabla `quotes` tenía cero filas. La
+    // primera la escribió el rescate del agente (sin herramientas, no podía
+    // cotizar); la segunda, el propio Ángel Guardián en su corrección. Por eso
+    // esto es un candado al final de la cadena y no una regla más de prompt: si
+    // en el ciclo no hay NINGUNA cotización, el texto no puede anunciar una. Se
+    // quita el bloque de la promesa y el turno cierra con la pregunta clara de
+    // consentimiento («¿Le cotizo la X en MEDIDA?»), que es lo que sí puede
+    // cumplir: el «ok» siguiente abre la cotización de verdad.
+    //
+    // Va ANTES de `pregunta_en_su_propio_mensaje` y de `estructura_del_turno`:
+    // agrega contenido, y esos dos le dan la forma. Ver domain/equivalentePendiente.ts.
+    nombre: "sin_cotizacion_prometida",
+    corre: ["respuesta", "retomada"],
+    async aplicar(texto, ctx) {
+      if (!anunciaCotizacion(texto)) return texto;
+      const [existe] = await sql<{ x: number }[]>`
+        select 1 as x from quotes
+        where conversation_id=${ctx.conversation.id} and cycle=${ctx.conversation.current_cycle}
+        limit 1
+      `;
+      if (existe) return texto;
+      const pregunta = await preguntaDeConsentimientoVigente(ctx.conversation.id, ctx.conversation.current_cycle);
+      const limpio = sinCotizacionPrometida(texto, pregunta);
+      if (!limpio.corregido) return texto;
+      console.warn(
+        `🛑 Cotización anunciada sin pieza en la conv ${ctx.conversation.id}: se quitó la promesa y se preguntó «${pregunta}»`,
+      );
+      await createBotAlert({
+        conversationId: ctx.conversation.id,
+        cycle: ctx.conversation.current_cycle,
+        type: "cotizacion_prometida_sin_pieza",
+        priority: "high",
+        summary: "El bot anunció una cotización que no generó (recortado)",
+        exactReason:
+          `El texto decía que la cotización iba en camino y en el ciclo no existe ninguna. ` +
+          `Se quitó la promesa y el turno cerró con «${pregunta}». Texto original: «${texto.slice(0, 300)}»`,
+        suggestedAction:
+          "El cliente recibió la pregunta, no la promesa. Si dice que sí, la cotización sale en ese turno; si el bot vuelve a prometer, hay una obligación del turno que no se está cumpliendo.",
+        dedupeKey: `cotizacion_prometida:${ctx.conversation.id}:${ctx.conversation.current_cycle}`,
+      }).catch(() => undefined);
+      return limpio.texto;
+    },
+  },
+  {
     nombre: "pregunta_en_su_propio_mensaje",
     corre: ["respuesta"],
     async aplicar(texto) {
@@ -601,6 +650,28 @@ export interface SalidaPreparada {
 }
 
 /** Los pasos que le tocan a una puerta, en orden. */
+/**
+ * La pregunta con la que se reemplaza una promesa de cotización: por la llanta
+ * recomendada de la última pieza de opciones del ciclo, con su medida real. Sin
+ * pieza —o sin catálogo—, la forma corta y legítima («¿Se la cotizo?»).
+ */
+async function preguntaDeConsentimientoVigente(conversationId: number, cycle: number): Promise<string> {
+  const [pieza] = await sql<{ metadata: { recomendado?: string; escalones?: Record<string, { codigo?: string; nombre?: string } | null> } | null }[]>`
+    select metadata from messages
+    where conversation_id=${conversationId} and cycle=${cycle} and metadata->>'piece'='options'
+    order by created_at desc limit 1
+  `;
+  const codigo = pieza?.metadata?.recomendado
+    ?? pieza?.metadata?.escalones?.economica?.codigo
+    ?? null;
+  const producto = codigo ? findByCode(codigo) : undefined;
+  if (!producto) return "¿Se la cotizo? 😊";
+  return preguntaDeEquivalente({
+    recomendacion: `${producto.brand} ${producto.design}`,
+    medida: producto.sizeLabel ?? null,
+  });
+}
+
 export function pasosPara(tipo: TipoDeSalida): PasoDeSalida[] {
   return PASOS.filter((paso) => paso.corre.includes(tipo));
 }

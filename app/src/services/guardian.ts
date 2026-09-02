@@ -86,6 +86,7 @@ export const CATEGORIAS = [
   "cotizacion_sin_eleccion",
   "insiste_tras_rechazo",
   "reofrece_lo_aceptado",
+  "recomendacion_sin_pregunta",
   "tono",
   "otro",
 ] as const;
@@ -171,7 +172,7 @@ REVISA, en este orden de gravedad:
 
 12. LO QUE EL BOT PROMETE vs LO QUE EL SISTEMA TIENE ANOTADO. Compara el borrador y lo que el BOT ya dijo en la conversación contra la sección de HECHOS REGISTRADOS. Si el bot confirmó una visita («listo, el jueves de 4 a 5 en Quito Sur») y los hechos dicen «Visita registrada: ninguna», eso es **estado_desincronizado** de severidad ALTA: el asesor no se va a enterar, no sale el cupón y el seguimiento le va a repreguntar el día. Lo mismo con el local, la medida o la cantidad confirmadas de palabra y ausentes de los hechos. IMPORTANTE: este hallazgo NO se arregla reescribiendo el mensaje al cliente —el mensaje está bien, lo que falla es el registro—. Repórtalo y APRUEBA el texto tal cual. Solo corrige si el borrador además promete algo que contradice un hecho que SÍ está anotado.
 
-13. PROMESAS QUE EL BOT NO PUEDE CUMPLIR. El bot solo puede prometer lo que está saliendo en ESE mismo turno. «Le paso la cotización correcta apenas esté confirmada», «se la mando en un momento», «le envío el PDF enseguida» son **promesa_incumplible** de severidad ALTA cuando el turno no lleva esa pieza: nada la genera después, y el cliente se queda esperando un archivo que no existe. Pasó el 26-ago (Andrés Tamayo): tres turnos seguidos prometiendo la cotización buena y ninguna salió. La corrección NO repite la promesa: si la pieza no se puede mandar, el borrador dice lo que sí es cierto y pide el dato que falta. Si los HECHOS traen «COTIZACIÓN DESALINEADA», el borrador tiene PROHIBIDO presentar esa cotización como válida y PROHIBIDO prometer la nueva — quien la genera es la herramienta, no el texto.
+13. PROMESAS QUE EL BOT NO PUEDE CUMPLIR. El bot solo puede prometer lo que está saliendo en ESE mismo turno. «Le paso la cotización correcta apenas esté confirmada», «se la mando en un momento», «le envío el PDF enseguida» son **promesa_incumplible** de severidad ALTA cuando el turno no lleva esa pieza: nada la genera después, y el cliente se queda esperando un archivo que no existe. Pasó el 26-ago (Andrés Tamayo): tres turnos seguidos prometiendo la cotización buena y ninguna salió. La corrección NO repite la promesa: si la pieza no se puede mandar, el borrador dice lo que sí es cierto y pide el dato que falta. Si los HECHOS traen «COTIZACIÓN DESALINEADA», el borrador tiene PROHIBIDO presentar esa cotización como válida y PROHIBIDO prometer la nueva — quien la genera es la herramienta, no el texto. **Y ESTO VALE PARA TU PROPIA CORRECCIÓN (1-sep, conv 13635):** si la HUELLA DE HERRAMIENTAS no trae un generar_cotizacion exitoso, tu texto corregido tiene PROHIBIDO decir «le preparo/le genero/le armo la cotización» o dar un total — ese día la corrección misma escribió «Le preparo la cotización por *4 WINRUN R380*» y ninguna cotización existía. Cuando la cotización no salió y el cliente ya aceptó o la llanta recomendada es una equivalente, la corrección termina con la pregunta clara de consentimiento, sola en su bloque: «¿Le cotizo la <llanta> en <medida>?». Y si el borrador RECOMIENDA una equivalente («la opción recomendada es X en 215/65R16, si acepta esa equivalente») sin terminar en una pregunta, eso es **recomendacion_sin_pregunta** de severidad ALTA: un «Ok» a una frase que no pregunta nada es ambiguo y el bot se pierde. La corrección conserva la recomendación y agrega, en bloque aparte (---), la pregunta «¿Le cotizo la X en <medida>?» — nunca «¿quiere que le envíe esa opción para revisar?» ni «si acepta esa equivalente».
 
 14. NÚMEROS DE COTIZACIÓN: NUNCA en el mensaje al cliente. Ni «COT-…» ni «AV-…». El cliente no llega al local recitándolos y ponerlos compite con lo único que sí tiene que recordar, su código de cupón. Si el borrador los trae, quítalos y habla de la cotización por su contenido («su cotización de 4 Falken Wildpeak en 235/75R15»). Y jamás los uses TÚ para explicarle al cliente por qué algo está mal: discutir números de cotización con él es ruido, no servicio.
 
@@ -561,6 +562,13 @@ export async function armarContexto(
     // categoría, así que se le dice con todas sus letras.
     huella.some((h) => h.herramienta === "preparar_opciones" && h.resultado.includes('"recomendacion_entregada":false'))
       ? "OPCIONES RECIÉN MOSTRADAS SIN ELECCIÓN: este turno el cliente solo preguntó (precio/medida) y el bot le mostró el menú de opciones. NO eligió ninguna todavía. Si el borrador anuncia, adjunta o promete una cotización, es **cotizacion_sin_eleccion** (alta) y la corrección la quita, dejando las opciones y el menú de preferencia."
+      : null,
+    // HECHO DURO para la conv 13635 (1-sep): la recomendada es una EQUIVALENTE
+    // y la herramienta ya cerró con la pregunta de consentimiento. El revisor
+    // tiene que saber que ESA pregunta es obligatoria —no una pregunta_de_mas—
+    // y que la cotización todavía no puede salir ni prometerse.
+    huella.some((h) => h.herramienta === "preparar_opciones" && h.resultado.includes('"consentimiento_pendiente":true'))
+      ? "RECOMENDADA EQUIVALENTE PENDIENTE DE CONSENTIMIENTO: la llanta recomendada este turno es de OTRA medida que la pedida, y el bot todavía no tiene su sí. El borrador DEBE terminar con la pregunta «¿Le cotizo la <llanta> en <medida>?» sola en su bloque: esa pregunta es la legítima de la regla 15, NO es pregunta_de_mas — no la quites, no la reescribas y no la cambies por «si acepta esa equivalente» ni por «¿quiere que le envíe esa opción?». Si el borrador no la trae, es **recomendacion_sin_pregunta** (alta) y la corrección la agrega en bloque aparte. Y como no hay cotización este turno, PROHIBIDO anunciarla o prometerla."
       : null,
     ...(opciones.tipo === "seguimiento" ? ["", INSTRUCCIONES_SEGUIMIENTO] : []),
     "",

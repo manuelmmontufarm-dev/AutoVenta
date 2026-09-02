@@ -340,6 +340,85 @@ Perfecto, en *225/70R15* ya le envié estas opciones: *Costo* WINRUN R330 $58.69
   },
 ];
 
+CASOS.push(
+  {
+    // 1-sep-2026, conv 13635, 17:38. Corrección del propio guardián que salió
+    // al cliente: recomienda la equivalente y cierra «si acepta esa
+    // equivalente» — sin pregunta. El «Ok» siguiente se perdió.
+    nombre: "conv 13635 · recomienda la equivalente sin preguntar «¿le cotizo…?»",
+    espera: { categoria: "recomendacion_sin_pregunta", severidad: "alta" },
+    familias: ["recomendacion_sin_pregunta"],
+    contexto: `== HECHOS REGISTRADOS ==
+Medidas que el cliente pidió: 205/65R16
+Local ya elegido: Depot Tire Quito Sur
+Visita registrada: (ninguna)
+Compromiso de visita en palabras del cliente: (ninguno)
+Cotización vigente: ninguna
+
+== CONVERSACIÓN (lo más reciente al final) ==
+CLIENTE: Pedí 205/65/16
+BOT: ⚠️ Ojo: en *205/65R16* no me queda disponibilidad exacta. Estas son *equivalentes* de su aro: WILDPEAK A/T TRAIL en 215/65R16, KR33A en 215/65R16, R380 en 215/65R16. Se confirma el calce al montar.
+CLIENTE: Bueno, bonito y barato
+BOT: La opción más “bueno, bonito y barato” sería la WINRUN R380 en 215/65R16, $85.52 c/u con IVA, si acepta equivalente.
+CLIENTE: Ok
+
+== LO QUE EL BOT HIZO ESTE TURNO (herramientas) ==
+buscar_llanta({"medida":"205/65R16"}) → {"sin_coincidencia_exacta":true,"equivalentes_del_aro":[...]}
+preparar_opciones({"codes":["350214","307FB637","2055516WNR330"],"recomendado":"2055516WNR330"}) → {"imagen_enviada":true,"consentimiento_pendiente":true,"recomendacion":"WINRUN R330","recomendacion_entregada":true,...}
+RECOMENDADA EQUIVALENTE PENDIENTE DE CONSENTIMIENTO: la llanta recomendada este turno es de OTRA medida que la pedida, y el bot todavía no tiene su sí. El borrador DEBE terminar con la pregunta «¿Le cotizo la <llanta> en <medida>?» sola en su bloque: esa pregunta es la legítima de la regla 15, NO es pregunta_de_mas — no la quites, no la reescribas y no la cambies por «si acepta esa equivalente» ni por «¿quiere que le envíe esa opción?». Si el borrador no la trae, es **recomendacion_sin_pregunta** (alta) y la corrección la agrega en bloque aparte. Y como no hay cotización este turno, PROHIBIDO anunciarla o prometerla.
+
+== BORRADOR QUE EL BOT VA A ENVIAR ==
+⚠️ Ojo: en *205/65R16* no me queda disponibilidad exacta. Estas opciones que le envié son *equivalentes* de aro 16 y se confirma el calce al montar:
+
+• *FALKEN WILDPEAK A/T TRAIL* en *215/65R16*
+• *KENDA KR33A* en *215/65R16*
+• *WINRUN R330* en *205/55R16*
+
+Como usted busca algo *bueno, bonito y barato*, la opción recomendada es *WINRUN R330* en *205/55R16*, si acepta esa equivalente.`,
+    verificar: (salida) =>
+      salida.veredicto === "corregir" && /¿[^?]*cotizo[^?]*R330[^?]*\?/i.test(salida.texto_corregido ?? "")
+        ? null
+        : "la corrección no cerró con la pregunta «¿Le cotizo la WINRUN R330…?»",
+  },
+  {
+    // 1-sep-2026, conv 13635, 17:37. El borrador pedía permiso («¿Quiere que
+    // le genere la cotización…?») y la corrección del guardián lo cambió por
+    // «Le preparo la cotización por *4 WINRUN R380*» — una promesa sin
+    // herramienta detrás. La corrección no puede prometer lo que no salió.
+    nombre: "conv 13635 · la corrección NO puede prometer la cotización que no salió",
+    espera: { categoria: "promesa_incumplible", severidad: "alta" },
+    familias: ["promesa_incumplible", "reofrece_lo_aceptado", "pregunta_de_mas"],
+    contexto: `== HECHOS REGISTRADOS ==
+Medidas que el cliente pidió: 205/65R16
+Local ya elegido: Depot Tire Quito Sur
+Visita registrada: (ninguna)
+Compromiso de visita en palabras del cliente: (ninguno)
+EL CLIENTE YA ACEPTÓ: el bot le ofreció la cotización y él contestó «Ok». Eso es un sí. Lo que corresponde es la cotización, no volver a ofrecerla.
+Cotización vigente: ninguna
+
+== CONVERSACIÓN (lo más reciente al final) ==
+CLIENTE: Ok
+BOT: Le preparo la cotización por 4 WINRUN R380 en medida equivalente 215/65R16. Precio referencial: $85.52 c/u con IVA, total 4 llantas: $342.08.
+BOT: ¿En cuál local le queda mejor: Depot Tire Cumbayá o Depot Tire Quito Sur?
+CLIENTE: Quito Sur
+
+== LO QUE EL BOT HIZO ESTE TURNO (herramientas) ==
+buscar_llanta({"medida":"205/65R16"}) → {"sin_coincidencia_exacta":true,...}
+preparar_opciones({"codes":["350214","307FB637","2156516WNR380"]}) → {"error":"Las opciones de 215/65R16 YA se enviaron hace 5 min..."}
+
+== BORRADOR QUE EL BOT VA A ENVIAR ==
+Listo, Depot Tire Quito Sur queda registrado como su local.
+---
+Para 205/65R16 exacta no me sale stock disponible ahora; la alternativa económica disponible es WINRUN R380 en 215/65R16 a $85.52 c/u con IVA, sujeta a verificación de calce en tienda.
+---
+Le preparo la cotización por las 4 WINRUN R380 para Depot Tire Quito Sur.`,
+    verificar: (salida) =>
+      salida.veredicto === "corregir" && !/le\s+(?:preparo|genero|armo|dejo)\s+la\s+cotizaci/i.test(salida.texto_corregido ?? "")
+        ? null
+        : "la corrección volvió a prometer «le preparo la cotización» sin herramienta detrás",
+  },
+);
+
 const FAMILIAS_GLOBALES = ["stock_prometido", "insiste_tras_rechazo", "reofrece_lo_aceptado"];
 let fallos = 0;
 

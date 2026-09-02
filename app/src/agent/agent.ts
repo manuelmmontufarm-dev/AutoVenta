@@ -44,7 +44,8 @@ import {
   esRespuestaDelMenuDePreferencia, ETIQUETA_DEL_ESCALON, extractExplicitQuantity,
   extractVehicleYear, respuestaDePreferencia, type Escalones,
 } from "../domain/salesIntent.js";
-import { searchByText } from "../services/catalog.js";
+import { findByCode, searchByText } from "../services/catalog.js";
+import { preguntaDeEquivalente } from "../domain/equivalentePendiente.js";
 import { chatReasoningEffort } from "./aiRequestPolicy.js";
 import { elegirFaseOperativa } from "./faseOperativa.js";
 import {
@@ -222,7 +223,13 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
   // Ver `domain/vitrinaVieja.ts`.
   const medidaDelTurno =
     extractTireSizes(userText).map(formatTireSize)[0] ?? salesFacts.tireSize ?? null;
-  const [piezaPrevia] = await sql<{ metadata: { sizeLabel?: string | null; escalones?: Record<string, { nombre?: string }> } | null }[]>`
+  const [piezaPrevia] = await sql<{ metadata: {
+    sizeLabel?: string | null;
+    escalones?: Record<string, { nombre?: string; codigo?: string; precio_con_iva?: number } | null>;
+    /** Medidas de las tarjetas que NO son la pedida: la pieza fue de equivalentes. */
+    equivalentes?: string[];
+    recomendado?: string;
+  } | null }[]>`
     select metadata from messages
     where conversation_id=${ctx.conversation.id} and cycle=${ctx.conversation.current_cycle}
       and role='assistant' and metadata->>'piece' = 'options'
@@ -360,6 +367,54 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
   // Elegir una de las opciones mostradas ES la autorización: abre el candado
   // de generar_cotizacion igual que un «sí» a la oferta.
   if (marcaElegida) ctx.aceptoCotizacion = true;
+  // LA EQUIVALENTE EN PANTALLA (conv 13635, 1-sep). Dos turnos de esa
+  // conversación que el modelo no supo llevar solo:
+  //
+  //  (a) «Bueno, bonito y barato» con opciones equivalentes en pantalla: el
+  //      modelo buscó de nuevo, no entregó ninguna y preguntó «¿quiere que le
+  //      envíe esa opción para revisar?». Lo que corresponde: entregar la del
+  //      escalón y cerrar con la pregunta de consentimiento, sola.
+  //  (b) «Ok» a esa pregunta: el modelo volvió a buscar y a mandar opciones en
+  //      vez de cotizar. Lo que corresponde: generar_cotizacion con ESA llanta.
+  //
+  // Los dos son hechos determinísticos y viajan como orden, no como sugerencia.
+  const equivalentesEnPantalla = (piezaPrevia?.metadata?.equivalentes?.length ?? 0) > 0;
+  const preferenciaDelTurno = respuestaDePreferencia(userText);
+  const escalonEnPantalla = (nivel: "economica" | "equilibrada" | "premium") => {
+    const opcion = piezaPrevia?.metadata?.escalones?.[nivel];
+    const producto = opcion?.codigo ? findByCode(opcion.codigo) : undefined;
+    return opcion?.codigo && opcion.nombre
+      ? { codigo: opcion.codigo, nombre: opcion.nombre, precio: opcion.precio_con_iva ?? null, medida: producto?.sizeLabel ?? null }
+      : null;
+  };
+  let ordenDeEquivalente: string | null = null;
+  if (equivalentesEnPantalla && !salesFacts.lastQuote && !ctx.consultaFueraDeCatalogo && !pidioHumano) {
+    if (ctx.aceptoCotizacion || aceptoLaOferta) {
+      // La llanta que el bot mismo nombró en su pregunta, si la nombró.
+      const nombrada = textoUltimoDelBot.match(/¿\s*(?:le|se\s+las?)\s+cotizo\s+las?\s+\*([^*]+)\*/i)?.[1]?.trim().toUpperCase() ?? null;
+      const candidatas = (["economica", "equilibrada", "premium"] as const).map(escalonEnPantalla).filter(Boolean);
+      const elegida = candidatas.find((c) => nombrada && c!.nombre.toUpperCase() === nombrada)
+        ?? candidatas.find((c) => c!.codigo === piezaPrevia?.metadata?.recomendado)
+        ?? null;
+      if (elegida) {
+        ordenDeEquivalente =
+          `EL CLIENTE ACEPTÓ LA EQUIVALENTE (fuente determinística): le ofreciste la *${elegida.nombre}*${elegida.medida ? ` en ${elegida.medida}` : ""} —otra medida que la pedida— y contestó «${userText.trim().slice(0, 60)}», que es un sí. `
+          + `Llama generar_cotizacion AHORA MISMO con code ${elegida.codigo} y 4 llantas (o la cantidad que él haya dicho). `
+          + "PROHIBIDO buscar_llanta, PROHIBIDO preparar_opciones, PROHIBIDO volver a preguntar nada: la pieza ya la tiene y ya dijo que sí.";
+      }
+    } else if (preferenciaDelTurno) {
+      const nivel = preferenciaDelTurno === "precio" ? "economica" : preferenciaDelTurno;
+      const delEscalon = escalonEnPantalla(nivel);
+      if (delEscalon) {
+        const pregunta = preguntaDeEquivalente({ recomendacion: delEscalon.nombre, medida: delEscalon.medida });
+        ordenDeEquivalente =
+          `EL CLIENTE CONTESTÓ SU PREFERENCIA (fuente determinística) y las opciones en pantalla son EQUIVALENTES (otra medida que la pedida). `
+          + `Entrega LA del escalón que eligió: *${delEscalon.nombre}*${delEscalon.precio ? ` a $${delEscalon.precio.toFixed(2)} c/u con IVA` : ""}${delEscalon.medida ? ` en ${delEscalon.medida}` : ""}, en UNA frase, y cierra en un mensaje aparte (---) EXACTAMENTE con: «${pregunta}». `
+          + "PROHIBIDO llamar generar_cotizacion (todavía no dio su sí a la otra medida), PROHIBIDO buscar_llanta o preparar_opciones (ya las tiene en pantalla), PROHIBIDO preguntar «¿quiere que le envíe esa opción?» o cerrar con «si acepta esa equivalente»: la única pregunta del turno es la de cotizar.";
+      }
+    }
+  }
+  if (ordenDeEquivalente) usedTools.push("orden_equivalente");
   const cantidadNueva = extractExplicitQuantity(userText);
   const cantidadCambia = cantidadNueva !== null
     && salesFacts.lastQuote !== null
@@ -405,6 +460,8 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
     { role: "system", content: salesFactsPrompt(salesFacts, ctx.resumedFromHuman) },
     ...(aceptoLaOferta && !acuseTrasObjecion
       ? [{ role: "system" as const, content: ordenDeCotizarYa(userText) }] : []),
+    ...(ordenDeEquivalente && !acuseTrasObjecion
+      ? [{ role: "system" as const, content: ordenDeEquivalente }] : []),
     ...(!aceptoLaOferta && aceptoOfertaPendiente
       ? [{ role: "system" as const, content: recordatorioDeOfertaPendiente(userText) }]
       : []),
@@ -496,7 +553,15 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
   let llamadasDuplicadas = 0;
   let falloEnLoop = false;
 
-  for (let iteration = 0; iteration < config.openai.maxToolIterations; iteration += 1) {
+  // LA VUELTA FORZADA TIENE SU PROPIA RONDA (conv 13635, 1-sep). Producción
+  // corre con 3 rondas: el modelo gastó la 1 en buscar_llanta, la 2 en
+  // preparar_opciones y en la 3 escribió texto; el recordatorio «te faltó
+  // generar_cotizacion» se anotó, hizo `continue`… y el `for` ya no tenía
+  // ronda para ejecutarlo. Cayó al rescate, que redactó «Le preparo la
+  // cotización… total $342.08» sin cotización. El recordatorio no puede
+  // consumir la ronda que necesita para cumplirse: se le suma una.
+  let rondasDelTurno = config.openai.maxToolIterations;
+  for (let iteration = 0; iteration < rondasDelTurno; iteration += 1) {
     modeloUsado = modeloDelTurno(iteration, faseOperativa, exactoBarato);
     const gpt5 = modeloUsado.startsWith("gpt-5");
     const reasoningEffort = chatReasoningEffort(modeloUsado, tools.length > 0);
@@ -569,6 +634,7 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
         && !["buscar_por_aro_y_tipo", "buscar_llanta", "fitment_vehiculo"].some((h) => usedTools.includes(h));
       if ((debeCotizar || debeNotificar || debeBuscarPorAro) && !vueltaForzadaUsada && !ctx.consultaFueraDeCatalogo) {
         vueltaForzadaUsada = true;
+        rondasDelTurno += 1;
         usedTools.push(`vuelta_forzada:${debeCotizar ? "cotizar" : debeNotificar ? "notificar" : "buscar_aro"}`);
         messages.push({
           role: "system",
@@ -642,6 +708,7 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
         // deben seguir pegados al mensaje del asistente. Se anota y se
         // agrega al terminar el bloque de llamadas.
         vueltaForzadaUsada = true;
+        rondasDelTurno += 1;
         recordatorioDeObligacion =
           "OBLIGACIÓN PENDIENTE: el cliente pidió explícitamente cotización/persona y todavía no llamaste "
           + "la herramienta que la cumple (generar_cotizacion / notificar_vendedor). Llámala AHORA — el "
@@ -697,7 +764,12 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
       {
         role: "system",
         content:
-          "Se acabaron los intentos con herramientas. Responde AHORA al cliente con lo que ya sabes de esta conversación: si tienes opciones o precios de las herramientas, dilos; si algo falló, avanza por otro camino (pide el dato que falte o deriva al asesor). Prohibido disculparte por 'problemas procesando' y prohibido pedir que repita el mensaje.",
+          "Se acabaron los intentos con herramientas. Responde AHORA al cliente con lo que ya sabes de esta conversación: si tienes opciones o precios de las herramientas, dilos; si algo falló, avanza por otro camino (pide el dato que falte o deriva al asesor). Prohibido disculparte por 'problemas procesando' y prohibido pedir que repita el mensaje. "
+          // Conv 13635 (1-sep): este rescate escribió «Le preparo la cotización
+          // por 4 WINRUN R380… total $342.08» sin que ninguna cotización
+          // existiera. El rescate no tiene herramientas: no puede prometer lo
+          // que solo una herramienta genera.
+          + "Y PROHIBIDO anunciar, prometer o describir una cotización («le preparo la cotización», «cotización por 4», un total) si en este turno NO se ejecutó generar_cotizacion: la cotización la genera la herramienta, no tu texto. En ese caso di lo que sí es cierto (la llanta recomendada y su precio unitario) y cierra, en un mensaje aparte con '---', con UNA pregunta directa de cotizar: «¿Le cotizo la <llanta> en <medida>?».",
       },
     ];
     const rescate = await openai.chat.completions.create({

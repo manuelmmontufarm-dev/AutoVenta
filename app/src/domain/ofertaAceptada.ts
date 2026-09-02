@@ -51,7 +51,7 @@ const LO_QUE_SE_OFRECE = "(?:cotiza|opcion|opciones|alternativ|comparaci|compara
 const OFRECIO_ALGO =
   new RegExp(
     `(?:puedo|podemos|podria|podriamos)\\s+(?:\\w+\\s+){0,3}${LO_QUE_SE_OFRECE}`
-    + `|¿\\s*le\\s+cotizo|\\ble\\s+cotizo\\b[^.?!]{0,60}\\?`
+    + `|¿\\s*(?:le|se\\s+las?)\\s+cotizo|\\b(?:le|se\\s+las?)\\s+cotizo\\b[^.?!]{0,60}\\?`
     + `|(?:si\\s+(?:desea|gusta|quiere)|si\\s+le\\s+parece|si\\s+quiere|quiere\\s+que|desea\\s+que)[^.?!]{0,70}${LO_QUE_SE_OFRECE}`
     + `|(?:le|se\\s+la|se\\s+las|te\\s+la|te\\s+las)\\s+(?:dejo|paso|hago|armo|preparo)\\s+(?:\\w+\\s+){0,4}${LO_QUE_SE_OFRECE}`
     + `|\\ble\\s+dejo\\s+\\d\\s*[-–]\\s*\\d\\s+${LO_QUE_SE_OFRECE}`,
@@ -62,8 +62,12 @@ const OFRECIO_ALGO =
 // y «¿Le genero la cotización…?» — la corrida T115 del 30-ago (conv 9684,
 // corrida 3) mostró al modelo ACEPTANDO el «Ok» y al candado bloqueándolo
 // porque su propio verbo no estaba en esta lista.
+// «¿Se la cotizo?» / «¿Se las cotizo?» es la pregunta de consentimiento de una
+// EQUIVALENTE (conv 13635, 1-sep: la recomendación salió sin pregunta, el
+// cliente dijo «Ok» y nadie supo a qué). Ahora la pregunta existe y el «Ok»
+// que le sigue tiene que abrir la cotización.
 const OFRECIO_COTIZAR =
-  /(?:puedo|podemos|podria|podriamos)\s+(?:\w+\s+){0,3}coti[zc]\w*|¿\s*le\s+(?:cotizo|genero)|\ble\s+cotizo\b[^.?!]{0,60}\?|\ble\s+genero\b[^.?!]{0,60}coti[zc]\w*|(?:si\s+(?:desea|gusta|quiere)|si\s+le\s+parece|quiere\s+que|desea\s+que|prefiere\s+que)[^.?!]{0,70}coti[zc]\w*|(?:le|se\s+la|te\s+la)\s+(?:dejo|paso|hago|armo|preparo|genero)\s+(?:\w+\s+){0,4}coti[zc]\w*/;
+  /(?:puedo|podemos|podria|podriamos)\s+(?:\w+\s+){0,3}coti[zc]\w*|¿\s*(?:le|se\s+las?)\s+(?:cotizo|genero)|\b(?:le|se\s+las?)\s+cotizo\b[^.?!]{0,60}\?|\ble\s+genero\b[^.?!]{0,60}coti[zc]\w*|(?:si\s+(?:desea|gusta|quiere)|si\s+le\s+parece|quiere\s+que|desea\s+que|prefiere\s+que)[^.?!]{0,70}coti[zc]\w*|(?:le|se\s+la|te\s+la)\s+(?:dejo|paso|hago|armo|preparo|genero)\s+(?:\w+\s+){0,4}coti[zc]\w*/;
 
 /**
  * El cliente contestó con un acuse y nada más.
