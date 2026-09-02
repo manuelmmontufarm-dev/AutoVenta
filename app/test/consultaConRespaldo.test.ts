@@ -41,6 +41,10 @@ describe("marcaPreguntada", () => {
     expect(marcaPreguntada("¿Tienen Kenda?")).toBe("KENDA");
   });
 
+  it("«Kendall» es Kenda (conv 5698: pidió Kendall y recibió Winrun en silencio)", () => {
+    expect(marcaPreguntada("Necesito un par de llantas marca Kendall en 185 60 Rin 14")).toBe("KENDA");
+  });
+
   it("nombrar la marca sin preguntar por ella no dispara", () => {
     // «mis falken rozan cargado» describe las llantas puestas, no pide stock.
     expect(marcaPreguntada("mis falken rozan cargado")).toBeNull();

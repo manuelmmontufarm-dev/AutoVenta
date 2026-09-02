@@ -130,7 +130,10 @@ describe.sequential("la memoria del chat caduca a las 15 horas", () => {
    */
   it("el asesor no pierde su chat: se olvida la memoria, no el dueño", async () => {
     const conv = await conversacionConHistoria("593900000205", hace(20), hace(20));
-    const pausaLarga = new Date(AHORA.getTime() + 30 * 3_600_000);
+    // La pausa se mide contra el reloj de pared (`isBotPaused` usa `new Date()`),
+    // no contra AHORA del caso: si se ancla al 31-ago 2026, el 1-sep a la noche
+    // ya venció y el test falla sin que el bot haya cambiado.
+    const pausaLarga = new Date(Date.now() + 30 * 3_600_000);
     await appSql`
       update conversations
       set assigned_to = 'human', bot_paused_until = ${pausaLarga}

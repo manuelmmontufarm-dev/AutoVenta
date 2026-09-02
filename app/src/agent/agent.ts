@@ -798,7 +798,7 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
           // por 4 WINRUN R380… total $342.08» sin que ninguna cotización
           // existiera. El rescate no tiene herramientas: no puede prometer lo
           // que solo una herramienta genera.
-          + "Y PROHIBIDO anunciar, prometer o describir una cotización («le preparo la cotización», «cotización por 4», un total) si en este turno NO se ejecutó generar_cotizacion: la cotización la genera la herramienta, no tu texto. En ese caso di lo que sí es cierto (la llanta recomendada y su precio unitario) y cierra, en un mensaje aparte con '---', con UNA pregunta directa de cotizar: «¿Le cotizo la <llanta> en <medida>?».",
+          + "Y PROHIBIDO anunciar, prometer o describir una cotización («le preparo la cotización», «cotización por 4 llantas», un total) si en este turno NO se ejecutó generar_cotizacion: la cotización la genera la herramienta, no tu texto. En ese caso di lo que sí es cierto (la llanta recomendada y su precio unitario) y cierra, en un mensaje aparte con '---', con UNA pregunta directa de cotizar: «¿Le cotizo la <llanta> en <medida>?».",
       },
     ];
     const rescate = await openai.chat.completions.create({

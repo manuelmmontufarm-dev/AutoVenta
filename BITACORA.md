@@ -1,3 +1,22 @@
+## 1-sep-2026 · Tres chats que se quedaron a medias: medida barajada, Kendall y el menú de una
+
+**Qué:** Los tres hallazgos que Claude diagnosticó y no llegó a publicar. (1)
+`extractTireSizes` lee «Rin 14 60 195» (el aro primero, como se dice acá):
+sin eso el bot buscaba por aro y cotizaba 215/75R14 a quien había escrito
+195/60R14. (2) «Kendall» es Kenda: el detector de marca pedida no disparaba
+y Raúl (conv 5698) recibió Winrun sin una palabra de que Kenda estaba
+agotada. (3) Tres escalones con el mismo código son una sola opción: el menú
+Costo/Equilibrio/Premium ya no pregunta sobre una lista de uno.
+
+**Por qué:** Tres sesiones distintas se quedaron sin tokens el 1-sep a las
+19:50. La causa de cada una era determinística y la capa correcta era el
+parser, el alias y el filtro de códigos — no el modelo. El candado de
+15 h del seguimiento NO se tocó: el reloj ya se refresca con los mensajes
+del bot; lo que falló en 5698 era no nombrar la marca y preguntar prioridad
+con una llanta.
+
+**Horas:** 1.5
+
 ## 1-sep-2026 · La recomendada se reelige con el uso que el cliente cuenta
 
 **Qué:** `domain/recomendacionPorUso.ts` + cableado en
@@ -491,6 +510,7 @@ Ya viene activado en este equipo.
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
 | 2026-09-01 | _(este mismo)_ | Medida deducida ≠ confirmada: tabla con «media», matcher por palabras, +13 fichas, fitment aprendido, candado sin medida no cotiza | 3.5 |
+| 2026-09-01 | _(este mismo)_ | Tres chats a medias: «Rin 14 60 195», Kendall=Kenda, menú de una sola llanta | 1.5 |
 | 2026-09-01 | _(este mismo)_ | «No hay A/T» teniendo 89 en bodega: recorte por tipo, re-búsqueda obligada y guardián con tipos | 2.0 |
 | 2026-09-01 | _(este mismo)_ | Las piezas del chat del hub se ven de nuevo (auth del visor) | 1 |
 | 2026-09-01 | _(este mismo)_ | Preguntar el precio ya no firma la cotización: opciones, elegir, cotizar | 2 |

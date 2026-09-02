@@ -17,7 +17,10 @@
  */
 
 const normalizar = (texto: string): string =>
-  texto.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+  texto.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase()
+    // Conv 5698, 1-sep: «marca Kendall» es Kenda. Sin el alias, el detector
+    // no disparaba y el bot mandó Winrun sin nombrar la marca pedida.
+    .replace(/\bkendall\b/g, "kenda");
 
 /**
  * Las marcas por las que un cliente pregunta de verdad. Las tres primeras son

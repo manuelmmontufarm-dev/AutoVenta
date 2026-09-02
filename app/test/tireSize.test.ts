@@ -26,6 +26,12 @@ describe("parseTireSize", () => {
     ["205/55ZR16", "205/55R16"],
     // Minúsculas
     ["195/60r15", "195/60R15"],
+    // Aro primero, como se dice en Ecuador (conv valle, 1-sep)
+    ["Rin 14 60 195", "195/60R14"],
+    ["Rin 14 60 195 doble propósito", "195/60R14"],
+    ["aro 16 55 205", "205/55R16"],
+    // Como escribe la gente: ya funcionaba, no se rompe
+    ["185 60 Rin 14", "185/60R14"],
     // No-medidas: no debe alucinar
     ["hola buenas tardes", null],
     ["mi número es 0991234567", null],

@@ -81,12 +81,16 @@ describe("el menú no ofrece escalones que la pieza no trae", () => {
     expect(cierre).not.toContain("3)");
   });
 
-  it("con una sola opción no se pregunta: se entrega", () => {
-    const cierre = qm.buildCierreOpciones({ ...base, escalonesDisponibles: ["precio"] });
+  it("tres escalones de la misma llanta son una sola opción, no un menú", () => {
+    const cierre = qm.buildCierreOpciones({
+      ...base,
+      escalonesDisponibles: ["precio"],
+      recomendacion: "WINRUN R380",
+      precioConIva: 50.78,
+    });
     expect(cierre).toMatch(/única que tengo/i);
-    expect(cierre).toContain("KENDA KR23");
-    expect(cierre).toContain("$55.64");
-    expect(cierre).not.toContain("1)");
+    expect(cierre).toContain("WINRUN R380");
+    expect(cierre).not.toContain("¿qué prioriza");
   });
 
   it("EL CASO QUE NO DEBE DISPARAR: con las tres, el menú es el de siempre", () => {

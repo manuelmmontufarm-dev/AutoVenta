@@ -1740,9 +1740,18 @@ export function buildTools(ctx: AgentContext) {
             // El menú ofrece SOLO los escalones que la pieza trae: con dos
             // opciones el del medio queda vacío y ofrecerlo igual es prometer
             // algo que no se puede entregar (conv 3, 27-ago).
-            escalonesDisponibles: (["precio", "equilibrada", "premium"] as const).filter(
-              (k) => escalones[k === "precio" ? "economica" : k] != null,
-            ),
+            // Tres escalones con EL MISMO código son una sola opción (conv
+            // 5698, 1-sep: Winrun R380 ocupaba costo/equilibrio/premium y el
+            // menú preguntó «¿qué prioriza?» sobre una lista de uno).
+            escalonesDisponibles: (() => {
+              const vistos = new Set<string>();
+              return (["precio", "equilibrada", "premium"] as const).filter((k) => {
+                const opcion = escalones[k === "precio" ? "economica" : k];
+                if (!opcion?.codigo || vistos.has(opcion.codigo)) return false;
+                vistos.add(opcion.codigo);
+                return true;
+              });
+            })(),
             equivalentePendiente: consentimientoPendiente
               ? { medida: entregada.sizeLabel ?? null }
               : undefined,

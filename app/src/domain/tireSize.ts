@@ -65,7 +65,45 @@ export function extractTireSizes(text: string): TireSize[] {
       sizes.push({ width, aspect, rim });
     }
   }
+  if (sizes.length === 0) {
+    const barajada = extractShuffledSize(text);
+    if (barajada) sizes.push(barajada);
+  }
   return sizes;
+}
+
+/**
+ * «Rin 14 60 195» — ancho, perfil y aro en cualquier orden, con rin/aro
+ * marcando cuál es el aro.
+ *
+ * Conv valle, 1-sep: «Rin 14 60 195 doble propósito». El regex canónico pide
+ * el ancho (3 dígitos) primero, así que devolvía vacío; el bot buscó por aro
+ * 14 y cotizó 215/75R14. La palabra rin/aro es el ancla: sin ella no se
+ * baraja, para no inventar medidas de un teléfono o una fecha.
+ */
+function extractShuffledSize(text: string): TireSize | null {
+  const n = text.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
+  const rin = n.match(/\b(?:rin|aro)\s*(\d{2})\b/);
+  if (!rin) return null;
+  const rim = Number(rin[1]);
+  if (rim < RIM_MIN || rim > RIM_MAX) return null;
+  const resto: number[] = [];
+  const re = /(?<!\d)(\d{2,3})(?!\d)/g;
+  const desde = rin.index ?? 0;
+  const hasta = desde + rin[0].length;
+  for (const m of n.matchAll(re)) {
+    if (m.index >= desde && m.index < hasta) continue;
+    resto.push(Number(m[1]));
+  }
+  const widths = resto.filter((x) => x >= WIDTH_MIN && x <= WIDTH_MAX && x % 5 === 0);
+  const aspects = resto.filter((x) => x >= ASPECT_MIN && x <= ASPECT_MAX && x % 5 === 0 && x !== rim);
+  if (widths.length !== 1) return null;
+  const width = widths[0];
+  const perfil = aspects.filter((x) => x !== width);
+  if (perfil.length !== 1) return null;
+  const aspect = perfil[0];
+  if (!isValid(width, aspect, rim)) return null;
+  return { width, aspect, rim };
 }
 
 /**
