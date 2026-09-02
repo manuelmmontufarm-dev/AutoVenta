@@ -29,6 +29,7 @@
  * no ve los errores que el redactor no vio.
  */
 import OpenAI from "openai";
+import { medidaConfirmadaPorCliente } from "../domain/medidaConfirmada.js";
 import { z } from "zod";
 import { config } from "../config.js";
 import { sql } from "../db/client.js";
@@ -84,6 +85,7 @@ export const CATEGORIAS = [
   "promesa_incumplible",
   "pregunta_de_mas",
   "cotizacion_sin_eleccion",
+  "cotizacion_sin_medida",
   "insiste_tras_rechazo",
   "reofrece_lo_aceptado",
   "recomendacion_sin_pregunta",
@@ -189,6 +191,8 @@ REVISA, en este orden de gravedad:
 16. EL CIERRE DESPUÉS DE LA COTIZACIÓN VA EN DOS MENSAJES. Primero los dos locales con sus links y un «sin compromiso»; después, en mensaje aparte, la pregunta de a cuál le queda mejor. El DÍA no se pregunta en ese turno: se pregunta recién cuando el cliente ya eligió local. Si el borrador junta las dos preguntas —local y día— o mete la pregunta dentro del bloque de los links, corrígelo respetando los separadores '---'.
 
 21. EL TIPO DE LLANTA SALE DEL CATÁLOGO, NUNCA DEL BORRADOR. Cada fila del CATÁLOGO DE HOY trae su tipo entre corchetes ([A/T], [H/T], [R/T], [M/T]…). Dos errores ALTOS de categoría **tipo_negado_con_stock**: (a) el borrador presenta una llanta como de un tipo que el catálogo no le da — pasó el 1-sep (conv 13645): ofreció la KR50 [H/T] como si fuera la A/T pedida; (b) el borrador dice que un tipo «no hay», «no está disponible» o «no se lo ofrezco» cuando el catálogo trae una llanta de ese tipo con stock para el juego de ${JUEGO_COMPLETO} — ese mismo día el cliente pidió A/T y el catálogo tenía la KR28 [A/T] con 89 y la KR608 [A/T] con 74. TU CORRECCIÓN NO INVENTA, PERO TAMPOCO SE ESCONDE: si el catálogo trae el tipo pedido con stock para el juego, la corrección lo ofrece NOMBRÁNDOLO — marca, diseño y precio copiados de ESA fila («la *KENDA KR28* a *$238.37 c/u con IVA*»). PROHIBIDO el genérico «le confirmo una opción A/T»: eso deja al cliente sin llanta otra vez. Solo si el dato no está en el catálogo del contexto, la corrección no niega ni afirma — dice que lo confirmas enseguida, y reportas el hallazgo. PROHIBIDO deducir «no hay» de que una lista no lo mencione: las listas del bot vienen recortadas; la única fuente para negar un tipo es el CATÁLOGO DE HOY completo de esa medida.
+
+22. SIN MEDIDA DEL CLIENTE NO HAY COTIZACIÓN. Si los HECHOS traen «MEDIDA NO CONFIRMADA POR EL CLIENTE», la medida en juego la dedujo el bot por el vehículo o por el aro: el cliente no escribió ninguna ni mandó foto. Mostrar opciones está bien —diciendo que son las que más se usan en ese vehículo—, pero un borrador que anuncie, adjunte o prometa una cotización, que afirme que esas llantas «son las de su carro» o que cierre con el menú de preferencia en vez de pedir la medida, es error ALTO de categoría **cotizacion_sin_medida**. Pasó el 1-sep (conv 13862): «Suzuki SZ 2016, ¿qué llantas me recomienda?» terminó con opciones y cotización en el mismo turno sin que el cliente diera medida. La corrección deja las opciones y cierra pidiendo la medida del filo de la llanta (ej. 225/65R17) o una foto del costado. No inventes tú la medida ni la des por confirmada.
 
 REGLAS DE CORRECCIÓN (innegociables):
 - NUNCA inventes precios, medidas, stock, plazos ni datos que no estén en el contexto. Si no puedes verificar una cifra, NO la cambies: repórtala como hallazgo y aprueba.
@@ -465,6 +469,13 @@ export async function armarContexto(
     "== HECHOS REGISTRADOS ==",
     `Medidas que el cliente pidió: ${pedidas.length ? pedidas.join(", ") : "(ninguna todavía)"}`,
     hechos?.vehicle ? `Vehículo: ${hechos.vehicle}` : null,
+    // HECHO DURO para la regla 22 (1-sep, conv 13862): la medida salió del
+    // vehículo o del aro, no del cliente. Misma función que el candado de
+    // `generar_cotizacion` (domain/medidaConfirmada), sobre los mensajes del
+    // cliente de este ciclo.
+    hechos?.vehicle && !medidaConfirmadaPorCliente(hechos.tire_size, mensajes.filter((m) => m.direction === "inbound").map((m) => m.content))
+      ? "MEDIDA NO CONFIRMADA POR EL CLIENTE: el vehículo está registrado pero el cliente no escribió ninguna medida completa ni mandó foto en esta visita. Toda medida en juego la dedujo el bot. Opciones sí; cotización no; el cierre pide la medida."
+      : null,
     hechos?.selected_quantity != null ? `Cantidad elegida: ${hechos.selected_quantity}` : null,
     // Estas dos líneas se escriben SIEMPRE, también cuando están vacías. Es lo
     // que permite el hallazgo `estado_desincronizado`: sin un «(ninguno)»

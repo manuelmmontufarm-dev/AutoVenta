@@ -62,6 +62,65 @@ conversación real mensaje a mensaje (ver cuadro en el chat de trabajo).
 
 **Horas:** ~3
 
+## 1-sep-2026 · Medida deducida ≠ medida confirmada: la tabla contesta, lo aprendido se anota, y sin medida del cliente no se cotiza
+
+**Qué:** Conv 13862 (Víctor, «tengo un Susuki Sz 2016, qué llantas me
+recomienda»): el bot mandó opciones Y cotización de 4 × KENDA KR50 225/70R16
+en el mismo turno, sin que el cliente diera medida. Seis capas: (1) la tabla
+`aplicaciones-vehiculos.json` ahora contesta con confianza «media» (antes solo
+«alta»: 23 de 122 fichas; el Grand Vitara SZ estaba con las medidas correctas y
+el código lo ignoraba); (2) matcher por palabras en `lookupFitment` («Gran
+Vitara», «Vitara SZ 4x2», «Susuki Sz», «D-Max Hi Ride», «Prado Land Cruiser»)
++13 fichas de autos anteriores a los rangos (Fortuner 2005-15, Prado 120,
+Sportage QL, X-Trail T31, Picanto SA/TA, 4Runner 3ª/4ª, Yaris sedán, Frontier
+D22, D-Max 1ª, BT-50 1ª, Hilux 7ª); (3) lo que la web investiga se anota en
+`vehicle_fitment_learned` (migración 021) y se consulta antes de volver a
+investigar; `tools/exportar-fitment-aprendido.mjs` lo vuelca en el formato de la
+tabla para que Joaquín lo revise; (4) `opcionesDeFitment` ya no convierte en
+opciones una medida «baja», ni una «cercana» fuera del ±3 % de diámetro, ni
+manda muestra del stock al azar; (5) candado determinístico: `medidaSinConfirmar`
+(domain/medidaConfirmada: la medida de trabajo tiene que aparecer en algún
+mensaje del cliente — escrita, foto o visita anterior) bloquea
+`generar_cotizacion`, apaga la vuelta forzada de agent.ts, y la pieza de opciones
+cierra pidiendo la medida (`CIERRE_PIDE_MEDIDA`) en vez del menú; (6) pedir
+recomendación o contar el uso ya no AUTORIZAN la cotización: la entregan y la
+OFRECEN (`ofrecerCotizar`); solo pedirla con todas sus letras o contestar el
+menú la firman. Además `COTIZAR` de faseOperativa ya no lee «quiero más
+información … qué llantas» como pedido de cotización, el playbook compacto lo
+dice en las fases nuevo y cotizacion_enviada, y el guardián recibe el hecho
+«MEDIDA NO CONFIRMADA POR EL CLIENTE» con la regla 22 y la categoría
+`cotizacion_sin_medida`.
+
+**Por qué:** Tres puertas abiertas a la vez. El regex `COTIZAR` mandó el primer
+mensaje a la fase de cotizar por «quiero … llantas»; `pideRecomendacion`
+prendió `recomendacionEntregada`, que es una OBLIGACIÓN del turno (la vuelta
+forzada regaña al modelo hasta que llame `generar_cotizacion`: `ai_runs`
+10736 muestra `vuelta_forzada:atajo_exacto`); y nada distinguía la medida
+que dedujo `fitment_vehiculo` de una que el cliente escribió, porque
+`tire_size` se escribe por las dos vías. Manuel (1-sep): «que primero mande
+las opciones … pedir clarificación de la medida», «que no dé llantas que con
+las justas le van a entrar o nada que ver», «cada vez que el modelo busca una
+llanta que se la anote en la tabla». Medido en producción antes de tocar:
+72 vehículos distintos preguntados, la tabla contestaba 14; abriendo «media»,
+31; los 41 restantes son autos viejos (Fortuner 2010, Prado 2006, X-Trail
+2009…) y descripciones que ninguna base tiene («auto eléctrico», «Mazda
+Manzana») — por eso NO se contrató Wheel-Size ($450/año): no arregla el hueco
+real. Producción ya investiga con gpt-5.5 (variable de Railway; el
+`gpt-4o-mini` de config.ts es solo el default). Riesgo asumido: el cliente que
+elige del menú sin haber dado medida ya no recibe cotización hasta mandarla
+(escrita o foto) — es la decisión de Manuel; si cuesta ventas, la salida es
+un «cotizar sujeto a confirmar» explícito, no volver a firmar sin medida.
+Después del rebase sobre la forma fija del turno (017a1a5): el tope de
+`COMPACT_PLAYBOOK` subió de 5 800 a 6 000 (las dos familias de reglas del día
+no entraban; el porqué está en el test), y el escalón contestado SIN reply
+justo después del menú («La 2») ahora fuerza `generar_cotizacion` con la misma
+heurística que ya usaba la propia herramienta — en el simulador el modelo daba
+el precio y no cotizaba. Probado en el simulador con la conversación de Víctor
+en 4 turnos: opciones + pedir medida → «cotíceme la 2» no cotiza y pide foto →
+«225/70R16» opciones en su medida → «La 2» cotiza 4 × KR50 $511.72. El
+guardián real marca el borrador original como `cotizacion_sin_medida`/alta
+(scripts/guardian/probar-rubrica.mjs, 12/12).
+
 ## 1-sep-2026 · La recomendación va en la pieza y el turno tiene forma fija
 
 **Qué:** Dos chats reales de la tarde (+593 98 229 0818 a las 16:02 y conv
@@ -431,6 +490,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-09-01 | _(este mismo)_ | Medida deducida ≠ confirmada: tabla con «media», matcher por palabras, +13 fichas, fitment aprendido, candado sin medida no cotiza | 3.5 |
 | 2026-09-01 | _(este mismo)_ | «No hay A/T» teniendo 89 en bodega: recorte por tipo, re-búsqueda obligada y guardián con tipos | 2.0 |
 | 2026-09-01 | _(este mismo)_ | Las piezas del chat del hub se ven de nuevo (auth del visor) | 1 |
 | 2026-09-01 | _(este mismo)_ | Preguntar el precio ya no firma la cotización: opciones, elegir, cotizar | 2 |

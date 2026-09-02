@@ -4,6 +4,7 @@
  * una respuesta final para WhatsApp.
  */
 import OpenAI from "openai";
+import { medidaConfirmadaPorCliente } from "../domain/medidaConfirmada.js";
 import type { ChatCompletionMessageParam, ChatCompletionTool } from "openai/resources/chat/completions";
 import { config } from "../config.js";
 import {
@@ -167,6 +168,14 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
       activeBenefitFactsBlock(),
       getHistory(ctx.conversation.id, config.openai.historyLimit),
     ]);
+  // LA MEDIDA QUE EL CLIENTE NO DIO (Manuel, 1-sep, conv 13862): si la medida
+  // en juego salió del vehículo o del aro, este turno puede mostrar opciones
+  // pero no cotizar. Solo un `false` explícito enciende el candado: los mocks
+  // viejos no traen el campo.
+  ctx.medidaSinConfirmar = salesFacts.medidaConfirmadaPorCliente === false;
+  const hechoDeMedidaInferida = ctx.medidaSinConfirmar && (salesFacts.vehicle || !salesFacts.tireSize)
+    ? "MEDIDA NO CONFIRMADA POR EL CLIENTE: el cliente no ha escrito ninguna medida completa ni mandado foto del costado; toda medida en juego la dedujo el bot por el vehículo o por el aro. Puedes mostrar opciones (son «las que más se usan en su vehículo»), pero PROHIBIDO llamar generar_cotizacion: el cierre pide la medida escrita del filo de la llanta (ej. 225/65R17) o una foto del costado. Con ella, buscar_llanta y ahí sí cotizas."
+    : null;
   // ¿Le ofrecimos cotizar y contestó «gracias»? Eso es un sí (conv 11070,
   // 27-ago). Se calcula acá porque el último saliente ya está en `history`.
   // Ver `domain/ofertaAceptada.ts`.
@@ -454,6 +463,17 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
     esRespuestaDelMenuDePreferencia(userText, null, ctx.mensajeCitado ?? null)
       ? respuestaDePreferencia(userText)
       : null;
+  // EL ESCALÓN CONTESTADO SIN REPLY, cuando lo último que dijimos fue el menú
+  // (simulador, 1-sep, caso 13862 turno 4: «La 2» tras el menú → el modelo dio
+  // el precio y no cotizó). Misma heurística que ya usa `generar_cotizacion`
+  // para leer ese «2» como escalón y no como cantidad. Con la medida sin
+  // confirmar NO aplica: ahí lo que toca es pedir la medida.
+  const escalonSinReply =
+    !escalonPorReply && !ctx.medidaSinConfirmar && salesFacts.escalones
+      && esRespuestaDelMenuDePreferencia(userText, textoUltimoDelBot, null)
+      ? respuestaDePreferencia(userText)
+      : null;
+  if (escalonSinReply) ctx.aceptoCotizacion = true;
   let vueltaForzadaUsada = false;
   let recordatorioDeObligacion: string | null = null;
   const bloquesVolatiles: ChatCompletionMessageParam[] = [
@@ -469,11 +489,18 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
     // (30-ago). Ver domain/consultaConRespaldo.ts.
     ...((marcaDelTurno) ? [{ role: "system" as const, content: ordenDeNombrarLaMarca(marcaDelTurno) }] : []),
     ...(hechoDeMarca ? [{ role: "system" as const, content: hechoDeMarca }] : []),
+    ...(hechoDeMedidaInferida ? [{ role: "system" as const, content: hechoDeMedidaInferida }] : []),
     ...(aroDelTurno ? [{ role: "system" as const, content: ordenDeMostrarPorAro(aroDelTurno) }] : []),
     ...(escalonPorReply
       ? [{
           role: "system" as const,
           content: ordenDeResponderElEscalon(ETIQUETA_DEL_ESCALON[escalonPorReply]),
+        }]
+      : []),
+    ...(escalonSinReply
+      ? [{
+          role: "system" as const,
+          content: `RESPUESTA AL MENÚ DE PREFERENCIA (fuente determinística: lo último que le dijiste fue el menú): el cliente eligió el escalón «${ETIQUETA_DEL_ESCALON[escalonSinReply]}». Entrega ESA opción de la última pieza de opciones y llama generar_cotizacion en este mismo turno con 4 llantas (o la cantidad que haya dicho). PROHIBIDO leer ese número como cantidad, PROHIBIDO volver a preguntar qué prefiere.`,
         }]
       : []),
     ...(esPreguntaTecnica
@@ -628,6 +655,7 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
       // ¿La obligación determinística del turno quedó sin cumplir? Una vuelta
       // más, con el recordatorio pegado al final, y de nuevo el control.
       const debeCotizar = (pidioCotizar || cantidadCambia || ctx.aceptoCotizacion || ctx.recomendacionEntregada)
+        && !ctx.medidaSinConfirmar
         && !usedTools.includes("generar_cotizacion");
       const debeNotificar = pidioHumano && !usedTools.includes("notificar_vendedor");
       const debeBuscarPorAro = aroDelTurno !== null
@@ -701,6 +729,7 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
       // se fue por aquí sin pasar por la vuelta forzada.
       const obligacionPendiente =
         ((pidioCotizar || cantidadCambia || ctx.aceptoCotizacion || ctx.recomendacionEntregada)
+          && !ctx.medidaSinConfirmar
           && !usedTools.includes("generar_cotizacion"))
         || (pidioHumano && !usedTools.includes("notificar_vendedor"));
       if (exact && obligacionPendiente && !vueltaForzadaUsada && !ctx.consultaFueraDeCatalogo) {
@@ -877,6 +906,13 @@ export interface AgentSalesFacts {
    * viejos y los ciclos sin pieza de opciones no lo traen.
    */
   escalones?: Escalones | null;
+  /**
+   * ¿La medida de trabajo la dio el cliente (escrita, foto o link) o la dedujo
+   * el bot por vehículo/aro? `false` bloquea la cotización hasta que la mande
+   * (Manuel, 1-sep, conv 13862). Opcional para los mocks viejos: solo un
+   * `false` explícito activa el candado.
+   */
+  medidaConfirmadaPorCliente?: boolean;
 }
 
 /**
@@ -913,13 +949,14 @@ export async function getAgentSalesFacts(conversationId: number): Promise<AgentS
     last_quote_number: string | null; last_quote_total: string | number | null;
     last_quote_at: Date | null; last_quote_items: unknown;
     escalones: Escalones | null;
+    todas_entrantes: string[];
   }[]>`
     select c.tire_size, c.vehicle, c.vehicle_year, c.current_cycle, c.selected_product_code,
       c.selected_quantity, c.nearest_store, c.visit_date, c.visit_time_label,
       c.customer_commitment,
       q.quote_number as last_quote_number, q.total as last_quote_total,
       q.created_at as last_quote_at, q.items as last_quote_items,
-      o.escalones,
+      o.escalones, t.todas_entrantes,
       coalesce(array_agg(m.content order by m.created_at desc) filter (where m.id is not null), '{}') as inbound_messages
     from conversations c
     left join lateral (
@@ -933,15 +970,22 @@ export async function getAgentSalesFacts(conversationId: number): Promise<AgentS
         and metadata->>'piece'='options'
       order by created_at desc limit 1
     ) o on true
+    left join lateral (
+      -- TODOS los ciclos: el cliente que vuelve ya dio su medida en la visita
+      -- anterior y no tiene por qué repetirla (ver domain/medidaConfirmada).
+      select coalesce(array_agg(content order by created_at desc), '{}') as todas_entrantes
+      from messages where conversation_id=c.id and direction='inbound'
+    ) t on true
     left join messages m on m.conversation_id=c.id and m.cycle=c.current_cycle
       and m.direction='inbound'
     where c.id=${conversationId}
-    group by c.id, q.quote_number, q.total, q.created_at, q.items, o.escalones
+    group by c.id, q.quote_number, q.total, q.created_at, q.items, o.escalones, t.todas_entrantes
   `;
   const inferredYear = row?.vehicle_year ?? row?.inbound_messages
     .map(extractVehicleYear).find((value): value is number => value !== null) ?? null;
   return {
     tireSize: row?.tire_size ?? null,
+    medidaConfirmadaPorCliente: medidaConfirmadaPorCliente(row?.tire_size ?? null, row?.todas_entrantes ?? []),
     medidasDelPedido: await medidasDelPedido(conversationId, row?.current_cycle ?? 1),
     vehicle: row?.vehicle ?? null,
     vehicleYear: inferredYear,

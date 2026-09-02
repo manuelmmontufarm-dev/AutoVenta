@@ -24,7 +24,13 @@ const OTRA_BUSQUEDA = /\b(?:otra|otras|diferente|cambiar|cambio)\s+(?:medida|lla
 const OPCIONES = /\b(?:que|cuales|otras?)\s+(?:opciones|marcas|llantas)\b|\b(?:opciones|alternativas)\s+(?:tienen|manejan|hay)\b/;
 const COMPARAR = /\b(?:compara|comparame|comparacion|diferencia|diferencias|versus|vs)\b|\b(?:cual|que)\s+(?:es\s+)?mejor\b/;
 const RESPALDO = /\b(?:garantia|garantias|duracion|dura|kilometros|origen|fabricada|seguro|respaldo|por\s+que\s+(?:cuesta|vale))\b/;
-const COTIZAR = /\b(?:cotiza|cotice|cotizame|cotizacion|proforma)\b|\b(?:deme|dame|quiero|llevo|elijo|escojo|prefiero)\b[^.?!]{0,55}\b(?:llanta|llantas|falken|kenda|sunoco|winrun|maxxis|bridgestone|continental)\b/;
+// «Quiero más información, tengo un Suzuki SZ 2016, ¿qué llantas me
+// recomienda?» NO es pedir cotización (producción 1-sep, conv 13862: ese
+// «quiero … llantas» mandó el primer turno a la fase de cotizar y el bot
+// firmó una cotización sobre una medida que el cliente nunca dio). El verbo
+// no cuenta si lo que sigue es pedir información, ni si «llantas» viene en
+// una pregunta («qué/cuáles llantas»).
+const COTIZAR = /\b(?:cotiza|cotice|cotizame|cotizacion|proforma)\b|\b(?:deme|dame|quiero|llevo|elijo|escojo|prefiero)\b(?!\s+(?:mas\s+)?(?:informacion|info|saber|consultar|preguntar|conocer|ver)\b)[^.?!]{0,55}(?<!\b(?:que|cuales|cual)\s)\b(?:llanta|llantas|falken|kenda|sunoco|winrun|maxxis|bridgestone|continental)\b/;
 const PIDE_PRESUPUESTO = /\b(?:deme|dame|hagame|hazme|quiero|necesito|envie|envieme|mande|mandeme)\b[^.?!]{0,35}\bpresupuesto\b|\bpresupuesto\b[^.?!]{0,35}\b(?:para|de)\b[^.?!]{0,35}\bllantas?\b/;
 const OBJECION_DE_PRESUPUESTO = /\b(?:no\s+me\s+alcanza|no\s+alcanza|no\s+se\s+ajusta|no\s+ajusta|fuera\s+de|se\s+sale\s+de|se\s+pasa\s+de|sobrepasa|excede|no\s+entra\s+en|demasiado\s+para)\b[^.?!]{0,35}\b(?:mi\s+|el\s+)?presupuesto\b|\b(?:mi\s+|el\s+)?presupuesto\b[^.?!]{0,25}\b(?:es|esta)\s+(?:bajo|limitado)\b/;
 const VISITA_EXPLICITA = /\b(?:local|locales|sucursal|sucursales|ubicacion|direccion|mapa|maps|cumbaya|quito\s+sur|asesor|vendedor|agendar|visita|visitar|voy|vamos|ire)\b|\b(?:puedo|podria|quiero|quisiera)\s+(?:ir|pasar|acercarme|visitar)\b/;

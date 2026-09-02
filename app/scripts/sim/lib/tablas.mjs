@@ -15,6 +15,9 @@
 /** Se copia de producción: define CÓMO se comporta el bot. */
 export const TABLAS_CONFIG = [
   "settings",
+  // Lo que el bot aprendió investigando medidas por vehículo: define qué
+  // contesta, así que el simulador la copia de producción (solo lectura).
+  "vehicle_fitment_learned",
   "stage_prompt_versions",
   "benefits",
   "brand_profiles",

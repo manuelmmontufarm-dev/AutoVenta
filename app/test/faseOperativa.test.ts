@@ -149,6 +149,13 @@ describe("fase operativa · el cliente puede moverse sin romper el Kanban", () =
     ["¿Me manda la ubicación de Quito Sur?", "seguimiento_venta"],
     ["¿Cuánto dura la Falken y qué garantía tiene?", "seleccionando"],
     ["Quiero 20 llantas Kenda", "cotizacion_enviada"],
+    // Producción 1-sep (conv 13862): «quiero … llantas» mandaba el primer
+    // mensaje a cotizar y el bot firmó una cotización sin medida.
+    // Cae en «seleccionando» por el «qué llantas»; lo que importa es que NO
+    // es cotizacion_enviada (que es donde el playbook manda cotizar de una).
+    ["¡Hola! Quiero más información, tengo un Susuki Sz 2016, que llantas me recomienda", "seleccionando"],
+    ["Quiero saber qué llantas tienen para rin 16", "medida_confirmada"],
+    ["quiero ver opciones de llantas para mi Sail", "nuevo"],
   ] as const)("reconoce la necesidad explícita: %s", (texto, esperada) => {
     expect(elegirFaseOperativa({
       etapaGuardada: "nuevo",

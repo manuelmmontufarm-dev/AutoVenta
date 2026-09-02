@@ -1,6 +1,7 @@
 import OpenAI from "openai";
 import { config } from "../config.js";
 import { lookupFitment } from "../domain/fitment.js";
+import { buscarFitmentAprendido, guardarFitmentAprendido } from "./fitmentAprendido.js";
 import {
   conDobleVia,
   estadoDeCandidatos,
@@ -34,7 +35,7 @@ export interface FitmentResearchResult {
   note: string;
   nextQuestion: string | null;
   sources: Array<{ title: string; url: string }>;
-  provider: "curated" | "wheel-size" | "web" | "none";
+  provider: "curated" | "wheel-size" | "web" | "aprendido" | "none";
 }
 
 /** Envuelve medidas ya confiables (ficha curada, Wheel-Size) en la forma de candidato. */
@@ -201,36 +202,73 @@ export async function researchVehicleFitment(
 ): Promise<FitmentResearchResult> {
   const vehicle = `${make} ${model}${year ? ` ${year}` : ""}`;
   const local = lookupFitment(make, model, year);
-  if (local?.validated) {
+
+  // 1. La tabla del negocio, con confianza alta O MEDIA (desde el 1-sep-2026).
+  //    Antes solo pasaba «alta»: 23 de 122 fichas. El Grand Vitara SZ estaba en
+  //    la tabla con las medidas correctas, marcado «media», y el código lo
+  //    ignoraba y se iba a la web. Medido contra los 72 vehículos distintos
+  //    preguntados en producción: la tabla contestaba 14; con «media», 31.
+  //    La confianza viaja en los candidatos: «media» se ofrece diciendo su
+  //    límite y pidiendo la medida escrita o la foto; no se afirma.
+  if (local && (local.validated || local.confianza === "media")) {
     // La ficha curada también se recorta al aro del cliente; si su aro no está
     // en la ficha se devuelve completa (mejor una referencia con su límite
     // dicho que nada), pero la nota deja claro que ese aro no figura.
     const delAro = medidasDelAro(local.sizes, aro);
     const sizes = delAro.length ? delAro : local.sizes;
     const aroFueraDeFicha = Boolean(aro) && !delAro.length;
+    const confianza: ConfianzaFitment = aroFueraDeFicha || !local.validated ? "media" : "alta";
     return {
-      status: sizes.length === 1 && !aroFueraDeFicha ? "verified" : "reference",
+      status: sizes.length === 1 && !aroFueraDeFicha && local.validated ? "verified" : "reference",
       vehicle,
       sizes,
       candidatos: comoCandidatos(
         sizes,
-        aroFueraDeFicha ? "media" : "alta",
-        aroFueraDeFicha ? `Medida OEM de fábrica; no corresponde al aro ${aro} que dijo el cliente.` : "Ficha OEM validada en la base del bot.",
+        confianza,
+        aroFueraDeFicha
+          ? `Medida OEM de fábrica; no corresponde al aro ${aro} que dijo el cliente.`
+          : local.validated
+            ? "Ficha OEM validada en la base del bot."
+            : "Ficha de la base del bot (confianza media): confirmar con la medida escrita o la foto.",
       ),
       note: aroFueraDeFicha
         ? `La ficha de ese vehículo no registra aro ${aro}; estas son las medidas OEM de fábrica. No afirmar compatibilidad con el aro que tiene puesto.`
         : local.note ?? "Medidas OEM registradas; confirmar versión.",
-      nextQuestion: sizes.length > 1 || aroFueraDeFicha ? `¿Qué versión es? O si prefiere: ${PREGUNTA_MEDIDA_ESCRITA}` : null,
+      nextQuestion: sizes.length > 1 || aroFueraDeFicha || !local.validated
+        ? `¿Qué versión es? O si prefiere: ${PREGUNTA_MEDIDA_ESCRITA}`
+        : null,
       sources: local.sourceUrl ? [{ title: "Fuente del fabricante", url: local.sourceUrl }] : [],
       provider: "curated",
     };
   }
-  try { const result = await wheelSizeLookup(make, model, year, aro); if (result) return result; } catch (error) {
+
+  // 2. Lo que ya se investigó antes para este mismo vehículo (Postgres).
+  const aprendido = await buscarFitmentAprendido(make, model, year);
+  if (aprendido?.candidatos.length) {
+    const candidatos = medidasDelAro(aprendido.sizes, aro).length
+      ? aprendido.candidatos.filter((c) => medidasDelAro([c.medida], aro).length)
+      : aprendido.candidatos;
+    return {
+      status: estadoDeCandidatos(candidatos),
+      vehicle,
+      sizes: candidatos.map((c) => c.medida),
+      candidatos,
+      note: aprendido.note ?? "Referencia investigada antes para este vehículo; confirmar con la medida escrita o la foto.",
+      nextQuestion: aprendido.nextQuestion ?? PREGUNTA_MEDIDA_ESCRITA,
+      sources: aprendido.sources,
+      provider: "aprendido",
+    };
+  }
+
+  // 3. Wheel-Size (solo si hay llave) y 4. la web con el modelo de investigación.
+  try { const result = await wheelSizeLookup(make, model, year, aro); if (result) { await anotar(make, model, year, result); return result; } } catch (error) {
     console.warn("⚠️ Wheel-Size no disponible:", error instanceof Error ? error.message : error);
   }
-  try { const result = await webLookup(make, model, year, aro); if (result) return result; } catch (error) {
+  try { const result = await webLookup(make, model, year, aro); if (result) { await anotar(make, model, year, result); return result; } } catch (error) {
     console.warn("⚠️ Investigación web de fitment no disponible:", error instanceof Error ? error.message : error);
   }
+
+  // 5. Ficha local de confianza baja: último recurso, marcada como tal.
   if (local) {
     const sizes = medidasDelAro(local.sizes, aro).length ? medidasDelAro(local.sizes, aro) : local.sizes;
     return {
@@ -245,4 +283,19 @@ export async function researchVehicleFitment(
     note: "No se encontró una medida verificable. No afirmar compatibilidad.",
     nextQuestion: PREGUNTA_MEDIDA_ESCRITA,
     sources: [], provider: "none" };
+}
+
+/**
+ * Anota lo investigado para no volver a investigarlo (Manuel, 1-sep-2026).
+ * Solo candidatos alta/media; nunca tumba el turno si la base falla.
+ */
+async function anotar(make: string, model: string, year: number | null, result: FitmentResearchResult): Promise<void> {
+  await guardarFitmentAprendido({
+    make, model, year,
+    candidatos: result.candidatos,
+    note: result.note,
+    nextQuestion: result.nextQuestion,
+    sources: result.sources,
+    provider: result.provider,
+  });
 }

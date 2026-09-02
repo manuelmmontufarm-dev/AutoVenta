@@ -1,4 +1,5 @@
 import { business } from "../config.js";
+import { CIERRE_COTIZAR } from "../domain/preguntasProhibidas.js";
 import { fraseDeAhorro, type AhorroDeLaCotizacion } from "../domain/ahorro.js";
 import { ETIQUETA_DEL_ESCALON } from "../domain/salesIntent.js";
 import { preguntaDeEquivalente } from "../domain/equivalentePendiente.js";
@@ -173,6 +174,13 @@ export const PREGUNTA_PREFERENCIA_EQUIVALENTES = [
  * LISTA numerada de precios, no responder un precio preguntado: un precio, el
  * de la recomendada, en la misma frase.
  */
+/**
+ * Cierre de la pieza de opciones cuando la medida salió del vehículo o del
+ * aro. No hay menú: lo que falta no es elegir, es confirmar que entran.
+ */
+export const CIERRE_PIDE_MEDIDA =
+  "Estas son las que más se usan en su vehículo, pero para cotizarle con seguridad necesito la medida exacta. ¿Me escribe la que dice el filo de la llanta (ej. 225/65R17), o me manda una foto del costado? 📸";
+
 export function buildCierreOpciones(input: {
   entregarRecomendacion: boolean;
   recomendacion: string;
@@ -193,7 +201,26 @@ export function buildCierreOpciones(input: {
    * la recomendada. Ver domain/equivalentePendiente.ts.
    */
   equivalentePendiente?: { medida: string | null };
+  /**
+   * La medida de estas opciones la dedujo el bot (por vehículo o por aro) y el
+   * cliente no la confirmó: el cierre pide la medida en vez del menú, porque
+   * sin ella no se cotiza (Manuel, 1-sep, conv 13862: Suzuki SZ 2016).
+   */
+  pedirMedida?: boolean;
+  /**
+   * El cliente pidió recomendación o contó su uso, pero no pidió la cotización
+   * ni eligió del menú: se le entrega la recomendación y se le OFRECE cotizar
+   * (Manuel, 1-sep). Un «sí» a esa oferta es lo que la autoriza al turno
+   * siguiente.
+   */
+  ofrecerCotizar?: boolean;
 }): string {
+  if (input.pedirMedida) {
+    if (!input.entregarRecomendacion) return CIERRE_PIDE_MEDIDA;
+    const motivo = input.motivo.trim().replace(/[.\s]+$/, "");
+    const precio = input.precioConIva ? ` — $${input.precioConIva.toFixed(2)} c/u con IVA` : "";
+    return `Yo iría por la *${input.recomendacion}*${precio}: ${motivo}.\n${CIERRE_PIDE_MEDIDA}`;
+  }
   if (!input.entregarRecomendacion) {
     const hay = input.escalonesDisponibles ?? ["precio", "equilibrada", "premium"];
     // Con una sola opción no se pregunta nada: preguntar «¿qué prioriza?» sobre
@@ -230,6 +257,9 @@ export function buildCierreOpciones(input: {
       recomendacion: input.recomendacion,
       medida: input.equivalentePendiente.medida,
     })}`;
+  }
+  if (input.ofrecerCotizar) {
+    return `${recomendada} ${CIERRE_COTIZAR}`;
   }
   return recomendada;
 }
