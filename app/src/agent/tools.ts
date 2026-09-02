@@ -1524,7 +1524,11 @@ export function buildTools(ctx: AgentContext) {
             sizeLabel,
             // Con esto cada tarjeta sale marcada: verde MEDIDA EXACTA, o el
             // sello rojo de equivalente. Es la medida que el cliente pidió.
-            medidaPedida: permitidasOpciones[0] ?? null,
+            medidaPedida:
+              permitidasOpciones[0]
+              ?? medidaDeLaConversacion?.tire_size
+              ?? sizeLabel
+              ?? null,
             benefits: beneficiosPieza,
             ...(await getPiecesConfig()),
             brandProfiles: await brandProfilesForRender(),

@@ -1,3 +1,21 @@
+## 1-sep-2026 · La pieza de opciones dice MEDIDA EXACTA cuando el cliente ya dio la medida
+
+**Qué:** Conv 13905 (Jhinson, 255/70R16): la imagen salía «OPCIONES EN SU ARO
+RIN 16» y sellos ámbar «LE MONTA / No es su medida exacta» en las tres
+llantas, aunque eran 255/70R16 exactas. Tres capas: (1) `preparar_opciones`
+ahora pasa `medidaPedida` con fallback a `tire_size` y `sizeLabel`, no solo
+`permitidasOpciones[0]`; (2) `marcarExactitud` en `quoteImage.ts` usa
+`medidaEstaPedida` (medida canónica, no etiqueta literal del catálogo);
+(3) el re-render del hub (`/hub/messages/:id/pieza.png`) lee `tire_size` y
+`metadata.sizeLabel` para no volver a dibujar como «solo aro». Prueba nueva
+`quoteImageExactitud.test.ts`.
+
+**Por qué:** El PDF del admin y a veces el PNG de WhatsApp mentían: sin
+`medidaPedida` el render asumía búsqueda por aro y forzaba equivalentes.
+El catálogo y la búsqueda estaban bien; fallaba la etiqueta de la pieza.
+
+**Horas:** 0.5
+
 ## 1-sep-2026 · Tres chats que se quedaron a medias: medida barajada, Kendall y el menú de una
 
 **Qué:** Los tres hallazgos que Claude diagnosticó y no llegó a publicar. (1)

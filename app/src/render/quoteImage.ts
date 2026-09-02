@@ -8,7 +8,8 @@
  */
 import satori from "satori";
 import { renderAsync } from "@resvg/resvg-js";
-import { compactCatalogText, type CatalogAvailability, type CatalogItem } from "../domain/catalog.js";
+import { type CatalogAvailability, type CatalogItem } from "../domain/catalog.js";
+import { medidaEstaPedida } from "../domain/medidaPedida.js";
 import { warrantyForBrand } from "../services/quoteMessages.js";
 import { loadFonts, productPhoto, type RasterImage } from "./assets.js";
 import { DEFAULT_BRAND_PROFILES, resolveTheme, type SatoriNode, type Theme } from "./depotDesign.js";
@@ -111,11 +112,11 @@ function toPosterLine(
  */
 function marcarExactitud(lines: PosterLine[], medidaPedida: string | null | undefined): PosterLine[] {
   if (!medidaPedida) return lines;
-  const objetivo = compactCatalogText(medidaPedida);
-  if (!objetivo) return lines;
   return lines.map((line) => ({
     ...line,
-    medidaExacta: compactCatalogText(line.sizeLabel) === objetivo,
+    // Misma regla que `preparar_opciones` y el candado de cotización: la
+    // medida canónica, no la etiqueta literal del catálogo («LT255/70R16…»).
+    medidaExacta: medidaEstaPedida(line.sizeLabel, [medidaPedida]),
   }));
 }
 

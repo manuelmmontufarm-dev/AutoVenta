@@ -1026,8 +1026,15 @@ export function createAdminRouter(): express.Router {
    */
   router.get("/hub/messages/:id/pieza.png", async (req, res) => {
     try {
-      const [row] = await sql<{ type: string; metadata: Record<string, unknown> | null }[]>`
-        select type, metadata from messages where id = ${Number(req.params.id)}
+      const [row] = await sql<{
+        type: string;
+        metadata: Record<string, unknown> | null;
+        tire_size: string | null;
+      }[]>`
+        select m.type, m.metadata, c.tire_size
+        from messages m
+        join conversations c on c.id = m.conversation_id
+        where m.id = ${Number(req.params.id)}
       `;
       if (!row || (row.type !== "image" && row.type !== "pdf")) {
         return res.status(404).json({ ok: false, error: "Ese mensaje no llevaba una pieza" });
@@ -1065,9 +1072,17 @@ export function createAdminRouter(): express.Router {
         if (!productos.length) {
           return res.status(404).json({ ok: false, error: "Los productos de esa pieza ya no están en el catálogo" });
         }
+        const medidasProducto = new Set(productos.map((p) => p.sizeLabel).filter(Boolean));
+        const medidaPedida =
+          (typeof meta.sizeLabel === "string" && meta.sizeLabel.trim())
+          || row.tire_size?.trim()
+          || (medidasProducto.size === 1 ? productos[0]?.sizeLabel ?? null : null);
         const comun = {
-          dateLabel: fecha, sizeLabel: productos[0]?.sizeLabel ?? null,
-          products: await Promise.all(productos.map((p) => toRenderLine(p))), ...tema,
+          dateLabel: fecha,
+          sizeLabel: medidasProducto.size === 1 ? (productos[0]?.sizeLabel ?? null) : null,
+          medidaPedida,
+          products: await Promise.all(productos.map((p) => toRenderLine(p))),
+          ...tema,
         };
         png = pieza === "comparison"
           ? await renderCompareImage(comun)
