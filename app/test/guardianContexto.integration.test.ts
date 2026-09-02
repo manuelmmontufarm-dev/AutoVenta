@@ -117,6 +117,28 @@ describe("armarContexto · la ausencia también es un hecho", () => {
     expect(contexto).toContain("jueves de 4 a 5 pm");
   });
 
+  it("conv 13909: con local y sin día, avisa que la visita sigue pendiente", async () => {
+    const [conv] = await sql<{ id: number }[]>`
+      insert into conversations (phone, name, status, stage, current_cycle, nearest_store)
+      values ('593999699487', 'Oswaldo', 'open', 'seguimiento_venta', 1, 'Depot Tire Quito Sur')
+      returning id
+    `;
+    await sql`
+      insert into messages (conversation_id, cycle, role, direction, content, type)
+      values (${conv.id}, 1, 'user', 'inbound', 'Gracias', 'text')
+    `;
+
+    const contexto = await armarContexto(
+      conv.id,
+      1,
+      "Con gusto. Cuando tenga definido el día, me escribe.",
+    );
+
+    expect(contexto).toContain("DÍA DE VISITA PENDIENTE");
+    expect(contexto).toContain("Depot Tire Quito Sur");
+    expect(contexto).toMatch(/PROHIBIDO cerrar con/i);
+  });
+
   it("escribe la visita con la hora que dijo el cliente, no con el relleno", async () => {
     const [conv] = await sql<{ id: number }[]>`
       insert into conversations (

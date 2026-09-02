@@ -140,6 +140,29 @@ en 4 turnos: opciones + pedir medida → «cotíceme la 2» no cotiza y pide fot
 guardián real marca el borrador original como `cotizacion_sin_medida`/alta
 (scripts/guardian/probar-rubrica.mjs, 12/12).
 
+## 1-sep-2026 · «Gracias» con el día pendiente: insistir sin cotización y guardián sin cierre blando
+
+**Qué:** Conv 13909 (Oswaldo): local elegido, pregunta del día hecha, cliente
+«Gracias» — el guardián corrigió quitando el agendamiento (`reofrece_lo_aceptado`
+mal aplicado) y el turno terminó en «cuando tenga el día, me escribe». Tres
+capas: (1) `compromisoDeCierre` + `datoQueFalta` empujan local/día también sin
+fila en `quotes` cuando hay pieza de opciones, producto o cantidad en etapa de
+cierre; (2) hecho «DÍA DE VISITA PENDIENTE» en el guardián + regla 19 acotada:
+«gracias» no cierra la visita si falta el día; categoría `cierre_sin_pregunta_dia`
+para cierres blandos; (3) prueba de integración del transcript Oswaldo y tests
+de dominio.
+
+**Por qué:** La venta verbal (precio + premium + local) avanzó sin PDF porque
+`generar_cotizacion` se bloqueó en turnos anteriores; `insistirConLoQueFalta`
+solo miraba `quotes`. El guardián interpretó «Gracias» como cierre aunque
+`visit_date` seguía vacío. La conversación fue antes del deploy de
+`estructura_del_turno` (7:12 vs 7:19), pero el hueco seguía abierto en `main`.
+
+**Pruebas:** `compromisoDeCierre.test.ts`, caso Oswaldo en
+`insistirCierre.integration.test.ts`, hecho en `guardianContexto.integration.test.ts`.
+
+**Horas:** 1
+
 ## 1-sep-2026 · La recomendación va en la pieza y el turno tiene forma fija
 
 **Qué:** Dos chats reales de la tarde (+593 98 229 0818 a las 16:02 y conv

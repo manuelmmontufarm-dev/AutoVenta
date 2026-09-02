@@ -13,6 +13,7 @@ import { business } from "../config.js";
 import { sql } from "../db/client.js";
 import { ahorroDeLaCotizacion, type LineaCotizada } from "../domain/ahorro.js";
 import { preguntaElDia, rechazaLosDiasPropuestos } from "../domain/customerCommitment.js";
+import { hayCompromisoDeCierre } from "../domain/compromisoDeCierre.js";
 import { datoQueFalta } from "../domain/preguntaPendiente.js";
 import { despedidaQueCorresponde } from "../domain/cierrePerdido.js";
 import { esCierreComercialDelTurno } from "../domain/cierreTurno.js";
@@ -110,17 +111,33 @@ export async function insistirConLoQueFalta(
     return { texto, agregado: null };
   }
   const [facts] = await sql<{
-    nearest_store: string | null; visit_date: Date | null;
+    nearest_store: string | null;
+    visit_date: Date | null;
+    selected_product_code: string | null;
+    selected_quantity: number | null;
   }[]>`
-    select nearest_store, visit_date from conversations where id=${conversationId}
+    select nearest_store, visit_date, selected_product_code, selected_quantity
+    from conversations where id=${conversationId}
   `;
   const [cotizacion] = await sql<{ items: LineaCotizada[] | null }[]>`
     select items from quotes
     where conversation_id=${conversationId} and cycle=${cycle}
     order by created_at desc limit 1
   `;
+  const [piezaOpciones] = await sql<{ x: number }[]>`
+    select 1 as x from messages
+    where conversation_id=${conversationId} and cycle=${cycle}
+      and metadata->>'piece' = 'options'
+    limit 1
+  `;
   const falta = datoQueFalta({
     hayCotizacion: Boolean(cotizacion),
+    hayCompromisoSinCotizacion: hayCompromisoDeCierre({
+      hayCotizacionFormal: Boolean(cotizacion),
+      hayPiezaDeOpciones: Boolean(piezaOpciones),
+      productoElegido: Boolean(facts?.selected_product_code),
+      cantidadElegida: facts?.selected_quantity != null,
+    }),
     localElegido: Boolean(facts?.nearest_store),
     visitaRegistrada: Boolean(facts?.visit_date),
   });

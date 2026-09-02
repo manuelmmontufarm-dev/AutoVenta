@@ -51,6 +51,7 @@ import { faltanteDeCotizacion } from "./stockCorto.js";
 import { alcanzaParaVender } from "../domain/stockCorto.js";
 import { despedidaQueCorresponde } from "../domain/cierrePerdido.js";
 import { ofertaDeCotizarAceptada } from "../domain/ofertaAceptada.js";
+import { visitaPendiente } from "../domain/visitaPendiente.js";
 import { JUEGO_COMPLETO, opcionesQueAlcanzan } from "../domain/opcionesCandados.js";
 import { tipoDeProducto } from "../domain/tireTypes.js";
 import { chatReasoningEffort } from "../agent/aiRequestPolicy.js";
@@ -88,6 +89,7 @@ export const CATEGORIAS = [
   "cotizacion_sin_medida",
   "insiste_tras_rechazo",
   "reofrece_lo_aceptado",
+  "cierre_sin_pregunta_dia",
   "recomendacion_sin_pregunta",
   "tono",
   "otro",
@@ -184,7 +186,7 @@ REVISA, en este orden de gravedad:
 
 18. AL QUE SE DESPIDIÓ NO SE LE INSISTE. Si los HECHOS traen «EL CLIENTE SE DESPIDIÓ», el cliente acaba de decir que ya compró en otro lado, que no le interesa o que no le escriban más. Cualquier borrador que le pregunte el día de la visita, le ofrezca un descuento, le mande links del local o le proponga cualquier siguiente paso comercial es error ALTO de categoría **insiste_tras_rechazo**. Pasó el 27-ago (conv 4732): el cliente escribió «Gracias ya compré en otro lugar» y en el mismo turno recibió «¿Qué día cree que puede pasar por Depot Tire Cumbayá? … con 25 % de descuento, $73.92 menos». La corrección es una despedida corta y cálida que agradece, se alegra por su compra si compró, y deja la puerta abierta sin pedir nada. Ninguna pregunta.
 
-19. AL QUE YA DIJO QUE SÍ NO SE LE VUELVE A PREGUNTAR. Si los HECHOS traen «EL CLIENTE YA ACEPTÓ», el bot ofreció la cotización y el cliente contestó «gracias», «ok», «listo» o parecido. Eso es un sí. Un borrador que vuelve a ofrecer lo mismo —«si desea, le dejo la cotización formal», «¿quiere que se la cotice?»— es error ALTO de categoría **reofrece_lo_aceptado**: son dos turnos para llegar al mismo sitio y es donde el cliente deja de contestar. Pasó el 27-ago (conv 11070). OJO con lo que NO puedes hacer: TÚ no puedes generar la cotización, así que no prometas que sale ni inventes su total. Corrige a un mensaje que confirme que va en camino solo si el turno la lleva; si no, repórtalo ALTO y aprueba — el que tiene que llamar a la herramienta es el bot.
+19. AL QUE YA DIJO QUE SÍ NO SE LE VUELVE A PREGUNTAR — PERO SOLO LO QUE YA OFRECIÓ. Si los HECHOS traen «EL CLIENTE YA ACEPTÓ», el bot ofreció la cotización (u opciones/comparación) y el cliente contestó «gracias», «ok», «listo» o parecido. Eso es un sí a ESO. Un borrador que vuelve a ofrecer lo mismo —«si desea, le dejo la cotización formal», «¿quiere que se la cotice?»— es error ALTO de categoría **reofrece_lo_aceptado**. Pasó el 27-ago (conv 11070). **EXCEPCIÓN (conv 13909, 1-sep):** si los HECHOS traen «DÍA DE VISITA PENDIENTE», «gracias» NO es un sí a cotizar ni autoriza cerrar la visita: es un acuse. Preguntar qué día puede pasar NO es reofrece_lo_aceptado. Un borrador que cierra con «cuando tenga el día, me escribe» o «me avisa cuando sepa» SIN preguntar el día es error ALTO de categoría **cierre_sin_pregunta_dia**: corrígelo agregando la pregunta del día en bloque aparte (---). OJO: TÚ no puedes generar la cotización, así que no prometas que sale ni inventes su total.
 
 20. EL ANCHO QUE EL CLIENTE RECHAZÓ NO SE LE VUELVE A OFRECER. Si los HECHOS traen «RESTRICCIONES DEL CLIENTE», el cliente ya dijo que ese ancho no lo quiere (por calce, roce, consumo o simple gusto). Cualquier borrador que le ofrezca, recomiende, muestre o cotice una llanta de un ancho rechazado es error ALTO de categoría **insiste_tras_rechazo**. Pasó el 31-ago (conv 3): el cliente escribió «ya no 185, ¿qué otras tiene?» y el turno siguiente le mandó dos 185. La corrección quita ESAS llantas; si con eso el borrador se queda sin opciones, la corrección lo dice con todas las letras —«en su aro solo manejo esa medida»— y ofrece confirmar por su vehículo o con el asesor qué medida alternativa sí le calza. La regla 0 sigue mandando: no inventes tú la alternativa.
 
@@ -488,6 +490,12 @@ export async function armarContexto(
         : "(ninguna)"
     }`,
     `Compromiso de visita en palabras del cliente: ${hechos?.customer_commitment ?? "(ninguno)"}`,
+    visitaPendiente(hechos ?? {}) && !despedidaQueCorresponde(ultimoDelCliente)
+      ? `DÍA DE VISITA PENDIENTE: el local ya es ${hechos?.nearest_store} pero el cliente NO registró qué día viene. ` +
+        "«Gracias», «ok» o repetir el local NO cierran la visita: si el borrador no pregunta el día, corrígelo " +
+        "agregando «¿Qué día cree que puede pasar por …?» en bloque aparte (---). PROHIBIDO cerrar con " +
+        "«cuando tenga el día, me escribe» o «me avisa cuando sepa»."
+      : null,
     // El rechazo de ancho, como hecho. Lo mira la regla 20.
     hechoRestricciones,
     `Horarios confirmados: ${formatStoreHours(storeHours)}`,

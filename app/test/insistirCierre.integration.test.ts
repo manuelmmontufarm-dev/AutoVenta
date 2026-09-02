@@ -89,10 +89,37 @@ describe.sequential("insistir con lo que falta", () => {
     expect(r.texto).toBe(yaPregunta);
   });
 
-  it("sin cotización viva no molesta: todavía se está vendiendo", async () => {
+  it("sin cotización formal NI señales de cierre: todavía se está vendiendo", async () => {
     const fila = await conversacion("593980006004", { conCotizacion: false });
     const r = await insistirConLoQueFalta(fila.id, 1, "La 225/65R17 la tengo en tres marcas.");
     expect(r.agregado).toBeNull();
+  });
+
+  it("EL CASO OSWALDO (conv 13909): sin PDF pero con opciones y local, «Gracias» recibe la pregunta del día", async () => {
+    const [fila] = await sql<Fila[]>`
+      insert into conversations (phone, name, status, stage, current_cycle, nearest_store, visit_date)
+      values ('593999699487', 'Oswaldo', 'open', 'seguimiento_venta', 1, 'Depot Tire Quito Sur', null)
+      returning id
+    `;
+    await sql`
+      insert into messages (conversation_id, cycle, role, direction, content, type, metadata)
+      values (
+        ${fila.id}, 1, 'assistant', 'outbound',
+        'Opciones enviadas: FALKEN ZE310R · KENDA KR20 · WINRUN R330', 'text',
+        ${sql.json({ piece: "options" })}
+      )
+    `;
+    const cierreBlando =
+      "Con gusto. Cuando tenga definido el día, me escribe y le ayudamos a coordinar su visita en *Depot Tire Quito Sur*.";
+    const r = await insistirConLoQueFalta(
+      fila.id, 1, cierreBlando, "Gracias", "seguimiento_venta",
+    );
+
+    expect(r.agregado).toBe("dia");
+    expect(r.texto).toContain(cierreBlando);
+    expect(r.texto).toMatch(/qué día cree que puede pasar/i);
+    expect(r.texto).toContain("Depot Tire Quito Sur");
+    expect(r.texto).toContain("---");
   });
 
   it("si el cliente volvió a pedir otra medida no salta a preguntarle el local", async () => {

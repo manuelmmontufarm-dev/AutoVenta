@@ -29,11 +29,22 @@
 export type DatoPendiente = "local" | "dia";
 
 export interface EstadoDelCierre {
-  /** Sin cotización viva no hay cierre que empujar: se está vendiendo todavía. */
+  /** Fila en `quotes` del ciclo vigente. */
   hayCotizacion: boolean;
+  /**
+   * Venta verbal en cierre: opciones/precio acordados sin PDF (conv 13909).
+   * Solo cuenta si quien llama ya filtró la etapa (`cotizacion_enviada` /
+   * `seguimiento_venta`). Ver `domain/compromisoDeCierre.ts`.
+   */
+  hayCompromisoSinCotizacion?: boolean;
   localElegido: boolean;
   /** El día YA registrado, no el prometido de palabra. */
   visitaRegistrada: boolean;
+}
+
+/** ¿Este turno todavía empuja local/día? */
+export function enCierreComercial(estado: EstadoDelCierre): boolean {
+  return estado.hayCotizacion || Boolean(estado.hayCompromisoSinCotizacion);
 }
 
 /**
@@ -58,7 +69,7 @@ export interface EstadoDelCierre {
 export const PREGUNTA_DE_CIERRE = "¿Le queda alguna otra duda? Ahí le esperamos. 🤝";
 
 export function datoQueFalta(estado: EstadoDelCierre): DatoPendiente | null {
-  if (!estado.hayCotizacion) return null;
+  if (!enCierreComercial(estado)) return null;
   if (!estado.localElegido) return "local";
   if (!estado.visitaRegistrada) return "dia";
   return null;
