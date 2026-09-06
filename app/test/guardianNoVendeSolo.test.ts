@@ -109,3 +109,49 @@ describe("el guardián no vende por su cuenta", () => {
     expect(frenarHechosNuevosDelGuardian(borrador, correccion, PRODUCTOS).bloqueado).toBe(false);
   });
 });
+
+/**
+ * Familia B (auditoría 2-6 sep): 105 correcciones bloqueadas en 4,6 días, la
+ * mitad sobre seguimientos. El candado comparaba contra el BORRADOR y no contra
+ * la conversación: la plantilla de seguimiento no nombra la llanta, así que
+ * «la Falken ZE310R a $111.36 que le mostré» (conv 15193) parecía una venta
+ * nueva aunque el bot lo había dicho el día anterior.
+ */
+describe("lo que ya salió en el ciclo no es un hecho nuevo", () => {
+  const YA_DICHO =
+    "Opciones enviadas: FALKEN ZE310R · KENDA KR20 · WINRUN R330\n" +
+    "La opción premium para su medida 205/55R16 es *FALKEN ZE310R*: *$111.36 c/u con IVA*.";
+  const PRODUCTOS_15193 = [
+    { code: "352165", brand: "FALKEN", design: "ZE310R" },
+    { code: "K217B607", brand: "KENDA", design: "KR20" },
+    { code: "F-WPMT", brand: "FALKEN", design: "WILDPEAK M/T" },
+  ];
+  const BORRADOR = "🛞 Ya tengo su medida 205/55R16. ¿Le ayudo a elegir la mejor opción según el uso que le da y su presupuesto?";
+  const CORRECCION =
+    "🛞 Ya tengo su medida *205/55R16*. Como buscaba una opción *premium*, tengo *FALKEN ZE310R* a *$111.36 c/u con IVA*.\n\n¿Le cotizo la *FALKEN ZE310R* en *205/55R16*?";
+
+  it("deja pasar la corrección que repite la llanta y el precio ya mostrados", () => {
+    const r = frenarHechosNuevosDelGuardian(BORRADOR, CORRECCION, PRODUCTOS_15193, YA_DICHO);
+    expect(r.bloqueado).toBe(false);
+    expect(r.texto).toBe(CORRECCION);
+  });
+
+  it("sigue frenando una llanta que nunca salió en el ciclo", () => {
+    const inventada = CORRECCION.replace("FALKEN ZE310R", "FALKEN WILDPEAK M/T");
+    const r = frenarHechosNuevosDelGuardian(BORRADOR, inventada, PRODUCTOS_15193, YA_DICHO);
+    expect(r.bloqueado).toBe(true);
+    expect(r.motivos).toContain("producto_nuevo");
+  });
+
+  it("sigue frenando un precio que nadie dijo", () => {
+    const otroPrecio = CORRECCION.replace("$111.36", "$99.00");
+    const r = frenarHechosNuevosDelGuardian(BORRADOR, otroPrecio, PRODUCTOS_15193, YA_DICHO);
+    expect(r.bloqueado).toBe(true);
+    expect(r.motivos).toContain("precio_nuevo");
+  });
+
+  it("sin historial se comporta como antes", () => {
+    const r = frenarHechosNuevosDelGuardian(BORRADOR, CORRECCION, PRODUCTOS_15193);
+    expect(r.bloqueado).toBe(true);
+  });
+});

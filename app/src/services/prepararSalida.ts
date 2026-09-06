@@ -94,6 +94,12 @@ export interface ContextoDeSalida {
   textoAntesDelGuardian?: string;
   /** Un cierre definitivo: ningún paso posterior puede anexar nada. */
   salidaTerminal?: boolean;
+  /**
+   * Por qué la cadena decidió NO enviar (solo seguimientos): el guardián vio
+   * que insistía tras un rechazo, o el texto era calco de algo ya enviado.
+   * Lo lee `followUpProcessor` para cancelar el job con ese motivo.
+   */
+  motivoDeSupresion?: "insiste_tras_rechazo" | "calco_del_hilo";
   /** Este turno termina sin empuje comercial, pero no cierra ni borra el ciclo. */
   suprimirEmpujeComercial?: boolean;
   /** La intención vigente es un servicio que no está en el catálogo de llantas. */
@@ -157,6 +163,23 @@ export const PASOS: readonly PasoDeSalida[] = [
         ctx.conversation, texto, ctx.huella ?? [],
         { tipo: ctx.tipo === "seguimiento" ? "seguimiento" : "respuesta" },
       );
+      // EL GUARDIÁN DE SEGUIMIENTO PUEDE CALLAR (auditoría 2-6 sep, familia A).
+      //
+      // Un seguimiento no contesta a nadie: si el guardián ve que insiste
+      // después de que el cliente se despidió o pidió silencio, la respuesta
+      // correcta no es reescribirlo, es no mandarlo. Hasta hoy solo podía
+      // reescribir, y lo que salía era una copia de la despedida que ya se
+      // había enviado: «Entendido. No le escribo más.» tres veces a quien dijo
+      // «Callate» (conv 13411); «Gracias a usted 🤝» tres veces a quien dijo
+      // «Disculpe no gracias..» (conv 13687). Un turno normal sigue igual: ahí
+      // el cliente acaba de escribir y algo hay que contestarle.
+      if (
+        ctx.tipo === "seguimiento"
+        && revision.hallazgos.some((h) => h.categoria === "insiste_tras_rechazo")
+      ) {
+        ctx.motivoDeSupresion = "insiste_tras_rechazo";
+        return null;
+      }
       return revision.texto;
     },
   },
@@ -174,7 +197,12 @@ export const PASOS: readonly PasoDeSalida[] = [
     async aplicar(texto, ctx) {
       const borrador = ctx.textoAntesDelGuardian ?? texto;
       const productos = productosDelCatalogoMencionados(`${borrador}\n${texto}`);
-      const resultado = frenarHechosNuevosDelGuardian(borrador, texto, productos);
+      // Lo que el bot YA le dijo al cliente en este ciclo, piezas incluidas:
+      // un producto o un precio que está ahí no es una oferta nueva, es la
+      // misma. Sin esto el candado tiró 105 correcciones buenas en 4,6 días
+      // (auditoría 2-6 sep). Ver domain/guardianNoVendeSolo.ts.
+      const yaDicho = await textoYaDichoEnElCiclo(ctx.conversation.id, ctx.conversation.current_cycle);
+      const resultado = frenarHechosNuevosDelGuardian(borrador, texto, productos, yaDicho);
       if (!resultado.bloqueado) return texto;
 
       console.warn(
@@ -527,6 +555,31 @@ export const PASOS: readonly PasoDeSalida[] = [
     },
   },
   {
+    // EL SEGUIMIENTO QUE ES CALCO DE ALGO YA ENVIADO NO SALE (auditoría 2-6
+    // sep, familia A2: 30 seguimientos idénticos a un mensaje anterior en 27
+    // chats). La mayoría los escribió el guardián al «corregir» una plantilla
+    // inoportuna copiando la despedida que ya estaba en el hilo; el resto son
+    // la misma plantilla dos veces. Repetir palabra por palabra lo que el
+    // cliente ya leyó no es un recordatorio: es un bot con eco. Va al final,
+    // sobre el texto definitivo, porque todo lo anterior puede reescribir.
+    nombre: "sin_calco_del_hilo",
+    corre: ["seguimiento"],
+    async aplicar(texto, ctx) {
+      const previos = await sql<{ content: string | null }[]>`
+        select content from messages
+        where conversation_id = ${ctx.conversation.id}
+          and direction = 'outbound' and content is not null
+        order by created_at desc, id desc
+        limit 60
+      `;
+      const nuevo = aplanar(texto);
+      if (!previos.some((p) => aplanar(p.content ?? "") === nuevo)) return texto;
+      console.warn(`🔁 Seguimiento suprimido en la conv ${ctx.conversation.id}: calco de un mensaje ya enviado.`);
+      ctx.motivoDeSupresion = "calco_del_hilo";
+      return null;
+    },
+  },
+  {
     nombre: "pregunta_en_su_propio_mensaje",
     corre: ["respuesta"],
     async aplicar(texto) {
@@ -648,6 +701,28 @@ export interface SalidaPreparada {
   /** Qué pasos corrieron, en orden. Para el hub y para las pruebas. */
   pasosCorridos: string[];
 }
+
+/**
+ * Todo lo que el bot ya le mandó al cliente en este ciclo, con el metadato de
+ * las piezas (la imagen de opciones guarda ahí los códigos y los precios de
+ * cada escalón). Es el «ya dicho» contra el que se juzga si el guardián está
+ * abriendo una venta o repitiendo la que ya existe.
+ */
+async function textoYaDichoEnElCiclo(conversationId: number, cycle: number): Promise<string> {
+  const filas = await sql<{ content: string | null; metadata: unknown }[]>`
+    select content, metadata from messages
+    where conversation_id = ${conversationId} and cycle = ${cycle}
+      and direction = 'outbound' and author_kind = 'bot'
+    order by created_at desc, id desc
+    limit 80
+  `;
+  return filas
+    .map((f) => `${f.content ?? ""}\n${f.metadata ? JSON.stringify(f.metadata) : ""}`)
+    .join("\n");
+}
+
+/** Igualdad de textos como los lee una persona: sin diferencias de espacios. */
+const aplanar = (t: string) => t.replace(/\s+/g, " ").trim();
 
 /** Los pasos que le tocan a una puerta, en orden. */
 /**

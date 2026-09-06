@@ -18,8 +18,44 @@ const ACUSE = /^(?:ok|oka|okay|okey|listo|perfecto|bueno|bien|gracias|muy\s+gent
 const INFORMA_OFERTA_AJENA =
   /^ya\s+tengo\s+una\s+oferta(?:\s+de\s+llantas)?(?:\s+\d{3}\s*[/ -]\s*\d{2}\s*(?:[/ -]\s*|r)\s*\d{2})?[\s.,!]*$/;
 
+/**
+ * LA DESPEDIDA CON PALABRAS ALREDEDOR (auditoría 2-6 sep, familia A).
+ *
+ * `CIERRE_SUAVE` está anclado al principio del mensaje, y la gente se despide
+ * con cortesía antes y después: «Disculpe no gracias..» (conv 13687, después
+ * recibió tres despedidas idénticas), «Ya no gracias» (14775, dos
+ * seguimientos), «Gracias por su información, le reviso y le aviso» (13615),
+ * «Ya conseguí, gracias» (14868). Ninguna cerraba el turno, así que el bot
+ * contestaba, reprogramaba los recordatorios y el guardián de seguimiento
+ * —que solo puede reescribir— los convertía en copias de la despedida.
+ *
+ * Se aceptan tres formas, siempre sin pregunta y sin pedido nuevo detrás:
+ *  1. cortesía + «no gracias» / «ya no» + cortesía;
+ *  2. «ya conseguí / resolví» (+ dónde) + gracias;
+ *  3. «(yo) le aviso», «le reviso y le aviso», «cualquier cosa le aviso».
+ * El «no me alcanza» sigue fuera: es la objeción de precio, no un cierre.
+ */
+const CORTESIA = "(?:(?:disculpe|disculpa|perdon|perdone|lo siento|bueno|ok|listo|gracias)[\\s,.]+)*";
+const DESPEDIDA_ENVUELTA = new RegExp(
+  `^${CORTESIA}(?:no[\\s,]+(?:muchas\\s+)?gracias|ya\\s+no(?:[\\s,]+(?:muchas\\s+)?gracias)?|` +
+  `ya\\s+(?:consegui|resolvi|solucione|compre)(?:\\s+(?:las\\s+)?llantas)?(?:\\s+(?:en\\s+otro\\s+lado|en\\s+otra\\s+parte|por\\s+otro\\s+lado))?)` +
+  `(?:[\\s,.]+(?:muchas\\s+)?gracias)?[\\s.,!¡🙏🤝👍]*$`,
+);
+const AVISO_PENDIENTE =
+  /\b(?:yo\s+)?(?:le|les|te)\s+(?:reviso\s+y\s+(?:le|les|te)\s+)?(?:aviso|avisare|confirmo|escribo)\b/;
+
+function esDespedidaEnvuelta(textoNormalizado: string): boolean {
+  if (DESPEDIDA_ENVUELTA.test(textoNormalizado)) return true;
+  // «le aviso» solo cierra cuando es todo lo que dice: sin pregunta ni medida,
+  // y corto. «le aviso cuando tenga la medida, ¿abren el sábado?» no cierra.
+  return AVISO_PENDIENTE.test(textoNormalizado)
+    && !/[?¿]/.test(textoNormalizado)
+    && !/\d{3}\s*[/ -]\s*\d{2}/.test(textoNormalizado)
+    && textoNormalizado.length <= 120;
+}
+
 function esRechazoSuave(textoNormalizado: string): boolean {
-  return CIERRE_SUAVE.test(textoNormalizado)
+  return (CIERRE_SUAVE.test(textoNormalizado) || esDespedidaEnvuelta(textoNormalizado))
     && !TRAE_RESTRICCION_DE_LLANTA.test(textoNormalizado);
 }
 

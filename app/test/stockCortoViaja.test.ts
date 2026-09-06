@@ -173,6 +173,10 @@ describe("el orden de los candados en el turno", () => {
       // la pregunta de consentimiento, así que va ANTES de los dos que dan
       // forma al turno (pregunta sola y estructura).
       "sin_cotizacion_prometida",
+      // El seguimiento calcado de algo ya enviado no sale (auditoría 2-6 sep,
+      // 30 seguimientos idénticos en 27 chats). Solo corre en `seguimiento`:
+      // va sobre el texto definitivo, después de todo lo que reescribe.
+      "sin_calco_del_hilo",
       "pregunta_en_su_propio_mensaje",
       // El calco de hace un momento, LO ÚLTIMO de todo: el 31-ago (conv 3 c20)
       // el guardián reescribió el borrador dejándolo idéntico al bloque de
@@ -253,7 +257,10 @@ describe("el orden de los candados en el turno", () => {
   });
 
   it("el turno normal corre la cadena entera", () => {
-    expect(pasosPara("respuesta").map((p) => p.nombre)).toEqual(nombres);
+    // Menos el candado propio del seguimiento: en un turno normal el calco
+    // reciente ya lo cubre `sin_calco_reciente`, bloque a bloque.
+    expect(pasosPara("respuesta").map((p) => p.nombre))
+      .toEqual(nombres.filter((n) => n !== "sin_calco_del_hilo"));
   });
 
   it("el bot que retoma tras un humano corre los mismos candados", () => {

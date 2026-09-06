@@ -107,3 +107,20 @@ describe("Fase B — reloj, horario y seguridad del scheduler", () => {
     expect(detectNegativeSentiment("ya dejen de estar fastidiando")).toBe(true);
   });
 });
+
+
+/** Conv 13411 (1-sep): «Callate» no contaba como pedido de silencio y salieron
+ *  dos seguimientos más al día siguiente. */
+describe("pedir silencio, como lo dice la gente, es opt-out", () => {
+  it.each(["Callate", "Cállese por favor", "no me escriba más", "no molesten más", "dejen de escribir"])(
+    "«%s» es opt-out",
+    async (texto) => {
+      const { detectOptOut } = await import("../src/domain/followUps.js");
+      expect(detectOptOut(texto)).toBe(true);
+    },
+  );
+  it("«les molesto con una cotización» sigue siendo cortesía", async () => {
+    const { detectOptOut } = await import("../src/domain/followUps.js");
+    expect(detectOptOut("les molesto con una cotización de 205/55R16")).toBe(false);
+  });
+});

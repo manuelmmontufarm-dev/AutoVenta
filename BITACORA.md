@@ -1,3 +1,47 @@
+## 6-sep-2026 · Familias A y B de la auditoría: el seguimiento respeta la despedida y el guardián puede repetir lo ya dicho
+
+**Qué:** Corrida 1 sobre el informe de familias del 6-sep (307 chats desde el
+deploy de 80665c3). **Familia B**, el multiplicador: `frenarHechosNuevosDelGuardian`
+recibe ahora `yaDichoEnElCiclo` (todo lo que el bot mandó en el ciclo, con el
+metadato de las piezas) y un producto o un importe que ya salió no cuenta como
+hecho nuevo; `prepararSalida` se lo pasa desde `messages`. **Familia A**, cuatro
+piezas: (1) `domain/cierreTurno.ts` reconoce la despedida con cortesía alrededor
+(«Disculpe no gracias..», «Ya no gracias», «ya conseguí, gracias», «le reviso y
+le aviso») y `scheduleConversationFollowUps` —la única función que programa—
+no arma plan sobre una despedida y cancela el vigente (`cierre_del_cliente`);
+(2) `detectOptOut` entiende «Callate», «cállese», «no me escriba más», «no
+molesten»; (3) el Ángel Guardián de seguimiento puede CALLAR: con hallazgo
+`insiste_tras_rechazo` la cadena devuelve `null`, y un paso nuevo
+`sin_calco_del_hilo` (solo `seguimiento`, al final) devuelve `null` si el texto
+definitivo es copia de un mensaje ya enviado; `followUpProcessor` ya no tapa
+el `null` con el borrador: cancela el job con `seguimiento_suprimido:<motivo>`;
+(4) la plantilla de seguimiento recibe `optionsCount` y `preferenceAnswered`
+(calculados de la última pieza de opciones y de las respuestas al menú): con una
+opción no dice «compararla con la otra alternativa», con la prioridad contestada
+no vuelve a preguntarla, y en `medida_confirmada` sin medida guardada no dice
+«ya tengo su medida». Los mapas repetidos (A4) NO se tocaron: es la decisión
+de Joaquín del 25-ago y contradice el pedido de Manuel del 2-sep; hay que
+elegir en el grupo. Pruebas: `cierreTurno`, `followUps`, `guardianNoVendeSolo`,
+`followUpMessages` (19 casos nuevos, corridos en rojo primero),
+`seguimientoNoInsiste.integration` (5 casos contra Postgres) y el orden de la
+cadena en `stockCortoViaja`.
+
+**Por qué:** En 4,6 días el candado bloqueó 105 correcciones buenas del guardián
+(51 en seguimientos) porque comparaba contra el borrador y no contra la
+conversación: la plantilla nunca nombra la llanta, así que «la Falken ZE310R a
+$111.36 que le mostré» parecía una venta nueva (conv 15193). Y los seguimientos
+salieron 16 veces después de un rechazo (conv 13411 «Callate» → tres «no le
+escribo más»; conv 13687 «Disculpe no gracias..» → tres despedidas idénticas),
+30 veces idénticos a un mensaje anterior y 42 veces con «la otra alternativa»,
+22 de ellas con una sola opción. Probado en el simulador con las conversaciones
+reales: tras «Disculpe no gracias..» + 👍🤝 no queda ningún job de envío;
+«Callate» registra el opt-out y el bot calla; tras «Premium» el seguimiento
+sale «¿Avanzamos con la opción premium *FALKEN ZE310R* en 205/55R16?» con
+`guardianCorrigio=true` y sin `guardian_hecho_nuevo_bloqueado` — el mismo
+turno que el 4-sep produjo el bloqueo y la re-pregunta.
+
+**Horas:** 3.5
+
 ## 1-sep-2026 · La pieza de opciones dice MEDIDA EXACTA cuando el cliente ya dio la medida
 
 **Qué:** Conv 13905 (Jhinson, 255/70R16): la imagen salía «OPCIONES EN SU ARO
@@ -550,6 +594,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-09-06 | _(este mismo)_ | Familias A y B: seguimiento que respeta la despedida y puede callar; el candado del guardián compara contra el ciclo | 3.5 |
 | 2026-09-01 | _(este mismo)_ | Medida deducida ≠ confirmada: tabla con «media», matcher por palabras, +13 fichas, fitment aprendido, candado sin medida no cotiza | 3.5 |
 | 2026-09-01 | _(este mismo)_ | Tres chats a medias: «Rin 14 60 195», Kendall=Kenda, menú de una sola llanta | 1.5 |
 | 2026-09-01 | _(este mismo)_ | «No hay A/T» teniendo 89 en bodega: recorte por tipo, re-búsqueda obligada y guardián con tipos | 2.0 |

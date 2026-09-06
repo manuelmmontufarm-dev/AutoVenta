@@ -20,6 +20,7 @@ import {
 import { buildStoreLinksBlock } from "./quoteMessages.js";
 import { emitLiveEvent } from "./liveEvents.js";
 import { pideUnAsesor } from "../domain/pideAsesor.js";
+import { tipoDeCierreDelTurno } from "../domain/cierreTurno.js";
 import { generateFollowUpCopy } from "./followUpCopy.js";
 import { findByCode } from "./catalog.js";
 import { asesoresActivos, notifyAdvisor } from "./advisorNotifications.js";
@@ -228,11 +229,64 @@ function etiquetaDelProducto(codigo: string | null | undefined): string | null {
   return etiqueta || null;
 }
 
+/** Lo que la plantilla de seguimiento necesita saber del hilo para no repreguntar. */
+export interface ContextoDeOpciones {
+  optionsCount: number | null;
+  preferenceAnswered: boolean;
+}
+
+const RESPUESTA_AL_MENU =
+  /^(?:la\s+|el\s+|opci[oó]n\s+)?(?:[123]|1ra|2da|3ra|primera|segunda|tercera|costo|equilibrio|premium|la\s+m[aá]s\s+(?:barata|econ[oó]mica|cara|conveniente)|econ[oó]mica|barata|intermedia)\W*$/i;
+
+/**
+ * Cuántas llantas trajo la última pieza de opciones del ciclo y si el cliente
+ * ya contestó el menú después de verla. La plantilla del seguimiento decía
+ * «compararla con la otra alternativa» con una sola opción en pantalla y
+ * volvía a preguntar la prioridad a quien ya había dicho «Premium»
+ * (auditoría 2-6 sep, familia A3): no tenía cómo saberlo.
+ */
+async function contextoDeOpciones(conversationId: number, cycle: number): Promise<ContextoDeOpciones> {
+  const [pieza] = await sql<{ id: number; created_at: Date; codes: unknown }[]>`
+    select id, created_at, metadata->'codes' as codes from messages
+    where conversation_id = ${conversationId} and cycle = ${cycle}
+      and direction = 'outbound' and metadata->>'piece' = 'options'
+    order by created_at desc, id desc limit 1
+  `;
+  if (!pieza) return { optionsCount: null, preferenceAnswered: false };
+  const optionsCount = Array.isArray(pieza.codes) ? pieza.codes.length : null;
+  const respuestas = await sql<{ content: string | null }[]>`
+    select content from messages
+    where conversation_id = ${conversationId} and cycle = ${cycle}
+      and direction = 'inbound' and created_at > ${pieza.created_at}
+  `;
+  const preferenceAnswered = respuestas.some((r) => RESPUESTA_AL_MENU.test((r.content ?? "").trim()));
+  return { optionsCount, preferenceAnswered };
+}
+
+/**
+ * ¿Lo último que dijo el cliente en este ciclo fue una despedida o un rechazo?
+ * Misma fuente que el cierre del turno (`domain/cierreTurno.ts`): «no gracias»,
+ * «ya conseguí», «le aviso», y el «ok» que viene después de cualquiera de esos.
+ */
+async function elClienteSeDespidio(conversationId: number, cycle: number): Promise<boolean> {
+  const ultimos = await sql<{ content: string | null }[]>`
+    select content from messages
+    where conversation_id = ${conversationId} and cycle = ${cycle} and direction = 'inbound'
+    order by created_at desc, id desc limit 2
+  `;
+  const [ultimo, anterior] = ultimos;
+  if (!ultimo?.content) return false;
+  return tipoDeCierreDelTurno(ultimo.content, anterior?.content ?? null) !== null;
+}
+
 export function buildFollowUpPreview(
   conversation: ConversationForFollowUp,
   kind: FollowUpMessageKind = "in_window_first",
+  opciones: ContextoDeOpciones = { optionsCount: null, preferenceAnswered: false },
 ): string {
   return buildContextualFollowUpMessage({
+    optionsCount: opciones.optionsCount,
+    preferenceAnswered: opciones.preferenceAnswered,
     name: conversation.name,
     stage: conversation.stage,
     tireSize: conversation.tire_size,
@@ -317,6 +371,18 @@ export async function scheduleConversationFollowUps(
     conversation.last_assistant_message_at < conversation.last_customer_message_at
   ) return;
 
+  // EL CLIENTE QUE SE DESPIDIÓ NO RECIBE RECORDATORIOS (auditoría 2-6 sep,
+  // familia A1: 16 seguimientos en 8 chats después de un «no gracias», un
+  // «ya conseguí» o un «Callate»). El turno normal ya corta el plan cuando
+  // reconoce el cierre; esta es la misma regla en la ÚNICA función que
+  // programa, para que ninguna otra puerta (retomada, panel, worker) vuelva a
+  // armarlo sobre una despedida.
+  if (await elClienteSeDespidio(conversationId, conversation.current_cycle)) {
+    await cancelPendingFollowUps(conversationId, "cierre_del_cliente", conversation.current_cycle);
+    return;
+  }
+  const contextoOpciones = await contextoDeOpciones(conversationId, conversation.current_cycle);
+
   const relevantAt = conversation.last_assistant_message_at.getTime() >= conversation.last_customer_message_at.getTime()
     ? conversation.last_assistant_message_at
     : conversation.last_customer_message_at;
@@ -367,7 +433,7 @@ export async function scheduleConversationFollowUps(
       idempotencyKey: `${base}:in_window_first`,
       // `preview` es el borrador determinístico (costo cero). La redacción con IA
       // se hace perezosamente: al enviar, o cuando el asesor aplasta «Generar».
-      payload: { preview: buildFollowUpPreview(conversation, "in_window_first"), stage: conversation.stage, aiPending: true },
+      payload: { preview: buildFollowUpPreview(conversation, "in_window_first", contextoOpciones), stage: conversation.stage, aiPending: true },
     });
   }
   if (schedule.secondDueAt) {
@@ -378,7 +444,7 @@ export async function scheduleConversationFollowUps(
       dueAt: schedule.secondDueAt,
       windowClosesAt: schedule.windowClosesAt,
       idempotencyKey: `${base}:in_window_second`,
-      payload: { preview: buildFollowUpPreview(conversation, "in_window_second"), stage: conversation.stage, aiPending: true },
+      payload: { preview: buildFollowUpPreview(conversation, "in_window_second", contextoOpciones), stage: conversation.stage, aiPending: true },
     });
   }
 
@@ -887,7 +953,10 @@ export async function ensureFollowUpJobCopy(input: {
   if (!kind || (!context.job_payload.aiPending && !force)) {
     return { text: stored, generated: false };
   }
-  const copyContext = jobCopyContext(context);
+  const copyContext = {
+    ...jobCopyContext(context),
+    ...(await contextoDeOpciones(context.id, context.current_cycle)),
+  };
   // Al modelo, los hechos SIN los links: las URLs de Maps son exactamente el
   // tipo de string que un LLM copia mal, y una mutilada en el chat es peor
   // que ninguna. El bloque canónico lo pega `conMapasPegados` después, sobre

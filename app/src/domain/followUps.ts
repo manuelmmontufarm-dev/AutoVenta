@@ -150,9 +150,14 @@ export function computeInWindowSchedule(input: {
 }
 
 const OPT_OUT_PATTERNS = [
-  /\bno\s+me\s+(?:escribas|contactes|mensajes)\b/i,
-  /\bdeja\s+de\s+escribirme\b/i,
+  /\bno\s+me\s+(?:escribas?|escriban|contactes?|contacten|mensajes|molestes?|molesten)\b/i,
+  /\bdej[ae]n?\s+de\s+(?:escribir(?:me)?|molestar(?:me)?|insistir)\b/i,
   /\b(?:stop|baja|cancelar suscripci[oó]n)\b/i,
+  // Conv 13411 (1-sep): «Callate» no contaba, y al día siguiente salieron dos
+  // seguimientos más que el guardián solo pudo convertir en «no le escribo
+  // más». Pedir silencio, como lo dice la gente, es la baja.
+  /\bc[aá]ll(?:ate|ese|ense|ate ya)\b/i,
+  /\bno\s+(?:me\s+)?molest(?:e|es|en)\s+m[aá]s\b/i,
 ];
 
 const NEGATIVE_PATTERNS = [

@@ -278,10 +278,29 @@ export async function processFollowUpJob(
   // puede corregir, y pagar una revisión sería tirar el dinero. Va igual por
   // `prepararSalida` —con `tipo: "plantilla"`, que no tiene ningún paso— para
   // que no quede ninguna puerta sin pasar por la cadena.
-  const salida = await prepararSalida(redactado, {
+  const ctxSalida: Parameters<typeof prepararSalida>[1] = {
     conversation: { id: context.id, current_cycle: context.current_cycle, stage: context.stage },
     tipo: isPostWindow ? "plantilla" : "seguimiento",
-  });
+  };
+  const salida = await prepararSalida(redactado, ctxSalida);
+  // LA CADENA PUEDE DECIR «NO MANDES NADA» (auditoría 2-6 sep, familia A).
+  //
+  // Hasta hoy un `null` de la cadena se tapaba con el borrador («?? redactado»)
+  // y el seguimiento salía igual. Ahora un seguimiento suprimido —porque el
+  // guardián lo vio insistir tras un rechazo, o porque era calco de algo ya
+  // enviado— cancela el job con su motivo y no gasta un mensaje del cliente.
+  if (!isPostWindow && salida.texto === null) {
+    const motivo = ctxSalida.motivoDeSupresion ?? "cadena_de_salida";
+    await markFollowUpJobCancelled(job.id, `seguimiento_suprimido:${motivo}`);
+    await sql`
+      update follow_up_jobs
+      set payload = payload || jsonb_build_object('suprimido', ${motivo}::text, 'preview', ${redactado}::text)
+      where id = ${job.id}
+    `;
+    console.log(`🤐 Seguimiento ${job.id} de la conv ${context.id} no se envía: ${motivo}.`);
+    emitLiveEvent("follow_up", context.id);
+    return;
+  }
   const preview = salida.texto ?? redactado;
   if (!isPostWindow) {
     // `modo` queda en el payload para que el panel y las pruebas puedan ver con

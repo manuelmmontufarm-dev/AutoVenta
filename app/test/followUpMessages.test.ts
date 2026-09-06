@@ -215,3 +215,50 @@ describe("el SKU crudo nunca sale en el seguimiento", () => {
     expect(texto).toContain("205/55R16");
   });
 });
+
+/**
+ * Familia A3 (auditoría 2-6 sep): 42 seguimientos dijeron «compararla con la
+ * otra alternativa», 22 de ellos con UNA sola opción en pantalla (conv 13825);
+ * 9 volvieron a preguntar la prioridad que el cliente ya había contestado
+ * (conv 15193 «Premium»). La plantilla no sabía ni cuántas opciones hubo ni
+ * qué contestó el cliente.
+ */
+describe("la plantilla de seguimiento lee lo que ya pasó", () => {
+  const base = { stage: "seleccionando" as const, tireSize: "225/70R16", selectedProductLabel: "KENDA KR50" };
+
+  it("con una sola opción no ofrece comparar con otra", () => {
+    const texto = buildContextualFollowUpMessage({ ...base, optionsCount: 1 }, "in_window_first");
+    expect(texto).not.toMatch(/otra alternativa|otras opciones/i);
+    expect(texto).toContain("KENDA KR50");
+  });
+
+  it("con varias opciones habla de las otras, en plural", () => {
+    const texto = buildContextualFollowUpMessage({ ...base, optionsCount: 3 }, "in_window_first");
+    expect(texto).not.toMatch(/la otra alternativa/i);
+    expect(texto).toMatch(/otras opciones/i);
+  });
+
+  it("si el cliente ya contestó la prioridad, no se la vuelve a preguntar", () => {
+    for (const kind of ["in_window_first", "in_window_second"] as const) {
+      const texto = buildContextualFollowUpMessage({ ...base, optionsCount: 3, preferenceAnswered: true }, kind);
+      expect(texto).not.toMatch(/prioriz|cuál le gustó|le ayudo a elegir/i);
+      expect(texto).toContain("KENDA KR50");
+    }
+  });
+
+  it("en medida_confirmada con la prioridad contestada tampoco pregunta uso ni presupuesto", () => {
+    const texto = buildContextualFollowUpMessage(
+      { stage: "medida_confirmada", tireSize: "205/55R16", preferenceAnswered: true, selectedProductLabel: "FALKEN ZE310R" },
+      "in_window_second",
+    );
+    expect(texto).not.toMatch(/duración, comodidad o precio|le ayudo a elegir/i);
+  });
+
+  it("sin medida guardada no dice «ya tengo su medida»", () => {
+    for (const kind of ["in_window_first", "in_window_second"] as const) {
+      const texto = buildContextualFollowUpMessage({ stage: "medida_confirmada", tireSize: null }, kind);
+      expect(texto).not.toMatch(/ya tengo su medida|ya con la medida/i);
+      expect(texto).toMatch(/medida/i);
+    }
+  });
+});

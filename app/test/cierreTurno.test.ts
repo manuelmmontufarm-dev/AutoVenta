@@ -47,3 +47,38 @@ describe("variantes con «ya no necesito»", () => {
     expect(_cierreVariante("ya no me queda claro el precio")).toBeNull();
   });
 });
+
+
+/**
+ * Familia A (auditoría 2-6 sep, 8 chats): el cliente se despide con palabras
+ * alrededor del «no gracias» y el cierre no lo reconocía. Conv 13687
+ * «Disculpe no gracias..» recibió después tres despedidas idénticas; conv
+ * 14775 «Ya no gracias» dos seguimientos; conv 13615 «le reviso y le aviso»
+ * dos recordatorios de la cotización.
+ */
+describe("la despedida con cortesía alrededor también cierra el turno", () => {
+  it.each([
+    "Disculpe no gracias..",
+    "Ya no gracias",
+    "ya no, gracias",
+    "Gracias por su información, le reviso y le aviso. Muchas gracias",
+    "cualquier cosa yo le aviso",
+    "Ya conseguí, gracias",
+    "ya consegui en otro lado gracias",
+  ])("«%s» cierra el turno", (texto) => {
+    expect(tipoDeCierreDelTurno(texto)).not.toBeNull();
+  });
+
+  it("y el acuse que viene después también", () => {
+    expect(tipoDeCierreDelTurno("👍🤝", "Disculpe no gracias..")).toBe("acuse_del_cierre");
+  });
+
+  it.each([
+    "no me alcanza",
+    "no gracias, ¿y en 195/60R14?",
+    "le aviso cuando tenga la medida, ¿abren el sábado?",
+    "ya no me queda claro el precio",
+  ])("«%s» no cierra nada", (texto) => {
+    expect(tipoDeCierreDelTurno(texto)).toBeNull();
+  });
+});

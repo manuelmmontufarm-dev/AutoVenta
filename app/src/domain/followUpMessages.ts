@@ -45,6 +45,20 @@ export interface FollowUpMessageContext {
    * siga siendo dominio puro — aquí no se sabe qué locales tiene el negocio.
    */
   storeLinks?: string | null;
+  /**
+   * Cuántas llantas trajo la última pieza de opciones del ciclo. Sin este dato
+   * la plantilla de «eligiendo» decía «compararla con la otra alternativa» a
+   * 22 clientes que tenían UNA sola opción en pantalla (auditoría 2-6 sep,
+   * conv 13825). `null` = no hubo pieza o no se sabe.
+   */
+  optionsCount?: number | null;
+  /**
+   * El cliente ya contestó el menú Costo/Equilibrio/Premium (o eligió por
+   * nombre). Con esto en true, preguntarle «¿qué prioriza?» o «¿cuál le
+   * gustó más?» es repreguntar: 9 seguimientos lo hicieron en la ventana
+   * (conv 15193, «Premium»).
+   */
+  preferenceAnswered?: boolean;
 }
 
 /**
@@ -205,13 +219,36 @@ function redactarSeguimiento(
       : `${prefix}📄 ¿Qué le pareció la cotización${quote}${size}? Si desea, revisamos juntos cualquier duda para que elija tranquilo 😊`;
   }
 
-  if (context.stage === "seleccionando" || context.selectedProductCode) {
+  // El cliente ya eligió (contestó el menú o nombró la llanta): lo único que
+  // cabe es avanzar con ESA, no volver al menú. Vale para «eligiendo» y para
+  // «medida confirmada», que es donde quedan los que contestaron el menú y no
+  // recibieron cotización.
+  const yaEligio = context.preferenceAnswered && (context.stage === "seleccionando" || context.stage === "medida_confirmada" || Boolean(context.selectedProductCode));
+  if (yaEligio) {
+    const laElegida = product ? `la${product}` : "la opción que eligió";
     return kind === "in_window_second"
-      ? `😊 De las opciones que vimos${size}, ¿cuál le gustó más? Si me cuenta qué prioriza, le ayudo a decidir.`
-      : `${prefix}🛞 ¿Cómo vio la opción${product}${size}? También puedo ayudarle a compararla con la otra alternativa 😊`;
+      ? `😊 Quedé pendiente de ${laElegida}${size}. ¿Le dejo lista la cotización, o prefiere ver otra opción?`
+      : `${prefix}🛞 ¿Avanzamos con ${laElegida}${size}? Si le sirve, le dejo la cotización lista 😊`;
   }
 
-  if (context.stage === "medida_confirmada") {
+  if (context.stage === "seleccionando" || context.selectedProductCode) {
+    const opciones = context.optionsCount ?? null;
+    if (opciones === 1) {
+      return kind === "in_window_second"
+        ? `😊 ¿Cómo vio la opción${product}${size}? Si le sirve, le dejo la cotización lista.`
+        : `${prefix}🛞 ¿Cómo vio la opción${product}${size}? Es la que tengo disponible en su medida; si le sirve, le dejo la cotización lista 😊`;
+    }
+    const comparar = opciones !== null && opciones > 2
+      ? "compararla con las otras opciones"
+      : "compararla con la otra opción";
+    return kind === "in_window_second"
+      ? `😊 De las opciones que vimos${size}, ¿cuál le gustó más? Si me cuenta qué prioriza, le ayudo a decidir.`
+      : `${prefix}🛞 ¿Cómo vio la opción${product}${size}? También puedo ayudarle a ${comparar} 😊`;
+  }
+
+  // Sin medida guardada, la etapa «medida confirmada» miente: el cliente dio
+  // solo el aro o el vehículo (conv 14348, 14042). Lo honesto es pedirla.
+  if (context.stage === "medida_confirmada" && context.tireSize) {
     return kind === "in_window_second"
       ? `😊 Ya con la medida${size} estamos cerca. ¿Prefiere priorizar duración, comodidad o precio?`
       : `${prefix}🛞 Ya tengo su medida${size}. ¿Le ayudo a elegir la mejor opción según el uso que le da y su presupuesto?`;
