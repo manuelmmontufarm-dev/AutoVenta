@@ -80,6 +80,21 @@ const OFRECIO_COTIZAR =
 const ACUSE_SIN_MAS =
   /^(?:muchas\s+|mil\s+)?(?:gracias|grax|ok|oka|okay|okey|listo|list|dale|dele|ya|bueno|buenos|perfecto|de\s+una|hagale|hagalo|por\s+favor|porfa|porfis|si|sip|claro|va|bien|excelente|genial|de\s+acuerdo|correcto|ayudeme|uyedeme|👍|🙏|😊|🤝)(?:\s+(?:por\s+favor|porfa|porfis|gracias|amigo|amiga|men|ps|pue|pues|nomas|senor|senora|don|dona|master|bro))?[\s.,!¡👍🙏😊🤝🙌✅]*$/;
 
+/**
+ * EL SALUDO NO ES UNA OFERTA (auditoría 2-6 sep, familia D).
+ *
+ * La presentación fija dice «…comparo modelos y le armo su cotización para
+ * tienda», y «le armo … cotización» calzaba en `OFRECIO_COTIZAR`. Resultado:
+ * cualquier «Listo», «Por favor», «Gracias» o «👍» en los dos mensajes
+ * siguientes al saludo se leía como «sí, cotíceme» — y así salieron 18
+ * cotizaciones tras un acuse en 4,6 días: la Falken de Rolando (conv 14506,
+ * «Listo» a la imagen de opciones), la 205/55R16 de un cliente de aro 17
+ * (14687), y una por $511.72 a quien acababa de decir «No me interesa» y
+ * contestó «👍» al saludo del ciclo reabierto (16277). Una capacidad que el
+ * bot anuncia de sí mismo no es una oferta que el cliente pueda aceptar.
+ */
+const ES_PRESENTACION = /\bsoy\s+el\s+asistente\s+de\b/;
+
 /** Un «no» a secas nunca es un sí, por más corto que sea. */
 const NEGATIVA_CORTA = /^(?:no|nop|nel|no\s+gracias|todavia\s+no|aun\s+no|ahorita\s+no|por\s+ahora\s+no|mejor\s+no|otro\s+dia|luego|despues|mas\s+tarde)[\s.,!]*$/;
 
@@ -94,7 +109,7 @@ export function ofertaDeCotizarAceptada(
   mensajeDelCliente: string,
 ): boolean {
   const bot = normalizar(ultimoMensajeDelBot ?? "");
-  if (!bot || !OFRECIO_ALGO.test(bot)) return false;
+  if (!bot || ES_PRESENTACION.test(bot) || !OFRECIO_ALGO.test(bot)) return false;
   const cliente = normalizar(mensajeDelCliente);
   if (!cliente || NEGATIVA_CORTA.test(cliente)) return false;
   return ACUSE_SIN_MAS.test(cliente);
@@ -112,7 +127,7 @@ export function ofertaDeCotizacionAceptada(
   mensajeDelCliente: string,
 ): boolean {
   const bot = normalizar(ultimoMensajeDelBot ?? "");
-  if (!bot || !OFRECIO_COTIZAR.test(bot)) return false;
+  if (!bot || ES_PRESENTACION.test(bot) || !OFRECIO_COTIZAR.test(bot)) return false;
   const cliente = normalizar(mensajeDelCliente);
   if (!cliente || NEGATIVA_CORTA.test(cliente)) return false;
   return ACUSE_SIN_MAS.test(cliente);
@@ -178,7 +193,7 @@ export function ofertaDeCotizacionVigenteAceptada(
       // el cliente se apartó a comparar; la oferta vieja ya no se acepta sola.
       if (NEGATIVA_CORTA.test(texto) || /\bno\s+gracias\b|\bya\s+compre\b|\bya\s+no\b|\b[bv]oy\s+a\s+(?:mirar|ver|pensar|comparar)\b|\blo\s+(?:voy\s+a\s+)?pienso\b/.test(texto)) return false;
       clientesEnMedio += 1;
-    } else if (m.role === "assistant" && OFRECIO_COTIZAR.test(texto)) {
+    } else if (m.role === "assistant" && !ES_PRESENTACION.test(texto) && OFRECIO_COTIZAR.test(texto)) {
       return true;
     }
   }

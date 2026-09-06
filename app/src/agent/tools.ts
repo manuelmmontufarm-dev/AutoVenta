@@ -74,8 +74,9 @@ import { extractFlotationSizes, formatFlotationSize, formatTireSize, parseTireSi
 import { marcaPreguntada, pidioCotizacionExplicita, ultimaMarcaPedida } from "../domain/consultaConRespaldo.js";
 import {
   autorizaCotizacionEnEsteTurno, canGenerateFinalQuote, cantidadParaPrepararOpciones, describeUso, escalonesDeOpciones,
-  pideRecomendacion, respuestaDePreferencia,
+  pideAlternativaMasBarata, pideRecomendacion, respuestaDePreferencia,
 } from "../domain/salesIntent.js";
+import { equivalenteSinConsentimiento, preguntaDeEquivalente } from "../domain/equivalentePendiente.js";
 import { getTirePatternProfile } from "../domain/tireKnowledge.js";
 import {
   catalogoDeTipos, escalonDeMarca, infoTipo, normalizarTipo, ordenDeMarca, tipoDeProducto,
@@ -1470,6 +1471,37 @@ export function buildTools(ctx: AgentContext) {
               : undefined,
           }
         : null;
+      // «UNAS MÁS ECONÓMICAS» CON LA ÚNICA OPCIÓN YA EN PANTALLA (auditoría
+      // 2-6 sep, familia D, conv 15143). El cliente ya tenía la única Falken
+      // de su medida cotizada; pidió más baratas y recibió la misma lámina, la
+      // misma cotización por segunda vez y los mapas otra vez. Si lo que hay
+      // para mostrar ya lo vio TODO en este ciclo, no hay pieza que mandar:
+      // se le dice que es la única y qué camino queda (otra medida
+      // equivalente, otro tipo, o el asesor).
+      if (pideAlternativaMasBarata(ctx.currentUserText)) {
+        const [ultimaPieza] = await sql<{ metadata: Record<string, unknown> | null }[]>`
+          select metadata from messages
+          where conversation_id=${ctx.conversation.id} and cycle=${ctx.conversation.current_cycle}
+            and metadata->>'piece'='options'
+          order by created_at desc limit 1
+        `;
+        const yaVistos = new Set(
+          (Array.isArray(ultimaPieza?.metadata?.codes) ? ultimaPieza.metadata.codes : []).map((c) => String(c).toLowerCase()),
+        );
+        if (yaVistos.size && products.every((p) => yaVistos.has(p.code.toLowerCase()))) {
+          const unica = products[0];
+          const precio = unica.minimumPriceWithTax ? ` — *$${unica.minimumPriceWithTax.toFixed(2)} c/u con IVA*` : "";
+          return JSON.stringify({
+            imagen_enviada: false,
+            recomendacion_entregada: false,
+            mensaje_para_enviar:
+              products.length === 1
+                ? `En *${unica.sizeLabel ?? "su medida"}* la *${unica.brand} ${unica.design}*${precio} es la única que tengo disponible: no hay una más económica en esa medida.\n---\nSi quiere, reviso una medida equivalente de su aro o le pido al asesor que confirme si llega otra opción. ¿Cuál prefiere?`
+                : `Las opciones que le mostré son todas las que tengo en *${unica.sizeLabel ?? "su medida"}*; la más económica de ellas es la *${unica.brand} ${unica.design}*${precio}.\n---\nSi quiere, reviso una medida equivalente de su aro. ¿Le sirve?`,
+            regla: "Responde usando exactamente mensaje_para_enviar. NO llames generar_cotizacion: el cliente pidió algo más barato y no lo hay; no se le vuelve a cotizar lo mismo.",
+          });
+        }
+      }
       if (debeBloquearReenvio(previoNormalizado, sizeLabelActual, ctx.currentUserText, products.map((p) => p.code))) {
         const minutos = Math.max(1, Math.round(previoNormalizado!.minutos));
         return JSON.stringify({
@@ -1771,7 +1803,7 @@ export function buildTools(ctx: AgentContext) {
             ? "El cliente YA pidió la cotización o contestó su preferencia: el texto le entrega la recomendación y AHORA MISMO, EN ESTE MISMO TURNO, llamas generar_cotizacion por `recomendacion` con 4 llantas (o la cantidad que el cliente haya dicho). PROHIBIDO preguntarle si la quiere y PROHIBIDO terminar el turno sin la cotización: ya te dio la señal."
             : entregarRecomendacion
             ? "El cliente pidió recomendación o contó su uso: el texto ya le entrega la recomendación y le ofrece cotizarla. NO llames generar_cotizacion todavía: la cotización sale cuando el cliente diga que sí, la pida, dé cantidad o elija del menú."
-            : "NO adelantes la recomendación en este turno: el texto cierra con el menú de preferencia (1 Costo / 2 Equilibrio / 3 Premium). Si el cliente responde «1», «2», «3», «costo», «equilibrio», «premium» (o «la más barata», «la del medio», «la mejor»), entrega la opción de ESE escalón de `escalones` — nombre y precio con IVA — y ofrece cotizarla por 4 llantas, sin volver a preguntar nada. Si responde un sí genérico, dile en UNA frase que irías por `recomendacion` porque `motivo_recomendacion`.",
+            : "NO adelantes la recomendación en este turno: el texto cierra con el menú de preferencia (1 Costo / 2 Equilibrio / 3 Premium). Si el cliente responde «1», «2», «3», «costo», «equilibrio», «premium» (o «la más barata», «la del medio», «la mejor»), entrega la opción de ESE escalón de `escalones` — nombre y precio con IVA — y en ese mismo turno llama generar_cotizacion con su código y 4 llantas: contestar el menú ES pedir la cotización, no se ofrece ni se pide permiso. Si responde un sí genérico, dile en UNA frase que irías por `recomendacion` porque `motivo_recomendacion`.",
           // La única excepción a «no agregues texto»: avisar que la medida no
           // es la suya. Callarlo es lo que terminó en una cotización firmada
           // por otra medida (5499).
@@ -2221,6 +2253,39 @@ export function buildTools(ctx: AgentContext) {
               `(«en su ${permitidas[0]} no me queda; le entra la ${product.sizeLabel}, ¿se la cotizo?»). Solo cuando él acepte, ` +
               `búscala con buscar_llanta y ahí sí cotízala.`,
           });
+        }
+        // LA EQUIVALENTE NO SE FIRMA SIN SU SÍ (auditoría 2-6 sep, familia D,
+        // conv 14687): la medida está «permitida» porque el bot la declaró
+        // como equivalente, pero el cliente nunca la aceptó — dijo «Ok» a
+        // «¿Le muestro alternativas?». Si la llanta es de otra medida que las
+        // que él escribió, hace falta la pregunta «¿Le cotizo la X en MEDIDA?»
+        // (o que él la nombre). Ver domain/equivalentePendiente.ts.
+        {
+          const medidasEscritas = medidasPermitidas(textosDeLaVisita, facts?.tire_size ?? null);
+          const [ultimoDelBot] = await sql<{ content: string | null }[]>`
+            select content from messages
+            where conversation_id=${ctx.conversation.id} and cycle=${ctx.conversation.current_cycle}
+              and direction='outbound' and type='text'
+            order by created_at desc, id desc limit 1
+          `;
+          if (equivalenteSinConsentimiento({
+            medidaProducto: product.sizeLabel,
+            nombreProducto: `${product.brand} ${product.design}`,
+            medidasDelCliente: medidasEscritas,
+            ultimoMensajeDelBot: ultimoDelBot?.content,
+            textoDelCliente: ctx.currentUserText,
+            textosDelCliente: textosDeLaVisita,
+          })) {
+            const pregunta = preguntaDeEquivalente({
+              recomendacion: `${product.brand} ${product.design}`,
+              medida: product.sizeLabel ?? null,
+            });
+            console.log(`🛑 Equivalente sin consentimiento en la conv ${ctx.conversation.id}: ${product.brand} ${product.design} ${product.sizeLabel}`);
+            return JSON.stringify({
+              error: `EQUIVALENTE SIN SU SÍ: ${product.brand} ${product.design} es ${product.sizeLabel} y el cliente pidió ${medidasEscritas.join(" o ") || "otra medida"}; todavía no aceptó esa medida. No se cotiza.`,
+              siguiente_paso: `Dile en una frase que en su medida no tienes y que le entra la ${product.sizeLabel}, y cierra en un mensaje aparte (---) EXACTAMENTE con: «${pregunta}». La cotización sale en el turno en que diga que sí.`,
+            });
+          }
         }
         // El cero ya lo atajó `availability === "out"`; lo que queda aquí es el
         // stock corto de verdad: 1, 2 o 3 unidades contra un juego de 4. Va

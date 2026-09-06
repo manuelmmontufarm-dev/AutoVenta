@@ -1,3 +1,4 @@
+import { respuestaDePreferencia } from "./salesIntent.js";
 /**
  * LA EQUIVALENTE SE OFRECE CON UNA PREGUNTA CLARA, Y LA COTIZACIÓN NO SE
  * ANUNCIA SI NO SALIÓ.
@@ -87,6 +88,87 @@ export function anunciaCotizacion(texto: string): boolean {
   return frasesDe(texto).some(
     (frase) => !ES_OFERTA.test(frase) && ANUNCIA_COTIZACION.some((p) => p.test(frase)),
   );
+}
+
+/** La forma de la pieza de opciones que guarda `preparar_opciones` en el mensaje. */
+export interface MetadataDePieza {
+  recomendado?: string | null;
+  escalones?: Partial<Record<"premium" | "equilibrada" | "economica", { codigo?: string | null } | null>> | null;
+}
+
+/**
+ * QUÉ LLANTA VA EN LA PREGUNTA DE CONSENTIMIENTO (auditoría 2-6 sep, familia C).
+ *
+ * El candado `sin_cotizacion_prometida` reemplaza la promesa por «¿Le cotizo
+ * la X?», y X salía de la recomendada guardada en la pieza. Pero si el cliente
+ * ya contestó el menú, X es LA DE ESE ESCALÓN: a «Premium» se le contestó «¿Le
+ * cotizo la KENDA KR20?» (la del medio, conv 15193) y a «Costo» «¿Le cotizo la
+ * FALKEN WILDPEAK A/T 4W?» (la premium, conv 14577) — y esa se cotizó por
+ * $833.92. Se mira la ÚLTIMA respuesta al menú después de la pieza; sin
+ * ninguna, la recomendada; sin recomendada, la económica.
+ */
+export function productoDeConsentimiento(
+  pieza: MetadataDePieza | null | undefined,
+  respuestasDelCliente: readonly (string | null | undefined)[],
+): string | null {
+  const escalones = pieza?.escalones ?? null;
+  for (let i = respuestasDelCliente.length - 1; i >= 0; i--) {
+    const preferencia = respuestaDePreferencia(respuestasDelCliente[i] ?? "");
+    if (!preferencia) continue;
+    const nivel = preferencia === "precio" ? "economica" : preferencia;
+    const codigo = escalones?.[nivel]?.codigo ?? null;
+    if (codigo) return codigo;
+  }
+  return pieza?.recomendado ?? escalones?.economica?.codigo ?? null;
+}
+
+/**
+ * UNA EQUIVALENTE NO SE FIRMA SIN SU SÍ (auditoría 2-6 sep, familia D, conv
+ * 14687). El cliente pidió 215/50R17, el bot preguntó «¿Le muestro
+ * alternativas disponibles en aro 17?», el cliente dijo «Ok» y salió una
+ * cotización de 205/55R16 —aro 16— que nunca había visto. El «ok» aceptaba
+ * VER alternativas, no comprar una. Para firmar una llanta de otra medida que
+ * las que el cliente dio hace falta una de tres cosas: que la última pregunta
+ * del bot haya sido «¿Le cotizo la X en MEDIDA?» nombrando ESA llanta, que el
+ * cliente la nombre, o que nombre esa medida.
+ */
+export function equivalenteSinConsentimiento(input: {
+  medidaProducto: string | null | undefined;
+  nombreProducto: string;
+  medidasDelCliente: readonly string[];
+  ultimoMensajeDelBot: string | null | undefined;
+  textoDelCliente: string;
+  /**
+   * Lo que el cliente escribió en ESTA visita, además del mensaje actual: «Me
+   * gusta la Falken» dos turnos antes también es señalar esa llanta (conv
+   * 4732, 26-ago, la equivalente declarada que sí se cotiza).
+   */
+  textosDelCliente?: readonly (string | null | undefined)[];
+}): boolean {
+  const pelar = (t: string) => t.toLowerCase().replace(/[\s\-/x×r]/g, "");
+  const medida = input.medidaProducto ? pelar(input.medidaProducto) : "";
+  if (!medida) return false;
+  if (input.medidasDelCliente.some((m) => pelar(m) === medida)) return false;
+  const dichoPorElCliente = [...(input.textosDelCliente ?? []), input.textoDelCliente]
+    .map((t) => (t ?? "").toLowerCase())
+    .join("\n");
+  if (pelar(dichoPorElCliente).includes(medida)) return false;
+  const palabras = input.nombreProducto.toLowerCase().split(/\s+/).filter((p) => p.length >= 3);
+  const diseno = palabras.at(-1) ?? "";
+  const marca = palabras[0] ?? "";
+  if (palabras.some((p) => dichoPorElCliente.includes(p))) return false;
+  const cliente = (input.textoDelCliente ?? "").toLowerCase();
+  if (diseno.length >= 3 && cliente.includes(diseno)) return false;
+  if (marca.length >= 3 && cliente.includes(marca)) return false;
+  const bot = (input.ultimoMensajeDelBot ?? "").toLowerCase();
+  const preguntoPorEsta = /¿\s*(?:le|se\s+las?)\s+cotizo\s+las?\s+\*?([^*?]+?)\*?(?:\s+en\s+\*?([^*?]+?)\*?)?\s*\?/i.exec(bot);
+  if (preguntoPorEsta) {
+    const nombrada = preguntoPorEsta[1].trim().toLowerCase();
+    const medidaNombrada = preguntoPorEsta[2] ? pelar(preguntoPorEsta[2]) : "";
+    if (nombrada.includes(diseno) || (medidaNombrada && medidaNombrada === medida)) return false;
+  }
+  if (/¿\s*se\s+las?\s+cotizo\s*\?/i.test(bot) && bot.includes(diseno)) return false;
+  return true;
 }
 
 export interface TextoSinPromesa {

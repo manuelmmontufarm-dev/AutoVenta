@@ -54,7 +54,10 @@ import { frenarHechosNuevosDelGuardian } from "../domain/guardianNoVendeSolo.js"
 import { sinBloquesCalcados } from "../domain/calcoReciente.js";
 import { sinPreguntaRepetidaEnElTurno } from "../domain/preguntaRepetidaEnElTurno.js";
 import { estructurarTurno } from "../domain/estructuraDelTurno.js";
-import { anunciaCotizacion, preguntaDeEquivalente, sinCotizacionPrometida } from "../domain/equivalentePendiente.js";
+import {
+  anunciaCotizacion, preguntaDeEquivalente, productoDeConsentimiento, sinCotizacionPrometida,
+  type MetadataDePieza,
+} from "../domain/equivalentePendiente.js";
 import { findByCode } from "./catalog.js";
 
 /**
@@ -731,14 +734,24 @@ const aplanar = (t: string) => t.replace(/\s+/g, " ").trim();
  * pieza —o sin catálogo—, la forma corta y legítima («¿Se la cotizo?»).
  */
 async function preguntaDeConsentimientoVigente(conversationId: number, cycle: number): Promise<string> {
-  const [pieza] = await sql<{ metadata: { recomendado?: string; escalones?: Record<string, { codigo?: string; nombre?: string } | null> } | null }[]>`
-    select metadata from messages
+  const [pieza] = await sql<{ created_at: Date; metadata: MetadataDePieza | null }[]>`
+    select created_at, metadata from messages
     where conversation_id=${conversationId} and cycle=${cycle} and metadata->>'piece'='options'
     order by created_at desc limit 1
   `;
-  const codigo = pieza?.metadata?.recomendado
-    ?? pieza?.metadata?.escalones?.economica?.codigo
-    ?? null;
+  // La llanta de la pregunta es LA QUE EL CLIENTE ELIGIÓ del menú, si contestó
+  // (auditoría 2-6 sep, familia C: a «Premium» se le preguntó por la del
+  // medio y a «Costo» por la premium, que terminó cotizada). Ver
+  // domain/equivalentePendiente.productoDeConsentimiento.
+  const respuestas = pieza
+    ? await sql<{ content: string | null }[]>`
+        select content from messages
+        where conversation_id=${conversationId} and cycle=${cycle}
+          and direction='inbound' and created_at > ${pieza.created_at}
+        order by created_at asc, id asc
+      `
+    : [];
+  const codigo = productoDeConsentimiento(pieza?.metadata ?? null, respuestas.map((r) => r.content));
   const producto = codigo ? findByCode(codigo) : undefined;
   if (!producto) return "¿Se la cotizo? 😊";
   return preguntaDeEquivalente({

@@ -1,3 +1,53 @@
+## 6-sep-2026 · Familias C y D de la auditoría: el menú contestado cotiza su escalón y el acuse solo firma una oferta real
+
+**Qué:** Corrida 2 sobre el informe de familias del 6-sep. **Familia C** (menú
+contestado → otro escalón o respuesta perdida): (1) `escalonContestado` en
+`domain/salesIntent.ts`: la palabra del menú («Premium», «Costo», «Equilibrio»,
+«la más barata») abre el mismo camino determinístico que el número, y la orden
+que recibe el modelo trae el CÓDIGO del escalón («llama generar_cotizacion con
+code X»); (2) las dos instrucciones que decían «ofrece cotizarla por 4 llantas»
+(`agent.ts` escalonesLine y `tools.ts` preparar_opciones) dicen ahora «cotízala
+en este mismo turno»: contestar el menú ES pedir la cotización (Manuel, 1-sep);
+(3) `productoDeConsentimiento` en `domain/equivalentePendiente.ts`: la pregunta
+con la que `sin_cotizacion_prometida` reemplaza una promesa nombra la llanta del
+escalón que el cliente contestó, no la recomendada guardada en la pieza.
+**Familia D** (acuse corto → cotización): (4) `ofertaAceptada.ts` ignora la
+presentación («Soy el asistente… le armo su cotización para tienda») como
+oferta: un «Listo», «Por favor» o «👍» en los dos mensajes siguientes al saludo
+ya no firma nada; (5) `pideAlternativaMasBarata`: «unas/otras/algo MÁS
+económicas» pide alternativas y no contesta el menú con «precio»; con la única
+opción ya en pantalla, `preparar_opciones` contesta que es la única y qué camino
+queda, sin reenviar la pieza ni recotizar; (6) `equivalenteSinConsentimiento`:
+`generar_cotizacion` no firma una llanta de otra medida que las que el cliente
+escribió si la última pregunta del bot no fue «¿Le cotizo la X en MEDIDA?» y el
+cliente no la nombró — devuelve la pregunta de consentimiento. Pruebas:
+`familiasCyD.test.ts` (24 casos, en rojo primero), más los 1704 de la suite.
+
+**Por qué:** En 4,6 días 18 cotizaciones salieron justo después de un «ok /
+listo / gracias / 👍», y la mayoría se explicaba por una sola cosa: el saludo
+fijo calzaba en la lista de «ofreció cotizar» y cualquier acuse dentro de los dos
+mensajes siguientes era un sí (conv 14506 «Listo» a la imagen → Falken $445.44;
+conv 16277 «👍» al saludo del ciclo reabierto tras «No me interesa» → $511.72;
+conv 14687 «Ok» a «¿le muestro alternativas?» → una 205/55R16 a quien pidió aro
+17). Y con medida exacta la respuesta al menú iba al modelo como sugerencia:
+en 3 de 14 casos no cotizó, el guardián convirtió la pregunta en promesa, y el
+candado que recorta promesas preguntó por la recomendada de la pieza —otro
+escalón— (conv 15193 «Premium» → «¿Le cotizo la KENDA KR20?»; conv 14577
+«Costo» → cotizó la premium por $833.92 en vez de $777.20). Probado en el
+simulador con las conversaciones reales: «Premium» → cotización FALKEN ZE310R
+en el mismo turno; «Costo» en 235/75R15 → KENDA KR601 a $181.69 c/u frente a $209.15 de la
+Wildpeak (el precio de la tercera opción no quedó registrado: el reinicio del
+simulador borra la pieza); «Listo» a la imagen → acuse sin cotización, «Equilibrio» →
+«¿Le cotizo la KENDA KR20 en 205/50R16?», «Ok» → cotización de la KR20;
+«Por favor» → sin cotización; «Unas más económicas» → «es la única», sin
+segunda cotización; «Ok» tras «puedo revisar equivalentes» → sin cotización.
+Queda para la corrida 3 que «Equilibrio» reenvíe la imagen de opciones
+(familia G) y el «Ok» del ciclo reabierto (16277) ya no cotiza porque el saludo
+no es oferta, pero el cierre por «no me interesa» sigue reabriéndose con un
+emoji.
+
+**Horas:** 3
+
 ## 6-sep-2026 · Familias A y B de la auditoría: el seguimiento respeta la despedida y el guardián puede repetir lo ya dicho
 
 **Qué:** Corrida 1 sobre el informe de familias del 6-sep (307 chats desde el
@@ -594,6 +644,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-09-06 | _(este mismo)_ | Familias C y D: el menú contestado cotiza su escalón; el acuse solo firma una oferta real; «más económicas» y la equivalente sin su sí | 3 |
 | 2026-09-06 | _(este mismo)_ | Familias A y B: seguimiento que respeta la despedida y puede callar; el candado del guardián compara contra el ciclo | 3.5 |
 | 2026-09-01 | _(este mismo)_ | Medida deducida ≠ confirmada: tabla con «media», matcher por palabras, +13 fichas, fitment aprendido, candado sin medida no cotiza | 3.5 |
 | 2026-09-01 | _(este mismo)_ | Tres chats a medias: «Rin 14 60 195», Kendall=Kenda, menú de una sola llanta | 1.5 |

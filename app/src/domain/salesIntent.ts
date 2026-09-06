@@ -139,8 +139,60 @@ export const ETIQUETA_DEL_ESCALON: Record<Preferencia, string> = {
   premium: "Premium",
 };
 
+/**
+ * «UNAS MÁS ECONÓMICAS» PIDE OTRA OPCIÓN, NO CONTESTA EL MENÚ (auditoría 2-6
+ * sep, familia D, conv 15143). El cliente ya tenía la única Falken de su
+ * medida cotizada y escribió «Unas más económicas por favor»; «económicas»
+ * calzaba como respuesta «precio» al menú, eso autorizó la cotización, y la
+ * vuelta forzada le volvió a cotizar la MISMA llanta. La diferencia está en
+ * la gramática: «la más barata» (artículo definido, superlativo) elige del
+ * menú; «unas / otras / algo / hay … más baratas» (indefinido o comparativo)
+ * pide alternativas que todavía no vio.
+ */
+export function pideAlternativaMasBarata(text: string): boolean {
+  const n = normalize(text);
+  // El comparativo «más» es la seña: «algo barato» y «la más barata» eligen
+  // del menú; «algo MÁS barato», «unas MÁS económicas», «tienen MÁS baratas»
+  // piden lo que no está en pantalla. «la más barata» queda fuera por el
+  // artículo definido.
+  if (/\bla\s+mas\s+(?:economic\w*|[bv]arat\w*)\b/.test(n) && !/\botra\b|\bunas?\b|\balgo\b/.test(n)) return false;
+  return /\b(?:unas?|otras?|otro|algo|alguna|hay|tienen?|tiene|existe|busco|necesito|quiero|prefiero)\s+(?:\w+\s+){0,2}?mas\s+(?:economic\w*|[bv]arat\w*)\b/.test(n)
+    || /\bmas\s+(?:economic\w*|[bv]arat\w*)\s+(?:que|por\s+favor|porfa|xfa)\b/.test(n)
+    || /^mas\s+(?:economicas|baratas)[\s.,!?]*$/.test(n);
+}
+
+/**
+ * ¿Contestó el menú de preferencia? La versión que usa el agente para el
+ * camino determinístico (auditoría 2-6 sep, familia C).
+ *
+ * El número («2») es ambiguo —puede ser cantidad— y solo cuenta si lo último
+ * que dijimos fue el menú o el cliente lo citó. Una palabra del menú
+ * («Premium», «Costo», «Equilibrio», «la más barata») no tiene otra lectura:
+ * cuenta con que haya habido menú en el ciclo. Hasta hoy solo el número abría
+ * el camino fijo; «Premium» iba al modelo con una instrucción, y en 3 de 14
+ * casos el modelo no cotizó y el candado siguiente ofreció otro escalón
+ * (convs 15193, 14577, 15031).
+ */
+export function escalonContestado(
+  text: string,
+  ultimoMensajeNuestro: string | null | undefined,
+  mensajeCitado?: string | null,
+  contexto: { huboMenu?: boolean } = {},
+): Preferencia | null {
+  const preferencia = respuestaDePreferencia(text);
+  if (!preferencia) return null;
+  if (/^(?:la\s+|el\s+|opci[oó]n\s+)?[123]\)?\.?$/i.test(text.trim())) {
+    return esRespuestaDelMenuDePreferencia(text, ultimoMensajeNuestro, mensajeCitado) ? preferencia : null;
+  }
+  const huboMenu = contexto.huboMenu
+    ?? (Boolean(ultimoMensajeNuestro?.toLowerCase().includes(MARCA_DEL_MENU))
+      || Boolean(mensajeCitado?.toLowerCase().includes(MARCA_DEL_MENU)));
+  return huboMenu ? preferencia : null;
+}
+
 export function respuestaDePreferencia(text: string): Preferencia | null {
   const normalized = normalize(text);
+  if (pideAlternativaMasBarata(text)) return null;
   // El menú de Joaquín es numerado (1 Costo / 2 Equilibrio / 3 Premium), así
   // que la respuesta más natural es el puro número. Solo cuenta si el mensaje
   // ES el número: un «1» suelto dentro de otra frase suele ser cantidad.

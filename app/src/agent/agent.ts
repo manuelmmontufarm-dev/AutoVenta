@@ -42,7 +42,7 @@ import { activeBenefitFactsBlock } from "../services/benefits.js";
 import { aroDeLaMedida, medidaEstaPedida } from "../domain/medidaPedida.js";
 import { medidasDelPedido } from "../services/medidasDelPedido.js";
 import {
-  esRespuestaDelMenuDePreferencia, ETIQUETA_DEL_ESCALON, extractExplicitQuantity,
+  escalonContestado, esRespuestaDelMenuDePreferencia, ETIQUETA_DEL_ESCALON, extractExplicitQuantity,
   extractVehicleYear, respuestaDePreferencia, type Escalones,
 } from "../domain/salesIntent.js";
 import { findByCode, searchByText } from "../services/catalog.js";
@@ -468,12 +468,19 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
   // el precio y no cotizó). Misma heurística que ya usa `generar_cotizacion`
   // para leer ese «2» como escalón y no como cantidad. Con la medida sin
   // confirmar NO aplica: ahí lo que toca es pedir la medida.
+  // …Y CON PALABRAS TAMBIÉN (auditoría 2-6 sep, familia C). «Premium»,
+  // «Costo», «Equilibrio» no tienen otra lectura que el escalón; hasta hoy solo
+  // el número abría este camino y la palabra iba al modelo como sugerencia:
+  // en 3 de 14 respuestas al menú el modelo no cotizó (convs 15193, 14577,
+  // 15031) y el candado siguiente ofreció OTRO escalón. Ver `escalonContestado`.
   const escalonSinReply =
     !escalonPorReply && !ctx.medidaSinConfirmar && salesFacts.escalones
-      && esRespuestaDelMenuDePreferencia(userText, textoUltimoDelBot, null)
-      ? respuestaDePreferencia(userText)
+      ? escalonContestado(userText, textoUltimoDelBot, null, { huboMenu: true })
       : null;
   if (escalonSinReply) ctx.aceptoCotizacion = true;
+  const opcionDelEscalon = escalonSinReply
+    ? salesFacts.escalones?.[escalonSinReply === "precio" ? "economica" : escalonSinReply] ?? null
+    : null;
   let vueltaForzadaUsada = false;
   let recordatorioDeObligacion: string | null = null;
   const bloquesVolatiles: ChatCompletionMessageParam[] = [
@@ -500,7 +507,7 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
     ...(escalonSinReply
       ? [{
           role: "system" as const,
-          content: `RESPUESTA AL MENÚ DE PREFERENCIA (fuente determinística: lo último que le dijiste fue el menú): el cliente eligió el escalón «${ETIQUETA_DEL_ESCALON[escalonSinReply]}». Entrega ESA opción de la última pieza de opciones y llama generar_cotizacion en este mismo turno con 4 llantas (o la cantidad que haya dicho). PROHIBIDO leer ese número como cantidad, PROHIBIDO volver a preguntar qué prefiere.`,
+          content: `RESPUESTA AL MENÚ DE PREFERENCIA (fuente determinística): el cliente eligió el escalón «${ETIQUETA_DEL_ESCALON[escalonSinReply]}»${opcionDelEscalon ? `, que en la última pieza de opciones es *${opcionDelEscalon.nombre}* ($${opcionDelEscalon.precio_con_iva.toFixed(2)} c/u con IVA, código ${opcionDelEscalon.codigo})` : ""}. Llama generar_cotizacion AHORA MISMO${opcionDelEscalon ? ` con code ${opcionDelEscalon.codigo}` : " con ESA opción"} y 4 llantas (o la cantidad que haya dicho). PROHIBIDO leer ese número como cantidad, PROHIBIDO volver a preguntar qué prefiere, PROHIBIDO preguntar si la quiere o anunciar que «se la prepara»: la cotización sale en este turno o no sale.`,
         }]
       : []),
     ...(esPreguntaTecnica
@@ -1108,7 +1115,7 @@ function escalonesLine(escalones: Escalones | null): string | null {
     })
     .filter(Boolean);
   if (!partes.length) return null;
-  return `Escalones de la última pieza de opciones enviada — ${partes.join("; ")}. Si el cliente responde su preferencia («mejor precio», «la más barata», «equilibrada», «la del medio», «premium», «la mejor»), entrega LA opción de ese escalón con su precio y ofrece cotizarla por 4 llantas — PROHIBIDO volver a preguntarle qué prefiere o si necesita una recomendación.`;
+  return `Escalones de la última pieza de opciones enviada — ${partes.join("; ")}. Si el cliente responde su preferencia («mejor precio», «la más barata», «equilibrada», «la del medio», «premium», «la mejor»), entrega LA opción de ese escalón con su precio y en ESE MISMO turno llama generar_cotizacion con su código y 4 llantas (o la cantidad que haya dicho): contestar el menú ES pedir la cotización — PROHIBIDO ofrecerla o pedir permiso, PROHIBIDO volver a preguntarle qué prefiere o si necesita una recomendación.`;
 }
 
 function withDiscountNotice(
