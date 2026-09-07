@@ -129,4 +129,17 @@ describe.sequential("reabrir conserva solamente la memoria de la visita actual",
     }[]>`select tire_size, vehicle, nearest_store from conversations where id=${id}`;
     expect(ficha).toEqual({ tire_size: null, vehicle: null, nearest_store: null });
   });
+
+  it("/restart olvida la baja y la molestia (7-sep-2026: «callese» dejaba el número mudo)", async () => {
+    const id = await conversacionCerrada("593000009998", "2 minutes");
+    await appSql`update conversations set status='open', opted_out_at=now(), negative_sentiment_at=now(),
+      customer_opt_in=false, assigned_to='human' where id=${id}`;
+
+    await conversations.reiniciarConversacion(id);
+
+    const [estado] = await appSql<{
+      opted_out_at: Date | null; negative_sentiment_at: Date | null; customer_opt_in: boolean; assigned_to: string;
+    }[]>`select opted_out_at, negative_sentiment_at, customer_opt_in, assigned_to from conversations where id=${id}`;
+    expect(estado).toEqual({ opted_out_at: null, negative_sentiment_at: null, customer_opt_in: true, assigned_to: "bot" });
+  });
 });

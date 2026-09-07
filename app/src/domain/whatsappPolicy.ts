@@ -29,8 +29,28 @@ export function evaluateOutboundPolicy(input: OutboundPolicyInput): OutboundDeci
     ? new Date(input.lastCustomerMessageAt.getTime() + WHATSAPP_WINDOW_MS)
     : null;
   if (input.status !== "open") return { allowed: false, code: "conversation_closed", windowClosesAt };
-  if (input.respectOptOut && input.optedOutAt) return { allowed: false, code: "opted_out", windowClosesAt };
-  if (input.negativeSentimentAt) return { allowed: false, code: "negative_sentiment", windowClosesAt };
+  // EL OPT-OUT PROHÍBE BUSCAR AL CLIENTE, NO CONTESTARLE (7-sep-2026).
+  //
+  // «No me escriba más» / «cállese» es consentimiento sobre los mensajes que
+  // salen SOLOS: seguimientos, campañas, plantillas. Si el cliente vuelve a
+  // escribir DESPUÉS de pedir la baja, está abriendo él la conversación y se
+  // le contesta como a cualquiera. Con la prohibición total, cuatro chats
+  // quedaron mudos para siempre (1245, 2006, 14687 y el de pruebas de
+  // Manuel, al que ni el /restart devolvía la voz): el mensaje se redactaba,
+  // la política lo bloqueaba y el cliente no veía nada.
+  //
+  // La regla: un texto libre se permite si el último mensaje del cliente es
+  // POSTERIOR al opt-out (o a la molestia). El mismo turno en que lo pidió
+  // sigue callado, porque `opted_out_at` se pone después de guardar ese
+  // mensaje. Las plantillas siguen pidiendo consentimiento.
+  const volvioAEscribir = (desde: Date) =>
+    input.contentType !== "template" && !!input.lastCustomerMessageAt && input.lastCustomerMessageAt > desde;
+  if (input.respectOptOut && input.optedOutAt && !volvioAEscribir(input.optedOutAt)) {
+    return { allowed: false, code: "opted_out", windowClosesAt };
+  }
+  if (input.negativeSentimentAt && !volvioAEscribir(input.negativeSentimentAt)) {
+    return { allowed: false, code: "negative_sentiment", windowClosesAt };
+  }
   if (input.actor !== "owner" && input.actor !== "authorized_campaign" && input.pauseOnHumanControl && input.assignedTo === "human") {
     return { allowed: false, code: "human_control", windowClosesAt };
   }

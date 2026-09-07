@@ -1,3 +1,29 @@
+## 7-sep-2026 · El opt-out prohíbe buscar al cliente, no contestarle
+
+**Qué:** (1) `evaluateOutboundPolicy` deja pasar un texto libre a un chat con
+`opted_out_at` o `negative_sentiment_at` cuando el último mensaje del cliente
+es POSTERIOR a esa marca: si volvió a escribir, se le contesta. Las plantillas
+y el worker siguen bloqueados, y el turno mismo de la baja sigue mudo (la marca
+se pone después de guardar ese mensaje). (2) El opt-out ya no pausa el bot con
+`infinity`: lleva la pausa del handoff (`BOT_PAUSE_HOURS`), con el asesor
+asignado; el consentimiento vive en `opted_out_at`, que no vence y sigue
+frenando seguimientos, rescates y campañas. (3) `/restart` limpia también
+`opted_out_at`, `negative_sentiment_at` y `customer_opt_in`. Pruebas:
+`whatsappPolicy` (3 casos con los tiempos reales de la conv 3) y
+`reaperturaConMemoria.integration` (el /restart olvida la baja).
+
+**Por qué:** Manuel probó «callese» (conv 3, 7-sep 15:32 UTC) y el número
+quedó mudo: dos «hola» después de dos `/restart` no recibieron nada. El
+/restart limpiaba la pausa pero no el opt-out, y la política —con
+`respect_opt_out` en producción— bloqueaba cada envío del bot con `opted_out`.
+Lo mismo tenían tres clientes reales (1245, 2006, 14687): mensajes redactados,
+bloqueados, y un cliente que no ve respuesta. «No me escriba más» es sobre los
+mensajes que salen solos; el que vuelve a escribir abre él la conversación.
+Sin corrida del simulador: el caso es la política pura y el update del
+/restart, cubiertos por las pruebas con los tiempos exactos de la conv 3.
+
+**Horas:** 0.75
+
 ## 6-sep-2026 · Familias E, F, G y H de la auditoría, y lo que quedó por probar de las corridas 1 y 2
 
 **Qué:** Corrida 3, la última antes de publicar. **E · datos del negocio:**
@@ -698,6 +724,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-09-07 | _(este mismo)_ | El opt-out no prohíbe contestar; el /restart olvida la baja | 0.75 |
 | 2026-09-06 | _(este mismo)_ | Familias E, F, G y H: ubicación y teléfono, origen y direcciones como hechos, fechas en excusas, menú repetido, rescate en horario, acuse no reabre | 3.5 |
 | 2026-09-06 | _(este mismo)_ | Familias C y D: el menú contestado cotiza su escalón; el acuse solo firma una oferta real; «más económicas» y la equivalente sin su sí | 3 |
 | 2026-09-06 | _(este mismo)_ | Familias A y B: seguimiento que respeta la despedida y puede callar; el candado del guardián compara contra el ciclo | 3.5 |

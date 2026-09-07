@@ -245,6 +245,10 @@ export async function reiniciarConversacion(conversationId: number): Promise<Con
     update conversations
     set status = 'closed', closed_reason = ${"Reinicio manual (/restart)"},
         closed_at = now(), assigned_to = 'bot', bot_paused_until = null,
+        -- Empezar de cero es también olvidar la baja y la molestia: el
+        -- /restart es para probar, y probar «cállese» dejaba el número mudo
+        -- para siempre porque la política seguía viendo el opt-out (7-sep-2026).
+        opted_out_at = null, negative_sentiment_at = null, customer_opt_in = true,
         updated_at = now()
     where id = ${conversationId}
   `;

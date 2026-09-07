@@ -497,11 +497,13 @@ export async function handleInboundFollowUpState(
   // bot que retoma de más, y el asesor siempre puede volver a tomarlo desde el
   // panel"—; este camino se la había saltado, y le costó 151 clientes.
   const enHoras = (horas: number) => new Date(Date.now() + horas * 3_600_000);
-  // El opt-out conserva 'infinity' —tiene significado propio en la base y es
-  // consentimiento, no un plazo—; el resto lleva una pausa que sí vence.
-  const pausaHasta = optedOut
-    ? sql`'infinity'::timestamptz`
-    : sql`${enHoras(config.pipeline.botPauseHours)}`;
+  // El opt-out ya NO pausa para siempre (7-sep-2026): el consentimiento vive en
+  // `opted_out_at` —que no vence y frena seguimientos, rescates y campañas—;
+  // la pausa del bot es la misma del handoff. Con 'infinity', un cliente que
+  // volvía a escribir días después no recibía nada, y ni el /restart lo
+  // arreglaba (el de pruebas de Manuel, 7-sep). Si escribe de nuevo, le
+  // contesta el asesor durante la pausa y después el bot.
+  const pausaHasta = sql`${enHoras(config.pipeline.botPauseHours)}`;
   const pausaDelHandoff = enHoras(config.pipeline.botPauseHours);
   await sql.begin(async (tx) => {
     await tx`
