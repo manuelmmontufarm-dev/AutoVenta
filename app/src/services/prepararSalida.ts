@@ -46,6 +46,7 @@ import { sinNumerosDeCotizacion } from "../domain/numerosDeCotizacion.js";
 import { conPreguntaEnSuPropioMensaje } from "../domain/preguntaSola.js";
 import { despedidaQueCorresponde } from "../domain/cierrePerdido.js";
 import { motivoDeUbicacion } from "../domain/ubicacionPedida.js";
+import { pideOtroDia } from "./rutaOtroDia.js";
 import { buildStoreLinksBlock } from "./quoteMessages.js";
 import { buildStoreLinksBlockOnce } from "./storeLinks.js";
 import { business } from "../config.js";
@@ -762,6 +763,10 @@ export const PASOS: readonly PasoDeSalida[] = [
       // ubicaciones:» sin nada debajo (simulador, 1-sep 23:14). Solo el
       // bloque de links se salva; el resto del turno sigue bajo el candado.
       const pidioMapas = motivoDeUbicacion(ctx.textoDelCliente ?? "") === "la_pidio";
+      // Si acaba de rechazar los días propuestos, la pregunta «¿qué día?» es
+      // la respuesta aunque haya salido hace un minuto (conv 3, 7-sep 11:40:
+      // el calco se la comió y el turno quedó en «le dejo como referencia»).
+      if (pideOtroDia(ctx.textoDelCliente)) return texto;
       const conLink = /https?:\/\//i;
       const resultado = sinBloquesCalcados(
         texto,

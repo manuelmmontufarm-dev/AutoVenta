@@ -1,3 +1,55 @@
+## 7-sep-2026 · Elegir es cotizar (también con solo el aro), «otro día» pregunta qué día, una pregunta no reenvía la lámina
+
+**Qué:** Las pruebas personales de Manuel de hoy (conv 3, 10:19–11:48 Quito),
+leídas de `messages`, `ai_runs`, `guardian_reviews` y `bot_alerts`. **Elegir
+es cotizar:** (1) `services/cotizarLoElegido.ts`, ruta determinística antes
+del agente: cuando el cliente señala una llanta de la última lámina —número o
+palabra del menú, marca, modelo («deme la premium», «cotizeme la winrun»,
+«deme la r380», «1»)— la cotización se genera ahí con la misma
+`generar_cotizacion` del agente; con dos del mismo nombre pregunta cuál medida;
+si la herramienta pide consentimiento, sale su pregunta tal cual.
+`domain/eleccionDeVitrina.ts` es el resolutor puro. (2) El aro que el cliente
+escribió es SU dato: `aroDadoPorElCliente` (domain/medidaConfirmada) y
+`salesFacts.aroDelCliente`; el candado «sin medida no se cotiza» queda solo
+para la medida deducida por el VEHÍCULO (regla del 1-sep, conv 13862), en el
+agente, en `generar_cotizacion`, en el playbook y en la regla 22 del guardián,
+que ahora recibe el hecho «ARO DADO POR EL CLIENTE». `equivalenteSinConsentimiento`
+con solo aro pide el sí únicamente si la llanta es de otro aro (conv 14687).
+(3) El candado de marca de `generar_cotizacion` no aplica a lo señalado en
+pantalla: elegir de la lámina que salió tras «de VENOM no tengo» o aceptar
+«¿Le cotizo la KENDA KR608?» ES aceptar el cambio. (4) El «1» del menú ya no
+se lee como «día 1» (`extractCustomerCommitment` lo devolvía como jueves 1 de
+octubre y la ruta de visita lo registraba). **«Otro día»:** `services/rutaOtroDia.ts`
+contesta sin modelo «Perfecto. ¿Qué día le queda bien pasar por *X*? Lo anoto y
+le aviso al asesor», sin alerta al asesor ni «¿mañana o tarde?», y el calco
+reciente no se la come. **La lámina no se reenvía por una pregunta:**
+`preparar_opciones` con la misma vitrina y un mensaje que no pide ver opciones
+(`pideVerOpciones`) contesta lo preguntado; `pideTelefono` da al modelo la
+respuesta («este mismo WhatsApp») y `sinTelefonoPropio` reemplaza «no tengo un
+teléfono para compartirle» por el contacto real. El guardián recibe el hecho
+«ÚNICA OPCIÓN EN PANTALLA» para no quitar el «¿Se la cotizo?» como
+pregunta_de_mas. Pruebas: `elegirEsCotizar.test.ts` (25 casos, en rojo
+primero); el tope del playbook compacto sube a 6 400.
+
+**Por qué:** Manuel: «pido la llanta y insiste medida exacta para cotizar
+cuando solo necesita rin»; «elijo premium y no entiende, pido la winrun y me
+manda más opciones de winrun»; «aquí no mandó la cotización»; «cuando digo
+otro día debería preguntar qué día. Siempre»; «pregunté con qué viene la
+llanta y solo me volvió a mandar opciones». Con la lámina en pantalla el
+modelo recibió la orden determinística de cotizar el código y aun así buscó
+de nuevo, reenvió Winrun o pidió la medida (también en el simulador de hoy):
+lo que tiene que pasar sí o sí no se le pide al modelo, se hace. Probado en el
+simulador: «rin 14» → opciones con menú (antes: «necesito la medida exacta»)
+→ «deme la premium» → cotización; «cotizeme la winrun» → cotización WINRUN
+R380 185/60R14 por la ruta `cotizar_lo_elegido`; «Venom 315/70R17» → «1» →
+cotización KENDA KR608 por la misma ruta (antes: «necesito que acepte el
+cambio de marca» dos veces y sin cotización); «prefiero otro» → «¿Qué día le
+queda bien pasar por *Depot Tire Quito Sur*?» sin alerta, y «el jueves» queda
+registrado; «con qué más viene» → la lista de lo incluido, sin lámina;
+«¿tienen teléfono?» → «Por aquí le atienden directo, en este mismo WhatsApp».
+
+**Horas:** 3.5
+
 ## 7-sep-2026 · El opt-out prohíbe buscar al cliente, no contestarle
 
 **Qué:** (1) `evaluateOutboundPolicy` deja pasar un texto libre a un chat con
@@ -724,6 +776,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-09-07 | _(este mismo)_ | Elegir es cotizar (aro incluido), «otro día» pregunta el día, la lámina no se reenvía por una pregunta | 3.5 |
 | 2026-09-07 | _(este mismo)_ | El opt-out no prohíbe contestar; el /restart olvida la baja | 0.75 |
 | 2026-09-06 | _(este mismo)_ | Familias E, F, G y H: ubicación y teléfono, origen y direcciones como hechos, fechas en excusas, menú repetido, rescate en horario, acuse no reabre | 3.5 |
 | 2026-09-06 | _(este mismo)_ | Familias C y D: el menú contestado cotiza su escalón; el acuse solo firma una oferta real; «más económicas» y la equivalente sin su sí | 3 |

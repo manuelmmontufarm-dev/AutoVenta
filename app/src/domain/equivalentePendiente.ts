@@ -144,11 +144,22 @@ export function equivalenteSinConsentimiento(input: {
    * 4732, 26-ago, la equivalente declarada que sí se cotiza).
    */
   textosDelCliente?: readonly (string | null | undefined)[];
+  /**
+   * El cliente dio SOLO el aro (conv 3, 7-sep): no hay medida pedida de la
+   * que esta sea «equivalente». Se pide su sí únicamente si la llanta es de
+   * OTRO aro que el que escribió (conv 14687: pidió aro 17, se le firmó 16).
+   */
+  aroDelCliente?: number | null;
 }): boolean {
   const pelar = (t: string) => t.toLowerCase().replace(/[\s\-/x×r]/g, "");
   const medida = input.medidaProducto ? pelar(input.medidaProducto) : "";
   if (!medida) return false;
   if (input.medidasDelCliente.some((m) => pelar(m) === medida)) return false;
+  if (!input.medidasDelCliente.length) {
+    if (!input.aroDelCliente) return false;
+    const aroProducto = /r?(\d{2})$/.exec(medida)?.[1];
+    if (aroProducto && Number(aroProducto) === input.aroDelCliente) return false;
+  }
   const dichoPorElCliente = [...(input.textosDelCliente ?? []), input.textoDelCliente]
     .map((t) => (t ?? "").toLowerCase())
     .join("\n");

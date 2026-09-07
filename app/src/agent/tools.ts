@@ -77,6 +77,9 @@ import {
   pideAlternativaMasBarata, pideRecomendacion, respuestaDePreferencia,
 } from "../domain/salesIntent.js";
 import { equivalenteSinConsentimiento, preguntaDeEquivalente } from "../domain/equivalentePendiente.js";
+import { aroDadoPorElCliente } from "../domain/medidaConfirmada.js";
+import { eleccionDeLaVitrina } from "../domain/eleccionDeVitrina.js";
+import { pideVerOpciones } from "../domain/salesIntent.js";
 import { getTirePatternProfile } from "../domain/tireKnowledge.js";
 import {
   catalogoDeTipos, escalonDeMarca, infoTipo, normalizarTipo, ordenDeMarca, tipoDeProducto,
@@ -1539,6 +1542,17 @@ export function buildTools(ctx: AgentContext) {
           });
         }
       }
+      // UNA PREGUNTA NO REENVÍA LA LÁMINA (conv 3, 7-sep, 11:43): «¿y con qué
+      // más viene la llanta?» + «¿tienen teléfono?» volvieron a mandar las
+      // mismas tres opciones. Si todo lo que hay para mostrar ya está en
+      // pantalla y el mensaje no pide ver opciones, se contesta lo preguntado.
+      if (mismaVitrina && !preferenciaContestada && !pideVerOpciones(ctx.currentUserText ?? "")) {
+        return JSON.stringify({
+          imagen_enviada: false,
+          recomendacion_entregada: false,
+          regla: "La lámina con estas opciones YA está en pantalla y el cliente no pidió verla de nuevo: NO se reenvía. Contesta en una o dos líneas exactamente lo que preguntó (garantía, qué incluye, procedencia, teléfono, ubicación) sin repetir las opciones ni el menú de preferencia.",
+        });
+      }
       if (debeBloquearReenvio(previoNormalizado, sizeLabelActual, ctx.currentUserText, products.map((p) => p.code))) {
         const minutos = Math.max(1, Math.round(previoNormalizado!.minutos));
         return JSON.stringify({
@@ -2191,8 +2205,37 @@ export function buildTools(ctx: AgentContext) {
         // una sola de la marca pedida (afinada por tipo si lo dijo), esa es la
         // que él está señalando y esa se cotiza. Ninguna o varias → error con
         // instrucciones, nunca una cotización de otra marca en silencio.
-        if (marcaPedidaVigente && !(product.brand ?? "").toUpperCase().includes(marcaPedidaVigente)) {
-          const presentadosDeLaMarca = (await productosPresentados(ctx.conversation.id)).filter(
+        // LO QUE SEÑALA EN PANTALLA NO ES «OTRA MARCA EN SILENCIO» (conv 3,
+        // 7-sep): pidió Venom, el bot dijo que no hay y mostró Falken y Kenda;
+        // el cliente contestó «1» y luego «ok» a «¿Le cotizo la KENDA KR608?»,
+        // y este candado bloqueó las dos veces. Elegir de la lámina (número,
+        // escalón, nombre) o aceptar la pregunta que la nombra ES aceptar el
+        // cambio de marca.
+        const presentados = await productosPresentados(ctx.conversation.id);
+        const [ultimoDelBotParaMarca] = await sql<{ content: string | null }[]>`
+          select content from messages
+          where conversation_id=${ctx.conversation.id} and cycle=${ctx.conversation.current_cycle}
+            and direction='outbound' and type='text'
+          order by created_at desc, id desc limit 1
+        `;
+        const senalada = eleccionDeLaVitrina(
+          ctx.currentUserText ?? "",
+          presentados.map((p) => ({ codigo: p.code, marca: p.brand ?? "", diseno: p.design ?? "", medida: p.sizeLabel ?? null })),
+        );
+        const preguntaPorEsta = new RegExp(
+          `¿\\s*(?:le|se\\s+las?)\\s+cotizo\\s+las?\\s+\\*?${(product.design ?? "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`, "i",
+        ).test(ultimoDelBotParaMarca?.content ?? "");
+        const acepta = /^\s*(?:ok|okey|oka|s[ií]|dale|listo|bueno|de una|va|claro|perfecto|por favor|porfa|s[ií] por favor|esa|esa misma)\b[\s!.]*$/i.test(ctx.currentUserText ?? "");
+        const eligioDeLaPantalla = presentados.some((p) => p.code === product.code) && (
+          respuestaDePreferencia(ctx.currentUserText ?? "") !== null
+          || (senalada?.tipo === "una" && senalada.opcion.codigo === product.code)
+          || (preguntaPorEsta && acepta)
+        );
+        if (marcaPedidaVigente && !(product.brand ?? "").toUpperCase().includes(marcaPedidaVigente) && eligioDeLaPantalla) {
+          console.log(`✅ Cambio de marca aceptado en pantalla en la conv ${ctx.conversation.id}: ${marcaPedidaVigente} → ${product.brand} ${product.design}`);
+        }
+        if (marcaPedidaVigente && !(product.brand ?? "").toUpperCase().includes(marcaPedidaVigente) && !eligioDeLaPantalla) {
+          const presentadosDeLaMarca = presentados.filter(
             (candidato) =>
               (candidato.brand ?? "").toUpperCase().includes(marcaPedidaVigente)
               && candidato.availability !== "out"
@@ -2312,6 +2355,7 @@ export function buildTools(ctx: AgentContext) {
             ultimoMensajeDelBot: ultimoDelBot?.content,
             textoDelCliente: ctx.currentUserText,
             textosDelCliente: textosDeLaVisita,
+            aroDelCliente: aroDadoPorElCliente(textosDeLaVisita),
           })) {
             const pregunta = preguntaDeEquivalente({
               recomendacion: `${product.brand} ${product.design}`,

@@ -525,3 +525,24 @@ function normalize(text: string): string {
     .replace(/\s+/g, " ")
     .trim();
 }
+
+/**
+ * ¿ESTE mensaje pide ver opciones (nuevas o de nuevo)? Con la lámina ya en
+ * pantalla, una pregunta de garantía o de teléfono («y con qué más viene la
+ * llanta») no es motivo para reenviarla (conv 3, 7-sep, 11:43): se contesta
+ * lo preguntado. Pide opciones quien nombra una medida, un aro, un tipo, una
+ * marca distinta, «otras/más opciones», «más baratas» o «muéstreme».
+ */
+export function pideVerOpciones(text: string): boolean {
+  // Normalización propia: `normalize` de este archivo quita las barras y el
+  // «205/55R16» o el «A/T» se pierden.
+  const n = (text ?? "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  return (
+    /\b\d{3}\s*[\/x-]\s*\d{2}(?!\d)|\b(?:rin|aro|ring)\s*\d{2}\b/.test(n)
+    || /\b(?:opcion(?:es)?|alternativa(?:s)?|modelos?|marcas?|catalogo|variedad)\b/.test(n)
+    || /\b(?:muestr\w*|ense[nñ]\w*|mand\w*|envi\w*|pas\w*|ver|tiene[ns]?|hay)\b[^.?!]{0,25}\b(?:otra|otras|mas|algo|llantas?|opcion\w*|foto|imagen|lamina)\b/.test(n)
+    || /\b(?:mas|otra|otras)\s+(?:barat\w*|economic\w*|caras?|premium|buenas?|opcion\w*|alternativ\w*|marcas?|llantas?)\b/.test(n)
+    || /\b(?:a\/?t|h\/?t|r\/?t|m\/?t|todo\s+terreno|all\s+terrain|mud)\b/.test(n)
+    || /\b(?:recomiend\w*|recomendac\w*|compar\w*)\b/.test(n)
+  );
+}

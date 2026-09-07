@@ -29,7 +29,7 @@
  * no ve los errores que el redactor no vio.
  */
 import OpenAI from "openai";
-import { medidaConfirmadaPorCliente } from "../domain/medidaConfirmada.js";
+import { aroDadoPorElCliente, medidaConfirmadaPorCliente } from "../domain/medidaConfirmada.js";
 import { z } from "zod";
 import { business, config } from "../config.js";
 import { sql } from "../db/client.js";
@@ -194,7 +194,7 @@ REVISA, en este orden de gravedad:
 
 21. EL TIPO DE LLANTA SALE DEL CATÁLOGO, NUNCA DEL BORRADOR. Cada fila del CATÁLOGO DE HOY trae su tipo entre corchetes ([A/T], [H/T], [R/T], [M/T]…). Dos errores ALTOS de categoría **tipo_negado_con_stock**: (a) el borrador presenta una llanta como de un tipo que el catálogo no le da — pasó el 1-sep (conv 13645): ofreció la KR50 [H/T] como si fuera la A/T pedida; (b) el borrador dice que un tipo «no hay», «no está disponible» o «no se lo ofrezco» cuando el catálogo trae una llanta de ese tipo con stock para el juego de ${JUEGO_COMPLETO} — ese mismo día el cliente pidió A/T y el catálogo tenía la KR28 [A/T] con 89 y la KR608 [A/T] con 74. TU CORRECCIÓN NO INVENTA, PERO TAMPOCO SE ESCONDE: si el catálogo trae el tipo pedido con stock para el juego, la corrección lo ofrece NOMBRÁNDOLO — marca, diseño y precio copiados de ESA fila («la *KENDA KR28* a *$238.37 c/u con IVA*»). PROHIBIDO el genérico «le confirmo una opción A/T»: eso deja al cliente sin llanta otra vez. Solo si el dato no está en el catálogo del contexto, la corrección no niega ni afirma — dice que lo confirmas enseguida, y reportas el hallazgo. PROHIBIDO deducir «no hay» de que una lista no lo mencione: las listas del bot vienen recortadas; la única fuente para negar un tipo es el CATÁLOGO DE HOY completo de esa medida.
 
-22. SIN MEDIDA DEL CLIENTE NO HAY COTIZACIÓN. Si los HECHOS traen «MEDIDA NO CONFIRMADA POR EL CLIENTE», la medida en juego la dedujo el bot por el vehículo o por el aro: el cliente no escribió ninguna ni mandó foto. Mostrar opciones está bien —diciendo que son las que más se usan en ese vehículo—, pero un borrador que anuncie, adjunte o prometa una cotización, que afirme que esas llantas «son las de su carro» o que cierre con el menú de preferencia en vez de pedir la medida, es error ALTO de categoría **cotizacion_sin_medida**. Pasó el 1-sep (conv 13862): «Suzuki SZ 2016, ¿qué llantas me recomienda?» terminó con opciones y cotización en el mismo turno sin que el cliente diera medida. La corrección deja las opciones y cierra pidiendo la medida del filo de la llanta (ej. 225/65R17) o una foto del costado. No inventes tú la medida ni la des por confirmada.
+22. SIN MEDIDA DEL CLIENTE NO HAY COTIZACIÓN — SALVO QUE ÉL HAYA DADO EL ARO. Si los HECHOS traen «MEDIDA NO CONFIRMADA POR EL CLIENTE», la medida en juego la dedujo el bot por el VEHÍCULO: el cliente no escribió ninguna ni mandó foto. Mostrar opciones está bien —diciendo que son las que más se usan en ese vehículo—, pero un borrador que anuncie, adjunte o prometa una cotización, que afirme que esas llantas «son las de su carro» o que cierre con el menú de preferencia en vez de pedir la medida, es error ALTO de categoría **cotizacion_sin_medida**. Pasó el 1-sep (conv 13862): «Suzuki SZ 2016, ¿qué me recomienda?» terminó en una cotización por $511.72 de una medida que el cliente nunca vio. EN CAMBIO, si los HECHOS traen «ARO DADO POR EL CLIENTE», las opciones son de SU aro y cada una lleva su medida en la lámina: elegir una (número, escalón, marca o modelo) ES pedir la cotización y se cotiza con la medida de esa opción (Manuel, 7-sep, conv 3). Un borrador que en ese caso pida «la medida exacta» para cotizar lo que el cliente ya eligió es error ALTO de categoría **pregunta_de_mas**, y NO corrijas una cotización por aro como cotizacion_sin_medida.
 
 REGLAS DE CORRECCIÓN (innegociables):
 - NUNCA inventes precios, medidas, stock, plazos ni datos que no estén en el contexto. Si no puedes verificar una cifra, NO la cambies: repórtala como hallazgo y aprueba.
@@ -484,9 +484,21 @@ export async function armarContexto(
     // vehículo o del aro, no del cliente. Misma función que el candado de
     // `generar_cotizacion` (domain/medidaConfirmada), sobre los mensajes del
     // cliente de este ciclo.
-    hechos?.vehicle && !medidaConfirmadaPorCliente(hechos.tire_size, mensajes.filter((m) => m.direction === "inbound").map((m) => m.content))
+    hechos?.vehicle
+      && !medidaConfirmadaPorCliente(hechos.tire_size, mensajes.filter((m) => m.direction === "inbound").map((m) => m.content))
+      && !aroDadoPorElCliente(mensajes.filter((m) => m.direction === "inbound").map((m) => m.content))
       ? "MEDIDA NO CONFIRMADA POR EL CLIENTE: el vehículo está registrado pero el cliente no escribió ninguna medida completa ni mandó foto en esta visita. Toda medida en juego la dedujo el bot. Opciones sí; cotización no; el cierre pide la medida."
       : null,
+    // HECHO DURO para la regla 22, lado del aro (conv 3, 7-sep): «rin 14» es
+    // dato del cliente; si elige una opción de la lámina, se cotiza con la
+    // medida de esa opción. El revisor pedía «la medida exacta» sobre lo ya
+    // elegido (11:32, hallazgo cotizacion_sin_medida sobre rin 15).
+    (() => {
+      const aro = aroDadoPorElCliente(mensajes.filter((m) => m.direction === "inbound").map((m) => m.content));
+      return aro && !medidaConfirmadaPorCliente(hechos?.tire_size, mensajes.filter((m) => m.direction === "inbound").map((m) => m.content))
+        ? `ARO DADO POR EL CLIENTE: rin ${aro}. Las opciones mostradas son de ese aro y cada una lleva su medida en la lámina. Si elige una, se cotiza con la medida de esa opción: NO se le pide «la medida exacta» para cotizar lo que ya eligió.`
+        : null;
+    })(),
     hechos?.selected_quantity != null ? `Cantidad elegida: ${hechos.selected_quantity}` : null,
     // Estas dos líneas se escriben SIEMPRE, también cuando están vacías. Es lo
     // que permite el hallazgo `estado_desincronizado`: sin un «(ninguno)»
@@ -607,6 +619,12 @@ export async function armarContexto(
     // y la herramienta ya cerró con la pregunta de consentimiento. El revisor
     // tiene que saber que ESA pregunta es obligatoria —no una pregunta_de_mas—
     // y que la cotización todavía no puede salir ni prometerse.
+    // HECHO DURO (conv 3, 7-sep 11:32): con UNA sola opción la pieza cierra
+    // «¿Se la cotizo?» a propósito —no hay menú posible— y el revisor la quitó
+    // como pregunta_de_mas, dejando el turno sin salida.
+    huella.some((h) => h.herramienta === "preparar_opciones" && /¿Se la cotizo\?/.test(h.resultado))
+      ? "ÚNICA OPCIÓN EN PANTALLA: la pieza trae una sola llanta y cierra con «¿Se la cotizo?». Esa pregunta es la legítima del turno y se conserva: NO es pregunta_de_mas."
+      : null,
     huella.some((h) => h.herramienta === "preparar_opciones" && h.resultado.includes('"consentimiento_pendiente":true'))
       ? "RECOMENDADA EQUIVALENTE PENDIENTE DE CONSENTIMIENTO: la llanta recomendada este turno es de OTRA medida que la pedida, y el bot todavía no tiene su sí. El borrador DEBE terminar con la pregunta «¿Le cotizo la <llanta> en <medida>?» sola en su bloque: esa pregunta es la legítima de la regla 15, NO es pregunta_de_mas — no la quites, no la reescribas y no la cambies por «si acepta esa equivalente» ni por «¿quiere que le envíe esa opción?». Si el borrador no la trae, es **recomendacion_sin_pregunta** (alta) y la corrección la agrega en bloque aparte. Y como no hay cotización este turno, PROHIBIDO anunciarla o prometerla."
       : null,

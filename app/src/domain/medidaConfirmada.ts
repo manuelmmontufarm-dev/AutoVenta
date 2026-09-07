@@ -33,3 +33,22 @@ export function medidaConfirmadaPorCliente(
   }
   return false;
 }
+
+/**
+ * EL ARO QUE EL CLIENTE ESCRIBIÓ (conv 3, 7-sep-2026). «Necesito rin 14» no
+ * es una medida, pero sí es SU dato: las opciones que se le muestran son de
+ * ese aro y cada una lleva su medida en la lámina. Si elige una, se cotiza
+ * con la medida de esa opción — la regla del 1-sep (conv 13862) era para la
+ * medida deducida por el VEHÍCULO, que el cliente nunca vio ni eligió.
+ * Devuelve el último aro que escribió, o null.
+ */
+export function aroDadoPorElCliente(textosDelCliente: readonly (string | null | undefined)[]): number | null {
+  let aro: number | null = null;
+  for (const texto of textosDelCliente) {
+    const n = (texto ?? "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    if (/\b\d{3}\s*[\/x-]\s*\d{2}\b/.test(n)) continue; // trae medida completa: no es «solo aro»
+    const m = n.match(/\b(?:rin(?:es)?|aro(?:s)?|ring)\s*(1[2-9]|2[0-4])\b/);
+    if (m) aro = Number(m[1]);
+  }
+  return aro;
+}

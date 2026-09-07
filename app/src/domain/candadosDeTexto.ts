@@ -32,16 +32,37 @@ function digitos(t: string): string {
   return t.replace(/\D/g, "");
 }
 
+/**
+ * «No tengo un teléfono para compartirle en este momento» (conv 3, 7-sep):
+ * sin número, pero igual de malo — el cliente entiende que no hay cómo
+ * contactar. La frase se reemplaza por el hecho: el contacto es este chat.
+ */
+const NIEGA_TELEFONO =
+  /\bno\s+(?:tengo|cuento\s+con|dispongo\s+de|manejo|le\s+puedo\s+(?:dar|pasar|compartir))\s+(?:un\s+|el\s+|otro\s+|ning[uú]n\s+)?(?:tel[eé]fono|n[uú]mero|celular|l[ií]nea)\b|\bno\s+hay\s+(?:un\s+|otro\s+)?(?:tel[eé]fono|n[uú]mero)\b/i;
+export const CONTACTO_ES_ESTE_CHAT = "El contacto directo es este mismo WhatsApp: por aquí le atiendo 🤝";
+
 export function sinTelefonoPropio(texto: string, telefonoPropio: string | null | undefined): TextoRecortado {
   const propio = digitos(telefonoPropio ?? "");
-  if (propio.length < 7) return { texto, quitado: false };
+  let quitado = false;
+  if (NIEGA_TELEFONO.test(texto)) {
+    quitado = true;
+    let reemplazado = false;
+    texto = texto.split(SEPARADOR).map((bloque) =>
+      bloque.split(/(?<=[.!?])\s+|\n/).map((f) => {
+        if (!NIEGA_TELEFONO.test(f)) return f;
+        if (reemplazado) return "";
+        reemplazado = true;
+        return CONTACTO_ES_ESTE_CHAT;
+      }).filter(Boolean).join("\n").replace(/\n{3,}/g, "\n\n").trim(),
+    ).filter(Boolean).join("\n---\n");
+  }
+  if (propio.length < 7) return { texto, quitado };
   // Con o sin el 593: «0982801766» y «+593982801766» son el mismo número.
   const local = propio.replace(/^593/, "");
   const trae = (frase: string) => {
     const d = digitos(frase);
     return d.includes(propio) || (local.length >= 8 && d.includes(local));
   };
-  let quitado = false;
   const bloques = texto.split(SEPARADOR).map((bloque) => {
     const frases = bloque.split(/(?<=[.!?])\s+|\n/);
     const limpias = frases.filter((f) => {

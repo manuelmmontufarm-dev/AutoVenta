@@ -4,7 +4,9 @@
  * una respuesta final para WhatsApp.
  */
 import OpenAI from "openai";
-import { medidaConfirmadaPorCliente } from "../domain/medidaConfirmada.js";
+import { aroDadoPorElCliente, medidaConfirmadaPorCliente } from "../domain/medidaConfirmada.js";
+import { eleccionDeLaVitrina, type OpcionDeVitrina } from "../domain/eleccionDeVitrina.js";
+import { pideTelefono } from "../domain/ubicacionPedida.js";
 import type { ChatCompletionMessageParam, ChatCompletionTool } from "openai/resources/chat/completions";
 import { config } from "../config.js";
 import {
@@ -172,7 +174,10 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
   // en juego salió del vehículo o del aro, este turno puede mostrar opciones
   // pero no cotizar. Solo un `false` explícito enciende el candado: los mocks
   // viejos no traen el campo.
-  ctx.medidaSinConfirmar = salesFacts.medidaConfirmadaPorCliente === false;
+  // CON EL ARO DEL CLIENTE NO SE BLOQUEA (conv 3, 7-sep): «rin 14» → opciones
+  // de ese aro con su medida a la vista; si elige una, se cotiza con esa
+  // medida. El candado sigue para la medida deducida por el VEHÍCULO (1-sep).
+  ctx.medidaSinConfirmar = salesFacts.medidaConfirmadaPorCliente === false && !salesFacts.aroDelCliente;
   const hechoDeMedidaInferida = ctx.medidaSinConfirmar && (salesFacts.vehicle || !salesFacts.tireSize)
     ? "MEDIDA NO CONFIRMADA POR EL CLIENTE: el cliente no ha escrito ninguna medida completa ni mandado foto del costado; toda medida en juego la dedujo el bot por el vehículo o por el aro. Puedes mostrar opciones (son «las que más se usan en su vehículo»), pero PROHIBIDO llamar generar_cotizacion: el cierre pide la medida escrita del filo de la llanta (ej. 225/65R17) o una foto del costado. Con ella, buscar_llanta y ahí sí cotizas."
     : null;
@@ -369,13 +374,23 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
   // «las. winrun» tras la vitrina: eligió una opción por su nombre — se cotiza
   // en este turno, sin preguntarle si quiere (producción, 31-ago 23:59; misma
   // familia que «la económica» de Q04).
-  const marcaElegida = !pidioHumano && salesFacts.escalones !== null
+  // …Y POR MODELO O CON VERBO («deme la r380», «cotizeme la winrun», «deme
+  // la premium» sobre la lámina): conv 3, 7-sep. Se resuelve contra los
+  // códigos de la última lámina; con dos del mismo nombre (R380 en 185/60 y
+  // 185/70) se pregunta cuál, no se reenvía la lámina.
+  const vitrina: OpcionDeVitrina[] = (salesFacts.codigosDeLaVitrina ?? [])
+    .map((codigo) => findByCode(codigo))
+    .filter((p): p is NonNullable<typeof p> => Boolean(p))
+    .map((p) => ({ codigo: p.code, marca: p.brand ?? "", diseno: p.design ?? "", medida: p.sizeLabel ?? null }));
+  const eleccion = !pidioHumano && vitrina.length ? eleccionDeLaVitrina(userText, vitrina) : null;
+  const marcaElegida = !pidioHumano && salesFacts.escalones !== null && !eleccion
     ? marcaElegidaASecas(userText)
     : null;
-  const pidioCotizar = !pidioHumano && (pidioCotizacionExplicita(userText) || marcaElegida !== null);
+  const pidioCotizar = !pidioHumano && (pidioCotizacionExplicita(userText) || marcaElegida !== null || eleccion?.tipo === "una");
   // Elegir una de las opciones mostradas ES la autorización: abre el candado
   // de generar_cotizacion igual que un «sí» a la oferta.
-  if (marcaElegida) ctx.aceptoCotizacion = true;
+  if (marcaElegida || eleccion?.tipo === "una") ctx.aceptoCotizacion = true;
+  const pidioUnTelefono = pideTelefono(userText);
   // LA EQUIVALENTE EN PANTALLA (conv 13635, 1-sep). Dos turnos de esa
   // conversación que el modelo no supo llevar solo:
   //
@@ -533,6 +548,34 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
         }]
       : []),
     ...(pidioCotizar && !marcaElegida ? [{ role: "system" as const, content: ordenDeCotizarLoPedido() }] : []),
+    ...(eleccion?.tipo === "una"
+      ? [{
+          role: "system" as const,
+          content:
+            `EL CLIENTE ELIGIÓ *${eleccion.opcion.marca} ${eleccion.opcion.diseno}*${eleccion.opcion.medida ? ` en ${eleccion.opcion.medida}` : ""} `
+            + `de la lámina que tiene en pantalla (fuente determinística, código ${eleccion.opcion.codigo}). Elegir ES pedir la cotización: `
+            + `llama generar_cotizacion AHORA MISMO con code ${eleccion.opcion.codigo} y 4 llantas (o la cantidad que haya dicho). `
+            + `Si solo dio el aro, la medida es la de ESA opción y así se cotiza. PROHIBIDO pedirle la medida, PROHIBIDO reenviar opciones, `
+            + `PROHIBIDO preguntarle si la quiere: ya eligió.`,
+        }]
+      : []),
+    ...(eleccion?.tipo === "varias"
+      ? [{
+          role: "system" as const,
+          content:
+            `EL CLIENTE SEÑALÓ ${eleccion.opciones[0].marca} ${eleccion.opciones[0].diseno}, pero en la lámina hay ${eleccion.opciones.length} con ese nombre: `
+            + eleccion.opciones.map((o) => `*${o.medida ?? "?"}* (código ${o.codigo})`).join(", ")
+            + `. Pregúntale en UNA línea cuál de esas medidas es la suya y nada más. PROHIBIDO reenviar la lámina y PROHIBIDO pedirle «la medida exacta» en abstracto: ofrécele las dos que hay.`,
+        }]
+      : []),
+    ...(pidioUnTelefono
+      ? [{
+          role: "system" as const,
+          content:
+            "PIDE UN TELÉFONO (fuente determinística): el contacto directo del local es ESTE mismo WhatsApp. Contesta en una frase que por aquí le atienden directo. "
+            + "PROHIBIDO decir que no tienes teléfono o número, PROHIBIDO dar uno, y PROHIBIDO reenviar opciones por esta pregunta.",
+        }]
+      : []),
     ...(marcaElegida
       ? [{
           role: "system" as const,
@@ -920,6 +963,14 @@ export interface AgentSalesFacts {
    * `false` explícito activa el candado.
    */
   medidaConfirmadaPorCliente?: boolean;
+  /**
+   * El aro que el cliente escribió («rin 14»), si no dio medida (conv 3,
+   * 7-sep). Con aro, las opciones son SUYAS: elegir una la cotiza con la
+   * medida de esa opción. Ver domain/medidaConfirmada.aroDadoPorElCliente.
+   */
+  aroDelCliente?: number | null;
+  /** Los códigos de la última lámina de opciones del ciclo, en orden. */
+  codigosDeLaVitrina?: string[];
 }
 
 /**
@@ -956,6 +1007,7 @@ export async function getAgentSalesFacts(conversationId: number): Promise<AgentS
     last_quote_number: string | null; last_quote_total: string | number | null;
     last_quote_at: Date | null; last_quote_items: unknown;
     escalones: Escalones | null;
+    codigos: unknown;
     todas_entrantes: string[];
   }[]>`
     select c.tire_size, c.vehicle, c.vehicle_year, c.current_cycle, c.selected_product_code,
@@ -972,7 +1024,7 @@ export async function getAgentSalesFacts(conversationId: number): Promise<AgentS
       order by created_at desc limit 1
     ) q on true
     left join lateral (
-      select metadata->'escalones' as escalones from messages
+      select metadata->'escalones' as escalones, metadata->'codes' as codigos from messages
       where conversation_id=c.id and cycle=c.current_cycle
         and metadata->>'piece'='options'
       order by created_at desc limit 1
@@ -986,13 +1038,16 @@ export async function getAgentSalesFacts(conversationId: number): Promise<AgentS
     left join messages m on m.conversation_id=c.id and m.cycle=c.current_cycle
       and m.direction='inbound'
     where c.id=${conversationId}
-    group by c.id, q.quote_number, q.total, q.created_at, q.items, o.escalones, t.todas_entrantes
+    group by c.id, q.quote_number, q.total, q.created_at, q.items, o.escalones, o.codigos, t.todas_entrantes
   `;
   const inferredYear = row?.vehicle_year ?? row?.inbound_messages
     .map(extractVehicleYear).find((value): value is number => value !== null) ?? null;
   return {
     tireSize: row?.tire_size ?? null,
     medidaConfirmadaPorCliente: medidaConfirmadaPorCliente(row?.tire_size ?? null, row?.todas_entrantes ?? []),
+    // Solo el aro de ESTE ciclo: el de una visita anterior puede ser de otro carro.
+    aroDelCliente: aroDadoPorElCliente([...(row?.inbound_messages ?? [])].reverse()),
+    codigosDeLaVitrina: Array.isArray(row?.codigos) ? row.codigos.map(String) : [],
     medidasDelPedido: await medidasDelPedido(conversationId, row?.current_cycle ?? 1),
     vehicle: row?.vehicle ?? null,
     vehicleYear: inferredYear,

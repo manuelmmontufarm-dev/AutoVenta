@@ -55,6 +55,7 @@ import {
 } from "./domain/tireSize.js";
 import {
   extractVehicleYear,
+  esRespuestaDelMenuDePreferencia,
 } from "./domain/salesIntent.js";
 import { getHubMetrics } from "./services/hubData.js";
 import {
@@ -77,6 +78,8 @@ import { notifyPendingHumanRequests } from "./services/advisorNotifications.js";
 import { startEmbeddedFollowUpWorker } from "./workers/embeddedFollowUpWorker.js";
 import { extractExplicitStore, preguntamosElLocal } from "./domain/storeSelection.js";
 import { tryDirectSalesRoute } from "./services/directSalesRoutes.js";
+import { tryRutaOtroDia } from "./services/rutaOtroDia.js";
+import { tryCotizarLoElegido } from "./services/cotizarLoElegido.js";
 import { tryRecotizarPorCantidad } from "./services/recotizar.js";
 import { tryRecomendarConLaPieza } from "./services/recomendarConLaPieza.js";
 import { firstContactReply, isGenericFirstContact } from "./domain/firstContact.js";
@@ -140,9 +143,14 @@ const pipeline = new InboundPipeline(async ({ from, name, text, waMessageIds, qu
   // que el bot volvía a preguntar en el turno siguiente. Los dos nombres de
   // local en nuestro mensaje son señal suficiente de que estamos planificando
   // la visita: un día suelto en la respuesta es sobre eso.
-  const commitment = extractCustomerCommitment(text, receivedAt, {
-    respondiendoAlDia: preguntamosElDia(previousOutbound) || respondiendoAlLocal,
-  });
+  // EL «1» DEL MENÚ NO ES EL DÍA 1 (simulador, 7-sep): «1» tras el menú de
+  // preferencia se leyó como «jueves 1 de octubre», la ruta de visita lo
+  // registró y el cliente nunca recibió su cotización.
+  const commitment = esRespuestaDelMenuDePreferencia(text, previousOutbound, mensajeCitado)
+    ? null
+    : extractCustomerCommitment(text, receivedAt, {
+        respondiendoAlDia: preguntamosElDia(previousOutbound) || respondiendoAlLocal,
+      });
   await updateConversationFacts(conversation.id, {
     ...(parsedSize ? { tireSize: formatTireSize(parsedSize) } : {}),
     ...(parsedFlotation ? { tireSize: formatFlotationSize(parsedFlotation) } : {}),
@@ -335,16 +343,23 @@ const pipeline = new InboundPipeline(async ({ from, name, text, waMessageIds, qu
     ? null
     : isFirstGenericMessage
       ? firstContactReply()
-      : (await tryRecotizarPorCantidad(
+      : (await tryCotizarLoElegido(
           { conversation, customerPhone: from, customerName: name, previousOutbound, mensajeCitado },
           textoConLinks,
         ))
+        // Un número distinto al cotizado recotiza. Ver services/recotizar.ts.
+        ?? await tryRecotizarPorCantidad(
+          { conversation, customerPhone: from, customerName: name, previousOutbound, mensajeCitado },
+          textoConLinks,
+        )
         // Pedir recomendación o contar el uso con la pieza ya enviada: sale
         // la pieza con la recomendada, no un texto. Ver domain/recomendacionConPieza.ts.
         ?? await tryRecomendarConLaPieza(
           { conversation, customerPhone: from, customerName: name },
           textoConLinks,
         )
+        // «Otro día» → «¿qué día le queda bien?», siempre y sin modelo (7-sep).
+        ?? await tryRutaOtroDia(conversation, textoConLinks)
         ?? await tryDirectSalesRoute(
           { conversation, customerPhone: from, explicitStore, commitment },
           textoConLinks,

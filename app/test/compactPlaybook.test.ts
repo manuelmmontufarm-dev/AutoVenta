@@ -20,6 +20,8 @@ describe("playbook compacto", () => {
     // (forma fija del turno, equivalente con pregunta clara, y «sin medida
     // del cliente no se cotiza»). El tope sigue siendo una fracción del
     // prompt histórico; si vuelve a apretar, se recorta.
-    expect(COMPACT_PLAYBOOK.length).toBeLessThan(6_200);
+    // 6 200 → 6 400 el 7-sep-2026: la regla «sin medida no se cotiza» se
+    // partió en dos (vehículo: no; aro dado y opción elegida: sí).
+    expect(COMPACT_PLAYBOOK.length).toBeLessThan(6_400);
   });
 });

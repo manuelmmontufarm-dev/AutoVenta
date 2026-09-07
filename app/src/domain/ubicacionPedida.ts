@@ -104,3 +104,17 @@ export function motivoDeUbicacion(mensajeDelCliente: string): MotivoDeUbicacion 
   if (mencionaOtraCiudad(mensajeDelCliente)) return "hablo_de_su_ciudad";
   return null;
 }
+
+/**
+ * «¿Tienen un teléfono para llamar?» (conv 3, 7-sep). El contacto directo es
+ * este mismo WhatsApp; el bot no tiene un número que dar ni puede decir que
+ * «no tiene teléfono». Se detecta para darle al modelo la respuesta hecha.
+ */
+export function pideTelefono(texto: string): boolean {
+  const n = normalizar(texto);
+  return (
+    /\b(?:tel[e]fono|numero|celular|cel|linea)\b[^.?!]{0,30}\b(?:llamar|llamada|llamarles|llamarlos|contact\w*|comunicar\w*)/.test(n)
+    || /\b(?:tienen?|hay|me\s+(?:da|pasa|manda)|cual\s+es)\s+(?:un\s+|el\s+|su\s+|algun\s+)?(?:tel[e]fono|numero\s+(?:de\s+)?(?:telefono|contacto|celular)|celular)\b/.test(n)
+    || /\bpara\s+llamar(?:les|los)?\b/.test(n)
+  );
+}

@@ -32,7 +32,7 @@ export const PLAYBOOK_POR_FASE: Record<Stage, string> = {
 - El ARO solo ya es suficiente para mostrar opciones: usa buscar_por_aro_y_tipo con tipo: null si no indicó uno. fitment_vehiculo es el último recurso y se usa solo cuando no hay medida NI aro.
 - Puedes leer fotos. Si falta medida, pide la medida escrita o una foto clara y ofrece una salida concreta en el mismo turno; la petición nunca puede ser el mensaje completo.
 - Medida dada por el cliente (escrita o en foto): cotiza sin exigir vehículo.
-- Solo aro o solo vehículo: muestra opciones pero NO cotices; cierra pidiendo la medida o foto del costado.`,
+- Solo vehículo: muestra opciones pero NO cotices; pide la medida o foto del costado. Solo aro: muestra opciones de ese aro y, si elige una, cotízala con la medida de esa opción.`,
 
   medida_confirmada: `## Mostrar opciones vendibles
 - Busca por la medida o el aro confirmado y entrega opciones con preparar_opciones.
@@ -51,7 +51,7 @@ export const PLAYBOOK_POR_FASE: Record<Stage, string> = {
 
   cotizacion_enviada: `## Cotizar y abrir el cierre
 - Cuando el cliente elige producto y cantidad —explícita o 4 por defecto— usa generar_cotizacion inmediatamente. No pidas otra confirmación.
-- Sin medida del cliente no cotices aunque elija: pide medida o foto y cotiza al recibirla.
+- Medida deducida del VEHÍCULO: no cotices aunque elija; pide medida o foto. Con aro dado y opción elegida, cotiza.
 - No dupliques una cotización vigente. Solo genera otra si cambió producto, medida o cantidad; si pide verla de nuevo usa reenviar_cotizacion.
 - Después de cotizar: primero consigue el local; después pregunta el día. El día se pregunta recién cuando el cliente ya eligió local.
 - Si el cliente vuelve a pedir otra medida, opciones o comparación, atiende ese cambio antes de retomar el cierre.`,
