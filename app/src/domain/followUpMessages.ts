@@ -231,6 +231,15 @@ function redactarSeguimiento(
       : `${prefix}🛞 ¿Avanzamos con ${laElegida}${size}? Si le sirve, le dejo la cotización lista 😊`;
   }
 
+  // Con UNA sola llanta en pantalla no hay nada que elegir ni comparar, esté la
+  // etapa donde esté (corrida 3: la plantilla de medida_confirmada preguntaba
+  // «¿le ayudo a elegir?» sobre una lista de uno).
+  if (context.optionsCount === 1 && (context.stage === "seleccionando" || context.stage === "medida_confirmada" || context.selectedProductCode)) {
+    return kind === "in_window_second"
+      ? `😊 ¿Cómo vio la opción${product}${size}? Si le sirve, le dejo la cotización lista.`
+      : `${prefix}🛞 ¿Cómo vio la opción${product}${size}? Es la que tengo disponible en su medida; si le sirve, le dejo la cotización lista 😊`;
+  }
+
   if (context.stage === "seleccionando" || context.selectedProductCode) {
     const opciones = context.optionsCount ?? null;
     if (opciones === 1) {

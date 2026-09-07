@@ -33,7 +33,18 @@ const MARCAS_CONOCIDAS = [
   "michelin", "bridgestone", "goodyear", "continental", "hankook", "pirelli",
   "firestone", "toyo", "yokohama", "dunlop", "kumho", "nexen", "sailun",
   "triangle", "linglong", "general tire",
+  // Auditoría 2-6 sep (conv 15158: «busco 4 Venom Power 315/70R17» y el bot
+  // mostró otras sin decir que esa no la maneja). Las que llegan a WhatsApp
+  // porque el cliente las tiene puestas o las vio en otra vitrina.
+  "venom", "maxxis", "bfgoodrich", "cooper", "nitto", "roadstone", "westlake",
+  "sunfull", "jinyu", "ovation", "aptany", "lanvigator", "durun", "haida",
+  "kapsen", "doublestar", "landsail", "goodride", "delinte", "gt radial",
+  "arivo", "farroad", "wanli", "compasal", "comforser", "atturo", "achilles",
+  "nankang", "federal", "sumitomo", "laufenn", "mastercraft", "uniroyal",
 ] as const;
+
+/** Una medida escrita de cualquier forma: 195/50R15, 195 50 15, 1955015, 265-70-17. */
+const TRAE_MEDIDA = /\b\d{3}\s*[/ -]?\s*\d{2}\s*[/ -]?\s*r?\s*\d{2}\b|\b\d{7}\b|\b\d{2}x\d{1,2}(?:[.,]\d)?r?\d{2}\b/;
 
 /**
  * ¿El mensaje pregunta si HAY una marca? Exige la marca y una señal de
@@ -44,8 +55,14 @@ export function marcaPreguntada(texto: string): string | null {
   const n = normalizar(texto);
   const marca = MARCAS_CONOCIDAS.find((m) => new RegExp(`\\b${m}\\b`).test(n));
   if (!marca) return null;
+  // Auditoría 2-6 sep (conv 13435): «1955015 kenda» —medida y marca en el
+  // mismo mensaje— no contaba como pedir la marca, y salió Winrun sin una
+  // palabra sobre Kenda. Marca + medida, o marca + «cotiza/precio/cuánto», es
+  // pedir esa marca aunque no haya verbo de disponibilidad.
   const pideDisponibilidad =
-    /\b(?:tienen?|hay|disponen?|manejan?|trabajan?|venden?|llego|llegaron|consigo|consiguen)\b|\bme\s+confirma\b|\bnecesito\b|\bbusco\b|\bquiero\b|\ben\s+marca\b|\?/.test(n);
+    /\b(?:tienen?|hay|disponen?|manejan?|trabajan?|venden?|llego|llegaron|consigo|consiguen)\b|\bme\s+confirma\b|\bnecesito\b|\bbusco\b|\bquiero\b|\ben\s+marca\b|\?/.test(n)
+    || TRAE_MEDIDA.test(n)
+    || /\bcoti[zc]\w*|\bprecio\b|\bcu[aá]nto\b|\bvalor\b/.test(n);
   return pideDisponibilidad ? marca.toUpperCase() : null;
 }
 

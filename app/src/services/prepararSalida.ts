@@ -52,6 +52,8 @@ import { business } from "../config.js";
 import { productosDelCatalogoMencionados } from "./catalog.js";
 import { frenarHechosNuevosDelGuardian } from "../domain/guardianNoVendeSolo.js";
 import { sinBloquesCalcados } from "../domain/calcoReciente.js";
+import { conMapasCanonicos, quitarMenuDePreferencia, sinTelefonoPropio } from "../domain/candadosDeTexto.js";
+import { MARCA_DEL_MENU, respuestaDePreferencia } from "../domain/salesIntent.js";
 import { sinPreguntaRepetidaEnElTurno } from "../domain/preguntaRepetidaEnElTurno.js";
 import { estructurarTurno } from "../domain/estructuraDelTurno.js";
 import {
@@ -491,6 +493,96 @@ export const PASOS: readonly PasoDeSalida[] = [
         });
       }
       return conLocales.texto;
+    },
+  },
+  {
+    // EL BOT NO DA SU PROPIO NÚMERO (auditoría 2-6 sep, familia E): cuatro
+    // veces mandó «llame al +593 98 280 1766 para indicaciones» — el número
+    // por el que el cliente ya está escribiendo. Ver domain/candadosDeTexto.ts.
+    nombre: "sin_telefono_propio",
+    corre: ["respuesta", "retomada", "seguimiento"],
+    async aplicar(texto, ctx) {
+      const limpio = sinTelefonoPropio(texto, business.phone);
+      if (!limpio.quitado) return texto;
+      console.warn(`📵 Teléfono propio quitado en la conv ${ctx.conversation.id}`);
+      await createBotAlert({
+        conversationId: ctx.conversation.id,
+        cycle: ctx.conversation.current_cycle,
+        type: "telefono_propio",
+        priority: "medium",
+        summary: "El bot iba a dar su propio número «para llamar» (recortado)",
+        exactReason: `Texto original: «${texto.slice(0, 220)}»`,
+        suggestedAction: "El cliente ya escribe a ese número; la ubicación se manda con los mapas.",
+        dedupeKey: `telefono_propio:${ctx.conversation.id}:${ctx.conversation.current_cycle}`,
+      }).catch(() => undefined);
+      return limpio.texto || null;
+    },
+  },
+  {
+    // LOS MAPAS SOLO SALEN DEL BLOQUE CANÓNICO (familia E, conv 15555: el
+    // modelo escribió «https://maps.app.goo.gl/» sin nada detrás y el cliente
+    // pensó que la tienda estaba en otra ciudad).
+    nombre: "sin_mapas_escritos_a_mano",
+    corre: ["respuesta", "retomada", "seguimiento"],
+    async aplicar(texto, ctx) {
+      const canonicas = business.stores.map((s) => s.mapsUrl).filter((u): u is string => Boolean(u));
+      const corregido = conMapasCanonicos(texto, canonicas, buildStoreLinksBlock());
+      if (!corregido.corregido) return texto;
+      console.warn(`🗺️ Link de Maps escrito a mano reemplazado en la conv ${ctx.conversation.id}`);
+      return corregido.texto;
+    },
+  },
+  {
+    // EL MENÚ DE PRIORIDAD SALE UNA VEZ POR PIEZA Y NUNCA SOBRE UNA SOLA
+    // OPCIÓN (familia G). Conv 14976: el cliente preguntó la dirección y el
+    // guardián le pegó el menú entero otra vez. Conv 7794: una sola KR608 y
+    // «¿qué prefiere priorizar: costo, equilibrio o premium?». Si en el ciclo
+    // ya salió el menú después de la última pieza de opciones, o esa pieza
+    // trae una sola llanta, el bloque del menú se quita y queda el resto.
+    nombre: "sin_menu_repetido",
+    corre: ["respuesta", "retomada"],
+    async aplicar(texto, ctx) {
+      // Primero se comprueba si HAY menú en el texto (en cualquiera de las
+      // formas en que el modelo lo escribe); recién después, si toca quitarlo.
+      const limpio = quitarMenuDePreferencia(texto);
+      if (!limpio.quitado) return texto;
+      // Si el cliente acaba de contestar el menú, lo que sigue no es el menú.
+      if (ctx.textoDelCliente && respuestaDePreferencia(ctx.textoDelCliente)) return texto;
+      const [pieza] = await sql<{ id: number; created_at: Date; codes: unknown }[]>`
+        select id, created_at, metadata->'codes' as codes from messages
+        where conversation_id=${ctx.conversation.id} and cycle=${ctx.conversation.current_cycle}
+          and metadata->>'piece'='options'
+        order by created_at desc, id desc limit 1
+      `;
+      const codigos = Array.isArray(pieza?.codes) ? new Set(pieza.codes.map(String)) : null;
+      const unaSola = codigos !== null && codigos.size <= 1;
+      const [menuPrevio] = pieza
+        ? await sql<{ id: number }[]>`
+            select id from messages
+            where conversation_id=${ctx.conversation.id} and cycle=${ctx.conversation.current_cycle}
+              and direction='outbound' and created_at > ${pieza.created_at}
+              and content ilike ${`%${MARCA_DEL_MENU}%`}
+            limit 1
+          `
+        : [];
+      // El menú que acompaña a la pieza de ESTE turno es el legítimo: solo se
+      // quita cuando ya salió antes en el ciclo (repetido) o cuando la pieza
+      // trae una sola opción.
+      const piezaDeEsteTurno = pieza && Date.now() - new Date(pieza.created_at).getTime() < 90_000;
+      if (!unaSola && (!menuPrevio || piezaDeEsteTurno)) return texto;
+      console.warn(`✂️ Menú de prioridad quitado en la conv ${ctx.conversation.id} (${unaSola ? "una sola opción" : "ya enviado"})`);
+      if (limpio.texto.trim()) return limpio.texto;
+      // El turno era SOLO el menú. Un turno normal nunca se calla: con una
+      // sola opción se entrega esa opción; si no, sale el texto original.
+      if (unaSola) {
+        const codigo = codigos ? [...codigos][0] : null;
+        const producto = codigo ? findByCode(codigo) : undefined;
+        if (producto) {
+          const precio = producto.minimumPriceWithTax ? ` — *$${producto.minimumPriceWithTax.toFixed(2)} c/u con IVA*` : "";
+          return `Es la única opción que tengo en su medida: *${producto.brand} ${producto.design}*${precio}.\n---\n¿Se la cotizo? 😊`;
+        }
+      }
+      return texto;
     },
   },
   {

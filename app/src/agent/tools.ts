@@ -1478,17 +1478,54 @@ export function buildTools(ctx: AgentContext) {
       // para mostrar ya lo vio TODO en este ciclo, no hay pieza que mandar:
       // se le dice que es la única y qué camino queda (otra medida
       // equivalente, otro tipo, o el asesor).
+      const [ultimaPieza] = await sql<{ metadata: Record<string, unknown> | null }[]>`
+        select metadata from messages
+        where conversation_id=${ctx.conversation.id} and cycle=${ctx.conversation.current_cycle}
+          and metadata->>'piece'='options'
+        order by created_at desc limit 1
+      `;
+      const yaVistos = new Set(
+        (Array.isArray(ultimaPieza?.metadata?.codes) ? ultimaPieza.metadata.codes : []).map((c) => String(c).toLowerCase()),
+      );
+      const mismaVitrina = yaVistos.size > 0 && products.every((p) => yaVistos.has(p.code.toLowerCase()));
+      // CONTESTÓ EL MENÚ: LA LÁMINA NO SE REENVÍA (auditoría 2-6 sep, familia
+      // G, conv 14506): a «Equilibrio» el bot volvió a mandar la misma imagen y
+      // el mismo aviso de equivalentes. Lo que toca es entregar la del escalón
+      // y —si es exacta— cotizarla; si es equivalente, pedir su sí.
+      const preferenciaContestada = respuestaDePreferencia(ctx.currentUserText);
+      if (preferenciaContestada && mismaVitrina) {
+        const escalonesPrevios = (ultimaPieza?.metadata?.escalones ?? null) as
+          Record<string, { codigo?: string; nombre?: string; precio_con_iva?: number } | null> | null;
+        const nivel = preferenciaContestada === "precio" ? "economica" : preferenciaContestada;
+        const codigoDelEscalon = escalonesPrevios?.[nivel]?.codigo ?? null;
+        const elegida = (codigoDelEscalon && products.find((p) => p.code === codigoDelEscalon)) ?? null;
+        if (elegida) {
+          const precio = elegida.minimumPriceWithTax ? ` — *$${elegida.minimumPriceWithTax.toFixed(2)} c/u con IVA*` : "";
+          const esEquivalente = permitidasOpciones.length > 0 && !medidaEstaPedida(elegida.sizeLabel, permitidasOpciones);
+          const etiqueta = preferenciaContestada === "precio" ? "de costo" : preferenciaContestada === "premium" ? "premium" : "de equilibrio";
+          if (esEquivalente) {
+            const pregunta = preguntaDeEquivalente({ recomendacion: `${elegida.brand} ${elegida.design}`, medida: elegida.sizeLabel ?? null });
+            return JSON.stringify({
+              imagen_enviada: false,
+              consentimiento_pendiente: true,
+              recomendacion_entregada: false,
+              mensaje_para_enviar: `La opción ${etiqueta} es la *${elegida.brand} ${elegida.design}*${precio}, en *${elegida.sizeLabel}* (equivalente de su aro).\n---\n${pregunta}`,
+              regla: "Responde usando exactamente mensaje_para_enviar. Es una EQUIVALENTE: NO llames generar_cotizacion hasta que conteste que sí a esa pregunta. NO reenvíes la lámina.",
+            });
+          }
+          ctx.recomendacionEntregada = true;
+          return JSON.stringify({
+            imagen_enviada: false,
+            recomendacion_entregada: true,
+            recomendacion: `${elegida.brand} ${elegida.design}`,
+            codigo: elegida.code,
+            mensaje_para_enviar: `La opción ${etiqueta} es la *${elegida.brand} ${elegida.design}*${precio}.`,
+            regla: `El cliente contestó el menú: la lámina ya la tiene y NO se reenvía. Llama generar_cotizacion AHORA MISMO con code ${elegida.code} y 4 llantas (o la cantidad que haya dicho); el texto de arriba va antes de la cotización.`,
+          });
+        }
+      }
       if (pideAlternativaMasBarata(ctx.currentUserText)) {
-        const [ultimaPieza] = await sql<{ metadata: Record<string, unknown> | null }[]>`
-          select metadata from messages
-          where conversation_id=${ctx.conversation.id} and cycle=${ctx.conversation.current_cycle}
-            and metadata->>'piece'='options'
-          order by created_at desc limit 1
-        `;
-        const yaVistos = new Set(
-          (Array.isArray(ultimaPieza?.metadata?.codes) ? ultimaPieza.metadata.codes : []).map((c) => String(c).toLowerCase()),
-        );
-        if (yaVistos.size && products.every((p) => yaVistos.has(p.code.toLowerCase()))) {
+        if (mismaVitrina) {
           const unica = products[0];
           const precio = unica.minimumPriceWithTax ? ` — *$${unica.minimumPriceWithTax.toFixed(2)} c/u con IVA*` : "";
           return JSON.stringify({

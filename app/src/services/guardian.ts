@@ -31,7 +31,7 @@
 import OpenAI from "openai";
 import { medidaConfirmadaPorCliente } from "../domain/medidaConfirmada.js";
 import { z } from "zod";
-import { config } from "../config.js";
+import { business, config } from "../config.js";
 import { sql } from "../db/client.js";
 import type { Stage } from "../domain/pipeline.js";
 import { ahorroDeLaCotizacion } from "../domain/ahorro.js";
@@ -232,6 +232,15 @@ interface CotizacionVigente {
   total: string | number;
   created_at: Date;
   items: Array<{ code?: string; brand?: string; design?: string; sizeLabel?: string; quantity?: number; salePriceWithTax?: number }>;
+}
+
+/** «Origen de las marcas (ficha del negocio): KENDA: Taiwán · FALKEN: Japón · …» o null sin ficha. */
+export function hechoDeOrigenDeMarcas(): string | null {
+  const marcas = respaldoCompleto().marcas.filter((m) => m.origen.pais && m.origen.pais !== "POR CONFIRMAR");
+  if (!marcas.length) return null;
+  return `Origen de las marcas (ficha del negocio, el bot PUEDE afirmarlo y no debe mandarlo al asesor): ${
+    marcas.map((m) => `${m.marca}: ${m.origen.pais}`).join(" · ")
+  }. Si el cliente pregunta de dónde es una marca y el borrador lo evade, es ignora-pregunta.`;
 }
 
 export interface HuellaHerramienta {
@@ -499,6 +508,18 @@ export async function armarContexto(
     // El rechazo de ancho, como hecho. Lo mira la regla 20.
     hechoRestricciones,
     `Horarios confirmados: ${formatStoreHours(storeHours)}`,
+    // EL ORIGEN DE LAS MARCAS ES UN HECHO (auditoría 2-6 sep, conv 14822): el
+    // cliente preguntó «de dónde es esa marca», la ficha dice que Kenda es
+    // taiwanesa, la herramienta la consultó, y el revisor —que no la tenía
+    // entre sus hechos— reescribió «se lo confirma el asesor». Lo que el
+    // revisor no puede verificar, lo borra; así que viaja como hecho.
+    hechoDeOrigenDeMarcas(),
+    // LAS DIRECCIONES TAMBIÉN (corrida 3, simulador): a «¿qué parte del sur?»
+    // el revisor escribió «en el sector de Guamaní» — inventado; el local está
+    // en Galo Molina y Av. Alonso de Angulo. Un dato que el revisor no tiene lo
+    // inventa igual que lo borra; así que viaja.
+    `Locales y direcciones (ficha del negocio): ${business.stores.map((s) => `${s.name}: ${s.address}`).join(" · ")}. ` +
+      "PROHIBIDO nombrar sectores, barrios o direcciones distintos; la ubicación se manda con los links de Maps.",
     // SIN ESTA LÍNEA EL REVISOR ES CIEGO AL STOCK.
     //
     // El 26-ago (conv 11061) el guardián corrigió un borrador y en su

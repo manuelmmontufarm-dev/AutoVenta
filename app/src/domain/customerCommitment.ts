@@ -193,11 +193,46 @@ function esPregunta(texto: string): boolean {
  * `diasEnEspanol`): «X eso el juebes» tiene que valer exactamente igual que
  * «el jueves». El 24-ago no valió, y esa visita nunca existió para el sistema.
  */
+/**
+ * UN DÍA DENTRO DE UNA EXCUSA NO ES UNA VISITA (auditoría 2-6 sep, familia F).
+ *
+ *  · «no pude visitar porque me tocó trabajar hasta el domingo… con gusto
+ *    otro día le visito» quedó como «viene el domingo 6» con alertas de
+ *    «mañana viene» y «hoy viene» (conv 11632).
+ *  · La autorespuesta de vacaciones «regresaré a mis actividades el 8 de
+ *    septiembre» quedó como visita del martes 8 (conv 14014), y el asesor la
+ *    dio por cierta.
+ *  · «Permítame revisar si mañana puedo» quedó como visita de mañana (15426).
+ *
+ * Tres filtros ANTES de leer el día: la autorespuesta no agenda nada; el
+ * condicional («si mañana puedo», «voy a ver si», «tal vez») tampoco; y las
+ * cláusulas negativas o pasadas («no pude… hasta el domingo», «no alcancé el
+ * lunes») se quitan del texto para que su día no cuente — «no pude ir el
+ * lunes, voy el jueves» sigue agendando el jueves.
+ */
+const AUTORESPUESTA =
+  /\bgracias\s+por\s+(?:comunicart|contactar|escribir)|\b(?:estoy|me\s+encuentro)\s+(?:fuera\s+de\s+la\s+oficina|de\s+vacaciones|en\s+(?:mi\s+)?periodo\s+de\s+vacaciones)|\bregresar[ée]\s+a\s+mis\s+actividades|\bresponder[ée]\s+(?:a\s+la\s+brevedad|en\s+cuanto|lo\s+antes)|\bmensaje\s+autom[aá]tico\b/;
+const CONDICIONAL =
+  /\bsi\s+(?:hoy|manana|el\s+\w+|puedo|alcanzo|logro|me\s+da|tengo\s+tiempo)\b[^.,;]{0,25}\b(?:puedo|alcanzo|logro|me\s+da|le\s+aviso|veo)\b|\b(?:voy\s+a\s+ver|dejeme\s+ver|permitame\s+(?:revisar|ver)|dejame\s+ver|tengo\s+que\s+ver)\s+si\b|\b(?:tal\s+vez|quizas?|de\s+pronto|de\s+repente|posiblemente|talvez)\b/;
+const CLAUSULA_NEGATIVA =
+  /\b(?:no\s+(?:pude|he\s+podido|alcance|alcanzo|fui|voy\s+a\s+poder|puedo|podre|logre|tuve|me\s+dio)|se\s+me\s+(?:complico|hizo\s+tarde)|me\s+toco\s+trabajar)\b/;
+
+function sinClausulasNegativas(textoNormalizado: string): string {
+  return textoNormalizado
+    .split(/[.,;!?]+|\b(?:pero|porque|aunque|entonces)\b/)
+    .filter((clausula) => !CLAUSULA_NEGATIVA.test(clausula))
+    .join(", ");
+}
+
 export function extractCustomerCommitment(
   text: string,
   now = new Date(),
   options: { respondiendoAlDia?: boolean } = {},
 ): CustomerCommitment | null {
+  const bruto = normalizar(text);
+  if (AUTORESPUESTA.test(bruto) || CONDICIONAL.test(bruto)) return null;
+  // Lo que se lee de aquí en adelante es el texto SIN sus cláusulas negativas.
+  text = CLAUSULA_NEGATIVA.test(bruto) ? sinClausulasNegativas(bruto) : text;
   const normalized = normalizar(text);
   const dia = diaEnTexto(text);
   const relativo = relativoEnTexto(text);

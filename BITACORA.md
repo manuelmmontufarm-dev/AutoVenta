@@ -1,3 +1,57 @@
+## 6-sep-2026 · Familias E, F, G y H de la auditoría, y lo que quedó por probar de las corridas 1 y 2
+
+**Qué:** Corrida 3, la última antes de publicar. **E · datos del negocio:**
+(1) `ubicacionPedida` reconoce «qué parte del sur», «en qué sector están»,
+«dirección», «ubicados»; (2) el prompt ya no lleva el teléfono del negocio
+(«Teléfono: este mismo WhatsApp…») y el paso `sin_telefono_propio` recorta
+cualquier frase que lo traiga; (3) `sin_mapas_escritos_a_mano` reemplaza un
+link de Maps que no sea uno de los dos reales por el bloque canónico; (4) el
+guardián recibe como hechos el ORIGEN de las marcas (ficha del negocio) y las
+DIRECCIONES de los locales; (5) `marcaPreguntada` lee marca + medida («1955015
+kenda») y marca + «cotiza/precio», y conoce 30 marcas más (Venom, Maxxis,
+BFGoodrich…). **F · fechas:** `extractCustomerCommitment` descarta la
+autorespuesta («gracias por comunicarte… regresaré el 8»), el condicional
+(«si mañana puedo», «permítame revisar») y las cláusulas negativas o pasadas
+(«no pude… me tocó trabajar hasta el domingo»); «no pude el lunes, voy el
+jueves» sigue agendando el jueves. **G · menú:** `preparar_opciones` no reenvía
+la lámina cuando el cliente contesta el menú sobre la misma vitrina (entrega la
+del escalón y, si es exacta, cotiza; si es equivalente, pregunta su sí); el
+paso `sin_menu_repetido` quita el menú cuando ya salió después de la última
+pieza o cuando la pieza trae una sola llanta, en cualquiera de las formas en
+que el modelo lo escribe. **H · madrugada:** `rescatarChatsOlvidados` solo
+corre dentro del horario de la política de seguimientos y no rescata un chat
+donde el asesor ya contestó por eco (OWNER) después del cliente; el reloj es
+inyectable (`ahora`) y las pruebas lo usan. **D pendiente:** un acuse
+(«👍», «ok») sobre una venta cerrada se guarda y NO reabre el ciclo
+(`recibirMensaje`). **Corrida 1 pendiente:** la plantilla de una sola opción
+también en `medida_confirmada`. Pruebas: `familiasEFGH.test.ts` (32 casos en
+rojo primero), 3 casos nuevos en `rescateChatOlvidado.integration`, y la
+cadena en `stockCortoViaja`.
+
+**Por qué:** Son las familias chicas del informe del 6-sep, cada una con su
+mecanismo: el número propio salió 4 veces, tres preguntas de ubicación se
+contestaron sin mapa, un link vacío, una marca pedida ignorada 3 veces, cinco
+visitas registradas desde una excusa, diez respuestas de madrugada sobre chats
+que el asesor llevaba, y el menú pegado o repetido en 7 chats. De paso, el
+humo del simulador contaba TODOS los envíos a la Graph de mentira: a las 20:00
+de Quito el bot manda el reporte del día a los asesores apenas arranca, y con
+la base recién creada eso salía antes del turno; el humo lo tomaba por
+respuesta y daba al bot por mudo. Ahora solo cuenta los envíos al cliente.
+Probado en el simulador con las conversaciones reales: «Que parte del sur se encuentran» →
+la dirección real de Quito Sur + los dos mapas, sin teléfono (antes: «llame al
++593 98 280 1766»; en la primera corrida el guardián inventó «sector Guamaní»
+y por eso las direcciones viajan como hecho); «De dónde es esa marca» → «La
+marca KENDA es de Taiwán» + mapas; «1955015 kenda» → «Sí manejamos Kenda…»;
+«Equilibrio» sobre equivalentes → «¿Le cotizo la KENDA KR20 en 205/50R16?»
+sin reenviar la lámina; «No me interesa» + «👍» → el ciclo sigue cerrado, sin
+saludo ni cotización; el audio de Luis Criollo → sin visita ni alertas; y el
+seguimiento insertado a mano tras «Disculpe no gracias..» → cancelado como
+`seguimiento_suprimido:insiste_tras_rechazo` por el guardián real. Queda solo
+en prueba de integración el calco del hilo (el guardián reescribe el texto
+antes de que llegue al calco).
+
+**Horas:** 3.5
+
 ## 6-sep-2026 · Familias C y D de la auditoría: el menú contestado cotiza su escalón y el acuse solo firma una oferta real
 
 **Qué:** Corrida 2 sobre el informe de familias del 6-sep. **Familia C** (menú
@@ -644,6 +698,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-09-06 | _(este mismo)_ | Familias E, F, G y H: ubicación y teléfono, origen y direcciones como hechos, fechas en excusas, menú repetido, rescate en horario, acuse no reabre | 3.5 |
 | 2026-09-06 | _(este mismo)_ | Familias C y D: el menú contestado cotiza su escalón; el acuse solo firma una oferta real; «más económicas» y la equivalente sin su sí | 3 |
 | 2026-09-06 | _(este mismo)_ | Familias A y B: seguimiento que respeta la despedida y puede callar; el candado del guardián compara contra el ciclo | 3.5 |
 | 2026-09-01 | _(este mismo)_ | Medida deducida ≠ confirmada: tabla con «media», matcher por palabras, +13 fichas, fitment aprendido, candado sin medida no cotiza | 3.5 |

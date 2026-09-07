@@ -17,7 +17,8 @@ import { config } from "../config.js";
 import { setStage } from "./conversations.js";
 import { resumeBotIfUnanswered, type ResumeBotResult } from "./resumeBot.js";
 import { isBotActive } from "./botPower.js";
-import { createBotAlert } from "./followUps.js";
+import { createBotAlert, getFollowUpPolicy } from "./followUps.js";
+import { isWithinBusinessHours } from "../domain/followUps.js";
 import type { Stage } from "../domain/pipeline.js";
 
 export interface MovimientoEtapa {
@@ -195,9 +196,16 @@ export async function atenderPendientes(
  * el motivo, y siempre puede volver a tomar el chat desde el panel.
  */
 export async function rescatarChatsOlvidados(
-  { horas = config.pipeline.humanRescueHours, limite = 10 }: { horas?: number; limite?: number } = {},
+  { horas = config.pipeline.humanRescueHours, limite = 10, ahora = new Date() }: { horas?: number; limite?: number; ahora?: Date } = {},
 ): Promise<ResultadoAtencion[]> {
   if (!(await isBotActive())) return [];
+  // NI DE MADRUGADA NI SOBRE EL ASESOR (auditoría 2-6 sep, familia H): diez
+  // chats recibieron al bot entre las 21:48 y las 05:16, y en varios el asesor
+  // ya había contestado por su WhatsApp (los ecos entran como OWNER y no
+  // mueven `last_assistant_message_at`). El rescate corre solo en horario de
+  // atención y solo si nadie —bot ni asesor— escribió después del cliente.
+  const politica = await getFollowUpPolicy().catch(() => null);
+  if (politica && !isWithinBusinessHours(ahora, politica)) return [];
   const filas = await sql<{ id: number; name: string | null; phone: string; cycle: number }[]>`
     update conversations c
     set assigned_to = 'bot', bot_paused_until = null, updated_at = now()
@@ -210,11 +218,17 @@ export async function rescatarChatsOlvidados(
         -- La pausa del asesor se respeta: si alguien acaba de tomar el chat
         -- desde el panel (pausa de BOT_PAUSE_HOURS vigente), el reloj no se lo
         -- arrebata — el mensaje viejo del cliente ya es responsabilidad suya.
-        and (bot_paused_until is null or bot_paused_until <= now())
+        and (bot_paused_until is null or bot_paused_until <= ${ahora})
         and last_customer_message_at is not null
         and (last_assistant_message_at is null or last_assistant_message_at < last_customer_message_at)
-        and last_customer_message_at <= now() - make_interval(hours => ${horas})
-        and last_customer_message_at > now() - interval '24 hours'
+        and last_customer_message_at <= ${ahora} - make_interval(hours => ${horas})
+        and last_customer_message_at > ${ahora} - interval '24 hours'
+        and not exists (
+          select 1 from messages m
+          where m.conversation_id = conversations.id
+            and m.direction = 'outbound' and m.author_kind = 'owner'
+            and m.created_at > conversations.last_customer_message_at
+        )
       order by last_customer_message_at asc
       limit ${limite}
     )

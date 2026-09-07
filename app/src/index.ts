@@ -88,6 +88,7 @@ import { sql } from "./db/client.js";
 import { presentacionDeApertura } from "./domain/saludo.js";
 import { algunLocalAbre, getStoreHours } from "./services/settings.js";
 import { respuestaDeCierreDelTurno, tipoDeCierreDelTurno } from "./domain/cierreTurno.js";
+import { esAcuseSimple } from "./domain/ofertaAceptada.js";
 
 /** Pausa entre bloques: suficiente para que se lean como mensajes seguidos y no como spam. */
 const PAUSA_ENTRE_BLOQUES_MS = 900;
@@ -97,7 +98,16 @@ const esperar = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms)
 const pipeline = new InboundPipeline(async ({ from, name, text, waMessageIds, quotedWaMessageId, receivedAt }) => {
   // El mensaje ya quedó guardado en recibirMensaje(), antes de responderle 200
   // a Meta. Aquí solo se elabora la respuesta sobre el texto ya agrupado.
-  const conversation = await getOrCreateConversation(from, name);
+  // UN «👍» SOBRE UNA VENTA CERRADA NO LA REABRE (auditoría 2-6 sep, conv
+  // 16277): «No me interesa» cerró como perdida, el cliente contestó «👍» a la
+  // despedida, y el ciclo nuevo saludó y cotizó. Un acuse sin pedido no es una
+  // oportunidad nueva: se guarda y no se contesta. Cualquier otro mensaje
+  // reabre como siempre.
+  const conversation = await getOrCreateConversation(from, name, !esAcuseSimple(text));
+  if (conversation.status === "closed") {
+    console.log(`🤫 Acuse sobre una venta cerrada en la conv ${conversation.id}: no se reabre ni se contesta.`);
+    return;
+  }
   const inboundSafety = await handleInboundFollowUpState(conversation.id, text);
   // La medida puede venir métrica (205/55R16) o en pulgadas (30x9.5R15). Sin
   // esta segunda, el bot no registraba nada y terminaba diciendo que no había.
@@ -561,7 +571,18 @@ async function recibirMensaje(
   void registrarMensajeDeAsesor(from, receivedAt).catch((error) =>
     console.warn("⚠️ No se pudo refrescar la ventana del asesor:", error),
   );
-  const creada = await getOrCreateConversation(from, name);
+  // UN «👍» SOBRE UNA VENTA CERRADA NO LA REABRE (auditoría 2-6 sep, conv
+  // 16277): «No me interesa» cerró como perdida, el cliente contestó «👍» a la
+  // despedida, y el ciclo nuevo saludó y cotizó $511.72. Un acuse sin pedido
+  // se guarda en el ciclo cerrado y no se contesta; cualquier otro mensaje
+  // reabre como siempre.
+  const creada = await getOrCreateConversation(from, name, !esAcuseSimple(texto));
+  if (creada.status === "closed") {
+    await appendMessage(creada.id, "user", texto, waMessageId, { occurredAt: receivedAt });
+    emitLiveEvent("message", creada.id);
+    console.log(`🤫 Acuse sobre una venta cerrada en la conv ${creada.id}: se guarda y no se reabre.`);
+    return;
+  }
   // Chat frío (>15 h sin mensajes de nadie): ciclo nuevo ANTES de guardar este
   // mensaje, para que caiga en la conversación que empieza y no en la que se
   // archiva — y para que el silencio se mida contra el mensaje anterior, no

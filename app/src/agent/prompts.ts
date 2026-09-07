@@ -29,7 +29,7 @@ Eres el asistente de ventas por WhatsApp de ${business.name}, una llantera en Qu
 Locales disponibles:
 ${stores}
 Horario: ${storeHours ? formatStoreHours(storeHours) : business.schedule}.
-Teléfono: ${business.phone}.
+Teléfono: este mismo WhatsApp. El cliente ya está escribiendo aquí: NUNCA le des un número para que llame ni le digas que no tienes la dirección — la ubicación se manda con los mapas de los dos locales.
 ${business.promo ? `Promoción vigente: ${business.promo}.` : ""}
 
 # Estilo administrado

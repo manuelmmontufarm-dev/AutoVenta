@@ -37,8 +37,13 @@ const normalizar = (texto: string) =>
  * lecturas: mandar el mapa cuesta un renglón y contesta la pregunta que el
  * cliente casi siempre está haciendo.
  */
+// Auditoría 2-6 sep (familia E): «Que parte del sur se encuentran» (14976),
+// «Marca precio dirección» (14784), «direccion para ver» (14864) y «en qué
+// sector están» no disparaban el mapa, y el modelo contestó de memoria — con
+// su propio teléfono. «dirección» y «ubicados» a secas entran: en un chat de
+// llantas nadie habla de otra dirección que la del local.
 const PIDE_UBICACION =
-  /\b(?:donde\s+(?:estan|esta|queda|quedan|se\s+encuentran|los?\s+encuentro|es|son)|de\s+donde\s+son|en\s+que\s+parte|por\s+donde\s+(?:estan|quedan)|como\s+llego|como\s+llegar|la\s+direccion|su\s+direccion|direccion\s+del?\s+local|me\s+(?:manda|pasa|comparte|envia)\s+(?:la\s+)?ubicacion|la\s+ubicacion|su\s+ubicacion|ubicacion\s+del?\s+local|el\s+mapa|en\s+maps|google\s+maps|tienen\s+(?:local|locales|sucursal|sucursales|tienda|tiendas)|donde\s+(?:los|las|te|le)\s+ubico)\b/;
+  /\b(?:donde\s+(?:estan|esta|queda|quedan|se\s+encuentran|se\s+ubican|los?\s+encuentro|es|son)|de\s+donde\s+son|(?:en\s+)?que\s+parte(?:\s+de)?|(?:en\s+)?que\s+sector\s+(?:estan|quedan|se\s+encuentran|se\s+ubican|es|son)|por\s+donde\s+(?:estan|quedan)|como\s+llego|como\s+llegar|direccion|ubicados?|me\s+(?:manda|pasa|comparte|envia)\s+(?:la\s+)?ubicacion|la\s+ubicacion|su\s+ubicacion|ubicacion\s+del?\s+local|el\s+mapa|en\s+maps|google\s+maps|tienen\s+(?:local|locales|sucursal|sucursales|tienda|tiendas)|donde\s+(?:los|las|te|le)\s+ubico)\b/;
 
 /**
  * Provincias y ciudades del Ecuador que la gente nombra al decir de dónde es.

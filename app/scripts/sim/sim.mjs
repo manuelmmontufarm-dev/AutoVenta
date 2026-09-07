@@ -789,12 +789,17 @@ async function pruebaDeHumo() {
 
   // El turno tarda: el debounce agrupa, el agente da vueltas y las piezas se
   // renderizan. Se espera a que aparezca algo y luego a que deje de aparecer.
+  // Solo cuentan los envíos AL CLIENTE: a las 20:00 (Quito) el bot manda el
+  // reporte del día a los asesores apenas arranca, y con una base recién
+  // creada eso salía antes del turno; el humo lo tomaba por respuesta y
+  // dejaba de esperar (6-sep-2026).
+  const alClienteHastaAhora = () => graph.enviados().filter((e) => e.para === TELEFONO_CLIENTE).length;
   let quieto = 0;
   for (let i = 0; i < 90 && quieto < 6; i += 1) {
     await new Promise((ok) => setTimeout(ok, 1000));
-    const antes = graph.enviados().length;
+    const antes = alClienteHastaAhora();
     await new Promise((ok) => setTimeout(ok, 500));
-    quieto = graph.enviados().length === antes && antes > 0 ? quieto + 1 : 0;
+    quieto = alClienteHastaAhora() === antes && antes > 0 ? quieto + 1 : 0;
   }
 
   const alCliente = graph.enviados().filter((e) => e.para === TELEFONO_CLIENTE);
