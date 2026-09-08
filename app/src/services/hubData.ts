@@ -1,5 +1,5 @@
 import { sql } from "../db/client.js";
-import { periodoMensualEnCurso } from "./periodoMensual.js";
+import { resolverPeriodo } from "./periodoMensual.js";
 import type { Stage } from "../domain/pipeline.js";
 
 interface QuoteRow {
@@ -60,9 +60,33 @@ interface TicketRow {
  * al final" y los enlaces del feed pueden apuntar a una conversación más vieja
  * que las 500 últimas, y al abrirla el detalle decía "Ticket no encontrado" —
  * la conversación existía, solo no venía en el lote.
+ *
+ * Con `mes` devuelve los chats que se MOVIERON en ese mes: los que nacieron ahí
+ * y los que recibieron o mandaron un mensaje. No sirve filtrar por fecha de
+ * creación sola — una conversación de agosto que se sigue trabajando en
+ * septiembre es trabajo de septiembre, y por creación desaparecería del mes en
+ * el que de verdad está pasando algo. Es la misma ventana que usan las métricas
+ * (`resolverPeriodo`), así que el tablero y los números hablan del mismo mes.
  */
-export async function listHubTickets(options: { id?: number } = {}) {
-  const filtro = options.id ? sql`where c.id = ${options.id}` : sql``;
+export async function listHubTickets(options: { id?: number; mes?: string | null } = {}) {
+  const periodo = options.mes ? await resolverPeriodo(options.mes) : null;
+  const ventana =
+    periodo && !periodo.todos
+      ? sql`(
+          (c.created_at >= ${periodo.desde} and c.created_at < ${periodo.hasta})
+          or exists (
+            select 1 from messages actividad
+            where actividad.conversation_id = c.id
+              and actividad.created_at >= ${periodo.desde}
+              and actividad.created_at < ${periodo.hasta}
+          )
+        )`
+      : null;
+  const filtro = options.id
+    ? sql`where c.id = ${options.id}`
+    : ventana
+      ? sql`where ${ventana}`
+      : sql``;
   const rows = await sql<TicketRow[]>`
     select
       c.id, c.phone, c.name, c.stage, c.status, c.assigned_to, c.unread_count,
@@ -312,7 +336,7 @@ export async function getHubFeed() {
 }
 
 /**
- * Los números del dashboard, del día 1 del mes a hoy.
+ * Los números del dashboard para el mes que se está mirando.
  *
  * Todo lo que se acumula se lee desde el comienzo del mes: el panel arranca
  * limpio cada mes y "cotizaciones" o "llegaron al final" hablan del mes que se
@@ -324,9 +348,9 @@ export async function getHubFeed() {
  * el día 1; ponerlo en cero escondería trabajo vivo. La base guarda todo el
  * histórico igual: esto es qué se mira, no qué se borra.
  */
-export async function getHubMetrics() {
-  const periodo = await periodoMensualEnCurso();
-  const { desde } = periodo;
+export async function getHubMetrics(mes?: string | null) {
+  const periodo = await resolverPeriodo(mes);
+  const { desde, hasta } = periodo;
 
   const [summary] = await sql<
     {
@@ -343,17 +367,17 @@ export async function getHubMetrics() {
       (
         select count(*)::int from (
           select distinct conversation_id, cycle from quotes
-          where created_at >= ${desde}
+          where created_at >= ${desde} and created_at < ${hasta}
         ) cotizados_del_mes
       ) as quoted_count,
       (
         select count(*)::int from sales_history
-        where outcome = 'ganado' and closed_at >= ${desde}
+        where outcome = 'ganado' and closed_at >= ${desde} and closed_at < ${hasta}
       ) as won_count,
       coalesce(sum(q.total) filter (where c.status = 'open'), 0) as pipeline_value,
       (
         select coalesce(sum(total), 0) from sales_history
-        where outcome = 'ganado' and closed_at >= ${desde}
+        where outcome = 'ganado' and closed_at >= ${desde} and closed_at < ${hasta}
       ) as won_value,
       (
         select percentile_cont(0.5) within group (
@@ -371,7 +395,7 @@ export async function getHubMetrics() {
             and created_at >= first_in.created_at
           order by created_at asc limit 1
         ) first_out on true
-        where first_in.created_at >= ${desde}
+        where first_in.created_at >= ${desde} and first_in.created_at < ${hasta}
       ) as first_response_seconds
     from conversations c
     left join lateral (
@@ -381,14 +405,26 @@ export async function getHubMetrics() {
     ) q on true
   `;
 
-  // Un punto por día del mes, del 1 a hoy: el 1 la serie es una sola barra y
-  // vuelve a crecer. Los días se cortan en Guayaquil — en UTC, todo lo que pasa
-  // después de las 19:00 aparecería con la fecha del día siguiente.
+  // Un punto por día de la ventana que se está mirando: del 1 a hoy en el mes en
+  // curso (el día 1 es una sola barra y vuelve a crecer), el mes entero si es
+  // uno pasado, y desde la primera conversación si se pidió todo el histórico.
+  // Los bordes se recortan contra lo que existe de verdad para no dibujar meses
+  // de ceros antes de que el bot naciera ni días que todavía no pasaron. Los
+  // días se cortan en Guayaquil — en UTC, todo lo que pasa después de las 19:00
+  // aparecería con la fecha del día siguiente.
   const daily = await sql<{ day: string; count: number }[]>`
+    with limites as (
+      select
+        greatest(
+          ${desde}::timestamptz,
+          coalesce((select min(created_at) from conversations), ${desde}::timestamptz)
+        ) as inicio,
+        least(${hasta}::timestamptz, now()) as fin
+    )
     select to_char(day, 'YYYY-MM-DD') as day, count(c.id)::int as count
-    from generate_series(
-      (${desde}::timestamptz at time zone 'America/Guayaquil')::date,
-      (now() at time zone 'America/Guayaquil')::date,
+    from limites, generate_series(
+      (limites.inicio at time zone 'America/Guayaquil')::date,
+      (limites.fin at time zone 'America/Guayaquil')::date,
       interval '1 day'
     ) day
     left join conversations c
@@ -421,7 +457,7 @@ export async function getHubMetrics() {
       select t.conversation_id, t.cycle
       from todos t
       join inicio i on i.conversation_id = t.conversation_id and i.cycle = t.cycle
-      where i.empezo_en >= ${desde}
+      where i.empezo_en >= ${desde} and i.empezo_en < ${hasta}
     ), observed as (
       select id as conversation_id, current_cycle as cycle, stage from conversations
       union all
@@ -471,7 +507,8 @@ export async function getHubMetrics() {
   const deliveries = await sql<{ status: string; count: number }[]>`
     select coalesce(status, 'unknown') as status, count(*)::int as count
     from messages
-    where direction = 'outbound' and created_at >= ${desde}
+    where direction = 'outbound'
+      and created_at >= ${desde} and created_at < ${hasta}
     group by coalesce(status, 'unknown')
   `;
 
@@ -499,7 +536,7 @@ export async function getHubMetrics() {
     where direction = 'outbound'
       and author_kind = 'bot'
       and type in ('image', 'pdf')
-      and created_at >= ${desde}
+      and created_at >= ${desde} and created_at < ${hasta}
     group by 1
     order by 1
   `;
@@ -508,7 +545,8 @@ export async function getHubMetrics() {
     select extract(hour from inbound.created_at at time zone 'America/Guayaquil')::int as hour,
       count(*)::int as replies
     from messages inbound
-    where inbound.direction='inbound' and inbound.created_at >= ${desde}
+    where inbound.direction='inbound'
+      and inbound.created_at >= ${desde} and inbound.created_at < ${hasta}
       and exists (
         select 1 from messages outbound
         where outbound.conversation_id=inbound.conversation_id and outbound.cycle=inbound.cycle
@@ -543,11 +581,11 @@ export async function getHubMetrics() {
     ), llegaron as (
       select conversation_id, cycle, min(reached_at) as reached_at
       from arrivals group by conversation_id, cycle
-      having min(reached_at) >= ${desde}
+      having min(reached_at) >= ${desde} and min(reached_at) < ${hasta}
     ), cotizados as (
       select conversation_id, cycle, min(created_at) as quoted_at
       from quotes group by conversation_id, cycle
-      having min(created_at) >= ${desde}
+      having min(created_at) >= ${desde} and min(created_at) < ${hasta}
     )
     select
       (select count(*)::int from llegaron) as total,
@@ -581,11 +619,11 @@ export async function getHubMetrics() {
         max(discount_amount_cents) as discount_cents
       from discount_offers where status in ('approved','offered','accepted','superseded')
       group by conversation_id, cycle
-      having min(created_at) >= ${desde}
+      having min(created_at) >= ${desde} and min(created_at) < ${hasta}
     ), quoted as (
       select conversation_id, cycle, min(created_at) as quoted_at
       from quotes group by conversation_id, cycle
-      having min(created_at) >= ${desde}
+      having min(created_at) >= ${desde} and min(created_at) < ${hasta}
     )
     select
       (select count(*)::int from offered) as offered,
@@ -606,8 +644,10 @@ export async function getHubMetrics() {
     // decir en voz alta "septiembre" y "vuelve a cero el 1 de octubre": un
     // contador que se reinicia sin avisar se lee como datos perdidos.
     periodo: {
+      clave: periodo.clave,
       desde: periodo.desde.toISOString(),
       hasta: periodo.hasta.toISOString(),
+      todos: periodo.todos,
     },
     summary: {
       abiertos: Number(summary?.open_count ?? 0),
@@ -742,8 +782,12 @@ interface FinalStageRow {
  * El día se agrupa en hora de Guayaquil, no UTC: agrupar en UTC empuja todo lo
  * que pasa después de las 19:00 al día siguiente, y el tablero se leería con
  * fechas que no son las que vivió el negocio.
+ *
+ * `mes` recorta a la misma ventana que las métricas y el tablero; sin él, el
+ * mes en curso.
  */
-export async function getFinalStageArrivals() {
+export async function getFinalStageArrivals(mes?: string | null) {
+  const { desde, hasta } = await resolverPeriodo(mes);
   const rows = await sql<FinalStageRow[]>`
     with arrivals as (
       select conversation_id, cycle, created_at
@@ -759,6 +803,9 @@ export async function getFinalStageArrivals() {
       select conversation_id, cycle, min(created_at) as reached_at
       from arrivals
       group by conversation_id, cycle
+      -- La misma ventana que el resto del panel: si el tablero está mostrando
+      -- septiembre, «llegaron al final» no puede contestar por todo el año.
+      having min(created_at) >= ${desde} and min(created_at) < ${hasta}
     )
     select
       fa.conversation_id, fa.cycle, fa.reached_at,

@@ -1,6 +1,6 @@
 import { sql } from "../db/client.js";
 import { clasificarAlerta, etiquetaTecnica } from "./alertTaxonomy.js";
-import { periodoMensualEnCurso } from "./periodoMensual.js";
+import { resolverPeriodo } from "./periodoMensual.js";
 
 export async function listFollowUpBoard() {
   const rows = await sql<{
@@ -227,12 +227,13 @@ export async function getFollowUpSettings() {
 }
 
 /**
- * Los seguimientos del mes en curso. Como el resto del dashboard, el contador
- * arranca de cero el día 1: "enviados" o "ventas recuperadas" responden a cómo
- * va este mes, no a un total desde que existe el bot. La base guarda todo.
+ * Los seguimientos del mes que se está mirando. Como el resto del dashboard, el
+ * contador arranca de cero el día 1: "enviados" o "ventas recuperadas" responden
+ * a cómo va este mes, no a un total desde que existe el bot. La base guarda todo,
+ * y el selector del panel puede pedir otro mes o el histórico completo.
  */
-export async function getFollowUpMetrics() {
-  const { desde } = await periodoMensualEnCurso();
+export async function getFollowUpMetrics(mes?: string | null) {
+  const { desde, hasta } = await resolverPeriodo(mes);
   const [summary] = await sql<{
     scheduled: number; sent: number; responded: number; converted: number;
     cancelled_by_reply: number; generations_avoided: number; generations_used: number;
@@ -259,14 +260,16 @@ export async function getFollowUpMetrics() {
       count(*) filter (where j.status = 'cancelled' and j.payload->>'aiPending' = 'true')::int as generations_avoided,
       count(*) filter (where j.payload->>'aiGeneratedAt' is not null)::int as generations_used,
       count(*) filter (where j.cancel_reason = 'window_closed')::int as missed_windows,
-      (select count(*)::int from conversations where opted_out_at >= ${desde}) as opt_outs,
-      (select count(*)::int from conversations where negative_sentiment_at >= ${desde}) as negative,
+      (select count(*)::int from conversations
+        where opted_out_at >= ${desde} and opted_out_at < ${hasta}) as opt_outs,
+      (select count(*)::int from conversations
+        where negative_sentiment_at >= ${desde} and negative_sentiment_at < ${hasta}) as negative,
       (select count(*)::int from follow_up_attempts
         where message_type = 'template' and status in ('delivered','read')
-          and created_at >= ${desde}) as template_delivered,
+          and created_at >= ${desde} and created_at < ${hasta}) as template_delivered,
       (select count(*)::int from follow_up_attempts
         where message_type = 'template' and status = 'read'
-          and created_at >= ${desde}) as template_read,
+          and created_at >= ${desde} and created_at < ${hasta}) as template_read,
       avg(extract(epoch from (reply.created_at - j.executed_at))) filter (where reply.created_at is not null) as avg_response_seconds
     from follow_up_jobs j
     left join lateral (
@@ -274,14 +277,14 @@ export async function getFollowUpMetrics() {
         and cycle = j.cycle and direction = 'inbound' and created_at > j.executed_at
       order by created_at limit 1
     ) reply on true
-    where j.created_at >= ${desde}
+    where j.created_at >= ${desde} and j.created_at < ${hasta}
   `;
   const byStageAndType = await sql`
     select coalesce(j.payload->>'stage', 'unknown') as stage, j.type,
       count(*)::int as total,
       count(*) filter (where j.status = 'sent')::int as sent
     from follow_up_jobs j
-    where j.created_at >= ${desde}
+    where j.created_at >= ${desde} and j.created_at < ${hasta}
     group by 1, 2 order by 1, 2
   `;
   return { ...summary, avg_response_seconds: summary.avg_response_seconds === null ? null : Number(summary.avg_response_seconds), byStageAndType };

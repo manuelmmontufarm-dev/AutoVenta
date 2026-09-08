@@ -10,6 +10,7 @@ import type {
   HubMetrics,
   Mensaje,
   PhaseFlags,
+  MesDisponible,
   Ticket,
   TemplatePlanPreview,
   FollowUpCard,
@@ -275,12 +276,21 @@ export async function probarClaveAdmin(value: string): Promise<ResultadoConexion
   }
 }
 
+/** `?mes=…` solo cuando hay mes: sin él, el servidor decide (el mes en curso). */
+function query(mes?: string | null): string {
+  return mes ? `?mes=${encodeURIComponent(mes)}` : "";
+}
+
 export class RealSource implements DataSource {
   private listeners = new Set<(event: SourceEvent) => void>();
   private controller: AbortController | null = null;
 
-  async listTickets(): Promise<Ticket[]> {
-    return (await this.request<{ tickets: Ticket[] }>("/api/hub/tickets")).tickets;
+  async listTickets(mes?: string | null): Promise<Ticket[]> {
+    return (await this.request<{ tickets: Ticket[] }>(`/api/hub/tickets${query(mes)}`)).tickets;
+  }
+
+  async listPeriods(): Promise<MesDisponible[]> {
+    return (await this.request<{ periods: MesDisponible[] }>("/api/hub/periods")).periods;
   }
 
   async getTicket(ticketId: number): Promise<Ticket | null> {
@@ -308,12 +318,12 @@ export class RealSource implements DataSource {
     return (await this.request<{ feed: FeedItem[] }>("/api/hub/feed")).feed;
   }
 
-  async getMetrics(): Promise<HubMetrics> {
-    return (await this.request<{ metrics: HubMetrics }>("/api/hub/metrics")).metrics;
+  async getMetrics(mes?: string | null): Promise<HubMetrics> {
+    return (await this.request<{ metrics: HubMetrics }>(`/api/hub/metrics${query(mes)}`)).metrics;
   }
 
-  async getFinalStage(): Promise<FinalStage> {
-    return (await this.request<{ finalStage: FinalStage }>("/api/hub/final-stage")).finalStage;
+  async getFinalStage(mes?: string | null): Promise<FinalStage> {
+    return (await this.request<{ finalStage: FinalStage }>(`/api/hub/final-stage${query(mes)}`)).finalStage;
   }
 
   async getBilling(): Promise<Billing> {

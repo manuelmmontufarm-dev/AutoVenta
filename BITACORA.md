@@ -1,3 +1,36 @@
+## 8-sep-2026 · Selector de mes en los KPIs y en el kanban
+
+**Qué:** El corte mensual deja de ser fijo: `resolverPeriodo(mes)` en
+`services/periodoMensual.ts` acepta "YYYY-MM" o `todos` (mismos dos bordes,
+abiertos de par en par, para que ninguna consulta necesite una rama para el
+histórico completo); un mes ilegible cae al mes en curso. Toman el parámetro
+`getHubMetrics`, `getFollowUpMetrics`, `getFinalStageArrivals` y
+`listHubTickets`, y las rutas `/api/hub/metrics|final-stage|tickets?mes=`. Nueva
+`/api/hub/periods` (`mesesConDatos`) con los meses que tienen datos, el en curso
+siempre incluido. Cada ventana ganó su borde de arriba (antes solo `>= desde`) y
+la serie diaria se recorta contra la primera conversación y contra hoy, para no
+dibujar meses de ceros ni días que no pasaron. En el hub, el mes vive en el
+store (`mes`, `verMes`, `mesesDisponibles`, `ticketsDelMes`): KPIs y kanban
+miran el MISMO mes. `components/mes.tsx` es el selector; los rótulos se arman
+con `etiquetaDeMes`, así que dicen "septiembre de 2026" o "todo el histórico" y
+no "este mes" a mano. El tablero de un mes pasado se pide al servidor (el
+listado corta en 500 y lo viejo se cae del lote); el mes en curso y `todos` se
+filtran en memoria. El kanban muestra un chip «+N abiertos de otros meses · ver
+todos» cuando el filtro tapa trabajo vivo. Pruebas: 8 casos nuevos en
+`metricasDelMes.integration.test.ts` (mes pasado, `todos`, serie del histórico,
+mes ilegible, listado de meses, tablero por mes, chat viejo que habla hoy) y uno
+en `finalStage.integration.test.ts` (sin mes = mes en curso). Bundle regenerado.
+
+**Por qué:** Manuel: «que haya un tab arriba en los kpi y en el kanban y que
+puedas seleccionar el mes o poner todos para ver todos los historicos si lo
+quieren». El reinicio mensual sin puerta de salida escondía el histórico que sí
+está en la base. El chip de abiertos ocultos es por el riesgo real del filtro:
+un ticket abierto que no se movió este mes es una venta a medias, y el tablero
+puede no mostrarlo pero no puede callarlo. El Inbox NO se filtra: es la cola
+viva de lo que hay que contestar.
+
+**Horas:** 2.5
+
 ## 8-sep-2026 · El aro alcanza: la lámina sale sola, con cualquier forma de decir el aro
 
 **Qué:** (1) Un solo detector de aro para todo el bot, `aroEnTexto` en

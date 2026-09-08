@@ -7,6 +7,7 @@ const admin = postgres("postgresql://manue@localhost/postgres", { prepare: false
 let appSql: typeof import("../src/db/client.js").sql;
 let hubData: typeof import("../src/services/hubData.js");
 let followUpAdmin: typeof import("../src/services/followUpAdmin.js");
+let periodos: typeof import("../src/services/periodoMensual.js");
 
 /**
  * El dashboard arranca de cero cada mes: lo que se acumula (cotizaciones,
@@ -36,6 +37,7 @@ describe.sequential("Métricas del mes en curso", () => {
     await schema.ensureSchema();
     hubData = await import("../src/services/hubData.js");
     followUpAdmin = await import("../src/services/followUpAdmin.js");
+    periodos = await import("../src/services/periodoMensual.js");
 
     await sembrar();
   });
@@ -131,7 +133,116 @@ describe.sequential("Métricas del mes en curso", () => {
     expect(Number(followUps.opt_outs)).toBe(1);
     expect(Number(followUps.template_delivered)).toBe(1);
   });
+
+  // ── El selector de mes ────────────────────────────────────────────────────
+
+  it("pedir el mes pasado devuelve los números de ESE mes, no los de este", async () => {
+    const anterior = mesAnterior();
+    const metrics = await hubData.getHubMetrics(anterior);
+
+    expect(metrics.periodo.clave).toBe(anterior);
+    expect(metrics.periodo.todos).toBe(false);
+    // El mes pasado tiene su propia mitad del sembrado, y solo esa: dos
+    // cotizaciones (la de «Vieja» y la de «Abierto Viejo», que sigue abierto).
+    expect(metrics.summary.cotizaciones).toBe(2);
+    expect(metrics.summary.vendido).toBe(400);
+    expect(metrics.reachedFinal.total).toBe(1);
+    expect(metrics.discounts.offered).toBe(1);
+
+    const followUps = await followUpAdmin.getFollowUpMetrics(anterior);
+    expect(Number(followUps.sent)).toBe(1);
+    expect(Number(followUps.opt_outs)).toBe(1);
+  });
+
+  it("«todos» junta los dos meses y no recorta nada", async () => {
+    const metrics = await hubData.getHubMetrics("todos");
+
+    expect(metrics.periodo.clave).toBe("todos");
+    expect(metrics.periodo.todos).toBe(true);
+    expect(metrics.summary.cotizaciones).toBe(3);
+    expect(metrics.summary.vendido).toBe(800);
+    expect(metrics.reachedFinal.total).toBe(2);
+    expect(metrics.discounts.offered).toBe(2);
+
+    const followUps = await followUpAdmin.getFollowUpMetrics("todos");
+    expect(Number(followUps.sent)).toBe(2);
+    expect(Number(followUps.opt_outs)).toBe(2);
+  });
+
+  it("«todos» dibuja la serie desde la primera conversación, no desde 1970", async () => {
+    const metrics = await hubData.getHubMetrics("todos");
+    const primera = metrics.daily[0]?.day ?? "";
+
+    expect(primera.slice(0, 7)).toBe(mesAnterior());
+    expect(metrics.daily.length).toBeLessThan(100);
+  });
+
+  it("un mes ilegible cae al mes en curso en vez de romper la pantalla", async () => {
+    const metrics = await hubData.getHubMetrics("no-es-un-mes");
+    const enCurso = await hubData.getHubMetrics();
+
+    expect(metrics.periodo.clave).toBe(enCurso.periodo.clave);
+  });
+
+  it("el selector ofrece los meses que tienen datos, el más nuevo primero", async () => {
+    const meses = await periodos.mesesConDatos();
+    const claves = meses.map((m) => m.clave);
+    const enCurso = (await hubData.getHubMetrics()).periodo.clave;
+
+    expect(claves[0]).toBe(enCurso);
+    expect(claves).toContain(mesAnterior());
+    expect(claves).toEqual([...claves].sort().reverse());
+  });
+
+  it("el tablero de un mes trae los chats que se movieron en ese mes", async () => {
+    const anterior = mesAnterior();
+    const delMesPasado = await hubData.listHubTickets({ mes: anterior });
+    const nombres = delMesPasado.map((t) => t.nombre);
+
+    expect(nombres).toContain("Vieja");
+    expect(nombres).toContain("Abierto Viejo");
+    expect(nombres).not.toContain("Nueva");
+    expect(nombres).not.toContain("Recién Llegado");
+  });
+
+  it("un chat viejo que sigue hablando este mes cuenta en los dos", async () => {
+    // Nació el mes pasado y escribió hoy: por fecha de creación desaparecería
+    // justo del mes en el que está pasando algo.
+    const [viejo] = await appSql<{ id: number }[]>`
+      select id from conversations where phone = '593000000204'
+    `;
+    await appSql`
+      insert into messages (conversation_id, role, content, direction, author_kind, type, cycle, created_at)
+      values (${viejo.id}, 'user', 'sigo interesado', 'inbound', 'customer', 'text', 1, now())
+    `;
+
+    const enCurso = await hubData.listHubTickets({ mes: (await hubData.getHubMetrics()).periodo.clave });
+    const anterior = await hubData.listHubTickets({ mes: mesAnterior() });
+
+    expect(enCurso.map((t) => t.nombre)).toContain("Abierto Viejo");
+    expect(anterior.map((t) => t.nombre)).toContain("Abierto Viejo");
+  });
+
+  it("«todos» en el tablero no esconde a nadie", async () => {
+    const todos = await hubData.listHubTickets({ mes: "todos" });
+    const sinFiltro = await hubData.listHubTickets();
+
+    expect(todos).toHaveLength(sinFiltro.length);
+    expect(todos.length).toBeGreaterThanOrEqual(4);
+  });
 });
+
+/** "YYYY-MM" del mes anterior al que corre, en hora de Guayaquil. */
+function mesAnterior(): string {
+  const hoy = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Guayaquil",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
+  const [año, mes] = hoy.split("-").map(Number);
+  return mes === 1 ? `${año - 1}-12` : `${año}-${String(mes - 1).padStart(2, "0")}`;
+}
 
 /** Mismo guion dos veces: mes cerrado y mes en curso. */
 async function sembrar(): Promise<void> {

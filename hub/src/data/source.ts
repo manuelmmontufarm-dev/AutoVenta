@@ -1,4 +1,4 @@
-import type { Atiende, Billing, BotAlert, BotPower, Cierre, EchoHealth, Etapa, FeedItem, FinalStage, FollowUpCard, HubMetrics, Mensaje, PhaseFlags, Rol, TemplatePlanPreview, Ticket } from "./types";
+import type { Atiende, Billing, BotAlert, BotPower, Cierre, EchoHealth, Etapa, FeedItem, FinalStage, FollowUpCard, HubMetrics, MesDisponible, Mensaje, PhaseFlags, Rol, TemplatePlanPreview, Ticket } from "./types";
 
 /**
  * El contrato entre la UI y los datos. Parte 1: MockSource (fixtures + simulador).
@@ -14,17 +14,20 @@ export type SourceEvent =
   | { tipo: "celebracion"; ticketId: number };
 
 export interface DataSource {
-  listTickets(): Promise<Ticket[]>;
+  /** `mes` ("YYYY-MM" o "todos") recorta el tablero; sin él, todos los tickets. */
+  listTickets(mes?: string | null): Promise<Ticket[]>;
   /** Un ticket suelto: el listado corta en 500 y los enlaces apuntan más atrás. */
   getTicket(ticketId: number): Promise<Ticket | null>;
   getMensajes(ticketId: number): Promise<Mensaje[]>;
   /** Si las respuestas del asesor desde WhatsApp están entrando al panel. */
   getEchoHealth(): Promise<EchoHealth>;
   getFeed(): Promise<FeedItem[]>;
-  /** Los números del mes en curso: el panel se reinicia el día 1. */
-  getMetrics(): Promise<HubMetrics>;
-  /** Quién llegó a la última columna del tablero, agrupado por día. */
-  getFinalStage(): Promise<FinalStage>;
+  /** Los números del mes pedido; sin `mes`, el mes en curso (el panel se reinicia el día 1). */
+  getMetrics(mes?: string | null): Promise<HubMetrics>;
+  /** Los meses que tienen datos, para el selector del panel. */
+  listPeriods(): Promise<MesDisponible[]>;
+  /** Quién llegó a la última columna del tablero, agrupado por día, en el mes pedido. */
+  getFinalStage(mes?: string | null): Promise<FinalStage>;
   /** Cuenta de tokens y facturación mensual del servicio. */
   getBilling(): Promise<Billing>;
   /** Marca un mes como pagado; solo funciona con la clave de dueño. */

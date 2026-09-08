@@ -2,6 +2,7 @@ import type { DataSource, SourceEvent } from "../source";
 import {
   CIERRE_META,
   ETAPAS,
+  TODOS,
   type Atiende,
   type Billing,
   type Cierre,
@@ -10,6 +11,7 @@ import {
   type Etapa,
   type FeedItem,
   type FinalStage,
+  type MesDisponible,
   type HubMetrics,
   type LocalAsignado,
   type Mensaje,
@@ -70,10 +72,14 @@ export class MockSource implements DataSource {
     return { ...this.power };
   }
 
-  async listTickets(): Promise<Ticket[]> {
-    return [...this.tickets.values()].sort(
-      (a, b) => new Date(b.ultimaActividad).getTime() - new Date(a.ultimaActividad).getTime(),
-    );
+  async listTickets(mes?: string | null): Promise<Ticket[]> {
+    const { desde, hasta, todos } = ventanaDelMes(mes);
+    const dentro = (iso: string) => new Date(iso) >= desde && new Date(iso) < hasta;
+    return [...this.tickets.values()]
+      .filter((t) => !mes || todos || dentro(t.creadoEn) || dentro(t.ultimaActividad))
+      .sort(
+        (a, b) => new Date(b.ultimaActividad).getTime() - new Date(a.ultimaActividad).getTime(),
+      );
   }
 
   async getTicket(ticketId: number): Promise<Ticket | null> {
@@ -99,18 +105,28 @@ export class MockSource implements DataSource {
     return [...this.feed];
   }
 
+  async listPeriods(): Promise<MesDisponible[]> {
+    const meses = new Map<string, number>();
+    for (const ticket of this.tickets.values()) {
+      const clave = ticket.creadoEn.slice(0, 7);
+      meses.set(clave, (meses.get(clave) ?? 0) + 1);
+    }
+    const actual = ventanaDelMes(null).clave;
+    if (!meses.has(actual)) meses.set(actual, 0);
+    return [...meses.entries()]
+      .map(([clave, conversaciones]) => ({ clave, conversaciones }))
+      .sort((a, b) => b.clave.localeCompare(a.clave));
+  }
+
   /**
    * Espeja el corte mensual del backend: el demo también arranca de cero el
-   * día 1, así no enseña una pantalla que el producto real no tiene.
+   * día 1 y entiende el selector de mes, así no enseña una pantalla que el
+   * producto real no tiene.
    */
-  async getMetrics(): Promise<HubMetrics> {
-    const desde = new Date();
-    desde.setDate(1);
-    desde.setHours(0, 0, 0, 0);
-    const hasta = new Date(desde);
-    hasta.setMonth(hasta.getMonth() + 1);
+  async getMetrics(mes?: string | null): Promise<HubMetrics> {
+    const { clave, desde, hasta, todos } = ventanaDelMes(mes);
     const delMes = (iso: string | null | undefined) =>
-      iso != null && new Date(iso) >= desde;
+      iso != null && new Date(iso) >= desde && new Date(iso) < hasta;
 
     const tickets = [...this.tickets.values()];
     const abiertos = tickets.filter((ticket) => ticket.estado === "abierto");
@@ -120,10 +136,15 @@ export class MockSource implements DataSource {
     const ganados = tickets.filter(
       (ticket) => ticket.cierre === "ganado" && delMes(ticket.ultimaActividad),
     );
-    const dias = new Date().getDate(); // del 1 a hoy, ambos incluidos
+    const fin = new Date(Math.min(hasta.getTime(), Date.now()));
+    const inicio = todos ? primerDia(tickets, desde) : desde;
+    const dias = Math.max(
+      1,
+      Math.round((fin.getTime() - inicio.getTime()) / 86_400_000) + 1,
+    );
     const daily = Array.from({ length: dias }, (_, index) => {
-      const day = new Date(desde);
-      day.setDate(desde.getDate() + index);
+      const day = new Date(inicio);
+      day.setDate(inicio.getDate() + index);
       const next = new Date(day);
       next.setDate(next.getDate() + 1);
       return {
@@ -135,7 +156,12 @@ export class MockSource implements DataSource {
       };
     });
     return {
-      periodo: { desde: desde.toISOString(), hasta: hasta.toISOString() },
+      periodo: {
+        clave,
+        desde: desde.toISOString(),
+        hasta: hasta.toISOString(),
+        todos,
+      },
       summary: {
         abiertos: abiertos.length,
         cotizaciones: cotizaciones.length,
@@ -186,7 +212,7 @@ export class MockSource implements DataSource {
    * actividad. Alcanza para ver la forma de la pantalla; el número real sale
    * de `stage_transitions` en el backend.
    */
-  async getFinalStage(): Promise<FinalStage> {
+  async getFinalStage(mes?: string | null): Promise<FinalStage> {
     const llegaron = [...this.tickets.values()].filter(
       (t) => ETAPAS.indexOf(t.etapa) >= ETAPAS.indexOf("seguimiento_venta") || t.cierre === "ganado",
     );
@@ -473,4 +499,50 @@ export class MockSource implements DataSource {
   private emit(ev: SourceEvent): void {
     for (const fn of this.listeners) fn(ev);
   }
+}
+
+/**
+ * La ventana del mes pedido, con el mismo contrato que `resolverPeriodo` del
+ * backend: "YYYY-MM", "todos", o el mes en curso cuando no se pide nada.
+ *
+ * El demo corre en la hora del navegador — no vale la pena traer Guayaquil a
+ * datos inventados, y el corte real lo hace el servidor.
+ */
+function ventanaDelMes(mes?: string | null): {
+  clave: string;
+  desde: Date;
+  hasta: Date;
+  todos: boolean;
+} {
+  if ((mes ?? "").trim().toLowerCase() === TODOS) {
+    return {
+      clave: TODOS,
+      desde: new Date("1970-01-01T00:00:00.000Z"),
+      hasta: new Date("9999-12-31T00:00:00.000Z"),
+      todos: true,
+    };
+  }
+  const hoy = new Date();
+  const pedido = /^\d{4}-(0[1-9]|1[0-2])$/.test(mes ?? "") ? (mes as string) : null;
+  const año = pedido ? Number(pedido.slice(0, 4)) : hoy.getFullYear();
+  const numero = pedido ? Number(pedido.slice(5, 7)) - 1 : hoy.getMonth();
+  const desde = new Date(año, numero, 1);
+  const hasta = new Date(año, numero + 1, 1);
+  return {
+    clave: `${año}-${String(numero + 1).padStart(2, "0")}`,
+    desde,
+    hasta,
+    todos: false,
+  };
+}
+
+/** El día del ticket más viejo: el histórico completo no arranca en 1970. */
+function primerDia(tickets: Ticket[], porDefecto: Date): Date {
+  let menor: Date | null = null;
+  for (const ticket of tickets) {
+    const creado = new Date(ticket.creadoEn);
+    if (!menor || creado < menor) menor = creado;
+  }
+  const dia = menor ?? porDefecto;
+  return new Date(dia.getFullYear(), dia.getMonth(), dia.getDate());
 }

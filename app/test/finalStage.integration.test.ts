@@ -11,6 +11,9 @@ let hubData: typeof import("../src/services/hubData.js");
  * El contador del final del tablero se lee del historial, no del estado actual.
  * Lo que se prueba aquí es justamente lo que el kanban no puede mostrar: el que
  * llegó al final y ya se cerró sigue contando.
+ *
+ * El sembrado es de agosto de 2026 y se pide con "todos" a propósito: sin mes,
+ * la lectura es la del mes en curso, igual que el resto del panel.
  */
 describe.sequential("Contador del final del tablero", () => {
   beforeAll(async () => {
@@ -70,7 +73,7 @@ describe.sequential("Contador del final del tablero", () => {
       values ('593000000103', 'A Medias', 'seleccionando')
     `;
 
-    const resultado = await hubData.getFinalStageArrivals();
+    const resultado = await hubData.getFinalStageArrivals("todos");
 
     expect(resultado.total).toBe(2);
     expect(resultado.ganados).toBe(1);
@@ -94,7 +97,7 @@ describe.sequential("Contador del final del tablero", () => {
       values (${nocturno.id}, 1, 'cotizacion_enviada', 'seguimiento_venta', '2026-08-06T02:30:00Z')
     `;
 
-    const resultado = await hubData.getFinalStageArrivals();
+    const resultado = await hubData.getFinalStageArrivals("todos");
     const dia = resultado.days.find((d) =>
       d.tickets.some((t) => (t as { nombre: string }).nombre === "Noche Guayaquil"),
     );
@@ -116,7 +119,7 @@ describe.sequential("Contador del final del tablero", () => {
         (${rebote.id}, 1, 'cotizacion_enviada', 'seguimiento_venta', '2026-08-04T09:00:00Z')
     `;
 
-    const resultado = await hubData.getFinalStageArrivals();
+    const resultado = await hubData.getFinalStageArrivals("todos");
     const apariciones = resultado.days.flatMap((d) =>
       d.tickets.filter((t) => (t as { nombre: string }).nombre === "Ida Y Vuelta"),
     );
@@ -127,6 +130,15 @@ describe.sequential("Contador del final del tablero", () => {
       d.tickets.some((t) => (t as { nombre: string }).nombre === "Ida Y Vuelta"),
     );
     expect(dia?.day).toBe("2026-08-03");
+  });
+
+  it("sin mes pedido, contesta por el mes en curso y no por el histórico", async () => {
+    // Todo lo sembrado es de agosto de 2026; el panel abre en el mes de hoy.
+    const enCurso = await hubData.getFinalStageArrivals();
+    const todo = await hubData.getFinalStageArrivals("todos");
+
+    expect(todo.total).toBeGreaterThan(0);
+    expect(enCurso.total).toBe(0);
   });
 
   it("un mismo cliente que vuelve a comprar cuenta una vez por ciclo", async () => {
@@ -142,7 +154,7 @@ describe.sequential("Contador del final del tablero", () => {
         (${recurrente.id}, 2, 'cotizacion_enviada', 'seguimiento_venta', '2026-08-02T14:00:00Z')
     `;
 
-    const resultado = await hubData.getFinalStageArrivals();
+    const resultado = await hubData.getFinalStageArrivals("todos");
     const apariciones = resultado.days.flatMap((d) =>
       d.tickets.filter((t) => (t as { nombre: string }).nombre === "Cliente Fiel"),
     );

@@ -275,11 +275,13 @@ export interface FeedItem {
 export interface HubMetrics {
   /**
    * El mes que el panel está mirando. Todo lo que se acumula (cotizaciones,
-   * llegadas al final, piezas, seguimientos, descuentos) cuenta desde `desde`:
-   * el tablero arranca de cero cada mes. La base guarda el histórico completo —
-   * esto es hasta dónde mira la pantalla, no lo que se borra.
+   * llegadas al final, piezas, seguimientos, descuentos) cuenta dentro de esa
+   * ventana: el tablero arranca de cero cada mes. La base guarda el histórico
+   * completo — esto es hasta dónde mira la pantalla, no lo que se borra.
+   *
+   * `clave` es "YYYY-MM", o `todos` cuando el usuario pidió ver todo.
    */
-  periodo?: { desde: string; hasta: string };
+  periodo?: { clave: string; desde: string; hasta: string; todos: boolean };
   summary: {
     abiertos: number;
     cotizaciones: number;
@@ -347,6 +349,17 @@ export interface HubMetrics {
     avg_response_seconds: number | null;
     byStageAndType: Array<{ stage: string; type: string; total: number; sent: number }>;
   };
+}
+
+/** Clave del período que significa "sin recorte": todo el histórico. */
+export const TODOS = "todos";
+
+/** Un mes que tiene algo que mostrar, para el selector del panel. */
+export interface MesDisponible {
+  /** "YYYY-MM". */
+  clave: string;
+  /** Conversaciones que empezaron ese mes. */
+  conversaciones: number;
 }
 
 /** Los 2 locales reales (PROYECTO.md §11 + app/src/config.ts). */

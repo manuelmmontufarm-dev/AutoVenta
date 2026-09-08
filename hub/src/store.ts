@@ -1,5 +1,6 @@
 import { create } from "zustand";
-import type { Atiende, BotAlert, BotPower, Cierre, EchoHealth, Etapa, FeedItem, FinalStage, FollowUpCard, HubMetrics, Mensaje, PhaseFlags, Rol, TemplatePlanPreview, Ticket } from "./data/types";
+import type { Atiende, BotAlert, BotPower, Cierre, EchoHealth, Etapa, FeedItem, FinalStage, FollowUpCard, HubMetrics, MesDisponible, Mensaje, PhaseFlags, Rol, TemplatePlanPreview, Ticket } from "./data/types";
+import { TODOS } from "./data/types";
 import { MockSource } from "./data/mock/mockSource";
 import { Simulator } from "./data/mock/simulator";
 import {
@@ -59,6 +60,23 @@ interface HubState {
   typing: Record<number, Rol | null>;
   feed: FeedItem[];
   metrics: HubMetrics | null;
+  /**
+   * El mes que está mirando el panel: "YYYY-MM" o `todos`. Vive en el store
+   * porque KPIs y kanban tienen que hablar del MISMO mes — dos pantallas con
+   * ventanas distintas serían dos verdades sobre el mismo negocio.
+   */
+  mes: string;
+  /** Los meses que tienen datos, para el selector. Más nuevo primero. */
+  mesesDisponibles: MesDisponible[];
+  /**
+   * Los tickets del mes elegido, cuando hace falta pedirlos aparte.
+   *
+   * null = alcanza con `tickets`: para el mes en curso y para `todos`, el
+   * listado normal ya los trae y filtrarlo en el navegador da lo mismo. Solo un
+   * mes PASADO necesita su propia consulta, porque el listado corta en 500 y lo
+   * viejo se cae del lote.
+   */
+  ticketsDelMes: Ticket[] | null;
   /** Quién llegó al final del tablero, por día. null mientras no ha cargado. */
   finalStage: FinalStage | null;
   /** ¿Entran al panel las respuestas que un asesor escribe desde su WhatsApp? */
@@ -88,6 +106,8 @@ interface HubState {
   permisos: Permisos;
 
   init(): Promise<void>;
+  /** Cambia el mes que miran los KPIs y el kanban. */
+  verMes(mes: string): Promise<void>;
   salir(): void;
   abrirTicket(id: number): Promise<void>;
   moverEtapa(id: number, etapa: Etapa): Promise<void>;
@@ -143,6 +163,34 @@ function recordarPhases(phases: PhaseFlags): void {
   } catch {
     // Modo privado o storage lleno: se sigue sin memoria, no es fatal.
   }
+}
+
+/**
+ * "YYYY-MM" del mes que corre en Guayaquil — el mismo corte que hace el
+ * servidor. Se calcula en el reloj del negocio, no en el del navegador: un
+ * asesor con el celular en otra zona horaria tiene que ver el mismo mes que el
+ * local, sobre todo las cinco horas del último día en que las dos fechas no
+ * coinciden.
+ */
+export function mesEnCurso(): string {
+  const partes = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Guayaquil",
+    year: "numeric",
+    month: "2-digit",
+  }).formatToParts(new Date());
+  const valor = (tipo: string) => partes.find((p) => p.type === tipo)?.value ?? "";
+  return `${valor("year")}-${valor("month")}`;
+}
+
+/**
+ * ¿Hace falta pedirle al servidor los tickets de este mes?
+ *
+ * Solo para un mes PASADO. El mes en curso y `todos` ya vienen en el listado
+ * normal —y filtrarlo en el navegador da el mismo resultado—, así que pedir
+ * otras 500 filas en cada sincronización sería tráfico sin dato nuevo.
+ */
+function mesesPasados(mes: string): boolean {
+  return mes !== TODOS && mes !== mesEnCurso();
 }
 
 /** Un fallo de lectura es "clave mala" o "servidor caído" — nunca silencio. */
@@ -202,20 +250,41 @@ export const useHub = create<HubState>((set, get) => {
     if (claveMala || todasFallaron) return;
 
     // Lo secundario llena la pantalla cuando pueda; que falle no rompe nada.
+    // Todo lo que mira el mes va con el MISMO valor: si el usuario cambia de mes
+    // mientras esto viaja, el `set` de abajo lo descarta en vez de dejar mitad
+    // de la pantalla en septiembre y mitad en agosto.
+    const mes = get().mes;
     const extras = await Promise.allSettled([
       source.getFeed(),
-      source.getMetrics(),
-      source.getFinalStage(),
+      source.getMetrics(mes),
+      source.getFinalStage(mes),
       source.listFollowUps(),
       source.listAlerts(),
+      source.listPeriods(),
+      mesesPasados(mes) ? source.listTickets(mes) : Promise.resolve(null),
     ]);
+    if (get().mes !== mes) return;
     const resto: Partial<HubState> = {};
     if (extras[0].status === "fulfilled") resto.feed = extras[0].value;
     if (extras[1].status === "fulfilled") resto.metrics = extras[1].value;
     if (extras[2].status === "fulfilled") resto.finalStage = extras[2].value;
     if (extras[3].status === "fulfilled") resto.followUps = extras[3].value;
     if (extras[4].status === "fulfilled") resto.alerts = extras[4].value;
+    if (extras[5].status === "fulfilled") resto.mesesDisponibles = extras[5].value;
+    if (extras[6].status === "fulfilled") resto.ticketsDelMes = extras[6].value;
     set(resto);
+  }
+
+  /**
+   * Cambiar de mes tiene que sentirse inmediato: el mes nuevo se pinta ya, y
+   * los datos viejos se van en cuanto llegan los del mes pedido. Dejar los
+   * números del mes anterior mientras carga sería enseñar agosto con el rótulo
+   * de septiembre.
+   */
+  async function verMes(mes: string): Promise<void> {
+    if (get().mes === mes) return;
+    set({ mes, metrics: null, finalStage: null, ticketsDelMes: null });
+    await refrescar();
   }
 
   async function refrescarMensajes(ticketId: number): Promise<void> {
@@ -267,6 +336,9 @@ export const useHub = create<HubState>((set, get) => {
     typing: {},
     feed: [],
     metrics: null,
+    mes: mesEnCurso(),
+    mesesDisponibles: [],
+    ticketsDelMes: null,
     finalStage: null,
     echoHealth: null,
     followUps: [],
@@ -286,6 +358,9 @@ export const useHub = create<HubState>((set, get) => {
 
     /** Recarga tickets y métricas. La usa el Pipeline tras poner el tablero al día. */
     refrescar,
+
+    /** Cambia el mes que miran los KPIs y el kanban. */
+    verMes,
 
     /**
      * Arranque. `refrescar` ya trae lo crítico primero y tolera caídas

@@ -62,6 +62,7 @@ import {
   logQuoteArtifact,
 } from "../services/conversations.js";
 import { getFinalStageArrivals, getHubFeed, getHubMessages, getHubMetrics, getHubTicket, listHubTickets } from "../services/hubData.js";
+import { mesesConDatos } from "../services/periodoMensual.js";
 import { getEchoHealth } from "../services/echoHealth.js";
 import { marcarPagado, resumenBilling } from "../services/billing.js";
 import { buildDailyReport } from "../services/dailyReport.js";
@@ -606,8 +607,16 @@ export function createAdminRouter(): express.Router {
   });
 
   // ── Producto real: Hub ─────────────────────────────────────────────────────
-  router.get("/hub/tickets", async (_req, res) => {
-    res.json({ ok: true, tickets: await listHubTickets() });
+  // `mes` ("YYYY-MM" o "todos") recorta el tablero al mes que el panel está
+  // mirando. Sin el parámetro, todo: el Inbox es la cola viva y no se recorta.
+  router.get("/hub/tickets", async (req, res) => {
+    const mes = typeof req.query.mes === "string" ? req.query.mes : null;
+    res.json({ ok: true, tickets: await listHubTickets({ mes }) });
+  });
+
+  // Los meses que tienen algo que mostrar, para el selector del panel.
+  router.get("/hub/periods", async (_req, res) => {
+    res.json({ ok: true, periods: await mesesConDatos() });
   });
 
   // Un ticket suelto: el listado corta en 500 y los enlaces del feed o del
@@ -634,15 +643,17 @@ export function createAdminRouter(): express.Router {
     res.json({ ok: true, feed: await getHubFeed() });
   });
 
-  // Siempre el mes en curso: el panel se reinicia el día 1 y no acepta ventana
-  // por parámetro (dos pestañas con rangos distintos no son el mismo tablero).
-  router.get("/hub/metrics", async (_req, res) => {
+  // Sin `mes`, el mes en curso: el panel arranca de cero el día 1. Con `mes`
+  // ("YYYY-MM" o "todos") el usuario mueve esa ventana desde el selector. El
+  // mismo valor va a las dos lecturas para que ningún número quede en otro mes.
+  router.get("/hub/metrics", async (req, res) => {
+    const mes = typeof req.query.mes === "string" ? req.query.mes : null;
     res.json({
       ok: true,
       metrics: {
-        ...(await getHubMetrics()),
+        ...(await getHubMetrics(mes)),
         inventory: catalogInventoryMetrics(),
-        followUps: await getFollowUpMetrics(),
+        followUps: await getFollowUpMetrics(mes),
       },
     });
   });
@@ -687,8 +698,9 @@ export function createAdminRouter(): express.Router {
     res.json({ ok: true, echoHealth: await getEchoHealth() });
   });
 
-  router.get("/hub/final-stage", async (_req, res) => {
-    res.json({ ok: true, finalStage: await getFinalStageArrivals() });
+  router.get("/hub/final-stage", async (req, res) => {
+    const mes = typeof req.query.mes === "string" ? req.query.mes : null;
+    res.json({ ok: true, finalStage: await getFinalStageArrivals(mes) });
   });
 
   router.get("/catalog/media-report", async (_req, res) => {

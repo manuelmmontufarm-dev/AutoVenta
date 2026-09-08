@@ -13,9 +13,10 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useMemo, useState } from "react";
 import { FunnelChart } from "../components/charts";
 import { IconAlert, IconAuto, IconBandera, IconCalendario, IconCandado, IconChevronR, IconClock, IconUser } from "../components/icons";
+import { SelectorDeMes, etiquetaDeMes } from "../components/mes";
 import { Avatar, EmptyState, Segmented } from "../components/ui";
 import { authHeaders } from "../data/realSource";
-import { CIERRE_META, ETAPAS, ETAPA_META, type Etapa, type FinalStage, type FollowUpBucket, type FollowUpCard, type Ticket } from "../data/types";
+import { CIERRE_META, ETAPAS, ETAPA_META, TODOS, type Etapa, type FinalStage, type FollowUpBucket, type FollowUpCard, type Ticket } from "../data/types";
 import { etiquetaVisita, money, moneyCompact, relTime } from "../lib/format";
 import { navigate } from "../router";
 import { useHub, useNow } from "../store";
@@ -703,6 +704,9 @@ function MoverSheet({ ticket, onMover, onCerrarTicket, onCancelar }: {
 
 export function Pipeline() {
   const { tickets, moverEtapa, metrics, refrescar, finalStage } = useHub();
+  const mes = useHub((s) => s.mes);
+  const ticketsDelMes = useHub((s) => s.ticketsDelMes);
+  const verMes = useHub((s) => s.verMes);
   const now = useNow();
   const movil = useEsMovil();
   const [vista, setVista] = useState<"kanban" | "embudo">("kanban");
@@ -714,7 +718,34 @@ export function Pipeline() {
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
 
-  const abiertos = tickets.filter((t) => t.estado === "abierto");
+  /**
+   * El tablero del mes elegido.
+   *
+   * Un mes PASADO llega ya filtrado del servidor (`ticketsDelMes`): el listado
+   * corta en 500 y lo viejo se cae del lote. El mes en curso y `todos` se
+   * resuelven acá, con lo que ya está en memoria — para el mes que corre,
+   * "nació o habló este mes" es exactamente lo que dice `ultimaActividad`, y
+   * pedir otras 500 filas en cada sincronización sería tráfico sin dato nuevo.
+   */
+  const delMes = useMemo(() => {
+    if (ticketsDelMes) return ticketsDelMes;
+    if (mes === TODOS) return tickets;
+    const [año, numero] = mes.split("-").map(Number);
+    const desde = new Date(año, numero - 1, 1).getTime();
+    const hasta = new Date(año, numero, 1).getTime();
+    const dentro = (iso: string) => {
+      const t = Date.parse(iso);
+      return t >= desde && t < hasta;
+    };
+    return tickets.filter((t) => dentro(t.creadoEn) || dentro(t.ultimaActividad));
+  }, [tickets, ticketsDelMes, mes]);
+
+  const abiertos = delMes.filter((t) => t.estado === "abierto");
+  // Trabajo vivo que el filtro está tapando. Un ticket abierto que no se movió
+  // este mes sigue siendo una venta a medias: el tablero no lo muestra, pero
+  // no puede callarlo — por eso el número, con la salida al lado.
+  const abiertosOcultos =
+    mes === TODOS ? 0 : tickets.filter((t) => t.estado === "abierto").length - abiertos.length;
 
   // La ventana de 24 h de WhatsApp parte el tablero en dos mundos distintos:
   // dentro, el bot todavía puede contestar texto libre; fuera, Meta lo prohíbe
@@ -786,21 +817,34 @@ export function Pipeline() {
   return (
     <div className="flex h-full flex-col">
       <div className="flex flex-wrap items-center justify-between gap-2.5 px-4 pt-1 pb-3">
-        <Segmented
-          id="pipeline"
-          valor={vista}
-          onChange={setVista}
-          opciones={[
-            { valor: "kanban", label: "Kanban" },
-            { valor: "embudo", label: "Embudo" },
-          ]}
-        />
+        <div className="flex flex-wrap items-center gap-2.5">
+          <Segmented
+            id="pipeline"
+            valor={vista}
+            onChange={setVista}
+            opciones={[
+              { valor: "kanban", label: "Kanban" },
+              { valor: "embudo", label: "Embudo" },
+            ]}
+          />
+          <SelectorDeMes />
+        </div>
         <div className="flex flex-wrap items-center gap-3">
           <AccionesPuestaAlDia onListo={() => void refrescar()} />
           <p className="text-xs text-muted">
             <span className="tnum font-bold text-lime">{money(potencialTotal)}</span> en juego ·{" "}
             <span className="tnum font-bold text-paper">{abiertos.length}</span> tickets abiertos
+            {mes !== TODOS && <> {etiquetaDeMes(mes, { corta: true })}</>}
           </p>
+          {abiertosOcultos > 0 && (
+            <button
+              onClick={() => void verMes(TODOS)}
+              className="rounded-full border border-paper/[.1] bg-paper/[.04] px-3 py-1 text-[10.5px] text-muted transition-colors hover:text-paper"
+              title="El filtro de mes los está escondiendo; siguen abiertos."
+            >
+              +{abiertosOcultos} abiertos de otros meses · ver todos
+            </button>
+          )}
         </div>
       </div>
 
@@ -844,7 +888,9 @@ export function Pipeline() {
       ) : (
         <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-6">
           <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="glass max-w-2xl rounded-3xl p-6">
-            <p className="microlabel mb-4">Embudo del mes — conversión etapa a etapa</p>
+            <p className="microlabel mb-4">
+              Embudo {mes === TODOS ? "del histórico" : `de ${etiquetaDeMes(mes)}`} — conversión etapa a etapa
+            </p>
             <FunnelChart pasos={embudo} />
             {embudo[0].valor === 0 && <EmptyState titulo="Aún no hay datos del embudo" />}
           </motion.div>
