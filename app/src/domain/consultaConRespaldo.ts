@@ -1,3 +1,4 @@
+import { aroEnTexto } from "./medidaConfirmada.js";
 /**
  * Dos preguntas del cliente que el modelo contesta mal cuando se le deja solo,
  * detectadas de forma determinística para inyectarle la instrucción como hecho.
@@ -180,10 +181,9 @@ export function ordenDeRecotizarCantidad(cantidad: number): string {
  * completa en el mismo mensaje (ahí manda la medida).
  */
 export function aroPedido(texto: string): number | null {
-  const n = normalizar(texto);
-  if (/\b\d{3}\s*[\/x-]\s*\d{2}\b|\b\d{3}\/\d{2}r\d{2}\b/.test(n)) return null; // trae medida completa
-  const m = n.match(/\b(?:rin(?:es)?|aro(?:s)?|ring)\s*(1[2-9]|2[0-4])\b/);
-  return m ? Number(m[1]) : null;
+  // Un solo detector para todo el bot (domain/medidaConfirmada.aroEnTexto):
+  // «ron 15», «r15», «aro de 15» también son el aro (conv 3, 8-sep).
+  return aroEnTexto(texto);
 }
 
 /**

@@ -4,7 +4,7 @@
  * una respuesta final para WhatsApp.
  */
 import OpenAI from "openai";
-import { aroDadoPorElCliente, medidaConfirmadaPorCliente } from "../domain/medidaConfirmada.js";
+import { aroDadoPorElCliente, aroRespondido, medidaConfirmadaPorCliente } from "../domain/medidaConfirmada.js";
 import { eleccionDeLaVitrina, type OpcionDeVitrina } from "../domain/eleccionDeVitrina.js";
 import { pideTelefono } from "../domain/ubicacionPedida.js";
 import type { ChatCompletionMessageParam, ChatCompletionTool } from "openai/resources/chat/completions";
@@ -462,7 +462,7 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
   //    EXACTA» a quien había pedido aro 15 (producción, 31-ago 14:02).
   //    Se olvida la medida vieja AQUÍ, antes de armar el prompt, para que este
   //    mismo turno ya no la vea.
-  const aroCrudo = aroPedido(userText);
+  const aroCrudo = aroPedido(userText) ?? aroRespondido(userText, textoUltimoDelBot);
   const aroDeLaFicha = aroDeLaMedida(salesFacts.tireSize);
   const cambioDeAro = aroCrudo !== null && aroDeLaFicha !== null && aroCrudo !== aroDeLaFicha;
   if (cambioDeAro) {

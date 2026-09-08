@@ -80,6 +80,7 @@ import { extractExplicitStore, preguntamosElLocal } from "./domain/storeSelectio
 import { tryDirectSalesRoute } from "./services/directSalesRoutes.js";
 import { tryRutaOtroDia } from "./services/rutaOtroDia.js";
 import { tryCotizarLoElegido } from "./services/cotizarLoElegido.js";
+import { tryMostrarPorAro } from "./services/mostrarPorAro.js";
 import { tryRecotizarPorCantidad } from "./services/recotizar.js";
 import { tryRecomendarConLaPieza } from "./services/recomendarConLaPieza.js";
 import { firstContactReply, isGenericFirstContact } from "./domain/firstContact.js";
@@ -360,6 +361,15 @@ const pipeline = new InboundPipeline(async ({ from, name, text, waMessageIds, qu
         )
         // «Otro día» → «¿qué día le queda bien?», siempre y sin modelo (7-sep).
         ?? await tryRutaOtroDia(conversation, textoConLinks)
+        // Solo el aro → la lámina de ese aro, sin modelo (8-sep). Ver services/mostrarPorAro.ts.
+        ?? await tryMostrarPorAro({ conversation, customerPhone: from, customerName: name, previousOutbound }, textoConLinks)
+          .then((lamina) => {
+            // La lámina recién salió: el turno está en «mostrar», no en cierre.
+            // Sin esto, el candado del final leía la pieza como compromiso y
+            // pegaba «¿a cuál local?» detrás del menú (simulador, 8-sep).
+            if (lamina) agentContext.faseOperativa = "medida_confirmada";
+            return lamina;
+          })
         ?? await tryDirectSalesRoute(
           { conversation, customerPhone: from, explicitStore, commitment },
           textoConLinks,

@@ -1,3 +1,35 @@
+## 8-sep-2026 · El aro alcanza: la lámina sale sola, con cualquier forma de decir el aro
+
+**Qué:** (1) Un solo detector de aro para todo el bot, `aroEnTexto` en
+`domain/medidaConfirmada.ts` (`aroPedido` y `aroDadoPorElCliente` lo usan):
+lee «ron 15», «rim 16», «aro de 15», «r15», «R 18», «15 pulgadas», «arillo
+14»; y `aroRespondido` lee el número seco («15») cuando lo último que dijimos
+preguntaba el aro o la medida. (2) `services/mostrarPorAro.ts`, ruta
+determinística antes del agente: con un aro recién dado, sin medida completa
+ni lámina en el ciclo, corre `buscar_por_aro_y_tipo` + `preparar_opciones`
+(las mismas herramientas del agente, con sus candados de tipo, anchos
+rechazados y aro) y manda la lámina con el menú; marca el turno como
+`medida_confirmada` para que el candado del cierre no pegue «¿a cuál local?»
+detrás del menú. (3) `guia_medida` se niega cuando el cliente ya dio el aro y
+todavía no vio opciones: la guía no reemplaza la lámina. Pruebas:
+`aroAlcanza.test.ts` (20 casos, en rojo primero).
+
+**Por qué:** Manuel, 8-sep 14:48 (conv 3): «Una llanta ron 15» → una sola
+llamada, `guia_medida`, con el pie «usted ya nos dijo aro 15: con eso
+cotizamos» y el texto «confírmeme la medida completa». Ni una llanta en
+pantalla, y el guardián aprobó. El detector solo leía rin/aro/ring, así que
+para el código no había aro; sin la orden de buscar por aro, el modelo eligió
+la guía. El arreglo del 7-sep («elegir es cotizar») empieza cuando ya hay
+lámina; este caso moría antes. Igual que ayer: el paso que tiene que pasar sí
+o sí —aro → opciones— deja de depender del modelo. Probado en el simulador:
+«Una llanta ron 15» → presentación + lámina de aro 15 + menú, por la ruta
+`mostrar_por_aro`; «deme la premium» / «2» → cotización por
+`cotizar_lo_elegido`; «hola» → «¿Qué medida usa?» → «15» → lámina de aro 15.
+En la primera corrida la lámina salió con «¿a cuál local?» pegado: la fase del
+turno no llegaba al candado del cierre.
+
+**Horas:** 1.5
+
 ## 8-sep-2026 · El dashboard arranca de cero cada mes
 
 **Qué:** Todo lo que el panel acumula se lee ahora desde el día 1 del mes:
@@ -806,6 +838,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-09-08 | _(este mismo)_ | El aro alcanza: detector ancho, lámina por ruta directa, la guía no reemplaza opciones | 1.5 |
 | 2026-09-07 | _(este mismo)_ | Elegir es cotizar (aro incluido), «otro día» pregunta el día, la lámina no se reenvía por una pregunta | 3.5 |
 | 2026-09-07 | _(este mismo)_ | El opt-out no prohíbe contestar; el /restart olvida la baja | 0.75 |
 | 2026-09-06 | _(este mismo)_ | Familias E, F, G y H: ubicación y teléfono, origen y direcciones como hechos, fechas en excusas, menú repetido, rescate en horario, acuse no reabre | 3.5 |

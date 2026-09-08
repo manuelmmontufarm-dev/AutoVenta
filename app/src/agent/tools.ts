@@ -1041,6 +1041,29 @@ export function buildTools(ctx: AgentContext) {
           and metadata->>'piece'='medida_guide'
         limit 1
       `;
+      // CON EL ARO YA DICHO, LA GUÍA NO REEMPLAZA LAS OPCIONES (conv 3,
+      // 8-sep): «Una llanta ron 15» → guía + «confírmeme la medida completa»,
+      // sin una sola llanta en pantalla. El aro alcanza para mostrar.
+      const aroDelCiclo = aro ?? aroDadoPorElCliente(
+        (await sql<{ content: string }[]>`
+          select content from messages
+          where conversation_id=${ctx.conversation.id} and cycle=${ctx.conversation.current_cycle} and direction='inbound'
+          order by created_at asc
+        `).map((m) => m.content),
+      );
+      if (aroDelCiclo && !lo_pidio_el_cliente) {
+        const [opcionesPrevias] = await sql<{ id: number }[]>`
+          select id from messages
+          where conversation_id=${ctx.conversation.id} and cycle=${ctx.conversation.current_cycle}
+            and metadata->>'piece'='options'
+          limit 1
+        `;
+        if (!opcionesPrevias) {
+          return JSON.stringify({
+            error: `El cliente YA dio el aro (${aroDelCiclo}) y todavía no vio ninguna opción: la guía de medida no reemplaza las opciones. Llama buscar_por_aro_y_tipo con aro ${aroDelCiclo} y muéstralas con preparar_opciones; la medida completa se afina después, si hace falta.`,
+          });
+        }
+      }
       if (previa && !lo_pidio_el_cliente) {
         return JSON.stringify({
           error:
