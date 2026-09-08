@@ -273,6 +273,13 @@ export interface FeedItem {
 }
 
 export interface HubMetrics {
+  /**
+   * El mes que el panel está mirando. Todo lo que se acumula (cotizaciones,
+   * llegadas al final, piezas, seguimientos, descuentos) cuenta desde `desde`:
+   * el tablero arranca de cero cada mes. La base guarda el histórico completo —
+   * esto es hasta dónde mira la pantalla, no lo que se borra.
+   */
+  periodo?: { desde: string; hasta: string };
   summary: {
     abiertos: number;
     cotizaciones: number;
@@ -298,8 +305,8 @@ export interface HubMetrics {
    * sistema mide de verdad: cuántos tickets llegaron a coordinar la visita.
    */
   reachedFinal?: {
+    /** Llegadas del mes en curso. */
     total: number;
-    esteMes: number;
     cotizados: number;
     cotizadosQueLlegaron: number;
     /** cotizadosQueLlegaron / cotizados, entre 0 y 1. */

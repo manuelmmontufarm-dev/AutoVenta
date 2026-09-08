@@ -21,7 +21,8 @@ export interface DataSource {
   /** Si las respuestas del asesor desde WhatsApp están entrando al panel. */
   getEchoHealth(): Promise<EchoHealth>;
   getFeed(): Promise<FeedItem[]>;
-  getMetrics(days?: number): Promise<HubMetrics>;
+  /** Los números del mes en curso: el panel se reinicia el día 1. */
+  getMetrics(): Promise<HubMetrics>;
   /** Quién llegó a la última columna del tablero, agrupado por día. */
   getFinalStage(): Promise<FinalStage>;
   /** Cuenta de tokens y facturación mensual del servicio. */

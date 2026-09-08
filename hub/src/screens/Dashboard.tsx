@@ -11,15 +11,37 @@ export function Dashboard() {
   const { tickets, feed, metrics } = useHub();
   const now = useNow();
 
+  // El mes que se está mirando. Lo manda el servidor (cortado en hora de
+  // Guayaquil); si todavía no llegó, el día 1 del navegador alcanza para el
+  // respaldo local.
+  const periodo = useMemo(() => {
+    const desde = metrics?.periodo?.desde
+      ? new Date(metrics.periodo.desde)
+      : inicioDeMesLocal();
+    const hasta = metrics?.periodo?.hasta
+      ? new Date(metrics.periodo.hasta)
+      : new Date(desde.getFullYear(), desde.getMonth() + 1, 1);
+    return { desde, hasta, mes: nombreDeMes(desde), proximo: nombreDeMes(hasta) };
+  }, [metrics]);
+
   const stats = useMemo(() => {
+    const delMes = (iso: string | null | undefined) =>
+      iso != null && new Date(iso) >= periodo.desde;
     const abiertos = tickets.filter((t) => t.estado === "abierto");
-    const conCotizacion = tickets.filter((t) => t.cotizacion);
-    const ganados = tickets.filter((t) => t.cierre === "ganado");
+    // Los contadores del mes se filtran también en el respaldo local: si el
+    // panel se queda sin `metrics`, tiene que seguir contando lo mismo que
+    // cuando sí llegan — no volver al total desde que el bot existe.
+    const conCotizacion = tickets.filter((t) => t.cotizacion && delMes(t.creadoEn));
+    const ganados = tickets.filter(
+      (t) => t.cierre === "ganado" && delMes(t.ultimaActividad),
+    );
     // El respaldo local solo ve la etapa de HOY: el ticket que llegó al final y
     // se cerró ya no cuenta. Por eso manda `metrics.reachedFinal`, que lo lee
     // del historial de etapas y sí incluye a los cerrados.
     const llegaronVisita = tickets.filter(
-      (t) => t.cierre === "ganado" || t.etapa === "seguimiento_venta",
+      (t) =>
+        (t.cierre === "ganado" || t.etapa === "seguimiento_venta") &&
+        delMes(t.ultimaActividad),
     );
     const conversion = metrics?.reachedFinal
       ? Math.round(metrics.reachedFinal.ratio * 100)
@@ -36,7 +58,7 @@ export function Dashboard() {
       enJuego: metrics?.summary.enJuego ?? enJuego,
       vendido: metrics?.summary.vendido ?? vendido,
     };
-  }, [tickets, metrics]);
+  }, [tickets, metrics, periodo]);
 
   const embudo = useMemo(() => {
     if (metrics?.funnel?.length) {
@@ -46,18 +68,22 @@ export function Dashboard() {
         { label: "Ganado", valor: byStage.get("ganado") ?? 0, color: CIERRE_META.ganado.color },
       ];
     }
+    const delMes = tickets.filter((t) => new Date(t.creadoEn) >= periodo.desde);
     const alcanza = (idx: number) =>
-      tickets.filter((t) =>
+      delMes.filter((t) =>
         t.cierre === "ganado" ? true : ETAPAS.indexOf(t.etapa) >= idx,
       ).length;
     return [
       ...ETAPAS.map((e, i) => ({ label: ETAPA_META[e].nombre, valor: alcanza(i), color: ETAPA_META[e].color })),
-      { label: "Ganado", valor: tickets.filter((t) => t.cierre === "ganado").length, color: CIERRE_META.ganado.color },
+      { label: "Ganado", valor: delMes.filter((t) => t.cierre === "ganado").length, color: CIERRE_META.ganado.color },
     ];
-  }, [tickets, metrics]);
+  }, [tickets, metrics, periodo]);
 
+  // Un punto por día del mes, del 1 a hoy: el día 1 es una sola barra.
   const serie = useMemo(
-    () => metrics?.daily.map((item) => item.value) ?? Array.from({ length: 14 }, () => 0),
+    () =>
+      metrics?.daily.map((item) => item.value) ??
+      Array.from({ length: new Date().getDate() }, () => 0),
     [metrics],
   );
   const piezasFallidas = (metrics?.visualPieces ?? []).reduce((total, p) => total + p.failed, 0);
@@ -67,17 +93,33 @@ export function Dashboard() {
 
   return (
     <div className="h-full overflow-y-auto px-4 pb-8">
+      {/* Qué mes se está mirando. Un contador que vuelve a cero sin avisar se
+          lee como datos perdidos; dicho en voz alta, se lee como un mes nuevo. */}
+      <motion.div
+        initial={{ opacity: 0, y: -8 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="mb-2.5 flex flex-wrap items-baseline justify-between gap-2 rounded-2xl border border-paper/[.07] bg-paper/[.03] px-4 py-2.5"
+      >
+        <p className="microlabel">
+          Resultados de <span className="text-paper">{periodo.mes}</span>
+        </p>
+        <p className="text-[10.5px] text-faint">
+          Los contadores arrancan de cero el día 1 y vuelven a empezar en {periodo.proximo}.
+          Nada se borra: el histórico completo queda guardado.
+        </p>
+      </motion.div>
+
       {/* KPIs */}
       <div className="grid grid-cols-2 gap-2.5 lg:grid-cols-5">
         <StatTile label="Tickets abiertos" valor={stats.abiertos} detalle="conversaciones activas ahora" delay={0} sparkline={serie} />
-        <StatTile label="Cotizaciones enviadas" valor={stats.cotizaciones} detalle="PDF generados este mes" delay={0.06} />
+        <StatTile label="Cotizaciones enviadas" valor={stats.cotizaciones} detalle={`PDF generados en ${periodo.mes}`} delay={0.06} />
         <StatTile
           label="Llegan a seguimiento"
           valor={stats.llegaron}
           color="var(--etapa-visita)"
           detalle={
             metrics?.reachedFinal
-              ? `${metrics.reachedFinal.esteMes} este mes · ${metrics.reachedFinal.abiertosAhora} abiertos hoy`
+              ? `este mes · ${metrics.reachedFinal.abiertosAhora} esperando la visita hoy`
               : "tickets que llegaron a la última columna"
           }
           delay={0.12}
@@ -87,7 +129,7 @@ export function Dashboard() {
           valor={stats.conversion}
           formato={(n) => `${Math.round(n)}%`}
           color="var(--color-lime)"
-          detalle="de cada cotización enviada"
+          detalle="de cada cotización enviada este mes"
           progress={stats.conversion}
           delay={0.18}
         />
@@ -96,7 +138,7 @@ export function Dashboard() {
           valor={metrics?.summary.primeraRespuestaSegundos ?? 0}
           formato={(n) => (n > 0 ? `${Math.round(n)} s` : "—")}
           color="var(--color-ok)"
-          detalle="mediana real de primera respuesta"
+          detalle="mediana real de primera respuesta, este mes"
           delay={0.24}
         />
       </div>
@@ -112,14 +154,14 @@ export function Dashboard() {
               La venta se cierra en el local y no vuelve al sistema, así que no se puede medir.
               Lo que sí se mide es cuántos tickets llegan a <b>Seguimiento hasta venta</b>: cotizados,
               con local y con la visita en conversación. Es el último punto que el bot controla.
+              Todo lo de abajo cuenta desde el día 1 de {periodo.mes}.
             </p>
           </div>
-          <div className="grid grid-cols-2 gap-2.5 md:grid-cols-3 xl:grid-cols-5">
+          <div className="grid grid-cols-2 gap-2.5 md:grid-cols-4">
             {[
-              { label: "Llegaron al final", value: String(metrics.reachedFinal.total), detail: "en todo el histórico", color: "var(--etapa-visita)" },
-              { label: "Este mes", value: String(metrics.reachedFinal.esteMes), detail: "llegadas desde el día 1", color: "var(--color-paper)" },
+              { label: "Llegaron al final", value: String(metrics.reachedFinal.total), detail: `llegadas de ${periodo.mes}`, color: "var(--etapa-visita)" },
               { label: "De los cotizados", value: `${Math.round(metrics.reachedFinal.ratio * 100)}%`, detail: `${metrics.reachedFinal.cotizadosQueLlegaron} de ${metrics.reachedFinal.cotizados} cotizaciones`, color: "var(--color-lime)" },
-              { label: "Abiertos ahora", value: String(metrics.reachedFinal.abiertosAhora), detail: "esperando la visita", color: "var(--color-warn)" },
+              { label: "Abiertos ahora", value: String(metrics.reachedFinal.abiertosAhora), detail: "esperando la visita — no se reinicia", color: "var(--color-warn)" },
               { label: "Confirmados como venta", value: String(metrics.reachedFinal.ganados), detail: "solo los que alguien marcó a mano", color: "var(--color-ok)" },
             ].map((item) => (
               <div key={item.label} className="rounded-2xl border border-paper/[.07] bg-paper/[.035] p-4">
@@ -139,7 +181,7 @@ export function Dashboard() {
       {replyHours.length > 0 && (
         <motion.section initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="glass mt-2.5 rounded-3xl p-5">
           <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
-            <div><p className="microlabel">¿A qué hora contestan más?</p><p className="mt-1 text-[10.5px] text-faint">Respuestas reales de clientes durante los últimos 90 días · hora de Guayaquil</p></div>
+            <div><p className="microlabel">¿A qué hora contestan más?</p><p className="mt-1 text-[10.5px] text-faint">Respuestas reales de clientes en {periodo.mes} · hora de Guayaquil</p></div>
             <div className="rounded-2xl border border-paper/[.08] bg-paper/[.04] px-4 py-2 text-right"><p className="microlabel">Hora pico</p><p className="serif tnum text-[22px] text-lime">{peakReplyHour ? `${peakReplyHour.label}–${String((peakReplyHour.hour + 1) % 24).padStart(2, "0")}:00` : "—"}</p><p className="text-[10px] text-faint">{peakReplyHour?.replies ?? 0} respuestas</p></div>
           </div>
           <div className="flex h-36 items-end gap-1.5" aria-label="Respuestas por hora">
@@ -151,11 +193,11 @@ export function Dashboard() {
       {/* $ en juego / vendido */}
       <div className="mt-2.5 grid grid-cols-2 gap-2.5">
         <motion.div initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.22 }} className="glass rounded-3xl p-5">
-          <p className="microlabel">En juego (pipeline abierto)</p>
+          <p className="microlabel">En juego (pipeline abierto ahora)</p>
           <p className="serif tnum mt-2 text-[26px] text-lime">{money(stats.enJuego)}</p>
         </motion.div>
         <motion.div initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.28 }} className="glass rounded-3xl p-5">
-          <p className="microlabel">Vendido (tickets ganados)</p>
+          <p className="microlabel">Vendido en {periodo.mes}</p>
           <p className="serif tnum mt-2 text-[26px]" style={{ color: "var(--color-ok)" }}>
             {money(stats.vendido)}
           </p>
@@ -172,7 +214,7 @@ export function Dashboard() {
         >
           <div className="mb-3 flex items-baseline justify-between">
             <p className="microlabel">Conversaciones por día</p>
-            <p className="text-[10.5px] text-faint">últimos 14 días</p>
+            <p className="text-[10.5px] text-faint">del 1 de {periodo.mes} a hoy</p>
           </div>
           <AreaChart serie={serie} />
         </motion.section>
@@ -184,7 +226,7 @@ export function Dashboard() {
           transition={{ delay: 0.36 }}
           className="glass rounded-3xl p-5 lg:col-span-2"
         >
-          <p className="microlabel mb-4">Embudo del mes</p>
+          <p className="microlabel mb-4">Embudo de {periodo.mes}</p>
           <FunnelChart pasos={embudo} />
         </motion.section>
       </div>
@@ -197,7 +239,7 @@ export function Dashboard() {
             <div>
               <p className="microlabel">Piezas visuales enviadas</p>
               <p className="mt-1 text-[10.5px] text-faint">
-                Últimos 7 días. Una pieza fallida deja al cliente con el mensaje en texto.
+                Lo enviado en {periodo.mes}. Una pieza fallida deja al cliente con el mensaje en texto.
               </p>
             </div>
             {piezasFallidas > 0 && (
@@ -237,7 +279,13 @@ export function Dashboard() {
 
       {metrics?.followUps && (
         <motion.section initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="glass mt-2.5 rounded-3xl p-5">
-          <p className="microlabel mb-4">Resultados de seguimientos</p>
+          <div className="mb-4">
+            <p className="microlabel">Resultados de seguimientos</p>
+            <p className="mt-1 text-[10.5px] text-faint">
+              Seguimientos de {periodo.mes}. «Programados» es la cola de hoy: son mensajes
+              que todavía tienen que salir, así que no se reinician.
+            </p>
+          </div>
           <div className="grid grid-cols-2 gap-2.5 md:grid-cols-4 xl:grid-cols-6">
             {[
               ["Programados", metrics.followUps.scheduled], ["Enviados", metrics.followUps.sent],
@@ -273,7 +321,7 @@ export function Dashboard() {
 
       {metrics?.discounts && (
         <motion.section initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="glass mt-2.5 rounded-3xl p-5">
-          <div className="mb-4"><p className="microlabel">Impacto de descuentos autorizados</p><p className="mt-1 text-[10.5px] text-faint">Comparación por ciclo cotizado; muestra asociación, no causalidad.</p></div>
+          <div className="mb-4"><p className="microlabel">Impacto de descuentos autorizados</p><p className="mt-1 text-[10.5px] text-faint">Ofertas y cotizaciones de {periodo.mes}, por ciclo; muestra asociación, no causalidad.</p></div>
           <div className="grid grid-cols-2 gap-2.5 md:grid-cols-4">
             <StatTile label="Ofertas con descuento" valor={metrics.discounts.offered} detalle={`${metrics.discounts.wonWith} terminaron en venta`} />
             <StatTile label="Conversión con descuento" valor={metrics.discounts.conversionWith * 100} formato={(n) => `${Math.round(n)}%`} color="var(--color-lime)" detalle="ciclos únicos" />
@@ -407,6 +455,30 @@ export function Dashboard() {
       </motion.section>
     </div>
   );
+}
+
+/** El día 1 del mes en curso según el navegador: respaldo si no llegó `metrics`. */
+function inicioDeMesLocal(): Date {
+  const hoy = new Date();
+  return new Date(hoy.getFullYear(), hoy.getMonth(), 1);
+}
+
+/**
+ * "septiembre de 2026" — el mes que empieza en ese instante, dicho en hora de
+ * Guayaquil.
+ *
+ * Se nombra desde el mediodía, no desde el instante justo: el corte es la
+ * medianoche del día 1 en Guayaquil, y un navegador en otro huso lo puede leer
+ * como las 23:00 del último día del mes anterior. Medio día adentro no hay
+ * borde que cruzar y el título dice siempre el mes que se está mirando.
+ */
+function nombreDeMes(inicio: Date): string {
+  const adentro = new Date(inicio.getTime() + 12 * 60 * 60 * 1000);
+  return new Intl.DateTimeFormat("es-EC", {
+    month: "long",
+    year: "numeric",
+    timeZone: "America/Guayaquil",
+  }).format(adentro);
 }
 
 function deliveryLabel(status: string): string {

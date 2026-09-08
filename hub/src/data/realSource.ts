@@ -308,12 +308,8 @@ export class RealSource implements DataSource {
     return (await this.request<{ feed: FeedItem[] }>("/api/hub/feed")).feed;
   }
 
-  async getMetrics(days = 14): Promise<HubMetrics> {
-    return (
-      await this.request<{ metrics: HubMetrics }>(
-        `/api/hub/metrics?days=${encodeURIComponent(days)}`,
-      )
-    ).metrics;
+  async getMetrics(): Promise<HubMetrics> {
+    return (await this.request<{ metrics: HubMetrics }>("/api/hub/metrics")).metrics;
   }
 
   async getFinalStage(): Promise<FinalStage> {

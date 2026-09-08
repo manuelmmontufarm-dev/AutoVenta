@@ -634,12 +634,13 @@ export function createAdminRouter(): express.Router {
     res.json({ ok: true, feed: await getHubFeed() });
   });
 
-  router.get("/hub/metrics", async (req, res) => {
-    const days = Math.max(7, Math.min(Number(req.query.days) || 14, 90));
+  // Siempre el mes en curso: el panel se reinicia el día 1 y no acepta ventana
+  // por parámetro (dos pestañas con rangos distintos no son el mismo tablero).
+  router.get("/hub/metrics", async (_req, res) => {
     res.json({
       ok: true,
       metrics: {
-        ...(await getHubMetrics(days)),
+        ...(await getHubMetrics()),
         inventory: catalogInventoryMetrics(),
         followUps: await getFollowUpMetrics(),
       },

@@ -1,3 +1,33 @@
+## 8-sep-2026 · El dashboard arranca de cero cada mes
+
+**Qué:** Todo lo que el panel acumula se lee ahora desde el día 1 del mes:
+cotizaciones enviadas, llegadas al final del tablero (`reachedFinal`), ratio
+cotizado→seguimiento, mediana de primera respuesta, serie diaria (del 1 a hoy,
+ya no «últimos 14 días»), embudo (los ciclos que EMPEZARON este mes, calculado
+desde el primer evento del ciclo), estados de entrega, piezas visuales (antes 7
+días), horas de respuesta (antes 90), descuentos y seguimientos. El corte vive
+en un solo lugar, `services/periodoMensual.ts`, y lo consumen `getHubMetrics`
+y `getFollowUpMetrics`; se calcula en hora de Guayaquil. `/api/hub/metrics` ya
+no acepta `?days`. Lo que NO se reinicia: tickets abiertos, plata en juego,
+`abiertosAhora` esperando la visita y seguimientos «programados» — estado de
+hoy, no acumulado. El panel muestra arriba de todo qué mes está mirando y que
+el histórico queda guardado; los rótulos («Vendido en septiembre de 2026»,
+«Embudo de septiembre de 2026») nombran el mes, y el respaldo local del
+Dashboard filtra igual para no volver al total cuando `metrics` no llega.
+Pruebas: `metricasDelMes.integration.test.ts` (7 casos, en rojo primero, con
+mes pasado y mes en curso sembrados idénticos: sin el corte cada número salía
+al doble). Bundle del hub regenerado.
+
+**Por qué:** Pedido de Manuel: «que todas las estadísticas salgan fresh cada
+mes y se reseteen (se guardan en el database pero que se reseteen en el
+front)». Los contadores eran totales desde que el bot existe, y un número que
+solo sube no dice si este mes se está vendiendo mejor o peor; además el panel
+ya prometía el recorte que no hacía («Embudo del mes», «PDF generados este
+mes»). El corte en UTC no servía: el mes habría cambiado a las 19:00 del último
+día y el tablero se habría reiniciado la tarde anterior.
+
+**Horas:** 2
+
 ## 7-sep-2026 · Elegir es cotizar (también con solo el aro), «otro día» pregunta qué día, una pregunta no reenvía la lámina
 
 **Qué:** Las pruebas personales de Manuel de hoy (conv 3, 10:19–11:48 Quito),

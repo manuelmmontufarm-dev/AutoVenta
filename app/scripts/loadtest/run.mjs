@@ -124,7 +124,7 @@ function rssDe(pid) {
 function arrancarSondeoApi(latencias, parar) {
   (async () => {
     while (!parar.detenido) {
-      for (const ruta of ["/api/hub/follow-ups", "/api/hub/metrics?days=7", "/api/hub/tickets"]) {
+      for (const ruta of ["/api/hub/follow-ups", "/api/hub/metrics", "/api/hub/tickets"]) {
         const t0 = performance.now();
         try {
           await fetch(`${BASE_URL}${ruta}`, {

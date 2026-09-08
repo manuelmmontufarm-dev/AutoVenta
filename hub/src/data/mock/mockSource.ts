@@ -99,15 +99,31 @@ export class MockSource implements DataSource {
     return [...this.feed];
   }
 
-  async getMetrics(days = 14): Promise<HubMetrics> {
+  /**
+   * Espeja el corte mensual del backend: el demo también arranca de cero el
+   * día 1, así no enseña una pantalla que el producto real no tiene.
+   */
+  async getMetrics(): Promise<HubMetrics> {
+    const desde = new Date();
+    desde.setDate(1);
+    desde.setHours(0, 0, 0, 0);
+    const hasta = new Date(desde);
+    hasta.setMonth(hasta.getMonth() + 1);
+    const delMes = (iso: string | null | undefined) =>
+      iso != null && new Date(iso) >= desde;
+
     const tickets = [...this.tickets.values()];
     const abiertos = tickets.filter((ticket) => ticket.estado === "abierto");
-    const cotizaciones = tickets.filter((ticket) => ticket.cotizacion);
-    const ganados = tickets.filter((ticket) => ticket.cierre === "ganado");
-    const daily = Array.from({ length: days }, (_, index) => {
-      const day = new Date();
-      day.setHours(0, 0, 0, 0);
-      day.setDate(day.getDate() - (days - 1 - index));
+    const cotizaciones = tickets.filter(
+      (ticket) => ticket.cotizacion && delMes(ticket.creadoEn),
+    );
+    const ganados = tickets.filter(
+      (ticket) => ticket.cierre === "ganado" && delMes(ticket.ultimaActividad),
+    );
+    const dias = new Date().getDate(); // del 1 a hoy, ambos incluidos
+    const daily = Array.from({ length: dias }, (_, index) => {
+      const day = new Date(desde);
+      day.setDate(desde.getDate() + index);
       const next = new Date(day);
       next.setDate(next.getDate() + 1);
       return {
@@ -119,6 +135,7 @@ export class MockSource implements DataSource {
       };
     });
     return {
+      periodo: { desde: desde.toISOString(), hasta: hasta.toISOString() },
       summary: {
         abiertos: abiertos.length,
         cotizaciones: cotizaciones.length,
@@ -134,13 +151,14 @@ export class MockSource implements DataSource {
       // métrica que explica hasta dónde llega el bot.
       reachedFinal: (() => {
         const llegaron = tickets.filter(
-          (t) => t.etapa === "seguimiento_venta" || t.cierre === "ganado",
+          (t) =>
+            (t.etapa === "seguimiento_venta" || t.cierre === "ganado") &&
+            delMes(t.ultimaActividad),
         );
         const conCotizacion = cotizaciones.length;
         const llegaronCotizados = llegaron.filter((t) => t.cotizacion).length;
         return {
           total: llegaron.length,
-          esteMes: llegaron.length,
           cotizados: conCotizacion,
           cotizadosQueLlegaron: llegaronCotizados,
           ratio: conCotizacion ? llegaronCotizados / conCotizacion : 0,

@@ -822,7 +822,7 @@ setWaHandlers({
 
 // Aplica el esquema al arrancar (idempotente) → deploy sin paso manual de migración.
 await ensureSchema();
-await getHubMetrics(7);
+await getHubMetrics();
 console.log("✅ Esquema de base de datos listo");
 
 // El canal se resuelve desde DB (settings) con respaldo del entorno. Sin

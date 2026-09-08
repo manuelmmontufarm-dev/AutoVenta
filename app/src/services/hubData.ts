@@ -1,4 +1,5 @@
 import { sql } from "../db/client.js";
+import { periodoMensualEnCurso } from "./periodoMensual.js";
 import type { Stage } from "../domain/pipeline.js";
 
 interface QuoteRow {
@@ -310,7 +311,23 @@ export async function getHubFeed() {
   }));
 }
 
-export async function getHubMetrics(days = 14) {
+/**
+ * Los números del dashboard, del día 1 del mes a hoy.
+ *
+ * Todo lo que se acumula se lee desde el comienzo del mes: el panel arranca
+ * limpio cada mes y "cotizaciones" o "llegaron al final" hablan del mes que se
+ * está trabajando, no de un total desde que el bot existe — un número que solo
+ * sube nunca dice si esta semana se está vendiendo mejor o peor.
+ *
+ * Lo que NO se reinicia es el estado de hoy: tickets abiertos, plata en juego y
+ * la gente esperando la visita. Un ticket abierto del mes pasado sigue abierto
+ * el día 1; ponerlo en cero escondería trabajo vivo. La base guarda todo el
+ * histórico igual: esto es qué se mira, no qué se borra.
+ */
+export async function getHubMetrics() {
+  const periodo = await periodoMensualEnCurso();
+  const { desde } = periodo;
+
   const [summary] = await sql<
     {
       open_count: number;
@@ -323,17 +340,20 @@ export async function getHubMetrics(days = 14) {
   >`
     select
       count(*) filter (where c.status = 'open')::int as open_count,
-      count(*) filter (where exists (
-        select 1 from quotes q where q.conversation_id = c.id and q.cycle = c.current_cycle
-      ))::int as quoted_count,
+      (
+        select count(*)::int from (
+          select distinct conversation_id, cycle from quotes
+          where created_at >= ${desde}
+        ) cotizados_del_mes
+      ) as quoted_count,
       (
         select count(*)::int from sales_history
-        where outcome = 'ganado' and closed_at >= date_trunc('month', now())
+        where outcome = 'ganado' and closed_at >= ${desde}
       ) as won_count,
       coalesce(sum(q.total) filter (where c.status = 'open'), 0) as pipeline_value,
       (
         select coalesce(sum(total), 0) from sales_history
-        where outcome = 'ganado' and closed_at >= date_trunc('month', now())
+        where outcome = 'ganado' and closed_at >= ${desde}
       ) as won_value,
       (
         select percentile_cont(0.5) within group (
@@ -351,6 +371,7 @@ export async function getHubMetrics(days = 14) {
             and created_at >= first_in.created_at
           order by created_at asc limit 1
         ) first_out on true
+        where first_in.created_at >= ${desde}
       ) as first_response_seconds
     from conversations c
     left join lateral (
@@ -360,26 +381,47 @@ export async function getHubMetrics(days = 14) {
     ) q on true
   `;
 
+  // Un punto por día del mes, del 1 a hoy: el 1 la serie es una sola barra y
+  // vuelve a crecer. Los días se cortan en Guayaquil — en UTC, todo lo que pasa
+  // después de las 19:00 aparecería con la fecha del día siguiente.
   const daily = await sql<{ day: string; count: number }[]>`
     select to_char(day, 'YYYY-MM-DD') as day, count(c.id)::int as count
     from generate_series(
-      current_date - (${days - 1}::int),
-      current_date,
+      (${desde}::timestamptz at time zone 'America/Guayaquil')::date,
+      (now() at time zone 'America/Guayaquil')::date,
       interval '1 day'
     ) day
     left join conversations c
-      on c.created_at >= day and c.created_at < day + interval '1 day'
+      on c.created_at >= (day at time zone 'America/Guayaquil')
+     and c.created_at < ((day + interval '1 day') at time zone 'America/Guayaquil')
     group by day
     order by day
   `;
 
+  // Embudo del mes: los ciclos que EMPEZARON este mes, con el escalón más alto
+  // que llegaron a tocar (aunque lo hayan tocado el mes siguiente — la venta que
+  // arrancó el 30 se le acredita al mes en que entró, no se parte en dos).
   const funnel = await sql<{ stage: Stage; count: number }[]>`
-    with cycles as (
+    with todos as (
       select id as conversation_id, current_cycle as cycle from conversations
       union
       select conversation_id, cycle from stage_transitions
       union
       select conversation_id, cycle from sales_history
+    ), eventos as (
+      select conversation_id, cycle, created_at from messages
+      union all
+      select conversation_id, cycle, created_at from stage_transitions
+      union all
+      select id, current_cycle, created_at from conversations
+    ), inicio as (
+      select conversation_id, cycle, min(created_at) as empezo_en
+      from eventos group by conversation_id, cycle
+    ), cycles as (
+      select t.conversation_id, t.cycle
+      from todos t
+      join inicio i on i.conversation_id = t.conversation_id and i.cycle = t.cycle
+      where i.empezo_en >= ${desde}
     ), observed as (
       select id as conversation_id, current_cycle as cycle, stage from conversations
       union all
@@ -429,11 +471,11 @@ export async function getHubMetrics(days = 14) {
   const deliveries = await sql<{ status: string; count: number }[]>`
     select coalesce(status, 'unknown') as status, count(*)::int as count
     from messages
-    where direction = 'outbound'
+    where direction = 'outbound' and created_at >= ${desde}
     group by coalesce(status, 'unknown')
   `;
 
-  // Piezas visuales (cotización · comparativa · opciones) de los últimos 7 días.
+  // Piezas visuales (cotización · comparativa · opciones) enviadas este mes.
   // Cuando una imagen no sale, el cliente recibe el texto largo que el cliente
   // pidió evitar; sin este contador eso era indistinguible de un envío normal.
   // `piece` se escribe desde las tools; el `case` cubre las filas anteriores.
@@ -457,7 +499,7 @@ export async function getHubMetrics(days = 14) {
     where direction = 'outbound'
       and author_kind = 'bot'
       and type in ('image', 'pdf')
-      and created_at >= now() - interval '7 days'
+      and created_at >= ${desde}
     group by 1
     order by 1
   `;
@@ -466,7 +508,7 @@ export async function getHubMetrics(days = 14) {
     select extract(hour from inbound.created_at at time zone 'America/Guayaquil')::int as hour,
       count(*)::int as replies
     from messages inbound
-    where inbound.direction='inbound' and inbound.created_at >= now() - interval '90 days'
+    where inbound.direction='inbound' and inbound.created_at >= ${desde}
       and exists (
         select 1 from messages outbound
         where outbound.conversation_id=inbound.conversation_id and outbound.cycle=inbound.cycle
@@ -481,8 +523,11 @@ export async function getHubMetrics(days = 14) {
   // verdad. Se cuenta por CICLO y desde el historial de etapas, no desde la
   // etapa actual: el ticket que llegó al final y después se cerró desaparece
   // del kanban, y contarlo solo por `conversations.stage` lo perdería.
+  // Todo se cuenta dentro del mes: llegadas del mes y cotizaciones del mes. Lo
+  // único que sigue siendo de hoy es `open_now` — la gente esperando la visita
+  // ahora mismo, que el día 1 no desaparece porque el calendario cambió.
   const [reached] = await sql<{
-    total: number; month: number; quoted: number; quoted_reached: number;
+    total: number; quoted: number; quoted_reached: number;
     open_now: number; won: number; value: string | number;
   }[]>`
     with arrivals as (
@@ -498,13 +543,14 @@ export async function getHubMetrics(days = 14) {
     ), llegaron as (
       select conversation_id, cycle, min(reached_at) as reached_at
       from arrivals group by conversation_id, cycle
+      having min(reached_at) >= ${desde}
     ), cotizados as (
       select conversation_id, cycle, min(created_at) as quoted_at
       from quotes group by conversation_id, cycle
+      having min(created_at) >= ${desde}
     )
     select
       (select count(*)::int from llegaron) as total,
-      (select count(*)::int from llegaron where reached_at >= date_trunc('month', now())) as month,
       (select count(*)::int from cotizados) as quoted,
       (select count(*)::int from cotizados c
         where exists (select 1 from llegaron l
@@ -535,9 +581,11 @@ export async function getHubMetrics(days = 14) {
         max(discount_amount_cents) as discount_cents
       from discount_offers where status in ('approved','offered','accepted','superseded')
       group by conversation_id, cycle
+      having min(created_at) >= ${desde}
     ), quoted as (
       select conversation_id, cycle, min(created_at) as quoted_at
       from quotes group by conversation_id, cycle
+      having min(created_at) >= ${desde}
     )
     select
       (select count(*)::int from offered) as offered,
@@ -554,6 +602,13 @@ export async function getHubMetrics(days = 14) {
   `;
 
   return {
+    // El mes que se está mirando. Viaja al panel para que la pantalla pueda
+    // decir en voz alta "septiembre" y "vuelve a cero el 1 de octubre": un
+    // contador que se reinicia sin avisar se lee como datos perdidos.
+    periodo: {
+      desde: periodo.desde.toISOString(),
+      hasta: periodo.hasta.toISOString(),
+    },
     summary: {
       abiertos: Number(summary?.open_count ?? 0),
       cotizaciones: Number(summary?.quoted_count ?? 0),
@@ -588,7 +643,6 @@ export async function getHubMetrics(days = 14) {
     // sale, ¿cuántas llegan a coordinar la visita?
     reachedFinal: {
       total: Number(reached?.total ?? 0),
-      esteMes: Number(reached?.month ?? 0),
       cotizados: Number(reached?.quoted ?? 0),
       cotizadosQueLlegaron: Number(reached?.quoted_reached ?? 0),
       ratio: Number(reached?.quoted ?? 0)
