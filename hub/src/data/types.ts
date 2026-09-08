@@ -283,10 +283,14 @@ export interface HubMetrics {
    */
   periodo?: { clave: string; desde: string; hasta: string; todos: boolean };
   summary: {
+    /** Estado de HOY: no cambia con el mes que se esté mirando. */
     abiertos: number;
+    enJuego: number;
+    /** Del mes: chats que se movieron y plata cotizada dentro de la ventana. */
+    conversaciones: number;
+    cotizado: number;
     cotizaciones: number;
     ganados: number;
-    enJuego: number;
     vendido: number;
     primeraRespuestaSegundos: number | null;
   };

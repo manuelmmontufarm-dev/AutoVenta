@@ -770,28 +770,19 @@ export function Pipeline() {
   const porEtapaEnVentana = useMemo(() => agrupar(enVentana), [enVentana]);
   const porEtapaFuera = useMemo(() => agrupar(fueraVentana), [fueraVentana]);
 
+  /**
+   * El embudo lo arma el servidor por ciclo y por mes. No hay cálculo de
+   * respaldo con los tickets cargados: el listado corta en 500 y no puede
+   * contestar por un mes pasado, así que ese número sería otra pregunta pintada
+   * con la misma tipografía. Sin datos, la sección lo dice.
+   */
   const embudo = useMemo(() => {
-    if (metrics?.funnel?.length) {
-      const byStage = new Map(metrics.funnel.map((item) => [item.stage, item.value]));
-      return [
-        ...ETAPAS.map((e) => ({ label: ETAPA_META[e].nombre, valor: byStage.get(e) ?? 0, color: ETAPA_META[e].color })),
-        { label: "Ganado", valor: byStage.get("ganado") ?? 0, color: CIERRE_META.ganado.color },
-      ];
-    }
-    const alcanza = (idx: number) =>
-      tickets.filter((t) => {
-        if (t.estado === "cerrado")
-          return t.cierre === "ganado" ? true : ETAPAS.indexOf(t.etapa) >= idx;
-        return ETAPAS.indexOf(t.etapa) >= idx;
-      }).length;
-    const pasos = ETAPAS.map((e, i) => ({ label: ETAPA_META[e].nombre, valor: alcanza(i), color: ETAPA_META[e].color }));
-    pasos.push({
-      label: "Ganado",
-      valor: tickets.filter((t) => t.cierre === "ganado").length,
-      color: CIERRE_META.ganado.color,
-    });
-    return pasos;
-  }, [tickets, metrics]);
+    const byStage = new Map((metrics?.funnel ?? []).map((item) => [item.stage, item.value]));
+    return [
+      ...ETAPAS.map((e) => ({ label: ETAPA_META[e].nombre, valor: byStage.get(e) ?? 0, color: ETAPA_META[e].color })),
+      { label: "Ganado", valor: byStage.get("ganado") ?? 0, color: CIERRE_META.ganado.color },
+    ];
+  }, [metrics]);
 
   function onDragStart(ev: DragStartEvent) {
     setActivo(abiertos.find((t) => t.id === ev.active.id) ?? null);
@@ -891,8 +882,14 @@ export function Pipeline() {
             <p className="microlabel mb-4">
               Embudo {mes === TODOS ? "del histórico" : `de ${etiquetaDeMes(mes)}`} — conversión etapa a etapa
             </p>
-            <FunnelChart pasos={embudo} />
-            {embudo[0].valor === 0 && <EmptyState titulo="Aún no hay datos del embudo" />}
+            {metrics ? (
+              <>
+                <FunnelChart pasos={embudo} />
+                {embudo[0].valor === 0 && <EmptyState titulo="Aún no hay datos del embudo" />}
+              </>
+            ) : (
+              <p className="py-10 text-center text-[10.5px] text-faint">Cargando…</p>
+            )}
           </motion.div>
         </div>
       )}

@@ -355,15 +355,29 @@ export async function getHubMetrics(mes?: string | null) {
   const [summary] = await sql<
     {
       open_count: number;
+      month_conversations: number;
       quoted_count: number;
       won_count: number;
       pipeline_value: string | number;
+      quoted_value: string | number;
       won_value: string | number;
       first_response_seconds: string | number | null;
     }[]
   >`
     select
       count(*) filter (where c.status = 'open')::int as open_count,
+      -- Los chats que se MOVIERON en la ventana. Es lo que un mes cerrado puede
+      -- contestar de verdad: "cuántas conversaciones hubo en agosto" tiene
+      -- respuesta; "cuántas están abiertas ahora" es de hoy, no de agosto.
+      (
+        select count(*)::int from conversations mes_c
+        where (mes_c.created_at >= ${desde} and mes_c.created_at < ${hasta})
+          or exists (
+            select 1 from messages mes_m
+            where mes_m.conversation_id = mes_c.id
+              and mes_m.created_at >= ${desde} and mes_m.created_at < ${hasta}
+          )
+      ) as month_conversations,
       (
         select count(*)::int from (
           select distinct conversation_id, cycle from quotes
@@ -375,6 +389,12 @@ export async function getHubMetrics(mes?: string | null) {
         where outcome = 'ganado' and closed_at >= ${desde} and closed_at < ${hasta}
       ) as won_count,
       coalesce(sum(q.total) filter (where c.status = 'open'), 0) as pipeline_value,
+      -- Lo cotizado DENTRO de la ventana: el equivalente cerrado de "en juego",
+      -- que solo tiene sentido mirando el pipeline de hoy.
+      (
+        select coalesce(sum(total), 0) from quotes
+        where created_at >= ${desde} and created_at < ${hasta}
+      ) as quoted_value,
       (
         select coalesce(sum(total), 0) from sales_history
         where outcome = 'ganado' and closed_at >= ${desde} and closed_at < ${hasta}
@@ -650,10 +670,14 @@ export async function getHubMetrics(mes?: string | null) {
       todos: periodo.todos,
     },
     summary: {
+      // Estado de hoy: no depende del mes que se esté mirando.
       abiertos: Number(summary?.open_count ?? 0),
+      enJuego: Number(summary?.pipeline_value ?? 0),
+      // Del mes: lo que un mes cerrado sí puede contestar.
+      conversaciones: Number(summary?.month_conversations ?? 0),
+      cotizado: Number(summary?.quoted_value ?? 0),
       cotizaciones: Number(summary?.quoted_count ?? 0),
       ganados: Number(summary?.won_count ?? 0),
-      enJuego: Number(summary?.pipeline_value ?? 0),
       vendido: Number(summary?.won_value ?? 0),
       primeraRespuestaSegundos:
         summary?.first_response_seconds == null

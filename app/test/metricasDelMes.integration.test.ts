@@ -90,6 +90,22 @@ describe.sequential("Métricas del mes en curso", () => {
     expect(metrics.reachedFinal.abiertosAhora).toBe(0);
   });
 
+  it("un mes cerrado tiene sus propias conversaciones y su propio cotizado", async () => {
+    // "Abiertos ahora" y "en juego" son de hoy y valen lo mismo en cualquier mes;
+    // por eso el panel de un mes pasado necesita números que sí sean de ese mes.
+    const anterior = await hubData.getHubMetrics(mesAnterior());
+    const enCurso = await hubData.getHubMetrics();
+
+    expect(anterior.summary.conversaciones).toBe(2);
+    expect(anterior.summary.cotizado).toBe(900);
+    expect(enCurso.summary.conversaciones).toBe(2);
+    expect(enCurso.summary.cotizado).toBe(400);
+
+    // Los vivos, en cambio, contestan igual desde cualquier mes.
+    expect(anterior.summary.abiertos).toBe(enCurso.summary.abiertos);
+    expect(anterior.summary.enJuego).toBe(enCurso.summary.enJuego);
+  });
+
   it("la serie diaria va del día 1 a hoy, no de los últimos 14 días", async () => {
     const metrics = await hubData.getHubMetrics();
     const hoy = new Intl.DateTimeFormat("en-CA", {

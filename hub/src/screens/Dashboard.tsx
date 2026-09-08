@@ -6,29 +6,36 @@ import { SelectorDeMes, etiquetaDeMes } from "../components/mes";
 import { CIERRE_META, ETAPAS, ETAPA_META, TODOS } from "../data/types";
 import { money, relTime } from "../lib/format";
 import { navigate } from "../router";
-import { useHub, useNow } from "../store";
+import { mesEnCurso, useHub, useNow } from "../store";
 
 export function Dashboard() {
-  const { tickets, feed, metrics } = useHub();
+  const { feed, metrics } = useHub();
   const mesElegido = useHub((s) => s.mes);
   const now = useNow();
 
-  // La ventana que se está mirando. Manda el servidor (cortada en hora de
-  // Guayaquil); mientras no llega, el mes elegido alcanza para el respaldo
-  // local y para los rótulos.
+  /**
+   * Mientras no llegan los números del mes elegido, la pantalla no inventa
+   * ninguno.
+   *
+   * Antes había un respaldo que los calculaba con los tickets ya cargados. Con
+   * un solo mes eso era una aproximación; con el selector es directamente otra
+   * pregunta —el listado corta en 500 y no puede contestar por agosto—, y lo
+   * que se veía era un número bajo que un instante después saltaba al de
+   * verdad. Un guion dice "todavía no sé"; un número equivocado dice una
+   * mentira con la misma tipografía que la verdad.
+   */
+  const cargando = metrics === null;
+
+  // La ventana que se está mirando. La manda el servidor (cortada en hora de
+  // Guayaquil); mientras no llega, el mes elegido alcanza para los rótulos.
   const periodo = useMemo(() => {
     const clave = metrics?.periodo?.clave ?? mesElegido;
     const todos = metrics?.periodo?.todos ?? clave === TODOS;
-    const desde = metrics?.periodo?.desde
-      ? new Date(metrics.periodo.desde)
-      : inicioDeMesLocal(clave);
-    const hasta = metrics?.periodo?.hasta
-      ? new Date(metrics.periodo.hasta)
-      : new Date(desde.getFullYear(), desde.getMonth() + 1, 1);
     return {
-      desde,
-      hasta,
       todos,
+      // ¿El mes que corre? Los números "de hoy" (abiertos, en juego) solo
+      // pertenecen a esa columna; en un mes cerrado hablan de otra cosa.
+      esElMesEnCurso: clave === mesEnCurso(),
       // "septiembre de 2026" o "todo el histórico": el rótulo entra en frases
       // ("Vendido en …"), así que se dice igual en los dos casos.
       mes: etiquetaDeMes(clave),
@@ -36,68 +43,28 @@ export function Dashboard() {
     };
   }, [metrics, mesElegido]);
 
-  const stats = useMemo(() => {
-    const delMes = (iso: string | null | undefined) =>
-      iso != null && new Date(iso) >= periodo.desde;
-    const abiertos = tickets.filter((t) => t.estado === "abierto");
-    // Los contadores del mes se filtran también en el respaldo local: si el
-    // panel se queda sin `metrics`, tiene que seguir contando lo mismo que
-    // cuando sí llegan — no volver al total desde que el bot existe.
-    const conCotizacion = tickets.filter((t) => t.cotizacion && delMes(t.creadoEn));
-    const ganados = tickets.filter(
-      (t) => t.cierre === "ganado" && delMes(t.ultimaActividad),
-    );
-    // El respaldo local solo ve la etapa de HOY: el ticket que llegó al final y
-    // se cerró ya no cuenta. Por eso manda `metrics.reachedFinal`, que lo lee
-    // del historial de etapas y sí incluye a los cerrados.
-    const llegaronVisita = tickets.filter(
-      (t) =>
-        (t.cierre === "ganado" || t.etapa === "seguimiento_venta") &&
-        delMes(t.ultimaActividad),
-    );
-    const conversion = metrics?.reachedFinal
-      ? Math.round(metrics.reachedFinal.ratio * 100)
-      : conCotizacion.length
-        ? Math.round((llegaronVisita.length / conCotizacion.length) * 100)
-        : 0;
-    const enJuego = abiertos.reduce((s, t) => s + (t.cotizacion?.total ?? 0), 0);
-    const vendido = ganados.reduce((s, t) => s + (t.cotizacion?.total ?? 0), 0);
-    return {
-      abiertos: metrics?.summary.abiertos ?? abiertos.length,
-      cotizaciones: metrics?.summary.cotizaciones ?? conCotizacion.length,
-      conversion,
-      llegaron: metrics?.reachedFinal?.total ?? llegaronVisita.length,
-      enJuego: metrics?.summary.enJuego ?? enJuego,
-      vendido: metrics?.summary.vendido ?? vendido,
-    };
-  }, [tickets, metrics, periodo]);
+  const stats = {
+    abiertos: metrics?.summary.abiertos ?? 0,
+    conversaciones: metrics?.summary.conversaciones ?? 0,
+    cotizaciones: metrics?.summary.cotizaciones ?? 0,
+    conversion: Math.round((metrics?.reachedFinal?.ratio ?? 0) * 100),
+    llegaron: metrics?.reachedFinal?.total ?? 0,
+    enJuego: metrics?.summary.enJuego ?? 0,
+    cotizado: metrics?.summary.cotizado ?? 0,
+    vendido: metrics?.summary.vendido ?? 0,
+  };
 
   const embudo = useMemo(() => {
-    if (metrics?.funnel?.length) {
-      const byStage = new Map(metrics.funnel.map((item) => [item.stage, item.value]));
-      return [
-        ...ETAPAS.map((e) => ({ label: ETAPA_META[e].nombre, valor: byStage.get(e) ?? 0, color: ETAPA_META[e].color })),
-        { label: "Ganado", valor: byStage.get("ganado") ?? 0, color: CIERRE_META.ganado.color },
-      ];
-    }
-    const delMes = tickets.filter((t) => new Date(t.creadoEn) >= periodo.desde);
-    const alcanza = (idx: number) =>
-      delMes.filter((t) =>
-        t.cierre === "ganado" ? true : ETAPAS.indexOf(t.etapa) >= idx,
-      ).length;
+    const byStage = new Map((metrics?.funnel ?? []).map((item) => [item.stage, item.value]));
     return [
-      ...ETAPAS.map((e, i) => ({ label: ETAPA_META[e].nombre, valor: alcanza(i), color: ETAPA_META[e].color })),
-      { label: "Ganado", valor: delMes.filter((t) => t.cierre === "ganado").length, color: CIERRE_META.ganado.color },
+      ...ETAPAS.map((e) => ({ label: ETAPA_META[e].nombre, valor: byStage.get(e) ?? 0, color: ETAPA_META[e].color })),
+      { label: "Ganado", valor: byStage.get("ganado") ?? 0, color: CIERRE_META.ganado.color },
     ];
-  }, [tickets, metrics, periodo]);
+  }, [metrics]);
 
-  // Un punto por día del mes, del 1 a hoy: el día 1 es una sola barra.
-  const serie = useMemo(
-    () =>
-      metrics?.daily.map((item) => item.value) ??
-      Array.from({ length: new Date().getDate() }, () => 0),
-    [metrics],
-  );
+  // Un punto por día de la ventana. Sin datos no se dibuja una línea plana en
+  // cero: sería un mes sin conversaciones, que es una afirmación, no un vacío.
+  const serie = useMemo(() => metrics?.daily.map((item) => item.value) ?? [], [metrics]);
   // Los rótulos se arman una vez: "en septiembre de 2026" / "en todo el
   // histórico". Escribir "este mes" a mano en cada tarjeta era mentira apenas
   // el usuario elegía otro mes.
@@ -137,18 +104,26 @@ export function Dashboard() {
 
       {/* KPIs */}
       <div className="grid grid-cols-2 gap-2.5 lg:grid-cols-5">
-        <StatTile label="Tickets abiertos" valor={stats.abiertos} detalle="conversaciones activas ahora" delay={0} sparkline={serie} />
-        <StatTile label="Cotizaciones enviadas" valor={stats.cotizaciones} detalle={`PDF generados ${enElPeriodo}`} delay={0.06} />
+        {/* En el mes que corre, "abiertos ahora" es la pregunta útil. En un mes
+            cerrado no significa nada —es el número de hoy— así que la tarjeta
+            pasa a contar lo que ese mes sí puede contestar. */}
+        {periodo.esElMesEnCurso ? (
+          <StatTile label="Tickets abiertos" valor={stats.abiertos} detalle="conversaciones activas ahora" delay={0} sparkline={serie} cargando={cargando} />
+        ) : (
+          <StatTile label="Conversaciones" valor={stats.conversaciones} detalle={`chats que se movieron ${enElPeriodo}`} delay={0} sparkline={serie} cargando={cargando} />
+        )}
+        <StatTile label="Cotizaciones enviadas" valor={stats.cotizaciones} detalle={`PDF generados ${enElPeriodo}`} delay={0.06} cargando={cargando} />
         <StatTile
           label="Llegan a seguimiento"
           valor={stats.llegaron}
           color="var(--etapa-visita)"
           detalle={
-            metrics?.reachedFinal
-              ? `${esteMes} · ${metrics.reachedFinal.abiertosAhora} esperando la visita hoy`
-              : "tickets que llegaron a la última columna"
+            periodo.esElMesEnCurso && metrics?.reachedFinal
+              ? `este mes · ${metrics.reachedFinal.abiertosAhora} esperando la visita hoy`
+              : `tickets que llegaron a la última columna ${enElPeriodo}`
           }
           delay={0.12}
+          cargando={cargando}
         />
         <StatTile
           label="Cotizado → seguimiento"
@@ -158,6 +133,7 @@ export function Dashboard() {
           detalle={`de cada cotización enviada ${esteMes}`}
           progress={stats.conversion}
           delay={0.18}
+          cargando={cargando}
         />
         <StatTile
           label="Respuesta del bot"
@@ -166,6 +142,7 @@ export function Dashboard() {
           color="var(--color-ok)"
           detalle={`mediana real de primera respuesta, ${esteMes}`}
           delay={0.24}
+          cargando={cargando}
         />
       </div>
 
@@ -189,7 +166,11 @@ export function Dashboard() {
             {[
               { label: "Llegaron al final", value: String(metrics.reachedFinal.total), detail: periodo.todos ? "llegadas de todo el histórico" : `llegadas de ${periodo.mes}`, color: "var(--etapa-visita)" },
               { label: "De los cotizados", value: `${Math.round(metrics.reachedFinal.ratio * 100)}%`, detail: `${metrics.reachedFinal.cotizadosQueLlegaron} de ${metrics.reachedFinal.cotizados} cotizaciones`, color: "var(--color-lime)" },
-              { label: "Abiertos ahora", value: String(metrics.reachedFinal.abiertosAhora), detail: "esperando la visita — no se reinicia", color: "var(--color-warn)" },
+              // Solo en el mes que corre: "esperando la visita" es gente de hoy,
+              // y en la columna de agosto sería un número que no es de agosto.
+              ...(periodo.esElMesEnCurso
+                ? [{ label: "Abiertos ahora", value: String(metrics.reachedFinal.abiertosAhora), detail: "esperando la visita — no se reinicia", color: "var(--color-warn)" }]
+                : []),
               { label: "Confirmados como venta", value: String(metrics.reachedFinal.ganados), detail: "solo los que alguien marcó a mano", color: "var(--color-ok)" },
             ].map((item) => (
               <div key={item.label} className="rounded-2xl border border-paper/[.07] bg-paper/[.035] p-4">
@@ -221,13 +202,17 @@ export function Dashboard() {
       {/* $ en juego / vendido */}
       <div className="mt-2.5 grid grid-cols-2 gap-2.5">
         <motion.div initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.22 }} className="glass rounded-3xl p-5">
-          <p className="microlabel">En juego (pipeline abierto ahora)</p>
-          <p className="serif tnum mt-2 text-[26px] text-lime">{money(stats.enJuego)}</p>
+          <p className="microlabel">
+            {periodo.esElMesEnCurso ? "En juego (pipeline abierto ahora)" : `Cotizado ${enElPeriodo}`}
+          </p>
+          <p className="serif tnum mt-2 text-[26px] text-lime">
+            {cargando ? "—" : money(periodo.esElMesEnCurso ? stats.enJuego : stats.cotizado)}
+          </p>
         </motion.div>
         <motion.div initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.28 }} className="glass rounded-3xl p-5">
           <p className="microlabel">Vendido {enElPeriodo}</p>
           <p className="serif tnum mt-2 text-[26px]" style={{ color: "var(--color-ok)" }}>
-            {money(stats.vendido)}
+            {cargando ? "—" : money(stats.vendido)}
           </p>
         </motion.div>
       </div>
@@ -246,7 +231,11 @@ export function Dashboard() {
               {periodo.todos ? "todo el histórico" : `del 1 de ${periodo.mes} a hoy`}
             </p>
           </div>
-          <AreaChart serie={serie} />
+          {serie.length > 0 ? (
+            <AreaChart serie={serie} />
+          ) : (
+            <p className="py-10 text-center text-[10.5px] text-faint">Cargando…</p>
+          )}
         </motion.section>
 
         {/* Embudo */}
@@ -257,7 +246,11 @@ export function Dashboard() {
           className="glass rounded-3xl p-5 lg:col-span-2"
         >
           <p className="microlabel mb-4">Embudo {periodo.todos ? "del histórico" : `de ${periodo.mes}`}</p>
-          <FunnelChart pasos={embudo} />
+          {cargando ? (
+            <p className="py-10 text-center text-[10.5px] text-faint">Cargando…</p>
+          ) : (
+            <FunnelChart pasos={embudo} />
+          )}
         </motion.section>
       </div>
 
@@ -485,20 +478,6 @@ export function Dashboard() {
       </motion.section>
     </div>
   );
-}
-
-/**
- * El día 1 del mes pedido según el navegador: respaldo mientras no llega
- * `metrics`. Con `todos` arranca en 1970, que es lo mismo que no recortar.
- */
-function inicioDeMesLocal(clave: string): Date {
-  if (clave === TODOS) return new Date(0);
-  const [año, mes] = clave.split("-").map(Number);
-  if (!año || !mes) {
-    const hoy = new Date();
-    return new Date(hoy.getFullYear(), hoy.getMonth(), 1);
-  }
-  return new Date(año, mes - 1, 1);
 }
 
 /** "2026-09" → "2026-10". Para decir cuándo vuelve a empezar el conteo. */

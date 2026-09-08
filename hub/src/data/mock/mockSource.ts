@@ -163,10 +163,16 @@ export class MockSource implements DataSource {
         todos,
       },
       summary: {
+        // De hoy: no cambian con el mes elegido.
         abiertos: abiertos.length,
+        enJuego: abiertos.reduce((sum, ticket) => sum + (ticket.cotizacion?.total ?? 0), 0),
+        // Del mes elegido.
+        conversaciones: tickets.filter(
+          (t) => delMes(t.creadoEn) || delMes(t.ultimaActividad),
+        ).length,
+        cotizado: cotizaciones.reduce((sum, t) => sum + (t.cotizacion?.total ?? 0), 0),
         cotizaciones: cotizaciones.length,
         ganados: ganados.length,
-        enJuego: abiertos.reduce((sum, ticket) => sum + (ticket.cotizacion?.total ?? 0), 0),
         vendido: ganados.reduce((sum, ticket) => sum + (ticket.cotizacion?.total ?? 0), 0),
         primeraRespuestaSegundos: 9,
       },

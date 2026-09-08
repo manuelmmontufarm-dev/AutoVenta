@@ -32,6 +32,7 @@ export function StatTile({
   delay = 0,
   sparkline,
   progress,
+  cargando = false,
 }: {
   label: string;
   valor: number;
@@ -41,8 +42,14 @@ export function StatTile({
   delay?: number;
   sparkline?: number[];
   progress?: number;
+  /**
+   * El dato todavía no llegó. Muestra un guion en vez de un número: enseñar el
+   * valor anterior (o uno calculado con otros datos) mientras carga hace que el
+   * contador "salte" y deja al que mira sin saber cuál de los dos era cierto.
+   */
+  cargando?: boolean;
 }) {
-  const animado = useCountUp(valor);
+  const animado = useCountUp(cargando ? 0 : valor);
   return (
     <motion.div
       initial={{ opacity: 0, y: 14 }}
@@ -51,8 +58,11 @@ export function StatTile({
       className="glass rounded-3xl p-5"
     >
       <p className="microlabel">{label}</p>
-      <p className="serif tnum mt-2 text-[34px] leading-none" style={{ color }}>
-        {formato(animado)}
+      <p
+        className="serif tnum mt-2 text-[34px] leading-none"
+        style={{ color: cargando ? "var(--color-faint)" : color }}
+      >
+        {cargando ? "—" : formato(animado)}
       </p>
       {sparkline && sparkline.length > 1 && (
         <Sparkline values={sparkline} color={color} />

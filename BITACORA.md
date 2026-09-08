@@ -1,3 +1,32 @@
+## 8-sep-2026 · El panel no inventa números mientras carga, y un mes cerrado tiene los suyos
+
+**Qué:** Dos arreglos sobre el selector de mes. (1) El Dashboard tenía un
+cálculo de respaldo que armaba los KPIs con los tickets ya cargados cuando
+faltaba `metrics`; al cambiar de mes (`verMes` pone `metrics: null`) eso pintaba
+un número bajo —calculado con otro conjunto de datos, y con el listado cortado
+en 500— que un instante después saltaba al de verdad. Se eliminó: `StatTile`
+acepta `cargando` y muestra «—», y el embudo y la serie diaria dicen «Cargando…»
+en vez de dibujar ceros. Lo mismo en el embudo del Pipeline. (2) Los números de
+HOY (tickets abiertos, en juego, «abiertos ahora» esperando la visita) valen lo
+mismo en cualquier mes, así que en un mes cerrado no dicen nada de ese mes:
+ahora, cuando el mes elegido no es el que corre, la primera tarjeta pasa a
+«Conversaciones · chats que se movieron en agosto» y la plata a «Cotizado en
+agosto» (`summary.conversaciones` y `summary.cotizado`, nuevos y recortados por
+la ventana), y la tarjeta «Abiertos ahora» desaparece del panel del final.
+Prueba nueva: un mes cerrado tiene sus propias conversaciones y su propio
+cotizado, y los vivos contestan igual desde cualquier mes. Bundle regenerado.
+
+**Por qué:** Manuel, con el panel de producción en agosto: «esta bugged, no
+importa qué mes pongo sale un rato un número bajo y después se sube a ese número
+alto en vez de decir la estadística real». Las dos mitades del reporte eran dos
+fallas distintas: el destello era el respaldo local, y el número alto que no
+cambiaba eran los tiles vivos (1 654 abiertos, 439 esperando la visita) que por
+diseño no dependen del mes — correctos, pero puestos donde se leen como agosto.
+El servidor sí filtraba: la captura mostraba «llegadas de agosto de 2026» y la
+hora pico de agosto con 498 respuestas.
+
+**Horas:** 1
+
 ## 8-sep-2026 · Selector de mes en los KPIs y en el kanban
 
 **Qué:** El corte mensual deja de ser fijo: `resolverPeriodo(mes)` en
