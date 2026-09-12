@@ -19,3 +19,4 @@ OWNER_KEY.local.txt
 # raíz: caches de herramientas de sesión (sin barra: un symlink no es directorio)
 node_modules
 node_modules/
+app/scripts/sim/*-resultado.json
