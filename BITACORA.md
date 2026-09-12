@@ -1,3 +1,49 @@
+## 12-sep-2026 · Si el cliente escribió la medida, se lee; si escribió media, se pregunta
+
+**Qué:** Paso 1 de la etapa de la medida (auditoría del 8 al 11-sep). Tres
+arreglos en la fuente única de medidas y uno en la transcripción.
+**(1) Las pulgadas también se dicen con «rin».** `FLOTATION_TEXT_RE` acepta
+`rin|aro|ron|rim` delante del aro —igual que el regex métrico desde el 13-ago—,
+un decimal en el diámetro («30.5/10/R15») y la barra como separador; con
+espacio o guion se exige decimal en el ancho, para que «37 12.50 rin 20» sea
+flotación y «195 50 15» siga siendo métrica. **(2) Los separadores que escribe
+la gente:** uno o más caracteres, coma y paréntesis incluidos («175//70 R13»,
+«235,75r15», «235)75/15»), otra barra detrás de la R («215/65R/16»), palabras
+en medio con la R como ancla (`MEDIDA_CON_PALABRAS_RE`, «245/ 70 para camioneta
+R 16»), el perfil colgado del final (`PERFIL_DESPUES_DEL_ARO_RE`, «225R15/75» es
+225/75R15 y no 225R15) y la «R» suelta como ancla del barajado, aun pegada a la
+palabra anterior («llantasR15/275/35»). **(3) Media medida se reconoce como
+media medida:** `flotacionIncompleta` («MT 30.5 r15» → diámetro 30.5 y aro 15,
+falta el ancho) y `medidaIncompleta` (falta el ancho, el perfil no existe, o
+hay dos anchos posibles). **(4) `aroEnTexto` pregunta a `tireSize.ts` antes de
+decidir:** una flotación, una flotación a medias o una medida imposible dejan
+de ser «el cliente dio solo el aro». **(5) El audio que devuelve el prompt:**
+`domain/transcripcionEco.ts` descarta la transcripción cuando es el vocabulario
+de Whisper en su mismo orden, y el audio se trata como mudo. Pruebas nuevas:
+`medidaComoLaEscriben.test.ts` (22 casos, cada uno con su chat) y
+`audioQueSeInventa.test.ts` (5). En rojo primero las 18 que no pasaban.
+
+**Por qué:** De 35 cotizaciones de la ventana, 9 salieron en una medida que el
+cliente no pidió, y la raíz de casi todas es esta. Hay DOS lectores de medidas
+y solo el métrico sabía leer «rin»: para el de pulgadas, «32x10.50 Rin 15» no
+era una medida. Y como el descarte de `aroEnTexto` solo miraba la forma
+métrica, ese mismo mensaje quedaba clasificado como «aro 15» y arrancaba la
+ruta del aro. Conv 18821, 10-sep: «32x10.50 Rin 15» + «En MT» → KENDA KR29
+215/75R15 —cuatro pulgadas más chica— rotulada MEDIDA EXACTA y cotizada en
+$726.83; el cliente contestó «Pero en la medida que le envié». Conv 18535: la
+misma medida escrita con asterisco terminó en «no me aparece stock» con seis
+unidades de la 33X12.50R15 en bodega, y el asesor pidiendo disculpas por «un
+error en el sistema». Conv 18677: «MT 30.5 r15» → la misma 215/75R15 como «la
+única que tengo para lo que me pidió». Conv 17647: «225R15/75» se leyó 225R15,
+el bot dijo que no había exacta y ofreció la 225/75R15 —la suya— como
+«equivalente». Conv 18025: dos audios mudos devolvieron el vocabulario del
+prompt, el bot sacó de ahí «205/55R16» y la cotización salió en esa medida
+fantasma. Este paso no cambia todavía qué hace el bot cuando tiene media
+medida: eso es el paso 2, que ya puede preguntar porque ahora sabe qué le
+falta.
+
+**Horas:** 2
+
 ## 8-sep-2026 · El panel no inventa números mientras carga, y un mes cerrado tiene los suyos
 
 **Qué:** Dos arreglos sobre el selector de mes. (1) El Dashboard tenía un

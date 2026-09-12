@@ -14,6 +14,7 @@
  * para el cliente que vuelve y cuya medida quedó en una visita anterior.
  */
 import { medidasEnTexto } from "./medidaPedida.js";
+import { extractFlotationSizes, flotacionIncompleta, medidaIncompleta } from "./tireSize.js";
 
 const pelar = (texto: string) => texto.toLowerCase().replace(/[\s\-/x×r]/g, "");
 
@@ -61,10 +62,23 @@ const normalizarAro = (t: string | null | undefined) =>
  * «usted ya nos dijo aro 15». Entran los errores de tipeo y las formas
  * cortas: ron, rim, ring, arillo, «aro de 15», «r15», «R 15», «15 pulgadas».
  * Una medida completa en el texto gana: eso no es «solo aro».
+ *
+ * Y «completa» incluye las de PULGADAS y las que están a medias, que es por
+ * donde se coló el error más caro de la semana del 8 al 11-sep. El texto
+ * «32x10.50 Rin 15» traía una medida entera, pero el descarte de arriba solo
+ * miraba la forma métrica: para este detector era «el cliente dio el aro 15»,
+ * y con eso arrancó la ruta que muestra opciones del aro y después las cotiza
+ * (conv 18821, KENDA KR29 215/75R15 por $726.83). Lo mismo con «MT 30.5 r15»
+ * (conv 18677) y con «65 R 17» (conv 17668), donde lo que había era media
+ * medida y lo que hacía falta era preguntar la otra mitad.
+ *
+ * Quién decide qué es una medida es `tireSize.ts`, con sus rangos y sus
+ * múltiplos de 5. Aquí solo se le pregunta.
  */
 export function aroEnTexto(texto: string | null | undefined): number | null {
   const n = normalizarAro(texto);
   if (/\b\d{3}\s*[\/x-]\s*\d{2}(?!\d)/.test(n)) return null;
+  if (extractFlotationSizes(n).length || flotacionIncompleta(n) || medidaIncompleta(n)) return null;
   const m =
     n.match(/\b(?:rin(?:es)?|ron|rim(?:s)?|ring|aro(?:s)?|arillo(?:s)?|llanta(?:s)?\s+de)\s*(?:de\s+|del\s+|numero\s+|n[°º]?\s*)?(1[2-9]|2[0-4])\b/)
     ?? n.match(/\br\s?(1[2-9]|2[0-4])\b/)

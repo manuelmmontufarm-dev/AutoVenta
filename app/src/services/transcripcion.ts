@@ -14,6 +14,7 @@
  */
 import OpenAI, { toFile } from "openai";
 import { config } from "../config.js";
+import { VOCABULARIO_TRANSCRIPCION, esEcoDelVocabulario } from "../domain/transcripcionEco.js";
 
 const openai = new OpenAI({ apiKey: config.openai.apiKey });
 
@@ -23,9 +24,12 @@ const openai = new OpenAI({ apiKey: config.openai.apiKey });
  * van las medidas y las marcas que vendemos — sin esto «205/55R16» sale como
  * «doscientos cinco cincuenta y cinco erre dieciséis» o «205 55 R 16» y
  * extractTireSizes no la reconoce; y «Kenda» sale «quenda», «Falken» «falcon».
+ *
+ * Lo que ese sesgo cuesta: con un audio mudo o inaudible el modelo no tiene
+ * nada que transcribir y devuelve el prompt mismo como si fuera lo dicho. Esa
+ * salida se descarta abajo — ver `domain/transcripcionEco.ts`, conv 18025.
  */
-const VOCABULARIO =
-  "Llantas en Quito. Medidas como 205/55R16, 265/70R17, aro, rin, juego de 4. Marcas: Kenda, Falken, Sunoco, Eurolub, Wildpeak. Cotización, precio, camioneta.";
+const VOCABULARIO = VOCABULARIO_TRANSCRIPCION;
 
 /**
  * Devuelve lo que dijo el cliente en el audio, o null si la API falla o el
@@ -85,6 +89,13 @@ export async function transcribirAudio(
     });
     const texto = response.text?.trim();
     if (!texto) return null;
+    // El audio no se entendió y volvió el vocabulario del prompt: se trata
+    // como audio mudo, que es lo que fue. Darlo por dicho le regala al cliente
+    // una medida que nunca pronunció (conv 18025, 9-sep-2026).
+    if (esEcoDelVocabulario(texto)) {
+      console.warn("⚠️ La transcripción devolvió el vocabulario del prompt: se descarta el audio.");
+      return null;
+    }
     return texto;
   } catch (error) {
     console.warn(
