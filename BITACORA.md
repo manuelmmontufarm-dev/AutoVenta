@@ -1,3 +1,63 @@
+## 12-sep-2026 · Los datos que el cliente pregunta y el bot no tenía
+
+**Qué:** `domain/datosDelNegocio.ts` con tres cosas: `politicaDePagos()` (el
+hecho, en palabras), `lonasDelProducto()` (las lee del nombre del fabricante:
+«KR29 10PR TL» son diez lonas) y los detectores para el candado. La política de
+pagos entra al prompt del negocio Y a `respaldo_marcas`; las lonas viajan con
+los escalones de la lámina, así que se pueden contestar en un turno posterior
+sin volver a buscar. Paso nuevo `el_pago_se_responde` en la cadena de salida.
+`domain/beneficioDeRedes.ts` con el texto que redactó Joaquín, y el paso
+`beneficio_de_redes_tras_cotizar` que lo manda una vez por ciclo. Pruebas:
+`datosQueElBotNoSabia` (8 casos) y `beneficioDeRedes` (7).
+
+**Por qué:** conv 17804, tras una cotización de $1.563:
+
+  CLIENTE: «Si se realiza el pago con tarjeta cuanto sube el valor disculpe»
+  BOT: «El valor de la cotización ya está enviado; no puedo confirmar recargos
+        de tarjeta por este medio.»
+  ASESOR, 22 min después: «Con pagos con tarjeta no sube el precio. Y puede
+        diferir a 3 y 6 meses sin intereses»
+
+El dato estaba impreso en el pie de la imagen que el bot acababa de mandar,
+como texto dibujado en el PNG: para él no existía. Y las lonas las preguntaron
+tres clientes (16974, 18294, 18880); las tres veces dijo que no tenía el dato,
+mostrando el producto que lo trae en el nombre.
+
+**Lo que el simulador enseñó.** El candado de pagos nació persiguiendo la
+evasiva («no puedo confirmar», «lo valida el asesor») y el modelo cambió la
+redacción en cada corrida: primero «por este medio», después «las condiciones
+exactas se las confirma el asesor», después «se las confirma el asesor en el
+local». Se dio vuelta el criterio: no se persigue cómo se escapa, se exige que
+la RESPUESTA esté. El hecho es uno solo y o está dicho o no está.
+
+Lo mismo con el beneficio de redes: primero se puso en el
+`mensaje_para_enviar` de `generar_cotizacion` y no salía, porque el turno de la
+cotización muchas veces lo escribe el modelo después de llamar la herramienta.
+Se movió a la cadena de salida, que mira el hecho —hay cotización en el ciclo—
+y no el camino.
+
+**Horas:** 2
+
+## 12-sep-2026 · Un sticker no es una conversación nueva
+
+**Qué:** `domain/mensajeQueNoSeLee.ts` elige qué se le dice al modelo cuando
+llega un sticker, un video o un contacto. Sin medida todavía, se le pide la
+medida como siempre. Con la venta en marcha —medida, lámina, cotización o
+visita— la instrucción pasa a ser no reiniciar, no volver a pedir la medida y
+no presentarse de nuevo. Lo que nunca cambia es avisar que el mensaje no se
+pudo ver: si el modelo cree que lo leyó, inventa lo que decía. Prueba:
+`stickerNoReiniciaLaVenta` (6 casos).
+
+**Por qué:** conv 18821, con la visita confirmada para el lunes y el cliente
+despidiéndose con «Correcto todo bien gracias», mandó un sticker y el bot le
+contestó «Envíeme la medida escrita o una foto del costado de la llanta».
+Conv 16982: con cotización y visita para el sábado, un sticker disparó saludo,
+guía de medida y «¿Me dice la medida…?». Conv 11: un «.» disparó el saludo de
+presentación completo. Doce stickers en la ventana, cinco con respuesta, dos
+pidiendo la medida a quien ya la había dado.
+
+**Horas:** 0.75
+
 ## 12-sep-2026 · El precio que el cliente está viendo no es una oferta nueva
 
 **Qué:** `preciosDeCamposDeDinero` en `domain/guardianNoVendeSolo.ts` lee los

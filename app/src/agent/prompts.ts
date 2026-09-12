@@ -1,3 +1,4 @@
+import { politicaDePagos } from "../domain/datosDelNegocio.js";
 import { business } from "../config.js";
 import type { Stage } from "../domain/pipeline.js";
 import { DEFAULT_AI_CONFIG, formatStoreHours, type AiConfig, type StoreHours } from "../services/settings.js";
@@ -30,6 +31,7 @@ Locales disponibles:
 ${stores}
 Horario: ${storeHours ? formatStoreHours(storeHours) : business.schedule}.
 Teléfono: este mismo WhatsApp. El cliente ya está escribiendo aquí: NUNCA le des un número para que llame ni le digas que no tienes la dirección — la ubicación se manda con los mapas de los dos locales.
+Formas de pago: ${politicaDePagos()} Es un HECHO del negocio, no una suposición: cuando pregunten por tarjeta, recargos o cuotas, respóndelo con estas palabras. PROHIBIDO decir que no puedes confirmarlo o que lo valide el asesor — está impreso en la propia cotización que le mandaste.
 ${business.promo ? `Promoción vigente: ${business.promo}.` : ""}
 
 # Estilo administrado

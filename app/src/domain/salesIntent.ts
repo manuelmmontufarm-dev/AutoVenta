@@ -254,6 +254,13 @@ export interface OpcionDeEscalon {
   codigo: string;
   nombre: string;
   precio_con_iva: number;
+  /**
+   * Las lonas (ply rating) de esa llanta, si el nombre del fabricante las dice.
+   * Viaja con la opción para poder contestar «¿de cuántas lonas es?» en un
+   * turno posterior sin volver a buscar — tres clientes lo preguntaron en la
+   * semana del 8 al 11-sep y las tres veces el bot dijo que no lo tenía.
+   */
+  lonas?: number;
 }
 
 export interface Escalones {

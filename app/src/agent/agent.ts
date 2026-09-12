@@ -1207,11 +1207,15 @@ function escalonesLine(escalones: Escalones | null): string | null {
   const partes = (["premium", "equilibrada", "economica"] as const)
     .map((nivel) => {
       const opcion = escalones[nivel];
-      return opcion ? `${nivel}: ${opcion.nombre} ($${opcion.precio_con_iva.toFixed(2)} c/u con IVA, código ${opcion.codigo})` : null;
+      // Las lonas van pegadas a la opción para poder contestar «¿de cuántas
+      // lonas es?» en un turno posterior: el dato está en el nombre del
+      // fabricante y el bot decía que no lo tenía (convs 16974, 18294, 18880).
+      const lonas = opcion?.lonas ? `, ${opcion.lonas} lonas` : "";
+      return opcion ? `${nivel}: ${opcion.nombre} ($${opcion.precio_con_iva.toFixed(2)} c/u con IVA, código ${opcion.codigo}${lonas})` : null;
     })
     .filter(Boolean);
   if (!partes.length) return null;
-  return `Escalones de la última pieza de opciones enviada — ${partes.join("; ")}. Si el cliente responde su preferencia («mejor precio», «la más barata», «equilibrada», «la del medio», «premium», «la mejor»), entrega LA opción de ese escalón con su precio y en ESE MISMO turno llama generar_cotizacion con su código y 4 llantas (o la cantidad que haya dicho): contestar el menú ES pedir la cotización — PROHIBIDO ofrecerla o pedir permiso, PROHIBIDO volver a preguntarle qué prefiere o si necesita una recomendación.`;
+  return `Escalones de la última pieza de opciones enviada — ${partes.join("; ")}. Cuando ahí diga las lonas, es un dato REAL del producto y se responde con él; no digas que no lo tienes. Si el cliente responde su preferencia («mejor precio», «la más barata», «equilibrada», «la del medio», «premium», «la mejor»), entrega LA opción de ese escalón con su precio y en ESE MISMO turno llama generar_cotizacion con su código y 4 llantas (o la cantidad que haya dicho): contestar el menú ES pedir la cotización — PROHIBIDO ofrecerla o pedir permiso, PROHIBIDO volver a preguntarle qué prefiere o si necesita una recomendación.`;
 }
 
 function withDiscountNotice(

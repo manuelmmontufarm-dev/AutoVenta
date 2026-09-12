@@ -50,6 +50,7 @@ import {
 import { emitLiveEvent } from "./services/liveEvents.js";
 import { registrarMensajeDeAsesor } from "./services/advisorWindow.js";
 import { contestaAunApagado, isBotActive } from "./services/botPower.js";
+import { textoParaMensajeQueNoSeLee } from "./domain/mensajeQueNoSeLee.js";
 import {
   extractFlotationSizes, extractTireSizes, formatFlotationSize, formatTireSize,
 } from "./domain/tireSize.js";
@@ -814,10 +815,17 @@ setWaHandlers({
         // caído.
         const mudos = ["reaction", "system", "order", "unknown", "unsupported"];
         if (mudos.includes(message.type)) break;
+        // QUÉ se le pide depende de dónde está la venta. Pedirle la medida a
+        // quien ya tiene la visita confirmada es reiniciar una conversación que
+        // iba bien: conv 18821 (sticker tras «Correcto todo bien gracias» →
+        // «Envíeme la medida escrita»), conv 16982 (sticker con cotización y
+        // visita → saludo y guía de medida otra vez). Ver
+        // `domain/mensajeQueNoSeLee.ts`.
+        const convDelSticker = await getOrCreateConversation(from, name);
         await recibirMensaje(
           from,
           name,
-          "[El cliente mandó un mensaje que el bot no puede ver (video, sticker o similar). Pídele con amabilidad la medida escrita o una foto del costado de la llanta.]",
+          textoParaMensajeQueNoSeLee(await estadoDeLaVenta(convDelSticker.id, convDelSticker.current_cycle)),
           message.id,
           receivedAt,
         );
@@ -872,3 +880,29 @@ app.listen(config.port, () => {
     })
     .catch((error) => console.error("⚠️ No se pudieron recuperar avisos pendientes al asesor:", error));
 });
+
+
+/**
+ * Dónde está la venta, para decidir qué se hace con un mensaje que el bot no
+ * puede leer. Ver `domain/mensajeQueNoSeLee.ts`.
+ */
+async function estadoDeLaVenta(conversationId: number, cycle: number) {
+  const [fila] = await sql<{
+    tiene_medida: boolean; vio_opciones: boolean; tiene_cotizacion: boolean; tiene_visita: boolean;
+  }[]>`
+    select
+      (c.tire_size is not null) as tiene_medida,
+      (c.visit_date is not null) as tiene_visita,
+      exists(select 1 from messages m
+        where m.conversation_id=c.id and m.cycle=${cycle} and m.metadata->>'piece'='options') as vio_opciones,
+      exists(select 1 from quotes q
+        where q.conversation_id=c.id and q.cycle=${cycle}) as tiene_cotizacion
+    from conversations c where c.id=${conversationId}
+  `;
+  return {
+    tieneMedida: Boolean(fila?.tiene_medida),
+    vioOpciones: Boolean(fila?.vio_opciones),
+    tieneCotizacion: Boolean(fila?.tiene_cotizacion),
+    tieneVisita: Boolean(fila?.tiene_visita),
+  };
+}

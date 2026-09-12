@@ -1,0 +1,1081 @@
+[
+ {
+  "id": "E1",
+  "titulo": "conv 18106 · «Estoy en guayaquil» → y aun así «¿a cuál local le queda mejor ir?»",
+  "fallas": [],
+  "turnos": [
+   {
+    "cliente": "¡Hola! Quiero más información",
+    "bot": [
+     {
+      "texto": "¡Hola! 👋 Soy el asistente de Depot Tire. Le cotizo al instante con stock y precios reales, comparo modelos y le armo su cotización para tienda.\n\nPuede mandarme la medida escrita, una foto del costado de la llanta o decirme su vehículo.",
+      "tipo": "text"
+     },
+     {
+      "texto": "¿Qué medida usa? Ej: 225/65R17",
+      "tipo": "text"
+     }
+    ],
+    "fase": [],
+    "herramientas": [],
+    "modelos": [
+     "gpt-5.5"
+    ],
+    "errores": [],
+    "sinRespuesta": false,
+    "guardian": [
+     {
+      "verdict": "aprobar",
+      "findings": [],
+      "original": "¡Hola! 👋 Soy el asistente de Depot Tire. Le cotizo al instante con stock y precios reales, comparo modelos y le armo su cotización para tienda.\n\nPuede mandarme la medida escrita, una foto del costado de la llanta o decirme su vehículo.\n\n¿Qué medida usa? Ej: 225/65R17",
+      "corregido": null
+     }
+    ]
+   },
+   {
+    "cliente": "205/55R16",
+    "bot": [
+     {
+      "texto": "Opciones enviadas: FALKEN ZE310R · KENDA KR20 · WINRUN R330",
+      "tipo": "image"
+     },
+     {
+      "texto": "Para afinarle la recomendación sobre las opciones que le envié, dígame una sola cosa: ¿qué prioriza usted?\n\n1) *Costo* — la más conveniente de precio\n2) *Equilibrio* — la que mejor balancea precio y rendimiento\n3) *Premium* — la de máxima calidad y durabilidad\n\nCon eso le dejo la opción exacta para su medida.",
+      "tipo": "text"
+     }
+    ],
+    "fase": [
+     "medida_confirmada"
+    ],
+    "herramientas": [
+     "buscar_llanta",
+     "preparar_opciones"
+    ],
+    "modelos": [
+     "gpt-5.4-mini",
+     "gpt-5.5"
+    ],
+    "errores": [],
+    "sinRespuesta": false,
+    "guardian": [
+     {
+      "verdict": "aprobar",
+      "findings": [],
+      "original": "Para afinarle la recomendación sobre las opciones que le envié, dígame una sola cosa: ¿qué prioriza usted?\n\n1) *Costo* — la más conveniente de precio\n2) *Equilibrio* — la que mejor balancea precio y rendimiento\n3) *Premium* — la de máxima calidad y durabilidad\n\nCon eso le dejo la opción exacta para su medida.",
+      "corregido": null
+     }
+    ]
+   },
+   {
+    "cliente": "1",
+    "bot": [
+     {
+      "texto": "Cotización COT-MTYTIZ81 enviada por $242.68",
+      "tipo": "image"
+     },
+     {
+      "texto": "La opción de costo es la *WINRUN R330* — *$60.67 c/u con IVA*. Le dejo la cotización 👍\n\nPuede pasar sin compromiso a verlas y probarlas en su vehículo.",
+      "tipo": "text"
+     },
+     {
+      "texto": "📍 *Depot Tire Cumbayá*: https://maps.app.goo.gl/QnMBPXKc1o8igbsp8\n📍 *Depot Tire Quito Sur*: https://maps.app.goo.gl/NQeNN8csyAnRkJDJ7",
+      "tipo": "text"
+     },
+     {
+      "texto": "¿Cuál de los dos locales le queda mejor?",
+      "tipo": "text"
+     },
+     {
+      "texto": "🎁 Y tiene un beneficio adicional por venir de nuestras redes sociales: además de los servicios incluidos en la instalación de sus llantas, le obsequiamos una alineación + rotación completamente GRATIS a los 10.000 km.\n\nCuando venga a realizar su compra, recuerde mencionar este beneficio a su asesor para que pueda registrarlo. 🚗✅",
+      "tipo": "text"
+     }
+    ],
+    "fase": [],
+    "herramientas": [],
+    "modelos": [
+     "gpt-5.5"
+    ],
+    "errores": [],
+    "sinRespuesta": false,
+    "guardian": [
+     {
+      "verdict": "corregir",
+      "findings": [
+       {
+        "detalle": "Después de enviar la cotización, el cierre debe ir en dos mensajes/bloques: primero locales con links y luego la pregunta de cuál local le queda mejor. El borrador solo manda los links y no pregunta el local.",
+        "categoria": "otro",
+        "severidad": "alta"
+       }
+      ],
+      "original": "La opción de costo es la *WINRUN R330* — *$60.67 c/u con IVA*. Le dejo la cotización 👍\n\n---\n\nPuede pasar sin compromiso a verlas y probarlas en su vehículo.\n📍 *Depot Tire Cumbayá*: https://maps.app.goo.gl/QnMBPXKc1o8igbsp8\n📍 *Depot Tire Quito Sur*: https://maps.app.goo.gl/NQeNN8csyAnRkJDJ7",
+      "corregido": "La opción de costo es la *WINRUN R330* — *$60.67 c/u con IVA*. Le dejo la cotización 👍\n\n---\n\nPuede pasar sin compromiso a verlas y probarlas en su vehículo.\n📍 *Depot Tire Cumbayá*: https://maps.app.goo.gl/QnMBPXKc1o8igbsp8\n📍 *Depot Tire Quito Sur*: https://maps.app.goo.gl/NQeNN8csyAnRkJDJ7\n\n---\n\n¿Cuál de los dos locales le queda mejor?"
+     }
+    ]
+   },
+   {
+    "cliente": "Estoy en guayaquil",
+    "bot": [
+     {
+      "texto": "En Guayaquil no tenemos local para atenderle en persona.\n\nYa dejé notificado a un asesor para que revise si podemos ayudarle con alguna alternativa fuera de Quito 🤝",
+      "tipo": "text"
+     }
+    ],
+    "fase": [],
+    "herramientas": [
+     "notificar_vendedor"
+    ],
+    "modelos": [
+     "gpt-5.4-mini",
+     "gpt-5.5"
+    ],
+    "errores": [],
+    "sinRespuesta": false,
+    "guardian": [
+     {
+      "verdict": "corregir",
+      "findings": [
+       {
+        "detalle": "El borrador pregunta si desea la ubicación de Cumbayá y Quito Sur, pero esos links ya fueron enviados en la conversación y además el cliente acaba de aclarar que está en Guayaquil.",
+        "categoria": "repeticion",
+        "severidad": "media"
+       }
+      ],
+      "original": "En Guayaquil no tenemos local para atenderle en persona.\n\nSi quiere, le dejo la ubicación de nuestros locales en Quito o le ayudo a coordinar con un asesor 🤝\n\n¿Desea la ubicación de Cumbayá y Quito Sur?",
+      "corregido": "En Guayaquil no tenemos local para atenderle en persona.\n\nYa dejé notificado a un asesor para que revise si podemos ayudarle con alguna alternativa fuera de Quito 🤝"
+     }
+    ]
+   }
+  ],
+  "estadoFinal": {
+   "stage": "seguimiento_venta",
+   "status": "open",
+   "tire_size": "205/55R16",
+   "selected_quantity": 4,
+   "nearest_store": null,
+   "visit_date": null,
+   "current_cycle": 1,
+   "cotizaciones": [
+    {
+     "numero": "COT-MTYTIZ81",
+     "total": 242.68,
+     "items": [
+      {
+       "code": "2055516WNR330",
+       "brand": "WINRUN",
+       "design": "R330",
+       "imageUrl": "/assets/catalog/winrun-r330.jpg",
+       "quantity": 4,
+       "loadSpeed": {
+        "code": "91V",
+        "loadKg": 615,
+        "speedKmh": 240,
+        "loadIndex": 91,
+        "speedSymbol": "V"
+       },
+       "sizeLabel": "205/55R16",
+       "unitPrice": 52.75652173913044,
+       "description": "Llanta WINRUN R330 205/55R16",
+       "availability": "available",
+       "warrantyFactory": "5 años garantía de fábrica contra defectos de fabricación",
+       "listPriceWithTax": 80.9,
+       "salePriceWithTax": 60.67,
+       "warrantyRoadHazard": "6 meses contra golpes y estalladuras"
+      }
+     ],
+     "cycle": 1
+    }
+   ],
+   "alertas": [
+    {
+     "tipo": "quote_created",
+     "prioridad": "medium",
+     "resumen": "Nueva cotización COT-MTYTIZ81 por $242.68"
+    },
+    {
+     "tipo": "envio_fuera_de_cobertura",
+     "prioridad": "high",
+     "resumen": "Cliente está en Guayaquil. Ya tiene cotización de 4 llantas WINRUN R330 205/55R16 por $242.68. Quiere saber si se puede atender fuera de Quito."
+    }
+   ],
+   "avisos_asesor": 4,
+   "sin_revision": 0
+  }
+ },
+ {
+  "id": "E2",
+  "titulo": "conv 18821 · «Soy de Santo Domingo» + «voy a estar en quito» → local inventado",
+  "fallas": [],
+  "turnos": [
+   {
+    "cliente": "¡Hola! Quiero más información",
+    "bot": [
+     {
+      "texto": "¡Hola! 👋 Soy el asistente de Depot Tire. Le cotizo al instante con stock y precios reales, comparo modelos y le armo su cotización para tienda.\n\nPuede mandarme la medida escrita, una foto del costado de la llanta o decirme su vehículo.",
+      "tipo": "text"
+     },
+     {
+      "texto": "¿Qué medida usa? Ej: 225/65R17",
+      "tipo": "text"
+     }
+    ],
+    "fase": [],
+    "herramientas": [],
+    "modelos": [
+     "gpt-5.5"
+    ],
+    "errores": [],
+    "sinRespuesta": false,
+    "guardian": [
+     {
+      "verdict": "aprobar",
+      "findings": [],
+      "original": "¡Hola! 👋 Soy el asistente de Depot Tire. Le cotizo al instante con stock y precios reales, comparo modelos y le armo su cotización para tienda.\n\nPuede mandarme la medida escrita, una foto del costado de la llanta o decirme su vehículo.\n\n¿Qué medida usa? Ej: 225/65R17",
+      "corregido": null
+     }
+    ]
+   },
+   {
+    "cliente": "205/55R16",
+    "bot": [
+     {
+      "texto": "Opciones enviadas: FALKEN ZE310R · KENDA KR20 · WINRUN R330",
+      "tipo": "image"
+     },
+     {
+      "texto": "Para afinarle la recomendación sobre las opciones que le envié, dígame una sola cosa: ¿qué prioriza usted?\n\n1) *Costo* — la más conveniente de precio\n2) *Equilibrio* — la que mejor balancea precio y rendimiento\n3) *Premium* — la de máxima calidad y durabilidad\n\nCon eso le dejo la opción exacta para su medida.",
+      "tipo": "text"
+     }
+    ],
+    "fase": [
+     "medida_confirmada"
+    ],
+    "herramientas": [
+     "buscar_llanta",
+     "preparar_opciones"
+    ],
+    "modelos": [
+     "gpt-5.4-mini",
+     "gpt-5.5"
+    ],
+    "errores": [],
+    "sinRespuesta": false,
+    "guardian": [
+     {
+      "verdict": "aprobar",
+      "findings": [],
+      "original": "Para afinarle la recomendación sobre las opciones que le envié, dígame una sola cosa: ¿qué prioriza usted?\n\n1) *Costo* — la más conveniente de precio\n2) *Equilibrio* — la que mejor balancea precio y rendimiento\n3) *Premium* — la de máxima calidad y durabilidad\n\nCon eso le dejo la opción exacta para su medida.",
+      "corregido": null
+     }
+    ]
+   },
+   {
+    "cliente": "1",
+    "bot": [
+     {
+      "texto": "Cotización COT-MTYTKLXU enviada por $242.68",
+      "tipo": "image"
+     },
+     {
+      "texto": "La opción de costo es la *WINRUN R330* — *$60.67 c/u con IVA*. Le dejo la cotización 👍\n\nPuede pasar sin compromiso a verlas y probarlas en su vehículo.",
+      "tipo": "text"
+     },
+     {
+      "texto": "📍 *Depot Tire Cumbayá*: https://maps.app.goo.gl/QnMBPXKc1o8igbsp8\n📍 *Depot Tire Quito Sur*: https://maps.app.goo.gl/NQeNN8csyAnRkJDJ7",
+      "tipo": "text"
+     },
+     {
+      "texto": "¿A cuál de los dos locales le queda mejor acercarse?",
+      "tipo": "text"
+     },
+     {
+      "texto": "🎁 Y tiene un beneficio adicional por venir de nuestras redes sociales: además de los servicios incluidos en la instalación de sus llantas, le obsequiamos una alineación + rotación completamente GRATIS a los 10.000 km.\n\nCuando venga a realizar su compra, recuerde mencionar este beneficio a su asesor para que pueda registrarlo. 🚗✅",
+      "tipo": "text"
+     }
+    ],
+    "fase": [],
+    "herramientas": [],
+    "modelos": [
+     "gpt-5.5"
+    ],
+    "errores": [],
+    "sinRespuesta": false,
+    "guardian": [
+     {
+      "verdict": "corregir",
+      "findings": [
+       {
+        "detalle": "Después de enviar la cotización, el cierre debe ir en dos mensajes/bloques: primero locales con links y 'sin compromiso', y luego aparte preguntar a cuál local le queda mejor. El borrador incluye los links pero no hace la pregunta de local.",
+        "categoria": "otro",
+        "severidad": "alta"
+       }
+      ],
+      "original": "La opción de costo es la *WINRUN R330* — *$60.67 c/u con IVA*. Le dejo la cotización 👍\n\n---\n\nPuede pasar sin compromiso a verlas y probarlas en su vehículo.\n📍 *Depot Tire Cumbayá*: https://maps.app.goo.gl/QnMBPXKc1o8igbsp8\n📍 *Depot Tire Quito Sur*: https://maps.app.goo.gl/NQeNN8csyAnRkJDJ7",
+      "corregido": "La opción de costo es la *WINRUN R330* — *$60.67 c/u con IVA*. Le dejo la cotización 👍\n\n---\n\nPuede pasar sin compromiso a verlas y probarlas en su vehículo.\n📍 *Depot Tire Cumbayá*: https://maps.app.goo.gl/QnMBPXKc1o8igbsp8\n📍 *Depot Tire Quito Sur*: https://maps.app.goo.gl/NQeNN8csyAnRkJDJ7\n\n---\n\n¿A cuál de los dos locales le queda mejor acercarse?"
+     }
+    ]
+   },
+   {
+    "cliente": "Soy de Santo Domingo",
+    "bot": [
+     {
+      "texto": "Gracias. En Santo Domingo no tenemos local, pero sí le puedo dejar el de Quito para que coordine su visita 🤝",
+      "tipo": "text"
+     },
+     {
+      "texto": "¿Le queda mejor Depot Tire Cumbayá o Depot Tire Quito Sur?",
+      "tipo": "text"
+     }
+    ],
+    "fase": [],
+    "herramientas": [],
+    "modelos": [
+     "gpt-5.4-mini",
+     "gpt-5.5"
+    ],
+    "errores": [],
+    "sinRespuesta": false,
+    "guardian": [
+     {
+      "verdict": "aprobar",
+      "findings": [],
+      "original": "Gracias. En Santo Domingo no tenemos local, pero sí le puedo dejar el de Quito para que coordine su visita 🤝\n\n¿Le queda mejor Depot Tire Cumbayá o Depot Tire Quito Sur?",
+      "corregido": null
+     }
+    ]
+   },
+   {
+    "cliente": "Yo el lunes voy a estar en quito",
+    "bot": [
+     {
+      "texto": "Perfecto, registré su visita para lunes 14 de septiembre.",
+      "tipo": "text"
+     }
+    ],
+    "fase": [],
+    "herramientas": [],
+    "modelos": [
+     "gpt-5.5"
+    ],
+    "errores": [],
+    "sinRespuesta": false,
+    "guardian": [
+     {
+      "verdict": "aprobar",
+      "findings": [
+       {
+        "detalle": "El borrador confirma una visita para lunes 14 de septiembre, pero en hechos no consta local elegido; aunque sí consta visita registrada, falta el local para que la visita quede operativa. No se corrige el texto al cliente porque es un problema de registro/estado, no de redacción.",
+        "categoria": "estado_desincronizado",
+        "severidad": "alta"
+       }
+      ],
+      "original": "Perfecto, registré su visita para lunes 14 de septiembre.",
+      "corregido": null
+     }
+    ]
+   }
+  ],
+  "estadoFinal": {
+   "stage": "seguimiento_venta",
+   "status": "open",
+   "tire_size": "205/55R16",
+   "selected_quantity": 4,
+   "nearest_store": null,
+   "visit_date": "2026-09-14T15:00:00.000Z",
+   "current_cycle": 1,
+   "cotizaciones": [
+    {
+     "numero": "COT-MTYTKLXU",
+     "total": 242.68,
+     "items": [
+      {
+       "code": "2055516WNR330",
+       "brand": "WINRUN",
+       "design": "R330",
+       "imageUrl": "/assets/catalog/winrun-r330.jpg",
+       "quantity": 4,
+       "loadSpeed": {
+        "code": "91V",
+        "loadKg": 615,
+        "speedKmh": 240,
+        "loadIndex": 91,
+        "speedSymbol": "V"
+       },
+       "sizeLabel": "205/55R16",
+       "unitPrice": 52.75652173913044,
+       "description": "Llanta WINRUN R330 205/55R16",
+       "availability": "available",
+       "warrantyFactory": "5 años garantía de fábrica contra defectos de fabricación",
+       "listPriceWithTax": 80.9,
+       "salePriceWithTax": 60.67,
+       "warrantyRoadHazard": "6 meses contra golpes y estalladuras"
+      }
+     ],
+     "cycle": 1
+    }
+   ],
+   "alertas": [
+    {
+     "tipo": "quote_created",
+     "prioridad": "medium",
+     "resumen": "Nueva cotización COT-MTYTKLXU por $242.68"
+    },
+    {
+     "tipo": "visita_comprometida",
+     "prioridad": "high",
+     "resumen": "Cliente dijo cuándo viene: lunes 14 de septiembre"
+    }
+   ],
+   "avisos_asesor": 4,
+   "sin_revision": 0
+  }
+ },
+ {
+  "id": "E3",
+  "titulo": "conv 18438 · «Ya le confirmo» → despedida de venta perdida",
+  "fallas": [],
+  "turnos": [
+   {
+    "cliente": "¡Hola! Quiero más información",
+    "bot": [
+     {
+      "texto": "¡Hola! 👋 Soy el asistente de Depot Tire. Le cotizo al instante con stock y precios reales, comparo modelos y le armo su cotización para tienda.\n\nPuede mandarme la medida escrita, una foto del costado de la llanta o decirme su vehículo.",
+      "tipo": "text"
+     },
+     {
+      "texto": "¿Qué medida usa? Ej: 225/65R17",
+      "tipo": "text"
+     }
+    ],
+    "fase": [],
+    "herramientas": [],
+    "modelos": [
+     "gpt-5.5"
+    ],
+    "errores": [],
+    "sinRespuesta": false,
+    "guardian": [
+     {
+      "verdict": "aprobar",
+      "findings": [],
+      "original": "¡Hola! 👋 Soy el asistente de Depot Tire. Le cotizo al instante con stock y precios reales, comparo modelos y le armo su cotización para tienda.\n\nPuede mandarme la medida escrita, una foto del costado de la llanta o decirme su vehículo.\n\n¿Qué medida usa? Ej: 225/65R17",
+      "corregido": null
+     }
+    ]
+   },
+   {
+    "cliente": "205/55R16",
+    "bot": [
+     {
+      "texto": "Opciones enviadas: FALKEN ZE310R · KENDA KR20 · WINRUN R330",
+      "tipo": "image"
+     },
+     {
+      "texto": "Para afinarle la recomendación sobre las opciones que le envié, dígame una sola cosa: ¿qué prioriza usted?\n\n1) *Costo* — la más conveniente de precio\n2) *Equilibrio* — la que mejor balancea precio y rendimiento\n3) *Premium* — la de máxima calidad y durabilidad\n\nCon eso le dejo la opción exacta para su medida.",
+      "tipo": "text"
+     }
+    ],
+    "fase": [
+     "medida_confirmada"
+    ],
+    "herramientas": [
+     "buscar_llanta",
+     "preparar_opciones"
+    ],
+    "modelos": [
+     "gpt-5.5",
+     "gpt-5.4-mini"
+    ],
+    "errores": [],
+    "sinRespuesta": false,
+    "guardian": [
+     {
+      "verdict": "aprobar",
+      "findings": [],
+      "original": "Para afinarle la recomendación sobre las opciones que le envié, dígame una sola cosa: ¿qué prioriza usted?\n\n1) *Costo* — la más conveniente de precio\n2) *Equilibrio* — la que mejor balancea precio y rendimiento\n3) *Premium* — la de máxima calidad y durabilidad\n\nCon eso le dejo la opción exacta para su medida.",
+      "corregido": null
+     }
+    ]
+   },
+   {
+    "cliente": "1",
+    "bot": [
+     {
+      "texto": "Cotización COT-MTYTMJWI enviada por $242.68",
+      "tipo": "image"
+     },
+     {
+      "texto": "La opción de costo es la *WINRUN R330* — *$60.67 c/u con IVA*. Le dejo la cotización 👍\n\nPuede pasar sin compromiso a verlas y probarlas en su vehículo.",
+      "tipo": "text"
+     },
+     {
+      "texto": "📍 *Depot Tire Cumbayá*: https://maps.app.goo.gl/QnMBPXKc1o8igbsp8\n📍 *Depot Tire Quito Sur*: https://maps.app.goo.gl/NQeNN8csyAnRkJDJ7",
+      "tipo": "text"
+     },
+     {
+      "texto": "¿Cuál de los dos locales le queda mejor?",
+      "tipo": "text"
+     },
+     {
+      "texto": "🎁 Y tiene un beneficio adicional por venir de nuestras redes sociales: además de los servicios incluidos en la instalación de sus llantas, le obsequiamos una alineación + rotación completamente GRATIS a los 10.000 km.\n\nCuando venga a realizar su compra, recuerde mencionar este beneficio a su asesor para que pueda registrarlo. 🚗✅",
+      "tipo": "text"
+     }
+    ],
+    "fase": [],
+    "herramientas": [],
+    "modelos": [
+     "gpt-5.5"
+    ],
+    "errores": [],
+    "sinRespuesta": false,
+    "guardian": [
+     {
+      "verdict": "corregir",
+      "findings": [
+       {
+        "detalle": "Después de enviar la cotización, el cierre debe ir en dos mensajes/bloques: primero locales con links y 'sin compromiso', y luego aparte preguntar cuál local le queda mejor. El borrador omitía la pregunta de local.",
+        "categoria": "otro",
+        "severidad": "media"
+       }
+      ],
+      "original": "La opción de costo es la *WINRUN R330* — *$60.67 c/u con IVA*. Le dejo la cotización 👍\n\n---\n\nPuede pasar sin compromiso a verlas y probarlas en su vehículo.\n📍 *Depot Tire Cumbayá*: https://maps.app.goo.gl/QnMBPXKc1o8igbsp8\n📍 *Depot Tire Quito Sur*: https://maps.app.goo.gl/NQeNN8csyAnRkJDJ7",
+      "corregido": "La opción de costo es la *WINRUN R330* — *$60.67 c/u con IVA*. Le dejo la cotización 👍\n\n---\n\nPuede pasar sin compromiso a verlas y probarlas en su vehículo.\n📍 *Depot Tire Cumbayá*: https://maps.app.goo.gl/QnMBPXKc1o8igbsp8\n📍 *Depot Tire Quito Sur*: https://maps.app.goo.gl/NQeNN8csyAnRkJDJ7\n\n---\n\n¿Cuál de los dos locales le queda mejor?"
+     }
+    ]
+   },
+   {
+    "cliente": "Ya le confirmo por favor en el transcurso del día. Gracias por su amable atención",
+    "bot": [
+     {
+      "texto": "Claro, quedo pendiente de su confirmación 👍",
+      "tipo": "text"
+     }
+    ],
+    "fase": [],
+    "herramientas": [],
+    "modelos": [],
+    "errores": [],
+    "sinRespuesta": false,
+    "guardian": []
+   }
+  ],
+  "estadoFinal": {
+   "stage": "cotizacion_enviada",
+   "status": "open",
+   "tire_size": "205/55R16",
+   "selected_quantity": 4,
+   "nearest_store": null,
+   "visit_date": null,
+   "current_cycle": 1,
+   "cotizaciones": [
+    {
+     "numero": "COT-MTYTMJWI",
+     "total": 242.68,
+     "items": [
+      {
+       "code": "2055516WNR330",
+       "brand": "WINRUN",
+       "design": "R330",
+       "imageUrl": "/assets/catalog/winrun-r330.jpg",
+       "quantity": 4,
+       "loadSpeed": {
+        "code": "91V",
+        "loadKg": 615,
+        "speedKmh": 240,
+        "loadIndex": 91,
+        "speedSymbol": "V"
+       },
+       "sizeLabel": "205/55R16",
+       "unitPrice": 52.75652173913044,
+       "description": "Llanta WINRUN R330 205/55R16",
+       "availability": "available",
+       "warrantyFactory": "5 años garantía de fábrica contra defectos de fabricación",
+       "listPriceWithTax": 80.9,
+       "salePriceWithTax": 60.67,
+       "warrantyRoadHazard": "6 meses contra golpes y estalladuras"
+      }
+     ],
+     "cycle": 1
+    }
+   ],
+   "alertas": [
+    {
+     "tipo": "quote_created",
+     "prioridad": "medium",
+     "resumen": "Nueva cotización COT-MTYTMJWI por $242.68"
+    }
+   ],
+   "avisos_asesor": 2,
+   "sin_revision": 0
+  }
+ },
+ {
+  "id": "E4",
+  "titulo": "conv 17804 · «¿con tarjeta cuánto sube?» → «no puedo confirmar recargos»",
+  "fallas": [],
+  "turnos": [
+   {
+    "cliente": "¡Hola! Quiero más información",
+    "bot": [
+     {
+      "texto": "¡Hola! 👋 Soy el asistente de Depot Tire. Le cotizo al instante con stock y precios reales, comparo modelos y le armo su cotización para tienda.\n\nPuede mandarme la medida escrita, una foto del costado de la llanta o decirme su vehículo.",
+      "tipo": "text"
+     },
+     {
+      "texto": "¿Qué medida usa? Ej: 225/65R17",
+      "tipo": "text"
+     }
+    ],
+    "fase": [],
+    "herramientas": [],
+    "modelos": [
+     "gpt-5.5"
+    ],
+    "errores": [],
+    "sinRespuesta": false,
+    "guardian": [
+     {
+      "verdict": "aprobar",
+      "findings": [],
+      "original": "¡Hola! 👋 Soy el asistente de Depot Tire. Le cotizo al instante con stock y precios reales, comparo modelos y le armo su cotización para tienda.\n\nPuede mandarme la medida escrita, una foto del costado de la llanta o decirme su vehículo.\n\n¿Qué medida usa? Ej: 225/65R17",
+      "corregido": null
+     }
+    ]
+   },
+   {
+    "cliente": "275/70R18",
+    "bot": [
+     {
+      "texto": "Opciones enviadas: FALKEN WILDPEAK R/T01 · KENDA KR628",
+      "tipo": "image"
+     },
+     {
+      "texto": "Para afinarle la recomendación sobre las opciones que le envié, dígame una sola cosa: ¿qué prioriza usted?\n\n1) *Costo* — la más conveniente de precio\n2) *Premium* — la de máxima calidad y durabilidad\n\nCon eso le dejo la opción exacta para su medida.",
+      "tipo": "text"
+     }
+    ],
+    "fase": [
+     "medida_confirmada"
+    ],
+    "herramientas": [
+     "buscar_llanta",
+     "preparar_opciones"
+    ],
+    "modelos": [
+     "gpt-5.5",
+     "gpt-5.4-mini"
+    ],
+    "errores": [],
+    "sinRespuesta": false,
+    "guardian": [
+     {
+      "verdict": "aprobar",
+      "findings": [],
+      "original": "Para afinarle la recomendación sobre las opciones que le envié, dígame una sola cosa: ¿qué prioriza usted?\n\n1) *Costo* — la más conveniente de precio\n2) *Premium* — la de máxima calidad y durabilidad\n\nCon eso le dejo la opción exacta para su medida.",
+      "corregido": null
+     }
+    ]
+   },
+   {
+    "cliente": "2",
+    "bot": [
+     {
+      "texto": "Cotización COT-MTYTQDVI enviada por $1563.05",
+      "tipo": "image"
+     },
+     {
+      "texto": "Puede pasar sin compromiso a verlas y probarlas en su vehículo.",
+      "tipo": "text"
+     },
+     {
+      "texto": "📍 *Depot Tire Cumbayá*: https://maps.app.goo.gl/QnMBPXKc1o8igbsp8\n📍 *Depot Tire Quito Sur*: https://maps.app.goo.gl/NQeNN8csyAnRkJDJ7",
+      "tipo": "text"
+     },
+     {
+      "texto": "¿A cuál local le queda mejor ir, *Cumbayá* o *Quito Sur*? 📍",
+      "tipo": "text"
+     },
+     {
+      "texto": "🎁 Y tiene un beneficio adicional por venir de nuestras redes sociales: además de los servicios incluidos en la instalación de sus llantas, le obsequiamos una alineación + rotación completamente GRATIS a los 10.000 km.\n\nCuando venga a realizar su compra, recuerde mencionar este beneficio a su asesor para que pueda registrarlo. 🚗✅",
+      "tipo": "text"
+     }
+    ],
+    "fase": [],
+    "herramientas": [
+     "generar_cotizacion"
+    ],
+    "modelos": [
+     "gpt-5.5",
+     "gpt-5.4-mini"
+    ],
+    "errores": [],
+    "sinRespuesta": false,
+    "guardian": [
+     {
+      "verdict": "aprobar",
+      "findings": [],
+      "original": "Puede pasar sin compromiso a verlas y probarlas en su vehículo.\n📍 *Depot Tire Cumbayá*: https://maps.app.goo.gl/QnMBPXKc1o8igbsp8\n📍 *Depot Tire Quito Sur*: https://maps.app.goo.gl/NQeNN8csyAnRkJDJ7\n\n---\n\n¿A cuál local le queda mejor ir, *Cumbayá* o *Quito Sur*? 📍",
+      "corregido": null
+     }
+    ]
+   },
+   {
+    "cliente": "Si se realiza el pago con tarjeta cuanto sube el valor disculpe",
+    "bot": [
+     {
+      "texto": "Con tarjeta el precio es el mismo: no sube y no hay recargo. 🤝",
+      "tipo": "text"
+     },
+     {
+      "texto": "¿Le queda mejor ir a Cumbayá o a Quito Sur?",
+      "tipo": "text"
+     }
+    ],
+    "fase": [],
+    "herramientas": [],
+    "modelos": [
+     "gpt-5.4-mini",
+     "gpt-5.5"
+    ],
+    "errores": [],
+    "sinRespuesta": false,
+    "guardian": [
+     {
+      "verdict": "corregir",
+      "findings": [
+       {
+        "detalle": "El borrador afirma que puede diferir a 3 y 6 meses sin intereses, pero ese beneficio/plazo no está respaldado en los hechos registrados ni en los servicios y beneficios respaldados.",
+        "categoria": "hecho_comercial_inventado",
+        "severidad": "alta"
+       }
+      ],
+      "original": "Con tarjeta el precio es el mismo: no sube y no hay recargo; además puede diferir a 3 y 6 meses sin intereses. 🤝\n\n¿Le queda mejor ir a Cumbayá o a Quito Sur?",
+      "corregido": "Con tarjeta el precio es el mismo: no sube y no hay recargo. 🤝\n\n¿Le queda mejor ir a Cumbayá o a Quito Sur?"
+     }
+    ]
+   }
+  ],
+  "estadoFinal": {
+   "stage": "seguimiento_venta",
+   "status": "open",
+   "tire_size": "275/70R18",
+   "selected_quantity": 4,
+   "nearest_store": null,
+   "visit_date": null,
+   "current_cycle": 1,
+   "cotizaciones": [
+    {
+     "numero": "COT-MTYTQDVI",
+     "total": 1563.05,
+     "items": [
+      {
+       "code": "352871",
+       "brand": "FALKEN",
+       "design": "WILDPEAK R/T01",
+       "imageUrl": "/assets/catalog/falken-wildpeak-rt01.jpg",
+       "quantity": 4,
+       "loadSpeed": {
+        "code": "122R",
+        "loadKg": 1500,
+        "speedKmh": 170,
+        "loadIndex": 122,
+        "speedSymbol": "R"
+       },
+       "sizeLabel": "275/70R18",
+       "unitPrice": 339.7913043478261,
+       "description": "Llanta FALKEN WILDPEAK R/T01 275/70R18",
+       "availability": "available",
+       "warrantyFactory": "5 años garantía de fábrica contra defectos de fabricación",
+       "listPriceWithTax": 521.02,
+       "salePriceWithTax": 390.76,
+       "warrantyRoadHazard": "18 meses contra golpes y estalladuras"
+      }
+     ],
+     "cycle": 1
+    }
+   ],
+   "alertas": [
+    {
+     "tipo": "quote_created",
+     "prioridad": "medium",
+     "resumen": "Nueva cotización COT-MTYTQDVI por $1563.05"
+    },
+    {
+     "tipo": "guardian_correccion",
+     "prioridad": "high",
+     "resumen": "El guardián corrigió la respuesta: hecho_comercial_inventado"
+    }
+   ],
+   "avisos_asesor": 2,
+   "sin_revision": 0
+  }
+ },
+ {
+  "id": "E5",
+  "titulo": "Joaquín, 10-sep · el beneficio de redes tiene que salir tras la cotización",
+  "fallas": [],
+  "turnos": [
+   {
+    "cliente": "¡Hola! Quiero más información",
+    "bot": [
+     {
+      "texto": "¡Hola! 👋 Soy el asistente de Depot Tire. Le cotizo al instante con stock y precios reales, comparo modelos y le armo su cotización para tienda.\n\nPuede mandarme la medida escrita, una foto del costado de la llanta o decirme su vehículo.",
+      "tipo": "text"
+     },
+     {
+      "texto": "¿Qué medida usa? Ej: 225/65R17",
+      "tipo": "text"
+     }
+    ],
+    "fase": [],
+    "herramientas": [],
+    "modelos": [
+     "gpt-5.5"
+    ],
+    "errores": [],
+    "sinRespuesta": false,
+    "guardian": [
+     {
+      "verdict": "aprobar",
+      "findings": [],
+      "original": "¡Hola! 👋 Soy el asistente de Depot Tire. Le cotizo al instante con stock y precios reales, comparo modelos y le armo su cotización para tienda.\n\nPuede mandarme la medida escrita, una foto del costado de la llanta o decirme su vehículo.\n\n¿Qué medida usa? Ej: 225/65R17",
+      "corregido": null
+     }
+    ]
+   },
+   {
+    "cliente": "205/55R16",
+    "bot": [
+     {
+      "texto": "Opciones enviadas: FALKEN ZE310R · KENDA KR20 · WINRUN R330",
+      "tipo": "image"
+     },
+     {
+      "texto": "Para afinarle la recomendación sobre las opciones que le envié, dígame una sola cosa: ¿qué prioriza usted?\n\n1) *Costo* — la más conveniente de precio\n2) *Equilibrio* — la que mejor balancea precio y rendimiento\n3) *Premium* — la de máxima calidad y durabilidad\n\nCon eso le dejo la opción exacta para su medida.",
+      "tipo": "text"
+     }
+    ],
+    "fase": [
+     "medida_confirmada"
+    ],
+    "herramientas": [
+     "buscar_llanta",
+     "preparar_opciones"
+    ],
+    "modelos": [
+     "gpt-5.5",
+     "gpt-5.4-mini"
+    ],
+    "errores": [],
+    "sinRespuesta": false,
+    "guardian": [
+     {
+      "verdict": "aprobar",
+      "findings": [],
+      "original": "Para afinarle la recomendación sobre las opciones que le envié, dígame una sola cosa: ¿qué prioriza usted?\n\n1) *Costo* — la más conveniente de precio\n2) *Equilibrio* — la que mejor balancea precio y rendimiento\n3) *Premium* — la de máxima calidad y durabilidad\n\nCon eso le dejo la opción exacta para su medida.",
+      "corregido": null
+     }
+    ]
+   },
+   {
+    "cliente": "1",
+    "bot": [
+     {
+      "texto": "Cotización COT-MTYTRYWX enviada por $242.68",
+      "tipo": "image"
+     },
+     {
+      "texto": "La opción de costo es la *WINRUN R330* — *$60.67 c/u con IVA*. Le dejo la cotización 👍\n\nPuede pasar sin compromiso a verlas y probarlas en su vehículo.",
+      "tipo": "text"
+     },
+     {
+      "texto": "📍 *Depot Tire Cumbayá*: https://maps.app.goo.gl/QnMBPXKc1o8igbsp8\n📍 *Depot Tire Quito Sur*: https://maps.app.goo.gl/NQeNN8csyAnRkJDJ7",
+      "tipo": "text"
+     },
+     {
+      "texto": "¿A cuál local le queda mejor ir, *Cumbayá* o *Quito Sur*? 📍",
+      "tipo": "text"
+     },
+     {
+      "texto": "🎁 Y tiene un beneficio adicional por venir de nuestras redes sociales: además de los servicios incluidos en la instalación de sus llantas, le obsequiamos una alineación + rotación completamente GRATIS a los 10.000 km.\n\nCuando venga a realizar su compra, recuerde mencionar este beneficio a su asesor para que pueda registrarlo. 🚗✅",
+      "tipo": "text"
+     }
+    ],
+    "fase": [],
+    "herramientas": [],
+    "modelos": [
+     "gpt-5.5"
+    ],
+    "errores": [],
+    "sinRespuesta": false,
+    "guardian": [
+     {
+      "verdict": "aprobar",
+      "findings": [],
+      "original": "La opción de costo es la *WINRUN R330* — *$60.67 c/u con IVA*. Le dejo la cotización 👍\n\n---\n\nPuede pasar sin compromiso a verlas y probarlas en su vehículo.\n📍 *Depot Tire Cumbayá*: https://maps.app.goo.gl/QnMBPXKc1o8igbsp8\n📍 *Depot Tire Quito Sur*: https://maps.app.goo.gl/NQeNN8csyAnRkJDJ7",
+      "corregido": null
+     }
+    ]
+   }
+  ],
+  "estadoFinal": {
+   "stage": "cotizacion_enviada",
+   "status": "open",
+   "tire_size": "205/55R16",
+   "selected_quantity": 4,
+   "nearest_store": null,
+   "visit_date": null,
+   "current_cycle": 1,
+   "cotizaciones": [
+    {
+     "numero": "COT-MTYTRYWX",
+     "total": 242.68,
+     "items": [
+      {
+       "code": "2055516WNR330",
+       "brand": "WINRUN",
+       "design": "R330",
+       "imageUrl": "/assets/catalog/winrun-r330.jpg",
+       "quantity": 4,
+       "loadSpeed": {
+        "code": "91V",
+        "loadKg": 615,
+        "speedKmh": 240,
+        "loadIndex": 91,
+        "speedSymbol": "V"
+       },
+       "sizeLabel": "205/55R16",
+       "unitPrice": 52.75652173913044,
+       "description": "Llanta WINRUN R330 205/55R16",
+       "availability": "available",
+       "warrantyFactory": "5 años garantía de fábrica contra defectos de fabricación",
+       "listPriceWithTax": 80.9,
+       "salePriceWithTax": 60.67,
+       "warrantyRoadHazard": "6 meses contra golpes y estalladuras"
+      }
+     ],
+     "cycle": 1
+    }
+   ],
+   "alertas": [
+    {
+     "tipo": "quote_created",
+     "prioridad": "medium",
+     "resumen": "Nueva cotización COT-MTYTRYWX por $242.68"
+    }
+   ],
+   "avisos_asesor": 2,
+   "sin_revision": 0
+  }
+ },
+ {
+  "id": "E6",
+  "titulo": "convs 16974, 18294 y 18880 · «¿de cuántas lonas es?» → «no tengo ese dato»",
+  "fallas": [],
+  "turnos": [
+   {
+    "cliente": "¡Hola! Quiero más información",
+    "bot": [
+     {
+      "texto": "¡Hola! 👋 Soy el asistente de Depot Tire. Le cotizo al instante con stock y precios reales, comparo modelos y le armo su cotización para tienda.\n\nPuede mandarme la medida escrita, una foto del costado de la llanta o decirme su vehículo.",
+      "tipo": "text"
+     },
+     {
+      "texto": "¿Qué medida usa? Ej: 225/65R17",
+      "tipo": "text"
+     }
+    ],
+    "fase": [],
+    "herramientas": [],
+    "modelos": [
+     "gpt-5.5"
+    ],
+    "errores": [],
+    "sinRespuesta": false,
+    "guardian": [
+     {
+      "verdict": "aprobar",
+      "findings": [],
+      "original": "¡Hola! 👋 Soy el asistente de Depot Tire. Le cotizo al instante con stock y precios reales, comparo modelos y le armo su cotización para tienda.\n\nPuede mandarme la medida escrita, una foto del costado de la llanta o decirme su vehículo.\n\n¿Qué medida usa? Ej: 225/65R17",
+      "corregido": null
+     }
+    ]
+   },
+   {
+    "cliente": "245/75R16",
+    "bot": [
+     {
+      "texto": "Opciones enviadas: FALKEN WILDPEAK M/T · KENDA KR628 · KENDA KR28",
+      "tipo": "image"
+     },
+     {
+      "texto": "Para afinarle la recomendación sobre las opciones que le envié, dígame una sola cosa: ¿qué prioriza usted?\n\n1) *Costo* — la más conveniente de precio\n2) *Equilibrio* — la que mejor balancea precio y rendimiento\n3) *Premium* — la de máxima calidad y durabilidad\n\nCon eso le dejo la opción exacta para su medida.",
+      "tipo": "text"
+     }
+    ],
+    "fase": [
+     "medida_confirmada"
+    ],
+    "herramientas": [
+     "buscar_llanta",
+     "preparar_opciones"
+    ],
+    "modelos": [
+     "gpt-5.5",
+     "gpt-5.4-mini"
+    ],
+    "errores": [],
+    "sinRespuesta": false,
+    "guardian": [
+     {
+      "verdict": "aprobar",
+      "findings": [],
+      "original": "Para afinarle la recomendación sobre las opciones que le envié, dígame una sola cosa: ¿qué prioriza usted?\n\n1) *Costo* — la más conveniente de precio\n2) *Equilibrio* — la que mejor balancea precio y rendimiento\n3) *Premium* — la de máxima calidad y durabilidad\n\nCon eso le dejo la opción exacta para su medida.",
+      "corregido": null
+     }
+    ]
+   },
+   {
+    "cliente": "De cuantas lonas es esa llanta?",
+    "bot": [
+     {
+      "texto": "La pieza enviada trae ese dato real, pero necesito saber a cuál se refiere: Falken Wildpeak M/T, Kenda KR628 o Kenda KR28.",
+      "tipo": "text"
+     },
+     {
+      "texto": "¿Cuál de las 3 opciones desea revisar?",
+      "tipo": "text"
+     }
+    ],
+    "fase": [],
+    "herramientas": [],
+    "modelos": [
+     "gpt-5.5",
+     "gpt-5.4-mini"
+    ],
+    "errores": [],
+    "sinRespuesta": false,
+    "guardian": [
+     {
+      "verdict": "aprobar",
+      "findings": [],
+      "original": "La pieza enviada trae ese dato real, pero necesito saber a cuál se refiere: Falken Wildpeak M/T, Kenda KR628 o Kenda KR28.\n\n¿Cuál de las 3 opciones desea revisar?",
+      "corregido": null
+     }
+    ]
+   }
+  ],
+  "estadoFinal": {
+   "stage": "seleccionando",
+   "status": "open",
+   "tire_size": "245/75R16",
+   "selected_quantity": null,
+   "nearest_store": null,
+   "visit_date": null,
+   "current_cycle": 1,
+   "cotizaciones": [],
+   "alertas": [],
+   "avisos_asesor": 0,
+   "sin_revision": 0
+  }
+ }
+]
