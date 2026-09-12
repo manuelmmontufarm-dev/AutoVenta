@@ -1,3 +1,169 @@
+## 12-sep-2026 · Los datos que el cliente pregunta y el bot no tenía
+
+**Qué:** `domain/datosDelNegocio.ts` con tres cosas: `politicaDePagos()` (el
+hecho, en palabras), `lonasDelProducto()` (las lee del nombre del fabricante:
+«KR29 10PR TL» son diez lonas) y los detectores para el candado. La política de
+pagos entra al prompt del negocio Y a `respaldo_marcas`; las lonas viajan con
+los escalones de la lámina, así que se pueden contestar en un turno posterior
+sin volver a buscar. Paso nuevo `el_pago_se_responde` en la cadena de salida.
+`domain/beneficioDeRedes.ts` con el texto que redactó Joaquín, y el paso
+`beneficio_de_redes_tras_cotizar` que lo manda una vez por ciclo. Pruebas:
+`datosQueElBotNoSabia` (8 casos) y `beneficioDeRedes` (7).
+
+**Por qué:** conv 17804, tras una cotización de $1.563:
+
+  CLIENTE: «Si se realiza el pago con tarjeta cuanto sube el valor disculpe»
+  BOT: «El valor de la cotización ya está enviado; no puedo confirmar recargos
+        de tarjeta por este medio.»
+  ASESOR, 22 min después: «Con pagos con tarjeta no sube el precio. Y puede
+        diferir a 3 y 6 meses sin intereses»
+
+El dato estaba impreso en el pie de la imagen que el bot acababa de mandar,
+como texto dibujado en el PNG: para él no existía. Y las lonas las preguntaron
+tres clientes (16974, 18294, 18880); las tres veces dijo que no tenía el dato,
+mostrando el producto que lo trae en el nombre.
+
+**Lo que el simulador enseñó.** El candado de pagos nació persiguiendo la
+evasiva («no puedo confirmar», «lo valida el asesor») y el modelo cambió la
+redacción en cada corrida: primero «por este medio», después «las condiciones
+exactas se las confirma el asesor», después «se las confirma el asesor en el
+local». Se dio vuelta el criterio: no se persigue cómo se escapa, se exige que
+la RESPUESTA esté. El hecho es uno solo y o está dicho o no está.
+
+Lo mismo con el beneficio de redes: primero se puso en el
+`mensaje_para_enviar` de `generar_cotizacion` y no salía, porque el turno de la
+cotización muchas veces lo escribe el modelo después de llamar la herramienta.
+Se movió a la cadena de salida, que mira el hecho —hay cotización en el ciclo—
+y no el camino.
+
+**Horas:** 2
+
+## 12-sep-2026 · Un sticker no es una conversación nueva
+
+**Qué:** `domain/mensajeQueNoSeLee.ts` elige qué se le dice al modelo cuando
+llega un sticker, un video o un contacto. Sin medida todavía, se le pide la
+medida como siempre. Con la venta en marcha —medida, lámina, cotización o
+visita— la instrucción pasa a ser no reiniciar, no volver a pedir la medida y
+no presentarse de nuevo. Lo que nunca cambia es avisar que el mensaje no se
+pudo ver: si el modelo cree que lo leyó, inventa lo que decía. Prueba:
+`stickerNoReiniciaLaVenta` (6 casos).
+
+**Por qué:** conv 18821, con la visita confirmada para el lunes y el cliente
+despidiéndose con «Correcto todo bien gracias», mandó un sticker y el bot le
+contestó «Envíeme la medida escrita o una foto del costado de la llanta».
+Conv 16982: con cotización y visita para el sábado, un sticker disparó saludo,
+guía de medida y «¿Me dice la medida…?». Conv 11: un «.» disparó el saludo de
+presentación completo. Doce stickers en la ventana, cinco con respuesta, dos
+pidiendo la medida a quien ya la había dado.
+
+**Horas:** 0.75
+
+## 12-sep-2026 · El precio que el cliente está viendo no es una oferta nueva
+
+**Qué:** `preciosDeCamposDeDinero` en `domain/guardianNoVendeSolo.ts` lee los
+importes que viajan como valor de un campo de dinero en un JSON
+(`"precio_con_iva":143.53`). El candado ya juntaba el metadato de las piezas en
+«lo ya dicho», pero el extractor solo reconocía precios escritos para el
+cliente (`$143.53`, `143.53 c/u con IVA`), así que el número que está impreso
+en la imagen contaba como nuevo. El extractor ancho se usa SOLO para lo ya
+dicho; la corrección se sigue juzgando con el estricto. Prueba:
+`precioYaDichoNoEsNuevo` (4 casos, incluido que una medida dentro del metadato
+no se confunda con un importe).
+
+**Por qué:** siete correcciones buenas del Ángel Guardián se perdieron así en
+la semana del 8 al 11-sep, y lo que salió en su lugar fue el borrador vacío:
+
+  conv 18871 · CLIENTE: «Juego de llantas... Que opciones tiene y precio»
+               BORRADOR: «Quedo atento a lo que necesite. 🤝»
+               GUARDIÁN: la respuesta con los precios de la lámina
+               CANDADO: `precio_nuevo` → salió «Quedo atento»
+
+Igual en 5008, 17647, 18113, 18262, 18342, 18348 y 18893. El candado nació por
+una razón real —el guardián llegó a inventar vitrinas enteras el 27-ago— y no
+se toca: lo que cambia es qué cuenta como «ya dicho».
+
+**Horas:** 0.75
+
+## 12-sep-2026 · Si el que se cayó es el proveedor, el cliente no repite nada
+
+**Qué:** `domain/falloDelProveedor.ts` distingue un fallo de OpenAI (429, 5xx,
+timeouts, sin créditos) de uno nuestro (el modelo se enredó, esquema inválido,
+contexto lleno). Con el primero, el turno ya no dice «¿Me lo repites por
+favor?»: avisa del problema, escala a un asesor y abre una alerta
+`proveedor_ia_caido` en crítico, deduplicada por conversación y ciclo. Con el
+segundo todo queda igual, porque ahí repetir sí puede funcionar. Prueba:
+`proveedorCaidoNoPideRepetir` (4 casos con los mensajes literales del 11-sep).
+
+**Por qué:** 11-sep 08:34, la cuenta se quedó sin créditos y dos clientes con la
+conversación viva recibieron la disculpa con «repite» (convs 18596 y 18843).
+Repetir garantizaba el mismo error: el cliente se iba con dos mensajes de
+disculpa en vez de uno. Dos minutos después el bot se apagó y esos chats
+quedaron sin nadie hasta que un asesor los vio.
+
+**Horas:** 0.75
+
+## 12-sep-2026 · Al que no puede venir no se le manda un mapa
+
+**Qué:** `domain/fueraDeCobertura.ts` lee dónde está el cliente y lo clasifica
+en tres: `cobertura`, `viene` (está lejos pero anuncia que sube a Quito) y
+`fuera`. Con eso, tres cambios. (1) `services/insistirCierre.ts` ya no pega la
+pregunta del local ni la del día a quien está `fuera`, mirando todo el ciclo y
+no solo el turno. (2) Paso nuevo `sin_visita_si_no_puede_venir`, ÚLTIMO de la
+cadena de `prepararSalida`, que quita mapas y preguntas de visita de lo que
+salga —respuesta y seguimiento— y devuelve `null` si no queda nada: solo quita,
+nunca agrega, que es la regla de todo lo que corre después del split.
+(3) `domain/storeSelection.ts`: «quito» a secas ya no cuenta como elegir Quito
+Sur cuando el cliente está diciendo dónde vive o cuándo sube. Pruebas:
+`clienteDeOtraCiudad` (6 casos), `nadaDeVisitaSiNoPuedeVenir` (6) y
+`quitoCiudadNoEsLocal` (4), más el orden de la cadena.
+
+**Por qué:** familia más grande de la auditoría del 8 al 11-sep, 31 errores. El
+patrón es siempre el mismo: el cliente dice dónde está, el modelo lo entiende y
+contesta bien, y un candado le pega detrás la pregunta del local.
+
+  conv 18106 · CLIENTE: «Estoy en guayaquil»
+               BOT: «En Guayaquil no tenemos local de atención…»
+               BOT: «¿A cuál local le queda mejor ir, *Cumbayá* o *Quito Sur*? 📍»
+
+Igual en 17934 (Guayaquil), 18025 (Tulcán), 18234 (Loja), 18302 (Santo
+Domingo), 18417 (Ibarra), 17668 (Esmeraldas) y 18262, que encima había pedido
+envío por Servientrega. En varios el seguimiento del día siguiente repitió los
+mapas.
+
+Y el reverso, que costó una visita inventada: «quito» dentro de un mensaje
+contaba como elegir el local. Conv 18821: «Soy de Santo Domingo» seguido de «Yo
+el lunes voy a estar en quito» quedó como «Local elegido explícitamente por el
+cliente: Quito Sur», con la visita confirmada tres veces. Conv 18221 igual con
+«Yo les aviso el día que suba a la siudad de Quito».
+
+Por eso son tres estados y no dos: el que sube a Quito SÍ puede coordinar, y
+tratarlo como inalcanzable sería el error opuesto.
+
+**Horas:** 1.5
+
+## 12-sep-2026 · Un «gracias» no es un chat olvidado
+
+**Qué:** `domain/rescateDeChat.ts` decide a quién vale la pena rescatar: no a
+quien se despidió, no a quien dio un plazo, no a quien ya tiene visita anotada.
+`services/hubMaintenance.ts` pasó de un `update … returning` a dos pasos —mirar
+candidatos con su último mensaje, filtrar, y recién ahí reasignar—, porque la
+consulta vieja tomaba el chat en el mismo momento en que lo elegía y para
+cuando se podía leer el texto ya estaba tomado. `esPlazoDeDecision` aprendió
+«estaremos en contacto» y «organizaré mi presupuesto». Prueba:
+`rescateNoDespiertaDespedidas` (5 casos con los mensajes reales).
+
+**Por qué:** tres de los cinco rescates de la ventana cayeron sobre despedidas,
+y los tres repreguntaron algo ya resuelto. Conv 404: «Muchas gracias organizaré
+mi presupuesto estaremos en contacto» → «Igualmente» → 18 h después el bot le
+preguntó a cuál local le queda mejor, sabiendo desde agosto que está en el
+Valle. Conv 6468: «voy a la del sur… el fin de semana» y «Gracias» → volvió a
+preguntar local y fin de semana. Conv 16872: el cliente ya había confirmado «El
+sábado entre las 10 estoy dónde ustedes» y tuvo que escribir «Quito sur» otra
+vez. Conv 18294: el bot contestó «Con gusto, quedo atento» a un «Gracias»
+dirigido al asesor, 12 h tarde.
+
+**Horas:** 1
+
 ## 12-sep-2026 · Un número no puede ser el escalón y la cantidad a la vez
 
 **Qué:** `cantidadDelTexto` en `domain/salesIntent.ts`, junto a sus dos piezas:

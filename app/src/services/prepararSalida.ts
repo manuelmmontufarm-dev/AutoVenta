@@ -42,6 +42,10 @@ import { sinJsonCrudo } from "../domain/jsonCrudo.js";
 import { conLocalesReales } from "./localesReales.js";
 import { notifyAdvisor } from "./advisorNotifications.js";
 import { sql } from "../db/client.js";
+import { dondeEstaElCliente } from "../domain/fueraDeCobertura.js";
+import { sinVisitaNiMapas } from "../domain/visitaImposible.js";
+import { BENEFICIO_DE_REDES, yaSalioElBeneficioDeRedes } from "../domain/beneficioDeRedes.js";
+import { politicaDePagos, preguntaPorElPago, respondeElPago } from "../domain/datosDelNegocio.js";
 import { sinNumerosDeCotizacion } from "../domain/numerosDeCotizacion.js";
 import { conPreguntaEnSuPropioMensaje } from "../domain/preguntaSola.js";
 import { despedidaQueCorresponde } from "../domain/cierrePerdido.js";
@@ -497,6 +501,35 @@ export const PASOS: readonly PasoDeSalida[] = [
     },
   },
   {
+    // EL PAGO SE RESPONDE, NO SE DERIVA.
+    //
+    // Conv 17804 (9-sep), tras una cotización de $1.563:
+    //   CLIENTE: «Si se realiza el pago con tarjeta cuanto sube el valor disculpe»
+    //   BOT: «El valor de la cotización ya está enviado; no puedo confirmar
+    //         recargos de tarjeta por este medio.»
+    //   ASESOR, 22 min después: «Con pagos con tarjeta no sube el precio. Y
+    //         puede diferir a 3 y 6 meses sin intereses»
+    //
+    // El dato está impreso en el pie de la pieza que el bot acababa de mandar.
+    // Se le puso en el prompt y el modelo siguió derivando al asesor (probado
+    // en el simulador el 12-sep), así que va acá: lo que tiene que pasar sí o
+    // sí no se le pide al modelo. Ver `domain/datosDelNegocio.ts`.
+    nombre: "el_pago_se_responde",
+    corre: ["respuesta", "retomada"],
+    async aplicar(texto, ctx) {
+      if (!preguntaPorElPago(ctx.textoDelCliente)) return texto;
+      // Se pregunta si la RESPUESTA está, no cómo se escapó: el modelo redacta
+      // la evasiva distinta cada vez («no puedo confirmar por este medio»,
+      // «las condiciones exactas se las confirma el asesor», «se las confirma
+      // el asesor en el local»), y perseguir frases es un juego que se pierde.
+      if (respondeElPago(texto)) return texto;
+      console.warn(`💳 Conv ${ctx.conversation.id}: la pregunta de pago iba sin respuesta; se antepone el hecho.`);
+      // El hecho va PRIMERO y el resto del turno se conserva: la pregunta de
+      // cierre y los mapas los ponen y los revisan los pasos de siempre.
+      return `${politicaDePagos()}\n---\n${texto}`;
+    },
+  },
+  {
     // EL BOT NO DA SU PROPIO NÚMERO (auditoría 2-6 sep, familia E): cuatro
     // veces mandó «llame al +593 98 280 1766 para indicaciones» — el número
     // por el que el cliente ya está escribiendo. Ver domain/candadosDeTexto.ts.
@@ -793,7 +826,105 @@ export const PASOS: readonly PasoDeSalida[] = [
       return resultado.texto;
     },
   },
+  {
+    // EL BENEFICIO DE REDES VA DESPUÉS DE LA COTIZACIÓN, SIEMPRE.
+    //
+    // Pedido de Joaquín, 10-sep: «que el bot comunique un beneficio extra para
+    // los clientes que vienen de redes sociales… La idea es que este mensaje
+    // salga automáticamente después de enviar la cotización».
+    //
+    // Va en la cadena de salida y no en `generar_cotizacion` porque el turno
+    // de la cotización no siempre sale con el `mensaje_para_enviar` de la
+    // herramienta: muchas veces el modelo escribe su propio texto después de
+    // llamarla, y ahí el bloque se perdía (probado en el simulador el 12-sep).
+    // Acá se mira si en este ciclo SE CREÓ una cotización, que es el hecho, no
+    // el camino.
+    nombre: "beneficio_de_redes_tras_cotizar",
+    corre: ["respuesta", "retomada"],
+    async aplicar(texto, ctx) {
+      const [fila] = await sql<{ hay_cotizacion: boolean }[]>`
+        select exists(
+          select 1 from quotes
+          where conversation_id=${ctx.conversation.id} and cycle=${ctx.conversation.current_cycle}
+        ) as hay_cotizacion
+      `;
+      if (!fila?.hay_cotizacion) return texto;
+      const enviados = await sql<{ content: string | null }[]>`
+        select content from messages
+        where conversation_id=${ctx.conversation.id} and cycle=${ctx.conversation.current_cycle}
+          and direction='outbound'
+        order by created_at desc limit 40
+      `;
+      // Cuenta también el que un asesor lo haya pegado a mano, que es como
+      // venía saliendo (convs 16982 y 18684): dos veces el mismo regalo se lee
+      // como un error, no como una atención.
+      if (yaSalioElBeneficioDeRedes([...enviados.map((m) => m.content), texto])) return texto;
+      console.log(`🎁 Beneficio de redes agregado en la conv ${ctx.conversation.id}.`);
+      return `${texto}\n---\n${BENEFICIO_DE_REDES}`;
+    },
+  },
+  {
+    // AL QUE NO PUEDE VENIR, NI MAPAS NI VISITA.
+    //
+    // Familia más grande de la auditoría del 8 al 11-sep, 31 errores. El
+    // cliente dice que está en Guayaquil, Tulcán, Loja o Santo Domingo, el
+    // modelo lo entiende y contesta bien, y los candados de cierre le pegan
+    // igual los mapas de Quito y «¿qué día puede pasar?».
+    //
+    //   conv 18106 · CLIENTE: «Estoy en guayaquil»
+    //                BOT: «En Guayaquil no tenemos local de atención…»
+    //                BOT: «¿A cuál local le queda mejor ir, Cumbayá o Quito Sur?»
+    //
+    // Corre sobre TODO lo que sale —respuesta y seguimiento— porque los dos
+    // caminos tenían el mismo agujero: en la conv 18025 los mapas salieron en
+    // el turno y al día siguiente otra vez en el seguimiento.
+    //
+    // Va AL FINAL de la cadena a propósito: es lo único que garantiza quitar
+    // esas piezas vengan de donde vengan, incluido el candado del cierre que
+    // las agrega después del guardián. Y no toca al que anuncia que sube a
+    // Quito (conv 18821): ese sí puede coordinar.
+    nombre: "sin_visita_si_no_puede_venir",
+    corre: ["respuesta", "retomada", "seguimiento"],
+    async aplicar(texto, ctx) {
+      const estado = await dondeEstaElClienteEnElCiclo(
+        ctx.conversation.id, ctx.conversation.current_cycle, ctx.textoDelCliente,
+      );
+      if (estado !== "fuera") return texto;
+      const { texto: limpio, quitado } = sinVisitaNiMapas(texto);
+      if (quitado) {
+        console.log(`🗺️ Conv ${ctx.conversation.id}: el cliente no puede pasar por el local; se quitaron mapas y visita del turno.`);
+      }
+      // Solo QUITA: si no queda nada, el turno no sale. Este paso corre al
+      // final de la cadena, donde ya no hay candados detrás que puedan revisar
+      // un texto nuevo — agregar acá sería meter contenido sin revisar.
+      return limpio.trim() ? limpio : null;
+    },
+  },
 ];
+
+/**
+ * Dónde está el cliente según TODO el ciclo. Lo dice una vez y vale para los
+ * turnos siguientes; gana lo más reciente, porque «Soy de Santo Domingo»
+ * seguido de «el lunes voy a estar en quito» es alguien que sí viene.
+ */
+async function dondeEstaElClienteEnElCiclo(
+  conversationId: number,
+  cycle: number,
+  textoDelCliente: string | null | undefined,
+): Promise<"cobertura" | "viene" | "fuera" | null> {
+  const deEsteTurno = dondeEstaElCliente(textoDelCliente);
+  if (deEsteTurno) return deEsteTurno.estado;
+  const entrantes = await sql<{ content: string }[]>`
+    select content from messages
+    where conversation_id=${conversationId} and cycle=${cycle} and direction='inbound'
+    order by created_at desc limit 20
+  `;
+  for (const { content } of entrantes) {
+    const donde = dondeEstaElCliente(content);
+    if (donde) return donde.estado;
+  }
+  return null;
+}
 
 export interface SalidaPreparada {
   /** Texto listo para enviar, o `null` si algún candado bloqueó el envío. */

@@ -48,7 +48,14 @@ const AVISO_PENDIENTE =
 export function esPlazoDeDecision(texto: string): boolean {
   const n = normalizar(texto);
   return /\b(?:ya\s+)?(?:yo\s+)?(?:le|les|te)\s+(?:confirmo|confirmare|aviso|avisare|escribo)\b/.test(n)
-    || /\b(?:dejame|dejeme|permitame)\s+(?:ver|revisar)\b[^.!?]{0,40}\b(?:te|le|les)\s+(?:digo|aviso|confirmo|escribo)\b/.test(n);
+    || /\b(?:dejame|dejeme|permitame)\s+(?:ver|revisar)\b[^.!?]{0,40}\b(?:te|le|les)\s+(?:digo|aviso|confirmo|escribo)\b/.test(n)
+    // «Estaremos en contacto» es el mismo compromiso dicho al revés: el
+    // cliente retoma, no se va. Conv 404 (9-sep): «Muchas gracias organizaré
+    // mi presupuesto estaremos en contacto» — el chat se trató como olvidado y
+    // 18 h después el bot le repreguntó el local.
+    || /\b(?:estaremos|seguimos|nos\s+mantenemos|quedamos)\s+en\s+contacto\b/.test(n)
+    || /\b(?:cualquier\s+cosa|cuando\s+(?:pueda|decida|tenga))\b[^.!?]{0,30}\b(?:le|les|te)\s+(?:aviso|escribo|confirmo|busco)\b/.test(n)
+    || /\borganizar[eé]?\s+(?:mi|el)\s+presupuesto\b/.test(n);
 }
 
 function esDespedidaEnvuelta(textoNormalizado: string): boolean {

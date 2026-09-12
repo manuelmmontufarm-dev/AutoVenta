@@ -7,6 +7,7 @@
  * El LLM extrae los datos, pero la lógica de negocio (búsqueda, precios, PDF)
  * es determinista — cero precios alucinados.
  */
+import { lonasDelProducto, politicaDePagos } from "../domain/datosDelNegocio.js";
 import { z } from "zod";
 import { business } from "../config.js";
 import { PREGUNTA_DE_CIERRE } from "../domain/preguntaPendiente.js";
@@ -1017,6 +1018,11 @@ export function buildTools(ctx: AgentContext) {
         ...(una ? { marca: una } : { marcas: completo.marcas }),
         ...(costo ? { costo_por_km: costo } : {}),
         servicios_incluidos: completo.serviciosIncluidos,
+        // Conv 17804: «¿con tarjeta cuánto sube el valor?» → «no puedo
+        // confirmar recargos por este medio», y el asesor tuvo que contestarlo
+        // 22 minutos después. El dato estaba impreso en el pie de la pieza que
+        // el bot acababa de mandar, como texto dibujado en la imagen.
+        formas_de_pago: politicaDePagos(),
         argumentos_para_subir_de_nivel: completo.argumentosParaSubirDeNivel,
         ejemplos_de_respuesta: completo.ejemplos,
         regla: [
@@ -1736,6 +1742,12 @@ export function buildTools(ctx: AgentContext) {
           codigo: p.code,
           nombre: `${p.brand} ${p.design}`,
           precio_con_iva: p.minimumPriceWithTax,
+          // Las lonas viajan con la opción para poder contestarlas en un turno
+          // POSTERIOR sin volver a buscar. Tres clientes las preguntaron en la
+          // semana del 8 al 11-sep (convs 16974, 18294, 18880) y las tres veces
+          // el bot dijo que no tenía el dato, teniéndolo en el nombre del
+          // producto que estaba mostrando. Ver `domain/datosDelNegocio.ts`.
+          lonas: lonasDelProducto(p.name) ?? undefined,
         })),
       );
       await appendMessage(
@@ -3386,6 +3398,7 @@ function toolItem(item: {
   code: string;
   brand: string;
   design: string;
+  name?: string;
   sizeLabel: string | null;
   customerPriceWithTax?: number;
   minimumPriceWithTax?: number;
@@ -3406,5 +3419,12 @@ function toolItem(item: {
     precio_hoy_con_iva: item.minimumPriceWithTax,
     stock: item.stock,
     disponibilidad: item.availability,
+    // Las lonas viven en el nombre del fabricante («KR29 10PR TL») y se
+    // preguntan seguido: tres clientes en la semana del 8 al 11-sep (convs
+    // 16974, 18294, 18880) y las tres veces el bot dijo que no tenía el dato
+    // mientras mostraba el producto que lo trae. Ver `domain/datosDelNegocio.ts`.
+    lonas: lonasDelProducto(item.name) ?? undefined,
   };
 }
+
+
