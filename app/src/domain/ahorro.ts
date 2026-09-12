@@ -54,7 +54,7 @@ export function ahorroDeLaCotizacion(
 }
 
 /**
- * «*25 %* de descuento, *$277.44* menos» — la mitad de la frase que se le dice
+ * «*25 %* de descuento ya aplicado, *$277.44* menos» — la mitad de la frase que se le dice
  * al cliente. Quien llama pone el resto según el turno, porque no es lo mismo
  * pedirle el día que confirmarle la visita.
  *
@@ -63,5 +63,5 @@ export function ahorroDeLaCotizacion(
  * guardián del 15-ago, porque el revisor lee dos números distintos.
  */
 export function fraseDeAhorro(ahorro: AhorroDeLaCotizacion): string {
-  return `*${ahorro.porcentaje} %* de descuento, *$${ahorro.monto.toFixed(2)}* menos`;
+  return `*${ahorro.porcentaje} %* de descuento ya aplicado, *$${ahorro.monto.toFixed(2)}* menos`;
 }

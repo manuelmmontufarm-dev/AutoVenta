@@ -46,7 +46,7 @@ describe("el monto del descuento, que es lo que hace que contesten", () => {
     const ahorro = ahorroDeLaCotizacion([LINEA_DE_LA_CAPTURA]);
     expect(ahorro).toEqual({ monto: 277.44, porcentaje: 25, cantidad: 4 });
     // Punto decimal, nunca coma: el mismo formato que la pieza y la cotización.
-    expect(fraseDeAhorro(ahorro!)).toBe("*25 %* de descuento, *$277.44* menos");
+    expect(fraseDeAhorro(ahorro!)).toBe("*25 %* de descuento ya aplicado, *$277.44* menos");
   });
 
   it("sin descuento real no se inventa uno", () => {
