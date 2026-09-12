@@ -1,3 +1,47 @@
+## 12-sep-2026 · El precio que el cliente está viendo no es una oferta nueva
+
+**Qué:** `preciosDeCamposDeDinero` en `domain/guardianNoVendeSolo.ts` lee los
+importes que viajan como valor de un campo de dinero en un JSON
+(`"precio_con_iva":143.53`). El candado ya juntaba el metadato de las piezas en
+«lo ya dicho», pero el extractor solo reconocía precios escritos para el
+cliente (`$143.53`, `143.53 c/u con IVA`), así que el número que está impreso
+en la imagen contaba como nuevo. El extractor ancho se usa SOLO para lo ya
+dicho; la corrección se sigue juzgando con el estricto. Prueba:
+`precioYaDichoNoEsNuevo` (4 casos, incluido que una medida dentro del metadato
+no se confunda con un importe).
+
+**Por qué:** siete correcciones buenas del Ángel Guardián se perdieron así en
+la semana del 8 al 11-sep, y lo que salió en su lugar fue el borrador vacío:
+
+  conv 18871 · CLIENTE: «Juego de llantas... Que opciones tiene y precio»
+               BORRADOR: «Quedo atento a lo que necesite. 🤝»
+               GUARDIÁN: la respuesta con los precios de la lámina
+               CANDADO: `precio_nuevo` → salió «Quedo atento»
+
+Igual en 5008, 17647, 18113, 18262, 18342, 18348 y 18893. El candado nació por
+una razón real —el guardián llegó a inventar vitrinas enteras el 27-ago— y no
+se toca: lo que cambia es qué cuenta como «ya dicho».
+
+**Horas:** 0.75
+
+## 12-sep-2026 · Si el que se cayó es el proveedor, el cliente no repite nada
+
+**Qué:** `domain/falloDelProveedor.ts` distingue un fallo de OpenAI (429, 5xx,
+timeouts, sin créditos) de uno nuestro (el modelo se enredó, esquema inválido,
+contexto lleno). Con el primero, el turno ya no dice «¿Me lo repites por
+favor?»: avisa del problema, escala a un asesor y abre una alerta
+`proveedor_ia_caido` en crítico, deduplicada por conversación y ciclo. Con el
+segundo todo queda igual, porque ahí repetir sí puede funcionar. Prueba:
+`proveedorCaidoNoPideRepetir` (4 casos con los mensajes literales del 11-sep).
+
+**Por qué:** 11-sep 08:34, la cuenta se quedó sin créditos y dos clientes con la
+conversación viva recibieron la disculpa con «repite» (convs 18596 y 18843).
+Repetir garantizaba el mismo error: el cliente se iba con dos mensajes de
+disculpa en vez de uno. Dos minutos después el bot se apagó y esos chats
+quedaron sin nadie hasta que un asesor los vio.
+
+**Horas:** 0.75
+
 ## 12-sep-2026 · Al que no puede venir no se le manda un mapa
 
 **Qué:** `domain/fueraDeCobertura.ts` lee dónde está el cliente y lo clasifica

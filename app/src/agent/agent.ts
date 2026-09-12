@@ -5,6 +5,8 @@
  */
 import OpenAI from "openai";
 import { aroDadoPorElCliente, aroRespondido, medidaConfirmadaPorCliente } from "../domain/medidaConfirmada.js";
+import { esFalloDelProveedor } from "../domain/falloDelProveedor.js";
+import { createBotAlert } from "../services/followUps.js";
 import { eleccionDeLaVitrina, type OpcionDeVitrina } from "../domain/eleccionDeVitrina.js";
 import { pideTelefono } from "../domain/ubicacionPedida.js";
 import type { ChatCompletionMessageParam, ChatCompletionTool } from "openai/resources/chat/completions";
@@ -629,6 +631,8 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
   let llamadasDeHerramienta = 0;
   let llamadasDuplicadas = 0;
   let falloEnLoop = false;
+  /** El error del proveedor, si lo hubo. Decide el texto final del turno. */
+  let falloDelProveedor: unknown = null;
 
   // LA VUELTA FORZADA TIENE SU PROPIA RONDA (conv 13635, 1-sep). Producción
   // corre con 3 rondas: el modelo gastó la 1 en buscar_llanta, la 2 en
@@ -663,6 +667,9 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
       });
     } catch (error) {
       falloEnLoop = true;
+      // De quién fue el fallo cambia lo que recibe el cliente al final del
+      // turno: ver `domain/falloDelProveedor.ts` y el cierre de esta función.
+      if (esFalloDelProveedor(error)) falloDelProveedor = error;
       console.warn(
         `⚠️ La llamada al modelo falló en la ronda ${iteration + 1}:`,
         error instanceof Error ? error.message : error,
@@ -930,6 +937,40 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
     tools: usedTools,
     error: "max_iterations_or_empty_response",
   });
+  // SI EL QUE SE CAYÓ FUE EL PROVEEDOR, NO SE LE PIDE AL CLIENTE QUE REPITA.
+  //
+  // 11-sep 08:34: la cuenta de OpenAI se quedó sin créditos y dos clientes con
+  // la conversación viva recibieron «¿Me lo repites por favor?» (convs 18596 y
+  // 18843). Repetir ahí garantiza el mismo error otra vez, y el cliente se
+  // queda con dos mensajes de disculpa en lugar de uno. Dos minutos después el
+  // bot se apagó y esos chats quedaron sin nadie.
+  //
+  // Se le dice la verdad y se llama a un humano, que es lo único que puede
+  // resolverlo. La disculpa con «repite» queda para cuando el fallo es
+  // nuestro: ahí el segundo intento sí puede salir bien.
+  if (falloDelProveedor !== null) {
+    console.error(
+      `🚨 Proveedor de IA caído en la conv ${ctx.conversation.id}:`,
+      falloDelProveedor instanceof Error ? falloDelProveedor.message : falloDelProveedor,
+    );
+    await createBotAlert({
+      conversationId: ctx.conversation.id,
+      cycle: ctx.conversation.current_cycle,
+      type: "proveedor_ia_caido",
+      priority: "critical",
+      summary: "El proveedor de IA no responde: el bot no puede contestar",
+      exactReason:
+        `La llamada al modelo falló con un error del proveedor: `
+        + `${falloDelProveedor instanceof Error ? falloDelProveedor.message : String(falloDelProveedor)}. `
+        + "Al cliente se le avisó y se le pasó a un asesor; NO se le pidió repetir el mensaje.",
+      suggestedAction:
+        "Revisa el saldo y el estado de la cuenta de OpenAI. Mientras tanto, contesta a mano este chat.",
+      // Una sola alerta por conversación y ciclo: si el proveedor está caído,
+      // van a caer muchos turnos y no sirve una alerta por cada uno.
+      dedupeKey: `proveedor_caido:${ctx.conversation.id}:${ctx.conversation.current_cycle}`,
+    }).catch(() => undefined);
+    return "Disculpe, en este momento tengo un problema técnico para responderle. Ya le avisé a un asesor para que le atienda directamente por aquí. 🤝";
+  }
   return "Disculpa, tuve un problema procesando tu mensaje. ¿Me lo repites por favor?";
 }
 
