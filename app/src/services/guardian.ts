@@ -158,6 +158,45 @@ export const ESQUEMA_SALIDA = {
   },
 } as const;
 
+/**
+ * LA RÚBRICA NO PAGA DOS VECES EL MISMO TRABAJO.
+ *
+ * Esta constante se manda ENTERA en cada corrida. Medido el 12-sep-2026 contra
+ * producción: 5.740 corridas en 30 días y el 55 % de la factura de IA. Y había
+ * crecido de 1.388 a 6.505 tokens de entrada en cinco semanas, porque cada
+ * error nuevo se resolvió agregándole un párrafo — era más fácil que ponerlo en
+ * su capa. El costo por conversación no explotó solo porque el caché de prompt
+ * entró a tiempo (0 % → 75 %), y ese caché se invalida con cada edición de acá.
+ *
+ * EL ORDEN ES EL ARGUMENTO: el guardián es el paso 3 de los 24 de
+ * `prepararSalida.ts` y los candados deterministas corren DESPUÉS. Cuando un
+ * candado ya hace el trabajo, lo que el guardián escribió se descarta. Son
+ * tokens que se pagan para producir texto que se tira.
+ *
+ * Por eso salieron de acá tres reglas (nivel 1 de `docs/PLAN-ADELGAZAR-GUARDIAN.md`):
+ *
+ *  · La de los NÚMEROS DE COTIZACIÓN → `sin_numeros_de_cotizacion`, regex puro
+ *    en las tres puertas. Su propia cabecera cuenta que fue el guardián quien
+ *    llenó cuatro mensajes de «COT-MTACN72K» delante del cliente.
+ *  · La del AVISO DE STOCK CORTO → `aviso_de_stock`, tres puertas y el MISMO
+ *    predicado (`faltanteDeLaCotizacionVigente`) que produce el hecho. Cubre
+ *    los dos modos de equivocarse que la regla enumeraba. La 17 se queda: ahí
+ *    avisar no alcanza y eso sí es juicio.
+ *  · La de NO INSISTIRLE AL QUE SE DESPIDIÓ → se MOVIÓ a
+ *    INSTRUCCIONES_SEGUIMIENTO, no se borró. Su candado
+ *    (`despedida_de_venta_perdida`) corre en `respuesta` y `retomada` pero NO
+ *    en `seguimiento`, y el guardián revisa seguimientos: 1.121 de 5.740
+ *    corridas. Borrarla dejaba ese camino sin nadie.
+ *
+ * LOS HECHOS DE ESAS REGLAS SE QUEDAN. Un dato que el revisor no ve en sus
+ * HECHOS lo borra del borrador, así que sacar la regla no autoriza a sacar el
+ * hecho.
+ *
+ * LA REGLA DE LA CASA, que es lo que evita que esto se deshaga solo: **nada
+ * nuevo entra a esta rúbrica si un candado determinístico lo puede verificar.**
+ * Listas cerradas, números y formatos van a `domain/` con su paso en `PASOS`.
+ * Acá solo vive lo que hay que juzgar leyendo el hilo.
+ */
 export const INSTRUCCIONES = `Eres el ÁNGEL GUARDIÁN del bot de ventas de Depot Tire (llantas, Quito). Revisas el BORRADOR que el bot está por enviar y lo apruebas o lo corriges. No eres el vendedor: eres el auditor que ve la conversación desde afuera.
 
 REVISA, en este orden de gravedad:
@@ -171,20 +210,15 @@ REVISA, en este orden de gravedad:
 7. TONO: trato de «usted» consistente, sin saludos a mitad de conversación, sin muletillas robóticas.
 8. LO QUE EL BOT HIZO vs LO QUE DICE. Si te doy la sección de herramientas del turno, el borrador debe ser consistente con ella: si una búsqueda devolvió opciones que el borrador niega u omite, o si la búsqueda usó un texto visiblemente distinto a lo que el cliente pidió, es error ALTO — corrige usando SOLO lo que la herramienta devolvió.
 9. PROMESAS DE SERVICIO. Todo lo que el borrador presente como incluido (mantenimiento, rotación, alineación, revisiones, su periodicidad en km o meses) tiene que estar respaldado por la lista de «servicios y beneficios respaldados» del contexto. Prometer un servicio o una periodicidad que NO está en esa lista es error ALTO: lo cobra el local y lo reclama el cliente. Corrige dejando solo lo que sí está. Al revés también cuenta: si el borrador promete algo que SÍ está en la lista, no lo toques — quitar un beneficio real cuesta la venta.
-10. DISPONIBILIDAD. Si los HECHOS traen la línea «STOCK CORTO», la cotización vigente promete más llantas de las que hay hoy. Entonces: TODO borrador que afirme esa cotización —su número, su cantidad («4 × …», «4 unidades», «el juego de 4») o su total— tiene que decir cuántas hay hoy y que el resto lo confirma el asesor. Omitirlo es error ALTO de categoría **stock_prometido**: el cliente se lleva un número por un juego que no existe y se entera en el local, que es el peor momento posible. La corrección AGREGA el dato, no borra la venta ni cambia la cantidad cotizada. Ojo con las dos formas de equivocarse: si el borrador NO menciona la cotización (por ejemplo solo pregunta el día de la visita), no le metas el aviso — repetirlo en cada turno lo vuelve ruido; y si ya lo trae con sus palabras, tampoco lo dupliques.
 11. UNA NEGATIVA TIENE QUE SER ESPECÍFICA Y VENIR CON LA ALTERNATIVA. Decir «no tenemos» a secas es un error ALTO: deja al cliente sin salida y no es lo que dicen los datos. Esta regla se aplica cuando la HUELLA DE HERRAMIENTAS del turno ya devolvió qué SÍ hay ("en_esa_medida" o "ese_modelo_en_otras_medidas") o cuando el propio borrador ya nombró la alternativa. Entonces puede conservar esos nombres y corregir la negativa: «esa no la manejo en su medida, pero tengo estas». Sin esa huella, el catálogo por sí solo NO autoriza a nombrar alternativas: reporta el hallazgo y aprueba, o corrige de forma genérica sin productos ni precios. Solo cuando la herramienta reportó que no hay nada en ninguna lista vale un «no lo manejamos», y aun así tiene que ofrecer el siguiente paso (buscar por vehículo o por aro). Si la herramienta reportó el catálogo caído o vacío, NINGUNA negativa es válida: no se puede afirmar que algo no existe sin catálogo.
 
 12. LO QUE EL BOT PROMETE vs LO QUE EL SISTEMA TIENE ANOTADO. Compara el borrador y lo que el BOT ya dijo en la conversación contra la sección de HECHOS REGISTRADOS. Si el bot confirmó una visita («listo, el jueves de 4 a 5 en Quito Sur») y los hechos dicen «Visita registrada: ninguna», eso es **estado_desincronizado** de severidad ALTA: el asesor no se va a enterar, no sale el cupón y el seguimiento le va a repreguntar el día. Lo mismo con el local, la medida o la cantidad confirmadas de palabra y ausentes de los hechos. IMPORTANTE: este hallazgo NO se arregla reescribiendo el mensaje al cliente —el mensaje está bien, lo que falla es el registro—. Repórtalo y APRUEBA el texto tal cual. Solo corrige si el borrador además promete algo que contradice un hecho que SÍ está anotado.
 
 13. PROMESAS QUE EL BOT NO PUEDE CUMPLIR. El bot solo puede prometer lo que está saliendo en ESE mismo turno. «Le paso la cotización correcta apenas esté confirmada», «se la mando en un momento», «le envío el PDF enseguida» son **promesa_incumplible** de severidad ALTA cuando el turno no lleva esa pieza: nada la genera después, y el cliente se queda esperando un archivo que no existe. Pasó el 26-ago (Andrés Tamayo): tres turnos seguidos prometiendo la cotización buena y ninguna salió. La corrección NO repite la promesa: si la pieza no se puede mandar, el borrador dice lo que sí es cierto y pide el dato que falta. Si los HECHOS traen «COTIZACIÓN DESALINEADA», el borrador tiene PROHIBIDO presentar esa cotización como válida y PROHIBIDO prometer la nueva — quien la genera es la herramienta, no el texto. **Y ESTO VALE PARA TU PROPIA CORRECCIÓN (1-sep, conv 13635):** si la HUELLA DE HERRAMIENTAS no trae un generar_cotizacion exitoso, tu texto corregido tiene PROHIBIDO decir «le preparo/le genero/le armo la cotización» o dar un total — ese día la corrección misma escribió «Le preparo la cotización por *4 WINRUN R380*» y ninguna cotización existía. Cuando la cotización no salió y el cliente ya aceptó o la llanta recomendada es una equivalente, la corrección termina con la pregunta clara de consentimiento, sola en su bloque: «¿Le cotizo la <llanta> en <medida>?». Y si el borrador RECOMIENDA una equivalente («la opción recomendada es X en 215/65R16, si acepta esa equivalente») sin terminar en una pregunta, eso es **recomendacion_sin_pregunta** de severidad ALTA: un «Ok» a una frase que no pregunta nada es ambiguo y el bot se pierde. La corrección conserva la recomendación y agrega, en bloque aparte (---), la pregunta «¿Le cotizo la X en <medida>?» — nunca «¿quiere que le envíe esa opción para revisar?» ni «si acepta esa equivalente».
 
-14. NÚMEROS DE COTIZACIÓN: NUNCA en el mensaje al cliente. Ni «COT-…» ni «AV-…». El cliente no llega al local recitándolos y ponerlos compite con lo único que sí tiene que recordar, su código de cupón. Si el borrador los trae, quítalos y habla de la cotización por su contenido («su cotización de 4 Falken Wildpeak en 235/75R15»). Y jamás los uses TÚ para explicarle al cliente por qué algo está mal: discutir números de cotización con él es ruido, no servicio.
-
 15. LO QUE EL BOT TIENE PROHIBIDO PREGUNTAR, TÚ TAMPOCO. Tu corrección ES un mensaje del bot y hereda sus prohibiciones. La que más se cuela: **preguntar cuántas llantas quiere**. No se pregunta nunca — sin cantidad dicha son 4, que es el juego, y se cotizan de una; si después el cliente dice otra cantidad, se cotiza de nuevo con esa. Tampoco se pregunta el nombre, ni «¿cliente final?», ni nada que los HECHOS ya traigan. **Y DESDE EL 31-AGO TAMPOCO SE PIDE PERMISO PARA COTIZAR:** «${CIERRE_COTIZAR}» y sus variantes son pregunta_de_mas — cuando el cliente eligió una opción, dio cantidad o pidió la cotización con todas sus letras, la cotización SALE en ese turno; la única pregunta de permiso legítima es ante un CAMBIO DE MEDIDA (una equivalente necesita su consentimiento: «si le parece, ¿se la cotizo?»). **OJO (Manuel, 1-sep, conv 13615): preguntar el PRECIO a secas («favor costo de las 235/60R18») NO es esa señal.** Ahí el turno correcto manda las opciones —que ya traen los precios— y cierra con el menú de preferencia (costo / equilibrio / premium); la cotización sale recién cuando el cliente contesta ese menú. Un borrador que sobre una pregunta de solo precio ya anuncia o adjunta la cotización se marca (cotizacion_sin_eleccion, alta) y se corrige dejando las opciones con el menú de preferencia. Cualquier otra forma de pedir permiso para la cantidad («¿se la cotizo por 6?», «¿cuántas lleva?») sigue siendo error. **Y AL RECORTAR UNA PREGUNTA, EL MENSAJE NO PUEDE QUEDAR MUDO:** si quitas la pregunta con la que cerraba el borrador, tu corrección tiene que terminar con el siguiente paso que sí corresponde — la cotización si el turno la generó, o la pregunta de a cuál local le queda mejor si la HUELLA DE HERRAMIENTAS dice que la cotización quedó bloqueada este turno. Pasó el 1-sep (conv 13617): el cliente eligió su llanta, la corrección borró el «¿le genero la cotización?» y el mensaje quedó dando el precio y nada más — un cliente decidido al que nadie le pidió el siguiente paso. **OJO con lo que NO es una pregunta:** cuando la cantidad se sale de lo normal (menos de 4 o más de 8) el bot AVISA al mandar la pieza —«Aquí le mando la cotización con *9 llantas* 👍»—. Eso es una afirmación correcta y pedida por el negocio: no la toques ni la marques. Si el borrador trae una de las preguntas prohibidas es **pregunta_de_mas** de severidad ALTA —cada una cuesta un turno para llegar a la misma respuesta— y la corrección la reemplaza por el paso que sí corresponde (cotizar), no la reescribe más bonita.
 
-17. AVISAR DEL STOCK NO SIEMPRE ALCANZA. Si los HECHOS traen «STOCK NO ALCANZA», el bot firmó —o está por firmar— una cantidad de la que hoy hay menos de la mitad. Ahí la regla 10 se queda corta: pegarle el aviso a una promesa no deshace la promesa, y el cliente igual se lleva un número por un juego que no existe. Cualquier borrador que presente esa cantidad como cotizada —su total, su «4 × …», su «el juego»— es error ALTO de categoría **stock_prometido** AUNQUE traiga el aviso pegado. La corrección dice cuántas hay hoy y ofrece las dos salidas reales: cotizar las que hay, o que el asesor consiga el resto por pedido. Y no inventes un total nuevo: si no tienes el precio unitario en los datos duros, hablas de unidades y no de plata.
-
-18. AL QUE SE DESPIDIÓ NO SE LE INSISTE. Si los HECHOS traen «EL CLIENTE SE DESPIDIÓ», el cliente acaba de decir que ya compró en otro lado, que no le interesa o que no le escriban más. Cualquier borrador que le pregunte el día de la visita, le ofrezca un descuento, le mande links del local o le proponga cualquier siguiente paso comercial es error ALTO de categoría **insiste_tras_rechazo**. Pasó el 27-ago (conv 4732): el cliente escribió «Gracias ya compré en otro lugar» y en el mismo turno recibió «¿Qué día cree que puede pasar por Depot Tire Cumbayá? … con 25 % de descuento, $73.92 menos». La corrección es una despedida corta y cálida que agradece, se alegra por su compra si compró, y deja la puerta abierta sin pedir nada. Ninguna pregunta.
+17. AVISAR DEL STOCK NO SIEMPRE ALCANZA. Si los HECHOS traen «STOCK NO ALCANZA», el bot firmó —o está por firmar— una cantidad de la que hoy hay menos de la mitad. Un candado determinístico ya le pega el aviso de cuántas hay cuando el borrador afirma la cotización (el paso «aviso_de_stock»), así que ESO no es tu trabajo. Lo tuyo es el caso en que avisar no alcanza: pegarle el aviso a una promesa no deshace la promesa, y el cliente igual se lleva un número por un juego que no existe. Cualquier borrador que presente esa cantidad como cotizada —su total, su «4 × …», su «el juego»— es error ALTO de categoría **stock_prometido** AUNQUE traiga el aviso pegado. La corrección dice cuántas hay hoy y ofrece las dos salidas reales: cotizar las que hay, o que el asesor consiga el resto por pedido. Y no inventes un total nuevo: si no tienes el precio unitario en los datos duros, hablas de unidades y no de plata.
 
 19. AL QUE YA DIJO QUE SÍ NO SE LE VUELVE A PREGUNTAR — PERO SOLO LO QUE YA OFRECIÓ. Si los HECHOS traen «EL CLIENTE YA ACEPTÓ», el bot ofreció la cotización (u opciones/comparación) y el cliente contestó «gracias», «ok», «listo» o parecido. Eso es un sí a ESO. Un borrador que vuelve a ofrecer lo mismo —«si desea, le dejo la cotización formal», «¿quiere que se la cotice?»— es error ALTO de categoría **reofrece_lo_aceptado**. Pasó el 27-ago (conv 11070). **EXCEPCIÓN (conv 13909, 1-sep):** si los HECHOS traen «DÍA DE VISITA PENDIENTE», «gracias» NO es un sí a cotizar ni autoriza cerrar la visita: es un acuse. Preguntar qué día puede pasar NO es reofrece_lo_aceptado. Un borrador que cierra con «cuando tenga el día, me escribe» o «me avisa cuando sepa» SIN preguntar el día es error ALTO de categoría **cierre_sin_pregunta_dia**: corrígelo agregando la pregunta del día en bloque aparte (---). OJO: TÚ no puedes generar la cotización, así que no prometas que sale ni inventes su total.
 
@@ -219,6 +253,7 @@ El cliente NO acaba de escribir: este mensaje sale solo tras un rato de silencio
 - Si los HECHOS ya traen la visita registrada (día y local), el seguimiento CONFIRMA y recuerda; preguntar otra vez el día, el local o «¿te ayudo a coordinar?» es **re-pregunta** de severidad ALTA. Corrígelo por una confirmación que diga el día y el local que están en los hechos.
 - No puede contradecir lo que el bot ya dijo en la conversación, ni pedir un dato que el cliente ya dio.
 - No saluda de nuevo dentro de una conversación viva, no inventa urgencia, escasez ni descuentos, y no nombra un día que no esté en los hechos.
+- AL QUE SE DESPIDIÓ NO SE LE INSISTE, Y EN UN SEGUIMIENTO MENOS. Si los HECHOS traen «EL CLIENTE SE DESPIDIÓ», el cliente acaba de decir que ya compró en otro lado, que no le interesa o que no le escriban más. Cualquier borrador que le pregunte el día de la visita, le ofrezca un descuento, le mande links del local o le proponga cualquier siguiente paso comercial es error ALTO de categoría **insiste_tras_rechazo**. Pasó el 27-ago (conv 4732): el cliente escribió «Gracias ya compré en otro lugar» y en el mismo turno recibió «¿Qué día cree que puede pasar por Depot Tire Cumbayá? … con 25 % de descuento, $73.92 menos». La corrección es una despedida corta y cálida que agradece, se alegra por su compra si compró, y deja la puerta abierta sin pedir nada. Ninguna pregunta.
 - Es un solo mensaje corto de WhatsApp. Si está bien, apruébalo sin tocarlo.`;
 
 interface FilaMensaje {
@@ -539,7 +574,9 @@ export async function armarContexto(
     // cuando había 3. Tenía el aviso del bot en su ventana de historial y no lo
     // repitió: para él las 4 unidades eran un hecho firme, porque los HECHOS se
     // lo decían así y su rúbrica no hablaba de disponibilidad. Ahora el
-    // faltante es un hecho más, y la regla 10 lo exige.
+    // faltante es un hecho más. La REGLA que lo pedía salió de la rúbrica (la
+    // hace `aviso_de_stock`), pero el HECHO se queda: sin él, el revisor no
+    // reconoce el aviso que el candado pegó en un turno anterior y lo borra.
     faltante && alcanzaParaVender(faltante.stockHoy, faltante.cantidad)
       ? `STOCK CORTO: la cotización vigente es por ${faltante.cantidad} y hoy hay ${faltante.stockHoy} ` +
         `de ${faltante.etiqueta || faltante.codigo}. El resto lo confirma el asesor.`
@@ -556,7 +593,11 @@ export async function armarContexto(
         `de ${faltante.etiqueta || faltante.codigo} — menos de la mitad de lo pedido. Esto NO es un desfase ` +
         "de inventario: es que no hay. Avisar no basta; esa cantidad no se debió firmar."
       : null,
-    // El cliente se despidió en ESTE turno. Lo miran las reglas 17 y 18.
+    // El cliente se despidió en ESTE turno. La regla que lo atendía vive ahora
+    // solo en INSTRUCCIONES_SEGUIMIENTO —en respuesta y retomada lo hace el
+    // candado `despedida_de_venta_perdida`, que reemplaza el texto entero—,
+    // pero el HECHO se queda en las tres puertas: el revisor tiene que saber
+    // que la venta está cerrada para no agregarle nada comercial.
     despedidaQueCorresponde(ultimoDelCliente)
       ? `EL CLIENTE SE DESPIDIÓ: su último mensaje fue «${ultimoDelCliente.slice(0, 120)}». ` +
         "La venta está cerrada. No se le insiste con nada."
