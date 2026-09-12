@@ -91,7 +91,9 @@ import { esSoloPregunta } from "./domain/preguntaSola.js";
 import { sql } from "./db/client.js";
 import { presentacionDeApertura } from "./domain/saludo.js";
 import { algunLocalAbre, getStoreHours } from "./services/settings.js";
-import { respuestaDeCierreDelTurno, tipoDeCierreDelTurno } from "./domain/cierreTurno.js";
+import {
+  esPlazoDeDecision, respuestaDeCierreDelTurno, respuestaDePlazoDeDecision, tipoDeCierreDelTurno,
+} from "./domain/cierreTurno.js";
 import { esAcuseSimple } from "./domain/ofertaAceptada.js";
 
 /** Pausa entre bloques: suficiente para que se lean como mensajes seguidos y no como spam. */
@@ -335,6 +337,8 @@ const pipeline = new InboundPipeline(async ({ from, name, text, waMessageIds, qu
         textoConLinks,
         await previousInboundText(conversation.id),
       );
+  const plazoDeDecision = !cierreAntesDeHerramientas && !cierreDelTurno
+    && esPlazoDeDecision(textoConLinks);
   // Un cambio de cantidad NO se contesta con palabras: sale la pieza nueva.
   // El 27-ago (conv 3) el modelo prometió el ajuste dos turnos seguidos sin
   // llamar una sola herramienta, y el cliente nunca supo cuánto costaban 3
@@ -342,7 +346,9 @@ const pipeline = new InboundPipeline(async ({ from, name, text, waMessageIds, qu
   // respuesta sobre el local ni sobre el día. Ver services/recotizar.ts.
   const directReply = cierreAntesDeHerramientas || cierreDelTurno
     ? null
-    : isFirstGenericMessage
+    : plazoDeDecision
+      ? respuestaDePlazoDeDecision()
+      : isFirstGenericMessage
       ? firstContactReply()
       : (await tryCotizarLoElegido(
           { conversation, customerPhone: from, customerName: name, previousOutbound, mensajeCitado },
@@ -390,7 +396,7 @@ const pipeline = new InboundPipeline(async ({ from, name, text, waMessageIds, qu
   const salida = await prepararSalida(reply, {
     conversation, tipo: "respuesta", huella: agentContext.toolTrace ?? [],
     textoDelCliente: textoConLinks, faseOperativa: agentContext.faseOperativa,
-    suprimirEmpujeComercial: Boolean(cierreAntesDeHerramientas || cierreDelTurno),
+    suprimirEmpujeComercial: Boolean(cierreAntesDeHerramientas || cierreDelTurno || plazoDeDecision),
     consultaFueraDeCatalogo: agentContext.consultaFueraDeCatalogo,
   });
   if (!salida.texto) return;

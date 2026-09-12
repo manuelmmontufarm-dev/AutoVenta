@@ -61,12 +61,16 @@ describe("la despedida con cortesía alrededor también cierra el turno", () => 
     "Disculpe no gracias..",
     "Ya no gracias",
     "ya no, gracias",
-    "Gracias por su información, le reviso y le aviso. Muchas gracias",
-    "cualquier cosa yo le aviso",
     "Ya conseguí, gracias",
     "ya consegui en otro lado gracias",
   ])("«%s» cierra el turno", (texto) => {
     expect(tipoDeCierreDelTurno(texto)).not.toBeNull();
+  });
+
+  it("un aviso futuro mantiene viva la venta", () => {
+    expect(tipoDeCierreDelTurno("cualquier cosa yo le aviso")).toBeNull();
+    expect(tipoDeCierreDelTurno("Gracias por su información, le reviso y le aviso. Muchas gracias"))
+      .toBeNull();
   });
 
   it("y el acuse que viene después también", () => {
