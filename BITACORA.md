@@ -1,3 +1,50 @@
+## 12-sep-2026 · Con el carro sobre la mesa y varias medidas en pantalla, se confirma antes de firmar
+
+**Qué:** `medidaPorConfirmarAntesDeCotizar` en `services/cotizarLoElegido.ts`
+(puro y exportado): con la medida sin escribir por el cliente, un vehículo sobre
+la mesa y VARIAS medidas en la lámina, la ruta directa no firma — devuelve
+«¿Su llanta dice 215/40R17? Si me confirma, le armo la cotización». El carro se
+detecta en la ficha O en los mensajes del ciclo con `mencionaVehiculo`, porque
+`vehicle` solo se guarda cuando corre `fitment_vehiculo` y este caso entra por
+la ruta del aro. Y el Ángel Guardián recibe el hecho nuevo: con varias medidas
+en pantalla y un vehículo, esa pregunta es la legítima del turno y NO es
+`pregunta_de_mas`. Pruebas: 5 casos en `elegirEsCotizar.test.ts` y el escenario
+B1 del simulador.
+
+**Por qué:** conv 18684 (10-sep). «para un nissan Qashqai 2020 rin 17» → lámina
+con 215/40R17, 215/45R17 y 205/45R17 → «Falken por favor el juego 4 llantas» →
+cotización de 4 × 215/45R17 por $642.24. La medida de fábrica de ese carro es
+225/60R17, y el cliente lo dijo dos minutos después: «pero si le entran a las
+medidas originales». Con tres medidas en pantalla, «la Falken» elige una MARCA,
+no una medida.
+
+Las tres condiciones van juntas porque cada una sola describe un caso que ya
+funciona: con la medida escrita no hay nada que confirmar; con una sola medida
+en pantalla elegir sí dice cuál es; y sin carro —el «rin 14» del 7-sep que
+Manuel aprobó— el cliente dio un aro y nada más, así que cualquier medida de ese
+aro es la apuesta que él acepta al elegir. Ahí se sigue firmando.
+
+**El Guardián deshacía el arreglo.** Probado en el simulador el 12-sep: la ruta
+hacía su trabajo (`🛑 Varias medidas en pantalla y un carro en la ficha`) y el
+revisor convertía la pregunta en «Perfecto, le cotizo el juego de 4 llantas
+FALKEN ZE310 que eligió 🤝» — una promesa sin cotización — citando la regla 22
+del 7-sep («cuando hay ARO DADO POR EL CLIENTE no se le pide la medida»). Tenía
+razón según lo que sabía: nadie le había contado la excepción. El hecho duro se
+calcula desde la última lámina del ciclo, no desde la huella del turno, porque
+la pieza pudo salir en un turno anterior.
+
+**Probado en el simulador:** los 7 escenarios de la auditoría en verde
+(`scripts/sim/medida-auditoria.mjs`), incluidos los dos nuevos: «265/70R17» +
+«MT» ahora entrega la M/T de su medida en vez de negarla (conv 18016), y
+«AT 285/75/ Rin 16» dice «de ese tipo no tengo ninguna que le calce a su
+medida» en vez de ofrecer una 18 % más chica (conv 17831).
+
+**Pendiente anotado:** al turno de la confirmación se le sigue pegando «¿A cuál
+local le queda mejor ir?» — dos preguntas en un turno. Es la pieza de cierre de
+`insistirCierre`, familia E de la auditoría, y se arregla en la etapa 3.
+
+**Horas:** 1.5
+
 ## 12-sep-2026 · Una equivalente que no equivale es peor que un «no tengo»
 
 **Qué:** `domain/equivalencia.ts`, nuevo y puro: `diametroExteriorMm` (métrica

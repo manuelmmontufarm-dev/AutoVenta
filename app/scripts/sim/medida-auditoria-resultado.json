@@ -1,0 +1,855 @@
+[
+ {
+  "id": "A1",
+  "titulo": "conv 18821 · «32x10.50 Rin 15» + «En MT» → cotizó KR29 215/75R15 por $726.83",
+  "fallas": [],
+  "turnos": [
+   {
+    "cliente": "¡Hola! Quiero más información",
+    "bot": [
+     {
+      "texto": "¡Hola! 👋 Soy el asistente de Depot Tire. Le cotizo al instante con stock y precios reales, comparo modelos y le armo su cotización para tienda.\n\nPuede mandarme la medida escrita, una foto del costado de la llanta o decirme su vehículo.",
+      "tipo": "text"
+     },
+     {
+      "texto": "¿Qué medida usa? Ej: 225/65R17",
+      "tipo": "text"
+     }
+    ],
+    "fase": [],
+    "herramientas": [],
+    "modelos": [
+     "gpt-5.5"
+    ],
+    "errores": [],
+    "sinRespuesta": false,
+    "guardian": [
+     {
+      "verdict": "aprobar",
+      "findings": [],
+      "original": "¡Hola! 👋 Soy el asistente de Depot Tire. Le cotizo al instante con stock y precios reales, comparo modelos y le armo su cotización para tienda.\n\nPuede mandarme la medida escrita, una foto del costado de la llanta o decirme su vehículo.\n\n¿Qué medida usa? Ej: 225/65R17",
+      "corregido": null
+     }
+    ]
+   },
+   {
+    "cliente": "32x10.50 Rin 15",
+    "bot": [
+     {
+      "texto": "En 32X10.5R15 no me aparece stock disponible en este momento.\n\nPuedo pedir que un asesor revise una alternativa o disponibilidad puntual sin inventarle fecha de llegada.",
+      "tipo": "text"
+     },
+     {
+      "texto": "¿Desea que le revise opciones equivalentes en aro 15?",
+      "tipo": "text"
+     }
+    ],
+    "fase": [
+     "medida_confirmada"
+    ],
+    "herramientas": [
+     "buscar_llanta"
+    ],
+    "modelos": [
+     "gpt-5.5",
+     "gpt-5.4-mini"
+    ],
+    "errores": [],
+    "sinRespuesta": false,
+    "guardian": [
+     {
+      "verdict": "aprobar",
+      "findings": [],
+      "original": "En 32X10.5R15 no me aparece stock disponible en este momento.\n\nPuedo pedir que un asesor revise una alternativa o disponibilidad puntual sin inventarle fecha de llegada.\n\n---\n\n¿Desea que le revise opciones equivalentes en aro 15?",
+      "corregido": null
+     }
+    ]
+   },
+   {
+    "cliente": "En MT",
+    "bot": [
+     {
+      "texto": "En su 32X10.5R15 no me queda M/T disponible. En aro 15 sí aparece como alternativa M/T la Kenda KR29 en 32X11.5R15, con 4 llantas disponibles y precio hoy $230.54 c/u.\n\nYa dejé avisado a un asesor para que revise compatibilidad y disponibilidad puntual.",
+      "tipo": "text"
+     },
+     {
+      "texto": "¿Le cotizo la Kenda KR29 en 32X11.5R15?",
+      "tipo": "text"
+     }
+    ],
+    "fase": [],
+    "herramientas": [
+     "buscar_por_aro_y_tipo",
+     "preparar_opciones",
+     "notificar_vendedor"
+    ],
+    "modelos": [
+     "gpt-5.5",
+     "gpt-5.4-mini"
+    ],
+    "errores": [],
+    "sinRespuesta": false,
+    "guardian": [
+     {
+      "verdict": "aprobar",
+      "findings": [],
+      "original": "En su 32X10.5R15 no me queda M/T disponible. En aro 15 sí aparece como alternativa M/T la Kenda KR29 en 32X11.5R15, con 4 llantas disponibles y precio hoy $230.54 c/u.\n\nYa dejé avisado a un asesor para que revise compatibilidad y disponibilidad puntual.  \n---\n¿Le cotizo la Kenda KR29 en 32X11.5R15?",
+      "corregido": null
+     }
+    ]
+   },
+   {
+    "cliente": "Listo gracias",
+    "bot": [
+     {
+      "texto": "La *KENDA KR29* aparece en el sistema en varias medidas y necesito precisar cuál versión desea cotizar:\n\n• *33X12.5R15*\n• *265/65R17*\n• *245/75R16*\n• *265/75R16*\n• *285/75R16*",
+      "tipo": "text"
+     },
+     {
+      "texto": "¿Cuál de estas desea que le cotice?",
+      "tipo": "text"
+     }
+    ],
+    "fase": [
+     "cotizacion_enviada"
+    ],
+    "herramientas": [
+     "generar_cotizacion"
+    ],
+    "modelos": [
+     "gpt-5.4-mini",
+     "gpt-5.5"
+    ],
+    "errores": [],
+    "sinRespuesta": false,
+    "guardian": [
+     {
+      "verdict": "corregir",
+      "findings": [
+       {
+        "detalle": "El cliente aceptó cotizar la KR29 que el bot venía manejando como equivalente en aro 15, pero el borrador le pide escoger solo entre 33X12.5R15, 265/65R17 y 245/75R16, cambiando el foco sin explicar la ambigüedad del sistema.",
+        "categoria": "medida_incorrecta",
+        "severidad": "alta"
+       },
+       {
+        "detalle": "La herramienta devolvió 5 opciones de KR29, pero el borrador omitió 265/75R16 y 285/75R16. Debe ser consistente con lo que salió en este turno y no recortar opciones devueltas por la herramienta.",
+        "categoria": "otro",
+        "severidad": "alta"
+       }
+      ],
+      "original": "```text\nKENDA KR29 (33X12.5R15) — código 3272B506\nKENDA KR29 (265/65R17) — código 32793002\nKENDA KR29 (245/75R16) — código 3800B606\n``` \n---\nLa KR29 sí existe en varias medidas; para cotizarle la correcta necesito que me confirme cuál de estas es la suya.\n---\n¿Le cotizo la 33X12.5R15, la 265/65R17 o la 245/75R16?",
+      "corregido": "La *KENDA KR29* aparece en el sistema en varias medidas y necesito precisar cuál versión desea cotizar:\n\n• *33X12.5R15*\n• *265/65R17*\n• *245/75R16*\n• *265/75R16*\n• *285/75R16*\n\n---\n¿Cuál de estas desea que le cotice?"
+     }
+    ]
+   },
+   {
+    "cliente": "Si yo necesito 4",
+    "bot": [
+     {
+      "texto": "Sí, para 4 llantas.\n\nEn la medida exacta *32X10.5R15* no me aparece catálogo disponible ahora. Puedo revisar una alternativa *M/T* por aro 15 para no dejarlo sin opción.",
+      "tipo": "text"
+     }
+    ],
+    "fase": [],
+    "herramientas": [
+     "buscar_catalogo"
+    ],
+    "modelos": [
+     "gpt-5.5",
+     "gpt-5.4-mini"
+    ],
+    "errores": [],
+    "sinRespuesta": false,
+    "guardian": [
+     {
+      "verdict": "corregir",
+      "findings": [
+       {
+        "detalle": "El borrador pregunta «¿Le cotizo una equivalente M/T en aro 15?» sin una llanta/medida equivalente concreta aceptada en este turno. Además, el cliente solo aclaró cantidad («necesito 4»), no eligió una opción nueva para cotizar.",
+        "categoria": "pregunta_de_mas",
+        "severidad": "alta"
+       }
+      ],
+      "original": "Sí, para 4 llantas. En la medida exacta 32X10.5R15 no me aparece catálogo disponible ahora; puedo revisar alternativa M/T por aro 15 para no dejarlo sin opción.\n\n¿Le cotizo una equivalente M/T en aro 15?",
+      "corregido": "Sí, para 4 llantas.\n\nEn la medida exacta *32X10.5R15* no me aparece catálogo disponible ahora. Puedo revisar una alternativa *M/T* por aro 15 para no dejarlo sin opción."
+     }
+    ]
+   }
+  ],
+  "estadoFinal": {
+   "stage": "medida_confirmada",
+   "status": "open",
+   "tire_size": "32X10.5R15",
+   "selected_quantity": null,
+   "nearest_store": null,
+   "visit_date": null,
+   "current_cycle": 1,
+   "cotizaciones": [],
+   "alertas": [
+    {
+     "tipo": "caso_sin_resolver",
+     "prioridad": "high",
+     "resumen": "Cliente pidió llanta 32X10.5R15 en M/T para aro 15. No hay M/T exacta en 32X10.5R15; búsqueda por aro 15 tipo M/T devolvió alternativa 32X11.5R15 Kenda KR29 código 3820B503 con stock 4 y precio hoy $230.54 c/u, pero no se pudo enviar pieza automática. Revisar alternativa compatible y disponibilidad."
+    },
+    {
+     "tipo": "guardian_correccion",
+     "prioridad": "high",
+     "resumen": "El guardián corrigió la respuesta: medida_incorrecta"
+    },
+    {
+     "tipo": "guardian_correccion",
+     "prioridad": "high",
+     "resumen": "El guardián corrigió la respuesta: pregunta_de_mas"
+    }
+   ],
+   "avisos_asesor": 2,
+   "sin_revision": 0
+  }
+ },
+ {
+  "id": "A2",
+  "titulo": "conv 18535 · «Llantas 33 * 12.5 rin 15» → «no me aparece stock» con 6 en bodega",
+  "fallas": [],
+  "turnos": [
+   {
+    "cliente": "¡Hola! Quiero más informaciónl. Llantas 33 * 12.5 rin 15",
+    "bot": [
+     {
+      "texto": "¡Hola, Cliente! 👋 Soy el asistente de Depot Tire. Le cotizo al instante con stock y precios reales, comparo modelos y le armo su cotización para tienda.",
+      "tipo": "text"
+     },
+     {
+      "texto": "Opciones enviadas: KENDA KR29",
+      "tipo": "image"
+     },
+     {
+      "texto": "Es la única opción disponible para la medida que me pidió: *KENDA KR29* — *$260.48 c/u con IVA*.",
+      "tipo": "text"
+     }
+    ],
+    "fase": [
+     "medida_confirmada"
+    ],
+    "herramientas": [
+     "buscar_llanta",
+     "preparar_opciones"
+    ],
+    "modelos": [
+     "gpt-5.5",
+     "gpt-5.4-mini"
+    ],
+    "errores": [],
+    "sinRespuesta": false,
+    "guardian": [
+     {
+      "verdict": "corregir",
+      "findings": [
+       {
+        "detalle": "El borrador pregunta “¿Se la cotizo?”, pero en este turno el cliente solo pidió información/precio y se mostraron opciones sin elección. Según los hechos, debe dejar el menú de preferencia y no pedir permiso para cotizar.",
+        "categoria": "pregunta_de_mas",
+        "severidad": "alta"
+       }
+      ],
+      "original": "Es la única que tengo para lo que me pidió: *KENDA KR29* — $260.48 c/u con IVA. ¿Se la cotizo? 😊",
+      "corregido": "Es la única opción disponible para la medida que me pidió: *KENDA KR29* — *$260.48 c/u con IVA*.\n\n¿Prefiere que avancemos con esta opción por costo, equilibrio o premium? 😊"
+     }
+    ]
+   },
+   {
+    "cliente": "Llantas 33 * 12.5 rin 15",
+    "bot": [
+     {
+      "texto": "Opciones enviadas: KENDA KR29",
+      "tipo": "image"
+     },
+     {
+      "texto": "Es la única que tengo para lo que me pidió: *KENDA KR29* — *$260.48 c/u con IVA*.",
+      "tipo": "text"
+     },
+     {
+      "texto": "¿Prefiere que avancemos con esta opción? 😊",
+      "tipo": "text"
+     }
+    ],
+    "fase": [],
+    "herramientas": [
+     "preparar_opciones"
+    ],
+    "modelos": [
+     "gpt-5.5",
+     "gpt-5.4-mini"
+    ],
+    "errores": [],
+    "sinRespuesta": false,
+    "guardian": [
+     {
+      "verdict": "corregir",
+      "findings": [
+       {
+        "detalle": "El borrador pregunta “¿Se la cotizo?” después de mostrar opciones sin que el cliente haya elegido todavía. En este caso corresponde dejar la opción/precio y cerrar con una preferencia o avance sobre la opción, no pedir permiso directo para cotizar.",
+        "categoria": "pregunta_de_mas",
+        "severidad": "alta"
+       }
+      ],
+      "original": "Es la única que tengo para lo que me pidió: *KENDA KR29* — $260.48 c/u con IVA. ¿Se la cotizo? 😊",
+      "corregido": "Es la única que tengo para lo que me pidió: *KENDA KR29* — *$260.48 c/u con IVA*.\n\n¿Prefiere que avancemos con esta opción? 😊"
+     }
+    ]
+   }
+  ],
+  "estadoFinal": {
+   "stage": "medida_confirmada",
+   "status": "open",
+   "tire_size": "33X12.5R15",
+   "selected_quantity": null,
+   "nearest_store": null,
+   "visit_date": null,
+   "current_cycle": 1,
+   "cotizaciones": [],
+   "alertas": [
+    {
+     "tipo": "guardian_correccion",
+     "prioridad": "high",
+     "resumen": "El guardián corrigió la respuesta: pregunta_de_mas"
+    },
+    {
+     "tipo": "guardian_correccion",
+     "prioridad": "high",
+     "resumen": "El guardián corrigió la respuesta: pregunta_de_mas"
+    }
+   ],
+   "avisos_asesor": 0,
+   "sin_revision": 0
+  }
+ },
+ {
+  "id": "B1",
+  "titulo": "conv 18684 · «Qashqai 2020 rin 17» → cotizó 215/45R17 sin medida del cliente",
+  "fallas": [],
+  "turnos": [
+   {
+    "cliente": "¡Hola! Quiero más información",
+    "bot": [
+     {
+      "texto": "¡Hola! 👋 Soy el asistente de Depot Tire. Le cotizo al instante con stock y precios reales, comparo modelos y le armo su cotización para tienda.\n\nPuede mandarme la medida escrita, una foto del costado de la llanta o decirme su vehículo.",
+      "tipo": "text"
+     },
+     {
+      "texto": "¿Qué medida usa? Ej: 225/65R17",
+      "tipo": "text"
+     }
+    ],
+    "fase": [],
+    "herramientas": [],
+    "modelos": [
+     "gpt-5.5"
+    ],
+    "errores": [],
+    "sinRespuesta": false,
+    "guardian": [
+     {
+      "verdict": "aprobar",
+      "findings": [],
+      "original": "¡Hola! 👋 Soy el asistente de Depot Tire. Le cotizo al instante con stock y precios reales, comparo modelos y le armo su cotización para tienda.\n\nPuede mandarme la medida escrita, una foto del costado de la llanta o decirme su vehículo.\n\n¿Qué medida usa? Ej: 225/65R17",
+      "corregido": null
+     }
+    ]
+   },
+   {
+    "cliente": "para un nissan Qashqai 2020 rin 17",
+    "bot": [
+     {
+      "texto": "Opciones enviadas: FALKEN ZE310 · KENDA KR20 · WINRUN R330",
+      "tipo": "image"
+     },
+     {
+      "texto": "⚠️ Ojo: estas opciones son de *medidas distintas* del mismo aro (215/40R17, 215/45R17, 205/45R17) — cada tarjeta lleva la suya. Para asegurarle el calce necesito la medida del costado de su llanta.\n\nPara afinarle la recomendación sobre las opciones que le envié, dígame una sola cosa: ¿qué prioriza usted?\n\n1) *Costo* — la más conveniente de precio\n2) *Equilibrio* — la que mejor balancea precio y rendimiento\n3) *Premium* — la de máxima calidad y durabilidad\n\nCon eso le digo cuál de estas le conviene más.",
+      "tipo": "text"
+     }
+    ],
+    "fase": [
+     "medida_confirmada"
+    ],
+    "herramientas": [
+     "buscar_por_aro_y_tipo",
+     "preparar_opciones"
+    ],
+    "modelos": [
+     "gpt-5.5",
+     "gpt-5.4-mini"
+    ],
+    "errores": [],
+    "sinRespuesta": false,
+    "guardian": [
+     {
+      "verdict": "aprobar",
+      "findings": [],
+      "original": "⚠️ Ojo: estas opciones son de *medidas distintas* del mismo aro (215/40R17, 215/45R17, 205/45R17) — cada tarjeta lleva la suya. Para asegurarle el calce necesito la medida del costado de su llanta.\n\n---\n\nPara afinarle la recomendación sobre las opciones que le envié, dígame una sola cosa: ¿qué prioriza usted?\n\n1) *Costo* — la más conveniente de precio\n2) *Equilibrio* — la que mejor balancea precio y rendimiento\n3) *Premium* — la de máxima calidad y durabilidad\n\nCon eso le digo cuál de estas le conviene más.",
+      "corregido": null
+     }
+    ]
+   },
+   {
+    "cliente": "Falken por favor el juego 4 llantas",
+    "bot": [
+     {
+      "texto": "Para no cotizarle una medida que no es la suya: la *FALKEN ZE310* que eligió es *215/40R17*.\n\n¿Su llanta dice *215/40R17*? Si me confirma, le armo la cotización. 🤝",
+      "tipo": "text"
+     },
+     {
+      "texto": "¿A cuál local le queda mejor ir, *Cumbayá* o *Quito Sur*? 📍",
+      "tipo": "text"
+     }
+    ],
+    "fase": [],
+    "herramientas": [],
+    "modelos": [
+     "gpt-5.5"
+    ],
+    "errores": [],
+    "sinRespuesta": false,
+    "guardian": [
+     {
+      "verdict": "aprobar",
+      "findings": [],
+      "original": "Para no cotizarle una medida que no es la suya: la *FALKEN ZE310* que eligió es *215/40R17*.\n---\n¿Su llanta dice *215/40R17*? Si me confirma, le armo la cotización. 🤝",
+      "corregido": null
+     }
+    ]
+   }
+  ],
+  "estadoFinal": {
+   "stage": "medida_confirmada",
+   "status": "open",
+   "tire_size": null,
+   "selected_quantity": null,
+   "nearest_store": null,
+   "visit_date": null,
+   "current_cycle": 1,
+   "cotizaciones": [],
+   "alertas": [],
+   "avisos_asesor": 0,
+   "sin_revision": 0
+  }
+ },
+ {
+  "id": "C1",
+  "titulo": "conv 18893 · «Que cuestan las 235,75r15» → pidió la medida exacta",
+  "fallas": [],
+  "turnos": [
+   {
+    "cliente": "¡Hola! Quiero más información",
+    "bot": [
+     {
+      "texto": "¡Hola! 👋 Soy el asistente de Depot Tire. Le cotizo al instante con stock y precios reales, comparo modelos y le armo su cotización para tienda.\n\nPuede mandarme la medida escrita, una foto del costado de la llanta o decirme su vehículo.",
+      "tipo": "text"
+     },
+     {
+      "texto": "¿Qué medida usa? Ej: 225/65R17",
+      "tipo": "text"
+     }
+    ],
+    "fase": [],
+    "herramientas": [],
+    "modelos": [
+     "gpt-5.5"
+    ],
+    "errores": [],
+    "sinRespuesta": false,
+    "guardian": [
+     {
+      "verdict": "aprobar",
+      "findings": [],
+      "original": "¡Hola! 👋 Soy el asistente de Depot Tire. Le cotizo al instante con stock y precios reales, comparo modelos y le armo su cotización para tienda.\n\nPuede mandarme la medida escrita, una foto del costado de la llanta o decirme su vehículo.\n\n¿Qué medida usa? Ej: 225/65R17",
+      "corregido": null
+     }
+    ]
+   },
+   {
+    "cliente": "Que cuestan las 235,75r15",
+    "bot": [
+     {
+      "texto": "Opciones enviadas: FALKEN WILDPEAK A/T 4W · KENDA KR601 · KENDA KR29",
+      "tipo": "image"
+     },
+     {
+      "texto": "Para afinarle la recomendación sobre las opciones que le envié, dígame una sola cosa: ¿qué prioriza usted?\n\n1) *Costo* — la más conveniente de precio\n2) *Equilibrio* — la que mejor balancea precio y rendimiento\n3) *Premium* — la de máxima calidad y durabilidad\n\nCon eso le dejo la opción exacta para su medida.",
+      "tipo": "text"
+     }
+    ],
+    "fase": [
+     "medida_confirmada"
+    ],
+    "herramientas": [
+     "buscar_llanta",
+     "preparar_opciones"
+    ],
+    "modelos": [
+     "gpt-5.5",
+     "gpt-5.4-mini"
+    ],
+    "errores": [],
+    "sinRespuesta": false,
+    "guardian": [
+     {
+      "verdict": "aprobar",
+      "findings": [],
+      "original": "Para afinarle la recomendación sobre las opciones que le envié, dígame una sola cosa: ¿qué prioriza usted?\n\n1) *Costo* — la más conveniente de precio\n2) *Equilibrio* — la que mejor balancea precio y rendimiento\n3) *Premium* — la de máxima calidad y durabilidad\n\nCon eso le dejo la opción exacta para su medida.",
+      "corregido": null
+     }
+    ]
+   }
+  ],
+  "estadoFinal": {
+   "stage": "medida_confirmada",
+   "status": "open",
+   "tire_size": "235/75R15",
+   "selected_quantity": null,
+   "nearest_store": null,
+   "visit_date": null,
+   "current_cycle": 1,
+   "cotizaciones": [],
+   "alertas": [],
+   "avisos_asesor": 0,
+   "sin_revision": 0
+  }
+ },
+ {
+  "id": "D1",
+  "titulo": "conv 18677 · «¿Dispone llantas MT 30.5 r15?» → ofreció 215/75R15 como «la única»",
+  "fallas": [],
+  "turnos": [
+   {
+    "cliente": "¡Hola! Quiero más información",
+    "bot": [
+     {
+      "texto": "¡Hola! 👋 Soy el asistente de Depot Tire. Le cotizo al instante con stock y precios reales, comparo modelos y le armo su cotización para tienda.\n\nPuede mandarme la medida escrita, una foto del costado de la llanta o decirme su vehículo.",
+      "tipo": "text"
+     },
+     {
+      "texto": "¿Qué medida usa? Ej: 225/65R17",
+      "tipo": "text"
+     }
+    ],
+    "fase": [],
+    "herramientas": [],
+    "modelos": [
+     "gpt-5.5"
+    ],
+    "errores": [],
+    "sinRespuesta": false,
+    "guardian": [
+     {
+      "verdict": "aprobar",
+      "findings": [],
+      "original": "¡Hola! 👋 Soy el asistente de Depot Tire. Le cotizo al instante con stock y precios reales, comparo modelos y le armo su cotización para tienda.\n\nPuede mandarme la medida escrita, una foto del costado de la llanta o decirme su vehículo.\n\n¿Qué medida usa? Ej: 225/65R17",
+      "corregido": null
+     }
+    ]
+   },
+   {
+    "cliente": "Buenas tardes.",
+    "bot": [
+     {
+      "texto": "Buenas tardes 👋\n\nCon gusto le ayudo. Para cotizar con precio real, puede enviarme la medida escrita o una foto del costado de la llanta.",
+      "tipo": "text"
+     }
+    ],
+    "fase": [],
+    "herramientas": [],
+    "modelos": [
+     "gpt-5.5",
+     "gpt-5.4-mini"
+    ],
+    "errores": [],
+    "sinRespuesta": false,
+    "guardian": [
+     {
+      "verdict": "corregir",
+      "findings": [
+       {
+        "detalle": "El borrador repite el saludo de bienvenida y la pregunta de medida casi igual a lo que el bot ya envió inmediatamente antes. Conviene responder el saludo del cliente y avanzar sin reiniciar la conversación.",
+        "categoria": "repeticion",
+        "severidad": "media"
+       }
+      ],
+      "original": "Bienvenido a Depot Tire.\n\nLe ayudo con llantas, cotización o mantenimiento preventivo. Para cotizar con precio real, puede enviarme la medida escrita o una foto del costado de la llanta.\n\n---\n\n¿Qué medida usa? Ej: 225/65R17",
+      "corregido": "Buenas tardes 👋\n\nCon gusto le ayudo. Para cotizar con precio real, puede enviarme la medida escrita o una foto del costado de la llanta.\n\n---\n\n¿Qué medida usa? Ej: 225/65R17"
+     }
+    ]
+   },
+   {
+    "cliente": "¿Dispone llantas MT 30.5 r15?",
+    "bot": [
+     {
+      "texto": "Sí, para 30.5 R15 falta confirmar el ancho del medio para buscarle M/T exacta: normalmente se escribe como 30x9.50R15, 30x10.50R15, etc.\n\nUsted ya me dio diámetro 30.5 y aro 15; solo falta el ancho para cotizar con stock real.",
+      "tipo": "text"
+     },
+     {
+      "texto": "¿Cuál es el ancho que dice en la llanta, el número del medio?",
+      "tipo": "text"
+     }
+    ],
+    "fase": [],
+    "herramientas": [],
+    "modelos": [
+     "gpt-5.5",
+     "gpt-5.4-mini"
+    ],
+    "errores": [],
+    "sinRespuesta": false,
+    "guardian": [
+     {
+      "verdict": "aprobar",
+      "findings": [],
+      "original": "Sí, para 30.5 R15 falta confirmar el ancho del medio para buscarle M/T exacta: normalmente se escribe como 30x9.50R15, 30x10.50R15, etc.\n\nUsted ya me dio diámetro 30.5 y aro 15; solo falta el ancho para cotizar con stock real. \n\n¿Cuál es el ancho que dice en la llanta, el número del medio?",
+      "corregido": null
+     }
+    ]
+   }
+  ],
+  "estadoFinal": {
+   "stage": "medida_confirmada",
+   "status": "open",
+   "tire_size": null,
+   "selected_quantity": null,
+   "nearest_store": null,
+   "visit_date": null,
+   "current_cycle": 1,
+   "cotizaciones": [],
+   "alertas": [
+    {
+     "tipo": "guard_saludo_repetido",
+     "prioridad": "medium",
+     "resumen": "El modelo volvió a saludar a mitad de conversación (recortado)"
+    },
+    {
+     "tipo": "calco_reciente",
+     "prioridad": "medium",
+     "resumen": "El bot iba a repetir un mensaje que acababa de enviar (recortado)"
+    }
+   ],
+   "avisos_asesor": 0,
+   "sin_revision": 0
+  }
+ },
+ {
+  "id": "E1",
+  "titulo": "conv 18016 · «265/70R17» + «MT» → dijo que no había, y la Falken M/T exacta sí estaba",
+  "fallas": [],
+  "turnos": [
+   {
+    "cliente": "¡Hola! Quiero más información",
+    "bot": [
+     {
+      "texto": "¡Hola! 👋 Soy el asistente de Depot Tire. Le cotizo al instante con stock y precios reales, comparo modelos y le armo su cotización para tienda.\n\nPuede mandarme la medida escrita, una foto del costado de la llanta o decirme su vehículo.",
+      "tipo": "text"
+     },
+     {
+      "texto": "¿Qué medida usa? Ej: 225/65R17",
+      "tipo": "text"
+     }
+    ],
+    "fase": [],
+    "herramientas": [],
+    "modelos": [
+     "gpt-5.5"
+    ],
+    "errores": [],
+    "sinRespuesta": false,
+    "guardian": [
+     {
+      "verdict": "aprobar",
+      "findings": [],
+      "original": "¡Hola! 👋 Soy el asistente de Depot Tire. Le cotizo al instante con stock y precios reales, comparo modelos y le armo su cotización para tienda.\n\nPuede mandarme la medida escrita, una foto del costado de la llanta o decirme su vehículo.\n\n¿Qué medida usa? Ej: 225/65R17",
+      "corregido": null
+     }
+    ]
+   },
+   {
+    "cliente": "265/70R17",
+    "bot": [
+     {
+      "texto": "Opciones enviadas: FALKEN WILDPEAK A/T 4W · KENDA KR628 · WINRUN MAXCLAW A/T",
+      "tipo": "image"
+     },
+     {
+      "texto": "Para afinarle la recomendación sobre las opciones que le envié, dígame una sola cosa: ¿qué prioriza usted?\n\n1) *Costo* — la más conveniente de precio\n2) *Equilibrio* — la que mejor balancea precio y rendimiento\n3) *Premium* — la de máxima calidad y durabilidad\n\nCon eso le dejo la opción exacta para su medida.",
+      "tipo": "text"
+     }
+    ],
+    "fase": [
+     "medida_confirmada"
+    ],
+    "herramientas": [
+     "buscar_llanta",
+     "preparar_opciones"
+    ],
+    "modelos": [
+     "gpt-5.5",
+     "gpt-5.4-mini"
+    ],
+    "errores": [],
+    "sinRespuesta": false,
+    "guardian": [
+     {
+      "verdict": "aprobar",
+      "findings": [],
+      "original": "Para afinarle la recomendación sobre las opciones que le envié, dígame una sola cosa: ¿qué prioriza usted?\n\n1) *Costo* — la más conveniente de precio\n2) *Equilibrio* — la que mejor balancea precio y rendimiento\n3) *Premium* — la de máxima calidad y durabilidad\n\nCon eso le dejo la opción exacta para su medida.",
+      "corregido": null
+     }
+    ]
+   },
+   {
+    "cliente": "MT",
+    "bot": [
+     {
+      "texto": "Opciones enviadas: KENDA KR629",
+      "tipo": "image"
+     },
+     {
+      "texto": "Es la única opción *M/T* disponible para su medida: *KENDA KR629* — *$504.99 c/u con IVA*.\n\nPara esta medida y tipo, sería la opción recomendada si busca uso off-road real, lodo o trocha.",
+      "tipo": "text"
+     }
+    ],
+    "fase": [],
+    "herramientas": [
+     "buscar_por_aro_y_tipo",
+     "preparar_opciones"
+    ],
+    "modelos": [
+     "gpt-5.5",
+     "gpt-5.4-mini"
+    ],
+    "errores": [],
+    "sinRespuesta": false,
+    "guardian": [
+     {
+      "verdict": "corregir",
+      "findings": [
+       {
+        "detalle": "El borrador pregunta “¿Se la cotizo?”, pero el cliente solo pidió tipo M/T y este turno quedaron opciones recién mostradas sin elección. No se debe pedir permiso para cotizar ni avanzar a cotización hasta que el cliente elija.",
+        "categoria": "pregunta_de_mas",
+        "severidad": "alta"
+       }
+      ],
+      "original": "Es la única que tengo para lo que me pidió: *KENDA KR629* — $504.99 c/u con IVA. ¿Se la cotizo? 😊",
+      "corregido": "Es la única opción *M/T* disponible para su medida: *KENDA KR629* — *$504.99 c/u con IVA*.\n\nPara esta medida y tipo, sería la opción recomendada si busca uso off-road real, lodo o trocha."
+     }
+    ]
+   }
+  ],
+  "estadoFinal": {
+   "stage": "medida_confirmada",
+   "status": "open",
+   "tire_size": "265/70R17",
+   "selected_quantity": null,
+   "nearest_store": null,
+   "visit_date": null,
+   "current_cycle": 1,
+   "cotizaciones": [],
+   "alertas": [
+    {
+     "tipo": "guardian_correccion",
+     "prioridad": "high",
+     "resumen": "El guardián corrigió la respuesta: pregunta_de_mas"
+    }
+   ],
+   "avisos_asesor": 0,
+   "sin_revision": 0
+  }
+ },
+ {
+  "id": "E2",
+  "titulo": "conv 17831 · «AT 285/75/ Rin 16» → ofreció 215/65R16 (18 % menos de diámetro)",
+  "fallas": [],
+  "turnos": [
+   {
+    "cliente": "¡Hola! Quiero más información",
+    "bot": [
+     {
+      "texto": "¡Hola! 👋 Soy el asistente de Depot Tire. Le cotizo al instante con stock y precios reales, comparo modelos y le armo su cotización para tienda.\n\nPuede mandarme la medida escrita, una foto del costado de la llanta o decirme su vehículo.",
+      "tipo": "text"
+     },
+     {
+      "texto": "¿Qué medida usa? Ej: 225/65R17",
+      "tipo": "text"
+     }
+    ],
+    "fase": [],
+    "herramientas": [],
+    "modelos": [
+     "gpt-5.5"
+    ],
+    "errores": [],
+    "sinRespuesta": false,
+    "guardian": [
+     {
+      "verdict": "aprobar",
+      "findings": [],
+      "original": "¡Hola! 👋 Soy el asistente de Depot Tire. Le cotizo al instante con stock y precios reales, comparo modelos y le armo su cotización para tienda.\n\nPuede mandarme la medida escrita, una foto del costado de la llanta o decirme su vehículo.\n\n¿Qué medida usa? Ej: 225/65R17",
+      "corregido": null
+     }
+    ]
+   },
+   {
+    "cliente": "AT 285/75/ Rin 16",
+    "bot": [
+     {
+      "texto": "En A/T para 285/75R16 no tengo ninguna opción que le calce correctamente; las A/T disponibles en aro 16 se salen del rango recomendado y pueden afectar velocímetro y caja.\n\nPuedo ayudarle con opciones en su medida exacta en otro tipo, o un asesor puede revisar en local si físicamente le entra alguna alternativa.",
+      "tipo": "text"
+     },
+     {
+      "texto": "¿Qué prefiere: le busco en 285/75R16 exacta o le paso con un asesor?",
+      "tipo": "text"
+     }
+    ],
+    "fase": [
+     "medida_confirmada"
+    ],
+    "herramientas": [
+     "buscar_por_aro_y_tipo"
+    ],
+    "modelos": [
+     "gpt-5.5",
+     "gpt-5.4-mini"
+    ],
+    "errores": [],
+    "sinRespuesta": false,
+    "guardian": [
+     {
+      "verdict": "corregir",
+      "findings": [
+       {
+        "detalle": "La negativa a A/T es específica y respaldada por la herramienta, pero el borrador ofrece 'opciones en su medida exacta' de forma genérica cuando el catálogo solo muestra una opción en 285/75R16: KENDA KR29 [M/T]. La corrección conserva la alternativa sin inventar precio ni disponibilidad adicional.",
+        "categoria": "otro",
+        "severidad": "alta"
+       }
+      ],
+      "original": "En A/T para 285/75R16 no tengo ninguna opción que le calce correctamente; las A/T disponibles en aro 16 se salen del rango recomendado y pueden afectar velocímetro y caja.\n\nPuedo ayudarle con opciones en su medida exacta en otro tipo, o un asesor puede revisar en local si físicamente le entra alguna alternativa.\n\n¿Qué prefiere: le busco en 285/75R16 exacta o le paso con un asesor?",
+      "corregido": "En A/T para 285/75R16 no tengo ninguna opción que le calce correctamente; las A/T disponibles en aro 16 se salen del rango recomendado y pueden afectar velocímetro y caja.\n\nEn su medida exacta sí tengo opción en otro tipo: *KENDA KR29 285/75R16 M/T*.\n\n¿Qué prefiere: revisamos esa opción en su medida exacta o le paso con un asesor para validar alternativas físicamente en local?"
+     }
+    ]
+   }
+  ],
+  "estadoFinal": {
+   "stage": "medida_confirmada",
+   "status": "open",
+   "tire_size": "285/75R16",
+   "selected_quantity": null,
+   "nearest_store": null,
+   "visit_date": null,
+   "current_cycle": 1,
+   "cotizaciones": [],
+   "alertas": [
+    {
+     "tipo": "guardian_hecho_nuevo_bloqueado",
+     "prioridad": "high",
+     "resumen": "El guardián intentó agregar una oferta que el borrador no traía"
+    }
+   ],
+   "avisos_asesor": 0,
+   "sin_revision": 0
+  }
+ }
+]

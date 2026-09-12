@@ -98,6 +98,40 @@ const ESCENARIOS = [
       return fallas;
     },
   },
+  {
+    id: "E1",
+    familia: "aro",
+    titulo: "conv 18016 · «265/70R17» + «MT» → dijo que no había, y la Falken M/T exacta sí estaba",
+    mensajes: ["¡Hola! Quiero más información", "265/70R17", "MT"],
+    juzgar: (r) => {
+      const fallas = [];
+      const texto = textoDeTodos(r.turnos);
+      if (/no me queda disponibilidad exacta|no.{0,20}stock exacto/i.test(texto)) {
+        fallas.push("dijo que en su medida no hay disponibilidad exacta");
+      }
+      if (/equivalente/i.test(texto) && !texto.includes("265/70R17")) {
+        fallas.push("ofreció una equivalente sin nombrar la medida pedida");
+      }
+      return fallas;
+    },
+  },
+  {
+    id: "E2",
+    familia: "equivalencia",
+    titulo: "conv 17831 · «AT 285/75/ Rin 16» → ofreció 215/65R16 (18 % menos de diámetro)",
+    mensajes: ["¡Hola! Quiero más información", "AT 285/75/ Rin 16"],
+    juzgar: (r) => {
+      const fallas = [];
+      const texto = textoDeTodos(r.turnos);
+      for (const absurda of ["215/65R16", "245/70R16", "235/70R16"]) {
+        if (texto.includes(absurda)) fallas.push(`ofreció ${absurda}, que no le calza a una 285/75R16`);
+      }
+      const cots = r.estadoFinal?.cotizaciones ?? [];
+      const malas = cots.flatMap((c) => c.items ?? []).filter((i) => i.sizeLabel && i.sizeLabel !== "285/75R16");
+      if (malas.length) fallas.push(`cotizó ${malas.map((i) => i.sizeLabel).join(", ")}`);
+      return fallas;
+    },
+  },
 ];
 
 const soloIds = process.argv.includes("--ids")

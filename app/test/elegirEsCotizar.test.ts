@@ -137,3 +137,89 @@ describe("la ruta directa: qué llanta señaló y qué sale", async () => {
     expect(loQueEligio("y con que mas viene la llanta", MENU, null, RIN14, ESCALONES)).toBeNull();
   });
 });
+
+/**
+ * CON VARIAS MEDIDAS EN LA LÁMINA, ELEGIR NO ALCANZA PARA COTIZAR.
+ *
+ * Conv 18684 (10-sep). El cliente escribió «para un nissan Qashqai 2020 rin
+ * 17» y pidió deportivas; la lámina salió con tres medidas distintas del aro
+ * 17 y él contestó «Falken por favor el juego 4 llantas». Se firmó una
+ * cotización de 4 × 215/45R17 por $642.24. La medida real de ese carro es
+ * 225/60R17, y él lo dijo después: «pero si le entran a las medidas
+ * originales».
+ *
+ * El aro que el cliente escribe es su dato y alcanza para MOSTRAR (regla del
+ * 7-sep). Lo que no alcanza es para firmar cuando hay un CARRO sobre la mesa y
+ * varias medidas en pantalla: ahí «la Falken» elige una marca, no una medida, y
+ * el carro tiene una medida de fábrica que el bot no comprobó. Basta una
+ * pregunta de una línea.
+ *
+ * Sin carro (el «rin 14» del 7-sep, que Manuel aprobó) la lámina también trae
+ * dos medidas y ahí sí se firma: el cliente dio un aro y nada más, así que
+ * cualquier medida de ese aro es la apuesta que él mismo aceptó al elegir.
+ */
+describe("la lámina con varias medidas pide confirmar la medida antes de firmar", async () => {
+  const { medidaPorConfirmarAntesDeCotizar } = await import("../src/services/cotizarLoElegido.js");
+  const TRES_MEDIDAS_DEL_ARO_17 = [
+    { codigo: "353131", marca: "FALKEN", diseno: "ZE310", medida: "215/40R17" },
+    { codigo: "357106", marca: "FALKEN", diseno: "AZENIS FK520L", medida: "215/45R17" },
+    { codigo: "K235B704", marca: "KENDA", diseno: "KR20", medida: "205/45R17" },
+  ];
+
+  it("conv 18684: sin medida escrita y con tres medidas en pantalla, se pregunta la de la elegida", () => {
+    expect(
+      medidaPorConfirmarAntesDeCotizar({
+        vitrina: TRES_MEDIDAS_DEL_ARO_17,
+        codigoElegido: "357106",
+        medidaConfirmadaPorCliente: false,
+        vehiculo: "Nissan Qashqai 2020",
+      }),
+    ).toBe("215/45R17");
+  });
+
+  it("con la medida ya escrita por el cliente no se pregunta nada", () => {
+    expect(
+      medidaPorConfirmarAntesDeCotizar({
+        vitrina: TRES_MEDIDAS_DEL_ARO_17,
+        codigoElegido: "357106",
+        medidaConfirmadaPorCliente: true,
+        vehiculo: "Nissan Qashqai 2020",
+      }),
+    ).toBeNull();
+  });
+
+  it("el caso del 7-sep sigue firmando: sin carro en la ficha, el aro alcanza", () => {
+    // «rin 14» → lámina con 185/60R14 y 195/60R14 → «deme la premium» →
+    // cotización. Manuel lo aprobó: el cliente dio un aro y nada más.
+    expect(
+      medidaPorConfirmarAntesDeCotizar({
+        vitrina: RIN14,
+        codigoElegido: "1856014WNR380",
+        medidaConfirmadaPorCliente: false,
+        vehiculo: null,
+      }),
+    ).toBeNull();
+  });
+
+  it("con carro pero una sola medida en pantalla, la elección ya dice cuál es", () => {
+    expect(
+      medidaPorConfirmarAntesDeCotizar({
+        vitrina: [TRES_MEDIDAS_DEL_ARO_17[1]],
+        codigoElegido: "357106",
+        medidaConfirmadaPorCliente: false,
+        vehiculo: "Nissan Qashqai 2020",
+      }),
+    ).toBeNull();
+  });
+
+  it("si la elegida no está en la vitrina, no se inventa una medida que confirmar", () => {
+    expect(
+      medidaPorConfirmarAntesDeCotizar({
+        vitrina: TRES_MEDIDAS_DEL_ARO_17,
+        codigoElegido: "NO-EXISTE",
+        medidaConfirmadaPorCliente: false,
+        vehiculo: "Nissan Qashqai 2020",
+      }),
+    ).toBeNull();
+  });
+});
