@@ -34,10 +34,13 @@ let medidaEnLaFicha: string | null = null;
 vi.mock("../src/services/catalog.js", async () => {
   // Mismo `searchCatalog` del dominio que usa producción: un mock que
   // devolviera el catálogo entero ignorando la consulta probaría otra cosa.
-  const { searchCatalog } = await import("../src/domain/catalog.js");
+  const { searchCatalog, buscarPorAro } = await import("../src/domain/catalog.js");
   return {
     ensureCatalogReady: async () => ({}),
     searchByText: (consulta: string, limite = 40) => searchCatalog(catalogo, consulta, limite),
+    // La MISMA función del dominio que usa producción: un mock que devolviera
+    // el catálogo entero probaría otra cosa.
+    searchByRim: (aro: number) => buscarPorAro(catalogo, aro),
     searchWithLadder: () => ({ resultados: [], sinCoincidenciaExacta: true, medidaPedida: null, enEsaMedida: [], modeloEnOtrasMedidas: [] }),
     searchBySize: () => [],
     searchAlternatives: () => [],

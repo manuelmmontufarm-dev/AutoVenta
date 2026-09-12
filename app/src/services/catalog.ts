@@ -12,6 +12,7 @@ import { config } from "../config.js";
 import {
   availabilityFromStock,
   buscarConEscalera,
+  buscarPorAro,
   normalizeContificoProduct,
   resolveCatalogCandidates,
   searchCatalog,
@@ -295,6 +296,17 @@ export function searchBySize(size: TireSize): CatalogItem[] {
 /** Búsqueda estilo Interbot: medida, código, marca, diseño o combinación. */
 export function searchByText(query: string, limit = 40): CatalogItem[] {
   return searchCatalog(items, query, limit);
+}
+
+/**
+ * TODO el aro, sin tope: la única forma de no esconder stock.
+ *
+ * `searchByText("R17", 60)` parecía servir para esto y no servía — puntúa,
+ * ordena y corta, así que en los aros grandes dejaba fuera decenas de llantas,
+ * y las medidas en pulgadas no entraban nunca. Ver `domain/catalog.ts`.
+ */
+export function searchByRim(aro: number): CatalogItem[] {
+  return buscarPorAro(items, aro);
 }
 
 /**

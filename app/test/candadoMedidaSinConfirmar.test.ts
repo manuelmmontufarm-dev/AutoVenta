@@ -21,6 +21,9 @@ vi.mock("../src/services/catalog.js", () => ({
   searchBySize: () => [],
   searchAlternatives: () => [],
   searchByText: () => [],
+  // La MISMA función del dominio que usa producción: un mock que devolviera
+  // el catálogo entero probaría otra cosa.
+  searchByRim: (aro: number) => buscarPorAro(catalogo, aro),
   findByCode: () => undefined,
   resolveCatalogReference: () => undefined,
 }));

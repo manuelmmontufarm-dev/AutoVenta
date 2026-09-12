@@ -1,3 +1,41 @@
+## 12-sep-2026 · Buscar por aro deja de esconder stock
+
+**Qué:** `buscarPorAro` en `domain/catalog.ts` (puro) y `searchByRim` en
+`services/catalog.ts`: TODAS las llantas de un aro, sin tope, incluidas las
+medidas en pulgadas. `opcionesEnAro` (`agent/tools.ts`) la usa en vez de
+`searchByText(`R${aro}`, 60).filter(item.size?.rim === aro)`. Pruebas nuevas:
+`buscarPorAroCompleto.test.ts` (5 casos contra la foto real del catálogo: cada
+aro devuelve exactamente lo que tiene, las de flotación entran, ninguna con
+stock queda fuera) y `aroSinEsconderStock.test.ts` (el caso 18016 de punta a
+punta, con 60 llantas de relleno más baratas para que el tope muerda; 3 de sus
+4 casos fallan sin el arreglo). A los nueve dobles de prueba que simulan
+`services/catalog.js` se les agregó `searchByRim` con la misma función del
+dominio que usa producción.
+
+**Por qué:** producción, 9-sep, conv 18016. El cliente pidió «265/70R17» y
+«MT»; el bot contestó «⚠️ Ojo: en *265/70R17* no me queda disponibilidad exacta
+en M/T» y le ofreció una KENDA KR29 en 265/65R17. El cliente dijo «No» y en el
+turno siguiente el bot le mandó la FALKEN WILDPEAK M/T 265/70R17 — la exacta,
+la que acababa de negar. Mismo minuto, mismo stock: lo único distinto fue la
+puerta. El primer turno entró por `buscar_por_aro_y_tipo`, que pedía el aro con
+una búsqueda por TEXTO: puntúa, ordena por disponibilidad y precio, y corta en
+60. En el aro 17 hay 102 productos, así que 43 no entraban — y por ese orden
+los que se caen son los caros, justo donde viven las M/T. El segundo turno
+entró por `buscar_llanta`, que filtra por medida y no tiene tope.
+
+El segundo agujero era peor porque era silencioso: el filtro miraba
+`item.size?.rim`, y las medidas en pulgadas no tienen medida métrica —el parser
+del catálogo solo les llena `sizeLabel`—, así que TODAS las 33X12.50R15 y
+35X12.50R17 quedaban fuera aunque tuvieran stock. Medido sobre la foto del
+catálogo: en el aro 15 se caían 3 KENDA KR29 de flotación con stock; en el 16,
+9 productos con stock; en el 17, 6 (una es la 318931 de este chat); en el 20, 3.
+
+Un aro tiene decenas de llantas, no cientos: filtrar el catálogo entero es más
+barato que puntuar texto y no puede esconder nada. Quien necesite recortar a
+tres lo sigue haciendo después, con la escalera.
+
+**Horas:** 1
+
 ## 12-sep-2026 · Con el carro sobre la mesa, el aro no manda; y el sello verde solo lo pone el cliente
 
 **Qué:** Paso 2 de la etapa de la medida. **(1) La ruta del aro le cede el

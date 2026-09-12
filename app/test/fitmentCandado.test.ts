@@ -37,7 +37,7 @@ vi.mock("../src/services/catalog.js", async () => {
   // Un mock que devolviera el catálogo entero ignorando la consulta haría pasar
   // el escalón (d) sin probarlo: en producción `muestraDelStock` hace 13
   // búsquedas de texto "R12".."R24" y que rindan algo depende del scoring real.
-  const { searchCatalog } = await import("../src/domain/catalog.js");
+  const { searchCatalog, buscarPorAro } = await import("../src/domain/catalog.js");
   return {
     ensureCatalogReady: async () => ({}),
     // Réplicas fieles de los filtros reales de services/catalog.ts: si el candado
@@ -60,6 +60,9 @@ vi.mock("../src/services/catalog.js", async () => {
           item.stock > 0,
       ),
     searchByText: (consulta: string, limite = 40) => searchCatalog(catalogo, consulta, limite),
+    // La MISMA función del dominio que usa producción: un mock que devolviera
+    // el catálogo entero probaría otra cosa.
+    searchByRim: (aro: number) => buscarPorAro(catalogo, aro),
     findByCode: () => undefined,
     resolveCatalogReference: () => undefined,
   };

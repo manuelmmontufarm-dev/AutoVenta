@@ -18,6 +18,7 @@ import {
   findByCode,
   searchAlternatives,
   searchBySize,
+  searchByRim,
   searchByText,
   searchWithLadder,
   type CatalogItem,
@@ -361,7 +362,12 @@ function opcionesEnAro(aro: number, tipo: string | null, medidaConfirmada?: stri
   const pedido = tipo ? normalizarTipo(tipo) : null;
   // Se busca por aro en el catálogo real y se filtra por el tipo que dice la
   // base del cliente; el tipo NO viene de Contífico.
-  const enElAro = searchByText(`R${aro}`, 60).filter((item) => item.size?.rim === aro);
+  // TODO el aro, sin tope: `searchByText("R17", 60)` puntuaba, ordenaba y
+  // cortaba en 60, y en el aro 17 (102 productos) dejaba fuera 43 — los caros
+  // y los de camioneta. Encima el filtro por `size.rim` descartaba las medidas
+  // en pulgadas, que no tienen medida métrica. Conv 18016: por eso el bot negó
+  // una M/T que tenía en stock y la encontró un minuto después por otra puerta.
+  const enElAro = searchByRim(aro);
   const delTipo = pedido
     ? enElAro.filter((item) => normalizarTipo(tipoDeProducto(item.code, item.design) ?? "") === pedido)
     : enElAro;
