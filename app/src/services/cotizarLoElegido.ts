@@ -24,7 +24,9 @@ import { sql } from "../db/client.js";
 import { buildTools, type AgentContext } from "../agent/tools.js";
 import { getAgentSalesFacts } from "../agent/agent.js";
 import { eleccionDeLaVitrina, type OpcionDeVitrina } from "../domain/eleccionDeVitrina.js";
-import { escalonContestado, extractExplicitQuantity } from "../domain/salesIntent.js";
+import {
+  escalonContestado, esPedidoDeAmbasOpciones, esReferenciaPluralAlMenu, extractExplicitQuantity,
+} from "../domain/salesIntent.js";
 import { findByCode } from "./catalog.js";
 import { buildStoreLinksBlockOnce } from "./storeLinks.js";
 import { preguntamosElLocal } from "../domain/storeSelection.js";
@@ -49,7 +51,24 @@ export function loQueEligio(
   mensajeCitado: string | null | undefined,
   vitrina: readonly OpcionDeVitrina[],
   escalones: Escalones | null,
-): { codigo: string; etiqueta: string | null } | { pregunta: string } | null {
+): { codigo: string; etiqueta: string | null } | { pregunta: string } | { respuesta: string } | null {
+  if (esReferenciaPluralAlMenu(texto, previousOutbound) && escalones) {
+    const opciones = [...new Map(
+      [escalones.economica, escalones.equilibrada, escalones.premium]
+        .filter((o): o is Escalon => Boolean(o?.codigo))
+        .map((o) => [o.codigo, o]),
+    ).values()];
+    if (opciones.length === 2 && esPedidoDeAmbasOpciones(texto, previousOutbound)) {
+      const lineas = opciones.map((o) => {
+        const precio = Number(o.precio_con_iva);
+        return `• *${o.nombre ?? "Opción"}*${Number.isFinite(precio) ? `: *$${precio.toFixed(2)} c/u con IVA*` : ""}`;
+      });
+      return {
+        respuesta: `Claro, estas son las dos:\n${lineas.join("\n")}\n¿Cuál quiere que le cotice?`,
+      };
+    }
+    return { pregunta: "¿Se refiere a la opción 2 o quiere que compare dos de las opciones?" };
+  }
   const escalon = escalonContestado(texto, previousOutbound, mensajeCitado, { huboMenu: Boolean(escalones) });
   if (escalon && escalones) {
     const codigo = escalones[escalon === "precio" ? "economica" : escalon]?.codigo;
@@ -84,6 +103,7 @@ export async function tryCotizarLoElegido(ctx: CotizarLoElegidoContext, texto: s
   const escalones = (pieza?.metadata?.escalones ?? null) as Escalones | null;
   const elegido = loQueEligio(texto, ctx.previousOutbound, ctx.mensajeCitado, vitrina, escalones);
   if (!elegido) return null;
+  if ("respuesta" in elegido) return elegido.respuesta;
   if ("pregunta" in elegido) {
     console.log(`🔎 Señaló una llanta con dos medidas en la conv ${ctx.conversation.id}: se pregunta cuál.`);
     return elegido.pregunta;

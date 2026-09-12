@@ -1,3 +1,38 @@
+## 12-sep-2026 · Los números que no son lo que parecen
+
+**Qué:** Nueve correcciones determinísticas de conversaciones reales. (1)
+`cantidadGrandePedida` descarta montos, porcentajes y descuentos antes de
+propagarlos como cantidades. (2–4) `diaDelMesSuelto` y
+`extractCustomerCommitment` ya no convierten porcentajes ni fechas de una
+reparación en visitas; cuando llegan número y día de semana juntos manda el
+número si coinciden, y si se contradicen no se adivina. (5) La regresión del
+menú quedó cubierta cuando mapas u otros bloques salen después (la ventana de
+tres salientes ya estaba corregida en `main`). (6) `salesIntent`,
+`cotizarLoElegido` y `recotizar` separan «las dos / ambas» de dos llantas: con
+dos opciones devuelven los dos precios y con tres preguntan cuál quiso decir,
+sin firmar una cotización. (7) `detectOptOut` exige una fórmula explícita de
+baja; «la llanta es baja» sigue la venta. (8) `esPlazoDeDecision` conserva
+abierto «ya le confirmo / yo le aviso» y `index.ts` responde que queda
+pendiente, sin despedida ni empuje comercial. (9) `fraseDeAhorro` aclara que el
+descuento ya está aplicado. Se agregaron los seis archivos de regresión pedidos
+y se ajustaron dos expectativas antiguas que la nueva regla comercial
+reemplaza. El humo del simulador ahora admite `--env-file` y
+`--catalogo-snapshot` desde worktrees limpios y habilita sus dobles con claves
+ficticias; `t115-flota` propaga esas rutas.
+
+**Por qué:** Chat 16982: «La promoción del 25% q son 103$.64 menos» terminó en
+103 llantas por $8.007 y una visita el 25. Chat 17668: «29 martes 2026» terminó
+el martes 15. Chat 18294: «La camioneta entró hoy a la mecánica… me comunico
+con ustedes» se volvió visita de hoy. Chats 18134/18182 mostraron que un bloque
+posterior podía cambiar la lectura del «2» del menú. Chats 17934, 18129 y 18543:
+«Las 2 / los dos valores» entregó una sola opción. Chat 18225: «la llanta es muy
+baja» activó opt-out y dejó al cliente sin respuesta casi seis horas. Chats
+18438/18454: «Ya le confirmo… en el transcurso del día» recibió la despedida de
+venta perdida. En 17668/16982, la redacción del ahorro hizo parecer que el 25 %
+era una rebaja adicional y alimentó el error de 103 llantas.
+
+**Horas:** 2.5
+
 ## 8-sep-2026 · El panel no inventa números mientras carga, y un mes cerrado tiene los suyos
 
 **Qué:** Dos arreglos sobre el selector de mes. (1) El Dashboard tenía un

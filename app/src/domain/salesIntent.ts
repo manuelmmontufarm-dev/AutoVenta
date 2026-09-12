@@ -296,6 +296,30 @@ export function hasExplicitQuantity(text: string): boolean {
  */
 export const MARCA_DEL_MENU = "¿qué prioriza usted?";
 
+const PEDIDO_PLURAL_DE_OPCIONES =
+  /\b(?:las\s+(?:2|dos)|los\s+dos|ambas|ambos|(?:de|deme\s+de|mandeme\s+de)\s+las\s+dos|los\s+dos\s+valores)\b/i;
+
+function cantidadDeOpcionesNumeradas(menu: string | null | undefined): number {
+  if (!menu) return 0;
+  return new Set([...menu.matchAll(/(?:^|\n)\s*([123])\s*[).]/g)].map((m) => m[1])).size;
+}
+
+/** Nombra varias opciones del menú, por lo que nunca es una cantidad. */
+export function esReferenciaPluralAlMenu(
+  text: string,
+  ultimoMensajeNuestro: string | null | undefined,
+): boolean {
+  return PEDIDO_PLURAL_DE_OPCIONES.test(text) && cantidadDeOpcionesNumeradas(ultimoMensajeNuestro) >= 2;
+}
+
+/** Con exactamente dos opciones, «las dos / ambas» pide ver ambas. */
+export function esPedidoDeAmbasOpciones(
+  text: string,
+  ultimoMensajeNuestro: string | null | undefined,
+): boolean {
+  return PEDIDO_PLURAL_DE_OPCIONES.test(text) && cantidadDeOpcionesNumeradas(ultimoMensajeNuestro) === 2;
+}
+
 /**
  * ¿Ese «2» es el escalón del menú, o son dos llantas?
  *
@@ -348,6 +372,7 @@ export function cantidadPedidaPorElCliente(
   ultimoMensajeNuestro: string | null | undefined,
   mensajeCitado?: string | null,
 ): number | null {
+  if (esReferenciaPluralAlMenu(text, ultimoMensajeNuestro)) return null;
   if (esRespuestaDelMenuDePreferencia(text, ultimoMensajeNuestro, mensajeCitado)) return null;
   return cantidadGrandePedida(text) ?? extractExplicitQuantity(text);
 }
