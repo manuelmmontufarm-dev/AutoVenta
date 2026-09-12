@@ -27,7 +27,7 @@ import { respaldoCompleto } from "../domain/respaldoMarcas.js";
 import { preguntaElLocal } from "../domain/storeSelection.js";
 import { preguntaElDia } from "../domain/customerCommitment.js";
 import { ordenDeNoReusarLaVitrina, vitrinaQueNoEsSuMedida } from "../domain/vitrinaVieja.js";
-import { extractTireSizes, formatTireSize } from "../domain/tireSize.js";
+import { extractTireSizes, formatTireSize, loQueFaltaDeLaMedida } from "../domain/tireSize.js";
 import { getHistory, logAiRun, olvidarMedidaDeTrabajo } from "../services/conversations.js";
 import { getAiConfig, getPublishedStagePrompt, getStoreHours } from "../services/settings.js";
 import { getPhaseFlags, toolEnabled } from "../services/phases.js";
@@ -181,6 +181,14 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
   const hechoDeMedidaInferida = ctx.medidaSinConfirmar && (salesFacts.vehicle || !salesFacts.tireSize)
     ? "MEDIDA NO CONFIRMADA POR EL CLIENTE: el cliente no ha escrito ninguna medida completa ni mandado foto del costado; toda medida en juego la dedujo el bot por el vehículo o por el aro. Puedes mostrar opciones (son «las que más se usan en su vehículo»), pero PROHIBIDO llamar generar_cotizacion: el cierre pide la medida escrita del filo de la llanta (ej. 225/65R17) o una foto del costado. Con ella, buscar_llanta y ahí sí cotizas."
     : null;
+  // MEDIA MEDIDA: SE PIDE LA MITAD QUE FALTA, NO LA MEDIDA ENTERA.
+  //
+  // El hecho de arriba sirve cuando el cliente no dijo NADA de su medida. Con
+  // media —«MT 30.5 r15», «65 R 17», «185/64 R15»— pedirle «la medida» le hace
+  // repetir lo que acaba de escribir, y el bot, sin nada que buscar, terminaba
+  // adivinando: conv 18677 le ofreció una 215/75R15 como «la única que tengo
+  // para lo que me pidió», y la 17668 cotizó 4 ZE310 215/40R17 por $511.96.
+  const hechoDeMediaMedida = loQueFaltaDeLaMedida(userText);
   // ¿Le ofrecimos cotizar y contestó «gracias»? Eso es un sí (conv 11070,
   // 27-ago). Se calcula acá porque el último saliente ya está en `history`.
   // Ver `domain/ofertaAceptada.ts`.
@@ -512,6 +520,7 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
     ...((marcaDelTurno) ? [{ role: "system" as const, content: ordenDeNombrarLaMarca(marcaDelTurno) }] : []),
     ...(hechoDeMarca ? [{ role: "system" as const, content: hechoDeMarca }] : []),
     ...(hechoDeMedidaInferida ? [{ role: "system" as const, content: hechoDeMedidaInferida }] : []),
+    ...(hechoDeMediaMedida ? [{ role: "system" as const, content: `MEDIA MEDIDA SOBRE LA MESA. ${hechoDeMediaMedida}` }] : []),
     ...(aroDelTurno ? [{ role: "system" as const, content: ordenDeMostrarPorAro(aroDelTurno) }] : []),
     ...(escalonPorReply
       ? [{

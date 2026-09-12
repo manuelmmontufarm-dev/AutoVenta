@@ -63,6 +63,233 @@ era una rebaja adicional y alimentó el error de 103 llantas.
 
 **Horas:** 2.5
 
+## 12-sep-2026 · Con el carro sobre la mesa y varias medidas en pantalla, se confirma antes de firmar
+
+**Qué:** `medidaPorConfirmarAntesDeCotizar` en `services/cotizarLoElegido.ts`
+(puro y exportado): con la medida sin escribir por el cliente, un vehículo sobre
+la mesa y VARIAS medidas en la lámina, la ruta directa no firma — devuelve
+«¿Su llanta dice 215/40R17? Si me confirma, le armo la cotización». El carro se
+detecta en la ficha O en los mensajes del ciclo con `mencionaVehiculo`, porque
+`vehicle` solo se guarda cuando corre `fitment_vehiculo` y este caso entra por
+la ruta del aro. Y el Ángel Guardián recibe el hecho nuevo: con varias medidas
+en pantalla y un vehículo, esa pregunta es la legítima del turno y NO es
+`pregunta_de_mas`. Pruebas: 5 casos en `elegirEsCotizar.test.ts` y el escenario
+B1 del simulador.
+
+**Por qué:** conv 18684 (10-sep). «para un nissan Qashqai 2020 rin 17» → lámina
+con 215/40R17, 215/45R17 y 205/45R17 → «Falken por favor el juego 4 llantas» →
+cotización de 4 × 215/45R17 por $642.24. La medida de fábrica de ese carro es
+225/60R17, y el cliente lo dijo dos minutos después: «pero si le entran a las
+medidas originales». Con tres medidas en pantalla, «la Falken» elige una MARCA,
+no una medida.
+
+Las tres condiciones van juntas porque cada una sola describe un caso que ya
+funciona: con la medida escrita no hay nada que confirmar; con una sola medida
+en pantalla elegir sí dice cuál es; y sin carro —el «rin 14» del 7-sep que
+Manuel aprobó— el cliente dio un aro y nada más, así que cualquier medida de ese
+aro es la apuesta que él acepta al elegir. Ahí se sigue firmando.
+
+**El Guardián deshacía el arreglo.** Probado en el simulador el 12-sep: la ruta
+hacía su trabajo (`🛑 Varias medidas en pantalla y un carro en la ficha`) y el
+revisor convertía la pregunta en «Perfecto, le cotizo el juego de 4 llantas
+FALKEN ZE310 que eligió 🤝» — una promesa sin cotización — citando la regla 22
+del 7-sep («cuando hay ARO DADO POR EL CLIENTE no se le pide la medida»). Tenía
+razón según lo que sabía: nadie le había contado la excepción. El hecho duro se
+calcula desde la última lámina del ciclo, no desde la huella del turno, porque
+la pieza pudo salir en un turno anterior.
+
+**Probado en el simulador:** los 7 escenarios de la auditoría en verde
+(`scripts/sim/medida-auditoria.mjs`), incluidos los dos nuevos: «265/70R17» +
+«MT» ahora entrega la M/T de su medida en vez de negarla (conv 18016), y
+«AT 285/75/ Rin 16» dice «de ese tipo no tengo ninguna que le calce a su
+medida» en vez de ofrecer una 18 % más chica (conv 17831).
+
+**Pendiente anotado:** al turno de la confirmación se le sigue pegando «¿A cuál
+local le queda mejor ir?» — dos preguntas en un turno. Es la pieza de cierre de
+`insistirCierre`, familia E de la auditoría, y se arregla en la etapa 3.
+
+**Horas:** 1.5
+
+## 12-sep-2026 · Una equivalente que no equivale es peor que un «no tengo»
+
+**Qué:** `domain/equivalencia.ts`, nuevo y puro: `diametroExteriorMm` (métrica
+por aro más dos flancos, pulgadas por el primer número), `cercaniaDeMedida` y
+`ordenarPorCercania`. El corte es el del taller: mismo aro y diámetro exterior
+dentro del ±3 %; el ancho desempata entre las que ya montan. Lo usan
+`searchAlternatives` (`services/catalog.ts`, que filtraba por «ancho ±10 mm» sin
+mirar el diámetro) y `opcionesEnAro` (`agent/tools.ts`), donde además la medida
+del propio cliente sale de la lista de equivalentes: si llegamos ahí es porque
+en ella no había nada vendible, y una agotada no es una opción. Bandera nueva
+`sinEquivalenteQueCalce`: cuando de ese tipo HAY en el aro pero ninguna le
+calza, `buscar_por_aro_y_tipo` devuelve `encontrado: false` con la regla de
+decirlo y la prohibición de mandar la pieza. Pruebas:
+`equivalenteQueDeVerdadEquivale.test.ts` (13 casos con los números reales de
+cada chat) y dos casos nuevos en `busquedaTipoEnMedida.test.ts`.
+
+**Por qué:** la lista de equivalentes la armaba la escalera de marcas, que
+elige por precio — y en un aro la más barata es la más angosta, o sea lo más
+lejano a lo que el cliente pidió. Cuatro chats de la auditoría:
+
+· conv 17831: pidió 285/75R16 A/T y recibió 215/65R16, 245/70R16 y 235/70R16,
+  entre 10 y 18 % menos de diámetro, como «equivalentes de su aro».
+· conv 18100: pidió 235/45R18 y en la MISMA imagen recibió 225/40R18 (−4,7 %)
+  y 225/55R18 (+5,4 %). Ni equivalen entre sí.
+· conv 18729: pidió 255/45R19 y recibió 255/55R19, 7 % más alta.
+· conv 18407: pidió 205R14 para una Kia Pregio y recibió una 195/60R14 de auto.
+  Esa medida no tiene perfil, así que no hay diámetro que calcular: ahora no se
+  puede presentar como equivalente confirmada, que es lo que era.
+
+**Lo que los números corrigieron:** el caso que abrió esto fue la conv 18225
+(«Buen día pero es llanta es muy baja» sobre una KENDA KR29 245/75R16 ofrecida
+por una 265/70R16), y la hipótesis era que había que preferir la del mismo
+ancho, la 265/75R16. Al calcular, al revés: la pedida mide 777 mm, la ofrecida
+774 — clavada, monta perfecto — y la del mismo ancho mide 804, un 3,4 %, que se
+pasa. El bot eligió bien y lo que falló fue no decirle que era más angosta (2 cm
+menos de sección, que se ven). Ese pedazo queda para el paso de la redacción;
+la prueba lo deja escrito con los tres números para que nadie lo vuelva a
+«arreglar» al revés.
+
+Por lo mismo cambió una prueba vieja de `busquedaTipoEnMedida`: daba por
+equivalente una 225/50R18 de una 265/65R18, que son 15 % de diámetro. Su
+intención (que la agotada de su medida no se cuele) sigue verificada, ahora con
+una candidata que de verdad calza.
+
+**Horas:** 1.5
+
+## 12-sep-2026 · Buscar por aro deja de esconder stock
+
+**Qué:** `buscarPorAro` en `domain/catalog.ts` (puro) y `searchByRim` en
+`services/catalog.ts`: TODAS las llantas de un aro, sin tope, incluidas las
+medidas en pulgadas. `opcionesEnAro` (`agent/tools.ts`) la usa en vez de
+`searchByText(`R${aro}`, 60).filter(item.size?.rim === aro)`. Pruebas nuevas:
+`buscarPorAroCompleto.test.ts` (5 casos contra la foto real del catálogo: cada
+aro devuelve exactamente lo que tiene, las de flotación entran, ninguna con
+stock queda fuera) y `aroSinEsconderStock.test.ts` (el caso 18016 de punta a
+punta, con 60 llantas de relleno más baratas para que el tope muerda; 3 de sus
+4 casos fallan sin el arreglo). A los nueve dobles de prueba que simulan
+`services/catalog.js` se les agregó `searchByRim` con la misma función del
+dominio que usa producción.
+
+**Por qué:** producción, 9-sep, conv 18016. El cliente pidió «265/70R17» y
+«MT»; el bot contestó «⚠️ Ojo: en *265/70R17* no me queda disponibilidad exacta
+en M/T» y le ofreció una KENDA KR29 en 265/65R17. El cliente dijo «No» y en el
+turno siguiente el bot le mandó la FALKEN WILDPEAK M/T 265/70R17 — la exacta,
+la que acababa de negar. Mismo minuto, mismo stock: lo único distinto fue la
+puerta. El primer turno entró por `buscar_por_aro_y_tipo`, que pedía el aro con
+una búsqueda por TEXTO: puntúa, ordena por disponibilidad y precio, y corta en
+60. En el aro 17 hay 102 productos, así que 43 no entraban — y por ese orden
+los que se caen son los caros, justo donde viven las M/T. El segundo turno
+entró por `buscar_llanta`, que filtra por medida y no tiene tope.
+
+El segundo agujero era peor porque era silencioso: el filtro miraba
+`item.size?.rim`, y las medidas en pulgadas no tienen medida métrica —el parser
+del catálogo solo les llena `sizeLabel`—, así que TODAS las 33X12.50R15 y
+35X12.50R17 quedaban fuera aunque tuvieran stock. Medido sobre la foto del
+catálogo: en el aro 15 se caían 3 KENDA KR29 de flotación con stock; en el 16,
+9 productos con stock; en el 17, 6 (una es la 318931 de este chat); en el 20, 3.
+
+Un aro tiene decenas de llantas, no cientos: filtrar el catálogo entero es más
+barato que puntuar texto y no puede esconder nada. Quien necesite recortar a
+tres lo sigue haciendo después, con la escalera.
+
+**Horas:** 1
+
+## 12-sep-2026 · Con el carro sobre la mesa, el aro no manda; y el sello verde solo lo pone el cliente
+
+**Qué:** Paso 2 de la etapa de la medida. **(1) La ruta del aro le cede el
+turno al vehículo:** `aroParaMostrar` devuelve null si el mensaje nombra un
+carro, y entonces contesta `fitment_vehiculo`, que investiga las medidas de
+fábrica y ya tiene prohibido cotizar sobre una medida que el cliente no
+escribió. El detector nuevo es `domain/vehiculoEnTexto.ts`, y saca marcas y
+modelos de la MISMA tabla que usa la investigación (`domain/fitment.ts`) más
+las faltas de ortografía reales de los chats («dimax», «dacsun», «cashcai»);
+excluye las marcas de llanta para que «quiero las falken» no cuente como
+vehículo. **(2) «MEDIDA EXACTA» solo se sella contra lo que el cliente
+escribió:** `medidaParaElSello` en `domain/medidaConfirmada.ts`. Antes la pieza
+comparaba contra `medidasPermitidas`, que incluye la medida de trabajo de la
+ficha — y esa ficha se llena también con lo que el bot dedujo del vehículo o
+del aro. Sin medida del cliente no se marca nada: el poster ya sabe callarse.
+**(3) La lámina de varias medidas lo dice:** cuando no hay medida pedida y las
+tarjetas traen medidas distintas, el mensaje avisa «son de medidas distintas
+del mismo aro, cada tarjeta lleva la suya» y pide la del costado. **(4) Media
+medida se pregunta por su mitad:** `loQueFaltaDeLaMedida` arma el hecho que
+entra al prompt («dio el diámetro 30.5 y el aro 15, falta el ANCHO»), en vez
+del pedido genérico que hacía al cliente repetir lo que ya había escrito.
+Pruebas nuevas: `aroConVehiculo.test.ts` (6), `selloSoloConMedidaDelCliente.test.ts`
+(7) y `preguntarLaMitadQueFalta.test.ts` (6). Suite: 128 archivos, 1590 pruebas.
+
+**Por qué:** Es la familia más grande de la auditoría —30 errores, 12 graves— y
+la que explica siete de las nueve cotizaciones equivocadas. El patrón se repite
+igual en todas: el cliente escribe el aro y su carro en el mismo mensaje, la
+ruta del aro se adelanta, muestra tres llantas cualesquiera de ese aro y
+después las cotiza. Conv 18684: «para un nissan Qashqai 2020 rin 17» → 4 FALKEN
+AZENIS FK520L 215/45R17 por $642.24, y cuando el cliente preguntó si le
+entraban, el bot le dijo que esa era «su medida original» (la real es
+225/60R17). Conv 18121: «Ford 150 Doble cabina rin 18» → llantas de auto.
+Conv 18555: «rin 16 para el Toyota prado» → 205/50R16, y al preguntar el
+cliente si era M/T o A/T el bot admitió que «es una opción de calle». El sello
+verde es el otro medio del daño: 36 de las 152 láminas de la ventana salieron
+con medidas mezcladas y sin decirlo, y sobre una de ellas se firmó la
+cotización de la conv 18821.
+
+**Sin corrida del simulador: la cuenta de OpenAI está sin créditos.** Se
+levantó el simulador en puertos propios (3310/3305) con el catálogo real de 405
+llantas y se escribió el guion de los cinco chats de la auditoría
+(`scripts/sim/medida-auditoria.mjs`), pero todas las corridas del agente
+terminan en `max_iterations_or_empty_response` a los 3,5 s: la API devuelve 429
+«You have no credits remaining», la misma falla que apagó producción el 11-sep
+a las 08:36. La clave de `.env.sim` es de esa misma cuenta. El guion queda
+escrito para correrlo apenas haya saldo; lo que sí está verificado es la lógica
+determinística, que es donde vive el arreglo.
+
+**Horas:** 2.5
+
+## 12-sep-2026 · Si el cliente escribió la medida, se lee; si escribió media, se pregunta
+
+**Qué:** Paso 1 de la etapa de la medida (auditoría del 8 al 11-sep). Tres
+arreglos en la fuente única de medidas y uno en la transcripción.
+**(1) Las pulgadas también se dicen con «rin».** `FLOTATION_TEXT_RE` acepta
+`rin|aro|ron|rim` delante del aro —igual que el regex métrico desde el 13-ago—,
+un decimal en el diámetro («30.5/10/R15») y la barra como separador; con
+espacio o guion se exige decimal en el ancho, para que «37 12.50 rin 20» sea
+flotación y «195 50 15» siga siendo métrica. **(2) Los separadores que escribe
+la gente:** uno o más caracteres, coma y paréntesis incluidos («175//70 R13»,
+«235,75r15», «235)75/15»), otra barra detrás de la R («215/65R/16»), palabras
+en medio con la R como ancla (`MEDIDA_CON_PALABRAS_RE`, «245/ 70 para camioneta
+R 16»), el perfil colgado del final (`PERFIL_DESPUES_DEL_ARO_RE`, «225R15/75» es
+225/75R15 y no 225R15) y la «R» suelta como ancla del barajado, aun pegada a la
+palabra anterior («llantasR15/275/35»). **(3) Media medida se reconoce como
+media medida:** `flotacionIncompleta` («MT 30.5 r15» → diámetro 30.5 y aro 15,
+falta el ancho) y `medidaIncompleta` (falta el ancho, el perfil no existe, o
+hay dos anchos posibles). **(4) `aroEnTexto` pregunta a `tireSize.ts` antes de
+decidir:** una flotación, una flotación a medias o una medida imposible dejan
+de ser «el cliente dio solo el aro». **(5) El audio que devuelve el prompt:**
+`domain/transcripcionEco.ts` descarta la transcripción cuando es el vocabulario
+de Whisper en su mismo orden, y el audio se trata como mudo. Pruebas nuevas:
+`medidaComoLaEscriben.test.ts` (22 casos, cada uno con su chat) y
+`audioQueSeInventa.test.ts` (5). En rojo primero las 18 que no pasaban.
+
+**Por qué:** De 35 cotizaciones de la ventana, 9 salieron en una medida que el
+cliente no pidió, y la raíz de casi todas es esta. Hay DOS lectores de medidas
+y solo el métrico sabía leer «rin»: para el de pulgadas, «32x10.50 Rin 15» no
+era una medida. Y como el descarte de `aroEnTexto` solo miraba la forma
+métrica, ese mismo mensaje quedaba clasificado como «aro 15» y arrancaba la
+ruta del aro. Conv 18821, 10-sep: «32x10.50 Rin 15» + «En MT» → KENDA KR29
+215/75R15 —cuatro pulgadas más chica— rotulada MEDIDA EXACTA y cotizada en
+$726.83; el cliente contestó «Pero en la medida que le envié». Conv 18535: la
+misma medida escrita con asterisco terminó en «no me aparece stock» con seis
+unidades de la 33X12.50R15 en bodega, y el asesor pidiendo disculpas por «un
+error en el sistema». Conv 18677: «MT 30.5 r15» → la misma 215/75R15 como «la
+única que tengo para lo que me pidió». Conv 17647: «225R15/75» se leyó 225R15,
+el bot dijo que no había exacta y ofreció la 225/75R15 —la suya— como
+«equivalente». Conv 18025: dos audios mudos devolvieron el vocabulario del
+prompt, el bot sacó de ahí «205/55R16» y la cotización salió en esa medida
+fantasma. Este paso no cambia todavía qué hace el bot cuando tiene media
+medida: eso es el paso 2, que ya puede preguntar porque ahora sabe qué le
+falta.
+
+**Horas:** 2
+
 ## 8-sep-2026 · El panel no inventa números mientras carga, y un mes cerrado tiene los suyos
 
 **Qué:** Dos arreglos sobre el selector de mes. (1) El Dashboard tenía un

@@ -13,7 +13,8 @@
  * escrito, para la foto («[El cliente mandó una foto. Se lee: 225/70R16…]») y
  * para el cliente que vuelve y cuya medida quedó en una visita anterior.
  */
-import { medidasEnTexto } from "./medidaPedida.js";
+import { medidasEnTexto, medidasPermitidas } from "./medidaPedida.js";
+import { extractFlotationSizes, flotacionIncompleta, medidaIncompleta } from "./tireSize.js";
 
 const pelar = (texto: string) => texto.toLowerCase().replace(/[\s\-/x×r]/g, "");
 
@@ -32,6 +33,39 @@ export function medidaConfirmadaPorCliente(
     if (crudo.length >= 6 && pelar(texto).includes(crudo)) return true;
   }
   return false;
+}
+
+/**
+ * CONTRA QUÉ MEDIDA SE SELLA LA TARJETA — o null si no hay contra qué.
+ *
+ * No es lo mismo que `medidasPermitidas`. Aquélla contesta «¿se le puede
+ * cotizar esto sin sorprenderlo?» y por eso incluye la medida de trabajo, que
+ * es como queda registrado que el cliente aceptó una equivalencia. El sello de
+ * la pieza contesta otra cosa: «¿ESTA es la medida que él pidió?», y ahí la
+ * medida de trabajo no sirve, porque `tire_size` también se llena con lo que
+ * el bot DEDUJO de su vehículo o de su aro.
+ *
+ * Conv 18821, 10-sep-2026: el cliente pidió 32x10.50R15 en M/T, la ficha quedó
+ * con 215/75R15 deducida, y la lámina salió marcando esa medida como «MEDIDA
+ * EXACTA». Sobre esa lámina se firmó la cotización de $726.83 y el cliente
+ * tuvo que contestar «Pero en la medida que le envié». Conv 18504: una Toyota
+ * Hilux con 205/55R16 deducida, la misma marca verde.
+ *
+ * Cuando no se sabe, se devuelve null y la tarjeta no se marca: el poster ya
+ * sabe quedarse callado (`medidaExacta: null`). Callar es la única respuesta
+ * honesta mientras el cliente no haya dicho su medida.
+ */
+export function medidaParaElSello(
+  textosDelCliente: readonly (string | null | undefined)[],
+  tireSize?: string | null,
+): string | null {
+  const textos = textosDelCliente.filter((t): t is string => Boolean(t));
+  const escritas = medidasPermitidas(textos);
+  if (escritas.length) return escritas[0];
+  // Formatos que el extractor no parsea pero el cliente sí escribió
+  // («205R16C»): el comparador pelado de abajo sí los ve.
+  if (tireSize && medidaConfirmadaPorCliente(tireSize, textos)) return tireSize;
+  return null;
 }
 
 /**
@@ -61,10 +95,23 @@ const normalizarAro = (t: string | null | undefined) =>
  * «usted ya nos dijo aro 15». Entran los errores de tipeo y las formas
  * cortas: ron, rim, ring, arillo, «aro de 15», «r15», «R 15», «15 pulgadas».
  * Una medida completa en el texto gana: eso no es «solo aro».
+ *
+ * Y «completa» incluye las de PULGADAS y las que están a medias, que es por
+ * donde se coló el error más caro de la semana del 8 al 11-sep. El texto
+ * «32x10.50 Rin 15» traía una medida entera, pero el descarte de arriba solo
+ * miraba la forma métrica: para este detector era «el cliente dio el aro 15»,
+ * y con eso arrancó la ruta que muestra opciones del aro y después las cotiza
+ * (conv 18821, KENDA KR29 215/75R15 por $726.83). Lo mismo con «MT 30.5 r15»
+ * (conv 18677) y con «65 R 17» (conv 17668), donde lo que había era media
+ * medida y lo que hacía falta era preguntar la otra mitad.
+ *
+ * Quién decide qué es una medida es `tireSize.ts`, con sus rangos y sus
+ * múltiplos de 5. Aquí solo se le pregunta.
  */
 export function aroEnTexto(texto: string | null | undefined): number | null {
   const n = normalizarAro(texto);
   if (/\b\d{3}\s*[\/x-]\s*\d{2}(?!\d)/.test(n)) return null;
+  if (extractFlotationSizes(n).length || flotacionIncompleta(n) || medidaIncompleta(n)) return null;
   const m =
     n.match(/\b(?:rin(?:es)?|ron|rim(?:s)?|ring|aro(?:s)?|arillo(?:s)?|llanta(?:s)?\s+de)\s*(?:de\s+|del\s+|numero\s+|n[°º]?\s*)?(1[2-9]|2[0-4])\b/)
     ?? n.match(/\br\s?(1[2-9]|2[0-4])\b/)

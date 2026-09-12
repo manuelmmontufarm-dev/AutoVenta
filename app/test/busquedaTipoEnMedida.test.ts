@@ -34,10 +34,13 @@ let medidaEnLaFicha: string | null = null;
 vi.mock("../src/services/catalog.js", async () => {
   // Mismo `searchCatalog` del dominio que usa producción: un mock que
   // devolviera el catálogo entero ignorando la consulta probaría otra cosa.
-  const { searchCatalog } = await import("../src/domain/catalog.js");
+  const { searchCatalog, buscarPorAro } = await import("../src/domain/catalog.js");
   return {
     ensureCatalogReady: async () => ({}),
     searchByText: (consulta: string, limite = 40) => searchCatalog(catalogo, consulta, limite),
+    // La MISMA función del dominio que usa producción: un mock que devolviera
+    // el catálogo entero probaría otra cosa.
+    searchByRim: (aro: number) => buscarPorAro(catalogo, aro),
     searchWithLadder: () => ({ resultados: [], sinCoincidenciaExacta: true, medidaPedida: null, enEsaMedida: [], modeloEnOtrasMedidas: [] }),
     searchBySize: () => [],
     searchAlternatives: () => [],
@@ -232,24 +235,59 @@ describe("buscar_por_aro_y_tipo · cuando el tipo no existe en su medida, se dic
     expect(salida.regla).not.toMatch(/equivalentes/i);
   });
 
-  it("agotada en su medida = como si no hubiera: salen las equivalentes vendibles", async () => {
+  it("agotada en su medida = como si no hubiera: salen las equivalentes QUE LE CALCEN", async () => {
     // «Con stock» es parte del pedido. Si la única A/T de su medida está en
     // cero, quedarse en ella dejaba UNA opción incotizable (generar_cotizacion
     // bloquea agotadas) y escondía las equivalentes vendibles del aro.
+    //
+    // 12-sep: «vendible» dejó de alcanzar, ahora también tiene que CALZAR. Las
+    // dos de este fixture no calzan y por eso ya no salen — los números, no la
+    // intuición: la pedida 265/65R18 mide 802 mm de diámetro exterior, la
+    // 225/50R18 mide 682 (−15 %) y la 255/60R18 mide 763 (−4,8 %). El corte
+    // del taller es ±3 %. Se agrega una tercera que SÍ calza (245/70R18, 801
+    // mm, −0,1 %) para que la prueba siga verificando lo que vino a verificar:
+    // que la agotada de su medida no se cuela cuando hay una equivalente real.
     medidaEnLaFicha = "265/65R18";
+    const FALKEN_AT_QUE_SI_CALZA = llanta({
+      code: "356999", brand: "FALKEN", design: "WILDPEAK A/T4W",
+      medida: "245/70R18", width: 245, aspect: 70, rim: 18, stock: 6, precio: 250,
+    });
     catalogo = [
       llanta({ code: "356530", brand: "FALKEN", design: "WILDPEAK A/T4W",
         medida: "265/65R18", width: 265, aspect: 65, rim: 18, stock: 0, precio: 260 }),
-      FALKEN_AT_OTRA_MEDIDA, KENDA_AT_OTRA_MEDIDA, FALKEN_HT_EN_SU_MEDIDA,
+      FALKEN_AT_QUE_SI_CALZA, FALKEN_AT_OTRA_MEDIDA, KENDA_AT_OTRA_MEDIDA,
+      FALKEN_HT_EN_SU_MEDIDA,
     ];
 
     const salida = await buscar(18, "A/T");
 
     expect(salida.encontrado).toBe(true);
     expect(salida.sin_tipo_en_su_medida).toBe(true);
-    expect(salida.opciones.map((o: { code: string }) => o.code)).not.toContain("356530");
-    expect(salida.opciones.length).toBeGreaterThan(0);
+    const codigos = salida.opciones.map((o: { code: string }) => o.code);
+    expect(codigos).not.toContain("356530");
+    expect(codigos).toContain("356999");
+    // Y las que no calzan tampoco salen, aunque tengan stock y sean baratas.
+    expect(codigos).not.toContain("351821");
+    expect(codigos).not.toContain("38685004");
     expect(salida.regla).toMatch(/equivalentes/i);
+  });
+
+  it("si de ese tipo hay en el aro pero NINGUNA le calza, se dice la verdad", async () => {
+    // Conv 17831 (9-sep): pidió 285/75R16 A/T, en su medida no había, y el bot
+    // le ofreció 215/65R16, 245/70R16 y 235/70R16 — entre 10 y 18 % menos de
+    // diámetro — como «equivalentes de su aro». Acá el equivalente del caso:
+    // A/T hay en el aro 18, pero ninguna dentro del 3 % de su 265/65R18.
+    medidaEnLaFicha = "265/65R18";
+    catalogo = [FALKEN_AT_OTRA_MEDIDA, KENDA_AT_OTRA_MEDIDA, FALKEN_HT_EN_SU_MEDIDA];
+
+    const salida = await buscar(18, "A/T");
+
+    expect(salida.encontrado).toBe(false);
+    expect(salida.su_medida).toBe("265/65R18");
+    expect(salida.medidas_del_tipo_que_no_le_calzan).toContain("225/50R18");
+    expect(salida.regla).toMatch(/ninguna le calza/i);
+    // Y no se le manda la pieza con ellas.
+    expect(salida.opciones).toBeUndefined();
   });
 
   it("sin nada de ese tipo en el aro sigue siendo «no encontrado», no un equivalente", async () => {

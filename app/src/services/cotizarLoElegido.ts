@@ -24,6 +24,7 @@ import { sql } from "../db/client.js";
 import { buildTools, type AgentContext } from "../agent/tools.js";
 import { getAgentSalesFacts } from "../agent/agent.js";
 import { eleccionDeLaVitrina, type OpcionDeVitrina } from "../domain/eleccionDeVitrina.js";
+import { mencionaVehiculo } from "../domain/vehiculoEnTexto.js";
 import {
   cantidadDelTexto, escalonContestado, esPedidoDeAmbasOpciones, esReferenciaPluralAlMenu,
 } from "../domain/salesIntent.js";
@@ -87,6 +88,52 @@ export function loQueEligio(
   };
 }
 
+/**
+ * ¿HAY QUE CONFIRMAR LA MEDIDA ANTES DE FIRMAR?
+ *
+ * Devuelve la medida que hay que confirmar, o `null` si se puede cotizar
+ * derecho.
+ *
+ * Conv 18684 (10-sep-2026). El cliente escribió «para un nissan Qashqai 2020
+ * rin 17», pidió deportivas, la lámina salió con tres medidas distintas del
+ * aro 17 y él contestó «Falken por favor el juego 4 llantas». Se firmó una
+ * cotización de 4 × 215/45R17 por $642.24. La medida de fábrica de ese carro es
+ * 225/60R17 — él lo dijo dos minutos después: «pero si le entran a las medidas
+ * originales».
+ *
+ * Lo que el cliente eligió ahí fue una MARCA, no una medida: con tres medidas
+ * en pantalla, «la Falken» no distingue ninguna. Y había un carro sobre la
+ * mesa, o sea una medida de fábrica concreta que el bot nunca comprobó.
+ *
+ * Las tres condiciones tienen que darse juntas, porque cada una sola describe
+ * un caso que ya funciona bien:
+ *
+ *  · Con la medida escrita por el cliente no hay nada que confirmar.
+ *  · Con una sola medida en pantalla, elegir SÍ dice cuál es.
+ *  · Sin carro en la ficha —el «rin 14» del 7-sep que Manuel aprobó— el
+ *    cliente dio un aro y nada más, y cualquier medida de ese aro es la
+ *    apuesta que él acepta al elegir. Ahí se firma, como pidió.
+ */
+export function medidaPorConfirmarAntesDeCotizar(input: {
+  vitrina: readonly OpcionDeVitrina[];
+  codigoElegido: string;
+  medidaConfirmadaPorCliente: boolean;
+  /**
+   * El carro, de la ficha O de lo que el cliente escribió en este ciclo. Las
+   * dos puertas hacen falta: `vehicle` solo se guarda cuando corre
+   * `fitment_vehiculo`, y el caso del 18684 entró por la ruta del aro, así que
+   * el Qashqai vivía únicamente en el texto del cliente.
+   */
+  vehiculo: string | null;
+}): string | null {
+  if (input.medidaConfirmadaPorCliente) return null;
+  if (!input.vehiculo) return null;
+  const medidas = new Set(input.vitrina.map((o) => o.medida).filter((m): m is string => Boolean(m)));
+  if (medidas.size <= 1) return null;
+  const elegida = input.vitrina.find((o) => o.codigo === input.codigoElegido)?.medida ?? null;
+  return elegida;
+}
+
 export async function tryCotizarLoElegido(ctx: CotizarLoElegidoContext, texto: string): Promise<string | null> {
   const [pieza] = await sql<{ metadata: Record<string, unknown> | null }[]>`
     select metadata from messages
@@ -111,6 +158,28 @@ export async function tryCotizarLoElegido(ctx: CotizarLoElegidoContext, texto: s
   // La medida deducida por el vehículo no se firma (1-sep): sigue el agente.
   const facts = await getAgentSalesFacts(ctx.conversation.id);
   if (facts.medidaConfirmadaPorCliente === false && !facts.aroDelCliente) return null;
+
+  // Con un carro sobre la mesa y varias medidas en pantalla, elegir es elegir
+  // una MARCA: antes de firmar se confirma la medida en una línea (conv 18684).
+  const entrantes = await sql<{ content: string }[]>`
+    select content from messages
+    where conversation_id=${ctx.conversation.id} and cycle=${ctx.conversation.current_cycle}
+      and direction='inbound'
+    order by created_at desc limit 12
+  `;
+  const carroEnElTexto = [texto, ...entrantes.map((m) => m.content)].find((t) => mencionaVehiculo(t)) ?? null;
+  const porConfirmar = medidaPorConfirmarAntesDeCotizar({
+    vitrina,
+    codigoElegido: elegido.codigo,
+    medidaConfirmadaPorCliente: facts.medidaConfirmadaPorCliente !== false,
+    vehiculo: facts.vehicle ?? carroEnElTexto,
+  });
+  if (porConfirmar) {
+    const cual = vitrina.find((o) => o.codigo === elegido.codigo);
+    const nombre = cual ? `${cual.marca} ${cual.diseno}`.trim() : "esa";
+    console.log(`🛑 Varias medidas en pantalla y un carro en la ficha (conv ${ctx.conversation.id}): se confirma ${porConfirmar} antes de cotizar.`);
+    return `Para no cotizarle una medida que no es la suya: la *${nombre}* que eligió es *${porConfirmar}*.\n---\n¿Su llanta dice *${porConfirmar}*? Si me confirma, le armo la cotización. 🤝`;
+  }
 
   const producto = findByCode(elegido.codigo);
   if (!producto) return null;

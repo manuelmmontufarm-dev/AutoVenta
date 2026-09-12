@@ -610,6 +610,38 @@ export function aroDeMedida(etiqueta: string | null | undefined): number | null 
 }
 
 /**
+ * TODAS las llantas de un aro. Sin tope y sin pasar por la búsqueda de texto.
+ *
+ * Auditoría del 8 al 11-sep, conv 18016. El cliente pidió «265/70R17» + «MT».
+ * El bot contestó que en su medida no le quedaba M/T y le ofreció una KR29 en
+ * 265/65R17; el cliente dijo «No» y en el turno siguiente el bot le mandó la
+ * FALKEN WILDPEAK M/T 265/70R17 — la exacta, la que acababa de negar. Mismo
+ * minuto, mismo stock: lo único distinto fue por dónde entró la búsqueda.
+ *
+ * `buscar_por_aro_y_tipo` pedía el aro con `searchByText("R17", 60)`, que es
+ * una búsqueda por TEXTO: puntúa, ordena por disponibilidad y precio, y corta
+ * en 60. En el aro 17 hay 102 productos, así que 43 no entraban — y por el
+ * orden, los que se caen son los caros y los de camioneta, justo los que pide
+ * quien busca una M/T.
+ *
+ * El segundo agujero era peor y silencioso: el filtro de después miraba
+ * `item.size?.rim`, y las medidas en pulgadas no tienen `size` —el parser del
+ * catálogo solo les llena `sizeLabel`—, así que TODAS las 33X12.50R15 y
+ * 35X12.50R17 quedaban fuera aunque tuvieran stock. Medido sobre la foto del
+ * catálogo: 3 KR29 con stock invisibles en el aro 15, 6 en el 17, 3 en el 20.
+ *
+ * Un aro tiene decenas de llantas, no cientos: filtrar el catálogo entero es
+ * más barato que puntuar texto, y no puede esconder nada. Quien necesite
+ * recortar a tres lo hace después, con la escalera, que sí sabe elegir.
+ */
+export function buscarPorAro<T extends { size: { rim: number } | null; sizeLabel: string | null }>(
+  items: readonly T[],
+  aro: number,
+): T[] {
+  return items.filter((item) => (item.size?.rim ?? aroDeMedida(item.sizeLabel)) === aro);
+}
+
+/**
  * De un montón de llantas, las que son de la medida que el cliente YA confirmó.
  *
  * Nace del chat del 25-ago que trajo Joaquín: el cliente tenía confirmada

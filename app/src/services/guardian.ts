@@ -30,6 +30,7 @@
  */
 import OpenAI from "openai";
 import { aroDadoPorElCliente, medidaConfirmadaPorCliente } from "../domain/medidaConfirmada.js";
+import { mencionaVehiculo } from "../domain/vehiculoEnTexto.js";
 import { z } from "zod";
 import { business, config } from "../config.js";
 import { sql } from "../db/client.js";
@@ -39,7 +40,7 @@ import { medidaEstaPedida, mensajesDeLaVisitaActual } from "../domain/medidaPedi
 import { hechosDeRestricciones, restriccionesDeLlanta } from "../domain/restriccionesLlanta.js";
 import { CIERRE_COTIZAR } from "../domain/preguntasProhibidas.js";
 import { medidasDelPedido } from "./medidasDelPedido.js";
-import { ensureCatalogReady, searchBySize, searchByText } from "./catalog.js";
+import { ensureCatalogReady, findByCode, searchBySize, searchByText } from "./catalog.js";
 import { parseTireSize } from "../domain/tireSize.js";
 import { respaldoCompleto } from "../domain/respaldoMarcas.js";
 import { logAiRun } from "./conversations.js";
@@ -463,6 +464,22 @@ export async function armarContexto(
     restriccionesDeLlanta(mensajesDeLaVisitaActual(inboundVisita).map((m) => m.content).reverse()),
   );
 
+  // ¿La última lámina del ciclo trae VARIAS medidas? La pieza pudo salir en un
+  // turno anterior, así que no está en la huella de este: se lee de la misma
+  // fuente que `cotizarLoElegido`, los códigos que la pieza guardó.
+  const [ultimaPieza] = await sql<{ metadata: { codes?: unknown[] } | null }[]>`
+    select metadata from messages
+    where conversation_id=${conversationId} and cycle=${cycle}
+      and metadata->>'piece'='options'
+    order by created_at desc limit 1
+  `;
+  const medidasEnPantalla = new Set(
+    (Array.isArray(ultimaPieza?.metadata?.codes) ? ultimaPieza.metadata.codes.map(String) : [])
+      .map((codigo) => findByCode(codigo)?.sizeLabel)
+      .filter((medida): medida is string => Boolean(medida)),
+  );
+  const variasMedidasEnPantalla = medidasEnPantalla.size > 1;
+
   // Los dos últimos turnos, sueltos: son la materia prima de los hechos de
   // despedida y de oferta aceptada. `mensajes` viene del más nuevo al más viejo.
   const ultimoDelCliente = mensajes.find((m) => m.direction === "inbound")?.content ?? "";
@@ -494,10 +511,27 @@ export async function armarContexto(
     // medida de esa opción. El revisor pedía «la medida exacta» sobre lo ya
     // elegido (11:32, hallazgo cotizacion_sin_medida sobre rin 15).
     (() => {
-      const aro = aroDadoPorElCliente(mensajes.filter((m) => m.direction === "inbound").map((m) => m.content));
-      return aro && !medidaConfirmadaPorCliente(hechos?.tire_size, mensajes.filter((m) => m.direction === "inbound").map((m) => m.content))
-        ? `ARO DADO POR EL CLIENTE: rin ${aro}. Las opciones mostradas son de ese aro y cada una lleva su medida en la lámina. Si elige una, se cotiza con la medida de esa opción: NO se le pide «la medida exacta» para cotizar lo que ya eligió.`
-        : null;
+      const entrantes = mensajes.filter((m) => m.direction === "inbound").map((m) => m.content);
+      const aro = aroDadoPorElCliente(entrantes);
+      if (!aro || medidaConfirmadaPorCliente(hechos?.tire_size, entrantes)) return null;
+      // ...PERO CON UN CARRO SOBRE LA MESA Y VARIAS MEDIDAS EN PANTALLA, SÍ.
+      //
+      // Conv 18684 (10-sep): «para un nissan Qashqai 2020 rin 17» → lámina con
+      // 215/40R17, 215/45R17 y 205/45R17 → «Falken por favor el juego 4
+      // llantas» → cotización de 215/40R17. La medida de fábrica de ese carro
+      // es 225/60R17. Elegir «la Falken» con tres medidas en pantalla elige una
+      // MARCA, no una medida, y el carro tiene una medida concreta que nadie
+      // comprobó: ahí la ruta directa confirma la medida en una línea antes de
+      // firmar, y esa pregunta NO es pregunta_de_mas.
+      //
+      // El hecho tiene que viajar hasta acá porque el revisor, con la regla 22
+      // sola, deshacía la confirmación: se probó el 12-sep en el simulador y
+      // convirtió «¿Su llanta dice 215/40R17?» en «Perfecto, le cotizo el juego
+      // de 4 llantas FALKEN ZE310 que eligió» — una promesa sin cotización.
+      const conCarro = Boolean(hechos?.vehicle) || entrantes.some((t) => mencionaVehiculo(t));
+      return conCarro && variasMedidasEnPantalla
+        ? `ARO DADO POR EL CLIENTE: rin ${aro}, PERO en pantalla hay VARIAS MEDIDAS de ese aro y el cliente dio un VEHÍCULO sin escribir su medida. Elegir una marca no elige una medida: antes de cotizar se confirma la medida de la opción elegida («¿Su llanta dice 215/40R17?»). Esa pregunta es la legítima del turno y se conserva: NO es pregunta_de_mas, y NO la reescribas como si la cotización ya estuviera hecha.`
+        : `ARO DADO POR EL CLIENTE: rin ${aro}. Las opciones mostradas son de ese aro y cada una lleva su medida en la lámina. Si elige una, se cotiza con la medida de esa opción: NO se le pide «la medida exacta» para cotizar lo que ya eligió.`;
     })(),
     hechos?.selected_quantity != null ? `Cantidad elegida: ${hechos.selected_quantity}` : null,
     // Estas dos líneas se escriben SIEMPRE, también cuando están vacías. Es lo

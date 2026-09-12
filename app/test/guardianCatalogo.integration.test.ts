@@ -50,6 +50,9 @@ vi.mock("../src/services/catalog.js", () => ({
   searchBySize: (size: { width: number; rim: number }) =>
     CATALOGO.filter((p) => p.size?.width === size.width && p.size?.rim === size.rim),
   searchByText: () => CATALOGO,
+  // La MISMA función del dominio que usa producción: un mock que devolviera
+  // el catálogo entero probaría otra cosa.
+  searchByRim: (aro: number) => buscarPorAro(catalogo, aro),
   findByCode: (code: string) => CATALOGO.find((p) => p.code === code),
 }));
 

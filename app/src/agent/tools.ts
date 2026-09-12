@@ -18,6 +18,7 @@ import {
   findByCode,
   searchAlternatives,
   searchBySize,
+  searchByRim,
   searchByText,
   searchWithLadder,
   type CatalogItem,
@@ -70,6 +71,7 @@ import { researchVehicleFitment } from "../services/vehicleFitmentResearch.js";
 import { arosDeCandidatos, arosDeMedidas, invitacionPorAroAmbiguo } from "../domain/fitmentResearch.js";
 import { aroVigenteDeLaVisita, rangoDeAros } from "../domain/aros.js";
 import { nearestStore, resolveSector } from "../domain/locations.js";
+import { ordenarPorCercania } from "../domain/equivalencia.js";
 import { extractFlotationSizes, formatFlotationSize, formatTireSize, parseTireSize, type TireSize } from "../domain/tireSize.js";
 import { marcaPreguntada, pidioCotizacionExplicita, ultimaMarcaPedida } from "../domain/consultaConRespaldo.js";
 import {
@@ -77,7 +79,7 @@ import {
   pideAlternativaMasBarata, pideRecomendacion, respuestaDePreferencia,
 } from "../domain/salesIntent.js";
 import { equivalenteSinConsentimiento, preguntaDeEquivalente } from "../domain/equivalentePendiente.js";
-import { aroDadoPorElCliente } from "../domain/medidaConfirmada.js";
+import { aroDadoPorElCliente, medidaParaElSello } from "../domain/medidaConfirmada.js";
 import { eleccionDeLaVitrina } from "../domain/eleccionDeVitrina.js";
 import { pideVerOpciones } from "../domain/salesIntent.js";
 import { getTirePatternProfile } from "../domain/tireKnowledge.js";
@@ -357,11 +359,18 @@ function opcionesEnAro(aro: number, tipo: string | null, medidaConfirmada?: stri
   suMedida: string | null;
   /** Tiene medida confirmada en este aro y de ese tipo no hay NADA en ella. */
   sinTipoEnSuMedida: boolean;
+  /** Y en el aro no queda ninguna de otra medida que le calce (diámetro ±3 %). */
+  sinEquivalenteQueCalce: boolean;
 } {
   const pedido = tipo ? normalizarTipo(tipo) : null;
   // Se busca por aro en el catálogo real y se filtra por el tipo que dice la
   // base del cliente; el tipo NO viene de Contífico.
-  const enElAro = searchByText(`R${aro}`, 60).filter((item) => item.size?.rim === aro);
+  // TODO el aro, sin tope: `searchByText("R17", 60)` puntuaba, ordenaba y
+  // cortaba en 60, y en el aro 17 (102 productos) dejaba fuera 43 — los caros
+  // y los de camioneta. Encima el filtro por `size.rim` descartaba las medidas
+  // en pulgadas, que no tienen medida métrica. Conv 18016: por eso el bot negó
+  // una M/T que tenía en stock y la encontró un minuto después por otra puerta.
+  const enElAro = searchByRim(aro);
   const delTipo = pedido
     ? enElAro.filter((item) => normalizarTipo(tipoDeProducto(item.code, item.design) ?? "") === pedido)
     : enElAro;
@@ -375,6 +384,25 @@ function opcionesEnAro(aro: number, tipo: string | null, medidaConfirmada?: stri
   // incotizable (generar_cotizacion bloquea agotadas) y le esconderíamos las
   // equivalentes vendibles del aro. Agotado en su medida = como si no hubiera.
   const enSuMedida = conStock(enLaMedidaConfirmada(delTipo, suMedida));
+  // CUANDO LA SELECCIÓN SALE DEL ARO Y NO DE SU MEDIDA, ES UNA EQUIVALENTE Y
+  // TIENE QUE MONTAR.
+  //
+  // La escalera elige por precio, y en un aro la más barata es la más angosta,
+  // o sea lo más lejano a lo que el cliente pidió. Conv 17831 (9-sep): pidió
+  // 285/75R16 A/T y recibió 215/65R16, 245/70R16 y 235/70R16 — entre 10 y 18 %
+  // menos de diámetro exterior — porque eran las económicas de cada marca.
+  //
+  // Su propia medida sale de la lista de equivalentes: si llegamos acá es
+  // porque en ella no había nada vendible, y una agotada no es una opción
+  // (`generar_cotizacion` la bloquea). Lo que queda son las de OTRAS medidas
+  // que de verdad le calzan, de la más parecida a la menos.
+  // Ver `domain/equivalencia.ts`.
+  const deSuMedida = new Set(enLaMedidaConfirmada(delTipo, suMedida).map((item) => item.code));
+  const equivalentes = ordenarPorCercania(
+    delTipo.filter((item) => !deSuMedida.has(item.code)),
+    medidaConfirmada ?? null,
+  );
+  const deDondeElegir = enSuMedida.length ? enSuMedida : equivalentes;
   return {
     pedido: pedido || null,
     enElAro,
@@ -382,9 +410,14 @@ function opcionesEnAro(aro: number, tipo: string | null, medidaConfirmada?: stri
     // Con algo vendible en su medida, la selección sale SOLO de ahí; si no
     // hay, se cae al aro completo — pero eso deja de ser silencioso
     // (`sinTipoEnSuMedida`).
-    seleccion: tresOpciones(enSuMedida.length ? enSuMedida : delTipo),
+    seleccion: tresOpciones(deDondeElegir),
     suMedida,
     sinTipoEnSuMedida: Boolean(suMedida) && !enSuMedida.length,
+    /** Hay de ese tipo en el aro, pero ninguna que le calce a su medida. */
+    // Solo cuando SÍ hay de ese tipo en el aro: sin nada del tipo la respuesta
+    // es la de siempre («no hay de ese tipo acá»), que dice otra cosa.
+    sinEquivalenteQueCalce:
+      Boolean(suMedida) && delTipo.length > 0 && !enSuMedida.length && !equivalentes.length,
   };
 }
 
@@ -838,7 +871,7 @@ export function buildTools(ctx: AgentContext) {
       const [ficha] = await sql<{ tire_size: string | null }[]>`
         select tire_size from conversations where id=${ctx.conversation.id}
       `;
-      const { pedido, enElAro, delTipo, seleccion, suMedida, sinTipoEnSuMedida } =
+      const { pedido, enElAro, delTipo, seleccion, suMedida, sinTipoEnSuMedida, sinEquivalenteQueCalce } =
         opcionesEnAro(aro, tipo, ficha?.tire_size);
 
       // El ancho que el cliente rechazó no vuelve a salir por esta puerta.
@@ -888,6 +921,29 @@ export function buildTools(ctx: AgentContext) {
         : tresOpciones(
             conStock(delTipoPermitido).length ? conStock(delTipoPermitido) : delTipoPermitido,
           );
+
+      // HAY DE ESE TIPO EN EL ARO, PERO NINGUNA QUE LE CALCE.
+      //
+      // Conv 17831 (9-sep): pidió 285/75R16 A/T, en su medida no había, y el
+      // aro 16 le devolvió 215/65R16, 245/70R16 y 235/70R16 — entre 10 y 18 %
+      // menos de diámetro. Ofrecer eso como «equivalente de su aro» es vender
+      // otra llanta con la palabra «equivalente» puesta encima. La respuesta
+      // honesta es que en ese aro no hay ninguna que le monte.
+      if (sinEquivalenteQueCalce) {
+        return JSON.stringify({
+          encontrado: false,
+          aro,
+          tipo_pedido: pedido || null,
+          su_medida: suMedida,
+          medidas_del_tipo_que_no_le_calzan: [...new Set(delTipo.map((p) => p.sizeLabel))],
+          regla:
+            `De ${pedido ?? "ese tipo"} hay en el aro ${aro}, pero NINGUNA le calza a su ${suMedida}: `
+            + "las que hay se salen del 3 % de diámetro exterior y montarlas le cambia el velocímetro y la caja. "
+            + "PROHIBIDO ofrecerlas como «equivalentes» ni mandar la pieza con ellas. Dile la verdad —«de ese tipo "
+            + "no tengo ninguna que le calce a su medida»— y ofrece las dos salidas reales: otro tipo en su medida "
+            + "exacta, o que el asesor le confirme en el local si le entra alguna.",
+        });
+      }
 
       if (!delTipo.length) {
         return JSON.stringify({
@@ -1458,11 +1514,28 @@ export function buildTools(ctx: AgentContext) {
       // oportunidad de agregarla. Confiar en la regla fue el hueco que el
       // guardián corrigió 12 veces en la semana del 14-ago («el borrador no
       // aclara que son equivalentes»): la orden existía y nadie podía cumplirla.
+      // SIN MEDIDA DEL CLIENTE, LA LÁMINA DICE DE QUÉ MEDIDAS ES.
+      //
+      // El aviso de equivalentes necesita una medida pedida contra la cual
+      // comparar. Cuando el cliente solo dio el aro —o su carro— no hay tal
+      // medida, `sizeLabel` sale nulo y la lámina viaja muda: tres tarjetas de
+      // tres medidas distintas bajo el título «Opciones disponibles». Así
+      // salieron 36 de las 152 láminas de la semana del 8 al 11-sep, y con
+      // ellas las cotizaciones de las convs 17668, 18121, 18262 y 18555: el
+      // cliente eligió «la 3» creyendo que era la suya.
+      //
+      // No se le puede decir cuál es su medida —no la sabemos— pero sí que las
+      // de la pantalla no son una sola, que cada tarjeta trae la suya, y que
+      // hace falta la del costado para asegurar el calce.
+      const medidasEnPantalla = [...new Set(products.map((p) => p.sizeLabel).filter(Boolean))] as string[];
+      const avisoSinMedidaPedida = !permitidasOpciones.length && medidasEnPantalla.length > 1
+        ? `⚠️ Ojo: estas opciones son de *medidas distintas* del mismo aro (${medidasEnPantalla.join(", ")}) — cada tarjeta lleva la suya. Para asegurarle el calce necesito la medida del costado de su llanta.`
+        : null;
       const avisoMedidaCliente = fueraDeMedida.length && permitidasOpciones.length
         ? (fueraDeMedida.length === products.length
             ? `⚠️ Ojo: en *${permitidasOpciones.join(" / ")}* no me queda disponibilidad exacta. Estas son *equivalentes* de su aro: ${fueraDeMedida.map((p) => `${p.design} en ${p.sizeLabel}`).join(", ")}. Se confirma el calce al montar.`
             : `⚠️ Ojo: no todas son de su medida *${permitidasOpciones.join(" / ")}* — ${fueraDeMedida.map((p) => `${p.design} es ${p.sizeLabel}`).join(", ")} (equivalentes de su aro).`)
-        : null;
+        : avisoSinMedidaPedida;
 
       // CANDADO 1 — solo el doble envío del MISMO turno. Nació el 6-ago
       // (tickets 1288 y 1415: la misma pieza salió 4 veces) como un candado de
@@ -1629,12 +1702,20 @@ export function buildTools(ctx: AgentContext) {
             dateLabel: dateLabel(),
             sizeLabel,
             // Con esto cada tarjeta sale marcada: verde MEDIDA EXACTA, o el
-            // sello rojo de equivalente. Es la medida que el cliente pidió.
-            medidaPedida:
-              permitidasOpciones[0]
-              ?? medidaDeLaConversacion?.tire_size
-              ?? sizeLabel
-              ?? null,
+            // sello de equivalente. Es la medida que el cliente PIDIÓ, y solo
+            // esa. `permitidasOpciones` incluye a propósito la medida de
+            // trabajo de la ficha —así se registra que aceptó una
+            // equivalencia—, pero esa misma ficha también se llena con lo que
+            // el bot DEDUJO del vehículo o del aro, y sellar «MEDIDA EXACTA»
+            // sobre una deducción afirma algo que el cliente nunca dijo.
+            // Conv 18821, 10-sep: la 215/75R15 deducida salió en verde y sobre
+            // esa lámina se firmó una cotización de $726.83 por una llanta
+            // cuatro pulgadas más chica que la pedida. Sin medida del cliente
+            // no se marca nada: el poster sabe callarse con null.
+            medidaPedida: medidaParaElSello(
+              [ctx.currentUserText, ...mensajesDeLaVisitaActual(inbound).map((m) => m.content)],
+              medidaDeLaConversacion?.tire_size,
+            ),
             benefits: beneficiosPieza,
             ...(await getPiecesConfig()),
             brandProfiles: await brandProfilesForRender(),
