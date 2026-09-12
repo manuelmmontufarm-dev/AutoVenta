@@ -325,6 +325,16 @@ export function diaDelMesSuelto(texto: string, ahora: Date): { mes: number; dia:
   const soloElNumero = n.trim().match(/^(\d{1,2})$/);
   const crudo = conArticulo?.[1] ?? soloElNumero?.[1];
   if (!crudo) return null;
+  const inicio = conArticulo
+    ? (conArticulo.index ?? 0) + conArticulo[0].lastIndexOf(crudo)
+    : n.indexOf(crudo);
+  const antes = n.slice(0, inicio);
+  const despues = n.slice(inicio + crudo.length);
+  // «del 25 %», «del 25 por ciento» y «$25» hablan de plata/descuento, no
+  // del calendario. El símbolo pegado o la unidad inmediata descalifican esa
+  // cifra aunque acabemos de preguntar qué día puede venir.
+  if (/\$\s*$/.test(antes)
+    || /^\s*(?:[$%]|por\s+ciento\b|dolares?\b|usd\b|de\s+(?:descuento|rebaja)\b)/.test(despues)) return null;
   const dia = Number(crudo);
   if (dia < 1 || dia > 31) return null;
 
