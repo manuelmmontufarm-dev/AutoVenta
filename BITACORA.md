@@ -1,3 +1,33 @@
+## 12-sep-2026 · Un número no puede ser el escalón y la cantidad a la vez
+
+**Qué:** `cantidadDelTexto` en `domain/salesIntent.ts`, junto a sus dos piezas:
+devuelve la cantidad que trae el texto, salvo que ese texto sea el número del
+menú de preferencia. `cotizarLoElegido` la usa en vez de
+`extractExplicitQuantity` directo. Prueba: 5 casos nuevos en
+`menuNoEsCantidad.test.ts` (3 fallan sin el arreglo).
+
+**Por qué:** chat 18134, 9-sep. El bot mostró tres opciones en 285/70R17 y
+cerró con el menú «1) Costo 2) Equilibrio 3) Premium», que viajaba dentro del
+mensaje de ubicaciones. El cliente escribió «2» y recibió:
+
+  BOT: «La opción *de equilibrio* es la *KENDA KR29* — *$270.78 c/u con IVA*.
+        Le dejo la cotización por *2 llantas* 👍»
+
+Las dos lecturas del mismo número en una sola frase: eligió bien el escalón y
+después el mismo «2» se leyó otra vez como cantidad. COT-MTUNZ1XY por $541.56
+con el cliente pidiendo el juego.
+
+**Lo que la revisión corrigió:** el diagnóstico de la auditoría decía que el
+menú «quedaba sepultado» porque el detector miraba solo el último mensaje
+saliente. Falso por dos lados: `lastOutboundText` junta los TRES últimos del
+ciclo, y probado con el `previousOutbound` exacto de producción el detector ya
+devolvía `true`. El menú sí se reconocía; lo que faltaba era que un número
+consumido como escalón deje de estar disponible para la cantidad. Una cantidad
+dicha con palabras («deme la premium, 2 llantas») no es ese caso y sigue
+contando.
+
+**Horas:** 0.5
+
 ## 12-sep-2026 · Los números que no son lo que parecen
 
 **Qué:** Nueve correcciones determinísticas de conversaciones reales. (1)

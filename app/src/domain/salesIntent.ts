@@ -353,6 +353,35 @@ export function esRespuestaDelMenuDePreferencia(
 }
 
 /**
+ * LA CANTIDAD QUE TRAE EL TEXTO — SIN CONTAR EL NÚMERO DEL MENÚ.
+ *
+ * Chat 18134 (9-sep). El bot mostró tres opciones en 285/70R17 y cerró con el
+ * menú «1) Costo 2) Equilibrio 3) Premium» (que viajaba dentro del mensaje de
+ * ubicaciones). El cliente escribió «2» y salió esto:
+ *
+ *   BOT: «La opción *de equilibrio* es la *KENDA KR29* — *$270.78 c/u con IVA*.
+ *         Le dejo la cotización por *2 llantas* 👍»
+ *
+ * Las dos lecturas del mismo número en una sola frase: el «2» eligió el escalón
+ * —bien— y después `extractExplicitQuantity` lo leyó otra vez como cantidad.
+ * Cotización COT-MTUNZ1XY por $541.56 cuando el cliente pedía el juego.
+ *
+ * El detector del menú ya funcionaba: verificado el 12-sep con el
+ * `previousOutbound` exacto de producción, devolvía `true`. Lo que faltaba es
+ * que un número consumido como escalón deje de estar disponible para la
+ * cantidad. Una cantidad dicha con palabras («deme la premium, 2 llantas») no
+ * es ese caso y sigue contando.
+ */
+export function cantidadDelTexto(
+  texto: string,
+  previousOutbound: string | null | undefined,
+  mensajeCitado?: string | null,
+): number | null {
+  if (esRespuestaDelMenuDePreferencia(texto, previousOutbound, mensajeCitado)) return null;
+  return extractExplicitQuantity(texto);
+}
+
+/**
  * RESPALDO TEXTUAL de la cantidad, con sus dos candados puestos.
  *
  * Producción, 27-ago-2026 (conv 3). El cliente escribió «quiero 20 llantas» y

@@ -25,7 +25,7 @@ import { buildTools, type AgentContext } from "../agent/tools.js";
 import { getAgentSalesFacts } from "../agent/agent.js";
 import { eleccionDeLaVitrina, type OpcionDeVitrina } from "../domain/eleccionDeVitrina.js";
 import {
-  escalonContestado, esPedidoDeAmbasOpciones, esReferenciaPluralAlMenu, extractExplicitQuantity,
+  cantidadDelTexto, escalonContestado, esPedidoDeAmbasOpciones, esReferenciaPluralAlMenu,
 } from "../domain/salesIntent.js";
 import { findByCode } from "./catalog.js";
 import { buildStoreLinksBlockOnce } from "./storeLinks.js";
@@ -114,7 +114,8 @@ export async function tryCotizarLoElegido(ctx: CotizarLoElegidoContext, texto: s
 
   const producto = findByCode(elegido.codigo);
   if (!producto) return null;
-  const cantidad = extractExplicitQuantity(texto) ?? facts.selectedQuantity ?? 4;
+  // El número que eligió el escalón no es una cantidad (chat 18134).
+  const cantidad = cantidadDelTexto(texto, ctx.previousOutbound, ctx.mensajeCitado) ?? facts.selectedQuantity ?? 4;
   const tools = buildTools({
     conversation: ctx.conversation,
     customerPhone: ctx.customerPhone,
