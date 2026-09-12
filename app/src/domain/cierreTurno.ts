@@ -44,6 +44,13 @@ const DESPEDIDA_ENVUELTA = new RegExp(
 const AVISO_PENDIENTE =
   /\b(?:yo\s+)?(?:le|les|te)\s+(?:reviso\s+y\s+(?:le|les|te)\s+)?(?:aviso|avisare|confirmo|escribo)\b/;
 
+/** El cliente pidió tiempo y prometió retomar; la venta sigue viva. */
+export function esPlazoDeDecision(texto: string): boolean {
+  const n = normalizar(texto);
+  return /\b(?:ya\s+)?(?:yo\s+)?(?:le|les|te)\s+(?:confirmo|confirmare|aviso|avisare|escribo)\b/.test(n)
+    || /\b(?:dejame|dejeme|permitame)\s+(?:ver|revisar)\b[^.!?]{0,40}\b(?:te|le|les)\s+(?:digo|aviso|confirmo|escribo)\b/.test(n);
+}
+
 function esDespedidaEnvuelta(textoNormalizado: string): boolean {
   if (DESPEDIDA_ENVUELTA.test(textoNormalizado)) return true;
   // «le aviso» solo cierra cuando es todo lo que dice: sin pregunta ni medida,
@@ -55,6 +62,7 @@ function esDespedidaEnvuelta(textoNormalizado: string): boolean {
 }
 
 function esRechazoSuave(textoNormalizado: string): boolean {
+  if (esPlazoDeDecision(textoNormalizado)) return false;
   return (CIERRE_SUAVE.test(textoNormalizado) || esDespedidaEnvuelta(textoNormalizado))
     && !TRAE_RESTRICCION_DE_LLANTA.test(textoNormalizado);
 }
@@ -98,4 +106,8 @@ export function respuestaDeCierreDelTurno(tipo: CierreDelTurno): string {
   }
   if (tipo === "acuse_del_cierre") return "Con gusto. Quedamos a las órdenes. 🤝";
   return "Entendido, gracias por avisar. Quedamos a las órdenes si más adelante lo necesita. 🤝";
+}
+
+export function respuestaDePlazoDeDecision(): string {
+  return "Claro, quedo pendiente de su confirmación 👍";
 }

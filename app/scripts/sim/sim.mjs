@@ -49,6 +49,7 @@ const valor = (nombre, porDefecto = null) => {
   const i = argv.indexOf(`--${nombre}`);
   return i >= 0 && argv[i + 1] && !argv[i + 1].startsWith("--") ? argv[i + 1] : porDefecto;
 };
+const snapshotCatalogo = valor("catalogo-snapshot", resolve(dirDatos, "catalogo.json"));
 
 const PUERTO_UI = Number(valor("puerto", "3210"));
 const PUERTO_APP = Number(valor("puerto-bot", "3205"));
@@ -66,8 +67,15 @@ if (!/^[a-z_][a-z0-9_]*$/i.test(DB)) throw new Error(`--db inválida: ${DB}`);
 // ─────────────────────────────────────────────────────────────────────────────
 // .env del bot (sin pisar lo que ya venga del entorno)
 // ─────────────────────────────────────────────────────────────────────────────
-const env = entornoDelBot(resolve(raízApp, ".env"));
+// Un worktree limpio no trae los archivos ignorados. Permite señalar el .env
+// del checkout principal para copiar configuración; en humo todas las APIs se
+// reemplazan por dobles locales y la clave de OpenAI se pisa con «humo».
+const env = entornoDelBot(valor("env-file", resolve(raízApp, ".env")));
 const claveOpenAI = claveDePruebas();
+// El humo usa el doble local y devuelve la clave ficticia «humo». La migración
+// también carga config.ts, así que debe recibirla aunque no exista app/.env.
+// Sin esto, un worktree limpio fallaba antes de arrancar el stub.
+env.OPENAI_API_KEY = claveOpenAI;
 
 /**
  * La clave de OpenAI del simulador NO es la de Depot.
@@ -232,7 +240,7 @@ async function main() {
   console.log("📦 Catálogo…");
   contifico = await levantarContificoSim({
     puerto: PUERTO_CONTIFICO,
-    snapshot: resolve(dirDatos, "catalogo.json"),
+    snapshot: snapshotCatalogo,
     apiKey: env.CONTIFICO_API_KEY ?? null,
     urlReal: env.CONTIFICO_BASE_URL ?? "https://api.contifico.com/sistema/api/v2",
     refrescar: bandera("catalogo-fresco"),
@@ -258,6 +266,9 @@ async function main() {
       CONTIFICO_BASE_URL: CON_DOBLES
         ? `http://127.0.0.1:${PUERTO_STUB}/contifico`
         : `http://127.0.0.1:${PUERTO_CONTIFICO}`,
+      // config.ts solo habilita el catálogo si hay una clave. En humo la API
+      // es el doble local, así que una clave ficticia habilita esa ruta sin red.
+      ...(CON_DOBLES ? { CONTIFICO_API_KEY: "humo" } : {}),
       ...(CON_DOBLES ? { OPENAI_BASE_URL: `http://127.0.0.1:${PUERTO_STUB}/v1` } : {}),
       // El checkpoint MINI del T115 fuerza modelos SIN perder las banderas de
       // producción: la alineación con Railway corre igual y solo los modelos

@@ -37,6 +37,8 @@ const IDS = arg("--ids")?.split(",").map((s) => s.trim().toUpperCase()) ?? null;
 const FAMILIAS = arg("--familia")?.split(",").map((s) => s.trim().toUpperCase()) ?? null;
 const SALIDA = arg("--salida") ?? join(AQUI, "t115-flota-resultado.json");
 const DIR_LOGS = arg("--logs") ?? join(AQUI, "flota-logs");
+const ENV_FILE = arg("--env-file");
+const CATALOGO_SNAPSHOT = arg("--catalogo-snapshot");
 
 const RONDA = ["P03", "P10", "M01", "M07", "Q05", "Q06", "O05", "O13", "V05", "V08", "E01", "E02", "C01", "C09", "R06", "R07", "X01", "X07"];
 const pausa = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -96,6 +98,8 @@ async function main() {
         "--puerto", String(base + 10), "--puerto-bot", String(base + 5),
         "--puerto-graph", String(base + 11), "--puerto-contifico", String(base + 12),
         "--puerto-stub", String(base + 13), "--db", db,
+        ...(ENV_FILE ? ["--env-file", ENV_FILE] : []),
+        ...(CATALOGO_SNAPSHOT ? ["--catalogo-snapshot", CATALOGO_SNAPSHOT] : []),
         ...(PLOMERIA ? ["--stub"] : []),
       ];
       const salidaLog = createWriteStream(log);

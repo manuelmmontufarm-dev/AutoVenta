@@ -29,7 +29,7 @@
  * las dos digan cosas distintas.
  */
 import { sql } from "../db/client.js";
-import { esRespuestaDelMenuDePreferencia, extractExplicitQuantity } from "../domain/salesIntent.js";
+import { esReferenciaPluralAlMenu, esRespuestaDelMenuDePreferencia, extractExplicitQuantity } from "../domain/salesIntent.js";
 import { cantidadGrandePedida } from "../domain/cantidadGrande.js";
 import { buildTools, type AgentContext } from "../agent/tools.js";
 import { buildStoreLinksBlockOnce } from "./storeLinks.js";
@@ -66,6 +66,8 @@ export async function tryRecotizarPorCantidad(
   if (!config.openai.directSalesRoutesEnabled) return null;
   // El «2» del menú de preferencia no es una cantidad.
   if (esRespuestaDelMenuDePreferencia(text, ctx.previousOutbound, ctx.mensajeCitado)) return null;
+  // «Las 2 / las dos / ambas» habla de las opciones del menú, no de llantas.
+  if (esReferenciaPluralAlMenu(text, ctx.previousOutbound)) return null;
 
   // Un número más grande que el juego máximo también recotiza, y DIRECTO: el
   // aviso de la cantidad va en la pieza, no en una pregunta previa (Manuel,

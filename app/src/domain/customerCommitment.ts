@@ -216,6 +216,10 @@ const CONDICIONAL =
   /\bsi\s+(?:hoy|manana|el\s+\w+|puedo|alcanzo|logro|me\s+da|tengo\s+tiempo)\b[^.,;]{0,25}\b(?:puedo|alcanzo|logro|me\s+da|le\s+aviso|veo)\b|\b(?:voy\s+a\s+ver|dejeme\s+ver|permitame\s+(?:revisar|ver)|dejame\s+ver|tengo\s+que\s+ver)\s+si\b|\b(?:tal\s+vez|quizas?|de\s+pronto|de\s+repente|posiblemente|talvez)\b/;
 const CLAUSULA_NEGATIVA =
   /\b(?:no\s+(?:pude|he\s+podido|alcance|alcanzo|fui|voy\s+a\s+poder|puedo|podre|logre|tuve|me\s+dio)|se\s+me\s+(?:complico|hizo\s+tarde)|me\s+toco\s+trabajar)\b/;
+const AVISO_POSTERIOR =
+  /\b(?:me\s+comunico|(?:yo\s+)?(?:le|les|te)\s+(?:aviso|avisare|escribo|confirmo))\b/;
+const FECHA_DE_OTRA_ACTIVIDAD =
+  /\b(?:carro|camioneta|vehiculo)\b[^.!?]{0,70}\b(?:mecanica|taller|reparacion|trabajo)\b|\b(?:mecanica|taller|reparacion)\b/;
 
 function sinClausulasNegativas(textoNormalizado: string): string {
   return textoNormalizado
@@ -230,7 +234,10 @@ export function extractCustomerCommitment(
   options: { respondiendoAlDia?: boolean } = {},
 ): CustomerCommitment | null {
   const bruto = normalizar(text);
-  if (AUTORESPUESTA.test(bruto) || CONDICIONAL.test(bruto)) return null;
+  // «Me comunico / le aviso» dice explícitamente que todavía no hay día. Y
+  // «el carro entró hoy al taller» fecha otra actividad, no una visita.
+  if (AUTORESPUESTA.test(bruto) || CONDICIONAL.test(bruto) || AVISO_POSTERIOR.test(bruto)) return null;
+  if (FECHA_DE_OTRA_ACTIVIDAD.test(bruto) && !INTENT.test(bruto)) return null;
   // Lo que se lee de aquí en adelante es el texto SIN sus cláusulas negativas.
   text = CLAUSULA_NEGATIVA.test(bruto) ? sinClausulasNegativas(bruto) : text;
   const normalized = normalizar(text);
@@ -238,8 +245,22 @@ export function extractCustomerCommitment(
   const relativo = relativoEnTexto(text);
   // El día del mes suelto («el 30») SOLO cuando acabamos de preguntar el día.
   // Fuera de esa pregunta, «el 4» es una cantidad o un precio, no una fecha.
-  const calendario = fechaDeCalendario(text, now)
+  let calendario = fechaDeCalendario(text, now)
     ?? (options.respondiendoAlDia ? diaDelMesSuelto(text, now) : null);
+  // «29 martes 2026»: el 29 es más explícito que «martes». Solo lo aceptamos
+  // si ambos cuentan la misma historia; si no coinciden, se pregunta.
+  const numeroConSemana = options.respondiendoAlDia
+    ? normalized.match(/(?:^|\b)(\d{1,2})\s+(lunes|martes|miercoles|jueves|viernes|sabado|domingo)(?:\s+(20\d{2}))?\b/)
+    : null;
+  if (numeroConSemana) {
+    const porNumero = diaDelMesSuelto(numeroConSemana[1], now);
+    const porSemana = diaEnTexto(numeroConSemana[2]);
+    const anioEscrito = numeroConSemana[3] ? Number(numeroConSemana[3]) : null;
+    if (!porNumero || !porSemana || (anioEscrito !== null && anioEscrito !== porNumero.anio)) return null;
+    const indiceReal = new Date(Date.UTC(porNumero.anio, porNumero.mes, porNumero.dia)).getUTCDay();
+    if (indiceReal !== porSemana.indice) return null;
+    calendario = porNumero;
+  }
   const franja = franjaHoraria(text);
   const mencionaFecha = dia != null || relativo != null || calendario != null || VAGO.test(normalized);
   // Una hora sin día («de 4 a 5») también es una respuesta a la pregunta de

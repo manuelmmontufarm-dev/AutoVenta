@@ -64,9 +64,25 @@ const NUMERO_GRANDE =
  * «medida» destinadas a separarse.
  */
 export function cantidadGrandePedida(text: string): number | null {
-  const m = enmascararMedidas(text).match(NUMERO_GRANDE);
+  const enmascarado = enmascararMedidas(text);
+  const m = enmascarado.match(NUMERO_GRANDE);
   const crudo = m?.[1] ?? m?.[2];
-  if (!crudo) return null;
+  if (!m || !crudo) return null;
+  const inicio = (m.index ?? 0) + m[0].lastIndexOf(crudo);
+  const antes = enmascarado.slice(0, inicio);
+  const despues = enmascarado.slice(inicio + crudo.length);
+  const normalizado = text.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+
+  // Un monto o descuento puede usar exactamente los mismos verbos que una
+  // cantidad: «son 103$.64 menos». Se juzga el número que casó, no cualquier
+  // cifra del mensaje, para conservar «25 % de descuento: quiero 20 llantas».
+  if (/\$\s*$/.test(antes) || /^\s*(?:[$%]|dolares?\b|usd\b|menos\b|de\s+(?:descuento|rebaja)\b)/i.test(despues)) {
+    return null;
+  }
+  // Si el tema entero es una promoción y nunca nombra unidades, el número no
+  // puede convertirse en llantas por el mero «son».
+  if (/\b(?:promocion|descuento|rebaja)\b/.test(normalizado)
+    && !/\b(?:llantas?|unidades?|neumaticos?)\b/.test(normalizado)) return null;
   const n = Number(crudo);
   if (!Number.isFinite(n) || n <= MAXIMO_NORMAL || n > TOPE_ABSURDO) return null;
   return n;
