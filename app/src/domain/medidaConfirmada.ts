@@ -13,7 +13,7 @@
  * escrito, para la foto («[El cliente mandó una foto. Se lee: 225/70R16…]») y
  * para el cliente que vuelve y cuya medida quedó en una visita anterior.
  */
-import { medidasEnTexto } from "./medidaPedida.js";
+import { medidasEnTexto, medidasPermitidas } from "./medidaPedida.js";
 import { extractFlotationSizes, flotacionIncompleta, medidaIncompleta } from "./tireSize.js";
 
 const pelar = (texto: string) => texto.toLowerCase().replace(/[\s\-/x×r]/g, "");
@@ -33,6 +33,39 @@ export function medidaConfirmadaPorCliente(
     if (crudo.length >= 6 && pelar(texto).includes(crudo)) return true;
   }
   return false;
+}
+
+/**
+ * CONTRA QUÉ MEDIDA SE SELLA LA TARJETA — o null si no hay contra qué.
+ *
+ * No es lo mismo que `medidasPermitidas`. Aquélla contesta «¿se le puede
+ * cotizar esto sin sorprenderlo?» y por eso incluye la medida de trabajo, que
+ * es como queda registrado que el cliente aceptó una equivalencia. El sello de
+ * la pieza contesta otra cosa: «¿ESTA es la medida que él pidió?», y ahí la
+ * medida de trabajo no sirve, porque `tire_size` también se llena con lo que
+ * el bot DEDUJO de su vehículo o de su aro.
+ *
+ * Conv 18821, 10-sep-2026: el cliente pidió 32x10.50R15 en M/T, la ficha quedó
+ * con 215/75R15 deducida, y la lámina salió marcando esa medida como «MEDIDA
+ * EXACTA». Sobre esa lámina se firmó la cotización de $726.83 y el cliente
+ * tuvo que contestar «Pero en la medida que le envié». Conv 18504: una Toyota
+ * Hilux con 205/55R16 deducida, la misma marca verde.
+ *
+ * Cuando no se sabe, se devuelve null y la tarjeta no se marca: el poster ya
+ * sabe quedarse callado (`medidaExacta: null`). Callar es la única respuesta
+ * honesta mientras el cliente no haya dicho su medida.
+ */
+export function medidaParaElSello(
+  textosDelCliente: readonly (string | null | undefined)[],
+  tireSize?: string | null,
+): string | null {
+  const textos = textosDelCliente.filter((t): t is string => Boolean(t));
+  const escritas = medidasPermitidas(textos);
+  if (escritas.length) return escritas[0];
+  // Formatos que el extractor no parsea pero el cliente sí escribió
+  // («205R16C»): el comparador pelado de abajo sí los ve.
+  if (tireSize && medidaConfirmadaPorCliente(tireSize, textos)) return tireSize;
+  return null;
 }
 
 /**

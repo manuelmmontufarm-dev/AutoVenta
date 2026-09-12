@@ -1,3 +1,53 @@
+## 12-sep-2026 · Con el carro sobre la mesa, el aro no manda; y el sello verde solo lo pone el cliente
+
+**Qué:** Paso 2 de la etapa de la medida. **(1) La ruta del aro le cede el
+turno al vehículo:** `aroParaMostrar` devuelve null si el mensaje nombra un
+carro, y entonces contesta `fitment_vehiculo`, que investiga las medidas de
+fábrica y ya tiene prohibido cotizar sobre una medida que el cliente no
+escribió. El detector nuevo es `domain/vehiculoEnTexto.ts`, y saca marcas y
+modelos de la MISMA tabla que usa la investigación (`domain/fitment.ts`) más
+las faltas de ortografía reales de los chats («dimax», «dacsun», «cashcai»);
+excluye las marcas de llanta para que «quiero las falken» no cuente como
+vehículo. **(2) «MEDIDA EXACTA» solo se sella contra lo que el cliente
+escribió:** `medidaParaElSello` en `domain/medidaConfirmada.ts`. Antes la pieza
+comparaba contra `medidasPermitidas`, que incluye la medida de trabajo de la
+ficha — y esa ficha se llena también con lo que el bot dedujo del vehículo o
+del aro. Sin medida del cliente no se marca nada: el poster ya sabe callarse.
+**(3) La lámina de varias medidas lo dice:** cuando no hay medida pedida y las
+tarjetas traen medidas distintas, el mensaje avisa «son de medidas distintas
+del mismo aro, cada tarjeta lleva la suya» y pide la del costado. **(4) Media
+medida se pregunta por su mitad:** `loQueFaltaDeLaMedida` arma el hecho que
+entra al prompt («dio el diámetro 30.5 y el aro 15, falta el ANCHO»), en vez
+del pedido genérico que hacía al cliente repetir lo que ya había escrito.
+Pruebas nuevas: `aroConVehiculo.test.ts` (6), `selloSoloConMedidaDelCliente.test.ts`
+(7) y `preguntarLaMitadQueFalta.test.ts` (6). Suite: 128 archivos, 1590 pruebas.
+
+**Por qué:** Es la familia más grande de la auditoría —30 errores, 12 graves— y
+la que explica siete de las nueve cotizaciones equivocadas. El patrón se repite
+igual en todas: el cliente escribe el aro y su carro en el mismo mensaje, la
+ruta del aro se adelanta, muestra tres llantas cualesquiera de ese aro y
+después las cotiza. Conv 18684: «para un nissan Qashqai 2020 rin 17» → 4 FALKEN
+AZENIS FK520L 215/45R17 por $642.24, y cuando el cliente preguntó si le
+entraban, el bot le dijo que esa era «su medida original» (la real es
+225/60R17). Conv 18121: «Ford 150 Doble cabina rin 18» → llantas de auto.
+Conv 18555: «rin 16 para el Toyota prado» → 205/50R16, y al preguntar el
+cliente si era M/T o A/T el bot admitió que «es una opción de calle». El sello
+verde es el otro medio del daño: 36 de las 152 láminas de la ventana salieron
+con medidas mezcladas y sin decirlo, y sobre una de ellas se firmó la
+cotización de la conv 18821.
+
+**Sin corrida del simulador: la cuenta de OpenAI está sin créditos.** Se
+levantó el simulador en puertos propios (3310/3305) con el catálogo real de 405
+llantas y se escribió el guion de los cinco chats de la auditoría
+(`scripts/sim/medida-auditoria.mjs`), pero todas las corridas del agente
+terminan en `max_iterations_or_empty_response` a los 3,5 s: la API devuelve 429
+«You have no credits remaining», la misma falla que apagó producción el 11-sep
+a las 08:36. La clave de `.env.sim` es de esa misma cuenta. El guion queda
+escrito para correrlo apenas haya saldo; lo que sí está verificado es la lógica
+determinística, que es donde vive el arreglo.
+
+**Horas:** 2.5
+
 ## 12-sep-2026 · Si el cliente escribió la medida, se lee; si escribió media, se pregunta
 
 **Qué:** Paso 1 de la etapa de la medida (auditoría del 8 al 11-sep). Tres

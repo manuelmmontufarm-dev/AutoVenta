@@ -418,3 +418,44 @@ export function formatConventionalSize(size: ConventionalSize): string {
 export function formatFlotationSize(size: FlotationSize): string {
   return `${size.diameter}X${size.section}R${size.rim}`;
 }
+
+/**
+ * QUÉ MITAD DE LA MEDIDA FALTA, dicho para que el cliente lo lea.
+ *
+ * Auditoría del 8 al 11-sep-2026. Cuando el cliente escribe casi toda la
+ * medida, pedirle «la medida» entera le hace repetir lo que acaba de mandar —y
+ * peor: el bot, sin nada que buscar, terminaba adivinando. Conv 18677: «MT
+ * 30.5 r15» → una KENDA KR29 215/75R15 como «la única que tengo para lo que me
+ * pidió». Conv 17668: «65 R 17» → cotización de 4 FALKEN ZE310 215/40R17.
+ *
+ * Devuelve la frase que nombra lo que falta, o null cuando la medida está
+ * completa (no hay nada que pedir) o cuando no hay medida en absoluto (eso se
+ * pregunta con la guía de siempre).
+ */
+export function loQueFaltaDeLaMedida(text: string): string | null {
+  if (!medidaIncompleta(text)) return null;
+  const flot = flotacionIncompleta(text);
+  if (flot) {
+    return `El cliente dio el diámetro *${flot.diameter}* y el aro *${flot.rim}*, pero falta el ANCHO `
+      + `(la cifra del medio: 30x**9.50**R15). Pregúntale solo eso, nombrando lo que ya te dio, `
+      + `y ofrécele los anchos que existen en ese diámetro si los tienes.`;
+  }
+  const n = text.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
+  const dosAnchos = n.match(/(?<!\d)(\d{3})\s*[x×*\s]\s*(\d{3})\s*(?:z?r|rin|aro)\s*(\d{2})(?!\d)/i);
+  if (dosAnchos) {
+    return `El cliente escribió DOS números de ancho posibles (*${dosAnchos[1]}* y *${dosAnchos[2]}*) `
+      + `para el aro *${dosAnchos[3]}*. Pregúntale cuál de los dos es el ancho de su llanta; no elijas por él.`;
+  }
+  const perfilRaro = n.match(/(?<!\d)(\d{3})\s*[/.,\-\s)]+\s*(\d{2})\s*(?:z?r|rin|aro)?\s*[/\-]?\s*(\d{2})(?!\d)/i);
+  if (perfilRaro && Number(perfilRaro[2]) % 5 !== 0) {
+    return `La medida que escribió el cliente trae el perfil *${perfilRaro[2]}*, que no existe en el mercado `
+      + `(los perfiles van de 5 en 5). Dile que revise el costado y te confirme ese número; no lo redondees tú `
+      + `ni le ofrezcas otra medida como si fuera la suya.`;
+  }
+  const soloPerfil = n.match(/(?<![\d/])(\d{2})\s*(?:[-/\s]\s*)?(?:z?r|rin|aro)\s*(\d{2})(?!\d)/i);
+  if (soloPerfil) {
+    return `El cliente dio el perfil *${soloPerfil[1]}* y el aro *${soloPerfil[2]}*, pero falta el ANCHO `
+      + `(el primer número: **205**/65R16). Pregúntale solo eso, nombrando lo que ya te dio.`;
+  }
+  return null;
+}

@@ -77,7 +77,7 @@ import {
   pideAlternativaMasBarata, pideRecomendacion, respuestaDePreferencia,
 } from "../domain/salesIntent.js";
 import { equivalenteSinConsentimiento, preguntaDeEquivalente } from "../domain/equivalentePendiente.js";
-import { aroDadoPorElCliente } from "../domain/medidaConfirmada.js";
+import { aroDadoPorElCliente, medidaParaElSello } from "../domain/medidaConfirmada.js";
 import { eleccionDeLaVitrina } from "../domain/eleccionDeVitrina.js";
 import { pideVerOpciones } from "../domain/salesIntent.js";
 import { getTirePatternProfile } from "../domain/tireKnowledge.js";
@@ -1458,11 +1458,28 @@ export function buildTools(ctx: AgentContext) {
       // oportunidad de agregarla. Confiar en la regla fue el hueco que el
       // guardián corrigió 12 veces en la semana del 14-ago («el borrador no
       // aclara que son equivalentes»): la orden existía y nadie podía cumplirla.
+      // SIN MEDIDA DEL CLIENTE, LA LÁMINA DICE DE QUÉ MEDIDAS ES.
+      //
+      // El aviso de equivalentes necesita una medida pedida contra la cual
+      // comparar. Cuando el cliente solo dio el aro —o su carro— no hay tal
+      // medida, `sizeLabel` sale nulo y la lámina viaja muda: tres tarjetas de
+      // tres medidas distintas bajo el título «Opciones disponibles». Así
+      // salieron 36 de las 152 láminas de la semana del 8 al 11-sep, y con
+      // ellas las cotizaciones de las convs 17668, 18121, 18262 y 18555: el
+      // cliente eligió «la 3» creyendo que era la suya.
+      //
+      // No se le puede decir cuál es su medida —no la sabemos— pero sí que las
+      // de la pantalla no son una sola, que cada tarjeta trae la suya, y que
+      // hace falta la del costado para asegurar el calce.
+      const medidasEnPantalla = [...new Set(products.map((p) => p.sizeLabel).filter(Boolean))] as string[];
+      const avisoSinMedidaPedida = !permitidasOpciones.length && medidasEnPantalla.length > 1
+        ? `⚠️ Ojo: estas opciones son de *medidas distintas* del mismo aro (${medidasEnPantalla.join(", ")}) — cada tarjeta lleva la suya. Para asegurarle el calce necesito la medida del costado de su llanta.`
+        : null;
       const avisoMedidaCliente = fueraDeMedida.length && permitidasOpciones.length
         ? (fueraDeMedida.length === products.length
             ? `⚠️ Ojo: en *${permitidasOpciones.join(" / ")}* no me queda disponibilidad exacta. Estas son *equivalentes* de su aro: ${fueraDeMedida.map((p) => `${p.design} en ${p.sizeLabel}`).join(", ")}. Se confirma el calce al montar.`
             : `⚠️ Ojo: no todas son de su medida *${permitidasOpciones.join(" / ")}* — ${fueraDeMedida.map((p) => `${p.design} es ${p.sizeLabel}`).join(", ")} (equivalentes de su aro).`)
-        : null;
+        : avisoSinMedidaPedida;
 
       // CANDADO 1 — solo el doble envío del MISMO turno. Nació el 6-ago
       // (tickets 1288 y 1415: la misma pieza salió 4 veces) como un candado de
@@ -1629,12 +1646,20 @@ export function buildTools(ctx: AgentContext) {
             dateLabel: dateLabel(),
             sizeLabel,
             // Con esto cada tarjeta sale marcada: verde MEDIDA EXACTA, o el
-            // sello rojo de equivalente. Es la medida que el cliente pidió.
-            medidaPedida:
-              permitidasOpciones[0]
-              ?? medidaDeLaConversacion?.tire_size
-              ?? sizeLabel
-              ?? null,
+            // sello de equivalente. Es la medida que el cliente PIDIÓ, y solo
+            // esa. `permitidasOpciones` incluye a propósito la medida de
+            // trabajo de la ficha —así se registra que aceptó una
+            // equivalencia—, pero esa misma ficha también se llena con lo que
+            // el bot DEDUJO del vehículo o del aro, y sellar «MEDIDA EXACTA»
+            // sobre una deducción afirma algo que el cliente nunca dijo.
+            // Conv 18821, 10-sep: la 215/75R15 deducida salió en verde y sobre
+            // esa lámina se firmó una cotización de $726.83 por una llanta
+            // cuatro pulgadas más chica que la pedida. Sin medida del cliente
+            // no se marca nada: el poster sabe callarse con null.
+            medidaPedida: medidaParaElSello(
+              [ctx.currentUserText, ...mensajesDeLaVisitaActual(inbound).map((m) => m.content)],
+              medidaDeLaConversacion?.tire_size,
+            ),
             benefits: beneficiosPieza,
             ...(await getPiecesConfig()),
             brandProfiles: await brandProfilesForRender(),

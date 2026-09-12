@@ -23,6 +23,7 @@ import { sql } from "../db/client.js";
 import { buildTools, type AgentContext } from "../agent/tools.js";
 import { aroRespondido, medidaConfirmadaPorCliente } from "../domain/medidaConfirmada.js";
 import { tipoSolicitadoEn } from "../domain/opcionesCandados.js";
+import { mencionaVehiculo } from "../domain/vehiculoEnTexto.js";
 import { logFunnelEvent } from "./conversations.js";
 
 export interface MostrarPorAroContext {
@@ -34,8 +35,21 @@ export interface MostrarPorAroContext {
 
 interface OpcionDeBusqueda { code?: string; codigo?: string }
 
-/** Puro: ¿este mensaje es «solo el aro»? Devuelve el aro o null. */
+/**
+ * Puro: ¿este mensaje es «solo el aro»? Devuelve el aro o null.
+ *
+ * CON EL CARRO SOBRE LA MESA, EL TURNO NO ES DE ESTA RUTA (auditoría del 8 al
+ * 11-sep-2026: siete cotizaciones en medidas que no le entran al vehículo). El
+ * aro alcanza para MOSTRAR cuando es lo único que hay; cuando el cliente
+ * además dijo su carro, el que sabe qué le calza es `fitment_vehiculo`, que
+ * investiga las medidas de fábrica y tiene prohibido cotizar sobre una medida
+ * que el cliente no escribió. Esta ruta corría antes y no le dejaba el turno:
+ * «para un nissan Qashqai 2020 rin 17» terminó en 4 AZENIS FK520L 215/45R17
+ * por $642.24 (conv 18684, la real era 225/60R17) y «Ford 150 Doble cabina rin
+ * 18» en llantas de auto (conv 18121).
+ */
 export function aroParaMostrar(texto: string, previousOutbound: string | null): number | null {
+  if (mencionaVehiculo(texto)) return null;
   return aroRespondido(texto, previousOutbound);
 }
 
