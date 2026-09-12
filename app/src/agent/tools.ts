@@ -71,6 +71,7 @@ import { researchVehicleFitment } from "../services/vehicleFitmentResearch.js";
 import { arosDeCandidatos, arosDeMedidas, invitacionPorAroAmbiguo } from "../domain/fitmentResearch.js";
 import { aroVigenteDeLaVisita, rangoDeAros } from "../domain/aros.js";
 import { nearestStore, resolveSector } from "../domain/locations.js";
+import { ordenarPorCercania } from "../domain/equivalencia.js";
 import { extractFlotationSizes, formatFlotationSize, formatTireSize, parseTireSize, type TireSize } from "../domain/tireSize.js";
 import { marcaPreguntada, pidioCotizacionExplicita, ultimaMarcaPedida } from "../domain/consultaConRespaldo.js";
 import {
@@ -358,6 +359,8 @@ function opcionesEnAro(aro: number, tipo: string | null, medidaConfirmada?: stri
   suMedida: string | null;
   /** Tiene medida confirmada en este aro y de ese tipo no hay NADA en ella. */
   sinTipoEnSuMedida: boolean;
+  /** Y en el aro no queda ninguna de otra medida que le calce (diámetro ±3 %). */
+  sinEquivalenteQueCalce: boolean;
 } {
   const pedido = tipo ? normalizarTipo(tipo) : null;
   // Se busca por aro en el catálogo real y se filtra por el tipo que dice la
@@ -381,6 +384,25 @@ function opcionesEnAro(aro: number, tipo: string | null, medidaConfirmada?: stri
   // incotizable (generar_cotizacion bloquea agotadas) y le esconderíamos las
   // equivalentes vendibles del aro. Agotado en su medida = como si no hubiera.
   const enSuMedida = conStock(enLaMedidaConfirmada(delTipo, suMedida));
+  // CUANDO LA SELECCIÓN SALE DEL ARO Y NO DE SU MEDIDA, ES UNA EQUIVALENTE Y
+  // TIENE QUE MONTAR.
+  //
+  // La escalera elige por precio, y en un aro la más barata es la más angosta,
+  // o sea lo más lejano a lo que el cliente pidió. Conv 17831 (9-sep): pidió
+  // 285/75R16 A/T y recibió 215/65R16, 245/70R16 y 235/70R16 — entre 10 y 18 %
+  // menos de diámetro exterior — porque eran las económicas de cada marca.
+  //
+  // Su propia medida sale de la lista de equivalentes: si llegamos acá es
+  // porque en ella no había nada vendible, y una agotada no es una opción
+  // (`generar_cotizacion` la bloquea). Lo que queda son las de OTRAS medidas
+  // que de verdad le calzan, de la más parecida a la menos.
+  // Ver `domain/equivalencia.ts`.
+  const deSuMedida = new Set(enLaMedidaConfirmada(delTipo, suMedida).map((item) => item.code));
+  const equivalentes = ordenarPorCercania(
+    delTipo.filter((item) => !deSuMedida.has(item.code)),
+    medidaConfirmada ?? null,
+  );
+  const deDondeElegir = enSuMedida.length ? enSuMedida : equivalentes;
   return {
     pedido: pedido || null,
     enElAro,
@@ -388,9 +410,14 @@ function opcionesEnAro(aro: number, tipo: string | null, medidaConfirmada?: stri
     // Con algo vendible en su medida, la selección sale SOLO de ahí; si no
     // hay, se cae al aro completo — pero eso deja de ser silencioso
     // (`sinTipoEnSuMedida`).
-    seleccion: tresOpciones(enSuMedida.length ? enSuMedida : delTipo),
+    seleccion: tresOpciones(deDondeElegir),
     suMedida,
     sinTipoEnSuMedida: Boolean(suMedida) && !enSuMedida.length,
+    /** Hay de ese tipo en el aro, pero ninguna que le calce a su medida. */
+    // Solo cuando SÍ hay de ese tipo en el aro: sin nada del tipo la respuesta
+    // es la de siempre («no hay de ese tipo acá»), que dice otra cosa.
+    sinEquivalenteQueCalce:
+      Boolean(suMedida) && delTipo.length > 0 && !enSuMedida.length && !equivalentes.length,
   };
 }
 
@@ -844,7 +871,7 @@ export function buildTools(ctx: AgentContext) {
       const [ficha] = await sql<{ tire_size: string | null }[]>`
         select tire_size from conversations where id=${ctx.conversation.id}
       `;
-      const { pedido, enElAro, delTipo, seleccion, suMedida, sinTipoEnSuMedida } =
+      const { pedido, enElAro, delTipo, seleccion, suMedida, sinTipoEnSuMedida, sinEquivalenteQueCalce } =
         opcionesEnAro(aro, tipo, ficha?.tire_size);
 
       // El ancho que el cliente rechazó no vuelve a salir por esta puerta.
@@ -894,6 +921,29 @@ export function buildTools(ctx: AgentContext) {
         : tresOpciones(
             conStock(delTipoPermitido).length ? conStock(delTipoPermitido) : delTipoPermitido,
           );
+
+      // HAY DE ESE TIPO EN EL ARO, PERO NINGUNA QUE LE CALCE.
+      //
+      // Conv 17831 (9-sep): pidió 285/75R16 A/T, en su medida no había, y el
+      // aro 16 le devolvió 215/65R16, 245/70R16 y 235/70R16 — entre 10 y 18 %
+      // menos de diámetro. Ofrecer eso como «equivalente de su aro» es vender
+      // otra llanta con la palabra «equivalente» puesta encima. La respuesta
+      // honesta es que en ese aro no hay ninguna que le monte.
+      if (sinEquivalenteQueCalce) {
+        return JSON.stringify({
+          encontrado: false,
+          aro,
+          tipo_pedido: pedido || null,
+          su_medida: suMedida,
+          medidas_del_tipo_que_no_le_calzan: [...new Set(delTipo.map((p) => p.sizeLabel))],
+          regla:
+            `De ${pedido ?? "ese tipo"} hay en el aro ${aro}, pero NINGUNA le calza a su ${suMedida}: `
+            + "las que hay se salen del 3 % de diámetro exterior y montarlas le cambia el velocímetro y la caja. "
+            + "PROHIBIDO ofrecerlas como «equivalentes» ni mandar la pieza con ellas. Dile la verdad —«de ese tipo "
+            + "no tengo ninguna que le calce a su medida»— y ofrece las dos salidas reales: otro tipo en su medida "
+            + "exacta, o que el asesor le confirme en el local si le entra alguna.",
+        });
+      }
 
       if (!delTipo.length) {
         return JSON.stringify({

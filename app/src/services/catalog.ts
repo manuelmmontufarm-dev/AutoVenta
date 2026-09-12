@@ -20,6 +20,7 @@ import {
   type ContificoProductWire,
   type ResultadoEscalera,
 } from "../domain/catalog.js";
+import { ordenarPorCercania } from "../domain/equivalencia.js";
 import { mencionaProducto } from "../domain/guardianNoVendeSolo.js";
 import { extractTireSizes, formatTireSize, type TireSize } from "../domain/tireSize.js";
 import {
@@ -327,16 +328,29 @@ export function searchWithLadder(query: string, limit = 8): ResultadoEscalera {
   return buscarConEscalera(items, query, limit);
 }
 
-/** Alternativas: mismo aro, ancho ±10mm (para cuando no hay la medida exacta). */
+/**
+ * Alternativas para cuando no hay la medida exacta: las que DE VERDAD le montan.
+ *
+ * Era «mismo aro y ancho ±10 mm», y el ancho solo no alcanza: una 225/40R18
+ * está a 10 mm de una 235/45R18 y tiene 4,8 % menos de diámetro exterior —
+ * otra llanta. Conv 18100 (9-sep): el cliente pidió 235/45R18 y en la misma
+ * imagen recibió una 225/40R18 y una 225/55R18, una 5 % más baja y la otra 5 %
+ * más alta, las dos presentadas como «equivalentes de su aro».
+ *
+ * Ahora el corte es el del taller: el diámetro dentro del 3 % (ver
+ * `domain/equivalencia.ts`), y salen ordenadas de la más parecida a la menos,
+ * no de la más barata a la más cara.
+ */
 export function searchAlternatives(size: TireSize): CatalogItem[] {
-  return items.filter(
+  const pedida = formatTireSize(size);
+  const mismoAro = items.filter(
     (item) =>
       item.size !== null &&
       item.size.rim === size.rim &&
-      Math.abs(item.size.width - size.width) <= 10 &&
       !(item.size.width === size.width && item.size.aspect === size.aspect) &&
       item.stock > 0,
   );
+  return ordenarPorCercania(mismoAro, pedida);
 }
 
 export function findByCode(code: string): CatalogItem | undefined {

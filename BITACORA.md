@@ -1,3 +1,49 @@
+## 12-sep-2026 · Una equivalente que no equivale es peor que un «no tengo»
+
+**Qué:** `domain/equivalencia.ts`, nuevo y puro: `diametroExteriorMm` (métrica
+por aro más dos flancos, pulgadas por el primer número), `cercaniaDeMedida` y
+`ordenarPorCercania`. El corte es el del taller: mismo aro y diámetro exterior
+dentro del ±3 %; el ancho desempata entre las que ya montan. Lo usan
+`searchAlternatives` (`services/catalog.ts`, que filtraba por «ancho ±10 mm» sin
+mirar el diámetro) y `opcionesEnAro` (`agent/tools.ts`), donde además la medida
+del propio cliente sale de la lista de equivalentes: si llegamos ahí es porque
+en ella no había nada vendible, y una agotada no es una opción. Bandera nueva
+`sinEquivalenteQueCalce`: cuando de ese tipo HAY en el aro pero ninguna le
+calza, `buscar_por_aro_y_tipo` devuelve `encontrado: false` con la regla de
+decirlo y la prohibición de mandar la pieza. Pruebas:
+`equivalenteQueDeVerdadEquivale.test.ts` (13 casos con los números reales de
+cada chat) y dos casos nuevos en `busquedaTipoEnMedida.test.ts`.
+
+**Por qué:** la lista de equivalentes la armaba la escalera de marcas, que
+elige por precio — y en un aro la más barata es la más angosta, o sea lo más
+lejano a lo que el cliente pidió. Cuatro chats de la auditoría:
+
+· conv 17831: pidió 285/75R16 A/T y recibió 215/65R16, 245/70R16 y 235/70R16,
+  entre 10 y 18 % menos de diámetro, como «equivalentes de su aro».
+· conv 18100: pidió 235/45R18 y en la MISMA imagen recibió 225/40R18 (−4,7 %)
+  y 225/55R18 (+5,4 %). Ni equivalen entre sí.
+· conv 18729: pidió 255/45R19 y recibió 255/55R19, 7 % más alta.
+· conv 18407: pidió 205R14 para una Kia Pregio y recibió una 195/60R14 de auto.
+  Esa medida no tiene perfil, así que no hay diámetro que calcular: ahora no se
+  puede presentar como equivalente confirmada, que es lo que era.
+
+**Lo que los números corrigieron:** el caso que abrió esto fue la conv 18225
+(«Buen día pero es llanta es muy baja» sobre una KENDA KR29 245/75R16 ofrecida
+por una 265/70R16), y la hipótesis era que había que preferir la del mismo
+ancho, la 265/75R16. Al calcular, al revés: la pedida mide 777 mm, la ofrecida
+774 — clavada, monta perfecto — y la del mismo ancho mide 804, un 3,4 %, que se
+pasa. El bot eligió bien y lo que falló fue no decirle que era más angosta (2 cm
+menos de sección, que se ven). Ese pedazo queda para el paso de la redacción;
+la prueba lo deja escrito con los tres números para que nadie lo vuelva a
+«arreglar» al revés.
+
+Por lo mismo cambió una prueba vieja de `busquedaTipoEnMedida`: daba por
+equivalente una 225/50R18 de una 265/65R18, que son 15 % de diámetro. Su
+intención (que la agotada de su medida no se cuele) sigue verificada, ahora con
+una candidata que de verdad calza.
+
+**Horas:** 1.5
+
 ## 12-sep-2026 · Buscar por aro deja de esconder stock
 
 **Qué:** `buscarPorAro` en `domain/catalog.ts` (puro) y `searchByRim` en
