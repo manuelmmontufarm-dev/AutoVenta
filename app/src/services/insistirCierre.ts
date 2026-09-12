@@ -18,6 +18,7 @@ import { datoQueFalta } from "../domain/preguntaPendiente.js";
 import { despedidaQueCorresponde } from "../domain/cierrePerdido.js";
 import { esCierreComercialDelTurno } from "../domain/cierreTurno.js";
 import { PREGUNTA_DE_LOCAL, preguntaElLocal } from "../domain/storeSelection.js";
+import { dondeEstaElCliente } from "../domain/fueraDeCobertura.js";
 import { buildVisitPlanQuestion, composeBlocks, MAX_BLOCKS } from "./quoteMessages.js";
 import type { Stage } from "./conversations.js";
 
@@ -102,6 +103,20 @@ export async function insistirConLoQueFalta(
     despedidaQueCorresponde(textoDelCliente ?? "")
     || esCierreComercialDelTurno(textoDelCliente ?? "")
   ) return { texto, agregado: null };
+  // EL QUE NO ESTÁ EN QUITO NO PUEDE «PASAR POR EL LOCAL».
+  //
+  // Familia más grande de la auditoría del 8 al 11-sep, 31 errores. El modelo
+  // contestaba bien —«En Guayaquil no tenemos local de atención»— y este
+  // candado le pegaba detrás «¿A cuál local le queda mejor ir?». Conv 18106,
+  // 17934, 18025, 18234, 18302, 18417, 17668 y 18262 (que encima había pedido
+  // envío por Servientrega).
+  //
+  // Se miran los mensajes del ciclo, no solo el de este turno: el cliente dice
+  // de dónde es UNA vez y el candado corre en todos los turnos siguientes. Y
+  // manda lo último que dijo, porque «Soy de Santo Domingo» seguido de «el
+  // lunes voy a estar en quito» (conv 18821) es un cliente que SÍ viene.
+  const dondeEsta = await dondeEstaSegunElCiclo(conversationId, cycle, textoDelCliente);
+  if (dondeEsta === "fuera") return { texto, agregado: null };
   // Simulador, 29-ago: una venta ya estaba en seguimiento, pero el cliente
   // pidió opciones para otra medida. El agente volvió bien a medir y mostró
   // opciones; este candado leyó el máximo histórico del Kanban y le pegó además
@@ -188,4 +203,31 @@ export async function insistirConLoQueFalta(
   const bloques = texto.split(BLOCK_SEPARATOR_RE).map((b) => b.trim()).filter(Boolean);
   const conSitio = bloques.slice(0, MAX_BLOCKS - 1);
   return { texto: composeBlocks(...conSitio, pregunta), agregado: falta };
+}
+
+
+/**
+ * Dónde está el cliente según TODO el ciclo, no solo este turno.
+ *
+ * Lo dice una vez («Soy de Guayaquil») y vale para los turnos siguientes. Gana
+ * lo más reciente: el de Santo Domingo que anuncia que sube a Quito pasa de
+ * `fuera` a `viene`, y ahí el local vuelve a tener sentido (conv 18821).
+ */
+async function dondeEstaSegunElCiclo(
+  conversationId: number,
+  cycle: number,
+  textoDelCliente: string | null | undefined,
+): Promise<"cobertura" | "viene" | "fuera" | null> {
+  const deEsteTurno = dondeEstaElCliente(textoDelCliente);
+  if (deEsteTurno) return deEsteTurno.estado;
+  const entrantes = await sql<{ content: string }[]>`
+    select content from messages
+    where conversation_id=${conversationId} and cycle=${cycle} and direction='inbound'
+    order by created_at desc limit 20
+  `;
+  for (const { content } of entrantes) {
+    const donde = dondeEstaElCliente(content);
+    if (donde) return donde.estado;
+  }
+  return null;
 }

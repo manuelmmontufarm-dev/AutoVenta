@@ -42,6 +42,8 @@ import { sinJsonCrudo } from "../domain/jsonCrudo.js";
 import { conLocalesReales } from "./localesReales.js";
 import { notifyAdvisor } from "./advisorNotifications.js";
 import { sql } from "../db/client.js";
+import { dondeEstaElCliente } from "../domain/fueraDeCobertura.js";
+import { sinVisitaNiMapas } from "../domain/visitaImposible.js";
 import { sinNumerosDeCotizacion } from "../domain/numerosDeCotizacion.js";
 import { conPreguntaEnSuPropioMensaje } from "../domain/preguntaSola.js";
 import { despedidaQueCorresponde } from "../domain/cierrePerdido.js";
@@ -793,7 +795,68 @@ export const PASOS: readonly PasoDeSalida[] = [
       return resultado.texto;
     },
   },
+  {
+    // AL QUE NO PUEDE VENIR, NI MAPAS NI VISITA.
+    //
+    // Familia más grande de la auditoría del 8 al 11-sep, 31 errores. El
+    // cliente dice que está en Guayaquil, Tulcán, Loja o Santo Domingo, el
+    // modelo lo entiende y contesta bien, y los candados de cierre le pegan
+    // igual los mapas de Quito y «¿qué día puede pasar?».
+    //
+    //   conv 18106 · CLIENTE: «Estoy en guayaquil»
+    //                BOT: «En Guayaquil no tenemos local de atención…»
+    //                BOT: «¿A cuál local le queda mejor ir, Cumbayá o Quito Sur?»
+    //
+    // Corre sobre TODO lo que sale —respuesta y seguimiento— porque los dos
+    // caminos tenían el mismo agujero: en la conv 18025 los mapas salieron en
+    // el turno y al día siguiente otra vez en el seguimiento.
+    //
+    // Va AL FINAL de la cadena a propósito: es lo único que garantiza quitar
+    // esas piezas vengan de donde vengan, incluido el candado del cierre que
+    // las agrega después del guardián. Y no toca al que anuncia que sube a
+    // Quito (conv 18821): ese sí puede coordinar.
+    nombre: "sin_visita_si_no_puede_venir",
+    corre: ["respuesta", "retomada", "seguimiento"],
+    async aplicar(texto, ctx) {
+      const estado = await dondeEstaElClienteEnElCiclo(
+        ctx.conversation.id, ctx.conversation.current_cycle, ctx.textoDelCliente,
+      );
+      if (estado !== "fuera") return texto;
+      const { texto: limpio, quitado } = sinVisitaNiMapas(texto);
+      if (quitado) {
+        console.log(`🗺️ Conv ${ctx.conversation.id}: el cliente no puede pasar por el local; se quitaron mapas y visita del turno.`);
+      }
+      // Solo QUITA: si no queda nada, el turno no sale. Este paso corre al
+      // final de la cadena, donde ya no hay candados detrás que puedan revisar
+      // un texto nuevo — agregar acá sería meter contenido sin revisar.
+      return limpio.trim() ? limpio : null;
+    },
+  },
 ];
+
+/**
+ * Dónde está el cliente según TODO el ciclo. Lo dice una vez y vale para los
+ * turnos siguientes; gana lo más reciente, porque «Soy de Santo Domingo»
+ * seguido de «el lunes voy a estar en quito» es alguien que sí viene.
+ */
+async function dondeEstaElClienteEnElCiclo(
+  conversationId: number,
+  cycle: number,
+  textoDelCliente: string | null | undefined,
+): Promise<"cobertura" | "viene" | "fuera" | null> {
+  const deEsteTurno = dondeEstaElCliente(textoDelCliente);
+  if (deEsteTurno) return deEsteTurno.estado;
+  const entrantes = await sql<{ content: string }[]>`
+    select content from messages
+    where conversation_id=${conversationId} and cycle=${cycle} and direction='inbound'
+    order by created_at desc limit 20
+  `;
+  for (const { content } of entrantes) {
+    const donde = dondeEstaElCliente(content);
+    if (donde) return donde.estado;
+  }
+  return null;
+}
 
 export interface SalidaPreparada {
   /** Texto listo para enviar, o `null` si algún candado bloqueó el envío. */

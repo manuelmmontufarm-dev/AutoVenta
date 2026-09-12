@@ -1,3 +1,65 @@
+## 12-sep-2026 · Al que no puede venir no se le manda un mapa
+
+**Qué:** `domain/fueraDeCobertura.ts` lee dónde está el cliente y lo clasifica
+en tres: `cobertura`, `viene` (está lejos pero anuncia que sube a Quito) y
+`fuera`. Con eso, tres cambios. (1) `services/insistirCierre.ts` ya no pega la
+pregunta del local ni la del día a quien está `fuera`, mirando todo el ciclo y
+no solo el turno. (2) Paso nuevo `sin_visita_si_no_puede_venir`, ÚLTIMO de la
+cadena de `prepararSalida`, que quita mapas y preguntas de visita de lo que
+salga —respuesta y seguimiento— y devuelve `null` si no queda nada: solo quita,
+nunca agrega, que es la regla de todo lo que corre después del split.
+(3) `domain/storeSelection.ts`: «quito» a secas ya no cuenta como elegir Quito
+Sur cuando el cliente está diciendo dónde vive o cuándo sube. Pruebas:
+`clienteDeOtraCiudad` (6 casos), `nadaDeVisitaSiNoPuedeVenir` (6) y
+`quitoCiudadNoEsLocal` (4), más el orden de la cadena.
+
+**Por qué:** familia más grande de la auditoría del 8 al 11-sep, 31 errores. El
+patrón es siempre el mismo: el cliente dice dónde está, el modelo lo entiende y
+contesta bien, y un candado le pega detrás la pregunta del local.
+
+  conv 18106 · CLIENTE: «Estoy en guayaquil»
+               BOT: «En Guayaquil no tenemos local de atención…»
+               BOT: «¿A cuál local le queda mejor ir, *Cumbayá* o *Quito Sur*? 📍»
+
+Igual en 17934 (Guayaquil), 18025 (Tulcán), 18234 (Loja), 18302 (Santo
+Domingo), 18417 (Ibarra), 17668 (Esmeraldas) y 18262, que encima había pedido
+envío por Servientrega. En varios el seguimiento del día siguiente repitió los
+mapas.
+
+Y el reverso, que costó una visita inventada: «quito» dentro de un mensaje
+contaba como elegir el local. Conv 18821: «Soy de Santo Domingo» seguido de «Yo
+el lunes voy a estar en quito» quedó como «Local elegido explícitamente por el
+cliente: Quito Sur», con la visita confirmada tres veces. Conv 18221 igual con
+«Yo les aviso el día que suba a la siudad de Quito».
+
+Por eso son tres estados y no dos: el que sube a Quito SÍ puede coordinar, y
+tratarlo como inalcanzable sería el error opuesto.
+
+**Horas:** 1.5
+
+## 12-sep-2026 · Un «gracias» no es un chat olvidado
+
+**Qué:** `domain/rescateDeChat.ts` decide a quién vale la pena rescatar: no a
+quien se despidió, no a quien dio un plazo, no a quien ya tiene visita anotada.
+`services/hubMaintenance.ts` pasó de un `update … returning` a dos pasos —mirar
+candidatos con su último mensaje, filtrar, y recién ahí reasignar—, porque la
+consulta vieja tomaba el chat en el mismo momento en que lo elegía y para
+cuando se podía leer el texto ya estaba tomado. `esPlazoDeDecision` aprendió
+«estaremos en contacto» y «organizaré mi presupuesto». Prueba:
+`rescateNoDespiertaDespedidas` (5 casos con los mensajes reales).
+
+**Por qué:** tres de los cinco rescates de la ventana cayeron sobre despedidas,
+y los tres repreguntaron algo ya resuelto. Conv 404: «Muchas gracias organizaré
+mi presupuesto estaremos en contacto» → «Igualmente» → 18 h después el bot le
+preguntó a cuál local le queda mejor, sabiendo desde agosto que está en el
+Valle. Conv 6468: «voy a la del sur… el fin de semana» y «Gracias» → volvió a
+preguntar local y fin de semana. Conv 16872: el cliente ya había confirmado «El
+sábado entre las 10 estoy dónde ustedes» y tuvo que escribir «Quito sur» otra
+vez. Conv 18294: el bot contestó «Con gusto, quedo atento» a un «Gracias»
+dirigido al asesor, 12 h tarde.
+
+**Horas:** 1
+
 ## 12-sep-2026 · Un número no puede ser el escalón y la cantidad a la vez
 
 **Qué:** `cantidadDelTexto` en `domain/salesIntent.ts`, junto a sus dos piezas:

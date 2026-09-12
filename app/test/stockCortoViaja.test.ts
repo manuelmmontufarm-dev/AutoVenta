@@ -200,6 +200,13 @@ describe("el orden de los candados en el turno", () => {
       // bloques que van a salir (los links solos, la pregunta sola).
       "estructura_del_turno",
       "sin_calco_reciente",
+      // AL FINAL DE TODO, y a propósito: al cliente que no puede pasar por el
+      // local se le quitan los mapas y las preguntas de visita vengan de donde
+      // vengan, incluido el candado del cierre que las pega después del
+      // guardián (auditoría 8-11 sep, 31 errores: convs 17934, 18025, 18106,
+      // 18234, 18262, 18302, 18417, 17668). Corre último porque es el único
+      // sitio donde ya están todas las piezas del turno sobre la mesa.
+      "sin_visita_si_no_puede_venir",
     ]);
   });
 
@@ -260,7 +267,15 @@ describe("el orden de los candados en el turno", () => {
     // (junta la respuesta, aparta los links, deja la pregunta al final) y el
     // calco reciente.
     const despues = nombres.slice(nombres.indexOf("pregunta_en_su_propio_mensaje") + 1);
-    expect(despues).toEqual(["sin_pregunta_repetida_en_el_turno", "estructura_del_turno", "sin_calco_reciente"]);
+    expect(despues).toEqual([
+      "sin_pregunta_repetida_en_el_turno",
+      "estructura_del_turno",
+      "sin_calco_reciente",
+      // Quita mapas y preguntas de visita al cliente que no puede venir, y si
+      // no queda nada devuelve null para no enviar: solo quita, nunca agrega,
+      // que es la regla de todo lo que corre después de este punto.
+      "sin_visita_si_no_puede_venir",
+    ]);
   });
 
   it("el turno normal corre la cadena entera", () => {

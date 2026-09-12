@@ -1,3 +1,5 @@
+import { dondeEstaElCliente } from "./fueraDeCobertura.js";
+
 const normalize = (value: string) =>
   value.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 
@@ -124,7 +126,33 @@ export function extractExplicitStore(
     //
     // Solo con `respondiendoAlLocal`: fuera de esa pregunta, «estoy en Quito»
     // es dónde vive el cliente y no elige nada.
-    (Boolean(opts?.respondiendoAlLocal) && /\b(?:sur|quito)\b/.test(value));
+    // ...pero «quito» a secas solo cuenta si el cliente está ELIGIENDO, no si
+    // está contando dónde vive o cuándo sube a la ciudad. Convs 18821 («Yo el
+    // lunes voy a estar en quito») y 18221 («Yo les aviso el día que suba a la
+    // siudad de Quito»): las dos quedaron registradas como «local elegido
+    // explícitamente por el cliente», y en la 18821 el bot llegó a confirmar
+    // la visita tres veces sobre una elección que nadie hizo.
+    (Boolean(opts?.respondiendoAlLocal)
+      && /\b(?:sur|quito)\b/.test(value)
+      && !hablaDeLaCiudad(value));
   if (cumbaya === sur) return null;
   return cumbaya ? "Depot Tire Cumbayá" : "Depot Tire Quito Sur";
+}
+
+
+/**
+ * ¿El mensaje habla de la CIUDAD (dónde vive, cuándo sube) en vez de elegir
+ * uno de los dos locales?
+ *
+ * Elegir es nombrar: «el de Quito», «al sur», «Cumbayá». Anunciar un viaje o
+ * contar de dónde se es, no. Ver `domain/fueraDeCobertura.ts`, que hace la
+ * lectura completa; acá solo hace falta el sí/no para no registrar una
+ * elección que el cliente no hizo.
+ */
+function hablaDeLaCiudad(value: string): boolean {
+  const donde = dondeEstaElCliente(value);
+  if (donde && donde.estado !== "cobertura") return true;
+  // «vivo en Quito», «soy de Quito norte»: está en cobertura, pero tampoco
+  // eligió local.
+  return /\b(?:viv|soy\s+de|estoy\s+en|somos\s+de|radico)\w*\b/.test(value);
 }
