@@ -49,7 +49,7 @@ import { sinFraseColgando } from "../domain/fraseColgando.js";
 import { soloQuitaOReordena } from "../domain/soloQuita.js";
 import { hablaDelDescuento, respondeElDescuento, respuestaDelDescuento } from "../domain/ahorro.js";
 import { ahorroVigente } from "./ahorroVigente.js";
-import { politicaDePagos, preguntaPorElPago, respondeElPago, sinPagoSinRespuesta } from "../domain/datosDelNegocio.js";
+import { mencionaDescuentoEnEfectivo, politicaDePagos, preguntaPorElPago, respondeElPago, sinPagoSinRespuesta } from "../domain/datosDelNegocio.js";
 import { sinNumerosDeCotizacion } from "../domain/numerosDeCotizacion.js";
 import { conPreguntaEnSuPropioMensaje } from "../domain/preguntaSola.js";
 import { despedidaQueCorresponde } from "../domain/cierrePerdido.js";
@@ -533,11 +533,15 @@ export const PASOS: readonly PasoDeSalida[] = [
       // la evasiva distinta cada vez («no puedo confirmar por este medio»,
       // «las condiciones exactas se las confirma el asesor», «se las confirma
       // el asesor en el local»), y perseguir frases es un juego que se pierde.
-      if (respondeElPago(limpio)) return limpio;
-      console.warn(`💳 Conv ${ctx.conversation.id}: la pregunta de pago iba sin respuesta; se antepone el hecho.`);
+      // Completa es las dos mitades (Manuel, 12-sep 21:37): con tarjeta no sube,
+      // y en efectivo hay descuento que se confirma en el local.
+      if (respondeElPago(limpio) && mencionaDescuentoEnEfectivo(limpio)) return limpio;
+      console.warn(`💳 Conv ${ctx.conversation.id}: la respuesta de pago iba incompleta; se pone la política entera.`);
       // El hecho va PRIMERO y el resto del turno se conserva: la pregunta de
-      // cierre y los mapas los ponen y los revisan los pasos de siempre.
-      return limpio.trim() ? `${politicaDePagos()}\n---\n${limpio}` : politicaDePagos();
+      // cierre y los mapas los ponen y los revisan los pasos de siempre. Las
+      // otras frases de pago salen para que la política no se lea repetida.
+      const sinOtrasFrases = sinPagoSinRespuesta(limpio, { estricto: true });
+      return sinOtrasFrases.trim() ? `${politicaDePagos()}\n---\n${sinOtrasFrases}` : politicaDePagos();
     },
   },
   {
@@ -553,7 +557,8 @@ export const PASOS: readonly PasoDeSalida[] = [
     nombre: "el_descuento_se_responde",
     corre: ["respuesta", "retomada"],
     async aplicar(texto, ctx) {
-      if (!hablaDelDescuento(ctx.textoDelCliente)) return texto;
+      // Si pregunta por el pago («¿cuánto de descuento en efectivo?»), lo contesta la política.
+      if (!hablaDelDescuento(ctx.textoDelCliente) || preguntaPorElPago(ctx.textoDelCliente)) return texto;
       const ahorro = await ahorroVigente(ctx.conversation.id, ctx.conversation.current_cycle);
       if (!ahorro || respondeElDescuento(texto, ahorro)) return texto;
       console.log(`🏷️ Conv ${ctx.conversation.id}: el cliente habló del descuento; se antepone el de su cotización.`);

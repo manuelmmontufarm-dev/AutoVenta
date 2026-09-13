@@ -69,6 +69,10 @@ const ESCENARIOS = [
       if (!/no sube|mismo precio|sin recargo|sin inter[ée]s/i.test(ultimo)) {
         fallas.push("no respondió que con tarjeta el precio es el mismo");
       }
+      // Manuel, 12-sep 21:37: y que en efectivo hay descuento, confirmado en el local.
+      if (!/efectivo/i.test(ultimo) || !/descuento/i.test(ultimo)) {
+        fallas.push("no dijo que en efectivo hay descuento");
+      }
       return fallas;
     },
   },

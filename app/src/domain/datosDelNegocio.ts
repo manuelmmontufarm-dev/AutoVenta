@@ -47,9 +47,14 @@ export function lonasDelProducto(nombre: string | null | undefined): number | nu
  * texto, sin tener que leer la imagen.
  */
 export function politicaDePagos(): string {
+  // Manuel, 12-sep-2026 21:37: «que cuando pregunte si es más caro con tarjeta
+  // diga que NO, pero que si paga en cash hay descuento, pero eso se confirma
+  // en el local». El monto del descuento en efectivo no se dice: lo confirma
+  // el asesor, igual que ya decía el playbook compacto.
   return (
-    "Se acepta efectivo, tarjeta y transferencia. Con tarjeta el precio es el mismo: no sube "
-    + "y no hay recargo. Y se puede diferir a 3 y 6 meses sin intereses."
+    "Con tarjeta *no* es más caro: no sube, es el mismo precio y se puede diferir a 3 y 6 meses "
+    + "sin intereses. Si paga en efectivo sí hay un descuento, que se lo confirman en el local. "
+    + "También se acepta transferencia."
   );
 }
 
@@ -81,6 +86,16 @@ export function respondeElPago(texto: string): boolean {
   return mismoPrecio || diferido;
 }
 
+/**
+ * ¿El texto dice que en efectivo hay descuento? La otra mitad de la respuesta
+ * desde el 12-sep: quien pregunta si la tarjeta sube tiene que enterarse de que
+ * el efectivo baja.
+ */
+export function mencionaDescuentoEnEfectivo(texto: string): boolean {
+  const n = texto.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  return /\befectivo\b|\bcash\b/.test(n) && /\bdescuento\b/.test(n);
+}
+
 const SEPARADOR_DE_BLOQUES = /\n\s*-{3,}\s*\n/;
 
 /**
@@ -96,7 +111,7 @@ const SEPARADOR_DE_BLOQUES = /\n\s*-{3,}\s*\n/;
  * Se decide por tema y por frase: una frase que habla de pago y no trae la
  * respuesta (ni es la política) sale. El resto del turno queda igual.
  */
-export function sinPagoSinRespuesta(texto: string): string {
+export function sinPagoSinRespuesta(texto: string, opciones: { estricto?: boolean } = {}): string {
   const politica = politicaDePagos();
   let cambio = false;
   const bloques = texto.split(SEPARADOR_DE_BLOQUES).map((bloque) =>
@@ -107,7 +122,10 @@ export function sinPagoSinRespuesta(texto: string): string {
           .split(/(?<=[.!?])\s+/)
           .filter((frase) => {
             const f = frase.trim();
-            if (!f || !preguntaPorElPago(f) || respondeElPago(f) || politica.includes(f)) return true;
+            // Estricto: la política va a entrar entera, así que ninguna otra frase
+            // de pago se queda, ni siquiera una correcta (se leería repetida).
+            if (!f || !preguntaPorElPago(f) || politica.includes(f)) return true;
+            if (!opciones.estricto && respondeElPago(f)) return true;
             cambio = true;
             return false;
           })
