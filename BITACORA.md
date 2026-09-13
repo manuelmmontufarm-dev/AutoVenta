@@ -1,3 +1,28 @@
+## 12-sep-2026 · Plan en nueve partes: misma calidad, menos tokens
+
+**Qué:** `docs/planning/PLAN-MENOS-TOKENS-MASTER-PROMPT.md`, con nueve partes
+en fila, una cada dos días, más un cierre. Orden: banco de pruebas (y publicar
+el nivel 1) → registrar todo el gasto → reglas 12 y 15 → 20 → 19 → 21 → 22 a
+demanda (la 11 se queda) → contexto del guardián al caché → salida del
+guardián → medición final. Cada parte trae su prompt, sus archivos, un pool
+dirigido que presiona lo que cambia y las compuertas para publicar.
+
+**Por qué:** Manuel pidió bajar tokens sin bajar la calidad, todo probado,
+todo el gasto registrado y una parte cada dos días. Tres cosas que salieron
+al investigar cambiaron el plan:
+- **Los 105 escenarios del T115 no existen.** Vivían en
+  `scripts/sim/datos/`, que git ignora entero. El banco de pruebas se
+  reconstruye versionado, desde la especificación y conversaciones reales.
+- **La evidencia para borrar reglas sale de los borradores reales.** En vez de
+  esperar semanas con el candado en observación, se corre su detector sobre los
+  borradores guardados en `guardian_reviews` (sombra histórica).
+- **Registrar el gasto va antes de cualquier ahorro.** Transcripción,
+  investigación de fitment, texto de seguimiento, visión de links y fallos del
+  guardián hoy no dejan tokens, así que medir sin eso sería medir con puntos
+  ciegos.
+
+**Horas:** 1,5
+
 ## 12-sep-2026 · Una conversación estándar para medir el costo, y el ahorro de la rúbrica contado exacto
 
 **Qué:** `scripts/sim/estandar/conversacion-estandar.json` es la conversación
