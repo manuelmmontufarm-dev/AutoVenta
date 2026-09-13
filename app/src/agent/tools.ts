@@ -112,7 +112,7 @@ import { avisarVisitaComprometida, etiquetaVisita } from "../services/visitAlert
 import { emitirCuponDeConfirmacion } from "../services/coupons.js";
 import { mensajeCupon } from "../domain/coupons.js";
 import { franjaHoraria } from "../domain/diasEnEspanol.js";
-import { fechaDelDia } from "../domain/customerCommitment.js";
+import { fechaDelDia, esSoloPresenciaEnLaCiudad } from "../domain/customerCommitment.js";
 import type { StoreHours } from "../services/settings.js";
 import { resendLatestQuoteImage } from "../services/directSalesRoutes.js";
 import { restriccionesDeLlanta, violaRestriccionesDeLlanta } from "../domain/restriccionesLlanta.js";
@@ -3234,6 +3234,15 @@ export function buildTools(ctx: AgentContext) {
         .describe("El local al que va, si ya lo eligió en esta conversación. null si todavía no lo dijo."),
     }),
     run: async ({ dia, franja, local }) => {
+      // DÓNDE VA A ESTAR NO ES CUÁNDO VIENE (simulador, 12-sep). A «Yo el lunes
+      // voy a estar en quito» el modelo llamó esta herramienta, se anotó una
+      // visita sin llanta ni cotización y el asesor recibió el aviso.
+      if (esSoloPresenciaEnLaCiudad(ctx.currentUserText)) {
+        return JSON.stringify({
+          error: "no_es_visita",
+          regla: "El cliente dijo DÓNDE va a estar, no que viene al local: NO registres visita ni le digas que queda agendado o que avisaste al asesor. Sigue la venta donde estaba (medida, opciones o cotización); si ya tiene cotización, pregúntale si ese día puede pasar por el local.",
+        });
+      }
       const ahora = new Date();
       const fecha = fechaDelDia(dia, ahora);
       const franjaTexto = franja?.trim() || null;

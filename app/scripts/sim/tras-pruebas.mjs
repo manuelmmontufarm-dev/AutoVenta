@@ -87,11 +87,15 @@ const TANDAS = [
       { m: "dejeme ver las opciones otra vez", juez: (t, e, a) => [
         ...(t.bot.some((m) => m.tipo === "image" && /Opciones enviadas/i.test(m.texto ?? "")) ? [] : ["no reenvió la lámina de opciones"]),
         ...(t.bot.some((m) => /reenviada/i.test(m.texto ?? "")) ? ["reenvió la cotización"] : []),
+        ...(/quedo atento/i.test(todo(t)) ? ["acompañó la lámina con «Quedo atento»"] : []),
         ...(e.quotes.length === a.quotes.length ? [] : ["sacó una cotización nueva"]),
       ] },
       { m: ["Deme los dos valores de la kenda", "de las opciones", "que me mando"], rafaga: true, juez: (t, e, a) => [
         ...(e.quotes.length === a.quotes.length ? [] : ["recotizó"]),
-        ...((todo(t).match(/\$\s?\d/g) ?? []).length >= 2 ? [] : ["no dio los dos precios"]),
+        // Cuántos precios depende de la lámina que armó el modelo (a veces trae
+        // una sola Kenda): se exige que dé valores y que no repregunte.
+        ...(/\$\s?\d/.test(todo(t)) ? [] : ["no dio ningún precio"]),
+        ...(/se refiere a/i.test(todo(t)) ? ["repreguntó en vez de dar los valores"] : []),
       ] },
       { m: "Buen día pero es llanta es muy baja", juez: (t) => (t.bot.length ? [] : ["dejó de contestar"]) },
       { m: "Cumbayá", juez: (t, e) => (/cumbay/i.test(e.conv.nearest_store ?? "") ? [] : ["no anotó Cumbayá"]) },

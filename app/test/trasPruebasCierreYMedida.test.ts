@@ -12,7 +12,7 @@ process.env.WHATSAPP_PHONE_ID ||= "test";
 process.env.DATABASE_URL ||= "postgresql://manue@localhost/postgres";
 
 const { canUseDirectVisitRoute } = await import("../src/services/directSalesRoutes.js");
-const { extractCustomerCommitment } = await import("../src/domain/customerCommitment.js");
+const { extractCustomerCommitment, esSoloPresenciaEnLaCiudad } = await import("../src/domain/customerCommitment.js");
 const { medidaNoDada, medidasDelAro } = await import("../src/domain/medidaConfirmada.js");
 const { preguntaDeMedidaPorConfirmar } = await import("../src/services/cotizarLoElegido.js");
 
@@ -26,6 +26,12 @@ describe("la visita se anota con cotización, no con la etapa", () => {
 
   it("«voy a estar en Quito» es dónde va a estar, no una visita", () => {
     expect(extractCustomerCommitment("Yo el lunes voy a estar en quito")?.visitDate).toBeUndefined();
+  });
+
+  it("la herramienta de agendar tampoco lo toma como visita (simulador, 12-sep)", () => {
+    expect(esSoloPresenciaEnLaCiudad("Yo el lunes voy a estar en quito")).toBe(true);
+    expect(esSoloPresenciaEnLaCiudad("el lunes voy a estar por allá y paso")).toBe(false);
+    expect(esSoloPresenciaEnLaCiudad("paso el lunes a Cumbayá")).toBe(false);
   });
 
   it("con verbo de visita sí", () => {

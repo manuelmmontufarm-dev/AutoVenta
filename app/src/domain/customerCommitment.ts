@@ -229,6 +229,22 @@ function sinClausulasNegativas(textoNormalizado: string): string {
     .join(", ");
 }
 
+/**
+ * «YO EL LUNES VOY A ESTAR EN QUITO» DICE DÓNDE VA A ESTAR, NO QUE VIENE AL LOCAL.
+ *
+ * Simulador, 12-sep-2026, las tres corridas del guion de Manuel: arreglado el
+ * lector de compromisos, el modelo igual llamó `agendar_visita` con «lunes» y
+ * contestó «Listo, le esperamos el lunes 14 de septiembre. Queda avisado el
+ * asesor», sin llanta ni cotización. Quien lo dice sin verbo de visita («paso»,
+ * «voy al local») está contando dónde anda.
+ */
+const PRESENCIA = /\b(?:voy a estar|vamos a estar|estare|estaremos|voy a andar|ando|estoy)\s+(?:en|por)\b/;
+
+export function esSoloPresenciaEnLaCiudad(texto: string | null | undefined): boolean {
+  const n = normalizar(texto ?? "");
+  return PRESENCIA.test(n) && !INTENT.test(n);
+}
+
 export function extractCustomerCommitment(
   text: string,
   now = new Date(),

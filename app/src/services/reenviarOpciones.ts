@@ -60,7 +60,17 @@ export async function tryReenviarOpciones(ctx: ReenviarOpcionesContext, texto: s
     return null;
   }
   if (salida.error || !salida.mensaje_para_enviar) return null;
+  // El texto que acompaña es de la ruta, no de la herramienta: en el simulador
+  // (12-sep) la lámina reenviada salió con «Quedo atento a lo que necesite».
+  // Sin cotización, sigue el menú de la lámina; con cotización, la pregunta
+  // que falte la pone el candado del cierre.
+  const [cotizacion] = await sql<{ x: number }[]>`
+    select 1 as x from quotes
+    where conversation_id=${ctx.conversation.id} and cycle=${ctx.conversation.current_cycle}
+    limit 1
+  `;
+  const acuse = "Aquí tiene de nuevo las opciones 👆";
   console.log(`🖼️ Opciones reenviadas en la conv ${ctx.conversation.id}: ${codes.join(", ")}`);
   await logFunnelEvent(ctx.conversation.id, "respuesta_directa", { route: "options_resend" }).catch(() => undefined);
-  return salida.mensaje_para_enviar;
+  return cotizacion ? acuse : `${acuse}\n---\n${salida.mensaje_para_enviar}`;
 }

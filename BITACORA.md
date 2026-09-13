@@ -1,3 +1,21 @@
+## 12-sep-2026 · Lo que el simulador encontró en el guion de Manuel
+
+**Qué:** Tres ajustes sobre el arreglo anterior. (1) `agendar_visita` se niega
+cuando el cliente solo dice dónde va a estar (`esSoloPresenciaEnLaCiudad`, con
+el mismo verbo de visita que el lector de compromisos). (2) «Los dos valores
+de la kenda» con una sola Kenda en la lámina da su precio, y pedir los valores
+sin marca da los de toda la lámina; antes caía en «¿se refiere a la opción 2?».
+(3) El reenvío de opciones pone su propio texto, «Aquí tiene de nuevo las
+opciones», y no el de la herramienta. Jueces del escenario ajustados a hechos.
+
+**Por qué:** Las tres corridas de `scripts/sim/tras-pruebas.mjs` anotaron la
+visita del lunes aunque la ruta directa y el lector ya estaban cerrados: el
+tercer camino era la herramienta que elige el modelo. En una corrida el modelo
+armó una lámina con una sola Kenda, y en otra la lámina reenviada salió con
+«Quedo atento a lo que necesite».
+
+**Horas:** 1
+
 ## 12-sep-2026 · Lo que falló en las pruebas de Manuel en producción
 
 **Qué:** Seis familias, cada una desde su causa. (1) La forma del turno: el

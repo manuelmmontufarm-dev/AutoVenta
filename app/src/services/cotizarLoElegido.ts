@@ -74,15 +74,28 @@ export function loQueEligio(
     const deLaMarca = marcas.length === 1
       ? todas.filter((o) => (o.nombre ?? "").toUpperCase().startsWith(marcas[0]))
       : todas;
-    const opciones = deLaMarca.length >= 2 ? deLaMarca : todas;
-    if (opciones.length === 2 && (deLaMarca.length === 2 || pideVariasOpciones(texto) || esPedidoDeAmbasOpcionesDe(texto, previousOutbound))) {
-      const lineas = opciones.map((o) => {
-        const precio = Number(o.precio_con_iva);
-        return `• *${o.nombre ?? "Opción"}*${Number.isFinite(precio) ? `: *$${precio.toFixed(2)} c/u con IVA*` : ""}`;
-      });
-      return {
-        respuesta: `Claro, estas son las dos:\n${lineas.join("\n")}\n¿Cuál quiere que le cotice?`,
-      };
+    const linea = (o: Escalon) => {
+      const precio = Number(o.precio_con_iva);
+      return `• *${o.nombre ?? "Opción"}*${Number.isFinite(precio) ? `: *$${precio.toFixed(2)} c/u con IVA*` : ""}`;
+    };
+    const pideValores = pideVariasOpciones(texto);
+    // Nombró una marca: van las de esa marca que hay en la lámina, sean dos o
+    // una sola (simulador, 12-sep: con una sola Kenda en pantalla, «los dos
+    // valores de la kenda» terminó en «¿se refiere a la opción 2?»).
+    if (marcas.length === 1 && deLaMarca.length >= 1 && (pideValores || deLaMarca.length === 2)) {
+      if (deLaMarca.length === 1) {
+        return {
+          respuesta: `De *${marcas[0]}* en las opciones que le envié hay una sola:\n${linea(deLaMarca[0])}\n¿Prefiere esa o alguna de las otras?`,
+        };
+      }
+      return { respuesta: `Claro, estas son las de *${marcas[0]}*:\n${deLaMarca.map(linea).join("\n")}\n¿Cuál quiere que le cotice?` };
+    }
+    if (todas.length === 2 && (pideValores || esPedidoDeAmbasOpcionesDe(texto, previousOutbound))) {
+      return { respuesta: `Claro, estas son las dos:\n${todas.map(linea).join("\n")}\n¿Cuál quiere que le cotice?` };
+    }
+    // Pidió los valores sin nombrar marca: los de toda la lámina.
+    if (pideValores) {
+      return { respuesta: `Claro, estos son los valores de las opciones:\n${todas.map(linea).join("\n")}\n¿Cuál quiere que le cotice?` };
     }
     return { pregunta: "¿Se refiere a la opción 2 o quiere que compare dos de las opciones?" };
   }

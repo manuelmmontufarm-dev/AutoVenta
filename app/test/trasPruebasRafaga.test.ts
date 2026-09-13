@@ -72,6 +72,31 @@ describe("«los dos valores» habla de las opciones, con o sin menú arriba", ()
   });
 });
 
+describe("los valores cuando la lámina no trae dos de la marca", () => {
+  const vitrina = [
+    { codigo: "F1", marca: "FALKEN", diseno: "WILDPEAK M/T", medida: "285/70R17" },
+    { codigo: "F2", marca: "FALKEN", diseno: "WILDPEAK A/T 4W", medida: "285/70R17" },
+    { codigo: "K628", marca: "KENDA", diseno: "KR628", medida: "285/70R17" },
+  ];
+  const escalones = {
+    economica: { codigo: "K628", nombre: "KENDA KR628", precio_con_iva: 230.59 },
+    equilibrada: { codigo: "F2", nombre: "FALKEN WILDPEAK A/T 4W", precio_con_iva: 321.11 },
+    premium: { codigo: "F1", nombre: "FALKEN WILDPEAK M/T", precio_con_iva: 340.08 },
+  };
+
+  it("con una sola Kenda en pantalla da su precio y no repregunta (simulador, 12-sep)", () => {
+    const r = loQueEligio("Deme los dos valores de la kenda\nde las opciones\nque me mando", "Aquí tiene de nuevo las opciones 👆", null, vitrina, escalones) as { respuesta: string };
+    expect(r.respuesta).toMatch(/230\.59/);
+    expect(r.respuesta).not.toMatch(/WILDPEAK/);
+  });
+
+  it("sin marca, los valores de toda la lámina", () => {
+    const r = loQueEligio("deme los valores de las opciones", null, null, vitrina, escalones) as { respuesta: string };
+    expect(r.respuesta).toMatch(/230\.59/);
+    expect(r.respuesta).toMatch(/340\.08/);
+  });
+});
+
 describe("ver las opciones otra vez no es la cotización", () => {
   it.each(["dejeme ver las opciones otra vez", "puede mandarme las opciones de nuevo", "reenvíeme las opciones"])(
     "«%s» pide la lámina", (t) => {
