@@ -128,6 +128,7 @@ const TANDAS = [
       { m: ["1", "Si se realiza el pago con tarjeta cuanto sube el valor"], rafaga: true, juez: (t, e, a) => [
         ...(e.quotes.length > a.quotes.length ? [] : ["perdió el «1»: no cotizó"]),
         ...(/no sube|mismo precio|sin intereses/i.test(todo(t)) ? [] : ["no contestó la tarjeta"]),
+        ...(/efectivo/i.test(todo(t)) && /descuento/i.test(todo(t)) ? [] : ["no dijo que en efectivo hay descuento"]),
         ...(/no (?:le )?puedo confirmar/i.test(todo(t)) ? ["se contradijo sobre la tarjeta"] : []),
       ] },
       { m: "de cuantas lonas es", juez: (t) => (t.bot.length ? [] : ["no contestó"]) },

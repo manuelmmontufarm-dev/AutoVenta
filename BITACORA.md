@@ -1,3 +1,20 @@
+## 12-sep-2026 · Con tarjeta no es más caro, y en efectivo hay descuento
+
+**Qué:** `politicaDePagos` dice ahora que con tarjeta no es más caro (no sube,
+mismo precio, 3 y 6 meses sin intereses) y que en efectivo hay un descuento
+que se confirma en el local, sin monto. El candado `el_pago_se_responde` exige
+las dos mitades (`mencionaDescuentoEnEfectivo`); si falta una, quita las demás
+frases de pago y pone la política entera, para que no se lea repetida. El paso
+del descuento no contesta preguntas de pago. En el prompt se recortó la frase
+que acompaña a la política para seguir bajo el tope de 4.500 caracteres, y ya
+no prohíbe decir que algo lo confirma el asesor.
+
+**Por qué:** Manuel, 12-sep 21:37: «que cuando pregunte si es más caro con
+tarjeta diga que NO pero que si paga en cash hay descuento pero eso se
+confirma en el local».
+
+**Horas:** 0.5
+
 ## 12-sep-2026 · El escenario del beneficio de redes sigue la regla nueva
 
 **Qué:** E5 de `scripts/sim/escuchar-auditoria.mjs` ahora exige que el beneficio

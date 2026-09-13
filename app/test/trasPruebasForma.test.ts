@@ -16,7 +16,7 @@ const { sinFraseColgando } = await import("../src/domain/fraseColgando.js");
 const { soloQuitaOReordena } = await import("../src/domain/soloQuita.js");
 const { estructurarTurno } = await import("../src/domain/estructuraDelTurno.js");
 const { BENEFICIO_DE_REDES, preguntaPorBeneficios } = await import("../src/domain/beneficioDeRedes.js");
-const { politicaDePagos, respondeElPago, sinPagoSinRespuesta } = await import("../src/domain/datosDelNegocio.js");
+const { mencionaDescuentoEnEfectivo, politicaDePagos, respondeElPago, sinPagoSinRespuesta } = await import("../src/domain/datosDelNegocio.js");
 const { hablaDelDescuento, respondeElDescuento, respuestaDelDescuento } = await import("../src/domain/ahorro.js");
 const { PASOS, correrPasos } = await import("../src/services/prepararSalida.js");
 
@@ -143,6 +143,33 @@ describe("el pago: la respuesta y nada que la contradiga", () => {
     } as never);
     expect(respondeElPago(salida!)).toBe(true);
     expect(salida).not.toMatch(/no le puedo confirmar/);
+  });
+});
+
+describe("la tarjeta no sube y el efectivo tiene descuento (Manuel, 12-sep 21:37)", () => {
+  const ctx = (texto: string) => ({
+    conversation: { id: 1, current_cycle: 1 }, tipo: "respuesta", textoDelCliente: texto,
+  }) as never;
+  const paso = () => PASOS.find((p) => p.nombre === "el_pago_se_responde")!;
+
+  it("si el modelo solo dijo la mitad de la tarjeta, sale la política entera y sin repetir", async () => {
+    const salida = await paso().aplicar(
+      "Con tarjeta no sube el precio.\n---\n¿A cuál local le queda mejor ir?",
+      ctx("es mas caro con tarjeta?"),
+    );
+    expect(mencionaDescuentoEnEfectivo(salida!)).toBe(true);
+    expect((salida!.match(/no sube/gi) ?? []).length).toBe(1);
+    expect(bloques(salida!).at(-1)).toBe("¿A cuál local le queda mejor ir?");
+  });
+
+  it("si ya trae las dos mitades, no se toca", async () => {
+    const completo = `${politicaDePagos()}\n---\n¿A cuál local le queda mejor ir?`;
+    expect(await paso().aplicar(completo, ctx("es mas caro con tarjeta?"))).toBe(completo);
+  });
+
+  it("reconoce el descuento en efectivo", () => {
+    expect(mencionaDescuentoEnEfectivo("En efectivo hay un descuento.")).toBe(true);
+    expect(mencionaDescuentoEnEfectivo("Se acepta efectivo.")).toBe(false);
   });
 });
 

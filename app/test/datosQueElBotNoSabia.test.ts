@@ -43,6 +43,15 @@ describe("las lonas salen del nombre del producto", () => {
 });
 
 describe("la política de pagos es un hecho, no una suposición", () => {
+  it("Manuel, 12-sep: con tarjeta NO es más caro, y en efectivo hay descuento que se confirma en el local", () => {
+    const t = politicaDePagos();
+    expect(t).toMatch(/no\*? es más caro/i);
+    expect(t).toMatch(/efectivo/i);
+    expect(t).toMatch(/descuento/i);
+    expect(t).toMatch(/confirman en el local/i);
+    expect(t).not.toMatch(/\d+\s*%/);
+  });
+
   it("conv 17804: dice que con tarjeta no sube y que hay diferido", () => {
     const t = politicaDePagos();
     expect(t).toMatch(/tarjeta/i);
