@@ -44,7 +44,12 @@ const LINEA_DE_LA_CAPTURA = {
 describe("el monto del descuento, que es lo que hace que contesten", () => {
   it("calcula el ahorro de TODA la compra y el mismo % que muestra la pieza", () => {
     const ahorro = ahorroDeLaCotizacion([LINEA_DE_LA_CAPTURA]);
-    expect(ahorro).toEqual({ monto: 277.44, porcentaje: 25, cantidad: 4 });
+    // Desde el 12-sep también por llanta: la pieza dice «ahorras $X c/u» y la
+    // respuesta al cliente habla en esa misma unidad (conv 3, 21:42).
+    expect(ahorro).toEqual({
+      monto: 277.44, porcentaje: 25, cantidad: 4,
+      porLlanta: 69.36, precioConDescuento: 208.09, precioAntes: 277.45,
+    });
     // Punto decimal, nunca coma: el mismo formato que la pieza y la cotización.
     expect(fraseDeAhorro(ahorro!)).toBe("*25 %* de descuento ya aplicado, *$277.44* menos");
   });

@@ -1,3 +1,26 @@
+## 12-sep-2026 · La respuesta fija reemplaza la del modelo, y el descuento se dice por llanta
+
+**Qué:** `domain/respuestaDelTema.ts` (`sinFrasesDelTema`): cuando un candado
+contesta con un hecho del negocio, quita del borrador las frases del mismo
+tema y deja preguntas y menú. Lo usan el pago (que ya tenía su propia versión
+y ahora pasa por esta), el descuento y el beneficio de redes.
+`respuestaDelDescuento` compara la cifra que dijo el cliente con la
+cotización: solo dice «Así es» si es el descuento; si es el precio por llanta
+o el total a pagar, lo aclara. Da el descuento por llanta y el total, como la
+pieza. `AhorroDeLaCotizacion` suma `porLlanta`, `precioConDescuento` y
+`precioAntes`, y el Guardián recibe esas cifras con la regla de no confirmar
+una cifra equivocada. Escenario: tandas E y F en `scripts/sim/tras-pruebas.mjs`.
+
+**Por qué:** Pruebas de Manuel, 12-sep 21:42 y 21:45 (conv 3). A «La
+promoción del 25% q son 58 menos», con 4 × WINRUN R330 a $58.25 (antes
+$77.66), el bot dijo «Así es… $77.64 menos» y el modelo agregó «Sí, esa es la
+idea». $58.25 es el precio por llanta; el descuento es $19.41 por llanta y
+$77.64 en las cuatro. A «¿Tienen algún beneficio o promoción?» salió el
+beneficio y detrás un párrafo que repetía lo incluido. En los dos casos el
+candado anteponía su respuesta y dejaba la del modelo.
+
+**Horas:** 1
+
 ## 12-sep-2026 · Con tarjeta no es más caro, y en efectivo hay descuento
 
 **Qué:** `politicaDePagos` dice ahora que con tarjeta no es más caro (no sube,

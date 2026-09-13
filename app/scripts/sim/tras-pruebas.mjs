@@ -161,6 +161,58 @@ const TANDAS = [
   },
 ];
 
+/** La primera línea de la última cotización, con el ahorro calculado igual que `domain/ahorro.ts`. */
+function lineaCotizada(estado) {
+  const it = (estado.quotes.at(-1)?.items ?? [])[0];
+  if (!it) return null;
+  const venta = Number(it.salePriceWithTax), lista = Number(it.listPriceWithTax), cantidad = Number(it.quantity);
+  return {
+    venta, lista, cantidad,
+    porLlanta: Math.round((lista - venta) * 100) / 100,
+    total: Math.round((lista - venta) * cantidad * 100) / 100,
+  };
+}
+
+TANDAS.push(
+  {
+    id: "E", titulo: "21:42 · «q son 58 menos», cuando 58 es el precio por llanta",
+    pasos: [
+      { m: "rin 15" },
+      { m: "1", juez: (t, e, a) => (e.quotes.length > a.quotes.length ? [] : ["no cotizó la opción 1"]) },
+      {
+        // El cliente dice el PRECIO POR LLANTA como si fuera el descuento.
+        m: (a) => `La promoción del 25% q son ${Math.floor(lineaCotizada(a)?.venta ?? 58)} menos`,
+        juez: (t, e) => {
+          const l = lineaCotizada(e);
+          if (!l) return ["no había cotización para juzgar"];
+          const x = todo(t);
+          return [
+            ...(/as[ií] es/i.test(x) ? ["confirmó una cifra que no es el descuento"] : []),
+            ...(/esa es la idea/i.test(x) ? ["quedó la confirmación del modelo"] : []),
+            ...(x.includes(`$${l.venta.toFixed(2)}`) ? [] : ["no aclaró que esa cifra es el precio por llanta"]),
+            ...(x.includes(`$${l.porLlanta.toFixed(2)}`) ? [] : [`no dijo el descuento por llanta ($${l.porLlanta.toFixed(2)})`]),
+            ...(l.cantidad > 1 && !x.includes(`$${l.total.toFixed(2)}`) ? [`no dijo el descuento total ($${l.total.toFixed(2)})`] : []),
+          ];
+        },
+      },
+    ],
+  },
+  {
+    id: "F", titulo: "21:45 · el beneficio sin el párrafo de lo incluido",
+    pasos: [
+      { m: "rin 17" },
+      { m: "¿Tienen algún beneficio o promoción?", beneficioPedido: true, juez: (t) => {
+        const x = todo(t);
+        const veces = (x.match(BENEFICIO) ?? []).length;
+        return [
+          ...(veces === 1 ? [] : [`el beneficio salió ${veces} veces`]),
+          ...(/se incluye|incluye instalaci|seguro gratuito|revisi[oó]n gratuita/i.test(x) ? ["repitió lo incluido en la compra"] : []),
+        ];
+      } },
+    ],
+  },
+);
+
 const resultados = [];
 const SOLO = process.env.SIM_TANDAS ? process.env.SIM_TANDAS.split(",") : null;
 for (const tanda of TANDAS.filter((t) => !SOLO || SOLO.includes(t.id))) {
@@ -170,7 +222,9 @@ for (const tanda of TANDAS.filter((t) => !SOLO || SOLO.includes(t.id))) {
   for (const paso of tanda.pasos) {
     const antes = await snapshot();
     const maxBot = Math.max(0, ...antes.mensajes.filter((m) => m.author_kind === "bot").map((m) => Number(m.id)));
-    await mandar(paso.m);
+    // Un paso puede armar su mensaje con lo que ya pasó (la cifra de la cotización real).
+    const mensaje = typeof paso.m === "function" ? paso.m(antes) : paso.m;
+    await mandar(mensaje);
     await asentar(paso.rafaga ? 15_000 : 6_000);
     const estado = await snapshot();
     const turno = {
@@ -182,7 +236,7 @@ for (const tanda of TANDAS.filter((t) => !SOLO || SOLO.includes(t.id))) {
       ...invariantes(turno, { beneficioPedido: paso.beneficioPedido }),
       ...(paso.juez ? paso.juez(turno, estado, antes) : []),
     ];
-    const cliente = Array.isArray(paso.m) ? paso.m.join(" ⧸ ") : paso.m;
+    const cliente = Array.isArray(mensaje) ? mensaje.join(" ⧸ ") : mensaje;
     process.stdout.write(`  «${cliente.replace(/\n/g, " ⏎ ")}»\n     → ${todo(turno).replace(/\n/g, " ").slice(0, 260)}\n`);
     process.stdout.write(fallas.length ? `     ❌ ${fallas.join(" · ")}\n` : "     ✅\n");
     resultados.push({ tanda: tanda.id, cliente, fallas, bot: turno.bot });
