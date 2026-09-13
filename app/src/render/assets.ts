@@ -21,7 +21,7 @@ const SITE = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../s
 export interface FontSpec {
   name: string;
   data: Buffer;
-  weight: 400 | 500 | 700 | 900;
+  weight: 400 | 500 | 600 | 700 | 800 | 900;
   /** Las fuentes de precio del diseño son itálicas; el cuerpo es normal. */
   style: "normal" | "italic";
 }
@@ -46,6 +46,38 @@ export function loadFonts(): FontSpec[] {
     { name: "Rajdhani", data: readFileSync(path.join(dir, "Rajdhani-700.ttf")), weight: 700, style: "normal" },
   ];
   return fonts;
+}
+
+let fontsDiaNoche: FontSpec[] | null = null;
+
+/**
+ * Las fuentes de la plantilla día y noche, y SOLO esas: esa pieza no usa
+ * ninguna de las de arriba, y pasarle las dos listas a satori era parsear
+ * medio megabyte de más en cada imagen.
+ *
+ * Son las de la maqueta aprobada (Google Fonts, licencia OFL). Archivo viene
+ * como fuente variable y satori no sabe mover sus ejes, así que se guardan las
+ * instancias fijas que usa el diseño: ancho 112 en 800 y ancho 108 en 900
+ * («DN Ancho») y ancho normal en 800 («DN Archivo»). Los nombres llevan «DN»
+ * para no chocar con las familias de la plantilla clásica.
+ */
+export function loadFontsDiaNoche(): FontSpec[] {
+  if (fontsDiaNoche) return fontsDiaNoche;
+  const dir = path.join(ASSETS, "fonts", "dia-noche");
+  const f = (name: string, file: string, weight: FontSpec["weight"]): FontSpec =>
+    ({ name, data: readFileSync(path.join(dir, file)), weight, style: "normal" });
+  fontsDiaNoche = [
+    f("DN Ancho", "ArchivoAncho-800.ttf", 800),
+    f("DN Ancho", "ArchivoAncho-900.ttf", 900),
+    f("DN Archivo", "Archivo-800.ttf", 800),
+    f("DN Barlow", "Barlow-Regular.ttf", 400),
+    f("DN Barlow", "Barlow-Medium.ttf", 500),
+    f("DN Barlow", "Barlow-SemiBold.ttf", 600),
+    f("DN Barlow", "Barlow-Bold.ttf", 700),
+    f("DN Chakra", "ChakraPetch-SemiBold.ttf", 600),
+    f("DN Chakra", "ChakraPetch-Bold.ttf", 700),
+  ];
+  return fontsDiaNoche;
 }
 
 // ---------------------------------------------------------------------------
@@ -173,6 +205,42 @@ export function brandLogo(brand: string): RasterImage | null {
     console.warn(`⚠️ No se pudo rasterizar el logo de ${brand}:`, err);
   }
   brandCache.set(slug, result);
+  return result;
+}
+
+const logoOficialCache = new Map<string, RasterImage | null>();
+
+/**
+ * Logo OFICIAL de la marca, idéntico al que publica cada una: nada redibujado.
+ * Vive en `assets/brands/oficiales/<slug>.svg|png` y hoy lo usa solo la
+ * plantilla día y noche. De dónde salió cada archivo (12-sep-2026):
+ *
+ *  · kenda.svg  — el vector oficial que ya estaba en `brands/`, recortado a la
+ *    palabra KENDA sin tocar sus trazos (sin «TIRES since 1962»).
+ *  · falken.svg — Wikimedia Commons, «Falken Tire logo.svg» (azul y rojo).
+ *  · winrun.png — el logo del encabezado de wrtyre.com, el sitio de la marca.
+ *
+ * Devuelve ancho y alto reales para que quien lo coloque no lo deforme.
+ */
+export function logoOficial(brand: string): RasterImage | null {
+  const slug = brandSlug(brand);
+  if (logoOficialCache.has(slug)) return logoOficialCache.get(slug)!;
+  let result: RasterImage | null = null;
+  const dir = path.join(ASSETS, "brands", "oficiales");
+  try {
+    const svgPath = path.join(dir, `${slug}.svg`);
+    const pngPath = path.join(dir, `${slug}.png`);
+    if (existsSync(svgPath)) {
+      result = rasterize(readFileSync(svgPath, "utf8"), 96);
+    } else if (existsSync(pngPath)) {
+      const buf = readFileSync(pngPath);
+      // Ancho y alto del encabezado IHDR del PNG.
+      result = { dataUri: `data:image/png;base64,${buf.toString("base64")}`, width: buf.readUInt32BE(16), height: buf.readUInt32BE(20) };
+    }
+  } catch (err) {
+    console.warn(`⚠️ No se pudo leer el logo oficial de ${brand}:`, err);
+  }
+  logoOficialCache.set(slug, result);
   return result;
 }
 

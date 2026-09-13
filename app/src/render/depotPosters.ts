@@ -97,6 +97,11 @@ export interface PosterLine {
    * salió con «185/60R14 · LE MONTA, pero le entra: mismo aro 14»).
    */
   medidaPorConfirmar?: boolean;
+  /**
+   * La que el bot recomienda en esta lámina. Solo la plantilla día y noche la
+   * destaca (tarjeta con borde rojo y «★ RECOMENDADA»); la clásica la ignora.
+   */
+  recomendada?: boolean;
 }
 
 const savingsPct = (line: PosterLine): string | null => {

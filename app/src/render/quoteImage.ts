@@ -11,15 +11,18 @@ import { renderAsync } from "@resvg/resvg-js";
 import { type CatalogAvailability, type CatalogItem } from "../domain/catalog.js";
 import { medidaEstaPedida } from "../domain/medidaPedida.js";
 import { warrantyForBrand } from "../services/quoteMessages.js";
-import { loadFonts, productPhoto, type RasterImage } from "./assets.js";
+import { loadFonts, loadFontsDiaNoche, productPhoto, type FontSpec, type RasterImage } from "./assets.js";
 import { DEFAULT_BRAND_PROFILES, resolveTheme, type SatoriNode, type Theme } from "./depotDesign.js";
 import { comparePoster, medidaGuidePoster, optionsPoster, quotePoster, type PosterLine } from "./depotPosters.js";
+import { DIA_NOCHE_ANCHO, DIA_NOCHE_ESCALA, optionsPosterDiaNoche, quotePosterDiaNoche, resolverModo } from "./diaNoche.js";
 
 // ---------------------------------------------------------------------------
 // Datos de entrada
 // ---------------------------------------------------------------------------
 
 export interface RenderLine {
+  /** Código del catálogo: con él se sabe cuál de las opciones es la recomendada. */
+  code?: string;
   brand: string;
   design: string;
   sizeLabel: string;
@@ -71,6 +74,12 @@ export interface CompareRenderData extends PieceTheme {
 export interface PieceTheme {
   paleta?: string | null;
   fuente?: string | null;
+  /** «clasica» (paleta y fuente) o «diaNoche» (la del cliente, 12-sep). */
+  plantilla?: string | null;
+  /** Solo «diaNoche»: auto (según la hora de Quito), dia o noche. */
+  modo?: string | null;
+  /** Reloj del modo automático; solo lo fijan las pruebas. */
+  ahora?: Date;
   /** Etiqueta y frase por marca. Sin esto caen los valores del diseño. */
   brandProfiles?: Record<string, { tag: string; posicionamiento: string }>;
 }
@@ -127,6 +136,24 @@ export async function renderQuoteImage(data: QuoteRenderData): Promise<Buffer> {
   // agente ya solo permite una por cotización).
   const line = data.lines[0];
   if (!line) throw new Error("La cotización no tiene ninguna línea que renderizar");
+  if (data.plantilla === "diaNoche") {
+    const node = quotePosterDiaNoche(
+      {
+        number: data.number,
+        dateLabel: data.dateLabel,
+        line: toPosterLine(line, data.brandProfiles),
+        total: data.total,
+        discountAmount: data.discountAmount,
+        discountCondition: data.discountCondition,
+        expiresLabel: data.offerExpiresAt
+          ? data.offerExpiresAt.toLocaleDateString("es-EC", { timeZone: "America/Guayaquil" })
+          : null,
+        benefits: data.benefits,
+      },
+      resolverModo(data.modo, data.ahora),
+    );
+    return renderPng(node, DIA_NOCHE_ANCHO.cotizacion, undefined, { escala: DIA_NOCHE_ESCALA, fonts: loadFontsDiaNoche() });
+  }
   const node = quotePoster(
     {
       number: data.number,
@@ -176,6 +203,10 @@ export interface OptionsRenderData extends PieceTheme {
    */
   benefits?: readonly string[];
   products: RenderLine[]; // quantity ignorada
+  /** Solo «diaNoche»: llantas del juego (sin cantidad del cliente, el juego de 4). */
+  cantidad?: number | null;
+  /** Solo «diaNoche»: la opción que se destaca como RECOMENDADA. Null = ninguna. */
+  codigoRecomendado?: string | null;
 }
 
 /** El aro de una medida: «215/65R16» → «16». */
@@ -200,6 +231,23 @@ export async function renderOptionsImage(data: OptionsRenderData): Promise<Buffe
     medidaPorConfirmar: true,
   }));
   const aro = data.medidaPedida ? null : aroDe(base[0]?.sizeLabel);
+  if (data.plantilla === "diaNoche") {
+    const node = optionsPosterDiaNoche(
+      {
+        dateLabel: data.dateLabel,
+        sizeLabel: data.medidaPedida ?? (aro ? `RIN ${aro}` : null) ?? data.sizeLabel ?? null,
+        lines: lines.map((line, i) => ({
+          ...line,
+          recomendada: Boolean(data.codigoRecomendado) && data.products[i]?.code === data.codigoRecomendado,
+        })),
+        cantidad: data.cantidad ?? null,
+        medidaConocida: Boolean(data.medidaPedida),
+        benefits: data.benefits,
+      },
+      resolverModo(data.modo, data.ahora),
+    );
+    return renderPng(node, DIA_NOCHE_ANCHO.opciones, undefined, { escala: DIA_NOCHE_ESCALA, fonts: loadFontsDiaNoche() });
+  }
   const node = optionsPoster(
     {
       dateLabel: data.dateLabel,
@@ -236,13 +284,18 @@ export async function renderMedidaGuideImage(data: MedidaGuideRenderData): Promi
   return renderPng(node, POSTER_WIDTH);
 }
 
-async function renderPng(node: SatoriNode, width: number, height?: number): Promise<Buffer> {
+async function renderPng(
+  node: SatoriNode,
+  width: number,
+  height?: number,
+  opciones: { escala?: number; fonts?: FontSpec[] } = {},
+): Promise<Buffer> {
   const svg = await satori(node as never, {
     width,
     // Sin alto: satori lo mide del contenido. Calcularlo a mano dejaba una
     // banda muerta abajo cuando la pieza traía menos marcas o beneficios.
     ...(height ? { height } : {}),
-    fonts: loadFonts().map((f) => ({ name: f.name, data: f.data, weight: f.weight, style: f.style })),
+    fonts: (opciones.fonts ?? loadFonts()).map((f) => ({ name: f.name, data: f.data, weight: f.weight, style: f.style })),
   });
   // renderAsync, no render() (16-ago). `render()` es SÍNCRONO: rasterizar
   // 2.880 px de ancho por el alto que mida satori (los pósters de opciones
@@ -251,7 +304,7 @@ async function renderPng(node: SatoriNode, width: number, height?: number): Prom
   // webhook —que está en el camino crítico del ack a Meta—, ni /health que
   // vigila Railway, ni el SSE del panel. La variante asíncrona hace el mismo
   // trabajo en el threadpool de libuv y deja el event loop libre.
-  const png = await renderAsync(svg, { fitTo: { mode: "width", value: width * 2 } });
+  const png = await renderAsync(svg, { fitTo: { mode: "width", value: width * (opciones.escala ?? 2) } });
   return Buffer.from(png.asPng());
 }
 
@@ -275,6 +328,7 @@ export async function toRenderLine(
       ? product.customerPriceWithTax
       : null;
   return {
+    code: product.code,
     brand: product.brand,
     design: product.design,
     sizeLabel: product.sizeLabel ?? product.name,

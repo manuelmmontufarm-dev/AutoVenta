@@ -79,6 +79,33 @@ const FUENTE_LABEL: Record<string, string> = {
   exo: "Exo 2", barlow: "Barlow", kanit: "Kanit", chakra: "Chakra Petch",
   saira: "Saira", rajdhani: "Rajdhani", archivo: "Archivo Black",
 };
+/**
+ * Las plantillas de las piezas. «Clásica» es la de siempre, teñida con la paleta
+ * y la tipografía de abajo. «Depot día y noche» es la que propuso el cliente el
+ * 12-sep: la única que cambia sola entre clara y oscura.
+ */
+const PLANTILLA_LABEL: Record<string, string> = { clasica: "Clásica", diaNoche: "Depot día y noche" };
+const PLANTILLA_NOTA: Record<string, string> = {
+  clasica: "Usa la paleta y la tipografía de abajo",
+  diaNoche: "La nueva del cliente · clara de día, oscura de noche · logos oficiales",
+};
+const MODO_LABEL: Record<string, string> = { auto: "Automático", dia: "Siempre de día", noche: "Siempre de noche" };
+const MODO_NOTA: Record<string, string> = {
+  auto: "Clara de 6:00 a 16:59 · oscura de 17:00 a 5:59 (hora de Quito)",
+  dia: "Sale siempre la clara",
+  noche: "Sale siempre la oscura",
+};
+
+interface ConfigPiezas { paleta: string; fuente: string; plantilla: string; modo: string }
+
+/** La que sale ahora mismo con el modo automático. Misma regla que render/diaNoche.ts. */
+function modoDeAhora(): "dia" | "noche" {
+  const hora = Number(new Intl.DateTimeFormat("en-US", {
+    hour: "numeric", hourCycle: "h23", timeZone: "America/Guayaquil",
+  }).format(new Date()));
+  return hora >= 6 && hora < 17 ? "dia" : "noche";
+}
+
 const PIEZAS = [
   { id: "cotizacion", label: "Cotización" },
   { id: "comparativa", label: "Comparativa" },
@@ -110,7 +137,11 @@ export function Ajustes() {
   // dark / accent / gold / base de cada paleta, tal como las usa el motor.
   const [muestras, setMuestras] = useState<Record<string, string[]>>({});
   const [fuentes, setFuentes] = useState<string[]>([]);
-  const [guardado, setGuardado] = useState<{ paleta: string; fuente: string } | null>(null);
+  const [plantilla, setPlantilla] = useState("clasica");
+  const [modo, setModo] = useState("auto");
+  const [plantillas, setPlantillas] = useState<string[]>(["clasica"]);
+  const [modos, setModos] = useState<string[]>([]);
+  const [guardado, setGuardado] = useState<ConfigPiezas | null>(null);
 
   const [benefits, setBenefits] = useState<Benefit[]>([]);
   const [profiles, setProfiles] = useState<BrandProfile[]>([]);
@@ -124,7 +155,7 @@ export function Ajustes() {
   const cargar = useCallback(async () => {
     try {
       const [cfg, ben, br, hrs] = await Promise.all([
-        api<{ config: { paleta: string; fuente: string }; paletas: string[]; muestras: Record<string, string[]>; fuentes: string[] }>("/api/pieces-config"),
+        api<{ config: ConfigPiezas; paletas: string[]; muestras: Record<string, string[]>; fuentes: string[]; plantillas?: string[]; modos?: string[] }>("/api/pieces-config"),
         api<{ benefits: Benefit[] }>("/api/benefits"),
         api<{ profiles: BrandProfile[] }>("/api/brand-profiles"),
         api<{ hours: StoreHours }>("/api/store-hours"),
@@ -136,7 +167,12 @@ export function Ajustes() {
         .catch(() => setPrecios(null));
       setPaleta(cfg.config.paleta);
       setFuente(cfg.config.fuente);
-      setGuardado(cfg.config);
+      setPlantilla(cfg.config.plantilla ?? "clasica");
+      setModo(cfg.config.modo ?? "auto");
+      // Un servidor anterior a las plantillas no manda estos dos campos.
+      setGuardado({ ...cfg.config, plantilla: cfg.config.plantilla ?? "clasica", modo: cfg.config.modo ?? "auto" });
+      setPlantillas(cfg.plantillas ?? ["clasica"]);
+      setModos(cfg.modos ?? []);
       setPaletas(cfg.paletas);
       setMuestras(cfg.muestras ?? {});
       setFuentes(cfg.fuentes);
@@ -153,14 +189,17 @@ export function Ajustes() {
 
   useEffect(() => { void cargar(); }, [cargar]);
 
-  const sinAplicar = guardado !== null && (guardado.paleta !== paleta || guardado.fuente !== fuente);
+  const sinAplicar = guardado !== null && (
+    guardado.paleta !== paleta || guardado.fuente !== fuente
+    || guardado.plantilla !== plantilla || guardado.modo !== modo
+  );
 
   const aplicar = async () => {
     setGuardando(true);
     try {
-      const r = await api<{ config: { paleta: string; fuente: string } }>("/api/pieces-config", {
+      const r = await api<{ config: ConfigPiezas }>("/api/pieces-config", {
         method: "PUT",
-        body: JSON.stringify({ paleta, fuente }),
+        body: JSON.stringify({ paleta, fuente, plantilla, modo }),
       });
       setGuardado(r.config);
       setError("");
@@ -232,6 +271,8 @@ export function Ajustes() {
             <SeccionTema
               paleta={paleta} fuente={fuente} paletas={paletas} fuentes={fuentes} muestras={muestras}
               onPaleta={setPaleta} onFuente={setFuente}
+              plantilla={plantilla} modo={modo} plantillas={plantillas} modos={modos}
+              onPlantilla={setPlantilla} onModo={setModo}
               sinAplicar={sinAplicar} guardando={guardando} onAplicar={aplicar}
             />
             <SeccionPromociones benefits={benefits} setBenefits={setBenefits} onError={setError} />
@@ -239,7 +280,7 @@ export function Ajustes() {
           </div>
           <VistaPrevia
             pieza={pieza} setPieza={setPieza}
-            paleta={paleta} fuente={fuente} beneficios={beneficiosPreview}
+            paleta={paleta} fuente={fuente} plantilla={plantilla} modo={modo} beneficios={beneficiosPreview}
           />
         </div>
       )}
@@ -679,15 +720,21 @@ function SeccionHorarios({ hours, setHours, onError }: { hours: StoreHours; setH
   </Tarjeta>;
 }
 
-function SeccionTema({ paleta, fuente, paletas, fuentes, muestras, onPaleta, onFuente, sinAplicar, guardando, onAplicar }: {
+function SeccionTema({
+  paleta, fuente, paletas, fuentes, muestras, onPaleta, onFuente,
+  plantilla, modo, plantillas, modos, onPlantilla, onModo,
+  sinAplicar, guardando, onAplicar,
+}: {
   paleta: string; fuente: string; paletas: string[]; fuentes: string[]; muestras: Record<string, string[]>;
   onPaleta: (v: string) => void; onFuente: (v: string) => void;
+  plantilla: string; modo: string; plantillas: string[]; modos: string[];
+  onPlantilla: (v: string) => void; onModo: (v: string) => void;
   sinAplicar: boolean; guardando: boolean; onAplicar: () => void;
 }) {
   return (
     <Tarjeta
-      titulo="Colores y tipografía de las piezas"
-      sub="Se aplica a cotizaciones, comparativas y opciones. La vista previa cambia al instante; el cliente lo ve recién al aplicar."
+      titulo="Plantilla y colores de las piezas"
+      sub="Se aplica a cotizaciones y opciones (la comparativa sigue con la clásica). La vista previa cambia al instante; el cliente lo ve recién al aplicar."
       extra={
         <button
           onClick={onAplicar}
@@ -702,6 +749,45 @@ function SeccionTema({ paleta, fuente, paletas, fuentes, muestras, onPaleta, onF
         </button>
       }
     >
+      <p className="microlabel mb-2">Plantilla</p>
+      <div className="mb-4 flex flex-wrap gap-2">
+        {plantillas.map((p) => (
+          <button
+            key={p} onClick={() => onPlantilla(p)}
+            className={`flex flex-col items-start gap-1 rounded-xl border px-3.5 py-2 text-left text-[12px] transition ${
+              p === plantilla
+                ? "border-paper/40 bg-paper/[.10] font-semibold"
+                : "border-paper/[.10] bg-paper/[.03] hover:bg-paper/[.06]"
+            }`}
+          >
+            <span>{PLANTILLA_LABEL[p] ?? p}</span>
+            {PLANTILLA_NOTA[p] && <span className="text-[11px] font-normal text-faint">{PLANTILLA_NOTA[p]}</span>}
+          </button>
+        ))}
+      </div>
+      {plantilla === "diaNoche" && (
+        <>
+          <p className="microlabel mb-2">Cuándo sale la clara y cuándo la oscura</p>
+          <div className="mb-3 flex flex-wrap gap-2">
+            {modos.map((m) => (
+              <button
+                key={m} onClick={() => onModo(m)}
+                className={`flex flex-col items-start gap-1 rounded-xl border px-3.5 py-2 text-left text-[12px] transition ${
+              m === modo
+                ? "border-paper/40 bg-paper/[.10] font-semibold"
+                : "border-paper/[.10] bg-paper/[.03] hover:bg-paper/[.06]"
+            }`}
+              >
+                <span>{MODO_LABEL[m] ?? m}</span>
+                {MODO_NOTA[m] && <span className="text-[11px] font-normal text-faint">{MODO_NOTA[m]}</span>}
+              </button>
+            ))}
+          </div>
+          <p className="mb-4 text-[11px] text-faint">
+            La paleta y la tipografía de abajo no cambian esta plantilla: valen para la comparativa y para cuando se vuelva a la clásica.
+          </p>
+        </>
+      )}
       <p className="microlabel mb-2">Paleta</p>
       <div className="mb-4 flex flex-wrap gap-2">
         {paletas.map((p) => (
@@ -1095,23 +1181,27 @@ function SeccionMarcas({ profiles, setProfiles, onError }: {
  * Vista previa. Re-renderiza con retardo para no disparar una imagen por cada
  * tecla mientras se escribe una promoción.
  */
-function VistaPrevia({ pieza, setPieza, paleta, fuente, beneficios }: {
+function VistaPrevia({ pieza, setPieza, paleta, fuente, plantilla, modo, beneficios }: {
   pieza: string; setPieza: (p: string) => void;
-  paleta: string; fuente: string; beneficios: string[];
+  paleta: string; fuente: string; plantilla: string; modo: string; beneficios: string[];
 }) {
+  // Con el modo automático se pueden ver las dos: la que sale ahora y la otra.
+  const [verModo, setVerModo] = useState<"dia" | "noche">(() => modoDeAhora());
+  const modoPreview = plantilla === "diaNoche" ? (modo === "auto" ? verModo : modo) : "";
   const [src, setSrc] = useState("");
   const [cargando, setCargando] = useState(true);
   const [fallo, setFallo] = useState("");
   const objectUrl = useRef<string>("");
 
-  const clave = `${pieza}|${paleta}|${fuente}|${beneficios.join("|")}`;
+  const clave = `${pieza}|${paleta}|${fuente}|${plantilla}|${modoPreview}|${beneficios.join("|")}`;
 
   useEffect(() => {
     let cancelado = false;
     setCargando(true);
     const t = setTimeout(async () => {
       try {
-        const params = new URLSearchParams({ pieza, paleta, fuente });
+        const params = new URLSearchParams({ pieza, paleta, fuente, plantilla });
+        if (modoPreview) params.set("modo", modoPreview);
         if (beneficios.length) params.set("beneficios", beneficios.join("|"));
         // Misma credencial que el resto de la pantalla: con sesión de usuario
         // esto daba «Error 401» dentro del recuadro de la vista previa.
@@ -1158,6 +1248,22 @@ function VistaPrevia({ pieza, setPieza, paleta, fuente, beneficios }: {
           >{p.label}</button>
         ))}
       </div>
+      {plantilla === "diaNoche" && modo === "auto" && pieza !== "comparativa" && (
+        <div className="mb-3 flex items-center gap-1.5">
+          <span className="text-[10.5px] text-faint">Ver la de</span>
+          {(["dia", "noche"] as const).map((m) => (
+            <button
+              key={m} onClick={() => setVerModo(m)}
+              className={`rounded-full px-3 py-1 text-[11px] transition ${
+                m === verModo ? "bg-paper/[.12] font-semibold" : "text-faint hover:bg-paper/[.06]"
+              }`}
+            >{m === "dia" ? "Día" : "Noche"}{m === modoDeAhora() ? " · ahora" : ""}</button>
+          ))}
+        </div>
+      )}
+      {plantilla === "diaNoche" && pieza === "comparativa" && (
+        <p className="mb-3 text-[10.5px] text-faint">La comparativa no tiene versión día y noche: sale con la plantilla clásica.</p>
+      )}
       <div className="relative overflow-hidden rounded-2xl border border-paper/[.08] bg-paper/[.03]">
         {fallo ? (
           <p className="p-6 text-center text-[12px] text-[var(--color-red)]">{fallo}</p>

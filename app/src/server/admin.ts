@@ -12,7 +12,7 @@ import { sql } from "../db/client.js";
 import { business, config } from "../config.js";
 import { appendMessage, pauseBot } from "../services/conversations.js";
 import { forceSyncNow, interbotPricesState } from "../services/interbotPrices.js";
-import {
+import { PLANTILLA_NAMES, MODO_NAMES,
   getAiConfig,
   getCouponConfig,
   getGuardianConfig,
@@ -1587,6 +1587,9 @@ export function createAdminRouter(): express.Router {
         }),
       ),
       fuentes: PRICE_FONT_NAMES,
+      // «diaNoche» es la plantilla del cliente (12-sep) y la única con modos.
+      plantillas: PLANTILLA_NAMES,
+      modos: MODO_NAMES,
     });
   });
 
@@ -1594,7 +1597,7 @@ export function createAdminRouter(): express.Router {
     try {
       res.json({ ok: true, config: await savePiecesConfig(req.body) });
     } catch {
-      res.status(400).json({ ok: false, error: "Paleta o fuente inválida" });
+      res.status(400).json({ ok: false, error: "Plantilla, modo, paleta o fuente inválidos" });
     }
   });
 
@@ -1910,10 +1913,12 @@ export function createAdminRouter(): express.Router {
       const pieza = String(req.query.pieza ?? "cotizacion");
       const paleta = req.query.paleta ? String(req.query.paleta) : undefined;
       const fuente = req.query.fuente ? String(req.query.fuente) : undefined;
+      const plantilla = req.query.plantilla ? String(req.query.plantilla) : undefined;
+      const modo = req.query.modo ? String(req.query.modo) : undefined;
       const beneficios = req.query.beneficios
         ? String(req.query.beneficios).split("|").map((b) => b.trim()).filter(Boolean)
         : await applicableBenefitTexts();
-      const png = await renderPreviewPiece({ pieza, paleta, fuente, beneficios });
+      const png = await renderPreviewPiece({ pieza, paleta, fuente, plantilla, modo, beneficios });
       res.setHeader("Content-Type", "image/png");
       res.setHeader("Cache-Control", "no-store");
       res.send(png);

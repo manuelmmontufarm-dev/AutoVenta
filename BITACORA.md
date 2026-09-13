@@ -1,3 +1,28 @@
+## 12-sep-2026 · Plantilla «Depot día y noche» para cotización y opciones
+
+**Qué:** Nueva plantilla de piezas, `render/diaNoche.ts`, que porta a satori la
+maqueta aprobada: la cantidad de llantas en píldora grande, el precio por
+llanta con cifra propia, el descuento en insignia dorada con el precio de antes
+tachado, lo incluido con letra grande (tarjetas con los beneficios de la tabla)
+y los logos oficiales de cada marca (`assets/brands/oficiales`). Tiene versión
+clara y oscura. En Ajustes → Piezas hay dos plantillas: «Clásica» y «Depot día
+y noche». Esta última tiene tres modos: automático (clara de 6:00 a 16:59,
+oscura de 17:00 a 5:59, hora de Quito), siempre de día o siempre de noche
+(`pieces_config.plantilla` / `modo`; lo guardado antes sigue en la clásica).
+Conserva el sello de medida equivalente y el «por confirmar». Las fotos con
+fondo propio van sobre recuadro blanco. «★ RECOMENDADA» solo sale si el turno
+entrega la recomendación: en `preparar_opciones` los escalones y esa decisión
+se calculan antes de dibujar, sin cambiar la decisión. Fuentes de la maqueta
+como instancias fijas en `assets/fonts/dia-noche`. La comparativa sigue en la
+clásica.
+
+**Por qué:** Depot Tire propuso estas plantillas el 12-sep. Manuel pidió letra
+más grande en lo incluido, que se lea el número de llantas, el −25% como en
+las cotizaciones actuales, logos idénticos a los reales y un modo día y noche
+que se cambie desde Ajustes.
+
+**Horas:** 3
+
 ## 12-sep-2026 · La respuesta fija reemplaza la del modelo, y el descuento se dice por llanta
 
 **Qué:** `domain/respuestaDelTema.ts` (`sinFrasesDelTema`): cuando un candado

@@ -15,6 +15,10 @@ export interface PreviewOptions {
   pieza: string;
   paleta?: string;
   fuente?: string;
+  /** «clasica» o «diaNoche»; sin valor, la clásica. */
+  plantilla?: string;
+  /** Solo para «diaNoche»: auto, dia o noche. */
+  modo?: string;
   beneficios?: readonly string[];
 }
 
@@ -57,6 +61,8 @@ export async function renderPreviewPiece(options: PreviewOptions): Promise<Buffe
   const tema = {
     paleta: options.paleta,
     fuente: options.fuente,
+    plantilla: options.plantilla,
+    modo: options.modo,
     brandProfiles: await brandProfilesForRender(),
   };
   const fecha = new Date().toLocaleDateString("es-EC", {
@@ -77,6 +83,9 @@ export async function renderPreviewPiece(options: PreviewOptions): Promise<Buffe
       dateLabel: fecha,
       sizeLabel: productos[0]?.sizeLabel ?? null,
       products: await Promise.all(productos.map((p) => toRenderLine(p))),
+      // Como en el chat: juego de 4 y la del medio como recomendada.
+      cantidad: 4,
+      codigoRecomendado: productos.length >= 3 ? productos[1].code : null,
       ...tema,
     });
   }

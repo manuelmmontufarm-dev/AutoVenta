@@ -196,12 +196,25 @@ export async function saveAiConfig(input: unknown): Promise<AiConfig> {
  * Apariencia de las piezas visuales (cotización, comparativa, opciones).
  * Son las perillas que el negocio mueve desde Ajustes y ve en la vista previa.
  */
+/**
+ * Plantillas de las piezas. «clasica» es la de siempre, teñida con `paleta` y
+ * `fuente`. «diaNoche» es la que propuso Depot Tire el 12-sep (render/diaNoche.ts):
+ * la única que cambia sola entre clara y oscura, según `modo`.
+ */
+export const PLANTILLA_NAMES = ["clasica", "diaNoche"] as const;
+/** auto = clara de 6:00 a 16:59 y oscura de 17:00 a 5:59 (Quito); dia / noche = siempre esa. */
+export const MODO_NAMES = ["auto", "dia", "noche"] as const;
+
 export const PiecesConfigSchema = z.object({
   // "depot" (negro) y "depotRojo" son la paleta medida del cliente
   // (tiredepotec.com) en sus dos variantes; las otras seis son propuestas de
   // estilo. Ver PALETTES en render/depotDesign.ts.
   paleta: z.enum(["grafito", "carbon", "rojo", "verde", "espresso", "navy", "depot", "depotRojo"]).default("grafito"),
   fuente: z.enum(["exo", "barlow", "kanit", "chakra", "saira", "rajdhani", "archivo"]).default("exo"),
+  // Un ajuste guardado antes de que existieran queda en la clásica: nada
+  // cambia para el negocio hasta que elija otra desde Ajustes.
+  plantilla: z.enum(PLANTILLA_NAMES).default("clasica"),
+  modo: z.enum(MODO_NAMES).default("auto"),
 });
 
 export type PiecesConfig = z.infer<typeof PiecesConfigSchema>;

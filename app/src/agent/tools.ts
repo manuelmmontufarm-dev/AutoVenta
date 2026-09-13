@@ -1732,6 +1732,64 @@ export function buildTools(ctx: AgentContext) {
       const recommended =
         products.find((product) => product.code === recomendado) ?? products[0];
 
+      // Los escalones y la decisión de entregar la recomendación se calculan
+      // ANTES de dibujar la pieza (12-sep): la plantilla día y noche destaca
+      // la recomendada, y solo puede hacerlo si este turno la entrega. Son
+      // funciones puras del texto del cliente y de las opciones: moverlas
+      // aquí no cambia lo que el bot decide ni lo que contesta.
+      // Los tres escalones DE LO QUE ESTÁ EN PANTALLA, para que la respuesta
+      // a la pregunta de preferencia («la más barata», «la del medio», «la
+      // mejor») se pueda entregar al siguiente turno sin volver a buscar.
+      // Quedan también en la metadata del mensaje: es de ahí que los hechos
+      // del agente (getAgentSalesFacts) los recuperan en el turno siguiente.
+      const escalones = escalonesDeOpciones(
+        products.map((p) => ({
+          codigo: p.code,
+          nombre: `${p.brand} ${p.design}`,
+          precio_con_iva: p.minimumPriceWithTax,
+          // Las lonas viajan con la opción para poder contestarlas en un turno
+          // POSTERIOR sin volver a buscar. Tres clientes las preguntaron en la
+          // semana del 8 al 11-sep (convs 16974, 18294, 18880) y las tres veces
+          // el bot dijo que no tenía el dato, teniéndolo en el nombre del
+          // producto que estaba mostrando. Ver `domain/datosDelNegocio.ts`.
+          lonas: lonasDelProducto(p.name) ?? undefined,
+        })),
+      );
+      // La recomendación se entrega en este mismo turno cuando el cliente ya
+      // pidió la cotización con todas sus letras, ya pidió que le recomienden,
+      // ya contó PARA QUÉ la quiere (familia 2 del guardián: «¿necesita
+      // recomendación?» con la recomendación ya preparada), o ya contestó la
+      // pregunta de preferencia.
+      //
+      // PREGUNTAR EL PRECIO YA NO CUENTA (Manuel, 1-sep, conv 13615 «Favor
+      // costo de las 235/60 R 18»): el turno mandaba opciones Y cotización a la
+      // vez, sin dejar al cliente elegir. El precio lo responde la propia pieza
+      // de opciones (trae los precios de las tres); el flujo es opciones →
+      // el cliente elige escalón → recién ahí la cotización.
+      const preferencia = respuestaDePreferencia(ctx.currentUserText);
+      const dijoSuUso = [ctx.currentUserText, ...inbound.map((m) => m.content)].some((texto) =>
+        describeUso(texto ?? ""),
+      );
+      // PEDIR RECOMENDACIÓN O CONTAR EL USO TAMPOCO CUENTAN (Manuel, 1-sep, conv
+      // 13862 «Suzuki SZ 2016, ¿qué llantas me recomienda?»): el turno mandaba
+      // opciones Y cotización. Ahora son dos decisiones distintas: el texto
+      // ENTREGA la recomendación (el cliente la pidió, no se le repregunta),
+      // pero la cotización solo la AUTORIZA pedirla con todas sus letras o
+      // contestar el menú de preferencia. Y nunca con la medida sin confirmar.
+      const entregarRecomendacion =
+        pidioCotizacionExplicita(ctx.currentUserText) ||
+        pideRecomendacion(ctx.currentUserText) ||
+        dijoSuUso ||
+        preferencia !== null;
+      const autorizaCotizar =
+        !ctx.medidaSinConfirmar &&
+        (pidioCotizacionExplicita(ctx.currentUserText) || preferencia !== null);
+      // Si contestó la preferencia, la recomendada ES la de ese escalón — no
+      // la que eligió el modelo: «la más barata» no admite otra respuesta.
+      const porPreferencia = preferencia
+        ? products.find((p) => p.code === escalones[preferencia === "precio" ? "economica" : preferencia]?.codigo)
+        : undefined;
+      const entregada = porPreferencia ?? recommended;
       // Pieza visual del catálogo (agrupada por marca). Si falla, el texto
       // sigue siendo la respuesta — el cliente nunca se queda sin opciones.
       //
@@ -1768,6 +1826,11 @@ export function buildTools(ctx: AgentContext) {
               medidaDeLaConversacion?.tire_size,
             ),
             benefits: beneficiosPieza,
+            // Solo la plantilla día y noche los usa: la cantidad del juego, y
+            // la recomendada destacada únicamente si este turno la entrega —si
+            // queda guardada para cuando la pida, la imagen no se adelanta.
+            cantidad,
+            codigoRecomendado: entregarRecomendacion ? entregada.code : null,
             ...(await getPiecesConfig()),
             brandProfiles: await brandProfilesForRender(),
             products: await Promise.all(products.map((product) => toRenderLine(product))),
@@ -1777,24 +1840,6 @@ export function buildTools(ctx: AgentContext) {
         "opciones",
       );
       const resumenProductos = products.map((p) => `${p.brand} ${p.design}`).join(" · ");
-      // Los tres escalones DE LO QUE ESTÁ EN PANTALLA, para que la respuesta
-      // a la pregunta de preferencia («la más barata», «la del medio», «la
-      // mejor») se pueda entregar al siguiente turno sin volver a buscar.
-      // Quedan también en la metadata del mensaje: es de ahí que los hechos
-      // del agente (getAgentSalesFacts) los recuperan en el turno siguiente.
-      const escalones = escalonesDeOpciones(
-        products.map((p) => ({
-          codigo: p.code,
-          nombre: `${p.brand} ${p.design}`,
-          precio_con_iva: p.minimumPriceWithTax,
-          // Las lonas viajan con la opción para poder contestarlas en un turno
-          // POSTERIOR sin volver a buscar. Tres clientes las preguntaron en la
-          // semana del 8 al 11-sep (convs 16974, 18294, 18880) y las tres veces
-          // el bot dijo que no tenía el dato, teniéndolo en el nombre del
-          // producto que estaba mostrando. Ver `domain/datosDelNegocio.ts`.
-          lonas: lonasDelProducto(p.name) ?? undefined,
-        })),
-      );
       await appendMessage(
         ctx.conversation.id,
         "assistant",
@@ -1889,41 +1934,6 @@ export function buildTools(ctx: AgentContext) {
             clientePidioIncluye,
           )
         : null;
-      // La recomendación se entrega en este mismo turno cuando el cliente ya
-      // pidió la cotización con todas sus letras, ya pidió que le recomienden,
-      // ya contó PARA QUÉ la quiere (familia 2 del guardián: «¿necesita
-      // recomendación?» con la recomendación ya preparada), o ya contestó la
-      // pregunta de preferencia.
-      //
-      // PREGUNTAR EL PRECIO YA NO CUENTA (Manuel, 1-sep, conv 13615 «Favor
-      // costo de las 235/60 R 18»): el turno mandaba opciones Y cotización a la
-      // vez, sin dejar al cliente elegir. El precio lo responde la propia pieza
-      // de opciones (trae los precios de las tres); el flujo es opciones →
-      // el cliente elige escalón → recién ahí la cotización.
-      const preferencia = respuestaDePreferencia(ctx.currentUserText);
-      const dijoSuUso = [ctx.currentUserText, ...inbound.map((m) => m.content)].some((texto) =>
-        describeUso(texto ?? ""),
-      );
-      // PEDIR RECOMENDACIÓN O CONTAR EL USO TAMPOCO CUENTAN (Manuel, 1-sep, conv
-      // 13862 «Suzuki SZ 2016, ¿qué llantas me recomienda?»): el turno mandaba
-      // opciones Y cotización. Ahora son dos decisiones distintas: el texto
-      // ENTREGA la recomendación (el cliente la pidió, no se le repregunta),
-      // pero la cotización solo la AUTORIZA pedirla con todas sus letras o
-      // contestar el menú de preferencia. Y nunca con la medida sin confirmar.
-      const entregarRecomendacion =
-        pidioCotizacionExplicita(ctx.currentUserText) ||
-        pideRecomendacion(ctx.currentUserText) ||
-        dijoSuUso ||
-        preferencia !== null;
-      const autorizaCotizar =
-        !ctx.medidaSinConfirmar &&
-        (pidioCotizacionExplicita(ctx.currentUserText) || preferencia !== null);
-      // Si contestó la preferencia, la recomendada ES la de ese escalón — no
-      // la que eligió el modelo: «la más barata» no admite otra respuesta.
-      const porPreferencia = preferencia
-        ? products.find((p) => p.code === escalones[preferencia === "precio" ? "economica" : preferencia]?.codigo)
-        : undefined;
-      const entregada = porPreferencia ?? recommended;
       const recomendacion = `${entregada.brand} ${entregada.design}`;
       // LA EQUIVALENTE NO SE COTIZA SIN SU SÍ, Y SU SÍ SE PIDE CON UNA PREGUNTA
       // (conv 13635, 1-sep). Cuando la recomendada es de OTRA medida que la
