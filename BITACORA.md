@@ -591,6 +591,44 @@ falta.
 
 **Horas:** 2
 
+## 12-sep-2026 · La rúbrica del guardián deja de cobrar por lo que ya hace un candado
+
+**Qué:** Nivel 1 de `docs/PLAN-ADELGAZAR-GUARDIAN.md`. Salieron de
+`INSTRUCCIONES` dos reglas cuyo candado determinístico ya hace el trabajo en las
+mismas tres puertas: la de los NÚMEROS DE COTIZACIÓN (la hace
+`sin_numeros_de_cotizacion`, regex puro) y la del AVISO DE STOCK CORTO (la hace
+`aviso_de_stock`, con el MISMO predicado `faltanteDeLaCotizacionVigente` que
+produce el hecho, y cubriendo los dos modos de equivocarse que la regla
+enumeraba). La regla 17 se queda: ahí avisar no alcanza y eso sí es juicio. La
+de NO INSISTIRLE AL QUE SE DESPIDIÓ se **movió** a `INSTRUCCIONES_SEGUIMIENTO`
+en vez de borrarse, porque su candado `despedida_de_venta_perdida` corre en
+`respuesta` y `retomada` pero **no en `seguimiento`**, y el guardián revisa
+seguimientos (1.121 de sus 5.740 corridas del mes). Los HECHOS de las tres se
+quedan: un dato que el revisor no ve en sus HECHOS lo borra del borrador.
+Prueba nueva (`rubricaAdelgazada.test.ts`) con las dos mitades —que las reglas
+no están y que el candado sostiene el caso solo— y sobre `PASOS`, que los tres
+candados siguen corriendo después del guardián y en las puertas que el recorte
+asume. Recorte: 469 tokens de 4.900. El plan deja los niveles 2 y 3 escritos y
+pendientes.
+
+**Por qué:** Manuel preguntó si se podía apagar el guardián para bajar el costo
+de IA, porque hay que empaquetar la IA en la mensualidad y hoy se le fronta a
+Depot. Medido contra producción: el guardián corrige el 43 % de los borradores
+—en 769 de 1.230 conversaciones del mes— así que apagarlo manda al cliente 267
+errores duros por mes (medida equivocada, precio equivocado, stock prometido)
+para ahorrar $79. No se apaga. Pero la medición encontró otra cosa: la rúbrica
+había crecido de 1.388 a 6.505 tokens de entrada por corrida en cinco semanas,
+porque cada error nuevo se resolvió agregándole un párrafo en vez de ponerlo en
+su capa, y el costo no explotó solo porque el caché de prompt entró a tiempo
+(0 % → 75 %) — un caché que cada edición de la rúbrica invalida. Y el guardián
+es el paso 3 de 24: los candados corren después, así que lo que él escribe bajo
+una regla ya cubierta se descarta. Son tokens que se pagan para tirar el texto.
+El caso testigo está en la cabecera de `preguntasProhibidas.ts`: ese candado se
+escribió porque el guardián falló 3 de 3 con esa familia, y la regla seguía en
+la rúbrica cobrando 633 tokens por corrida.
+
+**Horas:** 3
+
 ## 8-sep-2026 · El panel no inventa números mientras carga, y un mes cerrado tiene los suyos
 
 **Qué:** Dos arreglos sobre el selector de mes. (1) El Dashboard tenía un
