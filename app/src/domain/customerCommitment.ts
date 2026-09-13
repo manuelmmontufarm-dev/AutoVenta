@@ -245,6 +245,25 @@ export function esSoloPresenciaEnLaCiudad(texto: string | null | undefined): boo
   return PRESENCIA.test(n) && !INTENT.test(n);
 }
 
+/**
+ * ¿Se lee la respuesta del cliente como la del DÍA de la visita?
+ *
+ * Dos puertas: acabamos de preguntar el día, o nombramos los dos locales. La
+ * segunda es una deducción («si hablamos de locales, un día suelto es sobre la
+ * visita») y el simulador mostró su borde el 12-sep: tras «Estamos en Quito:
+ * Depot Tire Cumbayá y Depot Tire Quito Sur», «Yo el lunes voy a estar en quito»
+ * se anotó como visita y le avisó al asesor. Por la puerta del local no pasa
+ * quien solo dice dónde va a estar; a la pregunta explícita del día, sí.
+ */
+export function respondeAlDiaDeLaVisita(input: {
+  texto: string;
+  preguntamosElDia: boolean;
+  preguntamosElLocal: boolean;
+}): boolean {
+  if (input.preguntamosElDia) return true;
+  return input.preguntamosElLocal && !esSoloPresenciaEnLaCiudad(input.texto);
+}
+
 export function extractCustomerCommitment(
   text: string,
   now = new Date(),

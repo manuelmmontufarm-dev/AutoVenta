@@ -19,7 +19,8 @@ import { writeFile } from "node:fs/promises";
 import { activarBot, mandar, pausa, reiniciar, snapshot, sql } from "./lib/corredor-t115.mjs";
 
 const MAPA = /maps\.app\.goo\.gl/;
-const PREGUNTA_LOCAL = /cu[aá]l local|\*?cumbay[aá]\*? o \*?quito sur\*?\s*\?/i;
+// Tiene que PREGUNTAR: «luego vemos cuál local le queda mejor» no es la pregunta.
+const PREGUNTA_LOCAL = /cu[aá]l local[^?]*\?|\*?cumbay[aá]\*? o \*?quito sur\*?\s*\?/i;
 const BENEFICIO = /beneficio adicional por venir de/i;
 const METRICA = (aro) => new RegExp(`\\b\\d{3}\\/\\d{2}R${aro}\\b`);
 
@@ -160,7 +161,8 @@ const TANDAS = [
 ];
 
 const resultados = [];
-for (const tanda of TANDAS) {
+const SOLO = process.env.SIM_TANDAS ? process.env.SIM_TANDAS.split(",") : null;
+for (const tanda of TANDAS.filter((t) => !SOLO || SOLO.includes(t.id))) {
   process.stdout.write(`\n■ Tanda ${tanda.id} · ${tanda.titulo}\n`);
   await reiniciar();
   await activarBot();

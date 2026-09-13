@@ -66,7 +66,7 @@ import {
   scheduleConversationFollowUps,
 } from "./services/followUps.js";
 import { markDiscountNoticeSent } from "./services/discountOffers.js";
-import { extractCustomerCommitment, preguntamosElDia } from "./domain/customerCommitment.js";
+import { extractCustomerCommitment, preguntamosElDia, respondeAlDiaDeLaVisita } from "./domain/customerCommitment.js";
 import { avisarVisitaComprometida } from "./services/visitAlerts.js";
 import { emitirCuponDeConfirmacion } from "./services/coupons.js";
 import { mensajeCupon } from "./domain/coupons.js";
@@ -155,7 +155,10 @@ const pipeline = new InboundPipeline(async ({ from, name, text, waMessageIds, qu
   const commitment = esRespuestaDelMenuDePreferencia(text, previousOutbound, mensajeCitado)
     ? null
     : extractCustomerCommitment(text, receivedAt, {
-        respondiendoAlDia: preguntamosElDia(previousOutbound) || respondiendoAlLocal,
+        // «Voy a estar en Quito» no entra por la puerta del local (simulador, 12-sep).
+        respondiendoAlDia: respondeAlDiaDeLaVisita({
+          texto: text, preguntamosElDia: preguntamosElDia(previousOutbound), preguntamosElLocal: respondiendoAlLocal,
+        }),
       });
   await updateConversationFacts(conversation.id, {
     ...(parsedSize ? { tireSize: formatTireSize(parsedSize) } : {}),

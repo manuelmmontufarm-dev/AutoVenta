@@ -12,7 +12,7 @@ process.env.WHATSAPP_PHONE_ID ||= "test";
 process.env.DATABASE_URL ||= "postgresql://manue@localhost/postgres";
 
 const { canUseDirectVisitRoute } = await import("../src/services/directSalesRoutes.js");
-const { extractCustomerCommitment, esSoloPresenciaEnLaCiudad } = await import("../src/domain/customerCommitment.js");
+const { extractCustomerCommitment, esSoloPresenciaEnLaCiudad, respondeAlDiaDeLaVisita } = await import("../src/domain/customerCommitment.js");
 const { medidaNoDada, medidasDelAro } = await import("../src/domain/medidaConfirmada.js");
 const { preguntaDeMedidaPorConfirmar } = await import("../src/services/cotizarLoElegido.js");
 const { preguntaDelAncho } = await import("../src/services/medidaIncompleta.js");
@@ -34,6 +34,15 @@ describe("la visita se anota con cotización, no con la etapa", () => {
     expect(esSoloPresenciaEnLaCiudad("Yo el lunes voy a estar en quito")).toBe(true);
     expect(esSoloPresenciaEnLaCiudad("el lunes voy a estar por allá y paso")).toBe(false);
     expect(esSoloPresenciaEnLaCiudad("paso el lunes a Cumbayá")).toBe(false);
+  });
+
+  it("tampoco entra por la puerta del local (simulador, 12-sep)", () => {
+    const texto = "Yo el lunes voy a estar en quito";
+    const respondiendoAlDia = respondeAlDiaDeLaVisita({ texto, preguntamosElDia: false, preguntamosElLocal: true });
+    expect(respondiendoAlDia).toBe(false);
+    expect(extractCustomerCommitment(texto, new Date("2026-09-12T20:00:00Z"), { respondiendoAlDia })?.visitDate).toBeUndefined();
+    expect(respondeAlDiaDeLaVisita({ texto: "el lunes", preguntamosElDia: false, preguntamosElLocal: true })).toBe(true);
+    expect(respondeAlDiaDeLaVisita({ texto, preguntamosElDia: true, preguntamosElLocal: false })).toBe(true);
   });
 
   it("con verbo de visita sí", () => {

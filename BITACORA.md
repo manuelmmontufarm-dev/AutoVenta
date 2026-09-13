@@ -1,3 +1,18 @@
+## 12-sep-2026 · «Voy a estar en Quito» tampoco entra por la puerta del local
+
+**Qué:** `respondeAlDiaDeLaVisita` en `domain/customerCommitment.ts` decide si la
+respuesta se lee como el día de la visita: la pregunta explícita del día abre
+siempre; nombrar los dos locales abre solo si el cliente no está diciendo
+dónde va a estar. `index.ts` la usa en vez del `||` directo. Juez del escenario:
+la pregunta del local tiene que llevar «?», y `SIM_TANDAS` corre tandas sueltas.
+
+**Por qué:** En dos de las tres corridas finales la respuesta del bot ya era la
+correcta, pero la visita del lunes se anotaba igual: el mensaje anterior del
+bot nombraba Cumbayá y Quito Sur, y esa puerta dejaba que «el lunes» contara
+como día de visita sin verbo de ir.
+
+**Horas:** 0.5
+
 ## 12-sep-2026 · Media medida en pulgadas: ruta directa, no freno por herramienta
 
 **Qué:** `services/medidaIncompleta.ts`: con diámetro y aro pero sin ancho
