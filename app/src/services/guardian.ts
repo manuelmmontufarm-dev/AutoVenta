@@ -632,8 +632,13 @@ export async function armarContexto(
     // revisor borra, así que el ahorro viaja como hecho igual que el faltante
     // de stock.
     ahorro
-      ? `Ahorro de esa cotización: ${ahorro.porcentaje} % menos que el precio de lista, o sea $${ahorro.monto.toFixed(2)} en toda la compra. ` +
-        "Es real y sale de la misma cotización: el bot PUEDE decirlo, y no depende de que el cliente dé el día."
+      ? `Ahorro de esa cotización: ${ahorro.porcentaje} % menos que el precio de lista: $${ahorro.porLlanta.toFixed(2)} por llanta y $${ahorro.monto.toFixed(2)} en toda la compra. `
+        + `Precio por llanta con el descuento: $${ahorro.precioConDescuento.toFixed(2)} (antes $${ahorro.precioAntes.toFixed(2)}). `
+        + "Es real y sale de la misma cotización: el bot PUEDE decirlo, y no depende de que el cliente dé el día. "
+        // 12-sep 21:42: el cliente llamó descuento al precio por llanta («q son
+        // 58 menos») y el revisor aprobó «Sí, esa es la idea». Con las cifras a
+        // la vista puede verlo.
+        + "Si el cliente nombra como descuento una cifra que es el precio por llanta o el total a pagar, confirmarla («así es», «esa es la idea») es error ALTO **precio_incorrecto**: la corrección aclara cuál es cuál."
       : null,
     respaldados.length
       ? `Servicios y beneficios respaldados (lo ÚNICO que el bot puede prometer como incluido): ${respaldados.join(" · ")}`

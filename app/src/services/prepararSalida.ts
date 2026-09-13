@@ -44,10 +44,11 @@ import { notifyAdvisor } from "./advisorNotifications.js";
 import { sql } from "../db/client.js";
 import { dondeEstaElCliente } from "../domain/fueraDeCobertura.js";
 import { sinVisitaNiMapas } from "../domain/visitaImposible.js";
-import { BENEFICIO_DE_REDES, preguntaPorBeneficios, yaSalioElBeneficioDeRedes } from "../domain/beneficioDeRedes.js";
+import { BENEFICIO_DE_REDES, esFraseDeBeneficios, preguntaPorBeneficios } from "../domain/beneficioDeRedes.js";
+import { sinFrasesDelTema } from "../domain/respuestaDelTema.js";
 import { sinFraseColgando } from "../domain/fraseColgando.js";
 import { soloQuitaOReordena } from "../domain/soloQuita.js";
-import { hablaDelDescuento, respondeElDescuento, respuestaDelDescuento } from "../domain/ahorro.js";
+import { esFraseDelDescuento, hablaDelDescuento, respuestaDelDescuento } from "../domain/ahorro.js";
 import { ahorroVigente } from "./ahorroVigente.js";
 import { mencionaDescuentoEnEfectivo, politicaDePagos, preguntaPorElPago, respondeElPago, sinPagoSinRespuesta } from "../domain/datosDelNegocio.js";
 import { sinNumerosDeCotizacion } from "../domain/numerosDeCotizacion.js";
@@ -560,9 +561,14 @@ export const PASOS: readonly PasoDeSalida[] = [
       // Si pregunta por el pago («¿cuánto de descuento en efectivo?»), lo contesta la política.
       if (!hablaDelDescuento(ctx.textoDelCliente) || preguntaPorElPago(ctx.textoDelCliente)) return texto;
       const ahorro = await ahorroVigente(ctx.conversation.id, ctx.conversation.current_cycle);
-      if (!ahorro || respondeElDescuento(texto, ahorro)) return texto;
-      console.log(`🏷️ Conv ${ctx.conversation.id}: el cliente habló del descuento; se antepone el de su cotización.`);
-      return `${respuestaDelDescuento(ahorro)}\n---\n${texto}`;
+      if (!ahorro) return texto;
+      // La respuesta REEMPLAZA lo que el modelo dijo del descuento (21:42: «Sí,
+      // esa es la idea: el precio ya le quedó en $58.25» confirmaba la cifra
+      // equivocada del cliente). Ver `domain/respuestaDelTema.ts`.
+      const { texto: limpio, quitadas } = sinFrasesDelTema(texto, esFraseDelDescuento);
+      const respuesta = respuestaDelDescuento(ahorro, ctx.textoDelCliente);
+      console.log(`🏷️ Conv ${ctx.conversation.id}: el cliente habló del descuento; va el de su cotización${quitadas.length ? ` y salen ${quitadas.length} frases del modelo` : ""}.`);
+      return limpio.trim() ? `${respuesta}\n---\n${limpio}` : respuesta;
     },
   },
   {
@@ -578,9 +584,12 @@ export const PASOS: readonly PasoDeSalida[] = [
     corre: ["respuesta", "retomada"],
     async aplicar(texto, ctx) {
       if (!preguntaPorBeneficios(ctx.textoDelCliente)) return texto;
-      if (yaSalioElBeneficioDeRedes([texto])) return texto;
-      console.log(`🎁 Beneficio de redes contestado en la conv ${ctx.conversation.id}.`);
-      return `${BENEFICIO_DE_REDES}\n---\n${texto}`;
+      // El beneficio REEMPLAZA lo que el modelo dijo de beneficios o de lo
+      // incluido (Manuel, 21:45: el párrafo «Sí. Con la compra se incluye…»
+      // repetía lo que la pieza ya dice). Preguntas y menú se quedan.
+      const { texto: limpio, quitadas } = sinFrasesDelTema(texto, esFraseDeBeneficios);
+      console.log(`🎁 Beneficio de redes contestado en la conv ${ctx.conversation.id}${quitadas.length ? `; salen ${quitadas.length} frases del modelo sobre lo mismo` : ""}.`);
+      return limpio.trim() ? `${BENEFICIO_DE_REDES}\n---\n${limpio}` : BENEFICIO_DE_REDES;
     },
   },
   {

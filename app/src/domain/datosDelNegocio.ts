@@ -1,3 +1,5 @@
+import { sinFrasesDelTema } from "./respuestaDelTema.js";
+
 /**
  * LOS DATOS QUE EL CLIENTE PREGUNTA Y EL BOT NO TENÍA.
  *
@@ -96,7 +98,6 @@ export function mencionaDescuentoEnEfectivo(texto: string): boolean {
   return /\befectivo\b|\bcash\b/.test(n) && /\bdescuento\b/.test(n);
 }
 
-const SEPARADOR_DE_BLOQUES = /\n\s*-{3,}\s*\n/;
 
 /**
  * LAS FRASES DE PAGO QUE NO DAN LA RESPUESTA SE QUITAN.
@@ -113,26 +114,8 @@ const SEPARADOR_DE_BLOQUES = /\n\s*-{3,}\s*\n/;
  */
 export function sinPagoSinRespuesta(texto: string, opciones: { estricto?: boolean } = {}): string {
   const politica = politicaDePagos();
-  let cambio = false;
-  const bloques = texto.split(SEPARADOR_DE_BLOQUES).map((bloque) =>
-    bloque
-      .split("\n")
-      .map((linea) =>
-        linea
-          .split(/(?<=[.!?])\s+/)
-          .filter((frase) => {
-            const f = frase.trim();
-            // Estricto: la política va a entrar entera, así que ninguna otra frase
-            // de pago se queda, ni siquiera una correcta (se leería repetida).
-            if (!f || !preguntaPorElPago(f) || politica.includes(f)) return true;
-            if (!opciones.estricto && respondeElPago(f)) return true;
-            cambio = true;
-            return false;
-          })
-          .join(" "))
-      .join("\n")
-      .replace(/\n{3,}/g, "\n\n")
-      .trim());
-  if (!cambio) return texto;
-  return bloques.filter(Boolean).join("\n---\n");
+  // Estricto: la política va a entrar entera, así que ninguna otra frase de
+  // pago se queda, ni siquiera una correcta (se leería repetida).
+  return sinFrasesDelTema(texto, (f) =>
+    preguntaPorElPago(f) && !politica.includes(f) && (Boolean(opciones.estricto) || !respondeElPago(f))).texto;
 }

@@ -17,7 +17,7 @@ const { soloQuitaOReordena } = await import("../src/domain/soloQuita.js");
 const { estructurarTurno } = await import("../src/domain/estructuraDelTurno.js");
 const { BENEFICIO_DE_REDES, preguntaPorBeneficios } = await import("../src/domain/beneficioDeRedes.js");
 const { mencionaDescuentoEnEfectivo, politicaDePagos, respondeElPago, sinPagoSinRespuesta } = await import("../src/domain/datosDelNegocio.js");
-const { hablaDelDescuento, respondeElDescuento, respuestaDelDescuento } = await import("../src/domain/ahorro.js");
+const { ahorroDeLaCotizacion, hablaDelDescuento, respondeElDescuento, respuestaDelDescuento } = await import("../src/domain/ahorro.js");
 const { PASOS, correrPasos } = await import("../src/services/prepararSalida.js");
 
 const bloques = (t: string) => t.split(/\n\s*-{3,}\s*\n/).map((b) => b.trim());
@@ -174,7 +174,8 @@ describe("la tarjeta no sube y el efectivo tiene descuento (Manuel, 12-sep 21:37
 });
 
 describe("el descuento se contesta (caso 1, 17:16)", () => {
-  const AHORRO = { porcentaje: 25, monto: 114.48, cantidad: 4 };
+  // La cotización real del caso 1: 4 × KENDA KR203 a $85.85, antes $114.47.
+  const AHORRO = ahorroDeLaCotizacion([{ quantity: 4, listPriceWithTax: 114.47, salePriceWithTax: 85.85 }])!;
 
   it("lo reconoce", () => {
     expect(hablaDelDescuento("La promoción del 25% q son 103$.64 menos")).toBe(true);

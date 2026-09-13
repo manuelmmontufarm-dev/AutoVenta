@@ -29,6 +29,12 @@ export interface AhorroDeLaCotizacion {
   /** El mismo porcentaje que la pieza muestra en su sello. */
   porcentaje: number;
   cantidad: number;
+  /** Lo que deja de pagar por cada llanta: el «ahorras $X c/u» de la pieza. */
+  porLlanta: number;
+  /** El precio por llanta que paga, con el descuento ya aplicado. */
+  precioConDescuento: number;
+  /** El precio de lista por llanta: el «antes» tachado. */
+  precioAntes: number;
 }
 
 /**
@@ -50,7 +56,8 @@ export function ahorroDeLaCotizacion(
   const monto = Math.round((lista - venta) * cantidad * 100) / 100;
   const porcentaje = Math.round((1 - venta / lista) * 100);
   if (monto < 1 || porcentaje < 1) return null;
-  return { monto, porcentaje, cantidad };
+  const porLlanta = Math.round((lista - venta) * 100) / 100;
+  return { monto, porcentaje, cantidad, porLlanta, precioConDescuento: venta, precioAntes: lista };
 }
 
 /**
@@ -62,7 +69,7 @@ export function ahorroDeLaCotizacion(
  * es-EC («$277,44») fue 4 de los 8 `precio_incorrecto` ALTA del informe del
  * guardián del 15-ago, porque el revisor lee dos números distintos.
  */
-export function fraseDeAhorro(ahorro: AhorroDeLaCotizacion): string {
+export function fraseDeAhorro(ahorro: Pick<AhorroDeLaCotizacion, "porcentaje" | "monto">): string {
   return `*${ahorro.porcentaje} %* de descuento ya aplicado, *$${ahorro.monto.toFixed(2)}* menos`;
 }
 
@@ -87,8 +94,69 @@ export function respondeElDescuento(texto: string, ahorro: AhorroDeLaCotizacion)
   return porcentaje && /aplicad|incluid|descontad/.test(n);
 }
 
-/** Lo que se le contesta: el porcentaje, el monto y que no se resta dos veces. */
-export function respuestaDelDescuento(ahorro: AhorroDeLaCotizacion): string {
-  return `Así es: su cotización ya trae el *${ahorro.porcentaje} %* de descuento, *$${ahorro.monto.toFixed(2)}* menos. `
-    + "Ese valor ya está descontado del total que le envié; no se resta otra vez.";
+/**
+ * Las cifras que escribió el cliente: los montos y los porcentajes, aparte.
+ * «103$.64» (conv 16982) es 103.64: el signo pegado en medio no parte la cifra.
+ */
+export function cifrasDelCliente(texto: string | null | undefined): { montos: number[]; porcentajes: number[] } {
+  const t = (texto ?? "").replace(/(\d)\s*\$\s*([.,]\d)/g, "$1$2").replace(/\$/g, " ");
+  const porcentajes = [...t.matchAll(/(\d{1,3}(?:[.,]\d+)?)\s*%/g)].map((m) => Number(m[1].replace(",", ".")));
+  const sinPorcentajes = t.replace(/\d{1,3}(?:[.,]\d+)?\s*%/g, " ");
+  const montos = [...sinPorcentajes.matchAll(/(?<![\d/])(\d+(?:[.,]\d{1,2})?)(?![\d/])/g)]
+    .map((m) => Number(m[1].replace(",", ".")))
+    .filter((n) => Number.isFinite(n) && n >= 1);
+  return { montos, porcentajes };
+}
+
+const cerca = (dicho: number, real: number) => Math.abs(dicho - real) <= Math.max(0.6, real * 0.02);
+const dinero = (n: number) => `*$${n.toFixed(2)}*`;
+
+/**
+ * LA RESPUESTA SOBRE EL DESCUENTO, CONTRA LA CIFRA QUE DIJO EL CLIENTE.
+ *
+ * Manuel, 12-sep 21:42 (conv 3): 4 × WINRUN R330 a $58.25, antes $77.66. Él
+ * escribió «La promoción del 25% q son 58 menos» y el bot contestó «Así es:
+ * … $77.64 menos». Dos errores: confirmó una cifra que no es el descuento
+ * ($58.25 es lo que paga por llanta) y dio solo el total de las cuatro, que se
+ * confunde con el precio de antes. La pieza dice «ahorras $19.41 c/u»: la
+ * respuesta tiene que hablar en esa misma unidad, y además dar el total.
+ *
+ * Solo dice «Así es» cuando la cifra del cliente ES el descuento. Si es el
+ * precio o el total a pagar, lo aclara con todas las letras.
+ */
+export function respuestaDelDescuento(ahorro: AhorroDeLaCotizacion, textoDelCliente?: string | null): string {
+  const cuanto = ahorro.cantidad > 1
+    ? `${dinero(ahorro.porLlanta)} por llanta, ${dinero(ahorro.monto)} en las ${ahorro.cantidad} llantas`
+    : dinero(ahorro.monto);
+  const base = `su cotización ya trae el *${ahorro.porcentaje} %* de descuento, que son ${cuanto}. `
+    + "Ya está descontado del total que le envié; no se resta otra vez.";
+  const { montos, porcentajes } = cifrasDelCliente(textoDelCliente);
+  const otroPorcentaje = porcentajes.some((p) => Math.abs(p - ahorro.porcentaje) >= 1);
+  const totalAPagar = Math.round(ahorro.precioConDescuento * ahorro.cantidad * 100) / 100;
+  const esElPrecio = montos.find((n) => cerca(n, ahorro.precioConDescuento));
+  const esElTotal = montos.find((n) => cerca(n, totalAPagar));
+  const esElDescuento = montos.length > 0 && montos.every((n) => cerca(n, ahorro.monto) || cerca(n, ahorro.porLlanta));
+  if (esElPrecio !== undefined) {
+    return `Le aclaro: ${dinero(ahorro.precioConDescuento)} es el precio por llanta, ya con el descuento `
+      + `(antes ${dinero(ahorro.precioAntes)}). El descuento del *${ahorro.porcentaje} %* son ${cuanto}. `
+      + "Ya está descontado del total que le envié; no se resta otra vez.";
+  }
+  if (esElTotal !== undefined) {
+    return `Le aclaro: ${dinero(totalAPagar)} es el total a pagar, ya con el descuento. Y ${base}`;
+  }
+  if (esElDescuento && !otroPorcentaje) return `Así es: ${base}`;
+  if (montos.length || otroPorcentaje) return `Le aclaro: ${base}`;
+  return base.charAt(0).toUpperCase() + base.slice(1);
+}
+
+/**
+ * ¿Esta frase del borrador habla del descuento? Para quitarla cuando el turno
+ * ya lleva la respuesta de arriba: «Sí, esa es la idea: el precio ya le quedó
+ * en $58.25 c/u…» (21:42) no nombra el descuento, pero confirma una cifra.
+ */
+export function esFraseDelDescuento(frase: string): boolean {
+  const n = frase.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  return /\bdescuent|\bpromo|\bahorr|\brebaja|\bdescontad|\baplicad/.test(n)
+    || /\$\s*\d|\d\s*\$|(?<![\d.,])\d+[.,]\d{2}(?![\d.,])/.test(frase)
+    || /^(?:as[ii] es|exacto|correcto|si, esa es la idea|esa es la idea)\b/.test(n);
 }

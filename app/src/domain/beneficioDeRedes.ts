@@ -62,3 +62,14 @@ export function preguntaPorBeneficios(texto: string | null | undefined): boolean
     || /\b(?:alguna|algun|hay|tienen|tiene|tendran?)\s+(?:promo(?:cion)?|oferta|beneficio|regalo)\b/.test(n)
     || /\bque mas (?:me |nos |le )?(?:dan|regalan|incluye\w*|ofrecen)\b/.test(n);
 }
+
+/**
+ * ¿Esta frase del borrador habla de beneficios o de lo incluido en la compra?
+ * Cuando el beneficio de redes contesta la pregunta, el párrafo del modelo
+ * sobre lo mismo sobra: «Sí. Con la compra se incluye instalación, alineación
+ * y balanceo…» (Manuel, 12-sep 21:45: «yo borraría todo el tercer párrafo»).
+ */
+export function esFraseDeBeneficios(frase: string): boolean {
+  const n = frase.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  return /\bbeneficio|\bpromocion|\bregalo|\bobsequi|\binclu(?:ye|yen|ido|ida|idos|idas|imos)\b|\binstalacion|\balineacion|\bbalanceo|\bseguro gratuito|\bmantenimiento|\brevision gratuita|\bgratis\b|\bgratuit|\bredes sociales/.test(n);
+}
