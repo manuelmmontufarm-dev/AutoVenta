@@ -176,6 +176,8 @@ describe("el orden de los candados en el turno", () => {
       // asesor (conv 17804): el modelo seguía evadiendo aun con el dato en el
       // prompt, así que va en la cadena.
       "el_pago_se_responde",
+      "el_descuento_se_responde",
+      "el_beneficio_se_responde",
       "sin_telefono_propio",
       "sin_mapas_escritos_a_mano",
       "sin_menu_repetido",
@@ -204,10 +206,6 @@ describe("el orden de los candados en el turno", () => {
       // bloques que van a salir (los links solos, la pregunta sola).
       "estructura_del_turno",
       "sin_calco_reciente",
-      // El beneficio de redes va después de la cotización (Joaquín, 10-sep):
-      // en la cadena y no en la herramienta, porque el turno de la cotización
-      // muchas veces sale con el texto que escribe el modelo.
-      "beneficio_de_redes_tras_cotizar",
       // AL FINAL DE TODO, y a propósito: al cliente que no puede pasar por el
       // local se le quitan los mapas y las preguntas de visita vengan de donde
       // vengan, incluido el candado del cierre que las pega después del
@@ -215,6 +213,8 @@ describe("el orden de los candados en el turno", () => {
       // 18234, 18262, 18302, 18417, 17668). Corre último porque es el único
       // sitio donde ya están todas las piezas del turno sobre la mesa.
       "sin_visita_si_no_puede_venir",
+      // La red del final: ningún mensaje sale cortado con su coma (12-sep).
+      "sin_frase_colgando",
     ]);
   });
 
@@ -279,11 +279,12 @@ describe("el orden de los candados en el turno", () => {
       "sin_pregunta_repetida_en_el_turno",
       "estructura_del_turno",
       "sin_calco_reciente",
-      "beneficio_de_redes_tras_cotizar",
       // Quita mapas y preguntas de visita al cliente que no puede venir, y si
       // no queda nada devuelve null para no enviar: solo quita, nunca agrega,
       // que es la regla de todo lo que corre después de este punto.
       "sin_visita_si_no_puede_venir",
+      // La red del final: ningún mensaje sale cortado con su coma (12-sep).
+      "sin_frase_colgando",
     ]);
   });
 

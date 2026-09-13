@@ -41,7 +41,7 @@ import { hechosDeRestricciones, restriccionesDeLlanta } from "../domain/restricc
 import { CIERRE_COTIZAR } from "../domain/preguntasProhibidas.js";
 import { medidasDelPedido } from "./medidasDelPedido.js";
 import { ensureCatalogReady, findByCode, searchBySize, searchByText } from "./catalog.js";
-import { parseTireSize } from "../domain/tireSize.js";
+import { flotacionIncompleta, parseTireSize } from "../domain/tireSize.js";
 import { respaldoCompleto } from "../domain/respaldoMarcas.js";
 import { logAiRun } from "./conversations.js";
 import { crearAlertaRepeticion } from "./conversationQuality.js";
@@ -506,6 +506,15 @@ export async function armarContexto(
       && !aroDadoPorElCliente(mensajes.filter((m) => m.direction === "inbound").map((m) => m.content))
       ? "MEDIDA NO CONFIRMADA POR EL CLIENTE: el vehículo está registrado pero el cliente no escribió ninguna medida completa ni mandó foto en esta visita. Toda medida en juego la dedujo el bot. Opciones sí; cotización no; el cierre pide la medida."
       : null,
+    // HECHO DURO (simulador, 12-sep): media medida en pulgadas. A «MT 30.5 r15»
+    // el revisor, con la regla 21 («no se esconde»), agregó KR29 en 235/75R15
+    // y en 33X12.5R15. Sin el ancho no hay medida que ofrecer.
+    (() => {
+      const incompleta = flotacionIncompleta(ultimoDelCliente);
+      return incompleta
+        ? `MEDIDA EN PULGADAS INCOMPLETA: el cliente escribió ${incompleta.diameter} R${incompleta.rim} y falta el ANCHO. La pregunta por el ancho es la legítima del turno y se conserva. PROHIBIDO ofrecer, nombrar o agregar medidas métricas (del tipo 235/75R15) u otra medida en pulgadas como si fuera la suya: la regla 21 no aplica mientras no dé el ancho.`
+        : null;
+    })(),
     // HECHO DURO para la regla 22, lado del aro (conv 3, 7-sep): «rin 14» es
     // dato del cliente; si elige una opción de la lámina, se cotiza con la
     // medida de esa opción. El revisor pedía «la medida exacta» sobre lo ya
@@ -530,7 +539,7 @@ export async function armarContexto(
       // de 4 llantas FALKEN ZE310 que eligió» — una promesa sin cotización.
       const conCarro = Boolean(hechos?.vehicle) || entrantes.some((t) => mencionaVehiculo(t));
       return conCarro && variasMedidasEnPantalla
-        ? `ARO DADO POR EL CLIENTE: rin ${aro}, PERO en pantalla hay VARIAS MEDIDAS de ese aro y el cliente dio un VEHÍCULO sin escribir su medida. Elegir una marca no elige una medida: antes de cotizar se confirma la medida de la opción elegida («¿Su llanta dice 215/40R17?»). Esa pregunta es la legítima del turno y se conserva: NO es pregunta_de_mas, y NO la reescribas como si la cotización ya estuviera hecha.`
+        ? `ARO DADO POR EL CLIENTE: rin ${aro}, PERO en pantalla hay VARIAS MEDIDAS de ese aro y el cliente dio un VEHÍCULO sin escribir su medida. Elegir una marca no elige una medida: antes de cotizar se le pide leer la medida del costado de su llanta («¿Qué medida dice en el costado de su llanta?»). PROHIBIDO proponerle una medida de la lámina como si fuera la suya: «¿Su llanta dice 215/40R17?» invita a decir que sí sin mirar, y ese carro quizá no usa esa medida (12-sep, Qashqai 2020). Esa pregunta es la legítima del turno y se conserva: NO es pregunta_de_mas, y NO la reescribas como si la cotización ya estuviera hecha.`
         : `ARO DADO POR EL CLIENTE: rin ${aro}. Las opciones mostradas son de ese aro y cada una lleva su medida en la lámina. Si elige una, se cotiza con la medida de esa opción: NO se le pide «la medida exacta» para cotizar lo que ya eligió.`;
     })(),
     hechos?.selected_quantity != null ? `Cantidad elegida: ${hechos.selected_quantity}` : null,

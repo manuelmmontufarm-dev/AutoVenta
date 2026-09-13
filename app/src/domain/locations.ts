@@ -89,3 +89,39 @@ export const LOCATION_WORDS: readonly string[] = [
   "local", "locales", "sucursal", "tienda", "almacen",
   "direccion", "ubicacion", "mapa", "maps", "google",
 ];
+
+/**
+ * ¿LA UBICACIÓN CON LA QUE SE ELIGE EL LOCAL LA DIO EL CLIENTE?
+ *
+ * Caso 1 de las pruebas del 12-sep (conv 3, 17:17): el cliente escribió «La
+ * promoción del 25% q son 103$.64 menos» y el modelo llamó `local_mas_cercano`
+ * con una ubicación que nadie había dado. Salió «El local recomendado es Depot
+ * Tire Cumbayá», el horario y el mapa, y la promoción quedó sin respuesta.
+ *
+ * Coordenadas valen solo si el cliente mandó su pin en el ciclo; un sector,
+ * solo si él lo nombró. Sin ubicación en los argumentos no hay nada que
+ * comprobar: esa rama muestra los dos locales y no elige por él.
+ */
+export function ubicacionDadaPorElCliente(input: {
+  textos: readonly (string | null | undefined)[];
+  sector: string | null;
+  lat: number | null;
+  lng: number | null;
+}): boolean {
+  const textos = input.textos.filter((t): t is string => Boolean(t));
+  if (input.lat != null && input.lng != null) {
+    return textos.some((t) => t.includes("[El cliente compartió su ubicación"));
+  }
+  if (input.sector) {
+    const resuelto = resolveSector(input.sector);
+    // Un sector que no se reconoce no elige local: esa rama muestra los dos.
+    if (!resuelto) return true;
+    const buscado = normalizar(input.sector);
+    return textos.some((t) => {
+      if (buscado && normalizar(t).includes(buscado)) return true;
+      const delCliente = resolveSector(t);
+      return Boolean(resuelto && delCliente && delCliente.label === resuelto.label);
+    });
+  }
+  return true;
+}

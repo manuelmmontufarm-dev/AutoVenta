@@ -26,7 +26,7 @@ import { getAgentSalesFacts } from "../agent/agent.js";
 import { eleccionDeLaVitrina, type OpcionDeVitrina } from "../domain/eleccionDeVitrina.js";
 import { mencionaVehiculo } from "../domain/vehiculoEnTexto.js";
 import {
-  cantidadDelTexto, escalonContestado, esPedidoDeAmbasOpciones, esReferenciaPluralAlMenu,
+  cantidadDelTexto, escalonContestado, esReferenciaPluralAlMenu, pideVariasOpciones,
 } from "../domain/salesIntent.js";
 import { findByCode } from "./catalog.js";
 import { buildStoreLinksBlockOnce } from "./storeLinks.js";
@@ -45,6 +45,10 @@ export interface CotizarLoElegidoContext {
 interface Escalon { codigo?: string; nombre?: string; precio_con_iva?: number }
 type Escalones = Partial<Record<"economica" | "equilibrada" | "premium", Escalon | null>>;
 
+function esPedidoDeAmbasOpcionesDe(texto: string, previousOutbound: string | null): boolean {
+  return esReferenciaPluralAlMenu(texto, previousOutbound);
+}
+
 /** Puro: qué llanta señaló el cliente, o qué pregunta corresponde si señaló varias. */
 export function loQueEligio(
   texto: string,
@@ -53,20 +57,45 @@ export function loQueEligio(
   vitrina: readonly OpcionDeVitrina[],
   escalones: Escalones | null,
 ): { codigo: string; etiqueta: string | null } | { pregunta: string } | { respuesta: string } | null {
-  if (esReferenciaPluralAlMenu(texto, previousOutbound) && escalones) {
-    const opciones = [...new Map(
+  // «LAS DOS / LOS DOS VALORES» HABLA DE LA LÁMINA. Con el menú arriba basta
+  // «las 2»; si nombra valores, precios u opciones vale aunque el menú haya
+  // quedado atrás (12-sep, conv 3, 17:21: tras un reenvío, «Deme los dos
+  // valores de la kenda» recotizó 2 llantas). Y si nombra una marca con dos
+  // opciones en la lámina, son esas dos.
+  if (escalones && (esReferenciaPluralAlMenu(texto, previousOutbound) || pideVariasOpciones(texto))) {
+    const todas = [...new Map(
       [escalones.economica, escalones.equilibrada, escalones.premium]
         .filter((o): o is Escalon => Boolean(o?.codigo))
         .map((o) => [o.codigo, o]),
     ).values()];
-    if (opciones.length === 2 && esPedidoDeAmbasOpciones(texto, previousOutbound)) {
-      const lineas = opciones.map((o) => {
-        const precio = Number(o.precio_con_iva);
-        return `• *${o.nombre ?? "Opción"}*${Number.isFinite(precio) ? `: *$${precio.toFixed(2)} c/u con IVA*` : ""}`;
-      });
-      return {
-        respuesta: `Claro, estas son las dos:\n${lineas.join("\n")}\n¿Cuál quiere que le cotice?`,
-      };
+    const minusculas = texto.toLowerCase();
+    const marcas = [...new Set(vitrina.map((o) => o.marca.toUpperCase()).filter(Boolean))]
+      .filter((marca) => new RegExp(`\\b${marca.toLowerCase()}\\b`).test(minusculas));
+    const deLaMarca = marcas.length === 1
+      ? todas.filter((o) => (o.nombre ?? "").toUpperCase().startsWith(marcas[0]))
+      : todas;
+    const linea = (o: Escalon) => {
+      const precio = Number(o.precio_con_iva);
+      return `• *${o.nombre ?? "Opción"}*${Number.isFinite(precio) ? `: *$${precio.toFixed(2)} c/u con IVA*` : ""}`;
+    };
+    const pideValores = pideVariasOpciones(texto);
+    // Nombró una marca: van las de esa marca que hay en la lámina, sean dos o
+    // una sola (simulador, 12-sep: con una sola Kenda en pantalla, «los dos
+    // valores de la kenda» terminó en «¿se refiere a la opción 2?»).
+    if (marcas.length === 1 && deLaMarca.length >= 1 && (pideValores || deLaMarca.length === 2)) {
+      if (deLaMarca.length === 1) {
+        return {
+          respuesta: `De *${marcas[0]}* en las opciones que le envié hay una sola:\n${linea(deLaMarca[0])}\n¿Prefiere esa o alguna de las otras?`,
+        };
+      }
+      return { respuesta: `Claro, estas son las de *${marcas[0]}*:\n${deLaMarca.map(linea).join("\n")}\n¿Cuál quiere que le cotice?` };
+    }
+    if (todas.length === 2 && (pideValores || esPedidoDeAmbasOpcionesDe(texto, previousOutbound))) {
+      return { respuesta: `Claro, estas son las dos:\n${todas.map(linea).join("\n")}\n¿Cuál quiere que le cotice?` };
+    }
+    // Pidió los valores sin nombrar marca: los de toda la lámina.
+    if (pideValores) {
+      return { respuesta: `Claro, estos son los valores de las opciones:\n${todas.map(linea).join("\n")}\n¿Cuál quiere que le cotice?` };
     }
     return { pregunta: "¿Se refiere a la opción 2 o quiere que compare dos de las opciones?" };
   }
@@ -134,6 +163,19 @@ export function medidaPorConfirmarAntesDeCotizar(input: {
   return elegida;
 }
 
+/**
+ * LA CONFIRMACIÓN PIDE LEER EL COSTADO, NO DECIR QUE SÍ.
+ *
+ * 12-sep (conv 3, 17:39), Qashqai 2020 rin 17: «¿Su llanta dice 215/40R17?».
+ * Un Qashqai no usa perfil 40, y una pregunta de sí o no sobre la medida de la
+ * lámina invita a contestar «sí» sin mirar. Se dice de qué medida es la que
+ * eligió, porque es un dato, y se pregunta qué dice SU llanta.
+ */
+export function preguntaDeMedidaPorConfirmar(input: { nombre: string; medida: string }): string {
+  return `Para no cotizarle una medida que no es la suya: la *${input.nombre}* que eligió viene en *${input.medida}*, y en ese aro hay varias medidas.`
+    + "\n---\n¿Qué medida dice en el costado de su llanta? Con ese dato le armo la cotización. 🤝";
+}
+
 export async function tryCotizarLoElegido(ctx: CotizarLoElegidoContext, texto: string): Promise<string | null> {
   const [pieza] = await sql<{ metadata: Record<string, unknown> | null }[]>`
     select metadata from messages
@@ -178,7 +220,7 @@ export async function tryCotizarLoElegido(ctx: CotizarLoElegidoContext, texto: s
     const cual = vitrina.find((o) => o.codigo === elegido.codigo);
     const nombre = cual ? `${cual.marca} ${cual.diseno}`.trim() : "esa";
     console.log(`🛑 Varias medidas en pantalla y un carro en la ficha (conv ${ctx.conversation.id}): se confirma ${porConfirmar} antes de cotizar.`);
-    return `Para no cotizarle una medida que no es la suya: la *${nombre}* que eligió es *${porConfirmar}*.\n---\n¿Su llanta dice *${porConfirmar}*? Si me confirma, le armo la cotización. 🤝`;
+    return preguntaDeMedidaPorConfirmar({ nombre, medida: porConfirmar });
   }
 
   const producto = findByCode(elegido.codigo);

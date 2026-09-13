@@ -125,6 +125,23 @@ export async function insistirConLoQueFalta(
   if (faseOperativa && !["cotizacion_enviada", "seguimiento_venta"].includes(faseOperativa)) {
     return { texto, agregado: null };
   }
+  // UNA LÁMINA RECIÉN MANDADA ES «MOSTRAR», NO CIERRE (12-sep, conv 3, 17:40).
+  // Tras una lámina de una sola llanta, sin elección ni cotización, salió
+  // «¿A cuál local le queda mejor ir?». Si en ESTE turno salió una lámina y no
+  // una cotización, el cliente todavía está eligiendo.
+  // Sin mensaje del cliente no hay «este turno» contra qué medir: no aplica.
+  const [soloMostro] = await sql<{ x: number }[]>`
+    select 1 as x from messages m
+    where m.conversation_id=${conversationId} and m.cycle=${cycle}
+      and m.metadata->>'piece' = 'options'
+      and m.created_at > (select max(created_at) from messages where conversation_id=${conversationId} and direction='inbound')
+      and not exists (
+        select 1 from quotes q
+        where q.conversation_id=${conversationId} and q.cycle=${cycle}
+          and q.created_at > (select max(created_at) from messages where conversation_id=${conversationId} and direction='inbound'))
+    limit 1
+  `;
+  if (soloMostro) return { texto, agregado: null };
   const [facts] = await sql<{
     nearest_store: string | null;
     visit_date: Date | null;

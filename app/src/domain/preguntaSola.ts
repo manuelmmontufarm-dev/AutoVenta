@@ -32,6 +32,31 @@ const SEPARADOR = /\n\s*-{3,}\s*\n/;
  */
 const COLETILLA_MAXIMA = 60;
 
+/**
+ * LA FRASE QUE DESEMBOCA EN LA PREGUNTA VIAJA CON ELLA.
+ *
+ * Producción, 12-sep-2026 17:29 (conv 3): «Perfecto. Para dejarle todo claro
+ * antes de su visita del lunes, ¿le queda mejor Cumbayá o Quito Sur?» se partió
+ * en el «¿», y lo de antes quedó como mensaje propio terminado en coma. Cuando
+ * un candado de después borró la pregunta, el cliente recibió la frase cortada.
+ *
+ * Si lo que precede al «¿» termina abierto (coma, dos puntos, «para», «y»…),
+ * se parte en el punto anterior y esa entrada acompaña a la pregunta. Si no
+ * hay punto anterior, toda la oración ES la pregunta y no se parte.
+ */
+const ENTRADA_ABIERTA = /(?:[,:;]|\b(?:para|y|pero|que|o|porque|entonces|pues))$/i;
+
+function conSuEntrada(resto: string, pregunta: string): { resto: string; pregunta: string } | null {
+  if (!ENTRADA_ABIERTA.test(resto)) return { resto, pregunta };
+  const cortes = [...resto.matchAll(/[.!?…](?=\s)|\n/g)];
+  const corte = cortes[cortes.length - 1];
+  if (!corte || corte.index === undefined) return null;
+  const antes = resto.slice(0, corte.index + 1).trim();
+  const entrada = resto.slice(corte.index + 1).trim();
+  if (!antes || !entrada) return null;
+  return { resto: antes, pregunta: `${entrada} ${pregunta}` };
+}
+
 export interface TurnoConPreguntaSola {
   texto: string;
   /** true si hubo que separar algo: para el log, no para el cliente. */
@@ -66,7 +91,9 @@ export function conPreguntaEnSuPropioMensaje(texto: string, maxBloques = 4): Tur
   // la pregunta retórica que el bot se contesta sola («¿le sirve? sí, y…»).
   if (!resto) return { texto, separada: false };
 
-  const nuevos = [...bloques.slice(0, -1), resto, pregunta];
+  const partida = conSuEntrada(resto, pregunta);
+  if (!partida) return { texto, separada: false };
+  const nuevos = [...bloques.slice(0, -1), partida.resto, partida.pregunta];
   const conSitio = nuevos.length > maxBloques
     ? nuevos.slice(nuevos.length - maxBloques)
     : nuevos;

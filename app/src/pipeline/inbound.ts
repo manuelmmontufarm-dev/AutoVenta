@@ -9,6 +9,7 @@
  *  4. Tope global — como mucho config.pipeline.maxConcurrent handlers a la vez.
  */
 import { config } from "../config.js";
+import { gruposDeLaRafaga } from "../domain/rafaga.js";
 
 interface PendingBuffer {
   parts: { text: string; waMessageId: string; quotedWaMessageId: string | null; receivedAt: Date }[];
@@ -118,20 +119,29 @@ export class InboundPipeline {
     }
     this.buffers.delete(from);
 
-    const job = {
-      from,
-      name: buffer.name,
-      text: buffer.parts.map((p) => p.text).join("\n"),
-      waMessageIds: buffer.parts.map((p) => p.waMessageId),
-      // El reply MÁS RECIENTE de la ráfaga. Si el cliente cita el menú y después
-      // agrega un mensaje suelto, lo citado sigue valiendo; si cita dos cosas
-      // distintas, la última es la que está contestando ahora.
-      quotedWaMessageId:
-        [...buffer.parts].reverse().find((p) => p.quotedWaMessageId)?.quotedWaMessageId ?? null,
-      receivedAt: new Date(Math.max(...buffer.parts.map((p) => p.receivedAt.getTime()))),
-    };
+    // UNA RESPUESTA COMPLETA AL FRENTE DE LA RÁFAGA ES SU PROPIO TURNO (12-sep,
+    // conv 3): «1» + «¿con tarjeta cuánto sube?» perdió el «1». Lo demás sigue
+    // junto, como siempre. Ver domain/rafaga.ts.
+    const grupos = gruposDeLaRafaga(buffer.parts.map((p) => p.text));
+    for (const indices of grupos) {
+      const partes = indices.map((i) => buffer.parts[i]);
+      this.encolar(from, {
+        from,
+        name: buffer.name,
+        text: partes.map((p) => p.text).join("\n"),
+        waMessageIds: partes.map((p) => p.waMessageId),
+        // El reply MÁS RECIENTE del grupo. Si el cliente cita el menú y después
+        // agrega un mensaje suelto, lo citado sigue valiendo; si cita dos cosas
+        // distintas, la última es la que está contestando ahora.
+        quotedWaMessageId:
+          [...partes].reverse().find((p) => p.quotedWaMessageId)?.quotedWaMessageId ?? null,
+        receivedAt: new Date(Math.max(...partes.map((p) => p.receivedAt.getTime()))),
+      });
+    }
+  }
 
-    // Cola FIFO por usuario: encadena sobre el último job de este chat.
+  /** Cola FIFO por usuario: encadena sobre el último job de este chat. */
+  private encolar(from: string, job: Parameters<InboundHandler>[0]): void {
     const tail = this.tails.get(from) ?? Promise.resolve();
     const next = tail
       .then(async () => {

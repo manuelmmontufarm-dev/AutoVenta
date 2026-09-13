@@ -1,6 +1,7 @@
 import { diaDelMesSuelto, diaEnTexto, fechaDeCalendario, franjaHoraria, normalizarTexto, relativoEnTexto } from "./diasEnEspanol.js";
 
-const INTENT = /\b(?:voy|ire|iré|vamos|paso|pasare|pasaré|recojo|recogeré|retiro|retiraré|compro|compraré|visito|visitaré|llego|llegaré|bisito|voi)\b/i;
+// «Voy a estar en Quito» dice dónde va a estar, no que viene al local (12-sep, conv 3).
+const INTENT = /\b(?:voy(?!\s+a\s+estar)|ire|iré|vamos(?!\s+a\s+estar)|paso|pasare|pasaré|recojo|recogeré|retiro|retiraré|compro|compraré|visito|visitaré|llego|llegaré|bisito|voi)\b/i;
 
 /** Compromisos sin fecha exacta: valen como respuesta, no como día del calendario. */
 const VAGO = /\b(?:esta semana|en la semana|este finde|el finde|fin de semana|proxima semana|la otra semana|la siguiente semana)\b/;
@@ -226,6 +227,41 @@ function sinClausulasNegativas(textoNormalizado: string): string {
     .split(/[.,;!?]+|\b(?:pero|porque|aunque|entonces)\b/)
     .filter((clausula) => !CLAUSULA_NEGATIVA.test(clausula))
     .join(", ");
+}
+
+/**
+ * «YO EL LUNES VOY A ESTAR EN QUITO» DICE DÓNDE VA A ESTAR, NO QUE VIENE AL LOCAL.
+ *
+ * Simulador, 12-sep-2026, las tres corridas del guion de Manuel: arreglado el
+ * lector de compromisos, el modelo igual llamó `agendar_visita` con «lunes» y
+ * contestó «Listo, le esperamos el lunes 14 de septiembre. Queda avisado el
+ * asesor», sin llanta ni cotización. Quien lo dice sin verbo de visita («paso»,
+ * «voy al local») está contando dónde anda.
+ */
+const PRESENCIA = /\b(?:voy a estar|vamos a estar|estare|estaremos|voy a andar|ando|estoy)\s+(?:en|por)\b/;
+
+export function esSoloPresenciaEnLaCiudad(texto: string | null | undefined): boolean {
+  const n = normalizar(texto ?? "");
+  return PRESENCIA.test(n) && !INTENT.test(n);
+}
+
+/**
+ * ¿Se lee la respuesta del cliente como la del DÍA de la visita?
+ *
+ * Dos puertas: acabamos de preguntar el día, o nombramos los dos locales. La
+ * segunda es una deducción («si hablamos de locales, un día suelto es sobre la
+ * visita») y el simulador mostró su borde el 12-sep: tras «Estamos en Quito:
+ * Depot Tire Cumbayá y Depot Tire Quito Sur», «Yo el lunes voy a estar en quito»
+ * se anotó como visita y le avisó al asesor. Por la puerta del local no pasa
+ * quien solo dice dónde va a estar; a la pregunta explícita del día, sí.
+ */
+export function respondeAlDiaDeLaVisita(input: {
+  texto: string;
+  preguntamosElDia: boolean;
+  preguntamosElLocal: boolean;
+}): boolean {
+  if (input.preguntamosElDia) return true;
+  return input.preguntamosElLocal && !esSoloPresenciaEnLaCiudad(input.texto);
 }
 
 export function extractCustomerCommitment(

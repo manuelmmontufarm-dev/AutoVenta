@@ -468,8 +468,10 @@ export function cantidadParaPrepararOpciones(input: {
 const LA_HORA =
   /\b(?:a\s+(?:eso\s+de\s+)?(?:las?\s+)?|tipo\s+|(?:hasta|desde)\s+las?\s+|pasad[oa]s?\s+(?:de\s+)?las?\s+|despues\s+de\s+las?\s+|luego\s+de\s+las?\s+|a\s+partir\s+de\s+las?\s+)[0-9]{1,2}(?:\s*(?:h|am|pm|de la (?:mañana|tarde|noche)))?\b/g;
 
+// «Los dos valores de la kenda» (12-sep, conv 3) también habla de opciones: se
+// recotizaron 2 llantas. «Las dos llantas» sigue siendo cantidad.
 const NO_ES_LLANTA =
-  /\b(?:las|los)\s+[1-8]\b(?=(?:\s+\S+){0,3}\s+\b(?:marcas?|opciones?|medidas?|modelos?|alternativas?|locales?|sucursales?|fotos?)\b)/g;
+  /\b(?:las|los)\s+(?:[1-8]|dos|tres|cuatro)\b(?!\s+(?:llantas?|unidades?)\b)(?=(?:\s+\S+){0,3}\s+\b(?:marcas?|opciones?|medidas?|modelos?|alternativas?|locales?|sucursales?|fotos?|valores?|precios?|costos?)\b)/g;
 
 function sinLoQueCuentaOtraCosa(normalized: string): string {
   return normalized.replace(LA_HORA, " ").replace(NO_ES_LLANTA, " ").replace(/\s+/g, " ").trim();
@@ -606,4 +608,42 @@ export function pideVerOpciones(text: string): boolean {
     || /\b(?:a\/?t|h\/?t|r\/?t|m\/?t|todo\s+terreno|all\s+terrain|mud)\b/.test(n)
     || /\b(?:recomiend\w*|recomendac\w*|compar\w*)\b/.test(n)
   );
+}
+
+/**
+ * «LOS DOS VALORES DE LAS OPCIONES» NOMBRA VARIAS OPCIONES, CON O SIN MENÚ ARRIBA.
+ *
+ * `esReferenciaPluralAlMenu` exige que el último mensaje del bot sea el menú
+ * numerado. El 12-sep (conv 3, 17:21) lo último había sido «Se la envié
+ * nuevamente», y «Deme los dos valores de la kenda / de las opciones / que me
+ * mando» recotizó 2 llantas. Cuando la frase nombra valores, precios u
+ * opciones, habla de la lámina aunque el menú haya quedado atrás.
+ */
+export function pideVariasOpciones(text: string): boolean {
+  const n = (text ?? "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, " ");
+  if (/\b(?:llantas?|unidades?)\b/.test(n)) return false;
+  return /\b(?:las|los)\s+(?:2|dos|3|tres)\s+(?:valores|precios|costos|opciones|modelos)\b/.test(n)
+    || /\b(?:ambos|ambas|las dos|los dos|las 2|los 2)\b[^.?!]{0,40}\b(?:valores|precios|costos|opciones|modelos)\b/.test(n)
+    || /\b(?:valores|precios)\s+de\s+(?:las|los|ambas|ambos)\s+(?:2|dos|3|tres)?\b/.test(n);
+}
+
+/**
+ * «DÉJEME VER LAS OPCIONES OTRA VEZ» PIDE LA LÁMINA, NO LA COTIZACIÓN.
+ *
+ * 12-sep (conv 3, 17:21): el modelo eligió `reenviar_cotizacion` y al cliente
+ * le llegó la cotización. Pide reenvío explícito; pedir OTRAS opciones, otro
+ * tipo, otra medida o precios es otra cosa.
+ */
+export function pideVerLasOpcionesOtraVez(text: string): boolean {
+  const n = (text ?? "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  if (!/\b(?:opciones|alternativas|lamina)\b/.test(n)) return false;
+  if (/\b(?:otras|mas|nuevas|diferentes|distintas)\s+(?:opciones|alternativas)\b|\bvalor(?:es)?\b|\bprecios?\b|\bcuanto\b|\bcotizacion\b|\bproforma\b/.test(n)) return false;
+  if (/\b(?:a\/?t|h\/?t|r\/?t|m\/?t|todo terreno)\b|\d{3}\s*\/\s*\d{2}|\b(?:rin|aro)\s*\d{2}\b/.test(n)) return false;
+  return /\b(?:otra vez|de nuevo|nuevamente|volver a (?:ver|mandar|enviar)|reenvi\w*|no me (?:llego|llegaron|aparece\w*)|no (?:las |la )?veo)\b/.test(n);
+}
+
+/** Habla de las opciones y no de la cotización: el reenvío de la cotización no corresponde. */
+export function pideOpcionesNoCotizacion(text: string): boolean {
+  const n = (text ?? "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  return /\b(?:opciones|alternativas|lamina)\b/.test(n) && !/\b(?:cotizacion|proforma|pdf)\b/.test(n);
 }

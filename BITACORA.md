@@ -1,3 +1,98 @@
+## 12-sep-2026 · El escenario del beneficio de redes sigue la regla nueva
+
+**Qué:** E5 de `scripts/sim/escuchar-auditoria.mjs` ahora exige que el beneficio
+NO salga solo tras cotizar y que salga una vez cuando el cliente pregunta
+«¿Tienen algún beneficio o promoción?».
+
+**Por qué:** La regla cambió el 12-sep por decisión de Manuel (solo si lo
+piden). El escenario viejo exigía el envío automático y marcaba como falla el
+comportamiento correcto.
+
+**Horas:** 0.1
+
+## 12-sep-2026 · «Voy a estar en Quito» tampoco entra por la puerta del local
+
+**Qué:** `respondeAlDiaDeLaVisita` en `domain/customerCommitment.ts` decide si la
+respuesta se lee como el día de la visita: la pregunta explícita del día abre
+siempre; nombrar los dos locales abre solo si el cliente no está diciendo
+dónde va a estar. `index.ts` la usa en vez del `||` directo. Juez del escenario:
+la pregunta del local tiene que llevar «?», y `SIM_TANDAS` corre tandas sueltas.
+
+**Por qué:** En dos de las tres corridas finales la respuesta del bot ya era la
+correcta, pero la visita del lunes se anotaba igual: el mensaje anterior del
+bot nombraba Cumbayá y Quito Sur, y esa puerta dejaba que «el lunes» contara
+como día de visita sin verbo de ir.
+
+**Horas:** 0.5
+
+## 12-sep-2026 · Media medida en pulgadas: ruta directa, no freno por herramienta
+
+**Qué:** `services/medidaIncompleta.ts`: con diámetro y aro pero sin ancho
+(«MT 30.5 r15») el turno contesta sin modelo que falta el ancho y nombra las
+medidas en pulgadas con stock de ese aro (`medidasEnPulgadasCercanas` en
+`domain/catalog.ts`, que ahora usa también `buscar_por_aro_y_tipo`). El
+Guardián recibe el hecho duro «MEDIDA EN PULGADAS INCOMPLETA». Jueces del
+escenario: la M/T de 265/70R17 se juzga contra el stock, no contra una marca.
+
+**Por qué:** El freno que puse en `buscar_por_aro_y_tipo` no alcanzó en el
+simulador: el modelo usó la búsqueda por medida en una corrida y la del
+catálogo en otra, y el Guardián agregó KR29 en 235/75R15 y 33X12.5R15. Lo que
+tiene que pasar sí o sí va en una ruta, no en cada herramienta. La Falken M/T
+que el juez exigía tiene stock cero en el catálogo del simulador.
+
+**Horas:** 0.5
+
+## 12-sep-2026 · Lo que el simulador encontró en el guion de Manuel
+
+**Qué:** Tres ajustes sobre el arreglo anterior. (1) `agendar_visita` se niega
+cuando el cliente solo dice dónde va a estar (`esSoloPresenciaEnLaCiudad`, con
+el mismo verbo de visita que el lector de compromisos). (2) «Los dos valores
+de la kenda» con una sola Kenda en la lámina da su precio, y pedir los valores
+sin marca da los de toda la lámina; antes caía en «¿se refiere a la opción 2?».
+(3) El reenvío de opciones pone su propio texto, «Aquí tiene de nuevo las
+opciones», y no el de la herramienta. Jueces del escenario ajustados a hechos.
+
+**Por qué:** Las tres corridas de `scripts/sim/tras-pruebas.mjs` anotaron la
+visita del lunes aunque la ruta directa y el lector ya estaban cerrados: el
+tercer camino era la herramienta que elige el modelo. En una corrida el modelo
+armó una lámina con una sola Kenda, y en otra la lámina reenviada salió con
+«Quedo atento a lo que necesite».
+
+**Horas:** 1
+
+## 12-sep-2026 · Lo que falló en las pruebas de Manuel en producción
+
+**Qué:** Seis familias, cada una desde su causa. (1) La forma del turno: el
+beneficio de redes ya no sale solo; se contesta si el cliente lo pide
+(`el_beneficio_se_responde`, antes de separar la pregunta). La regla «después
+de separar la pregunta solo se quita» la hace cumplir `correrPasos` con
+`domain/soloQuita.ts`. El separador lleva con la pregunta la frase que
+desemboca en ella, y `sin_frase_colgando` es la red final. (2) Ráfagas: una
+respuesta completa al frente de la ráfaga (el número del menú, una medida
+sola) es su propio turno (`domain/rafaga.ts`); «los dos valores» habla de las
+opciones aunque el menú haya quedado atrás, y ya no es cantidad. (3) Ruta
+directa para reenviar la lámina de opciones; `reenviar_cotizacion` se niega si
+piden opciones. (4) `local_mas_cercano` exige una ubicación dicha por el
+cliente; el descuento se contesta con el de su cotización; el candado de pago
+quita las frases de pago que no responden. (5) La captura de visita exige
+cotización y no etapa; «voy a estar en Quito» no es visita; tras una lámina
+sin cotización no se insiste con el local. (6) Media medida en pulgadas no se
+contesta con métricas; `buscar_llanta` no busca una medida que el cliente no
+dio; la confirmación pide leer el costado; las medidas de otro aro dejan de
+ser «su medida»; el aro de una medida en pulgadas cuenta; la lámina por aro
+dice «POR CONFIRMAR». Pruebas: tres archivos `trasPruebas*` con los mensajes
+reales. Escenario `scripts/sim/tras-pruebas.mjs`: el chat de Manuel entero,
+en orden, con sus ráfagas.
+
+**Por qué:** Manuel probó los 24 casos en producción el 12-sep (conv 3,
+17:14–17:42). Fallaron o salieron a medias diez. Lo peor lo metí yo: el
+beneficio de redes corría después de separar la pregunta, quedaba detrás de
+«¿A cuál local le queda mejor ir?» y le quitaba los botones. Y el simulador
+había aprobado casos que producción no, porque cada escenario corría solo,
+con el chat limpio, un mensaje por turno y jueces que buscaban frases.
+
+**Horas:** 4
+
 ## 12-sep-2026 · Los datos que el cliente pregunta y el bot no tenía
 
 **Qué:** `domain/datosDelNegocio.ts` con tres cosas: `politicaDePagos()` (el

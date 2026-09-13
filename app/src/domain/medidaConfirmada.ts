@@ -14,7 +14,7 @@
  * para el cliente que vuelve y cuya medida quedó en una visita anterior.
  */
 import { medidasEnTexto, medidasPermitidas } from "./medidaPedida.js";
-import { extractFlotationSizes, flotacionIncompleta, medidaIncompleta } from "./tireSize.js";
+import { extractFlotationSizes, extractTireSizes, flotacionIncompleta, medidaIncompleta } from "./tireSize.js";
 
 const pelar = (texto: string) => texto.toLowerCase().replace(/[\s\-/x×r]/g, "");
 
@@ -132,4 +132,44 @@ export function aroRespondido(texto: string | null | undefined, ultimoMensajeNue
   const bot = normalizarAro(ultimoMensajeNuestro);
   const pregunto = /\?/.test(bot) && /\b(?:aro|rin|medida)\b/.test(bot) && !/prioriza|costo|premium|cuantas|cantidad/.test(bot);
   return pregunto ? Number(m[1]) : null;
+}
+
+/**
+ * ¿LA MEDIDA QUE SE QUIERE BUSCAR LA INVENTÓ EL MODELO?
+ *
+ * 12-sep-2026 (conv 3, 17:32): el cliente dijo «rin 14» y después «Que opciones
+ * tiene y precio del juego». El modelo buscó 185/60R14 —una de las muchas del
+ * aro 14— y la lámina salió «Opciones disponibles en 185/60R14», una medida
+ * que el cliente nunca dio.
+ *
+ * Es inventada cuando el cliente dio solo el aro, no escribió ninguna medida
+ * completa, la ficha no la tiene y no salió de su vehículo en este turno.
+ * Devuelve el aro que sí dio, para reencaminar la búsqueda, o null.
+ */
+export function medidaNoDada(input: {
+  medida: string;
+  textos: readonly (string | null | undefined)[];
+  medidaDeLaFicha: string | null | undefined;
+  huboFitment: boolean;
+}): number | null {
+  if (input.huboFitment) return null;
+  const buscada = new Set(medidasEnTexto(input.medida));
+  if (input.medidaDeLaFicha && medidasEnTexto(input.medidaDeLaFicha).some((m) => buscada.has(m))) return null;
+  if (medidaConfirmadaPorCliente(input.medida, input.textos)) return null;
+  const textos = input.textos.filter((t): t is string => Boolean(t));
+  if (textos.some((t) => extractTireSizes(t).length > 0 || extractFlotationSizes(t).length > 0)) return null;
+  return aroDadoPorElCliente(textos);
+}
+
+/**
+ * Las medidas que siguen siendo «su medida» cuando el cliente cambió de aro.
+ *
+ * 12-sep (conv 3, 17:39): tras «32x10.50 Rin 15» y «33 * 12.5 rin 15» el cliente
+ * escribió «me equivoqué: para un nissan Qashqai 2020 rin 17», y la lámina del
+ * aro 17 le dijo «en 33X12.5R15 / 32X10.5R15 no me queda disponibilidad
+ * exacta». Con un aro vigente, las medidas de otro aro quedan atrás.
+ */
+export function medidasDelAro(medidas: readonly string[], aro: number | null | undefined): string[] {
+  if (!aro) return [...medidas];
+  return medidas.filter((m) => (extractTireSizes(m)[0]?.rim ?? extractFlotationSizes(m)[0]?.rim ?? null) === aro);
 }

@@ -80,3 +80,41 @@ export function respondeElPago(texto: string): boolean {
   const diferido = /\bsin inter[ée]s\w*\b|\bsin intereses\b|\b3 y 6 meses\b/.test(n);
   return mismoPrecio || diferido;
 }
+
+const SEPARADOR_DE_BLOQUES = /\n\s*-{3,}\s*\n/;
+
+/**
+ * LAS FRASES DE PAGO QUE NO DAN LA RESPUESTA SE QUITAN.
+ *
+ * Producción, 12-sep-2026 17:32 (conv 3). El candado ponía la política cuando
+ * faltaba, pero dejaba lo que el Guardián había escrito, y el cliente leyó las
+ * dos cosas en el mismo turno:
+ *
+ *   «Con tarjeta el precio es el mismo: no sube y no hay recargo…»
+ *   «Sobre el pago con tarjeta, no le puedo confirmar un recargo desde aquí…»
+ *
+ * Se decide por tema y por frase: una frase que habla de pago y no trae la
+ * respuesta (ni es la política) sale. El resto del turno queda igual.
+ */
+export function sinPagoSinRespuesta(texto: string): string {
+  const politica = politicaDePagos();
+  let cambio = false;
+  const bloques = texto.split(SEPARADOR_DE_BLOQUES).map((bloque) =>
+    bloque
+      .split("\n")
+      .map((linea) =>
+        linea
+          .split(/(?<=[.!?])\s+/)
+          .filter((frase) => {
+            const f = frase.trim();
+            if (!f || !preguntaPorElPago(f) || respondeElPago(f) || politica.includes(f)) return true;
+            cambio = true;
+            return false;
+          })
+          .join(" "))
+      .join("\n")
+      .replace(/\n{3,}/g, "\n\n")
+      .trim());
+  if (!cambio) return texto;
+  return bloques.filter(Boolean).join("\n---\n");
+}
