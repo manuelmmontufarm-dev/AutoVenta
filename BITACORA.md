@@ -1,3 +1,20 @@
+## 12-sep-2026 · Media medida en pulgadas: ruta directa, no freno por herramienta
+
+**Qué:** `services/medidaIncompleta.ts`: con diámetro y aro pero sin ancho
+(«MT 30.5 r15») el turno contesta sin modelo que falta el ancho y nombra las
+medidas en pulgadas con stock de ese aro (`medidasEnPulgadasCercanas` en
+`domain/catalog.ts`, que ahora usa también `buscar_por_aro_y_tipo`). El
+Guardián recibe el hecho duro «MEDIDA EN PULGADAS INCOMPLETA». Jueces del
+escenario: la M/T de 265/70R17 se juzga contra el stock, no contra una marca.
+
+**Por qué:** El freno que puse en `buscar_por_aro_y_tipo` no alcanzó en el
+simulador: el modelo usó la búsqueda por medida en una corrida y la del
+catálogo en otra, y el Guardián agregó KR29 en 235/75R15 y 33X12.5R15. Lo que
+tiene que pasar sí o sí va en una ruta, no en cada herramienta. La Falken M/T
+que el juez exigía tiene stock cero en el catálogo del simulador.
+
+**Horas:** 0.5
+
 ## 12-sep-2026 · Lo que el simulador encontró en el guion de Manuel
 
 **Qué:** Tres ajustes sobre el arreglo anterior. (1) `agendar_visita` se niega

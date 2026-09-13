@@ -25,7 +25,7 @@ import {
   type CatalogItem,
 } from "../services/catalog.js";
 
-import { aroDeMedida, enLaMedidaConfirmada } from "../domain/catalog.js";
+import { aroDeMedida, enLaMedidaConfirmada, medidasEnPulgadasCercanas } from "../domain/catalog.js";
 import { alcanzaParaVender, avisoStockCorto, recordatorioStockCorto } from "../domain/stockCorto.js";
 import { faltanteDeLaCotizacionVigente } from "../services/stockCorto.js";
 import { getInterbotPrice, refreshPriceForSize } from "../services/interbotPrices.js";
@@ -895,17 +895,7 @@ export function buildTools(ctx: AgentContext) {
       // se nombran las de pulgadas que sí hay en ese aro.
       const incompleta = flotacionIncompleta(ctx.currentUserText ?? "");
       if (incompleta && incompleta.rim === aro) {
-        const enPulgadas = [...new Map(
-          searchByRim(aro)
-            .filter((item) => item.stock > 0 && item.sizeLabel && extractFlotationSizes(item.sizeLabel).length > 0)
-            .map((item) => {
-              const medida = extractFlotationSizes(item.sizeLabel!)[0];
-              return [formatFlotationSize(medida), medida.diameter] as const;
-            }),
-        ).entries()]
-          .sort(([, a], [, b]) => Math.abs(a - incompleta.diameter) - Math.abs(b - incompleta.diameter))
-          .map(([etiqueta]) => etiqueta)
-          .slice(0, 4);
+        const enPulgadas = medidasEnPulgadasCercanas(searchByRim(aro), incompleta.diameter, 4);
         return JSON.stringify({
           encontrado: false,
           aro,

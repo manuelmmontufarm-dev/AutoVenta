@@ -84,6 +84,7 @@ import { tryCotizarLoElegido } from "./services/cotizarLoElegido.js";
 import { tryMostrarPorAro } from "./services/mostrarPorAro.js";
 import { tryRecotizarPorCantidad } from "./services/recotizar.js";
 import { tryReenviarOpciones } from "./services/reenviarOpciones.js";
+import { tryMedidaIncompleta } from "./services/medidaIncompleta.js";
 import { tryRecomendarConLaPieza } from "./services/recomendarConLaPieza.js";
 import { firstContactReply, isGenericFirstContact } from "./domain/firstContact.js";
 import { despedidaQueCorresponde } from "./domain/cierrePerdido.js";
@@ -352,7 +353,15 @@ const pipeline = new InboundPipeline(async ({ from, name, text, waMessageIds, qu
       ? respuestaDePlazoDeDecision()
       : isFirstGenericMessage
       ? firstContactReply()
-      : (await tryCotizarLoElegido(
+      // Media medida en pulgadas («MT 30.5 r15»): se pregunta el ancho, sin
+      // modelo (12-sep). Va primero: no es una elección ni una cantidad.
+      : (await tryMedidaIncompleta({ conversation }, textoConLinks).then((respuesta) => {
+          // Es un turno de medir, no de cierre: sin esto el candado del final le
+          // pegaba «¿a cuál local?» detrás de la pregunta del ancho.
+          if (respuesta) agentContext.faseOperativa = "medida_confirmada";
+          return respuesta;
+        }))
+        ?? (await tryCotizarLoElegido(
           { conversation, customerPhone: from, customerName: name, previousOutbound, mensajeCitado },
           textoConLinks,
         ))

@@ -146,7 +146,13 @@ const TANDAS = [
         ...(METRICA(15).test(todo(t)) ? ["ofreció una métrica para 30.5"] : []),
         ...(e.quotes.length === a.quotes.length ? [] : ["cotizó"]),
       ] },
-      { m: "o sabe que, 265/70R17\nMT", juez: (t) => (/wildpeak m\/t|falken/i.test(todo(t)) ? [] : ["no mostró la Falken M/T"]) },
+      // Qué M/T hay depende del stock del catálogo (en el del simulador la
+      // Falken M/T de esa medida está en cero): se juzga que muestre una y que
+      // no niegue el tipo, que fue el error de la conv 18016.
+      { m: "o sabe que, 265/70R17\nMT", juez: (t) => [
+        ...(t.bot.some((m) => m.tipo === "image" && /Opciones enviadas/i.test(m.texto ?? "")) || /\$\s?\d/.test(todo(t)) ? [] : ["no mostró ninguna M/T"]),
+        ...(/no (?:me queda|tengo|hay)[^.]{0,40}m\/t/i.test(todo(t)) ? ["negó la M/T"] : []),
+      ] },
       { m: "o tiene AT 285/75/ Rin 16",
         juez: (t) => (/215\/65R16|245\/70R16|235\/70R16/.test(todo(t)) ? ["ofreció una equivalente que no calza"] : []) },
     ],

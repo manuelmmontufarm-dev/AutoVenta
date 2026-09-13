@@ -41,7 +41,7 @@ import { hechosDeRestricciones, restriccionesDeLlanta } from "../domain/restricc
 import { CIERRE_COTIZAR } from "../domain/preguntasProhibidas.js";
 import { medidasDelPedido } from "./medidasDelPedido.js";
 import { ensureCatalogReady, findByCode, searchBySize, searchByText } from "./catalog.js";
-import { parseTireSize } from "../domain/tireSize.js";
+import { flotacionIncompleta, parseTireSize } from "../domain/tireSize.js";
 import { respaldoCompleto } from "../domain/respaldoMarcas.js";
 import { logAiRun } from "./conversations.js";
 import { crearAlertaRepeticion } from "./conversationQuality.js";
@@ -506,6 +506,15 @@ export async function armarContexto(
       && !aroDadoPorElCliente(mensajes.filter((m) => m.direction === "inbound").map((m) => m.content))
       ? "MEDIDA NO CONFIRMADA POR EL CLIENTE: el vehículo está registrado pero el cliente no escribió ninguna medida completa ni mandó foto en esta visita. Toda medida en juego la dedujo el bot. Opciones sí; cotización no; el cierre pide la medida."
       : null,
+    // HECHO DURO (simulador, 12-sep): media medida en pulgadas. A «MT 30.5 r15»
+    // el revisor, con la regla 21 («no se esconde»), agregó KR29 en 235/75R15
+    // y en 33X12.5R15. Sin el ancho no hay medida que ofrecer.
+    (() => {
+      const incompleta = flotacionIncompleta(ultimoDelCliente);
+      return incompleta
+        ? `MEDIDA EN PULGADAS INCOMPLETA: el cliente escribió ${incompleta.diameter} R${incompleta.rim} y falta el ANCHO. La pregunta por el ancho es la legítima del turno y se conserva. PROHIBIDO ofrecer, nombrar o agregar medidas métricas (del tipo 235/75R15) u otra medida en pulgadas como si fuera la suya: la regla 21 no aplica mientras no dé el ancho.`
+        : null;
+    })(),
     // HECHO DURO para la regla 22, lado del aro (conv 3, 7-sep): «rin 14» es
     // dato del cliente; si elige una opción de la lámina, se cotiza con la
     // medida de esa opción. El revisor pedía «la medida exacta» sobre lo ya

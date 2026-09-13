@@ -1,7 +1,4 @@
-import {
-  extractConventionalSizes, extractFlotationSizes, extractTireSizes,
-  formatConventionalSize, formatTireSize, type TireSize,
-} from "./tireSize.js";
+import { extractConventionalSizes, extractFlotationSizes, extractTireSizes, formatConventionalSize, formatTireSize, type TireSize, formatFlotationSize } from "./tireSize.js";
 import { resolveCatalogMedia } from "./catalogMedia.js";
 import { extractLoadSpeed, type TireLoadSpeed } from "./tireSpecs.js";
 
@@ -669,4 +666,26 @@ export function enLaMedidaConfirmada<T extends { sizeLabel: string | null }>(
   const compacta = compactCatalogText(medidaConfirmada);
   if (!compacta) return [];
   return items.filter((item) => item.sizeLabel && compactCatalogText(item.sizeLabel) === compacta);
+}
+
+/**
+ * Las medidas en pulgadas CON STOCK de una lista, de la más cercana a la más
+ * lejana a un diámetro, sin repetir. Para contestar una media medida («30.5
+ * r15») con lo que sí existe en ese aro. Ver `services/medidaIncompleta.ts`.
+ */
+export function medidasEnPulgadasCercanas<T extends { stock: number; sizeLabel: string | null }>(
+  items: readonly T[],
+  diametro: number,
+  max = 3,
+): string[] {
+  const porMedida = new Map<string, number>();
+  for (const item of items) {
+    if (!(item.stock > 0) || !item.sizeLabel) continue;
+    const medida = extractFlotationSizes(item.sizeLabel)[0];
+    if (medida) porMedida.set(formatFlotationSize(medida), medida.diameter);
+  }
+  return [...porMedida.entries()]
+    .sort(([, a], [, b]) => Math.abs(a - diametro) - Math.abs(b - diametro))
+    .map(([etiqueta]) => etiqueta)
+    .slice(0, max);
 }
