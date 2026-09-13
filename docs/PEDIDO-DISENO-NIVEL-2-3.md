@@ -33,8 +33,11 @@ empeorar ningún error.
   es **salida** (reescribe el mensaje entero, 185 tokens promedio a $30/M).
 - Apagarlo no es opción: corrige el 43 % de los borradores (769 de 1.230
   conversaciones/mes) y ahí viven los errores duros (medida, precio, stock).
-- Nivel 1 sacó ~473 tokens-equivalentes de rúbrica → **3,1 %** del costo por
-  conversación ($0,140 → $0,136). Ese número ya incluye el efecto del caché.
+- Nivel 1 sacó 512 tokens reales de rúbrica. El plan lo contó como 3,1 % del
+  costo ($0,140 → $0,136); medido con el caché de producción es **$0,0013 por
+  conversación, ~1 %**.
+- Costo medido en producción (30 días al 12-sep): **$0,125 por conversación**,
+  guardián 52 %. Últimos 7 días: $0,106, guardián 58 %.
 
 **Correcciones a lo que decía el plan:**
 
@@ -54,16 +57,20 @@ empeorar ningún error.
 
    Rúbrica `INSTRUCCIONES` tras nivel 1: ~4.250.
 
-2. **El ahorro prometido estaba inflado ~2,5×.** Con la proporción medida del
-   nivel 1 (≈ $0,0000092 por token-equivalente por conversación):
-   - Nivel 2: 773 tokens (15 recortada) a 1.156 (15 entera) → **$0,007–0,011**
-     por conversación. El plan decía $0,021.
-   - Nivel 3: 1.147 tokens (las 4) → **~$0,011**; sin la 11, ~$0,008. El plan
-     decía $0,030.
-   - Todo junto, en el mejor caso: **$0,136 → ~$0,115**. No $0,085.
+2. **El ahorro prometido estaba muy inflado, porque la rúbrica vive en caché.**
+   Contado exacto (`scripts/guardian/contar-tokens-rubrica.mjs`): el nivel 1
+   sacó 512 tokens reales y ahorra **$0,0013 por conversación**, no $0,004. En
+   producción el 96 % de las llamadas del guardián trae la rúbrica en caché,
+   así que un token de rúbrica cuesta ~$0,68/M, no $5/M. Con esa vara (tokens
+   reales ≈ la tabla × 1,08):
+   - Nivel 2: **$0,0025–0,0037** por conversación. El plan decía $0,021.
+   - Nivel 3: **~$0,0037**; sin la 11, ~$0,003. El plan decía $0,030.
+   - Todo junto: **~$0,007**. No $0,051.
 
-   Consecuencia de diseño: **no se justifica correr riesgo de calidad** en las
-   reglas de juicio (22, 11) por ~$0,004–0,005 cada una.
+   Consecuencia de diseño: **el costo no justifica correr ningún riesgo de
+   calidad**. Los niveles 2 y 3 se hacen por disciplina (que la rúbrica no
+   crezca sola) y porque un candado no falla, no por plata. Leé
+   `docs/COMO-MEDIR-TOKENS.md` antes de estimar cualquier ahorro.
 
 3. **La palanca de salida es más grande que todo el nivel 3.** Salida del
    guardián ≈ 36 % × $0,079 ≈ **$0,028 por conversación**. Para las categorías
@@ -103,8 +110,11 @@ entra a la rúbrica si un candado puede verificarlo). Se agregan cinco:
    corridas no lo pagan y el juicio sigue donde hace falta. Para cada regla
    estimá en qué % de corridas aparece su HECHO (sale de la base de producción,
    solo lectura) y cuánto ahorra cada opción.
-8. **Medí con tokens reales antes y después.** El `usage` de las corridas del
-   guardián en producción, o un tokenizer real. No caracteres ÷ 4.
+8. **Medí con tokens reales antes y después.** Cada cambio de texto se cuenta
+   con `scripts/guardian/contar-tokens-rubrica.mjs` y se corre la conversación
+   estándar (`scripts/sim/medir-conversacion-estandar.mjs`) para ver que el
+   costo total no suba y el bot siga contestando bien. Método completo en
+   `docs/COMO-MEDIR-TOKENS.md`. Nunca caracteres ÷ 4.
 
 ## Archivos clave (leelos antes de proponer)
 

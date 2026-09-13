@@ -93,8 +93,8 @@ Reglas que necesitan un cambio chico, con el molde ya existente.
 | 21 — el tipo de llanta sale del catálogo | 326 | Es una comparación contra el `CATÁLOGO DE HOY` (el tipo viene entre corchetes en cada fila). Candado nuevo en `domain/`, con el molde de `tireTypes.ts` / `restriccionesLlanta.ts`. |
 | 15 — recorte de la enumeración | ~250 | Quitar de la rúbrica la lista cerrada de preguntas prohibidas (la cubre el candado en las 3 puertas) y **conservar** el «no puede quedar mudo» y la exención del aviso de cantidad grande. Ajustar `test/preguntasProhibidas.test.ts:120`. |
 
-Ahorro estimado: ~~$0,136 → $0,115~~ → **$0,007–0,011 por conversación**
-(773 tokens con la 15 recortada, 1.156 con la 15 entera). Ver «Remedición».
+Ahorro estimado: ~~$0,136 → $0,115~~ → **$0,0025–0,0037 por conversación**
+(la 15 recortada o entera; la rúbrica se cobra a precio de caché). Ver «Remedición».
 
 Antes de tocar la 15, leer la cabecera de
 [`preguntasProhibidas.ts`](../app/src/domain/preguntasProhibidas.ts): documenta
@@ -114,8 +114,8 @@ delicada porque toca las cuatro puertas de salida.
 | 20 — el ancho rechazado | 193 | 28 | `restriccionesLlanta.ts` ya existe, mismo caso |
 | 11 — negativa específica con alternativa | 237 | — | Necesita la huella de herramientas del turno |
 
-Ahorro estimado: ~~$0,115 → $0,085~~ → **~$0,011 por conversación** con las
-cuatro, ~$0,008 sin la 11. Ver «Remedición».
+Ahorro estimado: ~~$0,115 → $0,085~~ → **~$0,0037 por conversación** con las
+cuatro, ~$0,003 sin la 11. Ver «Remedición».
 
 ## Remedición (12-sep-2026, noche, sobre `main` + nivel 1)
 
@@ -123,10 +123,16 @@ cuatro, ~$0,008 sin la 11. Ver «Remedición».
   reglas dan 4,0 car/token salvo la 22, que estaba mal (1.876 caracteres → 469,
   no 611). Sirven para comparar entre reglas; para decidir, medir con el
   `usage` real de las corridas.
-- **El ahorro de los niveles 2 y 3 estaba inflado ~2,5×.** Con la proporción
-  medida del nivel 1 (473 tokens → $0,0043, caché incluido), todo lo que queda
-  junto da como mucho **$0,136 → ~$0,115**, no $0,085. Consecuencia: no vale
-  arriesgar calidad en las reglas de juicio (22, 11) por ~$0,004 cada una.
+- **El ahorro estaba inflado, y mucho, porque la rúbrica vive en caché.**
+  Contado con `scripts/guardian/contar-tokens-rubrica.mjs` (OpenAI, exacto): el
+  nivel 1 sacó **512 tokens** de la rúbrica (5.120 → 4.608) y agregó 215 al
+  bloque de seguimiento. En producción el 96 % de las llamadas del guardián trae
+  la rúbrica en caché (4.864 tokens cacheados), así que cada token de rúbrica
+  cuesta ~$0,68/M y no $5/M. **Ahorro real del nivel 1: $0,0013 por
+  conversación (~1 %)**, no $0,004. Niveles 2 y 3 juntos (~2.500 tokens reales):
+  **~$0,007**, no $0,051. Consecuencia: no vale arriesgar calidad en ninguna
+  regla de juicio por plata; las palancas de costo están en
+  [`COMO-MEDIR-TOKENS.md`](COMO-MEDIR-TOKENS.md), sección 2.
 - **La salida pesa más que todo el nivel 3**: 36 % × $0,079 ≈ $0,028 por
   conversación (sección siguiente).
 - `PASOS` tiene ahora **29 pasos**; el guardián sigue en el 3.

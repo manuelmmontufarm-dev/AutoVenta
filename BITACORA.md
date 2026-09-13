@@ -1,3 +1,33 @@
+## 12-sep-2026 · Una conversación estándar para medir el costo, y el ahorro de la rúbrica contado exacto
+
+**Qué:** `scripts/sim/estandar/conversacion-estandar.json` es la conversación
+promedio de producción (conv 18588: medida → opciones → sin cotización, 4
+mensajes del cliente, 4 corridas del guardián, $0,122 contra una media de
+$0,125). `scripts/sim/medir-conversacion-estandar.mjs` la corre N veces contra
+un simulador y deja tokens y costo por pieza en `scripts/sim/mediciones/` (con
+`historial.jsonl` para seguirlo en el tiempo). `scripts/guardian/contar-tokens-rubrica.mjs`
+cuenta exacto con `responses.inputTokens.count` cuánto pesa la rúbrica de dos
+árboles. `scripts/sim/estandar/perfil-historico.mjs` recalcula el promedio en
+producción (solo lectura). El simulador acepta `{ sticker: true }`. El método
+completo, con los puntos ciegos y las fuentes, está en `docs/COMO-MEDIR-TOKENS.md`.
+
+**Por qué:** Manuel pidió una conversación estándar realista para saber
+siempre cuánto cuesta una conversación, y un método para ver el ahorro
+verdadero. Medido: la rúbrica real son 5.120 tokens (3,7 caracteres por token,
+no 4), y el nivel 1 sacó 512. Pero en producción el 96 % de las llamadas del
+guardián trae la rúbrica en caché (4.864 tokens cacheados), así que el ahorro
+real es **$0,0013 por conversación (~1 %)**, no $0,004, y los niveles 2 y 3
+juntos rondan $0,007, no $0,051. Lo caro del guardián es el contexto que cambia
+(~1.600 tokens sin caché) y su salida. En el simulador, base contra nivel 1:
+el guardián bajó 493 tokens por llamada y $0,002 por conversación, pero el
+total subió $0,018 por la ruta que eligió el vendedor, que el nivel 1 no toca.
+Eso confirma que la conversación estándar sirve para el costo total y la
+calidad, no para medir recortes chicos. Además, la transcripción, la
+investigación de fitment, el texto de seguimiento y el guardián que falla no
+dejan tokens en `ai_runs`.
+
+**Horas:** 2
+
 ## 12-sep-2026 · El plan de adelgazar al guardián se remide, y el pedido de diseño se corrige
 
 **Qué:** Se juntó el nivel 1 (`e6cbe92`) con `main` en la rama

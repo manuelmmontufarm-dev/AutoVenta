@@ -1,0 +1,504 @@
+{
+  "fecha": "2026-09-13T03:29:23.363Z",
+  "etiqueta": "base",
+  "commit": "ef8df46",
+  "srcSinCommitear": false,
+  "estandar": {
+    "nombre": "conversacion-estandar",
+    "version": 1
+  },
+  "repeticiones": 3,
+  "calentamiento": 1,
+  "resumen": {
+    "usdMedido": 0.0863445,
+    "usdNormalizado": 0.127538562,
+    "usdNormalizadoMin": 0.11991912749999999,
+    "usdNormalizadoMax": 0.1585827305,
+    "guardianLlamadas": 4,
+    "guardianEntradaMedia": 6635,
+    "guardianCacheadaMedia": 5888,
+    "guardianSalidaMedia": 145,
+    "chatLlamadas": 3,
+    "turnosFallidos": 0
+  },
+  "detalle": [
+    {
+      "n": 1,
+      "descartada": true,
+      "conversacion": 1,
+      "turnos": [
+        {
+          "tipo": "texto",
+          "ok": true,
+          "motivo": null
+        },
+        {
+          "tipo": "texto",
+          "ok": true,
+          "motivo": null
+        },
+        {
+          "tipo": "texto",
+          "ok": true,
+          "motivo": null
+        },
+        {
+          "tipo": "sticker",
+          "ok": true,
+          "motivo": null
+        },
+        {
+          "tipo": "seguimiento",
+          "ok": false,
+          "motivo": "no había seguimiento in_window_first agendado"
+        }
+      ],
+      "usdMedido": 0.15864825000000002,
+      "usdNormalizado": 0.14854486800000002,
+      "llamadas": {
+        "chat": 3,
+        "classifier": 3,
+        "guardian": 3,
+        "vision": 0
+      },
+      "guardian": {
+        "llamadas": 3,
+        "entradaMedia": 6574,
+        "cacheadaMedia": 5205,
+        "salidaMedia": 267,
+        "veredictos": [
+          "aprobar",
+          "corregir",
+          "corregir"
+        ],
+        "categorias": [
+          "hecho_comercial_inventado",
+          "hecho_comercial_inventado",
+          "re-pregunta"
+        ]
+      },
+      "porClase": {
+        "chat|exact_tool_reply|gpt-5.4-mini": {
+          "llamadas": 1,
+          "entrada": 9087,
+          "cacheada": 3840,
+          "salida": 107,
+          "razonamiento": 0,
+          "usdMedido": 0.00470475,
+          "usdNormalizado": 0.004352562,
+          "errores": 0
+        },
+        "guardian|guardian|gpt-5.5": {
+          "llamadas": 3,
+          "entrada": 19721,
+          "cacheada": 15616,
+          "salida": 801,
+          "razonamiento": 0,
+          "usdMedido": 0.052363,
+          "usdNormalizado": 0.055987880500000003,
+          "errores": 0
+        },
+        "classifier|post_turn_stage|gpt-5.4-mini": {
+          "llamadas": 3,
+          "entrada": 1338,
+          "cacheada": 0,
+          "salida": 40,
+          "razonamiento": 0,
+          "usdMedido": 0.0011835,
+          "usdNormalizado": 0.0011835,
+          "errores": 0
+        },
+        "chat|commercial|gpt-5.5": {
+          "llamadas": 2,
+          "entrada": 29443,
+          "cacheada": 12544,
+          "salida": 321,
+          "razonamiento": 0,
+          "usdMedido": 0.100397,
+          "usdNormalizado": 0.0870209255,
+          "errores": 0
+        }
+      },
+      "transcripcion": [
+        "¡Hola! Quiero más información sobre el costo de un juego completo de llantas 225/70 R15 para camioneta 🛻🛻 MAZDA BT 50...buena tarde... gracias",
+        "¡Hola, Mario! 👋 Soy el asistente de Depot Tire. Le cotizo al instante con stock y precios reales, comparo modelos y le armo su cotización para tienda.",
+        "[image] Opciones enviadas: KENDA KR15 · KENDA KR33A · KENDA KR100",
+        "Para afinarle la recomendación sobre las opciones que le envié, dígame una sola cosa: ¿qué prioriza usted?\n\n1) *Costo* — la más conveniente de precio\n2) *Equilibrio* — la que mejor balancea precio y rendimiento\n3) *Premium* — la de máxima calidad y durabilidad\n\nCon eso le dejo la opción exacta para su medida.",
+        "2...o 3...por favor... gracias",
+        "La opción 2 es la *KENDA KR33A* en *225/70R15*: *$132.84 c/u con IVA*. Es la equilibrada.\n\nLa opción 3 es la *KENDA KR100* en *225/70R15*: *$148.60 c/u con IVA*.",
+        "¿Cuál prefiere para dejarle la cotización del juego completo?",
+        "El día de mañana le confirmo...por favor...pero más seguro la 2",
+        "Claro, quedo pendiente de su confirmación 👍",
+        "[El cliente mandó un mensaje que el bot no puede ver (sticker, video o similar). Probablemente sea un gesto de acuerdo o agradecimiento: NO reinicies la conversación, NO vuelvas a pedir la medida ni mandes la guía, y NO te presentes de nuevo. Sigue donde estaba el hilo: responde breve y, si hay algo pendiente, recuérdalo en una línea.]",
+        "Perfecto 👍 Quedo pendiente de su confirmación mañana.\n\nLa opción 2 que tenía vista es la *KENDA KR33A* en *225/70R15*: *$132.84 c/u con IVA*."
+      ]
+    },
+    {
+      "n": 2,
+      "descartada": false,
+      "conversacion": 10,
+      "turnos": [
+        {
+          "tipo": "texto",
+          "ok": true,
+          "motivo": null
+        },
+        {
+          "tipo": "texto",
+          "ok": true,
+          "motivo": null
+        },
+        {
+          "tipo": "texto",
+          "ok": true,
+          "motivo": null
+        },
+        {
+          "tipo": "sticker",
+          "ok": true,
+          "motivo": null
+        },
+        {
+          "tipo": "seguimiento",
+          "ok": true,
+          "motivo": null
+        }
+      ],
+      "usdMedido": 0.10938050000000002,
+      "usdNormalizado": 0.1585827305,
+      "llamadas": {
+        "chat": 3,
+        "classifier": 3,
+        "guardian": 4,
+        "vision": 0
+      },
+      "guardian": {
+        "llamadas": 4,
+        "entradaMedia": 6609,
+        "cacheadaMedia": 5888,
+        "salidaMedia": 255,
+        "veredictos": [
+          "aprobar",
+          "corregir",
+          "corregir",
+          "aprobar"
+        ],
+        "categorias": [
+          "hecho_comercial_inventado",
+          "contradiccion",
+          "hecho_comercial_inventado",
+          "pregunta_de_mas"
+        ]
+      },
+      "porClase": {
+        "chat|exact_tool_reply|gpt-5.5": {
+          "llamadas": 1,
+          "entrada": 9087,
+          "cacheada": 7680,
+          "salida": 107,
+          "razonamiento": 0,
+          "usdMedido": 0.014085,
+          "usdNormalizado": 0.0238238595,
+          "errores": 0
+        },
+        "guardian|guardian|gpt-5.5": {
+          "llamadas": 3,
+          "entrada": 19722,
+          "cacheada": 17664,
+          "salida": 993,
+          "razonamiento": 0,
+          "usdMedido": 0.048912,
+          "usdNormalizado": 0.061749501,
+          "errores": 0
+        },
+        "classifier|post_turn_stage|gpt-5.4-mini": {
+          "llamadas": 3,
+          "entrada": 1346,
+          "cacheada": 0,
+          "salida": 40,
+          "razonamiento": 0,
+          "usdMedido": 0.0011895,
+          "usdNormalizado": 0.0011895,
+          "errores": 0
+        },
+        "chat|commercial|gpt-5.5": {
+          "llamadas": 2,
+          "entrada": 19692,
+          "cacheada": 15360,
+          "salida": 267,
+          "razonamiento": 0,
+          "usdMedido": 0.03735,
+          "usdNormalizado": 0.05977042199999999,
+          "errores": 0
+        },
+        "guardian|guardian_seguimiento|gpt-5.5": {
+          "llamadas": 1,
+          "entrada": 6712,
+          "cacheada": 5888,
+          "salida": 26,
+          "razonamiento": 0,
+          "usdMedido": 0.007844,
+          "usdNormalizado": 0.012049448,
+          "errores": 0
+        }
+      },
+      "transcripcion": [
+        "¡Hola! Quiero más información sobre el costo de un juego completo de llantas 225/70 R15 para camioneta 🛻🛻 MAZDA BT 50...buena tarde... gracias",
+        "¡Hola, Mario! 👋 Soy el asistente de Depot Tire. Le cotizo al instante con stock y precios reales, comparo modelos y le armo su cotización para tienda.",
+        "[image] Opciones enviadas: KENDA KR100 · KENDA KR33A · KENDA KR15",
+        "Para afinarle la recomendación sobre las opciones que le envié, dígame una sola cosa: ¿qué prioriza usted?\n\n1) *Costo* — la más conveniente de precio\n2) *Equilibrio* — la que mejor balancea precio y rendimiento\n3) *Premium* — la de máxima calidad y durabilidad\n\nCon eso le dejo la opción exacta para su medida.",
+        "2...o 3...por favor... gracias",
+        "La opción 2 es la *KENDA KR33A* en *225/70R15*: *$132.84 c/u con IVA*.\n\nLa opción 3 corresponde a la alternativa *premium* de las opciones que le envié.",
+        "¿Cuál prefiere que le deje lista: la *2 equilibrada* o la *3 premium*?",
+        "El día de mañana le confirmo...por favor...pero más seguro la 2",
+        "Claro, quedo pendiente de su confirmación 👍",
+        "[El cliente mandó un mensaje que el bot no puede ver (sticker, video o similar). Probablemente sea un gesto de acuerdo o agradecimiento: NO reinicies la conversación, NO vuelvas a pedir la medida ni mandes la guía, y NO te presentes de nuevo. Sigue donde estaba el hilo: responde breve y, si hay algo pendiente, recuérdalo en una línea.]",
+        "Perfecto, le dejo presente la opción más segura que indicó: *KENDA KR33A 225/70R15*, *$132.84 c/u con IVA*.\n\nIncluye instalación, alineación, balanceo, seguro contra daños, mantenimiento cada 10.000 km y revisión gratuita del vehículo.\n\nCuando me confirme mañana, avanzamos con esa opción 👍",
+        "🛞 ¿Cómo vio la opción 225/70R15? También puedo ayudarle a compararla con las otras opciones 😊"
+      ]
+    },
+    {
+      "n": 3,
+      "descartada": false,
+      "conversacion": 19,
+      "turnos": [
+        {
+          "tipo": "texto",
+          "ok": true,
+          "motivo": null
+        },
+        {
+          "tipo": "texto",
+          "ok": true,
+          "motivo": null
+        },
+        {
+          "tipo": "texto",
+          "ok": true,
+          "motivo": null
+        },
+        {
+          "tipo": "sticker",
+          "ok": true,
+          "motivo": null
+        },
+        {
+          "tipo": "seguimiento",
+          "ok": true,
+          "motivo": null
+        }
+      ],
+      "usdMedido": 0.0863445,
+      "usdNormalizado": 0.127538562,
+      "llamadas": {
+        "chat": 3,
+        "classifier": 3,
+        "guardian": 4,
+        "vision": 0
+      },
+      "guardian": {
+        "llamadas": 4,
+        "entradaMedia": 6635,
+        "cacheadaMedia": 5888,
+        "salidaMedia": 145,
+        "veredictos": [
+          "aprobar",
+          "aprobar",
+          "corregir",
+          "aprobar"
+        ],
+        "categorias": [
+          "promesa_incumplible"
+        ]
+      },
+      "porClase": {
+        "chat|exact_tool_reply|gpt-5.5": {
+          "llamadas": 2,
+          "entrada": 13709,
+          "cacheada": 11520,
+          "salida": 135,
+          "razonamiento": 0,
+          "usdMedido": 0.020755,
+          "usdNormalizado": 0.0351488665,
+          "errores": 0
+        },
+        "guardian|guardian|gpt-5.5": {
+          "llamadas": 3,
+          "entrada": 19837,
+          "cacheada": 17664,
+          "salida": 555,
+          "razonamiento": 0,
+          "usdMedido": 0.036347000000000004,
+          "usdNormalizado": 0.048795858500000004,
+          "errores": 0
+        },
+        "classifier|post_turn_stage|gpt-5.4-mini": {
+          "llamadas": 3,
+          "entrada": 1322,
+          "cacheada": 0,
+          "salida": 46,
+          "razonamiento": 0,
+          "usdMedido": 0.0011985,
+          "usdNormalizado": 0.0011985,
+          "errores": 0
+        },
+        "chat|commercial|gpt-5.5": {
+          "llamadas": 1,
+          "entrada": 10306,
+          "cacheada": 7680,
+          "salida": 109,
+          "razonamiento": 0,
+          "usdMedido": 0.02024,
+          "usdNormalizado": 0.030359321,
+          "errores": 0
+        },
+        "guardian|guardian_seguimiento|gpt-5.5": {
+          "llamadas": 1,
+          "entrada": 6704,
+          "cacheada": 5888,
+          "salida": 26,
+          "razonamiento": 0,
+          "usdMedido": 0.007804,
+          "usdNormalizado": 0.012036016,
+          "errores": 0
+        }
+      },
+      "transcripcion": [
+        "¡Hola! Quiero más información sobre el costo de un juego completo de llantas 225/70 R15 para camioneta 🛻🛻 MAZDA BT 50...buena tarde... gracias",
+        "¡Hola, Mario! 👋 Soy el asistente de Depot Tire. Le cotizo al instante con stock y precios reales, comparo modelos y le armo su cotización para tienda.",
+        "[image] Opciones enviadas: KENDA KR100 · KENDA KR33A · KENDA KR15",
+        "Para afinarle la recomendación sobre las opciones que le envié, dígame una sola cosa: ¿qué prioriza usted?\n\n1) *Costo* — la más conveniente de precio\n2) *Equilibrio* — la que mejor balancea precio y rendimiento\n3) *Premium* — la de máxima calidad y durabilidad\n\nCon eso le dejo la opción exacta para su medida.",
+        "2...o 3...por favor... gracias",
+        "[image] Comparativa enviada: KENDA KR33A · KENDA KR100",
+        "Le dejo la comparativa 👆\n\n🔴 *KENDA KR33A* — ver ficha · $132.84 c/u\n🔴 *KENDA KR100* — ver ficha · $148.60 c/u\n\nℹ️ No tengo fichas técnicas verificadas de estos diseños para recomendar uno por desempeño.",
+        "¿Para qué la usa más: ciudad y carretera, o también caminos mixtos e irregulares?",
+        "El día de mañana le confirmo...por favor...pero más seguro la 2",
+        "Claro, quedo pendiente de su confirmación 👍",
+        "[El cliente mandó un mensaje que el bot no puede ver (sticker, video o similar). Probablemente sea un gesto de acuerdo o agradecimiento: NO reinicies la conversación, NO vuelvas a pedir la medida ni mandes la guía, y NO te presentes de nuevo. Sigue donde estaba el hilo: responde breve y, si hay algo pendiente, recuérdalo en una línea.]",
+        "Perfecto, queda como opción más probable la *KENDA KR33A* equilibrada en 225/70R15.\n\nQuedo atento a su confirmación mañana 👍",
+        "🛞 ¿Cómo vio la opción 225/70R15? También puedo ayudarle a compararla con las otras opciones 😊"
+      ]
+    },
+    {
+      "n": 4,
+      "descartada": false,
+      "conversacion": 28,
+      "turnos": [
+        {
+          "tipo": "texto",
+          "ok": true,
+          "motivo": null
+        },
+        {
+          "tipo": "texto",
+          "ok": true,
+          "motivo": null
+        },
+        {
+          "tipo": "texto",
+          "ok": true,
+          "motivo": null
+        },
+        {
+          "tipo": "sticker",
+          "ok": true,
+          "motivo": null
+        },
+        {
+          "tipo": "seguimiento",
+          "ok": true,
+          "motivo": null
+        }
+      ],
+      "usdMedido": 0.07888499999999998,
+      "usdNormalizado": 0.11991912749999999,
+      "llamadas": {
+        "chat": 3,
+        "classifier": 3,
+        "guardian": 4,
+        "vision": 0
+      },
+      "guardian": {
+        "llamadas": 4,
+        "entradaMedia": 6647,
+        "cacheadaMedia": 5888,
+        "salidaMedia": 80,
+        "veredictos": [
+          "aprobar",
+          "aprobar",
+          "aprobar",
+          "aprobar"
+        ],
+        "categorias": []
+      },
+      "porClase": {
+        "chat|exact_tool_reply|gpt-5.5": {
+          "llamadas": 2,
+          "entrada": 13709,
+          "cacheada": 11520,
+          "salida": 132,
+          "razonamiento": 0,
+          "usdMedido": 0.020665,
+          "usdNormalizado": 0.035058866499999994,
+          "errores": 0
+        },
+        "guardian|guardian|gpt-5.5": {
+          "llamadas": 3,
+          "entrada": 19846,
+          "cacheada": 17664,
+          "salida": 292,
+          "razonamiento": 0,
+          "usdMedido": 0.028502,
+          "usdNormalizado": 0.040920443,
+          "errores": 0
+        },
+        "classifier|post_turn_stage|gpt-5.4-mini": {
+          "llamadas": 3,
+          "entrada": 1332,
+          "cacheada": 0,
+          "salida": 40,
+          "razonamiento": 0,
+          "usdMedido": 0.001179,
+          "usdNormalizado": 0.001179,
+          "errores": 0
+        },
+        "chat|commercial|gpt-5.5": {
+          "llamadas": 1,
+          "entrada": 10306,
+          "cacheada": 7680,
+          "salida": 119,
+          "razonamiento": 0,
+          "usdMedido": 0.02054,
+          "usdNormalizado": 0.030659321,
+          "errores": 0
+        },
+        "guardian|guardian_seguimiento|gpt-5.5": {
+          "llamadas": 1,
+          "entrada": 6743,
+          "cacheada": 5888,
+          "salida": 26,
+          "razonamiento": 0,
+          "usdMedido": 0.007999,
+          "usdNormalizado": 0.012101497000000001,
+          "errores": 0
+        }
+      },
+      "transcripcion": [
+        "¡Hola! Quiero más información sobre el costo de un juego completo de llantas 225/70 R15 para camioneta 🛻🛻 MAZDA BT 50...buena tarde... gracias",
+        "¡Hola, Mario! 👋 Soy el asistente de Depot Tire. Le cotizo al instante con stock y precios reales, comparo modelos y le armo su cotización para tienda.",
+        "[image] Opciones enviadas: KENDA KR100 · KENDA KR33A · KENDA KR15",
+        "Para afinarle la recomendación sobre las opciones que le envié, dígame una sola cosa: ¿qué prioriza usted?\n\n1) *Costo* — la más conveniente de precio\n2) *Equilibrio* — la que mejor balancea precio y rendimiento\n3) *Premium* — la de máxima calidad y durabilidad\n\nCon eso le dejo la opción exacta para su medida.",
+        "2...o 3...por favor... gracias",
+        "[image] Comparativa enviada: KENDA KR33A · KENDA KR15",
+        "Le dejo la comparativa 👆\n\n🔴 *KENDA KR33A* — ver ficha · $132.84 c/u\n🔴 *KENDA KR15* — ver ficha · $99.69 c/u\n\nℹ️ No tengo fichas técnicas verificadas de estos diseños para recomendar uno por desempeño.",
+        "¿Para qué la usa más: ciudad y carretera, o también caminos mixtos e irregulares?",
+        "El día de mañana le confirmo...por favor...pero más seguro la 2",
+        "Claro, quedo pendiente de su confirmación 👍",
+        "[El cliente mandó un mensaje que el bot no puede ver (sticker, video o similar). Probablemente sea un gesto de acuerdo o agradecimiento: NO reinicies la conversación, NO vuelvas a pedir la medida ni mandes la guía, y NO te presentes de nuevo. Sigue donde estaba el hilo: responde breve y, si hay algo pendiente, recuérdalo en una línea.]",
+        "Perfecto, dejamos como opción más segura la 2: *KENDA KR33A* en 225/70R15, $132.84 c/u con IVA.\n\nIncluye instalación, alineación, balanceo, seguro gratuito y mantenimiento cada 10.000 km.",
+        "¿Le parece bien que mañana, cuando confirme, avancemos con esa opción?",
+        "🛞 ¿Cómo vio la opción 225/70R15? También puedo ayudarle a compararla con las otras opciones 😊"
+      ]
+    }
+  ]
+}
