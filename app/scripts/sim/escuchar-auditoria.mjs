@@ -75,16 +75,20 @@ const ESCENARIOS = [
   {
     id: "E5",
     familia: "redes",
-    titulo: "Joaquín, 10-sep · el beneficio de redes tiene que salir tras la cotización",
-    mensajes: ["¡Hola! Quiero más información", "205/55R16", "1"],
+    // Hasta el 12-sep el beneficio salía solo tras cotizar (pedido de Joaquín).
+    // Manuel lo probó ese día y cambió la regla: solo si el cliente pregunta.
+    titulo: "beneficio de redes: no sale solo tras cotizar, sale una vez si lo piden (Manuel, 12-sep)",
+    mensajes: ["¡Hola! Quiero más información", "205/55R16", "1", "¿Tienen algún beneficio o promoción?"],
     juzgar: (r) => {
-      const todo = textoDeTodos(r.turnos);
       const cots = r.estadoFinal?.cotizaciones ?? [];
       if (!cots.length) return ["no llegó a cotizar, así que no se pudo juzgar el beneficio"];
       const fallas = [];
-      if (!/redes sociales/i.test(todo)) fallas.push("no mencionó el beneficio de redes sociales");
-      if (!/alineaci[óo]n \+ rotaci[óo]n/i.test(todo)) fallas.push("no nombró la alineación + rotación");
-      const veces = (todo.match(/beneficio adicional por venir/gi) ?? []).length;
+      const antes = textoDeTodos(r.turnos.slice(0, -1));
+      const alPedirlo = textoDeTodos(r.turnos.slice(-1));
+      if (/beneficio adicional por venir de/i.test(antes)) fallas.push("el beneficio salió solo, sin que lo pidiera");
+      if (!/redes sociales/i.test(alPedirlo)) fallas.push("al pedirlo no mencionó el beneficio de redes sociales");
+      if (!/alineaci[óo]n \+ rotaci[óo]n/i.test(alPedirlo)) fallas.push("al pedirlo no nombró la alineación + rotación");
+      const veces = (textoDeTodos(r.turnos).match(/beneficio adicional por venir de/gi) ?? []).length;
       if (veces > 1) fallas.push(`el beneficio salió ${veces} veces`);
       return fallas;
     },

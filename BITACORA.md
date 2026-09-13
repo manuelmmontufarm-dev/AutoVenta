@@ -1,3 +1,15 @@
+## 12-sep-2026 · El escenario del beneficio de redes sigue la regla nueva
+
+**Qué:** E5 de `scripts/sim/escuchar-auditoria.mjs` ahora exige que el beneficio
+NO salga solo tras cotizar y que salga una vez cuando el cliente pregunta
+«¿Tienen algún beneficio o promoción?».
+
+**Por qué:** La regla cambió el 12-sep por decisión de Manuel (solo si lo
+piden). El escenario viejo exigía el envío automático y marcaba como falla el
+comportamiento correcto.
+
+**Horas:** 0.1
+
 ## 12-sep-2026 · «Voy a estar en Quito» tampoco entra por la puerta del local
 
 **Qué:** `respondeAlDiaDeLaVisita` en `domain/customerCommitment.ts` decide si la
