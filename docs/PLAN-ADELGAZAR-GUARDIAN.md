@@ -93,7 +93,8 @@ Reglas que necesitan un cambio chico, con el molde ya existente.
 | 21 — el tipo de llanta sale del catálogo | 326 | Es una comparación contra el `CATÁLOGO DE HOY` (el tipo viene entre corchetes en cada fila). Candado nuevo en `domain/`, con el molde de `tireTypes.ts` / `restriccionesLlanta.ts`. |
 | 15 — recorte de la enumeración | ~250 | Quitar de la rúbrica la lista cerrada de preguntas prohibidas (la cubre el candado en las 3 puertas) y **conservar** el «no puede quedar mudo» y la exención del aviso de cantidad grande. Ajustar `test/preguntasProhibidas.test.ts:120`. |
 
-Ahorro estimado: $0,136 → $0,115 por conversación.
+Ahorro estimado: ~~$0,136 → $0,115~~ → **$0,007–0,011 por conversación**
+(773 tokens con la 15 recortada, 1.156 con la 15 entera). Ver «Remedición».
 
 Antes de tocar la 15, leer la cabecera de
 [`preguntasProhibidas.ts`](../app/src/domain/preguntasProhibidas.ts): documenta
@@ -108,12 +109,34 @@ delicada porque toca las cuatro puertas de salida.
 
 | Regla | Tokens | Hallazgos/mes | Candado a escribir |
 |---|---|---|---|
-| 22 — sin medida no hay cotización | 611 | 33 | Estado (`MEDIDA NO CONFIRMADA` vs `ARO DADO`) + detección de anuncio de cotización. Base: `medidaConfirmada.ts`, `medidaPedida.ts` |
+| 22 — sin medida no hay cotización | 469 | 33 | Estado (`MEDIDA NO CONFIRMADA` vs `ARO DADO`) + detección de anuncio de cotización. Base: `medidaConfirmada.ts`, `medidaPedida.ts` |
 | 19 — reofrece lo aceptado | 248 | 18 | `ofertaAceptada.ts` ya existe y **no tiene paso en `PASOS`** |
 | 20 — el ancho rechazado | 193 | 28 | `restriccionesLlanta.ts` ya existe, mismo caso |
 | 11 — negativa específica con alternativa | 237 | — | Necesita la huella de herramientas del turno |
 
-Ahorro estimado: $0,115 → $0,085 por conversación.
+Ahorro estimado: ~~$0,115 → $0,085~~ → **~$0,011 por conversación** con las
+cuatro, ~$0,008 sin la 11. Ver «Remedición».
+
+## Remedición (12-sep-2026, noche, sobre `main` + nivel 1)
+
+- **Los tokens de este plan son caracteres ÷ 4**, no un tokenizer: todas las
+  reglas dan 4,0 car/token salvo la 22, que estaba mal (1.876 caracteres → 469,
+  no 611). Sirven para comparar entre reglas; para decidir, medir con el
+  `usage` real de las corridas.
+- **El ahorro de los niveles 2 y 3 estaba inflado ~2,5×.** Con la proporción
+  medida del nivel 1 (473 tokens → $0,0043, caché incluido), todo lo que queda
+  junto da como mucho **$0,136 → ~$0,115**, no $0,085. Consecuencia: no vale
+  arriesgar calidad en las reglas de juicio (22, 11) por ~$0,004 cada una.
+- **La salida pesa más que todo el nivel 3**: 36 % × $0,079 ≈ $0,028 por
+  conversación (sección siguiente).
+- `PASOS` tiene ahora **29 pasos**; el guardián sigue en el 3.
+- La regla 20 ya se cumple en parte río arriba: las búsquedas de catálogo
+  filtran los anchos rechazados (`agent/tools.ts`). La brecha es el texto libre.
+- La excepción de la regla 21 (el guardián puede nombrar una llanta del tipo
+  pedido) choca con `guardian_no_vende_solo`, que frena toda corrección que
+  agregue un producto y no conoce esa excepción. Verificar si hoy está muerta.
+- El pedido de diseño corregido, con modo sombra y «regla a demanda», está en
+  [`PEDIDO-DISENO-NIVEL-2-3.md`](PEDIDO-DISENO-NIVEL-2-3.md).
 
 ## La otra palanca, sin tocar ninguna regla
 

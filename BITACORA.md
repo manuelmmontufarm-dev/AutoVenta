@@ -1,3 +1,24 @@
+## 12-sep-2026 · El plan de adelgazar al guardián se remide, y el pedido de diseño se corrige
+
+**Qué:** Se juntó el nivel 1 (`e6cbe92`) con `main` en la rama
+`perf/adelgazar-guardian` (typecheck y 2.055 pruebas en verde) y se volvió a
+medir. `docs/PLAN-ADELGAZAR-GUARDIAN.md` gana una sección «Remedición» y
+`docs/PEDIDO-DISENO-NIVEL-2-3.md` reemplaza al pedido de diseño original para
+los niveles 2 y 3.
+
+**Por qué:** Manuel preguntó si el pedido servía para ahorrar tokens sin que
+aparecieran errores después. Al medir salieron cuatro cosas: el nivel 1 no
+estaba en `main`; los tokens del plan eran caracteres ÷ 4 (la regla 22 son 469,
+no 611); el ahorro de los niveles 2 y 3 estaba inflado ~2,5× ($0,136 → ~$0,115,
+no $0,085), así que no vale arriesgar las reglas de juicio por ~$0,004 cada
+una; y la salida del guardián (~$0,028 por conversación) pesa más que todo el
+nivel 3. El pedido nuevo exige modo sombra antes de borrar cada regla, evaluar
+«regla a demanda», una regla por cambio, y resuelve dos choques que el viejo no
+veía: la regla 20 ya se filtra en las herramientas, y la excepción de la 21 la
+frena `guardian_no_vende_solo`.
+
+**Horas:** 1
+
 ## 12-sep-2026 · La respuesta fija reemplaza la del modelo, y el descuento se dice por llanta
 
 **Qué:** `domain/respuestaDelTema.ts` (`sinFrasesDelTema`): cuando un candado
