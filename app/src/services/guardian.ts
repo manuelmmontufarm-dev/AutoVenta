@@ -530,7 +530,7 @@ export async function armarContexto(
       // de 4 llantas FALKEN ZE310 que eligió» — una promesa sin cotización.
       const conCarro = Boolean(hechos?.vehicle) || entrantes.some((t) => mencionaVehiculo(t));
       return conCarro && variasMedidasEnPantalla
-        ? `ARO DADO POR EL CLIENTE: rin ${aro}, PERO en pantalla hay VARIAS MEDIDAS de ese aro y el cliente dio un VEHÍCULO sin escribir su medida. Elegir una marca no elige una medida: antes de cotizar se confirma la medida de la opción elegida («¿Su llanta dice 215/40R17?»). Esa pregunta es la legítima del turno y se conserva: NO es pregunta_de_mas, y NO la reescribas como si la cotización ya estuviera hecha.`
+        ? `ARO DADO POR EL CLIENTE: rin ${aro}, PERO en pantalla hay VARIAS MEDIDAS de ese aro y el cliente dio un VEHÍCULO sin escribir su medida. Elegir una marca no elige una medida: antes de cotizar se le pide leer la medida del costado de su llanta («¿Qué medida dice en el costado de su llanta?»). PROHIBIDO proponerle una medida de la lámina como si fuera la suya: «¿Su llanta dice 215/40R17?» invita a decir que sí sin mirar, y ese carro quizá no usa esa medida (12-sep, Qashqai 2020). Esa pregunta es la legítima del turno y se conserva: NO es pregunta_de_mas, y NO la reescribas como si la cotización ya estuviera hecha.`
         : `ARO DADO POR EL CLIENTE: rin ${aro}. Las opciones mostradas son de ese aro y cada una lleva su medida en la lámina. Si elige una, se cotiza con la medida de esa opción: NO se le pide «la medida exacta» para cotizar lo que ya eligió.`;
     })(),
     hechos?.selected_quantity != null ? `Cantidad elegida: ${hechos.selected_quantity}` : null,

@@ -1,3 +1,36 @@
+## 12-sep-2026 · Lo que falló en las pruebas de Manuel en producción
+
+**Qué:** Seis familias, cada una desde su causa. (1) La forma del turno: el
+beneficio de redes ya no sale solo; se contesta si el cliente lo pide
+(`el_beneficio_se_responde`, antes de separar la pregunta). La regla «después
+de separar la pregunta solo se quita» la hace cumplir `correrPasos` con
+`domain/soloQuita.ts`. El separador lleva con la pregunta la frase que
+desemboca en ella, y `sin_frase_colgando` es la red final. (2) Ráfagas: una
+respuesta completa al frente de la ráfaga (el número del menú, una medida
+sola) es su propio turno (`domain/rafaga.ts`); «los dos valores» habla de las
+opciones aunque el menú haya quedado atrás, y ya no es cantidad. (3) Ruta
+directa para reenviar la lámina de opciones; `reenviar_cotizacion` se niega si
+piden opciones. (4) `local_mas_cercano` exige una ubicación dicha por el
+cliente; el descuento se contesta con el de su cotización; el candado de pago
+quita las frases de pago que no responden. (5) La captura de visita exige
+cotización y no etapa; «voy a estar en Quito» no es visita; tras una lámina
+sin cotización no se insiste con el local. (6) Media medida en pulgadas no se
+contesta con métricas; `buscar_llanta` no busca una medida que el cliente no
+dio; la confirmación pide leer el costado; las medidas de otro aro dejan de
+ser «su medida»; el aro de una medida en pulgadas cuenta; la lámina por aro
+dice «POR CONFIRMAR». Pruebas: tres archivos `trasPruebas*` con los mensajes
+reales. Escenario `scripts/sim/tras-pruebas.mjs`: el chat de Manuel entero,
+en orden, con sus ráfagas.
+
+**Por qué:** Manuel probó los 24 casos en producción el 12-sep (conv 3,
+17:14–17:42). Fallaron o salieron a medias diez. Lo peor lo metí yo: el
+beneficio de redes corría después de separar la pregunta, quedaba detrás de
+«¿A cuál local le queda mejor ir?» y le quitaba los botones. Y el simulador
+había aprobado casos que producción no, porque cada escenario corría solo,
+con el chat limpio, un mensaje por turno y jueces que buscaban frases.
+
+**Horas:** 4
+
 ## 12-sep-2026 · Los datos que el cliente pregunta y el bot no tenía
 
 **Qué:** `domain/datosDelNegocio.ts` con tres cosas: `politicaDePagos()` (el

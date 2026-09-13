@@ -83,6 +83,7 @@ import { tryRutaOtroDia } from "./services/rutaOtroDia.js";
 import { tryCotizarLoElegido } from "./services/cotizarLoElegido.js";
 import { tryMostrarPorAro } from "./services/mostrarPorAro.js";
 import { tryRecotizarPorCantidad } from "./services/recotizar.js";
+import { tryReenviarOpciones } from "./services/reenviarOpciones.js";
 import { tryRecomendarConLaPieza } from "./services/recomendarConLaPieza.js";
 import { firstContactReply, isGenericFirstContact } from "./domain/firstContact.js";
 import { despedidaQueCorresponde } from "./domain/cierrePerdido.js";
@@ -355,6 +356,9 @@ const pipeline = new InboundPipeline(async ({ from, name, text, waMessageIds, qu
           { conversation, customerPhone: from, customerName: name, previousOutbound, mensajeCitado },
           textoConLinks,
         ))
+        // «Déjeme ver las opciones otra vez»: la lámina, no la cotización (12-sep).
+        // Ver services/reenviarOpciones.ts.
+        ?? await tryReenviarOpciones({ conversation, customerPhone: from, customerName: name }, textoConLinks)
         // Un número distinto al cotizado recotiza. Ver services/recotizar.ts.
         ?? await tryRecotizarPorCantidad(
           { conversation, customerPhone: from, customerName: name, previousOutbound, mensajeCitado },

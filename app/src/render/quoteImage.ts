@@ -197,6 +197,7 @@ export async function renderOptionsImage(data: OptionsRenderData): Promise<Buffe
   const lines = data.medidaPedida ? marcarExactitud(base, data.medidaPedida) : base.map((line) => ({
     ...line,
     medidaExacta: false,
+    medidaPorConfirmar: true,
   }));
   const aro = data.medidaPedida ? null : aroDe(base[0]?.sizeLabel);
   const node = optionsPoster(

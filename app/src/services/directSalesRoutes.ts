@@ -46,8 +46,12 @@ export function canUseDirectVisitRoute(input: {
   hasCommitment: boolean;
   text: string;
 }): boolean {
-  const closingStage = input.stage === "cotizacion_enviada" || input.stage === "seguimiento_venta";
-  if (!closingStage && !input.hasQuote) return false;
+  // CON COTIZACIÓN, NO CON LA ETAPA (12-sep, conv 3, 17:28). Tras «Estoy en
+  // Guayaquil» el clasificador movió el tablero a seguimiento sin cotización, y
+  // «Yo el lunes voy a estar en quito» se anotó como visita confirmada y le
+  // llegó al asesor «CONFIRMÓ VISITA · Sin cotización todavía». La etapa es
+  // una lectura del modelo; la cotización es el hecho.
+  if (!input.hasQuote) return false;
   if (!input.hasExplicitStore && !input.hasCommitment) return false;
   return !input.text.includes("?") && normalized(input.text).split(/\s+/).length <= 18;
 }

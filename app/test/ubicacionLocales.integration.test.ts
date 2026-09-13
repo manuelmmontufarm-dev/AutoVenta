@@ -151,6 +151,8 @@ describe("ubicacion_locales", () => {
  * necesita ver los dos y decidir.
  */
 describe("local_mas_cercano", () => {
+  // Desde el 12-sep el sector o el pin tienen que salir de lo que escribió el
+  // cliente (caso 1 de las pruebas de Manuel): el texto de cada caso es el suyo.
   function local(fila: Fila, phone: string, texto = "estoy por el sector") {
     return herramientaLlamada("local_mas_cercano", fila, phone, texto);
   }
@@ -215,7 +217,7 @@ describe("local_mas_cercano", () => {
     const fila = await conversacion(phone);
 
     const salida = JSON.parse(
-      await local(fila, phone).execute({ lat: null, lng: null, sector: "al sur" }),
+      await local(fila, phone, "al sur por favor el viernes").execute({ lat: null, lng: null, sector: "al sur" }),
     );
     const mensaje: string = salida.mensaje_para_enviar;
 
@@ -240,7 +242,7 @@ describe("local_mas_cercano", () => {
     const fila = await conversacion(phone);
 
     const salida = JSON.parse(
-      await local(fila, phone).execute({ lat: null, lng: null, sector: "Vlle de los chillos" }),
+      await local(fila, phone, "Vlle de los chillos").execute({ lat: null, lng: null, sector: "Vlle de los chillos" }),
     );
 
     expect(salida.local).toBe("Depot Tire Quito Sur");
@@ -253,7 +255,7 @@ describe("local_mas_cercano", () => {
     const fila = await conversacion(phone);
 
     const salida = JSON.parse(
-      await local(fila, phone).execute({ lat: -0.199, lng: -78.44, sector: null }),
+      await local(fila, phone, "[El cliente compartió su ubicación: lat -0.199, lng -78.44]").execute({ lat: -0.199, lng: -78.44, sector: null }),
     );
     const mensaje: string = salida.mensaje_para_enviar;
 

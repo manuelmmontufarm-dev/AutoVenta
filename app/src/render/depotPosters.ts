@@ -91,6 +91,12 @@ export interface PosterLine {
    * de ahí salió una cotización firmada en la medida equivocada (13-ago).
    */
   medidaExacta?: boolean | null;
+  /**
+   * Sin medida del cliente (lámina por aro): la tarjeta no puede decir que «le
+   * entra». Dice que la medida está por confirmar (12-sep, conv 3: «rin 14»
+   * salió con «185/60R14 · LE MONTA, pero le entra: mismo aro 14»).
+   */
+  medidaPorConfirmar?: boolean;
 }
 
 const savingsPct = (line: PosterLine): string | null => {
@@ -495,6 +501,18 @@ function selloDeMedida(line: PosterLine, t: (n: number) => number): SatoriNode |
   // medida partida a la mitad es peor que nada— una sola frase larga se salía
   // de la tarjeta y se cortaba justo en el aro. Partida, el renglón más largo
   // mide poco más que el título y entra en la columna más estrecha.
+  if (line.medidaPorConfirmar) {
+    return el({
+      flexDirection: "column", gap: t(1), backgroundColor: "#fff3d6", borderRadius: t(8),
+      border: "2px solid #dda017", padding: `${t(6)}px ${t(12)}px`, alignSelf: "flex-start",
+    },
+      text({ fontSize: t(15), fontWeight: 700, color: "#7a4e08", whiteSpace: "nowrap" },
+        `${line.sizeLabel} · POR CONFIRMAR`),
+      text({ fontSize: t(11.5), fontWeight: 600, color: "#8a5c10", whiteSpace: "nowrap" },
+        "Revise que su llanta"),
+      text({ fontSize: t(11.5), fontWeight: 600, color: "#8a5c10", whiteSpace: "nowrap" }, "diga esta medida"),
+    );
+  }
   const razon = aro ? `pero le entra: mismo aro ${aro}` : "pero le entra: es equivalente";
   return el({
     flexDirection: "column", gap: t(1), backgroundColor: "#fff3d6", borderRadius: t(8),

@@ -65,3 +65,30 @@ export function ahorroDeLaCotizacion(
 export function fraseDeAhorro(ahorro: AhorroDeLaCotizacion): string {
   return `*${ahorro.porcentaje} %* de descuento ya aplicado, *$${ahorro.monto.toFixed(2)}* menos`;
 }
+
+/**
+ * ¿El cliente habla del descuento de SU cotización?
+ *
+ * Caso 1 de las pruebas del 12-sep (conv 3, 17:16): «La promoción del 25% q son
+ * 103$.64 menos» recibió el local recomendado, «¿qué día podría pasar?» y el
+ * mapa. Nadie le contestó lo que dijo. Pide cifras o una pregunta sobre el
+ * descuento: «¿tienen alguna promoción?» es otra cosa (`preguntaPorBeneficios`).
+ */
+export function hablaDelDescuento(texto: string | null | undefined): boolean {
+  const n = (texto ?? "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  if (!/\bdescuentos?\b|\bpromo(?:cion)?\b|\brebaja\b|\bahorr\w*\b/.test(n)) return false;
+  return /\d|%|\bcuanto\b|\bmenos\b|\baplica\w*\b|\bincluid\w*\b|\bdescontad\w*\b/.test(n);
+}
+
+/** ¿El texto ya dice el porcentaje y que está descontado? */
+export function respondeElDescuento(texto: string, ahorro: AhorroDeLaCotizacion): boolean {
+  const n = texto.toLowerCase();
+  const porcentaje = n.includes(`${ahorro.porcentaje} %`) || n.includes(`${ahorro.porcentaje}%`);
+  return porcentaje && /aplicad|incluid|descontad/.test(n);
+}
+
+/** Lo que se le contesta: el porcentaje, el monto y que no se resta dos veces. */
+export function respuestaDelDescuento(ahorro: AhorroDeLaCotizacion): string {
+  return `Así es: su cotización ya trae el *${ahorro.porcentaje} %* de descuento, *$${ahorro.monto.toFixed(2)}* menos. `
+    + "Ese valor ya está descontado del total que le envié; no se resta otra vez.";
+}

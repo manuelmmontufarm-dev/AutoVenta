@@ -1,6 +1,7 @@
 import { diaDelMesSuelto, diaEnTexto, fechaDeCalendario, franjaHoraria, normalizarTexto, relativoEnTexto } from "./diasEnEspanol.js";
 
-const INTENT = /\b(?:voy|ire|iré|vamos|paso|pasare|pasaré|recojo|recogeré|retiro|retiraré|compro|compraré|visito|visitaré|llego|llegaré|bisito|voi)\b/i;
+// «Voy a estar en Quito» dice dónde va a estar, no que viene al local (12-sep, conv 3).
+const INTENT = /\b(?:voy(?!\s+a\s+estar)|ire|iré|vamos(?!\s+a\s+estar)|paso|pasare|pasaré|recojo|recogeré|retiro|retiraré|compro|compraré|visito|visitaré|llego|llegaré|bisito|voi)\b/i;
 
 /** Compromisos sin fecha exacta: valen como respuesta, no como día del calendario. */
 const VAGO = /\b(?:esta semana|en la semana|este finde|el finde|fin de semana|proxima semana|la otra semana|la siguiente semana)\b/;

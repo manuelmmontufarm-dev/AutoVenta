@@ -71,16 +71,13 @@ import { getAiConfig, getPiecesConfig } from "../services/settings.js";
 import { researchVehicleFitment } from "../services/vehicleFitmentResearch.js";
 import { arosDeCandidatos, arosDeMedidas, invitacionPorAroAmbiguo } from "../domain/fitmentResearch.js";
 import { aroVigenteDeLaVisita, rangoDeAros } from "../domain/aros.js";
-import { nearestStore, resolveSector } from "../domain/locations.js";
+import { nearestStore, resolveSector, ubicacionDadaPorElCliente } from "../domain/locations.js";
 import { ordenarPorCercania } from "../domain/equivalencia.js";
-import { extractFlotationSizes, formatFlotationSize, formatTireSize, parseTireSize, type TireSize } from "../domain/tireSize.js";
+import { extractFlotationSizes, formatFlotationSize, formatTireSize, parseTireSize, type TireSize, flotacionIncompleta } from "../domain/tireSize.js";
 import { marcaPreguntada, pidioCotizacionExplicita, ultimaMarcaPedida } from "../domain/consultaConRespaldo.js";
-import {
-  autorizaCotizacionEnEsteTurno, canGenerateFinalQuote, cantidadParaPrepararOpciones, describeUso, escalonesDeOpciones,
-  pideAlternativaMasBarata, pideRecomendacion, respuestaDePreferencia,
-} from "../domain/salesIntent.js";
+import { autorizaCotizacionEnEsteTurno, canGenerateFinalQuote, cantidadParaPrepararOpciones, describeUso, escalonesDeOpciones, pideAlternativaMasBarata, pideRecomendacion, respuestaDePreferencia, pideOpcionesNoCotizacion } from "../domain/salesIntent.js";
 import { equivalenteSinConsentimiento, preguntaDeEquivalente } from "../domain/equivalentePendiente.js";
-import { aroDadoPorElCliente, medidaParaElSello } from "../domain/medidaConfirmada.js";
+import { aroDadoPorElCliente, medidaParaElSello, medidaNoDada, medidasDelAro } from "../domain/medidaConfirmada.js";
 import { eleccionDeLaVitrina } from "../domain/eleccionDeVitrina.js";
 import { pideVerOpciones } from "../domain/salesIntent.js";
 import { getTirePatternProfile } from "../domain/tireKnowledge.js";
@@ -767,6 +764,33 @@ export function buildTools(ctx: AgentContext) {
         }
       }
 
+      // UNA MEDIDA QUE EL CLIENTE NO DIO NO SE BUSCA (12-sep, conv 3, 17:32).
+      // Tras «rin 14», a «Que opciones tiene y precio del juego» el modelo buscó
+      // 185/60R14 y la lámina salió en esa medida. Ver `medidaNoDada`.
+      const medidaBuscada = formatTireSize({ width, aspect, rim });
+      const entrantesDelCiclo = await sql<{ content: string }[]>`
+        select content from messages
+        where conversation_id=${ctx.conversation.id} and cycle=${ctx.conversation.current_cycle}
+          and direction='inbound'
+        order by created_at desc limit 12
+      `;
+      const [fichaDeMedida] = await sql<{ tire_size: string | null }[]>`
+        select tire_size from conversations where id=${ctx.conversation.id}
+      `;
+      const aroSolo = medidaNoDada({
+        medida: medidaBuscada,
+        textos: [ctx.currentUserText, ...entrantesDelCiclo.map((m) => m.content)],
+        medidaDeLaFicha: fichaDeMedida?.tire_size,
+        huboFitment: (ctx.toolTrace ?? []).some((t) => t.herramienta === "fitment_vehiculo"),
+      });
+      if (aroSolo) {
+        return JSON.stringify({
+          error: "medida_no_dada",
+          aro_del_cliente: aroSolo,
+          regla: `El cliente NO escribió la medida ${medidaBuscada}: solo dio el aro ${aroSolo}. PROHIBIDO buscar o mostrar una medida que no dio. Si ya tiene la lámina de su aro, contesta en texto sobre esa; si no, usa buscar_por_aro_y_tipo con aro ${aroSolo}.`,
+        });
+      }
+
       const size = { width, aspect, rim };
       const exact = searchBySize(size);
       const alternatives = exact.some((i) => i.stock > 0) ? [] : searchAlternatives(size);
@@ -865,6 +889,34 @@ export function buildTools(ctx: AgentContext) {
     }),
     run: async ({ aro, tipo, uso }) => {
       await ensureCatalogReady();
+      // MEDIA MEDIDA EN PULGADAS NO SE CONTESTA CON MÉTRICAS (12-sep, conv 3,
+      // 17:40). «¿Dispone llantas MT 30.5 r15?» terminó en «la opción que
+      // tengo es KENDA KR29 en medida 235/75R15». Falta el ancho: se pregunta, y
+      // se nombran las de pulgadas que sí hay en ese aro.
+      const incompleta = flotacionIncompleta(ctx.currentUserText ?? "");
+      if (incompleta && incompleta.rim === aro) {
+        const enPulgadas = [...new Map(
+          searchByRim(aro)
+            .filter((item) => item.stock > 0 && item.sizeLabel && extractFlotationSizes(item.sizeLabel).length > 0)
+            .map((item) => {
+              const medida = extractFlotationSizes(item.sizeLabel!)[0];
+              return [formatFlotationSize(medida), medida.diameter] as const;
+            }),
+        ).entries()]
+          .sort(([, a], [, b]) => Math.abs(a - incompleta.diameter) - Math.abs(b - incompleta.diameter))
+          .map(([etiqueta]) => etiqueta)
+          .slice(0, 4);
+        return JSON.stringify({
+          encontrado: false,
+          aro,
+          medida_incompleta: `${incompleta.diameter} R${aro}`,
+          falta: "ancho",
+          medidas_en_pulgadas_con_stock: enPulgadas,
+          regla: `El cliente escribió una medida en pulgadas incompleta (${incompleta.diameter} R${aro}): falta el ANCHO, la cifra del medio. `
+            + "PROHIBIDO ofrecer o nombrar medidas métricas (del tipo 235/75R15) como si fueran la suya. "
+            + `Pregúntale el ancho${enPulgadas.length ? ` y nómbrale las que sí hay: ${enPulgadas.join(", ")}` : ""}.`,
+        });
+      }
       // La medida que el cliente ya confirmó entra al filtro. Sin esto, «una
       // A/T» con 265/65R18 en la ficha devolvía A/T de cualquier medida del
       // aro 18 (25-ago): el aro llega por el parámetro, la medida se quedaba
@@ -1413,7 +1465,8 @@ export function buildTools(ctx: AgentContext) {
       const medidasDichas = medidasPermitidas(textosDeLaVisita, null);
       const coherentes = aroVigente
         ? encontradosPermitidos.filter(
-            (p) => p.size?.rim === aroVigente || medidaEstaPedida(p.sizeLabel, medidasDichas),
+            // El aro de una medida en pulgadas también cuenta (12-sep: la 32X11.50R15 se rechazó como «otro aro»).
+            (p) => (p.size?.rim ?? aroDeMedida(p.sizeLabel)) === aroVigente || medidaEstaPedida(p.sizeLabel, medidasDichas),
           )
         : encontradosPermitidos;
       if (aroVigente && !coherentes.length) {
@@ -1501,10 +1554,12 @@ export function buildTools(ctx: AgentContext) {
       `;
       // Misma ventana que el candado de la cotización: lo que pidió en otra
       // visita no vuelve «de su medida» a una llanta que no lo es.
-      const permitidasOpciones = medidasPermitidas(
+      // Con un aro vigente, las medidas de otro aro ya no son «su medida»
+      // (12-sep, Qashqai tras 32x10.50 y 33x12.50). Ver `medidasDelAro`.
+      const permitidasOpciones = medidasDelAro(medidasPermitidas(
         [ctx.currentUserText, ...mensajesDeLaVisitaActual(inbound).map((m) => m.content)],
         medidaDeLaConversacion?.tire_size,
-      );
+      ), aroVigente);
       const fueraDeMedida = products.filter(
         (p) => !medidaEstaPedida(p.sizeLabel, permitidasOpciones),
       );
@@ -2878,6 +2933,15 @@ export function buildTools(ctx: AgentContext) {
       "Reenvía la imagen de la última cotización cuando el cliente la pide otra vez o dice que no le llegó. No crea otro número ni recalcula precios.",
     schema: z.object({}),
     run: async () => {
+      // LAS OPCIONES NO SON LA COTIZACIÓN (12-sep, conv 3, 17:21): a «dejeme ver
+      // las opciones otra vez» el modelo llamó esta herramienta y llegó la
+      // cotización. La lámina la reenvía `services/reenviarOpciones.ts`.
+      if (pideOpcionesNoCotizacion(ctx.currentUserText ?? "")) {
+        return JSON.stringify({
+          error: "pidio_las_opciones",
+          regla: "El cliente pidió ver las OPCIONES, no la cotización: NO reenvíes la cotización. Vuelve a mandar la lámina con preparar_opciones usando los mismos códigos de la última lámina.",
+        });
+      }
       const message = await resendLatestQuoteImage(ctx.conversation.id, ctx.customerPhone).catch((error) => {
         console.error("❌ No se pudo reenviar la cotización:", error);
         return null;
@@ -2956,6 +3020,27 @@ export function buildTools(ctx: AgentContext) {
             regla: visitKnown
               ? "Responde exactamente con mensaje_para_enviar. No vuelvas a preguntar local ni fecha."
               : "Responde exactamente con mensaje_para_enviar, con el link de Maps incluido, y pregunta únicamente la fecha.",
+          });
+        }
+      }
+      // EL LOCAL SE ELIGE CON UNA UBICACIÓN DEL CLIENTE (12-sep, conv 3, 17:17).
+      // A «La promoción del 25% q son 103$.64 menos» el modelo llamó esta
+      // herramienta con una ubicación que nadie dio, y salió «El local
+      // recomendado es Depot Tire Cumbayá». Ver `ubicacionDadaPorElCliente`.
+      if (lat != null || lng != null || sector) {
+        const entrantesDeUbicacion = await sql<{ content: string }[]>`
+          select content from messages
+          where conversation_id=${ctx.conversation.id} and cycle=${ctx.conversation.current_cycle}
+            and direction='inbound'
+          order by created_at desc limit 12
+        `;
+        if (!ubicacionDadaPorElCliente({
+          textos: [ctx.currentUserText, ...entrantesDeUbicacion.map((m) => m.content)],
+          sector, lat, lng,
+        })) {
+          return JSON.stringify({
+            error: "ubicacion_no_dada",
+            regla: "El cliente NO compartió su ubicación ni nombró un sector en esta conversación: no elijas local por él. Contesta exactamente lo que escribió en su último mensaje; si hace falta el local, pregúntale a cuál de los dos le queda mejor ir.",
           });
         }
       }

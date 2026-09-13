@@ -44,8 +44,12 @@ import { notifyAdvisor } from "./advisorNotifications.js";
 import { sql } from "../db/client.js";
 import { dondeEstaElCliente } from "../domain/fueraDeCobertura.js";
 import { sinVisitaNiMapas } from "../domain/visitaImposible.js";
-import { BENEFICIO_DE_REDES, yaSalioElBeneficioDeRedes } from "../domain/beneficioDeRedes.js";
-import { politicaDePagos, preguntaPorElPago, respondeElPago } from "../domain/datosDelNegocio.js";
+import { BENEFICIO_DE_REDES, preguntaPorBeneficios, yaSalioElBeneficioDeRedes } from "../domain/beneficioDeRedes.js";
+import { sinFraseColgando } from "../domain/fraseColgando.js";
+import { soloQuitaOReordena } from "../domain/soloQuita.js";
+import { hablaDelDescuento, respondeElDescuento, respuestaDelDescuento } from "../domain/ahorro.js";
+import { ahorroVigente } from "./ahorroVigente.js";
+import { politicaDePagos, preguntaPorElPago, respondeElPago, sinPagoSinRespuesta } from "../domain/datosDelNegocio.js";
 import { sinNumerosDeCotizacion } from "../domain/numerosDeCotizacion.js";
 import { conPreguntaEnSuPropioMensaje } from "../domain/preguntaSola.js";
 import { despedidaQueCorresponde } from "../domain/cierrePerdido.js";
@@ -518,15 +522,60 @@ export const PASOS: readonly PasoDeSalida[] = [
     corre: ["respuesta", "retomada"],
     async aplicar(texto, ctx) {
       if (!preguntaPorElPago(ctx.textoDelCliente)) return texto;
+      // La frase de pago que no responde sale (12-sep, conv 3, 17:32): la
+      // política y «no le puedo confirmar un recargo» llegaron en el mismo
+      // turno. Ver `sinPagoSinRespuesta`.
+      const limpio = sinPagoSinRespuesta(texto);
+      if (limpio !== texto) {
+        console.warn(`💳 Conv ${ctx.conversation.id}: se quitó una frase de pago que no daba la respuesta.`);
+      }
       // Se pregunta si la RESPUESTA está, no cómo se escapó: el modelo redacta
       // la evasiva distinta cada vez («no puedo confirmar por este medio»,
       // «las condiciones exactas se las confirma el asesor», «se las confirma
       // el asesor en el local»), y perseguir frases es un juego que se pierde.
-      if (respondeElPago(texto)) return texto;
+      if (respondeElPago(limpio)) return limpio;
       console.warn(`💳 Conv ${ctx.conversation.id}: la pregunta de pago iba sin respuesta; se antepone el hecho.`);
       // El hecho va PRIMERO y el resto del turno se conserva: la pregunta de
       // cierre y los mapas los ponen y los revisan los pasos de siempre.
-      return `${politicaDePagos()}\n---\n${texto}`;
+      return limpio.trim() ? `${politicaDePagos()}\n---\n${limpio}` : politicaDePagos();
+    },
+  },
+  {
+    // EL DESCUENTO SE CONTESTA CON EL DE SU COTIZACIÓN.
+    //
+    // Caso 1 de las pruebas de Manuel, 12-sep (conv 3, 17:16):
+    //   CLIENTE: «La promoción del 25% q son 103$.64 menos»
+    //   BOT: «El local recomendado es Depot Tire Cumbayá… ¿Qué día podría pasar?»
+    //
+    // El modelo eligió la herramienta del local y su mensaje cerró el turno. El
+    // dato está en la cotización del ciclo, así que la respuesta no se le pide
+    // al modelo: va primero y el resto del turno se conserva.
+    nombre: "el_descuento_se_responde",
+    corre: ["respuesta", "retomada"],
+    async aplicar(texto, ctx) {
+      if (!hablaDelDescuento(ctx.textoDelCliente)) return texto;
+      const ahorro = await ahorroVigente(ctx.conversation.id, ctx.conversation.current_cycle);
+      if (!ahorro || respondeElDescuento(texto, ahorro)) return texto;
+      console.log(`🏷️ Conv ${ctx.conversation.id}: el cliente habló del descuento; se antepone el de su cotización.`);
+      return `${respuestaDelDescuento(ahorro)}\n---\n${texto}`;
+    },
+  },
+  {
+    // EL BENEFICIO DE REDES, SOLO SI LO PIDEN (Manuel, 12-sep).
+    //
+    // Hasta el 12-sep salía solo tras cada cotización, desde el final de la
+    // cadena, y quedaba DETRÁS de «¿A cuál local le queda mejor ir?»: la
+    // pregunta dejaba de ser lo último y sin ella al final no hay botones.
+    // Manuel lo probó y decidió: «el mensaje de los beneficios que solo lo
+    // mande si preguntan». Va acá, antes de separar la pregunta, y ANTES del
+    // turno: así la pregunta sigue cerrando.
+    nombre: "el_beneficio_se_responde",
+    corre: ["respuesta", "retomada"],
+    async aplicar(texto, ctx) {
+      if (!preguntaPorBeneficios(ctx.textoDelCliente)) return texto;
+      if (yaSalioElBeneficioDeRedes([texto])) return texto;
+      console.log(`🎁 Beneficio de redes contestado en la conv ${ctx.conversation.id}.`);
+      return `${BENEFICIO_DE_REDES}\n---\n${texto}`;
     },
   },
   {
@@ -827,43 +876,6 @@ export const PASOS: readonly PasoDeSalida[] = [
     },
   },
   {
-    // EL BENEFICIO DE REDES VA DESPUÉS DE LA COTIZACIÓN, SIEMPRE.
-    //
-    // Pedido de Joaquín, 10-sep: «que el bot comunique un beneficio extra para
-    // los clientes que vienen de redes sociales… La idea es que este mensaje
-    // salga automáticamente después de enviar la cotización».
-    //
-    // Va en la cadena de salida y no en `generar_cotizacion` porque el turno
-    // de la cotización no siempre sale con el `mensaje_para_enviar` de la
-    // herramienta: muchas veces el modelo escribe su propio texto después de
-    // llamarla, y ahí el bloque se perdía (probado en el simulador el 12-sep).
-    // Acá se mira si en este ciclo SE CREÓ una cotización, que es el hecho, no
-    // el camino.
-    nombre: "beneficio_de_redes_tras_cotizar",
-    corre: ["respuesta", "retomada"],
-    async aplicar(texto, ctx) {
-      const [fila] = await sql<{ hay_cotizacion: boolean }[]>`
-        select exists(
-          select 1 from quotes
-          where conversation_id=${ctx.conversation.id} and cycle=${ctx.conversation.current_cycle}
-        ) as hay_cotizacion
-      `;
-      if (!fila?.hay_cotizacion) return texto;
-      const enviados = await sql<{ content: string | null }[]>`
-        select content from messages
-        where conversation_id=${ctx.conversation.id} and cycle=${ctx.conversation.current_cycle}
-          and direction='outbound'
-        order by created_at desc limit 40
-      `;
-      // Cuenta también el que un asesor lo haya pegado a mano, que es como
-      // venía saliendo (convs 16982 y 18684): dos veces el mismo regalo se lee
-      // como un error, no como una atención.
-      if (yaSalioElBeneficioDeRedes([...enviados.map((m) => m.content), texto])) return texto;
-      console.log(`🎁 Beneficio de redes agregado en la conv ${ctx.conversation.id}.`);
-      return `${texto}\n---\n${BENEFICIO_DE_REDES}`;
-    },
-  },
-  {
     // AL QUE NO PUEDE VENIR, NI MAPAS NI VISITA.
     //
     // Familia más grande de la auditoría del 8 al 11-sep, 31 errores. El
@@ -898,6 +910,18 @@ export const PASOS: readonly PasoDeSalida[] = [
       // final de la cadena, donde ya no hay candados detrás que puedan revisar
       // un texto nuevo — agregar acá sería meter contenido sin revisar.
       return limpio.trim() ? limpio : null;
+    },
+  },
+  {
+    // NINGÚN MENSAJE SALE CORTADO CON SU COMA. La red del final: el 12-sep
+    // (conv 3, 17:29) salió «Perfecto. Para dejarle todo claro antes de su
+    // visita del lunes,». Solo recorta. Ver domain/fraseColgando.ts.
+    nombre: "sin_frase_colgando",
+    corre: ["respuesta", "retomada"],
+    async aplicar(texto, ctx) {
+      const { texto: limpio, recortado } = sinFraseColgando(texto);
+      if (recortado) console.warn(`✂️ Frase colgando recortada en la conv ${ctx.conversation.id}: «${recortado.slice(0, 120)}»`);
+      return limpio;
     },
   },
 ];
@@ -1003,14 +1027,44 @@ export async function prepararSalida(
   borrador: string,
   ctx: ContextoDeSalida,
 ): Promise<SalidaPreparada> {
+  return correrPasos(pasosPara(ctx.tipo), borrador, ctx);
+}
+
+/** El paso que parte la pregunta en su propio mensaje. Después de él, solo se quita. */
+const PASO_QUE_SEPARA = "pregunta_en_su_propio_mensaje";
+
+/**
+ * Corre una lista de pasos sobre el borrador.
+ *
+ * DESPUÉS DE SEPARAR LA PREGUNTA, SOLO SE QUITA O SE REORDENA, y lo hace
+ * cumplir el código. Hasta el 12-sep era un comentario y una prueba del orden;
+ * ese día el paso del beneficio de redes, que corría ahí, agregó un mensaje
+ * detrás de la pregunta del local y le quitó los botones (conv 3, 17:16). Si un
+ * paso de esa zona agrega texto, su cambio se descarta y queda en el log.
+ */
+export async function correrPasos(
+  pasos: readonly PasoDeSalida[],
+  borrador: string,
+  ctx: ContextoDeSalida,
+): Promise<SalidaPreparada> {
   let texto: string | null = borrador;
   const pasosCorridos: string[] = [];
   ctx.salidaTerminal = false;
-  for (const paso of pasosPara(ctx.tipo)) {
+  const separa = pasos.findIndex((paso) => paso.nombre === PASO_QUE_SEPARA);
+  for (const [indice, paso] of pasos.entries()) {
     if (!texto) break;
     pasosCorridos.push(paso.nombre);
+    const antes: string = texto;
     try {
-      texto = await paso.aplicar(texto, ctx);
+      const despues = await paso.aplicar(antes, ctx);
+      if (separa >= 0 && indice > separa && despues && !soloQuitaOReordena(antes, despues)) {
+        console.error(
+          `🚫 El paso ${paso.nombre} agregó texto después de separar la pregunta en la conv ${ctx.conversation.id}: se descarta su cambio.`,
+        );
+        texto = antes;
+      } else {
+        texto = despues;
+      }
       if (ctx.salidaTerminal) break;
     } catch (error) {
       console.error(`⚠️ El candado ${paso.nombre} falló en la conv ${ctx.conversation.id}:`, error);
