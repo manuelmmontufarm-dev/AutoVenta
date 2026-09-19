@@ -22,6 +22,81 @@ las cotizaciones actuales, logos idénticos a los reales y un modo día y noche
 que se cambie desde Ajustes.
 
 **Horas:** 3
+## 12-sep-2026 · Plan en nueve partes: misma calidad, menos tokens
+
+**Qué:** `docs/planning/PLAN-MENOS-TOKENS-MASTER-PROMPT.md`, con nueve partes
+en fila, una cada dos días, más un cierre. Orden: banco de pruebas (y publicar
+el nivel 1) → registrar todo el gasto → reglas 12 y 15 → 20 → 19 → 21 → 22 a
+demanda (la 11 se queda) → contexto del guardián al caché → salida del
+guardián → medición final. Cada parte trae su prompt, sus archivos, un pool
+dirigido que presiona lo que cambia y las compuertas para publicar.
+
+**Por qué:** Manuel pidió bajar tokens sin bajar la calidad, todo probado,
+todo el gasto registrado y una parte cada dos días. Tres cosas que salieron
+al investigar cambiaron el plan:
+- **Los 105 escenarios del T115 no existen.** Vivían en
+  `scripts/sim/datos/`, que git ignora entero. El banco de pruebas se
+  reconstruye versionado, desde la especificación y conversaciones reales.
+- **La evidencia para borrar reglas sale de los borradores reales.** En vez de
+  esperar semanas con el candado en observación, se corre su detector sobre los
+  borradores guardados en `guardian_reviews` (sombra histórica).
+- **Registrar el gasto va antes de cualquier ahorro.** Transcripción,
+  investigación de fitment, texto de seguimiento, visión de links y fallos del
+  guardián hoy no dejan tokens, así que medir sin eso sería medir con puntos
+  ciegos.
+
+**Horas:** 1,5
+
+## 12-sep-2026 · Una conversación estándar para medir el costo, y el ahorro de la rúbrica contado exacto
+
+**Qué:** `scripts/sim/estandar/conversacion-estandar.json` es la conversación
+promedio de producción (conv 18588: medida → opciones → sin cotización, 4
+mensajes del cliente, 4 corridas del guardián, $0,122 contra una media de
+$0,125). `scripts/sim/medir-conversacion-estandar.mjs` la corre N veces contra
+un simulador y deja tokens y costo por pieza en `scripts/sim/mediciones/` (con
+`historial.jsonl` para seguirlo en el tiempo). `scripts/guardian/contar-tokens-rubrica.mjs`
+cuenta exacto con `responses.inputTokens.count` cuánto pesa la rúbrica de dos
+árboles. `scripts/sim/estandar/perfil-historico.mjs` recalcula el promedio en
+producción (solo lectura). El simulador acepta `{ sticker: true }`. El método
+completo, con los puntos ciegos y las fuentes, está en `docs/COMO-MEDIR-TOKENS.md`.
+
+**Por qué:** Manuel pidió una conversación estándar realista para saber
+siempre cuánto cuesta una conversación, y un método para ver el ahorro
+verdadero. Medido: la rúbrica real son 5.120 tokens (3,7 caracteres por token,
+no 4), y el nivel 1 sacó 512. Pero en producción el 96 % de las llamadas del
+guardián trae la rúbrica en caché (4.864 tokens cacheados), así que el ahorro
+real es **$0,0013 por conversación (~1 %)**, no $0,004, y los niveles 2 y 3
+juntos rondan $0,007, no $0,051. Lo caro del guardián es el contexto que cambia
+(~1.600 tokens sin caché) y su salida. En el simulador, base contra nivel 1:
+el guardián bajó 493 tokens por llamada y $0,002 por conversación, pero el
+total subió $0,018 por la ruta que eligió el vendedor, que el nivel 1 no toca.
+Eso confirma que la conversación estándar sirve para el costo total y la
+calidad, no para medir recortes chicos. Además, la transcripción, la
+investigación de fitment, el texto de seguimiento y el guardián que falla no
+dejan tokens en `ai_runs`.
+
+**Horas:** 2
+
+## 12-sep-2026 · El plan de adelgazar al guardián se remide, y el pedido de diseño se corrige
+
+**Qué:** Se juntó el nivel 1 (`e6cbe92`) con `main` en la rama
+`perf/adelgazar-guardian` (typecheck y 2.055 pruebas en verde) y se volvió a
+medir. `docs/PLAN-ADELGAZAR-GUARDIAN.md` gana una sección «Remedición» y
+`docs/PEDIDO-DISENO-NIVEL-2-3.md` reemplaza al pedido de diseño original para
+los niveles 2 y 3.
+
+**Por qué:** Manuel preguntó si el pedido servía para ahorrar tokens sin que
+aparecieran errores después. Al medir salieron cuatro cosas: el nivel 1 no
+estaba en `main`; los tokens del plan eran caracteres ÷ 4 (la regla 22 son 469,
+no 611); el ahorro de los niveles 2 y 3 estaba inflado ~2,5× ($0,136 → ~$0,115,
+no $0,085), así que no vale arriesgar las reglas de juicio por ~$0,004 cada
+una; y la salida del guardián (~$0,028 por conversación) pesa más que todo el
+nivel 3. El pedido nuevo exige modo sombra antes de borrar cada regla, evaluar
+«regla a demanda», una regla por cambio, y resuelve dos choques que el viejo no
+veía: la regla 20 ya se filtra en las herramientas, y la excepción de la 21 la
+frena `guardian_no_vende_solo`.
+
+**Horas:** 1
 
 ## 12-sep-2026 · La respuesta fija reemplaza la del modelo, y el descuento se dice por llanta
 
@@ -615,6 +690,44 @@ medida: eso es el paso 2, que ya puede preguntar porque ahora sabe qué le
 falta.
 
 **Horas:** 2
+
+## 12-sep-2026 · La rúbrica del guardián deja de cobrar por lo que ya hace un candado
+
+**Qué:** Nivel 1 de `docs/PLAN-ADELGAZAR-GUARDIAN.md`. Salieron de
+`INSTRUCCIONES` dos reglas cuyo candado determinístico ya hace el trabajo en las
+mismas tres puertas: la de los NÚMEROS DE COTIZACIÓN (la hace
+`sin_numeros_de_cotizacion`, regex puro) y la del AVISO DE STOCK CORTO (la hace
+`aviso_de_stock`, con el MISMO predicado `faltanteDeLaCotizacionVigente` que
+produce el hecho, y cubriendo los dos modos de equivocarse que la regla
+enumeraba). La regla 17 se queda: ahí avisar no alcanza y eso sí es juicio. La
+de NO INSISTIRLE AL QUE SE DESPIDIÓ se **movió** a `INSTRUCCIONES_SEGUIMIENTO`
+en vez de borrarse, porque su candado `despedida_de_venta_perdida` corre en
+`respuesta` y `retomada` pero **no en `seguimiento`**, y el guardián revisa
+seguimientos (1.121 de sus 5.740 corridas del mes). Los HECHOS de las tres se
+quedan: un dato que el revisor no ve en sus HECHOS lo borra del borrador.
+Prueba nueva (`rubricaAdelgazada.test.ts`) con las dos mitades —que las reglas
+no están y que el candado sostiene el caso solo— y sobre `PASOS`, que los tres
+candados siguen corriendo después del guardián y en las puertas que el recorte
+asume. Recorte: 469 tokens de 4.900. El plan deja los niveles 2 y 3 escritos y
+pendientes.
+
+**Por qué:** Manuel preguntó si se podía apagar el guardián para bajar el costo
+de IA, porque hay que empaquetar la IA en la mensualidad y hoy se le fronta a
+Depot. Medido contra producción: el guardián corrige el 43 % de los borradores
+—en 769 de 1.230 conversaciones del mes— así que apagarlo manda al cliente 267
+errores duros por mes (medida equivocada, precio equivocado, stock prometido)
+para ahorrar $79. No se apaga. Pero la medición encontró otra cosa: la rúbrica
+había crecido de 1.388 a 6.505 tokens de entrada por corrida en cinco semanas,
+porque cada error nuevo se resolvió agregándole un párrafo en vez de ponerlo en
+su capa, y el costo no explotó solo porque el caché de prompt entró a tiempo
+(0 % → 75 %) — un caché que cada edición de la rúbrica invalida. Y el guardián
+es el paso 3 de 24: los candados corren después, así que lo que él escribe bajo
+una regla ya cubierta se descarta. Son tokens que se pagan para tirar el texto.
+El caso testigo está en la cabecera de `preguntasProhibidas.ts`: ese candado se
+escribió porque el guardián falló 3 de 3 con esa familia, y la regla seguía en
+la rúbrica cobrando 633 tokens por corrida.
+
+**Horas:** 3
 
 ## 8-sep-2026 · El panel no inventa números mientras carga, y un mes cerrado tiene los suyos
 
