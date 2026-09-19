@@ -630,14 +630,14 @@ async function levantarUI({ registroBot }) {
       }
 
       if (url.pathname === "/api/enviar" && req.method === "POST") {
-        const { texto, adjunto, ubicacion, boton, sticker } = await cuerpoJson(req);
+        const { texto, adjunto, ubicacion, boton, sticker, anuncio } = await cuerpoJson(req);
         if (!String(texto ?? "").trim() && !adjunto && !ubicacion && !boton?.id && !sticker) {
           return json(res, 400, { error: "no hay nada que mandar" });
         }
         const r = await deliverWebhook({
           baseUrl: `http://127.0.0.1:${PUERTO_APP}`,
           appSecret: APP_SECRET,
-          payload: payloadEntrante({ texto, adjunto, ubicacion, boton, sticker }),
+          payload: payloadEntrante({ texto, adjunto, ubicacion, boton, sticker, anuncio }),
         });
         return json(res, 200, { ok: r.status === 200, status: r.status, ackMs: Math.round(r.ackMs), error: r.error ?? null });
       }
@@ -688,7 +688,7 @@ async function levantarUI({ registroBot }) {
  * media conversación de Depot —la que empieza con la foto del costado— no se
  * podría probar acá.
  */
-function payloadEntrante({ texto, adjunto, ubicacion, boton, sticker }) {
+function payloadEntrante({ texto, adjunto, ubicacion, boton, sticker, anuncio }) {
   const base = buildInboundPayload({
     from: TELEFONO_CLIENTE,
     name: valor("nombre", "Cliente Sim"),
@@ -697,6 +697,17 @@ function payloadEntrante({ texto, adjunto, ubicacion, boton, sticker }) {
     phoneId: PHONE_ID,
   });
   const mensaje = base.entry[0].changes[0].value.messages[0];
+
+  // El chat que se abre desde un anuncio trae su `referral` (título y texto).
+  // `{"anuncio":{"titulo":"…","texto":"…"}}` en /api/enviar lo arma igual que Meta.
+  if (anuncio && (anuncio.titulo || anuncio.texto)) {
+    mensaje.referral = {
+      source_type: "ad",
+      source_url: String(anuncio.url ?? "https://fb.me/sim"),
+      headline: String(anuncio.titulo ?? ""),
+      body: String(anuncio.texto ?? ""),
+    };
+  }
 
   // Tocar un botón NO es escribir su título: Meta manda un `interactive` con el
   // id exacto, y el bot lo traduce con `textoDeBoton`. El simulador arma ese

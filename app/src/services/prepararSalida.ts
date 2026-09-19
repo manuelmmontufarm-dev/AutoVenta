@@ -26,6 +26,8 @@
  * borrando el aviso que un candado anterior ya había pegado.
  */
 import type { Stage } from "./conversations.js";
+import { lastOutboundText } from "./conversations.js";
+import { esAcuseSimple } from "../domain/ofertaAceptada.js";
 import { applyOutboundGuard } from "./outboundGuard.js";
 import { revisarConGuardian, type HuellaHerramienta } from "./guardian.js";
 import { asegurarAvisoDeStock } from "./stockCorto.js";
@@ -54,7 +56,7 @@ import { mencionaDescuentoEnEfectivo, politicaDePagos, preguntaPorElPago, respon
 import { sinNumerosDeCotizacion } from "../domain/numerosDeCotizacion.js";
 import { conPreguntaEnSuPropioMensaje } from "../domain/preguntaSola.js";
 import { despedidaQueCorresponde } from "../domain/cierrePerdido.js";
-import { motivoDeUbicacion } from "../domain/ubicacionPedida.js";
+import { motivoDeUbicacion, ofrecioLaUbicacion } from "../domain/ubicacionPedida.js";
 import { pideOtroDia } from "./rutaOtroDia.js";
 import { buildStoreLinksBlock } from "./quoteMessages.js";
 import { buildStoreLinksBlockOnce } from "./storeLinks.js";
@@ -348,7 +350,17 @@ export const PASOS: readonly PasoDeSalida[] = [
     nombre: "ubicacion_cuando_la_piden",
     corre: ["respuesta", "retomada"],
     async aplicar(texto, ctx) {
-      const motivo = motivoDeUbicacion(ctx.textoDelCliente ?? "");
+      let motivo = motivoDeUbicacion(ctx.textoDelCliente ?? "");
+      // El bot los ofreció y el cliente contestó con un acuse: es un sí, y lo
+      // ofrecido se entrega (conv 19879, 16-sep). Si el mensaje anterior ya
+      // traía los links, el «Ok» es solo un acuse.
+      if (!motivo && esAcuseSimple(ctx.textoDelCliente ?? "")) {
+        const anterior = await lastOutboundText(ctx.conversation.id);
+        const yaLosMandamos = business.stores.some(
+          (store) => store.mapsUrl && (anterior ?? "").includes(store.mapsUrl),
+        );
+        if (!yaLosMandamos && ofrecioLaUbicacion(anterior)) motivo = "la_pidio";
+      }
       if (!motivo) return texto;
       // Si el turno YA lleva los mapas (la cotización los manda), no se duplican.
       const yaLosLleva = business.stores.some(

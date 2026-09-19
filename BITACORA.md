@@ -1,3 +1,39 @@
+## 18-sep-2026 · Tanda A de la auditoría del 13 al 18-sep: el sí se cumple, llantas para ese cliente, la ráfaga no se parte por una cortesía
+
+**Qué:** (0) Entra a `main` el nivel 1 del adelgazamiento del guardián, que
+nunca se había mergeado. (1) `preparar_opciones` declara `unica_opcion` y
+`recomendacion_entregada` al principio de su resultado; el hecho «ÚNICA OPCIÓN»
+del guardián lee esa bandera. `OFRECIO_COTIZAR` reconoce «¿avanzamos con esta
+opción…?» y deja de contar como oferta la frase que ENTREGA la cotización
+(`ofreceCotizar`, frase por frase). Un «Ok» con la cotización idéntica ya
+enviada no la repite. El descanso del acuse cubre también la respuesta que no
+preguntaba nada. `ubicacion_cuando_la_piden` manda los mapas cuando el bot los
+ofreció y el cliente dijo «Ok» (`ofrecioLaUbicacion`). (2) `domain/anuncio.ts`
+y `services/anuncio.ts`: el `referral` de WhatsApp se guarda en el mensaje y
+llega como hecho al vendedor y al guardián. `domain/claseDeVehiculo.ts`:
+`buscar_por_aro_y_tipo`, sin tipo pedido y con una camioneta nombrada por el
+cliente o por el anuncio, filtra el aro a tipos de camioneta. (7)
+`gruposDeLaRafaga` no parte la ráfaga cuando lo que sigue es un acuse;
+`getHistory` recibe un tope y cada turno ve hasta SU último mensaje.
+Escenarios: `scripts/sim/auditoria-18-sep.mjs` (A1–A6); el simulador acepta
+`anuncio` en `/api/enviar`.
+
+**Por qué:** Auditoría de 146 chats (commit 32df6f3). El ahorro del guardián
+figuraba como hecho y producción seguía en 6.543 tokens por revisión. Conv
+19710: «Sí por favor» a una llanta única y la cotización quedó bloqueada — el
+hecho que protege «¿Se la cotizo?» se buscaba con un regex sobre un campo que
+no entra en los 500 caracteres de la huella, así que nunca disparó, el guardián
+cambió la pregunta y el sí dejó de autorizar. Conv 19879 y captura de Joaquín
+del 16-sep: tres veces el descuento en efectivo a dos «Ok», y los mapas
+ofrecidos nunca salieron. Convs 20211, 20209, 20645: «Rin 17 para camioneta
+4x4» recibió 215/40R17. Conv 20527: «las del anuncio en rin 16» con el anuncio
+de la KR601 recibió llantas de auto; el anuncio no se leía en ningún lado. Conv
+3 (captura de Manuel, 18-sep): «2» + «por favor» preguntó el local dos veces;
+conv 3735: medida + «Gracias» cotizó sin elección; conv 20535: un mensaje que
+llegó con el turno anterior en vuelo se contestó dos veces.
+
+**Horas:** 4
+
 ## 12-sep-2026 · Plantilla «Depot día y noche» para cotización y opciones
 
 **Qué:** Nueva plantilla de piezas, `render/diaNoche.ts`, que porta a satori la

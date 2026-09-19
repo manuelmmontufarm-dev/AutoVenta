@@ -66,13 +66,13 @@ export async function snapshot() {
  * `textos` como array manda los mensajes casi juntos (caso R05: dos mensajes
  * que llegan al webhook seguidos y deben producir UNA sola trayectoria).
  */
-export async function mandar(textos) {
+export async function mandar(textos, extra = {}) {
   const lista = Array.isArray(textos) ? textos : [textos];
   const antes = await snapshot();
   const maxBot = Math.max(0, ...antes.mensajes.filter((m) => m.author_kind === "bot").map((m) => Number(m.id)));
   const nRuns = antes.runs.length, nGuard = antes.guardian.length;
   for (const texto of lista) {
-    await json(`${UI}/api/enviar`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ texto }) });
+    await json(`${UI}/api/enviar`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ texto, ...(texto === lista[0] ? extra : {}) }) });
     if (lista.length > 1) await pausa(150);
   }
   const limite = Date.now() + 120_000;

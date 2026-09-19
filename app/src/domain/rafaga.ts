@@ -19,6 +19,7 @@
 import { extractExplicitQuantity, respuestaDePreferencia } from "./salesIntent.js";
 import { extractFlotationSizes, extractTireSizes } from "./tireSize.js";
 import { aroEnTexto } from "./medidaConfirmada.js";
+import { esAcuseSimple } from "./ofertaAceptada.js";
 
 const TIPO = /\b(?:a\/?t|h\/?t|r\/?t|m\/?t|todo\s+terreno|all\s+terrain|mud|lodo|carretera|turismo)\b/i;
 
@@ -29,8 +30,28 @@ function esSoloMedida(texto: string): boolean {
   return sinNumeros.length <= 2;
 }
 
+/**
+ * LO QUE ACOMPAÑA NO ES OTRO TURNO (auditoría 13–18 sep, familia 4).
+ *
+ * La regla de arriba partía cualquier ráfaga cuyo resto no fuera cantidad, tipo
+ * o medida, y una cortesía no es ninguna de las tres:
+ *
+ *   conv 3, 18-sep 00:20  «2» + «por favor» → el «2» cotizó; «por favor», solo,
+ *     fue otro turno al que se le ordenó cotizar: «Su cotización sigue vigente»
+ *     y la pregunta del local DOS veces, con sus botones.
+ *   conv 3735, 13-sep 11:52  «255 70 R 16 AT» + «Gracias» → la lámina, y en el
+ *     mismo minuto el «Gracias» suelto se leyó como aceptación y salió una
+ *     cotización que nadie eligió.
+ *
+ * Un acuse pegado a una respuesta completa la acompaña: se atienden juntos.
+ */
+function soloAcompana(texto: string): boolean {
+  return texto.split("\n").every((linea) => !linea.trim() || esAcuseSimple(linea));
+}
+
 function completaLoAnterior(texto: string): boolean {
-  return extractExplicitQuantity(texto) !== null
+  return soloAcompana(texto)
+    || extractExplicitQuantity(texto) !== null
     || TIPO.test(texto)
     || extractTireSizes(texto).length > 0
     || extractFlotationSizes(texto).length > 0

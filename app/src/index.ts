@@ -51,6 +51,7 @@ import { emitLiveEvent } from "./services/liveEvents.js";
 import { registrarMensajeDeAsesor } from "./services/advisorWindow.js";
 import { contestaAunApagado, isBotActive } from "./services/botPower.js";
 import { textoParaMensajeQueNoSeLee } from "./domain/mensajeQueNoSeLee.js";
+import { anuncioDelReferral, type Anuncio } from "./domain/anuncio.js";
 import {
   extractFlotationSizes, extractTireSizes, formatFlotationSize, formatTireSize,
 } from "./domain/tireSize.js";
@@ -299,7 +300,7 @@ const pipeline = new InboundPipeline(async ({ from, name, text, waMessageIds, qu
   }
 
   const agentContext: AgentContext = { conversation, customerPhone: from, customerName: name,
-    currentUserText: textoConLinks, mensajeCitado };
+    currentUserText: textoConLinks, mensajeCitado, recibidoHasta: receivedAt };
   // El saludo genérico de los anuncios no necesita gastar un turno de IA. Esta
   // respuesta fija deja claro que la medida es la vía rápida, no la única: el
   // bot también puede arrancar por vehículo, aro o uso. Si el cliente ya dio
@@ -613,6 +614,8 @@ async function recibirMensaje(
    * pregunta está contestando — ver `outboundTextByWaMessageId`.
    */
   quotedWaMessageId: string | null = null,
+  /** El anuncio desde el que se abrió el chat, si Meta lo mandó. Ver `domain/anuncio.ts`. */
+  anuncio: Anuncio | null = null,
 ): Promise<void> {
   // Si escribe un asesor, su ventana de 24 h se reabre. No lo desvía del
   // pipeline a propósito: un asesor probando el bot tiene que ver que contesta.
@@ -636,7 +639,10 @@ async function recibirMensaje(
   // archiva — y para que el silencio se mida contra el mensaje anterior, no
   // contra este. Ver `reiniciarSiLaMemoriaVencio`.
   const conversation = await reiniciarSiLaMemoriaVencio(creada, receivedAt);
-  const esNuevo = await appendMessage(conversation.id, "user", texto, waMessageId, { occurredAt: receivedAt });
+  const esNuevo = await appendMessage(conversation.id, "user", texto, waMessageId, {
+    occurredAt: receivedAt,
+    ...(anuncio ? { metadata: { anuncio } } : {}),
+  });
   if (!esNuevo) return; // reentrega de Meta: ya estaba guardado
   emitLiveEvent("message", conversation.id);
 
@@ -702,7 +708,8 @@ setWaHandlers({
         // necesita ver los mensajes en el orden en que llegaron. Los links que
         // traiga se abren después, dentro del pipeline, con el "escribiendo…" ya
         // encendido.
-        await recibirMensaje(from, name, message.text.body, message.id, receivedAt, citado);
+        await recibirMensaje(from, name, message.text.body, message.id, receivedAt, citado,
+          anuncioDelReferral((message as { referral?: unknown }).referral));
         break;
       case "interactive": {
         // UN TOQUE ES UN MENSAJE DE TEXTO.

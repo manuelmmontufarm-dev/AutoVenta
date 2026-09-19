@@ -339,9 +339,19 @@ export async function reiniciarSiLaMemoriaVencio(
   return reabierta;
 }
 
+/**
+ * `hastaDelCliente`: los mensajes del cliente posteriores a ese instante NO
+ * entran. El mensaje se guarda en el webhook, antes de la cola: uno que llega
+ * mientras el turno anterior sigue en vuelo ya está en la base, ese turno lo
+ * leía y lo contestaba, y después su propio turno lo contestaba OTRA VEZ con
+ * otra búsqueda (conv 20535, 14-sep: «toyota raize» y, ya en vuelo,
+ * «205 / 65 / R16» → dos láminas con productos distintos en el mismo minuto).
+ * Cada turno ve hasta SU último mensaje; el que llegó después tiene su turno.
+ */
 export async function getHistory(
   conversationId: number,
   limit = 30,
+  hastaDelCliente: Date | null = null,
 ): Promise<{ role: "user" | "assistant"; content: string }[]> {
   const rows = await sql<{ role: "user" | "assistant"; content: string }[]>`
     select role, content from (
@@ -350,6 +360,7 @@ export async function getHistory(
       where conversation_id = ${conversationId}
         and cycle = (select current_cycle from conversations where id = ${conversationId})
         and role in ('user', 'assistant')
+        and (${hastaDelCliente}::timestamptz is null or role <> 'user' or created_at <= ${hastaDelCliente}::timestamptz)
       order by created_at desc
       limit ${limit}
     ) recent

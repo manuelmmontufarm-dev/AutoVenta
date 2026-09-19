@@ -28,6 +28,7 @@
  * OPENAI_GUARDIAN_MODEL para cambiarlo): un revisor más débil que el redactor
  * no ve los errores que el redactor no vio.
  */
+import { anuncioDeLaConversacion } from "./anuncio.js";
 import OpenAI from "openai";
 import { aroDadoPorElCliente, medidaConfirmadaPorCliente } from "../domain/medidaConfirmada.js";
 import { mencionaVehiculo } from "../domain/vehiculoEnTexto.js";
@@ -44,6 +45,7 @@ import { ensureCatalogReady, findByCode, searchBySize, searchByText } from "./ca
 import { flotacionIncompleta, parseTireSize } from "../domain/tireSize.js";
 import { respaldoCompleto } from "../domain/respaldoMarcas.js";
 import { logAiRun } from "./conversations.js";
+import { claseDeVehiculoEnTexto } from "../domain/claseDeVehiculo.js";
 import { crearAlertaRepeticion } from "./conversationQuality.js";
 import { createBotAlert } from "./followUps.js";
 import { getActiveBenefits } from "./benefits.js";
@@ -526,12 +528,19 @@ export async function armarContexto(
     return `${quien}: ${(m.content ?? "").slice(0, 380)}`;
   }).join("\n");
 
+  const anuncio = await anuncioDeLaConversacion(conversationId).catch(() => null);
   const item = cotizacion?.items?.[0];
   const ahorro = ahorroDeLaCotizacion(cotizacion?.items ?? null);
   return [
     "== HECHOS REGISTRADOS ==",
     `Medidas que el cliente pidió: ${pedidas.length ? pedidas.join(", ") : "(ninguna todavía)"}`,
     hechos?.vehicle ? `Vehículo: ${hechos.vehicle}` : null,
+    // El anuncio y la clase de vehículo son HECHOS: sin ellos el revisor aprobó
+    // llantas de sedán para una «camioneta 4x4» (convs 20211 y 20209, 14-sep).
+    anuncio ? `Anuncio por el que llegó: «${[anuncio.titulo, anuncio.texto].filter(Boolean).join(" — ")}»` : null,
+    claseDeVehiculoEnTexto([hechos?.vehicle, anuncio?.titulo, anuncio?.texto, ...mensajes.filter((m) => m.direction === "inbound").map((m) => m.content)]) === "camioneta"
+      ? "EL CLIENTE BUSCA LLANTA DE CAMIONETA / SUV / 4x4 (lo dijo él o lo dice el anuncio). Un borrador que le ofrezca llantas de auto de perfil bajo (series 40, 45, 50 o 55 en ancho menor a 225) es **medida_incorrecta** de severidad ALTA: la corrección quita esas opciones y pide la medida del costado o la foto."
+      : null,
     // HECHO DURO para la regla 22 (1-sep, conv 13862): la medida salió del
     // vehículo o del aro, no del cliente. Misma función que el candado de
     // `generar_cotizacion` (domain/medidaConfirmada), sobre los mensajes del
@@ -711,8 +720,8 @@ export async function armarContexto(
     // HECHO DURO (conv 3, 7-sep 11:32): con UNA sola opción la pieza cierra
     // «¿Se la cotizo?» a propósito —no hay menú posible— y el revisor la quitó
     // como pregunta_de_mas, dejando el turno sin salida.
-    huella.some((h) => h.herramienta === "preparar_opciones" && /¿Se la cotizo\?/.test(h.resultado))
-      ? "ÚNICA OPCIÓN EN PANTALLA: la pieza trae una sola llanta y cierra con «¿Se la cotizo?». Esa pregunta es la legítima del turno y se conserva: NO es pregunta_de_mas."
+    huella.some((h) => h.herramienta === "preparar_opciones" && (h.resultado.includes('"unica_opcion":true') || /¿Se la cotizo\?/.test(h.resultado)))
+      ? "ÚNICA OPCIÓN EN PANTALLA: la pieza trae una sola llanta y cierra con «¿Se la cotizo?». Esa pregunta es la legítima del turno y se conserva TAL CUAL: NO es pregunta_de_mas, NO la reemplaces por un menú de preferencia (no hay entre qué elegir) ni por otra redacción («¿avanzamos con esta opción?»): el «sí» del cliente solo abre la cotización si la pregunta habla de cotizar."
       : null,
     huella.some((h) => h.herramienta === "preparar_opciones" && h.resultado.includes('"consentimiento_pendiente":true'))
       ? "RECOMENDADA EQUIVALENTE PENDIENTE DE CONSENTIMIENTO: la llanta recomendada este turno es de OTRA medida que la pedida, y el bot todavía no tiene su sí. El borrador DEBE terminar con la pregunta «¿Le cotizo la <llanta> en <medida>?» sola en su bloque: esa pregunta es la legítima de la regla 15, NO es pregunta_de_mas — no la quites, no la reescribas y no la cambies por «si acepta esa equivalente» ni por «¿quiere que le envíe esa opción?». Si el borrador no la trae, es **recomendacion_sin_pregunta** (alta) y la corrección la agrega en bloque aparte. Y como no hay cotización este turno, PROHIBIDO anunciarla o prometerla."

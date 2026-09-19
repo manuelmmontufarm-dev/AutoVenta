@@ -137,3 +137,20 @@ describe("el local más cercano necesita una ubicación del cliente (caso 1)", (
     })).toBe(true);
   });
 });
+
+// Auditoría 13–18 sep, familia 4: una cortesía pegada a una respuesta completa
+// la acompaña; partirla fabricaba un segundo turno que cotizaba o preguntaba
+// otra vez. Textos reales de las convs 3 (18-sep 00:20) y 3735 (13-sep 11:52).
+describe("un acuse no parte la ráfaga", () => {
+  it("«2» + «por favor» es un solo turno", () => {
+    expect(gruposDeLaRafaga(["2", "por favor"])).toEqual([[0, 1]]);
+  });
+  it("«255 70 R 16 AT» + «Gracias» es un solo turno", () => {
+    expect(gruposDeLaRafaga(["255 70 R 16 AT ", "Gracias"])).toEqual([[0, 1]]);
+  });
+  it("una pregunta de verdad sí sigue siendo su propio turno", () => {
+    expect(gruposDeLaRafaga(["1", "Si se realiza el pago con tarjeta cuanto sube el valor"]))
+      .toEqual([[0], [1]]);
+    expect(gruposDeLaRafaga(["205/55R16", "Estoy en Guayaquil"])).toEqual([[0], [1]]);
+  });
+});

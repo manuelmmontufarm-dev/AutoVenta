@@ -7,6 +7,8 @@
  * El LLM extrae los datos, pero la lógica de negocio (búsqueda, precios, PDF)
  * es determinista — cero precios alucinados.
  */
+import { esAcuseSimple } from "../domain/ofertaAceptada.js";
+import { anuncioDeLaConversacion } from "../services/anuncio.js";
 import { lonasDelProducto, politicaDePagos } from "../domain/datosDelNegocio.js";
 import { z } from "zod";
 import { business } from "../config.js";
@@ -94,6 +96,7 @@ import {
 } from "../domain/medidaPedida.js";
 import { ahorroDeLaCotizacion } from "../domain/ahorro.js";
 import { avisoDeCantidad, esCantidadInusual } from "../domain/cantidadGrande.js";
+import { claseDeVehiculoEnTexto, TIPOS_DE_CAMIONETA } from "../domain/claseDeVehiculo.js";
 import { medidasDelPedido } from "../services/medidasDelPedido.js";
 import { sendImage, sendPdf } from "../wa/client.js";
 import {
@@ -160,6 +163,8 @@ export interface AgentContext {
    * (Wildpeak A/T4W, 14-ago).
    */
   toolTrace?: Array<{ herramienta: string; argumentos: string; resultado: string }>;
+  /** Hora del último mensaje del cliente que atiende ESTE turno. Ver `getHistory`. */
+  recibidoHasta?: Date;
 }
 
 export interface AgentTool {
@@ -348,7 +353,7 @@ function recorteConEscalera<T extends { code: string; brand: string; design: str
  *
  * Quien la llame debe haber hecho `ensureCatalogReady()` antes.
  */
-function opcionesEnAro(aro: number, tipo: string | null, medidaConfirmada?: string | null): {
+function opcionesEnAro(aro: number, tipo: string | null, medidaConfirmada?: string | null, soloDeCamioneta = false): {
   pedido: string | null;
   enElAro: CatalogItem[];
   delTipo: CatalogItem[];
@@ -369,8 +374,12 @@ function opcionesEnAro(aro: number, tipo: string | null, medidaConfirmada?: stri
   // en pulgadas, que no tienen medida métrica. Conv 18016: por eso el bot negó
   // una M/T que tenía en stock y la encontró un minuto después por otra puerta.
   const enElAro = searchByRim(aro);
+  // Sin tipo pedido pero con una camioneta sobre la mesa, el aro se filtra a
+  // lo que una camioneta monta. Ver `domain/claseDeVehiculo.ts`.
   const delTipo = pedido
     ? enElAro.filter((item) => normalizarTipo(tipoDeProducto(item.code, item.design) ?? "") === pedido)
+    : soloDeCamioneta
+    ? enElAro.filter((item) => TIPOS_DE_CAMIONETA.includes(normalizarTipo(tipoDeProducto(item.code, item.design) ?? "")))
     : enElAro;
   // Su medida le gana al aro (25-ago). El aro se compara aparte y a propósito:
   // si el cliente CAMBIÓ de rines —el caso que esta misma herramienta invita a
@@ -911,11 +920,32 @@ export function buildTools(ctx: AgentContext) {
       // A/T» con 265/65R18 en la ficha devolvía A/T de cualquier medida del
       // aro 18 (25-ago): el aro llega por el parámetro, la medida se quedaba
       // en la conversación.
-      const [ficha] = await sql<{ tire_size: string | null }[]>`
-        select tire_size from conversations where id=${ctx.conversation.id}
+      const [ficha] = await sql<{ tire_size: string | null; vehicle: string | null }[]>`
+        select tire_size, vehicle from conversations where id=${ctx.conversation.id}
       `;
+      // ¿Habló de una camioneta, un SUV o un 4x4 —él o el anuncio por el que
+      // llegó—? Entonces, sin tipo pedido, el aro NO se abre a llantas de auto.
+      const anuncio = await anuncioDeLaConversacion(ctx.conversation.id).catch(() => null);
+      const dichoEnLaVisita = await sql<{ content: string }[]>`
+        select content from messages
+        where conversation_id=${ctx.conversation.id} and cycle=${ctx.conversation.current_cycle}
+          and direction='inbound'
+        order by created_at desc limit 12
+      `;
+      const esDeCamioneta = !tipo && claseDeVehiculoEnTexto([
+        ctx.currentUserText, ficha?.vehicle, anuncio?.titulo, anuncio?.texto, uso,
+        ...dichoEnLaVisita.map((m) => m.content),
+      ]) === "camioneta";
       const { pedido, enElAro, delTipo, seleccion, suMedida, sinTipoEnSuMedida, sinEquivalenteQueCalce } =
-        opcionesEnAro(aro, tipo, ficha?.tire_size);
+        opcionesEnAro(aro, tipo, ficha?.tire_size, esDeCamioneta);
+      if (esDeCamioneta && !delTipo.length) {
+        return JSON.stringify({
+          encontrado: false,
+          aro,
+          regla: `El cliente busca llanta de camioneta / SUV / 4x4 y en aro ${aro} no aparece ninguna de ese tipo con este dato solo. `
+            + "PROHIBIDO mostrarle llantas de auto. Pídele la medida del costado (o una foto) para buscarle la suya.",
+        });
+      }
 
       // El ancho que el cliente rechazó no vuelve a salir por esta puerta.
       // 31-ago (conv 3 c20, producción): «ya no 185, ¿qué otras tiene?» y esta
@@ -1961,17 +1991,59 @@ export function buildTools(ctx: AgentContext) {
       // cliente ya dio la señal (precio, recomendación, uso o menú) y la
       // política del corpus permite el juego de 4 como propuesta.
       if (autorizaCotizar && !consentimientoPendiente) ctx.recomendacionEntregada = true;
+      const cierreDeOpciones = buildCierreOpciones({
+        entregarRecomendacion,
+        ofrecerCotizar: entregarRecomendacion && !autorizaCotizar,
+        pedirMedida: Boolean(ctx.medidaSinConfirmar),
+        recomendacion,
+        motivo: motivo.trim().replace(/\.$/, ""),
+        precioConIva: entregada.minimumPriceWithTax ?? null,
+        // El cierre no puede prometer «la opción exacta para su medida» en
+        // dos casos: cuando hay equivalentes en la pieza (guardián del
+        // 26-ago) y cuando NO SABEMOS su medida —buscó por aro o por
+        // vehículo—. El 27-ago (conv 3, «tiene at rin 16?») el menú salió
+        // prometiendo «para su medida» sin que el cliente hubiera dado
+        // ninguna, y el guardián lo corrigió llevándose el menú entero: el
+        // turno terminó pidiéndole otra vez la medida en vez de avanzar.
+        hayEquivalentes: fueraDeMedida.length > 0 || permitidasOpciones.length === 0,
+        // El menú ofrece SOLO los escalones que la pieza trae: con dos
+        // opciones el del medio queda vacío y ofrecerlo igual es prometer
+        // algo que no se puede entregar (conv 3, 27-ago).
+        // Tres escalones con EL MISMO código son una sola opción (conv
+        // 5698, 1-sep: Winrun R380 ocupaba costo/equilibrio/premium y el
+        // menú preguntó «¿qué prioriza?» sobre una lista de uno).
+        escalonesDisponibles: (() => {
+          const vistos = new Set<string>();
+          return (["precio", "equilibrada", "premium"] as const).filter((k) => {
+            const opcion = escalones[k === "precio" ? "economica" : k];
+            if (!opcion?.codigo || vistos.has(opcion.codigo)) return false;
+            vistos.add(opcion.codigo);
+            return true;
+          });
+        })(),
+        equivalentePendiente: consentimientoPendiente
+          ? { medida: entregada.sizeLabel ?? null }
+          : undefined,
+      });
+      const cierreTraePermisoDeCotizar = /¿Se la cotizo\?/.test(cierreDeOpciones);
       return JSON.stringify({
         imagen_enviada: visual.ok,
         // Va primero a propósito: la huella que lee el guardián recorta el
         // resultado a 500 caracteres y `aviso_medida` es largo.
         consentimiento_pendiente: consentimientoPendiente,
+        recomendacion_entregada: autorizaCotizar && !consentimientoPendiente,
+        // UNA SOLA OPCIÓN: el cierre es «¿Se la cotizo?» y el guardián tiene que
+        // saberlo para no quitarla. El hecho se buscaba con un regex sobre
+        // `mensaje_para_enviar`, que va al final y no entra en los 500
+        // caracteres de la huella: nunca disparó (conv 19710, 14-sep: el
+        // revisor cambió la pregunta, el «Sí por favor» no autorizó nada y el
+        // cliente se quedó sin cotización).
+        unica_opcion: cierreTraePermisoDeCotizar,
         ...(avisoTipo ? { aviso: avisoTipo } : {}),
         ...(avisoMedida ? { aviso_medida: avisoMedida } : {}),
         medidas_mostradas: medidasMostradas,
         recomendacion,
         motivo_recomendacion: motivoLimpio,
-        recomendacion_entregada: autorizaCotizar && !consentimientoPendiente,
         escalones,
         mensaje_para_enviar: composeBlocks(
           (await soloLaFoto(visual.ok))
@@ -1980,40 +2052,7 @@ export function buildTools(ctx: AgentContext) {
           avisoMarcaCliente,
           avisoMedidaCliente,
           beneficios,
-          buildCierreOpciones({
-            entregarRecomendacion,
-            ofrecerCotizar: entregarRecomendacion && !autorizaCotizar,
-            pedirMedida: Boolean(ctx.medidaSinConfirmar),
-            recomendacion,
-            motivo: motivo.trim().replace(/\.$/, ""),
-            precioConIva: entregada.minimumPriceWithTax ?? null,
-            // El cierre no puede prometer «la opción exacta para su medida» en
-            // dos casos: cuando hay equivalentes en la pieza (guardián del
-            // 26-ago) y cuando NO SABEMOS su medida —buscó por aro o por
-            // vehículo—. El 27-ago (conv 3, «tiene at rin 16?») el menú salió
-            // prometiendo «para su medida» sin que el cliente hubiera dado
-            // ninguna, y el guardián lo corrigió llevándose el menú entero: el
-            // turno terminó pidiéndole otra vez la medida en vez de avanzar.
-            hayEquivalentes: fueraDeMedida.length > 0 || permitidasOpciones.length === 0,
-            // El menú ofrece SOLO los escalones que la pieza trae: con dos
-            // opciones el del medio queda vacío y ofrecerlo igual es prometer
-            // algo que no se puede entregar (conv 3, 27-ago).
-            // Tres escalones con EL MISMO código son una sola opción (conv
-            // 5698, 1-sep: Winrun R380 ocupaba costo/equilibrio/premium y el
-            // menú preguntó «¿qué prioriza?» sobre una lista de uno).
-            escalonesDisponibles: (() => {
-              const vistos = new Set<string>();
-              return (["precio", "equilibrada", "premium"] as const).filter((k) => {
-                const opcion = escalones[k === "precio" ? "economica" : k];
-                if (!opcion?.codigo || vistos.has(opcion.codigo)) return false;
-                vistos.add(opcion.codigo);
-                return true;
-              });
-            })(),
-            equivalentePendiente: consentimientoPendiente
-              ? { medida: entregada.sizeLabel ?? null }
-              : undefined,
-          }),
+          cierreDeOpciones,
         ),
         regla: [
           "Responde usando exactamente mensaje_para_enviar, con sus separadores '---' intactos. No sumes alternativas ni repitas en texto lo que ya muestra la imagen.",
@@ -2297,6 +2336,15 @@ export function buildTools(ctx: AgentContext) {
         // está pidiendo: la de KENDA no responde un pedido de FALKEN.
         const marcaCoincide = !marcaPedidaVigente
           || lineasPrevias.some((l) => String(l.brand ?? "").toUpperCase().includes(marcaPedidaVigente));
+        // UN «OK» NO PIDE QUE LE REPITAN LA COTIZACIÓN (conv 3, 18-sep; conv
+        // 19879): si lo que escribió es un acuse y la cotización idéntica ya
+        // salió, no hay nada que reenviar ni que volver a preguntar.
+        if (mismoPedido && marcaCoincide && esAcuseSimple(ctx.currentUserText ?? "")) {
+          return JSON.stringify({
+            ya_enviada: true,
+            regla: "Esa cotización YA se le envió en esta conversación y el cliente solo respondió un acuse. NO la reenvíes, NO digas que sigue vigente y NO repitas la pregunta del local ni del día si ya la hiciste: confirma en una línea corta y quédate disponible.",
+          });
+        }
         if (mismoPedido && marcaCoincide) {
           return JSON.stringify({
           mensaje_para_enviar: `Su cotización sigue vigente por $${Number(reciente.total).toFixed(2)} 👍\n---\n${

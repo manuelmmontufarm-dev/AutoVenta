@@ -1,0 +1,109 @@
+#!/usr/bin/env node
+/**
+ * Las familias de la auditoría del 13 al 18-sep-2026, contra el bot entero.
+ *
+ * Cada escenario es la conversación real que falló (el número de conversación
+ * va en el título), con los mismos mensajes y las mismas ráfagas, y se juzga
+ * por HECHOS de la base —cotizaciones, mapas, láminas, visita— y no por frases.
+ *
+ * Uso, con un simulador ya levantado (`npm run sim`):
+ *   node scripts/sim/auditoria-18-sep.mjs            # todos
+ *   SIM_SOLO=A1,A3 node scripts/sim/auditoria-18-sep.mjs
+ */
+import { activarBot, mandar, pausa, reiniciar, sql } from "./lib/corredor-t115.mjs";
+
+const MAPA = /maps\.app\.goo\.gl/;
+const PREGUNTA_LOCAL = /cu[aá]l local[^?]*\?|cumbay[aá]\*? o \*?(?:depot tire )?quito sur[^?]*\?/gi;
+const todo = (t) => t.bot.map((m) => m.texto ?? "").join(" § ");
+const cotizaciones = (t) => t._estado.quotes.length;
+const PERFIL_BAJO = /\b(?:1[5-9]\d|2[01]\d)\/(?:35|40|45|50)R\d{2}\b/;
+const ANUNCIO_KR601 = {
+  titulo: "Depot Tire",
+  texto: "¿Buscas agarre, duración y seguridad en cualquier terreno? La Kenda Klever KR601 es la llanta ideal para tu próxima aventura. Listas en Depot Tire con instalación inmediata.",
+};
+
+const ESCENARIOS = [
+  {
+    id: "A1", titulo: "conv 19710 · opción única: «Sí por favor» cotiza",
+    pasos: [
+      { m: ["¡Hola! Quiero más información", "Llantas 285/75/16"] },
+      { m: "285/75/16 MT" },
+      { m: "Sí por favor", juez: (t, antes) => (cotizaciones(t) > antes ? [] : ["dijo que sí y no salió la cotización"]) },
+    ],
+  },
+  {
+    id: "A2", titulo: "conv 19879 · el «Ok» no repite el descuento y manda los mapas ofrecidos",
+    pasos: [
+      { m: "255/70R16" },
+      { m: "3" },
+      { m: "Al contado cuanto es el descuento" },
+      { m: "Ok", juez: (t, _a, previo) => [
+        ...(/efectivo|descuento/i.test(todo(t)) ? ["repitió lo del descuento ante un «Ok»"] : []),
+        ...(/sigue vigente/i.test(todo(t)) ? ["el «Ok» disparó otra vuelta de cotizar («sigue vigente»)"] : []),
+        ...(t.sinRespuesta ? [] : (todo(t).match(PREGUNTA_LOCAL) ?? []).length > 1 ? ["preguntó el local más de una vez"] : []),
+        ...(/ubicaci[oó]n/i.test(todo(previo)) && !MAPA.test(todo(previo)) && !MAPA.test(todo(t)) ? ["ofreció la ubicación, le dijeron Ok y no mandó los mapas"] : []),
+      ] },
+      { m: "Ok", juez: (t) => (/efectivo|descuento|sigue vigente/i.test(todo(t)) ? ["repitió el tema al segundo «Ok»"] : []) },
+    ],
+  },
+  {
+    id: "A3", titulo: "conv 3 (18-sep) · «2» + «por favor»: una cotización y una sola pregunta de local",
+    pasos: [
+      { m: "185/55R15" },
+      { m: ["2", "por favor"], juez: (t, antes) => {
+        const preguntas = (todo(t).match(PREGUNTA_LOCAL) ?? []).length;
+        return [
+          ...(cotizaciones(t) === antes + 1 ? [] : [`cotizaciones nuevas: ${cotizaciones(t) - antes}`]),
+          ...(preguntas <= 1 ? [] : [`preguntó el local ${preguntas} veces`]),
+          ...(/sigue vigente/i.test(todo(t)) ? ["corrió una segunda vuelta de cotizar («sigue vigente»)"] : []),
+        ];
+      } },
+    ],
+  },
+  {
+    id: "A4", titulo: "conv 3735 · medida + «Gracias»: lámina sí, cotización no",
+    pasos: [
+      { m: ["255 70 R 16 AT", "Gracias"], juez: (t, antes) => (cotizaciones(t) === antes ? [] : ["cotizó sin que el cliente eligiera"]) },
+    ],
+  },
+  {
+    id: "A5", titulo: "conv 20211 · «Rin 17 para camioneta 4x4» no recibe llantas de auto",
+    pasos: [
+      { m: "¡Hola! Quiero más información" },
+      { m: "Precio Rin 17 para camioneta 4x4", juez: (t) => (PERFIL_BAJO.test(todo(t)) ? [`ofreció perfil bajo: ${todo(t).match(PERFIL_BAJO)[0]}`] : []) },
+    ],
+  },
+  {
+    id: "A6", titulo: "conv 20527 · «las del anuncio pero en rin 16» con el anuncio de la KR601",
+    pasos: [
+      { m: ["¡Hola! Quiero más información", "En lá q están en el anuncio pero en rin 16"], extra: { anuncio: ANUNCIO_KR601 },
+        juez: (t) => [
+          ...(PERFIL_BAJO.test(todo(t)) || /ZE310|KR20\b|R330/i.test(todo(t)) ? ["ofreció llantas de auto a quien venía por la KR601"] : []),
+        ] },
+    ],
+  },
+];
+
+const solo = (process.env.SIM_SOLO ?? "").split(",").map((s) => s.trim()).filter(Boolean);
+await activarBot().catch(() => undefined);
+let fallas = 0;
+for (const e of ESCENARIOS.filter((x) => !solo.length || solo.includes(x.id))) {
+  await reiniciar();
+  console.log(`\n━━ ${e.id} · ${e.titulo}`);
+  let previo = null;
+  for (const paso of e.pasos) {
+    const antes = previo ? cotizaciones(previo) : 0;
+    const t = await mandar(paso.m, paso.extra ?? {});
+    await pausa(1500);
+    console.log(`  👤 ${t.cliente}`);
+    for (const m of t.bot) console.log(`  🤖 ${m.tipo === "text" ? "" : `<${m.tipo}> `}${(m.texto ?? "").replace(/\n+/g, " ⏎ ").slice(0, 260)}`);
+    console.log(`     ⚙︎ ${t.herramientas.join(", ") || "—"} · guardián: ${t.guardian.map((g) => g.verdict).join(",") || "—"}`);
+    const malas = paso.juez ? paso.juez(t, antes, previo) : [];
+    if (paso.juez) console.log(malas.length ? `  ❌ ${malas.join(" · ")}` : "  ✅ pasó");
+    fallas += malas.length;
+    previo = t;
+  }
+}
+console.log(`\n${fallas ? `❌ ${fallas} falla(s)` : "✅ todo pasó"}`);
+await sql.end();
+process.exit(fallas ? 1 : 0);
