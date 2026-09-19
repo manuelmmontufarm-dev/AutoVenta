@@ -22,6 +22,8 @@
  * Puro a propósito: se prueba sin base y sin modelo.
  */
 
+import { ES_PRESENTACION_DEL_NEGOCIO } from "./saludo.js";
+
 const normalizar = (texto: string) =>
   (texto ?? "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "")
     // Tono de piel y selector de variante: «👍🏻» (turno real de la conv 11620)
@@ -119,7 +121,9 @@ const ACUSE_SIN_MAS =
  * contestó «👍» al saludo del ciclo reabierto (16277). Una capacidad que el
  * bot anuncia de sí mismo no es una oferta que el cliente pueda aceptar.
  */
-const ES_PRESENTACION = /\bsoy\s+el\s+asistente\s+de\b/;
+// El patrón vive con la firma, en `domain/saludo.ts`: si cambia cómo se presenta
+// el bot, esta puerta no puede quedarse reconociendo el saludo viejo.
+const ES_PRESENTACION = ES_PRESENTACION_DEL_NEGOCIO;
 
 /** Un «no» a secas nunca es un sí, por más corto que sea. */
 const NEGATIVA_CORTA = /^(?:no|nop|nel|no\s+gracias|todavia\s+no|aun\s+no|ahorita\s+no|por\s+ahora\s+no|mejor\s+no|otro\s+dia|luego|despues|mas\s+tarde)[\s.,!]*$/;

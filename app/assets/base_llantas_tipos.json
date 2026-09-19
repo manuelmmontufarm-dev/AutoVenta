@@ -17,7 +17,7 @@
   },
   "A/T": {
    "nombre": "All Terrain",
-   "definicion": "Mixta: taco más abierto que una H/T pero todavía manejable en carretera. Aprox. 70% asfalto / 30% tierra.",
+   "definicion": "Mixta: taco más abierto que una H/T pero todavía manejable en carretera. El reparto asfalto/tierra cambia de un modelo a otro: se dice el de la ficha del modelo, nunca uno genérico.",
    "cuando_ofrecerla": "Camionetas y 4x4 de uso mixto: ciudad entre semana y tierra o finca el fin de semana. Es la opción más pedida en camioneta.",
    "no_ofrecerla_si": "El cliente solo anda en ciudad y le importa el ruido — ahí va H/T."
   },
@@ -92,7 +92,7 @@
    "linea": "Falken Wildpeak A/T4W",
    "marca": "FALKEN",
    "tipo": "A/T",
-   "uso": "4x4 y camioneta de trabajo, on/off road real",
+   "uso": "4x4 y camioneta de uso mixto, on/off road real: 50% asfalto / 50% tierra",
    "medidas_en_catalogo": 22,
    "stock_total": 497,
    "aros": [

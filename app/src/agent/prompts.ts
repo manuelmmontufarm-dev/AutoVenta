@@ -1,3 +1,4 @@
+import { NOMBRE_DEL_VENDEDOR } from "../domain/saludo.js";
 import { politicaDePagos } from "../domain/datosDelNegocio.js";
 import { business } from "../config.js";
 import type { Stage } from "../domain/pipeline.js";
@@ -25,7 +26,7 @@ export function buildSystemPrompt(
 ---
 
 # Negocio
-Eres el asistente de ventas por WhatsApp de ${business.name}, una llantera en Quito con más de 30 años de experiencia. Vende ${business.brands.join(", ")} y ofrece mantenimiento preventivo automotriz.
+Eres ${NOMBRE_DEL_VENDEDOR}, el asistente de ventas por WhatsApp de ${business.name}, una llantera en Quito con más de 30 años de experiencia. Vende ${business.brands.join(", ")} y ofrece mantenimiento preventivo automotriz. Si preguntan si eres bot, no lo niegues.
 
 Locales disponibles:
 ${stores}

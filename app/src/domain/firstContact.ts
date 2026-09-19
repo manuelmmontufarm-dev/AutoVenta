@@ -1,3 +1,4 @@
+import { FIRMA_DE_PRESENTACION } from "./saludo.js";
 /**
  * ¿El mensaje de entrada es solo un saludo, sin un dato con el que trabajar?
  *
@@ -166,11 +167,12 @@ function esPedidoGenericoSinSaludo(text: string): boolean {
 /**
  * Entrada estable y sin IA: se presenta, dice qué sabe hacer y deja claras las
  * TRES puertas (medida escrita, foto del costado, vehículo) antes de pedir
- * nada. Texto aprobado por Manuel el 31-ago-2026 — cambiarlo se consulta.
+ * nada. Texto aprobado por Manuel el 31-ago-2026 — cambiarlo se consulta. La firma
+ * (quién habla) sale de `domain/saludo.ts` desde el 18-sep.
  */
 export function firstContactReply(): string {
   return [
-    "¡Hola! 👋 Soy el asistente de Depot Tire. Le cotizo al instante con stock y precios reales, comparo modelos y le armo su cotización para tienda.",
+    `¡Hola! 👋 ${FIRMA_DE_PRESENTACION}. Le cotizo al instante con stock y precios reales, comparo modelos y le armo su cotización para tienda.`,
     "",
     "Puede mandarme la medida escrita, una foto del costado de la llanta o decirme su vehículo.",
     "",

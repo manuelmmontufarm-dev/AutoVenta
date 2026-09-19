@@ -59,7 +59,7 @@ describe("primer contacto inteligente", () => {
   it("saluda, se presenta y ofrece las tres puertas antes de pedir nada", () => {
     const reply = firstContactReply();
     expect(reply.startsWith("¡Hola! 👋")).toBe(true);
-    expect(reply).toContain("Soy el asistente de Depot Tire");
+    expect(reply).toContain("Soy Martín, de Depot Tire");
     expect(reply).toContain("stock y precios reales");
     expect(reply).toContain("medida escrita");
     expect(reply).toContain("foto del costado de la llanta");

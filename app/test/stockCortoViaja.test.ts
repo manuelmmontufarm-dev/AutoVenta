@@ -181,6 +181,7 @@ describe("el orden de los candados en el turno", () => {
       "sin_telefono_propio",
       "sin_mapas_escritos_a_mano",
       "sin_menu_repetido",
+      "sin_reparto_inventado",
       "sin_numeros_de_cotizacion",
       // La cotización que no existe no se anuncia (conv 13635, 1-sep): agrega
       // la pregunta de consentimiento, así que va ANTES de los dos que dan

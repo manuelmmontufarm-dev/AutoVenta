@@ -28,6 +28,7 @@
  * OPENAI_GUARDIAN_MODEL para cambiarlo): un revisor más débil que el redactor
  * no ve los errores que el redactor no vio.
  */
+import { NOMBRE_DEL_VENDEDOR } from "../domain/saludo.js";
 import { anuncioDeLaConversacion } from "./anuncio.js";
 import OpenAI from "openai";
 import { aroDadoPorElCliente, medidaConfirmadaPorCliente } from "../domain/medidaConfirmada.js";
@@ -533,6 +534,7 @@ export async function armarContexto(
   const ahorro = ahorroDeLaCotizacion(cotizacion?.items ?? null);
   return [
     "== HECHOS REGISTRADOS ==",
+    `El bot se presenta como ${NOMBRE_DEL_VENDEDOR}, de Depot Tire: es su nombre oficial (decisión del negocio, 14-sep), no un dato inventado. Si el cliente pregunta si habla con un bot o una persona, el borrador NO puede negar que es un asistente virtual.`,
     `Medidas que el cliente pidió: ${pedidas.length ? pedidas.join(", ") : "(ninguna todavía)"}`,
     hechos?.vehicle ? `Vehículo: ${hechos.vehicle}` : null,
     // El anuncio y la clase de vehículo son HECHOS: sin ellos el revisor aprobó

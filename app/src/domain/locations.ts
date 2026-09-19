@@ -125,3 +125,24 @@ export function ubicacionDadaPorElCliente(input: {
   }
   return true;
 }
+
+/**
+ * EL CLIENTE YA DIJO DÓNDE ESTÁ, EN EL MISMO MENSAJE EN QUE PREGUNTA DÓNDE
+ * QUEDAN (Joaquín, 14-sep, conv 20427): «Dónde está ubicado los locales ya q yo
+ * me ubico al sur de Quito» recibió los dos mapas y «¿Cumbayá o Quito Sur?» con
+ * botones — «para qué preguntar de nuevo». Igual en la conv 3735.
+ *
+ * Devuelve el local solo cuando la zona se reconoce y un local le queda
+ * claramente más cerca que el otro; con una zona a medio camino no se elige
+ * por él.
+ */
+export function localPorLaZonaDicha(stores: Store[], texto: string | null | undefined): Store | null {
+  if (!texto || stores.length < 2) return null;
+  const zona = resolveSector(texto);
+  if (!zona) return null;
+  const distancias = stores
+    .map((store) => ({ store, km: distanceKm(zona.lat, zona.lng, store.lat, store.lng) }))
+    .sort((a, b) => a.km - b.km);
+  return distancias[1].km - distancias[0].km >= 3 ? distancias[0].store : null;
+}
+

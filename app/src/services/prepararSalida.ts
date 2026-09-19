@@ -25,6 +25,9 @@
  * guardián volvió a prometer «4 × KENDA KR203 … $262.60» cuando había 3,
  * borrando el aviso que un candado anterior ya había pegado.
  */
+import { sinRepartoInventado } from "../domain/porcentajeDeUso.js";
+import { todasLasLineas } from "../domain/tireTypes.js";
+import { dondeEstaElClienteSegunLoDicho } from "./dondeEstaElCliente.js";
 import type { Stage } from "./conversations.js";
 import { lastOutboundText } from "./conversations.js";
 import { esAcuseSimple } from "../domain/ofertaAceptada.js";
@@ -44,7 +47,6 @@ import { sinJsonCrudo } from "../domain/jsonCrudo.js";
 import { conLocalesReales } from "./localesReales.js";
 import { notifyAdvisor } from "./advisorNotifications.js";
 import { sql } from "../db/client.js";
-import { dondeEstaElCliente } from "../domain/fueraDeCobertura.js";
 import { sinVisitaNiMapas } from "../domain/visitaImposible.js";
 import { BENEFICIO_DE_REDES, esFraseDeBeneficios, preguntaPorBeneficios } from "../domain/beneficioDeRedes.js";
 import { sinFrasesDelTema } from "../domain/respuestaDelTema.js";
@@ -695,6 +697,20 @@ export const PASOS: readonly PasoDeSalida[] = [
     },
   },
   {
+    // EL REPARTO ASFALTO/TIERRA ES EL DE LA FICHA DEL MODELO (Joaquín, 14-sep,
+    // conv 20017: «70 % asfalto / 30 % tierra» de una A/T 4W que es 50/50). Es
+    // un número, así que va después del guardián. Ver domain/porcentajeDeUso.ts.
+    nombre: "sin_reparto_inventado",
+    corre: ["respuesta", "retomada", "seguimiento"],
+    async aplicar(texto, ctx) {
+      const limpio = sinRepartoInventado(texto, todasLasLineas());
+      if (limpio !== texto) {
+        console.warn(`📐 Conv ${ctx.conversation.id}: se quitó un reparto asfalto/tierra que no es el de la ficha del modelo.`);
+      }
+      return limpio;
+    },
+  },
+  {
     // Los números de cotización, por la misma razón.
     // Ver domain/numerosDeCotizacion.ts.
     nombre: "sin_numeros_de_cotizacion",
@@ -924,7 +940,7 @@ export const PASOS: readonly PasoDeSalida[] = [
     nombre: "sin_visita_si_no_puede_venir",
     corre: ["respuesta", "retomada", "seguimiento"],
     async aplicar(texto, ctx) {
-      const estado = await dondeEstaElClienteEnElCiclo(
+      const estado = await dondeEstaElClienteSegunLoDicho(
         ctx.conversation.id, ctx.conversation.current_cycle, ctx.textoDelCliente,
       );
       if (estado !== "fuera") return texto;
@@ -952,29 +968,6 @@ export const PASOS: readonly PasoDeSalida[] = [
   },
 ];
 
-/**
- * Dónde está el cliente según TODO el ciclo. Lo dice una vez y vale para los
- * turnos siguientes; gana lo más reciente, porque «Soy de Santo Domingo»
- * seguido de «el lunes voy a estar en quito» es alguien que sí viene.
- */
-async function dondeEstaElClienteEnElCiclo(
-  conversationId: number,
-  cycle: number,
-  textoDelCliente: string | null | undefined,
-): Promise<"cobertura" | "viene" | "fuera" | null> {
-  const deEsteTurno = dondeEstaElCliente(textoDelCliente);
-  if (deEsteTurno) return deEsteTurno.estado;
-  const entrantes = await sql<{ content: string }[]>`
-    select content from messages
-    where conversation_id=${conversationId} and cycle=${cycle} and direction='inbound'
-    order by created_at desc limit 20
-  `;
-  for (const { content } of entrantes) {
-    const donde = dondeEstaElCliente(content);
-    if (donde) return donde.estado;
-  }
-  return null;
-}
 
 export interface SalidaPreparada {
   /** Texto listo para enviar, o `null` si algún candado bloqueó el envío. */

@@ -73,7 +73,7 @@ import { getAiConfig, getPiecesConfig } from "../services/settings.js";
 import { researchVehicleFitment } from "../services/vehicleFitmentResearch.js";
 import { arosDeCandidatos, arosDeMedidas, invitacionPorAroAmbiguo } from "../domain/fitmentResearch.js";
 import { aroVigenteDeLaVisita, rangoDeAros } from "../domain/aros.js";
-import { nearestStore, resolveSector, ubicacionDadaPorElCliente } from "../domain/locations.js";
+import { localPorLaZonaDicha, nearestStore, resolveSector, ubicacionDadaPorElCliente } from "../domain/locations.js";
 import { ordenarPorCercania } from "../domain/equivalencia.js";
 import { extractFlotationSizes, formatFlotationSize, formatTireSize, parseTireSize, type TireSize, flotacionIncompleta } from "../domain/tireSize.js";
 import { marcaPreguntada, pidioCotizacionExplicita, ultimaMarcaPedida } from "../domain/consultaConRespaldo.js";
@@ -84,7 +84,7 @@ import { eleccionDeLaVitrina } from "../domain/eleccionDeVitrina.js";
 import { pideVerOpciones } from "../domain/salesIntent.js";
 import { getTirePatternProfile } from "../domain/tireKnowledge.js";
 import {
-  catalogoDeTipos, escalonDeMarca, infoTipo, normalizarTipo, ordenDeMarca, tipoDeProducto,
+  catalogoDeTipos, escalonDeMarca, infoTipo, normalizarTipo, ordenDeMarca, tipoDeProducto, usoDelModelo,
 } from "../domain/tireTypes.js";
 import { nivelDeLinea, ordenDeNivel, reglasEscalera } from "../domain/escalera.js";
 import { costoPorKm, respaldoCompleto, respaldoDeMarca } from "../domain/respaldoMarcas.js";
@@ -3210,7 +3210,16 @@ export function buildTools(ctx: AgentContext) {
           exists(select 1 from quotes q where q.conversation_id=c.id and q.cycle=c.current_cycle) as has_quote
         from conversations c where c.id=${ctx.conversation.id}
       `;
-      const elegido = local ?? saved?.nearest_store ?? null;
+      // La zona que el cliente dijo en ESTE mensaje elige el local: no se le
+      // vuelve a preguntar. Ver `localPorLaZonaDicha`.
+      const porZona = !local && !saved?.nearest_store
+        ? localPorLaZonaDicha(business.stores, ctx.currentUserText)
+        : null;
+      if (porZona) {
+        await updateConversationFacts(ctx.conversation.id, { nearestStore: porZona.name });
+        console.log(`📍 Conv ${ctx.conversation.id}: el cliente dijo su zona; local ${porZona.name}.`);
+      }
+      const elegido = local ?? saved?.nearest_store ?? porZona?.name ?? null;
       const mapas = buildStoreLinksBlock(elegido, { soloDestacado: Boolean(elegido) });
       if (!mapas) {
         return JSON.stringify({
@@ -3556,6 +3565,9 @@ function toolItem(item: {
     diseno: item.design,
     medida: item.sizeLabel ?? "Sin medida",
     tipo: tipo ?? undefined,
+    // El uso de ESTE modelo, de su ficha. Si el cliente pregunta para qué sirve,
+    // se contesta con esto y no con la definición genérica del tipo.
+    uso_del_modelo: usoDelModelo(item.design) ?? undefined,
     escalon: etiquetaEscalon(item.brand, item.design),
     precio_lista_con_iva: item.customerPriceWithTax,
     precio_hoy_con_iva: item.minimumPriceWithTax,

@@ -1,3 +1,34 @@
+## 18-sep-2026 · Tanda B: no se re-pregunta lo ya dicho, el reparto asfalto/tierra sale de la ficha, y el bot es Martín
+
+**Qué:** (3) `localPorLaZonaDicha` (domain/locations): `ubicacion_locales` elige
+el local cuando el cliente dice su zona en el mismo mensaje y uno le queda
+claramente más cerca; va solo ese mapa y se pregunta el día. «Fin de semana» y
+«finde» son `fecha` en `extractCustomerCommitment` (sábado, con la etiqueta
+«(fin de semana)»); «esta semana» sigue siendo tramo. Dónde está el cliente
+tiene una sola fuente, `services/dondeEstaElCliente.ts`, que mira también los
+ciclos anteriores (de ellos hereda el lugar, no el viaje); reemplaza las dos
+copias de `insistirCierre.ts` y `prepararSalida.ts`. (4) La ficha de la
+Wildpeak A/T4W dice 50/50 y la definición genérica de A/T ya no trae
+porcentajes; `toolItem` entrega `uso_del_modelo`; candado `sin_reparto_inventado`
+(domain/porcentajeDeUso) después del guardián, en las tres puertas. (5)
+`NOMBRE_DEL_VENDEDOR` y `FIRMA_DE_PRESENTACION` en domain/saludo: «Soy Martín,
+de Depot Tire». `ES_PRESENTACION_DEL_NEGOCIO` reconoce la firma nueva y la
+vieja, y la usa `ofertaAceptada`. El prompt y los hechos del guardián dicen que
+no se niega ser un asistente virtual. Escenarios B1–B4.
+
+**Por qué:** Reportes de Joaquín del 14 al 16-sep en el grupo. Conv 20427: «ya
+q yo me ubico al sur de Quito» recibió los dos mapas y la pregunta del local
+con botones. Conv 20589: «fin de semana» → «¿el día exacto del fin de semana?»,
+dos veces. Conv 19031: dijo «soy de Santo Domingo» en el ciclo 1 y en el ciclo
+3 recibió cuatro veces «¿Cumbayá o Quito Sur?», porque la consulta miraba solo
+el ciclo vigente. Conv 20017: «70 % asfalto / 30 % tierra» de una A/T 4W que es
+50/50; el número venía de la definición del TIPO. Martín: decidido por Joaquín
+el 14-sep («persona… un nombre alegre… un Martín») y nunca implementado. La
+prueba vieja que afirmaba que «Este fin de semana» no fija fecha se cambió a
+«Esta semana»: la regla de negocio cambió.
+
+**Horas:** 3
+
 ## 18-sep-2026 · Tanda A de la auditoría del 13 al 18-sep: el sí se cumple, llantas para ese cliente, la ráfaga no se parte por una cortesía
 
 **Qué:** (0) Entra a `main` el nivel 1 del adelgazamiento del guardián, que

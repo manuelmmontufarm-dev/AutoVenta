@@ -173,3 +173,22 @@ export function lineasPorAro(aro: number, tipo?: string | null): LineaLlanta[] {
 export function catalogoDeTipos(): TipoLlanta[] {
   return [...cargar().tipos.values()];
 }
+
+/** Todas las líneas de la base, para quien necesite el uso declarado de un modelo. */
+export function todasLasLineas(): LineaLlanta[] {
+  return cargar().lineas;
+}
+
+/**
+ * El uso declarado en la ficha de UN modelo («50% asfalto / 50% tierra»). Es el
+ * único sitio de donde puede salir un reparto asfalto/tierra: ver
+ * `domain/porcentajeDeUso.ts`.
+ */
+export function usoDelModelo(modelo: string | null | undefined): string | null {
+  if (!modelo) return null;
+  const llave = (m: string) => m.toUpperCase().replace(/[^A-Z0-9]/g, "");
+  const buscada = llave(modelo);
+  if (buscada.length < 3) return null;
+  return cargar().lineas.find((l) => llave(l.modelo) === buscada)?.uso ?? null;
+}
+
