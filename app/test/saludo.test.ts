@@ -66,18 +66,18 @@ describe("el primer mensaje al cliente siempre saluda", () => {
  * cotización — no se le vuelve a preguntar lo que ya dijo.
  */
 describe("la presentación al abrirse la conversación", () => {
-  const FIRMA = "Soy el asistente de Depot Tire";
+  const FIRMA = "Soy Martín, de Depot Tire";
 
   it("se presenta y debajo deja lo que el turno traía", () => {
     const salida = conPresentacion("En *195/55R16* tengo estas 3 opciones disponibles.", null);
-    expect(salida.startsWith("¡Hola! 👋 Soy el asistente de Depot Tire.")).toBe(true);
+    expect(salida.startsWith("¡Hola! 👋 Soy Martín, de Depot Tire.")).toBe(true);
     expect(salida).toContain("stock y precios reales");
     expect(salida).toContain("En *195/55R16* tengo estas 3 opciones disponibles.");
   });
 
   it("usa el nombre cuando el pushname sirve", () => {
     expect(conPresentacion("¿Qué aro usa?", "María Fernanda Pérez"))
-      .toContain("¡Hola, María! 👋 Soy el asistente de Depot Tire.");
+      .toContain("¡Hola, María! 👋 Soy Martín, de Depot Tire.");
   });
 
   it("no se presenta dos veces", () => {
@@ -88,7 +88,7 @@ describe("la presentación al abrirse la conversación", () => {
   it("le quita al modelo su «hola» suelto para no tartamudear", () => {
     const salida = conPresentacion("¡Hola, Manuel! 👋 ¿Qué medida necesita?", "Manuel");
     expect(salida).toBe(
-      "¡Hola, Manuel! 👋 Soy el asistente de Depot Tire. Le cotizo al instante con stock"
+      "¡Hola, Manuel! 👋 Soy Martín, de Depot Tire. Le cotizo al instante con stock"
       + " y precios reales, comparo modelos y le armo su cotización para tienda."
       + "\n\n¿Qué medida necesita?",
     );
@@ -98,7 +98,7 @@ describe("la presentación al abrirse la conversación", () => {
 
   it("si el turno era solo un saludo, queda la presentación sola", () => {
     expect(conPresentacion("Hola 👋", null)).toBe(
-      "¡Hola! 👋 Soy el asistente de Depot Tire. Le cotizo al instante con stock"
+      "¡Hola! 👋 Soy Martín, de Depot Tire. Le cotizo al instante con stock"
       + " y precios reales, comparo modelos y le armo su cotización para tienda.",
     );
   });
@@ -108,3 +108,24 @@ describe("la presentación al abrirse la conversación", () => {
     expect(conPresentacion("   ", "Juan")).toBe("");
   });
 });
+
+// 18-sep: el bot se presenta como Martín (Joaquín, 14-sep). La firma anterior
+// sigue en el historial de los chats abiertos y tiene que seguir contando como
+// presentación: si no, el «Ok» al saludo viejo volvería a leerse como un sí.
+describe("la firma anterior sigue siendo una presentación", () => {
+  it("no se antepone otra presentación a un texto que ya trae la vieja", async () => {
+    const { conPresentacion } = await import("../src/domain/saludo.js");
+    const vieja = "¡Hola! 👋 Soy el asistente de Depot Tire. ¿Qué medida usa?";
+    expect(conPresentacion(vieja, null)).toBe(vieja);
+  });
+  it("un «Ok» al saludo —nuevo o viejo— no es aceptar una cotización", async () => {
+    const { ofertaDeCotizacionAceptada } = await import("../src/domain/ofertaAceptada.js");
+    for (const firma of ["Soy Martín, de Depot Tire", "Soy el asistente de Depot Tire"]) {
+      expect(ofertaDeCotizacionAceptada(
+        `¡Hola! 👋 ${firma}. Le cotizo al instante con stock y precios reales, comparo modelos y le armo su cotización para tienda.`,
+        "Ok",
+      )).toBe(false);
+    }
+  });
+});
+

@@ -89,6 +89,22 @@ export function pideUbicacion(texto: string): boolean {
   return PIDE_UBICACION.test(normalizar(texto));
 }
 
+/**
+ * EL BOT OFRECIÓ LOS MAPAS Y EL CLIENTE DIJO «OK».
+ *
+ * Conv 19879 (16-sep) y la captura de Joaquín del 16-sep: «Le puedo compartir
+ * la ubicación de nuestros locales para que vea cuál le queda mejor» → «Ok» →
+ * el bot repitió lo del descuento en efectivo y los mapas nunca salieron. La
+ * oferta vivía en el texto y nada la ejecutaba: el «Ok» solo valía para
+ * cotizar. Una oferta del bot que el cliente acepta se cumple en ese turno.
+ */
+const OFRECIO_UBICACION =
+  /\b(?:puedo|podemos)\s+(?:compartir|enviar|mandar|pasar)(?:le)?\s+(?:la\s+|las\s+)?ubicacion(?:es)?\b|\ble\s+(?:comparto|envio|mando|paso)\s+(?:la\s+|las\s+)?ubicacion(?:es)?\b/;
+
+export function ofrecioLaUbicacion(mensajeDelBot: string | null | undefined): boolean {
+  return OFRECIO_UBICACION.test(normalizar(mensajeDelBot ?? ""));
+}
+
 export type MotivoDeUbicacion = "la_pidio" | "hablo_de_su_ciudad" | null;
 
 /**

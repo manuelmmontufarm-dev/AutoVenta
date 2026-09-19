@@ -1,0 +1,65 @@
+{
+  "version": 1,
+  "nombre": "conversacion-estandar",
+  "descripcion": "La conversación promedio de Depot Tire, siempre la misma, para medir cuánto cuesta una conversación en el simulador y comparar antes/después de cada cambio.",
+  "fuente": {
+    "conversacion": 18588,
+    "fecha": "2026-09-10",
+    "nota": "Mensajes del cliente copiados tal cual de producción. No traen datos personales: el nombre de perfil «Mario» es solo el de WhatsApp."
+  },
+  "porQueEsta": [
+    "Camino más común: el cliente da la medida, recibe opciones y no llega a cotizar (51 % de las conversaciones y 54 % del costo en 30 días).",
+    "4 mensajes del cliente (mediana 4, media 4,9) y 4 corridas del guardián (mediana 4, media 4,3).",
+    "Costo real $0,122, al lado de la media de 30 días ($0,125).",
+    "Arranca con el texto del anuncio («¡Hola! Quiero más información…»), como la mayoría.",
+    "Trae lo que pasa de verdad: elección por preferencia, «mañana le confirmo», un sticker y el seguimiento automático."
+  ],
+  "perfilHistorico": {
+    "medido": "2026-09-12",
+    "30dias": {
+      "conversaciones": 1351,
+      "usdPorConversacion": 0.1249,
+      "guardianPctDelCosto": 52.4,
+      "mensajesCliente": { "media": 4.9, "p25": 2, "p50": 4, "p75": 6 },
+      "corridasGuardian": { "media": 4.28, "p50": 4 },
+      "caminos": {
+        "sinOpciones": { "pctConversaciones": 25.7, "pctCosto": 5.8, "usdMedio": 0.0283 },
+        "opcionesSinCotizacion": { "pctConversaciones": 50.6, "pctCosto": 54.4, "usdMedio": 0.1345 },
+        "conCotizacion": { "pctConversaciones": 23.8, "pctCosto": 39.7, "usdMedio": 0.2089 }
+      }
+    },
+    "7dias": {
+      "conversaciones": 324,
+      "usdPorConversacion": 0.1063,
+      "guardianPctDelCosto": 57.9,
+      "mensajesCliente": { "media": 4.5, "p50": 3 },
+      "corridasGuardian": { "media": 4.37, "p50": 4 }
+    }
+  },
+  "sim": {
+    "nombreDePerfil": "Mario"
+  },
+  "turnos": [
+    { "tipo": "texto", "texto": "¡Hola! Quiero más información sobre el costo de un juego completo de llantas 225/70 R15 para camioneta 🛻🛻 MAZDA BT 50...buena tarde... gracias" },
+    { "tipo": "texto", "texto": "2...o 3...por favor... gracias" },
+    { "tipo": "texto", "texto": "El día de mañana le confirmo...por favor...pero más seguro la 2" },
+    { "tipo": "sticker" },
+    { "tipo": "seguimiento", "trabajo": "in_window_first", "nota": "En producción salió 3 h después del sticker. El medidor lo adelanta en la base del simulador." }
+  ],
+  "referenciaProduccion": {
+    "nota": "Lo que costó la conversación 18588 el 10-sep-2026, con el bot de ese día.",
+    "usd": 0.122,
+    "corridas": { "chat": 3, "classifier": 3, "guardian": 3, "guardian_seguimiento": 1 },
+    "guardian": { "correcciones": 1, "entradaMediaPorLlamada": 6501, "cacheadaModa": 4864 }
+  },
+  "cacheDeProduccion": {
+    "nota": "Parte de la entrada que producción cobra a precio de caché, últimos 7 días al 12-sep-2026 (ai_runs). Sirve para normalizar el costo del simulador, que arranca con el caché frío y usa otra clave.",
+    "guardian|guardian|gpt-5.5": 0.751,
+    "guardian|guardian_seguimiento|gpt-5.5": 0.738,
+    "chat|exact_tool_reply|gpt-5.5": 0.607,
+    "chat|commercial|gpt-5.5": 0.527,
+    "chat|routine_stage|gpt-5.4-mini": 0.431,
+    "chat|exact_tool_reply|gpt-5.4-mini": 0.48,
+    "classifier|post_turn_stage|gpt-5.4-mini": 0
+  }
+}

@@ -152,7 +152,7 @@ describe("Cableado en el webhook (source-check declarado)", () => {
     expect(fuente).toMatch(
       // El `citado` del final es el reply de WhatsApp (31-ago): viaja junto al
       // texto crudo y no cambia el orden que esta prueba protege.
-      /case "text":[\s\S]{0,600}?recibirMensaje\(from, name, message\.text\.body, message\.id, receivedAt, citado\)/,
+      /case "text":[\s\S]{0,600}?recibirMensaje\(from, name, message\.text\.body, message\.id, receivedAt, citado[,)]/,
     );
     // El await de los links no puede volver a colarse antes del push.
     expect(fuente).not.toMatch(/conResumenDeLinks\([\s\S]{0,40}\)[\s\S]{0,200}recibirMensaje/);

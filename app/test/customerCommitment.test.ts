@@ -31,8 +31,11 @@ describe("extractCustomerCommitment", () => {
   });
 
   it("guarda el tramo cuando el cliente no da un día exacto", () => {
-    const result = extractCustomerCommitment("Este fin de semana", now, { respondiendoAlDia: true });
-    expect(result?.text).toBe("Este fin de semana");
+    // Hasta el 15-sep este caso era «Este fin de semana». Joaquín cambió la
+    // regla (conv 20589): el fin de semana ya es una fecha — ver
+    // test/loYaDicho.test.ts. El tramo sin día sigue siendo «esta semana».
+    const result = extractCustomerCommitment("Esta semana", now, { respondiendoAlDia: true });
+    expect(result?.text).toBe("Esta semana");
     expect(result?.visitDate).toBeUndefined();
   });
 

@@ -22,6 +22,8 @@
  * Puro a propósito: se prueba sin base y sin modelo.
  */
 
+import { ES_PRESENTACION_DEL_NEGOCIO } from "./saludo.js";
+
 const normalizar = (texto: string) =>
   (texto ?? "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "")
     // Tono de piel y selector de variante: «👍🏻» (turno real de la conv 11620)
@@ -66,8 +68,34 @@ const OFRECIO_ALGO =
 // EQUIVALENTE (conv 13635, 1-sep: la recomendación salió sin pregunta, el
 // cliente dijo «Ok» y nadie supo a qué). Ahora la pregunta existe y el «Ok»
 // que le sigue tiene que abrir la cotización.
+// «¿Prefiere que avancemos con esta opción M/T para su medida?» es esa misma
+// pregunta reescrita por el guardián (conv 19710, 14-sep; conv 20427): con UNA
+// llanta nombrada sobre la mesa, avanzar con ella ES cotizarla. El cliente dijo
+// «Sí por favor» y la cotización quedó bloqueada porque el verbo no era cotizar.
 const OFRECIO_COTIZAR =
-  /(?:puedo|podemos|podria|podriamos)\s+(?:\w+\s+){0,3}coti[zc]\w*|¿\s*(?:le|se\s+las?)\s+(?:cotizo|genero)|\b(?:le|se\s+las?)\s+cotizo\b[^.?!]{0,60}\?|\ble\s+genero\b[^.?!]{0,60}coti[zc]\w*|(?:si\s+(?:desea|gusta|quiere)|si\s+le\s+parece|quiere\s+que|desea\s+que|prefiere\s+que)[^.?!]{0,70}coti[zc]\w*|(?:le|se\s+la|te\s+la)\s+(?:dejo|paso|hago|armo|preparo|genero)\s+(?:\w+\s+){0,4}coti[zc]\w*/;
+  /(?:puedo|podemos|podria|podriamos)\s+(?:\w+\s+){0,3}coti[zc]\w*|¿\s*(?:le|se\s+las?)\s+(?:cotizo|genero)|\b(?:le|se\s+las?)\s+cotizo\b[^.?!]{0,60}\?|\ble\s+genero\b[^.?!]{0,60}coti[zc]\w*|(?:si\s+(?:desea|gusta|quiere)|si\s+le\s+parece|quiere\s+que|desea\s+que|prefiere\s+que)[^.?!]{0,70}coti[zc]\w*|(?:le|se\s+la|te\s+la)\s+(?:dejo|paso|hago|armo|preparo|genero)\s+(?:\w+\s+){0,4}coti[zc]\w*|¿[^?]{0,40}\bavan[cz]\w+\s+con\s+(?:esta|esa|la)\s+(?:opcion|llanta|misma)\b[^?]{0,80}\?/;
+
+/**
+ * ENTREGAR NO ES OFRECER (simulador, 18-sep, guion de la conv 19879).
+ *
+ * «La opción premium es la KENDA KR628 — $157.57 c/u con IVA. Le dejo la
+ * cotización 👍» calza en `OFRECIO_COTIZAR` por «le dejo … cotización», y es la
+ * ENTREGA. Dos mensajes después el cliente dijo «Ok» a otra cosa, la oferta
+ * «seguía viva», se ordenó cotizar otra vez y salió «Su cotización sigue
+ * vigente» con la pregunta del local repetida. Las frases de entrega se quitan
+ * antes de buscar la oferta.
+ */
+const ENTREGA_DE_COTIZACION =
+  /\b(?:le|te)\s+(?:dejo|mando|envio|paso)\s+(?:la|su|tu)\s+cotizacion\b(?!\s+(?:si|cuando|apenas)\b)|\baqui\s+(?:le\s+|te\s+)?(?:mando|dejo|envio|tiene|va)\b[^.?!]{0,30}cotizacion|\bcotizacion\s+(?:lista|enviada|reenviada)\b|\bsu\s+cotizacion\s+sigue\s+vigente\b/g;
+
+const CONDICIONAL = /\bsi\s+(?:desea|gusta|quiere|le\s+parece|prefiere)\b|\bquiere\s+que\b|\bdesea\s+que\b|\?/;
+
+/** Frase por frase: la que entrega sin condicional ni pregunta no ofrece nada. */
+const ofreceCotizar = (botNormalizado: string): boolean =>
+  botNormalizado
+    .split(/(?<=[.!?\n])/)
+    .filter((frase) => CONDICIONAL.test(frase) || !new RegExp(ENTREGA_DE_COTIZACION.source).test(frase))
+    .some((frase) => OFRECIO_COTIZAR.test(frase));
 
 /**
  * El cliente contestó con un acuse y nada más.
@@ -93,7 +121,9 @@ const ACUSE_SIN_MAS =
  * contestó «👍» al saludo del ciclo reabierto (16277). Una capacidad que el
  * bot anuncia de sí mismo no es una oferta que el cliente pueda aceptar.
  */
-const ES_PRESENTACION = /\bsoy\s+el\s+asistente\s+de\b/;
+// El patrón vive con la firma, en `domain/saludo.ts`: si cambia cómo se presenta
+// el bot, esta puerta no puede quedarse reconociendo el saludo viejo.
+const ES_PRESENTACION = ES_PRESENTACION_DEL_NEGOCIO;
 
 /** Un «no» a secas nunca es un sí, por más corto que sea. */
 const NEGATIVA_CORTA = /^(?:no|nop|nel|no\s+gracias|todavia\s+no|aun\s+no|ahorita\s+no|por\s+ahora\s+no|mejor\s+no|otro\s+dia|luego|despues|mas\s+tarde)[\s.,!]*$/;
@@ -127,7 +157,7 @@ export function ofertaDeCotizacionAceptada(
   mensajeDelCliente: string,
 ): boolean {
   const bot = normalizar(ultimoMensajeDelBot ?? "");
-  if (!bot || ES_PRESENTACION.test(bot) || !OFRECIO_COTIZAR.test(bot)) return false;
+  if (!bot || ES_PRESENTACION.test(bot) || !ofreceCotizar(bot)) return false;
   const cliente = normalizar(mensajeDelCliente);
   if (!cliente || NEGATIVA_CORTA.test(cliente)) return false;
   return ACUSE_SIN_MAS.test(cliente);
@@ -193,7 +223,7 @@ export function ofertaDeCotizacionVigenteAceptada(
       // el cliente se apartó a comparar; la oferta vieja ya no se acepta sola.
       if (NEGATIVA_CORTA.test(texto) || /\bno\s+gracias\b|\bya\s+compre\b|\bya\s+no\b|\b[bv]oy\s+a\s+(?:mirar|ver|pensar|comparar)\b|\blo\s+(?:voy\s+a\s+)?pienso\b/.test(texto)) return false;
       clientesEnMedio += 1;
-    } else if (m.role === "assistant" && !ES_PRESENTACION.test(texto) && OFRECIO_COTIZAR.test(texto)) {
+    } else if (m.role === "assistant" && !ES_PRESENTACION.test(texto) && ofreceCotizar(texto)) {
       return true;
     }
   }

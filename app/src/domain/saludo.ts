@@ -55,7 +55,19 @@ export function conSaludo(texto: string, nombre: string | null | undefined): str
  * La frase por la que se reconoce que el negocio ya se presentó. Si aparece en
  * el texto, no se vuelve a anteponer nada.
  */
-export const FIRMA_DE_PRESENTACION = "Soy el asistente de Depot Tire";
+// Joaquín, 14-sep-2026 (grupo «Depot tire arreglos»): «que se presente como una
+// persona, tipo "mi nombre es Martín", para que la conversación se sienta más
+// directa y personalizada». Manuel lo consultó y quedó: persona, nombre alegre,
+// Martín. El nombre vive ACÁ y en ningún otro lado.
+export const NOMBRE_DEL_VENDEDOR = "Martín";
+export const FIRMA_DE_PRESENTACION = `Soy ${NOMBRE_DEL_VENDEDOR}, de Depot Tire`;
+
+/**
+ * ¿Este texto es la presentación del negocio? Reconoce la firma de hoy y la
+ * anterior («Soy el asistente de Depot Tire»), que sigue en el historial de
+ * los chats abiertos antes del cambio. Recibe el texto ya sin tildes.
+ */
+export const ES_PRESENTACION_DEL_NEGOCIO = /\bsoy\s+(?:el\s+asistente\s+de|martin,?\s+de)\s+depot\b/i;
 
 /** Un saludo pelado al arranque, para quitarlo antes de poner la presentación. */
 const SALUDO_PELADO =
@@ -83,7 +95,7 @@ export function presentacionDeApertura(nombre: string | null | undefined): strin
 export function conPresentacion(texto: string, nombre: string | null | undefined): string {
   const limpio = (texto ?? "").trim();
   if (!limpio) return limpio;
-  if (limpio.includes(FIRMA_DE_PRESENTACION)) return limpio;
+  if (ES_PRESENTACION_DEL_NEGOCIO.test(limpio.normalize("NFD").replace(/[\u0300-\u036f]/g, ""))) return limpio;
   const resto = limpio.replace(SALUDO_PELADO, "").trim();
   const cabecera = presentacionDeApertura(nombre);
   return resto ? `${cabecera}\n\n${resto}` : cabecera;

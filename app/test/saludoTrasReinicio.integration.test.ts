@@ -80,7 +80,7 @@ describe.sequential("el saludo sobrevive al /restart", () => {
     } as never);
 
     expect(salida).toBe(firstContactReply());
-    expect(salida).toContain("Soy el asistente de Depot Tire");
+    expect(salida).toContain("Soy Martín, de Depot Tire");
   });
 
   it("dentro del mismo ciclo el candado sigue mordiendo (conv 3 c20, 31-ago)", async () => {

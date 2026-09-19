@@ -9,6 +9,7 @@
  * cotización, y por el mismo motivo: el Ángel Guardián reescribe el texto
  * entero y puede quitar la pregunta al resumir.
  */
+import { dondeEstaElClienteSegunLoDicho } from "./dondeEstaElCliente.js";
 import { business } from "../config.js";
 import { sql } from "../db/client.js";
 import { ahorroDeLaCotizacion, type LineaCotizada } from "../domain/ahorro.js";
@@ -18,7 +19,6 @@ import { datoQueFalta } from "../domain/preguntaPendiente.js";
 import { despedidaQueCorresponde } from "../domain/cierrePerdido.js";
 import { esCierreComercialDelTurno } from "../domain/cierreTurno.js";
 import { PREGUNTA_DE_LOCAL, preguntaElLocal } from "../domain/storeSelection.js";
-import { dondeEstaElCliente } from "../domain/fueraDeCobertura.js";
 import { buildVisitPlanQuestion, composeBlocks, MAX_BLOCKS } from "./quoteMessages.js";
 import type { Stage } from "./conversations.js";
 
@@ -115,7 +115,7 @@ export async function insistirConLoQueFalta(
   // de dónde es UNA vez y el candado corre en todos los turnos siguientes. Y
   // manda lo último que dijo, porque «Soy de Santo Domingo» seguido de «el
   // lunes voy a estar en quito» (conv 18821) es un cliente que SÍ viene.
-  const dondeEsta = await dondeEstaSegunElCiclo(conversationId, cycle, textoDelCliente);
+  const dondeEsta = await dondeEstaElClienteSegunLoDicho(conversationId, cycle, textoDelCliente);
   if (dondeEsta === "fuera") return { texto, agregado: null };
   // Simulador, 29-ago: una venta ya estaba en seguimiento, pero el cliente
   // pidió opciones para otra medida. El agente volvió bien a medir y mostró
@@ -223,28 +223,3 @@ export async function insistirConLoQueFalta(
 }
 
 
-/**
- * Dónde está el cliente según TODO el ciclo, no solo este turno.
- *
- * Lo dice una vez («Soy de Guayaquil») y vale para los turnos siguientes. Gana
- * lo más reciente: el de Santo Domingo que anuncia que sube a Quito pasa de
- * `fuera` a `viene`, y ahí el local vuelve a tener sentido (conv 18821).
- */
-async function dondeEstaSegunElCiclo(
-  conversationId: number,
-  cycle: number,
-  textoDelCliente: string | null | undefined,
-): Promise<"cobertura" | "viene" | "fuera" | null> {
-  const deEsteTurno = dondeEstaElCliente(textoDelCliente);
-  if (deEsteTurno) return deEsteTurno.estado;
-  const entrantes = await sql<{ content: string }[]>`
-    select content from messages
-    where conversation_id=${conversationId} and cycle=${cycle} and direction='inbound'
-    order by created_at desc limit 20
-  `;
-  for (const { content } of entrantes) {
-    const donde = dondeEstaElCliente(content);
-    if (donde) return donde.estado;
-  }
-  return null;
-}

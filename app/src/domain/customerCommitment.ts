@@ -6,6 +6,9 @@ const INTENT = /\b(?:voy(?!\s+a\s+estar)|ire|iré|vamos(?!\s+a\s+estar)|paso|pas
 /** Compromisos sin fecha exacta: valen como respuesta, no como día del calendario. */
 const VAGO = /\b(?:esta semana|en la semana|este finde|el finde|fin de semana|proxima semana|la otra semana|la siguiente semana)\b/;
 
+/** El fin de semana sí es una fecha: ver `extractCustomerCommitment`. */
+const FIN_DE_SEMANA = /\b(?:este\s+|el\s+)?(?:finde|fin\s+de\s+semana)\b/;
+
 /**
  * UN RANGO NO ES UNA FECHA. «Paso entre hoy y el lunes» nombra DOS momentos y
  * no elige ninguno; leerlo como fecha concreta agenda un día que el cliente
@@ -347,6 +350,24 @@ export function extractCustomerCommitment(
   }
   if (relativo === "manana") return conFranja(10, 1);
   if (relativo === "pasado_manana") return conFranja(10, 2);
+  // «FIN DE SEMANA» YA ES UNA FECHA (Joaquín, 15-sep, conv 20589): el cliente
+  // contestó «fin de semana» a los botones del día y el bot le pidió «el día
+  // exacto del fin de semana», dos veces. Para el local, quien viene el fin de
+  // semana viene el sábado o el domingo: se anota el sábado, se dice que es el
+  // fin de semana y no se vuelve a preguntar. «Esta semana» sigue siendo vago.
+  if (FIN_DE_SEMANA.test(normalized)) {
+    const localNow = new Date(now.getTime() - 5 * 3_600_000);
+    const hoy = localNow.getUTCDay();
+    let offset = (6 - hoy + 7) % 7;
+    if (hoy === 6 && localNow.getUTCHours() >= 10) offset = 1;
+    if (hoy === 0) offset = localNow.getUTCHours() < 15 ? 0 : 6;
+    return {
+      text: compact,
+      visitDate: localDateAt(franja?.hora ?? 10, offset, now),
+      visitTimeLabel: etiqueta ? `${etiqueta} (fin de semana)` : "(fin de semana)",
+      tipo: "fecha",
+    };
+  }
   // Sin día exacto («esta semana», o una hora suelta): vale como compromiso,
   // pero no como fecha de calendario — el bot sigue debiendo preguntar el día.
   if (VAGO.test(normalized) || franja) {

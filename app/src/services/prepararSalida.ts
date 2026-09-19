@@ -25,7 +25,15 @@
  * guardián volvió a prometer «4 × KENDA KR203 … $262.60» cuando había 3,
  * borrando el aviso que un candado anterior ya había pegado.
  */
+import { preguntaElDia } from "../domain/customerCommitment.js";
+import { preguntaElLocal } from "../domain/storeSelection.js";
+import { elClienteDijoQueAvisa } from "../domain/clientePosterga.js";
+import { sinRepartoInventado } from "../domain/porcentajeDeUso.js";
+import { todasLasLineas } from "../domain/tireTypes.js";
+import { dondeEstaElClienteSegunLoDicho } from "./dondeEstaElCliente.js";
 import type { Stage } from "./conversations.js";
+import { lastOutboundText } from "./conversations.js";
+import { esAcuseSimple } from "../domain/ofertaAceptada.js";
 import { applyOutboundGuard } from "./outboundGuard.js";
 import { revisarConGuardian, type HuellaHerramienta } from "./guardian.js";
 import { asegurarAvisoDeStock } from "./stockCorto.js";
@@ -42,7 +50,6 @@ import { sinJsonCrudo } from "../domain/jsonCrudo.js";
 import { conLocalesReales } from "./localesReales.js";
 import { notifyAdvisor } from "./advisorNotifications.js";
 import { sql } from "../db/client.js";
-import { dondeEstaElCliente } from "../domain/fueraDeCobertura.js";
 import { sinVisitaNiMapas } from "../domain/visitaImposible.js";
 import { BENEFICIO_DE_REDES, esFraseDeBeneficios, preguntaPorBeneficios } from "../domain/beneficioDeRedes.js";
 import { sinFrasesDelTema } from "../domain/respuestaDelTema.js";
@@ -54,7 +61,7 @@ import { mencionaDescuentoEnEfectivo, politicaDePagos, preguntaPorElPago, respon
 import { sinNumerosDeCotizacion } from "../domain/numerosDeCotizacion.js";
 import { conPreguntaEnSuPropioMensaje } from "../domain/preguntaSola.js";
 import { despedidaQueCorresponde } from "../domain/cierrePerdido.js";
-import { motivoDeUbicacion } from "../domain/ubicacionPedida.js";
+import { motivoDeUbicacion, ofrecioLaUbicacion } from "../domain/ubicacionPedida.js";
 import { pideOtroDia } from "./rutaOtroDia.js";
 import { buildStoreLinksBlock } from "./quoteMessages.js";
 import { buildStoreLinksBlockOnce } from "./storeLinks.js";
@@ -114,7 +121,7 @@ export interface ContextoDeSalida {
    * que insistía tras un rechazo, o el texto era calco de algo ya enviado.
    * Lo lee `followUpProcessor` para cancelar el job con ese motivo.
    */
-  motivoDeSupresion?: "insiste_tras_rechazo" | "calco_del_hilo";
+  motivoDeSupresion?: "insiste_tras_rechazo" | "calco_del_hilo" | "el_cliente_avisa" | "cliente_fuera_de_cobertura";
   /** Este turno termina sin empuje comercial, pero no cierra ni borra el ciclo. */
   suprimirEmpujeComercial?: boolean;
   /** La intención vigente es un servicio que no está en el catálogo de llantas. */
@@ -135,6 +142,38 @@ export interface PasoDeSalida {
  * puertas a la vez — que es exactamente el punto.
  */
 export const PASOS: readonly PasoDeSalida[] = [
+  {
+    // EL CLIENTE DIJO QUE ÉL AVISA, O NO ES DE QUITO: EL RECORDATORIO NO SALE.
+    //
+    // Va primero y sin IA: no tiene sentido pagarle al guardián la revisión de
+    // un mensaje que no debe existir. «Yo le aviso», «estaré en contacto»,
+    // «ya le paso» (convs 20471, 20663, 12539, 19879, 20589) no cierran la
+    // venta, pero el turno lo tomó el cliente. Y al que está fuera de Quito no
+    // se le recuerda «¿a cuál local?» (conv 19031, Santo Domingo, 4 veces).
+    // Ver domain/clientePosterga.ts y services/dondeEstaElCliente.ts.
+    nombre: "el_cliente_tomo_el_turno",
+    corre: ["seguimiento"],
+    async aplicar(texto, ctx) {
+      const [ultimo] = await sql<{ content: string | null; direction: string }[]>`
+        select content, direction from messages
+        where conversation_id=${ctx.conversation.id} and cycle=${ctx.conversation.current_cycle}
+          and direction='inbound'
+        order by created_at desc limit 1
+      `;
+      if (elClienteDijoQueAvisa(ultimo?.content)) {
+        ctx.motivoDeSupresion = "el_cliente_avisa";
+        console.log(`🤐 Conv ${ctx.conversation.id}: el cliente dijo que él avisa; el seguimiento no sale.`);
+        return null;
+      }
+      const donde = await dondeEstaElClienteSegunLoDicho(ctx.conversation.id, ctx.conversation.current_cycle, ultimo?.content);
+      if (donde === "fuera" && (preguntaElLocal(texto) || preguntaElDia(texto))) {
+        ctx.motivoDeSupresion = "cliente_fuera_de_cobertura";
+        console.log(`🤐 Conv ${ctx.conversation.id}: el cliente no está en Quito; no se le recuerda el local ni el día.`);
+        return null;
+      }
+      return texto;
+    },
+  },
   {
     // Un dato pendiente se vuelve spam si se pregunta en dos turnos seguidos.
     // Se limpia ANTES del guardián para que el revisor vea el borrador real que
@@ -348,7 +387,17 @@ export const PASOS: readonly PasoDeSalida[] = [
     nombre: "ubicacion_cuando_la_piden",
     corre: ["respuesta", "retomada"],
     async aplicar(texto, ctx) {
-      const motivo = motivoDeUbicacion(ctx.textoDelCliente ?? "");
+      let motivo = motivoDeUbicacion(ctx.textoDelCliente ?? "");
+      // El bot los ofreció y el cliente contestó con un acuse: es un sí, y lo
+      // ofrecido se entrega (conv 19879, 16-sep). Si el mensaje anterior ya
+      // traía los links, el «Ok» es solo un acuse.
+      if (!motivo && esAcuseSimple(ctx.textoDelCliente ?? "")) {
+        const anterior = await lastOutboundText(ctx.conversation.id);
+        const yaLosMandamos = business.stores.some(
+          (store) => store.mapsUrl && (anterior ?? "").includes(store.mapsUrl),
+        );
+        if (!yaLosMandamos && ofrecioLaUbicacion(anterior)) motivo = "la_pidio";
+      }
       if (!motivo) return texto;
       // Si el turno YA lleva los mapas (la cotización los manda), no se duplican.
       const yaLosLleva = business.stores.some(
@@ -683,6 +732,20 @@ export const PASOS: readonly PasoDeSalida[] = [
     },
   },
   {
+    // EL REPARTO ASFALTO/TIERRA ES EL DE LA FICHA DEL MODELO (Joaquín, 14-sep,
+    // conv 20017: «70 % asfalto / 30 % tierra» de una A/T 4W que es 50/50). Es
+    // un número, así que va después del guardián. Ver domain/porcentajeDeUso.ts.
+    nombre: "sin_reparto_inventado",
+    corre: ["respuesta", "retomada", "seguimiento"],
+    async aplicar(texto, ctx) {
+      const limpio = sinRepartoInventado(texto, todasLasLineas());
+      if (limpio !== texto) {
+        console.warn(`📐 Conv ${ctx.conversation.id}: se quitó un reparto asfalto/tierra que no es el de la ficha del modelo.`);
+      }
+      return limpio;
+    },
+  },
+  {
     // Los números de cotización, por la misma razón.
     // Ver domain/numerosDeCotizacion.ts.
     nombre: "sin_numeros_de_cotizacion",
@@ -912,7 +975,7 @@ export const PASOS: readonly PasoDeSalida[] = [
     nombre: "sin_visita_si_no_puede_venir",
     corre: ["respuesta", "retomada", "seguimiento"],
     async aplicar(texto, ctx) {
-      const estado = await dondeEstaElClienteEnElCiclo(
+      const estado = await dondeEstaElClienteSegunLoDicho(
         ctx.conversation.id, ctx.conversation.current_cycle, ctx.textoDelCliente,
       );
       if (estado !== "fuera") return texto;
@@ -940,29 +1003,6 @@ export const PASOS: readonly PasoDeSalida[] = [
   },
 ];
 
-/**
- * Dónde está el cliente según TODO el ciclo. Lo dice una vez y vale para los
- * turnos siguientes; gana lo más reciente, porque «Soy de Santo Domingo»
- * seguido de «el lunes voy a estar en quito» es alguien que sí viene.
- */
-async function dondeEstaElClienteEnElCiclo(
-  conversationId: number,
-  cycle: number,
-  textoDelCliente: string | null | undefined,
-): Promise<"cobertura" | "viene" | "fuera" | null> {
-  const deEsteTurno = dondeEstaElCliente(textoDelCliente);
-  if (deEsteTurno) return deEsteTurno.estado;
-  const entrantes = await sql<{ content: string }[]>`
-    select content from messages
-    where conversation_id=${conversationId} and cycle=${cycle} and direction='inbound'
-    order by created_at desc limit 20
-  `;
-  for (const { content } of entrantes) {
-    const donde = dondeEstaElCliente(content);
-    if (donde) return donde.estado;
-  }
-  return null;
-}
 
 export interface SalidaPreparada {
   /** Texto listo para enviar, o `null` si algún candado bloqueó el envío. */

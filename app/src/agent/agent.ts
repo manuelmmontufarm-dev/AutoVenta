@@ -3,6 +3,7 @@
  * Ejecuta las tools locales y devuelve los resultados al modelo hasta obtener
  * una respuesta final para WhatsApp.
  */
+import { anuncioDeLaConversacion } from "../services/anuncio.js";
 import OpenAI from "openai";
 import { aroDadoPorElCliente, aroRespondido, medidaConfirmadaPorCliente } from "../domain/medidaConfirmada.js";
 import { esFalloDelProveedor } from "../domain/falloDelProveedor.js";
@@ -31,6 +32,7 @@ import { preguntaElDia } from "../domain/customerCommitment.js";
 import { ordenDeNoReusarLaVitrina, vitrinaQueNoEsSuMedida } from "../domain/vitrinaVieja.js";
 import { extractTireSizes, formatTireSize, loQueFaltaDeLaMedida } from "../domain/tireSize.js";
 import { getHistory, logAiRun, olvidarMedidaDeTrabajo } from "../services/conversations.js";
+import { hechoDelAnuncio } from "../domain/anuncio.js";
 import { getAiConfig, getPublishedStagePrompt, getStoreHours } from "../services/settings.js";
 import { getPhaseFlags, toolEnabled } from "../services/phases.js";
 import { buildSystemPrompt } from "./prompts.js";
@@ -170,7 +172,7 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
       getPhaseFlags(),
       getStoreHours(),
       activeBenefitFactsBlock(),
-      getHistory(ctx.conversation.id, config.openai.historyLimit),
+      getHistory(ctx.conversation.id, config.openai.historyLimit, ctx.recibidoHasta ?? null),
     ]);
   // LA MEDIDA QUE EL CLIENTE NO DIO (Manuel, 1-sep, conv 13862): si la medida
   // en juego salió del vehículo o del aro, este turno puede mostrar opciones
@@ -321,6 +323,8 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
   // Marca preguntada SIN medida en juego: la consulta al catálogo se hace
   // aquí, determinística, y el resultado le llega al modelo como hecho
   // (T115 P10, 31-ago: el mini mandó la guía de medida sin nombrar a Kenda).
+  // El anuncio por el que llegó: sin él, «la del anuncio» no significa nada.
+  const anuncioDelChat = await anuncioDeLaConversacion(ctx.conversation.id).catch(() => null);
   let hechoDeMarca: string | null = null;
   if (marcaDelTurno && !salesFacts.tireSize && extractTireSizes(userText).length === 0) {
     const deLaMarca = searchByText(marcaDelTurno, 40).filter((p) =>
@@ -357,7 +361,13 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
   const descansoDelAcuse =
     (acuseTrasObjecion || (!aceptoLaOferta && !ctx.aceptoCotizacion
       && esAcuseSimple(userText)
-      && (preguntaElLocal(textoUltimoDelBot) || preguntaElDia(textoUltimoDelBot) || visitaCerrada)));
+      && (preguntaElLocal(textoUltimoDelBot) || preguntaElDia(textoUltimoDelBot) || visitaCerrada
+        // Y EL «OK» A UNA RESPUESTA QUE NO PREGUNTABA NADA (conv 19879 y captura
+        // de Joaquín, 16-sep): el bot explicó el descuento en efectivo, el
+        // cliente dijo «Ok» dos veces y recibió la misma explicación dos veces
+        // más. Sin pregunta ni oferta pendiente, un acuse no pide que le
+        // repitan el último tema.
+        || (Boolean(textoUltimoDelBot.trim()) && !/\?/.test(textoUltimoDelBot)))));
   if (acuseTrasObjecion) ctx.aceptoCotizacion = false;
   // LA ZANAHORIA DEL ASESOR SE EJECUTA O SE SUELTA (T115 conv 8288, corrida 4):
   // si algún turno ya ofreció asesor y el aviso nunca salió, el modelo recibe
@@ -393,8 +403,18 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
     .filter((p): p is NonNullable<typeof p> => Boolean(p))
     .map((p) => ({ codigo: p.code, marca: p.brand ?? "", diseno: p.design ?? "", medida: p.sizeLabel ?? null }));
   const eleccion = !pidioHumano && vitrina.length ? eleccionDeLaVitrina(userText, vitrina) : null;
-  const marcaElegida = !pidioHumano && salesFacts.escalones !== null && !eleccion
+  // NOMBRAR UNA MARCA SOLO ES ELEGIR SI ESA MARCA ESTÁ EN LA LÁMINA, y si el
+  // mensaje no trae una medida nueva. Conv 19457 (14-sep): con la lámina de
+  // 225/65R17 en pantalla el cliente escribió «Y en 215 70 r16» + «En Kenda» —
+  // una búsqueda nueva— y se leyó como «elijo la Kenda»: salió una cotización
+  // de 4 KENDA KR50 H/T que nadie pidió, a quien buscaba llanta para lodo.
+  const marcaNombrada = !pidioHumano && salesFacts.escalones !== null && !eleccion
     ? marcaElegidaASecas(userText)
+    : null;
+  const marcaElegida = marcaNombrada
+    && extractTireSizes(userText).length === 0
+    && vitrina.some((o) => o.marca.toUpperCase().includes(marcaNombrada.toUpperCase()))
+    ? marcaNombrada
     : null;
   const pidioCotizar = !pidioHumano && (pidioCotizacionExplicita(userText) || marcaElegida !== null || eleccion?.tipo === "una");
   // Elegir una de las opciones mostradas ES la autorización: abre el candado
@@ -521,6 +541,7 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
     // (30-ago). Ver domain/consultaConRespaldo.ts.
     ...((marcaDelTurno) ? [{ role: "system" as const, content: ordenDeNombrarLaMarca(marcaDelTurno) }] : []),
     ...(hechoDeMarca ? [{ role: "system" as const, content: hechoDeMarca }] : []),
+    ...(anuncioDelChat ? [{ role: "system" as const, content: hechoDelAnuncio(anuncioDelChat) }] : []),
     ...(hechoDeMedidaInferida ? [{ role: "system" as const, content: hechoDeMedidaInferida }] : []),
     ...(hechoDeMediaMedida ? [{ role: "system" as const, content: `MEDIA MEDIDA SOBRE LA MESA. ${hechoDeMediaMedida}` }] : []),
     ...(aroDelTurno ? [{ role: "system" as const, content: ordenDeMostrarPorAro(aroDelTurno) }] : []),
@@ -602,7 +623,9 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
           role: "system" as const,
           content:
             "ACUSE SIN NADA PENDIENTE (fuente determinística): el cliente respondió solo un acuse "
-            + "cuando tú ya pediste el local o el día, o su visita ya está registrada con local elegido. "
+            + "cuando tú ya pediste el local o el día, su visita ya está registrada con local elegido, "
+            + "o tu mensaje anterior fue una explicación sin pregunta. PROHIBIDO repetir lo que ya "
+            + "dijiste en tu mensaje anterior (precio, descuento, forma de pago, beneficios), "
             + "PROHIBIDO repetir preguntas ya hechas y PROHIBIDO abrir gestión comercial nueva (visita, "
             + "ubicación, cierre, cotización, beneficios) en este turno: agradece o confirma en una "
             + "línea, quédate disponible y nada más.",

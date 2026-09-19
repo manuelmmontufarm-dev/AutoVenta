@@ -150,6 +150,7 @@ describe("el orden de los candados en el turno", () => {
 
   it("la cadena es exactamente esta, en este orden", () => {
     expect(nombres).toEqual([
+      "el_cliente_tomo_el_turno",
       "sin_pregunta_pendiente_consecutiva",
       "guardian_deterministico",
       "angel_guardian",
@@ -181,6 +182,7 @@ describe("el orden de los candados en el turno", () => {
       "sin_telefono_propio",
       "sin_mapas_escritos_a_mano",
       "sin_menu_repetido",
+      "sin_reparto_inventado",
       "sin_numeros_de_cotizacion",
       // La cotización que no existe no se anuncia (conv 13635, 1-sep): agrega
       // la pregunta de consentimiento, así que va ANTES de los dos que dan
@@ -289,10 +291,11 @@ describe("el orden de los candados en el turno", () => {
   });
 
   it("el turno normal corre la cadena entera", () => {
-    // Menos el candado propio del seguimiento: en un turno normal el calco
+    // Menos los candados propios del seguimiento (el segundo, desde el 18-sep,
+    // es `el_cliente_tomo_el_turno`): en un turno normal el calco
     // reciente ya lo cubre `sin_calco_reciente`, bloque a bloque.
     expect(pasosPara("respuesta").map((p) => p.nombre))
-      .toEqual(nombres.filter((n) => n !== "sin_calco_del_hilo"));
+      .toEqual(nombres.filter((n) => n !== "sin_calco_del_hilo" && n !== "el_cliente_tomo_el_turno"));
   });
 
   it("el bot que retoma tras un humano corre los mismos candados", () => {

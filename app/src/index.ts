@@ -51,6 +51,8 @@ import { emitLiveEvent } from "./services/liveEvents.js";
 import { registrarMensajeDeAsesor } from "./services/advisorWindow.js";
 import { contestaAunApagado, isBotActive } from "./services/botPower.js";
 import { textoParaMensajeQueNoSeLee } from "./domain/mensajeQueNoSeLee.js";
+import { medidaQueConfirmoAlAsesor } from "./domain/medidaQueConfirmoAlAsesor.js";
+import { anuncioDelReferral, type Anuncio } from "./domain/anuncio.js";
 import {
   extractFlotationSizes, extractTireSizes, formatFlotationSize, formatTireSize,
 } from "./domain/tireSize.js";
@@ -104,7 +106,8 @@ const PAUSA_ENTRE_BLOQUES_MS = 900;
 
 const esperar = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-const pipeline = new InboundPipeline(async ({ from, name, text, waMessageIds, quotedWaMessageId, receivedAt }) => {
+const pipeline = new InboundPipeline(async ({ from, name, text: textoRecibido, waMessageIds, quotedWaMessageId, receivedAt }) => {
+  let text = textoRecibido;
   // El mensaje ya quedó guardado en recibirMensaje(), antes de responderle 200
   // a Meta. Aquí solo se elabora la respuesta sobre el texto ya agrupado.
   // UN «👍» SOBRE UNA VENTA CERRADA NO LA REABRE (auditoría 2-6 sep, conv
@@ -123,6 +126,22 @@ const pipeline = new InboundPipeline(async ({ from, name, text, waMessageIds, qu
   const parsedSize = extractTireSizes(text)[0];
   const parsedFlotation = parsedSize ? null : extractFlotationSizes(text)[0];
   const parsedVehicleYear = extractVehicleYear(text);
+  // Lo que el cliente le confirma al ASESOR también cuenta (conv 19706): si el
+  // último saliente es del asesor preguntando por una medida y el cliente dice
+  // que sí, esa es su medida. Ver domain/medidaQueConfirmoAlAsesor.ts.
+  const [ultimoSaliente] = await sql<{ content: string | null; author_kind: string | null }[]>`
+    select content, author_kind from messages
+    where conversation_id=${conversation.id} and direction='outbound' and type <> 'note'
+    order by created_at desc limit 1
+  `;
+  const medidaDelAsesor = ultimoSaliente?.author_kind === "owner"
+    ? medidaQueConfirmoAlAsesor(ultimoSaliente.content, text)
+    : null;
+  if (medidaDelAsesor) {
+    await updateConversationFacts(conversation.id, { tireSize: medidaDelAsesor });
+    text = `${text}\n(confirma la medida ${medidaDelAsesor} que le preguntó el asesor)`;
+    console.log(`📏 Conv ${conversation.id}: el cliente le confirmó al asesor la medida ${medidaDelAsesor}.`);
+  }
   const previousOutbound = await lastOutboundText(conversation.id);
   // El mensaje al que le hizo reply, ya resuelto a texto. Null cuando no citó
   // nada, cuando citó un mensaje suyo o cuando lo citado es de otro ciclo:
@@ -299,7 +318,7 @@ const pipeline = new InboundPipeline(async ({ from, name, text, waMessageIds, qu
   }
 
   const agentContext: AgentContext = { conversation, customerPhone: from, customerName: name,
-    currentUserText: textoConLinks, mensajeCitado };
+    currentUserText: textoConLinks, mensajeCitado, recibidoHasta: receivedAt };
   // El saludo genérico de los anuncios no necesita gastar un turno de IA. Esta
   // respuesta fija deja claro que la medida es la vía rápida, no la única: el
   // bot también puede arrancar por vehículo, aro o uso. Si el cliente ya dio
@@ -613,6 +632,8 @@ async function recibirMensaje(
    * pregunta está contestando — ver `outboundTextByWaMessageId`.
    */
   quotedWaMessageId: string | null = null,
+  /** El anuncio desde el que se abrió el chat, si Meta lo mandó. Ver `domain/anuncio.ts`. */
+  anuncio: Anuncio | null = null,
 ): Promise<void> {
   // Si escribe un asesor, su ventana de 24 h se reabre. No lo desvía del
   // pipeline a propósito: un asesor probando el bot tiene que ver que contesta.
@@ -636,7 +657,10 @@ async function recibirMensaje(
   // archiva — y para que el silencio se mida contra el mensaje anterior, no
   // contra este. Ver `reiniciarSiLaMemoriaVencio`.
   const conversation = await reiniciarSiLaMemoriaVencio(creada, receivedAt);
-  const esNuevo = await appendMessage(conversation.id, "user", texto, waMessageId, { occurredAt: receivedAt });
+  const esNuevo = await appendMessage(conversation.id, "user", texto, waMessageId, {
+    occurredAt: receivedAt,
+    ...(anuncio ? { metadata: { anuncio } } : {}),
+  });
   if (!esNuevo) return; // reentrega de Meta: ya estaba guardado
   emitLiveEvent("message", conversation.id);
 
@@ -702,7 +726,8 @@ setWaHandlers({
         // necesita ver los mensajes en el orden en que llegaron. Los links que
         // traiga se abren después, dentro del pipeline, con el "escribiendo…" ya
         // encendido.
-        await recibirMensaje(from, name, message.text.body, message.id, receivedAt, citado);
+        await recibirMensaje(from, name, message.text.body, message.id, receivedAt, citado,
+          anuncioDelReferral((message as { referral?: unknown }).referral));
         break;
       case "interactive": {
         // UN TOQUE ES UN MENSAJE DE TEXTO.
