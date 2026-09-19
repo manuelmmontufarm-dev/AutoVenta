@@ -154,3 +154,14 @@ describe("un acuse no parte la ráfaga", () => {
     expect(gruposDeLaRafaga(["205/55R16", "Estoy en Guayaquil"])).toEqual([[0], [1]]);
   });
 });
+
+// Conv 19457 (14-sep): la marca pegada a la medida es el mismo pedido.
+describe("la marca completa la medida", () => {
+  it("«Y en 215 70 r16» + «En Kenda» es un solo turno", () => {
+    expect(gruposDeLaRafaga(["Y en 215 70 r16", "En Kenda"])).toEqual([[0, 1]]);
+  });
+  it("con el menú contestado, la marca sí es otra cosa y va aparte", () => {
+    expect(gruposDeLaRafaga(["205/55R16", "tienen garantia las kenda?"])).toEqual([[0], [1]]);
+  });
+});
+

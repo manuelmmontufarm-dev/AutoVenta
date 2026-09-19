@@ -124,6 +124,51 @@ const ESCENARIOS = [
       ] },
     ],
   },
+  {
+    id: "C1", titulo: "conv 19457 · medida nueva + «En Kenda» es una búsqueda, no una elección: no cotiza solo",
+    pasos: [
+      { m: "225/65R17 para 80% ciudad y 20% campo" },
+      { m: ["Y en 215 70 r16", "En Kenda"], juez: (t, antes) => (cotizaciones(t) === antes ? [] : ["cotizó sin que el cliente eligiera"]) },
+    ],
+  },
+  {
+    id: "C2", titulo: "conv 19706 · el «Si» al asesor fija la medida que el asesor preguntó",
+    pasos: [
+      { m: "Falken 165/75 r16" },
+      { antes: async () => {
+          const [c] = await sql`select id, current_cycle from conversations order by id desc limit 1`;
+          await sql`insert into messages (conversation_id, role, content, direction, type, status, author_kind, cycle)
+            values (${c.id}, 'assistant', 'Disculpe usted se referia a  la 265/75R16?', 'outbound', 'text', 'sent', 'owner', ${c.current_cycle})`;
+          await sql`update conversations set assigned_to='bot', bot_paused_until=null where id=${c.id}`;
+        },
+        m: "Si", juez: (t) => [
+          ...(t._estado.conv.tire_size === "265/75R16" ? [] : [`la ficha quedó en ${t._estado.conv.tire_size}`]),
+          ...(/165\/75/.test(todo(t)) ? ["siguió hablando de 165/75R16"] : []),
+        ] },
+    ],
+  },
+  {
+    id: "C3", titulo: "convs 20471/20663 · «yo le aviso»: el seguimiento automático no sale",
+    pasos: [
+      { m: "205/55R16" },
+      { m: "1" },
+      { m: "yo le aviso", despues: async (t) => {
+          const convId = t._estado.conv.id;
+          // Solo el PRIMER recordatorio: en producción salen escalonados, y adelantar
+          // los tres a la vez deja que el aviso interno del asesor cancele a los otros.
+          const n = await sql`update follow_up_jobs set due_at = now() where conversation_id=${convId} and status='scheduled' and type='in_window_first' returning id`;
+          if (!n.length) return ["no había ningún seguimiento programado que probar"];
+          await pausa(20_000);
+          const jobs = await sql`select status, cancel_reason from follow_up_jobs where id in ${sql(n.map((j) => j.id))}`;
+          const seguimientos = await sql`select content from messages where conversation_id=${convId} and metadata ? 'followUpJobId'`;
+          console.log(`     ⏱ jobs: ${jobs.map((j) => `${j.status}/${j.cancel_reason ?? "-"}`).join(", ")}`);
+          return [
+            ...(seguimientos.length ? [`salió un seguimiento: «${seguimientos[0].content.slice(0, 80)}»`] : []),
+            ...(jobs.some((j) => String(j.cancel_reason ?? "").includes("el_cliente_avisa")) ? [] : ["ningún job se canceló por «el_cliente_avisa»"]),
+          ];
+        } },
+    ],
+  },
 ];
 
 const solo = (process.env.SIM_SOLO ?? "").split(",").map((s) => s.trim()).filter(Boolean);
@@ -135,13 +180,14 @@ for (const e of ESCENARIOS.filter((x) => !solo.length || solo.includes(x.id))) {
   let previo = null;
   for (const paso of e.pasos) {
     const antes = previo ? cotizaciones(previo) : 0;
+    if (paso.antes) await paso.antes();
     const t = await mandar(paso.m, paso.extra ?? {});
     await pausa(1500);
     console.log(`  👤 ${t.cliente}`);
     for (const m of t.bot) console.log(`  🤖 ${m.tipo === "text" ? "" : `<${m.tipo}> `}${(m.texto ?? "").replace(/\n+/g, " ⏎ ").slice(0, 260)}`);
     console.log(`     ⚙︎ ${t.herramientas.join(", ") || "—"} · guardián: ${t.guardian.map((g) => g.verdict).join(",") || "—"}`);
-    const malas = paso.juez ? paso.juez(t, antes, previo) : [];
-    if (paso.juez) console.log(malas.length ? `  ❌ ${malas.join(" · ")}` : "  ✅ pasó");
+    const malas = [...(paso.juez ? paso.juez(t, antes, previo) : []), ...(paso.despues ? await paso.despues(t) : [])];
+    if (paso.juez || paso.despues) console.log(malas.length ? `  ❌ ${malas.join(" · ")}` : "  ✅ pasó");
     fallas += malas.length;
     previo = t;
   }

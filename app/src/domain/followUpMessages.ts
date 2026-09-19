@@ -167,7 +167,12 @@ function redactarSeguimiento(
   }
 
   if (context.customerCommitment || context.stage === "seguimiento_venta") {
-    const commitment = context.customerCommitment ? ` lo que me comentó: “${context.customerCommitment}”` : " su visita";
+    // Lo que dijo se le repite solo si es una frase suya y corta. Un audio o una
+    // foto se guardan como «[El cliente mandó un audio…» y eso salió tal cual,
+    // entre comillas y cortado (convs 20847 y 20686, 15-sep).
+    const dicho = context.customerCommitment?.trim() ?? "";
+    const citable = Boolean(dicho) && !dicho.startsWith("[") && dicho.length <= 80;
+    const commitment = citable ? ` lo que me comentó: “${dicho}”` : " su visita";
     const store = context.nearestStore ? ` a ${context.nearestStore}` : "";
     const enStore = context.nearestStore ? ` en ${context.nearestStore}` : "";
     const visita = context.visitDate ?? null;
@@ -228,7 +233,7 @@ function redactarSeguimiento(
     const laElegida = product ? `la${product}` : "la opción que eligió";
     return kind === "in_window_second"
       ? `😊 Quedé pendiente de ${laElegida}${size}. ¿Le dejo lista la cotización, o prefiere ver otra opción?`
-      : `${prefix}🛞 ¿Avanzamos con ${laElegida}${size}? Si le sirve, le dejo la cotización lista 😊`;
+      : `${prefix}🛞 ¿Avanzamos con ${laElegida}${size}? Si le sirve, ¿se la cotizo? 😊`;
   }
 
   // Con UNA sola llanta en pantalla no hay nada que elegir ni comparar, esté la
@@ -236,16 +241,16 @@ function redactarSeguimiento(
   // «¿le ayudo a elegir?» sobre una lista de uno).
   if (context.optionsCount === 1 && (context.stage === "seleccionando" || context.stage === "medida_confirmada" || context.selectedProductCode)) {
     return kind === "in_window_second"
-      ? `😊 ¿Cómo vio la opción${product}${size}? Si le sirve, le dejo la cotización lista.`
-      : `${prefix}🛞 ¿Cómo vio la opción${product}${size}? Es la que tengo disponible en su medida; si le sirve, le dejo la cotización lista 😊`;
+      ? `😊 ¿Cómo vio la opción${product}${size}? Si le sirve, ¿se la cotizo?`
+      : `${prefix}🛞 ¿Cómo vio la opción${product}${size}? Es la que tengo disponible en su medida; si le sirve, ¿se la cotizo? 😊`;
   }
 
   if (context.stage === "seleccionando" || context.selectedProductCode) {
     const opciones = context.optionsCount ?? null;
     if (opciones === 1) {
       return kind === "in_window_second"
-        ? `😊 ¿Cómo vio la opción${product}${size}? Si le sirve, le dejo la cotización lista.`
-        : `${prefix}🛞 ¿Cómo vio la opción${product}${size}? Es la que tengo disponible en su medida; si le sirve, le dejo la cotización lista 😊`;
+        ? `😊 ¿Cómo vio la opción${product}${size}? Si le sirve, ¿se la cotizo?`
+        : `${prefix}🛞 ¿Cómo vio la opción${product}${size}? Es la que tengo disponible en su medida; si le sirve, ¿se la cotizo? 😊`;
     }
     const comparar = opciones !== null && opciones > 2
       ? "compararla con las otras opciones"

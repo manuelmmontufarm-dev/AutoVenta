@@ -25,6 +25,9 @@
  * guardián volvió a prometer «4 × KENDA KR203 … $262.60» cuando había 3,
  * borrando el aviso que un candado anterior ya había pegado.
  */
+import { preguntaElDia } from "../domain/customerCommitment.js";
+import { preguntaElLocal } from "../domain/storeSelection.js";
+import { elClienteDijoQueAvisa } from "../domain/clientePosterga.js";
 import { sinRepartoInventado } from "../domain/porcentajeDeUso.js";
 import { todasLasLineas } from "../domain/tireTypes.js";
 import { dondeEstaElClienteSegunLoDicho } from "./dondeEstaElCliente.js";
@@ -118,7 +121,7 @@ export interface ContextoDeSalida {
    * que insistía tras un rechazo, o el texto era calco de algo ya enviado.
    * Lo lee `followUpProcessor` para cancelar el job con ese motivo.
    */
-  motivoDeSupresion?: "insiste_tras_rechazo" | "calco_del_hilo";
+  motivoDeSupresion?: "insiste_tras_rechazo" | "calco_del_hilo" | "el_cliente_avisa" | "cliente_fuera_de_cobertura";
   /** Este turno termina sin empuje comercial, pero no cierra ni borra el ciclo. */
   suprimirEmpujeComercial?: boolean;
   /** La intención vigente es un servicio que no está en el catálogo de llantas. */
@@ -139,6 +142,38 @@ export interface PasoDeSalida {
  * puertas a la vez — que es exactamente el punto.
  */
 export const PASOS: readonly PasoDeSalida[] = [
+  {
+    // EL CLIENTE DIJO QUE ÉL AVISA, O NO ES DE QUITO: EL RECORDATORIO NO SALE.
+    //
+    // Va primero y sin IA: no tiene sentido pagarle al guardián la revisión de
+    // un mensaje que no debe existir. «Yo le aviso», «estaré en contacto»,
+    // «ya le paso» (convs 20471, 20663, 12539, 19879, 20589) no cierran la
+    // venta, pero el turno lo tomó el cliente. Y al que está fuera de Quito no
+    // se le recuerda «¿a cuál local?» (conv 19031, Santo Domingo, 4 veces).
+    // Ver domain/clientePosterga.ts y services/dondeEstaElCliente.ts.
+    nombre: "el_cliente_tomo_el_turno",
+    corre: ["seguimiento"],
+    async aplicar(texto, ctx) {
+      const [ultimo] = await sql<{ content: string | null; direction: string }[]>`
+        select content, direction from messages
+        where conversation_id=${ctx.conversation.id} and cycle=${ctx.conversation.current_cycle}
+          and direction='inbound'
+        order by created_at desc limit 1
+      `;
+      if (elClienteDijoQueAvisa(ultimo?.content)) {
+        ctx.motivoDeSupresion = "el_cliente_avisa";
+        console.log(`🤐 Conv ${ctx.conversation.id}: el cliente dijo que él avisa; el seguimiento no sale.`);
+        return null;
+      }
+      const donde = await dondeEstaElClienteSegunLoDicho(ctx.conversation.id, ctx.conversation.current_cycle, ultimo?.content);
+      if (donde === "fuera" && (preguntaElLocal(texto) || preguntaElDia(texto))) {
+        ctx.motivoDeSupresion = "cliente_fuera_de_cobertura";
+        console.log(`🤐 Conv ${ctx.conversation.id}: el cliente no está en Quito; no se le recuerda el local ni el día.`);
+        return null;
+      }
+      return texto;
+    },
+  },
   {
     // Un dato pendiente se vuelve spam si se pregunta en dos turnos seguidos.
     // Se limpia ANTES del guardián para que el revisor vea el borrador real que

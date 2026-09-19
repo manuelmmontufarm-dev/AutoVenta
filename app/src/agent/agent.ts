@@ -403,8 +403,18 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
     .filter((p): p is NonNullable<typeof p> => Boolean(p))
     .map((p) => ({ codigo: p.code, marca: p.brand ?? "", diseno: p.design ?? "", medida: p.sizeLabel ?? null }));
   const eleccion = !pidioHumano && vitrina.length ? eleccionDeLaVitrina(userText, vitrina) : null;
-  const marcaElegida = !pidioHumano && salesFacts.escalones !== null && !eleccion
+  // NOMBRAR UNA MARCA SOLO ES ELEGIR SI ESA MARCA ESTÁ EN LA LÁMINA, y si el
+  // mensaje no trae una medida nueva. Conv 19457 (14-sep): con la lámina de
+  // 225/65R17 en pantalla el cliente escribió «Y en 215 70 r16» + «En Kenda» —
+  // una búsqueda nueva— y se leyó como «elijo la Kenda»: salió una cotización
+  // de 4 KENDA KR50 H/T que nadie pidió, a quien buscaba llanta para lodo.
+  const marcaNombrada = !pidioHumano && salesFacts.escalones !== null && !eleccion
     ? marcaElegidaASecas(userText)
+    : null;
+  const marcaElegida = marcaNombrada
+    && extractTireSizes(userText).length === 0
+    && vitrina.some((o) => o.marca.toUpperCase().includes(marcaNombrada.toUpperCase()))
+    ? marcaNombrada
     : null;
   const pidioCotizar = !pidioHumano && (pidioCotizacionExplicita(userText) || marcaElegida !== null || eleccion?.tipo === "una");
   // Elegir una de las opciones mostradas ES la autorización: abre el candado

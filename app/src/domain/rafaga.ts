@@ -20,6 +20,7 @@ import { extractExplicitQuantity, respuestaDePreferencia } from "./salesIntent.j
 import { extractFlotationSizes, extractTireSizes } from "./tireSize.js";
 import { aroEnTexto } from "./medidaConfirmada.js";
 import { esAcuseSimple } from "./ofertaAceptada.js";
+import { marcaElegidaASecas } from "./consultaConRespaldo.js";
 
 const TIPO = /\b(?:a\/?t|h\/?t|r\/?t|m\/?t|todo\s+terreno|all\s+terrain|mud|lodo|carretera|turismo)\b/i;
 
@@ -49,8 +50,19 @@ function soloAcompana(texto: string): boolean {
   return texto.split("\n").every((linea) => !linea.trim() || esAcuseSimple(linea));
 }
 
+/**
+ * LA MARCA COMPLETA LA MEDIDA (conv 19457, 14-sep, y el simulador el 19-sep):
+ * «Y en 215 70 r16» + «En Kenda» es UN pedido —esa medida, en esa marca—. Partido
+ * en dos, el primer turno mostraba la única Kenda y el segundo leía «En Kenda»
+ * como «elijo la Kenda»: salía una cotización de 4 que nadie había pedido.
+ */
+function nombraSoloUnaMarca(texto: string): boolean {
+  return texto.split("\n").every((linea) => !linea.trim() || marcaElegidaASecas(linea.replace(/^\s*en\s+/i, "")) !== null);
+}
+
 function completaLoAnterior(texto: string): boolean {
   return soloAcompana(texto)
+    || nombraSoloUnaMarca(texto)
     || extractExplicitQuantity(texto) !== null
     || TIPO.test(texto)
     || extractTireSizes(texto).length > 0

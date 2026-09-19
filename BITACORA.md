@@ -1,3 +1,30 @@
+## 19-sep-2026 · Tanda C: el seguimiento respeta «yo le aviso», lo que se le confirma al asesor cuenta, y una marca no es una elección si viene con medida nueva
+
+**Qué:** (6) Paso `el_cliente_tomo_el_turno`, primero en la puerta de
+seguimiento y sin IA: si lo último del cliente es una postergación
+(`domain/clientePosterga.ts`: «yo le aviso», «estaré en contacto», «ya le
+paso»…) o el cliente está fuera de Quito y el recordatorio pregunta local o
+día, el job se cancela con su motivo. Las plantillas dejan de prometer «le dejo
+la cotización lista» y preguntan «¿se la cotizo?», que es la oferta que el «sí»
+reconoce; y ya no citan entre comillas la transcripción de un audio. (8)
+`domain/medidaQueConfirmoAlAsesor.ts`: si el último saliente es del asesor
+preguntando por UNA medida y el cliente contesta un sí, esa medida entra a la
+ficha y al turno. En `agent.ts`, nombrar una marca solo es elegir si esa marca
+está en la lámina y el mensaje no trae una medida nueva. En `rafaga.ts`, una
+marca sola pegada a una medida la completa (un solo turno). Escenarios C1–C3.
+
+**Por qué:** Familia 3 de la auditoría (28 chats): los recordatorios seguían
+saliendo tras despedidas suaves (convs 20471, 20663, 12539, 19879, 20589) y a
+un cliente de Santo Domingo (19031). Conv 19706: el asesor preguntó «¿se
+refería a la 265/75R16?», el cliente dijo «Si» y el bot cotizó cuatro 215/60R16
+sobre la 165/75R16 original: «No me sirve esa medida». Conv 19457: «Y en 215 70
+r16» + «En Kenda» —una búsqueda— se partía en dos turnos y el segundo se leía
+como «elijo la Kenda»: cotización de una H/T a quien buscaba llanta para lodo.
+El simulador lo reprodujo igual el 19-sep y así apareció la segunda mitad de la
+causa (la ráfaga partida), que el arreglo de `marcaElegida` solo no cubría.
+
+**Horas:** 3
+
 ## 18-sep-2026 · Tanda B: no se re-pregunta lo ya dicho, el reparto asfalto/tierra sale de la ficha, y el bot es Martín
 
 **Qué:** (3) `localPorLaZonaDicha` (domain/locations): `ubicacion_locales` elige
