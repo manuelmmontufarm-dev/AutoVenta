@@ -169,6 +169,37 @@ const ESCENARIOS = [
         } },
     ],
   },
+  {
+    id: "D1", titulo: "conv 21449 · «La opción 3» cotiza por ruta fija, sin pedir permiso",
+    pasos: [
+      { m: "Buenas tardes. 245/70/16" },
+      { m: "La opción 3", juez: (t, antes) => [
+        ...(cotizaciones(t) > antes ? [] : ["no cotizó"]),
+        ...(/¿le (?:cotizo|preparo|genero)|¿desea que le/i.test(todo(t)) ? ["pidió permiso para cotizar"] : []),
+        ...(t.herramientas.length ? [`corrió el modelo (${t.herramientas.join(",")})`] : []),
+      ] },
+    ],
+  },
+  {
+    id: "D2", titulo: "conv 18282 · «Premiun» (con falta) cotiza por ruta fija",
+    pasos: [
+      { m: "285/70R17 mt" },
+      { m: "Premiun", juez: (t, antes) => [
+        ...(cotizaciones(t) > antes ? [] : ["no cotizó"]),
+        ...(/¿le (?:cotizo|preparo|genero)|¿desea que le/i.test(todo(t)) ? ["pidió permiso para cotizar"] : []),
+      ] },
+    ],
+  },
+  {
+    id: "D3", titulo: "conv 21826 · pide recomendación: la recomendada sale con su oferta de cotizar y el guardián no la reescribe",
+    pasos: [
+      { m: "Que llanta recomiendan para camioneta 265/65R17", juez: (t) => [
+        ...(/yo ir[ií]a por/i.test(todo(t)) ? [] : ["no entregó la recomendación"]),
+        ...(t.guardian.some((g) => g.verdict === "corregir" && JSON.stringify(g.findings).includes("pregunta_de_mas")) ? ["el guardián la marcó como pregunta_de_mas"] : []),
+      ] },
+      { m: "Sí", juez: (t, antes) => (cotizaciones(t) > antes ? [] : ["el sí no cotizó"]) },
+    ],
+  },
 ];
 
 const solo = (process.env.SIM_SOLO ?? "").split(",").map((s) => s.trim()).filter(Boolean);

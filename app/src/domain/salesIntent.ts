@@ -196,8 +196,18 @@ export function respuestaDePreferencia(text: string): Preferencia | null {
   // El menú de Joaquín es numerado (1 Costo / 2 Equilibrio / 3 Premium), así
   // que la respuesta más natural es el puro número. Solo cuenta si el mensaje
   // ES el número: un «1» suelto dentro de otra frase suele ser cantidad.
-  const porNumero = normalized.match(/^(?:la\s+|el\s+|opcion\s+)?([123])\)?\.?$/);
-  if (porNumero) return porNumero[1] === "1" ? "precio" : porNumero[1] === "2" ? "equilibrada" : "premium";
+  // «La opción 3», «la 3», «opción 3», «la tercera», «el número 2»: todas son
+  // el escalón. Producción 19-sep (conv 21449): «La opción 3» —con el
+  // artículo— devolvía null, el modelo escribió la cotización a mano y pidió
+  // permiso; el cliente que ya había elegido no recibió su cotización.
+  const porNumero = normalized
+    .replace(/\b(?:buen[oa]s?\s+(?:dias|tardes|noches)|hola|gracias|por\s+favor|porfa|me\s+quedo\s+con|quiero|prefiero|dame|deme)\b/g, " ")
+    .replace(/[.,!¡]/g, " ").replace(/\s+/g, " ").trim()
+    .match(/^(?:(?:la|el)\s+)?(?:opcion|numero|num|#)?\s*([123])\)?$|^(?:la\s+)?(primera|segunda|tercera)$/);
+  if (porNumero) {
+    const n = porNumero[1] ?? { primera: "1", segunda: "2", tercera: "3" }[porNumero[2]];
+    return n === "1" ? "precio" : n === "2" ? "equilibrada" : "premium";
+  }
   // EL ECO DEL MENÚ CUENTA. Producción, 1-sep (conv 13617): el menú ofreció
   // «1) *Costo* — la más conveniente de precio», el cliente contestó «La más
   // conveniente» —las palabras del propio menú— y esto devolvía null: la
@@ -216,7 +226,8 @@ export function respuestaDePreferencia(text: string): Preferencia | null {
   if (/\bmejor\s+precio\b|\b(?:la\s+)?mas\s+[bv]arat\w*\b|\b[bv]arat\w+\b|\beconomic\w+\b|\bmas\s+conveniente\b|\bla\s+que\s+(?:mas\s+)?convenga\b|^(?:el\s+|por\s+)?precio$|^(?:el\s+|la\s+de\s+)?costo$/.test(normalized)) {
     return "precio";
   }
-  if (/\bpremium\b|\bla\s+mejor\b|\bmejor\s+calidad\b|\bmaxima\s+calidad\b|\bdurabilidad\b|\bmas\s+durad\w+\b|\bla\s+(?:mas\s+)?top\b|\bla\s+mas\s+cara\b|\bla\s+buena\b/.test(normalized)) {
+  // «Premiun», «premiun», «premiu», «premiumm»: la falta real del 21-sep (conv 18282).
+  if (/\bpremi[ua]\w{0,2}\b|\bla\s+mejor\b|\bmejor\s+calidad\b|\bmaxima\s+calidad\b|\bdurabilidad\b|\bmas\s+durad\w+\b|\bla\s+(?:mas\s+)?top\b|\bla\s+mas\s+cara\b|\bla\s+buena\b/.test(normalized)) {
     return "premium";
   }
   return null;

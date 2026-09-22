@@ -1,3 +1,28 @@
+## 21-sep-2026 · Elegir es cotizar, también «La opción 3» y «Premiun»; y la oferta de cotizar sobrevive a la cadena
+
+**Qué:** `respuestaDePreferencia` lee el escalón con artículo, con cortesía
+delante, con ordinal y con la falta real («La opción 3», «Buenas tardes. La
+opción 3», «la tercera», «el número 2», «Premiun»); con eso la ruta fija
+`tryCotizarLoElegido` los cotiza sin que corra el modelo. El cierre de la
+recomendación entregada sin elección pasa de «¿Le cotizo el juego de 4
+llantas?» —que `sin_preguntas_prohibidas` borraba desde el 31-ago— a «¿Se la
+cotizo?», la pregunta legítima que `OFRECIO_COTIZAR` reconoce. `preparar_opciones`
+declara `recomendacion_ofrecida`; el guardián recibe ese hecho y otro para el
+seguimiento de opción única, y conserva esas dos preguntas. Escenarios D1–D3.
+
+**Por qué:** Desde el deploy del 19-sep, 58 correcciones «pregunta_de_mas» del
+guardián en dos días (un tercio de todas). Leídas una por una: (a) el cliente
+YA había elegido y el modelo pidió permiso, porque el lector del menú no
+reconocía «La opción 3» (conv 21449) ni «Premiun» (18282) y la cotización
+quedaba bloqueada; (b) la recomendación salía con una oferta que un candado
+posterior borraba, y el turno terminaba sin paso siguiente: el «Sí» del cliente
+no autorizaba nada (simulador, guion de la conv 21826); (c) el seguimiento de
+opción única que escribí el 19-sep cierra «¿se la cotizo?» a propósito y el
+guardián lo reescribía (21314, 21708, 21847, 21885). Meta: que el guardián
+corrija menos del 25 % de los borradores; se mide en una semana.
+
+**Horas:** 1,5
+
 ## 19-sep-2026 · Tanda C: el seguimiento respeta «yo le aviso», lo que se le confirma al asesor cuenta, y una marca no es una elección si viene con medida nueva
 
 **Qué:** (6) Paso `el_cliente_tomo_el_turno`, primero en la puerta de
