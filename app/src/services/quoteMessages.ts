@@ -259,7 +259,13 @@ export function buildCierreOpciones(input: {
     })}`;
   }
   if (input.ofrecerCotizar) {
-    return `${recomendada} ${CIERRE_COTIZAR}`;
+    // «¿Se la cotizo?» y no «¿Le cotizo el juego de 4 llantas?»: esa segunda
+    // la borra `sin_preguntas_prohibidas` desde el 31-ago (pide permiso por la
+    // cantidad) y la recomendación salía sin ningún paso siguiente — el «Sí»
+    // del cliente no tenía a qué pegarse (simulador, 21-sep, guion de la conv
+    // 21826). «¿Se la cotizo?» es la pregunta legítima, la reconoce
+    // `OFRECIO_COTIZAR` y el guardián la conserva.
+    return `${recomendada} ¿Se la cotizo? 😊`;
   }
   return recomendada;
 }

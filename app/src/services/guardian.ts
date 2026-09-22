@@ -725,6 +725,16 @@ export async function armarContexto(
     huella.some((h) => h.herramienta === "preparar_opciones" && (h.resultado.includes('"unica_opcion":true') || /¿Se la cotizo\?/.test(h.resultado)))
       ? "ÚNICA OPCIÓN EN PANTALLA: la pieza trae una sola llanta y cierra con «¿Se la cotizo?». Esa pregunta es la legítima del turno y se conserva TAL CUAL: NO es pregunta_de_mas, NO la reemplaces por un menú de preferencia (no hay entre qué elegir) ni por otra redacción («¿avanzamos con esta opción?»): el «sí» del cliente solo abre la cotización si la pregunta habla de cotizar."
       : null,
+    huella.some((h) => h.herramienta === "preparar_opciones" && h.resultado.includes('"recomendacion_ofrecida":true'))
+      ? "RECOMENDACIÓN ENTREGADA SIN ELECCIÓN: el cliente pidió recomendación o contó su uso, y la pieza ya le entrega la recomendada y cierra ofreciendo cotizarla («¿Se la cotizo?»). Esa oferta es la legítima del turno y se conserva TAL CUAL: NO es pregunta_de_mas ni cotizacion_sin_eleccion, y NO la reemplaces por el menú de preferencia."
+      : null,
+    // El seguimiento de UNA sola opción cierra «si le sirve, ¿se la cotizo?» a
+    // propósito (plantilla del 19-sep): sin elección no se puede cotizar y no
+    // hay menú posible. 19–21 sep, convs 21314, 21708, 21847, 21885: el revisor
+    // la marcaba como pregunta_de_mas y la reescribía.
+    opciones.tipo === "seguimiento" && /¿se la cotizo\?/i.test(borrador)
+      ? "SEGUIMIENTO DE OPCIÓN ÚNICA: «¿se la cotizo?» es la pregunta legítima de este recordatorio (una sola llanta, sin elección todavía). Se conserva: NO es pregunta_de_mas."
+      : null,
     huella.some((h) => h.herramienta === "preparar_opciones" && h.resultado.includes('"consentimiento_pendiente":true'))
       ? "RECOMENDADA EQUIVALENTE PENDIENTE DE CONSENTIMIENTO: la llanta recomendada este turno es de OTRA medida que la pedida, y el bot todavía no tiene su sí. El borrador DEBE terminar con la pregunta «¿Le cotizo la <llanta> en <medida>?» sola en su bloque: esa pregunta es la legítima de la regla 15, NO es pregunta_de_mas — no la quites, no la reescribas y no la cambies por «si acepta esa equivalente» ni por «¿quiere que le envíe esa opción?». Si el borrador no la trae, es **recomendacion_sin_pregunta** (alta) y la corrección la agrega en bloque aparte. Y como no hay cotización este turno, PROHIBIDO anunciarla o prometerla."
       : null,

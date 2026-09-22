@@ -30,7 +30,9 @@ describe("buildCierreOpciones con la medida sin confirmar", () => {
   it("recomendación pedida con medida confirmada: la entrega y OFRECE cotizar", () => {
     const cierre = buildCierreOpciones({ ...base, entregarRecomendacion: true, ofrecerCotizar: true });
     expect(cierre).toContain("Yo iría por la *KENDA KR50*");
-    expect(cierre).toContain(CIERRE_COTIZAR);
+    // Desde el 21-sep la oferta es «¿Se la cotizo?»: la forma larga la borraba
+    // el candado de preguntas prohibidas y el turno quedaba sin paso siguiente.
+    expect(cierre).toContain("¿Se la cotizo?");
   });
 
   it("cotización pedida con todas sus letras: la entrega y no pregunta nada (la cotización sale en el turno)", () => {

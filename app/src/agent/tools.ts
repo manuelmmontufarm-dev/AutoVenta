@@ -2025,7 +2025,7 @@ export function buildTools(ctx: AgentContext) {
           ? { medida: entregada.sizeLabel ?? null }
           : undefined,
       });
-      const cierreTraePermisoDeCotizar = /¿Se la cotizo\?/.test(cierreDeOpciones);
+      const cierreTraePermisoDeCotizar = /Es la única que tengo/.test(cierreDeOpciones) && /¿Se la cotizo\?/.test(cierreDeOpciones);
       return JSON.stringify({
         imagen_enviada: visual.ok,
         // Va primero a propósito: la huella que lee el guardián recorta el
@@ -2039,6 +2039,11 @@ export function buildTools(ctx: AgentContext) {
         // revisor cambió la pregunta, el «Sí por favor» no autorizó nada y el
         // cliente se quedó sin cotización).
         unica_opcion: cierreTraePermisoDeCotizar,
+        // La recomendación se entregó SIN autorización (pidió recomendación o
+        // contó su uso, no eligió ni pidió cotizar): el cierre ofrece cotizar a
+        // propósito. Producción 19–21 sep (convs 21484, 21536, 21826): el
+        // guardián lo reescribía como pregunta_de_mas.
+        recomendacion_ofrecida: entregarRecomendacion && !autorizaCotizar && !consentimientoPendiente,
         ...(avisoTipo ? { aviso: avisoTipo } : {}),
         ...(avisoMedida ? { aviso_medida: avisoMedida } : {}),
         medidas_mostradas: medidasMostradas,
