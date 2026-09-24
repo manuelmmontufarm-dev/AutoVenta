@@ -111,6 +111,7 @@ export function extractExplicitStore(
 ): ExplicitStore | null {
   const value = normalize(text);
   const cumbaya = /\bcumbaya\b/.test(value);
+  const hablaDelNorte = /\bnorte\b|\bcalderon\b/.test(value);
   const sur =
     /\bquito\s+sur\b|\b(?:local|sucursal)\s+(?:(?:de|del)\s+)?(?:quito\s+)?sur\b|\bel\s+de\s+(?:quito\s+)?sur\b/.test(value) ||
     // «al de quito» ES Quito Sur cuando acabamos de ofrecerle los dos.
@@ -134,6 +135,7 @@ export function extractExplicitStore(
     // la visita tres veces sobre una elección que nadie hizo.
     (Boolean(opts?.respondiendoAlLocal)
       && /\b(?:sur|quito)\b/.test(value)
+      && !hablaDelNorte
       && !hablaDeLaCiudad(value));
   if (cumbaya === sur) return null;
   return cumbaya ? "Depot Tire Cumbayá" : "Depot Tire Quito Sur";

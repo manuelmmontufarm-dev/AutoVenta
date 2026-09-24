@@ -40,6 +40,11 @@ export function nearestStore(
  */
 const QUITO_SECTORS: Record<string, { lat: number; lng: number; label: string }> = {
   itulcachi: { lat: -0.157, lng: -78.337, label: "Itulcachi" },
+  // Depot solo tiene Cumbayá y Quito Sur. Para el norte/noreste, Cumbayá es
+  // el local realmente cercano; antes «Norte de Quito» caía en el punto
+  // genérico «Quito» y terminaba mandando al sur (conv 22531).
+  calderon: { lat: -0.1, lng: -78.42, label: "Calderón" },
+  norte: { lat: -0.1, lng: -78.48, label: "norte de Quito" },
   cumbaya: { lat: -0.2, lng: -78.43, label: "Cumbayá" },
   tumbaco: { lat: -0.211, lng: -78.402, label: "Tumbaco" },
   pifo: { lat: -0.225, lng: -78.339, label: "Pifo" },
@@ -56,7 +61,6 @@ const QUITO_SECTORS: Record<string, { lat: number; lng: number; label: string }>
   // centro del sur de Quito, a ~4 km del local de Quito Sur y a ~15 del de
   // Cumbayá: la recomendación no tiene vuelta.
   sur: { lat: -0.28, lng: -78.545, label: "sur de Quito" },
-  quito: { lat: -0.18, lng: -78.49, label: "Quito" },
 };
 
 function normalizar(text: string): string {
@@ -145,4 +149,3 @@ export function localPorLaZonaDicha(stores: Store[], texto: string | null | unde
     .sort((a, b) => a.km - b.km);
   return distancias[1].km - distancias[0].km >= 3 ? distancias[0].store : null;
 }
-

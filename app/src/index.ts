@@ -2,7 +2,7 @@
  * AutoVenta — bot de ventas de llantas por WhatsApp.
  * Punto de entrada: conecta webhook → pipeline → agente → WhatsApp.
  */
-import { config } from "./config.js";
+import { business, config } from "./config.js";
 import { createServer } from "./server/webhook.js";
 
 // Las rutas async del panel (admin.ts) corren sin try/catch y Express 4 no
@@ -80,6 +80,7 @@ import { flagRepetitiveConversation } from "./services/conversationQuality.js";
 import { notifyPendingHumanRequests } from "./services/advisorNotifications.js";
 import { startEmbeddedFollowUpWorker } from "./workers/embeddedFollowUpWorker.js";
 import { extractExplicitStore, preguntamosElLocal } from "./domain/storeSelection.js";
+import { localPorLaZonaDicha } from "./domain/locations.js";
 import { tryDirectSalesRoute } from "./services/directSalesRoutes.js";
 import { tryRutaOtroDia } from "./services/rutaOtroDia.js";
 import { tryCotizarLoElegido } from "./services/cotizarLoElegido.js";
@@ -159,6 +160,9 @@ const pipeline = new InboundPipeline(async ({ from, name, text: textoRecibido, w
   // preguntar el local — la misma lógica contextual que el día de visita.
   const respondiendoAlLocal = preguntamosElLocal(previousOutbound);
   const explicitStore = extractExplicitStore(text, { respondiendoAlLocal });
+  const storePorZona = !explicitStore && respondiendoAlLocal
+    ? localPorLaZonaDicha(business.stores, text)
+    : null;
   // El día de la visita llega casi siempre como respuesta seca ("el sábado")
   // a la pregunta que el bot hace tras cotizar. Sin mirar lo que preguntamos
   // antes, esa respuesta no era un compromiso para nadie.
@@ -195,6 +199,13 @@ const pipeline = new InboundPipeline(async ({ from, name, text: textoRecibido, w
       })
     : null;
   if (explicitStore) await setExplicitStore(conversation.id, explicitStore);
+  if (storePorZona) {
+    await updateConversationFacts(conversation.id, {
+      nearestStore: storePorZona.name,
+      locationLabel: `Zona indicada por el cliente: ${text.trim().slice(0, 120)}`,
+    });
+    console.log(`📍 Conv ${conversation.id}: la zona dicha resolvió ${storePorZona.name}.`);
+  }
   // El aviso va aunque el bot esté apagado: apagado significa que contesta una
   // persona, y esa persona es justo la que tiene que enterarse de que este
   // cliente dijo cuándo viene. En segundo plano para no demorar la respuesta.

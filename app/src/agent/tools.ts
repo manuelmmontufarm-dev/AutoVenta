@@ -3217,14 +3217,17 @@ export function buildTools(ctx: AgentContext) {
       `;
       // La zona que el cliente dijo en ESTE mensaje elige el local: no se le
       // vuelve a preguntar. Ver `localPorLaZonaDicha`.
-      const porZona = !local && !saved?.nearest_store
+      // La zona escrita por el cliente manda sobre el parámetro del modelo.
+      // Conv 22531: «Norte de Quito» llegó con local=Quito Sur y saltó la
+      // resolución determinística. Si hay zona inequívoca, ella decide.
+      const porZona = !saved?.nearest_store
         ? localPorLaZonaDicha(business.stores, ctx.currentUserText)
         : null;
       if (porZona) {
         await updateConversationFacts(ctx.conversation.id, { nearestStore: porZona.name });
         console.log(`📍 Conv ${ctx.conversation.id}: el cliente dijo su zona; local ${porZona.name}.`);
       }
-      const elegido = local ?? saved?.nearest_store ?? porZona?.name ?? null;
+      const elegido = saved?.nearest_store ?? porZona?.name ?? local ?? null;
       const mapas = buildStoreLinksBlock(elegido, { soloDestacado: Boolean(elegido) });
       if (!mapas) {
         return JSON.stringify({

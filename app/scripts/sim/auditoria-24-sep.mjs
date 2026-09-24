@@ -68,6 +68,25 @@ const ESCENARIOS = [
       },
     ],
   },
+  {
+    id: "F3",
+    titulo: "conv 22531 · norte de Quito elige Cumbayá, no Quito Sur",
+    pasos: [
+      { m: "205/55R16" },
+      { m: "1" },
+      {
+        m: "Norte de Quito",
+        despues: async (t) => {
+          const [ficha] = await sql`
+            select nearest_store from conversations where id=${t._estado.conv.id}
+          `;
+          return ficha?.nearest_store === "Depot Tire Cumbayá"
+            ? []
+            : [`la ficha eligió ${ficha?.nearest_store ?? "ningún local"}`];
+        },
+      },
+    ],
+  },
 ];
 
 const solo = (process.env.SIM_SOLO ?? "").split(",").map((s) => s.trim()).filter(Boolean);

@@ -7710,3 +7710,18 @@ mapas/visita y el último candado lo eliminó entero. Una pregunta directa no
 puede desaparecer por una interacción entre dos capas correctas por separado.
 
 **Horas:** 0,7
+## 24-sep-2026 · Norte de Quito y Calderón van a Cumbayá
+
+**Qué:** `resolveSector` incorpora `norte` y `calderon` con coordenadas del
+norte/noreste, por lo que `localPorLaZonaDicha` recomienda Depot Tire Cumbayá.
+Se quitó el punto genérico `quito`: “Quito” a secas es ambiguo y deja que el
+bot pregunte, sin inventar un local. La elección por zona se persiste antes del
+agente y prevalece sobre un parámetro de local reconstruido por el modelo.
+Escenario F3 y cuatro casos de regresión.
+
+**Por qué:** La conv 22531 dijo “Norte de Quito” y fue registrada dos veces
+para Quito Sur; las convs 22853 (Calderón) y 22973 (norte de Quito) tampoco
+resolvieron bien. Solo existen Cumbayá y Quito Sur, y Cumbayá cubre el
+norte/este.
+
+**Horas:** 0,5
