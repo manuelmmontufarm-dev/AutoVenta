@@ -75,6 +75,7 @@ import { sinPreguntaRepetidaEnElTurno } from "../domain/preguntaRepetidaEnElTurn
 import { estructurarTurno } from "../domain/estructuraDelTurno.js";
 import {
   anunciaCotizacion, preguntaDeEquivalente, productoDeConsentimiento, sinCotizacionPrometida,
+  preguntaLegitimaTrasCotizacionBloqueada,
   type MetadataDePieza,
 } from "../domain/equivalentePendiente.js";
 import { findByCode } from "./catalog.js";
@@ -214,6 +215,23 @@ export const PASOS: readonly PasoDeSalida[] = [
         ctx.conversation.id, ctx.conversation.current_cycle, ctx.textoDelCliente,
       );
       return estado === "fuera" ? respuestaDeUbicacionFueraDeCobertura(texto) : texto;
+    },
+  },
+  {
+    // SI LA HERRAMIENTA BLOQUEÓ LA FIRMA, LA RECOMENDACIÓN CONSERVA UN PASO
+    // SIGUIENTE LEGÍTIMO. Producción 22–24 sep: el modelo escribió «¿Le genero
+    // la cotización por el juego de 4 llantas?» tras el error de la tool; el
+    // guardián la quitó como pregunta_de_mas y siete clientes quedaron sin
+    // pregunta final. Se transforma ANTES del guardián para que él revise ya
+    // la forma válida, «¿Se la cotizo?», que OFRECIO_COTIZAR reconoce.
+    nombre: "pregunta_legitima_tras_cotizacion_bloqueada",
+    corre: ["respuesta", "retomada"],
+    async aplicar(texto, ctx) {
+      const bloqueo = (ctx.huella ?? []).some(
+        (paso) => paso.herramienta === "generar_cotizacion"
+          && paso.resultado.includes("este turno no autorizó cotizar llantas"),
+      );
+      return bloqueo ? preguntaLegitimaTrasCotizacionBloqueada(texto) : texto;
     },
   },
   {

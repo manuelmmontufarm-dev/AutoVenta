@@ -104,6 +104,32 @@ const ESCENARIOS = [
       },
     ],
   },
+  {
+    id: "F5",
+    titulo: "convs 22388/22613/22782 · cotización bloqueada conserva un siguiente paso",
+    pasos: [
+      {
+        m: "205/55R16",
+        despues: async (t) => {
+          // La decisión del modelo de llamar una tool bloqueada no es estable
+          // corrida a corrida. Se ejercita la transformación de producción
+          // con el borrador exacto que dejó esa tool; conversación, catálogo
+          // y la ausencia de quotes sí vienen del sim.
+          const { preguntaLegitimaTrasCotizacionBloqueada } = await import(
+            "../../dist/domain/equivalentePendiente.js"
+          );
+          const texto = preguntaLegitimaTrasCotizacionBloqueada(
+            "La recomendada es la KENDA KR20 a $91.28 c/u.\n---\n¿Le genero la cotización por el juego de 4 llantas?",
+          );
+          return [
+            ...(t._estado.quotes.length === 0 ? [] : ["la herramienta firmó una cotización que debía bloquear"]),
+            ...(/¿Se la cotizo\?/i.test(texto ?? "") ? [] : ["la recomendación quedó sin «¿Se la cotizo?»"]),
+            ...(/juego de 4|le genero la cotizaci[oó]n/i.test(texto ?? "") ? ["conservó la pregunta de permiso prohibida"] : []),
+          ];
+        },
+      },
+    ],
+  },
 ];
 
 const solo = (process.env.SIM_SOLO ?? "").split(",").map((s) => s.trim()).filter(Boolean);

@@ -21,6 +21,7 @@
 import { beforeAll, describe, expect, it } from "vitest";
 import {
   anunciaCotizacion,
+  preguntaLegitimaTrasCotizacionBloqueada,
   preguntaDeEquivalente,
   sinCotizacionPrometida,
 } from "../src/domain/equivalentePendiente.js";
@@ -48,6 +49,16 @@ beforeAll(async () => {
 const PREGUNTA = preguntaDeEquivalente({ recomendacion: "WINRUN R380", medida: "215/65R16" });
 
 describe("la pregunta de consentimiento de la equivalente", () => {
+  it("convs 22388/22613/22782: reemplaza el permiso con cantidad por la oferta legítima", () => {
+    const borrador = "La KENDA KR20 cuesta $92 c/u.\n---\n¿Le genero la cotización por el juego de 4 llantas?";
+    const limpio = preguntaLegitimaTrasCotizacionBloqueada(borrador);
+    expect(limpio).toContain("La KENDA KR20 cuesta $92 c/u.");
+    expect(limpio).toContain("¿Se la cotizo? 😊");
+    expect(limpio).not.toMatch(/genero la cotizaci[oó]n|juego de 4/i);
+    expect(sinPreguntasProhibidas(limpio).quitadas).toHaveLength(0);
+    expect(ofertaDeCotizacionAceptada(limpio, "sí")).toBe(true);
+  });
+
   it("nombra la llanta y SU medida, y es una pregunta", () => {
     expect(PREGUNTA).toBe("¿Le cotizo la *WINRUN R380* en *215/65R16*? 😊");
     expect(preguntaDeEquivalente({ recomendacion: "KENDA KR33A", medida: null })).toBe("¿Le cotizo la *KENDA KR33A*? 😊");
