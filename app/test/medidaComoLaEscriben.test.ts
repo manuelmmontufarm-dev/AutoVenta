@@ -50,6 +50,25 @@ const leer = (texto: string): string | null => {
 };
 
 describe("pulgadas con el aro dicho en palabras", () => {
+  it("conv 3608: «Rin 15 31 x 10.50» reconoce el aro escrito adelante", () => {
+    expect(leer("Buenas noches necesito 4 llantas Rin 15 31 x 10.50"))
+      .toBe("31X10.5R15");
+  });
+
+  it("conv 22421: «31x10x50» entiende la segunda x como punto decimal", () => {
+    expect(leer("el juego de llantas pantaneras rin 15 la 31x10x50"))
+      .toBe("31X10.5R15");
+  });
+
+  it("conv 22445: «Rin 15 31 10 50» reconstruye la medida manuscrita", () => {
+    expect(leer("Rin 15 31 10 50")).toBe("31X10.5R15");
+  });
+
+  it("«195 50 15» sigue siendo métrica, nunca flotación", () => {
+    expect(ts.extractFlotationSizes("195 50 15")).toHaveLength(0);
+    expect(leer("195 50 15")).toBe("195/50R15");
+  });
+
   // Conv 18821, 10-sep 19:49. «32x10.50 Rin 15» + «En MT». Salió KR29
   // 215/75R15 —cuatro pulgadas más chica— como «la única que tengo para lo
   // que me pidió», y encima cotizada.

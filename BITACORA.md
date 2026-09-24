@@ -7725,3 +7725,17 @@ resolvieron bien. Solo existen Cumbayá y Quito Sur, y Cumbayá cubre el
 norte/este.
 
 **Horas:** 0,5
+## 24-sep-2026 · Las flotación manuscritas con el aro adelante se entienden
+
+**Qué:** `tireSize` suma un lector de flotación anclado por `rin/aro` adelante:
+reconoce `Rin 15 31 x 10.50`, `rin 15 ... 31x10x50` y `Rin 15 31 10 50` como
+`31X10.5R15`. La misma forma se enmascara para los detectores de otros números.
+El ancla evita morder `195 50 15`, que conserva su lectura métrica. Escenario
+F4 y cuatro regresiones. Al buscar, la medida extraída del texto del cliente
+prevalece sobre argumentos métricos que el modelo haya reconstruido mal.
+
+**Por qué:** Las convs 3608, 22421 y 22445 cayeron en búsqueda por aro; clientes
+de camioneta recibieron medidas de auto y la conv 22421 oyó que no había una
+31x10.50R15 aunque el catálogo tenía la KENDA KR29 en stock.
+
+**Horas:** 0,8

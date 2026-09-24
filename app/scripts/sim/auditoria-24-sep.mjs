@@ -87,6 +87,23 @@ const ESCENARIOS = [
       },
     ],
   },
+  {
+    id: "F4",
+    titulo: "conv 22421 · flotación manuscrita queda como 31X10.5R15, no como aro 15",
+    pasos: [
+      {
+        m: "el juego de llantas pantaneras rin 15 la 31x10x50",
+        despues: async (t) => {
+          const [ficha] = await sql`
+            select tire_size from conversations where id=${t._estado.conv.id}
+          `;
+          return ficha?.tire_size === "31X10.5R15"
+            ? []
+            : [`la ficha guardó ${ficha?.tire_size ?? "medida vacía"}`];
+        },
+      },
+    ],
+  },
 ];
 
 const solo = (process.env.SIM_SOLO ?? "").split(",").map((s) => s.trim()).filter(Boolean);
