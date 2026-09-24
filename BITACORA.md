@@ -7679,3 +7679,17 @@ cliente. Todo el research está verificado contra fuentes oficiales.
 **Qué:** Repo creado con README.
 
 **Por qué:** Arranque del control de versiones.
+## 24-sep-2026 · Los seguimientos leen la ficha y lo que el cliente ya dijo
+
+**Qué:** La plantilla de seguimiento usa `tire_size` aunque la etapa siga en
+`nuevo`; con local elegido y sin fecha pregunta directamente qué día puede
+pasar; y el contexto del ciclo registra cuando el cliente declaró que no tiene
+la medida/numeración para ofrecer vehículo o foto en vez de insistir. Se agregó
+el escenario F1 del simulador y tres regresiones determinísticas.
+
+**Por qué:** En 40 seguimientos apareció la pregunta genérica de medida; 13 ya
+tenían `tire_size` en la ficha (convs 21967, 22111, 22559 y 22809). El guardián
+corrigió 26/26 ofertas vagas de “dejar lista la visita”. En la conv 22549 el
+cliente dijo que no tenía la numeración y se la pidieron tres veces más.
+
+**Horas:** 1,0
