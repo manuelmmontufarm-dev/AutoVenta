@@ -45,6 +45,29 @@ const ESCENARIOS = [
       },
     ],
   },
+  {
+    id: "F2",
+    titulo: "conv 22625 · pregunta por dirección desde Guayaquil recibe respuesta útil",
+    pasos: [
+      {
+        m: "Estoy en Guayaquil. ¿Cuál es la dirección?",
+        despues: async (t) => {
+          const mensajes = await sql`
+            select content from messages
+            where conversation_id=${t._estado.conv.id}
+              and direction='outbound' and author_kind='bot'
+            order by id desc limit 8
+          `;
+          const texto = mensajes.map((m) => m.content ?? "").join("\n");
+          return [
+            ...(mensajes.length ? [] : ["la pregunta directa quedó sin respuesta persistida"]),
+            ...(/Cumbay[aá]/i.test(texto) && /Quito Sur/i.test(texto) ? [] : ["no aclaró los dos sectores donde sí están los locales"]),
+            ...(/maps\.app|qu[eé] d[ií]a|cu[aá]l local/i.test(texto) ? ["insistió con mapas/local/visita a alguien de Guayaquil"] : []),
+          ];
+        },
+      },
+    ],
+  },
 ];
 
 const solo = (process.env.SIM_SOLO ?? "").split(",").map((s) => s.trim()).filter(Boolean);

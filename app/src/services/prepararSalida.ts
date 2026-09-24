@@ -50,7 +50,7 @@ import { sinJsonCrudo } from "../domain/jsonCrudo.js";
 import { conLocalesReales } from "./localesReales.js";
 import { notifyAdvisor } from "./advisorNotifications.js";
 import { sql } from "../db/client.js";
-import { sinVisitaNiMapas } from "../domain/visitaImposible.js";
+import { respuestaDeUbicacionFueraDeCobertura, sinVisitaNiMapas } from "../domain/visitaImposible.js";
 import { BENEFICIO_DE_REDES, esFraseDeBeneficios, preguntaPorBeneficios } from "../domain/beneficioDeRedes.js";
 import { sinFrasesDelTema } from "../domain/respuestaDelTema.js";
 import { sinFraseColgando } from "../domain/fraseColgando.js";
@@ -196,6 +196,24 @@ export const PASOS: readonly PasoDeSalida[] = [
     async aplicar(texto, ctx) {
       const vetted = await applyOutboundGuard(ctx.conversation.id, texto);
       return vetted.text;
+    },
+  },
+  {
+    // UNA PREGUNTA DIRECTA DE UBICACIÓN NUNCA TERMINA EN SILENCIO.
+    //
+    // Convs 22625 y 22481: el borrador aprobado era saludo + mapas + pregunta
+    // de visita. El último paso quitó correctamente mapas/visita y no quedó
+    // respuesta. Este respaldo se arma ANTES del Ángel Guardián para que el
+    // revisor todavía lo vea; `sin_visita_si_no_puede_venir` sigue limitándose
+    // a quitar al final de la cadena.
+    nombre: "respuesta_de_ubicacion_fuera_de_cobertura",
+    corre: ["respuesta", "retomada"],
+    async aplicar(texto, ctx) {
+      if (!motivoDeUbicacion(ctx.textoDelCliente ?? "")) return texto;
+      const estado = await dondeEstaElClienteSegunLoDicho(
+        ctx.conversation.id, ctx.conversation.current_cycle, ctx.textoDelCliente,
+      );
+      return estado === "fuera" ? respuestaDeUbicacionFueraDeCobertura(texto) : texto;
     },
   },
   {

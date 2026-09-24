@@ -100,6 +100,7 @@ import {
   esPlazoDeDecision, respuestaDeCierreDelTurno, respuestaDePlazoDeDecision, tipoDeCierreDelTurno,
 } from "./domain/cierreTurno.js";
 import { esAcuseSimple } from "./domain/ofertaAceptada.js";
+import { respuestaDirectaDeUbicacionFueraDeCobertura } from "./domain/visitaImposible.js";
 
 /** Pausa entre bloques: suficiente para que se lean como mensajes seguidos y no como spam. */
 const PAUSA_ENTRE_BLOQUES_MS = 900;
@@ -364,6 +365,13 @@ const pipeline = new InboundPipeline(async ({ from, name, text: textoRecibido, w
       );
   const plazoDeDecision = !cierreAntesDeHerramientas && !cierreDelTurno
     && esPlazoDeDecision(textoConLinks);
+  // Conv 22625: si en el mismo mensaje dice que está fuera de Quito y pide
+  // dirección, responder antes del agente evita que una tool mande mapas que
+  // el candado final deba borrar. Al ser texto fijo, tampoco necesita que el
+  // Ángel Guardián lo reescriba.
+  const ubicacionFueraDeCobertura = !cierreAntesDeHerramientas && !cierreDelTurno
+    ? respuestaDirectaDeUbicacionFueraDeCobertura(textoConLinks)
+    : null;
   // Un cambio de cantidad NO se contesta con palabras: sale la pieza nueva.
   // El 27-ago (conv 3) el modelo prometió el ajuste dos turnos seguidos sin
   // llamar una sola herramienta, y el cliente nunca supo cuánto costaban 3
@@ -373,6 +381,8 @@ const pipeline = new InboundPipeline(async ({ from, name, text: textoRecibido, w
     ? null
     : plazoDeDecision
       ? respuestaDePlazoDeDecision()
+      : ubicacionFueraDeCobertura
+        ? ubicacionFueraDeCobertura
       : isFirstGenericMessage
       ? firstContactReply()
       // Media medida en pulgadas («MT 30.5 r15»): se pregunta el ancho, sin
@@ -432,7 +442,9 @@ const pipeline = new InboundPipeline(async ({ from, name, text: textoRecibido, w
   const salida = await prepararSalida(reply, {
     conversation, tipo: "respuesta", huella: agentContext.toolTrace ?? [],
     textoDelCliente: textoConLinks, faseOperativa: agentContext.faseOperativa,
-    suprimirEmpujeComercial: Boolean(cierreAntesDeHerramientas || cierreDelTurno || plazoDeDecision),
+    suprimirEmpujeComercial: Boolean(
+      cierreAntesDeHerramientas || cierreDelTurno || plazoDeDecision || ubicacionFueraDeCobertura,
+    ),
     consultaFueraDeCatalogo: agentContext.consultaFueraDeCatalogo,
   });
   if (!salida.texto) return;

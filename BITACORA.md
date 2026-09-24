@@ -7693,3 +7693,20 @@ corrigió 26/26 ofertas vagas de “dejar lista la visita”. En la conv 22549 e
 cliente dijo que no tenía la numeración y se la pidieron tres veces más.
 
 **Horas:** 1,0
+## 24-sep-2026 · Una consulta de ubicación fuera de Quito nunca queda muda
+
+**Qué:** Se agregó `respuesta_de_ubicacion_fuera_de_cobertura` antes del Ángel
+Guardián. Si el cliente habló de una ciudad fuera de cobertura y el borrador
+solo contiene saludo, mapas o una pregunta de visita, arma la respuesta
+canónica: los locales están en Quito, en Cumbayá y Quito Sur. El paso final
+`sin_visita_si_no_puede_venir` conserva su contrato de solo quitar. Cuando la
+ciudad y la pregunta directa vienen en el mismo turno, una ruta temprana arma
+esa misma respuesta antes de herramientas y omite la revisión generativa.
+Escenario F2 y regresiones determinísticas.
+
+**Por qué:** Las convs 22625 («Están en guayaquil» + «La dirección») y 22481
+(«Yo vivo en ibarra…») recibieron silencio: el guardián aprobó un turno de
+mapas/visita y el último candado lo eliminó entero. Una pregunta directa no
+puede desaparecer por una interacción entre dos capas correctas por separado.
+
+**Horas:** 0,7
