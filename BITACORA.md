@@ -1,3 +1,57 @@
+## 24-sep-2026 · El negocio sale del código: un perfil por cliente
+
+**Qué:** `src/negocio/` con la forma (`perfil.ts`) y los valores por cliente
+(`negocios/depot.ts`, `negocios/ejemplo.ts`, este último con UN solo local a
+propósito). Lo elige la variable `NEGOCIO`; sin ella es Depot, y un id que no
+existe no arranca en vez de atender como otro negocio. Salieron del código:
+nombre, ciudad, teléfono, marcas, IVA, moneda, garantías, los locales (con
+`slug`, `nombreCorto`, `claveHorario`, horario propio y los patrones
+`comoLoNombran` / `comoLoNombranAlElegir`), las zonas de la ciudad, el nombre del
+vendedor y los pies de las piezas. `business` queda como vista en inglés del
+perfil, así que los veinte archivos que la importan no se tocaron.
+
+Lo que dejó de asumir que los locales son DOS: el `z.enum` de `ubicacion_locales`
+y `agendar_visita` (el contrato que ve el modelo), `storeSchedule` —que elegía el
+horario preguntando si el nombre *contenía* «Cumbayá»—, `StoreHoursSchema` (de
+dos claves fijas a mapa abierto, conservando `cumbaya`/`quitoSur` para no migrar
+lo guardado), `extractExplicitStore` (de dos booleanos y una rama binaria a N
+patrones, donde nombrar dos sigue sin ser elegir), los botones de WhatsApp,
+`PREGUNTA_DE_LOCAL`, `quoteMessages` (`slice(0, 2)`), y los candados de
+`visitaImposible`, `cierrePerdido` y `localesInventados`, que llevaban los
+nombres cosidos al patrón. El logo pasa a `assets/<id>/`, y el rótulo del IVA de
+la cotización sale de la tarifa real: con IVA al 12 % la pieza mentía.
+
+`test/perfilDelNegocio.test.ts` (19 pruebas) fija BYTE POR BYTE lo que Depot ya
+tenía: la pregunta de local, la firma «Soy Martín, de Depot Tire» y su
+reconocedor, el horario que va al prompt, los sectores, los dos pies distintos
+(«desde 1996» en día y noche, «30 años» en la clásica) y los tres candados. Más
+el caso de un solo local y el de cinco.
+
+**Por qué:** Manuel quiere sumar un segundo cliente. El inventario dio 137
+literales de Depot en `src/`, 34 de ellos estructurales: un cliente con un local
+—o con tres— no era configuración, era tocar el código y arriesgar al primero,
+porque producción y staging salen del mismo `main`. Lo que NO se copia por
+cliente es lo que costó descubrir: cómo se lee una medida, cuándo un «sí»
+autoriza, qué no puede preguntar un seguimiento. Eso es de cualquier llantera y
+se queda en el dominio, así que el segundo cliente nace con los arreglos de los
+dos meses de Depot ya puestos.
+
+Dos fallos reales los cazaron las comprobaciones, no la lectura: el patrón de
+`cierrePerdido` quedaba con mayúscula contra un texto que llega en minúscula («ya
+compré aquí en cumbaya» se habría contado como venta perdida), y el de
+`visitaImposible` sin tildes habría dejado de reconocer «¿Cumbayá o Quito Sur?»
+—abriéndose en silencio— porque ese candado corre sobre el texto tal como se
+escribió. De ahí `comoPatronConTildes`.
+
+Va junto `docs/UMBRALES-PARA-VENDER.md`, de la misma conversación: las siete
+cifras que dicen si el bot se puede ofrecer a un cliente nuevo, con el valor del
+24-sep al lado (2 de 7 en verde). Seis salen de la base con una regla fija y la
+séptima de la facturación, así que se pueden correr solas; el conteo de «errores
+por chat» de las auditorías leídas queda fuera a propósito, porque depende de
+quién lee.
+
+**Horas:** 3
+
 ## 21-sep-2026 · Elegir es cotizar, también «La opción 3» y «Premiun»; y la oferta de cotizar sobrevive a la cadena
 
 **Qué:** `respuestaDePreferencia` lee el escalón con artículo, con cortesía

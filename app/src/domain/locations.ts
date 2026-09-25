@@ -1,4 +1,5 @@
 import type { Store } from "../config.js";
+import { negocio } from "../negocio/index.js";
 
 const EARTH_RADIUS_KM = 6371;
 
@@ -34,30 +35,19 @@ export function nearestStore(
 }
 
 /**
- * El orden importa: la búsqueda es por subcadena y se queda con el PRIMERO que
- * calza, así que lo específico va antes que lo genérico. «al sur de Quito»
- * contiene las dos palabras y tiene que resolver al sur, no al centro.
+ * Las zonas de la ciudad DEL NEGOCIO — Quito para Depot, las que cargue cada
+ * cliente para los demás. Viven en `negocio/negocios/<cliente>.ts`.
+ *
+ * El orden importa y lo fija el perfil: la búsqueda es por subcadena y se queda
+ * con el PRIMERO que calza, así que lo específico va antes que lo genérico.
+ * «al sur de Quito» contiene las dos palabras y tiene que resolver al sur, no
+ * al centro.
+ *
+ * Un negocio sin sectores cargados no adivina: `resolveSector` devuelve null y
+ * el bot pide el pin, que es lo correcto — mandar a alguien al local equivocado
+ * cuesta más que una pregunta de más.
  */
-const QUITO_SECTORS: Record<string, { lat: number; lng: number; label: string }> = {
-  itulcachi: { lat: -0.157, lng: -78.337, label: "Itulcachi" },
-  cumbaya: { lat: -0.2, lng: -78.43, label: "Cumbayá" },
-  tumbaco: { lat: -0.211, lng: -78.402, label: "Tumbaco" },
-  pifo: { lat: -0.225, lng: -78.339, label: "Pifo" },
-  // El Valle de los Chillos baja a Quito por la Rumiñahui y cae al sur: el
-  // local que le queda es Quito Sur. Caso real del 25-ago (foto de Joaquín):
-  // «Vlle de los chillos» no resolvía y el bot pedía el pin. La clave
-  // «chillos» aguanta esa falta («vlledeloschillos» ⊃ «chillos»).
-  chillos: { lat: -0.33, lng: -78.45, label: "Valle de los Chillos" },
-  sangolqui: { lat: -0.33, lng: -78.445, label: "Sangolquí" },
-  // «al sur», a secas, es como la mitad de Quito dice dónde vive — y era un
-  // sector que no resolvía nada: `local_mas_cercano` devolvía «no puedo ubicar
-  // ese sector, pide el pin» y el hilo se moría ahí (chat del 25-ago: «al sur
-  // por favor el viernes» y el bot volvió a preguntar el lugar). El punto es el
-  // centro del sur de Quito, a ~4 km del local de Quito Sur y a ~15 del de
-  // Cumbayá: la recomendación no tiene vuelta.
-  sur: { lat: -0.28, lng: -78.545, label: "sur de Quito" },
-  quito: { lat: -0.18, lng: -78.49, label: "Quito" },
-};
+const SECTORES = negocio.sectores;
 
 function normalizar(text: string): string {
   return text
@@ -69,7 +59,8 @@ function normalizar(text: string): string {
 
 export function resolveSector(text: string): { lat: number; lng: number; label: string } | null {
   const normalized = normalizar(text);
-  return Object.entries(QUITO_SECTORS).find(([key]) => normalized.includes(key))?.[1] ?? null;
+  const sector = SECTORES.find((s) => normalized.includes(s.clave));
+  return sector ? { lat: sector.lat, lng: sector.lng, label: sector.etiqueta } : null;
 }
 
 /**
@@ -83,9 +74,17 @@ export function resolveSector(text: string): { lat: number; lng: number; label: 
  * palabras ERAN la conversaci\u00f3n.
  */
 export const LOCATION_WORDS: readonly string[] = [
-  ...Object.keys(QUITO_SECTORS),
-  ...Object.values(QUITO_SECTORS).map((sector) => normalizar(sector.label)),
-  "depot", "tire", "norte", "centro", "valle", "sector",
+  // Del negocio: sus zonas, los nombres de sus locales y lo suyo propio.
+  ...SECTORES.map((sector) => sector.clave),
+  ...SECTORES.map((sector) => normalizar(sector.etiqueta)),
+  // PALABRA POR PALABRA, no el nombre entero: la lista se compara contra tokens
+  // sueltos, así que «depottirecumbaya» no casaría con nada.
+  ...negocio.locales.flatMap((local) =>
+    `${local.nombre} ${local.nombreCorto}`.split(/\s+/).map(normalizar).filter(Boolean),
+  ),
+  ...negocio.palabrasDeLugarPropias.map((palabra) => normalizar(palabra)),
+  // Genéricas: las dice cualquier cliente de cualquier llantera.
+  "norte", "centro", "valle", "sector",
   "local", "locales", "sucursal", "tienda", "almacen",
   "direccion", "ubicacion", "mapa", "maps", "google",
 ];

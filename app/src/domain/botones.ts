@@ -26,6 +26,7 @@
 import { ETIQUETA_DEL_ESCALON, type Preferencia } from "./salesIntent.js";
 import { preguntaElLocal } from "./storeSelection.js";
 import { preguntaElDia } from "./customerCommitment.js";
+import { negocio } from "../negocio/index.js";
 
 /** Tope duro de la Cloud API: tres botones de respuesta por mensaje. */
 export const MAX_BOTONES = 3;
@@ -178,14 +179,19 @@ export function botonesParaBloque(
   // El menú numerado de Joaquín se queda tal cual: se contesta escribiendo «2»
   // o «la equilibrio», que es lo que `respuestaDePreferencia` entiende.
 
-  // 2 · El local. Son exactamente dos y viven en la config del negocio.
+  // 2 · El local. Salen del perfil del negocio, uno por local: antes eran dos
+  // literales acá, y el comentario decía que «viven en la config» cuando no era
+  // cierto. Con un solo local no hay nada que elegir y no van botones; el tope
+  // de Meta es de tres, así que un negocio con más pregunta por texto.
   if (preguntaElLocal(bloque)) {
+    const locales = negocio.locales;
+    if (locales.length < 2 || locales.length > MAX_BOTONES) return null;
     return {
       cuerpo: bloque,
-      botones: [
-        { id: `local:cumbaya${sufijo}`, titulo: "Cumbayá" },
-        { id: `local:quito_sur${sufijo}`, titulo: "Quito Sur" },
-      ],
+      botones: locales.map((local) => ({
+        id: `local:${local.slug}${sufijo}`,
+        titulo: local.nombreCorto,
+      })),
     };
   }
 
@@ -257,8 +263,10 @@ export function textoDeBoton(id: string, titulo: string, ciclo: number, ahora = 
     if (valor === "premium") return "premium";
   }
   if (familia === "local") {
-    if (valor === "cumbaya") return "Cumbayá";
-    if (valor === "quito_sur") return "Quito Sur";
+    // El nombre corto es exactamente lo que `extractExplicitStore` entiende:
+    // el toque entra como si el cliente hubiera escrito «Cumbayá».
+    const local = negocio.locales.find((l) => l.slug === valor);
+    if (local) return local.nombreCorto;
   }
   if (familia === "dia") {
     if (valor === "otro") return TEXTO_OTRO_DIA;

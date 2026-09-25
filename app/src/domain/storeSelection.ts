@@ -1,9 +1,19 @@
 import { dondeEstaElCliente } from "./fueraDeCobertura.js";
+import { negocio } from "../negocio/index.js";
 
 const normalize = (value: string) =>
   value.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 
-export type ExplicitStore = "Depot Tire Cumbayá" | "Depot Tire Quito Sur";
+/**
+ * El nombre de un local del negocio, tal como se guarda en
+ * `conversations.nearest_store`.
+ *
+ * Era una unión de los dos nombres de Depot. Ahora es `string` porque los
+ * locales salen del perfil y no se conocen al compilar; lo que garantiza que
+ * sea uno de verdad es que solo lo produce `extractExplicitStore` a partir de
+ * `negocio.locales`.
+ */
+export type ExplicitStore = string;
 
 /**
  * ¿Nuestro último mensaje puso los dos locales sobre la mesa?
@@ -25,7 +35,31 @@ export type ExplicitStore = "Depot Tire Cumbayá" | "Depot Tire Quito Sur";
  * la reconoce (`preguntamosElLocal`): si se reescribe en un solo lado, el bot
  * deja de entender la respuesta del cliente.
  */
-export const PREGUNTA_DE_LOCAL = "¿A cuál local le queda mejor ir, *Cumbayá* o *Quito Sur*?";
+export const PREGUNTA_DE_LOCAL = armarPreguntaDeLocal();
+
+/**
+ * Los locales como alternativa y en negrita: «*Cumbayá* o *Quito Sur*».
+ *
+ * Es el trozo que varias frases de cierre pegaban a mano. Con un solo local
+ * queda su nombre, y quien lo use tiene que decidir antes si preguntar el local
+ * tiene sentido: `hayQueElegirLocal` responde eso.
+ */
+export const LOCALES_COMO_ALTERNATIVA = negocio.locales
+  .map((local) => `*${local.nombreCorto}*`)
+  .join(" o ");
+
+/** ¿Hay más de un local, es decir, hay algo que preguntar? */
+export const hayQueElegirLocal = negocio.locales.length >= 2;
+
+function armarPreguntaDeLocal(): string {
+  const nombres = negocio.locales.map((local) => `*${local.nombreCorto}*`);
+  // Con un solo local no hay nada que preguntar y esta frase no debería salir
+  // nunca; igual devuelve algo pronunciable, porque también se usa para
+  // RECONOCER la pregunta y una cadena vacía casaría con cualquier mensaje.
+  if (nombres.length < 2) return "¿A cuál local le queda mejor ir?";
+  if (nombres.length === 2) return `¿A cuál local le queda mejor ir, ${nombres[0]} o ${nombres[1]}?`;
+  return `¿A cuál local le queda mejor ir: ${nombres.slice(0, -1).join(", ")} o ${nombres[nombres.length - 1]}?`;
+}
 
 /**
  * ¿Este bloque PREGUNTA el local? Estricto, a diferencia de `preguntamosElLocal`.
@@ -110,33 +144,19 @@ export function extractExplicitStore(
   opts?: { respondiendoAlLocal?: boolean },
 ): ExplicitStore | null {
   const value = normalize(text);
-  const cumbaya = /\bcumbaya\b/.test(value);
-  const sur =
-    /\bquito\s+sur\b|\b(?:local|sucursal)\s+(?:(?:de|del)\s+)?(?:quito\s+)?sur\b|\bel\s+de\s+(?:quito\s+)?sur\b/.test(value) ||
-    // «al de quito» ES Quito Sur cuando acabamos de ofrecerle los dos.
-    //
-    // Los locales se llaman «Cumbayá» y «Quito Sur», y el cliente contesta con
-    // el nombre corto que los distingue: uno es «el de Cumbayá» y el otro «el
-    // de Quito». Sin esto, «al de quito» devolvía null (visto en producción el
-    // 27-ago, conv 3) y se caía TODO lo que cuelga de reconocer el local: la
-    // ruta determinística no corría, así que el día se preguntaba sin el monto
-    // del descuento, y sobre todo `nearest_store` no se guardaba — el guardián
-    // lo marcó como `estado_desincronizado`, que es exactamente lo que pasa:
-    // el asesor no se entera y el seguimiento le repregunta el local que ya dio.
-    //
-    // Solo con `respondiendoAlLocal`: fuera de esa pregunta, «estoy en Quito»
-    // es dónde vive el cliente y no elige nada.
-    // ...pero «quito» a secas solo cuenta si el cliente está ELIGIENDO, no si
-    // está contando dónde vive o cuándo sube a la ciudad. Convs 18821 («Yo el
-    // lunes voy a estar en quito») y 18221 («Yo les aviso el día que suba a la
-    // siudad de Quito»): las dos quedaron registradas como «local elegido
-    // explícitamente por el cliente», y en la 18821 el bot llegó a confirmar
-    // la visita tres veces sobre una elección que nadie hizo.
-    (Boolean(opts?.respondiendoAlLocal)
-      && /\b(?:sur|quito)\b/.test(value)
-      && !hablaDeLaCiudad(value));
-  if (cumbaya === sur) return null;
-  return cumbaya ? "Depot Tire Cumbayá" : "Depot Tire Quito Sur";
+  // El patrón suelto de cada local (`comoLoNombranAlElegir`) solo entra cuando
+  // el bot acaba de preguntar a cuál local Y el mensaje no está hablando de la
+  // ciudad. Se calcula una vez: `hablaDeLaCiudad` lee la conversación entera.
+  const vale = Boolean(opts?.respondiendoAlLocal) && !hablaDeLaCiudad(value);
+  const nombrados = negocio.locales.filter(
+    (local) =>
+      local.comoLoNombran.test(value)
+      || (vale && local.comoLoNombranAlElegir?.test(value)),
+  );
+  // NOMBRAR DOS NO ES ELEGIR. Con dos locales esto era `cumbaya === sur`: si
+  // los dos calzaban —o ninguno— no había elección y se preguntaba. Con N vale
+  // lo mismo, y es lo que evita registrar un local por un mensaje ambiguo.
+  return nombrados.length === 1 ? nombrados[0].nombre : null;
 }
 
 

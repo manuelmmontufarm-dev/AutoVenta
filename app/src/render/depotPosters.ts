@@ -16,6 +16,7 @@ import {
   stripEmoji, text, tick,
 } from "./depotDesign.js";
 import { guideTireImage } from "./assets.js";
+import { negocio, pieDeLocales, localesEnUnaLinea } from "../negocio/index.js";
 
 /**
  * ¿Este color desaparecería sobre el caucho de la ilustración?
@@ -32,10 +33,11 @@ function esOscuro(hex: string): boolean {
 
 const money = (n: number) => `$${n.toFixed(2)}`;
 
-const CONDICIONES = "Precios incluyen IVA y Ecovalor · por unidad · 3 y 6 meses sin intereses";
-const SUCURSALES = "Cumbayá · Quito Sur · 30 años";
-const TODAS_INCLUYEN =
-  "Instalación completa · seguro contra golpes y cortes · mantenimiento cada 10.000 km · revisión del vehículo";
+// Los pies de las piezas salen del perfil del negocio: cada cliente tiene su
+// antigüedad, sus condiciones y lo que incluye toda compra.
+const CONDICIONES = negocio.piezas.condiciones;
+const SUCURSALES = pieDeLocales(negocio, negocio.piezas.antiguedadClasica);
+const TODAS_INCLUYEN = negocio.piezas.todasIncluyen;
 
 /**
  * La franja INCLUYE de opciones y comparativa, resaltada (P-07, reunión
@@ -238,7 +240,13 @@ export function quotePoster(data: QuotePosterData, theme: Theme): SatoriNode {
         divider(p.border),
         seal(String(line.fabricaAnios), "AÑOS", "GARANTÍA DE FÁBRICA"),
         divider(p.border),
-        seal("30", "AÑOS", "DEPOT TIRE EN QUITO"),
+        ...(negocio.piezas.antiguedadClasica
+          ? [seal(
+              negocio.piezas.antiguedadClasica.replace(/\D+/g, "") || negocio.piezas.antiguedadClasica,
+              "AÑOS",
+              `${negocio.nombre} EN ${negocio.ciudad}`.toUpperCase(),
+            )]
+          : []),
       ),
     ),
   ];
@@ -296,7 +304,7 @@ export function quotePoster(data: QuotePosterData, theme: Theme): SatoriNode {
       el({ gap: 52 },
         totalCell(theme, "CANTIDAD", `${line.quantity} ${line.quantity === 1 ? "llanta" : "llantas"}`, true),
         totalCell(theme, "SUBTOTAL", money(data.subtotal)),
-        totalCell(theme, "IVA 15%", money(data.iva)),
+        totalCell(theme, `IVA ${Math.round(negocio.iva * 100)}%`, money(data.iva)),
       ),
       el({ alignItems: "baseline", gap: 16 },
         text({ fontSize: 16, fontWeight: 700, letterSpacing: 3, color: p.gold }, "TOTAL"),
@@ -304,8 +312,8 @@ export function quotePoster(data: QuotePosterData, theme: Theme): SatoriNode {
       ),
     ),
     posterFooter(theme,
-      "Precios incluyen IVA y Ecovalor · por unidad · Efectivo, tarjeta, transferencia · 3 y 6 meses sin intereses",
-      "Cumbayá · Quito Sur", "18px 64px"),
+      `${negocio.piezas.condiciones} · ${negocio.piezas.mediosDePago}`,
+      localesEnUnaLinea(negocio), "18px 64px"),
   );
 
   return el({ flexDirection: "column", width: "100%", backgroundColor: p.base,

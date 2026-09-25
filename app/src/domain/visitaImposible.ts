@@ -28,11 +28,26 @@
  * `domain/fueraDeCobertura.ts`, y cuándo aplicarlo, la cadena de salida.
  */
 
+import { negocio, comoPatronConTildes } from "../negocio/index.js";
+
 /** Los bloques del turno, tal como los separa la cadena de salida. */
 const SEPARADOR = /\n---\n/;
 
 const ES_MAPA = /maps\.app\.goo\.gl|maps\.google\.com|📍/;
-const PIDE_LOCAL = /\b(?:a\s+)?cu[aá]l\s+(?:de\s+(?:nuestros|los)\s+)?local(?:es)?\b|\bcumbay[aá]\s*(?:o|\/)\s*quito\s*sur\b|\bqu[eé]\s+local\b/i;
+/**
+ * «¿Cumbayá o Quito Sur?» sin la palabra «local» delante también pregunta el
+ * local. Los nombres salen del perfil: estaban escritos acá y el candado no
+ * habría reconocido la pregunta de otro cliente.
+ */
+const LOCALES_O_LOCALES = negocio.locales
+  .map((local) => comoPatronConTildes(local.nombreCorto))
+  .join("\\s*(?:o|/)\\s*");
+const PIDE_LOCAL = new RegExp(
+  `\\b(?:a\\s+)?cu[aá]l\\s+(?:de\\s+(?:nuestros|los)\\s+)?local(?:es)?\\b`
+  + (negocio.locales.length >= 2 ? `|\\b${LOCALES_O_LOCALES}\\b` : "")
+  + `|\\bqu[eé]\\s+local\\b`,
+  "i",
+);
 const PIDE_DIA_DE_VISITA =
   /\bqu[eé]\s+d[ií]a\b[^.?!]{0,60}\b(?:pasar?|venir|visitar|acercar|ir)\b|\bcu[aá]ndo\b[^.?!]{0,40}\b(?:puede|podr[ií]a|nos\s+visita)\b|\bd[ií]a\s+(?:le\s+)?(?:queda|vendr[ií]a|ser[ií]a)\b/i;
 

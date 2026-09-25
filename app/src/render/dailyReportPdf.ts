@@ -44,6 +44,7 @@ import {
   areaSemana, barrasConversaciones, barrasKanban, donaCotizado, mezclar, montoEntero,
   type Fuentes,
 } from "./reportCharts.js";
+import { negocio, nombreEnDosTonos } from "../negocio/index.js";
 
 // El test de la mezcla de colores entra por aquí: `mezclar` nació en este
 // módulo para el gradiente de la banda y se mudó a los gráficos, que la usan
@@ -589,10 +590,11 @@ function fondo(r: ReporteDiario, e: Estilo) {
           }
         : {
             absolutePosition: { x: MARGEN_X, y },
-            text: [
-              { text: "DEPOT", color: e.p.panel },
-              { text: "TIRE", color: e.p.gold },
-            ],
+            // Sin el archivo del logo, el nombre del negocio en dos tonos.
+            text: nombreEnDosTonos(negocio).map(([palabra, dorada]) => ({
+              text: palabra,
+              color: dorada ? e.p.gold : e.p.panel,
+            })),
             font: "ArchivoBlack",
             fontSize: escala,
             characterSpacing: 0.6,

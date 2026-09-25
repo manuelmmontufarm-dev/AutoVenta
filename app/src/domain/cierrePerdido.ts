@@ -24,6 +24,8 @@
  * panel, y el sistema le recomienda hacerlo con la alerta `recommend_close_lost`
  * cuando el cliente lleva días sin contestar.
  */
+
+import { negocio, comoPatron, palabraDelNegocio, escaparRegex } from "../negocio/index.js";
 /**
  * SOLO LO SUPER OBVIO CIERRA (Manuel, 27-ago-2026).
  *
@@ -73,13 +75,26 @@ const COMPRO_EN_OTRO_LADO =
  * Cayambe» sigue siendo negociación. Y se excluyen los dos locales reales y
  * «con ustedes/Depot», que son una venta ganada.
  */
-const COMPRO_EN_OTRA_CIUDAD =
-  /\b(?:(?:ya\s+)?(?:hice|ise)\s+(?:el\s+)?pedido|(?:ya\s+)?(?:compre|consegui|adquiri|pedi|monte|cambie))\b[^.!?]{0,40}\b(?:aqui|aca)\s+en\s+(?!(?:cumbaya|quito\s+sur|depot)\b)/;
+/** «con ustedes», «en Depot», «Depot Tire»: comprar acá es ganar, no perder. */
+const ES_CON_NOSOTROS = new RegExp(
+  `\\b(?:con ustedes|en ${escaparRegex(palabraDelNegocio(negocio))}|${comoPatron(negocio.nombre.toLowerCase())})\\b`,
+);
+
+const LUGARES_PROPIOS = [
+  // En minúscula porque `normalizar` baja el texto antes de probar el patrón.
+  ...negocio.locales.map((local) => comoPatron(local.nombreCorto.toLowerCase())),
+  escaparRegex(palabraDelNegocio(negocio)),
+].join("|");
+const COMPRO_EN_OTRA_CIUDAD = new RegExp(
+  `\\b(?:(?:ya\\s+)?(?:hice|ise)\\s+(?:el\\s+)?pedido|(?:ya\\s+)?(?:compre|consegui|adquiri|pedi|monte|cambie))\\b`
+  + `[^.!?]{0,40}\\b(?:aqui|aca)\\s+en\\s+(?!(?:${LUGARES_PROPIOS})\\b)`,
+);
 
 /** Fuente única para cierre perdido y para no contar la compra como nuestra. */
 export function comproEnOtroLugar(mensajeDelCliente: string): boolean {
   const n = normalizar(mensajeDelCliente);
-  if (/\b(?:con ustedes|en depot|depot tire)\b/.test(n)) return false;
+  // «con ustedes» o el nombre del negocio: es una venta ganada, no perdida.
+  if (ES_CON_NOSOTROS.test(n)) return false;
   return COMPRO_EN_OTRO_LADO.test(n) || COMPRO_EN_OTRA_CIUDAD.test(n);
 }
 

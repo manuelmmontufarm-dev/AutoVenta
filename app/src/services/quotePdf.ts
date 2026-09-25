@@ -409,7 +409,7 @@ function headerBlock(title: string, detail: string) {
                   // El logotipo real de la marca, no «DEPOT TIRE» en Helvetica
                   // negrita: este PDF se manda al cliente junto con la imagen y
                   // las dos tienen que traer el mismo logo.
-                  depotLogoPdf(26) ?? { text: "DEPOT TIRE", bold: true, color: "white", fontSize: 22 },
+                  depotLogoPdf(26) ?? { text: business.name.toUpperCase(), bold: true, color: "white", fontSize: 22 },
                   { text: title, bold: true, color: GOLD, fontSize: 9, characterSpacing: 1.1, margin: [0, 4, 0, 0] },
                 ],
                 fillColor: NAVY,

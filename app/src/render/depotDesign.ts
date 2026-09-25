@@ -12,6 +12,7 @@
  */
 
 import { DEPOT_LOGO_RATIO, depotLogo } from "./assets.js";
+import { negocio, nombreEnDosTonos, leyendaDelEncabezado } from "../negocio/index.js";
 
 export type Child = SatoriNode | string | null | false | undefined;
 
@@ -272,13 +273,19 @@ export function depotWordmark(theme: Theme): SatoriNode {
   const marca: SatoriNode = logo
     ? img(logo.dataUri, { height: DEPOT_LOGO_H, width: Math.round(DEPOT_LOGO_H * DEPOT_LOGO_RATIO) })
     // Sin el archivo, el nombre en texto antes que un hueco en el encabezado.
+    // Sin archivo, el nombre del negocio en texto: la primera palabra en
+    // blanco y el resto en dorado, como el logo de Depot.
     : el({ alignItems: "baseline" },
-        text({ ...ARCHIVO_BLACK, fontStyle: "italic", fontSize: 32, color: theme.p.paper, letterSpacing: 1 }, "DEPOT"),
-        text({ ...ARCHIVO_BLACK, fontStyle: "italic", fontSize: 32, color: theme.p.gold, letterSpacing: 1 }, "TIRE"),
+        ...nombreEnDosTonos(negocio).map(([palabra, dorada]) =>
+          text(
+            { ...ARCHIVO_BLACK, fontStyle: "italic", fontSize: 32, color: dorada ? theme.p.gold : theme.p.paper, letterSpacing: 1 },
+            palabra,
+          ),
+        ),
       );
   return el({ alignItems: "center", gap: 16 },
     marca,
-    text({ fontSize: 13, fontWeight: 700, letterSpacing: 3, color: theme.p.darkSub }, "QUITO · DESDE 1996"),
+    text({ fontSize: 13, fontWeight: 700, letterSpacing: 3, color: theme.p.darkSub }, leyendaDelEncabezado(negocio)),
   );
 }
 
