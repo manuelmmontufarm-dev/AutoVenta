@@ -59,6 +59,8 @@ export interface FollowUpMessageContext {
    * (conv 15193, «Premium»).
    */
   preferenceAnswered?: boolean;
+  /** El cliente ya explicó que no tiene/ubica la medida o numeración. */
+  customerHasNoTireSize?: boolean;
 }
 
 /**
@@ -209,6 +211,15 @@ function redactarSeguimiento(
         : `${prefix}😊 Quedamos para el ${cuandoVisita(visita, context.visitTimeLabel)}${enStore} y no alcanzó a pasar. ¿Qué día le queda mejor y lo dejo anotado?`;
     }
 
+    // Con local y sin día, la ficha ya resolvió la mitad de la coordinación:
+    // la pregunta útil es el día concreto, no volver a ofrecer «dejar lista»
+    // la visita (auditoría 22–24 sep: el guardián corrigió 26/26).
+    if (context.nearestStore && !visita) {
+      return kind === "in_window_second"
+        ? `🚗 Me quedé pendiente de${commitment}. ¿Qué día le quedaría más cómodo para coordinar${store}? 😊`
+        : `${prefix}😊 Sobre${commitment}, ¿qué día le queda mejor para pasar${store}?`;
+    }
+
     // Dijo que viene pero sin día exacto («esta semana»), o falta el local.
     return kind === "in_window_second"
       ? `🚗 Me quedé pendiente de${commitment}. ¿Qué día le quedaría más cómodo para coordinar${store}? 😊`
@@ -260,12 +271,20 @@ function redactarSeguimiento(
       : `${prefix}🛞 ¿Cómo vio la opción${product}${size}? También puedo ayudarle a ${comparar} 😊`;
   }
 
-  // Sin medida guardada, la etapa «medida confirmada» miente: el cliente dio
-  // solo el aro o el vehículo (conv 14348, 14042). Lo honesto es pedirla.
-  if (context.stage === "medida_confirmada" && context.tireSize) {
+  // La medida guardada manda sobre una etapa atrasada: muchas fichas quedan en
+  // «nuevo» aunque tire_size ya esté (convs 21967, 22111, 22559, 22809).
+  if (context.tireSize) {
     return kind === "in_window_second"
       ? `😊 Ya con la medida${size} estamos cerca. ¿Prefiere priorizar duración, comodidad o precio?`
       : `${prefix}🛞 Ya tengo su medida${size}. ¿Le ayudo a elegir la mejor opción según el uso que le da y su presupuesto?`;
+  }
+
+  // Conv 22549: si ya dijo que no tiene la numeración, insistir con la misma
+  // pregunta no crea información. Se ofrece la otra vía real: vehículo/foto.
+  if (context.customerHasNoTireSize) {
+    return kind === "in_window_second"
+      ? "😊 Si me dice marca, modelo y año del vehículo, le ayudo a ubicar opciones compatibles. También puede enviarme una foto del costado cuando la tenga."
+      : `${prefix}🚙 No se preocupe: dígame marca, modelo y año del vehículo, o envíeme una foto del costado cuando pueda, y avanzamos por ahí.`;
   }
 
   return kind === "in_window_second"

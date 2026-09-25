@@ -50,7 +50,7 @@ import { sinJsonCrudo } from "../domain/jsonCrudo.js";
 import { conLocalesReales } from "./localesReales.js";
 import { notifyAdvisor } from "./advisorNotifications.js";
 import { sql } from "../db/client.js";
-import { sinVisitaNiMapas } from "../domain/visitaImposible.js";
+import { respuestaDeUbicacionFueraDeCobertura, sinVisitaNiMapas } from "../domain/visitaImposible.js";
 import { BENEFICIO_DE_REDES, esFraseDeBeneficios, preguntaPorBeneficios } from "../domain/beneficioDeRedes.js";
 import { sinFrasesDelTema } from "../domain/respuestaDelTema.js";
 import { sinFraseColgando } from "../domain/fraseColgando.js";
@@ -75,6 +75,7 @@ import { sinPreguntaRepetidaEnElTurno } from "../domain/preguntaRepetidaEnElTurn
 import { estructurarTurno } from "../domain/estructuraDelTurno.js";
 import {
   anunciaCotizacion, preguntaDeEquivalente, productoDeConsentimiento, sinCotizacionPrometida,
+  preguntaLegitimaTrasCotizacionBloqueada,
   type MetadataDePieza,
 } from "../domain/equivalentePendiente.js";
 import { findByCode } from "./catalog.js";
@@ -196,6 +197,41 @@ export const PASOS: readonly PasoDeSalida[] = [
     async aplicar(texto, ctx) {
       const vetted = await applyOutboundGuard(ctx.conversation.id, texto);
       return vetted.text;
+    },
+  },
+  {
+    // UNA PREGUNTA DIRECTA DE UBICACIÓN NUNCA TERMINA EN SILENCIO.
+    //
+    // Convs 22625 y 22481: el borrador aprobado era saludo + mapas + pregunta
+    // de visita. El último paso quitó correctamente mapas/visita y no quedó
+    // respuesta. Este respaldo se arma ANTES del Ángel Guardián para que el
+    // revisor todavía lo vea; `sin_visita_si_no_puede_venir` sigue limitándose
+    // a quitar al final de la cadena.
+    nombre: "respuesta_de_ubicacion_fuera_de_cobertura",
+    corre: ["respuesta", "retomada"],
+    async aplicar(texto, ctx) {
+      if (!motivoDeUbicacion(ctx.textoDelCliente ?? "")) return texto;
+      const estado = await dondeEstaElClienteSegunLoDicho(
+        ctx.conversation.id, ctx.conversation.current_cycle, ctx.textoDelCliente,
+      );
+      return estado === "fuera" ? respuestaDeUbicacionFueraDeCobertura(texto) : texto;
+    },
+  },
+  {
+    // SI LA HERRAMIENTA BLOQUEÓ LA FIRMA, LA RECOMENDACIÓN CONSERVA UN PASO
+    // SIGUIENTE LEGÍTIMO. Producción 22–24 sep: el modelo escribió «¿Le genero
+    // la cotización por el juego de 4 llantas?» tras el error de la tool; el
+    // guardián la quitó como pregunta_de_mas y siete clientes quedaron sin
+    // pregunta final. Se transforma ANTES del guardián para que él revise ya
+    // la forma válida, «¿Se la cotizo?», que OFRECIO_COTIZAR reconoce.
+    nombre: "pregunta_legitima_tras_cotizacion_bloqueada",
+    corre: ["respuesta", "retomada"],
+    async aplicar(texto, ctx) {
+      const bloqueo = (ctx.huella ?? []).some(
+        (paso) => paso.herramienta === "generar_cotizacion"
+          && paso.resultado.includes("este turno no autorizó cotizar llantas"),
+      );
+      return bloqueo ? preguntaLegitimaTrasCotizacionBloqueada(texto) : texto;
     },
   },
   {

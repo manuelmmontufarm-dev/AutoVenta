@@ -2,7 +2,7 @@
  * AutoVenta — bot de ventas de llantas por WhatsApp.
  * Punto de entrada: conecta webhook → pipeline → agente → WhatsApp.
  */
-import { config } from "./config.js";
+import { business, config } from "./config.js";
 import { createServer } from "./server/webhook.js";
 
 // Las rutas async del panel (admin.ts) corren sin try/catch y Express 4 no
@@ -80,6 +80,7 @@ import { flagRepetitiveConversation } from "./services/conversationQuality.js";
 import { notifyPendingHumanRequests } from "./services/advisorNotifications.js";
 import { startEmbeddedFollowUpWorker } from "./workers/embeddedFollowUpWorker.js";
 import { extractExplicitStore, preguntamosElLocal } from "./domain/storeSelection.js";
+import { localPorLaZonaDicha } from "./domain/locations.js";
 import { tryDirectSalesRoute } from "./services/directSalesRoutes.js";
 import { tryRutaOtroDia } from "./services/rutaOtroDia.js";
 import { tryCotizarLoElegido } from "./services/cotizarLoElegido.js";
@@ -100,6 +101,7 @@ import {
   esPlazoDeDecision, respuestaDeCierreDelTurno, respuestaDePlazoDeDecision, tipoDeCierreDelTurno,
 } from "./domain/cierreTurno.js";
 import { esAcuseSimple } from "./domain/ofertaAceptada.js";
+import { respuestaDirectaDeUbicacionFueraDeCobertura } from "./domain/visitaImposible.js";
 
 /** Pausa entre bloques: suficiente para que se lean como mensajes seguidos y no como spam. */
 const PAUSA_ENTRE_BLOQUES_MS = 900;
@@ -158,6 +160,9 @@ const pipeline = new InboundPipeline(async ({ from, name, text: textoRecibido, w
   // preguntar el local — la misma lógica contextual que el día de visita.
   const respondiendoAlLocal = preguntamosElLocal(previousOutbound);
   const explicitStore = extractExplicitStore(text, { respondiendoAlLocal });
+  const storePorZona = !explicitStore && respondiendoAlLocal
+    ? localPorLaZonaDicha(business.stores, text)
+    : null;
   // El día de la visita llega casi siempre como respuesta seca ("el sábado")
   // a la pregunta que el bot hace tras cotizar. Sin mirar lo que preguntamos
   // antes, esa respuesta no era un compromiso para nadie.
@@ -194,6 +199,13 @@ const pipeline = new InboundPipeline(async ({ from, name, text: textoRecibido, w
       })
     : null;
   if (explicitStore) await setExplicitStore(conversation.id, explicitStore);
+  if (storePorZona) {
+    await updateConversationFacts(conversation.id, {
+      nearestStore: storePorZona.name,
+      locationLabel: `Zona indicada por el cliente: ${text.trim().slice(0, 120)}`,
+    });
+    console.log(`📍 Conv ${conversation.id}: la zona dicha resolvió ${storePorZona.name}.`);
+  }
   // El aviso va aunque el bot esté apagado: apagado significa que contesta una
   // persona, y esa persona es justo la que tiene que enterarse de que este
   // cliente dijo cuándo viene. En segundo plano para no demorar la respuesta.
@@ -364,6 +376,13 @@ const pipeline = new InboundPipeline(async ({ from, name, text: textoRecibido, w
       );
   const plazoDeDecision = !cierreAntesDeHerramientas && !cierreDelTurno
     && esPlazoDeDecision(textoConLinks);
+  // Conv 22625: si en el mismo mensaje dice que está fuera de Quito y pide
+  // dirección, responder antes del agente evita que una tool mande mapas que
+  // el candado final deba borrar. Al ser texto fijo, tampoco necesita que el
+  // Ángel Guardián lo reescriba.
+  const ubicacionFueraDeCobertura = !cierreAntesDeHerramientas && !cierreDelTurno
+    ? respuestaDirectaDeUbicacionFueraDeCobertura(textoConLinks)
+    : null;
   // Un cambio de cantidad NO se contesta con palabras: sale la pieza nueva.
   // El 27-ago (conv 3) el modelo prometió el ajuste dos turnos seguidos sin
   // llamar una sola herramienta, y el cliente nunca supo cuánto costaban 3
@@ -373,6 +392,8 @@ const pipeline = new InboundPipeline(async ({ from, name, text: textoRecibido, w
     ? null
     : plazoDeDecision
       ? respuestaDePlazoDeDecision()
+      : ubicacionFueraDeCobertura
+        ? ubicacionFueraDeCobertura
       : isFirstGenericMessage
       ? firstContactReply()
       // Media medida en pulgadas («MT 30.5 r15»): se pregunta el ancho, sin
@@ -432,7 +453,9 @@ const pipeline = new InboundPipeline(async ({ from, name, text: textoRecibido, w
   const salida = await prepararSalida(reply, {
     conversation, tipo: "respuesta", huella: agentContext.toolTrace ?? [],
     textoDelCliente: textoConLinks, faseOperativa: agentContext.faseOperativa,
-    suprimirEmpujeComercial: Boolean(cierreAntesDeHerramientas || cierreDelTurno || plazoDeDecision),
+    suprimirEmpujeComercial: Boolean(
+      cierreAntesDeHerramientas || cierreDelTurno || plazoDeDecision || ubicacionFueraDeCobertura,
+    ),
     consultaFueraDeCatalogo: agentContext.consultaFueraDeCatalogo,
   });
   if (!salida.texto) return;
