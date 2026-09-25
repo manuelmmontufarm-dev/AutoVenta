@@ -1,6 +1,6 @@
 import { business, config } from "../config.js";
 import type { CustomerCommitment } from "../domain/customerCommitment.js";
-import type { ExplicitStore } from "../domain/storeSelection.js";
+import { hayQueElegirLocal, LOCALES_COMO_ALTERNATIVA, type ExplicitStore } from "../domain/storeSelection.js";
 import { sql } from "../db/client.js";
 import { ensureCatalogReady, findByCode } from "./catalog.js";
 import { faltanteDeCotizacion } from "./stockCorto.js";
@@ -278,7 +278,11 @@ export async function tryDirectSalesRoute(
         : "¿Qué día cree que puede pasar? Le aviso al asesor para que le atienda apenas llegue. 📅",
     );
   } else {
-    reply = `Perfecto${visit ? `, registré su visita para ${visit}` : ""}. ¿Le queda mejor *Cumbayá* o *Quito Sur*?`;
+    reply = `Perfecto${visit ? `, registré su visita para ${visit}` : ""}. ${
+      hayQueElegirLocal
+        ? `¿Le queda mejor ${LOCALES_COMO_ALTERNATIVA}?`
+        : "¿Qué día cree que puede pasar? 📅"
+    }`;
   }
   await setStage(ctx.conversation.id, "seguimiento_venta", {
     actor: "customer",

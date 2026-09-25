@@ -27,12 +27,29 @@
  * Puro: entra el texto, sale el texto. Quién está fuera lo decide
  * `domain/fueraDeCobertura.ts`, y cuándo aplicarlo, la cadena de salida.
  */
+import { dondeEstaElCliente } from "./fueraDeCobertura.js";
+import { motivoDeUbicacion } from "./ubicacionPedida.js";
+
+import { negocio, comoPatronConTildes } from "../negocio/index.js";
 
 /** Los bloques del turno, tal como los separa la cadena de salida. */
 const SEPARADOR = /\n---\n/;
 
 const ES_MAPA = /maps\.app\.goo\.gl|maps\.google\.com|📍/;
-const PIDE_LOCAL = /\b(?:a\s+)?cu[aá]l\s+(?:de\s+(?:nuestros|los)\s+)?local(?:es)?\b|\bcumbay[aá]\s*(?:o|\/)\s*quito\s*sur\b|\bqu[eé]\s+local\b/i;
+/**
+ * «¿Cumbayá o Quito Sur?» sin la palabra «local» delante también pregunta el
+ * local. Los nombres salen del perfil: estaban escritos acá y el candado no
+ * habría reconocido la pregunta de otro cliente.
+ */
+const LOCALES_O_LOCALES = negocio.locales
+  .map((local) => comoPatronConTildes(local.nombreCorto))
+  .join("\\s*(?:o|/)\\s*");
+const PIDE_LOCAL = new RegExp(
+  `\\b(?:a\\s+)?cu[aá]l\\s+(?:de\\s+(?:nuestros|los)\\s+)?local(?:es)?\\b`
+  + (negocio.locales.length >= 2 ? `|\\b${LOCALES_O_LOCALES}\\b` : "")
+  + `|\\bqu[eé]\\s+local\\b`,
+  "i",
+);
 const PIDE_DIA_DE_VISITA =
   /\bqu[eé]\s+d[ií]a\b[^.?!]{0,60}\b(?:pasar?|venir|visitar|acercar|ir)\b|\bcu[aá]ndo\b[^.?!]{0,40}\b(?:puede|podr[ií]a|nos\s+visita)\b|\bd[ií]a\s+(?:le\s+)?(?:queda|vendr[ií]a|ser[ií]a)\b/i;
 
@@ -40,6 +57,41 @@ export interface TurnoSinVisita {
   texto: string;
   /** ¿Se quitó algo? Para poder anotarlo en el log y en la alerta. */
   quitado: boolean;
+}
+
+const SOLO_SALUDO = /^(?:hola|buen(?:os\s+d[ií]as|as\s+tardes|as\s+noches)|saludos?|qu[eé]\s+tal)(?:\s+[^\p{L}\p{N}]+)?$/iu;
+/**
+ * La respuesta a quien pregunta por la dirección desde otra ciudad. Sale del
+ * perfil: los locales, la ciudad y el nombre son de cada cliente.
+ */
+const RESPUESTA_FUERA_DE_COBERTURA =
+  `Nuestros locales están en ${negocio.ciudad}: ${negocio.locales.map((l) => `*${l.nombreCorto}*`).join(" y ")}.`
+  + ` Por ahora no tenemos local fuera de ${negocio.ciudad}.`;
+
+/**
+ * Ruta temprana para una pregunta geográfica inequívoca en el mismo mensaje.
+ * Evita ejecutar herramientas de mapas que el candado final tendría que borrar.
+ */
+export function respuestaDirectaDeUbicacionFueraDeCobertura(textoDelCliente: string): string | null {
+  if (motivoDeUbicacion(textoDelCliente) !== "la_pidio") return null;
+  return dondeEstaElCliente(textoDelCliente)?.estado === "fuera"
+    ? RESPUESTA_FUERA_DE_COBERTURA
+    : null;
+}
+
+/**
+ * Respuesta canónica para una consulta geográfica fuera de cobertura cuando
+ * el borrador no trae nada útil aparte de mapas/preguntas de visita.
+ *
+ * Corre antes del Ángel Guardián: este texto todavía se revisa. El candado
+ * final conserva su contrato estricto de solo quitar.
+ */
+export function respuestaDeUbicacionFueraDeCobertura(texto: string): string {
+  const sinVisita = sinVisitaNiMapas(texto).texto.trim();
+  if (sinVisita && !SOLO_SALUDO.test(sinVisita)) return texto;
+  return sinVisita
+    ? `${sinVisita}\n---\n${RESPUESTA_FUERA_DE_COBERTURA}`
+    : RESPUESTA_FUERA_DE_COBERTURA;
 }
 
 export function sinVisitaNiMapas(texto: string): TurnoSinVisita {

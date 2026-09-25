@@ -364,9 +364,9 @@ export function buildVisitPlanQuestion(input: {
   if (input.localElegido) {
     return conMapas(`¿Qué día cree que puede pasar por *${input.localElegido}*?${motivo} 📅`);
   }
-  const opciones = input.locales.length
-    ? ` ¿${input.locales.slice(0, 2).join(" o ")}?`
-    : "";
+  // Los locales que de verdad hay, no los dos primeros: el `slice(0, 2)` que
+  // estaba acá le habría escondido el tercero a un negocio con tres.
+  const opciones = input.locales.length ? ` ¿${input.locales.join(" o ")}?` : "";
   return conMapas(
     `¿Qué día puede pasar y a cuál local?${opciones}${motivo.replace(" Con ese dato ", " Con esos dos datos ")} 📅`,
   );
@@ -601,7 +601,7 @@ export function buildSingleQuoteMessageDetallado(
     `💰 ${money(hoy)} c/u (antes ${money(lista)}, −${rebaja}%)`,
     `🛞 ${quantity} llanta${quantity === 1 ? "" : "s"}: ${money(total)}`,
     ...(offerDiscount ? [
-      `1️⃣ Descuento base Depot Tire: de ${money(lista)} a ${money(hoy)} c/u (−${rebaja}%).`,
+      `1️⃣ Descuento base ${business.name}: de ${money(lista)} a ${money(hoy)} c/u (−${rebaja}%).`,
       `2️⃣ Descuento EXTRA del asesor: −${money(offerDiscount.amount)}.`,
       `⚠️ Este segundo descuento aplica ÚNICAMENTE si: ${offerDiscount.condition}.`,
       `💰 Total final cumpliendo la condición: ${money(total)}. Si no la cumple, conserva solo el precio base.`,

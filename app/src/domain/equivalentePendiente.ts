@@ -56,6 +56,18 @@ export function preguntaDeEquivalente(input: EquivalenteRecomendada): string {
 }
 
 /**
+ * Cuando la herramienta rechazó la firma, el modelo a veces pide permiso con
+ * la cantidad («¿Le genero la cotización por el juego de 4 llantas?»). Esa
+ * pregunta la borra correctamente `sinPreguntasProhibidas`, pero dejaría la
+ * recomendación sin siguiente paso. La forma legítima no pide cantidad.
+ */
+export function preguntaLegitimaTrasCotizacionBloqueada(texto: string): string {
+  const permisoConCantidad =
+    /¿[^?\n]{0,180}(?:(?:gener|prepar|arm|hac)\p{L}*[^?\n]{0,70}cotizaci[oó]n|coti[sz]\p{L}*)[^?\n]{0,100}\b(?:juego|[1-8]|una|dos|tres|cuatro|cinco|seis|siete|ocho)\b[^?\n]{0,80}\?/giu;
+  return texto.replace(permisoConCantidad, "¿Se la cotizo? 😊");
+}
+
+/**
  * ¿Este texto ANUNCIA una cotización como hecha o en camino?
  *
  * Solo las formas que se vieron salir de verdad: «le preparo/genero/armo/dejo/

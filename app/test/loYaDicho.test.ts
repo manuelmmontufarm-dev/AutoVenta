@@ -5,6 +5,7 @@
 import { describe, expect, it } from "vitest";
 import { localPorLaZonaDicha } from "../src/domain/locations.js";
 import { extractCustomerCommitment } from "../src/domain/customerCommitment.js";
+import { extractExplicitStore } from "../src/domain/storeSelection.js";
 
 // Las coordenadas reales de `config.ts`, sin cargar la configuración entera.
 const business = { stores: [
@@ -20,6 +21,25 @@ describe("la zona dicha en el mismo mensaje elige el local (conv 20427)", () => 
   it("sin zona, o preguntando en general, no elige por él", () => {
     expect(localPorLaZonaDicha(business.stores, "¡Hola! Quiero más información en q ciudad venden dirección o ubicación")).toBeNull();
     expect(localPorLaZonaDicha(business.stores, "donde quedan")).toBeNull();
+  });
+
+  it("convs 22531/22973: norte de Quito recomienda Cumbayá", () => {
+    expect(localPorLaZonaDicha(business.stores, "Norte de Quito")?.name)
+      .toBe("Depot Tire Cumbayá");
+    expect(localPorLaZonaDicha(business.stores, "estoy al norte")?.name)
+      .toBe("Depot Tire Cumbayá");
+    // Aunque venga contestando «¿Cumbayá o Quito Sur?», la palabra Quito no
+    // convierte «norte de Quito» en una elección explícita de Quito Sur.
+    expect(extractExplicitStore("Norte de Quito", { respondiendoAlLocal: true })).toBeNull();
+  });
+
+  it("conv 22853: Calderón recomienda Cumbayá", () => {
+    expect(localPorLaZonaDicha(business.stores, "Estoy por Calderón")?.name)
+      .toBe("Depot Tire Cumbayá");
+  });
+
+  it("Quito a secas es ambiguo y no elige un local", () => {
+    expect(localPorLaZonaDicha(business.stores, "Estoy en Quito")).toBeNull();
   });
 });
 
