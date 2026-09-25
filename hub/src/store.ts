@@ -387,6 +387,11 @@ export const useHub = create<HubState>((set, get) => {
     },
 
     async abrirTicket(id) {
+      // La fila se pone blanca al abrirla, sin esperar a que el servidor
+      // confirme y llegue el próximo sync: el asesor ya la vio.
+      set((s) => ({
+        tickets: s.tickets.map((t) => (t.id === id && t.sinLeer > 0 ? { ...t, sinLeer: 0 } : t)),
+      }));
       await Promise.all([
         refrescarMensajes(id),
         source.marcarLeido(id),
@@ -408,7 +413,25 @@ export const useHub = create<HubState>((set, get) => {
     moverEtapa: (id, etapa) => source.moverEtapa(id, etapa),
     cerrar: (id, cierre, nota) => source.cerrar(id, cierre, nota),
     reabrir: (id) => source.reabrir(id),
-    setAtiende: (id, atiende) => source.setAtiende(id, atiende),
+    /**
+     * Optimista: el control cambia de cara en el acto. Antes esperaba al PUT y
+     * al siguiente sync de la lista entera, y el asesor tocaba dos y tres
+     * veces creyendo que el botón no andaba. Si el servidor rechaza, vuelve.
+     */
+    async setAtiende(id, atiende) {
+      const pinta = (valor: Atiende) => set((s) => ({
+        tickets: s.tickets.map((t) => (t.id === id ? { ...t, atiende: valor } : t)),
+        ticketsSueltos: s.ticketsSueltos[id] ? { ...s.ticketsSueltos, [id]: { ...s.ticketsSueltos[id], atiende: valor } } : s.ticketsSueltos,
+      }));
+      const anterior = (get().tickets.find((t) => t.id === id) ?? get().ticketsSueltos[id])?.atiende;
+      pinta(atiende);
+      try {
+        await source.setAtiende(id, atiende);
+      } catch (e) {
+        if (anterior) pinta(anterior);
+        throw e;
+      }
+    },
     async marcarParaDespues(id, enabled) {
       await source.marcarParaDespues(id, enabled);
       await refrescar();

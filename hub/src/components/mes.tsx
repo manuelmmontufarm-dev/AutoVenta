@@ -1,4 +1,3 @@
-import { motion } from "framer-motion";
 import { TODOS } from "../data/types";
 import { mesEnCurso, useHub } from "../store";
 
@@ -67,19 +66,11 @@ export function SelectorDeMes({ className = "" }: { className?: string }) {
                 ? "Todo el histórico, sin recortar por mes"
                 : `Ver ${etiquetaDeMes(op.clave)}`
             }
-            className={`relative flex h-[30px] shrink-0 items-center rounded-[4px] px-3 text-[13px] whitespace-nowrap transition-colors ${
-              activo ? "font-semibold text-signal" : "font-medium text-text2 hover:text-text"
+            className={`flex h-[30px] shrink-0 items-center rounded-[4px] px-3 text-[13px] whitespace-nowrap transition-colors ${
+              activo ? "bg-surface font-semibold text-signal shadow-[0_1px_2px_rgba(28,27,25,.08)]" : "font-medium text-text2 hover:text-text"
             }`}
           >
-            {activo && (
-              <motion.span
-                layoutId="seg-mes"
-                className="absolute inset-0 rounded-[4px] bg-surface"
-                style={{ boxShadow: "0 1px 2px rgba(28,27,25,.08)" }}
-                transition={{ duration: 0.18, ease: [0.2, 0, 0, 1] }}
-              />
-            )}
-            <span className="relative z-10">
+            <span>
               {op.clave === TODOS
                 ? "Todos"
                 : op.esActual

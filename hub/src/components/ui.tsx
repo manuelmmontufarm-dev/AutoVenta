@@ -121,19 +121,11 @@ export function Segmented<T extends string>({
             role="tab"
             aria-selected={activo}
             onClick={() => onChange(op.valor)}
-            className={`relative flex h-[30px] items-center gap-1.5 rounded-[4px] px-3.5 text-[13px] transition-colors ${
-              activo ? "font-semibold text-signal" : "font-medium text-text2 hover:text-text"
+            className={`flex h-[30px] items-center gap-1.5 rounded-[4px] px-3.5 text-[13px] transition-colors ${
+              activo ? "bg-surface font-semibold text-signal shadow-[0_1px_2px_rgba(28,27,25,.08)]" : "font-medium text-text2 hover:text-text"
             }`}
           >
-            {activo && (
-              <motion.span
-                layoutId={`seg-${id}`}
-                className="absolute inset-0 rounded-[4px] bg-surface"
-                style={{ boxShadow: "0 1px 2px rgba(28,27,25,.08)" }}
-                transition={{ duration: 0.18, ease: [0.2, 0, 0, 1] }}
-              />
-            )}
-            <span className="relative z-10 flex items-center gap-1.5">
+            <span className="flex items-center gap-1.5">
               {op.label}
               {op.badge !== undefined && op.badge > 0 && (
                 <span
@@ -170,7 +162,7 @@ export function SkeletonRows({ n = 6 }: { n?: number }) {
   return (
     <div className="flex flex-col" aria-busy="true" aria-label="Cargando">
       {Array.from({ length: n }, (_, i) => (
-        <div key={i} className="grid h-14 items-center gap-5 border-b border-line px-5" style={{ gridTemplateColumns: "240px 120px minmax(0,1fr) 88px 112px", opacity: 1 - i * 0.1 }}>
+        <div key={i} className="grid h-14 items-center gap-5 border-b border-line px-5" style={{ gridTemplateColumns: "minmax(200px,1.4fr) 130px minmax(0,1fr) 88px 130px", opacity: 1 - i * 0.1 }}>
           <div className="skeleton h-3.5 w-3/5" />
           <div className="skeleton h-3.5 w-20" />
           <div className="skeleton h-3 w-4/5" />

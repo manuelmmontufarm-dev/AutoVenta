@@ -1,10 +1,10 @@
 import { useMemo, useState } from "react";
-import type { Ticket } from "../data/types";
+import { ETAPA_META, type Ticket } from "../data/types";
 import { horaLista } from "../lib/format";
 import { navigate } from "../router";
 import { useHub, useNow } from "../store";
 import { IconSearch } from "../components/icons";
-import { AtiendePill, CierreBadge, EmptyState, MedidaChip, PageHeader, SkeletonRows } from "../components/ui";
+import { AtiendePill, CierreBadge, EmptyState, MedidaChip, PageHeader, SkeletonRows, StageBadge } from "../components/ui";
 
 /**
  * Una sola lista. Sin pestañas de Abiertos / Cerrados ni «Alertas del bot»:
@@ -24,7 +24,9 @@ function ordenar(a: Ticket, b: Ticket): number {
   return ea ? ta - tb : tb - ta;
 }
 
-const COLUMNAS = "240px 120px minmax(0,1fr) 88px 112px";
+// Cliente · medida · etapa · hora · quién atiende. La etapa dice dónde está la
+// venta, que es lo que el asesor necesita para decidir; el último mensaje no.
+const COLUMNAS = "minmax(200px,1.4fr) 130px minmax(0,1fr) 88px 130px";
 
 function Fila({ ticket, now }: { ticket: Ticket; now: number }) {
   const espera = ticket.estado === "abierto" && ticket.sinLeer > 0;
@@ -50,7 +52,7 @@ function Fila({ ticket, now }: { ticket: Ticket; now: number }) {
       <div className="hidden h-14 items-center gap-5 px-5 md:grid" style={{ gridTemplateColumns: COLUMNAS }}>
         <span className={`truncate text-[14px] ${espera ? "font-semibold" : "font-medium"}`}>{titulo}</span>
         <span>{ticket.medida ? <MedidaChip medida={ticket.medida} /> : <span className="text-[13px] text-text2">Sin medida</span>}</span>
-        <span className={`truncate text-[13px] ${espera ? "text-text" : "text-text2"}`}>{ticket.ultimoMensaje}</span>
+        <span className={`truncate text-[13px] ${espera ? "font-medium text-text" : "text-text2"}`}>{ETAPA_META[ticket.etapa].nombre}</span>
         <span className={`tnum text-right font-mono text-[12px] whitespace-nowrap ${espera ? "font-bold text-signal" : "font-medium text-text2"}`}>{hora}</span>
         <span>{atiende}</span>
       </div>
@@ -65,7 +67,7 @@ function Fila({ ticket, now }: { ticket: Ticket; now: number }) {
           {ticket.medida ? <MedidaChip medida={ticket.medida} /> : <span className="text-[13px] text-text2">Sin medida</span>}
           {atiende}
         </div>
-        <span className={`truncate text-[13px] ${espera ? "text-text" : "text-text2"}`}>{ticket.ultimoMensaje}</span>
+        <StageBadge etapa={ticket.etapa} />
       </div>
     </button>
   );
@@ -116,7 +118,7 @@ export function Inbox() {
 
       <div className="mx-4 mb-4 flex min-h-0 flex-1 flex-col overflow-hidden rounded-[10px] border border-line bg-surface md:mx-8 md:mb-8">
         <div className="hidden h-10 items-center gap-5 border-b border-line px-5 text-[12px] font-medium text-text2 md:grid" style={{ gridTemplateColumns: COLUMNAS }}>
-          <span>Cliente</span><span>Medida</span><span>Último mensaje</span><span className="text-right">Hora</span><span>Atiende</span>
+          <span>Cliente</span><span>Medida</span><span>Etapa</span><span className="text-right">Hora</span><span>Atiende</span>
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto">
           {cargando ? (

@@ -1,3 +1,28 @@
+## 25-sep-2026 · Primer día del Hub «Taller» en producción: lo que pidió Manuel al usarlo
+
+**Qué:** El botón «Contesta el bot / Contestan ustedes» y la lectura de una fila
+se pintan al instante (optimistas en el store) en vez de esperar al PUT y al
+siguiente sync de la lista. El Inbox muestra la **etapa** en lugar del último
+mensaje. El Pipeline vuelve a tarjetas blancas y lleva el tinte a la etapa con
+alguien esperando; **cada tablero (dentro / fuera de 24 h) tiene su propia
+barra de conteos**, para que se vea la diferencia. El selector de mes y los
+controles segmentados dejan de compartir una animación `layoutId`: había dos
+selectores montados a la vez (escritorio y teléfono) y la pastilla saltaba de
+uno al otro al cambiar de mes. En el servidor, `/hub/metrics` corre sus dos
+consultas pesadas en paralelo y la migración 022 agrega índices por fecha a
+`conversations` y `quotes`. En el dev server, `process.env` queda definido:
+`negocio/index.ts` (de main) lo lee al cargar y en el navegador no existe.
+
+**Por qué:** Feedback de Manuel sobre producción (25-sep): Métricas tardaba,
+el botón de quién contesta «no funcionaba bien» (funcionaba, pero tardaba en
+reflejarse), las filas no se ponían blancas al abrirlas, el Pipeline tenía
+«mucho rojo», y el selector de mes se movía un segundo al tocar «Todos».
+Pendiente para otra tanda: el formato de la imagen que sale por WhatsApp
+(hoy apaisada a 728 px y alta; WhatsApp recorta la vista previa) y la
+velocidad de los PDF (pdfmake con las fotos del catálogo embebidas).
+
+**Horas:** 2
+
 ## 24-sep-2026 · Rediseño «Taller» del Hub: un solo mundo visual, cuatro pantallas, gráficos con ejes
 
 **Qué:** Se reemplaza entero el front de `hub/`. Nuevo `tokens.css` (papel

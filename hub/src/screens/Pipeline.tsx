@@ -43,7 +43,7 @@ function Tarjeta({ ticket, now, arrastrando = false, onMover }: { ticket: Ticket
   const espera = ticket.sinLeer > 0;
   return (
     <div
-      className={`flex w-full flex-col gap-2 rounded-[8px] border border-line px-3.5 py-3 text-left ${espera ? "bg-[#f6e7e5]" : "bg-surface"} ${arrastrando ? "shadow-pop" : ""}`}
+      className={`flex w-full flex-col gap-2 rounded-[8px] border bg-surface px-3.5 py-3 text-left ${espera ? "border-signal/40" : "border-line"} ${arrastrando ? "shadow-pop" : ""}`}
       style={{ cursor: arrastrando ? "grabbing" : "pointer" }}
     >
       <div className="flex items-baseline justify-between gap-2.5">
@@ -105,23 +105,28 @@ function Carril({ grupo, etapa, tickets, now, movil, onMover, className = "" }: 
 
 /* ── La barra de etapas: cuántos hay en cada una, de izquierda a derecha ── */
 
-function BarraEtapas({ porEtapa, total, movil, seleccion, onSeleccionar }: {
-  porEtapa: Record<Etapa, number>; total: number; movil: boolean; seleccion: Etapa; onSeleccionar: (e: Etapa) => void;
+function BarraEtapas({ porEtapa, esperan, total, movil, seleccion, onSeleccionar, className = "" }: {
+  porEtapa: Record<Etapa, number>; esperan?: Record<Etapa, number>; total: number; movil: boolean; seleccion?: Etapa; onSeleccionar?: (e: Etapa) => void; className?: string;
 }) {
   return (
-    <div className="mx-4 mb-3 grid grid-cols-5 overflow-hidden rounded-[10px] border border-line bg-surface md:mx-8 md:mb-4">
+    <div className={`grid grid-cols-5 overflow-hidden rounded-[10px] border border-line bg-surface ${className}`}>
       {ETAPAS.map((e, i) => {
         const n = porEtapa[e];
+        const urgentes = esperan?.[e] ?? 0;
         const pct = total > 0 ? Math.round((n / total) * 100) : 0;
         const meta = ETAPA_META[e];
         const activa = movil && seleccion === e;
+        // El tinte va en la etapa que tiene a alguien esperando respuesta, no
+        // en cada tarjeta: así el ojo encuentra dónde mirar sin que el tablero
+        // entero se pinte de rojo.
+        const caliente = !movil && urgentes > 0;
         const borde = i < ETAPAS.length - 1 ? "border-r border-line" : "";
         if (movil) {
           return (
             <button
               key={e}
               type="button"
-              onClick={() => onSeleccionar(e)}
+              onClick={() => onSeleccionar?.(e)}
               aria-pressed={activa}
               className={`flex flex-col items-center gap-0.5 px-1 pt-2.5 pb-2 ${borde} ${activa ? "bg-signal-tint text-signal" : "text-text"}`}
             >
@@ -132,14 +137,14 @@ function BarraEtapas({ porEtapa, total, movil, seleccion, onSeleccionar }: {
           );
         }
         return (
-          <div key={e} className={`flex flex-col gap-2.5 px-5 pt-3.5 pb-4 ${borde}`} title={meta.descripcion}>
+          <div key={e} className={`flex flex-col gap-2 px-4 pt-3 pb-3.5 ${borde} ${caliente ? "bg-signal-tint" : ""}`} title={meta.descripcion}>
             <div className="flex items-baseline justify-between gap-3">
-              <span className="truncate text-[14px] font-semibold">{meta.nombre}</span>
-              <span className="tnum font-mono text-[20px] font-medium">{n}</span>
+              <span className="truncate text-[13px] font-semibold">{meta.nombre}</span>
+              <span className={`tnum font-mono text-[20px] font-medium ${caliente ? "text-signal" : ""}`}>{n}</span>
             </div>
             <div className="flex items-center gap-2.5">
-              <div className="h-1 flex-1 overflow-hidden rounded-[2px] bg-black/10"><div className="h-full bg-text" style={{ width: `${pct}%` }} /></div>
-              <span className="tnum font-mono text-[11px] whitespace-nowrap text-text2">{pct} %</span>
+              <div className="h-1 flex-1 overflow-hidden rounded-[2px] bg-black/10"><div className={`h-full ${caliente ? "bg-signal" : "bg-text"}`} style={{ width: `${pct}%` }} /></div>
+              <span className="tnum font-mono text-[11px] whitespace-nowrap text-text2">{caliente ? `${urgentes} espera${urgentes === 1 ? "" : "n"}` : `${pct} %`}</span>
             </div>
           </div>
         );
@@ -350,6 +355,10 @@ function MoverSheet({ ticket, onMover, onCerrarTicket, onCancelar }: {
 function Tablero({ grupo, titulo, sub, tickets, porEtapa, now, movil, onMover }: {
   grupo: string; titulo: string; sub: string; tickets: Ticket[]; porEtapa: Record<Etapa, Ticket[]>; now: number; movil: boolean; onMover: (t: Ticket) => void;
 }) {
+  // Cada tablero cuenta lo suyo: así se ve la diferencia entre lo que el bot
+  // todavía puede atender y lo que ya es de ustedes.
+  const conteo = Object.fromEntries(ETAPAS.map((e) => [e, porEtapa[e].length])) as Record<Etapa, number>;
+  const esperan = Object.fromEntries(ETAPAS.map((e) => [e, porEtapa[e].filter((t) => t.sinLeer > 0).length])) as Record<Etapa, number>;
   return (
     <section className="flex min-h-0 flex-1 flex-col gap-2.5">
       <div className="flex items-baseline gap-2.5 px-0.5">
@@ -357,6 +366,7 @@ function Tablero({ grupo, titulo, sub, tickets, porEtapa, now, movil, onMover }:
         <span className="text-[12px] text-text2">{sub}</span>
         <span className="tnum ml-auto font-mono text-[12px] text-text2">{tickets.length} tickets</span>
       </div>
+      <BarraEtapas porEtapa={conteo} esperan={esperan} total={tickets.length} movil={false} />
       <div className="grid min-h-0 flex-1 grid-cols-5 gap-3">
         {ETAPAS.map((e) => <Carril key={e} grupo={grupo} etapa={e} tickets={porEtapa[e]} now={now} movil={movil} onMover={onMover} />)}
       </div>
@@ -474,7 +484,7 @@ export function Pipeline() {
         </p>
       )}
 
-      <BarraEtapas porEtapa={conteo} total={abiertos.length} movil={movil} seleccion={etapaSel} onSeleccionar={setEtapaMovil} />
+      {movil && <BarraEtapas className="mx-4 mb-3" porEtapa={conteo} total={abiertos.length} movil seleccion={etapaSel} onSeleccionar={setEtapaMovil} />}
 
       <DndContext sensors={sensors} onDragStart={onDragStart} onDragEnd={onDragEnd}>
         {movil ? (

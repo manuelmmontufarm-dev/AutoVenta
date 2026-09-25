@@ -648,13 +648,12 @@ export function createAdminRouter(): express.Router {
   // mismo valor va a las dos lecturas para que ningún número quede en otro mes.
   router.get("/hub/metrics", async (req, res) => {
     const mes = typeof req.query.mes === "string" ? req.query.mes : null;
+    // Las dos consultas pesadas salen a la vez: en serie, la pantalla de
+    // Métricas esperaba la suma de ambas (Manuel, 25-sep: «se demora mucho»).
+    const [hub, followUps] = await Promise.all([getHubMetrics(mes), getFollowUpMetrics(mes)]);
     res.json({
       ok: true,
-      metrics: {
-        ...(await getHubMetrics(mes)),
-        inventory: catalogInventoryMetrics(),
-        followUps: await getFollowUpMetrics(mes),
-      },
+      metrics: { ...hub, inventory: catalogInventoryMetrics(), followUps },
     });
   });
 
