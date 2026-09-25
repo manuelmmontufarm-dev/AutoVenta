@@ -241,6 +241,18 @@ export function leyendaDelEncabezado(perfil: PerfilDeNegocio): string {
   return partes.join(" · ").toUpperCase();
 }
 
+/**
+ * Las iniciales del negocio, en mayúsculas: «Depot Tire» → `DT`.
+ *
+ * Con una sola palabra toma sus dos primeras letras, para que el prefijo de los
+ * cupones nunca quede de una sola letra.
+ */
+export function inicialesDelNegocio(perfil: PerfilDeNegocio): string {
+  const palabras = perfil.nombre.split(/\s+/).filter(Boolean);
+  const iniciales = palabras.map((palabra) => sinTildes(palabra)[0]).join("");
+  return (iniciales.length >= 2 ? iniciales : sinTildes(palabras[0] ?? "X").slice(0, 2)).toUpperCase();
+}
+
 /** La primera palabra del nombre del negocio: «depot» de «Depot Tire». */
 export function palabraDelNegocio(perfil: PerfilDeNegocio): string {
   return sinTildes(perfil.nombre.split(/\s+/)[0]).toLowerCase();

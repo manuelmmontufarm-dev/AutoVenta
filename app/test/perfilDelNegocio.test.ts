@@ -34,6 +34,8 @@ const { DEFAULT_STORE_HOURS, formatStoreHours } = await import("../src/services/
 const { sinVisitaNiMapas } = await import("../src/domain/visitaImposible.js");
 const { comproEnOtroLugar } = await import("../src/domain/cierrePerdido.js");
 const { localesInventados } = await import("../src/domain/localesInventados.js");
+const { INSTRUCCIONES } = await import("../src/services/guardian.js");
+const { PREFIJO_CUPON } = await import("../src/domain/coupons.js");
 
 describe("el perfil de Depot · identidad del negocio", () => {
   it("business sigue diciendo lo mismo que cuando estaba escrito a mano", () => {
@@ -211,5 +213,17 @@ describe("los candados que llevaban los nombres cosidos al patrón", () => {
     const reales = ["Depot Tire Cumbayá", "Depot Tire Quito Sur"];
     expect(localesInventados("Puede pasar por Depot Tire Norte", reales)).toContain("Norte");
     expect(localesInventados("Puede pasar por Depot Tire Cumbayá", reales)).toEqual([]);
+  });
+});
+
+describe("el perfil de Depot · lo que ve el guardián y el cupón", () => {
+  it("la rúbrica del guardián nombra al negocio y a su ciudad, sin cambiar el texto", () => {
+    // Renderiza IGUAL que cuando estaba escrito a mano, así que el caché del
+    // prompt del guardián no se invalida: solo deja de estar clavado.
+    expect(INSTRUCCIONES).toContain("ÁNGEL GUARDIÁN del bot de ventas de Depot Tire (llantas, Quito)");
+  });
+
+  it("el prefijo del cupón sale de las iniciales del negocio", () => {
+    expect(PREFIJO_CUPON).toBe("DT-");
   });
 });

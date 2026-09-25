@@ -43,6 +43,14 @@ compré aquí en cumbaya» se habría contado como venta perdida), y el de
 —abriéndose en silencio— porque ese candado corre sobre el texto tal como se
 escribió. De ahí `comoPatronConTildes`.
 
+Segunda pasada: la identidad del guardián (`Eres el ÁNGEL GUARDIÁN del bot de
+ventas de …`) y el hecho por turno que dice cómo se presenta el bot, la
+descripción de `tipos_de_llanta` y el prefijo de los cupones (`DT-`, ahora las
+iniciales del nombre). El caché del prompt del guardián NO se invalida: son
+plantillas que para Depot renderizan el mismo texto, y la prueba lo fija. Quedan
+dos menciones a Depot en la rúbrica, las dos dentro de ejemplos de casos reales
+que ilustran una regla; ahí el nombre es parte de la anécdota, no de la lógica.
+
 Va junto `docs/UMBRALES-PARA-VENDER.md`, de la misma conversación: las siete
 cifras que dicen si el bot se puede ofrecer a un cliente nuevo, con el valor del
 24-sep al lado (2 de 7 en verde). Seis salen de la base con una regla fija y la

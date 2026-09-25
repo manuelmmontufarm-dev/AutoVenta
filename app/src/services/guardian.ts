@@ -29,6 +29,8 @@
  * no ve los errores que el redactor no vio.
  */
 import { NOMBRE_DEL_VENDEDOR } from "../domain/saludo.js";
+import { FIRMA_DE_PRESENTACION } from "../domain/saludo.js";
+import { negocio } from "../negocio/index.js";
 import { anuncioDeLaConversacion } from "./anuncio.js";
 import OpenAI from "openai";
 import { aroDadoPorElCliente, medidaConfirmadaPorCliente } from "../domain/medidaConfirmada.js";
@@ -201,7 +203,7 @@ export const ESQUEMA_SALIDA = {
  * Listas cerradas, números y formatos van a `domain/` con su paso en `PASOS`.
  * Acá solo vive lo que hay que juzgar leyendo el hilo.
  */
-export const INSTRUCCIONES = `Eres el ÁNGEL GUARDIÁN del bot de ventas de Depot Tire (llantas, Quito). Revisas el BORRADOR que el bot está por enviar y lo apruebas o lo corriges. No eres el vendedor: eres el auditor que ve la conversación desde afuera.
+export const INSTRUCCIONES = `Eres el ÁNGEL GUARDIÁN del bot de ventas de ${business.name} (llantas, ${negocio.ciudad}). Revisas el BORRADOR que el bot está por enviar y lo apruebas o lo corriges. No eres el vendedor: eres el auditor que ve la conversación desde afuera.
 
 REVISA, en este orden de gravedad:
 0. NO VENDAS POR TU CUENTA. El CATÁLOGO DE HOY sirve para AUDITAR afirmaciones del borrador, no para crear una oferta nueva. Una corrección NO puede agregar un modelo, producto, precio, cantidad ni disponibilidad que el BORRADOR no traía. Si el borrador no nombró precio o producto, conserva ese límite aunque el catálogo tenga datos. Si el borrador dice que no hay stock vendible, no lo contradigas ofreciendo unidades sueltas: el juego comercial es de 4 y las filas marcadas NO VENDIBLE no se ofrecen. Si para corregir hiciera falta una tool o una nueva cotización, deja el borrador y reporta **hecho_comercial_inventado**; no improvises la venta. **LA REGLA 0 MANDA SOBRE TODAS LAS DEMÁS:** si una regla inferior parece pedirte agregar una llanta o un precio que el borrador no nombró, aplica la regla 0; corrige solo con palabras genéricas o aprueba con el hallazgo. **ÚNICA EXCEPCIÓN, y es quirúrgica (regla 21):** cuando el CLIENTE pidió un TIPO de llanta (A/T, H/T, R/T, M/T…) y el borrador lo niega o disfraza otra llanta de ese tipo, la corrección SÍ nombra la llanta de ese tipo que el CATÁLOGO DE HOY trae con stock para el juego — marca, diseño y precio copiados de esa fila, sin inventar nada. Ahí no estás vendiendo por tu cuenta: estás entregando el dato determinístico que el cliente pidió y el borrador escondió.
@@ -534,7 +536,7 @@ export async function armarContexto(
   const ahorro = ahorroDeLaCotizacion(cotizacion?.items ?? null);
   return [
     "== HECHOS REGISTRADOS ==",
-    `El bot se presenta como ${NOMBRE_DEL_VENDEDOR}, de Depot Tire: es su nombre oficial (decisión del negocio, 14-sep), no un dato inventado. Si el cliente pregunta si habla con un bot o una persona, el borrador NO puede negar que es un asistente virtual.`,
+    `El bot se presenta como ${FIRMA_DE_PRESENTACION.replace(/^Soy /, "")}: es su nombre oficial (decisión del negocio, 14-sep), no un dato inventado. Si el cliente pregunta si habla con un bot o una persona, el borrador NO puede negar que es un asistente virtual.`,
     `Medidas que el cliente pidió: ${pedidas.length ? pedidas.join(", ") : "(ninguna todavía)"}`,
     hechos?.vehicle ? `Vehículo: ${hechos.vehicle}` : null,
     // El anuncio y la clase de vehículo son HECHOS: sin ellos el revisor aprobó

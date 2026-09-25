@@ -1161,7 +1161,7 @@ export function buildTools(ctx: AgentContext) {
   const tiposDeLlanta = defineTool({
     name: "tipos_de_llanta",
     description:
-      "Explica los tipos de llanta que maneja Depot Tire y cuándo conviene cada uno. Úsala cuando el cliente no sabe qué tipo necesita o pregunta la diferencia entre A/T, H/T, M/T, etc.",
+      `Explica los tipos de llanta que maneja ${business.name} y cuándo conviene cada uno. Úsala cuando el cliente no sabe qué tipo necesita o pregunta la diferencia entre A/T, H/T, M/T, etc.`,
     schema: z.object({}),
     run: async () =>
       JSON.stringify({
