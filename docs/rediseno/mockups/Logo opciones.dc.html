@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+  <style>
+    body { margin: 0; background: #e9e7e2; font-family: "Archivo", ui-sans-serif, system-ui, sans-serif; color: #1c1b19; -webkit-font-smoothing: antialiased; }
+    a, a:hover { color: #1c1b19; }
+  </style>
+</helmet>
+<section style="padding:40px;display:flex;flex-direction:column;gap:28px;max-width:1100px;">
+  <div style="display:flex;align-items:baseline;gap:12px;"><span style="font-size:13px;font-weight:600;">Logo · 4 opciones</span><span style="font-size:12px;color:#6f6b64;">cada una en header, grande y en claro</span></div>
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px;">
+
+    <div id="a" style="background:#f7f6f3;padding:22px;display:flex;flex-direction:column;gap:18px;border:1px solid rgba(28,27,25,.10);">
+      <div style="display:flex;align-items:center;gap:8px;font-size:12px;color:#6f6b64;"><span style="font-family:'JetBrains Mono',monospace;font-weight:700;color:#1c1b19;">A</span>Llanta con A</div>
+      <div style="display:flex;align-items:center;gap:11px;">
+        <span style="width:36px;height:36px;border-radius:6px;display:grid;place-items:center;background:#1c1b19;"><svg width="24" height="24" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="#ffffff" stroke-width="3" stroke-dasharray="2.4 1.4" stroke-dashoffset="1.2"></circle><circle cx="12" cy="12" r="5" stroke="#ffffff" stroke-width="1.2"></circle><path d="M12 7.4 9.2 14.6h1.5l.6-1.6h1.4l.6 1.6h1.5L12 7.4Zm0 3.2.5 1.4h-1l.5-1.4Z" fill="#ffffff"></path><circle cx="19.4" cy="4.6" r="2.1" fill="#b4453a"></circle></svg></span>
+        <div style="display:flex;flex-direction:column;gap:1px;"><span style="font-size:15px;font-weight:600;">AutoVenta</span><span style="font-size:12px;color:#6f6b64;">centro de control</span></div>
+      </div>
+      <div style="display:flex;gap:16px;align-items:center;">
+        <span style="width:120px;height:120px;border-radius:16px;display:grid;place-items:center;background:#1c1b19;"><svg width="88" height="88" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="#ffffff" stroke-width="3" stroke-dasharray="2.4 1.4" stroke-dashoffset="1.2"></circle><circle cx="12" cy="12" r="5" stroke="#ffffff" stroke-width="1.2"></circle><path d="M12 7.4 9.2 14.6h1.5l.6-1.6h1.4l.6 1.6h1.5L12 7.4Zm0 3.2.5 1.4h-1l.5-1.4Z" fill="#ffffff"></path><circle cx="19.4" cy="4.6" r="2.1" fill="#b4453a"></circle></svg></span>
+        <svg width="64" height="64" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="#1c1b19" stroke-width="3" stroke-dasharray="2.4 1.4" stroke-dashoffset="1.2"></circle><circle cx="12" cy="12" r="5" stroke="#1c1b19" stroke-width="1.2"></circle><path d="M12 7.4 9.2 14.6h1.5l.6-1.6h1.4l.6 1.6h1.5L12 7.4Zm0 3.2.5 1.4h-1l.5-1.4Z" fill="#1c1b19"></path><circle cx="19.4" cy="4.6" r="2.1" fill="#b4453a"></circle></svg>
+      </div>
+    </div>
+
+    <div id="b" style="background:#f7f6f3;padding:22px;display:flex;flex-direction:column;gap:18px;border:1px solid rgba(28,27,25,.10);">
+      <div style="display:flex;align-items:center;gap:8px;font-size:12px;color:#6f6b64;"><span style="font-family:'JetBrains Mono',monospace;font-weight:700;color:#1c1b19;">B</span>Sólo llanta, rin de 5 rayos</div>
+      <div style="display:flex;align-items:center;gap:11px;">
+        <span style="width:36px;height:36px;border-radius:6px;display:grid;place-items:center;background:#1c1b19;"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-linecap="round"><circle cx="12" cy="12" r="9.5" stroke-width="2.4" stroke-dasharray="1.6 1.4"></circle><circle cx="12" cy="12" r="5.6" stroke-width="1.3"></circle><path d="M12 6.4v5.6M12 12l5.3 1.7M12 12l-5.3 1.7M12 12l3.3 4.5M12 12l-3.3 4.5" stroke-width="1.3"></path><circle cx="12" cy="12" r="1.6" fill="#b4453a" stroke="none"></circle></svg></span>
+        <div style="display:flex;flex-direction:column;gap:1px;"><span style="font-size:15px;font-weight:600;">AutoVenta</span><span style="font-size:12px;color:#6f6b64;">centro de control</span></div>
+      </div>
+      <div style="display:flex;gap:16px;align-items:center;">
+        <span style="width:120px;height:120px;border-radius:16px;display:grid;place-items:center;background:#1c1b19;"><svg width="88" height="88" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-linecap="round"><circle cx="12" cy="12" r="9.5" stroke-width="2.4" stroke-dasharray="1.6 1.4"></circle><circle cx="12" cy="12" r="5.6" stroke-width="1.3"></circle><path d="M12 6.4v5.6M12 12l5.3 1.7M12 12l-5.3 1.7M12 12l3.3 4.5M12 12l-3.3 4.5" stroke-width="1.3"></path><circle cx="12" cy="12" r="1.6" fill="#b4453a" stroke="none"></circle></svg></span>
+        <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#1c1b19" stroke-linecap="round"><circle cx="12" cy="12" r="9.5" stroke-width="2.4" stroke-dasharray="1.6 1.4"></circle><circle cx="12" cy="12" r="5.6" stroke-width="1.3"></circle><path d="M12 6.4v5.6M12 12l5.3 1.7M12 12l-5.3 1.7M12 12l3.3 4.5M12 12l-3.3 4.5" stroke-width="1.3"></path><circle cx="12" cy="12" r="1.6" fill="#b4453a" stroke="none"></circle></svg>
+      </div>
+    </div>
+
+    <div id="c" style="background:#f7f6f3;padding:22px;display:flex;flex-direction:column;gap:18px;border:1px solid rgba(28,27,25,.10);">
+      <div style="display:flex;align-items:center;gap:8px;font-size:12px;color:#6f6b64;"><span style="font-family:'JetBrains Mono',monospace;font-weight:700;color:#1c1b19;">C</span>Huella de banda (tread)</div>
+      <div style="display:flex;align-items:center;gap:11px;">
+        <span style="width:36px;height:36px;border-radius:6px;display:grid;place-items:center;background:#1c1b19;"><svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M5 4h14v16H5z" stroke="#ffffff" stroke-width="1.4"></path><path d="M5 8.5h4.5L12 6l2.5 2.5H19M5 12.5h4.5L12 10l2.5 2.5H19M5 16.5h4.5L12 14l2.5 2.5H19" stroke="#ffffff" stroke-width="1.6" stroke-linejoin="round"></path><rect x="15.5" y="17" width="3.5" height="3" fill="#b4453a"></rect></svg></span>
+        <div style="display:flex;flex-direction:column;gap:1px;"><span style="font-size:15px;font-weight:600;">AutoVenta</span><span style="font-size:12px;color:#6f6b64;">centro de control</span></div>
+      </div>
+      <div style="display:flex;gap:16px;align-items:center;">
+        <span style="width:120px;height:120px;border-radius:16px;display:grid;place-items:center;background:#1c1b19;"><svg width="88" height="88" viewBox="0 0 24 24" fill="none"><path d="M5 4h14v16H5z" stroke="#ffffff" stroke-width="1.4"></path><path d="M5 8.5h4.5L12 6l2.5 2.5H19M5 12.5h4.5L12 10l2.5 2.5H19M5 16.5h4.5L12 14l2.5 2.5H19" stroke="#ffffff" stroke-width="1.6" stroke-linejoin="round"></path><rect x="15.5" y="17" width="3.5" height="3" fill="#b4453a"></rect></svg></span>
+        <svg width="64" height="64" viewBox="0 0 24 24" fill="none"><path d="M5 4h14v16H5z" stroke="#1c1b19" stroke-width="1.4"></path><path d="M5 8.5h4.5L12 6l2.5 2.5H19M5 12.5h4.5L12 10l2.5 2.5H19M5 16.5h4.5L12 14l2.5 2.5H19" stroke="#1c1b19" stroke-width="1.6" stroke-linejoin="round"></path><rect x="15.5" y="17" width="3.5" height="3" fill="#b4453a"></rect></svg>
+      </div>
+    </div>
+
+    <div id="d" style="background:#f7f6f3;padding:22px;display:flex;flex-direction:column;gap:18px;border:1px solid rgba(28,27,25,.10);">
+      <div style="display:flex;align-items:center;gap:8px;font-size:12px;color:#6f6b64;"><span style="font-family:'JetBrains Mono',monospace;font-weight:700;color:#1c1b19;">D</span>Medida como marca · 245/40</div>
+      <div style="display:flex;align-items:center;gap:11px;">
+        <span style="width:36px;height:36px;border-radius:6px;display:grid;place-items:center;background:#1c1b19;"><svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M2.8 11a9.2 9.2 0 0 1 18.4 0" stroke="#ffffff" stroke-width="2.6" stroke-dasharray="2 1.2"></path><text x="12" y="21" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="12.5" font-weight="700" letter-spacing="-.6" fill="#ffffff">AV</text><circle cx="12" cy="10.5" r="1.3" fill="#b4453a"></circle></svg></span>
+        <div style="display:flex;flex-direction:column;gap:1px;"><span style="font-size:15px;font-weight:600;">AutoVenta</span><span style="font-size:12px;color:#6f6b64;">centro de control</span></div>
+      </div>
+      <div style="display:flex;gap:16px;align-items:center;">
+        <span style="width:120px;height:120px;border-radius:16px;display:grid;place-items:center;background:#1c1b19;"><svg width="88" height="88" viewBox="0 0 24 24" fill="none"><path d="M2.8 11a9.2 9.2 0 0 1 18.4 0" stroke="#ffffff" stroke-width="2.6" stroke-dasharray="2 1.2"></path><text x="12" y="21" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="12.5" font-weight="700" letter-spacing="-.6" fill="#ffffff">AV</text><circle cx="12" cy="10.5" r="1.3" fill="#b4453a"></circle></svg></span>
+        <svg width="64" height="64" viewBox="0 0 24 24" fill="none"><path d="M2.8 11a9.2 9.2 0 0 1 18.4 0" stroke="#1c1b19" stroke-width="2.6" stroke-dasharray="2 1.2"></path><text x="12" y="21" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="12.5" font-weight="700" letter-spacing="-.6" fill="#1c1b19">AV</text><circle cx="12" cy="10.5" r="1.3" fill="#b4453a"></circle></svg>
+      </div>
+    </div>
+
+  </div>
+</section>
+</x-dc>
+</body>
+</html>

@@ -1,196 +1,146 @@
-import { AnimatePresence, motion } from "framer-motion";
 import { useMemo, useState } from "react";
-import { ETAPAS, ETAPA_META, type Etapa, type Ticket } from "../data/types";
-import { relTime } from "../lib/format";
+import type { Ticket } from "../data/types";
+import { horaLista } from "../lib/format";
 import { navigate } from "../router";
 import { useHub, useNow } from "../store";
 import { IconSearch } from "../components/icons";
-import { AtiendePill, Avatar, CierreBadge, EmptyState, Segmented, SkeletonRows, StageBadge } from "../components/ui";
+import { AtiendePill, CierreBadge, EmptyState, MedidaChip, PageHeader, SkeletonRows } from "../components/ui";
 
-type FiltroEstado = "abiertos" | "cerrados" | "todos";
+/**
+ * Una sola lista. Sin pestañas de Abiertos / Cerrados ni «Alertas del bot»:
+ * había demasiados para que la distinción importara (DESIGN.md §17).
+ *
+ * Orden: primero quien espera respuesta (y de esos, el que lleva más tiempo
+ * esperando), después el resto por última actividad. El orden es una promesa
+ * y tiene que verse: la fila que exige acción es la única pintada.
+ */
+function ordenar(a: Ticket, b: Ticket): number {
+  const ea = a.sinLeer > 0 ? 1 : 0;
+  const eb = b.sinLeer > 0 ? 1 : 0;
+  if (ea !== eb) return eb - ea;
+  const ta = new Date(a.ultimaActividad).getTime();
+  const tb = new Date(b.ultimaActividad).getTime();
+  // Entre los que esperan, el más viejo primero; entre los demás, el más nuevo.
+  return ea ? ta - tb : tb - ta;
+}
 
-function TicketRow({ ticket, now }: { ticket: Ticket; now: number }) {
-  const esperando = ticket.sinLeer > 0;
+const COLUMNAS = "240px 120px minmax(0,1fr) 88px 112px";
+
+function Fila({ ticket, now }: { ticket: Ticket; now: number }) {
+  const espera = ticket.estado === "abierto" && ticket.sinLeer > 0;
+  const cerrado = ticket.estado === "cerrado";
+  const titulo = ticket.nombre ?? ticket.telefono;
+  const hora = horaLista(ticket.ultimaActividad, now);
+
+  const atiende = cerrado && ticket.cierre ? (
+    <CierreBadge cierre={ticket.cierre} />
+  ) : espera ? (
+    <span className="text-[13px] font-semibold whitespace-nowrap text-signal">Espera respuesta</span>
+  ) : (
+    <AtiendePill atiende={ticket.atiende} />
+  );
+
   return (
-    <motion.button
-      layout
-      initial={{ opacity: 0, y: 16, scale: 0.98 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
-      exit={{ opacity: 0, scale: 0.97 }}
-      transition={{ type: "spring", stiffness: 380, damping: 32 }}
+    <button
+      type="button"
       onClick={() => navigate(`ticket/${ticket.id}`)}
-      className="group flex w-full items-center gap-3 rounded-2xl px-3.5 py-3 text-left transition-[background,transform] duration-150 hover:-translate-y-px hover:bg-paper/[.045]"
+      className={`block w-full border-b border-line text-left transition-colors hover:bg-black/[.03] ${espera ? "bg-signal-tint" : ""}`}
     >
-      <Avatar ticket={ticket} />
-      <div className="min-w-0 flex-1">
-        <div className="flex items-baseline justify-between gap-2">
-          <p className={`truncate text-[13.5px] ${esperando ? "font-bold text-paper" : "font-semibold text-paper/90"}`}>
-            {ticket.nombre ?? ticket.telefono}
-          </p>
-          <span className={`tnum shrink-0 text-[11px] ${esperando ? "font-bold text-red" : "text-faint"}`}>
-            {relTime(ticket.ultimaActividad, now)}
-          </span>
-        </div>
-        <div className="mt-0.5 flex items-center justify-between gap-2">
-          <p className={`truncate text-xs ${esperando ? "text-paper/80" : "text-muted"}`}>{ticket.ultimoMensaje}</p>
-          {esperando && (
-            <motion.span
-              initial={{ scale: 0 }}
-              animate={{ scale: 1 }}
-              className="tnum grid h-[18px] min-w-[18px] shrink-0 place-items-center rounded-full bg-red px-1 text-[10.5px] font-bold text-white"
-            >
-              {ticket.sinLeer}
-            </motion.span>
-          )}
-        </div>
-        <div className="mt-1.5 flex items-center gap-1.5">
-          {ticket.estado === "cerrado" && ticket.cierre ? <CierreBadge cierre={ticket.cierre} /> : <StageBadge etapa={ticket.etapa} />}
-          <AtiendePill atiende={ticket.atiende} />
-          {ticket.medida && <span className="medida-chip hidden text-[10.5px] text-muted sm:inline">{ticket.medida}</span>}
-        </div>
+      {/* Escritorio: una fila de tabla */}
+      <div className="hidden h-14 items-center gap-5 px-5 md:grid" style={{ gridTemplateColumns: COLUMNAS }}>
+        <span className={`truncate text-[14px] ${espera ? "font-semibold" : "font-medium"}`}>{titulo}</span>
+        <span>{ticket.medida ? <MedidaChip medida={ticket.medida} /> : <span className="text-[13px] text-text2">Sin medida</span>}</span>
+        <span className={`truncate text-[13px] ${espera ? "text-text" : "text-text2"}`}>{ticket.ultimoMensaje}</span>
+        <span className={`tnum text-right font-mono text-[12px] whitespace-nowrap ${espera ? "font-bold text-signal" : "font-medium text-text2"}`}>{hora}</span>
+        <span>{atiende}</span>
       </div>
-    </motion.button>
+
+      {/* Teléfono: la misma fila, apilada */}
+      <div className="flex flex-col gap-1.5 px-4 py-3 md:hidden">
+        <div className="flex items-baseline justify-between gap-2.5">
+          <span className={`truncate text-[15px] ${espera ? "font-semibold" : "font-medium"}`}>{titulo}</span>
+          <span className={`tnum shrink-0 font-mono text-[12px] ${espera ? "font-bold text-signal" : "font-medium text-text2"}`}>{hora}</span>
+        </div>
+        <div className="flex items-baseline gap-3">
+          {ticket.medida ? <MedidaChip medida={ticket.medida} /> : <span className="text-[13px] text-text2">Sin medida</span>}
+          {atiende}
+        </div>
+        <span className={`truncate text-[13px] ${espera ? "text-text" : "text-text2"}`}>{ticket.ultimoMensaje}</span>
+      </div>
+    </button>
   );
 }
 
 export function Inbox() {
-  const { tickets, alerts, alertAction, cargando, power } = useHub();
+  const { tickets, cargando, power } = useHub();
   const now = useNow();
-  const [estado, setEstado] = useState<FiltroEstado>("abiertos");
-  const [etapa, setEtapa] = useState<Etapa | "todas">("todas");
   const [q, setQ] = useState("");
-  const [section, setSection] = useState<"tickets" | "alerts">("tickets");
 
-  const abiertos = tickets.filter((t) => t.estado === "abierto").length;
-  const cerrados = tickets.length - abiertos;
+  const abiertos = useMemo(() => tickets.filter((t) => t.estado === "abierto").sort(ordenar), [tickets]);
+  const esperan = abiertos.filter((t) => t.sinLeer > 0).length;
 
-  // Mismo criterio que el tab Errores de Oportunidades: aquí sólo entra lo que
-  // de verdad se rompió (el chat o la plomería). Lo operativo — la ventana de
-  // 24 h cerrándose, seguimientos, visitas — no es una alerta y ya tiene su
-  // pantalla; contarlo aquí hacía que el badge marcara decenas siempre.
-  const alertasReales = useMemo(() => alerts.filter((a) => a.clase !== "operativo"), [alerts]);
-
+  // Sin búsqueda: los abiertos. Con búsqueda: todo, cerrados incluidos — un
+  // cliente que ya compró tiene que poder encontrarse por su nombre o medida.
   const visibles = useMemo(() => {
     const texto = q.trim().toLowerCase();
-    return tickets.filter((t) => {
-      if (estado === "abiertos" && t.estado !== "abierto") return false;
-      if (estado === "cerrados" && t.estado !== "cerrado") return false;
-      if (etapa !== "todas" && (t.estado !== "abierto" || t.etapa !== etapa)) return false;
-      if (texto) {
-        const blob = `${t.nombre ?? ""} ${t.telefono} ${t.medida ?? ""} ${t.vehiculo ?? ""}`.toLowerCase();
-        if (!blob.includes(texto)) return false;
-      }
-      return true;
+    if (!texto) return abiertos;
+    return [...tickets].sort(ordenar).filter((t) => {
+      const blob = `${t.nombre ?? ""} ${t.telefono} ${t.medida ?? ""} ${t.vehiculo ?? ""}`.toLowerCase();
+      return blob.includes(texto);
     });
-  }, [tickets, estado, etapa, q]);
+  }, [tickets, abiertos, q]);
+
+  const resumen = cargando
+    ? ""
+    : `${abiertos.length} ${abiertos.length === 1 ? "conversación abierta" : "conversaciones abiertas"} · ${esperan} ${esperan === 1 ? "espera" : "esperan"} respuesta`;
+
+  const buscador = (
+    <label className="flex h-10 items-center gap-2 rounded-[6px] border border-line bg-surface px-3 md:h-10 md:w-[360px]">
+      <IconSearch size={16} className="shrink-0 text-text2" />
+      <input
+        value={q}
+        onChange={(e) => setQ(e.target.value)}
+        placeholder="Buscar por nombre, medida o vehículo"
+        aria-label="Buscar conversaciones"
+        className="min-w-0 flex-1 bg-transparent text-[14px] outline-none md:text-[13px]"
+      />
+    </label>
+  );
 
   return (
     <div className="flex h-full flex-col">
-      <div className="flex flex-wrap items-center gap-2.5 px-4 pt-1 pb-3">
-        <Segmented
-          id="inbox-section"
-          valor={section}
-          onChange={setSection}
-          opciones={[
-            { valor: "tickets", label: "Conversaciones" },
-            { valor: "alerts", label: "Alertas del bot", badge: alertasReales.length },
-          ]}
-        />
-        {section === "tickets" && <>
-        <Segmented<FiltroEstado>
-          id="estado"
-          valor={estado}
-          onChange={setEstado}
-          opciones={[
-            { valor: "abiertos", label: "Abiertos", badge: abiertos },
-            { valor: "cerrados", label: "Cerrados", badge: cerrados },
-            { valor: "todos", label: "Todos" },
-          ]}
-        />
-        <div className="glass flex min-w-40 flex-1 items-center gap-2 rounded-xl px-3 py-2 sm:max-w-64">
-          <IconSearch size={14} className="shrink-0 text-faint" />
-          <input
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            placeholder="Nombre, medida, vehículo…"
-            className="w-full bg-transparent text-xs outline-none placeholder:text-faint"
-          />
-        </div>
-        </>}
+      <div className="hidden md:block">
+        <PageHeader titulo="Inbox" sub={resumen}>{buscador}</PageHeader>
       </div>
+      <div className="px-4 pt-3 pb-3 md:hidden">{buscador}</div>
 
-      {section === "tickets" && <div className="scrollbar-none flex gap-1.5 overflow-x-auto px-4 pb-3">
-        <FiltroEtapaChip activo={etapa === "todas"} color="#8b95ab" label="Todas" onClick={() => setEtapa("todas")} />
-        {ETAPAS.map((e) => (
-          <FiltroEtapaChip
-            key={e}
-            activo={etapa === e}
-            color={ETAPA_META[e].color}
-            label={ETAPA_META[e].nombre}
-            onClick={() => setEtapa(etapa === e ? "todas" : e)}
-          />
-        ))}
-      </div>}
-
-      <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-6">
-        {section === "alerts" ? (
-          <div className="mx-auto grid max-w-4xl gap-2 px-2">
-            {alertasReales.length === 0 ? <EmptyState titulo="Sin alertas pendientes" detalle="Nada roto: ni chats repetidos, ni envíos fallidos. Los seguimientos y las ventanas de 24 h no son alertas — viven en Oportunidades." /> : alertasReales.map((alert) => (
-              <article key={alert.id} className="glass rounded-2xl p-4">
-                <div className="flex items-start justify-between gap-3"><div><p className="text-sm font-bold">{alert.customer}</p><p className="mt-1 text-xs font-semibold">{alert.summary}</p></div><span className="rounded-full px-2 py-1 text-[10px] font-black uppercase" style={{ color: alert.priority === "critical" ? "var(--color-danger)" : "var(--color-warn)", background: "color-mix(in srgb, currentColor 12%, transparent)" }}>{alert.priority}</span></div>
-                <p className="mt-3 text-xs text-muted"><b>Motivo exacto:</b> {alert.exactReason}</p>
-                <p className="mt-2 text-xs"><b>Acción sugerida:</b> {alert.suggestedAction}</p>
-                <div className="mt-3 flex flex-wrap gap-2"><button onClick={() => void alertAction(alert.id, "resolve")} className="rounded-lg bg-lime/15 px-3 py-1.5 text-[10px] font-bold">Marcar como resuelto</button><button onClick={() => void alertAction(alert.id, "snooze")} className="rounded-lg bg-paper/10 px-3 py-1.5 text-[10px] font-bold">Posponer 4 h</button><button onClick={() => navigate(`ticket/${alert.conversationId}`)} className="rounded-lg bg-paper/10 px-3 py-1.5 text-[10px] font-bold">Abrir ticket</button></div>
-              </article>
-            ))}
-          </div>
-        ) : cargando ? (
-          <SkeletonRows n={8} />
-        ) : visibles.length === 0 ? (
-          <EmptyState
-            titulo={estado === "cerrados" ? "Sin tickets cerrados aquí" : "Sin tickets en esta vista"}
-            // Con el bot apagado, «el bot está atento» era mentira justo en la
-            // pantalla donde el dueño va a comprobar si algo entra.
-            detalle={
-              power.activo
-                ? "El bot está atento — cuando un cliente escriba, su ticket aparece aquí solo."
-                : "El bot está apagado: los mensajes van a seguir llegando aquí, pero nadie contesta hasta que lo enciendas o respondas a mano."
-            }
-          />
-        ) : (
-          <AnimatePresence mode="popLayout" initial={false}>
-            {visibles.map((t) => (
-              <TicketRow key={t.id} ticket={t} now={now} />
-            ))}
-          </AnimatePresence>
-        )}
+      <div className="mx-4 mb-4 flex min-h-0 flex-1 flex-col overflow-hidden rounded-[10px] border border-line bg-surface md:mx-8 md:mb-8">
+        <div className="hidden h-10 items-center gap-5 border-b border-line px-5 text-[12px] font-medium text-text2 md:grid" style={{ gridTemplateColumns: COLUMNAS }}>
+          <span>Cliente</span><span>Medida</span><span>Último mensaje</span><span className="text-right">Hora</span><span>Atiende</span>
+        </div>
+        <div className="min-h-0 flex-1 overflow-y-auto">
+          {cargando ? (
+            <SkeletonRows n={8} />
+          ) : visibles.length === 0 ? (
+            q.trim() ? (
+              <EmptyState titulo={`Nada coincide con «${q.trim()}»`} detalle="Probá con el nombre, el teléfono, la medida o el vehículo." />
+            ) : (
+              <EmptyState
+                titulo="Sin conversaciones abiertas"
+                // Con el bot apagado, «el bot está atento» sería mentira justo
+                // en la pantalla donde el dueño comprueba si algo entra.
+                detalle={
+                  power.activo
+                    ? "Cuando un cliente escriba, su conversación aparece aquí sola."
+                    : "El bot está apagado: los mensajes van a seguir llegando aquí, pero nadie contesta hasta que lo enciendas o respondas a mano."
+                }
+              />
+            )
+          ) : (
+            visibles.map((t) => <Fila key={t.id} ticket={t} now={now} />)
+          )}
+        </div>
       </div>
     </div>
-  );
-}
-
-function FiltroEtapaChip({
-  activo,
-  color,
-  label,
-  onClick,
-}: {
-  activo: boolean;
-  color: string;
-  label: string;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      className="shrink-0 rounded-full px-2.5 py-1 text-[11px] font-bold whitespace-nowrap transition-all"
-      style={{
-        color: activo ? color : "var(--color-muted)",
-        background: activo ? `color-mix(in srgb, ${color} 14%, transparent)` : "color-mix(in srgb, var(--color-paper) 4%, transparent)",
-        border: `1px solid ${activo ? `color-mix(in srgb, ${color} 38%, transparent)` : "color-mix(in srgb, var(--color-paper) 6%, transparent)"}`,
-      }}
-    >
-      {label}
-    </button>
   );
 }

@@ -67,8 +67,24 @@ export function etiquetaVisita(
   return null;
 }
 
+/**
+ * La hora como la lee la lista: hoy «14:02», ayer «ayer 14:02», y de ahí para
+ * atrás el día o la fecha. Es lo que el asesor necesita para decidir a quién
+ * contestar primero sin hacer cuentas.
+ */
+export function horaLista(iso: string, ahora: number = Date.now()): string {
+  const t = new Date(iso);
+  const hoy = new Date(ahora);
+  const hhmm = t.toLocaleTimeString("es-EC", { hour: "2-digit", minute: "2-digit", hour12: false });
+  if (t.toDateString() === hoy.toDateString()) return hhmm;
+  const ayer = new Date(ahora - 86_400_000);
+  if (t.toDateString() === ayer.toDateString()) return `ayer ${hhmm}`;
+  return relTime(iso, ahora);
+}
+
+/** Hora en 24 h, igual que en la lista: «14:02», no «02:02 p. m.». */
 export function horaCorta(iso: string): string {
-  return new Date(iso).toLocaleTimeString("es-EC", { hour: "2-digit", minute: "2-digit" });
+  return new Date(iso).toLocaleTimeString("es-EC", { hour: "2-digit", minute: "2-digit", hour12: false });
 }
 
 export function fechaLarga(iso: string): string {

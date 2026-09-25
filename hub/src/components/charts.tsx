@@ -1,306 +1,170 @@
-import { motion } from "framer-motion";
-import { useEffect, useRef, useState } from "react";
+import { useId, useState } from "react";
 
-/* ── Count-up (números que suben al entrar) ── */
+/**
+ * Gráficos que se leen solos (DESIGN.md §16): eje Y con valores, eje X con
+ * rótulos, la unidad arriba, y el valor exacto al pasar el cursor por un
+ * punto. Sin gradientes, sin animación de entrada, sin cifras que suben solas.
+ */
 
-export function useCountUp(target: number, durMs = 900): number {
-  const [valor, setValor] = useState(0);
-  const desde = useRef(0);
-  useEffect(() => {
-    const inicio = performance.now();
-    const origen = desde.current;
-    let raf: number;
-    const tick = (t: number) => {
-      const p = Math.min(1, (t - inicio) / durMs);
-      const ease = 1 - Math.pow(1 - p, 3);
-      setValor(origen + (target - origen) * ease);
-      if (p < 1) raf = requestAnimationFrame(tick);
-      else desde.current = target;
-    };
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
-  }, [target, durMs]);
-  return valor;
+export interface Punto {
+  x: string;
+  y: number;
 }
 
-export function StatTile({
-  label,
-  valor,
-  formato = (n) => String(Math.round(n)),
-  detalle,
-  color = "var(--color-paper)",
-  delay = 0,
-  sparkline,
-  progress,
-  cargando = false,
-}: {
-  label: string;
-  valor: number;
-  formato?: (n: number) => string;
-  detalle?: string;
-  color?: string;
-  delay?: number;
-  sparkline?: number[];
-  progress?: number;
-  /**
-   * El dato todavía no llegó. Muestra un guion en vez de un número: enseñar el
-   * valor anterior (o uno calculado con otros datos) mientras carga hace que el
-   * contador "salte" y deja al que mira sin saber cuál de los dos era cierto.
-   */
-  cargando?: boolean;
-}) {
-  const animado = useCountUp(cargando ? 0 : valor);
+/** Cuántas cifras hacen falta para que el eje Y termine en un número redondo. */
+function escala(max: number, pasos: number): number {
+  if (max <= 0) return 1;
+  const bruto = max / pasos;
+  const potencia = Math.pow(10, Math.floor(Math.log10(bruto)));
+  const candidato = [1, 2, 2.5, 5, 10].find((k) => k * potencia >= bruto) ?? 10;
+  return candidato * potencia;
+}
+
+const MONO = "var(--font-mono)";
+
+function Ejes({ L, T, iw, ih, pasos, paso, unidad, fmt }: { L: number; T: number; iw: number; ih: number; pasos: number; paso: number; unidad: string; fmt: (v: number) => string }) {
+  const yMax = paso * pasos;
+  const y = (v: number) => T + ih - (v / yMax) * ih;
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 14 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ type: "spring", stiffness: 320, damping: 30, delay }}
-      className="glass rounded-3xl p-5"
-    >
-      <p className="microlabel">{label}</p>
-      <p
-        className="serif tnum mt-2 text-[34px] leading-none"
-        style={{ color: cargando ? "var(--color-faint)" : color }}
-      >
-        {cargando ? "—" : formato(animado)}
-      </p>
-      {sparkline && sparkline.length > 1 && (
-        <Sparkline values={sparkline} color={color} />
-      )}
-      {progress !== undefined && (
-        <div
-          className="mt-3 h-1.5 overflow-hidden rounded-full bg-paper/[.06]"
-          role="img"
-          aria-label={`${Math.round(Math.max(0, Math.min(100, progress)))} por ciento`}
-        >
-          <motion.div
-            initial={{ width: 0 }}
-            animate={{ width: `${Math.max(0, Math.min(100, progress))}%` }}
-            transition={{ duration: 0.8, delay }}
-            className="h-full rounded-full"
-            style={{ background: color }}
-          />
-        </div>
-      )}
-      {detalle && <p className="mt-2 text-[11.5px] text-muted">{detalle}</p>}
-    </motion.div>
+    <>
+      {Array.from({ length: pasos + 1 }, (_, k) => {
+        const v = paso * k;
+        const yy = y(v);
+        return (
+          <g key={k}>
+            <line x1={L} x2={L + iw} y1={yy} y2={yy} stroke={k === 0 ? "rgba(28,27,25,.35)" : "rgba(28,27,25,.10)"} strokeWidth={1} />
+            <text x={L - 8} y={yy + 4} textAnchor="end" fontFamily={MONO} fontSize={11} fill="var(--color-text2)">{fmt(v)}</text>
+          </g>
+        );
+      })}
+      <text x={L} y={12} fontFamily={MONO} fontSize={11} fill="var(--color-text2)">{unidad}</text>
+    </>
   );
 }
 
-export function Sparkline({ values, color }: { values: number[]; color: string }) {
-  const width = 180;
-  const height = 32;
-  const max = Math.max(1, ...values);
-  const points = values
-    .map((value, index) => {
-      const x = (index / Math.max(1, values.length - 1)) * width;
-      const y = height - 3 - (value / max) * (height - 6);
-      return `${x},${y}`;
-    })
-    .join(" ");
+function Tooltip({ x, y, texto, L, iw }: { x: number; y: number; texto: string; L: number; iw: number }) {
+  const bw = texto.length * 7 + 20;
+  const bx = Math.min(Math.max(x - bw / 2, L), L + iw - bw);
+  const by = Math.max(y - 40, 2);
   return (
-    <svg viewBox={`0 0 ${width} ${height}`} className="mt-3 h-8 w-full" aria-hidden="true">
-      <motion.polyline
-        points={points}
-        fill="none"
-        stroke={color}
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        initial={{ pathLength: 0, opacity: 0 }}
-        animate={{ pathLength: 1, opacity: 1 }}
-        transition={{ duration: 0.8 }}
-      />
+    <g pointerEvents="none">
+      <line x1={x} x2={x} y1={by + 26} y2={y} stroke="var(--color-text)" strokeWidth={1} />
+      <rect x={bx} y={by} width={bw} height={26} rx={4} fill="var(--color-text)" />
+      <text x={bx + bw / 2} y={by + 17} textAnchor="middle" fontFamily={MONO} fontSize={12} fontWeight={700} fill="#ffffff">{texto}</text>
+    </g>
+  );
+}
+
+interface BaseProps {
+  data: Punto[];
+  /** Lo que se cuenta: «conversaciones», «respuestas», «USD». */
+  unidad: string;
+  fmt?: (v: number) => string;
+  ancho?: number;
+  alto?: number;
+  /** Cada cuántos rótulos del eje X se escribe uno (1 = todos). Por defecto se calcula. */
+  cadaX?: number;
+  etiqueta?: string;
+}
+
+function useGeometria({ data, ancho = 560, alto = 220 }: { data: Punto[]; ancho?: number; alto?: number }) {
+  const L = 48, R = 16, T = 22, B = 34;
+  const iw = ancho - L - R, ih = alto - T - B;
+  const max = Math.max(0, ...data.map((d) => d.y));
+  const pasos = 4;
+  const paso = escala(max, pasos);
+  const yMax = paso * pasos;
+  const y = (v: number) => T + ih - (v / yMax) * ih;
+  const n = Math.max(1, data.length);
+  const slot = iw / n;
+  const x = (i: number) => L + slot * i + slot / 2;
+  return { L, R, T, B, iw, ih, pasos, paso, y, x, slot, n };
+}
+
+export function BarChart({ data, unidad, fmt = (v) => String(v), ancho = 560, alto = 220, cadaX, etiqueta }: BaseProps) {
+  const g = useGeometria({ data, ancho, alto });
+  const [tip, setTip] = useState<number | null>(null);
+  const id = useId();
+  if (data.length === 0) return <Vacio alto={alto} />;
+  const cada = cadaX ?? (g.n > 8 ? 2 : 1);
+  return (
+    <svg viewBox={`0 0 ${ancho} ${alto}`} className="block w-full" style={{ overflow: "visible" }} role="img" aria-labelledby={`${id}-t`} onMouseLeave={() => setTip(null)}>
+      <title id={`${id}-t`}>{etiqueta ?? `${unidad} por ${data.map((d) => d.x).join(", ")}`}</title>
+      <Ejes L={g.L} T={g.T} iw={g.iw} ih={g.ih} pasos={g.pasos} paso={g.paso} unidad={unidad} fmt={fmt} />
+      {data.map((d, i) => (
+        <g key={i} onMouseEnter={() => setTip(i)} onTouchStart={() => setTip(i)}>
+          {/* Zona de toque de todo el alto del carril: el dedo no tiene que acertar la barra */}
+          <rect x={g.x(i) - g.slot / 2} y={g.T} width={g.slot} height={g.ih} fill="transparent" />
+          <rect x={g.x(i) - g.slot * 0.3} y={g.y(d.y)} width={g.slot * 0.6} height={Math.max(0, g.T + g.ih - g.y(d.y))} fill={tip === i ? "var(--color-text)" : "rgba(28,27,25,.72)"} />
+          {(i % cada === 0 || i === g.n - 1) && (
+            <text x={g.x(i)} y={g.T + g.ih + 18} textAnchor="middle" fontFamily={MONO} fontSize={11} fill="var(--color-text2)">{d.x}</text>
+          )}
+        </g>
+      ))}
+      {tip !== null && <Tooltip x={g.x(tip)} y={g.y(data[tip].y)} texto={`${fmt(data[tip].y)} ${unidad} · ${data[tip].x}`} L={g.L} iw={g.iw} />}
     </svg>
   );
 }
 
-export interface MetricBarItem {
-  label: string;
-  value: number;
-  color: string;
-}
-
-export function MetricBars({ items }: { items: MetricBarItem[] }) {
-  const max = Math.max(1, ...items.map((item) => item.value));
+export function LineChart({ data, unidad, fmt = (v) => String(v), ancho = 560, alto = 220, cadaX, etiqueta }: BaseProps) {
+  const g = useGeometria({ data, ancho, alto });
+  const [tip, setTip] = useState<number | null>(null);
+  const id = useId();
+  if (data.length === 0) return <Vacio alto={alto} />;
+  const cada = cadaX ?? (g.n > 8 ? 2 : 1);
+  const puntos = data.map((d, i) => `${g.x(i)},${g.y(d.y)}`).join(" ");
   return (
-    <div className="space-y-3" role="img" aria-label="Comparación de métricas">
-      {items.map((item, index) => (
-        <div key={item.label}>
-          <div className="mb-1.5 flex items-center justify-between gap-3 text-[10.5px]">
-            <span className="font-semibold text-muted">{item.label}</span>
-            <span className="tnum font-bold text-paper">{item.value.toLocaleString("es-EC")}</span>
-          </div>
-          <div className="h-2 overflow-hidden rounded-full bg-paper/[.06]">
-            <motion.div
-              initial={{ width: 0 }}
-              animate={{ width: `${(item.value / max) * 100}%` }}
-              transition={{ duration: 0.7, delay: index * 0.06 }}
-              className="h-full min-w-[2px] rounded-full"
-              style={{ background: item.color }}
-            />
-          </div>
-        </div>
+    <svg viewBox={`0 0 ${ancho} ${alto}`} className="block w-full" style={{ overflow: "visible" }} role="img" aria-labelledby={`${id}-t`} onMouseLeave={() => setTip(null)}>
+      <title id={`${id}-t`}>{etiqueta ?? `${unidad} por ${data.map((d) => d.x).join(", ")}`}</title>
+      <Ejes L={g.L} T={g.T} iw={g.iw} ih={g.ih} pasos={g.pasos} paso={g.paso} unidad={unidad} fmt={fmt} />
+      <polyline points={puntos} fill="none" stroke="var(--color-text)" strokeWidth={1.5} />
+      {data.map((d, i) => (
+        <g key={i} onMouseEnter={() => setTip(i)} onTouchStart={() => setTip(i)}>
+          <rect x={g.x(i) - g.slot / 2} y={g.T} width={g.slot} height={g.ih} fill="transparent" />
+          <circle cx={g.x(i)} cy={g.y(d.y)} r={tip === i ? 4 : 2.5} fill={tip === i ? "var(--color-text)" : "#ffffff"} stroke="var(--color-text)" strokeWidth={1.5} />
+          {(i % cada === 0 || i === g.n - 1) && (
+            <text x={g.x(i)} y={g.T + g.ih + 18} textAnchor="middle" fontFamily={MONO} fontSize={11} fill="var(--color-text2)">{d.x}</text>
+          )}
+        </g>
       ))}
-    </div>
+      {tip !== null && <Tooltip x={g.x(tip)} y={g.y(data[tip].y)} texto={`${fmt(data[tip].y)} ${unidad} · ${data[tip].x}`} L={g.L} iw={g.iw} />}
+    </svg>
   );
 }
 
-export function DonutChart({ items }: { items: MetricBarItem[] }) {
-  const visible = items.filter((item) => item.value > 0);
-  const total = visible.reduce((sum, item) => sum + item.value, 0);
-  let offset = 0;
+function Vacio({ alto }: { alto: number }) {
   return (
-    <div className="flex items-center gap-5">
-      <div className="relative h-28 w-28 shrink-0">
-        <svg viewBox="0 0 42 42" className="h-full w-full -rotate-90" role="img" aria-label={`Total ${total}`}>
-          <circle cx="21" cy="21" r="15.915" fill="none" stroke="color-mix(in srgb, var(--color-paper) 6%, transparent)" strokeWidth="5" />
-          {visible.map((item) => {
-            const part = (item.value / Math.max(1, total)) * 100;
-            const currentOffset = offset;
-            offset += part;
-            return (
-              <motion.circle
-                key={item.label}
-                cx="21"
-                cy="21"
-                r="15.915"
-                fill="none"
-                stroke={item.color}
-                strokeWidth="5"
-                strokeDasharray={`${part} ${100 - part}`}
-                strokeDashoffset={-currentOffset}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-              />
-            );
-          })}
-        </svg>
-        <span className="tnum absolute inset-0 grid place-items-center text-lg font-extrabold text-paper">{total}</span>
-      </div>
-      <div className="min-w-0 flex-1 space-y-2">
-        {items.map((item) => (
-          <div key={item.label} className="flex items-center gap-2 text-[10.5px]">
-            <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: item.color }} />
-            <span className="min-w-0 flex-1 truncate text-muted">{item.label}</span>
-            <span className="tnum font-bold text-paper">{item.value.toLocaleString("es-EC")}</span>
-          </div>
-        ))}
-      </div>
+    <div className="grid place-items-center text-[13px] text-text2" style={{ height: alto / 2 }}>
+      Sin datos todavía
     </div>
   );
 }
 
-/* ── Embudo horizontal ── */
+/* ── Embudo: una fila por etapa, la barra en tinta, el valor y la conversión ── */
 
 export interface FunnelPaso {
   label: string;
   valor: number;
-  color: string;
 }
 
 export function FunnelChart({ pasos }: { pasos: FunnelPaso[] }) {
   const max = Math.max(1, ...pasos.map((p) => p.valor));
   return (
-    <div className="flex flex-col gap-2.5">
+    <div className="flex flex-col gap-2.5" role="img" aria-label="Embudo por etapa">
       {pasos.map((p, i) => {
         const prev = i > 0 ? pasos[i - 1].valor : null;
         const conv = prev ? Math.round((p.valor / Math.max(1, prev)) * 100) : null;
         return (
-          <div key={p.label} className="flex items-center gap-3">
-            <span className="w-24 shrink-0 text-right text-[11.5px] font-semibold text-muted">{p.label}</span>
-            <div className="relative h-7 flex-1 overflow-hidden rounded-lg" style={{ background: "color-mix(in srgb, var(--color-paper) 4%, transparent)" }}>
-              <motion.div
-                initial={{ width: 0 }}
-                animate={{ width: `${(p.valor / max) * 100}%` }}
-                transition={{ type: "spring", stiffness: 120, damping: 26, delay: i * 0.07 }}
-                className="flex h-full min-w-9 items-center rounded-lg pl-2.5"
-                style={{
-                  background: `linear-gradient(90deg, color-mix(in srgb, ${p.color} 30%, transparent), color-mix(in srgb, ${p.color} 55%, transparent))`,
-                  border: `1px solid color-mix(in srgb, ${p.color} 40%, transparent)`,
-                }}
-              >
-                <span className="tnum text-xs font-bold" style={{ color: p.color }}>
-                  {p.valor}
-                </span>
-              </motion.div>
+          <div key={p.label} className="grid grid-cols-[112px_minmax(0,1fr)_40px_44px] items-center gap-3 text-[13px]">
+            <span className="truncate text-text2">{p.label}</span>
+            <div className="h-5 overflow-hidden rounded-[3px] bg-black/[.06]">
+              <div className="h-full rounded-[3px]" style={{ width: `${Math.max(p.valor > 0 ? 2 : 0, (p.valor / max) * 100)}%`, background: "rgba(28,27,25,.72)" }} />
             </div>
-            <span className="tnum w-11 shrink-0 text-[10.5px] font-semibold text-faint">
-              {conv !== null ? `${conv}%` : ""}
-            </span>
+            <span className="tnum text-right font-mono">{p.valor}</span>
+            <span className="tnum text-right font-mono text-[11px] text-text2">{conv !== null ? `${conv} %` : ""}</span>
           </div>
         );
       })}
     </div>
-  );
-}
-
-/* ── Área de conversaciones (14 días) ── */
-
-export function AreaChart({ serie, color = "var(--color-violet)" }: { serie: number[]; color?: string }) {
-  const W = 560;
-  const H = 130;
-  const PAD = 8;
-  const max = Math.max(...serie) * 1.15;
-  const px = (i: number) => PAD + (i / (serie.length - 1)) * (W - PAD * 2);
-  const py = (v: number) => H - PAD - (v / max) * (H - PAD * 2);
-
-  // Curva suave (Catmull-Rom → Bézier)
-  let d = `M ${px(0)} ${py(serie[0])}`;
-  for (let i = 0; i < serie.length - 1; i++) {
-    const p0 = serie[Math.max(0, i - 1)];
-    const p1 = serie[i];
-    const p2 = serie[i + 1];
-    const p3 = serie[Math.min(serie.length - 1, i + 2)];
-    const c1x = px(i) + (px(i + 1) - px(Math.max(0, i - 1))) / 6;
-    const c1y = py(p1) + (py(p2) - py(p0)) / 6;
-    const c2x = px(i + 1) - (px(Math.min(serie.length - 1, i + 2)) - px(i)) / 6;
-    const c2y = py(p2) - (py(p3) - py(p1)) / 6;
-    d += ` C ${c1x} ${c1y}, ${c2x} ${c2y}, ${px(i + 1)} ${py(p2)}`;
-  }
-
-  const ultimo = serie.length - 1;
-
-  return (
-    <svg viewBox={`0 0 ${W} ${H}`} className="h-auto w-full">
-      <defs>
-        <linearGradient id="area-fill" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor={color} stopOpacity="0.28" />
-          <stop offset="100%" stopColor={color} stopOpacity="0" />
-        </linearGradient>
-      </defs>
-      {[0.25, 0.5, 0.75].map((f) => (
-        <line key={f} x1={PAD} x2={W - PAD} y1={H * f} y2={H * f} stroke="color-mix(in srgb, var(--color-paper) 5%, transparent)" strokeDasharray="3 5" />
-      ))}
-      <motion.path
-        d={`${d} L ${px(ultimo)} ${H - PAD} L ${px(0)} ${H - PAD} Z`}
-        fill="url(#area-fill)"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: 0.9, delay: 0.3 }}
-      />
-      <motion.path
-        d={d}
-        fill="none"
-        stroke={color}
-        strokeWidth="2.5"
-        strokeLinecap="round"
-        initial={{ pathLength: 0 }}
-        animate={{ pathLength: 1 }}
-        transition={{ duration: 1.1, ease: "easeOut" }}
-      />
-      <motion.circle
-        cx={px(ultimo)}
-        cy={py(serie[ultimo])}
-        r="4.5"
-        fill={color}
-        initial={{ scale: 0 }}
-        animate={{ scale: 1 }}
-        transition={{ delay: 1, type: "spring", stiffness: 400, damping: 18 }}
-      />
-      <circle cx={px(ultimo)} cy={py(serie[ultimo])} r="9" fill={color} opacity="0.2">
-        <animate attributeName="r" values="7;12;7" dur="2.4s" repeatCount="indefinite" />
-      </circle>
-    </svg>
   );
 }

@@ -1,4 +1,5 @@
 import { AnimatePresence, motion } from "framer-motion";
+import { MedidaChip } from "../components/ui";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   downloadComparisonImage,
@@ -23,7 +24,6 @@ import {
   IconImagen,
   IconRefresh,
   IconSearch,
-  IconSparkle,
   IconTire,
   IconX,
 } from "../components/icons";
@@ -305,7 +305,7 @@ export function Cotizador() {
   }
 
   return (
-    <div className="flex h-full min-h-0 flex-col px-4 pb-5">
+    <div className="flex h-full min-h-0 flex-col px-4 pb-4 md:px-8 md:pb-8">
       <SearchBar
         query={query}
         setQuery={setQuery}
@@ -322,21 +322,15 @@ export function Cotizador() {
               setQuery(value);
               void runSearch(value);
             }}
-            className="medida-chip shrink-0 rounded-lg px-2.5 py-1.5 text-[10.5px] text-muted transition-colors hover:text-paper"
-            style={{
-              background:
-                "color-mix(in srgb, var(--color-paper) 5%, transparent)",
-              border:
-                "1px solid color-mix(in srgb, var(--color-paper) 8%, transparent)",
-            }}
+            className="btn-quiet h-[30px] shrink-0 rounded-[6px] px-2.5 font-mono text-[12px] text-text2"
           >
-            {value}
+            {value.replace(/R(\d)/, " R$1")}
           </button>
         ))}
       </div>
 
-      <div className="grid min-h-0 flex-1 gap-2.5 lg:grid-cols-[210px_minmax(0,1fr)_330px]">
-        <aside className="glass hidden min-h-0 overflow-y-auto rounded-3xl p-4 lg:block">
+      <div className="grid min-h-0 flex-1 gap-3 lg:grid-cols-[210px_minmax(0,1fr)_330px]">
+        <aside className="hidden min-h-0 overflow-y-auto rounded-[10px] border border-line bg-surface p-4 lg:block">
           <FilterPanel
             products={products}
             brands={brands}
@@ -370,16 +364,16 @@ export function Cotizador() {
           ) : (
             <>
               <div className="mb-2 flex items-center justify-between px-1">
-                <p className="text-xs text-muted">
-                  <strong className="text-paper">{visibleProducts.length}</strong>{" "}
+                <p className="text-[13px]">
+                  <strong className="font-semibold">{visibleProducts.length}</strong>{" "}
                   opciones visibles para{" "}
-                  <span className="medida-chip text-paper">{query}</span>
+                  <span className="font-mono">{query}</span>
                 </p>
-                <p className="hidden text-[10px] text-faint sm:block">
+                <p className="hidden text-[12px] text-text2 sm:block">
                   Los mensajes usan exactamente estos filtros
                 </p>
               </div>
-              <div className="grid gap-2.5 sm:grid-cols-2 2xl:grid-cols-3">
+              <div className="grid gap-3 sm:grid-cols-2 2xl:grid-cols-3">
                 <AnimatePresence mode="popLayout">
                   {visibleProducts.map((product) => (
                     <ProductCard
@@ -403,7 +397,7 @@ export function Cotizador() {
           )}
         </main>
 
-        <aside className="glass hidden min-h-0 overflow-y-auto rounded-3xl p-4 lg:block">
+        <aside className="hidden min-h-0 overflow-y-auto rounded-[10px] border border-line bg-surface p-4 lg:block">
           <ActionPanel
             mode={panelMode}
             setMode={setPanelMode}
@@ -431,24 +425,24 @@ export function Cotizador() {
         </aside>
       </div>
 
-      <div className="glass-strong fixed inset-x-3 bottom-20 z-30 flex items-center gap-2 rounded-2xl p-2.5 shadow-pop lg:hidden">
+      <div className="fixed inset-x-4 bottom-[84px] z-30 flex items-center gap-2 rounded-[8px] border border-line bg-surface p-2 shadow-pop lg:hidden">
         <button
           onClick={() => void copyOptions("customer")}
-          className="flex-1 rounded-xl bg-paper/[.07] px-2 py-2 text-[10px] font-extrabold"
+          className="btn-quiet h-10 flex-1 rounded-[6px] px-2 text-[12px]"
         >
           <span className="inline-flex items-center justify-center gap-1"><IconDoc size={12} /> {visibleProducts.length} opciones</span>
         </button>
         <button
           onClick={() => void createComparisonPdf()}
           disabled={compareProducts.length < 2}
-          className="flex-1 rounded-xl bg-paper/[.07] px-2 py-2 text-[10px] font-extrabold disabled:opacity-35"
+          className="btn-quiet h-10 flex-1 rounded-[6px] px-2 text-[12px]"
         >
           <span className="inline-flex items-center justify-center gap-1"><IconComparar size={12} /> Comparar {compareProducts.length}/3</span>
         </button>
         <button
           onClick={() => void createQuotePdf()}
           disabled={!quoteProduct}
-          className="btn-aurora flex-1 rounded-xl px-2 py-2 text-[10px] font-extrabold disabled:opacity-35"
+          className="btn-signal h-10 flex-1 rounded-[6px] px-2 text-[12px]"
         >
           Cotizar
         </button>
@@ -475,38 +469,38 @@ function SearchBar({
   return (
     <div className="flex flex-wrap items-center gap-2.5 pb-3">
       <form
-        className="glass flex min-w-60 flex-1 items-center gap-2 rounded-2xl px-3 py-2.5 sm:max-w-xl"
+        className="flex h-11 min-w-60 flex-1 items-center gap-2 rounded-[6px] border border-text bg-surface pr-1 pl-3 sm:max-w-[560px]"
         onSubmit={(event) => {
           event.preventDefault();
           void runSearch();
         }}
       >
-        <IconSearch size={17} className="shrink-0 text-faint" />
+        <IconSearch size={17} className="shrink-0 text-text2" />
         <input
           value={query}
           onChange={(event) => setQuery(event.target.value)}
           placeholder="Medida, código, marca o diseño…"
-          className="min-w-0 flex-1 bg-transparent text-sm font-semibold outline-none placeholder:text-faint"
+          className="min-w-0 flex-1 bg-transparent font-mono text-[14px] outline-none"
         />
         <button
           type="submit"
           disabled={loading}
-          className="btn-aurora rounded-xl px-4 py-2 text-xs font-extrabold disabled:opacity-50"
+          className="btn-signal h-[34px] rounded-[4px] px-3.5 text-[13px]"
         >
           Buscar
         </button>
       </form>
       <button
         onClick={() => void runSearch()}
-        className="glass grid h-11 w-11 place-items-center rounded-xl text-muted hover:text-paper"
+        className="btn-quiet grid h-11 w-11 place-items-center rounded-[6px] text-text2"
         title="Actualizar búsqueda"
       >
         <IconRefresh size={17} className={loading ? "animate-spin" : ""} />
       </button>
       {catalogMeta && (
-        <span className="glass hidden items-center gap-2 rounded-full px-3 py-2 text-[11px] font-bold text-muted md:flex">
+        <span className="hidden items-center gap-2 text-[12px] text-text2 md:flex">
           <span className="pulse-dot" />
-          {catalogMeta.items} llantas · {catalogMeta.source ?? "catálogo"}
+          <span className="font-mono">{catalogMeta.items}</span> llantas · {catalogMeta.source ?? "catálogo"}
         </span>
       )}
     </div>
@@ -534,18 +528,15 @@ function ProductCard({
   return (
     <motion.article
       layout
-      initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, scale: 0.97 }}
-      className="glass overflow-hidden rounded-3xl"
+      className="flex flex-col overflow-hidden rounded-[8px] border bg-surface"
       style={{
-        borderColor: selected ? "var(--color-violet)" : undefined,
-        opacity: disabled ? 0.68 : 1,
+        borderColor: selected ? "var(--color-signal)" : "var(--color-line)",
+        opacity: disabled ? 0.6 : 1,
       }}
     >
       <button
         onClick={onPreview}
-        className="relative block aspect-[16/10] w-full overflow-hidden bg-[#f8f7f2]"
+        className="relative block aspect-[16/10] w-full overflow-hidden border-b border-line bg-bg"
         aria-label={`Ver foto de ${product.design}`}
       >
         {product.imageUrl && !imageBroken ? (
@@ -559,47 +550,40 @@ function ProductCard({
         ) : (
           <PremiumPlaceholder brand={product.brand} />
         )}
-        <span
-          className="absolute top-3 left-3 rounded-full px-2.5 py-1 text-[10px] font-extrabold text-white"
-          style={{ background: brandColor(product.brand) }}
-        >
-          {product.brand}
-        </span>
+        <span className="absolute top-2.5 left-3 text-[12px] font-semibold">{product.brand}</span>
         <AvailabilityBadge value={product.availability} />
-        <span className="absolute right-3 bottom-3 rounded-full border border-black/[.07] bg-white/90 px-2 py-1 text-[11px] font-bold text-black/60 shadow-sm backdrop-blur-sm">
+        <span className="tnum absolute right-3 bottom-2.5 font-mono text-[11px] text-text2">
           {Math.max(0, product.stock).toLocaleString("es-EC")} en inventario
         </span>
       </button>
-      <div className="p-4">
-        <p className="truncate text-base font-extrabold text-paper">
+      <div className="flex flex-1 flex-col gap-1 px-4 pt-3.5 pb-4">
+        <p className="truncate text-[15px] font-semibold">
           {product.design}
         </p>
-        <p className="mt-1 medida-chip text-xs text-muted">
-          {product.sizeLabel ?? product.name}
-        </p>
+        <div>{product.sizeLabel ? <MedidaChip medida={product.sizeLabel} /> : <span className="text-[13px] text-text2">{product.name}</span>}</div>
         {product.loadSpeed && (
-          <p className="mt-1 text-[10.5px] text-faint">{specLabel(product)}</p>
+          <p className="font-mono text-[12px] text-text2">{specLabel(product)}</p>
         )}
-        <div className="mt-4 flex items-end justify-between gap-3">
-          <div>
-            <p className="microlabel">Precio hoy</p>
-            <p className="tnum mt-1 text-xl font-extrabold text-lime">
+        <div className="mt-3 flex items-end justify-between gap-3">
+          <div className="flex flex-col gap-0.5">
+            <p className="text-[12px] text-text2">Precio hoy</p>
+            <p className="tnum font-mono text-[22px] leading-[1.1] font-bold">
               {money(product.salePrice)}
             </p>
-            <p className="tnum text-[10px] text-faint">
-              <span className="line-through">{money(product.listPrice)}</span>{" "}
-              <span className="font-extrabold text-ok">
-                −{product.discountPercent}%
-              </span>
+            <p className="tnum font-mono text-[11px] text-text2">
+              <s>{money(product.listPrice)}</s>{" · "}
+              <b className="font-semibold text-ok">
+                −{product.discountPercent} %
+              </b>
             </p>
           </div>
           <button
             onClick={onToggle}
             disabled={disabled}
-            className={`grid h-10 w-10 place-items-center rounded-xl font-bold transition-all ${
+            className={`grid h-10 w-10 place-items-center rounded-[6px] border transition-colors ${
               selected
-                ? "btn-aurora"
-                : "bg-paper/[.06] text-muted hover:text-paper"
+                ? "border-signal bg-signal-tint text-signal"
+                : "border-line bg-surface text-text hover:bg-bg"
             } disabled:cursor-not-allowed disabled:opacity-40`}
             aria-label={
               selected ? "Quitar de comparación" : "Agregar a comparación"
@@ -609,16 +593,14 @@ function ProductCard({
             {selected ? <IconCheck size={18} /> : <IconComparar size={16} />}
           </button>
         </div>
-        <div className="mt-3 border-t border-paper/[.06] pt-3 text-[10px] leading-relaxed text-muted">
-          <p className="flex items-center gap-1.5"><IconSparkle size={11} className="shrink-0" /> {product.warranty.factory}</p>
-          {product.warranty.roadHazard && (
-            <p className="flex items-center gap-1.5"><IconCandado size={11} className="shrink-0" /> {product.warranty.roadHazard}</p>
-          )}
+        <div className="mt-3 border-t border-line pt-2.5 text-[12px] leading-relaxed text-text2">
+          <p>{product.warranty.factory}</p>
+          {product.warranty.roadHazard && <p>{product.warranty.roadHazard}</p>}
         </div>
         <button
           onClick={onQuote}
           disabled={disabled}
-          className="btn-aurora mt-3 w-full rounded-xl px-3 py-2.5 text-xs font-extrabold disabled:opacity-40"
+          className="mt-2.5 h-[38px] w-full rounded-[6px] border border-text bg-surface text-[13px] font-semibold transition-colors hover:bg-bg disabled:opacity-40"
         >
           Cotizar esta llanta
         </button>
@@ -654,9 +636,9 @@ function FilterPanel({
     products.filter((product) => product.availability === value).length;
   return (
     <div>
-      <div className="mb-3 flex items-center justify-between">
-        <p className="microlabel">Marcas visibles</p>
-        <span className="tnum text-[11px] text-faint">
+      <div className="mb-1.5 flex items-baseline justify-between px-1">
+        <p className="text-[13px] font-semibold">Marcas visibles</p>
+        <span className="tnum font-mono text-[12px] text-text2">
           {selectedBrands.length}/{brands.length}
         </span>
       </div>
@@ -676,12 +658,11 @@ function FilterPanel({
           label={value}
           count={products.filter((product) => product.brand === value).length}
           checked={selectedBrands.includes(value)}
-          color={brandColor(value)}
           onClick={() => toggleBrand(value)}
         />
       ))}
 
-      <p className="microlabel mt-6 mb-3">Disponibilidad visible</p>
+      <p className="mt-[18px] mb-1.5 px-1 text-[13px] font-semibold">Disponibilidad</p>
       <CheckFilter
         label="Todo"
         count={products.length}
@@ -698,39 +679,36 @@ function FilterPanel({
         label="Disponible"
         count={count("available")}
         checked={selectedAvailability.includes("available")}
-        color="var(--color-ok)"
         onClick={() => toggleAvailability("available")}
       />
       <CheckFilter
         label="Consultar"
         count={count("check")}
         checked={selectedAvailability.includes("check")}
-        color="var(--color-sand)"
         onClick={() => toggleAvailability("check")}
       />
       <CheckFilter
         label="Agotada"
         count={count("out")}
         checked={selectedAvailability.includes("out")}
-        color="var(--color-red)"
         onClick={() => toggleAvailability("out")}
       />
 
-      <p className="microlabel mt-6 mb-3">Orden</p>
+      <p className="mt-[18px] mb-2 px-1 text-[13px] font-semibold">Orden</p>
       <select
         value={sort}
         onChange={(event) => setSort(event.target.value as Sort)}
-        className="gp-field w-full rounded-xl px-3 py-2 text-xs font-bold"
+        className="gp-field h-9 py-0 text-[13px]"
       >
         <option value="brand">Por marca</option>
         <option value="price-asc">Menor precio hoy</option>
         <option value="price-desc">Mayor precio hoy</option>
       </select>
 
-      <div className="mt-6 rounded-2xl bg-paper/[.045] p-3 text-[10px] leading-relaxed text-muted">
-        El mensaje para cliente y la imagen incluyen únicamente las opciones
-        que dejan activas estos filtros.
-      </div>
+      <p className="mt-[18px] text-[12px] leading-relaxed text-text2">
+        El mensaje para el cliente y la imagen incluyen sólo las opciones que
+        dejan activas estos filtros.
+      </p>
     </div>
   );
 }
@@ -739,40 +717,27 @@ function CheckFilter({
   label,
   count,
   checked,
-  color,
   onClick,
 }: {
   label: string;
   count: number;
   checked: boolean;
-  color?: string;
   onClick: () => void;
 }) {
   return (
     <button
       onClick={onClick}
-      className="mb-1 flex w-full items-center gap-2 rounded-xl px-2.5 py-2 text-left text-[11px] font-bold transition-colors"
-      style={{
-        color: checked ? "var(--color-paper)" : "var(--color-muted)",
-        background: checked
-          ? "color-mix(in srgb, var(--color-violet) 13%, transparent)"
-          : "transparent",
-      }}
+      role="checkbox"
+      aria-checked={checked}
+      className={`flex h-[34px] w-full items-center gap-2 rounded-[6px] px-2 text-left text-[13px] transition-colors hover:bg-black/[.04] ${checked ? "text-text" : "text-text2"}`}
     >
       <span
-        className="grid h-4 w-4 place-items-center rounded-full border text-[11px]"
-        style={{
-          color: checked ? "white" : "transparent",
-          borderColor: color ?? "var(--color-faint)",
-          background: checked ? color ?? "var(--color-violet)" : "transparent",
-        }}
+        className={`grid h-4 w-4 place-items-center rounded-[4px] border ${checked ? "border-text bg-text text-white" : "border-line-strong bg-surface text-transparent"}`}
       >
-        {checked && <IconCheck size={10} />}
+        {checked && <IconCheck size={11} strokeWidth={2.4} />}
       </span>
       <span className="flex-1">{label}</span>
-      <span className="tnum rounded-full bg-paper/[.06] px-1.5 py-0.5 text-[11px]">
-        {count}
-      </span>
+      <span className="tnum font-mono text-[12px] text-text2">{count}</span>
     </button>
   );
 }
@@ -822,7 +787,7 @@ function ActionPanel({
 }) {
   return (
     <div className="flex min-h-full flex-col">
-      <div className="grid grid-cols-3 gap-1 rounded-xl bg-paper/[.04] p-1">
+      <div className="grid grid-cols-3 rounded-[6px] border border-line bg-bg p-0.5">
         <PanelTab
           label={`Opciones ${visibleProducts.length}`}
           active={mode === "options"}
@@ -874,7 +839,7 @@ function ActionPanel({
         />
       )}
       {notice && (
-        <p className="mt-auto rounded-xl bg-paper/[.06] px-3 py-2 text-[10.5px] text-muted">
+        <p className="mt-3 text-center text-[12px] text-text2">
           {notice}
         </p>
       )}
@@ -899,16 +864,17 @@ function OptionsPanel({
 }) {
   return (
     <div className="flex flex-1 flex-col pt-4">
-      <p className="microlabel">Opciones filtradas</p>
-      <p className="mt-2 text-[11px] leading-relaxed text-muted">
+      <p className="text-[13px] font-semibold">Opciones filtradas</p>
+      <p className="mt-1.5 text-[12px] leading-relaxed text-text2">
         Estas acciones usan las {products.length} llantas visibles en el centro,
         agrupadas por marca. No dependen de la comparativa.
       </p>
-      <label className="microlabel mt-5">Cliente</label>
+      <label className="mt-4 text-[12px] text-text2" htmlFor="cliente-opciones">Cliente</label>
       <input
+        id="cliente-opciones"
         value={customerName}
         onChange={(event) => setCustomerName(event.target.value)}
-        className="gp-field mt-2 w-full rounded-xl px-3 py-2.5 text-xs font-semibold"
+        className="gp-field mt-1.5 text-[13px]"
         placeholder="Nombre opcional"
       />
       <div className="mt-auto pt-5">
@@ -958,37 +924,38 @@ function ComparePanel({
   const ready = products.length >= 2;
   return (
     <div className="flex flex-1 flex-col pt-4">
-      <p className="microlabel">Comparar alternativas</p>
-      <p className="mt-2 text-[11px] leading-relaxed text-muted">
-        Elige 2–3 modelos. Se comparan por unidad; aquí nunca se suman como una
+      <p className="text-[13px] font-semibold">Comparar alternativas</p>
+      <p className="mt-1.5 text-[12px] leading-relaxed text-text2">
+        Elegí 2 o 3 modelos. Se comparan por unidad; aquí nunca se suman como una
         compra.
       </p>
-      <div className="mt-4 flex flex-col gap-2">
+      <div className="mt-3.5 flex flex-col gap-2">
         {products.map((product) => (
           <div
             key={product.id}
-            className="flex items-center gap-2 rounded-2xl bg-paper/[.045] p-3"
+            className="flex items-center gap-2.5 rounded-[8px] border border-line p-2.5"
           >
             {product.imageUrl ? (
               <img
                 src={product.imageUrl}
-                className="h-12 w-12 rounded-lg bg-white object-contain"
+                className="h-12 w-12 rounded-[6px] border border-line bg-bg object-contain"
                 alt=""
               />
             ) : (
-              <IconTire size={30} className="text-faint" />
+              <span className="grid h-12 w-12 place-items-center rounded-[6px] border border-line bg-bg text-text2"><IconTire size={24} /></span>
             )}
             <div className="min-w-0 flex-1">
-              <p className="truncate text-xs font-extrabold">
+              <p className="truncate text-[13px] font-semibold">
                 {product.brand} {product.design}
               </p>
-              <p className="tnum mt-0.5 text-[10px] text-lime">
-                {money(product.salePrice)}
+              <p className="tnum mt-0.5 font-mono text-[12px] text-text2">
+                {money(product.salePrice)} c/u
               </p>
             </div>
             <button
               onClick={() => remove(product.id)}
-              className="text-faint hover:text-red"
+              className="grid h-7 w-7 place-items-center text-text2 hover:text-text"
+              aria-label="Quitar de la comparación"
             >
               <IconX size={14} />
             </button>
@@ -996,8 +963,8 @@ function ComparePanel({
         ))}
       </div>
       {!ready && (
-        <p className="mt-4 rounded-xl bg-paper/[.04] p-3 text-[10.5px] text-muted">
-          Selecciona al menos dos modelos con el botón Comparar de cada tarjeta.
+        <p className="mt-3.5 text-[12px] text-text2">
+          Elegí al menos dos modelos con el botón Comparar de cada tarjeta.
         </p>
       )}
       <div className="mt-auto pt-5">
@@ -1053,10 +1020,10 @@ function QuotePanel({
     return (
       <div className="grid flex-1 place-items-center py-12 text-center">
         <div>
-          <IconTire size={42} className="mx-auto text-faint" />
-          <p className="mt-3 text-xs font-bold">Elige una llanta</p>
-          <p className="mt-1 text-[10.5px] text-muted">
-            Pulsa “Cotizar esta llanta” en el modelo decidido.
+          <IconTire size={24} className="mx-auto text-text3" />
+          <p className="mt-3 text-[15px] font-semibold">Elegí una llanta</p>
+          <p className="mt-1 text-[13px] text-text2">
+            Tocá «Cotizar esta llanta» en el modelo decidido.
           </p>
         </div>
       </div>
@@ -1064,36 +1031,35 @@ function QuotePanel({
   }
   return (
     <div className="flex flex-1 flex-col pt-4">
-      <p className="microlabel">Cotización final</p>
-      <div className="mt-3 flex items-center gap-3 rounded-2xl bg-paper/[.045] p-3">
+      <p className="text-[13px] font-semibold">Cotización final</p>
+      <div className="mt-3 flex items-center gap-3 rounded-[8px] border border-line p-2.5">
         {product.imageUrl && (
           <img
             src={product.imageUrl}
             alt=""
-            className="h-16 w-16 rounded-xl bg-white object-contain"
+            className="h-14 w-14 rounded-[6px] border border-line bg-bg object-contain"
           />
         )}
         <div className="min-w-0">
-          <p className="truncate text-sm font-extrabold">
+          <p className="truncate text-[13px] font-semibold">
             {product.brand} {product.design}
           </p>
-          <p className="medida-chip mt-1 text-[10px] text-muted">
-            {product.sizeLabel}
-          </p>
-          <p className="tnum mt-1 text-xs font-extrabold text-lime">
+          {product.sizeLabel && <div className="mt-1"><MedidaChip medida={product.sizeLabel} size="sm" /></div>}
+          <p className="tnum mt-1 font-mono text-[12px] text-text2">
             {money(product.salePrice)} c/u
           </p>
         </div>
       </div>
-      <label className="microlabel mt-5">Cliente</label>
+      <label className="mt-4 text-[12px] text-text2" htmlFor="cliente-cotizacion">Cliente</label>
       <input
+        id="cliente-cotizacion"
         value={customerName}
         onChange={(event) => setCustomerName(event.target.value)}
-        className="gp-field mt-2 w-full rounded-xl px-3 py-2.5 text-xs font-semibold"
+        className="gp-field mt-1.5 text-[13px]"
         placeholder="Nombre del cliente"
       />
       <div className="mt-4 flex items-end justify-between gap-3">
-        <label className="text-[10px] font-bold text-muted">
+        <label className="text-[12px] text-text2">
           Cantidad
           <input
             type="number"
@@ -1105,12 +1071,12 @@ function QuotePanel({
                 Math.max(1, Math.min(8, Number(event.target.value) || 1)),
               )
             }
-            className="gp-field tnum mt-2 block w-20 rounded-xl px-3 py-2 text-center text-sm font-bold"
+            className="gp-field tnum mt-1.5 block w-20 text-center font-mono text-[14px]"
           />
         </label>
         <div className="text-right">
-          <p className="microlabel">Total con IVA</p>
-          <p className="tnum mt-1 text-2xl font-extrabold text-lime">
+          <p className="text-[12px] text-text2">Total con IVA</p>
+          <p className="tnum mt-0.5 font-mono text-[22px] font-bold">
             {money(product.salePrice * quantity)}
           </p>
         </div>
@@ -1155,13 +1121,11 @@ function PanelTab({
   return (
     <button
       onClick={onClick}
-      className="rounded-lg px-1.5 py-2 text-[11px] font-extrabold transition-colors"
-      style={{
-        color: active ? "var(--color-paper)" : "var(--color-muted)",
-        background: active
-          ? "color-mix(in srgb, var(--color-violet) 24%, transparent)"
-          : "transparent",
-      }}
+      role="tab"
+      aria-selected={active}
+      className={`flex h-8 items-center justify-center rounded-[4px] px-1 text-[12px] whitespace-nowrap transition-colors ${
+        active ? "bg-surface font-semibold text-signal shadow-[0_1px_2px_rgba(28,27,25,.08)]" : "font-medium text-text2 hover:text-text"
+      }`}
     >
       {label}
     </button>
@@ -1189,12 +1153,8 @@ function ActionButton({
     <button
       onClick={onClick}
       disabled={disabled}
-      className={`mb-2 flex w-full items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-xs font-extrabold disabled:opacity-40 ${
-        primary
-          ? "btn-aurora"
-          : success
-            ? "bg-ok/90 text-white"
-            : "bg-paper/[.07]"
+      className={`mb-2 flex h-10 w-full items-center justify-center gap-2 rounded-[6px] px-3 text-[13px] ${
+        primary ? "btn-signal" : success ? "btn-quiet" : "btn-quiet"
       }`}
     >
       {icon}
@@ -1214,22 +1174,25 @@ function PhotoModal({
     <AnimatePresence>
       {product && (
         <motion.div
-          className="fixed inset-0 z-50 grid place-items-center bg-black/70 p-4 backdrop-blur-sm"
+          className="fixed inset-0 z-50 grid place-items-center p-4"
+          style={{ background: "var(--color-scrim)" }}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           onClick={close}
         >
           <motion.div
-            className="relative w-full max-w-xl rounded-3xl bg-[#f8f7f2] p-5 text-[#14213d] shadow-pop"
-            initial={{ scale: 0.94, y: 20 }}
-            animate={{ scale: 1, y: 0 }}
-            exit={{ scale: 0.96, y: 10 }}
+            className="relative w-full max-w-xl rounded-[10px] border border-line bg-surface p-5 text-text shadow-pop"
+            initial={{ y: 8, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: 4, opacity: 0 }}
+            transition={{ duration: 0.2 }}
             onClick={(event) => event.stopPropagation()}
           >
             <button
               onClick={close}
-              className="absolute top-4 right-4 z-10 grid h-9 w-9 place-items-center rounded-full bg-[#14213d]/10"
+              className="btn-quiet absolute top-4 right-4 z-10 grid h-9 w-9 place-items-center rounded-[6px]"
+              aria-label="Cerrar"
             >
               <IconX size={18} />
             </button>
@@ -1243,15 +1206,15 @@ function PhotoModal({
               <PremiumPlaceholder brand={product.brand} />
             )}
             <div className="mt-3 text-center">
-              <p className="text-xl font-black">{product.design}</p>
-              <p className="mt-1 text-sm text-[#667085]">
+              <p className="text-[18px] font-semibold">{product.design}</p>
+              <p className="mt-1 text-[13px] text-text2">
                 {product.brand} · {product.sizeLabel}
               </p>
               {product.imageUrl && (
                 <a
                   href={product.imageUrl}
                   download={`${product.brand}-${product.design}.jpg`}
-                  className="mt-4 inline-flex rounded-xl bg-[#d62828] px-5 py-2.5 text-xs font-extrabold text-white"
+                  className="btn-signal mt-4 inline-flex h-10 items-center rounded-[6px] px-5 text-[13px]"
                 >
                   Descargar foto limpia
                 </a>
@@ -1266,10 +1229,10 @@ function PhotoModal({
 
 function PremiumPlaceholder({ brand }: { brand: string }) {
   return (
-    <div className="grid h-full min-h-40 place-items-center bg-[radial-gradient(circle_at_center,#fff_0%,#efede7_70%)]">
+    <div className="grid h-full min-h-40 place-items-center bg-bg">
       <div className="text-center">
-        <IconTire size={64} className="mx-auto text-[#8f96a3]" />
-        <p className="mt-2 text-[10px] font-black tracking-[.18em] text-[#667085] uppercase">
+        <IconTire size={40} className="mx-auto text-text3" />
+        <p className="mt-2 text-[12px] text-text2">
           {brand} · imagen en validación
         </p>
       </div>
@@ -1279,35 +1242,28 @@ function PremiumPlaceholder({ brand }: { brand: string }) {
 
 function AvailabilityBadge({ value }: { value: CatalogAvailability }) {
   const meta = {
-    available: { label: "Disponible", color: "var(--color-ok)" },
-    check: { label: "Consultar", color: "var(--color-sand)" },
-    out: { label: "Agotada", color: "var(--color-red)" },
+    available: { label: "Disponible", color: "var(--color-ok)", peso: 600 },
+    check: { label: "Por confirmar", color: "var(--color-warn)", peso: 500 },
+    out: { label: "Agotada", color: "var(--color-text2)", peso: 500 },
   }[value];
   return (
-    <span
-      className="absolute top-3 right-3 rounded-full px-2.5 py-1 text-[10px] font-extrabold"
-      style={{
-        color: meta.color,
-        background: `color-mix(in srgb, ${meta.color} 14%, white)`,
-        border: `1px solid color-mix(in srgb, ${meta.color} 40%, transparent)`,
-      }}
-    >
-      ● {meta.label}
+    <span className="absolute top-2.5 right-3 text-[12px]" style={{ color: meta.color, fontWeight: meta.peso }}>
+      {meta.label}
     </span>
   );
 }
 
 function EmptyFilters({ reset }: { reset: () => void }) {
   return (
-    <div className="glass grid min-h-72 place-items-center rounded-3xl p-8 text-center">
+    <div className="grid min-h-72 place-items-center rounded-[10px] border border-line bg-surface p-8 text-center">
       <div>
-        <IconTire size={46} className="mx-auto text-faint" />
-        <p className="mt-4 text-sm font-bold">
+        <IconTire size={24} className="mx-auto text-text3" />
+        <p className="mt-3 text-[15px] font-semibold">
           No hay opciones con estos filtros
         </p>
         <button
           onClick={reset}
-          className="mt-4 rounded-xl bg-paper/[.07] px-4 py-2 text-xs font-extrabold"
+          className="btn-quiet mt-4 h-9 rounded-[6px] px-4 text-[13px]"
         >
           Activar todos
         </button>
@@ -1326,23 +1282,23 @@ function ConnectionError({
   onRetry: () => void;
 }) {
   return (
-    <div className="glass grid min-h-80 place-items-center rounded-3xl p-8 text-center">
+    <div className="grid min-h-80 place-items-center rounded-[10px] border border-line bg-surface p-8 text-center">
       <div className="max-w-sm">
-        <IconCandado size={30} className="mx-auto text-muted" />
-        <p className="mt-4 text-sm font-extrabold">
+        <IconCandado size={24} className="mx-auto text-text3" />
+        <p className="mt-3 text-[15px] font-semibold">
           No pudimos abrir el catálogo
         </p>
-        <p className="mt-2 text-xs leading-relaxed text-muted">{message}</p>
+        <p className="mt-2 text-[13px] leading-relaxed text-text2">{message}</p>
         <div className="mt-5 flex justify-center gap-2">
           <button
             onClick={onConfigure}
-            className="btn-aurora rounded-xl px-4 py-2.5 text-xs font-extrabold"
+            className="btn-signal h-10 rounded-[6px] px-4 text-[13px]"
           >
             Ingresar clave
           </button>
           <button
             onClick={onRetry}
-            className="rounded-xl bg-paper/[.06] px-4 py-2.5 text-xs font-bold"
+            className="btn-quiet h-10 rounded-[6px] px-4 text-[13px]"
           >
             Reintentar
           </button>
@@ -1354,11 +1310,11 @@ function ConnectionError({
 
 function ProductSkeletons() {
   return (
-    <div className="grid gap-2.5 sm:grid-cols-2 2xl:grid-cols-3">
+    <div className="grid gap-3 sm:grid-cols-2 2xl:grid-cols-3" aria-busy="true">
       {Array.from({ length: 6 }, (_, index) => (
         <div
           key={index}
-          className="glass overflow-hidden rounded-3xl"
+          className="overflow-hidden rounded-[8px] border border-line bg-surface"
           style={{ opacity: 1 - index * 0.08 }}
         >
           <div className="skeleton aspect-[16/10]" />
@@ -1392,10 +1348,3 @@ function money(value: number): string {
   }).format(value);
 }
 
-function brandColor(brand: string): string {
-  const normalized = brand.toLowerCase();
-  if (normalized.includes("falken")) return "#1f4e8c";
-  if (normalized.includes("kenda")) return "#d62828";
-  if (normalized.includes("winrun")) return "#16836b";
-  return "#8a8368";
-}

@@ -1,13 +1,13 @@
-import { AnimatePresence, LayoutGroup, MotionConfig, motion } from "framer-motion";
-import { useEffect, useState } from "react";
+import { MotionConfig } from "framer-motion";
+import { useEffect, useState, type ReactNode } from "react";
 import { ConnectionChip, ConnectionGate, SalirButton, UserChip } from "./components/admin-key";
 import { hasAdminKey } from "./data/catalog";
 import { Confetti, Toasts } from "./components/overlays";
-import { IconChart, IconInbox, IconKanban, IconPlay, IconSilencio, IconSonido, IconSparkle, IconStop, IconTire, IconSliders } from "./components/icons";
-import { RacingDetails } from "./components/racing-details";
+import { IconAjustes, IconChart, IconInbox, IconKanban, IconPlay, IconSilencio, IconSonido, IconStop, IconTire } from "./components/icons";
+import { PageHeader } from "./components/ui";
 import { VersionBadge } from "./components/version-badge";
 import { setSonidoActivo, sonidoActivo, sonidoBoton } from "./lib/sound";
-import { Tour, TourButton } from "./components/tour";
+import { Tour } from "./components/tour";
 import { navigate, useRoute, type Route } from "./router";
 import { Ajustes } from "./screens/Ajustes";
 import { Dashboard } from "./screens/Dashboard";
@@ -16,26 +16,19 @@ import { Inbox } from "./screens/Inbox";
 import { Pipeline } from "./screens/Pipeline";
 import { TicketDetail } from "./screens/TicketDetail";
 import { Settings } from "./screens/Settings";
-import { Opportunities } from "./screens/Opportunities";
 import { useHub } from "./store";
 
 import type { PhaseFlags } from "./data/types";
 import type { Permisos } from "./data/realSource";
 
-// `requiere`: fase que desbloquea cada pantalla (null = núcleo, Fase 1, siempre).
-// Inbox y Pipeline son el núcleo. Cotizador y Métricas = Fase 3.
-// Oportunidades (seguimientos) = Fase 4.
-// `corto`: etiqueta para la tab bar móvil, donde 6 tabs se reparten ~60px
-// cada una y "Oportunidades" no entra sin truncarse a media palabra.
+// Cuatro entradas. Ajustes no es una pestaña: es el engranaje al pie del
+// rail (y arriba a la derecha en el teléfono). `requiere`: fase que
+// desbloquea cada pantalla (null = núcleo, siempre).
 const NAV = [
-  { id: "inbox", label: "Inbox", corto: "Inbox", icon: IconInbox, requiere: null },
-  { id: "opportunities", label: "Oportunidades", corto: "Oportun.", icon: IconSparkle, requiere: "fase4" },
-  { id: "pipeline", label: "Pipeline", corto: "Pipeline", icon: IconKanban, requiere: null },
-  { id: "cotizador", label: "Cotizador", corto: "Cotizador", icon: IconTire, requiere: "fase3" },
-  { id: "dashboard", label: "Métricas", corto: "Métricas", icon: IconChart, requiere: "fase3" },
-  // Ajustes va siempre visible: apagar el bot o bajar una promoción no puede
-  // depender de qué fase esté activa.
-  { id: "ajustes", label: "Ajustes", corto: "Ajustes", icon: IconSliders, requiere: null },
+  { id: "inbox", label: "Inbox", icon: IconInbox, requiere: null },
+  { id: "pipeline", label: "Pipeline", icon: IconKanban, requiere: null },
+  { id: "cotizador", label: "Cotizador", icon: IconTire, requiere: "fase3" },
+  { id: "dashboard", label: "Métricas", icon: IconChart, requiere: "fase3" },
 ] as const;
 
 /**
@@ -46,7 +39,6 @@ const NAV = [
 const PERMISO_DE_VISTA: Record<string, keyof Permisos> = {
   inbox: "verInbox",
   ticket: "verInbox",
-  opportunities: "verOportunidades",
   pipeline: "verKanban",
   cotizador: "usarCotizador",
   dashboard: "verMetricas",
@@ -58,20 +50,21 @@ function pantallaPermitida(vista: string, phases: PhaseFlags, permisos: Permisos
   const llave = PERMISO_DE_VISTA[vista];
   if (llave && !permisos[llave]) return false;
   if (vista === "cotizador" || vista === "dashboard") return phases.fase3;
-  if (vista === "opportunities") return phases.fase4;
   return true;
 }
 
 const TITULOS: Record<string, { titulo: string; sub: string }> = {
-  inbox: { titulo: "Inbox", sub: "cada cliente es un ticket" },
-  opportunities: { titulo: "Oportunidades", sub: "clientes por recuperar y ventas en recta final" },
-  pipeline: { titulo: "Pipeline", sub: "tu guion de venta, en vivo" },
-  dashboard: { titulo: "Métricas", sub: "el negocio de un vistazo" },
-  ajustes: { titulo: "Ajustes", sub: "bot, negocio, piezas, avisos y usuarios" },
-  cotizador: { titulo: "Cotizador", sub: "inventario y precios reales de Contífico" },
-  settings: { titulo: "Configuración técnica", sub: "canal, prompts y salud del sistema" },
-  ticket: { titulo: "Conversación", sub: "ticket en detalle" },
+  inbox: { titulo: "Inbox", sub: "Lo que escribieron hoy y quién lo atiende" },
+  pipeline: { titulo: "Pipeline", sub: "Tickets abiertos, de izquierda a derecha según avanzan" },
+  dashboard: { titulo: "Métricas", sub: "El negocio de un vistazo" },
+  ajustes: { titulo: "Ajustes", sub: "Negocio, seguimientos, avisos y usuarios" },
+  cotizador: { titulo: "Cotizador", sub: "Inventario y precios reales de Contífico" },
+  settings: { titulo: "Configuración técnica", sub: "WhatsApp, encendido y manual del bot" },
+  ticket: { titulo: "Conversación", sub: "" },
 };
+
+/** Pantallas que ya dibujan su propia cabecera (tienen acciones dentro). */
+const CABECERA_PROPIA = new Set<string>(["inbox", "ticket", "pipeline", "dashboard"]);
 
 function navActivo(route: Route): string {
   return route.vista === "ticket" ? "inbox" : route.vista;
@@ -92,8 +85,7 @@ export default function App() {
   // Si la fase que habilitaba esta pantalla se apaga, se vuelve al Inbox.
   useEffect(() => {
     if (!pantallaPermitida(route.vista, phases, permisos)) {
-      // El refugio es la primera pantalla que este usuario SÍ puede ver: a
-      // alguien sin Inbox no se lo puede mandar al Inbox en bucle.
+      // El refugio es la primera pantalla que este usuario SÍ puede ver.
       const refugio = NAV.find((n) =>
         (!n.requiere || phases[n.requiere]) && pantallaPermitida(n.id, phases, permisos));
       navigate((refugio?.id ?? "inbox") as Parameters<typeof navigate>[0]);
@@ -117,254 +109,155 @@ export default function App() {
 
   const abiertos = tickets.filter((t) => t.estado === "abierto").length;
   const meta = TITULOS[route.vista];
+  const enTicket = route.vista === "ticket";
+  const enAjustes = route.vista === "ajustes" || route.vista === "settings";
+
+  const toggleSonido = () => {
+    const next = !audioOn;
+    setSonidoActivo(next);
+    setAudioOn(next);
+  };
 
   return (
     <MotionConfig reducedMotion="user">
-      <div className="relative z-10 flex h-full">
-        <RacingDetails />
-        {/* ── Rail de navegación (desktop) ── */}
-        <nav className="glass z-20 m-3 mr-0 hidden w-16 flex-col items-center gap-1.5 rounded-3xl py-4 md:flex">
-          <button
-            onClick={() => navigate("settings")}
-            className="mb-3 grid h-10 w-10 place-items-center rounded-2xl bg-red text-[13px] font-extrabold text-white shadow-soft"
-            aria-label="Depot Tire Hub"
+      <div className="flex h-full">
+        {/* ── Rail (escritorio) ── */}
+        <aside className="hidden w-56 shrink-0 flex-col border-r border-line px-4 pt-[22px] pb-5 md:flex">
+          <div className="flex flex-col gap-0.5 px-3 pb-[26px]">
+            <span className="text-[15px] font-semibold tracking-[-0.01em]">Depot Tire</span>
+            <span className="text-[12px] text-text2">Hub de ventas</span>
+          </div>
+          <nav className="flex flex-col gap-0.5" aria-label="Principal">
+            {navVisible.map((item) => (
+              <NavItem
+                key={item.id}
+                activo={navActivo(route) === item.id}
+                onClick={() => navigate(item.id)}
+                icon={<item.icon size={18} />}
+                label={item.label}
+                tour={`nav-${item.id}`}
+                aside={item.id === "inbox" && abiertos > 0 ? abiertos : undefined}
+              />
+            ))}
+          </nav>
+
+          <div className="mt-auto flex flex-col gap-0.5">
+            <EstadoBot activo={power.activo} />
+            <button
+              type="button"
+              onClick={toggleSonido}
+              aria-pressed={audioOn}
+              className="flex h-9 items-center gap-3 rounded-[6px] px-3 text-[13px] text-text2 transition-colors hover:bg-black/[.03] hover:text-text"
+            >
+              {audioOn ? <IconSonido size={18} /> : <IconSilencio size={18} />}
+              <span className="flex-1 text-left">{audioOn ? "Sonido activado" : "Sonido apagado"}</span>
+            </button>
+            {pantallaPermitida("ajustes", phases, permisos) && (
+              <NavItem
+                activo={enAjustes}
+                onClick={() => navigate("ajustes")}
+                icon={<IconAjustes size={18} />}
+                label="Ajustes"
+                tour="nav-ajustes"
+                className="mt-1.5"
+              />
+            )}
+
+            {/* Sesión y entorno: lo mínimo, en voz baja */}
+            <div className="mt-3 flex flex-col gap-2 border-t border-line px-1 pt-3">
+              {dataMode === "real" ? (
+                <ConnectionChip estado={conexion} fase={faseActiva} onClick={() => navigate("settings")} />
+              ) : (
+                <button
+                  type="button"
+                  onClick={toggleDemo}
+                  className="btn-quiet flex h-8 items-center justify-center gap-2 rounded-[6px] text-[12px]"
+                >
+                  {demo ? <IconStop size={12} /> : <IconPlay size={12} />}
+                  {demo ? "Detener demo" : "Correr demo"}
+                </button>
+              )}
+              <div className="flex items-center justify-between gap-2">
+                {dataMode === "real" && hasAdminKey() ? <UserChip nombre={usuario?.nombre ?? null} /> : <span />}
+                <VersionBadge />
+              </div>
+              {dataMode === "real" && hasAdminKey() && (
+                <SalirButton nombre={usuario?.nombre ?? null} onSalir={salir} className="h-8 justify-center text-[12px]" />
+              )}
+            </div>
+          </div>
+        </aside>
+
+        {/* ── Contenido ── */}
+        <div className="flex min-w-0 flex-1 flex-col">
+          {/* Cabecera del teléfono: título, estado del bot, sonido y Ajustes */}
+          {!enTicket && (
+            <header className="flex items-center justify-between px-5 pt-[calc(14px+env(safe-area-inset-top))] pb-1 md:hidden">
+              <div className="flex flex-col gap-0.5">
+                <h1 className="text-[20px] font-semibold tracking-[-0.01em]">{meta.titulo}</h1>
+                <EstadoBot activo={power.activo} compacto />
+              </div>
+              <div className="flex items-center">
+                <button type="button" onClick={toggleSonido} aria-pressed={audioOn} aria-label={audioOn ? "Apagar sonidos" : "Activar sonidos"} className="grid h-11 w-11 place-items-center text-text2">
+                  {audioOn ? <IconSonido size={20} /> : <IconSilencio size={20} />}
+                </button>
+                {pantallaPermitida("ajustes", phases, permisos) && (
+                  <button type="button" onClick={() => navigate("ajustes")} aria-label="Ajustes" className={`grid h-11 w-11 place-items-center ${enAjustes ? "text-signal" : "text-text"}`}>
+                    <IconAjustes size={20} />
+                  </button>
+                )}
+              </div>
+            </header>
+          )}
+
+          {/* Cabecera de escritorio para las pantallas que aún no dibujan la suya */}
+          {!CABECERA_PROPIA.has(route.vista) && (
+            <div className="hidden md:block">
+              <PageHeader titulo={meta.titulo} sub={meta.sub} />
+            </div>
+          )}
+
+          <main className={`min-h-0 flex-1 ${enTicket ? "" : "pb-[92px] md:pb-0"}`}>
+            {/* Cambiar la `key` desmonta la pantalla anterior de inmediato. Sin
+                animación de entrada: el producto abre en una tarea, no en una
+                coreografía. */}
+            <div key={enTicket ? `ticket-${route.id}` : route.vista} className="h-full">
+              {route.vista === "inbox" && <Inbox />}
+              {route.vista === "pipeline" && <Pipeline />}
+              {route.vista === "dashboard" && phases.fase3 && <Dashboard />}
+              {route.vista === "ajustes" && <Ajustes />}
+              {route.vista === "cotizador" && phases.fase3 && <Cotizador />}
+              {route.vista === "settings" && <Settings />}
+              {route.vista === "ticket" && !cargando && <TicketDetail id={route.id} />}
+            </div>
+          </main>
+        </div>
+
+        {/* ── Barra inferior (teléfono). Dentro de una conversación no hay
+            tabs, como en cualquier app de mensajes. ── */}
+        {!enTicket && (
+          <nav
+            className="fixed inset-x-0 bottom-0 z-20 grid border-t border-line bg-bg px-2 pt-2 md:hidden"
+            style={{ gridTemplateColumns: `repeat(${navVisible.length}, minmax(0, 1fr))`, paddingBottom: "max(12px, env(safe-area-inset-bottom))" }}
+            aria-label="Principal"
           >
-            DT
-          </button>
-          <LayoutGroup id="rail">
             {navVisible.map((item) => {
               const activo = navActivo(route) === item.id;
               return (
                 <button
                   key={item.id}
                   onClick={() => navigate(item.id)}
-                  className="relative grid h-11 w-11 place-items-center rounded-2xl text-muted transition-colors hover:text-paper data-[activo=true]:text-paper"
-                  data-activo={activo}
+                  className={`flex h-12 flex-col items-center justify-center gap-1 text-[11px] ${activo ? "font-semibold text-signal" : "font-medium text-text"}`}
                   data-tour={`nav-${item.id}`}
-                  aria-label={item.label}
-                  title={item.label}
+                  aria-current={activo ? "page" : undefined}
                 >
-                  {activo && (
-                    <motion.span
-                      layoutId="rail-activo"
-                      className="absolute inset-0 rounded-2xl"
-                      style={{ background: "color-mix(in srgb, var(--color-paper) 9%, transparent)", border: "1px solid color-mix(in srgb, var(--color-paper) 10%, transparent)" }}
-                      transition={{ type: "spring", stiffness: 480, damping: 36 }}
-                    />
-                  )}
-                  <span className="relative z-10">
-                    <item.icon size={19} />
-                  </span>
-                  {item.id === "inbox" && abiertos > 0 && (
-                    <span className="tnum absolute top-1 right-1 z-10 grid h-4 min-w-4 place-items-center rounded-full bg-red px-1 text-[9px] font-bold text-white">
-                      {abiertos}
-                    </span>
-                  )}
+                  <item.icon size={22} />
+                  {item.label}
                 </button>
               );
             })}
-          </LayoutGroup>
-          <div className="mt-auto flex flex-col items-center gap-3">
-            {/* La salida, al pie del rail. En 64 px de ancho no cabe el texto,
-                así que aquí va solo el icono con su tooltip; el botón completo
-                se ve en el teléfono, junto a los tabs. */}
-            {dataMode === "real" && hasAdminKey() && (
-              <SalirButton
-                nombre={usuario?.nombre ?? null}
-                onSalir={salir}
-                className="h-10 w-10 !px-0 [&>svg]:mx-auto"
-                soloIcono
-              />
-            )}
-            {power.activo ? (
-              <span className="pulse-dot" title="Bot en línea" />
-            ) : (
-              // El punto decía "en línea" siempre, también con el bot apagado.
-              // Un indicador que solo sabe decir que sí no es un indicador.
-              <button
-                type="button"
-                onClick={() => navigate("ajustes")}
-                aria-label="Bot apagado — ir a Ajustes para encenderlo"
-                title="Bot apagado: no contesta ni manda seguimientos"
-                className="grid h-2.5 w-2.5 place-items-center rounded-full"
-                style={{ background: "var(--color-red)" }}
-              />
-            )}
-          </div>
-        </nav>
-
-        {/* ── Contenido ── */}
-        <div className="flex min-w-0 flex-1 flex-col">
-          {/* Topbar */}
-          <header className="flex items-center justify-between gap-3 px-4 pt-4 pb-3 md:px-6">
-            <div className="flex items-center gap-3">
-              <button
-                type="button"
-                onClick={() => navigate("settings")}
-                aria-label="Abrir Account Settings"
-                className="grid h-9 w-9 place-items-center rounded-xl bg-red text-xs font-extrabold text-white shadow-soft md:hidden"
-              >
-                DT
-              </button>
-              <div>
-                <h1 className="serif text-xl leading-tight tracking-tight">{meta.titulo}</h1>
-                <p className="text-[11px] text-muted">{meta.sub}</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2.5">
-              {/* Aviso persistente: el bot apagado es un estado que se olvida,
-                  y olvidarlo son clientes escribiendo a un número que no
-                  responde. Lleva a Ajustes, que es donde se enciende. */}
-              {!power.activo && (
-                <motion.button
-                  whileTap={{ scale: 0.94 }}
-                  type="button"
-                  onClick={() => navigate("ajustes")}
-                  title="El bot no está contestando. Toca para encenderlo."
-                  // En móvil la cabecera ya va justa: sin nowrap el chip parte
-                  // en dos líneas y empuja lo demás fuera de la pantalla.
-                  className="flex items-center gap-1.5 rounded-full px-2 py-1.5 text-[11px] font-black whitespace-nowrap sm:gap-2 sm:px-3"
-                  style={{
-                    background: "color-mix(in srgb, var(--color-red) 12%, transparent)",
-                    color: "var(--color-red)",
-                    border: "1px solid color-mix(in srgb, var(--color-red) 45%, transparent)",
-                  }}
-                >
-                  <span aria-hidden>⏻</span>
-                  <span className="hidden sm:inline">Bot apagado</span>
-                  <span className="sm:hidden">Apagado</span>
-                </motion.button>
-              )}
-              <TourButton />
-              <motion.button
-                whileTap={{ scale: 0.94 }}
-                type="button"
-                className="gp-sound-control"
-                aria-label={audioOn ? "Apagar sonidos" : "Activar sonidos"}
-                aria-pressed={audioOn}
-                title={audioOn ? "Apagar sonidos" : "Activar sonidos"}
-                onClick={() => {
-                  const next = !audioOn;
-                  setSonidoActivo(next);
-                  setAudioOn(next);
-                }}
-              >
-                {audioOn ? <IconSonido size={14} /> : <IconSilencio size={14} />}
-                <span className="hidden lg:inline">{audioOn ? "Sonido" : "Silenciado"}</span>
-              </motion.button>
-              {dataMode === "demo" ? (
-                <span className="glass hidden items-center gap-2 rounded-full px-3 py-1.5 text-[11px] font-semibold text-muted sm:flex">
-                  <span className="pulse-dot" /> Bot en línea 24/7
-                </span>
-              ) : (
-                <ConnectionChip
-                  estado={conexion}
-                  fase={faseActiva}
-                  onClick={() => navigate("settings")}
-                />
-              )}
-              {/* Solo quién eres. La salida vive abajo, con los tabs. */}
-              {dataMode === "real" && hasAdminKey() && (
-                <UserChip nombre={usuario?.nombre ?? null} />
-              )}
-              <VersionBadge />
-              {dataMode === "demo" ? (
-                <motion.button
-                  whileTap={{ scale: 0.94 }}
-                  onClick={toggleDemo}
-                  className="flex items-center gap-2 rounded-full px-4 py-2 text-xs font-bold shadow-soft transition-colors"
-                  style={{
-                    background: demo ? "color-mix(in srgb, var(--color-violet) 14%, transparent)" : "var(--color-paper)",
-                    color: demo ? "var(--color-violet)" : "var(--color-ink)",
-                    border: demo ? "1px solid color-mix(in srgb, var(--color-violet) 45%, transparent)" : "1px solid transparent",
-                  }}
-                >
-                  {demo ? <IconStop size={13} /> : <IconPlay size={13} />}
-                  {demo ? "Detener demo" : "Demo"}
-                </motion.button>
-              ) : (
-                <span className="hidden rounded-full bg-emerald-500/10 px-3 py-2 text-[10px] font-black tracking-[0.14em] text-emerald-700 uppercase sm:inline">
-                  Producto real
-                </span>
-              )}
-            </div>
-          </header>
-
-          {/* Pantalla activa */}
-          <main className="min-h-0 flex-1 pb-20 md:pb-0">
-            {/* Sin AnimatePresence a propósito: su animación de salida no
-                terminaba nunca y las pantallas se quedaban montadas unas sobre
-                otras (llegaban a 4). Cambiar la `key` hace que React desmonte
-                la anterior de inmediato; la animación de entrada se conserva,
-                que es la única que se nota. */}
-              <motion.div
-                key={route.vista === "ticket" ? `ticket-${route.id}` : route.vista}
-                className="h-full"
-                initial={{ opacity: 0, y: 14, scale: 0.995 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: -8, scale: 0.995 }}
-                transition={{ type: "spring", stiffness: 340, damping: 32 }}
-              >
-                {route.vista === "inbox" && <Inbox />}
-                {route.vista === "opportunities" && phases.fase4 && <Opportunities />}
-                {route.vista === "pipeline" && <Pipeline />}
-                {route.vista === "dashboard" && phases.fase3 && <Dashboard />}
-                {route.vista === "ajustes" && <Ajustes />}
-                {route.vista === "cotizador" && phases.fase3 && <Cotizador />}
-                {route.vista === "settings" && <Settings />}
-                {route.vista === "ticket" && !cargando && <TicketDetail id={route.id} />}
-              </motion.div>
-
-          </main>
-        </div>
-
-        {/* ── Tab bar (móvil) ──
-            Cada tab reparte el ancho con flex-1: con las 6 fases activas los
-            px fijos empujaban Métricas y Ajustes fuera de la pantalla, y un
-            tab que no se ve es un tab que no existe. */}
-        {/* La salida, encima de los tabs y centrada: es donde la mano ya está
-            en el teléfono. Fuera de la barra para que no le robe ancho a los
-            tabs —con las 6 fases activas ya van justos— y separada para que no
-            se pulse queriendo tocar Ajustes. */}
-        {dataMode === "real" && hasAdminKey() && (
-          <div
-            className="fixed inset-x-0 z-20 flex justify-center md:hidden"
-            style={{ bottom: "calc(4.75rem + env(safe-area-inset-bottom))" }}
-          >
-            <SalirButton
-              nombre={usuario?.nombre ?? null}
-              onSalir={salir}
-              className="glass-strong shadow-soft"
-            />
-          </div>
+          </nav>
         )}
-
-        {/* Dentro de una conversación no hay tabs, como en cualquier app de
-            mensajes: el chat ocupa la pantalla entera y se sale con la flecha
-            de atrás. Con la barra puesta se comía 72 px del alto útil y encima
-            quedaba flotando sobre el composer cuando subía el teclado. */}
-        <nav className={`glass-strong fixed inset-x-2 bottom-2 z-20 items-stretch rounded-3xl px-1 py-2 md:hidden ${route.vista === "ticket" ? "hidden" : "flex"}`} style={{ paddingBottom: "max(0.5rem, env(safe-area-inset-bottom))" }}>
-          {navVisible.map((item) => {
-            const activo = navActivo(route) === item.id;
-            return (
-              <button
-                key={item.id}
-                onClick={() => navigate(item.id)}
-                className="relative flex min-w-0 flex-1 flex-col items-center gap-0.5 rounded-2xl px-0.5 py-1"
-                style={{ color: activo ? "var(--color-paper)" : "var(--color-faint)" }}
-                data-tour={`nav-${item.id}`}
-              >
-                <item.icon size={19} />
-                <span className="max-w-full truncate text-[8.5px] font-bold">{item.corto}</span>
-                {item.id === "inbox" && abiertos > 0 && (
-                  <span className="tnum absolute top-0 right-1/2 grid h-4 min-w-4 translate-x-4 place-items-center rounded-full bg-red px-1 text-[9px] font-bold text-white">
-                    {abiertos}
-                  </span>
-                )}
-              </button>
-            );
-          })}
-        </nav>
 
         <Toasts />
         <Confetti />
@@ -372,5 +265,72 @@ export default function App() {
         {bloqueado && <ConnectionGate estado={conexion as "clave-invalida" | "sin-conexion"} />}
       </div>
     </MotionConfig>
+  );
+}
+
+function NavItem({
+  activo,
+  onClick,
+  icon,
+  label,
+  aside,
+  tour,
+  className = "",
+}: {
+  activo: boolean;
+  onClick: () => void;
+  icon: ReactNode;
+  label: string;
+  aside?: number;
+  tour?: string;
+  className?: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-current={activo ? "page" : undefined}
+      data-tour={tour}
+      className={`flex h-10 items-center gap-3 rounded-[6px] px-3 text-[14px] transition-colors ${
+        activo ? "bg-signal-tint font-semibold text-signal" : "font-medium text-text hover:bg-black/[.03]"
+      } ${className}`}
+    >
+      {icon}
+      <span className="flex-1 text-left">{label}</span>
+      {aside !== undefined && <span className="tnum font-mono text-[12px] font-medium">{aside}</span>}
+    </button>
+  );
+}
+
+/**
+ * El estado del bot es una decisión que se olvida, y olvidarla son clientes
+ * escribiendo a un número que no responde. Encendido: punto verde. Apagado:
+ * punto de la señal y un toque lleva a Ajustes, que es donde se enciende.
+ */
+function EstadoBot({ activo, compacto = false }: { activo: boolean; compacto?: boolean }) {
+  const contenido = (
+    <>
+      <span className={`pulse-dot ${activo ? "" : "rojo"}`} style={compacto ? { width: 7, height: 7 } : { margin: "0 5px" }} />
+      <span className="flex-1 text-left">{activo ? "Bot contestando" : "Bot apagado"}</span>
+    </>
+  );
+  if (compacto) {
+    return activo ? (
+      <span className="flex items-center gap-1.5 text-[12px] text-text2">{contenido}</span>
+    ) : (
+      <button type="button" onClick={() => navigate("ajustes")} className="flex items-center gap-1.5 text-[12px] font-semibold text-signal">{contenido}</button>
+    );
+  }
+  return activo ? (
+    <div className="flex h-9 items-center gap-3 px-3 text-[13px]">{contenido}</div>
+  ) : (
+    <button
+      type="button"
+      onClick={() => navigate("ajustes")}
+      title="El bot no está contestando. Toca para encenderlo."
+      className="flex h-9 items-center gap-3 rounded-[6px] px-3 text-[13px] font-semibold text-signal hover:bg-signal-tint"
+    >
+      {contenido}
+    </button>
   );
 }

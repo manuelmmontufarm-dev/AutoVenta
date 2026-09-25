@@ -9,8 +9,8 @@
  *    de lo que ayuda.
  *  · El tour NAVEGA: cada paso lleva a la pantalla real y la deja visible
  *    detrás del velo, con el foco recortado sobre el elemento del que habla.
- *  · Se puede repetir cuando se quiera con el botón «Tour» de la cabecera; la
- *    marca de visto va por usuario en este navegador.
+ *  · Sólo la primera vez: la marca de visto va por usuario en este navegador
+ *    y no hay botón para repetirlo (DESIGN.md §17).
  */
 import { AnimatePresence, motion } from "framer-motion";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -19,13 +19,12 @@ import type { PhaseFlags } from "../data/types";
 import { navigate, useRoute } from "../router";
 import { useHub } from "../store";
 
-const TOUR_EVENTO = "autoventa:tour-abrir";
 const marcaDe = (userId: string) => `autoventa_tour_v1_${userId}`;
 
 interface PasoTour {
   id: string;
   /** Pantalla a la que navegar antes de mostrar el paso. */
-  vista?: "inbox" | "pipeline" | "opportunities" | "cotizador" | "dashboard" | "ajustes";
+  vista?: "inbox" | "pipeline" | "cotizador" | "dashboard" | "ajustes";
   /** Valor de `data-tour` del elemento a enfocar. Sin objetivo = tarjeta centrada. */
   objetivo?: string;
   titulo: string;
@@ -34,7 +33,7 @@ interface PasoTour {
 
 /**
  * Los pasos, en el orden del recorrido. El texto explica el POR QUÉ de cada
- * pantalla (por qué hay dos kanbans, para qué sirve la baraja), no solo el qué.
+ * pantalla, no solo el qué.
  */
 function armarPasos(input: {
   nombre: string;
@@ -46,7 +45,7 @@ function armarPasos(input: {
   const pasos: (PasoTour | false)[] = [
     {
       id: "bienvenida",
-      titulo: `¡Hola, ${nombre}! 👋`,
+      titulo: `Hola, ${nombre}`,
       cuerpo:
         "Este es el hub de Depot Tire. El bot atiende solo a los clientes por WhatsApp; "
         + "aquí es donde tú lo miras trabajar, tomas el volante cuando hace falta y cierras las ventas. "
@@ -58,41 +57,19 @@ function armarPasos(input: {
       objetivo: "nav-inbox",
       titulo: "Inbox — cada cliente es un ticket",
       cuerpo:
-        "Todo el que escribe al WhatsApp aparece aquí como una tarjeta. Puedes buscar por nombre, "
-        + "medida o vehículo, filtrar por etapa, y tocar cualquiera para leer la conversación completa "
-        + "y escribirle tú mismo. El tab «Alertas del bot» avisa solo cuando algo de verdad se rompió en un chat.",
+        "Todo el que escribe al WhatsApp aparece aquí como una fila. La que está pintada es la que espera "
+        + "respuesta. Buscá por nombre, medida o vehículo, y tocá cualquiera para leer la conversación completa "
+        + "y escribirle vos mismo.",
     },
     permisos.verKanban && {
       id: "pipeline",
       vista: "pipeline",
       objetivo: "nav-pipeline",
-      titulo: "Pipeline — el primer kanban",
+      titulo: "Pipeline — dónde está cada venta",
       cuerpo:
-        "Este tablero es el MAPA: el guion de venta en vivo. Cada columna es una etapa por la que el bot "
-        + "lleva al cliente solito (nuevo → medida → opciones → cotización → seguimiento). Puedes arrastrar "
-        + "una tarjeta si algo cambió, y la vista «Embudo» te dice en qué etapa se están cayendo las ventas.",
-    },
-    phases.fase4 && permisos.verOportunidades && {
-      id: "oportunidades",
-      vista: "opportunities",
-      objetivo: "nav-opportunities",
-      titulo: "Oportunidades — el segundo kanban",
-      cuerpo:
-        "¿Por qué dos tableros? El Pipeline es el mapa de TODO el viaje — lo maneja el bot. Oportunidades "
-        + "es TU lista de trabajo: solo los chats donde el bot suelta el volante. «Cotizados» es la caja del "
-        + "negocio, «Piden asesor» es quien espera a un humano y «Errores» lo que se trabó. Arriba está "
-        + "«Para después»: lo que fijaste para no perder de vista.",
-    },
-    phases.fase4 && permisos.verOportunidades && {
-      id: "baraja",
-      vista: "opportunities",
-      objetivo: "revisar-uno",
-      titulo: "La baraja — tinder de llantas 🃏",
-      cuerpo:
-        "«Revisar uno por uno» abre la baraja: una tarjeta por cliente, con su chat y su cotización. "
-        + "Desliza ← para marcarla perdida, → para ganada o dejarla «para después»; «Responder» abre el chat "
-        + "a pantalla completa. Funciona con el dedo, con los botones o con las flechas del teclado — y toda "
-        + "decisión pide un segundo toque, así que un swipe accidental no cierra nada.",
+        "Arriba, la barra dice cuántos tickets hay en cada etapa. Debajo, las tarjetas de cada etapa sin "
+        + "hacer clic: dentro de 24 h el bot todavía puede contestar; fuera, sólo ustedes. Podés arrastrar "
+        + "una tarjeta si algo cambió.",
     },
     phases.fase3 && permisos.usarCotizador && {
       id: "cotizador",
@@ -118,19 +95,17 @@ function armarPasos(input: {
       objetivo: "ajustes-tabs",
       titulo: "Ajustes — el bot se maneja desde aquí",
       cuerpo:
-        "Todo ordenado en pestañas: «Bot» (prenderlo, apagarlo y el Ángel Guardián), «Negocio» (horarios y "
-        + "cupón), «Piezas» (colores y promociones, con vista previa de lo que recibe el cliente) y «Avisos» "
-        + "(qué tipo de mensaje le llega a cada nivel por WhatsApp)."
+        "Negocio (locales y horario), seguimientos (cuándo y cada cuánto insiste el bot), avisos y usuarios. "
+        + "Un bloque por decisión, cada uno con su propio guardar."
         + (esAdmin
           ? " Como administrador también ves «Usuarios»: crear cuentas y repartir con interruptores qué ve cada quien."
           : ""),
     },
     {
       id: "fin",
-      titulo: "Eso es todo 🏁",
+      titulo: "Eso es todo",
       cuerpo:
-        "Ya conoces el circuito. Si quieres repetir el tour algún día, está el botón «Tour» arriba a la "
-        + "derecha. A vender llantas.",
+        "Ya conocés el panel. A vender llantas.",
     },
   ];
   return pasos.filter((p): p is PasoTour => Boolean(p));
@@ -144,23 +119,6 @@ function medirObjetivo(objetivo: string): DOMRect | null {
     if (r.width > 0 && r.height > 0) return r;
   }
   return null;
-}
-
-/** Botón de la cabecera para repetir el tour cuando se quiera. */
-export function TourButton() {
-  return (
-    <motion.button
-      whileTap={{ scale: 0.94 }}
-      type="button"
-      className="gp-sound-control"
-      title="Ver el tour del hub"
-      aria-label="Ver el tour del hub"
-      onClick={() => window.dispatchEvent(new CustomEvent(TOUR_EVENTO))}
-    >
-      <span aria-hidden>✦</span>
-      <span className="hidden lg:inline">Tour</span>
-    </motion.button>
-  );
 }
 
 export function Tour() {
@@ -205,13 +163,6 @@ export function Tour() {
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cargando, usuario, dataMode]);
-
-  // Reabrir a pedido (botón «Tour» de la cabecera).
-  useEffect(() => {
-    const onAbrir = () => abrir();
-    window.addEventListener(TOUR_EVENTO, onAbrir);
-    return () => window.removeEventListener(TOUR_EVENTO, onAbrir);
-  }, [abrir]);
 
   // Cada paso: navegar a su pantalla y, cuando el DOM aterrice, medir el foco.
   useEffect(() => {
@@ -273,7 +224,7 @@ export function Tour() {
           gigante pinta el velo — el recorte sale gratis y se anima solo. */}
       {rect ? (
         <motion.div
-          className="pointer-events-none absolute rounded-2xl"
+          className="pointer-events-none absolute rounded-[8px]"
           initial={false}
           animate={{
             left: rect.left - MARGEN,
@@ -284,7 +235,7 @@ export function Tour() {
           transition={{ type: "spring", stiffness: 320, damping: 32 }}
           style={{
             boxShadow: "0 0 0 9999px var(--color-scrim)",
-            border: "2px solid color-mix(in srgb, var(--color-paper) 65%, transparent)",
+            border: "2px solid color-mix(in srgb, var(--color-text) 65%, transparent)",
           }}
         />
       ) : (
@@ -303,18 +254,18 @@ export function Tour() {
           animate={{ opacity: 1, y: 0, scale: 1 }}
           exit={{ opacity: 0, y: -8, scale: 0.98 }}
           transition={{ type: "spring", stiffness: 380, damping: 30 }}
-          className="fixed rounded-3xl p-5 shadow-pop"
+          className="fixed rounded-[10px] p-5 shadow-pop"
           style={{
             ...cartaStyle,
-            background: "var(--color-ink2)",
+            background: "var(--color-surface)",
             border: "1px solid var(--color-line)",
             zIndex: 210,
           }}
           onClick={(e) => e.stopPropagation()}
         >
           <p className="microlabel">Tour del hub · {indice + 1} de {pasos.length}</p>
-          <h2 className="serif mt-1.5 text-lg leading-tight">{paso.titulo}</h2>
-          <p className="mt-2 text-[12.5px] leading-relaxed text-muted">{paso.cuerpo}</p>
+          <h2 className="serif mt-1.5 text-[15px] leading-tight">{paso.titulo}</h2>
+          <p className="mt-2 text-[12.5px] leading-relaxed text-text2">{paso.cuerpo}</p>
 
           <div className="mt-4 flex items-center gap-1.5">
             {pasos.map((p, i) => (
@@ -326,8 +277,8 @@ export function Tour() {
                 style={{
                   width: i === indice ? 18 : 6,
                   background: i === indice
-                    ? "var(--color-paper)"
-                    : "color-mix(in srgb, var(--color-paper) 25%, transparent)",
+                    ? "var(--color-text)"
+                    : "color-mix(in srgb, var(--color-text) 25%, transparent)",
                 }}
               />
             ))}
@@ -336,18 +287,18 @@ export function Tour() {
           <div className="mt-4 flex items-center justify-between gap-2">
             <button
               onClick={cerrar}
-              className="text-[11px] font-semibold text-faint hover:text-paper"
+              className="text-[12px] font-semibold text-text2 hover:text-text"
             >Saltar el tour</button>
             <div className="flex items-center gap-2">
               {indice > 0 && (
                 <button
                   onClick={atras}
-                  className="rounded-full bg-paper/[.08] px-4 py-2 text-[12px] font-semibold hover:bg-paper/[.14]"
+                  className="rounded-full bg-bg px-4 py-2 text-[12px] font-semibold hover:bg-bg"
                 >Atrás</button>
               )}
               <button
                 onClick={siguiente}
-                className="btn-aurora rounded-full px-5 py-2 text-[12px] font-black"
+                className="btn-signal rounded-full px-5 py-2 text-[12px] font-semibold"
               >{alFrente ? "¡Listo!" : "Siguiente"}</button>
             </div>
           </div>

@@ -30,6 +30,10 @@ export const IconKanban = (p: P) =>
 export const IconChart = (p: P) =>
   base(p, <><path d="M4 20V10" /><path d="M10 20V4" /><path d="M16 20v-7" /><path d="M21 20H3" /></>);
 
+/** Engranaje: Ajustes. */
+export const IconAjustes = (p: P) =>
+  base(p, <><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" /><circle cx="12" cy="12" r="3" /></>);
+
 /** Perillas — el tab de Ajustes del negocio. */
 export const IconSliders = (p: P) =>
   base(p, <><path d="M4 8h10" /><path d="M18 8h2" /><circle cx="16" cy="8" r="2" /><path d="M4 16h4" /><path d="M12 16h8" /><circle cx="10" cy="16" r="2" /></>);
@@ -80,6 +84,8 @@ export const IconChevronR = (p: P) => base(p, <path d="m9 6 6 6-6 6" />);
 export const IconRefresh = (p: P) =>
   base(p, <><path d="M20 11a8 8 0 1 0-2.3 6.3" /><path d="M20 5v6h-6" /></>);
 
+/** @deprecated La chispita es el tell de IA por excelencia. Sólo la usa
+ *  Cotizador hasta que se reescriba (tanda 3); después se borra. */
 export const IconSparkle = (p: P) =>
   base(p, <path d="M12 3.5 13.8 9l5.7 1.8-5.7 1.8L12 18.4l-1.8-5.8L4.5 10.8 10.2 9 12 3.5Z" />);
 

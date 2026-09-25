@@ -1,53 +1,42 @@
 import { motion } from "framer-motion";
 import type { ReactNode } from "react";
 import { CIERRE_META, ETAPA_META, type Cierre, type Etapa, type Ticket } from "../data/types";
-import { avatarColor, iniciales } from "../lib/format";
-import { IconBandera, IconBot, IconClock, IconSparkle, IconTire, IconUser, IconX } from "./icons";
+import { iniciales } from "../lib/format";
+import { IconBandera, IconClock, IconInbox, IconRefresh, IconX } from "./icons";
 
-/* ── Avatar ── */
+/* ── Avatar ──
+   Iniciales en un cuadrado de papel. Sin arcoíris: en Taller el color es para
+   lo que exige actuar, no para distinguir personas. */
 
-export function Avatar({ ticket, size = 40 }: { ticket: Ticket; size?: number }) {
-  const color = avatarColor(ticket.telefono);
+export function Avatar({ ticket, size = 28 }: { ticket: Ticket; size?: number }) {
   return (
     <div
-      className="relative grid shrink-0 place-items-center rounded-full font-bold"
-      style={{
-        width: size,
-        height: size,
-        fontSize: size * 0.36,
-        color,
-        background: `color-mix(in srgb, ${color} 16%, transparent)`,
-        border: `1px solid color-mix(in srgb, ${color} 35%, transparent)`,
-      }}
+      className="relative grid shrink-0 place-items-center rounded-[4px] font-semibold text-text2"
+      style={{ width: size, height: size, fontSize: Math.max(11, Math.round(size * 0.39)), background: "#ece9e3" }}
+      aria-hidden
     >
       {iniciales(ticket.nombre, ticket.telefono)}
       {ticket.esRecurrente && (
         <span
           title="Cliente recurrente"
-          className="absolute -right-0.5 -bottom-0.5 grid place-items-center rounded-full bg-ink text-[11px]"
-          style={{ width: size * 0.42, height: size * 0.42, border: "1px solid color-mix(in srgb, var(--color-paper) 15%, transparent)" }}
+          className="absolute -right-1 -bottom-1 grid place-items-center rounded-full bg-text text-white"
+          style={{ width: Math.round(size * 0.46), height: Math.round(size * 0.46) }}
         >
-          <IconSparkle size={Math.max(9, size * 0.26)} />
+          <IconRefresh size={Math.max(8, Math.round(size * 0.28))} strokeWidth={2.2} />
         </span>
       )}
     </div>
   );
 }
 
-/* ── Badges ── */
+/* ── Etapa y cierre: texto, no cápsula ──
+   La etapa se distingue por su nombre y su peso. El color se reserva para el
+   cierre, que sí es un resultado. */
 
 export function StageBadge({ etapa, compact = false }: { etapa: Etapa; compact?: boolean }) {
   const meta = ETAPA_META[etapa];
   return (
-    <span
-      className="inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] font-bold whitespace-nowrap"
-      style={{
-        color: meta.color,
-        background: `color-mix(in srgb, ${meta.color} 13%, transparent)`,
-        border: `1px solid color-mix(in srgb, ${meta.color} 30%, transparent)`,
-      }}
-    >
-      <span className="h-1.5 w-1.5 rounded-full" style={{ background: meta.color }} />
+    <span className="text-[13px] whitespace-nowrap text-text2">
       {compact ? meta.corto : meta.nombre}
     </span>
   );
@@ -55,8 +44,8 @@ export function StageBadge({ etapa, compact = false }: { etapa: Etapa; compact?:
 
 /**
  * El icono de un cierre. Vive aquí y no en CIERRE_META porque `data/types.ts`
- * es un `.ts` sin JSX: el dato guarda el nombre y el color, la forma la pone
- * el sistema de iconos (DESIGN.md §5.7).
+ * es un `.ts` sin JSX: el dato guarda el nombre, la forma la pone el sistema
+ * de iconos.
  */
 export function CierreIcon({ cierre, size = 14 }: { cierre: Cierre; size?: number }) {
   if (cierre === "ganado") return <IconBandera size={size} />;
@@ -64,53 +53,51 @@ export function CierreIcon({ cierre, size = 14 }: { cierre: Cierre; size?: numbe
   return <IconClock size={size} />;
 }
 
+const CIERRE_COLOR: Record<Cierre, string> = {
+  ganado: "var(--color-ok)",
+  perdido: "var(--color-signal)",
+  sin_respuesta: "var(--color-text2)",
+};
+
 export function CierreBadge({ cierre }: { cierre: Cierre }) {
   const meta = CIERRE_META[cierre];
   return (
-    <span
-      className="inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] font-bold whitespace-nowrap"
-      style={{
-        color: meta.color,
-        background: `color-mix(in srgb, ${meta.color} 13%, transparent)`,
-        border: `1px solid color-mix(in srgb, ${meta.color} 30%, transparent)`,
-      }}
-    >
-      <span className="h-1.5 w-1.5 rounded-full" style={{ background: meta.color }} />
+    <span className="inline-flex items-center gap-1.5 text-[13px] font-medium whitespace-nowrap" style={{ color: CIERRE_COLOR[cierre] }}>
+      <CierreIcon cierre={cierre} size={13} />
       {meta.nombre}
     </span>
   );
 }
 
+/** Quién contesta. Texto llano: «Bot» apagado, «Asesor» con peso. */
 export function AtiendePill({ atiende }: { atiende: "bot" | "humano" }) {
   const esBot = atiende === "bot";
   return (
-    <span
-      className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10.5px] font-bold"
-      style={{
-        color: esBot ? "var(--color-ok)" : "var(--color-sand)",
-        background: esBot ? "color-mix(in srgb, var(--color-ok) 10%, transparent)" : "color-mix(in srgb, var(--color-sand) 10%, transparent)",
-        border: `1px solid ${esBot ? "color-mix(in srgb, var(--color-ok) 28%, transparent)" : "color-mix(in srgb, var(--color-sand) 28%, transparent)"}`,
-      }}
-    >
-      {esBot ? <IconBot size={11} /> : <IconUser size={11} />}
-      {esBot ? "Bot" : "Humano"}
+    <span className={`text-[13px] whitespace-nowrap ${esBot ? "text-text2" : "font-medium text-text"}`}>
+      {esBot ? "Bot" : "Asesor"}
     </span>
   );
 }
+
+/* ── La placa de medida ──
+   El único gesto propio del producto: `245/40 R18` en la mono, con el rin en
+   peso mayor y una línea de pelo debajo. Igual en la lista, la ficha, la
+   cotización y la imagen que sale por WhatsApp. */
 
 export function MedidaChip({ medida, size = "md" }: { medida: string; size?: "sm" | "md" | "lg" }) {
-  const s = size === "lg" ? "text-lg px-3 py-1.5" : size === "sm" ? "text-[11px] px-1.5 py-0.5" : "text-xs px-2 py-1";
+  const px = size === "lg" ? 20 : size === "sm" ? 12 : 13;
+  const partes = medida.trim().split(/\s+/);
+  const rin = partes.length > 1 ? partes.pop() : null;
   return (
-    <span
-      className={`medida-chip inline-block rounded-lg text-paper ${s}`}
-      style={{ background: "color-mix(in srgb, var(--color-paper) 7%, transparent)", border: "1px solid color-mix(in srgb, var(--color-paper) 12%, transparent)" }}
-    >
-      {medida}
+    <span className="medida-chip" style={{ fontSize: px }}>
+      {partes.join(" ")}
+      {rin && <> <b>{rin}</b></>}
     </span>
   );
 }
 
-/* ── Segmented control (estilo iOS) ── */
+/* ── Control segmentado ──
+   Papel de fondo, la opción activa en blanco con la señal. */
 
 export function Segmented<T extends string>({
   opciones,
@@ -125,32 +112,32 @@ export function Segmented<T extends string>({
   id: string;
 }) {
   return (
-    <div className="glass inline-flex items-center gap-0.5 rounded-xl p-1">
+    <div className="inline-flex rounded-[6px] border border-line bg-bg p-0.5" role="tablist" aria-label={id}>
       {opciones.map((op) => {
         const activo = op.valor === valor;
         return (
           <button
             key={op.valor}
+            role="tab"
+            aria-selected={activo}
             onClick={() => onChange(op.valor)}
-            className="relative rounded-lg px-3 py-1.5 text-xs font-bold text-muted transition-colors data-[activo=true]:text-paper"
-            data-activo={activo}
+            className={`relative flex h-[30px] items-center gap-1.5 rounded-[4px] px-3.5 text-[13px] transition-colors ${
+              activo ? "font-semibold text-signal" : "font-medium text-text2 hover:text-text"
+            }`}
           >
             {activo && (
               <motion.span
                 layoutId={`seg-${id}`}
-                className="absolute inset-0 rounded-lg"
-                style={{ background: "color-mix(in srgb, var(--color-paper) 10%, transparent)", border: "1px solid color-mix(in srgb, var(--color-paper) 10%, transparent)" }}
-                transition={{ type: "spring", stiffness: 500, damping: 38 }}
+                className="absolute inset-0 rounded-[4px] bg-surface"
+                style={{ boxShadow: "0 1px 2px rgba(28,27,25,.08)" }}
+                transition={{ duration: 0.18, ease: [0.2, 0, 0, 1] }}
               />
             )}
-            <span className="relative z-10">
+            <span className="relative z-10 flex items-center gap-1.5">
               {op.label}
               {op.badge !== undefined && op.badge > 0 && (
                 <span
-                  className="tnum ml-1.5 rounded-full px-1.5 py-px text-[10px]"
-                  style={op.tono === "neutral"
-                    ? { background: "color-mix(in srgb, var(--color-paper) 9%, transparent)", color: "var(--color-muted)" }
-                    : { background: "var(--color-red)", color: "#fff" }}
+                  className={`tnum font-mono text-[11px] ${op.tono === "alerta" ? "font-bold text-signal" : "font-medium text-text2"}`}
                 >
                   {op.badge}
                 </span>
@@ -163,66 +150,105 @@ export function Segmented<T extends string>({
   );
 }
 
-/* ── Empty state ── */
+/* ── Estado vacío ──
+   Afirma algo verdadero y ofrece una salida. Sin ilustración grande. */
 
-export function EmptyState({ titulo, detalle }: { titulo: string; detalle?: string }) {
+export function EmptyState({ titulo, detalle, accion }: { titulo: string; detalle?: string; accion?: ReactNode }) {
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="flex flex-col items-center justify-center gap-3 py-16 text-center"
-    >
-      <div className="grid h-16 w-16 place-items-center rounded-2xl text-muted" style={{ background: "color-mix(in srgb, var(--color-paper) 4%, transparent)", border: "1px solid color-mix(in srgb, var(--color-paper) 7%, transparent)" }}>
-        <IconTire size={34} />
-      </div>
-      <p className="text-sm font-semibold text-paper">{titulo}</p>
-      {detalle && <p className="max-w-60 text-xs leading-relaxed text-muted">{detalle}</p>}
-    </motion.div>
+    <div className="flex flex-col items-center justify-center gap-2 px-6 py-16 text-center">
+      <IconInbox size={22} className="mb-1 text-text3" />
+      <p className="text-[15px] font-semibold text-text">{titulo}</p>
+      {detalle && <p className="max-w-[38ch] text-[13px] leading-relaxed text-text2">{detalle}</p>}
+      {accion && <div className="mt-3">{accion}</div>}
+    </div>
   );
 }
 
-/* ── Skeleton rows ── */
+/* ── Esqueletos: la forma de la fila que va a llegar ── */
 
 export function SkeletonRows({ n = 6 }: { n?: number }) {
   return (
-    <div className="flex flex-col gap-2 p-3">
+    <div className="flex flex-col" aria-busy="true" aria-label="Cargando">
       {Array.from({ length: n }, (_, i) => (
-        <div key={i} className="flex items-center gap-3 rounded-2xl p-3" style={{ opacity: 1 - i * 0.13 }}>
-          <div className="skeleton h-10 w-10 rounded-full" />
-          <div className="flex flex-1 flex-col gap-2">
-            <div className="skeleton h-3 w-2/5" />
-            <div className="skeleton h-2.5 w-3/5" />
-          </div>
-          <div className="skeleton h-4 w-14 rounded-full" />
+        <div key={i} className="grid h-14 items-center gap-5 border-b border-line px-5" style={{ gridTemplateColumns: "240px 120px minmax(0,1fr) 88px 112px", opacity: 1 - i * 0.1 }}>
+          <div className="skeleton h-3.5 w-3/5" />
+          <div className="skeleton h-3.5 w-20" />
+          <div className="skeleton h-3 w-4/5" />
+          <div className="skeleton ml-auto h-3 w-10" />
+          <div className="skeleton h-3 w-12" />
         </div>
       ))}
     </div>
   );
 }
 
-/* ── Modal genérico ── */
+/* ── Modal ──
+   Scrim de tinta, caja blanca, entra con peso y sale rápido. */
 
-export function Modal({ onClose, children, ancho = 460 }: { onClose: () => void; children: ReactNode; ancho?: number }) {
+export function Modal({ onClose, children, ancho = 420 }: { onClose: () => void; children: ReactNode; ancho?: number }) {
   return (
     <motion.div
       className="fixed inset-0 z-100 grid place-items-center p-4"
-      style={{ background: "var(--color-scrim)", backdropFilter: "blur(6px)" }}
+      style={{ background: "var(--color-scrim)" }}
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
+      transition={{ duration: 0.16 }}
       onClick={onClose}
+      role="dialog"
+      aria-modal="true"
     >
       <motion.div
-        className="glass-strong max-h-[86vh] w-full overflow-y-auto rounded-3xl shadow-pop"
+        className="max-h-[86vh] w-full overflow-y-auto rounded-[10px] border border-line bg-surface shadow-pop"
         style={{ maxWidth: ancho }}
-        initial={{ scale: 0.92, y: 18, opacity: 0 }}
-        animate={{ scale: 1, y: 0, opacity: 1 }}
-        exit={{ scale: 0.95, y: 10, opacity: 0 }}
-        transition={{ type: "spring", stiffness: 380, damping: 32 }}
+        initial={{ y: 8, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        exit={{ y: 4, opacity: 0 }}
+        transition={{ duration: 0.2, ease: [0.2, 0, 0, 1] }}
         onClick={(e) => e.stopPropagation()}
       >
         {children}
       </motion.div>
     </motion.div>
+  );
+}
+
+/* ── Piezas del armazón que comparten las pantallas ── */
+
+/** Cabecera de pantalla: título, una frase, y acciones a la derecha. */
+export function PageHeader({ titulo, sub, children }: { titulo: string; sub?: string; children?: ReactNode }) {
+  return (
+    <header className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-3 px-5 pt-5 pb-4 md:px-8 md:pt-[30px] md:pb-[22px]">
+      <div className="flex min-w-0 items-baseline gap-3.5">
+        <h1 className="text-[20px] font-semibold tracking-[-0.01em] md:text-[22px]">{titulo}</h1>
+        {sub && <span className="hidden text-[13px] text-text2 sm:inline">{sub}</span>}
+      </div>
+      {children && <div className="flex items-center gap-2">{children}</div>}
+    </header>
+  );
+}
+
+/** Panel blanco con línea de pelo: el contenedor de casi todo. */
+export function Panel({ children, className = "" }: { children: ReactNode; className?: string }) {
+  return <div className={`rounded-[10px] border border-line bg-surface ${className}`}>{children}</div>;
+}
+
+/** Título de bloque dentro de un panel: dos o tres palabras, 13 px, peso 600. */
+export function BlockTitle({ children, aside }: { children: ReactNode; aside?: ReactNode }) {
+  return (
+    <div className="flex items-baseline justify-between gap-3">
+      <span className="text-[13px] font-semibold">{children}</span>
+      {aside && <span className="text-[12px] text-text2">{aside}</span>}
+    </div>
+  );
+}
+
+/** Fila etiqueta / valor a dos columnas, como en una ficha impresa. */
+export function Campo({ etiqueta, children }: { etiqueta: string; children: ReactNode }) {
+  return (
+    <>
+      <span className="text-[13px] text-text2">{etiqueta}</span>
+      <span className="min-w-0 text-[13px]">{children}</span>
+    </>
   );
 }

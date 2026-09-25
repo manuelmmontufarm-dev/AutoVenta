@@ -77,7 +77,7 @@ export function AdminKeyForm({ autoFocus = false }: { autoFocus?: boolean }) {
         <button
           type="submit"
           disabled={probando}
-          className="rounded-2xl bg-navy px-5 py-3 text-xs font-black whitespace-nowrap text-white transition-opacity active:opacity-80 disabled:opacity-60"
+          className="rounded-[8px] bg-text px-5 py-3 text-[13px] font-semibold whitespace-nowrap text-white transition-opacity active:opacity-80 disabled:opacity-60"
         >
           {probando ? "Probando…" : "Conectar"}
         </button>
@@ -85,7 +85,7 @@ export function AdminKeyForm({ autoFocus = false }: { autoFocus?: boolean }) {
 
       <div className="mt-3" aria-live="polite">
         {prueba.fase === "reposo" && (
-          <p className="text-[11px] text-faint">
+          <p className="text-[12px] text-text2">
             {habiaClave
               ? "Hay una clave guardada en este navegador. Pulsa Conectar para comprobarla."
               : "Se guarda solo en este navegador (localStorage), nunca en el servidor ni en el repo."}
@@ -127,10 +127,10 @@ function ResultadoAviso({ resultado }: { resultado: ResultadoConexion }) {
 }
 
 const TONOS = {
-  ok: { icono: <IconCheck size={10} />, color: "#059669", fondo: "rgba(5, 150, 105, 0.14)" },
-  error: { icono: <IconX size={10} />, color: "#e5484d", fondo: "rgba(229, 72, 77, 0.14)" },
-  alerta: { icono: <IconAlert size={10} />, color: "#d97706", fondo: "rgba(217, 119, 6, 0.14)" },
-  neutral: { icono: <span className="block h-1 w-1 rounded-full bg-white" />, color: "var(--color-muted)", fondo: "rgba(255, 255, 255, 0.06)" },
+  ok: { icono: <IconCheck size={10} />, color: "var(--color-ok)", fondo: "rgba(5, 150, 105, 0.14)" },
+  error: { icono: <IconX size={10} />, color: "var(--color-signal)", fondo: "rgba(229, 72, 77, 0.14)" },
+  alerta: { icono: <IconAlert size={10} />, color: "var(--color-warn)", fondo: "rgba(217, 119, 6, 0.14)" },
+  neutral: { icono: <span className="block h-1 w-1 rounded-full bg-surface" />, color: "var(--color-text2)", fondo: "rgba(255, 255, 255, 0.06)" },
 } as const;
 
 function Aviso({
@@ -147,21 +147,21 @@ function Aviso({
     // Sin animación de entrada: este aviso es la respuesta que el usuario
     // esperaba; si el rAF se atasca no puede quedarse a medio opacar.
     <div
-      className="flex items-start gap-2.5 rounded-2xl px-3.5 py-3"
+      className="flex items-start gap-2.5 rounded-[8px] px-3.5 py-3"
       style={{ background: fondo, border: `1px solid ${color}33` }}
     >
       <span
         aria-hidden
-        className="mt-0.5 grid h-4 w-4 flex-none place-items-center rounded-full text-[10px] font-black text-white"
+        className="mt-0.5 grid h-4 w-4 flex-none place-items-center rounded-full text-[12px] font-semibold text-white"
         style={{ background: color }}
       >
         {icono}
       </span>
       <span className="min-w-0">
-        <span className="block text-xs font-bold" style={{ color }}>
+        <span className="block text-[13px] font-semibold" style={{ color }}>
           {texto}
         </span>
-        {detalle && <span className="mt-0.5 block text-[11px] leading-relaxed text-muted">{detalle}</span>}
+        {detalle && <span className="mt-0.5 block text-[12px] leading-relaxed text-text2">{detalle}</span>}
       </span>
     </div>
   );
@@ -317,7 +317,7 @@ export function LoginForm({ autoFocus = false }: { autoFocus?: boolean }) {
 
       {activando && (
         <>
-          <div className="mt-4 rounded-2xl bg-paper/[.06] p-3 text-[11px]">
+          <div className="mt-4 rounded-[8px] bg-bg p-3 text-[12px]">
             <b>Primera vez de {seleccionado?.nombre}.</b> Antes de entrar, crea tu
             clave y deja tu email — solo para avisos del bot y para recuperar la
             clave, nada promocional.
@@ -369,7 +369,7 @@ export function LoginForm({ autoFocus = false }: { autoFocus?: boolean }) {
         <button
           type="submit"
           disabled={entrando || (activando && (!email.trim() || !pin || !pin2))}
-          className="rounded-2xl bg-navy px-5 py-3 text-xs font-black whitespace-nowrap text-white transition-opacity active:opacity-80 disabled:opacity-60"
+          className="rounded-[8px] bg-text px-5 py-3 text-[13px] font-semibold whitespace-nowrap text-white transition-opacity active:opacity-80 disabled:opacity-60"
         >
           {entrando ? "Entrando…" : activando ? "Crear y entrar" : "Entrar"}
         </button>
@@ -377,7 +377,7 @@ export function LoginForm({ autoFocus = false }: { autoFocus?: boolean }) {
 
       <div className="mt-3" aria-live="polite">
         {intento.fase === "reposo" && (
-          <p className="text-[11px] text-faint">
+          <p className="text-[12px] text-text2">
             La sesión se guarda solo en este navegador y dura 30 días.
           </p>
         )}
@@ -403,22 +403,22 @@ export function ConnectionGate({ estado }: { estado: Extract<EstadoConexion, "cl
   return (
     <div
       className="fixed inset-0 z-50 grid place-items-center p-4"
-      style={{ background: "var(--color-scrim)", backdropFilter: "blur(6px)" }}
+      style={{ background: "var(--color-scrim)" }}
       role="dialog"
       aria-modal="true"
       aria-label="Acceso al hub"
     >
       <div
-        className="w-full max-w-lg rounded-3xl p-6 shadow-pop sm:p-8"
+        className="w-full max-w-lg rounded-[10px] p-6 shadow-pop sm:p-8"
         // Fondo opaco del tema (ink2 = superficie de tarjeta): anidar el
         // backdrop-filter de .glass dentro del scrim lo dejaba lavado.
-        style={{ background: "var(--color-ink2)", border: "1px solid var(--color-line)" }}
+        style={{ background: "var(--color-surface)", border: "1px solid var(--color-line)" }}
       >
         <p className="microlabel">Acceso al producto real</p>
-        <h2 className="serif mt-2 text-2xl">
+        <h2 className="serif mt-2 text-[18px]">
           {sinSesion ? "Entra al hub" : "Sin conexión con el servidor"}
         </h2>
-        <p className="mt-2.5 text-sm leading-relaxed text-muted">
+        <p className="mt-2.5 text-[14px] leading-relaxed text-text2">
           {sinSesion
             ? "Los tickets, las métricas y las fases se leen del servidor. Elige tu usuario y escribe tu clave para verlos."
             : "Tu sesión puede estar bien, pero el servidor no contestó. Cuando vuelva a responder, vuelve a entrar aquí."}
@@ -427,7 +427,7 @@ export function ConnectionGate({ estado }: { estado: Extract<EstadoConexion, "cl
         <button
           type="button"
           onClick={() => setConClave((valor) => !valor)}
-          className="mt-4 text-[11px] font-semibold text-faint underline underline-offset-2"
+          className="mt-4 text-[12px] font-semibold text-text2 underline underline-offset-2"
         >
           {conClave ? "Entrar con usuario y clave" : "Entrar con la clave administrativa"}
         </button>
@@ -453,9 +453,9 @@ export function UserChip({ nombre }: { nombre: string | null }) {
   const nombreDePila = etiqueta.split(" ")[0];
   return (
     <span
-      className="flex items-center rounded-full px-2.5 py-1.5 text-[11px] font-semibold sm:px-3"
+      className="flex items-center rounded-full px-2.5 py-1.5 text-[12px] font-semibold sm:px-3"
       style={{
-        background: "color-mix(in srgb, var(--color-paper) 8%, transparent)",
+        background: "color-mix(in srgb, var(--color-text) 8%, transparent)",
         border: "1px solid var(--color-line)",
       }}
     >
@@ -498,7 +498,7 @@ export function SalirButton({
       onClick={onSalir}
       title={titulo}
       aria-label={soloIcono ? titulo : undefined}
-      className={`flex items-center justify-center gap-2 rounded-full text-[13px] font-semibold text-muted transition-colors hover:text-paper active:opacity-70 ${soloIcono ? "" : "px-4 py-2"} ${className}`}
+      className={`flex items-center justify-center gap-2 rounded-full text-[13px] font-semibold text-text2 transition-colors hover:text-text active:opacity-70 ${soloIcono ? "" : "px-4 py-2"} ${className}`}
       style={{ border: "1px solid var(--color-line)" }}
     >
       <IconSalir size={17} />
@@ -518,10 +518,10 @@ export function ConnectionChip({
   onClick: () => void;
 }) {
   const meta = {
-    verificando: { texto: "Conectando…", color: "var(--color-muted)", punto: false },
-    conectada: { texto: `Conectado · Fase ${fase}`, color: "#059669", punto: true },
-    "clave-invalida": { texto: "Falta la clave", color: "#e5484d", punto: false },
-    "sin-conexion": { texto: "Sin conexión", color: "#d97706", punto: false },
+    verificando: { texto: "Conectando…", color: "var(--color-text2)", punto: false },
+    conectada: { texto: `Conectado · Fase ${fase}`, color: "var(--color-ok)", punto: true },
+    "clave-invalida": { texto: "Falta la clave", color: "var(--color-signal)", punto: false },
+    "sin-conexion": { texto: "Sin conexión", color: "var(--color-warn)", punto: false },
   }[estado];
 
   return (
@@ -533,7 +533,7 @@ export function ConnectionChip({
           ? "El hub está leyendo datos reales del servidor"
           : "Abrir la configuración de conexión"
       }
-      className="hidden items-center gap-2 rounded-full px-3 py-1.5 text-[11px] font-semibold sm:flex"
+      className="hidden items-center gap-2 rounded-full px-3 py-1.5 text-[12px] font-semibold sm:flex"
       style={{ background: `${meta.color}1f`, color: meta.color, border: `1px solid ${meta.color}3d` }}
     >
       {meta.punto ? (

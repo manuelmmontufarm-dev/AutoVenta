@@ -1,68 +1,87 @@
 @import "tailwindcss";
 
-/* ─── Depot Tire Hub — tema "Claude Oscuro × Aurora Glass" ──────────────
-   Base: carbón cálido + serif editorial + acentos apagados (salvia, arena,
-   azul polvo) del estilo 08. Luz: orbes aurora tenues y bordes iridiscentes
-   en el vidrio del estilo 06. El violeta→magenta se reserva para LA acción
-   primaria; todo lo demás susurra. */
+/* ─── Depot Tire Hub — «Taller» ─────────────────────────────────────────
+   Claro, papel cálido, una tinta, una señal. Un solo mundo visual: no hay
+   temas alternativos. La fuente única de estas decisiones es
+   docs/rediseno/DESIGN.md (Parte I §4 y §5).
+
+   Los nombres viejos (ink, paper, red, violet…) se conservan mientras las
+   pantallas que todavía no se reescribieron los usen; sus VALORES ya son los
+   de Taller. Cuando la última pantalla se reescriba, los alias se borran. */
 
 @theme {
-  --color-ink: #262624; /* carbón cálido — nunca negro azulado */
-  --color-ink2: #30302e;
-  --color-ink3: #3a3a37;
-  --color-red: #c96b62; /* rojo suave (marca Depot, en voz baja) */
-  --color-reddark: #b3554c;
-  --color-blue: #8da3c0; /* azul polvo */
-  --color-sky: #8da3c0;
-  --color-lime: #a9c39d; /* salvia clara — dinero y positivos */
-  --color-paper: #f5f4ee; /* marfil */
-  --color-muted: #a6a39a;
-  --color-faint: #7d7a72;
-  --color-line: rgba(245, 244, 238, 0.08);
-  --color-violet: #a78bfa;
-  /* Superficie sólida de acción (botones primarios): siempre con texto blanco.
-     Faltaba y `bg-navy` no pintaba nada → botones invisibles en Ajustes. */
-  --color-navy: #3a4a63;
-  --color-wa: #3f463c; /* burbuja saliente: verde salvia oscuro */
-  --color-ok: #86c79a; /* verde "en línea" / bot activo */
-  --color-sand: #cdb989; /* arena — notas internas y modo humano */
-  --color-check: #7dd3e0; /* doble check del chat */
-  --color-bubble-meta: rgba(255, 255, 255, 0.5); /* hora/checks dentro de burbujas */
-  --color-scrim: rgba(5, 8, 16, 0.6); /* fondo de modales */
+  /* Roles ─────────────────────────────────────────────────────────── */
+  --color-bg: #f7f6f3;        /* fondo general: papel cálido */
+  --color-surface: #ffffff;   /* paneles, tarjetas, campos */
+  --color-text: #1c1b19;      /* tinta */
+  --color-text2: #6f6b64;     /* texto apagado */
+  --color-text3: #8b8780;     /* metadatos */
+  --color-line: rgba(28, 27, 25, 0.10);
+  --color-line-strong: rgba(28, 27, 25, 0.35);
+  --color-signal: #b4453a;    /* la única señal: acción primaria, selección, urgencia */
+  --color-signal-tint: rgba(180, 69, 58, 0.07);
+  --color-ok: #2f6f4f;
+  --color-warn: #a8731f;
 
-  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, sans-serif;
-  --font-serif: "Source Serif 4", Georgia, "Times New Roman", serif;
+  /* Alias heredados (valores Taller) ──────────────────────────────── */
+  --color-ink: #f7f6f3;
+  --color-ink2: #ffffff;
+  --color-ink3: #efede8;
+  --color-paper: #1c1b19;
+  --color-muted: #6f6b64;
+  --color-faint: #8b8780;
+  --color-red: #b4453a;
+  --color-reddark: #933a30;
+  --color-violet: #b4453a;   /* alias transitorio: el violeta murió, apunta a la señal */
+  --color-blue: #4a5f80;
+  --color-sky: #4a5f80;
+  --color-lime: #2f6f4f;
+  --color-navy: #1c1b19;
+  --color-wa: #f7f6f3;
+  --color-sand: #a8731f;
+  --color-check: #2f6f4f;
+  --color-bubble-meta: #6f6b64;
+  --color-scrim: rgba(28, 27, 25, 0.45);
+  --color-danger: #b4453a;
+
+  /* Tipografía: una familia para la interfaz, la mono sólo para dato ─ */
+  --font-sans: "Archivo Variable", "Archivo", ui-sans-serif, system-ui, sans-serif;
+  --font-serif: "Archivo Variable", "Archivo", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", monospace;
 
-  --radius-panel: 20px;
-  --radius-card: 16px;
+  /* Forma ─────────────────────────────────────────────────────────── */
+  --radius-panel: 10px;
+  --radius-card: 8px;
+  --radius-control: 6px;
 
-  --shadow-soft: 0 2px 8px rgba(0, 0, 0, 0.22), 0 16px 48px rgba(0, 0, 0, 0.3);
-  --shadow-pop: 0 8px 20px rgba(0, 0, 0, 0.35), 0 24px 64px rgba(0, 0, 0, 0.45);
+  /* Profundidad: desplazamiento real y blur suave, nunca halo ─────── */
+  --shadow-soft: 0 1px 2px rgba(28, 27, 25, 0.06), 0 4px 12px rgba(28, 27, 25, 0.06);
+  --shadow-pop: 0 2px 6px rgba(28, 27, 25, 0.08), 0 12px 32px rgba(28, 27, 25, 0.14);
 }
 
 :root {
-  --confetti: #a78bfa, #7dd3e0, #e0b3ee, #8fa885, #f5f4ee, #cdb989;
-  /* Etapas del funnel y cierres (pasteles para el tema oscuro) */
-  --etapa-nuevo: #8da3c0;
-  --etapa-medidas: #6cc5d4;
-  --etapa-cotizado: #cdb989;
-  --etapa-ubicacion: #a78bfa;
-  --etapa-visita: #8fa885;
-  --cierre-ganado: #86c79a;
-  --cierre-perdido: #c96b62;
-  --cierre-sinresp: #a5a196;
-  /* Gama de avatares */
-  --av-1: #8da3c0;
-  --av-2: #6cc5d4;
-  --av-3: #cdb989;
-  --av-4: #a78bfa;
-  --av-5: #d9a3c8;
-  --av-6: #8fa885;
-  --av-7: #c9a189;
+  --confetti: #b4453a, #2f6f4f, #a8731f, #1c1b19, #4a5f80, #8b8780;
+  /* Etapas y cierres. En Taller la etapa se distingue por texto y peso;
+     estos tonos apagados sólo quedan para las pantallas aún no reescritas. */
+  --etapa-nuevo: #4a5f80;
+  --etapa-medidas: #4f7d68;
+  --etapa-cotizado: #a8731f;
+  --etapa-ubicacion: #6f6b64;
+  --etapa-visita: #2f6f4f;
+  --cierre-ganado: #2f6f4f;
+  --cierre-perdido: #b4453a;
+  --cierre-sinresp: #8b8780;
+  /* Avatares: tinta sobre papel, sin arcoíris */
+  --av-1: #4a5f80;
+  --av-2: #4f7d68;
+  --av-3: #a8731f;
+  --av-4: #7a5c6e;
+  --av-5: #5d6b5a;
+  --av-6: #8b6a4a;
+  --av-7: #566a7a;
 }
 
-/* ─── Base (en @layer base: las utilities de Tailwind deben poder ganar) ── */
+/* ─── Base ─────────────────────────────────────────────────────────── */
 
 @layer base {
 
@@ -72,56 +91,47 @@ body,
   height: 100%;
 }
 
-/* En el raíz, no solo en body: en móvil cualquier cosa que asome por el borde
-   (decorados, tarjetas animadas) expande el layout viewport y el panel entero
-   queda "zoomeado" hasta recargar. clip y no hidden: hidden crearía un
-   scroll container y rompería position: sticky. */
+/* clip y no hidden: hidden crearía un scroll container y rompería sticky.
+   Sin esto, en móvil cualquier cosa que asome por el borde expande el
+   layout viewport y el panel entero queda «zoomeado». */
 html {
   overflow-x: clip;
 }
 
 body {
   margin: 0;
-  /* clip, no hidden: hidden crea scroll container y rompe position:sticky.
-     Sin esto, una animación que saque algo del borde (la tarjeta de la baraja
-     volando a ±420px) expande el layout viewport en móvil y TODO el panel
-     queda "zoomeado" hasta recargar. */
+  overflow: hidden;
   overflow-x: clip;
-  color: var(--color-paper);
-  /* Carbón cálido con orbes aurora muy tenues (violeta / cian / magenta) */
-  background:
-    radial-gradient(85% 65% at 10% -8%, rgba(124, 58, 237, 0.2) 0%, transparent 55%),
-    radial-gradient(75% 55% at 108% 14%, rgba(34, 211, 238, 0.09) 0%, transparent 55%),
-    radial-gradient(70% 55% at 55% 115%, rgba(232, 121, 249, 0.09) 0%, transparent 55%),
-    radial-gradient(120% 90% at 50% 0%, #2b2b28 0%, var(--color-ink) 55%, #1d1d1b 100%);
-  background-attachment: fixed;
+  background: var(--color-bg);
+  color: var(--color-text);
   font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.45;
   font-optical-sizing: auto;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
-  overflow: hidden;
 }
 
-/* Textura de ruido sutil sobre el fondo (feel Apple, imperceptible pero está) */
-body::before {
-  content: "";
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  opacity: 0.35;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.028 0'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E");
-  z-index: 0;
-}
-
+/* Las superficies que no dibujamos también llevan el diseño (DESIGN.md §10) */
 ::selection {
-  background: color-mix(in srgb, var(--color-violet) 40%, transparent);
-  color: #fff;
+  background: rgba(180, 69, 58, 0.22);
+  color: var(--color-text);
+}
+
+input,
+textarea {
+  caret-color: var(--color-signal);
 }
 
 :focus-visible {
-  outline: 2px solid var(--color-violet);
+  outline: 2px solid var(--color-signal);
   outline-offset: 2px;
-  border-radius: 6px;
+  border-radius: var(--radius-control);
+}
+
+a {
+  color: inherit;
+  text-underline-offset: 3px;
 }
 
 button {
@@ -140,66 +150,70 @@ select {
   color: inherit;
 }
 
+input::placeholder,
+textarea::placeholder {
+  color: var(--color-text2);
+}
+
+/* Cifras que se comparan en columna: numerales tabulares siempre */
+table,
+.tnum {
+  font-variant-numeric: tabular-nums;
+}
+
 .settings-input,
 .gp-field {
   width: 100%;
-  border: 1.5px solid color-mix(in srgb, var(--color-paper) 28%, transparent);
-  border-radius: 12px;
-  background: color-mix(in srgb, var(--color-paper) 7%, transparent);
-  padding: 0.7rem 0.8rem;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-control);
+  background: var(--color-surface);
+  padding: 0.6rem 0.75rem;
   outline: none;
   transition:
     border-color 140ms ease,
-    box-shadow 140ms ease,
-    background-color 140ms ease;
+    box-shadow 140ms ease;
 }
 
 .settings-input:hover,
 .gp-field:hover {
-  border-color: color-mix(in srgb, var(--color-paper) 42%, transparent);
+  border-color: var(--color-line-strong);
 }
 
 .settings-input:focus,
 .gp-field:focus {
-  border-color: var(--color-violet);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-violet) 16%, transparent);
+  border-color: var(--color-signal);
+  box-shadow: 0 0 0 3px rgba(180, 69, 58, 0.14);
+}
+
+.settings-input:disabled,
+.gp-field:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .playbook-markdown {
   max-height: min(66vh, 760px);
   overflow: auto;
-  border: 1.5px solid color-mix(in srgb, var(--color-paper) 24%, transparent);
-  border-radius: 18px;
-  background: color-mix(in srgb, var(--color-paper) 5%, transparent);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-panel);
+  background: var(--color-surface);
   padding: clamp(1rem, 2.5vw, 2rem);
-  font-size: 0.86rem;
-  line-height: 1.7;
+  font-size: 0.9rem;
+  line-height: 1.65;
 }
 
 .playbook-markdown h1,
 .playbook-markdown h2,
 .playbook-markdown h3 {
-  color: var(--color-paper);
-  font-family: var(--font-serif);
+  color: var(--color-text);
+  font-weight: 600;
+  letter-spacing: -0.01em;
   line-height: 1.2;
 }
 
-.playbook-markdown h1 {
-  font-size: 1.55rem;
-  margin-bottom: 0.6rem;
-}
-
-.playbook-markdown h2 {
-  margin-top: 2rem;
-  margin-bottom: 0.6rem;
-  font-size: 1.1rem;
-}
-
-.playbook-markdown h3 {
-  margin-top: 1.4rem;
-  margin-bottom: 0.45rem;
-  font-size: 0.95rem;
-}
+.playbook-markdown h1 { font-size: 1.45rem; margin-bottom: 0.6rem; }
+.playbook-markdown h2 { margin-top: 2rem; margin-bottom: 0.6rem; font-size: 1.1rem; }
+.playbook-markdown h3 { margin-top: 1.4rem; margin-bottom: 0.45rem; font-size: 0.95rem; }
 
 .playbook-markdown p,
 .playbook-markdown ul,
@@ -217,32 +231,36 @@ select {
 }
 
 .playbook-markdown code {
-  border-radius: 6px;
-  background: color-mix(in srgb, var(--color-paper) 10%, transparent);
+  border-radius: 4px;
+  background: var(--color-bg);
   padding: 0.1rem 0.35rem;
   font-family: var(--font-mono);
-  font-size: 0.82em;
+  font-size: 0.85em;
 }
 
 .playbook-markdown blockquote {
   margin: 0.8rem 0;
-  border-left: 3px solid var(--color-violet);
   padding: 0.7rem 1rem;
-  background: color-mix(in srgb, var(--color-violet) 7%, transparent);
+  border-radius: var(--radius-card);
+  background: var(--color-bg);
+  color: var(--color-text2);
 }
 
-/* Scrollbars oscuros y finos */
+/* Barras de desplazamiento: finas y de la tinta */
 * {
   scrollbar-width: thin;
-  scrollbar-color: color-mix(in srgb, var(--color-muted) 40%, transparent) transparent;
+  scrollbar-color: rgba(28, 27, 25, 0.30) transparent;
 }
 *::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
 *::-webkit-scrollbar-thumb {
-  background: color-mix(in srgb, var(--color-muted) 40%, transparent);
-  border-radius: 99px;
+  background: rgba(28, 27, 25, 0.30);
+  border-radius: 4px;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: rgba(28, 27, 25, 0.50);
 }
 *::-webkit-scrollbar-track {
   background: transparent;
@@ -250,181 +268,162 @@ select {
 
 } /* fin @layer base */
 
-/* ─── Glass ───────────────────────────────────────────────────────── */
+/* ─── Componentes ──────────────────────────────────────────────────── */
 
 @layer components {
 
-/* Vidrio cálido con borde iridiscente aurora (violeta→cian→magenta,
-   en susurro). El ::before hereda el border-radius de cada superficie. */
-.glass {
-  position: relative;
-  background: rgba(48, 48, 45, 0.55);
-  backdrop-filter: blur(20px) saturate(150%);
-  -webkit-backdrop-filter: blur(20px) saturate(150%);
-  border: 1px solid transparent;
-}
-.glass::before {
-  content: "";
-  position: absolute;
-  inset: -1px;
-  border-radius: inherit;
-  padding: 1px;
-  background: linear-gradient(
-    135deg,
-    rgba(167, 139, 250, 0.32),
-    rgba(34, 211, 238, 0.08) 45%,
-    rgba(232, 121, 249, 0.2)
-  );
-  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-  -webkit-mask-composite: xor;
-  mask-composite: exclude;
-  pointer-events: none;
+/* Panel blanco con línea de pelo. Antes esto era vidrio con blur y borde
+   iridiscente; el nombre se conserva hasta que la última pantalla deje de
+   usarlo. */
+.glass,
+.glass-strong {
+  background: var(--color-surface);
+  border: 1px solid var(--color-line);
 }
 
 .glass-strong {
-  position: relative;
-  background: rgba(38, 38, 36, 0.88);
-  backdrop-filter: blur(26px) saturate(160%);
-  -webkit-backdrop-filter: blur(26px) saturate(160%);
-  border: 1px solid transparent;
-}
-.glass-strong::before {
-  content: "";
-  position: absolute;
-  inset: -1px;
-  border-radius: inherit;
-  padding: 1px;
-  background: linear-gradient(
-    135deg,
-    rgba(167, 139, 250, 0.45),
-    rgba(34, 211, 238, 0.14) 45%,
-    rgba(232, 121, 249, 0.32)
-  );
-  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-  -webkit-mask-composite: xor;
-  mask-composite: exclude;
-  pointer-events: none;
+  box-shadow: var(--shadow-pop);
 }
 
-/* ─── Serif editorial (el gesto Claude) ───────────────────────────── */
-
+/* Título: misma familia, más peso. El serif editorial se fue. */
 .serif {
-  font-family: var(--font-serif);
-  font-weight: 550;
-  letter-spacing: -0.015em;
+  font-family: var(--font-sans);
+  font-weight: 600;
+  letter-spacing: -0.01em;
 }
 
-/* ─── Acción primaria aurora — UNA por pantalla ───────────────────── */
-
-.btn-aurora {
-  background: linear-gradient(120deg, #7c3aed 0%, #b56ae0 100%);
-  color: #fff;
-  box-shadow: 0 8px 26px rgba(124, 58, 237, 0.4);
+/* Acción primaria: la señal, sólida. UNA por momento de decisión. */
+.btn-signal {
+  background: var(--color-signal);
+  color: #ffffff;
+  border: 1px solid var(--color-signal);
+  font-weight: 600;
+  transition: background-color 140ms ease, transform 140ms ease;
+}
+.btn-signal:hover {
+  background: #a53f35;
+}
+.btn-signal:active {
+  background: var(--color-reddark);
+  transform: translateY(1px);
+}
+.btn-signal:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  transform: none;
 }
 
-.gp-sound-control {
-  display: none;
+/* Acción secundaria: blanca, línea de pelo. */
+.btn-quiet {
+  background: var(--color-surface);
+  color: var(--color-text);
+  border: 1px solid var(--color-line);
+  font-weight: 500;
+  transition: background-color 140ms ease, border-color 140ms ease;
+}
+.btn-quiet:hover {
+  background: var(--color-bg);
+  border-color: var(--color-line-strong);
+}
+.btn-quiet:active {
+  background: #efede8;
+}
+.btn-quiet:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 
-/* ─── Micro-etiquetas y números ───────────────────────────────────── */
-
+/* Etiqueta de sección: texto llano, sin mayúsculas forzadas. */
 .microlabel {
-  font-size: 10.5px;
-  font-weight: 700;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--color-muted);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--color-text2);
 }
 
 .tnum {
   font-variant-numeric: tabular-nums;
 }
 
+/* La placa de medida: el único gesto propio del producto (DESIGN.md §5).
+   `245/40 R18` en la mono, numerales tabulares, línea de pelo debajo. El rin
+   se marca con <b> desde el componente MedidaChip. */
 .medida-chip {
+  display: inline-block;
   font-family: var(--font-mono);
-  font-weight: 700;
-  letter-spacing: 0.02em;
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  padding-bottom: 2px;
+  border-bottom: 1px solid var(--color-line-strong);
+  font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
+.medida-chip b {
+  font-weight: 700;
+}
 
-/* ─── Punto "en línea" pulsante ───────────────────────────────────── */
-
+/* Punto de estado del bot: verde cuando contesta, señal cuando está apagado.
+   Late despacio porque es un estado vivo; sin halo. */
 .pulse-dot {
   width: 8px;
   height: 8px;
   border-radius: 50%;
   background: var(--color-ok);
-  box-shadow: 0 0 10px var(--color-ok);
-  animation: pulse 1.8s ease-in-out infinite;
+  animation: pulse 2.4s ease-in-out infinite;
   flex-shrink: 0;
 }
-
 .pulse-dot.rojo {
-  background: var(--color-red);
-  box-shadow: 0 0 10px var(--color-red);
+  background: var(--color-signal);
+  animation: none;
 }
-
 @keyframes pulse {
-  0%,
-  100% {
-    opacity: 1;
-    transform: scale(1);
-  }
-  50% {
-    opacity: 0.45;
-    transform: scale(0.82);
-  }
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.55; }
 }
 
-/* ─── Skeleton shimmer (nunca spinners) ───────────────────────────── */
-
+/* Esqueletos con la forma de lo que llega; nunca un spinner suelto */
 .skeleton {
   position: relative;
   overflow: hidden;
-  background: color-mix(in srgb, var(--color-paper) 5%, transparent);
-  border-radius: 10px;
+  background: rgba(28, 27, 25, 0.06);
+  border-radius: 6px;
 }
 .skeleton::after {
   content: "";
   position: absolute;
   inset: 0;
   transform: translateX(-100%);
-  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--color-paper) 7%, transparent), transparent);
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.6), transparent);
   animation: shimmer 1.4s infinite;
 }
 @keyframes shimmer {
-  100% {
-    transform: translateX(100%);
-  }
+  100% { transform: translateX(100%); }
 }
 
-/* ─── Chat ────────────────────────────────────────────────────────── */
-
+/* Chat: sin patrón de fondo. Entrante en papel, saliente en blanco con línea. */
 .chat-bg {
-  background-image: radial-gradient(color-mix(in srgb, var(--color-paper) 4%, transparent) 1px, transparent 1.4px);
-  background-size: 22px 22px;
+  background: var(--color-surface);
 }
 
 .bubble {
-  max-width: min(78%, 460px);
-  padding: 8px 12px 6px;
-  border-radius: 14px;
-  font-size: 13.5px;
+  max-width: min(78%, 480px);
+  padding: 10px 14px 8px;
+  border-radius: var(--radius-card);
+  font-size: 14px;
   line-height: 1.45;
   word-break: break-word;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
 }
 
 .bubble-in {
-  background: color-mix(in srgb, var(--color-paper) 8%, transparent);
-  border: 1px solid color-mix(in srgb, var(--color-paper) 6%, transparent);
-  border-top-left-radius: 4px;
+  background: var(--color-bg);
+  border: 1px solid transparent;
 }
 
 .bubble-out {
-  background: linear-gradient(150deg, #414840 0%, #343a31 85%);
-  border: 1px solid rgba(143, 168, 133, 0.26);
-  border-top-right-radius: 4px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-line);
 }
 
 .typing-dots span {
@@ -433,33 +432,17 @@ select {
   height: 6px;
   margin-right: 3px;
   border-radius: 50%;
-  background: var(--color-muted);
+  background: var(--color-text2);
   animation: typing 1.2s infinite ease-in-out;
 }
-.typing-dots span:nth-child(2) {
-  animation-delay: 0.15s;
-}
-.typing-dots span:nth-child(3) {
-  animation-delay: 0.3s;
-  margin-right: 0;
-}
+.typing-dots span:nth-child(2) { animation-delay: 0.15s; }
+.typing-dots span:nth-child(3) { animation-delay: 0.3s; margin-right: 0; }
 @keyframes typing {
-  0%,
-  60%,
-  100% {
-    transform: translateY(0);
-    opacity: 0.4;
-  }
-  30% {
-    transform: translateY(-4px);
-    opacity: 1;
-  }
+  0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+  30% { transform: translateY(-4px); opacity: 1; }
 }
 
-/* ─── Kanban ──────────────────────────────────────────────────────── */
-
-/* Snap solo en móvil (swipe columna a columna); en desktop recortaba el
-   padding inicial del carril. */
+/* Kanban: snap sólo en móvil */
 @media (max-width: 767px) {
   .kanban-scroll {
     scroll-snap-type: x proximity;
@@ -470,8 +453,7 @@ select {
   }
 }
 
-/* ─── Confetti ────────────────────────────────────────────────────── */
-
+/* Confeti: pendiente de decidir si se queda (PROMPT-FABLE, pregunta 2) */
 .confetti-piece {
   position: fixed;
   top: -16px;
@@ -483,19 +465,13 @@ select {
   pointer-events: none;
 }
 @keyframes confetti-fall {
-  0% {
-    transform: translateY(-4vh) translateX(0) rotate(0deg);
-    opacity: 1;
-  }
-  100% {
-    transform: translateY(108vh) translateX(var(--drift, 0px)) rotate(var(--spin, 540deg));
-    opacity: 0.9;
-  }
+  0% { transform: translateY(-4vh) translateX(0) rotate(0deg); opacity: 1; }
+  100% { transform: translateY(108vh) translateX(var(--drift, 0px)) rotate(var(--spin, 540deg)); opacity: 0.9; }
 }
 
 } /* fin @layer components */
 
-/* ─── Accesibilidad: reduced motion ───────────────────────────────── */
+/* ─── Accesibilidad: reduced motion ────────────────────────────────── */
 
 @media (prefers-reduced-motion: reduce) {
   .confetti-piece,

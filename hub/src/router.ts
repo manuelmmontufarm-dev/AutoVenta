@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 
 export type Route =
   | { vista: "inbox" }
-  | { vista: "opportunities" }
   | { vista: "pipeline" }
   | { vista: "dashboard" }
   | { vista: "cotizador" }
@@ -15,7 +14,6 @@ function parse(): Route {
   const [seg, id] = hash.split("/");
   if (seg === "ticket" && id && !Number.isNaN(Number(id))) return { vista: "ticket", id: Number(id) };
   if (seg === "pipeline") return { vista: "pipeline" };
-  if (seg === "opportunities") return { vista: "opportunities" };
   if (seg === "dashboard") return { vista: "dashboard" };
   if (seg === "cotizador") return { vista: "cotizador" };
   if (seg === "ajustes") return { vista: "ajustes" };

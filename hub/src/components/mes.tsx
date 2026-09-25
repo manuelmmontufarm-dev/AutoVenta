@@ -35,6 +35,9 @@ export function etiquetaDeMes(clave: string, opciones: { corta?: boolean } = {})
  * Vive en el store, así que elegir agosto en los KPIs deja el kanban en agosto:
  * dos pantallas con meses distintos serían dos verdades sobre el mismo negocio.
  */
+/** «septiembre» → «Septiembre»; sólo la primera letra, no cada palabra. */
+const conMayuscula = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+
 export function SelectorDeMes({ className = "" }: { className?: string }) {
   const mes = useHub((s) => s.mes);
   const disponibles = useHub((s) => s.mesesDisponibles);
@@ -48,7 +51,7 @@ export function SelectorDeMes({ className = "" }: { className?: string }) {
 
   return (
     <div
-      className={`glass inline-flex max-w-full items-center gap-0.5 overflow-x-auto rounded-xl p-1 ${className}`}
+      className={`inline-flex max-w-full items-center overflow-x-auto rounded-[6px] border border-line bg-bg p-0.5 ${className}`}
       role="group"
       aria-label="Mes que se está mirando"
     >
@@ -64,26 +67,24 @@ export function SelectorDeMes({ className = "" }: { className?: string }) {
                 ? "Todo el histórico, sin recortar por mes"
                 : `Ver ${etiquetaDeMes(op.clave)}`
             }
-            className="relative shrink-0 rounded-lg px-3 py-1.5 text-xs font-bold whitespace-nowrap text-muted capitalize transition-colors data-[activo=true]:text-paper"
-            data-activo={activo}
+            className={`relative flex h-[30px] shrink-0 items-center rounded-[4px] px-3 text-[13px] whitespace-nowrap transition-colors ${
+              activo ? "font-semibold text-signal" : "font-medium text-text2 hover:text-text"
+            }`}
           >
             {activo && (
               <motion.span
                 layoutId="seg-mes"
-                className="absolute inset-0 rounded-lg"
-                style={{
-                  background: "color-mix(in srgb, var(--color-paper) 10%, transparent)",
-                  border: "1px solid color-mix(in srgb, var(--color-paper) 10%, transparent)",
-                }}
-                transition={{ type: "spring", stiffness: 500, damping: 38 }}
+                className="absolute inset-0 rounded-[4px] bg-surface"
+                style={{ boxShadow: "0 1px 2px rgba(28,27,25,.08)" }}
+                transition={{ duration: 0.18, ease: [0.2, 0, 0, 1] }}
               />
             )}
             <span className="relative z-10">
               {op.clave === TODOS
                 ? "Todos"
                 : op.esActual
-                  ? `${etiquetaDeMes(op.clave, { corta: true })} · este mes`
-                  : etiquetaDeMes(op.clave, { corta: true })}
+                  ? `${conMayuscula(etiquetaDeMes(op.clave, { corta: true }))} · este mes`
+                  : conMayuscula(etiquetaDeMes(op.clave, { corta: true }))}
             </span>
           </button>
         );

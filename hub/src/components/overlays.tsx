@@ -24,14 +24,14 @@ function ToastCard({ toast }: { toast: Toast }) {
         if (toast.ticketId) navigate(`ticket/${toast.ticketId}`);
         quitar(toast.id);
       }}
-      className="glass-strong pointer-events-auto flex w-80 items-start gap-3 rounded-2xl p-3.5 text-left shadow-pop"
+      className="border border-line bg-surface shadow-pop pointer-events-auto flex w-80 items-start gap-3 rounded-[8px] p-3.5 text-left shadow-pop"
     >
-      <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl text-lg" style={{ background: "color-mix(in srgb, var(--color-paper) 7%, transparent)" }}>
+      <span className="grid h-9 w-9 shrink-0 place-items-center rounded-[6px] text-[15px]" style={{ background: "color-mix(in srgb, var(--color-text) 7%, transparent)" }}>
         {toast.icono}
       </span>
       <span className="min-w-0">
-        <span className="block truncate text-[13px] font-bold text-paper">{toast.titulo}</span>
-        {toast.cuerpo && <span className="mt-0.5 block truncate text-xs text-muted">{toast.cuerpo}</span>}
+        <span className="block truncate text-[13px] font-semibold text-text">{toast.titulo}</span>
+        {toast.cuerpo && <span className="mt-0.5 block truncate text-[13px] text-text2">{toast.cuerpo}</span>}
       </span>
     </motion.button>
   );
@@ -53,7 +53,7 @@ export function Toasts() {
 /* ── Confetti (cierre ganado) ── */
 
 const COLORES = (getComputedStyle(document.documentElement).getPropertyValue("--confetti") ||
-  "#a78bfa,#7dd3e0,#e0b3ee,#8fa885,#f5f4ee,#cdb989")
+  "#b4453a,#2f6f4f,#a8731f,#1c1b19,#4a5f80,#8b8780")
   .split(",")
   .map((c) => c.trim());
 

@@ -1,0 +1,1218 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <meta name="design_doc_mode" content="canvas">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+  <script src="./image-slot.js"></script>
+  <style>
+    body { margin: 0; background: #e9e7e2; font-family: "Archivo", ui-sans-serif, system-ui, sans-serif; color: #1c1b19; -webkit-font-smoothing: antialiased; }
+    a, a:hover { color: #1c1b19; }
+    input::placeholder { color: #6f6b64; }
+    image-slot { width: 100%; height: 100%; display: block; }
+    [data-lane] { scrollbar-width: thin; scrollbar-color: rgba(28,27,25,.30) transparent; }
+    [data-lane]::-webkit-scrollbar { width: 8px; }
+    [data-lane]::-webkit-scrollbar-thumb { background: rgba(28,27,25,.30); border-radius: 4px; }
+    [data-lane]::-webkit-scrollbar-thumb:hover { background: rgba(28,27,25,.50); }
+    [data-lane]::-webkit-scrollbar-track { background: transparent; }
+  </style>
+</helmet>
+
+<template id="__bundler_thumbnail"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200"><rect width="200" height="200" fill="#f7f6f3"/><text x="100" y="118" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="34" font-weight="700" fill="#1c1b19">245/40</text><rect x="60" y="130" width="80" height="2" fill="#b4453a"/></svg></template>
+<section id="turno-4" style="display:flex;flex-direction:column;gap:32px;padding:40px 40px 0;">
+  <div style="display:flex;align-items:baseline;gap:12px;">
+    <span style="font-size:13px;font-weight:600;">Turno 4 · AutoVenta Hub</span>
+    <span style="font-size:12px;color:#6f6b64;">Taller · 1440 · el centro de control (app/site/index.html), mismo orden de bloques</span>
+  </div>
+  <div style="display:flex;flex-wrap:wrap;align-items:flex-start;gap:40px;">
+    <div id="4a" data-screen-label="4a AutoVenta Hub 1440" style="display:flex;flex-direction:column;gap:10px;">
+      <div style="display:flex;align-items:center;gap:8px;font-size:12px;color:#6f6b64;"><span style="font-family:'JetBrains Mono',monospace;font-weight:700;color:#1c1b19;">4a</span>AutoVenta Hub · 1440</div>
+      <div style="width:1440px;display:flex;justify-content:center;background:#f7f6f3;color:#1c1b19;padding:36px 20px 64px;box-sizing:border-box;">
+        <div style="width:960px;display:flex;flex-direction:column;">
+          <header style="display:flex;align-items:center;justify-content:space-between;gap:16px;">
+            <div style="display:flex;align-items:center;gap:11px;">
+              <span aria-label="AutoVenta" style="width:36px;height:36px;border-radius:6px;display:grid;place-items:center;background:#1c1b19;"><svg width="26" height="26" viewBox="0 0 24 24" fill="none"><path d="M2.8 11a9.2 9.2 0 0 1 18.4 0" stroke="#ffffff" stroke-width="2.6" stroke-dasharray="2 1.2"></path><text x="12" y="21" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="12.5" font-weight="700" letter-spacing="-.6" fill="#ffffff">AV</text><circle cx="12" cy="10.5" r="1.3" fill="#b4453a"></circle></svg></span>
+              <div style="display:flex;flex-direction:column;gap:1px;"><span style="font-size:15px;font-weight:600;">AutoVenta</span><span style="font-size:12px;color:#6f6b64;">centro de control</span></div>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <span style="display:inline-flex;align-items:center;gap:7px;height:32px;padding:0 12px;border-radius:999px;border:1px solid rgba(28,27,25,.10);background:#ffffff;font-size:12px;color:#6f6b64;"><span style="width:7px;height:7px;border-radius:50%;background:#2f6f4f;"></span>Staging</span>
+              <a href="#4a" style="display:inline-flex;align-items:center;gap:7px;height:32px;padding:0 12px;border-radius:999px;border:1px solid rgba(28,27,25,.10);background:#ffffff;font-size:12px;color:#1c1b19;text-decoration:none;">GitHub ↗</a>
+            </div>
+          </header>
+          <section style="margin:52px 0 30px;display:flex;flex-direction:column;gap:12px;">
+            <span style="font-size:12px;font-weight:600;color:#6f6b64;">Hub</span>
+            <h1 style="margin:0;font-size:44px;font-weight:600;letter-spacing:-.025em;line-height:1.05;">Un backend.<br><span style="color:#6f6b64;">Dos entornos.</span></h1>
+            <p style="margin:0;max-width:46ch;font-size:14.5px;line-height:1.55;color:#6f6b64;">El mismo código corre en tu laboratorio y en el cliente. Las <b style="color:#1c1b19;font-weight:600;">fases</b> deciden qué ve cada uno, y eso se enciende desde el panel.</p>
+          </section>
+          <h2 style="display:flex;align-items:center;gap:14px;margin:40px 0 14px;font-size:13px;font-weight:600;"><span>Entornos</span><span style="flex:1;height:1px;background:rgba(28,27,25,.10);"></span></h2>
+          <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;">
+            <div style="padding:22px;border-radius:10px;border:1px solid #b4453a;background:#ffffff;display:flex;flex-direction:column;">
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;"><span style="font-size:12px;color:#6f6b64;">Tu laboratorio</span><span style="font-size:12px;font-weight:600;color:#b4453a;">Estás aquí</span></div>
+              <a href="#4a" style="margin-top:12px;font-size:21px;font-weight:600;letter-spacing:-.01em;color:#1c1b19;text-decoration:none;">Staging ↗</a>
+              <p style="margin:7px 0 0;font-size:13.5px;line-height:1.55;color:#6f6b64;">Donde pruebas. WhatsApp de tester, todas las fases encendidas.</p>
+              <span style="display:block;margin-top:14px;font-family:'JetBrains Mono',monospace;font-size:12px;color:#6f6b64;">autoventa-staging.up.railway.app</span>
+              <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:16px;padding-top:15px;border-top:1px solid rgba(28,27,25,.10);">
+                <a href="#1b" style="height:30px;padding:0 11px;display:flex;align-items:center;border-radius:6px;border:1px solid rgba(28,27,25,.10);font-size:12px;color:#1c1b19;text-decoration:none;">Inbox</a>
+                <a href="#2b" style="height:30px;padding:0 11px;display:flex;align-items:center;border-radius:6px;border:1px solid rgba(28,27,25,.10);font-size:12px;color:#1c1b19;text-decoration:none;">Pipeline</a>
+                <a href="#3a" style="height:30px;padding:0 11px;display:flex;align-items:center;border-radius:6px;border:1px solid rgba(28,27,25,.10);font-size:12px;color:#1c1b19;text-decoration:none;">Cotizador</a>
+                <a href="#3b" style="height:30px;padding:0 11px;display:flex;align-items:center;border-radius:6px;border:1px solid rgba(28,27,25,.10);font-size:12px;color:#1c1b19;text-decoration:none;">Métricas</a>
+                <a href="#3c" style="height:30px;padding:0 11px;display:flex;align-items:center;border-radius:6px;border:1px solid rgba(28,27,25,.10);font-size:12px;color:#1c1b19;text-decoration:none;">Ajustes</a>
+              </div>
+            </div>
+            <div style="padding:22px;border-radius:10px;border:1px solid rgba(28,27,25,.10);background:#ffffff;display:flex;flex-direction:column;">
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;"><span style="font-size:12px;color:#6f6b64;">El cliente, en vivo</span></div>
+              <a href="#4a" style="margin-top:12px;font-size:21px;font-weight:600;letter-spacing:-.01em;color:#1c1b19;text-decoration:none;">Depot Tire ↗</a>
+              <p style="margin:7px 0 0;font-size:13.5px;line-height:1.55;color:#6f6b64;">Su WhatsApp Business, su base de datos, su clave. Sólo las fases entregadas.</p>
+              <span style="display:block;margin-top:14px;font-family:'JetBrains Mono',monospace;font-size:12px;color:#6f6b64;">autoventa-depottire.up.railway.app</span>
+              <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:16px;padding-top:15px;border-top:1px solid rgba(28,27,25,.10);">
+                <a href="#1b" style="height:30px;padding:0 11px;display:flex;align-items:center;border-radius:6px;border:1px solid rgba(28,27,25,.10);font-size:12px;color:#1c1b19;text-decoration:none;">Inbox</a>
+                <a href="#2b" style="height:30px;padding:0 11px;display:flex;align-items:center;border-radius:6px;border:1px solid rgba(28,27,25,.10);font-size:12px;color:#1c1b19;text-decoration:none;">Pipeline</a>
+                <a href="#3a" style="height:30px;padding:0 11px;display:flex;align-items:center;border-radius:6px;border:1px solid rgba(28,27,25,.10);font-size:12px;color:#1c1b19;text-decoration:none;">Cotizador</a>
+                <a href="#3b" style="height:30px;padding:0 11px;display:flex;align-items:center;border-radius:6px;border:1px solid rgba(28,27,25,.10);font-size:12px;color:#1c1b19;text-decoration:none;">Métricas</a>
+                <a href="#3c" style="height:30px;padding:0 11px;display:flex;align-items:center;border-radius:6px;border:1px solid rgba(28,27,25,.10);font-size:12px;color:#1c1b19;text-decoration:none;">Ajustes</a>
+              </div>
+            </div>
+          </div>
+          <a href="#3d" style="display:flex;align-items:center;gap:16px;margin-top:12px;padding:20px 22px;border-radius:10px;border:1px solid rgba(28,27,25,.10);background:#ffffff;text-decoration:none;color:#1c1b19;">
+            <span style="width:40px;height:40px;flex-shrink:0;border-radius:6px;display:grid;place-items:center;border:1px solid rgba(28,27,25,.10);color:#1c1b19;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"></path><circle cx="12" cy="12" r="3"></circle></svg></span>
+            <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:3px;"><span style="font-size:12px;color:#6f6b64;">Tu control</span><span style="font-size:16.5px;font-weight:600;letter-spacing:-.01em;">Panel de administración</span><span style="font-size:12.5px;line-height:1.5;color:#6f6b64;">Enciende las fases 1 · 2 · 3 · 4 de cada cliente y su canal de WhatsApp. No toca conversaciones.</span></div>
+            <span style="flex-shrink:0;height:36px;padding:0 16px;display:flex;align-items:center;border-radius:6px;background:#b4453a;color:#ffffff;font-size:13px;font-weight:600;">Abrir</span>
+          </a>
+          <h2 style="display:flex;align-items:center;gap:14px;margin:40px 0 14px;font-size:13px;font-weight:600;"><span>Accesos</span><span style="flex:1;height:1px;background:rgba(28,27,25,.10);"></span></h2>
+          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px;">
+            <sc-for list="{{ accesos }}" as="a" hint-placeholder-count="6">
+              <a href="#4a" style="display:flex;align-items:center;gap:10px;height:44px;padding:0 13px;border-radius:8px;border:1px solid rgba(28,27,25,.10);background:#ffffff;text-decoration:none;color:#1c1b19;"><span style="flex:1;min-width:0;font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ a }}</span><span style="font-size:12px;color:#6f6b64;">→</span></a>
+            </sc-for>
+          </div>
+          <h2 style="display:flex;align-items:center;gap:14px;margin:40px 0 14px;font-size:13px;font-weight:600;"><span>Documentación</span><span style="flex:1;height:1px;background:rgba(28,27,25,.10);"></span></h2>
+          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px;">
+            <sc-for list="{{ documentacion }}" as="d" hint-placeholder-count="9">
+              <a href="#4a" style="display:flex;align-items:center;gap:10px;height:44px;padding:0 13px;border-radius:8px;border:1px solid rgba(28,27,25,.10);background:#ffffff;text-decoration:none;color:#1c1b19;"><span style="flex:1;min-width:0;font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ d }}</span><span style="font-size:12px;color:#6f6b64;">→</span></a>
+            </sc-for>
+          </div>
+          <footer style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:44px;padding-top:18px;border-top:1px solid rgba(28,27,25,.10);font-size:12px;color:#6f6b64;"><span>AutoVenta · Depot Tire</span><span style="font-family:'JetBrains Mono',monospace;">4 fases · 1 código · 2 entornos</span></footer>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="turno-3" style="display:flex;flex-direction:column;gap:32px;padding:40px 40px 0;">
+  <div style="display:flex;align-items:baseline;gap:12px;">
+    <span style="font-size:13px;font-weight:600;">Turno 3 · Cotizador, Métricas, Ajustes, Configuración técnica, placa y 390</span>
+    <span style="font-size:12px;color:#6f6b64;">Taller</span>
+  </div>
+  <div style="display:flex;flex-wrap:wrap;align-items:flex-start;gap:40px;">
+
+    <!-- 3a · Cotizador 1440 -->
+    <div id="3a" data-screen-label="3a Cotizador 1440" style="display:flex;flex-direction:column;gap:10px;">
+      <div style="display:flex;align-items:center;gap:8px;font-size:12px;color:#6f6b64;"><span style="font-family:'JetBrains Mono',monospace;font-weight:700;color:#1c1b19;">3a</span>Cotizador · 1440</div>
+      <div style="width:1440px;height:900px;display:flex;background:#f7f6f3;color:#1c1b19;overflow:hidden;box-sizing:border-box;">
+        <aside style="width:224px;flex-shrink:0;display:flex;flex-direction:column;padding:22px 16px 20px;border-right:1px solid rgba(28,27,25,.10);box-sizing:border-box;">
+          <a href="#3d" style="padding:0 12px 26px;display:flex;flex-direction:column;gap:2px;text-decoration:none;color:inherit;"><span style="font-size:15px;font-weight:600;letter-spacing:-.01em;">Depot Tire</span><span style="font-size:12px;color:#6f6b64;">Hub de ventas</span></a>
+          <nav style="display:flex;flex-direction:column;gap:2px;">
+            <a href="#1b" style="display:flex;align-items:center;gap:12px;height:40px;padding:0 12px;border-radius:6px;font-size:14px;font-weight:500;color:#1c1b19;text-decoration:none;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 13h4l2 3h6l2-3h4"></path><path d="M5 5h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Z"></path></svg><span style="flex:1;">Inbox</span><span style="font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:500;font-variant-numeric:tabular-nums;">{{ abiertos }}</span></a>
+            <a href="#2b" style="display:flex;align-items:center;gap:12px;height:40px;padding:0 12px;border-radius:6px;font-size:14px;font-weight:500;color:#1c1b19;text-decoration:none;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="5" height="16" rx="1.5"></rect><rect x="10" y="4" width="5" height="10" rx="1.5"></rect><rect x="17" y="4" width="4" height="13" rx="1.5"></rect></svg><span style="flex:1;">Pipeline</span></a>
+            <a href="#3a" style="display:flex;align-items:center;gap:12px;height:40px;padding:0 12px;border-radius:6px;font-size:14px;font-weight:600;color:#b4453a;text-decoration:none;background:rgba(180,69,58,.07);"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"></circle><circle cx="12" cy="12" r="3.4"></circle><path d="M12 3.5v3"></path><path d="M12 17.5v3"></path><path d="M3.5 12h3"></path><path d="M17.5 12h3"></path><path d="m6 6 2.1 2.1"></path><path d="m15.9 15.9 2.1 2.1"></path><path d="m18 6-2.1 2.1"></path><path d="m8.1 15.9-2.1 2.1"></path></svg><span style="flex:1;">Cotizador</span></a>
+            <a href="#3b" style="display:flex;align-items:center;gap:12px;height:40px;padding:0 12px;border-radius:6px;font-size:14px;font-weight:500;color:#1c1b19;text-decoration:none;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10"></path><path d="M10 20V4"></path><path d="M16 20v-7"></path><path d="M21 20H3"></path></svg><span style="flex:1;">Métricas</span></a>
+          </nav>
+          <div style="margin-top:auto;display:flex;flex-direction:column;gap:2px;">
+            <div style="display:flex;align-items:center;gap:12px;height:36px;padding:0 12px;font-size:13px;color:#1c1b19;"><span style="width:8px;height:8px;border-radius:50%;background:#2f6f4f;margin:0 5px;"></span><span style="flex:1;">Bot contestando</span></div>
+            <div style="display:flex;align-items:center;gap:12px;height:36px;padding:0 12px;font-size:13px;color:#6f6b64;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9.5h3.2L12 5.4v13.2L7.2 14.5H4Z"></path><path d="M15.6 9.4a3.7 3.7 0 0 1 0 5.2"></path><path d="M18.2 6.8a7.3 7.3 0 0 1 0 10.4"></path></svg><span style="flex:1;">Sonido activado</span></div>
+            <a href="#3c" style="display:flex;align-items:center;gap:12px;height:40px;padding:0 12px;border-radius:6px;font-size:14px;font-weight:500;color:#1c1b19;text-decoration:none;margin-top:6px;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"></path><circle cx="12" cy="12" r="3"></circle></svg><span style="flex:1;">Ajustes</span></a>
+          </div>
+        </aside>
+        <div style="flex:1;min-width:0;display:flex;flex-direction:column;">
+          <header style="display:flex;align-items:baseline;gap:14px;padding:30px 32px 16px;"><h1 style="margin:0;font-size:22px;font-weight:600;letter-spacing:-.01em;">Cotizador</h1><span style="font-size:13px;color:#6f6b64;">Inventario y precios reales de Contífico</span></header>
+          <div style="display:flex;align-items:center;gap:10px;padding:0 32px 10px;">
+            <div style="display:flex;align-items:center;gap:8px;height:44px;width:560px;padding:0 4px 0 12px;border-radius:6px;background:#ffffff;border:1px solid #1c1b19;box-sizing:border-box;">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#6f6b64" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.2-3.2"></path></svg>
+              <span style="flex:1;font-family:'JetBrains Mono',monospace;font-size:14px;">245/70 R16</span>
+              <button style="height:34px;padding:0 14px;border-radius:4px;background:#b4453a;border:1px solid #b4453a;font:inherit;font-size:13px;font-weight:600;color:#ffffff;cursor:pointer;">Buscar</button>
+            </div>
+            <button title="Actualizar búsqueda" style="width:44px;height:44px;display:grid;place-items:center;border-radius:6px;background:#ffffff;border:1px solid rgba(28,27,25,.10);color:#6f6b64;cursor:pointer;"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 11a8 8 0 1 0-2.3 6.3"></path><path d="M20 5v6h-6"></path></svg></button>
+            <span style="display:flex;align-items:center;gap:8px;font-size:12px;color:#6f6b64;"><span style="width:7px;height:7px;border-radius:50%;background:#2f6f4f;"></span><span style="font-family:'JetBrains Mono',monospace;">375</span> llantas · Contífico · sincronizado hace 4 min</span>
+          </div>
+          <div style="display:flex;gap:6px;padding:0 32px 14px;">
+            <sc-for list="{{ busquedasRapidas }}" as="b" hint-placeholder-count="8">
+              <button style="height:30px;padding:0 10px;border-radius:6px;background:#ffffff;border:1px solid rgba(28,27,25,.10);font-family:'JetBrains Mono',monospace;font-size:12px;color:#6f6b64;cursor:pointer;font-variant-numeric:tabular-nums;white-space:nowrap;flex-shrink:0;">{{ b.a }} <b style="font-weight:700;">{{ b.r }}</b></button>
+            </sc-for>
+          </div>
+          <div style="flex:1;min-height:0;display:grid;grid-template-columns:210px minmax(0,1fr) 330px;gap:12px;margin:0 32px 32px;">
+            <aside style="border-radius:10px;background:#ffffff;border:1px solid rgba(28,27,25,.10);padding:16px;display:flex;flex-direction:column;gap:6px;overflow-y:auto;">
+              <div style="display:flex;justify-content:space-between;align-items:baseline;padding:0 4px 6px;"><span style="font-size:13px;font-weight:600;">Marcas visibles</span><span style="font-family:'JetBrains Mono',monospace;font-size:12px;color:#6f6b64;">4/4</span></div>
+              <sc-for list="{{ filtrosMarca }}" as="f" hint-placeholder-count="5">
+                <button style="display:flex;align-items:center;gap:8px;height:34px;padding:0 8px;border-radius:6px;background:none;border:none;font:inherit;font-size:13px;color:#1c1b19;cursor:pointer;text-align:left;" style-hover="background:rgba(28,27,25,.04);">
+                  <span style="width:16px;height:16px;border-radius:4px;border:1px solid #1c1b19;background:#1c1b19;display:grid;place-items:center;"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12.5 4.5 4.5L19 7.5"></path></svg></span>
+                  <span style="flex:1;">{{ f.nombre }}</span><span style="font-family:'JetBrains Mono',monospace;font-size:12px;color:#6f6b64;font-variant-numeric:tabular-nums;">{{ f.n }}</span>
+                </button>
+              </sc-for>
+              <div style="display:flex;justify-content:space-between;align-items:baseline;padding:18px 4px 6px;"><span style="font-size:13px;font-weight:600;">Disponibilidad</span></div>
+              <sc-for list="{{ filtrosDisp }}" as="f" hint-placeholder-count="4">
+                <button style="display:flex;align-items:center;gap:8px;height:34px;padding:0 8px;border-radius:6px;background:none;border:none;font:inherit;font-size:13px;color:#1c1b19;cursor:pointer;text-align:left;" style-hover="background:rgba(28,27,25,.04);">
+                  <span style="width:16px;height:16px;border-radius:4px;border:1px solid #1c1b19;background:#1c1b19;display:grid;place-items:center;"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12.5 4.5 4.5L19 7.5"></path></svg></span>
+                  <span style="flex:1;">{{ f.nombre }}</span><span style="font-family:'JetBrains Mono',monospace;font-size:12px;color:#6f6b64;font-variant-numeric:tabular-nums;">{{ f.n }}</span>
+                </button>
+              </sc-for>
+              <div style="display:flex;justify-content:space-between;align-items:baseline;padding:18px 4px 8px;"><span style="font-size:13px;font-weight:600;">Orden</span></div>
+              <div style="display:flex;align-items:center;justify-content:space-between;height:36px;padding:0 12px;border-radius:6px;border:1px solid rgba(28,27,25,.10);font-size:13px;"><span>Por marca</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6f6b64" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"></path></svg></div>
+              <p style="margin:18px 0 0;font-size:12px;line-height:1.5;color:#6f6b64;">El mensaje para el cliente y la imagen incluyen sólo las opciones que dejan activas estos filtros.</p>
+            </aside>
+            <main style="min-height:0;overflow-y:auto;display:flex;flex-direction:column;gap:10px;" data-lane="1">
+              <div style="display:flex;align-items:baseline;justify-content:space-between;padding:0 2px;"><span style="font-size:13px;white-space:nowrap;flex-shrink:0;"><b style="font-weight:600;">5</b> opciones visibles para <span style="font-family:'JetBrains Mono',monospace;">245/70 <b>R16</b></span></span><span style="font-size:12px;color:#6f6b64;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">Los mensajes usan exactamente estos filtros</span></div>
+              <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;">
+                <sc-for list="{{ resultados }}" as="r" hint-placeholder-count="5">
+                  <article style="display:flex;flex-direction:column;border-radius:8px;background:#ffffff;border:1px solid {{ r.cardBorde }};overflow:hidden;opacity:{{ r.opacidad }};">
+                    <div style="position:relative;aspect-ratio:16/10;background:#f7f6f3;border-bottom:1px solid rgba(28,27,25,.10);">
+                      <image-slot id="{{ r.slotId }}" shape="rect" fit="contain" placeholder="Foto de la llanta"></image-slot>
+                      <span style="position:absolute;top:10px;left:12px;font-size:12px;font-weight:600;pointer-events:none;">{{ r.marca }}</span>
+                      <span style="position:absolute;top:10px;right:12px;font-size:12px;font-weight:{{ r.estadoPeso }};color:{{ r.estadoColor }};pointer-events:none;">{{ r.estado }}</span>
+                      <span style="position:absolute;right:12px;bottom:10px;font-family:'JetBrains Mono',monospace;font-size:11px;color:#6f6b64;pointer-events:none;font-variant-numeric:tabular-nums;">{{ r.stockN }} en inventario</span>
+                    </div>
+                    <div style="padding:14px 16px 16px;display:flex;flex-direction:column;gap:4px;">
+                      <span style="font-size:15px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ r.modelo }}</span>
+                      <span style="align-self:flex-start;display:inline-block;font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:500;letter-spacing:-.01em;padding-bottom:2px;border-bottom:1px solid rgba(28,27,25,.35);font-variant-numeric:tabular-nums;">245/70 <b style="font-weight:700;">R16</b></span>
+                      <span style="font-size:12px;color:#6f6b64;font-family:'JetBrains Mono',monospace;">{{ r.spec }}</span>
+                      <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:12px;margin-top:12px;">
+                        <div style="display:flex;flex-direction:column;gap:2px;">
+                          <span style="font-size:12px;color:#6f6b64;">Precio hoy</span>
+                          <span style="font-family:'JetBrains Mono',monospace;font-size:22px;font-weight:700;line-height:1.1;font-variant-numeric:tabular-nums;">{{ r.precioTxt }}</span>
+                          <span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#6f6b64;font-variant-numeric:tabular-nums;"><s>{{ r.listaTxt }}</s> · <b style="color:#2f6f4f;font-weight:600;">−{{ r.dto }} %</b></span>
+                        </div>
+                        <button title="Comparar modelo" style="width:40px;height:40px;display:grid;place-items:center;border-radius:6px;font:inherit;cursor:pointer;color:{{ r.compararColor }};background:{{ r.compararBg }};border:1px solid {{ r.compararBorde }};">
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" dangerouslySetInnerHTML="{{ r.compararSvg }}"></svg>
+                        </button>
+                      </div>
+                      <div style="margin-top:12px;padding-top:10px;border-top:1px solid rgba(28,27,25,.10);font-size:12px;line-height:1.5;color:#6f6b64;">{{ r.garantia }}</div>
+                      <button style="margin-top:10px;height:38px;width:100%;border-radius:6px;background:#ffffff;border:1px solid #1c1b19;font:inherit;font-size:13px;font-weight:600;color:#1c1b19;cursor:pointer;">Cotizar esta llanta</button>
+                    </div>
+                  </article>
+                </sc-for>
+              </div>
+            </main>
+            <aside style="border-radius:10px;background:#ffffff;border:1px solid rgba(28,27,25,.10);padding:16px;display:flex;flex-direction:column;min-height:0;">
+              <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));padding:2px;border-radius:6px;border:1px solid rgba(28,27,25,.10);background:#f7f6f3;">
+                <span style="height:32px;display:flex;align-items:center;justify-content:center;border-radius:4px;font-size:12px;font-weight:500;color:#6f6b64;">Opciones 5</span>
+                <span style="height:32px;display:flex;align-items:center;justify-content:center;border-radius:4px;font-size:12px;font-weight:600;color:#b4453a;background:#ffffff;box-shadow:0 1px 2px rgba(28,27,25,.08);">Comparar 3/3</span>
+                <span style="height:32px;display:flex;align-items:center;justify-content:center;border-radius:4px;font-size:12px;font-weight:500;color:#6f6b64;">Cotizar</span>
+              </div>
+              <span style="margin-top:18px;font-size:13px;font-weight:600;">Comparar alternativas</span>
+              <p style="margin:6px 0 0;font-size:12px;line-height:1.5;color:#6f6b64;">Elegí 2 o 3 modelos. Se comparan por unidad; aquí nunca se suman como una compra.</p>
+              <div style="display:flex;flex-direction:column;gap:8px;margin-top:14px;">
+                <sc-for list="{{ comparados }}" as="r" hint-placeholder-count="3">
+                  <div style="display:flex;align-items:center;gap:10px;padding:10px;border-radius:8px;border:1px solid rgba(28,27,25,.10);">
+                    <div style="width:48px;height:48px;flex-shrink:0;border-radius:6px;background:#f7f6f3;border:1px solid rgba(28,27,25,.10);overflow:hidden;"><image-slot id="{{ r.slotMini }}" shape="rect" fit="contain" placeholder=""></image-slot></div>
+                    <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px;"><span style="font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ r.marca }} {{ r.modelo }}</span><span style="font-family:'JetBrains Mono',monospace;font-size:12px;color:#6f6b64;font-variant-numeric:tabular-nums;">{{ r.precioTxt }} c/u</span></div>
+                    <button title="Quitar" style="width:28px;height:28px;display:grid;place-items:center;color:#6f6b64;background:none;border:none;cursor:pointer;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m6 6 12 12"></path><path d="M18 6 6 18"></path></svg></button>
+                  </div>
+                </sc-for>
+              </div>
+              <div style="margin-top:auto;padding-top:18px;display:flex;flex-direction:column;gap:8px;">
+                <button style="height:40px;width:100%;border-radius:6px;background:#ffffff;border:1px solid rgba(28,27,25,.10);font:inherit;font-size:13px;font-weight:500;color:#1c1b19;cursor:pointer;">Copiar comparativa</button>
+                <button style="height:40px;width:100%;border-radius:6px;background:#ffffff;border:1px solid rgba(28,27,25,.10);font:inherit;font-size:13px;font-weight:500;color:#1c1b19;cursor:pointer;">Imagen para WhatsApp</button>
+                <button style="height:40px;width:100%;border-radius:6px;background:#b4453a;border:1px solid #b4453a;font:inherit;font-size:13px;font-weight:600;color:#ffffff;cursor:pointer;">Descargar PDF comparativo</button>
+                <span style="font-size:12px;color:#6f6b64;text-align:center;">Comparativa copiada.</span>
+              </div>
+            </aside>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 3b · Métricas 1440 -->
+    <div id="3b" data-screen-label="3b Métricas 1440" style="display:flex;flex-direction:column;gap:10px;">
+      <div style="display:flex;align-items:center;gap:8px;font-size:12px;color:#6f6b64;"><span style="font-family:'JetBrains Mono',monospace;font-weight:700;color:#1c1b19;">3b</span>Métricas · 1440 · la pantalla crece hacia abajo</div>
+      <div style="width:1440px;display:flex;background:#f7f6f3;color:#1c1b19;overflow:hidden;box-sizing:border-box;">
+        <aside style="width:224px;flex-shrink:0;display:flex;flex-direction:column;padding:22px 16px 20px;border-right:1px solid rgba(28,27,25,.10);box-sizing:border-box;">
+          <a href="#3d" style="padding:0 12px 26px;display:flex;flex-direction:column;gap:2px;text-decoration:none;color:inherit;"><span style="font-size:15px;font-weight:600;letter-spacing:-.01em;">Depot Tire</span><span style="font-size:12px;color:#6f6b64;">Hub de ventas</span></a>
+          <nav style="display:flex;flex-direction:column;gap:2px;">
+            <a href="#1b" style="display:flex;align-items:center;gap:12px;height:40px;padding:0 12px;border-radius:6px;font-size:14px;font-weight:500;color:#1c1b19;text-decoration:none;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 13h4l2 3h6l2-3h4"></path><path d="M5 5h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Z"></path></svg><span style="flex:1;">Inbox</span><span style="font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:500;font-variant-numeric:tabular-nums;">{{ abiertos }}</span></a>
+            <a href="#2b" style="display:flex;align-items:center;gap:12px;height:40px;padding:0 12px;border-radius:6px;font-size:14px;font-weight:500;color:#1c1b19;text-decoration:none;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="5" height="16" rx="1.5"></rect><rect x="10" y="4" width="5" height="10" rx="1.5"></rect><rect x="17" y="4" width="4" height="13" rx="1.5"></rect></svg><span style="flex:1;">Pipeline</span></a>
+            <a href="#3a" style="display:flex;align-items:center;gap:12px;height:40px;padding:0 12px;border-radius:6px;font-size:14px;font-weight:500;color:#1c1b19;text-decoration:none;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"></circle><circle cx="12" cy="12" r="3.4"></circle><path d="M12 3.5v3"></path><path d="M12 17.5v3"></path><path d="M3.5 12h3"></path><path d="M17.5 12h3"></path><path d="m6 6 2.1 2.1"></path><path d="m15.9 15.9 2.1 2.1"></path><path d="m18 6-2.1 2.1"></path><path d="m8.1 15.9-2.1 2.1"></path></svg><span style="flex:1;">Cotizador</span></a>
+            <a href="#3b" style="display:flex;align-items:center;gap:12px;height:40px;padding:0 12px;border-radius:6px;font-size:14px;font-weight:600;color:#b4453a;text-decoration:none;background:rgba(180,69,58,.07);"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10"></path><path d="M10 20V4"></path><path d="M16 20v-7"></path><path d="M21 20H3"></path></svg><span style="flex:1;">Métricas</span></a>
+          </nav>
+          <div style="position:sticky;top:0;margin-top:auto;display:flex;flex-direction:column;gap:2px;">
+            <div style="display:flex;align-items:center;gap:12px;height:36px;padding:0 12px;font-size:13px;color:#1c1b19;"><span style="width:8px;height:8px;border-radius:50%;background:#2f6f4f;margin:0 5px;"></span><span style="flex:1;">Bot contestando</span></div>
+            <div style="display:flex;align-items:center;gap:12px;height:36px;padding:0 12px;font-size:13px;color:#6f6b64;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9.5h3.2L12 5.4v13.2L7.2 14.5H4Z"></path><path d="M15.6 9.4a3.7 3.7 0 0 1 0 5.2"></path><path d="M18.2 6.8a7.3 7.3 0 0 1 0 10.4"></path></svg><span style="flex:1;">Sonido activado</span></div>
+            <a href="#3c" style="display:flex;align-items:center;gap:12px;height:40px;padding:0 12px;border-radius:6px;font-size:14px;font-weight:500;color:#1c1b19;text-decoration:none;margin-top:6px;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"></path><circle cx="12" cy="12" r="3"></circle></svg><span style="flex:1;">Ajustes</span></a>
+          </div>
+        </aside>
+        <div style="flex:1;min-width:0;display:flex;flex-direction:column;">
+          <header style="display:flex;align-items:center;justify-content:space-between;gap:24px;padding:30px 32px 22px;">
+            <div style="display:flex;align-items:baseline;gap:14px;"><h1 style="margin:0;font-size:22px;font-weight:600;letter-spacing:-.01em;">Métricas</h1><span style="font-size:13px;color:#6f6b64;">El negocio de un vistazo</span></div>
+            <div style="display:inline-flex;padding:2px;border-radius:6px;border:1px solid rgba(28,27,25,.10);background:#ffffff;">
+              <span style="height:30px;padding:0 14px;display:flex;align-items:center;border-radius:4px;font-size:13px;font-weight:600;color:#b4453a;background:rgba(180,69,58,.07);">Septiembre</span>
+              <span style="height:30px;padding:0 14px;display:flex;align-items:center;border-radius:4px;font-size:13px;font-weight:500;color:#6f6b64;">Agosto</span>
+              <span style="height:30px;padding:0 14px;display:flex;align-items:center;border-radius:4px;font-size:13px;font-weight:500;color:#6f6b64;">Todo</span>
+            </div>
+          </header>
+          <div style="display:flex;flex-direction:column;gap:16px;margin:0 32px 32px;">
+            <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));border-radius:10px;background:#ffffff;border:1px solid rgba(28,27,25,.10);overflow:hidden;">
+              <sc-for list="{{ kpis }}" as="k" hint-placeholder-count="4">
+                <div style="display:flex;flex-direction:column;gap:6px;padding:18px 20px 20px;border-right:1px solid rgba(28,27,25,.10);">
+                  <span style="font-size:13px;font-weight:600;">{{ k.nombre }}</span>
+                  <span style="font-family:'JetBrains Mono',monospace;font-size:32px;font-weight:500;line-height:1.1;font-variant-numeric:tabular-nums;letter-spacing:-.02em;">{{ k.valor }}</span>
+                  <span style="font-size:12px;color:#6f6b64;">{{ k.nota }}</span>
+                </div>
+              </sc-for>
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;">
+              <div style="display:flex;flex-direction:column;gap:14px;padding:18px 20px 16px;border-radius:10px;background:#ffffff;border:1px solid rgba(28,27,25,.10);">
+                <div style="display:flex;align-items:baseline;justify-content:space-between;"><span style="font-size:13px;font-weight:600;">Conversaciones por día</span><span style="font-size:12px;color:#6f6b64;">últimos 14 días · eje X: fecha</span></div>
+                {{ graficos.porDia }}
+              </div>
+              <div style="display:flex;flex-direction:column;gap:14px;padding:18px 20px 16px;border-radius:10px;background:#ffffff;border:1px solid rgba(28,27,25,.10);">
+                <div style="display:flex;align-items:baseline;justify-content:space-between;"><span style="font-size:13px;font-weight:600;">¿A qué hora contestan más?</span><span style="font-size:12px;color:#6f6b64;">respuestas de clientes por hora del día · este mes</span></div>
+                {{ graficos.porHora }}
+              </div>
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;">
+              <div style="display:flex;flex-direction:column;gap:14px;padding:18px 20px 16px;border-radius:10px;background:#ffffff;border:1px solid rgba(28,27,25,.10);">
+                <div style="display:flex;align-items:baseline;justify-content:space-between;"><span style="font-size:13px;font-weight:600;">Cotizaciones</span><span style="font-size:12px;color:#6f6b64;">por semana</span></div>
+                {{ graficos.cotizaciones }}
+                <div style="display:grid;grid-template-columns:120px minmax(0,1fr);row-gap:10px;column-gap:16px;font-size:13px;padding-top:6px;border-top:1px solid rgba(28,27,25,.10);">
+                  <span style="color:#6f6b64;">Este mes</span><span style="font-family:'JetBrains Mono',monospace;">47 cotizaciones</span>
+                  <span style="color:#6f6b64;">Cotizado</span><span style="font-family:'JetBrains Mono',monospace;">$18.640,20</span>
+                  <span style="color:#6f6b64;">Llegaron al local</span><span style="font-family:'JetBrains Mono',monospace;">11 de 47 · 23 %</span>
+                </div>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:14px;padding:18px 20px 16px;border-radius:10px;background:#ffffff;border:1px solid rgba(28,27,25,.10);">
+                <div style="display:flex;align-items:baseline;justify-content:space-between;"><span style="font-size:13px;font-weight:600;">Plantillas de seguimiento</span><span style="font-size:12px;color:#6f6b64;">este mes</span></div>
+                {{ graficos.plantillas }}
+                <div style="display:grid;grid-template-columns:120px minmax(0,1fr);row-gap:10px;column-gap:16px;font-size:13px;padding-top:6px;border-top:1px solid rgba(28,27,25,.10);">
+                  <span style="color:#6f6b64;">Responden</span><span style="font-family:'JetBrains Mono',monospace;">12 de 42 · 29 %</span>
+                  <span style="color:#6f6b64;">Pidieron no seguir</span><span style="font-family:'JetBrains Mono',monospace;">2</span>
+                  <span style="color:#6f6b64;">Ventanas perdidas</span><span style="font-family:'JetBrains Mono',monospace;">5</span>
+                </div>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:14px;padding:18px 20px 16px;border-radius:10px;background:#ffffff;border:1px solid rgba(28,27,25,.10);">
+                <div style="display:flex;align-items:baseline;justify-content:space-between;"><span style="font-size:13px;font-weight:600;">Inventario real</span><span style="font-size:12px;color:#6f6b64;">Contífico · hace 4 min</span></div>
+                {{ graficos.inventario }}
+                <div style="display:grid;grid-template-columns:120px minmax(0,1fr);row-gap:10px;column-gap:16px;font-size:13px;padding-top:6px;border-top:1px solid rgba(28,27,25,.10);">
+                  <span style="color:#6f6b64;">Modelos</span><span style="font-family:'JetBrains Mono',monospace;">{{ inventario.total }}</span>
+                  <span style="color:#6f6b64;">Marcas</span><span style="font-family:'JetBrains Mono',monospace;">{{ inventario.marcas }}</span>
+                  <span style="color:#6f6b64;">Con imagen</span><span style="font-family:'JetBrains Mono',monospace;">{{ inventario.imagen }}</span>
+                </div>
+              </div>
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;">
+              <div style="display:flex;flex-direction:column;gap:14px;padding:18px 20px 16px;border-radius:10px;background:#ffffff;border:1px solid rgba(28,27,25,.10);">
+                <div style="display:flex;align-items:baseline;justify-content:space-between;"><span style="font-size:13px;font-weight:600;">Impacto de descuentos</span><span style="font-size:12px;color:#6f6b64;">% de cotizados que cierran</span></div>
+                {{ graficos.descuentos }}
+                <div style="display:grid;grid-template-columns:120px minmax(0,1fr);row-gap:10px;column-gap:16px;font-size:13px;padding-top:6px;border-top:1px solid rgba(28,27,25,.10);">
+                  <span style="color:#6f6b64;">Ofrecidos</span><span style="font-family:'JetBrains Mono',monospace;">{{ descuentos.ofrecidos }}</span>
+                  <span style="color:#6f6b64;">Cerraron</span><span style="font-family:'JetBrains Mono',monospace;">{{ descuentos.ganados }}</span>
+                  <span style="color:#6f6b64;">Total descontado</span><span style="font-family:'JetBrains Mono',monospace;">{{ descuentos.total }}</span>
+                </div>
+              </div>
+              <div style="grid-column:span 2;display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:24px;padding:18px 20px 16px;border-radius:10px;background:#ffffff;border:1px solid rgba(28,27,25,.10);">
+                <div style="display:flex;flex-direction:column;gap:14px;">
+                  <div style="display:flex;align-items:baseline;justify-content:space-between;"><span style="font-size:13px;font-weight:600;">Tokens y cuenta del servicio</span><span style="font-size:12px;color:#6f6b64;">gasto de IA por día · última semana</span></div>
+                  {{ graficos.tokens }}
+                </div>
+                <div style="display:grid;grid-template-columns:130px minmax(0,1fr);row-gap:12px;column-gap:16px;align-content:start;font-size:13px;padding-top:30px;border-left:1px solid rgba(28,27,25,.10);padding-left:24px;">
+                  <span style="color:#6f6b64;">Hoy</span><span style="font-family:'JetBrains Mono',monospace;">{{ cuenta.hoy }}</span>
+                  <span style="color:#6f6b64;">Esta semana</span><span style="font-family:'JetBrains Mono',monospace;">{{ cuenta.semana }}</span>
+                  <span style="color:#6f6b64;">Este mes</span><span style="font-family:'JetBrains Mono',monospace;">{{ cuenta.mes }}</span>
+                  <span style="color:#6f6b64;">Mantenimiento</span><span style="font-family:'JetBrains Mono',monospace;">{{ cuenta.mantenimiento }}</span>
+                  <span style="color:#6f6b64;">Total con IVA</span><span style="font-family:'JetBrains Mono',monospace;font-weight:700;">{{ cuenta.total }}</span>
+                  <span style="color:#6f6b64;">Vence</span><span>{{ cuenta.vence }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 3c · Ajustes 1440 -->
+    <div id="3c" data-screen-label="3c Ajustes 1440" style="display:flex;flex-direction:column;gap:10px;">
+      <div style="display:flex;align-items:center;gap:8px;font-size:12px;color:#6f6b64;"><span style="font-family:'JetBrains Mono',monospace;font-weight:700;color:#1c1b19;">3c</span>Ajustes · 1440 · la pantalla crece hacia abajo</div>
+      <div style="width:1440px;display:flex;background:#f7f6f3;color:#1c1b19;overflow:hidden;box-sizing:border-box;">
+        <aside style="width:224px;flex-shrink:0;display:flex;flex-direction:column;padding:22px 16px 20px;border-right:1px solid rgba(28,27,25,.10);box-sizing:border-box;">
+          <a href="#3d" style="padding:0 12px 26px;display:flex;flex-direction:column;gap:2px;text-decoration:none;color:inherit;"><span style="font-size:15px;font-weight:600;letter-spacing:-.01em;">Depot Tire</span><span style="font-size:12px;color:#6f6b64;">Hub de ventas</span></a>
+          <nav style="display:flex;flex-direction:column;gap:2px;">
+            <a href="#1b" style="display:flex;align-items:center;gap:12px;height:40px;padding:0 12px;border-radius:6px;font-size:14px;font-weight:500;color:#1c1b19;text-decoration:none;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 13h4l2 3h6l2-3h4"></path><path d="M5 5h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Z"></path></svg><span style="flex:1;">Inbox</span><span style="font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:500;font-variant-numeric:tabular-nums;">{{ abiertos }}</span></a>
+            <a href="#2b" style="display:flex;align-items:center;gap:12px;height:40px;padding:0 12px;border-radius:6px;font-size:14px;font-weight:500;color:#1c1b19;text-decoration:none;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="5" height="16" rx="1.5"></rect><rect x="10" y="4" width="5" height="10" rx="1.5"></rect><rect x="17" y="4" width="4" height="13" rx="1.5"></rect></svg><span style="flex:1;">Pipeline</span></a>
+            <a href="#3a" style="display:flex;align-items:center;gap:12px;height:40px;padding:0 12px;border-radius:6px;font-size:14px;font-weight:500;color:#1c1b19;text-decoration:none;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"></circle><circle cx="12" cy="12" r="3.4"></circle><path d="M12 3.5v3"></path><path d="M12 17.5v3"></path><path d="M3.5 12h3"></path><path d="M17.5 12h3"></path><path d="m6 6 2.1 2.1"></path><path d="m15.9 15.9 2.1 2.1"></path><path d="m18 6-2.1 2.1"></path><path d="m8.1 15.9-2.1 2.1"></path></svg><span style="flex:1;">Cotizador</span></a>
+            <a href="#3b" style="display:flex;align-items:center;gap:12px;height:40px;padding:0 12px;border-radius:6px;font-size:14px;font-weight:500;color:#1c1b19;text-decoration:none;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10"></path><path d="M10 20V4"></path><path d="M16 20v-7"></path><path d="M21 20H3"></path></svg><span style="flex:1;">Métricas</span></a>
+          </nav>
+          <div style="margin-top:auto;display:flex;flex-direction:column;gap:2px;">
+            <div style="display:flex;align-items:center;gap:12px;height:36px;padding:0 12px;font-size:13px;color:#1c1b19;"><span style="width:8px;height:8px;border-radius:50%;background:#2f6f4f;margin:0 5px;"></span><span style="flex:1;">Bot contestando</span></div>
+            <div style="display:flex;align-items:center;gap:12px;height:36px;padding:0 12px;font-size:13px;color:#6f6b64;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9.5h3.2L12 5.4v13.2L7.2 14.5H4Z"></path><path d="M15.6 9.4a3.7 3.7 0 0 1 0 5.2"></path><path d="M18.2 6.8a7.3 7.3 0 0 1 0 10.4"></path></svg><span style="flex:1;">Sonido activado</span></div>
+            <a href="#3c" style="display:flex;align-items:center;gap:12px;height:40px;padding:0 12px;border-radius:6px;font-size:14px;font-weight:600;color:#b4453a;text-decoration:none;margin-top:6px;background:rgba(180,69,58,.07);"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"></path><circle cx="12" cy="12" r="3"></circle></svg><span style="flex:1;">Ajustes</span></a>
+          </div>
+        </aside>
+        <div style="flex:1;min-width:0;display:flex;flex-direction:column;">
+          <header style="display:flex;align-items:baseline;gap:14px;padding:30px 32px 22px;"><h1 style="margin:0;font-size:22px;font-weight:600;letter-spacing:-.01em;">Ajustes</h1><span style="font-size:13px;color:#6f6b64;">Un bloque por decisión. Cada uno se guarda por separado.</span></header>
+          <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin:0 32px 32px;align-items:start;">
+
+            <div style="display:flex;flex-direction:column;border-radius:10px;background:#ffffff;border:1px solid rgba(28,27,25,.10);">
+              <div style="padding:18px 20px 0;display:flex;flex-direction:column;gap:2px;"><span style="font-size:13px;font-weight:600;">Negocio</span><span style="font-size:12px;color:#6f6b64;">Sucursales y horario de atención</span></div>
+              <div style="padding:16px 20px 0;display:flex;flex-direction:column;gap:14px;">
+                <div style="display:grid;grid-template-columns:120px minmax(0,1fr);row-gap:10px;column-gap:16px;align-items:center;font-size:13px;">
+                  <span style="color:#6f6b64;">Sucursal 1</span><div style="display:flex;gap:8px;"><input value="Depot Tire Cumbayá" style="flex:1;min-width:0;height:36px;padding:0 12px;border-radius:6px;border:1px solid rgba(28,27,25,.10);background:#ffffff;font:inherit;font-size:13px;color:#1c1b19;outline:none;box-sizing:border-box;"><input value="C.C. La del Establo y Av. Oswaldo Guayasamín" style="flex:1.6;min-width:0;height:36px;padding:0 12px;border-radius:6px;border:1px solid rgba(28,27,25,.10);background:#ffffff;font:inherit;font-size:13px;color:#1c1b19;outline:none;box-sizing:border-box;"></div>
+                  <span style="color:#6f6b64;">Sucursal 2</span><div style="display:flex;gap:8px;"><input value="Depot Tire Quito Sur" style="flex:1;min-width:0;height:36px;padding:0 12px;border-radius:6px;border:1px solid rgba(28,27,25,.10);background:#ffffff;font:inherit;font-size:13px;color:#1c1b19;outline:none;box-sizing:border-box;"><input value="Galo Molina y Av. Alonso de Angulo" style="flex:1.6;min-width:0;height:36px;padding:0 12px;border-radius:6px;border:1px solid rgba(28,27,25,.10);background:#ffffff;font:inherit;font-size:13px;color:#1c1b19;outline:none;box-sizing:border-box;"></div>
+                  <span style="color:#6f6b64;">Horario</span><div style="display:flex;align-items:center;gap:8px;"><span>Lunes a sábado</span><input value="08:30" style="width:72px;height:36px;padding:0 12px;border-radius:6px;border:1px solid rgba(28,27,25,.10);background:#ffffff;font-family:'JetBrains Mono',monospace;font-size:13px;color:#1c1b19;outline:none;box-sizing:border-box;"><span style="color:#6f6b64;">a</span><input value="17:30" style="width:72px;height:36px;padding:0 12px;border-radius:6px;border:1px solid rgba(28,27,25,.10);background:#ffffff;font-family:'JetBrains Mono',monospace;font-size:13px;color:#1c1b19;outline:none;box-sizing:border-box;"></div>
+                </div>
+              </div>
+              <div style="display:flex;align-items:center;gap:12px;padding:16px 20px 18px;"><button style="height:36px;padding:0 14px;border-radius:6px;background:#ffffff;border:1px solid rgba(28,27,25,.10);font:inherit;font-size:13px;font-weight:500;color:#1c1b19;cursor:pointer;">Guardar negocio</button><span style="font-size:12px;color:#6f6b64;">Guardado hace 3 días</span></div>
+            </div>
+
+            <div style="display:flex;flex-direction:column;border-radius:10px;background:#ffffff;border:1px solid rgba(28,27,25,.10);">
+              <div style="padding:18px 20px 0;display:flex;flex-direction:column;gap:2px;"><span style="font-size:13px;font-weight:600;">Horarios de seguimiento</span><span style="font-size:12px;color:#6f6b64;">Cuándo puede escribir el bot por su cuenta</span></div>
+              <div style="padding:16px 20px 0;display:flex;flex-direction:column;gap:14px;">
+                <div style="display:grid;grid-template-columns:120px minmax(0,1fr);row-gap:10px;column-gap:16px;align-items:center;font-size:13px;">
+                  <span style="color:#6f6b64;">Días</span>
+                  <div style="display:flex;gap:6px;">
+                    <span style="height:32px;padding:0 12px;display:flex;align-items:center;border-radius:6px;border:1px solid #1c1b19;font-size:13px;font-weight:600;">Lun</span><span style="height:32px;padding:0 12px;display:flex;align-items:center;border-radius:6px;border:1px solid #1c1b19;font-size:13px;font-weight:600;">Mar</span><span style="height:32px;padding:0 12px;display:flex;align-items:center;border-radius:6px;border:1px solid #1c1b19;font-size:13px;font-weight:600;">Mié</span><span style="height:32px;padding:0 12px;display:flex;align-items:center;border-radius:6px;border:1px solid #1c1b19;font-size:13px;font-weight:600;">Jue</span><span style="height:32px;padding:0 12px;display:flex;align-items:center;border-radius:6px;border:1px solid #1c1b19;font-size:13px;font-weight:600;">Vie</span><span style="height:32px;padding:0 12px;display:flex;align-items:center;border-radius:6px;border:1px solid #1c1b19;font-size:13px;font-weight:600;">Sáb</span><span style="height:32px;padding:0 12px;display:flex;align-items:center;border-radius:6px;border:1px solid rgba(28,27,25,.10);font-size:13px;color:#6f6b64;">Dom</span>
+                  </div>
+                  <span style="color:#6f6b64;">Entre</span><div style="display:flex;align-items:center;gap:8px;"><input value="09:00" style="width:72px;height:36px;padding:0 12px;border-radius:6px;border:1px solid rgba(28,27,25,.10);background:#ffffff;font-family:'JetBrains Mono',monospace;font-size:13px;color:#1c1b19;outline:none;box-sizing:border-box;"><span style="color:#6f6b64;">y</span><input value="18:00" style="width:72px;height:36px;padding:0 12px;border-radius:6px;border:1px solid rgba(28,27,25,.10);background:#ffffff;font-family:'JetBrains Mono',monospace;font-size:13px;color:#1c1b19;outline:none;box-sizing:border-box;"></div>
+                </div>
+              </div>
+              <div style="display:flex;align-items:center;gap:12px;padding:16px 20px 18px;"><button style="height:36px;padding:0 14px;border-radius:6px;background:#ffffff;border:1px solid rgba(28,27,25,.10);font:inherit;font-size:13px;font-weight:500;color:#1c1b19;cursor:pointer;">Guardar horarios</button><span style="font-size:12px;color:#6f6b64;">Guardado hace 3 días</span></div>
+            </div>
+
+            <div style="display:flex;flex-direction:column;border-radius:10px;background:#ffffff;border:1px solid rgba(28,27,25,.10);">
+              <div style="padding:18px 20px 0;display:flex;flex-direction:column;gap:2px;"><span style="font-size:13px;font-weight:600;">Tiempos de seguimiento</span><span style="font-size:12px;color:#6f6b64;">Cuánto espera el bot antes de volver a escribir</span></div>
+              <div style="padding:16px 20px 0;">
+                <div style="display:grid;grid-template-columns:180px minmax(0,1fr);row-gap:10px;column-gap:16px;align-items:center;font-size:13px;">
+                  <span style="color:#6f6b64;">Primer retraso</span><div style="display:flex;align-items:center;gap:8px;"><input value="45" style="width:72px;height:36px;padding:0 12px;border-radius:6px;border:1px solid rgba(28,27,25,.10);background:#ffffff;font-family:'JetBrains Mono',monospace;font-size:13px;color:#1c1b19;outline:none;box-sizing:border-box;"><span style="color:#6f6b64;">minutos sin respuesta</span></div>
+                  <span style="color:#6f6b64;">Antes del cierre</span><div style="display:flex;align-items:center;gap:8px;"><input value="2" style="width:72px;height:36px;padding:0 12px;border-radius:6px;border:1px solid rgba(28,27,25,.10);background:#ffffff;font-family:'JetBrains Mono',monospace;font-size:13px;color:#1c1b19;outline:none;box-sizing:border-box;"><span style="color:#6f6b64;">horas antes de que cierre la ventana de 24 h</span></div>
+                  <span style="color:#6f6b64;">Separación mínima</span><div style="display:flex;align-items:center;gap:8px;"><input value="4" style="width:72px;height:36px;padding:0 12px;border-radius:6px;border:1px solid rgba(28,27,25,.10);background:#ffffff;font-family:'JetBrains Mono',monospace;font-size:13px;color:#1c1b19;outline:none;box-sizing:border-box;"><span style="color:#6f6b64;">horas entre dos seguimientos</span></div>
+                  <span style="color:#6f6b64;">Días con plantilla</span><div style="display:flex;align-items:center;gap:8px;"><input value="0" style="width:72px;height:36px;padding:0 12px;border-radius:6px;border:1px solid #b4453a;background:#ffffff;font-family:'JetBrains Mono',monospace;font-size:13px;color:#1c1b19;outline:none;box-sizing:border-box;"><span style="color:#6f6b64;">días fuera de ventana (1 a 7)</span></div>
+                  <span></span><span style="font-size:12px;font-weight:600;color:#b4453a;">Tiene que ser al menos 1 día. Con 0 el bot nunca vuelve a escribir fuera de la ventana.</span>
+                  <span style="color:#6f6b64;">Hora diaria</span><div style="display:flex;align-items:center;gap:8px;"><input value="10:00" style="width:72px;height:36px;padding:0 12px;border-radius:6px;border:1px solid rgba(28,27,25,.10);background:#ffffff;font-family:'JetBrains Mono',monospace;font-size:13px;color:#1c1b19;outline:none;box-sizing:border-box;"><span style="color:#6f6b64;">para las plantillas</span></div>
+                  <span style="color:#6f6b64;">Recomendar cierre</span><div style="display:flex;align-items:center;gap:8px;"><input value="7" style="width:72px;height:36px;padding:0 12px;border-radius:6px;border:1px solid rgba(28,27,25,.10);background:#ffffff;font-family:'JetBrains Mono',monospace;font-size:13px;color:#1c1b19;outline:none;box-sizing:border-box;"><span style="color:#6f6b64;">días sin respuesta</span></div>
+                </div>
+              </div>
+              <div style="display:flex;align-items:center;gap:12px;padding:16px 20px 18px;"><button style="height:36px;padding:0 14px;border-radius:6px;background:#ffffff;border:1px solid rgba(28,27,25,.10);font:inherit;font-size:13px;font-weight:500;color:#1c1b19;cursor:pointer;">Guardar tiempos</button><span style="font-size:12px;font-weight:600;color:#b4453a;">No se guardó: revisá «Días con plantilla».</span></div>
+            </div>
+
+            <div style="display:flex;flex-direction:column;border-radius:10px;background:#ffffff;border:1px solid rgba(28,27,25,.10);">
+              <div style="padding:18px 20px 0;display:flex;flex-direction:column;gap:2px;"><span style="font-size:13px;font-weight:600;">Avisos</span><span style="font-size:12px;color:#6f6b64;">Qué le llega a cada quien por WhatsApp</span></div>
+              <div style="padding:16px 20px 0;display:grid;grid-template-columns:minmax(0,1fr) 110px 110px 110px;row-gap:12px;column-gap:12px;align-items:center;font-size:13px;">
+                <span></span><span style="font-size:12px;color:#6f6b64;">Joaquín</span><span style="font-size:12px;color:#6f6b64;">Andrés</span><span style="font-size:12px;color:#6f6b64;">Paola</span>
+                <span>Cliente pide hablar con una persona</span><span style="font-weight:600;">Sí</span><span style="font-weight:600;">Sí</span><span style="font-weight:600;">Sí</span>
+                <span>Cliente confirma visita</span><span style="color:#6f6b64;">No</span><span style="font-weight:600;">Sí</span><span style="font-weight:600;">Sí</span>
+                <span>Bot apagado más de 1 hora</span><span style="font-weight:600;">Sí</span><span style="color:#6f6b64;">No</span><span style="color:#6f6b64;">No</span>
+                <span>Mensaje no entregado</span><span style="font-weight:600;">Sí</span><span style="color:#6f6b64;">No</span><span style="color:#6f6b64;">No</span>
+                <span>Resumen del día (18:00)</span><span style="font-weight:600;">Sí</span><span style="font-weight:600;">Sí</span><span style="color:#6f6b64;">No</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:12px;padding:16px 20px 18px;"><button style="height:36px;padding:0 14px;border-radius:6px;background:#ffffff;border:1px solid rgba(28,27,25,.10);font:inherit;font-size:13px;font-weight:500;color:#1c1b19;cursor:pointer;">Guardar avisos</button><span style="font-size:12px;color:#6f6b64;">Guardado ayer</span></div>
+            </div>
+
+            <div style="grid-column:span 2;display:flex;flex-direction:column;border-radius:10px;background:#ffffff;border:1px solid rgba(28,27,25,.10);">
+              <div style="padding:18px 20px 0;display:flex;align-items:baseline;justify-content:space-between;"><div style="display:flex;flex-direction:column;gap:2px;"><span style="font-size:13px;font-weight:600;">Usuarios y permisos</span><span style="font-size:12px;color:#6f6b64;">Quién entra y qué pantallas ve</span></div><button style="height:32px;padding:0 12px;border-radius:6px;background:#ffffff;border:1px solid rgba(28,27,25,.10);font:inherit;font-size:13px;font-weight:500;color:#1c1b19;cursor:pointer;">Agregar usuario</button></div>
+              <div style="margin-top:12px;display:grid;grid-template-columns:minmax(0,1.4fr) 140px repeat(5,110px) 90px;gap:12px;align-items:center;height:36px;padding:0 20px;font-size:12px;color:#6f6b64;border-bottom:1px solid rgba(28,27,25,.10);">
+                <span>Usuario</span><span>Rol</span><sc-for list="{{ permisos }}" as="p" hint-placeholder-count="5"><span>{{ p }}</span></sc-for><span></span>
+              </div>
+              <sc-for list="{{ usuarios }}" as="u" hint-placeholder-count="3">
+                <div style="display:grid;grid-template-columns:minmax(0,1.4fr) 140px repeat(5,110px) 90px;gap:12px;align-items:center;height:48px;padding:0 20px;font-size:13px;border-bottom:1px solid rgba(28,27,25,.10);">
+                  <span style="font-weight:500;">{{ u.nombre }}</span><span style="color:#6f6b64;">{{ u.rol }}</span>
+                  <sc-for list="{{ u.celdas }}" as="c" hint-placeholder-count="5"><span style="font-weight:{{ c.peso }};color:{{ c.color }};">{{ c.txt }}</span></sc-for>
+                  <button style="font:inherit;font-size:13px;color:#6f6b64;background:none;border:none;cursor:pointer;text-align:left;padding:0;">Quitar</button>
+                </div>
+              </sc-for>
+              <div style="display:flex;align-items:center;gap:12px;padding:16px 20px 18px;"><button style="height:36px;padding:0 14px;border-radius:6px;background:#ffffff;border:1px solid rgba(28,27,25,.10);font:inherit;font-size:13px;font-weight:500;color:#1c1b19;cursor:pointer;">Guardar usuarios</button><span style="font-size:12px;color:#6f6b64;">Guardado hace 2 semanas</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 3d · Configuración técnica 1440 -->
+    <div id="3d" data-screen-label="3d Configuración técnica 1440" style="display:flex;flex-direction:column;gap:10px;">
+      <div style="display:flex;align-items:center;gap:8px;font-size:12px;color:#6f6b64;"><span style="font-family:'JetBrains Mono',monospace;font-weight:700;color:#1c1b19;">3d</span>Configuración técnica · 1440 · se abre desde el nombre del negocio</div>
+      <div style="width:1440px;height:900px;display:flex;background:#f7f6f3;color:#1c1b19;overflow:hidden;box-sizing:border-box;">
+        <aside style="width:224px;flex-shrink:0;display:flex;flex-direction:column;padding:22px 16px 20px;border-right:1px solid rgba(28,27,25,.10);box-sizing:border-box;">
+          <a href="#3d" style="padding:0 12px 26px;display:flex;flex-direction:column;gap:2px;text-decoration:none;color:#b4453a;"><span style="font-size:15px;font-weight:600;letter-spacing:-.01em;">Depot Tire</span><span style="font-size:12px;color:#6f6b64;">Hub de ventas</span></a>
+          <nav style="display:flex;flex-direction:column;gap:2px;">
+            <a href="#1b" style="display:flex;align-items:center;gap:12px;height:40px;padding:0 12px;border-radius:6px;font-size:14px;font-weight:500;color:#1c1b19;text-decoration:none;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 13h4l2 3h6l2-3h4"></path><path d="M5 5h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Z"></path></svg><span style="flex:1;">Inbox</span><span style="font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:500;font-variant-numeric:tabular-nums;">{{ abiertos }}</span></a>
+            <a href="#2b" style="display:flex;align-items:center;gap:12px;height:40px;padding:0 12px;border-radius:6px;font-size:14px;font-weight:500;color:#1c1b19;text-decoration:none;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="5" height="16" rx="1.5"></rect><rect x="10" y="4" width="5" height="10" rx="1.5"></rect><rect x="17" y="4" width="4" height="13" rx="1.5"></rect></svg><span style="flex:1;">Pipeline</span></a>
+            <a href="#3a" style="display:flex;align-items:center;gap:12px;height:40px;padding:0 12px;border-radius:6px;font-size:14px;font-weight:500;color:#1c1b19;text-decoration:none;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"></circle><circle cx="12" cy="12" r="3.4"></circle><path d="M12 3.5v3"></path><path d="M12 17.5v3"></path><path d="M3.5 12h3"></path><path d="M17.5 12h3"></path><path d="m6 6 2.1 2.1"></path><path d="m15.9 15.9 2.1 2.1"></path><path d="m18 6-2.1 2.1"></path><path d="m8.1 15.9-2.1 2.1"></path></svg><span style="flex:1;">Cotizador</span></a>
+            <a href="#3b" style="display:flex;align-items:center;gap:12px;height:40px;padding:0 12px;border-radius:6px;font-size:14px;font-weight:500;color:#1c1b19;text-decoration:none;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10"></path><path d="M10 20V4"></path><path d="M16 20v-7"></path><path d="M21 20H3"></path></svg><span style="flex:1;">Métricas</span></a>
+          </nav>
+          <div style="margin-top:auto;display:flex;flex-direction:column;gap:2px;">
+            <div style="display:flex;align-items:center;gap:12px;height:36px;padding:0 12px;font-size:13px;color:#1c1b19;"><span style="width:8px;height:8px;border-radius:50%;background:#2f6f4f;margin:0 5px;"></span><span style="flex:1;">Bot contestando</span></div>
+            <div style="display:flex;align-items:center;gap:12px;height:36px;padding:0 12px;font-size:13px;color:#6f6b64;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9.5h3.2L12 5.4v13.2L7.2 14.5H4Z"></path><path d="M15.6 9.4a3.7 3.7 0 0 1 0 5.2"></path><path d="M18.2 6.8a7.3 7.3 0 0 1 0 10.4"></path></svg><span style="flex:1;">Sonido activado</span></div>
+            <a href="#3c" style="display:flex;align-items:center;gap:12px;height:40px;padding:0 12px;border-radius:6px;font-size:14px;font-weight:500;color:#1c1b19;text-decoration:none;margin-top:6px;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"></path><circle cx="12" cy="12" r="3"></circle></svg><span style="flex:1;">Ajustes</span></a>
+          </div>
+        </aside>
+        <div style="flex:1;min-width:0;display:flex;flex-direction:column;">
+          <header style="display:flex;align-items:baseline;gap:14px;padding:30px 32px 22px;"><h1 style="margin:0;font-size:22px;font-weight:600;letter-spacing:-.01em;">Configuración técnica</h1><span style="font-size:13px;color:#6f6b64;">Tres cosas. Nada más.</span></header>
+          <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin:0 32px 32px;align-items:start;">
+            <div style="display:flex;flex-direction:column;border-radius:10px;background:#ffffff;border:1px solid rgba(28,27,25,.10);">
+              <div style="padding:18px 20px 0;display:flex;flex-direction:column;gap:2px;"><span style="font-size:13px;font-weight:600;">Conexión de WhatsApp</span><span style="font-size:12px;color:#6f6b64;">El número que atiende a los clientes</span></div>
+              <div style="padding:16px 20px 0;display:grid;grid-template-columns:110px minmax(0,1fr);row-gap:12px;column-gap:16px;align-items:baseline;font-size:13px;">
+                <span style="color:#6f6b64;">Estado</span><span style="font-weight:600;color:#2f6f4f;">Conectado</span>
+                <span style="color:#6f6b64;">Número</span><span style="font-family:'JetBrains Mono',monospace;">+593 99 900 1234</span>
+                <span style="color:#6f6b64;">Cuenta Meta</span><span>Depot Tire Ecuador</span>
+                <span style="color:#6f6b64;">Último mensaje</span><span style="font-family:'JetBrains Mono',monospace;">hace 3 min</span>
+                <span style="color:#6f6b64;">Copias de asesores</span><span>Llegan · 3 guardadas hoy</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:8px;padding:18px 20px;"><button style="height:36px;padding:0 14px;border-radius:6px;background:#ffffff;border:1px solid rgba(28,27,25,.10);font:inherit;font-size:13px;font-weight:500;color:#1c1b19;cursor:pointer;">Probar conexión</button><button style="height:36px;padding:0 14px;border-radius:6px;background:#ffffff;border:1px solid rgba(28,27,25,.10);font:inherit;font-size:13px;font-weight:500;color:#1c1b19;cursor:pointer;">Reconectar</button></div>
+            </div>
+            <div style="display:flex;flex-direction:column;border-radius:10px;background:#ffffff;border:1px solid rgba(28,27,25,.10);">
+              <div style="padding:18px 20px 0;display:flex;flex-direction:column;gap:2px;"><span style="font-size:13px;font-weight:600;">Bot</span><span style="font-size:12px;color:#6f6b64;">Apagado, los mensajes siguen entrando pero nadie contesta</span></div>
+              <div style="padding:16px 20px 0;display:flex;flex-direction:column;gap:14px;">
+                <div style="display:inline-flex;align-self:flex-start;padding:2px;border-radius:6px;border:1px solid rgba(28,27,25,.10);background:#f7f6f3;">
+                  <span style="height:34px;padding:0 16px;display:flex;align-items:center;border-radius:4px;font-size:13px;font-weight:600;color:#b4453a;background:#ffffff;box-shadow:0 1px 2px rgba(28,27,25,.08);">Encendido</span>
+                  <span style="height:34px;padding:0 16px;display:flex;align-items:center;border-radius:4px;font-size:13px;font-weight:500;color:#6f6b64;">Apagado</span>
+                </div>
+                <div style="display:grid;grid-template-columns:110px minmax(0,1fr);row-gap:12px;column-gap:16px;align-items:baseline;font-size:13px;">
+                  <span style="color:#6f6b64;">Desde</span><span>Hoy 06:00, encendido automático</span>
+                  <span style="color:#6f6b64;">Contestó hoy</span><span style="font-family:'JetBrains Mono',monospace;">61 mensajes · 9 s promedio</span>
+                </div>
+              </div>
+              <div style="display:flex;align-items:center;gap:8px;padding:18px 20px;"><span style="font-size:12px;color:#6f6b64;">El cambio aplica al instante y avisa a Joaquín.</span></div>
+            </div>
+            <div style="display:flex;flex-direction:column;border-radius:10px;background:#ffffff;border:1px solid rgba(28,27,25,.10);">
+              <div style="padding:18px 20px 0;display:flex;flex-direction:column;gap:2px;"><span style="font-size:13px;font-weight:600;">Manual base del bot</span><span style="font-size:12px;color:#6f6b64;">Lo que el bot sabe del negocio antes de cada respuesta</span></div>
+              <div style="padding:16px 20px 0;display:flex;flex-direction:column;gap:10px;">
+                <div style="padding:12px 14px;border-radius:6px;border:1px solid rgba(28,27,25,.10);background:#f7f6f3;font-size:13px;line-height:1.5;color:#1c1b19;height:170px;overflow:hidden;">Sos el asesor de Depot Tire, llantera con dos locales en Quito (Cumbayá y Quito Sur). Atendés por WhatsApp, en español, con mensajes cortos. Primero confirmás la medida completa del costado de la llanta (por ejemplo 245/70 R16). Cotizás sólo con inventario real; si no hay stock lo decís. Siempre recomendás una opción y explicás por qué…</div>
+                <div style="display:flex;justify-content:space-between;font-size:12px;color:#6f6b64;"><span>Versión 14 · editado por Joaquín</span><span style="font-family:'JetBrains Mono',monospace;">2 de septiembre</span></div>
+              </div>
+              <div style="display:flex;align-items:center;gap:8px;padding:18px 20px;"><button style="height:36px;padding:0 14px;border-radius:6px;background:#ffffff;border:1px solid rgba(28,27,25,.10);font:inherit;font-size:13px;font-weight:500;color:#1c1b19;cursor:pointer;">Editar manual</button><button style="height:36px;padding:0 14px;border-radius:6px;background:#ffffff;border:1px solid rgba(28,27,25,.10);font:inherit;font-size:13px;font-weight:500;color:#1c1b19;cursor:pointer;">Ver versiones</button></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 3e · Placa de medida -->
+    <div id="3e" data-screen-label="3e Placa de medida" style="display:flex;flex-direction:column;gap:10px;">
+      <div style="display:flex;align-items:center;gap:8px;font-size:12px;color:#6f6b64;"><span style="font-family:'JetBrains Mono',monospace;font-weight:700;color:#1c1b19;">3e</span>La placa de medida · el único gesto propio</div>
+      <div style="width:640px;height:360px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:36px;background:#ffffff;border:1px solid rgba(28,27,25,.10);border-radius:10px;color:#1c1b19;box-sizing:border-box;">
+        <span style="display:inline-block;font-family:'JetBrains Mono',monospace;font-size:88px;font-weight:500;letter-spacing:-.03em;line-height:1;padding-bottom:12px;border-bottom:1px solid rgba(28,27,25,.35);font-variant-numeric:tabular-nums;">245/40 <b style="font-weight:700;">R18</b></span>
+        <div style="display:flex;gap:40px;align-items:flex-end;">
+          <span style="display:inline-block;font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:500;letter-spacing:-.01em;padding-bottom:2px;border-bottom:1px solid rgba(28,27,25,.35);font-variant-numeric:tabular-nums;">245/40 <b style="font-weight:700;">R18</b></span>
+          <span style="display:inline-block;font-family:'JetBrains Mono',monospace;font-size:20px;font-weight:500;letter-spacing:-.01em;padding-bottom:3px;border-bottom:1px solid rgba(28,27,25,.35);font-variant-numeric:tabular-nums;">245/40 <b style="font-weight:700;">R18</b></span>
+          <span style="display:inline-block;font-family:'JetBrains Mono',monospace;font-size:32px;font-weight:500;letter-spacing:-.02em;padding-bottom:5px;border-bottom:1px solid rgba(28,27,25,.35);font-variant-numeric:tabular-nums;">245/40 <b style="font-weight:700;">R18</b></span>
+        </div>
+        <span style="font-size:12px;color:#6f6b64;">JetBrains Mono · ancho/perfil en 500, rin en 700 · línea de pelo al 35 % de la tinta</span>
+      </div>
+    </div>
+
+    <!-- 3f · Conversación 390 -->
+    <div id="3f" data-screen-label="3f Conversación 390" style="display:flex;flex-direction:column;gap:10px;">
+      <div style="display:flex;align-items:center;gap:8px;font-size:12px;color:#6f6b64;"><span style="font-family:'JetBrains Mono',monospace;font-weight:700;color:#1c1b19;">3f</span>Conversación · 390 · sin barra de pestañas, se sale con la flecha</div>
+      <div style="width:390px;height:844px;display:flex;flex-direction:column;background:#f7f6f3;color:#1c1b19;overflow:hidden;box-sizing:border-box;">
+        <header style="display:flex;align-items:center;gap:10px;padding:54px 12px 10px 8px;">
+          <a href="#1d" style="width:44px;height:44px;display:grid;place-items:center;color:#1c1b19;text-decoration:none;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"></path></svg></a>
+          <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px;"><h1 style="margin:0;font-size:17px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ conv.nombre }}</h1><span style="font-size:12px;color:#6f6b64;">{{ conv.vehiculo }} · <span style="font-family:'JetBrains Mono',monospace;">{{ conv.medidaA }} <b>{{ conv.medidaR }}</b></span></span></div>
+          <button style="height:36px;padding:0 12px;border-radius:6px;background:#ffffff;border:1px solid rgba(28,27,25,.10);font:inherit;font-size:13px;font-weight:500;color:#1c1b19;cursor:pointer;">Ficha</button>
+        </header>
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:0 16px 10px;">
+          <span style="font-size:12px;color:#6f6b64;">Quién contesta</span>
+          <div style="display:inline-flex;padding:2px;border-radius:6px;border:1px solid rgba(28,27,25,.10);background:#ffffff;">
+            <span style="height:30px;padding:0 12px;display:flex;align-items:center;border-radius:4px;font-size:12px;font-weight:600;color:#b4453a;background:rgba(180,69,58,.07);">El bot</span>
+            <span style="height:30px;padding:0 12px;display:flex;align-items:center;border-radius:4px;font-size:12px;font-weight:500;color:#6f6b64;">Ustedes</span>
+          </div>
+        </div>
+        <div style="flex:1;min-height:0;overflow-y:auto;margin:0 16px;padding:16px;border-radius:10px 10px 0 0;background:#ffffff;border:1px solid rgba(28,27,25,.10);border-bottom:none;display:flex;flex-direction:column;gap:10px;">
+          <div style="align-self:center;font-family:'JetBrains Mono',monospace;font-size:11px;color:#6f6b64;">{{ conv.fecha }}</div>
+          <sc-for list="{{ conv.mensajes }}" as="msg" hint-placeholder-count="4">
+            <div style="display:flex;flex-direction:column;gap:4px;max-width:84%;align-self:{{ msg.lado }};">
+              <sc-if value="{{ msg.esPdf }}" hint-placeholder-val="{{ false }}">
+                <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:8px;border:1px solid rgba(28,27,25,.10);background:#ffffff;">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="M7 3h7l5 5v13a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z"></path><path d="M14 3v5h5"></path><path d="M9.5 13h5"></path><path d="M9.5 16.5h5"></path></svg>
+                  <div style="display:flex;flex-direction:column;gap:2px;min-width:0;"><span style="font-size:13px;font-weight:500;">{{ msg.contenido }}</span><span style="font-size:12px;color:#6f6b64;">PDF</span></div>
+                </div>
+              </sc-if>
+              <sc-if value="{{ msg.esTexto }}" hint-placeholder-val="{{ true }}">
+                <div style="padding:10px 12px;border-radius:8px;font-size:14px;line-height:1.45;background:{{ msg.bg }};border:1px solid {{ msg.borde }};">{{ msg.contenido }}</div>
+              </sc-if>
+              <span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#6f6b64;font-variant-numeric:tabular-nums;text-align:{{ msg.alinea }};">{{ msg.quien }} · {{ msg.hora }}</span>
+            </div>
+          </sc-for>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;padding:10px 16px 28px;border-top:1px solid rgba(28,27,25,.10);background:#f7f6f3;">
+          <input placeholder="Escribir a Paúl…" style="flex:1;min-width:0;height:44px;padding:0 14px;border-radius:6px;border:1px solid rgba(28,27,25,.10);background:#ffffff;font:inherit;font-size:14px;color:#1c1b19;outline:none;box-sizing:border-box;">
+          <button style="height:44px;padding:0 16px;border-radius:6px;background:#b4453a;border:1px solid #b4453a;font:inherit;font-size:14px;font-weight:600;color:#ffffff;cursor:pointer;">Enviar</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 3g · Pipeline 390 -->
+    <div id="3g" data-screen-label="3g Pipeline 390" style="display:flex;flex-direction:column;gap:10px;">
+      <div style="display:flex;align-items:center;gap:8px;font-size:12px;color:#6f6b64;"><span style="font-family:'JetBrains Mono',monospace;font-weight:700;color:#1c1b19;">3g</span>Pipeline · 390 · una etapa a la vez</div>
+      <div style="width:390px;height:844px;display:flex;flex-direction:column;background:#f7f6f3;color:#1c1b19;overflow:hidden;box-sizing:border-box;">
+        <header style="display:flex;align-items:center;justify-content:space-between;padding:58px 20px 14px;">
+          <div style="display:flex;flex-direction:column;gap:2px;"><h1 style="margin:0;font-size:20px;font-weight:600;letter-spacing:-.01em;">Pipeline</h1><span style="display:flex;align-items:center;gap:6px;font-size:12px;color:#6f6b64;"><span style="width:7px;height:7px;border-radius:50%;background:#2f6f4f;"></span>Bot contestando</span></div>
+          <div style="display:flex;align-items:center;gap:4px;">
+            <span style="width:44px;height:44px;display:grid;place-items:center;color:#6f6b64;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9.5h3.2L12 5.4v13.2L7.2 14.5H4Z"></path><path d="M15.6 9.4a3.7 3.7 0 0 1 0 5.2"></path><path d="M18.2 6.8a7.3 7.3 0 0 1 0 10.4"></path></svg></span>
+            <span style="width:44px;height:44px;display:grid;place-items:center;color:#1c1b19;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"></path><circle cx="12" cy="12" r="3"></circle></svg></span>
+          </div>
+        </header>
+        <div style="display:grid;grid-template-columns:repeat(5,minmax(0,1fr));margin:0 16px 12px;border-radius:10px;background:#ffffff;border:1px solid rgba(28,27,25,.10);overflow:hidden;">
+          <sc-for list="{{ columnasMovil }}" as="c" hint-placeholder-count="5">
+            <div style="display:flex;flex-direction:column;align-items:center;gap:2px;padding:10px 4px 8px;border-right:1px solid rgba(28,27,25,.10);background:{{ c.bg }};">
+              <span style="font-family:'JetBrains Mono',monospace;font-size:18px;font-weight:500;font-variant-numeric:tabular-nums;color:{{ c.color }};">{{ c.conteo }}</span>
+              <span style="font-size:11px;font-weight:{{ c.peso }};color:{{ c.color }};">{{ c.nombre }}</span>
+              <div style="width:100%;height:3px;border-radius:2px;background:rgba(28,27,25,.10);overflow:hidden;margin-top:4px;"><div style="height:100%;background:#1c1b19;width:{{ c.pct }};"></div></div>
+            </div>
+          </sc-for>
+        </div>
+        <div style="display:flex;align-items:baseline;justify-content:space-between;padding:0 18px 8px;"><span style="font-size:13px;font-weight:600;">Cotizado · dentro de 24 h</span><span style="font-size:12px;color:#6f6b64;">{{ cotizadoDentroN }} tickets</span></div>
+        <div data-lane="1" style="flex:1;min-height:0;overflow-y:scroll;margin:0 16px;padding:8px;border-radius:8px;border:1px solid rgba(28,27,25,.10);background:rgba(28,27,25,.025);display:flex;flex-direction:column;gap:8px;">
+          <sc-for list="{{ cotizadoDentro }}" as="t" hint-placeholder-count="3">
+            <div style="flex-shrink:0;display:flex;flex-direction:column;gap:8px;padding:12px 14px;border-radius:8px;border:1px solid rgba(28,27,25,.10);background:{{ t.cardBg }};">
+              <div style="display:flex;align-items:baseline;justify-content:space-between;gap:10px;"><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:15px;font-weight:{{ t.peso }};">{{ t.titulo }}</span><span style="flex-shrink:0;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:{{ t.horaPeso }};color:{{ t.horaColor }};font-variant-numeric:tabular-nums;">{{ t.hora }}</span></div>
+              <span style="align-self:flex-start;display:inline-block;font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:500;letter-spacing:-.01em;padding-bottom:2px;border-bottom:1px solid rgba(28,27,25,.35);font-variant-numeric:tabular-nums;">{{ t.medidaA }} <b style="font-weight:700;">{{ t.medidaR }}</b></span>
+              <span style="font-size:13px;color:{{ t.msgColor }};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ t.ultimoMensaje }}</span>
+            </div>
+          </sc-for>
+        </div>
+        <div style="display:flex;align-items:baseline;justify-content:space-between;padding:12px 18px 8px;"><span style="font-size:13px;font-weight:600;">Cotizado · fuera de 24 h</span><span style="font-size:12px;color:#6f6b64;">{{ cotizadoFueraN }} tickets · sólo ustedes</span></div>
+        <div data-lane="1" style="height:132px;overflow-y:scroll;margin:0 16px;padding:8px;border-radius:8px;border:1px solid rgba(28,27,25,.10);background:rgba(28,27,25,.025);display:flex;flex-direction:column;gap:8px;">
+          <sc-for list="{{ cotizadoFuera }}" as="t" hint-placeholder-count="2">
+            <div style="flex-shrink:0;display:flex;flex-direction:column;gap:8px;padding:12px 14px;border-radius:8px;border:1px solid rgba(28,27,25,.10);background:{{ t.cardBg }};">
+              <div style="display:flex;align-items:baseline;justify-content:space-between;gap:10px;"><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:15px;font-weight:{{ t.peso }};">{{ t.titulo }}</span><span style="flex-shrink:0;font-family:'JetBrains Mono',monospace;font-size:12px;color:{{ t.horaColor }};font-variant-numeric:tabular-nums;">{{ t.hora }}</span></div>
+              <span style="align-self:flex-start;display:inline-block;font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:500;letter-spacing:-.01em;padding-bottom:2px;border-bottom:1px solid rgba(28,27,25,.35);font-variant-numeric:tabular-nums;">{{ t.medidaA }} <b style="font-weight:700;">{{ t.medidaR }}</b></span>
+            </div>
+          </sc-for>
+        </div>
+        <nav style="margin-top:12px;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));padding:8px 8px 28px;border-top:1px solid rgba(28,27,25,.10);background:#f7f6f3;">
+          <a href="#1d" style="display:flex;flex-direction:column;align-items:center;gap:4px;height:48px;justify-content:center;font-size:11px;font-weight:500;color:#1c1b19;text-decoration:none;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 13h4l2 3h6l2-3h4"></path><path d="M5 5h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Z"></path></svg>Inbox</a>
+          <a href="#3g" style="display:flex;flex-direction:column;align-items:center;gap:4px;height:48px;justify-content:center;font-size:11px;font-weight:600;color:#b4453a;text-decoration:none;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="5" height="16" rx="1.5"></rect><rect x="10" y="4" width="5" height="10" rx="1.5"></rect><rect x="17" y="4" width="4" height="13" rx="1.5"></rect></svg>Pipeline</a>
+          <a href="#3g" style="display:flex;flex-direction:column;align-items:center;gap:4px;height:48px;justify-content:center;font-size:11px;font-weight:500;color:#1c1b19;text-decoration:none;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"></circle><circle cx="12" cy="12" r="3.4"></circle><path d="M12 3.5v3"></path><path d="M12 17.5v3"></path><path d="M3.5 12h3"></path><path d="M17.5 12h3"></path><path d="m6 6 2.1 2.1"></path><path d="m15.9 15.9 2.1 2.1"></path><path d="m18 6-2.1 2.1"></path><path d="m8.1 15.9-2.1 2.1"></path></svg>Cotizador</a>
+          <a href="#3g" style="display:flex;flex-direction:column;align-items:center;gap:4px;height:48px;justify-content:center;font-size:11px;font-weight:500;color:#1c1b19;text-decoration:none;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10"></path><path d="M10 20V4"></path><path d="M16 20v-7"></path><path d="M21 20H3"></path></svg>Métricas</a>
+        </nav>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<section id="turno-2" style="display:flex;flex-direction:column;gap:32px;padding:40px 40px 0;">
+  <div style="display:flex;align-items:baseline;gap:12px;">
+    <span style="font-size:13px;font-weight:600;">Turno 2 · Conversación y Pipeline</span>
+    <span style="font-size:12px;color:#6f6b64;">Taller · 1440</span>
+  </div>
+  <div style="display:flex;flex-wrap:wrap;align-items:flex-start;gap:40px;">
+
+    <!-- 2a · Conversación 1440 -->
+    <div id="2a" data-screen-label="2a Conversación 1440" style="display:flex;flex-direction:column;gap:10px;">
+      <div style="display:flex;align-items:center;gap:8px;font-size:12px;color:#6f6b64;"><span style="font-family:'JetBrains Mono',monospace;font-weight:700;color:#1c1b19;">2a</span>Conversación · 1440</div>
+      <div style="width:1440px;height:900px;display:flex;background:#f7f6f3;color:#1c1b19;overflow:hidden;box-sizing:border-box;">
+        <aside style="width:224px;flex-shrink:0;display:flex;flex-direction:column;padding:22px 16px 20px;border-right:1px solid rgba(28,27,25,.10);box-sizing:border-box;">
+          <div style="padding:0 12px 26px;display:flex;flex-direction:column;gap:2px;">
+            <span style="font-size:15px;font-weight:600;letter-spacing:-.01em;">Depot Tire</span>
+            <span style="font-size:12px;color:#6f6b64;">Hub de ventas</span>
+          </div>
+          <nav style="display:flex;flex-direction:column;gap:2px;">
+            <a href="#1b" style="display:flex;align-items:center;gap:12px;height:40px;padding:0 12px;border-radius:6px;font-size:14px;font-weight:600;color:#b4453a;text-decoration:none;background:rgba(180,69,58,.07);">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 13h4l2 3h6l2-3h4"></path><path d="M5 5h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Z"></path></svg>
+              <span style="flex:1;">Inbox</span>
+              <span style="font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:500;font-variant-numeric:tabular-nums;">{{ abiertos }}</span>
+            </a>
+            <a href="#2b" style="display:flex;align-items:center;gap:12px;height:40px;padding:0 12px;border-radius:6px;font-size:14px;font-weight:500;color:#1c1b19;text-decoration:none;">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="5" height="16" rx="1.5"></rect><rect x="10" y="4" width="5" height="10" rx="1.5"></rect><rect x="17" y="4" width="4" height="13" rx="1.5"></rect></svg>
+              <span style="flex:1;">Pipeline</span>
+            </a>
+            <a href="#2a" style="display:flex;align-items:center;gap:12px;height:40px;padding:0 12px;border-radius:6px;font-size:14px;font-weight:500;color:#1c1b19;text-decoration:none;">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"></circle><circle cx="12" cy="12" r="3.4"></circle><path d="M12 3.5v3"></path><path d="M12 17.5v3"></path><path d="M3.5 12h3"></path><path d="M17.5 12h3"></path><path d="m6 6 2.1 2.1"></path><path d="m15.9 15.9 2.1 2.1"></path><path d="m18 6-2.1 2.1"></path><path d="m8.1 15.9-2.1 2.1"></path></svg>
+              <span style="flex:1;">Cotizador</span>
+            </a>
+            <a href="#2a" style="display:flex;align-items:center;gap:12px;height:40px;padding:0 12px;border-radius:6px;font-size:14px;font-weight:500;color:#1c1b19;text-decoration:none;">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10"></path><path d="M10 20V4"></path><path d="M16 20v-7"></path><path d="M21 20H3"></path></svg>
+              <span style="flex:1;">Métricas</span>
+            </a>
+          </nav>
+          <div style="margin-top:auto;display:flex;flex-direction:column;gap:2px;">
+            <div style="display:flex;align-items:center;gap:12px;height:36px;padding:0 12px;font-size:13px;color:#1c1b19;">
+              <span style="width:8px;height:8px;border-radius:50%;background:#2f6f4f;margin:0 5px;"></span>
+              <span style="flex:1;">Bot contestando</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:12px;height:36px;padding:0 12px;font-size:13px;color:#6f6b64;">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9.5h3.2L12 5.4v13.2L7.2 14.5H4Z"></path><path d="M15.6 9.4a3.7 3.7 0 0 1 0 5.2"></path><path d="M18.2 6.8a7.3 7.3 0 0 1 0 10.4"></path></svg>
+              <span style="flex:1;">Sonido activado</span>
+            </div>
+            <a href="#2a" style="display:flex;align-items:center;gap:12px;height:40px;padding:0 12px;border-radius:6px;font-size:14px;font-weight:500;color:#1c1b19;text-decoration:none;margin-top:6px;">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+              <span style="flex:1;">Ajustes</span>
+            </a>
+          </div>
+        </aside>
+        <div style="flex:1;min-width:0;display:flex;flex-direction:column;">
+          <header style="display:flex;align-items:center;justify-content:space-between;gap:24px;padding:30px 32px 22px;">
+            <div style="display:flex;align-items:baseline;gap:14px;">
+              <a href="#1b" style="font-size:13px;color:#6f6b64;text-decoration:none;">← Inbox</a>
+              <h1 style="margin:0;font-size:22px;font-weight:600;letter-spacing:-.01em;">{{ conv.nombre }}</h1>
+              <span style="font-family:'JetBrains Mono',monospace;font-size:13px;color:#6f6b64;font-variant-numeric:tabular-nums;">{{ conv.telefono }}</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <button style="height:36px;padding:0 14px;border-radius:6px;background:#ffffff;border:1px solid rgba(28,27,25,.10);font:inherit;font-size:13px;font-weight:500;color:#1c1b19;cursor:pointer;">Ofrecer descuento</button>
+              <button style="height:36px;padding:0 14px;border-radius:6px;background:#ffffff;border:1px solid rgba(28,27,25,.10);font:inherit;font-size:13px;font-weight:500;color:#1c1b19;cursor:pointer;">Cerrar ticket</button>
+            </div>
+          </header>
+          <div style="flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,1fr) 380px;gap:20px;margin:0 32px 32px;">
+            <div style="display:flex;flex-direction:column;min-height:0;border-radius:10px;background:#ffffff;border:1px solid rgba(28,27,25,.10);overflow:hidden;">
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;height:56px;padding:0 20px;border-bottom:1px solid rgba(28,27,25,.10);">
+                <span style="font-size:13px;font-weight:600;">Quién contesta</span>
+                <div style="display:inline-flex;padding:2px;border-radius:6px;border:1px solid rgba(28,27,25,.10);background:#f7f6f3;">
+                  <span style="height:30px;padding:0 14px;display:flex;align-items:center;border-radius:4px;font-size:13px;font-weight:600;color:#b4453a;background:#ffffff;box-shadow:0 1px 2px rgba(28,27,25,.08);">Contesta el bot</span>
+                  <span style="height:30px;padding:0 14px;display:flex;align-items:center;border-radius:4px;font-size:13px;font-weight:500;color:#6f6b64;">Contestan ustedes</span>
+                </div>
+              </div>
+              <div style="flex:1;min-height:0;overflow-y:auto;padding:20px;display:flex;flex-direction:column;gap:10px;">
+                <div style="align-self:center;font-family:'JetBrains Mono',monospace;font-size:11px;color:#6f6b64;padding:0 0 6px;">{{ conv.fecha }}</div>
+                <sc-for list="{{ conv.mensajes }}" as="msg" hint-placeholder-count="4">
+                  <div style="display:flex;flex-direction:column;gap:4px;max-width:62%;align-self:{{ msg.lado }};">
+                    <sc-if value="{{ msg.esPdf }}" hint-placeholder-val="{{ false }}">
+                      <div style="display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:8px;border:1px solid rgba(28,27,25,.10);background:#ffffff;">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3h7l5 5v13a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z"></path><path d="M14 3v5h5"></path><path d="M9.5 13h5"></path><path d="M9.5 16.5h5"></path></svg>
+                        <div style="display:flex;flex-direction:column;gap:2px;"><span style="font-size:13px;font-weight:500;">{{ msg.contenido }}</span><span style="font-size:12px;color:#6f6b64;">PDF · enviado por el bot</span></div>
+                      </div>
+                    </sc-if>
+                    <sc-if value="{{ msg.esTexto }}" hint-placeholder-val="{{ true }}">
+                      <div style="padding:10px 14px;border-radius:8px;font-size:14px;line-height:1.45;background:{{ msg.bg }};border:1px solid {{ msg.borde }};">{{ msg.contenido }}</div>
+                    </sc-if>
+                    <span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#6f6b64;font-variant-numeric:tabular-nums;text-align:{{ msg.alinea }};">{{ msg.quien }} · {{ msg.hora }}</span>
+                  </div>
+                </sc-for>
+              </div>
+              <div style="display:flex;align-items:center;gap:10px;padding:14px 20px;border-top:1px solid rgba(28,27,25,.10);">
+                <input placeholder="Escribir a Paúl… al enviar, contestan ustedes" style="flex:1;min-width:0;height:44px;padding:0 14px;border-radius:6px;border:1px solid rgba(28,27,25,.10);background:#f7f6f3;font:inherit;font-size:14px;color:#1c1b19;outline:none;box-sizing:border-box;">
+                <button style="height:44px;padding:0 18px;border-radius:6px;background:#b4453a;border:1px solid #b4453a;font:inherit;font-size:14px;font-weight:600;color:#ffffff;cursor:pointer;">Enviar</button>
+              </div>
+            </div>
+            <div style="display:flex;flex-direction:column;min-height:0;border-radius:10px;background:#ffffff;border:1px solid rgba(28,27,25,.10);overflow-y:auto;">
+              <div style="padding:20px 20px 18px;border-bottom:1px solid rgba(28,27,25,.10);display:flex;flex-direction:column;gap:14px;">
+                <span style="font-size:13px;font-weight:600;">Vehículo y medida</span>
+                <div style="display:grid;grid-template-columns:120px minmax(0,1fr);row-gap:12px;column-gap:16px;align-items:baseline;font-size:13px;">
+                  <span style="color:#6f6b64;">Vehículo</span><span>{{ conv.vehiculo }}</span>
+                  <span style="color:#6f6b64;">Medida</span><span style="display:inline-block;justify-self:start;font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:500;letter-spacing:-.01em;padding-bottom:2px;border-bottom:1px solid rgba(28,27,25,.35);font-variant-numeric:tabular-nums;">{{ conv.medidaA }} <b style="font-weight:700;">{{ conv.medidaR }}</b></span>
+                  <span style="color:#6f6b64;">Cantidad</span><span style="font-family:'JetBrains Mono',monospace;font-variant-numeric:tabular-nums;">4 llantas</span>
+                  <span style="color:#6f6b64;">Etapa</span><span>Cotizado</span>
+                </div>
+              </div>
+              <div style="padding:20px 20px 18px;border-bottom:1px solid rgba(28,27,25,.10);display:flex;flex-direction:column;gap:14px;">
+                <span style="font-size:13px;font-weight:600;">Compromiso</span>
+                <div style="display:grid;grid-template-columns:120px minmax(0,1fr);row-gap:12px;column-gap:16px;align-items:baseline;font-size:13px;">
+                  <span style="color:#6f6b64;">Visita</span><span style="color:#6f6b64;">Sin fecha todavía</span>
+                  <span style="color:#6f6b64;">Local</span><span style="color:#6f6b64;">Sin asignar</span>
+                  <span style="color:#6f6b64;">Última respuesta</span><span style="font-weight:600;color:#b4453a;">Pregunta sin contestar · {{ conv.espera }}</span>
+                </div>
+              </div>
+              <div style="padding:20px 20px 18px;border-bottom:1px solid rgba(28,27,25,.10);display:flex;flex-direction:column;gap:14px;">
+                <span style="font-size:13px;font-weight:600;">Cotización #{{ cot.numero }}</span>
+                <div style="display:grid;grid-template-columns:120px minmax(0,1fr);row-gap:12px;column-gap:16px;align-items:baseline;font-size:13px;">
+                  <span style="color:#6f6b64;">Modelo</span><span>{{ cot.item }}</span>
+                  <span style="color:#6f6b64;">Unitario</span><span style="font-family:'JetBrains Mono',monospace;font-variant-numeric:tabular-nums;">{{ cot.unit }}</span>
+                  <span style="color:#6f6b64;">Subtotal</span><span style="font-family:'JetBrains Mono',monospace;font-variant-numeric:tabular-nums;">{{ cot.subtotal }}</span>
+                  <span style="color:#6f6b64;">IVA 15 %</span><span style="font-family:'JetBrains Mono',monospace;font-variant-numeric:tabular-nums;">{{ cot.iva }}</span>
+                  <span style="color:#6f6b64;">Total</span><span style="font-family:'JetBrains Mono',monospace;font-weight:700;font-variant-numeric:tabular-nums;">{{ cot.total }}</span>
+                </div>
+              </div>
+              <div style="padding:20px;display:flex;flex-direction:column;gap:14px;">
+                <span style="font-size:13px;font-weight:600;">Comparación</span>
+                <div style="display:grid;grid-template-columns:120px minmax(0,1fr);row-gap:12px;column-gap:16px;align-items:baseline;font-size:13px;">
+                  <span style="color:#6f6b64;">Pidió</span><span>Una marca más barata que Kenda</span>
+                  <span style="color:#6f6b64;">Alternativas</span><span style="color:#6f6b64;">Aún no se le enviaron</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 2b · Pipeline 1440 -->
+    <div id="2b" data-screen-label="2b Pipeline 1440" style="display:flex;flex-direction:column;gap:10px;">
+      <div style="display:flex;align-items:center;gap:8px;font-size:12px;color:#6f6b64;"><span style="font-family:'JetBrains Mono',monospace;font-weight:700;color:#1c1b19;">2b</span>Pipeline · 1440</div>
+      <div style="width:1440px;height:900px;display:flex;background:#f7f6f3;color:#1c1b19;overflow:hidden;box-sizing:border-box;">
+        <aside style="width:224px;flex-shrink:0;display:flex;flex-direction:column;padding:22px 16px 20px;border-right:1px solid rgba(28,27,25,.10);box-sizing:border-box;">
+          <div style="padding:0 12px 26px;display:flex;flex-direction:column;gap:2px;">
+            <span style="font-size:15px;font-weight:600;letter-spacing:-.01em;">Depot Tire</span>
+            <span style="font-size:12px;color:#6f6b64;">Hub de ventas</span>
+          </div>
+          <nav style="display:flex;flex-direction:column;gap:2px;">
+            <a href="#1b" style="display:flex;align-items:center;gap:12px;height:40px;padding:0 12px;border-radius:6px;font-size:14px;font-weight:500;color:#1c1b19;text-decoration:none;">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 13h4l2 3h6l2-3h4"></path><path d="M5 5h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Z"></path></svg>
+              <span style="flex:1;">Inbox</span>
+              <span style="font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:500;font-variant-numeric:tabular-nums;">{{ abiertos }}</span>
+            </a>
+            <a href="#2b" style="display:flex;align-items:center;gap:12px;height:40px;padding:0 12px;border-radius:6px;font-size:14px;font-weight:600;color:#b4453a;text-decoration:none;background:rgba(180,69,58,.07);">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="5" height="16" rx="1.5"></rect><rect x="10" y="4" width="5" height="10" rx="1.5"></rect><rect x="17" y="4" width="4" height="13" rx="1.5"></rect></svg>
+              <span style="flex:1;">Pipeline</span>
+            </a>
+            <a href="#2b" style="display:flex;align-items:center;gap:12px;height:40px;padding:0 12px;border-radius:6px;font-size:14px;font-weight:500;color:#1c1b19;text-decoration:none;">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"></circle><circle cx="12" cy="12" r="3.4"></circle><path d="M12 3.5v3"></path><path d="M12 17.5v3"></path><path d="M3.5 12h3"></path><path d="M17.5 12h3"></path><path d="m6 6 2.1 2.1"></path><path d="m15.9 15.9 2.1 2.1"></path><path d="m18 6-2.1 2.1"></path><path d="m8.1 15.9-2.1 2.1"></path></svg>
+              <span style="flex:1;">Cotizador</span>
+            </a>
+            <a href="#2b" style="display:flex;align-items:center;gap:12px;height:40px;padding:0 12px;border-radius:6px;font-size:14px;font-weight:500;color:#1c1b19;text-decoration:none;">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10"></path><path d="M10 20V4"></path><path d="M16 20v-7"></path><path d="M21 20H3"></path></svg>
+              <span style="flex:1;">Métricas</span>
+            </a>
+          </nav>
+          <div style="margin-top:auto;display:flex;flex-direction:column;gap:2px;">
+            <div style="display:flex;align-items:center;gap:12px;height:36px;padding:0 12px;font-size:13px;color:#1c1b19;">
+              <span style="width:8px;height:8px;border-radius:50%;background:#2f6f4f;margin:0 5px;"></span>
+              <span style="flex:1;">Bot contestando</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:12px;height:36px;padding:0 12px;font-size:13px;color:#6f6b64;">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9.5h3.2L12 5.4v13.2L7.2 14.5H4Z"></path><path d="M15.6 9.4a3.7 3.7 0 0 1 0 5.2"></path><path d="M18.2 6.8a7.3 7.3 0 0 1 0 10.4"></path></svg>
+              <span style="flex:1;">Sonido activado</span>
+            </div>
+            <a href="#2b" style="display:flex;align-items:center;gap:12px;height:40px;padding:0 12px;border-radius:6px;font-size:14px;font-weight:500;color:#1c1b19;text-decoration:none;margin-top:6px;">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+              <span style="flex:1;">Ajustes</span>
+            </a>
+          </div>
+        </aside>
+        <div style="flex:1;min-width:0;display:flex;flex-direction:column;">
+          <header style="display:flex;align-items:baseline;gap:14px;padding:30px 32px 22px;">
+            <h1 style="margin:0;font-size:22px;font-weight:600;letter-spacing:-.01em;">Pipeline</h1>
+            <span style="font-size:13px;color:#6f6b64;">{{ abiertos }} tickets abiertos, de izquierda a derecha según avanzan</span>
+          </header>
+          <div style="display:grid;grid-template-columns:repeat(5,minmax(0,1fr));margin:0 32px 16px;border-radius:10px;background:#ffffff;border:1px solid rgba(28,27,25,.10);overflow:hidden;">
+            <sc-for list="{{ columnas }}" as="c" hint-placeholder-count="5">
+              <div style="display:flex;flex-direction:column;gap:10px;padding:14px 20px 16px;border-right:1px solid rgba(28,27,25,.10);">
+                <div style="display:flex;align-items:baseline;justify-content:space-between;gap:12px;">
+                  <span style="font-size:14px;font-weight:600;">{{ c.nombre }}</span>
+                  <span style="font-family:'JetBrains Mono',monospace;font-size:20px;font-weight:500;font-variant-numeric:tabular-nums;">{{ c.conteo }}</span>
+                </div>
+                <div style="display:flex;align-items:center;gap:10px;">
+                  <div style="flex:1;height:4px;border-radius:2px;background:rgba(28,27,25,.10);overflow:hidden;"><div style="height:100%;background:#1c1b19;width:{{ c.pct }};"></div></div>
+                  <span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#6f6b64;font-variant-numeric:tabular-nums;white-space:nowrap;">{{ c.pct }}</span>
+                </div>
+              </div>
+            </sc-for>
+          </div>
+          <div style="flex:1;min-height:0;display:flex;flex-direction:column;gap:16px;margin:0 32px 32px;">
+            <sc-for list="{{ tableros }}" as="tb" hint-placeholder-count="2">
+              <div style="flex:1;min-height:0;display:flex;flex-direction:column;gap:10px;">
+                <div style="display:flex;align-items:baseline;gap:10px;padding:0 2px;">
+                  <span style="font-size:13px;font-weight:600;">{{ tb.titulo }}</span>
+                  <span style="font-size:12px;color:#6f6b64;">{{ tb.sub }}</span>
+                  <span style="margin-left:auto;font-family:'JetBrains Mono',monospace;font-size:12px;color:#6f6b64;font-variant-numeric:tabular-nums;">{{ tb.total }} tickets</span>
+                </div>
+                <div style="flex:1;min-height:0;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px;">
+                  <sc-for list="{{ tb.columnas }}" as="c" hint-placeholder-count="5">
+                    <div data-lane="1" style="min-height:0;overflow-y:scroll;scrollbar-gutter:stable;display:flex;flex-direction:column;gap:8px;padding:8px;border-radius:8px;border:1px solid rgba(28,27,25,.10);background:rgba(28,27,25,.025);">
+                      <sc-for list="{{ c.tickets }}" as="t" hint-placeholder-count="2">
+                        <div style="flex-shrink:0;display:flex;flex-direction:column;gap:8px;padding:12px 14px;border-radius:8px;border:1px solid rgba(28,27,25,.10);background:{{ t.cardBg }};cursor:pointer;">
+                          <div style="display:flex;align-items:baseline;justify-content:space-between;gap:10px;">
+                            <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:14px;font-weight:{{ t.peso }};">{{ t.titulo }}</span>
+                            <span style="flex-shrink:0;font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:{{ t.horaPeso }};color:{{ t.horaColor }};font-variant-numeric:tabular-nums;">{{ t.hora }}</span>
+                          </div>
+                          <sc-if value="{{ t.tieneMedida }}" hint-placeholder-val="{{ true }}">
+                            <span style="align-self:flex-start;display:inline-block;font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:500;letter-spacing:-.01em;padding-bottom:2px;border-bottom:1px solid rgba(28,27,25,.35);font-variant-numeric:tabular-nums;">{{ t.medidaA }} <b style="font-weight:700;">{{ t.medidaR }}</b></span>
+                          </sc-if>
+                          <sc-if value="{{ t.sinMedida }}" hint-placeholder-val="{{ false }}"><span style="font-size:13px;color:#6f6b64;">Sin medida</span></sc-if>
+                          <span style="font-size:12px;line-height:1.4;color:{{ t.msgColor }};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ t.ultimoMensaje }}</span>
+                        </div>
+                      </sc-for>
+                      <sc-if value="{{ c.vacia }}" hint-placeholder-val="{{ false }}"><span style="padding:10px 6px;font-size:12px;color:#6f6b64;">Nadie aquí</span></sc-if>
+                    </div>
+                  </sc-for>
+                </div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<section id="turno-1" style="display:flex;flex-direction:column;gap:32px;padding:40px;">
+  <div style="display:flex;align-items:baseline;gap:12px;">
+    <span style="font-size:13px;font-weight:600;">Turno 1 · Armazón e Inbox</span>
+    <span style="font-size:12px;color:#6f6b64;">Taller · 1440 y 390</span>
+  </div>
+
+  <div style="display:flex;flex-wrap:wrap;align-items:flex-start;gap:40px;">
+
+    <!-- 1a · Armazón 1440 -->
+    <div id="1a" data-screen-label="1a Armazón 1440" style="display:flex;flex-direction:column;gap:10px;">
+      <div style="display:flex;align-items:center;gap:8px;font-size:12px;color:#6f6b64;"><span style="font-family:'JetBrains Mono',monospace;font-weight:700;color:#1c1b19;">1a</span>Armazón · 1440</div>
+      <div style="width:1440px;height:900px;display:flex;background:#f7f6f3;color:#1c1b19;overflow:hidden;box-sizing:border-box;">
+        <aside style="width:224px;flex-shrink:0;display:flex;flex-direction:column;padding:22px 16px 20px;border-right:1px solid rgba(28,27,25,.10);box-sizing:border-box;">
+          <div style="padding:0 12px 26px;display:flex;flex-direction:column;gap:2px;">
+            <span style="font-size:15px;font-weight:600;letter-spacing:-.01em;">Depot Tire</span>
+            <span style="font-size:12px;color:#6f6b64;">Hub de ventas</span>
+          </div>
+          <nav style="display:flex;flex-direction:column;gap:2px;">
+            <a href="#1b" style="display:flex;align-items:center;gap:12px;height:40px;padding:0 12px;border-radius:6px;font-size:14px;font-weight:600;color:#b4453a;text-decoration:none;background:rgba(180,69,58,.07);">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 13h4l2 3h6l2-3h4"></path><path d="M5 5h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Z"></path></svg>
+              <span style="flex:1;">Inbox</span>
+              <span style="font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:500;font-variant-numeric:tabular-nums;">18</span>
+            </a>
+            <a href="#1a" style="display:flex;align-items:center;gap:12px;height:40px;padding:0 12px;border-radius:6px;font-size:14px;font-weight:500;color:#1c1b19;text-decoration:none;">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="5" height="16" rx="1.5"></rect><rect x="10" y="4" width="5" height="10" rx="1.5"></rect><rect x="17" y="4" width="4" height="13" rx="1.5"></rect></svg>
+              <span style="flex:1;">Pipeline</span>
+            </a>
+            <a href="#1a" style="display:flex;align-items:center;gap:12px;height:40px;padding:0 12px;border-radius:6px;font-size:14px;font-weight:500;color:#1c1b19;text-decoration:none;">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"></circle><circle cx="12" cy="12" r="3.4"></circle><path d="M12 3.5v3"></path><path d="M12 17.5v3"></path><path d="M3.5 12h3"></path><path d="M17.5 12h3"></path><path d="m6 6 2.1 2.1"></path><path d="m15.9 15.9 2.1 2.1"></path><path d="m18 6-2.1 2.1"></path><path d="m8.1 15.9-2.1 2.1"></path></svg>
+              <span style="flex:1;">Cotizador</span>
+            </a>
+            <a href="#1a" style="display:flex;align-items:center;gap:12px;height:40px;padding:0 12px;border-radius:6px;font-size:14px;font-weight:500;color:#1c1b19;text-decoration:none;">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10"></path><path d="M10 20V4"></path><path d="M16 20v-7"></path><path d="M21 20H3"></path></svg>
+              <span style="flex:1;">Métricas</span>
+            </a>
+          </nav>
+          <div style="margin-top:auto;display:flex;flex-direction:column;gap:2px;">
+            <div style="display:flex;align-items:center;gap:12px;height:36px;padding:0 12px;font-size:13px;color:#1c1b19;">
+              <span style="width:8px;height:8px;border-radius:50%;background:#2f6f4f;margin:0 5px;"></span>
+              <span style="flex:1;">Bot contestando</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:12px;height:36px;padding:0 12px;font-size:13px;color:#6f6b64;">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9.5h3.2L12 5.4v13.2L7.2 14.5H4Z"></path><path d="M15.6 9.4a3.7 3.7 0 0 1 0 5.2"></path><path d="M18.2 6.8a7.3 7.3 0 0 1 0 10.4"></path></svg>
+              <span style="flex:1;">Sonido activado</span>
+            </div>
+            <a href="#1a" style="display:flex;align-items:center;gap:12px;height:40px;padding:0 12px;border-radius:6px;font-size:14px;font-weight:500;color:#1c1b19;text-decoration:none;margin-top:6px;">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+              <span style="flex:1;">Ajustes</span>
+            </a>
+          </div>
+        </aside>
+        <div style="flex:1;min-width:0;display:flex;flex-direction:column;">
+          <header style="display:flex;align-items:baseline;gap:14px;padding:30px 32px 22px;">
+            <h1 style="margin:0;font-size:22px;font-weight:600;letter-spacing:-.01em;">Inbox</h1>
+            <span style="font-size:13px;color:#6f6b64;">Lo que escribieron hoy y quién lo atiende</span>
+          </header>
+          <div style="flex:1;margin:0 32px 32px;border-radius:10px;background:#ffffff;border:1px solid rgba(28,27,25,.10);"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 1b · Inbox 1440 -->
+    <div id="1b" data-screen-label="1b Inbox 1440" style="display:flex;flex-direction:column;gap:10px;">
+      <div style="display:flex;align-items:center;gap:8px;font-size:12px;color:#6f6b64;"><span style="font-family:'JetBrains Mono',monospace;font-weight:700;color:#1c1b19;">1b</span>Inbox · 1440</div>
+      <div style="width:1440px;height:900px;display:flex;background:#f7f6f3;color:#1c1b19;overflow:hidden;box-sizing:border-box;">
+        <aside style="width:224px;flex-shrink:0;display:flex;flex-direction:column;padding:22px 16px 20px;border-right:1px solid rgba(28,27,25,.10);box-sizing:border-box;">
+          <div style="padding:0 12px 26px;display:flex;flex-direction:column;gap:2px;">
+            <span style="font-size:15px;font-weight:600;letter-spacing:-.01em;">Depot Tire</span>
+            <span style="font-size:12px;color:#6f6b64;">Hub de ventas</span>
+          </div>
+          <nav style="display:flex;flex-direction:column;gap:2px;">
+            <a href="#1b" style="display:flex;align-items:center;gap:12px;height:40px;padding:0 12px;border-radius:6px;font-size:14px;font-weight:600;color:#b4453a;text-decoration:none;background:rgba(180,69,58,.07);">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 13h4l2 3h6l2-3h4"></path><path d="M5 5h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Z"></path></svg>
+              <span style="flex:1;">Inbox</span>
+              <span style="font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:500;font-variant-numeric:tabular-nums;">{{ abiertos }}</span>
+            </a>
+            <a href="#1b" style="display:flex;align-items:center;gap:12px;height:40px;padding:0 12px;border-radius:6px;font-size:14px;font-weight:500;color:#1c1b19;text-decoration:none;">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="5" height="16" rx="1.5"></rect><rect x="10" y="4" width="5" height="10" rx="1.5"></rect><rect x="17" y="4" width="4" height="13" rx="1.5"></rect></svg>
+              <span style="flex:1;">Pipeline</span>
+            </a>
+            <a href="#1b" style="display:flex;align-items:center;gap:12px;height:40px;padding:0 12px;border-radius:6px;font-size:14px;font-weight:500;color:#1c1b19;text-decoration:none;">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"></circle><circle cx="12" cy="12" r="3.4"></circle><path d="M12 3.5v3"></path><path d="M12 17.5v3"></path><path d="M3.5 12h3"></path><path d="M17.5 12h3"></path><path d="m6 6 2.1 2.1"></path><path d="m15.9 15.9 2.1 2.1"></path><path d="m18 6-2.1 2.1"></path><path d="m8.1 15.9-2.1 2.1"></path></svg>
+              <span style="flex:1;">Cotizador</span>
+            </a>
+            <a href="#1b" style="display:flex;align-items:center;gap:12px;height:40px;padding:0 12px;border-radius:6px;font-size:14px;font-weight:500;color:#1c1b19;text-decoration:none;">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10"></path><path d="M10 20V4"></path><path d="M16 20v-7"></path><path d="M21 20H3"></path></svg>
+              <span style="flex:1;">Métricas</span>
+            </a>
+          </nav>
+          <div style="margin-top:auto;display:flex;flex-direction:column;gap:2px;">
+            <div style="display:flex;align-items:center;gap:12px;height:36px;padding:0 12px;font-size:13px;color:#1c1b19;">
+              <span style="width:8px;height:8px;border-radius:50%;background:#2f6f4f;margin:0 5px;"></span>
+              <span style="flex:1;">Bot contestando</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:12px;height:36px;padding:0 12px;font-size:13px;color:#6f6b64;">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9.5h3.2L12 5.4v13.2L7.2 14.5H4Z"></path><path d="M15.6 9.4a3.7 3.7 0 0 1 0 5.2"></path><path d="M18.2 6.8a7.3 7.3 0 0 1 0 10.4"></path></svg>
+              <span style="flex:1;">Sonido activado</span>
+            </div>
+            <a href="#1b" style="display:flex;align-items:center;gap:12px;height:40px;padding:0 12px;border-radius:6px;font-size:14px;font-weight:500;color:#1c1b19;text-decoration:none;margin-top:6px;">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+              <span style="flex:1;">Ajustes</span>
+            </a>
+          </div>
+        </aside>
+        <div style="flex:1;min-width:0;display:flex;flex-direction:column;">
+          <header style="display:flex;align-items:baseline;justify-content:space-between;gap:14px;padding:30px 32px 22px;">
+            <div style="display:flex;align-items:baseline;gap:14px;">
+              <h1 style="margin:0;font-size:22px;font-weight:600;letter-spacing:-.01em;">Inbox</h1>
+              <span style="font-size:13px;color:#6f6b64;">{{ resumen }}</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;height:40px;width:360px;padding:0 12px;border-radius:6px;background:#ffffff;border:1px solid rgba(28,27,25,.10);box-sizing:border-box;">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6f6b64" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.2-3.2"></path></svg>
+              <input placeholder="Buscar por nombre, medida o vehículo" style="flex:1;min-width:0;border:none;outline:none;background:transparent;font:inherit;font-size:13px;color:#1c1b19;">
+            </div>
+          </header>
+          <div style="flex:1;min-height:0;margin:0 32px 32px;border-radius:10px;background:#ffffff;border:1px solid rgba(28,27,25,.10);display:flex;flex-direction:column;overflow:hidden;">
+            <div style="display:grid;grid-template-columns:240px 120px minmax(0,1fr) 88px 112px;gap:20px;align-items:center;height:40px;padding:0 20px;font-size:12px;font-weight:500;color:#6f6b64;border-bottom:1px solid rgba(28,27,25,.10);">
+              <span>Cliente</span><span>Medida</span><span>Último mensaje</span><span style="text-align:right;">Hora</span><span>Atiende</span>
+            </div>
+            <div style="flex:1;min-height:0;overflow-y:auto;">
+              <sc-for list="{{ rows }}" as="t" hint-placeholder-count="10">
+                <div style="display:grid;grid-template-columns:240px 120px minmax(0,1fr) 88px 112px;gap:20px;align-items:center;height:56px;padding:0 20px;border-bottom:1px solid rgba(28,27,25,.10);background:{{ t.bg }};cursor:pointer;" style-hover="background:rgba(28,27,25,.03);">
+                  <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:14px;font-weight:{{ t.peso }};">{{ t.titulo }}</span>
+                  <sc-if value="{{ t.tieneMedida }}" hint-placeholder-val="{{ true }}">
+                    <span style="justify-self:start;display:inline-block;font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:500;letter-spacing:-.01em;padding-bottom:2px;border-bottom:1px solid rgba(28,27,25,.35);font-variant-numeric:tabular-nums;">{{ t.medidaA }} <b style="font-weight:700;">{{ t.medidaR }}</b></span>
+                  </sc-if>
+                  <sc-if value="{{ t.sinMedida }}" hint-placeholder-val="{{ false }}">
+                    <span style="font-size:13px;color:#6f6b64;">Sin medida</span>
+                  </sc-if>
+                  <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px;color:{{ t.msgColor }};">{{ t.ultimoMensaje }}</span>
+                  <span style="text-align:right;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:{{ t.horaPeso }};color:{{ t.horaColor }};font-variant-numeric:tabular-nums;white-space:nowrap;">{{ t.hora }}</span>
+                  <span style="font-size:13px;font-weight:{{ t.atiendePeso }};color:{{ t.atiendeColor }};white-space:nowrap;">{{ t.atiendeTxt }}</span>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 1c · Armazón 390 -->
+    <div id="1c" data-screen-label="1c Armazón 390" style="display:flex;flex-direction:column;gap:10px;">
+      <div style="display:flex;align-items:center;gap:8px;font-size:12px;color:#6f6b64;"><span style="font-family:'JetBrains Mono',monospace;font-weight:700;color:#1c1b19;">1c</span>Armazón · 390</div>
+      <div style="width:390px;height:844px;display:flex;flex-direction:column;background:#f7f6f3;color:#1c1b19;overflow:hidden;box-sizing:border-box;">
+        <header style="display:flex;align-items:center;justify-content:space-between;padding:58px 20px 14px;">
+          <div style="display:flex;flex-direction:column;gap:2px;">
+            <h1 style="margin:0;font-size:20px;font-weight:600;letter-spacing:-.01em;">Inbox</h1>
+            <span style="display:flex;align-items:center;gap:6px;font-size:12px;color:#6f6b64;"><span style="width:7px;height:7px;border-radius:50%;background:#2f6f4f;"></span>Bot contestando</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:4px;">
+            <span style="width:44px;height:44px;display:grid;place-items:center;color:#6f6b64;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9.5h3.2L12 5.4v13.2L7.2 14.5H4Z"></path><path d="M15.6 9.4a3.7 3.7 0 0 1 0 5.2"></path><path d="M18.2 6.8a7.3 7.3 0 0 1 0 10.4"></path></svg></span>
+            <span style="width:44px;height:44px;display:grid;place-items:center;color:#1c1b19;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"></path><circle cx="12" cy="12" r="3"></circle></svg></span>
+          </div>
+        </header>
+        <div style="flex:1;margin:0 16px 16px;border-radius:10px;background:#ffffff;border:1px solid rgba(28,27,25,.10);"></div>
+        <nav style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));padding:8px 8px 28px;border-top:1px solid rgba(28,27,25,.10);background:#f7f6f3;">
+          <a href="#1d" style="display:flex;flex-direction:column;align-items:center;gap:4px;height:48px;justify-content:center;font-size:11px;font-weight:600;color:#b4453a;text-decoration:none;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 13h4l2 3h6l2-3h4"></path><path d="M5 5h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Z"></path></svg>Inbox</a>
+          <a href="#1c" style="display:flex;flex-direction:column;align-items:center;gap:4px;height:48px;justify-content:center;font-size:11px;font-weight:500;color:#1c1b19;text-decoration:none;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="5" height="16" rx="1.5"></rect><rect x="10" y="4" width="5" height="10" rx="1.5"></rect><rect x="17" y="4" width="4" height="13" rx="1.5"></rect></svg>Pipeline</a>
+          <a href="#1c" style="display:flex;flex-direction:column;align-items:center;gap:4px;height:48px;justify-content:center;font-size:11px;font-weight:500;color:#1c1b19;text-decoration:none;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"></circle><circle cx="12" cy="12" r="3.4"></circle><path d="M12 3.5v3"></path><path d="M12 17.5v3"></path><path d="M3.5 12h3"></path><path d="M17.5 12h3"></path><path d="m6 6 2.1 2.1"></path><path d="m15.9 15.9 2.1 2.1"></path><path d="m18 6-2.1 2.1"></path><path d="m8.1 15.9-2.1 2.1"></path></svg>Cotizador</a>
+          <a href="#1c" style="display:flex;flex-direction:column;align-items:center;gap:4px;height:48px;justify-content:center;font-size:11px;font-weight:500;color:#1c1b19;text-decoration:none;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10"></path><path d="M10 20V4"></path><path d="M16 20v-7"></path><path d="M21 20H3"></path></svg>Métricas</a>
+        </nav>
+      </div>
+    </div>
+
+    <!-- 1d · Inbox 390 -->
+    <div id="1d" data-screen-label="1d Inbox 390" style="display:flex;flex-direction:column;gap:10px;">
+      <div style="display:flex;align-items:center;gap:8px;font-size:12px;color:#6f6b64;"><span style="font-family:'JetBrains Mono',monospace;font-weight:700;color:#1c1b19;">1d</span>Inbox · 390</div>
+      <div style="width:390px;height:844px;display:flex;flex-direction:column;background:#f7f6f3;color:#1c1b19;overflow:hidden;box-sizing:border-box;">
+        <header style="display:flex;align-items:center;justify-content:space-between;padding:58px 20px 14px;">
+          <div style="display:flex;flex-direction:column;gap:2px;">
+            <h1 style="margin:0;font-size:20px;font-weight:600;letter-spacing:-.01em;">Inbox</h1>
+            <span style="display:flex;align-items:center;gap:6px;font-size:12px;color:#6f6b64;"><span style="width:7px;height:7px;border-radius:50%;background:#2f6f4f;"></span>Bot contestando</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:4px;">
+            <span style="width:44px;height:44px;display:grid;place-items:center;color:#6f6b64;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9.5h3.2L12 5.4v13.2L7.2 14.5H4Z"></path><path d="M15.6 9.4a3.7 3.7 0 0 1 0 5.2"></path><path d="M18.2 6.8a7.3 7.3 0 0 1 0 10.4"></path></svg></span>
+            <span style="width:44px;height:44px;display:grid;place-items:center;color:#1c1b19;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"></path><circle cx="12" cy="12" r="3"></circle></svg></span>
+          </div>
+        </header>
+        <div style="margin:0 16px 12px;display:flex;align-items:center;gap:8px;height:44px;padding:0 12px;border-radius:6px;background:#ffffff;border:1px solid rgba(28,27,25,.10);box-sizing:border-box;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6f6b64" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.2-3.2"></path></svg>
+          <input placeholder="Nombre, medida o vehículo" style="flex:1;min-width:0;border:none;outline:none;background:transparent;font:inherit;font-size:14px;color:#1c1b19;">
+        </div>
+        <div style="flex:1;min-height:0;margin:0 16px;border-radius:10px 10px 0 0;background:#ffffff;border:1px solid rgba(28,27,25,.10);border-bottom:none;overflow:hidden;">
+          <sc-for list="{{ rows }}" as="t" hint-placeholder-count="8">
+            <div style="display:flex;flex-direction:column;gap:5px;padding:12px 16px;border-bottom:1px solid rgba(28,27,25,.10);background:{{ t.bg }};">
+              <div style="display:flex;align-items:baseline;justify-content:space-between;gap:10px;">
+                <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:15px;font-weight:{{ t.peso }};">{{ t.titulo }}</span>
+                <span style="flex-shrink:0;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:{{ t.horaPeso }};color:{{ t.horaColor }};font-variant-numeric:tabular-nums;">{{ t.hora }}</span>
+              </div>
+              <div style="display:flex;align-items:baseline;gap:12px;font-size:13px;">
+                <sc-if value="{{ t.tieneMedida }}" hint-placeholder-val="{{ true }}">
+                  <span style="display:inline-block;font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:500;letter-spacing:-.01em;padding-bottom:2px;border-bottom:1px solid rgba(28,27,25,.35);font-variant-numeric:tabular-nums;">{{ t.medidaA }} <b style="font-weight:700;">{{ t.medidaR }}</b></span>
+                </sc-if>
+                <sc-if value="{{ t.sinMedida }}" hint-placeholder-val="{{ false }}">
+                  <span style="color:#6f6b64;">Sin medida</span>
+                </sc-if>
+                <span style="font-weight:{{ t.atiendePeso }};color:{{ t.atiendeColor }};">{{ t.atiendeTxt }}</span>
+              </div>
+              <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px;color:{{ t.msgColor }};">{{ t.ultimoMensaje }}</span>
+            </div>
+          </sc-for>
+        </div>
+        <nav style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));padding:8px 8px 28px;border-top:1px solid rgba(28,27,25,.10);background:#f7f6f3;">
+          <a href="#1d" style="display:flex;flex-direction:column;align-items:center;gap:4px;height:48px;justify-content:center;font-size:11px;font-weight:600;color:#b4453a;text-decoration:none;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 13h4l2 3h6l2-3h4"></path><path d="M5 5h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Z"></path></svg>Inbox</a>
+          <a href="#1d" style="display:flex;flex-direction:column;align-items:center;gap:4px;height:48px;justify-content:center;font-size:11px;font-weight:500;color:#1c1b19;text-decoration:none;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="5" height="16" rx="1.5"></rect><rect x="10" y="4" width="5" height="10" rx="1.5"></rect><rect x="17" y="4" width="4" height="13" rx="1.5"></rect></svg>Pipeline</a>
+          <a href="#1d" style="display:flex;flex-direction:column;align-items:center;gap:4px;height:48px;justify-content:center;font-size:11px;font-weight:500;color:#1c1b19;text-decoration:none;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"></circle><circle cx="12" cy="12" r="3.4"></circle><path d="M12 3.5v3"></path><path d="M12 17.5v3"></path><path d="M3.5 12h3"></path><path d="M17.5 12h3"></path><path d="m6 6 2.1 2.1"></path><path d="m15.9 15.9 2.1 2.1"></path><path d="m18 6-2.1 2.1"></path><path d="m8.1 15.9-2.1 2.1"></path></svg>Cotizador</a>
+          <a href="#1d" style="display:flex;flex-direction:column;align-items:center;gap:4px;height:48px;justify-content:center;font-size:11px;font-weight:500;color:#1c1b19;text-decoration:none;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10"></path><path d="M10 20V4"></path><path d="M16 20v-7"></path><path d="M21 20H3"></path></svg>Métricas</a>
+        </nav>
+      </div>
+    </div>
+
+  </div>
+</section>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;urgenteId&quot;: {&quot;editor&quot;: &quot;int&quot;, &quot;default&quot;: 9, &quot;tsType&quot;: &quot;number&quot;, &quot;section&quot;: &quot;Inbox&quot;, &quot;min&quot;: 1, &quot;max&quot;: 18}}">
+class Component extends DCLogic {
+  state = { data: null };
+  componentDidMount() {
+    import("./hub-data.js").then((m) => this.setState({ data: m }));
+  }
+  renderVals() {
+    const m = this.state.data;
+    if (!m) return { accesos: [], documentacion: [], rows: [], columnas: [], tableros: [], graficos: {}, columnasMovil: [], cotizadoDentro: [], cotizadoFuera: [], cotizadoDentroN: "", cotizadoFueraN: "", kpis: [], resultados: [], comparados: [], busquedasRapidas: [], filtrosMarca: [], filtrosDisp: [], usuarios: [], cuenta: {}, descuentos: {}, inventario: {}, permisos: [], conv: { mensajes: [] }, cot: {}, abiertos: 18, resumen: "" };
+    const now = Date.now();
+    const hoy = new Date(now).toDateString();
+    const urgenteId = this.props.urgenteId ?? 9;
+    const rows = m.TICKETS.map((t) => {
+      const urgente = t.id === urgenteId;
+      const sinLeer = t.sinLeer > 0;
+      const d = new Date(t.ultimaActividad);
+      const hora = d.toDateString() === hoy ? m.horaCorta(d) : `ayer ${m.horaCorta(d)}`;
+      const [medidaA, medidaR] = t.medida ? t.medida.split(" ") : ["", ""];
+      return {
+        ...t,
+        titulo: t.nombre ?? t.telefono,
+        tieneMedida: Boolean(t.medida), sinMedida: !t.medida, medidaA, medidaR,
+        bg: urgente ? "rgba(180,69,58,.07)" : "transparent",
+        peso: sinLeer || urgente ? 600 : 500,
+        msgColor: sinLeer || urgente ? "#1c1b19" : "#6f6b64",
+        hora,
+        horaPeso: urgente ? 700 : 500,
+        horaColor: urgente ? "#b4453a" : "#6f6b64",
+        atiendeTxt: urgente ? "Espera respuesta" : t.atiende === "bot" ? "Bot" : "Andrés",
+        atiendePeso: urgente ? 600 : 400,
+        atiendeColor: urgente ? "#b4453a" : "#6f6b64",
+      };
+    });
+    const conAccion = rows.filter((r) => r.bg !== "transparent").length;
+    const conCard = (r) => ({ ...r, cardBg: r.bg === "transparent" ? "#ffffff" : "#f6e7e5" });
+    const columnas = m.COLUMNAS.map((c) => {
+      const tickets = rows.filter((r) => m.columnaDe(r) === c.id).map(conCard);
+      return { ...c, conteo: String(tickets.length), tickets, pct: Math.round((tickets.length / rows.length) * 100) + " %" };
+    });
+    // Dos tableros, como en Pipeline.tsx: dentro de la ventana de 24 h el bot
+    // aún puede contestar; fuera, sólo contestan ustedes.
+    const DIA = 24 * 60 * 60 * 1000;
+    const tablero = (titulo, sub, filtro) => {
+      const cols = m.COLUMNAS.map((c) => {
+        const tickets = rows.filter((r) => m.columnaDe(r) === c.id && filtro(r)).map(conCard);
+        return { ...c, tickets, vacia: tickets.length === 0 };
+      });
+      return { titulo, sub, columnas: cols, total: cols.reduce((s, c) => s + c.tickets.length, 0) };
+    };
+    const tableros = [
+      tablero("Dentro de 24 h", "el bot todavía puede contestar", (r) => now - r.ultimaActividad < DIA),
+      tablero("Fuera de 24 h", "sólo contestan ustedes", (r) => now - r.ultimaActividad >= DIA),
+    ];
+    const t9 = m.TICKETS.find((t) => t.id === 9);
+    const usd = (n) => "$" + n.toFixed(2).replace(".", ",");
+    const conv = {
+      nombre: t9.nombre, telefono: t9.telefono, vehiculo: t9.vehiculo,
+      medidaA: t9.medida.split(" ")[0], medidaR: t9.medida.split(" ")[1],
+      fecha: "Hoy", espera: m.relTime(t9.ultimaActividad, now).replace("hace ", ""),
+      mensajes: m.CONVERSACION_9.map((x) => {
+        const cliente = x.rol === "cliente";
+        return {
+          ...x, esPdf: x.tipo === "pdf", esTexto: x.tipo === "texto",
+          lado: cliente ? "flex-start" : "flex-end", alinea: cliente ? "left" : "right",
+          bg: cliente ? "#f7f6f3" : "#ffffff", borde: cliente ? "transparent" : "rgba(28,27,25,.10)",
+          quien: cliente ? "Paúl" : x.rol === "bot" ? "Bot" : "Andrés", hora: m.horaCorta(x.hora),
+        };
+      }),
+    };
+    // ── Gráficos: SVG con ejes rotulados, valores, unidad y un tooltip ──
+    const h = React.createElement;
+    const MONO = "'JetBrains Mono', monospace";
+    const chart = ({ w = 560, hh = 220, tipo = "bar", data, unidad, tip, fmt = (v) => String(v) }) => {
+      const L = 48, R = 16, T = 22, B = 34;
+      const iw = w - L - R, ih = hh - T - B;
+      const max = Math.max(...data.map((d) => d.y));
+      const pasos = 4;
+      const nice = (() => { const raw = max / pasos; const p = Math.pow(10, Math.floor(Math.log10(raw || 1))); const c = [1, 2, 2.5, 5, 10].find((k) => k * p >= raw) ?? 10; return c * p; })();
+      const yMax = nice * pasos;
+      const y = (v) => T + ih - (v / yMax) * ih;
+      const n = data.length, slot = iw / n;
+      const x = (i) => L + slot * i + slot / 2;
+      const kids = [];
+      for (let k = 0; k <= pasos; k++) {
+        const v = nice * k, yy = y(v);
+        kids.push(h("line", { key: "g" + k, x1: L, x2: L + iw, y1: yy, y2: yy, stroke: k === 0 ? "rgba(28,27,25,.35)" : "rgba(28,27,25,.10)", strokeWidth: 1 }));
+        kids.push(h("text", { key: "yl" + k, x: L - 8, y: yy + 4, textAnchor: "end", fontFamily: MONO, fontSize: 11, fill: "#6f6b64" }, fmt(v)));
+      }
+      kids.push(h("text", { key: "unit", x: L, y: 12, fontFamily: MONO, fontSize: 11, fill: "#6f6b64" }, unidad));
+      const cada = n > 8 ? 2 : 1;
+      data.forEach((d, i) => {
+        if (i % cada === 0 || i === n - 1) kids.push(h("text", { key: "xl" + i, x: x(i), y: T + ih + 18, textAnchor: "middle", fontFamily: MONO, fontSize: 11, fill: "#6f6b64" }, d.x));
+        if (tipo === "bar") kids.push(h("rect", { key: "b" + i, x: x(i) - slot * 0.3, y: y(d.y), width: slot * 0.6, height: T + ih - y(d.y), fill: i === tip ? "#1c1b19" : "rgba(28,27,25,.72)" }));
+      });
+      if (tipo === "line") {
+        kids.push(h("polyline", { key: "ln", points: data.map((d, i) => `${x(i)},${y(d.y)}`).join(" "), fill: "none", stroke: "#1c1b19", strokeWidth: 1.5 }));
+        data.forEach((d, i) => kids.push(h("circle", { key: "p" + i, cx: x(i), cy: y(d.y), r: i === tip ? 4 : 2.5, fill: i === tip ? "#1c1b19" : "#ffffff", stroke: "#1c1b19", strokeWidth: 1.5 })));
+      }
+      if (tip != null) {
+        const d = data[tip], tx = x(tip), ty = y(d.y);
+        const label = `${fmt(d.y)} ${unidad} · ${d.x}`;
+        const bw = label.length * 7 + 20, bx = Math.min(Math.max(tx - bw / 2, L), L + iw - bw), by = Math.max(ty - 40, 2);
+        kids.push(h("line", { key: "tl", x1: tx, x2: tx, y1: by + 28, y2: ty, stroke: "#1c1b19", strokeWidth: 1 }));
+        kids.push(h("rect", { key: "tb", x: bx, y: by, width: bw, height: 26, rx: 4, fill: "#1c1b19" }));
+        kids.push(h("text", { key: "tt", x: bx + bw / 2, y: by + 17, textAnchor: "middle", fontFamily: MONO, fontSize: 12, fontWeight: 700, fill: "#ffffff" }, label));
+      }
+      return h("svg", { width: "100%", viewBox: `0 0 ${w} ${hh}`, style: { display: "block", overflow: "visible" } }, kids);
+    };
+    const dias = ["lun", "mar", "mié", "jue", "vie", "sáb", "dom"];
+    const hoyIdx = new Date(now).getDay();
+    const fechaDia = (i) => { const d = new Date(now - (13 - i) * DIA); return `${d.getDate()}/${d.getMonth() + 1}`; };
+    const graficos = {
+      porDia: chart({ tipo: "line", unidad: "conversaciones", data: m.SERIE_14D.map((v, i) => ({ x: fechaDia(i), y: v })), tip: 11 }),
+      porHora: chart({ tipo: "bar", unidad: "respuestas", data: m.RESPUESTAS_POR_HORA.map(([hr, v]) => ({ x: `${hr}h`, y: v })), tip: 8 }),
+      cotizaciones: chart({ tipo: "bar", w: 420, hh: 200, unidad: "cotizaciones", data: m.COTIZACIONES_SEMANA.map(([x, y]) => ({ x, y })), tip: 2 }),
+      plantillas: chart({ tipo: "bar", w: 420, hh: 200, unidad: "mensajes", data: m.PLANTILLAS.map(([x, y]) => ({ x, y })), tip: 3 }),
+      inventario: chart({ tipo: "bar", w: 420, hh: 200, unidad: "modelos", data: [["Disponibles", m.INVENTARIO.available], ["Por confirmar", m.INVENTARIO.check], ["Agotados", m.INVENTARIO.out]].map(([x, y]) => ({ x, y })), tip: 0 }),
+      descuentos: chart({ tipo: "bar", w: 420, hh: 200, unidad: "de cierre", data: [["Con descuento", m.DESCUENTOS.conversionWith], ["Sin descuento", m.DESCUENTOS.conversionWithout]].map(([x, y]) => ({ x, y })), tip: 0, fmt: (v) => v + " %" }),
+      tokens: chart({ tipo: "bar", w: 420, hh: 200, unidad: "USD", data: m.TOKENS_DIA.map(([x, y]) => ({ x, y })), tip: 6, fmt: (v) => "$" + (Number.isInteger(v) ? v : v.toFixed(2)).toString().replace(".", ",") }),
+    };
+    const enJuego = 5094.5;
+    const kpis = [
+      { nombre: "Abiertos ahora", valor: String(rows.length), nota: "tickets sin cerrar" },
+      { nombre: "En juego", valor: usd(enJuego).replace(/,(\d\d)$/, ",$1").replace(/\B(?=(\d{3})+(?!\d))/g, "."), nota: "suma de cotizaciones abiertas" },
+      { nombre: "Conversión", valor: "22 %", nota: "4 ventas de 18 cotizados este mes" },
+      { nombre: "Hasta la primera respuesta", valor: "9 s", nota: "promedio del bot, este mes" },
+    ];
+    const resultados = m.RESULTADOS_245_70_R16.map((r) => ({
+      ...r, precioTxt: usd(r.precio), total4: usd(r.precio * 4 * 1.15),
+      estadoColor: r.estado === "Disponible" ? "#2f6f4f" : r.estado === "Por confirmar" ? "#a8731f" : "#6f6b64",
+      estadoPeso: r.estado === "Disponible" ? 600 : 500,
+      compararTxt: r.comparar ? "Comparando" : "Comparar",
+      compararColor: r.comparar ? "#b4453a" : "#1c1b19", compararPeso: r.comparar ? 600 : 500,
+      compararBg: r.comparar ? "rgba(180,69,58,.07)" : "#ffffff", compararBorde: r.comparar ? "rgba(180,69,58,.35)" : "rgba(28,27,25,.10)",
+    }));
+    const SVG_CMP = { __html: '<rect x="3.5" y="6" width="7" height="12" rx="1.5"/><rect x="13.5" y="6" width="7" height="12" rx="1.5"/>' };
+    const SVG_CHK = { __html: '<path d="m5 12.5 4.5 4.5L19 7.5"/>' };
+    resultados.forEach((r) => {
+      r.slotId = "llanta-" + r.codigo; r.slotMini = "mini-" + r.codigo;
+      r.cardBorde = r.comparar ? "#b4453a" : "rgba(28,27,25,.10)";
+      r.opacidad = r.estado === "Agotada" ? 0.6 : 1;
+      r.listaTxt = usd(r.lista); r.dto = String(Math.round((1 - r.precio / r.lista) * 100));
+      r.compararSvg = r.comparar ? SVG_CHK : SVG_CMP;
+      r.stockN = String(r.stockN);
+    });
+    const comparados = resultados.filter((r) => r.comparar);
+    const busquedasRapidas = m.BUSQUEDAS_RAPIDAS.map((b) => { const [a, r] = b.split(" "); return { a, r }; });
+    const contar = (f) => String(m.RESULTADOS_245_70_R16.filter(f).length);
+    const filtrosMarca = [{ nombre: "Seleccionar todo", n: "5" }, ...["Eurolub", "Falken", "Kenda", "Sunoco"].map((b) => ({ nombre: b, n: contar((r) => r.marca === b) }))];
+    const filtrosDisp = [{ nombre: "Todo", n: "5" }, { nombre: "Disponible", n: contar((r) => r.estado === "Disponible") }, { nombre: "Por confirmar", n: contar((r) => r.estado === "Por confirmar") }, { nombre: "Agotada", n: contar((r) => r.estado === "Agotada") }];
+    const usuarios = m.USUARIOS.map((u) => ({ ...u, celdas: u.permisos.map((p, i) => ({ nombre: m.PERMISOS[i], txt: p ? "Sí" : "No", color: p ? "#1c1b19" : "#6f6b64", peso: p ? 600 : 400 })) }));
+    const inv = m.INVENTARIO, cta = m.CUENTA, dsc = m.DESCUENTOS;
+    const cuenta = { hoy: usd(cta.hoy), semana: usd(cta.semana), mes: usd(cta.mes), mantenimiento: usd(cta.mantenimiento), total: usd(cta.total), vence: cta.vence };
+    const descuentos = { ofrecidos: String(dsc.offered), ganados: String(dsc.wonWith), total: usd(dsc.totalDiscount) };
+    const inventario = { total: String(inv.total), marcas: String(inv.brands), imagen: `${inv.withImage} de ${inv.total} · 2 %` };
+    const columnasMovil = columnas.map((c) => ({
+      ...c, bg: c.id === "cotizado" ? "rgba(180,69,58,.07)" : "transparent",
+      color: c.id === "cotizado" ? "#b4453a" : "#1c1b19", peso: c.id === "cotizado" ? 600 : 500,
+    }));
+    const cotizadoDentro = tableros[0].columnas.find((c) => c.id === "cotizado").tickets;
+    const cotizadoFuera = tableros[1].columnas.find((c) => c.id === "cotizado").tickets;
+    const c9 = m.COTIZACION_9;
+    const cot = { numero: c9.numero, item: c9.item, unit: usd(c9.precioUnit) + " × 4", subtotal: usd(c9.subtotal), iva: usd(c9.iva), total: usd(c9.total) };
+    const accesos = ["Demo oficial", "Cotizaciones", "Presentación", "Config. IA", "Tester WA", "Mensajes"];
+    const documentacion = ["Plan de desarrollo", "Plan financiero", "Proyecto", "Bitácora", "WhatsApp Business", "Propuesta", "Catálogo", "Diseño", "Paletas de estilo"];
+    return {
+      accesos, documentacion,
+      rows, columnas, tableros, conv, cot, graficos, columnasMovil, cotizadoDentro, cotizadoFuera, cotizadoDentroN: String(cotizadoDentro.length), cotizadoFueraN: String(cotizadoFuera.length), kpis, resultados, comparados, busquedasRapidas, filtrosMarca, filtrosDisp, usuarios, cuenta, descuentos, inventario, permisos: m.PERMISOS,
+      abiertos: rows.length,
+      resumen: `${rows.length} conversaciones abiertas · ${conAccion} espera respuesta`,
+    };
+  }
+}
+</script>
+</body>
+</html>

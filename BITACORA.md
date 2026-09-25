@@ -1,3 +1,33 @@
+## 24-sep-2026 · Rediseño «Taller» del Hub: un solo mundo visual, cuatro pantallas, gráficos con ejes
+
+**Qué:** Se reemplaza entero el front de `hub/`. Nuevo `tokens.css` (papel
+`#f7f6f3`, tinta `#1c1b19`, una señal `#b4453a`, Archivo + JetBrains Mono
+auto-hospedadas, radios 10/8/6); se borran los cuatro temas alternativos, los
+decorados de carreras, la baraja y Oportunidades. Navegación de seis a cuatro
+entradas con Ajustes como engranaje. Inbox es una sola lista con buscador;
+Conversación lleva el hilo y una ficha etiqueta/valor con «Quién contesta» a la
+vista; Pipeline muestra la barra de etapas arriba y las tarjetas sin hacer clic,
+en dos tableros (dentro/fuera de 24 h) que se desplazan por dentro; Métricas
+dibuja cada bloque con un gráfico con ejes rotulados, unidad y valor al pasar
+el cursor (`charts.tsx` nuevo; fuera sparklines, anillos y `useCountUp`);
+Cotizador sólo cambia de piel. Seguimientos (horarios y tiempos) se mudan de
+Configuración técnica a Ajustes; Configuración queda con WhatsApp, encendido,
+manual base y la conexión del panel. El tour sólo aparece la primera vez.
+`DESIGN.md` nuevo (reglas anti «look de IA» + alcance) y mockups aprobados en
+`docs/rediseno/mockups`.
+
+**Por qué:** `tokens.css` decía literalmente «tema Claude Oscuro × Aurora
+Glass»: violeta `#a78bfa` como acción primaria, orbes aurora, vidrio, diez
+chispitas, 147 `rounded-2xl/3xl` e Inter — cada uno un tell catalogado de
+interfaz generada por IA, y el `DESIGN.md` de la raíz describía otro producto
+(Showroom GP) que nadie obedecía. Manuel pidió algo simple, fácil de seguir y
+que «se vea 0 % IA»; los mockups salieron de Claude Design sobre reglas
+escritas antes (docs/rediseno). Verificado con el detector de tells de
+impeccable (0 hallazgos), `tsc` limpio y capturas de cada pantalla a 1440 y
+390 sobre el demo.
+
+**Horas:** 6
+
 ## 21-sep-2026 · Elegir es cotizar, también «La opción 3» y «Premiun»; y la oferta de cotizar sobrevive a la cadena
 
 **Qué:** `respuestaDePreferencia` lee el escalón con artículo, con cortesía

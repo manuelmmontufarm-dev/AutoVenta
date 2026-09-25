@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=Archivo+Black&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+  <style>
+    html, body { margin: 0; height: 100%; overflow: hidden; }
+    body { font-family: "Archivo", ui-sans-serif, system-ui, sans-serif; color: #17233b; -webkit-font-smoothing: antialiased; background: radial-gradient(circle at 100% 0%, rgba(222,38,54,.08), transparent 25rem), #f5f6f4; }
+    a, a:hover { color: #244d88; }
+    input::placeholder { color: #98a0ab; }
+    @keyframes pulse { 0%,100% { opacity: 1; transform: scale(1); } 50% { opacity: .45; transform: scale(.82); } }
+  </style>
+</helmet>
+<div data-screen-label="Hub actual · Inbox" style="position:relative;display:flex;height:100vh;overflow:hidden;">
+  <div style="position:fixed;top:0;left:0;right:0;height:7px;z-index:30;background:repeating-linear-gradient(90deg,#17233b 0 13px,#ffffff 13px 26px,#de2636 26px 39px,#ffffff 39px 52px);"></div>
+
+  <div aria-hidden="true" style="position:absolute;inset:0;z-index:0;pointer-events:none;overflow:hidden;">
+    <div style="position:absolute;top:18px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:7px;color:rgba(23,35,59,.48);font-family:'JetBrains Mono',monospace;font-size:8px;font-weight:700;letter-spacing:.14em;">
+      <span style="width:5px;height:5px;border-radius:50%;background:#178d72;box-shadow:0 0 8px rgba(23,141,114,.7);"></span>
+      <span>PIT SYSTEM</span><b style="color:#de2636;">DT—01</b>
+    </div>
+    <div style="position:absolute;right:24px;bottom:22px;display:flex;flex-direction:column;align-items:flex-end;font-family:'JetBrains Mono',monospace;color:rgba(23,35,59,.25);">
+      <span style="font-family:'Archivo Black',sans-serif;font-size:22px;line-height:1;">30+</span>
+      <small style="margin-top:4px;font-size:7px;font-weight:700;letter-spacing:.18em;">AÑOS EN PISTA</small>
+    </div>
+    <div style="position:absolute;left:103px;bottom:21px;display:flex;flex-direction:column;font-family:'JetBrains Mono',monospace;color:rgba(23,35,59,.25);">
+      <span style="font-family:'Archivo Black',sans-serif;font-size:22px;line-height:1;">UI / 01</span>
+      <small style="margin-top:4px;font-size:7px;font-weight:700;letter-spacing:.18em;">QUITO · ECU</small>
+    </div>
+    <div style="position:absolute;right:22px;top:45%;display:flex;flex-direction:column;align-items:flex-end;gap:5px;opacity:.2;">
+      <i style="display:block;height:2px;width:32px;background:#de2636;transform:skewX(-34deg);"></i>
+      <i style="display:block;height:2px;width:51px;background:#de2636;transform:skewX(-34deg);"></i>
+      <i style="display:block;height:2px;width:20px;background:#de2636;transform:skewX(-34deg);"></i>
+    </div>
+    <svg viewBox="0 0 640 220" style="position:absolute;right:8%;bottom:1%;width:min(34vw,540px);fill:none;stroke:rgba(23,35,59,.08);stroke-width:2.4;">
+      <path d="M60 154h38l27-45c11-18 30-29 51-30l108-5c24-1 46 6 65 20l40 29 102 13c26 3 46 18 57 40H84c-11 0-20-9-24-22Z"></path>
+      <path d="m179 111 116-5 43 33H159l20-28Z"></path><path d="M329 106v33"></path><path d="M126 139h-23"></path><path d="M492 148h39"></path>
+      <circle cx="166" cy="174" r="31"></circle><circle cx="166" cy="174" r="13"></circle><circle cx="456" cy="174" r="31"></circle><circle cx="456" cy="174" r="13"></circle>
+      <path d="M365 122h74" style="stroke:rgba(222,38,54,.13);"></path><path d="m431 111 26 13" style="stroke:rgba(222,38,54,.13);"></path>
+    </svg>
+    <svg viewBox="0 0 240 92" style="position:absolute;top:72px;right:190px;width:116px;fill:none;stroke:#17233b;stroke-width:2.2;opacity:.12;">
+      <path d="M14 66h22l17-27c7-11 18-17 31-18l52-2c15-1 28 4 39 13l24 20 24 4c7 1 12 5 15 10H14Z"></path>
+      <path d="m75 34 54-2 28 24H60l15-22Z"></path>
+      <circle cx="65" cy="67" r="15"></circle><circle cx="65" cy="67" r="6"></circle><circle cx="183" cy="67" r="15"></circle><circle cx="183" cy="67" r="6"></circle>
+      <path d="M151 44h42" style="stroke:#de2636;"></path>
+    </svg>
+    <svg viewBox="0 0 100 100" style="position:absolute;top:33%;right:24px;width:68px;opacity:.075;transform:rotate(12deg);fill:none;stroke:#17233b;stroke-width:2.5;">
+      <circle cx="50" cy="50" r="44"></circle><circle cx="50" cy="50" r="28"></circle><circle cx="50" cy="50" r="7"></circle>
+      <path d="M50 22v21M50 57v21M22 50h21M57 50h21M30 30l15 15M55 55l15 15M70 30 55 45M45 55 30 70"></path>
+      <path d="M19 20l8 8M8 43l11 2M13 68l10-4M81 20l-8 8M92 43l-11 2M87 68l-10-4" style="stroke:#de2636;"></path>
+    </svg>
+    <svg viewBox="0 0 100 100" style="position:absolute;bottom:20px;left:30%;width:52px;opacity:.09;transform:rotate(-14deg);fill:none;stroke:#17233b;stroke-width:2.5;">
+      <circle cx="50" cy="50" r="44"></circle><circle cx="50" cy="50" r="28"></circle><circle cx="50" cy="50" r="7"></circle>
+      <path d="M50 22v21M50 57v21M22 50h21M57 50h21M30 30l15 15M55 55l15 15M70 30 55 45M45 55 30 70"></path>
+    </svg>
+    <svg viewBox="0 0 320 180" style="position:absolute;bottom:64px;left:108px;width:190px;fill:none;stroke:#17233b;stroke-width:4;opacity:.065;">
+      <path d="M28 108c18-38 47-36 67-15 17 18 39 20 57-10 23-38 66-51 104-26 33 22 37 66 13 92-25 27-64 22-79-4-18-32-49-30-72-8-34 32-72 8-90-29Z"></path>
+      <circle cx="28" cy="108" r="5"></circle><path d="M22 116h24M22 122h24" style="stroke:#de2636;"></path>
+    </svg>
+    <div style="position:absolute;right:25px;top:68%;display:flex;flex-direction:column;align-items:flex-end;color:rgba(23,35,59,.18);font-family:'JetBrains Mono',monospace;transform:rotate(-90deg) translateX(100%);transform-origin:right top;">
+      <b style="font-size:13px;letter-spacing:-.04em;">245/40</b><span style="font-size:6px;font-weight:700;letter-spacing:.16em;">R18 · SPORT</span>
+    </div>
+  </div>
+
+  <nav style="position:relative;z-index:20;margin:12px 0 12px 12px;width:64px;display:flex;flex-direction:column;align-items:center;gap:6px;padding:16px 0;border-radius:24px;background:rgba(255,255,255,.92);border:1px solid #d9dfe3;border-top:3px solid #de2636;box-shadow:0 1px 2px rgba(23,35,59,.04),0 12px 30px rgba(23,35,59,.08);box-sizing:border-box;">
+    <button aria-label="Depot Tire Hub" style="margin-bottom:12px;width:40px;height:40px;display:grid;place-items:center;border-radius:16px;background:#de2636;color:#fff;font:inherit;font-size:13px;font-weight:800;border:none;cursor:pointer;box-shadow:0 7px 18px rgba(222,38,54,.22),inset 0 -3px 0 #b91d2a;">DT</button>
+    <button title="Inbox" style="position:relative;width:44px;height:44px;display:grid;place-items:center;border-radius:16px;background:rgba(23,35,59,.09);border:1px solid rgba(23,35,59,.10);color:#17233b;cursor:pointer;">
+      <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 13h4l2 3h6l2-3h4"></path><path d="M5 5h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Z"></path></svg>
+      <span style="position:absolute;top:4px;right:4px;height:16px;min-width:16px;display:grid;place-items:center;border-radius:999px;background:#de2636;padding:0 4px;font-size:9px;font-weight:700;color:#fff;font-variant-numeric:tabular-nums;box-sizing:border-box;">{{ abiertos }}</span>
+    </button>
+    <button title="Pipeline" style="width:44px;height:44px;display:grid;place-items:center;border-radius:16px;background:none;border:none;color:#68717f;cursor:pointer;">
+      <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="5" height="16" rx="1.5"></rect><rect x="10" y="4" width="5" height="10" rx="1.5"></rect><rect x="17" y="4" width="4" height="13" rx="1.5"></rect></svg>
+    </button>
+    <button title="Cotizador" style="width:44px;height:44px;display:grid;place-items:center;border-radius:16px;background:none;border:none;color:#68717f;cursor:pointer;">
+      <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"></circle><circle cx="12" cy="12" r="3.4"></circle><path d="M12 3.5v3"></path><path d="M12 17.5v3"></path><path d="M3.5 12h3"></path><path d="M17.5 12h3"></path><path d="m6 6 2.1 2.1"></path><path d="m15.9 15.9 2.1 2.1"></path><path d="m18 6-2.1 2.1"></path><path d="m8.1 15.9-2.1 2.1"></path></svg>
+    </button>
+    <button title="Métricas" style="width:44px;height:44px;display:grid;place-items:center;border-radius:16px;background:none;border:none;color:#68717f;cursor:pointer;">
+      <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10"></path><path d="M10 20V4"></path><path d="M16 20v-7"></path><path d="M21 20H3"></path></svg>
+    </button>
+    <button title="Ajustes" style="width:44px;height:44px;display:grid;place-items:center;border-radius:16px;background:none;border:none;color:#68717f;cursor:pointer;">
+      <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h10"></path><path d="M18 8h2"></path><circle cx="16" cy="8" r="2"></circle><path d="M4 16h4"></path><path d="M12 16h8"></path><circle cx="10" cy="16" r="2"></circle></svg>
+    </button>
+    <div style="margin-top:auto;display:flex;flex-direction:column;align-items:center;gap:12px;">
+      <button title="Salir de la sesión de Andrés" style="width:40px;height:40px;display:grid;place-items:center;border-radius:999px;border:1px solid #d9dfe3;background:none;color:#68717f;cursor:pointer;">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15 4.5h3a1.5 1.5 0 0 1 1.5 1.5v12a1.5 1.5 0 0 1-1.5 1.5h-3"></path><path d="M10 8.5 13.5 12 10 15.5"></path><path d="M13.5 12h-9"></path></svg>
+      </button>
+      <span title="Bot en línea" style="width:8px;height:8px;border-radius:50%;background:#178d72;box-shadow:0 0 10px #178d72;animation:pulse 1.8s ease-in-out infinite;"></span>
+    </div>
+  </nav>
+
+  <div style="position:relative;z-index:10;display:flex;flex:1;min-width:0;flex-direction:column;">
+    <header style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px 24px 12px;">
+      <div>
+        <h1 style="margin:0;font-family:'Archivo Black','Archivo',sans-serif;font-weight:400;font-size:20px;line-height:1.25;letter-spacing:-.015em;">Inbox</h1>
+        <p style="margin:0;font-size:11px;color:#68717f;">cada cliente es un ticket</p>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <button title="Ver el tour del hub" style="display:inline-flex;align-items:center;gap:6px;padding:7px 10px;border:1px solid #d9dfe3;border-radius:999px;color:#68717f;background:rgba(255,255,255,.94);box-shadow:0 1px 2px rgba(23,35,59,.04),0 12px 30px rgba(23,35,59,.08);font:inherit;font-size:10px;font-weight:700;cursor:pointer;"><span>✦</span><span>Tour</span></button>
+        <button title="Apagar sonidos" style="display:inline-flex;align-items:center;gap:6px;padding:7px 10px;border:1px solid #d9dfe3;border-radius:999px;color:#68717f;background:rgba(255,255,255,.94);box-shadow:0 1px 2px rgba(23,35,59,.04),0 12px 30px rgba(23,35,59,.08);font:inherit;font-size:10px;font-weight:700;cursor:pointer;">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9.5h3.2L12 5.4v13.2L7.2 14.5H4Z"></path><path d="M15.6 9.4a3.7 3.7 0 0 1 0 5.2"></path><path d="M18.2 6.8a7.3 7.3 0 0 1 0 10.4"></path></svg><span>Sonido</span>
+        </button>
+        <button title="El hub está leyendo datos reales del servidor" style="display:flex;align-items:center;gap:8px;border-radius:999px;padding:6px 12px;font:inherit;font-size:11px;font-weight:600;background:#0596691f;color:#059669;border:1px solid #0596693d;cursor:pointer;">
+          <span style="width:8px;height:8px;border-radius:50%;background:#178d72;box-shadow:0 0 10px #178d72;animation:pulse 1.8s ease-in-out infinite;flex-shrink:0;"></span>Conectado · Fase 3
+        </button>
+        <span style="display:flex;align-items:center;border-radius:999px;padding:6px 12px;font-size:11px;font-weight:600;background:rgba(23,35,59,.08);border:1px solid #d9dfe3;">Andrés</span>
+        <button title="Panel v0.13.1" style="position:relative;border-radius:999px;padding:4px 10px;font:inherit;font-size:10.5px;font-weight:700;letter-spacing:.025em;background:rgba(23,35,59,.07);color:#68717f;border:none;cursor:pointer;">v0.13.1<span style="position:absolute;top:-2px;right:-2px;width:8px;height:8px;border-radius:50%;background:#178d72;"></span></button>
+        <span style="border-radius:999px;background:rgba(16,185,129,.1);padding:8px 12px;font-size:10px;font-weight:900;letter-spacing:.14em;color:#047857;text-transform:uppercase;">Producto real</span>
+      </div>
+    </header>
+
+    <main style="min-height:0;flex:1;display:flex;flex-direction:column;">
+      <div style="display:flex;flex-wrap:wrap;align-items:center;gap:10px;padding:4px 16px 12px;">
+        <div style="position:relative;display:inline-flex;align-items:center;gap:2px;border-radius:12px;padding:4px;background:rgba(255,255,255,.92);border:1px solid #d9dfe3;box-shadow:0 1px 2px rgba(23,35,59,.04),0 12px 30px rgba(23,35,59,.08);overflow:hidden;" style-after="content:'';position:absolute;top:0;right:18px;width:28px;height:3px;background:linear-gradient(90deg,#17233b 0 50%,#de2636 50%);border-radius:0 0 3px 3px;opacity:.78;">
+          <button style="border-radius:8px;padding:6px 12px;font:inherit;font-size:12px;font-weight:700;color:#17233b;background:rgba(23,35,59,.10);border:1px solid rgba(23,35,59,.10);cursor:pointer;">Conversaciones</button>
+          <button style="border-radius:8px;padding:6px 12px;font:inherit;font-size:12px;font-weight:700;color:#68717f;background:none;border:1px solid transparent;cursor:pointer;">Alertas del bot</button>
+        </div>
+        <div style="position:relative;display:inline-flex;align-items:center;gap:2px;border-radius:12px;padding:4px;background:rgba(255,255,255,.92);border:1px solid #d9dfe3;box-shadow:0 1px 2px rgba(23,35,59,.04),0 12px 30px rgba(23,35,59,.08);overflow:hidden;" style-after="content:'';position:absolute;top:0;right:18px;width:28px;height:3px;background:linear-gradient(90deg,#17233b 0 50%,#de2636 50%);border-radius:0 0 3px 3px;opacity:.78;">
+          <button style="display:inline-flex;align-items:center;border-radius:8px;padding:6px 12px;font:inherit;font-size:12px;font-weight:700;color:#17233b;background:rgba(23,35,59,.10);border:1px solid rgba(23,35,59,.10);cursor:pointer;">Abiertos<span style="margin-left:6px;border-radius:999px;padding:1px 6px;font-size:10px;background:#de2636;color:#fff;font-variant-numeric:tabular-nums;">{{ abiertos }}</span></button>
+          <button style="display:inline-flex;align-items:center;border-radius:8px;padding:6px 12px;font:inherit;font-size:12px;font-weight:700;color:#68717f;background:none;border:1px solid transparent;cursor:pointer;">Cerrados<span style="margin-left:6px;border-radius:999px;padding:1px 6px;font-size:10px;background:#de2636;color:#fff;font-variant-numeric:tabular-nums;">{{ cerrados }}</span></button>
+          <button style="border-radius:8px;padding:6px 12px;font:inherit;font-size:12px;font-weight:700;color:#68717f;background:none;border:1px solid transparent;cursor:pointer;">Todos</button>
+        </div>
+        <div style="position:relative;display:flex;flex:1;min-width:160px;max-width:256px;align-items:center;gap:8px;border-radius:12px;padding:8px 12px;background:rgba(255,255,255,.92);border:1px solid #d9dfe3;box-shadow:0 1px 2px rgba(23,35,59,.04),0 12px 30px rgba(23,35,59,.08);overflow:hidden;" style-after="content:'';position:absolute;top:0;right:18px;width:28px;height:3px;background:linear-gradient(90deg,#17233b 0 50%,#de2636 50%);border-radius:0 0 3px 3px;opacity:.78;">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#98a0ab" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.2-3.2"></path></svg>
+          <input placeholder="Nombre, medida, vehículo…" style="width:100%;background:transparent;border:none;outline:none;font:inherit;font-size:12px;color:#17233b;">
+        </div>
+      </div>
+      <div style="display:flex;gap:6px;overflow-x:auto;padding:0 16px 12px;">
+        <button style="flex-shrink:0;border-radius:999px;padding:4px 10px;font:inherit;font-size:11px;font-weight:700;white-space:nowrap;color:#8b95ab;background:rgba(139,149,171,.14);border:1px solid rgba(139,149,171,.38);cursor:pointer;">Todas</button>
+        <button style="flex-shrink:0;border-radius:999px;padding:4px 10px;font:inherit;font-size:11px;font-weight:700;white-space:nowrap;color:#68717f;background:rgba(23,35,59,.04);border:1px solid rgba(23,35,59,.06);cursor:pointer;">Nuevo</button>
+        <button style="flex-shrink:0;border-radius:999px;padding:4px 10px;font:inherit;font-size:11px;font-weight:700;white-space:nowrap;color:#68717f;background:rgba(23,35,59,.04);border:1px solid rgba(23,35,59,.06);cursor:pointer;">Medida confirmada</button>
+        <button style="flex-shrink:0;border-radius:999px;padding:4px 10px;font:inherit;font-size:11px;font-weight:700;white-space:nowrap;color:#68717f;background:rgba(23,35,59,.04);border:1px solid rgba(23,35,59,.06);cursor:pointer;">Opciones y comparación</button>
+        <button style="flex-shrink:0;border-radius:999px;padding:4px 10px;font:inherit;font-size:11px;font-weight:700;white-space:nowrap;color:#68717f;background:rgba(23,35,59,.04);border:1px solid rgba(23,35,59,.06);cursor:pointer;">Cotización enviada</button>
+        <button style="flex-shrink:0;border-radius:999px;padding:4px 10px;font:inherit;font-size:11px;font-weight:700;white-space:nowrap;color:#68717f;background:rgba(23,35,59,.04);border:1px solid rgba(23,35,59,.06);cursor:pointer;">Seguimiento hasta venta</button>
+      </div>
+
+      <div style="min-height:0;flex:1;overflow-y:auto;padding:0 8px 24px;">
+        <sc-for list="{{ rows }}" as="t" hint-placeholder-count="8">
+          <button style="display:flex;width:100%;align-items:center;gap:12px;border-radius:16px;padding:12px 14px;text-align:left;background:none;border:none;font:inherit;color:inherit;cursor:pointer;box-sizing:border-box;" style-hover="background:rgba(23,35,59,.045);transform:translateY(-1px);">
+            <div style="position:relative;display:grid;flex-shrink:0;place-items:center;width:40px;height:40px;border-radius:50%;font-weight:700;font-size:14.4px;color:{{ t.color }};background:{{ t.avBg }};border:1px solid {{ t.avBorder }};">
+              {{ t.iniciales }}
+              <sc-if value="{{ t.esRecurrente }}" hint-placeholder-val="{{ false }}">
+                <span title="Cliente recurrente" style="position:absolute;right:-2px;bottom:-2px;display:grid;place-items:center;width:17px;height:17px;border-radius:50%;background:#f5f6f4;border:1px solid rgba(23,35,59,.15);color:#17233b;">
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5 13.8 9l5.7 1.8-5.7 1.8L12 18.4l-1.8-5.8L4.5 10.8 10.2 9 12 3.5Z"></path></svg>
+                </span>
+              </sc-if>
+            </div>
+            <div style="min-width:0;flex:1;">
+              <div style="display:flex;align-items:baseline;justify-content:space-between;gap:8px;">
+                <p style="margin:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13.5px;font-weight:{{ t.nombreWeight }};color:{{ t.nombreColor }};">{{ t.titulo }}</p>
+                <span style="flex-shrink:0;font-size:11px;font-variant-numeric:tabular-nums;font-weight:{{ t.horaWeight }};color:{{ t.horaColor }};">{{ t.hora }}</span>
+              </div>
+              <div style="margin-top:2px;display:flex;align-items:center;justify-content:space-between;gap:8px;">
+                <p style="margin:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;color:{{ t.msgColor }};">{{ t.ultimoMensaje }}</p>
+                <sc-if value="{{ t.esperando }}" hint-placeholder-val="{{ false }}">
+                  <span style="display:grid;flex-shrink:0;place-items:center;height:18px;min-width:18px;border-radius:999px;background:#de2636;padding:0 4px;font-size:10.5px;font-weight:700;color:#fff;font-variant-numeric:tabular-nums;box-sizing:border-box;">{{ t.sinLeer }}</span>
+                </sc-if>
+              </div>
+              <div style="margin-top:6px;display:flex;align-items:center;gap:6px;">
+                <span style="display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:2px 8px;font-size:11px;font-weight:700;white-space:nowrap;color:{{ t.etapaColor }};background:{{ t.etapaBg }};border:1px solid {{ t.etapaBorder }};"><span style="width:6px;height:6px;border-radius:50%;background:{{ t.etapaColor }};"></span>{{ t.etapaNombre }}</span>
+                <sc-if value="{{ t.esBot }}" hint-placeholder-val="{{ true }}">
+                  <span style="display:inline-flex;align-items:center;gap:4px;border-radius:999px;padding:2px 8px;font-size:10.5px;font-weight:700;color:#178d72;background:rgba(23,141,114,.10);border:1px solid rgba(23,141,114,.28);">
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="8" width="14" height="11" rx="3"></rect><path d="M12 8V4.5"></path><circle cx="12" cy="3.8" r="1" fill="currentColor" stroke="none"></circle><circle cx="9.3" cy="13" r="1.1" fill="currentColor" stroke="none"></circle><circle cx="14.7" cy="13" r="1.1" fill="currentColor" stroke="none"></circle><path d="M9.5 16.3h5"></path></svg>Bot
+                  </span>
+                </sc-if>
+                <sc-if value="{{ t.esHumano }}" hint-placeholder-val="{{ false }}">
+                  <span style="display:inline-flex;align-items:center;gap:4px;border-radius:999px;padding:2px 8px;font-size:10.5px;font-weight:700;color:#f1b942;background:rgba(241,185,66,.10);border:1px solid rgba(241,185,66,.28);">
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.6"></circle><path d="M5 20c1.2-3.4 3.9-5 7-5s5.8 1.6 7 5"></path></svg>Humano
+                  </span>
+                </sc-if>
+                <sc-if value="{{ t.tieneMedida }}" hint-placeholder-val="{{ false }}">
+                  <span style="font-family:'JetBrains Mono',monospace;font-weight:700;letter-spacing:.02em;white-space:nowrap;font-size:10.5px;background:#17233b;color:#fff;border-radius:7px;box-shadow:inset 3px 0 0 #de2636;">{{ t.medida }}</span>
+                </sc-if>
+              </div>
+            </div>
+          </button>
+        </sc-for>
+      </div>
+    </main>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  state = { data: null };
+  componentDidMount() {
+    import("./hub-data.js").then((m) => this.setState({ data: m }));
+  }
+  renderVals() {
+    const m = this.state.data;
+    if (!m) return { rows: [], abiertos: 18, cerrados: 8 };
+    const now = Date.now();
+    const rows = m.TICKETS.map((t) => {
+      const esperando = t.sinLeer > 0;
+      const color = m.avatarColor(t.telefono);
+      const meta = m.ETAPA_META[t.etapa];
+      const hex = (c, a) => c + Math.round(a * 255).toString(16).padStart(2, "0");
+      return {
+        ...t,
+        titulo: t.nombre ?? t.telefono,
+        iniciales: m.iniciales(t.nombre, t.telefono),
+        color, avBg: hex(color, 0.16), avBorder: hex(color, 0.35),
+        esperando,
+        nombreWeight: esperando ? 700 : 600,
+        nombreColor: esperando ? "#17233b" : "rgba(23,35,59,.9)",
+        hora: m.relTime(t.ultimaActividad, now),
+        horaWeight: esperando ? 700 : 400,
+        horaColor: esperando ? "#de2636" : "#98a0ab",
+        msgColor: esperando ? "rgba(23,35,59,.8)" : "#68717f",
+        etapaNombre: meta.nombre, etapaColor: meta.color, etapaBg: hex(meta.color, 0.13), etapaBorder: hex(meta.color, 0.3),
+        esBot: t.atiende === "bot", esHumano: t.atiende === "humano",
+        tieneMedida: Boolean(t.medida),
+      };
+    });
+    return { rows, abiertos: m.TICKETS.length, cerrados: m.CERRADOS };
+  }
+}
+</script>
+</body>
+</html>

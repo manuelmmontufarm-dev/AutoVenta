@@ -4,26 +4,17 @@ import { createPortal } from "react-dom";
 import { authHeaders } from "../data/realSource";
 import type { Mensaje, Rol, Ticket } from "../data/types";
 import { horaCorta, money } from "../lib/format";
-import { IconAlert, IconBot, IconCheck, IconChevronR, IconClock, IconDoc, IconDoubleCheck, IconPin, IconSend, IconUser, IconX } from "./icons";
+import { IconAlert, IconBot, IconCheck, IconChevronR, IconClock, IconDoc, IconDoubleCheck, IconPin, IconX } from "./icons";
 import { Modal } from "./ui";
 
 /* ── Burbuja ── */
 
-export function ChatBubble({ msg, onVerPdf }: { msg: Mensaje; onVerPdf?: () => void }) {
+export function ChatBubble({ msg, nombreCliente = "Cliente", onVerPdf }: { msg: Mensaje; nombreCliente?: string; onVerPdf?: () => void }) {
   const saliente = msg.rol !== "cliente";
+  const quien = msg.rol === "cliente" ? nombreCliente : msg.rol === "bot" ? "Bot" : "Asesor";
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 12, scale: 0.96 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
-      transition={{ type: "spring", stiffness: 420, damping: 32 }}
-      className={`flex ${saliente ? "justify-end" : "justify-start"}`}
-    >
-      <div className={`bubble ${saliente ? "bubble-out" : "bubble-in"}`}>
-        {msg.rol === "vendedor" && (
-          <p className="mb-0.5 flex items-center gap-1 text-[10px] font-bold text-lime">
-            <IconUser size={10} /> Vendedor
-          </p>
-        )}
+    <div className={`flex max-w-[78%] flex-col gap-1 md:max-w-[62%] ${saliente ? "self-end items-end" : "self-start items-start"}`}>
+      <div className={`bubble ${saliente ? "bubble-out" : "bubble-in"}`} style={{ maxWidth: "100%" }}>
         {msg.tipo === "pdf" || msg.tipo === "imagen" ? (
           <PiezaAdjunta msg={msg} onFallback={onVerPdf} />
         ) : msg.tipo === "ubicacion" ? (
@@ -32,20 +23,17 @@ export function ChatBubble({ msg, onVerPdf }: { msg: Mensaje; onVerPdf?: () => v
           <p className="m-0 whitespace-pre-wrap">{msg.contenido}</p>
         )}
         {saliente && msg.estado === "failed" && msg.tipo !== "imagen" && (
-          <p
-            className="mt-1 mb-0 rounded-lg px-2 py-1 text-[10.5px]"
-            style={{ background: "color-mix(in srgb, var(--color-red) 12%, transparent)", color: "var(--color-red)" }}
-          >
+          <p className="mt-2 mb-0 rounded-[6px] px-2.5 py-1.5 text-[12px]" style={{ background: "var(--color-signal-tint)", color: "var(--color-signal)" }}>
             <b>No le llegó al cliente.</b>
             {motivoDeFallo(msg) ? <span className="block opacity-80">{motivoDeFallo(msg)}</span> : null}
           </p>
         )}
-        <span className="mt-0.5 flex items-center justify-end gap-1 text-[10px]" style={{ color: "var(--color-bubble-meta)" }}>
-          {horaCorta(msg.hora)}
-          {saliente && <EstadoEnvio estado={msg.estado} />}
-        </span>
       </div>
-    </motion.div>
+      <span className="tnum flex items-center gap-1.5 font-mono text-[11px] text-text2">
+        {quien} · {horaCorta(msg.hora)}
+        {saliente && <EstadoEnvio estado={msg.estado} />}
+      </span>
+    </div>
   );
 }
 
@@ -63,18 +51,18 @@ export function ChatBubble({ msg, onVerPdf }: { msg: Mensaje; onVerPdf?: () => v
  */
 function EstadoEnvio({ estado }: { estado?: string }) {
   if (estado === "failed") {
-    return <IconAlert size={13} style={{ color: "var(--color-red)" }} aria-label="No se envió" />;
+    return <IconAlert size={13} style={{ color: "var(--color-signal)" }} aria-label="No se envió" />;
   }
   if (estado === "read") {
-    return <IconDoubleCheck size={13} style={{ color: "var(--color-lime)" }} aria-label="Leído" />;
+    return <IconDoubleCheck size={13} style={{ color: "var(--color-ok)" }} aria-label="Leído" />;
   }
   if (estado === "delivered") {
-    return <IconDoubleCheck size={13} style={{ color: "var(--color-check)" }} aria-label="Entregado" />;
+    return <IconDoubleCheck size={13} style={{ color: "var(--color-text2)" }} aria-label="Entregado" />;
   }
   if (estado === "sent") {
-    return <IconCheck size={13} style={{ color: "var(--color-check)" }} aria-label="Aceptado por WhatsApp, sin confirmar entrega" />;
+    return <IconCheck size={13} style={{ color: "var(--color-text2)" }} aria-label="Aceptado por WhatsApp, sin confirmar entrega" />;
   }
-  return <IconClock size={12} style={{ color: "var(--color-bubble-meta)" }} aria-label="En cola" />;
+  return <IconClock size={12} style={{ color: "var(--color-text3)" }} aria-label="En cola" />;
 }
 
 /** El motivo que devolvió Meta, si lo hay. Llega crudo dentro de metadata. */
@@ -171,22 +159,22 @@ function PiezaAdjunta({ msg, onFallback }: { msg: Mensaje; onFallback?: () => vo
       <button
         onClick={() => setAplastada((v) => !v)}
         aria-expanded={!aplastada}
-        className="flex w-full items-center gap-2 rounded-xl p-2 text-left transition-colors"
-        style={{ background: "rgba(0,0,0,.22)", border: "1px solid color-mix(in srgb, var(--color-paper) 10%, transparent)" }}
+        className="flex w-full items-center gap-2 rounded-[6px] p-2 text-left transition-colors"
+        style={{ background: "var(--color-bg)", border: "1px solid var(--color-line)" }}
       >
         {/* El icono del doc es papel literal (un PDF es blanco en cualquier tema) */}
-        <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg" style={{ background: "#f5f4ee", color: "#262624" }}>
+        <span className="grid h-7 w-7 shrink-0 place-items-center rounded-[6px]" style={{ background: "var(--color-surface)", color: "var(--color-text)", border: "1px solid var(--color-line)" }}>
           <IconDoc size={14} />
         </span>
         <span className="min-w-0 flex-1">
           <span className="block truncate text-[12px] font-semibold">{titulo}</span>
-          <span className="block text-[10px]" style={{ color: "var(--color-bubble-meta)" }}>
+          <span className="block text-[11px] text-text2">
             {aplastada ? "toca para verlo" : "toca para aplastarlo"}
           </span>
         </span>
         <span
           className="shrink-0 transition-transform"
-          style={{ transform: aplastada ? "rotate(0deg)" : "rotate(90deg)", color: "var(--color-bubble-meta)" }}
+          style={{ transform: aplastada ? "rotate(0deg)" : "rotate(90deg)", color: "var(--color-text2)" }}
         >
           <IconChevronR size={14} />
         </span>
@@ -195,7 +183,7 @@ function PiezaAdjunta({ msg, onFallback }: { msg: Mensaje; onFallback?: () => vo
       {!aplastada && (src ? (
         <button
           onClick={() => setAmpliada(true)}
-          className="block w-full overflow-hidden rounded-xl transition-transform hover:-translate-y-px"
+          className="block w-full overflow-hidden rounded-[6px] border border-line"
           aria-label={`Ampliar ${titulo}`}
         >
           <img
@@ -209,8 +197,8 @@ function PiezaAdjunta({ msg, onFallback }: { msg: Mensaje; onFallback?: () => vo
         // Mientras la pieza baja: un lienzo del alto aproximado para que el
         // chat no salte cuando llegue la imagen.
         <div
-          className="w-full animate-pulse rounded-xl"
-          style={{ height: 150, background: "color-mix(in srgb, var(--color-paper) 6%, transparent)" }}
+          className="skeleton w-full"
+          style={{ height: 150 }}
         />
       ))}
 
@@ -226,12 +214,12 @@ function PiezaAdjunta({ msg, onFallback }: { msg: Mensaje; onFallback?: () => vo
             <div className="p-3">
               <div className="mb-2 flex items-center justify-between gap-2 px-1">
                 <p className="text-[13px] font-bold">{titulo}</p>
-                <button onClick={() => setAmpliada(false)} className="text-muted hover:text-paper" aria-label="Cerrar">
+                <button onClick={() => setAmpliada(false)} className="text-text2 hover:text-text" aria-label="Cerrar">
                   <IconX size={17} />
                 </button>
               </div>
-              <img src={src ?? undefined} alt={titulo} className="block w-full rounded-2xl" style={{ background: "#f5f4ee" }} />
-              <p className="mt-2 px-1 text-[11px] text-muted">{msg.contenido}</p>
+              <img src={src ?? undefined} alt={titulo} className="block w-full rounded-[8px] border border-line" />
+              <p className="mt-2 px-1 text-[12px] text-text2">{msg.contenido}</p>
             </div>
           </Modal>
         )}
@@ -264,16 +252,16 @@ function PdfCard({ titulo, onVer }: { titulo: string; onVer?: () => void }) {
   return (
     <button
       onClick={onVer}
-      className="flex w-full items-center gap-2.5 rounded-xl p-2.5 text-left transition-transform hover:-translate-y-px"
-      style={{ background: "rgba(0,0,0,.22)", border: "1px solid color-mix(in srgb, var(--color-paper) 10%, transparent)" }}
+      className="flex w-full items-center gap-2.5 rounded-[6px] p-2.5 text-left"
+      style={{ background: "var(--color-bg)", border: "1px solid var(--color-line)" }}
     >
       {/* El icono del doc es papel literal (un PDF es blanco en cualquier tema) */}
-      <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg" style={{ background: "#f5f4ee", color: "#262624" }}>
+      <span className="grid h-9 w-9 shrink-0 place-items-center rounded-[6px]" style={{ background: "var(--color-surface)", color: "var(--color-text)", border: "1px solid var(--color-line)" }}>
         <IconDoc size={18} />
       </span>
       <span className="min-w-0">
         <span className="block truncate text-[12.5px] font-semibold">{titulo}</span>
-        <span className="text-[10.5px]" style={{ color: "var(--color-bubble-meta)" }}>
+        <span className="text-[11px] text-text2">
           PDF · 1 página · toca para ver
         </span>
       </span>
@@ -285,22 +273,22 @@ function PdfCard({ titulo, onVer }: { titulo: string; onVer?: () => void }) {
 
 function MapCard({ etiqueta }: { etiqueta: string }) {
   return (
-    <div className="w-52 overflow-hidden rounded-xl" style={{ border: "1px solid color-mix(in srgb, var(--color-paper) 10%, transparent)" }}>
-      <div className="relative h-24" style={{ background: "#0d1930" }}>
+    <div className="w-52 overflow-hidden rounded-[6px]" style={{ border: "1px solid var(--color-line)" }}>
+      <div className="relative h-24" style={{ background: "#ece9e3" }}>
         <svg viewBox="0 0 208 96" className="absolute inset-0 h-full w-full">
-          <path d="M-10 70 C 40 60, 60 30, 110 34 S 190 60, 220 48" stroke="rgba(255,255,255,.14)" strokeWidth="7" fill="none" />
-          <path d="M30 -10 C 36 30, 20 60, 44 110" stroke="rgba(255,255,255,.1)" strokeWidth="5" fill="none" />
-          <path d="M120 -10 L 150 110" stroke="rgba(255,255,255,.08)" strokeWidth="4" fill="none" />
-          <path d="M-10 20 L 220 14" stroke="rgba(255,255,255,.06)" strokeWidth="3" fill="none" />
-          <circle cx="104" cy="44" r="13" fill="rgba(227,38,46,.25)">
+          <path d="M-10 70 C 40 60, 60 30, 110 34 S 190 60, 220 48" stroke="rgba(28,27,25,.18)" strokeWidth="7" fill="none" />
+          <path d="M30 -10 C 36 30, 20 60, 44 110" stroke="rgba(28,27,25,.14)" strokeWidth="5" fill="none" />
+          <path d="M120 -10 L 150 110" stroke="rgba(28,27,25,.10)" strokeWidth="4" fill="none" />
+          <path d="M-10 20 L 220 14" stroke="rgba(28,27,25,.08)" strokeWidth="3" fill="none" />
+          <circle cx="104" cy="44" r="13" fill="rgba(180,69,58,.22)">
             <animate attributeName="r" values="10;16;10" dur="2.2s" repeatCount="indefinite" />
           </circle>
         </svg>
-        <span className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-[85%] text-red">
+        <span className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-[85%] text-signal">
           <IconPin size={26} />
         </span>
       </div>
-      <div className="flex items-center gap-1.5 px-2.5 py-1.5 text-[11.5px] font-semibold" style={{ background: "rgba(0,0,0,.25)", color: "#fff" }}>
+      <div className="flex items-center gap-1.5 px-2.5 py-1.5 text-[12px] font-medium" style={{ background: "var(--color-surface)", color: "var(--color-text)", borderTop: "1px solid var(--color-line)" }}>
         <IconPin size={11} /> {etiqueta.replace("📍 ", "")}
       </div>
     </div>
@@ -334,23 +322,19 @@ export function TypingBubble({ rol }: { rol: Rol }) {
 
 export function Composer({
   ticket,
+  nombreCliente = "el cliente",
   onEnviar,
-  // Estaba declarado en el tipo pero NUNCA se desestructuraba: quien llamaba lo
-  // pasaba, el componente lo ignoraba, y por eso no había forma de tomar el
-  // chat desde aquí. Ese era el bug de raíz, no una falta de diseño.
   onTomar,
 }: {
   ticket: Ticket;
+  nombreCliente?: string;
   onEnviar: (texto: string) => void;
   onTomar?: () => void;
 }) {
   const [texto, setTexto] = useState("");
   const ref = useRef<HTMLInputElement>(null);
-  // El bot atendiendo NO bloquea el teclado. Antes esta pantalla solo decía «el
-  // bot está atendiendo» y para escribir había que abrir la Ficha y mover un
-  // interruptor enterrado: tres toques y una pantalla de por medio para
-  // contestarle a un cliente que está esperando. Ahora se escribe siempre y el
-  // traspaso ocurre al enviar, que es cuando de verdad hace falta.
+  // El bot atendiendo NO bloquea el teclado: se escribe siempre y el traspaso
+  // ocurre al enviar, que es cuando de verdad hace falta.
   const atiendeBot = ticket.atiende === "bot";
 
   useEffect(() => {
@@ -370,20 +354,14 @@ export function Composer({
 
   if (ticket.estado === "cerrado") {
     return (
-      <div className="px-4 py-3 text-center text-xs text-muted">
-        Ticket cerrado — reábrelo para volver a escribir
+      <div className="px-5 py-3.5 text-center text-[13px] text-text2">
+        Ticket cerrado. Reabrilo para volver a escribir.
       </div>
     );
   }
 
   return (
-    <div className="px-3 py-2.5">
-      {atiendeBot && (
-        <p className="mb-1.5 flex items-center justify-center gap-1.5 text-center text-[11px] text-faint">
-          <span className="pulse-dot" /> Contesta el bot — al enviar, el chat pasa a ustedes
-        </p>
-      )}
-      <div className="flex items-center gap-2">
+    <div className="flex items-center gap-2.5 px-4 py-3 md:px-5 md:py-3.5">
       <input
         ref={ref}
         value={texto}
@@ -392,21 +370,14 @@ export function Composer({
           if ((e.key === "Enter" || e.key === "Return") && !e.nativeEvent.isComposing) enviar();
         }}
         enterKeyHint="send"
-        placeholder={atiendeBot ? "Escribe para tomar el chat…" : "Escribe como vendedor…"}
-        // 16px en el teléfono: por debajo de eso iOS hace zoom al enfocar y la
-        // pantalla queda corrida. En escritorio vuelve al tamaño del sistema.
-        className="gp-field min-w-0 flex-1 rounded-full px-4 py-2.5 text-[16px] placeholder:text-faint sm:text-[13.5px]"
+        placeholder={atiendeBot ? `Escribir a ${nombreCliente}… al enviar, contestan ustedes` : `Escribir a ${nombreCliente}…`}
+        aria-label="Mensaje"
+        // 16px en el teléfono: por debajo iOS hace zoom al enfocar.
+        className="h-11 min-w-0 flex-1 rounded-[6px] border border-line bg-bg px-3.5 text-[16px] outline-none transition-colors focus:border-signal md:text-[14px]"
       />
-      <motion.button
-        whileTap={{ scale: 0.88 }}
-        onClick={enviar}
-        disabled={!texto.trim()}
-        className="btn-aurora grid h-10 w-10 shrink-0 place-items-center rounded-full transition-opacity disabled:opacity-35"
-        aria-label="Enviar"
-      >
-        <IconSend size={17} />
-      </motion.button>
-      </div>
+      <button onClick={enviar} disabled={!texto.trim()} className="btn-signal h-11 shrink-0 rounded-[6px] px-4.5 text-[14px]">
+        Enviar
+      </button>
     </div>
   );
 }
@@ -418,19 +389,19 @@ export function CotizacionModal({ ticket }: { ticket: Ticket }) {
   if (!cot) return null;
   return (
     // El documento es papel literal: no cambia con el tema del hub (como un PDF real)
-    <div className="overflow-hidden rounded-3xl" style={{ background: "#f5f4ee", color: "#262624" }}>
-      <div className="flex items-center justify-between px-6 py-5 text-white" style={{ background: "#262624" }}>
+    <div className="overflow-hidden rounded-3xl" style={{ background: "var(--color-surface)", color: "var(--color-text)", border: "1px solid var(--color-line)" }}>
+      <div className="flex items-center justify-between px-6 py-5 text-white" style={{ background: "#1c1b19" }}>
         <div>
           <p className="serif text-lg tracking-tight">
-            Depot<span className="text-red">Tire</span>
+            Depot Tire
           </p>
-          <p className="text-[10.5px] tracking-[.14em] uppercase" style={{ color: "rgba(255,255,255,.55)" }}>
+          <p className="text-[12px]" style={{ color: "rgba(255,255,255,.65)" }}>
             30+ años rodando contigo
           </p>
         </div>
         <div className="text-right">
           <p className="microlabel" style={{ color: "rgba(255,255,255,.5)" }}>Cotización</p>
-          <p className="tnum text-xl font-extrabold text-red">#{cot.numero}</p>
+          <p className="tnum font-mono text-xl font-bold">#{cot.numero}</p>
         </div>
       </div>
       <div className="px-6 py-5">
@@ -446,7 +417,7 @@ export function CotizacionModal({ ticket }: { ticket: Ticket }) {
         </div>
         <table className="w-full border-collapse text-[13px]">
           <thead>
-            <tr className="text-left text-[10.5px] tracking-wider uppercase opacity-50">
+            <tr className="text-left text-[12px] opacity-60">
               <th className="pb-2">Producto</th>
               <th className="pb-2 text-center">Cant.</th>
               <th className="pb-2 text-right">P. unit</th>
@@ -464,7 +435,7 @@ export function CotizacionModal({ ticket }: { ticket: Ticket }) {
             ))}
           </tbody>
         </table>
-        <div className="mt-3 ml-auto w-52 text-[13px]" style={{ borderTop: "2px solid #0a1020" }}>
+        <div className="mt-3 ml-auto w-52 text-[13px]" style={{ borderTop: "1px solid #1c1b19" }}>
           <div className="flex justify-between pt-2 opacity-70">
             <span>Subtotal</span>
             <span className="tnum">{money(cot.subtotal)}</span>
@@ -476,10 +447,10 @@ export function CotizacionModal({ ticket }: { ticket: Ticket }) {
           {cot.discountAmount && <div className="flex justify-between pt-1 font-bold text-green-700"><span>Descuento autorizado</span><span className="tnum">−{money(cot.discountAmount)}</span></div>}
           <div className="serif flex justify-between pt-2 text-lg">
             <span>Total</span>
-            <span className="tnum text-red">{money(cot.total)}</span>
+            <span className="tnum font-mono">{money(cot.total)}</span>
           </div>
         </div>
-        <p className="mt-4 rounded-xl px-3 py-2.5 text-[11px] leading-relaxed opacity-70" style={{ background: "rgba(10,16,32,.05)" }}>
+        <p className="mt-4 rounded-[6px] px-3 py-2.5 text-[12px] leading-relaxed opacity-70" style={{ background: "#f7f6f3" }}>
           Incluye instalación, balanceo y válvulas nuevas. Precios con IVA. · Depot Tire · +593 98 280 1766 ·
           Lun–Sáb 8:30–17:30
         </p>
