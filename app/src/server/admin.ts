@@ -994,7 +994,7 @@ export function createAdminRouter(): express.Router {
           discountAmount: offer.discountAmountCents / 100, discountCondition: offer.condition,
           offerExpiresAt: offer.expiresAt,
         });
-        filename = `Cotizacion-DepotTire-${quote.quote_number}.png`;
+        filename = `Cotizacion-${business.name.replace(/\s/g, "")}-${quote.quote_number}.png`;
         providerId = await sendImage(id, conversation.phone, png, message, filename);
         messageType = "image";
         await logQuoteArtifact({ conversationId: id, quoteId: Number(quote.id), kind: "quote", products: quote.items, filename, providerId });
@@ -1408,7 +1408,10 @@ export function createAdminRouter(): express.Router {
       res
         .status(200)
         .type("application/pdf")
-        .setHeader("Content-Disposition", 'attachment; filename="Comparativa-DepotTire.pdf"')
+        .setHeader(
+          "Content-Disposition",
+          `attachment; filename="Comparativa-${business.name.replace(/\s/g, "")}.pdf"`,
+        )
         .send(pdf);
     } catch (error) {
       const message =

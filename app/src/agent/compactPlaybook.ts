@@ -1,4 +1,5 @@
 import type { Stage } from "../domain/pipeline.js";
+import { negocio } from "../negocio/index.js";
 
 /**
  * Política modular que recibe el agente.
@@ -7,7 +8,7 @@ import type { Stage } from "../domain/pipeline.js";
  * cuando esa es la necesidad del turno. `COMPACT_PLAYBOOK` reúne todo para el
  * Manual y para las pruebas de cobertura; producción usa `playbookParaFase`.
  */
-export const CORE_PLAYBOOK = `# Contrato comercial Depot Tire
+export const CORE_PLAYBOOK = `# Contrato comercial ${negocio.nombre}
 
 ## Reglas de todo turno
 - Si hay una pregunta directa, la primera parte de la respuesta la contesta. Después avanza la venta. Nunca vuelvas a preguntar un dato confirmado.

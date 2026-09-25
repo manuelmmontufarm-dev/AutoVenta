@@ -149,6 +149,11 @@ describe("el orden y las puertas que sostienen los recortes", () => {
     }
   });
 
+  it("la pregunta legítima tras un bloqueo se arma ANTES del Ángel Guardián", () => {
+    expect(indice("pregunta_legitima_tras_cotizacion_bloqueada")).toBeGreaterThanOrEqual(0);
+    expect(indice("pregunta_legitima_tras_cotizacion_bloqueada")).toBeLessThan(indice("angel_guardian"));
+  });
+
   it("las reglas BORRADAS tienen su candado en las tres puertas que el guardián revisa", () => {
     const puertasDelGuardian = PASOS[indice("angel_guardian")].corre;
     expect([...puertasDelGuardian].sort()).toEqual(["respuesta", "retomada", "seguimiento"]);

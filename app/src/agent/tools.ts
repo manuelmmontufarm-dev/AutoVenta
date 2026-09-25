@@ -12,6 +12,7 @@ import { anuncioDeLaConversacion } from "../services/anuncio.js";
 import { lonasDelProducto, politicaDePagos } from "../domain/datosDelNegocio.js";
 import { z } from "zod";
 import { business } from "../config.js";
+import { negocio, localPorNombre } from "../negocio/index.js";
 import { PREGUNTA_DE_CIERRE } from "../domain/preguntaPendiente.js";
 import {
   catalogCandidates,
@@ -231,9 +232,57 @@ function defineTool<T extends z.ZodTypeAny>(input: {
   };
 }
 
+/**
+ * Los nombres de los locales, como opciones cerradas para el contrato de
+ * herramientas que ve el modelo.
+ *
+ * Estaban escritos los dos nombres de Depot, a mano, en dos
+ * herramientas: el modelo de otro cliente no habría podido nombrar sus propios
+ * locales. Sigue siendo una lista cerrada a propósito —así el modelo no puede
+ * inventarse una sucursal— pero la lista la pone el perfil.
+ */
+const NOMBRES_DE_LOCAL = negocio.locales.map((local) => local.nombre) as [string, ...string[]];
+
+/**
+ * «¿Le queda mejor Cumbayá o Quito Sur para pasar a verlas?» — el cierre de una
+ * cotización que sigue vigente cuando el cliente todavía no eligió local.
+ *
+ * Con un solo local no hay nada que elegir y se pregunta directamente el día.
+ */
+const PREGUNTA_DE_LOCAL_PARA_VER =
+  negocio.locales.length >= 2
+    ? `¿Le queda mejor ${negocio.locales.map((local) => local.nombreCorto).join(" o ")} para pasar a verlas?`
+    : "¿Qué día le queda bien pasar a verlas?";
+
+/**
+ * ¿El mensaje de este turno habla de DÓNDE? Decide si se vuelve a resolver el
+ * local en vez de reusar el guardado.
+ *
+ * Además de las palabras genéricas, cada local aporta las suyas: para Depot,
+ * «cumbaya», «quito» y «sur» —que es lo que estaba escrito a mano acá—, y para
+ * otro cliente, las que traiga su perfil. Los nombres van por
+ * `comoLoNombran`/`comoLoNombranAlElegir`, que es donde vive esa verdad.
+ */
+const HABLA_DE_UBICACION = new RegExp(
+  [
+    /\b(?:ubicacion|direcci[oó]n|local|sector|vivo|estoy|pin)\b/.source,
+    ...negocio.locales.flatMap((local) =>
+      [local.comoLoNombran.source, local.comoLoNombranAlElegir?.source].filter(
+        (fuente): fuente is string => Boolean(fuente),
+      ),
+    ),
+  ].join("|"),
+  "i",
+);
+
 function storeSchedule(name: string, hours?: StoreHours): string {
   if (!hours) return business.schedule;
-  const schedule = name.includes("Cumbayá") ? hours.cumbaya : hours.quitoSur;
+  // POR LOCAL, no por dicotomía. Antes era `name.includes("Cumbayá") ? … : …`,
+  // así que con un tercer local todo lo que no dijera «Cumbayá» habría salido
+  // con el horario de Quito Sur.
+  const local = localPorNombre(negocio, name);
+  const schedule = local ? hours[local.claveHorario] : undefined;
+  if (!schedule) return business.schedule;
   const fmt = (period: { open: string; close: string; closed: boolean }) => period.closed ? "cerrado" : `${period.open}–${period.close}`;
   return `lunes a viernes ${fmt(schedule.weekday)}; sábado y domingo ${fmt(schedule.weekend)}`;
 }
@@ -755,8 +804,13 @@ export function buildTools(ctx: AgentContext) {
       // Medidas en pulgadas (30x9.5R15). El catálogo las trae escritas de dos
       // formas — "30X9.5R15LT" y "30X9.50R15LT" — así que se busca por la forma
       // canónica: si no, la mitad del stock queda invisible.
-      if (flotacion) {
-        const medida = extractFlotationSizes(flotacion)[0];
+      // La escritura del CLIENTE manda sobre los argumentos reconstruidos por
+      // el modelo. Con «rin 15 la 31x10x50», el parser del inbound ya guardó
+      // 31X10.5R15, pero el modelo llamó la tool como métrica 0R15 y la
+      // sobrescribió. La fuente determinística evita esa degradación.
+      const flotacionDelCliente = extractFlotationSizes(ctx.currentUserText ?? "")[0];
+      if (flotacionDelCliente || flotacion) {
+        const medida = flotacionDelCliente ?? extractFlotationSizes(flotacion ?? "")[0];
         if (medida) {
           const etiqueta = formatFlotationSize(medida);
           const encontradas = searchByText(etiqueta.replace(/R\d+$/, ""), 40)
@@ -1112,7 +1166,7 @@ export function buildTools(ctx: AgentContext) {
   const tiposDeLlanta = defineTool({
     name: "tipos_de_llanta",
     description:
-      "Explica los tipos de llanta que maneja Depot Tire y cuándo conviene cada uno. Úsala cuando el cliente no sabe qué tipo necesita o pregunta la diferencia entre A/T, H/T, M/T, etc.",
+      `Explica los tipos de llanta que maneja ${business.name} y cuándo conviene cada uno. Úsala cuando el cliente no sabe qué tipo necesita o pregunta la diferencia entre A/T, H/T, M/T, etc.`,
     schema: z.object({}),
     run: async () =>
       JSON.stringify({
@@ -2355,7 +2409,7 @@ export function buildTools(ctx: AgentContext) {
           mensaje_para_enviar: `Su cotización sigue vigente por $${Number(reciente.total).toFixed(2)} 👍\n---\n${
             localElegido
               ? `¿Qué día le queda bien pasar por *${localElegido}* a verlas?`
-              : "¿Le queda mejor Cumbayá o Quito Sur para pasar a verlas?"
+              : PREGUNTA_DE_LOCAL_PARA_VER
           }`,
           });
         }
@@ -3036,7 +3090,7 @@ export function buildTools(ctx: AgentContext) {
         customer_commitment: string | null;
       }[]>`select nearest_store, location_label, visit_date, customer_commitment from conversations where id=${ctx.conversation.id}`;
       const visitKnown = Boolean(saved?.visit_date || saved?.customer_commitment);
-      const currentMessageChangesLocation = /\b(?:ubicacion|direcci[oó]n|local|cumbay[aá]|quito|sur|sector|vivo|estoy|pin)\b/i.test(ctx.currentUserText);
+      const currentMessageChangesLocation = HABLA_DE_UBICACION.test(ctx.currentUserText);
       // Si el cliente acaba de contestar la fecha, no vuelvas a dibujar todo
       // el local ni a preguntar lo mismo. Esto cubre también un Kanban atrasado.
       if (saved?.nearest_store && visitKnown && !currentMessageChangesLocation) {
@@ -3197,11 +3251,11 @@ export function buildTools(ctx: AgentContext) {
       "Manda la ubicación de los locales como link de Google Maps. Úsala SIEMPRE que el cliente pregunte dónde quedan, pida la dirección, el mapa, cómo llegar o que le compartas la ubicación. La dirección NUNCA se escribe con palabras: se manda este link.",
     schema: z.object({
       local: z
-        .enum(["Depot Tire Cumbayá", "Depot Tire Quito Sur"])
+        .enum(NOMBRES_DE_LOCAL)
         .nullable()
         .default(null)
         .describe(
-          "El local por el que preguntó. null si preguntó en general o todavía no elige: ahí van los dos links y la pregunta por cuál le queda mejor.",
+          "El local por el que preguntó. null si preguntó en general o todavía no elige: ahí van todos los links y la pregunta por cuál le queda mejor.",
         ),
     }),
     run: async ({ local }) => {
@@ -3217,14 +3271,17 @@ export function buildTools(ctx: AgentContext) {
       `;
       // La zona que el cliente dijo en ESTE mensaje elige el local: no se le
       // vuelve a preguntar. Ver `localPorLaZonaDicha`.
-      const porZona = !local && !saved?.nearest_store
+      // La zona escrita por el cliente manda sobre el parámetro del modelo.
+      // Conv 22531: «Norte de Quito» llegó con local=Quito Sur y saltó la
+      // resolución determinística. Si hay zona inequívoca, ella decide.
+      const porZona = !saved?.nearest_store
         ? localPorLaZonaDicha(business.stores, ctx.currentUserText)
         : null;
       if (porZona) {
         await updateConversationFacts(ctx.conversation.id, { nearestStore: porZona.name });
         console.log(`📍 Conv ${ctx.conversation.id}: el cliente dijo su zona; local ${porZona.name}.`);
       }
-      const elegido = local ?? saved?.nearest_store ?? porZona?.name ?? null;
+      const elegido = saved?.nearest_store ?? porZona?.name ?? local ?? null;
       const mapas = buildStoreLinksBlock(elegido, { soloDestacado: Boolean(elegido) });
       if (!mapas) {
         return JSON.stringify({
@@ -3290,7 +3347,7 @@ export function buildTools(ctx: AgentContext) {
         .default(null)
         .describe("La hora que dijo, en sus palabras: «de 4 a 5 pm», «en la tarde», «a las 9». null si no dijo hora."),
       local: z
-        .enum(["Depot Tire Cumbayá", "Depot Tire Quito Sur"])
+        .enum(NOMBRES_DE_LOCAL)
         .nullable()
         .default(null)
         .describe("El local al que va, si ya lo eligió en esta conversación. null si todavía no lo dijo."),
@@ -3585,5 +3642,4 @@ function toolItem(item: {
     lonas: lonasDelProducto(item.name) ?? undefined,
   };
 }
-
 

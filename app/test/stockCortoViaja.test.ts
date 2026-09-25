@@ -153,6 +153,8 @@ describe("el orden de los candados en el turno", () => {
       "el_cliente_tomo_el_turno",
       "sin_pregunta_pendiente_consecutiva",
       "guardian_deterministico",
+      "respuesta_de_ubicacion_fuera_de_cobertura",
+      "pregunta_legitima_tras_cotizacion_bloqueada",
       "angel_guardian",
       "guardian_no_vende_solo",
       // El dedupe repite DESPUÉS del guardián porque él reescribe y puede

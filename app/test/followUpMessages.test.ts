@@ -261,4 +261,39 @@ describe("la plantilla de seguimiento lee lo que ya pasó", () => {
       expect(texto).toMatch(/medida/i);
     }
   });
+
+  it("conv 21967/22111/22559/22809: usa la medida guardada aunque la etapa siga en nuevo", () => {
+    for (const kind of ["in_window_first", "in_window_second"] as const) {
+      const texto = buildContextualFollowUpMessage(
+        { stage: "nuevo", tireSize: "205/55R16" }, kind,
+      );
+      expect(texto).toContain("205/55R16");
+      expect(texto).not.toMatch(/me confirma la medida|me falta la medida|me la comparte/i);
+    }
+  });
+
+  it("con local elegido y sin día pregunta qué día, no ofrece vagamente dejar lista la visita", () => {
+    for (const kind of ["in_window_first", "in_window_second"] as const) {
+      const texto = buildContextualFollowUpMessage({
+        stage: "seguimiento_venta",
+        customerCommitment: "voy a pasar",
+        nearestStore: "Depot Tire Cumbayá",
+        visitDate: null,
+      }, kind);
+      expect(texto).toMatch(/qu[eé] d[ií]a/i);
+      expect(texto).not.toMatch(/le ayudo a dejar lista la visita/i);
+    }
+  });
+
+  it("conv 22549: si declaró que no tiene la numeración, no vuelve a pedírsela", () => {
+    for (const kind of ["in_window_first", "in_window_second"] as const) {
+      const texto = buildContextualFollowUpMessage({
+        stage: "nuevo",
+        tireSize: null,
+        customerHasNoTireSize: true,
+      }, kind);
+      expect(texto).not.toMatch(/medida|numeraci[oó]n/i);
+      expect(texto).toMatch(/veh[ií]culo|foto/i);
+    }
+  });
 });

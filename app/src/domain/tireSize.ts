@@ -186,7 +186,13 @@ export function enmascararMedidas(text: string): string {
   // Las flotación PRIMERO: «33 * 12.5 rin 15» contiene un «12.5 rin 15» que la
   // convencional leería como 12.50R15, y taparla después dejaría medio número
   // suelto para el que venga a contar llantas.
-  let limpio = tapar(text, FLOTATION_TEXT_RE, (m) => {
+  let limpio = tapar(text, RIM_FIRST_FLOTATION_RE, (m) => {
+    const rim = Number(m[1]);
+    const diameter = Number(m[2].replace(",", "."));
+    const section = anchoDeFlotacionConDecimal(m[3], m[4]);
+    return flotacionValida(diameter, section, rim);
+  });
+  limpio = tapar(limpio, FLOTATION_TEXT_RE, (m) => {
     const diameter = Number(m[1].replace(",", "."));
     const section = anchoDeFlotacion(m[2] ?? m[3]);
     return flotacionValida(diameter, section, Number(m[4]));
@@ -265,6 +271,16 @@ export interface FlotationSize {
 const FLOTATION_TEXT_RE =
   /(?<!\d)(\d{2}(?:[.,]\d)?)\s*(?:[xX*×/]\s*(\d{1,4}(?:[.,]\d{1,2})?)|[-\s]\s*(\d{1,2}[.,]\d{1,2}))\s*(?:Z?R\s*|(?:RIN|ARO|RON|RIM)\s*|[-/\s]\s*(?:Z?R|RIN|ARO|RON|RIM)?\s*)(\d{2})(?!\d)/gi;
 
+/**
+ * Flotación manuscrita con el aro adelante:
+ *   «Rin 15 31 x 10.50», «rin 15 la 31x10x50», «Rin 15 31 10 50».
+ *
+ * `rin/aro` es el ancla obligatoria que permite reconstruir el punto decimal
+ * sin confundir «195 50 15» (métrica) con pulgadas.
+ */
+const RIM_FIRST_FLOTATION_RE =
+  /(?<!\d)(?:RIN|ARO|RON|RIM)\s*(\d{2})(?!\d)[^\d]{0,12}?(\d{2}(?:[.,]\d)?)(?!\d)\s*(?:[xX*×/\-]\s*)?(\d{1,2})(?:\s*(?:[.,xX]|\s)\s*(\d{1,2}))?(?!\d)/gi;
+
 /** Rangos reales de una flotación; fuera de esto es otro número. */
 function flotacionValida(diameter: number, section: number, rim: number): boolean {
   return (
@@ -282,17 +298,30 @@ function anchoDeFlotacion(crudo: string): number {
   return limpio.length >= 3 ? entero / 100 : entero;
 }
 
+function anchoDeFlotacionConDecimal(base: string, decimal?: string): number {
+  return decimal ? Number(`${base}.${decimal}`) : Number(base.replace(",", "."));
+}
+
 /** Extrae medidas de flotación de texto libre. */
 export function extractFlotationSizes(text: string): FlotationSize[] {
   const out: FlotationSize[] = [];
+  const agregar = (diameter: number, section: number, rim: number): void => {
+    if (!flotacionValida(diameter, section, rim)) return;
+    if (out.some((s) => s.diameter === diameter && s.section === section && s.rim === rim)) return;
+    out.push({ diameter, section, rim });
+  };
+  for (const m of text.matchAll(RIM_FIRST_FLOTATION_RE)) {
+    agregar(
+      Number(m[2].replace(",", ".")),
+      anchoDeFlotacionConDecimal(m[3], m[4]),
+      Number(m[1]),
+    );
+  }
   for (const m of text.matchAll(FLOTATION_TEXT_RE)) {
     const diameter = Number(m[1].replace(",", "."));
     const section = anchoDeFlotacion(m[2] ?? m[3]);
     const rim = Number(m[4]);
-    // Rangos reales: por debajo o encima no es una llanta, es otro número.
-    if (!flotacionValida(diameter, section, rim)) continue;
-    if (out.some((s) => s.diameter === diameter && s.section === section && s.rim === rim)) continue;
-    out.push({ diameter, section, rim });
+    agregar(diameter, section, rim);
   }
   return out;
 }

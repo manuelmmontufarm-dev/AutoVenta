@@ -10,6 +10,7 @@
  * Va aquí y no en wa/client.ts porque es puro (sin base ni red) y así se prueba
  * sin levantar nada, mismo criterio que opcionesCandados y aros.
  */
+import { negocio, firmaDePresentacion } from "../negocio/index.js";
 
 /**
  * Formas en que de verdad saluda la gente en Ecuador al abrir un chat. Se mira
@@ -58,16 +59,28 @@ export function conSaludo(texto: string, nombre: string | null | undefined): str
 // Joaquín, 14-sep-2026 (grupo «Depot tire arreglos»): «que se presente como una
 // persona, tipo "mi nombre es Martín", para que la conversación se sienta más
 // directa y personalizada». Manuel lo consultó y quedó: persona, nombre alegre,
-// Martín. El nombre vive ACÁ y en ningún otro lado.
-export const NOMBRE_DEL_VENDEDOR = "Martín";
-export const FIRMA_DE_PRESENTACION = `Soy ${NOMBRE_DEL_VENDEDOR}, de Depot Tire`;
+// Martín. Desde el 24-sep el nombre lo pone el perfil del negocio: cada cliente
+// tiene el suyo y el bot no puede presentarse con el de otro.
+export const NOMBRE_DEL_VENDEDOR = negocio.vendedor.nombre;
+export const FIRMA_DE_PRESENTACION = firmaDePresentacion(negocio);
+
+const sinTildes = (v: string) => v.normalize("NFD").replace(/[̀-ͯ]/g, "");
+const escapar = (v: string) => v.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 /**
  * ¿Este texto es la presentación del negocio? Reconoce la firma de hoy y la
- * anterior («Soy el asistente de Depot Tire»), que sigue en el historial de
- * los chats abiertos antes del cambio. Recibe el texto ya sin tildes.
+ * anterior («Soy el asistente de <negocio>»), que sigue en el historial de los
+ * chats abiertos antes del cambio. Recibe el texto ya sin tildes.
+ *
+ * El negocio se reconoce por su PRIMERA palabra («depot» de «Depot Tire»):
+ * basta para identificarlo y aguanta que el modelo escriba el resto del nombre
+ * distinto o lo abrevie.
  */
-export const ES_PRESENTACION_DEL_NEGOCIO = /\bsoy\s+(?:el\s+asistente\s+de|martin,?\s+de)\s+depot\b/i;
+export const ES_PRESENTACION_DEL_NEGOCIO = new RegExp(
+  `\\bsoy\\s+(?:el\\s+asistente\\s+de|${escapar(sinTildes(NOMBRE_DEL_VENDEDOR).toLowerCase())},?\\s+de)`
+  + `\\s+${escapar(sinTildes(negocio.nombre.split(/\s+/)[0]).toLowerCase())}\\b`,
+  "i",
+);
 
 /** Un saludo pelado al arranque, para quitarlo antes de poner la presentación. */
 const SALUDO_PELADO =

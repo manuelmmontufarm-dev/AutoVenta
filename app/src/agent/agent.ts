@@ -60,6 +60,8 @@ import {
   ORDEN_FUERA_DE_CATALOGO,
 } from "../domain/alcanceComercial.js";
 import { hechosDeRestricciones, restriccionesDeLlanta } from "../domain/restriccionesLlanta.js";
+import { business } from "../config.js";
+import { PREGUNTA_DE_LOCAL } from "../domain/storeSelection.js";
 
 const openai = new OpenAI({ apiKey: config.openai.apiKey });
 
@@ -333,7 +335,7 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
     const aros = [...new Set(deLaMarca.map((p) => p.sizeLabel).filter(Boolean))].slice(0, 5);
     hechoDeMarca = deLaMarca.length
       ? `CATÁLOGO CONSULTADO (fuente determinística): SÍ hay ${marcaDelTurno} disponible — ${deLaMarca.length} llantas (ej. ${aros.join(", ")}). Dile que sí la manejan y pide la medida, foto o vehículo para afinar.`
-      : `CATÁLOGO CONSULTADO (fuente determinística): NO hay ${marcaDelTurno} en el catálogo ahora. Dilo con claridad y ofrece las marcas que sí maneja (Falken, Kenda, Winrun).`;
+      : `CATÁLOGO CONSULTADO (fuente determinística): NO hay ${marcaDelTurno} en el catálogo ahora. Dilo con claridad y ofrece las marcas que sí maneja (${business.brands.join(", ")}).`;
   }
   // EL DESCANSO DEL ACUSE (T115 conv 9887 turno 10, 30-ago): el turno pasado
   // el bot ya preguntó local o día y el cliente respondió un puro acuse. El
@@ -1156,7 +1158,7 @@ export function salesFactsPrompt(facts: AgentSalesFacts, resumedFromHuman = fals
     facts.vehicleYear ? `Año ya informado por el cliente: ${facts.vehicleYear}` : null,
     facts.selectedProductCode ? `Producto elegido: ${facts.selectedProductCode}` : null,
     facts.selectedQuantity ? `Cantidad ya confirmada: ${facts.selectedQuantity} — PROHIBIDO preguntar «¿se la cotizo por ${facts.selectedQuantity}?»: esa pregunta ya fue respondida; cotiza.` : null,
-    facts.nearestStore ? `Local elegido/recomendado: ${facts.nearestStore} — nómbralo SIEMPRE tal cual; PROHIBIDO escribir el otro local o volver a ofrecer «¿Cumbayá o Quito Sur?».` : null,
+    facts.nearestStore ? `Local elegido/recomendado: ${facts.nearestStore} — nómbralo SIEMPRE tal cual; PROHIBIDO escribir otro local o volver a ofrecer «${PREGUNTA_DE_LOCAL}».` : null,
     // Con FECHA y sin fecha son dos hechos distintos, y confundirlos cuesta caro
     // en las dos direcciones. Hasta el 26-ago, cualquier compromiso —aunque
     // fuera solo una hora— imprimía «PROHIBIDO volver a preguntar qué día

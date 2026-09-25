@@ -27,6 +27,151 @@ impeccable (0 hallazgos), `tsc` limpio y capturas de cada pantalla a 1440 y
 390 sobre el demo.
 
 **Horas:** 6
+=======
+## 24-sep-2026 · Los seguimientos leen la ficha y lo que el cliente ya dijo
+
+**Qué:** La plantilla de seguimiento usa `tire_size` aunque la etapa siga en
+`nuevo`; con local elegido y sin fecha pregunta directamente qué día puede
+pasar; y el contexto del ciclo registra cuando el cliente declaró que no tiene
+la medida/numeración para ofrecer vehículo o foto en vez de insistir. Se agregó
+el escenario F1 del simulador y tres regresiones determinísticas.
+
+**Por qué:** En 40 seguimientos apareció la pregunta genérica de medida; 13 ya
+tenían `tire_size` en la ficha (convs 21967, 22111, 22559 y 22809). El guardián
+corrigió 26/26 ofertas vagas de “dejar lista la visita”. En la conv 22549 el
+cliente dijo que no tenía la numeración y se la pidieron tres veces más.
+
+**Horas:** 1,0
+
+## 24-sep-2026 · Una consulta de ubicación fuera de Quito nunca queda muda
+
+**Qué:** Se agregó `respuesta_de_ubicacion_fuera_de_cobertura` antes del Ángel
+Guardián. Si el cliente habló de una ciudad fuera de cobertura y el borrador
+solo contiene saludo, mapas o una pregunta de visita, arma la respuesta
+canónica: los locales están en Quito, en Cumbayá y Quito Sur. El paso final
+`sin_visita_si_no_puede_venir` conserva su contrato de solo quitar. Cuando la
+ciudad y la pregunta directa vienen en el mismo turno, una ruta temprana arma
+esa misma respuesta antes de herramientas y omite la revisión generativa.
+Escenario F2 y regresiones determinísticas.
+
+**Por qué:** Las convs 22625 («Están en guayaquil» + «La dirección») y 22481
+(«Yo vivo en ibarra…») recibieron silencio: el guardián aprobó un turno de
+mapas/visita y el último candado lo eliminó entero. Una pregunta directa no
+puede desaparecer por una interacción entre dos capas correctas por separado.
+
+**Horas:** 0,7
+
+## 24-sep-2026 · Norte de Quito y Calderón van a Cumbayá
+
+**Qué:** `resolveSector` incorpora `norte` y `calderon` con coordenadas del
+norte/noreste, por lo que `localPorLaZonaDicha` recomienda Depot Tire Cumbayá.
+Se quitó el punto genérico `quito`: “Quito” a secas es ambiguo y deja que el
+bot pregunte, sin inventar un local. La elección por zona se persiste antes del
+agente y prevalece sobre un parámetro de local reconstruido por el modelo.
+Escenario F3 y cuatro casos de regresión.
+
+**Por qué:** La conv 22531 dijo “Norte de Quito” y fue registrada dos veces
+para Quito Sur; las convs 22853 (Calderón) y 22973 (norte de Quito) tampoco
+resolvieron bien. Solo existen Cumbayá y Quito Sur, y Cumbayá cubre el
+norte/este.
+
+**Horas:** 0,5
+
+## 24-sep-2026 · Las flotación manuscritas con el aro adelante se entienden
+
+**Qué:** `tireSize` suma un lector de flotación anclado por `rin/aro` adelante:
+reconoce `Rin 15 31 x 10.50`, `rin 15 ... 31x10x50` y `Rin 15 31 10 50` como
+`31X10.5R15`. La misma forma se enmascara para los detectores de otros números.
+El ancla evita morder `195 50 15`, que conserva su lectura métrica. Escenario
+F4 y cuatro regresiones. Al buscar, la medida extraída del texto del cliente
+prevalece sobre argumentos métricos que el modelo haya reconstruido mal.
+
+**Por qué:** Las convs 3608, 22421 y 22445 cayeron en búsqueda por aro; clientes
+de camioneta recibieron medidas de auto y la conv 22421 oyó que no había una
+31x10.50R15 aunque el catálogo tenía la KENDA KR29 en stock.
+
+**Horas:** 0,8
+
+## 24-sep-2026 · Una cotización bloqueada conserva la oferta legítima
+
+**Qué:** La cadena incorpora `pregunta_legitima_tras_cotizacion_bloqueada`
+antes del Ángel Guardián. Cuando la huella confirma que `generar_cotizacion`
+rechazó el turno por falta de autorización, reemplaza preguntas de permiso con
+cantidad —“¿Le genero la cotización por el juego de 4?”— por “¿Se la cotizo?”.
+La forma nueva sobrevive `sin_preguntas_prohibidas` y su “sí” es reconocido por
+`OFRECIO_COTIZAR`. Escenario F5 y candados de transformación/orden; el test de
+la cadena completa fija además su posición exacta antes del guardián. El guion
+F5 reproduce el borrador exacto de la herramienta sin depender de que el
+modelo elija esa llamada en cada corrida.
+
+**Por qué:** El patrón salió 14 veces entre el 22 y el 24-sep. El guardián lo
+borró como `pregunta_de_mas` y siete clientes quedaron sin pregunta final y no
+volvieron (convs 22388, 22613, 22782, 22684, 16403, 21714 y 22481).
+
+**Horas:** 0,8
+
+## 24-sep-2026 · El negocio sale del código: un perfil por cliente
+
+**Qué:** `src/negocio/` con la forma (`perfil.ts`) y los valores por cliente
+(`negocios/depot.ts`, `negocios/ejemplo.ts`, este último con UN solo local a
+propósito). Lo elige la variable `NEGOCIO`; sin ella es Depot, y un id que no
+existe no arranca en vez de atender como otro negocio. Salieron del código:
+nombre, ciudad, teléfono, marcas, IVA, moneda, garantías, los locales (con
+`slug`, `nombreCorto`, `claveHorario`, horario propio y los patrones
+`comoLoNombran` / `comoLoNombranAlElegir`), las zonas de la ciudad, el nombre del
+vendedor y los pies de las piezas. `business` queda como vista en inglés del
+perfil, así que los veinte archivos que la importan no se tocaron.
+
+Lo que dejó de asumir que los locales son DOS: el `z.enum` de `ubicacion_locales`
+y `agendar_visita` (el contrato que ve el modelo), `storeSchedule` —que elegía el
+horario preguntando si el nombre *contenía* «Cumbayá»—, `StoreHoursSchema` (de
+dos claves fijas a mapa abierto, conservando `cumbaya`/`quitoSur` para no migrar
+lo guardado), `extractExplicitStore` (de dos booleanos y una rama binaria a N
+patrones, donde nombrar dos sigue sin ser elegir), los botones de WhatsApp,
+`PREGUNTA_DE_LOCAL`, `quoteMessages` (`slice(0, 2)`), y los candados de
+`visitaImposible`, `cierrePerdido` y `localesInventados`, que llevaban los
+nombres cosidos al patrón. El logo pasa a `assets/<id>/`, y el rótulo del IVA de
+la cotización sale de la tarifa real: con IVA al 12 % la pieza mentía.
+
+`test/perfilDelNegocio.test.ts` (19 pruebas) fija BYTE POR BYTE lo que Depot ya
+tenía: la pregunta de local, la firma «Soy Martín, de Depot Tire» y su
+reconocedor, el horario que va al prompt, los sectores, los dos pies distintos
+(«desde 1996» en día y noche, «30 años» en la clásica) y los tres candados. Más
+el caso de un solo local y el de cinco.
+
+**Por qué:** Manuel quiere sumar un segundo cliente. El inventario dio 137
+literales de Depot en `src/`, 34 de ellos estructurales: un cliente con un local
+—o con tres— no era configuración, era tocar el código y arriesgar al primero,
+porque producción y staging salen del mismo `main`. Lo que NO se copia por
+cliente es lo que costó descubrir: cómo se lee una medida, cuándo un «sí»
+autoriza, qué no puede preguntar un seguimiento. Eso es de cualquier llantera y
+se queda en el dominio, así que el segundo cliente nace con los arreglos de los
+dos meses de Depot ya puestos.
+
+Dos fallos reales los cazaron las comprobaciones, no la lectura: el patrón de
+`cierrePerdido` quedaba con mayúscula contra un texto que llega en minúscula («ya
+compré aquí en cumbaya» se habría contado como venta perdida), y el de
+`visitaImposible` sin tildes habría dejado de reconocer «¿Cumbayá o Quito Sur?»
+—abriéndose en silencio— porque ese candado corre sobre el texto tal como se
+escribió. De ahí `comoPatronConTildes`.
+
+Segunda pasada: la identidad del guardián (`Eres el ÁNGEL GUARDIÁN del bot de
+ventas de …`) y el hecho por turno que dice cómo se presenta el bot, la
+descripción de `tipos_de_llanta` y el prefijo de los cupones (`DT-`, ahora las
+iniciales del nombre). El caché del prompt del guardián NO se invalida: son
+plantillas que para Depot renderizan el mismo texto, y la prueba lo fija. Quedan
+dos menciones a Depot en la rúbrica, las dos dentro de ejemplos de casos reales
+que ilustran una regla; ahí el nombre es parte de la anécdota, no de la lógica.
+
+Va junto `docs/UMBRALES-PARA-VENDER.md`, de la misma conversación: las siete
+cifras que dicen si el bot se puede ofrecer a un cliente nuevo, con el valor del
+24-sep al lado (2 de 7 en verde). Seis salen de la base con una regla fija y la
+séptima de la facturación, así que se pueden correr solas; el conteo de «errores
+por chat» de las auditorías leídas queda fuera a propósito, porque depende de
+quién lee.
+
+**Horas:** 3
+
 
 ## 21-sep-2026 · Elegir es cotizar, también «La opción 3» y «Premiun»; y la oferta de cotizar sobrevive a la cadena
 

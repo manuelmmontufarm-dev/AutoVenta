@@ -1,10 +1,13 @@
 /**
  * Configuración central del bot.
  *
- * Todo lo específico del negocio (Depot Tire) vive en `business`. Para vender
- * el bot a otra llantera solo se cambia este objeto (o se carga desde DB) —
- * el resto del código es genérico.
+ * Lo específico del negocio —nombre, locales, zonas de la ciudad, horarios,
+ * garantías, pies de las piezas— vive en `negocio/`, un perfil por cliente que
+ * se elige con la variable `NEGOCIO`. Acá queda `business`, la vista en inglés
+ * de ese perfil que ya usan veinte archivos. El resto de este archivo son
+ * credenciales y parámetros de infraestructura, que van por entorno.
  */
+import { negocio } from "./negocio/index.js";
 
 function env(name: string): string {
   const value = process.env[name];
@@ -69,43 +72,33 @@ export interface BusinessConfig {
   warranties: Record<string, { golpesMeses: number; fabricaAnios: number }>;
 }
 
+/**
+ * Los datos del negocio que atiende esta instancia.
+ *
+ * Ya no se escriben acá: salen de `negocio/` (el perfil que elige `NEGOCIO`, y
+ * sin esa variable, Depot). Esta constante queda como la VISTA en inglés que
+ * ya usan veinte archivos —`business.stores[].name`, `business.taxRate`— para
+ * no tener que tocarlos todos de una; el código nuevo lee `negocio` directo,
+ * que además trae lo que esta vista no puede representar: el slug de cada
+ * local, su clave de horario y los sectores de la ciudad.
+ */
 export const business: BusinessConfig = {
-  name: "Depot Tire",
-  phone: "+593 98 280 1766",
-  schedule: "Lunes a sábado, 8:30–17:30",
-  hours: {
-    0: null,
-    1: { open: "08:30", close: "17:30" },
-    2: { open: "08:30", close: "17:30" },
-    3: { open: "08:30", close: "17:30" },
-    4: { open: "08:30", close: "17:30" },
-    5: { open: "08:30", close: "17:30" },
-    6: { open: "08:30", close: "17:30" },
-  },
-  brands: ["Kenda", "Sunoco", "Eurolub", "Falken"],
-  stores: [
-    {
-      name: "Depot Tire Cumbayá",
-      address: "C.C. La del Establo y Av. Oswaldo Guayasamín, Cumbayá",
-      lat: -0.198,
-      lng: -78.443,
-      mapsUrl: "https://maps.app.goo.gl/QnMBPXKc1o8igbsp8",
-    },
-    {
-      name: "Depot Tire Quito Sur",
-      address: "Galo Molina y Av. Alonso de Angulo, Quito",
-      lat: -0.2487128,
-      lng: -78.5296804,
-      mapsUrl: "https://maps.app.goo.gl/NQeNN8csyAnRkJDJ7",
-    },
-  ],
-  taxRate: 0.15,
-  currency: "USD",
-  warranties: {
-    default: { golpesMeses: 6, fabricaAnios: 5 },
-    Kenda: { golpesMeses: 12, fabricaAnios: 5 },
-    Falken: { golpesMeses: 18, fabricaAnios: 5 },
-  },
+  name: negocio.nombre,
+  phone: negocio.telefono,
+  schedule: negocio.horarioEnPalabras,
+  hours: negocio.horasPorDia,
+  brands: negocio.marcas,
+  ...(negocio.promo ? { promo: negocio.promo } : {}),
+  stores: negocio.locales.map((local) => ({
+    name: local.nombre,
+    address: local.direccion,
+    lat: local.lat,
+    lng: local.lng,
+    ...(local.mapsUrl ? { mapsUrl: local.mapsUrl } : {}),
+  })),
+  taxRate: negocio.iva,
+  currency: negocio.moneda,
+  warranties: negocio.garantias,
 };
 
 export const config = {
