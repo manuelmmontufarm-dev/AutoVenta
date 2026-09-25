@@ -64,6 +64,8 @@ export const DEPOT: PerfilDeNegocio = {
       // día se preguntaba sin el monto del descuento y `nearest_store` no se
       // guardaba, que el guardián marcó como `estado_desincronizado`.
       comoLoNombranAlElegir: /\b(?:sur|quito)\b/,
+      // El norte y Calderón le quedan a Cumbayá, no acá.
+      noLoEligeSi: /\bnorte\b|\bcalderon\b/,
     },
   ],
   // EL ORDEN IMPORTA: se busca por subcadena y gana el primero que calza, así
@@ -71,6 +73,13 @@ export const DEPOT: PerfilDeNegocio = {
   // dos palabras y tiene que resolver al sur, no al centro.
   sectores: [
     { clave: "itulcachi", lat: -0.157, lng: -78.337, etiqueta: "Itulcachi" },
+    // Depot solo tiene Cumbayá y Quito Sur. Para el norte y el noreste, Cumbayá
+    // es el local realmente cercano; antes «Norte de Quito» caía en el punto
+    // genérico «Quito» y terminaba mandando al sur, el más lejano (conv 22531,
+    // 23-sep: el bot registró «Local elegido explícitamente: Quito Sur» y le
+    // pidió el día para ese local, dos veces).
+    { clave: "calderon", lat: -0.1, lng: -78.42, etiqueta: "Calderón" },
+    { clave: "norte", lat: -0.1, lng: -78.48, etiqueta: "norte de Quito" },
     { clave: "cumbaya", lat: -0.2, lng: -78.43, etiqueta: "Cumbayá" },
     { clave: "tumbaco", lat: -0.211, lng: -78.402, etiqueta: "Tumbaco" },
     { clave: "pifo", lat: -0.225, lng: -78.339, etiqueta: "Pifo" },
@@ -87,7 +96,10 @@ export const DEPOT: PerfilDeNegocio = {
     // punto es el centro del sur de Quito, a ~4 km del local de Quito Sur y a
     // ~15 del de Cumbayá: la recomendación no tiene vuelta.
     { clave: "sur", lat: -0.28, lng: -78.545, etiqueta: "sur de Quito" },
-    { clave: "quito", lat: -0.18, lng: -78.49, etiqueta: "Quito" },
+    // «quito» a secas SE QUITÓ el 24-sep: el punto del centro quedaba más cerca
+    // de Quito Sur, así que cualquier zona que solo dijera «Quito» —incluido
+    // «Norte de Quito»— mandaba al local equivocado. Sin ese comodín, una zona
+    // que no se reconoce pide el pin, que es lo correcto.
   ],
   palabrasDeLugarPropias: ["depot", "tire"],
   iva: 0.15,

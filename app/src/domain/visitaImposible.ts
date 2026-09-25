@@ -27,6 +27,8 @@
  * Puro: entra el texto, sale el texto. Quién está fuera lo decide
  * `domain/fueraDeCobertura.ts`, y cuándo aplicarlo, la cadena de salida.
  */
+import { dondeEstaElCliente } from "./fueraDeCobertura.js";
+import { motivoDeUbicacion } from "./ubicacionPedida.js";
 
 import { negocio, comoPatronConTildes } from "../negocio/index.js";
 
@@ -55,6 +57,41 @@ export interface TurnoSinVisita {
   texto: string;
   /** ¿Se quitó algo? Para poder anotarlo en el log y en la alerta. */
   quitado: boolean;
+}
+
+const SOLO_SALUDO = /^(?:hola|buen(?:os\s+d[ií]as|as\s+tardes|as\s+noches)|saludos?|qu[eé]\s+tal)(?:\s+[^\p{L}\p{N}]+)?$/iu;
+/**
+ * La respuesta a quien pregunta por la dirección desde otra ciudad. Sale del
+ * perfil: los locales, la ciudad y el nombre son de cada cliente.
+ */
+const RESPUESTA_FUERA_DE_COBERTURA =
+  `Nuestros locales están en ${negocio.ciudad}: ${negocio.locales.map((l) => `*${l.nombreCorto}*`).join(" y ")}.`
+  + ` Por ahora no tenemos local fuera de ${negocio.ciudad}.`;
+
+/**
+ * Ruta temprana para una pregunta geográfica inequívoca en el mismo mensaje.
+ * Evita ejecutar herramientas de mapas que el candado final tendría que borrar.
+ */
+export function respuestaDirectaDeUbicacionFueraDeCobertura(textoDelCliente: string): string | null {
+  if (motivoDeUbicacion(textoDelCliente) !== "la_pidio") return null;
+  return dondeEstaElCliente(textoDelCliente)?.estado === "fuera"
+    ? RESPUESTA_FUERA_DE_COBERTURA
+    : null;
+}
+
+/**
+ * Respuesta canónica para una consulta geográfica fuera de cobertura cuando
+ * el borrador no trae nada útil aparte de mapas/preguntas de visita.
+ *
+ * Corre antes del Ángel Guardián: este texto todavía se revisa. El candado
+ * final conserva su contrato estricto de solo quitar.
+ */
+export function respuestaDeUbicacionFueraDeCobertura(texto: string): string {
+  const sinVisita = sinVisitaNiMapas(texto).texto.trim();
+  if (sinVisita && !SOLO_SALUDO.test(sinVisita)) return texto;
+  return sinVisita
+    ? `${sinVisita}\n---\n${RESPUESTA_FUERA_DE_COBERTURA}`
+    : RESPUESTA_FUERA_DE_COBERTURA;
 }
 
 export function sinVisitaNiMapas(texto: string): TurnoSinVisita {

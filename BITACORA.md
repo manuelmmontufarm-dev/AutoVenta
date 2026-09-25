@@ -1,3 +1,85 @@
+## 24-sep-2026 · Los seguimientos leen la ficha y lo que el cliente ya dijo
+
+**Qué:** La plantilla de seguimiento usa `tire_size` aunque la etapa siga en
+`nuevo`; con local elegido y sin fecha pregunta directamente qué día puede
+pasar; y el contexto del ciclo registra cuando el cliente declaró que no tiene
+la medida/numeración para ofrecer vehículo o foto en vez de insistir. Se agregó
+el escenario F1 del simulador y tres regresiones determinísticas.
+
+**Por qué:** En 40 seguimientos apareció la pregunta genérica de medida; 13 ya
+tenían `tire_size` en la ficha (convs 21967, 22111, 22559 y 22809). El guardián
+corrigió 26/26 ofertas vagas de “dejar lista la visita”. En la conv 22549 el
+cliente dijo que no tenía la numeración y se la pidieron tres veces más.
+
+**Horas:** 1,0
+
+## 24-sep-2026 · Una consulta de ubicación fuera de Quito nunca queda muda
+
+**Qué:** Se agregó `respuesta_de_ubicacion_fuera_de_cobertura` antes del Ángel
+Guardián. Si el cliente habló de una ciudad fuera de cobertura y el borrador
+solo contiene saludo, mapas o una pregunta de visita, arma la respuesta
+canónica: los locales están en Quito, en Cumbayá y Quito Sur. El paso final
+`sin_visita_si_no_puede_venir` conserva su contrato de solo quitar. Cuando la
+ciudad y la pregunta directa vienen en el mismo turno, una ruta temprana arma
+esa misma respuesta antes de herramientas y omite la revisión generativa.
+Escenario F2 y regresiones determinísticas.
+
+**Por qué:** Las convs 22625 («Están en guayaquil» + «La dirección») y 22481
+(«Yo vivo en ibarra…») recibieron silencio: el guardián aprobó un turno de
+mapas/visita y el último candado lo eliminó entero. Una pregunta directa no
+puede desaparecer por una interacción entre dos capas correctas por separado.
+
+**Horas:** 0,7
+
+## 24-sep-2026 · Norte de Quito y Calderón van a Cumbayá
+
+**Qué:** `resolveSector` incorpora `norte` y `calderon` con coordenadas del
+norte/noreste, por lo que `localPorLaZonaDicha` recomienda Depot Tire Cumbayá.
+Se quitó el punto genérico `quito`: “Quito” a secas es ambiguo y deja que el
+bot pregunte, sin inventar un local. La elección por zona se persiste antes del
+agente y prevalece sobre un parámetro de local reconstruido por el modelo.
+Escenario F3 y cuatro casos de regresión.
+
+**Por qué:** La conv 22531 dijo “Norte de Quito” y fue registrada dos veces
+para Quito Sur; las convs 22853 (Calderón) y 22973 (norte de Quito) tampoco
+resolvieron bien. Solo existen Cumbayá y Quito Sur, y Cumbayá cubre el
+norte/este.
+
+**Horas:** 0,5
+
+## 24-sep-2026 · Las flotación manuscritas con el aro adelante se entienden
+
+**Qué:** `tireSize` suma un lector de flotación anclado por `rin/aro` adelante:
+reconoce `Rin 15 31 x 10.50`, `rin 15 ... 31x10x50` y `Rin 15 31 10 50` como
+`31X10.5R15`. La misma forma se enmascara para los detectores de otros números.
+El ancla evita morder `195 50 15`, que conserva su lectura métrica. Escenario
+F4 y cuatro regresiones. Al buscar, la medida extraída del texto del cliente
+prevalece sobre argumentos métricos que el modelo haya reconstruido mal.
+
+**Por qué:** Las convs 3608, 22421 y 22445 cayeron en búsqueda por aro; clientes
+de camioneta recibieron medidas de auto y la conv 22421 oyó que no había una
+31x10.50R15 aunque el catálogo tenía la KENDA KR29 en stock.
+
+**Horas:** 0,8
+
+## 24-sep-2026 · Una cotización bloqueada conserva la oferta legítima
+
+**Qué:** La cadena incorpora `pregunta_legitima_tras_cotizacion_bloqueada`
+antes del Ángel Guardián. Cuando la huella confirma que `generar_cotizacion`
+rechazó el turno por falta de autorización, reemplaza preguntas de permiso con
+cantidad —“¿Le genero la cotización por el juego de 4?”— por “¿Se la cotizo?”.
+La forma nueva sobrevive `sin_preguntas_prohibidas` y su “sí” es reconocido por
+`OFRECIO_COTIZAR`. Escenario F5 y candados de transformación/orden; el test de
+la cadena completa fija además su posición exacta antes del guardián. El guion
+F5 reproduce el borrador exacto de la herramienta sin depender de que el
+modelo elija esa llamada en cada corrida.
+
+**Por qué:** El patrón salió 14 veces entre el 22 y el 24-sep. El guardián lo
+borró como `pregunta_de_mas` y siete clientes quedaron sin pregunta final y no
+volvieron (convs 22388, 22613, 22782, 22684, 16403, 21714 y 22481).
+
+**Horas:** 0,8
+
 ## 24-sep-2026 · El negocio sale del código: un perfil por cliente
 
 **Qué:** `src/negocio/` con la forma (`perfil.ts`) y los valores por cliente
@@ -59,6 +141,7 @@ por chat» de las auditorías leídas queda fuera a propósito, porque depende d
 quién lee.
 
 **Horas:** 3
+
 
 ## 21-sep-2026 · Elegir es cotizar, también «La opción 3» y «Premiun»; y la oferta de cotizar sobrevive a la cadena
 

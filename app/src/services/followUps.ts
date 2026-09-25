@@ -233,6 +233,7 @@ function etiquetaDelProducto(codigo: string | null | undefined): string | null {
 export interface ContextoDeOpciones {
   optionsCount: number | null;
   preferenceAnswered: boolean;
+  customerHasNoTireSize: boolean;
 }
 
 const RESPUESTA_AL_MENU =
@@ -252,15 +253,19 @@ async function contextoDeOpciones(conversationId: number, cycle: number): Promis
       and direction = 'outbound' and metadata->>'piece' = 'options'
     order by created_at desc, id desc limit 1
   `;
-  if (!pieza) return { optionsCount: null, preferenceAnswered: false };
-  const optionsCount = Array.isArray(pieza.codes) ? pieza.codes.length : null;
+  const optionsCount = Array.isArray(pieza?.codes) ? pieza.codes.length : null;
   const respuestas = await sql<{ content: string | null }[]>`
     select content from messages
     where conversation_id = ${conversationId} and cycle = ${cycle}
-      and direction = 'inbound' and created_at > ${pieza.created_at}
+      and direction = 'inbound'
+      ${pieza ? sql`and created_at > ${pieza.created_at}` : sql``}
   `;
   const preferenceAnswered = respuestas.some((r) => RESPUESTA_AL_MENU.test((r.content ?? "").trim()));
-  return { optionsCount, preferenceAnswered };
+  const customerHasNoTireSize = respuestas.some((r) =>
+    /\b(?:no\s+(?:la\s+)?(?:tengo|se|s[eé])|sin)\b[^.\n]{0,45}\b(?:medida|numeraci[oó]n|n[uú]mero)\b|\b(?:medida|numeraci[oó]n)\b[^.\n]{0,35}\bno\s+(?:la\s+)?(?:tengo|se|s[eé])\b/i
+      .test(r.content ?? "")
+  );
+  return { optionsCount, preferenceAnswered, customerHasNoTireSize };
 }
 
 /**
@@ -282,11 +287,12 @@ async function elClienteSeDespidio(conversationId: number, cycle: number): Promi
 export function buildFollowUpPreview(
   conversation: ConversationForFollowUp,
   kind: FollowUpMessageKind = "in_window_first",
-  opciones: ContextoDeOpciones = { optionsCount: null, preferenceAnswered: false },
+  opciones: ContextoDeOpciones = { optionsCount: null, preferenceAnswered: false, customerHasNoTireSize: false },
 ): string {
   return buildContextualFollowUpMessage({
     optionsCount: opciones.optionsCount,
     preferenceAnswered: opciones.preferenceAnswered,
+    customerHasNoTireSize: opciones.customerHasNoTireSize,
     name: conversation.name,
     stage: conversation.stage,
     tireSize: conversation.tire_size,

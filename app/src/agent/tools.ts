@@ -804,8 +804,13 @@ export function buildTools(ctx: AgentContext) {
       // Medidas en pulgadas (30x9.5R15). El catálogo las trae escritas de dos
       // formas — "30X9.5R15LT" y "30X9.50R15LT" — así que se busca por la forma
       // canónica: si no, la mitad del stock queda invisible.
-      if (flotacion) {
-        const medida = extractFlotationSizes(flotacion)[0];
+      // La escritura del CLIENTE manda sobre los argumentos reconstruidos por
+      // el modelo. Con «rin 15 la 31x10x50», el parser del inbound ya guardó
+      // 31X10.5R15, pero el modelo llamó la tool como métrica 0R15 y la
+      // sobrescribió. La fuente determinística evita esa degradación.
+      const flotacionDelCliente = extractFlotationSizes(ctx.currentUserText ?? "")[0];
+      if (flotacionDelCliente || flotacion) {
+        const medida = flotacionDelCliente ?? extractFlotationSizes(flotacion ?? "")[0];
         if (medida) {
           const etiqueta = formatFlotationSize(medida);
           const encontradas = searchByText(etiqueta.replace(/R\d+$/, ""), 40)
@@ -3266,14 +3271,17 @@ export function buildTools(ctx: AgentContext) {
       `;
       // La zona que el cliente dijo en ESTE mensaje elige el local: no se le
       // vuelve a preguntar. Ver `localPorLaZonaDicha`.
-      const porZona = !local && !saved?.nearest_store
+      // La zona escrita por el cliente manda sobre el parámetro del modelo.
+      // Conv 22531: «Norte de Quito» llegó con local=Quito Sur y saltó la
+      // resolución determinística. Si hay zona inequívoca, ella decide.
+      const porZona = !saved?.nearest_store
         ? localPorLaZonaDicha(business.stores, ctx.currentUserText)
         : null;
       if (porZona) {
         await updateConversationFacts(ctx.conversation.id, { nearestStore: porZona.name });
         console.log(`📍 Conv ${ctx.conversation.id}: el cliente dijo su zona; local ${porZona.name}.`);
       }
-      const elegido = local ?? saved?.nearest_store ?? porZona?.name ?? null;
+      const elegido = saved?.nearest_store ?? porZona?.name ?? local ?? null;
       const mapas = buildStoreLinksBlock(elegido, { soloDestacado: Boolean(elegido) });
       if (!mapas) {
         return JSON.stringify({
@@ -3634,5 +3642,4 @@ function toolItem(item: {
     lonas: lonasDelProducto(item.name) ?? undefined,
   };
 }
-
 

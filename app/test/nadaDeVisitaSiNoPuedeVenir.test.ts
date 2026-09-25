@@ -21,11 +21,36 @@
  * 18821), así que el corte no es «está lejos» sino «no puede pasar».
  */
 import { describe, expect, it } from "vitest";
-import { sinVisitaNiMapas } from "../src/domain/visitaImposible.js";
+import {
+  respuestaDirectaDeUbicacionFueraDeCobertura,
+  respuestaDeUbicacionFueraDeCobertura,
+  sinVisitaNiMapas,
+} from "../src/domain/visitaImposible.js";
 
 const MAPAS = "📍 *Depot Tire Cumbayá*: https://maps.app.goo.gl/abc\n📍 *Depot Tire Quito Sur*: https://maps.app.goo.gl/def";
 
 describe("el turno para quien no puede pasar por el local", () => {
+  it("conv 22625: ciudad y pregunta directa se resuelven antes de llamar herramientas", () => {
+    expect(respuestaDirectaDeUbicacionFueraDeCobertura(
+      "Estoy en Guayaquil. ¿Cuál es la dirección?",
+    )).toMatch(/Cumbayá.*Quito Sur/s);
+    expect(respuestaDirectaDeUbicacionFueraDeCobertura("Estoy en Guayaquil")).toBeNull();
+    expect(respuestaDirectaDeUbicacionFueraDeCobertura("¿Cuál es la dirección?")).toBeNull();
+  });
+
+  it("convs 22625/22481: una pregunta directa no queda reducida a saludo, mapas y visita", () => {
+    for (const borrador of [
+      `Hola 👋\n---\n${MAPAS}\n---\n¿Qué día puede pasar?`,
+      `${MAPAS}\n---\n¿A cuál local le queda mejor ir, Cumbayá o Quito Sur?`,
+    ]) {
+      const preparado = respuestaDeUbicacionFueraDeCobertura(borrador);
+      const final = sinVisitaNiMapas(preparado).texto;
+      expect(final).toMatch(/Cumbay[aá].*Quito Sur/is);
+      expect(final).toMatch(/Quito/i);
+      expect(final).not.toMatch(/maps\.app|qu[eé] d[ií]a|cu[aá]l local/i);
+    }
+  });
+
   it("conv 17934 y 18025: se van los mapas", () => {
     const texto = `Con gusto, muchas gracias a usted.\n---\n${MAPAS}`;
     const r = sinVisitaNiMapas(texto);

@@ -91,6 +91,16 @@ export interface Local {
    * una el bot confirmó una visita que nadie pidió.
    */
   comoLoNombranAlElegir?: RegExp;
+  /**
+   * Zonas que este local NO atiende, cuando nombrarlas podría confundirse con
+   * elegirlo. Solo desactiva el patrón suelto, nunca el estricto.
+   *
+   * Depot lo necesita en Quito Sur: «Norte de Quito» contiene «quito», así que
+   * el suelto lo elegía y mandaba al cliente al local más lejano (conv 22531,
+   * 23-sep). Si el cliente escribe «Quito Sur» completo, el estricto manda y
+   * esto no lo estorba.
+   */
+  noLoEligeSi?: RegExp;
 }
 
 /**

@@ -144,4 +144,3 @@ export function localPorLaZonaDicha(stores: Store[], texto: string | null | unde
     .sort((a, b) => a.km - b.km);
   return distancias[1].km - distancias[0].km >= 3 ? distancias[0].store : null;
 }
-

@@ -148,11 +148,14 @@ export function extractExplicitStore(
   // el bot acaba de preguntar a cuál local Y el mensaje no está hablando de la
   // ciudad. Se calcula una vez: `hablaDeLaCiudad` lee la conversación entera.
   const vale = Boolean(opts?.respondiendoAlLocal) && !hablaDeLaCiudad(value);
-  const nombrados = negocio.locales.filter(
-    (local) =>
-      local.comoLoNombran.test(value)
-      || (vale && local.comoLoNombranAlElegir?.test(value)),
-  );
+  const nombrados = negocio.locales.filter((local) => {
+    if (local.comoLoNombran.test(value)) return true;
+    if (!vale || !local.comoLoNombranAlElegir?.test(value)) return false;
+    // El patrón suelto no vale si el mensaje nombra una zona que este local NO
+    // atiende: «Norte de Quito» trae «quito», y con eso el suelto de Quito Sur
+    // lo elegía — el local más lejano (conv 22531, 23-sep).
+    return !local.noLoEligeSi?.test(value);
+  });
   // NOMBRAR DOS NO ES ELEGIR. Con dos locales esto era `cumbaya === sur`: si
   // los dos calzaban —o ninguno— no había elección y se preguntaba. Con N vale
   // lo mismo, y es lo que evita registrar un local por un mensaje ambiguo.
