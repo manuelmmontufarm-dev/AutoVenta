@@ -194,6 +194,36 @@ function mesesPasados(mes: string): boolean {
 }
 
 /** Un fallo de lectura es "clave mala" o "servidor caído" — nunca silencio. */
+/**
+ * Lo que el asesor ya abrió, aunque el servidor todavía no lo sepa.
+ *
+ * Abrir un chat pone `unread_count = 0` en el servidor, pero el panel recibe
+ * listas por muchos caminos a la vez (cada mensaje del bot dispara un `sync`,
+ * y la lista de 500 tarda). Una lista que salió ANTES de marcar leído puede
+ * llegar DESPUÉS y volver a pintar la fila de rojo. Acá se recuerda qué se
+ * abrió, y toda lista que entre lo respeta hasta que el servidor confirme el
+ * cero por su cuenta (o pase un minuto, por si la marca nunca llegó).
+ */
+const leidosLocal = new Map<number, number>();
+const LEIDO_VIGENTE_MS = 60_000;
+
+function respetarLeidos(tickets: Ticket[]): Ticket[] {
+  if (leidosLocal.size === 0) return tickets;
+  const ahora = Date.now();
+  return tickets.map((t) => {
+    const desde = leidosLocal.get(t.id);
+    if (desde === undefined) return t;
+    if (t.sinLeer === 0 || ahora - desde > LEIDO_VIGENTE_MS) {
+      leidosLocal.delete(t.id);
+      return t;
+    }
+    return { ...t, sinLeer: 0 };
+  });
+}
+
+/** Cada lista pedida lleva su turno: si llega una más vieja que la última pintada, se tira. */
+let turnoLista = 0;
+
 function clasificarFallo(error: unknown): EstadoConexion {
   return error instanceof AdminKeyError ? "clave-invalida" : "sin-conexion";
 }
@@ -210,6 +240,7 @@ export const useHub = create<HubState>((set, get) => {
    */
   async function refrescar(): Promise<void> {
     // Las tres salen a la vez; se esperan por separado a propósito.
+    const turno = ++turnoLista;
     const pTickets = source.listTickets();
     const pPhases = source.getPhases();
     const pPower = source.getBotPower();
@@ -222,9 +253,10 @@ export const useHub = create<HubState>((set, get) => {
       (value) => ({ ok: true as const, value }),
       (reason: unknown) => ({ ok: false as const, reason }),
     );
-    if (rTickets.ok) {
-      set({ tickets: rTickets.value, cargando: false, conexion: "conectada" });
-      updateFavicon(rTickets.value.filter((t) => t.estado === "abierto").length);
+    if (rTickets.ok && turno === turnoLista) {
+      const tickets = respetarLeidos(rTickets.value);
+      set({ tickets, cargando: false, conexion: "conectada" });
+      updateFavicon(tickets.filter((t) => t.estado === "abierto").length);
     }
 
     const [rPhases, rPower] = await Promise.allSettled([pPhases, pPower]);
@@ -271,7 +303,7 @@ export const useHub = create<HubState>((set, get) => {
     if (extras[3].status === "fulfilled") resto.followUps = extras[3].value;
     if (extras[4].status === "fulfilled") resto.alerts = extras[4].value;
     if (extras[5].status === "fulfilled") resto.mesesDisponibles = extras[5].value;
-    if (extras[6].status === "fulfilled") resto.ticketsDelMes = extras[6].value;
+    if (extras[6].status === "fulfilled") resto.ticketsDelMes = extras[6].value && respetarLeidos(extras[6].value);
     set(resto);
   }
 
@@ -388,9 +420,14 @@ export const useHub = create<HubState>((set, get) => {
 
     async abrirTicket(id) {
       // La fila se pone blanca al abrirla, sin esperar a que el servidor
-      // confirme y llegue el próximo sync: el asesor ya la vio.
+      // confirme y llegue el próximo sync: el asesor ya la vio. Y se anota en
+      // `leidosLocal` para que una lista rezagada no la vuelva a pintar.
+      const abrirLocal = (t: Ticket) => (t.id === id && t.sinLeer > 0 ? { ...t, sinLeer: 0 } : t);
+      const yaEstaba = get().tickets.find((t) => t.id === id);
+      if (!yaEstaba || yaEstaba.sinLeer > 0) leidosLocal.set(id, Date.now());
       set((s) => ({
-        tickets: s.tickets.map((t) => (t.id === id && t.sinLeer > 0 ? { ...t, sinLeer: 0 } : t)),
+        tickets: s.tickets.map(abrirLocal),
+        ticketsDelMes: s.ticketsDelMes ? s.ticketsDelMes.map(abrirLocal) : s.ticketsDelMes,
       }));
       await Promise.all([
         refrescarMensajes(id),

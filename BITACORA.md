@@ -1,3 +1,20 @@
+## 27-sep-2026 · Inbox: el chat nuevo arriba y la fila abierta que no vuelve a rojo
+
+**Qué:** El orden del Inbox pone primero a quien espera respuesta y, dentro de
+cada grupo, lo más reciente arriba (antes los que esperaban iban del más viejo
+al más nuevo). El store recuerda qué chats abrió el asesor (`leidosLocal`, un
+minuto de vigencia) y toda lista que llegue del servidor lo respeta hasta que
+el servidor confirme el cero; además cada lista pedida lleva su turno y una
+que llegue más vieja que la última pintada se descarta.
+
+**Por qué:** Manuel se escribió desde su WhatsApp y «no salía»: sí estaba, en
+la fila 448, porque 447 conversaciones de septiembre sin abrir esperaban antes
+que él. Y las filas que abría volvían a rojo: cada mensaje del bot dispara un
+`sync`, la lista de 500 tarda, y una lista que salió antes de marcar leído
+llegaba después y pisaba el cero.
+
+**Horas:** 0,5
+
 ## 25-sep-2026 · Primer día del Hub «Taller» en producción: lo que pidió Manuel al usarlo
 
 **Qué:** El botón «Contesta el bot / Contestan ustedes» y la lectura de una fila

@@ -10,18 +10,17 @@ import { AtiendePill, CierreBadge, EmptyState, MedidaChip, PageHeader, SkeletonR
  * Una sola lista. Sin pestañas de Abiertos / Cerrados ni «Alertas del bot»:
  * había demasiados para que la distinción importara (DESIGN.md §17).
  *
- * Orden: primero quien espera respuesta (y de esos, el que lleva más tiempo
- * esperando), después el resto por última actividad. El orden es una promesa
+ * Orden: primero quien espera respuesta, después el resto; dentro de cada
+ * grupo, lo más reciente arriba. Antes los que esperaban iban del más viejo al
+ * más nuevo, y con 400 filas de septiembre sin abrir, el cliente que escribía
+ * hoy quedaba en la fila 448: «le escribí y no sale». El orden es una promesa
  * y tiene que verse: la fila que exige acción es la única pintada.
  */
 function ordenar(a: Ticket, b: Ticket): number {
   const ea = a.sinLeer > 0 ? 1 : 0;
   const eb = b.sinLeer > 0 ? 1 : 0;
   if (ea !== eb) return eb - ea;
-  const ta = new Date(a.ultimaActividad).getTime();
-  const tb = new Date(b.ultimaActividad).getTime();
-  // Entre los que esperan, el más viejo primero; entre los demás, el más nuevo.
-  return ea ? ta - tb : tb - ta;
+  return new Date(b.ultimaActividad).getTime() - new Date(a.ultimaActividad).getTime();
 }
 
 // Cliente · medida · etapa · hora · quién atiende. La etapa dice dónde está la
