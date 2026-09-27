@@ -319,6 +319,35 @@ export const useHub = create<HubState>((set, get) => {
     await refrescar();
   }
 
+  /**
+   * Red de seguridad para el «en vivo». El canal de eventos puede caerse sin
+   * avisar (proxy, pestaña dormida, red del celular), y hasta el 27-sep no
+   * había NADA más que trajera datos: el chat abierto se quedaba en el último
+   * mensaje que llegó por el canal. Cada 15 s se vuelve a pedir la lista y los
+   * mensajes del chat abierto; barato, y vuelve a pedir ya al volver a la
+   * pestaña. Si el canal funciona, esto solo confirma lo que ya se pintó.
+   */
+  let ticketAbierto: number | null = null;
+  async function refrescarLigero(): Promise<void> {
+    if (document.visibilityState === "hidden") return;
+    if (get().conexion === "clave-invalida") return;
+    const abierto = ticketAbierto;
+    const turno = ++turnoLista;
+    await Promise.allSettled([
+      source.listTickets().then((lista) => {
+        if (turno !== turnoLista) return;
+        set({ tickets: respetarLeidos(lista), conexion: "conectada" });
+      }),
+      abierto ? refrescarMensajes(abierto) : Promise.resolve(),
+    ]);
+  }
+  if (typeof window !== "undefined") {
+    window.setInterval(() => void refrescarLigero(), 15_000);
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "visible") void refrescarLigero();
+    });
+  }
+
   async function refrescarMensajes(ticketId: number): Promise<void> {
     const msgs = await source.getMensajes(ticketId);
     set((s) => ({ mensajes: { ...s.mensajes, [ticketId]: msgs } }));
@@ -422,6 +451,7 @@ export const useHub = create<HubState>((set, get) => {
       // La fila se pone blanca al abrirla, sin esperar a que el servidor
       // confirme y llegue el próximo sync: el asesor ya la vio. Y se anota en
       // `leidosLocal` para que una lista rezagada no la vuelva a pintar.
+      ticketAbierto = id;
       const abrirLocal = (t: Ticket) => (t.id === id && t.sinLeer > 0 ? { ...t, sinLeer: 0 } : t);
       const yaEstaba = get().tickets.find((t) => t.id === id);
       if (!yaEstaba || yaEstaba.sinLeer > 0) leidosLocal.set(id, Date.now());

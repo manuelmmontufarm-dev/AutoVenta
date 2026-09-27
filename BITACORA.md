@@ -1,3 +1,18 @@
+## 27-sep-2026 · Hub: el chat abierto se actualiza aunque el canal en vivo se caiga
+
+**Qué:** El lector del canal de eventos (`/api/hub/events`) corta y reconecta
+si pasan 45 s sin bytes (el heartbeat viene cada 20 s). Y el store agrega una
+red de seguridad: cada 15 s, y al volver a la pestaña, vuelve a pedir la lista
+y los mensajes del chat abierto (`refrescarLigero`), con el mismo turno que
+descarta listas rezagadas.
+
+**Por qué:** Manuel se escribió desde WhatsApp y el chat abierto en el panel
+no mostró ni su mensaje ni la respuesta del bot: hasta hoy el único camino de
+datos nuevos era el canal en vivo, y si el proxy lo dejaba medio abierto no
+había nada que lo notara.
+
+**Horas:** 0,5
+
 ## 27-sep-2026 · Inbox: el chat nuevo arriba y la fila abierta que no vuelve a rojo
 
 **Qué:** El orden del Inbox pone primero a quien espera respuesta y, dentro de
