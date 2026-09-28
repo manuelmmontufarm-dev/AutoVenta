@@ -13,6 +13,47 @@ los documentos. Y aparte, Contífico no ordena estrictamente por fecha (la pági
 
 **Horas:** 0,5
 
+## 28-sep-2026 · Los cuatro arreglos de la auditoría del 25-27 sep: ganados fantasma, elegir con palabras, corrección podada y el menú con varias medidas
+
+**Qué:** (1) Se saca del DDL de `schema.ts` el `update` que en cada arranque
+cerraba como ganada toda conversación cuyo cliente escribió «ya compré»; la
+migración `023_ganados_fantasma` borra esas filas de `sales_history` (firma:
+cierre sin ningún mensaje del cliente en los 10 min previos), pasa la
+conversación a `perdido` con motivo explícito y deja una fila `perdido` en su
+lugar; la `024` remata la etapa de la conversación (la 023 comparaba `closed_at` en milisegundos contra microsegundos y dejó `ganado` en las convs 3 y 8162). (2) `respuestaDePreferencia` lee «La segunda opción», «1 costos»,
+«1) costo», «opción 2 equilibrio»; `autorizaCotizacionEnEsteTurno` y el
+`acepta` de la marca aceptan «El juego» / «las 4»; `pidioCotizacionExplicita`
+reconoce «cotízemela / cotíceme». En el guardián, la regla 15 deja de mandar a
+la pregunta del local cuando la huella dice que `generar_cotizacion` se
+bloqueó por autorización: el paso es «¿Se la cotizo?», y un hecho duro nuevo
+se lo dice con todas sus letras. (3) `guardian_no_vende_solo`: si el guardián
+marcó el borrador con una categoría de dato (medida_incorrecta,
+hecho_comercial_inventado, precio_incorrecto, stock_prometido,
+tipo_negado_con_stock, cotizacion_sin_medida) y su corrección se frena por
+producto o precio nuevo, ya no se restaura el borrador: se poda de la
+corrección lo nuevo (`podarHechosNuevosDelGuardian`) y sale eso, con alerta
+`guardian_correccion_podada`; solo si no queda nada con sustancia se cae al
+borrador como antes. (4) El hecho «aro + vehículo + varias medidas en pantalla»
+conserva el menú de preferencia 1/2/3 y sigue prohibiendo cotizar sin
+confirmar la medida. Pruebas: `eleccionConPalabras.test.ts` (20) y
+`ganadosFantasma.integration.test.ts` (2).
+
+**Por qué:** Auditoría 25-27 sep (commit 65cca9e, 75 chats). 22 de los 33
+ganados de septiembre nacieron en los instantes exactos de los deploys, sin
+mensaje del cliente, incluido «ya se compró en El Carmen» (conv 8162): el
+panel inflaba ventas y cortaba seguimientos. Seis clientes eligieron con
+palabras y nunca recibieron cotización (23356 cinco veces en seis minutos,
+23561, 23580, 22154, 23448, 5151 por audio): el lector devolvía null, la
+herramienta bloqueaba, el candado del 24-sep ponía «¿Se la cotizo?» y el
+guardián lo borraba por la regla 15 — dos capas correctas por separado que se
+anulaban. Tres veces el candado «no vende solo» tiró entera una corrección
+buena y salió el borrador con el dato falso: 23080 recibió «le entra la
+215/60R17» (el único error de dato que llegó a un cliente en la ventana),
+23489 llanta de turismo para «todo terreno» con A/T en stock. Y en la prueba
+de Manuel del 27-sep (conv 3, «Rin 15 para mi Highlander») el revisor borró
+el menú 1/2/3 y dejó al cliente sin cómo elegir.
+
+**Horas:** 3,5
 ## 27-sep-2026 · Métricas: ventas confirmadas en vivo, por teléfono contra Contífico
 
 **Qué:** Servicio nuevo `ventasConfirmadas.ts`: cada 10 min baja de Contífico
@@ -130,7 +171,6 @@ impeccable (0 hallazgos), `tsc` limpio y capturas de cada pantalla a 1440 y
 390 sobre el demo.
 
 **Horas:** 6
-=======
 ## 24-sep-2026 · Los seguimientos leen la ficha y lo que el cliente ya dijo
 
 **Qué:** La plantilla de seguimiento usa `tire_size` aunque la etapa siga en
@@ -2028,6 +2068,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-09-28 | _(este mismo)_ | Ganados fantasma, elegir con palabras, corrección podada, menú con varias medidas | 3,5 |
 | 2026-09-08 | _(este mismo)_ | El aro alcanza: detector ancho, lámina por ruta directa, la guía no reemplaza opciones | 1.5 |
 | 2026-09-07 | _(este mismo)_ | Elegir es cotizar (aro incluido), «otro día» pregunta el día, la lámina no se reenvía por una pregunta | 3.5 |
 | 2026-09-07 | _(este mismo)_ | El opt-out no prohíbe contestar; el /restart olvida la baja | 0.75 |
