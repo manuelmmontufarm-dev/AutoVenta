@@ -64,6 +64,7 @@ import {
 import { getFinalStageArrivals, getHubFeed, getHubMessages, getHubMetrics, getHubTicket, listHubTickets } from "../services/hubData.js";
 import { mesesConDatos } from "../services/periodoMensual.js";
 import { getEchoHealth } from "../services/echoHealth.js";
+import { resumenVentasConfirmadas } from "../services/ventasConfirmadas.js";
 import { marcarPagado, resumenBilling } from "../services/billing.js";
 import { buildDailyReport } from "../services/dailyReport.js";
 import { enviarReporteDiario } from "../services/dailyReportDelivery.js";
@@ -650,10 +651,16 @@ export function createAdminRouter(): express.Router {
     const mes = typeof req.query.mes === "string" ? req.query.mes : null;
     // Las dos consultas pesadas salen a la vez: en serie, la pantalla de
     // Métricas esperaba la suma de ambas (Manuel, 25-sep: «se demora mucho»).
-    const [hub, followUps] = await Promise.all([getHubMetrics(mes), getFollowUpMetrics(mes)]);
+    // Las ventas confirmadas leen facturas ya bajadas en memoria: si Contífico
+    // falla, la tarjeta dice por qué y el resto de Métricas sigue igual.
+    const [hub, followUps, ventasConfirmadas] = await Promise.all([
+      getHubMetrics(mes),
+      getFollowUpMetrics(mes),
+      resumenVentasConfirmadas(mes).catch((error) => ({ disponible: false, error: mensaje(error, "No se pudo cruzar") })),
+    ]);
     res.json({
       ok: true,
-      metrics: { ...hub, inventory: catalogInventoryMetrics(), followUps },
+      metrics: { ...hub, inventory: catalogInventoryMetrics(), followUps, ventasConfirmadas },
     });
   });
 

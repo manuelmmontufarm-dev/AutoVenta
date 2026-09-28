@@ -3,7 +3,7 @@ import { BillingSection } from "../components/billing";
 import { BarChart, FunnelChart, LineChart } from "../components/charts";
 import { SelectorDeMes, etiquetaDeMes } from "../components/mes";
 import { BlockTitle, Campo, PageHeader } from "../components/ui";
-import { ETAPAS, ETAPA_META, TODOS } from "../data/types";
+import { ETAPAS, ETAPA_META, TODOS, type VentasConfirmadas } from "../data/types";
 import { money, relTime } from "../lib/format";
 import { navigate } from "../router";
 import { mesEnCurso, useHub, useNow } from "../store";
@@ -117,6 +117,8 @@ export function Dashboard() {
               ultima
             />
           </div>
+
+          <VentasConfirmadasBloque vc={metrics?.ventasConfirmadas} cargando={cargando} enElPeriodo={enElPeriodo} now={now} />
 
           {/* Por día · por hora */}
           <div className="grid gap-4 lg:grid-cols-2">
@@ -292,6 +294,91 @@ export function Dashboard() {
       </div>
     </div>
   );
+}
+
+const MOTIVO: Record<NonNullable<VentasConfirmadas["descartes"]>[number]["motivo"], string> = {
+  antes_del_chat: "la factura es de antes de escribir: ya era cliente",
+  sin_llantas: "facturó otra cosa, no llantas (repuestos, garantía)",
+  solo_saludo: "el chat no pasó del saludo: el bot no le vendió",
+};
+
+/** "2026-09-23" → "23/9". */
+const diaCorto = (d: string) => `${Number(d.slice(8, 10))}/${Number(d.slice(5, 7))}`;
+
+/**
+ * Lo que de verdad se facturó. El servidor cruza el teléfono del chat con el
+ * de las facturas de Contífico cada 10 minutos: es la única venta que no
+ * depende de que alguien la marque a mano en el tablero.
+ */
+function VentasConfirmadasBloque({ vc, cargando, enElPeriodo, now }: { vc: VentasConfirmadas | undefined; cargando: boolean; enElPeriodo: string; now: number }) {
+  const detalle = vc?.detalle ?? [];
+  const descartes = (vc?.descartes ?? []).filter((d) => d.motivo !== "antes_del_chat");
+  const nota = !vc || !vc.disponible
+    ? "sin Contífico"
+    : vc.ultimaSync
+      ? `cruce por teléfono · ${relTime(vc.ultimaSync, now)}${vc.ultimaFactura ? ` · última factura ${diaCorto(vc.ultimaFactura)}` : ""}`
+      : vc.sincronizando ? "leyendo facturas de Contífico…" : "todavía sin leer Contífico";
+
+  let cuerpo: ReactNode;
+  if (cargando) cuerpo = <Cargando />;
+  else if (!vc || !vc.disponible) cuerpo = <p className="text-[13px] text-text2">Este servidor no tiene Contífico conectado, así que no hay facturas contra las cuales cruzar.</p>;
+  else if (!vc.ultimaSync) cuerpo = vc.error
+    ? <p className="text-[13px] text-signal">No se pudo leer Contífico: {vc.error}</p>
+    : <Cargando />;
+  else cuerpo = (
+    <>
+      <Cifras>
+        <Campo etiqueta="Vendido"><span className={`${mono} text-[15px] font-medium`}>{money(vc.monto ?? 0)}</span> <span className="text-text2">en {vc.ventas ?? 0} {vc.ventas === 1 ? "venta" : "ventas"} {enElPeriodo}</span></Campo>
+        <Campo etiqueta="Las cerró el bot"><span className={mono}>{vc.delBot?.ventas ?? 0} · {money(vc.delBot?.monto ?? 0)}</span></Campo>
+        <Campo etiqueta="Las cerró un asesor"><span className={mono}>{vc.delAsesor?.ventas ?? 0} · {money(vc.delAsesor?.monto ?? 0)}</span> <span className="text-text2">el asesor escribió más que el bot</span></Campo>
+        {vc.error && <Campo etiqueta="Aviso"><span className="text-signal">La última lectura falló ({vc.error}); se muestran las facturas de la anterior.</span></Campo>}
+      </Cifras>
+      {detalle.length > 0 ? (
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[640px] text-left text-[13px]">
+            <thead className="text-[12px] font-medium text-text2">
+              <tr><th className="py-2">Cliente</th><th>Factura</th><th>Llantas</th><th>Local</th><th>Atendió</th><th className="text-right">Monto</th></tr>
+            </thead>
+            <tbody>
+              {detalle.map((v) => (
+                <tr key={v.ticketId} className="cursor-pointer border-t border-line hover:bg-bg" onClick={() => navigate(`ticket/${v.ticketId}`)}>
+                  <td className="py-2 pr-3">
+                    <div className="font-medium">{v.nombre || v.telefono}</div>
+                    {v.cliente && v.cliente.toLowerCase() !== (v.nombre ?? "").toLowerCase() && <div className="text-[12px] text-text2">facturó {v.cliente}</div>}
+                  </td>
+                  <td className={`${mono} pr-3 text-[12px] whitespace-nowrap`}>
+                    {v.facturas.map((f) => <div key={f.documento}>{f.documento.slice(-6).replace(/^0+/, "")} · {diaCorto(f.dia)}</div>)}
+                  </td>
+                  <td className="max-w-[260px] truncate pr-3 text-text2" title={v.llantas}>{v.llantas}</td>
+                  <td className="pr-3 whitespace-nowrap">{[...new Set(v.facturas.map((f) => f.local))].join(" · ")}</td>
+                  <td className="pr-3">{v.atendio === "bot" ? "Bot" : "Asesor"}{!v.cotizado && <span className="text-text2"> · sin cotización</span>}</td>
+                  <td className={`${mono} text-right`}>{money(v.total)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <p className="text-[13px] text-text2">Ningún chat terminó en factura {enElPeriodo} todavía.</p>
+      )}
+      {descartes.length > 0 && (
+        <details className="text-[12px] text-text2">
+          <summary className="cursor-pointer">{descartes.length} {descartes.length === 1 ? "teléfono coincide" : "teléfonos coinciden"} pero no se cuenta{descartes.length === 1 ? "" : "n"}</summary>
+          <ul className="mt-2 flex flex-col gap-1">
+            {descartes.map((d) => (
+              <li key={d.ticketId}>
+                <button className="text-left hover:underline" onClick={() => navigate(`ticket/${d.ticketId}`)}>{d.nombre || d.telefono}</button>
+                {" "}· {money(d.total)} · {diaCorto(d.dia)} — {MOTIVO[d.motivo]}
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
+      <p className="text-[12px] leading-relaxed text-text2">Cuenta una venta cuando el teléfono del chat aparece en una factura con llantas emitida después del primer mensaje. Si el cliente factura con otro número o a nombre de otra persona, no aparece.</p>
+    </>
+  );
+
+  return <Bloque titulo="Ventas confirmadas en Contífico" nota={nota}>{cuerpo}</Bloque>;
 }
 
 function Kpi({ nombre, valor, nota, ultima = false }: { nombre: string; valor: ReactNode; nota: string; ultima?: boolean }) {

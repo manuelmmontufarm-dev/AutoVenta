@@ -1,3 +1,20 @@
+## 27-sep-2026 · Métricas: ventas confirmadas en vivo, por teléfono contra Contífico
+
+**Qué:** Servicio nuevo `ventasConfirmadas.ts`: cada 10 min baja de Contífico
+las facturas desde el primer chat (páginas desde la 1, que es lo más nuevo, hasta
+pasar esa fecha) y las cruza por los últimos 9 dígitos del teléfono con las
+conversaciones. Va en `/api/hub/metrics` como `ventasConfirmadas` y Métricas lo
+pinta en la tarjeta «Ventas confirmadas en Contífico»: total del mes, bot vs.
+asesor, cada venta y los teléfonos que coinciden pero no cuentan (con motivo).
+
+**Por qué:** Manuel pedía un cruce a mano cada dos semanas (26-ago, 12-sep,
+27-sep) para saber cuánto vendió el bot de verdad; el Kanban solo tiene lo
+marcado a mano. Las reglas reproducen esos veredictos: factura posterior al
+primer mensaje, con llantas a precio cobrado (saca repuestos y garantías al
+100 %), y un chat que pasó del saludo. Hoy: 13 ventas por teléfono, $6.977,37.
+
+**Horas:** 1,5
+
 ## 27-sep-2026 · Hub: el hilo mostraba los primeros mil mensajes, no los últimos; el Inbox ya no reordena al abrir
 
 **Qué:** `getHubMessages` devuelve los ÚLTIMOS mil mensajes (subconsulta

@@ -339,6 +339,12 @@ export interface HubMetrics {
     source: string | null;
     lastSync: string | null;
   };
+  /**
+   * Chats que terminaron en una factura de Contífico, cruzados por teléfono en
+   * el servidor cada 10 minutos. Es la única «venta» que no depende de que
+   * alguien la marque a mano. Recortado al mes elegido por día de factura.
+   */
+  ventasConfirmadas?: VentasConfirmadas;
   followUps?: {
     scheduled: number;
     sent: number;
@@ -353,6 +359,44 @@ export interface HubMetrics {
     avg_response_seconds: number | null;
     byStageAndType: Array<{ stage: string; type: string; total: number; sent: number }>;
   };
+}
+
+export interface VentaConfirmada {
+  ticketId: number;
+  nombre: string | null;
+  telefono: string;
+  /** Razón social de la factura: a veces es la empresa o un familiar. */
+  cliente: string;
+  facturas: Array<{ documento: string; dia: string; total: number; local: string }>;
+  total: number;
+  /** "YYYY-MM-DD" de la primera factura con llantas. */
+  dia: string;
+  llantas: string;
+  atendio: "bot" | "asesor";
+  cotizado: boolean;
+}
+
+export interface VentasConfirmadas {
+  /** false cuando el servidor no tiene Contífico configurado. */
+  disponible: boolean;
+  ultimaSync?: string | null;
+  sincronizando?: boolean;
+  error?: string | null;
+  ultimaFactura?: string | null;
+  ventas?: number;
+  monto?: number;
+  delBot?: { ventas: number; monto: number };
+  delAsesor?: { ventas: number; monto: number };
+  detalle?: VentaConfirmada[];
+  descartes?: Array<{
+    ticketId: number;
+    nombre: string | null;
+    telefono: string;
+    cliente: string;
+    total: number;
+    dia: string;
+    motivo: "antes_del_chat" | "sin_llantas" | "solo_saludo";
+  }>;
 }
 
 /** Clave del período que significa "sin recorte": todo el histórico. */
