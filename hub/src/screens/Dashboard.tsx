@@ -334,7 +334,14 @@ function VentasConfirmadasBloque({ vc, cargando, enElPeriodo, now }: { vc: Venta
         {vc.error && <Campo etiqueta="Aviso"><span className="text-signal">La última lectura falló ({vc.error}); se muestran las facturas de la anterior.</span></Campo>}
       </Cifras>
       {detalle.length > 0 ? (
-        <div className="overflow-x-auto">
+        // Plegada: la tarjeta es un resumen; el detalle se abre a pedido
+        // (Manuel, 28-sep: «que no sea grande, solo si aplastas»).
+        <details className="group">
+          <summary className="cursor-pointer text-[13px] font-medium select-none">
+            <span className="group-open:hidden">Ver {detalle.length === 1 ? "la venta" : `las ${detalle.length} ventas`}</span>
+            <span className="hidden group-open:inline">Ocultar {detalle.length === 1 ? "la venta" : "las ventas"}</span>
+          </summary>
+        <div className="mt-2 overflow-x-auto">
           <table className="w-full min-w-[640px] text-left text-[13px]">
             <thead className="text-[12px] font-medium text-text2">
               <tr><th className="py-2">Cliente</th><th>Factura</th><th>Llantas</th><th>Local</th><th>Atendió</th><th className="text-right">Monto</th></tr>
@@ -358,6 +365,7 @@ function VentasConfirmadasBloque({ vc, cargando, enElPeriodo, now }: { vc: Venta
             </tbody>
           </table>
         </div>
+        </details>
       ) : (
         <p className="text-[13px] text-text2">Ningún chat terminó en factura {enElPeriodo} todavía.</p>
       )}

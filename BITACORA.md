@@ -1,3 +1,12 @@
+## 28-sep-2026 · Ventas confirmadas: la tabla va plegada
+
+**Qué:** En la tarjeta de Métricas, la lista de ventas queda detrás de «Ver las
+N ventas»; se ven solo los totales hasta que se abre.
+
+**Por qué:** Manuel: que no sea grande, que se despliegue solo si se toca.
+
+**Horas:** 0,1
+
 ## 28-sep-2026 · Métricas: cambiar de mes ya no recarga todo el panel
 
 **Qué:** Al mover el selector, el hub pide solo lo que depende del mes
