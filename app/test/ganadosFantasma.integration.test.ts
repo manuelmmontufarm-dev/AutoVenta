@@ -19,6 +19,7 @@ process.env.WHATSAPP_VERIFY_TOKEN ||= "x";
 const { sql } = await import("../src/db/client.js");
 const { ensureSchema } = await import("../src/db/schema.js");
 const { runGanadosFantasmaMigration, MOTIVO_CORREGIDO, GANADOS_FANTASMA_MIGRATION_ID } = await import("../src/db/migrations/023_ganados_fantasma.js");
+const { runGanadosFantasmaEtapaMigration, GANADOS_FANTASMA_ETAPA_MIGRATION_ID } = await import("../src/db/migrations/024_ganados_fantasma_etapa.js");
 
 beforeAll(async () => {
   execSync(`createdb ${DB}`);
@@ -31,7 +32,7 @@ afterAll(async () => {
 
 describe("migración 023", () => {
   it("borra el ganado del arranque, conserva el ganado real y no vuelve a correr", async () => {
-    const deploy = new Date("2026-09-25T01:18:29Z");
+    const deploy = "2026-09-25T01:18:29.613436Z"; // microsegundos, como en producción
     // Fantasma: «ya se compró en el Carmen» tres días antes del cierre.
     const [f] = await sql<{ id: number }[]>`insert into conversations (phone, name, stage, status, current_cycle, closed_reason, closed_at)
       values ('593990000001','Marco','ganado','closed',1,'Cliente confirmó explícitamente que la compra fue realizada',${deploy}) returning id`;
@@ -48,8 +49,9 @@ describe("migración 023", () => {
       values (${r.id},1,'ganado','Cliente confirmó explícitamente que la compra fue realizada','2026-09-26T13:52:30Z')`;
 
     // ensureSchema ya la corrió una vez (con la base vacía); acá se fuerza otra vez sobre datos.
-    await sql`delete from schema_migrations where id = ${GANADOS_FANTASMA_MIGRATION_ID}`;
+    await sql`delete from schema_migrations where id in (${GANADOS_FANTASMA_MIGRATION_ID}, ${GANADOS_FANTASMA_ETAPA_MIGRATION_ID})`;
     await runGanadosFantasmaMigration(sql);
+    await runGanadosFantasmaEtapaMigration(sql);
 
     const ganados = await sql<{ conversation_id: number }[]>`select conversation_id from sales_history where outcome='ganado'`;
     expect(ganados.map((g) => Number(g.conversation_id))).toEqual([Number(r.id)]);

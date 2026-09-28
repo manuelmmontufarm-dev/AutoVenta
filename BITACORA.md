@@ -5,7 +5,7 @@ cerraba como ganada toda conversación cuyo cliente escribió «ya compré»; la
 migración `023_ganados_fantasma` borra esas filas de `sales_history` (firma:
 cierre sin ningún mensaje del cliente en los 10 min previos), pasa la
 conversación a `perdido` con motivo explícito y deja una fila `perdido` en su
-lugar. (2) `respuestaDePreferencia` lee «La segunda opción», «1 costos»,
+lugar; la `024` remata la etapa de la conversación (la 023 comparaba `closed_at` en milisegundos contra microsegundos y dejó `ganado` en las convs 3 y 8162). (2) `respuestaDePreferencia` lee «La segunda opción», «1 costos»,
 «1) costo», «opción 2 equilibrio»; `autorizaCotizacionEnEsteTurno` y el
 `acepta` de la marca aceptan «El juego» / «las 4»; `pidioCotizacionExplicita`
 reconoce «cotízemela / cotíceme». En el guardián, la regla 15 deja de mandar a
