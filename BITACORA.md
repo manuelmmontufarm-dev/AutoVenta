@@ -1,3 +1,17 @@
+## 27-sep-2026 · Hub: el hilo mostraba los primeros mil mensajes, no los últimos; el Inbox ya no reordena al abrir
+
+**Qué:** `getHubMessages` devuelve los ÚLTIMOS mil mensajes (subconsulta
+`order by created_at desc limit 1000`, luego ascendente) en vez de los
+primeros. El Inbox ordena solo por última actividad; abrir un chat lo pone
+blanco y no lo mueve de lugar.
+
+**Por qué:** La conversación de pruebas de Manuel pasó los mil mensajes: la
+ficha decía «última respuesta hace 1 min» y el hilo se quedaba en las 12:30,
+porque el tope cortaba justo los nuevos. Y al abrir una fila roja dejaba de
+«esperar respuesta» y saltaba de grupo: Manuel pidió que se quede en su lugar.
+
+**Horas:** 0,5
+
 ## 27-sep-2026 · Hub: el chat abierto se actualiza aunque el canal en vivo se caiga
 
 **Qué:** El lector del canal de eventos (`/api/hub/events`) corta y reconecta

@@ -10,16 +10,12 @@ import { AtiendePill, CierreBadge, EmptyState, MedidaChip, PageHeader, SkeletonR
  * Una sola lista. Sin pestañas de Abiertos / Cerrados ni «Alertas del bot»:
  * había demasiados para que la distinción importara (DESIGN.md §17).
  *
- * Orden: primero quien espera respuesta, después el resto; dentro de cada
- * grupo, lo más reciente arriba. Antes los que esperaban iban del más viejo al
- * más nuevo, y con 400 filas de septiembre sin abrir, el cliente que escribía
- * hoy quedaba en la fila 448: «le escribí y no sale». El orden es una promesa
- * y tiene que verse: la fila que exige acción es la única pintada.
+ * Orden: por última actividad, lo más reciente arriba. Y nada más. Antes los
+ * que esperaban respuesta iban primero, y al abrir uno dejaba de esperar y
+ * saltaba de grupo: la fila se movía justo cuando el asesor volvía a buscarla.
+ * Abrir un chat solo lo pone blanco; su lugar lo decide el último mensaje.
  */
 function ordenar(a: Ticket, b: Ticket): number {
-  const ea = a.sinLeer > 0 ? 1 : 0;
-  const eb = b.sinLeer > 0 ? 1 : 0;
-  if (ea !== eb) return eb - ea;
   return new Date(b.ultimaActividad).getTime() - new Date(a.ultimaActividad).getTime();
 }
 
