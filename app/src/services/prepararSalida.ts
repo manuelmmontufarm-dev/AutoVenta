@@ -35,7 +35,7 @@ import type { Stage } from "./conversations.js";
 import { lastOutboundText } from "./conversations.js";
 import { esAcuseSimple } from "../domain/ofertaAceptada.js";
 import { applyOutboundGuard } from "./outboundGuard.js";
-import { revisarConGuardian, type HuellaHerramienta } from "./guardian.js";
+import { revisarConGuardian, type HuellaHerramienta, type RevisionGuardian } from "./guardian.js";
 import { asegurarAvisoDeStock } from "./stockCorto.js";
 import { insistirConLoQueFalta, sinPreguntaPendienteConsecutiva } from "./insistirCierre.js";
 import { createBotAlert } from "./followUps.js";
@@ -67,7 +67,7 @@ import { buildStoreLinksBlock } from "./quoteMessages.js";
 import { buildStoreLinksBlockOnce } from "./storeLinks.js";
 import { business } from "../config.js";
 import { productosDelCatalogoMencionados } from "./catalog.js";
-import { frenarHechosNuevosDelGuardian } from "../domain/guardianNoVendeSolo.js";
+import { frenarHechosNuevosDelGuardian, podarHechosNuevosDelGuardian } from "../domain/guardianNoVendeSolo.js";
 import { sinBloquesCalcados } from "../domain/calcoReciente.js";
 import { conMapasCanonicos, quitarMenuDePreferencia, sinTelefonoPropio } from "../domain/candadosDeTexto.js";
 import { MARCA_DEL_MENU, respuestaDePreferencia } from "../domain/salesIntent.js";
@@ -95,6 +95,12 @@ import { findByCode } from "./catalog.js";
  */
 export type TipoDeSalida = "respuesta" | "retomada" | "seguimiento" | "plantilla";
 
+/** Hallazgos del guardián que dicen «el borrador afirma algo falso»: con uno de estos, el borrador no se restaura. */
+const CATEGORIAS_DE_DATO = new Set([
+  "medida_incorrecta", "hecho_comercial_inventado", "precio_incorrecto",
+  "stock_prometido", "tipo_negado_con_stock", "cotizacion_sin_medida",
+]);
+
 export interface ContextoDeSalida {
   conversation: { id: number; current_cycle: number; stage: Stage };
   tipo: TipoDeSalida;
@@ -115,6 +121,8 @@ export interface ContextoDeSalida {
   textoDelCliente?: string | null;
   /** Estado interno de la cadena: el texto que recibió el Ángel Guardián. */
   textoAntesDelGuardian?: string;
+  /** Lo que el Ángel Guardián encontró en ese texto (para los candados que vienen después). */
+  hallazgosDelGuardian?: RevisionGuardian["hallazgos"];
   /** Un cierre definitivo: ningún paso posterior puede anexar nada. */
   salidaTerminal?: boolean;
   /**
@@ -253,6 +261,7 @@ export const PASOS: readonly PasoDeSalida[] = [
         ctx.conversation, texto, ctx.huella ?? [],
         { tipo: ctx.tipo === "seguimiento" ? "seguimiento" : "respuesta" },
       );
+      ctx.hallazgosDelGuardian = revision.hallazgos;
       // EL GUARDIÁN DE SEGUIMIENTO PUEDE CALLAR (auditoría 2-6 sep, familia A).
       //
       // Un seguimiento no contesta a nadie: si el guardián ve que insiste
@@ -294,6 +303,34 @@ export const PASOS: readonly PasoDeSalida[] = [
       const yaDicho = await textoYaDichoEnElCiclo(ctx.conversation.id, ctx.conversation.current_cycle);
       const resultado = frenarHechosNuevosDelGuardian(borrador, texto, productos, yaDicho);
       if (!resultado.bloqueado) return texto;
+
+      // SI EL GUARDIÁN DIJO QUE EL BORRADOR ES UN DATO FALSO, NO SE RESTAURA.
+      // Auditoría 25-27 sep (convs 23080, 23489, 23448): la corrección traía
+      // una oferta nueva, este candado la tiró entera y salió el borrador con
+      // la medida inventada («le entra la 215/60R17») o la llanta equivocada.
+      // Se poda la oferta nueva y se manda lo que queda; solo si no queda nada
+      // se cae al borrador, como antes.
+      const datoFalso = (ctx.hallazgosDelGuardian ?? []).some((h) => CATEGORIAS_DE_DATO.has(h.categoria));
+      const podado = datoFalso ? podarHechosNuevosDelGuardian(borrador, texto, productos, yaDicho) : null;
+      if (podado) {
+        console.warn(
+          `✂️ Corrección del guardián podada en la conv ${ctx.conversation.id} (${resultado.motivos.join(", ")}): el borrador tenía un dato falso y no se restaura`,
+        );
+        await createBotAlert({
+          conversationId: ctx.conversation.id,
+          cycle: ctx.conversation.current_cycle,
+          type: "guardian_correccion_podada",
+          priority: "medium",
+          summary: "La corrección del guardián traía una oferta nueva y se mandó sin ella",
+          exactReason:
+            `El borrador tenía ${(ctx.hallazgosDelGuardian ?? []).map((h) => h.categoria).join(", ")} y la corrección agregaba ${resultado.motivos.join(", ")}. `
+            + `Borrador: «${borrador.slice(0, 180)}». Enviado: «${podado.slice(0, 180)}».`,
+          suggestedAction: "Revisa que lo enviado responda al cliente; el borrador original NO salió porque era un dato falso.",
+          dedupeKey:
+            `guardian_podada:${ctx.conversation.id}:${ctx.conversation.current_cycle}:${resultado.motivos.join("-")}`,
+        }).catch(() => undefined);
+        return podado;
+      }
 
       console.warn(
         `🛑 Corrección comercial frenada en la conv ${ctx.conversation.id}: ${resultado.motivos.join(", ")}`,

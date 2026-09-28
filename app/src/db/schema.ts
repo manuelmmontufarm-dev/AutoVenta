@@ -26,6 +26,7 @@ import { runFranjaDeVisitaMigration } from "./migrations/019_franja_de_visita.js
 import { runAsesorEnTodaEtapaMigration } from "./migrations/020_asesor_en_toda_etapa.js";
 import { runFitmentAprendidoMigration } from "./migrations/021_fitment_aprendido.js";
 import { runIndicesMetricasMigration } from "./migrations/022_indices_metricas.js";
+import { runGanadosFantasmaMigration } from "./migrations/023_ganados_fantasma.js";
 
 export const SCHEMA = /* sql */ `
 create table if not exists conversations (
@@ -240,38 +241,11 @@ create table if not exists billing_months (
   created_at timestamptz not null default now()
 );
 
--- Corrige cierres antiguos mal clasificados cuando el propio cliente confirmó
--- en el chat que la compra ya se realizó (caso observado en staging).
-update conversations c
-set stage = 'ganado',
-    status = 'closed',
-    closed_reason = 'Cliente confirmó explícitamente que la compra fue realizada',
-    closed_at = coalesce(c.closed_at, now())
-where exists (
-  select 1 from messages m
-  where m.conversation_id = c.id and m.role = 'user'
-    and lower(m.content) ~ '(ya[[:space:]]+.*compr|acabo de comprar|ya pagu|compra (hecha|realizada))'
-);
-
-insert into sales_history (
-  conversation_id, cycle, outcome, reason, tire_size, vehicle,
-  selected_product_code, selected_quantity, quote_id, quote_number,
-  sale_number, total, closed_at
-)
-select
-  c.id, c.current_cycle,
-  case when c.stage = 'ganado' then 'ganado' else 'perdido' end,
-  c.closed_reason, c.tire_size, c.vehicle,
-  c.selected_product_code, c.selected_quantity,
-  q.id, q.quote_number, q.sale_number, q.total, coalesce(c.closed_at, now())
-from conversations c
-left join lateral (
-  select id, quote_number, sale_number, total from quotes
-  where conversation_id = c.id and cycle = c.current_cycle
-  order by created_at desc limit 1
-) q on true
-where c.status = 'closed'
-on conflict (conversation_id, cycle) do nothing;
+-- El «arreglo de datos» que vivía acá (cerrar como ganada toda conversación
+-- cuyo cliente escribió «ya compré») corría en CADA arranque y fabricó 22 de
+-- los 33 ganados de septiembre de 2026 en los instantes de deploy, incluido
+-- «ya se compró en El Carmen». Se sacó el 28-sep; la migración 023 deshace
+-- esas filas. sales_history lo escribe services/conversations.ts al cerrar.
 
 create table if not exists product_media (
   id bigserial primary key,
@@ -443,4 +417,5 @@ export async function ensureSchema(): Promise<void> {
   await runAsesorEnTodaEtapaMigration(sql);
   await runFitmentAprendidoMigration(sql);
   await runIndicesMetricasMigration(sql);
+  await runGanadosFantasmaMigration(sql);
 }

@@ -99,7 +99,10 @@ export function autorizaCotizacionEnEsteTurno(
   // del primer mensaje). El verbo solo cuenta cuando NO pide información.
   return /\b(?:quiero|deme|dame|llevo|elijo|escojo|prefiero)\b(?!\s+(?:mas\s+)?(?:informacion|info|saber|consultar|preguntar|conocer)\b)/.test(normalized)
     || /\b(?:me\s+quedo|vamos|dale)\s+con\b/.test(normalized)
-    || /^(?:si\s+)?(?:esa|esa\s+misma|ese|ese\s+mismo)$/.test(normalized);
+    || /^(?:si\s+)?(?:esa|esa\s+misma|ese|ese\s+mismo)$/.test(normalized)
+    // «El juego» / «las 4» a «¿Se la cotizo?» es el sí del cliente que compra
+    // por juego (producción 27-sep, conv 23580: no cotizó y volvió a buscar).
+    || /^(?:si\s+)?(?:el\s+juego(?:\s+(?:de\s+)?(?:4|cuatro))?|las\s+(?:4|cuatro))$/.test(normalized);
 }
 
 /**
@@ -203,7 +206,13 @@ export function respuestaDePreferencia(text: string): Preferencia | null {
   const porNumero = normalized
     .replace(/\b(?:buen[oa]s?\s+(?:dias|tardes|noches)|hola|gracias|por\s+favor|porfa|me\s+quedo\s+con|quiero|prefiero|dame|deme)\b/g, " ")
     .replace(/[.,!¡]/g, " ").replace(/\s+/g, " ").trim()
-    .match(/^(?:(?:la|el)\s+)?(?:opcion|numero|num|#)?\s*([123])\)?$|^(?:la\s+)?(primera|segunda|tercera)$/);
+    // «La segunda opción», «1 costos», «1) costo», «opción 2 equilibrio»: el
+    // número o el ordinal seguido del nombre del escalón o de la palabra
+    // «opción» sigue siendo la elección (producción 25 y 27-sep, convs 23356
+    // y 23561: los dos devolvían null, la cotización se bloqueó y el guardián
+    // borró el «¿Se la cotizo?»). Un número seguido de OTRA cosa («1 llanta»)
+    // no entra: eso es cantidad.
+    .match(/^(?:(?:la|el)\s+)?(?:opcion|numero|num|#)?\s*([123])\)?(?:\s+(?:opcion|costos?|precio|economic\w*|barat\w*|equilibr\w*|intermedi\w*|premium|calidad|mejor))?$|^(?:la\s+)?(primera|segunda|tercera)(?:\s+opcion)?$/);
   if (porNumero) {
     const n = porNumero[1] ?? { primera: "1", segunda: "2", tercera: "3" }[porNumero[2]];
     return n === "1" ? "precio" : n === "2" ? "equilibrada" : "premium";

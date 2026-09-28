@@ -151,7 +151,7 @@ export function ordenDeNotificarHumano(): string {
 
 export function pidioCotizacionExplicita(texto: string): boolean {
   const n = normalizar(texto);
-  return /(?:m[aá]nd[ae]me|env[ií][ae]me|p[aá]s[ae]me|h[aá]game|hazme|quiero|necesito|deme|dame)\s+(?:una?\s+|la\s+)?(?:cotizaci[oó]n|proforma)|cot[ií]za?me|me\s+cotiza[sr]?\b|una\s+proforma/.test(n);
+  return /(?:m[aá]nd[ae]me|env[ií][ae]me|p[aá]s[ae]me|h[aá]game|hazme|quiero|necesito|deme|dame)\s+(?:una?\s+|la\s+)?(?:cotizaci[oó]n|proforma)|cot[ií][cz]\w{0,2}me\w*|me\s+cotiza[sr]?\b|una\s+proforma/.test(n);
 }
 
 export function ordenDeCotizarLoPedido(): string {

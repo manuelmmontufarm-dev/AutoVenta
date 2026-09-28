@@ -2503,7 +2503,7 @@ export function buildTools(ctx: AgentContext) {
         const preguntaPorEsta = new RegExp(
           `¿\\s*(?:le|se\\s+las?)\\s+cotizo\\s+las?\\s+\\*?${(product.design ?? "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`, "i",
         ).test(ultimoDelBotParaMarca?.content ?? "");
-        const acepta = /^\s*(?:ok|okey|oka|s[ií]|dale|listo|bueno|de una|va|claro|perfecto|por favor|porfa|s[ií] por favor|esa|esa misma)\b[\s!.]*$/i.test(ctx.currentUserText ?? "");
+        const acepta = /^\s*(?:ok|okey|oka|s[ií]|dale|listo|bueno|de una|va|claro|perfecto|por favor|porfa|s[ií] por favor|esa|esa misma|(?:s[ií] )?el juego(?: de (?:cuatro|\d))?|(?:s[ií] )?las (?:cuatro|\d))\b[\s!.]*$/i.test(ctx.currentUserText ?? "");
         const eligioDeLaPantalla = presentados.some((p) => p.code === product.code) && (
           respuestaDePreferencia(ctx.currentUserText ?? "") !== null
           || (senalada?.tipo === "una" && senalada.opcion.codigo === product.code)

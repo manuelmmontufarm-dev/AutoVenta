@@ -153,3 +153,61 @@ export function frenarHechosNuevosDelGuardian(
     ? { texto: borrador, bloqueado: true, motivos }
     : { texto: correccion, bloqueado: false, motivos: [] };
 }
+
+/**
+ * CUANDO EL BORRADOR ES UN DATO FALSO, RESTAURARLO TAMBIÉN ES VENDER MAL.
+ *
+ * Auditoría 25-27 sep: tres veces el revisor marcó el borrador como
+ * `medida_incorrecta` / `hecho_comercial_inventado` / `tipo_negado_con_stock`,
+ * lo corrigió, y la corrección traía un producto o un precio nuevo; el candado
+ * de arriba tiró la corrección ENTERA y el cliente recibió el borrador con el
+ * error (conv 23080: «le entra la 215/60R17, ¿se la cotizo?» — el único dato
+ * falso que llegó a un cliente en la ventana; conv 23489: llanta de turismo a
+ * quien pidió todo terreno teniendo A/T en stock).
+ *
+ * Esta función se queda con la corrección pero le PODA las líneas que traen
+ * los hechos nuevos (el producto o el precio que el borrador no nombraba y el
+ * ciclo tampoco), y limpia lo que queda colgando: separadores seguidos, una
+ * línea que terminaba en «:» anunciando la lista que se fue. Devuelve null si
+ * después de podar no queda nada con sustancia: ahí el que llama decide.
+ */
+export function podarHechosNuevosDelGuardian(
+  borrador: string,
+  correccion: string,
+  productos: readonly ProductoIdentificable[],
+  yaDichoEnElCiclo = "",
+): string | null {
+  const conocidos = new Set([
+    ...preciosEn(`${borrador}\n${yaDichoEnElCiclo}`),
+    ...preciosDeCamposDeDinero(yaDichoEnElCiclo),
+  ]);
+  const nuevos = productos.filter(
+    (p) => !mencionaProducto(borrador, p) && !(yaDichoEnElCiclo && mencionaProducto(yaDichoEnElCiclo, p)),
+  );
+  const traeHechoNuevo = (linea: string): boolean =>
+    nuevos.some((p) => mencionaProducto(linea, p))
+    || [...preciosEn(linea)].some((precio) => !conocidos.has(precio))
+    || ofreceJuegoIncompleto(linea);
+
+  const originales = correccion.split("\n");
+  const podadas = new Set(originales.map((linea, i) => (traeHechoNuevo(linea) ? i : -1)).filter((i) => i >= 0));
+  // Una línea que anunciaba lo podado («…sí tengo opción A/T en aro 16:») queda
+  // colgando; se va con lo que anunciaba: si lo primero con texto que venía
+  // después de ella fue podado, ella también.
+  const sinAnuncios = originales.filter((linea, i) => {
+    if (podadas.has(i)) return false;
+    if (!/[:：]\s*$/.test(linea)) return true;
+    const siguiente = originales.findIndex((l, j) => j > i && l.trim() !== "" && l.trim() !== "---");
+    return siguiente < 0 || !podadas.has(siguiente);
+  });
+  const texto = sinAnuncios
+    .join("\n")
+    .replace(/(?:\n\s*---\s*)+\n\s*---\s*/g, "\n---")
+    .replace(/\n{3,}/g, "\n\n")
+    .replace(/^\s*---\s*\n|\n\s*---\s*$/g, "")
+    .trim();
+  const conSustancia = texto.replace(/[^\p{L}\p{N}]/gu, "").length >= 20;
+  if (!conSustancia) return null;
+  if (frenarHechosNuevosDelGuardian(borrador, texto, productos, yaDichoEnElCiclo).bloqueado) return null;
+  return texto;
+}
