@@ -28,6 +28,7 @@ import { runAgent } from "./agent/agent.js";
 import type { AgentContext } from "./agent/tools.js";
 import { classifyStage } from "./agent/classifier.js";
 import { startCatalogSync } from "./services/catalog.js";
+import { startVentasConfirmadasSync } from "./services/ventasConfirmadas.js";
 import { ensureSchema } from "./db/schema.js";
 import {
   appendMessage,
@@ -929,6 +930,7 @@ console.log(
 );
 
 startCatalogSync();
+startVentasConfirmadasSync();
 
 // Seguimientos: se levantan aquí salvo que haya un servicio dedicado
 // (FOLLOW_UP_WORKER=externo). Sin esto, un deploy sin servicio worker deja los

@@ -39,6 +39,68 @@ de Manuel del 27-sep (conv 3, «Rin 15 para mi Highlander») el revisor borró
 el menú 1/2/3 y dejó al cliente sin cómo elegir.
 
 **Horas:** 3,5
+## 27-sep-2026 · Métricas: ventas confirmadas en vivo, por teléfono contra Contífico
+
+**Qué:** Servicio nuevo `ventasConfirmadas.ts`: cada 10 min baja de Contífico
+las facturas desde el primer chat (páginas desde la 1, que es lo más nuevo, hasta
+pasar esa fecha) y las cruza por los últimos 9 dígitos del teléfono con las
+conversaciones. Va en `/api/hub/metrics` como `ventasConfirmadas` y Métricas lo
+pinta en la tarjeta «Ventas confirmadas en Contífico»: total del mes, bot vs.
+asesor, cada venta y los teléfonos que coinciden pero no cuentan (con motivo).
+
+**Por qué:** Manuel pedía un cruce a mano cada dos semanas (26-ago, 12-sep,
+27-sep) para saber cuánto vendió el bot de verdad; el Kanban solo tiene lo
+marcado a mano. Las reglas reproducen esos veredictos: factura posterior al
+primer mensaje, con llantas a precio cobrado (saca repuestos y garantías al
+100 %), y un chat que pasó del saludo. Hoy: 13 ventas por teléfono, $6.977,37.
+
+**Horas:** 1,5
+
+## 27-sep-2026 · Hub: el hilo mostraba los primeros mil mensajes, no los últimos; el Inbox ya no reordena al abrir
+
+**Qué:** `getHubMessages` devuelve los ÚLTIMOS mil mensajes (subconsulta
+`order by created_at desc limit 1000`, luego ascendente) en vez de los
+primeros. El Inbox ordena solo por última actividad; abrir un chat lo pone
+blanco y no lo mueve de lugar.
+
+**Por qué:** La conversación de pruebas de Manuel pasó los mil mensajes: la
+ficha decía «última respuesta hace 1 min» y el hilo se quedaba en las 12:30,
+porque el tope cortaba justo los nuevos. Y al abrir una fila roja dejaba de
+«esperar respuesta» y saltaba de grupo: Manuel pidió que se quede en su lugar.
+
+**Horas:** 0,5
+
+## 27-sep-2026 · Hub: el chat abierto se actualiza aunque el canal en vivo se caiga
+
+**Qué:** El lector del canal de eventos (`/api/hub/events`) corta y reconecta
+si pasan 45 s sin bytes (el heartbeat viene cada 20 s). Y el store agrega una
+red de seguridad: cada 15 s, y al volver a la pestaña, vuelve a pedir la lista
+y los mensajes del chat abierto (`refrescarLigero`), con el mismo turno que
+descarta listas rezagadas.
+
+**Por qué:** Manuel se escribió desde WhatsApp y el chat abierto en el panel
+no mostró ni su mensaje ni la respuesta del bot: hasta hoy el único camino de
+datos nuevos era el canal en vivo, y si el proxy lo dejaba medio abierto no
+había nada que lo notara.
+
+**Horas:** 0,5
+
+## 27-sep-2026 · Inbox: el chat nuevo arriba y la fila abierta que no vuelve a rojo
+
+**Qué:** El orden del Inbox pone primero a quien espera respuesta y, dentro de
+cada grupo, lo más reciente arriba (antes los que esperaban iban del más viejo
+al más nuevo). El store recuerda qué chats abrió el asesor (`leidosLocal`, un
+minuto de vigencia) y toda lista que llegue del servidor lo respeta hasta que
+el servidor confirme el cero; además cada lista pedida lleva su turno y una
+que llegue más vieja que la última pintada se descarta.
+
+**Por qué:** Manuel se escribió desde su WhatsApp y «no salía»: sí estaba, en
+la fila 448, porque 447 conversaciones de septiembre sin abrir esperaban antes
+que él. Y las filas que abría volvían a rojo: cada mensaje del bot dispara un
+`sync`, la lista de 500 tarda, y una lista que salió antes de marcar leído
+llegaba después y pisaba el cero.
+
+**Horas:** 0,5
 
 ## 25-sep-2026 · Primer día del Hub «Taller» en producción: lo que pidió Manuel al usarlo
 
@@ -94,7 +156,6 @@ impeccable (0 hallazgos), `tsc` limpio y capturas de cada pantalla a 1440 y
 390 sobre el demo.
 
 **Horas:** 6
-=======
 ## 24-sep-2026 · Los seguimientos leen la ficha y lo que el cliente ya dijo
 
 **Qué:** La plantilla de seguimiento usa `tire_size` aunque la etapa siga en
