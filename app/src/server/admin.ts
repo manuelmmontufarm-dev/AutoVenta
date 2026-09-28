@@ -255,6 +255,16 @@ async function sendTextDetailed(to: string, body: string): Promise<SendResult> {
 }
 
 /** Motivo legible de un error, con respaldo cuando no lo trae. */
+const MES_CERRADO_MS = 2 * 60_000;
+const metricasDeMesCerrado = new Map<string, { at: number; metrics: unknown }>();
+
+/** "2026-08" si es un mes anterior al en curso (hora de Guayaquil); si no, null. */
+function mesCerrado(mes: string | null): string | null {
+  if (!mes || !/^\d{4}-(0[1-9]|1[0-2])$/.test(mes)) return null;
+  const hoy = new Date(Date.now() - 5 * 3600e3).toISOString().slice(0, 7);
+  return mes < hoy ? mes : null;
+}
+
 function mensaje(error: unknown, respaldo: string): string {
   return error instanceof Error && error.message ? error.message : respaldo;
 }
@@ -649,6 +659,15 @@ export function createAdminRouter(): express.Router {
   // mismo valor va a las dos lecturas para que ningún número quede en otro mes.
   router.get("/hub/metrics", async (req, res) => {
     const mes = typeof req.query.mes === "string" ? req.query.mes : null;
+    // Un mes cerrado ya no se mueve: se guarda unos minutos y cambiar de mes en
+    // el selector no vuelve a correr las consultas pesadas (Manuel, 28-sep).
+    // El mes en curso y «todos» se calculan siempre: incluyen lo de hoy.
+    const cerrado = mesCerrado(mes);
+    const guardado = cerrado ? metricasDeMesCerrado.get(cerrado) : undefined;
+    if (guardado && Date.now() - guardado.at < MES_CERRADO_MS) {
+      res.json({ ok: true, metrics: guardado.metrics });
+      return;
+    }
     // Las dos consultas pesadas salen a la vez: en serie, la pantalla de
     // Métricas esperaba la suma de ambas (Manuel, 25-sep: «se demora mucho»).
     // Las ventas confirmadas leen facturas ya bajadas en memoria: si Contífico
@@ -658,10 +677,9 @@ export function createAdminRouter(): express.Router {
       getFollowUpMetrics(mes),
       resumenVentasConfirmadas(mes).catch((error) => ({ disponible: false, error: mensaje(error, "No se pudo cruzar") })),
     ]);
-    res.json({
-      ok: true,
-      metrics: { ...hub, inventory: catalogInventoryMetrics(), followUps, ventasConfirmadas },
-    });
+    const metrics = { ...hub, inventory: catalogInventoryMetrics(), followUps, ventasConfirmadas };
+    if (cerrado) metricasDeMesCerrado.set(cerrado, { at: Date.now(), metrics });
+    res.json({ ok: true, metrics });
   });
 
   // Cuenta de tokens y facturación mensual (tab KPI). La lectura es para el

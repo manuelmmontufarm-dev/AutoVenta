@@ -305,6 +305,61 @@ export const useHub = create<HubState>((set, get) => {
     if (extras[5].status === "fulfilled") resto.mesesDisponibles = extras[5].value;
     if (extras[6].status === "fulfilled") resto.ticketsDelMes = extras[6].value && respetarLeidos(extras[6].value);
     set(resto);
+    guardarMes(mes);
+    if (!precargado && resto.mesesDisponibles) {
+      precargado = true;
+      void precargarMeses();
+    }
+  }
+
+  /**
+   * Lo ya visto de cada mes. Volver a agosto no tiene que esperar al servidor
+   * otra vez: se pinta lo guardado y se reemplaza cuando llega lo nuevo.
+   */
+  const porMes = new Map<string, Pick<HubState, "metrics" | "finalStage" | "ticketsDelMes">>();
+  let precargado = false;
+
+  function guardarMes(mes: string) {
+    const { metrics, finalStage, ticketsDelMes } = get();
+    if (get().mes === mes && metrics) porMes.set(mes, { metrics, finalStage, ticketsDelMes });
+  }
+
+  /** Solo lo que depende del mes, todo a la vez. Lo demás no cambia al mover el selector. */
+  async function cargarMes(mes: string): Promise<void> {
+    const [rMetrics, rFinal, rTickets] = await Promise.allSettled([
+      source.getMetrics(mes),
+      source.getFinalStage(mes),
+      mesesPasados(mes) ? source.listTickets(mes) : Promise.resolve(null),
+    ]);
+    if (get().mes !== mes) return;
+    const resto: Partial<HubState> = {};
+    if (rMetrics.status === "fulfilled") resto.metrics = rMetrics.value;
+    if (rFinal.status === "fulfilled") resto.finalStage = rFinal.value;
+    if (rTickets.status === "fulfilled") resto.ticketsDelMes = rTickets.value && respetarLeidos(rTickets.value);
+    set(resto);
+    guardarMes(mes);
+  }
+
+  /**
+   * Con el panel ya pintado, trae de a uno los otros meses del selector: cuando
+   * el usuario haga clic, ya están. De a uno para no competir con lo que él
+   * esté mirando; los meses cerrados el servidor los tiene guardados.
+   */
+  async function precargarMeses(): Promise<void> {
+    const claves = [TODOS, ...get().mesesDisponibles.map((m) => m.clave)];
+    for (const mes of claves) {
+      if (porMes.has(mes) || mes === get().mes) continue;
+      try {
+        const [metrics, finalStage, ticketsDelMes] = await Promise.all([
+          source.getMetrics(mes),
+          source.getFinalStage(mes),
+          mesesPasados(mes) ? source.listTickets(mes) : Promise.resolve(null),
+        ]);
+        if (!porMes.has(mes)) porMes.set(mes, { metrics, finalStage, ticketsDelMes: ticketsDelMes && respetarLeidos(ticketsDelMes) });
+      } catch {
+        // Precargar es un favor: si falla, ese mes se pide al hacer clic.
+      }
+    }
   }
 
   /**
@@ -312,11 +367,17 @@ export const useHub = create<HubState>((set, get) => {
    * los datos viejos se van en cuanto llegan los del mes pedido. Dejar los
    * números del mes anterior mientras carga sería enseñar agosto con el rótulo
    * de septiembre.
+   *
+   * Antes esto recargaba TODO (tickets del Inbox, fases, seguimientos, alertas)
+   * antes de pedir las métricas: unos 4 s por clic (Manuel, 28-sep: «se demora
+   * mucho en cargar cuando cambio de meses»).
    */
   async function verMes(mes: string): Promise<void> {
     if (get().mes === mes) return;
-    set({ mes, metrics: null, finalStage: null, ticketsDelMes: null });
-    await refrescar();
+    // Lo guardado de ESE mes, o nada: nunca los números del mes anterior.
+    const visto = porMes.get(mes);
+    set({ mes, metrics: visto?.metrics ?? null, finalStage: visto?.finalStage ?? null, ticketsDelMes: visto?.ticketsDelMes ?? null });
+    await cargarMes(mes);
   }
 
   /**

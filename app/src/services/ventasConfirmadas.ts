@@ -314,6 +314,20 @@ async function conversacionesDe(telefonos: string[]): Promise<ConversacionParaCr
   }));
 }
 
+/**
+ * El cruce no depende del mes: se hace una vez y cada mes del selector recorta
+ * de ahí. Se rehace con facturas nuevas o al minuto (un chat puede haber sumado
+ * mensajes del asesor y cambiar a quién se atribuye).
+ */
+let cruceGuardado: { at: number; sync: Date | null; resultado: ReturnType<typeof cruzar> } | null = null;
+async function cruceVigente() {
+  if (cruceGuardado && cruceGuardado.sync === estado.ultimaSync && Date.now() - cruceGuardado.at < 60_000) return cruceGuardado.resultado;
+  const telefonos = [...new Set(estado.facturas.flatMap((f) => f.telefonos))];
+  const resultado = cruzar(estado.facturas, await conversacionesDe(telefonos));
+  cruceGuardado = { at: Date.now(), sync: estado.ultimaSync, resultado };
+  return resultado;
+}
+
 /** Lo que pinta la tarjeta de Métricas, recortado al mes que se está mirando. */
 export async function resumenVentasConfirmadas(mes?: string | null) {
   // No espera a Contífico: la pantalla ya tardaba (Manuel, 25-sep). Si la
@@ -324,8 +338,7 @@ export async function resumenVentasConfirmadas(mes?: string | null) {
   const periodo = await resolverPeriodo(mes);
   const desdeDia = periodo.todos ? "0000-00-00" : periodo.clave + "-01";
   const hastaDia = periodo.todos ? "9999-99-99" : periodo.clave + "-99";
-  const telefonos = [...new Set(estado.facturas.flatMap((f) => f.telefonos))];
-  const { ventas, descartes } = cruzar(estado.facturas, await conversacionesDe(telefonos));
+  const { ventas, descartes } = await cruceVigente();
   const delMes = <T extends { dia: string }>(xs: T[]) => xs.filter((x) => x.dia >= desdeDia && x.dia <= hastaDia);
   const v = delMes(ventas);
   const suma = (xs: VentaConfirmada[]) => Math.round(xs.reduce((a, x) => a + x.total, 0) * 100) / 100;

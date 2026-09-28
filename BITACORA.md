@@ -1,3 +1,18 @@
+## 28-sep-2026 · Métricas: cambiar de mes ya no recarga todo el panel
+
+**Qué:** Al mover el selector, el hub pide solo lo que depende del mes
+(métricas, llegadas al final, tickets de un mes pasado), a la vez, en vez de
+recargar Inbox, fases, seguimientos y alertas primero. Guarda cada mes visto y
+lo pinta al volver mientras trae lo nuevo, y con el panel abierto precarga los
+otros meses de a uno. El servidor guarda 2 min las métricas de meses cerrados y
+el cruce de ventas confirmadas entre lecturas de Contífico.
+
+**Por qué:** Manuel: «se demora mucho en cargar cuando cambio de meses». Cada
+clic encadenaba la lista entera de tickets (~2 s) y después las métricas
+(~2 s), aunque la mayoría de eso no cambia con el mes.
+
+**Horas:** 0,5
+
 ## 27-sep-2026 · Ventas confirmadas: el servidor leía otras facturas y cortaba la lectura en la página 2
 
 **Qué:** Llave propia para leer facturas (`CONTIFICO_FACTURAS_API_KEY`; si
