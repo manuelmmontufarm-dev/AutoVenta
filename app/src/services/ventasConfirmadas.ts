@@ -19,9 +19,11 @@
  * Y si el asesor escribió más que el bot, la venta cuenta pero se atribuye al
  * asesor (JP, 8-sep).
  *
- * Contífico devuelve los documentos del más nuevo al más viejo y la API ignora
- * los filtros de fecha, así que se piden páginas desde la 1 hasta pasar el
- * primer chat del bot: son unas pocas, no las ~60 del histórico entero.
+ * Contífico devuelve los documentos más o menos del más nuevo al más viejo —
+ * no estrictamente: la página 2 trae facturas del 29-jul junto a las de
+ * septiembre— y la API ignora los filtros de fecha. Se piden páginas desde la 1
+ * hasta una que sea ENTERA anterior al primer chat del bot: unas cinco, no las
+ * ~60 del histórico. Cortar en la primera fecha vieja perdía medio agosto.
  */
 import { sql } from "../db/client.js";
 import { config } from "../config.js";
@@ -192,12 +194,32 @@ export function cruzar(facturas: FacturaContifico[], conversaciones: Conversacio
 
 // ── Sincronización con Contífico ────────────────────────────────────────────
 
+/** Qué se leyó en la última bajada: si el número de ventas se ve raro, esto dice por qué. */
+export interface LecturaContifico {
+  paginas: number;
+  documentos: number;
+  facturas: number;
+  conTelefono: number;
+  primerDia: string | null;
+  ultimoDia: string | null;
+  llave: "facturas" | "catalogo";
+}
+
 const estado: {
   facturas: FacturaContifico[];
+  lectura: LecturaContifico | null;
   ultimaSync: Date | null;
   error: string | null;
   enCurso: Promise<void> | null;
-} = { facturas: [], ultimaSync: null, error: null, enCurso: null };
+} = { facturas: [], lectura: null, ultimaSync: null, error: null, enCurso: null };
+
+/** ¿Ya no hace falta seguir? Solo cuando la página ENTERA es anterior al primer chat. */
+export function paginaEnteraAnterior(dias: Array<string | null>, desde: string): boolean {
+  const masNueva = dias.reduce<string | null>((a, d) => (d && (!a || d > a) ? d : a), null);
+  return masNueva !== null && masNueva < desde;
+}
+
+const llave = () => config.contifico!.facturasApiKey || config.contifico!.apiKey;
 
 async function traerPagina(pagina: number): Promise<{ results: DocumentoWire[]; next: unknown }> {
   const url = new URL(`${config.contifico!.baseUrl}/documento/`);
@@ -206,7 +228,7 @@ async function traerPagina(pagina: number): Promise<{ results: DocumentoWire[]; 
   const ctrl = new AbortController();
   const corte = setTimeout(() => ctrl.abort(), 60_000);
   try {
-    const res = await fetch(url, { headers: { Authorization: config.contifico!.apiKey, Accept: "application/json" }, signal: ctrl.signal });
+    const res = await fetch(url, { headers: { Authorization: llave(), Accept: "application/json" }, signal: ctrl.signal });
     if (!res.ok) throw new Error(`Contífico respondió HTTP ${res.status} al leer facturas`);
     const cuerpo = (await res.json()) as { results?: DocumentoWire[]; next?: unknown } | DocumentoWire[];
     return Array.isArray(cuerpo) ? { results: cuerpo, next: null } : { results: cuerpo.results ?? [], next: cuerpo.next };
@@ -229,17 +251,26 @@ export async function sincronizarFacturas(): Promise<void> {
         return;
       }
       const facturas: FacturaContifico[] = [];
+      let paginas = 0;
+      let documentos = 0;
       for (let pagina = 1; pagina <= MAX_PAGINAS; pagina += 1) {
         const { results, next } = await traerPagina(pagina);
-        let masVieja: string | null = null;
+        paginas = pagina;
+        documentos += results.length;
         for (const doc of results) {
-          const dia = diaDeContifico(doc.fecha_emision);
-          if (dia && (!masVieja || dia < masVieja)) masVieja = dia;
           const f = normalizarFactura(doc);
           if (f && f.dia >= desde) facturas.push(f);
         }
-        if (!next || !results.length || (masVieja && masVieja < desde)) break;
+        const dias = results.map((doc) => diaDeContifico(doc.fecha_emision));
+        if (!next || !results.length || paginaEnteraAnterior(dias, desde)) break;
       }
+      const diasLeidos = facturas.map((f) => f.dia).sort();
+      estado.lectura = {
+        paginas, documentos, facturas: facturas.length,
+        conTelefono: facturas.filter((f) => f.telefonos.length).length,
+        primerDia: diasLeidos[0] ?? null, ultimoDia: diasLeidos.at(-1) ?? null,
+        llave: config.contifico!.facturasApiKey ? "facturas" : "catalogo",
+      };
       estado.facturas = facturas;
       estado.ultimaSync = new Date();
       estado.error = null;
@@ -305,7 +336,8 @@ export async function resumenVentasConfirmadas(mes?: string | null) {
     ultimaSync: estado.ultimaSync?.toISOString() ?? null,
     sincronizando: Boolean(estado.enCurso) && !estado.ultimaSync,
     error: estado.error,
-    ultimaFactura: estado.facturas.reduce<string | null>((a, f) => (!a || f.dia > a ? f.dia : a), null),
+    ultimaFactura: estado.lectura?.ultimoDia ?? null,
+    lectura: estado.lectura,
     ventas: v.length,
     monto: suma(v),
     delBot: { ventas: delBot.length, monto: suma(delBot) },

@@ -248,6 +248,10 @@ export const config = {
   contifico: contificoConfigured()
     ? {
         apiKey: env("CONTIFICO_API_KEY"),
+        // Las facturas pueden necesitar otra llave que el catálogo: la del
+        // catálogo en producción veía solo una parte de los documentos
+        // (27-sep: «última factura 25/9» y 0 ventas, con la otra llave 13).
+        facturasApiKey: process.env.CONTIFICO_FACTURAS_API_KEY || null,
         baseUrl: envOr(
           "CONTIFICO_BASE_URL",
           "https://api.contifico.com/sistema/api/v2",

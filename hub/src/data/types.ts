@@ -383,6 +383,16 @@ export interface VentasConfirmadas {
   sincronizando?: boolean;
   error?: string | null;
   ultimaFactura?: string | null;
+  /** Qué se leyó de Contífico: para ver de una si la llave trae pocas facturas. */
+  lectura?: {
+    paginas: number;
+    documentos: number;
+    facturas: number;
+    conTelefono: number;
+    primerDia: string | null;
+    ultimoDia: string | null;
+    llave: "facturas" | "catalogo";
+  } | null;
   ventas?: number;
   monto?: number;
   delBot?: { ventas: number; monto: number };

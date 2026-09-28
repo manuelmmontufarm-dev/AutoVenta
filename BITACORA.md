@@ -1,3 +1,18 @@
+## 27-sep-2026 · Ventas confirmadas: el servidor leía otras facturas y cortaba la lectura en la página 2
+
+**Qué:** Llave propia para leer facturas (`CONTIFICO_FACTURAS_API_KEY`; si
+falta, usa la del catálogo). La lectura sigue hasta una página ENTERA anterior
+al primer chat, no hasta la primera fecha vieja. La tarjeta muestra qué se leyó:
+facturas, rango de fechas, páginas y qué llave.
+
+**Por qué:** En producción la tarjeta salió en 0 ventas con «última factura
+25/9». El mismo código, contra la misma base y con la llave de los cruces a mano,
+ve hasta el 26/9 y encuentra 13: la llave del catálogo de producción no ve todos
+los documentos. Y aparte, Contífico no ordena estrictamente por fecha (la página
+2 trae 29-jul junto a septiembre), así que se perdía medio agosto.
+
+**Horas:** 0,5
+
 ## 27-sep-2026 · Métricas: ventas confirmadas en vivo, por teléfono contra Contífico
 
 **Qué:** Servicio nuevo `ventasConfirmadas.ts`: cada 10 min baja de Contífico

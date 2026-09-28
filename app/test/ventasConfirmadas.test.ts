@@ -13,7 +13,7 @@ process.env.WHATSAPP_VERIFY_TOKEN ||= "test";
 process.env.WHATSAPP_PHONE_ID ||= "test";
 process.env.DATABASE_URL ||= "postgresql://localhost/autoventa_no_se_conecta";
 
-const { cruzar, normalizarFactura, tel9 } = await import("../src/services/ventasConfirmadas.js");
+const { cruzar, normalizarFactura, paginaEnteraAnterior, tel9 } = await import("../src/services/ventasConfirmadas.js");
 type Conv = Parameters<typeof cruzar>[1][number];
 
 let n = 0;
@@ -135,5 +135,19 @@ describe("lo que el cruce a mano contó", () => {
       const f = factura({ telefonos: "0990000000", fecha: "20/09/2026", total: 400, lineas: [[nombre, 4, 100]] });
       expect(cruzar([f], [conv({ phone: "593990000000" })]).ventas, nombre).toHaveLength(1);
     }
+  });
+});
+
+describe("hasta qué página leer Contífico", () => {
+  // Rangos reales del 27-sep: la API ordena casi, no del todo, por fecha.
+  const desde = "2026-07-31";
+  it("no corta en una página que mezcla julio con septiembre (la 2 traía 29-jul … 11-sep)", () => {
+    expect(paginaEnteraAnterior(["2026-09-11", "2026-07-29", "2026-08-20"], desde)).toBe(false);
+  });
+  it("corta cuando toda la página es anterior al primer chat (la 5: 12-jun … 21-jul)", () => {
+    expect(paginaEnteraAnterior(["2026-07-21", "2026-06-12", null], desde)).toBe(true);
+  });
+  it("una página sin fechas legibles no corta", () => {
+    expect(paginaEnteraAnterior([null, null], desde)).toBe(false);
   });
 });

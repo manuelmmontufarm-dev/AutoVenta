@@ -375,6 +375,11 @@ function VentasConfirmadasBloque({ vc, cargando, enElPeriodo, now }: { vc: Venta
         </details>
       )}
       <p className="text-[12px] leading-relaxed text-text2">Cuenta una venta cuando el teléfono del chat aparece en una factura con llantas emitida después del primer mensaje. Si el cliente factura con otro número o a nombre de otra persona, no aparece.</p>
+      {vc.lectura && (
+        <p className="tnum font-mono text-[11px] text-text2">
+          Leídas {vc.lectura.facturas} facturas{vc.lectura.primerDia && vc.lectura.ultimoDia ? ` del ${diaCorto(vc.lectura.primerDia)} al ${diaCorto(vc.lectura.ultimoDia)}` : ""} · {vc.lectura.conTelefono} con teléfono · {vc.lectura.paginas} {vc.lectura.paginas === 1 ? "página" : "páginas"} · llave {vc.lectura.llave === "facturas" ? "de facturas" : "del catálogo"}
+        </p>
+      )}
     </>
   );
 
