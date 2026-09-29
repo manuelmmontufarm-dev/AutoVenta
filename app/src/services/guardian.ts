@@ -28,6 +28,7 @@
  * OPENAI_GUARDIAN_MODEL para cambiarlo): un revisor más débil que el redactor
  * no ve los errores que el redactor no vio.
  */
+import { hechoDeEquivalentesDevueltos } from "../domain/equivalentesPorMostrar.js";
 import { NOMBRE_DEL_VENDEDOR } from "../domain/saludo.js";
 import { FIRMA_DE_PRESENTACION } from "../domain/saludo.js";
 import { negocio } from "../negocio/index.js";
@@ -579,6 +580,9 @@ export async function armarContexto(
     // revisor aprobó «le entra la 215/60R17» por una 235/60R17 y reescribió
     // «equivalentes de su aro» sobre una 165/65R13 para quien pidió aro 14.
     // Un candado posterior (`sin_equivalencias_falsas`) cambia cualquier otra.
+    // Las equivalentes que la herramienta devolvió este turno son HECHOS: sin
+    // esto el revisor no podía nombrarlas y su corrección se podaba (V3a).
+    hechoDeEquivalentesDevueltos(huella),
     "EQUIVALENCIA (regla del taller, no se negocia): una medida distinta de la del cliente solo es «equivalente», «le entra» o «de su aro» si es del MISMO aro, su diámetro exterior está dentro del 3 % y su ancho a no más de 20 mm. Ofrecer como equivalente una que no cumple es **medida_incorrecta** ALTA, y tu corrección tampoco la llama así. Si el cliente pidió «más ancha» o «más alta», la que se le ofrece tiene que ir para ese lado.",
     hechos?.vehicle ? `Vehículo: ${hechos.vehicle}` : null,
     // El anuncio y la clase de vehículo son HECHOS: sin ellos el revisor aprobó

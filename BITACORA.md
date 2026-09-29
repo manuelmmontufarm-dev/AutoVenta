@@ -1,3 +1,20 @@
+## 28-sep-2026 · Sin stock exacto y con equivalentes de verdad, la lámina sale en ese turno
+
+**Qué:** `buscar_llanta` (y `buscar_por_aro_y_tipo` cuando en su medida no hay
+nada) devuelven primero `mostrar_equivalentes_ahora` con las alternativas con
+stock que el juez aprueba, y la orden de llamar `preparar_opciones` ya, sin
+preguntar. Si el modelo contesta en texto sin la lámina, `agent.ts` le da la
+vuelta forzada con esos códigos (`vuelta_forzada:mostrar_equivalentes`). Esas
+llantas son hechos del turno: el freno del guardián no las poda y el guardián
+las recibe en sus hechos duros. Dueño único: `domain/equivalentesPorMostrar.ts`.
+
+**Por qué:** Verificación en vivo V3a (Grand Vitara, 265/65R16 sin stock): una
+corrida mostró 245/70R16 y 255/70R16; la otra escribió «¿Le muestro las
+opciones equivalentes?» reteniendo la KR608 245/70R16, y la corrección del
+guardián se podó como «producto nuevo». Mostrar quedaba al azar del modelo.
+
+**Horas:** 0,8
+
 ## 28-sep-2026 · La equivalente que el bot presentó en esta visita sigue cotizable
 
 **Qué:** `medidasDelPedido` ya no vuelve a juzgar las equivalentes que la lámina

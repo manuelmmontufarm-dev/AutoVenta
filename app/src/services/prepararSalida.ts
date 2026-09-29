@@ -85,6 +85,7 @@ import {
 import { findByCode } from "./catalog.js";
 import { contextoDeEquivalencias } from "./medidasDelPedido.js";
 import { sinEquivalenciasFalsas } from "../domain/equivalenciaEnTexto.js";
+import { equivalentesDevueltos } from "../domain/equivalentesPorMostrar.js";
 
 /**
  * De qué puerta viene el texto.
@@ -332,7 +333,13 @@ export const PASOS: readonly PasoDeSalida[] = [
       // un producto o un precio que está ahí no es una oferta nueva, es la
       // misma. Sin esto el candado tiró 105 correcciones buenas en 4,6 días
       // (auditoría 2-6 sep). Ver domain/guardianNoVendeSolo.ts.
-      const yaDicho = await textoYaDichoEnElCiclo(ctx.conversation.id, ctx.conversation.current_cycle);
+      // Y lo que las herramientas devolvieron ESTE turno como equivalentes de
+      // verdad: nombrarlas no es vender solo (V3a, 28-sep: la reescritura que
+      // nombraba la KR608 245/70R16 se podó y salió «¿Le muestro…?»).
+      const yaDicho = [
+        await textoYaDichoEnElCiclo(ctx.conversation.id, ctx.conversation.current_cycle),
+        equivalentesDevueltos(ctx.huella ?? []),
+      ].filter(Boolean).join("\n");
       const resultado = frenarHechosNuevosDelGuardian(borrador, texto, productos, yaDicho);
       if (!resultado.bloqueado) return texto;
 
