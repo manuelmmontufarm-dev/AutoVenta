@@ -28,7 +28,7 @@ import { mencionaVehiculo } from "../domain/vehiculoEnTexto.js";
 import {
   cantidadDelTexto, escalonContestado, esReferenciaPluralAlMenu, pideVariasOpciones,
 } from "../domain/salesIntent.js";
-import { opcionPorPosicion, posicionElegida } from "../domain/listaDeOpciones.js";
+import { confirmacionDeLaOpcion, opcionPorPosicion, posicionElegida } from "../domain/listaDeOpciones.js";
 import { findByCode } from "./catalog.js";
 import { buildStoreLinksBlockOnce } from "./storeLinks.js";
 import { preguntamosElLocal } from "../domain/storeSelection.js";
@@ -57,7 +57,7 @@ export function loQueEligio(
   mensajeCitado: string | null | undefined,
   vitrina: readonly OpcionDeVitrina[],
   escalones: Escalones | null,
-): { codigo: string; etiqueta: string | null } | { pregunta: string } | { respuesta: string } | null {
+): { codigo: string; etiqueta: string | null; posicion?: number } | { pregunta: string } | { respuesta: string } | null {
   // «LAS DOS / LOS DOS VALORES» HABLA DE LA LÁMINA. Con el menú arriba basta
   // «las 2»; si nombra valores, precios u opciones vale aunque el menú haya
   // quedado atrás (12-sep, conv 3, 17:21: tras un reenvío, «Deme los dos
@@ -108,10 +108,15 @@ export function loQueEligio(
     const n = posicionElegida(texto);
     const enLista = n !== null && /¿le cotizo la 1/i.test(mensajeCitado ?? previousOutbound ?? "");
     const porPosicion = enLista ? opcionPorPosicion({ escalones }, n) : null;
-    const nivel = porPosicion?.escalon ?? escalon;
-    const codigo = porPosicion?.codigo ?? escalones[escalon === "precio" ? "economica" : escalon]?.codigo;
+    // Con el menú viejo de dos opciones («1) Costo 2) Premium») el «2» pelado
+    // también es la premium, no el escalón del medio que no existe.
+    const dosDelMenuViejo = !porPosicion && escalon === "equilibrada" && n === 2 && !escalones.equilibrada?.codigo;
+    const nivel = porPosicion?.escalon ?? (dosDelMenuViejo ? "premium" : escalon);
+    const codigo = porPosicion?.codigo
+      ?? escalones[nivel === "precio" ? "economica" : nivel]?.codigo;
     if (codigo && vitrina.some((o) => o.codigo === codigo)) {
       const etiqueta = nivel === "precio" ? "de costo" : nivel === "premium" ? "premium" : "de equilibrio";
+      if (porPosicion && n !== null) return { codigo, etiqueta, posicion: n };
       return { codigo, etiqueta };
     }
   }
@@ -270,7 +275,9 @@ export async function tryCotizarLoElegido(ctx: CotizarLoElegidoContext, texto: s
   const precio = producto.minimumPriceWithTax ? ` — *$${producto.minimumPriceWithTax.toFixed(2)} c/u con IVA*` : "";
   const mapas = preguntamosElLocal(ctx.previousOutbound) ? "" : await buildStoreLinksBlockOnce(ctx.conversation.id);
   return composeBlocks(
-    elegido.etiqueta
+    elegido.posicion
+      ? confirmacionDeLaOpcion(elegido.posicion, `${producto.brand} ${producto.design}`, producto.minimumPriceWithTax)
+      : elegido.etiqueta
       ? `La opción ${elegido.etiqueta} es la *${producto.brand} ${producto.design}*${precio}. Le dejo la cotización 👍`
       : `Listo, le cotizo la *${producto.brand} ${producto.design}*${precio} 👍`,
     mapas ? `Puede pasar sin compromiso a verlas y probarlas en su vehículo.\n${mapas}` : null,

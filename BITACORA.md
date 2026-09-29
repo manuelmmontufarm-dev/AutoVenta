@@ -7,7 +7,8 @@ sola pregunta: «¿Le cotizo la 1, la 2 o la 3?». Los seguimientos repiten esa
 lista con precios (o preguntan cuál cotizar) y, con medida y sin opciones
 mostradas, ofrecen mandarlas; la redacción con IA que pregunte qué prioriza se
 descarta. El guardián recibe la lista como hecho duro. Un solo dueño para «la posición N → qué llanta» (`opcionPorPosicion`), usado por
-`agent.ts` y `cotizarLoElegido.ts`; reglas 15 y 22 del guardián actualizadas a la lista.
+`agent.ts` y `cotizarLoElegido.ts`; reglas 15 y 22 del guardián actualizadas a la lista. La confirmación tras elegir de la lista dice «La opción N, *Marca Modelo* — $X»
+(no el escalón).
 
 **Por qué:** ~25 chats de la semana (caso +593 99 571 0785, D-Max 255/70R16):
 quien preguntó «¿qué precio tiene?» nunca vio un número y los seguimientos le
