@@ -15,6 +15,10 @@ export function isSafeCopy(value: unknown, context: FollowUpMessageContext): val
   if (typeof value !== "string" || value.trim().length < 12 || value.length > 420) return false;
   if (/\b(?:stock|disponibles?|últimas?|se agota|ahorras?|descuento|oferta)\b/i.test(value) && !context.activeDiscountAmount) return false;
   if (/%|\$\s*\d/.test(value) && !context.activeDiscountAmount) return false;
+  // Preguntar qué prioriza (duración, comodidad, precio…) a quien ya vio las
+  // opciones es devolverle la pregunta: ~25 chats sin un precio escrito. Si el
+  // redactor lo hace, gana la plantilla, que le repite las opciones con precio.
+  if (/\bprioriz\w*|\bqu[eé]\s+(?:es\s+)?lo\s+m[aá]s\s+importante\b/i.test(value)) return false;
   // Nombrar un día solo se permite si el cliente dio uno. `visitDate` entra a
   // la condición desde el 26-ago: sin él, al seguimiento que CONFIRMA la visita
   // se le prohibía decir «el jueves» —justo la palabra que lo hace útil— y

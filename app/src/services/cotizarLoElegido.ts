@@ -101,9 +101,15 @@ export function loQueEligio(
   }
   const escalon = escalonContestado(texto, previousOutbound, mensajeCitado, { huboMenu: Boolean(escalones) });
   if (escalon && escalones) {
-    const codigo = escalones[escalon === "precio" ? "economica" : escalon]?.codigo;
+    // Con DOS opciones la lista escrita numera «1 · la más barata, 2 · la
+    // premium» (`domain/listaDeOpciones.ts`): el escalón del medio no existe y
+    // un «2» pelado señala la premium, no una opción que falta.
+    const dosOpciones = escalon === "equilibrada" && !escalones.equilibrada?.codigo
+      && /^(?:la\s+|el\s+|opci[oó]n\s+)?2\)?\.?$/i.test(texto.trim());
+    const nivel = dosOpciones ? "premium" : escalon;
+    const codigo = escalones[nivel === "precio" ? "economica" : nivel]?.codigo;
     if (codigo && vitrina.some((o) => o.codigo === codigo)) {
-      const etiqueta = escalon === "precio" ? "de costo" : escalon === "premium" ? "premium" : "de equilibrio";
+      const etiqueta = nivel === "precio" ? "de costo" : nivel === "premium" ? "premium" : "de equilibrio";
       return { codigo, etiqueta };
     }
   }

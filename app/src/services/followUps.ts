@@ -23,6 +23,7 @@ import { pideUnAsesor } from "../domain/pideAsesor.js";
 import { tipoDeCierreDelTurno } from "../domain/cierreTurno.js";
 import { generateFollowUpCopy } from "./followUpCopy.js";
 import { findByCode } from "./catalog.js";
+import { listaDeLaPieza } from "../domain/listaDeOpciones.js";
 import { asesoresActivos, notifyAdvisor } from "./advisorNotifications.js";
 
 export type FollowUpJobStatus =
@@ -232,6 +233,7 @@ function etiquetaDelProducto(codigo: string | null | undefined): string | null {
 /** Lo que la plantilla de seguimiento necesita saber del hilo para no repreguntar. */
 export interface ContextoDeOpciones {
   optionsCount: number | null;
+  optionsList?: FollowUpMessageContext["optionsList"];
   preferenceAnswered: boolean;
   customerHasNoTireSize: boolean;
 }
@@ -247,8 +249,8 @@ const RESPUESTA_AL_MENU =
  * (auditoría 2-6 sep, familia A3): no tenía cómo saberlo.
  */
 async function contextoDeOpciones(conversationId: number, cycle: number): Promise<ContextoDeOpciones> {
-  const [pieza] = await sql<{ id: number; created_at: Date; codes: unknown }[]>`
-    select id, created_at, metadata->'codes' as codes from messages
+  const [pieza] = await sql<{ id: number; created_at: Date; codes: unknown; metadata: { escalones?: unknown; cantidad?: unknown } | null }[]>`
+    select id, created_at, metadata->'codes' as codes, metadata from messages
     where conversation_id = ${conversationId} and cycle = ${cycle}
       and direction = 'outbound' and metadata->>'piece' = 'options'
     order by created_at desc, id desc limit 1
@@ -265,7 +267,7 @@ async function contextoDeOpciones(conversationId: number, cycle: number): Promis
     /\b(?:no\s+(?:la\s+)?(?:tengo|se|s[eé])|sin)\b[^.\n]{0,45}\b(?:medida|numeraci[oó]n|n[uú]mero)\b|\b(?:medida|numeraci[oó]n)\b[^.\n]{0,35}\bno\s+(?:la\s+)?(?:tengo|se|s[eé])\b/i
       .test(r.content ?? "")
   );
-  return { optionsCount, preferenceAnswered, customerHasNoTireSize };
+  return { optionsCount, optionsList: listaDeLaPieza(pieza?.metadata), preferenceAnswered, customerHasNoTireSize };
 }
 
 /**
@@ -291,6 +293,7 @@ export function buildFollowUpPreview(
 ): string {
   return buildContextualFollowUpMessage({
     optionsCount: opciones.optionsCount,
+    optionsList: opciones.optionsList ?? null,
     preferenceAnswered: opciones.preferenceAnswered,
     customerHasNoTireSize: opciones.customerHasNoTireSize,
     name: conversation.name,

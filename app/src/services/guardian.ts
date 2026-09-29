@@ -41,6 +41,7 @@ import { sql } from "../db/client.js";
 import type { Stage } from "../domain/pipeline.js";
 import { ahorroDeLaCotizacion } from "../domain/ahorro.js";
 import { medidaEstaPedida, mensajesDeLaVisitaActual } from "../domain/medidaPedida.js";
+import { hechoDeLaLista, listaDeLaPieza } from "../domain/listaDeOpciones.js";
 import { hechosDeRestricciones, restriccionesDeLlanta } from "../domain/restriccionesLlanta.js";
 import { CIERRE_COTIZAR } from "../domain/preguntasProhibidas.js";
 import { medidasDelPedido } from "./medidasDelPedido.js";
@@ -507,7 +508,7 @@ export async function armarContexto(
   // ¿La última lámina del ciclo trae VARIAS medidas? La pieza pudo salir en un
   // turno anterior, así que no está en la huella de este: se lee de la misma
   // fuente que `cotizarLoElegido`, los códigos que la pieza guardó.
-  const [ultimaPieza] = await sql<{ metadata: { codes?: unknown[] } | null }[]>`
+  const [ultimaPieza] = await sql<{ metadata: { codes?: unknown[]; escalones?: unknown; cantidad?: unknown } | null }[]>`
     select metadata from messages
     where conversation_id=${conversationId} and cycle=${cycle}
       and metadata->>'piece'='options'
@@ -519,6 +520,9 @@ export async function armarContexto(
       .filter((medida): medida is string => Boolean(medida)),
   );
   const variasMedidasEnPantalla = medidasEnPantalla.size > 1;
+  // Los precios y totales de la lista escrita que salió con la lámina. Sin este
+  // hecho el revisor no los encuentra en ninguna cotización y los borra.
+  const listaEnPantalla = listaDeLaPieza(ultimaPieza?.metadata);
 
   // Los dos últimos turnos, sueltos: son la materia prima de los hechos de
   // despedida y de oferta aceptada. `mensajes` viene del más nuevo al más viejo.
@@ -697,6 +701,7 @@ export async function armarContexto(
     respaldados.length
       ? `Servicios y beneficios respaldados (lo ÚNICO que el bot puede prometer como incluido): ${respaldados.join(" · ")}`
       : "Servicios y beneficios respaldados: ninguno cargado — el borrador no puede prometer nada como incluido",
+    listaEnPantalla ? hechoDeLaLista(listaEnPantalla.lista, listaEnPantalla.cantidad) : null,
     ...(catalogoHoy.length ? ["", ...catalogoHoy] : []),
     "",
     "== CONVERSACIÓN (vieja → nueva) ==",

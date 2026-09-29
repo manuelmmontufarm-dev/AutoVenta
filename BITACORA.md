@@ -1,3 +1,19 @@
+## 28-sep-2026 · Tras la lámina de opciones el cliente ve el precio escrito (y nadie le pregunta qué prioriza)
+
+**Qué:** El texto que acompaña la lámina de opciones (sin recomendación) deja de
+ser el menú «¿qué prioriza usted?» y pasa a ser la lista «1 · Marca Modelo —
+$X c/u · 4 = $Y» (de menor a mayor precio; cantidad del cliente o 4) con una
+sola pregunta: «¿Le cotizo la 1, la 2 o la 3?». Los seguimientos repiten esa
+lista con precios (o preguntan cuál cotizar) y, con medida y sin opciones
+mostradas, ofrecen mandarlas; la redacción con IA que pregunte qué prioriza se
+descarta. El guardián recibe la lista como hecho duro.
+
+**Por qué:** ~25 chats de la semana (caso +593 99 571 0785, D-Max 255/70R16):
+quien preguntó «¿qué precio tiene?» nunca vio un número y los seguimientos le
+repetían «¿qué prioriza?». Fuente única: `domain/listaDeOpciones.ts`.
+
+**Horas:** 1,5
+
 ## 28-sep-2026 · Ventas confirmadas: la tabla va plegada
 
 **Qué:** En la tarjeta de Métricas, la lista de ventas queda detrás de «Ver las

@@ -1,4 +1,5 @@
 import type { Stage } from "./pipeline.js";
+import { lineaDeLista, preguntaDeLaLista, type LineaDeLista } from "./listaDeOpciones.js";
 
 export type FollowUpMessageKind =
   | "in_window_first"
@@ -52,6 +53,13 @@ export interface FollowUpMessageContext {
    * conv 13825). `null` = no hubo pieza o no se sabe.
    */
   optionsCount?: number | null;
+  /**
+   * Las opciones de la última pieza CON PRECIO (`listaDeLaPieza`), tal como el
+   * cliente las vio escritas. Con ella el seguimiento le repite los números en
+   * vez de preguntarle qué prioriza — familia «nunca vio un precio escrito»
+   * (~25 chats, caso +593 99 571 0785). `null` = la pieza no las guardó.
+   */
+  optionsList?: { lista: readonly LineaDeLista[]; cantidad: number } | null;
   /**
    * El cliente ya contestó el menú Costo/Equilibrio/Premium (o eligió por
    * nombre). Con esto en true, preguntarle «¿qué prioriza?» o «¿cuál le
@@ -263,11 +271,22 @@ function redactarSeguimiento(
         ? `😊 ¿Cómo vio la opción${product}${size}? Si le sirve, ¿se la cotizo?`
         : `${prefix}🛞 ¿Cómo vio la opción${product}${size}? Es la que tengo disponible en su medida; si le sirve, ¿se la cotizo? 😊`;
     }
+    // NUNCA se le pregunta qué prioriza (ni «cuál le gustó más… si me cuenta qué
+    // prioriza»): quien ya vio la lámina necesita los números, no un criterio.
+    const cuantas = opciones !== null && opciones >= 2 ? Math.min(opciones, 3) : 3;
+    const lista = context.optionsList;
+    if (lista && lista.lista.length >= 2) {
+      const bloque = lista.lista.map((l) => lineaDeLista(l, lista.cantidad)).join("\n");
+      const pregunta = preguntaDeLaLista(lista.lista.length);
+      return kind === "in_window_second"
+        ? `😊 Le dejo otra vez las opciones${size}:\n${bloque}\n${pregunta}`
+        : `${prefix}🛞 Estas son las opciones${size} que le mostré:\n${bloque}\n${pregunta}`;
+    }
     const comparar = opciones !== null && opciones > 2
       ? "compararla con las otras opciones"
       : "compararla con la otra opción";
     return kind === "in_window_second"
-      ? `😊 De las opciones que vimos${size}, ¿cuál le gustó más? Si me cuenta qué prioriza, le ayudo a decidir.`
+      ? `😊 De las opciones que vimos${size}, ${preguntaDeLaLista(cuantas)}`
       : `${prefix}🛞 ¿Cómo vio la opción${product}${size}? También puedo ayudarle a ${comparar} 😊`;
   }
 
@@ -275,8 +294,8 @@ function redactarSeguimiento(
   // «nuevo» aunque tire_size ya esté (convs 21967, 22111, 22559, 22809).
   if (context.tireSize) {
     return kind === "in_window_second"
-      ? `😊 Ya con la medida${size} estamos cerca. ¿Prefiere priorizar duración, comodidad o precio?`
-      : `${prefix}🛞 Ya tengo su medida${size}. ¿Le ayudo a elegir la mejor opción según el uso que le da y su presupuesto?`;
+      ? `😊 Ya con la medida${size} estamos cerca. ¿Le mando las opciones que tengo en su medida?`
+      : `${prefix}🛞 Ya tengo su medida${size}. ¿Le mando las opciones que tengo en su medida, con sus precios?`;
   }
 
   // Conv 22549: si ya dijo que no tiene la numeración, insistir con la misma
