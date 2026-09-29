@@ -43,6 +43,8 @@ import { ahorroDeLaCotizacion } from "../domain/ahorro.js";
 import { medidaEstaPedida, mensajesDeLaVisitaActual } from "../domain/medidaPedida.js";
 import { hechoDeLaLista, listaDeLaPieza } from "../domain/listaDeOpciones.js";
 import { hechosDeRestricciones, restriccionesDeLlanta } from "../domain/restriccionesLlanta.js";
+import { comproADistanciaSegunLoDicho } from "../domain/compraADistancia.js";
+import { hechoDelAvisoAlAsesor } from "../domain/avisoAlAsesor.js";
 import { CIERRE_COTIZAR } from "../domain/preguntasProhibidas.js";
 import { medidaEnDisputaDelPedido, medidasDelPedido } from "./medidasDelPedido.js";
 import { clienteDioSuMedida, hechoDeCamionetaVigente, medidasEscritasPorElCliente } from "../domain/medidaDelCliente.js";
@@ -312,6 +314,11 @@ export interface OpcionesRevision {
    * sale tras el silencio del cliente y que hasta el 26-ago no se revisaba.
    */
   tipo?: "respuesta" | "seguimiento";
+  /**
+   * Solo cuando el borrador dice que avisó al asesor: si ese aviso quedó
+   * registrado en este turno (familia 2-E). Ver domain/avisoAlAsesor.ts.
+   */
+  avisoRegistrado?: boolean;
 }
 
 type RespuestaOpenAI = OpenAI.Chat.Completions.ChatCompletion;
@@ -518,6 +525,7 @@ export async function armarContexto(
   const entrantesDeLaVisita = mensajesDeLaVisitaActual(inboundVisita).map((m) => m.content);
   const medidasDelClienteEnLaVisita = medidasEscritasPorElCliente(entrantesDeLaVisita);
   const disputa = await medidaEnDisputaDelPedido(conversationId, cycle);
+  const compraADistancia = comproADistanciaSegunLoDicho(inboundVisita.map((m) => m.content));
   const hechoRestricciones = hechosDeRestricciones(
     restriccionesDeLlanta(mensajesDeLaVisitaActual(inboundVisita).map((m) => m.content).reverse()),
   );
@@ -668,7 +676,15 @@ export async function armarContexto(
         : "(ninguna)"
     }`,
     `Compromiso de visita en palabras del cliente: ${hechos?.customer_commitment ?? "(ninguno)"}`,
-    visitaPendiente(hechos ?? {}) && !despedidaQueCorresponde(ultimoDelCliente)
+    // Quien compra a distancia no tiene día de visita pendiente (conv 21766):
+    // el hecho de abajo le pedía al revisor AGREGAR «¿qué día puede pasar?»
+    // a quien acababa de decir «lo compro x este medio… me envía».
+    compraADistancia
+      ? "COMPRA A DISTANCIA: el cliente decidió pagar por este medio y que le envíen las llantas. " +
+        "Ya hay alerta para el asesor. PROHIBIDO preguntarle qué día pasa, a qué local va o mandarle mapas; " +
+        "el bot no cobra ni confirma pagos: los datos de pago y el envío los coordina el asesor."
+      : null,
+    !compraADistancia && visitaPendiente(hechos ?? {}) && !despedidaQueCorresponde(ultimoDelCliente)
       ? `DÍA DE VISITA PENDIENTE: el local ya es ${hechos?.nearest_store} pero el cliente NO registró qué día viene. ` +
         "«Gracias», «ok» o repetir el local NO cierran la visita: si el borrador no pregunta el día, corrígelo " +
         "agregando «¿Qué día cree que puede pasar por …?» en bloque aparte (---). PROHIBIDO cerrar con " +
@@ -765,6 +781,7 @@ export async function armarContexto(
       ? `Servicios y beneficios respaldados (lo ÚNICO que el bot puede prometer como incluido): ${respaldados.join(" · ")}`
       : "Servicios y beneficios respaldados: ninguno cargado — el borrador no puede prometer nada como incluido",
     listaEnPantalla ? hechoDeLaLista(listaEnPantalla.lista, listaEnPantalla.cantidad) : null,
+    opciones.avisoRegistrado === undefined ? null : hechoDelAvisoAlAsesor(opciones.avisoRegistrado),
     ...(catalogoHoy.length ? ["", ...catalogoHoy] : []),
     "",
     "== CONVERSACIÓN (vieja → nueva) ==",

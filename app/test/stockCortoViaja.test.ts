@@ -170,8 +170,10 @@ describe("el orden de los candados en el turno", () => {
       "ubicacion_cuando_la_piden",
       "insistir_con_lo_que_falta",
       // Regla 3 del corpus: si el texto afirma un aviso, el aviso existe
-      // (T115 E01, 31-ago: el mini escribió «ya le avisé» sin avisar).
-      "lo_prometido_se_ejecuta",
+      // (T115 E01, 31-ago: el mini escribió «ya le avisé» sin avisar). Desde
+      // el 28-sep (familia 2-E) sin registro EN ESTE TURNO la afirmación se
+      // reescribe como «Se lo consulto y le confirmo.» y esa consulta se registra.
+      "sin_aviso_inventado",
       "sin_preguntas_prohibidas",
       // Familia 2-H (28-sep, conv 12625): el guardián escribía «esa medida es
       // de auto… envíeme una foto» a quien ya la había escrito.

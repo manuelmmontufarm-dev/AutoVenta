@@ -9,7 +9,7 @@
  * cotización, y por el mismo motivo: el Ángel Guardián reescribe el texto
  * entero y puede quitar la pregunta al resumir.
  */
-import { dondeEstaElClienteSegunLoDicho } from "./dondeEstaElCliente.js";
+import { porQueNoPasaPorElLocal } from "./dondeEstaElCliente.js";
 import { business } from "../config.js";
 import { sql } from "../db/client.js";
 import { ahorroDeLaCotizacion, type LineaCotizada } from "../domain/ahorro.js";
@@ -115,8 +115,9 @@ export async function insistirConLoQueFalta(
   // de dónde es UNA vez y el candado corre en todos los turnos siguientes. Y
   // manda lo último que dijo, porque «Soy de Santo Domingo» seguido de «el
   // lunes voy a estar en quito» (conv 18821) es un cliente que SÍ viene.
-  const dondeEsta = await dondeEstaElClienteSegunLoDicho(conversationId, cycle, textoDelCliente);
-  if (dondeEsta === "fuera") return { texto, agregado: null };
+  // Y QUIEN COMPRA A DISTANCIA TAMPOCO (conv 21766, 20-sep): «Lo compro x
+  // este medio… me envía» recibió «¿Qué día cree que puede pasar por Cumbayá?».
+  if (await porQueNoPasaPorElLocal(conversationId, cycle, textoDelCliente)) return { texto, agregado: null };
   // Simulador, 29-ago: una venta ya estaba en seguimiento, pero el cliente
   // pidió opciones para otra medida. El agente volvió bien a medir y mostró
   // opciones; este candado leyó el máximo histórico del Kanban y le pegó además
