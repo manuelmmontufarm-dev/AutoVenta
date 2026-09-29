@@ -686,7 +686,9 @@ export async function armarContexto(
     compraADistancia
       ? "COMPRA A DISTANCIA: el cliente decidió pagar por este medio y que le envíen las llantas. " +
         "Ya hay alerta para el asesor. PROHIBIDO preguntarle qué día pasa, a qué local va o mandarle mapas; " +
-        "el bot no cobra ni confirma pagos: los datos de pago y el envío los coordina el asesor."
+        "el bot no cobra ni confirma pagos: los datos de pago y el envío los coordina el asesor. " +
+        "El cierre legítimo de su turno es «Un asesor le confirma pago y envío por acá.»: NO es un mensaje mudo " +
+        "ni le falta un siguiente paso (regla 15), y NO lo cambies por la pregunta del local ni del día."
       : null,
     !compraADistancia && visitaPendiente(hechos ?? {}) && !despedidaQueCorresponde(ultimoDelCliente)
       ? `DÍA DE VISITA PENDIENTE: el local ya es ${hechos?.nearest_store} pero el cliente NO registró qué día viene. ` +

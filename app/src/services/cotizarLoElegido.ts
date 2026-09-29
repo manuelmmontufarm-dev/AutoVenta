@@ -33,6 +33,8 @@ import { findByCode } from "./catalog.js";
 import { buildStoreLinksBlockOnce } from "./storeLinks.js";
 import { preguntamosElLocal } from "../domain/storeSelection.js";
 import { composeBlocks } from "./quoteMessages.js";
+import { porQueNoPasaPorElLocal } from "./dondeEstaElCliente.js";
+import { cierreSinVisita } from "../domain/compraADistancia.js";
 import { logFunnelEvent } from "./conversations.js";
 
 export interface CotizarLoElegidoContext {
@@ -273,7 +275,10 @@ export async function tryCotizarLoElegido(ctx: CotizarLoElegidoContext, texto: s
   console.log(`✅ Cotización directa de lo elegido en la conv ${ctx.conversation.id}: ${cantidad} × ${producto.code} (${producto.brand} ${producto.design})`);
   await logFunnelEvent(ctx.conversation.id, "respuesta_directa", { route: "cotizar_lo_elegido" }).catch(() => undefined);
   const precio = producto.minimumPriceWithTax ? ` — *$${producto.minimumPriceWithTax.toFixed(2)} c/u con IVA*` : "";
-  const mapas = preguntamosElLocal(ctx.previousOutbound) ? "" : await buildStoreLinksBlockOnce(ctx.conversation.id);
+  // Sin visita (compra a distancia o fuera de Quito), ni mapas ni invitación:
+  // la misma decisión que el cierre de generar_cotizacion.
+  const sinVisita = await porQueNoPasaPorElLocal(ctx.conversation.id, ctx.conversation.current_cycle, texto);
+  const mapas = sinVisita || preguntamosElLocal(ctx.previousOutbound) ? "" : await buildStoreLinksBlockOnce(ctx.conversation.id);
   return composeBlocks(
     elegido.posicion
       ? confirmacionDeLaOpcion(elegido.posicion, `${producto.brand} ${producto.design}`, producto.minimumPriceWithTax)
@@ -281,5 +286,6 @@ export async function tryCotizarLoElegido(ctx: CotizarLoElegidoContext, texto: s
       ? `La opción ${elegido.etiqueta} es la *${producto.brand} ${producto.design}*${precio}. Le dejo la cotización 👍`
       : `Listo, le cotizo la *${producto.brand} ${producto.design}*${precio} 👍`,
     mapas ? `Puede pasar sin compromiso a verlas y probarlas en su vehículo.\n${mapas}` : null,
+    ...(sinVisita ? cierreSinVisita(sinVisita) : []),
   );
 }

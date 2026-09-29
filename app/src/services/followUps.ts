@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { createHash } from "node:crypto";
 import { config } from "../config.js";
 import { sql } from "../db/client.js";
+import { porQueNoPasaPorElLocal } from "./dondeEstaElCliente.js";
 import {
   computeInWindowSchedule,
   detectNegativeSentiment,
@@ -239,6 +240,8 @@ export interface ContextoDeOpciones {
   customerHasNoTireSize: boolean;
   /** Pidió precio o cotización en el ciclo (ver `domain/cotizarLaUnica.ts`). */
   customerAskedPrice?: boolean;
+  /** No pasa por el local (`porQueNoPasaPorElLocal`): sin mapas ni visita. */
+  sinVisita?: FollowUpMessageContext["sinVisita"];
 }
 
 const RESPUESTA_AL_MENU =
@@ -277,7 +280,10 @@ async function contextoDeOpciones(conversationId: number, cycle: number): Promis
     where conversation_id = ${conversationId} and cycle = ${cycle} and direction = 'inbound'
   `;
   const customerAskedPrice = todos.some((r) => pidioPrecioOCotizacion(r.content ?? ""));
-  return { optionsCount, optionsList: listaDeLaPieza(pieza?.metadata), preferenceAnswered, customerHasNoTireSize, customerAskedPrice };
+  // El mismo dueño que el cierre de la cotización y los candados de salida:
+  // quien compra a distancia o está fuera de Quito no recibe mapas.
+  const sinVisita = await porQueNoPasaPorElLocal(conversationId, cycle, null);
+  return { optionsCount, optionsList: listaDeLaPieza(pieza?.metadata), preferenceAnswered, customerHasNoTireSize, customerAskedPrice, sinVisita };
 }
 
 /**
@@ -307,6 +313,7 @@ export function buildFollowUpPreview(
     preferenceAnswered: opciones.preferenceAnswered,
     customerHasNoTireSize: opciones.customerHasNoTireSize,
     customerAskedPrice: opciones.customerAskedPrice,
+    sinVisita: opciones.sinVisita ?? null,
     selectedQuantity: conversation.selected_quantity,
     name: conversation.name,
     stage: conversation.stage,
@@ -985,12 +992,16 @@ export async function ensureFollowUpJobCopy(input: {
   // tipo de string que un LLM copia mal, y una mutilada en el chat es peor
   // que ninguna. El bloque canónico lo pega `conMapasPegados` después, sobre
   // el texto final.
-  const copy = await generateFollowUpCopy(
-    { ...copyContext, storeLinks: undefined },
-    kind,
-    policy.stagePrompts?.[context.stage],
-    now,
-  );
+  // Compra a distancia: el texto fijo ya dice lo único que corresponde (pago y
+  // envío con el asesor). Redactarlo con IA era invitarla a hablar de la visita.
+  const copy = copyContext.sinVisita === "compra_a_distancia"
+    ? { text: buildContextualFollowUpMessage(copyContext, kind, now), source: "determinista_compra_a_distancia" }
+    : await generateFollowUpCopy(
+      { ...copyContext, storeLinks: undefined },
+      kind,
+      policy.stagePrompts?.[context.stage],
+      now,
+    );
   const text = conMapasPegados(copy.text.trim() || stored, copyContext, kind);
   await sql`
     update follow_up_jobs

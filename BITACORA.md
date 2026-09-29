@@ -1,3 +1,20 @@
+## 28-sep-2026 · Compra a distancia: el cierre y el seguimiento salen bien desde la fuente
+
+**Qué:** El cierre de `generar_cotizacion`, `cotizarLoElegido` y `recotizar`
+consulta `porQueNoPasaPorElLocal`: a quien compra a distancia le sale «Un asesor
+le confirma pago y envío por acá. 🤝» en vez de «Puede pasar sin compromiso… ¿A
+cuál local?» + mapas (fuera de Quito: sin invitación ni mapas). Los seguimientos
+reciben `sinVisita`: sin mapas pegados y, para la compra a distancia, texto fijo
+de pago y envío (sin redacción con IA). El hecho COMPRA A DISTANCIA le dice al
+guardián que ese cierre es legítimo.
+
+**Por qué:** Verificación en vivo (R1): la cotización salía, pero 3 de 3
+cierres traían la pregunta del local y 6 de 6 seguimientos los mapas, y el
+guardián los tenía que borrar. Un candado que arregla siempre lo mismo es
+señal de que la fuente está mal.
+
+**Horas:** 0,7
+
 ## 28-sep-2026 · Aviso de tipo al cliente: sin nombrar un uso que no dijo
 
 **Qué:** El aviso horneado ya no dice «para camino de tierra lo ideal es…» ni
