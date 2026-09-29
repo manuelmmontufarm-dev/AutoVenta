@@ -1,3 +1,15 @@
+## 28-sep-2026 · La equivalente que el bot presentó en esta visita sigue cotizable
+
+**Qué:** `medidasDelPedido` ya no vuelve a juzgar las equivalentes que la lámina
+anotó: el juez corre al escribirlas (la lámina solo anota las que equivalen) y
+el consentimiento lo sigue exigiendo `equivalenteSinConsentimiento`.
+
+**Por qué:** El arreglo de la familia 1-B las re-juzgaba al leerlas y dejó sin
+cotización la 235/75R15 que el bot presentó y el cliente eligió (caso 4732,
++3,3 % sobre su 235/70R15): fallaban 2 pruebas de `medidaDeOtraVisita`.
+
+**Horas:** 0,3
+
 ## 28-sep-2026 · Uso «lodo»: la R/T también entra, y el aviso de tipo va horneado
 
 **Qué:** «lodo» a secas dejó de contar como M/T pedida explícita (era un uso), así

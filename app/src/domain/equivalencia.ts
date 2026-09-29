@@ -34,7 +34,7 @@
  *
  * ES EL ÚNICO JUEZ (familia 1-B, 22-24 sep-2026). La lámina de opciones, la
  * regla de `generar_cotizacion`, las alternativas de `buscar_llanta` y de
- * fitment, las equivalentes cotizables de `medidasDelPedido` y el candado del
+ * fitment y el candado del
  * texto final (`equivalenciaEnTexto.ts`) preguntan aquí con `esEquivalente` /
  * `equivaleAAlguna`, y la dirección que pidió el cliente («más ancha», «más
  * alta») también vive aquí (`direccionPedida`, `respetaDireccion`).
@@ -196,19 +196,6 @@ export function esEquivalente(pedida: string | null | undefined, candidata: stri
 /** Equivale a por lo menos una de las medidas del cliente. Sin medidas, no equivale a nada. */
 export function equivaleAAlguna(pedidas: readonly string[], candidata: string | null | undefined): boolean {
   return pedidas.some((pedida) => esEquivalente(pedida, candidata));
-}
-
-/**
- * De las medidas que el bot DECLARÓ equivalentes (la lámina las anota en
- * `metadata.equivalentes` y `medidasDelPedido` las vuelve cotizables), las que
- * de verdad lo son. Una que no equivale no se vuelve cotizable por haber sido
- * escrita al lado de la palabra «equivalente».
- */
-export function equivalentesQueEquivalen(
-  declaradas: readonly string[],
-  delCliente: readonly string[],
-): string[] {
-  return declaradas.filter((medida) => equivaleAAlguna(delCliente, medida));
 }
 
 /** Hacia dónde pidió moverse el cliente respecto de su medida. */

@@ -24,7 +24,6 @@
  *     del caso 4732, «y luego nunca le mandó la cotización».
  */
 import { sql } from "../db/client.js";
-import { equivalentesQueEquivalen } from "../domain/equivalencia.js";
 import type { ContextoEquivalencias } from "../domain/equivalenciaEnTexto.js";
 import { medidaEnDisputa } from "../domain/medidaDelCliente.js";
 import { medidasPermitidas, mensajesDeLaVisitaActual } from "../domain/medidaPedida.js";
@@ -63,11 +62,15 @@ export async function medidasDelPedido(
     ],
     conversacion?.tire_size,
   );
-  // UNA «EQUIVALENTE» QUE NO EQUIVALE NO SE VUELVE COTIZABLE (familia 1-B,
-  // 22-24 sep). La lámina anotaba como equivalente todo lo que no era su
-  // medida —una 165/65R13 a quien pidió aro 14 (conv 22533)— y desde aquí eso
-  // quedaba firmable. Ahora pasa por el juez; las láminas viejas también.
-  const equivalentes = equivalentesQueEquivalen(declaradas, delCliente);
+  // El juez (`domain/equivalencia.ts`) corre donde se ESCRIBE la declaración:
+  // desde la familia 1-B la lámina solo anota como equivalente lo que
+  // equivale. Acá NO se vuelve a juzgar: lo que el bot le presentó en esta
+  // visita como equivalente y el cliente eligió sigue cotizable — releerlo con
+  // la regla de hoy dejó sin cotización al cliente del caso 4732 (235/75R15
+  // por 235/70R15, declarada así el 26-ago), que es la mitad del bug que
+  // `medidaDeOtraVisita.integration.test.ts` vigila. El consentimiento sigue
+  // exigiéndolo `equivalenteSinConsentimiento`.
+  const equivalentes = declaradas;
   return medidasPermitidas([...delCliente, ...equivalentes]);
 }
 

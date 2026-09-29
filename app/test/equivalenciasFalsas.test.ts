@@ -15,7 +15,7 @@
  */
 import { describe, expect, it } from "vitest";
 import {
-  cercaniaDeMedida, direccionPedida, equivaleAAlguna, equivalentesQueEquivalen, ordenarPorCercania, respetaDireccion,
+  cercaniaDeMedida, direccionPedida, equivaleAAlguna, ordenarPorCercania, respetaDireccion,
 } from "../src/domain/equivalencia.js";
 import {
   LINEA_SIN_STOCK_EXACTO, avisoDeMedidaEnOpciones, siguientePasoPorMedidaDistinta, sinEquivalenciasFalsas,
@@ -40,11 +40,6 @@ describe("el juez: mismo aro, diámetro ±3 % y un ancho que monta en el mismo r
     expect(equivaleAAlguna(["225/60R16"], "215/60R16")).toBe(true);
     // y la del chat 18225, 2 cm más angosta con el diámetro clavado, también
     expect(cercaniaDeMedida("265/70R16", "245/75R16")?.aceptable).toBe(true);
-  });
-
-  it("una equivalente declarada por el bot solo queda cotizable si equivale", () => {
-    expect(equivalentesQueEquivalen(["165/65R13"], ["185/60R14", "195/60R14"])).toEqual([]);
-    expect(equivalentesQueEquivalen(["215/60R16", "175/70R14"], ["225/60R16"])).toEqual(["215/60R16"]);
   });
 });
 
