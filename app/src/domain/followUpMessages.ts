@@ -76,6 +76,11 @@ export interface FollowUpMessageContext {
    * y pide solo lo que falta, la cantidad. Ver `domain/cotizarLaUnica.ts`.
    */
   customerAskedPrice?: boolean;
+  /**
+   * La cantidad que el cliente ya fijó (`conversations.selected_quantity`, el
+   * dueño de ese dato). Con ella el seguimiento no vuelve a pedirla.
+   */
+  selectedQuantity?: number | null;
 }
 
 /** Seguimiento de la única opción cuando el precio ya se pidió: sin «¿se la cotizo?». */
@@ -84,10 +89,19 @@ function seguimientoDeUnicaConPrecio(
   prefix: string,
   product: string,
   size: string,
+  cantidad: number | null,
 ): string {
+  // Ni «ya tengo lista su cotización» ni «se la envío al momento»: el
+  // seguimiento no genera nada y el guardián lo marcaba promesa_incumplible.
+  // Con la cantidad ya dada tampoco se pide otra vez (V5b: «4 llantas»).
+  if (cantidad) {
+    return kind === "in_window_second"
+      ? `😊 Sigo pendiente de su cotización por las ${cantidad} llantas${product}${size}. Cuando quiera, seguimos por aquí.`
+      : `${prefix}🛞 Quedó pendiente su cotización por las ${cantidad} llantas${product}${size}. Cuando usted diga, avanzamos. 😊`;
+  }
   return kind === "in_window_second"
-    ? `😊 Sigo pendiente de su cotización${product}${size}. Apenas me confirme cuántas llantas lleva, se la envío al momento.`
-    : `${prefix}🛞 Ya tengo lista su cotización${product}${size}: solo me falta que me confirme cuántas llantas lleva y se la envío al momento. 😊`;
+    ? `😊 Sigo pendiente de su cotización${product}${size}. Cuando me confirme cuántas llantas lleva, avanzamos con ella.`
+    : `${prefix}🛞 Quedó pendiente su cotización${product}${size}: cuando me confirme cuántas llantas lleva, avanzamos con ella. 😊`;
 }
 
 /**
@@ -278,7 +292,7 @@ function redactarSeguimiento(
   // etapa donde esté (corrida 3: la plantilla de medida_confirmada preguntaba
   // «¿le ayudo a elegir?» sobre una lista de uno).
   if (context.optionsCount === 1 && (context.stage === "seleccionando" || context.stage === "medida_confirmada" || context.selectedProductCode)) {
-    if (context.customerAskedPrice) return seguimientoDeUnicaConPrecio(kind, prefix, product, size);
+    if (context.customerAskedPrice) return seguimientoDeUnicaConPrecio(kind, prefix, product, size, context.selectedQuantity ?? null);
     return kind === "in_window_second"
       ? `😊 ¿Cómo vio la opción${product}${size}? Si le sirve, ¿se la cotizo?`
       : `${prefix}🛞 ¿Cómo vio la opción${product}${size}? Es la que tengo disponible en su medida; si le sirve, ¿se la cotizo? 😊`;

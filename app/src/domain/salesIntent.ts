@@ -32,7 +32,7 @@ export function isExplicitPurchaseConfirmation(text: string): boolean {
  * confirmar CUATRO veces porque buscaba un sí con formato de máquina.
  */
 export function isNegativeResponse(text: string): boolean {
-  const normalized = normalize(text);
+  const normalized = sinCancelarQueEsPagar(normalize(text));
   return /\b(?:no(?:\s+gracias)?|todavia no|aun no|ahorita no|por ahora no|mejor no|dejeme pensar(?:lo)?|dejame pensar(?:lo)?|lo pienso|voy a pensar|solo (?:estoy )?pregunt\w*|solo (?:era|es) (?:una )?consulta|despues le aviso|luego le aviso|mas tarde le aviso|otro dia|cancel\w*)\b/.test(
     normalized,
   ) && !/\bno\s+(?:hay\s+)?problema\b/.test(normalized);
@@ -599,7 +599,19 @@ const RECHAZO_BLANDO =
 /** ¿El «no» viene a corregir la cantidad, en vez de a cerrar la puerta? */
 export function esCorreccionDeCantidad(text: string): boolean {
   if (!hasExplicitQuantity(text)) return false;
-  return !RECHAZO_BLANDO.test(normalize(text));
+  return !RECHAZO_BLANDO.test(sinCancelarQueEsPagar(normalize(text)));
+}
+
+/**
+ * EN ECUADOR «CANCELAR» ES PAGAR («lo compro por este medio, me cotiza, lo
+ * cancelo y me envía»: simulador V5b, 28-sep). Con pronombre de objeto y en
+ * primera persona («lo/la/los/las cancelo, cancelamos, cancelaría, cancelaré»)
+ * es el pago; sin él («cancelo mi pedido», «quiero cancelar») sigue siendo
+ * negativa. Misma lectura que `domain/compraADistancia.ts`. Se quita del texto
+ * ANTES de buscar negativas, así un «no gracias» en la misma frase igual frena.
+ */
+function sinCancelarQueEsPagar(normalizado: string): string {
+  return normalizado.replace(/\b(?:lo|la|los|las)\s+cancel(?:o|amos|aria|are)\b/g, " ");
 }
 
 export function canGenerateFinalQuote(

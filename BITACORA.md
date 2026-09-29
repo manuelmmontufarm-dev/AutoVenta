@@ -173,6 +173,20 @@ recibe la política como hecho duro, para que no la borre.
 precio es igual. Un negativo inventado sobre un dato de negocio.
 
 **Horas:** 0,7
+## 28-sep-2026 · «Lo cancelo» es pagar: ya no frena la cotización de la única
+
+**Qué:** `isNegativeResponse` y el rechazo blando ya no leen «lo/la cancelo»
+(primera persona con pronombre) como cancelar el pedido: en Ecuador es pagar.
+El seguimiento de la única no pide la cantidad si ya está en la ficha ni
+promete «se la envío al momento». El guardián no exige «¿Se la cotizo?» cuando
+la única se cotiza directo.
+
+**Por qué:** Simulador V5b («Lo compro por este medio, me cotiza, lo cancelo…
+4 llantas»): la decisión de cotizar disparaba, pero `canGenerateFinalQuote`
+bloqueaba por el «cancelo» y el guardián devolvía el «¿Se la cotizo?».
+
+**Horas:** 0,7
+
 ## 28-sep-2026 · «Precio por favor» a la única: el marcador mira todo el turno del bot
 
 **Qué:** `ultimoTurnoDelBot` (una sola fuente) junta las filas consecutivas del

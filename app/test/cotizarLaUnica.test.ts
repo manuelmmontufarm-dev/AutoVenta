@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { buildContextualFollowUpMessage } from "../src/domain/followUpMessages.js";
 import { ofertaDeCotizacionAceptada, ofertaDeCotizarAceptada } from "../src/domain/ofertaAceptada.js";
-import { pidioPrecioOCotizacion } from "../src/domain/salesIntent.js";
+import { canGenerateFinalQuote, isNegativeResponse, pidioPrecioOCotizacion } from "../src/domain/salesIntent.js";
 import { cotizarLaUnicaDeUnaVez, ofrecioCotizarLaUnica, ultimoTurnoDelBot } from "../src/domain/cotizarLaUnica.js";
 
 // quoteMessages importa config.ts, que exige estas variables al cargarse.
@@ -142,6 +142,48 @@ describe("el último turno del bot, en varias filas", () => {
   });
   it("una oferta suelta que no es la de la única no se vuelve sí", () => {
     expect(ofertaDeCotizacionAceptada("¿Se la cotizo? 😊", "Precio por favor", "Le sirven estas dos.\n¿Se la cotizo? 😊")).toBe(false);
+  });
+});
+
+/**
+ * V5b (simulador, 28-sep): «Lo compro por este medio, me cotiza, lo cancelo y me
+ * envía, 4 llantas 245/60R18». En Ecuador «lo cancelo» es «lo pago», pero
+ * `isNegativeResponse` lo leía como cancelar el pedido y `canGenerateFinalQuote`
+ * bloqueaba la cotización: la decisión de cotizar la única SÍ disparaba.
+ */
+describe("«lo cancelo» es pagar, no cancelar (V5b)", () => {
+  const V5B = "Lo compro por este medio, me cotiza, lo cancelo y me envía, 4 llantas 245/60R18";
+  it("el mensaje completo pide precio y es cotizable", () => {
+    expect(pidioPrecioOCotizacion(V5B)).toBe(true);
+    expect(cotizarLaUnicaDeUnaVez({ opcionesDistintas: 1, textosDelCliente: [V5B], medidaSinConfirmar: false })).toBe(true);
+    expect(canGenerateFinalQuote(V5B, false, true)).toBe(true);
+  });
+  it.each(["lo cancelo", "la cancelo por transferencia", "lo cancelamos hoy"])("«%s» no es negativa", (t) => {
+    expect(isNegativeResponse(t)).toBe(false);
+  });
+  it.each(["quiero cancelar", "cancelo mi pedido", "mejor cancela la cotización", "no gracias"])("«%s» sigue siendo negativa", (t) => {
+    expect(isNegativeResponse(t)).toBe(true);
+  });
+  it("«no gracias, lo cancelo mañana» sigue frenando (el no manda)", () => {
+    expect(isNegativeResponse("no gracias, lo cancelo mañana")).toBe(true);
+  });
+});
+
+describe("seguimiento de la única con la cantidad ya dada (V5b)", () => {
+  const context = {
+    stage: "seleccionando" as const,
+    tireSize: "245/60R18",
+    selectedProductLabel: "KENDA KR50",
+    optionsCount: 1,
+    customerAskedPrice: true,
+    selectedQuantity: 4,
+  };
+  it.each(["in_window_first", "in_window_second"] as const)("%s no pregunta la cantidad ni promete enviar", (kind) => {
+    const texto = buildContextualFollowUpMessage(context, kind);
+    expect(texto).not.toMatch(/cu[aá]ntas/i);
+    expect(texto).not.toMatch(/lista|al momento|cotizo/i);
+    expect(texto).toContain("4 llantas");
+    expect(texto).not.toContain("?");
   });
 });
 
