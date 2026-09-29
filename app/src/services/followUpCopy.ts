@@ -15,6 +15,9 @@ export function isSafeCopy(value: unknown, context: FollowUpMessageContext): val
   if (typeof value !== "string" || value.trim().length < 12 || value.length > 420) return false;
   if (/\b(?:stock|disponibles?|últimas?|se agota|ahorras?|descuento|oferta)\b/i.test(value) && !context.activeDiscountAmount) return false;
   if (/%|\$\s*\d/.test(value) && !context.activeDiscountAmount) return false;
+  // Quien ya pidió el precio no recibe «¿se la cotizo?» (conv +593 99 842 8277):
+  // gana el texto determinístico, que habla de su cotización y pide la cantidad.
+  if (context.customerAskedPrice && /¿[^?¿]*\bcoti[cz]\w*[^?¿]*\?/i.test(value)) return false;
   // Nombrar un día solo se permite si el cliente dio uno. `visitDate` entra a
   // la condición desde el 26-ago: sin él, al seguimiento que CONFIRMA la visita
   // se le prohibía decir «el jueves» —justo la palabra que lo hace útil— y

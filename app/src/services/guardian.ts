@@ -740,6 +740,14 @@ export async function armarContexto(
     huella.some((h) => h.herramienta === "preparar_opciones" && (h.resultado.includes('"unica_opcion":true') || /¿Se la cotizo\?/.test(h.resultado)))
       ? "ÚNICA OPCIÓN EN PANTALLA: la pieza trae una sola llanta y cierra con «¿Se la cotizo?». Esa pregunta es la legítima del turno y se conserva TAL CUAL: NO es pregunta_de_mas, NO la reemplaces por un menú de preferencia (no hay entre qué elegir) ni por otra redacción («¿avanzamos con esta opción?»): el «sí» del cliente solo abre la cotización si la pregunta habla de cotizar."
       : null,
+    // HECHO DURO (conv +593 99 842 8277, 25 y 27-sep): UNA sola llanta y el
+    // cliente ya pidió el precio → la pieza dice «Es la única que tengo…» SIN
+    // pregunta y la cotización sale en este mismo turno. Sin este hecho el
+    // revisor «completaba» el cierre con «¿Se la cotizo?» (la pregunta que el
+    // cliente ya contestó pidiendo el precio) o borraba el precio y la frase.
+    huella.some((h) => h.herramienta === "preparar_opciones" && h.resultado.includes('"unica_cotizada_directo":true'))
+      ? "ÚNICA OPCIÓN, PRECIO YA PEDIDO: el cliente pidió el precio/la cotización y hay UNA sola llanta. La pieza dice «Es la única que tengo…» con su precio y la cotización sale en este mismo turno. Esa frase y ese precio son ciertos y se conservan TAL CUAL. PROHIBIDO agregar «¿Se la cotizo?», «¿avanzamos?» o cualquier pregunta de permiso: ya la pidió. NO es cotizacion_sin_eleccion: el pedido del cliente ES la elección."
+      : null,
     huella.some((h) => h.herramienta === "preparar_opciones" && h.resultado.includes('"recomendacion_ofrecida":true'))
       ? "RECOMENDACIÓN ENTREGADA SIN ELECCIÓN: el cliente pidió recomendación o contó su uso, y la pieza ya le entrega la recomendada y cierra ofreciendo cotizarla («¿Se la cotizo?»). Esa oferta es la legítima del turno y se conserva TAL CUAL: NO es pregunta_de_mas ni cotizacion_sin_eleccion, y NO la reemplaces por el menú de preferencia."
       : null,
