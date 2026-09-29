@@ -7,6 +7,7 @@ import { opcionPorPosicion, posicionElegida } from "../domain/listaDeOpciones.js
 import { anuncioDeLaConversacion } from "../services/anuncio.js";
 import OpenAI from "openai";
 import { aroDadoPorElCliente, aroRespondido, medidaConfirmadaPorCliente } from "../domain/medidaConfirmada.js";
+import { medidasEscritasPorElCliente } from "../domain/medidaDelCliente.js";
 import { esFalloDelProveedor } from "../domain/falloDelProveedor.js";
 import { createBotAlert } from "../services/followUps.js";
 import { eleccionDeLaVitrina, type OpcionDeVitrina } from "../domain/eleccionDeVitrina.js";
@@ -184,7 +185,11 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
   // CON EL ARO DEL CLIENTE NO SE BLOQUEA (conv 3, 7-sep): «rin 14» → opciones
   // de ese aro con su medida a la vista; si elige una, se cotiza con esa
   // medida. El candado sigue para la medida deducida por el VEHÍCULO (1-sep).
-  ctx.medidaSinConfirmar = salesFacts.medidaConfirmadaPorCliente === false && !salesFacts.aroDelCliente;
+  // LA QUE ACABA DE ESCRIBIR TAMBIÉN ES SUYA (familia 2-H, simulador 28-sep):
+  // «Traverse, uso 215/65R16» llegó con la ficha todavía vacía y la pieza
+  // cerró con «necesito la medida exacta… o una foto del costado».
+  ctx.medidaSinConfirmar = salesFacts.medidaConfirmadaPorCliente === false && !salesFacts.aroDelCliente
+    && !medidasEscritasPorElCliente([userText]).length;
   const hechoDeMedidaInferida = ctx.medidaSinConfirmar && (salesFacts.vehicle || !salesFacts.tireSize)
     ? "MEDIDA NO CONFIRMADA POR EL CLIENTE: el cliente no ha escrito ninguna medida completa ni mandado foto del costado; toda medida en juego la dedujo el bot por el vehículo o por el aro. Puedes mostrar opciones (son «las que más se usan en su vehículo»), pero PROHIBIDO llamar generar_cotizacion: el cierre pide la medida escrita del filo de la llanta (ej. 225/65R17) o una foto del costado. Con ella, buscar_llanta y ahí sí cotizas."
     : null;
@@ -1132,7 +1137,11 @@ export async function getAgentSalesFacts(conversationId: number): Promise<AgentS
     .map(extractVehicleYear).find((value): value is number => value !== null) ?? null;
   return {
     tireSize: row?.tire_size ?? null,
-    medidaConfirmadaPorCliente: medidaConfirmadaPorCliente(row?.tire_size ?? null, row?.todas_entrantes ?? []),
+    // La ficha coincide con algo que escribió (cualquier visita), o escribió
+    // una medida completa en ESTE ciclo aunque la ficha tenga otra o nada:
+    // lo escrito no se le vuelve a pedir (familia 2-H, 28-sep).
+    medidaConfirmadaPorCliente: medidaConfirmadaPorCliente(row?.tire_size ?? null, row?.todas_entrantes ?? [])
+      || medidasEscritasPorElCliente(row?.inbound_messages ?? []).length > 0,
     // Solo el aro de ESTE ciclo: el de una visita anterior puede ser de otro carro.
     aroDelCliente: aroDadoPorElCliente([...(row?.inbound_messages ?? [])].reverse()),
     codigosDeLaVitrina: Array.isArray(row?.codigos) ? row.codigos.map(String) : [],

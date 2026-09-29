@@ -74,6 +74,9 @@ import { getAiConfig, getPiecesConfig } from "../services/settings.js";
 import { researchVehicleFitment } from "../services/vehicleFitmentResearch.js";
 import { arosDeCandidatos, arosDeMedidas, invitacionPorAroAmbiguo } from "../domain/fitmentResearch.js";
 import { aroVigenteDeLaVisita, rangoDeAros } from "../domain/aros.js";
+import {
+  aroParaFitment, medidaEnDisputa, medidasEscritasPorElCliente, mediaMedidaVigente, respetanElAroDelCliente,
+} from "../domain/medidaDelCliente.js";
 import { localPorLaZonaDicha, nearestStore, resolveSector, ubicacionDadaPorElCliente } from "../domain/locations.js";
 import { ordenarPorCercania } from "../domain/equivalencia.js";
 import { extractFlotationSizes, formatFlotationSize, formatTireSize, parseTireSize, type TireSize, flotacionIncompleta } from "../domain/tireSize.js";
@@ -101,7 +104,7 @@ import {
 import { ahorroDeLaCotizacion } from "../domain/ahorro.js";
 import { avisoDeCantidad, esCantidadInusual } from "../domain/cantidadGrande.js";
 import { claseDeVehiculoEnTexto, TIPOS_DE_CAMIONETA } from "../domain/claseDeVehiculo.js";
-import { medidasDelPedido } from "../services/medidasDelPedido.js";
+import { medidaEnDisputaDelPedido, medidasDelPedido } from "../services/medidasDelPedido.js";
 import { sendImage, sendPdf } from "../wa/client.js";
 import {
   renderCompareImage,
@@ -651,7 +654,10 @@ async function opcionesDeFitment(
   const parseadas = candidatos
     .filter((c) => c.confianza !== "baja")
     .map((c) => ({ etiqueta: c.medida, size: parseTireSize(c.medida) }))
-    .filter((m): m is { etiqueta: string; size: TireSize } => m.size !== null);
+    .filter((m): m is { etiqueta: string; size: TireSize } => m.size !== null)
+    // EL ARO DEL CLIENTE LE GANA A LA FICHA (conv 23160): con aro dicho, una
+    // medida investigada de otro aro no es suya y no se ofrece.
+    .filter((m) => !aro || m.size.rim === aro);
 
   const listasDisponibles: CatalogItem[][] = [];
   const medidasConStock: string[] = [];
@@ -1493,11 +1499,44 @@ export function buildTools(ctx: AgentContext) {
         .default(null)
         .describe("Aro en pulgadas si el cliente lo dijo (ej. 19 de 'para rin 19'). Null si no lo dijo. Mándalo siempre que lo sepas: es lo que distingue una versión de otra."),
     }),
-    run: async ({ marca, modelo, anio, aro }) => {
+    run: async ({ marca, modelo, anio, aro: aroDelModelo }) => {
       const vehicle = `${marca} ${modelo}${anio ? ` ${anio}` : ""}`.trim();
       await updateConversationFacts(ctx.conversation.id, { vehicle, ...(anio ? { vehicleYear: anio } : {}) });
+      // LO QUE EL CLIENTE ESCRIBIÓ LE GANA A LA FICHA DEL VEHÍCULO (familia
+      // 2-H, 28-sep). Una medida completa suya no se investiga ni se
+      // reemplaza; su aro —o su media medida, «75 rin 15»— manda sobre lo que
+      // la investigación diga del carro (conv 23160: 225/65R17 y 225/70R16 a
+      // quien escribió rin 15). Ver `domain/medidaDelCliente.ts`.
+      const entrantesDeLaVisita = await sql<{ content: string; created_at: Date }[]>`
+        select content, created_at from messages
+        where conversation_id=${ctx.conversation.id} and cycle=${ctx.conversation.current_cycle}
+          and direction='inbound'
+        order by created_at desc limit 12
+      `;
+      const textosDeLaVisita = [
+        ...mensajesDeLaVisitaActual(entrantesDeLaVisita).map((m) => m.content).reverse(),
+        ctx.currentUserText,
+      ];
+      const escritas = medidasEscritasPorElCliente(textosDeLaVisita);
+      if (escritas.length) {
+        const suya = escritas[escritas.length - 1];
+        return JSON.stringify({
+          error: "medida_escrita_por_el_cliente",
+          medida_del_cliente: suya,
+          regla: `El cliente YA escribió su medida (${escritas.join(", ")}): esa manda y no se cuestiona por el vehículo. `
+            + `Búscala con buscar_llanta (${suya}) y muéstrale sus opciones. PROHIBIDO decirle que su medida no corresponde a su vehículo, `
+            + "pedirle la medida otra vez o una foto. Solo si ahora pregunta por OTRO vehículo distinto, pídele la medida de ese.",
+        });
+      }
+      const aro = aroParaFitment(aroDelModelo, textosDeLaVisita);
+      const media = mediaMedidaVigente(textosDeLaVisita);
       const result = await researchVehicleFitment(marca, modelo, anio, aro);
-      const { opciones, avisoTipo, origen, medidasConStock, medidasAgotadas, medidasDescartadas } = await opcionesDeFitment(result, aro, await usoDeLaVisita());
+      const deFitment = await opcionesDeFitment(result, aro, await usoDeLaVisita());
+      const { avisoTipo, origen, medidasConStock, medidasAgotadas, medidasDescartadas } = deFitment;
+      // Con media medida, del aro solo sirve su perfil: lo demás no es suyo.
+      const opciones = media
+        ? deFitment.opciones.filter((item) => item.size?.aspect === media.perfil && item.size?.rim === media.aro)
+        : deFitment.opciones;
 
       // El caso «o rin 15 o rin 17». Solo se calcula cuando el cliente NO dijo
       // su aro: si lo dijo, la ambigüedad ya la resolvió él y recordársela sería
@@ -1532,6 +1571,9 @@ export function buildTools(ctx: AgentContext) {
         origen_opciones: origen,
         siguiente_pregunta: result.nextQuestion,
         regla: [
+          media
+            ? `El cliente ya escribió perfil ${media.perfil} y aro ${media.aro}: falta SOLO el ancho. Pregúntale solo el ancho (ej. 205/${media.perfil}R${media.aro}), nombrando lo que ya dio. PROHIBIDO ofrecerle otro aro u otro perfil, aunque sea lo que la ficha del vehículo diga.`
+            : null,
           opciones.length
             ? "En 'opciones' ya tienes llantas reales del catálogo, listas para preparar_opciones sin volver a buscar: mándalas. PROHIBIDO llamar generar_cotizacion en este turno — la medida salió del vehículo, no del cliente — y PROHIBIDO cerrar con el menú de preferencia: el cierre pide la medida completa (escrita del filo de la llanta, ej. 225/65R17, o una foto del costado). Cuando la mande, búscala con buscar_llanta y ahí sí cotizas."
             : "No hay una medida confiable para ese vehículo en el catálogo con stock. NO mandes una muestra al azar ni cotices: pide la medida completa escrita del filo de la llanta (ej. 225/65R17) o una foto del costado; si el cliente no la ubica, manda guia_medida. Ofrece también pasar por el local a medirla.",
@@ -1632,22 +1674,25 @@ export function buildTools(ctx: AgentContext) {
         ctx.currentUserText,
       ];
       const aroVigente = aroVigenteDeLaVisita(textosDeLaVisita);
-      const medidasDichas = medidasPermitidas(textosDeLaVisita, null);
-      const coherentes = aroVigente
-        ? encontradosPermitidos.filter(
-            // El aro de una medida en pulgadas también cuenta (12-sep: la 32X11.50R15 se rechazó como «otro aro»).
-            (p) => (p.size?.rim ?? aroDeMedida(p.sizeLabel)) === aroVigente || medidaEstaPedida(p.sizeLabel, medidasDichas),
-          )
-        : encontradosPermitidos;
+      // Una sola regla, en `domain/medidaDelCliente`: del aro vigente (y de su
+      // perfil si dio media medida), o una medida completa que él nombró. La
+      // versión de aquí dejaba pasar todo cuando no había medida completa
+      // (conv 23160: «75 rin 15» → 225/65R17 y 225/70R16).
+      const coherentes = respetanElAroDelCliente(encontradosPermitidos, textosDeLaVisita);
       if (aroVigente && !coherentes.length) {
         return JSON.stringify({
           error: "opciones_de_otro_aro",
           aro_del_cliente: aroVigente,
           aros_de_las_opciones: [...new Set(encontradosPermitidos.map((p) => p.size?.rim).filter(Boolean))],
-          regla:
-            `El cliente pidió aro ${aroVigente} y TODAS estas opciones son de otro aro: no se le mandan. `
-            + `Busca con buscar_por_aro_y_tipo (aro: ${aroVigente}) y arma la pieza con lo que esa búsqueda devuelva; `
-            + "si ahí no hay nada que respete lo que pidió, díselo con todas las letras en vez de mostrarle otra cosa.",
+          regla: (() => {
+            const media = mediaMedidaVigente(textosDeLaVisita);
+            return media
+              ? `El cliente escribió perfil ${media.perfil} y aro ${media.aro}: falta SOLO el ancho (el primer número, ej. 205/${media.perfil}R${media.aro}). `
+                + "Pregúntale solo eso, nombrando lo que ya dio. PROHIBIDO mostrarle otro aro, otro perfil o las medidas de la ficha de su vehículo."
+              : `El cliente pidió aro ${aroVigente} y TODAS estas opciones son de otro aro: no se le mandan. `
+                + `Busca con buscar_por_aro_y_tipo (aro: ${aroVigente}) y arma la pieza con lo que esa búsqueda devuelva; `
+                + "si ahí no hay nada que respete lo que pidió, díselo con todas las letras en vez de mostrarle otra cosa.";
+          })(),
         });
       }
       const tipoPedido = tipoSolicitadoEn([
@@ -2490,6 +2535,22 @@ export function buildTools(ctx: AgentContext) {
         return JSON.stringify({
           error:
             "Cotización bloqueada: la medida de estas llantas la dedujo el bot (por vehículo o por aro) y el cliente todavía no la confirmó. No cotices. Si aún no le mostraste opciones, muéstralas con preparar_opciones; y pide la medida completa del filo de la llanta (ej. 225/65R17) o una foto del costado — si no la ubica, manda guia_medida. En cuanto la mande, búscala con buscar_llanta y ahí sí cotizas.",
+        });
+      }
+      // DOS MEDIDAS SUYAS SIN RESOLVER, NO SE FIRMA NINGUNA (conv 22629): foto
+      // de una 225/70R16 y después «225/70 R15». Una pregunta, y después su
+      // última palabra manda (`domain/medidaDelCliente.medidaEnDisputa`).
+      const disputa = await medidaEnDisputaDelPedido(
+        ctx.conversation.id, ctx.conversation.current_cycle, ctx.currentUserText,
+      );
+      if (disputa) {
+        return JSON.stringify({
+          error: "medida_en_disputa",
+          medida_de_la_foto: disputa.foto,
+          medida_escrita: disputa.escrita,
+          regla: `Cotización bloqueada: en la foto se lee ${disputa.foto} y después el cliente escribió ${disputa.escrita}. `
+            + `Pregúntale en UNA línea cuál es la de su llanta, nombrando las dos tal cual: «En la foto se lee ${disputa.foto} y usted escribió ${disputa.escrita}: ¿cuál es la de su llanta?». `
+            + "No elijas por él. Con su respuesta, cotizas esa.",
         });
       }
       const autorizada = !ctx.consultaFueraDeCatalogo && (

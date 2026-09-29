@@ -133,6 +133,69 @@ function limpiarConectoresHuerfanos(texto: string): string {
     .join("\n");
 }
 
+/**
+ * LA MEDIDA QUE EL CLIENTE YA ESCRIBIÓ NO SE CUESTIONA NI SE VUELVE A PEDIR.
+ *
+ * Familia 2-H (auditoría del 28-sep-2026). Conv 12625: el cliente escribió
+ * 195/55R16 dos veces y el bot le contestó CUATRO veces «usted llegó por llanta
+ * de camioneta/SUV/4x4 y esa medida es de auto de perfil bajo… envíeme una
+ * foto de la medida del costado». La frase la escribió el Ángel Guardián —el
+ * hecho de camioneta salía del anuncio— y las siguientes la copiaron del hilo.
+ * Simulador 28-sep: «Traverse, uso 215/65R16» → «necesito la medida exacta…
+ * o una foto del costado».
+ *
+ * Corre DESPUÉS del guardián porque él es la última mano que toca el texto.
+ * Se recorta la ORACIÓN que (a) dice que su medida no es para su vehículo o
+ * (b) pide la medida o una foto; lo demás —el stock, las opciones— se queda.
+ * Sin medida escrita no hace nada: ahí pedir la foto es una jugada legítima.
+ * Con dos medidas en disputa (conv 22629) quien llama NO debe usarlo: esa
+ * pregunta es la que corresponde.
+ */
+const CUESTIONA_SU_MEDIDA: readonly RegExp[] = [
+  /\bes (?:una medida )?de auto\b/i,
+  /\bmedida(?:s)? de auto\b/i,
+  /\blleg[oó] por (?:una )?llanta de\b/i,
+  /\bno (?:le )?corresponde a su (?:veh[ií]culo|camioneta|carro|auto)\b/i,
+  /\bla ficha no (?:me )?confirma\b/i,
+];
+const PIDE_SU_MEDIDA: readonly RegExp[] = [
+  /\bfotos?\b[^.?!]*\b(?:costado|llanta|medida|flanco|filo)\b/i,
+  /\b(?:costado|llanta|medida|flanco)\b[^.?!]*\bfotos?\b/i,
+  /\bfilo de la llanta\b/i,
+  /\b(?:necesito|conf[ií]rmeme|me confirma|me escribe|escr[ií]bame|revise|me manda|env[ií]eme)\b[^.?!]*\bmedida\b[^.?!]*\b(?:exacta|completa|del costado|correcta|que aparece|que dice)\b/i,
+];
+const ORACIONES = /(?<=[.!?])(?<!\bej\.)\s+/;
+
+export function sinCuestionarLaMedidaDada(texto: string, medidasDelCliente: readonly string[]): TextoDepurado {
+  if (!medidasDelCliente.length) return { texto, quitadas: [] };
+  const quitadas: string[] = [];
+  const lineas = texto.split("\n").map((linea) => {
+    const partes = linea.split(ORACIONES);
+    let quito = false;
+    const quedan = partes.filter((oracion) => {
+      if ([...CUESTIONA_SU_MEDIDA, ...PIDE_SU_MEDIDA].some((re) => re.test(oracion))) {
+        quitadas.push(oracion.trim());
+        quito = true;
+        return false;
+      }
+      return true;
+    });
+    // Un «📸» o un «😊» que colgaba de la oración que se fue, se va con ella.
+    return (quito ? quedan.filter((o) => /[\p{L}\d]/u.test(o)) : quedan).join(" ");
+  });
+  if (!quitadas.length) return { texto, quitadas: [] };
+  const salida = limpiarConectoresHuerfanos(lineas.join("\n"))
+    .split("\n")
+    .map((linea) => linea.replace(/[ \t]{2,}/g, " ").trim())
+    .filter((linea, i, todas) => linea !== "" || (i > 0 && todas[i - 1] !== ""))
+    .join("\n")
+    .split(/\n\s*-{3,}\s*\n/)
+    .map((bloque) => bloque.trim())
+    .filter(Boolean)
+    .join("\n---\n");
+  return { texto: salida.trim(), quitadas };
+}
+
 export function sinPreguntasProhibidas(texto: string): TextoDepurado {
   const quitadas: string[] = [];
   let salida = texto;

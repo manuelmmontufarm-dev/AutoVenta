@@ -24,6 +24,7 @@
  *     del caso 4732, «y luego nunca le mandó la cotización».
  */
 import { sql } from "../db/client.js";
+import { medidaEnDisputa } from "../domain/medidaDelCliente.js";
 import { medidasPermitidas, mensajesDeLaVisitaActual } from "../domain/medidaPedida.js";
 
 /** Cuántos mensajes del cliente se miran hacia atrás antes de cortar por silencio. */
@@ -61,4 +62,30 @@ export async function medidasDelPedido(
     ],
     conversacion?.tire_size,
   );
+}
+
+/**
+ * ¿El cliente dejó DOS medidas completas sin resolver? (conv 22629, 23-sep)
+ *
+ * «205/55 R15» escrito, foto de una 225/70R16, y después «225/70 R15»: se cotizó
+ * la R15 sin preguntar cuál era. Las dos figuran en `medidasDelPedido` —las dos
+ * las dijo él—, así que el candado de medida no tenía nada que objetar. Este
+ * es el otro lado de la misma pregunta: no QUÉ se puede cotizar, sino si ya se
+ * puede. Misma visita que arriba; la regla vive en `domain/medidaDelCliente`.
+ */
+export async function medidaEnDisputaDelPedido(
+  conversationId: number,
+  cycle: number,
+  textoDelTurno?: string | null,
+): Promise<{ foto: string; escrita: string } | null> {
+  const filas = await sql<{ content: string | null; direction: string; created_at: Date }[]>`
+    select content, direction, created_at from messages
+    where conversation_id=${conversationId} and cycle=${cycle}
+    order by created_at desc limit 40
+  `;
+  const mensajes = mensajesDeLaVisitaActual(filas)
+    .reverse()
+    .map((m) => ({ deCliente: m.direction === "inbound", texto: m.content }));
+  if (textoDelTurno && mensajes.at(-1)?.texto !== textoDelTurno) mensajes.push({ deCliente: true, texto: textoDelTurno });
+  return medidaEnDisputa(mensajes);
 }

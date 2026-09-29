@@ -1,3 +1,26 @@
+## 28-sep-2026 · La medida que escribe el cliente no se cuestiona, no se vuelve a pedir y le gana a la ficha del vehículo
+
+**Qué:** Un solo dueño, `domain/medidaDelCliente.ts`. (1) Con una medida
+completa escrita, el guardián ya no recibe «EL CLIENTE BUSCA LLANTA DE
+CAMIONETA» (salía del anuncio) sino «MEDIDA ESCRITA POR EL CLIENTE», y un
+candado nuevo después del guardián (`la_medida_del_cliente_no_se_cuestiona`,
+tres puertas) quita «es de auto / llegó por camioneta / la ficha no confirma» y
+los pedidos de medida o foto. `fitment_vehiculo` no investiga si el cliente ya
+escribió su medida, y la recién escrita cuenta como suya aunque la ficha esté
+vacía (ya no sale «necesito la medida exacta… o una foto»). (2) El aro que
+escribió manda: el candado de aro de `preparar_opciones` dejaba pasar todo sin
+medida completa (`medidaEstaPedida(x, [])` es `true`); fitment investiga con su
+aro y, con media medida («75 rin 15»), solo muestra ese perfil y pide solo el
+ancho. (4) Foto 225/70R16 y después «225/70 R15» sin corrección: la cotización
+se bloquea hasta preguntar una vez cuál es (`medidaEnDisputaDelPedido`).
+
+**Por qué:** Familia 2-H. Convs 12625 (cuatro «esa medida es de auto… envíeme
+una foto» con 195/55R16 escrita dos veces), 23160 (225/65R17 y 225/70R16 a quien
+dijo rin 15), 22629 (cotizó R15 con foto R16) y el simulador del 28-sep
+(Traverse 215/65R16). Conv 22839: el «74» lo escribió el cliente; la guía acertó.
+
+**Horas:** 2
+
 ## 28-sep-2026 · Tras la lámina de opciones el cliente ve el precio escrito (y nadie le pregunta qué prioriza)
 
 **Qué:** El texto que acompaña la lámina de opciones (sin recomendación) deja de
