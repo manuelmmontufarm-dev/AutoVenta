@@ -33,6 +33,28 @@ export function cotizarLaUnicaDeUnaVez(input: {
   return input.textosDelCliente.some((texto) => pidioPrecioOCotizacion(texto ?? ""));
 }
 
+/**
+ * EL ÚLTIMO TURNO DEL BOT, no su última fila. Una respuesta sale en varias filas
+ * del historial (la pieza, el texto, y el cierre «¿Se la cotizo? 😊» aparte):
+ * mirar solo la última perdía «Es la única que tengo…» (simulador en vivo,
+ * 28-sep). Junta las filas `assistant` consecutivas que van antes del próximo
+ * mensaje del cliente, saltando el mensaje actual de éste si ya está al final.
+ * Única fuente: la usan `agent.ts` y `ofertaAceptada.ts`.
+ */
+export function ultimoTurnoDelBot(
+  historial: readonly { role: string; content: unknown }[],
+): string {
+  let i = historial.length - 1;
+  // Solo se salta UN mensaje del cliente (el actual): con más, la oferta ya es vieja.
+  if (i >= 0 && historial[i].role === "user") i--;
+  const filas: string[] = [];
+  for (; i >= 0 && historial[i].role === "assistant"; i--) {
+    const c = historial[i].content;
+    if (typeof c === "string" && c.trim()) filas.unshift(c);
+  }
+  return filas.join("\n");
+}
+
 /** El último mensaje del bot ofreció cotizar la ÚNICA llanta («Es la única que tengo… ¿Se la cotizo?»). */
 export function ofrecioCotizarLaUnica(ultimoMensajeDelBot: string | null | undefined): boolean {
   const bot = (ultimoMensajeDelBot ?? "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");

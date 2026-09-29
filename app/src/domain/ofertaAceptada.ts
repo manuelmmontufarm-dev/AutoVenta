@@ -140,8 +140,14 @@ const NEGATIVA_CORTA = /^(?:no|nop|nel|no\s+gracias|todavia\s+no|aun\s+no|ahorit
  * a la oferta. Solo vale con la oferta de la ÚNICA opción y un mensaje corto:
  * «precio, y ¿en aro 17 tienen?» sigue siendo una pregunta que hay que contestar.
  */
-function preguntaElPrecioDeLaUnica(ultimoMensajeDelBot: string | null | undefined, mensajeDelCliente: string): boolean {
-  return ofrecioCotizarLaUnica(ultimoMensajeDelBot)
+function preguntaElPrecioDeLaUnica(
+  ultimoMensajeDelBot: string | null | undefined,
+  mensajeDelCliente: string,
+  turnoDelBot?: string | null,
+): boolean {
+  // El marcador se busca en TODO el último turno (varias filas), no solo en la
+  // última: el «¿Se la cotizo?» sale aparte de «Es la única que tengo…».
+  return ofrecioCotizarLaUnica(turnoDelBot || ultimoMensajeDelBot)
     && mensajeDelCliente.length <= 60
     && !/\?[^?]*\?|,\s*y\b/.test(mensajeDelCliente)
     && pidioPrecioOCotizacion(mensajeDelCliente);
@@ -156,12 +162,14 @@ function preguntaElPrecioDeLaUnica(ultimoMensajeDelBot: string | null | undefine
 export function ofertaDeCotizarAceptada(
   ultimoMensajeDelBot: string | null | undefined,
   mensajeDelCliente: string,
+  /** Todas las filas del último turno del bot (`ultimoTurnoDelBot`), para el marcador de la única. */
+  turnoDelBot?: string | null,
 ): boolean {
   const bot = normalizar(ultimoMensajeDelBot ?? "");
   if (!bot || ES_PRESENTACION.test(bot) || !OFRECIO_ALGO.test(bot)) return false;
   const cliente = normalizar(mensajeDelCliente);
   if (!cliente || NEGATIVA_CORTA.test(cliente)) return false;
-  return ACUSE_SIN_MAS.test(cliente) || preguntaElPrecioDeLaUnica(ultimoMensajeDelBot, mensajeDelCliente);
+  return ACUSE_SIN_MAS.test(cliente) || preguntaElPrecioDeLaUnica(ultimoMensajeDelBot, mensajeDelCliente, turnoDelBot);
 }
 
 /**
@@ -174,12 +182,13 @@ export function ofertaDeCotizarAceptada(
 export function ofertaDeCotizacionAceptada(
   ultimoMensajeDelBot: string | null | undefined,
   mensajeDelCliente: string,
+  turnoDelBot?: string | null,
 ): boolean {
   const bot = normalizar(ultimoMensajeDelBot ?? "");
   if (!bot || ES_PRESENTACION.test(bot) || !ofreceCotizar(bot)) return false;
   const cliente = normalizar(mensajeDelCliente);
   if (!cliente || NEGATIVA_CORTA.test(cliente)) return false;
-  return ACUSE_SIN_MAS.test(cliente) || preguntaElPrecioDeLaUnica(ultimoMensajeDelBot, mensajeDelCliente);
+  return ACUSE_SIN_MAS.test(cliente) || preguntaElPrecioDeLaUnica(ultimoMensajeDelBot, mensajeDelCliente, turnoDelBot);
 }
 
 /**

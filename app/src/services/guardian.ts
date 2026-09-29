@@ -59,6 +59,7 @@ import { alcanzaParaVender } from "../domain/stockCorto.js";
 import { politicaDePagos } from "../domain/datosDelNegocio.js";
 import { despedidaQueCorresponde } from "../domain/cierrePerdido.js";
 import { ofertaDeCotizarAceptada } from "../domain/ofertaAceptada.js";
+import { ultimoTurnoDelBot } from "../domain/cotizarLaUnica.js";
 import { visitaPendiente } from "../domain/visitaPendiente.js";
 import { tiposCompatibles, usoDeLosTextos } from "../domain/usoYTipo.js";
 import { JUEGO_COMPLETO, opcionesQueAlcanzan } from "../domain/opcionesCandados.js";
@@ -543,6 +544,14 @@ export async function armarContexto(
   const ultimoDelBot =
     mensajes.find((m) => m.direction !== "inbound" && m.author_kind === "bot")?.content ?? null;
 
+  // Todas las filas del último turno del bot (la pieza y su cierre salen aparte).
+  const turnoDelBot = ultimoTurnoDelBot(
+    [...mensajes].reverse().map((m) => ({
+      role: m.direction === "inbound" ? "user" : m.author_kind === "bot" ? "assistant" : "asesor",
+      content: m.content,
+    })),
+  );
+
   const historial = [...mensajes].reverse().map((m) => {
     const quien = m.direction === "inbound" ? "CLIENTE" : m.author_kind === "bot" ? "BOT" : "ASESOR";
     return `${quien}: ${(m.content ?? "").slice(0, 380)}`;
@@ -692,7 +701,7 @@ export async function armarContexto(
       ? `EL CLIENTE SE DESPIDIÓ: su último mensaje fue «${ultimoDelCliente.slice(0, 120)}». ` +
         "La venta está cerrada. No se le insiste con nada."
       : null,
-    ofertaDeCotizarAceptada(ultimoDelBot, ultimoDelCliente)
+    ofertaDeCotizarAceptada(ultimoDelBot, ultimoDelCliente, turnoDelBot)
       ? `EL CLIENTE YA ACEPTÓ: el bot le ofreció la cotización y él contestó «${ultimoDelCliente.slice(0, 60)}». ` +
         "Eso es un sí. Lo que corresponde es la cotización, no volver a ofrecerla."
       : null,

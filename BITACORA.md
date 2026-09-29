@@ -27,6 +27,18 @@ recibe la política como hecho duro, para que no la borre.
 precio es igual. Un negativo inventado sobre un dato de negocio.
 
 **Horas:** 0,7
+## 28-sep-2026 · «Precio por favor» a la única: el marcador mira todo el turno del bot
+
+**Qué:** `ultimoTurnoDelBot` (una sola fuente) junta las filas consecutivas del
+último turno del bot; `agent.ts` y el guardián se lo pasan a
+`ofertaDeCotizarAceptada`/`ofertaDeCotizacionAceptada` para reconocer «Es la
+única que tengo…» aunque el «¿Se la cotizo?» salga en su propia fila.
+
+**Por qué:** Simulador en vivo: el marcador solo veía la última fila y «Precio
+por favor» seguía bloqueando `generar_cotizacion`.
+
+**Horas:** 0,5
+
 ## 28-sep-2026 · Una sola opción y precio ya pedido: se cotiza, no se pide permiso
 
 **Qué:** Con UNA sola llanta vendible y el cliente ya con «precio», «cuánto»,
