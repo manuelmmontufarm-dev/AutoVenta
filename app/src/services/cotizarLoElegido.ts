@@ -28,6 +28,7 @@ import { mencionaVehiculo } from "../domain/vehiculoEnTexto.js";
 import {
   cantidadDelTexto, escalonContestado, esReferenciaPluralAlMenu, pideVariasOpciones,
 } from "../domain/salesIntent.js";
+import { opcionPorPosicion, posicionElegida } from "../domain/listaDeOpciones.js";
 import { findByCode } from "./catalog.js";
 import { buildStoreLinksBlockOnce } from "./storeLinks.js";
 import { preguntamosElLocal } from "../domain/storeSelection.js";
@@ -101,9 +102,16 @@ export function loQueEligio(
   }
   const escalon = escalonContestado(texto, previousOutbound, mensajeCitado, { huboMenu: Boolean(escalones) });
   if (escalon && escalones) {
-    const codigo = escalones[escalon === "precio" ? "economica" : escalon]?.codigo;
+    // Si lo último que dijimos fue la LISTA con precios, «2» es la posición 2 de
+    // esa lista (`opcionPorPosicion`, dueño único), no un escalón: con dos
+    // opciones no existe el del medio. Con el menú viejo sigue mandando el escalón.
+    const n = posicionElegida(texto);
+    const enLista = n !== null && /¿le cotizo la 1/i.test(mensajeCitado ?? previousOutbound ?? "");
+    const porPosicion = enLista ? opcionPorPosicion({ escalones }, n) : null;
+    const nivel = porPosicion?.escalon ?? escalon;
+    const codigo = porPosicion?.codigo ?? escalones[escalon === "precio" ? "economica" : escalon]?.codigo;
     if (codigo && vitrina.some((o) => o.codigo === codigo)) {
-      const etiqueta = escalon === "precio" ? "de costo" : escalon === "premium" ? "premium" : "de equilibrio";
+      const etiqueta = nivel === "precio" ? "de costo" : nivel === "premium" ? "premium" : "de equilibrio";
       return { codigo, etiqueta };
     }
   }

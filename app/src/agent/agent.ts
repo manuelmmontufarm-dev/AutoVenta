@@ -3,6 +3,7 @@
  * Ejecuta las tools locales y devuelve los resultados al modelo hasta obtener
  * una respuesta final para WhatsApp.
  */
+import { opcionPorPosicion, posicionElegida } from "../domain/listaDeOpciones.js";
 import { anuncioDeLaConversacion } from "../services/anuncio.js";
 import OpenAI from "openai";
 import { aroDadoPorElCliente, aroRespondido, medidaConfirmadaPorCliente } from "../domain/medidaConfirmada.js";
@@ -506,9 +507,16 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
   // EL ESCALÓN CONTESTADO CON REPLY. Solo cuando WhatsApp confirma que el
   // cliente citó el menú: ahí «2» es el escalón y no dos llantas, sin que el
   // modelo tenga que deducirlo de los últimos salientes.
+  // Si el menú era la LISTA con precios, «2» es la posición 2 de esa lista y no
+  // un escalón: `opcionPorPosicion` es el dueño único (con dos opciones la 2 es
+  // la premium; el escalón del medio no existe).
+  const posicionElegidaDeLaLista = posicionElegida(userText);
+  const citoLaLista = /¿le cotizo la 1/i.test(ctx.mensajeCitado ?? "");
   const escalonPorReply =
     esRespuestaDelMenuDePreferencia(userText, null, ctx.mensajeCitado ?? null)
-      ? respuestaDePreferencia(userText)
+      ? (citoLaLista && posicionElegidaDeLaLista !== null
+          ? opcionPorPosicion({ escalones: salesFacts.escalones }, posicionElegidaDeLaLista)?.escalon
+          : null) ?? respuestaDePreferencia(userText)
       : null;
   // EL ESCALÓN CONTESTADO SIN REPLY, cuando lo último que dijimos fue el menú
   // (simulador, 1-sep, caso 13862 turno 4: «La 2» tras el menú → el modelo dio
@@ -524,10 +532,15 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
     !escalonPorReply && !ctx.medidaSinConfirmar && salesFacts.escalones
       ? escalonContestado(userText, textoUltimoDelBot, null, { huboMenu: true })
       : null;
-  if (escalonSinReply) ctx.aceptoCotizacion = true;
-  const opcionDelEscalon = escalonSinReply
-    ? salesFacts.escalones?.[escalonSinReply === "precio" ? "economica" : escalonSinReply] ?? null
+  const opcionPorLista = escalonSinReply && posicionElegidaDeLaLista !== null
+    && /¿le cotizo la 1/i.test(textoUltimoDelBot ?? "")
+    ? opcionPorPosicion({ escalones: salesFacts.escalones }, posicionElegidaDeLaLista)
     : null;
+  if (escalonSinReply) ctx.aceptoCotizacion = true;
+  const opcionDelEscalon = opcionPorLista
+    ?? (escalonSinReply
+      ? salesFacts.escalones?.[escalonSinReply === "precio" ? "economica" : escalonSinReply] ?? null
+      : null);
   let vueltaForzadaUsada = false;
   let recordatorioDeObligacion: string | null = null;
   const bloquesVolatiles: ChatCompletionMessageParam[] = [
@@ -556,7 +569,7 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
     ...(escalonSinReply
       ? [{
           role: "system" as const,
-          content: `RESPUESTA AL MENÚ DE PREFERENCIA (fuente determinística): el cliente eligió el escalón «${ETIQUETA_DEL_ESCALON[escalonSinReply]}»${opcionDelEscalon ? `, que en la última pieza de opciones es *${opcionDelEscalon.nombre}* ($${opcionDelEscalon.precio_con_iva.toFixed(2)} c/u con IVA, código ${opcionDelEscalon.codigo})` : ""}. Llama generar_cotizacion AHORA MISMO${opcionDelEscalon ? ` con code ${opcionDelEscalon.codigo}` : " con ESA opción"} y 4 llantas (o la cantidad que haya dicho). PROHIBIDO leer ese número como cantidad, PROHIBIDO volver a preguntar qué prefiere, PROHIBIDO preguntar si la quiere o anunciar que «se la prepara»: la cotización sale en este turno o no sale.`,
+          content: `RESPUESTA AL MENÚ DE PREFERENCIA (fuente determinística): el cliente eligió el escalón «${ETIQUETA_DEL_ESCALON[opcionPorLista?.escalon ?? escalonSinReply]}»${opcionDelEscalon ? `, que en la última pieza de opciones es *${opcionDelEscalon.nombre}* ($${opcionDelEscalon.precio_con_iva.toFixed(2)} c/u con IVA, código ${opcionDelEscalon.codigo})` : ""}. Llama generar_cotizacion AHORA MISMO${opcionDelEscalon ? ` con code ${opcionDelEscalon.codigo}` : " con ESA opción"} y 4 llantas (o la cantidad que haya dicho). PROHIBIDO leer ese número como cantidad, PROHIBIDO volver a preguntar qué prefiere, PROHIBIDO preguntar si la quiere o anunciar que «se la prepara»: la cotización sale en este turno o no sale.`,
         }]
       : []),
     ...(esPreguntaTecnica

@@ -15,6 +15,10 @@ export function isSafeCopy(value: unknown, context: FollowUpMessageContext): val
   if (typeof value !== "string" || value.trim().length < 12 || value.length > 420) return false;
   if (/\b(?:stock|disponibles?|últimas?|se agota|ahorras?|descuento|oferta)\b/i.test(value) && !context.activeDiscountAmount) return false;
   if (/%|\$\s*\d/.test(value) && !context.activeDiscountAmount) return false;
+  // Preguntar qué prioriza (duración, comodidad, precio…) a quien ya vio las
+  // opciones es devolverle la pregunta: ~25 chats sin un precio escrito. Si el
+  // redactor lo hace, gana la plantilla, que le repite las opciones con precio.
+  if (/\bprioriz\w*|\bqu[eé]\s+(?:es\s+)?lo\s+m[aá]s\s+importante\b/i.test(value)) return false;
   // Quien ya pidió el precio no recibe «¿se la cotizo?» (conv +593 99 842 8277):
   // gana el texto determinístico, que habla de su cotización y pide la cantidad.
   if (context.customerAskedPrice && /¿[^?¿]*\bcoti[cz]\w*[^?¿]*\?/i.test(value)) return false;

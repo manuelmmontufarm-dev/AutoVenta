@@ -70,7 +70,7 @@ import { productosDelCatalogoMencionados } from "./catalog.js";
 import { frenarHechosNuevosDelGuardian, podarHechosNuevosDelGuardian } from "../domain/guardianNoVendeSolo.js";
 import { sinBloquesCalcados } from "../domain/calcoReciente.js";
 import { conMapasCanonicos, quitarMenuDePreferencia, sinTelefonoPropio } from "../domain/candadosDeTexto.js";
-import { MARCA_DEL_MENU, respuestaDePreferencia } from "../domain/salesIntent.js";
+import { MARCA_DE_LA_LISTA, MARCA_DEL_MENU, respuestaDePreferencia } from "../domain/salesIntent.js";
 import { sinPreguntaRepetidaEnElTurno } from "../domain/preguntaRepetidaEnElTurno.js";
 import { estructurarTurno } from "../domain/estructuraDelTurno.js";
 import {
@@ -805,7 +805,7 @@ export const PASOS: readonly PasoDeSalida[] = [
             select id from messages
             where conversation_id=${ctx.conversation.id} and cycle=${ctx.conversation.current_cycle}
               and direction='outbound' and created_at > ${pieza.created_at}
-              and content ilike ${`%${MARCA_DEL_MENU}%`}
+              and (content ilike ${`%${MARCA_DEL_MENU}%`} or content ilike ${`%${MARCA_DE_LA_LISTA}%`})
             limit 1
           `
         : [];

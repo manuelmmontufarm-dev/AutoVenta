@@ -188,8 +188,7 @@ export function escalonContestado(
     return esRespuestaDelMenuDePreferencia(text, ultimoMensajeNuestro, mensajeCitado) ? preferencia : null;
   }
   const huboMenu = contexto.huboMenu
-    ?? (Boolean(ultimoMensajeNuestro?.toLowerCase().includes(MARCA_DEL_MENU))
-      || Boolean(mensajeCitado?.toLowerCase().includes(MARCA_DEL_MENU)));
+    ?? (traeMarcaDelMenu(ultimoMensajeNuestro) || traeMarcaDelMenu(mensajeCitado));
   return huboMenu ? preferencia : null;
 }
 
@@ -323,12 +322,26 @@ export function hasExplicitQuantity(text: string): boolean {
  */
 export const MARCA_DEL_MENU = "¿qué prioriza usted?";
 
+/**
+ * La otra forma en que el cierre de opciones deja elegir: la lista con precios
+ * y «¿Le cotizo la 1, la 2 o la 3?» (`domain/listaDeOpciones.ts`). El «1», «2»
+ * o «3» que el cliente contesta a eso es el escalón, igual que con el menú
+ * viejo — el número no es una cantidad ni el día 1 del mes.
+ */
+export const MARCA_DE_LA_LISTA = "¿le cotizo la 1";
+
+/** ¿Este texto nuestro dejó al cliente elegir por número (menú o lista con precios)? */
+export function traeMarcaDelMenu(texto: string | null | undefined): boolean {
+  const t = (texto ?? "").toLowerCase();
+  return t.includes(MARCA_DEL_MENU) || t.includes(MARCA_DE_LA_LISTA);
+}
+
 const PEDIDO_PLURAL_DE_OPCIONES =
   /\b(?:las\s+(?:2|dos)|los\s+dos|ambas|ambos|(?:de|deme\s+de|mandeme\s+de)\s+las\s+dos|los\s+dos\s+valores)\b/i;
 
 function cantidadDeOpcionesNumeradas(menu: string | null | undefined): number {
   if (!menu) return 0;
-  return new Set([...menu.matchAll(/(?:^|\n)\s*([123])\s*[).]/g)].map((m) => m[1])).size;
+  return new Set([...menu.matchAll(/(?:^|\n)\s*([123])\s*[).·]/g)].map((m) => m[1])).size;
 }
 
 /** Nombra varias opciones del menú, por lo que nunca es una cantidad. */
@@ -373,10 +386,10 @@ export function esRespuestaDelMenuDePreferencia(
   // (la vitrina, la cotización) descarta que ese «2» sea el escalón, cosa que la
   // heurística de abajo no sabía hacer. Producción, 31-ago 14:04: el cliente
   // contestó «2» CON REPLY al menú y el bot lo leyó como «quiero 2 llantas».
-  if (mensajeCitado != null) return mensajeCitado.toLowerCase().includes(MARCA_DEL_MENU);
+  if (mensajeCitado != null) return traeMarcaDelMenu(mensajeCitado);
   // Sin reply (el cliente escribió el número suelto) queda la heurística de
   // siempre: ¿lo último que dijimos traía el menú?
-  return Boolean(ultimoMensajeNuestro?.toLowerCase().includes(MARCA_DEL_MENU));
+  return traeMarcaDelMenu(ultimoMensajeNuestro);
 }
 
 /**

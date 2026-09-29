@@ -78,8 +78,9 @@ import { localPorLaZonaDicha, nearestStore, resolveSector, ubicacionDadaPorElCli
 import { ordenarPorCercania } from "../domain/equivalencia.js";
 import { extractFlotationSizes, formatFlotationSize, formatTireSize, parseTireSize, type TireSize, flotacionIncompleta } from "../domain/tireSize.js";
 import { marcaPreguntada, pidioCotizacionExplicita, ultimaMarcaPedida } from "../domain/consultaConRespaldo.js";
+import { armarLista } from "../domain/listaDeOpciones.js";
 import { cotizarLaUnicaDeUnaVez } from "../domain/cotizarLaUnica.js";
-import { autorizaCotizacionEnEsteTurno, canGenerateFinalQuote, cantidadParaPrepararOpciones, describeUso, escalonesDeOpciones, pideAlternativaMasBarata, pideRecomendacion, respuestaDePreferencia, pideOpcionesNoCotizacion } from "../domain/salesIntent.js";
+import { traeMarcaDelMenu, autorizaCotizacionEnEsteTurno, canGenerateFinalQuote, cantidadParaPrepararOpciones, describeUso, escalonesDeOpciones, pideAlternativaMasBarata, pideRecomendacion, respuestaDePreferencia, pideOpcionesNoCotizacion } from "../domain/salesIntent.js";
 import { equivalenteSinConsentimiento, preguntaDeEquivalente } from "../domain/equivalentePendiente.js";
 import { aroDadoPorElCliente, medidaParaElSello, medidaNoDada, medidasDelAro } from "../domain/medidaConfirmada.js";
 import { eleccionDeLaVitrina } from "../domain/eleccionDeVitrina.js";
@@ -2075,6 +2076,9 @@ export function buildTools(ctx: AgentContext) {
             codes: products.map((p) => p.code),
             sizeLabel,
             escalones,
+            // Con cuántas llantas se calcularon los totales de la lista escrita:
+            // los seguimientos y el guardián la reconstruyen desde aquí.
+            cantidad: cantidadResuelta.cantidad,
             // La recomendada y su porqué, para que la ruta directa pueda
             // volver a entregar la pieza cuando el cliente pida criterio
             // (services/recomendarConLaPieza.ts, 1-sep).
@@ -2163,7 +2167,20 @@ export function buildTools(ctx: AgentContext) {
       // cliente ya dio la señal (precio, recomendación, uso o menú) y la
       // política del corpus permite el juego de 4 como propuesta.
       if (autorizaCotizar && !consentimientoPendiente) ctx.recomendacionEntregada = true;
+      // La lista escrita con precio: es el cierre cuando NO se entrega la
+      // recomendación (antes era el menú «¿qué prioriza?»). Mismas cifras que la
+      // lámina y que firmará la cotización; la cantidad es la del cliente o el
+      // juego de 4 (`cantidadResuelta`, la misma que filtró lo vendible).
+      const listaEscrita = armarLista(
+        products.map((p) => ({
+          nombre: `${p.brand} ${p.design}`,
+          precio: p.minimumPriceWithTax ?? 0,
+          codigo: p.code,
+        })),
+        cantidadResuelta.cantidad,
+      );
       const cierreDeOpciones = buildCierreOpciones({
+        lista: listaEscrita ? { lista: listaEscrita, cantidad: cantidadResuelta.cantidad } : null,
         entregarRecomendacion,
         ofrecerCotizar: entregarRecomendacion && !autorizaCotizar,
         pedirMedida: Boolean(ctx.medidaSinConfirmar),
@@ -2265,7 +2282,7 @@ export function buildTools(ctx: AgentContext) {
             ? "El cliente YA pidió la cotización o contestó su preferencia: el texto le entrega la recomendación y AHORA MISMO, EN ESTE MISMO TURNO, llamas generar_cotizacion por `recomendacion` con 4 llantas (o la cantidad que el cliente haya dicho). PROHIBIDO preguntarle si la quiere y PROHIBIDO terminar el turno sin la cotización: ya te dio la señal."
             : entregarRecomendacion
             ? "El cliente pidió recomendación o contó su uso: el texto ya le entrega la recomendación y le ofrece cotizarla. NO llames generar_cotizacion todavía: la cotización sale cuando el cliente diga que sí, la pida, dé cantidad o elija del menú."
-            : "NO adelantes la recomendación en este turno: el texto cierra con el menú de preferencia (1 Costo / 2 Equilibrio / 3 Premium). Si el cliente responde «1», «2», «3», «costo», «equilibrio», «premium» (o «la más barata», «la del medio», «la mejor»), entrega la opción de ESE escalón de `escalones` — nombre y precio con IVA — y en ese mismo turno llama generar_cotizacion con su código y 4 llantas: contestar el menú ES pedir la cotización, no se ofrece ni se pide permiso. Si responde un sí genérico, dile en UNA frase que irías por `recomendacion` porque `motivo_recomendacion`.",
+            : "NO adelantes la recomendación en este turno: el texto ya trae cada opción con su precio escrito y cierra con «¿Le cotizo la 1, la 2 o la 3?» (1 = la más barata / Costo, 2 = Equilibrio, 3 = Premium; con dos opciones, 1 = la más barata y 2 = la premium). PROHIBIDO preguntarle qué prioriza. Si el cliente responde «1», «2», «3», «costo», «equilibrio», «premium» (o «la más barata», «la del medio», «la mejor»), entrega la opción de ESE escalón de `escalones` — nombre y precio con IVA — y en ese mismo turno llama generar_cotizacion con su código y 4 llantas: contestar el menú ES pedir la cotización, no se ofrece ni se pide permiso. Si responde un sí genérico, dile en UNA frase que irías por `recomendacion` porque `motivo_recomendacion`.",
           // La única excepción a «no agregues texto»: avisar que la medida no
           // es la suya. Callarlo es lo que terminó en una cotización firmada
           // por otra medida (5499).
@@ -2457,7 +2474,7 @@ export function buildTools(ctx: AgentContext) {
             and role='assistant' and type='text'
           order by created_at desc limit 1
         `;
-        if (ultimoSaliente?.content?.includes("¿qué prioriza usted?")) {
+        if (traeMarcaDelMenu(ultimoSaliente?.content)) {
           items = [{ ...items[0], cantidad: 4 }];
           avisoJuego = "Se la hice por juego de 4 llantas; si necesita otra cantidad, me avisa y se la ajusto al toque.";
         }
