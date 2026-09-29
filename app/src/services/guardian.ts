@@ -810,6 +810,7 @@ export async function armarContexto(
     // «¿Se la cotizo?» a propósito —no hay menú posible— y el revisor la quitó
     // como pregunta_de_mas, dejando el turno sin salida.
     huella.some((h) => h.herramienta === "preparar_opciones" && (h.resultado.includes('"unica_opcion":true') || /¿Se la cotizo\?/.test(h.resultado)))
+      && !huella.some((h) => h.herramienta === "preparar_opciones" && h.resultado.includes('"unica_cotizada_directo":true'))
       ? "ÚNICA OPCIÓN EN PANTALLA: la pieza trae una sola llanta y cierra con «¿Se la cotizo?». Esa pregunta es la legítima del turno y se conserva TAL CUAL: NO es pregunta_de_mas, NO la reemplaces por un menú de preferencia (no hay entre qué elegir) ni por otra redacción («¿avanzamos con esta opción?»): el «sí» del cliente solo abre la cotización si la pregunta habla de cotizar."
       : null,
     // HECHO DURO (conv +593 99 842 8277, 25 y 27-sep): UNA sola llanta y el
@@ -836,7 +837,11 @@ export async function armarContexto(
     // revisor la borró por la regla 15 poniendo la pregunta del local. El
     // cliente que ya había elegido con sus palabras se quedó con precio y sin
     // cotización. Las dos capas eran correctas por separado; esto las alinea.
+    // …salvo con la ÚNICA cuyo precio ya se pidió (`unica_cotizada_directo`): ahí
+    // el bloqueo es un fallo nuestro, no falta de sí del cliente, y forzar el
+    // «¿Se la cotizo?» es pedirle permiso por lo que ya pidió (V5b, 28-sep).
     huella.some((h) => h.herramienta === "generar_cotizacion" && h.resultado.includes("este turno no autorizó cotizar llantas"))
+      && !huella.some((h) => h.herramienta === "preparar_opciones" && h.resultado.includes('"unica_cotizada_directo":true'))
       ? "COTIZACIÓN BLOQUEADA ESTE TURNO POR FALTA DE AUTORIZACIÓN: la herramienta no cotizó porque no reconoció un sí ni una elección en el mensaje del cliente. El borrador debe cerrar con «¿Se la cotizo?» sola en su bloque: esa pregunta es la legítima del turno y se conserva TAL CUAL — NO es pregunta_de_mas, NO la reemplaces por la pregunta del local ni por «¿avanzamos?». Si el borrador no la trae, la corrección la agrega. PROHIBIDO anunciar o prometer la cotización: este turno no salió."
       : null,
     huella.some((h) => h.herramienta === "preparar_opciones" && h.resultado.includes('"consentimiento_pendiente":true'))
