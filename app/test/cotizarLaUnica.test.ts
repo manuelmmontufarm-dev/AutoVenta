@@ -32,6 +32,21 @@ describe("pidioPrecioOCotizacion: todas las formas de pedir el número", () => {
     expect(pidioPrecioOCotizacion(texto)).toBe(true);
   });
 
+  it.each([
+    "cuánto es", "cuánto está", "cuánto serían", "cuánto me sale", "cuánto por las 4",
+    "cuánto el juego", "cuánto c/u", "cuánto cada una", "¿cuánto?", "Hola, cuánto las 4?",
+  ])("«%s» cuenta (cuánto de precio)", (texto) => {
+    expect(pidioPrecioOCotizacion(texto)).toBe(true);
+  });
+
+  it.each([
+    "cuánto tiempo demora", "cuánto dura", "cuánto duran las llantas", "cuánto aguanta", "cuánto aguantan",
+    "cuánto tarda la instalación", "cuánto km da", "cuántos kilometros rinde", "cuánto rinde",
+    "cuánto se demora", "cuánto es la garantia", "cuánto de garantia tiene",
+  ])("«%s» NO cuenta (cuánto que no es precio)", (texto) => {
+    expect(pidioPrecioOCotizacion(texto)).toBe(false);
+  });
+
   it.each(["31x10.5R15", "hola buenas", "busco 265/70R16", "en Quito", "gracias"])(
     "«%s» no cuenta", (texto) => {
       expect(pidioPrecioOCotizacion(texto)).toBe(false);

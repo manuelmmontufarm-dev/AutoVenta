@@ -678,5 +678,15 @@ export function pideOpcionesNoCotizacion(text: string): boolean {
  * llanta y preguntar «¿se la cotizo?» es pedir permiso por algo ya pedido.
  */
 export function pidioPrecioOCotizacion(text: string): boolean {
-  return pidePrecio(text) || /\bcuanto\b/.test(normalize(text));
+  if (pidePrecio(text)) return true;
+  // «cuánto» a secas es precio salvo que hable de tiempo, duración o garantía
+  // («cuánto tiempo demora», «cuánto dura», «cuánto km da»): se mira lo que le
+  // sigue dentro de la misma frase.
+  return normalize(text).split(/[.!?\n;]+/).some((frase) => {
+    const i = frase.search(/\bcuanto\b/);
+    return i >= 0 && !CUANTO_QUE_NO_ES_PRECIO.test(frase.slice(i + 6));
+  });
 }
+
+const CUANTO_QUE_NO_ES_PRECIO =
+  /\b(?:tiempo|demora\w*|dura\w*|tarda\w*|aguanta\w*|rinde\w*|rendimiento|km|kms|kilometr\w*|garantia)\b|\bes\s+la\s+garantia\b|\bde\s+garantia\b/;
