@@ -59,6 +59,7 @@ import { politicaDePagos } from "../domain/datosDelNegocio.js";
 import { despedidaQueCorresponde } from "../domain/cierrePerdido.js";
 import { ofertaDeCotizarAceptada } from "../domain/ofertaAceptada.js";
 import { visitaPendiente } from "../domain/visitaPendiente.js";
+import { tiposCompatibles, usoDeLosTextos } from "../domain/usoYTipo.js";
 import { JUEGO_COMPLETO, opcionesQueAlcanzan } from "../domain/opcionesCandados.js";
 import { tipoDeProducto } from "../domain/tireTypes.js";
 import { chatReasoningEffort } from "../agent/aiRequestPolicy.js";
@@ -556,6 +557,22 @@ export async function armarContexto(
     anuncio ? `Anuncio por el que llegó: «${[anuncio.titulo, anuncio.texto].filter(Boolean).join(" — ")}»` : null,
     claseDeVehiculoEnTexto([hechos?.vehicle, anuncio?.titulo, anuncio?.texto, ...mensajes.filter((m) => m.direction === "inbound").map((m) => m.content)]) === "camioneta"
       ? "EL CLIENTE BUSCA LLANTA DE CAMIONETA / SUV / 4x4 (lo dijo él o lo dice el anuncio). Un borrador que le ofrezca llantas de auto de perfil bajo (series 40, 45, 50 o 55 en ancho menor a 225) es **medida_incorrecta** de severidad ALTA: la corrección quita esas opciones y pide la medida del costado o la foto."
+      : null,
+    // HECHO DURO (familia del 21-sep-2026): el USO que declaró el cliente fija
+    // qué TIPOS pueden estar en el menú. Sin este hecho la regla 21 («el tipo
+    // no se esconde») empuja al revisor a AGREGAR la M/T que el menú dejó fuera
+    // a propósito para quien pidió ciudad. Misma función que las herramientas.
+    (() => {
+      const uso = usoDeLosTextos(mensajes.filter((m) => m.direction === "inbound").map((m) => m.content));
+      const tipos = tiposCompatibles(uso);
+      return uso && tipos
+        ? `USO DECLARADO POR EL CLIENTE: ${uso}. Los tipos que le sirven son ${tipos.join(", ")}. La regla 21 obliga a nombrar un tipo que el cliente PIDIÓ, no a agregar los que su uso descarta: la corrección NO agrega ni recomienda otro tipo (una M/T para ciudad, una H/T para lodo). Un borrador que le ofrezca o recomiende un tipo fuera de esa lista es de severidad ALTA (categoría **otro**) y la corrección lo cambia por uno de esos tipos que esté en el CATÁLOGO DE HOY.`
+        : null;
+    })(),
+    // Si el menú tuvo que salirse del uso porque no había suficientes de ese
+    // tipo, la herramienta lo AVISÓ (`aviso_tipo`): ese aviso es verdad y se queda.
+    huella.some((h) => h.resultado.includes('"aviso_tipo"'))
+      ? "AVISO DE TIPO VIGENTE: este turno la herramienta reportó `aviso_tipo` — no había suficientes llantas del tipo que le sirve a su uso y el menú se completó con otro tipo. Es un hecho: el borrador DEBE decirlo en una línea, y quitárselo es error ALTO (categoría **otro**). La corrección no lo borra ni presenta esas llantas como el tipo ideal."
       : null,
     // HECHO DURO para la regla 22 (1-sep, conv 13862): la medida salió del
     // vehículo o del aro, no del cliente. Misma función que el candado de
