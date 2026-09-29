@@ -40,7 +40,10 @@ import { asegurarAvisoDeStock } from "./stockCorto.js";
 import { insistirConLoQueFalta, sinPreguntaPendienteConsecutiva } from "./insistirCierre.js";
 import { createBotAlert } from "./followUps.js";
 import { MAX_BLOCKS } from "./quoteMessages.js";
-import { sinPreguntasProhibidas } from "../domain/preguntasProhibidas.js";
+import { sinCuestionarLaMedidaDada, sinPreguntasProhibidas } from "../domain/preguntasProhibidas.js";
+import { medidasEscritasPorElCliente } from "../domain/medidaDelCliente.js";
+import { mensajesDeLaVisitaActual } from "../domain/medidaPedida.js";
+import { medidaEnDisputaDelPedido } from "./medidasDelPedido.js";
 import {
   afirmaQueAceptanAceiteDelCliente,
   preguntaSiPuedeLlevarSuAceite,
@@ -615,6 +618,39 @@ export const PASOS: readonly PasoDeSalida[] = [
           dedupeKey: `${ctx.conversation.id}:${ctx.conversation.current_cycle}:pregunta_de_mas:${depurado.quitadas[0].slice(0, 60)}`,
         }).catch(() => undefined);
       }
+      return depurado.texto;
+    },
+  },
+  {
+    // LA MEDIDA QUE EL CLIENTE ESCRIBIÓ NO SE CUESTIONA NI SE VUELVE A PEDIR
+    // (familia 2-H, 28-sep). Conv 12625: con 195/55R16 escrita dos veces, el
+    // Ángel Guardián escribió «usted llegó por llanta de camioneta y esa medida
+    // es de auto… envíeme una foto» y los seguimientos lo copiaron cuatro
+    // veces. Va después del guardián porque es él quien lo escribía; con dos
+    // medidas en disputa (conv 22629) no corre: ahí preguntar es lo correcto.
+    // Ver domain/medidaDelCliente.ts y domain/preguntasProhibidas.ts.
+    nombre: "la_medida_del_cliente_no_se_cuestiona",
+    corre: ["respuesta", "retomada", "seguimiento"],
+    async aplicar(texto, ctx) {
+      const entrantes = await sql<{ content: string; created_at: Date }[]>`
+        select content, created_at from messages
+        where conversation_id=${ctx.conversation.id} and cycle=${ctx.conversation.current_cycle}
+          and direction='inbound'
+        order by created_at desc limit 20
+      `;
+      const medidas = medidasEscritasPorElCliente([
+        ...mensajesDeLaVisitaActual(entrantes).map((m) => m.content),
+        ctx.textoDelCliente,
+      ]);
+      if (!medidas.length) return texto;
+      const depurado = sinCuestionarLaMedidaDada(texto, medidas);
+      if (!depurado.quitadas.length) return texto;
+      if (await medidaEnDisputaDelPedido(ctx.conversation.id, ctx.conversation.current_cycle, ctx.textoDelCliente)) {
+        return texto;
+      }
+      console.warn(
+        `✂️ Conv ${ctx.conversation.id}: se quitó lo que cuestionaba su medida ${medidas.join(", ")}: ${depurado.quitadas.join(" | ")}`,
+      );
       return depurado.texto;
     },
   },

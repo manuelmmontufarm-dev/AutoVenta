@@ -173,6 +173,9 @@ describe("el orden de los candados en el turno", () => {
       // (T115 E01, 31-ago: el mini escribió «ya le avisé» sin avisar).
       "lo_prometido_se_ejecuta",
       "sin_preguntas_prohibidas",
+      // Familia 2-H (28-sep, conv 12625): el guardián escribía «esa medida es
+      // de auto… envíeme una foto» a quien ya la había escrito.
+      "la_medida_del_cliente_no_se_cuestiona",
       "sin_json_crudo",
       "sin_locales_inventados",
       // Corrida 3 (auditoría 2-6 sep): el bot no da su propio número, los

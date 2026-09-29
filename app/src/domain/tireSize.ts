@@ -526,6 +526,23 @@ export function formatFlotationSize(size: FlotationSize): string {
  * completa (no hay nada que pedir) o cuando no hay medida en absoluto (eso se
  * pregunta con la guía de siempre).
  */
+/**
+ * La media medida «perfil + aro, sin ancho» («75  rin 15», «65 R 17»), leída.
+ * Null si el texto trae otra cosa. Mismo patrón que la pregunta de abajo: la
+ * misma lectura decide qué se pregunta y qué se puede mostrar (conv 23160).
+ */
+export function perfilYAroSinAncho(text: string): { perfil: number; aro: number } | null {
+  if (!medidaIncompleta(text) || flotacionIncompleta(text)) return null;
+  const n = text.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
+  if (/(?<!\d)\d{3}\s*[x×*\s/.,\-)]/.test(n)) return null;
+  const m = n.match(/(?<![\d/])(\d{2})\s*(?:[-/\s]\s*)?(?:z?r|rin|aro)\s*(\d{2})(?!\d)/i);
+  if (!m) return null;
+  const perfil = Number(m[1]);
+  const aro = Number(m[2]);
+  if (perfil % 5 !== 0 || perfil < ASPECT_MIN || perfil > ASPECT_MAX || aro < RIM_MIN || aro > RIM_MAX) return null;
+  return { perfil, aro };
+}
+
 export function loQueFaltaDeLaMedida(text: string): string | null {
   if (!medidaIncompleta(text)) return null;
   const flot = flotacionIncompleta(text);

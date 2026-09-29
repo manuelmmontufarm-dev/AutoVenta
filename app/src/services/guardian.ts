@@ -44,12 +44,12 @@ import { medidaEstaPedida, mensajesDeLaVisitaActual } from "../domain/medidaPedi
 import { hechoDeLaLista, listaDeLaPieza } from "../domain/listaDeOpciones.js";
 import { hechosDeRestricciones, restriccionesDeLlanta } from "../domain/restriccionesLlanta.js";
 import { CIERRE_COTIZAR } from "../domain/preguntasProhibidas.js";
-import { medidasDelPedido } from "./medidasDelPedido.js";
+import { medidaEnDisputaDelPedido, medidasDelPedido } from "./medidasDelPedido.js";
+import { clienteDioSuMedida, hechoDeCamionetaVigente, medidasEscritasPorElCliente } from "../domain/medidaDelCliente.js";
 import { ensureCatalogReady, findByCode, searchBySize, searchByText } from "./catalog.js";
 import { flotacionIncompleta, parseTireSize } from "../domain/tireSize.js";
 import { respaldoCompleto } from "../domain/respaldoMarcas.js";
 import { logAiRun } from "./conversations.js";
-import { claseDeVehiculoEnTexto } from "../domain/claseDeVehiculo.js";
 import { crearAlertaRepeticion } from "./conversationQuality.js";
 import { createBotAlert } from "./followUps.js";
 import { getActiveBenefits } from "./benefits.js";
@@ -515,6 +515,9 @@ export async function armarContexto(
     where conversation_id=${conversationId} and cycle=${cycle} and direction='inbound'
     order by created_at desc limit 12
   `;
+  const entrantesDeLaVisita = mensajesDeLaVisitaActual(inboundVisita).map((m) => m.content);
+  const medidasDelClienteEnLaVisita = medidasEscritasPorElCliente(entrantesDeLaVisita);
+  const disputa = await medidaEnDisputaDelPedido(conversationId, cycle);
   const hechoRestricciones = hechosDeRestricciones(
     restriccionesDeLlanta(mensajesDeLaVisitaActual(inboundVisita).map((m) => m.content).reverse()),
   );
@@ -573,7 +576,14 @@ export async function armarContexto(
     // El anuncio y la clase de vehículo son HECHOS: sin ellos el revisor aprobó
     // llantas de sedán para una «camioneta 4x4» (convs 20211 y 20209, 14-sep).
     anuncio ? `Anuncio por el que llegó: «${[anuncio.titulo, anuncio.texto].filter(Boolean).join(" — ")}»` : null,
-    claseDeVehiculoEnTexto([hechos?.vehicle, anuncio?.titulo, anuncio?.texto, ...mensajes.filter((m) => m.direction === "inbound").map((m) => m.content)]) === "camioneta"
+    // ...salvo que el cliente haya ESCRITO su medida (conv 12625, 22-sep): con
+    // «195/55R16» escrita dos veces, este hecho —sacado del anuncio— hizo que
+    // el revisor le dijera cuatro veces «usted llegó por llanta de camioneta y
+    // esa medida es de auto… envíeme una foto». Ver domain/medidaDelCliente.
+    hechoDeCamionetaVigente(
+      [hechos?.vehicle, anuncio?.titulo, anuncio?.texto],
+      [...mensajes.filter((m) => m.direction === "inbound").map((m) => m.content), ...entrantesDeLaVisita],
+    )
       ? "EL CLIENTE BUSCA LLANTA DE CAMIONETA / SUV / 4x4 (lo dijo él o lo dice el anuncio). Un borrador que le ofrezca llantas de auto de perfil bajo (series 40, 45, 50 o 55 en ancho menor a 225) es **medida_incorrecta** de severidad ALTA: la corrección quita esas opciones y pide la medida del costado o la foto."
       : null,
     // HECHO DURO (familia del 21-sep-2026): el USO que declaró el cliente fija
@@ -592,12 +602,21 @@ export async function armarContexto(
     huella.some((h) => h.resultado.includes('"aviso_tipo"'))
       ? "AVISO DE TIPO VIGENTE: este turno la herramienta reportó `aviso_tipo` — no había suficientes llantas del tipo que le sirve a su uso y el menú se completó con otro tipo. Es un hecho: el borrador DEBE decirlo en una línea, y quitárselo es error ALTO (categoría **otro**). La corrección no lo borra ni presenta esas llantas como el tipo ideal."
       : null,
+    // HECHO DURO (familia 2-H, 28-sep): la medida que él escribió es SUYA. Sin
+    // este hecho el revisor la cuestionaba por el vehículo o el anuncio y
+    // pedía la foto del costado a quien ya la había escrito.
+    medidasDelClienteEnLaVisita.length && !disputa
+      ? `MEDIDA ESCRITA POR EL CLIENTE: ${medidasDelClienteEnLaVisita.join(", ")}. Es dato suyo: PROHIBIDO decir que no corresponde a su vehículo, que «es de auto», o volver a pedirle la medida o una foto del costado. Si en esa medida no hay stock, se dice y se ofrecen equivalentes que calcen; eso no es pedirle nada.`
+      : null,
+    disputa
+      ? `DOS MEDIDAS DEL CLIENTE SIN RESOLVER: en la foto se lee ${disputa.foto} y después escribió ${disputa.escrita}. Preguntarle en una línea cuál es la de su llanta, nombrando las dos, es la pregunta legítima del turno (no es pregunta_de_mas ni re-pregunta). Cotizar cualquiera de las dos antes de su respuesta es **cotizacion_sin_medida** ALTA.`
+      : null,
     // HECHO DURO para la regla 22 (1-sep, conv 13862): la medida salió del
     // vehículo o del aro, no del cliente. Misma función que el candado de
     // `generar_cotizacion` (domain/medidaConfirmada), sobre los mensajes del
     // cliente de este ciclo.
     hechos?.vehicle
-      && !medidaConfirmadaPorCliente(hechos.tire_size, mensajes.filter((m) => m.direction === "inbound").map((m) => m.content))
+      && !clienteDioSuMedida(hechos.tire_size, [...mensajes.filter((m) => m.direction === "inbound").map((m) => m.content), ...entrantesDeLaVisita])
       && !aroDadoPorElCliente(mensajes.filter((m) => m.direction === "inbound").map((m) => m.content))
       ? "MEDIDA NO CONFIRMADA POR EL CLIENTE: el vehículo está registrado pero el cliente no escribió ninguna medida completa ni mandó foto en esta visita. Toda medida en juego la dedujo el bot. Opciones sí; cotización no; el cierre pide la medida."
       : null,
