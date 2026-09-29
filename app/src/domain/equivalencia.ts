@@ -31,6 +31,13 @@
  *
  * Puro y sin catálogo: entra una etiqueta de medida y sale un número. Quien
  * ordena o descarta es quien llama, con estas piezas.
+ *
+ * ES EL ÚNICO JUEZ (familia 1-B, 22-24 sep-2026). La lámina de opciones, la
+ * regla de `generar_cotizacion`, las alternativas de `buscar_llanta` y de
+ * fitment, las equivalentes cotizables de `medidasDelPedido` y el candado del
+ * texto final (`equivalenciaEnTexto.ts`) preguntan aquí con `esEquivalente` /
+ * `equivaleAAlguna`, y la dirección que pidió el cliente («más ancha», «más
+ * alta») también vive aquí (`direccionPedida`, `respetaDireccion`).
  */
 import { extractFlotationSizes, extractTireSizes } from "./tireSize.js";
 
@@ -42,6 +49,18 @@ export const TOLERANCIA_DIAMETRO = 0.03;
 
 /** Más de esto de diferencia de ancho ya se ve y se siente distinto. */
 const ANCHO_CERCANO_MM = 10;
+
+/**
+ * Más de esto de diferencia de ancho ya no monta en el mismo rin.
+ *
+ * Conv 22492 (22-sep): pidió 225/55R14 («ancho 225 para arriba hasta 235») y
+ * recibió tres 175/70R14 como «equivalentes de su aro». El diámetro cuadraba
+ * (600,6 mm contra 603,1) pero son 5 cm menos de sección: una 225 va en un rin
+ * de 7″ y una 175 en uno de 5″. Dos pasos de ancho (±20 mm) es lo que admite un
+ * mismo rin; la 245/75R16 del chat 18225, 2 cm más angosta que la 265/70R16,
+ * sigue siendo equivalente.
+ */
+const ANCHO_MAXIMO_MM = 20;
 
 /**
  * El diámetro exterior en milímetros, o `null` si la etiqueta no alcanza para
@@ -115,7 +134,10 @@ export function cercaniaDeMedida(
     anchoPedido !== null && anchoCandidato !== null ? Math.abs(anchoCandidato - anchoPedido) : Infinity;
   const mismoAncho = deltaAncho === 0;
 
-  const aceptable = mismoAro && deltaDiametro <= TOLERANCIA_DIAMETRO;
+  // Sin ancho comparable (una de pulgadas contra una métrica rara) manda el
+  // diámetro, como siempre; con ancho, tiene que caber en el mismo rin.
+  const anchoQueMonta = !Number.isFinite(deltaAncho) || deltaAncho <= ANCHO_MAXIMO_MM;
+  const aceptable = mismoAro && deltaDiametro <= TOLERANCIA_DIAMETRO && anchoQueMonta;
   // El diámetro pesa 100 veces más que el ancho: es el que decide si monta.
   // El ancho desempata entre las que ya montan.
   const puntaje = -(deltaDiametro * 10_000) - (Number.isFinite(deltaAncho) ? deltaAncho : 1_000);
@@ -137,14 +159,99 @@ export function cercaniaDeMedida(
 export function ordenarPorCercania<T extends { sizeLabel: string | null }>(
   candidatas: readonly T[],
   medidaPedida: string | null | undefined,
+  direccion: Direccion | null = null,
 ): T[] {
   if (!medidaPedida) return [...candidatas];
-  const conCercania = candidatas.map((item) => ({ item, cercania: cercaniaDeMedida(medidaPedida, item.sizeLabel) }));
+  // La dirección que pidió el cliente descarta ANTES de medir cercanía: la
+  // más parecida que va para el otro lado no es una respuesta a «más ancha».
+  const enSuDireccion = direccion
+    ? candidatas.filter((item) => item.sizeLabel !== null && respetaDireccion(medidaPedida, item.sizeLabel, direccion))
+    : candidatas;
+  const conCercania = enSuDireccion.map((item) => ({ item, cercania: cercaniaDeMedida(medidaPedida, item.sizeLabel) }));
   const comparables = conCercania.filter((c) => c.cercania !== null);
   // Sin ninguna comparable no hay nada que filtrar: pasa todo, sin reordenar.
-  if (!comparables.length) return [...candidatas];
+  if (!comparables.length) return [...enSuDireccion];
   return conCercania
     .filter((c) => c.cercania === null || c.cercania.aceptable)
     .sort((a, b) => (b.cercania?.puntaje ?? -Infinity) - (a.cercania?.puntaje ?? -Infinity))
     .map((c) => c.item);
+}
+
+/**
+ * ¿Se le puede decir «equivalente» / «le entra» / «de su aro» a esta medida?
+ *
+ * La única respuesta del sistema a esa pregunta. La lámina de opciones, la
+ * regla de `generar_cotizacion`, las equivalentes que quedan cotizables y el
+ * candado del texto final preguntan AQUÍ; antes cada uno decidía a su manera
+ * —o no decidía— y por eso la misma familia salió por cinco puertas
+ * (auditoría 22-24 sep: convs 22533, 22975, 23021, 22492, 23080, 15644).
+ *
+ * «No se puede comparar» (una medida sin perfil, `165R14`) es NO: la
+ * equivalencia se afirma cuando se sabe, no cuando no se sabe que no.
+ */
+export function esEquivalente(pedida: string | null | undefined, candidata: string | null | undefined): boolean {
+  return cercaniaDeMedida(pedida, candidata)?.aceptable === true;
+}
+
+/** Equivale a por lo menos una de las medidas del cliente. Sin medidas, no equivale a nada. */
+export function equivaleAAlguna(pedidas: readonly string[], candidata: string | null | undefined): boolean {
+  return pedidas.some((pedida) => esEquivalente(pedida, candidata));
+}
+
+/**
+ * De las medidas que el bot DECLARÓ equivalentes (la lámina las anota en
+ * `metadata.equivalentes` y `medidasDelPedido` las vuelve cotizables), las que
+ * de verdad lo son. Una que no equivale no se vuelve cotizable por haber sido
+ * escrita al lado de la palabra «equivalente».
+ */
+export function equivalentesQueEquivalen(
+  declaradas: readonly string[],
+  delCliente: readonly string[],
+): string[] {
+  return declaradas.filter((medida) => equivaleAAlguna(delCliente, medida));
+}
+
+/** Hacia dónde pidió moverse el cliente respecto de su medida. */
+export type Direccion = "mas_ancha" | "mas_angosta" | "mas_alta" | "mas_baja";
+
+/**
+ * «Me gustaría un poco más ancha» (conv 22975), «si me gustaría más alto»
+ * (conv 23021). Null si el texto no pide moverse.
+ *
+ * «Más grande» es más alta: lo que el cliente ve crecer es la rueda entera.
+ * Se ignora cuando lo que es «más alto» es el precio.
+ */
+export function direccionPedida(texto: string | null | undefined): Direccion | null {
+  const n = (texto ?? "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+  const m = n.match(/\bmas\s+(anch|angost|delgad|finit|alt|grand|baj|pequen|chic)[a-z]*/);
+  if (!m) return null;
+  if (/\b(precio|caro|cara|costo|valor)\b/.test(n.slice(Math.max(0, (m.index ?? 0) - 25), (m.index ?? 0) + m[0].length + 25))) {
+    return null;
+  }
+  switch (m[1]) {
+    case "anch": return "mas_ancha";
+    case "angost": case "delgad": case "finit": return "mas_angosta";
+    case "alt": case "grand": return "mas_alta";
+    default: return "mas_baja";
+  }
+}
+
+/**
+ * ¿La candidata va hacia donde pidió el cliente, partiendo de `base`?
+ *
+ * Más ancha = más sección. Más alta = más diámetro exterior (más perfil o más
+ * aro). Si falta el dato para medirlo (una medida sin perfil), no se puede
+ * afirmar que vaya para ese lado: es no.
+ */
+export function respetaDireccion(base: string, candidata: string, direccion: Direccion): boolean {
+  if (direccion === "mas_ancha" || direccion === "mas_angosta") {
+    const a = anchoMm(base);
+    const b = anchoMm(candidata);
+    if (a === null || b === null) return false;
+    return direccion === "mas_ancha" ? b > a : b < a;
+  }
+  const a = diametroExteriorMm(base);
+  const b = diametroExteriorMm(candidata);
+  if (a === null || b === null) return false;
+  return direccion === "mas_alta" ? b > a : b < a;
 }

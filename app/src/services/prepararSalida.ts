@@ -79,6 +79,8 @@ import {
   type MetadataDePieza,
 } from "../domain/equivalentePendiente.js";
 import { findByCode } from "./catalog.js";
+import { contextoDeEquivalencias } from "./medidasDelPedido.js";
+import { sinEquivalenciasFalsas } from "../domain/equivalenciaEnTexto.js";
 
 /**
  * De qué puerta viene el texto.
@@ -379,6 +381,40 @@ export const PASOS: readonly PasoDeSalida[] = [
       return sinPreguntaPendienteConsecutiva(
         ctx.conversation.id, ctx.conversation.current_cycle, texto, ctx.textoDelCliente,
       );
+    },
+  },
+  {
+    // «EQUIVALENTE» SOLO LO QUE EQUIVALE (familia 1-B, auditoría 22-24 sep).
+    //
+    // La palabra salió por cinco puertas pegada a medidas que no montaban o
+    // que iban al revés de lo pedido: la lámina (165/65R13 a quien pidió aro
+    // 14, conv 22533), la regla de la cotización («le entra la 215/60R17» por
+    // una 235/60R17, conv 23080 — y el freno del guardián restauró ese
+    // borrador), la búsqueda («más ancha» → la misma sección, conv 22975) y el
+    // modelo a mano («más alta cercana sería 235/65R16», +3,4 %, conv 23021;
+    // «238 70 16» → 215/65R16 sin aclarar, conv 15644). Va después de todo lo
+    // que reescribe, y el juez es uno solo: `domain/equivalencia.ts`.
+    nombre: "sin_equivalencias_falsas",
+    corre: ["respuesta", "retomada", "seguimiento"],
+    async aplicar(texto, ctx) {
+      const contexto = await contextoDeEquivalencias(
+        ctx.conversation.id, ctx.conversation.current_cycle, ctx.textoDelCliente,
+      );
+      const { texto: limpio, reemplazadas } = sinEquivalenciasFalsas(texto, contexto);
+      if (!reemplazadas.length) return texto;
+      const detalle = reemplazadas.map((r) => `${r.medida} (${r.motivo})`).join(", ");
+      console.warn(`📏 Equivalencia falsa cambiada en la conv ${ctx.conversation.id}: ${detalle}`);
+      await createBotAlert({
+        conversationId: ctx.conversation.id,
+        cycle: ctx.conversation.current_cycle,
+        type: "equivalencia_falsa",
+        priority: "high",
+        summary: "El bot iba a ofrecer como equivalente una medida que no lo es",
+        exactReason: `Medidas: ${detalle}. Frase: «${reemplazadas[0].frase.slice(0, 200)}». Se cambió por una línea honesta.`,
+        suggestedAction: "Confirmá con el cliente qué medida le calza: la línea que recibió ofrece que el asesor lo revise.",
+        dedupeKey: `equivalencia_falsa:${ctx.conversation.id}:${ctx.conversation.current_cycle}:${reemplazadas[0].medida}`,
+      }).catch(() => undefined);
+      return limpio;
     },
   },
   {

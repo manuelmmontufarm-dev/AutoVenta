@@ -160,6 +160,10 @@ describe("el orden de los candados en el turno", () => {
       // El dedupe repite DESPUÉS del guardián porque él reescribe y puede
       // reintroducir la pregunta ya vetada (T115 conv 9887, 30-ago).
       "sin_pregunta_consecutiva_tras_guardian",
+      // «Equivalente» solo lo que equivale (familia 1-B, 22-24 sep): después
+      // de todo lo que reescribe, porque el freno del guardián restauraba el
+      // borrador con «le entra la 215/60R17» (conv 23080).
+      "sin_equivalencias_falsas",
       "aviso_de_stock",
       "alcance_fuera_de_catalogo",
       "despedida_de_venta_perdida",
