@@ -32,9 +32,7 @@ import { startVentasConfirmadasSync } from "./services/ventasConfirmadas.js";
 import { ensureSchema } from "./db/schema.js";
 import {
   appendMessage,
-  devolverAlBotSiVencioLaPausa,
   getOrCreateConversation,
-  isBotPaused,
   lastOutboundText,
   outboundTextByWaMessageId,
   logFunnelEvent,
@@ -103,6 +101,10 @@ import {
 } from "./domain/cierreTurno.js";
 import { esAcuseSimple } from "./domain/ofertaAceptada.js";
 import { respuestaDirectaDeUbicacionFueraDeCobertura } from "./domain/visitaImposible.js";
+import { puedeSaludarComoPrimerContacto } from "./domain/turnoDelHumano.js";
+import { decidirQuienContesta } from "./services/turnoDelHumano.js";
+import { quiereComprarADistancia } from "./domain/compraADistancia.js";
+import { avisarCompraADistancia } from "./services/compraADistancia.js";
 
 /** Pausa entre bloques: suficiente para que se lean como mensajes seguidos y no como spam. */
 const PAUSA_ENTRE_BLOQUES_MS = 900;
@@ -111,6 +113,9 @@ const esperar = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms)
 
 const pipeline = new InboundPipeline(async ({ from, name, text: textoRecibido, waMessageIds, quotedWaMessageId, receivedAt }) => {
   let text = textoRecibido;
+  // Desde aquí cuenta «este turno»: lo que se registre para el asesor a partir
+  // de ahora es lo único que autoriza a decir «ya avisé» (sin_aviso_inventado).
+  const inicioDelTurno = new Date();
   // El mensaje ya quedó guardado en recibirMensaje(), antes de responderle 200
   // a Meta. Aquí solo se elabora la respuesta sobre el texto ya agrupado.
   // UN «👍» SOBRE UNA VENTA CERRADA NO LA REABRE (auditoría 2-6 sep, conv
@@ -219,6 +224,15 @@ const pipeline = new InboundPipeline(async ({ from, name, text: textoRecibido, w
       visitTimeLabel: visitaRegistrada?.visitTimeLabel,
     }).catch((error) => console.error("⚠️ No se pudo avisar la visita comprometida:", error));
   }
+  // QUIEN COMPRA A DISTANCIA ES UNA VENTA PARA EL ASESOR (conv 21766, 20-sep):
+  // «Lo compro x este medio me cotiza lo cancelo comfirma y me envia». El bot
+  // no cobra ni confirma pagos: el que cierra es una persona, y se entera con
+  // una alerta alta aunque el modelo no llame a `notificar_vendedor`. Igual
+  // que la visita: va aunque el bot esté apagado. Ver services/compraADistancia.ts.
+  if (quiereComprarADistancia(text)) {
+    void avisarCompraADistancia(conversation, text)
+      .catch((error) => console.error("⚠️ No se pudo avisar la compra a distancia:", error));
+  }
   // Cupón de confirmación: se emite en el MISMO turno en que el cliente dice
   // cuándo viene, para que el código llegue pegado a esa confirmación y no en
   // un mensaje suelto que se lee sin contexto. Devuelve null mientras el cupón
@@ -262,17 +276,12 @@ const pipeline = new InboundPipeline(async ({ from, name, text: textoRecibido, w
   // aun con el bot apagado (ver contestaAunApagado en botPower).
   if (!(await isBotActive()) && !(await contestaAunApagado(from))) return;
 
-  // Handoff: si el dueño está atendiendo este chat a mano, el bot calla — pero
-  // lo del cliente ya quedó guardado arriba para que el dueño lo lea en /mensajes.
-  if (await isBotPaused(conversation)) return;
-
-  // Llegar hasta aquí con el chat en 'human' significa que la pausa del handoff
-  // ya venció: el plazo se cumplió y nadie lo devolvió. Vuelve al bot (decisión
-  // del 8-ago) — si no, el bot redactaba y la política le bloqueaba el envío.
-  if (await devolverAlBotSiVencioLaPausa(conversation.id)) {
-    console.log(`🤖 Venció la pausa del asesor en ${conversation.id}: el bot retoma la conversación.`);
-    emitLiveEvent("sync", conversation.id);
-  }
+  // Handoff: si el chat es de una persona —pausa vigente, o la última palabra
+  // la dijo ella y nadie se lo devolvió al bot— el bot calla y el asesor recibe
+  // la alerta. Si la pausa venció y el último fue el bot, el chat vuelve al bot
+  // (decisión del 8-ago). La regla entera vive en domain/turnoDelHumano.ts.
+  const turno = await decidirQuienContesta(conversation.id, text);
+  if (turno.contesta === "humano") return;
 
   // ¿Podríamos siquiera ENVIAR la respuesta? Preguntarlo antes de escribirla.
   //
@@ -338,8 +347,12 @@ const pipeline = new InboundPipeline(async ({ from, name, text: textoRecibido, w
   // cualquier dato concreto, sigue al agente completo para que lo aproveche.
   // El aviso del /restart no cuenta como conversación previa: si cuenta, el
   // siguiente «hola» pierde la bienvenida (producción, 31-ago 17:30 y 17:36).
+  // Y NUNCA DESPUÉS DE UNA PERSONA (conv 15426, 22-sep): para el cliente la
+  // conversación con el asesor sigue, aunque el ciclo sea nuevo.
+  const saludoPermitido = puedeSaludarComoPrimerContacto(ultimoSaliente?.author_kind);
   const isFirstGenericMessage = conversation.stage === "nuevo"
     && (previousOutbound === null || previousOutbound === MENSAJE_DE_REINICIO)
+    && saludoPermitido
     && isGenericFirstContact(textoConLinks);
   // Al abrirse la conversación el negocio se presenta ANTES de ponerse a
   // trabajar (decisión de Manuel, 31-ago). Va como mensaje propio y va aquí,
@@ -349,7 +362,7 @@ const pipeline = new InboundPipeline(async ({ from, name, text: textoRecibido, w
   // saber con quién habla (simulador, 31-ago: «Opciones disponibles 🏁» salió
   // primero). Cuando el turno es un saludo pelado no hace falta: la bienvenida
   // de `firstContactReply` ya es la presentación entera.
-  if (!isFirstGenericMessage && previousOutbound === null) {
+  if (!isFirstGenericMessage && previousOutbound === null && saludoPermitido) {
     const presentacion = presentacionDeApertura(name);
     try {
       const sentId = await sendCustomerText(conversation.id, from, presentacion);
@@ -453,7 +466,7 @@ const pipeline = new InboundPipeline(async ({ from, name, text: textoRecibido, w
   // porqué están allí, en `PASOS`.
   const salida = await prepararSalida(reply, {
     conversation, tipo: "respuesta", huella: agentContext.toolTrace ?? [],
-    textoDelCliente: textoConLinks, faseOperativa: agentContext.faseOperativa,
+    textoDelCliente: textoConLinks, faseOperativa: agentContext.faseOperativa, inicioDelTurno,
     suprimirEmpujeComercial: Boolean(
       cierreAntesDeHerramientas || cierreDelTurno || plazoDeDecision || ubicacionFueraDeCobertura,
     ),

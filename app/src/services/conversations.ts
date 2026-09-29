@@ -4,6 +4,7 @@ import { isStage, type Stage } from "../domain/pipeline.js";
 import { franjaHoraria } from "../domain/diasEnEspanol.js";
 import { esMismaVisitaPorSilencio } from "../domain/medidaPedida.js";
 import { memoriaDelChatVencida } from "../domain/memoriaDelChat.js";
+import { puedeOlvidarPorSilencio, TIPO_CLIENTE_SIN_RESPUESTA } from "../domain/turnoDelHumano.js";
 import { cancelPendingFollowUps, scheduleConversationFollowUps } from "./followUps.js";
 import { emitLiveEvent } from "./liveEvents.js";
 
@@ -298,6 +299,17 @@ export async function reiniciarSiLaMemoriaVencio(
   ) {
     return conversation;
   }
+  // SI LA ÚLTIMA PALABRA LA DIJO UNA PERSONA, NO HAY NADA QUE OLVIDAR (conv
+  // 15426, 22-sep): el dueño atendió una F-150 aro 20 hasta «mañana nos
+  // volvemos a contactar»; el «Buenas tardes» del día siguiente abrió un ciclo
+  // con la ficha vacía y el bot saludó como a un desconocido y pidió la medida.
+  // Ver `domain/turnoDelHumano.ts`.
+  const [ultimoSaliente] = await sql<{ author_kind: string | null }[]>`
+    select author_kind from messages
+    where conversation_id = ${conversation.id} and direction = 'outbound' and type <> 'note'
+    order by created_at desc, id desc limit 1
+  `;
+  if (!puedeOlvidarPorSilencio(ultimoSaliente?.author_kind)) return conversation;
   const razon = "Reinicio por inactividad (>15 h)";
   const [cerrada] = await sql<{ id: number }[]>`
     update conversations
@@ -768,7 +780,16 @@ export async function setConversationAssignee(
         updated_at = now()
     where id = ${conversationId}
   `;
-  if (assignedTo === "human") await cancelPendingFollowUps(conversationId, "human_took_control");
+  if (assignedTo === "human") {
+    await cancelPendingFollowUps(conversationId, "human_took_control");
+    // Una persona tomó o contestó el chat: la alerta «el cliente escribió y
+    // nadie le contesta» deja de ser cierta. Ver `services/turnoDelHumano.ts`.
+    await sql`
+      update bot_alerts set status = 'resolved', resolved_at = now()
+      where conversation_id = ${conversationId} and type = ${TIPO_CLIENTE_SIN_RESPUESTA}
+        and status in ('open', 'snoozed')
+    `;
+  }
   await scheduleConversationFollowUps(conversationId);
 }
 

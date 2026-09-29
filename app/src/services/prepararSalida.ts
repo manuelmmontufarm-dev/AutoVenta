@@ -30,7 +30,9 @@ import { preguntaElLocal } from "../domain/storeSelection.js";
 import { elClienteDijoQueAvisa } from "../domain/clientePosterga.js";
 import { sinRepartoInventado } from "../domain/porcentajeDeUso.js";
 import { todasLasLineas } from "../domain/tireTypes.js";
-import { dondeEstaElClienteSegunLoDicho } from "./dondeEstaElCliente.js";
+import { dondeEstaElClienteSegunLoDicho, porQueNoPasaPorElLocal } from "./dondeEstaElCliente.js";
+import { afirmaQueAviso, prometeConsultar, sinAvisoInventado } from "../domain/avisoAlAsesor.js";
+import { avisoRegistradoEnElTurno, registrarConsultaPrometida } from "./avisoAlAsesor.js";
 import type { Stage } from "./conversations.js";
 import { lastOutboundText } from "./conversations.js";
 import { esAcuseSimple } from "../domain/ofertaAceptada.js";
@@ -48,7 +50,6 @@ import {
 } from "../domain/alcanceComercial.js";
 import { sinJsonCrudo } from "../domain/jsonCrudo.js";
 import { conLocalesReales } from "./localesReales.js";
-import { notifyAdvisor } from "./advisorNotifications.js";
 import { sql } from "../db/client.js";
 import { respuestaDeUbicacionFueraDeCobertura, sinVisitaNiMapas } from "../domain/visitaImposible.js";
 import { BENEFICIO_DE_REDES, esFraseDeBeneficios, preguntaPorBeneficios } from "../domain/beneficioDeRedes.js";
@@ -130,7 +131,13 @@ export interface ContextoDeSalida {
    * que insistía tras un rechazo, o el texto era calco de algo ya enviado.
    * Lo lee `followUpProcessor` para cancelar el job con ese motivo.
    */
-  motivoDeSupresion?: "insiste_tras_rechazo" | "calco_del_hilo" | "el_cliente_avisa" | "cliente_fuera_de_cobertura";
+  motivoDeSupresion?: "insiste_tras_rechazo" | "calco_del_hilo" | "el_cliente_avisa" | "cliente_fuera_de_cobertura" | "compra_a_distancia";
+  /**
+   * Cuándo empezó este turno (antes de que corrieran el agente y sus
+   * herramientas). Lo usa `sin_aviso_inventado`: «ya avisé al asesor» solo
+   * puede salir si DESDE AQUÍ se registró una alerta o un aviso de verdad.
+   */
+  inicioDelTurno?: Date;
   /** Este turno termina sin empuje comercial, pero no cierra ni borra el ciclo. */
   suprimirEmpujeComercial?: boolean;
   /** La intención vigente es un servicio que no está en el catálogo de llantas. */
@@ -174,10 +181,12 @@ export const PASOS: readonly PasoDeSalida[] = [
         console.log(`🤐 Conv ${ctx.conversation.id}: el cliente dijo que él avisa; el seguimiento no sale.`);
         return null;
       }
-      const donde = await dondeEstaElClienteSegunLoDicho(ctx.conversation.id, ctx.conversation.current_cycle, ultimo?.content);
-      if (donde === "fuera" && (preguntaElLocal(texto) || preguntaElDia(texto))) {
-        ctx.motivoDeSupresion = "cliente_fuera_de_cobertura";
-        console.log(`🤐 Conv ${ctx.conversation.id}: el cliente no está en Quito; no se le recuerda el local ni el día.`);
+      // Tampoco a quien compra a distancia (conv 21766: «lo compro x este
+      // medio… me envía», y al día siguiente «¿qué día puede pasar?»).
+      const sinVisita = await porQueNoPasaPorElLocal(ctx.conversation.id, ctx.conversation.current_cycle, ultimo?.content);
+      if (sinVisita && (preguntaElLocal(texto) || preguntaElDia(texto))) {
+        ctx.motivoDeSupresion = sinVisita === "compra_a_distancia" ? "compra_a_distancia" : "cliente_fuera_de_cobertura";
+        console.log(`🤐 Conv ${ctx.conversation.id}: ${sinVisita}; no se le recuerda el local ni el día.`);
         return null;
       }
       return texto;
@@ -259,7 +268,14 @@ export const PASOS: readonly PasoDeSalida[] = [
       ctx.textoAntesDelGuardian = texto;
       const revision = await revisarConGuardian(
         ctx.conversation, texto, ctx.huella ?? [],
-        { tipo: ctx.tipo === "seguimiento" ? "seguimiento" : "respuesta" },
+        {
+          tipo: ctx.tipo === "seguimiento" ? "seguimiento" : "respuesta",
+          // Solo se consulta si el borrador dice que avisó: es un HECHO que el
+          // revisor necesita para no inventar ni borrar esa frase.
+          ...(afirmaQueAviso(texto)
+            ? { avisoRegistrado: await avisoRegistradoEnElTurno(ctx.conversation.id, ctx.inicioDelTurno, ctx.huella ?? []) }
+            : {}),
+        },
       );
       ctx.hallazgosDelGuardian = revision.hallazgos;
       // EL GUARDIÁN DE SEGUIMIENTO PUEDE CALLAR (auditoría 2-6 sep, familia A).
@@ -511,35 +527,36 @@ export const PASOS: readonly PasoDeSalida[] = [
     },
   },
   {
-    // LO PROMETIDO SE EJECUTA. Regla 3 del corpus T115: «si el bot afirma que
-    // avisó, la acción ocurrió realmente». Medido 31-ago (nivel 2, mini,
-    // escenario E01): el modelo escribió «ya le avisé a un asesor» sin llamar
-    // ninguna herramienta. Este paso lee el texto FINAL: si afirma un aviso y
-    // no existe ninguno en el ciclo, lo ejecuta de verdad — una sola vez, con
-    // dedupe — para que el cliente nunca reciba una promesa hueca.
-    nombre: "lo_prometido_se_ejecuta",
-    corre: ["respuesta", "retomada"],
+    // «YA AVISÉ AL ASESOR» SOLO SI QUEDÓ REGISTRADO — Y «SE LO CONSULTO» SE
+    // CUMPLE. Un solo dueño para la promesa de escalar (familia 2-E, 28-sep).
+    //
+    // Antes esto era `lo_prometido_se_ejecuta` (T115 E01, 31-ago: el mini
+    // escribió «ya le avisé» sin avisar): si el texto afirmaba un aviso y no
+    // había NINGUNO en el ciclo, lo mandaba. Dos grietas: miraba el ciclo, no
+    // el turno —en la conv 21766 los avisos del ciclo existían y habían
+    // rebotado todos con 131047, así que «ya está avisado el asesor» pasó como
+    // cierto—, y dejaba al cliente leyendo un pasado («ya avisé») que el
+    // sistema acababa de inventar.
+    //
+    // Ahora: una afirmación de aviso SIN registro en este turno se reescribe
+    // como «Se lo consulto y le confirmo.», y esa consulta —o la que el
+    // guardián o el anti-bucle escriban con esas palabras— se registra de
+    // verdad: alerta alta y aviso al asesor. Va DESPUÉS del Ángel Guardián,
+    // que también escribe la frase, y antes de separar la pregunta porque
+    // cambia una oración. Ver domain/avisoAlAsesor.ts y services/avisoAlAsesor.ts.
+    nombre: "sin_aviso_inventado",
+    corre: ["respuesta", "retomada", "seguimiento"],
     async aplicar(texto, ctx) {
-      const afirmaAviso = /ya\s+(?:le\s+)?avis[eé]|ya\s+notifiqu|ya\s+(?:le\s+)?pas[eé]\s+(?:su|el)\s+(?:caso|consulta|pedido)|dej[eé]\s+(?:notificad|avisad|su\s+caso)|qued[oó]\s+(?:avisad|notificad)/i
-        .test(texto.normalize("NFD").replace(/[\u0300-\u036f]/g, ""));
-      if (!afirmaAviso) return texto;
-      const [ya] = await sql`
-        select 1 as x from advisor_notifications
-        where conversation_id=${ctx.conversation.id} and cycle=${ctx.conversation.current_cycle}
-        limit 1
-      `;
-      if (ya) return texto;
-      await notifyAdvisor({
-        conversationId: ctx.conversation.id,
-        cycle: ctx.conversation.current_cycle,
-        eventType: "human_requested",
-        dedupeKey: `prometido_ejecutado:${ctx.conversation.id}:${ctx.conversation.current_cycle}`,
-        title: "El bot prometió un aviso — ejecutado por el candado",
-        reason: `El texto saliente afirmaba haber avisado y no existía aviso. Último mensaje del cliente: «${(ctx.textoDelCliente ?? "").slice(0, 160)}»`,
-        action: "Revisa la conversación y contacta al cliente.",
-      }).catch((err) => console.warn(`⚠️ lo_prometido_se_ejecuta no pudo avisar en la conv ${ctx.conversation.id}:`, err.message));
-      console.log(`📣 Aviso prometido y no ejecutado: el candado lo mandó de verdad (conv ${ctx.conversation.id})`);
-      return texto;
+      const afirma = afirmaQueAviso(texto);
+      if (!afirma && !prometeConsultar(texto)) return texto;
+      if (await avisoRegistradoEnElTurno(ctx.conversation.id, ctx.inicioDelTurno, ctx.huella ?? [])) return texto;
+      const honesto = afirma ? sinAvisoInventado(texto).texto : texto;
+      if (afirma) {
+        console.warn(`✂️ Conv ${ctx.conversation.id}: el texto decía que avisó al asesor sin registro; se reescribió.`);
+      }
+      await registrarConsultaPrometida(ctx.conversation, ctx.textoDelCliente ?? null, honesto)
+        .catch((err) => console.warn(`⚠️ sin_aviso_inventado no pudo registrar la consulta en la conv ${ctx.conversation.id}:`, err));
+      return honesto;
     },
   },
   {
@@ -1073,10 +1090,12 @@ export const PASOS: readonly PasoDeSalida[] = [
     nombre: "sin_visita_si_no_puede_venir",
     corre: ["respuesta", "retomada", "seguimiento"],
     async aplicar(texto, ctx) {
-      const estado = await dondeEstaElClienteSegunLoDicho(
+      // Fuera de Quito, o compra a distancia (conv 21766): las dos razones
+      // salen de la misma fuente, services/dondeEstaElCliente.ts.
+      const sinVisita = await porQueNoPasaPorElLocal(
         ctx.conversation.id, ctx.conversation.current_cycle, ctx.textoDelCliente,
       );
-      if (estado !== "fuera") return texto;
+      if (!sinVisita) return texto;
       const { texto: limpio, quitado } = sinVisitaNiMapas(texto);
       if (quitado) {
         console.log(`🗺️ Conv ${ctx.conversation.id}: el cliente no puede pasar por el local; se quitaron mapas y visita del turno.`);

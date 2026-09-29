@@ -27,6 +27,7 @@ export async function resumeBotIfUnanswered(conversationId: number): Promise<Res
   // salía un mensaje a un cliente real — la fuga más cara posible, porque pasa
   // justo cuando alguien está probando el producto sin querer publicarlo.
   if (!(await isBotActive())) return "bot_off";
+  const inicioDelTurno = new Date();
 
   const [claimed] = await sql<{
     id: number; phone: string; name: string | null; stage: Conversation["stage"];
@@ -99,7 +100,7 @@ export async function resumeBotIfUnanswered(conversationId: number): Promise<Res
     // services/prepararSalida.ts.
     const salida = await prepararSalida(reply, {
       conversation, tipo: "retomada", huella: ctx.toolTrace ?? [], faseOperativa: ctx.faseOperativa,
-      textoDelCliente: claimed.last_text,
+      textoDelCliente: claimed.last_text, inicioDelTurno,
     });
     // Un candado bloqueó el envío (duplicado/atascado): ya alertó al asesor y
     // para el que llama esto equivale a que no había nada seguro que responder.

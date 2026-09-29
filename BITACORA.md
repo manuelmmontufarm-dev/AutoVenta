@@ -1,3 +1,33 @@
+## 28-sep-2026 · El bot no se mete donde habló una persona, y «ya avisé» solo si es cierto
+
+**Qué:** Un solo dueño de «quién contesta» (`domain/turnoDelHumano.ts` +
+`services/turnoDelHumano.ts`, llamado desde `index.ts` donde estaban
+`isBotPaused` y `devolverAlBotSiVencioLaPausa`): con la pausa vigente, o si el
+último saliente lo escribió una persona y nadie le devolvió el chat al bot, el
+bot calla y se levanta —o refresca, una por ciclo— la alerta alta
+`cliente_sin_respuesta`, que se resuelve sola cuando una persona contesta. El
+reinicio por 15 h de silencio y el saludo de primer contacto ya no corren si la
+última palabra fue de una persona. `advisor_review` usa la pausa finita
+(`BOT_PAUSE_HOURS`) en vez de `infinity`. El candado `sin_aviso_inventado`
+(reemplaza a `lo_prometido_se_ejecuta`, después del guardián, en las tres
+puertas con guardián): «ya avisé / dejé el caso anotado / lo revisa un asesor»
+solo sale si ESTE turno dejó una alerta o un aviso; si no, pasa a «Se lo
+consulto y le confirmo.» y esa consulta se registra de verdad. El guardián
+recibe ese hecho. Compra a distancia («lo compro x este medio… me envía»,
+`domain/compraADistancia.ts`): alerta alta `customer_ready_to_buy` aunque el
+modelo no llame a la herramienta, y ni seguimiento ni candados le preguntan el
+día o el local (`porQueNoPasaPorElLocal`).
+
+**Por qué:** Conv 15426: el dueño atendió una F-150 el 21-sep; el «Buenas
+tardes» del 22 abrió ciclo nuevo por inactividad, la pausa ya había vencido y
+el bot saludó «Soy Martín… ¿Qué medida usa?». Conv 21640: pausa `infinity` del
+`advisor_review`, el cliente preguntó el precio 80 min después y le
+contestaron 7 días más tarde, sin alerta. Conv 21766: quiso comprar a
+distancia, los avisos del ciclo rebotaron con Meta 131047 y el seguimiento le
+preguntó qué día pasaba por Cumbayá.
+
+**Horas:** 2,5
+
 ## 28-sep-2026 · Tras la lámina de opciones el cliente ve el precio escrito (y nadie le pregunta qué prioriza)
 
 **Qué:** El texto que acompaña la lámina de opciones (sin recomendación) deja de
