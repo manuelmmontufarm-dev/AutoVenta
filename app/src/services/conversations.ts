@@ -4,6 +4,8 @@ import { isStage, type Stage } from "../domain/pipeline.js";
 import { franjaHoraria } from "../domain/diasEnEspanol.js";
 import { esMismaVisitaPorSilencio } from "../domain/medidaPedida.js";
 import { memoriaDelChatVencida } from "../domain/memoriaDelChat.js";
+import { medidaGuardable } from "../domain/tireSize.js";
+import { puedeOlvidarPorSilencio, TIPO_CLIENTE_SIN_RESPUESTA } from "../domain/turnoDelHumano.js";
 import { cancelPendingFollowUps, scheduleConversationFollowUps } from "./followUps.js";
 import { emitLiveEvent } from "./liveEvents.js";
 
@@ -298,6 +300,17 @@ export async function reiniciarSiLaMemoriaVencio(
   ) {
     return conversation;
   }
+  // SI LA ÚLTIMA PALABRA LA DIJO UNA PERSONA, NO HAY NADA QUE OLVIDAR (conv
+  // 15426, 22-sep): el dueño atendió una F-150 aro 20 hasta «mañana nos
+  // volvemos a contactar»; el «Buenas tardes» del día siguiente abrió un ciclo
+  // con la ficha vacía y el bot saludó como a un desconocido y pidió la medida.
+  // Ver `domain/turnoDelHumano.ts`.
+  const [ultimoSaliente] = await sql<{ author_kind: string | null }[]>`
+    select author_kind from messages
+    where conversation_id = ${conversation.id} and direction = 'outbound' and type <> 'note'
+    order by created_at desc, id desc limit 1
+  `;
+  if (!puedeOlvidarPorSilencio(ultimoSaliente?.author_kind)) return conversation;
   const razon = "Reinicio por inactividad (>15 h)";
   const [cerrada] = await sql<{ id: number }[]>`
     update conversations
@@ -578,9 +591,16 @@ export async function updateConversationFacts(
     followUpReason?: string;
   },
 ): Promise<void> {
+  // La ficha solo guarda medidas que se pueden volver a leer, y canonizadas:
+  // «0R15» (conv 23250 y 22421) llegó hasta los seguimientos del cliente. Una
+  // etiqueta que no es medida no pisa la que ya había. Ver `medidaGuardable`.
+  const tireSize = facts.tireSize === undefined ? null : medidaGuardable(facts.tireSize);
+  if (facts.tireSize !== undefined && !tireSize) {
+    console.warn(`📏 Conv ${conversationId}: medida «${facts.tireSize}» descartada, no es una medida legible.`);
+  }
   await sql`
     update conversations set
-      tire_size = coalesce(${facts.tireSize ?? null}, tire_size),
+      tire_size = coalesce(${tireSize}, tire_size),
       vehicle = coalesce(${facts.vehicle ?? null}, vehicle),
       vehicle_year = coalesce(${facts.vehicleYear ?? null}, vehicle_year),
       selected_product_code = coalesce(${facts.selectedProductCode ?? null}, selected_product_code),
@@ -768,7 +788,16 @@ export async function setConversationAssignee(
         updated_at = now()
     where id = ${conversationId}
   `;
-  if (assignedTo === "human") await cancelPendingFollowUps(conversationId, "human_took_control");
+  if (assignedTo === "human") {
+    await cancelPendingFollowUps(conversationId, "human_took_control");
+    // Una persona tomó o contestó el chat: la alerta «el cliente escribió y
+    // nadie le contesta» deja de ser cierta. Ver `services/turnoDelHumano.ts`.
+    await sql`
+      update bot_alerts set status = 'resolved', resolved_at = now()
+      where conversation_id = ${conversationId} and type = ${TIPO_CLIENTE_SIN_RESPUESTA}
+        and status in ('open', 'snoozed')
+    `;
+  }
   await scheduleConversationFollowUps(conversationId);
 }
 

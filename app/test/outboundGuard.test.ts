@@ -190,7 +190,7 @@ describe("corrector de precios — los precio_incorrecto ALTA del informe del gu
 
 /** T115 H02 (31-ago, agente en mini): cuatro veces «la medida 165/80R13 no
  *  tiene stock exacto» con maquillaje distinto. La tercera corta y deriva —
- *  y la promesa la ejecuta de verdad lo_prometido_se_ejecuta. */
+ *  y la consulta que promete la registra sin_aviso_inventado. */
 describe("idea repetida por tercera vez", () => {
   const IDEA = "La medida 165/80R13 no tiene stock exacto ahora mismo. Si le sirve, reviso equivalencias del aro 13.";
   const VARIANTE = "La medida *165/80R13* no tiene stock exacto ahora. Si le sirve reviso equivalencias del aro 13!!";

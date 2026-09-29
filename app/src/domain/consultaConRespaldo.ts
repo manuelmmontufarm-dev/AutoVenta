@@ -130,7 +130,7 @@ export function ordenDeNotificarLoPrometido(): string {
  * Peticiones que el modelo débil deja pasar si nadie se las pone por delante.
  * Medidas el 31-ago en el nivel 2 del T115 (agente en gpt-5.4-mini):
  * - E01: «Quiero hablar con una persona» → cero herramientas, y encima el
- *   texto decía «ya le avisé» (mentira que ataja lo_prometido_se_ejecuta).
+ *   texto decía «ya le avisé» (mentira que ataja sin_aviso_inventado).
  * - Q06: «Mándame una cotización de 225/65R17» → mostró opciones y PREGUNTÓ
  *   «¿le cotizo?» a quien ya la había pedido.
  * - Q05: «solo dos» con cotización de 4 vigente → entendió el 2 y no recotizó.

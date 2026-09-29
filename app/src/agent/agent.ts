@@ -3,9 +3,12 @@
  * Ejecuta las tools locales y devuelve los resultados al modelo hasta obtener
  * una respuesta final para WhatsApp.
  */
+import { obligacionDeMostrarEquivalentes } from "../domain/equivalentesPorMostrar.js";
+import { opcionPorPosicion, posicionElegida } from "../domain/listaDeOpciones.js";
 import { anuncioDeLaConversacion } from "../services/anuncio.js";
 import OpenAI from "openai";
 import { aroDadoPorElCliente, aroRespondido, medidaConfirmadaPorCliente } from "../domain/medidaConfirmada.js";
+import { medidasEscritasPorElCliente } from "../domain/medidaDelCliente.js";
 import { esFalloDelProveedor } from "../domain/falloDelProveedor.js";
 import { createBotAlert } from "../services/followUps.js";
 import { eleccionDeLaVitrina, type OpcionDeVitrina } from "../domain/eleccionDeVitrina.js";
@@ -26,6 +29,7 @@ import {
   pidioHumanoExplicito, preguntaTecnicaDeRespaldo,
 } from "../domain/consultaConRespaldo.js";
 import { esAcuseSimple } from "../domain/ofertaAceptada.js";
+import { ultimoTurnoDelBot } from "../domain/cotizarLaUnica.js";
 import { respaldoCompleto } from "../domain/respaldoMarcas.js";
 import { preguntaElLocal } from "../domain/storeSelection.js";
 import { preguntaElDia } from "../domain/customerCommitment.js";
@@ -183,7 +187,11 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
   // CON EL ARO DEL CLIENTE NO SE BLOQUEA (conv 3, 7-sep): «rin 14» → opciones
   // de ese aro con su medida a la vista; si elige una, se cotiza con esa
   // medida. El candado sigue para la medida deducida por el VEHÍCULO (1-sep).
-  ctx.medidaSinConfirmar = salesFacts.medidaConfirmadaPorCliente === false && !salesFacts.aroDelCliente;
+  // LA QUE ACABA DE ESCRIBIR TAMBIÉN ES SUYA (familia 2-H, simulador 28-sep):
+  // «Traverse, uso 215/65R16» llegó con la ficha todavía vacía y la pieza
+  // cerró con «necesito la medida exacta… o una foto del costado».
+  ctx.medidaSinConfirmar = salesFacts.medidaConfirmadaPorCliente === false && !salesFacts.aroDelCliente
+    && !medidasEscritasPorElCliente([userText]).length;
   const hechoDeMedidaInferida = ctx.medidaSinConfirmar && (salesFacts.vehicle || !salesFacts.tireSize)
     ? "MEDIDA NO CONFIRMADA POR EL CLIENTE: el cliente no ha escrito ninguna medida completa ni mandado foto del costado; toda medida en juego la dedujo el bot por el vehículo o por el aro. Puedes mostrar opciones (son «las que más se usan en su vehículo»), pero PROHIBIDO llamar generar_cotizacion: el cierre pide la medida escrita del filo de la llanta (ej. 225/65R17) o una foto del costado. Con ella, buscar_llanta y ahí sí cotizas."
     : null;
@@ -199,14 +207,19 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
   // 27-ago). Se calcula acá porque el último saliente ya está en `history`.
   // Ver `domain/ofertaAceptada.ts`.
   const ultimoDelBot = [...history].reverse().find((m) => m.role === "assistant");
+  // El marcador de «la única» se busca en TODO el último turno del bot: el
+  // «¿Se la cotizo?» sale en su propia fila, aparte de «Es la única que tengo…».
+  const turnoDelBot = ultimoTurnoDelBot(history);
   const aceptoLaOferta = ofertaDeCotizarAceptada(
     typeof ultimoDelBot?.content === "string" ? ultimoDelBot.content : null,
     userText,
+    turnoDelBot,
   );
   ctx.aceptoOfertaComercial = aceptoLaOferta;
   ctx.aceptoCotizacion = ofertaDeCotizacionAceptada(
     typeof ultimoDelBot?.content === "string" ? ultimoDelBot.content : null,
     userText,
+    turnoDelBot,
   );
   // La oferta que quedó pendiente uno o dos turnos atrás también cuenta
   // (T115 conv 9684, 30-ago): el acuse la acepta mientras no haya negativa.
@@ -506,9 +519,16 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
   // EL ESCALÓN CONTESTADO CON REPLY. Solo cuando WhatsApp confirma que el
   // cliente citó el menú: ahí «2» es el escalón y no dos llantas, sin que el
   // modelo tenga que deducirlo de los últimos salientes.
+  // Si el menú era la LISTA con precios, «2» es la posición 2 de esa lista y no
+  // un escalón: `opcionPorPosicion` es el dueño único (con dos opciones la 2 es
+  // la premium; el escalón del medio no existe).
+  const posicionElegidaDeLaLista = posicionElegida(userText);
+  const citoLaLista = /¿le cotizo la 1/i.test(ctx.mensajeCitado ?? "");
   const escalonPorReply =
     esRespuestaDelMenuDePreferencia(userText, null, ctx.mensajeCitado ?? null)
-      ? respuestaDePreferencia(userText)
+      ? (citoLaLista && posicionElegidaDeLaLista !== null
+          ? opcionPorPosicion({ escalones: salesFacts.escalones }, posicionElegidaDeLaLista)?.escalon
+          : null) ?? respuestaDePreferencia(userText)
       : null;
   // EL ESCALÓN CONTESTADO SIN REPLY, cuando lo último que dijimos fue el menú
   // (simulador, 1-sep, caso 13862 turno 4: «La 2» tras el menú → el modelo dio
@@ -524,10 +544,15 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
     !escalonPorReply && !ctx.medidaSinConfirmar && salesFacts.escalones
       ? escalonContestado(userText, textoUltimoDelBot, null, { huboMenu: true })
       : null;
-  if (escalonSinReply) ctx.aceptoCotizacion = true;
-  const opcionDelEscalon = escalonSinReply
-    ? salesFacts.escalones?.[escalonSinReply === "precio" ? "economica" : escalonSinReply] ?? null
+  const opcionPorLista = escalonSinReply && posicionElegidaDeLaLista !== null
+    && /¿le cotizo la 1/i.test(textoUltimoDelBot ?? "")
+    ? opcionPorPosicion({ escalones: salesFacts.escalones }, posicionElegidaDeLaLista)
     : null;
+  if (escalonSinReply) ctx.aceptoCotizacion = true;
+  const opcionDelEscalon = opcionPorLista
+    ?? (escalonSinReply
+      ? salesFacts.escalones?.[escalonSinReply === "precio" ? "economica" : escalonSinReply] ?? null
+      : null);
   let vueltaForzadaUsada = false;
   let recordatorioDeObligacion: string | null = null;
   const bloquesVolatiles: ChatCompletionMessageParam[] = [
@@ -556,7 +581,7 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
     ...(escalonSinReply
       ? [{
           role: "system" as const,
-          content: `RESPUESTA AL MENÚ DE PREFERENCIA (fuente determinística): el cliente eligió el escalón «${ETIQUETA_DEL_ESCALON[escalonSinReply]}»${opcionDelEscalon ? `, que en la última pieza de opciones es *${opcionDelEscalon.nombre}* ($${opcionDelEscalon.precio_con_iva.toFixed(2)} c/u con IVA, código ${opcionDelEscalon.codigo})` : ""}. Llama generar_cotizacion AHORA MISMO${opcionDelEscalon ? ` con code ${opcionDelEscalon.codigo}` : " con ESA opción"} y 4 llantas (o la cantidad que haya dicho). PROHIBIDO leer ese número como cantidad, PROHIBIDO volver a preguntar qué prefiere, PROHIBIDO preguntar si la quiere o anunciar que «se la prepara»: la cotización sale en este turno o no sale.`,
+          content: `RESPUESTA AL MENÚ DE PREFERENCIA (fuente determinística): el cliente eligió el escalón «${ETIQUETA_DEL_ESCALON[opcionPorLista?.escalon ?? escalonSinReply]}»${opcionDelEscalon ? `, que en la última pieza de opciones es *${opcionDelEscalon.nombre}* ($${opcionDelEscalon.precio_con_iva.toFixed(2)} c/u con IVA, código ${opcionDelEscalon.codigo})` : ""}. Llama generar_cotizacion AHORA MISMO${opcionDelEscalon ? ` con code ${opcionDelEscalon.codigo}` : " con ESA opción"} y 4 llantas (o la cantidad que haya dicho). PROHIBIDO leer ese número como cantidad, PROHIBIDO volver a preguntar qué prefiere, PROHIBIDO preguntar si la quiere o anunciar que «se la prepara»: la cotización sale en este turno o no sale.`,
         }]
       : []),
     ...(esPreguntaTecnica
@@ -676,6 +701,8 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
   // cotización… total $342.08» sin cotización. El recordatorio no puede
   // consumir la ronda que necesita para cumplirse: se le suma una.
   let rondasDelTurno = config.openai.maxToolIterations;
+  /** Cada llamada del turno con su resultado ENTERO (la huella del guardián lo corta). */
+  const llamadasDelTurno: { herramienta: string; resultado: string }[] = [];
   for (let iteration = 0; iteration < rondasDelTurno; iteration += 1) {
     modeloUsado = modeloDelTurno(iteration, faseOperativa, exactoBarato);
     const gpt5 = modeloUsado.startsWith("gpt-5");
@@ -751,16 +778,23 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
       const debeNotificar = pidioHumano && !usedTools.includes("notificar_vendedor");
       const debeBuscarPorAro = aroDelTurno !== null
         && !["buscar_por_aro_y_tipo", "buscar_llanta", "fitment_vehiculo"].some((h) => usedTools.includes(h));
-      if ((debeCotizar || debeNotificar || debeBuscarPorAro) && !vueltaForzadaUsada && !ctx.consultaFueraDeCatalogo) {
+      // SIN STOCK EXACTO Y CON EQUIVALENTES DE VERDAD, LA LÁMINA SALE (V3a,
+      // 28-sep): el modelo escribió «¿Le muestro las opciones equivalentes?»
+      // con la KR608 245/70R16 en la mano. Ver `domain/equivalentesPorMostrar.ts`.
+      const equivalentesPendientes = obligacionDeMostrarEquivalentes(llamadasDelTurno);
+      const debeMostrarEquivalentes = !debeCotizar && !debeNotificar && equivalentesPendientes !== null;
+      if ((debeCotizar || debeNotificar || debeMostrarEquivalentes || debeBuscarPorAro) && !vueltaForzadaUsada && !ctx.consultaFueraDeCatalogo) {
         vueltaForzadaUsada = true;
         rondasDelTurno += 1;
-        usedTools.push(`vuelta_forzada:${debeCotizar ? "cotizar" : debeNotificar ? "notificar" : "buscar_aro"}`);
+        usedTools.push(`vuelta_forzada:${debeCotizar ? "cotizar" : debeNotificar ? "notificar" : debeMostrarEquivalentes ? "mostrar_equivalentes" : "buscar_aro"}`);
         messages.push({
           role: "system",
           content: debeCotizar
             ? "TE FALTÓ LA OBLIGACIÓN DEL TURNO: el cliente pidió la cotización (o fijó una cantidad nueva) y no llamaste generar_cotizacion. Llámala AHORA con el producto recomendado vigente y la cantidad dicha (4 si no dijo). No escribas texto final sin la herramienta."
             : debeNotificar
               ? "TE FALTÓ LA OBLIGACIÓN DEL TURNO: el cliente pidió hablar con una persona y no llamaste notificar_vendedor. Llámala AHORA con un resumen accionable. No escribas texto final sin la herramienta."
+              : debeMostrarEquivalentes
+              ? equivalentesPendientes!.recordatorio
               : `TE FALTÓ LA OBLIGACIÓN DEL TURNO: el cliente dio el aro ${aroDelTurno} y no buscaste nada. Llama buscar_por_aro_y_tipo AHORA y muéstrale opciones con preparar_opciones. No escribas texto final sin haber mostrado algo.`,
         });
         continue;
@@ -805,6 +839,7 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
           : JSON.stringify({ error: `Tool desconocida: ${call.function.name}` });
       executedCalls.add(signature);
       if (!repetida) resultadosPorFirma.set(signature, result);
+      llamadasDelTurno.push({ herramienta: call.function.name, resultado: result });
       messages.push({ role: "tool", tool_call_id: call.id, content: result });
       // La huella del turno, para el Ángel Guardián: qué se buscó y qué volvió.
       (ctx.toolTrace ??= []).push({
@@ -1119,7 +1154,11 @@ export async function getAgentSalesFacts(conversationId: number): Promise<AgentS
     .map(extractVehicleYear).find((value): value is number => value !== null) ?? null;
   return {
     tireSize: row?.tire_size ?? null,
-    medidaConfirmadaPorCliente: medidaConfirmadaPorCliente(row?.tire_size ?? null, row?.todas_entrantes ?? []),
+    // La ficha coincide con algo que escribió (cualquier visita), o escribió
+    // una medida completa en ESTE ciclo aunque la ficha tenga otra o nada:
+    // lo escrito no se le vuelve a pedir (familia 2-H, 28-sep).
+    medidaConfirmadaPorCliente: medidaConfirmadaPorCliente(row?.tire_size ?? null, row?.todas_entrantes ?? [])
+      || medidasEscritasPorElCliente(row?.inbound_messages ?? []).length > 0,
     // Solo el aro de ESTE ciclo: el de una visita anterior puede ser de otro carro.
     aroDelCliente: aroDadoPorElCliente([...(row?.inbound_messages ?? [])].reverse()),
     codigosDeLaVitrina: Array.isArray(row?.codigos) ? row.codigos.map(String) : [],

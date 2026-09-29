@@ -141,7 +141,10 @@ async function correrFitment(args: Record<string, unknown>) {
   const tools = buildTools({
     conversation: { id: 1, phone: "593999", name: "Cliente", stage: "nuevo", bot_paused_until: null, status: "open", current_cycle: 1 },
     customerPhone: "593999",
-    currentUserText: "Para rin 19, hyundai creta 2027",
+    // El texto tiene que decir lo mismo que los argumentos: desde la familia
+    // 2-H (28-sep) el aro que el CLIENTE escribió manda sobre el del modelo,
+    // así que un caso «sin aro» no puede traer «rin 19» en el mensaje.
+    currentUserText: args.aro ? `Para rin ${args.aro}, hyundai creta 2027` : "hyundai creta 2027",
   } as never);
   const fitment = tools.find((t) => t.function.name === "fitment_vehiculo")!;
   return JSON.parse(await fitment.execute(args));

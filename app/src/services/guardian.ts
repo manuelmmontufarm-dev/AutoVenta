@@ -28,6 +28,7 @@
  * OPENAI_GUARDIAN_MODEL para cambiarlo): un revisor más débil que el redactor
  * no ve los errores que el redactor no vio.
  */
+import { hechoDeEquivalentesDevueltos } from "../domain/equivalentesPorMostrar.js";
 import { NOMBRE_DEL_VENDEDOR } from "../domain/saludo.js";
 import { FIRMA_DE_PRESENTACION } from "../domain/saludo.js";
 import { negocio } from "../negocio/index.js";
@@ -41,23 +42,29 @@ import { sql } from "../db/client.js";
 import type { Stage } from "../domain/pipeline.js";
 import { ahorroDeLaCotizacion } from "../domain/ahorro.js";
 import { medidaEstaPedida, mensajesDeLaVisitaActual } from "../domain/medidaPedida.js";
+import { hechoDeLaLista, listaDeLaPieza } from "../domain/listaDeOpciones.js";
 import { hechosDeRestricciones, restriccionesDeLlanta } from "../domain/restriccionesLlanta.js";
+import { comproADistanciaSegunLoDicho } from "../domain/compraADistancia.js";
+import { hechoDelAvisoAlAsesor } from "../domain/avisoAlAsesor.js";
 import { CIERRE_COTIZAR } from "../domain/preguntasProhibidas.js";
-import { medidasDelPedido } from "./medidasDelPedido.js";
+import { medidaEnDisputaDelPedido, medidasDelPedido } from "./medidasDelPedido.js";
+import { clienteDioSuMedida, hechoDeCamionetaVigente, medidasEscritasPorElCliente } from "../domain/medidaDelCliente.js";
 import { ensureCatalogReady, findByCode, searchBySize, searchByText } from "./catalog.js";
 import { flotacionIncompleta, parseTireSize } from "../domain/tireSize.js";
 import { respaldoCompleto } from "../domain/respaldoMarcas.js";
 import { logAiRun } from "./conversations.js";
-import { claseDeVehiculoEnTexto } from "../domain/claseDeVehiculo.js";
 import { crearAlertaRepeticion } from "./conversationQuality.js";
 import { createBotAlert } from "./followUps.js";
 import { getActiveBenefits } from "./benefits.js";
 import { formatStoreHours, getGuardianConfig, getStoreHours } from "./settings.js";
 import { faltanteDeCotizacion } from "./stockCorto.js";
 import { alcanzaParaVender } from "../domain/stockCorto.js";
+import { politicaDePagos } from "../domain/datosDelNegocio.js";
 import { despedidaQueCorresponde } from "../domain/cierrePerdido.js";
 import { ofertaDeCotizarAceptada } from "../domain/ofertaAceptada.js";
+import { ultimoTurnoDelBot } from "../domain/cotizarLaUnica.js";
 import { visitaPendiente } from "../domain/visitaPendiente.js";
+import { tiposCompatibles, usoDeLosTextos } from "../domain/usoYTipo.js";
 import { JUEGO_COMPLETO, opcionesQueAlcanzan } from "../domain/opcionesCandados.js";
 import { tipoDeProducto } from "../domain/tireTypes.js";
 import { chatReasoningEffort } from "../agent/aiRequestPolicy.js";
@@ -222,7 +229,7 @@ REVISA, en este orden de gravedad:
 
 13. PROMESAS QUE EL BOT NO PUEDE CUMPLIR. El bot solo puede prometer lo que está saliendo en ESE mismo turno. «Le paso la cotización correcta apenas esté confirmada», «se la mando en un momento», «le envío el PDF enseguida» son **promesa_incumplible** de severidad ALTA cuando el turno no lleva esa pieza: nada la genera después, y el cliente se queda esperando un archivo que no existe. Pasó el 26-ago (Andrés Tamayo): tres turnos seguidos prometiendo la cotización buena y ninguna salió. La corrección NO repite la promesa: si la pieza no se puede mandar, el borrador dice lo que sí es cierto y pide el dato que falta. Si los HECHOS traen «COTIZACIÓN DESALINEADA», el borrador tiene PROHIBIDO presentar esa cotización como válida y PROHIBIDO prometer la nueva — quien la genera es la herramienta, no el texto. **Y ESTO VALE PARA TU PROPIA CORRECCIÓN (1-sep, conv 13635):** si la HUELLA DE HERRAMIENTAS no trae un generar_cotizacion exitoso, tu texto corregido tiene PROHIBIDO decir «le preparo/le genero/le armo la cotización» o dar un total — ese día la corrección misma escribió «Le preparo la cotización por *4 WINRUN R380*» y ninguna cotización existía. Cuando la cotización no salió y el cliente ya aceptó o la llanta recomendada es una equivalente, la corrección termina con la pregunta clara de consentimiento, sola en su bloque: «¿Le cotizo la <llanta> en <medida>?». Y si el borrador RECOMIENDA una equivalente («la opción recomendada es X en 215/65R16, si acepta esa equivalente») sin terminar en una pregunta, eso es **recomendacion_sin_pregunta** de severidad ALTA: un «Ok» a una frase que no pregunta nada es ambiguo y el bot se pierde. La corrección conserva la recomendación y agrega, en bloque aparte (---), la pregunta «¿Le cotizo la X en <medida>?» — nunca «¿quiere que le envíe esa opción para revisar?» ni «si acepta esa equivalente».
 
-15. LO QUE EL BOT TIENE PROHIBIDO PREGUNTAR, TÚ TAMPOCO. Tu corrección ES un mensaje del bot y hereda sus prohibiciones. La que más se cuela: **preguntar cuántas llantas quiere**. No se pregunta nunca — sin cantidad dicha son 4, que es el juego, y se cotizan de una; si después el cliente dice otra cantidad, se cotiza de nuevo con esa. Tampoco se pregunta el nombre, ni «¿cliente final?», ni nada que los HECHOS ya traigan. **Y DESDE EL 31-AGO TAMPOCO SE PIDE PERMISO PARA COTIZAR:** «${CIERRE_COTIZAR}» y sus variantes son pregunta_de_mas — cuando el cliente eligió una opción, dio cantidad o pidió la cotización con todas sus letras, la cotización SALE en ese turno; la única pregunta de permiso legítima es ante un CAMBIO DE MEDIDA (una equivalente necesita su consentimiento: «si le parece, ¿se la cotizo?»). **OJO (Manuel, 1-sep, conv 13615): preguntar el PRECIO a secas («favor costo de las 235/60R18») NO es esa señal.** Ahí el turno correcto manda las opciones —que ya traen los precios— y cierra con el menú de preferencia (costo / equilibrio / premium); la cotización sale recién cuando el cliente contesta ese menú. Un borrador que sobre una pregunta de solo precio ya anuncia o adjunta la cotización se marca (cotizacion_sin_eleccion, alta) y se corrige dejando las opciones con el menú de preferencia. Cualquier otra forma de pedir permiso para la cantidad («¿se la cotizo por 6?», «¿cuántas lleva?») sigue siendo error. **Y AL RECORTAR UNA PREGUNTA, EL MENSAJE NO PUEDE QUEDAR MUDO:** si quitas la pregunta con la que cerraba el borrador, tu corrección tiene que terminar con el siguiente paso que sí corresponde — la cotización si el turno la generó; y si la HUELLA DE HERRAMIENTAS dice que generar_cotizacion quedó bloqueada este turno por falta de autorización, el paso es «¿Se la cotizo?» TAL CUAL (esa es la única pregunta cuyo «sí» abre la cotización; la pregunta del local NO la abre y deja al cliente con precio y sin cotización: convs 23356 y 23561, 25 y 27-sep). Si el bloqueo fue por MEDIDA sin confirmar, el paso es pedir la medida del costado. Pasó el 1-sep (conv 13617): el cliente eligió su llanta, la corrección borró el «¿le genero la cotización?» y el mensaje quedó dando el precio y nada más — un cliente decidido al que nadie le pidió el siguiente paso. **OJO con lo que NO es una pregunta:** cuando la cantidad se sale de lo normal (menos de 4 o más de 8) el bot AVISA al mandar la pieza —«Aquí le mando la cotización con *9 llantas* 👍»—. Eso es una afirmación correcta y pedida por el negocio: no la toques ni la marques. Si el borrador trae una de las preguntas prohibidas es **pregunta_de_mas** de severidad ALTA —cada una cuesta un turno para llegar a la misma respuesta— y la corrección la reemplaza por el paso que sí corresponde (cotizar), no la reescribe más bonita.
+15. LO QUE EL BOT TIENE PROHIBIDO PREGUNTAR, TÚ TAMPOCO. Tu corrección ES un mensaje del bot y hereda sus prohibiciones. La que más se cuela: **preguntar cuántas llantas quiere**. No se pregunta nunca — sin cantidad dicha son 4, que es el juego, y se cotizan de una; si después el cliente dice otra cantidad, se cotiza de nuevo con esa. Tampoco se pregunta el nombre, ni «¿cliente final?», ni nada que los HECHOS ya traigan. **Y DESDE EL 31-AGO TAMPOCO SE PIDE PERMISO PARA COTIZAR:** «${CIERRE_COTIZAR}» y sus variantes son pregunta_de_mas — cuando el cliente eligió una opción, dio cantidad o pidió la cotización con todas sus letras, la cotización SALE en ese turno; la única pregunta de permiso legítima es ante un CAMBIO DE MEDIDA (una equivalente necesita su consentimiento: «si le parece, ¿se la cotizo?»). **OJO (Manuel, 1-sep, conv 13615): preguntar el PRECIO a secas («favor costo de las 235/60R18») NO es esa señal.** Ahí el turno correcto manda las opciones —que ya traen los precios— y cierra con la LISTA NUMERADA con precios («1 · Marca Modelo — $X c/u · 4 = $Y») y una sola pregunta, «¿Le cotizo la 1, la 2 o la 3?» (con dos opciones, «la 1 o la 2»), que es el cierre válido y se conserva (el menú costo / equilibrio / premium solo sale si la lista no pudo armarse); la cotización sale recién cuando el cliente contesta con su número. NUNCA se pregunta qué prioriza. Un borrador que sobre una pregunta de solo precio ya anuncia o adjunta la cotización se marca (cotizacion_sin_eleccion, alta) y se corrige dejando las opciones con su lista de precios y «¿Le cotizo la 1, la 2 o la 3?». Cualquier otra forma de pedir permiso para la cantidad («¿se la cotizo por 6?», «¿cuántas lleva?») sigue siendo error. **Y AL RECORTAR UNA PREGUNTA, EL MENSAJE NO PUEDE QUEDAR MUDO:** si quitas la pregunta con la que cerraba el borrador, tu corrección tiene que terminar con el siguiente paso que sí corresponde — la cotización si el turno la generó; y si la HUELLA DE HERRAMIENTAS dice que generar_cotizacion quedó bloqueada este turno por falta de autorización, el paso es «¿Se la cotizo?» TAL CUAL (esa es la única pregunta cuyo «sí» abre la cotización; la pregunta del local NO la abre y deja al cliente con precio y sin cotización: convs 23356 y 23561, 25 y 27-sep). Si el bloqueo fue por MEDIDA sin confirmar, el paso es pedir la medida del costado. Pasó el 1-sep (conv 13617): el cliente eligió su llanta, la corrección borró el «¿le genero la cotización?» y el mensaje quedó dando el precio y nada más — un cliente decidido al que nadie le pidió el siguiente paso. **OJO con lo que NO es una pregunta:** cuando la cantidad se sale de lo normal (menos de 4 o más de 8) el bot AVISA al mandar la pieza —«Aquí le mando la cotización con *9 llantas* 👍»—. Eso es una afirmación correcta y pedida por el negocio: no la toques ni la marques. Si el borrador trae una de las preguntas prohibidas es **pregunta_de_mas** de severidad ALTA —cada una cuesta un turno para llegar a la misma respuesta— y la corrección la reemplaza por el paso que sí corresponde (cotizar), no la reescribe más bonita.
 
 17. AVISAR DEL STOCK NO SIEMPRE ALCANZA. Si los HECHOS traen «STOCK NO ALCANZA», el bot firmó —o está por firmar— una cantidad de la que hoy hay menos de la mitad. Un candado determinístico ya le pega el aviso de cuántas hay cuando el borrador afirma la cotización (el paso «aviso_de_stock»), así que ESO no es tu trabajo. Lo tuyo es el caso en que avisar no alcanza: pegarle el aviso a una promesa no deshace la promesa, y el cliente igual se lleva un número por un juego que no existe. Cualquier borrador que presente esa cantidad como cotizada —su total, su «4 × …», su «el juego»— es error ALTO de categoría **stock_prometido** AUNQUE traiga el aviso pegado. La corrección dice cuántas hay hoy y ofrece las dos salidas reales: cotizar las que hay, o que el asesor consiga el resto por pedido. Y no inventes un total nuevo: si no tienes el precio unitario en los datos duros, hablas de unidades y no de plata.
 
@@ -234,7 +241,7 @@ REVISA, en este orden de gravedad:
 
 21. EL TIPO DE LLANTA SALE DEL CATÁLOGO, NUNCA DEL BORRADOR. Cada fila del CATÁLOGO DE HOY trae su tipo entre corchetes ([A/T], [H/T], [R/T], [M/T]…). Dos errores ALTOS de categoría **tipo_negado_con_stock**: (a) el borrador presenta una llanta como de un tipo que el catálogo no le da — pasó el 1-sep (conv 13645): ofreció la KR50 [H/T] como si fuera la A/T pedida; (b) el borrador dice que un tipo «no hay», «no está disponible» o «no se lo ofrezco» cuando el catálogo trae una llanta de ese tipo con stock para el juego de ${JUEGO_COMPLETO} — ese mismo día el cliente pidió A/T y el catálogo tenía la KR28 [A/T] con 89 y la KR608 [A/T] con 74. TU CORRECCIÓN NO INVENTA, PERO TAMPOCO SE ESCONDE: si el catálogo trae el tipo pedido con stock para el juego, la corrección lo ofrece NOMBRÁNDOLO — marca, diseño y precio copiados de ESA fila («la *KENDA KR28* a *$238.37 c/u con IVA*»). PROHIBIDO el genérico «le confirmo una opción A/T»: eso deja al cliente sin llanta otra vez. Solo si el dato no está en el catálogo del contexto, la corrección no niega ni afirma — dice que lo confirmas enseguida, y reportas el hallazgo. PROHIBIDO deducir «no hay» de que una lista no lo mencione: las listas del bot vienen recortadas; la única fuente para negar un tipo es el CATÁLOGO DE HOY completo de esa medida.
 
-22. SIN MEDIDA DEL CLIENTE NO HAY COTIZACIÓN — SALVO QUE ÉL HAYA DADO EL ARO. Si los HECHOS traen «MEDIDA NO CONFIRMADA POR EL CLIENTE», la medida en juego la dedujo el bot por el VEHÍCULO: el cliente no escribió ninguna ni mandó foto. Mostrar opciones está bien —diciendo que son las que más se usan en ese vehículo—, pero un borrador que anuncie, adjunte o prometa una cotización, que afirme que esas llantas «son las de su carro» o que cierre con el menú de preferencia en vez de pedir la medida, es error ALTO de categoría **cotizacion_sin_medida**. Pasó el 1-sep (conv 13862): «Suzuki SZ 2016, ¿qué me recomienda?» terminó en una cotización por $511.72 de una medida que el cliente nunca vio. EN CAMBIO, si los HECHOS traen «ARO DADO POR EL CLIENTE», las opciones son de SU aro y cada una lleva su medida en la lámina: elegir una (número, escalón, marca o modelo) ES pedir la cotización y se cotiza con la medida de esa opción (Manuel, 7-sep, conv 3). Un borrador que en ese caso pida «la medida exacta» para cotizar lo que el cliente ya eligió es error ALTO de categoría **pregunta_de_mas**, y NO corrijas una cotización por aro como cotizacion_sin_medida.
+22. SIN MEDIDA DEL CLIENTE NO HAY COTIZACIÓN — SALVO QUE ÉL HAYA DADO EL ARO. Si los HECHOS traen «MEDIDA NO CONFIRMADA POR EL CLIENTE», la medida en juego la dedujo el bot por el VEHÍCULO: el cliente no escribió ninguna ni mandó foto. Mostrar opciones está bien —diciendo que son las que más se usan en ese vehículo—, pero un borrador que anuncie, adjunte o prometa una cotización, que afirme que esas llantas «son las de su carro» o que cierre con la lista de opciones y su pregunta de elegir en vez de pedir la medida, es error ALTO de categoría **cotizacion_sin_medida**. Pasó el 1-sep (conv 13862): «Suzuki SZ 2016, ¿qué me recomienda?» terminó en una cotización por $511.72 de una medida que el cliente nunca vio. EN CAMBIO, si los HECHOS traen «ARO DADO POR EL CLIENTE», las opciones son de SU aro y cada una lleva su medida en la lámina: elegir una (número, escalón, marca o modelo) ES pedir la cotización y se cotiza con la medida de esa opción (Manuel, 7-sep, conv 3). Un borrador que en ese caso pida «la medida exacta» para cotizar lo que el cliente ya eligió es error ALTO de categoría **pregunta_de_mas**, y NO corrijas una cotización por aro como cotizacion_sin_medida.
 
 REGLAS DE CORRECCIÓN (innegociables):
 - NUNCA inventes precios, medidas, stock, plazos ni datos que no estén en el contexto. Si no puedes verificar una cifra, NO la cambies: repórtala como hallazgo y aprueba.
@@ -284,6 +291,17 @@ export function hechoDeOrigenDeMarcas(): string | null {
   }. Si el cliente pregunta de dónde es una marca y el borrador lo evade, es ignora-pregunta.`;
 }
 
+/**
+ * La política de pagos, como HECHO. Sin ella el revisor no puede verificar
+ * «en efectivo sí hay un descuento, que se confirma en el local» y lo borra
+ * (o lo niega al reescribir); la misma razón que el origen de las marcas.
+ */
+export function hechoDePagos(): string {
+  return `Formas de pago (política del negocio, el bot PUEDE afirmarlo y no debe mandarlo al asesor): ${politicaDePagos()} `
+    + "Que en efectivo hay un descuento es CIERTO: NO lo borres, NO digas que el precio es el mismo en efectivo ni que no hay descuento, "
+    + "y NO agregues una cifra (el monto lo confirman en el local).";
+}
+
 export interface HuellaHerramienta {
   herramienta: string;
   argumentos: string;
@@ -297,6 +315,11 @@ export interface OpcionesRevision {
    * sale tras el silencio del cliente y que hasta el 26-ago no se revisaba.
    */
   tipo?: "respuesta" | "seguimiento";
+  /**
+   * Solo cuando el borrador dice que avisó al asesor: si ese aviso quedó
+   * registrado en este turno (familia 2-E). Ver domain/avisoAlAsesor.ts.
+   */
+  avisoRegistrado?: boolean;
 }
 
 type RespuestaOpenAI = OpenAI.Chat.Completions.ChatCompletion;
@@ -500,6 +523,10 @@ export async function armarContexto(
     where conversation_id=${conversationId} and cycle=${cycle} and direction='inbound'
     order by created_at desc limit 12
   `;
+  const entrantesDeLaVisita = mensajesDeLaVisitaActual(inboundVisita).map((m) => m.content);
+  const medidasDelClienteEnLaVisita = medidasEscritasPorElCliente(entrantesDeLaVisita);
+  const disputa = await medidaEnDisputaDelPedido(conversationId, cycle);
+  const compraADistancia = comproADistanciaSegunLoDicho(inboundVisita.map((m) => m.content));
   const hechoRestricciones = hechosDeRestricciones(
     restriccionesDeLlanta(mensajesDeLaVisitaActual(inboundVisita).map((m) => m.content).reverse()),
   );
@@ -507,7 +534,7 @@ export async function armarContexto(
   // ¿La última lámina del ciclo trae VARIAS medidas? La pieza pudo salir en un
   // turno anterior, así que no está en la huella de este: se lee de la misma
   // fuente que `cotizarLoElegido`, los códigos que la pieza guardó.
-  const [ultimaPieza] = await sql<{ metadata: { codes?: unknown[] } | null }[]>`
+  const [ultimaPieza] = await sql<{ metadata: { codes?: unknown[]; escalones?: unknown; cantidad?: unknown } | null }[]>`
     select metadata from messages
     where conversation_id=${conversationId} and cycle=${cycle}
       and metadata->>'piece'='options'
@@ -519,12 +546,23 @@ export async function armarContexto(
       .filter((medida): medida is string => Boolean(medida)),
   );
   const variasMedidasEnPantalla = medidasEnPantalla.size > 1;
+  // Los precios y totales de la lista escrita que salió con la lámina. Sin este
+  // hecho el revisor no los encuentra en ninguna cotización y los borra.
+  const listaEnPantalla = listaDeLaPieza(ultimaPieza?.metadata);
 
   // Los dos últimos turnos, sueltos: son la materia prima de los hechos de
   // despedida y de oferta aceptada. `mensajes` viene del más nuevo al más viejo.
   const ultimoDelCliente = mensajes.find((m) => m.direction === "inbound")?.content ?? "";
   const ultimoDelBot =
     mensajes.find((m) => m.direction !== "inbound" && m.author_kind === "bot")?.content ?? null;
+
+  // Todas las filas del último turno del bot (la pieza y su cierre salen aparte).
+  const turnoDelBot = ultimoTurnoDelBot(
+    [...mensajes].reverse().map((m) => ({
+      role: m.direction === "inbound" ? "user" : m.author_kind === "bot" ? "assistant" : "asesor",
+      content: m.content,
+    })),
+  );
 
   const historial = [...mensajes].reverse().map((m) => {
     const quien = m.direction === "inbound" ? "CLIENTE" : m.author_kind === "bot" ? "BOT" : "ASESOR";
@@ -538,19 +576,59 @@ export async function armarContexto(
     "== HECHOS REGISTRADOS ==",
     `El bot se presenta como ${FIRMA_DE_PRESENTACION.replace(/^Soy /, "")}: es su nombre oficial (decisión del negocio, 14-sep), no un dato inventado. Si el cliente pregunta si habla con un bot o una persona, el borrador NO puede negar que es un asistente virtual.`,
     `Medidas que el cliente pidió: ${pedidas.length ? pedidas.join(", ") : "(ninguna todavía)"}`,
+    // HECHO DURO (familia 1-B, 22-24 sep): qué es una equivalente. Sin él, el
+    // revisor aprobó «le entra la 215/60R17» por una 235/60R17 y reescribió
+    // «equivalentes de su aro» sobre una 165/65R13 para quien pidió aro 14.
+    // Un candado posterior (`sin_equivalencias_falsas`) cambia cualquier otra.
+    // Las equivalentes que la herramienta devolvió este turno son HECHOS: sin
+    // esto el revisor no podía nombrarlas y su corrección se podaba (V3a).
+    hechoDeEquivalentesDevueltos(huella),
+    "EQUIVALENCIA (regla del taller, no se negocia): una medida distinta de la del cliente solo es «equivalente», «le entra» o «de su aro» si es del MISMO aro, su diámetro exterior está dentro del 3 % y su ancho a no más de 20 mm. Ofrecer como equivalente una que no cumple es **medida_incorrecta** ALTA, y tu corrección tampoco la llama así. Si el cliente pidió «más ancha» o «más alta», la que se le ofrece tiene que ir para ese lado.",
     hechos?.vehicle ? `Vehículo: ${hechos.vehicle}` : null,
     // El anuncio y la clase de vehículo son HECHOS: sin ellos el revisor aprobó
     // llantas de sedán para una «camioneta 4x4» (convs 20211 y 20209, 14-sep).
     anuncio ? `Anuncio por el que llegó: «${[anuncio.titulo, anuncio.texto].filter(Boolean).join(" — ")}»` : null,
-    claseDeVehiculoEnTexto([hechos?.vehicle, anuncio?.titulo, anuncio?.texto, ...mensajes.filter((m) => m.direction === "inbound").map((m) => m.content)]) === "camioneta"
+    // ...salvo que el cliente haya ESCRITO su medida (conv 12625, 22-sep): con
+    // «195/55R16» escrita dos veces, este hecho —sacado del anuncio— hizo que
+    // el revisor le dijera cuatro veces «usted llegó por llanta de camioneta y
+    // esa medida es de auto… envíeme una foto». Ver domain/medidaDelCliente.
+    hechoDeCamionetaVigente(
+      [hechos?.vehicle, anuncio?.titulo, anuncio?.texto],
+      [...mensajes.filter((m) => m.direction === "inbound").map((m) => m.content), ...entrantesDeLaVisita],
+    )
       ? "EL CLIENTE BUSCA LLANTA DE CAMIONETA / SUV / 4x4 (lo dijo él o lo dice el anuncio). Un borrador que le ofrezca llantas de auto de perfil bajo (series 40, 45, 50 o 55 en ancho menor a 225) es **medida_incorrecta** de severidad ALTA: la corrección quita esas opciones y pide la medida del costado o la foto."
+      : null,
+    // HECHO DURO (familia del 21-sep-2026): el USO que declaró el cliente fija
+    // qué TIPOS pueden estar en el menú. Sin este hecho la regla 21 («el tipo
+    // no se esconde») empuja al revisor a AGREGAR la M/T que el menú dejó fuera
+    // a propósito para quien pidió ciudad. Misma función que las herramientas.
+    (() => {
+      const uso = usoDeLosTextos(mensajes.filter((m) => m.direction === "inbound").map((m) => m.content));
+      const tipos = tiposCompatibles(uso);
+      return uso && tipos
+        ? `USO DECLARADO POR EL CLIENTE: ${uso}. Los tipos que le sirven son ${tipos.join(", ")}. La regla 21 obliga a nombrar un tipo que el cliente PIDIÓ, no a agregar los que su uso descarta: la corrección NO agrega ni recomienda otro tipo (una M/T para ciudad, una H/T para lodo). Un borrador que le ofrezca o recomiende un tipo fuera de esa lista es de severidad ALTA (categoría **otro**) y la corrección lo cambia por uno de esos tipos que esté en el CATÁLOGO DE HOY.`
+        : null;
+    })(),
+    // Si el menú tuvo que salirse del uso porque no había suficientes de ese
+    // tipo, la herramienta lo AVISÓ (`aviso_tipo`): ese aviso es verdad y se queda.
+    huella.some((h) => h.resultado.includes('"aviso_tipo"'))
+      ? "AVISO DE TIPO VIGENTE: este turno la herramienta reportó `aviso_tipo` — no había suficientes llantas del tipo que le sirve a su uso y el menú se completó con otro tipo. Es un hecho: el borrador DEBE decirlo en una línea, y quitárselo es error ALTO (categoría **otro**). La corrección no lo borra ni presenta esas llantas como el tipo ideal."
+      : null,
+    // HECHO DURO (familia 2-H, 28-sep): la medida que él escribió es SUYA. Sin
+    // este hecho el revisor la cuestionaba por el vehículo o el anuncio y
+    // pedía la foto del costado a quien ya la había escrito.
+    medidasDelClienteEnLaVisita.length && !disputa
+      ? `MEDIDA ESCRITA POR EL CLIENTE: ${medidasDelClienteEnLaVisita.join(", ")}. Es dato suyo: PROHIBIDO decir que no corresponde a su vehículo, que «es de auto», o volver a pedirle la medida o una foto del costado. Si en esa medida no hay stock, se dice y se ofrecen equivalentes que calcen; eso no es pedirle nada.`
+      : null,
+    disputa
+      ? `DOS MEDIDAS DEL CLIENTE SIN RESOLVER: en la foto se lee ${disputa.foto} y después escribió ${disputa.escrita}. Preguntarle en una línea cuál es la de su llanta, nombrando las dos, es la pregunta legítima del turno (no es pregunta_de_mas ni re-pregunta). Cotizar cualquiera de las dos antes de su respuesta es **cotizacion_sin_medida** ALTA.`
       : null,
     // HECHO DURO para la regla 22 (1-sep, conv 13862): la medida salió del
     // vehículo o del aro, no del cliente. Misma función que el candado de
     // `generar_cotizacion` (domain/medidaConfirmada), sobre los mensajes del
     // cliente de este ciclo.
     hechos?.vehicle
-      && !medidaConfirmadaPorCliente(hechos.tire_size, mensajes.filter((m) => m.direction === "inbound").map((m) => m.content))
+      && !clienteDioSuMedida(hechos.tire_size, [...mensajes.filter((m) => m.direction === "inbound").map((m) => m.content), ...entrantesDeLaVisita])
       && !aroDadoPorElCliente(mensajes.filter((m) => m.direction === "inbound").map((m) => m.content))
       ? "MEDIDA NO CONFIRMADA POR EL CLIENTE: el vehículo está registrado pero el cliente no escribió ninguna medida completa ni mandó foto en esta visita. Toda medida en juego la dedujo el bot. Opciones sí; cotización no; el cierre pide la medida."
       : null,
@@ -587,7 +665,7 @@ export async function armarContexto(
       // de 4 llantas FALKEN ZE310 que eligió» — una promesa sin cotización.
       const conCarro = Boolean(hechos?.vehicle) || entrantes.some((t) => mencionaVehiculo(t));
       return conCarro && variasMedidasEnPantalla
-        ? `ARO DADO POR EL CLIENTE: rin ${aro}, PERO en pantalla hay VARIAS MEDIDAS de ese aro y el cliente dio un VEHÍCULO sin escribir su medida. Cada tarjeta lleva la suya «por confirmar». EL MENÚ DE PREFERENCIA (1 Costo / 2 Equilibrio / 3 Premium) con el que cierra la pieza ES VÁLIDO Y SE CONSERVA: NO lo reemplaces por la pregunta de la medida (Manuel, 27-sep, conv 3: el revisor borró el menú y el cliente se quedó sin cómo elegir). Lo que está PROHIBIDO es cotizar o afirmar que una medida de la lámina es la suya: cuando elija una opción, antes de cotizar se le pide leer la medida del costado («¿Qué medida dice en el costado de su llanta?»), y ESA pregunta —en el turno de la elección— es legítima y NO es pregunta_de_mas. PROHIBIDO proponerle una medida de la lámina como si fuera la suya: «¿Su llanta dice 215/40R17?» invita a decir que sí sin mirar, y ese carro quizá no usa esa medida (12-sep, Qashqai 2020).`
+        ? `ARO DADO POR EL CLIENTE: rin ${aro}, PERO en pantalla hay VARIAS MEDIDAS de ese aro y el cliente dio un VEHÍCULO sin escribir su medida. Cada tarjeta lleva la suya «por confirmar». LA LISTA CON PRECIOS Y «¿Le cotizo la 1, la 2 o la 3?» (o el menú 1 Costo / 2 Equilibrio / 3 Premium, si salió ese) con la que cierra la pieza ES VÁLIDA Y SE CONSERVA: NO la reemplaces por la pregunta de la medida (Manuel, 27-sep, conv 3: el revisor borró el menú y el cliente se quedó sin cómo elegir). Lo que está PROHIBIDO es cotizar o afirmar que una medida de la lámina es la suya: cuando elija una opción, antes de cotizar se le pide leer la medida del costado («¿Qué medida dice en el costado de su llanta?»), y ESA pregunta —en el turno de la elección— es legítima y NO es pregunta_de_mas. PROHIBIDO proponerle una medida de la lámina como si fuera la suya: «¿Su llanta dice 215/40R17?» invita a decir que sí sin mirar, y ese carro quizá no usa esa medida (12-sep, Qashqai 2020).`
         : `ARO DADO POR EL CLIENTE: rin ${aro}. Las opciones mostradas son de ese aro y cada una lleva su medida en la lámina. Si elige una, se cotiza con la medida de esa opción: NO se le pide «la medida exacta» para cotizar lo que ya eligió.`;
     })(),
     hechos?.selected_quantity != null ? `Cantidad elegida: ${hechos.selected_quantity}` : null,
@@ -602,7 +680,17 @@ export async function armarContexto(
         : "(ninguna)"
     }`,
     `Compromiso de visita en palabras del cliente: ${hechos?.customer_commitment ?? "(ninguno)"}`,
-    visitaPendiente(hechos ?? {}) && !despedidaQueCorresponde(ultimoDelCliente)
+    // Quien compra a distancia no tiene día de visita pendiente (conv 21766):
+    // el hecho de abajo le pedía al revisor AGREGAR «¿qué día puede pasar?»
+    // a quien acababa de decir «lo compro x este medio… me envía».
+    compraADistancia
+      ? "COMPRA A DISTANCIA: el cliente decidió pagar por este medio y que le envíen las llantas. " +
+        "Ya hay alerta para el asesor. PROHIBIDO preguntarle qué día pasa, a qué local va o mandarle mapas; " +
+        "el bot no cobra ni confirma pagos: los datos de pago y el envío los coordina el asesor. " +
+        "El cierre legítimo de su turno es «Un asesor le confirma pago y envío por acá.»: NO es un mensaje mudo " +
+        "ni le falta un siguiente paso (regla 15), y NO lo cambies por la pregunta del local ni del día."
+      : null,
+    !compraADistancia && visitaPendiente(hechos ?? {}) && !despedidaQueCorresponde(ultimoDelCliente)
       ? `DÍA DE VISITA PENDIENTE: el local ya es ${hechos?.nearest_store} pero el cliente NO registró qué día viene. ` +
         "«Gracias», «ok» o repetir el local NO cierran la visita: si el borrador no pregunta el día, corrígelo " +
         "agregando «¿Qué día cree que puede pasar por …?» en bloque aparte (---). PROHIBIDO cerrar con " +
@@ -617,6 +705,7 @@ export async function armarContexto(
     // entre sus hechos— reescribió «se lo confirma el asesor». Lo que el
     // revisor no puede verificar, lo borra; así que viaja como hecho.
     hechoDeOrigenDeMarcas(),
+    hechoDePagos(),
     // LAS DIRECCIONES TAMBIÉN (corrida 3, simulador): a «¿qué parte del sur?»
     // el revisor escribió «en el sector de Guamaní» — inventado; el local está
     // en Galo Molina y Av. Alonso de Angulo. Un dato que el revisor no tiene lo
@@ -658,7 +747,7 @@ export async function armarContexto(
       ? `EL CLIENTE SE DESPIDIÓ: su último mensaje fue «${ultimoDelCliente.slice(0, 120)}». ` +
         "La venta está cerrada. No se le insiste con nada."
       : null,
-    ofertaDeCotizarAceptada(ultimoDelBot, ultimoDelCliente)
+    ofertaDeCotizarAceptada(ultimoDelBot, ultimoDelCliente, turnoDelBot)
       ? `EL CLIENTE YA ACEPTÓ: el bot le ofreció la cotización y él contestó «${ultimoDelCliente.slice(0, 60)}». ` +
         "Eso es un sí. Lo que corresponde es la cotización, no volver a ofrecerla."
       : null,
@@ -697,6 +786,8 @@ export async function armarContexto(
     respaldados.length
       ? `Servicios y beneficios respaldados (lo ÚNICO que el bot puede prometer como incluido): ${respaldados.join(" · ")}`
       : "Servicios y beneficios respaldados: ninguno cargado — el borrador no puede prometer nada como incluido",
+    listaEnPantalla ? hechoDeLaLista(listaEnPantalla.lista, listaEnPantalla.cantidad) : null,
+    opciones.avisoRegistrado === undefined ? null : hechoDelAvisoAlAsesor(opciones.avisoRegistrado),
     ...(catalogoHoy.length ? ["", ...catalogoHoy] : []),
     "",
     "== CONVERSACIÓN (vieja → nueva) ==",
@@ -715,7 +806,7 @@ export async function armarContexto(
     // el historial no alcanzó: el revisor lo tenía a la vista y priorizó otra
     // categoría, así que se le dice con todas sus letras.
     huella.some((h) => h.herramienta === "preparar_opciones" && h.resultado.includes('"recomendacion_entregada":false'))
-      ? "OPCIONES RECIÉN MOSTRADAS SIN ELECCIÓN: este turno el cliente solo preguntó (precio/medida) y el bot le mostró el menú de opciones. NO eligió ninguna todavía. Si el borrador anuncia, adjunta o promete una cotización, es **cotizacion_sin_eleccion** (alta) y la corrección la quita, dejando las opciones y el menú de preferencia."
+      ? "OPCIONES RECIÉN MOSTRADAS SIN ELECCIÓN: este turno el cliente solo preguntó (precio/medida) y el bot le mostró el menú de opciones. NO eligió ninguna todavía. Si el borrador anuncia, adjunta o promete una cotización, es **cotizacion_sin_eleccion** (alta) y la corrección la quita, dejando las opciones con su lista de precios y «¿Le cotizo la 1, la 2 o la 3?»."
       : null,
     // HECHO DURO para la conv 13635 (1-sep): la recomendada es una EQUIVALENTE
     // y la herramienta ya cerró con la pregunta de consentimiento. El revisor
@@ -725,7 +816,16 @@ export async function armarContexto(
     // «¿Se la cotizo?» a propósito —no hay menú posible— y el revisor la quitó
     // como pregunta_de_mas, dejando el turno sin salida.
     huella.some((h) => h.herramienta === "preparar_opciones" && (h.resultado.includes('"unica_opcion":true') || /¿Se la cotizo\?/.test(h.resultado)))
+      && !huella.some((h) => h.herramienta === "preparar_opciones" && h.resultado.includes('"unica_cotizada_directo":true'))
       ? "ÚNICA OPCIÓN EN PANTALLA: la pieza trae una sola llanta y cierra con «¿Se la cotizo?». Esa pregunta es la legítima del turno y se conserva TAL CUAL: NO es pregunta_de_mas, NO la reemplaces por un menú de preferencia (no hay entre qué elegir) ni por otra redacción («¿avanzamos con esta opción?»): el «sí» del cliente solo abre la cotización si la pregunta habla de cotizar."
+      : null,
+    // HECHO DURO (conv +593 99 842 8277, 25 y 27-sep): UNA sola llanta y el
+    // cliente ya pidió el precio → la pieza dice «Es la única que tengo…» SIN
+    // pregunta y la cotización sale en este mismo turno. Sin este hecho el
+    // revisor «completaba» el cierre con «¿Se la cotizo?» (la pregunta que el
+    // cliente ya contestó pidiendo el precio) o borraba el precio y la frase.
+    huella.some((h) => h.herramienta === "preparar_opciones" && h.resultado.includes('"unica_cotizada_directo":true'))
+      ? "ÚNICA OPCIÓN, PRECIO YA PEDIDO: el cliente pidió el precio/la cotización y hay UNA sola llanta. La pieza dice «Es la única que tengo…» con su precio y la cotización sale en este mismo turno. Esa frase y ese precio son ciertos y se conservan TAL CUAL. PROHIBIDO agregar «¿Se la cotizo?», «¿avanzamos?» o cualquier pregunta de permiso: ya la pidió. NO es cotizacion_sin_eleccion: el pedido del cliente ES la elección."
       : null,
     huella.some((h) => h.herramienta === "preparar_opciones" && h.resultado.includes('"recomendacion_ofrecida":true'))
       ? "RECOMENDACIÓN ENTREGADA SIN ELECCIÓN: el cliente pidió recomendación o contó su uso, y la pieza ya le entrega la recomendada y cierra ofreciendo cotizarla («¿Se la cotizo?»). Esa oferta es la legítima del turno y se conserva TAL CUAL: NO es pregunta_de_mas ni cotizacion_sin_eleccion, y NO la reemplaces por el menú de preferencia."
@@ -743,7 +843,11 @@ export async function armarContexto(
     // revisor la borró por la regla 15 poniendo la pregunta del local. El
     // cliente que ya había elegido con sus palabras se quedó con precio y sin
     // cotización. Las dos capas eran correctas por separado; esto las alinea.
+    // …salvo con la ÚNICA cuyo precio ya se pidió (`unica_cotizada_directo`): ahí
+    // el bloqueo es un fallo nuestro, no falta de sí del cliente, y forzar el
+    // «¿Se la cotizo?» es pedirle permiso por lo que ya pidió (V5b, 28-sep).
     huella.some((h) => h.herramienta === "generar_cotizacion" && h.resultado.includes("este turno no autorizó cotizar llantas"))
+      && !huella.some((h) => h.herramienta === "preparar_opciones" && h.resultado.includes('"unica_cotizada_directo":true'))
       ? "COTIZACIÓN BLOQUEADA ESTE TURNO POR FALTA DE AUTORIZACIÓN: la herramienta no cotizó porque no reconoció un sí ni una elección en el mensaje del cliente. El borrador debe cerrar con «¿Se la cotizo?» sola en su bloque: esa pregunta es la legítima del turno y se conserva TAL CUAL — NO es pregunta_de_mas, NO la reemplaces por la pregunta del local ni por «¿avanzamos?». Si el borrador no la trae, la corrección la agrega. PROHIBIDO anunciar o prometer la cotización: este turno no salió."
       : null,
     huella.some((h) => h.herramienta === "preparar_opciones" && h.resultado.includes('"consentimiento_pendiente":true'))

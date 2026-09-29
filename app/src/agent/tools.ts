@@ -51,6 +51,8 @@ import {
   composeBlocks,
   warrantyForBrand,
 } from "../services/quoteMessages.js";
+import { porQueNoPasaPorElLocal } from "../services/dondeEstaElCliente.js";
+import { cierreSinVisita } from "../domain/compraADistancia.js";
 import {
   appendMessage,
   logQuote,
@@ -74,11 +76,18 @@ import { getAiConfig, getPiecesConfig } from "../services/settings.js";
 import { researchVehicleFitment } from "../services/vehicleFitmentResearch.js";
 import { arosDeCandidatos, arosDeMedidas, invitacionPorAroAmbiguo } from "../domain/fitmentResearch.js";
 import { aroVigenteDeLaVisita, rangoDeAros } from "../domain/aros.js";
+import {
+  aroParaFitment, medidaEnDisputa, medidasEscritasPorElCliente, mediaMedidaVigente, respetanElAroDelCliente,
+} from "../domain/medidaDelCliente.js";
 import { localPorLaZonaDicha, nearestStore, resolveSector, ubicacionDadaPorElCliente } from "../domain/locations.js";
-import { ordenarPorCercania } from "../domain/equivalencia.js";
-import { extractFlotationSizes, formatFlotationSize, formatTireSize, parseTireSize, type TireSize, flotacionIncompleta } from "../domain/tireSize.js";
+import { direccionPedida, equivaleAAlguna, esEquivalente, ordenarPorCercania } from "../domain/equivalencia.js";
+import { avisoDeMedidaEnOpciones, siguientePasoPorMedidaDistinta } from "../domain/equivalenciaEnTexto.js";
+import { CAMPO_EQUIVALENTES, equivalentesAMostrar, reglaDeMostrarEquivalentes } from "../domain/equivalentesPorMostrar.js";
+import { extractFlotationSizes, formatFlotationSize, formatTireSize, parseTireSize, type TireSize, type FlotationSize, flotacionIncompleta, medidaGuardable } from "../domain/tireSize.js";
 import { marcaPreguntada, pidioCotizacionExplicita, ultimaMarcaPedida } from "../domain/consultaConRespaldo.js";
-import { autorizaCotizacionEnEsteTurno, canGenerateFinalQuote, cantidadParaPrepararOpciones, describeUso, escalonesDeOpciones, pideAlternativaMasBarata, pideRecomendacion, respuestaDePreferencia, pideOpcionesNoCotizacion } from "../domain/salesIntent.js";
+import { armarLista, confirmacionDeLaOpcion, opcionPorPosicion, posicionElegida } from "../domain/listaDeOpciones.js";
+import { cotizarLaUnicaDeUnaVez } from "../domain/cotizarLaUnica.js";
+import { traeMarcaDelMenu, autorizaCotizacionEnEsteTurno, canGenerateFinalQuote, cantidadParaPrepararOpciones, describeUso, escalonesDeOpciones, pideAlternativaMasBarata, pideRecomendacion, respuestaDePreferencia, pideOpcionesNoCotizacion } from "../domain/salesIntent.js";
 import { equivalenteSinConsentimiento, preguntaDeEquivalente } from "../domain/equivalentePendiente.js";
 import { aroDadoPorElCliente, medidaParaElSello, medidaNoDada, medidasDelAro } from "../domain/medidaConfirmada.js";
 import { eleccionDeLaVitrina } from "../domain/eleccionDeVitrina.js";
@@ -88,6 +97,7 @@ import {
   catalogoDeTipos, escalonDeMarca, infoTipo, normalizarTipo, ordenDeMarca, tipoDeProducto, usoDelModelo,
 } from "../domain/tireTypes.js";
 import { nivelDeLinea, ordenDeNivel, reglasEscalera } from "../domain/escalera.js";
+import { separarPorUso, tiposCompatibles, usoDeLosTextos, usoDeclarado, type UsoDeclarado } from "../domain/usoYTipo.js";
 import { costoPorKm, respaldoCompleto, respaldoDeMarca } from "../domain/respaldoMarcas.js";
 import {
   debeBloquearReenvio, JUEGO_COMPLETO, medidaDesdeContenido, opcionesQueAlcanzan, tipoSolicitadoEn,
@@ -98,7 +108,7 @@ import {
 import { ahorroDeLaCotizacion } from "../domain/ahorro.js";
 import { avisoDeCantidad, esCantidadInusual } from "../domain/cantidadGrande.js";
 import { claseDeVehiculoEnTexto, TIPOS_DE_CAMIONETA } from "../domain/claseDeVehiculo.js";
-import { medidasDelPedido } from "../services/medidasDelPedido.js";
+import { medidaEnDisputaDelPedido, medidasDelPedido } from "../services/medidasDelPedido.js";
 import { sendImage, sendPdf } from "../wa/client.js";
 import {
   renderCompareImage,
@@ -315,16 +325,23 @@ function etiquetaEscalon(brand: string, design: string): (typeof ESCALONES)[numb
  * Quien necesite garantizar stock tiene que filtrar ANTES de llamar (ver
  * `conStock`); confiar en esta función para eso fue el bug del 7-ago.
  */
+/**
+ * Escalón (0 = premium) de UN producto. La LÍNEA manda sobre la marca (escalera
+ * 13-ago): una Kenda KR628 es intermedia y una KR203 es económica; meterlas al
+ * mismo cajón «Kenda» dejaba escaleras con dos del mismo nivel y ninguna
+ * económica real. Es la misma cuenta de `etiquetaEscalon`, en número.
+ */
+function escalonDe(p: { brand: string; design: string }): number {
+  const nivel = nivelDeLinea(p.brand, p.design);
+  return nivel ? ordenDeNivel(nivel) : escalonDeMarca(p.brand);
+}
+
 function tresOpciones<T extends { brand: string; design: string; minimumPriceWithTax: number; availability: string }>(
   productos: readonly T[],
 ): T[] {
   const porEscalon = new Map<number, T>();
   for (const p of productos) {
-    // La LÍNEA manda sobre la marca (escalera 13-ago): una Kenda KR628 es
-    // intermedia y una KR203 es económica; meterlas al mismo cajón «Kenda»
-    // dejaba escaleras con dos del mismo nivel y ninguna económica real.
-    const nivel = nivelDeLinea(p.brand, p.design);
-    const escalon = nivel ? ordenDeNivel(nivel) : escalonDeMarca(p.brand);
+    const escalon = escalonDe(p);
     const actual = porEscalon.get(escalon);
     const mejorQue = (a: T, b: T) => {
       const disp = (x: T) => (x.availability === "available" ? 0 : x.availability === "check" ? 1 : 2);
@@ -334,6 +351,34 @@ function tresOpciones<T extends { brand: string; design: string; minimumPriceWit
     if (!actual || mejorQue(p, actual)) porEscalon.set(escalon, p);
   }
   return [...porEscalon.entries()].sort((a, b) => a[0] - b[0]).map(([, p]) => p);
+}
+
+/**
+ * La escalera del MENÚ (costo / equilibrio / premium) respetando el uso que el
+ * cliente declaró: el TIPO primero, el precio después (regla 1 de
+ * `escalera-precio.json`). Es la única entrada para armar un menú con uso
+ * conocido; `tresOpciones` sigue siendo la escalera pura por escalón.
+ *
+ * Con dos o más compatibles vendibles, el menú sale SOLO de ellos. Con menos,
+ * se completa con otros tipos —nunca los que no van para ese uso: M/T para
+ * ciudad— y `avisoTipo` lo dice; jamás en silencio (familia del 21-sep-2026).
+ * Sin uso declarado equivale a `tresOpciones`. NO oculta tipos de lo que ve el
+ * modelo: eso es `recorteConEscalera`, que no se toca.
+ */
+function escaleraPorUso<T extends { code: string; brand: string; design: string; minimumPriceWithTax: number; availability: string; stock: number }>(
+  productos: readonly T[],
+  uso: UsoDeclarado | null,
+): { opciones: T[]; avisoTipo: string | null } {
+  const separado = separarPorUso(productos, uso, (p) => normalizarTipo(tipoDeProducto(p.code, p.design) ?? ""));
+  const base = tresOpciones(separado.compatibles);
+  if (!separado.avisoTipo) return { opciones: base, avisoTipo: null };
+  // El relleno solo cubre los escalones que los compatibles dejaron vacíos.
+  const cubiertos = new Set(base.map(escalonDe));
+  const relleno = tresOpciones(separado.otros).filter((p) => !cubiertos.has(escalonDe(p)));
+  return {
+    opciones: [...base, ...relleno].sort((a, b) => escalonDe(a) - escalonDe(b)),
+    avisoTipo: separado.avisoTipo,
+  };
 }
 
 /**
@@ -402,11 +447,13 @@ function recorteConEscalera<T extends { code: string; brand: string; design: str
  *
  * Quien la llame debe haber hecho `ensureCatalogReady()` antes.
  */
-function opcionesEnAro(aro: number, tipo: string | null, medidaConfirmada?: string | null, soloDeCamioneta = false): {
+function opcionesEnAro(aro: number, tipo: string | null, medidaConfirmada?: string | null, soloDeCamioneta = false, uso: UsoDeclarado | null = null): {
   pedido: string | null;
   enElAro: CatalogItem[];
   delTipo: CatalogItem[];
   seleccion: CatalogItem[];
+  /** Se salió del uso declarado para completar el menú (ver `escaleraPorUso`). Null = no. */
+  avisoTipo: string | null;
   /** La medida de la ficha, y solo si es de ESTE aro. Null = no manda aquí. */
   suMedida: string | null;
   /** Tiene medida confirmada en este aro y de ese tipo no hay NADA en ella. */
@@ -459,6 +506,8 @@ function opcionesEnAro(aro: number, tipo: string | null, medidaConfirmada?: stri
     medidaConfirmada ?? null,
   );
   const deDondeElegir = enSuMedida.length ? enSuMedida : equivalentes;
+  // Un tipo pedido EXPLÍCITO ya filtró `delTipo`: el uso solo manda sin él.
+  const menu = escaleraPorUso(deDondeElegir, pedido ? null : uso);
   return {
     pedido: pedido || null,
     enElAro,
@@ -466,7 +515,8 @@ function opcionesEnAro(aro: number, tipo: string | null, medidaConfirmada?: stri
     // Con algo vendible en su medida, la selección sale SOLO de ahí; si no
     // hay, se cae al aro completo — pero eso deja de ser silencioso
     // (`sinTipoEnSuMedida`).
-    seleccion: tresOpciones(deDondeElegir),
+    seleccion: menu.opciones,
+    avisoTipo: menu.avisoTipo,
     suMedida,
     sinTipoEnSuMedida: Boolean(suMedida) && !enSuMedida.length,
     /** Hay de ese tipo en el aro, pero ninguna que le calce a su medida. */
@@ -563,29 +613,14 @@ type OrigenOpciones = "medida_investigada" | "aro_del_cliente" | "medida_cercana
  * al menos una opción; no hay stock ⇒ `[]` y `origen: null`. El candado promete
  * no callarse teniendo qué vender, no promete tener qué vender.
  */
-/** Diámetro exterior en mm: aro + dos veces el flanco. */
-function diametroMm(size: TireSize): number {
-  return size.rim * 25.4 + 2 * size.width * ((size.aspect ?? 0) / 100);
-}
-
-/**
- * ±3 % de diámetro es lo que el propio archivo del negocio declara como
- * equivalencia aceptable (`motor_equivalencia`). Fuera de eso la llanta
- * «con las justas entra» o no tiene nada que ver, y eso ya no se ofrece
- * (Manuel, 1-sep-2026).
- */
-const TOLERANCIA_DIAMETRO = 0.03;
-function equivaleEnDiametro(a: TireSize, b: TireSize): boolean {
-  const da = diametroMm(a);
-  const db = diametroMm(b);
-  return Math.abs(da - db) / da <= TOLERANCIA_DIAMETRO;
-}
-
 async function opcionesDeFitment(
   resultado: Pick<FitmentResearchResult, "sizes" | "candidatos">,
   aro: number | null,
+  uso: UsoDeclarado | null = null,
 ): Promise<{
   opciones: CatalogItem[];
+  /** El menú se salió del uso declarado para completarse (ver `escaleraPorUso`). */
+  avisoTipo: string | null;
   origen: OrigenOpciones | null;
   medidasConStock: string[];
   medidasAgotadas: string[];
@@ -605,7 +640,10 @@ async function opcionesDeFitment(
   const parseadas = candidatos
     .filter((c) => c.confianza !== "baja")
     .map((c) => ({ etiqueta: c.medida, size: parseTireSize(c.medida) }))
-    .filter((m): m is { etiqueta: string; size: TireSize } => m.size !== null);
+    .filter((m): m is { etiqueta: string; size: TireSize } => m.size !== null)
+    // EL ARO DEL CLIENTE LE GANA A LA FICHA (conv 23160): con aro dicho, una
+    // medida investigada de otro aro no es suya y no se ofrece.
+    .filter((m) => !aro || m.size.rim === aro);
 
   const listasDisponibles: CatalogItem[][] = [];
   const medidasConStock: string[] = [];
@@ -622,29 +660,31 @@ async function opcionesDeFitment(
     }
   }
 
-  const porMedida = tresOpciones(sinRepetir(...listasDisponibles));
-  if (porMedida.length) return { opciones: porMedida, origen: "medida_investigada", medidasConStock, medidasAgotadas, medidasDescartadas };
+  const porMedida = escaleraPorUso(sinRepetir(...listasDisponibles), uso);
+  if (porMedida.opciones.length) return { opciones: porMedida.opciones, avisoTipo: porMedida.avisoTipo, origen: "medida_investigada", medidasConStock, medidasAgotadas, medidasDescartadas };
 
   if (aro) {
     // Se filtra por stock ANTES de elegir las tres: `opcionesEnAro` comparte
     // `tresOpciones` con `buscar_por_aro_y_tipo`, que sí muestra agotadas. Si se
     // filtrara después, un escalón de marca cuya única llanta está en cero
     // dejaría fuera a la disponible de ese mismo escalón.
-    const delAro = tresOpciones(conStock(opcionesEnAro(aro, null).enElAro));
-    if (delAro.length) return { opciones: delAro, origen: "aro_del_cliente", medidasConStock, medidasAgotadas, medidasDescartadas };
+    const delAro = escaleraPorUso(conStock(opcionesEnAro(aro, null).enElAro), uso);
+    if (delAro.opciones.length) return { opciones: delAro.opciones, avisoTipo: delAro.avisoTipo, origen: "aro_del_cliente", medidasConStock, medidasAgotadas, medidasDescartadas };
   }
 
   // Equivalentes de verdad: mismo aro Y diámetro dentro del ±3 %. Antes bastaba
   // el mismo aro con ±10 mm de ancho, y así salía una 255/50 «por» una 235/45.
-  const cercanas = tresOpciones(conStock(sinRepetir(
-    ...parseadas.map(({ size }) => searchAlternatives(size).filter((item) => item.size !== null && equivaleEnDiametro(item.size, size))),
-  )));
-  if (cercanas.length) return { opciones: cercanas, origen: "medida_cercana", medidasConStock, medidasAgotadas, medidasDescartadas };
+  const cercanas = escaleraPorUso(conStock(sinRepetir(
+    // El juez es uno solo (`domain/equivalencia.ts`): había una copia privada
+    // del ±3 % acá, sin el aro ni el ancho que monta en el mismo rin.
+    ...parseadas.map(({ etiqueta, size }) => searchAlternatives(size).filter((item) => esEquivalente(etiqueta, item.sizeLabel))),
+  )), uso);
+  if (cercanas.opciones.length) return { opciones: cercanas.opciones, avisoTipo: cercanas.avisoTipo, origen: "medida_cercana", medidasConStock, medidasAgotadas, medidasDescartadas };
 
   // Ya no hay «muestra del stock» por esta puerta: una llanta que no tiene
   // nada que ver con el carro no es una opción, es ruido con precio. Sin
   // medida confiable ni aro, lo que toca es pedir la medida (o la foto).
-  return { opciones: [], origen: null, medidasConStock, medidasAgotadas, medidasDescartadas };
+  return { opciones: [], avisoTipo: null, origen: null, medidasConStock, medidasAgotadas, medidasDescartadas };
 }
 
 /** Qué puede afirmar el vendedor sobre unas opciones, según de dónde salieron. */
@@ -780,6 +820,22 @@ async function sendVisual(
 }
 
 export function buildTools(ctx: AgentContext) {
+  /**
+   * El uso que el cliente declaró en esta visita (`domain/usoYTipo.ts`): sus
+   * propias palabras, lo más reciente primero, y el argumento del modelo solo
+   * como respaldo. Es la fuente única para las herramientas que arman un menú.
+   */
+  const usoDeLaVisita = async (usoDelModelo?: string | null): Promise<UsoDeclarado | null> => {
+    const dichos = await sql<{ content: string; created_at: Date }[]>`
+      select content, created_at from messages
+      where conversation_id=${ctx.conversation.id}
+        and cycle=${ctx.conversation.current_cycle}
+        and direction='inbound'
+      order by created_at desc limit 12
+    `;
+    return usoDeLosTextos([ctx.currentUserText, ...mensajesDeLaVisitaActual(dichos).map((m) => m.content)])
+      ?? (usoDelModelo ? usoDeclarado(usoDelModelo) : null);
+  };
   const buscarLlanta = defineTool({
     name: "buscar_llanta",
     description:
@@ -808,29 +864,49 @@ export function buildTools(ctx: AgentContext) {
       // el modelo. Con «rin 15 la 31x10x50», el parser del inbound ya guardó
       // 31X10.5R15, pero el modelo llamó la tool como métrica 0R15 y la
       // sobrescribió. La fuente determinística evita esa degradación.
+      const buscarFlotacion = async (medida: FlotationSize): Promise<string> => {
+        const etiqueta = formatFlotationSize(medida);
+        const encontradas = searchByText(etiqueta.replace(/R\d+$/, ""), 40)
+          .filter((item) => item.sizeLabel === etiqueta);
+        await updateConversationFacts(ctx.conversation.id, { tireSize: etiqueta });
+        return JSON.stringify({
+          medida: etiqueta,
+          resultados: tresOpciones(encontradas).map(toolItem),
+          total_en_esa_medida: encontradas.length,
+          regla: encontradas.some((i) => i.stock > 0)
+            ? "PROHIBIDO listarlas en texto: llama preparar_opciones para que salga la imagen."
+            : "Ninguna tiene stock. Dilo claro y ofrece consultar con el asesor; no inventes que llegará.",
+        });
+      };
       const flotacionDelCliente = extractFlotationSizes(ctx.currentUserText ?? "")[0];
       if (flotacionDelCliente || flotacion) {
         const medida = flotacionDelCliente ?? extractFlotationSizes(flotacion ?? "")[0];
-        if (medida) {
-          const etiqueta = formatFlotationSize(medida);
-          const encontradas = searchByText(etiqueta.replace(/R\d+$/, ""), 40)
-            .filter((item) => item.sizeLabel === etiqueta);
-          await updateConversationFacts(ctx.conversation.id, { tireSize: etiqueta });
-          return JSON.stringify({
-            medida: etiqueta,
-            resultados: tresOpciones(encontradas).map(toolItem),
-            total_en_esa_medida: encontradas.length,
-            regla: encontradas.some((i) => i.stock > 0)
-              ? "PROHIBIDO listarlas en texto: llama preparar_opciones para que salga la imagen."
-              : "Ninguna tiene stock. Dilo claro y ofrece consultar con el asesor; no inventes que llegará.",
-          });
-        }
+        if (medida) return buscarFlotacion(medida);
+      }
+
+      // UNA MEDIDA QUE NO ES MEDIDA NO SE BUSCA NI SE GUARDA (familia 1-A, 28-sep).
+      // Conv 23250 y 22421: el cliente había escrito una flotación, el modelo
+      // llamó esta herramienta como métrica con ancho 0 y aro 15, la búsqueda
+      // salió vacía («no me aparece stock») y la ficha quedó en «0R15». Si los
+      // argumentos no arman una medida legible, manda la ficha: si allí hay
+      // una flotación, esa es la que se busca; si no, se le devuelve el error
+      // al modelo en vez de inventar un «no hay».
+      const medidaBuscada = formatTireSize({ width, aspect, rim });
+      if (!medidaGuardable(medidaBuscada)) {
+        const [ficha] = await sql<{ tire_size: string | null }[]>`
+          select tire_size from conversations where id=${ctx.conversation.id}
+        `;
+        const flotacionDeLaFicha = extractFlotationSizes(ficha?.tire_size ?? "")[0];
+        if (flotacionDeLaFicha) return buscarFlotacion(flotacionDeLaFicha);
+        return JSON.stringify({
+          error: "medida_invalida",
+          regla: `${medidaBuscada} no es una medida: el ancho ${width} no existe. Si el cliente dio una medida en pulgadas (31x10.50R15, 33x12.50R15), vuelve a llamar con \`flotacion\` y el texto tal cual lo escribió. Si no dio medida, pídela; PROHIBIDO decir que no hay stock.`,
+        });
       }
 
       // UNA MEDIDA QUE EL CLIENTE NO DIO NO SE BUSCA (12-sep, conv 3, 17:32).
       // Tras «rin 14», a «Que opciones tiene y precio del juego» el modelo buscó
       // 185/60R14 y la lámina salió en esa medida. Ver `medidaNoDada`.
-      const medidaBuscada = formatTireSize({ width, aspect, rim });
       const entrantesDelCiclo = await sql<{ content: string }[]>`
         select content from messages
         where conversation_id=${ctx.conversation.id} and cycle=${ctx.conversation.current_cycle}
@@ -856,7 +932,12 @@ export function buildTools(ctx: AgentContext) {
 
       const size = { width, aspect, rim };
       const exact = searchBySize(size);
-      const alternatives = exact.some((i) => i.stock > 0) ? [] : searchAlternatives(size);
+      // «ME GUSTARÍA UN POCO MÁS ANCHA» (conv 22975, 24-sep): la dirección que
+      // pidió el cliente filtra las alternativas —y las pide aunque su medida
+      // tenga stock, porque justamente quiere otra—. Antes volvía la 215/65R16,
+      // la misma sección que su 215/60R16. Ver `domain/equivalencia.ts`.
+      const direccion = direccionPedida(ctx.currentUserText);
+      const alternatives = exact.some((i) => i.stock > 0) && !direccion ? [] : searchAlternatives(size, direccion);
       // Aquí NO se consulta al Interbot a propósito. Se probó y se sacó el
       // 16-ago: `buscar_llanta` es la herramienta más frecuente del bot y le
       // añadía una ida y vuelta (hasta 20 s en el peor caso) a cada búsqueda,
@@ -865,11 +946,43 @@ export function buildTools(ctx: AgentContext) {
       // Interbot vive donde se enseña el número: `preparar_opciones` y
       // `generar_cotizacion`.
       await updateConversationFacts(ctx.conversation.id, { tireSize: formatTireSize(size) });
+      // Nada se oculta aquí (`recorteConEscalera` garantiza cada tipo), pero se
+      // marca cuál le sirve a su uso: el menú se arma solo con esos tipos.
+      const usoDelCliente = await usoDeLaVisita();
+      const sirvenAlUso = tiposCompatibles(usoDelCliente);
+      // SIN STOCK EXACTO Y CON EQUIVALENTES DE VERDAD, SE MUESTRAN YA (V3a,
+      // 28-sep: «¿Le muestro las opciones equivalentes?» retuvo una KR608
+      // 245/70R16 que calzaba). El campo va PRIMERO: la huella del guardián
+      // corta a 500 caracteres. Ver `domain/equivalentesPorMostrar.ts`.
+      const aMostrar = equivalentesAMostrar(
+        alternatives, formatTireSize(size), exact.some((i) => i.stock > 0),
+      );
       return JSON.stringify({
+        ...(aMostrar.length ? { [CAMPO_EQUIVALENTES]: aMostrar } : {}),
         medida: formatTireSize(size),
-        resultados: recorteConEscalera(exact, 5).map(toolItem),
+        ...(usoDelCliente
+          ? {
+              uso_declarado: usoDelCliente,
+              tipos_que_le_sirven: sirvenAlUso,
+              regla_de_uso: "El cliente ya dijo para qué la quiere: el menú (preparar_opciones) se arma SOLO con los tipos de 'tipos_que_le_sirven' (le_sirve_a_su_uso: true). PROHIBIDO ofrecer como costo, equilibrio o premium una de otro tipo (una M/T para ciudad, una H/T para lodo); si de sus tipos no hay dos con stock, dilo en una línea en vez de rellenar en silencio.",
+            }
+          : {}),
+        resultados: recorteConEscalera(exact, 5).map((p) => ({
+          ...toolItem(p),
+          ...(sirvenAlUso ? { le_sirve_a_su_uso: sirvenAlUso.includes(normalizarTipo(tipoDeProducto(p.code, p.design) ?? "")) } : {}),
+        })),
         alternativas_mismo_aro: recorteConEscalera(alternatives, 3).map(toolItem),
-        siguiente_paso: "PROHIBIDO escribir estas opciones como lista en el chat. Para mostrárselas al cliente llama preparar_opciones con máximo 3 códigos (una premium, una de equilibrio y una económica) — esa herramienta manda la imagen. Si escribes precios y disponibilidad en texto, el cliente recibe un muro y no ve la pieza. Y si el cliente pide un TIPO (A/T, H/T, R/T, M/T…) en cualquier turno, esta lista NO responde eso: busca de nuevo con buscar_por_aro_y_tipo pasándole el aro y ese tipo antes de afirmar o negar disponibilidad.",
+        ...(direccion
+          ? {
+              direccion_pedida: direccion,
+              regla_de_direccion: alternatives.length
+                ? `El cliente pidió una ${direccion.replace("mas_", "más ")} que su ${formatTireSize(size)}: 'alternativas_mismo_aro' ya son SOLO las que van para ese lado y le calzan (mismo aro, diámetro ±3 %). PROHIBIDO ofrecerle otra medida que no esté ahí.`
+                : `El cliente pidió una ${direccion.replace("mas_", "más ")} que su ${formatTireSize(size)} y no hay ninguna que vaya para ese lado y le calce (mismo aro, diámetro ±3 %). Díselo así y ofrece que el asesor le confirme; PROHIBIDO ofrecerle otra medida como si fuera lo que pidió.`,
+            }
+          : {}),
+        siguiente_paso: aMostrar.length
+          ? reglaDeMostrarEquivalentes(formatTireSize(size))
+          : "PROHIBIDO escribir estas opciones como lista en el chat. Para mostrárselas al cliente llama preparar_opciones con máximo 3 códigos (una premium, una de equilibrio y una económica) — esa herramienta manda la imagen. Si escribes precios y disponibilidad en texto, el cliente recibe un muro y no ve la pieza. Y si el cliente pide un TIPO (A/T, H/T, R/T, M/T…) en cualquier turno, esta lista NO responde eso: busca de nuevo con buscar_por_aro_y_tipo pasándole el aro y ese tipo antes de afirmar o negar disponibilidad.",
       });
     },
   });
@@ -990,8 +1103,14 @@ export function buildTools(ctx: AgentContext) {
         ctx.currentUserText, ficha?.vehicle, anuncio?.titulo, anuncio?.texto, uso,
         ...dichoEnLaVisita.map((m) => m.content),
       ]) === "camioneta";
-      const { pedido, enElAro, delTipo, seleccion, suMedida, sinTipoEnSuMedida, sinEquivalenteQueCalce } =
-        opcionesEnAro(aro, tipo, ficha?.tire_size, esDeCamioneta);
+      // El USO que declaró el cliente decide qué TIPOS pueden ser el costo, el
+      // equilibrio y el premium del menú (`domain/usoYTipo.ts`). Sus propias
+      // palabras mandan (lo más reciente primero); el argumento del modelo es
+      // el respaldo. Un tipo pedido explícito ignora el uso.
+      const usoDelCliente = usoDeLosTextos([ctx.currentUserText, ...dichoEnLaVisita.map((m) => m.content)])
+        ?? (uso ? usoDeclarado(uso) : null);
+      const { pedido, enElAro, delTipo, seleccion, avisoTipo, suMedida, sinTipoEnSuMedida, sinEquivalenteQueCalce } =
+        opcionesEnAro(aro, tipo, ficha?.tire_size, esDeCamioneta, usoDelCliente);
       if (esDeCamioneta && !delTipo.length) {
         return JSON.stringify({
           encontrado: false,
@@ -1043,11 +1162,16 @@ export function buildTools(ctx: AgentContext) {
       const seleccionFiltrada = seleccion.filter(
         (p) => !violaRestriccionesDeLlanta(p.sizeLabel, restricciones),
       );
-      const seleccionPermitida = seleccionFiltrada.length
-        ? seleccionFiltrada
-        : tresOpciones(
-            conStock(delTipoPermitido).length ? conStock(delTipoPermitido) : delTipoPermitido,
-          );
+      let avisoDelMenu = avisoTipo;
+      let seleccionPermitida = seleccionFiltrada;
+      if (!seleccionFiltrada.length) {
+        const rearmada = escaleraPorUso(
+          conStock(delTipoPermitido).length ? conStock(delTipoPermitido) : delTipoPermitido,
+          pedido ? null : usoDelCliente,
+        );
+        seleccionPermitida = rearmada.opciones;
+        avisoDelMenu = rearmada.avisoTipo;
+      }
 
       // HAY DE ESE TIPO EN EL ARO, PERO NINGUNA QUE LE CALCE.
       //
@@ -1087,14 +1211,24 @@ export function buildTools(ctx: AgentContext) {
       }
 
       const info = pedido ? infoTipo(pedido) : null;
+      // Sin nada en su medida, lo elegido del aro son sus equivalentes: se
+      // muestran en este turno, igual que desde `buscar_llanta`.
+      const aMostrarDelAro = sinTipoEnSuMedida && suMedida
+        ? equivalentesAMostrar(seleccionPermitida, suMedida, false)
+        : [];
       return JSON.stringify({
+        ...(aMostrarDelAro.length ? { [CAMPO_EQUIVALENTES]: aMostrarDelAro } : {}),
         encontrado: true,
         aro,
         tipo_pedido: pedido || null,
         que_es_ese_tipo: info
           ? { nombre: info.nombre, definicion: info.definicion, cuando_va: info.cuandoOfrecerla, cuando_no: info.noOfrecerlaSi }
           : null,
-        uso_declarado: uso,
+        uso_declarado: usoDelCliente ?? uso,
+        // Los tipos que le sirven a ese uso, y —si el menú tuvo que salirse de
+        // ellos— el aviso. El guardián lo lee de aquí: no se calla ni se cambia.
+        tipos_que_le_sirven: tiposCompatibles(usoDelCliente) ?? undefined,
+        ...(avisoDelMenu ? { aviso_tipo: avisoDelMenu } : {}),
         su_medida: suMedida,
         sin_tipo_en_su_medida: sinTipoEnSuMedida,
         // Tres y no seis: una por escalón de marca.
@@ -1105,6 +1239,9 @@ export function buildTools(ctx: AgentContext) {
           : {}),
         regla: [
           "PROHIBIDO listarlas en texto. Llama preparar_opciones con estos códigos para que salga la imagen (una premium, una de equilibrio, una económica). Si el cliente no dijo el uso ni el tipo, se lo preguntas DESPUÉS de mandarle la imagen — nunca retengas las opciones para preguntar primero. No afirmes un tipo que no venga en 'tipo'.",
+          avisoDelMenu
+            ? `AVISO DE TIPO (obligatorio decirlo): ${avisoDelMenu}`
+            : null,
           restricciones.anchosRechazados.length
             ? `Se EXCLUYERON los anchos ${restricciones.anchosRechazados.join(", ")} que el cliente rechazó: no los vuelvas a ofrecer ni a cotizar.`
             : null,
@@ -1399,11 +1536,44 @@ export function buildTools(ctx: AgentContext) {
         .default(null)
         .describe("Aro en pulgadas si el cliente lo dijo (ej. 19 de 'para rin 19'). Null si no lo dijo. Mándalo siempre que lo sepas: es lo que distingue una versión de otra."),
     }),
-    run: async ({ marca, modelo, anio, aro }) => {
+    run: async ({ marca, modelo, anio, aro: aroDelModelo }) => {
       const vehicle = `${marca} ${modelo}${anio ? ` ${anio}` : ""}`.trim();
       await updateConversationFacts(ctx.conversation.id, { vehicle, ...(anio ? { vehicleYear: anio } : {}) });
+      // LO QUE EL CLIENTE ESCRIBIÓ LE GANA A LA FICHA DEL VEHÍCULO (familia
+      // 2-H, 28-sep). Una medida completa suya no se investiga ni se
+      // reemplaza; su aro —o su media medida, «75 rin 15»— manda sobre lo que
+      // la investigación diga del carro (conv 23160: 225/65R17 y 225/70R16 a
+      // quien escribió rin 15). Ver `domain/medidaDelCliente.ts`.
+      const entrantesDeLaVisita = await sql<{ content: string; created_at: Date }[]>`
+        select content, created_at from messages
+        where conversation_id=${ctx.conversation.id} and cycle=${ctx.conversation.current_cycle}
+          and direction='inbound'
+        order by created_at desc limit 12
+      `;
+      const textosDeLaVisita = [
+        ...mensajesDeLaVisitaActual(entrantesDeLaVisita).map((m) => m.content).reverse(),
+        ctx.currentUserText,
+      ];
+      const escritas = medidasEscritasPorElCliente(textosDeLaVisita);
+      if (escritas.length) {
+        const suya = escritas[escritas.length - 1];
+        return JSON.stringify({
+          error: "medida_escrita_por_el_cliente",
+          medida_del_cliente: suya,
+          regla: `El cliente YA escribió su medida (${escritas.join(", ")}): esa manda y no se cuestiona por el vehículo. `
+            + `Búscala con buscar_llanta (${suya}) y muéstrale sus opciones. PROHIBIDO decirle que su medida no corresponde a su vehículo, `
+            + "pedirle la medida otra vez o una foto. Solo si ahora pregunta por OTRO vehículo distinto, pídele la medida de ese.",
+        });
+      }
+      const aro = aroParaFitment(aroDelModelo, textosDeLaVisita);
+      const media = mediaMedidaVigente(textosDeLaVisita);
       const result = await researchVehicleFitment(marca, modelo, anio, aro);
-      const { opciones, origen, medidasConStock, medidasAgotadas, medidasDescartadas } = await opcionesDeFitment(result, aro);
+      const deFitment = await opcionesDeFitment(result, aro, await usoDeLaVisita());
+      const { avisoTipo, origen, medidasConStock, medidasAgotadas, medidasDescartadas } = deFitment;
+      // Con media medida, del aro solo sirve su perfil: lo demás no es suyo.
+      const opciones = media
+        ? deFitment.opciones.filter((item) => item.size?.aspect === media.perfil && item.size?.rim === media.aro)
+        : deFitment.opciones;
 
       // El caso «o rin 15 o rin 17». Solo se calcula cuando el cliente NO dijo
       // su aro: si lo dijo, la ambigüedad ya la resolvió él y recordársela sería
@@ -1434,9 +1604,13 @@ export function buildTools(ctx: AgentContext) {
         medidas_agotadas: medidasAgotadas,
         medidas_descartadas_por_confianza: medidasDescartadas,
         opciones: opciones.map(toolItem),
+        ...(avisoTipo ? { aviso_tipo: avisoTipo } : {}),
         origen_opciones: origen,
         siguiente_pregunta: result.nextQuestion,
         regla: [
+          media
+            ? `El cliente ya escribió perfil ${media.perfil} y aro ${media.aro}: falta SOLO el ancho. Pregúntale solo el ancho (ej. 205/${media.perfil}R${media.aro}), nombrando lo que ya dio. PROHIBIDO ofrecerle otro aro u otro perfil, aunque sea lo que la ficha del vehículo diga.`
+            : null,
           opciones.length
             ? "En 'opciones' ya tienes llantas reales del catálogo, listas para preparar_opciones sin volver a buscar: mándalas. PROHIBIDO llamar generar_cotizacion en este turno — la medida salió del vehículo, no del cliente — y PROHIBIDO cerrar con el menú de preferencia: el cierre pide la medida completa (escrita del filo de la llanta, ej. 225/65R17, o una foto del costado). Cuando la mande, búscala con buscar_llanta y ahí sí cotizas."
             : "No hay una medida confiable para ese vehículo en el catálogo con stock. NO mandes una muestra al azar ni cotices: pide la medida completa escrita del filo de la llanta (ej. 225/65R17) o una foto del costado; si el cliente no la ubica, manda guia_medida. Ofrece también pasar por el local a medirla.",
@@ -1444,6 +1618,7 @@ export function buildTools(ctx: AgentContext) {
             ? `Medidas que la investigación trajo con confianza BAJA y por eso NO se ofrecen: ${medidasDescartadas.join(", ")}. No las nombres como si fueran las de su carro.`
             : null,
           reglaOrigen,
+          avisoTipo ? `AVISO DE TIPO (obligatorio decirlo): ${avisoTipo}` : null,
           result.sources.length ? "Menciona la fuente cuando afirmes una medida." : null,
           // El aro ambiguo se resuelve en el local, no por chat: preguntar la
           // versión a alguien que no la sabe mata la conversación, y con stock
@@ -1536,22 +1711,25 @@ export function buildTools(ctx: AgentContext) {
         ctx.currentUserText,
       ];
       const aroVigente = aroVigenteDeLaVisita(textosDeLaVisita);
-      const medidasDichas = medidasPermitidas(textosDeLaVisita, null);
-      const coherentes = aroVigente
-        ? encontradosPermitidos.filter(
-            // El aro de una medida en pulgadas también cuenta (12-sep: la 32X11.50R15 se rechazó como «otro aro»).
-            (p) => (p.size?.rim ?? aroDeMedida(p.sizeLabel)) === aroVigente || medidaEstaPedida(p.sizeLabel, medidasDichas),
-          )
-        : encontradosPermitidos;
+      // Una sola regla, en `domain/medidaDelCliente`: del aro vigente (y de su
+      // perfil si dio media medida), o una medida completa que él nombró. La
+      // versión de aquí dejaba pasar todo cuando no había medida completa
+      // (conv 23160: «75 rin 15» → 225/65R17 y 225/70R16).
+      const coherentes = respetanElAroDelCliente(encontradosPermitidos, textosDeLaVisita);
       if (aroVigente && !coherentes.length) {
         return JSON.stringify({
           error: "opciones_de_otro_aro",
           aro_del_cliente: aroVigente,
           aros_de_las_opciones: [...new Set(encontradosPermitidos.map((p) => p.size?.rim).filter(Boolean))],
-          regla:
-            `El cliente pidió aro ${aroVigente} y TODAS estas opciones son de otro aro: no se le mandan. `
-            + `Busca con buscar_por_aro_y_tipo (aro: ${aroVigente}) y arma la pieza con lo que esa búsqueda devuelva; `
-            + "si ahí no hay nada que respete lo que pidió, díselo con todas las letras en vez de mostrarle otra cosa.",
+          regla: (() => {
+            const media = mediaMedidaVigente(textosDeLaVisita);
+            return media
+              ? `El cliente escribió perfil ${media.perfil} y aro ${media.aro}: falta SOLO el ancho (el primer número, ej. 205/${media.perfil}R${media.aro}). `
+                + "Pregúntale solo eso, nombrando lo que ya dio. PROHIBIDO mostrarle otro aro, otro perfil o las medidas de la ficha de su vehículo."
+              : `El cliente pidió aro ${aroVigente} y TODAS estas opciones son de otro aro: no se le mandan. `
+                + `Busca con buscar_por_aro_y_tipo (aro: ${aroVigente}) y arma la pieza con lo que esa búsqueda devuelva; `
+                + "si ahí no hay nada que respete lo que pidió, díselo con todas las letras en vez de mostrarle otra cosa.";
+          })(),
         });
       }
       const tipoPedido = tipoSolicitadoEn([
@@ -1613,7 +1791,35 @@ export function buildTools(ctx: AgentContext) {
       }
       // Tope de tres, una por escalón de marca. El cliente lo pidió explícito:
       // seis opciones confunden y el cliente termina sin elegir ninguna.
-      const products = vendibles.length > 3 ? tresOpciones(vendibles) : vendibles;
+      // EL USO DECLARADO TAMBIÉN MANDA SOBRE LO QUE EL MODELO ELIGIÓ. Él escoge
+      // los códigos (de una lista por precio) y una Kenda KR29 M/T salió como
+      // «la económica» de quien pidió ciudad y «NO todoterreno» (21-sep, 10
+      // chats). Un tipo pedido explícito ya filtró arriba y manda sobre el uso.
+      const usoDelCliente = tipoPedido
+        ? null
+        : usoDeLosTextos([ctx.currentUserText, ...mensajesDeLaVisitaActual(inbound).map((m) => m.content)]);
+      const tipoDe = (p: { code: string; design: string }) => normalizarTipo(tipoDeProducto(p.code, p.design) ?? "");
+      let porUso = separarPorUso(vendibles, usoDelCliente, tipoDe);
+      // El modelo pudo mandar UNA sola (la KR29 M/T para «lodo, pantanero») aunque
+      // en esa misma medida hay compatibles vendibles que no eligió (una R/T).
+      // Se completa desde el catálogo, con la misma medida y lo que alcanza.
+      if (porUso.avisoTipo && usoDelCliente && vendibles[0]?.size) {
+        const yaEstan = new Set(vendibles.map((p) => p.code));
+        const extras = opcionesQueAlcanzan(
+          conStock(searchBySize(vendibles[0].size)).filter((p) => !yaEstan.has(p.code)),
+          cantidadResuelta.cantidad,
+        );
+        if (extras.length) {
+          const ampliado = separarPorUso([...vendibles, ...extras], usoDelCliente, tipoDe);
+          // Solo se toma lo que suma compatibles: no se cuelan otros tipos por esta vía.
+          const nuevos = new Set(ampliado.compatibles.map((p) => p.code));
+          const sumados = extras.filter((p) => nuevos.has(p.code));
+          if (sumados.length) porUso = separarPorUso([...vendibles, ...sumados], usoDelCliente, tipoDe);
+        }
+      }
+      if (porUso.avisoTipo) avisoTipo = [avisoTipo, porUso.avisoTipo].filter(Boolean).join(" ");
+      const delUso = porUso.avisoTipo ? [...porUso.compatibles, ...porUso.otros] : porUso.compatibles;
+      const products = delUso.length > 3 ? tresOpciones(delUso) : delUso;
 
       // CANDADO 3 — la medida de lo que se enseña. El 13-ago (chat 5499) el
       // cliente pidió 265/70R16 y esta pieza salió con 215/60R16, 245/70R16 y
@@ -1642,7 +1848,13 @@ export function buildTools(ctx: AgentContext) {
             fueraDeMedida.length === products.length ? "NINGUNA de estas opciones es de esa medida" : "algunas de estas opciones son de otra medida"
           } (${fueraDeMedida.map((p) => `${p.design} es ${p.sizeLabel}`).join("; ")}). ` +
           "Dilo con todas las letras en tu respuesta —«en su medida no me queda, estas son equivalentes que sí le entran»— y nombra la medida de cada una. " +
-          "NUNCA le digas que son de su medida, y no cotices ninguna hasta que él acepte la equivalencia."
+          "NUNCA le digas que son de su medida, y no cotices ninguna hasta que él acepte la equivalencia." +
+          (() => {
+            const noEquivalen = fueraDeMedida.filter((p) => !equivaleAAlguna(permitidasOpciones, p.sizeLabel));
+            return noEquivalen.length
+              ? ` Y OJO: ${noEquivalen.map((p) => `${p.design} ${p.sizeLabel}`).join(", ")} NO ${noEquivalen.length > 1 ? "son equivalentes" : "es equivalente"} (otro aro, fuera del 3 % de diámetro o no monta en el mismo rin): PROHIBIDO llamarla «equivalente», decir que «le entra» o que es «de su aro».`
+              : "";
+          })()
         : null;
       // La aclaración va HORNEADA en el mensaje, no solo en la regla: este
       // turno sale verbatim por exactToolReply, así que el modelo nunca tiene
@@ -1666,11 +1878,16 @@ export function buildTools(ctx: AgentContext) {
       const avisoSinMedidaPedida = !permitidasOpciones.length && medidasEnPantalla.length > 1
         ? `⚠️ Ojo: estas opciones son de *medidas distintas* del mismo aro (${medidasEnPantalla.join(", ")}) — cada tarjeta lleva la suya. Para asegurarle el calce necesito la medida del costado de su llanta.`
         : null;
-      const avisoMedidaCliente = fueraDeMedida.length && permitidasOpciones.length
-        ? (fueraDeMedida.length === products.length
-            ? `⚠️ Ojo: en *${permitidasOpciones.join(" / ")}* no me queda disponibilidad exacta. Estas son *equivalentes* de su aro: ${fueraDeMedida.map((p) => `${p.design} en ${p.sizeLabel}`).join(", ")}. Se confirma el calce al montar.`
-            : `⚠️ Ojo: no todas son de su medida *${permitidasOpciones.join(" / ")}* — ${fueraDeMedida.map((p) => `${p.design} es ${p.sizeLabel}`).join(", ")} (equivalentes de su aro).`)
-        : avisoSinMedidaPedida;
+      // «EQUIVALENTE» LO DICE EL JUEZ, NO LA LÁMINA (familia 1-B, 22-24 sep):
+      // todo lo que no era su medida salía rotulado «equivalentes de su aro»
+      // — una 165/65R13 a quien pidió aro 14 (conv 22533), una 165R14 a quien
+      // tenía 205/60R13 (conv 22492). Ver `domain/equivalenciaEnTexto.ts`.
+      const avisoDeMedida = avisoDeMedidaEnOpciones({
+        permitidas: permitidasOpciones,
+        fueraDeMedida,
+        totalMostradas: products.length,
+      });
+      const avisoMedidaCliente = avisoDeMedida.avisoCliente ?? avisoSinMedidaPedida;
 
       // CANDADO 1 — solo el doble envío del MISMO turno. Nació el 6-ago
       // (tickets 1288 y 1415: la misma pieza salió 4 veces) como un candado de
@@ -1731,11 +1948,19 @@ export function buildTools(ctx: AgentContext) {
         const escalonesPrevios = (ultimaPieza?.metadata?.escalones ?? null) as
           Record<string, { codigo?: string; nombre?: string; precio_con_iva?: number } | null> | null;
         const nivel = preferenciaContestada === "precio" ? "economica" : preferenciaContestada;
-        const codigoDelEscalon = escalonesPrevios?.[nivel]?.codigo ?? null;
+        // Si el cliente contestó la LISTA con precios, su número es la posición
+        // (`opcionPorPosicion`, dueño único) y se confirma como «La opción N».
+        const posicionDeLista = posicionElegida(ctx.currentUserText);
+        const ultimoNuestro = posicionDeLista !== null ? await lastOutboundText(ctx.conversation.id) : null;
+        const porLista = posicionDeLista !== null && /¿le cotizo la 1/i.test(ctx.mensajeCitado ?? ultimoNuestro ?? "")
+          ? opcionPorPosicion({ escalones: escalonesPrevios }, posicionDeLista)
+          : null;
+        const codigoDelEscalon = porLista?.codigo ?? escalonesPrevios?.[nivel]?.codigo ?? null;
         const elegida = (codigoDelEscalon && products.find((p) => p.code === codigoDelEscalon)) ?? null;
         if (elegida) {
           const precio = elegida.minimumPriceWithTax ? ` — *$${elegida.minimumPriceWithTax.toFixed(2)} c/u con IVA*` : "";
           const esEquivalente = permitidasOpciones.length > 0 && !medidaEstaPedida(elegida.sizeLabel, permitidasOpciones);
+          const equivaleDeVerdad = equivaleAAlguna(permitidasOpciones, elegida.sizeLabel);
           const etiqueta = preferenciaContestada === "precio" ? "de costo" : preferenciaContestada === "premium" ? "premium" : "de equilibrio";
           if (esEquivalente) {
             const pregunta = preguntaDeEquivalente({ recomendacion: `${elegida.brand} ${elegida.design}`, medida: elegida.sizeLabel ?? null });
@@ -1743,7 +1968,7 @@ export function buildTools(ctx: AgentContext) {
               imagen_enviada: false,
               consentimiento_pendiente: true,
               recomendacion_entregada: false,
-              mensaje_para_enviar: `La opción ${etiqueta} es la *${elegida.brand} ${elegida.design}*${precio}, en *${elegida.sizeLabel}* (equivalente de su aro).\n---\n${pregunta}`,
+              mensaje_para_enviar: `La opción ${porLista ? `${posicionDeLista},` : `${etiqueta} es la`} *${elegida.brand} ${elegida.design}*${precio}, en *${elegida.sizeLabel}* ${equivaleDeVerdad ? "(equivalente de su aro)" : "(otra medida, no equivalente de la suya: el asesor le confirma si le calza)"}.\n---\n${pregunta}`,
               regla: "Responde usando exactamente mensaje_para_enviar. Es una EQUIVALENTE: NO llames generar_cotizacion hasta que conteste que sí a esa pregunta. NO reenvíes la lámina.",
             });
           }
@@ -1753,7 +1978,9 @@ export function buildTools(ctx: AgentContext) {
             recomendacion_entregada: true,
             recomendacion: `${elegida.brand} ${elegida.design}`,
             codigo: elegida.code,
-            mensaje_para_enviar: `La opción ${etiqueta} es la *${elegida.brand} ${elegida.design}*${precio}.`,
+            mensaje_para_enviar: porLista
+              ? confirmacionDeLaOpcion(posicionDeLista!, `${elegida.brand} ${elegida.design}`, elegida.minimumPriceWithTax)
+              : `La opción ${etiqueta} es la *${elegida.brand} ${elegida.design}*${precio}.`,
             regla: `El cliente contestó el menú: la lámina ya la tiene y NO se reenvía. Llama generar_cotizacion AHORA MISMO con code ${elegida.code} y 4 llantas (o la cantidad que haya dicho); el texto de arriba va antes de la cotización.`,
           });
         }
@@ -1860,14 +2087,25 @@ export function buildTools(ctx: AgentContext) {
       // ENTREGA la recomendación (el cliente la pidió, no se le repregunta),
       // pero la cotización solo la AUTORIZA pedirla con todas sus letras o
       // contestar el menú de preferencia. Y nunca con la medida sin confirmar.
+      // UNA SOLA OPCIÓN + PRECIO YA PEDIDO SÍ AUTORIZA (conv +593 99 842 8277,
+      // 25 y 27-sep): sin menú posible, «¿se la cotizo?» es pedir permiso por
+      // lo que el cliente ya pidió. Una sola decisión: domain/cotizarLaUnica.ts.
+      const unicaConPrecioPedido = cotizarLaUnicaDeUnaVez({
+        opcionesDistintas: new Set(
+          Object.values(escalones).map((e) => e?.codigo).filter(Boolean),
+        ).size,
+        textosDelCliente: [ctx.currentUserText, ...mensajesDeLaVisitaActual(inbound).map((m) => m.content)],
+        medidaSinConfirmar: Boolean(ctx.medidaSinConfirmar),
+      });
       const entregarRecomendacion =
         pidioCotizacionExplicita(ctx.currentUserText) ||
         pideRecomendacion(ctx.currentUserText) ||
         dijoSuUso ||
-        preferencia !== null;
+        preferencia !== null ||
+        unicaConPrecioPedido;
       const autorizaCotizar =
         !ctx.medidaSinConfirmar &&
-        (pidioCotizacionExplicita(ctx.currentUserText) || preferencia !== null);
+        (pidioCotizacionExplicita(ctx.currentUserText) || preferencia !== null || unicaConPrecioPedido);
       // Si contestó la preferencia, la recomendada ES la de ese escalón — no
       // la que eligió el modelo: «la más barata» no admite otra respuesta.
       const porPreferencia = preferencia
@@ -1957,12 +2195,20 @@ export function buildTools(ctx: AgentContext) {
             codes: products.map((p) => p.code),
             sizeLabel,
             escalones,
+            // Con cuántas llantas se calcularon los totales de la lista escrita:
+            // los seguimientos y el guardián la reconstruyen desde aquí.
+            cantidad: cantidadResuelta.cantidad,
             // La recomendada y su porqué, para que la ruta directa pueda
             // volver a entregar la pieza cuando el cliente pida criterio
             // (services/recomendarConLaPieza.ts, 1-sep).
             recomendado: recommended.code,
             motivo: motivo.trim().replace(/\.$/, ""),
-            ...(avisoMedidaCliente ? { equivalentes: medidasDeProductos(fueraDeMedida) } : {}),
+            // Solo las que EQUIVALEN quedan anotadas: lo anotado se vuelve
+            // cotizable en `medidasDelPedido`, y una de otro aro o fuera del 3 %
+            // no se firma por haber salido en la lámina.
+            ...(avisoDeMedida.productosEquivalentes.length
+              ? { equivalentes: medidasDeProductos(avisoDeMedida.productosEquivalentes) }
+              : {}),
             ...(visual.error ? { renderError: visual.error } : {}),
           },
         },
@@ -2045,7 +2291,20 @@ export function buildTools(ctx: AgentContext) {
       // cliente ya dio la señal (precio, recomendación, uso o menú) y la
       // política del corpus permite el juego de 4 como propuesta.
       if (autorizaCotizar && !consentimientoPendiente) ctx.recomendacionEntregada = true;
+      // La lista escrita con precio: es el cierre cuando NO se entrega la
+      // recomendación (antes era el menú «¿qué prioriza?»). Mismas cifras que la
+      // lámina y que firmará la cotización; la cantidad es la del cliente o el
+      // juego de 4 (`cantidadResuelta`, la misma que filtró lo vendible).
+      const listaEscrita = armarLista(
+        products.map((p) => ({
+          nombre: `${p.brand} ${p.design}`,
+          precio: p.minimumPriceWithTax ?? 0,
+          codigo: p.code,
+        })),
+        cantidadResuelta.cantidad,
+      );
       const cierreDeOpciones = buildCierreOpciones({
+        lista: listaEscrita ? { lista: listaEscrita, cantidad: cantidadResuelta.cantidad } : null,
         entregarRecomendacion,
         ofrecerCotizar: entregarRecomendacion && !autorizaCotizar,
         pedirMedida: Boolean(ctx.medidaSinConfirmar),
@@ -2086,6 +2345,14 @@ export function buildTools(ctx: AgentContext) {
         // resultado a 500 caracteres y `aviso_medida` es largo.
         consentimiento_pendiente: consentimientoPendiente,
         recomendacion_entregada: autorizaCotizar && !consentimientoPendiente,
+        // UNA SOLA OPCIÓN CON EL PRECIO YA PEDIDO: el texto dice que es la única
+        // y la cotización sale en este turno. El guardián tiene que saberlo para
+        // no agregarle un «¿se la cotizo?» ni tratar la cotización como promesa
+        // vacía. Va junto a `recomendacion_entregada`, dentro de la huella de 500.
+        unica_cotizada_directo: unicaConPrecioPedido && autorizaCotizar && !consentimientoPendiente,
+        // El menú se salió del uso declarado (el texto completo va en `aviso`).
+        // Booleano y al principio: la huella del guardián corta a 500 caracteres.
+        ...(porUso.avisoTipo ? { aviso_tipo: true } : {}),
         // UNA SOLA OPCIÓN: el cierre es «¿Se la cotizo?» y el guardián tiene que
         // saberlo para no quitarla. El hecho se buscaba con un regex sobre
         // `mensaje_para_enviar`, que va al final y no entra en los 500
@@ -2099,6 +2366,22 @@ export function buildTools(ctx: AgentContext) {
         // guardián lo reescribía como pregunta_de_mas.
         recomendacion_ofrecida: entregarRecomendacion && !autorizaCotizar && !consentimientoPendiente,
         ...(avisoTipo ? { aviso: avisoTipo } : {}),
+        // «Premium» en el menú es la de MAYOR PRECIO de las que están en
+        // pantalla (así responde «la más cara»); el nivel de marca real viaja
+        // aparte para que nadie llame premium a una Kenda intermedia que salió
+        // más cara que una Falken (KR608 sobre Falken, semana del 21-sep).
+        ...(() => {
+          const niveles = products.map((p) => ({ codigo: p.code, nivel: etiquetaEscalon(p.brand, p.design), orden: escalonDe(p), precio: p.minimumPriceWithTax }));
+          const masCara = niveles.reduce((a, b) => (b.precio > a.precio ? b : a), niveles[0]);
+          const invertido = niveles.some((a) => niveles.some((b) => a.orden < b.orden && a.precio < b.precio));
+          if (!masCara || (masCara.nivel === "premium" && !invertido)) return {};
+          return {
+            nota_de_niveles:
+              "El «premium» del menú es solo la de mayor precio en pantalla. Nivel real de marca de cada opción: "
+              + niveles.map((n) => `${n.codigo}=${n.nivel}`).join(", ")
+              + ". PROHIBIDO llamar premium, de máxima calidad o la mejor marca a una que no sea nivel premium.",
+          };
+        })(),
         ...(avisoMedida ? { aviso_medida: avisoMedida } : {}),
         medidas_mostradas: medidasMostradas,
         recomendacion,
@@ -2110,6 +2393,9 @@ export function buildTools(ctx: AgentContext) {
             : buildCustomerOptionsMessageDetallado(products, nombre_cliente),
           avisoMarcaCliente,
           avisoMedidaCliente,
+          // El aviso de tipo va HORNEADO: el modelo lo omitía y el guardián
+          // tenía que agregarlo (una pasada más de IA por turno).
+          porUso.avisoAlCliente,
           beneficios,
           cierreDeOpciones,
         ),
@@ -2123,7 +2409,7 @@ export function buildTools(ctx: AgentContext) {
             ? "El cliente YA pidió la cotización o contestó su preferencia: el texto le entrega la recomendación y AHORA MISMO, EN ESTE MISMO TURNO, llamas generar_cotizacion por `recomendacion` con 4 llantas (o la cantidad que el cliente haya dicho). PROHIBIDO preguntarle si la quiere y PROHIBIDO terminar el turno sin la cotización: ya te dio la señal."
             : entregarRecomendacion
             ? "El cliente pidió recomendación o contó su uso: el texto ya le entrega la recomendación y le ofrece cotizarla. NO llames generar_cotizacion todavía: la cotización sale cuando el cliente diga que sí, la pida, dé cantidad o elija del menú."
-            : "NO adelantes la recomendación en este turno: el texto cierra con el menú de preferencia (1 Costo / 2 Equilibrio / 3 Premium). Si el cliente responde «1», «2», «3», «costo», «equilibrio», «premium» (o «la más barata», «la del medio», «la mejor»), entrega la opción de ESE escalón de `escalones` — nombre y precio con IVA — y en ese mismo turno llama generar_cotizacion con su código y 4 llantas: contestar el menú ES pedir la cotización, no se ofrece ni se pide permiso. Si responde un sí genérico, dile en UNA frase que irías por `recomendacion` porque `motivo_recomendacion`.",
+            : "NO adelantes la recomendación en este turno: el texto ya trae cada opción con su precio escrito y cierra con «¿Le cotizo la 1, la 2 o la 3?» (1 = la más barata / Costo, 2 = Equilibrio, 3 = Premium; con dos opciones, 1 = la más barata y 2 = la premium). PROHIBIDO preguntarle qué prioriza. Si el cliente responde «1», «2», «3», «costo», «equilibrio», «premium» (o «la más barata», «la del medio», «la mejor»), entrega la opción de ESE escalón de `escalones` — nombre y precio con IVA — y en ese mismo turno llama generar_cotizacion con su código y 4 llantas: contestar el menú ES pedir la cotización, no se ofrece ni se pide permiso. Si responde un sí genérico, dile en UNA frase que irías por `recomendacion` porque `motivo_recomendacion`.",
           // La única excepción a «no agregues texto»: avisar que la medida no
           // es la suya. Callarlo es lo que terminó en una cotización firmada
           // por otra medida (5499).
@@ -2315,7 +2601,7 @@ export function buildTools(ctx: AgentContext) {
             and role='assistant' and type='text'
           order by created_at desc limit 1
         `;
-        if (ultimoSaliente?.content?.includes("¿qué prioriza usted?")) {
+        if (traeMarcaDelMenu(ultimoSaliente?.content)) {
           items = [{ ...items[0], cantidad: 4 }];
           avisoJuego = "Se la hice por juego de 4 llantas; si necesita otra cantidad, me avisa y se la ajusto al toque.";
         }
@@ -2331,6 +2617,22 @@ export function buildTools(ctx: AgentContext) {
         return JSON.stringify({
           error:
             "Cotización bloqueada: la medida de estas llantas la dedujo el bot (por vehículo o por aro) y el cliente todavía no la confirmó. No cotices. Si aún no le mostraste opciones, muéstralas con preparar_opciones; y pide la medida completa del filo de la llanta (ej. 225/65R17) o una foto del costado — si no la ubica, manda guia_medida. En cuanto la mande, búscala con buscar_llanta y ahí sí cotizas.",
+        });
+      }
+      // DOS MEDIDAS SUYAS SIN RESOLVER, NO SE FIRMA NINGUNA (conv 22629): foto
+      // de una 225/70R16 y después «225/70 R15». Una pregunta, y después su
+      // última palabra manda (`domain/medidaDelCliente.medidaEnDisputa`).
+      const disputa = await medidaEnDisputaDelPedido(
+        ctx.conversation.id, ctx.conversation.current_cycle, ctx.currentUserText,
+      );
+      if (disputa) {
+        return JSON.stringify({
+          error: "medida_en_disputa",
+          medida_de_la_foto: disputa.foto,
+          medida_escrita: disputa.escrita,
+          regla: `Cotización bloqueada: en la foto se lee ${disputa.foto} y después el cliente escribió ${disputa.escrita}. `
+            + `Pregúntale en UNA línea cuál es la de su llanta, nombrando las dos tal cual: «En la foto se lee ${disputa.foto} y usted escribió ${disputa.escrita}: ¿cuál es la de su llanta?». `
+            + "No elijas por él. Con su respuesta, cotizas esa.",
         });
       }
       const autorizada = !ctx.consultaFueraDeCatalogo && (
@@ -2605,11 +2907,10 @@ export function buildTools(ctx: AgentContext) {
           });
           return JSON.stringify({
             error: `MEDIDA DISTINTA: el cliente pidió ${permitidas.join(" o ")} y ${product.brand} ${product.design} es ${product.sizeLabel ?? "de otra medida"}. No se cotiza.`,
-            siguiente_paso:
-              `Cotiza una llanta de ${permitidas.join(" o ")}. Si en esa medida no hay stock, NO la cambies por tu cuenta: ` +
-              `dile al cliente con todas las letras que en su medida no tienes y ofrécele la equivalente nombrando su medida completa ` +
-              `(«en su ${permitidas[0]} no me queda; le entra la ${product.sizeLabel}, ¿se la cotizo?»). Solo cuando él acepte, ` +
-              `búscala con buscar_llanta y ahí sí cotízala.`,
+            // Conv 23080 (24-sep): esta regla le DICTABA «le entra la 215/60R17»
+            // por una 235/60R17 (−3,4 %), y la 235/60R17 sí tenía stock. El
+            // «le entra» solo se dicta si el juez dice que equivale.
+            siguiente_paso: siguientePasoPorMedidaDistinta(permitidas, product.sizeLabel),
           });
         }
         // LA EQUIVALENTE NO SE FIRMA SIN SU SÍ (auditoría 2-6 sep, familia D,
@@ -2642,7 +2943,10 @@ export function buildTools(ctx: AgentContext) {
             console.log(`🛑 Equivalente sin consentimiento en la conv ${ctx.conversation.id}: ${product.brand} ${product.design} ${product.sizeLabel}`);
             return JSON.stringify({
               error: `EQUIVALENTE SIN SU SÍ: ${product.brand} ${product.design} es ${product.sizeLabel} y el cliente pidió ${medidasEscritas.join(" o ") || "otra medida"}; todavía no aceptó esa medida. No se cotiza.`,
-              siguiente_paso: `Dile en una frase que en su medida no tienes y que le entra la ${product.sizeLabel}, y cierra en un mensaje aparte (---) EXACTAMENTE con: «${pregunta}». La cotización sale en el turno en que diga que sí.`,
+              siguiente_paso: equivaleAAlguna(medidasEscritas, product.sizeLabel) || !medidasEscritas.length
+                ? `Dile en una frase que en su medida no tienes y que le entra la ${product.sizeLabel}, y cierra en un mensaje aparte (---) EXACTAMENTE con: «${pregunta}». La cotización sale en el turno en que diga que sí.`
+                : `La ${product.sizeLabel} NO es equivalente de su ${medidasEscritas.join(" / ")}: PROHIBIDO decirle que le entra ni ofrecérsela como equivalente. `
+                  + `Si él mismo la nombró y quiere cambiar de medida, pregúntale EXACTAMENTE «${pregunta}» avisándole que es otra medida y que el asesor confirma el calce; si no, díselo así: «En su medida exacta no tengo stock; le pido al asesor que confirme si llega.»`,
             });
           }
         }
@@ -2965,6 +3269,13 @@ export function buildTools(ctx: AgentContext) {
         ? avisoDeCantidad(items[0].cantidad)
         : null;
       const cierre = buildStoreChoiceBlocks();
+      // QUIEN NO VA A PASAR POR EL LOCAL NO RECIBE LA INVITACIÓN (familia 2-E,
+      // verificación del 28-sep, 3 de 3): «Lo compro por este medio… me envía»
+      // recibía «Puede pasar sin compromiso… ¿A cuál local?» + mapas y el
+      // guardián lo borraba. La decisión es de `porQueNoPasaPorElLocal`.
+      const sinVisita = await porQueNoPasaPorElLocal(
+        ctx.conversation.id, ctx.conversation.current_cycle, ctx.currentUserText,
+      );
       return JSON.stringify({
         enviada: true,
         numero: quote.number,
@@ -3013,7 +3324,9 @@ export function buildTools(ctx: AgentContext) {
           // ver `buildStoreChoiceBlocks`). Con el local ya elegido no hay nada
           // que preguntar ahí y queda un solo bloque: el día, con la cifra del
           // descuento.
-          ...(localElegido
+          ...(sinVisita
+            ? cierreSinVisita(sinVisita)
+            : localElegido
             ? [buildVisitPlanQuestion({
                 conDescuentoAutorizado: Boolean(descuentoAplicado),
                 locales: business.stores.map((store) => store.name),
@@ -3023,7 +3336,9 @@ export function buildTools(ctx: AgentContext) {
             : [cierre.ubicaciones, cierre.pregunta]),
         ),
         regla: [
-          localElegido
+          sinVisita
+            ? `Responde exactamente con mensaje_para_enviar, con sus separadores '---' intactos. La cotización ya fue enviada y Manuel ya fue notificado. ${sinVisita === "compra_a_distancia" ? "El cliente compra a distancia (paga por este medio y quiere envío)" : "El cliente está fuera de Quito"}: NO le preguntes a qué local va ni qué día pasa, y NO mandes mapas. Pago y envío los coordina el asesor.`
+            : localElegido
             ? `Responde exactamente con mensaje_para_enviar, con sus separadores '---' intactos. La cotización ya fue enviada y Manuel ya fue notificado. El cliente YA eligió local (${localElegido}): NO vuelvas a preguntarle cuál. Tu objetivo es UNO: que diga qué día viene. No cierres ningún turno sin esa pregunta hasta tener la respuesta.`
             : "Responde exactamente con mensaje_para_enviar, con sus separadores '---' intactos: son mensajes distintos a propósito y juntarlos arruina el cierre. La cotización ya fue enviada y Manuel ya fue notificado. En ESTE turno tu objetivo es UNO SOLO: que el cliente diga a cuál local le queda mejor ir. NO le preguntes todavía qué día viene — eso se le pregunta recién cuando haya elegido local, y ahí va con el monto del descuento.",
           stockCorto

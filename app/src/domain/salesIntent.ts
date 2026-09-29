@@ -32,7 +32,7 @@ export function isExplicitPurchaseConfirmation(text: string): boolean {
  * confirmar CUATRO veces porque buscaba un sí con formato de máquina.
  */
 export function isNegativeResponse(text: string): boolean {
-  const normalized = normalize(text);
+  const normalized = sinCancelarQueEsPagar(normalize(text));
   return /\b(?:no(?:\s+gracias)?|todavia no|aun no|ahorita no|por ahora no|mejor no|dejeme pensar(?:lo)?|dejame pensar(?:lo)?|lo pienso|voy a pensar|solo (?:estoy )?pregunt\w*|solo (?:era|es) (?:una )?consulta|despues le aviso|luego le aviso|mas tarde le aviso|otro dia|cancel\w*)\b/.test(
     normalized,
   ) && !/\bno\s+(?:hay\s+)?problema\b/.test(normalized);
@@ -188,8 +188,7 @@ export function escalonContestado(
     return esRespuestaDelMenuDePreferencia(text, ultimoMensajeNuestro, mensajeCitado) ? preferencia : null;
   }
   const huboMenu = contexto.huboMenu
-    ?? (Boolean(ultimoMensajeNuestro?.toLowerCase().includes(MARCA_DEL_MENU))
-      || Boolean(mensajeCitado?.toLowerCase().includes(MARCA_DEL_MENU)));
+    ?? (traeMarcaDelMenu(ultimoMensajeNuestro) || traeMarcaDelMenu(mensajeCitado));
   return huboMenu ? preferencia : null;
 }
 
@@ -323,12 +322,26 @@ export function hasExplicitQuantity(text: string): boolean {
  */
 export const MARCA_DEL_MENU = "¿qué prioriza usted?";
 
+/**
+ * La otra forma en que el cierre de opciones deja elegir: la lista con precios
+ * y «¿Le cotizo la 1, la 2 o la 3?» (`domain/listaDeOpciones.ts`). El «1», «2»
+ * o «3» que el cliente contesta a eso es el escalón, igual que con el menú
+ * viejo — el número no es una cantidad ni el día 1 del mes.
+ */
+export const MARCA_DE_LA_LISTA = "¿le cotizo la 1";
+
+/** ¿Este texto nuestro dejó al cliente elegir por número (menú o lista con precios)? */
+export function traeMarcaDelMenu(texto: string | null | undefined): boolean {
+  const t = (texto ?? "").toLowerCase();
+  return t.includes(MARCA_DEL_MENU) || t.includes(MARCA_DE_LA_LISTA);
+}
+
 const PEDIDO_PLURAL_DE_OPCIONES =
   /\b(?:las\s+(?:2|dos)|los\s+dos|ambas|ambos|(?:de|deme\s+de|mandeme\s+de)\s+las\s+dos|los\s+dos\s+valores)\b/i;
 
 function cantidadDeOpcionesNumeradas(menu: string | null | undefined): number {
   if (!menu) return 0;
-  return new Set([...menu.matchAll(/(?:^|\n)\s*([123])\s*[).]/g)].map((m) => m[1])).size;
+  return new Set([...menu.matchAll(/(?:^|\n)\s*([123])\s*[).·]/g)].map((m) => m[1])).size;
 }
 
 /** Nombra varias opciones del menú, por lo que nunca es una cantidad. */
@@ -373,10 +386,10 @@ export function esRespuestaDelMenuDePreferencia(
   // (la vitrina, la cotización) descarta que ese «2» sea el escalón, cosa que la
   // heurística de abajo no sabía hacer. Producción, 31-ago 14:04: el cliente
   // contestó «2» CON REPLY al menú y el bot lo leyó como «quiero 2 llantas».
-  if (mensajeCitado != null) return mensajeCitado.toLowerCase().includes(MARCA_DEL_MENU);
+  if (mensajeCitado != null) return traeMarcaDelMenu(mensajeCitado);
   // Sin reply (el cliente escribió el número suelto) queda la heurística de
   // siempre: ¿lo último que dijimos traía el menú?
-  return Boolean(ultimoMensajeNuestro?.toLowerCase().includes(MARCA_DEL_MENU));
+  return traeMarcaDelMenu(ultimoMensajeNuestro);
 }
 
 /**
@@ -586,7 +599,19 @@ const RECHAZO_BLANDO =
 /** ¿El «no» viene a corregir la cantidad, en vez de a cerrar la puerta? */
 export function esCorreccionDeCantidad(text: string): boolean {
   if (!hasExplicitQuantity(text)) return false;
-  return !RECHAZO_BLANDO.test(normalize(text));
+  return !RECHAZO_BLANDO.test(sinCancelarQueEsPagar(normalize(text)));
+}
+
+/**
+ * EN ECUADOR «CANCELAR» ES PAGAR («lo compro por este medio, me cotiza, lo
+ * cancelo y me envía»: simulador V5b, 28-sep). Con pronombre de objeto y en
+ * primera persona («lo/la/los/las cancelo, cancelamos, cancelaría, cancelaré»)
+ * es el pago; sin él («cancelo mi pedido», «quiero cancelar») sigue siendo
+ * negativa. Misma lectura que `domain/compraADistancia.ts`. Se quita del texto
+ * ANTES de buscar negativas, así un «no gracias» en la misma frase igual frena.
+ */
+function sinCancelarQueEsPagar(normalizado: string): string {
+  return normalizado.replace(/\b(?:lo|la|los|las)\s+cancel(?:o|amos|aria|are)\b/g, " ");
 }
 
 export function canGenerateFinalQuote(
@@ -667,3 +692,26 @@ export function pideOpcionesNoCotizacion(text: string): boolean {
   const n = (text ?? "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
   return /\b(?:opciones|alternativas|lamina)\b/.test(n) && !/\b(?:cotizacion|proforma|pdf)\b/.test(n);
 }
+
+/**
+ * El cliente pidió EL NÚMERO: precio, «cuánto», «cuánto cuesta / sale», valor,
+ * cotiza / cotízame / cotización. `pidePrecio` ya cubría casi todo; se suma el
+ * «cuánto» a secas, que es como lo escribe medio Quito.
+ *
+ * NO autoriza por sí solo (con varias opciones el precio se responde con la
+ * pieza, conv 13615): lo usa `domain/cotizarLaUnica.ts`, donde hay UNA sola
+ * llanta y preguntar «¿se la cotizo?» es pedir permiso por algo ya pedido.
+ */
+export function pidioPrecioOCotizacion(text: string): boolean {
+  if (pidePrecio(text)) return true;
+  // «cuánto» a secas es precio salvo que hable de tiempo, duración o garantía
+  // («cuánto tiempo demora», «cuánto dura», «cuánto km da»): se mira lo que le
+  // sigue dentro de la misma frase.
+  return normalize(text).split(/[.!?\n;]+/).some((frase) => {
+    const i = frase.search(/\bcuanto\b/);
+    return i >= 0 && !CUANTO_QUE_NO_ES_PRECIO.test(frase.slice(i + 6));
+  });
+}
+
+const CUANTO_QUE_NO_ES_PRECIO =
+  /\b(?:tiempo|demora\w*|dura\w*|tarda\w*|aguanta\w*|rinde\w*|rendimiento|km|kms|kilometr\w*|garantia)\b|\bes\s+la\s+garantia\b|\bde\s+garantia\b/;

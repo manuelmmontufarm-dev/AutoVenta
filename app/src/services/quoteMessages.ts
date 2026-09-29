@@ -6,6 +6,7 @@ import { preguntaDeEquivalente } from "../domain/equivalentePendiente.js";
 import { PREGUNTA_DE_LOCAL } from "../domain/storeSelection.js";
 import type { CatalogItem } from "../domain/catalog.js";
 import { getTirePatternProfile } from "../domain/tireKnowledge.js";
+import { textoDeLaLista, type LineaDeLista } from "../domain/listaDeOpciones.js";
 
 export interface CatalogQuoteSelection {
   product: CatalogItem;
@@ -214,6 +215,14 @@ export function buildCierreOpciones(input: {
    * siguiente.
    */
   ofrecerCotizar?: boolean;
+  /**
+   * Las dos o tres opciones con su precio y el total del juego. Con ella, el
+   * cierre SIN recomendación deja de ser el menú «¿qué prioriza?» y es la lista
+   * escrita más «¿Le cotizo la 1, la 2 o la 3?»: quien preguntó el precio lo ve
+   * y elige por número, en vez de contestar un criterio (familia «nunca vio un
+   * precio escrito», ~25 chats, caso +593 99 571 0785).
+   */
+  lista?: { lista: readonly LineaDeLista[]; cantidad: number } | null;
 }): string {
   if (input.pedirMedida) {
     if (!input.entregarRecomendacion) return CIERRE_PIDE_MEDIDA;
@@ -229,6 +238,7 @@ export function buildCierreOpciones(input: {
       const precio = input.precioConIva ? ` — $${input.precioConIva.toFixed(2)} c/u con IVA` : "";
       return `Es la única que tengo para lo que me pidió: *${input.recomendacion}*${precio}. ¿Se la cotizo? 😊`;
     }
+    if (input.lista) return textoDeLaLista(input.lista.lista, input.lista.cantidad);
     const cierre = input.hayEquivalentes
       ? "Con eso le digo cuál de estas le conviene más."
       : "Con eso le dejo la opción exacta para su medida.";
@@ -257,6 +267,12 @@ export function buildCierreOpciones(input: {
       recomendacion: input.recomendacion,
       medida: input.equivalentePendiente.medida,
     })}`;
+  }
+  // UNA SOLA OPCIÓN Y EL PRECIO YA PEDIDO: se dice que es la única y la
+  // cotización sale en este turno, sin pregunta (conv +593 99 842 8277, 25 y
+  // 27-sep). No hay «yo iría por»: no hay entre qué. Ver domain/cotizarLaUnica.ts.
+  if (!input.ofrecerCotizar && (input.escalonesDisponibles?.length ?? 3) <= 1) {
+    return `Es la única que tengo para lo que me pidió: *${input.recomendacion}*${precio}.`;
   }
   if (input.ofrecerCotizar) {
     // «¿Se la cotizo?» y no «¿Le cotizo el juego de 4 llantas?»: esa segunda

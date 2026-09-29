@@ -24,6 +24,8 @@
  *     del caso 4732, «y luego nunca le mandó la cotización».
  */
 import { sql } from "../db/client.js";
+import type { ContextoEquivalencias } from "../domain/equivalenciaEnTexto.js";
+import { medidaEnDisputa } from "../domain/medidaDelCliente.js";
 import { medidasPermitidas, mensajesDeLaVisitaActual } from "../domain/medidaPedida.js";
 
 /** Cuántos mensajes del cliente se miran hacia atrás antes de cortar por silencio. */
@@ -50,15 +52,79 @@ export async function medidasDelPedido(
       select tire_size from conversations where id=${conversationId}
     `,
   ]);
-  const equivalentes = Array.isArray(pieza?.metadata?.equivalentes)
+  const declaradas = Array.isArray(pieza?.metadata?.equivalentes)
     ? (pieza.metadata.equivalentes as unknown[]).map(String)
     : [];
-  return medidasPermitidas(
+  const delCliente = medidasPermitidas(
     [
       ...(textoDelTurno ? [textoDelTurno] : []),
       ...mensajesDeLaVisitaActual(inbound).map((m) => m.content),
-      ...equivalentes,
     ],
     conversacion?.tire_size,
   );
+  // El juez (`domain/equivalencia.ts`) corre donde se ESCRIBE la declaración:
+  // desde la familia 1-B la lámina solo anota como equivalente lo que
+  // equivale. Acá NO se vuelve a juzgar: lo que el bot le presentó en esta
+  // visita como equivalente y el cliente eligió sigue cotizable — releerlo con
+  // la regla de hoy dejó sin cotización al cliente del caso 4732 (235/75R15
+  // por 235/70R15, declarada así el 26-ago), que es la mitad del bug que
+  // `medidaDeOtraVisita.integration.test.ts` vigila. El consentimiento sigue
+  // exigiéndolo `equivalenteSinConsentimiento`.
+  const equivalentes = declaradas;
+  return medidasPermitidas([...delCliente, ...equivalentes]);
+}
+
+/**
+ * Lo que el cliente tiene sobre la mesa para juzgar una «equivalente»: sus
+ * mensajes de esta visita (del más viejo al más nuevo) y la medida de trabajo.
+ *
+ * A diferencia de `medidasDelPedido`, NO incluye las equivalentes que declaró
+ * el bot: contra ellas no se mide nada, son justamente lo que se juzga.
+ */
+export async function contextoDeEquivalencias(
+  conversationId: number,
+  cycle: number,
+  textoDelTurno?: string | null,
+): Promise<ContextoEquivalencias> {
+  const [inbound, [conversacion]] = await Promise.all([
+    sql<{ content: string; created_at: Date }[]>`
+      select content, created_at from messages
+      where conversation_id=${conversationId} and cycle=${cycle} and direction='inbound'
+      order by created_at desc limit ${INBOUND_A_REVISAR}
+    `,
+    sql<{ tire_size: string | null }[]>`
+      select tire_size from conversations where id=${conversationId}
+    `,
+  ]);
+  return {
+    textosDeLaVisita: mensajesDeLaVisitaActual(inbound).map((m) => m.content).reverse(),
+    textoDelTurno: textoDelTurno ?? null,
+    medidaDeTrabajo: conversacion?.tire_size ?? null,
+  };
+}
+
+/**
+ * ¿El cliente dejó DOS medidas completas sin resolver? (conv 22629, 23-sep)
+ *
+ * «205/55 R15» escrito, foto de una 225/70R16, y después «225/70 R15»: se cotizó
+ * la R15 sin preguntar cuál era. Las dos figuran en `medidasDelPedido` —las dos
+ * las dijo él—, así que el candado de medida no tenía nada que objetar. Este
+ * es el otro lado de la misma pregunta: no QUÉ se puede cotizar, sino si ya se
+ * puede. Misma visita que arriba; la regla vive en `domain/medidaDelCliente`.
+ */
+export async function medidaEnDisputaDelPedido(
+  conversationId: number,
+  cycle: number,
+  textoDelTurno?: string | null,
+): Promise<{ foto: string; escrita: string } | null> {
+  const filas = await sql<{ content: string | null; direction: string; created_at: Date }[]>`
+    select content, direction, created_at from messages
+    where conversation_id=${conversationId} and cycle=${cycle}
+    order by created_at desc limit 40
+  `;
+  const mensajes = mensajesDeLaVisitaActual(filas)
+    .reverse()
+    .map((m) => ({ deCliente: m.direction === "inbound", texto: m.content }));
+  if (textoDelTurno && mensajes.at(-1)?.texto !== textoDelTurno) mensajes.push({ deCliente: true, texto: textoDelTurno });
+  return medidaEnDisputa(mensajes);
 }

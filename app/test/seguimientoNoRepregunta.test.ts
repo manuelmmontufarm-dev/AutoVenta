@@ -60,3 +60,16 @@ describe("la redacción con IA de un seguimiento", () => {
     expect(isSafeCopy("¡Últimas unidades! Aproveche el descuento de hoy.", VISITA_AGENDADA)).toBe(false);
   });
 });
+
+describe("la redacción con IA tampoco pregunta qué prioriza (familia «nunca vio un precio escrito»)", () => {
+  const conOpciones = { stage: "seleccionando" as const, tireSize: "255/70R16", optionsCount: 3 };
+  it.each([
+    "¿Prefiere priorizar duración, comodidad o precio? Con eso le ayudo a decidir 😊",
+    "Si me cuenta qué prioriza, le ayudo a elegir la mejor de las tres.",
+  ])("descarta %s", (texto) => {
+    expect(isSafeCopy(texto, conOpciones)).toBe(false);
+  });
+  it("deja pasar un recordatorio sin esa pregunta", () => {
+    expect(isSafeCopy("¿Pudo revisar las opciones que le envié? Cuénteme cuál le interesa 😊", conOpciones)).toBe(true);
+  });
+});

@@ -160,15 +160,24 @@ describe("el orden de los candados en el turno", () => {
       // El dedupe repite DESPUÉS del guardián porque él reescribe y puede
       // reintroducir la pregunta ya vetada (T115 conv 9887, 30-ago).
       "sin_pregunta_consecutiva_tras_guardian",
+      // «Equivalente» solo lo que equivale (familia 1-B, 22-24 sep): después
+      // de todo lo que reescribe, porque el freno del guardián restauraba el
+      // borrador con «le entra la 215/60R17» (conv 23080).
+      "sin_equivalencias_falsas",
       "aviso_de_stock",
       "alcance_fuera_de_catalogo",
       "despedida_de_venta_perdida",
       "ubicacion_cuando_la_piden",
       "insistir_con_lo_que_falta",
       // Regla 3 del corpus: si el texto afirma un aviso, el aviso existe
-      // (T115 E01, 31-ago: el mini escribió «ya le avisé» sin avisar).
-      "lo_prometido_se_ejecuta",
+      // (T115 E01, 31-ago: el mini escribió «ya le avisé» sin avisar). Desde
+      // el 28-sep (familia 2-E) sin registro EN ESTE TURNO la afirmación se
+      // reescribe como «Se lo consulto y le confirmo.» y esa consulta se registra.
+      "sin_aviso_inventado",
       "sin_preguntas_prohibidas",
+      // Familia 2-H (28-sep, conv 12625): el guardián escribía «esa medida es
+      // de auto… envíeme una foto» a quien ya la había escrito.
+      "la_medida_del_cliente_no_se_cuestiona",
       "sin_json_crudo",
       "sin_locales_inventados",
       // Corrida 3 (auditoría 2-6 sep): el bot no da su propio número, los
@@ -178,6 +187,9 @@ describe("el orden de los candados en el turno", () => {
       // El pago se responde con el hecho del negocio en vez de derivarlo al
       // asesor (conv 17804): el modelo seguía evadiendo aun con el dato en el
       // prompt, así que va en la cadena.
+      // El descuento en efectivo no se niega (semana del 21-sep, 6 chats): va
+      // antes que el pago porque, si hace falta, agrega la política.
+      "sin_descuento_negado",
       "el_pago_se_responde",
       "el_descuento_se_responde",
       "el_beneficio_se_responde",

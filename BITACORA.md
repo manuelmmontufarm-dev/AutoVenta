@@ -1,3 +1,263 @@
+## 28-sep-2026 · Compra a distancia: el cierre y el seguimiento salen bien desde la fuente
+
+**Qué:** El cierre de `generar_cotizacion`, `cotizarLoElegido` y `recotizar`
+consulta `porQueNoPasaPorElLocal`: a quien compra a distancia le sale «Un asesor
+le confirma pago y envío por acá. 🤝» en vez de «Puede pasar sin compromiso… ¿A
+cuál local?» + mapas (fuera de Quito: sin invitación ni mapas). Los seguimientos
+reciben `sinVisita`: sin mapas pegados y, para la compra a distancia, texto fijo
+de pago y envío (sin redacción con IA). El hecho COMPRA A DISTANCIA le dice al
+guardián que ese cierre es legítimo.
+
+**Por qué:** Verificación en vivo (R1): la cotización salía, pero 3 de 3
+cierres traían la pregunta del local y 6 de 6 seguimientos los mapas, y el
+guardián los tenía que borrar. Un candado que arregla siempre lo mismo es
+señal de que la fuente está mal.
+
+**Horas:** 0,7
+
+## 28-sep-2026 · Aviso de tipo al cliente: sin nombrar un uso que no dijo
+
+**Qué:** El aviso horneado ya no dice «para camino de tierra lo ideal es…» ni
+«la más cercana»; dice de qué tipo no queda stock y qué sí hay, sin juzgarlo.
+
+**Por qué:** El cliente escribió «camino en piedra» y el aviso le habló de
+«camino de tierra», e insinuaba que la M/T (lo único que había) era mala.
+
+**Horas:** 0,2
+## 28-sep-2026 · Sin stock exacto y con equivalentes de verdad, la lámina sale en ese turno
+
+**Qué:** `buscar_llanta` (y `buscar_por_aro_y_tipo` cuando en su medida no hay
+nada) devuelven primero `mostrar_equivalentes_ahora` con las alternativas con
+stock que el juez aprueba, y la orden de llamar `preparar_opciones` ya, sin
+preguntar. Si el modelo contesta en texto sin la lámina, `agent.ts` le da la
+vuelta forzada con esos códigos (`vuelta_forzada:mostrar_equivalentes`). Esas
+llantas son hechos del turno: el freno del guardián no las poda y el guardián
+las recibe en sus hechos duros. Dueño único: `domain/equivalentesPorMostrar.ts`.
+
+**Por qué:** Verificación en vivo V3a (Grand Vitara, 265/65R16 sin stock): una
+corrida mostró 245/70R16 y 255/70R16; la otra escribió «¿Le muestro las
+opciones equivalentes?» reteniendo la KR608 245/70R16, y la corrección del
+guardián se podó como «producto nuevo». Mostrar quedaba al azar del modelo.
+
+**Horas:** 0,8
+
+## 28-sep-2026 · La equivalente que el bot presentó en esta visita sigue cotizable
+
+**Qué:** `medidasDelPedido` ya no vuelve a juzgar las equivalentes que la lámina
+anotó: el juez corre al escribirlas (la lámina solo anota las que equivalen) y
+el consentimiento lo sigue exigiendo `equivalenteSinConsentimiento`.
+
+**Por qué:** El arreglo de la familia 1-B las re-juzgaba al leerlas y dejó sin
+cotización la 235/75R15 que el bot presentó y el cliente eligió (caso 4732,
++3,3 % sobre su 235/70R15): fallaban 2 pruebas de `medidaDeOtraVisita`.
+
+**Horas:** 0,3
+
+## 28-sep-2026 · Uso «lodo»: la R/T también entra, y el aviso de tipo va horneado
+
+**Qué:** «lodo» a secas dejó de contar como M/T pedida explícita (era un uso), así
+que el filtro de uso {M/T, R/T} manda. preparar_opciones completa desde el
+catálogo, en la misma medida, los compatibles que el modelo no eligió, y el aviso
+de tipo va dentro de mensaje_para_enviar en vez de depender del guardián.
+
+**Por qué:** Simulador, 265/65R17 «lodo, camino pantanero»: salió «la única»
+KR29 aunque había una R/T con stock. No era el stock: «lodo» forzaba M/T.
+
+**Horas:** 0,5
+## 28-sep-2026 · Un turno de cliente no termina en silencio; «estando en Quito» es que viene
+
+**Qué:** (1) `correrPasos` es ahora el único dueño de «el turno quedó vacío»:
+si una respuesta/retomada (nace de un mensaje del cliente) termina sin texto,
+crea una alerta `turno_sin_respuesta` (prioridad alta, dedupe `turno_vacio:conv:ciclo`,
+con el nombre del paso) y sale «Le consulto con un asesor y le confirmo por acá 🙌»
+(sin mapas ni visita). Los pasos pueden declarar `silencioEsCorrecto`
+(`el_cliente_tomo_el_turno`, `guardian_deterministico`); el seguimiento sigue
+callando. Vale para `index.ts` y `resumeBot.ts` por construcción; `followUpProcessor`
+no cambia y `/restart` usa texto fijo. (2) `fueraDeCobertura.ts`: «estando/estoy/ahora/ya
+en Quito» y «en Quito por estos días» cuentan como `viene`; «vivo en Ibarra» solo
+sigue siendo `fuera` y la negación gana.
+
+**Por qué:** conv 22481 (23-sep 18:03, «Yo vivo en Ibarra, estando en Quito sector
+norte»): `sin_visita_si_no_puede_venir` lo vació y `index.ts` hizo `return`; el
+cliente esperó 5 días sin mensaje ni alerta. Familia: un paso vacía el turno y nadie se entera.
+## 28-sep-2026 · La medida en pulgadas llega al catálogo con la misma llave (y «0R15» ya no se guarda)
+
+**Qué:** Un solo dueño de «texto → medida canónica» (`medidaCanonica`, en
+`domain/tireSize.ts`), usado por el inbound (`index.ts`), el catálogo
+(`extractCatalogSizeLabel`, que pierde su formateador propio) y la guarda de la
+ficha. El parser lee dos formas nuevas de flotación: el aro tras una equis
+(«31x10.50x15») y el decimal escrito como número con el aro al final
+(«31-10-50- Rin 15», anclado en rin/aro y decimal 50/5). `updateConversationFacts`
+solo guarda medidas legibles (`medidaGuardable`); `buscar_llanta` ya no busca
+ni guarda una métrica de ancho 0: usa la flotación de la ficha o devuelve
+`medida_invalida`.
+
+**Por qué:** Conv 23250 y 22421 terminaron con `tire_size = "0R15"` (el modelo
+llamó `buscar_llanta` como métrica con ancho 0 y esa rama guardaba sin validar)
+y con «no me aparece stock» / lámina de medidas de auto para una 31x10.50R15
+que Depot tiene en KR628, KR601 y KR29. La KR628 sola del chat 11449 no era
+otra llave: el cliente pidió AT, y la KR29 es M/T y la KR601 R/T. Sin cambios
+en las 2.198 etiquetas del catálogo real.
+
+**Horas:** 1,2
+## 28-sep-2026 · «Equivalente» solo lo que equivale (y hacia donde pidió el cliente)
+
+**Qué:** `domain/equivalencia.ts` es el único juez de «equivalente / le entra /
+de su aro»: mismo aro, diámetro ±3 % y ahora ancho a ≤20 mm (que monte en el
+mismo rin). También es dueño de la dirección pedida («más ancha» = más sección,
+«más alta/grande» = más diámetro), que filtra las alternativas de `buscar_llanta`.
+Candado nuevo `sin_equivalencias_falsas` después del guardián (tres puertas):
+cada frase que presenta como equivalente una medida que no lo es —o que va al
+revés de lo pedido, o una medida cuando la que escribió el cliente no existe—
+se cambia por una línea honesta («En su medida exacta no tengo stock; le pido
+al asesor que confirme si llega», o la que corresponda) y deja alerta
+`equivalencia_falsa`. La lámina de opciones ya no rotula «equivalentes de su
+aro» a lo que no equivale ni lo anota como cotizable; `medidasDelPedido` filtra
+las equivalentes declaradas por el juez; `generar_cotizacion` ya no dicta «le
+entra la X» si X no equivale; se quitó la copia privada del ±3 % de fitment. El
+guardián recibe la regla como hecho duro.
+
+**Por qué:** Familia 1-B (22-24 sep): 165/65R13 como «equivalente de su aro» a
+quien pidió aro 14 (conv 22533); «más ancha» → 215/65R16, la misma sección
+(22975); «más alta cercana sería 235/65R16», +3,4 % (23021); 165R14 y luego
+175/70R14 (5 cm más angosta) por una 225/55R14 (22492); «le entra la
+215/60R17» por una 235/60R17 que sí estaba (23080); «238 70 16» → 215/65R16 sin
+aclarar (15644). Cinco puertas, ninguna le preguntaba al juez.
+
+**Horas:** 1,5
+## 28-sep-2026 · La medida que escribe el cliente no se cuestiona, no se vuelve a pedir y le gana a la ficha del vehículo
+
+**Qué:** Un solo dueño, `domain/medidaDelCliente.ts`. (1) Con una medida
+completa escrita, el guardián ya no recibe «EL CLIENTE BUSCA LLANTA DE
+CAMIONETA» (salía del anuncio) sino «MEDIDA ESCRITA POR EL CLIENTE», y un
+candado nuevo después del guardián (`la_medida_del_cliente_no_se_cuestiona`,
+tres puertas) quita «es de auto / llegó por camioneta / la ficha no confirma» y
+los pedidos de medida o foto. `fitment_vehiculo` no investiga si el cliente ya
+escribió su medida, y la recién escrita cuenta como suya aunque la ficha esté
+vacía (ya no sale «necesito la medida exacta… o una foto»). (2) El aro que
+escribió manda: el candado de aro de `preparar_opciones` dejaba pasar todo sin
+medida completa (`medidaEstaPedida(x, [])` es `true`); fitment investiga con su
+aro y, con media medida («75 rin 15»), solo muestra ese perfil y pide solo el
+ancho. (4) Foto 225/70R16 y después «225/70 R15» sin corrección: la cotización
+se bloquea hasta preguntar una vez cuál es (`medidaEnDisputaDelPedido`).
+
+**Por qué:** Familia 2-H. Convs 12625 (cuatro «esa medida es de auto… envíeme
+una foto» con 195/55R16 escrita dos veces), 23160 (225/65R17 y 225/70R16 a quien
+dijo rin 15), 22629 (cotizó R15 con foto R16) y el simulador del 28-sep
+(Traverse 215/65R16). Conv 22839: el «74» lo escribió el cliente; la guía acertó.
+
+**Horas:** 2
+## 28-sep-2026 · El bot no se mete donde habló una persona, y «ya avisé» solo si es cierto
+
+**Qué:** Un solo dueño de «quién contesta» (`domain/turnoDelHumano.ts` +
+`services/turnoDelHumano.ts`, llamado desde `index.ts` donde estaban
+`isBotPaused` y `devolverAlBotSiVencioLaPausa`): con la pausa vigente, o si el
+último saliente lo escribió una persona y nadie le devolvió el chat al bot, el
+bot calla y se levanta —o refresca, una por ciclo— la alerta alta
+`cliente_sin_respuesta`, que se resuelve sola cuando una persona contesta. El
+reinicio por 15 h de silencio y el saludo de primer contacto ya no corren si la
+última palabra fue de una persona. `advisor_review` usa la pausa finita
+(`BOT_PAUSE_HOURS`) en vez de `infinity`. El candado `sin_aviso_inventado`
+(reemplaza a `lo_prometido_se_ejecuta`, después del guardián, en las tres
+puertas con guardián): «ya avisé / dejé el caso anotado / lo revisa un asesor»
+solo sale si ESTE turno dejó una alerta o un aviso; si no, pasa a «Se lo
+consulto y le confirmo.» y esa consulta se registra de verdad. El guardián
+recibe ese hecho. Compra a distancia («lo compro x este medio… me envía»,
+`domain/compraADistancia.ts`): alerta alta `customer_ready_to_buy` aunque el
+modelo no llame a la herramienta, y ni seguimiento ni candados le preguntan el
+día o el local (`porQueNoPasaPorElLocal`).
+
+**Por qué:** Conv 15426: el dueño atendió una F-150 el 21-sep; el «Buenas
+tardes» del 22 abrió ciclo nuevo por inactividad, la pausa ya había vencido y
+el bot saludó «Soy Martín… ¿Qué medida usa?». Conv 21640: pausa `infinity` del
+`advisor_review`, el cliente preguntó el precio 80 min después y le
+contestaron 7 días más tarde, sin alerta. Conv 21766: quiso comprar a
+distancia, los avisos del ciclo rebotaron con Meta 131047 y el seguimiento le
+preguntó qué día pasaba por Cumbayá.
+
+**Horas:** 2,5
+
+## 28-sep-2026 · Tras la lámina de opciones el cliente ve el precio escrito (y nadie le pregunta qué prioriza)
+
+**Qué:** El texto que acompaña la lámina de opciones (sin recomendación) deja de
+ser el menú «¿qué prioriza usted?» y pasa a ser la lista «1 · Marca Modelo —
+$X c/u · 4 = $Y» (de menor a mayor precio; cantidad del cliente o 4) con una
+sola pregunta: «¿Le cotizo la 1, la 2 o la 3?». Los seguimientos repiten esa
+lista con precios (o preguntan cuál cotizar) y, con medida y sin opciones
+mostradas, ofrecen mandarlas; la redacción con IA que pregunte qué prioriza se
+descarta. El guardián recibe la lista como hecho duro. Un solo dueño para «la posición N → qué llanta» (`opcionPorPosicion`), usado por
+`agent.ts` y `cotizarLoElegido.ts`; reglas 15 y 22 del guardián actualizadas a la lista. La confirmación tras elegir de la lista dice «La opción N, *Marca Modelo* — $X»
+(no el escalón).
+
+**Por qué:** ~25 chats de la semana (caso +593 99 571 0785, D-Max 255/70R16):
+quien preguntó «¿qué precio tiene?» nunca vio un número y los seguimientos le
+repetían «¿qué prioriza?». Fuente única: `domain/listaDeOpciones.ts`.
+
+## 28-sep-2026 · Pagos: el bot ya no niega el descuento en efectivo
+
+**Qué:** Candado `sin_descuento_negado` (después del guardián, en las tres
+puertas con guardián): si el texto dice «el precio es el mismo en efectivo» o
+«no hay descuento por efectivo», esa frase sale y entra la política de pagos
+(en efectivo sí hay descuento, se confirma en el local). Además el guardián
+recibe la política como hecho duro, para que no la borre.
+
+**Por qué:** En 6 chats de la semana el bot contradijo a la fuente única
+(`politicaDePagos`): unos clientes oyeron que hay descuento y otros que el
+precio es igual. Un negativo inventado sobre un dato de negocio.
+
+**Horas:** 0,7
+## 28-sep-2026 · «Lo cancelo» es pagar: ya no frena la cotización de la única
+
+**Qué:** `isNegativeResponse` y el rechazo blando ya no leen «lo/la cancelo»
+(primera persona con pronombre) como cancelar el pedido: en Ecuador es pagar.
+El seguimiento de la única no pide la cantidad si ya está en la ficha ni
+promete «se la envío al momento». El guardián no exige «¿Se la cotizo?» cuando
+la única se cotiza directo.
+
+**Por qué:** Simulador V5b («Lo compro por este medio, me cotiza, lo cancelo…
+4 llantas»): la decisión de cotizar disparaba, pero `canGenerateFinalQuote`
+bloqueaba por el «cancelo» y el guardián devolvía el «¿Se la cotizo?».
+
+**Horas:** 0,7
+
+## 28-sep-2026 · «Precio por favor» a la única: el marcador mira todo el turno del bot
+
+**Qué:** `ultimoTurnoDelBot` (una sola fuente) junta las filas consecutivas del
+último turno del bot; `agent.ts` y el guardián se lo pasan a
+`ofertaDeCotizarAceptada`/`ofertaDeCotizacionAceptada` para reconocer «Es la
+única que tengo…» aunque el «¿Se la cotizo?» salga en su propia fila.
+
+**Por qué:** Simulador en vivo: el marcador solo veía la última fila y «Precio
+por favor» seguía bloqueando `generar_cotizacion`.
+
+**Horas:** 0,5
+
+## 28-sep-2026 · Una sola opción y precio ya pedido: se cotiza, no se pide permiso
+
+**Qué:** Con UNA sola llanta vendible y el cliente ya con «precio», «cuánto»,
+«cotízame» etc. en la visita, la pieza de opciones dice «Es la única que tengo…»
+sin pregunta y el turno genera la cotización. «Precio por favor» a un «¿Se la
+cotizo?» de la única cuenta como sí. Los seguimientos de ese estado hablan de la
+cotización y piden solo la cantidad. El guardián recibe el hecho duro.
+
+**Por qué:** Conv +593 99 842 8277 (25 y 27-sep): «31x10.5R15» + «Precio por
+favor» terminó dos veces en «¿Se la cotizo?» y nunca salió la cotización.
+## 28-sep-2026 · El menú costo/equilibrio/premium respeta el uso que el cliente declaró
+
+**Qué:** Un solo dueño de «qué tipos le sirven a cada uso» (`domain/usoYTipo.ts`).
+El menú se arma primero con los tipos compatibles (ciudad: H/T y turismo; mixto:
+A/T y R/T; lodo: M/T y R/T; carga: comercial) y solo se sale de ellos si hay
+menos de dos vendibles; entonces avisa (`aviso_tipo`) y nunca mete una M/T a
+quien pidió ciudad. Cableado en buscar_por_aro_y_tipo, fitment_vehiculo,
+preparar_opciones y buscar_llanta. «NO todoterreno» ya no cuenta como A/T.
+El guardián recibe el uso y el aviso como hechos duros.
+
+**Por qué:** 10 chats de la semana del 21-sep: una Kenda KR29 (M/T) salió como
+la económica de clientes que pidieron ciudad; una touring a quien pidió camino
+mixto. La escalera era por precio y marca, sin mirar el uso.
+
+**Horas:** 1,5
+
 ## 28-sep-2026 · Ventas confirmadas: la tabla va plegada
 
 **Qué:** En la tarjeta de Métricas, la lista de ventas queda detrás de «Ver las

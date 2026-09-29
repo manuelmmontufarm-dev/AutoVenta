@@ -297,3 +297,53 @@ describe("la plantilla de seguimiento lee lo que ya pasó", () => {
     }
   });
 });
+
+/**
+ * Familia «nunca vio un precio escrito» (~25 chats, caso +593 99 571 0785,
+ * D-Max 255/70R16): tras la lámina de opciones, los seguimientos repetían
+ * «¿qué prioriza?» / «¿Prefiere priorizar duración, comodidad o precio?».
+ * Quien pidió el precio necesita los números, no un criterio.
+ */
+describe("los seguimientos no preguntan qué prioriza: repiten las opciones con precio", () => {
+  const lista = {
+    cantidad: 4,
+    lista: [
+      { n: 1, nombre: "WINRUN R380", precio: 96.5, total: 386 },
+      { n: 2, nombre: "KENDA KR50", precio: 127.93, total: 511.72 },
+      { n: 3, nombre: "FALKEN WILDPEAK", precio: 171.2, total: 684.8 },
+    ],
+  };
+  const base = { stage: "seleccionando" as const, tireSize: "255/70R16", optionsCount: 3 };
+  const NO_PRIORIZA = /prioriz|cuál le gustó|duración, comodidad|le ayudo a decidir|uso que le da/i;
+
+  it("con la lista guardada, las dos plantillas la escriben con precios y UNA pregunta", () => {
+    for (const kind of ["in_window_first", "in_window_second"] as const) {
+      const t = buildContextualFollowUpMessage({ ...base, optionsList: lista }, kind);
+      expect(t).not.toMatch(NO_PRIORIZA);
+      expect(t).toContain("1 · WINRUN R380 — $96.50 c/u · 4 = $386.00");
+      expect(t).toContain("2 · KENDA KR50 — $127.93 c/u · 4 = $511.72");
+      expect(t).toContain("3 · FALKEN WILDPEAK — $171.20 c/u · 4 = $684.80");
+      expect(t.match(/\?/g)).toHaveLength(1);
+      expect(t).toContain("¿Le cotizo la 1, la 2 o la 3?");
+    }
+  });
+
+  it("sin la lista (pieza vieja), el segundo seguimiento pregunta cuál cotizar, no la prioridad", () => {
+    const t = buildContextualFollowUpMessage({ ...base }, "in_window_second");
+    expect(t).not.toMatch(NO_PRIORIZA);
+    expect(t).toContain("¿Le cotizo la 1, la 2 o la 3?");
+  });
+
+  it("con dos opciones la pregunta es «la 1 o la 2»", () => {
+    const t = buildContextualFollowUpMessage({ ...base, optionsCount: 2 }, "in_window_second");
+    expect(t).toContain("¿Le cotizo la 1 o la 2?");
+  });
+
+  it("con medida y SIN opciones mostradas ofrece mandarlas, no pregunta duración/comodidad/precio", () => {
+    for (const kind of ["in_window_first", "in_window_second"] as const) {
+      const t = buildContextualFollowUpMessage({ stage: "nuevo", tireSize: "255/70R16" }, kind);
+      expect(t).not.toMatch(NO_PRIORIZA);
+      expect(t).toContain("¿Le mando las opciones que tengo en su medida");
+    }
+  });
+});
