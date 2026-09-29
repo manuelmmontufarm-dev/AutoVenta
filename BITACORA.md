@@ -1,3 +1,17 @@
+## 28-sep-2026 · Pagos: el bot ya no niega el descuento en efectivo
+
+**Qué:** Candado `sin_descuento_negado` (después del guardián, en las tres
+puertas con guardián): si el texto dice «el precio es el mismo en efectivo» o
+«no hay descuento por efectivo», esa frase sale y entra la política de pagos
+(en efectivo sí hay descuento, se confirma en el local). Además el guardián
+recibe la política como hecho duro, para que no la borre.
+
+**Por qué:** En 6 chats de la semana el bot contradijo a la fuente única
+(`politicaDePagos`): unos clientes oyeron que hay descuento y otros que el
+precio es igual. Un negativo inventado sobre un dato de negocio.
+
+**Horas:** 0,7
+
 ## 28-sep-2026 · Ventas confirmadas: la tabla va plegada
 
 **Qué:** En la tarjeta de Métricas, la lista de ventas queda detrás de «Ver las

@@ -55,6 +55,7 @@ import { getActiveBenefits } from "./benefits.js";
 import { formatStoreHours, getGuardianConfig, getStoreHours } from "./settings.js";
 import { faltanteDeCotizacion } from "./stockCorto.js";
 import { alcanzaParaVender } from "../domain/stockCorto.js";
+import { politicaDePagos } from "../domain/datosDelNegocio.js";
 import { despedidaQueCorresponde } from "../domain/cierrePerdido.js";
 import { ofertaDeCotizarAceptada } from "../domain/ofertaAceptada.js";
 import { visitaPendiente } from "../domain/visitaPendiente.js";
@@ -282,6 +283,17 @@ export function hechoDeOrigenDeMarcas(): string | null {
   return `Origen de las marcas (ficha del negocio, el bot PUEDE afirmarlo y no debe mandarlo al asesor): ${
     marcas.map((m) => `${m.marca}: ${m.origen.pais}`).join(" · ")
   }. Si el cliente pregunta de dónde es una marca y el borrador lo evade, es ignora-pregunta.`;
+}
+
+/**
+ * La política de pagos, como HECHO. Sin ella el revisor no puede verificar
+ * «en efectivo sí hay un descuento, que se confirma en el local» y lo borra
+ * (o lo niega al reescribir); la misma razón que el origen de las marcas.
+ */
+export function hechoDePagos(): string {
+  return `Formas de pago (política del negocio, el bot PUEDE afirmarlo y no debe mandarlo al asesor): ${politicaDePagos()} `
+    + "Que en efectivo hay un descuento es CIERTO: NO lo borres, NO digas que el precio es el mismo en efectivo ni que no hay descuento, "
+    + "y NO agregues una cifra (el monto lo confirman en el local).";
 }
 
 export interface HuellaHerramienta {
@@ -617,6 +629,7 @@ export async function armarContexto(
     // entre sus hechos— reescribió «se lo confirma el asesor». Lo que el
     // revisor no puede verificar, lo borra; así que viaja como hecho.
     hechoDeOrigenDeMarcas(),
+    hechoDePagos(),
     // LAS DIRECCIONES TAMBIÉN (corrida 3, simulador): a «¿qué parte del sur?»
     // el revisor escribió «en el sector de Guamaní» — inventado; el local está
     // en Galo Molina y Av. Alonso de Angulo. Un dato que el revisor no tiene lo
