@@ -54,9 +54,7 @@ import { contestaAunApagado, isBotActive } from "./services/botPower.js";
 import { textoParaMensajeQueNoSeLee } from "./domain/mensajeQueNoSeLee.js";
 import { medidaQueConfirmoAlAsesor } from "./domain/medidaQueConfirmoAlAsesor.js";
 import { anuncioDelReferral, type Anuncio } from "./domain/anuncio.js";
-import {
-  extractFlotationSizes, extractTireSizes, formatFlotationSize, formatTireSize,
-} from "./domain/tireSize.js";
+import { medidaCanonica } from "./domain/tireSize.js";
 import {
   extractVehicleYear,
   esRespuestaDelMenuDePreferencia,
@@ -126,8 +124,9 @@ const pipeline = new InboundPipeline(async ({ from, name, text: textoRecibido, w
   const inboundSafety = await handleInboundFollowUpState(conversation.id, text);
   // La medida puede venir métrica (205/55R16) o en pulgadas (30x9.5R15). Sin
   // esta segunda, el bot no registraba nada y terminaba diciendo que no había.
-  const parsedSize = extractTireSizes(text)[0];
-  const parsedFlotation = parsedSize ? null : extractFlotationSizes(text)[0];
+  // `medidaCanonica` es el único dueño de «texto → medida»: la misma llave con
+  // la que el catálogo guarda la llanta (familia 1-A, 28-sep-2026).
+  const medidaDelTexto = medidaCanonica(text);
   const parsedVehicleYear = extractVehicleYear(text);
   // Lo que el cliente le confirma al ASESOR también cuenta (conv 19706): si el
   // último saliente es del asesor preguntando por una medida y el cliente dice
@@ -186,8 +185,7 @@ const pipeline = new InboundPipeline(async ({ from, name, text: textoRecibido, w
         }),
       });
   await updateConversationFacts(conversation.id, {
-    ...(parsedSize ? { tireSize: formatTireSize(parsedSize) } : {}),
-    ...(parsedFlotation ? { tireSize: formatFlotationSize(parsedFlotation) } : {}),
+    ...(medidaDelTexto ? { tireSize: medidaDelTexto } : {}),
     ...(parsedVehicleYear ? { vehicleYear: parsedVehicleYear } : {}),
   });
   // La visita va aparte porque hay que JUNTARLA con lo dicho antes: la hora
@@ -318,16 +316,9 @@ const pipeline = new InboundPipeline(async ({ from, name, text: textoRecibido, w
   // verdad (la URL cruda), no el resumen. El dato que vende —la medida— sí
   // persiste, porque se guarda en los HECHOS de la conversación aquí abajo.
   const textoConLinks = await conResumenDeLinks(text, from);
-  if (textoConLinks !== text && !parsedSize && !parsedFlotation) {
-    const medidaDelLink = extractTireSizes(textoConLinks)[0];
-    const flotacionDelLink = medidaDelLink ? null : extractFlotationSizes(textoConLinks)[0];
-    if (medidaDelLink || flotacionDelLink) {
-      await updateConversationFacts(conversation.id, {
-        tireSize: medidaDelLink
-          ? formatTireSize(medidaDelLink)
-          : formatFlotationSize(flotacionDelLink!),
-      });
-    }
+  if (textoConLinks !== text && !medidaDelTexto) {
+    const medidaDelLink = medidaCanonica(textoConLinks);
+    if (medidaDelLink) await updateConversationFacts(conversation.id, { tireSize: medidaDelLink });
   }
 
   const agentContext: AgentContext = { conversation, customerPhone: from, customerName: name,

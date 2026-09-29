@@ -1,3 +1,24 @@
+## 28-sep-2026 · La medida en pulgadas llega al catálogo con la misma llave (y «0R15» ya no se guarda)
+
+**Qué:** Un solo dueño de «texto → medida canónica» (`medidaCanonica`, en
+`domain/tireSize.ts`), usado por el inbound (`index.ts`), el catálogo
+(`extractCatalogSizeLabel`, que pierde su formateador propio) y la guarda de la
+ficha. El parser lee dos formas nuevas de flotación: el aro tras una equis
+(«31x10.50x15») y el decimal escrito como número con el aro al final
+(«31-10-50- Rin 15», anclado en rin/aro y decimal 50/5). `updateConversationFacts`
+solo guarda medidas legibles (`medidaGuardable`); `buscar_llanta` ya no busca
+ni guarda una métrica de ancho 0: usa la flotación de la ficha o devuelve
+`medida_invalida`.
+
+**Por qué:** Conv 23250 y 22421 terminaron con `tire_size = "0R15"` (el modelo
+llamó `buscar_llanta` como métrica con ancho 0 y esa rama guardaba sin validar)
+y con «no me aparece stock» / lámina de medidas de auto para una 31x10.50R15
+que Depot tiene en KR628, KR601 y KR29. La KR628 sola del chat 11449 no era
+otra llave: el cliente pidió AT, y la KR29 es M/T y la KR601 R/T. Sin cambios
+en las 2.198 etiquetas del catálogo real.
+
+**Horas:** 1,2
+
 ## 28-sep-2026 · Tras la lámina de opciones el cliente ve el precio escrito (y nadie le pregunta qué prioriza)
 
 **Qué:** El texto que acompaña la lámina de opciones (sin recomendación) deja de

@@ -197,6 +197,9 @@ export function enmascararMedidas(text: string): string {
     const section = anchoDeFlotacion(m[2] ?? m[3]);
     return flotacionValida(diameter, section, Number(m[4]));
   });
+  limpio = tapar(limpio, RIM_LAST_FLOTATION_RE, (m) =>
+    flotacionValida(Number(m[1]), anchoDeFlotacionConDecimal(m[2], m[3]), Number(m[4])),
+  );
   limpio = tapar(limpio, PERFIL_DESPUES_DEL_ARO_RE, (m) =>
     isValid(Number(m[1]), Number(m[3]), Number(m[2])),
   );
@@ -268,8 +271,30 @@ export interface FlotationSize {
 // Cuando el separador es un espacio o un guion, el ancho tiene que traer
 // decimales: «37 12.50 rin 20» es una flotación, pero «195 50 15» es métrica y
 // no puede confundirse con una.
+//
+// Y el aro también puede venir tras una equis: «31x10.50x15» (conv 23250,
+// 25-sep, por audio). Sin eso el mensaje no traía medida, el modelo llamó
+// `buscar_llanta` como métrica de ancho 0, y la ficha quedó en «0R15» con un
+// «no me aparece stock» para una llanta que Depot tenía en tres modelos.
 const FLOTATION_TEXT_RE =
-  /(?<!\d)(\d{2}(?:[.,]\d)?)\s*(?:[xX*×/]\s*(\d{1,4}(?:[.,]\d{1,2})?)|[-\s]\s*(\d{1,2}[.,]\d{1,2}))\s*(?:Z?R\s*|(?:RIN|ARO|RON|RIM)\s*|[-/\s]\s*(?:Z?R|RIN|ARO|RON|RIM)?\s*)(\d{2})(?!\d)/gi;
+  /(?<!\d)(\d{2}(?:[.,]\d)?)\s*(?:[xX*×/]\s*(\d{1,4}(?:[.,]\d{1,2})?)|[-\s]\s*(\d{1,2}[.,]\d{1,2}))\s*(?:Z?R\s*|(?:RIN|ARO|RON|RIM)\s*|[-/\sxX*×]\s*(?:Z?R|RIN|ARO|RON|RIM)?\s*)(\d{2})(?!\d)/gi;
+
+/**
+ * Flotación con el decimal escrito como un número más y el aro al final:
+ *   «31-10-50- Rin 15», «31 10 50 rin 15», «31x10x50 aro 15».
+ *
+ * Conv 23250, 25-sep: con «31-10-50- Rin 15 para camino en piedra» el bot
+ * mandó la lámina del aro 15 (235/75R15, 30X9.5R15, 215/75R15) y pidió la
+ * medida del costado a quien acababa de escribirla.
+ *
+ * Es la hermana de `RIM_FIRST_FLOTATION_RE` con el aro detrás, y por eso tiene
+ * las mismas dos anclas: la palabra rin/aro (nada de R suelta, que con tres
+ * números sueltos es demasiado poco) y el decimal limitado a 50 o 5 —todas
+ * las flotaciones del mercado van en .50—, para que tres números cualesquiera
+ * seguidos de un aro no se vuelvan una medida.
+ */
+const RIM_LAST_FLOTATION_RE =
+  /(?<![\d.,])(\d{2})\s*[-xX*×\s]\s*(\d{1,2})\s*[-xX.,\s]\s*(50|5)(?!\d)[\s\-/]*(?:RIN|ARO|RON|RIM)\s*(\d{2})(?!\d)/gi;
 
 /**
  * Flotación manuscrita con el aro adelante:
@@ -323,7 +348,47 @@ export function extractFlotationSizes(text: string): FlotationSize[] {
     const rim = Number(m[4]);
     agregar(diameter, section, rim);
   }
+  if (out.length === 0) {
+    for (const m of text.matchAll(RIM_LAST_FLOTATION_RE)) {
+      agregar(Number(m[1]), anchoDeFlotacionConDecimal(m[2], m[3]), Number(m[4]));
+    }
+  }
   return out;
+}
+
+/**
+ * TEXTO → MEDIDA CANÓNICA. El único dueño de esa traducción.
+ *
+ * Métrica primero, después flotación, después la convencional de camión —el
+ * mismo orden en que se lee el nombre de un producto del catálogo—, y la
+ * etiqueta sale siempre de los mismos tres formateadores. Así «31x10.50x15»
+ * que escribe el cliente, «31X10.50R15LT» que trae Contífico y lo que se
+ * guarda en `conversations.tire_size` son la MISMA llave: «31X10.5R15».
+ *
+ * Null si el texto no trae ninguna medida legible.
+ */
+export function medidaCanonica(text: string): string | null {
+  const metrica = extractTireSizes(text)[0];
+  if (metrica) return formatTireSize(metrica);
+  const flotacion = extractFlotationSizes(text)[0];
+  if (flotacion) return formatFlotationSize(flotacion);
+  const convencional = extractConventionalSizes(text)[0];
+  if (convencional) return formatConventionalSize(convencional);
+  return null;
+}
+
+/**
+ * ¿SE PUEDE GUARDAR ESTA ETIQUETA COMO LA MEDIDA DE LA CONVERSACIÓN?
+ *
+ * Devuelve la etiqueta canonizada, o null si no es una medida. Existe por
+ * «0R15» (conv 23250 y 22421): `buscar_llanta` guardaba lo que armaba con los
+ * argumentos del modelo —ancho 0, aro 15— sin volver a leerlo, y la ficha
+ * quedó con basura que los seguimientos le repetían al cliente («Ya tengo su
+ * medida 0R15»). Una medida que no se puede volver a leer no se guarda.
+ */
+export function medidaGuardable(label: string | null | undefined): string | null {
+  if (!label) return null;
+  return medidaCanonica(label);
 }
 
 /**
