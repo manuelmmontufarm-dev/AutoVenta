@@ -9,6 +9,22 @@ de tipo va dentro de mensaje_para_enviar en vez de depender del guardián.
 KR29 aunque había una R/T con stock. No era el stock: «lodo» forzaba M/T.
 
 **Horas:** 0,5
+## 28-sep-2026 · Un turno de cliente no termina en silencio; «estando en Quito» es que viene
+
+**Qué:** (1) `correrPasos` es ahora el único dueño de «el turno quedó vacío»:
+si una respuesta/retomada (nace de un mensaje del cliente) termina sin texto,
+crea una alerta `turno_sin_respuesta` (prioridad alta, dedupe `turno_vacio:conv:ciclo`,
+con el nombre del paso) y sale «Le consulto con un asesor y le confirmo por acá 🙌»
+(sin mapas ni visita). Los pasos pueden declarar `silencioEsCorrecto`
+(`el_cliente_tomo_el_turno`, `guardian_deterministico`); el seguimiento sigue
+callando. Vale para `index.ts` y `resumeBot.ts` por construcción; `followUpProcessor`
+no cambia y `/restart` usa texto fijo. (2) `fueraDeCobertura.ts`: «estando/estoy/ahora/ya
+en Quito» y «en Quito por estos días» cuentan como `viene`; «vivo en Ibarra» solo
+sigue siendo `fuera` y la negación gana.
+
+**Por qué:** conv 22481 (23-sep 18:03, «Yo vivo en Ibarra, estando en Quito sector
+norte»): `sin_visita_si_no_puede_venir` lo vació y `index.ts` hizo `return`; el
+cliente esperó 5 días sin mensaje ni alerta. Familia: un paso vacía el turno y nadie se entera.
 
 ## 28-sep-2026 · Tras la lámina de opciones el cliente ve el precio escrito (y nadie le pregunta qué prioriza)
 
