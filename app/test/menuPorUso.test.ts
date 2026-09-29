@@ -234,6 +234,6 @@ describe("preparar_opciones · lo que el modelo elige también respeta el uso", 
   it("el aviso de tipo va HORNEADO en mensaje_para_enviar, no solo en el JSON", async () => {
     const salida = await prepararOpciones("Es para ciudad", ["K501B784", "3817B706", "356398"]);
 
-    expect(salida.mensaje_para_enviar).toMatch(/Ojo: para ciudad/);
+    expect(salida.mensaje_para_enviar).toMatch(/Ojo: de H\/T \/ H\/T|Ojo: de H\/T \/ TURISMO no me queda stock/);
   });
 });

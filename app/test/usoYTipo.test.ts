@@ -111,3 +111,21 @@ describe("tipoSolicitadoEn · lo negado no es un tipo pedido", () => {
     expect(tipoSolicitadoEn(["no las quiero H/T, mejor M/T"])).toBe("M/T");
   });
 });
+
+describe("avisoAlCliente · el texto que ve el cliente", () => {
+  const p = (tipo: string, stock = 8) => ({ tipo, stock });
+  const tipoDe = (x: { tipo: string }) => x.tipo;
+
+  it("no nombra un uso que el cliente no dijo («camino de piedra» no es «camino de tierra»)", () => {
+    const r = separarPorUso([p("M/T")], "tierra", tipoDe);
+    expect(r.avisoAlCliente).not.toMatch(/camino de tierra/i);
+  });
+
+  it("no presenta la M/T como mala elección ni como «la más cercana» cuando es la única", () => {
+    const r = separarPorUso([p("M/T")], "tierra", tipoDe);
+    expect(r.avisoAlCliente).not.toMatch(/lo ideal|más cercana/i);
+    expect(r.avisoAlCliente).toMatch(/no me queda stock/);
+    expect(r.avisoAlCliente).toMatch(/M\/T/);
+  });
+});
+

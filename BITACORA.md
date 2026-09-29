@@ -1,3 +1,13 @@
+## 28-sep-2026 · Aviso de tipo al cliente: sin nombrar un uso que no dijo
+
+**Qué:** El aviso horneado ya no dice «para camino de tierra lo ideal es…» ni
+«la más cercana»; dice de qué tipo no queda stock y qué sí hay, sin juzgarlo.
+
+**Por qué:** El cliente escribió «camino en piedra» y el aviso le habló de
+«camino de tierra», e insinuaba que la M/T (lo único que había) era mala.
+
+**Horas:** 0,2
+
 ## 28-sep-2026 · La equivalente que el bot presentó en esta visita sigue cotizable
 
 **Qué:** `medidasDelPedido` ya no vuelve a juzgar las equivalentes que la lámina
