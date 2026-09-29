@@ -76,7 +76,7 @@ import { arosDeCandidatos, arosDeMedidas, invitacionPorAroAmbiguo } from "../dom
 import { aroVigenteDeLaVisita, rangoDeAros } from "../domain/aros.js";
 import { localPorLaZonaDicha, nearestStore, resolveSector, ubicacionDadaPorElCliente } from "../domain/locations.js";
 import { ordenarPorCercania } from "../domain/equivalencia.js";
-import { extractFlotationSizes, formatFlotationSize, formatTireSize, parseTireSize, type TireSize, flotacionIncompleta } from "../domain/tireSize.js";
+import { extractFlotationSizes, formatFlotationSize, formatTireSize, parseTireSize, type TireSize, type FlotationSize, flotacionIncompleta, medidaGuardable } from "../domain/tireSize.js";
 import { marcaPreguntada, pidioCotizacionExplicita, ultimaMarcaPedida } from "../domain/consultaConRespaldo.js";
 import { armarLista, confirmacionDeLaOpcion, opcionPorPosicion, posicionElegida } from "../domain/listaDeOpciones.js";
 import { cotizarLaUnicaDeUnaVez } from "../domain/cotizarLaUnica.js";
@@ -870,29 +870,49 @@ export function buildTools(ctx: AgentContext) {
       // el modelo. Con «rin 15 la 31x10x50», el parser del inbound ya guardó
       // 31X10.5R15, pero el modelo llamó la tool como métrica 0R15 y la
       // sobrescribió. La fuente determinística evita esa degradación.
+      const buscarFlotacion = async (medida: FlotationSize): Promise<string> => {
+        const etiqueta = formatFlotationSize(medida);
+        const encontradas = searchByText(etiqueta.replace(/R\d+$/, ""), 40)
+          .filter((item) => item.sizeLabel === etiqueta);
+        await updateConversationFacts(ctx.conversation.id, { tireSize: etiqueta });
+        return JSON.stringify({
+          medida: etiqueta,
+          resultados: tresOpciones(encontradas).map(toolItem),
+          total_en_esa_medida: encontradas.length,
+          regla: encontradas.some((i) => i.stock > 0)
+            ? "PROHIBIDO listarlas en texto: llama preparar_opciones para que salga la imagen."
+            : "Ninguna tiene stock. Dilo claro y ofrece consultar con el asesor; no inventes que llegará.",
+        });
+      };
       const flotacionDelCliente = extractFlotationSizes(ctx.currentUserText ?? "")[0];
       if (flotacionDelCliente || flotacion) {
         const medida = flotacionDelCliente ?? extractFlotationSizes(flotacion ?? "")[0];
-        if (medida) {
-          const etiqueta = formatFlotationSize(medida);
-          const encontradas = searchByText(etiqueta.replace(/R\d+$/, ""), 40)
-            .filter((item) => item.sizeLabel === etiqueta);
-          await updateConversationFacts(ctx.conversation.id, { tireSize: etiqueta });
-          return JSON.stringify({
-            medida: etiqueta,
-            resultados: tresOpciones(encontradas).map(toolItem),
-            total_en_esa_medida: encontradas.length,
-            regla: encontradas.some((i) => i.stock > 0)
-              ? "PROHIBIDO listarlas en texto: llama preparar_opciones para que salga la imagen."
-              : "Ninguna tiene stock. Dilo claro y ofrece consultar con el asesor; no inventes que llegará.",
-          });
-        }
+        if (medida) return buscarFlotacion(medida);
+      }
+
+      // UNA MEDIDA QUE NO ES MEDIDA NO SE BUSCA NI SE GUARDA (familia 1-A, 28-sep).
+      // Conv 23250 y 22421: el cliente había escrito una flotación, el modelo
+      // llamó esta herramienta como métrica con ancho 0 y aro 15, la búsqueda
+      // salió vacía («no me aparece stock») y la ficha quedó en «0R15». Si los
+      // argumentos no arman una medida legible, manda la ficha: si allí hay
+      // una flotación, esa es la que se busca; si no, se le devuelve el error
+      // al modelo en vez de inventar un «no hay».
+      const medidaBuscada = formatTireSize({ width, aspect, rim });
+      if (!medidaGuardable(medidaBuscada)) {
+        const [ficha] = await sql<{ tire_size: string | null }[]>`
+          select tire_size from conversations where id=${ctx.conversation.id}
+        `;
+        const flotacionDeLaFicha = extractFlotationSizes(ficha?.tire_size ?? "")[0];
+        if (flotacionDeLaFicha) return buscarFlotacion(flotacionDeLaFicha);
+        return JSON.stringify({
+          error: "medida_invalida",
+          regla: `${medidaBuscada} no es una medida: el ancho ${width} no existe. Si el cliente dio una medida en pulgadas (31x10.50R15, 33x12.50R15), vuelve a llamar con \`flotacion\` y el texto tal cual lo escribió. Si no dio medida, pídela; PROHIBIDO decir que no hay stock.`,
+        });
       }
 
       // UNA MEDIDA QUE EL CLIENTE NO DIO NO SE BUSCA (12-sep, conv 3, 17:32).
       // Tras «rin 14», a «Que opciones tiene y precio del juego» el modelo buscó
       // 185/60R14 y la lámina salió en esa medida. Ver `medidaNoDada`.
-      const medidaBuscada = formatTireSize({ width, aspect, rim });
       const entrantesDelCiclo = await sql<{ content: string }[]>`
         select content from messages
         where conversation_id=${ctx.conversation.id} and cycle=${ctx.conversation.current_cycle}

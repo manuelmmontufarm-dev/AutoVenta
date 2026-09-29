@@ -4,6 +4,7 @@ import { isStage, type Stage } from "../domain/pipeline.js";
 import { franjaHoraria } from "../domain/diasEnEspanol.js";
 import { esMismaVisitaPorSilencio } from "../domain/medidaPedida.js";
 import { memoriaDelChatVencida } from "../domain/memoriaDelChat.js";
+import { medidaGuardable } from "../domain/tireSize.js";
 import { cancelPendingFollowUps, scheduleConversationFollowUps } from "./followUps.js";
 import { emitLiveEvent } from "./liveEvents.js";
 
@@ -578,9 +579,16 @@ export async function updateConversationFacts(
     followUpReason?: string;
   },
 ): Promise<void> {
+  // La ficha solo guarda medidas que se pueden volver a leer, y canonizadas:
+  // «0R15» (conv 23250 y 22421) llegó hasta los seguimientos del cliente. Una
+  // etiqueta que no es medida no pisa la que ya había. Ver `medidaGuardable`.
+  const tireSize = facts.tireSize === undefined ? null : medidaGuardable(facts.tireSize);
+  if (facts.tireSize !== undefined && !tireSize) {
+    console.warn(`📏 Conv ${conversationId}: medida «${facts.tireSize}» descartada, no es una medida legible.`);
+  }
   await sql`
     update conversations set
-      tire_size = coalesce(${facts.tireSize ?? null}, tire_size),
+      tire_size = coalesce(${tireSize}, tire_size),
       vehicle = coalesce(${facts.vehicle ?? null}, vehicle),
       vehicle_year = coalesce(${facts.vehicleYear ?? null}, vehicle_year),
       selected_product_code = coalesce(${facts.selectedProductCode ?? null}, selected_product_code),
