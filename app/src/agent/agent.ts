@@ -27,6 +27,7 @@ import {
   pidioHumanoExplicito, preguntaTecnicaDeRespaldo,
 } from "../domain/consultaConRespaldo.js";
 import { esAcuseSimple } from "../domain/ofertaAceptada.js";
+import { ultimoTurnoDelBot } from "../domain/cotizarLaUnica.js";
 import { respaldoCompleto } from "../domain/respaldoMarcas.js";
 import { preguntaElLocal } from "../domain/storeSelection.js";
 import { preguntaElDia } from "../domain/customerCommitment.js";
@@ -200,14 +201,19 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
   // 27-ago). Se calcula acá porque el último saliente ya está en `history`.
   // Ver `domain/ofertaAceptada.ts`.
   const ultimoDelBot = [...history].reverse().find((m) => m.role === "assistant");
+  // El marcador de «la única» se busca en TODO el último turno del bot: el
+  // «¿Se la cotizo?» sale en su propia fila, aparte de «Es la única que tengo…».
+  const turnoDelBot = ultimoTurnoDelBot(history);
   const aceptoLaOferta = ofertaDeCotizarAceptada(
     typeof ultimoDelBot?.content === "string" ? ultimoDelBot.content : null,
     userText,
+    turnoDelBot,
   );
   ctx.aceptoOfertaComercial = aceptoLaOferta;
   ctx.aceptoCotizacion = ofertaDeCotizacionAceptada(
     typeof ultimoDelBot?.content === "string" ? ultimoDelBot.content : null,
     userText,
+    turnoDelBot,
   );
   // La oferta que quedó pendiente uno o dos turnos atrás también cuenta
   // (T115 conv 9684, 30-ago): el acuse la acepta mientras no haya negativa.

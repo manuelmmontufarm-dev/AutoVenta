@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { buildContextualFollowUpMessage } from "../src/domain/followUpMessages.js";
 import { ofertaDeCotizacionAceptada, ofertaDeCotizarAceptada } from "../src/domain/ofertaAceptada.js";
 import { pidioPrecioOCotizacion } from "../src/domain/salesIntent.js";
-import { cotizarLaUnicaDeUnaVez } from "../src/domain/cotizarLaUnica.js";
+import { cotizarLaUnicaDeUnaVez, ofrecioCotizarLaUnica, ultimoTurnoDelBot } from "../src/domain/cotizarLaUnica.js";
 
 // quoteMessages importa config.ts, que exige estas variables al cargarse.
 process.env.OPENAI_API_KEY ??= "test";
@@ -102,6 +102,46 @@ describe("el cierre de la única cuando el precio ya se pidió", () => {
     expect(cierre).toContain("KENDA KR628");
     expect(cierre).toContain("$191.00");
     expect(cierre).not.toMatch(/cotizo|\?/i);
+  });
+});
+
+/**
+ * Simulador en vivo: la pieza sale en DOS filas del historial —«Es la única que
+ * tengo… $183.70» y, aparte, «¿Se la cotizo? 😊»— y el marcador solo miraba la
+ * última fila (la del «¿Se la cotizo?» pelado), así que «Precio por favor» no
+ * se leía como sí. El marcador se evalúa sobre TODO el último turno del bot.
+ */
+describe("el último turno del bot, en varias filas", () => {
+  const historial = [
+    { role: "user", content: "Hola, necesito llantas 245/60R18" },
+    { role: "assistant", content: "Es la única que tengo para lo que me pidió: *KENDA KR50* — $183.70 c/u con IVA." },
+    { role: "assistant", content: "¿Se la cotizo? 😊" },
+    { role: "user", content: "Precio por favor" },
+  ];
+
+  it("ultimoTurnoDelBot junta las filas consecutivas y salta el mensaje actual del cliente", () => {
+    const turno = ultimoTurnoDelBot(historial);
+    expect(turno).toContain("Es la única que tengo");
+    expect(turno).toContain("¿Se la cotizo?");
+  });
+  it("no arrastra turnos anteriores del bot", () => {
+    const turno = ultimoTurnoDelBot([
+      { role: "assistant", content: "Hola, soy el asistente" },
+      { role: "user", content: "245/60R18" },
+      ...historial.slice(1),
+    ]);
+    expect(turno).not.toContain("asistente");
+  });
+  it("«Precio por favor» al «¿Se la cotizo?» partido en dos filas es un sí", () => {
+    const turno = ultimoTurnoDelBot(historial);
+    expect(ofertaDeCotizacionAceptada("¿Se la cotizo? 😊", "Precio por favor", turno)).toBe(true);
+    expect(ofertaDeCotizarAceptada("¿Se la cotizo? 😊", "Precio por favor", turno)).toBe(true);
+  });
+  it("con solo la fila del «¿Se la cotizo?» y sin el turno no hay marcador", () => {
+    expect(ofrecioCotizarLaUnica("¿Se la cotizo? 😊")).toBe(false);
+  });
+  it("una oferta suelta que no es la de la única no se vuelve sí", () => {
+    expect(ofertaDeCotizacionAceptada("¿Se la cotizo? 😊", "Precio por favor", "Le sirven estas dos.\n¿Se la cotizo? 😊")).toBe(false);
   });
 });
 
