@@ -23,6 +23,8 @@
  */
 
 import { ES_PRESENTACION_DEL_NEGOCIO } from "./saludo.js";
+import { ofrecioCotizarLaUnica } from "./cotizarLaUnica.js";
+import { pidioPrecioOCotizacion } from "./salesIntent.js";
 
 const normalizar = (texto: string) =>
   (texto ?? "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "")
@@ -129,6 +131,23 @@ const ES_PRESENTACION = ES_PRESENTACION_DEL_NEGOCIO;
 const NEGATIVA_CORTA = /^(?:no|nop|nel|no\s+gracias|todavia\s+no|aun\s+no|ahorita\s+no|por\s+ahora\s+no|mejor\s+no|otro\s+dia|luego|despues|mas\s+tarde)[\s.,!]*$/;
 
 /**
+ * «PRECIO POR FAVOR» A «ES LA ÚNICA QUE TENGO… ¿SE LA COTIZO?» ES UN SÍ.
+ *
+ * Producción, conv +593 99 842 8277, 25-sep: el bot ofreció cotizar la única
+ * llanta, el cliente contestó «Precio por favor» —pedir el número a quien te
+ * ofrece el número— y el turno volvió a preguntar «¿se la cotizo?». No es un
+ * acuse (`ACUSE_SIN_MAS` es cerrado a propósito) pero es una respuesta directa
+ * a la oferta. Solo vale con la oferta de la ÚNICA opción y un mensaje corto:
+ * «precio, y ¿en aro 17 tienen?» sigue siendo una pregunta que hay que contestar.
+ */
+function preguntaElPrecioDeLaUnica(ultimoMensajeDelBot: string | null | undefined, mensajeDelCliente: string): boolean {
+  return ofrecioCotizarLaUnica(ultimoMensajeDelBot)
+    && mensajeDelCliente.length <= 60
+    && !/\?[^?]*\?|,\s*y\b/.test(mensajeDelCliente)
+    && pidioPrecioOCotizacion(mensajeDelCliente);
+}
+
+/**
  * ¿El cliente aceptó la oferta de cotizar que le acaba de hacer el bot?
  *
  * `ultimoMensajeDelBot` es el último saliente de texto; `null` cuando el turno
@@ -142,7 +161,7 @@ export function ofertaDeCotizarAceptada(
   if (!bot || ES_PRESENTACION.test(bot) || !OFRECIO_ALGO.test(bot)) return false;
   const cliente = normalizar(mensajeDelCliente);
   if (!cliente || NEGATIVA_CORTA.test(cliente)) return false;
-  return ACUSE_SIN_MAS.test(cliente);
+  return ACUSE_SIN_MAS.test(cliente) || preguntaElPrecioDeLaUnica(ultimoMensajeDelBot, mensajeDelCliente);
 }
 
 /**
@@ -160,7 +179,7 @@ export function ofertaDeCotizacionAceptada(
   if (!bot || ES_PRESENTACION.test(bot) || !ofreceCotizar(bot)) return false;
   const cliente = normalizar(mensajeDelCliente);
   if (!cliente || NEGATIVA_CORTA.test(cliente)) return false;
-  return ACUSE_SIN_MAS.test(cliente);
+  return ACUSE_SIN_MAS.test(cliente) || preguntaElPrecioDeLaUnica(ultimoMensajeDelBot, mensajeDelCliente);
 }
 
 /**

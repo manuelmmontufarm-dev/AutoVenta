@@ -667,3 +667,16 @@ export function pideOpcionesNoCotizacion(text: string): boolean {
   const n = (text ?? "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
   return /\b(?:opciones|alternativas|lamina)\b/.test(n) && !/\b(?:cotizacion|proforma|pdf)\b/.test(n);
 }
+
+/**
+ * El cliente pidió EL NÚMERO: precio, «cuánto», «cuánto cuesta / sale», valor,
+ * cotiza / cotízame / cotización. `pidePrecio` ya cubría casi todo; se suma el
+ * «cuánto» a secas, que es como lo escribe medio Quito.
+ *
+ * NO autoriza por sí solo (con varias opciones el precio se responde con la
+ * pieza, conv 13615): lo usa `domain/cotizarLaUnica.ts`, donde hay UNA sola
+ * llanta y preguntar «¿se la cotizo?» es pedir permiso por algo ya pedido.
+ */
+export function pidioPrecioOCotizacion(text: string): boolean {
+  return pidePrecio(text) || /\bcuanto\b/.test(normalize(text));
+}

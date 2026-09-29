@@ -78,6 +78,7 @@ import { localPorLaZonaDicha, nearestStore, resolveSector, ubicacionDadaPorElCli
 import { ordenarPorCercania } from "../domain/equivalencia.js";
 import { extractFlotationSizes, formatFlotationSize, formatTireSize, parseTireSize, type TireSize, flotacionIncompleta } from "../domain/tireSize.js";
 import { marcaPreguntada, pidioCotizacionExplicita, ultimaMarcaPedida } from "../domain/consultaConRespaldo.js";
+import { cotizarLaUnicaDeUnaVez } from "../domain/cotizarLaUnica.js";
 import { autorizaCotizacionEnEsteTurno, canGenerateFinalQuote, cantidadParaPrepararOpciones, describeUso, escalonesDeOpciones, pideAlternativaMasBarata, pideRecomendacion, respuestaDePreferencia, pideOpcionesNoCotizacion } from "../domain/salesIntent.js";
 import { equivalenteSinConsentimiento, preguntaDeEquivalente } from "../domain/equivalentePendiente.js";
 import { aroDadoPorElCliente, medidaParaElSello, medidaNoDada, medidasDelAro } from "../domain/medidaConfirmada.js";
@@ -1860,14 +1861,25 @@ export function buildTools(ctx: AgentContext) {
       // ENTREGA la recomendación (el cliente la pidió, no se le repregunta),
       // pero la cotización solo la AUTORIZA pedirla con todas sus letras o
       // contestar el menú de preferencia. Y nunca con la medida sin confirmar.
+      // UNA SOLA OPCIÓN + PRECIO YA PEDIDO SÍ AUTORIZA (conv +593 99 842 8277,
+      // 25 y 27-sep): sin menú posible, «¿se la cotizo?» es pedir permiso por
+      // lo que el cliente ya pidió. Una sola decisión: domain/cotizarLaUnica.ts.
+      const unicaConPrecioPedido = cotizarLaUnicaDeUnaVez({
+        opcionesDistintas: new Set(
+          Object.values(escalones).map((e) => e?.codigo).filter(Boolean),
+        ).size,
+        textosDelCliente: [ctx.currentUserText, ...mensajesDeLaVisitaActual(inbound).map((m) => m.content)],
+        medidaSinConfirmar: Boolean(ctx.medidaSinConfirmar),
+      });
       const entregarRecomendacion =
         pidioCotizacionExplicita(ctx.currentUserText) ||
         pideRecomendacion(ctx.currentUserText) ||
         dijoSuUso ||
-        preferencia !== null;
+        preferencia !== null ||
+        unicaConPrecioPedido;
       const autorizaCotizar =
         !ctx.medidaSinConfirmar &&
-        (pidioCotizacionExplicita(ctx.currentUserText) || preferencia !== null);
+        (pidioCotizacionExplicita(ctx.currentUserText) || preferencia !== null || unicaConPrecioPedido);
       // Si contestó la preferencia, la recomendada ES la de ese escalón — no
       // la que eligió el modelo: «la más barata» no admite otra respuesta.
       const porPreferencia = preferencia
@@ -2086,6 +2098,11 @@ export function buildTools(ctx: AgentContext) {
         // resultado a 500 caracteres y `aviso_medida` es largo.
         consentimiento_pendiente: consentimientoPendiente,
         recomendacion_entregada: autorizaCotizar && !consentimientoPendiente,
+        // UNA SOLA OPCIÓN CON EL PRECIO YA PEDIDO: el texto dice que es la única
+        // y la cotización sale en este turno. El guardián tiene que saberlo para
+        // no agregarle un «¿se la cotizo?» ni tratar la cotización como promesa
+        // vacía. Va junto a `recomendacion_entregada`, dentro de la huella de 500.
+        unica_cotizada_directo: unicaConPrecioPedido && autorizaCotizar && !consentimientoPendiente,
         // UNA SOLA OPCIÓN: el cierre es «¿Se la cotizo?» y el guardián tiene que
         // saberlo para no quitarla. El hecho se buscaba con un regex sobre
         // `mensaje_para_enviar`, que va al final y no entra en los 500

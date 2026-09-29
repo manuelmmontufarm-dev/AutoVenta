@@ -1,3 +1,16 @@
+## 28-sep-2026 · Una sola opción y precio ya pedido: se cotiza, no se pide permiso
+
+**Qué:** Con UNA sola llanta vendible y el cliente ya con «precio», «cuánto»,
+«cotízame» etc. en la visita, la pieza de opciones dice «Es la única que tengo…»
+sin pregunta y el turno genera la cotización. «Precio por favor» a un «¿Se la
+cotizo?» de la única cuenta como sí. Los seguimientos de ese estado hablan de la
+cotización y piden solo la cantidad. El guardián recibe el hecho duro.
+
+**Por qué:** Conv +593 99 842 8277 (25 y 27-sep): «31x10.5R15» + «Precio por
+favor» terminó dos veces en «¿Se la cotizo?» y nunca salió la cotización.
+
+**Horas:** 1,5
+
 ## 28-sep-2026 · Ventas confirmadas: la tabla va plegada
 
 **Qué:** En la tarjeta de Métricas, la lista de ventas queda detrás de «Ver las

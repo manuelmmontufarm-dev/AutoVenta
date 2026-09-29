@@ -61,6 +61,25 @@ export interface FollowUpMessageContext {
   preferenceAnswered?: boolean;
   /** El cliente ya explicó que no tiene/ubica la medida o numeración. */
   customerHasNoTireSize?: boolean;
+  /**
+   * El cliente ya pidió el precio o la cotización en este ciclo. Con UNA sola
+   * opción, preguntarle «¿se la cotizo?» es pedir permiso por lo ya pedido
+   * (conv +593 99 842 8277, 25-27 sep): el seguimiento habla de su cotización
+   * y pide solo lo que falta, la cantidad. Ver `domain/cotizarLaUnica.ts`.
+   */
+  customerAskedPrice?: boolean;
+}
+
+/** Seguimiento de la única opción cuando el precio ya se pidió: sin «¿se la cotizo?». */
+function seguimientoDeUnicaConPrecio(
+  kind: FollowUpMessageKind,
+  prefix: string,
+  product: string,
+  size: string,
+): string {
+  return kind === "in_window_second"
+    ? `😊 Sigo pendiente de su cotización${product}${size}. Apenas me confirme cuántas llantas lleva, se la envío al momento.`
+    : `${prefix}🛞 Ya tengo lista su cotización${product}${size}: solo me falta que me confirme cuántas llantas lleva y se la envío al momento. 😊`;
 }
 
 /**
@@ -251,6 +270,7 @@ function redactarSeguimiento(
   // etapa donde esté (corrida 3: la plantilla de medida_confirmada preguntaba
   // «¿le ayudo a elegir?» sobre una lista de uno).
   if (context.optionsCount === 1 && (context.stage === "seleccionando" || context.stage === "medida_confirmada" || context.selectedProductCode)) {
+    if (context.customerAskedPrice) return seguimientoDeUnicaConPrecio(kind, prefix, product, size);
     return kind === "in_window_second"
       ? `😊 ¿Cómo vio la opción${product}${size}? Si le sirve, ¿se la cotizo?`
       : `${prefix}🛞 ¿Cómo vio la opción${product}${size}? Es la que tengo disponible en su medida; si le sirve, ¿se la cotizo? 😊`;
