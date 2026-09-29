@@ -78,7 +78,7 @@ import { localPorLaZonaDicha, nearestStore, resolveSector, ubicacionDadaPorElCli
 import { ordenarPorCercania } from "../domain/equivalencia.js";
 import { extractFlotationSizes, formatFlotationSize, formatTireSize, parseTireSize, type TireSize, flotacionIncompleta } from "../domain/tireSize.js";
 import { marcaPreguntada, pidioCotizacionExplicita, ultimaMarcaPedida } from "../domain/consultaConRespaldo.js";
-import { armarLista } from "../domain/listaDeOpciones.js";
+import { armarLista, confirmacionDeLaOpcion, opcionPorPosicion, posicionElegida } from "../domain/listaDeOpciones.js";
 import { cotizarLaUnicaDeUnaVez } from "../domain/cotizarLaUnica.js";
 import { traeMarcaDelMenu, autorizaCotizacionEnEsteTurno, canGenerateFinalQuote, cantidadParaPrepararOpciones, describeUso, escalonesDeOpciones, pideAlternativaMasBarata, pideRecomendacion, respuestaDePreferencia, pideOpcionesNoCotizacion } from "../domain/salesIntent.js";
 import { equivalenteSinConsentimiento, preguntaDeEquivalente } from "../domain/equivalentePendiente.js";
@@ -1839,7 +1839,14 @@ export function buildTools(ctx: AgentContext) {
         const escalonesPrevios = (ultimaPieza?.metadata?.escalones ?? null) as
           Record<string, { codigo?: string; nombre?: string; precio_con_iva?: number } | null> | null;
         const nivel = preferenciaContestada === "precio" ? "economica" : preferenciaContestada;
-        const codigoDelEscalon = escalonesPrevios?.[nivel]?.codigo ?? null;
+        // Si el cliente contestó la LISTA con precios, su número es la posición
+        // (`opcionPorPosicion`, dueño único) y se confirma como «La opción N».
+        const posicionDeLista = posicionElegida(ctx.currentUserText);
+        const ultimoNuestro = posicionDeLista !== null ? await lastOutboundText(ctx.conversation.id) : null;
+        const porLista = posicionDeLista !== null && /¿le cotizo la 1/i.test(ctx.mensajeCitado ?? ultimoNuestro ?? "")
+          ? opcionPorPosicion({ escalones: escalonesPrevios }, posicionDeLista)
+          : null;
+        const codigoDelEscalon = porLista?.codigo ?? escalonesPrevios?.[nivel]?.codigo ?? null;
         const elegida = (codigoDelEscalon && products.find((p) => p.code === codigoDelEscalon)) ?? null;
         if (elegida) {
           const precio = elegida.minimumPriceWithTax ? ` — *$${elegida.minimumPriceWithTax.toFixed(2)} c/u con IVA*` : "";
@@ -1851,7 +1858,7 @@ export function buildTools(ctx: AgentContext) {
               imagen_enviada: false,
               consentimiento_pendiente: true,
               recomendacion_entregada: false,
-              mensaje_para_enviar: `La opción ${etiqueta} es la *${elegida.brand} ${elegida.design}*${precio}, en *${elegida.sizeLabel}* (equivalente de su aro).\n---\n${pregunta}`,
+              mensaje_para_enviar: `La opción ${porLista ? `${posicionDeLista},` : `${etiqueta} es la`} *${elegida.brand} ${elegida.design}*${precio}, en *${elegida.sizeLabel}* (equivalente de su aro).\n---\n${pregunta}`,
               regla: "Responde usando exactamente mensaje_para_enviar. Es una EQUIVALENTE: NO llames generar_cotizacion hasta que conteste que sí a esa pregunta. NO reenvíes la lámina.",
             });
           }
@@ -1861,7 +1868,9 @@ export function buildTools(ctx: AgentContext) {
             recomendacion_entregada: true,
             recomendacion: `${elegida.brand} ${elegida.design}`,
             codigo: elegida.code,
-            mensaje_para_enviar: `La opción ${etiqueta} es la *${elegida.brand} ${elegida.design}*${precio}.`,
+            mensaje_para_enviar: porLista
+              ? confirmacionDeLaOpcion(posicionDeLista!, `${elegida.brand} ${elegida.design}`, elegida.minimumPriceWithTax)
+              : `La opción ${etiqueta} es la *${elegida.brand} ${elegida.design}*${precio}.`,
             regla: `El cliente contestó el menú: la lámina ya la tiene y NO se reenvía. Llama generar_cotizacion AHORA MISMO con code ${elegida.code} y 4 llantas (o la cantidad que haya dicho); el texto de arriba va antes de la cotización.`,
           });
         }

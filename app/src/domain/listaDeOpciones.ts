@@ -148,3 +148,13 @@ export function opcionPorPosicion(
   const escalon: EscalonElegido = n === 1 ? "precio" : n === pieza.lista.length ? "premium" : "equilibrada";
   return { codigo: linea.codigo, nombre: linea.nombre, precio_con_iva: linea.precio, escalon };
 }
+
+/**
+ * La confirmación cuando el cliente eligió por su número de la lista. Dice «La
+ * opción 2», no «la opción de equilibrio»: con dos opciones el escalón «premium»
+ * o «de equilibrio» sería un rótulo que el cliente nunca vio.
+ */
+export function confirmacionDeLaOpcion(posicion: number, nombre: string, precio: number | null | undefined): string {
+  const p = precio ? ` — *$${precio.toFixed(2)} c/u con IVA*` : "";
+  return `La opción ${posicion}, *${nombre}*${p}. Le dejo la cotización 👍`;
+}

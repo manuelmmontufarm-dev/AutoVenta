@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  armarLista, hechoDeLaLista, listaDeLaPieza, opcionPorPosicion, posicionElegida, preguntaDeLaLista, textoDeLaLista,
+  armarLista, confirmacionDeLaOpcion, hechoDeLaLista, listaDeLaPieza, opcionPorPosicion, posicionElegida, preguntaDeLaLista, textoDeLaLista,
 } from "../src/domain/listaDeOpciones.js";
 import { esRespuestaDelMenuDePreferencia, escalonContestado, esPedidoDeAmbasOpciones } from "../src/domain/salesIntent.js";
 
@@ -174,7 +174,39 @@ describe("cotizarLoElegido usa esa misma posición", () => {
     const { loQueEligio } = await import("../src/services/cotizarLoElegido.js");
     const previo = textoDeLaLista(armarLista([
       { nombre: "FALKEN WILDPEAK", precio: 171.2, codigo: "F1" }, { nombre: "WINRUN R380", precio: 96.5, codigo: "W1" }], 4)!, 4);
-    expect(loQueEligio("2", previo, null, vitrina, dos)).toEqual({ codigo: "F1", etiqueta: "premium" });
-    expect(loQueEligio("1", previo, null, vitrina, dos)).toEqual({ codigo: "W1", etiqueta: "de costo" });
+    expect(loQueEligio("2", previo, null, vitrina, dos)).toEqual({ codigo: "F1", etiqueta: "premium", posicion: 2 });
+    expect(loQueEligio("1", previo, null, vitrina, dos)).toEqual({ codigo: "W1", etiqueta: "de costo", posicion: 1 });
+  });
+});
+
+describe("la confirmación tras elegir de la lista dice «La opción N», no el escalón", () => {
+  const vitrina = [
+    { codigo: "W1", marca: "WINRUN", diseno: "R380", medida: "255/70R16" },
+    { codigo: "F1", marca: "FALKEN", diseno: "WILDPEAK", medida: "255/70R16" },
+  ];
+  const dos = { premium: { codigo: "F1", nombre: "FALKEN WILDPEAK", precio_con_iva: 171.2 }, equilibrada: null,
+    economica: { codigo: "W1", nombre: "WINRUN R380", precio_con_iva: 96.5 } };
+  const previo = textoDeLaLista(armarLista([
+    { nombre: "FALKEN WILDPEAK", precio: 171.2, codigo: "F1" }, { nombre: "WINRUN R380", precio: 96.5, codigo: "W1" }], 4)!, 4);
+
+  it("loQueEligio marca la posición cuando la pick vino de la lista", async () => {
+    process.env.OPENAI_API_KEY ||= "test";
+    process.env.DATABASE_URL ||= "postgresql://manue@localhost/postgres";
+    const { loQueEligio } = await import("../src/services/cotizarLoElegido.js");
+    expect(loQueEligio("2", previo, null, vitrina, dos)).toMatchObject({ codigo: "F1", posicion: 2 });
+  });
+
+  it("con el menú viejo NO hay posición (sigue el escalón)", async () => {
+    const { loQueEligio } = await import("../src/services/cotizarLoElegido.js");
+    const menu = "¿qué prioriza usted?\n1) *Costo*\n2) *Premium*";
+    const r = loQueEligio("2", menu, null, vitrina, dos) as { posicion?: number; etiqueta?: string };
+    expect(r.posicion).toBeUndefined();
+    expect(r.etiqueta).toBe("premium");
+  });
+
+  it("el texto: «La opción 2, *KENDA KR28* — $154.07 c/u con IVA. Le dejo la cotización 👍»", () => {
+    const t = confirmacionDeLaOpcion(2, "KENDA KR28", 154.07);
+    expect(t).toBe("La opción 2, *KENDA KR28* — *$154.07 c/u con IVA*. Le dejo la cotización 👍");
+    expect(t).not.toMatch(/equilibrio|premium|costo/i);
   });
 });
