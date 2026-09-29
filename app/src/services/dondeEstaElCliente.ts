@@ -14,7 +14,7 @@
  */
 import { sql } from "../db/client.js";
 import { dondeEstaElCliente } from "../domain/fueraDeCobertura.js";
-import { comproADistanciaSegunLoDicho } from "../domain/compraADistancia.js";
+import { comproADistanciaSegunLoDicho, type SinVisita } from "../domain/compraADistancia.js";
 
 export type EstadoDeCobertura = "cobertura" | "viene" | "fuera";
 
@@ -54,7 +54,7 @@ export async function dondeEstaElClienteSegunLoDicho(
  * La compra a distancia se lee del ciclo vigente: es una decisión de ESTA
  * compra, no un dato de la persona como la ciudad.
  */
-export type SinVisita = "fuera_de_cobertura" | "compra_a_distancia";
+export type { SinVisita } from "../domain/compraADistancia.js";
 
 export async function porQueNoPasaPorElLocal(
   conversationId: number,

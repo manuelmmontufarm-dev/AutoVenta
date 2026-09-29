@@ -1,5 +1,6 @@
 import type { Stage } from "./pipeline.js";
 import { lineaDeLista, preguntaDeLaLista, type LineaDeLista } from "./listaDeOpciones.js";
+import { CIERRE_COMPRA_A_DISTANCIA, type SinVisita } from "./compraADistancia.js";
 
 export type FollowUpMessageKind =
   | "in_window_first"
@@ -81,6 +82,13 @@ export interface FollowUpMessageContext {
    * dueño de ese dato). Con ella el seguimiento no vuelve a pedirla.
    */
   selectedQuantity?: number | null;
+  /**
+   * El cliente NO va a pasar por el local (`porQueNoPasaPorElLocal`): compra a
+   * distancia o está fuera de Quito. Sin mapas, y a quien compra a distancia
+   * se le habla de pago y envío, no de visita (familia 2-E, 28-sep: 6 de 6
+   * borradores llevaban los dos links y el guardián los quitaba).
+   */
+  sinVisita?: SinVisita | null;
 }
 
 /** Seguimiento de la única opción cuando el precio ya se pidió: sin «¿se la cotizo?». */
@@ -127,6 +135,7 @@ export function followUpNeedsStoreLinks(
   kind: FollowUpMessageKind,
 ): boolean {
   if (kind !== "in_window_first" && kind !== "in_window_second") return false;
+  if (context.sinVisita) return false;
   if (!context.storeLinks?.trim()) return false;
   if (!context.quoteNumber) return false;
   return !context.nearestStore || !context.visitDate;
@@ -199,6 +208,15 @@ function redactarSeguimiento(
         ? "Tiene una cotización pendiente."
         : `La conversación quedó en ${context.stage.replaceAll("_", " ")}.`;
     return `Revisar personalmente: ${detail} Decidir si conviene continuar la conversación o marcarla como Perdida; nunca cerrarla automáticamente.`;
+  }
+
+  // Compra a distancia: lo pendiente es el pago y el envío, que coordina el
+  // asesor. Ni visita, ni local, ni día (conv 21766).
+  if (context.sinVisita === "compra_a_distancia" && (kind === "in_window_first" || kind === "in_window_second")) {
+    const que = product || size ? ` de${product}${size}` : "";
+    return kind === "in_window_second"
+      ? `😊 Sigo pendiente de su compra${que}. ${CIERRE_COMPRA_A_DISTANCIA}`
+      : `${prefix}🛞 Quedó en marcha su compra${que}. ${CIERRE_COMPRA_A_DISTANCIA}`;
   }
 
   if (context.activeDiscountAmount && context.activeDiscountCondition && context.activeDiscountFinalTotal) {

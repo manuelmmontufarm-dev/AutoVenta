@@ -55,3 +55,26 @@ export function comproADistanciaSegunLoDicho(mensajesDelMasNuevo: readonly (stri
   }
   return false;
 }
+
+/**
+ * Por qué un cliente no va a pasar por el local. El dueño de la decisión es
+ * `porQueNoPasaPorElLocal` (services/dondeEstaElCliente.ts); el tipo vive acá
+ * para que los textos puros (seguimientos, cierre) lo puedan usar.
+ */
+export type SinVisita = "fuera_de_cobertura" | "compra_a_distancia";
+
+/**
+ * El cierre para quien compra a distancia, en lugar de «Puede pasar sin
+ * compromiso… ¿A cuál local le queda mejor ir?» + mapas. Lo respalda la alerta
+ * alta `customer_ready_to_buy` que `index.ts` levanta al leer la compra.
+ */
+export const CIERRE_COMPRA_A_DISTANCIA = "Un asesor le confirma pago y envío por acá. 🤝";
+
+/**
+ * Los bloques que cierran una cotización cuando el cliente NO pasa por el
+ * local: sin mapas ni pregunta de local o día. Fuera de cobertura no se agrega
+ * nada (la respuesta de envío la da el asesor con su propia alerta).
+ */
+export function cierreSinVisita(motivo: SinVisita): string[] {
+  return motivo === "compra_a_distancia" ? [CIERRE_COMPRA_A_DISTANCIA] : [];
+}

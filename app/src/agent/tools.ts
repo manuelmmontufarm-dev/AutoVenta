@@ -51,6 +51,8 @@ import {
   composeBlocks,
   warrantyForBrand,
 } from "../services/quoteMessages.js";
+import { porQueNoPasaPorElLocal } from "../services/dondeEstaElCliente.js";
+import { cierreSinVisita } from "../domain/compraADistancia.js";
 import {
   appendMessage,
   logQuote,
@@ -3267,6 +3269,13 @@ export function buildTools(ctx: AgentContext) {
         ? avisoDeCantidad(items[0].cantidad)
         : null;
       const cierre = buildStoreChoiceBlocks();
+      // QUIEN NO VA A PASAR POR EL LOCAL NO RECIBE LA INVITACIÓN (familia 2-E,
+      // verificación del 28-sep, 3 de 3): «Lo compro por este medio… me envía»
+      // recibía «Puede pasar sin compromiso… ¿A cuál local?» + mapas y el
+      // guardián lo borraba. La decisión es de `porQueNoPasaPorElLocal`.
+      const sinVisita = await porQueNoPasaPorElLocal(
+        ctx.conversation.id, ctx.conversation.current_cycle, ctx.currentUserText,
+      );
       return JSON.stringify({
         enviada: true,
         numero: quote.number,
@@ -3315,7 +3324,9 @@ export function buildTools(ctx: AgentContext) {
           // ver `buildStoreChoiceBlocks`). Con el local ya elegido no hay nada
           // que preguntar ahí y queda un solo bloque: el día, con la cifra del
           // descuento.
-          ...(localElegido
+          ...(sinVisita
+            ? cierreSinVisita(sinVisita)
+            : localElegido
             ? [buildVisitPlanQuestion({
                 conDescuentoAutorizado: Boolean(descuentoAplicado),
                 locales: business.stores.map((store) => store.name),
@@ -3325,7 +3336,9 @@ export function buildTools(ctx: AgentContext) {
             : [cierre.ubicaciones, cierre.pregunta]),
         ),
         regla: [
-          localElegido
+          sinVisita
+            ? `Responde exactamente con mensaje_para_enviar, con sus separadores '---' intactos. La cotización ya fue enviada y Manuel ya fue notificado. ${sinVisita === "compra_a_distancia" ? "El cliente compra a distancia (paga por este medio y quiere envío)" : "El cliente está fuera de Quito"}: NO le preguntes a qué local va ni qué día pasa, y NO mandes mapas. Pago y envío los coordina el asesor.`
+            : localElegido
             ? `Responde exactamente con mensaje_para_enviar, con sus separadores '---' intactos. La cotización ya fue enviada y Manuel ya fue notificado. El cliente YA eligió local (${localElegido}): NO vuelvas a preguntarle cuál. Tu objetivo es UNO: que diga qué día viene. No cierres ningún turno sin esa pregunta hasta tener la respuesta.`
             : "Responde exactamente con mensaje_para_enviar, con sus separadores '---' intactos: son mensajes distintos a propósito y juntarlos arruina el cierre. La cotización ya fue enviada y Manuel ya fue notificado. En ESTE turno tu objetivo es UNO SOLO: que el cliente diga a cuál local le queda mejor ir. NO le preguntes todavía qué día viene — eso se le pregunta recién cuando haya elegido local, y ahí va con el monto del descuento.",
           stockCorto
