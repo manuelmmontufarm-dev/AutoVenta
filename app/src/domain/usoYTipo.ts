@@ -167,8 +167,11 @@ export function separarPorUso<T extends { stock: number }>(
     `${compatibles.filter((p) => p.stock > 0).length} vendible(s) de esos tipos, así que se incluyó ` +
     `${tiposOtros.length ? tiposOtros.join(" / ") : "otro tipo"}. Díselo en una línea: ` +
     "«no me queda de ese tipo en su medida, esta es la más cercana»; NUNCA la presentes como el tipo que necesita.";
+  // Neutro a propósito: no repite un uso con palabras que el cliente no dijo
+  // («piedra» no es «tierra») ni juzga el tipo que sí hay: puede ser lo único.
+  const conocidos = buenos.slice(0, 2).join(" / ");
   const avisoAlCliente =
-    `⚠️ Ojo: para ${NOMBRE_DEL_USO[uso]} lo ideal es ${buenos.join(" / ")}, pero en esta medida no me alcanza el stock de esos; ` +
-    `incluí ${tiposOtros.length ? tiposOtros.join(" / ") : "otro tipo"} como la más cercana.`;
+    `⚠️ Ojo: de ${conocidos} no me queda stock en esta medida; ` +
+    `lo que sí tengo es ${tiposOtros.length ? tiposOtros.join(" / ") : "de otro tipo"}, y es lo que le puedo ofrecer.`;
   return { compatibles, otros, avisoTipo, avisoAlCliente, uso };
 }
