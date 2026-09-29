@@ -144,6 +144,13 @@ export interface PasoDeSalida {
   corre: readonly TipoDeSalida[];
   /** Devuelve el texto ya tratado, o `null` para no enviar nada. */
   aplicar(texto: string, ctx: ContextoDeSalida): Promise<string | null>;
+  /**
+   * Declara que si este paso devuelve `null`, callar ES el resultado correcto
+   * (el cliente se despidió, es un duplicado ya alertado). Sin esta marca, un
+   * `null` en una puerta que contesta a un cliente se trata como turno perdido:
+   * alerta al asesor y línea de respaldo. Ver `correrPasos`.
+   */
+  silencioEsCorrecto?: boolean;
 }
 
 /**
@@ -162,6 +169,7 @@ export const PASOS: readonly PasoDeSalida[] = [
     // Ver domain/clientePosterga.ts y services/dondeEstaElCliente.ts.
     nombre: "el_cliente_tomo_el_turno",
     corre: ["seguimiento"],
+    silencioEsCorrecto: true,
     async aplicar(texto, ctx) {
       const [ultimo] = await sql<{ content: string | null; direction: string }[]>`
         select content, direction from messages
@@ -202,6 +210,9 @@ export const PASOS: readonly PasoDeSalida[] = [
     // null = no enviar.
     nombre: "guardian_deterministico",
     corre: ["respuesta", "retomada"],
+    // Su null es «bot atascado / mensaje duplicado / saludo repetido»: ya
+    // alerta él mismo y repetir lo ya dicho sería peor que callar.
+    silencioEsCorrecto: true,
     async aplicar(texto, ctx) {
       const vetted = await applyOutboundGuard(ctx.conversation.id, texto);
       return vetted.text;
@@ -1102,9 +1113,18 @@ export const PASOS: readonly PasoDeSalida[] = [
 ];
 
 
+/**
+ * LA LÍNEA SEGURA CUANDO UN TURNO DE CLIENTE QUEDA VACÍO. No promete nada, no
+ * pregunta por local ni día, no trae mapas: vale también para el que no puede
+ * pasar por el local. Conv 22481: 5 días de silencio.
+ */
+export const RESPALDO_TURNO_VACIO = "Le consulto con un asesor y le confirmo por acá 🙌";
+
 export interface SalidaPreparada {
   /** Texto listo para enviar, o `null` si algún candado bloqueó el envío. */
   texto: string | null;
+  /** El paso que vació el turno (y se sustituyó por el respaldo), si fue el caso. */
+  vaciadoPor?: string;
   /** Qué pasos corrieron, en orden. Para el hub y para las pruebas. */
   pasosCorridos: string[];
 }
@@ -1201,6 +1221,7 @@ export async function correrPasos(
 ): Promise<SalidaPreparada> {
   let texto: string | null = borrador;
   const pasosCorridos: string[] = [];
+  let vaciador: PasoDeSalida | null = null;
   ctx.salidaTerminal = false;
   const separa = pasos.findIndex((paso) => paso.nombre === PASO_QUE_SEPARA);
   for (const [indice, paso] of pasos.entries()) {
@@ -1217,10 +1238,51 @@ export async function correrPasos(
       } else {
         texto = despues;
       }
+      if (!texto?.trim() && !vaciador) vaciador = paso;
       if (ctx.salidaTerminal) break;
     } catch (error) {
       console.error(`⚠️ El candado ${paso.nombre} falló en la conv ${ctx.conversation.id}:`, error);
     }
   }
-  return { texto: texto?.trim() ? texto : null, pasosCorridos };
+  if (texto?.trim()) return { texto, pasosCorridos };
+  return await turnoVacio(ctx, pasosCorridos, vaciador, borrador);
+}
+
+/**
+ * EL ÚNICO DUEÑO DE «EL TURNO QUEDÓ VACÍO».
+ *
+ * Un turno que nació de un mensaje del cliente (`respuesta`, `retomada`) no
+ * puede terminar en nada: las puertas hacían `if (!salida.texto) return` y el
+ * cliente esperaba en silencio (conv 22481: `sin_visita_si_no_puede_venir`
+ * quitó mapas y visita y no quedó nada; 5 días sin respuesta ni alerta).
+ * Se crea una alerta alta con el paso culpable y sale la línea segura, salvo
+ * que el paso declare que callar es lo correcto. El seguimiento no contesta a
+ * nadie: ahí callar sigue siendo callar.
+ */
+async function turnoVacio(
+  ctx: ContextoDeSalida,
+  pasosCorridos: string[],
+  vaciador: PasoDeSalida | null,
+  borrador: string,
+): Promise<SalidaPreparada> {
+  const callar: SalidaPreparada = { texto: null, pasosCorridos };
+  if (ctx.tipo !== "respuesta" && ctx.tipo !== "retomada") return callar;
+  if (vaciador?.silencioEsCorrecto) return callar;
+  const quien = vaciador?.nombre ?? (borrador.trim() ? "desconocido" : "borrador_vacio");
+  console.error(`🕳️ Conv ${ctx.conversation.id}: el turno quedó vacío por «${quien}»; sale el respaldo y se alerta.`);
+  await createBotAlert({
+    conversationId: ctx.conversation.id,
+    cycle: ctx.conversation.current_cycle,
+    type: "turno_sin_respuesta",
+    priority: "high",
+    summary: "El bot no tenía nada seguro que decir y mandó un respaldo",
+    exactReason: `El turno respondía a un mensaje del cliente y el paso «${quien}» dejó el texto vacío.`,
+    suggestedAction: "Revisar el chat, contestar lo que el cliente preguntó y reportar el paso.",
+    dedupeKey: `turno_vacio:${ctx.conversation.id}:${ctx.conversation.current_cycle}`,
+  }).catch((error) => console.error("⚠️ No se pudo crear la alerta de turno vacío:", error));
+  return {
+    texto: RESPALDO_TURNO_VACIO,
+    pasosCorridos: [...pasosCorridos, "respaldo_turno_vacio"],
+    vaciadoPor: quien,
+  };
 }

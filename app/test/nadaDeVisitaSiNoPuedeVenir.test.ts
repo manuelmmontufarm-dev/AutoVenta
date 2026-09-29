@@ -92,3 +92,23 @@ describe("el turno para quien no puede pasar por el local", () => {
     expect(r.quitado).toBe(true);
   });
 });
+
+import { dondeEstaElCliente } from "../src/domain/fueraDeCobertura.js";
+
+describe("«estando en Quito» es que viene, no que está lejos (conv 22481)", () => {
+  it("la frase real del cliente cuenta como viene", () => {
+    expect(dondeEstaElCliente("Yo vivo en Ibarra, estando en Quito sector norte")?.estado).toBe("viene");
+  });
+  it.each([
+    "Vivo en Ibarra pero estoy en Quito",
+    "Soy de Ambato, ahora en Quito",
+    "Soy de Cuenca, ya en Quito",
+    "Soy de Loja, en Quito por estos días",
+  ])("«%s» → viene", (t) => {
+    expect(dondeEstaElCliente(t)?.estado).toBe("viene");
+  });
+  it("«vivo en Ibarra» solo sigue siendo fuera, y la negación gana", () => {
+    expect(dondeEstaElCliente("Yo vivo en Ibarra")?.estado).toBe("fuera");
+    expect(dondeEstaElCliente("Vivo en Ibarra, no estoy en Quito")?.estado).toBe("fuera");
+  });
+});
