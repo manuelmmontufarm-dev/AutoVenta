@@ -30,7 +30,8 @@ vi.mock("../src/services/catalog.js", async () => {
     searchByText: () => [],
     searchByRim: (aro: number) => buscarPorAro(catalogo, aro),
     searchWithLadder: () => ({ resultados: [], sinCoincidenciaExacta: true, medidaPedida: null, enEsaMedida: [], modeloEnOtrasMedidas: [] }),
-    searchBySize: () => [],
+    searchBySize: (z: { width: number; aspect: number | null; rim: number }) =>
+      catalogo.filter((i) => i.size?.width === z.width && i.size?.aspect === z.aspect && i.size?.rim === z.rim),
     searchAlternatives: () => [],
     catalogCandidates: () => [],
     catalogStatus: () => ({ items: catalogo.length, error: null }),
@@ -216,5 +217,23 @@ describe("preparar_opciones · lo que el modelo elige también respeta el uso", 
     expect(enPieza).toContain("356398");
     expect(salida.aviso_tipo).toBe(true);
     expect(salida.aviso).toMatch(/H\/T/);
+  });
+
+  it("lodo con UNA M/T elegida y una R/T con stock en su medida: la R/T se suma, sin aviso", async () => {
+    const kr29 = llanta("32793002", "KENDA", "KR29", "265/65R17", 4, 269);
+    const rt = llanta("2656517WRMAXCLAWRT", "WINRUN", "MAXCLAW R/T", "265/65R17", 8, 200);
+    catalogo = [kr29, rt];
+
+    const salida = await prepararOpciones("es para lodo, camino pantanero", ["32793002"]);
+
+    const enPieza = JSON.stringify(salida);
+    expect(enPieza).toContain("2656517WRMAXCLAWRT");
+    expect(salida.aviso_tipo).toBeUndefined();
+  });
+
+  it("el aviso de tipo va HORNEADO en mensaje_para_enviar, no solo en el JSON", async () => {
+    const salida = await prepararOpciones("Es para ciudad", ["K501B784", "3817B706", "356398"]);
+
+    expect(salida.mensaje_para_enviar).toMatch(/Ojo: para ciudad/);
   });
 });

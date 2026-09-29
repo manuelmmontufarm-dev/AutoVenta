@@ -1716,9 +1716,25 @@ export function buildTools(ctx: AgentContext) {
       const usoDelCliente = tipoPedido
         ? null
         : usoDeLosTextos([ctx.currentUserText, ...mensajesDeLaVisitaActual(inbound).map((m) => m.content)]);
-      const porUso = separarPorUso(
-        vendibles, usoDelCliente, (p) => normalizarTipo(tipoDeProducto(p.code, p.design) ?? ""),
-      );
+      const tipoDe = (p: { code: string; design: string }) => normalizarTipo(tipoDeProducto(p.code, p.design) ?? "");
+      let porUso = separarPorUso(vendibles, usoDelCliente, tipoDe);
+      // El modelo pudo mandar UNA sola (la KR29 M/T para «lodo, pantanero») aunque
+      // en esa misma medida hay compatibles vendibles que no eligió (una R/T).
+      // Se completa desde el catálogo, con la misma medida y lo que alcanza.
+      if (porUso.avisoTipo && usoDelCliente && vendibles[0]?.size) {
+        const yaEstan = new Set(vendibles.map((p) => p.code));
+        const extras = opcionesQueAlcanzan(
+          conStock(searchBySize(vendibles[0].size)).filter((p) => !yaEstan.has(p.code)),
+          cantidadResuelta.cantidad,
+        );
+        if (extras.length) {
+          const ampliado = separarPorUso([...vendibles, ...extras], usoDelCliente, tipoDe);
+          // Solo se toma lo que suma compatibles: no se cuelan otros tipos por esta vía.
+          const nuevos = new Set(ampliado.compatibles.map((p) => p.code));
+          const sumados = extras.filter((p) => nuevos.has(p.code));
+          if (sumados.length) porUso = separarPorUso([...vendibles, ...sumados], usoDelCliente, tipoDe);
+        }
+      }
       if (porUso.avisoTipo) avisoTipo = [avisoTipo, porUso.avisoTipo].filter(Boolean).join(" ");
       const delUso = porUso.avisoTipo ? [...porUso.compatibles, ...porUso.otros] : porUso.compatibles;
       const products = delUso.length > 3 ? tresOpciones(delUso) : delUso;
@@ -2278,6 +2294,9 @@ export function buildTools(ctx: AgentContext) {
             : buildCustomerOptionsMessageDetallado(products, nombre_cliente),
           avisoMarcaCliente,
           avisoMedidaCliente,
+          // El aviso de tipo va HORNEADO: el modelo lo omitía y el guardián
+          // tenía que agregarlo (una pasada más de IA por turno).
+          porUso.avisoAlCliente,
           beneficios,
           cierreDeOpciones,
         ),

@@ -1,3 +1,15 @@
+## 28-sep-2026 · Uso «lodo»: la R/T también entra, y el aviso de tipo va horneado
+
+**Qué:** «lodo» a secas dejó de contar como M/T pedida explícita (era un uso), así
+que el filtro de uso {M/T, R/T} manda. preparar_opciones completa desde el
+catálogo, en la misma medida, los compatibles que el modelo no eligió, y el aviso
+de tipo va dentro de mensaje_para_enviar en vez de depender del guardián.
+
+**Por qué:** Simulador, 265/65R17 «lodo, camino pantanero»: salió «la única»
+KR29 aunque había una R/T con stock. No era el stock: «lodo» forzaba M/T.
+
+**Horas:** 0,5
+
 ## 28-sep-2026 · Tras la lámina de opciones el cliente ve el precio escrito (y nadie le pregunta qué prioriza)
 
 **Qué:** El texto que acompaña la lámina de opciones (sin recomendación) deja de
