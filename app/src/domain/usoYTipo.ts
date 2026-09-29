@@ -125,6 +125,8 @@ export interface SeparadoPorUso<T> {
   otros: T[];
   /** Texto para el modelo y el guardián cuando se salió del uso. Null = sin salirse. */
   avisoTipo: string | null;
+  /** La misma advertencia, en una línea para el cliente (va horneada en el mensaje). */
+  avisoAlCliente: string | null;
   uso: UsoDeclarado | null;
 }
 
@@ -139,7 +141,7 @@ export function separarPorUso<T extends { stock: number }>(
   uso: UsoDeclarado | null,
   tipoDe: (p: T) => string | null | undefined,
 ): SeparadoPorUso<T> {
-  if (!uso) return { compatibles: [...productos], otros: [], avisoTipo: null, uso: null };
+  if (!uso) return { compatibles: [...productos], otros: [], avisoTipo: null, avisoAlCliente: null, uso: null };
   const buenos = TIPOS_POR_USO[uso];
   const vetados = NUNCA_PARA[uso] ?? [];
   const esBueno = (p: T) => buenos.includes(tipoDe(p) ?? "");
@@ -148,11 +150,11 @@ export function separarPorUso<T extends { stock: number }>(
   const principales = PRINCIPALES[uso];
   if (principales) {
     const soloEsos = productos.filter((p) => principales.includes(tipoDe(p) ?? ""));
-    if (vendibles(soloEsos) >= 2) return { compatibles: soloEsos, otros: [], avisoTipo: null, uso };
+    if (vendibles(soloEsos) >= 2) return { compatibles: soloEsos, otros: [], avisoTipo: null, avisoAlCliente: null, uso };
   }
   const compatibles = productos.filter(esBueno);
   if (vendibles(compatibles) >= 2) {
-    return { compatibles, otros: [], avisoTipo: null, uso };
+    return { compatibles, otros: [], avisoTipo: null, avisoAlCliente: null, uso };
   }
   const resto = productos.filter((p) => !esBueno(p));
   const admitidos = resto.filter((p) => !vetados.includes(tipoDe(p) ?? ""));
@@ -165,5 +167,8 @@ export function separarPorUso<T extends { stock: number }>(
     `${compatibles.filter((p) => p.stock > 0).length} vendible(s) de esos tipos, así que se incluyó ` +
     `${tiposOtros.length ? tiposOtros.join(" / ") : "otro tipo"}. Díselo en una línea: ` +
     "«no me queda de ese tipo en su medida, esta es la más cercana»; NUNCA la presentes como el tipo que necesita.";
-  return { compatibles, otros, avisoTipo, uso };
+  const avisoAlCliente =
+    `⚠️ Ojo: para ${NOMBRE_DEL_USO[uso]} lo ideal es ${buenos.join(" / ")}, pero en esta medida no me alcanza el stock de esos; ` +
+    `incluí ${tiposOtros.length ? tiposOtros.join(" / ") : "otro tipo"} como la más cercana.`;
+  return { compatibles, otros, avisoTipo, avisoAlCliente, uso };
 }
