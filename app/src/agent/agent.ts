@@ -3,6 +3,7 @@
  * Ejecuta las tools locales y devuelve los resultados al modelo hasta obtener
  * una respuesta final para WhatsApp.
  */
+import { obligacionDeMostrarEquivalentes } from "../domain/equivalentesPorMostrar.js";
 import { opcionPorPosicion, posicionElegida } from "../domain/listaDeOpciones.js";
 import { anuncioDeLaConversacion } from "../services/anuncio.js";
 import OpenAI from "openai";
@@ -700,6 +701,8 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
   // cotización… total $342.08» sin cotización. El recordatorio no puede
   // consumir la ronda que necesita para cumplirse: se le suma una.
   let rondasDelTurno = config.openai.maxToolIterations;
+  /** Cada llamada del turno con su resultado ENTERO (la huella del guardián lo corta). */
+  const llamadasDelTurno: { herramienta: string; resultado: string }[] = [];
   for (let iteration = 0; iteration < rondasDelTurno; iteration += 1) {
     modeloUsado = modeloDelTurno(iteration, faseOperativa, exactoBarato);
     const gpt5 = modeloUsado.startsWith("gpt-5");
@@ -775,16 +778,23 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
       const debeNotificar = pidioHumano && !usedTools.includes("notificar_vendedor");
       const debeBuscarPorAro = aroDelTurno !== null
         && !["buscar_por_aro_y_tipo", "buscar_llanta", "fitment_vehiculo"].some((h) => usedTools.includes(h));
-      if ((debeCotizar || debeNotificar || debeBuscarPorAro) && !vueltaForzadaUsada && !ctx.consultaFueraDeCatalogo) {
+      // SIN STOCK EXACTO Y CON EQUIVALENTES DE VERDAD, LA LÁMINA SALE (V3a,
+      // 28-sep): el modelo escribió «¿Le muestro las opciones equivalentes?»
+      // con la KR608 245/70R16 en la mano. Ver `domain/equivalentesPorMostrar.ts`.
+      const equivalentesPendientes = obligacionDeMostrarEquivalentes(llamadasDelTurno);
+      const debeMostrarEquivalentes = !debeCotizar && !debeNotificar && equivalentesPendientes !== null;
+      if ((debeCotizar || debeNotificar || debeMostrarEquivalentes || debeBuscarPorAro) && !vueltaForzadaUsada && !ctx.consultaFueraDeCatalogo) {
         vueltaForzadaUsada = true;
         rondasDelTurno += 1;
-        usedTools.push(`vuelta_forzada:${debeCotizar ? "cotizar" : debeNotificar ? "notificar" : "buscar_aro"}`);
+        usedTools.push(`vuelta_forzada:${debeCotizar ? "cotizar" : debeNotificar ? "notificar" : debeMostrarEquivalentes ? "mostrar_equivalentes" : "buscar_aro"}`);
         messages.push({
           role: "system",
           content: debeCotizar
             ? "TE FALTÓ LA OBLIGACIÓN DEL TURNO: el cliente pidió la cotización (o fijó una cantidad nueva) y no llamaste generar_cotizacion. Llámala AHORA con el producto recomendado vigente y la cantidad dicha (4 si no dijo). No escribas texto final sin la herramienta."
             : debeNotificar
               ? "TE FALTÓ LA OBLIGACIÓN DEL TURNO: el cliente pidió hablar con una persona y no llamaste notificar_vendedor. Llámala AHORA con un resumen accionable. No escribas texto final sin la herramienta."
+              : debeMostrarEquivalentes
+              ? equivalentesPendientes!.recordatorio
               : `TE FALTÓ LA OBLIGACIÓN DEL TURNO: el cliente dio el aro ${aroDelTurno} y no buscaste nada. Llama buscar_por_aro_y_tipo AHORA y muéstrale opciones con preparar_opciones. No escribas texto final sin haber mostrado algo.`,
         });
         continue;
@@ -829,6 +839,7 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
           : JSON.stringify({ error: `Tool desconocida: ${call.function.name}` });
       executedCalls.add(signature);
       if (!repetida) resultadosPorFirma.set(signature, result);
+      llamadasDelTurno.push({ herramienta: call.function.name, resultado: result });
       messages.push({ role: "tool", tool_call_id: call.id, content: result });
       // La huella del turno, para el Ángel Guardián: qué se buscó y qué volvió.
       (ctx.toolTrace ??= []).push({

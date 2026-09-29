@@ -80,6 +80,7 @@ import {
 import { localPorLaZonaDicha, nearestStore, resolveSector, ubicacionDadaPorElCliente } from "../domain/locations.js";
 import { direccionPedida, equivaleAAlguna, esEquivalente, ordenarPorCercania } from "../domain/equivalencia.js";
 import { avisoDeMedidaEnOpciones, siguientePasoPorMedidaDistinta } from "../domain/equivalenciaEnTexto.js";
+import { CAMPO_EQUIVALENTES, equivalentesAMostrar, reglaDeMostrarEquivalentes } from "../domain/equivalentesPorMostrar.js";
 import { extractFlotationSizes, formatFlotationSize, formatTireSize, parseTireSize, type TireSize, type FlotationSize, flotacionIncompleta, medidaGuardable } from "../domain/tireSize.js";
 import { marcaPreguntada, pidioCotizacionExplicita, ultimaMarcaPedida } from "../domain/consultaConRespaldo.js";
 import { armarLista, confirmacionDeLaOpcion, opcionPorPosicion, posicionElegida } from "../domain/listaDeOpciones.js";
@@ -947,7 +948,15 @@ export function buildTools(ctx: AgentContext) {
       // marca cuál le sirve a su uso: el menú se arma solo con esos tipos.
       const usoDelCliente = await usoDeLaVisita();
       const sirvenAlUso = tiposCompatibles(usoDelCliente);
+      // SIN STOCK EXACTO Y CON EQUIVALENTES DE VERDAD, SE MUESTRAN YA (V3a,
+      // 28-sep: «¿Le muestro las opciones equivalentes?» retuvo una KR608
+      // 245/70R16 que calzaba). El campo va PRIMERO: la huella del guardián
+      // corta a 500 caracteres. Ver `domain/equivalentesPorMostrar.ts`.
+      const aMostrar = equivalentesAMostrar(
+        alternatives, formatTireSize(size), exact.some((i) => i.stock > 0),
+      );
       return JSON.stringify({
+        ...(aMostrar.length ? { [CAMPO_EQUIVALENTES]: aMostrar } : {}),
         medida: formatTireSize(size),
         ...(usoDelCliente
           ? {
@@ -969,7 +978,9 @@ export function buildTools(ctx: AgentContext) {
                 : `El cliente pidió una ${direccion.replace("mas_", "más ")} que su ${formatTireSize(size)} y no hay ninguna que vaya para ese lado y le calce (mismo aro, diámetro ±3 %). Díselo así y ofrece que el asesor le confirme; PROHIBIDO ofrecerle otra medida como si fuera lo que pidió.`,
             }
           : {}),
-        siguiente_paso: "PROHIBIDO escribir estas opciones como lista en el chat. Para mostrárselas al cliente llama preparar_opciones con máximo 3 códigos (una premium, una de equilibrio y una económica) — esa herramienta manda la imagen. Si escribes precios y disponibilidad en texto, el cliente recibe un muro y no ve la pieza. Y si el cliente pide un TIPO (A/T, H/T, R/T, M/T…) en cualquier turno, esta lista NO responde eso: busca de nuevo con buscar_por_aro_y_tipo pasándole el aro y ese tipo antes de afirmar o negar disponibilidad.",
+        siguiente_paso: aMostrar.length
+          ? reglaDeMostrarEquivalentes(formatTireSize(size))
+          : "PROHIBIDO escribir estas opciones como lista en el chat. Para mostrárselas al cliente llama preparar_opciones con máximo 3 códigos (una premium, una de equilibrio y una económica) — esa herramienta manda la imagen. Si escribes precios y disponibilidad en texto, el cliente recibe un muro y no ve la pieza. Y si el cliente pide un TIPO (A/T, H/T, R/T, M/T…) en cualquier turno, esta lista NO responde eso: busca de nuevo con buscar_por_aro_y_tipo pasándole el aro y ese tipo antes de afirmar o negar disponibilidad.",
       });
     },
   });
@@ -1198,7 +1209,13 @@ export function buildTools(ctx: AgentContext) {
       }
 
       const info = pedido ? infoTipo(pedido) : null;
+      // Sin nada en su medida, lo elegido del aro son sus equivalentes: se
+      // muestran en este turno, igual que desde `buscar_llanta`.
+      const aMostrarDelAro = sinTipoEnSuMedida && suMedida
+        ? equivalentesAMostrar(seleccionPermitida, suMedida, false)
+        : [];
       return JSON.stringify({
+        ...(aMostrarDelAro.length ? { [CAMPO_EQUIVALENTES]: aMostrarDelAro } : {}),
         encontrado: true,
         aro,
         tipo_pedido: pedido || null,
