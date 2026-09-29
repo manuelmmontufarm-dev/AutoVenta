@@ -6,11 +6,36 @@ $X c/u · 4 = $Y» (de menor a mayor precio; cantidad del cliente o 4) con una
 sola pregunta: «¿Le cotizo la 1, la 2 o la 3?». Los seguimientos repiten esa
 lista con precios (o preguntan cuál cotizar) y, con medida y sin opciones
 mostradas, ofrecen mandarlas; la redacción con IA que pregunte qué prioriza se
-descarta. El guardián recibe la lista como hecho duro.
+descarta. El guardián recibe la lista como hecho duro. Un solo dueño para «la posición N → qué llanta» (`opcionPorPosicion`), usado por
+`agent.ts` y `cotizarLoElegido.ts`; reglas 15 y 22 del guardián actualizadas a la lista.
 
 **Por qué:** ~25 chats de la semana (caso +593 99 571 0785, D-Max 255/70R16):
 quien preguntó «¿qué precio tiene?» nunca vio un número y los seguimientos le
 repetían «¿qué prioriza?». Fuente única: `domain/listaDeOpciones.ts`.
+
+## 28-sep-2026 · Pagos: el bot ya no niega el descuento en efectivo
+
+**Qué:** Candado `sin_descuento_negado` (después del guardián, en las tres
+puertas con guardián): si el texto dice «el precio es el mismo en efectivo» o
+«no hay descuento por efectivo», esa frase sale y entra la política de pagos
+(en efectivo sí hay descuento, se confirma en el local). Además el guardián
+recibe la política como hecho duro, para que no la borre.
+
+**Por qué:** En 6 chats de la semana el bot contradijo a la fuente única
+(`politicaDePagos`): unos clientes oyeron que hay descuento y otros que el
+precio es igual. Un negativo inventado sobre un dato de negocio.
+
+**Horas:** 0,7
+## 28-sep-2026 · Una sola opción y precio ya pedido: se cotiza, no se pide permiso
+
+**Qué:** Con UNA sola llanta vendible y el cliente ya con «precio», «cuánto»,
+«cotízame» etc. en la visita, la pieza de opciones dice «Es la única que tengo…»
+sin pregunta y el turno genera la cotización. «Precio por favor» a un «¿Se la
+cotizo?» de la única cuenta como sí. Los seguimientos de ese estado hablan de la
+cotización y piden solo la cantidad. El guardián recibe el hecho duro.
+
+**Por qué:** Conv +593 99 842 8277 (25 y 27-sep): «31x10.5R15» + «Precio por
+favor» terminó dos veces en «¿Se la cotizo?» y nunca salió la cotización.
 
 **Horas:** 1,5
 

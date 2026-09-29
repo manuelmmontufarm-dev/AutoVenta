@@ -268,6 +268,12 @@ export function buildCierreOpciones(input: {
       medida: input.equivalentePendiente.medida,
     })}`;
   }
+  // UNA SOLA OPCIÓN Y EL PRECIO YA PEDIDO: se dice que es la única y la
+  // cotización sale en este turno, sin pregunta (conv +593 99 842 8277, 25 y
+  // 27-sep). No hay «yo iría por»: no hay entre qué. Ver domain/cotizarLaUnica.ts.
+  if (!input.ofrecerCotizar && (input.escalonesDisponibles?.length ?? 3) <= 1) {
+    return `Es la única que tengo para lo que me pidió: *${input.recomendacion}*${precio}.`;
+  }
   if (input.ofrecerCotizar) {
     // «¿Se la cotizo?» y no «¿Le cotizo el juego de 4 llantas?»: esa segunda
     // la borra `sin_preguntas_prohibidas` desde el 31-ago (pide permiso por la

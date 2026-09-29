@@ -31,6 +31,7 @@ export interface OpcionConPrecio {
 
 export interface LineaDeLista {
   n: number;
+  codigo?: string | null;
   nombre: string;
   precio: number;
   total: number;
@@ -62,6 +63,7 @@ export function armarLista(
     .sort((a, b) => a.precio - b.precio)
     .map((o, i) => ({
       n: i + 1,
+      codigo: o.codigo ?? null,
       nombre: o.nombre.trim(),
       precio: centavos(o.precio),
       total: centavos(o.precio * c),
@@ -118,4 +120,31 @@ export function hechoDeLaLista(lista: readonly LineaDeLista[], cantidad: number)
   }. Cada total es unitario × ${cantidad}, ya calculado: son datos duros, el bot PUEDE decirlos y NO se corrigen. `
     + `Cerrar con «${preguntaDeLaLista(lista.length)}» es la pregunta correcta de ese turno (elegir entre las opciones, NO pedir permiso por la cantidad): `
     + "se conserva y NO es pregunta_de_mas. Lo que sí está prohibido es volver a preguntar qué prioriza el cliente.";
+}
+
+/** «2», «la 3», «opción 1»: el número pelado con que se contesta la lista. */
+export function posicionElegida(texto: string | null | undefined): number | null {
+  const m = (texto ?? "").trim().match(/^(?:la\s+|el\s+|opci[oó]n\s+)?([123])\)?\.?$/i);
+  return m ? Number(m[1]) : null;
+}
+
+export type EscalonElegido = "precio" | "equilibrada" | "premium";
+
+/**
+ * DUEÑO ÚNICO de «la posición N de la lista → qué llanta es».
+ *
+ * Las posiciones son 1..N sobre la lista ordenada por precio, SIN huecos de
+ * escalón: con dos opciones la 2 es la premium (antes `agent.ts` la leía como
+ * el escalón del medio, que no existe, y `cotizarLoElegido` la corregía aparte).
+ * El escalón que devuelve es solo la etiqueta con la que se la nombra al cliente.
+ */
+export function opcionPorPosicion(
+  metadata: { escalones?: unknown; cantidad?: unknown } | null | undefined,
+  n: number,
+): { codigo: string; nombre: string; precio_con_iva: number; escalon: EscalonElegido } | null {
+  const pieza = listaDeLaPieza(metadata);
+  const linea = pieza?.lista.find((l) => l.n === n);
+  if (!pieza || !linea?.codigo) return null;
+  const escalon: EscalonElegido = n === 1 ? "precio" : n === pieza.lista.length ? "premium" : "equilibrada";
+  return { codigo: linea.codigo, nombre: linea.nombre, precio_con_iva: linea.precio, escalon };
 }

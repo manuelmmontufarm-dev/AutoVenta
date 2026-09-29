@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  armarLista, hechoDeLaLista, listaDeLaPieza, preguntaDeLaLista, textoDeLaLista,
+  armarLista, hechoDeLaLista, listaDeLaPieza, opcionPorPosicion, posicionElegida, preguntaDeLaLista, textoDeLaLista,
 } from "../src/domain/listaDeOpciones.js";
 import { esRespuestaDelMenuDePreferencia, escalonContestado, esPedidoDeAmbasOpciones } from "../src/domain/salesIntent.js";
 
@@ -126,5 +126,55 @@ describe("la lista se reconstruye desde lo que la pieza guardó", () => {
     const hecho = hechoDeLaLista(lista, cantidad);
     for (const n of ["$96.50", "$386.00", "$127.93", "$511.72", "$171.20", "$684.80"]) expect(hecho).toContain(n);
     expect(hecho).toContain("¿Le cotizo la 1, la 2 o la 3?");
+  });
+});
+
+/**
+ * DUEÑO ÚNICO de «la posición N de la lista → qué llanta es». Posiciones 1..N
+ * sobre la lista ordenada por precio, sin huecos de escalón: con dos opciones,
+ * la 2 es la premium (agent.ts la leía como el escalón del medio, que no existe).
+ */
+describe("opcionPorPosicion", () => {
+  const F = { codigo: "F1", nombre: "FALKEN WILDPEAK", precio_con_iva: 171.2 };
+  const K = { codigo: "K1", nombre: "KENDA KR50", precio_con_iva: 127.93 };
+  const W = { codigo: "W1", nombre: "WINRUN R380", precio_con_iva: 96.5 };
+  const tresEsc = { escalones: { premium: F, equilibrada: K, economica: W } };
+  const dosEsc = { escalones: { premium: F, equilibrada: null, economica: W } };
+
+  it("con tres: 1 = la más barata, 2 = la del medio, 3 = la premium", () => {
+    expect(opcionPorPosicion(tresEsc, 1)).toMatchObject({ codigo: "W1", escalon: "precio" });
+    expect(opcionPorPosicion(tresEsc, 2)).toMatchObject({ codigo: "K1", escalon: "equilibrada" });
+    expect(opcionPorPosicion(tresEsc, 3)).toMatchObject({ codigo: "F1", escalon: "premium" });
+  });
+
+  it("con dos: 1 = la más barata y 2 = la PREMIUM (no un escalón del medio vacío); la 3 no existe", () => {
+    expect(opcionPorPosicion(dosEsc, 1)).toMatchObject({ codigo: "W1", escalon: "precio" });
+    expect(opcionPorPosicion(dosEsc, 2)).toMatchObject({ codigo: "F1", escalon: "premium" });
+    expect(opcionPorPosicion(dosEsc, 3)).toBeNull();
+  });
+
+  it("el número pelado que contesta la lista", () => {
+    expect(posicionElegida("2")).toBe(2);
+    expect(posicionElegida("la 3")).toBe(3);
+    expect(posicionElegida("opción 1")).toBe(1);
+    expect(posicionElegida("2 llantas")).toBeNull();
+  });
+});
+
+describe("cotizarLoElegido usa esa misma posición", () => {
+  const vitrina = [
+    { codigo: "W1", marca: "WINRUN", diseno: "R380", medida: "255/70R16" },
+    { codigo: "F1", marca: "FALKEN", diseno: "WILDPEAK", medida: "255/70R16" },
+  ];
+  const dos = { premium: { codigo: "F1", nombre: "FALKEN WILDPEAK", precio_con_iva: 171.2 }, equilibrada: null,
+    economica: { codigo: "W1", nombre: "WINRUN R380", precio_con_iva: 96.5 } };
+  it("«2» tras la lista de dos opciones cotiza la premium", async () => {
+    process.env.OPENAI_API_KEY ||= "test";
+    process.env.DATABASE_URL ||= "postgresql://manue@localhost/postgres";
+    const { loQueEligio } = await import("../src/services/cotizarLoElegido.js");
+    const previo = textoDeLaLista(armarLista([
+      { nombre: "FALKEN WILDPEAK", precio: 171.2, codigo: "F1" }, { nombre: "WINRUN R380", precio: 96.5, codigo: "W1" }], 4)!, 4);
+    expect(loQueEligio("2", previo, null, vitrina, dos)).toEqual({ codigo: "F1", etiqueta: "premium" });
+    expect(loQueEligio("1", previo, null, vitrina, dos)).toEqual({ codigo: "W1", etiqueta: "de costo" });
   });
 });

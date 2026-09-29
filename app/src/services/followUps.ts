@@ -10,6 +10,7 @@ import {
   type FollowUpPolicy,
 } from "../domain/followUps.js";
 import { isStage, type Stage } from "../domain/pipeline.js";
+import { pidioPrecioOCotizacion } from "../domain/salesIntent.js";
 import {
   buildContextualFollowUpMessage,
   followUpNeedsStoreLinks,
@@ -236,6 +237,8 @@ export interface ContextoDeOpciones {
   optionsList?: FollowUpMessageContext["optionsList"];
   preferenceAnswered: boolean;
   customerHasNoTireSize: boolean;
+  /** Pidió precio o cotización en el ciclo (ver `domain/cotizarLaUnica.ts`). */
+  customerAskedPrice?: boolean;
 }
 
 const RESPUESTA_AL_MENU =
@@ -267,7 +270,14 @@ async function contextoDeOpciones(conversationId: number, cycle: number): Promis
     /\b(?:no\s+(?:la\s+)?(?:tengo|se|s[eé])|sin)\b[^.\n]{0,45}\b(?:medida|numeraci[oó]n|n[uú]mero)\b|\b(?:medida|numeraci[oó]n)\b[^.\n]{0,35}\bno\s+(?:la\s+)?(?:tengo|se|s[eé])\b/i
       .test(r.content ?? "")
   );
-  return { optionsCount, optionsList: listaDeLaPieza(pieza?.metadata), preferenceAnswered, customerHasNoTireSize };
+  // Todo el ciclo, no solo lo posterior a la pieza: «Precio por favor» suele
+  // llegar ANTES de que el bot mande las opciones.
+  const todos = await sql<{ content: string | null }[]>`
+    select content from messages
+    where conversation_id = ${conversationId} and cycle = ${cycle} and direction = 'inbound'
+  `;
+  const customerAskedPrice = todos.some((r) => pidioPrecioOCotizacion(r.content ?? ""));
+  return { optionsCount, optionsList: listaDeLaPieza(pieza?.metadata), preferenceAnswered, customerHasNoTireSize, customerAskedPrice };
 }
 
 /**
@@ -296,6 +306,7 @@ export function buildFollowUpPreview(
     optionsList: opciones.optionsList ?? null,
     preferenceAnswered: opciones.preferenceAnswered,
     customerHasNoTireSize: opciones.customerHasNoTireSize,
+    customerAskedPrice: opciones.customerAskedPrice,
     name: conversation.name,
     stage: conversation.stage,
     tireSize: conversation.tire_size,
