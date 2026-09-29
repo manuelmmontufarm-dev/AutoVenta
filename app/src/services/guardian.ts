@@ -555,6 +555,11 @@ export async function armarContexto(
     "== HECHOS REGISTRADOS ==",
     `El bot se presenta como ${FIRMA_DE_PRESENTACION.replace(/^Soy /, "")}: es su nombre oficial (decisión del negocio, 14-sep), no un dato inventado. Si el cliente pregunta si habla con un bot o una persona, el borrador NO puede negar que es un asistente virtual.`,
     `Medidas que el cliente pidió: ${pedidas.length ? pedidas.join(", ") : "(ninguna todavía)"}`,
+    // HECHO DURO (familia 1-B, 22-24 sep): qué es una equivalente. Sin él, el
+    // revisor aprobó «le entra la 215/60R17» por una 235/60R17 y reescribió
+    // «equivalentes de su aro» sobre una 165/65R13 para quien pidió aro 14.
+    // Un candado posterior (`sin_equivalencias_falsas`) cambia cualquier otra.
+    "EQUIVALENCIA (regla del taller, no se negocia): una medida distinta de la del cliente solo es «equivalente», «le entra» o «de su aro» si es del MISMO aro, su diámetro exterior está dentro del 3 % y su ancho a no más de 20 mm. Ofrecer como equivalente una que no cumple es **medida_incorrecta** ALTA, y tu corrección tampoco la llama así. Si el cliente pidió «más ancha» o «más alta», la que se le ofrece tiene que ir para ese lado.",
     hechos?.vehicle ? `Vehículo: ${hechos.vehicle}` : null,
     // El anuncio y la clase de vehículo son HECHOS: sin ellos el revisor aprobó
     // llantas de sedán para una «camioneta 4x4» (convs 20211 y 20209, 14-sep).

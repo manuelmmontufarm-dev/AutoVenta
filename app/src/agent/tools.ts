@@ -75,7 +75,8 @@ import { researchVehicleFitment } from "../services/vehicleFitmentResearch.js";
 import { arosDeCandidatos, arosDeMedidas, invitacionPorAroAmbiguo } from "../domain/fitmentResearch.js";
 import { aroVigenteDeLaVisita, rangoDeAros } from "../domain/aros.js";
 import { localPorLaZonaDicha, nearestStore, resolveSector, ubicacionDadaPorElCliente } from "../domain/locations.js";
-import { ordenarPorCercania } from "../domain/equivalencia.js";
+import { direccionPedida, equivaleAAlguna, esEquivalente, ordenarPorCercania } from "../domain/equivalencia.js";
+import { avisoDeMedidaEnOpciones, siguientePasoPorMedidaDistinta } from "../domain/equivalenciaEnTexto.js";
 import { extractFlotationSizes, formatFlotationSize, formatTireSize, parseTireSize, type TireSize, flotacionIncompleta } from "../domain/tireSize.js";
 import { marcaPreguntada, pidioCotizacionExplicita, ultimaMarcaPedida } from "../domain/consultaConRespaldo.js";
 import { armarLista } from "../domain/listaDeOpciones.js";
@@ -606,24 +607,6 @@ type OrigenOpciones = "medida_investigada" | "aro_del_cliente" | "medida_cercana
  * al menos una opción; no hay stock ⇒ `[]` y `origen: null`. El candado promete
  * no callarse teniendo qué vender, no promete tener qué vender.
  */
-/** Diámetro exterior en mm: aro + dos veces el flanco. */
-function diametroMm(size: TireSize): number {
-  return size.rim * 25.4 + 2 * size.width * ((size.aspect ?? 0) / 100);
-}
-
-/**
- * ±3 % de diámetro es lo que el propio archivo del negocio declara como
- * equivalencia aceptable (`motor_equivalencia`). Fuera de eso la llanta
- * «con las justas entra» o no tiene nada que ver, y eso ya no se ofrece
- * (Manuel, 1-sep-2026).
- */
-const TOLERANCIA_DIAMETRO = 0.03;
-function equivaleEnDiametro(a: TireSize, b: TireSize): boolean {
-  const da = diametroMm(a);
-  const db = diametroMm(b);
-  return Math.abs(da - db) / da <= TOLERANCIA_DIAMETRO;
-}
-
 async function opcionesDeFitment(
   resultado: Pick<FitmentResearchResult, "sizes" | "candidatos">,
   aro: number | null,
@@ -683,7 +666,9 @@ async function opcionesDeFitment(
   // Equivalentes de verdad: mismo aro Y diámetro dentro del ±3 %. Antes bastaba
   // el mismo aro con ±10 mm de ancho, y así salía una 255/50 «por» una 235/45.
   const cercanas = escaleraPorUso(conStock(sinRepetir(
-    ...parseadas.map(({ size }) => searchAlternatives(size).filter((item) => item.size !== null && equivaleEnDiametro(item.size, size))),
+    // El juez es uno solo (`domain/equivalencia.ts`): había una copia privada
+    // del ±3 % acá, sin el aro ni el ancho que monta en el mismo rin.
+    ...parseadas.map(({ etiqueta, size }) => searchAlternatives(size).filter((item) => esEquivalente(etiqueta, item.sizeLabel))),
   )), uso);
   if (cercanas.opciones.length) return { opciones: cercanas.opciones, avisoTipo: cercanas.avisoTipo, origen: "medida_cercana", medidasConStock, medidasAgotadas, medidasDescartadas };
 
@@ -918,7 +903,12 @@ export function buildTools(ctx: AgentContext) {
 
       const size = { width, aspect, rim };
       const exact = searchBySize(size);
-      const alternatives = exact.some((i) => i.stock > 0) ? [] : searchAlternatives(size);
+      // «ME GUSTARÍA UN POCO MÁS ANCHA» (conv 22975, 24-sep): la dirección que
+      // pidió el cliente filtra las alternativas —y las pide aunque su medida
+      // tenga stock, porque justamente quiere otra—. Antes volvía la 215/65R16,
+      // la misma sección que su 215/60R16. Ver `domain/equivalencia.ts`.
+      const direccion = direccionPedida(ctx.currentUserText);
+      const alternatives = exact.some((i) => i.stock > 0) && !direccion ? [] : searchAlternatives(size, direccion);
       // Aquí NO se consulta al Interbot a propósito. Se probó y se sacó el
       // 16-ago: `buscar_llanta` es la herramienta más frecuente del bot y le
       // añadía una ida y vuelta (hasta 20 s en el peor caso) a cada búsqueda,
@@ -945,6 +935,14 @@ export function buildTools(ctx: AgentContext) {
           ...(sirvenAlUso ? { le_sirve_a_su_uso: sirvenAlUso.includes(normalizarTipo(tipoDeProducto(p.code, p.design) ?? "")) } : {}),
         })),
         alternativas_mismo_aro: recorteConEscalera(alternatives, 3).map(toolItem),
+        ...(direccion
+          ? {
+              direccion_pedida: direccion,
+              regla_de_direccion: alternatives.length
+                ? `El cliente pidió una ${direccion.replace("mas_", "más ")} que su ${formatTireSize(size)}: 'alternativas_mismo_aro' ya son SOLO las que van para ese lado y le calzan (mismo aro, diámetro ±3 %). PROHIBIDO ofrecerle otra medida que no esté ahí.`
+                : `El cliente pidió una ${direccion.replace("mas_", "más ")} que su ${formatTireSize(size)} y no hay ninguna que vaya para ese lado y le calce (mismo aro, diámetro ±3 %). Díselo así y ofrece que el asesor le confirme; PROHIBIDO ofrecerle otra medida como si fuera lo que pidió.`,
+            }
+          : {}),
         siguiente_paso: "PROHIBIDO escribir estas opciones como lista en el chat. Para mostrárselas al cliente llama preparar_opciones con máximo 3 códigos (una premium, una de equilibrio y una económica) — esa herramienta manda la imagen. Si escribes precios y disponibilidad en texto, el cliente recibe un muro y no ve la pieza. Y si el cliente pide un TIPO (A/T, H/T, R/T, M/T…) en cualquier turno, esta lista NO responde eso: busca de nuevo con buscar_por_aro_y_tipo pasándole el aro y ese tipo antes de afirmar o negar disponibilidad.",
       });
     },
@@ -1750,7 +1748,13 @@ export function buildTools(ctx: AgentContext) {
             fueraDeMedida.length === products.length ? "NINGUNA de estas opciones es de esa medida" : "algunas de estas opciones son de otra medida"
           } (${fueraDeMedida.map((p) => `${p.design} es ${p.sizeLabel}`).join("; ")}). ` +
           "Dilo con todas las letras en tu respuesta —«en su medida no me queda, estas son equivalentes que sí le entran»— y nombra la medida de cada una. " +
-          "NUNCA le digas que son de su medida, y no cotices ninguna hasta que él acepte la equivalencia."
+          "NUNCA le digas que son de su medida, y no cotices ninguna hasta que él acepte la equivalencia." +
+          (() => {
+            const noEquivalen = fueraDeMedida.filter((p) => !equivaleAAlguna(permitidasOpciones, p.sizeLabel));
+            return noEquivalen.length
+              ? ` Y OJO: ${noEquivalen.map((p) => `${p.design} ${p.sizeLabel}`).join(", ")} NO ${noEquivalen.length > 1 ? "son equivalentes" : "es equivalente"} (otro aro, fuera del 3 % de diámetro o no monta en el mismo rin): PROHIBIDO llamarla «equivalente», decir que «le entra» o que es «de su aro».`
+              : "";
+          })()
         : null;
       // La aclaración va HORNEADA en el mensaje, no solo en la regla: este
       // turno sale verbatim por exactToolReply, así que el modelo nunca tiene
@@ -1774,11 +1778,16 @@ export function buildTools(ctx: AgentContext) {
       const avisoSinMedidaPedida = !permitidasOpciones.length && medidasEnPantalla.length > 1
         ? `⚠️ Ojo: estas opciones son de *medidas distintas* del mismo aro (${medidasEnPantalla.join(", ")}) — cada tarjeta lleva la suya. Para asegurarle el calce necesito la medida del costado de su llanta.`
         : null;
-      const avisoMedidaCliente = fueraDeMedida.length && permitidasOpciones.length
-        ? (fueraDeMedida.length === products.length
-            ? `⚠️ Ojo: en *${permitidasOpciones.join(" / ")}* no me queda disponibilidad exacta. Estas son *equivalentes* de su aro: ${fueraDeMedida.map((p) => `${p.design} en ${p.sizeLabel}`).join(", ")}. Se confirma el calce al montar.`
-            : `⚠️ Ojo: no todas son de su medida *${permitidasOpciones.join(" / ")}* — ${fueraDeMedida.map((p) => `${p.design} es ${p.sizeLabel}`).join(", ")} (equivalentes de su aro).`)
-        : avisoSinMedidaPedida;
+      // «EQUIVALENTE» LO DICE EL JUEZ, NO LA LÁMINA (familia 1-B, 22-24 sep):
+      // todo lo que no era su medida salía rotulado «equivalentes de su aro»
+      // — una 165/65R13 a quien pidió aro 14 (conv 22533), una 165R14 a quien
+      // tenía 205/60R13 (conv 22492). Ver `domain/equivalenciaEnTexto.ts`.
+      const avisoDeMedida = avisoDeMedidaEnOpciones({
+        permitidas: permitidasOpciones,
+        fueraDeMedida,
+        totalMostradas: products.length,
+      });
+      const avisoMedidaCliente = avisoDeMedida.avisoCliente ?? avisoSinMedidaPedida;
 
       // CANDADO 1 — solo el doble envío del MISMO turno. Nació el 6-ago
       // (tickets 1288 y 1415: la misma pieza salió 4 veces) como un candado de
@@ -1844,6 +1853,7 @@ export function buildTools(ctx: AgentContext) {
         if (elegida) {
           const precio = elegida.minimumPriceWithTax ? ` — *$${elegida.minimumPriceWithTax.toFixed(2)} c/u con IVA*` : "";
           const esEquivalente = permitidasOpciones.length > 0 && !medidaEstaPedida(elegida.sizeLabel, permitidasOpciones);
+          const equivaleDeVerdad = equivaleAAlguna(permitidasOpciones, elegida.sizeLabel);
           const etiqueta = preferenciaContestada === "precio" ? "de costo" : preferenciaContestada === "premium" ? "premium" : "de equilibrio";
           if (esEquivalente) {
             const pregunta = preguntaDeEquivalente({ recomendacion: `${elegida.brand} ${elegida.design}`, medida: elegida.sizeLabel ?? null });
@@ -1851,7 +1861,7 @@ export function buildTools(ctx: AgentContext) {
               imagen_enviada: false,
               consentimiento_pendiente: true,
               recomendacion_entregada: false,
-              mensaje_para_enviar: `La opción ${etiqueta} es la *${elegida.brand} ${elegida.design}*${precio}, en *${elegida.sizeLabel}* (equivalente de su aro).\n---\n${pregunta}`,
+              mensaje_para_enviar: `La opción ${etiqueta} es la *${elegida.brand} ${elegida.design}*${precio}, en *${elegida.sizeLabel}* ${equivaleDeVerdad ? "(equivalente de su aro)" : "(otra medida, no equivalente de la suya: el asesor le confirma si le calza)"}.\n---\n${pregunta}`,
               regla: "Responde usando exactamente mensaje_para_enviar. Es una EQUIVALENTE: NO llames generar_cotizacion hasta que conteste que sí a esa pregunta. NO reenvíes la lámina.",
             });
           }
@@ -2084,7 +2094,12 @@ export function buildTools(ctx: AgentContext) {
             // (services/recomendarConLaPieza.ts, 1-sep).
             recomendado: recommended.code,
             motivo: motivo.trim().replace(/\.$/, ""),
-            ...(avisoMedidaCliente ? { equivalentes: medidasDeProductos(fueraDeMedida) } : {}),
+            // Solo las que EQUIVALEN quedan anotadas: lo anotado se vuelve
+            // cotizable en `medidasDelPedido`, y una de otro aro o fuera del 3 %
+            // no se firma por haber salido en la lámina.
+            ...(avisoDeMedida.productosEquivalentes.length
+              ? { equivalentes: medidasDeProductos(avisoDeMedida.productosEquivalentes) }
+              : {}),
             ...(visual.error ? { renderError: visual.error } : {}),
           },
         },
@@ -2764,11 +2779,10 @@ export function buildTools(ctx: AgentContext) {
           });
           return JSON.stringify({
             error: `MEDIDA DISTINTA: el cliente pidió ${permitidas.join(" o ")} y ${product.brand} ${product.design} es ${product.sizeLabel ?? "de otra medida"}. No se cotiza.`,
-            siguiente_paso:
-              `Cotiza una llanta de ${permitidas.join(" o ")}. Si en esa medida no hay stock, NO la cambies por tu cuenta: ` +
-              `dile al cliente con todas las letras que en su medida no tienes y ofrécele la equivalente nombrando su medida completa ` +
-              `(«en su ${permitidas[0]} no me queda; le entra la ${product.sizeLabel}, ¿se la cotizo?»). Solo cuando él acepte, ` +
-              `búscala con buscar_llanta y ahí sí cotízala.`,
+            // Conv 23080 (24-sep): esta regla le DICTABA «le entra la 215/60R17»
+            // por una 235/60R17 (−3,4 %), y la 235/60R17 sí tenía stock. El
+            // «le entra» solo se dicta si el juez dice que equivale.
+            siguiente_paso: siguientePasoPorMedidaDistinta(permitidas, product.sizeLabel),
           });
         }
         // LA EQUIVALENTE NO SE FIRMA SIN SU SÍ (auditoría 2-6 sep, familia D,
@@ -2801,7 +2815,10 @@ export function buildTools(ctx: AgentContext) {
             console.log(`🛑 Equivalente sin consentimiento en la conv ${ctx.conversation.id}: ${product.brand} ${product.design} ${product.sizeLabel}`);
             return JSON.stringify({
               error: `EQUIVALENTE SIN SU SÍ: ${product.brand} ${product.design} es ${product.sizeLabel} y el cliente pidió ${medidasEscritas.join(" o ") || "otra medida"}; todavía no aceptó esa medida. No se cotiza.`,
-              siguiente_paso: `Dile en una frase que en su medida no tienes y que le entra la ${product.sizeLabel}, y cierra en un mensaje aparte (---) EXACTAMENTE con: «${pregunta}». La cotización sale en el turno en que diga que sí.`,
+              siguiente_paso: equivaleAAlguna(medidasEscritas, product.sizeLabel) || !medidasEscritas.length
+                ? `Dile en una frase que en su medida no tienes y que le entra la ${product.sizeLabel}, y cierra en un mensaje aparte (---) EXACTAMENTE con: «${pregunta}». La cotización sale en el turno en que diga que sí.`
+                : `La ${product.sizeLabel} NO es equivalente de su ${medidasEscritas.join(" / ")}: PROHIBIDO decirle que le entra ni ofrecérsela como equivalente. `
+                  + `Si él mismo la nombró y quiere cambiar de medida, pregúntale EXACTAMENTE «${pregunta}» avisándole que es otra medida y que el asesor confirma el calce; si no, díselo así: «En su medida exacta no tengo stock; le pido al asesor que confirme si llega.»`,
             });
           }
         }

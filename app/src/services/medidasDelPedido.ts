@@ -24,6 +24,8 @@
  *     del caso 4732, «y luego nunca le mandó la cotización».
  */
 import { sql } from "../db/client.js";
+import { equivalentesQueEquivalen } from "../domain/equivalencia.js";
+import type { ContextoEquivalencias } from "../domain/equivalenciaEnTexto.js";
 import { medidasPermitidas, mensajesDeLaVisitaActual } from "../domain/medidaPedida.js";
 
 /** Cuántos mensajes del cliente se miran hacia atrás antes de cortar por silencio. */
@@ -50,15 +52,49 @@ export async function medidasDelPedido(
       select tire_size from conversations where id=${conversationId}
     `,
   ]);
-  const equivalentes = Array.isArray(pieza?.metadata?.equivalentes)
+  const declaradas = Array.isArray(pieza?.metadata?.equivalentes)
     ? (pieza.metadata.equivalentes as unknown[]).map(String)
     : [];
-  return medidasPermitidas(
+  const delCliente = medidasPermitidas(
     [
       ...(textoDelTurno ? [textoDelTurno] : []),
       ...mensajesDeLaVisitaActual(inbound).map((m) => m.content),
-      ...equivalentes,
     ],
     conversacion?.tire_size,
   );
+  // UNA «EQUIVALENTE» QUE NO EQUIVALE NO SE VUELVE COTIZABLE (familia 1-B,
+  // 22-24 sep). La lámina anotaba como equivalente todo lo que no era su
+  // medida —una 165/65R13 a quien pidió aro 14 (conv 22533)— y desde aquí eso
+  // quedaba firmable. Ahora pasa por el juez; las láminas viejas también.
+  const equivalentes = equivalentesQueEquivalen(declaradas, delCliente);
+  return medidasPermitidas([...delCliente, ...equivalentes]);
+}
+
+/**
+ * Lo que el cliente tiene sobre la mesa para juzgar una «equivalente»: sus
+ * mensajes de esta visita (del más viejo al más nuevo) y la medida de trabajo.
+ *
+ * A diferencia de `medidasDelPedido`, NO incluye las equivalentes que declaró
+ * el bot: contra ellas no se mide nada, son justamente lo que se juzga.
+ */
+export async function contextoDeEquivalencias(
+  conversationId: number,
+  cycle: number,
+  textoDelTurno?: string | null,
+): Promise<ContextoEquivalencias> {
+  const [inbound, [conversacion]] = await Promise.all([
+    sql<{ content: string; created_at: Date }[]>`
+      select content, created_at from messages
+      where conversation_id=${conversationId} and cycle=${cycle} and direction='inbound'
+      order by created_at desc limit ${INBOUND_A_REVISAR}
+    `,
+    sql<{ tire_size: string | null }[]>`
+      select tire_size from conversations where id=${conversationId}
+    `,
+  ]);
+  return {
+    textosDeLaVisita: mensajesDeLaVisitaActual(inbound).map((m) => m.content).reverse(),
+    textoDelTurno: textoDelTurno ?? null,
+    medidaDeTrabajo: conversacion?.tire_size ?? null,
+  };
 }

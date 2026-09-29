@@ -1,3 +1,29 @@
+## 28-sep-2026 · «Equivalente» solo lo que equivale (y hacia donde pidió el cliente)
+
+**Qué:** `domain/equivalencia.ts` es el único juez de «equivalente / le entra /
+de su aro»: mismo aro, diámetro ±3 % y ahora ancho a ≤20 mm (que monte en el
+mismo rin). También es dueño de la dirección pedida («más ancha» = más sección,
+«más alta/grande» = más diámetro), que filtra las alternativas de `buscar_llanta`.
+Candado nuevo `sin_equivalencias_falsas` después del guardián (tres puertas):
+cada frase que presenta como equivalente una medida que no lo es —o que va al
+revés de lo pedido, o una medida cuando la que escribió el cliente no existe—
+se cambia por una línea honesta («En su medida exacta no tengo stock; le pido
+al asesor que confirme si llega», o la que corresponda) y deja alerta
+`equivalencia_falsa`. La lámina de opciones ya no rotula «equivalentes de su
+aro» a lo que no equivale ni lo anota como cotizable; `medidasDelPedido` filtra
+las equivalentes declaradas por el juez; `generar_cotizacion` ya no dicta «le
+entra la X» si X no equivale; se quitó la copia privada del ±3 % de fitment. El
+guardián recibe la regla como hecho duro.
+
+**Por qué:** Familia 1-B (22-24 sep): 165/65R13 como «equivalente de su aro» a
+quien pidió aro 14 (conv 22533); «más ancha» → 215/65R16, la misma sección
+(22975); «más alta cercana sería 235/65R16», +3,4 % (23021); 165R14 y luego
+175/70R14 (5 cm más angosta) por una 225/55R14 (22492); «le entra la
+215/60R17» por una 235/60R17 que sí estaba (23080); «238 70 16» → 215/65R16 sin
+aclarar (15644). Cinco puertas, ninguna le preguntaba al juez.
+
+**Horas:** 1,5
+
 ## 28-sep-2026 · Tras la lámina de opciones el cliente ve el precio escrito (y nadie le pregunta qué prioriza)
 
 **Qué:** El texto que acompaña la lámina de opciones (sin recomendación) deja de
