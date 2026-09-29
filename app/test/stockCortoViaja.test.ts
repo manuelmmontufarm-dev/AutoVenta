@@ -178,6 +178,9 @@ describe("el orden de los candados en el turno", () => {
       // El pago se responde con el hecho del negocio en vez de derivarlo al
       // asesor (conv 17804): el modelo seguía evadiendo aun con el dato en el
       // prompt, así que va en la cadena.
+      // El descuento en efectivo no se niega (semana del 21-sep, 6 chats): va
+      // antes que el pago porque, si hace falta, agrega la política.
+      "sin_descuento_negado",
       "el_pago_se_responde",
       "el_descuento_se_responde",
       "el_beneficio_se_responde",

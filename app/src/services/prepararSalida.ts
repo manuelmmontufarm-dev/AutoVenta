@@ -57,7 +57,7 @@ import { sinFraseColgando } from "../domain/fraseColgando.js";
 import { soloQuitaOReordena } from "../domain/soloQuita.js";
 import { esFraseDelDescuento, hablaDelDescuento, respuestaDelDescuento } from "../domain/ahorro.js";
 import { ahorroVigente } from "./ahorroVigente.js";
-import { mencionaDescuentoEnEfectivo, politicaDePagos, preguntaPorElPago, respondeElPago, sinPagoSinRespuesta } from "../domain/datosDelNegocio.js";
+import { mencionaDescuentoEnEfectivo, politicaDePagos, preguntaPorElPago, niegaDescuentoEnEfectivo, respondeElPago, sinDescuentoNegado, sinPagoSinRespuesta } from "../domain/datosDelNegocio.js";
 import { sinNumerosDeCotizacion } from "../domain/numerosDeCotizacion.js";
 import { conPreguntaEnSuPropioMensaje } from "../domain/preguntaSola.js";
 import { despedidaQueCorresponde } from "../domain/cierrePerdido.js";
@@ -625,6 +625,31 @@ export const PASOS: readonly PasoDeSalida[] = [
         });
       }
       return conLocales.texto;
+    },
+  },
+  {
+    // EL DESCUENTO EN EFECTIVO NO SE NIEGA.
+    //
+    // Semana del 21-sep, 6 chats: el mismo bot dijo «si paga en efectivo sí hay
+    // un descuento adicional en el local» (la política) y, en otros, «el precio
+    // es el mismo en efectivo, tarjeta o transferencia» (inventado). El prompt
+    // ya trae la política y el modelo la contradice al azar, y el guardián
+    // también puede escribir esa negación al reescribir; por eso es un candado,
+    // después de él. Corre siempre (no depende de que el cliente pregunte por
+    // el pago) y va ANTES de separar la pregunta, porque agrega la política.
+    // Ver `niegaDescuentoEnEfectivo` en `domain/datosDelNegocio.ts`.
+    nombre: "sin_descuento_negado",
+    corre: ["respuesta", "retomada", "seguimiento"],
+    async aplicar(texto, ctx) {
+      const { texto: limpio, quitadas } = sinDescuentoNegado(texto);
+      if (!quitadas.length) return texto;
+      console.warn(`💳 Conv ${ctx.conversation.id}: se quitó una frase que negaba el descuento en efectivo: ${quitadas.join(" | ").slice(0, 300)}`);
+      // Si lo que quedó ya afirma el descuento, con quitar la negación basta.
+      if (mencionaDescuentoEnEfectivo(limpio) && !niegaDescuentoEnEfectivo(limpio)) return limpio;
+      // Si no, la política entra entera (la misma frase canónica de siempre) y
+      // las otras frases de pago salen para que no se lea repetida.
+      const resto = sinPagoSinRespuesta(limpio, { estricto: true });
+      return resto.trim() ? `${politicaDePagos()}\n---\n${resto}` : politicaDePagos();
     },
   },
   {
