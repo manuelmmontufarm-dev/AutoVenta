@@ -1,3 +1,19 @@
+## 28-sep-2026 · El menú costo/equilibrio/premium respeta el uso que el cliente declaró
+
+**Qué:** Un solo dueño de «qué tipos le sirven a cada uso» (`domain/usoYTipo.ts`).
+El menú se arma primero con los tipos compatibles (ciudad: H/T y turismo; mixto:
+A/T y R/T; lodo: M/T y R/T; carga: comercial) y solo se sale de ellos si hay
+menos de dos vendibles; entonces avisa (`aviso_tipo`) y nunca mete una M/T a
+quien pidió ciudad. Cableado en buscar_por_aro_y_tipo, fitment_vehiculo,
+preparar_opciones y buscar_llanta. «NO todoterreno» ya no cuenta como A/T.
+El guardián recibe el uso y el aviso como hechos duros.
+
+**Por qué:** 10 chats de la semana del 21-sep: una Kenda KR29 (M/T) salió como
+la económica de clientes que pidieron ciudad; una touring a quien pidió camino
+mixto. La escalera era por precio y marca, sin mirar el uso.
+
+**Horas:** 1,5
+
 ## 28-sep-2026 · Ventas confirmadas: la tabla va plegada
 
 **Qué:** En la tarjeta de Métricas, la lista de ventas queda detrás de «Ver las
