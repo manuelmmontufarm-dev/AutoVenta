@@ -1,3 +1,24 @@
+## 1-oct-2026 · Pre-facturas del mes al dueño por WhatsApp, en el formato de la contadora
+
+**Qué:** Apenas cierra el mes en Quito, el servidor arma dos pre-facturas
+—IA (DT-IA-AAAA-MM) y mantenimiento (DT-MANT-AAAA-MM), cada una con su IVA— y
+se las manda a `BILLING_OWNER_PHONE` por WhatsApp (texto con los totales + los
+dos PDF). Los montos salen de `mesesFacturados()` (la cuenta del tab KPI). El
+PDF copia campo por campo la factura de Siigo que emite Rosanna Mancino a
+PITSTOP S.A.S.; esos datos viven en `negocio.facturacion` (`depot.ts`). Bucle
+nuevo `supervisarPrefacturas` (cada 15 min) con el candado del reporte diario,
+ahora reutilizable vía `candadoPeriodico(clave)`. Si Meta rechaza por la
+ventana de 24 h, suelta la marca y reintenta hasta que llegue. Endpoints del
+dueño: `GET /hub/billing/:period/prefactura/:ia|mantenimiento` y
+`POST /hub/billing/prefacturas/enviar`. `scripts/factura/generar.mjs` las baja
+de ahí.
+
+**Por qué:** Facturar cada mes era sacar los números a mano del tab KPI y
+pasarlos a Siigo. Ahora le llegan a Manuel listas para reenviar a la contadora,
+sin depender de la laptop.
+
+**Horas:** 1,5
+
 ## 28-sep-2026 · Compra a distancia: el cierre y el seguimiento salen bien desde la fuente
 
 **Qué:** El cierre de `generar_cotizacion`, `cotizarLoElegido` y `recotizar`

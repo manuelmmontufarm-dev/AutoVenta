@@ -122,4 +122,38 @@ export const DEPOT: PerfilDeNegocio = {
     todasIncluyen:
       "Instalación completa · seguro contra golpes y cortes · mantenimiento cada 10.000 km · revisión del vehículo",
   },
+  // Copiado de las facturas Siigo 001-002-000000061 y …063 (sep-2026) que
+  // emite Rosanna Mancino; transferencia según docs/propuesta-depot-2026.html §11.
+  // Depot Tire es la marca: la razón social que se factura es PITSTOP S.A.S.
+  facturacion: {
+    emisor: {
+      nombre: "MANCINO VALDIVIESO ROSANNA",
+      ruc: "1708782253001",
+      matriz: "PICHINCHA / QUITO / CUMBAYA / B 29LOTE 6-2 Y PRINCIPAL",
+      correo: "",
+      telefono: "0980870870",
+      obligadoContabilidad: "NO",
+    },
+    cliente: {
+      razonSocial: "PITSTOP S.A.S.",
+      ruc: "1793220112001",
+      direccion: "QUITO DISTRITO METROPOLITANO / DIEGO DE ALMAGRO Y PRADERA",
+      telefono: "",
+      correo: "financieropitstop@gmail.com",
+    },
+    item: { codigo: "001", descripcion: "SERVICIOS PRESTADOS" },
+    infoAdicional: [
+      ["Descripción", "SERVICIO DE UNA BOT DE WHATSAPP PARA UNA DEPOT TIRE"],
+      ["RUC Proveedor", "0992560754001"],
+    ],
+    formaPago: { descripcion: "Otros con Utilización del Sistema Financiero", plazo: "0 días" },
+    transferencia: {
+      titular: "Rosanna Mancino",
+      ruc: "1708782253001",
+      banco: "Banco Guayaquil S.A.",
+      tipo: "Cuenta de Ahorros",
+      cuenta: "0036341798",
+      correo: "rosannamancino@hotmail.com",
+    },
+  },
 };

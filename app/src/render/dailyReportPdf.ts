@@ -72,7 +72,7 @@ const ARCHIVO_PRECIO: Record<string, string> = {
  * fuente desde Ajustes no choque con la que ya estaba cargada.
  */
 const registradas = new Set<string>();
-function registrarFuentes(fuente: string): string {
+export function registrarFuentes(fuente: string): string {
   const ttf = (nombre: string) => path.join(FUENTES, nombre);
   const mismo = (nombre: string) => ({
     normal: ttf(nombre), bold: ttf(nombre), italics: ttf(nombre), bolditalics: ttf(nombre),

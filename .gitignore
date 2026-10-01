@@ -20,3 +20,6 @@ OWNER_KEY.local.txt
 node_modules
 node_modules/
 app/scripts/sim/*-resultado.json
+
+# Pre-facturas mensuales generadas (montos y datos del cliente).
+facturas/
