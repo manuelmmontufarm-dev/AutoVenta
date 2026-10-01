@@ -202,6 +202,7 @@ ${doc.preliminar ? `<div class="aviso">PRELIMINAR — el mes todavía no cierra;
   <b>Para la contadora — cargar en Siigo así:</b>
   Cliente ${esc(c.razonSocial)} (RUC ${esc(c.ruc)}) · 1 ítem «${esc(datos.item.descripcion)}», código ${esc(datos.item.codigo)}, detalle «${esc(doc.detalle)}», precio ${doc.subtotal.toFixed(2)}, IVA ${ivaPorc}% · forma de pago «${esc(datos.formaPago.descripcion)}», ${esc(datos.formaPago.plazo)} · total ${usd(total)}.
 </div>
+${datos.transferencia?.cuenta ? `<div class="conta"><b>Datos para la transferencia</b>Titular: ${esc(datos.transferencia.titular)} · RUC ${esc(datos.transferencia.ruc)} · ${esc(datos.transferencia.banco)} · ${esc(datos.transferencia.tipo)} N.º ${esc(datos.transferencia.cuenta)} · Comprobante a ${esc(datos.transferencia.correo)}</div>` : ""}
 <div class="anexo">${esc(doc.anexo)}</div>
 </body></html>`;
 };

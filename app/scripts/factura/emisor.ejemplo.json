@@ -15,7 +15,26 @@
     "telefono": "",
     "correo": ""
   },
-  "item": { "codigo": "001", "descripcion": "SERVICIOS PRESTADOS" },
-  "infoAdicional": [["Descripción", "SERVICIO DE UNA BOT DE WHATSAPP PARA ..."]],
-  "formaPago": { "descripcion": "Otros con Utilización del Sistema Financiero", "plazo": "0 días" }
+  "item": {
+    "codigo": "001",
+    "descripcion": "SERVICIOS PRESTADOS"
+  },
+  "infoAdicional": [
+    [
+      "Descripción",
+      "SERVICIO DE UNA BOT DE WHATSAPP PARA ..."
+    ]
+  ],
+  "formaPago": {
+    "descripcion": "Otros con Utilización del Sistema Financiero",
+    "plazo": "0 días"
+  },
+  "transferencia": {
+    "titular": "",
+    "ruc": "",
+    "banco": "",
+    "tipo": "Cuenta de Ahorros",
+    "cuenta": "",
+    "correo": ""
+  }
 }
