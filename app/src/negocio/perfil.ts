@@ -126,6 +126,20 @@ export interface Garantia {
   fabricaAnios: number;
 }
 
+/**
+ * Datos tributarios de la factura mensual del servicio (IA + mantenimiento).
+ * Se copian tal cual de la última factura electrónica que emite la contadora,
+ * para que la pre-factura se pueda pasar a su sistema sin traducir nada.
+ */
+export interface Facturacion {
+  emisor: { nombre: string; ruc: string; matriz: string; correo: string; telefono: string; obligadoContabilidad: string };
+  cliente: { razonSocial: string; ruc: string; direccion: string; telefono: string; correo: string };
+  item: { codigo: string; descripcion: string };
+  infoAdicional: [string, string][];
+  formaPago: { descripcion: string; plazo: string };
+  transferencia?: { titular: string; ruc: string; banco: string; tipo: string; cuenta: string; correo: string };
+}
+
 export interface PerfilDeNegocio {
   /** Identificador del perfil, el mismo que se pone en `NEGOCIO`. */
   id: string;
@@ -191,6 +205,8 @@ export interface PerfilDeNegocio {
     /** Lo que incluye toda compra, en la franja de la pieza. */
     todasIncluyen: string;
   };
+  /** Sin esto no salen pre-facturas mensuales (negocio sin servicio facturado). */
+  facturacion?: Facturacion;
 }
 
 /** Sin tildes: así se comparan los nombres contra lo que escribe el cliente. */

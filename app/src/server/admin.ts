@@ -692,16 +692,61 @@ export function createAdminRouter(): express.Router {
     }
   });
 
-  router.post("/hub/billing/:period/pay", async (req, res) => {
+  /** Lo que solo hace el dueño del servicio: la clave que Depot no tiene. */
+  function esDueno(req: express.Request, res: express.Response): boolean {
     const ownerKey = process.env.OWNER_KEY ?? "";
     if (!ownerKey) {
       res.status(503).json({ ok: false, error: "OWNER_KEY no está configurada en el servidor." });
-      return;
+      return false;
     }
     if (req.header("x-owner-key") !== ownerKey) {
-      res.status(403).json({ ok: false, error: "Solo el dueño del servicio puede marcar pagos." });
+      res.status(403).json({ ok: false, error: "Solo el dueño del servicio puede hacer esto." });
+      return false;
+    }
+    return true;
+  }
+
+  // Pre-facturas del mes (IA y mantenimiento) en el formato de la contadora.
+  // Salen solas el día 1; esto es para bajarlas o reenviarlas a mano.
+  router.get("/hub/billing/:period/prefactura/:clave", async (req, res) => {
+    if (!esDueno(req, res)) return;
+    try {
+      const { mesFacturado, prefacturasEnPdf } = await import("../services/prefacturaMensual.js");
+      const mes = await mesFacturado(req.params.period);
+      if (!mes) {
+        res.status(404).json({ ok: false, error: `No hay cuenta para ${req.params.period}` });
+        return;
+      }
+      const doc = (await prefacturasEnPdf(mes)).find(({ p }) => p.clave === req.params.clave.replace(/\.pdf$/, ""));
+      if (!doc) {
+        res.status(404).json({ ok: false, error: "Usa ia o mantenimiento" });
+        return;
+      }
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader("Content-Disposition", `inline; filename="${doc.filename}"`);
+      res.send(doc.pdf);
+    } catch (error) {
+      res.status(500).json({ ok: false, error: mensaje(error, "No se pudo armar la pre-factura") });
+    }
+  });
+
+  router.post("/hub/billing/prefacturas/enviar", async (req, res) => {
+    if (!esDueno(req, res)) return;
+    const body = z.object({ period: z.string().regex(/^\d{4}-\d{2}$/).optional() }).safeParse(req.body ?? {});
+    if (!body.success) {
+      res.status(400).json({ ok: false, error: "period debe ser YYYY-MM" });
       return;
     }
+    try {
+      const { enviarPrefacturas } = await import("../services/prefacturaMensual.js");
+      res.json({ ok: true, resultado: await enviarPrefacturas({ forzar: true, period: body.data.period }) });
+    } catch (error) {
+      res.status(500).json({ ok: false, error: mensaje(error, "No se pudieron enviar") });
+    }
+  });
+
+  router.post("/hub/billing/:period/pay", async (req, res) => {
+    if (!esDueno(req, res)) return;
     const body = z.object({ paid: z.boolean() }).safeParse(req.body);
     if (!body.success) {
       res.status(400).json({ ok: false, error: "Falta el campo paid (true/false)." });
