@@ -2,8 +2,12 @@
 
 **Qué:** `app/scripts/factura/generar.mjs` lee `/api/hub/billing` de producción
 y arma dos pre-facturas del mes, una de IA y otra de mantenimiento (cada una
-con su IVA), en HTML y PDF dentro de `facturas/` (ignorado). Sin `--period` toma el mes que acaba de cerrar; el mes en
-curso sale marcado PRELIMINAR. Emisor, cliente y forma de pago en `emisor.json`.
+con su IVA), en HTML y PDF dentro de `facturas/` del checkout principal
+(ignorado). Copia campo por campo la factura Siigo de la contadora (emisor,
+PITSTOP S.A.S., ítem «SERVICIOS PRESTADOS», subtotales por tarifa, forma de pago
+SRI) para que la emita tal cual. Sin `--period` toma el mes que acaba de cerrar;
+el mes en curso sale PRELIMINAR. Los datos tributarios viven en
+`facturas/emisor.json`, fuera de git (`emisor.ejemplo.json` es la plantilla).
 Una tarea programada local la corre el 1 de cada mes a las 9:00.
 
 **Por qué:** Facturar cada mes era sacar los números a mano del tab KPI. Leer
