@@ -1,0 +1,14 @@
+{
+  "emisor": {
+    "nombre": "Manuel Montúfar",
+    "ruc": "",
+    "correo": "",
+    "telefono": ""
+  },
+  "cliente": {
+    "nombre": "Depot Tire",
+    "ruc": "",
+    "direccion": "Quito, Ecuador"
+  },
+  "pago": "Transferencia bancaria. Banco: ____ · Cuenta: ____ · Titular: ____"
+}
