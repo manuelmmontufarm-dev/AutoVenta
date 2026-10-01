@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Pre-factura mensual de Depot Tire: IA (consumo de OpenAI) + mantenimiento + IVA.
+ * Pre-facturas mensuales de Depot Tire, separadas: IA (consumo de OpenAI) y mantenimiento, cada una con IVA.
  *
  *   node app/scripts/factura/generar.mjs                 # mes anterior (el que acaba de cerrar)
  *   node app/scripts/factura/generar.mjs --period 2026-09
@@ -80,16 +80,38 @@ const nombreMes = (p) => {
   return `${MESES[m - 1]} ${y}`;
 };
 
-const subtotal = r2(mes.uso.usd + mes.mantenimiento);
-const iva = r2(mes.ivaTokens + mes.ivaMantenimiento);
 const ivaPorc = Math.round(billing.ivaPorc * 100);
 const preliminar = mes.enCurso;
 const emitida = hoyLocal();
 const finDeMes = `${period}-${new Date(Date.UTC(+period.slice(0, 4), +period.slice(5), 0)).getUTCDate()}`;
 
-const html = `<!doctype html>
+// Dos documentos separados: la IA es pasante (varía cada mes) y el mantenimiento
+// es fijo; Depot los registra en cuentas distintas.
+const DOCUMENTOS = [
+  {
+    clave: "ia",
+    numero: `DT-IA-${period}`,
+    concepto: "Inteligencia artificial — consumo del mes",
+    detalle: `${miles(mes.uso.runs)} corridas de IA · ${miles(mes.uso.inputTokens)} tokens de entrada (${miles(mes.uso.cachedInputTokens)} en caché) · ${miles(mes.uso.outputTokens)} de salida. Tarifa de OpenAI, sin recargo.`,
+    subtotal: mes.uso.usd,
+    iva: mes.ivaTokens,
+    preliminar,
+  },
+  {
+    clave: "mantenimiento",
+    numero: `DT-MANT-${period}`,
+    concepto: "Mantenimiento mensual",
+    detalle: "Servidor, base de datos, WhatsApp, soporte y ajustes del bot.",
+    subtotal: mes.mantenimiento,
+    iva: mes.ivaMantenimiento,
+    // Monto fijo: no depende de que el mes haya cerrado.
+    preliminar: false,
+  },
+];
+
+const html = (doc) => `<!doctype html>
 <html lang="es"><head><meta charset="utf-8">
-<title>Pre-factura ${period} · Depot Tire</title>
+<title>Pre-factura ${doc.numero} · Depot Tire</title>
 <style>
   @page { size: A4; margin: 18mm; }
   body { font: 13px/1.5 -apple-system, "Helvetica Neue", Arial, sans-serif; color: #1c1c1c; margin: 0; }
@@ -113,9 +135,9 @@ const html = `<!doctype html>
 </style></head><body>
 <div class="top">
   <div><h1>PRE-FACTURA</h1><div class="det">Servicio AutoVenta · bot de ventas por WhatsApp</div></div>
-  <div class="num">N.º <b>DT-${period}</b><br>Emitida: ${fechaLarga(emitida)}<br>Vence: ${fechaLarga(mes.vence)}</div>
+  <div class="num">N.º <b>${doc.numero}</b><br>Emitida: ${fechaLarga(emitida)}<br>Vence: ${fechaLarga(mes.vence)}</div>
 </div>
-${preliminar ? `<div class="aviso">PRELIMINAR — el mes todavía no cierra; el consumo de IA puede subir hasta el ${fechaLarga(finDeMes)}.</div>` : ""}
+${doc.preliminar ? `<div class="aviso">PRELIMINAR — el mes todavía no cierra; el consumo de IA puede subir hasta el ${fechaLarga(finDeMes)}.</div>` : ""}
 <div class="partes">
   <div><div class="rot">De</div><b>${esc(datos.emisor.nombre)}</b><br>${datos.emisor.ruc ? `RUC ${esc(datos.emisor.ruc)}<br>` : ""}${esc(datos.emisor.correo)}${datos.emisor.telefono ? ` · ${esc(datos.emisor.telefono)}` : ""}</div>
   <div><div class="rot">Para</div><b>${esc(datos.cliente.nombre)}</b><br>${datos.cliente.ruc ? `RUC ${esc(datos.cliente.ruc)}<br>` : ""}${esc(datos.cliente.direccion)}</div>
@@ -123,37 +145,34 @@ ${preliminar ? `<div class="aviso">PRELIMINAR — el mes todavía no cierra; el 
 </div>
 <table>
   <tr><th>Concepto</th><th class="m">Valor</th></tr>
-  <tr><td><b>Inteligencia artificial — consumo del mes</b><div class="det">${miles(mes.uso.runs)} corridas de IA · ${miles(mes.uso.inputTokens)} tokens de entrada (${miles(mes.uso.cachedInputTokens)} en caché) · ${miles(mes.uso.outputTokens)} de salida. Tarifa de OpenAI, sin recargo.</div></td><td class="m">${usd(mes.uso.usd)}</td></tr>
-  <tr><td><b>Mantenimiento mensual</b><div class="det">Servidor, base de datos, WhatsApp, soporte y ajustes del bot.</div></td><td class="m">${usd(mes.mantenimiento)}</td></tr>
+  <tr><td><b>${doc.concepto}</b><div class="det">${doc.detalle}</div></td><td class="m">${usd(doc.subtotal)}</td></tr>
 </table>
 <table class="tot">
-  <tr><td>Subtotal</td><td class="m">${usd(subtotal)}</td></tr>
-  <tr><td>IVA ${ivaPorc} %</td><td class="m">${usd(iva)}</td></tr>
-  <tr class="g"><td>Total a pagar</td><td class="m">${usd(mes.total)}</td></tr>
+  <tr><td>Subtotal</td><td class="m">${usd(doc.subtotal)}</td></tr>
+  <tr><td>IVA ${ivaPorc} %</td><td class="m">${usd(doc.iva)}</td></tr>
+  <tr class="g"><td>Total a pagar</td><td class="m">${usd(r2(doc.subtotal + doc.iva))}</td></tr>
 </table>
 <div class="pie">
   <div><b>Forma de pago:</b> ${esc(datos.pago)}</div>
-  <div style="margin-top:6px">El detalle diario del consumo está en el tab KPI del hub. La factura electrónica del SRI se emite por los mismos valores.</div>
+  <div style="margin-top:6px">${doc.clave === "ia" ? "El detalle diario del consumo está en el tab KPI del hub. " : ""}La factura electrónica del SRI se emite por los mismos valores.</div>
 </div>
 </body></html>`;
 
 mkdirSync(outDir, { recursive: true });
-const base = join(outDir, `prefactura-depot-${period}${preliminar ? "-preliminar" : ""}`);
-writeFileSync(`${base}.html`, html);
-let pdf = null;
-if (existsSync(CHROME)) {
-  execFileSync(CHROME, ["--headless", "--disable-gpu", "--no-pdf-header-footer", `--print-to-pdf=${base}.pdf`, `file://${base}.html`], {
-    stdio: "ignore",
-  });
-  pdf = `${base}.pdf`;
+console.log(`Pre-facturas ${period}${preliminar ? " (PRELIMINAR, mes en curso)" : ""}`);
+for (const doc of DOCUMENTOS) {
+  const base = join(outDir, `prefactura-depot-${period}-${doc.clave}${doc.preliminar ? "-preliminar" : ""}`);
+  writeFileSync(`${base}.html`, html(doc));
+  let pdf = null;
+  if (existsSync(CHROME)) {
+    execFileSync(CHROME, ["--headless", "--disable-gpu", "--no-pdf-header-footer", `--print-to-pdf=${base}.pdf`, `file://${base}.html`], {
+      stdio: "ignore",
+    });
+    pdf = `${base}.pdf`;
+  }
+  console.log(`  ${doc.numero.padEnd(18)} ${usd(doc.subtotal)} + IVA ${usd(doc.iva)} = ${usd(r2(doc.subtotal + doc.iva))}`);
+  console.log(`    ${pdf ?? `${base}.html (sin Chrome: no hay PDF)`}`);
 }
-
-console.log(`Pre-factura ${period}${preliminar ? " (PRELIMINAR, mes en curso)" : ""}`);
-console.log(`  IA            ${usd(mes.uso.usd)}`);
-console.log(`  Mantenimiento ${usd(mes.mantenimiento)}`);
-console.log(`  Subtotal      ${usd(subtotal)}`);
-console.log(`  IVA ${ivaPorc} %      ${usd(iva)}`);
-console.log(`  TOTAL         ${usd(mes.total)}   vence ${mes.vence}${mes.pagado ? "   (YA PAGADO)" : ""}`);
-console.log(`  ${pdf ?? `${base}.html (sin Chrome: no hay PDF)`}`);
+console.log(`  TOTAL DEL MES      ${usd(mes.total)}   vence ${mes.vence}${mes.pagado ? "   (YA PAGADO)" : ""}`);
 const impagos = billing.meses.filter((m) => !m.pagado && !m.enCurso && m.period < period);
 for (const m of impagos) console.log(`  OJO: ${m.period} sigue sin marcarse pagado en el hub (${usd(m.total)})`);

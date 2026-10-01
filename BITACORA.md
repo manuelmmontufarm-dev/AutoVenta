@@ -1,8 +1,8 @@
 ## 30-sep-2026 · Pre-factura mensual de Depot desde la cuenta de producción
 
 **Qué:** `app/scripts/factura/generar.mjs` lee `/api/hub/billing` de producción
-y arma la pre-factura del mes (IA + mantenimiento + IVA) en HTML y PDF dentro de
-`facturas/` (ignorado). Sin `--period` toma el mes que acaba de cerrar; el mes en
+y arma dos pre-facturas del mes, una de IA y otra de mantenimiento (cada una
+con su IVA), en HTML y PDF dentro de `facturas/` (ignorado). Sin `--period` toma el mes que acaba de cerrar; el mes en
 curso sale marcado PRELIMINAR. Emisor, cliente y forma de pago en `emisor.json`.
 Una tarea programada local la corre el 1 de cada mes a las 9:00.
 
