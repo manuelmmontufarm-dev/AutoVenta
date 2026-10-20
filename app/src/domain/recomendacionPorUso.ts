@@ -13,35 +13,10 @@
  * Puro, sin base ni catálogo: recibe los tipos ya resueltos.
  */
 
-export type UsoDeclarado = "agarre" | "pavimento" | "mixto" | "tierra" | "lodo" | "carga";
+import { TIPOS_POR_USO, usoDeclarado, type UsoDeclarado } from "./usoYTipo.js";
 
-const normalizar = (t: string) =>
-  t.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
-
-/**
- * Qué uso contó el cliente. El más exigente manda si nombra varios («ciudad
- * y a veces finca» es mixto, no pavimento).
- */
-export function usoDeclarado(texto: string): UsoDeclarado | null {
-  const n = normalizar(texto ?? "");
-  if (/\b(?:lodo|barro|cantera|trocha|mina|mineria|obra)\b/.test(n)) return "lodo";
-  if (/\b(?:ripio|lastre|piedra|tierra|destapad\w*|monta[nñ]a|finca|campo|oriente)\b/.test(n)) return "tierra";
-  if (/\b(?:mixto|todo\s?terreno|doble\s+proposito|4x4)\b/.test(n)) return "mixto";
-  if (/\b(?:carga|reparto|trabajo|pesado|camion)\b/.test(n)) return "carga";
-  if (/\b(?:agarre|adhier\w*|adier\w*|adherencia|derrap\w*|mojado|lluvia|frenad\w*)\b/.test(n)) return "agarre";
-  if (/\b(?:pavimento|asfalto|carretera|ciudad|autopista|urbano|viaj\w*)\b/.test(n)) return "pavimento";
-  return null;
-}
-
-/** Orden de tipos por uso: el primero que aparezca en la pieza gana. */
-const TIPOS_POR_USO: Record<UsoDeclarado, string[]> = {
-  agarre: ["TURISMO UHP", "TURISMO", "TURISMO SUV", "H/T", "A/T"],
-  pavimento: ["H/T", "TURISMO", "TURISMO SUV", "TURISMO UHP", "A/T"],
-  mixto: ["A/T", "R/T", "H/T", "M/T"],
-  tierra: ["R/T", "A/T", "M/T"],
-  lodo: ["M/T", "R/T", "A/T"],
-  carga: ["COMERCIAL", "H/T", "A/T"],
-};
+// El uso y sus tipos viven en `usoYTipo.ts` (dueño único); aquí solo se reexportan.
+export { usoDeclarado, type UsoDeclarado };
 
 const MOTIVO_POR_USO: Record<UsoDeclarado, string> = {
   agarre: "para agarre y frenado en pavimento es la de mejor desempeño de las que le mostré",

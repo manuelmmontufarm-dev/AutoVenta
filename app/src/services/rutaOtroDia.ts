@@ -19,6 +19,7 @@ import { sql } from "../db/client.js";
 import { pidioOtroDia } from "../domain/botones.js";
 import { rechazaLosDiasPropuestos } from "../domain/customerCommitment.js";
 import type { Conversation } from "./conversations.js";
+import { hayQueElegirLocal, LOCALES_COMO_ALTERNATIVA } from "../domain/storeSelection.js";
 
 export function pideOtroDia(texto: string | null | undefined): boolean {
   return pidioOtroDia(texto) || rechazaLosDiasPropuestos(texto);
@@ -26,9 +27,13 @@ export function pideOtroDia(texto: string | null | undefined): boolean {
 
 /** La respuesta, pura: se prueba sin base. */
 export function respuestaAlOtroDia(localElegido: string | null): string {
-  return localElegido
-    ? `Perfecto. ¿Qué día le queda bien pasar por *${localElegido}*? Lo anoto y le aviso al asesor. 📅`
-    : "Perfecto. ¿Qué día le queda bien pasar, y a cuál local: *Cumbayá* o *Quito Sur*? 📅";
+  if (localElegido) {
+    return `Perfecto. ¿Qué día le queda bien pasar por *${localElegido}*? Lo anoto y le aviso al asesor. 📅`;
+  }
+  // Con un solo local no hay local que preguntar: se pregunta solo el día.
+  return hayQueElegirLocal
+    ? `Perfecto. ¿Qué día le queda bien pasar, y a cuál local: ${LOCALES_COMO_ALTERNATIVA}? 📅`
+    : "Perfecto. ¿Qué día le queda bien pasar? Lo anoto y le aviso al asesor. 📅";
 }
 
 export async function tryRutaOtroDia(

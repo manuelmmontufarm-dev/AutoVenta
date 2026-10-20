@@ -268,7 +268,9 @@ describe.sequential("Venta primero — los arreglos de Joaquín", () => {
       });
       expect(bloque).toMatch(/235\/75R15 — PROHIBIDO volver a pedir medida, aro o foto/);
       expect(bloque).toMatch(/PROHIBIDO preguntar «¿se la cotizo por 4\?»/);
-      expect(bloque).toMatch(/PROHIBIDO escribir el otro local/);
+      // «otro local» y no «el otro local» desde el 24-sep: los locales salen del
+      // perfil del negocio y pueden ser más de dos, así que «el otro» no existe.
+      expect(bloque).toMatch(/PROHIBIDO escribir otro local/);
       expect(bloque).toMatch(/PROHIBIDO volver a preguntar qué día viene/);
     });
 

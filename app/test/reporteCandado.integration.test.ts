@@ -26,7 +26,7 @@ await admin.end();
 
 const { sql } = await import("../src/db/client.js");
 // El candado real, no una copia: si el SQL de producción cambia, esto se entera.
-const { rechazadosPorMeta, reclamarDia, soltarDia, ultimoDiaEnviado } = await import("../src/services/dailyReportDelivery.js");
+const { candadoPeriodico, rechazadosPorMeta, reclamarDia, soltarDia, ultimoDiaEnviado } = await import("../src/services/dailyReportDelivery.js");
 
 beforeAll(async () => {
   await sql`
@@ -68,6 +68,19 @@ describe("candado del reporte diario", () => {
     await soltarDia("2026-08-12");
     expect(await ultimoDiaEnviado()).toBeNull();
     expect(await reclamarDia("2026-08-12")).toBe(true);
+  });
+
+  it("las pre-facturas del mes llevan su propia marca: no pisan la del reporte", async () => {
+    // Mismo SQL, otra clave. Si compartieran marca, mandar las pre-facturas
+    // del 1 de octubre dejaría sin reporte esa noche (o al revés).
+    const prefacturas = candadoPeriodico("prefactura_last_sent");
+    const antes = await ultimoDiaEnviado();
+    expect(await prefacturas.reclamar("2026-09")).toBe(true);
+    expect(await prefacturas.reclamar("2026-09")).toBe(false);
+    expect(await ultimoDiaEnviado()).toBe(antes);
+    expect(await prefacturas.ultimo()).toBe("2026-09");
+    await prefacturas.soltar("2026-09");
+    expect(await prefacturas.ultimo()).toBeNull();
   });
 
   it("soltar NO borra la marca de un día distinto", async () => {

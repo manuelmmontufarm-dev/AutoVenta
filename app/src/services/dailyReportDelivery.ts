@@ -45,8 +45,36 @@ export function esHoraDelReporte(ahora: Date): boolean {
 }
 
 export async function ultimoDiaEnviado(): Promise<string | null> {
-  const [fila] = await sql<{ value: unknown }[]>`select value from settings where key = ${CLAVE}`;
+  return candadoPeriodico(CLAVE).ultimo();
+}
+
+/**
+ * El mismo candado con otra marca en `settings`, para otro envío periódico
+ * (las pre-facturas del mes) sin copiar el SQL. Es una fábrica y no un
+ * parámetro opcional porque estas funciones se pasan sueltas a `.map`, que
+ * metería el índice como clave.
+ */
+export function candadoPeriodico(clave: string) {
+  return {
+    ultimo: () => leerMarca(clave),
+    reclamar: (periodo: string) => reclamarMarca(periodo, clave),
+    soltar: (periodo: string) => soltarMarca(periodo, clave),
+  };
+}
+
+async function leerMarca(clave: string): Promise<string | null> {
+  const [fila] = await sql<{ value: unknown }[]>`select value from settings where key = ${clave}`;
   return typeof fila?.value === "string" ? fila.value : null;
+}
+
+export async function soltarDia(dia: string): Promise<void> {
+  return soltarMarca(dia, CLAVE);
+}
+
+async function soltarMarca(dia: string, clave: string): Promise<void> {
+  await sql`
+    delete from settings where key = ${clave} and value::text = ${JSON.stringify(dia)}
+  `;
 }
 
 /**
@@ -58,15 +86,13 @@ export async function ultimoDiaEnviado(): Promise<string | null> {
  * el `on conflict ... where`, no en el TypeScript de alrededor, y una copia del
  * SQL en el test podría quedar en verde mientras el de producción se rompe.
  */
-export async function soltarDia(dia: string): Promise<void> {
-  await sql`
-    delete from settings where key = ${CLAVE} and value::text = ${JSON.stringify(dia)}
-  `;
+export async function reclamarDia(dia: string): Promise<boolean> {
+  return reclamarMarca(dia, CLAVE);
 }
 
-export async function reclamarDia(dia: string): Promise<boolean> {
+async function reclamarMarca(dia: string, clave: string): Promise<boolean> {
   const filas = await sql`
-    insert into settings (key, value) values (${CLAVE}, ${sql.json(dia)})
+    insert into settings (key, value) values (${clave}, ${sql.json(dia)})
     on conflict (key) do update set value = excluded.value, updated_at = now()
     where settings.value::text is distinct from ${JSON.stringify(dia)}
     returning key

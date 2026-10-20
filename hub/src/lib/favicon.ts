@@ -11,18 +11,18 @@ export function updateFavicon(abiertos: number): void {
   if (!ctx) return;
 
   ctx.beginPath();
-  ctx.roundRect(0, 0, 64, 64, 14);
-  ctx.fillStyle = abiertos > 0 ? "#c96b62" : "#2e2e2b";
+  ctx.roundRect(0, 0, 64, 64, 10);
+  ctx.fillStyle = abiertos > 0 ? "#b4453a" : "#1c1b19";
   ctx.fill();
 
-  ctx.fillStyle = "#f5f4ee";
+  ctx.fillStyle = "#ffffff";
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
   if (abiertos > 0) {
-    ctx.font = "800 34px Inter, sans-serif";
+    ctx.font = "700 34px 'Archivo Variable', Archivo, sans-serif";
     ctx.fillText(String(Math.min(abiertos, 99)), 32, 35);
   } else {
-    ctx.font = "800 26px Inter, sans-serif";
+    ctx.font = "700 26px 'Archivo Variable', Archivo, sans-serif";
     ctx.fillText("DT", 32, 34);
   }
 

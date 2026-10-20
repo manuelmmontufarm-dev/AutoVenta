@@ -4,8 +4,28 @@
     {
       "name": "hub",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev", "--prefix", "hub"],
+      "runtimeArgs": [
+        "run",
+        "dev",
+        "--prefix",
+        "hub"
+      ],
       "port": 5199
+    },
+    {
+      "name": "sim",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run",
+        "sim",
+        "--prefix",
+        "app",
+        "--",
+        "--debounce",
+        "1500",
+        "--verboso"
+      ],
+      "port": 3210
     }
   ]
 }

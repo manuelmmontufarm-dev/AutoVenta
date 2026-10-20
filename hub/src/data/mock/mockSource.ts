@@ -199,6 +199,28 @@ export class MockSource implements DataSource {
           valor: llegaron.reduce((sum, t) => sum + (t.cotizacion?.total ?? 0), 0),
         };
       })(),
+      // El demo no tiene Contífico: las ventas «facturadas» son los ganados
+      // con cotización, para que la tarjeta se vea como en producción.
+      ventasConfirmadas: (() => {
+        const detalle = ganados.filter((t) => t.cotizacion).map((t, i) => {
+          const dia = t.ultimaActividad.slice(0, 10);
+          const total = t.cotizacion!.total;
+          return {
+            ticketId: t.id, nombre: t.nombre, telefono: t.telefono, cliente: (t.nombre ?? "").toUpperCase(),
+            facturas: [{ documento: `002-001-000000${600 + i}`, dia, total, local: "Cumbayá" }],
+            total, dia, llantas: `4 × ${t.medida ?? "llanta"}`, atendio: t.atiende === "bot" ? "bot" as const : "asesor" as const, cotizado: true,
+          };
+        });
+        const suma = (xs: typeof detalle) => xs.reduce((a, x) => a + x.total, 0);
+        const delBot = detalle.filter((v) => v.atendio === "bot");
+        return {
+          disponible: true, ultimaSync: new Date().toISOString(), error: null,
+          ultimaFactura: detalle[0]?.dia ?? null, ventas: detalle.length, monto: suma(detalle),
+          delBot: { ventas: delBot.length, monto: suma(delBot) },
+          delAsesor: { ventas: detalle.length - delBot.length, monto: suma(detalle) - suma(delBot) },
+          detalle, descartes: [],
+        };
+      })(),
       inventory: {
         total: 375,
         available: 248,

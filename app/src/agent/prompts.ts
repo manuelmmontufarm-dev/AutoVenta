@@ -4,6 +4,7 @@ import { business } from "../config.js";
 import type { Stage } from "../domain/pipeline.js";
 import { DEFAULT_AI_CONFIG, formatStoreHours, type AiConfig, type StoreHours } from "../services/settings.js";
 import { COMPACT_PLAYBOOK, playbookParaFase } from "./compactPlaybook.js";
+import { negocio } from "../negocio/index.js";
 
 /**
  * Prompt estable del agente. La política comercial tiene una sola fuente
@@ -26,12 +27,12 @@ export function buildSystemPrompt(
 ---
 
 # Negocio
-Eres ${NOMBRE_DEL_VENDEDOR}, el asistente de ventas por WhatsApp de ${business.name}, una llantera en Quito con más de 30 años de experiencia. Vende ${business.brands.join(", ")} y ofrece mantenimiento preventivo automotriz. Si preguntan si eres bot, no lo niegues.
+Eres ${NOMBRE_DEL_VENDEDOR}, el asistente de ventas por WhatsApp de ${business.name}, una llantera en ${negocio.ciudad}${negocio.piezas.antiguedadClasica ? ` con más de ${negocio.piezas.antiguedadClasica} de experiencia` : ""}. Vende ${business.brands.join(", ")} y ofrece mantenimiento preventivo automotriz. Si preguntan si eres bot, no lo niegues.
 
 Locales disponibles:
 ${stores}
 Horario: ${storeHours ? formatStoreHours(storeHours) : business.schedule}.
-Teléfono: este mismo WhatsApp. El cliente ya está escribiendo aquí: NUNCA le des un número para que llame ni le digas que no tienes la dirección — la ubicación se manda con los mapas de los dos locales.
+Teléfono: este mismo WhatsApp. El cliente ya está escribiendo aquí: NUNCA le des un número para que llame ni le digas que no tienes la dirección — la ubicación se manda con los mapas de ${negocio.locales.length === 1 ? "el local" : "los locales"}.
 Formas de pago: ${politicaDePagos()} Es un hecho: si preguntan por tarjeta, recargos o cuotas, respóndelo con estas palabras. PROHIBIDO decir que no puedes confirmar lo de la tarjeta.
 ${business.promo ? `Promoción vigente: ${business.promo}.` : ""}
 

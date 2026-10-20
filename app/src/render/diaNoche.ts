@@ -27,6 +27,7 @@
 import { DEPOT_LOGO_RATIO, depotLogo, logoOficial } from "./assets.js";
 import { el, img, stripEmoji, text, type SatoriNode } from "./depotDesign.js";
 import type { PosterLine } from "./depotPosters.js";
+import { negocio, pieDeLocales, localesEnUnaLinea } from "../negocio/index.js";
 
 // ===========================================================================
 // Día o noche
@@ -308,7 +309,7 @@ function logoDepot(t: Tokens, alto: number): SatoriNode {
   const logo = depotLogo(t.logo);
   return logo
     ? img(logo.dataUri, { height: alto, width: Math.round(alto * DEPOT_LOGO_RATIO) })
-    : text({ ...ANCHO(900), fontSize: alto * 0.6, color: t.txt }, "DEPOT TIRE");
+    : text({ ...ANCHO(900), fontSize: alto * 0.6, color: t.txt }, negocio.nombre.toUpperCase());
 }
 
 // ===========================================================================
@@ -667,8 +668,8 @@ export function optionsPosterDiaNoche(data: OptionsDiaNocheData, modo: ModoPieza
       : null,
     incluye,
     el({ justifyContent: "space-between", marginTop: 16 },
-      text({ ...BARLOW(400), fontSize: 9, color: t.sub }, "Precios con IVA y Ecovalor · 3 y 6 meses sin intereses con tarjeta de crédito"),
-      text({ ...BARLOW(400), fontSize: 9, color: t.sub }, "Cumbayá · Quito Sur · desde 1996"),
+      text({ ...BARLOW(400), fontSize: 9, color: t.sub }, negocio.piezas.condicionesDiaNoche),
+      text({ ...BARLOW(400), fontSize: 9, color: t.sub }, pieDeLocales(negocio)),
     ),
   );
 }
@@ -714,7 +715,13 @@ export function quotePosterDiaNoche(data: QuoteDiaNocheData, modo: ModoPieza): S
   // no se repite en las chicas.
   const minis: Array<{ ic: Icono; cifra: string; texto: string }> = [
     ...(line.golpesMeses ? [{ ic: "medalla" as const, cifra: `${line.fabricaAnios} años`, texto: `Garantía de fábrica ${marca}` }] : []),
-    { ic: "local", cifra: "30 años", texto: "Depot Tire en Quito, desde 1996" },
+    ...(negocio.piezas.antiguedadClasica
+      ? [{
+          ic: "local" as const,
+          cifra: negocio.piezas.antiguedadClasica,
+          texto: `${negocio.nombre} en ${negocio.ciudad}${negocio.piezas.antiguedad ? `, ${negocio.piezas.antiguedad}` : ""}`,
+        }]
+      : []),
   ];
 
   return el({
@@ -903,8 +910,8 @@ export function quotePosterDiaNoche(data: QuoteDiaNocheData, modo: ModoPieza): S
       )),
 
     el({ justifyContent: "space-between", marginTop: 16, paddingTop: 12, borderTop: `1px solid ${t.line}` },
-      text({ ...BARLOW(400), fontSize: 8.5, color: t.sub }, "Efectivo, tarjeta y transferencia · 3 y 6 meses sin intereses con tarjeta de crédito"),
-      text({ ...BARLOW(600), fontSize: 8.5, color: t.pieB }, "Cumbayá · Quito Sur"),
+      text({ ...BARLOW(400), fontSize: 8.5, color: t.sub }, negocio.piezas.mediosDePagoDiaNoche),
+      text({ ...BARLOW(600), fontSize: 8.5, color: t.pieB }, localesEnUnaLinea(negocio)),
     ),
   );
 }

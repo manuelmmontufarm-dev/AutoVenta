@@ -13,7 +13,8 @@ describe("candado 2 — tipo pedido por el cliente", () => {
     expect(tipoSolicitadoEn(["algo todo terreno porfa"])).toBe("A/T");
     expect(tipoSolicitadoEn(["all terrain"])).toBe("A/T");
     expect(tipoSolicitadoEn(["una mt para lodo"])).toBe("M/T");
-    expect(tipoSolicitadoEn(["para lodo"])).toBe("M/T");
+    // «lodo» es un uso (M/T y R/T), no un tipo pedido: ver domain/usoYTipo.ts.
+    expect(tipoSolicitadoEn(["para lodo"])).toBeNull();
     expect(tipoSolicitadoEn(["h/t para carretera"])).toBe("H/T");
   });
 

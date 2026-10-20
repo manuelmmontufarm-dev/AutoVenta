@@ -1,19 +1,22 @@
-import { AnimatePresence, motion } from "framer-motion";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { AnimatePresence } from "framer-motion";
+import { useEffect, useRef, useState } from "react";
 import { ChatBubble, Composer, CotizacionModal, TypingBubble } from "../components/chat";
-import { IconAuto, IconBack, IconBot, IconDoc, IconEtiqueta, IconNote, IconPhone, IconPin, IconRefresh, IconSparkle, IconUser, IconX } from "../components/icons";
-import { PipelineStepper } from "../components/stepper";
-import { AtiendePill, Avatar, CierreBadge, CierreIcon, MedidaChip, Modal, StageBadge } from "../components/ui";
-import { CIERRE_META, type Cierre, type Mensaje, type Ticket } from "../data/types";
-import { money, relTime } from "../lib/format";
+import { IconBack, IconDoc, IconRefresh, IconX } from "../components/icons";
+import { BlockTitle, Campo, CierreBadge, CierreIcon, MedidaChip, Modal, Segmented } from "../components/ui";
+import { CIERRE_META, ETAPA_META, type Cierre, type Mensaje, type Ticket } from "../data/types";
+import { etiquetaVisita, money, relTime } from "../lib/format";
 import { navigate } from "../router";
 import { useHub, useNow } from "../store";
 
+/** El nombre de pila del cliente, para el compositor y la firma de sus mensajes. */
+function nombreCorto(ticket: Ticket): string {
+  return ticket.nombre?.trim().split(/\s+/)[0] ?? "el cliente";
+}
+
 export function TicketDetail({ id }: { id: number }) {
   const { tickets, ticketsSueltos, mensajes, typing, abrirTicket, enviarMensaje, setAtiende, cerrar, reabrir, agregarNota } = useHub();
-  // El listado corta en 500: un enlace viejo (feed, "Llegaron al final") apunta
-  // a una conversación que existe pero no vino en el lote. `abrirTicket` la
-  // trae de a una y aterriza aquí.
+  // El listado corta en 500: un enlace viejo apunta a una conversación que
+  // existe pero no vino en el lote. `abrirTicket` la trae de a una.
   const ticket = tickets.find((t) => t.id === id) ?? ticketsSueltos[id];
   const msgs = mensajes[id] ?? [];
   const escribiendo = typing[id];
@@ -22,6 +25,7 @@ export function TicketDetail({ id }: { id: number }) {
   const [verCotizacion, setVerCotizacion] = useState(false);
   const [cerrando, setCerrando] = useState(false);
   const [fichaMovil, setFichaMovil] = useState(false);
+  const [verDescuento, setVerDescuento] = useState(false);
   const [cargandoTicket, setCargandoTicket] = useState(!ticket);
 
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -31,9 +35,9 @@ export function TicketDetail({ id }: { id: number }) {
    *
    * En iOS el teclado NO encoge `100dvh`: la página se queda del alto entero y
    * el composer termina debajo del teclado, escribiendo a ciegas. La única
-   * medida fiable es `visualViewport` —lo mismo que ya hacía el chat de la
-   * baraja—, y hay que escuchar `scroll` además de `resize` porque el pan de
-   * Safari con el teclado abierto solo dispara el primero.
+   * medida fiable es `visualViewport`, y hay que escuchar `scroll` además de
+   * `resize` porque el pan de Safari con el teclado abierto solo dispara el
+   * primero.
    */
   const [marco, setMarco] = useState<{ alto: number; top: number } | null>(null);
   const [movil, setMovil] = useState(() => window.matchMedia("(max-width: 767px)").matches);
@@ -82,158 +86,155 @@ export function TicketDetail({ id }: { id: number }) {
 
   if (!ticket) {
     return (
-      <div className="grid h-full place-items-center text-sm text-muted">
+      <div className="grid h-full place-items-center text-[14px] text-text2">
         {cargandoTicket ? (
           "Abriendo la conversación…"
         ) : (
-          <>
-            Ticket no encontrado —{" "}
-            <button className="ml-1 font-bold text-lime" onClick={() => navigate("inbox")}>
-              volver al inbox
+          <span>
+            Ticket no encontrado.{" "}
+            <button className="font-semibold text-signal underline underline-offset-[3px]" onClick={() => navigate("inbox")}>
+              Volver al Inbox
             </button>
-          </>
+          </span>
         )}
       </div>
     );
   }
 
   const abierto = ticket.estado === "abierto";
+  const nombre = nombreCorto(ticket);
   // Lo visible contra la ventana entera: si falta un buen pedazo, el teclado
   // está arriba. `dvh` no sirve para saberlo en iOS.
   const tecladoAbierto = marco !== null && window.innerHeight - marco.alto - marco.top > 80;
 
+  const abrirDescuento = () => {
+    setVerDescuento(true);
+    if (movil) setFichaMovil(true);
+  };
+
+  const ficha = (
+    <Ficha
+      ticket={ticket}
+      now={now}
+      verDescuento={verDescuento}
+      onToggleDescuento={() => setVerDescuento((v) => !v)}
+      onVerCotizacion={() => {
+        setFichaMovil(false);
+        setVerCotizacion(true);
+      }}
+      onReabrir={() => void reabrir(ticket.id)}
+      onNota={(texto) => void agregarNota(ticket.id, texto)}
+    />
+  );
+
   return (
     <div
-      className="flex h-full min-h-0"
+      className="flex h-full min-h-0 flex-col"
       // En el teléfono la conversación se comporta como una app de mensajes:
-      // ocupa EXACTAMENTE el área visible (no la ventana entera), por encima de
-      // la barra de tabs, para que el composer quede pegado al teclado y no
-      // debajo. En escritorio no se toca nada: sigue en el flujo del panel.
+      // ocupa EXACTAMENTE el área visible, por encima de la barra de tabs,
+      // para que el composer quede pegado al teclado y no debajo.
       style={movil && marco
-        ? { position: "fixed", left: 0, right: 0, top: marco.top, height: marco.alto, zIndex: 30, background: "var(--color-ink)" }
+        ? { position: "fixed", left: 0, right: 0, top: marco.top, height: marco.alto, zIndex: 30, background: "var(--color-bg)" }
         : undefined}
     >
-      {/* ── Columna principal: header + stepper + chat ── */}
-      <div className="flex min-w-0 flex-1 flex-col">
-        {/* A sangre en el teléfono, tarjeta flotante en escritorio: un chat con
-            márgenes a los lados no se lee como un chat. */}
-        <div className="glass flex items-center gap-2.5 px-3 py-2 md:mx-3 md:gap-3 md:rounded-2xl md:py-2.5">
-          <button
-            onClick={() => navigate("inbox")}
-            className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-muted transition-colors hover:bg-paper/5 hover:text-paper"
-            aria-label="Volver"
-          >
-            <IconBack size={18} />
+      {/* ── Cabecera ── */}
+      <header className="flex items-center justify-between gap-3 px-3 pt-[calc(10px+env(safe-area-inset-top))] pb-2.5 md:px-8 md:pt-[30px] md:pb-[22px]">
+        <div className="flex min-w-0 items-baseline gap-3.5">
+          <button onClick={() => navigate("inbox")} className="hidden text-[13px] text-text2 hover:text-text md:inline">← Inbox</button>
+          <button onClick={() => navigate("inbox")} className="grid h-9 w-9 shrink-0 place-items-center self-center rounded-[6px] text-text2 md:hidden" aria-label="Volver al Inbox">
+            <IconBack size={20} />
           </button>
-          <Avatar ticket={ticket} size={36} />
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-[13.5px] font-bold">{ticket.nombre ?? ticket.telefono}</p>
-            <p className="tnum flex items-center gap-1.5 text-[11px] text-muted">
-              <IconPhone size={10} /> {ticket.telefono} · {relTime(ticket.ultimaActividad, now)}
-            </p>
-            {ticket.esRecurrente && <p className="mt-0.5 flex items-center gap-1 text-[11px] font-black text-lime"><IconSparkle size={10} className="shrink-0" /> Ya compró antes{ticket.comprasAnteriores ? ` · ${ticket.comprasAnteriores} ${ticket.comprasAnteriores === 1 ? "compra" : "compras"}` : ""}</p>}
-          </div>
-          <div className="hidden items-center gap-1.5 sm:flex">
-            {ticket.estado === "cerrado" && ticket.cierre ? (
-              <CierreBadge cierre={ticket.cierre} />
-            ) : (
-              <StageBadge etapa={ticket.etapa} />
-            )}
-          </div>
-          {/* QUIÉN ATIENDE, EN LA CABECERA Y DE UN TOQUE.
-              Vivía enterrado en la Ficha: para tomar un chat había que abrir un
-              modal, bajar seis secciones y mover un interruptor. Es la decisión
-              más frecuente de esta pantalla y ahora está siempre a la vista. */}
+          <h1 className="truncate text-[17px] font-semibold tracking-[-0.01em] md:text-[22px]">{ticket.nombre ?? ticket.telefono}</h1>
+          {ticket.nombre && <span className="tnum hidden font-mono text-[13px] text-text2 lg:inline">{ticket.telefono}</span>}
+        </div>
+        <div className="flex shrink-0 items-center gap-2">
           {abierto && (
-            <AtiendeSwitch
-              atiende={ticket.atiende}
-              onCambiar={() => void setAtiende(ticket.id, ticket.atiende === "bot" ? "humano" : "bot")}
-            />
+            <>
+              <button onClick={abrirDescuento} className="btn-quiet hidden h-9 rounded-[6px] px-3.5 text-[13px] md:inline-flex md:items-center">Ofrecer descuento</button>
+              <button onClick={() => setCerrando(true)} className="btn-quiet hidden h-9 rounded-[6px] px-3.5 text-[13px] md:inline-flex md:items-center">Cerrar ticket</button>
+            </>
           )}
-          <button
-            onClick={() => setFichaMovil(true)}
-            className="shrink-0 rounded-full px-2.5 py-1.5 text-[11px] font-bold text-muted hover:bg-paper/5 lg:hidden"
+          <button onClick={() => setFichaMovil(true)} className="btn-quiet h-9 rounded-[6px] px-3 text-[13px] lg:hidden">Ficha</button>
+        </div>
+      </header>
+
+      <div className="grid min-h-0 flex-1 gap-5 px-0 pb-0 md:mx-8 md:mb-8 lg:grid-cols-[minmax(0,1fr)_380px]">
+        {/* ── Chat ── */}
+        <div className="flex min-h-0 flex-col overflow-hidden border-line bg-surface md:rounded-[10px] md:border">
+          <div className="flex h-14 items-center justify-between gap-4 border-b border-line px-4 md:px-5">
+            <span className="text-[13px] font-semibold whitespace-nowrap">Quién contesta</span>
+            {abierto ? (
+              <Segmented
+                id="atiende"
+                valor={ticket.atiende}
+                onChange={(v) => void setAtiende(ticket.id, v)}
+                // En 390 px no entran las dos frases: van las dos palabras.
+                opciones={[
+                  { valor: "bot", label: movil ? "El bot" : "Contesta el bot" },
+                  { valor: "humano", label: movil ? "Ustedes" : "Contestan ustedes" },
+                ]}
+              />
+            ) : ticket.cierre ? (
+              <span className="flex items-center gap-3">
+                <CierreBadge cierre={ticket.cierre} />
+                <button onClick={() => void reabrir(ticket.id)} className="btn-quiet flex h-8 items-center gap-1.5 rounded-[6px] px-3 text-[12px]">
+                  <IconRefresh size={13} /> Reabrir
+                </button>
+              </span>
+            ) : null}
+          </div>
+
+          <div
+            ref={scrollRef}
+            className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4 md:px-5 md:py-5"
+            // Tocar la conversación baja el teclado, como en WhatsApp.
+            onTouchStart={() => {
+              const foco = document.activeElement;
+              if (foco instanceof HTMLInputElement || foco instanceof HTMLTextAreaElement) foco.blur();
+            }}
           >
-            Ficha
-          </button>
-        </div>
+            <div className="flex flex-col gap-2.5">
+              <AvisoMonologo ticket={ticket} mensajes={msgs} />
+              {msgs.map((m) => (
+                <ChatBubble key={m.id} msg={m} nombreCliente={nombre} onVerPdf={() => setVerCotizacion(true)} />
+              ))}
+              <AnimatePresence>{escribiendo && <TypingBubble rol={escribiendo} />}</AnimatePresence>
+            </div>
+          </div>
 
-        {/* El stepper es contexto, no conversación: en el teléfono se lleva una
-            franja entera de alto que el chat necesita. Vive en la Ficha. */}
-        <div className="mx-3 mt-2.5 hidden md:block">
-          <PipelineStepper ticket={ticket} />
-        </div>
-
-        {ticket.cotizacion && <button onClick={() => setVerCotizacion(true)} className="mx-3 mt-2 flex items-center gap-2 rounded-xl border border-lime/15 bg-lime/[.055] px-3 py-2 text-left">
-          <IconDoc size={16} className="shrink-0 text-lime" /><span className="min-w-0 flex-1"><span className="block text-[10px] font-black uppercase tracking-wider text-lime">Cotización #{ticket.cotizacion.numero}</span><span className="block truncate text-[10.5px] text-muted">{ticket.cotizacion.items.map((item) => `${item.cantidad}× ${item.descripcion}`).join(" · ")}</span></span><span className="tnum text-xs font-black">{money(ticket.cotizacion.total)}</span>
-        </button>}
-
-        <div
-          ref={scrollRef}
-          className="chat-bg min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 py-4 md:mx-3 md:mt-2.5 md:rounded-2xl"
-          // Tocar la conversación baja el teclado, como en WhatsApp: con el
-          // teclado arriba solo se ven dos burbujas y para leer hay que poder
-          // quitarlo sin buscar ningún botón.
-          onTouchStart={() => {
-            const foco = document.activeElement;
-            if (foco instanceof HTMLInputElement || foco instanceof HTMLTextAreaElement) foco.blur();
-          }}
-        >
-          <div className="mx-auto flex max-w-2xl flex-col gap-2">
-            <AvisoMonologo ticket={ticket} mensajes={msgs} />
-            {msgs.map((m) => (
-              <ChatBubble key={m.id} msg={m} onVerPdf={() => setVerCotizacion(true)} />
-            ))}
-            <AnimatePresence>{escribiendo && <TypingBubble rol={escribiendo} />}</AnimatePresence>
+          <div
+            className="border-t border-line"
+            // Con el teclado abierto la barra del home queda detrás de él: el
+            // safe-area se volvería una franja muerta entre composer y teclado.
+            style={{ paddingBottom: movil && !tecladoAbierto ? "max(0px, env(safe-area-inset-bottom))" : undefined }}
+          >
+            <Composer
+              ticket={ticket}
+              nombreCliente={nombre}
+              onEnviar={(texto) => void enviarMensaje(ticket.id, texto)}
+              onTomar={() => void setAtiende(ticket.id, "humano")}
+            />
           </div>
         </div>
 
-        <div
-          className="glass md:mx-3 md:my-2.5 md:rounded-2xl"
-          // Con el teclado abierto la barra del home queda detrás de él: el
-          // safe-area se volvería una franja muerta entre composer y teclado.
-          style={{ paddingBottom: movil && !tecladoAbierto ? "max(0.25rem, env(safe-area-inset-bottom))" : undefined }}
-        >
-          <Composer
-            ticket={ticket}
-            onEnviar={(texto) => void enviarMensaje(ticket.id, texto)}
-            onTomar={() => void setAtiende(ticket.id, "humano")}
-          />
-        </div>
+        {/* ── Ficha (escritorio ancho) ── */}
+        <aside className="hidden min-h-0 overflow-y-auto rounded-[10px] border border-line bg-surface lg:block">{ficha}</aside>
       </div>
 
-      {/* ── Ficha (desktop) ── */}
-      <aside className="hidden w-76 shrink-0 overflow-y-auto py-0.5 pr-3 pl-0.5 lg:block">
-        <Ficha
-          ticket={ticket}
-          onVerCotizacion={() => setVerCotizacion(true)}
-          onCerrar={() => setCerrando(true)}
-          onReabrir={() => void reabrir(ticket.id)}
-          onToggleAtiende={() => void setAtiende(ticket.id, ticket.atiende === "bot" ? "humano" : "bot")}
-          onNota={(texto) => void agregarNota(ticket.id, texto)}
-        />
-      </aside>
-
-      {/* ── Ficha (móvil, sheet) ── */}
+      {/* ── Ficha (teléfono y tablet, en hoja) ── */}
       <AnimatePresence>
         {fichaMovil && (
-          <Modal onClose={() => setFichaMovil(false)} ancho={400}>
-            <div className="p-3">
-              <Ficha
-                ticket={ticket}
-                onVerCotizacion={() => {
-                  setFichaMovil(false);
-                  setVerCotizacion(true);
-                }}
-                onCerrar={() => {
-                  setFichaMovil(false);
-                  setCerrando(true);
-                }}
-                onReabrir={() => void reabrir(ticket.id)}
-                onToggleAtiende={() => void setAtiende(ticket.id, ticket.atiende === "bot" ? "humano" : "bot")}
-                onNota={(texto) => void agregarNota(ticket.id, texto)}
-              />
+          <Modal onClose={() => setFichaMovil(false)} ancho={420}>
+            <div className="flex items-center justify-between border-b border-line px-5 py-3">
+              <span className="text-[15px] font-semibold">Ficha</span>
+              <button onClick={() => setFichaMovil(false)} className="grid h-8 w-8 place-items-center text-text2" aria-label="Cerrar"><IconX size={16} /></button>
             </div>
+            {ficha}
+            {abierto && (
+              <div className="flex gap-2 border-t border-line p-4">
+                <button onClick={() => { setFichaMovil(false); setCerrando(true); }} className="btn-quiet h-10 flex-1 rounded-[6px] text-[13px]">Cerrar ticket</button>
+              </div>
+            )}
           </Modal>
         )}
       </AnimatePresence>
@@ -260,60 +261,10 @@ export function TicketDetail({ id }: { id: number }) {
 }
 
 /**
- * QUIÉN CONTESTA ESTE CHAT — el control, no el letrero.
- *
- * Antes la cabecera mostraba `AtiendePill`, que solo INFORMA, y para cambiarlo
- * había que abrir la Ficha, bajar hasta «Atiende» y mover un interruptor: tres
- * toques y un modal encima de la conversación. Es la decisión más frecuente de
- * esta pantalla —el cliente está escribiendo AHORA y hay que decidir si
- * contesta el bot o una persona—, así que es un botón de un toque con las dos
- * caras a la vista: se lee el estado y se cambia en el mismo gesto.
- */
-function AtiendeSwitch({ atiende, onCambiar }: { atiende: Ticket["atiende"]; onCambiar: () => void }) {
-  const bot = atiende === "bot";
-  return (
-    <button
-      onClick={onCambiar}
-      role="switch"
-      aria-checked={!bot}
-      aria-label={bot ? "Contesta el bot. Tocar para tomar el chat." : "Contestan ustedes. Tocar para devolvérselo al bot."}
-      title={bot ? "Contesta el bot — tocar para tomarlo" : "Contestan ustedes — tocar para devolvérselo al bot"}
-      className="relative flex shrink-0 items-center gap-1 rounded-full p-0.5 text-[10.5px] font-black"
-      style={{ background: "color-mix(in srgb, var(--color-paper) 8%, transparent)" }}
-    >
-      {/* La pastilla viaja entre las dos caras: el cambio se ve, no se adivina. */}
-      <motion.span
-        layout
-        transition={{ type: "spring", stiffness: 520, damping: 34 }}
-        className="absolute top-0.5 bottom-0.5 rounded-full"
-        style={bot
-          ? { left: "2px", right: "50%", background: "color-mix(in srgb, var(--color-violet) 22%, transparent)" }
-          : { left: "50%", right: "2px", background: "color-mix(in srgb, var(--color-lime) 22%, transparent)" }}
-      />
-      <span
-        className="relative z-10 flex items-center gap-1 rounded-full px-2 py-1.5"
-        style={{ color: bot ? "var(--color-violet)" : "var(--color-faint)" }}
-      >
-        <IconBot size={12} /> Bot
-      </span>
-      <span
-        className="relative z-10 flex items-center gap-1 rounded-full px-2 py-1.5"
-        style={{ color: bot ? "var(--color-faint)" : "var(--color-lime)" }}
-      >
-        <IconUser size={12} /> Yo
-      </span>
-    </button>
-  );
-}
-
-/**
  * Una conversación donde solo se ve al cliente no es lo mismo que una
  * conversación donde nadie contestó, y hasta ahora las dos se veían igual.
  *
- * Ticket 1848: cinco mensajes seguidos del cliente, uno preguntando «221 cada
- * una ?» — alguien le había dado un precio y ese alguien no existía en el
- * panel. Este aviso dice cuál de los tres motivos es, con el dato real de cada
- * uno, en vez de dejar el hueco sin explicación:
+ * Este aviso dice cuál de los tres motivos es, con el dato real de cada uno:
  *  · el bot está apagado (no contesta, y eso es una decisión, no una falla);
  *  · la conversación está en manos de un asesor;
  *  · el asesor contesta desde su WhatsApp y Meta no nos manda la copia — el
@@ -336,236 +287,250 @@ function AvisoMonologo({ ticket, mensajes }: { ticket: Ticket; mensajes: Mensaje
         echoHealth?.ultimoDescarteMotivo === "sin_app_secret"
           ? "falta el app secret del canal"
           : "la firma no coincide con el app secret guardado"
-      }). Eso sí es un error: revisa Ajustes → Canal.`,
+      }). Eso sí es un error: revisa Configuración técnica → WhatsApp.`,
     );
   } else if (ecosNuncaLlegaron) {
     motivos.push(
-      "Meta nunca nos ha mandado copia de lo que un asesor escribe desde su celular. Si alguien le respondió por WhatsApp, ese mensaje existe para el cliente pero no para el panel: hay que marcar «message_echoes» en Meta (Ajustes → Diagnóstico del canal lo comprueba).",
+      "Meta nunca nos ha mandado copia de lo que un asesor escribe desde su celular. Si alguien le respondió por WhatsApp, ese mensaje existe para el cliente pero no para el panel: hay que marcar «message_echoes» en Meta (Configuración técnica → WhatsApp lo comprueba).",
     );
   } else if (echoHealth) {
     motivos.push(
       "Las respuestas que un asesor escribe desde WhatsApp sí están entrando al panel, así que aquí de verdad no contestó nadie todavía.",
     );
   }
+  const esError = ecosRotos || ecosNuncaLlegaron;
 
   return (
     <div
-      className="mb-1 rounded-xl border border-dashed px-3 py-2.5 text-[11px] leading-relaxed"
+      className="mb-1 rounded-[8px] border px-3.5 py-3 text-[13px] leading-relaxed"
       style={{
-        borderColor: ecosRotos || ecosNuncaLlegaron
-          ? "color-mix(in srgb, var(--color-warn) 45%, transparent)"
-          : "color-mix(in srgb, var(--color-paper) 14%, transparent)",
-        background: ecosRotos || ecosNuncaLlegaron
-          ? "color-mix(in srgb, var(--color-warn) 8%, transparent)"
-          : "color-mix(in srgb, var(--color-paper) 3%, transparent)",
+        borderColor: esError ? "rgba(168,115,31,.45)" : "var(--color-line)",
+        background: esError ? "rgba(168,115,31,.07)" : "var(--color-bg)",
       }}
     >
-      <p className="font-black">Aquí solo hay mensajes del cliente</p>
+      <p className="font-semibold">Aquí solo hay mensajes del cliente</p>
       {motivos.map((motivo) => (
-        <p key={motivo} className="mt-1 text-muted">{motivo}</p>
+        <p key={motivo} className="mt-1 text-text2">{motivo}</p>
       ))}
-      {motivos.length === 0 && (
-        <p className="mt-1 text-muted">Nadie ha respondido todavía en esta conversación.</p>
-      )}
+      {motivos.length === 0 && <p className="mt-1 text-text2">Nadie ha respondido todavía en esta conversación.</p>}
     </div>
   );
 }
 
-/* ── Ficha del cliente ── */
+/* ── Ficha del cliente: etiqueta / valor, como una ficha impresa ── */
+
+function Seccion({ titulo, aside, children, ultima = false }: { titulo: string; aside?: React.ReactNode; children: React.ReactNode; ultima?: boolean }) {
+  return (
+    <section className={`flex flex-col gap-3.5 px-5 pt-5 pb-[18px] ${ultima ? "" : "border-b border-line"}`}>
+      <BlockTitle aside={aside}>{titulo}</BlockTitle>
+      {children}
+    </section>
+  );
+}
+
+function Campos({ children }: { children: React.ReactNode }) {
+  return <div className="grid grid-cols-[112px_minmax(0,1fr)] items-baseline gap-x-4 gap-y-3">{children}</div>;
+}
 
 function Ficha({
   ticket,
+  now,
+  verDescuento,
+  onToggleDescuento,
   onVerCotizacion,
-  onCerrar,
   onReabrir,
-  onToggleAtiende,
   onNota,
 }: {
   ticket: Ticket;
+  now: number;
+  verDescuento: boolean;
+  onToggleDescuento: () => void;
   onVerCotizacion: () => void;
-  onCerrar: () => void;
   onReabrir: () => void;
-  onToggleAtiende: () => void;
   onNota: (texto: string) => void;
 }) {
   const { crearDescuento } = useHub();
   const [nota, setNota] = useState("");
-  const [verDescuento, setVerDescuento] = useState(false);
   const [promptDescuento, setPromptDescuento] = useState("");
   const [entregaDescuento, setEntregaDescuento] = useState<"now" | "next_message">("next_message");
   const [estadoDescuento, setEstadoDescuento] = useState<string | null>(null);
   const [guardandoDescuento, setGuardandoDescuento] = useState(false);
+  const descuentoRef = useRef<HTMLElement>(null);
   const abierto = ticket.estado === "abierto";
+  const cot = ticket.cotizacion;
+
+  // Al abrir el editor desde la cabecera, la sección tiene que quedar a la vista.
+  useEffect(() => {
+    if (verDescuento) descuentoRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  }, [verDescuento]);
 
   const confirmarDescuento = async () => {
     if (promptDescuento.trim().length < 3) {
       setEstadoDescuento("Escribe el descuento y la condición.");
       return;
     }
-    setGuardandoDescuento(true); setEstadoDescuento(null);
+    setGuardandoDescuento(true);
+    setEstadoDescuento(null);
     try {
       const result = await crearDescuento(ticket.id, promptDescuento.trim(), entregaDescuento);
       setEstadoDescuento(result.sent ? "Descuento notificado al cliente." : (result.warning ?? "Oferta registrada; requiere plantilla."));
-      setVerDescuento(false); setPromptDescuento("");
+      onToggleDescuento();
+      setPromptDescuento("");
     } catch (error) {
       setEstadoDescuento(error instanceof Error ? error.message : "No se pudo crear la oferta.");
-    } finally { setGuardandoDescuento(false); }
+    } finally {
+      setGuardandoDescuento(false);
+    }
   };
 
+  const cantidad = cot?.items.reduce((s, i) => s + i.cantidad, 0);
+  const visita = etiquetaVisita(ticket.visitDate, ticket.compromisoCliente, now)
+    ?? (ticket.visitDate ? new Date(ticket.visitDate).toLocaleString("es-EC", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : null);
+  const espera = abierto && ticket.sinLeer > 0;
+  const mono = "tnum font-mono";
+
   return (
-    <div className="flex flex-col gap-2.5">
-      {/* Lo que busca */}
-      <section className="glass rounded-2xl p-4">
-        <p className="microlabel mb-2.5">Busca</p>
-        {ticket.medida ? (
-          <MedidaChip medida={ticket.medida} size="lg" />
+    <div className="flex flex-col">
+      <Seccion titulo="Vehículo y medida" aside={ticket.esRecurrente ? "Ya compró antes" : undefined}>
+        <Campos>
+          <Campo etiqueta="Vehículo">{ticket.vehiculo ?? <span className="text-text2">Por identificar</span>}</Campo>
+          <Campo etiqueta="Medida">{ticket.medida ? <MedidaChip medida={ticket.medida} /> : <span className="text-text2">Aún no identificada</span>}</Campo>
+          <Campo etiqueta="Cantidad">{cantidad ? <span className={mono}>{cantidad} {cantidad === 1 ? "llanta" : "llantas"}</span> : <span className="text-text2">Sin definir</span>}</Campo>
+          <Campo etiqueta="Etapa">{ETAPA_META[ticket.etapa].nombre}</Campo>
+        </Campos>
+      </Seccion>
+
+      <Seccion titulo="Compromiso">
+        <Campos>
+          <Campo etiqueta="Visita">{visita ?? <span className="text-text2">Sin fecha todavía</span>}</Campo>
+          <Campo etiqueta="Local">
+            {ticket.localAsignado ? (
+              <span>
+                {ticket.localAsignado.nombre}
+                <span className="block text-[12px] text-text2">{ticket.localAsignado.direccion} · a {ticket.localAsignado.distanciaKm.toFixed(1).replace(".", ",")} km</span>
+              </span>
+            ) : (
+              <span className="text-text2">Sin asignar</span>
+            )}
+          </Campo>
+          <Campo etiqueta="Última respuesta">
+            {espera ? (
+              <span className="font-semibold text-signal">Pregunta sin contestar · {relTime(ticket.ultimaActividad, now).replace("hace ", "")}</span>
+            ) : (
+              <span className="text-text2">{relTime(ticket.ultimaActividad, now)}</span>
+            )}
+          </Campo>
+          {ticket.followUpReason && <Campo etiqueta="Requiere atención">{ticket.followUpReason}</Campo>}
+        </Campos>
+      </Seccion>
+
+      {(ticket.resumen || ticket.queBusca || ticket.opcionesComparadas?.length || ticket.opcionElegida) && (
+        <Seccion titulo="Comparación">
+          <Campos>
+            <Campo etiqueta="Pidió">{ticket.queBusca ?? ticket.medida ?? <span className="text-text2">Por identificar</span>}</Campo>
+            <Campo etiqueta="Comparó">{ticket.opcionesComparadas?.length ? ticket.opcionesComparadas.map(String).join(" · ") : <span className="text-text2">Sin comparación registrada</span>}</Campo>
+            <Campo etiqueta="Eligió">{ticket.opcionElegida ?? <span className="text-text2">Aún no eligió</span>}</Campo>
+          </Campos>
+          {ticket.resumen && <p className="text-[13px] leading-relaxed text-text2">{ticket.resumen}</p>}
+        </Seccion>
+      )}
+
+      <Seccion titulo={cot ? `Cotización #${cot.numero}` : "Cotización"}>
+        {cot ? (
+          <>
+            <Campos>
+              <Campo etiqueta={cot.items.length === 1 ? "Modelo" : "Modelos"}>{cot.items.map((i) => i.descripcion).join(" · ")}</Campo>
+              <Campo etiqueta="Unitario"><span className={mono}>{cot.items.map((i) => `${money(i.precioUnit)} × ${i.cantidad}`).join(" · ")}</span></Campo>
+              <Campo etiqueta="Subtotal"><span className={mono}>{money(cot.subtotal)}</span></Campo>
+              <Campo etiqueta="IVA 15 %"><span className={mono}>{money(cot.iva)}</span></Campo>
+              {cot.discountAmount ? <Campo etiqueta="Descuento"><span className={`${mono} text-ok`}>−{money(cot.discountAmount)}</span>{cot.discountCondition && <span className="block text-[12px] text-text2">si {cot.discountCondition}</span>}</Campo> : null}
+              <Campo etiqueta="Total"><span className={`${mono} font-bold`}>{money(cot.total)}</span></Campo>
+            </Campos>
+            <button onClick={onVerCotizacion} className="btn-quiet flex h-9 items-center justify-center gap-2 rounded-[6px] text-[13px]">
+              <IconDoc size={14} /> Ver PDF
+            </button>
+          </>
         ) : (
-          <p className="text-xs text-faint italic">Medida aún no identificada</p>
+          <p className="text-[13px] text-text2">Todavía no se le envió una cotización.</p>
         )}
-        {ticket.vehiculo && <p className="mt-2.5 flex items-center gap-1.5 text-[12.5px] font-semibold text-paper/85"><IconAuto size={14} className="shrink-0" /> {ticket.vehiculo}</p>}
-        {ticket.esRecurrente && (
-          <p className="mt-2 flex items-center gap-1.5 text-[11.5px] font-semibold text-lime"><IconSparkle size={12} className="shrink-0" /> Cliente recurrente</p>
+      </Seccion>
+
+      <section ref={descuentoRef} className="flex flex-col gap-3.5 border-b border-line px-5 pt-5 pb-[18px]">
+        <BlockTitle aside={abierto ? <button onClick={onToggleDescuento} className="font-medium text-signal">{verDescuento ? "Cancelar" : ticket.descuentoActivo ? "Ajustar" : "Ofrecer"}</button> : undefined}>Descuento</BlockTitle>
+        {ticket.descuentoActivo ? (
+          <Campos>
+            <Campo etiqueta="Autorizado"><span className={`${mono} font-semibold text-ok`}>−{money(ticket.descuentoActivo.amount)}</span> · total {money(ticket.descuentoActivo.finalTotal)}</Campo>
+            <Campo etiqueta="Condición">{ticket.descuentoActivo.condition}</Campo>
+          </Campos>
+        ) : ticket.descuentoPendiente ? (
+          <Campos>
+            <Campo etiqueta="Listo para la próxima"><span className={mono}>{ticket.descuentoPendiente.kind === "percentage" ? `${ticket.descuentoPendiente.value / 100} %` : money(ticket.descuentoPendiente.value / 100)}</span></Campo>
+            <Campo etiqueta="Condición">{ticket.descuentoPendiente.condition}</Campo>
+          </Campos>
+        ) : (
+          !verDescuento && <p className="text-[13px] text-text2">El bot sólo ofrece el monto y la condición que autorices aquí.{!cot && " Si lo autorizás ahora, se aplica a la próxima cotización."}</p>
         )}
-      </section>
-
-      <section className="glass rounded-2xl p-4">
-        <p className="microlabel mb-2.5">Resumen de la conversación</p>
-        <p className="text-xs leading-relaxed">{ticket.resumen ?? "Resumen automático pendiente; se actualizará con la próxima interacción."}</p>
-        {ticket.followUpReason && <div className="mt-2 rounded-xl border border-amber-500/15 bg-amber-500/[.06] p-2.5"><p className="text-[11px] font-black uppercase tracking-wider text-amber-500">Por qué requiere atención</p><p className="mt-1 text-[10.5px] font-bold">{ticket.followUpReason}</p></div>}
-        <dl className="mt-3 grid gap-2 text-[11px]">
-          <div><dt className="text-faint">Qué busca</dt><dd>{ticket.queBusca ?? ticket.medida ?? "Por identificar"}</dd></div>
-          <div><dt className="text-faint">Opciones que comparó</dt><dd>{ticket.opcionesComparadas?.length ? ticket.opcionesComparadas.map(String).join(" · ") : "Sin comparación registrada"}</dd></div>
-          <div><dt className="text-faint">Qué eligió</dt><dd>{ticket.opcionElegida ?? "Aún no eligió"}</dd></div>
-          <div><dt className="text-faint">Compromiso o fecha</dt><dd>{ticket.compromisoCliente ?? (ticket.visitDate ? new Date(ticket.visitDate).toLocaleString("es-EC") : "Sin compromiso registrado")}</dd></div>
-        </dl>
-      </section>
-
-      {/* Cotización */}
-      {ticket.cotizacion && (
-        <section className="glass rounded-2xl p-4">
-          <p className="microlabel mb-2.5">Cotización #{ticket.cotizacion.numero}</p>
-          <p className="tnum text-[26px] leading-none font-bold tracking-tight">{money(ticket.cotizacion.total)}</p>
-          {ticket.cotizacion.discountAmount && <p className="mt-1.5 text-[11px] font-bold text-lime">Descuento autorizado: −{money(ticket.cotizacion.discountAmount)} · {ticket.cotizacion.discountCondition}</p>}
-          <p className="mt-1.5 text-[11.5px] text-muted">
-            {ticket.cotizacion.items.map((i) => `${i.cantidad}× ${i.descripcion}`).join(" · ")}
-          </p>
-          <button
-            onClick={onVerCotizacion}
-            className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl py-2 text-xs font-bold transition-colors hover:bg-paper/10"
-            style={{ background: "color-mix(in srgb, var(--color-paper) 6%, transparent)", border: "1px solid color-mix(in srgb, var(--color-paper) 10%, transparent)" }}
-          >
-            <IconDoc size={13} /> Ver PDF
-          </button>
-        </section>
-      )}
-
-      <section className="glass rounded-2xl border border-lime/10 p-4">
-        <div className="flex items-center justify-between gap-2"><div><p className="microlabel">Descuento comercial</p><p className="mt-1 text-[10.5px] text-muted">El bot solo ofrecerá el monto y la condición que autorices aquí.</p></div><IconEtiqueta size={18} className="shrink-0 text-muted" /></div>
-        {ticket.descuentoActivo && <div className="mt-2 rounded-xl bg-lime/[.07] p-2.5"><p className="text-xs font-black text-lime">−{money(ticket.descuentoActivo.amount)} · Total {money(ticket.descuentoActivo.finalTotal)}</p><p className="mt-1 text-[10.5px]">Si {ticket.descuentoActivo.condition}</p></div>}
-        {ticket.descuentoPendiente && !ticket.descuentoActivo && <div className="mt-2 rounded-xl bg-amber-500/[.08] p-2.5"><p className="text-[10.5px] font-black text-amber-500">Descuento listo para la próxima cotización</p><p className="mt-1 text-[10px]">{ticket.descuentoPendiente.kind === "percentage" ? `${ticket.descuentoPendiente.value / 100}%` : money(ticket.descuentoPendiente.value / 100)} · si {ticket.descuentoPendiente.condition}</p></div>}
-        {!ticket.cotizacion && <p className="mt-3 rounded-xl bg-paper/[.04] p-2.5 text-[10.5px] text-faint">Puedes autorizarlo ahora: quedará guardado y se aplicará automáticamente a la próxima cotización.</p>}
-        {abierto && <button onClick={() => setVerDescuento((value) => !value)} className="mt-3 w-full rounded-xl bg-lime/10 py-2 text-xs font-bold text-lime">{ticket.descuentoActivo ? "Ajustar descuento" : "Ofrecer descuento"}</button>}
-        {verDescuento && <div className="mt-3 grid gap-2 rounded-xl border border-lime/20 bg-lime/[.04] p-3"><label className="text-[10px] font-bold">Indicación para el bot<textarea value={promptDescuento} onChange={(e) => setPromptDescuento(e.target.value)} placeholder="Ej. 5% de descuento si recoge esta semana" className="gp-field mt-1 min-h-20 w-full rounded-lg px-2.5 py-2 text-xs" /></label><div className="grid grid-cols-2 gap-2"><button type="button" onClick={() => setEntregaDescuento("now")} className={`rounded-xl border px-2 py-2 text-[10px] font-black ${entregaDescuento === "now" ? "border-lime/50 bg-lime/15 text-lime" : "border-paper/10 text-muted"}`}>Notificar ahora</button><button type="button" onClick={() => setEntregaDescuento("next_message")} className={`rounded-xl border px-2 py-2 text-[10px] font-black ${entregaDescuento === "next_message" ? "border-lime/50 bg-lime/15 text-lime" : "border-paper/10 text-muted"}`}>Incluir en el siguiente mensaje</button></div><p className="text-[11px] text-faint">El bot aplicará el ahorro exacto en la cotización. El descuento solo será válido en tienda presentando el número de cotización.</p><button disabled={guardandoDescuento} onClick={() => void confirmarDescuento()} className="btn-aurora rounded-xl py-2.5 text-xs font-bold disabled:opacity-50">{guardandoDescuento ? "Confirmando…" : "Confirmar descuento"}</button></div>}
-        {estadoDescuento && <p className="mt-2 text-[10.5px] text-muted">{estadoDescuento}</p>}
-      </section>
-
-      {/* Local asignado */}
-      {ticket.localAsignado && (
-        <section className="glass rounded-2xl p-4">
-          <p className="microlabel mb-2.5">Local más cercano</p>
-          <p className="flex items-start gap-2 text-[12.5px] font-semibold">
-            <span className="mt-0.5 shrink-0 text-red">
-              <IconPin size={14} />
-            </span>
-            {ticket.localAsignado.nombre}
-          </p>
-          <p className="mt-1 ml-6 text-[11.5px] leading-relaxed text-muted">{ticket.localAsignado.direccion}</p>
-          <p className="tnum mt-1.5 ml-6 text-[11.5px] font-bold text-lime">
-            a {ticket.localAsignado.distanciaKm.toFixed(1).replace(".", ",")} km del cliente
-          </p>
-        </section>
-      )}
-
-      {/* Quién atiende */}
-      {abierto && (
-        <section className="glass flex items-center justify-between rounded-2xl p-4">
-          <div>
-            <p className="microlabel">Atiende</p>
-            <p className="mt-1 flex items-center gap-1.5 text-[12.5px] font-bold">{ticket.atiende === "bot" ? <><IconBot size={14} className="shrink-0" /> Bot AutoVenta</> : <><IconUser size={14} className="shrink-0" /> Vendedor</>}</p>
-          </div>
-          <button
-            onClick={onToggleAtiende}
-            role="switch"
-            aria-checked={ticket.atiende === "humano"}
-            className="relative h-7 w-13 rounded-full transition-colors"
-            style={{ background: ticket.atiende === "humano" ? "var(--color-violet)" : "color-mix(in srgb, var(--color-paper) 12%, transparent)" }}
-          >
-            <motion.span
-              layout
-              transition={{ type: "spring", stiffness: 500, damping: 32 }}
-              className="absolute top-0.5 h-6 w-6 rounded-full bg-white shadow-soft"
-              style={{ left: ticket.atiende === "humano" ? "calc(100% - 26px)" : "2px" }}
+        {verDescuento && abierto && (
+          <div className="flex flex-col gap-2.5">
+            <label className="flex flex-col gap-1.5 text-[12px] text-text2">
+              Indicación para el bot
+              <textarea
+                value={promptDescuento}
+                onChange={(e) => setPromptDescuento(e.target.value)}
+                placeholder="Ej. 5% de descuento si recoge esta semana"
+                className="gp-field min-h-20 text-[13px] text-text"
+                autoFocus
+              />
+            </label>
+            <Segmented
+              id="entrega-descuento"
+              valor={entregaDescuento}
+              onChange={setEntregaDescuento}
+              opciones={[
+                { valor: "next_message", label: "En el siguiente mensaje" },
+                { valor: "now", label: "Notificar ahora" },
+              ]}
             />
-          </button>
-        </section>
-      )}
+            <p className="text-[12px] leading-relaxed text-text2">El bot aplica el ahorro exacto en la cotización. Vale en tienda presentando el número de cotización.</p>
+            <button disabled={guardandoDescuento} onClick={() => void confirmarDescuento()} className="btn-signal h-10 rounded-[6px] text-[13px]">
+              {guardandoDescuento ? "Confirmando…" : "Confirmar descuento"}
+            </button>
+          </div>
+        )}
+        {estadoDescuento && <p className="text-[12px] text-text2">{estadoDescuento}</p>}
+      </section>
 
-      {/* Notas internas */}
-      <section className="glass rounded-2xl p-4">
-        <p className="microlabel mb-2.5 flex items-center gap-1.5">
-          <IconNote size={11} /> Notas internas
-        </p>
+      <Seccion titulo="Notas internas" ultima>
         {ticket.notas.length > 0 && (
-          <ul className="mb-2.5 flex flex-col gap-1.5">
+          <ul className="flex flex-col gap-1.5">
             {ticket.notas.map((n, i) => (
-              <li
-                key={i}
-                className="rounded-lg px-2.5 py-2 text-[11.5px] leading-relaxed text-paper/85"
-                style={{ background: "color-mix(in srgb, var(--color-sand) 8%, transparent)", borderLeft: "2px solid color-mix(in srgb, var(--color-sand) 50%, transparent)" }}
-              >
-                {n}
-              </li>
+              <li key={i} className="rounded-[6px] bg-bg px-3 py-2 text-[13px] leading-relaxed">{n}</li>
             ))}
           </ul>
         )}
-        <div className="flex gap-1.5">
-          <input
-            value={nota}
-            onChange={(e) => setNota(e.target.value)}
-            onKeyDown={(e) => {
-              if ((e.key === "Enter" || e.key === "Return") && !e.nativeEvent.isComposing && nota.trim()) {
-                onNota(nota.trim());
-                setNota("");
-              }
-            }}
-            placeholder="Agregar nota…"
-            className="gp-field min-w-0 flex-1 rounded-lg px-2.5 py-1.5 text-xs placeholder:text-faint"
-          />
-        </div>
-      </section>
-
-      {/* Acciones */}
-      {abierto ? (
-        <button
-          onClick={onCerrar}
-          className="btn-aurora flex items-center justify-center gap-2 rounded-2xl py-3 text-[13px] font-bold transition-transform hover:-translate-y-0.5"
-        >
-          Cerrar ticket
-        </button>
-      ) : (
-        <button
-          onClick={onReabrir}
-          className="flex items-center justify-center gap-2 rounded-2xl py-3 text-[13px] font-bold text-paper transition-transform hover:-translate-y-0.5"
-          style={{ background: "color-mix(in srgb, var(--color-paper) 8%, transparent)", border: "1px solid color-mix(in srgb, var(--color-paper) 12%, transparent)" }}
-        >
-          <IconRefresh size={15} /> Reabrir ticket
-        </button>
-      )}
+        <input
+          value={nota}
+          onChange={(e) => setNota(e.target.value)}
+          onKeyDown={(e) => {
+            if ((e.key === "Enter" || e.key === "Return") && !e.nativeEvent.isComposing && nota.trim()) {
+              onNota(nota.trim());
+              setNota("");
+            }
+          }}
+          placeholder="Agregar nota… (Enter para guardar)"
+          className="gp-field text-[13px]"
+        />
+        {!abierto && (
+          <button onClick={onReabrir} className="btn-quiet flex h-10 items-center justify-center gap-2 rounded-[6px] text-[13px]">
+            <IconRefresh size={14} /> Reabrir ticket
+          </button>
+        )}
+      </Seccion>
     </div>
   );
 }
 
-/* ── Sheet de cierre (motivo obligatorio — patrón Zendesk) ── */
+/* ── Cierre con motivo: el motivo alimenta las métricas del embudo ── */
 
 export function CerrarSheet({
   ticket,
@@ -578,42 +543,41 @@ export function CerrarSheet({
 }) {
   const [cierre, setCierre] = useState<Cierre | null>(null);
   const [nota, setNota] = useState("");
+  const explicacion: Record<Cierre, string> = {
+    ganado: "Vino y compró",
+    perdido: "No compró — anota por qué",
+    sin_respuesta: "Se enfrió, dejó de contestar",
+  };
 
   return (
     <Modal onClose={onCancelar} ancho={420}>
       <div className="p-6">
         <div className="mb-1 flex items-start justify-between">
-          <h3 className="serif text-xl tracking-tight">Cerrar ticket</h3>
-          <button onClick={onCancelar} className="text-muted hover:text-paper" aria-label="Cancelar">
+          <h3 className="text-[18px] font-semibold tracking-[-0.01em]">Cerrar ticket</h3>
+          <button onClick={onCancelar} className="text-text2 hover:text-text" aria-label="Cancelar">
             <IconX size={17} />
           </button>
         </div>
-        <p className="mb-5 text-xs text-muted">
+        <p className="mb-5 text-[13px] text-text2">
           {ticket.nombre ?? ticket.telefono}
-          {ticket.cotizacion && ` · ${money(ticket.cotizacion.total)}`} — el motivo alimenta las métricas del embudo.
+          {ticket.cotizacion && ` · ${money(ticket.cotizacion.total)}`}
         </p>
-        <div className="flex flex-col gap-2">
+        <div className="flex flex-col gap-2" role="radiogroup" aria-label="Motivo del cierre">
           {(Object.keys(CIERRE_META) as Cierre[]).map((c) => {
             const meta = CIERRE_META[c];
             const activo = cierre === c;
             return (
               <button
                 key={c}
+                role="radio"
+                aria-checked={activo}
                 onClick={() => setCierre(c)}
-                className="flex items-center gap-3 rounded-2xl px-4 py-3 text-left transition-all"
-                style={{
-                  background: activo ? `color-mix(in srgb, ${meta.color} 12%, transparent)` : "color-mix(in srgb, var(--color-paper) 4%, transparent)",
-                  border: `1px solid ${activo ? `color-mix(in srgb, ${meta.color} 45%, transparent)` : "color-mix(in srgb, var(--color-paper) 7%, transparent)"}`,
-                }}
+                className={`flex items-center gap-3 rounded-[8px] border px-4 py-3 text-left transition-colors ${activo ? "border-signal bg-signal-tint" : "border-line bg-surface hover:bg-bg"}`}
               >
                 <CierreIcon cierre={c} size={18} />
                 <span>
-                  <span className="block text-[13px] font-bold" style={{ color: activo ? meta.color : "var(--color-paper)" }}>
-                    {meta.nombre}
-                  </span>
-                  <span className="text-[11px] text-muted">
-                    {c === "ganado" ? "Vino y compró" : c === "perdido" ? "No compró — anota por qué" : "Se enfrió, dejó de contestar"}
-                  </span>
+                  <span className={`block text-[14px] ${activo ? "font-semibold" : "font-medium"}`}>{meta.nombre}</span>
+                  <span className="text-[12px] text-text2">{explicacion[c]}</span>
                 </span>
               </button>
             );
@@ -623,12 +587,12 @@ export function CerrarSheet({
           value={nota}
           onChange={(e) => setNota(e.target.value)}
           placeholder={cierre === "perdido" ? "¿Por qué se perdió? (ej: precio)" : "Nota opcional…"}
-          className="gp-field mt-3 w-full rounded-xl px-3.5 py-2.5 text-xs placeholder:text-faint"
+          className="gp-field mt-3 text-[13px]"
         />
         <button
           disabled={!cierre}
           onClick={() => cierre && onCerrar(cierre, nota.trim() || undefined)}
-          className="btn-aurora mt-4 w-full rounded-2xl py-3 text-[13px] font-bold transition-all disabled:opacity-30"
+          className="btn-signal mt-4 h-11 w-full rounded-[6px] text-[14px]"
         >
           Confirmar cierre
         </button>

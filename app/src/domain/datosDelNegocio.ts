@@ -98,6 +98,42 @@ export function mencionaDescuentoEnEfectivo(texto: string): boolean {
   return /\befectivo\b|\bcash\b/.test(n) && /\bdescuento\b/.test(n);
 }
 
+/**
+ * ¿La frase NIEGA el descuento en efectivo?
+ *
+ * La política dice lo contrario (en efectivo SÍ hay descuento, que se confirma
+ * en el local), y en 6 chats de la semana del 21-sep el modelo lo negó a veces:
+ * «el precio es el mismo en efectivo, tarjeta o transferencia», «no hay
+ * descuento adicional por pago en efectivo». El prompt ya lo dice y el modelo
+ * lo contradice al azar: por eso es un candado (`sin_descuento_negado`).
+ *
+ * Se decide por FRASE y hace falta que la frase hable del efectivo (efectivo,
+ * cash, contado): «con tarjeta el precio es el mismo» es verdad y no se toca.
+ * Se normaliza sin tildes ni mayúsculas, porque el texto viene del modelo y
+ * cambia de redacción en cada corrida. Una frase que afirma («sí hay
+ * descuento») no es negación aunque diga «el mismo precio» de la tarjeta.
+ */
+export function niegaDescuentoEnEfectivo(texto: string | null | undefined): boolean {
+  const n = (texto ?? "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+  if (!/\b(?:efectivo|cash|contado)\b/.test(n)) return false;
+  // Afirma el descuento («sí hay descuento», «hay un descuento»): no lo niega.
+  if (/(?<!\bno )(?<!\bni )(?<!\btampoco )\bhay (?:un |algun |el )?(?:descuentos?|rebajas?)\b/.test(n)) return false;
+  const negacionDelDescuento =
+    /\b(?:no (?:hay|existe|existen|tenemos|manejamos|aplicamos|aplica|damos|ofrecemos|hacemos|contamos con|se (?:maneja|hace|aplica|ofrece|da))|sin|ningun|tampoco hay)\b[^.!?]{0,40}\b(?:descuentos?|rebajas?|promocion(?:es)?)\b/.test(n)
+    || /\b(?:descuentos?|rebajas?)\b[^.!?]{0,40}\bno (?:aplica|existe|hay|se maneja|se hace)\b/.test(n);
+  const mismoPrecio =
+    /\b(?:mismo|igual) (?:precio|valor|costo)\b|\b(?:precio|valor|costo)s? (?:es |son |queda |quedan |sigue |siguen |se mantiene |se mantienen )?(?:el |los )?(?:mismos?|igual(?:es)?)\b|\bno (?:cambia|cambian|varia|varian|baja|bajan) (?:el |los )?(?:precio|valor|costo)s?\b|\b(?:precio|valor|costo)s? no (?:cambia|cambian|varia|varian|baja|bajan)\b|\bse mantiene el (?:precio|valor)\b/.test(n);
+  return negacionDelDescuento || mismoPrecio;
+}
+
+/**
+ * Quita del borrador las frases que niegan el descuento en efectivo. Devuelve
+ * el texto limpio y cuántas quitó; el resto del turno queda tal cual.
+ */
+export function sinDescuentoNegado(texto: string): { texto: string; quitadas: string[] } {
+  return sinFrasesDelTema(texto, niegaDescuentoEnEfectivo);
+}
+
 
 /**
  * LAS FRASES DE PAGO QUE NO DAN LA RESPUESTA SE QUITAN.

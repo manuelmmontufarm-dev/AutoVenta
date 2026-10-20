@@ -82,10 +82,12 @@ const DICE_DONDE_ESTA =
 
 /**
  * Anuncia que viene a Quito. Es lo que distingue al cliente de Santo Domingo
- * que va a pasar el lunes del que nunca va a poder ir.
+ * que va a pasar el lunes del que nunca va a poder ir. También cuenta quien YA
+ * está en Quito de paso (conv 22481: «vivo en Ibarra, estando en Quito sector
+ * norte»): la negación («no estoy en Quito») se lee antes y gana.
  */
 const VIENE_A_QUITO =
-  /\b(?:voy|vamos|ire|iremos|estare|estaremos|paso|pasare|subo|subire|viajo|viajare|bajo|vengo|vendre)\b[^.?!]{0,40}\b(?:a|por|en|hasta|hacia)?\s*\b(?:quito|cumbaya|tumbaco)\b|\b(?:suba|subir|venir|ir|pasar|viajar)\b[^.?!]{0,30}\b(?:a\s+)?(?:la\s+)?(?:ciudad\s+de\s+)?(?:quito|cumbaya)\b|\bcuando\s+(?:este|vaya|suba|baje)\b[^.?!]{0,25}\bquito\b/;
+  /\b(?:voy|vamos|ire|iremos|estare|estaremos|paso|pasare|subo|subire|viajo|viajare|bajo|vengo|vendre)\b[^.?!]{0,40}\b(?:a|por|en|hasta|hacia)?\s*\b(?:quito|cumbaya|tumbaco)\b|\b(?:suba|subir|venir|ir|pasar|viajar)\b[^.?!]{0,30}\b(?:a\s+)?(?:la\s+)?(?:ciudad\s+de\s+)?(?:quito|cumbaya)\b|\bcuando\s+(?:este|vaya|suba|baje)\b[^.?!]{0,25}\bquito\b|\b(?:estando|estoy|estamos|ahora|ya)\s+en\s+(?:la\s+ciudad\s+de\s+)?quito\b|\ben\s+quito\s+por\s+estos\s+dias\b/;
 
 /** Niega estar o ir a Quito: «no vivo en Quito», «no viajo a Quito». */
 const NIEGA_QUITO = /\bno\s+(?:viv|estoy|soy|viaj|voy|subo|paso|puedo\s+ir)\w*\b[^.?!]{0,25}\bquito\b/;

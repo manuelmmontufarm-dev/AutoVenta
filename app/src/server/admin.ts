@@ -64,6 +64,7 @@ import {
 import { getFinalStageArrivals, getHubFeed, getHubMessages, getHubMetrics, getHubTicket, listHubTickets } from "../services/hubData.js";
 import { mesesConDatos } from "../services/periodoMensual.js";
 import { getEchoHealth } from "../services/echoHealth.js";
+import { resumenVentasConfirmadas } from "../services/ventasConfirmadas.js";
 import { marcarPagado, resumenBilling } from "../services/billing.js";
 import { buildDailyReport } from "../services/dailyReport.js";
 import { enviarReporteDiario } from "../services/dailyReportDelivery.js";
@@ -254,6 +255,16 @@ async function sendTextDetailed(to: string, body: string): Promise<SendResult> {
 }
 
 /** Motivo legible de un error, con respaldo cuando no lo trae. */
+const MES_CERRADO_MS = 2 * 60_000;
+const metricasDeMesCerrado = new Map<string, { at: number; metrics: unknown }>();
+
+/** "2026-08" si es un mes anterior al en curso (hora de Guayaquil); si no, null. */
+function mesCerrado(mes: string | null): string | null {
+  if (!mes || !/^\d{4}-(0[1-9]|1[0-2])$/.test(mes)) return null;
+  const hoy = new Date(Date.now() - 5 * 3600e3).toISOString().slice(0, 7);
+  return mes < hoy ? mes : null;
+}
+
 function mensaje(error: unknown, respaldo: string): string {
   return error instanceof Error && error.message ? error.message : respaldo;
 }
@@ -648,14 +659,27 @@ export function createAdminRouter(): express.Router {
   // mismo valor va a las dos lecturas para que ningún número quede en otro mes.
   router.get("/hub/metrics", async (req, res) => {
     const mes = typeof req.query.mes === "string" ? req.query.mes : null;
-    res.json({
-      ok: true,
-      metrics: {
-        ...(await getHubMetrics(mes)),
-        inventory: catalogInventoryMetrics(),
-        followUps: await getFollowUpMetrics(mes),
-      },
-    });
+    // Un mes cerrado ya no se mueve: se guarda unos minutos y cambiar de mes en
+    // el selector no vuelve a correr las consultas pesadas (Manuel, 28-sep).
+    // El mes en curso y «todos» se calculan siempre: incluyen lo de hoy.
+    const cerrado = mesCerrado(mes);
+    const guardado = cerrado ? metricasDeMesCerrado.get(cerrado) : undefined;
+    if (guardado && Date.now() - guardado.at < MES_CERRADO_MS) {
+      res.json({ ok: true, metrics: guardado.metrics });
+      return;
+    }
+    // Las dos consultas pesadas salen a la vez: en serie, la pantalla de
+    // Métricas esperaba la suma de ambas (Manuel, 25-sep: «se demora mucho»).
+    // Las ventas confirmadas leen facturas ya bajadas en memoria: si Contífico
+    // falla, la tarjeta dice por qué y el resto de Métricas sigue igual.
+    const [hub, followUps, ventasConfirmadas] = await Promise.all([
+      getHubMetrics(mes),
+      getFollowUpMetrics(mes),
+      resumenVentasConfirmadas(mes).catch((error) => ({ disponible: false, error: mensaje(error, "No se pudo cruzar") })),
+    ]);
+    const metrics = { ...hub, inventory: catalogInventoryMetrics(), followUps, ventasConfirmadas };
+    if (cerrado) metricasDeMesCerrado.set(cerrado, { at: Date.now(), metrics });
+    res.json({ ok: true, metrics });
   });
 
   // Cuenta de tokens y facturación mensual (tab KPI). La lectura es para el
@@ -668,16 +692,61 @@ export function createAdminRouter(): express.Router {
     }
   });
 
-  router.post("/hub/billing/:period/pay", async (req, res) => {
+  /** Lo que solo hace el dueño del servicio: la clave que Depot no tiene. */
+  function esDueno(req: express.Request, res: express.Response): boolean {
     const ownerKey = process.env.OWNER_KEY ?? "";
     if (!ownerKey) {
       res.status(503).json({ ok: false, error: "OWNER_KEY no está configurada en el servidor." });
-      return;
+      return false;
     }
     if (req.header("x-owner-key") !== ownerKey) {
-      res.status(403).json({ ok: false, error: "Solo el dueño del servicio puede marcar pagos." });
+      res.status(403).json({ ok: false, error: "Solo el dueño del servicio puede hacer esto." });
+      return false;
+    }
+    return true;
+  }
+
+  // Pre-facturas del mes (IA y mantenimiento) en el formato de la contadora.
+  // Salen solas el día 1; esto es para bajarlas o reenviarlas a mano.
+  router.get("/hub/billing/:period/prefactura/:clave", async (req, res) => {
+    if (!esDueno(req, res)) return;
+    try {
+      const { mesFacturado, prefacturasEnPdf } = await import("../services/prefacturaMensual.js");
+      const mes = await mesFacturado(req.params.period);
+      if (!mes) {
+        res.status(404).json({ ok: false, error: `No hay cuenta para ${req.params.period}` });
+        return;
+      }
+      const doc = (await prefacturasEnPdf(mes)).find(({ p }) => p.clave === req.params.clave.replace(/\.pdf$/, ""));
+      if (!doc) {
+        res.status(404).json({ ok: false, error: "Usa ia o mantenimiento" });
+        return;
+      }
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader("Content-Disposition", `inline; filename="${doc.filename}"`);
+      res.send(doc.pdf);
+    } catch (error) {
+      res.status(500).json({ ok: false, error: mensaje(error, "No se pudo armar la pre-factura") });
+    }
+  });
+
+  router.post("/hub/billing/prefacturas/enviar", async (req, res) => {
+    if (!esDueno(req, res)) return;
+    const body = z.object({ period: z.string().regex(/^\d{4}-\d{2}$/).optional() }).safeParse(req.body ?? {});
+    if (!body.success) {
+      res.status(400).json({ ok: false, error: "period debe ser YYYY-MM" });
       return;
     }
+    try {
+      const { enviarPrefacturas } = await import("../services/prefacturaMensual.js");
+      res.json({ ok: true, resultado: await enviarPrefacturas({ forzar: true, period: body.data.period }) });
+    } catch (error) {
+      res.status(500).json({ ok: false, error: mensaje(error, "No se pudieron enviar") });
+    }
+  });
+
+  router.post("/hub/billing/:period/pay", async (req, res) => {
+    if (!esDueno(req, res)) return;
     const body = z.object({ paid: z.boolean() }).safeParse(req.body);
     if (!body.success) {
       res.status(400).json({ ok: false, error: "Falta el campo paid (true/false)." });
@@ -994,7 +1063,7 @@ export function createAdminRouter(): express.Router {
           discountAmount: offer.discountAmountCents / 100, discountCondition: offer.condition,
           offerExpiresAt: offer.expiresAt,
         });
-        filename = `Cotizacion-DepotTire-${quote.quote_number}.png`;
+        filename = `Cotizacion-${business.name.replace(/\s/g, "")}-${quote.quote_number}.png`;
         providerId = await sendImage(id, conversation.phone, png, message, filename);
         messageType = "image";
         await logQuoteArtifact({ conversationId: id, quoteId: Number(quote.id), kind: "quote", products: quote.items, filename, providerId });
@@ -1408,7 +1477,10 @@ export function createAdminRouter(): express.Router {
       res
         .status(200)
         .type("application/pdf")
-        .setHeader("Content-Disposition", 'attachment; filename="Comparativa-DepotTire.pdf"')
+        .setHeader(
+          "Content-Disposition",
+          `attachment; filename="Comparativa-${business.name.replace(/\s/g, "")}.pdf"`,
+        )
         .send(pdf);
     } catch (error) {
       const message =

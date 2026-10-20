@@ -36,6 +36,8 @@ import { renderCouponTicket } from "../render/couponTicket.js";
 import { appendMessage } from "./conversations.js";
 import { getCouponConfig, getPiecesConfig } from "./settings.js";
 import { sendCustomerText, sendImage } from "../wa/client.js";
+import { business } from "../config.js";
+import { PREFIJO_CUPON } from "../domain/coupons.js";
 
 /** Postgres: violación de índice único. */
 const CLAVE_DUPLICADA = "23505";
@@ -217,7 +219,7 @@ export async function consultarCupon(entrada: string): Promise<ResultadoConsulta
     return {
       ok: false,
       motivo: "formato",
-      detalle: "Ese código no tiene la forma de un cupón de Depot (ejemplo: DT-PUMA47). Reléalo con el cliente.",
+      detalle: `Ese código no tiene la forma de un cupón de ${business.name} (ejemplo: ${PREFIJO_CUPON}PUMA47). Reléalo con el cliente.`,
     };
   }
   const [fila] = await sql<{

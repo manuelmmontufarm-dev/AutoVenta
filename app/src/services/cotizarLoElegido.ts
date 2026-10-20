@@ -28,10 +28,13 @@ import { mencionaVehiculo } from "../domain/vehiculoEnTexto.js";
 import {
   cantidadDelTexto, escalonContestado, esReferenciaPluralAlMenu, pideVariasOpciones,
 } from "../domain/salesIntent.js";
+import { confirmacionDeLaOpcion, opcionPorPosicion, posicionElegida } from "../domain/listaDeOpciones.js";
 import { findByCode } from "./catalog.js";
 import { buildStoreLinksBlockOnce } from "./storeLinks.js";
 import { preguntamosElLocal } from "../domain/storeSelection.js";
 import { composeBlocks } from "./quoteMessages.js";
+import { porQueNoPasaPorElLocal } from "./dondeEstaElCliente.js";
+import { cierreSinVisita } from "../domain/compraADistancia.js";
 import { logFunnelEvent } from "./conversations.js";
 
 export interface CotizarLoElegidoContext {
@@ -56,7 +59,7 @@ export function loQueEligio(
   mensajeCitado: string | null | undefined,
   vitrina: readonly OpcionDeVitrina[],
   escalones: Escalones | null,
-): { codigo: string; etiqueta: string | null } | { pregunta: string } | { respuesta: string } | null {
+): { codigo: string; etiqueta: string | null; posicion?: number } | { pregunta: string } | { respuesta: string } | null {
   // «LAS DOS / LOS DOS VALORES» HABLA DE LA LÁMINA. Con el menú arriba basta
   // «las 2»; si nombra valores, precios u opciones vale aunque el menú haya
   // quedado atrás (12-sep, conv 3, 17:21: tras un reenvío, «Deme los dos
@@ -101,9 +104,21 @@ export function loQueEligio(
   }
   const escalon = escalonContestado(texto, previousOutbound, mensajeCitado, { huboMenu: Boolean(escalones) });
   if (escalon && escalones) {
-    const codigo = escalones[escalon === "precio" ? "economica" : escalon]?.codigo;
+    // Si lo último que dijimos fue la LISTA con precios, «2» es la posición 2 de
+    // esa lista (`opcionPorPosicion`, dueño único), no un escalón: con dos
+    // opciones no existe el del medio. Con el menú viejo sigue mandando el escalón.
+    const n = posicionElegida(texto);
+    const enLista = n !== null && /¿le cotizo la 1/i.test(mensajeCitado ?? previousOutbound ?? "");
+    const porPosicion = enLista ? opcionPorPosicion({ escalones }, n) : null;
+    // Con el menú viejo de dos opciones («1) Costo 2) Premium») el «2» pelado
+    // también es la premium, no el escalón del medio que no existe.
+    const dosDelMenuViejo = !porPosicion && escalon === "equilibrada" && n === 2 && !escalones.equilibrada?.codigo;
+    const nivel = porPosicion?.escalon ?? (dosDelMenuViejo ? "premium" : escalon);
+    const codigo = porPosicion?.codigo
+      ?? escalones[nivel === "precio" ? "economica" : nivel]?.codigo;
     if (codigo && vitrina.some((o) => o.codigo === codigo)) {
-      const etiqueta = escalon === "precio" ? "de costo" : escalon === "premium" ? "premium" : "de equilibrio";
+      const etiqueta = nivel === "precio" ? "de costo" : nivel === "premium" ? "premium" : "de equilibrio";
+      if (porPosicion && n !== null) return { codigo, etiqueta, posicion: n };
       return { codigo, etiqueta };
     }
   }
@@ -260,11 +275,17 @@ export async function tryCotizarLoElegido(ctx: CotizarLoElegidoContext, texto: s
   console.log(`✅ Cotización directa de lo elegido en la conv ${ctx.conversation.id}: ${cantidad} × ${producto.code} (${producto.brand} ${producto.design})`);
   await logFunnelEvent(ctx.conversation.id, "respuesta_directa", { route: "cotizar_lo_elegido" }).catch(() => undefined);
   const precio = producto.minimumPriceWithTax ? ` — *$${producto.minimumPriceWithTax.toFixed(2)} c/u con IVA*` : "";
-  const mapas = preguntamosElLocal(ctx.previousOutbound) ? "" : await buildStoreLinksBlockOnce(ctx.conversation.id);
+  // Sin visita (compra a distancia o fuera de Quito), ni mapas ni invitación:
+  // la misma decisión que el cierre de generar_cotizacion.
+  const sinVisita = await porQueNoPasaPorElLocal(ctx.conversation.id, ctx.conversation.current_cycle, texto);
+  const mapas = sinVisita || preguntamosElLocal(ctx.previousOutbound) ? "" : await buildStoreLinksBlockOnce(ctx.conversation.id);
   return composeBlocks(
-    elegido.etiqueta
+    elegido.posicion
+      ? confirmacionDeLaOpcion(elegido.posicion, `${producto.brand} ${producto.design}`, producto.minimumPriceWithTax)
+      : elegido.etiqueta
       ? `La opción ${elegido.etiqueta} es la *${producto.brand} ${producto.design}*${precio}. Le dejo la cotización 👍`
       : `Listo, le cotizo la *${producto.brand} ${producto.design}*${precio} 👍`,
     mapas ? `Puede pasar sin compromiso a verlas y probarlas en su vehículo.\n${mapas}` : null,
+    ...(sinVisita ? cierreSinVisita(sinVisita) : []),
   );
 }

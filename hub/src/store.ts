@@ -194,6 +194,36 @@ function mesesPasados(mes: string): boolean {
 }
 
 /** Un fallo de lectura es "clave mala" o "servidor caído" — nunca silencio. */
+/**
+ * Lo que el asesor ya abrió, aunque el servidor todavía no lo sepa.
+ *
+ * Abrir un chat pone `unread_count = 0` en el servidor, pero el panel recibe
+ * listas por muchos caminos a la vez (cada mensaje del bot dispara un `sync`,
+ * y la lista de 500 tarda). Una lista que salió ANTES de marcar leído puede
+ * llegar DESPUÉS y volver a pintar la fila de rojo. Acá se recuerda qué se
+ * abrió, y toda lista que entre lo respeta hasta que el servidor confirme el
+ * cero por su cuenta (o pase un minuto, por si la marca nunca llegó).
+ */
+const leidosLocal = new Map<number, number>();
+const LEIDO_VIGENTE_MS = 60_000;
+
+function respetarLeidos(tickets: Ticket[]): Ticket[] {
+  if (leidosLocal.size === 0) return tickets;
+  const ahora = Date.now();
+  return tickets.map((t) => {
+    const desde = leidosLocal.get(t.id);
+    if (desde === undefined) return t;
+    if (t.sinLeer === 0 || ahora - desde > LEIDO_VIGENTE_MS) {
+      leidosLocal.delete(t.id);
+      return t;
+    }
+    return { ...t, sinLeer: 0 };
+  });
+}
+
+/** Cada lista pedida lleva su turno: si llega una más vieja que la última pintada, se tira. */
+let turnoLista = 0;
+
 function clasificarFallo(error: unknown): EstadoConexion {
   return error instanceof AdminKeyError ? "clave-invalida" : "sin-conexion";
 }
@@ -210,6 +240,7 @@ export const useHub = create<HubState>((set, get) => {
    */
   async function refrescar(): Promise<void> {
     // Las tres salen a la vez; se esperan por separado a propósito.
+    const turno = ++turnoLista;
     const pTickets = source.listTickets();
     const pPhases = source.getPhases();
     const pPower = source.getBotPower();
@@ -222,9 +253,10 @@ export const useHub = create<HubState>((set, get) => {
       (value) => ({ ok: true as const, value }),
       (reason: unknown) => ({ ok: false as const, reason }),
     );
-    if (rTickets.ok) {
-      set({ tickets: rTickets.value, cargando: false, conexion: "conectada" });
-      updateFavicon(rTickets.value.filter((t) => t.estado === "abierto").length);
+    if (rTickets.ok && turno === turnoLista) {
+      const tickets = respetarLeidos(rTickets.value);
+      set({ tickets, cargando: false, conexion: "conectada" });
+      updateFavicon(tickets.filter((t) => t.estado === "abierto").length);
     }
 
     const [rPhases, rPower] = await Promise.allSettled([pPhases, pPower]);
@@ -271,8 +303,63 @@ export const useHub = create<HubState>((set, get) => {
     if (extras[3].status === "fulfilled") resto.followUps = extras[3].value;
     if (extras[4].status === "fulfilled") resto.alerts = extras[4].value;
     if (extras[5].status === "fulfilled") resto.mesesDisponibles = extras[5].value;
-    if (extras[6].status === "fulfilled") resto.ticketsDelMes = extras[6].value;
+    if (extras[6].status === "fulfilled") resto.ticketsDelMes = extras[6].value && respetarLeidos(extras[6].value);
     set(resto);
+    guardarMes(mes);
+    if (!precargado && resto.mesesDisponibles) {
+      precargado = true;
+      void precargarMeses();
+    }
+  }
+
+  /**
+   * Lo ya visto de cada mes. Volver a agosto no tiene que esperar al servidor
+   * otra vez: se pinta lo guardado y se reemplaza cuando llega lo nuevo.
+   */
+  const porMes = new Map<string, Pick<HubState, "metrics" | "finalStage" | "ticketsDelMes">>();
+  let precargado = false;
+
+  function guardarMes(mes: string) {
+    const { metrics, finalStage, ticketsDelMes } = get();
+    if (get().mes === mes && metrics) porMes.set(mes, { metrics, finalStage, ticketsDelMes });
+  }
+
+  /** Solo lo que depende del mes, todo a la vez. Lo demás no cambia al mover el selector. */
+  async function cargarMes(mes: string): Promise<void> {
+    const [rMetrics, rFinal, rTickets] = await Promise.allSettled([
+      source.getMetrics(mes),
+      source.getFinalStage(mes),
+      mesesPasados(mes) ? source.listTickets(mes) : Promise.resolve(null),
+    ]);
+    if (get().mes !== mes) return;
+    const resto: Partial<HubState> = {};
+    if (rMetrics.status === "fulfilled") resto.metrics = rMetrics.value;
+    if (rFinal.status === "fulfilled") resto.finalStage = rFinal.value;
+    if (rTickets.status === "fulfilled") resto.ticketsDelMes = rTickets.value && respetarLeidos(rTickets.value);
+    set(resto);
+    guardarMes(mes);
+  }
+
+  /**
+   * Con el panel ya pintado, trae de a uno los otros meses del selector: cuando
+   * el usuario haga clic, ya están. De a uno para no competir con lo que él
+   * esté mirando; los meses cerrados el servidor los tiene guardados.
+   */
+  async function precargarMeses(): Promise<void> {
+    const claves = [TODOS, ...get().mesesDisponibles.map((m) => m.clave)];
+    for (const mes of claves) {
+      if (porMes.has(mes) || mes === get().mes) continue;
+      try {
+        const [metrics, finalStage, ticketsDelMes] = await Promise.all([
+          source.getMetrics(mes),
+          source.getFinalStage(mes),
+          mesesPasados(mes) ? source.listTickets(mes) : Promise.resolve(null),
+        ]);
+        if (!porMes.has(mes)) porMes.set(mes, { metrics, finalStage, ticketsDelMes: ticketsDelMes && respetarLeidos(ticketsDelMes) });
+      } catch {
+        // Precargar es un favor: si falla, ese mes se pide al hacer clic.
+      }
+    }
   }
 
   /**
@@ -280,11 +367,46 @@ export const useHub = create<HubState>((set, get) => {
    * los datos viejos se van en cuanto llegan los del mes pedido. Dejar los
    * números del mes anterior mientras carga sería enseñar agosto con el rótulo
    * de septiembre.
+   *
+   * Antes esto recargaba TODO (tickets del Inbox, fases, seguimientos, alertas)
+   * antes de pedir las métricas: unos 4 s por clic (Manuel, 28-sep: «se demora
+   * mucho en cargar cuando cambio de meses»).
    */
   async function verMes(mes: string): Promise<void> {
     if (get().mes === mes) return;
-    set({ mes, metrics: null, finalStage: null, ticketsDelMes: null });
-    await refrescar();
+    // Lo guardado de ESE mes, o nada: nunca los números del mes anterior.
+    const visto = porMes.get(mes);
+    set({ mes, metrics: visto?.metrics ?? null, finalStage: visto?.finalStage ?? null, ticketsDelMes: visto?.ticketsDelMes ?? null });
+    await cargarMes(mes);
+  }
+
+  /**
+   * Red de seguridad para el «en vivo». El canal de eventos puede caerse sin
+   * avisar (proxy, pestaña dormida, red del celular), y hasta el 27-sep no
+   * había NADA más que trajera datos: el chat abierto se quedaba en el último
+   * mensaje que llegó por el canal. Cada 15 s se vuelve a pedir la lista y los
+   * mensajes del chat abierto; barato, y vuelve a pedir ya al volver a la
+   * pestaña. Si el canal funciona, esto solo confirma lo que ya se pintó.
+   */
+  let ticketAbierto: number | null = null;
+  async function refrescarLigero(): Promise<void> {
+    if (document.visibilityState === "hidden") return;
+    if (get().conexion === "clave-invalida") return;
+    const abierto = ticketAbierto;
+    const turno = ++turnoLista;
+    await Promise.allSettled([
+      source.listTickets().then((lista) => {
+        if (turno !== turnoLista) return;
+        set({ tickets: respetarLeidos(lista), conexion: "conectada" });
+      }),
+      abierto ? refrescarMensajes(abierto) : Promise.resolve(),
+    ]);
+  }
+  if (typeof window !== "undefined") {
+    window.setInterval(() => void refrescarLigero(), 15_000);
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "visible") void refrescarLigero();
+    });
   }
 
   async function refrescarMensajes(ticketId: number): Promise<void> {
@@ -387,6 +509,17 @@ export const useHub = create<HubState>((set, get) => {
     },
 
     async abrirTicket(id) {
+      // La fila se pone blanca al abrirla, sin esperar a que el servidor
+      // confirme y llegue el próximo sync: el asesor ya la vio. Y se anota en
+      // `leidosLocal` para que una lista rezagada no la vuelva a pintar.
+      ticketAbierto = id;
+      const abrirLocal = (t: Ticket) => (t.id === id && t.sinLeer > 0 ? { ...t, sinLeer: 0 } : t);
+      const yaEstaba = get().tickets.find((t) => t.id === id);
+      if (!yaEstaba || yaEstaba.sinLeer > 0) leidosLocal.set(id, Date.now());
+      set((s) => ({
+        tickets: s.tickets.map(abrirLocal),
+        ticketsDelMes: s.ticketsDelMes ? s.ticketsDelMes.map(abrirLocal) : s.ticketsDelMes,
+      }));
       await Promise.all([
         refrescarMensajes(id),
         source.marcarLeido(id),
@@ -408,7 +541,25 @@ export const useHub = create<HubState>((set, get) => {
     moverEtapa: (id, etapa) => source.moverEtapa(id, etapa),
     cerrar: (id, cierre, nota) => source.cerrar(id, cierre, nota),
     reabrir: (id) => source.reabrir(id),
-    setAtiende: (id, atiende) => source.setAtiende(id, atiende),
+    /**
+     * Optimista: el control cambia de cara en el acto. Antes esperaba al PUT y
+     * al siguiente sync de la lista entera, y el asesor tocaba dos y tres
+     * veces creyendo que el botón no andaba. Si el servidor rechaza, vuelve.
+     */
+    async setAtiende(id, atiende) {
+      const pinta = (valor: Atiende) => set((s) => ({
+        tickets: s.tickets.map((t) => (t.id === id ? { ...t, atiende: valor } : t)),
+        ticketsSueltos: s.ticketsSueltos[id] ? { ...s.ticketsSueltos, [id]: { ...s.ticketsSueltos[id], atiende: valor } } : s.ticketsSueltos,
+      }));
+      const anterior = (get().tickets.find((t) => t.id === id) ?? get().ticketsSueltos[id])?.atiende;
+      pinta(atiende);
+      try {
+        await source.setAtiende(id, atiende);
+      } catch (e) {
+        if (anterior) pinta(anterior);
+        throw e;
+      }
+    },
     async marcarParaDespues(id, enabled) {
       await source.marcarParaDespues(id, enabled);
       await refrescar();

@@ -8,7 +8,7 @@ al confirmar el día (turno normal, retomada y `agendar_visita`) y, nuevo, en el
 adicional, son $X menos»). Sin cotización no hay cupón; vence a los 7 días de
 la visita y caja rechaza los vencidos. `enviarTicketDeCupon` es la única puerta
 de salida (marca `ticket_sent_at`, cae a texto si la imagen falla). Migración
-022. El cupón sigue APAGADO en producción hasta que Depot capacite a los cajeros.
+025. El cupón sigue APAGADO en producción hasta que Depot capacite a los cajeros.
 
 **Por qué:** Luz verde de Depot para los descuentos (19-oct). Un código suelto
 se lee como trámite; un ticket con QR se siente como premio y se reclama. Los 8
@@ -17,6 +17,484 @@ cupones de texto de agosto no se canjeó ninguno. El último seguimiento es la
 
 **Horas:** 1,5
 
+## 1-oct-2026 · Pre-facturas del mes al dueño por WhatsApp, en el formato de la contadora
+
+**Qué:** Apenas cierra el mes en Quito, el servidor arma dos pre-facturas
+—IA (DT-IA-AAAA-MM) y mantenimiento (DT-MANT-AAAA-MM), cada una con su IVA— y
+se las manda a `BILLING_OWNER_PHONE` por WhatsApp (texto con los totales + los
+dos PDF). Los montos salen de `mesesFacturados()` (la cuenta del tab KPI). El
+PDF copia campo por campo la factura de Siigo que emite Rosanna Mancino a
+PITSTOP S.A.S.; esos datos viven en `negocio.facturacion` (`depot.ts`). Bucle
+nuevo `supervisarPrefacturas` (cada 15 min) con el candado del reporte diario,
+ahora reutilizable vía `candadoPeriodico(clave)`. Si Meta rechaza por la
+ventana de 24 h, suelta la marca y reintenta hasta que llegue. Endpoints del
+dueño: `GET /hub/billing/:period/prefactura/:ia|mantenimiento` y
+`POST /hub/billing/prefacturas/enviar`. `scripts/factura/generar.mjs` las baja
+de ahí.
+
+**Por qué:** Facturar cada mes era sacar los números a mano del tab KPI y
+pasarlos a Siigo. Ahora le llegan a Manuel listas para reenviar a la contadora,
+sin depender de la laptop.
+
+**Horas:** 1,5
+
+## 28-sep-2026 · Compra a distancia: el cierre y el seguimiento salen bien desde la fuente
+
+**Qué:** El cierre de `generar_cotizacion`, `cotizarLoElegido` y `recotizar`
+consulta `porQueNoPasaPorElLocal`: a quien compra a distancia le sale «Un asesor
+le confirma pago y envío por acá. 🤝» en vez de «Puede pasar sin compromiso… ¿A
+cuál local?» + mapas (fuera de Quito: sin invitación ni mapas). Los seguimientos
+reciben `sinVisita`: sin mapas pegados y, para la compra a distancia, texto fijo
+de pago y envío (sin redacción con IA). El hecho COMPRA A DISTANCIA le dice al
+guardián que ese cierre es legítimo.
+
+**Por qué:** Verificación en vivo (R1): la cotización salía, pero 3 de 3
+cierres traían la pregunta del local y 6 de 6 seguimientos los mapas, y el
+guardián los tenía que borrar. Un candado que arregla siempre lo mismo es
+señal de que la fuente está mal.
+
+**Horas:** 0,7
+
+## 28-sep-2026 · Aviso de tipo al cliente: sin nombrar un uso que no dijo
+
+**Qué:** El aviso horneado ya no dice «para camino de tierra lo ideal es…» ni
+«la más cercana»; dice de qué tipo no queda stock y qué sí hay, sin juzgarlo.
+
+**Por qué:** El cliente escribió «camino en piedra» y el aviso le habló de
+«camino de tierra», e insinuaba que la M/T (lo único que había) era mala.
+
+**Horas:** 0,2
+## 28-sep-2026 · Sin stock exacto y con equivalentes de verdad, la lámina sale en ese turno
+
+**Qué:** `buscar_llanta` (y `buscar_por_aro_y_tipo` cuando en su medida no hay
+nada) devuelven primero `mostrar_equivalentes_ahora` con las alternativas con
+stock que el juez aprueba, y la orden de llamar `preparar_opciones` ya, sin
+preguntar. Si el modelo contesta en texto sin la lámina, `agent.ts` le da la
+vuelta forzada con esos códigos (`vuelta_forzada:mostrar_equivalentes`). Esas
+llantas son hechos del turno: el freno del guardián no las poda y el guardián
+las recibe en sus hechos duros. Dueño único: `domain/equivalentesPorMostrar.ts`.
+
+**Por qué:** Verificación en vivo V3a (Grand Vitara, 265/65R16 sin stock): una
+corrida mostró 245/70R16 y 255/70R16; la otra escribió «¿Le muestro las
+opciones equivalentes?» reteniendo la KR608 245/70R16, y la corrección del
+guardián se podó como «producto nuevo». Mostrar quedaba al azar del modelo.
+
+**Horas:** 0,8
+
+## 28-sep-2026 · La equivalente que el bot presentó en esta visita sigue cotizable
+
+**Qué:** `medidasDelPedido` ya no vuelve a juzgar las equivalentes que la lámina
+anotó: el juez corre al escribirlas (la lámina solo anota las que equivalen) y
+el consentimiento lo sigue exigiendo `equivalenteSinConsentimiento`.
+
+**Por qué:** El arreglo de la familia 1-B las re-juzgaba al leerlas y dejó sin
+cotización la 235/75R15 que el bot presentó y el cliente eligió (caso 4732,
++3,3 % sobre su 235/70R15): fallaban 2 pruebas de `medidaDeOtraVisita`.
+
+**Horas:** 0,3
+
+## 28-sep-2026 · Uso «lodo»: la R/T también entra, y el aviso de tipo va horneado
+
+**Qué:** «lodo» a secas dejó de contar como M/T pedida explícita (era un uso), así
+que el filtro de uso {M/T, R/T} manda. preparar_opciones completa desde el
+catálogo, en la misma medida, los compatibles que el modelo no eligió, y el aviso
+de tipo va dentro de mensaje_para_enviar en vez de depender del guardián.
+
+**Por qué:** Simulador, 265/65R17 «lodo, camino pantanero»: salió «la única»
+KR29 aunque había una R/T con stock. No era el stock: «lodo» forzaba M/T.
+
+**Horas:** 0,5
+## 28-sep-2026 · Un turno de cliente no termina en silencio; «estando en Quito» es que viene
+
+**Qué:** (1) `correrPasos` es ahora el único dueño de «el turno quedó vacío»:
+si una respuesta/retomada (nace de un mensaje del cliente) termina sin texto,
+crea una alerta `turno_sin_respuesta` (prioridad alta, dedupe `turno_vacio:conv:ciclo`,
+con el nombre del paso) y sale «Le consulto con un asesor y le confirmo por acá 🙌»
+(sin mapas ni visita). Los pasos pueden declarar `silencioEsCorrecto`
+(`el_cliente_tomo_el_turno`, `guardian_deterministico`); el seguimiento sigue
+callando. Vale para `index.ts` y `resumeBot.ts` por construcción; `followUpProcessor`
+no cambia y `/restart` usa texto fijo. (2) `fueraDeCobertura.ts`: «estando/estoy/ahora/ya
+en Quito» y «en Quito por estos días» cuentan como `viene`; «vivo en Ibarra» solo
+sigue siendo `fuera` y la negación gana.
+
+**Por qué:** conv 22481 (23-sep 18:03, «Yo vivo en Ibarra, estando en Quito sector
+norte»): `sin_visita_si_no_puede_venir` lo vació y `index.ts` hizo `return`; el
+cliente esperó 5 días sin mensaje ni alerta. Familia: un paso vacía el turno y nadie se entera.
+## 28-sep-2026 · La medida en pulgadas llega al catálogo con la misma llave (y «0R15» ya no se guarda)
+
+**Qué:** Un solo dueño de «texto → medida canónica» (`medidaCanonica`, en
+`domain/tireSize.ts`), usado por el inbound (`index.ts`), el catálogo
+(`extractCatalogSizeLabel`, que pierde su formateador propio) y la guarda de la
+ficha. El parser lee dos formas nuevas de flotación: el aro tras una equis
+(«31x10.50x15») y el decimal escrito como número con el aro al final
+(«31-10-50- Rin 15», anclado en rin/aro y decimal 50/5). `updateConversationFacts`
+solo guarda medidas legibles (`medidaGuardable`); `buscar_llanta` ya no busca
+ni guarda una métrica de ancho 0: usa la flotación de la ficha o devuelve
+`medida_invalida`.
+
+**Por qué:** Conv 23250 y 22421 terminaron con `tire_size = "0R15"` (el modelo
+llamó `buscar_llanta` como métrica con ancho 0 y esa rama guardaba sin validar)
+y con «no me aparece stock» / lámina de medidas de auto para una 31x10.50R15
+que Depot tiene en KR628, KR601 y KR29. La KR628 sola del chat 11449 no era
+otra llave: el cliente pidió AT, y la KR29 es M/T y la KR601 R/T. Sin cambios
+en las 2.198 etiquetas del catálogo real.
+
+**Horas:** 1,2
+## 28-sep-2026 · «Equivalente» solo lo que equivale (y hacia donde pidió el cliente)
+
+**Qué:** `domain/equivalencia.ts` es el único juez de «equivalente / le entra /
+de su aro»: mismo aro, diámetro ±3 % y ahora ancho a ≤20 mm (que monte en el
+mismo rin). También es dueño de la dirección pedida («más ancha» = más sección,
+«más alta/grande» = más diámetro), que filtra las alternativas de `buscar_llanta`.
+Candado nuevo `sin_equivalencias_falsas` después del guardián (tres puertas):
+cada frase que presenta como equivalente una medida que no lo es —o que va al
+revés de lo pedido, o una medida cuando la que escribió el cliente no existe—
+se cambia por una línea honesta («En su medida exacta no tengo stock; le pido
+al asesor que confirme si llega», o la que corresponda) y deja alerta
+`equivalencia_falsa`. La lámina de opciones ya no rotula «equivalentes de su
+aro» a lo que no equivale ni lo anota como cotizable; `medidasDelPedido` filtra
+las equivalentes declaradas por el juez; `generar_cotizacion` ya no dicta «le
+entra la X» si X no equivale; se quitó la copia privada del ±3 % de fitment. El
+guardián recibe la regla como hecho duro.
+
+**Por qué:** Familia 1-B (22-24 sep): 165/65R13 como «equivalente de su aro» a
+quien pidió aro 14 (conv 22533); «más ancha» → 215/65R16, la misma sección
+(22975); «más alta cercana sería 235/65R16», +3,4 % (23021); 165R14 y luego
+175/70R14 (5 cm más angosta) por una 225/55R14 (22492); «le entra la
+215/60R17» por una 235/60R17 que sí estaba (23080); «238 70 16» → 215/65R16 sin
+aclarar (15644). Cinco puertas, ninguna le preguntaba al juez.
+
+**Horas:** 1,5
+## 28-sep-2026 · La medida que escribe el cliente no se cuestiona, no se vuelve a pedir y le gana a la ficha del vehículo
+
+**Qué:** Un solo dueño, `domain/medidaDelCliente.ts`. (1) Con una medida
+completa escrita, el guardián ya no recibe «EL CLIENTE BUSCA LLANTA DE
+CAMIONETA» (salía del anuncio) sino «MEDIDA ESCRITA POR EL CLIENTE», y un
+candado nuevo después del guardián (`la_medida_del_cliente_no_se_cuestiona`,
+tres puertas) quita «es de auto / llegó por camioneta / la ficha no confirma» y
+los pedidos de medida o foto. `fitment_vehiculo` no investiga si el cliente ya
+escribió su medida, y la recién escrita cuenta como suya aunque la ficha esté
+vacía (ya no sale «necesito la medida exacta… o una foto»). (2) El aro que
+escribió manda: el candado de aro de `preparar_opciones` dejaba pasar todo sin
+medida completa (`medidaEstaPedida(x, [])` es `true`); fitment investiga con su
+aro y, con media medida («75 rin 15»), solo muestra ese perfil y pide solo el
+ancho. (4) Foto 225/70R16 y después «225/70 R15» sin corrección: la cotización
+se bloquea hasta preguntar una vez cuál es (`medidaEnDisputaDelPedido`).
+
+**Por qué:** Familia 2-H. Convs 12625 (cuatro «esa medida es de auto… envíeme
+una foto» con 195/55R16 escrita dos veces), 23160 (225/65R17 y 225/70R16 a quien
+dijo rin 15), 22629 (cotizó R15 con foto R16) y el simulador del 28-sep
+(Traverse 215/65R16). Conv 22839: el «74» lo escribió el cliente; la guía acertó.
+
+**Horas:** 2
+## 28-sep-2026 · El bot no se mete donde habló una persona, y «ya avisé» solo si es cierto
+
+**Qué:** Un solo dueño de «quién contesta» (`domain/turnoDelHumano.ts` +
+`services/turnoDelHumano.ts`, llamado desde `index.ts` donde estaban
+`isBotPaused` y `devolverAlBotSiVencioLaPausa`): con la pausa vigente, o si el
+último saliente lo escribió una persona y nadie le devolvió el chat al bot, el
+bot calla y se levanta —o refresca, una por ciclo— la alerta alta
+`cliente_sin_respuesta`, que se resuelve sola cuando una persona contesta. El
+reinicio por 15 h de silencio y el saludo de primer contacto ya no corren si la
+última palabra fue de una persona. `advisor_review` usa la pausa finita
+(`BOT_PAUSE_HOURS`) en vez de `infinity`. El candado `sin_aviso_inventado`
+(reemplaza a `lo_prometido_se_ejecuta`, después del guardián, en las tres
+puertas con guardián): «ya avisé / dejé el caso anotado / lo revisa un asesor»
+solo sale si ESTE turno dejó una alerta o un aviso; si no, pasa a «Se lo
+consulto y le confirmo.» y esa consulta se registra de verdad. El guardián
+recibe ese hecho. Compra a distancia («lo compro x este medio… me envía»,
+`domain/compraADistancia.ts`): alerta alta `customer_ready_to_buy` aunque el
+modelo no llame a la herramienta, y ni seguimiento ni candados le preguntan el
+día o el local (`porQueNoPasaPorElLocal`).
+
+**Por qué:** Conv 15426: el dueño atendió una F-150 el 21-sep; el «Buenas
+tardes» del 22 abrió ciclo nuevo por inactividad, la pausa ya había vencido y
+el bot saludó «Soy Martín… ¿Qué medida usa?». Conv 21640: pausa `infinity` del
+`advisor_review`, el cliente preguntó el precio 80 min después y le
+contestaron 7 días más tarde, sin alerta. Conv 21766: quiso comprar a
+distancia, los avisos del ciclo rebotaron con Meta 131047 y el seguimiento le
+preguntó qué día pasaba por Cumbayá.
+
+**Horas:** 2,5
+
+## 28-sep-2026 · Tras la lámina de opciones el cliente ve el precio escrito (y nadie le pregunta qué prioriza)
+
+**Qué:** El texto que acompaña la lámina de opciones (sin recomendación) deja de
+ser el menú «¿qué prioriza usted?» y pasa a ser la lista «1 · Marca Modelo —
+$X c/u · 4 = $Y» (de menor a mayor precio; cantidad del cliente o 4) con una
+sola pregunta: «¿Le cotizo la 1, la 2 o la 3?». Los seguimientos repiten esa
+lista con precios (o preguntan cuál cotizar) y, con medida y sin opciones
+mostradas, ofrecen mandarlas; la redacción con IA que pregunte qué prioriza se
+descarta. El guardián recibe la lista como hecho duro. Un solo dueño para «la posición N → qué llanta» (`opcionPorPosicion`), usado por
+`agent.ts` y `cotizarLoElegido.ts`; reglas 15 y 22 del guardián actualizadas a la lista. La confirmación tras elegir de la lista dice «La opción N, *Marca Modelo* — $X»
+(no el escalón).
+
+**Por qué:** ~25 chats de la semana (caso +593 99 571 0785, D-Max 255/70R16):
+quien preguntó «¿qué precio tiene?» nunca vio un número y los seguimientos le
+repetían «¿qué prioriza?». Fuente única: `domain/listaDeOpciones.ts`.
+
+## 28-sep-2026 · Pagos: el bot ya no niega el descuento en efectivo
+
+**Qué:** Candado `sin_descuento_negado` (después del guardián, en las tres
+puertas con guardián): si el texto dice «el precio es el mismo en efectivo» o
+«no hay descuento por efectivo», esa frase sale y entra la política de pagos
+(en efectivo sí hay descuento, se confirma en el local). Además el guardián
+recibe la política como hecho duro, para que no la borre.
+
+**Por qué:** En 6 chats de la semana el bot contradijo a la fuente única
+(`politicaDePagos`): unos clientes oyeron que hay descuento y otros que el
+precio es igual. Un negativo inventado sobre un dato de negocio.
+
+**Horas:** 0,7
+## 28-sep-2026 · «Lo cancelo» es pagar: ya no frena la cotización de la única
+
+**Qué:** `isNegativeResponse` y el rechazo blando ya no leen «lo/la cancelo»
+(primera persona con pronombre) como cancelar el pedido: en Ecuador es pagar.
+El seguimiento de la única no pide la cantidad si ya está en la ficha ni
+promete «se la envío al momento». El guardián no exige «¿Se la cotizo?» cuando
+la única se cotiza directo.
+
+**Por qué:** Simulador V5b («Lo compro por este medio, me cotiza, lo cancelo…
+4 llantas»): la decisión de cotizar disparaba, pero `canGenerateFinalQuote`
+bloqueaba por el «cancelo» y el guardián devolvía el «¿Se la cotizo?».
+
+**Horas:** 0,7
+
+## 28-sep-2026 · «Precio por favor» a la única: el marcador mira todo el turno del bot
+
+**Qué:** `ultimoTurnoDelBot` (una sola fuente) junta las filas consecutivas del
+último turno del bot; `agent.ts` y el guardián se lo pasan a
+`ofertaDeCotizarAceptada`/`ofertaDeCotizacionAceptada` para reconocer «Es la
+única que tengo…» aunque el «¿Se la cotizo?» salga en su propia fila.
+
+**Por qué:** Simulador en vivo: el marcador solo veía la última fila y «Precio
+por favor» seguía bloqueando `generar_cotizacion`.
+
+**Horas:** 0,5
+
+## 28-sep-2026 · Una sola opción y precio ya pedido: se cotiza, no se pide permiso
+
+**Qué:** Con UNA sola llanta vendible y el cliente ya con «precio», «cuánto»,
+«cotízame» etc. en la visita, la pieza de opciones dice «Es la única que tengo…»
+sin pregunta y el turno genera la cotización. «Precio por favor» a un «¿Se la
+cotizo?» de la única cuenta como sí. Los seguimientos de ese estado hablan de la
+cotización y piden solo la cantidad. El guardián recibe el hecho duro.
+
+**Por qué:** Conv +593 99 842 8277 (25 y 27-sep): «31x10.5R15» + «Precio por
+favor» terminó dos veces en «¿Se la cotizo?» y nunca salió la cotización.
+## 28-sep-2026 · El menú costo/equilibrio/premium respeta el uso que el cliente declaró
+
+**Qué:** Un solo dueño de «qué tipos le sirven a cada uso» (`domain/usoYTipo.ts`).
+El menú se arma primero con los tipos compatibles (ciudad: H/T y turismo; mixto:
+A/T y R/T; lodo: M/T y R/T; carga: comercial) y solo se sale de ellos si hay
+menos de dos vendibles; entonces avisa (`aviso_tipo`) y nunca mete una M/T a
+quien pidió ciudad. Cableado en buscar_por_aro_y_tipo, fitment_vehiculo,
+preparar_opciones y buscar_llanta. «NO todoterreno» ya no cuenta como A/T.
+El guardián recibe el uso y el aviso como hechos duros.
+
+**Por qué:** 10 chats de la semana del 21-sep: una Kenda KR29 (M/T) salió como
+la económica de clientes que pidieron ciudad; una touring a quien pidió camino
+mixto. La escalera era por precio y marca, sin mirar el uso.
+
+**Horas:** 1,5
+
+## 28-sep-2026 · Ventas confirmadas: la tabla va plegada
+
+**Qué:** En la tarjeta de Métricas, la lista de ventas queda detrás de «Ver las
+N ventas»; se ven solo los totales hasta que se abre.
+
+**Por qué:** Manuel: que no sea grande, que se despliegue solo si se toca.
+
+**Horas:** 0,1
+
+## 28-sep-2026 · Métricas: cambiar de mes ya no recarga todo el panel
+
+**Qué:** Al mover el selector, el hub pide solo lo que depende del mes
+(métricas, llegadas al final, tickets de un mes pasado), a la vez, en vez de
+recargar Inbox, fases, seguimientos y alertas primero. Guarda cada mes visto y
+lo pinta al volver mientras trae lo nuevo, y con el panel abierto precarga los
+otros meses de a uno. El servidor guarda 2 min las métricas de meses cerrados y
+el cruce de ventas confirmadas entre lecturas de Contífico.
+
+**Por qué:** Manuel: «se demora mucho en cargar cuando cambio de meses». Cada
+clic encadenaba la lista entera de tickets (~2 s) y después las métricas
+(~2 s), aunque la mayoría de eso no cambia con el mes.
+
+**Horas:** 0,5
+
+## 27-sep-2026 · Ventas confirmadas: el servidor leía otras facturas y cortaba la lectura en la página 2
+
+**Qué:** Llave propia para leer facturas (`CONTIFICO_FACTURAS_API_KEY`; si
+falta, usa la del catálogo). La lectura sigue hasta una página ENTERA anterior
+al primer chat, no hasta la primera fecha vieja. La tarjeta muestra qué se leyó:
+facturas, rango de fechas, páginas y qué llave.
+
+**Por qué:** En producción la tarjeta salió en 0 ventas con «última factura
+25/9». El mismo código, contra la misma base y con la llave de los cruces a mano,
+ve hasta el 26/9 y encuentra 13: la llave del catálogo de producción no ve todos
+los documentos. Y aparte, Contífico no ordena estrictamente por fecha (la página
+2 trae 29-jul junto a septiembre), así que se perdía medio agosto.
+
+**Horas:** 0,5
+
+## 28-sep-2026 · Los cuatro arreglos de la auditoría del 25-27 sep: ganados fantasma, elegir con palabras, corrección podada y el menú con varias medidas
+
+**Qué:** (1) Se saca del DDL de `schema.ts` el `update` que en cada arranque
+cerraba como ganada toda conversación cuyo cliente escribió «ya compré»; la
+migración `023_ganados_fantasma` borra esas filas de `sales_history` (firma:
+cierre sin ningún mensaje del cliente en los 10 min previos), pasa la
+conversación a `perdido` con motivo explícito y deja una fila `perdido` en su
+lugar; la `024` remata la etapa de la conversación (la 023 comparaba `closed_at` en milisegundos contra microsegundos y dejó `ganado` en las convs 3 y 8162). (2) `respuestaDePreferencia` lee «La segunda opción», «1 costos»,
+«1) costo», «opción 2 equilibrio»; `autorizaCotizacionEnEsteTurno` y el
+`acepta` de la marca aceptan «El juego» / «las 4»; `pidioCotizacionExplicita`
+reconoce «cotízemela / cotíceme». En el guardián, la regla 15 deja de mandar a
+la pregunta del local cuando la huella dice que `generar_cotizacion` se
+bloqueó por autorización: el paso es «¿Se la cotizo?», y un hecho duro nuevo
+se lo dice con todas sus letras. (3) `guardian_no_vende_solo`: si el guardián
+marcó el borrador con una categoría de dato (medida_incorrecta,
+hecho_comercial_inventado, precio_incorrecto, stock_prometido,
+tipo_negado_con_stock, cotizacion_sin_medida) y su corrección se frena por
+producto o precio nuevo, ya no se restaura el borrador: se poda de la
+corrección lo nuevo (`podarHechosNuevosDelGuardian`) y sale eso, con alerta
+`guardian_correccion_podada`; solo si no queda nada con sustancia se cae al
+borrador como antes. (4) El hecho «aro + vehículo + varias medidas en pantalla»
+conserva el menú de preferencia 1/2/3 y sigue prohibiendo cotizar sin
+confirmar la medida. Pruebas: `eleccionConPalabras.test.ts` (20) y
+`ganadosFantasma.integration.test.ts` (2).
+
+**Por qué:** Auditoría 25-27 sep (commit 65cca9e, 75 chats). 22 de los 33
+ganados de septiembre nacieron en los instantes exactos de los deploys, sin
+mensaje del cliente, incluido «ya se compró en El Carmen» (conv 8162): el
+panel inflaba ventas y cortaba seguimientos. Seis clientes eligieron con
+palabras y nunca recibieron cotización (23356 cinco veces en seis minutos,
+23561, 23580, 22154, 23448, 5151 por audio): el lector devolvía null, la
+herramienta bloqueaba, el candado del 24-sep ponía «¿Se la cotizo?» y el
+guardián lo borraba por la regla 15 — dos capas correctas por separado que se
+anulaban. Tres veces el candado «no vende solo» tiró entera una corrección
+buena y salió el borrador con el dato falso: 23080 recibió «le entra la
+215/60R17» (el único error de dato que llegó a un cliente en la ventana),
+23489 llanta de turismo para «todo terreno» con A/T en stock. Y en la prueba
+de Manuel del 27-sep (conv 3, «Rin 15 para mi Highlander») el revisor borró
+el menú 1/2/3 y dejó al cliente sin cómo elegir.
+
+**Horas:** 3,5
+## 27-sep-2026 · Métricas: ventas confirmadas en vivo, por teléfono contra Contífico
+
+**Qué:** Servicio nuevo `ventasConfirmadas.ts`: cada 10 min baja de Contífico
+las facturas desde el primer chat (páginas desde la 1, que es lo más nuevo, hasta
+pasar esa fecha) y las cruza por los últimos 9 dígitos del teléfono con las
+conversaciones. Va en `/api/hub/metrics` como `ventasConfirmadas` y Métricas lo
+pinta en la tarjeta «Ventas confirmadas en Contífico»: total del mes, bot vs.
+asesor, cada venta y los teléfonos que coinciden pero no cuentan (con motivo).
+
+**Por qué:** Manuel pedía un cruce a mano cada dos semanas (26-ago, 12-sep,
+27-sep) para saber cuánto vendió el bot de verdad; el Kanban solo tiene lo
+marcado a mano. Las reglas reproducen esos veredictos: factura posterior al
+primer mensaje, con llantas a precio cobrado (saca repuestos y garantías al
+100 %), y un chat que pasó del saludo. Hoy: 13 ventas por teléfono, $6.977,37.
+
+**Horas:** 1,5
+
+## 27-sep-2026 · Hub: el hilo mostraba los primeros mil mensajes, no los últimos; el Inbox ya no reordena al abrir
+
+**Qué:** `getHubMessages` devuelve los ÚLTIMOS mil mensajes (subconsulta
+`order by created_at desc limit 1000`, luego ascendente) en vez de los
+primeros. El Inbox ordena solo por última actividad; abrir un chat lo pone
+blanco y no lo mueve de lugar.
+
+**Por qué:** La conversación de pruebas de Manuel pasó los mil mensajes: la
+ficha decía «última respuesta hace 1 min» y el hilo se quedaba en las 12:30,
+porque el tope cortaba justo los nuevos. Y al abrir una fila roja dejaba de
+«esperar respuesta» y saltaba de grupo: Manuel pidió que se quede en su lugar.
+
+**Horas:** 0,5
+
+## 27-sep-2026 · Hub: el chat abierto se actualiza aunque el canal en vivo se caiga
+
+**Qué:** El lector del canal de eventos (`/api/hub/events`) corta y reconecta
+si pasan 45 s sin bytes (el heartbeat viene cada 20 s). Y el store agrega una
+red de seguridad: cada 15 s, y al volver a la pestaña, vuelve a pedir la lista
+y los mensajes del chat abierto (`refrescarLigero`), con el mismo turno que
+descarta listas rezagadas.
+
+**Por qué:** Manuel se escribió desde WhatsApp y el chat abierto en el panel
+no mostró ni su mensaje ni la respuesta del bot: hasta hoy el único camino de
+datos nuevos era el canal en vivo, y si el proxy lo dejaba medio abierto no
+había nada que lo notara.
+
+**Horas:** 0,5
+
+## 27-sep-2026 · Inbox: el chat nuevo arriba y la fila abierta que no vuelve a rojo
+
+**Qué:** El orden del Inbox pone primero a quien espera respuesta y, dentro de
+cada grupo, lo más reciente arriba (antes los que esperaban iban del más viejo
+al más nuevo). El store recuerda qué chats abrió el asesor (`leidosLocal`, un
+minuto de vigencia) y toda lista que llegue del servidor lo respeta hasta que
+el servidor confirme el cero; además cada lista pedida lleva su turno y una
+que llegue más vieja que la última pintada se descarta.
+
+**Por qué:** Manuel se escribió desde su WhatsApp y «no salía»: sí estaba, en
+la fila 448, porque 447 conversaciones de septiembre sin abrir esperaban antes
+que él. Y las filas que abría volvían a rojo: cada mensaje del bot dispara un
+`sync`, la lista de 500 tarda, y una lista que salió antes de marcar leído
+llegaba después y pisaba el cero.
+
+**Horas:** 0,5
+
+## 25-sep-2026 · Primer día del Hub «Taller» en producción: lo que pidió Manuel al usarlo
+
+**Qué:** El botón «Contesta el bot / Contestan ustedes» y la lectura de una fila
+se pintan al instante (optimistas en el store) en vez de esperar al PUT y al
+siguiente sync de la lista. El Inbox muestra la **etapa** en lugar del último
+mensaje. El Pipeline vuelve a tarjetas blancas y lleva el tinte a la etapa con
+alguien esperando; **cada tablero (dentro / fuera de 24 h) tiene su propia
+barra de conteos**, para que se vea la diferencia. El selector de mes y los
+controles segmentados dejan de compartir una animación `layoutId`: había dos
+selectores montados a la vez (escritorio y teléfono) y la pastilla saltaba de
+uno al otro al cambiar de mes. En el servidor, `/hub/metrics` corre sus dos
+consultas pesadas en paralelo y la migración 022 agrega índices por fecha a
+`conversations` y `quotes`. En el dev server, `process.env` queda definido:
+`negocio/index.ts` (de main) lo lee al cargar y en el navegador no existe.
+
+**Por qué:** Feedback de Manuel sobre producción (25-sep): Métricas tardaba,
+el botón de quién contesta «no funcionaba bien» (funcionaba, pero tardaba en
+reflejarse), las filas no se ponían blancas al abrirlas, el Pipeline tenía
+«mucho rojo», y el selector de mes se movía un segundo al tocar «Todos».
+Pendiente para otra tanda: el formato de la imagen que sale por WhatsApp
+(hoy apaisada a 728 px y alta; WhatsApp recorta la vista previa) y la
+velocidad de los PDF (pdfmake con las fotos del catálogo embebidas).
+
+**Horas:** 2
+
+## 24-sep-2026 · Rediseño «Taller» del Hub: un solo mundo visual, cuatro pantallas, gráficos con ejes
+
+**Qué:** Se reemplaza entero el front de `hub/`. Nuevo `tokens.css` (papel
+`#f7f6f3`, tinta `#1c1b19`, una señal `#b4453a`, Archivo + JetBrains Mono
+auto-hospedadas, radios 10/8/6); se borran los cuatro temas alternativos, los
+decorados de carreras, la baraja y Oportunidades. Navegación de seis a cuatro
+entradas con Ajustes como engranaje. Inbox es una sola lista con buscador;
+Conversación lleva el hilo y una ficha etiqueta/valor con «Quién contesta» a la
+vista; Pipeline muestra la barra de etapas arriba y las tarjetas sin hacer clic,
+en dos tableros (dentro/fuera de 24 h) que se desplazan por dentro; Métricas
+dibuja cada bloque con un gráfico con ejes rotulados, unidad y valor al pasar
+el cursor (`charts.tsx` nuevo; fuera sparklines, anillos y `useCountUp`);
+Cotizador sólo cambia de piel. Seguimientos (horarios y tiempos) se mudan de
+Configuración técnica a Ajustes; Configuración queda con WhatsApp, encendido,
+manual base y la conexión del panel. El tour sólo aparece la primera vez.
+`DESIGN.md` nuevo (reglas anti «look de IA» + alcance) y mockups aprobados en
+`docs/rediseno/mockups`.
+
+**Por qué:** `tokens.css` decía literalmente «tema Claude Oscuro × Aurora
+Glass»: violeta `#a78bfa` como acción primaria, orbes aurora, vidrio, diez
+chispitas, 147 `rounded-2xl/3xl` e Inter — cada uno un tell catalogado de
+interfaz generada por IA, y el `DESIGN.md` de la raíz describía otro producto
+(Showroom GP) que nadie obedecía. Manuel pidió algo simple, fácil de seguir y
+que «se vea 0 % IA»; los mockups salieron de Claude Design sobre reglas
+escritas antes (docs/rediseno). Verificado con el detector de tells de
+impeccable (0 hallazgos), `tsc` limpio y capturas de cada pantalla a 1440 y
+390 sobre el demo.
+
+**Horas:** 6
 ## 24-sep-2026 · Los seguimientos leen la ficha y lo que el cliente ya dijo
 
 **Qué:** La plantilla de seguimiento usa `tire_size` aunque la etapa siga en
@@ -98,6 +576,69 @@ borró como `pregunta_de_mas` y siete clientes quedaron sin pregunta final y no
 volvieron (convs 22388, 22613, 22782, 22684, 16403, 21714 y 22481).
 
 **Horas:** 0,8
+
+## 24-sep-2026 · El negocio sale del código: un perfil por cliente
+
+**Qué:** `src/negocio/` con la forma (`perfil.ts`) y los valores por cliente
+(`negocios/depot.ts`, `negocios/ejemplo.ts`, este último con UN solo local a
+propósito). Lo elige la variable `NEGOCIO`; sin ella es Depot, y un id que no
+existe no arranca en vez de atender como otro negocio. Salieron del código:
+nombre, ciudad, teléfono, marcas, IVA, moneda, garantías, los locales (con
+`slug`, `nombreCorto`, `claveHorario`, horario propio y los patrones
+`comoLoNombran` / `comoLoNombranAlElegir`), las zonas de la ciudad, el nombre del
+vendedor y los pies de las piezas. `business` queda como vista en inglés del
+perfil, así que los veinte archivos que la importan no se tocaron.
+
+Lo que dejó de asumir que los locales son DOS: el `z.enum` de `ubicacion_locales`
+y `agendar_visita` (el contrato que ve el modelo), `storeSchedule` —que elegía el
+horario preguntando si el nombre *contenía* «Cumbayá»—, `StoreHoursSchema` (de
+dos claves fijas a mapa abierto, conservando `cumbaya`/`quitoSur` para no migrar
+lo guardado), `extractExplicitStore` (de dos booleanos y una rama binaria a N
+patrones, donde nombrar dos sigue sin ser elegir), los botones de WhatsApp,
+`PREGUNTA_DE_LOCAL`, `quoteMessages` (`slice(0, 2)`), y los candados de
+`visitaImposible`, `cierrePerdido` y `localesInventados`, que llevaban los
+nombres cosidos al patrón. El logo pasa a `assets/<id>/`, y el rótulo del IVA de
+la cotización sale de la tarifa real: con IVA al 12 % la pieza mentía.
+
+`test/perfilDelNegocio.test.ts` (19 pruebas) fija BYTE POR BYTE lo que Depot ya
+tenía: la pregunta de local, la firma «Soy Martín, de Depot Tire» y su
+reconocedor, el horario que va al prompt, los sectores, los dos pies distintos
+(«desde 1996» en día y noche, «30 años» en la clásica) y los tres candados. Más
+el caso de un solo local y el de cinco.
+
+**Por qué:** Manuel quiere sumar un segundo cliente. El inventario dio 137
+literales de Depot en `src/`, 34 de ellos estructurales: un cliente con un local
+—o con tres— no era configuración, era tocar el código y arriesgar al primero,
+porque producción y staging salen del mismo `main`. Lo que NO se copia por
+cliente es lo que costó descubrir: cómo se lee una medida, cuándo un «sí»
+autoriza, qué no puede preguntar un seguimiento. Eso es de cualquier llantera y
+se queda en el dominio, así que el segundo cliente nace con los arreglos de los
+dos meses de Depot ya puestos.
+
+Dos fallos reales los cazaron las comprobaciones, no la lectura: el patrón de
+`cierrePerdido` quedaba con mayúscula contra un texto que llega en minúscula («ya
+compré aquí en cumbaya» se habría contado como venta perdida), y el de
+`visitaImposible` sin tildes habría dejado de reconocer «¿Cumbayá o Quito Sur?»
+—abriéndose en silencio— porque ese candado corre sobre el texto tal como se
+escribió. De ahí `comoPatronConTildes`.
+
+Segunda pasada: la identidad del guardián (`Eres el ÁNGEL GUARDIÁN del bot de
+ventas de …`) y el hecho por turno que dice cómo se presenta el bot, la
+descripción de `tipos_de_llanta` y el prefijo de los cupones (`DT-`, ahora las
+iniciales del nombre). El caché del prompt del guardián NO se invalida: son
+plantillas que para Depot renderizan el mismo texto, y la prueba lo fija. Quedan
+dos menciones a Depot en la rúbrica, las dos dentro de ejemplos de casos reales
+que ilustran una regla; ahí el nombre es parte de la anécdota, no de la lógica.
+
+Va junto `docs/UMBRALES-PARA-VENDER.md`, de la misma conversación: las siete
+cifras que dicen si el bot se puede ofrecer a un cliente nuevo, con el valor del
+24-sep al lado (2 de 7 en verde). Seis salen de la base con una regla fija y la
+séptima de la facturación, así que se pueden correr solas; el conteo de «errores
+por chat» de las auditorías leídas queda fuera a propósito, porque depende de
+quién lee.
+
+**Horas:** 3
+
 
 ## 21-sep-2026 · Elegir es cotizar, también «La opción 3» y «Premiun»; y la oferta de cotizar sobrevive a la cadena
 
@@ -1851,6 +2392,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-09-28 | _(este mismo)_ | Ganados fantasma, elegir con palabras, corrección podada, menú con varias medidas | 3,5 |
 | 2026-09-08 | _(este mismo)_ | El aro alcanza: detector ancho, lámina por ruta directa, la guía no reemplaza opciones | 1.5 |
 | 2026-09-07 | _(este mismo)_ | Elegir es cotizar (aro incluido), «otro día» pregunta el día, la lámina no se reenvía por una pregunta | 3.5 |
 | 2026-09-07 | _(este mismo)_ | El opt-out no prohíbe contestar; el /restart olvida la baja | 0.75 |

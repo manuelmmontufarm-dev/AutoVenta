@@ -1,4 +1,6 @@
 import type { Stage } from "./pipeline.js";
+import { lineaDeLista, preguntaDeLaLista, type LineaDeLista } from "./listaDeOpciones.js";
+import { CIERRE_COMPRA_A_DISTANCIA, type SinVisita } from "./compraADistancia.js";
 
 export type FollowUpMessageKind =
   | "in_window_first"
@@ -53,6 +55,13 @@ export interface FollowUpMessageContext {
    */
   optionsCount?: number | null;
   /**
+   * Las opciones de la última pieza CON PRECIO (`listaDeLaPieza`), tal como el
+   * cliente las vio escritas. Con ella el seguimiento le repite los números en
+   * vez de preguntarle qué prioriza — familia «nunca vio un precio escrito»
+   * (~25 chats, caso +593 99 571 0785). `null` = la pieza no las guardó.
+   */
+  optionsList?: { lista: readonly LineaDeLista[]; cantidad: number } | null;
+  /**
    * El cliente ya contestó el menú Costo/Equilibrio/Premium (o eligió por
    * nombre). Con esto en true, preguntarle «¿qué prioriza?» o «¿cuál le
    * gustó más?» es repreguntar: 9 seguimientos lo hicieron en la ventana
@@ -61,6 +70,46 @@ export interface FollowUpMessageContext {
   preferenceAnswered?: boolean;
   /** El cliente ya explicó que no tiene/ubica la medida o numeración. */
   customerHasNoTireSize?: boolean;
+  /**
+   * El cliente ya pidió el precio o la cotización en este ciclo. Con UNA sola
+   * opción, preguntarle «¿se la cotizo?» es pedir permiso por lo ya pedido
+   * (conv +593 99 842 8277, 25-27 sep): el seguimiento habla de su cotización
+   * y pide solo lo que falta, la cantidad. Ver `domain/cotizarLaUnica.ts`.
+   */
+  customerAskedPrice?: boolean;
+  /**
+   * La cantidad que el cliente ya fijó (`conversations.selected_quantity`, el
+   * dueño de ese dato). Con ella el seguimiento no vuelve a pedirla.
+   */
+  selectedQuantity?: number | null;
+  /**
+   * El cliente NO va a pasar por el local (`porQueNoPasaPorElLocal`): compra a
+   * distancia o está fuera de Quito. Sin mapas, y a quien compra a distancia
+   * se le habla de pago y envío, no de visita (familia 2-E, 28-sep: 6 de 6
+   * borradores llevaban los dos links y el guardián los quitaba).
+   */
+  sinVisita?: SinVisita | null;
+}
+
+/** Seguimiento de la única opción cuando el precio ya se pidió: sin «¿se la cotizo?». */
+function seguimientoDeUnicaConPrecio(
+  kind: FollowUpMessageKind,
+  prefix: string,
+  product: string,
+  size: string,
+  cantidad: number | null,
+): string {
+  // Ni «ya tengo lista su cotización» ni «se la envío al momento»: el
+  // seguimiento no genera nada y el guardián lo marcaba promesa_incumplible.
+  // Con la cantidad ya dada tampoco se pide otra vez (V5b: «4 llantas»).
+  if (cantidad) {
+    return kind === "in_window_second"
+      ? `😊 Sigo pendiente de su cotización por las ${cantidad} llantas${product}${size}. Cuando quiera, seguimos por aquí.`
+      : `${prefix}🛞 Quedó pendiente su cotización por las ${cantidad} llantas${product}${size}. Cuando usted diga, avanzamos. 😊`;
+  }
+  return kind === "in_window_second"
+    ? `😊 Sigo pendiente de su cotización${product}${size}. Cuando me confirme cuántas llantas lleva, avanzamos con ella.`
+    : `${prefix}🛞 Quedó pendiente su cotización${product}${size}: cuando me confirme cuántas llantas lleva, avanzamos con ella. 😊`;
 }
 
 /**
@@ -86,6 +135,7 @@ export function followUpNeedsStoreLinks(
   kind: FollowUpMessageKind,
 ): boolean {
   if (kind !== "in_window_first" && kind !== "in_window_second") return false;
+  if (context.sinVisita) return false;
   if (!context.storeLinks?.trim()) return false;
   if (!context.quoteNumber) return false;
   return !context.nearestStore || !context.visitDate;
@@ -158,6 +208,15 @@ function redactarSeguimiento(
         ? "Tiene una cotización pendiente."
         : `La conversación quedó en ${context.stage.replaceAll("_", " ")}.`;
     return `Revisar personalmente: ${detail} Decidir si conviene continuar la conversación o marcarla como Perdida; nunca cerrarla automáticamente.`;
+  }
+
+  // Compra a distancia: lo pendiente es el pago y el envío, que coordina el
+  // asesor. Ni visita, ni local, ni día (conv 21766).
+  if (context.sinVisita === "compra_a_distancia" && (kind === "in_window_first" || kind === "in_window_second")) {
+    const que = product || size ? ` de${product}${size}` : "";
+    return kind === "in_window_second"
+      ? `😊 Sigo pendiente de su compra${que}. ${CIERRE_COMPRA_A_DISTANCIA}`
+      : `${prefix}🛞 Quedó en marcha su compra${que}. ${CIERRE_COMPRA_A_DISTANCIA}`;
   }
 
   if (context.activeDiscountAmount && context.activeDiscountCondition && context.activeDiscountFinalTotal) {
@@ -251,6 +310,7 @@ function redactarSeguimiento(
   // etapa donde esté (corrida 3: la plantilla de medida_confirmada preguntaba
   // «¿le ayudo a elegir?» sobre una lista de uno).
   if (context.optionsCount === 1 && (context.stage === "seleccionando" || context.stage === "medida_confirmada" || context.selectedProductCode)) {
+    if (context.customerAskedPrice) return seguimientoDeUnicaConPrecio(kind, prefix, product, size, context.selectedQuantity ?? null);
     return kind === "in_window_second"
       ? `😊 ¿Cómo vio la opción${product}${size}? Si le sirve, ¿se la cotizo?`
       : `${prefix}🛞 ¿Cómo vio la opción${product}${size}? Es la que tengo disponible en su medida; si le sirve, ¿se la cotizo? 😊`;
@@ -263,11 +323,22 @@ function redactarSeguimiento(
         ? `😊 ¿Cómo vio la opción${product}${size}? Si le sirve, ¿se la cotizo?`
         : `${prefix}🛞 ¿Cómo vio la opción${product}${size}? Es la que tengo disponible en su medida; si le sirve, ¿se la cotizo? 😊`;
     }
+    // NUNCA se le pregunta qué prioriza (ni «cuál le gustó más… si me cuenta qué
+    // prioriza»): quien ya vio la lámina necesita los números, no un criterio.
+    const cuantas = opciones !== null && opciones >= 2 ? Math.min(opciones, 3) : 3;
+    const lista = context.optionsList;
+    if (lista && lista.lista.length >= 2) {
+      const bloque = lista.lista.map((l) => lineaDeLista(l, lista.cantidad)).join("\n");
+      const pregunta = preguntaDeLaLista(lista.lista.length);
+      return kind === "in_window_second"
+        ? `😊 Le dejo otra vez las opciones${size}:\n${bloque}\n${pregunta}`
+        : `${prefix}🛞 Estas son las opciones${size} que le mostré:\n${bloque}\n${pregunta}`;
+    }
     const comparar = opciones !== null && opciones > 2
       ? "compararla con las otras opciones"
       : "compararla con la otra opción";
     return kind === "in_window_second"
-      ? `😊 De las opciones que vimos${size}, ¿cuál le gustó más? Si me cuenta qué prioriza, le ayudo a decidir.`
+      ? `😊 De las opciones que vimos${size}, ${preguntaDeLaLista(cuantas)}`
       : `${prefix}🛞 ¿Cómo vio la opción${product}${size}? También puedo ayudarle a ${comparar} 😊`;
   }
 
@@ -275,8 +346,8 @@ function redactarSeguimiento(
   // «nuevo» aunque tire_size ya esté (convs 21967, 22111, 22559, 22809).
   if (context.tireSize) {
     return kind === "in_window_second"
-      ? `😊 Ya con la medida${size} estamos cerca. ¿Prefiere priorizar duración, comodidad o precio?`
-      : `${prefix}🛞 Ya tengo su medida${size}. ¿Le ayudo a elegir la mejor opción según el uso que le da y su presupuesto?`;
+      ? `😊 Ya con la medida${size} estamos cerca. ¿Le mando las opciones que tengo en su medida?`
+      : `${prefix}🛞 Ya tengo su medida${size}. ¿Le mando las opciones que tengo en su medida, con sus precios?`;
   }
 
   // Conv 22549: si ya dijo que no tiene la numeración, insistir con la misma

@@ -1,4 +1,4 @@
-import { extractConventionalSizes, extractFlotationSizes, extractTireSizes, formatConventionalSize, formatTireSize, type TireSize, formatFlotationSize } from "./tireSize.js";
+import { extractFlotationSizes, extractTireSizes, formatFlotationSize, medidaCanonica, type TireSize } from "./tireSize.js";
 import { resolveCatalogMedia } from "./catalogMedia.js";
 import { extractLoadSpeed, type TireLoadSpeed } from "./tireSpecs.js";
 
@@ -50,7 +50,6 @@ export interface CatalogItem {
 }
 
 const PRICE_TIERS: PriceTier[] = ["pvp1", "pvp2", "pvp3", "pvp4"];
-const FLOTATION_RE = /(?<!\d)(\d{2})\s*[xX]\s*(\d{1,2}(?:[.,]\d{1,2})?)\s*(?:Z?R\s*)?(\d{2})(?!\d)/;
 
 export function numberFromWire(value: unknown): number | null {
   if (typeof value === "number") return Number.isFinite(value) ? value : null;
@@ -83,41 +82,22 @@ export function compactCatalogText(value: string): string {
  * una venta a Depot: el cliente pidió 30x9.5r15, el bot encontró solo la que
  * tenía stock 0 y le dijo que no había, mientras la otra tenía 20 unidades.
  * Se quitan los ceros de más del decimal para que ambas colapsen en una.
+ *
+ * La etiqueta sale de `medidaCanonica` (domain/tireSize.ts), la MISMA función
+ * que traduce lo que escribe el cliente y lo que se guarda en la ficha. Antes
+ * el catálogo tenía su propio formateador de flotación: daba lo mismo por
+ * casualidad, y el día que uno de los dos cambiara, la llave del catálogo y la
+ * de la conversación dejaban de coincidir sin que nada avisara (familia 1-A,
+ * 28-sep-2026).
  */
-export function canonicalFlotationLabel(
-  width: string | number,
-  section: string | number,
-  rim: string | number,
-): string {
-  const dec = String(section).replace(",", ".");
-  const limpio = dec.includes(".") ? dec.replace(/0+$/, "").replace(/\.$/, "") : dec;
-  return `${width}X${limpio}R${rim}`;
-}
-
 export function extractCatalogSizeLabel(text: string): {
   size: TireSize | null;
   sizeLabel: string | null;
 } {
-  const metric = extractTireSizes(text)[0] ?? null;
-  if (metric) return { size: metric, sizeLabel: formatTireSize(metric) };
-
-  // El parser del dominio, no un regex local: entiende «33x12.50r17» en
-  // minúscula, con asterisco y sin punto decimal, que es como aparece tanto
-  // en el catálogo de Contífico como en los mensajes de la gente.
-  const flotation = extractFlotationSizes(text)[0];
-  if (flotation) {
-    return {
-      size: null,
-      sizeLabel: canonicalFlotationLabel(flotation.diameter, flotation.section, flotation.rim),
-    };
-  }
-
-  // Última: la convencional de camión liviano («7.00R15»). Va al final porque
-  // su patrón es el más laxo y podría morder el ancho de una flotación.
-  const conventional = extractConventionalSizes(text)[0];
-  if (conventional) return { size: null, sizeLabel: formatConventionalSize(conventional) };
-
-  return { size: null, sizeLabel: null };
+  // Métrica → flotación («33x12.50r17», con asterisco o sin punto) →
+  // convencional de camión («7.00R15»), en ese orden: la convencional es la
+  // más laxa y podría morder el ancho de una flotación.
+  return { size: extractTireSizes(text)[0] ?? null, sizeLabel: medidaCanonica(text) };
 }
 
 export function availabilityFromStock(stock: number): CatalogAvailability {

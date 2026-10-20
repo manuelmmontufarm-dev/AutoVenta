@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { createHash } from "node:crypto";
 import { config } from "../config.js";
 import { sql } from "../db/client.js";
+import { porQueNoPasaPorElLocal } from "./dondeEstaElCliente.js";
 import {
   computeInWindowSchedule,
   detectNegativeSentiment,
@@ -10,6 +11,7 @@ import {
   type FollowUpPolicy,
 } from "../domain/followUps.js";
 import { isStage, type Stage } from "../domain/pipeline.js";
+import { pidioPrecioOCotizacion } from "../domain/salesIntent.js";
 import {
   buildContextualFollowUpMessage,
   followUpNeedsStoreLinks,
@@ -23,6 +25,7 @@ import { pideUnAsesor } from "../domain/pideAsesor.js";
 import { tipoDeCierreDelTurno } from "../domain/cierreTurno.js";
 import { generateFollowUpCopy } from "./followUpCopy.js";
 import { findByCode } from "./catalog.js";
+import { listaDeLaPieza } from "../domain/listaDeOpciones.js";
 import { asesoresActivos, notifyAdvisor } from "./advisorNotifications.js";
 
 export type FollowUpJobStatus =
@@ -232,8 +235,13 @@ function etiquetaDelProducto(codigo: string | null | undefined): string | null {
 /** Lo que la plantilla de seguimiento necesita saber del hilo para no repreguntar. */
 export interface ContextoDeOpciones {
   optionsCount: number | null;
+  optionsList?: FollowUpMessageContext["optionsList"];
   preferenceAnswered: boolean;
   customerHasNoTireSize: boolean;
+  /** Pidió precio o cotización en el ciclo (ver `domain/cotizarLaUnica.ts`). */
+  customerAskedPrice?: boolean;
+  /** No pasa por el local (`porQueNoPasaPorElLocal`): sin mapas ni visita. */
+  sinVisita?: FollowUpMessageContext["sinVisita"];
 }
 
 const RESPUESTA_AL_MENU =
@@ -247,8 +255,8 @@ const RESPUESTA_AL_MENU =
  * (auditoría 2-6 sep, familia A3): no tenía cómo saberlo.
  */
 async function contextoDeOpciones(conversationId: number, cycle: number): Promise<ContextoDeOpciones> {
-  const [pieza] = await sql<{ id: number; created_at: Date; codes: unknown }[]>`
-    select id, created_at, metadata->'codes' as codes from messages
+  const [pieza] = await sql<{ id: number; created_at: Date; codes: unknown; metadata: { escalones?: unknown; cantidad?: unknown } | null }[]>`
+    select id, created_at, metadata->'codes' as codes, metadata from messages
     where conversation_id = ${conversationId} and cycle = ${cycle}
       and direction = 'outbound' and metadata->>'piece' = 'options'
     order by created_at desc, id desc limit 1
@@ -265,7 +273,17 @@ async function contextoDeOpciones(conversationId: number, cycle: number): Promis
     /\b(?:no\s+(?:la\s+)?(?:tengo|se|s[eé])|sin)\b[^.\n]{0,45}\b(?:medida|numeraci[oó]n|n[uú]mero)\b|\b(?:medida|numeraci[oó]n)\b[^.\n]{0,35}\bno\s+(?:la\s+)?(?:tengo|se|s[eé])\b/i
       .test(r.content ?? "")
   );
-  return { optionsCount, preferenceAnswered, customerHasNoTireSize };
+  // Todo el ciclo, no solo lo posterior a la pieza: «Precio por favor» suele
+  // llegar ANTES de que el bot mande las opciones.
+  const todos = await sql<{ content: string | null }[]>`
+    select content from messages
+    where conversation_id = ${conversationId} and cycle = ${cycle} and direction = 'inbound'
+  `;
+  const customerAskedPrice = todos.some((r) => pidioPrecioOCotizacion(r.content ?? ""));
+  // El mismo dueño que el cierre de la cotización y los candados de salida:
+  // quien compra a distancia o está fuera de Quito no recibe mapas.
+  const sinVisita = await porQueNoPasaPorElLocal(conversationId, cycle, null);
+  return { optionsCount, optionsList: listaDeLaPieza(pieza?.metadata), preferenceAnswered, customerHasNoTireSize, customerAskedPrice, sinVisita };
 }
 
 /**
@@ -291,8 +309,12 @@ export function buildFollowUpPreview(
 ): string {
   return buildContextualFollowUpMessage({
     optionsCount: opciones.optionsCount,
+    optionsList: opciones.optionsList ?? null,
     preferenceAnswered: opciones.preferenceAnswered,
     customerHasNoTireSize: opciones.customerHasNoTireSize,
+    customerAskedPrice: opciones.customerAskedPrice,
+    sinVisita: opciones.sinVisita ?? null,
+    selectedQuantity: conversation.selected_quantity,
     name: conversation.name,
     stage: conversation.stage,
     tireSize: conversation.tire_size,
@@ -929,6 +951,7 @@ function jobCopyContext(context: FollowUpJobContext) {
     tireSize: context.tire_size,
     selectedProductCode: context.selected_product_code,
     selectedProductLabel: etiquetaDelProducto(context.selected_product_code),
+    selectedQuantity: context.selected_quantity,
     nearestStore: context.nearest_store,
     customerCommitment: commitmentCycle === context.current_cycle ? context.customer_commitment : null,
     visitDate: context.visit_date,
@@ -969,12 +992,16 @@ export async function ensureFollowUpJobCopy(input: {
   // tipo de string que un LLM copia mal, y una mutilada en el chat es peor
   // que ninguna. El bloque canónico lo pega `conMapasPegados` después, sobre
   // el texto final.
-  const copy = await generateFollowUpCopy(
-    { ...copyContext, storeLinks: undefined },
-    kind,
-    policy.stagePrompts?.[context.stage],
-    now,
-  );
+  // Compra a distancia: el texto fijo ya dice lo único que corresponde (pago y
+  // envío con el asesor). Redactarlo con IA era invitarla a hablar de la visita.
+  const copy = copyContext.sinVisita === "compra_a_distancia"
+    ? { text: buildContextualFollowUpMessage(copyContext, kind, now), source: "determinista_compra_a_distancia" }
+    : await generateFollowUpCopy(
+      { ...copyContext, storeLinks: undefined },
+      kind,
+      policy.stagePrompts?.[context.stage],
+      now,
+    );
   const text = conMapasPegados(copy.text.trim() || stored, copyContext, kind);
   await sql`
     update follow_up_jobs

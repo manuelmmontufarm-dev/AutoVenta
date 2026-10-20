@@ -20,7 +20,7 @@ import {
   type ContificoProductWire,
   type ResultadoEscalera,
 } from "../domain/catalog.js";
-import { ordenarPorCercania } from "../domain/equivalencia.js";
+import { ordenarPorCercania, type Direccion } from "../domain/equivalencia.js";
 import { mencionaProducto } from "../domain/guardianNoVendeSolo.js";
 import { extractTireSizes, formatTireSize, type TireSize } from "../domain/tireSize.js";
 import {
@@ -341,7 +341,7 @@ export function searchWithLadder(query: string, limit = 8): ResultadoEscalera {
  * `domain/equivalencia.ts`), y salen ordenadas de la más parecida a la menos,
  * no de la más barata a la más cara.
  */
-export function searchAlternatives(size: TireSize): CatalogItem[] {
+export function searchAlternatives(size: TireSize, direccion: Direccion | null = null): CatalogItem[] {
   const pedida = formatTireSize(size);
   const mismoAro = items.filter(
     (item) =>
@@ -350,7 +350,8 @@ export function searchAlternatives(size: TireSize): CatalogItem[] {
       !(item.size.width === size.width && item.size.aspect === size.aspect) &&
       item.stock > 0,
   );
-  return ordenarPorCercania(mismoAro, pedida);
+  // Con dirección («más ancha», conv 22975) solo quedan las que van para ese lado.
+  return ordenarPorCercania(mismoAro, pedida, direccion);
 }
 
 export function findByCode(code: string): CatalogItem | undefined {

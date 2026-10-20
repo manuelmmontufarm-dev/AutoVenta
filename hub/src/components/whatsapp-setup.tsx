@@ -145,7 +145,7 @@ export function WhatsAppSetup() {
   }
 
   if (cargando) {
-    return <div className="glass rounded-3xl p-6 text-sm text-muted">Leyendo el canal…</div>;
+    return <div className="border border-line bg-surface rounded-[10px] p-6 text-[14px] text-text2">Leyendo el canal…</div>;
   }
 
   const pendientes = diag?.checks.filter((check) => check.estado !== "ok").length ?? 0;
@@ -154,18 +154,15 @@ export function WhatsAppSetup() {
     <div className="grid max-w-5xl gap-4">
       {/* ── Estado global ── */}
       <section
-        className="glass rounded-3xl p-6"
-        style={{
-          borderLeft: `4px solid ${diag?.listo ? "var(--color-ok)" : "var(--color-red)"}`,
-        }}
+        className="border border-line bg-surface rounded-[10px] p-6"
       >
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <p className="microlabel">Canal de WhatsApp</p>
-            <h2 className="serif mt-2 text-2xl">
+            <h2 className="serif mt-2 text-[18px]">
               {diag?.listo ? "Conectado" : "Falta terminar de conectar"}
             </h2>
-            <p className="mt-2 max-w-xl text-sm leading-relaxed text-muted">
+            <p className="mt-2 max-w-xl text-[14px] leading-relaxed text-text2">
               {diag?.listo
                 ? pendientes > 0
                   ? `Lo esencial funciona. Quedan ${pendientes} avisos menores abajo.`
@@ -177,7 +174,7 @@ export function WhatsAppSetup() {
             type="button"
             disabled={revisando}
             onClick={() => void revisar()}
-            className="rounded-2xl border border-navy/25 bg-white px-4 py-2.5 text-xs font-black text-navy disabled:opacity-50"
+            className="rounded-[8px] border border-line bg-surface px-4 py-2.5 text-[13px] font-semibold text-text disabled:opacity-50"
           >
             {revisando ? "Revisando…" : "Revisar conexión"}
           </button>
@@ -193,10 +190,10 @@ export function WhatsAppSetup() {
       </section>
 
       {/* ── Los cuatro datos de Meta ── */}
-      <section className="glass rounded-3xl p-6">
+      <section className="border border-line bg-surface rounded-[10px] p-6">
         <p className="microlabel">Datos de Meta</p>
-        <h3 className="serif mt-2 text-xl">Pega aquí lo que te da la app de WhatsApp</h3>
-        <p className="mt-2 text-xs leading-relaxed text-muted">
+        <h3 className="serif mt-2 text-[17px]">Pega aquí lo que te da la app de WhatsApp</h3>
+        <p className="mt-2 text-[13px] leading-relaxed text-text2">
           Meta → tu app → WhatsApp → Configuración de la API. Lo que dejes en
           blanco se queda como está: guardar no borra el token anterior.
         </p>
@@ -250,7 +247,7 @@ export function WhatsAppSetup() {
               <button
                 type="button"
                 onClick={() => setForm({ ...form, verifyToken: generarToken() })}
-                className="shrink-0 rounded-2xl border border-navy/25 bg-white px-3 text-[11px] font-black text-navy"
+                className="shrink-0 rounded-[8px] border border-line bg-surface px-3 text-[12px] font-semibold text-text"
                 title="Generar uno aleatorio"
               >
                 Generar
@@ -292,21 +289,21 @@ export function WhatsAppSetup() {
             type="button"
             disabled={guardando}
             onClick={() => void guardarYVerificar()}
-            className="rounded-2xl bg-red px-6 py-3 text-xs font-black text-white disabled:opacity-50"
+            className="rounded-[8px] bg-signal px-6 py-3 text-[13px] font-semibold text-white disabled:opacity-50"
           >
             {guardando ? "Guardando y verificando…" : "Guardar y verificar"}
           </button>
-          {aviso && <span className="text-xs font-bold text-ok">{aviso}</span>}
-          {error && <span className="text-xs font-bold text-red">{error}</span>}
+          {aviso && <span className="text-[13px] font-semibold text-ok">{aviso}</span>}
+          {error && <span className="text-[13px] font-semibold text-signal">{error}</span>}
         </div>
       </section>
 
       {/* ── Lo que hay que pegar en Meta ── */}
       {diag && (
-        <section className="glass rounded-3xl p-6">
+        <section className="border border-line bg-surface rounded-[10px] p-6">
           <p className="microlabel">De vuelta en Meta</p>
-          <h3 className="serif mt-2 text-xl">Configura el webhook con estos dos valores</h3>
-          <p className="mt-2 text-xs leading-relaxed text-muted">
+          <h3 className="serif mt-2 text-[17px]">Configura el webhook con estos dos valores</h3>
+          <p className="mt-2 text-[13px] leading-relaxed text-text2">
             Meta → WhatsApp → Configuración → Webhook → Editar. Después suscribe
             el campo <b>messages</b>, o no llegará ninguna conversación.
           </p>
@@ -322,10 +319,10 @@ export function WhatsAppSetup() {
       )}
 
       {/* ── Prueba real de salida ── */}
-      <section className="glass rounded-3xl p-6">
+      <section className="border border-line bg-surface rounded-[10px] p-6">
         <p className="microlabel">Prueba de extremo a extremo</p>
-        <h3 className="serif mt-2 text-xl">Mándate un mensaje</h3>
-        <p className="mt-2 text-xs leading-relaxed text-muted">
+        <h3 className="serif mt-2 text-[17px]">Mándate un mensaje</h3>
+        <p className="mt-2 text-[13px] leading-relaxed text-text2">
           Es la única comprobación que confirma que el canal <b>sale</b> de
           verdad. Si el número no te ha escrito en las últimas 24 h, Meta
           rechazará el texto libre — eso también te lo decimos aquí.
@@ -342,19 +339,19 @@ export function WhatsAppSetup() {
             type="button"
             disabled={enviando || pruebaTo.replace(/\D/g, "").length < 8}
             onClick={() => void enviarPrueba()}
-            className="rounded-2xl bg-navy px-5 py-3 text-xs font-black text-white disabled:opacity-50"
+            className="rounded-[8px] bg-text px-5 py-3 text-[13px] font-semibold text-white disabled:opacity-50"
           >
             {enviando ? "Enviando…" : "Enviar prueba"}
           </button>
         </div>
         {prueba && (
           <p
-            className="mt-3 rounded-2xl px-4 py-3 text-xs font-bold"
+            className="mt-3 rounded-[8px] px-4 py-3 text-[13px] font-semibold"
             style={{
               background: prueba.ok
                 ? "color-mix(in srgb, var(--color-ok) 12%, white)"
-                : "color-mix(in srgb, var(--color-red) 10%, white)",
-              color: prueba.ok ? "var(--color-ok)" : "var(--color-red)",
+                : "color-mix(in srgb, var(--color-signal) 10%, white)",
+              color: prueba.ok ? "var(--color-ok)" : "var(--color-signal)",
             }}
           >
             {prueba.texto}
@@ -367,7 +364,7 @@ export function WhatsAppSetup() {
 
 const ICONO: Record<CheckEstado, ReactNode> = {
   ok: <IconCheck size={11} />,
-  falta: <span className="block h-1.5 w-1.5 rounded-full bg-white" />,
+  falta: <span className="block h-1.5 w-1.5 rounded-full bg-surface" />,
   error: <IconAlert size={11} />,
 };
 
@@ -376,26 +373,26 @@ function CheckRow({ check }: { check: ChannelCheck }) {
     check.estado === "ok"
       ? "var(--color-ok)"
       : check.estado === "error"
-        ? "var(--color-red)"
-        : "var(--color-muted)";
+        ? "var(--color-signal)"
+        : "var(--color-text2)";
   return (
-    <li className="flex gap-3 rounded-2xl bg-paper/[.04] px-4 py-3">
+    <li className="flex gap-3 rounded-[8px] bg-bg px-4 py-3">
       <span
-        className="mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-full text-[11px] font-black text-white"
+        className="mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-full text-[12px] font-semibold text-white"
         style={{ background: color }}
         aria-hidden
       >
         {ICONO[check.estado]}
       </span>
       <div className="min-w-0">
-        <p className="text-xs font-black">{check.label}</p>
-        <p className="mt-0.5 text-xs text-muted">{check.detalle}</p>
+        <p className="text-[13px] font-semibold">{check.label}</p>
+        <p className="mt-0.5 text-[13px] text-text2">{check.detalle}</p>
         {check.dato && (
-          <p className="mt-1 font-mono text-[11px] break-all" style={{ color }}>
+          <p className="mt-1 font-mono text-[12px] break-all" style={{ color }}>
             {check.dato}
           </p>
         )}
-        {check.ayuda && <p className="mt-1 text-[11px] leading-relaxed text-faint">{check.ayuda}</p>}
+        {check.ayuda && <p className="mt-1 text-[12px] leading-relaxed text-text2">{check.ayuda}</p>}
       </div>
     </li>
   );
@@ -412,10 +409,10 @@ function Copiable({
 }) {
   const [copiado, setCopiado] = useState(false);
   return (
-    <div className="flex items-center gap-3 rounded-2xl bg-paper/[.04] px-4 py-3">
+    <div className="flex items-center gap-3 rounded-[8px] bg-bg px-4 py-3">
       <div className="min-w-0 flex-1">
         <p className="microlabel">{label}</p>
-        <p className="mt-1 font-mono text-[11.5px] break-all">{valor}</p>
+        <p className="mt-1 font-mono text-[12px] break-all">{valor}</p>
       </div>
       <button
         type="button"
@@ -425,7 +422,7 @@ function Copiable({
           setCopiado(true);
           setTimeout(() => setCopiado(false), 1600);
         }}
-        className="shrink-0 rounded-xl border border-navy/25 bg-white px-3 py-2 text-[10px] font-black text-navy disabled:opacity-40"
+        className="shrink-0 rounded-[6px] border border-line bg-surface px-3 py-2 text-[12px] font-semibold text-text disabled:opacity-40"
       >
         {copiado ? "¡Copiado!" : "Copiar"}
       </button>
@@ -449,13 +446,13 @@ function Campo({
       <span className="microlabel mb-1.5 flex flex-wrap items-center gap-2">
         {label}
         {marca && (
-          <span className="rounded-full bg-ok/15 px-2 py-0.5 text-[11px] font-black text-ok">
+          <span className="rounded-full bg-ok/10 px-2 py-0.5 text-[12px] font-semibold text-ok">
             {marca}
           </span>
         )}
       </span>
       {children}
-      <span className="mt-1 block text-[10.5px] leading-relaxed text-faint">{pista}</span>
+      <span className="mt-1 block text-[12px] leading-relaxed text-text2">{pista}</span>
     </label>
   );
 }

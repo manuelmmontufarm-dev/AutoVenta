@@ -28,6 +28,7 @@
  */
 
 import { TZDate } from "@date-fns/tz";
+import { negocio, inicialesDelNegocio } from "../negocio/index.js";
 
 /**
  * Las 64 palabras del cupón.
@@ -61,8 +62,13 @@ export const PALABRAS_CUPON: readonly string[] = [
   "VELA", "REMO",
 ];
 
-/** Prefijo fijo: identifica de un vistazo que el papelito es de Depot Tire. */
-export const PREFIJO_CUPON = "DT-";
+/**
+ * Prefijo del cupón: identifica de un vistazo de qué negocio es el papelito.
+ *
+ * Son las iniciales del nombre («Depot Tire» → `DT-`). Con una sola palabra
+ * toma sus dos primeras letras, para que nunca quede un prefijo de una letra.
+ */
+export const PREFIJO_CUPON = `${inicialesDelNegocio(negocio)}-`;
 
 /**
  * Dos dígitos, no uno ni tres.

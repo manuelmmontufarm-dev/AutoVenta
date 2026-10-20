@@ -28,6 +28,7 @@ export async function resumeBotIfUnanswered(conversationId: number): Promise<Res
   // salía un mensaje a un cliente real — la fuga más cara posible, porque pasa
   // justo cuando alguien está probando el producto sin querer publicarlo.
   if (!(await isBotActive())) return "bot_off";
+  const inicioDelTurno = new Date();
 
   const [claimed] = await sql<{
     id: number; phone: string; name: string | null; stage: Conversation["stage"];
@@ -90,7 +91,8 @@ export async function resumeBotIfUnanswered(conversationId: number): Promise<Res
       currentUserText: claimed.last_text, resumedFromHuman: true,
     };
     // Si `agendar_visita` emite el cupón en este turno, el ticket sale abajo.
-    const inicioDelTurno = new Date(Date.now() - 30_000);
+    // Con margen: `issued_at` lo pone el reloj de Postgres, no el de Node.
+    const cuponesDesde = new Date(inicioDelTurno.getTime() - 30_000);
     const reply = await runAgent(ctx, claimed.last_text);
     await flagRepetitiveConversation(conversationId, reply);
     // LA MISMA CADENA QUE EL CAMINO NORMAL, no un pedazo de ella.
@@ -102,7 +104,7 @@ export async function resumeBotIfUnanswered(conversationId: number): Promise<Res
     // services/prepararSalida.ts.
     const salida = await prepararSalida(reply, {
       conversation, tipo: "retomada", huella: ctx.toolTrace ?? [], faseOperativa: ctx.faseOperativa,
-      textoDelCliente: claimed.last_text,
+      textoDelCliente: claimed.last_text, inicioDelTurno,
     });
     // Un candado bloqueó el envío (duplicado/atascado): ya alertó al asesor y
     // para el que llama esto equivale a que no había nada seguro que responder.
@@ -112,7 +114,7 @@ export async function resumeBotIfUnanswered(conversationId: number): Promise<Res
       authorKind: "bot", status: "sent", metadata: { resumedAfterHuman: true },
     });
     await enviarTicketDeCupon({
-      conversationId, cycle: claimed.current_cycle, to: claimed.phone, emitidoDesde: inicioDelTurno,
+      conversationId, cycle: claimed.current_cycle, to: claimed.phone, emitidoDesde: cuponesDesde,
     });
     if (ctx.discountNotice) {
       await markDiscountNoticeSent(ctx.discountNotice.source, ctx.discountNotice.id);

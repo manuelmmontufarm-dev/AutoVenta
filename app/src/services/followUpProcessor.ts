@@ -1,5 +1,7 @@
 import { sql } from "../db/client.js";
 import { emitirCuponDeConfirmacion, enviarTicketDeCupon } from "./coupons.js";
+import { porQueNoPasaPorElLocal } from "./dondeEstaElCliente.js";
+import { config } from "../config.js";
 import { isWithinBusinessHours } from "../domain/followUps.js";
 import { appendMessage } from "./conversations.js";
 import {
@@ -93,9 +95,18 @@ export async function processFollowUpJob(
       suggestedAction: `${String(context.job_payload.preview ?? "")} Si decides continuar, devuelve la conversación al bot o responde personalmente dentro de la ventana permitida.`,
       dedupeKey: `${context.id}:${context.current_cycle}:advisor_review:${job.id}`,
     });
+    // PAUSA FINITA, COMO LA DEL RESTO DE LOS TRASPASOS (familia 2-E, conv
+    // 21640). Con 'infinity' el cliente que volvía a escribir quedaba mudo para
+    // siempre: `devolverAlBotSiVencioLaPausa` nunca la encuentra vencida y el
+    // rescate de 12 h solo mira pausas vencidas. El 20-sep uno preguntó el
+    // precio de 4 llantas 80 min después del traspaso y le contestaron 7 días
+    // más tarde. Mientras dure la pausa, cada mensaje suyo levanta la alerta
+    // «el cliente escribió y nadie le contesta» (services/turnoDelHumano.ts);
+    // después, como aquí nadie humano habló todavía, contesta el bot.
+    const pausaDelTraspaso = new Date(now.getTime() + config.pipeline.botPauseHours * 3_600_000);
     await sql.begin(async (tx) => {
       await tx`
-        update conversations set assigned_to='human', bot_paused_until='infinity'::timestamptz,
+        update conversations set assigned_to='human', bot_paused_until=${pausaDelTraspaso},
           updated_at=${now} where id=${context.id}
       `;
       await tx`
@@ -282,6 +293,8 @@ export async function processFollowUpJob(
   const ctxSalida: Parameters<typeof prepararSalida>[1] = {
     conversation: { id: context.id, current_cycle: context.current_cycle, stage: context.stage },
     tipo: isPostWindow ? "plantilla" : "seguimiento",
+    // Un seguimiento no escala a nadie: «ya avisé al asesor» no puede salir aquí.
+    inicioDelTurno: new Date(),
   };
   const salida = await prepararSalida(redactado, ctxSalida);
   // LA CADENA PUEDE DECIR «NO MANDES NADA» (auditoría 2-6 sep, familia A).
@@ -431,6 +444,7 @@ export async function processFollowUpJob(
  * ventana que no tiene otro detrás todavía pendiente. Así vale igual con uno o
  * con dos intentos configurados.
  *
+ * Tampoco a quien no va a pasar por el local (`porQueNoPasaPorElLocal`).
  * Todo lo demás lo cuida `emitirCuponDeConfirmacion`: cupón apagado, sin
  * cotización en este ciclo o con cupón ya entregado → no sale nada.
  */
@@ -449,6 +463,9 @@ async function regalarCuponSiEsElUltimo(
       limit 1
     `;
     if (otro) return;
+    // Quien compra a distancia o está fuera de Quito no pasa por caja: un
+    // ticket que dice «muéstrelo en caja» le promete algo que no puede usar.
+    if (await porQueNoPasaPorElLocal(context.id, context.current_cycle, null)) return;
     const cupon = await emitirCuponDeConfirmacion({
       conversationId: context.id, cycle: context.current_cycle, motivo: "seguimiento", ahora: now,
     });

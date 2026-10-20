@@ -278,12 +278,19 @@ export async function getHubMessages(conversationId: number) {
       metadata: Record<string, unknown> | null;
     }[]
   >`
-    select id, role, author_kind, type, content, status, created_at, metadata
-    from messages
-    where conversation_id = ${conversationId} and type <> 'note'
-    order by created_at asc
-    limit 1000
+    select * from (
+      select id, role, author_kind, type, content, status, created_at, metadata
+      from messages
+      where conversation_id = ${conversationId} and type <> 'note'
+      order by created_at desc, id desc
+      limit 1000
+    ) ultimos
+    order by created_at asc, id asc
   `;
+  // Los ÚLTIMOS mil, no los primeros: con `order by created_at asc limit 1000`
+  // una conversación larga (la de pruebas de Manuel pasó los mil el 27-sep)
+  // devolvía siempre los mismos mensajes viejos y el hilo parecía congelado
+  // aunque la ficha dijera «última respuesta hace 1 min».
   return rows.map((row) => ({
     id: Number(row.id),
     ticketId: conversationId,

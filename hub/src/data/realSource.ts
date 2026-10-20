@@ -551,10 +551,24 @@ export class RealSource implements DataSource {
     let lastReconnectToast = 0;
     while (!signal.aborted) {
       try {
+        // Corte propio de esta conexión, aparte del `signal` de quien se
+        // suscribió: si el servidor deja de mandar bytes (el heartbeat viene
+        // cada 20 s), el proxy pudo haber dejado la conexión medio abierta
+        // —sin error y sin datos— y el panel se quedaba «en vivo» sin enterarse
+        // de nada. Sin bytes en 45 s se corta y se vuelve a conectar.
+        const conexion = new AbortController();
+        const onAbort = () => conexion.abort();
+        signal.addEventListener("abort", onAbort, { once: true });
+        let vigilante: ReturnType<typeof setTimeout> | undefined;
+        const armarVigilante = () => {
+          if (vigilante) clearTimeout(vigilante);
+          vigilante = setTimeout(() => conexion.abort(), 45_000);
+        };
         const response = await fetch("/api/hub/events", {
           headers: this.authHeaders(),
-          signal,
+          signal: conexion.signal,
         });
+        armarVigilante();
         if (response.status === 401 || response.status === 503) {
           this.emit({ tipo: "clave-invalida" });
           return;
@@ -568,11 +582,14 @@ export class RealSource implements DataSource {
         while (!signal.aborted) {
           const { done, value } = await reader.read();
           if (done) break;
+          armarVigilante();
           buffer += decoder.decode(value, { stream: true });
           const chunks = buffer.split("\n\n");
           buffer = chunks.pop() ?? "";
           for (const chunk of chunks) this.consumeEvent(chunk);
         }
+        if (vigilante) clearTimeout(vigilante);
+        signal.removeEventListener("abort", onAbort);
       } catch (error) {
         if (signal.aborted) return;
         if (Date.now() - lastReconnectToast > 30_000) {

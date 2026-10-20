@@ -7,6 +7,7 @@
 import { z } from "zod";
 import { sql } from "../db/client.js";
 import { PIPELINE_STAGES, type Stage } from "../domain/pipeline.js";
+import { negocio } from "../negocio/index.js";
 
 export const AiConfigSchema = z.object({
   /** Texto libre que se suma al prompt: personalidad extra del asistente. */
@@ -56,15 +57,53 @@ const StoreSchema = z.object({
   excepciones: z.array(StoreExceptionSchema).max(40).default([]),
 });
 
-export const StoreHoursSchema = z.object({
-  cumbaya: StoreSchema,
-  quitoSur: StoreSchema,
-});
+/**
+ * Los horarios, UNO POR LOCAL, con la `claveHorario` del perfil como llave.
+ *
+ * Era un objeto de dos claves fijas (`cumbaya`, `quitoSur`), y eso hacía que un
+ * negocio con un local —o con tres— no cupiera ni en el esquema ni en el panel.
+ * Ahora es un mapa abierto, y las claves de Depot siguen siendo exactamente las
+ * mismas: lo que está guardado en `settings.store_hours` en producción se lee
+ * igual, sin migración.
+ */
+export const StoreHoursSchema = z.record(z.string(), StoreSchema);
 export type StoreHours = z.infer<typeof StoreHoursSchema>;
-export const DEFAULT_STORE_HOURS: StoreHours = StoreHoursSchema.parse({
-  cumbaya: { weekday: { open: "08:30", close: "17:30" }, weekend: { open: "08:30", close: "14:30" } },
-  quitoSur: { weekday: { open: "08:30", close: "17:30" }, weekend: { open: "08:30", close: "17:30", closed: true } },
-});
+/** El horario de UN local. Antes se escribía `StoreHours["cumbaya"]`. */
+export type StoreHoursDeUnLocal = z.infer<typeof StoreSchema>;
+
+/**
+ * El horario por defecto de cada local del negocio: el general del perfil,
+ * salvo que el propio local traiga el suyo.
+ *
+ * Depot lo tenía escrito acá y era distinto del general: el sábado y domingo
+ * Cumbayá abre medio día y Quito Sur cierra. Eso vive ahora en su perfil.
+ */
+export const DEFAULT_STORE_HOURS: StoreHours = StoreHoursSchema.parse(
+  Object.fromEntries(
+    negocio.locales.map((local) => [
+      local.claveHorario,
+      local.horarioPorDefecto ?? {
+        weekday: { open: "08:30", close: "17:30" },
+        weekend: { open: "08:30", close: "17:30" },
+      },
+    ]),
+  ),
+);
+
+/**
+ * Completa lo que venga de la base con los valores por defecto de cada local.
+ *
+ * Hace falta porque un mapa abierto acepta `{}` sin fallar: sin esto, una base
+ * sin la fila —o un local nuevo recién agregado al perfil— daría un horario
+ * vacío en vez del por defecto, y el bot ofrecería días a puerta cerrada.
+ */
+function conLocalesDelNegocio(parcial: StoreHours): StoreHours {
+  const completo: StoreHours = {};
+  for (const local of negocio.locales) {
+    completo[local.claveHorario] = parcial[local.claveHorario] ?? DEFAULT_STORE_HOURS[local.claveHorario];
+  }
+  return completo;
+}
 
 const CACHE_TTL_MS = 30_000;
 let cache: { value: AiConfig; at: number } | null = null;
@@ -74,19 +113,22 @@ export async function getStoreHours(): Promise<StoreHours> {
   if (storeHoursCache && Date.now() - storeHoursCache.at < CACHE_TTL_MS) return storeHoursCache.value;
   const [row] = await sql<{ value: unknown }[]>`select value from settings where key = 'store_hours'`;
   const parsed = StoreHoursSchema.safeParse(row?.value ?? {});
-  const value = parsed.success ? parsed.data : DEFAULT_STORE_HOURS;
+  const value = conLocalesDelNegocio(parsed.success ? parsed.data : DEFAULT_STORE_HOURS);
   storeHoursCache = { value, at: Date.now() };
   return value;
 }
 
 export async function saveStoreHours(input: unknown): Promise<StoreHours> {
-  const value = podarExcepciones(StoreHoursSchema.parse(input));
+  const value = podarExcepciones(conLocalesDelNegocio(StoreHoursSchema.parse(input)));
   await sql`insert into settings (key, value) values ('store_hours', ${sql.json(value)}) on conflict (key) do update set value=excluded.value, updated_at=now()`;
   storeHoursCache = { value, at: Date.now() };
   return value;
 }
 
-const NOMBRE_LOCAL = { cumbaya: "Cumbayá", quitoSur: "Quito Sur" } as const;
+/** `claveHorario` → cómo se le nombra al cliente ese local. Sale del perfil. */
+const NOMBRE_LOCAL: Record<string, string> = Object.fromEntries(
+  negocio.locales.map((local) => [local.claveHorario, local.nombreCorto]),
+);
 
 /** Hoy en Ecuador, como YYYY-MM-DD. */
 export function hoyEnEcuador(now: Date = new Date()): string {
@@ -99,22 +141,22 @@ export function hoyEnEcuador(now: Date = new Date()): string {
  * pasado que a nadie le sirven.
  */
 function podarExcepciones(hours: StoreHours, hoy = hoyEnEcuador()): StoreHours {
-  const podar = (s: StoreHours["cumbaya"]) => ({
+  const podar = (s: StoreHoursDeUnLocal) => ({
     ...s,
     excepciones: [...s.excepciones]
       .filter((e) => e.fecha >= hoy)
       .sort((a, b) => a.fecha.localeCompare(b.fecha)),
   });
-  return { cumbaya: podar(hours.cumbaya), quitoSur: podar(hours.quitoSur) };
+  return Object.fromEntries(Object.entries(hours).map(([clave, s]) => [clave, podar(s)]));
 }
 
 /** La excepción vigente de un local para una fecha, si la hay. */
 export function excepcionDelDia(
   hours: StoreHours,
-  local: keyof StoreHours,
+  local: string,
   fecha = hoyEnEcuador(),
 ): StoreException | null {
-  return hours[local].excepciones.find((e) => e.fecha === fecha) ?? null;
+  return hours[local]?.excepciones.find((e) => e.fecha === fecha) ?? null;
 }
 
 /**
@@ -127,10 +169,10 @@ export function excepcionDelDia(
  * ¿ALGÚN local atiende ese día? Es la pregunta que decide si un día puede ser
  * un botón: ofrecer un día cerrado agenda una visita a puerta cerrada.
  *
- * Basta con que abra uno de los dos porque el botón del día sale después del
- * botón del local — para cuando se pregunta la fecha, la sucursal ya está
- * elegida y el asesor confirma sobre esa. Lee la config real y no un supuesto:
- * el fin de semana lo decide el negocio desde Ajustes, no este archivo.
+ * Basta con que abra UNO porque el botón del día sale después del botón del
+ * local — para cuando se pregunta la fecha, la sucursal ya está elegida y el
+ * asesor confirma sobre esa. Lee la config real y no un supuesto: el fin de
+ * semana lo decide el negocio desde Ajustes, no este archivo.
  */
 export function algunLocalAbre(hours: StoreHours, fecha: Date): boolean {
   // El día se lee en la zona del negocio, no en UTC: a las 22:00 de Quito ya es
@@ -140,23 +182,28 @@ export function algunLocalAbre(hours: StoreHours, fecha: Date): boolean {
     timeZone: "America/Guayaquil",
   }).format(fecha);
   const esFinde = abreviatura === "Sat" || abreviatura === "Sun";
-  const periodo = (s: StoreHours["cumbaya"]) => (esFinde ? s.weekend : s.weekday);
-  return !periodo(hours.cumbaya).closed || !periodo(hours.quitoSur).closed;
+  const periodo = (s: StoreHoursDeUnLocal) => (esFinde ? s.weekend : s.weekday);
+  return Object.values(hours).some((s) => !periodo(s).closed);
 }
 
 export function formatStoreHours(hours: StoreHours, hoy = hoyEnEcuador()): string {
   const fmt = (p: { open: string; close: string; closed: boolean }) =>
     p.closed ? "cerrado" : `${p.open}–${p.close}`;
-  const base =
-    `Cumbayá: lunes a viernes ${fmt(hours.cumbaya.weekday)}; sábado y domingo ${fmt(hours.cumbaya.weekend)}. ` +
-    `Quito Sur: lunes a viernes ${fmt(hours.quitoSur.weekday)}; sábado y domingo ${fmt(hours.quitoSur.weekend)}.`;
+  const base = negocio.locales
+    .map((local) => {
+      const h = hours[local.claveHorario];
+      if (!h) return null;
+      return `${local.nombreCorto}: lunes a viernes ${fmt(h.weekday)}; sábado y domingo ${fmt(h.weekend)}.`;
+    })
+    .filter(Boolean)
+    .join(" ");
 
   const limite = new Date(`${hoy}T12:00:00Z`);
   limite.setUTCDate(limite.getUTCDate() + 21);
   const hasta = limite.toISOString().slice(0, 10);
 
   const avisos: string[] = [];
-  for (const local of ["cumbaya", "quitoSur"] as const) {
+  for (const local of Object.keys(hours)) {
     for (const e of hours[local].excepciones) {
       if (e.fecha < hoy || e.fecha > hasta) continue;
       const cuando = e.fecha === hoy ? "HOY" : `el ${e.fecha}`;

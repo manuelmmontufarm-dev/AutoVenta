@@ -14,6 +14,7 @@
  */
 import { sql } from "../db/client.js";
 import { dondeEstaElCliente } from "../domain/fueraDeCobertura.js";
+import { comproADistanciaSegunLoDicho, type SinVisita } from "../domain/compraADistancia.js";
 
 export type EstadoDeCobertura = "cobertura" | "viene" | "fuera";
 
@@ -37,4 +38,38 @@ export async function dondeEstaElClienteSegunLoDicho(
     return donde.estado === "viene" ? "fuera" : donde.estado;
   }
   return null;
+}
+
+/**
+ * POR QUÉ ESTE CLIENTE NO VA A PASAR POR EL LOCAL, si no va a pasar.
+ *
+ * Dos razones distintas con el mismo efecto sobre lo que se le dice —ni «¿a
+ * cuál local?», ni «¿qué día pasa?», ni mapas—:
+ *
+ *  · `fuera_de_cobertura`: está en otra ciudad y no anunció que sube;
+ *  · `compra_a_distancia`: decidió pagar por este medio y que se lo envíen
+ *    (conv 21766, 20-sep: «Lo compro x este medio… me envía», y el seguimiento
+ *    del día siguiente le preguntó qué día pasaba por Cumbayá).
+ *
+ * La compra a distancia se lee del ciclo vigente: es una decisión de ESTA
+ * compra, no un dato de la persona como la ciudad.
+ */
+export type { SinVisita } from "../domain/compraADistancia.js";
+
+export async function porQueNoPasaPorElLocal(
+  conversationId: number,
+  cycle: number,
+  textoDelCliente: string | null | undefined,
+): Promise<SinVisita | null> {
+  if (await dondeEstaElClienteSegunLoDicho(conversationId, cycle, textoDelCliente) === "fuera") {
+    return "fuera_de_cobertura";
+  }
+  const delCiclo = await sql<{ content: string }[]>`
+    select content from messages
+    where conversation_id=${conversationId} and cycle=${cycle} and direction='inbound'
+    order by created_at desc, id desc limit 20
+  `;
+  return comproADistanciaSegunLoDicho([textoDelCliente, ...delCiclo.map((m) => m.content)])
+    ? "compra_a_distancia"
+    : null;
 }

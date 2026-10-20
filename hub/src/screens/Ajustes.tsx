@@ -10,7 +10,8 @@ import { motion } from "framer-motion";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { authHeaders } from "../data/realSource";
 import { useHub } from "../store";
-import { BotPowerSwitch } from "./Settings";
+import { Segmented } from "../components/ui";
+import { BotPowerSwitch, FollowUpSettingsPanel } from "./Settings";
 
 // ---------------------------------------------------------------------------
 
@@ -119,10 +120,13 @@ const PIEZAS = [
  * lo parten en lo que el negocio busca: el bot, el local, las piezas que ve el
  * cliente, los avisos de WhatsApp y quién entra al panel.
  */
-type TabAjustes = "bot" | "negocio" | "piezas" | "avisos" | "usuarios";
+type TabAjustes = "bot" | "negocio" | "seguimientos" | "piezas" | "avisos" | "usuarios";
 const TABS_AJUSTES: { id: TabAjustes; label: string; soloAdmin?: boolean }[] = [
   { id: "bot", label: "Bot" },
   { id: "negocio", label: "Negocio" },
+  // Horarios y tiempos de seguimiento vivían en Configuración técnica; son
+  // decisiones del negocio, así que ahora están acá (DESIGN.md §17).
+  { id: "seguimientos", label: "Seguimientos" },
   { id: "piezas", label: "Piezas" },
   { id: "avisos", label: "Avisos" },
   // Crear usuarios y repartir accesos es del nivel más alto (Joaquín, Andrés,
@@ -224,32 +228,25 @@ export function Ajustes() {
   const tabs = TABS_AJUSTES.filter((t) => !t.soloAdmin || esNivelMaximo);
 
   if (cargando) {
-    return <div className="p-6 text-sm text-faint">Cargando ajustes…</div>;
+    return <div className="p-6 text-[14px] text-text2">Cargando ajustes…</div>;
   }
 
   // `h-full overflow-y-auto` como el resto de las pantallas: sin esto la
   // pantalla se pasa del alto de <main> y no hay forma de bajar.
   return (
-    <div className="h-full overflow-y-auto px-4 pb-10">
-      <div className="mb-2.5 flex flex-wrap gap-1.5" data-tour="ajustes-tabs">
-        {tabs.map((t) => (
-          <button
-            key={t.id} onClick={() => setTab(t.id)}
-            className={`rounded-full px-4 py-2 text-[12px] transition ${
-              t.id === tab ? "bg-paper/[.14] font-semibold" : "bg-paper/[.04] text-faint hover:bg-paper/[.08]"
-            }`}
-          >{t.label}</button>
-        ))}
+    <div className="h-full overflow-y-auto px-4 pb-10 md:px-8">
+      <div className="mb-4 overflow-x-auto" data-tour="ajustes-tabs">
+        <Segmented id="ajustes" valor={tab} onChange={setTab} opciones={tabs.map((t) => ({ valor: t.id, label: t.label }))} />
       </div>
 
       {error && (
-        <div className="glass mb-2.5 rounded-2xl border border-[var(--color-red)]/40 p-4 text-[13px] text-[var(--color-red)]">
+        <div className="border border-line bg-surface mb-2.5 rounded-[8px] border border-[var(--color-signal)]/40 p-4 text-[13px] text-[var(--color-signal)]">
           {error}
         </div>
       )}
 
       {tab === "bot" && (
-        <div className="flex flex-col gap-2.5">
+        <div className="flex flex-col gap-4">
           {/* El interruptor va primero: apagar el bot tiene que ser lo más
               fácil de encontrar en toda la pantalla. */}
           <BotPowerSwitch />
@@ -259,15 +256,17 @@ export function Ajustes() {
       )}
 
       {tab === "negocio" && (
-        <div className="flex flex-col gap-2.5">
+        <div className="flex flex-col gap-4">
           {hours && <SeccionHorarios hours={hours} setHours={setHours} onError={setError} />}
           <SeccionCupones onError={setError} />
         </div>
       )}
 
+      {tab === "seguimientos" && <FollowUpSettingsPanel />}
+
       {tab === "piezas" && (
-        <div className="grid gap-2.5 xl:grid-cols-[minmax(0,1fr)_460px]">
-          <div className="flex flex-col gap-2.5">
+        <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_460px]">
+          <div className="flex flex-col gap-4">
             <SeccionTema
               paleta={paleta} fuente={fuente} paletas={paletas} fuentes={fuentes} muestras={muestras}
               onPaleta={setPaleta} onFuente={setFuente}
@@ -286,14 +285,14 @@ export function Ajustes() {
       )}
 
       {tab === "avisos" && (
-        <div className="flex flex-col gap-2.5">
+        <div className="flex flex-col gap-4">
           <SeccionAsesores onError={setError} />
           <SeccionMatrizAvisos editable={esNivelMaximo} onError={setError} />
         </div>
       )}
 
       {tab === "usuarios" && esNivelMaximo && (
-        <div className="flex flex-col gap-2.5">
+        <div className="flex flex-col gap-4">
           <SeccionUsuarios onError={setError} />
         </div>
       )}
@@ -307,24 +306,21 @@ function Tarjeta({ titulo, sub, children, extra }: {
   titulo: string; sub?: string; children: React.ReactNode; extra?: React.ReactNode;
 }) {
   return (
-    <motion.section
-      initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
-      className="glass rounded-3xl p-5"
-    >
+    <section className="rounded-[10px] border border-line bg-surface px-5 pt-[18px] pb-5">
       <div className="mb-4 flex flex-wrap items-end justify-between gap-2">
-        <div>
-          <p className="microlabel">{titulo}</p>
-          {sub && <p className="mt-1 text-[10.5px] text-faint">{sub}</p>}
+        <div className="flex flex-col gap-0.5">
+          <p className="text-[13px] font-semibold">{titulo}</p>
+          {sub && <p className="text-[12px] text-text2">{sub}</p>}
         </div>
         {extra}
       </div>
       {children}
-    </motion.section>
+    </section>
   );
 }
 
 const inputCls =
-  "w-full rounded-xl border border-paper/[.12] bg-paper/[.04] px-3 py-2 text-[13px] outline-none focus:border-paper/30";
+  "w-full rounded-[6px] border border-line bg-surface px-3 py-2 text-[13px] outline-none focus:border-signal";
 
 /**
  * Clase propia para los desplegables angostos: NO se puede reusar `inputCls`
@@ -333,7 +329,7 @@ const inputCls =
  * tarjeta y empujaba el resto de la fila fuera de la pantalla.
  */
 const selectCls =
-  "shrink-0 rounded-xl border border-paper/[.12] bg-paper/[.04] px-2 py-2 text-[12px] outline-none focus:border-paper/30";
+  "shrink-0 rounded-[6px] border border-line bg-surface px-2 py-2 text-[13px] outline-none focus:border-signal";
 
 
 /**
@@ -402,31 +398,31 @@ function SeccionGuardian({ onError }: { onError: (v: string) => void }) {
           onClick={() => void alternar()}
           disabled={cambiando}
           className={`rounded-full px-4 py-2 text-[12px] font-semibold disabled:opacity-50 ${
-            activo ? "bg-lime text-navy" : "bg-paper/[.10] text-faint hover:bg-paper/[.16]"
+            activo ? "bg-ok text-text" : "bg-bg text-text2 hover:bg-bg"
           }`}
         >{cambiando ? "Cambiando…" : activo ? "● Prendido" : "○ Apagado"}</button>
       : null}
   >
-    {!estado && <p className="text-[11px] text-faint">Cargando el estado del guardián…</p>}
+    {!estado && <p className="text-[12px] text-text2">Cargando el estado del guardián…</p>}
     {estado && <>
       <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-[12px]">
-        <span><span className="text-faint">Modelo revisor:</span> <b>{estado.modelo}</b></span>
-        <span><span className="text-faint">Últimos 7 días:</span> <b>{estado.semana.revisiones}</b> revisiones · <b>{estado.semana.correcciones}</b> corregidas · <b>{estado.semana.hallazgos}</b> hallazgos</span>
-        <button onClick={() => void verInforme()} disabled={abriendo} className="rounded-full bg-paper/[.08] px-2.5 py-1 text-[10px] font-semibold hover:bg-paper/[.14] disabled:opacity-50">
+        <span><span className="text-text2">Modelo revisor:</span> <b>{estado.modelo}</b></span>
+        <span><span className="text-text2">Últimos 7 días:</span> <b>{estado.semana.revisiones}</b> revisiones · <b>{estado.semana.correcciones}</b> corregidas · <b>{estado.semana.hallazgos}</b> hallazgos</span>
+        <button onClick={() => void verInforme()} disabled={abriendo} className="rounded-full bg-bg px-2.5 py-1 text-[12px] font-semibold hover:bg-bg disabled:opacity-50">
           {abriendo ? "Cargando…" : hallazgos ? "Ocultar informe" : "Ver informe de la semana"}
         </button>
       </div>
-      {hallazgos && !hallazgos.length && <p className="mt-2 text-[11px] text-faint">Sin hallazgos esta semana{activo ? "" : " (el guardián estuvo apagado)"}.</p>}
-      {hallazgos && hallazgos.length > 0 && <div className="mt-2 max-h-64 overflow-y-auto rounded-xl bg-paper/[.05] p-2.5">
-        {hallazgos.map((h, i) => <div key={i} className="mb-2 border-b border-paper/[.08] pb-2 text-[11px] last:mb-0 last:border-0 last:pb-0">
-          <span className={`mr-2 rounded-full px-2 py-0.5 text-[11px] font-bold uppercase ${
+      {hallazgos && !hallazgos.length && <p className="mt-2 text-[12px] text-text2">Sin hallazgos esta semana{activo ? "" : " (el guardián estuvo apagado)"}.</p>}
+      {hallazgos && hallazgos.length > 0 && <div className="mt-2 max-h-64 overflow-y-auto rounded-[6px] bg-bg p-2.5">
+        {hallazgos.map((h, i) => <div key={i} className="mb-2 border-b border-line pb-2 text-[12px] last:mb-0 last:border-0 last:pb-0">
+          <span className={`mr-2 rounded-full px-2 py-0.5 text-[12px] font-semibold ${
             h.severidad === "alta" ? "bg-[var(--color-danger,#e2564d)]/20 text-[var(--color-danger,#e2564d)]"
             : h.severidad === "media" ? "bg-[var(--color-warn,#e8b33a)]/20 text-[var(--color-warn,#e8b33a)]"
-            : "bg-paper/[.10] text-faint"}`}>{h.severidad}</span>
+            : "bg-bg text-text2"}`}>{h.severidad}</span>
           <b>{h.categoria}</b> · <a className="underline" href={`#/ticket/${h.conversationId}`}>chat #{h.conversationId}</a>
-          {h.veredicto === "corregir" && <span className="ml-1 text-lime">corregido antes de enviar</span>}
-          <p className="mt-0.5 text-faint">{h.detalle}</p>
-          <p className="text-[11px] text-faint">{new Date(h.fecha).toLocaleString("es-EC", { timeZone: "America/Guayaquil", day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}</p>
+          {h.veredicto === "corregir" && <span className="ml-1 text-ok">corregido antes de enviar</span>}
+          <p className="mt-0.5 text-text2">{h.detalle}</p>
+          <p className="text-[12px] text-text2">{new Date(h.fecha).toLocaleString("es-EC", { timeZone: "America/Guayaquil", day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}</p>
         </div>)}
       </div>}
     </>}
@@ -554,87 +550,87 @@ function SeccionCupones({ onError }: { onError: (v: string) => void }) {
           onClick={() => void guardar({ activo: !activo })}
           disabled={cambiando}
           className={`rounded-full px-4 py-2 text-[12px] font-semibold disabled:opacity-50 ${
-            activo ? "bg-lime text-navy" : "bg-paper/[.10] text-faint hover:bg-paper/[.16]"
+            activo ? "bg-ok text-text" : "bg-bg text-text2 hover:bg-bg"
           }`}
         >{cambiando ? "Cambiando…" : activo ? "● Prendido" : "○ Apagado"}</button>
       : null}
   >
-    {!estado && <p className="text-[11px] text-faint">Cargando el estado del cupón…</p>}
+    {!estado && <p className="text-[12px] text-text2">Cargando el estado del cupón…</p>}
     {estado && <>
-      {!activo && <p className="mb-2 rounded-xl bg-paper/[.05] p-2.5 text-[11px] text-faint">
+      {!activo && <p className="mb-2 rounded-[6px] bg-bg p-2.5 text-[12px] text-text2">
         Mientras esté apagado el bot <b>no emite ni un código</b> y los clientes no ven nada. Préndalo el día que caja esté lista.
       </p>}
       <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-[12px]">
         <label className="flex items-center gap-2">
-          <span className="text-faint">Descuento adicional:</span>
+          <span className="text-text2">Descuento adicional:</span>
           <input
             type="number" min={0.5} max={10} step={0.5}
             value={estado.config.porcentaje}
             onChange={(e) => setEstado({ ...estado, config: { ...estado.config, porcentaje: Number(e.target.value) } })}
             onBlur={(e) => void guardar({ porcentaje: Number(e.target.value) })}
-            className="w-16 rounded-lg bg-paper/[.08] px-2 py-1 text-[12px] font-bold"
+            className="w-16 rounded-[6px] bg-bg px-2 py-1 text-[12px] font-semibold"
           />
-          <span className="text-faint">%</span>
+          <span className="text-text2">%</span>
         </label>
         <span>
-          <span className="text-faint">Últimos 30 días:</span> <b>{estado.resumen.emitidos}</b> emitidos ·{" "}
+          <span className="text-text2">Últimos 30 días:</span> <b>{estado.resumen.emitidos}</b> emitidos ·{" "}
           <b>{estado.resumen.canjeados}</b> canjeados · <b>{estado.resumen.tasaCanje} %</b> volvió
         </span>
       </div>
 
-      <div className="mt-3 rounded-xl bg-paper/[.05] p-2.5">
-        <p className="mb-1.5 text-[11px] font-semibold">Verificar código en caja</p>
+      <div className="mt-3 rounded-[6px] bg-bg p-2.5">
+        <p className="mb-1.5 text-[12px] font-semibold">Verificar código en caja</p>
         <div className="flex flex-wrap items-center gap-2">
           <input
             value={codigo}
             onChange={(e) => { setCodigo(e.target.value); setVerificado(null); setVeredicto(null); }}
             onKeyDown={(e) => { if (e.key === "Enter") void verificar(); }}
             placeholder="DT-PUMA47"
-            className="w-40 rounded-lg bg-paper/[.08] px-2.5 py-1.5 text-[12px] font-bold uppercase"
+            className="w-40 rounded-[6px] bg-bg px-2.5 py-1.5 text-[12px] font-semibold"
           />
           <button
             onClick={() => void verificar()}
             disabled={canjeando || !codigo.trim()}
-            className="rounded-full bg-paper/[.12] px-3.5 py-1.5 text-[11px] font-semibold hover:bg-paper/[.18] disabled:opacity-50"
+            className="rounded-full bg-bg px-3.5 py-1.5 text-[12px] font-semibold hover:bg-bg disabled:opacity-50"
           >{canjeando ? "Buscando…" : "Verificar"}</button>
         </div>
 
         {/* Verificado y sin canjear: aquí el cajero coteja contra la persona
             que tiene enfrente antes de aplicar el descuento. */}
-        {verificado && <div className="mt-2 rounded-lg bg-lime/10 p-2.5 text-[11px]">
-          <p className="text-[12px] font-bold text-lime">{verificado.codigo} es válido</p>
+        {verificado && <div className="mt-2 rounded-[6px] bg-ok p-2.5 text-[12px]">
+          <p className="text-[12px] font-semibold text-ok">{verificado.codigo} es válido</p>
           <p className="mt-1">
             {verificado.cliente ?? "Cliente sin nombre"}
             {verificado.telefono ? ` · ${verificado.telefono}` : ""}
           </p>
-          <p className="text-faint">
+          <p className="text-text2">
             {verificado.medida ? `Medida ${verificado.medida}` : ""}
             {verificado.totalCotizado != null ? ` · Cotizó $${verificado.totalCotizado.toFixed(2)}` : ""}
             {verificado.local ? ` · ${verificado.local}` : ""}
           </p>
-          {verificado.visita && <p className="text-faint">
+          {verificado.visita && <p className="text-text2">
             Dijo que venía el {new Date(verificado.visita).toLocaleDateString("es-EC", { timeZone: "America/Guayaquil", weekday: "long", day: "numeric", month: "long" })}
           </p>}
           <div className="mt-2 flex flex-wrap items-center gap-2">
             <button
               onClick={() => void canjear()}
               disabled={canjeando}
-              className="rounded-full bg-lime px-3.5 py-1.5 text-[11px] font-semibold text-navy disabled:opacity-50"
+              className="rounded-full bg-ok px-3.5 py-1.5 text-[12px] font-semibold text-text disabled:opacity-50"
             >{canjeando ? "Aplicando…" : `Aplicar ${verificado.porcentaje} % y canjear`}</button>
-            <a className="text-[10px] underline" href={`#/ticket/${verificado.conversationId}`}>ver el chat</a>
+            <a className="text-[12px] underline" href={`#/ticket/${verificado.conversationId}`}>ver el chat</a>
           </div>
         </div>}
 
-        {veredicto && <p className={`mt-1.5 text-[11px] ${veredicto.ok ? "text-lime" : "text-faint"}`}>{veredicto.texto}</p>}
+        {veredicto && <p className={`mt-1.5 text-[12px] ${veredicto.ok ? "text-ok" : "text-text2"}`}>{veredicto.texto}</p>}
       </div>
 
-      {estado.resumen.ultimos.length > 0 && <div className="mt-2 max-h-56 overflow-y-auto rounded-xl bg-paper/[.05] p-2.5">
-        {estado.resumen.ultimos.map((c) => <div key={c.codigo} className="mb-1.5 flex flex-wrap items-center gap-x-2 border-b border-paper/[.08] pb-1.5 text-[11px] last:mb-0 last:border-0 last:pb-0">
+      {estado.resumen.ultimos.length > 0 && <div className="mt-2 max-h-56 overflow-y-auto rounded-[6px] bg-bg p-2.5">
+        {estado.resumen.ultimos.map((c) => <div key={c.codigo} className="mb-1.5 flex flex-wrap items-center gap-x-2 border-b border-line pb-1.5 text-[12px] last:mb-0 last:border-0 last:pb-0">
           <b>{c.codigo}</b>
-          <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold uppercase ${
-            c.estado === "canjeado" ? "bg-lime/20 text-lime" : "bg-paper/[.10] text-faint"}`}>{c.estado}</span>
+          <span className={`rounded-full px-2 py-0.5 text-[12px] font-semibold ${
+            c.estado === "canjeado" ? "bg-ok text-ok" : "bg-bg text-text2"}`}>{c.estado}</span>
           <a className="underline" href={`#/ticket/${c.conversationId}`}>chat #{c.conversationId}</a>
-          {c.canjeadoPor && <span className="text-faint">por {c.canjeadoPor}</span>}
+          {c.canjeadoPor && <span className="text-text2">por {c.canjeadoPor}</span>}
         </div>)}
       </div>}
     </>}
@@ -662,14 +658,14 @@ function SeccionPrecios({ precios, setPrecios, onError }: { precios: PreciosEsta
   return <Tarjeta
     titulo="Precios del Interbot"
     sub="Se actualizan solos los miércoles a las 15:00. Si les avisan de un cambio de precios antes, actualícenlo aquí."
-    extra={<button onClick={() => void actualizar()} disabled={sync} className="rounded-full bg-lime px-4 py-2 text-[12px] font-semibold text-navy disabled:opacity-50">{sync ? "Actualizando…" : listo ? "Actualizado" : "Actualizar ahora"}</button>}
+    extra={<button onClick={() => void actualizar()} disabled={sync} className="rounded-full bg-ok px-4 py-2 text-[12px] font-semibold text-text disabled:opacity-50">{sync ? "Actualizando…" : listo ? "Actualizado" : "Actualizar ahora"}</button>}
   >
     <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-[12px]">
-      <span><span className="text-faint">Última actualización:</span> <b className={viejo ? "text-[var(--color-warn,#e8b33a)]" : ""}>{cuando}</b></span>
-      <span><span className="text-faint">Productos:</span> <b>{precios.productos}</b></span>
+      <span><span className="text-text2">Última actualización:</span> <b className={viejo ? "text-[var(--color-warn,#e8b33a)]" : ""}>{cuando}</b></span>
+      <span><span className="text-text2">Productos:</span> <b>{precios.productos}</b></span>
     </div>
-    {sync && <p className="mt-2 text-[11px] text-faint">Consultando las medidas del Interbot; toma unos segundos.</p>}
-    {precios.error && <p className="mt-2 text-[11px] text-[var(--color-danger,#e2564d)]">Último error: {precios.error}</p>}
+    {sync && <p className="mt-2 text-[12px] text-text2">Consultando las medidas del Interbot; toma unos segundos.</p>}
+    {precios.error && <p className="mt-2 text-[12px] text-[var(--color-danger,#e2564d)]">Último error: {precios.error}</p>}
   </Tarjeta>;
 }
 
@@ -681,25 +677,25 @@ function Excepciones({ store, label, data, onChange }: { store: "cumbaya" | "qui
   const hoy = new Date().toLocaleDateString("en-CA", { timeZone: "America/Guayaquil" });
   const set = (i: number, patch: Partial<StoreException>) =>
     onChange({ ...data, excepciones: lista.map((e, j) => (j === i ? { ...e, ...patch } : e)) });
-  return <div className="mt-3 border-t border-paper/[.08] pt-3">
+  return <div className="mt-3 border-t border-line pt-3">
     <div className="flex items-center justify-between">
-      <p className="text-[11px] font-semibold text-faint">Casos especiales</p>
+      <p className="text-[12px] font-semibold text-text2">Casos especiales</p>
       <button
         onClick={() => onChange({ ...data, excepciones: [...lista, { fecha: hoy, motivo: "", open: data.weekday.open, close: data.weekday.close, closed: false }] })}
-        className="rounded-full bg-paper/[.08] px-2.5 py-1 text-[10px] font-semibold hover:bg-paper/[.14]"
+        className="rounded-full bg-bg px-2.5 py-1 text-[12px] font-semibold hover:bg-bg"
       >+ Agregar</button>
     </div>
-    {!lista.length && <p className="mt-1.5 text-[10px] text-faint">Sin feriados ni cierres cargados para {label}.</p>}
-    {lista.map((e, i) => <div key={`${store}-${i}`} className="mt-2 rounded-xl bg-paper/[.05] p-2.5">
+    {!lista.length && <p className="mt-1.5 text-[12px] text-text2">Sin feriados ni cierres cargados para {label}.</p>}
+    {lista.map((e, i) => <div key={`${store}-${i}`} className="mt-2 rounded-[6px] bg-bg p-2.5">
       <div className="grid grid-cols-2 gap-2">
-        <label className="text-[10px]">Fecha<input type="date" className={inputCls} value={e.fecha} onChange={(ev) => set(i, { fecha: ev.target.value })} /></label>
-        <label className="text-[10px]">Motivo<input type="text" maxLength={60} placeholder="Feriado, inventario…" className={inputCls} value={e.motivo} onChange={(ev) => set(i, { motivo: ev.target.value })} /></label>
-        <label className="text-[10px]">Abre<input type="time" disabled={e.closed} className={inputCls} value={e.open} onChange={(ev) => set(i, { open: ev.target.value })} /></label>
-        <label className="text-[10px]">Cierra<input type="time" disabled={e.closed} className={inputCls} value={e.close} onChange={(ev) => set(i, { close: ev.target.value })} /></label>
+        <label className="text-[12px]">Fecha<input type="date" className={inputCls} value={e.fecha} onChange={(ev) => set(i, { fecha: ev.target.value })} /></label>
+        <label className="text-[12px]">Motivo<input type="text" maxLength={60} placeholder="Feriado, inventario…" className={inputCls} value={e.motivo} onChange={(ev) => set(i, { motivo: ev.target.value })} /></label>
+        <label className="text-[12px]">Abre<input type="time" disabled={e.closed} className={inputCls} value={e.open} onChange={(ev) => set(i, { open: ev.target.value })} /></label>
+        <label className="text-[12px]">Cierra<input type="time" disabled={e.closed} className={inputCls} value={e.close} onChange={(ev) => set(i, { close: ev.target.value })} /></label>
       </div>
       <div className="mt-2 flex items-center justify-between">
-        <label className="flex items-center gap-2 text-[11px] font-semibold"><input type="checkbox" checked={e.closed} onChange={(ev) => set(i, { closed: ev.target.checked })} /> Cerrado todo el día</label>
-        <button onClick={() => onChange({ ...data, excepciones: lista.filter((_, j) => j !== i) })} className="text-[10px] font-semibold text-faint hover:text-[var(--color-danger,#e2564d)]">Quitar</button>
+        <label className="flex items-center gap-2 text-[12px] font-semibold"><input type="checkbox" checked={e.closed} onChange={(ev) => set(i, { closed: ev.target.checked })} /> Cerrado todo el día</label>
+        <button onClick={() => onChange({ ...data, excepciones: lista.filter((_, j) => j !== i) })} className="text-[12px] font-semibold text-text2 hover:text-[var(--color-danger,#e2564d)]">Quitar</button>
       </div>
     </div>)}
   </div>;
@@ -715,8 +711,8 @@ function SeccionHorarios({ hours, setHours, onError }: { hours: StoreHours; setH
     } catch (e) { onError(e instanceof Error ? e.message : "No se pudieron guardar los horarios"); }
     finally { setSaving(false); }
   };
-  return <Tarjeta titulo="Horarios de locales" sub="El bot usa estos horarios al recomendar un local. Marca Cerrado cuando no atienda, y carga los feriados o cierres puntuales en Casos especiales — el bot los avisa cuando el cliente pregunta por esos días." extra={<button onClick={() => void save()} disabled={saving} className="rounded-full bg-lime px-4 py-2 text-[12px] font-semibold text-navy disabled:opacity-50">{saving ? "Guardando…" : "Guardar horarios"}</button>}>
-    <div className="grid gap-4 md:grid-cols-2">{([ ["Cumbayá", "cumbaya"], ["Quito Sur", "quitoSur"] ] as const).map(([label, store]) => <div key={store} className="rounded-2xl bg-paper/[.04] p-4"><p className="text-sm font-bold">{label}</p>{([ ["Lunes a viernes", "weekday"], ["Sábado y domingo", "weekend"] ] as const).map(([dayLabel, period]) => { const value = hours[store][period]; return <div key={period} className="mt-3 grid grid-cols-2 gap-2"><p className="col-span-2 text-[11px] font-semibold text-faint">{dayLabel}</p><label className="text-[10px]">Abre<input type="time" disabled={value.closed} className={inputCls} value={value.open} onChange={(e) => setHours({ ...hours, [store]: { ...hours[store], [period]: { ...value, open: e.target.value } } })} /></label><label className="text-[10px]">Cierra<input type="time" disabled={value.closed} className={inputCls} value={value.close} onChange={(e) => setHours({ ...hours, [store]: { ...hours[store], [period]: { ...value, close: e.target.value } } })} /></label><label className="col-span-2 flex items-center gap-2 text-xs font-semibold"><input type="checkbox" checked={value.closed} onChange={(e) => setHours({ ...hours, [store]: { ...hours[store], [period]: { ...value, closed: e.target.checked } } })} /> Cerrado</label></div>; })}<Excepciones store={store} label={label} data={hours[store]} onChange={(v) => setHours({ ...hours, [store]: v })} /></div>)}</div>
+  return <Tarjeta titulo="Horarios de locales" sub="El bot usa estos horarios al recomendar un local. Marca Cerrado cuando no atienda, y carga los feriados o cierres puntuales en Casos especiales — el bot los avisa cuando el cliente pregunta por esos días." extra={<button onClick={() => void save()} disabled={saving} className="rounded-full bg-ok px-4 py-2 text-[12px] font-semibold text-text disabled:opacity-50">{saving ? "Guardando…" : "Guardar horarios"}</button>}>
+    <div className="grid gap-4 md:grid-cols-2">{([ ["Cumbayá", "cumbaya"], ["Quito Sur", "quitoSur"] ] as const).map(([label, store]) => <div key={store} className="rounded-[8px] bg-bg p-4"><p className="text-[14px] font-semibold">{label}</p>{([ ["Lunes a viernes", "weekday"], ["Sábado y domingo", "weekend"] ] as const).map(([dayLabel, period]) => { const value = hours[store][period]; return <div key={period} className="mt-3 grid grid-cols-2 gap-2"><p className="col-span-2 text-[12px] font-semibold text-text2">{dayLabel}</p><label className="text-[12px]">Abre<input type="time" disabled={value.closed} className={inputCls} value={value.open} onChange={(e) => setHours({ ...hours, [store]: { ...hours[store], [period]: { ...value, open: e.target.value } } })} /></label><label className="text-[12px]">Cierra<input type="time" disabled={value.closed} className={inputCls} value={value.close} onChange={(e) => setHours({ ...hours, [store]: { ...hours[store], [period]: { ...value, close: e.target.value } } })} /></label><label className="col-span-2 flex items-center gap-2 text-[13px] font-semibold"><input type="checkbox" checked={value.closed} onChange={(e) => setHours({ ...hours, [store]: { ...hours[store], [period]: { ...value, closed: e.target.checked } } })} /> Cerrado</label></div>; })}<Excepciones store={store} label={label} data={hours[store]} onChange={(v) => setHours({ ...hours, [store]: v })} /></div>)}</div>
   </Tarjeta>;
 }
 
@@ -742,7 +738,7 @@ function SeccionTema({
           className={`rounded-full px-4 py-2 text-[12px] font-semibold transition ${
             sinAplicar
               ? "bg-[var(--color-ok)] text-[#06210f] hover:opacity-90"
-              : "cursor-default bg-paper/[.07] text-faint"
+              : "cursor-default bg-bg text-text2"
           }`}
         >
           {guardando ? "Aplicando…" : sinAplicar ? "Aplicar cambios" : "Aplicado"}
@@ -754,14 +750,14 @@ function SeccionTema({
         {plantillas.map((p) => (
           <button
             key={p} onClick={() => onPlantilla(p)}
-            className={`flex flex-col items-start gap-1 rounded-xl border px-3.5 py-2 text-left text-[12px] transition ${
+            className={`flex flex-col items-start gap-1 rounded-[6px] border px-3.5 py-2 text-left text-[12px] transition ${
               p === plantilla
-                ? "border-paper/40 bg-paper/[.10] font-semibold"
-                : "border-paper/[.10] bg-paper/[.03] hover:bg-paper/[.06]"
+                ? "border-line bg-bg font-semibold"
+                : "border-line bg-bg hover:bg-bg"
             }`}
           >
             <span>{PLANTILLA_LABEL[p] ?? p}</span>
-            {PLANTILLA_NOTA[p] && <span className="text-[11px] font-normal text-faint">{PLANTILLA_NOTA[p]}</span>}
+            {PLANTILLA_NOTA[p] && <span className="text-[12px] font-normal text-text2">{PLANTILLA_NOTA[p]}</span>}
           </button>
         ))}
       </div>
@@ -772,18 +768,18 @@ function SeccionTema({
             {modos.map((m) => (
               <button
                 key={m} onClick={() => onModo(m)}
-                className={`flex flex-col items-start gap-1 rounded-xl border px-3.5 py-2 text-left text-[12px] transition ${
+                className={`flex flex-col items-start gap-1 rounded-[6px] border px-3.5 py-2 text-left text-[12px] transition ${
               m === modo
-                ? "border-paper/40 bg-paper/[.10] font-semibold"
-                : "border-paper/[.10] bg-paper/[.03] hover:bg-paper/[.06]"
+                ? "border-line bg-bg font-semibold"
+                : "border-line bg-bg hover:bg-bg"
             }`}
               >
                 <span>{MODO_LABEL[m] ?? m}</span>
-                {MODO_NOTA[m] && <span className="text-[11px] font-normal text-faint">{MODO_NOTA[m]}</span>}
+                {MODO_NOTA[m] && <span className="text-[12px] font-normal text-text2">{MODO_NOTA[m]}</span>}
               </button>
             ))}
           </div>
-          <p className="mb-4 text-[11px] text-faint">
+          <p className="mb-4 text-[12px] text-text2">
             La paleta y la tipografía de abajo no cambian esta plantilla: valen para la comparativa y para cuando se vuelva a la clásica.
           </p>
         </>
@@ -794,23 +790,23 @@ function SeccionTema({
           <button
             key={p} onClick={() => onPaleta(p)}
             title={PALETA_NOTA[p]}
-            className={`flex flex-col items-start gap-1.5 rounded-xl border px-3.5 py-2 text-[12px] transition ${
+            className={`flex flex-col items-start gap-1.5 rounded-[6px] border px-3.5 py-2 text-[12px] transition ${
               p === paleta
-                ? "border-paper/40 bg-paper/[.10] font-semibold"
-                : "border-paper/[.10] bg-paper/[.03] hover:bg-paper/[.06]"
+                ? "border-line bg-bg font-semibold"
+                : "border-line bg-bg hover:bg-bg"
             }`}
           >
             <span>{PALETA_LABEL[p] ?? p}</span>
             {/* Los cuatro colores que mandan en la pieza: oscuro, acento, dorado
                 y fondo. Con siete paletas el nombre solo ya no alcanzaba para
                 saber cuál es cuál sin abrir la vista previa. */}
-            <span className="flex overflow-hidden rounded-full border border-paper/20">
+            <span className="flex overflow-hidden rounded-full border border-line">
               {(muestras[p] ?? []).map((c, i) => (
                 <span key={i} className="h-2.5 w-4" style={{ background: c }} />
               ))}
             </span>
             {PALETA_NOTA[p] && (
-              <span className="text-[11px] font-normal text-faint">{PALETA_NOTA[p]}</span>
+              <span className="text-[12px] font-normal text-text2">{PALETA_NOTA[p]}</span>
             )}
           </button>
         ))}
@@ -820,10 +816,10 @@ function SeccionTema({
         {fuentes.map((f) => (
           <button
             key={f} onClick={() => onFuente(f)}
-            className={`rounded-xl border px-3.5 py-2 text-[12px] transition ${
+            className={`rounded-[6px] border px-3.5 py-2 text-[12px] transition ${
               f === fuente
-                ? "border-paper/40 bg-paper/[.10] font-semibold"
-                : "border-paper/[.10] bg-paper/[.03] hover:bg-paper/[.06]"
+                ? "border-line bg-bg font-semibold"
+                : "border-line bg-bg hover:bg-bg"
             }`}
           >
             {FUENTE_LABEL[f] ?? f}
@@ -880,7 +876,7 @@ function SeccionPromociones({ benefits, setBenefits, onError }: {
     >
       <div className="flex flex-col gap-2">
         {benefits.map((b) => (
-          <div key={b.id} className="rounded-2xl border border-paper/[.08] bg-paper/[.03] p-3">
+          <div key={b.id} className="rounded-[8px] border border-line bg-bg p-3">
             <div className="flex items-center gap-2">
               <input
                 type="checkbox" checked={b.active}
@@ -896,13 +892,13 @@ function SeccionPromociones({ benefits, setBenefits, onError }: {
               />
               <button
                 onClick={() => void borrar(b.id)}
-                className="shrink-0 rounded-lg px-2 py-1 text-[16px] leading-none text-faint hover:text-[var(--color-red)]"
+                className="shrink-0 rounded-[6px] px-2 py-1 text-[16px] leading-none text-text2 hover:text-[var(--color-signal)]"
                 title="Quitar"
               >×</button>
             </div>
             <div className="mt-2 grid grid-cols-3 gap-2">
               <label className="flex flex-col gap-1">
-                <span className="text-[10px] text-faint">Solo marca</span>
+                <span className="text-[12px] text-text2">Solo marca</span>
                 <input
                   value={b.brand ?? ""} placeholder="todas"
                   onChange={(e) => editar(b.id, { brand: e.target.value || null })}
@@ -910,7 +906,7 @@ function SeccionPromociones({ benefits, setBenefits, onError }: {
                 />
               </label>
               <label className="flex flex-col gap-1">
-                <span className="text-[10px] text-faint">Desde N llantas</span>
+                <span className="text-[12px] text-text2">Desde N llantas</span>
                 <input
                   type="number" min={1} value={b.minQuantity ?? ""} placeholder="sin mínimo"
                   onChange={(e) => editar(b.id, { minQuantity: e.target.value ? Number(e.target.value) : null })}
@@ -918,7 +914,7 @@ function SeccionPromociones({ benefits, setBenefits, onError }: {
                 />
               </label>
               <label className="flex flex-col gap-1">
-                <span className="text-[10px] text-faint">Vence</span>
+                <span className="text-[12px] text-text2">Vence</span>
                 <input
                   type="date" value={b.expiresAt ? b.expiresAt.slice(0, 10) : ""}
                   onChange={(e) => editar(b.id, { expiresAt: e.target.value || null })}
@@ -929,7 +925,7 @@ function SeccionPromociones({ benefits, setBenefits, onError }: {
           </div>
         ))}
         {!benefits.length && (
-          <p className="rounded-2xl border border-dashed border-paper/[.12] p-4 text-center text-[12px] text-faint">
+          <p className="rounded-[8px] border border-dashed border-line p-4 text-center text-[12px] text-text2">
             Sin promociones cargadas. El bot no promete nada hasta que agregues una.
           </p>
         )}
@@ -943,7 +939,7 @@ function SeccionPromociones({ benefits, setBenefits, onError }: {
         />
         <button
           onClick={() => void agregar()}
-          className="shrink-0 rounded-xl bg-paper/[.10] px-4 text-[12px] font-semibold hover:bg-paper/[.16]"
+          className="shrink-0 rounded-[6px] bg-bg px-4 text-[12px] font-semibold hover:bg-bg"
         >Agregar</button>
       </div>
     </Tarjeta>
@@ -1044,7 +1040,7 @@ function SeccionAsesores({ onError }: { onError: (e: string) => void }) {
     >
       <div className="flex flex-col gap-2">
         {asesores.map((a) => (
-          <div key={a.id} className="flex items-center gap-2 rounded-2xl border border-paper/[.08] bg-paper/[.03] p-3">
+          <div key={a.id} className="flex items-center gap-2 rounded-[8px] border border-line bg-bg p-3">
             <input
               type="checkbox" checked={a.active}
               onChange={(e) => void cambiar(a, { active: e.target.checked })}
@@ -1056,24 +1052,24 @@ function SeccionAsesores({ onError }: { onError: (e: string) => void }) {
               onBlur={() => void cambiar(a, { nombre: a.nombre })}
               className={`${inputCls} min-w-0 ${a.active ? "" : "opacity-50"}`}
             />
-            <span className="tnum shrink-0 text-[11.5px] text-faint">+{a.telefono}</span>
+            <span className="tnum shrink-0 text-[12px] text-text2">+{a.telefono}</span>
             <select
               value={a.rol}
               onChange={(e) => void cambiar(a, { rol: e.target.value as RolAsesor })}
               title={ROLES.find((r) => r.valor === a.rol)?.explica}
-              className={`${selectCls} py-1.5 text-[11.5px] ${a.active ? "" : "opacity-50"}`}
+              className={`${selectCls} py-1.5 text-[12px] ${a.active ? "" : "opacity-50"}`}
             >
               {ROLES.map((r) => <option key={r.valor} value={r.valor}>{r.etiqueta}</option>)}
             </select>
             <button
               onClick={() => void quitar(a.id)}
-              className="shrink-0 rounded-lg px-2 py-1 text-[16px] leading-none text-faint hover:text-[var(--color-red)]"
+              className="shrink-0 rounded-[6px] px-2 py-1 text-[16px] leading-none text-text2 hover:text-[var(--color-signal)]"
               title="Quitar"
             >×</button>
           </div>
         ))}
         {!asesores.length && (
-          <p className="rounded-2xl border border-dashed border-[var(--color-red)]/40 p-4 text-center text-[12px] text-[var(--color-red)]">
+          <p className="rounded-[8px] border border-dashed border-[var(--color-signal)]/40 p-4 text-center text-[12px] text-[var(--color-signal)]">
             No hay nadie recibiendo avisos. Si un cliente pide un asesor, nadie se entera.
           </p>
         )}
@@ -1091,7 +1087,7 @@ function SeccionAsesores({ onError }: { onError: (e: string) => void }) {
           {ROLES.map((r) => <option key={r.valor} value={r.valor}>{r.etiqueta}</option>)}
         </select>
         <button onClick={() => void agregar()}
-          className="shrink-0 rounded-xl bg-paper/[.10] px-4 text-[12px] font-semibold hover:bg-paper/[.16]">
+          className="shrink-0 rounded-[6px] bg-bg px-4 text-[12px] font-semibold hover:bg-bg">
           Agregar
         </button>
       </div>
@@ -1120,12 +1116,12 @@ function SeccionMarcas({ profiles, setProfiles, onError }: {
       titulo="Qué decir de cada marca"
       sub="La etiqueta y la frase salen dibujadas en la comparativa y en las opciones. Las notas son lo único que el bot puede afirmar de esa marca en el chat."
     >
-      <div className="flex flex-col gap-2.5">
+      <div className="flex flex-col gap-4">
         {profiles.map((p) => (
-          <div key={p.brand} className="rounded-2xl border border-paper/[.08] bg-paper/[.03] p-3">
+          <div key={p.brand} className="rounded-[8px] border border-line bg-bg p-3">
             <div className="mb-2 flex items-center justify-between gap-2">
               <span className="serif text-[15px]">{p.brand}</span>
-              <label className="flex items-center gap-1.5 text-[10.5px] text-faint">
+              <label className="flex items-center gap-1.5 text-[12px] text-text2">
                 <input
                   type="checkbox" checked={p.active}
                   onChange={(e) => { editar(p.brand, { active: e.target.checked }); void guardar({ ...p, active: e.target.checked }); }}
@@ -1136,7 +1132,7 @@ function SeccionMarcas({ profiles, setProfiles, onError }: {
             </div>
             <div className="grid gap-2">
               <label className="flex flex-col gap-1">
-                <span className="text-[10px] text-faint">Etiqueta en la pieza</span>
+                <span className="text-[12px] text-text2">Etiqueta en la pieza</span>
                 <input
                   value={p.tag} placeholder="Ej. MEJOR EQUILIBRIO"
                   onChange={(e) => editar(p.brand, { tag: e.target.value })}
@@ -1144,7 +1140,7 @@ function SeccionMarcas({ profiles, setProfiles, onError }: {
                 />
               </label>
               <label className="flex flex-col gap-1">
-                <span className="text-[10px] text-faint">Frase de posicionamiento</span>
+                <span className="text-[12px] text-text2">Frase de posicionamiento</span>
                 <textarea
                   value={p.posicionamiento} rows={2}
                   onChange={(e) => editar(p.brand, { posicionamiento: e.target.value })}
@@ -1152,7 +1148,7 @@ function SeccionMarcas({ profiles, setProfiles, onError }: {
                 />
               </label>
               <label className="flex flex-col gap-1">
-                <span className="text-[10px] text-faint">
+                <span className="text-[12px] text-text2">
                   Notas para el bot — solo esto puede afirmar de la marca
                 </span>
                 <textarea
@@ -1162,7 +1158,7 @@ function SeccionMarcas({ profiles, setProfiles, onError }: {
                 />
               </label>
               <label className="flex flex-col gap-1">
-                <span className="text-[10px] text-faint">Fuente verificable (opcional)</span>
+                <span className="text-[12px] text-text2">Fuente verificable (opcional)</span>
                 <input
                   value={p.fuente ?? ""} placeholder="https://…"
                   onChange={(e) => editar(p.brand, { fuente: e.target.value || null })}
@@ -1230,11 +1226,11 @@ function VistaPrevia({ pieza, setPieza, paleta, fuente, plantilla, modo, benefic
   return (
     <motion.aside
       initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
-      className="glass h-fit rounded-3xl p-5 xl:sticky xl:top-4"
+      className="border border-line bg-surface h-fit rounded-[10px] p-5 xl:sticky xl:top-4"
     >
       <div className="mb-3">
         <p className="microlabel">Vista previa</p>
-        <p className="mt-1 text-[10.5px] text-faint">
+        <p className="mt-1 text-[12px] text-text2">
           Lo que recibiría el cliente ahora mismo, con estos ajustes.
         </p>
       </div>
@@ -1242,37 +1238,37 @@ function VistaPrevia({ pieza, setPieza, paleta, fuente, plantilla, modo, benefic
         {PIEZAS.map((p) => (
           <button
             key={p.id} onClick={() => setPieza(p.id)}
-            className={`rounded-full px-3 py-1.5 text-[11.5px] transition ${
-              p.id === pieza ? "bg-paper/[.12] font-semibold" : "text-faint hover:bg-paper/[.06]"
+            className={`rounded-full px-3 py-1.5 text-[12px] transition ${
+              p.id === pieza ? "bg-bg font-semibold" : "text-text2 hover:bg-bg"
             }`}
           >{p.label}</button>
         ))}
       </div>
       {plantilla === "diaNoche" && modo === "auto" && pieza !== "comparativa" && (
         <div className="mb-3 flex items-center gap-1.5">
-          <span className="text-[10.5px] text-faint">Ver la de</span>
+          <span className="text-[12px] text-text2">Ver la de</span>
           {(["dia", "noche"] as const).map((m) => (
             <button
               key={m} onClick={() => setVerModo(m)}
-              className={`rounded-full px-3 py-1 text-[11px] transition ${
-                m === verModo ? "bg-paper/[.12] font-semibold" : "text-faint hover:bg-paper/[.06]"
+              className={`rounded-full px-3 py-1 text-[12px] transition ${
+                m === verModo ? "bg-bg font-semibold" : "text-text2 hover:bg-bg"
               }`}
             >{m === "dia" ? "Día" : "Noche"}{m === modoDeAhora() ? " · ahora" : ""}</button>
           ))}
         </div>
       )}
       {plantilla === "diaNoche" && pieza === "comparativa" && (
-        <p className="mb-3 text-[10.5px] text-faint">La comparativa no tiene versión día y noche: sale con la plantilla clásica.</p>
+        <p className="mb-3 text-[12px] text-text2">La comparativa no tiene versión día y noche: sale con la plantilla clásica.</p>
       )}
-      <div className="relative overflow-hidden rounded-2xl border border-paper/[.08] bg-paper/[.03]">
+      <div className="relative overflow-hidden rounded-[8px] border border-line bg-bg">
         {fallo ? (
-          <p className="p-6 text-center text-[12px] text-[var(--color-red)]">{fallo}</p>
+          <p className="p-6 text-center text-[12px] text-[var(--color-signal)]">{fallo}</p>
         ) : (
           <>
             {src && <img src={src} alt="Vista previa de la pieza" className="block w-full" />}
             {cargando && (
-              <div className="absolute inset-0 flex items-center justify-center bg-paper/[.04] backdrop-blur-[1px]">
-                <span className="text-[11.5px] text-faint">Renderizando…</span>
+              <div className="absolute inset-0 flex items-center justify-center bg-bg/80">
+                <span className="text-[12px] text-text2">Renderizando…</span>
               </div>
             )}
           </>
@@ -1345,18 +1341,18 @@ function SeccionMatrizAvisos({ editable, onError }: { editable: boolean; onError
       titulo="Qué recibe cada nivel"
       sub="Cada aviso del bot cae en una de estas categorías; aquí se decide qué categoría le llega a cada nivel. El reporte diario de las 20:00 va siempre y solo al nivel «Todo»."
     >
-      {!matriz && <p className="text-[11px] text-faint">Cargando la matriz…</p>}
+      {!matriz && <p className="text-[12px] text-text2">Cargando la matriz…</p>}
       {matriz && (
         <div className="flex flex-col gap-2">
-          <div className="flex items-center gap-2 px-3 text-[10px] font-semibold uppercase text-faint">
+          <div className="flex items-center gap-2 px-3 text-[12px] font-semibold text-text2">
             <span className="flex-1">Tipo de aviso</span>
             {NIVELES_UI.map((n) => <span key={n.id} className="w-20 text-center">{n.label}</span>)}
           </div>
           {CATEGORIAS_UI.map((c) => (
-            <div key={c.id} className="flex items-center gap-2 rounded-2xl border border-paper/[.08] bg-paper/[.03] p-3">
+            <div key={c.id} className="flex items-center gap-2 rounded-[8px] border border-line bg-bg p-3">
               <div className="min-w-0 flex-1">
                 <p className="text-[12.5px] font-semibold">{c.label}</p>
-                <p className="mt-0.5 text-[10.5px] text-faint">{c.detalle}</p>
+                <p className="mt-0.5 text-[12px] text-text2">{c.detalle}</p>
               </div>
               {NIVELES_UI.map((n) => (
                 <label key={n.id} className="flex w-20 justify-center" title={editable ? undefined : "Solo un administrador puede cambiarlo"}>
@@ -1404,11 +1400,9 @@ const ESTADO_CLAVE_UI: Record<UsuarioHub["estadoClave"], { label: string; explic
 const PERMISOS_UI: { id: keyof PermisosHub; label: string }[] = [
   { id: "verInbox", label: "Inbox" },
   { id: "verKanban", label: "Pipeline" },
-  { id: "verOportunidades", label: "Oportunidades" },
   { id: "usarCotizador", label: "Cotizador" },
   { id: "verMetricas", label: "Métricas" },
   { id: "verFinanzas", label: "Cifras de venta ($)" },
-  { id: "verErrores", label: "Alertas del bot" },
   { id: "verAjustes", label: "Ajustes" },
 ];
 
@@ -1494,17 +1488,17 @@ function SeccionUsuarios({ onError }: { onError: (e: string) => void }) {
       titulo="Usuarios del panel"
       sub="Quién sale en el desplegable del login y qué pestañas ve. Los usuarios nuevos crean su propia clave y dejan su email la primera vez que entran; si alguien la olvida, «Restablecer clave» lo deja crearla de nuevo. Los cambios de acceso se aplican en su próximo inicio de sesión."
     >
-      <div className="flex flex-col gap-2.5">
+      <div className="flex flex-col gap-4">
         {usuarios.map((u) => (
-          <div key={u.id} className="rounded-2xl border border-paper/[.08] bg-paper/[.03] p-3">
+          <div key={u.id} className="rounded-[8px] border border-line bg-bg p-3">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="tnum shrink-0 rounded-lg bg-paper/[.08] px-2 py-1 text-[11px] font-bold">{u.id}</span>
+              <span className="tnum shrink-0 rounded-[6px] bg-bg px-2 py-1 text-[12px] font-semibold">{u.id}</span>
               <span
                 title={ESTADO_CLAVE_UI[u.estadoClave].explica}
-                className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-bold uppercase ${
+                className={`shrink-0 rounded-full px-2 py-0.5 text-[12px] font-semibold ${
                   u.estadoClave === "pendiente"
                     ? "bg-[var(--color-warn,#e8b33a)]/20 text-[var(--color-warn,#e8b33a)]"
-                    : "bg-paper/[.10] text-faint"
+                    : "bg-bg text-text2"
                 }`}
               >{ESTADO_CLAVE_UI[u.estadoClave].label}</span>
               <input
@@ -1517,7 +1511,7 @@ function SeccionUsuarios({ onError }: { onError: (e: string) => void }) {
                 value={u.rol}
                 onChange={(e) => void cambiar(u, { rol: e.target.value as "admin" | "asesor" })}
                 title={ROLES_HUB.find((r) => r.valor === u.rol)?.explica}
-                className={`${selectCls} py-1.5 text-[11.5px]`}
+                className={`${selectCls} py-1.5 text-[12px]`}
                 disabled={u.id === yo?.id}
               >
                 {ROLES_HUB.map((r) => <option key={r.valor} value={r.valor}>{r.etiqueta}</option>)}
@@ -1525,13 +1519,13 @@ function SeccionUsuarios({ onError }: { onError: (e: string) => void }) {
               <button
                 onClick={() => void borrar(u.id)}
                 disabled={u.id === yo?.id}
-                className="shrink-0 rounded-lg px-2 py-1 text-[16px] leading-none text-faint hover:text-[var(--color-red)] disabled:opacity-30"
+                className="shrink-0 rounded-[6px] px-2 py-1 text-[16px] leading-none text-text2 hover:text-[var(--color-signal)] disabled:opacity-30"
                 title={u.id === yo?.id ? "No puedes borrarte a ti mismo" : "Borrar usuario"}
               >×</button>
             </div>
             <div className="mt-2.5 grid grid-cols-2 gap-x-4 gap-y-1.5 sm:grid-cols-4">
               {PERMISOS_UI.map((permiso) => (
-                <label key={permiso.id} className="flex items-center gap-1.5 text-[11px]">
+                <label key={permiso.id} className="flex items-center gap-1.5 text-[12px]">
                   <input
                     type="checkbox"
                     checked={u.permisos[permiso.id]}
@@ -1554,7 +1548,7 @@ function SeccionUsuarios({ onError }: { onError: (e: string) => void }) {
               {u.estadoClave === "propia" && (
                 <button
                   onClick={() => void restablecer(u.id)}
-                  className="shrink-0 rounded-full bg-paper/[.08] px-3 py-1.5 text-[11px] font-semibold hover:bg-paper/[.14]"
+                  className="shrink-0 rounded-full bg-bg px-3 py-1.5 text-[12px] font-semibold hover:bg-bg"
                   title="Borra su clave: la próxima vez que entre crea una nueva. El email se conserva."
                 >Restablecer clave</button>
               )}
@@ -1577,7 +1571,7 @@ function SeccionUsuarios({ onError }: { onError: (e: string) => void }) {
         <button
           onClick={() => void crear()}
           disabled={username.trim().length < 2 || !nombre.trim()}
-          className="shrink-0 rounded-xl bg-paper/[.10] px-4 text-[12px] font-semibold hover:bg-paper/[.16] disabled:opacity-40"
+          className="shrink-0 rounded-[6px] bg-bg px-4 text-[12px] font-semibold hover:bg-bg disabled:opacity-40"
         >Crear</button>
       </div>
     </Tarjeta>

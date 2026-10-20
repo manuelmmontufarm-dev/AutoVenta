@@ -49,19 +49,19 @@ export function VersionBadge() {
         // Fuera del teléfono: en 402 pt la cabecera no cierra y el badge era
         // lo único prescindible ahí (la versión y el commit se consultan en
         // Ajustes). Sin esto, el botón del final se salía de la pantalla.
-        className="relative hidden rounded-full px-2.5 py-1 text-[10.5px] font-bold tracking-wide transition-colors sm:inline-block"
+        className="relative hidden rounded-full px-2.5 py-1 text-[12px] font-semibold transition-colors sm:inline-block"
         style={{
           background: desajustado
-            ? "color-mix(in srgb, var(--color-sand) 18%, transparent)"
-            : "color-mix(in srgb, var(--color-paper) 7%, transparent)",
-          color: desajustado ? "var(--color-sand)" : "var(--color-muted)",
+            ? "color-mix(in srgb, var(--color-warn) 18%, transparent)"
+            : "color-mix(in srgb, var(--color-text) 7%, transparent)",
+          color: desajustado ? "var(--color-warn)" : "var(--color-text2)",
         }}
       >
         {VERSION}
         {(sinVer || desajustado) && (
           <span
             className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full"
-            style={{ background: desajustado ? "var(--color-sand)" : "var(--color-ok)" }}
+            style={{ background: desajustado ? "var(--color-warn)" : "var(--color-ok)" }}
           />
         )}
       </button>
@@ -80,29 +80,29 @@ export function VersionBadge() {
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 8, scale: 0.98 }}
               transition={{ type: "spring", stiffness: 380, damping: 32 }}
-              className="glass fixed top-16 right-4 z-50 max-h-[75vh] w-[min(420px,calc(100vw-2rem))] overflow-y-auto rounded-3xl p-5"
+              className="border border-line bg-surface fixed top-16 right-4 z-50 max-h-[75vh] w-[min(420px,calc(100vw-2rem))] overflow-y-auto rounded-[10px] p-5"
             >
               <div className="mb-4 flex items-start justify-between gap-3">
                 <div>
                   <p className="microlabel">Novedades</p>
-                  <p className="mt-1 text-[10.5px] text-faint">
+                  <p className="mt-1 text-[12px] text-text2">
                     Panel {VERSION} · compilado en {COMMIT}
                     {commitServidor ? ` · servidor en ${commitServidor}` : ""}
                   </p>
                 </div>
                 <button
                   onClick={() => setAbierto(false)}
-                  className="shrink-0 rounded-lg px-2 py-0.5 text-[17px] leading-none text-faint hover:text-paper"
+                  className="shrink-0 rounded-[6px] px-2 py-0.5 text-[17px] leading-none text-text2 hover:text-text"
                   aria-label="Cerrar"
                 >×</button>
               </div>
 
               {desajustado && (
                 <p
-                  className="mb-4 rounded-2xl px-3.5 py-2.5 text-[11.5px]"
+                  className="mb-4 rounded-[8px] px-3.5 py-2.5 text-[12px]"
                   style={{
-                    background: "color-mix(in srgb, var(--color-sand) 12%, transparent)",
-                    color: "var(--color-sand)",
+                    background: "color-mix(in srgb, var(--color-warn) 12%, transparent)",
+                    color: "var(--color-warn)",
                   }}
                 >
                   El panel y el servidor están en commits distintos. Suele durar
@@ -118,20 +118,20 @@ export function VersionBadge() {
                       <span className="serif text-[15px]">{c.version}</span>
                       {i === 0 && (
                         <span
-                          className="rounded-full px-1.5 py-0.5 text-[11px] font-bold"
+                          className="rounded-full px-1.5 py-0.5 text-[12px] font-semibold"
                           style={{
                             background: "color-mix(in srgb, var(--color-ok) 16%, transparent)",
                             color: "var(--color-ok)",
                           }}
                         >AHORA</span>
                       )}
-                      <span className="ml-auto text-[10px] text-faint">{c.fecha}</span>
+                      <span className="ml-auto text-[12px] text-text2">{c.fecha}</span>
                     </div>
                     <p className="mt-0.5 mb-1.5 text-[12px] font-semibold">{c.titulo}</p>
                     <ul className="flex flex-col gap-1">
                       {c.puntos.map((p) => (
-                        <li key={p} className="flex gap-1.5 text-[11.5px] leading-snug text-muted">
-                          <span className="text-faint">·</span>
+                        <li key={p} className="flex gap-1.5 text-[12px] leading-snug text-text2">
+                          <span className="text-text2">·</span>
                           <span>{p}</span>
                         </li>
                       ))}

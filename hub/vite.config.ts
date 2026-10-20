@@ -21,7 +21,14 @@ import tailwindcss from "@tailwindcss/vite";
 export default defineConfig({
   // Base relativa para servir el bundle desde /demo-showroom-gp/.
   base: "./",
-  define: { __GIT_SHA__: JSON.stringify(gitSha()) },
+  define: {
+    __GIT_SHA__: JSON.stringify(gitSha()),
+    // El Hub importa `compactPlaybook` del bot, que a su vez carga
+    // `negocio/index.ts` y lee `process.env` al arrancar. En el navegador
+    // `process` no existe: sin esto el dev server se cae en blanco (el build
+    // de producción ya lo reemplaza solo).
+    "process.env": {},
+  },
   plugins: [react(), tailwindcss()],
   build: {
     // Express y Vercel sirven app/site. El build debe aterrizar en la ruta

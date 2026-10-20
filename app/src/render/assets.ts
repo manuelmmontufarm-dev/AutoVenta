@@ -8,6 +8,7 @@ import { readdirSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { Resvg } from "@resvg/resvg-js";
+import { negocio } from "../negocio/index.js";
 
 // src/render → app/assets (misma profundidad compilado en dist/render)
 const ASSETS = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../assets");
@@ -257,8 +258,9 @@ export const DEPOT_LOGO_RATIO = 422 / 132;
 const depotLogoCache = new Map<string, RasterImage | null>();
 
 /**
- * Logotipo real de Depot Tire, tal como está en tiredepotec.com — el archivo
- * de la marca, no una recreación tipográfica.
+ * Logotipo real del negocio, tal como lo publica — el archivo de la marca, no
+ * una recreación tipográfica. Vive en `assets/<id del negocio>/`, así que cada
+ * cliente trae el suyo sin tocar este archivo.
  *
  * Son los dos únicos originales que publica el negocio, recortados a su
  * contenido (el PNG de Wix viene en lienzo de 500×500 con el arte al centro):
@@ -272,16 +274,16 @@ const depotLogoCache = new Map<string, RasterImage | null>();
 export function depotLogo(variant: "blanco" | "color" = "blanco"): RasterImage | null {
   if (depotLogoCache.has(variant)) return depotLogoCache.get(variant)!;
   let result: RasterImage | null = null;
-  const file = path.join(ASSETS, "depot", variant === "blanco" ? "logo-blanco.png" : "logo.png");
+  const file = path.join(ASSETS, negocio.id, variant === "blanco" ? "logo-blanco.png" : "logo.png");
   try {
     if (existsSync(file)) {
       const buf = readFileSync(file);
       result = { dataUri: `data:image/png;base64,${buf.toString("base64")}`, width: 422, height: 132 };
     } else {
-      console.warn(`⚠️ Falta el logo de Depot Tire (${file}); las piezas caen al nombre en texto`);
+      console.warn(`⚠️ Falta el logo de ${negocio.nombre} (${file}); las piezas caen al nombre en texto`);
     }
   } catch (err) {
-    console.warn("⚠️ No se pudo leer el logo de Depot Tire:", err);
+    console.warn(`⚠️ No se pudo leer el logo de ${negocio.nombre}:`, err);
   }
   depotLogoCache.set(variant, result);
   return result;

@@ -35,6 +35,8 @@ import { buildTools, type AgentContext } from "../agent/tools.js";
 import { buildStoreLinksBlockOnce } from "./storeLinks.js";
 import { preguntamosElLocal } from "../domain/storeSelection.js";
 import { composeBlocks } from "./quoteMessages.js";
+import { porQueNoPasaPorElLocal } from "./dondeEstaElCliente.js";
+import { cierreSinVisita } from "../domain/compraADistancia.js";
 import { config } from "../config.js";
 import { logFunnelEvent } from "./conversations.js";
 
@@ -126,11 +128,13 @@ export async function tryRecotizarPorCantidad(
   // del final (`insistirConLoQueFalta`), que es el único dueño de esa decisión
   // en todo el turno. Sin ese acuse el turno se quedaba mudo: la pregunta
   // repetida la bloqueaba el guardián determinístico por duplicada.
-  const mapas = preguntamosElLocal(ctx.previousOutbound)
+  const sinVisita = await porQueNoPasaPorElLocal(ctx.conversation.id, ctx.conversation.current_cycle, text);
+  const mapas = sinVisita || preguntamosElLocal(ctx.previousOutbound)
     ? ""
     : await buildStoreLinksBlockOnce(ctx.conversation.id);
   return composeBlocks(
     `Listo, se la ajusté a ${nueva} 👍`,
     mapas ? `Puede pasar sin compromiso a verlas y probarlas en su vehículo.\n${mapas}` : null,
+    ...(sinVisita ? cierreSinVisita(sinVisita) : []),
   );
 }

@@ -44,8 +44,15 @@ const SINONIMOS_TIPO: Array<[RegExp, string]> = [
   [/^(r\s?\/?\s?t|rugged(\s?terrain)?)$/i, "R/T"],
 ];
 
+// «lodo» a secas es un USO, no un tipo: lo resuelve `domain/usoYTipo.ts` (M/T y R/T).
+// Antes contaba como M/T pedida y dejaba fuera a la R/T con stock.
 const TOKEN_TIPO =
-  /\b(a\/?t|m\/?t|h\/?t|r\/?t|todo\s?terreno|todoterreno|all\s?terrain|mud|lodo)\b/gi;
+  /\b(a\/?t|m\/?t|h\/?t|r\/?t|todo\s?terreno|todoterreno|all\s?terrain|mud\s?terrain)\b/gi;
+
+const TIPO_NEGADO = new RegExp(
+  `\\bno\\s+(?:(?:las|los)\\s+)?(?:(?:quiero|necesito|busco|es|son|uso)\\s+)?(?:para\\s+)?(?:llantas?\\s+)?${TOKEN_TIPO.source}`,
+  "gi",
+);
 
 /** Un token suelto → clave canónica de tipo ("A/T", "M/T"…) o null. */
 export function tipoDeToken(token: string): string | null {
@@ -60,8 +67,11 @@ export function tipoDeToken(token: string): string | null {
  * primer token que aparece manda: si cambió de opinión, vale lo último dicho.
  */
 export function tipoSolicitadoEn(textos: readonly string[]): string | null {
-  for (const texto of textos) {
-    if (!texto) continue;
+  for (const original of textos) {
+    if (!original) continue;
+    // Lo que el cliente NIEGA no es lo que pide: «ciudad, NO todoterreno»
+    // filtraba el menú a A/T (familia del 21-sep-2026, `domain/usoYTipo.ts`).
+    const texto = original.replace(TIPO_NEGADO, " ");
     const tokens = texto.match(TOKEN_TIPO);
     if (!tokens) continue;
     // Dentro de un mismo mensaje, el último token es el que califica la medida

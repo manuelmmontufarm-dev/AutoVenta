@@ -283,6 +283,25 @@ async function supervisarReporteDiario(signal: AbortSignal): Promise<void> {
 }
 
 /**
+ * Pre-facturas del mes (IA + mantenimiento) al dueño, apenas cierra el mes en
+ * Quito. Mismo ritmo que el reporte: la condición «ya es otro mes» dura todo el
+ * mes, y lo que impide duplicados es el candado por mes dentro de
+ * `enviarPrefacturas`. Si Meta rechaza por la ventana de 24 h, este giro de
+ * cada 15 min es el reintento.
+ */
+async function supervisarPrefacturas(signal: AbortSignal): Promise<void> {
+  while (!signal.aborted) {
+    try {
+      const { enviarPrefacturas } = await import("../services/prefacturaMensual.js");
+      await enviarPrefacturas();
+    } catch (error) {
+      console.warn("⚠️ Pre-facturas del mes fallaron:", error instanceof Error ? error.message : error);
+    }
+    await esperar(VISITAS_MS, signal);
+  }
+}
+
+/**
  * Supervisa el bucle: si revienta (por ejemplo, la base se cae un momento) lo
  * vuelve a levantar. En el servicio dedicado ese trabajo lo hacía Railway
  * reiniciando el proceso; aquí no puede morirse el HTTP por culpa del worker.
@@ -331,4 +350,5 @@ export function startEmbeddedFollowUpWorker(): void {
   void supervisarVisitas(controller.signal);
   void supervisarVentanas(controller.signal);
   void supervisarReporteDiario(controller.signal);
+  void supervisarPrefacturas(controller.signal);
 }

@@ -58,11 +58,12 @@ const esMismaIdea = (a: Set<string>, b: Set<string>, umbral = 0.85): boolean => 
   return comunes / (a.size + b.size - comunes) >= umbral;
 };
 
-/** El texto con el que se corta un bucle de idea repetida. La promesa que
- *  contiene la ejecuta de verdad `lo_prometido_se_ejecuta` en la cadena de
- *  salida — por eso puede afirmar el aviso. */
+/** El texto con el que se corta un bucle de idea repetida. La consulta que
+ *  promete la registra de verdad `sin_aviso_inventado` en la cadena de salida
+ *  (alerta alta + aviso al asesor). No dice «ya avisé»: al escribirse todavía
+ *  no se avisó a nadie (familia 2-E, 28-sep). */
 export const RESPUESTA_ANTI_BUCLE =
-  "Para no repetirle lo mismo: dejé su caso avisado a un asesor, que le confirma apenas haya novedad. 🤝";
+  "Para no repetirle lo mismo: se lo consulto a un asesor y le confirmo apenas haya novedad. 🤝";
 
 /**
  * Núcleo puro (exportado para pruebas). Reglas, en orden de gravedad:
