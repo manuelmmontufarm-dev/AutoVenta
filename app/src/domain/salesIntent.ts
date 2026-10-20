@@ -221,10 +221,11 @@ export function eligePosicionDelMenu(text: string): boolean {
  * familia 2, chat 27097, 14-oct 10:40). «mejor calidad» calzaba como el escalón
  * premium y se firmó una KR20 de otra medida. Pedir «otra» o preguntar («¿hay
  * de mejor calidad?», «¿cuál es la mejor?») no contesta el menú: el número
- * pelado y la palabra seca («Premium», «la mejor») siguen eligiendo.
+ * pelado y la palabra seca («Premium», «la mejor», «¿La premium?») siguen eligiendo.
  */
-function preguntaOPideOtra(text: string, normalized: string): boolean {
-  return text.includes("?") || /\botr[ao]s?\b|^(?:y\s+)?(?:hay|tiene|tienen|tendra|tendran|existe|cual|cuales|que)\b|^y\s+(?:en|de|con)\b/.test(normalized);
+function preguntaOPideOtra(normalized: string): boolean {
+  // El «?» solo no veta: «¿La premium?» sigue eligiendo (revisión 20-oct).
+  return /\botr[ao]s?\b|^(?:y\s+)?(?:hay|tiene|tienen|tendra|tendran|existe|cual|cuales|que)\b|^y\s+(?:en|de|con)\b/.test(normalized);
 }
 
 export function respuestaDePreferencia(text: string): Preferencia | null {
@@ -251,7 +252,7 @@ export function respuestaDePreferencia(text: string): Preferencia | null {
     const n = porNumero[1] ?? { primera: "1", segunda: "2", tercera: "3" }[porNumero[2]];
     return n === "1" ? "precio" : n === "2" ? "equilibrada" : "premium";
   }
-  if (preguntaOPideOtra(text, normalized)) return null;
+  if (preguntaOPideOtra(normalized)) return null;
   // EL ECO DEL MENÚ CUENTA. Producción, 1-sep (conv 13617): el menú ofreció
   // «1) *Costo* — la más conveniente de precio», el cliente contestó «La más
   // conveniente» —las palabras del propio menú— y esto devolvía null: la

@@ -24,7 +24,7 @@
 
 import { ES_PRESENTACION_DEL_NEGOCIO } from "./saludo.js";
 import { ofrecioCotizarLaUnica } from "./cotizarLaUnica.js";
-import { pidioPrecioOCotizacion } from "./salesIntent.js";
+import { eligePosicionDelMenu, pidioPrecioOCotizacion, respuestaDePreferencia } from "./salesIntent.js";
 
 const normalizar = (texto: string) =>
   (texto ?? "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "")
@@ -375,14 +375,26 @@ const COTIZACION_ENVIADA = /\bcotizacion\s+(?:cot-\S+\s+)?(?:enviada|lista|reenv
  * abierto; si nombraba UNA llanta, o si ya salió una cotización, no.
  */
 export function menuDeCotizarAbierto(historial: readonly { role: string; content: unknown }[]): number {
+  // Los mensajes del cliente del final son el turno que se está evaluando: no
+  // cierran nada. Los de ANTES sí: si después del menú ya eligió («La 2») y el
+  // bot no pudo cotizar por otra traba (stock, medida), un «ok» posterior no
+  // reabre «¿Cuál le cotizo…?» (revisión de la coordinadora, 20-oct).
+  let fin = historial.length - 1;
+  while (fin >= 0 && historial[fin].role === "user") fin--;
+  let yaEligio = false;
   let revisados = 0;
-  for (let i = historial.length - 1; i >= 0 && revisados < 10; i--) {
+  for (let i = fin; i >= 0 && revisados < 10; i--) {
     const m = historial[i];
+    if (m.role === "user" && typeof m.content === "string") {
+      if (respuestaDePreferencia(m.content) !== null || eligePosicionDelMenu(m.content)) yaEligio = true;
+      continue;
+    }
     if (m.role !== "assistant" || typeof m.content !== "string") continue;
     revisados += 1;
     const texto = normalizar(m.content);
     if (COTIZACION_ENVIADA.test(texto)) return 0;
     if (esMenuDeOpciones(m.content)) {
+      if (yaEligio) return 0;
       return /\bla\s+3\b|\b3\s*[·).]/.test(texto) || /\b3\s*[·).]/.test(normalizar(String(historial[i - 1]?.content ?? ""))) ? 3 : 2;
     }
     if (ofreceCotizar(texto)) return 0;
@@ -398,8 +410,25 @@ export function menuDeCotizarAbierto(historial: readonly { role: string; content
  */
 export function respondeQueSi(mensajeDelCliente: string): boolean {
   if (esAcuseSimple(mensajeDelCliente)) return true;
+  if (siConPedidoDeCotizar(mensajeDelCliente)) return true;
   const n = normalizar(mensajeDelCliente).replace(/[.,!¡]/g, " ").replace(/\s+/g, " ").trim();
   return /^(?:(?:si|ok|dale|listo|claro)\s+)?(?:el\s+juego(?:\s+(?:de\s+)?(?:4|cuatro))?|las\s+(?:4|cuatro)|esa|esa\s+mism[ao]|ese|ese\s+mism[ao])(?:\s+(?:necesito|quiero|por\s+favor|porfa|gracias))*$/.test(n);
+}
+
+/**
+ * «Sí, cotíceme», «Si cotizame esa», «dale, cotice», «sí, hágala»: el sí con el
+ * verbo de cotizar también es un sí a la oferta de UNA llanta (revisión de la
+ * coordinadora, 20-oct: sin esto la equivalente pedía su sí otra vez). Todo lo
+ * demás del mensaje tiene que ser afirmación, cortesía o un pronombre; «¿y en
+ * 185?» o «Precio» no entran.
+ */
+const PRONOMBRES_DEL_PEDIDO = new Set(["esa", "ese", "esas", "esos", "la", "las", "lo", "me", "mela", "nos", "nomas", "una"].map(colapsar));
+
+function siConPedidoDeCotizar(mensajeDelCliente: string): boolean {
+  const palabras = palabrasDelAcuse(mensajeDelCliente).filter((p) => !LETRA_SUELTA.test(p));
+  const pide = (p: string) => /^coti[cz]/.test(p) || /^hagal[ao]s?$/.test(p) || /^generel[ao]$/.test(p);
+  return palabras.some(pide)
+    && palabras.every((p) => pide(p) || PALABRAS_DE_ACUSE.has(p) || PRONOMBRES_DEL_PEDIDO.has(p));
 }
 
 const PALABRAS_DE_CANTIDAD = new Set([

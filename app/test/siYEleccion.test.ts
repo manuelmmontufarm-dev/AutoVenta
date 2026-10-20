@@ -149,6 +149,16 @@ describe("familia 2 — un acuse a un menú no elige nada", () => {
     // Con una oferta de UNA llanta después del menú, ya no hay menú.
     expect(menuDeCotizarAbierto([...historial.slice(0, 3), { role: "user", content: "la 2" }, { role: "assistant", content: LE_COTIZO_LA_26030 }])).toBe(0);
     expect(menuDeCotizarAbierto([{ role: "assistant", content: MENU_DE_DOS }])).toBe(2);
+    // El cliente YA eligió («La 2»), el bot no pudo cotizar (stock) y contestó
+    // otra cosa: un «ok» después no reabre «¿Cuál le cotizo…?» (revisión 20-oct).
+    expect(menuDeCotizarAbierto([
+      { role: "assistant", content: MENU_29367 },
+      { role: "user", content: "La 2" },
+      { role: "assistant", content: "La KENDA KR628 se agotó justo ahora; el asesor le confirma cuándo llega." },
+      { role: "user", content: "ok" },
+    ])).toBe(0);
+    // El mensaje que se está evaluando no cierra nada: el menú sigue abierto para él.
+    expect(menuDeCotizarAbierto([{ role: "assistant", content: MENU_29367 }, { role: "user", content: "Ok gracias" }])).toBe(3);
   });
 
   const CANTIDAD_SOLA = [
@@ -244,6 +254,13 @@ describe("familia 2 — la equivalente única no se firma sin su sí (chat 27992
     expect(equivalenteSinConsentimiento({ ...base, textoDelCliente: "Si, por favor" })).toBe(false);
     expect(equivalenteSinConsentimiento({ ...base, textoDelCliente: "Claro que si" })).toBe(false);
   });
+  // Revisión de la coordinadora (20-oct): el sí con verbo de cotizar también es su sí.
+  it.each(["Sí, cotíceme", "Si cotizame esa", "dale, cotice", "sí, hágala"])("«%s» a esa pregunta SÍ es su sí", (si) => {
+    expect(equivalenteSinConsentimiento({ ...base, textoDelCliente: si })).toBe(false);
+  });
+  it.each(["Precio", "¿y en 185?"])("«%s» a esa pregunta NO es su sí", (texto) => {
+    expect(equivalenteSinConsentimiento({ ...base, textoDelCliente: texto })).toBe(true);
+  });
   it("nombrarla sigue contando como elegirla («la kenda»)", () => {
     expect(equivalenteSinConsentimiento({ ...base, textoDelCliente: "la kenda" })).toBe(false);
   });
@@ -288,6 +305,9 @@ describe("familia 2 — «otra marca de mejor calidad» es una pregunta, no un e
     ["la más barata", "precio"],
     ["La 2 por favor", "equilibrada"],
     ["mejor calidad", "premium"],
+    // Un escalón con signo de pregunta sigue eligiendo (revisión 20-oct).
+    ["¿La premium?", "premium"],
+    ["la más barata?", "precio"],
   ])("«%s» sigue eligiendo %s", (texto, esperado) => {
     expect(respuestaDePreferencia(texto)).toBe(esperado);
   });

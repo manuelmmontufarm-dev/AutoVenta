@@ -34,7 +34,13 @@ al menos 19 cotizaciones de lo que nadie eligió («Ok gracias» al menú cotiz�
 $1.186,20). Las dos familias son la misma pregunta —qué aceptó el cliente— y se
 contestaban en tres listas distintas; ahora hay una.
 
-**Horas:** 3
+- Revisión de la coordinadora (misma fecha): el sí con verbo («Sí, cotíceme»,
+  «dale, cotice», «sí, hágala») también cuenta como sí a la oferta de una llanta
+  y a la equivalente; «¿La premium?» sigue eligiendo (el «?» solo ya no veta); y
+  el menú se cierra si el cliente ya eligió antes y el bot no pudo cotizar por
+  otra traba.
+
+**Horas:** 3,5
 
 ## 19-oct-2026 · El cupón del 2 % sale como ticket con QR, también en el último seguimiento
 
@@ -2430,7 +2436,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
-| 2026-10-20 | _(este mismo)_ | El sí y la elección: acuse por palabras, un sí a un menú pregunta cuál, la equivalente pide su sí | 3 |
+| 2026-10-20 | _(este mismo)_ | El sí y la elección: acuse por palabras, un sí a un menú pregunta cuál, la equivalente pide su sí | 3,5 |
 | 2026-09-28 | _(este mismo)_ | Ganados fantasma, elegir con palabras, corrección podada, menú con varias medidas | 3,5 |
 | 2026-09-08 | _(este mismo)_ | El aro alcanza: detector ancho, lámina por ruta directa, la guía no reemplaza opciones | 1.5 |
 | 2026-09-07 | _(este mismo)_ | Elegir es cotizar (aro incluido), «otro día» pregunta el día, la lámina no se reenvía por una pregunta | 3.5 |
