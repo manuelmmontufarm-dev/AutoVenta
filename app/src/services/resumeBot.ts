@@ -1,4 +1,5 @@
 import { runAgent } from "../agent/agent.js";
+import { enviarTicketDeCupon } from "./coupons.js";
 import type { AgentContext } from "../agent/tools.js";
 import { classifyStage } from "../agent/classifier.js";
 import { sql } from "../db/client.js";
@@ -88,6 +89,8 @@ export async function resumeBotIfUnanswered(conversationId: number): Promise<Res
       conversation, customerPhone: claimed.phone, customerName: claimed.name ?? undefined,
       currentUserText: claimed.last_text, resumedFromHuman: true,
     };
+    // Si `agendar_visita` emite el cupón en este turno, el ticket sale abajo.
+    const inicioDelTurno = new Date(Date.now() - 30_000);
     const reply = await runAgent(ctx, claimed.last_text);
     await flagRepetitiveConversation(conversationId, reply);
     // LA MISMA CADENA QUE EL CAMINO NORMAL, no un pedazo de ella.
@@ -107,6 +110,9 @@ export async function resumeBotIfUnanswered(conversationId: number): Promise<Res
     const providerId = await sendCustomerText(conversationId, claimed.phone, salida.texto);
     await appendMessage(conversationId, "assistant", salida.texto, providerId, {
       authorKind: "bot", status: "sent", metadata: { resumedAfterHuman: true },
+    });
+    await enviarTicketDeCupon({
+      conversationId, cycle: claimed.current_cycle, to: claimed.phone, emitidoDesde: inicioDelTurno,
     });
     if (ctx.discountNotice) {
       await markDiscountNoticeSent(ctx.discountNotice.source, ctx.discountNotice.id);

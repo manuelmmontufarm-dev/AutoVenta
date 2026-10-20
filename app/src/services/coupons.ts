@@ -23,11 +23,19 @@
  */
 import { sql } from "../db/client.js";
 import {
+  ahorroDelCupon,
   etiquetaCupon,
+  etiquetaVigencia,
   generarCodigoCupon,
+  mensajeCupon,
+  type MotivoCupon,
   normalizarCodigoCupon,
+  vigenciaDelCupon,
 } from "../domain/coupons.js";
-import { getCouponConfig } from "./settings.js";
+import { renderCouponTicket } from "../render/couponTicket.js";
+import { appendMessage } from "./conversations.js";
+import { getCouponConfig, getPiecesConfig } from "./settings.js";
+import { sendCustomerText, sendImage } from "../wa/client.js";
 
 /** Postgres: violación de índice único. */
 const CLAVE_DUPLICADA = "23505";
@@ -109,20 +117,29 @@ export async function getCouponForConversation(
 export async function emitirCuponDeConfirmacion(input: {
   conversationId: number;
   cycle: number;
+  /** «visita» al confirmar el día; «seguimiento» cuando lo regala el último seguimiento. */
+  motivo?: MotivoCupon;
+  ahora?: Date;
 }): Promise<CuponEmitido | null> {
   try {
     const cfg = await getCouponConfig();
     if (!cfg.activo) return null;
 
-    // La cotización vigente del ciclo, para dejar atado qué se cotizó. Puede no
-    // haber ninguna (el cliente prometió visita antes de cotizar) y el cupón
-    // vale igual: lo que identifica la venta es la conversación.
+    // SIN COTIZACIÓN NO HAY CUPÓN (19-oct). El ticket dice «son $X menos sobre
+    // su cotización» y nombra las llantas: sin cotización no hay sobre qué
+    // descontar, y un 2 % de nada no se siente como premio.
     const [cotizacion] = await sql<{ id: number; quote_number: string | null }[]>`
       select id, quote_number from quotes
       where conversation_id = ${input.conversationId} and cycle = ${input.cycle}
       order by created_at desc limit 1
     `;
-    const numeroCotizacion = cotizacion?.quote_number ?? null;
+    if (!cotizacion) return null;
+    const numeroCotizacion = cotizacion.quote_number ?? null;
+    const [conv] = await sql<{ visit_date: Date | null }[]>`
+      select visit_date from conversations where id = ${input.conversationId}
+    `;
+    const validoHasta = vigenciaDelCupon({ ahora: input.ahora ?? new Date(), visita: conv?.visit_date ?? null });
+    const motivo: MotivoCupon = input.motivo ?? "visita";
 
     const yaTiene = await getCouponForConversation(input.conversationId, input.cycle);
     if (yaTiene) {
@@ -136,8 +153,8 @@ export async function emitirCuponDeConfirmacion(input: {
       const codigo = generarCodigoCupon();
       try {
         await sql`
-          insert into confirmation_coupons (code, conversation_id, cycle, quote_id, extra_pct)
-          values (${codigo}, ${input.conversationId}, ${input.cycle}, ${cotizacion?.id ?? null}, ${cfg.porcentaje})
+          insert into confirmation_coupons (code, conversation_id, cycle, quote_id, extra_pct, motivo, valid_until)
+          values (${codigo}, ${input.conversationId}, ${input.cycle}, ${cotizacion.id}, ${cfg.porcentaje}, ${motivo}, ${validoHasta})
         `;
         return { codigo, porcentaje: cfg.porcentaje, yaExistia: false, numeroCotizacion };
       } catch (error) {
@@ -161,7 +178,7 @@ export async function emitirCuponDeConfirmacion(input: {
   }
 }
 
-export type MotivoRechazo = "formato" | "no_existe" | "ya_canjeado" | "anulado";
+export type MotivoRechazo = "formato" | "no_existe" | "ya_canjeado" | "anulado" | "vencido";
 
 export interface CuponConsultado {
   codigo: string;
@@ -206,11 +223,12 @@ export async function consultarCupon(entrada: string): Promise<ResultadoConsulta
   const [fila] = await sql<{
     conversation_id: number; extra_pct: string | number; status: string;
     issued_at: Date; redeemed_at: Date | null; redeemed_by: string | null;
+    valid_until: Date | null;
     nombre: string | null; telefono: string | null; medida: string | null;
     local: string | null; visita: Date | null; total: string | number | null;
   }[]>`
     select cc.conversation_id, cc.extra_pct, cc.status, cc.issued_at,
-           cc.redeemed_at, cc.redeemed_by,
+           cc.redeemed_at, cc.redeemed_by, cc.valid_until,
            c.name as nombre, c.phone as telefono, c.tire_size as medida,
            c.nearest_store as local, c.visit_date as visita, q.total
     from confirmation_coupons cc
@@ -232,6 +250,15 @@ export async function consultarCupon(entrada: string): Promise<ResultadoConsulta
     const cuando = fila.redeemed_at?.toLocaleString("es-EC", { timeZone: "America/Guayaquil" }) ?? "antes";
     const quien = fila.redeemed_by ? ` por ${fila.redeemed_by}` : "";
     return { ok: false, motivo: "ya_canjeado", detalle: `El código ${codigo} ya se canjeó el ${cuando}${quien}.` };
+  }
+  // El ticket dice «válido hasta»: si caja lo honrara después, la fecha
+  // impresa no valdría nada y el próximo cliente no tendría por qué apurarse.
+  if (fila.valid_until && fila.valid_until.getTime() < Date.now()) {
+    return {
+      ok: false,
+      motivo: "vencido",
+      detalle: `El código ${codigo} venció el ${etiquetaVigencia(fila.valid_until)}.`,
+    };
   }
   return {
     ok: true,
@@ -335,4 +362,118 @@ export async function lineaCuponParaAviso(
 ): Promise<string | null> {
   const cupon = await getCouponForConversation(conversationId, cycle).catch(() => null);
   return cupon ? etiquetaCupon({ codigo: cupon.codigo, porcentaje: cupon.porcentaje }) : null;
+}
+
+interface ItemCotizado {
+  brand?: string;
+  design?: string;
+  sizeLabel?: string;
+  quantity?: number;
+}
+
+/** «4 × FALKEN WILDPEAK A/T 4W 265/60R18» — sin SKU, que nunca va al cliente. */
+function llantasDeLaCotizacion(items: unknown): string | null {
+  const primera = Array.isArray(items) ? (items[0] as ItemCotizado | undefined) : undefined;
+  if (!primera?.brand) return null;
+  const nombre = [primera.brand, primera.design, primera.sizeLabel].filter(Boolean).join(" ");
+  return primera.quantity ? `${primera.quantity} × ${nombre}` : nombre;
+}
+
+/**
+ * Manda el ticket con QR del cupón que todavía no lo recibió. Es la ÚNICA
+ * puerta por la que sale un cupón al cliente: el turno normal, la retomada
+ * tras un asesor y el último seguimiento llaman aquí después de su propio
+ * mensaje, así el ticket llega siempre DESPUÉS de «Listo, le esperamos el…» y
+ * nunca dos veces.
+ *
+ * - `emitidoDesde`: los turnos solo mandan el cupón que se emitió EN ese turno.
+ *   Si se emitió con el bot apagado (contestaba una persona), no se le aparece
+ *   al cliente horas después en medio de otra conversación.
+ * - La imagen se reclama ANTES de mandarla (`ticket_sent_at`), así dos puertas
+ *   a la vez no duplican el ticket. Si el render o Meta fallan, el código sale
+ *   igual como texto: lo que no puede pasar es emitir un cupón que el cliente
+ *   nunca ve.
+ *
+ * Nunca lanza: un fallo aquí no puede tumbar el turno que ya respondió.
+ */
+export async function enviarTicketDeCupon(input: {
+  conversationId: number;
+  cycle: number;
+  to: string;
+  emitidoDesde?: Date;
+  actor?: "bot" | "worker";
+}): Promise<boolean> {
+  try {
+    const desde = input.emitidoDesde ?? new Date(0);
+    const [cupon] = await sql<{
+      id: number; code: string; extra_pct: string | number; motivo: string;
+      valid_until: Date | null; items: unknown; total: string | number | null;
+      nearest_store: string | null; visit_date: Date | null; visit_time_label: string | null;
+    }[]>`
+      update confirmation_coupons cc set ticket_sent_at = now()
+      from conversations c
+      left join lateral (
+        select items, total from quotes
+        where conversation_id = c.id and cycle = ${input.cycle}
+        order by created_at desc limit 1
+      ) q on true
+      where cc.conversation_id = ${input.conversationId} and cc.cycle = ${input.cycle}
+        and c.id = cc.conversation_id
+        and cc.status = 'emitido' and cc.ticket_sent_at is null
+        and cc.issued_at >= ${desde}
+      returning cc.id, cc.code, cc.extra_pct, cc.motivo, cc.valid_until,
+        q.items, q.total, c.nearest_store, c.visit_date, c.visit_time_label
+    `;
+    if (!cupon) return false;
+
+    const porcentaje = Number(cupon.extra_pct);
+    const motivo: MotivoCupon = cupon.motivo === "seguimiento" ? "seguimiento" : "visita";
+    const ahorro = cupon.total == null ? null : ahorroDelCupon(Number(cupon.total), porcentaje);
+    const leyenda = mensajeCupon({
+      codigo: cupon.code, porcentaje, motivo, ahorro, validoHasta: cupon.valid_until,
+    });
+    const actor = input.actor ?? "bot";
+    const metadata = { piece: "coupon", couponCode: cupon.code, motivo };
+
+    try {
+      const piezas = await getPiecesConfig();
+      const png = await renderCouponTicket({
+        codigo: cupon.code,
+        porcentaje,
+        motivo,
+        ahorro,
+        llantas: llantasDeLaCotizacion(cupon.items),
+        local: cupon.nearest_store,
+        visita: cupon.visit_date
+          ? [etiquetaVigencia(cupon.visit_date), cupon.visit_time_label?.trim()].filter(Boolean).join(", ")
+          : null,
+        validoHasta: cupon.valid_until,
+        paleta: piezas.paleta,
+        fuente: piezas.fuente,
+      });
+      const filename = `Cupon-${cupon.code}.png`;
+      const providerId = await sendImage(input.conversationId, input.to, png, leyenda, filename, actor);
+      await appendMessage(input.conversationId, "assistant", leyenda, providerId, {
+        type: "image", authorKind: "bot", status: "sent", metadata: { ...metadata, filename },
+      });
+    } catch (error) {
+      console.error(`🎟️ El ticket ${cupon.code} no salió como imagen; va como texto:`, error);
+      const providerId = await sendCustomerText(input.conversationId, input.to, leyenda, actor)
+        .catch(() => undefined);
+      await appendMessage(input.conversationId, "assistant", leyenda, providerId, {
+        authorKind: "bot", status: providerId ? "sent" : "failed",
+        metadata: { ...metadata, ticketError: error instanceof Error ? error.message : String(error) },
+      });
+      if (!providerId) {
+        // Ni imagen ni texto: se suelta la marca para que la próxima puerta lo intente.
+        await sql`update confirmation_coupons set ticket_sent_at = null where id = ${cupon.id}`;
+        return false;
+      }
+    }
+    console.log(`🎟️ Cupón ${cupon.code} (${motivo}) enviado a la conv ${input.conversationId}.`);
+    return true;
+  } catch (error) {
+    console.warn("🎟️ Falló el envío del ticket del cupón:", error instanceof Error ? error.message : error);
+    return false;
+  }
 }

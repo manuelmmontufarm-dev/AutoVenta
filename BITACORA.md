@@ -1,3 +1,22 @@
+## 19-oct-2026 · El cupón del 2 % sale como ticket con QR, también en el último seguimiento
+
+**Qué:** El cupón deja de ser un texto suelto y sale como imagen de ticket
+(`render/couponTicket.ts`): QR con el código, «+2 % adicional», el monto en
+dólares sobre la cotización, llantas, local, visita y «válido hasta». Se emite
+al confirmar el día (turno normal, retomada y `agendar_visita`) y, nuevo, en el
+ÚLTIMO seguimiento dentro de la ventana («usted fue seleccionado para un 2 %
+adicional, son $X menos»). Sin cotización no hay cupón; vence a los 7 días de
+la visita y caja rechaza los vencidos. `enviarTicketDeCupon` es la única puerta
+de salida (marca `ticket_sent_at`, cae a texto si la imagen falla). Migración
+022. El cupón sigue APAGADO en producción hasta que Depot capacite a los cajeros.
+
+**Por qué:** Luz verde de Depot para los descuentos (19-oct). Un código suelto
+se lee como trámite; un ticket con QR se siente como premio y se reclama. Los 8
+cupones de texto de agosto no se canjeó ninguno. El último seguimiento es la
+última vez que el bot le escribe solo al cliente: ahí se juega la carta.
+
+**Horas:** 1,5
+
 ## 24-sep-2026 · Los seguimientos leen la ficha y lo que el cliente ya dijo
 
 **Qué:** La plantilla de seguimiento usa `tire_size` aunque la etapa siga en

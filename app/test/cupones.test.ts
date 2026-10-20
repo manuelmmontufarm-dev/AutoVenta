@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  ahorroDelCupon,
   esCodigoCupon,
+  etiquetaVigencia,
   extraerCupones,
   formatearPorcentaje,
   generarCodigoCupon,
@@ -9,6 +11,7 @@ import {
   normalizarCodigoCupon,
   PALABRAS_CUPON,
   recordatorioCupon,
+  vigenciaDelCupon,
 } from "../src/domain/coupons.js";
 
 /**
@@ -117,5 +120,43 @@ describe("porcentaje", () => {
   it("sin decimales inútiles y con coma ecuatoriana", () => {
     expect(formatearPorcentaje(2)).toBe("2 %");
     expect(formatearPorcentaje(2.5)).toBe("2,5 %");
+  });
+});
+
+describe("el ticket del 19-oct", () => {
+  it("el último seguimiento dice «seleccionado» y nombra el monto en dólares", () => {
+    const texto = mensajeCupon({ codigo: "DT-PUMA47", porcentaje: 2, motivo: "seguimiento", ahorro: 19.83 });
+    expect(texto).toMatch(/usted fue seleccionado para un 2 % adicional/i);
+    expect(texto).toContain("*$19.83 menos*");
+    expect(texto).toContain("*DT-PUMA47*");
+  });
+
+  it("la visita dice que lo ganó por confirmar", () => {
+    const texto = mensajeCupon({ codigo: "DT-PUMA47", porcentaje: 2, motivo: "visita", ahorro: 19.83 });
+    expect(texto).toMatch(/gan[oó] un 2 % adicional/i);
+    expect(texto).toMatch(/por confirmar su visita/i);
+  });
+
+  it("la leyenda trae la fecha de vencimiento cuando la hay", () => {
+    const texto = mensajeCupon({
+      codigo: "DT-PUMA47", porcentaje: 2, validoHasta: new Date("2026-11-01T04:59:59.000Z"),
+    });
+    expect(texto).toContain("Válido hasta el sábado 31 de octubre");
+  });
+
+  it("el 2 % se redondea al centavo", () => {
+    expect(ahorroDelCupon(991.32, 2)).toBe(19.83);
+    expect(ahorroDelCupon(456.4, 2)).toBe(9.13);
+  });
+
+  it("sin visita, vale una semana desde hoy; con visita pasada, también desde hoy", () => {
+    const ahora = new Date("2026-10-19T15:00:00.000Z");
+    const esperado = "2026-10-27T04:59:59.000Z"; // lunes 26-oct 23:59:59 en Quito
+    expect(vigenciaDelCupon({ ahora }).toISOString()).toBe(esperado);
+    expect(vigenciaDelCupon({ ahora, visita: new Date("2026-10-10T15:00:00.000Z") }).toISOString()).toBe(esperado);
+  });
+
+  it("la fecha se lee como en Quito, sin coma", () => {
+    expect(etiquetaVigencia(new Date("2026-11-01T04:59:59.000Z"))).toBe("sábado 31 de octubre");
   });
 });

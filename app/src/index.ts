@@ -70,8 +70,7 @@ import {
 import { markDiscountNoticeSent } from "./services/discountOffers.js";
 import { extractCustomerCommitment, preguntamosElDia, respondeAlDiaDeLaVisita } from "./domain/customerCommitment.js";
 import { avisarVisitaComprometida } from "./services/visitAlerts.js";
-import { emitirCuponDeConfirmacion } from "./services/coupons.js";
-import { mensajeCupon } from "./domain/coupons.js";
+import { emitirCuponDeConfirmacion, enviarTicketDeCupon } from "./services/coupons.js";
 import { authorizeConversationOutbound } from "./services/whatsappPolicy.js";
 import { splitBlocks } from "./services/quoteMessages.js";
 import { prepararSalida } from "./services/prepararSalida.js";
@@ -222,16 +221,20 @@ const pipeline = new InboundPipeline(async ({ from, name, text: textoRecibido, w
   // cuándo viene, para que el código llegue pegado a esa confirmación y no en
   // un mensaje suelto que se lee sin contexto. Devuelve null mientras el cupón
   // esté apagado, que es el estado por defecto hasta la luz verde de Depot.
-  // Esperado (no `void`) porque el mensaje se anexa a la respuesta de abajo.
+  // Esperado (no `void`): el ticket con QR sale DESPUÉS de la respuesta de
+  // abajo (`enviarTicketDeCupon`), y solo el emitido en este turno.
   // `solo_hora` no cobra cupón: el texto dice «por confirmar su visita» y en
   // caja se paga de verdad. Quien dijo «de 4 a 5» y todavía no el día no
   // confirmó ninguna visita — se le anota y se le pregunta la fecha.
-  const cupon = commitment && commitment.tipo !== "solo_hora"
-    ? await emitirCuponDeConfirmacion({
-        conversationId: conversation.id,
-        cycle: conversation.current_cycle,
-      })
-    : null;
+  // Con margen: `issued_at` lo pone el reloj de Postgres, no el de Node.
+  const inicioDelTurno = new Date(Date.now() - 30_000);
+  if (commitment && commitment.tipo !== "solo_hora") {
+    await emitirCuponDeConfirmacion({
+      conversationId: conversation.id,
+      cycle: conversation.current_cycle,
+      motivo: "visita",
+    });
+  }
   emitLiveEvent("message", conversation.id);
   emitLiveEvent("sync", conversation.id);
 
@@ -467,16 +470,6 @@ const pipeline = new InboundPipeline(async ({ from, name, text: textoRecibido, w
   // Envío con red de seguridad: si Meta rechaza, la respuesta queda guardada
   // como "failed" y visible en el hub — nunca se pierde en silencio.
   const bloques = splitBlocks(salida.texto);
-  // El cupón va como bloque aparte y al final: es un mensaje que el cliente va
-  // a buscar días después en el chat, y mezclado dentro del párrafo del bot se
-  // pierde. Solo cuando se acaba de emitir — si ya lo tenía, repetírselo cada
-  // vez que cambia la fecha lo convierte en ruido.
-  if (cupon && !cupon.yaExistia) {
-    bloques.push(mensajeCupon({
-      codigo: cupon.codigo,
-      porcentaje: cupon.porcentaje,
-    }));
-  }
   // Los botones van SOLO en el último bloque: son la pregunta con la que cierra
   // el turno, y dos mensajes con botones seguidos se leen como formulario.
   // `null` es la respuesta normal — la mayoría de los turnos no terminan en una
@@ -537,6 +530,16 @@ const pipeline = new InboundPipeline(async ({ from, name, text: textoRecibido, w
       break;
     }
   }
+  // El ticket del cupón va al final y aparte: es lo que el cliente va a buscar
+  // días después en el chat. Cubre los dos sitios que emiten en este turno —el
+  // compromiso de arriba y la herramienta `agendar_visita`— y no sale si el
+  // cliente ya tenía cupón (no se emitió uno nuevo).
+  await enviarTicketDeCupon({
+    conversationId: conversation.id,
+    cycle: conversation.current_cycle,
+    to: from,
+    emitidoDesde: inicioDelTurno,
+  });
   if (agentContext.discountNotice) {
     await markDiscountNoticeSent(agentContext.discountNotice.source, agentContext.discountNotice.id);
   }

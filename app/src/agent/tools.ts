@@ -113,7 +113,6 @@ import { calculateDiscount } from "../domain/discounts.js";
 import { notifyAdvisor } from "../services/advisorNotifications.js";
 import { avisarVisitaComprometida, etiquetaVisita } from "../services/visitAlerts.js";
 import { emitirCuponDeConfirmacion } from "../services/coupons.js";
-import { mensajeCupon } from "../domain/coupons.js";
 import { franjaHoraria } from "../domain/diasEnEspanol.js";
 import { fechaDelDia, esSoloPresenciaEnLaCiudad } from "../domain/customerCommitment.js";
 import type { StoreHours } from "../services/settings.js";
@@ -3354,10 +3353,16 @@ export function buildTools(ctx: AgentContext) {
         visitDate: registrado.visitDate,
         visitTimeLabel: registrado.visitTimeLabel,
       }).catch((error) => console.error("⚠️ No se pudo avisar la visita:", error));
-      const cupon = await emitirCuponDeConfirmacion({
-        conversationId: ctx.conversation.id,
-        cycle: ctx.conversation.current_cycle,
-      }).catch(() => null);
+      // Solo con día: «de 4 a 5» todavía no es una visita confirmada. El ticket
+      // con QR NO va en este mensaje: lo manda quien envía la respuesta del turno
+      // (`enviarTicketDeCupon`), así llega después de «Listo, le esperamos».
+      if (registrado.visitDate) {
+        await emitirCuponDeConfirmacion({
+          conversationId: ctx.conversation.id,
+          cycle: ctx.conversation.current_cycle,
+          motivo: "visita",
+        }).catch(() => null);
+      }
 
       // Los seguimientos vigentes se planearon contra un estado que ya cambió:
       // se rehacen para que salgan confirmando la visita, no preguntándola.
@@ -3372,12 +3377,6 @@ export function buildTools(ctx: AgentContext) {
         ? `Listo, le esperamos el *${cuando}*${localFinal ? ` en *${localFinal}*` : ""}. Queda avisado el asesor 🤝`
         : `Anotado *${registrado.visitTimeLabel}*${localFinal ? ` en *${localFinal}*` : ""}. ¿Qué día sería?`;
       const bloques = [confirmacion];
-      if (cupon && !cupon.yaExistia) {
-        bloques.push(mensajeCupon({
-          codigo: cupon.codigo,
-          porcentaje: cupon.porcentaje,
-        }));
-      }
 
       return JSON.stringify({
         visita_registrada: Boolean(registrado.visitDate),

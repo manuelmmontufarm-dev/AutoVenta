@@ -1,4 +1,5 @@
 import { sql } from "../db/client.js";
+import { emitirCuponDeConfirmacion, enviarTicketDeCupon } from "./coupons.js";
 import { isWithinBusinessHours } from "../domain/followUps.js";
 import { appendMessage } from "./conversations.js";
 import {
@@ -380,6 +381,7 @@ export async function processFollowUpJob(
           )
       `;
     });
+    if (!isPostWindow) await regalarCuponSiEsElUltimo(job.id, context, now);
     emitLiveEvent("message", context.id);
     emitLiveEvent("follow_up", context.id);
   } catch (error) {
@@ -413,5 +415,48 @@ export async function processFollowUpJob(
         dedupeKey: `${context.id}:${context.current_cycle}:send_error:${job.id}`,
       });
     }
+  }
+}
+
+/**
+ * EL ÚLTIMO SEGUIMIENTO REGALA EL 2 % (Manuel, 19-oct-2026).
+ *
+ * Es la última vez que el bot le escribe solo a este cliente —después solo
+ * queda la plantilla que autoriza un asesor—, así que ahí se juega la carta:
+ * «usted fue seleccionado para un 2 % adicional, que son $X» y el ticket con
+ * QR. Antes no: regalarlo en el primer seguimiento es bajar el precio a quien
+ * igual iba a contestar.
+ *
+ * «Último» se decide al enviar, no al agendar: es el seguimiento dentro de la
+ * ventana que no tiene otro detrás todavía pendiente. Así vale igual con uno o
+ * con dos intentos configurados.
+ *
+ * Todo lo demás lo cuida `emitirCuponDeConfirmacion`: cupón apagado, sin
+ * cotización en este ciclo o con cupón ya entregado → no sale nada.
+ */
+async function regalarCuponSiEsElUltimo(
+  jobId: number,
+  context: { id: number; current_cycle: number; phone: string; job_type: string },
+  now: Date,
+): Promise<void> {
+  try {
+    if (context.job_type !== "in_window_first" && context.job_type !== "in_window_second") return;
+    const [otro] = await sql<{ id: number }[]>`
+      select id from follow_up_jobs
+      where conversation_id = ${context.id} and cycle = ${context.current_cycle}
+        and id <> ${jobId} and type in ('in_window_first', 'in_window_second')
+        and status in ('scheduled', 'processing', 'blocked')
+      limit 1
+    `;
+    if (otro) return;
+    const cupon = await emitirCuponDeConfirmacion({
+      conversationId: context.id, cycle: context.current_cycle, motivo: "seguimiento", ahora: now,
+    });
+    if (!cupon || cupon.yaExistia) return;
+    await enviarTicketDeCupon({
+      conversationId: context.id, cycle: context.current_cycle, to: context.phone, actor: "worker",
+    });
+  } catch (error) {
+    console.warn(`🎟️ No se pudo regalar el cupón en el seguimiento ${jobId}:`, error);
   }
 }

@@ -27,6 +27,8 @@
  * bot — el bot solo lo anuncia y la caja lo aplica.
  */
 
+import { TZDate } from "@date-fns/tz";
+
 /**
  * Las 64 palabras del cupón.
  *
@@ -161,18 +163,85 @@ export function extraerCupones(texto: string): string[] {
  * el cliente memorice UNA cosa —su cupón— y meterle un COT- al lado competía
  * con eso justamente en el mensaje donde menos podía permitírselo.
  */
+/**
+ * Desde el 19-oct es el pie del ticket con QR (`render/couponTicket.ts`): va
+ * como leyenda de la imagen, así el código queda escrito —se busca en el chat y
+ * se dicta— y el premio se ve. Dos motivos, dos frases:
+ *
+ *  - «visita»: el cliente dijo cuándo viene; el 2 % es lo que ganó por eso.
+ *  - «seguimiento»: el último seguimiento se lo regala («usted fue
+ *    seleccionado», Manuel 19-oct). Ahí el monto en dólares es el que empuja,
+ *    porque «2 %» solo no se siente.
+ */
+export type MotivoCupon = "visita" | "seguimiento";
+
 export function mensajeCupon(input: {
   codigo: string;
   porcentaje: number;
+  motivo?: MotivoCupon;
+  /** Cuánto es el 2 % sobre la cotización, en dólares. Null = no se nombra. */
+  ahorro?: number | null;
+  validoHasta?: Date | null;
 }): string {
-  const sobre = "sobre su cotización";
+  const pct = formatearPorcentaje(input.porcentaje);
+  const monto = input.ahorro && input.ahorro > 0 ? `*${formatearDolares(input.ahorro)} menos*` : null;
+  const encabezado = input.motivo === "seguimiento"
+    ? [
+        `🎉 *¡Usted fue seleccionado para un ${pct} adicional!*`,
+        monto ? `Sobre su cotización son ${monto}.` : "Se suma sobre su cotización.",
+      ]
+    : [
+        `🎟️ *¡Ganó un ${pct} adicional!*`,
+        monto
+          ? `Por confirmar su visita, son ${monto} sobre su cotización.`
+          : "Por confirmar su visita, se suma sobre su cotización.",
+      ];
+  const vence = input.validoHasta ? ` Válido hasta el ${etiquetaVigencia(input.validoHasta)}.` : "";
   return [
-    `🎟️ Su código de descuento es *${input.codigo}*`,
+    ...encabezado,
     "",
-    `Por confirmar su visita le damos un *${formatearPorcentaje(input.porcentaje)} adicional* ${sobre}.`,
+    `Su código: *${input.codigo}*`,
     "",
-    `⚠️ *Dígalo en caja antes de pagar.* Es lo único que nos permite reconocerlo: si no lo presenta, no le pueden aplicar el ${formatearPorcentaje(input.porcentaje)}.`,
+    `⚠️ *Dígalo o muestre esta imagen en caja antes de pagar.* Si no lo presenta, no le pueden aplicar el ${pct}.${vence}`,
   ].join("\n");
+}
+
+/** Días que dura el cupón después de la visita (o de emitirlo, si no hay visita). */
+export const DIAS_VIGENCIA_CUPON = 7;
+
+const ZONA_QUITO = "America/Guayaquil";
+
+/**
+ * Hasta cuándo vale: fin del día, hora de Quito, una semana después de la
+ * visita prometida — o de hoy, si la visita ya pasó o no hay. Desde la visita
+ * y no desde hoy porque quien agenda para dentro de diez días no puede llegar
+ * con el cupón vencido.
+ */
+export function vigenciaDelCupon(input: { ahora: Date; visita?: Date | null }): Date {
+  const base = input.visita && input.visita > input.ahora ? input.visita : input.ahora;
+  const local = new TZDate(base, ZONA_QUITO);
+  const fin = new TZDate(
+    local.getFullYear(), local.getMonth(), local.getDate() + DIAS_VIGENCIA_CUPON,
+    23, 59, 59, ZONA_QUITO,
+  );
+  return new Date(fin.getTime());
+}
+
+/** «sábado 31 de octubre» — así se lee en el ticket y en la leyenda. */
+export function etiquetaVigencia(fecha: Date): string {
+  return fecha.toLocaleDateString("es-EC", {
+    timeZone: ZONA_QUITO, weekday: "long", day: "numeric", month: "long",
+  }).replace(",", "");
+}
+
+/** El 2 % en dólares, redondeado al centavo. */
+export function ahorroDelCupon(total: number, porcentaje: number): number {
+  return Math.round(total * porcentaje) / 100;
+}
+
+/** «$19.83» — con punto, igual que el resto de mensajes del bot. */
+export function formatearDolares(monto: number): string {
+  return `$${monto.toFixed(2)}`;
 }
 
 /**

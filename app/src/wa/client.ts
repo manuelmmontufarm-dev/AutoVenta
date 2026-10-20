@@ -467,8 +467,11 @@ export async function sendImage(
   png: Buffer,
   caption?: string,
   filename = "cotizacion.png",
+  // El ticket del cupón también sale desde el seguimiento, que habla como
+  // `worker`: misma política que el texto de ese seguimiento.
+  actor: "bot" | "owner" | "worker" = "bot",
 ): Promise<string | undefined> {
-  await assertConversationOutbound({ conversationId, contentType: "image", actor: "bot" });
+  await assertConversationOutbound({ conversationId, contentType: "image", actor });
   const mediaId = await uploadMedia(png, "image/png", filename);
   return graphSend("la imagen", (ch) => ({
     path: `${ch.phoneId}/messages`,

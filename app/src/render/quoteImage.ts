@@ -284,7 +284,7 @@ export async function renderMedidaGuideImage(data: MedidaGuideRenderData): Promi
   return renderPng(node, POSTER_WIDTH);
 }
 
-async function renderPng(
+export async function renderPng(
   node: SatoriNode,
   width: number,
   height?: number,
