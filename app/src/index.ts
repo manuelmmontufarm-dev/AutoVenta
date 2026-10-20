@@ -96,7 +96,7 @@ import { algunLocalAbre, getStoreHours } from "./services/settings.js";
 import {
   esPlazoDeDecision, respuestaDeCierreDelTurno, respuestaDePlazoDeDecision, tipoDeCierreDelTurno,
 } from "./domain/cierreTurno.js";
-import { esAcuseSimple } from "./domain/ofertaAceptada.js";
+import { esAcuseSimple, esPreguntaCualLeCotizo } from "./domain/ofertaAceptada.js";
 import { respuestaDirectaDeUbicacionFueraDeCobertura } from "./domain/visitaImposible.js";
 import { puedeSaludarComoPrimerContacto } from "./domain/turnoDelHumano.js";
 import { decidirQuienContesta } from "./services/turnoDelHumano.js";
@@ -415,7 +415,12 @@ const pipeline = new InboundPipeline(async ({ from, name, text: textoRecibido, w
         ?? (await tryCotizarLoElegido(
           { conversation, customerPhone: from, customerName: name, previousOutbound, mensajeCitado },
           textoConLinks,
-        ))
+        ).then((respuesta) => {
+          // «¿Cuál le cotizo, la 1, la 2 o la 3?»: el cliente sigue eligiendo,
+          // no es cierre — sin esto el candado del final le pegaba «¿a cuál local?».
+          if (esPreguntaCualLeCotizo(respuesta)) agentContext.faseOperativa = "medida_confirmada";
+          return respuesta;
+        }))
         // «Déjeme ver las opciones otra vez»: la lámina, no la cotización (12-sep).
         // Ver services/reenviarOpciones.ts.
         ?? await tryReenviarOpciones({ conversation, customerPhone: from, customerName: name }, textoConLinks)

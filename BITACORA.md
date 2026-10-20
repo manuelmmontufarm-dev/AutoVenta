@@ -1,3 +1,41 @@
+## 20-oct-2026 · El sí y la elección: el sí se reconoce, y un sí a un menú pregunta cuál
+
+**Qué:** (auditoría del 19-oct, familias 1 y 2; sprint 1 de `fix/auditoria-2026-10-20`)
+- `domain/ofertaAceptada.ts` es el único dueño de «el cliente aceptó». El acuse
+  deja de ser una lista cerrada de frases: normaliza (minúsculas, sin tildes, la
+  puntuación separa, «siii» → «si», «x favor» → «porfavor») y acepta cuando TODAS
+  las palabras son afirmación o cortesía; las negaciones van primero. Entran «Si,
+  por favor», «Si porfavor», «Claro que si», «X favor», «Si por favor q».
+- Un acuse a un MENÚ («¿Le cotizo la 1, la 2 o la 3?») no elige: `esMenuDeOpciones`
+  / `menuDeCotizarAbierto` (mira hacia atrás hasta la última oferta, porque en 28606
+  hubo otra respuesta en el medio). La ruta directa contesta «¿Cuál le cotizo, la
+  1, la 2 o la 3?» y guarda la cantidad si la dijo; en el agente,
+  `autorizaCotizacionEnEsteTurno(…, { menuSinElegir })` solo deja pasar la elección
+  (número, escalón, «la opción 2», el nombre), y `generar_cotizacion` frena con la
+  huella propia «MENÚ SIN ELEGIR». `prepararSalida` y el Guardián dicen lo mismo.
+- El sí a una oferta de UNA llanta cotiza ESA llanta sin modelo
+  (`codigoDeLoOfrecido` en `cotizarLoElegido`): en el simulador el modelo, con la
+  orden genérica, buscaba la otra medida y firmaba otra llanta (29029).
+- La equivalente de otra medida necesita un sí de verdad: la pregunta sola ya no
+  cuenta como consentimiento (27992, «Precio»), y el sí vale para la oferta viva
+  aunque no sea la última fila (`ultimaOfertaDeCotizar`). Con una sola llanta en la
+  lámina no hay menú: «Precio» no es el escalón Costo.
+- `respuestaDePreferencia`: «Y en otra marca de mejor calidad», «¿hay de mejor
+  calidad?» son preguntas, no el escalón premium (27097).
+- Candado de marca: la pregunta que nombra la llanta vale con la marca delante
+  («¿Le cotizo la *FALKEN WILDPEAK…*?») y el sí es el mismo `respondeQueSi`; la
+  regla pide preguntar una vez «No tengo <marca> en <medida>; ¿le cotizo la X?» (25741).
+- Simulador: `--hasta <ISO>` copia el chat solo hasta el turno que falló, corre el
+  reloj al presente y copia `quote_artifacts` (sin eso el candado de marca nunca
+  veía lo mostrado).
+
+**Por qué:** 47 chats con el sí perdido («Si, por favor» no entraba por la coma) y
+al menos 19 cotizaciones de lo que nadie eligió («Ok gracias» al menú cotizó la de
+$1.186,20). Las dos familias son la misma pregunta —qué aceptó el cliente— y se
+contestaban en tres listas distintas; ahora hay una.
+
+**Horas:** 3
+
 ## 19-oct-2026 · El cupón del 2 % sale como ticket con QR, también en el último seguimiento
 
 **Qué:** El cupón deja de ser un texto suelto y sale como imagen de ticket
@@ -2392,6 +2430,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-10-20 | _(este mismo)_ | El sí y la elección: acuse por palabras, un sí a un menú pregunta cuál, la equivalente pide su sí | 3 |
 | 2026-09-28 | _(este mismo)_ | Ganados fantasma, elegir con palabras, corrección podada, menú con varias medidas | 3,5 |
 | 2026-09-08 | _(este mismo)_ | El aro alcanza: detector ancho, lámina por ruta directa, la guía no reemplaza opciones | 1.5 |
 | 2026-09-07 | _(este mismo)_ | Elegir es cotizar (aro incluido), «otro día» pregunta el día, la lámina no se reenvía por una pregunta | 3.5 |

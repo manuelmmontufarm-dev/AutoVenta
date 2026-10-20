@@ -28,7 +28,7 @@ import {
   ordenDeRecotizarCantidad, ordenDeResponderElEscalon, pidioCotizacionExplicita,
   pidioHumanoExplicito, preguntaTecnicaDeRespaldo,
 } from "../domain/consultaConRespaldo.js";
-import { esAcuseSimple } from "../domain/ofertaAceptada.js";
+import { esAcuseSimple, hechoDeMenuSinElegir, menuDeCotizarAbierto } from "../domain/ofertaAceptada.js";
 import { ultimoTurnoDelBot } from "../domain/cotizarLaUnica.js";
 import { respaldoCompleto } from "../domain/respaldoMarcas.js";
 import { preguntaElLocal } from "../domain/storeSelection.js";
@@ -52,7 +52,7 @@ import { activeBenefitFactsBlock } from "../services/benefits.js";
 import { aroDeLaMedida, medidaEstaPedida } from "../domain/medidaPedida.js";
 import { medidasDelPedido } from "../services/medidasDelPedido.js";
 import {
-  escalonContestado, esRespuestaDelMenuDePreferencia, ETIQUETA_DEL_ESCALON, extractExplicitQuantity,
+  autorizaCotizacionEnEsteTurno, escalonContestado, esRespuestaDelMenuDePreferencia, ETIQUETA_DEL_ESCALON, extractExplicitQuantity,
   extractVehicleYear, respuestaDePreferencia, type Escalones,
 } from "../domain/salesIntent.js";
 import { findByCode, searchByText } from "../services/catalog.js";
@@ -226,6 +226,9 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
   const aceptoOfertaPendiente = !ctx.aceptoCotizacion
     && ofertaDeCotizacionVigenteAceptada(history, userText);
   if (aceptoOfertaPendiente) ctx.aceptoCotizacion = true;
+  // ¿Quedó un menú de cotizar sin contestar? Con él abierto solo ELEGIR autoriza
+  // `generar_cotizacion` (auditoría 19-oct, familia 2). Ver `menuDeCotizarAbierto`.
+  ctx.menuSinElegir = menuDeCotizarAbierto(history);
   const textosDelCliente = [
     ...history.filter((m) => m.role === "user").map((m) => m.content),
     userText,
@@ -540,9 +543,13 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
   // el número abría este camino y la palabra iba al modelo como sugerencia:
   // en 3 de 14 respuestas al menú el modelo no cotizó (convs 15193, 14577,
   // 15031) y el candado siguiente ofreció OTRO escalón. Ver `escalonContestado`.
+  // Con UNA sola llanta en la lámina no hubo menú: «Precio» no es el escalón
+  // «Costo» (auditoría 19-oct, chat 27992).
+  const opcionesEnLaLamina = new Set(Object.values(salesFacts.escalones ?? {})
+    .map((o) => o?.codigo).filter(Boolean)).size;
   const escalonSinReply =
     !escalonPorReply && !ctx.medidaSinConfirmar && salesFacts.escalones
-      ? escalonContestado(userText, textoUltimoDelBot, null, { huboMenu: true })
+      ? escalonContestado(userText, textoUltimoDelBot, null, { huboMenu: opcionesEnLaLamina >= 2 })
       : null;
   const opcionPorLista = escalonSinReply && posicionElegidaDeLaLista !== null
     && /¿le cotizo la 1/i.test(textoUltimoDelBot ?? "")
@@ -553,6 +560,14 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
     ?? (escalonSinReply
       ? salesFacts.escalones?.[escalonSinReply === "precio" ? "economica" : escalonSinReply] ?? null
       : null);
+  // EL CLIENTE CONTESTÓ EL MENÚ SIN ELEGIR: un acuse, una cantidad, un
+  // «quiero» o un «cotícela» que sin menú habrían autorizado, pero que no dicen
+  // cuál. El hecho dice lo mismo que el candado de `generar_cotizacion`.
+  const menuContestadoSinElegir = (ctx.menuSinElegir ?? 0) >= 2
+    && !ctx.aceptoCotizacion
+    && !autorizaCotizacionEnEsteTurno(userText, false, { menuSinElegir: true })
+    && (esAcuseSimple(userText) || autorizaCotizacionEnEsteTurno(userText, false));
+  if (menuContestadoSinElegir) usedTools.push("menu_sin_elegir");
   let vueltaForzadaUsada = false;
   let recordatorioDeObligacion: string | null = null;
   const bloquesVolatiles: ChatCompletionMessageParam[] = [
@@ -561,6 +576,8 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
       ? [{ role: "system" as const, content: ordenDeCotizarYa(userText) }] : []),
     ...(ordenDeEquivalente && !acuseTrasObjecion
       ? [{ role: "system" as const, content: ordenDeEquivalente }] : []),
+    ...(menuContestadoSinElegir
+      ? [{ role: "system" as const, content: hechoDeMenuSinElegir(userText, ctx.menuSinElegir ?? 3) }] : []),
     ...(!aceptoLaOferta && aceptoOfertaPendiente
       ? [{ role: "system" as const, content: recordatorioDeOfertaPendiente(userText) }]
       : []),
@@ -773,7 +790,7 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
       // ¿La obligación determinística del turno quedó sin cumplir? Una vuelta
       // más, con el recordatorio pegado al final, y de nuevo el control.
       const debeCotizar = (pidioCotizar || cantidadCambia || ctx.aceptoCotizacion || ctx.recomendacionEntregada)
-        && !ctx.medidaSinConfirmar
+        && !ctx.medidaSinConfirmar && !menuContestadoSinElegir
         && !usedTools.includes("generar_cotizacion");
       const debeNotificar = pidioHumano && !usedTools.includes("notificar_vendedor");
       const debeBuscarPorAro = aroDelTurno !== null
@@ -855,7 +872,7 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
       // se fue por aquí sin pasar por la vuelta forzada.
       const obligacionPendiente =
         ((pidioCotizar || cantidadCambia || ctx.aceptoCotizacion || ctx.recomendacionEntregada)
-          && !ctx.medidaSinConfirmar
+          && !ctx.medidaSinConfirmar && !menuContestadoSinElegir
           && !usedTools.includes("generar_cotizacion"))
         || (pidioHumano && !usedTools.includes("notificar_vendedor"));
       if (exact && obligacionPendiente && !vueltaForzadaUsada && !ctx.consultaFueraDeCatalogo) {

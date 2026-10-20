@@ -125,6 +125,7 @@ bot sigue desde ahí, como si el cliente acabara de escribir.
 | Bandera | Qué hace |
 |---|---|
 | `--copiar-conv N` | Arranca con una conversación real de producción. |
+| `--hasta ISO` | Con `--copiar-conv`, copia solo lo anterior a ese instante (para repetir el turno que falló). |
 | `--catalogo-fresco` | Vuelve a bajar la foto del catálogo de Contífico. |
 | `--sin-prod` | No toca producción: siembra la configuración por defecto. |
 | `--sin-alinear` | Usa la configuración del `.env` en vez de la de producción. |
