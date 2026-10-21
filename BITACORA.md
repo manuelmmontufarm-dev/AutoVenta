@@ -1,3 +1,42 @@
+## 21-oct-2026 · Cierre de la auditoría del 19-oct: siete familias, cinco sprints, revisión final
+
+**Qué:** (coordinación de `fix/auditoria-2026-10-20`, sobre `d464c64` de producción)
+- Sprint 1 (F1 el «sí» no reconocido + F2 cotiza sin elección): la oferta de
+  cotizar se guarda como HECHO (`metadata.oferta`) en las tres puertas y el sí
+  se lee contra el hecho; el «¿Cuál le cotizo…?» se garantiza DESPUÉS del
+  Guardián. Sprint 2 (F4 pausas mudas): `bot_paused_reason`, revisión del asesor
+  que no nace vencida, un solo reinicio, retoma a las 48 h con alerta. Sprint 3
+  (F3 medida escrita): un lector de medidas, hecho `medida_escrita`, la ficha
+  toma la última medida escrita, la guía no sale a quien ya escribió la suya.
+  Sprint 4 (F6 seguimientos + F5 fechas): lector único de fechas (con «próximo»
+  atado a su día y cláusulas negativas), seguimientos que leen hechos. Sprint 5
+  (F7 casos sueltos): corte del turno, cobertura como hecho, «ya compré» con
+  pedido nuevo no cierra, equivalencias XL/carga.
+- Revisión final del diff total (77 archivos): sin bloqueantes; 4 hallazgos
+  importantes y 8 menores, todos arreglados en su sprint salvo uno anotado como
+  pendiente (`respondiendoAlDia` sigue leyendo el último texto del bot: hecho
+  «preguntamos el día» = sprint propio).
+- Replay 3× de TODAS las conversaciones de las siete familias sobre la rama
+  integrada: 52 chats reales + 19 sanos, 297 corridas. Dos chats pasaron 1/3 en
+  la primera pasada (28606: el Guardián reescribía el «¿cuál le cotizo?»;
+  29523: guía de medida a quien ya la escribió) y 3/3 después del retoque.
+- Costo de la conversación estándar: producción $0,1231 → rama $0,0973 (−21 %;
+  Guardián 4 → 3 llamadas).
+- Informe: `docs/reportes-historicos/2026-10-21-arreglos-auditoria.html`.
+
+**Por qué:** regla nueva de la revisión: el estado se escribe como hecho cuando
+nace, nunca se recupera leyendo el texto del bot; cada familia se repite tres
+veces; la próxima auditoría (28-oct) mide el embudo (chats → cotización → día →
+visita), no solo familias.
+
+**Pendientes conocidos:** 1.903 pausas 'infinity' en producción sin limpiar
+(decisión del usuario); «Me gusta la Falken» / «Si por la de 194.30» no se leen
+como elección; 26218 (medida del repuesto, kPa, código de otro modelo tras
+«Okey»); 27914 reoferta en el turno; test `interbotSync` falla solo los
+miércoles (también en main).
+
+**Horas:** 6 (coordinación y revisión)
+
 ## 21-oct-2026 · La guía de medida no sale a quien ya escribió la suya, aunque el modelo diga que la pidió
 
 **Qué:** (replay final de la coordinadora sobre `fix/auditoria-2026-10-20`, sprint 3)
@@ -2986,7 +3025,7 @@ Ya viene activado en este equipo.
 | 2026-07-14 | ac09171 | Ubicaciones de locales + análisis de features del cliente | 1.5 |
 | 2026-07-13 | feadf57 | Brief + plan de desarrollo + plan financiero + catálogo | 4.0 |
 | 2026-07-13 | d997844 | Commit inicial (repo) | 0.25 |
-| | | **TOTAL** | **~153,5 h** |
+| | | **TOTAL** | **~159,5 h** |
 
 ---
 
