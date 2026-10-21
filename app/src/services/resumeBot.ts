@@ -1,4 +1,5 @@
 import { runAgent } from "../agent/agent.js";
+import { metadataDeOferta } from "./ofertaVigente.js";
 import { enviarTicketDeCupon } from "./coupons.js";
 import type { AgentContext } from "../agent/tools.js";
 import { classifyStage } from "../agent/classifier.js";
@@ -7,7 +8,7 @@ import { sendCustomerText } from "../wa/client.js";
 import { isBotActive } from "./botPower.js";
 import { appendMessage, type Conversation } from "./conversations.js";
 import { markDiscountNoticeSent } from "./discountOffers.js";
-import { prepararSalida } from "./prepararSalida.js";
+import { prepararSalida, type ContextoDeSalida } from "./prepararSalida.js";
 import { createBotAlert, scheduleConversationFollowUps } from "./followUps.js";
 import { emitLiveEvent } from "./liveEvents.js";
 import { authorizeConversationOutbound } from "./whatsappPolicy.js";
@@ -102,16 +103,21 @@ export async function resumeBotIfUnanswered(conversationId: number): Promise<Res
     // herramientas: la fuga del JSON crudo que se tapó el 27-ago en `index.ts`
     // seguía viva por aquí, y el aviso de stock corto no salía nunca. Ver
     // services/prepararSalida.ts.
-    const salida = await prepararSalida(reply, {
+    const contextoDeSalida: ContextoDeSalida = {
       conversation, tipo: "retomada", huella: ctx.toolTrace ?? [], faseOperativa: ctx.faseOperativa,
-      textoDelCliente: claimed.last_text, inicioDelTurno,
-    });
+      textoDelCliente: claimed.last_text, inicioDelTurno, ofertaDelTurno: ctx.ofertaDelTurno ?? null,
+    };
+    const salida = await prepararSalida(reply, contextoDeSalida);
     // Un candado bloqueó el envío (duplicado/atascado): ya alertó al asesor y
     // para el que llama esto equivale a que no había nada seguro que responder.
     if (!salida.texto) return "nothing_pending";
     const providerId = await sendCustomerText(conversationId, claimed.phone, salida.texto);
+    // La oferta de cotizar se guarda como hecho al enviarla (ver services/ofertaVigente.ts).
+    const metadatoDeOferta = await metadataDeOferta(
+      conversationId, claimed.current_cycle, salida.texto, contextoDeSalida.ofertaDelTurno,
+    );
     await appendMessage(conversationId, "assistant", salida.texto, providerId, {
-      authorKind: "bot", status: "sent", metadata: { resumedAfterHuman: true },
+      authorKind: "bot", status: "sent", metadata: { resumedAfterHuman: true, ...metadatoDeOferta },
     });
     await enviarTicketDeCupon({
       conversationId, cycle: claimed.current_cycle, to: claimed.phone, emitidoDesde: cuponesDesde,

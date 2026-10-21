@@ -29,6 +29,8 @@ import {
   pidioHumanoExplicito, preguntaTecnicaDeRespaldo,
 } from "../domain/consultaConRespaldo.js";
 import { esAcuseSimple, hechoDeMenuSinElegir, menuDeCotizarAbierto } from "../domain/ofertaAceptada.js";
+import { aceptaLaOferta, opcionesDelMenuAbierto } from "../domain/ofertaVigente.js";
+import { leerOfertaVigente } from "../services/ofertaVigente.js";
 import { ultimoTurnoDelBot } from "../domain/cotizarLaUnica.js";
 import { respaldoCompleto } from "../domain/respaldoMarcas.js";
 import { preguntaElLocal } from "../domain/storeSelection.js";
@@ -210,25 +212,32 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
   // El marcador de «la única» se busca en TODO el último turno del bot: el
   // «¿Se la cotizo?» sale en su propia fila, aparte de «Es la única que tengo…».
   const turnoDelBot = ultimoTurnoDelBot(history);
-  const aceptoLaOferta = ofertaDeCotizarAceptada(
-    typeof ultimoDelBot?.content === "string" ? ultimoDelBot.content : null,
-    userText,
-    turnoDelBot,
-  );
-  ctx.aceptoOfertaComercial = aceptoLaOferta;
-  ctx.aceptoCotizacion = ofertaDeCotizacionAceptada(
-    typeof ultimoDelBot?.content === "string" ? ultimoDelBot.content : null,
-    userText,
-    turnoDelBot,
-  );
-  // La oferta que quedó pendiente uno o dos turnos atrás también cuenta
-  // (T115 conv 9684, 30-ago): el acuse la acepta mientras no haya negativa.
-  const aceptoOfertaPendiente = !ctx.aceptoCotizacion
-    && ofertaDeCotizacionVigenteAceptada(history, userText);
+  const textoDelUltimoBot = typeof ultimoDelBot?.content === "string" ? ultimoDelBot.content : null;
+  // QUÉ SE OFRECIÓ SE LEE DEL HECHO guardado al enviar la oferta (regla del
+  // 20-oct, `domain/ofertaVigente.ts`). La lectura del texto queda solo como
+  // respaldo para hilos anteriores al deploy (y lo deja en el log).
+  const ofertaLeida = await leerOfertaVigente(ctx.conversation.id, ctx.conversation.current_cycle);
+  let aceptoOfertaPendiente: boolean;
+  if (ofertaLeida.fuente === "hecho") {
+    ctx.aceptoCotizacion = ofertaLeida.turnosAtras === 0 && aceptaLaOferta(ofertaLeida, userText);
+    // La oferta de uno o dos turnos atrás (T115 conv 9684, 30-ago): con otra
+    // respuesta en el medio, solo el sí fuerte la acepta.
+    aceptoOfertaPendiente = !ctx.aceptoCotizacion && ofertaLeida.turnosAtras > 0 && aceptaLaOferta(ofertaLeida, userText);
+    // ¿Quedó un menú de cotizar sin contestar? Con él abierto solo ELEGIR
+    // autoriza `generar_cotizacion` (auditoría 19-oct, familia 2).
+    ctx.menuSinElegir = opcionesDelMenuAbierto(ofertaLeida);
+  } else {
+    ctx.aceptoCotizacion = ofertaDeCotizacionAceptada(textoDelUltimoBot, userText, turnoDelBot);
+    aceptoOfertaPendiente = !ctx.aceptoCotizacion && ofertaDeCotizacionVigenteAceptada(history, userText);
+    ctx.menuSinElegir = menuDeCotizarAbierto(history);
+  }
   if (aceptoOfertaPendiente) ctx.aceptoCotizacion = true;
-  // ¿Quedó un menú de cotizar sin contestar? Con él abierto solo ELEGIR autoriza
-  // `generar_cotizacion` (auditoría 19-oct, familia 2). Ver `menuDeCotizarAbierto`.
-  ctx.menuSinElegir = menuDeCotizarAbierto(history);
+  // La oferta amplia (también de opciones o comparación) sigue su lectura de
+  // siempre; pero si hay un hecho de cotizar vigente, manda el hecho.
+  const aceptoLaOferta = ofertaLeida.fuente === "hecho" && ofertaLeida.oferta
+    ? Boolean(ctx.aceptoCotizacion) && !aceptoOfertaPendiente
+    : ofertaDeCotizarAceptada(textoDelUltimoBot, userText, turnoDelBot);
+  ctx.aceptoOfertaComercial = aceptoLaOferta;
   const textosDelCliente = [
     ...history.filter((m) => m.role === "user").map((m) => m.content),
     userText,
@@ -463,9 +472,14 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
   if (equivalentesEnPantalla && !salesFacts.lastQuote && !ctx.consultaFueraDeCatalogo && !pidioHumano) {
     if (ctx.aceptoCotizacion || aceptoLaOferta) {
       // La llanta que el bot mismo nombró en su pregunta, si la nombró.
-      const nombrada = textoUltimoDelBot.match(/¿\s*(?:le|se\s+las?)\s+cotizo\s+las?\s+\*([^*]+)\*/i)?.[1]?.trim().toUpperCase() ?? null;
+      // Con hecho guardado, la llanta ofrecida es la del hecho; el texto, solo respaldo.
+      const codigoOfrecido = ofertaLeida.fuente === "hecho" ? ofertaLeida.oferta?.codigo ?? null : null;
+      const nombrada = ofertaLeida.fuente === "hecho"
+        ? null
+        : textoUltimoDelBot.match(/¿\s*(?:le|se\s+las?)\s+cotizo\s+las?\s+\*([^*]+)\*/i)?.[1]?.trim().toUpperCase() ?? null;
       const candidatas = (["economica", "equilibrada", "premium"] as const).map(escalonEnPantalla).filter(Boolean);
-      const elegida = candidatas.find((c) => nombrada && c!.nombre.toUpperCase() === nombrada)
+      const elegida = candidatas.find((c) => codigoOfrecido && c!.codigo === codigoOfrecido)
+        ?? candidatas.find((c) => nombrada && c!.nombre.toUpperCase() === nombrada)
         ?? candidatas.find((c) => c!.codigo === piezaPrevia?.metadata?.recomendado)
         ?? null;
       if (elegida) {

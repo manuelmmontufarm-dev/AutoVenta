@@ -70,7 +70,8 @@ import { avisarVisitaComprometida } from "./services/visitAlerts.js";
 import { emitirCuponDeConfirmacion, enviarTicketDeCupon } from "./services/coupons.js";
 import { authorizeConversationOutbound } from "./services/whatsappPolicy.js";
 import { splitBlocks } from "./services/quoteMessages.js";
-import { prepararSalida } from "./services/prepararSalida.js";
+import { prepararSalida, type ContextoDeSalida } from "./services/prepararSalida.js";
+import { metadataDeOferta } from "./services/ofertaVigente.js";
 import { AVISO_DE_TRASPASO } from "./domain/pideAsesor.js";
 import { flagRepetitiveConversation } from "./services/conversationQuality.js";
 import { notifyPendingHumanRequests } from "./services/advisorNotifications.js";
@@ -361,7 +362,7 @@ const pipeline = new InboundPipeline(async ({ from, name, text: textoRecibido, w
     try {
       const sentId = await sendCustomerText(conversation.id, from, presentacion);
       await appendMessage(conversation.id, "assistant", presentacion, sentId, {
-        authorKind: "bot", status: "sent",
+        authorKind: "bot", status: "sent", metadata: { oferta: null },
       });
       await esperar(PAUSA_ENTRE_BLOQUES_MS);
     } catch (error) {
@@ -413,7 +414,7 @@ const pipeline = new InboundPipeline(async ({ from, name, text: textoRecibido, w
           return respuesta;
         }))
         ?? (await tryCotizarLoElegido(
-          { conversation, customerPhone: from, customerName: name, previousOutbound, mensajeCitado },
+          { conversation, customerPhone: from, customerName: name, previousOutbound, mensajeCitado, registro: agentContext },
           textoConLinks,
         ).then((respuesta) => {
           // «¿Cuál le cotizo, la 1, la 2 o la 3?»: el cliente sigue eligiendo,
@@ -463,15 +464,23 @@ const pipeline = new InboundPipeline(async ({ from, name, text: textoRecibido, w
   // valga igual por las cuatro puertas por las que el bot le habla a un cliente
   // —esta, `resumeBot` y `followUpProcessor`— y no solo por esta. El orden y su
   // porqué están allí, en `PASOS`.
-  const salida = await prepararSalida(reply, {
+  const contextoDeSalida: ContextoDeSalida = {
     conversation, tipo: "respuesta", huella: agentContext.toolTrace ?? [],
     textoDelCliente: textoConLinks, faseOperativa: agentContext.faseOperativa, inicioDelTurno,
     suprimirEmpujeComercial: Boolean(
       cierreAntesDeHerramientas || cierreDelTurno || plazoDeDecision || ubicacionFueraDeCobertura,
     ),
     consultaFueraDeCatalogo: agentContext.consultaFueraDeCatalogo,
-  });
+    // Lo que la puerta ya sabe que ofreció (la equivalente, el menú, «¿Cuál…?»).
+    ofertaDelTurno: agentContext.ofertaDelTurno ?? null,
+  };
+  const salida = await prepararSalida(reply, contextoDeSalida);
   if (!salida.texto) return;
+  // LA OFERTA SE GUARDA COMO HECHO AL ENVIARLA (regla del 20-oct): el «sí» del
+  // turno siguiente la lee de acá, no del texto. Va en el último bloque enviado.
+  const metadatoDeOferta = await metadataDeOferta(
+    conversation.id, conversation.current_cycle, salida.texto, contextoDeSalida.ofertaDelTurno,
+  );
 
   // Varios mensajes cortos en vez de uno largo: es como escribe el vendedor
   // humano de los chats que el cliente puso de ejemplo. Los bloques los separa
@@ -525,6 +534,9 @@ const pipeline = new InboundPipeline(async ({ from, name, text: textoRecibido, w
       await appendMessage(conversation.id, "assistant", bloque, sentId, {
         authorKind: "bot",
         status: "sent",
+        // Todos los bloques llevan la clave (el hecho, en el último): una fila
+        // del bot sin ella se lee como anterior al deploy (ver ofertaVigente).
+        metadata: indice === bloques.length - 1 ? metadatoDeOferta : { oferta: null },
       });
     } catch (sendError) {
       console.error(`❌ No se pudo enviar la respuesta a ${from}:`, sendError);
@@ -535,6 +547,7 @@ const pipeline = new InboundPipeline(async ({ from, name, text: textoRecibido, w
         await appendMessage(conversation.id, "assistant", restante, undefined, {
           authorKind: "bot",
           status: "failed",
+          metadata: { oferta: null },
         });
       }
       break;
@@ -608,7 +621,7 @@ async function avisarTraspasoSiLoPidio(
   const providerId = await sendCustomerText(conversationId, telefono, AVISO_DE_TRASPASO)
     .catch(() => null);
   await appendMessage(conversationId, "assistant", AVISO_DE_TRASPASO, providerId ?? undefined, {
-    authorKind: "bot", status: providerId ? "sent" : "failed",
+    authorKind: "bot", status: providerId ? "sent" : "failed", metadata: { oferta: null },
   }).catch(() => undefined);
   console.log(`🤝 Traspaso avisado en la conv ${conversationId}: el cliente pidió un asesor.`);
 }
@@ -716,7 +729,7 @@ async function recibirMensaje(
       // siguiente «hola» ya no es primer contacto y se queda sin bienvenida
       // (producción, 31-ago 17:30 y 17:36 — dos veces seguidas).
       await appendMessage(conversation.id, "assistant", MENSAJE_DE_REINICIO, sentId, {
-        authorKind: "system", status: "sent",
+        authorKind: "system", status: "sent", metadata: { oferta: null },
       });
     } catch (error) {
       console.error(`❌ No se pudo avisar del reinicio a ${from}:`, error);

@@ -39,8 +39,18 @@ contestaban en tres listas distintas; ahora hay una.
   y a la equivalente; «¿La premium?» sigue eligiendo (el «?» solo ya no veta); y
   el menú se cierra si el cliente ya eligió antes y el bot no pudo cotizar por
   otra traba.
+- Regla nueva de Manuel (misma fecha): la oferta de cotizar es un HECHO, no una
+  lectura del historial. Dueño único `domain/ofertaVigente.ts`: al enviar, las
+  tres puertas que guardan salientes (turno, retomada, seguimiento) escriben
+  `metadata.oferta` (`{ clase: "una" | "menu", codigo, medida, opciones,
+  cantidad }`) con lo que la puerta declaró (`preparar_opciones`, la equivalente
+  y la marca de `generar_cotizacion`, «¿Cuál…?» de la ruta directa y de
+  `prepararSalida`) o, si no declaró nada, lo detectado UNA vez en el texto que
+  sale. El agente, la ruta directa, el consentimiento de la equivalente, el
+  candado de marca y el Guardián («OFERTA VIGENTE: …») leen el hecho; la lectura
+  del texto queda solo para hilos anteriores al deploy y lo dice en el log.
 
-**Horas:** 3,5
+**Horas:** 5
 
 ## 19-oct-2026 · El cupón del 2 % sale como ticket con QR, también en el último seguimiento
 
@@ -2436,7 +2446,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
-| 2026-10-20 | _(este mismo)_ | El sí y la elección: acuse por palabras, un sí a un menú pregunta cuál, la equivalente pide su sí | 3,5 |
+| 2026-10-20 | _(este mismo)_ | El sí y la elección: acuse por palabras, un sí a un menú pregunta cuál, la equivalente pide su sí; la oferta como hecho | 5 |
 | 2026-09-28 | _(este mismo)_ | Ganados fantasma, elegir con palabras, corrección podada, menú con varias medidas | 3,5 |
 | 2026-09-08 | _(este mismo)_ | El aro alcanza: detector ancho, lámina por ruta directa, la guía no reemplaza opciones | 1.5 |
 | 2026-09-07 | _(este mismo)_ | Elegir es cotizar (aro incluido), «otro día» pregunta el día, la lámina no se reenvía por una pregunta | 3.5 |

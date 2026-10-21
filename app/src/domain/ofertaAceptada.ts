@@ -188,6 +188,9 @@ function soloAfirmacionYCortesia(todas: readonly string[]): boolean {
 const ES_PRESENTACION = ES_PRESENTACION_DEL_NEGOCIO;
 
 /** Un «no» a secas nunca es un sí, por más corto que sea. */
+export function esNegativaCorta(mensajeDelCliente: string): boolean {
+  return NEGATIVA_CORTA.test(normalizar(mensajeDelCliente));
+}
 const NEGATIVA_CORTA = /^(?:no|nop|nel|no\s+gracias|todavia\s+no|aun\s+no|ahorita\s+no|por\s+ahora\s+no|mejor\s+no|otro\s+dia|luego|despues|mas\s+tarde)[\s.,!]*$/;
 
 /**

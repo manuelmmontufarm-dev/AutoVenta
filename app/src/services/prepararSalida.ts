@@ -36,6 +36,7 @@ import { avisoRegistradoEnElTurno, registrarConsultaPrometida } from "./avisoAlA
 import type { Stage } from "./conversations.js";
 import { lastOutboundText } from "./conversations.js";
 import { esAcuseSimple, esPreguntaCualLeCotizo } from "../domain/ofertaAceptada.js";
+import type { OfertaDeCotizar } from "../domain/ofertaVigente.js";
 import { applyOutboundGuard } from "./outboundGuard.js";
 import { revisarConGuardian, type HuellaHerramienta, type RevisionGuardian } from "./guardian.js";
 import { asegurarAvisoDeStock } from "./stockCorto.js";
@@ -149,6 +150,12 @@ export interface ContextoDeSalida {
   suprimirEmpujeComercial?: boolean;
   /** La intención vigente es un servicio que no está en el catálogo de llantas. */
   consultaFueraDeCatalogo?: boolean;
+  /**
+   * La oferta de cotizar que la puerta YA SABE que hizo (la equivalente, el
+   * menú, «¿Cuál le cotizo…?»). Los pasos que reescriben la pregunta la
+   * actualizan; quien guarda el saliente la usa para el hecho (`services/ofertaVigente.ts`).
+   */
+  ofertaDelTurno?: OfertaDeCotizar | null;
 }
 
 export interface PasoDeSalida {
@@ -270,7 +277,10 @@ export const PASOS: readonly PasoDeSalida[] = [
       );
       if (frenoDelMenu) {
         const pregunta = /«(¿Cuál le cotizo[^»]*)»/.exec(frenoDelMenu.resultado)?.[1];
-        if (pregunta) return preguntaCualTrasMenuSinElegir(texto, pregunta);
+        if (pregunta) {
+          ctx.ofertaDelTurno = { tipo: "oferta_de_cotizar", clase: "menu", opciones: /la 3/.test(pregunta) ? 3 : 2 };
+          return preguntaCualTrasMenuSinElegir(texto, pregunta);
+        }
       }
       const bloqueo = huella.some(
         (paso) => paso.herramienta === "generar_cotizacion"

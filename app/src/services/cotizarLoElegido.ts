@@ -40,6 +40,8 @@ import {
   codigoDeLoOfrecido, menuDeCotizarAbierto, ofertaDeCotizacionAceptada, preguntaCualLeCotizo, soloAcuseOCantidad,
 } from "../domain/ofertaAceptada.js";
 import { ultimoTurnoDelBot } from "../domain/cotizarLaUnica.js";
+import { aceptaLaOferta, opcionesDelMenuAbierto, type OfertaDeCotizar } from "../domain/ofertaVigente.js";
+import { leerOfertaVigente } from "./ofertaVigente.js";
 
 export interface CotizarLoElegidoContext {
   conversation: AgentContext["conversation"];
@@ -47,6 +49,8 @@ export interface CotizarLoElegidoContext {
   customerName?: string;
   previousOutbound: string | null;
   mensajeCitado?: string | null;
+  /** Dónde anotar la oferta que este camino hace (se guarda como hecho al enviar). */
+  registro?: { ofertaDelTurno?: OfertaDeCotizar | null };
 }
 
 interface Escalon { codigo?: string; nombre?: string; precio_con_iva?: number }
@@ -230,21 +234,32 @@ export async function tryCotizarLoElegido(ctx: CotizarLoElegidoContext, texto: s
     .filter((p): p is NonNullable<typeof p> => Boolean(p))
     .map((p) => ({ codigo: p.code, marca: p.brand ?? "", diseno: p.design ?? "", medida: p.sizeLabel ?? null }));
   const escalones = (pieza?.metadata?.escalones ?? null) as Escalones | null;
-  const recientes = await sql<{ role: string; content: string | null }[]>`
-    select role, content from messages
-    where conversation_id=${ctx.conversation.id} and cycle=${ctx.conversation.current_cycle}
-    order by created_at desc, id desc limit 16
-  `;
-  const menuAbierto = menuDeCotizarAbierto([...recientes].reverse());
+  // QUÉ SE OFRECIÓ SE LEE DEL HECHO guardado al enviar la oferta (regla del
+  // 20-oct, `domain/ofertaVigente.ts`), no del texto del bot.
   // EL SÍ A LA OFERTA DE UNA LLANTA COTIZA ESA LLANTA (auditoría 19-oct,
   // familia 1): «Si, por favor» a «…FALKEN WILDPEAK A/T TRAIL… ¿Se la cotizo?»
   // firma la Falken, aquí, sin que el modelo vuelva a buscar (chat 29029).
-  const enOrden = [...recientes].reverse();
-  while (enOrden.length > 1 && enOrden.at(-1)?.role === "user" && enOrden.at(-2)?.role === "user") enOrden.pop();
-  const turnoDelBot = ultimoTurnoDelBot(enOrden);
-  const ofrecido = ofertaDeCotizacionAceptada(ctx.previousOutbound, texto, turnoDelBot)
-    ? codigoDeLoOfrecido(turnoDelBot, vitrina)
-    : null;
+  const leida = await leerOfertaVigente(ctx.conversation.id, ctx.conversation.current_cycle);
+  let menuAbierto: number;
+  let ofrecido: string | null;
+  if (leida.fuente === "hecho") {
+    menuAbierto = opcionesDelMenuAbierto(leida);
+    ofrecido = aceptaLaOferta(leida, texto) ? leida.oferta?.codigo ?? null : null;
+  } else {
+    // Respaldo para hilos anteriores al deploy: la lectura vieja del texto.
+    const recientes = await sql<{ role: string; content: string | null }[]>`
+      select role, content from messages
+      where conversation_id=${ctx.conversation.id} and cycle=${ctx.conversation.current_cycle}
+      order by created_at desc, id desc limit 16
+    `;
+    const enOrden = [...recientes].reverse();
+    menuAbierto = menuDeCotizarAbierto(enOrden);
+    while (enOrden.length > 1 && enOrden.at(-1)?.role === "user" && enOrden.at(-2)?.role === "user") enOrden.pop();
+    const turnoDelBot = ultimoTurnoDelBot(enOrden);
+    ofrecido = ofertaDeCotizacionAceptada(ctx.previousOutbound, texto, turnoDelBot)
+      ? codigoDeLoOfrecido(turnoDelBot, vitrina)
+      : null;
+  }
   const elegido = loQueEligio(texto, ctx.previousOutbound, ctx.mensajeCitado, vitrina, escalones, menuAbierto)
     ?? (ofrecido ? { codigo: ofrecido, etiqueta: null } : null);
   if (ofrecido && elegido && "codigo" in elegido && elegido.codigo === ofrecido) {
@@ -255,6 +270,12 @@ export async function tryCotizarLoElegido(ctx: CotizarLoElegidoContext, texto: s
   if ("pregunta" in elegido && elegido.menuSinElegir) {
     console.log(`🔢 Menú sin elegir en la conv ${ctx.conversation.id}: «${texto.slice(0, 40)}» no dice cuál; se pregunta.`);
     if (elegido.cantidad) await updateConversationFacts(ctx.conversation.id, { selectedQuantity: elegido.cantidad });
+    if (ctx.registro) {
+      ctx.registro.ofertaDelTurno = {
+        tipo: "oferta_de_cotizar", clase: "menu", opciones: menuAbierto,
+        ...(elegido.cantidad ? { cantidad: elegido.cantidad } : {}),
+      };
+    }
     await logFunnelEvent(ctx.conversation.id, "respuesta_directa", { route: "menu_sin_elegir" }).catch(() => undefined);
     return elegido.pregunta;
   }
@@ -292,7 +313,7 @@ export async function tryCotizarLoElegido(ctx: CotizarLoElegidoContext, texto: s
   if (!producto) return null;
   // El número que eligió el escalón no es una cantidad (chat 18134).
   const cantidad = cantidadDelTexto(texto, ctx.previousOutbound, ctx.mensajeCitado) ?? facts.selectedQuantity ?? 4;
-  const tools = buildTools({
+  const contextoDeHerramienta: AgentContext = {
     conversation: ctx.conversation,
     customerPhone: ctx.customerPhone,
     customerName: ctx.customerName,
@@ -301,7 +322,8 @@ export async function tryCotizarLoElegido(ctx: CotizarLoElegidoContext, texto: s
     // Elegir de la lámina ES la autorización (misma señal que el agente pone).
     aceptoCotizacion: true,
     recomendacionEntregada: true,
-  });
+  };
+  const tools = buildTools(contextoDeHerramienta);
   const tool = tools.find((t) => t.function.name === "generar_cotizacion");
   if (!tool) return null;
   let salida: { enviada?: boolean; error?: string; siguiente_paso?: string } & Record<string, unknown>;
@@ -317,6 +339,8 @@ export async function tryCotizarLoElegido(ctx: CotizarLoElegidoContext, texto: s
     const pregunta = /«([^»]*¿[^»]*cotizo[^»]*\?)»/i.exec(salida.siguiente_paso ?? "")?.[1];
     if (pregunta) {
       console.log(`🛑 Lo elegido necesita su sí en la conv ${ctx.conversation.id}: ${salida.error?.slice(0, 120)}`);
+      // La herramienta declaró qué llanta pregunta (equivalente o marca): eso se guarda.
+      if (ctx.registro && contextoDeHerramienta.ofertaDelTurno) ctx.registro.ofertaDelTurno = contextoDeHerramienta.ofertaDelTurno;
       return pregunta;
     }
     console.log(`↩️ Lo elegido no se pudo cotizar directo en la conv ${ctx.conversation.id} (${salida.error?.slice(0, 120)}); sigue el agente.`);

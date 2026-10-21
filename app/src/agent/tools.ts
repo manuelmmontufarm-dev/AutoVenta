@@ -87,6 +87,8 @@ import { extractFlotationSizes, formatFlotationSize, formatTireSize, parseTireSi
 import { marcaPreguntada, pidioCotizacionExplicita, ultimaMarcaPedida } from "../domain/consultaConRespaldo.js";
 import { armarLista, confirmacionDeLaOpcion, opcionPorPosicion, posicionElegida } from "../domain/listaDeOpciones.js";
 import { cotizarLaUnicaDeUnaVez, ultimoTurnoDelBot } from "../domain/cotizarLaUnica.js";
+import { consienteEsta, type OfertaDeCotizar } from "../domain/ofertaVigente.js";
+import { leerOfertaVigente } from "../services/ofertaVigente.js";
 import { traeMarcaDelMenu, autorizaCotizacionEnEsteTurno, canGenerateFinalQuote, cantidadParaPrepararOpciones, describeUso, escalonesDeOpciones, pideAlternativaMasBarata, pideRecomendacion, respuestaDePreferencia, pideOpcionesNoCotizacion } from "../domain/salesIntent.js";
 import { equivalenteSinConsentimiento, preguntaDeEquivalente } from "../domain/equivalentePendiente.js";
 import { aroDadoPorElCliente, medidaParaElSello, medidaNoDada, medidasDelAro } from "../domain/medidaConfirmada.js";
@@ -155,6 +157,12 @@ export interface AgentContext {
    * abierto, solo ELEGIR autoriza `generar_cotizacion` (auditoría 19-oct, familia 2).
    */
   menuSinElegir?: number;
+  /**
+   * La oferta de cotizar que este turno hizo y ya sabe nombrar (la equivalente
+   * con su código, el menú con sus opciones). Se guarda como hecho al enviar
+   * (`services/ofertaVigente.ts`); el «sí» del turno siguiente la lee de ahí.
+   */
+  ofertaDelTurno?: OfertaDeCotizar | null;
   /** `preparar_opciones` entregó una recomendación con precio en este turno:
    *  la cotización de 4 sale sola, sin pedir permiso (Manuel, 31-ago). */
   recomendacionEntregada?: boolean;
@@ -2344,6 +2352,20 @@ export function buildTools(ctx: AgentContext) {
           : undefined,
       });
       const cierreTraePermisoDeCotizar = /Es la única que tengo/.test(cierreDeOpciones) && /¿Se la cotizo\?/.test(cierreDeOpciones);
+      // LA OFERTA QUE ESTE CIERRE HACE, DECLARADA (regla del 20-oct): se guarda
+      // como hecho al enviar y el «sí» del turno siguiente la lee de ahí.
+      const opcionesDistintasDeLaPieza = new Set(products.map((p) => p.code)).size;
+      if (!ctx.medidaSinConfirmar && (!autorizaCotizar || consentimientoPendiente)) {
+        if (entregarRecomendacion) {
+          ctx.ofertaDelTurno = {
+            tipo: "oferta_de_cotizar", clase: "una", codigo: entregada.code,
+            ...(entregada.sizeLabel ? { medida: entregada.sizeLabel } : {}),
+            ...(opcionesDistintasDeLaPieza === 1 ? { unica: true } : {}),
+          };
+        } else if (opcionesDistintasDeLaPieza >= 2) {
+          ctx.ofertaDelTurno = { tipo: "oferta_de_cotizar", clase: "menu", opciones: Math.min(opcionesDistintasDeLaPieza, 3) };
+        }
+      }
       return JSON.stringify({
         imagen_enviada: visual.ok,
         // Va primero a propósito: la huella que lee el guardián recorta el
@@ -2652,6 +2674,7 @@ export function buildTools(ctx: AgentContext) {
       // cotizar», que el Guardián y `prepararSalida` convierten en «¿Se la cotizo?».
       if (!autorizada && menuSinElegir && !ctx.consultaFueraDeCatalogo) {
         console.log(`🔢 Cotización frenada en la conv ${ctx.conversation.id}: menú sin elegir («${(ctx.currentUserText ?? "").slice(0, 40)}»).`);
+        ctx.ofertaDelTurno = { tipo: "oferta_de_cotizar", clase: "menu", opciones: ctx.menuSinElegir ?? 3 };
         return JSON.stringify({
           error: "MENÚ SIN ELEGIR: el cliente no dijo cuál de las opciones quiere (un acuse o una cantidad no eligen). No se cotiza ninguna.",
           siguiente_paso: `Contesta lo que haya preguntado y cierra, sola en su bloque, con «${preguntaCualLeCotizo(ctx.menuSinElegir ?? 3)}». PROHIBIDO elegir por él o anunciar una cotización.`,
@@ -2762,6 +2785,8 @@ export function buildTools(ctx: AgentContext) {
        * bodega sí están — que es el caso más común. Se avisa.
        */
       let stockCorto: { stock_hoy: number; solicitadas: number } | null = null;
+      // Qué ofreció el bot, del HECHO guardado al enviar (regla del 20-oct).
+      const ofertaLeida = await leerOfertaVigente(ctx.conversation.id, ctx.conversation.current_cycle);
       for (const item of items) {
         const candidatos = await resolvePresentedProduct(ctx.conversation.id, item.code);
         if (candidatos.length > 1) {
@@ -2841,7 +2866,9 @@ export function buildTools(ctx: AgentContext) {
         const eligioDeLaPantalla = presentados.some((p) => p.code === product.code) && (
           respuestaDePreferencia(ctx.currentUserText ?? "") !== null
           || (senalada?.tipo === "una" && senalada.opcion.codigo === product.code)
-          || (preguntaPorEsta && acepta)
+          || (ofertaLeida.fuente === "hecho"
+            ? consienteEsta(ofertaLeida, { codigo: product.code, medida: product.sizeLabel }, ctx.currentUserText ?? "")
+            : preguntaPorEsta && acepta)
         );
         if (marcaPedidaVigente && !(product.brand ?? "").toUpperCase().includes(marcaPedidaVigente) && eligioDeLaPantalla) {
           console.log(`✅ Cambio de marca aceptado en pantalla en la conv ${ctx.conversation.id}: ${marcaPedidaVigente} → ${product.brand} ${product.design}`);
@@ -2880,6 +2907,12 @@ export function buildTools(ctx: AgentContext) {
             items = [{ ...items[0], code: delaMarca.code }];
             product = delaMarca;
           } else {
+            if (candidatosDeMarca.length === 0) {
+              ctx.ofertaDelTurno = {
+                tipo: "oferta_de_cotizar", clase: "una", codigo: product.code,
+                ...(product.sizeLabel ? { medida: product.sizeLabel } : {}),
+              };
+            }
             return JSON.stringify({
               error: `MARCA PEDIDA: el cliente pidió ${marcaPedidaVigente} y esta llanta es ${product.brand ?? "de otra marca"}. No se cotiza otra marca en silencio.`,
               ...(candidatosDeMarca.length > 1
@@ -2963,11 +2996,15 @@ export function buildTools(ctx: AgentContext) {
           `;
           const enOrdenOferta = [...filasParaOferta].reverse();
           const ultimoDelBotTexto = [...enOrdenOferta].reverse().find((f) => f.role === "assistant")?.content ?? null;
-          if (equivalenteSinConsentimiento({
+          // Con el hecho guardado, el consentimiento es «la oferta vigente nombró
+          // ESTA llanta y dijo que sí»; el texto del bot ya no se relee.
+          const consienteLaOfrecida = ofertaLeida.fuente === "hecho"
+            && consienteEsta(ofertaLeida, { codigo: product.code, medida: product.sizeLabel }, ctx.currentUserText ?? "");
+          if (!consienteLaOfrecida && equivalenteSinConsentimiento({
             medidaProducto: product.sizeLabel,
             nombreProducto: `${product.brand} ${product.design}`,
             medidasDelCliente: medidasEscritas,
-            ultimoMensajeDelBot: ultimaOfertaDeCotizar(enOrdenOferta) ?? ultimoDelBotTexto,
+            ultimoMensajeDelBot: ofertaLeida.fuente === "hecho" ? null : ultimaOfertaDeCotizar(enOrdenOferta) ?? ultimoDelBotTexto,
             textoDelCliente: ctx.currentUserText,
             textosDelCliente: textosDeLaVisita,
             aroDelCliente: aroDadoPorElCliente(textosDeLaVisita),
@@ -2977,6 +3014,10 @@ export function buildTools(ctx: AgentContext) {
               medida: product.sizeLabel ?? null,
             });
             console.log(`🛑 Equivalente sin consentimiento en la conv ${ctx.conversation.id}: ${product.brand} ${product.design} ${product.sizeLabel}`);
+            ctx.ofertaDelTurno = {
+              tipo: "oferta_de_cotizar", clase: "una", codigo: product.code,
+              ...(product.sizeLabel ? { medida: product.sizeLabel } : {}),
+            };
             return JSON.stringify({
               error: `EQUIVALENTE SIN SU SÍ: ${product.brand} ${product.design} es ${product.sizeLabel} y el cliente pidió ${medidasEscritas.join(" o ") || "otra medida"}; todavía no aceptó esa medida. No se cotiza.`,
               siguiente_paso: equivaleAAlguna(medidasEscritas, product.sizeLabel) || !medidasEscritas.length
