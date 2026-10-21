@@ -26,17 +26,28 @@ const EN_OTRO_LADO = /\b(?:en|con|a)\s+(?:otro|otra)\s+(?:lado|lugar|parte|tiend
  * y, al reabrir, el saludo de cero sobre la medida vieja. La primera mitad
  * cuenta una compra pasada; la segunda es la venta de hoy, y manda.
  *
- * Un pedido es un verbo de necesidad o de cotizar, o una pregunta. «Ya compré
- * las llantas 205/60R16, gracias» sigue siendo un cierre: la medida describe
- * lo comprado, no pide nada.
+ * Un pedido es un verbo de necesidad o de cotizar, o una pregunta (con signos,
+ * o con la palabra interrogativa al empezar la frase). «Ya compré las llantas
+ * 205/60R16, gracias» sigue siendo un cierre: la medida describe lo comprado.
  */
-const PEDIDO_NUEVO =
-  /\b(?:necesit\w*|quier[oe]n?|quisiera|busc[oa]|ocup[oa]|cotiz\w*|cotic\w*|tiene[ns]?|hay|cuanto|a como|precio)\b/;
+const VERBO_DE_PEDIDO =
+  /\b(?:necesit\w*|quier[oe]n?|quisiera|busc(?:o|amos)|ocup(?:o|amos)|cotiz\w*|cotic\w*|puedo\s+pagar|se\s+puede\s+pagar)\b/;
+
+/**
+ * La pregunta escrita sin signos («cuánto me salen las traseras», «tienen
+ * alineación»): la palabra interrogativa ABRE la frase. Suelta en el medio no
+ * pide nada —«gracias por el precio», «ya tiene las llantas mi carro», «hay que
+ * volver»— y esas despedidas tienen que seguir cerrando (revisión final, 21-oct).
+ */
+const PREGUNTA_SIN_SIGNOS =
+  /(?:^|[.,;:!\n])\s*(?:y\s+)?(?:cuant[oa]s?|a\s+como|tienen|hay\s+(?!que\b)|me\s+(?:da|dan|hace|hacen|sale|salen))\b/;
 
 /** El mensaje trae algo que pedir, además de lo que cuente. Lo usan el cierre y el clasificador. */
 export function traePedidoNuevo(text: string): boolean {
-  // `normalize` borra los signos: la pregunta se mira en el texto crudo.
-  return /[?¿]/.test(text) || PEDIDO_NUEVO.test(normalize(text));
+  if (/[?¿]/.test(text)) return true;
+  // Sin quitar los signos: la frase se reconoce por dónde empieza.
+  const conSignos = text.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  return VERBO_DE_PEDIDO.test(conSignos) || PREGUNTA_SIN_SIGNOS.test(conSignos);
 }
 
 export function isExplicitPurchaseConfirmation(text: string): boolean {

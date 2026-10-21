@@ -66,6 +66,10 @@ pantalla). Lo que tiene que ser cierto va después de quien reescribe.
   mismo mensaje pide algo (verbo de necesidad o de cotizar, o una pregunta). El clasificador
   (`agent/classifier.ts`) tampoco acepta el «ganado» del modelo con un pedido nuevo en el mensaje.
   «Ya compré, gracias» y «Ya compré las llantas 205/60R16, muchas gracias» siguen cerrando.
+  **Revisión final (21-oct):** `traePedidoNuevo` era demasiado ancho —«precio», «tiene», «hay» y
+  «cuánto» sueltos contaban como pedido, y «Ya compré, gracias por el precio» o «Ya las compré, ya
+  tiene las llantas mi carro» dejaban de cerrar—. Ahora pide un verbo de pedido o una pregunta: con
+  signos, o con la palabra interrogativa al abrir la frase («…, cuánto me salen las traseras»).
 - **B · La equivalente tiene que servirle** (`domain/equivalencia.ts`, el juez): `requisitoDeCarga`
   (Extra Load / XL / índice escrito junto a su medida; la de repuesto no cuenta), `cargaAlcanza` (con
   índice se compara; XL sin índice exige XL y no más angosta), `direccionVigente` (la última «más
