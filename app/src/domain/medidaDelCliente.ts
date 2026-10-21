@@ -44,9 +44,40 @@ export function medidasEscritasPorElCliente(textos: readonly (string | null | un
  */
 export const CLAVE_MEDIDA_ESCRITA = "medida_escrita";
 
-/** Lo que se guarda en el hecho al recibir el mensaje. */
+/**
+ * Lo que se guarda en el hecho al recibir el mensaje: las medidas del texto,
+ * con la que el cliente escribió AL FINAL en el último lugar.
+ *
+ * El lector devuelve primero las métricas y después las de flotación, así que
+ * su orden no es el del texto. Para encontrar la última escrita se prueban los
+ * finales del mensaje desde cada palabra, del más corto al más largo: el
+ * primero que trae una medida del mensaje entero la contiene. (Se exige que
+ * esté en la lista completa: el final «12.50 R15» de «33 x 12.50 R15» se lee
+ * solo como una convencional que el mensaje no trae.)
+ */
 export function medidasParaElHecho(texto: string | null | undefined): string[] {
-  return texto ? medidasEnTexto(texto) : [];
+  if (!texto) return [];
+  const todas = medidasEnTexto(texto);
+  if (todas.length < 2) return todas;
+  for (let i = texto.length - 1; i >= 0; i--) {
+    if (i > 0 && !/\s/.test(texto[i - 1])) continue;
+    const ultima = medidasEnTexto(texto.slice(i)).filter((m) => todas.includes(m)).at(-1);
+    if (ultima) return [...todas.filter((m) => m !== ultima), ultima];
+  }
+  return todas;
+}
+
+/**
+ * LA MEDIDA DE UN MENSAJE PARA LA FICHA: la última que el cliente escribió en
+ * él. «tengo 205/55R16 pero quiero 215/55R16» → 215/55R16, la que quiere.
+ *
+ * Regla única (revisión final de la coordinadora, 21-oct): la usan el turno al
+ * recibir el mensaje (`index.ts`) y el agente al anotar el hecho
+ * (`medidaNuevaParaLaFicha`). Antes uno guardaba la primera y el otro la
+ * última, y la ficha dependía de quién escribía después.
+ */
+export function medidaEscritaEnElMensaje(texto: string | null | undefined): string | null {
+  return medidasParaElHecho(texto).at(-1) ?? null;
 }
 
 /**
