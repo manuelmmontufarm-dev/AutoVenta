@@ -135,6 +135,7 @@ bot sigue desde ahí, como si el cliente acabara de escribir.
 | `--exact-tool-model M` `--rollout N` | Fuerza el canary del turno exacto barato. |
 | `--sin-build` | No recompila (útil cuando no cambiaste `src/`). |
 | `--verboso` | Vuelca el log del bot a la terminal (también está en la pestaña Log). |
+| `--reentrega-ms N` | Espera antes de reentregar un webhook que no devolvió 200 (Meta reentrega; por defecto 1000). |
 | `--conservar-db` | No borra la base al salir, para poder inspeccionarla. |
 | `--puerto N` | Otro puerto para la pantalla (3210 por defecto). |
 | `--telefono N` | Otro número de cliente (por defecto `593900000101`). |

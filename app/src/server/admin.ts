@@ -1617,8 +1617,8 @@ export function createAdminRouter(): express.Router {
       status: "sent",
     });
     await captureManualDiscount(id, text, sent.id);
-    await pauseBot(id);
-    await setConversationAssignee(id, "human");
+    await pauseBot(id, undefined, "persona_escribio");
+    await setConversationAssignee(id, "human", "persona_escribio");
     emitLiveEvent("message", id);
     emitLiveEvent("sync", id);
     res.json({ ok: true, id: sent.id, botPausadoHoras: config.pipeline.botPauseHours });

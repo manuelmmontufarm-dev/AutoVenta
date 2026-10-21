@@ -37,6 +37,7 @@ import { levantarGraphSim } from "./lib/graph-sim.mjs";
 import { levantarContificoSim } from "./lib/contifico-sim.mjs";
 import { variablesDeProduccion } from "./lib/entorno-prod.mjs";
 import { TABLAS_CONFIG } from "./lib/tablas.mjs";
+import { traspasoAlCorte, jobsAlCorte } from "./lib/traspaso-al-corte.mjs";
 import { buildInboundPayload, deliverWebhook } from "../loadtest/lib/meta.mjs";
 
 const aquí = dirname(fileURLToPath(import.meta.url));
@@ -56,6 +57,7 @@ const PUERTO_APP = Number(valor("puerto-bot", "3205"));
 const PUERTO_GRAPH = Number(valor("puerto-graph", "4720"));
 const PUERTO_CONTIFICO = Number(valor("puerto-contifico", "4721"));
 const DB = valor("db", "autoventa_sim");
+const REENTREGA_MS = Number(valor("reentrega-ms", "1000"));
 const APP_SECRET = "sim_app_secret";
 const PHONE_ID = "SIMPHONEID";
 /** Rango NO asignado en Ecuador: aunque algo se escapara, no hay a quién llamar. */
@@ -434,6 +436,14 @@ async function columnasJson(tabla) {
   return new Set(filas.map((f) => f.column_name));
 }
 
+async function columnasDe(tabla) {
+  const filas = await sql`
+    select column_name from information_schema.columns
+    where table_schema='public' and table_name=${tabla}
+  `;
+  return new Set(filas.map((f) => f.column_name));
+}
+
 const paraInsertar = (fila, json) =>
   Object.fromEntries(Object.entries(fila).map(([k, v]) =>
     [k, json.has(k) && v !== null ? sql.json(v) : v]));
@@ -511,10 +521,16 @@ async function copiarConversacion(urlProd, id, hasta = null) {
     // bloqueaba igual (chat 25741, 20-oct).
     const artefactos = (await prod`select * from quote_artifacts where conversation_id=${id} order by created_at`)
       .filter((a) => !corte || new Date(a.created_at) < corte);
+    // Los seguimientos del hilo, tal como estaban en el corte. Sin ellos el
+    // worker del simulador ve un chat sin plan y le agenda un `advisor_review`
+    // al arrancar — en producción ese chat ya tenía el suyo (familia 4, 20-oct).
+    const todosLosJobs = await prod`select * from follow_up_jobs where conversation_id=${id} order by created_at`;
+    const jobs = corte ? jobsAlCorte(todosLosJobs, corte) : todosLosJobs;
     if (corte) console.log(`   · cortado antes de ${corte.toISOString()}`);
 
-    const [jsonConv, jsonMsg, jsonQuote, jsonArt] = await Promise.all([
+    const [jsonConv, jsonMsg, jsonQuote, jsonArt, jsonJob] = await Promise.all([
       columnasJson("conversations"), columnasJson("messages"), columnasJson("quotes"), columnasJson("quote_artifacts"),
+      columnasJson("follow_up_jobs"),
     ]);
     // Con corte, la ficha vuelve a como estaba ANTES: la etapa sale de la
     // última transición previa, y lo que solo se llena al cotizar o agendar se
@@ -528,29 +544,59 @@ async function copiarConversacion(urlProd, id, hasta = null) {
         stage: etapa?.to_stage ?? "nuevo", status: "open", closed_reason: null, closed_at: null,
         selected_product_code: null, selected_quantity: null, nearest_store: null, visit_date: null,
         pickup_date: null, visit_time_label: null, customer_commitment: null, follow_up_reason: null,
-        offer_expires_at: null, savings_amount: null, bot_paused_until: null, assigned_to: "bot",
+        offer_expires_at: null, savings_amount: null,
       });
+      // Quién tenía el chat en el corte: la pausa de un `advisor_review` o la
+      // última palabra de una persona son justo lo que deja mudo al bot, y
+      // copiarlo siempre como «del bot» borraba el caso. Ver lib/traspaso-al-corte.mjs.
+      const traspaso = traspasoAlCorte({
+        mensajes, jobs: todosLosJobs, corte, horasDePausa: Number(env.BOT_PAUSE_HOURS ?? 6),
+      });
+      // El ciclo también vuelve al del corte: los mensajes copiados son de ese
+      // ciclo, y con el de hoy el bot leía un historial vacío (4231: ficha en
+      // el ciclo 3, mensajes en el 1).
+      const cicloAlCorte = Math.max(1, ...mensajes.map((m) => Number(m.cycle) || 1));
+      conv.current_cycle = cicloAlCorte;
+      conv.assigned_to = traspaso.assigned_to;
+      conv.bot_paused_until = traspaso.bot_paused_until;
+      if ("bot_paused_reason" in conv || (await columnasDe("conversations")).has("bot_paused_reason")) {
+        conv.bot_paused_reason = traspaso.bot_paused_reason;
+      }
+      console.log(`   · al corte el chat era de: ${traspaso.assigned_to}` +
+        (traspaso.bot_paused_until ? `, pausa hasta ${traspaso.bot_paused_until instanceof Date ? traspaso.bot_paused_until.toISOString() : traspaso.bot_paused_until} (${traspaso.bot_paused_reason})` : ""));
     }
+
     // Y el reloj se corre: el corte pasa a ser «ahora». Un hilo de hace tres
     // días tiene la memoria vencida y el bot lo reiniciaría en el primer mensaje.
     const corrimiento = corte ? Date.now() - corte.getTime() : 0;
-    const correr = (fila) => {
-      if (!corrimiento) return fila;
+    // 'infinity' llega de postgres.js como `Invalid Date`, y postgres.js no
+    // puede volver a mandarlo como parámetro (RangeError en `toISOString`, ni
+    // como Date ni como texto). Se inserta nulo y se escribe después con el
+    // literal: `infinitas` junta qué columnas de la ficha lo tenían.
+    const infinitas = [];
+    const correr = (fila, anotar = false) => {
       const copia = { ...fila };
       for (const [k, v] of Object.entries(copia)) {
-        if (v instanceof Date) copia[k] = new Date(v.getTime() + corrimiento);
+        const infinita = v === "infinity" || (v instanceof Date && Number.isNaN(v.getTime()));
+        if (infinita) {
+          copia[k] = null;
+          if (anotar) infinitas.push(k);
+        } else if (v instanceof Date && corrimiento) copia[k] = new Date(v.getTime() + corrimiento);
       }
       return copia;
     };
     if (corte) {
       conv.last_customer_message_at = [...mensajes].reverse().find((m) => m.role === "user")?.created_at ?? null;
       conv.last_assistant_message_at = [...mensajes].reverse().find((m) => m.role === "assistant")?.created_at ?? null;
-      Object.assign(conv, correr(conv));
     }
+    Object.assign(conv, correr(conv, true));
     const { id: _viejo, phone: _tel, ...resto } = conv;
     const [nueva] = await sql`
       insert into conversations ${sql(paraInsertar({ ...resto, phone: TELEFONO_CLIENTE }, jsonConv))} returning id
     `;
+    for (const col of infinitas) {
+      await sql.unsafe(`update conversations set "${col}" = 'infinity' where id = ${Number(nueva.id)}`);
+    }
     for (const m of mensajes) {
       const { id: _mid, conversation_id: _cid, ...campos } = m;
       await sql`insert into messages ${sql(paraInsertar(correr({ ...campos, conversation_id: nueva.id }), jsonMsg))}`;
@@ -564,7 +610,12 @@ async function copiarConversacion(urlProd, id, hasta = null) {
       const { id: _aid, conversation_id: _acid, quote_id: _qid, ...campos } = a;
       await sql`insert into quote_artifacts ${sql(paraInsertar(correr({ ...campos, conversation_id: nueva.id }), jsonArt))}`.catch(() => {});
     }
-    console.log(`   · ${mensajes.length} mensajes, ${cotizaciones.length} cotizaciones y ${artefactos.length} piezas mostradas → conversación ${nueva.id}`);
+    for (const j of jobs) {
+      const { id: _jid, conversation_id: _jcid, ...campos } = j;
+      await sql`insert into follow_up_jobs ${sql(paraInsertar(correr({ ...campos, conversation_id: nueva.id }), jsonJob))}`.catch((e) =>
+        console.warn(`   ⚠️ seguimiento ${j.id} no se copió: ${e.message}`));
+    }
+    console.log(`   · ${mensajes.length} mensajes, ${cotizaciones.length} cotizaciones, ${artefactos.length} piezas mostradas y ${jobs.length} seguimientos → conversación ${nueva.id}`);
   } finally {
     await prod.end();
   }
@@ -684,12 +735,22 @@ async function levantarUI({ registroBot }) {
         if (!String(texto ?? "").trim() && !adjunto && !ubicacion && !boton?.id && !sticker) {
           return json(res, 400, { error: "no hay nada que mandar" });
         }
-        const r = await deliverWebhook({
-          baseUrl: `http://127.0.0.1:${PUERTO_APP}`,
-          appSecret: APP_SECRET,
-          payload: payloadEntrante({ texto, adjunto, ubicacion, boton, sticker, anuncio }),
-        });
-        return json(res, 200, { ok: r.status === 200, status: r.status, ackMs: Math.round(r.ackMs), error: r.error ?? null });
+        // Como Meta: un webhook que no devuelve 200 se REENTREGA con el mismo
+        // id. Sin esto el simulador no veía la cadena del 14-oct (familia 4):
+        // el primer intento tiraba después de abrir el ciclo y el segundo
+        // abría otro encima. Hasta dos reentregas, a ~1 s (`--reentrega-ms`
+        // la estira: con 6000 el worker de seguimientos —cada 5 s— corre
+        // seguro en el hueco, que es la carrera que en producción salió en 5 chats).
+        const payload = payloadEntrante({ texto, adjunto, ubicacion, boton, sticker, anuncio });
+        const intentos = [];
+        let r;
+        for (let i = 0; i < 3; i++) {
+          if (i) await new Promise((ok) => setTimeout(ok, REENTREGA_MS));
+          r = await deliverWebhook({ baseUrl: `http://127.0.0.1:${PUERTO_APP}`, appSecret: APP_SECRET, payload });
+          intentos.push(r.status);
+          if (r.status === 200) break;
+        }
+        return json(res, 200, { ok: r.status === 200, status: r.status, intentos, ackMs: Math.round(r.ackMs), error: r.error ?? null });
       }
 
       if (url.pathname.startsWith("/api/pieza/")) {
@@ -1039,5 +1100,6 @@ for (const señal of ["SIGINT", "SIGTERM"]) process.once(señal, () => cerrar(0)
 
 main().catch(async (error) => {
   console.error(`\n❌ ${error?.message ?? error}`);
+  if (process.env.SIM_STACK) console.error(error?.stack);
   await cerrar(1);
 });

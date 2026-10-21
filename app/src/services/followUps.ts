@@ -5,9 +5,9 @@ import { sql } from "../db/client.js";
 import { porQueNoPasaPorElLocal } from "./dondeEstaElCliente.js";
 import {
   computeInWindowSchedule,
+  cuandoRevisaElAsesor,
   detectNegativeSentiment,
   detectOptOut,
-  nextBusinessInstant,
   type FollowUpPolicy,
 } from "../domain/followUps.js";
 import { isStage, type Stage } from "../domain/pipeline.js";
@@ -398,6 +398,27 @@ export async function scheduleConversationFollowUps(
     conversation.assigned_to === "bot" &&
     conversation.last_assistant_message_at < conversation.last_customer_message_at
   ) return;
+  // EL RELOJ ES DEL CICLO ACTUAL (familia 4, 20-oct). La reapertura no toca
+  // los `last_*`: un ciclo recién abierto, sin mensajes todavía, se veía como
+  // un chat con la ventana de agosto vencida y el `advisor_review` nacía
+  // vencido, pausando al bot en el mismo segundo en que el cliente volvía
+  // (chat 4231). Un ciclo REABIERTO (la transición de reapertura es un hecho
+  // guardado) en el que el cliente todavía no tiene mensajes no tiene plan que
+  // armar. No se compara por hora: el mensaje que reabre lleva la hora de Meta,
+  // anterior a la reapertura misma.
+  const [cicloSinCliente] = await sql<{ vacio: boolean }[]>`
+    select exists (
+      select 1 from stage_transitions t
+      where t.conversation_id = ${conversationId} and t.cycle = ${conversation.current_cycle} and t.from_stage is null
+    ) and not exists (
+      select 1 from messages m
+      where m.conversation_id = ${conversationId} and m.cycle = ${conversation.current_cycle} and m.direction = 'inbound'
+    ) as vacio
+  `;
+  if (cicloSinCliente?.vacio) return;
+  const ultimoMensajeDelCiclo = conversation.last_assistant_message_at > conversation.last_customer_message_at
+    ? conversation.last_assistant_message_at
+    : conversation.last_customer_message_at;
 
   // EL CLIENTE QUE SE DESPIDIÓ NO RECIBE RECORDATORIOS (auditoría 2-6 sep,
   // familia A1: 16 seguimientos en 8 chats después de un «no gracias», un
@@ -434,7 +455,7 @@ export async function scheduleConversationFollowUps(
 
   if (conversation.assigned_to === "human") {
     const windowClosesAt = new Date(conversation.last_customer_message_at.getTime() + 24 * 60 * 60 * 1000);
-    const dueAt = nextBusinessInstant(windowClosesAt > now ? windowClosesAt : now, policy);
+    const dueAt = cuandoRevisaElAsesor({ ventanaCierra: windowClosesAt, ultimoMensajeDelCiclo, policy, now });
     if (dueAt) await insertJob({
       conversationId, cycle: conversation.current_cycle, type: "advisor_review", channel: "advisor",
       dueAt, windowClosesAt,
@@ -478,10 +499,9 @@ export async function scheduleConversationFollowUps(
 
   // Fuera de 24 h nunca se agenda automáticamente: un asesor debe autorizar
   // explícitamente la campaña de plantillas desde Oportunidades.
-  const advisorDueAt = nextBusinessInstant(
-    new Date(Math.max(now.getTime(), schedule.windowClosesAt.getTime())),
-    policy,
-  );
+  const advisorDueAt = cuandoRevisaElAsesor({
+    ventanaCierra: schedule.windowClosesAt, ultimoMensajeDelCiclo, policy, now,
+  });
   if (advisorDueAt) await insertJob({
     conversationId, cycle: conversation.current_cycle, type: "advisor_review", channel: "advisor",
     dueAt: advisorDueAt, windowClosesAt: schedule.windowClosesAt,
@@ -551,6 +571,7 @@ export async function handleInboundFollowUpState(
           customer_opt_in = case when ${optedOut} then false else customer_opt_in end,
           negative_sentiment_at = case when ${negative} then now() else negative_sentiment_at end,
           bot_paused_until = ${pausaHasta},
+          bot_paused_reason = ${optedOut ? "opt_out" : "molesto"},
           assigned_to = 'human', updated_at = now()
         where id = ${conversationId}
       `;
@@ -576,6 +597,7 @@ export async function handleInboundFollowUpState(
     if (requestedHuman && !negative) {
       const [conversation] = await tx<{ current_cycle: number }[]>`
         update conversations set assigned_to = 'human', bot_paused_until = ${pausaDelHandoff},
+          bot_paused_reason = 'pidio_asesor',
           follow_up_reason = 'Cliente pidió atención de un asesor y todavía requiere respuesta',
           follow_up_reason_cycle = current_cycle,
           updated_at = now() where id = ${conversationId} returning current_cycle
@@ -642,6 +664,19 @@ export async function ensureActiveConversationPlans(now = new Date()): Promise<n
     where c.status = 'open' and c.opted_out_at is null and c.negative_sentiment_at is null
       and c.last_customer_message_at is not null and c.last_assistant_message_at is not null
       and (c.assigned_to = 'human' or c.last_assistant_message_at >= c.last_customer_message_at)
+      -- Un ciclo reabierto sin mensajes del cliente todavía no tiene plan
+      -- que armar (y sin este filtro ocuparía uno de los 50 lugares de cada
+      -- vuelta, cada 5 s). Ver scheduleConversationFollowUps.
+      and not (
+        exists (
+          select 1 from stage_transitions t where t.conversation_id = c.id
+            and t.cycle = c.current_cycle and t.from_stage is null
+        )
+        and not exists (
+          select 1 from messages m where m.conversation_id = c.id
+            and m.cycle = c.current_cycle and m.direction = 'inbound'
+        )
+      )
       and (
         exists (
           select 1 from follow_up_jobs legacy where legacy.conversation_id = c.id

@@ -108,7 +108,7 @@ export async function processFollowUpJob(
     await sql.begin(async (tx) => {
       await tx`
         update conversations set assigned_to='human', bot_paused_until=${pausaDelTraspaso},
-          updated_at=${now} where id=${context.id}
+          bot_paused_reason='revision_automatica', updated_at=${now} where id=${context.id}
       `;
       await tx`
         update follow_up_jobs set status='cancelled', cancel_reason='moved_to_human_review',

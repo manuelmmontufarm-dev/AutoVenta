@@ -66,6 +66,10 @@ const OPERATIVOS = new Set([
   // El reloj del chat olvidado (29-ago): el bot retomó un chat con 12 h sin
   // respuesta del asesor. Operativo, no error: es información para el asesor.
   "rescate_chat_olvidado",
+  // El bot retomó un chat pausado por la revisión automática, o con la
+  // última palabra de una persona de hace más de 48 h (familia 4, 20-oct).
+  // Operativo: el asesor se entera de que el cliente volvió y qué se le dijo.
+  "bot_retomo_el_chat",
   "customer_ready_to_buy",
   "quote_created",
   "envio_fuera_de_cobertura",

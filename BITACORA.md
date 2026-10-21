@@ -1,3 +1,60 @@
+## 20-oct-2026 · Pausas que dejan mudo al bot: una revisión automática ya no calla al cliente que escribe
+
+**Qué:** (auditoría del 19-oct, familia 4; sprint 2 de `fix/auditoria-2026-10-20`)
+- **El motivo de la pausa es un hecho** (migración `026_motivo_de_la_pausa`,
+  `conversations.bot_paused_reason`): lo escribe cada lugar que pausa —la revisión
+  de 24 h (`revision_automatica`), el pedido de asesor (`pidio_asesor`), el eco y
+  el envío desde el panel (`persona_escribio`), tomar o pausar desde el panel
+  (`panel`), opt-out y molestia—. Nulo en las pausas viejas = de una persona.
+- `domain/turnoDelHumano.ts` sigue siendo el único dueño de «quién contesta» y
+  recibe los hechos nuevos: si la pausa la puso la revisión automática y ninguna
+  persona escribió en 48 h, contesta el bot; si la última palabra de una persona
+  tiene más de 48 h (`HUMAN_TURN_HOURS`), también. En los dos casos
+  `decidirQuienContesta` le devuelve el chat al bot (si no, la política lo frena por
+  `human_control`) y deja la alerta `bot_retomo_el_chat` (operativa); la del
+  `advisor_follow_up` queda abierta. Persona en el chat, pedido de asesor, opt-out y
+  molestia: el bot calla como siempre.
+- **Un `advisor_review` nunca nace vencido** (`domain/followUps.ts`
+  `cuandoRevisaElAsesor`, la usan las dos ramas de `scheduleConversationFollowUps`):
+  si la ventana del cliente ya cerró, el reloj arranca en el último mensaje del
+  ciclo; si eso también pasó, no se agenda. Un ciclo reabierto sin mensajes del
+  cliente no arma plan (ni entra a `ensureActiveConversationPlans`).
+- **El doble reinicio, causa comprobada:** 1.903 chats abiertos tienen
+  `bot_paused_until = 'infinity'` (traspasos de antes del 28-sep). postgres.js lo
+  lee como `Invalid Date` y `reiniciarSiLaMemoriaVencio` lo devolvía con un
+  `update`: `RangeError` DESPUÉS de abrir el ciclo y ANTES de guardar el mensaje.
+  `whatsapp-api-js` se traga la excepción y responde 500 sin log; Meta reentrega y
+  la segunda entrega abría otro ciclo (98 de 242 reinicios en 40 días; log HTTP de
+  Railway del chat 22832: 500 y reentrega a los 3 s). Ahora la pausa se lee y se
+  devuelve como texto (`isfinite`, la infinita queda como «sin pausa», igual que la
+  lee JS), y un ciclo sin mensajes no se vuelve a reiniciar.
+- `devolverAlBotSiVencioLaPausa` trata la pausa infinita como vencida (en JS ya
+  lo era: el bot redactaba y la política lo frenaba).
+- Simulador: `--hasta` reconstruye quién tenía el chat en el corte (pausa de la
+  revisión —'infinity' antes del 29-sep—, pausa de persona, o del bot) y vuelve la
+  ficha al ciclo del corte; copia los `follow_up_jobs` como estaban; copia
+  'infinity' sin romperse; y reentrega como Meta un webhook que no dio 200
+  (`--reentrega-ms`).
+
+**Probado:** simulador con los chats reales cortados antes del mensaje mudo y el
+horario de la política abierto 24 h (para emular «en horario»). ANTES (sin el
+arreglo): 4231 con 500 + reentrega, ciclos 2 y 3, `advisor_review` con ventana del
+19-ago creado y ejecutado en el mismo milisegundo, bot mudo; 26121 pausado por la
+revisión real y mudo. DESPUÉS: contestan al instante 4231, 20892, 20523, 12539
+(un solo reinicio, webhook 200), 26121 y 26134 (`pausa_automatica`), 12639, 13435 y
+27377 (`humano_hace_mucho`); siguen callando 25844 (el dueño escribiendo) y el
+cliente que pide asesor.
+
+**Por qué:** 14 chats y 24 mensajes escritos en horario que esperaron entre 15 y 23 h
+a que el rescate de la mañana los devolviera al bot; en 5 nunca había hablado una
+persona. Una pausa que nadie humano pidió no puede dejar mudo a quien acaba de
+escribir, y para saber quién la pidió hay que guardarlo cuando se pausa, no
+deducirlo después. El umbral de 48 h sale de los datos de 45 días: de 27 clientes
+que volvieron más de 48 h después de la última palabra de una persona, solo a 2 les
+contestó una persona en 30 min y 21 no tuvieron respuesta humana en 24 h.
+
+**Horas:** 4
+
 ## 20-oct-2026 · El sí y la elección: el sí se reconoce, y un sí a un menú pregunta cuál
 
 **Qué:** (auditoría del 19-oct, familias 1 y 2; sprint 1 de `fix/auditoria-2026-10-20`)
@@ -2451,6 +2508,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-10-20 | _(este mismo)_ | Pausas mudas: motivo de la pausa como hecho, la revisión automática no calla al cliente, el turno humano vence a las 48 h, advisor_review no nace vencido, doble reinicio por 'infinity' | 4 |
 | 2026-10-20 | _(este mismo)_ | El sí y la elección: acuse por palabras, un sí a un menú pregunta cuál, la equivalente pide su sí; la oferta como hecho | 5,5 |
 | 2026-09-28 | _(este mismo)_ | Ganados fantasma, elegir con palabras, corrección podada, menú con varias medidas | 3,5 |
 | 2026-09-08 | _(este mismo)_ | El aro alcanza: detector ancho, lámina por ruta directa, la guía no reemplaza opciones | 1.5 |
