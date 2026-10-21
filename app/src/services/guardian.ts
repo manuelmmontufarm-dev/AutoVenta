@@ -71,6 +71,7 @@ import { tiposCompatibles, usoDeLosTextos } from "../domain/usoYTipo.js";
 import { JUEGO_COMPLETO, opcionesQueAlcanzan } from "../domain/opcionesCandados.js";
 import { tipoDeProducto } from "../domain/tireTypes.js";
 import { chatReasoningEffort } from "../agent/aiRequestPolicy.js";
+import { soloLoDelTurno } from "../pipeline/corteDelTurno.js";
 
 const openai = new OpenAI({ apiKey: config.openai.apiKey });
 
@@ -465,7 +466,7 @@ export async function armarContexto(
   // por Quito Sur» que el cliente jamás dijo en este ciclo.
   const mensajes = await sql<FilaMensaje[]>`
     select direction, author_kind, content from messages
-    where conversation_id=${conversationId} and cycle=${cycle}
+    where conversation_id=${conversationId} and cycle=${cycle} ${soloLoDelTurno()}
     order by created_at desc limit ${MENSAJES_DE_CONTEXTO}
   `;
   const [hechos] = await sql<{
@@ -523,7 +524,7 @@ export async function armarContexto(
   // fuente determinística que usan las tools (`restriccionesDeLlanta`).
   const inboundVisita = await sql<{ content: string; metadata: unknown; created_at: Date }[]>`
     select content, metadata, created_at from messages
-    where conversation_id=${conversationId} and cycle=${cycle} and direction='inbound'
+    where conversation_id=${conversationId} and cycle=${cycle} and direction='inbound' ${soloLoDelTurno()}
     order by created_at desc limit 12
   `;
   const entrantesDeLaVisita = mensajesDeLaVisitaActual(inboundVisita).map((m) => m.content);

@@ -88,6 +88,7 @@ import { findByCode } from "./catalog.js";
 import { contextoDeEquivalencias } from "./medidasDelPedido.js";
 import { sinEquivalenciasFalsas } from "../domain/equivalenciaEnTexto.js";
 import { equivalentesDevueltos } from "../domain/equivalentesPorMostrar.js";
+import { soloLoDelTurno } from "../pipeline/corteDelTurno.js";
 
 /**
  * De qué puerta viene el texto.
@@ -695,7 +696,7 @@ export const PASOS: readonly PasoDeSalida[] = [
       const entrantes = await sql<{ content: string; metadata: unknown; created_at: Date }[]>`
         select content, metadata, created_at from messages
         where conversation_id=${ctx.conversation.id} and cycle=${ctx.conversation.current_cycle}
-          and direction='inbound'
+          and direction='inbound' ${soloLoDelTurno()}
         order by created_at desc limit 20
       `;
       const medidas = [...new Set([
@@ -1348,7 +1349,7 @@ async function preguntaDeConsentimientoVigente(conversationId: number, cycle: nu
     ? await sql<{ content: string | null }[]>`
         select content from messages
         where conversation_id=${conversationId} and cycle=${cycle}
-          and direction='inbound' and created_at > ${pieza.created_at}
+          and direction='inbound' ${soloLoDelTurno()} and created_at > ${pieza.created_at}
         order by created_at asc, id asc
       `
     : [];

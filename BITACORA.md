@@ -26,7 +26,24 @@
   «cantón». Los seguimientos ya los decide el sprint 4 (`motivoParaNoSeguir`, `sinVisitaDelSeguimiento`)
   con este mismo dueño.
 
+- **D · Un turno ve solo los mensajes que atiende** (`pipeline/corteDelTurno.ts`): el pipeline corre
+  cada turno con el id del último entrante que atiende (`enElTurno`, `AsyncLocalStorage`), y los
+  lectores que corren dentro del turno lo aplican con `soloLoDelTurno()`: historial, hechos de venta
+  (`getAgentSalesFacts`), medidas del pedido, oferta vigente, herramientas, contexto del Guardián,
+  `insistirConLoQueFalta`, cotizar lo elegido, mostrar por aro. Lo que el cliente escribió mientras el
+  turno corría es del turno siguiente, que lo lee con todo. No se cortan las consultas que existen
+  para ver lo nuevo (`clienteYaEscribioDeNuevo`, la medida que llegó en el medio). Marca en el log:
+  «🧱 este turno atiende hasta el entrante N». El simulador (`scripts/sim/sim.mjs`) ahora vacía en
+  la copia con `--hasta` la medida, el vehículo y el lugar del final del chat y rehace la medida con
+  lo escrito antes del corte: la ficha copiada tal cual contaminó la primera reproducción de 29847.
+
 **Por qué:** (comprobado en la base de producción, solo lectura)
+- D · chat 29847, 19-oct: texto a las 15:33:13, audio (transcrito) guardado después de que el turno
+  del texto arrancó (id 40900 > 40899 de la presentación). **La hipótesis de dos turnos en paralelo
+  se descarta**: la cola FIFO los corrió en serie (runs 27373 y 27376). Pero el turno del texto leyó
+  `aroDelCliente` = 14 del audio ya guardado (`getAgentSalesFacts` no tenía corte; `getHistory` sí) y
+  mandó la lámina de rin 14; el del audio la volvió a contestar y cotizó 165/65R14. 26561 (13-oct): lo
+  mismo con «La medida es 185/ 65/15» → dos láminas de la misma medida.
 - A · 27932: «Enq parte de Manabi están» y «Gracias las necesito para MANABI» → Manabí no estaba en
   la lista; ficha sin lugar; mapas y dos «¿A cuál local…?». 8924: «Soy de provincia..» y «Tungurahua
   Cantón Pillaro.» → nada reconocido; tres «¿Qué día cree que puede pasar por Quito Sur?». 28916:

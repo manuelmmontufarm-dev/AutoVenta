@@ -15,6 +15,7 @@
 import { sql } from "../db/client.js";
 import { dondeEstaElCliente } from "../domain/fueraDeCobertura.js";
 import { comproADistanciaSegunLoDicho, type SinVisita } from "../domain/compraADistancia.js";
+import { soloLoDelTurno } from "../pipeline/corteDelTurno.js";
 
 export type EstadoDeCobertura = "cobertura" | "viene" | "fuera";
 
@@ -65,7 +66,7 @@ export async function dondeEstaElClienteSegunLoDicho(
   // lo que escribió, como hasta hoy.
   const entrantes = await sql<{ content: string; cycle: number }[]>`
     select content, cycle from messages
-    where conversation_id=${conversationId} and direction='inbound'
+    where conversation_id=${conversationId} and direction='inbound' ${soloLoDelTurno()}
       and created_at > now() - interval '60 days'
     order by created_at desc limit 40
   `;
@@ -104,7 +105,7 @@ export async function porQueNoPasaPorElLocal(
   }
   const delCiclo = await sql<{ content: string }[]>`
     select content from messages
-    where conversation_id=${conversationId} and cycle=${cycle} and direction='inbound'
+    where conversation_id=${conversationId} and cycle=${cycle} and direction='inbound' ${soloLoDelTurno()}
     order by created_at desc, id desc limit 20
   `;
   return comproADistanciaSegunLoDicho([textoDelCliente, ...delCiclo.map((m) => m.content)])

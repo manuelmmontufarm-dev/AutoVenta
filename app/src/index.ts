@@ -23,7 +23,8 @@ import { transcribirAudio } from "./services/transcripcion.js";
 import { conResumenDeLinks } from "./services/linkPreview.js";
 import { getPublicChannelConfig } from "./services/channel.js";
 import { getPhaseFlags, activeLevel } from "./services/phases.js";
-import { InboundPipeline } from "./pipeline/inbound.js";
+import { InboundPipeline, type InboundHandler } from "./pipeline/inbound.js";
+import { corteDelTurno, enElTurno, ultimoEntranteDe } from "./pipeline/corteDelTurno.js";
 import { runAgent } from "./agent/agent.js";
 import type { AgentContext } from "./agent/tools.js";
 import { classifyStage } from "./agent/classifier.js";
@@ -111,7 +112,9 @@ const PAUSA_ENTRE_BLOQUES_MS = 900;
 
 const esperar = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-const pipeline = new InboundPipeline(async ({ from, name, text: textoRecibido, waMessageIds, quotedWaMessageId, receivedAt }) => {
+async function atenderTurno(
+  { from, name, text: textoRecibido, waMessageIds, quotedWaMessageId, receivedAt }: Parameters<InboundHandler>[0],
+): Promise<void> {
   let text = textoRecibido;
   // Desde aquí cuenta «este turno»: lo que se registre para el asesor a partir
   // de ahora es lo único que autoriza a decir «ya avisé» (sin_aviso_inventado).
@@ -162,7 +165,9 @@ const pipeline = new InboundPipeline(async ({ from, name, text: textoRecibido, w
     select max(id) as id from messages
     where conversation_id=${conversation.id} and direction='inbound'
   `;
-  const idEntranteAlEmpezar = Number(ultimoEntranteDelTurno?.id ?? 0);
+  // Con el corte del turno, lo que llegó mientras arrancaba ya cuenta como
+  // «escribió de nuevo» (chat 29847): es del turno siguiente.
+  const idEntranteAlEmpezar = corteDelTurno() ?? Number(ultimoEntranteDelTurno?.id ?? 0);
   // «Al sur me resulta más fácil» solo es elección de local si acabamos de
   // preguntar el local — la misma lógica contextual que el día de visita.
   const respondiendoAlLocal = preguntamosElLocal(previousOutbound);
@@ -605,7 +610,12 @@ const pipeline = new InboundPipeline(async ({ from, name, text: textoRecibido, w
       if (ph.fase4) await scheduleConversationFollowUps(conversation.id);
     })
     .catch((error) => console.error("⚠️ No se pudo programar seguimiento:", error));
-});
+}
+
+// UN TURNO VE SOLO LO QUE ATIENDE (chats 29847 y 26561): lo que el cliente
+// escribió mientras este turno corría es del siguiente. Ver pipeline/corteDelTurno.ts.
+const pipeline = new InboundPipeline(async (job) =>
+  enElTurno(await ultimoEntranteDe(job.waMessageIds), () => atenderTurno(job)));
 
 /**
  * EL PEDIDO DE ASESOR NO SE CONTESTA CON SILENCIO.

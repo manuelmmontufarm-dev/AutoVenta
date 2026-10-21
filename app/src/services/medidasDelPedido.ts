@@ -29,6 +29,7 @@ import {
   CLAVE_MEDIDA_ESCRITA, medidaEnDisputa, medidaNuevaParaLaFicha, medidasParaElHecho,
 } from "../domain/medidaDelCliente.js";
 import { medidasPermitidas, mensajesDeLaVisitaActual } from "../domain/medidaPedida.js";
+import { soloLoDelTurno } from "../pipeline/corteDelTurno.js";
 
 /** Cuántos mensajes del cliente se miran hacia atrás antes de cortar por silencio. */
 const INBOUND_A_REVISAR = 20;
@@ -41,7 +42,7 @@ export async function medidasDelPedido(
   const [inbound, [pieza], [conversacion]] = await Promise.all([
     sql<{ content: string; created_at: Date }[]>`
       select content, created_at from messages
-      where conversation_id=${conversationId} and cycle=${cycle} and direction='inbound'
+      where conversation_id=${conversationId} and cycle=${cycle} and direction='inbound' ${soloLoDelTurno()}
       order by created_at desc limit ${INBOUND_A_REVISAR}
     `,
     sql<{ metadata: { equivalentes?: unknown } | null }[]>`
@@ -91,7 +92,7 @@ export async function contextoDeEquivalencias(
   const [inbound, [conversacion]] = await Promise.all([
     sql<{ content: string; created_at: Date }[]>`
       select content, created_at from messages
-      where conversation_id=${conversationId} and cycle=${cycle} and direction='inbound'
+      where conversation_id=${conversationId} and cycle=${cycle} and direction='inbound' ${soloLoDelTurno()}
       order by created_at desc limit ${INBOUND_A_REVISAR}
     `,
     sql<{ tire_size: string | null }[]>`
@@ -124,7 +125,7 @@ export async function medidaEnDisputaDelPedido(
 ): Promise<{ foto: string; escrita: string } | null> {
   const filas = await sql<{ content: string | null; direction: string; created_at: Date }[]>`
     select content, direction, created_at from messages
-    where conversation_id=${conversationId} and cycle=${cycle}
+    where conversation_id=${conversationId} and cycle=${cycle} ${soloLoDelTurno()}
     order by created_at desc limit 40
   `;
   const mensajes = mensajesDeLaVisitaActual(filas)
@@ -155,7 +156,7 @@ export async function anotarMedidasEscritas(
   const sinHecho = await sql<{ id: number; content: string | null; created_at: Date }[]>`
     select id, content, created_at from messages
     where conversation_id=${conversationId} and cycle=${cycle}
-      and direction='inbound' and author_kind='customer'
+      and direction='inbound' ${soloLoDelTurno()} and author_kind='customer'
       and not (metadata ? ${CLAVE_MEDIDA_ESCRITA})
     order by created_at asc
     limit 40

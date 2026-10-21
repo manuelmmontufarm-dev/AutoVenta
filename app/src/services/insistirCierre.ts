@@ -21,6 +21,7 @@ import { esCierreComercialDelTurno } from "../domain/cierreTurno.js";
 import { PREGUNTA_DE_LOCAL, preguntaElLocal } from "../domain/storeSelection.js";
 import { buildVisitPlanQuestion, composeBlocks, MAX_BLOCKS } from "./quoteMessages.js";
 import type { Stage } from "./conversations.js";
+import { soloLoDelTurno } from "../pipeline/corteDelTurno.js";
 
 /** El mismo separador que parte el turno en mensajes (`splitBlocks`). */
 const BLOCK_SEPARATOR_RE = /\n\s*-{3,}\s*\n/;
@@ -38,7 +39,7 @@ async function ultimoTextoDelBot(conversationId: number, cycle: number): Promise
       and role='assistant' and type='text' and author_kind='bot'
       and id < coalesce((
         select max(id) from messages
-        where conversation_id=${conversationId} and cycle=${cycle} and direction='inbound'
+        where conversation_id=${conversationId} and cycle=${cycle} and direction='inbound' ${soloLoDelTurno()}
       ), 9223372036854775807)
     order by created_at desc, id desc limit 1
   `;
@@ -135,11 +136,11 @@ export async function insistirConLoQueFalta(
     select 1 as x from messages m
     where m.conversation_id=${conversationId} and m.cycle=${cycle}
       and m.metadata->>'piece' = 'options'
-      and m.created_at > (select max(created_at) from messages where conversation_id=${conversationId} and direction='inbound')
+      and m.created_at > (select max(created_at) from messages where conversation_id=${conversationId} and direction='inbound' ${soloLoDelTurno()})
       and not exists (
         select 1 from quotes q
         where q.conversation_id=${conversationId} and q.cycle=${cycle}
-          and q.created_at > (select max(created_at) from messages where conversation_id=${conversationId} and direction='inbound'))
+          and q.created_at > (select max(created_at) from messages where conversation_id=${conversationId} and direction='inbound' ${soloLoDelTurno()}))
     limit 1
   `;
   if (soloMostro) return { texto, agregado: null };

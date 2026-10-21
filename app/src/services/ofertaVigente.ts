@@ -16,6 +16,7 @@ import { findByCode } from "./catalog.js";
 import {
   ofertaEnElTexto, ofertaVigente, type FilaDelHilo, type OfertaDeCotizar, type OfertaLeida, type OpcionDeLamina,
 } from "../domain/ofertaVigente.js";
+import { soloLoDelTurno } from "../pipeline/corteDelTurno.js";
 
 /** La última lámina del ciclo, para resolver qué llanta nombra la oferta. */
 async function laminaVigente(conversationId: number, cycle: number): Promise<OpcionDeLamina[]> {
@@ -69,7 +70,7 @@ export async function leerOfertaVigente(
     role: string; content: string | null; metadata: Record<string, unknown> | null; author_kind: string | null; type: string | null;
   }[]>`
     select role, content, metadata, author_kind, type from messages
-    where conversation_id=${conversationId} and cycle=${cycle}
+    where conversation_id=${conversationId} and cycle=${cycle} ${soloLoDelTurno()}
     order by created_at desc, id desc limit 24
   `;
   let hilo: FilaDelHilo[] = [...filas].reverse();

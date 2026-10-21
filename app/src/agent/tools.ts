@@ -137,6 +137,7 @@ import { resendLatestQuoteImage } from "../services/directSalesRoutes.js";
 import { restriccionesDeLlanta, violaRestriccionesDeLlanta } from "../domain/restriccionesLlanta.js";
 import type { CandidatoFitment } from "../domain/fitmentResearch.js";
 import type { FitmentResearchResult } from "../services/vehicleFitmentResearch.js";
+import { soloLoDelTurno } from "../pipeline/corteDelTurno.js";
 
 export interface AgentContext {
   conversation: Conversation;
@@ -853,7 +854,7 @@ export function buildTools(ctx: AgentContext) {
       select content, created_at from messages
       where conversation_id=${ctx.conversation.id}
         and cycle=${ctx.conversation.current_cycle}
-        and direction='inbound'
+        and direction='inbound' ${soloLoDelTurno()}
       order by created_at desc limit 12
     `;
     return usoDeLosTextos([ctx.currentUserText, ...mensajesDeLaVisitaActual(dichos).map((m) => m.content)])
@@ -933,7 +934,7 @@ export function buildTools(ctx: AgentContext) {
       const entrantesDelCiclo = await sql<{ content: string }[]>`
         select content from messages
         where conversation_id=${ctx.conversation.id} and cycle=${ctx.conversation.current_cycle}
-          and direction='inbound'
+          and direction='inbound' ${soloLoDelTurno()}
         order by created_at desc limit 12
       `;
       const [fichaDeMedida] = await sql<{ tire_size: string | null }[]>`
@@ -1123,7 +1124,7 @@ export function buildTools(ctx: AgentContext) {
       const dichoEnLaVisita = await sql<{ content: string }[]>`
         select content from messages
         where conversation_id=${ctx.conversation.id} and cycle=${ctx.conversation.current_cycle}
-          and direction='inbound'
+          and direction='inbound' ${soloLoDelTurno()}
         order by created_at desc limit 12
       `;
       const esDeCamioneta = !tipo && claseDeVehiculoEnTexto([
@@ -1157,7 +1158,7 @@ export function buildTools(ctx: AgentContext) {
         select content, created_at from messages
         where conversation_id=${ctx.conversation.id}
           and cycle=${ctx.conversation.current_cycle}
-          and direction='inbound'
+          and direction='inbound' ${soloLoDelTurno()}
         order by created_at desc limit 12
       `;
       const restricciones = restriccionesDeLlanta([
@@ -1400,7 +1401,7 @@ export function buildTools(ctx: AgentContext) {
       if (!lo_pidio_el_cliente) {
         const entrantes = await sql<{ content: string; metadata: unknown; created_at: Date }[]>`
           select content, metadata, created_at from messages
-          where conversation_id=${ctx.conversation.id} and cycle=${ctx.conversation.current_cycle} and direction='inbound'
+          where conversation_id=${ctx.conversation.id} and cycle=${ctx.conversation.current_cycle} and direction='inbound' ${soloLoDelTurno()}
           order by created_at desc limit 20
         `;
         const escritas = [...new Set(mensajesDeLaVisitaActual(entrantes).flatMap((m) => medidasDelMensaje(m)))];
@@ -1416,7 +1417,7 @@ export function buildTools(ctx: AgentContext) {
       const aroDelCiclo = aro ?? aroDadoPorElCliente(
         (await sql<{ content: string }[]>`
           select content from messages
-          where conversation_id=${ctx.conversation.id} and cycle=${ctx.conversation.current_cycle} and direction='inbound'
+          where conversation_id=${ctx.conversation.id} and cycle=${ctx.conversation.current_cycle} and direction='inbound' ${soloLoDelTurno()}
           order by created_at asc
         `).map((m) => m.content),
       );
@@ -1591,7 +1592,7 @@ export function buildTools(ctx: AgentContext) {
       const entrantesDeLaVisita = await sql<{ content: string; created_at: Date }[]>`
         select content, created_at from messages
         where conversation_id=${ctx.conversation.id} and cycle=${ctx.conversation.current_cycle}
-          and direction='inbound'
+          and direction='inbound' ${soloLoDelTurno()}
         order by created_at desc limit 12
       `;
       const textosDeLaVisita = [
@@ -1727,7 +1728,7 @@ export function buildTools(ctx: AgentContext) {
         select content, created_at from messages
         where conversation_id=${ctx.conversation.id}
           and cycle=${ctx.conversation.current_cycle}
-          and direction='inbound'
+          and direction='inbound' ${soloLoDelTurno()}
         order by created_at desc limit 12
       `;
       const restricciones = restriccionesDeLlanta([
@@ -1960,7 +1961,7 @@ export function buildTools(ctx: AgentContext) {
           -- cliente. Una pieza de un turno anterior nunca bloquea (1-sep).
           and created_at > coalesce(
             (select max(created_at) from messages
-             where conversation_id=${ctx.conversation.id} and direction='inbound'),
+             where conversation_id=${ctx.conversation.id} and direction='inbound' ${soloLoDelTurno()}),
             'epoch'::timestamptz)
         order by created_at desc limit 1
       `;
@@ -2753,7 +2754,7 @@ export function buildTools(ctx: AgentContext) {
         select content, created_at from messages
         where conversation_id=${ctx.conversation.id}
           and cycle=${ctx.conversation.current_cycle}
-          and direction='inbound'
+          and direction='inbound' ${soloLoDelTurno()}
         order by created_at asc, id asc
       `;
       const textosDeLaVisita = [
@@ -2889,7 +2890,7 @@ export function buildTools(ctx: AgentContext) {
         const filasRecientes = await sql<{ role: string; content: string | null }[]>`
           select role, content from messages
           where conversation_id=${ctx.conversation.id} and cycle=${ctx.conversation.current_cycle}
-            and type='text'
+            and type='text' ${soloLoDelTurno()}
           order by created_at desc, id desc limit 8
         `;
         const enOrden = [...filasRecientes].reverse();
@@ -3074,7 +3075,7 @@ export function buildTools(ctx: AgentContext) {
           const filasParaOferta = await sql<{ role: string; content: string | null }[]>`
             select role, content from messages
             where conversation_id=${ctx.conversation.id} and cycle=${ctx.conversation.current_cycle}
-              and type='text'
+              and type='text' ${soloLoDelTurno()}
             order by created_at desc, id desc limit 10
           `;
           const enOrdenOferta = [...filasParaOferta].reverse();
@@ -3618,7 +3619,7 @@ export function buildTools(ctx: AgentContext) {
         const entrantesDeUbicacion = await sql<{ content: string }[]>`
           select content from messages
           where conversation_id=${ctx.conversation.id} and cycle=${ctx.conversation.current_cycle}
-            and direction='inbound'
+            and direction='inbound' ${soloLoDelTurno()}
           order by created_at desc limit 12
         `;
         if (!ubicacionDadaPorElCliente({

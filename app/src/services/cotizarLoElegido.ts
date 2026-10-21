@@ -42,6 +42,7 @@ import {
 import { ultimoTurnoDelBot } from "../domain/cotizarLaUnica.js";
 import { aceptaLaOferta, opcionesDelMenuAbierto, type OfertaDeCotizar } from "../domain/ofertaVigente.js";
 import { leerOfertaVigente } from "./ofertaVigente.js";
+import { soloLoDelTurno } from "../pipeline/corteDelTurno.js";
 
 export interface CotizarLoElegidoContext {
   conversation: AgentContext["conversation"];
@@ -249,7 +250,7 @@ export async function tryCotizarLoElegido(ctx: CotizarLoElegidoContext, texto: s
     // Respaldo para hilos anteriores al deploy: la lectura vieja del texto.
     const recientes = await sql<{ role: string; content: string | null }[]>`
       select role, content from messages
-      where conversation_id=${ctx.conversation.id} and cycle=${ctx.conversation.current_cycle}
+      where conversation_id=${ctx.conversation.id} and cycle=${ctx.conversation.current_cycle} ${soloLoDelTurno()}
       order by created_at desc, id desc limit 16
     `;
     const enOrden = [...recientes].reverse();
@@ -292,7 +293,7 @@ export async function tryCotizarLoElegido(ctx: CotizarLoElegidoContext, texto: s
   const entrantes = await sql<{ content: string }[]>`
     select content from messages
     where conversation_id=${ctx.conversation.id} and cycle=${ctx.conversation.current_cycle}
-      and direction='inbound'
+      and direction='inbound' ${soloLoDelTurno()}
     order by created_at desc limit 12
   `;
   const carroEnElTexto = [texto, ...entrantes.map((m) => m.content)].find((t) => mencionaVehiculo(t)) ?? null;
