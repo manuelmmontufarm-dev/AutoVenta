@@ -35,7 +35,7 @@ import { afirmaQueAviso, prometeConsultar, sinAvisoInventado } from "../domain/a
 import { avisoRegistradoEnElTurno, registrarConsultaPrometida } from "./avisoAlAsesor.js";
 import type { Stage } from "./conversations.js";
 import { lastOutboundText } from "./conversations.js";
-import { esAcuseSimple, esPreguntaCualLeCotizo } from "../domain/ofertaAceptada.js";
+import { esAcuseSimple, esPreguntaCualLeCotizo, preguntaCualLeCotizo } from "../domain/ofertaAceptada.js";
 import type { OfertaDeCotizar } from "../domain/ofertaVigente.js";
 import { applyOutboundGuard } from "./outboundGuard.js";
 import { revisarConGuardian, type HuellaHerramienta, type RevisionGuardian } from "./guardian.js";
@@ -278,16 +278,13 @@ export const PASOS: readonly PasoDeSalida[] = [
     async aplicar(texto, ctx) {
       const huella = ctx.huella ?? [];
       // Menú sin elegir (auditoría 19-oct, familia 2): la pregunta legítima
-      // es «¿Cuál le cotizo…?», la que dicta la propia herramienta.
-      const frenoDelMenu = huella.find(
-        (paso) => paso.herramienta === "generar_cotizacion" && paso.resultado.includes("MENÚ SIN ELEGIR"),
-      );
-      if (frenoDelMenu) {
-        const pregunta = /«(¿Cuál le cotizo[^»]*)»/.exec(frenoDelMenu.resultado)?.[1];
-        if (pregunta) {
-          ctx.ofertaDelTurno = { tipo: "oferta_de_cotizar", clase: "menu", opciones: /la 3/.test(pregunta) ? 3 : 2 };
-          return preguntaCualTrasMenuSinElegir(texto, pregunta);
-        }
+      // es «¿Cuál le cotizo…?». Se lee de la oferta que la puerta DECLARÓ, no de
+      // la huella de la herramienta. Va también acá, antes del Guardián, para
+      // que él revise ya la forma buena; el candado que la garantiza es
+      // `menu_sin_elegir_pregunta_cual`, después de él.
+      const menu = ctx.ofertaDelTurno;
+      if (menu?.clase === "menu" && menu.sinElegir) {
+        return preguntaCualTrasMenuSinElegir(texto, preguntaCualLeCotizo(menu.opciones ?? 3));
       }
       const bloqueo = huella.some(
         (paso) => paso.herramienta === "generar_cotizacion"
@@ -320,6 +317,7 @@ export const PASOS: readonly PasoDeSalida[] = [
           ...(afirmaQueAviso(texto)
             ? { avisoRegistrado: await avisoRegistradoEnElTurno(ctx.conversation.id, ctx.inicioDelTurno, ctx.huella ?? []) }
             : {}),
+          ofertaDelTurno: ctx.ofertaDelTurno ?? null,
         },
       );
       ctx.hallazgosDelGuardian = revision.hallazgos;
@@ -1109,6 +1107,26 @@ export const PASOS: readonly PasoDeSalida[] = [
       console.warn(`🔁 Seguimiento suprimido en la conv ${ctx.conversation.id}: calco de un mensaje ya enviado.`);
       ctx.motivoDeSupresion = "calco_del_hilo";
       return null;
+    },
+  },
+  {
+    // EL «¿CUÁL LE COTIZO…?» QUE TIENE QUE SALIR, SALE (revisión final del
+    // 21-oct). El cliente contestó el menú sin elegir y la puerta lo declaró
+    // (`ofertaDelTurno.sinElegir`). El paso de antes del Guardián ya dejó la
+    // pregunta, pero el Guardián reescribe: si la cambió por «¿Se la cotizo?» o
+    // la quitó, el cliente recibía la pregunta equivocada y el turno siguiente
+    // leía una oferta de UNA llanta sin código. Lo que tiene que ser cierto va
+    // después de quien reescribe. Antes de separar la pregunta: puede agregarla.
+    nombre: "menu_sin_elegir_pregunta_cual",
+    corre: ["respuesta", "retomada"],
+    async aplicar(texto, ctx) {
+      const menu = ctx.ofertaDelTurno;
+      if (menu?.clase !== "menu" || !menu.sinElegir) return texto;
+      const conLaPregunta = preguntaCualTrasMenuSinElegir(texto, preguntaCualLeCotizo(menu.opciones ?? 3));
+      if (conLaPregunta !== texto) {
+        console.log(`🔢 «¿Cuál le cotizo…?» restaurada después del Guardián en la conv ${ctx.conversation.id}.`);
+      }
+      return conLaPregunta;
     },
   },
   {

@@ -24,7 +24,7 @@
  * Puro: se prueba sin base y sin modelo.
  */
 import {
-  codigoDeLoOfrecido, esMenuDeOpciones, esNegativaCorta, ofreceCotizarEn, palabrasDelAcuse, respondeQueSi,
+  codigoDeLoOfrecido, esMenuDeOpciones, ofreceCotizarEn, palabrasDelAcuse, respondeQueSi, seApartoDeLaOferta,
 } from "./ofertaAceptada.js";
 import { ofrecioCotizarLaUnica } from "./cotizarLaUnica.js";
 import { eligePosicionDelMenu, pidioPrecioOCotizacion, respuestaDePreferencia } from "./salesIntent.js";
@@ -43,6 +43,12 @@ export interface OfertaDeCotizar {
   cantidad?: number;
   /** La oferta es la de la ÚNICA opción («Es la única que tengo… ¿Se la cotizo?»). */
   unica?: boolean;
+  /**
+   * El menú se vuelve a preguntar porque el cliente contestó sin elegir («Ok
+   * gracias», «Las 4»): la pregunta que TIENE que salir es «¿Cuál le cotizo…?»
+   * (la pone `menu_sin_elegir_pregunta_cual`, después del Guardián).
+   */
+  sinElegir?: boolean;
 }
 
 /** Lo que el detector necesita saber de la última lámina para resolver la llanta nombrada. */
@@ -88,6 +94,20 @@ export function ofertaEnElTexto(
   return detectada;
 }
 
+/**
+ * En qué bloque del turno va el hecho: el ÚLTIMO que, solo, ofrece cotizar (la
+ * pregunta). Si el envío se corta después de él —el cliente escribió de nuevo,
+ * Meta rechazó—, la oferta que el cliente SÍ leyó queda guardada; si se corta
+ * antes, no hay hecho, porque no la leyó (revisión final, 21-oct). Sin ningún
+ * bloque que ofrezca solo (la oferta repartida), va en el último.
+ */
+export function bloqueDeLaOferta(bloques: readonly string[]): number {
+  for (let i = bloques.length - 1; i >= 0; i--) {
+    if (ofertaEnElTexto(bloques[i], [])) return i;
+  }
+  return bloques.length - 1;
+}
+
 /** Una fila del hilo, como sale de `messages` (el orden es viejo → nuevo). */
 export interface FilaDelHilo {
   role: string;
@@ -113,13 +133,6 @@ export interface OfertaLeida {
   fuente: "hecho" | "respaldo";
   /** Mensajes del cliente entre la oferta y el turno actual (0 = la oferta fue el último turno del bot). */
   turnosAtras: number;
-}
-
-/** «Voy a mirar en Ibarra», «ya compré», «no gracias»: el cliente se apartó de la oferta. */
-function seApartoDeLaOferta(texto: string): boolean {
-  const n = texto.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
-  return esNegativaCorta(texto)
-    || /\bno\s+gracias\b|\bya\s+compre\b|\bya\s+no\b|\b[bv]oy\s+a\s+(?:mirar|ver|pensar|comparar)\b|\blo\s+(?:voy\s+a\s+)?pienso\b/.test(n);
 }
 
 /**

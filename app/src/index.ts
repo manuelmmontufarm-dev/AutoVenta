@@ -75,6 +75,7 @@ import { authorizeConversationOutbound } from "./services/whatsappPolicy.js";
 import { splitBlocks } from "./services/quoteMessages.js";
 import { prepararSalida, type ContextoDeSalida } from "./services/prepararSalida.js";
 import { metadataDeOferta } from "./services/ofertaVigente.js";
+import { bloqueDeLaOferta } from "./domain/ofertaVigente.js";
 import { AVISO_DE_TRASPASO } from "./domain/pideAsesor.js";
 import { flagRepetitiveConversation } from "./services/conversationQuality.js";
 import { notifyPendingHumanRequests } from "./services/advisorNotifications.js";
@@ -505,6 +506,8 @@ async function atenderTurno(
   // Envío con red de seguridad: si Meta rechaza, la respuesta queda guardada
   // como "failed" y visible en el hub — nunca se pierde en silencio.
   const bloques = splitBlocks(salida.texto);
+  // El hecho va en el bloque que CONTIENE la oferta, no siempre en el último.
+  const indiceDeLaOferta = metadatoDeOferta.oferta ? bloqueDeLaOferta(bloques) : -1;
   // Los botones van SOLO en el último bloque: son la pregunta con la que cierra
   // el turno, y dos mensajes con botones seguidos se leen como formulario.
   // `null` es la respuesta normal — la mayoría de los turnos no terminan en una
@@ -550,9 +553,9 @@ async function atenderTurno(
       await appendMessage(conversation.id, "assistant", bloque, sentId, {
         authorKind: "bot",
         status: "sent",
-        // Todos los bloques llevan la clave (el hecho, en el último): una fila
-        // del bot sin ella se lee como anterior al deploy (ver ofertaVigente).
-        metadata: indice === bloques.length - 1 ? metadatoDeOferta : { oferta: null },
+        // Todos los bloques llevan la clave (el hecho, en el de la oferta): una
+        // fila del bot sin ella se lee como anterior al deploy (ver ofertaVigente).
+        metadata: indice === indiceDeLaOferta ? metadatoDeOferta : { oferta: null },
       });
     } catch (sendError) {
       console.error(`❌ No se pudo enviar la respuesta a ${from}:`, sendError);

@@ -2729,7 +2729,7 @@ export function buildTools(ctx: AgentContext) {
       // cotizar», que el Guardián y `prepararSalida` convierten en «¿Se la cotizo?».
       if (!autorizada && menuSinElegir && !ctx.consultaFueraDeCatalogo) {
         console.log(`🔢 Cotización frenada en la conv ${ctx.conversation.id}: menú sin elegir («${(ctx.currentUserText ?? "").slice(0, 40)}»).`);
-        ctx.ofertaDelTurno = { tipo: "oferta_de_cotizar", clase: "menu", opciones: ctx.menuSinElegir ?? 3 };
+        ctx.ofertaDelTurno = { tipo: "oferta_de_cotizar", clase: "menu", opciones: ctx.menuSinElegir ?? 3, sinElegir: true };
         return JSON.stringify({
           error: "MENÚ SIN ELEGIR: el cliente no dijo cuál de las opciones quiere (un acuse o una cantidad no eligen). No se cotiza ninguna.",
           siguiente_paso: `Contesta lo que haya preguntado y cierra, sola en su bloque, con «${preguntaCualLeCotizo(ctx.menuSinElegir ?? 3)}». PROHIBIDO elegir por él o anunciar una cotización.`,
@@ -2841,7 +2841,12 @@ export function buildTools(ctx: AgentContext) {
        */
       let stockCorto: { stock_hoy: number; solicitadas: number } | null = null;
       // Qué ofreció el bot, del HECHO guardado al enviar (regla del 20-oct).
-      const ofertaLeida = await leerOfertaVigente(ctx.conversation.id, ctx.conversation.current_cycle);
+      // Cortado en el último mensaje del cliente: si en este turno ya salió una
+      // pieza (preparar_opciones), sin el corte su mensaje contaría como uno «en
+      // el medio» y un «Ok» a la equivalente no consentiría (revisión final 21-oct).
+      const ofertaLeida = await leerOfertaVigente(
+        ctx.conversation.id, ctx.conversation.current_cycle, { hastaElUltimoDelCliente: true },
+      );
       for (const item of items) {
         const candidatos = await resolvePresentedProduct(ctx.conversation.id, item.code);
         if (candidatos.length > 1) {
