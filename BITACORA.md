@@ -86,6 +86,11 @@ contestó una persona en 30 min y 21 no tuvieron respuesta humana en 24 h.
   escribió su medida, salvo que diga que no sabe dónde mirar (simulador, 29523).
 - Ajuste de la coordinadora (misma fecha): `index.ts` y `conversations.ts` no se
   tocan (Sprint 2); por eso el hecho lo anota el agente y no `appendMessage`.
+- Revisión de la coordinadora: la anotación recorre también mensajes viejos sin
+  el hecho (el día del deploy, todo chat abierto); esos se anotan, pero la ficha
+  solo la escribe una medida de un entrante posterior al último saliente
+  (`medidaNuevaParaLaFicha`). Una «195/65R15» vieja ya no pisa una ficha
+  corregida a «205/55R16».
 
 **Por qué:** al menos 12 chats: el cliente escribía la medida a mano, la ficha la
 llenaba la herramienta con lo que entendió el modelo, el lector de «¿la escribió

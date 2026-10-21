@@ -25,7 +25,9 @@
  */
 import { sql } from "../db/client.js";
 import type { ContextoEquivalencias } from "../domain/equivalenciaEnTexto.js";
-import { CLAVE_MEDIDA_ESCRITA, medidaEnDisputa, medidasParaElHecho } from "../domain/medidaDelCliente.js";
+import {
+  CLAVE_MEDIDA_ESCRITA, medidaEnDisputa, medidaNuevaParaLaFicha, medidasParaElHecho,
+} from "../domain/medidaDelCliente.js";
 import { medidasPermitidas, mensajesDeLaVisitaActual } from "../domain/medidaPedida.js";
 
 /** Cuántos mensajes del cliente se miran hacia atrás antes de cortar por silencio. */
@@ -139,26 +141,41 @@ export async function medidaEnDisputaDelPedido(
  * nadie pregunte «¿la dio él o la dedujo el bot?». Una vez anotado, el mensaje
  * no se vuelve a leer: agente, candados y Guardián le preguntan al hecho.
  *
- * Devuelve las medidas anotadas en esta pasada, para el log.
+ * Devuelve las medidas anotadas en esta pasada (para el log) y la que puede
+ * ir a la ficha: solo de entrantes posteriores al último saliente, para que
+ * anotar mensajes viejos no pise una ficha ya corregida (`medidaNuevaParaLaFicha`).
  */
-export async function anotarMedidasEscritas(conversationId: number, cycle: number): Promise<string[]> {
-  const sinHecho = await sql<{ id: number; content: string | null }[]>`
-    select id, content from messages
+export async function anotarMedidasEscritas(
+  conversationId: number,
+  cycle: number,
+): Promise<{ anotadas: string[]; paraLaFicha: string | null }> {
+  const sinHecho = await sql<{ id: number; content: string | null; created_at: Date }[]>`
+    select id, content, created_at from messages
     where conversation_id=${conversationId} and cycle=${cycle}
       and direction='inbound' and author_kind='customer'
       and not (metadata ? ${CLAVE_MEDIDA_ESCRITA})
     order by created_at asc
     limit 40
   `;
-  const anotadas: string[] = [];
+  if (!sinHecho.length) return { anotadas: [], paraLaFicha: null };
+  const [saliente] = await sql<{ created_at: Date }[]>`
+    select created_at from messages
+    where conversation_id=${conversationId} and cycle=${cycle}
+      and direction='outbound' and type <> 'note'
+    order by created_at desc limit 1
+  `;
+  const anotados: { medidas: string[]; created_at: Date }[] = [];
   for (const fila of sinHecho) {
     const medidas = medidasParaElHecho(fila.content);
-    anotadas.push(...medidas);
+    anotados.push({ medidas, created_at: fila.created_at });
     await sql`
       update messages
       set metadata = metadata || ${sql.json({ [CLAVE_MEDIDA_ESCRITA]: medidas })}
       where id=${fila.id}
     `;
   }
-  return anotadas;
+  return {
+    anotadas: anotados.flatMap((m) => m.medidas),
+    paraLaFicha: medidaNuevaParaLaFicha(anotados, saliente?.created_at ?? null),
+  };
 }

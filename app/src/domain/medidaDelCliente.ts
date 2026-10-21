@@ -63,6 +63,27 @@ export function medidasDelMensaje(
 }
 
 /**
+ * LA MEDIDA QUE PUEDE IR A LA FICHA: la última escrita en un entrante que
+ * llegó DESPUÉS de lo último que le dijimos (bot o asesor).
+ *
+ * La anotación del hecho recorre también mensajes viejos que no lo tenían
+ * (el día del deploy, todo chat abierto). Esos sí se anotan, pero no pueden
+ * pisar la ficha: si el cliente o el asesor ya la corrigieron después, una
+ * «195/65R15» de hace tres turnos volvería a ser la medida de trabajo
+ * (revisión de la coordinadora, sprint 3). Null si no hay medida nueva.
+ */
+export function medidaNuevaParaLaFicha(
+  anotados: readonly { medidas: readonly string[]; created_at: Date | string }[],
+  ultimoSaliente: Date | string | null | undefined,
+): string | null {
+  const desde = ultimoSaliente ? new Date(ultimoSaliente).getTime() : Number.NEGATIVE_INFINITY;
+  const nuevas = anotados
+    .filter((m) => new Date(m.created_at).getTime() > desde)
+    .flatMap((m) => m.medidas);
+  return nuevas.at(-1) ?? null;
+}
+
+/**
  * ¿LA MEDIDA EN JUEGO LA DEDUJO EL BOT? (Manuel, 1-sep, conv 13862.)
  *
  * Con `true` el turno puede mostrar opciones pero no cotizar, y la pieza
