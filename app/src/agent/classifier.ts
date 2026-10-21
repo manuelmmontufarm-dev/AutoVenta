@@ -9,7 +9,7 @@ import { logAiRun, setStage, type Conversation } from "../services/conversations
 import { sql } from "../db/client.js";
 import { puedeCerrarComoPerdido } from "../domain/cierrePerdido.js";
 import { STAGE_ORDER, isStage, type Stage } from "../domain/pipeline.js";
-import { isExplicitPurchaseConfirmation } from "../domain/salesIntent.js";
+import { isExplicitPurchaseConfirmation, traePedidoNuevo } from "../domain/salesIntent.js";
 
 const openai = new OpenAI({ apiKey: config.openai.apiKey });
 
@@ -110,6 +110,16 @@ Bot: ${assistantText}`,
     if (stage === "perdido" && !puedeCerrarComoPerdido(userText)) {
       console.log(
         `🛟 Cierre como perdida frenado en la conv ${conversation.id}: «${userText.slice(0, 60)}» no es un rechazo`,
+      );
+      return;
+    }
+    // «YA COMPRÉ X, AHORA NECESITO Y» (chat 462, 15-oct): el modelo lee la
+    // compra pasada igual que la leía la regla. Con un pedido nuevo en el mismo
+    // mensaje la venta de hoy sigue viva: cerrar como ganado borra el ciclo y el
+    // mensaje siguiente saluda de cero sobre la medida vieja.
+    if (stage === "ganado" && traePedidoNuevo(userText)) {
+      console.log(
+        `🛟 Cierre como ganado frenado en la conv ${conversation.id}: «${userText.slice(0, 60)}» trae un pedido nuevo`,
       );
       return;
     }

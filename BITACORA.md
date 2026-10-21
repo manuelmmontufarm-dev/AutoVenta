@@ -1,3 +1,18 @@
+## 20-oct-2026 · Casos sueltos: fuera de Quito, equivalencias, «ya compré» con pedido nuevo y el turno que ve lo de otro
+
+**Qué:** (auditoría del 19-oct, familia 7; sprint 5 de `fix/auditoria-2026-10-20`)
+- **C · «Ya compré X, ahora necesito Y» no cierra** (`domain/salesIntent.ts` `traePedidoNuevo`):
+  `isExplicitPurchaseConfirmation` —la usan el cierre del turno y el clasificador— da no cuando el
+  mismo mensaje pide algo (verbo de necesidad o de cotizar, o una pregunta). El clasificador
+  (`agent/classifier.ts`) tampoco acepta el «ganado» del modelo con un pedido nuevo en el mensaje.
+  «Ya compré, gracias» y «Ya compré las llantas 205/60R16, muchas gracias» siguen cerrando.
+
+**Por qué:** (comprobado en la base de producción, solo lectura)
+- C · chat 462, 15-oct 18:37 UTC: «Las Falken ya las compré 205 60 16. Ahora necesito las Kenda 195
+  60 15 será que puedo pagar con tarjeta sin incremento?» → `tipoDeCierreDelTurno` = compra_terminada
+  (sin corrida de IA), despedida fija y transición 4841 a ganado. El mensaje siguiente reabrió el
+  ciclo 6, saludó de cero y buscó la 205/60R16.
+
 ## 20-oct-2026 · Seguimientos que leen los hechos del ciclo y un solo lector de la fecha de visita
 
 **Qué:** (auditoría del 19-oct, familias 6 —seguimientos— y 6-fechas; sprint 4 de `fix/auditoria-2026-10-20`)
