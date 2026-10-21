@@ -8,7 +8,7 @@ import { opcionPorPosicion, posicionElegida } from "../domain/listaDeOpciones.js
 import { anuncioDeLaConversacion } from "../services/anuncio.js";
 import OpenAI from "openai";
 import { aroDadoPorElCliente, aroRespondido, medidaConfirmadaPorCliente } from "../domain/medidaConfirmada.js";
-import { medidasEscritasPorElCliente } from "../domain/medidaDelCliente.js";
+import { medidasDelMensaje, medidaSinConfirmar } from "../domain/medidaDelCliente.js";
 import { esFalloDelProveedor } from "../domain/falloDelProveedor.js";
 import { createBotAlert } from "../services/followUps.js";
 import { eleccionDeLaVitrina, type OpcionDeVitrina } from "../domain/eleccionDeVitrina.js";
@@ -37,7 +37,7 @@ import { preguntaElLocal } from "../domain/storeSelection.js";
 import { preguntaElDia } from "../domain/customerCommitment.js";
 import { ordenDeNoReusarLaVitrina, vitrinaQueNoEsSuMedida } from "../domain/vitrinaVieja.js";
 import { extractTireSizes, formatTireSize, loQueFaltaDeLaMedida } from "../domain/tireSize.js";
-import { getHistory, logAiRun, olvidarMedidaDeTrabajo } from "../services/conversations.js";
+import { getHistory, logAiRun, olvidarMedidaDeTrabajo, updateConversationFacts } from "../services/conversations.js";
 import { hechoDelAnuncio } from "../domain/anuncio.js";
 import { getAiConfig, getPublishedStagePrompt, getStoreHours } from "../services/settings.js";
 import { getPhaseFlags, toolEnabled } from "../services/phases.js";
@@ -52,7 +52,7 @@ import {
 import { sql } from "../db/client.js";
 import { activeBenefitFactsBlock } from "../services/benefits.js";
 import { aroDeLaMedida, medidaEstaPedida } from "../domain/medidaPedida.js";
-import { medidasDelPedido } from "../services/medidasDelPedido.js";
+import { anotarMedidasEscritas, medidasDelPedido } from "../services/medidasDelPedido.js";
 import {
   autorizaCotizacionEnEsteTurno, escalonContestado, esRespuestaDelMenuDePreferencia, ETIQUETA_DEL_ESCALON, extractExplicitQuantity,
   extractVehicleYear, respuestaDePreferencia, type Escalones,
@@ -170,6 +170,18 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
   const usedTools: string[] = [];
   const executedCalls = new Set<string>();
   const resultadosPorFirma = new Map<string, string>();
+  // EL HECHO «ESCRIBIÓ SU MEDIDA» SE ANOTA ANTES DE LEER LOS HECHOS (familia
+  // 3, 19-oct): los entrantes de este turno quedan con `medida_escrita`, y de
+  // ahí sale `medidaConfirmadaPorCliente`. Si la anotación falla, los lectores
+  // leen el texto con el mismo lector: el turno no se cae por esto.
+  const anotadas = await anotarMedidasEscritas(ctx.conversation.id, ctx.conversation.current_cycle)
+    .catch((error) => { console.warn("⚠️ No se pudo anotar la medida escrita:", error); return [] as string[]; });
+  if (anotadas.length) {
+    console.log(`📏 Conv ${ctx.conversation.id}: medida escrita por el cliente anotada como hecho: ${anotadas.join(", ")}`);
+    // La ficha, con la última que escribió: es lo que hace el turno normal al
+    // recibir el mensaje, y la retomada no pasa por ahí.
+    await updateConversationFacts(ctx.conversation.id, { tireSize: anotadas.at(-1)! });
+  }
   // El estilo se edita en /configuracion/ia; getAiConfig cachea 30 s en memoria.
   const [aiConfig, activeDiscount, pendingDiscount, salesFacts, phaseFlags, storeHours, benefitFacts, history] =
     await Promise.all([
@@ -192,8 +204,9 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
   // LA QUE ACABA DE ESCRIBIR TAMBIÉN ES SUYA (familia 2-H, simulador 28-sep):
   // «Traverse, uso 215/65R16» llegó con la ficha todavía vacía y la pieza
   // cerró con «necesito la medida exacta… o una foto del costado».
-  ctx.medidaSinConfirmar = salesFacts.medidaConfirmadaPorCliente === false && !salesFacts.aroDelCliente
-    && !medidasEscritasPorElCliente([userText]).length;
+  // El mensaje de este turno ya está guardado con su hecho `medida_escrita`
+  // (familia 3, 19-oct): no se vuelve a leer aquí con otro lector.
+  ctx.medidaSinConfirmar = salesFacts.medidaConfirmadaPorCliente === false && !salesFacts.aroDelCliente;
   const hechoDeMedidaInferida = ctx.medidaSinConfirmar && (salesFacts.vehicle || !salesFacts.tireSize)
     ? "MEDIDA NO CONFIRMADA POR EL CLIENTE: el cliente no ha escrito ninguna medida completa ni mandado foto del costado; toda medida en juego la dedujo el bot por el vehículo o por el aro. Puedes mostrar opciones (son «las que más se usan en su vehículo»), pero PROHIBIDO llamar generar_cotizacion: el cierre pide la medida escrita del filo de la llanta (ej. 225/65R17) o una foto del costado. Con ella, buscar_llanta y ahí sí cotizas."
     : null;
@@ -1136,6 +1149,13 @@ export function detalleDeItems(items: unknown): string | null {
   return partes.length ? partes.join(", ") : null;
 }
 
+/** Las medidas escritas en una lista de entrantes, cada una leída de su hecho `medida_escrita`. */
+function escritasEn(contenidos: readonly string[] | undefined, hechos: readonly unknown[] | undefined): string[] {
+  return [...new Set((contenidos ?? []).flatMap((content, i) =>
+    medidasDelMensaje({ content, metadata: { ...(hechos?.[i] != null ? { medida_escrita: hechos[i] } : {}) } }),
+  ))];
+}
+
 /** Exportada para pruebas: los hechos determinísticos que frenan al modelo (anti-duplicado, medida, cantidad). */
 export async function getAgentSalesFacts(conversationId: number): Promise<AgentSalesFacts> {
   const [row] = await sql<{
@@ -1150,14 +1170,17 @@ export async function getAgentSalesFacts(conversationId: number): Promise<AgentS
     escalones: Escalones | null;
     codigos: unknown;
     todas_entrantes: string[];
+    hechos_del_ciclo: unknown[];
+    hechos_de_todas: unknown[];
   }[]>`
     select c.tire_size, c.vehicle, c.vehicle_year, c.current_cycle, c.selected_product_code,
       c.selected_quantity, c.nearest_store, c.visit_date, c.visit_time_label,
       c.customer_commitment,
       q.quote_number as last_quote_number, q.total as last_quote_total,
       q.created_at as last_quote_at, q.items as last_quote_items,
-      o.escalones, t.todas_entrantes,
-      coalesce(array_agg(m.content order by m.created_at desc) filter (where m.id is not null), '{}') as inbound_messages
+      o.escalones, t.todas_entrantes, t.hechos_de_todas,
+      coalesce(array_agg(m.content order by m.created_at desc) filter (where m.id is not null), '{}') as inbound_messages,
+      coalesce(jsonb_agg(m.metadata->'medida_escrita' order by m.created_at desc) filter (where m.id is not null), '[]'::jsonb) as hechos_del_ciclo
     from conversations c
     left join lateral (
       select quote_number, total, created_at, items from quotes
@@ -1173,13 +1196,14 @@ export async function getAgentSalesFacts(conversationId: number): Promise<AgentS
     left join lateral (
       -- TODOS los ciclos: el cliente que vuelve ya dio su medida en la visita
       -- anterior y no tiene por qué repetirla (ver domain/medidaConfirmada).
-      select coalesce(array_agg(content order by created_at desc), '{}') as todas_entrantes
+      select coalesce(array_agg(content order by created_at desc), '{}') as todas_entrantes,
+        coalesce(jsonb_agg(metadata->'medida_escrita' order by created_at desc), '[]'::jsonb) as hechos_de_todas
       from messages where conversation_id=c.id and direction='inbound'
     ) t on true
     left join messages m on m.conversation_id=c.id and m.cycle=c.current_cycle
       and m.direction='inbound'
     where c.id=${conversationId}
-    group by c.id, q.quote_number, q.total, q.created_at, q.items, o.escalones, o.codigos, t.todas_entrantes
+    group by c.id, q.quote_number, q.total, q.created_at, q.items, o.escalones, o.codigos, t.todas_entrantes, t.hechos_de_todas
   `;
   const inferredYear = row?.vehicle_year ?? row?.inbound_messages
     .map(extractVehicleYear).find((value): value is number => value !== null) ?? null;
@@ -1187,9 +1211,15 @@ export async function getAgentSalesFacts(conversationId: number): Promise<AgentS
     tireSize: row?.tire_size ?? null,
     // La ficha coincide con algo que escribió (cualquier visita), o escribió
     // una medida completa en ESTE ciclo aunque la ficha tenga otra o nada:
-    // lo escrito no se le vuelve a pedir (familia 2-H, 28-sep).
-    medidaConfirmadaPorCliente: medidaConfirmadaPorCliente(row?.tire_size ?? null, row?.todas_entrantes ?? [])
-      || medidasEscritasPorElCliente(row?.inbound_messages ?? []).length > 0,
+    // lo escrito no se le vuelve a pedir (familia 2-H, 28-sep). Se le pregunta
+    // al HECHO de cada mensaje (`medida_escrita`, familia 3, 19-oct); el
+    // comparador pelado queda para formatos que ningún lector entiende (205R16C).
+    medidaConfirmadaPorCliente: !medidaSinConfirmar({
+      tireSize: row?.tire_size ?? null,
+      escritasEnElCiclo: escritasEn(row?.inbound_messages, row?.hechos_del_ciclo),
+      escritasEnTodas: escritasEn(row?.todas_entrantes, row?.hechos_de_todas),
+      aroDelCliente: null,
+    }) || medidaConfirmadaPorCliente(row?.tire_size ?? null, row?.todas_entrantes ?? []),
     // Solo el aro de ESTE ciclo: el de una visita anterior puede ser de otro carro.
     aroDelCliente: aroDadoPorElCliente([...(row?.inbound_messages ?? [])].reverse()),
     codigosDeLaVitrina: Array.isArray(row?.codigos) ? row.codigos.map(String) : [],

@@ -16,16 +16,15 @@
  * Vive aquí, puro y sin base ni catálogo, para poder probarlo sin levantar nada
  * — mismo criterio que opcionesCandados y aros.
  */
-import {
-  extractFlotationSizes, extractTireSizes, formatFlotationSize, formatTireSize,
-} from "./tireSize.js";
+import { extractFlotationSizes, extractTireSizes, medidasCanonicas } from "./tireSize.js";
 
-/** Toda medida —métrica o de flotación— que aparezca en un texto, canónica. */
+/**
+ * Toda medida que aparezca en un texto, canónica. Es `medidasCanonicas` —el
+ * mismo lector que llena la ficha—: hasta el 20-oct esto armaba su propia
+ * lista y dejaba afuera la convencional de camión.
+ */
 export function medidasEnTexto(texto: string): string[] {
-  return [
-    ...extractTireSizes(texto).map(formatTireSize),
-    ...extractFlotationSizes(texto).map(formatFlotationSize),
-  ];
+  return medidasCanonicas(texto);
 }
 
 /**

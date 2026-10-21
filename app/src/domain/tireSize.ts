@@ -46,8 +46,32 @@ const RIM_MAX = 24;
 // «315x75R16» (los cuatro, chats del 9 y 10-sep-2026). Y detrás de la R del
 // aro puede venir otra barra —«215/65R/16»— porque se escribe de memoria y el
 // dedo repite el separador.
+//
+// Y la familia 3 de la auditoría del 19-oct: «255 / 45 R.20» (el punto tras
+// la R), «205_45_16» y «205 _ 55 rin _ 17» (guion bajo), «195:55;15» (dos
+// puntos y punto y coma), «225*70*16» (asterisco) y «235 × 75 rn 15» («rn»
+// por rin). Ninguna se leía: la ficha la llenaba la herramienta con lo que
+// entendió el modelo, y el bot creía que la medida la había deducido él y se
+// la volvía a pedir al cliente (chats 27418, 25063, 28149, 27920, 28076, 27352).
 const TIRE_RE =
-  /(?<!\d)(LT|P)?\s*(\d{3})(?:\s*[/.,\-\s)x×]+\s*(\d{2}))?\s*(?:Z?R\s*[/\-]?\s*|(?:RIN|ARO|RON|RIM)\s*|[-.,/\s)]+\s*(?:Z?R|RIN|ARO|RON|RIM)?\s*[/\-]?\s*)(\d{2})(?!\d)/gi;
+  /(?<!\d)(LT|P)?\s*(\d{3})(?:\s*[/.,\-\s)x×_:;*]+\s*(\d{2}))?\s*(?:Z?R\s*[/\-.]?\s*|(?:RIN|ARO|RON|RIM|RN)[\s_.,:]*|[-.,/\s)_:;*]+\s*(?:Z?R|RIN|ARO|RON|RIM|RN)?[\s_.,:]*[/\-]?\s*)(\d{2})(?!\d)/gi;
+
+/**
+ * EL PERFIL PEGADO AL ARO: «245/7516» es 245/75R16 (chat 29418, 17-oct).
+ *
+ * Solo con barra entre el ancho y el bloque de cuatro cifras: con un espacio,
+ * «0998 185 6514» —un teléfono— se leería como 185/65R14.
+ */
+const PERFIL_PEGADO_AL_ARO_RE = /(?<![\d/])(\d{3})\s*\/\s*(\d{2})(\d{2})(?![\d/])/g;
+
+/**
+ * EL ARO PRIMERO Y SIN PALABRA: «tienen en 15 195 65 o 70» (chat 28854).
+ *
+ * Aro, ancho de tres cifras y perfil, separados por espacios. Va al final de
+ * todo: si cualquier otra forma leyó algo, manda esa. Sin `$`, punto ni coma
+ * pegados, para no leer precios.
+ */
+const ARO_PRIMERO_RE = /(?<![\d.,$])(1[2-9]|2[0-4])\s+(\d{3})\s+(\d{2})(?![\d.,])/g;
 
 /**
  * LA MEDIDA CON PALABRAS EN EL MEDIO: «245/ 70 para camioneta R 16».
@@ -109,6 +133,11 @@ export function extractTireSizes(text: string): TireSize[] {
     }
   }
   if (sizes.length === 0) {
+    for (const m of text.matchAll(PERFIL_PEGADO_AL_ARO_RE)) {
+      agregar(Number(m[1]), Number(m[2]), Number(m[3]));
+    }
+  }
+  if (sizes.length === 0) {
     for (const m of text.matchAll(MEDIDA_CON_PALABRAS_RE)) {
       agregar(Number(m[1]), Number(m[2]), Number(m[3]));
     }
@@ -116,6 +145,11 @@ export function extractTireSizes(text: string): TireSize[] {
   if (sizes.length === 0) {
     const barajada = extractShuffledSize(text);
     if (barajada) sizes.push(barajada);
+  }
+  if (sizes.length === 0) {
+    for (const m of text.matchAll(ARO_PRIMERO_RE)) {
+      agregar(Number(m[2]), Number(m[3]), Number(m[1]));
+    }
   }
   return sizes;
 }
@@ -138,7 +172,9 @@ export function extractTireSizes(text: string): TireSize[] {
  */
 function extractShuffledSize(text: string): TireSize | null {
   const n = text.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
-  const rin = n.match(/\b(?:rin|aro|ron|rim)\s*(\d{2})\b/) ?? n.match(/r\s*(\d{2})(?!\d)/);
+  // «rin,15,75,215» (chat 29259): la coma, el punto o el guion bajo separan
+  // la palabra del número igual que un espacio; y «rn15» es rin (chat 27352).
+  const rin = n.match(/\b(?:rin|aro|ron|rim|rn)[\s.,:_]*(\d{2})\b/) ?? n.match(/r\s*(\d{2})(?!\d)/);
   if (!rin) return null;
   const rim = Number(rin[1]);
   if (rim < RIM_MIN || rim > RIM_MAX) return null;
@@ -206,8 +242,14 @@ export function enmascararMedidas(text: string): string {
   limpio = tapar(limpio, TIRE_RE, (m) =>
     isValid(Number(m[2]), m[3] !== undefined ? Number(m[3]) : null, Number(m[4])),
   );
+  limpio = tapar(limpio, PERFIL_PEGADO_AL_ARO_RE, (m) =>
+    isValid(Number(m[1]), Number(m[2]), Number(m[3])),
+  );
   limpio = tapar(limpio, MEDIDA_CON_PALABRAS_RE, (m) =>
     isValid(Number(m[1]), Number(m[2]), Number(m[3])),
+  );
+  limpio = tapar(limpio, ARO_PRIMERO_RE, (m) =>
+    isValid(Number(m[2]), Number(m[3]), Number(m[1])),
   );
   return tapar(limpio, CONVENTIONAL_RE, (m) => {
     const width = Number(m[1].replace(",", "."));
@@ -368,13 +410,24 @@ export function extractFlotationSizes(text: string): FlotationSize[] {
  * Null si el texto no trae ninguna medida legible.
  */
 export function medidaCanonica(text: string): string | null {
-  const metrica = extractTireSizes(text)[0];
-  if (metrica) return formatTireSize(metrica);
-  const flotacion = extractFlotationSizes(text)[0];
-  if (flotacion) return formatFlotationSize(flotacion);
-  const convencional = extractConventionalSizes(text)[0];
-  if (convencional) return formatConventionalSize(convencional);
-  return null;
+  return medidasCanonicas(text)[0] ?? null;
+}
+
+/**
+ * TODAS las medidas de un texto, con la misma lectura que `medidaCanonica`:
+ * métricas y flotación, y la convencional de camión solo si no hubo ninguna
+ * de las otras (dentro de «33 12.50 15» hay un «12.50 15» que no es una
+ * 12.50R15). Es lo que leen «¿qué medidas escribió el cliente?» y la ficha:
+ * un solo lector, para que las dos preguntas no vuelvan a contestar distinto
+ * (familia 3, auditoría del 19-oct).
+ */
+export function medidasCanonicas(text: string): string[] {
+  const out = [
+    ...extractTireSizes(text).map(formatTireSize),
+    ...extractFlotationSizes(text).map(formatFlotationSize),
+  ];
+  if (!out.length) out.push(...extractConventionalSizes(text).map(formatConventionalSize));
+  return out;
 }
 
 /**

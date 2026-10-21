@@ -33,6 +33,59 @@ export function medidasEscritasPorElCliente(textos: readonly (string | null | un
 }
 
 /**
+ * «EL CLIENTE ESCRIBIÓ SU MEDIDA» ES UN HECHO DEL MENSAJE (familia 3, 19-oct).
+ *
+ * Se anota en `metadata.medida_escrita` de cada entrante al empezar el turno
+ * del agente (`anotarMedidasEscritas`, services/medidasDelPedido.ts: turno
+ * normal y retomada), con el mismo lector que llena la ficha; vale igual para
+ * texto, foto leída o audio transcrito.
+ * Lista vacía = se leyó y no traía medida. Así «¿la dio él o la dedujo el
+ * bot?» se contesta preguntándole al hecho, no volviendo a adivinar.
+ */
+export const CLAVE_MEDIDA_ESCRITA = "medida_escrita";
+
+/** Lo que se guarda en el hecho al recibir el mensaje. */
+export function medidasParaElHecho(texto: string | null | undefined): string[] {
+  return texto ? medidasEnTexto(texto) : [];
+}
+
+/**
+ * Las medidas que el cliente escribió en ESTE mensaje: el hecho si está; si no
+ * está (mensajes guardados antes del 20-oct, o copiados de producción), se lee
+ * el texto con el mismo lector que lo habría anotado.
+ */
+export function medidasDelMensaje(
+  mensaje: { content: string | null | undefined; metadata?: unknown },
+): string[] {
+  const hecho = (mensaje.metadata as Record<string, unknown> | null | undefined)?.[CLAVE_MEDIDA_ESCRITA];
+  if (Array.isArray(hecho)) return hecho.map(String);
+  return medidasParaElHecho(mensaje.content);
+}
+
+/**
+ * ¿LA MEDIDA EN JUEGO LA DEDUJO EL BOT? (Manuel, 1-sep, conv 13862.)
+ *
+ * Con `true` el turno puede mostrar opciones pero no cotizar, y la pieza
+ * cierra pidiendo la medida del costado. Es falso —la medida es suya— cuando:
+ *  · dio el aro (conv 3, 7-sep: las opciones de su aro son suyas);
+ *  · escribió una medida completa en esta visita (familia 2-H y familia 3:
+ *    «255 / 45 R.20» → «necesito la medida exacta» en el chat 27418);
+ *  · la ficha es una medida que escribió alguna vez (el cliente que vuelve).
+ */
+export function medidaSinConfirmar(input: {
+  tireSize: string | null | undefined;
+  escritasEnElCiclo: readonly string[];
+  escritasEnTodas: readonly string[];
+  aroDelCliente: number | null | undefined;
+}): boolean {
+  if (input.aroDelCliente) return false;
+  if (input.escritasEnElCiclo.length) return false;
+  if (!input.tireSize) return true;
+  const ficha = new Set(medidasEnTexto(input.tireSize));
+  return !input.escritasEnTodas.some((m) => ficha.has(m));
+}
+
+/**
  * ¿La medida en juego la dio el CLIENTE? Sí cuando la ficha coincide con algo
  * que él escribió (regla del 1-sep, conv 13862) y TAMBIÉN cuando escribió una
  * medida completa aunque la ficha todavía no la tenga o tenga otra deducida:

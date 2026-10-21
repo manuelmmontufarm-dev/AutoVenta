@@ -25,7 +25,7 @@
  */
 import { sql } from "../db/client.js";
 import type { ContextoEquivalencias } from "../domain/equivalenciaEnTexto.js";
-import { medidaEnDisputa } from "../domain/medidaDelCliente.js";
+import { CLAVE_MEDIDA_ESCRITA, medidaEnDisputa, medidasParaElHecho } from "../domain/medidaDelCliente.js";
 import { medidasPermitidas, mensajesDeLaVisitaActual } from "../domain/medidaPedida.js";
 
 /** Cuántos mensajes del cliente se miran hacia atrás antes de cortar por silencio. */
@@ -127,4 +127,38 @@ export async function medidaEnDisputaDelPedido(
     .map((m) => ({ deCliente: m.direction === "inbound", texto: m.content }));
   if (textoDelTurno && mensajes.at(-1)?.texto !== textoDelTurno) mensajes.push({ deCliente: true, texto: textoDelTurno });
   return medidaEnDisputa(mensajes);
+}
+
+/**
+ * ANOTA EL HECHO «EL CLIENTE ESCRIBIÓ SU MEDIDA» (familia 3, auditoría del 19-oct).
+ *
+ * Cada entrante del cliente que todavía no lo tiene recibe
+ * `metadata.medida_escrita`: las medidas que el lector de la ficha encuentra en
+ * él (lista vacía si no trae). Corre al empezar el turno del agente —turno
+ * normal y retomada, las dos puertas que contestan a un cliente—, antes de que
+ * nadie pregunte «¿la dio él o la dedujo el bot?». Una vez anotado, el mensaje
+ * no se vuelve a leer: agente, candados y Guardián le preguntan al hecho.
+ *
+ * Devuelve las medidas anotadas en esta pasada, para el log.
+ */
+export async function anotarMedidasEscritas(conversationId: number, cycle: number): Promise<string[]> {
+  const sinHecho = await sql<{ id: number; content: string | null }[]>`
+    select id, content from messages
+    where conversation_id=${conversationId} and cycle=${cycle}
+      and direction='inbound' and author_kind='customer'
+      and not (metadata ? ${CLAVE_MEDIDA_ESCRITA})
+    order by created_at asc
+    limit 40
+  `;
+  const anotadas: string[] = [];
+  for (const fila of sinHecho) {
+    const medidas = medidasParaElHecho(fila.content);
+    anotadas.push(...medidas);
+    await sql`
+      update messages
+      set metadata = metadata || ${sql.json({ [CLAVE_MEDIDA_ESCRITA]: medidas })}
+      where id=${fila.id}
+    `;
+  }
+  return anotadas;
 }

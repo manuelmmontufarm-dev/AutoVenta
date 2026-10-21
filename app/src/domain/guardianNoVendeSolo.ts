@@ -71,6 +71,41 @@ function preciosDeCamposDeDinero(texto: string): Set<string> {
   return precios;
 }
 
+/**
+ * LOS PRECIOS QUE EL CLIENTE YA TIENE A LA VISTA, CON LOS TOTALES DEL JUEGO.
+ *
+ * Familia 3 (auditoría del 19-oct): 43 correcciones del Guardián descartadas
+ * por `precio_nuevo` en una semana. En el chat 27418 la lámina de ese mismo
+ * turno ya estaba guardada con «KENDA KR605 $192.97», y el Guardián escribió
+ * «$192.97 c/u con IVA · 4 = $771.88». El unitario lo reconocía; el TOTAL no
+ * estaba en ninguna parte, y por él se tiró la corrección entera. El total del
+ * juego es aritmética sobre un precio que el cliente está mirando, no una
+ * venta nueva: cuenta como conocido de 1 a 10 llantas.
+ */
+const MAXIMO_DE_LLANTAS_EN_UN_TOTAL = 10;
+function conTotalesDelJuego(unitarios: Iterable<string | number>): Set<string> {
+  const conocidos = new Set<string>();
+  for (const u of unitarios) {
+    const centavos = Math.round(Number(u) * 100);
+    if (!Number.isFinite(centavos) || centavos <= 0) continue;
+    for (let n = 1; n <= MAXIMO_DE_LLANTAS_EN_UN_TOTAL; n++) conocidos.add(((centavos * n) / 100).toFixed(2));
+  }
+  return conocidos;
+}
+
+/** Lo ya dicho en texto, lo que viaja en campos de dinero y el hecho `preciosMostrados` de las piezas. */
+function preciosConocidos(
+  borrador: string,
+  yaDichoEnElCiclo: string,
+  preciosMostrados: readonly number[],
+): Set<string> {
+  return conTotalesDelJuego([
+    ...preciosEn(`${borrador}\n${yaDichoEnElCiclo}`),
+    ...preciosDeCamposDeDinero(yaDichoEnElCiclo),
+    ...preciosMostrados,
+  ]);
+}
+
 function ofreceJuegoIncompleto(texto: string): boolean {
   const normalizado = normalizeCatalogText(texto);
   return /\b(?:tengo|hay|quedan|cuento\s+con|disponible(?:s)?|ofrezco|ofrecer\w*|cotizo|cotizar\w*|vendo|vender\w*)\b.{0,64}\b[1-3]\s+(?:llantas?|unidad(?:es)?)\b/.test(normalizado)
@@ -114,6 +149,8 @@ export function frenarHechosNuevosDelGuardian(
   correccion: string,
   productos: readonly ProductoIdentificable[],
   yaDichoEnElCiclo = "",
+  /** El hecho que cada pieza guarda al salir: los unitarios que el cliente vio. */
+  preciosMostrados: readonly number[] = [],
 ): ResultadoFrenoGuardian {
   if (correccion.trim() === borrador.trim()) {
     return { texto: correccion, bloqueado: false, motivos: [] };
@@ -132,10 +169,7 @@ export function frenarHechosNuevosDelGuardian(
     //
     // Pasarse de ancho acá solo puede DEJAR PASAR una corrección legítima;
     // quedarse corto es lo que le dio al cliente la respuesta vacía.
-    const conocidos = new Set([
-      ...preciosEn(`${borrador}\n${yaDichoEnElCiclo}`),
-      ...preciosDeCamposDeDinero(yaDichoEnElCiclo),
-    ]);
+    const conocidos = preciosConocidos(borrador, yaDichoEnElCiclo, preciosMostrados);
     const nuevos = [...preciosEn(correccion)].filter((p) => !conocidos.has(p));
     if (nuevos.length) motivos.push("precio_nuevo");
   }
@@ -176,11 +210,9 @@ export function podarHechosNuevosDelGuardian(
   correccion: string,
   productos: readonly ProductoIdentificable[],
   yaDichoEnElCiclo = "",
+  preciosMostrados: readonly number[] = [],
 ): string | null {
-  const conocidos = new Set([
-    ...preciosEn(`${borrador}\n${yaDichoEnElCiclo}`),
-    ...preciosDeCamposDeDinero(yaDichoEnElCiclo),
-  ]);
+  const conocidos = preciosConocidos(borrador, yaDichoEnElCiclo, preciosMostrados);
   const nuevos = productos.filter(
     (p) => !mencionaProducto(borrador, p) && !(yaDichoEnElCiclo && mencionaProducto(yaDichoEnElCiclo, p)),
   );
@@ -208,6 +240,6 @@ export function podarHechosNuevosDelGuardian(
     .trim();
   const conSustancia = texto.replace(/[^\p{L}\p{N}]/gu, "").length >= 20;
   if (!conSustancia) return null;
-  if (frenarHechosNuevosDelGuardian(borrador, texto, productos, yaDichoEnElCiclo).bloqueado) return null;
+  if (frenarHechosNuevosDelGuardian(borrador, texto, productos, yaDichoEnElCiclo, preciosMostrados).bloqueado) return null;
   return texto;
 }

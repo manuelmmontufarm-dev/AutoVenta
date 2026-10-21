@@ -42,9 +42,9 @@ import { revisarConGuardian, type HuellaHerramienta, type RevisionGuardian } fro
 import { asegurarAvisoDeStock } from "./stockCorto.js";
 import { insistirConLoQueFalta, sinPreguntaPendienteConsecutiva } from "./insistirCierre.js";
 import { createBotAlert } from "./followUps.js";
-import { MAX_BLOCKS } from "./quoteMessages.js";
+import { MAX_BLOCKS, textoDeLaPieza } from "./quoteMessages.js";
 import { sinCuestionarLaMedidaDada, sinPreguntasProhibidas } from "../domain/preguntasProhibidas.js";
-import { medidasEscritasPorElCliente } from "../domain/medidaDelCliente.js";
+import { medidasDelMensaje, medidasEscritasPorElCliente } from "../domain/medidaDelCliente.js";
 import { mensajesDeLaVisitaActual } from "../domain/medidaPedida.js";
 import { medidaEnDisputaDelPedido } from "./medidasDelPedido.js";
 import {
@@ -148,6 +148,12 @@ export interface ContextoDeSalida {
   inicioDelTurno?: Date;
   /** Este turno termina sin empuje comercial, pero no cierra ni borra el ciclo. */
   suprimirEmpujeComercial?: boolean;
+  /**
+   * Un paso vació el turno y sabe que callar es lo correcto ESTA vez (no
+   * siempre, que es `silencioEsCorrecto`): el cliente ya escribió de nuevo y
+   * el turno siguiente le contesta. Ver `la_medida_del_cliente_no_se_cuestiona`.
+   */
+  callarEsteTurno?: boolean;
   /** La intención vigente es un servicio que no está en el catálogo de llantas. */
   consultaFueraDeCatalogo?: boolean;
   /**
@@ -357,11 +363,13 @@ export const PASOS: readonly PasoDeSalida[] = [
       // Y lo que las herramientas devolvieron ESTE turno como equivalentes de
       // verdad: nombrarlas no es vender solo (V3a, 28-sep: la reescritura que
       // nombraba la KR608 245/70R16 se podó y salió «¿Le muestro…?»).
-      const yaDicho = [
-        await textoYaDichoEnElCiclo(ctx.conversation.id, ctx.conversation.current_cycle),
-        equivalentesDevueltos(ctx.huella ?? []),
-      ].filter(Boolean).join("\n");
-      const resultado = frenarHechosNuevosDelGuardian(borrador, texto, productos, yaDicho);
+      // Y los precios de las piezas del ciclo —la de este mismo turno incluida—
+      // como HECHO (`preciosMostrados`), con sus totales del juego: por el
+      // «· 4 = $771.88» de la KR605 que el cliente tenía en pantalla se tiró la
+      // corrección del chat 27418 (familia 3, auditoría del 19-oct).
+      const dicho = await loYaDichoEnElCiclo(ctx.conversation.id, ctx.conversation.current_cycle);
+      const yaDicho = [dicho.texto, equivalentesDevueltos(ctx.huella ?? [])].filter(Boolean).join("\n");
+      const resultado = frenarHechosNuevosDelGuardian(borrador, texto, productos, yaDicho, dicho.preciosMostrados);
       if (!resultado.bloqueado) return texto;
 
       // SI EL GUARDIÁN DIJO QUE EL BORRADOR ES UN DATO FALSO, NO SE RESTAURA.
@@ -371,7 +379,9 @@ export const PASOS: readonly PasoDeSalida[] = [
       // Se poda la oferta nueva y se manda lo que queda; solo si no queda nada
       // se cae al borrador, como antes.
       const datoFalso = (ctx.hallazgosDelGuardian ?? []).some((h) => CATEGORIAS_DE_DATO.has(h.categoria));
-      const podado = datoFalso ? podarHechosNuevosDelGuardian(borrador, texto, productos, yaDicho) : null;
+      const podado = datoFalso
+        ? podarHechosNuevosDelGuardian(borrador, texto, productos, yaDicho, dicho.preciosMostrados)
+        : null;
       if (podado) {
         console.warn(
           `✂️ Corrección del guardián podada en la conv ${ctx.conversation.id} (${resultado.motivos.join(", ")}): el borrador tenía un dato falso y no se restaura`,
@@ -680,16 +690,18 @@ export const PASOS: readonly PasoDeSalida[] = [
     nombre: "la_medida_del_cliente_no_se_cuestiona",
     corre: ["respuesta", "retomada", "seguimiento"],
     async aplicar(texto, ctx) {
-      const entrantes = await sql<{ content: string; created_at: Date }[]>`
-        select content, created_at from messages
+      // «Escribió su medida» se le pregunta al HECHO de cada entrante
+      // (`medida_escrita`, familia 3): el mismo que leen el agente y la ficha.
+      const entrantes = await sql<{ content: string; metadata: unknown; created_at: Date }[]>`
+        select content, metadata, created_at from messages
         where conversation_id=${ctx.conversation.id} and cycle=${ctx.conversation.current_cycle}
           and direction='inbound'
         order by created_at desc limit 20
       `;
-      const medidas = medidasEscritasPorElCliente([
-        ...mensajesDeLaVisitaActual(entrantes).map((m) => m.content),
-        ctx.textoDelCliente,
-      ]);
+      const medidas = [...new Set([
+        ...mensajesDeLaVisitaActual(entrantes).flatMap((m) => medidasDelMensaje(m)),
+        ...medidasEscritasPorElCliente([ctx.textoDelCliente]),
+      ])];
       if (!medidas.length) return texto;
       const depurado = sinCuestionarLaMedidaDada(texto, medidas);
       if (!depurado.quitadas.length) return texto;
@@ -699,6 +711,41 @@ export const PASOS: readonly PasoDeSalida[] = [
       console.warn(
         `✂️ Conv ${ctx.conversation.id}: se quitó lo que cuestionaba su medida ${medidas.join(", ")}: ${depurado.quitadas.join(" | ")}`,
       );
+      if (depurado.texto.trim() || (ctx.tipo !== "respuesta" && ctx.tipo !== "retomada")) return depurado.texto;
+      // SI NO QUEDA NADA, SALE LO QUE DICE LA LÁMINA (chat 29418): el cierre
+      // era solo «necesito la medida exacta», y sin él el turno caía en «Le
+      // consulto con un asesor» a quien acababa de recibir las opciones de su
+      // medida. Lo que correspondía decir son esos precios.
+      const [pieza] = await sql<{ metadata: Parameters<typeof textoDeLaPieza>[0] }[]>`
+        select metadata from messages
+        where conversation_id=${ctx.conversation.id} and cycle=${ctx.conversation.current_cycle}
+          and metadata->>'piece'='options'
+        order by created_at desc limit 1
+      `;
+      // Solo si la lámina es de SU medida: la que salió por el vehículo antes de
+      // que llegara la medida (chat 26561) no es lo que él pidió.
+      const deSuMedida = typeof pieza?.metadata?.sizeLabel === "string" && medidas.includes(pieza.metadata.sizeLabel);
+      const lista = deSuMedida ? textoDeLaPieza(pieza?.metadata ?? null) : null;
+      if (lista) {
+        console.warn(`📋 Conv ${ctx.conversation.id}: el turno quedaba vacío; sale la lista de la lámina.`);
+        return lista;
+      }
+      // Y SI LA MEDIDA LLEGÓ MIENTRAS SE ARMABA ESTE TURNO (chat 26561): la
+      // lámina salió por el vehículo, el cliente escribió «185/ 65/15» en el
+      // medio y este paso le quitó la pregunta. El turno siguiente contesta
+      // con su medida: aquí el respaldo «Le consulto con un asesor» sobra.
+      if (ctx.inicioDelTurno) {
+        const [nuevo] = await sql<{ id: number }[]>`
+          select id from messages
+          where conversation_id=${ctx.conversation.id} and direction='inbound'
+            and created_at > ${ctx.inicioDelTurno}
+          limit 1
+        `;
+        if (nuevo) {
+          console.warn(`🤫 Conv ${ctx.conversation.id}: el cliente escribió su medida en el medio; contesta el turno siguiente.`);
+          ctx.callarEsteTurno = true;
+        }
+      }
       return depurado.texto;
     },
   },
@@ -1257,17 +1304,25 @@ export interface SalidaPreparada {
  * cada escalón). Es el «ya dicho» contra el que se juzga si el guardián está
  * abriendo una venta o repitiendo la que ya existe.
  */
-async function textoYaDichoEnElCiclo(conversationId: number, cycle: number): Promise<string> {
-  const filas = await sql<{ content: string | null; metadata: unknown }[]>`
+async function loYaDichoEnElCiclo(
+  conversationId: number,
+  cycle: number,
+): Promise<{ texto: string; preciosMostrados: number[] }> {
+  const filas = await sql<{ content: string | null; metadata: { preciosMostrados?: unknown } | null }[]>`
     select content, metadata from messages
     where conversation_id = ${conversationId} and cycle = ${cycle}
       and direction = 'outbound' and author_kind = 'bot'
     order by created_at desc, id desc
     limit 80
   `;
-  return filas
-    .map((f) => `${f.content ?? ""}\n${f.metadata ? JSON.stringify(f.metadata) : ""}`)
-    .join("\n");
+  return {
+    texto: filas
+      .map((f) => `${f.content ?? ""}\n${f.metadata ? JSON.stringify(f.metadata) : ""}`)
+      .join("\n"),
+    preciosMostrados: filas.flatMap((f) =>
+      Array.isArray(f.metadata?.preciosMostrados) ? f.metadata.preciosMostrados.map(Number).filter(Number.isFinite) : [],
+    ),
+  };
 }
 
 /** Igualdad de textos como los lee una persona: sin diferencias de espacios. */
@@ -1345,6 +1400,7 @@ export async function correrPasos(
   const pasosCorridos: string[] = [];
   let vaciador: PasoDeSalida | null = null;
   ctx.salidaTerminal = false;
+  ctx.callarEsteTurno = false;
   const separa = pasos.findIndex((paso) => paso.nombre === PASO_QUE_SEPARA);
   for (const [indice, paso] of pasos.entries()) {
     if (!texto) break;
@@ -1389,7 +1445,7 @@ async function turnoVacio(
 ): Promise<SalidaPreparada> {
   const callar: SalidaPreparada = { texto: null, pasosCorridos };
   if (ctx.tipo !== "respuesta" && ctx.tipo !== "retomada") return callar;
-  if (vaciador?.silencioEsCorrecto) return callar;
+  if (vaciador?.silencioEsCorrecto || ctx.callarEsteTurno) return callar;
   const quien = vaciador?.nombre ?? (borrador.trim() ? "desconocido" : "borrador_vacio");
   console.error(`🕳️ Conv ${ctx.conversation.id}: el turno quedó vacío por «${quien}»; sale el respaldo y se alerta.`);
   await createBotAlert({

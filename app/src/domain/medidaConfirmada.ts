@@ -113,7 +113,8 @@ export function aroEnTexto(texto: string | null | undefined): number | null {
   if (/\b\d{3}\s*[\/x-]\s*\d{2}(?!\d)/.test(n)) return null;
   if (extractFlotationSizes(n).length || flotacionIncompleta(n) || medidaIncompleta(n)) return null;
   const m =
-    n.match(/\b(?:rin(?:es)?|ron|rim(?:s)?|ring|aro(?:s)?|arillo(?:s)?|llanta(?:s)?\s+de)\s*(?:de\s+|del\s+|numero\s+|n[°º]?\s*)?(1[2-9]|2[0-4])\b/)
+    // «Rin. 16» (chat 29900): el punto o la coma tras la palabra no cambian nada.
+    n.match(/\b(?:rin(?:es)?|ron|rim(?:s)?|ring|aro(?:s)?|arillo(?:s)?|llanta(?:s)?\s+de)\s*[.,:]?\s*(?:de\s+|del\s+|numero\s+|n[°º]?\s*)?(1[2-9]|2[0-4])\b/)
     ?? n.match(/\br\s?(1[2-9]|2[0-4])\b/)
     ?? n.match(/\b(1[2-9]|2[0-4])\s*(?:pulgadas|pulg\.?|")/);
   return m ? Number(m[1]) : null;
