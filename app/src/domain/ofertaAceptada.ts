@@ -24,7 +24,7 @@
 
 import { ES_PRESENTACION_DEL_NEGOCIO } from "./saludo.js";
 import { ofrecioCotizarLaUnica } from "./cotizarLaUnica.js";
-import { pidioPrecioOCotizacion } from "./salesIntent.js";
+import { eligePosicionDelMenu, pidioPrecioOCotizacion, respuestaDePreferencia } from "./salesIntent.js";
 
 const normalizar = (texto: string) =>
   (texto ?? "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "")
@@ -99,16 +99,76 @@ const ofreceCotizar = (botNormalizado: string): boolean =>
     .filter((frase) => CONDICIONAL.test(frase) || !new RegExp(ENTREGA_DE_COTIZACION.source).test(frase))
     .some((frase) => OFRECIO_COTIZAR.test(frase));
 
+/** ¿Este texto del bot ofrece cotizar (y no es la presentación ni una entrega)? */
+export function ofreceCotizarEn(textoDelBot: string | null | undefined): boolean {
+  const bot = normalizar(textoDelBot ?? "");
+  return Boolean(bot) && !ES_PRESENTACION.test(bot) && ofreceCotizar(bot);
+}
+
 /**
  * El cliente contestó con un acuse y nada más.
  *
- * ANCLADO de principio a fin, y es lo que lo hace seguro: «gracias» dispara,
- * «gracias, ¿y en aro 17?» no (trae una pregunta que hay que contestar), y
- * «gracias, ya compré en otro lugar» tampoco (eso lo agarra
+ * TODO EL MENSAJE ES AFIRMACIÓN O CORTESÍA, y eso es lo que lo hace seguro:
+ * «gracias» dispara, «gracias, ¿y en aro 17?» no (trae una pregunta que hay que
+ * contestar), y «gracias, ya compré en otro lugar» tampoco (eso lo agarra
  * `domain/cierrePerdido.ts`, que además cierra la venta).
+ *
+ * HASTA EL 20-OCT ERA UNA LISTA CERRADA DE FRASES, anclada de punta a punta
+ * (auditoría 19-oct, familia 1: 47 chats). «Si por favor» entraba y «Si, por
+ * favor» no —la coma rompía el grupo—; tampoco «Si porfavor», «Claro que si»,
+ * «Sí claro», «Ok si», «Siii». Sin acuse, `generar_cotizacion` se bloqueaba
+ * «por falta de autorización» y el Guardián volvía a poner «¿Se la cotizo?»:
+ * en 9 chats el cliente dijo que sí y nunca recibió la cotización (29029,
+ * 26675, 25889…). Ahora se normaliza (minúsculas, sin tildes, la puntuación
+ * separa, «siii» → «si») y se mira palabra por palabra.
  */
-const ACUSE_SIN_MAS =
-  /^(?:muchas\s+|mil\s+)?(?:gracias|grax|ok|oka|okay|okey|listo|list|dale|dele|ya|bueno|buenos|perfecto|de\s+una|hagale|hagalo|por\s+favor|porfa|porfis|si|sip|claro|va|bien|excelente|genial|de\s+acuerdo|correcto|ayudeme|uyedeme|👍|🙏|😊|🤝)(?:\s+(?:por\s+favor|porfa|porfis|gracias|amigo|amiga|men|ps|pue|pues|nomas|senor|senora|don|dona|master|bro))?[\s.,!¡👍🙏😊🤝🙌✅]*$/;
+const colapsar = (p: string) => (/[a-z]/.test(p) ? p.replace(/([a-z])\1+/g, "$1") : p);
+
+const PALABRAS_DE_ACUSE = new Set([
+  // afirmaciones
+  "si", "sip", "ok", "oka", "okay", "okey", "oki", "dale", "dele", "listo", "list", "ya", "bueno",
+  "perfecto", "claro", "va", "bien", "excelente", "genial", "correcto", "hagale", "hagalo",
+  "ayudeme", "uyedeme", "deuna", "deacuerdo", "estabien", "obvio", "exacto", "eso",
+  // cortesías
+  "gracias", "grax", "porfavor", "porfa", "favor", "porfis", "xfa", "muchas", "mil", "amigo", "amiga", "men",
+  "ps", "pue", "pues", "nomas", "senor", "senora", "don", "dona", "master", "bro", "jefe",
+  // «claro que sí»: el «que» solo de relleno; un «que» con otra cosa ya no es acuse
+  "que",
+  // emojis de acuerdo (ya sin tono de piel)
+  "👍", "🙏", "😊", "🤝", "🙌", "✅", "👌", "💯", "👏", "💪", "🙂", "😀", "😁", "😃", "😄", "☺",
+].map(colapsar));
+
+/**
+ * Las palabras del mensaje, listas para comparar. Las frases de varias palabras
+ * se pegan antes («de una» → «deuna») y las letras repetidas se colapsan
+ * («siii», «porfavorr», «okk»): el vocabulario de arriba ya está colapsado.
+ */
+export function palabrasDelAcuse(texto: string): string[] {
+  const emojis = [...PALABRAS_DE_ACUSE].filter((p) => !/[a-z]/.test(p));
+  let t = normalizar(texto);
+  for (const e of emojis) t = t.split(e).join(` ${e} `);
+  t = t
+    .replace(/\b(?:por|x)\s*fa(vor)?\b/g, "porfa$1")
+    .replace(/\bde\s+una\b/g, "deuna")
+    .replace(/\bde\s+acuerdo\b/g, "deacuerdo")
+    .replace(/\besta\s+bien\b/g, "estabien");
+  return t
+    .split(/[^\p{L}\p{N}\p{Extended_Pictographic}]+/u)
+    .filter(Boolean)
+    .map(colapsar);
+}
+
+// Una letra suelta de tecla resbalada no vuelve pregunta un sí: «Si por favor q»
+// (chat 26841, 14-oct 16:35). Solo consonantes que no son palabra en español.
+const LETRA_SUELTA = /^[qkxjwzhgfdcbvñ]$/;
+
+function soloAfirmacionYCortesia(todas: readonly string[]): boolean {
+  const palabras = todas.filter((p) => !LETRA_SUELTA.test(p));
+  if (!palabras.length) return false;
+  if (!palabras.every((p) => PALABRAS_DE_ACUSE.has(p))) return false;
+  // El «que» de relleno solo vale detrás de «claro» («claro que si»).
+  return palabras.every((p, i) => p !== "que" || palabras[i - 1] === "claro");
+}
 
 /**
  * EL SALUDO NO ES UNA OFERTA (auditoría 2-6 sep, familia D).
@@ -128,6 +188,9 @@ const ACUSE_SIN_MAS =
 const ES_PRESENTACION = ES_PRESENTACION_DEL_NEGOCIO;
 
 /** Un «no» a secas nunca es un sí, por más corto que sea. */
+export function esNegativaCorta(mensajeDelCliente: string): boolean {
+  return NEGATIVA_CORTA.test(normalizar(mensajeDelCliente));
+}
 const NEGATIVA_CORTA = /^(?:no|nop|nel|no\s+gracias|todavia\s+no|aun\s+no|ahorita\s+no|por\s+ahora\s+no|mejor\s+no|otro\s+dia|luego|despues|mas\s+tarde)[\s.,!]*$/;
 
 /**
@@ -136,7 +199,7 @@ const NEGATIVA_CORTA = /^(?:no|nop|nel|no\s+gracias|todavia\s+no|aun\s+no|ahorit
  * Producción, conv +593 99 842 8277, 25-sep: el bot ofreció cotizar la única
  * llanta, el cliente contestó «Precio por favor» —pedir el número a quien te
  * ofrece el número— y el turno volvió a preguntar «¿se la cotizo?». No es un
- * acuse (`ACUSE_SIN_MAS` es cerrado a propósito) pero es una respuesta directa
+ * acuse (no es afirmación ni cortesía) pero es una respuesta directa
  * a la oferta. Solo vale con la oferta de la ÚNICA opción y un mensaje corto:
  * «precio, y ¿en aro 17 tienen?» sigue siendo una pregunta que hay que contestar.
  */
@@ -169,7 +232,9 @@ export function ofertaDeCotizarAceptada(
   if (!bot || ES_PRESENTACION.test(bot) || !OFRECIO_ALGO.test(bot)) return false;
   const cliente = normalizar(mensajeDelCliente);
   if (!cliente || NEGATIVA_CORTA.test(cliente)) return false;
-  return ACUSE_SIN_MAS.test(cliente) || preguntaElPrecioDeLaUnica(ultimoMensajeDelBot, mensajeDelCliente, turnoDelBot);
+  // Un sí a un MENÚ no dice cuál (familia 2): ver `esMenuDeOpciones`.
+  if (esMenuDeOpciones(turnoDelBot || ultimoMensajeDelBot)) return false;
+  return esAcuseSimple(mensajeDelCliente) || preguntaElPrecioDeLaUnica(ultimoMensajeDelBot, mensajeDelCliente, turnoDelBot);
 }
 
 /**
@@ -188,7 +253,8 @@ export function ofertaDeCotizacionAceptada(
   if (!bot || ES_PRESENTACION.test(bot) || !ofreceCotizar(bot)) return false;
   const cliente = normalizar(mensajeDelCliente);
   if (!cliente || NEGATIVA_CORTA.test(cliente)) return false;
-  return ACUSE_SIN_MAS.test(cliente) || preguntaElPrecioDeLaUnica(ultimoMensajeDelBot, mensajeDelCliente, turnoDelBot);
+  if (esMenuDeOpciones(turnoDelBot || ultimoMensajeDelBot)) return false;
+  return respondeQueSi(mensajeDelCliente) || preguntaElPrecioDeLaUnica(ultimoMensajeDelBot, mensajeDelCliente, turnoDelBot);
 }
 
 /**
@@ -222,21 +288,26 @@ export function ordenDeCotizarYa(mensajeDelCliente: string): string {
  * - muere con cualquier negativa o despedida del cliente en el medio;
  * - aguanta como mucho DOS mensajes del cliente desde la oferta — una oferta
  *   no vive para siempre;
- * - el acuse sigue siendo el mismo `ACUSE_SIN_MAS` anclado: «Ok, ¿y en aro
- *   17?» no dispara nada.
+ * - el acuse sigue siendo el mismo `esAcuseSimple`: «Ok, ¿y en aro 17?» no
+ *   dispara nada;
+ * - una oferta que era un MENÚ no se acepta con un acuse (familia 2).
  */
-/** El acuse anclado, exportado para el descanso del acuse en agent.ts. */
+/**
+ * EL dueño de «esto es un acuse»: lo usan agent.ts, tools.ts, index.ts,
+ * prepararSalida.ts, rafaga.ts y medidaQueConfirmoAlAsesor.ts. Las negaciones
+ * se miran primero y ganan.
+ */
 export function esAcuseSimple(mensajeDelCliente: string): boolean {
   const cliente = normalizar(mensajeDelCliente);
-  return Boolean(cliente) && !NEGATIVA_CORTA.test(cliente) && ACUSE_SIN_MAS.test(cliente);
+  if (!cliente || NEGATIVA_CORTA.test(cliente)) return false;
+  return soloAfirmacionYCortesia(palabrasDelAcuse(mensajeDelCliente));
 }
 
 export function ofertaDeCotizacionVigenteAceptada(
   historial: readonly { role: string; content: unknown }[],
   mensajeDelCliente: string,
 ): boolean {
-  const cliente = normalizar(mensajeDelCliente);
-  if (!cliente || NEGATIVA_CORTA.test(cliente) || !ACUSE_SIN_MAS.test(cliente)) return false;
+  if (!esAcuseSimple(mensajeDelCliente)) return false;
   // El mensaje actual ya suele estar guardado y llega al final del historial:
   // no cuenta como «mensaje en el medio».
   const previos = historial.length && historial[historial.length - 1].role === "user"
@@ -252,7 +323,7 @@ export function ofertaDeCotizacionVigenteAceptada(
       if (NEGATIVA_CORTA.test(texto) || /\bno\s+gracias\b|\bya\s+compre\b|\bya\s+no\b|\b[bv]oy\s+a\s+(?:mirar|ver|pensar|comparar)\b|\blo\s+(?:voy\s+a\s+)?pienso\b/.test(texto)) return false;
       clientesEnMedio += 1;
     } else if (m.role === "assistant" && !ES_PRESENTACION.test(texto) && ofreceCotizar(texto)) {
-      return true;
+      return !esMenuDeOpciones(texto);
     }
   }
   return false;
@@ -272,4 +343,200 @@ export function recordatorioDeOfertaPendiente(mensajeDelCliente: string): string
     "turno con generar_cotizacion (juego de 4 llantas si no dijo otra cantidad, sobre el producto " +
     "recomendado vigente) en vez de volver a ofrecerla o pedir otra confirmación."
   );
+}
+
+/**
+ * UN SÍ SOLO AUTORIZA LO QUE LA ÚLTIMA OFERTA NOMBRÓ (auditoría 19-oct,
+ * familia 2: al menos 19 cotizaciones).
+ *
+ * El bot preguntó «¿Le cotizo la 1, la 2 o la 3?» y el cliente contestó «Ok
+ * gracias» (chat 29367), «Gracias» (27512), «👍🏼» (28116). La regla de agosto
+ * —un gracias después de una oferta es un sí— está bien para UNA llanta
+ * nombrada, pero un menú no nombra ninguna: el sí no dice cuál, y el modelo
+ * elegía por su cuenta (en 29367, la más cara: $1.186,20). Ante un menú, el
+ * acuse no firma nada: se pregunta cuál.
+ *
+ * Devuelve true cuando el texto pide ELEGIR entre varias opciones.
+ */
+export function esMenuDeOpciones(texto: string | null | undefined): boolean {
+  const t = normalizar(texto ?? "");
+  return /\bla\s+[1-3]\s*(?:,\s*(?:la\s+)?[1-3]\s*)*(?:,\s*)?\bo\s+(?:la\s+)?[1-3]\b/.test(t)
+    || t.includes("que prioriza usted")
+    || /¿\s*cual\s+(?:de\s+(?:las|ellas|estas)\s+)?(?:le\s+cotizo|se\s+la\s+cotizo|prefiere|le\s+gusta|quiere\s+que\s+le\s+cotice)\b/.test(t);
+}
+
+const COTIZACION_ENVIADA = /\bcotizacion\s+(?:cot-\S+\s+)?(?:enviada|lista|reenviada)\b/;
+
+/**
+ * ¿Sigue abierto un menú de cotizar que el cliente todavía no contestó?
+ * Devuelve cuántas opciones tenía (2 o 3), o 0 si no hay menú abierto.
+ *
+ * No alcanza con el último mensaje: en el chat 28606 (16-oct 12:22) el bot
+ * mostró el menú, el cliente preguntó «Que ciudad», el bot contestó, y recién
+ * ahí llegó «4 llantas / Quiero» — y se cotizó la Winrun. Se recorre hacia
+ * atrás hasta la última oferta de cotizar del bot: si era un menú, sigue
+ * abierto; si nombraba UNA llanta, o si ya salió una cotización, no.
+ */
+export function menuDeCotizarAbierto(historial: readonly { role: string; content: unknown }[]): number {
+  // Los mensajes del cliente del final son el turno que se está evaluando: no
+  // cierran nada. Los de ANTES sí: si después del menú ya eligió («La 2») y el
+  // bot no pudo cotizar por otra traba (stock, medida), un «ok» posterior no
+  // reabre «¿Cuál le cotizo…?» (revisión de la coordinadora, 20-oct).
+  let fin = historial.length - 1;
+  while (fin >= 0 && historial[fin].role === "user") fin--;
+  let yaEligio = false;
+  let revisados = 0;
+  for (let i = fin; i >= 0 && revisados < 10; i--) {
+    const m = historial[i];
+    if (m.role === "user" && typeof m.content === "string") {
+      if (respuestaDePreferencia(m.content) !== null || eligePosicionDelMenu(m.content)) yaEligio = true;
+      continue;
+    }
+    if (m.role !== "assistant" || typeof m.content !== "string") continue;
+    revisados += 1;
+    const texto = normalizar(m.content);
+    if (COTIZACION_ENVIADA.test(texto)) return 0;
+    if (esMenuDeOpciones(m.content)) {
+      if (yaEligio) return 0;
+      return /\bla\s+3\b|\b3\s*[·).]/.test(texto) || /\b3\s*[·).]/.test(normalizar(String(historial[i - 1]?.content ?? ""))) ? 3 : 2;
+    }
+    if (ofreceCotizar(texto)) return 0;
+  }
+  return 0;
+}
+
+/**
+ * Un sí a la oferta de UNA llanta: el acuse, y además «las 4», «el juego»,
+ * «esa» — el cliente que compra por juego contesta así (conv 23580, chat 21710).
+ * Es la lectura que comparten `ofertaDeCotizacionAceptada`, el candado de marca
+ * y el de la equivalente de `generar_cotizacion`.
+ */
+export function respondeQueSi(mensajeDelCliente: string): boolean {
+  if (esAcuseSimple(mensajeDelCliente)) return true;
+  if (siConPedidoDeCotizar(mensajeDelCliente)) return true;
+  const n = normalizar(mensajeDelCliente).replace(/[.,!¡]/g, " ").replace(/\s+/g, " ").trim();
+  return /^(?:(?:si|ok|dale|listo|claro)\s+)?(?:el\s+juego(?:\s+(?:de\s+)?(?:4|cuatro))?|las\s+(?:4|cuatro)|esa|esa\s+mism[ao]|ese|ese\s+mism[ao])(?:\s+(?:necesito|quiero|por\s+favor|porfa|gracias))*$/.test(n);
+}
+
+/**
+ * «Sí, cotíceme», «Si cotizame esa», «dale, cotice», «sí, hágala»: el sí con el
+ * verbo de cotizar también es un sí a la oferta de UNA llanta (revisión de la
+ * coordinadora, 20-oct: sin esto la equivalente pedía su sí otra vez). Todo lo
+ * demás del mensaje tiene que ser afirmación, cortesía o un pronombre; «¿y en
+ * 185?» o «Precio» no entran.
+ */
+const PRONOMBRES_DEL_PEDIDO = new Set(["esa", "ese", "esas", "esos", "la", "las", "lo", "me", "mela", "nos", "nomas", "una"].map(colapsar));
+
+function siConPedidoDeCotizar(mensajeDelCliente: string): boolean {
+  const palabras = palabrasDelAcuse(mensajeDelCliente).filter((p) => !LETRA_SUELTA.test(p));
+  const pide = (p: string) => /^coti[cz]/.test(p) || /^hagal[ao]s?$/.test(p) || /^generel[ao]$/.test(p);
+  return palabras.some(pide)
+    && palabras.every((p) => pide(p) || PALABRAS_DE_ACUSE.has(p) || PRONOMBRES_DEL_PEDIDO.has(p));
+}
+
+const PALABRAS_DE_CANTIDAD = new Set([
+  "la", "las", "el", "los", "de", "llanta", "llantas", "unidad", "unidades", "juego", "completo",
+  "quiero", "necesito", "deme", "dame", "seria", "serian", "son", "nomas", "solo",
+  "1", "2", "3", "4", "5", "6", "7", "8", "una", "dos", "tres", "cuatro", "cinco", "seis",
+].map(colapsar));
+
+/**
+ * El mensaje es un acuse, o solo dice CUÁNTAS («Las 4», «4 llantas / Quiero»,
+ * «necesito 2»): con un menú abierto, nada de eso dice CUÁL. Un número del 1
+ * al 3 con artículo singular («la 2») sí elige y no entra; tampoco entra lo que
+ * traiga otra cosa («…con tarjeta», «¿y en aro 17?»), que lo atiende el agente.
+ */
+export function soloAcuseOCantidad(mensajeDelCliente: string): boolean {
+  if (esAcuseSimple(mensajeDelCliente)) return true;
+  const n = normalizar(mensajeDelCliente);
+  if (/\b(?:la|el|opcion|numero)\s+[1-3]\b|^\s*[1-3]\s*$|\b(?:primera|segunda|tercera)\b/.test(n)) return false;
+  const palabras = palabrasDelAcuse(mensajeDelCliente);
+  return palabras.some((p) => /^[1-8]$|^(?:una|dos|tres|cuatro|cinco|seis)$|^juego$/.test(p))
+    && palabras.every((p) => PALABRAS_DE_CANTIDAD.has(p) || PALABRAS_DE_ACUSE.has(p));
+}
+
+/**
+ * «¿Cuál le cotizo, la 1, la 2 o la 3?» — con las posiciones que el menú tenía,
+ * y la cantidad por delante si el cliente la dijo (se guarda; no se pierde).
+ */
+export function preguntaCualLeCotizo(opciones: number, cantidad?: number | null): string {
+  const pregunta = opciones >= 3 ? "¿Cuál le cotizo, la 1, la 2 o la 3?" : "¿Cuál le cotizo, la 1 o la 2?";
+  return cantidad ? `Perfecto, ${cantidad} ${cantidad === 1 ? "llanta" : "llantas"}.\n---\n${pregunta}` : pregunta;
+}
+
+/** ¿Este texto es (o cierra con) la pregunta de elegir del menú? */
+export function esPreguntaCualLeCotizo(texto: string | null | undefined): boolean {
+  return /¿Cuál le cotizo, la 1/.test(texto ?? "");
+}
+
+/**
+ * El hecho que reciben el modelo y el Guardián cuando el cliente contestó un
+ * menú sin elegir. Dice lo mismo que el candado de `generar_cotizacion`.
+ */
+export function hechoDeMenuSinElegir(mensajeDelCliente: string, opciones: number): string {
+  return (
+    "MENÚ SIN ELEGIR (fuente determinística): el bot le mostró varias opciones y preguntó cuál cotizar; " +
+    `el cliente respondió «${mensajeDelCliente.trim().slice(0, 60)}», que NO elige ninguna (un acuse o una ` +
+    "cantidad no dice cuál). PROHIBIDO generar o anunciar una cotización y PROHIBIDO elegir por él. " +
+    `Contesta lo que haya preguntado y cierra, sola en su bloque, con «${preguntaCualLeCotizo(opciones)}».`
+  );
+}
+
+/**
+ * QUÉ LLANTA NOMBRÓ LA OFERTA que el cliente acaba de aceptar, entre las de la
+ * última lámina. Devuelve su código, o null si la oferta no señala una sola.
+ *
+ * Simulador, 20-oct, chat 29029: el bot ofreció «*FALKEN WILDPEAK A/T TRAIL*
+ * … ¿Se la cotizo?», el cliente dijo «Si, por favor», el turno ya reconocía el
+ * sí… y el modelo, con la orden genérica de cotizar, buscó la OTRA medida que
+ * el cliente había nombrado y firmó una WINRUN. Un sí autoriza exactamente lo
+ * que la oferta nombró: se resuelve acá y se cotiza eso, sin modelo.
+ */
+export function codigoDeLoOfrecido(
+  turnoDelBot: string | null | undefined,
+  vitrina: readonly { codigo: string; marca: string; diseno: string }[],
+): string | null {
+  const turno = normalizar(turnoDelBot ?? "");
+  if (!turno || !vitrina.length || esMenuDeOpciones(turnoDelBot)) return null;
+  const nombradas = [...new Map(
+    vitrina
+      .filter((o) => {
+        const diseno = normalizar(o.diseno);
+        return diseno.length >= 3 && turno.includes(diseno);
+      })
+      .map((o) => [o.codigo, o]),
+  ).values()];
+  if (nombradas.length === 1) return nombradas[0].codigo;
+  // Varias del mismo diseño en otras medidas: decide la medida que nombró.
+  if (nombradas.length > 1) return null;
+  const distintas = new Set(vitrina.map((o) => o.codigo));
+  return distintas.size === 1 && ofrecioCotizarLaUnica(turnoDelBot) ? [...distintas][0] : null;
+}
+
+/**
+ * La última OFERTA de cotizar del bot que sigue viva: la que el «sí» de ahora
+ * puede estar contestando aunque no sea la última fila. Muere con una
+ * cotización enviada o con más de dos mensajes del cliente en el medio (las
+ * mismas reglas que `ofertaDeCotizacionVigenteAceptada`).
+ *
+ * Simulador, 20-oct, chat 27992: «¿Le cotizo la KENDA KR20 en 195/45R15?» →
+ * «Precio» → el bot dio el precio y el candado anti-calco le recortó la
+ * pregunta repetida → «Si». El sí contestaba la pregunta de un turno atrás, y
+ * el candado de la equivalente solo miraba la última fila: no cotizó.
+ */
+export function ultimaOfertaDeCotizar(historial: readonly { role: string; content: unknown }[]): string | null {
+  const previos = historial.length && historial[historial.length - 1].role === "user"
+    ? historial.slice(0, -1)
+    : historial;
+  let clientesEnMedio = 0;
+  for (let i = previos.length - 1; i >= 0 && clientesEnMedio <= 2; i--) {
+    const m = previos[i];
+    if (typeof m.content !== "string") continue;
+    if (m.role === "user") { clientesEnMedio += 1; continue; }
+    if (m.role !== "assistant") continue;
+    const texto = normalizar(m.content);
+    if (COTIZACION_ENVIADA.test(texto)) return null;
+    if (ofreceCotizarEn(m.content)) return m.content;
+  }
+  return null;
 }

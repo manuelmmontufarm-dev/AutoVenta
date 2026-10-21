@@ -77,9 +77,21 @@ export function pidePrecio(text: string): boolean {
 export function autorizaCotizacionEnEsteTurno(
   text: string,
   aceptoOfertaDeCotizar = false,
+  contexto: {
+    /**
+     * El bot dejó un MENÚ de 2 o 3 opciones sin contestar
+     * (`ofertaAceptada.menuDeCotizarAbierto`). Ahí la cantidad, el «quiero» o
+     * el «cotíceme» dicen CUÁNTAS o QUE SÍ, no CUÁL: solo la elección autoriza
+     * (auditoría 19-oct, familia 2 — «Las 4 por favor con tarjeta» en 27265,
+     * «4 llantas / Quiero» en 28606: el modelo eligió por su cuenta).
+     */
+    menuSinElegir?: boolean;
+  } = {},
 ): boolean {
   if (aceptoOfertaDeCotizar) return true;
-  if (hasExplicitQuantity(text) || respuestaDePreferencia(text) !== null) {
+  if (respuestaDePreferencia(text) !== null || eligePosicionDelMenu(text)) return true;
+  if (contexto.menuSinElegir) return false;
+  if (hasExplicitQuantity(text)) {
     return true;
   }
   // «Mándame una cotización» es la autorización más explícita que existe;
@@ -192,6 +204,30 @@ export function escalonContestado(
   return huboMenu ? preferencia : null;
 }
 
+/**
+ * «La opción 2», «coticemos la 1», «quiero la opción 2», «la segunda»: nombra
+ * una posición del menú dentro de una frase. `respuestaDePreferencia` solo lee
+ * el número cuando el mensaje ES el número; esto lo encuentra adentro, para que
+ * con un menú abierto «Mi disculpas por favor quiero la opción 2» (chat 26841)
+ * siga autorizando.
+ */
+export function eligePosicionDelMenu(text: string): boolean {
+  const n = normalize(text);
+  return /\b(?:la|el)\s+(?:opcion\s+|numero\s+)?[1-3]\b(?!\s*(?:llantas?|unidades?))|\bopcion\s+[1-3]\b|\b(?:la|el)\s+(?:primera|segunda|tercera|primero|segundo|tercero)\b/.test(n);
+}
+
+/**
+ * «Y EN OTRA MARCA DE MEJOR CALIDAD» PREGUNTA, NO ELIGE (auditoría 19-oct,
+ * familia 2, chat 27097, 14-oct 10:40). «mejor calidad» calzaba como el escalón
+ * premium y se firmó una KR20 de otra medida. Pedir «otra» o preguntar («¿hay
+ * de mejor calidad?», «¿cuál es la mejor?») no contesta el menú: el número
+ * pelado y la palabra seca («Premium», «la mejor», «¿La premium?») siguen eligiendo.
+ */
+function preguntaOPideOtra(normalized: string): boolean {
+  // El «?» solo no veta: «¿La premium?» sigue eligiendo (revisión 20-oct).
+  return /\botr[ao]s?\b|^(?:y\s+)?(?:hay|tiene|tienen|tendra|tendran|existe|cual|cuales|que)\b|^y\s+(?:en|de|con)\b/.test(normalized);
+}
+
 export function respuestaDePreferencia(text: string): Preferencia | null {
   const normalized = normalize(text);
   if (pideAlternativaMasBarata(text)) return null;
@@ -216,6 +252,7 @@ export function respuestaDePreferencia(text: string): Preferencia | null {
     const n = porNumero[1] ?? { primera: "1", segunda: "2", tercera: "3" }[porNumero[2]];
     return n === "1" ? "precio" : n === "2" ? "equilibrada" : "premium";
   }
+  if (preguntaOPideOtra(normalized)) return null;
   // EL ECO DEL MENÚ CUENTA. Producción, 1-sep (conv 13617): el menú ofreció
   // «1) *Costo* — la más conveniente de precio», el cliente contestó «La más
   // conveniente» —las palabras del propio menú— y esto devolvía null: la

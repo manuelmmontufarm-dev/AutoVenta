@@ -61,7 +61,9 @@ import { faltanteDeCotizacion } from "./stockCorto.js";
 import { alcanzaParaVender } from "../domain/stockCorto.js";
 import { politicaDePagos } from "../domain/datosDelNegocio.js";
 import { despedidaQueCorresponde } from "../domain/cierrePerdido.js";
-import { ofertaDeCotizarAceptada } from "../domain/ofertaAceptada.js";
+import { hechoDeMenuSinElegir, menuDeCotizarAbierto, ofertaDeCotizarAceptada, soloAcuseOCantidad } from "../domain/ofertaAceptada.js";
+import { aceptaLaOferta, hechoDeOfertaVigente, opcionesDelMenuAbierto as menuAbiertoSegunHecho } from "../domain/ofertaVigente.js";
+import { leerOfertaVigente } from "./ofertaVigente.js";
 import { ultimoTurnoDelBot } from "../domain/cotizarLaUnica.js";
 import { visitaPendiente } from "../domain/visitaPendiente.js";
 import { tiposCompatibles, usoDeLosTextos } from "../domain/usoYTipo.js";
@@ -564,6 +566,29 @@ export async function armarContexto(
     })),
   );
 
+  // ¿El cliente contestó un menú de cotizar sin elegir? (auditoría 19-oct,
+  // familia 2). Mismo lector que el agente y que `cotizarLoElegido`.
+  // Del HECHO guardado al enviar la oferta (regla del 20-oct); el texto, solo respaldo.
+  const ofertaLeida = await leerOfertaVigente(conversationId, cycle, { hastaElUltimoDelCliente: true });
+  const opcionesDelMenuAbierto = ofertaLeida.fuente === "hecho"
+    ? menuAbiertoSegunHecho(ofertaLeida)
+    : menuDeCotizarAbierto(
+      [...mensajes].reverse().map((m) => ({
+        role: m.direction === "inbound" ? "user" : m.author_kind === "bot" ? "assistant" : "asesor",
+        content: m.content,
+      })),
+    );
+  const nombreOfrecido = ofertaLeida.oferta?.codigo ? findByCode(ofertaLeida.oferta.codigo) : undefined;
+  const hechoDeLaOferta = hechoDeOfertaVigente(
+    ofertaLeida, nombreOfrecido ? `${nombreOfrecido.brand ?? ""} ${nombreOfrecido.design ?? ""}`.trim() : null,
+  );
+  const clienteAceptoLaOferta = ofertaLeida.fuente === "hecho"
+    ? ofertaLeida.turnosAtras === 0 && aceptaLaOferta(ofertaLeida, ultimoDelCliente)
+    : null;
+  const menuSinElegir = opcionesDelMenuAbierto >= 2
+    && (soloAcuseOCantidad(ultimoDelCliente)
+      || huella.some((h) => h.herramienta === "generar_cotizacion" && h.resultado.includes("MENÚ SIN ELEGIR")));
+
   const historial = [...mensajes].reverse().map((m) => {
     const quien = m.direction === "inbound" ? "CLIENTE" : m.author_kind === "bot" ? "BOT" : "ASESOR";
     return `${quien}: ${(m.content ?? "").slice(0, 380)}`;
@@ -747,7 +772,11 @@ export async function armarContexto(
       ? `EL CLIENTE SE DESPIDIÓ: su último mensaje fue «${ultimoDelCliente.slice(0, 120)}». ` +
         "La venta está cerrada. No se le insiste con nada."
       : null,
-    ofertaDeCotizarAceptada(ultimoDelBot, ultimoDelCliente, turnoDelBot)
+    menuSinElegir
+      ? `${hechoDeMenuSinElegir(ultimoDelCliente, opcionesDelMenuAbierto)} Esa pregunta es la legítima del turno: NO es pregunta_de_mas ni re-pregunta, se conserva TAL CUAL y NO se cambia por «¿Se la cotizo?» ni por la pregunta del local. Un borrador que anuncie o adjunte una cotización es **cotizacion_sin_eleccion** (alta).`
+      : null,
+    hechoDeLaOferta,
+    !menuSinElegir && (clienteAceptoLaOferta ?? ofertaDeCotizarAceptada(ultimoDelBot, ultimoDelCliente, turnoDelBot))
       ? `EL CLIENTE YA ACEPTÓ: el bot le ofreció la cotización y él contestó «${ultimoDelCliente.slice(0, 60)}». ` +
         "Eso es un sí. Lo que corresponde es la cotización, no volver a ofrecerla."
       : null,

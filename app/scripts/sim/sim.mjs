@@ -226,7 +226,7 @@ async function main() {
   CON_DOBLES && await encenderBotParaElHumo();
 
   const conv = valor("copiar-conv", null);
-  if (conv) await copiarConversacion(env.DATABASE_URL, Number(conv));
+  if (conv) await copiarConversacion(env.DATABASE_URL, Number(conv), valor("hasta", null));
 
   console.log("📞 Graph API de mentira…");
   graph = await levantarGraphSim({ puerto: PUERTO_GRAPH, dirPiezas: resolve(dirDatos, "piezas") });
@@ -486,7 +486,10 @@ async function verificarLaCopia() {
 }
 
 /** Trae una conversación real para poder seguirla desde donde se cortó. */
-async function copiarConversacion(urlProd, id) {
+// `--hasta <instante ISO>` corta el hilo ANTES de ese instante: para repetir el
+// turno que falló hay que llegar a él sin la respuesta mala ya guardada (con el
+// hilo entero el bot «ve» la cotización que no debía salir y contesta otra cosa).
+async function copiarConversacion(urlProd, id, hasta = null) {
   if (!urlProd) throw new Error("--copiar-conv necesita la DATABASE_URL de producción en .env");
   console.log(`💬 Copiando la conversación ${id} de producción…`);
   const prod = postgres(urlProd, {
@@ -496,25 +499,72 @@ async function copiarConversacion(urlProd, id) {
   try {
     const [conv] = await prod`select * from conversations where id=${id}`;
     if (!conv) throw new Error(`la conversación ${id} no existe en producción`);
-    const mensajes = await prod`select * from messages where conversation_id=${id} order by created_at`;
-    const cotizaciones = await prod`select * from quotes where conversation_id=${id} order by created_at`;
+    const corte = hasta ? new Date(hasta) : null;
+    if (corte && Number.isNaN(corte.getTime())) throw new Error(`--hasta no es una fecha: ${hasta}`);
+    const mensajes = (await prod`select * from messages where conversation_id=${id} order by created_at`)
+      .filter((m) => !corte || new Date(m.created_at) < corte);
+    const cotizaciones = (await prod`select * from quotes where conversation_id=${id} order by created_at`)
+      .filter((q) => !corte || new Date(q.created_at) < corte);
+    // Lo que el bot le mostró (`quote_artifacts`): los candados de marca y de
+    // «lo presentado» de `generar_cotizacion` leen de acá. Sin copiarlo, en el
+    // simulador ninguna llanta «se mostró» y el cambio de marca aceptado se
+    // bloqueaba igual (chat 25741, 20-oct).
+    const artefactos = (await prod`select * from quote_artifacts where conversation_id=${id} order by created_at`)
+      .filter((a) => !corte || new Date(a.created_at) < corte);
+    if (corte) console.log(`   · cortado antes de ${corte.toISOString()}`);
 
-    const [jsonConv, jsonMsg, jsonQuote] = await Promise.all([
-      columnasJson("conversations"), columnasJson("messages"), columnasJson("quotes"),
+    const [jsonConv, jsonMsg, jsonQuote, jsonArt] = await Promise.all([
+      columnasJson("conversations"), columnasJson("messages"), columnasJson("quotes"), columnasJson("quote_artifacts"),
     ]);
+    // Con corte, la ficha vuelve a como estaba ANTES: la etapa sale de la
+    // última transición previa, y lo que solo se llena al cotizar o agendar se
+    // vacía (si no, el bot ve un producto elegido o un local que todavía no existían).
+    if (corte) {
+      const [etapa] = await prod`
+        select to_stage from stage_transitions
+        where conversation_id=${id} and created_at < ${corte} order by created_at desc limit 1
+      `;
+      Object.assign(conv, {
+        stage: etapa?.to_stage ?? "nuevo", status: "open", closed_reason: null, closed_at: null,
+        selected_product_code: null, selected_quantity: null, nearest_store: null, visit_date: null,
+        pickup_date: null, visit_time_label: null, customer_commitment: null, follow_up_reason: null,
+        offer_expires_at: null, savings_amount: null, bot_paused_until: null, assigned_to: "bot",
+      });
+    }
+    // Y el reloj se corre: el corte pasa a ser «ahora». Un hilo de hace tres
+    // días tiene la memoria vencida y el bot lo reiniciaría en el primer mensaje.
+    const corrimiento = corte ? Date.now() - corte.getTime() : 0;
+    const correr = (fila) => {
+      if (!corrimiento) return fila;
+      const copia = { ...fila };
+      for (const [k, v] of Object.entries(copia)) {
+        if (v instanceof Date) copia[k] = new Date(v.getTime() + corrimiento);
+      }
+      return copia;
+    };
+    if (corte) {
+      conv.last_customer_message_at = [...mensajes].reverse().find((m) => m.role === "user")?.created_at ?? null;
+      conv.last_assistant_message_at = [...mensajes].reverse().find((m) => m.role === "assistant")?.created_at ?? null;
+      Object.assign(conv, correr(conv));
+    }
     const { id: _viejo, phone: _tel, ...resto } = conv;
     const [nueva] = await sql`
       insert into conversations ${sql(paraInsertar({ ...resto, phone: TELEFONO_CLIENTE }, jsonConv))} returning id
     `;
     for (const m of mensajes) {
       const { id: _mid, conversation_id: _cid, ...campos } = m;
-      await sql`insert into messages ${sql(paraInsertar({ ...campos, conversation_id: nueva.id }, jsonMsg))}`;
+      await sql`insert into messages ${sql(paraInsertar(correr({ ...campos, conversation_id: nueva.id }), jsonMsg))}`;
     }
     for (const q of cotizaciones) {
       const { id: _qid, conversation_id: _qcid, ...campos } = q;
-      await sql`insert into quotes ${sql(paraInsertar({ ...campos, conversation_id: nueva.id }, jsonQuote))}`.catch(() => {});
+      await sql`insert into quotes ${sql(paraInsertar(correr({ ...campos, conversation_id: nueva.id }), jsonQuote))}`.catch(() => {});
     }
-    console.log(`   · ${mensajes.length} mensajes y ${cotizaciones.length} cotizaciones → conversación ${nueva.id}`);
+    for (const a of artefactos) {
+      // quote_id apunta a ids de producción: se suelta (la cotización copiada tiene otro id).
+      const { id: _aid, conversation_id: _acid, quote_id: _qid, ...campos } = a;
+      await sql`insert into quote_artifacts ${sql(paraInsertar(correr({ ...campos, conversation_id: nueva.id }), jsonArt))}`.catch(() => {});
+    }
+    console.log(`   · ${mensajes.length} mensajes, ${cotizaciones.length} cotizaciones y ${artefactos.length} piezas mostradas → conversación ${nueva.id}`);
   } finally {
     await prod.end();
   }

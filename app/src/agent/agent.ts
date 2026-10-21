@@ -28,7 +28,9 @@ import {
   ordenDeRecotizarCantidad, ordenDeResponderElEscalon, pidioCotizacionExplicita,
   pidioHumanoExplicito, preguntaTecnicaDeRespaldo,
 } from "../domain/consultaConRespaldo.js";
-import { esAcuseSimple } from "../domain/ofertaAceptada.js";
+import { esAcuseSimple, hechoDeMenuSinElegir, menuDeCotizarAbierto } from "../domain/ofertaAceptada.js";
+import { aceptaLaOferta, opcionesDelMenuAbierto } from "../domain/ofertaVigente.js";
+import { leerOfertaVigente } from "../services/ofertaVigente.js";
 import { ultimoTurnoDelBot } from "../domain/cotizarLaUnica.js";
 import { respaldoCompleto } from "../domain/respaldoMarcas.js";
 import { preguntaElLocal } from "../domain/storeSelection.js";
@@ -52,7 +54,7 @@ import { activeBenefitFactsBlock } from "../services/benefits.js";
 import { aroDeLaMedida, medidaEstaPedida } from "../domain/medidaPedida.js";
 import { medidasDelPedido } from "../services/medidasDelPedido.js";
 import {
-  escalonContestado, esRespuestaDelMenuDePreferencia, ETIQUETA_DEL_ESCALON, extractExplicitQuantity,
+  autorizaCotizacionEnEsteTurno, escalonContestado, esRespuestaDelMenuDePreferencia, ETIQUETA_DEL_ESCALON, extractExplicitQuantity,
   extractVehicleYear, respuestaDePreferencia, type Escalones,
 } from "../domain/salesIntent.js";
 import { findByCode, searchByText } from "../services/catalog.js";
@@ -210,22 +212,32 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
   // El marcador de «la única» se busca en TODO el último turno del bot: el
   // «¿Se la cotizo?» sale en su propia fila, aparte de «Es la única que tengo…».
   const turnoDelBot = ultimoTurnoDelBot(history);
-  const aceptoLaOferta = ofertaDeCotizarAceptada(
-    typeof ultimoDelBot?.content === "string" ? ultimoDelBot.content : null,
-    userText,
-    turnoDelBot,
-  );
-  ctx.aceptoOfertaComercial = aceptoLaOferta;
-  ctx.aceptoCotizacion = ofertaDeCotizacionAceptada(
-    typeof ultimoDelBot?.content === "string" ? ultimoDelBot.content : null,
-    userText,
-    turnoDelBot,
-  );
-  // La oferta que quedó pendiente uno o dos turnos atrás también cuenta
-  // (T115 conv 9684, 30-ago): el acuse la acepta mientras no haya negativa.
-  const aceptoOfertaPendiente = !ctx.aceptoCotizacion
-    && ofertaDeCotizacionVigenteAceptada(history, userText);
+  const textoDelUltimoBot = typeof ultimoDelBot?.content === "string" ? ultimoDelBot.content : null;
+  // QUÉ SE OFRECIÓ SE LEE DEL HECHO guardado al enviar la oferta (regla del
+  // 20-oct, `domain/ofertaVigente.ts`). La lectura del texto queda solo como
+  // respaldo para hilos anteriores al deploy (y lo deja en el log).
+  const ofertaLeida = await leerOfertaVigente(ctx.conversation.id, ctx.conversation.current_cycle);
+  let aceptoOfertaPendiente: boolean;
+  if (ofertaLeida.fuente === "hecho") {
+    ctx.aceptoCotizacion = ofertaLeida.turnosAtras === 0 && aceptaLaOferta(ofertaLeida, userText);
+    // La oferta de uno o dos turnos atrás (T115 conv 9684, 30-ago): con otra
+    // respuesta en el medio, solo el sí fuerte la acepta.
+    aceptoOfertaPendiente = !ctx.aceptoCotizacion && ofertaLeida.turnosAtras > 0 && aceptaLaOferta(ofertaLeida, userText);
+    // ¿Quedó un menú de cotizar sin contestar? Con él abierto solo ELEGIR
+    // autoriza `generar_cotizacion` (auditoría 19-oct, familia 2).
+    ctx.menuSinElegir = opcionesDelMenuAbierto(ofertaLeida);
+  } else {
+    ctx.aceptoCotizacion = ofertaDeCotizacionAceptada(textoDelUltimoBot, userText, turnoDelBot);
+    aceptoOfertaPendiente = !ctx.aceptoCotizacion && ofertaDeCotizacionVigenteAceptada(history, userText);
+    ctx.menuSinElegir = menuDeCotizarAbierto(history);
+  }
   if (aceptoOfertaPendiente) ctx.aceptoCotizacion = true;
+  // La oferta amplia (también de opciones o comparación) sigue su lectura de
+  // siempre; pero si hay un hecho de cotizar vigente, manda el hecho.
+  const aceptoLaOferta = ofertaLeida.fuente === "hecho" && ofertaLeida.oferta
+    ? Boolean(ctx.aceptoCotizacion) && !aceptoOfertaPendiente
+    : ofertaDeCotizarAceptada(textoDelUltimoBot, userText, turnoDelBot);
+  ctx.aceptoOfertaComercial = aceptoLaOferta;
   const textosDelCliente = [
     ...history.filter((m) => m.role === "user").map((m) => m.content),
     userText,
@@ -460,9 +472,14 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
   if (equivalentesEnPantalla && !salesFacts.lastQuote && !ctx.consultaFueraDeCatalogo && !pidioHumano) {
     if (ctx.aceptoCotizacion || aceptoLaOferta) {
       // La llanta que el bot mismo nombró en su pregunta, si la nombró.
-      const nombrada = textoUltimoDelBot.match(/¿\s*(?:le|se\s+las?)\s+cotizo\s+las?\s+\*([^*]+)\*/i)?.[1]?.trim().toUpperCase() ?? null;
+      // Con hecho guardado, la llanta ofrecida es la del hecho; el texto, solo respaldo.
+      const codigoOfrecido = ofertaLeida.fuente === "hecho" ? ofertaLeida.oferta?.codigo ?? null : null;
+      const nombrada = ofertaLeida.fuente === "hecho"
+        ? null
+        : textoUltimoDelBot.match(/¿\s*(?:le|se\s+las?)\s+cotizo\s+las?\s+\*([^*]+)\*/i)?.[1]?.trim().toUpperCase() ?? null;
       const candidatas = (["economica", "equilibrada", "premium"] as const).map(escalonEnPantalla).filter(Boolean);
-      const elegida = candidatas.find((c) => nombrada && c!.nombre.toUpperCase() === nombrada)
+      const elegida = candidatas.find((c) => codigoOfrecido && c!.codigo === codigoOfrecido)
+        ?? candidatas.find((c) => nombrada && c!.nombre.toUpperCase() === nombrada)
         ?? candidatas.find((c) => c!.codigo === piezaPrevia?.metadata?.recomendado)
         ?? null;
       if (elegida) {
@@ -540,9 +557,13 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
   // el número abría este camino y la palabra iba al modelo como sugerencia:
   // en 3 de 14 respuestas al menú el modelo no cotizó (convs 15193, 14577,
   // 15031) y el candado siguiente ofreció OTRO escalón. Ver `escalonContestado`.
+  // Con UNA sola llanta en la lámina no hubo menú: «Precio» no es el escalón
+  // «Costo» (auditoría 19-oct, chat 27992).
+  const opcionesEnLaLamina = new Set(Object.values(salesFacts.escalones ?? {})
+    .map((o) => o?.codigo).filter(Boolean)).size;
   const escalonSinReply =
     !escalonPorReply && !ctx.medidaSinConfirmar && salesFacts.escalones
-      ? escalonContestado(userText, textoUltimoDelBot, null, { huboMenu: true })
+      ? escalonContestado(userText, textoUltimoDelBot, null, { huboMenu: opcionesEnLaLamina >= 2 })
       : null;
   const opcionPorLista = escalonSinReply && posicionElegidaDeLaLista !== null
     && /¿le cotizo la 1/i.test(textoUltimoDelBot ?? "")
@@ -553,6 +574,14 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
     ?? (escalonSinReply
       ? salesFacts.escalones?.[escalonSinReply === "precio" ? "economica" : escalonSinReply] ?? null
       : null);
+  // EL CLIENTE CONTESTÓ EL MENÚ SIN ELEGIR: un acuse, una cantidad, un
+  // «quiero» o un «cotícela» que sin menú habrían autorizado, pero que no dicen
+  // cuál. El hecho dice lo mismo que el candado de `generar_cotizacion`.
+  const menuContestadoSinElegir = (ctx.menuSinElegir ?? 0) >= 2
+    && !ctx.aceptoCotizacion
+    && !autorizaCotizacionEnEsteTurno(userText, false, { menuSinElegir: true })
+    && (esAcuseSimple(userText) || autorizaCotizacionEnEsteTurno(userText, false));
+  if (menuContestadoSinElegir) usedTools.push("menu_sin_elegir");
   let vueltaForzadaUsada = false;
   let recordatorioDeObligacion: string | null = null;
   const bloquesVolatiles: ChatCompletionMessageParam[] = [
@@ -561,6 +590,8 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
       ? [{ role: "system" as const, content: ordenDeCotizarYa(userText) }] : []),
     ...(ordenDeEquivalente && !acuseTrasObjecion
       ? [{ role: "system" as const, content: ordenDeEquivalente }] : []),
+    ...(menuContestadoSinElegir
+      ? [{ role: "system" as const, content: hechoDeMenuSinElegir(userText, ctx.menuSinElegir ?? 3) }] : []),
     ...(!aceptoLaOferta && aceptoOfertaPendiente
       ? [{ role: "system" as const, content: recordatorioDeOfertaPendiente(userText) }]
       : []),
@@ -773,7 +804,7 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
       // ¿La obligación determinística del turno quedó sin cumplir? Una vuelta
       // más, con el recordatorio pegado al final, y de nuevo el control.
       const debeCotizar = (pidioCotizar || cantidadCambia || ctx.aceptoCotizacion || ctx.recomendacionEntregada)
-        && !ctx.medidaSinConfirmar
+        && !ctx.medidaSinConfirmar && !menuContestadoSinElegir
         && !usedTools.includes("generar_cotizacion");
       const debeNotificar = pidioHumano && !usedTools.includes("notificar_vendedor");
       const debeBuscarPorAro = aroDelTurno !== null
@@ -855,7 +886,7 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
       // se fue por aquí sin pasar por la vuelta forzada.
       const obligacionPendiente =
         ((pidioCotizar || cantidadCambia || ctx.aceptoCotizacion || ctx.recomendacionEntregada)
-          && !ctx.medidaSinConfirmar
+          && !ctx.medidaSinConfirmar && !menuContestadoSinElegir
           && !usedTools.includes("generar_cotizacion"))
         || (pidioHumano && !usedTools.includes("notificar_vendedor"));
       if (exact && obligacionPendiente && !vueltaForzadaUsada && !ctx.consultaFueraDeCatalogo) {

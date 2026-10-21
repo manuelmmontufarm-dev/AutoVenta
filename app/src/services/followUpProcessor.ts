@@ -3,6 +3,7 @@ import { emitirCuponDeConfirmacion, enviarTicketDeCupon } from "./coupons.js";
 import { porQueNoPasaPorElLocal } from "./dondeEstaElCliente.js";
 import { config } from "../config.js";
 import { isWithinBusinessHours } from "../domain/followUps.js";
+import { metadataDeOferta } from "./ofertaVigente.js";
 import { appendMessage } from "./conversations.js";
 import {
   createBotAlert,
@@ -369,10 +370,16 @@ export async function processFollowUpJob(
     const content = isPostWindow
       ? `[Plantilla ${template!.template_name}]`
       : preview;
+    // El «¿se la cotizo?» del seguimiento abre la misma oferta: se guarda como
+    // hecho para que el sí del día siguiente cotice (services/ofertaVigente.ts).
+    // La plantilla fuera de ventana no ofrece nada que el bot sepa leer.
+    const metadatoDeOferta = isPostWindow
+      ? { oferta: null }
+      : await metadataDeOferta(context.id, context.current_cycle, content);
     await appendMessage(context.id, "assistant", content, providerId, {
       authorKind: "bot",
       status: "sent",
-      metadata: { followUpJobId: job.id, followUpAttemptId: Number(attempt.id) },
+      metadata: { followUpJobId: job.id, followUpAttemptId: Number(attempt.id), ...metadatoDeOferta },
       occurredAt: now,
     });
     await sql.begin(async (tx) => {

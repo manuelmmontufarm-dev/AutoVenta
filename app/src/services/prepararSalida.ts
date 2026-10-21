@@ -35,7 +35,8 @@ import { afirmaQueAviso, prometeConsultar, sinAvisoInventado } from "../domain/a
 import { avisoRegistradoEnElTurno, registrarConsultaPrometida } from "./avisoAlAsesor.js";
 import type { Stage } from "./conversations.js";
 import { lastOutboundText } from "./conversations.js";
-import { esAcuseSimple } from "../domain/ofertaAceptada.js";
+import { esAcuseSimple, esPreguntaCualLeCotizo } from "../domain/ofertaAceptada.js";
+import type { OfertaDeCotizar } from "../domain/ofertaVigente.js";
 import { applyOutboundGuard } from "./outboundGuard.js";
 import { revisarConGuardian, type HuellaHerramienta, type RevisionGuardian } from "./guardian.js";
 import { asegurarAvisoDeStock } from "./stockCorto.js";
@@ -80,6 +81,7 @@ import { estructurarTurno } from "../domain/estructuraDelTurno.js";
 import {
   anunciaCotizacion, preguntaDeEquivalente, productoDeConsentimiento, sinCotizacionPrometida,
   preguntaLegitimaTrasCotizacionBloqueada,
+  preguntaCualTrasMenuSinElegir,
   type MetadataDePieza,
 } from "../domain/equivalentePendiente.js";
 import { findByCode } from "./catalog.js";
@@ -148,6 +150,12 @@ export interface ContextoDeSalida {
   suprimirEmpujeComercial?: boolean;
   /** La intención vigente es un servicio que no está en el catálogo de llantas. */
   consultaFueraDeCatalogo?: boolean;
+  /**
+   * La oferta de cotizar que la puerta YA SABE que hizo (la equivalente, el
+   * menú, «¿Cuál le cotizo…?»). Los pasos que reescriben la pregunta la
+   * actualizan; quien guarda el saliente la usa para el hecho (`services/ofertaVigente.ts`).
+   */
+  ofertaDelTurno?: OfertaDeCotizar | null;
 }
 
 export interface PasoDeSalida {
@@ -261,7 +269,20 @@ export const PASOS: readonly PasoDeSalida[] = [
     nombre: "pregunta_legitima_tras_cotizacion_bloqueada",
     corre: ["respuesta", "retomada"],
     async aplicar(texto, ctx) {
-      const bloqueo = (ctx.huella ?? []).some(
+      const huella = ctx.huella ?? [];
+      // Menú sin elegir (auditoría 19-oct, familia 2): la pregunta legítima
+      // es «¿Cuál le cotizo…?», la que dicta la propia herramienta.
+      const frenoDelMenu = huella.find(
+        (paso) => paso.herramienta === "generar_cotizacion" && paso.resultado.includes("MENÚ SIN ELEGIR"),
+      );
+      if (frenoDelMenu) {
+        const pregunta = /«(¿Cuál le cotizo[^»]*)»/.exec(frenoDelMenu.resultado)?.[1];
+        if (pregunta) {
+          ctx.ofertaDelTurno = { tipo: "oferta_de_cotizar", clase: "menu", opciones: /la 3/.test(pregunta) ? 3 : 2 };
+          return preguntaCualTrasMenuSinElegir(texto, pregunta);
+        }
+      }
+      const bloqueo = huella.some(
         (paso) => paso.herramienta === "generar_cotizacion"
           && paso.resultado.includes("este turno no autorizó cotizar llantas"),
       );
@@ -571,6 +592,9 @@ export const PASOS: readonly PasoDeSalida[] = [
     corre: ["respuesta", "retomada"],
     async aplicar(texto, ctx) {
       if (ctx.suprimirEmpujeComercial) return texto;
+      // El cliente todavía no eligió del menú: la pregunta del turno es «¿Cuál
+      // le cotizo…?» y el local no corresponde (auditoría 19-oct, familia 2).
+      if (esPreguntaCualLeCotizo(texto)) return texto;
       const insistido = await insistirConLoQueFalta(
         ctx.conversation.id, ctx.conversation.current_cycle, texto, ctx.textoDelCliente,
         ctx.faseOperativa,

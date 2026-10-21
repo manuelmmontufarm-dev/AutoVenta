@@ -1,4 +1,5 @@
 import { respuestaDePreferencia } from "./salesIntent.js";
+import { respondeQueSi } from "./ofertaAceptada.js";
 /**
  * LA EQUIVALENTE SE OFRECE CON UNA PREGUNTA CLARA, Y LA COTIZACIÓN NO SE
  * ANUNCIA SI NO SALIÓ.
@@ -65,6 +66,20 @@ export function preguntaLegitimaTrasCotizacionBloqueada(texto: string): string {
   const permisoConCantidad =
     /¿[^?\n]{0,180}(?:(?:gener|prepar|arm|hac)\p{L}*[^?\n]{0,70}cotizaci[oó]n|coti[sz]\p{L}*)[^?\n]{0,100}\b(?:juego|[1-8]|una|dos|tres|cuatro|cinco|seis|siete|ocho)\b[^?\n]{0,80}\?/giu;
   return texto.replace(permisoConCantidad, "¿Se la cotizo? 😊");
+}
+
+/**
+ * EL MENÚ SIN ELEGIR CIERRA CON «¿CUÁL?», NO CON «¿SE LA COTIZO?» (auditoría
+ * 19-oct, familia 2). Cuando `generar_cotizacion` frenó porque el cliente
+ * contestó un menú sin elegir, cualquier pregunta de permiso que haya escrito
+ * el modelo («¿Se la cotizo?», «¿Le genero la cotización…?») se cambia por la
+ * de elegir; si no hay ninguna, se agrega en su propio bloque.
+ */
+export function preguntaCualTrasMenuSinElegir(texto: string, pregunta: string): string {
+  if (texto.includes(pregunta)) return texto;
+  const permiso = /¿[^?\n]{0,200}(?:coti[sz]\p{L}*|cotizaci[oó]n)[^?\n]{0,120}\?(?:\s*😊)?/giu;
+  if (permiso.test(texto)) return texto.replace(permiso, pregunta);
+  return `${texto.trimEnd()}\n---\n${pregunta}`;
 }
 
 /**
@@ -183,6 +198,12 @@ export function equivalenteSinConsentimiento(input: {
   const cliente = (input.textoDelCliente ?? "").toLowerCase();
   if (diseno.length >= 3 && cliente.includes(diseno)) return false;
   if (marca.length >= 3 && cliente.includes(marca)) return false;
+  // LA PREGUNTA SOLA NO ES EL SÍ (auditoría 19-oct, familia 2, chat 27992):
+  // el bot preguntó «¿Le cotizo la KENDA KR20 en 195/45R15?», el cliente —que
+  // había pedido 185/45R15— mandó «Precio», y la cotización salió seis segundos
+  // después. Que el bot haya preguntado por ESTA llanta solo cuenta si lo que
+  // el cliente contestó es un sí.
+  if (!respondeQueSi(input.textoDelCliente ?? "")) return true;
   const bot = (input.ultimoMensajeDelBot ?? "").toLowerCase();
   const preguntoPorEsta = /¿\s*(?:le|se\s+las?)\s+cotizo\s+las?\s+\*?([^*?]+?)\*?(?:\s+en\s+\*?([^*?]+?)\*?)?\s*\?/i.exec(bot);
   if (preguntoPorEsta) {
