@@ -35,7 +35,7 @@ export const LISTA_BLANCA = [
   /^CONTIFICO_(CUSTOMER_PVP|CUSTOMER_PRICE_DIVISOR|MINIMUM_PRICE_DIVISOR)$/,
   // Cuánto se calla el bot tras un asesor, si nace prendido, a quién le
   // contesta aun apagado, cómo se llama el vendedor y las rutas de venta directa.
-  /^(DIRECT_SALES_ROUTES_ENABLED|PHASES_DEFAULT|DEBOUNCE_MS|BOT_PAUSE_HOURS|HUMAN_RESCUE_HOURS|BOT_POWER_DEFAULT|BOT_POWER_CACHE_MS|BOT_APAGADO_EXCEPTO|SELLER_NAME|PIPELINE_MAX_CONCURRENT)$/,
+  /^(DIRECT_SALES_ROUTES_ENABLED|PHASES_DEFAULT|DEBOUNCE_MS|BOT_PAUSE_HOURS|HUMAN_RESCUE_HOURS|HUMAN_TURN_HOURS|BOT_POWER_DEFAULT|BOT_POWER_CACHE_MS|BOT_APAGADO_EXCEPTO|SELLER_NAME|PIPELINE_MAX_CONCURRENT)$/,
   // QUÉ NEGOCIO ATIENDE: el perfil de `src/negocio/` con sus locales, sus
   // zonas, su IVA y sus garantías. Es lo más determinante de todo lo que el bot
   // dice, así que el simulador tiene que correr con el mismo que producción: si

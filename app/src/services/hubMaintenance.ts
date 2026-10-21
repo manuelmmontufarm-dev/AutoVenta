@@ -257,7 +257,7 @@ export async function rescatarChatsOlvidados(
   const idsADespertar = aDespertar.map((f) => Number(f.id));
   const filas = await sql<{ id: number; name: string | null; phone: string; cycle: number }[]>`
     update conversations c
-    set assigned_to = 'bot', bot_paused_until = null, updated_at = now()
+    set assigned_to = 'bot', bot_paused_until = null, bot_paused_reason = null, updated_at = now()
     where c.id = any(${idsADespertar})
     returning c.id, c.name, c.phone, c.current_cycle as cycle
   `;

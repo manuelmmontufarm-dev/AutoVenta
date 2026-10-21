@@ -5,7 +5,7 @@ import { franjaHoraria } from "../domain/diasEnEspanol.js";
 import { esMismaVisitaPorSilencio } from "../domain/medidaPedida.js";
 import { memoriaDelChatVencida } from "../domain/memoriaDelChat.js";
 import { medidaGuardable } from "../domain/tireSize.js";
-import { puedeOlvidarPorSilencio, TIPO_CLIENTE_SIN_RESPUESTA } from "../domain/turnoDelHumano.js";
+import { puedeOlvidarPorSilencio, TIPO_CLIENTE_SIN_RESPUESTA, type MotivoDePausa } from "../domain/turnoDelHumano.js";
 import { cancelPendingFollowUps, scheduleConversationFollowUps } from "./followUps.js";
 import { emitLiveEvent } from "./liveEvents.js";
 
@@ -98,7 +98,7 @@ export async function reopenConversation(
     update conversations
     set current_cycle = current_cycle + 1,
         stage = 'nuevo', status = 'open', assigned_to = 'bot',
-        bot_paused_until = null,
+        bot_paused_until = null, bot_paused_reason = null,
         -- Conv 11274, 27-ago-2026: cuatro minutos después del cierre, borrar
         -- medida, carro y local hizo que el bot interrogara de nuevo a quien
         -- todavía estaba en la misma compra. Solo estos datos describen al
@@ -286,20 +286,40 @@ export async function reiniciarSiLaMemoriaVencio(
   ahora: Date = new Date(),
 ): Promise<Conversation> {
   if (conversation.status !== "open") return conversation;
+  // LA PAUSA SE LEE COMO TEXTO Y SE DEVUELVE COMO TEXTO (familia 4, 20-oct).
+  // Leída como Date, la pausa 'infinity' que dejaron los traspasos de antes del
+  // 28-sep llega como Invalid Date, y al escribirla de vuelta abajo postgres.js
+  // tira RangeError DESPUÉS de haber abierto el ciclo y ANTES de guardar el
+  // mensaje. whatsapp-api-js se traga el error y responde 500, Meta reentrega,
+  // y la segunda entrega abría OTRO ciclo encima (98 de 242 reinicios en 40
+  // días, chats 4231, 20892, 20523, 12539, 4928). Y una pausa infinita ya no
+  // es un estado válido: se conserva como «sin pausa», que es como la lee JS.
   const [marcas] = await sql<
     {
       last_customer_message_at: Date | null;
       last_assistant_message_at: Date | null;
       assigned_to: string;
-      bot_paused_until: Date | null;
+      pausa: string | null;
+      motivo: string | null;
+      mensajes_del_ciclo: boolean;
     }[]
   >`
-    select last_customer_message_at, last_assistant_message_at, assigned_to, bot_paused_until
-    from conversations where id = ${conversation.id}
+    select last_customer_message_at, last_assistant_message_at, assigned_to,
+      case when isfinite(bot_paused_until) then bot_paused_until::text end as pausa,
+      bot_paused_reason as motivo,
+      exists (
+        select 1 from messages m where m.conversation_id = c.id and m.cycle = c.current_cycle
+      ) as mensajes_del_ciclo
+    from conversations c where id = ${conversation.id}
   `;
   const duenio = marcas
-    ? { assigned_to: marcas.assigned_to, bot_paused_until: marcas.bot_paused_until }
+    ? { assigned_to: marcas.assigned_to, pausa: marcas.pausa, motivo: marcas.motivo }
     : null;
+  // UN CICLO VACÍO NO TIENE NADA QUE OLVIDAR. La reapertura no toca los
+  // `last_*`, así que un ciclo recién abierto sigue «en silencio desde agosto»
+  // hasta que entra su primer mensaje; sin esto, cualquier segundo intento
+  // sobre el mismo regreso (una reentrega de Meta) lo volvía a rotar.
+  if (marcas && !marcas.mensajes_del_ciclo) return conversation;
   if (
     !marcas
     || !memoriaDelChatVencida(
@@ -348,11 +368,12 @@ export async function reiniciarSiLaMemoriaVencio(
   // silencio, y sin esto el primer mensaje de cada uno se los habría arrebatado
   // al asesor sin que nadie lo pidiera. La pausa y el dueño se conservan tal
   // como estaban; lo único que caduca es la memoria.
-  if (duenio && (duenio.assigned_to !== "bot" || duenio.bot_paused_until)) {
+  if (duenio && (duenio.assigned_to !== "bot" || duenio.pausa)) {
     const [conDuenio] = await sql<Conversation[]>`
       update conversations
       set assigned_to = ${duenio.assigned_to},
-          bot_paused_until = ${duenio.bot_paused_until},
+          bot_paused_until = ${duenio.pausa}::timestamptz,
+          bot_paused_reason = ${duenio.motivo},
           updated_at = now()
       where id = ${conversation.id}
       returning id, phone, name, stage, bot_paused_until, status, current_cycle
@@ -688,10 +709,15 @@ export async function setExplicitStore(conversationId: number, store: string): P
 }
 
 /** Handoff: silencia el bot en este chat (ej. cuando el dueño responde a mano). */
-export async function pauseBot(conversationId: number, hours = config.pipeline.botPauseHours) {
+export async function pauseBot(
+  conversationId: number,
+  hours = config.pipeline.botPauseHours,
+  motivo: MotivoDePausa = "panel",
+) {
   await sql`
     update conversations
-    set bot_paused_until = now() + make_interval(hours => ${hours})
+    set bot_paused_until = now() + make_interval(hours => ${hours}),
+        bot_paused_reason = ${motivo}
     where id = ${conversationId}
   `;
 }
@@ -790,11 +816,19 @@ export async function setReviewLater(
 export async function setConversationAssignee(
   conversationId: number,
   assignedTo: "bot" | "human",
+  /**
+   * Por qué pasa a humano (familia 4, 20-oct): `persona_escribio` si una
+   * persona acaba de contestar (eco, envío del panel), `panel` si alguien lo
+   * tomó sin escribir. Decide si un mensaje nuevo del cliente lo contesta el
+   * bot o espera a la persona. Ver `domain/turnoDelHumano.ts`.
+   */
+  motivo: MotivoDePausa = "panel",
 ): Promise<void> {
   await sql`
     update conversations
     set assigned_to = ${assignedTo},
         bot_paused_until = ${assignedTo === "human" ? new Date(Date.now() + config.pipeline.botPauseHours * 60 * 60 * 1000) : null},
+        bot_paused_reason = ${assignedTo === "human" ? motivo : null},
         updated_at = now()
     where id = ${conversationId}
   `;
@@ -830,9 +864,12 @@ export async function setConversationAssignee(
 export async function devolverAlBotSiVencioLaPausa(conversationId: number): Promise<boolean> {
   const filas = await sql`
     update conversations
-    set assigned_to = 'bot', bot_paused_until = null, updated_at = now()
+    set assigned_to = 'bot', bot_paused_until = null, bot_paused_reason = null, updated_at = now()
     where id = ${conversationId} and assigned_to = 'human'
-      and (bot_paused_until is null or bot_paused_until <= now())
+      -- Una pausa 'infinity' es un residuo de antes del 28-sep: en JS se lee
+      -- como «sin pausa» (Invalid Date) y acá tiene que leerse igual, o el
+      -- bot redacta y la política lo bloquea por human_control.
+      and (bot_paused_until is null or bot_paused_until <= now() or not isfinite(bot_paused_until))
     returning id
   `;
   return filas.length > 0;

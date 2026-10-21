@@ -111,7 +111,7 @@ describe.sequential("el turno del humano", () => {
     expect(alertas[0].exact_reason).toContain("Buenas tardes");
   });
 
-  it("conv 21640: advisor_review deja pausa finita; lo que escribe el cliente levanta y refresca UNA alerta", async () => {
+  it("conv 21640: advisor_review deja pausa finita y no deja mudo al cliente; con una persona en el chat, UNA alerta que se refresca", async () => {
     const conv = await conversations.getOrCreateConversation("593992528699", "Cliente 21640");
     const traspaso = new Date("2026-09-20T14:00:00Z");
     await appSql`
@@ -135,17 +135,32 @@ describe.sequential("el turno del humano", () => {
     // no la mira y `devolverAlBotSiVencioLaPausa` nunca la encuentra vencida.
     expect(estado.pausa).not.toBe("infinity");
 
+    // FAMILIA 4 (auditoría del 19-oct, decisión del 20-oct): la pausa la puso
+    // la revisión automática y ninguna persona escribió nunca en este chat.
+    // Antes el cliente quedaba mudo hasta el rescate del día siguiente; ahora
+    // le contesta el bot al instante y el asesor recibe la alerta.
     const ochentaMinutos = new Date(traspaso.getTime() + 80 * 60_000);
     const pregunta = "¿Qué precio tienen los 4 neumáticos? Envié unas fotos";
     await conversations.appendMessage(conv.id, "user", pregunta, "wamid.21640.1", { occurredAt: ochentaMinutos });
     expect(await turno.decidirQuienContesta(conv.id, pregunta, ochentaMinutos))
+      .toEqual({ contesta: "bot", retoma: "pausa_automatica" });
+    expect(await alertasAbiertas(conv.id, "bot_retomo_el_chat")).toHaveLength(1);
+    expect(await alertasAbiertas(conv.id, "cliente_sin_respuesta")).toHaveLength(0);
+
+    // Con una persona en el chat (contestó desde el panel), el bot sí calla y
+    // lo que escribe el cliente levanta y refresca UNA alerta.
+    await conversations.setConversationAssignee(conv.id, "human", "persona_escribio");
+    const otraPregunta = "¿Y en 17?";
+    const despues = new Date(ochentaMinutos.getTime() + 2 * 60_000);
+    await conversations.appendMessage(conv.id, "user", otraPregunta, "wamid.21640.0", { occurredAt: despues });
+    expect(await turno.decidirQuienContesta(conv.id, otraPregunta, despues))
       .toEqual({ contesta: "humano", motivo: "pausa_vigente" });
     let alertas = await alertasAbiertas(conv.id, "cliente_sin_respuesta");
     expect(alertas).toHaveLength(1);
     expect(alertas[0].priority).toBe("high");
 
     // Un segundo mensaje no abre otra: refresca la misma con lo último.
-    const otro = new Date(ochentaMinutos.getTime() + 5 * 60_000);
+    const otro = new Date(despues.getTime() + 5 * 60_000);
     await conversations.appendMessage(conv.id, "user", "Hola??", "wamid.21640.2", { occurredAt: otro });
     await turno.decidirQuienContesta(conv.id, "Hola??", otro);
     alertas = await alertasAbiertas(conv.id, "cliente_sin_respuesta");

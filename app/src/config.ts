@@ -306,6 +306,13 @@ export const config = {
      */
     humanRescueHours: Number(envOr("HUMAN_RESCUE_HOURS", "12")),
     /**
+     * Cuánto dura «la última palabra la dijo una persona» (auditoría del
+     * 19-oct, familia 4). Pasado este plazo, si el cliente vuelve a escribir
+     * contesta el bot y el asesor recibe la alerta: un mensaje del asesor del
+     * 31-ago no deja mudo al cliente del 15-oct. Ver `domain/turnoDelHumano.ts`.
+     */
+    humanTurnHours: Number(envOr("HUMAN_TURN_HOURS", "48")),
+    /**
      * Tope global de handlers en vuelo. El FIFO por usuario no limita nada
      * cuando escriben N clientes a la vez: N llamadas simultáneas al LLM →
      * rate limit de OpenAI → el cliente ve el mensaje de error. Con el tope,

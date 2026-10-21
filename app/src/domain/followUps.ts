@@ -149,6 +149,42 @@ export function computeInWindowSchedule(input: {
   return { windowClosesAt, firstDueAt, secondDueAt };
 }
 
+/**
+ * CUÁNDO REVISA EL ASESOR: un `advisor_review` nunca nace vencido, y su reloj
+ * arranca en el último mensaje del ciclo actual (auditoría del 19-oct,
+ * familia 4).
+ *
+ * Chat 4231, 14-oct 12:43: el cliente volvió tras semanas, se abrió un ciclo
+ * nuevo y el worker le agendó la revisión con la ventana de AGOSTO (la de
+ * `last_customer_message_at`, que la reapertura no toca). La revisión se
+ * ejecutó en el mismo milisegundo en que nació, pausó al bot 6 h, y el cliente
+ * que acababa de escribir recibió la primera respuesta a las 08:41 del otro
+ * día. 94 revisiones nacieron vencidas entre el 13 y el 19-oct.
+ *
+ *  · Sin mensajes en el ciclo actual no hay nada que revisar: null.
+ *  · Si la ventana del cliente todavía no cerró, la revisión va a su cierre
+ *    (lo de siempre).
+ *  · Si ya cerró, el reloj arranca en el último mensaje del ciclo (por
+ *    ejemplo, el asesor que acaba de escribir): 24 h desde ahí.
+ *  · Y si también eso ya pasó, la revisión llegaría tarde por definición:
+ *    null. Los chats viejos sin plan los cubren las alertas de
+ *    `reconcileFollowUpAlerts`, no una pausa instantánea.
+ */
+export function cuandoRevisaElAsesor(input: {
+  ventanaCierra: Date;
+  ultimoMensajeDelCiclo: Date | null;
+  policy: FollowUpPolicy;
+  now?: Date;
+}): Date | null {
+  const now = input.now ?? new Date();
+  if (!input.ultimoMensajeDelCiclo) return null;
+  const base = input.ventanaCierra > now
+    ? input.ventanaCierra
+    : new Date(input.ultimoMensajeDelCiclo.getTime() + WHATSAPP_WINDOW_MS);
+  if (base <= now) return null;
+  return nextBusinessInstant(base, input.policy);
+}
+
 const OPT_OUT_PATTERNS = [
   /\bno\s+me\s+(?:escribas?|escriban|contactes?|contacten|mensajes|molestes?|molesten)\b/i,
   /\bdej[ae]n?\s+de\s+(?:escribir(?:me)?|molestar(?:me)?|insistir)\b/i,

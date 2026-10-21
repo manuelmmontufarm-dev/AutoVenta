@@ -115,7 +115,7 @@ async function guardarEco(eco: EchoMessage): Promise<boolean> {
   // envío no puede pausar al bot por su propia respuesta.
   if (esNuevo && !propio) {
     await registrarEcoGuardado();
-    await setConversationAssignee(conversation.id, "human");
+    await setConversationAssignee(conversation.id, "human", "persona_escribio");
     console.log(
       `👤 Asesor respondió desde WhatsApp en la conversación ${conversation.id}: bot en pausa.`,
     );
