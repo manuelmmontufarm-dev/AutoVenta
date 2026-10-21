@@ -145,6 +145,31 @@ describe("leerVisita — el mismo día de la semana y la semana que viene", () =
   });
 });
 
+describe("la semana es del día que la lleva, y la negación va primero (revisión final, 21-oct)", () => {
+  const miercoles = enQuito("2026-10-21T10:00:00");
+
+  it("«no puedo el sábado, voy el próximo domingo» es el domingo 25", () => {
+    expect(diaQuito(leerVisita("no puedo el sábado, voy el próximo domingo", miercoles)?.visitDate)).toBe("2026-10-25");
+  });
+
+  it("«el próximo sábado no puedo, voy el domingo» es el domingo 25", () => {
+    expect(diaQuito(leerVisita("el próximo sábado no puedo, voy el domingo", miercoles)?.visitDate)).toBe("2026-10-25");
+  });
+
+  it("y 29358 sigue siendo el sábado 24", () => {
+    const lectura = leerVisita(
+      "Suelo viajar a Quito los sábados pero hoy no fui creo para el próximo sábado",
+      enQuito("2026-10-17T15:29:00"),
+      { respondiendoAlDia: true },
+    );
+    expect(diaQuito(lectura?.visitDate)).toBe("2026-10-24");
+  });
+
+  it("«no puedo el próximo sábado, mejor el lunes» es el lunes 26", () => {
+    expect(diaQuito(leerVisita("no puedo el próximo sábado, mejor paso el lunes", miercoles)?.visitDate)).toBe("2026-10-26");
+  });
+});
+
 describe("fechaParaAgendar — la herramienta lee lo mismo que el pipeline", () => {
   it("29358: el modelo mandó «sábado 31 de octubre», pero el cliente dijo «el próximo sábado»: gana el cliente (24)", () => {
     const r = fechaParaAgendar({

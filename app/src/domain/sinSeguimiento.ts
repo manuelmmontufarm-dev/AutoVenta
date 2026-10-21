@@ -19,6 +19,7 @@ import { tipoDeCierreDelTurno } from "./cierreTurno.js";
 import { comproEnOtroLugar } from "./cierrePerdido.js";
 import { elClienteDijoQueAvisa, pideQueLeAvisen } from "./clientePosterga.js";
 import type { SinVisita } from "./compraADistancia.js";
+import { esAcuseSimple } from "./ofertaAceptada.js";
 
 export type MotivoSinSeguimiento =
   | "cierre_del_cliente"
@@ -27,7 +28,6 @@ export type MotivoSinSeguimiento =
   | "espera_que_le_avisen"
   | "fuera_de_cobertura";
 
-const ACUSE = /^(?:ok|oka|okay|okey|listo|perfecto|bueno|bien|gracias|ok gracias|muchas gracias|vale|dale|👍|🤝|🙏)[\s.,!👍🤝🙏]*$/i;
 
 /**
  * FUERA DE QUITO CON COTIZACIÓN ES UNA COMPRA A DISTANCIA (decisión de la
@@ -52,7 +52,8 @@ export function motivoParaNoSeguir(input: {
   if (!ultimo) return null;
   const anterior = input.anterior?.trim() || null;
   // El «ok» que sigue a la despedida no la deshace: se mira lo de antes.
-  const mensajes = ACUSE.test(ultimo.toLowerCase()) && anterior ? [ultimo, anterior] : [ultimo];
+  // El dueño de «esto es un acuse» es `esAcuseSimple` (ofertaAceptada.ts).
+  const mensajes = esAcuseSimple(ultimo) && anterior ? [ultimo, anterior] : [ultimo];
   for (const texto of mensajes) {
     if (comproEnOtroLugar(texto)) return "compro_en_otro_lugar";
     if (pideQueLeAvisen(texto)) return "espera_que_le_avisen";

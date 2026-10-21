@@ -27,6 +27,13 @@ describe("motivoParaNoSeguir — los chats de la auditoría", () => {
     })).toBe("espera_que_le_avisen");
   });
 
+  it("cualquier acuse que reconoce `esAcuseSimple` mantiene el motivo del mensaje anterior", () => {
+    const anterior = "Para que voy sino tiene las llantas que me interesa. Cuando lo tenga me avisa";
+    for (const ultimo of ["Okey gracias 👍🏻", "Siii", "ok si", "👍", "Ok gracias"]) {
+      expect(motivoParaNoSeguir({ ultimo, anterior }), ultimo).toBe("espera_que_le_avisen");
+    }
+  });
+
   it("22876: «Opté por otro distribuidor por el precio» → compró en otro lado", () => {
     expect(motivoParaNoSeguir({
       ultimo: "Buen día. Me disculpo por no contestar a tiempo. Opté por otro distribuidor por el precio. Agradezco su tiempo y buena disposición. Una buena tarde.",

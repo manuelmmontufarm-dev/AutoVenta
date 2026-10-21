@@ -177,6 +177,16 @@ señal real de «preguntamos el día» (`ctx.respondiendoAlDia`, la misma del pi
 «Quiero el 4, voy el sábado» se leía como el 4 de noviembre. «Le paso a recoger / paso a retirar»
 sigue siendo visita (infinitivos en `tieneVerboDeVisita`). Suite 2735/2735, humo, fidelidad 12/12.
 
+**Ronda 3 (revisión final, 21-oct):** la semana va atada a su día (`diasConSuSemana`: «próximo
+domingo», «sábado de la otra semana» como unidad, y un par negado no cuenta). Con el arreglo de 29358
+«no puedo el sábado, voy el próximo domingo» y «el próximo sábado no puedo, voy el domingo» daban
+sábado 24; ahora domingo 25. `sinSeguimiento` usa `esAcuseSimple` (el dueño del acuse) en vez de su
+copia. Replay ×3 de 29358, 29029, 26916, 30131, 6145 (+ recordatorio), 29752 y 28783: 3/3 cada uno;
+el Guardián aprobó 6/6 seguimientos de 29752 y 5/6 de 28783. Suite 2782/2782, humo, fidelidad 12/12.
+Costo de la conversación estándar (misma foto del catálogo): `origin/main` $0,1231 (mediana,
+$0,1221–$0,1278, Guardián 4 × 7.004 tokens) contra la rama $0,0973 ($0,0841–$0,1203, 3 × 7.001).
+Pendiente (sprint propio): «preguntamos el día» todavía se lee con regex del último texto del bot.
+
 **Pendiente:** el turno que contesta «cuando lo tenga me avisa» no cambió (sigue ofreciendo la
 equivalente una vez).
 
