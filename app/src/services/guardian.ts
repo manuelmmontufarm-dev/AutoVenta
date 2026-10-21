@@ -48,7 +48,7 @@ import { comproADistanciaSegunLoDicho } from "../domain/compraADistancia.js";
 import { hechoDelAvisoAlAsesor } from "../domain/avisoAlAsesor.js";
 import { CIERRE_COTIZAR } from "../domain/preguntasProhibidas.js";
 import { medidaEnDisputaDelPedido, medidasDelPedido } from "./medidasDelPedido.js";
-import { clienteDioSuMedida, hechoDeCamionetaVigente, medidasEscritasPorElCliente } from "../domain/medidaDelCliente.js";
+import { clienteDioSuMedida, hechoDeCamionetaVigente, medidasDelMensaje } from "../domain/medidaDelCliente.js";
 import { ensureCatalogReady, findByCode, searchBySize, searchByText } from "./catalog.js";
 import { flotacionIncompleta, parseTireSize } from "../domain/tireSize.js";
 import { respaldoCompleto } from "../domain/respaldoMarcas.js";
@@ -520,13 +520,17 @@ export async function armarContexto(
   // pieza con dos 185 — tenía el mensaje en su historial, pero nada en los
   // hechos ni en la rúbrica le decía que eso era un rechazo vigente. La misma
   // fuente determinística que usan las tools (`restriccionesDeLlanta`).
-  const inboundVisita = await sql<{ content: string; created_at: Date }[]>`
-    select content, created_at from messages
+  const inboundVisita = await sql<{ content: string; metadata: unknown; created_at: Date }[]>`
+    select content, metadata, created_at from messages
     where conversation_id=${conversationId} and cycle=${cycle} and direction='inbound'
     order by created_at desc limit 12
   `;
   const entrantesDeLaVisita = mensajesDeLaVisitaActual(inboundVisita).map((m) => m.content);
-  const medidasDelClienteEnLaVisita = medidasEscritasPorElCliente(entrantesDeLaVisita);
+  // Del hecho `medida_escrita` de cada entrante (familia 3, 19-oct): el mismo
+  // que leen el agente y los candados, para que el revisor vea «255 / 45 R.20».
+  const medidasDelClienteEnLaVisita = [
+    ...new Set(mensajesDeLaVisitaActual(inboundVisita).flatMap((m) => medidasDelMensaje(m))),
+  ];
   const disputa = await medidaEnDisputaDelPedido(conversationId, cycle);
   const compraADistancia = comproADistanciaSegunLoDicho(inboundVisita.map((m) => m.content));
   const hechoRestricciones = hechosDeRestricciones(

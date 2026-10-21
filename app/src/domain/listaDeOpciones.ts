@@ -158,3 +158,32 @@ export function confirmacionDeLaOpcion(posicion: number, nombre: string, precio:
   const p = precio ? ` — *$${precio.toFixed(2)} c/u con IVA*` : "";
   return `La opción ${posicion}, *${nombre}*${p}. Le dejo la cotización 👍`;
 }
+
+/**
+ * LO QUE LA LÁMINA DICE, ESCRITO: la respuesta cuando el turno se quedó sin
+ * texto después de quitarle una pregunta que no correspondía.
+ *
+ * Familia 3 (auditoría del 19-oct, chat 29418): el cliente escribió
+ * «245/75/16», salió la lámina y el cierre pedía «la medida exacta»; el
+ * candado `la_medida_del_cliente_no_se_cuestiona` lo quitó, el turno quedó
+ * vacío y le llegó «Le consulto con un asesor». Lo que correspondía era lo que
+ * el Guardián había escrito: los precios de la lámina y «¿Le cotizo la 1, la 2
+ * o la 3?». Con una sola opción, esa y «¿Se la cotizo?». Null si la pieza no
+ * trae precios.
+ */
+export function textoDeLaPieza(
+  metadata: { escalones?: unknown; cantidad?: unknown; sizeLabel?: unknown } | null | undefined,
+): string | null {
+  const medida = typeof metadata?.sizeLabel === "string" && metadata.sizeLabel ? ` *${metadata.sizeLabel}*` : " su medida";
+  const pieza = listaDeLaPieza(metadata);
+  if (pieza) {
+    return `Para${medida} tengo estas opciones:\n\n${textoDeLaLista(pieza.lista, pieza.cantidad)}`;
+  }
+  const esc = metadata?.escalones as
+    Record<string, { codigo?: string; nombre?: string; precio_con_iva?: number } | null> | null | undefined;
+  const unica = esc ? Object.values(esc).find((o) => o?.nombre && Number(o.precio_con_iva) > 0) : null;
+  if (!unica) return null;
+  const cantidad = Number.isInteger(metadata?.cantidad) && Number(metadata?.cantidad) >= 1 ? Number(metadata?.cantidad) : 4;
+  const precio = Number(unica.precio_con_iva);
+  return `Para${medida} tengo la *${unica.nombre!.trim()}* — *${dinero(precio)} c/u con IVA* · ${cantidad} = *${dinero(centavos(precio * cantidad))}*.\n\n¿Se la cotizo?`;
+}

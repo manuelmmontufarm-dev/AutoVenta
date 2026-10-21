@@ -1,3 +1,44 @@
+## 20-oct-2026 · La medida escrita no se vuelve a pedir, y la traba del Guardián cuenta los totales del juego
+
+**Qué:** (auditoría del 19-oct, familia 3; sprint 3 de `fix/auditoria-2026-10-20`)
+- Un solo lector de medida: `domain/tireSize.ts` lee ahora las formas a mano de
+  los chats — «255 / 45 R.20» (punto tras la R), «205_45_16» y «205 _ 55 rin _ 17»
+  (guion bajo), «195:55;15», «225*70*16», «235 × 75 rn 15» y «rn15 AT 235 ×70»
+  («rn»), «rin,15,75,215» (aro primero con comas), «245/7516» (perfil pegado al
+  aro, solo con barra), «en 15 195 65» (aro primero sin palabra, al final de
+  todo); y `aroEnTexto` entiende «Rin. 16». `medidasCanonicas` es la lista
+  completa y `medidaCanonica` su primera: `medidasEnTexto` deja de armar su
+  propia lista.
+- «El cliente escribió su medida» es un HECHO: `appendMessage` anota en cada
+  entrante del cliente `metadata.medida_escrita` (lista, vacía si no trae), con
+  ese lector. `medidasDelMensaje` lo lee (y lee el texto solo en mensajes de
+  antes del deploy); `medidaSinConfirmar` (puro, `domain/medidaDelCliente.ts`)
+  decide desde el hecho, y de ahí salen `getAgentSalesFacts`,
+  `ctx.medidaSinConfirmar` (el texto fijo «…necesito la medida exacta» ya no
+  sale a quien la escribió), el candado `la_medida_del_cliente_no_se_cuestiona`
+  y el hecho «MEDIDA ESCRITA POR EL CLIENTE» del Guardián.
+- La traba del Guardián (`frenarHechosNuevosDelGuardian` / `podar…`) cuenta como
+  conocido el total del juego (unitario × 1..10) de todo precio ya en pantalla, y
+  lee el hecho nuevo `preciosMostrados` que guardan las piezas de opciones
+  (unitarios con IVA) y de cotización (unitarios y total).
+- Si el candado de la medida deja el turno vacío, sale la lista de precios de la
+  lámina (si es de SU medida) en vez de «Le consulto con un asesor»; y si el
+  cliente escribió su medida mientras se armaba el turno, se calla
+  (`ctx.callarEsteTurno`): el turno siguiente contesta con su medida.
+- `guia_medida` no manda la guía ni «confírmeme la medida completa» a quien ya
+  escribió su medida (salvo que diga que no sabe dónde mirar).
+
+**Por qué:** al menos 12 chats: el cliente escribía la medida a mano, la ficha la
+llenaba la herramienta con lo que entendió el modelo, el lector de «¿la escribió
+él?» no la reconocía, y el bot le pedía «la medida exacta» y una foto. El Guardián
+lo corregía con los precios de la lámina, y la traba tiraba la corrección por el
+total «· 4 = $771.88», que no estaba escrito en ninguna parte (chat 27418). Medido
+contra producción: de las 34 correcciones frenadas solo por `precio_nuevo` desde
+el 12-oct, 33 pasan con la traba nueva (la que queda es un ahorro «$171.96
+menos», aritmética de descuento).
+
+**Horas:** 3,5
+
 ## 20-oct-2026 · El sí y la elección: el sí se reconoce, y un sí a un menú pregunta cuál
 
 **Qué:** (auditoría del 19-oct, familias 1 y 2; sprint 1 de `fix/auditoria-2026-10-20`)
@@ -2451,6 +2492,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-10-20 | _(este mismo)_ | La medida escrita es un hecho (un solo lector), la traba del Guardián cuenta los totales, el turno vaciado sale con la lista | 3,5 |
 | 2026-10-20 | _(este mismo)_ | El sí y la elección: acuse por palabras, un sí a un menú pregunta cuál, la equivalente pide su sí; la oferta como hecho | 5,5 |
 | 2026-09-28 | _(este mismo)_ | Ganados fantasma, elegir con palabras, corrección podada, menú con varias medidas | 3,5 |
 | 2026-09-08 | _(este mismo)_ | El aro alcanza: detector ancho, lámina por ruta directa, la guía no reemplaza opciones | 1.5 |
@@ -2633,7 +2675,7 @@ Ya viene activado en este equipo.
 | 2026-07-14 | ac09171 | Ubicaciones de locales + análisis de features del cliente | 1.5 |
 | 2026-07-13 | feadf57 | Brief + plan de desarrollo + plan financiero + catálogo | 4.0 |
 | 2026-07-13 | d997844 | Commit inicial (repo) | 0.25 |
-| | | **TOTAL** | **~139 h** |
+| | | **TOTAL** | **~142,5 h** |
 
 ---
 
