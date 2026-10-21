@@ -65,8 +65,10 @@ export async function leerOfertaVigente(
     hastaElUltimoDelCliente?: boolean;
   } = {},
 ): Promise<OfertaLeida> {
-  const filas = await sql<{ role: string; content: string | null; metadata: Record<string, unknown> | null }[]>`
-    select role, content, metadata from messages
+  const filas = await sql<{
+    role: string; content: string | null; metadata: Record<string, unknown> | null; author_kind: string | null; type: string | null;
+  }[]>`
+    select role, content, metadata, author_kind, type from messages
     where conversation_id=${conversationId} and cycle=${cycle}
     order by created_at desc, id desc limit 24
   `;

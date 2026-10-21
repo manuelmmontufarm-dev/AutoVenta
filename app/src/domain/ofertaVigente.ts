@@ -93,6 +93,14 @@ export interface FilaDelHilo {
   role: string;
   content: unknown;
   metadata?: Record<string, unknown> | null;
+  /**
+   * Quién la escribió. El asesor (ecos de `wa/echoes.ts`, el panel) se guarda
+   * con `role='assistant'` y `author_kind='owner'`: el role no alcanza. Sin el
+   * campo (filas armadas a mano) se asume el bot.
+   */
+  author_kind?: string | null;
+  /** `note` = nota interna: no le habla al cliente. */
+  type?: string | null;
 }
 
 export interface OfertaLeida {
@@ -145,6 +153,11 @@ export function ofertaVigente(hilo: readonly FilaDelHilo[]): OfertaLeida {
       continue;
     }
     if (fila.role !== "assistant") continue;
+    // Lo que no escribió el bot —el asesor, el sistema— y las notas internas no
+    // son hecho ni «sin hecho»: no cuentan (revisión ronda 2, 20-oct). Si no,
+    // un mensaje del asesor volvía «mixto» el hilo y el respaldo leía su texto
+    // como si fuera una oferta del bot.
+    if ((fila.author_kind && fila.author_kind !== "bot") || fila.type === "note") continue;
     const metadata = fila.metadata ?? {};
     // La cotización enviada es un hecho de la pieza (`piece: "quote"`, que ya
     // guardaban las cotizaciones antes de este cambio), no una lectura del texto.

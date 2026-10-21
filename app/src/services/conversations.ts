@@ -182,6 +182,16 @@ export async function appendMessage(
   } = {},
 ): Promise<boolean> {
   const occurredAt = options.occurredAt ?? new Date();
+  const authorKind = options.authorKind ?? (role === "user" ? "customer" : role === "assistant" ? "bot" : "system");
+  // TODO SALIENTE DEL BOT LLEVA LA CLAVE `oferta` (domain/ofertaVigente.ts): una
+  // fila del bot sin ella se lee como anterior al deploy y manda al respaldo.
+  // Se pone acá, una vez, para que un escritor nuevo que se olvide no rompa el
+  // lector (revisión ronda 2, 20-oct: el descuento desde el panel no la traía).
+  // Las piezas (`piece`) y los que ya la traen quedan como vienen.
+  const metadata = role === "assistant" && authorKind === "bot"
+    && !("piece" in (options.metadata ?? {})) && !("oferta" in (options.metadata ?? {}))
+    ? { ...(options.metadata ?? {}), oferta: null }
+    : (options.metadata ?? {});
   const rows = await sql`
     insert into messages (
       conversation_id, role, content, wa_message_id, direction, type,
@@ -194,9 +204,9 @@ export async function appendMessage(
       ${waMessageId ?? null},
       ${role === "user" ? "inbound" : "outbound"},
       ${options.type ?? "text"},
-      ${options.authorKind ?? (role === "user" ? "customer" : role === "assistant" ? "bot" : "system")},
+      ${authorKind},
       ${options.status ?? (role === "user" ? "delivered" : null)},
-      ${sql.json((options.metadata ?? {}) as never)},
+      ${sql.json(metadata as never)},
       ${role === "user" ? null : occurredAt},
       (select current_cycle from conversations where id = ${conversationId}),
       ${occurredAt}

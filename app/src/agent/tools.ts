@@ -2360,7 +2360,10 @@ export function buildTools(ctx: AgentContext) {
           ctx.ofertaDelTurno = {
             tipo: "oferta_de_cotizar", clase: "una", codigo: entregada.code,
             ...(entregada.sizeLabel ? { medida: entregada.sizeLabel } : {}),
-            ...(opcionesDistintasDeLaPieza === 1 ? { unica: true } : {}),
+            // «La única» es la de SU medida: a esa, «Precio por favor» ya es el
+            // sí (25-sep). Una equivalente de otra medida pide su sí explícito
+            // (simulador, 20-oct, chat 27992: «Precio» firmó la 195/45R15).
+            ...(opcionesDistintasDeLaPieza === 1 && !consentimientoPendiente ? { unica: true } : {}),
           };
         } else if (opcionesDistintasDeLaPieza >= 2) {
           ctx.ofertaDelTurno = { tipo: "oferta_de_cotizar", clase: "menu", opciones: Math.min(opcionesDistintasDeLaPieza, 3) };

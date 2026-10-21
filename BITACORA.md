@@ -49,8 +49,13 @@ contestaban en tres listas distintas; ahora hay una.
   sale. El agente, la ruta directa, el consentimiento de la equivalente, el
   candado de marca y el Guardián («OFERTA VIGENTE: …») leen el hecho; la lectura
   del texto queda solo para hilos anteriores al deploy y lo dice en el log.
+- Revisión ronda 2: el lector salta lo que no escribió el bot (asesor por eco o
+  panel, `author_kind='owner'`) y las notas: no son hecho ni «sin hecho»; antes
+  un mensaje del asesor mandaba todo el hilo al respaldo. `appendMessage` le pone
+  `oferta: null` a todo saliente del bot sin `piece` ni `oferta`. Y `unica` solo
+  se declara si la única es de SU medida: con la equivalente, «Precio» firmaba.
 
-**Horas:** 5
+**Horas:** 5,5
 
 ## 19-oct-2026 · El cupón del 2 % sale como ticket con QR, también en el último seguimiento
 
@@ -2446,7 +2451,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
-| 2026-10-20 | _(este mismo)_ | El sí y la elección: acuse por palabras, un sí a un menú pregunta cuál, la equivalente pide su sí; la oferta como hecho | 5 |
+| 2026-10-20 | _(este mismo)_ | El sí y la elección: acuse por palabras, un sí a un menú pregunta cuál, la equivalente pide su sí; la oferta como hecho | 5,5 |
 | 2026-09-28 | _(este mismo)_ | Ganados fantasma, elegir con palabras, corrección podada, menú con varias medidas | 3,5 |
 | 2026-09-08 | _(este mismo)_ | El aro alcanza: detector ancho, lámina por ruta directa, la guía no reemplaza opciones | 1.5 |
 | 2026-09-07 | _(este mismo)_ | Elegir es cotizar (aro incluido), «otro día» pregunta el día, la lámina no se reenvía por una pregunta | 3.5 |

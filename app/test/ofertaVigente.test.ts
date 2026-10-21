@@ -135,6 +135,52 @@ describe("el lector del hilo lee el HECHO", () => {
     expect(opcionesDelMenuAbierto(leida)).toBe(3);
   });
 
+  // Revisión ronda 2 (20-oct): el asesor escribe con role='assistant' y
+  // author_kind='owner' (ecos de wa/echoes.ts y el panel), sin la clave. No es
+  // hecho ni «sin hecho»: no cuenta para nada.
+  const asesor = (content: string): FilaDelHilo => ({ role: "assistant", content, author_kind: "owner", metadata: { origen: "echo" } });
+
+  it("chat 29029 con el asesor en el medio («ya le confirmo el stock») → el «Si» lee el HECHO y acepta la Falken", () => {
+    const leida = ofertaVigente([
+      bot("…FALKEN WILDPEAK A/T TRAIL…\n¿Se la cotizo? 😊", una("350214")),
+      asesor("ya le confirmo el stock"),
+      cliente("Si, por favor"),
+    ]);
+    expect(leida).toMatchObject({ fuente: "hecho", turnosAtras: 0 });
+    expect(aceptaLaOferta(leida, "Si, por favor")).toBe(true);
+  });
+
+  it("el asesor diciendo «no tenemos esa» no mata la oferta por sí solo (eso lo decide el cliente)", () => {
+    const leida = ofertaVigente([
+      bot("¿Se la cotizo? 😊", una("350214")), asesor("no tenemos esa"), cliente("ok"),
+    ]);
+    expect(leida.fuente).toBe("hecho");
+    expect(leida.oferta).toEqual(una("350214"));
+  });
+
+  it("y tampoco inventa una: el texto del asesor con «¿se la cotizo?» no es una oferta del bot", () => {
+    const leida = ofertaVigente([
+      bot("Estamos en Quito.", null), asesor("Le tengo la Kenda, ¿se la cotizo?"), cliente("Si"),
+    ]);
+    expect(leida).toMatchObject({ fuente: "hecho", oferta: null });
+  });
+
+  it("las notas internas (type 'note') tampoco cuentan", () => {
+    const leida = ofertaVigente([
+      bot("¿Se la cotizo? 😊", una("350214")),
+      { role: "assistant", content: "nota: cliente llama luego", author_kind: "bot", type: "note", metadata: {} },
+      cliente("Si"),
+    ]);
+    expect(leida).toMatchObject({ fuente: "hecho", turnosAtras: 0 });
+  });
+
+  it("«Precio por favor» acepta la ÚNICA de su medida (25-sep), pero no la equivalente de otra medida (chat 27992)", () => {
+    const unica: OfertaDeCotizar = { ...una("K924B544", "195/65R15"), unica: true };
+    expect(aceptaLaOferta(ofertaVigente([bot("Es la única que tengo… ¿Se la cotizo?", unica), cliente("Precio por favor")]), "Precio por favor")).toBe(true);
+    const equivalente = una("K247B536", "195/45R15");
+    expect(consienteEsta(ofertaVigente([bot("¿Le cotizo la *KENDA KR20* en *195/45R15*?", equivalente), cliente("Precio")]), { codigo: "K247B536", medida: "195/45R15" }, "Precio")).toBe(false);
+  });
+
   it("un hilo SIN hechos (anterior al deploy) se marca para caer al respaldo", () => {
     const leida = ofertaVigente([{ role: "assistant", content: "¿Se la cotizo?" }, cliente("Si")]);
     expect(leida).toMatchObject({ oferta: null, fuente: "respaldo" });
