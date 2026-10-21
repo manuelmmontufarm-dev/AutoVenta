@@ -40,3 +40,25 @@ describe("la compra hecha con un pedido nuevo en el mismo mensaje", () => {
     expect(tipoDeCierreDelTurno(texto)).toBe("compra_terminada");
   });
 });
+
+describe("una palabra suelta no es un pedido (revisión final, 21-oct)", () => {
+  // `precio`, `tiene`, `hay`, `cuánto` como sustantivos o verbos de lo ya
+  // comprado no piden nada: estas despedidas tienen que seguir cerrando.
+  it.each([
+    "Ya compré, gracias por el precio",
+    "Ya las compré, ya tiene las llantas mi carro",
+    "ya compré, gracias por la atención, hay que volver para la alineación",
+  ])("cierra como ganado: «%s»", (texto) => {
+    expect(isExplicitPurchaseConfirmation(texto)).toBe(true);
+    expect(tipoDeCierreDelTurno(texto)).toBe("compra_terminada");
+  });
+
+  it.each([
+    CHAT_462,
+    "Ya compré las delanteras, cuánto me salen las traseras",
+    "ya las compré. tienen alineación",
+  ])("pide algo, no cierra: «%s»", (texto) => {
+    expect(isExplicitPurchaseConfirmation(texto)).toBe(false);
+  });
+});
+
