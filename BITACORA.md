@@ -1,3 +1,21 @@
+## 21-oct-2026 · La guía de medida no sale a quien ya escribió la suya, aunque el modelo diga que la pidió
+
+**Qué:** (replay final de la coordinadora sobre `fix/auditoria-2026-10-20`, sprint 3)
+- `guia_medida` frena con el hecho `medida_escrita` del ciclo SIEMPRE, no solo
+  cuando el modelo pasa `lo_pidio_el_cliente: false`. Solo la abre que el
+  CLIENTE la pida con sus palabras: `pideLaGuiaDeMedida` (domain/medidaDelCliente.ts)
+  — «no sé dónde ver la medida», «mándeme la foto de cómo se lee», «no la
+  encuentro», «¿qué significan esos números?». «Si una foto» no la abre.
+
+**Por qué:** en el replay final el chat 29523 pasó 1 de 3: a «Si una foto» de
+quien había escrito «245 60 15» y «235 60 15», el modelo llamó la guía diciendo
+que el cliente la pidió y salió «Así se lee la medida en el costado de la llanta
+🛞». Decide el hecho más el texto del cliente, no el argumento del modelo.
+Simulador, 3 corridas: 29523 3/3 (el modelo llamó `guia_medida` las tres veces y
+la imagen salió cero); 23160 y 22629 sin cambios (3/3).
+
+**Horas:** 0,5
+
 ## 21-oct-2026 · Una sola regla para la ficha: la última medida que el cliente escribe
 
 **Qué:** (revisión final de la coordinadora sobre `fix/auditoria-2026-10-20`, sprint 3)
@@ -2778,6 +2796,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-10-21 | _(este mismo)_ | La guía de medida no sale a quien ya escribió la suya aunque el modelo diga que la pidió | 0,5 |
 | 2026-10-21 | _(este mismo)_ | Una sola regla para la ficha: la última medida que el cliente escribe en el mensaje | 1 |
 | 2026-10-21 | _(este mismo)_ | Casos sueltos: fuera de Quito como hecho, equivalencias con carga XL y dirección del ciclo, precio no es medida, «ya compré X, ahora Y» no cierra, el turno ve solo lo suyo | 5 |
 | 2026-10-20 | _(este mismo)_ | Seguimientos según los hechos del ciclo (lámina enviada, juego en la medida, local), dueño único de «no quiere seguimiento», un solo lector de la fecha de visita, «no alcanzó a pasar» al día siguiente | 4 |
@@ -2967,7 +2986,7 @@ Ya viene activado en este equipo.
 | 2026-07-14 | ac09171 | Ubicaciones de locales + análisis de features del cliente | 1.5 |
 | 2026-07-13 | feadf57 | Brief + plan de desarrollo + plan financiero + catálogo | 4.0 |
 | 2026-07-13 | d997844 | Commit inicial (repo) | 0.25 |
-| | | **TOTAL** | **~153 h** |
+| | | **TOTAL** | **~153,5 h** |
 
 ---
 
