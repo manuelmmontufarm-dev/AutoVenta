@@ -111,8 +111,28 @@ function isValid(width: number, aspect: number | null, rim: number): boolean {
   return true;
 }
 
+/**
+ * UN PRECIO NO ES UNA MEDIDA (chat 26218, 13-oct-2026).
+ *
+ * «Yo iría por la FALKEN ZIEX CT60 A/S — $245.11 c/u» se leyó como la medida
+ * «245R11»: el candado de equivalencias la juzgó «de otro aro», le cambió la
+ * frase por «No tengo una que le calce de verdad…» y el cliente recibió en el
+ * mismo mensaje una equivalente y la negación de que la hubiera. Una cifra con
+ * «$» delante, o con centavos y «c/u», «usd» o «con IVA» detrás, es plata.
+ *
+ * Se tapa con espacios, igual que `enmascararMedidas`: las posiciones del
+ * resto del texto no se mueven.
+ */
+const PRECIO_RE =
+  /\$\s*\d{1,5}(?:[.,]\d{1,2})?|\b\d{1,5}[.,]\d{2}\s*(?:c\/u|usd|d[oó]lares|con\s+iva)/gi;
+
+function sinPrecios(text: string): string {
+  return text.replace(PRECIO_RE, (m) => " ".repeat(m.length));
+}
+
 /** Extrae TODAS las medidas válidas de un texto libre. */
-export function extractTireSizes(text: string): TireSize[] {
+export function extractTireSizes(textoConPrecios: string): TireSize[] {
+  const text = sinPrecios(textoConPrecios);
   const sizes: TireSize[] = [];
   const agregar = (width: number, aspect: number | null, rim: number): void => {
     if (!isValid(width, aspect, rim)) return;

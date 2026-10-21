@@ -80,8 +80,11 @@ import {
   aroParaFitment, medidaEnDisputa, medidasDelMensaje, medidasEscritasPorElCliente, mediaMedidaVigente, respetanElAroDelCliente,
 } from "../domain/medidaDelCliente.js";
 import { localPorLaZonaDicha, nearestStore, resolveSector, ubicacionDadaPorElCliente } from "../domain/locations.js";
-import { direccionPedida, equivaleAAlguna, esEquivalente, ordenarPorCercania } from "../domain/equivalencia.js";
-import { avisoDeMedidaEnOpciones, siguientePasoPorMedidaDistinta } from "../domain/equivalenciaEnTexto.js";
+import {
+  cargaAlcanza, direccionPedida, direccionVigente, equivaleAAlguna, esEquivalente, ordenarPorCercania, porQueNoEquivale,
+  requisitoDeCarga, respetaDireccion,
+} from "../domain/equivalencia.js";
+import { avisoDeMedidaEnOpciones, LINEA_SIN_STOCK_EXACTO, siguientePasoPorMedidaDistinta } from "../domain/equivalenciaEnTexto.js";
 import { CAMPO_EQUIVALENTES, equivalentesAMostrar, reglaDeMostrarEquivalentes } from "../domain/equivalentesPorMostrar.js";
 import { extractFlotationSizes, formatFlotationSize, formatTireSize, parseTireSize, type TireSize, type FlotationSize, flotacionIncompleta, medidaGuardable } from "../domain/tireSize.js";
 import { marcaPreguntada, pidioCotizacionExplicita, ultimaMarcaPedida } from "../domain/consultaConRespaldo.js";
@@ -134,6 +137,7 @@ import { resendLatestQuoteImage } from "../services/directSalesRoutes.js";
 import { restriccionesDeLlanta, violaRestriccionesDeLlanta } from "../domain/restriccionesLlanta.js";
 import type { CandidatoFitment } from "../domain/fitmentResearch.js";
 import type { FitmentResearchResult } from "../services/vehicleFitmentResearch.js";
+import { soloLoDelTurno } from "../pipeline/corteDelTurno.js";
 
 export interface AgentContext {
   conversation: Conversation;
@@ -850,7 +854,7 @@ export function buildTools(ctx: AgentContext) {
       select content, created_at from messages
       where conversation_id=${ctx.conversation.id}
         and cycle=${ctx.conversation.current_cycle}
-        and direction='inbound'
+        and direction='inbound' ${soloLoDelTurno()}
       order by created_at desc limit 12
     `;
     return usoDeLosTextos([ctx.currentUserText, ...mensajesDeLaVisitaActual(dichos).map((m) => m.content)])
@@ -930,7 +934,7 @@ export function buildTools(ctx: AgentContext) {
       const entrantesDelCiclo = await sql<{ content: string }[]>`
         select content from messages
         where conversation_id=${ctx.conversation.id} and cycle=${ctx.conversation.current_cycle}
-          and direction='inbound'
+          and direction='inbound' ${soloLoDelTurno()}
         order by created_at desc limit 12
       `;
       const [fichaDeMedida] = await sql<{ tire_size: string | null }[]>`
@@ -957,7 +961,11 @@ export function buildTools(ctx: AgentContext) {
       // tenga stock, porque justamente quiere otra—. Antes volvía la 215/65R16,
       // la misma sección que su 215/60R16. Ver `domain/equivalencia.ts`.
       const direccion = direccionPedida(ctx.currentUserText);
-      const alternatives = exact.some((i) => i.stock > 0) && !direccion ? [] : searchAlternatives(size, direccion);
+      // La que pidió antes en el ciclo también filtra (chat 22492): «más ancha»
+      // dicho ayer no se olvida porque hoy escribió solo su medida.
+      const direccionDelCiclo = direccion
+        ?? direccionVigente([...entrantesDelCiclo].reverse().map((m) => m.content));
+      const alternatives = exact.some((i) => i.stock > 0) && !direccion ? [] : searchAlternatives(size, direccionDelCiclo);
       // Aquí NO se consulta al Interbot a propósito. Se probó y se sacó el
       // 16-ago: `buscar_llanta` es la herramienta más frecuente del bot y le
       // añadía una ida y vuelta (hasta 20 s en el peor caso) a cada búsqueda,
@@ -974,8 +982,10 @@ export function buildTools(ctx: AgentContext) {
       // 28-sep: «¿Le muestro las opciones equivalentes?» retuvo una KR608
       // 245/70R16 que calzaba). El campo va PRIMERO: la huella del guardián
       // corta a 500 caracteres. Ver `domain/equivalentesPorMostrar.ts`.
+      const textosDelCicloBuscar = [...entrantesDelCiclo].reverse().map((m) => m.content).concat(ctx.currentUserText ?? "");
       const aMostrar = equivalentesAMostrar(
         alternatives, formatTireSize(size), exact.some((i) => i.stock > 0),
+        { direccion: direccionDelCiclo, carga: requisitoDeCarga(textosDelCicloBuscar) },
       );
       return JSON.stringify({
         ...(aMostrar.length ? { [CAMPO_EQUIVALENTES]: aMostrar } : {}),
@@ -1116,7 +1126,7 @@ export function buildTools(ctx: AgentContext) {
       const dichoEnLaVisita = await sql<{ content: string }[]>`
         select content from messages
         where conversation_id=${ctx.conversation.id} and cycle=${ctx.conversation.current_cycle}
-          and direction='inbound'
+          and direction='inbound' ${soloLoDelTurno()}
         order by created_at desc limit 12
       `;
       const esDeCamioneta = !tipo && claseDeVehiculoEnTexto([
@@ -1150,7 +1160,7 @@ export function buildTools(ctx: AgentContext) {
         select content, created_at from messages
         where conversation_id=${ctx.conversation.id}
           and cycle=${ctx.conversation.current_cycle}
-          and direction='inbound'
+          and direction='inbound' ${soloLoDelTurno()}
         order by created_at desc limit 12
       `;
       const restricciones = restriccionesDeLlanta([
@@ -1234,7 +1244,10 @@ export function buildTools(ctx: AgentContext) {
       // Sin nada en su medida, lo elegido del aro son sus equivalentes: se
       // muestran en este turno, igual que desde `buscar_llanta`.
       const aMostrarDelAro = sinTipoEnSuMedida && suMedida
-        ? equivalentesAMostrar(seleccionPermitida, suMedida, false)
+        ? equivalentesAMostrar(seleccionPermitida, suMedida, false, (() => {
+          const textosDelCiclo = [...inboundVisita].reverse().map((m) => m.content).concat(ctx.currentUserText ?? "");
+          return { direccion: direccionVigente(textosDelCiclo), carga: requisitoDeCarga(textosDelCiclo) };
+        })())
         : [];
       return JSON.stringify({
         ...(aMostrarDelAro.length ? { [CAMPO_EQUIVALENTES]: aMostrarDelAro } : {}),
@@ -1393,7 +1406,7 @@ export function buildTools(ctx: AgentContext) {
       if (!lo_pidio_el_cliente) {
         const entrantes = await sql<{ content: string; metadata: unknown; created_at: Date }[]>`
           select content, metadata, created_at from messages
-          where conversation_id=${ctx.conversation.id} and cycle=${ctx.conversation.current_cycle} and direction='inbound'
+          where conversation_id=${ctx.conversation.id} and cycle=${ctx.conversation.current_cycle} and direction='inbound' ${soloLoDelTurno()}
           order by created_at desc limit 20
         `;
         const escritas = [...new Set(mensajesDeLaVisitaActual(entrantes).flatMap((m) => medidasDelMensaje(m)))];
@@ -1409,7 +1422,7 @@ export function buildTools(ctx: AgentContext) {
       const aroDelCiclo = aro ?? aroDadoPorElCliente(
         (await sql<{ content: string }[]>`
           select content from messages
-          where conversation_id=${ctx.conversation.id} and cycle=${ctx.conversation.current_cycle} and direction='inbound'
+          where conversation_id=${ctx.conversation.id} and cycle=${ctx.conversation.current_cycle} and direction='inbound' ${soloLoDelTurno()}
           order by created_at asc
         `).map((m) => m.content),
       );
@@ -1584,7 +1597,7 @@ export function buildTools(ctx: AgentContext) {
       const entrantesDeLaVisita = await sql<{ content: string; created_at: Date }[]>`
         select content, created_at from messages
         where conversation_id=${ctx.conversation.id} and cycle=${ctx.conversation.current_cycle}
-          and direction='inbound'
+          and direction='inbound' ${soloLoDelTurno()}
         order by created_at desc limit 12
       `;
       const textosDeLaVisita = [
@@ -1720,7 +1733,7 @@ export function buildTools(ctx: AgentContext) {
         select content, created_at from messages
         where conversation_id=${ctx.conversation.id}
           and cycle=${ctx.conversation.current_cycle}
-          and direction='inbound'
+          and direction='inbound' ${soloLoDelTurno()}
         order by created_at desc limit 12
       `;
       const restricciones = restriccionesDeLlanta([
@@ -1880,6 +1893,14 @@ export function buildTools(ctx: AgentContext) {
       const fueraDeMedida = products.filter(
         (p) => !medidaEstaPedida(p.sizeLabel, permitidasOpciones),
       );
+      // Lo que el cliente pidió además de la medida, en todo el ciclo: hacia
+      // dónde moverse (22492, «más ancha») y la carga (26218, «Extra Load»).
+      // Sin esto el juez declaraba equivalente lo que no le servía.
+      const textosDelCiclo = [...inbound.map((m) => m.content).reverse(), ctx.currentUserText ?? ""];
+      const requisitosDelCliente = {
+        direccion: direccionVigente(textosDelCiclo),
+        carga: requisitoDeCarga(textosDelCiclo),
+      };
       const avisoMedida = fueraDeMedida.length
         ? `OJO: el cliente pidió ${permitidasOpciones.join(" o ")} y ${
             fueraDeMedida.length === products.length ? "NINGUNA de estas opciones es de esa medida" : "algunas de estas opciones son de otra medida"
@@ -1887,9 +1908,9 @@ export function buildTools(ctx: AgentContext) {
           "Dilo con todas las letras en tu respuesta —«en su medida no me queda, estas son equivalentes que sí le entran»— y nombra la medida de cada una. " +
           "NUNCA le digas que son de su medida, y no cotices ninguna hasta que él acepte la equivalencia." +
           (() => {
-            const noEquivalen = fueraDeMedida.filter((p) => !equivaleAAlguna(permitidasOpciones, p.sizeLabel));
+            const noEquivalen = fueraDeMedida.filter((p) => porQueNoEquivale(permitidasOpciones, p, requisitosDelCliente) !== null);
             return noEquivalen.length
-              ? ` Y OJO: ${noEquivalen.map((p) => `${p.design} ${p.sizeLabel}`).join(", ")} NO ${noEquivalen.length > 1 ? "son equivalentes" : "es equivalente"} (otro aro, fuera del 3 % de diámetro o no monta en el mismo rin): PROHIBIDO llamarla «equivalente», decir que «le entra» o que es «de su aro».`
+              ? ` Y OJO: ${noEquivalen.map((p) => `${p.design} ${p.sizeLabel}`).join(", ")} NO ${noEquivalen.length > 1 ? "son equivalentes" : "es equivalente"} (otro aro, fuera del 3 % de diámetro, no monta en el mismo rin, no lleva la carga que pidió o no va hacia donde pidió): PROHIBIDO llamarla «equivalente», decir que «le entra» o que es «de su aro».`
               : "";
           })()
         : null;
@@ -1923,6 +1944,7 @@ export function buildTools(ctx: AgentContext) {
         permitidas: permitidasOpciones,
         fueraDeMedida,
         totalMostradas: products.length,
+        ...requisitosDelCliente,
       });
       const avisoMedidaCliente = avisoDeMedida.avisoCliente ?? avisoSinMedidaPedida;
 
@@ -1944,7 +1966,7 @@ export function buildTools(ctx: AgentContext) {
           -- cliente. Una pieza de un turno anterior nunca bloquea (1-sep).
           and created_at > coalesce(
             (select max(created_at) from messages
-             where conversation_id=${ctx.conversation.id} and direction='inbound'),
+             where conversation_id=${ctx.conversation.id} and direction='inbound' ${soloLoDelTurno()}),
             'epoch'::timestamptz)
         order by created_at desc limit 1
       `;
@@ -1997,7 +2019,7 @@ export function buildTools(ctx: AgentContext) {
         if (elegida) {
           const precio = elegida.minimumPriceWithTax ? ` — *$${elegida.minimumPriceWithTax.toFixed(2)} c/u con IVA*` : "";
           const esEquivalente = permitidasOpciones.length > 0 && !medidaEstaPedida(elegida.sizeLabel, permitidasOpciones);
-          const equivaleDeVerdad = equivaleAAlguna(permitidasOpciones, elegida.sizeLabel);
+          const equivaleDeVerdad = porQueNoEquivale(permitidasOpciones, elegida, requisitosDelCliente) === null;
           const etiqueta = preferenciaContestada === "precio" ? "de costo" : preferenciaContestada === "premium" ? "premium" : "de equilibrio";
           if (esEquivalente) {
             const pregunta = preguntaDeEquivalente({ recomendacion: `${elegida.brand} ${elegida.design}`, medida: elegida.sizeLabel ?? null });
@@ -2737,7 +2759,7 @@ export function buildTools(ctx: AgentContext) {
         select content, created_at from messages
         where conversation_id=${ctx.conversation.id}
           and cycle=${ctx.conversation.current_cycle}
-          and direction='inbound'
+          and direction='inbound' ${soloLoDelTurno()}
         order by created_at asc, id asc
       `;
       const textosDeLaVisita = [
@@ -2873,7 +2895,7 @@ export function buildTools(ctx: AgentContext) {
         const filasRecientes = await sql<{ role: string; content: string | null }[]>`
           select role, content from messages
           where conversation_id=${ctx.conversation.id} and cycle=${ctx.conversation.current_cycle}
-            and type='text'
+            and type='text' ${soloLoDelTurno()}
           order by created_at desc, id desc limit 8
         `;
         const enOrden = [...filasRecientes].reverse();
@@ -3011,6 +3033,40 @@ export function buildTools(ctx: AgentContext) {
             siguiente_paso: siguientePasoPorMedidaDistinta(permitidas, product.sizeLabel),
           });
         }
+        // LA EQUIVALENTE TIENE QUE SERVIRLE (auditoría 19-oct, chats 26218 y
+        // 22492). La lámina que la declaró pudo no saber —o no mirar— lo que el
+        // cliente pidió además de la medida: «Extra Load» en la etiqueta de la
+        // puerta (salió COT-MV6ZKE43, 4 × 245/50R20 102V por $980,44, a una
+        // 265/45R20 XL) o «más ancha» dicho un turno antes (una 185/70R14 a quien
+        // usa 205/60R14). Se juzga eso y solo eso: la equivalencia por medida de
+        // lo ya declarado no se vuelve a discutir (caso sano 4732). Lo que el
+        // cliente escribió él mismo es su medida y no pasa por acá.
+        {
+          const suyas = medidasPermitidas(textosDeLaVisita, facts?.tire_size ?? null);
+          if (suyas.length && product.sizeLabel && !medidaEstaPedida(product.sizeLabel, suyas)) {
+            const delCiclo = inboundParaContexto.map((m) => m.content).concat(ctx.currentUserText ?? "");
+            const direccion = direccionVigente(delCiclo);
+            const carga = requisitoDeCarga(delCiclo);
+            const vaParaOtroLado = direccion && !suyas.some((m) => respetaDireccion(m, product.sizeLabel!, direccion));
+            const noLlevaLaCarga = carga && !suyas.some((m) => cargaAlcanza(carga, m, product));
+            if (vaParaOtroLado || noLlevaLaCarga) {
+              const queFalta = noLlevaLaCarga
+                ? `no lleva la carga que pide su llanta (${carga!.indice ? `índice ${carga!.indice}` : "Extra Load / XL"}; esta es ${product.loadSpeed?.code ?? "sin índice en catálogo"})`
+                : `no es ${direccion === "mas_ancha" ? "más ancha" : direccion === "mas_angosta" ? "más angosta" : direccion === "mas_alta" ? "más alta" : "más baja"} que su ${suyas.join(" / ")}, que es lo que pidió`;
+              console.log(`🛑 Equivalente que no le sirve en la conv ${ctx.conversation.id}: ${product.brand} ${product.design} ${product.sizeLabel} — ${queFalta}`);
+              await registrarMedidaQueNoCoincide(ctx.conversation, {
+                pedida: suyas.join(" o "),
+                cotizada: product.sizeLabel,
+                producto: `${product.brand} ${product.design}`,
+              });
+              return JSON.stringify({
+                error: `EQUIVALENTE QUE NO LE SIRVE: ${product.brand} ${product.design} ${product.sizeLabel} ${queFalta}. No se cotiza.`,
+                siguiente_paso:
+                  `PROHIBIDO cotizarla, decirle que «le entra» o llamarla «equivalente». Dile con una frase que en su medida exacta no tienes una que le sirva por eso, y que el asesor le confirma si llega su medida: «${LINEA_SIN_STOCK_EXACTO}»`,
+              });
+            }
+          }
+        }
         // LA EQUIVALENTE NO SE FIRMA SIN SU SÍ (auditoría 2-6 sep, familia D,
         // conv 14687): la medida está «permitida» porque el bot la declaró
         // como equivalente, pero el cliente nunca la aceptó — dijo «Ok» a
@@ -3024,7 +3080,7 @@ export function buildTools(ctx: AgentContext) {
           const filasParaOferta = await sql<{ role: string; content: string | null }[]>`
             select role, content from messages
             where conversation_id=${ctx.conversation.id} and cycle=${ctx.conversation.current_cycle}
-              and type='text'
+              and type='text' ${soloLoDelTurno()}
             order by created_at desc, id desc limit 10
           `;
           const enOrdenOferta = [...filasParaOferta].reverse();
@@ -3568,7 +3624,7 @@ export function buildTools(ctx: AgentContext) {
         const entrantesDeUbicacion = await sql<{ content: string }[]>`
           select content from messages
           where conversation_id=${ctx.conversation.id} and cycle=${ctx.conversation.current_cycle}
-            and direction='inbound'
+            and direction='inbound' ${soloLoDelTurno()}
           order by created_at desc limit 12
         `;
         if (!ubicacionDadaPorElCliente({

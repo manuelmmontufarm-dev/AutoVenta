@@ -68,6 +68,7 @@ import {
 import { hechosDeRestricciones, restriccionesDeLlanta } from "../domain/restriccionesLlanta.js";
 import { business } from "../config.js";
 import { PREGUNTA_DE_LOCAL } from "../domain/storeSelection.js";
+import { avisarSiHayEntrantesDespues, soloLoDelTurno } from "../pipeline/corteDelTurno.js";
 
 const openai = new OpenAI({ apiKey: config.openai.apiKey });
 
@@ -187,6 +188,7 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
   // por ahí. Una medida vieja recién anotada no pisa una ficha ya corregida.
   if (paraLaFicha) await updateConversationFacts(ctx.conversation.id, { tireSize: paraLaFicha });
   // El estilo se edita en /configuracion/ia; getAiConfig cachea 30 s en memoria.
+  void avisarSiHayEntrantesDespues(ctx.conversation.id).catch(() => undefined);
   const [aiConfig, activeDiscount, pendingDiscount, salesFacts, phaseFlags, storeHours, benefitFacts, history] =
     await Promise.all([
       getAiConfig(),
@@ -1208,10 +1210,10 @@ export async function getAgentSalesFacts(conversationId: number): Promise<AgentS
       -- anterior y no tiene por qué repetirla (ver domain/medidaConfirmada).
       select coalesce(array_agg(content order by created_at desc), '{}') as todas_entrantes,
         coalesce(jsonb_agg(metadata->'medida_escrita' order by created_at desc), '[]'::jsonb) as hechos_de_todas
-      from messages where conversation_id=c.id and direction='inbound'
+      from messages where conversation_id=c.id and direction='inbound' ${soloLoDelTurno()}
     ) t on true
     left join messages m on m.conversation_id=c.id and m.cycle=c.current_cycle
-      and m.direction='inbound'
+      and m.direction='inbound' ${soloLoDelTurno("m")}
     where c.id=${conversationId}
     group by c.id, q.quote_number, q.total, q.created_at, q.items, o.escalones, o.codigos, t.todas_entrantes, t.hechos_de_todas
   `;

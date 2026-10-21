@@ -546,6 +546,19 @@ async function copiarConversacion(urlProd, id, hasta = null) {
         pickup_date: null, visit_time_label: null, customer_commitment: null, follow_up_reason: null,
         offer_expires_at: null, savings_amount: null,
       });
+      // LA FICHA DE MEDIDA Y LUGAR TAMBIÉN VUELVE A COMO ESTABA (sprint 5, 20-oct):
+      // la copia traía `tire_size` y `vehicle` del FINAL del chat. En 29847 la
+      // ficha llegó con 185R14 —que el cliente dijo después del corte— y el
+      // primer turno «adivinó» un aro que nadie había dicho todavía. Se
+      // reconstruye con lo que el cliente escribió antes del corte, con el
+      // mismo lector del bot (`medidaCanonica`), y el lugar se deja en blanco.
+      const { medidaCanonica } = await import("../../dist/domain/tireSize.js");
+      const medidaAntes = mensajes.filter((m) => m.direction === "inbound")
+        .map((m) => medidaCanonica(m.content ?? "")).filter(Boolean).pop() ?? null;
+      Object.assign(conv, {
+        tire_size: medidaAntes, vehicle: null, vehicle_year: null,
+        cobertura_estado: null, cobertura_ciudad: null, cobertura_ciclo: null, cobertura_dicha_at: null,
+      });
       // Quién tenía el chat en el corte: la pausa de un `advisor_review` o la
       // última palabra de una persona son justo lo que deja mudo al bot, y
       // copiarlo siempre como «del bot» borraba el caso. Ver lib/traspaso-al-corte.mjs.

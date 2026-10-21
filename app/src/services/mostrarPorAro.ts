@@ -25,6 +25,7 @@ import { aroRespondido, medidaConfirmadaPorCliente } from "../domain/medidaConfi
 import { tipoSolicitadoEn } from "../domain/opcionesCandados.js";
 import { mencionaVehiculo } from "../domain/vehiculoEnTexto.js";
 import { logFunnelEvent } from "./conversations.js";
+import { soloLoDelTurno } from "../pipeline/corteDelTurno.js";
 
 export interface MostrarPorAroContext {
   conversation: AgentContext["conversation"];
@@ -60,7 +61,7 @@ export async function tryMostrarPorAro(ctx: MostrarPorAroContext, texto: string)
     select c.tire_size,
       exists(select 1 from messages m where m.conversation_id=c.id and m.cycle=c.current_cycle and m.metadata->>'piece'='options') as has_options,
       coalesce((select array_agg(m.content order by m.created_at) from messages m
-        where m.conversation_id=c.id and m.cycle=c.current_cycle and m.direction='inbound'), '{}') as entrantes
+        where m.conversation_id=c.id and m.cycle=c.current_cycle and m.direction='inbound' ${soloLoDelTurno("m")}), '{}') as entrantes
     from conversations c where c.id=${ctx.conversation.id}
   `;
   if (!estado || estado.has_options) return null;

@@ -8,6 +8,7 @@ import { medidaGuardable } from "../domain/tireSize.js";
 import { puedeOlvidarPorSilencio, TIPO_CLIENTE_SIN_RESPUESTA, type MotivoDePausa } from "../domain/turnoDelHumano.js";
 import { cancelPendingFollowUps, scheduleConversationFollowUps } from "./followUps.js";
 import { emitLiveEvent } from "./liveEvents.js";
+import { soloLoDelTurno } from "../pipeline/corteDelTurno.js";
 
 export type { Stage } from "../domain/pipeline.js";
 
@@ -403,7 +404,7 @@ export async function getHistory(
       from messages
       where conversation_id = ${conversationId}
         and cycle = (select current_cycle from conversations where id = ${conversationId})
-        and role in ('user', 'assistant')
+        and role in ('user', 'assistant') ${soloLoDelTurno()}
         and (${hastaDelCliente}::timestamptz is null or role <> 'user' or created_at <= ${hastaDelCliente}::timestamptz)
       order by created_at desc
       limit ${limit}
@@ -423,7 +424,7 @@ export async function previousInboundText(conversationId: number): Promise<strin
     select content from messages
     where conversation_id=${conversationId}
       and cycle=(select current_cycle from conversations where id=${conversationId})
-      and direction='inbound'
+      and direction='inbound' ${soloLoDelTurno()}
     order by created_at desc, id desc
     offset 1 limit 1
   `;

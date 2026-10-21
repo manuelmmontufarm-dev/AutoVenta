@@ -1,3 +1,82 @@
+## 20-oct-2026 · Casos sueltos: fuera de Quito, equivalencias, «ya compré» con pedido nuevo y el turno que ve lo de otro
+
+**Qué:** (auditoría del 19-oct, familia 7; sprint 5 de `fix/auditoria-2026-10-20`)
+- **C · «Ya compré X, ahora necesito Y» no cierra** (`domain/salesIntent.ts` `traePedidoNuevo`):
+  `isExplicitPurchaseConfirmation` —la usan el cierre del turno y el clasificador— da no cuando el
+  mismo mensaje pide algo (verbo de necesidad o de cotizar, o una pregunta). El clasificador
+  (`agent/classifier.ts`) tampoco acepta el «ganado» del modelo con un pedido nuevo en el mensaje.
+  «Ya compré, gracias» y «Ya compré las llantas 205/60R16, muchas gracias» siguen cerrando.
+- **B · La equivalente tiene que servirle** (`domain/equivalencia.ts`, el juez): `requisitoDeCarga`
+  (Extra Load / XL / índice escrito junto a su medida; la de repuesto no cuenta), `cargaAlcanza` (con
+  índice se compara; XL sin índice exige XL y no más angosta), `direccionVigente` (la última «más
+  ancha/alta» del ciclo) y `porQueNoEquivale`, que las junta. Lo usan la lámina
+  (`avisoDeMedidaEnOpciones`: ni rótulo «equivalentes» ni `metadata.equivalentes` cotizables), las
+  alternativas de `buscar_llanta`, el candado del texto (`sinEquivalenciasFalsas` toma la dirección
+  del ciclo) y `generar_cotizacion`, que ahora rechaza con `EQUIVALENTE QUE NO LE SIRVE` una medida
+  que no es la que escribió el cliente si no lleva su carga o va para el otro lado. La equivalencia
+  por medida de lo ya declarado NO se vuelve a juzgar (sano 4732). **Un precio no es una medida**
+  (`tireSize.ts` `sinPrecios`, dentro de `extractTireSizes`): «$245.11», «127.70 c/u».
+  Encontrado al repetir 26218 en el simulador: las «equivalentes de verdad» que las herramientas le
+  pasan al Guardián como HECHO (`equivalentesAMostrar`) también usaban el juez de solo medida, y el
+  Guardián reescribió «no son equivalentes por la carga» a «equivalentes que sí le entran». Ahora
+  pasan por `porQueNoEquivale`, y el Guardián recibe la carga y la dirección pedidas como hecho duro.
+
+- **A · Fuera de Quito es un hecho de la ficha** (migración 027: `cobertura_estado`,
+  `cobertura_ciudad`, `cobertura_ciclo`, `cobertura_dicha_at`). El turno (`index.ts`) lo guarda
+  cuando el cliente lo dice (`registrarDondeEstaElCliente`) y `porQueNoPasaPorElLocal` lo lee de ahí
+  —sigue siendo el único dueño—; los mensajes se releen solo en hilos anteriores a la migración. No
+  se borra al reabrir; «viene» de otro ciclo cuenta como «fuera», como antes. `fueraDeCobertura.ts`
+  reconoce Manabí, Tungurahua, Píllaro y otros cantones y provincias, «soy de provincia», «aquí en» y
+  «cantón». Los seguimientos ya los decide el sprint 4 (`motivoParaNoSeguir`, `sinVisitaDelSeguimiento`)
+  con este mismo dueño.
+
+- **D · Un turno ve solo los mensajes que atiende** (`pipeline/corteDelTurno.ts`): el pipeline corre
+  cada turno con el id del último entrante que atiende (`enElTurno`, `AsyncLocalStorage`), y los
+  lectores que corren dentro del turno lo aplican con `soloLoDelTurno()`: historial, hechos de venta
+  (`getAgentSalesFacts`), medidas del pedido, oferta vigente, herramientas, contexto del Guardián,
+  `insistirConLoQueFalta`, cotizar lo elegido, mostrar por aro. Lo que el cliente escribió mientras el
+  turno corría es del turno siguiente, que lo lee con todo. No se cortan las consultas que existen
+  para ver lo nuevo (`clienteYaEscribioDeNuevo`, la medida que llegó en el medio). Marca en el log:
+  «🧱 este turno atiende hasta el entrante N». El simulador (`scripts/sim/sim.mjs`) ahora vacía en
+  la copia con `--hasta` la medida, el vehículo y el lugar del final del chat y rehace la medida con
+  lo escrito antes del corte: la ficha copiada tal cual contaminó la primera reproducción de 29847.
+
+**Por qué:** (comprobado en la base de producción, solo lectura)
+- D · chat 29847, 19-oct: texto a las 15:33:13, audio (transcrito) guardado después de que el turno
+  del texto arrancó (id 40900 > 40899 de la presentación). **La hipótesis de dos turnos en paralelo
+  se descarta**: la cola FIFO los corrió en serie (runs 27373 y 27376). Pero el turno del texto leyó
+  `aroDelCliente` = 14 del audio ya guardado (`getAgentSalesFacts` no tenía corte; `getHistory` sí) y
+  mandó la lámina de rin 14; el del audio la volvió a contestar y cotizó 165/65R14. 26561 (13-oct): lo
+  mismo con «La medida es 185/ 65/15» → dos láminas de la misma medida.
+- A · 27932: «Enq parte de Manabi están» y «Gracias las necesito para MANABI» → Manabí no estaba en
+  la lista; ficha sin lugar; mapas y dos «¿A cuál local…?». 8924: «Soy de provincia..» y «Tungurahua
+  Cantón Pillaro.» → nada reconocido; tres «¿Qué día cree que puede pasar por Quito Sur?». 28916:
+  «Yo estoy aquí en Cuenca» (en un audio largo) → «aquí en» no contaba. 29642 (Machala) y 28693
+  (Tulcán) sí se reconocían: lo que salió mal fue el seguimiento, que ya arregló el sprint 4.
+- C · chat 462, 15-oct 18:37 UTC: «Las Falken ya las compré 205 60 16. Ahora necesito las Kenda 195
+  60 15 será que puedo pagar con tarjeta sin incremento?» → `tipoDeCierreDelTurno` = compra_terminada
+  (sin corrida de IA), despedida fija y transición 4841 a ganado. El mensaje siguiente reabrió el
+  ciclo 6, saludó de cero y buscó la 205/60R16.
+
+**Probado:** simulador con puertos propios (3610/3605/5120-5122, base `autoventa_sim_s5`), chats
+reales copiados con `--hasta`, la configuración y los modelos de producción. ANTES y DESPUÉS en las
+notas del sprint (`s5-*`).
+- A: 27932 (con la despedida real), 8924, 28916, 29642 y 28693 → ningún mapa, «¿A cuál local?» ni
+  «¿Qué día puede pasar?» después de que dijo dónde está; el log muestra el hecho guardado y el
+  candado quitando la visita; sin seguimientos agendados a quien está fuera sin cotización.
+- B: 26218 → sin «245R11», sin «equivalentes» sin carga XL, el «Okey» no firma (bloqueo con alerta).
+  22492 (205/60R14 en 0, como el 14-oct) → no ofrece la 185/70R14; respeta «más ancha».
+- C: 462 → responde la tarjeta, muestra 195/60R15 y no cierra; «ya compré, gracias» → ganado.
+- D: 29847 (dos corridas) → una lámina, sin cotización, marca 🧱 en el log; 26561 → sin lista repetida.
+- Sanos: Cumbayá con mapas y «¿qué día?»; 4732 «la 3» → cotización 235/75R15; dos textos en 3 s → un turno.
+- `npx tsc --noEmit`, `npx vitest run` 2777/2777, `sim:humo` 8/8, fidelidad 12/12.
+- B · chat 26218, 13-oct: etiqueta «265/45R20 Extra Load» (XL 108, 1000 kg); el juez daba por
+  equivalentes 245/50R20 (102V, 850 kg) y 255/45R20 (105W) y salió COT-MV6ZKE43 por $980,44. La alerta
+  `equivalencia_falsa` 2673547787 leyó «$245.11» como 245R11 y el candado cambió la recomendación por
+  «No tengo una que le calce de verdad…»: equivalente y negación en el mismo mensaje.
+- B · chat 22492: «más ancha» el 13-oct 22:15; el 14-oct 16:47 la lámina rotuló «equivalentes: R380
+  en 185/70R14» a quien usa 205/60R14. `direccionPedida` solo miraba el mensaje del turno.
+
 ## 20-oct-2026 · Seguimientos que leen los hechos del ciclo y un solo lector de la fecha de visita
 
 **Qué:** (auditoría del 19-oct, familias 6 —seguimientos— y 6-fechas; sprint 4 de `fix/auditoria-2026-10-20`)
@@ -2625,6 +2704,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-10-21 | _(este mismo)_ | Casos sueltos: fuera de Quito como hecho, equivalencias con carga XL y dirección del ciclo, precio no es medida, «ya compré X, ahora Y» no cierra, el turno ve solo lo suyo | 5 |
 | 2026-10-20 | _(este mismo)_ | Seguimientos según los hechos del ciclo (lámina enviada, juego en la medida, local), dueño único de «no quiere seguimiento», un solo lector de la fecha de visita, «no alcanzó a pasar» al día siguiente | 4 |
 | 2026-10-20 | _(este mismo)_ | Pausas mudas: motivo de la pausa como hecho, la revisión automática no calla al cliente, el turno humano vence a las 48 h, advisor_review no nace vencido, doble reinicio por 'infinity' | 4 |
 | 2026-10-20 | _(este mismo)_ | La medida escrita es un hecho (un solo lector), la traba del Guardián cuenta los totales, el turno vaciado sale con la lista | 4 |
@@ -2810,7 +2890,7 @@ Ya viene activado en este equipo.
 | 2026-07-14 | ac09171 | Ubicaciones de locales + análisis de features del cliente | 1.5 |
 | 2026-07-13 | feadf57 | Brief + plan de desarrollo + plan financiero + catálogo | 4.0 |
 | 2026-07-13 | d997844 | Commit inicial (repo) | 0.25 |
-| | | **TOTAL** | **~147 h** |
+| | | **TOTAL** | **~152 h** |
 
 ---
 

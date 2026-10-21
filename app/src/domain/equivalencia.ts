@@ -242,3 +242,108 @@ export function respetaDireccion(base: string, candidata: string, direccion: Dir
   if (a === null || b === null) return false;
   return direccion === "mas_alta" ? b > a : b < a;
 }
+
+/**
+ * LA DIRECCIÓN QUE SIGUE VIGENTE: la última que pidió el cliente en el ciclo.
+ *
+ * Chat 22492 (13/14-oct): «lo que busco es … una banda de rodamiento más
+ * ancha» lo dijo un día, y al siguiente —«quiero subir a 14… estoy usando
+ * 205/60/R14»— la lámina le rotuló «equivalente de su aro» una 185/70R14. Leer
+ * la dirección solo del mensaje del turno la olvidaba al turno siguiente. Es un
+ * dato que el cliente dijo, como su medida: vale hasta que pida otra.
+ *
+ * Recibe los textos del cliente del más viejo al más nuevo.
+ */
+export function direccionVigente(textosDelCliente: readonly (string | null | undefined)[]): Direccion | null {
+  for (let i = textosDelCliente.length - 1; i >= 0; i -= 1) {
+    const direccion = direccionPedida(textosDelCliente[i]);
+    if (direccion) return direccion;
+  }
+  return null;
+}
+
+/**
+ * LA CARGA QUE PIDE EL CLIENTE (chat 26218, 13-oct).
+ *
+ * La etiqueta de la puerta de una Mercedes ML 350 decía «265/45R20 Extra
+ * Load»; se le ofrecieron 245/50R20 102V y 255/45R20 105W como equivalentes y se
+ * cotizaron 4 × 245/50R20 por $980,44. Por diámetro y ancho cuadraban; por
+ * carga no: una 265/45R20 XL lleva índice 108 (1000 kg) y esas, 850 y 925 kg.
+ *
+ * `indice` es el que el cliente escribió pegado a su medida («265/70R16 112T»);
+ * `xl`, que dijo Extra Load / XL / reforzada. La rueda de repuesto («T155/90R18
+ * 113M») no cuenta: es otra llanta. Null si no dijo nada de carga — entonces
+ * nada cambia.
+ */
+export interface RequisitoDeCarga {
+  xl: boolean;
+  indice: number | null;
+}
+
+const MARCA_XL = /\bxl\b|\bextra\s*load\b|\breforzad[ao]s?\b|\breinforced\b/i;
+// Medida (no de repuesto: sin «T» delante) seguida de su índice de carga y velocidad.
+const MEDIDA_CON_INDICE =
+  /(?<![a-z\d])\d{3}\s*\/\s*\d{2}\s*z?r\s*\d{2}\s*(?:xl\s*)?(\d{2,3})\s*[jklmnpqrstuhvwy]\b/gi;
+
+export function requisitoDeCarga(textosDelCliente: readonly (string | null | undefined)[]): RequisitoDeCarga | null {
+  let xl = false;
+  let indice: number | null = null;
+  for (const texto of textosDelCliente) {
+    const t = texto ?? "";
+    // Lo que dice de la llanta de repuesto no es un requisito de la suya.
+    const sinRepuesto = t.replace(/\brepuesto\b[^,;\])]*|\bT\d{3}\/\d{2}R\d{2}\b[^,;\])]*/gi, " ");
+    if (MARCA_XL.test(sinRepuesto)) xl = true;
+    for (const m of sinRepuesto.matchAll(MEDIDA_CON_INDICE)) {
+      const n = Number(m[1]);
+      if (n >= 60 && n <= 130) indice = Math.max(indice ?? 0, n);
+    }
+  }
+  return xl || indice !== null ? { xl, indice } : null;
+}
+
+/** Lo que el juez necesita saber de una llanta del catálogo para juzgar su carga. */
+export interface LlantaConCarga {
+  sizeLabel: string | null;
+  name?: string | null;
+  loadSpeed?: { loadIndex: number } | null;
+}
+
+/**
+ * ¿Esta llanta lleva la carga que pide el cliente, contra su medida `pedida`?
+ *
+ * Con índice escrito, se compara el índice. Con «Extra Load» sin índice, la
+ * candidata tiene que ser XL ella también y no más angosta: a igual aro, una
+ * sección menor carga menos aunque sea XL (255/45R20 XL 105 contra 265/45R20 XL
+ * 108). Sin el dato en el catálogo no se puede afirmar que alcance: es no.
+ */
+export function cargaAlcanza(requisito: RequisitoDeCarga | null, pedida: string, llanta: LlantaConCarga): boolean {
+  if (!requisito) return true;
+  const indiceDeLaLlanta = llanta.loadSpeed?.loadIndex ?? null;
+  if (requisito.indice !== null) return indiceDeLaLlanta !== null && indiceDeLaLlanta >= requisito.indice;
+  if (!MARCA_XL.test(llanta.name ?? "")) return false;
+  const a = anchoMm(pedida);
+  const b = anchoMm(llanta.sizeLabel);
+  return a !== null && b !== null && b >= a;
+}
+
+/** Por qué una llanta de otra medida no se le puede ofrecer como equivalente. */
+export type NoEquivale = "medida" | "carga" | "direccion";
+
+/**
+ * EL VEREDICTO COMPLETO para una llanta de otra medida que las del cliente:
+ * equivale por medida (`esEquivalente`), va hacia donde pidió moverse y lleva
+ * la carga que pide. `null` = se le puede ofrecer como equivalente. Lo usan la
+ * lámina (`avisoDeMedidaEnOpciones`) y `generar_cotizacion`.
+ */
+export function porQueNoEquivale(
+  pedidas: readonly string[],
+  llanta: LlantaConCarga,
+  requisitos: { direccion?: Direccion | null; carga?: RequisitoDeCarga | null } = {},
+): NoEquivale | null {
+  const contra = pedidas.filter((p) => esEquivalente(p, llanta.sizeLabel));
+  if (!contra.length) return "medida";
+  if (requisitos.direccion && llanta.sizeLabel
+    && !contra.some((p) => respetaDireccion(p, llanta.sizeLabel!, requisitos.direccion!))) return "direccion";
+  if (requisitos.carga && !contra.some((p) => cargaAlcanza(requisitos.carga!, p, llanta))) return "carga";
+  return null;
+}

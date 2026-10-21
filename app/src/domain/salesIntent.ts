@@ -17,9 +17,32 @@ export function isComparisonRequest(text: string): boolean {
  */
 const EN_OTRO_LADO = /\b(?:en|con|a)\s+(?:otro|otra)\s+(?:lado|lugar|parte|tienda|llantera|local|sitio)\b|\bcon\s+otros?\b|\ben\s+otro\s+lado\b/;
 
+/**
+ * «YA COMPRÉ X, AHORA NECESITO Y» (auditoría 19-oct-2026, chat 462).
+ *
+ * «Las Falken ya las compré 205 60 16. Ahora necesito las Kenda 195 60 15 será
+ * que puedo pagar con tarjeta sin incremento?» se leyó como venta cerrada: la
+ * despedida fija «Me alegra que ya haya resuelto su compra», el chat a ganado
+ * y, al reabrir, el saludo de cero sobre la medida vieja. La primera mitad
+ * cuenta una compra pasada; la segunda es la venta de hoy, y manda.
+ *
+ * Un pedido es un verbo de necesidad o de cotizar, o una pregunta. «Ya compré
+ * las llantas 205/60R16, gracias» sigue siendo un cierre: la medida describe
+ * lo comprado, no pide nada.
+ */
+const PEDIDO_NUEVO =
+  /\b(?:necesit\w*|quier[oe]n?|quisiera|busc[oa]|ocup[oa]|cotiz\w*|cotic\w*|tiene[ns]?|hay|cuanto|a como|precio)\b/;
+
+/** El mensaje trae algo que pedir, además de lo que cuente. Lo usan el cierre y el clasificador. */
+export function traePedidoNuevo(text: string): boolean {
+  // `normalize` borra los signos: la pregunta se mira en el texto crudo.
+  return /[?¿]/.test(text) || PEDIDO_NUEVO.test(normalize(text));
+}
+
 export function isExplicitPurchaseConfirmation(text: string): boolean {
   const normalized = normalize(text);
   if (EN_OTRO_LADO.test(normalized) || comproEnOtroLugar(text)) return false;
+  if (traePedidoNuevo(text)) return false;
   return /\b(ya (?:las? )?compr[eé]|acabo de comprar|ya pagu[eé]|compra (?:hecha|realizada)|pago realizado)\b/.test(
     normalized,
   );
