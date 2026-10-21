@@ -34,3 +34,19 @@ export function elClienteDijoQueAvisa(mensajeDelCliente: string | null | undefin
   if (!YO_ESCRIBO.test(n)) return false;
   return !TRAE_UN_DIA.test(n);
 }
+
+/**
+ * «CUANDO LO TENGA ME AVISA» (chat 27914, 16-oct). Lo contrario de «yo le
+ * aviso»: el cliente pide que le avisemos NOSOTROS cuando llegue la llanta que
+ * quería. Tampoco es «escríbame en tres horas»: el seguimiento automático le
+ * volvía a ofrecer la equivalente que acababa de rechazar. Lo que corresponde
+ * es que el asesor lo vea, no un recordatorio.
+ */
+const AVISEME_CUANDO =
+  /\b(?:cuando|apenas|si)\s+(?:lo|la|los|las|le)?\s*(?:tenga|tengan|llegue|lleguen|ingrese|ingresen|haya|consiga|consigan)\b[^?]{0,40}\b(?:me|nos)\s+(?:avisa|avisan|avise|avisen|escribe|escriben|escriba|comunica|comunican|llama|llaman)\b|\b(?:aviseme|avisame|me\s+avisa|me\s+avisan|me\s+avise|me\s+avisen)\b[^?]{0,20}\b(?:cuando|apenas|si)\s+(?:lo|la|los|las|le)?\s*(?:tenga|tengan|llegue|lleguen|ingrese|ingresen|haya)\b/;
+
+export function pideQueLeAvisen(mensajeDelCliente: string | null | undefined): boolean {
+  const n = normalizar(mensajeDelCliente ?? "");
+  if (!n || n.length > 200 || /\?/.test(n)) return false;
+  return AVISEME_CUANDO.test(n);
+}

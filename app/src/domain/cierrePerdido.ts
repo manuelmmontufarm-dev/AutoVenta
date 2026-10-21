@@ -63,7 +63,9 @@ const PIDIO_NO_CONTACTAR =
  * ser «ya compré con ustedes», que es una venta GANADA, no perdida.
  */
 const COMPRO_EN_OTRO_LADO =
-  /\b(?:compre|comprado|consegui|encontre|adquiri|pedi|puse|cambie|monte)\b[^.!?]{0,40}\b(?:en otro|otro lugar|otro lado|otra parte|otra llantera|en otra)\b/;
+  /\b(?:compre|comprado|consegui|encontre|adquiri|pedi|puse|cambie|monte)\b[^.!?]{0,40}\b(?:en otro|otro lugar|otro lado|otra parte|otra llantera|en otra)\b|\b(?:opte|me decidi|decidi|me quede|escogi|elegi)\s+(?:ir\s+)?(?:por|con)\s+(?:otro|otra)\s+(?:distribuidor|proveedor|lugar|lado|almacen|tienda|local|llantera|negocio|empresa|opcion)\b/;
+// «Opté por otro distribuidor por el precio» (chat 22876, 12-oct): la decisión
+// de comprar en otro lado dicha con el verbo de elegir, no con el de comprar.
 
 /**
  * La compra quedó hecha «acá/aquí en» otra ciudad.

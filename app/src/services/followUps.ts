@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { createHash } from "node:crypto";
-import { config } from "../config.js";
+import { business, config } from "../config.js";
 import { sql } from "../db/client.js";
 import { porQueNoPasaPorElLocal } from "./dondeEstaElCliente.js";
 import {
@@ -22,9 +22,10 @@ import {
 import { buildStoreLinksBlock } from "./quoteMessages.js";
 import { emitLiveEvent } from "./liveEvents.js";
 import { pideUnAsesor } from "../domain/pideAsesor.js";
-import { tipoDeCierreDelTurno } from "../domain/cierreTurno.js";
+import { motivoParaNoSeguir, type MotivoSinSeguimiento } from "../domain/sinSeguimiento.js";
+import { parseTireSize } from "../domain/tireSize.js";
 import { generateFollowUpCopy } from "./followUpCopy.js";
-import { findByCode } from "./catalog.js";
+import { catalogStatus, findByCode, searchBySize } from "./catalog.js";
 import { listaDeLaPieza } from "../domain/listaDeOpciones.js";
 import { asesoresActivos, notifyAdvisor } from "./advisorNotifications.js";
 
@@ -242,7 +243,28 @@ export interface ContextoDeOpciones {
   customerAskedPrice?: boolean;
   /** No pasa por el local (`porQueNoPasaPorElLocal`): sin mapas ni visita. */
   sinVisita?: FollowUpMessageContext["sinVisita"];
+  /** Hay juego en la medida exacta (ver `juegoEnLaMedida`). */
+  juegoEnSuMedida?: boolean | null;
+  /** La última lámina era de medidas equivalentes. */
+  optionsEquivalentes?: boolean;
 }
+
+/**
+ * ¿El catálogo tiene, en la medida exacta, una llanta con stock para el juego?
+ * Es el hecho que el bot ya usó en el turno («solo hay 1 llanta»): sin él, el
+ * seguimiento ofrecía «las opciones que tengo en su medida» a quien acababa de
+ * oír que no alcanzaba (28783). `null` cuando no se puede saber (sin medida o
+ * sin catálogo cargado): ahí se ofrece como antes.
+ */
+export function juegoEnLaMedida(tireSize: string | null | undefined, cantidad: number | null | undefined): boolean | null {
+  const medida = tireSize ? parseTireSize(tireSize) : null;
+  if (!medida || catalogStatus().items === 0) return null;
+  const necesarias = cantidad && cantidad > 0 ? cantidad : 4;
+  return searchBySize(medida).some((item) => item.stock >= necesarias);
+}
+
+/** Los locales, para preguntar a cuál va quien todavía no eligió. */
+const nombresDeLocales = () => business.stores.map((store) => store.name);
 
 const RESPUESTA_AL_MENU =
   /^(?:la\s+|el\s+|opci[oó]n\s+)?(?:[123]|1ra|2da|3ra|primera|segunda|tercera|costo|equilibrio|premium|la\s+m[aá]s\s+(?:barata|econ[oó]mica|cara|conveniente)|econ[oó]mica|barata|intermedia)\W*$/i;
@@ -254,8 +276,12 @@ const RESPUESTA_AL_MENU =
  * volvía a preguntar la prioridad a quien ya había dicho «Premium»
  * (auditoría 2-6 sep, familia A3): no tenía cómo saberlo.
  */
-async function contextoDeOpciones(conversationId: number, cycle: number): Promise<ContextoDeOpciones> {
-  const [pieza] = await sql<{ id: number; created_at: Date; codes: unknown; metadata: { escalones?: unknown; cantidad?: unknown } | null }[]>`
+async function contextoDeOpciones(
+  conversationId: number,
+  cycle: number,
+  ficha: { tireSize?: string | null; cantidad?: number | null } = {},
+): Promise<ContextoDeOpciones> {
+  const [pieza] = await sql<{ id: number; created_at: Date; codes: unknown; metadata: { escalones?: unknown; cantidad?: unknown; equivalentes?: unknown } | null }[]>`
     select id, created_at, metadata->'codes' as codes, metadata from messages
     where conversation_id = ${conversationId} and cycle = ${cycle}
       and direction = 'outbound' and metadata->>'piece' = 'options'
@@ -283,23 +309,36 @@ async function contextoDeOpciones(conversationId: number, cycle: number): Promis
   // El mismo dueño que el cierre de la cotización y los candados de salida:
   // quien compra a distancia o está fuera de Quito no recibe mapas.
   const sinVisita = await porQueNoPasaPorElLocal(conversationId, cycle, null);
-  return { optionsCount, optionsList: listaDeLaPieza(pieza?.metadata), preferenceAnswered, customerHasNoTireSize, customerAskedPrice, sinVisita };
+  return {
+    optionsCount, optionsList: listaDeLaPieza(pieza?.metadata), preferenceAnswered, customerHasNoTireSize,
+    customerAskedPrice, sinVisita, juegoEnSuMedida: pieza ? null : juegoEnLaMedida(ficha.tireSize, ficha.cantidad),
+    optionsEquivalentes: Array.isArray(pieza?.metadata?.equivalentes) && pieza.metadata.equivalentes.length > 0,
+  };
 }
 
 /**
- * ¿Lo último que dijo el cliente en este ciclo fue una despedida o un rechazo?
- * Misma fuente que el cierre del turno (`domain/cierreTurno.ts`): «no gracias»,
- * «ya conseguí», «le aviso», y el «ok» que viene después de cualquiera de esos.
+ * ¿POR QUÉ ESTE CLIENTE NO RECIBE SEGUIMIENTO? El único lugar que lo decide
+ * (auditoría 19-oct, familia 6). Junta lo que el cliente dijo al final del
+ * ciclo y dónde está, y se lo pregunta a `domain/sinSeguimiento.ts`. Lo
+ * consultan las dos puertas: `scheduleConversationFollowUps` (no agenda) y
+ * `processFollowUpJob` (cancela antes de pagar redacción y Guardián).
  */
-async function elClienteSeDespidio(conversationId: number, cycle: number): Promise<boolean> {
+export async function porQueNoQuiereSeguimiento(
+  conversationId: number,
+  cycle: number,
+): Promise<MotivoSinSeguimiento | null> {
   const ultimos = await sql<{ content: string | null }[]>`
     select content from messages
     where conversation_id = ${conversationId} and cycle = ${cycle} and direction = 'inbound'
     order by created_at desc, id desc limit 2
   `;
   const [ultimo, anterior] = ultimos;
-  if (!ultimo?.content) return false;
-  return tipoDeCierreDelTurno(ultimo.content, anterior?.content ?? null) !== null;
+  if (!ultimo?.content) return null;
+  return motivoParaNoSeguir({
+    ultimo: ultimo.content,
+    anterior: anterior?.content ?? null,
+    sinVisita: await porQueNoPasaPorElLocal(conversationId, cycle, null),
+  });
 }
 
 export function buildFollowUpPreview(
@@ -314,6 +353,9 @@ export function buildFollowUpPreview(
     customerHasNoTireSize: opciones.customerHasNoTireSize,
     customerAskedPrice: opciones.customerAskedPrice,
     sinVisita: opciones.sinVisita ?? null,
+    juegoEnSuMedida: opciones.juegoEnSuMedida ?? null,
+    optionsEquivalentes: opciones.optionsEquivalentes ?? false,
+    storeNames: nombresDeLocales(),
     selectedQuantity: conversation.selected_quantity,
     name: conversation.name,
     stage: conversation.stage,
@@ -426,11 +468,18 @@ export async function scheduleConversationFollowUps(
   // reconoce el cierre; esta es la misma regla en la ÚNICA función que
   // programa, para que ninguna otra puerta (retomada, panel, worker) vuelva a
   // armarlo sobre una despedida.
-  if (await elClienteSeDespidio(conversationId, conversation.current_cycle)) {
-    await cancelPendingFollowUps(conversationId, "cierre_del_cliente", conversation.current_cycle);
+  //
+  // Desde el 20-oct es el dueño único (`porQueNoQuiereSeguimiento`): también
+  // «opté por otro distribuidor», «cuando lo tenga me avisa», «yo le aviso» y
+  // quien está fuera de Quito, que antes llegaban al Guardián.
+  const sinSeguimiento = await porQueNoQuiereSeguimiento(conversationId, conversation.current_cycle);
+  if (sinSeguimiento) {
+    await cancelPendingFollowUps(conversationId, `no_quiere_seguimiento:${sinSeguimiento}`, conversation.current_cycle);
     return;
   }
-  const contextoOpciones = await contextoDeOpciones(conversationId, conversation.current_cycle);
+  const contextoOpciones = await contextoDeOpciones(conversationId, conversation.current_cycle, {
+    tireSize: conversation.tire_size, cantidad: conversation.selected_quantity,
+  });
 
   const relevantAt = conversation.last_assistant_message_at.getTime() >= conversation.last_customer_message_at.getTime()
     ? conversation.last_assistant_message_at
@@ -825,7 +874,10 @@ export async function reconcileFollowUpAlerts(now = new Date()): Promise<void> {
       'Cliente prometió visitar y no confirmó', 'La fecha de visita registrada ya pasó.',
       'Contactar sólo si la ventana está abierta o mediante plantilla aprobada.',
       c.id || ':' || c.current_cycle || ':visit_not_confirmed'
-    from conversations c where c.status = 'open' and c.visit_date is not null and c.visit_date < ${now}
+    from conversations c where c.status = 'open' and c.visit_date is not null
+      -- El DÍA de la visita ya terminó (en Quito), no la hora de relleno que
+      -- lleva visit_date: a las 12:37 del mismo sábado todavía puede venir (6145).
+      and (c.visit_date at time zone 'America/Guayaquil')::date < (${now}::timestamptz at time zone 'America/Guayaquil')::date
     on conflict do nothing
   `).count);
   if (nuevas.some((cantidad) => cantidad > 0)) emitLiveEvent("alert");
@@ -992,6 +1044,7 @@ function jobCopyContext(context: FollowUpJobContext) {
     visitDate: context.visit_date,
     visitTimeLabel: context.visit_time_label,
     storeLinks: mapasDelSeguimiento(context.nearest_store),
+    storeNames: nombresDeLocales(),
     quoteNumber: context.quote_number,
     activeDiscountAmount: context.active_discount_amount === null ? null : Number(context.active_discount_amount),
     activeDiscountCondition: context.active_discount_condition,
@@ -1021,7 +1074,9 @@ export async function ensureFollowUpJobCopy(input: {
   }
   const copyContext = {
     ...jobCopyContext(context),
-    ...(await contextoDeOpciones(context.id, context.current_cycle)),
+    ...(await contextoDeOpciones(context.id, context.current_cycle, {
+      tireSize: context.tire_size, cantidad: context.selected_quantity,
+    })),
   };
   // Al modelo, los hechos SIN los links: las URLs de Maps son exactamente el
   // tipo de string que un LLM copia mal, y una mutilada en el chat es peor

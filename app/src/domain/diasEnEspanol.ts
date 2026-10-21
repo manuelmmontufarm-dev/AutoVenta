@@ -380,3 +380,64 @@ export function fechaDeCalendario(texto: string, ahora: Date): { mes: number; di
   if (candidato < Date.UTC(local.getUTCFullYear(), local.getUTCMonth(), local.getUTCDate())) anio += 1;
   return { mes, dia, anio };
 }
+
+/**
+ * ¿DE QUÉ SEMANA ES EL DÍA QUE NOMBRÓ? (auditoría 19-oct-2026, familia 6).
+ *
+ * El nombre del día solo no alcanza: «el sábado», «el próximo sábado» y «el
+ * sábado de la otra semana» son tres fechas distintas dichas un sábado. Hasta
+ * hoy no había regla para «próximo» y el «Próximo sábado» de un sábado a las
+ * 07:27 quedó como ese mismo día (chat 29029); a las 10:28 ya le decían «no
+ * alcanzó a pasar».
+ *
+ *  · `otra_semana` — «de la próxima/otra/siguiente semana», «de la semana que
+ *    viene»: el día cae en la semana calendario siguiente (lunes a domingo).
+ *    «Miércoles dela otra semana» un miércoles = +7 (27279); «viernes de la
+ *    próxima semana» un miércoles = el viernes de la otra, no el de pasado
+ *    mañana.
+ *  · `proximo` — «el próximo sábado», «el otro sábado», «el sábado que viene»:
+ *    la próxima vez que llega ese día SIN contar hoy.
+ *  · `esta` — el día a secas o «este sábado».
+ */
+export type SemanaDelDia = "esta" | "proximo" | "otra_semana";
+
+const OTRA_SEMANA = /\b(?:de\s+la|dela|la|en\s+la)\s+(?:proxima|otra|siguiente)\s+semana\b|\bde\s+la\s+semana\s+que\s+viene\b/;
+
+export function semanaDelDia(texto: string): SemanaDelDia {
+  const n = normalizarTexto(texto);
+  if (OTRA_SEMANA.test(n)) return "otra_semana";
+  const palabras = n.split(/[^a-zñ0-9]+/).filter(Boolean);
+  for (let i = 0; i < palabras.length; i += 1) {
+    if (!diaDeLaPalabra(palabras[i])) continue;
+    const antes = palabras[i - 1] ?? "";
+    const despues = `${palabras[i + 1] ?? ""} ${palabras[i + 2] ?? ""}`;
+    if (/^(?:proxim[oa]|siguiente|otro)$/.test(antes)) return "proximo";
+    if (/^(?:proxim[oa]\b|que viene\b)/.test(despues)) return "proximo";
+  }
+  return "esta";
+}
+
+/**
+ * «El sábado» dicho el MISMO sábado, a secas: hoy solo si es temprano (antes
+ * de las 10:00); después, el de la semana que viene. Es la regla que ya
+ * tenía la captura y se conserva: quien viene HOY dice «hoy» (en 60 días de
+ * producción no hay un solo «el <día>» dicho ese día en horario que
+ * significara hoy), y el caso que sí hay —«Sábado» a las 19:22, chat 28845—
+ * es el 24. Lo que cambia es «próximo»: ese nunca es hoy.
+ */
+const ULTIMO_MINUTO_PARA_HOY = 10 * 60;
+
+/** Cuántos días faltan para el día de la semana `indice` (domingo = 0), en hora de Quito. */
+export function diasHastaElDia(indice: number, ahora: Date, semana: SemanaDelDia = "esta"): number {
+  const local = new Date(ahora.getTime() - 5 * 3_600_000);
+  const hoy = local.getUTCDay();
+  if (semana === "otra_semana") {
+    const hastaElLunes = (8 - hoy) % 7 || 7;
+    return hastaElLunes + ((indice + 6) % 7);
+  }
+  const offset = (indice - hoy + 7) % 7;
+  if (offset !== 0) return offset;
+  if (semana === "proximo") return 7;
+  const minuto = local.getUTCHours() * 60 + local.getUTCMinutes();
+  return minuto < ULTIMO_MINUTO_PARA_HOY ? 0 : 7;
+}

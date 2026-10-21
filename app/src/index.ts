@@ -65,7 +65,8 @@ import {
   scheduleConversationFollowUps,
 } from "./services/followUps.js";
 import { markDiscountNoticeSent } from "./services/discountOffers.js";
-import { extractCustomerCommitment, preguntamosElDia, respondeAlDiaDeLaVisita } from "./domain/customerCommitment.js";
+import { preguntamosElDia, respondeAlDiaDeLaVisita } from "./domain/customerCommitment.js";
+import { leerVisita } from "./domain/fechaDeVisita.js";
 import { avisarVisitaComprometida } from "./services/visitAlerts.js";
 import { emitirCuponDeConfirmacion, enviarTicketDeCupon } from "./services/coupons.js";
 import { authorizeConversationOutbound } from "./services/whatsappPolicy.js";
@@ -183,7 +184,9 @@ const pipeline = new InboundPipeline(async ({ from, name, text: textoRecibido, w
   // registró y el cliente nunca recibió su cotización.
   const commitment = esRespuestaDelMenuDePreferencia(text, previousOutbound, mensajeCitado)
     ? null
-    : extractCustomerCommitment(text, receivedAt, {
+    // El lector único de la visita (`domain/fechaDeVisita.ts`): el mismo que
+    // usa `agendar_visita`, para que las dos puertas no lean fechas distintas.
+    : leerVisita(text, receivedAt, {
         // «Voy a estar en Quito» no entra por la puerta del local (simulador, 12-sep).
         respondiendoAlDia: respondeAlDiaDeLaVisita({
           texto: text, preguntamosElDia: preguntamosElDia(previousOutbound), preguntamosElLocal: respondiendoAlLocal,

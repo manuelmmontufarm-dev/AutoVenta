@@ -11,8 +11,10 @@ import {
   getFollowUpJobContext,
   getFollowUpPolicy,
   markFollowUpJobCancelled,
+  porQueNoQuiereSeguimiento,
   type FollowUpJob,
 } from "./followUps.js";
+import { yaPasoElDiaDeLaVisita } from "../domain/fechaDeVisita.js";
 import { authorizeConversationOutbound } from "./whatsappPolicy.js";
 import { emitLiveEvent } from "./liveEvents.js";
 import { prepararSalida } from "./prepararSalida.js";
@@ -160,8 +162,22 @@ export async function processFollowUpJob(
   // Lo que sí se marca es el modo, para que la redacción con IA sepa que aquí
   // no se pregunta nada — y para que el guardián lo revise con esa vara.
   const visitaAgendada = Boolean(
-    !isAuthorizedCampaign && context.visit_date && context.visit_date > now && context.nearest_store,
+    !isAuthorizedCampaign && context.visit_date && !yaPasoElDiaDeLaVisita(context.visit_date, now) && context.nearest_store,
   );
+
+  // EL MISMO DUEÑO QUE AL AGENDAR (familia 6, 20-oct): un job que se agendó
+  // antes —o con el código anterior— no se redacta ni pasa por el Guardián si
+  // el cliente ya dijo que se fue, compró, avisa él o está fuera de Quito.
+  // Antes eso lo frenaba el Guardián o un candado DESPUÉS de pagar la copia.
+  if (!isAuthorizedCampaign) {
+    const sinSeguimiento = await porQueNoQuiereSeguimiento(context.id, context.current_cycle);
+    if (sinSeguimiento) {
+      await markFollowUpJobCancelled(job.id, `no_quiere_seguimiento:${sinSeguimiento}`);
+      console.log(`🤐 Seguimiento ${job.id} de la conv ${context.id} cancelado: ${sinSeguimiento}.`);
+      emitLiveEvent("follow_up", context.id);
+      return;
+    }
+  }
 
   const policy = await getFollowUpPolicy();
   if (policy.neverOutsideHours && !isWithinBusinessHours(now, policy)) {

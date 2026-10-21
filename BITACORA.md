@@ -1,3 +1,65 @@
+## 20-oct-2026 · Seguimientos que leen los hechos del ciclo y un solo lector de la fecha de visita
+
+**Qué:** (auditoría del 19-oct, familias 6 —seguimientos— y 6-fechas; sprint 4 de `fix/auditoria-2026-10-20`)
+- **El seguimiento lee la pieza enviada, no la etapa** (`domain/followUpMessages.ts`). Con lámina
+  `options` en el ciclo la pregunta es «¿Le cotizo la 1 o la 2?» (o «¿se la cotizo?» si fue una),
+  en cualquier etapa; «¿Le mando las opciones?» solo cuando no salió ninguna Y hay juego en la medida
+  (`juegoEnLaMedida`, del catálogo); si no alcanza, ofrece la equivalente del aro. La lámina de
+  equivalentes (`metadata.equivalentes`) ya no se nombra con la medida pedida. El hecho de oferta
+  que guarda el sprint 1 queda `menu`/`una`. Sin local elegido se pregunta a cuál (con los dos
+  nombres, `storeNames`), no «¿le ayudo a dejar lista la visita?». Sin el 👋 en la pregunta de medida.
+- **Un solo dueño de «no quiere seguimiento»** (`domain/sinSeguimiento.ts`, lo consulta
+  `services/followUps.ts` `porQueNoQuiereSeguimiento`): compró en otro lado («opté por otro
+  distribuidor», agregado a `cierrePerdido.ts`), «cuando lo tenga me avisa» (`pideQueLeAvisen`),
+  «yo le aviso», cierre del turno, y fuera de Quito sin compra a distancia. Se aplica al agendar y en
+  `processFollowUpJob` ANTES de pagar redacción y Guardián; el job queda
+  `no_quiere_seguimiento:<motivo>`.
+- **Un solo lector de la fecha de visita** (`domain/fechaDeVisita.ts`: `leerVisita` para el pipeline y
+  la fase operativa, `fechaParaAgendar` para `agendar_visita`, donde la frase del cliente manda sobre
+  el `dia` del modelo y se guarda como `customer_commitment` junto a la fecha). Nuevas reglas en
+  `diasEnEspanol.ts` (`semanaDelDia`, `diasHastaElDia`): «próximo/otro <día>» nunca es hoy; «<día> de
+  la próxima/otra semana» es la semana calendario siguiente. El «próximo» se lee antes de quitar
+  cláusulas negativas. «Ahora» no le gana a «el fin de semana». No es visita lo leído de una foto ni
+  «le paso / le mando el dato».
+- **«No alcanzó a pasar» se dice al día siguiente:** `yaPasoElDiaDeLaVisita` compara el día en Quito
+  (plantilla, `visitaAgendada` del procesador y la alerta `visit_not_confirmed`). El día de la visita
+  el seguimiento dice «le esperamos *hoy*, sábado 17…», y el Guardián recibe «ES HOY» en sus hechos.
+  `ubicacion_locales` dice el día de `visit_date`, no la frase («Le esperamos mañana» el mismo día).
+
+**Por qué:** (comprobado en la base de producción, solo lectura)
+- 13–19 oct: el Guardián corrigió 330 de 653 seguimientos revisados, todos de plantilla. «¿Le mando las
+  opciones?» 145/145 (127 con la lámina ya enviada, 18 sin juego en la medida), la pregunta de medida
+  con 👋 46/86, «¿le ayudo a dejar lista la visita?» 49/49, «¿qué día…?» sin local 34/56.
+- 29358: dos lectores. El pipeline borraba la cláusula «hoy no fui creo para el próximo sábado» entera
+  por «no fui»; la herramienta creía el «sábado 31 de octubre» del modelo → dos alertas (24 y 31).
+- 29029: no existía «próximo». 6145: se comparaba el instante. 27485 (hipótesis CONFIRMADA): «6 1/2"»
+  de la foto se leyó como 1/2 = 1 de febrero. 30131 (hipótesis CONFIRMADA): «paso» de «le paso el dato»
+  contaba como verbo de visita. 26916: «ahora» contaba como hoy y le ganaba al fin de semana.
+- Regla del mismo día que se CONSERVA: «el sábado» dicho el sábado es hoy solo antes de las 10:00
+  (no hay en 60 días un caso en horario que diga otra cosa; quien viene hoy dice «hoy»).
+
+**Probado:** simulador (puertos 3410, base `autoventa_sim_s4`) con los chats reales copiados con
+`--hasta`, el reloj del bot corrido al instante del mensaje (preload solo del simulador) y los jobs
+forzados. ANTES y DESPUÉS textuales en las notas del sprint (`s4-antes-textual.md`).
+- 29752: el seguimiento pasó de «¿Le mando las opciones…?» (corregido por el Guardián) a la lámina de
+  equivalentes con «¿Le cotizo la 1 o la 2?», aprobado, oferta guardada `menu/2`. 28783 (stock en 1):
+  «…no me alcanza para el juego… ¿Le reviso una equivalente?», aprobado.
+- 29358 → sábado 24, una sola alerta con la frase completa. 29029 → 24. 26916 → sábado 17. 27485 y
+  30131 → sin visita ni alerta. 6145 a las 12:37 → «Le esperamos *hoy*, sábado 17…», aprobado.
+  27379 («voy mañana») y el recordatorio «✅ Perfecto, le esperamos el…» siguen igual.
+- 27914, 22876, 27292: el job se cancela con `no_quiere_seguimiento:<motivo>`, sin revisión del Guardián.
+- 10 seguimientos reales al azar (13–17 oct): en producción el Guardián corrigió 7/10; con el arreglo,
+  1 cancelado y 2 de 9 corregidos (22 %), los dos por deriva de precio/stock de la foto del catálogo.
+- `npx tsc --noEmit`, `npx vitest run` 2727/2727, `sim:humo` 8/8, fidelidad 12/12.
+
+**Pendiente / a decidir:** fuera de Quito sin compra a distancia ya no recibe seguimiento (29177,
+Baños, con cotización y envío ofrecido, quedó sin él); el turno que contesta «cuando lo tenga me
+avisa» no cambió (sigue ofreciendo la equivalente una vez).
+
+**Horas:** ~4 h.
+
+---
+
 ## 20-oct-2026 · Pausas que dejan mudo al bot: una revisión automática ya no calla al cliente que escribe
 
 **Qué:** (auditoría del 19-oct, familia 4; sprint 2 de `fix/auditoria-2026-10-20`)
@@ -2551,6 +2613,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-10-20 | _(este mismo)_ | Seguimientos según los hechos del ciclo (lámina enviada, juego en la medida, local), dueño único de «no quiere seguimiento», un solo lector de la fecha de visita, «no alcanzó a pasar» al día siguiente | 4 |
 | 2026-10-20 | _(este mismo)_ | Pausas mudas: motivo de la pausa como hecho, la revisión automática no calla al cliente, el turno humano vence a las 48 h, advisor_review no nace vencido, doble reinicio por 'infinity' | 4 |
 | 2026-10-20 | _(este mismo)_ | La medida escrita es un hecho (un solo lector), la traba del Guardián cuenta los totales, el turno vaciado sale con la lista | 4 |
 | 2026-10-20 | _(este mismo)_ | El sí y la elección: acuse por palabras, un sí a un menú pregunta cuál, la equivalente pide su sí; la oferta como hecho | 5,5 |
@@ -2735,7 +2798,7 @@ Ya viene activado en este equipo.
 | 2026-07-14 | ac09171 | Ubicaciones de locales + análisis de features del cliente | 1.5 |
 | 2026-07-13 | feadf57 | Brief + plan de desarrollo + plan financiero + catálogo | 4.0 |
 | 2026-07-13 | d997844 | Commit inicial (repo) | 0.25 |
-| | | **TOTAL** | **~143 h** |
+| | | **TOTAL** | **~147 h** |
 
 ---
 
