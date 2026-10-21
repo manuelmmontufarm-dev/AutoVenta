@@ -96,3 +96,33 @@ describe("medidaNuevaParaLaFicha", () => {
     expect(medidaNuevaParaLaFicha(filas, null)).toBe("195/65R15");
   });
 });
+
+describe("una sola regla para la ficha: la ÚLTIMA medida que el cliente escribió en el mensaje", () => {
+  const FRASE = "tengo 205/55R16 pero quiero 215/55R16";
+
+  it("«tengo 205/55R16 pero quiero 215/55R16» → 215/55R16 (antes `index.ts` guardaba 205/55R16)", async () => {
+    const { medidaCanonica } = await import("../src/domain/tireSize.js");
+    const { medidaEscritaEnElMensaje, medidasParaElHecho } = await import("../src/domain/medidaDelCliente.js");
+    expect(medidaCanonica(FRASE)).toBe("205/55R16"); // lo que hacía index.ts: la primera
+    expect(medidaEscritaEnElMensaje(FRASE)).toBe("215/55R16");
+    expect(medidasParaElHecho(FRASE)).toEqual(["205/55R16", "215/55R16"]);
+  });
+
+  it("y el agente llega a la misma: la ficha del hecho anotado es 215/55R16", async () => {
+    const { medidasParaElHecho } = await import("../src/domain/medidaDelCliente.js");
+    expect(medidaNuevaParaLaFicha([{ medidas: medidasParaElHecho(FRASE), created_at: hace(0.5) }], hace(5))).toBe("215/55R16");
+  });
+
+  it("el orden es el del texto aunque mezcle flotación y métrica", async () => {
+    const { medidaEscritaEnElMensaje } = await import("../src/domain/medidaDelCliente.js");
+    expect(medidaEscritaEnElMensaje("tengo 31x10.50R15 pero quiero 265/70R15")).toBe("265/70R15");
+    expect(medidaEscritaEnElMensaje("tengo 265/70R15 pero quiero 31x10.50R15")).toBe("31X10.5R15");
+  });
+
+  it("con una sola medida, es esa (y una flotación con espacios no se parte)", async () => {
+    const { medidaEscritaEnElMensaje } = await import("../src/domain/medidaDelCliente.js");
+    expect(medidaEscritaEnElMensaje("X favor el precio de llantas 255 / 45 R.20 pará un jetour gracias")).toBe("255/45R20");
+    expect(medidaEscritaEnElMensaje("necesito 33 x 12.50 R15")).toBe("33X12.5R15");
+    expect(medidaEscritaEnElMensaje("hola")).toBeNull();
+  });
+});

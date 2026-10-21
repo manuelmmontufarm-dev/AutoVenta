@@ -1,3 +1,23 @@
+## 21-oct-2026 · Una sola regla para la ficha: la última medida que el cliente escribe
+
+**Qué:** (revisión final de la coordinadora sobre `fix/auditoria-2026-10-20`, sprint 3)
+- `domain/medidaDelCliente.ts` `medidaEscritaEnElMensaje`: la medida de un
+  mensaje para la ficha es la ÚLTIMA que el cliente escribió en él. La usa
+  `index.ts` al recibir el mensaje (antes `medidaCanonica(text)`, la primera) y
+  es la misma que llega a la ficha desde el agente (`medidaNuevaParaLaFicha`).
+- `medidasParaElHecho` guarda las medidas en el orden del texto (el lector pone
+  primero las métricas y después las de flotación): se prueban los finales del
+  mensaje desde cada palabra, y el más corto que trae una medida del mensaje
+  entero da la última.
+
+**Por qué:** con «tengo 205/55R16 pero quiero 215/55R16» `index.ts` guardaba
+205/55R16 y el agente, que corre después, 215/55R16: la ficha dependía de quién
+escribía último. Ahora es una regla, y es la medida que el cliente quiere.
+Simulador, 3 corridas cada uno: la frase → lámina 215/55R16 y ficha 215/55R16
+(3/3); 27418, 29418 y 23160 siguen igual (3/3 cada uno).
+
+**Horas:** 1
+
 ## 20-oct-2026 · Casos sueltos: fuera de Quito, equivalencias, «ya compré» con pedido nuevo y el turno que ve lo de otro
 
 **Qué:** (auditoría del 19-oct, familia 7; sprint 5 de `fix/auditoria-2026-10-20`)
@@ -2704,6 +2724,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-10-21 | _(este mismo)_ | Una sola regla para la ficha: la última medida que el cliente escribe en el mensaje | 1 |
 | 2026-10-21 | _(este mismo)_ | Casos sueltos: fuera de Quito como hecho, equivalencias con carga XL y dirección del ciclo, precio no es medida, «ya compré X, ahora Y» no cierra, el turno ve solo lo suyo | 5 |
 | 2026-10-20 | _(este mismo)_ | Seguimientos según los hechos del ciclo (lámina enviada, juego en la medida, local), dueño único de «no quiere seguimiento», un solo lector de la fecha de visita, «no alcanzó a pasar» al día siguiente | 4 |
 | 2026-10-20 | _(este mismo)_ | Pausas mudas: motivo de la pausa como hecho, la revisión automática no calla al cliente, el turno humano vence a las 48 h, advisor_review no nace vencido, doble reinicio por 'infinity' | 4 |
@@ -2890,7 +2911,7 @@ Ya viene activado en este equipo.
 | 2026-07-14 | ac09171 | Ubicaciones de locales + análisis de features del cliente | 1.5 |
 | 2026-07-13 | feadf57 | Brief + plan de desarrollo + plan financiero + catálogo | 4.0 |
 | 2026-07-13 | d997844 | Commit inicial (repo) | 0.25 |
-| | | **TOTAL** | **~152 h** |
+| | | **TOTAL** | **~153 h** |
 
 ---
 

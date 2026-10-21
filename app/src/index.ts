@@ -54,6 +54,7 @@ import { textoParaMensajeQueNoSeLee } from "./domain/mensajeQueNoSeLee.js";
 import { medidaQueConfirmoAlAsesor } from "./domain/medidaQueConfirmoAlAsesor.js";
 import { anuncioDelReferral, type Anuncio } from "./domain/anuncio.js";
 import { medidaCanonica } from "./domain/tireSize.js";
+import { medidaEscritaEnElMensaje } from "./domain/medidaDelCliente.js";
 import {
   extractVehicleYear,
   esRespuestaDelMenuDePreferencia,
@@ -135,8 +136,11 @@ async function atenderTurno(
   // La medida puede venir métrica (205/55R16) o en pulgadas (30x9.5R15). Sin
   // esta segunda, el bot no registraba nada y terminaba diciendo que no había.
   // `medidaCanonica` es el único dueño de «texto → medida»: la misma llave con
-  // la que el catálogo guarda la llanta (familia 1-A, 28-sep-2026).
-  const medidaDelTexto = medidaCanonica(text);
+  // la que el catálogo guarda la llanta (familia 1-A, 28-sep-2026). Con dos
+  // medidas en el mensaje va a la ficha la ÚLTIMA que escribió («tengo
+  // 205/55R16 pero quiero 215/55R16»): la misma regla que usa el agente al
+  // anotar el hecho (`domain/medidaDelCliente.ts`).
+  const medidaDelTexto = medidaEscritaEnElMensaje(text);
   const parsedVehicleYear = extractVehicleYear(text);
   // Lo que el cliente le confirma al ASESOR también cuenta (conv 19706): si el
   // último saliente es del asesor preguntando por una medida y el cliente dice
