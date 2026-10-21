@@ -29,7 +29,8 @@
  */
 import { aroVigenteDeLaVisita } from "./aros.js";
 import {
-  diametroExteriorMm, direccionPedida, equivaleAAlguna, respetaDireccion, type Direccion,
+  diametroExteriorMm, direccionPedida, direccionVigente, equivaleAAlguna, porQueNoEquivale, respetaDireccion,
+  type Direccion, type LlantaConCarga, type RequisitoDeCarga,
 } from "./equivalencia.js";
 import { medidasDelAro } from "./medidaConfirmada.js";
 import { aroDeLaMedida, medidaEstaPedida, medidasEnTexto, medidasPermitidas } from "./medidaPedida.js";
@@ -57,6 +58,13 @@ export interface ContextoEquivalencias {
   textoDelTurno?: string | null;
   /** La medida de trabajo (`tire_size`): solo cuenta si él no escribió ninguna. */
   medidaDeTrabajo?: string | null;
+  /**
+   * Lo que el cliente escribió en todo el ciclo, del más viejo al más nuevo:
+   * de aquí sale la dirección vigente cuando el turno no pide ninguna (chat
+   * 22492: «más ancha» un día, la 185 «equivalente» al siguiente). Sin esto se
+   * usan los textos de la visita.
+   */
+  textosDelCiclo?: readonly string[];
 }
 
 /** Lo que el cliente tiene sobre la mesa: contra esto se juzga cada «equivalente». */
@@ -160,7 +168,8 @@ export function sinEquivalenciasFalsas(
   ctx: ContextoEquivalencias,
 ): { texto: string; reemplazadas: EquivalenciaReemplazada[] } {
   const ref = referenciaDelCliente(ctx);
-  const direccion = direccionPedida(ctx.textoDelTurno);
+  const direccion = direccionPedida(ctx.textoDelTurno)
+    ?? direccionVigente(ctx.textosDelCiclo ?? ctx.textosDeLaVisita);
   // La dirección se mide contra la medida que nombró EN ESE MISMO mensaje
   // («215/60 R16 me gustaría un poco más ancha»); si no nombró, contra la suya.
   const baseDireccion = (() => {
@@ -249,13 +258,19 @@ export function sinEquivalenciasFalsas(
  * igual que siempre; las que no, se nombran como lo que son —otra medida, no
  * equivalente— y NO quedan anotadas como cotizables (`equivalentes`).
  */
-export function avisoDeMedidaEnOpciones<T extends { design: string; sizeLabel: string | null }>(args: {
+export function avisoDeMedidaEnOpciones<T extends { design: string } & LlantaConCarga>(args: {
   permitidas: readonly string[];
   fueraDeMedida: readonly T[];
   totalMostradas: number;
+  /** Hacia dónde pidió moverse el cliente en el ciclo (chat 22492). */
+  direccion?: Direccion | null;
+  /** La carga que pidió (chat 26218: «Extra Load»). */
+  carga?: RequisitoDeCarga | null;
 }): { avisoCliente: string | null; equivalentes: string[]; productosEquivalentes: T[]; productosNoEquivalentes: T[] } {
   const { permitidas, fueraDeMedida, totalMostradas } = args;
-  const productosEquivalentes = fueraDeMedida.filter((p) => equivaleAAlguna(permitidas, p.sizeLabel));
+  const productosEquivalentes = fueraDeMedida.filter(
+    (p) => porQueNoEquivale(permitidas, p, { direccion: args.direccion, carga: args.carga }) === null,
+  );
   const productosNoEquivalentes = fueraDeMedida.filter((p) => !productosEquivalentes.includes(p));
   const equivalentes = [...new Set(productosEquivalentes.map((p) => medidasEnTexto(p.sizeLabel ?? "")[0] ?? p.sizeLabel ?? "").filter(Boolean))];
   if (!fueraDeMedida.length || !permitidas.length) {
@@ -264,7 +279,7 @@ export function avisoDeMedidaEnOpciones<T extends { design: string; sizeLabel: s
   const suMedida = permitidas.join(" / ");
   const lista = (ps: readonly T[], union: string) => ps.map((p) => `${p.design} ${union} ${p.sizeLabel}`).join(", ");
   const noEquivalen = productosNoEquivalentes.length
-    ? `${lista(productosNoEquivalentes, "en")} ${productosNoEquivalentes.length > 1 ? "son de otra medida y no son equivalentes" : "es de otra medida y no es equivalente"} de la suya (cambia el aro o la altura): no se la ofrezco como si le calzara; el asesor le confirma si le sirve.`
+    ? `${lista(productosNoEquivalentes, "en")} ${productosNoEquivalentes.length > 1 ? "son de otra medida y no son equivalentes" : "es de otra medida y no es equivalente"} de la suya (${causaDeNoEquivaler(permitidas, productosNoEquivalentes, args)}): no se la ofrezco como si le calzara; el asesor le confirma si le sirve.`
     : null;
   const todas = fueraDeMedida.length === totalMostradas;
   const partes = todas
@@ -287,6 +302,20 @@ export function avisoDeMedidaEnOpciones<T extends { design: string; sizeLabel: s
     productosEquivalentes,
     productosNoEquivalentes,
   };
+}
+
+/** El porqué en palabras del cliente, para la línea de las que no equivalen. */
+function causaDeNoEquivaler(
+  permitidas: readonly string[],
+  productos: readonly LlantaConCarga[],
+  requisitos: { direccion?: Direccion | null; carga?: RequisitoDeCarga | null },
+): string {
+  const motivos = new Set(productos.map((p) => porQueNoEquivale(permitidas, p, requisitos)));
+  if (motivos.size === 1 && motivos.has("carga")) return "no lleva la carga de la suya";
+  if (motivos.size === 1 && motivos.has("direccion") && requisitos.direccion) {
+    return `no es ${DIRECCION_EN_TEXTO[requisitos.direccion]}`;
+  }
+  return "cambia el aro o la altura";
 }
 
 /**

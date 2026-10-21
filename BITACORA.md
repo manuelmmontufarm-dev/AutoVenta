@@ -6,12 +6,28 @@
   mismo mensaje pide algo (verbo de necesidad o de cotizar, o una pregunta). El clasificador
   (`agent/classifier.ts`) tampoco acepta el «ganado» del modelo con un pedido nuevo en el mensaje.
   «Ya compré, gracias» y «Ya compré las llantas 205/60R16, muchas gracias» siguen cerrando.
+- **B · La equivalente tiene que servirle** (`domain/equivalencia.ts`, el juez): `requisitoDeCarga`
+  (Extra Load / XL / índice escrito junto a su medida; la de repuesto no cuenta), `cargaAlcanza` (con
+  índice se compara; XL sin índice exige XL y no más angosta), `direccionVigente` (la última «más
+  ancha/alta» del ciclo) y `porQueNoEquivale`, que las junta. Lo usan la lámina
+  (`avisoDeMedidaEnOpciones`: ni rótulo «equivalentes» ni `metadata.equivalentes` cotizables), las
+  alternativas de `buscar_llanta`, el candado del texto (`sinEquivalenciasFalsas` toma la dirección
+  del ciclo) y `generar_cotizacion`, que ahora rechaza con `EQUIVALENTE QUE NO LE SIRVE` una medida
+  que no es la que escribió el cliente si no lleva su carga o va para el otro lado. La equivalencia
+  por medida de lo ya declarado NO se vuelve a juzgar (sano 4732). **Un precio no es una medida**
+  (`tireSize.ts` `sinPrecios`, dentro de `extractTireSizes`): «$245.11», «127.70 c/u».
 
 **Por qué:** (comprobado en la base de producción, solo lectura)
 - C · chat 462, 15-oct 18:37 UTC: «Las Falken ya las compré 205 60 16. Ahora necesito las Kenda 195
   60 15 será que puedo pagar con tarjeta sin incremento?» → `tipoDeCierreDelTurno` = compra_terminada
   (sin corrida de IA), despedida fija y transición 4841 a ganado. El mensaje siguiente reabrió el
   ciclo 6, saludó de cero y buscó la 205/60R16.
+- B · chat 26218, 13-oct: etiqueta «265/45R20 Extra Load» (XL 108, 1000 kg); el juez daba por
+  equivalentes 245/50R20 (102V, 850 kg) y 255/45R20 (105W) y salió COT-MV6ZKE43 por $980,44. La alerta
+  `equivalencia_falsa` 2673547787 leyó «$245.11» como 245R11 y el candado cambió la recomendación por
+  «No tengo una que le calce de verdad…»: equivalente y negación en el mismo mensaje.
+- B · chat 22492: «más ancha» el 13-oct 22:15; el 14-oct 16:47 la lámina rotuló «equivalentes: R380
+  en 185/70R14» a quien usa 205/60R14. `direccionPedida` solo miraba el mensaje del turno.
 
 ## 20-oct-2026 · Seguimientos que leen los hechos del ciclo y un solo lector de la fecha de visita
 

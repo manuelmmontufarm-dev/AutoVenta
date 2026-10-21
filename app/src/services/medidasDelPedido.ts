@@ -102,6 +102,9 @@ export async function contextoDeEquivalencias(
     textosDeLaVisita: mensajesDeLaVisitaActual(inbound).map((m) => m.content).reverse(),
     textoDelTurno: textoDelTurno ?? null,
     medidaDeTrabajo: conversacion?.tire_size ?? null,
+    // La dirección pedida («más ancha») vale en todo el ciclo, no solo en la
+    // visita: en el chat 22492 la dijo un día y la 185 salió al siguiente.
+    textosDelCiclo: inbound.map((m) => m.content).reverse(),
   };
 }
 
