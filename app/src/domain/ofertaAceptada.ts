@@ -187,6 +187,17 @@ function soloAfirmacionYCortesia(todas: readonly string[]): boolean {
 // el bot, esta puerta no puede quedarse reconociendo el saludo viejo.
 const ES_PRESENTACION = ES_PRESENTACION_DEL_NEGOCIO;
 
+/**
+ * «Voy a mirar en Ibarra», «ya compré», «no gracias», «lo pienso» (y el typo
+ * real «boy»): el cliente se apartó de la oferta. Uno solo para los dos lectores
+ * de la oferta viva (este archivo y `domain/ofertaVigente.ts`).
+ */
+export function seApartoDeLaOferta(mensajeDelCliente: string): boolean {
+  const n = normalizar(mensajeDelCliente);
+  return NEGATIVA_CORTA.test(n)
+    || /\bno\s+gracias\b|\bya\s+compre\b|\bya\s+no\b|\b[bv]oy\s+a\s+(?:mirar|ver|pensar|comparar)\b|\blo\s+(?:voy\s+a\s+)?pienso\b/.test(n);
+}
+
 /** Un «no» a secas nunca es un sí, por más corto que sea. */
 export function esNegativaCorta(mensajeDelCliente: string): boolean {
   return NEGATIVA_CORTA.test(normalizar(mensajeDelCliente));
@@ -320,7 +331,7 @@ export function ofertaDeCotizacionVigenteAceptada(
     if (m.role === "user") {
       // «Voy a mirar en Ibarra», «lo voy a pensar» (y el typo real «boy»):
       // el cliente se apartó a comparar; la oferta vieja ya no se acepta sola.
-      if (NEGATIVA_CORTA.test(texto) || /\bno\s+gracias\b|\bya\s+compre\b|\bya\s+no\b|\b[bv]oy\s+a\s+(?:mirar|ver|pensar|comparar)\b|\blo\s+(?:voy\s+a\s+)?pienso\b/.test(texto)) return false;
+      if (seApartoDeLaOferta(texto)) return false;
       clientesEnMedio += 1;
     } else if (m.role === "assistant" && !ES_PRESENTACION.test(texto) && ofreceCotizar(texto)) {
       return !esMenuDeOpciones(texto);

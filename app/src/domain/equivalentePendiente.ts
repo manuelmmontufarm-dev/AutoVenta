@@ -77,7 +77,9 @@ export function preguntaLegitimaTrasCotizacionBloqueada(texto: string): string {
  */
 export function preguntaCualTrasMenuSinElegir(texto: string, pregunta: string): string {
   if (texto.includes(pregunta)) return texto;
-  const permiso = /¿[^?\n]{0,200}(?:coti[sz]\p{L}*|cotizaci[oó]n)[^?\n]{0,120}\?(?:\s*😊)?/giu;
+  // También la pregunta del menú con otras palabras: revisión final 21-oct,
+  // chat 28606 r2, el Guardián dejó «¿prefiere la 1 o la 2?» (y había tres).
+  const permiso = /¿[^?\n]{0,200}(?:coti[sz]\p{L}*|cotizaci[oó]n|\bla\s+\*?[1-3]\b)[^?\n]{0,120}\?(?:\s*😊)?/giu;
   if (permiso.test(texto)) return texto.replace(permiso, pregunta);
   return `${texto.trimEnd()}\n---\n${pregunta}`;
 }

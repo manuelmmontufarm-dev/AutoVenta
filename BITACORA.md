@@ -1,3 +1,26 @@
+## 21-oct-2026 · El sí y la elección: lo que tiene que salir va después del Guardián
+
+**Qué:** (revisión final del sprint 1, sobre `fix/auditoria-2026-10-20` integrada)
+- Candado nuevo `menu_sin_elegir_pregunta_cual` DESPUÉS del Ángel Guardián:
+  si la puerta declaró que el cliente contestó el menú sin elegir
+  (`ofertaDelTurno.sinElegir`, de la herramienta y de la ruta directa), el
+  «¿Cuál le cotizo, la 1, la 2 o la 3?» sale aunque el Guardián lo haya
+  cambiado o quitado; reemplaza la pregunta que haya quedado en su lugar
+  (también «¿prefiere la 1 o la 2?»).
+- El paso de antes del Guardián y el Guardián leen `ofertaDelTurno` en vez de
+  buscar «MENÚ SIN ELEGIR» en la huella de la herramienta.
+- `generar_cotizacion` lee la oferta cortada en el último mensaje del cliente.
+- El hecho de la oferta va en el bloque que la contiene (`bloqueDeLaOferta`),
+  no siempre en el último: si el envío se cortaba, la oferta leída quedaba sin hecho.
+- «Se apartó de la oferta» tiene un solo regex (`seApartoDeLaOferta`).
+
+**Por qué:** El replay 3× de la revisión final midió 28606 en 1/3: la ruta
+directa decía «¿Cuál le cotizo, la 1, la 2 o la 3?» y el Guardián la reescribió
+dos de tres veces, una como «¿prefiere la 1 o la 2?» (con tres opciones en
+pantalla). Lo que tiene que ser cierto va después de quien reescribe.
+
+**Horas:** 1,5
+
 ## 20-oct-2026 · Casos sueltos: fuera de Quito, equivalencias, «ya compré» con pedido nuevo y el turno que ve lo de otro
 
 **Qué:** (auditoría del 19-oct, familia 7; sprint 5 de `fix/auditoria-2026-10-20`)
@@ -2708,6 +2731,7 @@ Ya viene activado en este equipo.
 | 2026-10-20 | _(este mismo)_ | Seguimientos según los hechos del ciclo (lámina enviada, juego en la medida, local), dueño único de «no quiere seguimiento», un solo lector de la fecha de visita, «no alcanzó a pasar» al día siguiente | 4 |
 | 2026-10-20 | _(este mismo)_ | Pausas mudas: motivo de la pausa como hecho, la revisión automática no calla al cliente, el turno humano vence a las 48 h, advisor_review no nace vencido, doble reinicio por 'infinity' | 4 |
 | 2026-10-20 | _(este mismo)_ | La medida escrita es un hecho (un solo lector), la traba del Guardián cuenta los totales, el turno vaciado sale con la lista | 4 |
+| 2026-10-21 | _(este mismo)_ | El sí y la elección: «¿Cuál le cotizo…?» como candado después del Guardián, hecho en el bloque de la oferta | 1,5 |
 | 2026-10-20 | _(este mismo)_ | El sí y la elección: acuse por palabras, un sí a un menú pregunta cuál, la equivalente pide su sí; la oferta como hecho | 5,5 |
 | 2026-09-28 | _(este mismo)_ | Ganados fantasma, elegir con palabras, corrección podada, menú con varias medidas | 3,5 |
 | 2026-09-08 | _(este mismo)_ | El aro alcanza: detector ancho, lámina por ruta directa, la guía no reemplaza opciones | 1.5 |

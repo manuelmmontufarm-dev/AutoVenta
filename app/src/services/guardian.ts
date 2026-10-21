@@ -62,7 +62,9 @@ import { alcanzaParaVender } from "../domain/stockCorto.js";
 import { politicaDePagos } from "../domain/datosDelNegocio.js";
 import { despedidaQueCorresponde } from "../domain/cierrePerdido.js";
 import { hechoDeMenuSinElegir, menuDeCotizarAbierto, ofertaDeCotizarAceptada, soloAcuseOCantidad } from "../domain/ofertaAceptada.js";
-import { aceptaLaOferta, hechoDeOfertaVigente, opcionesDelMenuAbierto as menuAbiertoSegunHecho } from "../domain/ofertaVigente.js";
+import {
+  aceptaLaOferta, hechoDeOfertaVigente, opcionesDelMenuAbierto as menuAbiertoSegunHecho, type OfertaDeCotizar,
+} from "../domain/ofertaVigente.js";
 import { leerOfertaVigente } from "./ofertaVigente.js";
 import { ultimoTurnoDelBot } from "../domain/cotizarLaUnica.js";
 import { visitaPendiente } from "../domain/visitaPendiente.js";
@@ -325,6 +327,12 @@ export interface OpcionesRevision {
    * registrado en este turno (familia 2-E). Ver domain/avisoAlAsesor.ts.
    */
   avisoRegistrado?: boolean;
+  /**
+   * La oferta que la puerta de este turno declaró (`ContextoDeSalida.ofertaDelTurno`).
+   * Con `sinElegir`, el revisor sabe que el cliente contestó el menú sin elegir
+   * sin tener que leer la huella de la herramienta.
+   */
+  ofertaDelTurno?: OfertaDeCotizar | null;
 }
 
 type RespuestaOpenAI = OpenAI.Chat.Completions.ChatCompletion;
@@ -593,8 +601,7 @@ export async function armarContexto(
     ? ofertaLeida.turnosAtras === 0 && aceptaLaOferta(ofertaLeida, ultimoDelCliente)
     : null;
   const menuSinElegir = opcionesDelMenuAbierto >= 2
-    && (soloAcuseOCantidad(ultimoDelCliente)
-      || huella.some((h) => h.herramienta === "generar_cotizacion" && h.resultado.includes("MENÚ SIN ELEGIR")));
+    && (soloAcuseOCantidad(ultimoDelCliente) || Boolean(opciones.ofertaDelTurno?.sinElegir));
 
   const historial = [...mensajes].reverse().map((m) => {
     const quien = m.direction === "inbound" ? "CLIENTE" : m.author_kind === "bot" ? "BOT" : "ASESOR";

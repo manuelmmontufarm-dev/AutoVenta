@@ -273,7 +273,7 @@ export async function tryCotizarLoElegido(ctx: CotizarLoElegidoContext, texto: s
     if (elegido.cantidad) await updateConversationFacts(ctx.conversation.id, { selectedQuantity: elegido.cantidad });
     if (ctx.registro) {
       ctx.registro.ofertaDelTurno = {
-        tipo: "oferta_de_cotizar", clase: "menu", opciones: menuAbierto,
+        tipo: "oferta_de_cotizar", clase: "menu", opciones: menuAbierto, sinElegir: true,
         ...(elegido.cantidad ? { cantidad: elegido.cantidad } : {}),
       };
     }
