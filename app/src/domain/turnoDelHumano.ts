@@ -69,7 +69,7 @@ export type MotivoDePausa =
  * y el asesor recibe la alerta. Se usa también como «una persona estuvo en el
  * chat en esta visita» para la pausa automática.
  */
-export const HORAS_DEL_TURNO_HUMANO = 48;
+export const HORAS_DEL_TURNO_HUMANO = 48; // única fuente del valor por defecto; `HUMAN_TURN_HOURS` lo pisa (config.ts)
 
 export type QuienContesta =
   | {

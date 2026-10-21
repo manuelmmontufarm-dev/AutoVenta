@@ -1,3 +1,22 @@
+## 21-oct-2026 · Pausas mudas, revisión final: el 48 en un solo lugar y un nombre que no miente
+
+**Qué:** (revisión final de `fix/auditoria-2026-10-20`, hallazgos menores del sprint 2)
+- El umbral de «la última palabra de una persona» tenía dos fuentes:
+  `HORAS_DEL_TURNO_HUMANO = 48` en `domain/turnoDelHumano.ts` y el `"48"` literal de
+  `HUMAN_TURN_HOURS` en `config.ts`. Ahora `config.ts` toma el valor por defecto del
+  dominio; el entorno solo lo pisa.
+- `scheduleConversationFollowUps`: `ultimoMensajeDelCiclo` pasa a llamarse
+  `ultimoMensajeDeLaConversacion`, porque sale de los `last_*_message_at` de la
+  conversación. El comentario dice por qué vale igual (el guardia del ciclo reabierto
+  sin mensajes del cliente va antes) y qué se rompe si ese guardia se mueve.
+
+**Por qué:** dos fuentes del mismo número terminan diciendo cosas distintas, y un
+nombre que promete «del ciclo» invita a usarlo donde no lo es. No cambia el
+comportamiento: `tsc`, la suite (2777/2777) y la de fidelidad en verde; sin
+replay en el simulador, como pidió la revisión.
+
+**Horas:** 0,25
+
 ## 20-oct-2026 · Casos sueltos: fuera de Quito, equivalencias, «ya compré» con pedido nuevo y el turno que ve lo de otro
 
 **Qué:** (auditoría del 19-oct, familia 7; sprint 5 de `fix/auditoria-2026-10-20`)
@@ -2706,6 +2725,7 @@ Ya viene activado en este equipo.
 |---|---|---|---|
 | 2026-10-21 | _(este mismo)_ | Casos sueltos: fuera de Quito como hecho, equivalencias con carga XL y dirección del ciclo, precio no es medida, «ya compré X, ahora Y» no cierra, el turno ve solo lo suyo | 5 |
 | 2026-10-20 | _(este mismo)_ | Seguimientos según los hechos del ciclo (lámina enviada, juego en la medida, local), dueño único de «no quiere seguimiento», un solo lector de la fecha de visita, «no alcanzó a pasar» al día siguiente | 4 |
+| 2026-10-21 | _(este mismo)_ | Pausas mudas, revisión final: umbral de 48 h en una sola fuente, nombre honesto del reloj del ciclo | 0,25 |
 | 2026-10-20 | _(este mismo)_ | Pausas mudas: motivo de la pausa como hecho, la revisión automática no calla al cliente, el turno humano vence a las 48 h, advisor_review no nace vencido, doble reinicio por 'infinity' | 4 |
 | 2026-10-20 | _(este mismo)_ | La medida escrita es un hecho (un solo lector), la traba del Guardián cuenta los totales, el turno vaciado sale con la lista | 4 |
 | 2026-10-20 | _(este mismo)_ | El sí y la elección: acuse por palabras, un sí a un menú pregunta cuál, la equivalente pide su sí; la oferta como hecho | 5,5 |
