@@ -982,8 +982,10 @@ export function buildTools(ctx: AgentContext) {
       // 28-sep: «¿Le muestro las opciones equivalentes?» retuvo una KR608
       // 245/70R16 que calzaba). El campo va PRIMERO: la huella del guardián
       // corta a 500 caracteres. Ver `domain/equivalentesPorMostrar.ts`.
+      const textosDelCicloBuscar = [...entrantesDelCiclo].reverse().map((m) => m.content).concat(ctx.currentUserText ?? "");
       const aMostrar = equivalentesAMostrar(
         alternatives, formatTireSize(size), exact.some((i) => i.stock > 0),
+        { direccion: direccionDelCiclo, carga: requisitoDeCarga(textosDelCicloBuscar) },
       );
       return JSON.stringify({
         ...(aMostrar.length ? { [CAMPO_EQUIVALENTES]: aMostrar } : {}),
@@ -1242,7 +1244,10 @@ export function buildTools(ctx: AgentContext) {
       // Sin nada en su medida, lo elegido del aro son sus equivalentes: se
       // muestran en este turno, igual que desde `buscar_llanta`.
       const aMostrarDelAro = sinTipoEnSuMedida && suMedida
-        ? equivalentesAMostrar(seleccionPermitida, suMedida, false)
+        ? equivalentesAMostrar(seleccionPermitida, suMedida, false, (() => {
+          const textosDelCiclo = [...inboundVisita].reverse().map((m) => m.content).concat(ctx.currentUserText ?? "");
+          return { direccion: direccionVigente(textosDelCiclo), carga: requisitoDeCarga(textosDelCiclo) };
+        })())
         : [];
       return JSON.stringify({
         ...(aMostrarDelAro.length ? { [CAMPO_EQUIVALENTES]: aMostrarDelAro } : {}),

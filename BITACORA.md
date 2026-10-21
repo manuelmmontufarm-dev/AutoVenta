@@ -16,6 +16,10 @@
   que no es la que escribió el cliente si no lleva su carga o va para el otro lado. La equivalencia
   por medida de lo ya declarado NO se vuelve a juzgar (sano 4732). **Un precio no es una medida**
   (`tireSize.ts` `sinPrecios`, dentro de `extractTireSizes`): «$245.11», «127.70 c/u».
+  Encontrado al repetir 26218 en el simulador: las «equivalentes de verdad» que las herramientas le
+  pasan al Guardián como HECHO (`equivalentesAMostrar`) también usaban el juez de solo medida, y el
+  Guardián reescribió «no son equivalentes por la carga» a «equivalentes que sí le entran». Ahora
+  pasan por `porQueNoEquivale`, y el Guardián recibe la carga y la dirección pedidas como hecho duro.
 
 - **A · Fuera de Quito es un hecho de la ficha** (migración 027: `cobertura_estado`,
   `cobertura_ciudad`, `cobertura_ciclo`, `cobertura_dicha_at`). El turno (`index.ts`) lo guarda

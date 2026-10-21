@@ -72,6 +72,7 @@ import { JUEGO_COMPLETO, opcionesQueAlcanzan } from "../domain/opcionesCandados.
 import { tipoDeProducto } from "../domain/tireTypes.js";
 import { chatReasoningEffort } from "../agent/aiRequestPolicy.js";
 import { soloLoDelTurno } from "../pipeline/corteDelTurno.js";
+import { direccionVigente, requisitoDeCarga } from "../domain/equivalencia.js";
 
 const openai = new OpenAI({ apiKey: config.openai.apiKey });
 
@@ -614,6 +615,10 @@ export async function armarContexto(
     // Las equivalentes que la herramienta devolvió este turno son HECHOS: sin
     // esto el revisor no podía nombrarlas y su corrección se podaba (V3a).
     hechoDeEquivalentesDevueltos(huella),
+    // LO QUE PIDIÓ ADEMÁS DE LA MEDIDA (auditoría 19-oct, 26218 y 22492): con
+    // la regla de medida sola el revisor reescribió «no son equivalentes» por
+    // «equivalentes que sí le entran» sobre llantas que no llevan su Extra Load.
+    hechoDeRequisitosDelCliente(mensajes.filter((m) => m.direction === "inbound").map((m) => m.content).reverse()),
     "EQUIVALENCIA (regla del taller, no se negocia): una medida distinta de la del cliente solo es «equivalente», «le entra» o «de su aro» si es del MISMO aro, su diámetro exterior está dentro del 3 % y su ancho a no más de 20 mm. Ofrecer como equivalente una que no cumple es **medida_incorrecta** ALTA, y tu corrección tampoco la llama así. Si el cliente pidió «más ancha» o «más alta», la que se le ofrece tiene que ir para ese lado.",
     hechos?.vehicle ? `Vehículo: ${hechos.vehicle}` : null,
     // El anuncio y la clase de vehículo son HECHOS: sin ellos el revisor aprobó
@@ -1106,3 +1111,22 @@ export async function informeGuardian(dias: number): Promise<{
     hallazgos,
   };
 }
+
+/** La carga y la dirección que pidió el cliente en el ciclo, como hecho para el revisor. */
+function hechoDeRequisitosDelCliente(textosDelCiclo: readonly (string | null)[]): string | null {
+  const textos = textosDelCiclo.map((t) => t ?? "");
+  const carga = requisitoDeCarga(textos);
+  const direccion = direccionVigente(textos);
+  const partes = [
+    carga
+      ? `su llanta pide ${carga.indice ? `índice de carga ${carga.indice} o más` : "carga Extra Load (XL)"}: una de otra medida que no la lleve (sin XL, más angosta o con índice menor) NO es equivalente`
+      : null,
+    direccion
+      ? `pidió una llanta ${direccion === "mas_ancha" ? "MÁS ANCHA" : direccion === "mas_angosta" ? "MÁS ANGOSTA" : direccion === "mas_alta" ? "MÁS ALTA" : "MÁS BAJA"} que la suya: una que vaya para el otro lado NO es equivalente`
+      : null,
+  ].filter(Boolean);
+  return partes.length
+    ? `LO QUE EL CLIENTE PIDIÓ ADEMÁS DE LA MEDIDA: ${partes.join("; ")}. Si la herramienta dijo que una opción NO es equivalente por esto, tu corrección NO la llama «equivalente» ni dice que «le entra».`
+    : null;
+}
+

@@ -19,7 +19,7 @@
  *  · que son HECHOS del turno: el freno del guardián no las poda y el guardián
  *    las recibe en sus hechos duros.
  */
-import { esEquivalente } from "./equivalencia.js";
+import { porQueNoEquivale, type Direccion, type LlantaConCarga, type RequisitoDeCarga } from "./equivalencia.js";
 
 /** El campo del resultado de la herramienta con las que hay que mostrar ya. */
 export const CAMPO_EQUIVALENTES = "mostrar_equivalentes_ahora";
@@ -39,14 +39,19 @@ export interface EquivalenteAMostrar {
  * se empuja nada: la 215/65R16 del aro no es una respuesta a una 265/65R16).
  */
 export function equivalentesAMostrar(
-  alternativas: readonly { code: string; brand: string; design: string; sizeLabel: string | null; stock: number; minimumPriceWithTax?: number }[],
+  alternativas: readonly ({ code: string; brand: string; design: string; stock: number; minimumPriceWithTax?: number } & LlantaConCarga)[],
   medidaPedida: string,
   hayStockExacto: boolean,
+  // Lo que el cliente pidió además de la medida (carga «Extra Load», «más
+  // ancha»): el mismo juez que la lámina y `generar_cotizacion` (chat 26218:
+  // sin esto el Guardián recibía como HECHO tres «equivalentes» que no llevan
+  // la carga y reescribía el borrador honesto).
+  requisitos: { direccion?: Direccion | null; carga?: RequisitoDeCarga | null } = {},
   tope = 3,
 ): EquivalenteAMostrar[] {
   if (hayStockExacto) return [];
   return alternativas
-    .filter((a) => a.stock > 0 && esEquivalente(medidaPedida, a.sizeLabel))
+    .filter((a) => a.stock > 0 && porQueNoEquivale([medidaPedida], a, requisitos) === null)
     .slice(0, tope)
     .map((a) => ({
       code: a.code,

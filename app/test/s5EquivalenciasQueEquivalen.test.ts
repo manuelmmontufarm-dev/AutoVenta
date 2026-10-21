@@ -3,6 +3,7 @@ import { medidasEnTexto } from "../src/domain/medidaPedida.js";
 import { extractTireSizes } from "../src/domain/tireSize.js";
 import { avisoDeMedidaEnOpciones, sinEquivalenciasFalsas } from "../src/domain/equivalenciaEnTexto.js";
 import * as equivalencia from "../src/domain/equivalencia.js";
+import { equivalentesAMostrar } from "../src/domain/equivalentesPorMostrar.js";
 
 /**
  * EQUIVALENCIAS QUE NO EQUIVALEN (auditoría 19-oct-2026, familia 7-B).
@@ -121,5 +122,24 @@ describe("«más ancha» dicha antes en la visita también cuenta (chat 22492)",
 
   it("caso sano: sin dirección pedida, 185/70R14 sigue siendo equivalente de 205/60R14", () => {
     expect(equivalencia.esEquivalente("205/60R14", "185/70R14")).toBe(true);
+  });
+});
+
+describe("las equivalentes que la herramienta le pasa al Guardián como HECHO (26218 en el simulador)", () => {
+  // Con el juez de solo medida, `buscar_por_aro_y_tipo` devolvía 255/45R20 y
+  // 245/45R20 como «equivalentes de verdad» y el Guardián reescribió el
+  // borrador honesto («no son equivalentes por la carga») a «equivalentes que
+  // sí le entran».
+  const alternativas = [
+    { code: "R330", brand: "WINRUN", design: "R330", sizeLabel: "255/45R20", name: "255/45 ZR20 105W XL R330 WINRUN", stock: 4, loadSpeed: { loadIndex: 105 } },
+    { code: "KR605", brand: "KENDA", design: "KR605", sizeLabel: "245/45R20", name: "245/45ZR20 103W KR605 TL XL KENDA", stock: 8, loadSpeed: { loadIndex: 103 } },
+  ];
+
+  it("con Extra Load no devuelve ninguna", () => {
+    expect(equivalentesAMostrar(alternativas, "265/45R20", false, { carga: { xl: true, indice: null } })).toEqual([]);
+  });
+
+  it("sin requisito, las mismas siguen saliendo", () => {
+    expect(equivalentesAMostrar(alternativas, "265/45R20", false).map((e) => e.code)).toEqual(["R330", "KR605"]);
   });
 });
