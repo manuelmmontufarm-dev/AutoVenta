@@ -122,7 +122,25 @@ describe("ubicacion_locales", () => {
     expect(mensaje).toMatch(/https?:\/\//);
     expect(mensaje).not.toMatch(/qué día/i);
     expect(mensaje).not.toMatch(/cuál local/i);
-    expect(mensaje).toMatch(/el viernes por favor/);
+    // El día sale de `visit_date`, no de la frase guardada (familia 6, 20-oct):
+    // la frase se repetía tal cual y un «mañana» del viernes salía el sábado
+    // como «Le esperamos mañana» (6145).
+    expect(mensaje).toMatch(/Le esperamos el \*(?:lunes|martes|miércoles|jueves|viernes|sábado|domingo) \d{1,2} de [a-z]+\*/);
+  });
+
+  it("6145: el mismo día de la visita dice «hoy», no la frase «mañana» que el cliente dijo la víspera", async () => {
+    const phone = "593980001013";
+    const fila = await conversacion(phone);
+    await sql`
+      update conversations
+      set nearest_store='Depot Tire Cumbayá', customer_commitment='mañana',
+        customer_commitment_cycle=current_cycle, visit_date=now()
+      where id=${fila.id}
+    `;
+    const salida = JSON.parse(await herramienta(fila, phone).execute({ local: null }));
+    const mensaje: string = salida.mensaje_para_enviar;
+    expect(mensaje).toMatch(/Le esperamos \*hoy\*/);
+    expect(mensaje).not.toMatch(/mañana/);
   });
 
   it("sin cotización no promete el descuento de una cotización que no existe", async () => {

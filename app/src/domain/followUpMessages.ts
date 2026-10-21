@@ -1,6 +1,7 @@
 import type { Stage } from "./pipeline.js";
 import { lineaDeLista, preguntaDeLaLista, type LineaDeLista } from "./listaDeOpciones.js";
 import { CIERRE_COMPRA_A_DISTANCIA, type SinVisita } from "./compraADistancia.js";
+import { esElDiaDeLaVisita, yaPasoElDiaDeLaVisita } from "./fechaDeVisita.js";
 
 export type FollowUpMessageKind =
   | "in_window_first"
@@ -89,6 +90,21 @@ export interface FollowUpMessageContext {
    * borradores llevaban los dos links y el guardián los quitaba).
    */
   sinVisita?: SinVisita | null;
+  /**
+   * ¿Hay en el catálogo, en la medida exacta, una llanta con stock para el
+   * juego (`selectedQuantity`, o 4)? `false` = no alcanza: ofrecerle «las
+   * opciones que tengo en su medida» contradice lo que el bot ya le dijo
+   * (28783: había 1 llanta; 18 de los 145 «¿Le mando las opciones?» corregidos
+   * eran esto). `null`/ausente = no se sabe, se ofrece como antes.
+   */
+  juegoEnSuMedida?: boolean | null;
+  /** La última lámina era de medidas equivalentes, no de la pedida (`metadata.equivalentes`). */
+  optionsEquivalentes?: boolean;
+  /**
+   * Los locales del negocio, para preguntar a cuál va cuando todavía no eligió
+   * («¿le ayudo a dejar lista la visita?» se corrigió 49 de 49 veces).
+   */
+  storeNames?: readonly string[] | null;
 }
 
 /** Seguimiento de la única opción cuando el precio ya se pidió: sin «¿se la cotizo?». */
@@ -237,7 +253,12 @@ function redactarSeguimiento(
     const store = context.nearestStore ? ` a ${context.nearestStore}` : "";
     const enStore = context.nearestStore ? ` en ${context.nearestStore}` : "";
     const visita = context.visitDate ?? null;
-    const yaPaso = visita ? visita.getTime() < now.getTime() : false;
+    // EL DÍA, NO LA HORA (6145, 17-oct). La hora que lleva `visit_date` casi
+    // siempre es relleno (las 10:00): comparando el instante, a las 12:37 del
+    // mismo día el seguimiento ya decía «no alcanzó a pasar». Se dice al día
+    // siguiente; el mismo día, «le esperamos hoy».
+    const yaPaso = visita ? yaPasoElDiaDeLaVisita(visita, now) : false;
+    const esHoy = visita ? esElDiaDeLaVisita(visita, now) : false;
 
     // Día Y local ya confirmados, y el día todavía no llega: no queda NADA que
     // preguntar. Preguntarlo igual es lo que hace que el bot parezca no haber
@@ -252,6 +273,17 @@ function redactarSeguimiento(
     // Van en «usted» como el resto del cierre: en el chat del 24-ago el bot
     // trató de usted toda la conversación y el seguimiento le salió con un «tu
     // visita» que delataba que lo escribió otra parte del sistema.
+    if (visita && esHoy && context.nearestStore) {
+      // «hoy» y la fecha juntos: el cliente lee «hoy» y el revisor ve el
+      // mismo día que tiene registrado.
+      const franja = `, ${cuandoVisita(visita, context.visitTimeLabel)}`;
+      const cotizacion = context.quoteNumber
+        ? " Lleve a mano su cotización para que le respeten el precio."
+        : "";
+      return kind === "in_window_second"
+        ? `🔔 No se olvide: le esperamos *hoy*${franja}${enStore}.${cotizacion} Si necesita moverlo a otro día, dígame y lo reagendo 😊`
+        : `✅ Le esperamos *hoy*${franja}${enStore}. Si tiene cualquier pregunta antes de pasar, dígame nomás 😊`;
+    }
     if (visita && !yaPaso && context.nearestStore) {
       const cuando = cuandoVisita(visita, context.visitTimeLabel);
       const cotizacion = context.quoteNumber
@@ -277,6 +309,19 @@ function redactarSeguimiento(
       return kind === "in_window_second"
         ? `🚗 Me quedé pendiente de${commitment}. ¿Qué día le quedaría más cómodo para coordinar${store}? 😊`
         : `${prefix}😊 Sobre${commitment}, ¿qué día le queda mejor para pasar${store}?`;
+    }
+
+    // Sin local todavía: el dato que falta es A CUÁL va, y se pregunta con los
+    // dos nombres. «¿Le ayudo a dejar lista la visita?» no le pregunta nada
+    // concreto (49 de 49 corregidas, 13–19 oct) y «¿qué día…?» sin local salta
+    // un paso (34 de 56).
+    const locales = (context.storeNames ?? []).filter(Boolean);
+    if (!context.nearestStore && locales.length >= 2 && !context.sinVisita) {
+      const opciones = `${locales.slice(0, -1).map((l) => `*${l}*`).join(", ")} o *${locales[locales.length - 1]}*`;
+      const sobre = citable ? `Sobre${commitment}: ` : "";
+      return kind === "in_window_second"
+        ? `🚗 Me quedé pendiente de${commitment}: ¿le queda mejor ${opciones}? 😊`
+        : `${prefix}😊 ${sobre}¿a cuál local le queda mejor pasar, ${opciones}?`.replace("😊 ¿a", "😊 ¿A");
     }
 
     // Dijo que viene pero sin día exacto («esta semana»), o falta el local.
@@ -309,19 +354,33 @@ function redactarSeguimiento(
   // Con UNA sola llanta en pantalla no hay nada que elegir ni comparar, esté la
   // etapa donde esté (corrida 3: la plantilla de medida_confirmada preguntaba
   // «¿le ayudo a elegir?» sobre una lista de uno).
-  if (context.optionsCount === 1 && (context.stage === "seleccionando" || context.stage === "medida_confirmada" || context.selectedProductCode)) {
+  // LA LÁMINA YA SALIÓ: el hecho manda sobre la etapa (familia 6, 19-oct). La
+  // ficha suele quedar en «nuevo» o «medida confirmada» aunque la pieza de
+  // opciones ya esté en el chat, y por eso el seguimiento ofrecía mandarla
+  // otra vez (175 borradores en 98 chats; 29752). Con pieza enviada, lo único
+  // que cabe es preguntar cuál le cotiza.
+  const laminaEnviada = (context.optionsCount ?? 0) > 0;
+  // La lámina de EQUIVALENTES no es «de su medida» (29752: pidió 195/85R16 y
+  // se le mostraron 215/75R16). Nombrarla con la medida pedida es lo que el
+  // Guardián corregía como contradicción.
+  const deLaLamina = context.optionsEquivalentes ? " equivalentes" : size;
+  const deLaUnica = context.optionsEquivalentes ? " (equivalente de su aro)" : size;
+  const enSuMedida = context.optionsEquivalentes
+    ? "Es la equivalente que tengo para su aro"
+    : "Es la que tengo disponible en su medida";
+  if (context.optionsCount === 1 && (laminaEnviada || context.stage === "seleccionando" || context.stage === "medida_confirmada" || context.selectedProductCode)) {
     if (context.customerAskedPrice) return seguimientoDeUnicaConPrecio(kind, prefix, product, size, context.selectedQuantity ?? null);
     return kind === "in_window_second"
-      ? `😊 ¿Cómo vio la opción${product}${size}? Si le sirve, ¿se la cotizo?`
-      : `${prefix}🛞 ¿Cómo vio la opción${product}${size}? Es la que tengo disponible en su medida; si le sirve, ¿se la cotizo? 😊`;
+      ? `😊 ¿Cómo vio la opción${product}${deLaUnica}? Si le sirve, ¿se la cotizo?`
+      : `${prefix}🛞 ¿Cómo vio la opción${product}${deLaUnica}? ${enSuMedida}; si le sirve, ¿se la cotizo? 😊`;
   }
 
-  if (context.stage === "seleccionando" || context.selectedProductCode) {
+  if (laminaEnviada || context.stage === "seleccionando" || context.selectedProductCode) {
     const opciones = context.optionsCount ?? null;
     if (opciones === 1) {
       return kind === "in_window_second"
-        ? `😊 ¿Cómo vio la opción${product}${size}? Si le sirve, ¿se la cotizo?`
-        : `${prefix}🛞 ¿Cómo vio la opción${product}${size}? Es la que tengo disponible en su medida; si le sirve, ¿se la cotizo? 😊`;
+        ? `😊 ¿Cómo vio la opción${product}${deLaUnica}? Si le sirve, ¿se la cotizo?`
+        : `${prefix}🛞 ¿Cómo vio la opción${product}${deLaUnica}? ${enSuMedida}; si le sirve, ¿se la cotizo? 😊`;
     }
     // NUNCA se le pregunta qué prioriza (ni «cuál le gustó más… si me cuenta qué
     // prioriza»): quien ya vio la lámina necesita los números, no un criterio.
@@ -331,19 +390,29 @@ function redactarSeguimiento(
       const bloque = lista.lista.map((l) => lineaDeLista(l, lista.cantidad)).join("\n");
       const pregunta = preguntaDeLaLista(lista.lista.length);
       return kind === "in_window_second"
-        ? `😊 Le dejo otra vez las opciones${size}:\n${bloque}\n${pregunta}`
-        : `${prefix}🛞 Estas son las opciones${size} que le mostré:\n${bloque}\n${pregunta}`;
+        ? `😊 Le dejo otra vez las opciones${deLaLamina}:\n${bloque}\n${pregunta}`
+        : `${prefix}🛞 Estas son las opciones${deLaLamina} que le mostré:\n${bloque}\n${pregunta}`;
     }
     const comparar = opciones !== null && opciones > 2
       ? "compararla con las otras opciones"
       : "compararla con la otra opción";
-    return kind === "in_window_second"
-      ? `😊 De las opciones que vimos${size}, ${preguntaDeLaLista(cuantas)}`
-      : `${prefix}🛞 ¿Cómo vio la opción${product}${size}? También puedo ayudarle a ${comparar} 😊`;
+    if (kind === "in_window_second") return `😊 De las opciones que vimos${deLaLamina}, ${preguntaDeLaLista(cuantas)}`;
+    // Sin una llanta elegida no hay «la opción» de la que hablar: la pregunta
+    // es cuál le cotiza, y deja el hecho de oferta «menú» (sprint 1).
+    return product
+      ? `${prefix}🛞 ¿Cómo vio la opción${product}${deLaLamina}? También puedo ayudarle a ${comparar} 😊`
+      : `${prefix}🛞 Ya le mostré las opciones${deLaLamina}. ${preguntaDeLaLista(cuantas)}`;
   }
 
   // La medida guardada manda sobre una etapa atrasada: muchas fichas quedan en
   // «nuevo» aunque tire_size ya esté (convs 21967, 22111, 22559, 22809).
+  if (context.tireSize && context.juegoEnSuMedida === false) {
+    // Lo mismo que el bot ya le dijo en el turno: en su medida no alcanza para
+    // el juego, y lo que sí hay es una equivalente del aro (28783).
+    return kind === "in_window_second"
+      ? `😊 Para su medida${size} puedo revisarle una equivalente de su aro que alcance para el juego. ¿Se la busco?`
+      : `${prefix}🛞 En su medida${size} no me alcanza para el juego completo por ahora. ¿Le reviso una equivalente de su aro, con precios?`;
+  }
   if (context.tireSize) {
     return kind === "in_window_second"
       ? `😊 Ya con la medida${size} estamos cerca. ¿Le mando las opciones que tengo en su medida?`
@@ -360,5 +429,7 @@ function redactarSeguimiento(
 
   return kind === "in_window_second"
     ? "😊 Solo me falta la medida de la llanta para ayudarle bien. ¿Me la comparte cuando pueda?"
-    : `${prefix}👋 Para recomendarle opciones reales, ¿me confirma la medida que aparece en el costado de su llanta?`;
+    // Sin 👋: dentro de una conversación viva es un saludo de más, y el
+    // Guardián lo corregía por eso solo (46 de 86, 13–19 oct).
+    : `${prefix}🛞 Para recomendarle opciones reales, ¿me confirma la medida que aparece en el costado de su llanta?`;
 }

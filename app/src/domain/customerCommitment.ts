@@ -1,7 +1,20 @@
-import { diaDelMesSuelto, diaEnTexto, fechaDeCalendario, franjaHoraria, normalizarTexto, relativoEnTexto } from "./diasEnEspanol.js";
+import {
+  diaDelMesSuelto, diaEnTexto, diasHastaElDia, fechaDeCalendario, franjaHoraria, normalizarTexto, relativoEnTexto,
+  semanaDelDia,
+} from "./diasEnEspanol.js";
 
 // «Voy a estar en Quito» dice dónde va a estar, no que viene al local (12-sep, conv 3).
 const INTENT = /\b(?:voy(?!\s+a\s+estar)|ire|iré|vamos(?!\s+a\s+estar)|paso|pasare|pasaré|recojo|recogeré|retiro|retiraré|compro|compraré|visito|visitaré|llego|llegaré|bisito|voi)\b/i;
+
+/** ¿La frase trae un verbo de ir/pasar/comprar? (`fechaDeVisita` lo usa para no confundir «le paso el dato»). */
+export function tieneVerboDeVisita(texto: string): boolean {
+  const n = normalizarTexto(texto);
+  // Los infinitivos cuentan aquí: «le paso a recoger el sábado», «paso a
+  // retirar» son visitas aunque lleven «le paso» delante (ver fechaDeVisita).
+  return INTENT.test(n) || INFINITIVO_DE_VISITA.test(n);
+}
+
+const INFINITIVO_DE_VISITA = /\b(?:pasar|recoger|retirar|visitar|acercarme|comprar)\b/;
 
 /** Compromisos sin fecha exacta: valen como respuesta, no como día del calendario. */
 const VAGO = /\b(?:esta semana|en la semana|este finde|el finde|fin de semana|proxima semana|la otra semana|la siguiente semana)\b/;
@@ -76,12 +89,10 @@ export function fechaDelDia(texto: string, now = new Date()): Date | null {
   const relativo = relativoEnTexto(limpio);
   if (relativo === "hoy") return localDateAt(15, 0, now);
   const dia = diaEnTexto(limpio);
-  if (dia) {
-    const localNow = new Date(now.getTime() - 5 * 3_600_000);
-    let offset = (dia.indice - localNow.getUTCDay() + 7) % 7;
-    if (offset === 0 && localNow.getUTCHours() >= 10) offset = 7;
-    return localDateAt(10, offset, now);
-  }
+  // La misma aritmética que la captura del pipeline (`diasHastaElDia`): el
+  // «próximo sábado» que el modelo pase un sábado es +7, igual que si lo
+  // hubiera leído el pipeline del texto del cliente.
+  if (dia) return localDateAt(10, diasHastaElDia(dia.indice, now, semanaDelDia(limpio)), now);
   if (relativo === "manana") return localDateAt(10, 1, now);
   if (relativo === "pasado_manana") return localDateAt(10, 2, now);
   return null;
@@ -278,9 +289,19 @@ export function extractCustomerCommitment(
   if (AUTORESPUESTA.test(bruto) || CONDICIONAL.test(bruto) || AVISO_POSTERIOR.test(bruto)) return null;
   if (FECHA_DE_OTRA_ACTIVIDAD.test(bruto) && !INTENT.test(bruto)) return null;
   // Lo que se lee de aquí en adelante es el texto SIN sus cláusulas negativas.
+  const original = text;
+  // «…HOY NO FUI CREO PARA EL PRÓXIMO SÁBADO» (chat 29358). La cláusula
+  // negativa se borraba entera y con ella el «próximo sábado», que es la
+  // fecha: quedaba «suelo viajar a quito los sabados» y el sábado se leía sin
+  // su «próximo». El día dicho CON su semana («el próximo sábado», «el
+  // sábado de la otra semana») es un compromiso hacia adelante: se busca en
+  // el texto entero, antes de quitar nada.
+  const semanaBruta = semanaDelDia(bruto);
+  const diaConSemana = semanaBruta !== "esta" ? diaEnTexto(bruto) : null;
   text = CLAUSULA_NEGATIVA.test(bruto) ? sinClausulasNegativas(bruto) : text;
   const normalized = normalizar(text);
-  const dia = diaEnTexto(text);
+  const dia = diaConSemana ?? diaEnTexto(text);
+  const semana = diaConSemana ? semanaBruta : semanaDelDia(text);
   const relativo = relativoEnTexto(text);
   // El día del mes suelto («el 30») SOLO cuando acabamos de preguntar el día.
   // Fuera de esa pregunta, «el 4» es una cantidad o un precio, no una fecha.
@@ -310,7 +331,9 @@ export function extractCustomerCommitment(
   // pregunta: «¿abren el sábado?» no agenda nada.
   if (!INTENT.test(normalized) && esPregunta(text)) return null;
 
-  const compact = text.trim().replace(/\s+/g, " ").slice(0, 180);
+  // Se guarda la frase que el cliente ESCRIBIÓ, no la que quedó después de
+  // quitar las cláusulas: es el hecho auditable junto a la fecha leída.
+  const compact = original.trim().replace(/\s+/g, " ").slice(0, 180);
   const etiqueta = franja?.etiqueta;
 
   // El rango manda sobre cualquier día suelto que aparezca dentro de él: si el
@@ -340,14 +363,16 @@ export function extractCustomerCommitment(
       tipo: "fecha",
     };
   }
-  if (relativo === "hoy") return conFranja(15, 0);
+  // «AHORA ESTOY DE VIAJE» NO ES «HOY» (chat 26916, miércoles 14-oct): «El fin
+  // de semana estoy x quito ahora estoy de viaje» quedó como visita ESE
+  // miércoles, porque `relativoEnTexto` cuenta «ahora» como hoy y el hoy se
+  // leía antes que el fin de semana. «Ahora» solo es el día de la visita si
+  // no hay otro día en la frase.
+  const hoyDeVerdad = relativo === "hoy"
+    && (/\b(?:hoy|oy|hoi|oi|hoyy)\b/.test(normalized) || !(dia || FIN_DE_SEMANA.test(normalized)));
+  if (hoyDeVerdad) return conFranja(15, 0);
   // El día de la semana manda sobre "mañana": "mañana sábado" es el sábado.
-  if (dia) {
-    const localNow = new Date(now.getTime() - 5 * 3_600_000);
-    let offset = (dia.indice - localNow.getUTCDay() + 7) % 7;
-    if (offset === 0 && localNow.getUTCHours() >= 10) offset = 7;
-    return conFranja(10, offset);
-  }
+  if (dia) return conFranja(10, diasHastaElDia(dia.indice, now, semana));
   if (relativo === "manana") return conFranja(10, 1);
   if (relativo === "pasado_manana") return conFranja(10, 2);
   // «FIN DE SEMANA» YA ES UNA FECHA (Joaquín, 15-sep, conv 20589): el cliente

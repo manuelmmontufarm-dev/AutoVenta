@@ -127,7 +127,8 @@ import { notifyAdvisor } from "../services/advisorNotifications.js";
 import { avisarVisitaComprometida, etiquetaVisita } from "../services/visitAlerts.js";
 import { emitirCuponDeConfirmacion } from "../services/coupons.js";
 import { franjaHoraria } from "../domain/diasEnEspanol.js";
-import { fechaDelDia, esSoloPresenciaEnLaCiudad } from "../domain/customerCommitment.js";
+import { esSoloPresenciaEnLaCiudad } from "../domain/customerCommitment.js";
+import { esElDiaDeLaVisita, fechaParaAgendar } from "../domain/fechaDeVisita.js";
 import type { StoreHours } from "../services/settings.js";
 import { resendLatestQuoteImage } from "../services/directSalesRoutes.js";
 import { restriccionesDeLlanta, violaRestriccionesDeLlanta } from "../domain/restriccionesLlanta.js";
@@ -187,6 +188,12 @@ export interface AgentContext {
    * (Wildpeak A/T4W, 14-ago).
    */
   toolTrace?: Array<{ herramienta: string; argumentos: string; resultado: string }>;
+  /**
+   * El último mensaje del bot preguntó el día (o el local) de la visita: la
+   * misma señal que usa el pipeline (`respondeAlDiaDeLaVisita`). Sin ella, un
+   * número suelto («las 4») no se lee como día del mes en `agendar_visita`.
+   */
+  respondiendoAlDia?: boolean;
   /** Hora del último mensaje del cliente que atiende ESTE turno. Ver `getHistory`. */
   recibidoHasta?: Date;
 }
@@ -3715,8 +3722,15 @@ export function buildTools(ctx: AgentContext) {
       const conCotizacion = Boolean(saved?.has_quote);
       const visitaCerrada = Boolean(elegido && (saved?.visit_date || visita));
       const descuentoVivo = Boolean(await getActiveDiscountOffer(ctx.conversation.id));
+      // El día sale de `visit_date`, no de la frase guardada: «mañana» dicho
+      // el viernes se repetía el sábado como «Le esperamos mañana» (6145).
+      const cuandoLeEsperamos = saved?.visit_date
+        ? esElDiaDeLaVisita(saved.visit_date, new Date())
+          ? "*hoy*"
+          : `el *${etiquetaVisita(saved.visit_date, null)}*`
+        : visita ?? "el día que quedamos";
       const cierre = visitaCerrada
-        ? `Le esperamos ${visita ?? "el día que quedamos"} en *${elegido}*. 🏁`
+        ? `Le esperamos ${cuandoLeEsperamos} en *${elegido}*. 🏁`
         : buildVisitPlanQuestion({
             conDescuentoAutorizado: descuentoVivo,
             locales: business.stores.map((store) => store.name),
@@ -3785,9 +3799,28 @@ export function buildTools(ctx: AgentContext) {
           regla: "El cliente dijo DÓNDE va a estar, no que viene al local: NO registres visita ni le digas que queda agendado o que avisaste al asesor. Sigue la venta donde estaba (medida, opciones o cotización); si ya tiene cotización, pregúntale si ese día puede pasar por el local.",
         });
       }
+      // UN SOLO LECTOR DE FECHAS (familia 6, 20-oct). La frase del cliente
+      // manda sobre el `dia` que pasó el modelo: en 29358 el cliente dijo «el
+      // próximo sábado» un sábado, el modelo mandó «sábado 31 de octubre» y se
+      // registró el 31 mientras el pipeline leía el 24. Y lo que no es visita
+      // —el texto de una foto, «mañana le paso el dato»— no se agenda aunque
+      // el modelo lo pida (27485, 30131). Ver domain/fechaDeVisita.ts.
       const ahora = new Date();
-      const fecha = fechaDelDia(dia, ahora);
-      const franjaTexto = franja?.trim() || null;
+      const lectura = fechaParaAgendar({
+        dia, textoDelCliente: ctx.currentUserText, ahora, respondiendoAlDia: ctx.respondiendoAlDia ?? false,
+      });
+      if (lectura.noEsVisita) {
+        console.log(`📅 Conv ${ctx.conversation.id}: agendar_visita rechazada (${lectura.noEsVisita}).`);
+        return JSON.stringify({
+          error: "no_es_visita",
+          motivo: lectura.noEsVisita,
+          regla: lectura.noEsVisita === "envia_informacion"
+            ? "El cliente dijo que te MANDA un dato (la medida, una foto), no que viene al local: NO registres visita ni digas que le esperas o que avisaste al asesor. Agradécele y dile que quedas pendiente de ese dato."
+            : "Esa fecha salió del texto de una FOTO, no de lo que dijo el cliente: NO registres visita. Sigue la venta donde estaba.",
+        });
+      }
+      const fecha = lectura.fecha;
+      const franjaTexto = franja?.trim() || lectura.franja?.trim() || null;
       // La hora que resuelva el texto del cliente manda sobre el relleno del
       // día: «jueves de 4 a 5» es el jueves a las 16:00, no a las 10:00.
       const hora = franjaTexto ? franjaHoraria(franjaTexto)?.hora ?? null : null;
@@ -3805,8 +3838,9 @@ export function buildTools(ctx: AgentContext) {
       // Por `registrarCompromisoDeVisita` y no por `updateConversationFacts`:
       // si el cliente dio la hora un turno antes, esa hora se pega a este día.
       const registrado = await registrarCompromisoDeVisita(ctx.conversation.id, {
-        texto: [dia.trim(), franjaTexto].filter(Boolean).join(" ").slice(0, 180)
-          || ctx.currentUserText.trim().slice(0, 180),
+        // La frase del cliente, no las palabras del modelo: es el hecho que
+        // queda junto a la fecha leída (y lo que lee el aviso al asesor).
+        texto: lectura.texto || [dia.trim(), franjaTexto].filter(Boolean).join(" ").slice(0, 180),
         visitDate: conHora,
         visitTimeLabel: etiquetaFranja,
       });

@@ -66,6 +66,7 @@ import { aceptaLaOferta, hechoDeOfertaVigente, opcionesDelMenuAbierto as menuAbi
 import { leerOfertaVigente } from "./ofertaVigente.js";
 import { ultimoTurnoDelBot } from "../domain/cotizarLaUnica.js";
 import { visitaPendiente } from "../domain/visitaPendiente.js";
+import { esElDiaDeLaVisita, yaPasoElDiaDeLaVisita } from "../domain/fechaDeVisita.js";
 import { tiposCompatibles, usoDeLosTextos } from "../domain/usoYTipo.js";
 import { JUEGO_COMPLETO, opcionesQueAlcanzan } from "../domain/opcionesCandados.js";
 import { tipoDeProducto } from "../domain/tireTypes.js";
@@ -705,7 +706,15 @@ export async function armarContexto(
     `Local ya elegido: ${hechos?.nearest_store ?? "(ninguno)"}`,
     `Visita registrada: ${
       hechos?.visit_date
-        ? `${hechos.visit_date.toLocaleDateString("es-EC", { timeZone: "America/Guayaquil", weekday: "long", day: "numeric", month: "long" }).replace(",", "")}${hechos.visit_time_label ? ` ${hechos.visit_time_label}` : ""}`
+        ? `${hechos.visit_date.toLocaleDateString("es-EC", { timeZone: "America/Guayaquil", weekday: "long", day: "numeric", month: "long" }).replace(",", "")}${hechos.visit_time_label ? ` ${hechos.visit_time_label}` : ""}${
+          // Sin saber qué día es hoy, el revisor leía «le esperamos hoy» del
+          // día de la visita como una contradicción y lo cambiaba por la fecha
+          // (simulador, 6145). Y «no alcanzó a pasar» recién vale al día
+          // siguiente (domain/fechaDeVisita.ts).
+          esElDiaDeLaVisita(hechos.visit_date, new Date())
+            ? " — ES HOY: «le esperamos hoy» es correcto y todavía NO se dice que no alcanzó a pasar"
+            : yaPasoElDiaDeLaVisita(hechos.visit_date, new Date()) ? " — ese día ya pasó" : ""
+        }`
         : "(ninguna)"
     }`,
     `Compromiso de visita en palabras del cliente: ${hechos?.customer_commitment ?? "(ninguno)"}`,

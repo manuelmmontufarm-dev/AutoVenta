@@ -1,5 +1,6 @@
 import type { Stage } from "../domain/pipeline.js";
-import { extractCustomerCommitment, preguntamosElDia } from "../domain/customerCommitment.js";
+import { preguntamosElDia } from "../domain/customerCommitment.js";
+import { leerVisita } from "../domain/fechaDeVisita.js";
 import { fitmentTable } from "../domain/fitment.js";
 import {
   extractConventionalSizes,
@@ -94,7 +95,7 @@ export function elegirFaseOperativa(input: EntradaFaseOperativa): Stage {
   // Un día solo es visita si el cliente expresa intención de ir o si responde
   // a la pregunta de fecha del bot. «Me entregan la camioneta el jueves» no es
   // una visita; «jueves» después de «¿qué día puede pasar?» sí lo es.
-  const compromiso = extractCustomerCommitment(input.texto, new Date(), {
+  const compromiso = leerVisita(input.texto, new Date(), {
     respondiendoAlDia: preguntamosElDia(input.ultimoMensajeBot),
   });
   if (VISITA_EXPLICITA.test(texto) || compromiso) return "seguimiento_venta";
