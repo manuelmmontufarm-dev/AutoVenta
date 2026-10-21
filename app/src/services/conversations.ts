@@ -5,7 +5,6 @@ import { franjaHoraria } from "../domain/diasEnEspanol.js";
 import { esMismaVisitaPorSilencio } from "../domain/medidaPedida.js";
 import { memoriaDelChatVencida } from "../domain/memoriaDelChat.js";
 import { medidaGuardable } from "../domain/tireSize.js";
-import { CLAVE_MEDIDA_ESCRITA, medidasParaElHecho } from "../domain/medidaDelCliente.js";
 import { puedeOlvidarPorSilencio, TIPO_CLIENTE_SIN_RESPUESTA } from "../domain/turnoDelHumano.js";
 import { cancelPendingFollowUps, scheduleConversationFollowUps } from "./followUps.js";
 import { emitLiveEvent } from "./liveEvents.js";
@@ -189,16 +188,10 @@ export async function appendMessage(
   // Se pone acá, una vez, para que un escritor nuevo que se olvide no rompa el
   // lector (revisión ronda 2, 20-oct: el descuento desde el panel no la traía).
   // Las piezas (`piece`) y los que ya la traen quedan como vienen.
-  // Y TODO ENTRANTE DEL CLIENTE LLEVA `medida_escrita` (familia 3, auditoría
-  // del 19-oct): «el cliente escribió su medida» se anota cuando el mensaje
-  // entra, con el lector de la ficha, y de ahí lo leen el agente, el guardián
-  // y los candados. Ver `domain/medidaDelCliente.ts`.
   const metadata = role === "assistant" && authorKind === "bot"
     && !("piece" in (options.metadata ?? {})) && !("oferta" in (options.metadata ?? {}))
     ? { ...(options.metadata ?? {}), oferta: null }
-    : role === "user" && authorKind === "customer" && !(CLAVE_MEDIDA_ESCRITA in (options.metadata ?? {}))
-      ? { ...(options.metadata ?? {}), [CLAVE_MEDIDA_ESCRITA]: medidasParaElHecho(content) }
-      : (options.metadata ?? {});
+    : (options.metadata ?? {});
   const rows = await sql`
     insert into messages (
       conversation_id, role, content, wa_message_id, direction, type,

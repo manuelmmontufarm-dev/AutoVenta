@@ -35,9 +35,10 @@ export function medidasEscritasPorElCliente(textos: readonly (string | null | un
 /**
  * «EL CLIENTE ESCRIBIÓ SU MEDIDA» ES UN HECHO DEL MENSAJE (familia 3, 19-oct).
  *
- * Se anota en `metadata.medida_escrita` cuando el mensaje entra (lo pone
- * `appendMessage`, la única puerta por la que se guarda un entrante: texto,
- * foto leída o audio transcrito), con el mismo lector que llena la ficha.
+ * Se anota en `metadata.medida_escrita` de cada entrante al empezar el turno
+ * del agente (`anotarMedidasEscritas`, services/medidasDelPedido.ts: turno
+ * normal y retomada), con el mismo lector que llena la ficha; vale igual para
+ * texto, foto leída o audio transcrito.
  * Lista vacía = se leyó y no traía medida. Así «¿la dio él o la dedujo el
  * bot?» se contesta preguntándole al hecho, no volviendo a adivinar.
  */

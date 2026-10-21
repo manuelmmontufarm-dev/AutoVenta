@@ -37,7 +37,7 @@ import { preguntaElLocal } from "../domain/storeSelection.js";
 import { preguntaElDia } from "../domain/customerCommitment.js";
 import { ordenDeNoReusarLaVitrina, vitrinaQueNoEsSuMedida } from "../domain/vitrinaVieja.js";
 import { extractTireSizes, formatTireSize, loQueFaltaDeLaMedida } from "../domain/tireSize.js";
-import { getHistory, logAiRun, olvidarMedidaDeTrabajo } from "../services/conversations.js";
+import { getHistory, logAiRun, olvidarMedidaDeTrabajo, updateConversationFacts } from "../services/conversations.js";
 import { hechoDelAnuncio } from "../domain/anuncio.js";
 import { getAiConfig, getPublishedStagePrompt, getStoreHours } from "../services/settings.js";
 import { getPhaseFlags, toolEnabled } from "../services/phases.js";
@@ -52,7 +52,7 @@ import {
 import { sql } from "../db/client.js";
 import { activeBenefitFactsBlock } from "../services/benefits.js";
 import { aroDeLaMedida, medidaEstaPedida } from "../domain/medidaPedida.js";
-import { medidasDelPedido } from "../services/medidasDelPedido.js";
+import { anotarMedidasEscritas, medidasDelPedido } from "../services/medidasDelPedido.js";
 import {
   autorizaCotizacionEnEsteTurno, escalonContestado, esRespuestaDelMenuDePreferencia, ETIQUETA_DEL_ESCALON, extractExplicitQuantity,
   extractVehicleYear, respuestaDePreferencia, type Escalones,
@@ -170,6 +170,18 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
   const usedTools: string[] = [];
   const executedCalls = new Set<string>();
   const resultadosPorFirma = new Map<string, string>();
+  // EL HECHO «ESCRIBIÓ SU MEDIDA» SE ANOTA ANTES DE LEER LOS HECHOS (familia
+  // 3, 19-oct): los entrantes de este turno quedan con `medida_escrita`, y de
+  // ahí sale `medidaConfirmadaPorCliente`. Si la anotación falla, los lectores
+  // leen el texto con el mismo lector: el turno no se cae por esto.
+  const anotadas = await anotarMedidasEscritas(ctx.conversation.id, ctx.conversation.current_cycle)
+    .catch((error) => { console.warn("⚠️ No se pudo anotar la medida escrita:", error); return [] as string[]; });
+  if (anotadas.length) {
+    console.log(`📏 Conv ${ctx.conversation.id}: medida escrita por el cliente anotada como hecho: ${anotadas.join(", ")}`);
+    // La ficha, con la última que escribió: es lo que hace el turno normal al
+    // recibir el mensaje, y la retomada no pasa por ahí.
+    await updateConversationFacts(ctx.conversation.id, { tireSize: anotadas.at(-1)! });
+  }
   // El estilo se edita en /configuracion/ia; getAiConfig cachea 30 s en memoria.
   const [aiConfig, activeDiscount, pendingDiscount, salesFacts, phaseFlags, storeHours, benefitFacts, history] =
     await Promise.all([

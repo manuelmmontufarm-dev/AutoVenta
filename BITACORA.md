@@ -9,9 +9,11 @@
   todo); y `aroEnTexto` entiende «Rin. 16». `medidasCanonicas` es la lista
   completa y `medidaCanonica` su primera: `medidasEnTexto` deja de armar su
   propia lista.
-- «El cliente escribió su medida» es un HECHO: `appendMessage` anota en cada
-  entrante del cliente `metadata.medida_escrita` (lista, vacía si no trae), con
-  ese lector. `medidasDelMensaje` lo lee (y lee el texto solo en mensajes de
+- «El cliente escribió su medida» es un HECHO: al empezar el turno del agente
+  (turno y retomada), `anotarMedidasEscritas` (`services/medidasDelPedido.ts`)
+  anota en cada entrante del cliente que no lo tiene `metadata.medida_escrita`
+  (lista, vacía si no trae), con ese lector, y deja la última en la ficha con
+  `updateConversationFacts`. `medidasDelMensaje` lo lee (y lee el texto solo en mensajes de
   antes del deploy); `medidaSinConfirmar` (puro, `domain/medidaDelCliente.ts`)
   decide desde el hecho, y de ahí salen `getAgentSalesFacts`,
   `ctx.medidaSinConfirmar` (el texto fijo «…necesito la medida exacta» ya no
@@ -19,14 +21,16 @@
   y el hecho «MEDIDA ESCRITA POR EL CLIENTE» del Guardián.
 - La traba del Guardián (`frenarHechosNuevosDelGuardian` / `podar…`) cuenta como
   conocido el total del juego (unitario × 1..10) de todo precio ya en pantalla, y
-  lee el hecho nuevo `preciosMostrados` que guardan las piezas de opciones
-  (unitarios con IVA) y de cotización (unitarios y total).
+  lee el hecho nuevo `preciosMostrados` que guarda la pieza de opciones
+  (unitarios con IVA).
 - Si el candado de la medida deja el turno vacío, sale la lista de precios de la
-  lámina (si es de SU medida) en vez de «Le consulto con un asesor»; y si el
-  cliente escribió su medida mientras se armaba el turno, se calla
-  (`ctx.callarEsteTurno`): el turno siguiente contesta con su medida.
-- `guia_medida` no manda la guía ni «confírmeme la medida completa» a quien ya
-  escribió su medida (salvo que diga que no sabe dónde mirar).
+  lámina (`textoDeLaPieza`, en `quoteMessages.ts`) si la lámina es de SU medida,
+  en vez de «Le consulto con un asesor».
+- Ajuste de la coordinadora (misma fecha): `index.ts` y `conversations.ts` no se
+  tocan (Sprint 2). Quedó afuera, para integrar después: que `guia_medida` no
+  mande la guía a quien ya escribió su medida (visto en el simulador, 29523),
+  `preciosMostrados` en la pieza de cotización, y callar el turno vaciado cuando
+  la medida llegó mientras se armaba (26561).
 
 **Por qué:** al menos 12 chats: el cliente escribía la medida a mano, la ficha la
 llenaba la herramienta con lo que entendió el modelo, el lector de «¿la escribió
