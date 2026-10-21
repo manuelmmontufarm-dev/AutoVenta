@@ -57,6 +57,19 @@
   60 15 será que puedo pagar con tarjeta sin incremento?» → `tipoDeCierreDelTurno` = compra_terminada
   (sin corrida de IA), despedida fija y transición 4841 a ganado. El mensaje siguiente reabrió el
   ciclo 6, saludó de cero y buscó la 205/60R16.
+
+**Probado:** simulador con puertos propios (3610/3605/5120-5122, base `autoventa_sim_s5`), chats
+reales copiados con `--hasta`, la configuración y los modelos de producción. ANTES y DESPUÉS en las
+notas del sprint (`s5-*`).
+- A: 27932 (con la despedida real), 8924, 28916, 29642 y 28693 → ningún mapa, «¿A cuál local?» ni
+  «¿Qué día puede pasar?» después de que dijo dónde está; el log muestra el hecho guardado y el
+  candado quitando la visita; sin seguimientos agendados a quien está fuera sin cotización.
+- B: 26218 → sin «245R11», sin «equivalentes» sin carga XL, el «Okey» no firma (bloqueo con alerta).
+  22492 (205/60R14 en 0, como el 14-oct) → no ofrece la 185/70R14; respeta «más ancha».
+- C: 462 → responde la tarjeta, muestra 195/60R15 y no cierra; «ya compré, gracias» → ganado.
+- D: 29847 (dos corridas) → una lámina, sin cotización, marca 🧱 en el log; 26561 → sin lista repetida.
+- Sanos: Cumbayá con mapas y «¿qué día?»; 4732 «la 3» → cotización 235/75R15; dos textos en 3 s → un turno.
+- `npx tsc --noEmit`, `npx vitest run` 2777/2777, `sim:humo` 8/8, fidelidad 12/12.
 - B · chat 26218, 13-oct: etiqueta «265/45R20 Extra Load» (XL 108, 1000 kg); el juez daba por
   equivalentes 245/50R20 (102V, 850 kg) y 255/45R20 (105W) y salió COT-MV6ZKE43 por $980,44. La alerta
   `equivalencia_falsa` 2673547787 leyó «$245.11» como 245R11 y el candado cambió la recomendación por
@@ -2691,6 +2704,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
+| 2026-10-21 | _(este mismo)_ | Casos sueltos: fuera de Quito como hecho, equivalencias con carga XL y dirección del ciclo, precio no es medida, «ya compré X, ahora Y» no cierra, el turno ve solo lo suyo | 5 |
 | 2026-10-20 | _(este mismo)_ | Seguimientos según los hechos del ciclo (lámina enviada, juego en la medida, local), dueño único de «no quiere seguimiento», un solo lector de la fecha de visita, «no alcanzó a pasar» al día siguiente | 4 |
 | 2026-10-20 | _(este mismo)_ | Pausas mudas: motivo de la pausa como hecho, la revisión automática no calla al cliente, el turno humano vence a las 48 h, advisor_review no nace vencido, doble reinicio por 'infinity' | 4 |
 | 2026-10-20 | _(este mismo)_ | La medida escrita es un hecho (un solo lector), la traba del Guardián cuenta los totales, el turno vaciado sale con la lista | 4 |
@@ -2876,7 +2890,7 @@ Ya viene activado en este equipo.
 | 2026-07-14 | ac09171 | Ubicaciones de locales + análisis de features del cliente | 1.5 |
 | 2026-07-13 | feadf57 | Brief + plan de desarrollo + plan financiero + catálogo | 4.0 |
 | 2026-07-13 | d997844 | Commit inicial (repo) | 0.25 |
-| | | **TOTAL** | **~147 h** |
+| | | **TOTAL** | **~152 h** |
 
 ---
 
