@@ -18,6 +18,33 @@ import { comproADistanciaSegunLoDicho, type SinVisita } from "../domain/compraAD
 
 export type EstadoDeCobertura = "cobertura" | "viene" | "fuera";
 
+/** Lo que vale el hecho guardado: 60 días, igual que la lectura de mensajes de abajo. */
+const DIAS_QUE_VALE_EL_LUGAR = 60;
+
+/**
+ * GUARDA DÓNDE ESTÁ EL CLIENTE CUANDO LO DICE (auditoría 19-oct, familia 7-A).
+ *
+ * Lo llama el turno (`index.ts`) con el texto que atiende, junto a la medida y
+ * el año. Un mensaje que no habla de lugares no borra nada.
+ */
+export async function registrarDondeEstaElCliente(
+  conversationId: number,
+  cycle: number,
+  textoDelCliente: string | null | undefined,
+): Promise<void> {
+  const donde = dondeEstaElCliente(textoDelCliente);
+  if (!donde) return;
+  await sql`
+    update conversations
+    set cobertura_estado=${donde.estado}, cobertura_ciudad=${donde.ciudad}, cobertura_ciclo=${cycle},
+        cobertura_dicha_at=now()
+    where id=${conversationId}
+  `;
+  if (donde.estado !== "cobertura") {
+    console.log(`📍 Conv ${conversationId}: el cliente dijo dónde está → ${donde.estado}${donde.ciudad ? ` (${donde.ciudad})` : ""}.`);
+  }
+}
+
 export async function dondeEstaElClienteSegunLoDicho(
   conversationId: number,
   cycle: number,
@@ -25,6 +52,17 @@ export async function dondeEstaElClienteSegunLoDicho(
 ): Promise<EstadoDeCobertura | null> {
   const deEsteTurno = dondeEstaElCliente(textoDelCliente);
   if (deEsteTurno) return deEsteTurno.estado;
+  // EL HECHO GUARDADO MANDA: se escribió cuando lo dijo (regla del 20-oct).
+  const [ficha] = await sql<{ cobertura_estado: EstadoDeCobertura | null; cobertura_ciclo: number | null }[]>`
+    select cobertura_estado, cobertura_ciclo from conversations
+    where id=${conversationId} and cobertura_dicha_at > now() - make_interval(days => ${DIAS_QUE_VALE_EL_LUGAR})
+  `;
+  if (ficha?.cobertura_estado) {
+    if (ficha.cobertura_ciclo === cycle) return ficha.cobertura_estado;
+    return ficha.cobertura_estado === "viene" ? "fuera" : ficha.cobertura_estado;
+  }
+  // Respaldo para las conversaciones anteriores a la migración 027: se lee
+  // lo que escribió, como hasta hoy.
   const entrantes = await sql<{ content: string; cycle: number }[]>`
     select content, cycle from messages
     where conversation_id=${conversationId} and direction='inbound'

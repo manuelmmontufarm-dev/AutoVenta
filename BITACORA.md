@@ -17,7 +17,21 @@
   por medida de lo ya declarado NO se vuelve a juzgar (sano 4732). **Un precio no es una medida**
   (`tireSize.ts` `sinPrecios`, dentro de `extractTireSizes`): «$245.11», «127.70 c/u».
 
+- **A · Fuera de Quito es un hecho de la ficha** (migración 027: `cobertura_estado`,
+  `cobertura_ciudad`, `cobertura_ciclo`, `cobertura_dicha_at`). El turno (`index.ts`) lo guarda
+  cuando el cliente lo dice (`registrarDondeEstaElCliente`) y `porQueNoPasaPorElLocal` lo lee de ahí
+  —sigue siendo el único dueño—; los mensajes se releen solo en hilos anteriores a la migración. No
+  se borra al reabrir; «viene» de otro ciclo cuenta como «fuera», como antes. `fueraDeCobertura.ts`
+  reconoce Manabí, Tungurahua, Píllaro y otros cantones y provincias, «soy de provincia», «aquí en» y
+  «cantón». Los seguimientos ya los decide el sprint 4 (`motivoParaNoSeguir`, `sinVisitaDelSeguimiento`)
+  con este mismo dueño.
+
 **Por qué:** (comprobado en la base de producción, solo lectura)
+- A · 27932: «Enq parte de Manabi están» y «Gracias las necesito para MANABI» → Manabí no estaba en
+  la lista; ficha sin lugar; mapas y dos «¿A cuál local…?». 8924: «Soy de provincia..» y «Tungurahua
+  Cantón Pillaro.» → nada reconocido; tres «¿Qué día cree que puede pasar por Quito Sur?». 28916:
+  «Yo estoy aquí en Cuenca» (en un audio largo) → «aquí en» no contaba. 29642 (Machala) y 28693
+  (Tulcán) sí se reconocían: lo que salió mal fue el seguimiento, que ya arregló el sprint 4.
 - C · chat 462, 15-oct 18:37 UTC: «Las Falken ya las compré 205 60 16. Ahora necesito las Kenda 195
   60 15 será que puedo pagar con tarjeta sin incremento?» → `tipoDeCierreDelTurno` = compra_terminada
   (sin corrida de IA), despedida fija y transición 4841 a ganado. El mensaje siguiente reabrió el

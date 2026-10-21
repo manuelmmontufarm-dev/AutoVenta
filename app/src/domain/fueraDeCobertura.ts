@@ -68,7 +68,39 @@ const FUERA: readonly (readonly [string, RegExp])[] = [
   ["Salém", /\bsalcedo\b/],
   ["Cayambe", /\bcayambe\b/],
   ["Santa Elena", /\bsanta\s*elena\b|\blibertad\b/],
+  // Auditoría del 19-oct (familia 7-A): provincias y cantones que llegaron y
+  // no estaban. 27932: «Enq parte de Manabi están»; 8924: «Tungurahua Cantón
+  // Pillaro». El cantón va antes que su provincia: se nombra lo más preciso.
+  ["Píllaro", /\bpillaro\b/],
+  ["Pelileo", /\bpelileo\b/],
+  ["Tungurahua", /\btungurahua\b/],
+  ["Chone", /\bchone\b/],
+  ["Jipijapa", /\bjipijapa\b/],
+  ["Montecristi", /\bmontecristi\b/],
+  ["Pedernales", /\bpedernales\b/],
+  ["Bahía de Caráquez", /\bbahia\s+de\s+caraquez\b/],
+  ["Manabí", /\bmanabi\b/],
+  ["Huaquillas", /\bhuaquillas\b/],
+  ["El Oro", /\bprovincia\s+(?:de\s+)?el\s+oro\b/],
+  ["Azogues", /\bazogues\b/],
+  ["Azuay", /\bazuay\b/],
+  ["Cañar", /\bcanar\b/],
+  ["Guaranda", /\bguaranda\b/],
+  ["Macas", /\bmacas\b/],
+  ["Zamora", /\bzamora\s+chinchipe\b/],
+  ["Carchi", /\bcarchi\b/],
+  ["Imbabura", /\bimbabura\b/],
+  ["Cotopaxi", /\bcotopaxi\b/],
+  ["Chimborazo", /\bchimborazo\b/],
+  ["Los Ríos", /\blos\s+rios\b/],
+  ["Galápagos", /\bgalapagos\b/],
 ];
+
+/**
+ * «Soy de provincia» (8924): no dice cuál, pero sí que no es Quito. Para la
+ * gente de Quito «provincia» es todo lo demás.
+ */
+const DE_PROVINCIA = /\b(?:soy|somos|estoy|estamos|vivo|vivimos)\s+(?:de|en)\s+(?:una\s+|la\s+)?provincia\b/;
 
 /** Lo que SÍ es cobertura: Quito y el valle. */
 const COBERTURA = /\bquito\b|\bcumbaya\b|\btumbaco\b|\bvalle\s*de\s*los\s*chillos\b|\bchillos\b|\bsangolqui\b|\bconocoto\b|\bpuembo\b|\bcalderon\b|\bpomasqui\b|\bel\s*condado\b/;
@@ -78,7 +110,7 @@ const COBERTURA = /\bquito\b|\bcumbaya\b|\btumbaco\b|\bvalle\s*de\s*los\s*chillo
  * en», «vivo en», «por acá en», o el nombre solo cuando el mensaje es corto.
  */
 const DICE_DONDE_ESTA =
-  /\b(?:soy|somos)\s+de\b|\best(?:oy|amos)\s+(?:en|por)\b|\bviv(?:o|imos)\s+(?:en|por)\b|\bac[aá]\s+en\b|\bdesde\b|\bpara\b|\bprovincia\s+(?:de\s+)?\b|\bciudad\s+de\b|\ben\s+la\s+ciudad\b/;
+  /\b(?:soy|somos)\s+de\b|\best(?:oy|amos)\s+(?:en|por)\b|\bviv(?:o|imos)\s+(?:en|por)\b|\b(?:ac[aá]|aqui)\s+en\b|\bcanton\b|\bdesde\b|\bpara\b|\bprovincia\s+(?:de\s+)?\b|\bciudad\s+de\b|\ben\s+la\s+ciudad\b/;
 
 /**
  * Anuncia que viene a Quito. Es lo que distingue al cliente de Santo Domingo
@@ -113,6 +145,9 @@ export function dondeEstaElCliente(texto: string | null | undefined): DondeEsta 
   // La negación se lee primero: «no vivo en Quito» nombra Quito y es lo
   // contrario de estar en Quito (conv 18603).
   if (NIEGA_QUITO.test(n)) return { estado: "fuera", ciudad: null };
+  if (DE_PROVINCIA.test(n) && !FUERA.some(([, re]) => re.test(n))) {
+    return { estado: VIENE_A_QUITO.test(n) ? "viene" : "fuera", ciudad: null };
+  }
 
   const fuera = FUERA.find(([, re]) => re.test(n));
   if (fuera) {

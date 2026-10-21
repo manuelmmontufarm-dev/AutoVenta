@@ -103,6 +103,7 @@ import { respuestaDirectaDeUbicacionFueraDeCobertura } from "./domain/visitaImpo
 import { puedeSaludarComoPrimerContacto } from "./domain/turnoDelHumano.js";
 import { decidirQuienContesta } from "./services/turnoDelHumano.js";
 import { quiereComprarADistancia } from "./domain/compraADistancia.js";
+import { registrarDondeEstaElCliente } from "./services/dondeEstaElCliente.js";
 import { avisarCompraADistancia } from "./services/compraADistancia.js";
 
 /** Pausa entre bloques: suficiente para que se lean como mensajes seguidos y no como spam. */
@@ -196,6 +197,9 @@ const pipeline = new InboundPipeline(async ({ from, name, text: textoRecibido, w
     ...(medidaDelTexto ? { tireSize: medidaDelTexto } : {}),
     ...(parsedVehicleYear ? { vehicleYear: parsedVehicleYear } : {}),
   });
+  // Dónde está el cliente es un hecho de la ficha, como la medida: se guarda
+  // cuando lo dice y `porQueNoPasaPorElLocal` lo lee de ahí (familia 7-A).
+  await registrarDondeEstaElCliente(conversation.id, conversation.current_cycle, text);
   // La visita va aparte porque hay que JUNTARLA con lo dicho antes: la hora
   // suele llegar en un mensaje y el día en el siguiente.
   const visitaRegistrada = commitment
