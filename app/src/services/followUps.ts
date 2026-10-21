@@ -22,7 +22,7 @@ import {
 import { buildStoreLinksBlock } from "./quoteMessages.js";
 import { emitLiveEvent } from "./liveEvents.js";
 import { pideUnAsesor } from "../domain/pideAsesor.js";
-import { motivoParaNoSeguir, type MotivoSinSeguimiento } from "../domain/sinSeguimiento.js";
+import { motivoParaNoSeguir, sinVisitaDelSeguimiento, type MotivoSinSeguimiento } from "../domain/sinSeguimiento.js";
 import { parseTireSize } from "../domain/tireSize.js";
 import { generateFollowUpCopy } from "./followUpCopy.js";
 import { catalogStatus, findByCode, searchBySize } from "./catalog.js";
@@ -308,7 +308,10 @@ async function contextoDeOpciones(
   const customerAskedPrice = todos.some((r) => pidioPrecioOCotizacion(r.content ?? ""));
   // El mismo dueño que el cierre de la cotización y los candados de salida:
   // quien compra a distancia o está fuera de Quito no recibe mapas.
-  const sinVisita = await porQueNoPasaPorElLocal(conversationId, cycle, null);
+  const sinVisita = sinVisitaDelSeguimiento(
+    await porQueNoPasaPorElLocal(conversationId, cycle, null),
+    await hayCotizacionEnElCiclo(conversationId, cycle),
+  );
   return {
     optionsCount, optionsList: listaDeLaPieza(pieza?.metadata), preferenceAnswered, customerHasNoTireSize,
     customerAskedPrice, sinVisita, juegoEnSuMedida: pieza ? null : juegoEnLaMedida(ficha.tireSize, ficha.cantidad),
@@ -338,7 +341,15 @@ export async function porQueNoQuiereSeguimiento(
     ultimo: ultimo.content,
     anterior: anterior?.content ?? null,
     sinVisita: await porQueNoPasaPorElLocal(conversationId, cycle, null),
+    hayCotizacion: await hayCotizacionEnElCiclo(conversationId, cycle),
   });
+}
+
+async function hayCotizacionEnElCiclo(conversationId: number, cycle: number): Promise<boolean> {
+  const [fila] = await sql<{ hay: boolean }[]>`
+    select exists(select 1 from quotes where conversation_id = ${conversationId} and cycle = ${cycle}) as hay
+  `;
+  return Boolean(fila?.hay);
 }
 
 export function buildFollowUpPreview(

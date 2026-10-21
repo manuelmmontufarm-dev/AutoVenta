@@ -33,8 +33,8 @@ import { aceptaLaOferta, opcionesDelMenuAbierto } from "../domain/ofertaVigente.
 import { leerOfertaVigente } from "../services/ofertaVigente.js";
 import { ultimoTurnoDelBot } from "../domain/cotizarLaUnica.js";
 import { respaldoCompleto } from "../domain/respaldoMarcas.js";
-import { preguntaElLocal } from "../domain/storeSelection.js";
-import { preguntaElDia } from "../domain/customerCommitment.js";
+import { preguntaElLocal, preguntamosElLocal } from "../domain/storeSelection.js";
+import { preguntaElDia, preguntamosElDia, respondeAlDiaDeLaVisita } from "../domain/customerCommitment.js";
 import { ordenDeNoReusarLaVitrina, vitrinaQueNoEsSuMedida } from "../domain/vitrinaVieja.js";
 import { extractTireSizes, formatTireSize, loQueFaltaDeLaMedida } from "../domain/tireSize.js";
 import { getHistory, logAiRun, olvidarMedidaDeTrabajo, updateConversationFacts } from "../services/conversations.js";
@@ -230,6 +230,12 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
   // «¿Se la cotizo?» sale en su propia fila, aparte de «Es la única que tengo…».
   const turnoDelBot = ultimoTurnoDelBot(history);
   const textoDelUltimoBot = typeof ultimoDelBot?.content === "string" ? ultimoDelBot.content : null;
+  // La misma señal del pipeline para leer el día de la visita (agendar_visita).
+  ctx.respondiendoAlDia = respondeAlDiaDeLaVisita({
+    texto: userText,
+    preguntamosElDia: preguntamosElDia(textoDelUltimoBot),
+    preguntamosElLocal: preguntamosElLocal(textoDelUltimoBot),
+  });
   // QUÉ SE OFRECIÓ SE LEE DEL HECHO guardado al enviar la oferta (regla del
   // 20-oct, `domain/ofertaVigente.ts`). La lectura del texto queda solo como
   // respaldo para hilos anteriores al deploy (y lo deja en el log).

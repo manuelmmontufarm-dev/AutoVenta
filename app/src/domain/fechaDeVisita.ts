@@ -80,12 +80,15 @@ export function fechaParaAgendar(input: {
   dia: string;
   textoDelCliente: string;
   ahora?: Date;
+  /** El bot acababa de preguntar el día o el local (ver `respondeAlDiaDeLaVisita`). */
+  respondiendoAlDia?: boolean;
 }): { fecha: Date | null; texto: string; franja?: string; noEsVisita?: NoEsVisita } {
   const ahora = input.ahora ?? new Date();
   const frase = input.textoDelCliente.trim().replace(/\s+/g, " ").slice(0, 180);
   const motivo = porQueNoEsVisita(input.textoDelCliente);
   if (motivo) return { fecha: null, texto: frase, noEsVisita: motivo };
-  const delCliente = leerVisita(input.textoDelCliente, ahora, { respondiendoAlDia: true });
+  // La misma señal que el pipeline: sin la pregunta del día, «las 4» no es el día 4.
+  const delCliente = leerVisita(input.textoDelCliente, ahora, { respondiendoAlDia: input.respondiendoAlDia ?? false });
   if (delCliente?.visitDate) {
     return { fecha: delCliente.visitDate, texto: delCliente.text, franja: delCliente.visitTimeLabel };
   }

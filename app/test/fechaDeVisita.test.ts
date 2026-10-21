@@ -151,6 +151,7 @@ describe("fechaParaAgendar — la herramienta lee lo mismo que el pipeline", () 
       dia: "sábado 31 de octubre",
       textoDelCliente: "Suelo viajar a Quito los sábados pero hoy no fui creo para el próximo sábado",
       ahora: enQuito("2026-10-17T15:30:00"),
+      respondiendoAlDia: true,
     });
     expect(r.noEsVisita).toBeUndefined();
     expect(diaQuito(r.fecha)).toBe("2026-10-24");
@@ -175,6 +176,29 @@ describe("fechaParaAgendar — la herramienta lee lo mismo que el pipeline", () 
       ahora: enQuito("2026-10-14T15:40:00"),
     });
     expect(r.noEsVisita).toBe("texto_de_una_foto");
+  });
+
+  it("sin la pregunta del día, la cantidad no es el día del mes: «… voy el sábado» es el sábado", () => {
+    // Con `respondiendoAlDia: true` fijo, «Quiero el 4» se leía como el 4 de
+    // noviembre y «las del 2» como el 2 (comprobado con el código anterior).
+    for (const frase of ["Las 4 por favor, voy el sábado", "Quiero el 4, voy el sábado", "Deme las del 2, paso el sábado"]) {
+      const r = fechaParaAgendar({
+        dia: "sábado",
+        textoDelCliente: frase,
+        ahora: enQuito("2026-10-14T10:00:00"),
+        respondiendoAlDia: false,
+      });
+      expect(diaQuito(r.fecha), frase).toBe("2026-10-17");
+    }
+  });
+
+  it("«le paso a recoger el sábado» y «paso a retirar el lunes» siguen siendo visita", () => {
+    const ahora = enQuito("2026-10-14T10:00:00");
+    const recoger = fechaParaAgendar({ dia: "sábado", textoDelCliente: "le paso a recoger el sábado", ahora });
+    expect(recoger.noEsVisita).toBeUndefined();
+    expect(diaQuito(recoger.fecha)).toBe("2026-10-17");
+    expect(diaQuito(leerVisita("le paso a recoger el sábado", ahora)?.visitDate)).toBe("2026-10-17");
+    expect(diaQuito(leerVisita("paso a retirar el lunes", ahora)?.visitDate)).toBe("2026-10-19");
   });
 
   it("si el cliente solo dijo «sí» al día que propuso el bot, vale el día que entendió el modelo", () => {

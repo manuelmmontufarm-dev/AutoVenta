@@ -10,7 +10,8 @@
  * con este motivo (`no_quiere_seguimiento:<motivo>`).
  */
 import { describe, expect, it } from "vitest";
-import { motivoParaNoSeguir } from "../src/domain/sinSeguimiento.js";
+import { motivoParaNoSeguir, sinVisitaDelSeguimiento } from "../src/domain/sinSeguimiento.js";
+import { buildContextualFollowUpMessage } from "../src/domain/followUpMessages.js";
 
 describe("motivoParaNoSeguir — los chats de la auditoría", () => {
   it("27914: «Cuando lo tenga me avisa» → espera que le avisen; no hay seguimiento", () => {
@@ -53,6 +54,23 @@ describe("motivoParaNoSeguir — lo que SÍ lleva seguimiento", () => {
 
   it("un «Ok gracias» de alguien en Quito no es una despedida", () => {
     expect(motivoParaNoSeguir({ ultimo: "Ok gracias", sinVisita: null })).toBeNull();
+  });
+
+  it("29177: fuera de Quito CON cotización sí sigue, como compra a distancia (pago y envío)", () => {
+    expect(motivoParaNoSeguir({ ultimo: "👍", sinVisita: "fuera_de_cobertura", hayCotizacion: true })).toBeNull();
+    expect(sinVisitaDelSeguimiento("fuera_de_cobertura", true)).toBe("compra_a_distancia");
+    expect(sinVisitaDelSeguimiento("fuera_de_cobertura", false)).toBe("fuera_de_cobertura");
+    expect(sinVisitaDelSeguimiento(null, true)).toBeNull();
+  });
+
+  it("y el texto que sale le habla de pago y envío, sin local ni día", () => {
+    const texto = buildContextualFollowUpMessage({
+      stage: "cotizacion_enviada", tireSize: "265/70R16", quoteNumber: "COT-1",
+      sinVisita: sinVisitaDelSeguimiento("fuera_de_cobertura", true),
+      storeLinks: "📍 *Depot Tire Cumbayá*: https://maps.app.goo.gl/x",
+    }, "in_window_first");
+    expect(texto).toMatch(/pago y envío/);
+    expect(texto).not.toMatch(/qu[eé] d[ií]a|cu[aá]l local|maps\.app/i);
   });
 
   it("quien compra a distancia sigue con su seguimiento de pago y envío", () => {

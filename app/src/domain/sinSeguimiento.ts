@@ -29,10 +29,24 @@ export type MotivoSinSeguimiento =
 
 const ACUSE = /^(?:ok|oka|okay|okey|listo|perfecto|bueno|bien|gracias|ok gracias|muchas gracias|vale|dale|👍|🤝|🙏)[\s.,!👍🤝🙏]*$/i;
 
+/**
+ * FUERA DE QUITO CON COTIZACIÓN ES UNA COMPRA A DISTANCIA (decisión de la
+ * coordinación, 20-oct, chat 29177: Baños, $896 cotizados, envío ofrecido).
+ * Sin cotización no hay nada que recordarle; con cotización el seguimiento
+ * habla de pago y envío, sin mapas, local ni día. Lo usan el dueño de abajo y
+ * la plantilla (`services/followUps.ts`).
+ */
+export function sinVisitaDelSeguimiento(sinVisita: SinVisita | null | undefined, hayCotizacion: boolean): SinVisita | null {
+  if (sinVisita === "fuera_de_cobertura" && hayCotizacion) return "compra_a_distancia";
+  return sinVisita ?? null;
+}
+
 export function motivoParaNoSeguir(input: {
   ultimo: string | null | undefined;
   anterior?: string | null;
   sinVisita?: SinVisita | null;
+  /** Hay cotización en el ciclo (`quotes`). */
+  hayCotizacion?: boolean;
 }): MotivoSinSeguimiento | null {
   const ultimo = input.ultimo?.trim() ?? "";
   if (!ultimo) return null;
@@ -45,9 +59,9 @@ export function motivoParaNoSeguir(input: {
     if (elClienteDijoQueAvisa(texto)) return "el_cliente_avisa";
   }
   if (tipoDeCierreDelTurno(ultimo, anterior) !== null) return "cierre_del_cliente";
-  // Fuera de Quito y sin compra a distancia: no hay visita que recordarle ni
-  // local al que invitarlo (27292, Ambato). Quien compra a distancia SÍ sigue:
-  // su seguimiento habla de pago y envío.
-  if (input.sinVisita === "fuera_de_cobertura") return "fuera_de_cobertura";
+  // Fuera de Quito, sin compra a distancia y sin cotización: no hay visita que
+  // recordarle ni nada que cobrarle (27292, Ambato). Con cotización, o quien
+  // compra a distancia, SÍ sigue: su seguimiento habla de pago y envío.
+  if (sinVisitaDelSeguimiento(input.sinVisita, Boolean(input.hayCotizacion)) === "fuera_de_cobertura") return "fuera_de_cobertura";
   return null;
 }

@@ -52,9 +52,16 @@ forzados. ANTES y DESPUÉS textuales en las notas del sprint (`s4-antes-textual.
   1 cancelado y 2 de 9 corregidos (22 %), los dos por deriva de precio/stock de la foto del catálogo.
 - `npx tsc --noEmit`, `npx vitest run` 2727/2727, `sim:humo` 8/8, fidelidad 12/12.
 
-**Pendiente / a decidir:** fuera de Quito sin compra a distancia ya no recibe seguimiento (29177,
-Baños, con cotización y envío ofrecido, quedó sin él); el turno que contesta «cuando lo tenga me
-avisa» no cambió (sigue ofreciendo la equivalente una vez).
+**Ronda 2 (revisión de la coordinación):** fuera de Quito CON cotización sigue recibiendo
+seguimiento, como compra a distancia (`sinVisitaDelSeguimiento`: pago y envío, sin mapas, local ni
+día); SIN cotización no recibe. 29177 (Baños, $896) en el simulador: «🛞 Quedó en marcha su compra
+de 265/70R16. Un asesor le confirma pago y envío por acá. 🤝», aprobado. `agendar_visita` recibe la
+señal real de «preguntamos el día» (`ctx.respondiendoAlDia`, la misma del pipeline): sin ella
+«Quiero el 4, voy el sábado» se leía como el 4 de noviembre. «Le paso a recoger / paso a retirar»
+sigue siendo visita (infinitivos en `tieneVerboDeVisita`). Suite 2735/2735, humo, fidelidad 12/12.
+
+**Pendiente:** el turno que contesta «cuando lo tenga me avisa» no cambió (sigue ofreciendo la
+equivalente una vez).
 
 **Horas:** ~4 h.
 

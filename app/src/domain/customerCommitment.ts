@@ -8,8 +8,13 @@ const INTENT = /\b(?:voy(?!\s+a\s+estar)|ire|iré|vamos(?!\s+a\s+estar)|paso|pas
 
 /** ¿La frase trae un verbo de ir/pasar/comprar? (`fechaDeVisita` lo usa para no confundir «le paso el dato»). */
 export function tieneVerboDeVisita(texto: string): boolean {
-  return INTENT.test(normalizarTexto(texto));
+  const n = normalizarTexto(texto);
+  // Los infinitivos cuentan aquí: «le paso a recoger el sábado», «paso a
+  // retirar» son visitas aunque lleven «le paso» delante (ver fechaDeVisita).
+  return INTENT.test(n) || INFINITIVO_DE_VISITA.test(n);
 }
+
+const INFINITIVO_DE_VISITA = /\b(?:pasar|recoger|retirar|visitar|acercarme|comprar)\b/;
 
 /** Compromisos sin fecha exacta: valen como respuesta, no como día del calendario. */
 const VAGO = /\b(?:esta semana|en la semana|este finde|el finde|fin de semana|proxima semana|la otra semana|la siguiente semana)\b/;

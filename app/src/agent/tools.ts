@@ -188,6 +188,12 @@ export interface AgentContext {
    * (Wildpeak A/T4W, 14-ago).
    */
   toolTrace?: Array<{ herramienta: string; argumentos: string; resultado: string }>;
+  /**
+   * El último mensaje del bot preguntó el día (o el local) de la visita: la
+   * misma señal que usa el pipeline (`respondeAlDiaDeLaVisita`). Sin ella, un
+   * número suelto («las 4») no se lee como día del mes en `agendar_visita`.
+   */
+  respondiendoAlDia?: boolean;
   /** Hora del último mensaje del cliente que atiende ESTE turno. Ver `getHistory`. */
   recibidoHasta?: Date;
 }
@@ -3800,7 +3806,9 @@ export function buildTools(ctx: AgentContext) {
       // —el texto de una foto, «mañana le paso el dato»— no se agenda aunque
       // el modelo lo pida (27485, 30131). Ver domain/fechaDeVisita.ts.
       const ahora = new Date();
-      const lectura = fechaParaAgendar({ dia, textoDelCliente: ctx.currentUserText, ahora });
+      const lectura = fechaParaAgendar({
+        dia, textoDelCliente: ctx.currentUserText, ahora, respondiendoAlDia: ctx.respondiendoAlDia ?? false,
+      });
       if (lectura.noEsVisita) {
         console.log(`📅 Conv ${ctx.conversation.id}: agendar_visita rechazada (${lectura.noEsVisita}).`);
         return JSON.stringify({
