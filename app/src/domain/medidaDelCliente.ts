@@ -68,6 +68,26 @@ export function medidasParaElHecho(texto: string | null | undefined): string[] {
 }
 
 /**
+ * ¿EL CLIENTE PIDE, CON TODAS SUS LETRAS, QUE LE EXPLIQUEN DÓNDE SE LEE LA
+ * MEDIDA? «No sé dónde ver la medida», «mándeme la foto de cómo se lee», «no
+ * la encuentro», «¿qué significan esos números?».
+ *
+ * Solo eso abre la guía de medida a quien ya escribió la suya. «Si una foto»
+ * después de haberla escrito es un sí a lo anterior, no un pedido de la guía:
+ * en el replay final (chat 29523, 2 de 3 corridas) el modelo llamó
+ * `guia_medida` diciendo que el cliente la pidió, y salió la imagen «Así se lee
+ * la medida…». Decide el hecho más este texto del CLIENTE, no el modelo.
+ */
+export function pideLaGuiaDeMedida(texto: string | null | undefined): boolean {
+  const n = (texto ?? "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  return /\bno\s+(?:se|encuentro|ubico|veo|entiendo|logro|la\s+encuentro|la\s+veo|la\s+ubico)\b.{0,40}\b(?:medida|numeros?|donde|cual|como|la\s+encuentro)\b/.test(n)
+    || /\bno\s+la\s+(?:encuentro|veo|ubico|entiendo)\b/.test(n)
+    || /\bcomo\s+se\s+lee\b/.test(n)
+    || /\b(?:donde|como)\s+(?:se\s+)?(?:ve|veo|lee|leo|leerla|miro|busco|encuentro|esta|aparece|sale|ubico)\b.{0,40}\b(?:medida|numeros?|llanta|costado|rin|aro)\b/.test(n)
+    || /\bque\s+(?:significa|significan|quiere\s+decir|quieren\s+decir)\b/.test(n);
+}
+
+/**
  * LA MEDIDA DE UN MENSAJE PARA LA FICHA: la última que el cliente escribió en
  * él. «tengo 205/55R16 pero quiero 215/55R16» → 215/55R16, la que quiere.
  *

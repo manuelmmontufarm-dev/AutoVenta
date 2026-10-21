@@ -42,12 +42,12 @@ vi.mock("../src/render/quoteImage.js", async (original) => ({
 
 const { buildTools } = await import("../src/agent/tools.js");
 
-async function guia(loPidio = false): Promise<Record<string, unknown>> {
+async function guia(loPidio = false, texto = "Si una foto"): Promise<Record<string, unknown>> {
   const tools = buildTools({
     conversation: { id: 29523, phone: "593999", name: "J", stage: "nuevo", bot_paused_until: null, status: "open", current_cycle: 1 },
     customerPhone: "593999",
     customerName: "J",
-    currentUserText: "Si una foto",
+    currentUserText: texto,
   } as never);
   const tool = tools.find((t) => t.function.name === "guia_medida")!;
   return JSON.parse(await tool.execute({ aro: 15, lo_pidio_el_cliente: loPidio }));
@@ -75,9 +75,38 @@ describe("29523 — escribió «245 60 15» y «235 60 15»", () => {
     expect(guiasEnviadas).toBe(0);
   });
 
-  it("si el cliente dice que no sabe dónde mirar, la guía sí sale", async () => {
-    const r = await guia(true);
-    expect(r.error).toBeUndefined();
-    expect(guiasEnviadas).toBe(1);
+  it("«Si una foto» con el modelo diciendo que el cliente la pidió: la guía NO sale (replay final, r1 y r3)", async () => {
+    const r = await guia(true, "Si una foto");
+    expect(String(r.error)).toContain("YA escribió su medida");
+    expect(guiasEnviadas).toBe(0);
   });
+
+  for (const texto of [
+    "No sé dónde ver la medida",
+    "mándeme la foto de cómo se lee",
+    "no encuentro la medida en la llanta",
+    "¿qué significan esos números?",
+  ]) {
+    it(`si el cliente pide la guía con todas sus letras («${texto}»), sí sale`, async () => {
+      const r = await guia(true, texto);
+      expect(r.error).toBeUndefined();
+      expect(guiasEnviadas).toBe(1);
+    });
+  }
+});
+
+describe("pideLaGuiaDeMedida — solo el pedido con todas sus letras", async () => {
+  const { pideLaGuiaDeMedida } = await import("../src/domain/medidaDelCliente.js");
+  for (const texto of [
+    "No sé dónde ver la medida", "mándeme la foto de cómo se lee", "no encuentro la medida en la llanta",
+    "¿qué significan esos números?", "no la encuentro", "¿dónde se ve la medida en la llanta?",
+  ]) {
+    it(`sí: «${texto}»`, () => expect(pideLaGuiaDeMedida(texto)).toBe(true));
+  }
+  for (const texto of [
+    "Si una foto", "sí, una foto por favor", "ok", "¿me manda una foto de la llanta?",
+    "¿dónde está el local?", "donde estan ubicados", "235 60 15",
+  ]) {
+    it(`no: «${texto}»`, () => expect(pideLaGuiaDeMedida(texto)).toBe(false));
+  }
 });

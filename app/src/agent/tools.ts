@@ -77,7 +77,7 @@ import { researchVehicleFitment } from "../services/vehicleFitmentResearch.js";
 import { arosDeCandidatos, arosDeMedidas, invitacionPorAroAmbiguo } from "../domain/fitmentResearch.js";
 import { aroVigenteDeLaVisita, rangoDeAros } from "../domain/aros.js";
 import {
-  aroParaFitment, medidaEnDisputa, medidasDelMensaje, medidasEscritasPorElCliente, mediaMedidaVigente, respetanElAroDelCliente,
+  aroParaFitment, medidaEnDisputa, medidasDelMensaje, pideLaGuiaDeMedida, medidasEscritasPorElCliente, mediaMedidaVigente, respetanElAroDelCliente,
 } from "../domain/medidaDelCliente.js";
 import { localPorLaZonaDicha, nearestStore, resolveSector, ubicacionDadaPorElCliente } from "../domain/locations.js";
 import {
@@ -1402,8 +1402,10 @@ export function buildTools(ctx: AgentContext) {
       // QUIEN YA ESCRIBIÓ SU MEDIDA NO RECIBE LA GUÍA PARA ESCRIBIRLA (familia
       // 3, 19-oct): en el simulador, a «Si una foto» de quien había escrito
       // «245 60 15» y «235 60 15» le salió la guía y «si me confirma la medida
-      // completa del costado…». Se le pregunta al hecho `medida_escrita`.
-      if (!lo_pidio_el_cliente) {
+      // completa del costado…». Se le pregunta al hecho `medida_escrita`, y
+      // `lo_pidio_el_cliente` del modelo NO alcanza para saltárselo (replay
+      // final, 2 de 3 corridas): solo que el cliente lo pida con sus palabras.
+      if (!pideLaGuiaDeMedida(ctx.currentUserText)) {
         const entrantes = await sql<{ content: string; metadata: unknown; created_at: Date }[]>`
           select content, metadata, created_at from messages
           where conversation_id=${ctx.conversation.id} and cycle=${ctx.conversation.current_cycle} and direction='inbound' ${soloLoDelTurno()}
