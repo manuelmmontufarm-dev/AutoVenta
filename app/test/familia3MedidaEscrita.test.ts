@@ -194,6 +194,13 @@ describe("la traba del Guardián: el total del juego de un precio en pantalla no
     expect(r.bloqueado).toBe(true);
   });
 
+  it("el precio de la cotización enviada (hecho `preciosMostrados` de la pieza quote) no es nuevo", () => {
+    const correccion = "Su cotización es por 4 × *KENDA KR605* a *$192.97 c/u*, total *$771.88*.";
+    const yaDicho = "Cotización COT-X enviada por $771.88\n{\"piece\":\"quote\"}\nOpciones enviadas: KENDA KR605\n{}";
+    expect(frenarHechosNuevosDelGuardian("Le dejo su cotización.", correccion, PRODUCTOS_27418, yaDicho).bloqueado).toBe(true);
+    expect(frenarHechosNuevosDelGuardian("Le dejo su cotización.", correccion, PRODUCTOS_27418, yaDicho, [192.97, 771.88]).bloqueado).toBe(false);
+  });
+
   it("la poda tampoco corta la línea del total", () => {
     const podado = podarHechosNuevosDelGuardian(BORRADOR_27418, CORRECCION_27418, PRODUCTOS_27418, YA_DICHO_27418);
     expect(podado).toContain("$771.88");

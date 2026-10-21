@@ -77,7 +77,7 @@ import { researchVehicleFitment } from "../services/vehicleFitmentResearch.js";
 import { arosDeCandidatos, arosDeMedidas, invitacionPorAroAmbiguo } from "../domain/fitmentResearch.js";
 import { aroVigenteDeLaVisita, rangoDeAros } from "../domain/aros.js";
 import {
-  aroParaFitment, medidaEnDisputa, medidasEscritasPorElCliente, mediaMedidaVigente, respetanElAroDelCliente,
+  aroParaFitment, medidaEnDisputa, medidasDelMensaje, medidasEscritasPorElCliente, mediaMedidaVigente, respetanElAroDelCliente,
 } from "../domain/medidaDelCliente.js";
 import { localPorLaZonaDicha, nearestStore, resolveSector, ubicacionDadaPorElCliente } from "../domain/locations.js";
 import { direccionPedida, equivaleAAlguna, esEquivalente, ordenarPorCercania } from "../domain/equivalencia.js";
@@ -1379,6 +1379,23 @@ export function buildTools(ctx: AgentContext) {
           and metadata->>'piece'='medida_guide'
         limit 1
       `;
+      // QUIEN YA ESCRIBIÓ SU MEDIDA NO RECIBE LA GUÍA PARA ESCRIBIRLA (familia
+      // 3, 19-oct): en el simulador, a «Si una foto» de quien había escrito
+      // «245 60 15» y «235 60 15» le salió la guía y «si me confirma la medida
+      // completa del costado…». Se le pregunta al hecho `medida_escrita`.
+      if (!lo_pidio_el_cliente) {
+        const entrantes = await sql<{ content: string; metadata: unknown; created_at: Date }[]>`
+          select content, metadata, created_at from messages
+          where conversation_id=${ctx.conversation.id} and cycle=${ctx.conversation.current_cycle} and direction='inbound'
+          order by created_at desc limit 20
+        `;
+        const escritas = [...new Set(mensajesDeLaVisitaActual(entrantes).flatMap((m) => medidasDelMensaje(m)))];
+        if (escritas.length) {
+          return JSON.stringify({
+            error: `El cliente YA escribió su medida (${escritas.join(", ")}): no se la pidas ni le mandes la guía. Trabaja con esa medida (buscar_llanta / preparar_opciones) y contesta lo que preguntó.`,
+          });
+        }
+      }
       // CON EL ARO YA DICHO, LA GUÍA NO REEMPLAZA LAS OPCIONES (conv 3,
       // 8-sep): «Una llanta ron 15» → guía + «confírmeme la medida completa»,
       // sin una sola llanta en pantalla. El aro alcanza para mostrar.
@@ -3272,6 +3289,11 @@ export function buildTools(ctx: AgentContext) {
             piece: "quote",
             filename,
             quoteNumber: quote.number,
+            // Lo que la cotización le muestra: unitarios con IVA y total (familia 3).
+            preciosMostrados: [
+              ...quote.lines.map((l) => Number(l.salePriceWithTax)),
+              quote.total,
+            ].filter((precio) => Number.isFinite(precio) && precio > 0),
             ...(visual.error ? { renderError: visual.error } : {}),
           },
         },

@@ -21,16 +21,17 @@
   y el hecho «MEDIDA ESCRITA POR EL CLIENTE» del Guardián.
 - La traba del Guardián (`frenarHechosNuevosDelGuardian` / `podar…`) cuenta como
   conocido el total del juego (unitario × 1..10) de todo precio ya en pantalla, y
-  lee el hecho nuevo `preciosMostrados` que guarda la pieza de opciones
-  (unitarios con IVA).
+  lee el hecho nuevo `preciosMostrados` que guardan las piezas de opciones
+  (unitarios con IVA) y de cotización (unitarios y total).
 - Si el candado de la medida deja el turno vacío, sale la lista de precios de la
   lámina (`textoDeLaPieza`, en `quoteMessages.ts`) si la lámina es de SU medida,
-  en vez de «Le consulto con un asesor».
+  en vez de «Le consulto con un asesor»; y si el cliente escribió su medida
+  mientras se armaba el turno, se calla (`ctx.callarEsteTurno`, leído en
+  `turnoVacio`): el turno siguiente contesta con su medida (26561).
+- `guia_medida` no manda la guía ni «confírmeme la medida completa» a quien ya
+  escribió su medida, salvo que diga que no sabe dónde mirar (simulador, 29523).
 - Ajuste de la coordinadora (misma fecha): `index.ts` y `conversations.ts` no se
-  tocan (Sprint 2). Quedó afuera, para integrar después: que `guia_medida` no
-  mande la guía a quien ya escribió su medida (visto en el simulador, 29523),
-  `preciosMostrados` en la pieza de cotización, y callar el turno vaciado cuando
-  la medida llegó mientras se armaba (26561).
+  tocan (Sprint 2); por eso el hecho lo anota el agente y no `appendMessage`.
 
 **Por qué:** al menos 12 chats: el cliente escribía la medida a mano, la ficha la
 llenaba la herramienta con lo que entendió el modelo, el lector de «¿la escribió
@@ -41,7 +42,7 @@ contra producción: de las 34 correcciones frenadas solo por `precio_nuevo` desd
 el 12-oct, 33 pasan con la traba nueva (la que queda es un ahorro «$171.96
 menos», aritmética de descuento).
 
-**Horas:** 3,5
+**Horas:** 4
 
 ## 20-oct-2026 · El sí y la elección: el sí se reconoce, y un sí a un menú pregunta cuál
 
@@ -2496,7 +2497,7 @@ Ya viene activado en este equipo.
 
 | Fecha | Commit | Tema | Horas |
 |---|---|---|---|
-| 2026-10-20 | _(este mismo)_ | La medida escrita es un hecho (un solo lector), la traba del Guardián cuenta los totales, el turno vaciado sale con la lista | 3,5 |
+| 2026-10-20 | _(este mismo)_ | La medida escrita es un hecho (un solo lector), la traba del Guardián cuenta los totales, el turno vaciado sale con la lista | 4 |
 | 2026-10-20 | _(este mismo)_ | El sí y la elección: acuse por palabras, un sí a un menú pregunta cuál, la equivalente pide su sí; la oferta como hecho | 5,5 |
 | 2026-09-28 | _(este mismo)_ | Ganados fantasma, elegir con palabras, corrección podada, menú con varias medidas | 3,5 |
 | 2026-09-08 | _(este mismo)_ | El aro alcanza: detector ancho, lámina por ruta directa, la guía no reemplaza opciones | 1.5 |
@@ -2679,7 +2680,7 @@ Ya viene activado en este equipo.
 | 2026-07-14 | ac09171 | Ubicaciones de locales + análisis de features del cliente | 1.5 |
 | 2026-07-13 | feadf57 | Brief + plan de desarrollo + plan financiero + catálogo | 4.0 |
 | 2026-07-13 | d997844 | Commit inicial (repo) | 0.25 |
-| | | **TOTAL** | **~142,5 h** |
+| | | **TOTAL** | **~143 h** |
 
 ---
 

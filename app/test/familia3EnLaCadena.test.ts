@@ -84,6 +84,30 @@ describe("29418 — el turno vaciado sale con los precios de la lámina", () => 
     expect(salida).toBe("");
   });
 
+  it("26561: si la medida llegó mientras se armaba el turno, se calla (contesta el turno siguiente)", async () => {
+    pieza = { ...PIEZA_29418, sizeLabel: "205/55R16" };
+    const c = { ...(ctx("respuesta", null) as object), inicioDelTurno: new Date(Date.now() - 45_000) } as never as { callarEsteTurno?: boolean };
+    const salida = await paso.aplicar(CIERRE_PIDE_MEDIDA, c as never);
+    expect(salida).toBe("");
+    expect(c.callarEsteTurno).toBe(true);
+  });
+
+  it("sin mensaje nuevo en el medio, no se marca callar (sale el respaldo de siempre)", async () => {
+    pieza = { ...PIEZA_29418, sizeLabel: "205/55R16" };
+    const c = { ...(ctx("respuesta", null) as object), inicioDelTurno: new Date() } as never as { callarEsteTurno?: boolean };
+    await paso.aplicar(CIERRE_PIDE_MEDIDA, c as never);
+    expect(c.callarEsteTurno).toBeFalsy();
+  });
+
+  it("y la cadena entera calla: no sale «Le consulto con un asesor»", async () => {
+    pieza = { ...PIEZA_29418, sizeLabel: "205/55R16" };
+    const { correrPasos } = await import("../src/services/prepararSalida.js");
+    const c = { ...(ctx("respuesta", null) as object), inicioDelTurno: new Date(Date.now() - 45_000) };
+    const salida = await correrPasos([paso], CIERRE_PIDE_MEDIDA, c as never);
+    expect(salida.texto).toBeNull();
+    expect(salida.pasosCorridos).not.toContain("respaldo_turno_vacio");
+  });
+
   it("en un seguimiento, callar sigue siendo callar", async () => {
     const salida = await paso.aplicar(CIERRE_PIDE_MEDIDA, ctx("seguimiento", null));
     expect(salida).toBe("");

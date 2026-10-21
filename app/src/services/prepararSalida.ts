@@ -148,6 +148,12 @@ export interface ContextoDeSalida {
   inicioDelTurno?: Date;
   /** Este turno termina sin empuje comercial, pero no cierra ni borra el ciclo. */
   suprimirEmpujeComercial?: boolean;
+  /**
+   * Un paso vació el turno y sabe que callar es lo correcto ESTA vez (no
+   * siempre, que es `silencioEsCorrecto`): el cliente ya escribió de nuevo y
+   * el turno siguiente le contesta. Ver `la_medida_del_cliente_no_se_cuestiona`.
+   */
+  callarEsteTurno?: boolean;
   /** La intención vigente es un servicio que no está en el catálogo de llantas. */
   consultaFueraDeCatalogo?: boolean;
   /**
@@ -720,8 +726,27 @@ export const PASOS: readonly PasoDeSalida[] = [
       // que llegara la medida (chat 26561) no es lo que él pidió.
       const deSuMedida = typeof pieza?.metadata?.sizeLabel === "string" && medidas.includes(pieza.metadata.sizeLabel);
       const lista = deSuMedida ? textoDeLaPieza(pieza?.metadata ?? null) : null;
-      if (lista) console.warn(`📋 Conv ${ctx.conversation.id}: el turno quedaba vacío; sale la lista de la lámina.`);
-      return lista ?? depurado.texto;
+      if (lista) {
+        console.warn(`📋 Conv ${ctx.conversation.id}: el turno quedaba vacío; sale la lista de la lámina.`);
+        return lista;
+      }
+      // Y SI LA MEDIDA LLEGÓ MIENTRAS SE ARMABA ESTE TURNO (chat 26561): la
+      // lámina salió por el vehículo, el cliente escribió «185/ 65/15» en el
+      // medio y este paso le quitó la pregunta. El turno siguiente contesta
+      // con su medida: aquí el respaldo «Le consulto con un asesor» sobra.
+      if (ctx.inicioDelTurno) {
+        const [nuevo] = await sql<{ id: number }[]>`
+          select id from messages
+          where conversation_id=${ctx.conversation.id} and direction='inbound'
+            and created_at > ${ctx.inicioDelTurno}
+          limit 1
+        `;
+        if (nuevo) {
+          console.warn(`🤫 Conv ${ctx.conversation.id}: el cliente escribió su medida en el medio; contesta el turno siguiente.`);
+          ctx.callarEsteTurno = true;
+        }
+      }
+      return depurado.texto;
     },
   },
   {
@@ -1375,6 +1400,7 @@ export async function correrPasos(
   const pasosCorridos: string[] = [];
   let vaciador: PasoDeSalida | null = null;
   ctx.salidaTerminal = false;
+  ctx.callarEsteTurno = false;
   const separa = pasos.findIndex((paso) => paso.nombre === PASO_QUE_SEPARA);
   for (const [indice, paso] of pasos.entries()) {
     if (!texto) break;
@@ -1419,7 +1445,7 @@ async function turnoVacio(
 ): Promise<SalidaPreparada> {
   const callar: SalidaPreparada = { texto: null, pasosCorridos };
   if (ctx.tipo !== "respuesta" && ctx.tipo !== "retomada") return callar;
-  if (vaciador?.silencioEsCorrecto) return callar;
+  if (vaciador?.silencioEsCorrecto || ctx.callarEsteTurno) return callar;
   const quien = vaciador?.nombre ?? (borrador.trim() ? "desconocido" : "borrador_vacio");
   console.error(`🕳️ Conv ${ctx.conversation.id}: el turno quedó vacío por «${quien}»; sale el respaldo y se alerta.`);
   await createBotAlert({
