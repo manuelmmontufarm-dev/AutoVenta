@@ -174,14 +174,18 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
   // 3, 19-oct): los entrantes de este turno quedan con `medida_escrita`, y de
   // ahí sale `medidaConfirmadaPorCliente`. Si la anotación falla, los lectores
   // leen el texto con el mismo lector: el turno no se cae por esto.
-  const anotadas = await anotarMedidasEscritas(ctx.conversation.id, ctx.conversation.current_cycle)
-    .catch((error) => { console.warn("⚠️ No se pudo anotar la medida escrita:", error); return [] as string[]; });
+  const { anotadas, paraLaFicha } = await anotarMedidasEscritas(ctx.conversation.id, ctx.conversation.current_cycle)
+    .catch((error) => {
+      console.warn("⚠️ No se pudo anotar la medida escrita:", error);
+      return { anotadas: [] as string[], paraLaFicha: null };
+    });
   if (anotadas.length) {
     console.log(`📏 Conv ${ctx.conversation.id}: medida escrita por el cliente anotada como hecho: ${anotadas.join(", ")}`);
-    // La ficha, con la última que escribió: es lo que hace el turno normal al
-    // recibir el mensaje, y la retomada no pasa por ahí.
-    await updateConversationFacts(ctx.conversation.id, { tireSize: anotadas.at(-1)! });
   }
+  // La ficha, con la última que escribió DESPUÉS de lo último que le dijimos:
+  // es lo que hace el turno normal al recibir el mensaje, y la retomada no pasa
+  // por ahí. Una medida vieja recién anotada no pisa una ficha ya corregida.
+  if (paraLaFicha) await updateConversationFacts(ctx.conversation.id, { tireSize: paraLaFicha });
   // El estilo se edita en /configuracion/ia; getAiConfig cachea 30 s en memoria.
   const [aiConfig, activeDiscount, pendingDiscount, salesFacts, phaseFlags, storeHours, benefitFacts, history] =
     await Promise.all([
