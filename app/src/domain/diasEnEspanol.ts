@@ -403,18 +403,64 @@ export type SemanaDelDia = "esta" | "proximo" | "otra_semana";
 
 const OTRA_SEMANA = /\b(?:de\s+la|dela|la|en\s+la)\s+(?:proxima|otra|siguiente)\s+semana\b|\bde\s+la\s+semana\s+que\s+viene\b/;
 
-export function semanaDelDia(texto: string): SemanaDelDia {
+/**
+ * Un día CON su semana, como unidad: «el próximo domingo», «el sábado que
+ * viene», «el miércoles de la otra semana». La semana es de ESE día, no de la
+ * frase: en «no puedo el sábado, voy el próximo domingo» el «próximo» es del
+ * domingo (revisión final, 21-oct). `negado` dice si el par es el complemento
+ * de un «no» («el próximo sábado no puedo», «no puedo el próximo sábado»).
+ */
+export interface DiaConSemana {
+  dia: { nombre: string; indice: number };
+  semana: Exclude<SemanaDelDia, "esta">;
+  negado: boolean;
+}
+
+const RELLENO = "(?:(?:el|la|los|las|este|esta|ese|para|ir|pasar|hasta|en|a)\\s+)*";
+const NEGACION_ANTES = new RegExp(`\\b(?:no|tampoco)\\s+[a-zñ]+\\s+${RELLENO}$`);
+const NEGACION_DESPUES = /^\s*(?:no|tampoco)\b/;
+/** Lo que está dentro de la misma cláusula: se corta en la puntuación y en «pero». */
+const finDeClausula = (t: string) => t.split(/[.,;!?]|\bpero\b|\bporque\b/)[0];
+const inicioDeClausula = (t: string) => {
+  const partes = t.split(/[.,;!?]|\bpero\b|\bporque\b/);
+  return partes[partes.length - 1];
+};
+
+export function diasConSuSemana(texto: string): DiaConSemana[] {
   const n = normalizarTexto(texto);
-  if (OTRA_SEMANA.test(n)) return "otra_semana";
-  const palabras = n.split(/[^a-zñ0-9]+/).filter(Boolean);
-  for (let i = 0; i < palabras.length; i += 1) {
-    if (!diaDeLaPalabra(palabras[i])) continue;
-    const antes = palabras[i - 1] ?? "";
-    const despues = `${palabras[i + 1] ?? ""} ${palabras[i + 2] ?? ""}`;
-    if (/^(?:proxim[oa]|siguiente|otro)$/.test(antes)) return "proximo";
-    if (/^(?:proxim[oa]\b|que viene\b)/.test(despues)) return "proximo";
+  const palabras = [...n.matchAll(/[a-zñ0-9]+/g)].map((m) => ({ w: m[0], i: m.index ?? 0 }));
+  const pares: DiaConSemana[] = [];
+  for (let k = 0; k < palabras.length; k += 1) {
+    const dia = diaDeLaPalabra(palabras[k].w);
+    if (!dia || (k > 0 && ANTES_ES_LUGAR.has(palabras[k - 1].w))) continue;
+    const antes = palabras[k - 1]?.w ?? "";
+    const despues = `${palabras[k + 1]?.w ?? ""} ${palabras[k + 2]?.w ?? ""}`;
+    let semana: DiaConSemana["semana"] | null = null;
+    let inicio = palabras[k].i;
+    let fin = palabras[k].i + palabras[k].w.length;
+    const cola = n.slice(fin, fin + 40);
+    const otra = cola.match(/^\s+(?:de\s+la|dela|en\s+la)\s+(?:proxima|otra|siguiente)\s+semana\b|^\s+de\s+la\s+semana\s+que\s+viene\b/);
+    if (otra) { semana = "otra_semana"; fin += otra[0].length; }
+    else if (/^(?:proxim[oa]|siguiente|otro)$/.test(antes)) { semana = "proximo"; inicio = palabras[k - 1].i; }
+    else if (/^(?:proxim[oa]\b|que viene\b)/.test(despues)) {
+      semana = "proximo";
+      fin = palabras[k + (despues.startsWith("que") ? 2 : 1)].i + palabras[k + (despues.startsWith("que") ? 2 : 1)].w.length;
+    } else {
+      // «la próxima semana el viernes»: la frase de la semana antes del día.
+      const previo = inicioDeClausula(n.slice(Math.max(0, inicio - 40), inicio));
+      if (OTRA_SEMANA.test(previo)) semana = "otra_semana";
+    }
+    if (!semana) continue;
+    const negado = NEGACION_DESPUES.test(finDeClausula(n.slice(fin)))
+      || NEGACION_ANTES.test(inicioDeClausula(n.slice(0, inicio)));
+    pares.push({ dia, semana, negado });
   }
-  return "esta";
+  return pares;
+}
+
+/** La semana del primer día que la trae y no está negado; «esta» si ninguno. */
+export function semanaDelDia(texto: string): SemanaDelDia {
+  return diasConSuSemana(texto).find((p) => !p.negado)?.semana ?? "esta";
 }
 
 /**

@@ -1,6 +1,6 @@
 import {
   diaDelMesSuelto, diaEnTexto, diasHastaElDia, fechaDeCalendario, franjaHoraria, normalizarTexto, relativoEnTexto,
-  semanaDelDia,
+  diasConSuSemana, semanaDelDia, type SemanaDelDia,
 } from "./diasEnEspanol.js";
 
 // «Voy a estar en Quito» dice dónde va a estar, no que viene al local (12-sep, conv 3).
@@ -296,12 +296,16 @@ export function extractCustomerCommitment(
   // su «próximo». El día dicho CON su semana («el próximo sábado», «el
   // sábado de la otra semana») es un compromiso hacia adelante: se busca en
   // el texto entero, antes de quitar nada.
-  const semanaBruta = semanaDelDia(bruto);
-  const diaConSemana = semanaBruta !== "esta" ? diaEnTexto(bruto) : null;
+  //
+  // El par se busca como UNIDAD (`diasConSuSemana`): la semana es del día que
+  // la lleva, y un par negado («el próximo sábado no puedo») no cuenta. Sin
+  // par vigente, el día sale del texto SIN cláusulas negativas, como siempre:
+  // «no puedo el sábado, voy el domingo» es el domingo.
+  const par = diasConSuSemana(bruto).find((p) => !p.negado) ?? null;
   text = CLAUSULA_NEGATIVA.test(bruto) ? sinClausulasNegativas(bruto) : text;
   const normalized = normalizar(text);
-  const dia = diaConSemana ?? diaEnTexto(text);
-  const semana = diaConSemana ? semanaBruta : semanaDelDia(text);
+  const dia = par?.dia ?? diaEnTexto(text);
+  const semana: SemanaDelDia = par?.semana ?? "esta";
   const relativo = relativoEnTexto(text);
   // El día del mes suelto («el 30») SOLO cuando acabamos de preguntar el día.
   // Fuera de esa pregunta, «el 4» es una cantidad o un precio, no una fecha.
