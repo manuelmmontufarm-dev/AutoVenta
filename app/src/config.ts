@@ -8,6 +8,7 @@
  * credenciales y parámetros de infraestructura, que van por entorno.
  */
 import { negocio } from "./negocio/index.js";
+import { HORAS_DEL_TURNO_HUMANO } from "./domain/turnoDelHumano.js";
 
 function env(name: string): string {
   const value = process.env[name];
@@ -311,7 +312,9 @@ export const config = {
      * contesta el bot y el asesor recibe la alerta: un mensaje del asesor del
      * 31-ago no deja mudo al cliente del 15-oct. Ver `domain/turnoDelHumano.ts`.
      */
-    humanTurnHours: Number(envOr("HUMAN_TURN_HOURS", "48")),
+    // El valor por defecto vive en el dominio (una sola fuente): acá solo se
+    // permite pisarlo por entorno.
+    humanTurnHours: Number(envOr("HUMAN_TURN_HOURS", String(HORAS_DEL_TURNO_HUMANO))),
     /**
      * Tope global de handlers en vuelo. El FIFO por usuario no limita nada
      * cuando escriben N clientes a la vez: N llamadas simultáneas al LLM →

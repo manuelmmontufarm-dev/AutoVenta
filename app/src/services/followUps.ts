@@ -469,7 +469,12 @@ export async function scheduleConversationFollowUps(
     ) as vacio
   `;
   if (cicloSinCliente?.vacio) return;
-  const ultimoMensajeDelCiclo = conversation.last_assistant_message_at > conversation.last_customer_message_at
+  // OJO: los `last_*_message_at` son de la CONVERSACIÓN, no del ciclo (la
+  // reapertura no los toca). Sirven como «último mensaje del ciclo» solo porque
+  // el guardia de arriba ya descartó el ciclo reabierto sin mensajes del
+  // cliente: desde su primer entrante, el último mensaje de la conversación
+  // es del ciclo actual. Si ese guardia se mueve, esto deja de ser cierto.
+  const ultimoMensajeDeLaConversacion = conversation.last_assistant_message_at > conversation.last_customer_message_at
     ? conversation.last_assistant_message_at
     : conversation.last_customer_message_at;
 
@@ -515,7 +520,9 @@ export async function scheduleConversationFollowUps(
 
   if (conversation.assigned_to === "human") {
     const windowClosesAt = new Date(conversation.last_customer_message_at.getTime() + 24 * 60 * 60 * 1000);
-    const dueAt = cuandoRevisaElAsesor({ ventanaCierra: windowClosesAt, ultimoMensajeDelCiclo, policy, now });
+    const dueAt = cuandoRevisaElAsesor({
+      ventanaCierra: windowClosesAt, ultimoMensajeDelCiclo: ultimoMensajeDeLaConversacion, policy, now,
+    });
     if (dueAt) await insertJob({
       conversationId, cycle: conversation.current_cycle, type: "advisor_review", channel: "advisor",
       dueAt, windowClosesAt,
@@ -560,7 +567,7 @@ export async function scheduleConversationFollowUps(
   // Fuera de 24 h nunca se agenda automáticamente: un asesor debe autorizar
   // explícitamente la campaña de plantillas desde Oportunidades.
   const advisorDueAt = cuandoRevisaElAsesor({
-    ventanaCierra: schedule.windowClosesAt, ultimoMensajeDelCiclo, policy, now,
+    ventanaCierra: schedule.windowClosesAt, ultimoMensajeDelCiclo: ultimoMensajeDeLaConversacion, policy, now,
   });
   if (advisorDueAt) await insertJob({
     conversationId, cycle: conversation.current_cycle, type: "advisor_review", channel: "advisor",
