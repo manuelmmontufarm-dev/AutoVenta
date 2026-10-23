@@ -329,7 +329,7 @@ export function DelChatALaFacturaBloque({ c, estado, periodoTexto }: { c: Metric
       ]} />
       {!e.madura && (
         <Aviso>
-          Todavía madurando: hay chats de menos de 14 días{c.rezago.medianaDias != null ? ` y la mitad de las compras llega después de ${c.rezago.medianaDias} ${c.rezago.medianaDias === 1 ? "día" : "días"}` : ""}. «Compraron» va a crecer.
+          Todavía madurando: hay chats de menos de 14 días{c.rezago.medianaDias != null ? ` y la mitad de las compras llega después de ${dec(c.rezago.medianaDias)} ${c.rezago.medianaDias === 1 ? "día" : "días"}` : ""}. «Compraron» va a crecer.
         </Aviso>
       )}
       <Cifras>
