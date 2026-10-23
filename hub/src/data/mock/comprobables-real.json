@@ -1,0 +1,648 @@
+{
+  "_nota": "Salida real de resumenComprobables() leída de producción en solo lectura el 23-oct-2026 (Sprint 1). Sin teléfonos ni nombres: el contrato MetricasComprobables no los lleva. La usa el Sprint Final como mock del panel.",
+  "generado": "2026-10-23T15:25:49.149Z",
+  "todos": {
+    "disponible": true,
+    "ultimaSync": "2026-10-23T15:25:47.919Z",
+    "periodo": {
+      "clave": "todos",
+      "todos": true
+    },
+    "ventas": {
+      "n": 26,
+      "conIva": 14360.7,
+      "sinIva": 12487.55,
+      "rango": {
+        "bajo": 17,
+        "alto": 38.1
+      },
+      "grupos": {
+        "bot": {
+          "n": 20,
+          "conIva": 9254.27
+        },
+        "bot_y_asesor": {
+          "n": 4,
+          "conIva": 4005.49
+        },
+        "asesor": {
+          "n": 2,
+          "conIva": 1100.94
+        }
+      }
+    },
+    "participacion": {
+      "periodo": {
+        "llantasTienda": 174,
+        "delBot": 26,
+        "pct": 14.9
+      },
+      "semanas": [
+        {
+          "lunes": "2026-08-03",
+          "llantasTienda": 15,
+          "delBot": 2,
+          "chats": 367,
+          "chatsConAnuncio": 0,
+          "anuncios": "sin_dato"
+        },
+        {
+          "lunes": "2026-08-10",
+          "llantasTienda": 16,
+          "delBot": 4,
+          "chats": 362,
+          "chatsConAnuncio": 0,
+          "anuncios": "sin_dato"
+        },
+        {
+          "lunes": "2026-08-17",
+          "llantasTienda": 22,
+          "delBot": 2,
+          "chats": 330,
+          "chatsConAnuncio": 0,
+          "anuncios": "sin_dato"
+        },
+        {
+          "lunes": "2026-08-24",
+          "llantasTienda": 12,
+          "delBot": 2,
+          "chats": 291,
+          "chatsConAnuncio": 0,
+          "anuncios": "sin_dato"
+        },
+        {
+          "lunes": "2026-08-31",
+          "llantasTienda": 12,
+          "delBot": 0,
+          "chats": 295,
+          "chatsConAnuncio": 0,
+          "anuncios": "sin_dato"
+        },
+        {
+          "lunes": "2026-09-07",
+          "llantasTienda": 15,
+          "delBot": 1,
+          "chats": 272,
+          "chatsConAnuncio": 0,
+          "anuncios": "sin_dato"
+        },
+        {
+          "lunes": "2026-09-14",
+          "llantasTienda": 16,
+          "delBot": 2,
+          "chats": 193,
+          "chatsConAnuncio": 86,
+          "anuncios": "si"
+        },
+        {
+          "lunes": "2026-09-21",
+          "llantasTienda": 15,
+          "delBot": 1,
+          "chats": 168,
+          "chatsConAnuncio": 139,
+          "anuncios": "si"
+        },
+        {
+          "lunes": "2026-09-28",
+          "llantasTienda": 15,
+          "delBot": 2,
+          "chats": 112,
+          "chatsConAnuncio": 86,
+          "anuncios": "si"
+        },
+        {
+          "lunes": "2026-10-05",
+          "llantasTienda": 7,
+          "delBot": 0,
+          "chats": 6,
+          "chatsConAnuncio": 0,
+          "anuncios": "no"
+        },
+        {
+          "lunes": "2026-10-12",
+          "llantasTienda": 17,
+          "delBot": 6,
+          "chats": 404,
+          "chatsConAnuncio": 338,
+          "anuncios": "si"
+        },
+        {
+          "lunes": "2026-10-19",
+          "llantasTienda": 10,
+          "delBot": 4,
+          "chats": 250,
+          "chatsConAnuncio": 215,
+          "anuncios": "si"
+        }
+      ]
+    },
+    "embudo": {
+      "chats": 3055,
+      "conMedida": 2294,
+      "cotizados": 729,
+      "conDiaDeVisita": 159,
+      "compraron": 26,
+      "madura": false,
+      "porDia": {
+        "conDia": {
+          "chats": 159,
+          "compraron": 14
+        },
+        "sinDia": {
+          "chats": 2896,
+          "compraron": 12
+        }
+      }
+    },
+    "rezago": {
+      "n": 26,
+      "medianaDias": 4.5,
+      "acumulado": [
+        {
+          "dias": 1,
+          "pct": 38.5
+        },
+        {
+          "dias": 3,
+          "pct": 42.3
+        },
+        {
+          "dias": 7,
+          "pct": 61.5
+        },
+        {
+          "dias": 14,
+          "pct": 80.8
+        },
+        {
+          "dias": 30,
+          "pct": 84.6
+        },
+        {
+          "dias": 60,
+          "pct": 88.5
+        }
+      ],
+      "porLlegar": {
+        "esperado": 1.8,
+        "bajo": 0,
+        "alto": 5,
+        "chatsVivos": 1936
+      }
+    },
+    "cuando": {
+      "ventasTotales": 26,
+      "suficiente": false,
+      "escribenPorFranja": [
+        {
+          "franja": "madrugada",
+          "chats": 79,
+          "ventas": 0
+        },
+        {
+          "franja": "manana",
+          "chats": 688,
+          "ventas": 11
+        },
+        {
+          "franja": "mediodia",
+          "chats": 749,
+          "ventas": 8
+        },
+        {
+          "franja": "tarde",
+          "chats": 1001,
+          "ventas": 7
+        },
+        {
+          "franja": "noche",
+          "chats": 538,
+          "ventas": 0
+        }
+      ],
+      "escribenPorDia": [
+        {
+          "dia": 0,
+          "chats": 199,
+          "ventas": 2
+        },
+        {
+          "dia": 1,
+          "chats": 361,
+          "ventas": 5
+        },
+        {
+          "dia": 2,
+          "chats": 548,
+          "ventas": 8
+        },
+        {
+          "dia": 3,
+          "chats": 599,
+          "ventas": 4
+        },
+        {
+          "dia": 4,
+          "chats": 562,
+          "ventas": 5
+        },
+        {
+          "dia": 5,
+          "chats": 385,
+          "ventas": 2
+        },
+        {
+          "dia": 6,
+          "chats": 401,
+          "ventas": 0
+        }
+      ],
+      "facturanPorFranja": [
+        {
+          "franja": "madrugada",
+          "bot": 0,
+          "tienda": 0
+        },
+        {
+          "franja": "manana",
+          "bot": 2,
+          "tienda": 20
+        },
+        {
+          "franja": "mediodia",
+          "bot": 18,
+          "tienda": 79
+        },
+        {
+          "franja": "tarde",
+          "bot": 5,
+          "tienda": 72
+        },
+        {
+          "franja": "noche",
+          "bot": 1,
+          "tienda": 3
+        }
+      ],
+      "facturanPorDia": [
+        {
+          "dia": 0,
+          "bot": 0,
+          "tienda": 0
+        },
+        {
+          "dia": 1,
+          "bot": 4,
+          "tienda": 22
+        },
+        {
+          "dia": 2,
+          "bot": 8,
+          "tienda": 31
+        },
+        {
+          "dia": 3,
+          "bot": 4,
+          "tienda": 27
+        },
+        {
+          "dia": 4,
+          "bot": 2,
+          "tienda": 38
+        },
+        {
+          "dia": 5,
+          "bot": 2,
+          "tienda": 22
+        },
+        {
+          "dia": 6,
+          "bot": 6,
+          "tienda": 34
+        }
+      ]
+    }
+  },
+  "octubre": {
+    "disponible": true,
+    "ultimaSync": "2026-10-23T15:25:47.919Z",
+    "periodo": {
+      "clave": "2026-10",
+      "todos": false
+    },
+    "ventas": {
+      "n": 11,
+      "conIva": 6001.57,
+      "sinIva": 5218.74,
+      "rango": {
+        "bajo": 5.5,
+        "alto": 19.7
+      },
+      "grupos": {
+        "bot": {
+          "n": 8,
+          "conIva": 3778.89
+        },
+        "bot_y_asesor": {
+          "n": 2,
+          "conIva": 1429.41
+        },
+        "asesor": {
+          "n": 1,
+          "conIva": 793.27
+        }
+      }
+    },
+    "participacion": {
+      "periodo": {
+        "llantasTienda": 39,
+        "delBot": 11,
+        "pct": 28.2
+      },
+      "semanas": [
+        {
+          "lunes": "2026-08-03",
+          "llantasTienda": 15,
+          "delBot": 2,
+          "chats": 367,
+          "chatsConAnuncio": 0,
+          "anuncios": "sin_dato"
+        },
+        {
+          "lunes": "2026-08-10",
+          "llantasTienda": 16,
+          "delBot": 4,
+          "chats": 362,
+          "chatsConAnuncio": 0,
+          "anuncios": "sin_dato"
+        },
+        {
+          "lunes": "2026-08-17",
+          "llantasTienda": 22,
+          "delBot": 2,
+          "chats": 330,
+          "chatsConAnuncio": 0,
+          "anuncios": "sin_dato"
+        },
+        {
+          "lunes": "2026-08-24",
+          "llantasTienda": 12,
+          "delBot": 2,
+          "chats": 291,
+          "chatsConAnuncio": 0,
+          "anuncios": "sin_dato"
+        },
+        {
+          "lunes": "2026-08-31",
+          "llantasTienda": 12,
+          "delBot": 0,
+          "chats": 295,
+          "chatsConAnuncio": 0,
+          "anuncios": "sin_dato"
+        },
+        {
+          "lunes": "2026-09-07",
+          "llantasTienda": 15,
+          "delBot": 1,
+          "chats": 272,
+          "chatsConAnuncio": 0,
+          "anuncios": "sin_dato"
+        },
+        {
+          "lunes": "2026-09-14",
+          "llantasTienda": 16,
+          "delBot": 2,
+          "chats": 193,
+          "chatsConAnuncio": 86,
+          "anuncios": "si"
+        },
+        {
+          "lunes": "2026-09-21",
+          "llantasTienda": 15,
+          "delBot": 1,
+          "chats": 168,
+          "chatsConAnuncio": 139,
+          "anuncios": "si"
+        },
+        {
+          "lunes": "2026-09-28",
+          "llantasTienda": 15,
+          "delBot": 2,
+          "chats": 112,
+          "chatsConAnuncio": 86,
+          "anuncios": "si"
+        },
+        {
+          "lunes": "2026-10-05",
+          "llantasTienda": 7,
+          "delBot": 0,
+          "chats": 6,
+          "chatsConAnuncio": 0,
+          "anuncios": "no"
+        },
+        {
+          "lunes": "2026-10-12",
+          "llantasTienda": 17,
+          "delBot": 6,
+          "chats": 404,
+          "chatsConAnuncio": 338,
+          "anuncios": "si"
+        },
+        {
+          "lunes": "2026-10-19",
+          "llantasTienda": 10,
+          "delBot": 4,
+          "chats": 250,
+          "chatsConAnuncio": 215,
+          "anuncios": "si"
+        }
+      ]
+    },
+    "embudo": {
+      "chats": 661,
+      "conMedida": 531,
+      "cotizados": 177,
+      "conDiaDeVisita": 47,
+      "compraron": 6,
+      "madura": false,
+      "porDia": {
+        "conDia": {
+          "chats": 47,
+          "compraron": 6
+        },
+        "sinDia": {
+          "chats": 614,
+          "compraron": 0
+        }
+      }
+    },
+    "rezago": {
+      "n": 26,
+      "medianaDias": 4.5,
+      "acumulado": [
+        {
+          "dias": 1,
+          "pct": 38.5
+        },
+        {
+          "dias": 3,
+          "pct": 42.3
+        },
+        {
+          "dias": 7,
+          "pct": 61.5
+        },
+        {
+          "dias": 14,
+          "pct": 80.8
+        },
+        {
+          "dias": 30,
+          "pct": 84.6
+        },
+        {
+          "dias": 60,
+          "pct": 88.5
+        }
+      ],
+      "porLlegar": {
+        "esperado": 1.8,
+        "bajo": 0,
+        "alto": 5,
+        "chatsVivos": 1936
+      }
+    },
+    "cuando": {
+      "ventasTotales": 26,
+      "suficiente": false,
+      "escribenPorFranja": [
+        {
+          "franja": "madrugada",
+          "chats": 79,
+          "ventas": 0
+        },
+        {
+          "franja": "manana",
+          "chats": 688,
+          "ventas": 11
+        },
+        {
+          "franja": "mediodia",
+          "chats": 749,
+          "ventas": 8
+        },
+        {
+          "franja": "tarde",
+          "chats": 1001,
+          "ventas": 7
+        },
+        {
+          "franja": "noche",
+          "chats": 538,
+          "ventas": 0
+        }
+      ],
+      "escribenPorDia": [
+        {
+          "dia": 0,
+          "chats": 199,
+          "ventas": 2
+        },
+        {
+          "dia": 1,
+          "chats": 361,
+          "ventas": 5
+        },
+        {
+          "dia": 2,
+          "chats": 548,
+          "ventas": 8
+        },
+        {
+          "dia": 3,
+          "chats": 599,
+          "ventas": 4
+        },
+        {
+          "dia": 4,
+          "chats": 562,
+          "ventas": 5
+        },
+        {
+          "dia": 5,
+          "chats": 385,
+          "ventas": 2
+        },
+        {
+          "dia": 6,
+          "chats": 401,
+          "ventas": 0
+        }
+      ],
+      "facturanPorFranja": [
+        {
+          "franja": "madrugada",
+          "bot": 0,
+          "tienda": 0
+        },
+        {
+          "franja": "manana",
+          "bot": 2,
+          "tienda": 20
+        },
+        {
+          "franja": "mediodia",
+          "bot": 18,
+          "tienda": 79
+        },
+        {
+          "franja": "tarde",
+          "bot": 5,
+          "tienda": 72
+        },
+        {
+          "franja": "noche",
+          "bot": 1,
+          "tienda": 3
+        }
+      ],
+      "facturanPorDia": [
+        {
+          "dia": 0,
+          "bot": 0,
+          "tienda": 0
+        },
+        {
+          "dia": 1,
+          "bot": 4,
+          "tienda": 22
+        },
+        {
+          "dia": 2,
+          "bot": 8,
+          "tienda": 31
+        },
+        {
+          "dia": 3,
+          "bot": 4,
+          "tienda": 27
+        },
+        {
+          "dia": 4,
+          "bot": 2,
+          "tienda": 38
+        },
+        {
+          "dia": 5,
+          "bot": 2,
+          "tienda": 22
+        },
+        {
+          "dia": 6,
+          "bot": 6,
+          "tienda": 34
+        }
+      ]
+    }
+  }
+}

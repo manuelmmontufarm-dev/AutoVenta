@@ -630,7 +630,9 @@ export async function armarContexto(
     hechos?.vehicle ? `Vehículo: ${hechos.vehicle}` : null,
     // El anuncio y la clase de vehículo son HECHOS: sin ellos el revisor aprobó
     // llantas de sedán para una «camioneta 4x4» (convs 20211 y 20209, 14-sep).
-    anuncio ? `Anuncio por el que llegó: «${[anuncio.titulo, anuncio.texto].filter(Boolean).join(" — ")}»` : null,
+    // Un anuncio que solo trae el id (sin título ni texto) no dice nada del
+    // producto: no se le pone una línea vacía al revisor.
+    anuncio && (anuncio.titulo || anuncio.texto) ? `Anuncio por el que llegó: «${[anuncio.titulo, anuncio.texto].filter(Boolean).join(" — ")}»` : null,
     // ...salvo que el cliente haya ESCRITO su medida (conv 12625, 22-sep): con
     // «195/55R16» escrita dos veces, este hecho —sacado del anuncio— hizo que
     // el revisor le dijera cuatro veces «usted llegó por llanta de camioneta y

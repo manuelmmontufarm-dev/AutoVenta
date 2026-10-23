@@ -1,3 +1,4 @@
+import real from "./comprobables-real.json";
 import {
   IVA,
   LOCALES,
@@ -566,7 +567,11 @@ const CUANDO_DEMO: MetricasComprobables["cuando"] = {
 
 /** `metrics.comprobables` del demo para el período elegido («todos» o "YYYY-MM"). */
 export function comprobablesDemo(clave: string, todos: boolean): MetricasComprobables {
-  const p = todos ? COMPROBABLES_TODOS : COMPROBABLES_POR_MES[clave] ?? COMPROBABLES_VACIO;
+  // TEMPORAL (Sprint Final, R-11): números reales de producción del 23-oct para revisar capturas. Se revierte antes del merge.
+  const r = real as unknown as { todos: MetricasComprobables; octubre: MetricasComprobables };
+  if (todos) return { ...r.todos, ultimaSync: new Date().toISOString() };
+  if (clave === "2026-10") return { ...r.octubre, ultimaSync: new Date().toISOString() };
+  const p = COMPROBABLES_POR_MES[clave] ?? COMPROBABLES_VACIO;
   return {
     disponible: true,
     ultimaSync: new Date(Date.now() - 4 * 60_000).toISOString(),
