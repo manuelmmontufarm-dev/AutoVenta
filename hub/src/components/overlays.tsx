@@ -1,5 +1,6 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useMemo } from "react";
+import { IconX } from "./icons";
 import { navigate } from "../router";
 import { useHub, type Toast } from "../store";
 
@@ -14,26 +15,41 @@ function ToastCard({ toast }: { toast: Toast }) {
   }, [toast.id, quitar]);
 
   return (
-    <motion.button
+    <motion.div
       layout
       initial={{ opacity: 0, x: 90, scale: 0.9 }}
       animate={{ opacity: 1, x: 0, scale: 1 }}
       exit={{ opacity: 0, x: 60, scale: 0.92 }}
       transition={{ type: "spring", stiffness: 420, damping: 32 }}
-      onClick={() => {
-        if (toast.ticketId) navigate(`ticket/${toast.ticketId}`);
-        quitar(toast.id);
-      }}
-      className="border border-line bg-surface shadow-pop pointer-events-auto flex w-80 items-start gap-3 rounded-[8px] p-3.5 text-left shadow-pop"
+      className="border border-line bg-surface shadow-pop pointer-events-auto flex w-80 items-start gap-3 rounded-[8px] p-3.5 text-left"
     >
-      <span className="grid h-9 w-9 shrink-0 place-items-center rounded-[6px] text-[15px]" style={{ background: "color-mix(in srgb, var(--color-text) 7%, transparent)" }}>
-        {toast.icono}
-      </span>
-      <span className="min-w-0">
-        <span className="block truncate text-[13px] font-semibold text-text">{toast.titulo}</span>
-        {toast.cuerpo && <span className="mt-0.5 block truncate text-[13px] text-text2">{toast.cuerpo}</span>}
-      </span>
-    </motion.button>
+      {/* La tarjeta entera abre el ticket; la X solo la cierra (Manuel, 23-oct:
+          «que tengan un botón de x»). Dos botones hermanos, no uno anidado. */}
+      <button
+        type="button"
+        onClick={() => {
+          if (toast.ticketId) navigate(`ticket/${toast.ticketId}`);
+          quitar(toast.id);
+        }}
+        className="flex min-w-0 flex-1 items-start gap-3 text-left"
+      >
+        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-[6px] text-[15px]" style={{ background: "color-mix(in srgb, var(--color-text) 7%, transparent)" }}>
+          {toast.icono}
+        </span>
+        <span className="min-w-0">
+          <span className="block truncate text-[13px] font-semibold text-text">{toast.titulo}</span>
+          {toast.cuerpo && <span className="mt-0.5 block truncate text-[13px] text-text2">{toast.cuerpo}</span>}
+        </span>
+      </button>
+      <button
+        type="button"
+        aria-label="Cerrar notificación"
+        onClick={() => quitar(toast.id)}
+        className="-mt-1 -mr-1 grid h-7 w-7 shrink-0 place-items-center rounded-[6px] text-text2 hover:bg-bg hover:text-text"
+      >
+        <IconX className="h-4 w-4" />
+      </button>
+    </motion.div>
   );
 }
 

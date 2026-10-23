@@ -1,3 +1,14 @@
+## 23-oct-2026 · Las notificaciones del hub tienen botón de cerrar
+
+**Qué:** `hub/src/components/overlays.tsx`: la tarjeta del toast deja de ser un solo
+botón y pasa a dos hermanos: el cuerpo abre el ticket (como antes) y una X con
+`aria-label` la cierra sin navegar. Build del panel commiteado.
+
+**Por qué:** pedido de Manuel: «que estas notificaciones tengan un botón de x». Antes
+solo se iban solas a los 5 s o al tocarlas, y tocarlas abría el ticket.
+
+**Horas:** 0,25
+
 ## 23-oct-2026 · Métricas comprobables en producción (Sprint Final)
 
 **Qué:** (rama `release/metricas-comprobables` → `main`) Integra PR #17 (servidor:
