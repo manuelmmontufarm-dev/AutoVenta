@@ -84,6 +84,24 @@ chats y 0 ventas; con día 14 de 159 vs sin día 12 de 2.896; ≤ 7 días 61,5 %
 Sin `source_id` no hay cómo separar un anuncio de otro (el título es «Depot Tire»).
 
 **Horas:** 3
+## 23-oct-2026 · Plan: métricas comprobables (dos sprints paralelos + sprint final)
+
+**Qué:** `docs/planning/PLAN-METRICAS-COMPROBABLES-MASTER-PROMPT.md`. S1 (servidor)
+calcula `metrics.comprobables`: ventas comprobadas con atribución en tres grupos,
+sin IVA y rango de Poisson; parte del bot en las llantas de la tienda por semana
+con anuncios sí/no (sale de `messages.metadata.anuncio`); embudo hasta la factura;
+rezago chat → factura y ventas por llegar; cuándo escriben y cuándo se factura.
+Además guarda `source_id`/`ctwa_clid` del anuncio. S2 (panel) muestra los cinco
+bloques y quita lo que dependía de marcar «ganado» a mano. El Sprint Final los
+prueba juntos con los números reales de producción antes de publicar.
+
+**Por qué:** desde que Depot exige el teléfono de WhatsApp en la factura, el cruce
+con Contífico es la única venta comprobable; Métricas seguía mostrando el Kanban
+manual (infla 5,6×). Control medido el 23-oct: 26 ventas desde el 31-jul, el bot
+= 14,9 % de las facturas de llantas, chats de noche 0 ventas, día acordado 8,9 %
+vs 0,4 %.
+
+**Horas:** 1,5 (investigación y plan)
 
 ## 21-oct-2026 · Cierre de la auditoría del 19-oct: siete familias, cinco sprints, revisión final
 
