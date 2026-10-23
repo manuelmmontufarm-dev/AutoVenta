@@ -1,3 +1,27 @@
+## 23-oct-2026 · Métricas en dos secciones: General y Ventas (Sprint 2, cambio de Manuel)
+
+**Qué:** (rama `feat/metricas-comprobables-pantalla`, sobre la entrada de abajo)
+- La misma pantalla, dos secciones con su título y dos saltos arriba
+  («General», «Ventas»; desplazan el contenedor, no tocan la ruta `#/dashboard`).
+- General: KPIs Conversaciones · Cotizaciones · Con día de visita · Respuesta
+  del bot; Conversaciones por día; «Cuándo escriben» (chats por franja y por
+  día, ventas encima de cada barra, aviso de muestra chica); Plantillas (sin
+  «Ventas»), Estados de entrega, Inventario, Tokens y cuenta, Actividad.
+- Ventas: KPIs Ventas comprobadas (n · $) · Sin IVA · Parte de las llantas de
+  la tienda · Por llegar en 14 días (con rango); Ventas comprobadas, Parte de la
+  tienda por semana, Del chat a la factura, Cuánto tardan y «Cuándo se factura»
+  (bot vs tienda en % de su propio total).
+- Colores de la maqueta aprobada: rojo de señal = bot, gris cálido = tienda y
+  chats, raya verde = semana con anuncios. `BarrasDeParte` gana la cifra encima
+  y la raya bajo el eje; `BarrasPareadas` nuevo al final de `charts.tsx`.
+- Se va el bloque Dinero (En juego / Cotizado): la división aprobada no lo trae.
+
+**Por qué:** Manuel separó lo que mide la atención (todos los días, sin
+Contífico) de lo que mide la venta (solo facturas). El contrato de datos no
+cambia: el bloque 5 se parte en «escriben» (General) y «facturan» (Ventas).
+
+**Horas:** 1,5
+
 ## 23-oct-2026 · Métricas muestra solo números comprobables (pantalla, Sprint 2)
 
 **Qué:** (rama `feat/metricas-comprobables-pantalla`, plan

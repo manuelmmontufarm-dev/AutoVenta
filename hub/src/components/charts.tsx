@@ -169,23 +169,29 @@ export function FunnelChart({ pasos }: { pasos: FunnelPaso[] }) {
   );
 }
 
-/* ── Barras de parte: el total en tinta clara, la parte en tinta, y una tira de marcas ──
+/* ── Barras de parte: el total en gris cálido, la parte del bot en rojo de señal ──
    Para «cuántas de las facturas de la tienda son del bot»: la parte vive
-   DENTRO del total, así que se dibuja encima de él y no al lado. La tira de
-   arriba marca una condición de cada barra (p. ej. semana con anuncios): llena
-   = sí, contorno = no, sin marca = sin dato. */
+   DENTRO del total, así que se dibuja encima de él y no al lado. Opcional: una
+   cifra sobre cada barra (las ventas sobre la barra de chats) y una raya verde
+   bajo el eje para marcar una condición (semana con anuncios; «no» se escribe,
+   sin dato no lleva marca). Colores de la maqueta aprobada del 23-oct. */
+
+const GRIS_TIENDA = "#d9d6cf";
+const GRIS_TIENDA_TIP = "#c6c1b7";
 
 export interface PuntoDeParte {
   x: string;
   total: number;
-  parte: number;
+  parte?: number;
+  /** Texto sobre la barra (p. ej. «10 v»). */
+  encima?: string;
   marca?: "si" | "no" | "sin_dato";
   /** Lo que dice el cartel al pasar el cursor; por defecto «parte de total · x». */
   detalle?: string;
 }
 
 export function BarrasDeParte({
-  data, unidad, fmt = (v) => String(v), ancho = 560, alto = 220, cadaX, etiqueta, nombreMarca,
+  data, unidad, fmt = (v) => String(v), ancho = 560, alto = 220, cadaX, etiqueta,
 }: {
   data: PuntoDeParte[];
   unidad: string;
@@ -194,15 +200,15 @@ export function BarrasDeParte({
   alto?: number;
   cadaX?: number;
   etiqueta?: string;
-  /** Rótulo de la tira de marcas («anuncios»). Sin marcas en los datos, no hay tira. */
-  nombreMarca?: string;
 }) {
   const [tip, setTip] = useState<number | null>(null);
   const id = useId();
   if (data.length === 0) return <Vacio alto={alto} />;
-  const conMarcas = data.some((d) => d.marca);
-  const L = 48, R = 16, B = 34;
-  const T = conMarcas ? 40 : 22;
+  const conMarcas = data.some((d) => d.marca === "si" || d.marca === "no");
+  const conEncima = data.some((d) => d.encima);
+  const L = 48, R = 16;
+  const T = conEncima ? 34 : 22;
+  const B = conMarcas ? 48 : 34;
   const iw = ancho - L - R, ih = alto - T - B;
   const pasos = 4;
   const paso = escala(Math.max(0, ...data.map((d) => d.total)), pasos);
@@ -211,28 +217,83 @@ export function BarrasDeParte({
   const slot = iw / n;
   const x = (i: number) => L + slot * i + slot / 2;
   const cada = cadaX ?? (n > 8 ? 2 : 1);
-  const tiraY = 22;
   return (
     <svg viewBox={`0 0 ${ancho} ${alto}`} className="block w-full" style={{ overflow: "visible" }} role="img" aria-labelledby={`${id}-t`} onMouseLeave={() => setTip(null)}>
       <title id={`${id}-t`}>{etiqueta ?? `${unidad} por ${data.map((d) => d.x).join(", ")}`}</title>
       <Ejes L={L} T={T} iw={iw} ih={ih} pasos={pasos} paso={paso} unidad={unidad} fmt={fmt} />
-      {conMarcas && nombreMarca && (
-        <text x={L - 8} y={tiraY + 7} textAnchor="end" fontFamily={MONO} fontSize={10} fill="var(--color-text2)">{nombreMarca}</text>
-      )}
       {data.map((d, i) => (
         <g key={i} onMouseEnter={() => setTip(i)} onTouchStart={() => setTip(i)}>
           <rect x={x(i) - slot / 2} y={T} width={slot} height={ih} fill="transparent" />
-          {d.marca === "si" && <rect x={x(i) - slot * 0.3} y={tiraY} width={slot * 0.6} height={8} rx={1.5} fill="var(--color-warn)" />}
-          {d.marca === "no" && <rect x={x(i) - slot * 0.3 + 0.5} y={tiraY + 0.5} width={slot * 0.6 - 1} height={7} rx={1.5} fill="none" stroke="var(--color-line-strong)" />}
-          <rect x={x(i) - slot * 0.3} y={y(d.total)} width={slot * 0.6} height={Math.max(0, T + ih - y(d.total))} fill={tip === i ? "rgba(28,27,25,.24)" : "rgba(28,27,25,.14)"} />
-          <rect x={x(i) - slot * 0.3} y={y(d.parte)} width={slot * 0.6} height={Math.max(0, T + ih - y(d.parte))} fill={tip === i ? "var(--color-text)" : "rgba(28,27,25,.72)"} />
+          <rect x={x(i) - slot * 0.31} y={y(d.total)} width={slot * 0.62} height={Math.max(0, T + ih - y(d.total))} rx={2} fill={tip === i ? GRIS_TIENDA_TIP : GRIS_TIENDA} />
+          {(d.parte ?? 0) > 0 && (
+            <rect x={x(i) - slot * 0.31} y={y(d.parte ?? 0)} width={slot * 0.62} height={Math.max(0, T + ih - y(d.parte ?? 0))} rx={2} fill={tip === i ? "var(--color-reddark)" : "var(--color-signal)"} />
+          )}
+          {d.encima && (
+            <text x={x(i)} y={y(d.total) - 6} textAnchor="middle" fontFamily={MONO} fontSize={11} fontWeight={500} fill={d.encima === "0" ? "var(--color-text3)" : "var(--color-text)"}>{d.encima}</text>
+          )}
           {(i % cada === 0 || i === n - 1) && (
             <text x={x(i)} y={T + ih + 18} textAnchor="middle" fontFamily={MONO} fontSize={11} fill="var(--color-text2)">{d.x}</text>
           )}
+          {d.marca === "si" && <line x1={x(i) - slot / 2 + 3} x2={x(i) + slot / 2 - 3} y1={T + ih + 30} y2={T + ih + 30} stroke="var(--color-ok)" strokeWidth={3} />}
+          {d.marca === "no" && <text x={x(i)} y={T + ih + 34} textAnchor="middle" fontFamily={MONO} fontSize={9} fill="var(--color-text3)">sin ads</text>}
         </g>
       ))}
       {tip !== null && (
-        <Tooltip x={x(tip)} y={y(data[tip].total)} texto={data[tip].detalle ?? `${fmt(data[tip].parte)} de ${fmt(data[tip].total)} ${unidad} · ${data[tip].x}`} L={L} iw={iw} />
+        <Tooltip x={x(tip)} y={y(data[tip].total)} texto={data[tip].detalle ?? `${fmt(data[tip].parte ?? 0)} de ${fmt(data[tip].total)} ${unidad} · ${data[tip].x}`} L={L} iw={iw} />
+      )}
+    </svg>
+  );
+}
+
+/* ── Barras pareadas: dos series lado a lado (bot en rojo, tienda en gris) ──
+   Para comparar repartos de tamaños muy distintos (26 facturas del bot contra
+   174 de la tienda): cada serie en % de su propio total, así se ve si el bot
+   factura a otras horas que la tienda. */
+
+export interface PuntoPareado {
+  x: string;
+  /** Primera serie (el bot). */
+  a: number;
+  /** Segunda serie (la tienda). */
+  b: number;
+  detalle?: string;
+}
+
+export function BarrasPareadas({
+  data, unidad, fmt = (v) => String(v), ancho = 560, alto = 200, etiqueta,
+}: {
+  data: PuntoPareado[];
+  unidad: string;
+  fmt?: (v: number) => string;
+  ancho?: number;
+  alto?: number;
+  etiqueta?: string;
+}) {
+  const [tip, setTip] = useState<number | null>(null);
+  const id = useId();
+  if (data.length === 0) return <Vacio alto={alto} />;
+  const L = 48, R = 16, T = 22, B = 34;
+  const iw = ancho - L - R, ih = alto - T - B;
+  const pasos = 4;
+  const paso = escala(Math.max(0, ...data.flatMap((d) => [d.a, d.b])), pasos);
+  const y = (v: number) => T + ih - (v / (paso * pasos)) * ih;
+  const slot = iw / data.length;
+  const x = (i: number) => L + slot * i + slot / 2;
+  const w = slot * 0.3;
+  return (
+    <svg viewBox={`0 0 ${ancho} ${alto}`} className="block w-full" style={{ overflow: "visible" }} role="img" aria-labelledby={`${id}-t`} onMouseLeave={() => setTip(null)}>
+      <title id={`${id}-t`}>{etiqueta ?? `${unidad} por ${data.map((d) => d.x).join(", ")}`}</title>
+      <Ejes L={L} T={T} iw={iw} ih={ih} pasos={pasos} paso={paso} unidad={unidad} fmt={fmt} />
+      {data.map((d, i) => (
+        <g key={i} onMouseEnter={() => setTip(i)} onTouchStart={() => setTip(i)}>
+          <rect x={x(i) - slot / 2} y={T} width={slot} height={ih} fill="transparent" />
+          <rect x={x(i) - w - 1} y={y(d.a)} width={w} height={Math.max(0, T + ih - y(d.a))} rx={2} fill={tip === i ? "var(--color-reddark)" : "var(--color-signal)"} />
+          <rect x={x(i) + 1} y={y(d.b)} width={w} height={Math.max(0, T + ih - y(d.b))} rx={2} fill={tip === i ? GRIS_TIENDA_TIP : GRIS_TIENDA} />
+          <text x={x(i)} y={T + ih + 18} textAnchor="middle" fontFamily={MONO} fontSize={11} fill="var(--color-text2)">{d.x}</text>
+        </g>
+      ))}
+      {tip !== null && (
+        <Tooltip x={x(tip)} y={y(Math.max(data[tip].a, data[tip].b))} texto={data[tip].detalle ?? `${fmt(data[tip].a)} · ${fmt(data[tip].b)} · ${data[tip].x}`} L={L} iw={iw} />
       )}
     </svg>
   );
