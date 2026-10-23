@@ -1,3 +1,25 @@
+## 23-oct-2026 · Métricas comprobables en producción (Sprint Final)
+
+**Qué:** (rama `release/metricas-comprobables` → `main`) Integra PR #17 (servidor:
+`metrics.comprobables`, `services/metricasComprobables.ts`, `domain/estadisticaVentas.ts`,
+anuncio con `source_id`/`ctwa_clid`) y PR #16 (panel en dos secciones, General y Ventas,
+sin nada que dependa del «ganado» manual). Revisión con dos lentes en paralelo: sin
+bloqueantes; arreglado en el release: un anuncio que solo trae el id no cambia lo que
+leen el vendedor ni el guardián; umbral del 30 % de anuncios en enteros (+ prueba del
+mínimo de 10); % de «Cuándo se factura» sobre el total de cada serie; tablet apila los
+gráficos; «Dinero cotizado» (En juego y Cotizado, que sí son hechos) vuelve a General.
+Probado con los números reales de producción cargados en el demo (capturas de escritorio y
+celular, sin scroll horizontal) y devuelto a su mock antes de publicar. Suite: 2.867 en verde.
+Plan corregido: R-01 grupo bot = 20 (regla «0 o 1 mensajes del asesor»), R-04 mediana 4,5.
+
+**Por qué:** desde que Depot exige el teléfono de WhatsApp en la factura, el cruce con
+Contífico es la única venta comprobable; Métricas seguía mostrando el Kanban manual.
+
+**Pendientes anotados:** prueba con base de datos de `leerChats`; normalizar el período en
+el camino de error de `/hub/metrics`; rellenar franjas/días en el panel si faltaran.
+
+**Horas:** 2,5 (coordinación, revisión, prueba real y publicación)
+
 ## 23-oct-2026 · Métricas en dos secciones: General y Ventas (Sprint 2, cambio de Manuel)
 
 **Qué:** (rama `feat/metricas-comprobables-pantalla`, sobre la entrada de abajo)
