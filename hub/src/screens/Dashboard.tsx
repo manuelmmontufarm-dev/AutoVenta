@@ -12,6 +12,7 @@ import { money, relTime } from "../lib/format";
 import { navigate } from "../router";
 import { mesEnCurso, useHub, useNow } from "../store";
 
+const usdCorto = (v: number) => (v >= 1000 ? `$${(v / 1000).toFixed(v >= 10_000 ? 0 : 1).replace(".", ",")}k` : `$${Math.round(v)}`);
 const mono = "tnum font-mono";
 const pct = (n: number) => `${Math.round(n)} %`;
 /** Dólares enteros para los KPIs: en una celda de celular «$11.774,00» no entra. */
@@ -111,6 +112,23 @@ export function Dashboard() {
               {cargando ? <Cargando /> : <LineChart data={porDia} unidad="conversaciones" etiqueta="Conversaciones por día" />}
             </Bloque>
             <CuandoEscribenBloque c={c} estado={estado} />
+            {/* Lo cotizado sí es un hecho (cada cotización queda guardada); lo
+                «vendido» del Kanban se marcaba a mano y ahora vive en Ventas. */}
+            <Bloque titulo="Dinero cotizado" nota={periodo.esElMesEnCurso ? "en juego y cotizado este mes" : `cotizado ${enElPeriodo}`}>
+              {cargando ? <Cargando /> : (
+                <BarChart
+                  ancho={420} alto={200} unidad="USD" fmt={usdCorto} etiqueta="Dinero en juego y cotizado"
+                  data={[
+                    ...(periodo.esElMesEnCurso ? [{ x: "En juego", y: s?.enJuego ?? 0 }] : []),
+                    { x: "Cotizado", y: s?.cotizado ?? 0 },
+                  ]}
+                />
+              )}
+              <Cifras>
+                {periodo.esElMesEnCurso && <Campo etiqueta="En juego"><span className={mono}>{guion(money(s?.enJuego ?? 0))}</span> <span className="text-text2">cotizaciones abiertas</span></Campo>}
+                <Campo etiqueta="Cotizado"><span className={mono}>{guion(money(s?.cotizado ?? 0))}</span> <span className="text-text2">suma de las cotizaciones enviadas</span></Campo>
+              </Cifras>
+            </Bloque>
           </div>
 
           <div className="grid gap-4 lg:grid-cols-3">

@@ -116,6 +116,20 @@ describe("participación por semana", () => {
     expect(porLunes["2026-10-05"]).toBe("si"); // 10 de 33 = 30,3 %
     expect(porLunes["2026-09-28"]).toBe("no"); // 10 de 34 = 29,4 %
   });
+
+  it("«no» con 9 chats con anuncio aunque sean el 90 %: el mínimo es 10", () => {
+    id = 300;
+    const chica = [
+      ...Array.from({ length: 9 }, () => chat({ dia: "2026-10-13", primerMensajeConAnuncio: true })),
+      chat({ dia: "2026-10-14" }),
+    ];
+    const r = armarComprobables({
+      periodo: { clave: "todos", todos: true }, hoy: HOY, disponible: true, ultimaSync: null,
+      facturas: [], ventas: [], chats: chica, primerDiaConAnuncio: "2026-09-19",
+    });
+    const porLunes = Object.fromEntries(r.participacion.semanas.map((s) => [s.lunes, s.anuncios]));
+    expect(porLunes["2026-10-12"]).toBe("no");
+  });
   it("sin ningún anuncio guardado en la base, todas sin dato", () => {
     const r = armar({ clave: "todos", todos: true }, { primerDiaConAnuncio: null });
     expect(new Set(r.participacion.semanas.map((s) => s.anuncios))).toEqual(new Set(["sin_dato"]));

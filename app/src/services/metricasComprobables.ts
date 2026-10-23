@@ -183,7 +183,7 @@ export function armarComprobables(o: {
     const anuncios: "si" | "no" | "sin_dato" =
       !o.primerDiaConAnuncio || sumarDias(lunes, 6) < o.primerDiaConAnuncio
         ? "sin_dato"
-        : chatsConAnuncio >= 10 && chatsConAnuncio >= 0.3 * chats.length ? "si" : "no";
+        : chatsConAnuncio >= 10 && 10 * chatsConAnuncio >= 3 * chats.length ? "si" : "no";
     return {
       lunes,
       llantasTienda: llantasTienda.filter((f) => deLaSemana(f.dia)).length,

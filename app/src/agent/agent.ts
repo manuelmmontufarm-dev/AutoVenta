@@ -624,7 +624,9 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
     // (30-ago). Ver domain/consultaConRespaldo.ts.
     ...((marcaDelTurno) ? [{ role: "system" as const, content: ordenDeNombrarLaMarca(marcaDelTurno) }] : []),
     ...(hechoDeMarca ? [{ role: "system" as const, content: hechoDeMarca }] : []),
-    ...(anuncioDelChat ? [{ role: "system" as const, content: hechoDelAnuncio(anuncioDelChat) }] : []),
+    // Un anuncio que solo trae el id (sin título ni texto) no le dice nada al
+    // vendedor: no se le manda el hecho, igual que antes de guardar el id.
+    ...(anuncioDelChat && (anuncioDelChat.titulo || anuncioDelChat.texto) ? [{ role: "system" as const, content: hechoDelAnuncio(anuncioDelChat) }] : []),
     ...(hechoDeMedidaInferida ? [{ role: "system" as const, content: hechoDeMedidaInferida }] : []),
     ...(hechoDeMediaMedida ? [{ role: "system" as const, content: `MEDIA MEDIDA SOBRE LA MESA. ${hechoDeMediaMedida}` }] : []),
     ...(aroDelTurno ? [{ role: "system" as const, content: ordenDeMostrarPorAro(aroDelTurno) }] : []),

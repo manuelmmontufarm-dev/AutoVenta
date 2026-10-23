@@ -443,14 +443,17 @@ export function CuandoSeFacturaBloque({ c, estado }: { c: MetricasComprobables |
     return <Bloque titulo="Cuándo se factura" nota="hora de Guayaquil"><SinDatos estado={estado} /></Bloque>;
   }
   const k = c.cuando;
-  const botTotal = k.facturanPorFranja.reduce((t, f) => t + f.bot, 0);
+  // El bot se mide sobre sus ventas (el contrato trae el total); la tienda, sobre
+  // la serie de cada gráfico, por si una factura sin hora cae en una y no en otra.
+  const botTotal = k.ventasTotales;
   const tiendaTotal = k.facturanPorFranja.reduce((t, f) => t + f.tienda, 0);
+  const tiendaDia = k.facturanPorDia.reduce((t, d) => t + d.tienda, 0);
   const p = (n: number, t: number) => (t > 0 ? Math.round((n / t) * 1000) / 10 : 0);
   const picoBot = k.facturanPorFranja.reduce<(typeof k.facturanPorFranja)[number] | null>((m, f) => (f.bot > (m?.bot ?? 0) ? f : m), null);
   const fmtPct = (v: number) => `${Math.round(v)} %`;
   return (
     <Bloque titulo="Cuándo se factura" nota={avisoMuestra(k) ?? `todo el histórico · ${ventasN(k.ventasTotales)}`}>
-      <div className="grid gap-x-6 gap-y-4 sm:grid-cols-2">
+      <div className="grid gap-x-6 gap-y-4 lg:grid-cols-2">
         <div className="flex min-w-0 flex-col gap-1.5">
           <h3 className="text-[13px] font-medium">Por franja <span className="font-normal text-text2">· % de facturas con llantas</span></h3>
           <BarrasPareadas
@@ -466,8 +469,8 @@ export function CuandoSeFacturaBloque({ c, estado }: { c: MetricasComprobables |
           <BarrasPareadas
             unidad="% de facturas" fmt={fmtPct} etiqueta="Facturas por día de la semana: porcentaje del bot contra porcentaje de la tienda"
             data={porDiaLunADom(k.facturanPorDia).map((d) => ({
-              x: DIA_CORTO[d.dia], a: p(d.bot, botTotal), b: p(d.tienda, tiendaTotal),
-              detalle: `bot ${d.bot} de ${botTotal} · tienda ${d.tienda} de ${tiendaTotal}`,
+              x: DIA_CORTO[d.dia], a: p(d.bot, botTotal), b: p(d.tienda, tiendaDia),
+              detalle: `bot ${d.bot} de ${botTotal} · tienda ${d.tienda} de ${tiendaDia}`,
             }))}
           />
         </div>
