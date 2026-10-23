@@ -65,6 +65,7 @@ import { getFinalStageArrivals, getHubFeed, getHubMessages, getHubMetrics, getHu
 import { mesesConDatos } from "../services/periodoMensual.js";
 import { getEchoHealth } from "../services/echoHealth.js";
 import { resumenVentasConfirmadas } from "../services/ventasConfirmadas.js";
+import { comprobablesVacios, resumenComprobables } from "../services/metricasComprobables.js";
 import { marcarPagado, resumenBilling } from "../services/billing.js";
 import { buildDailyReport } from "../services/dailyReport.js";
 import { enviarReporteDiario } from "../services/dailyReportDelivery.js";
@@ -672,12 +673,19 @@ export function createAdminRouter(): express.Router {
     // Métricas esperaba la suma de ambas (Manuel, 25-sep: «se demora mucho»).
     // Las ventas confirmadas leen facturas ya bajadas en memoria: si Contífico
     // falla, la tarjeta dice por qué y el resto de Métricas sigue igual.
-    const [hub, followUps, ventasConfirmadas] = await Promise.all([
+    // Los números comprobables (facturas de Contífico, mensajes y hechos
+    // guardados) van en paralelo y con su propio `.catch`: si fallan, el
+    // panel dice «sin Contífico» en esos bloques y no inventa nada.
+    const [hub, followUps, ventasConfirmadas, comprobables] = await Promise.all([
       getHubMetrics(mes),
       getFollowUpMetrics(mes),
       resumenVentasConfirmadas(mes).catch((error) => ({ disponible: false, error: mensaje(error, "No se pudo cruzar") })),
+      resumenComprobables(mes).catch((error) => {
+        console.error("⚠️  Métricas comprobables:", mensaje(error, "no se pudieron armar"));
+        return comprobablesVacios({ clave: mes ?? "", todos: mes === "todos" });
+      }),
     ]);
-    const metrics = { ...hub, inventory: catalogInventoryMetrics(), followUps, ventasConfirmadas };
+    const metrics = { ...hub, inventory: catalogInventoryMetrics(), followUps, ventasConfirmadas, comprobables };
     if (cerrado) metricasDeMesCerrado.set(cerrado, { at: Date.now(), metrics });
     res.json({ ok: true, metrics });
   });

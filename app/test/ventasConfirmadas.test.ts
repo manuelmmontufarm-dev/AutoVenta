@@ -151,3 +151,50 @@ describe("hasta qué página leer Contífico", () => {
     expect(paginaEnteraAnterior([null, null], desde)).toBe(false);
   });
 });
+
+describe("lo que agrega Métricas comprobables (aditivo)", () => {
+  it("la factura guarda la hora de emisión y el subtotal sin IVA de Contífico", () => {
+    const f = normalizarFactura({
+      tipo_documento: "FAC", anulado: false, documento: "002-001-000123456", fecha_emision: "22/10/2026",
+      hora_emision: "12:17:49", subtotal: "102.200000", iva: "15.330000", total: "117.530000",
+      cliente: { telefonos: "0987109790" }, detalles: [{ producto_nombre: LLANTA_KENDA, cantidad: "1", precio: "102.2" }],
+    })!;
+    expect(f.hora).toBe(12);
+    expect(f.subtotal).toBeCloseTo(102.2);
+    expect(f.total).toBeCloseTo(117.53);
+  });
+
+  it("sin subtotal, sin IVA = total − iva; sin hora legible, null", () => {
+    const f = normalizarFactura({
+      tipo_documento: "FAC", anulado: false, documento: "002-001-000123457", fecha_emision: "22/10/2026",
+      hora_emision: "", total: "115", iva: "15", cliente: { telefonos: "0987109790" }, detalles: [],
+    })!;
+    expect(f.hora).toBeNull();
+    expect(f.subtotal).toBe(100);
+  });
+
+  it("la venta trae sin IVA de las MISMAS facturas, el grupo, los mensajes y el día del chat", () => {
+    const f1 = normalizarFactura({
+      tipo_documento: "FAC", anulado: false, documento: "002-001-000200001", fecha_emision: "26/08/2026",
+      hora_emision: "11:05:00", subtotal: "400", total: "460", cliente: { telefonos: "0991234567" },
+      detalles: [{ producto_nombre: LLANTA_KENDA, cantidad: "4", precio: "100" }],
+    })!;
+    const f2 = normalizarFactura({
+      tipo_documento: "FAC", anulado: false, documento: "002-001-000200002", fecha_emision: "27/08/2026",
+      hora_emision: "09:00:00", subtotal: "20", total: "23", cliente: { telefonos: "0991234567" },
+      detalles: [{ producto_nombre: "MANO DE OBRA", cantidad: "1", precio: "20" }],
+    })!;
+    const { ventas } = cruzar([f1, f2], [conv({ phone: "593991234567", primerDia: "2026-08-21", mensajesBot: 10, mensajesAsesor: 3 })]);
+    expect(ventas[0]).toMatchObject({
+      total: 483, sinIva: 420, dia: "2026-08-26", hora: 11, grupo: "bot_y_asesor",
+      atendio: "bot", mensajesAsesor: 3, mensajesBot: 10, primerDia: "2026-08-21",
+    });
+    expect(ventas[0].sinIva).toBeLessThanOrEqual(ventas[0].total);
+  });
+
+  it("un asesor que escribió una vez no le quita la venta al bot; uno que escribió más que el bot, sí", () => {
+    const f = factura({ telefonos: "0990000001", fecha: "20/09/2026", total: 400, lineas: [[LLANTA_KENDA, 4, 100]] });
+    expect(cruzar([f], [conv({ phone: "593990000001", mensajesAsesor: 1, mensajesBot: 0 })]).ventas[0].grupo).toBe("bot");
+    expect(cruzar([f], [conv({ phone: "593990000001", mensajesAsesor: 9, mensajesBot: 4 })]).ventas[0].grupo).toBe("asesor");
+  });
+});

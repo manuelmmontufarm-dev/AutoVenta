@@ -28,6 +28,7 @@
 import { sql } from "../db/client.js";
 import { config } from "../config.js";
 import { resolverPeriodo } from "./periodoMensual.js";
+import { grupoDeAtencion, type GrupoAtencion } from "../domain/estadisticaVentas.js";
 
 const CADA_MS = 10 * 60_000;
 const MAX_PAGINAS = 25;
@@ -40,7 +41,11 @@ export interface FacturaContifico {
   documento: string;
   /** "YYYY-MM-DD", día de emisión. */
   dia: string;
+  /** Hora (0–23) de `hora_emision`, la del local. Null si Contífico no la trae. */
+  hora: number | null;
   total: number;
+  /** Sin IVA: el `subtotal` de Contífico. Si no viene, `total − iva`. */
+  subtotal: number;
   cliente: string;
   telefonos: string[];
   llantas: Array<{ nombre: string; cantidad: number; precio: number }>;
@@ -71,10 +76,20 @@ export interface VentaConfirmada {
   cliente: string;
   facturas: Array<{ documento: string; dia: string; total: number; local: string }>;
   total: number;
+  /** Suma de `subtotal` de las mismas facturas que `total`. */
+  sinIva: number;
   /** Día de la primera factura con llantas: con esto se reparte por mes. */
   dia: string;
+  /** Hora de emisión de esa primera factura con llantas (0–23), si Contífico la trae. */
+  hora: number | null;
   llantas: string;
   atendio: "bot" | "asesor";
+  /** Más fino que `atendio`: ver `grupoDeAtencion`. Es el que usa Métricas comprobables. */
+  grupo: GrupoAtencion;
+  mensajesAsesor: number;
+  mensajesBot: number;
+  /** Día del primer contacto del chat: con `dia`, el rezago chat → factura. */
+  primerDia: string;
   cotizado: boolean;
 }
 
@@ -101,12 +116,22 @@ function diaDeContifico(s: unknown): string | null {
   return m ? `${m[3]}-${m[2]}-${m[1]}` : null;
 }
 
+/** "16:33:49" → 16. */
+function horaDeContifico(s: unknown): number | null {
+  const m = /^(\d{1,2}):\d{2}/.exec(String(s ?? "").trim());
+  const h = m ? Number(m[1]) : NaN;
+  return h >= 0 && h <= 23 ? h : null;
+}
+
 interface DocumentoWire {
   tipo_documento?: string;
   anulado?: boolean;
   documento?: string;
   fecha_emision?: string;
+  hora_emision?: string | null;
   total?: string | number;
+  subtotal?: string | number | null;
+  iva?: string | number | null;
   cliente?: { razon_social?: string | null; telefonos?: string | null } | null;
   detalles?: Array<{
     producto_nombre?: string | null;
@@ -121,10 +146,14 @@ export function normalizarFactura(doc: DocumentoWire): FacturaContifico | null {
   const dia = diaDeContifico(doc.fecha_emision);
   if (!dia || !doc.documento) return null;
   const telefonos = [...new Set(String(doc.cliente?.telefonos ?? "").split(/[^\d]+/).map(tel9).filter((t): t is string => Boolean(t)))];
+  const total = Number(doc.total) || 0;
+  const subtotal = doc.subtotal != null && doc.subtotal !== "" ? Number(doc.subtotal) || 0 : total - (Number(doc.iva) || 0);
   return {
     documento: doc.documento,
     dia,
-    total: Number(doc.total) || 0,
+    hora: horaDeContifico(doc.hora_emision),
+    total,
+    subtotal,
     cliente: (doc.cliente?.razon_social ?? "").trim(),
     telefonos,
     llantas: (doc.detalles ?? [])
@@ -143,6 +172,9 @@ export function normalizarFactura(doc: DocumentoWire): FacturaContifico | null {
  * El cruce en sí, sin base ni red: facturas y conversaciones entran, ventas y
  * descartes salen. Separado para poder probar cada regla con los casos reales.
  */
+/** Una factura de llantas de verdad: al menos una llanta cobrada a precio de venta. */
+export const tieneLlantaDeVenta = (f: Pick<FacturaContifico, "llantas">) => f.llantas.some((l) => l.precio >= PRECIO_MINIMO_LLANTA);
+
 export function cruzar(facturas: FacturaContifico[], conversaciones: ConversacionParaCruce[]) {
   const porTelefono = new Map<string, FacturaContifico[]>();
   for (const f of facturas) for (const t of f.telefonos) {
@@ -164,7 +196,7 @@ export function cruzar(facturas: FacturaContifico[], conversaciones: Conversacio
       descartes.push({ ...base, cliente: ultima.cliente, total: ultima.total, dia: ultima.dia, motivo: "antes_del_chat" });
       continue;
     }
-    const conLlantas = despues.filter((f) => f.llantas.some((l) => l.precio >= PRECIO_MINIMO_LLANTA));
+    const conLlantas = despues.filter(tieneLlantaDeVenta);
     const suma = despues.reduce((a, f) => a + f.total, 0);
     if (!conLlantas.length) {
       descartes.push({ ...base, cliente: despues[0].cliente, total: suma, dia: despues[0].dia, motivo: "sin_llantas" });
@@ -181,9 +213,15 @@ export function cruzar(facturas: FacturaContifico[], conversaciones: Conversacio
       cliente: conLlantas[0].cliente,
       facturas: despues.map((f) => ({ documento: f.documento, dia: f.dia, total: f.total, local: local(f.documento) })),
       total: Math.round(suma * 100) / 100,
+      sinIva: Math.round(despues.reduce((a, f) => a + (f.subtotal ?? f.total), 0) * 100) / 100,
       dia: conLlantas[0].dia,
+      hora: conLlantas[0].hora ?? null,
       llantas: conLlantas.flatMap((f) => f.llantas).map((l) => `${l.cantidad} × ${l.nombre}`).join(" · "),
       atendio: c.mensajesAsesor > c.mensajesBot ? "asesor" : "bot",
+      grupo: grupoDeAtencion(c.mensajesAsesor, c.mensajesBot),
+      mensajesAsesor: c.mensajesAsesor,
+      mensajesBot: c.mensajesBot,
+      primerDia: c.primerDia,
       cotizado: c.cotizaciones > 0,
     });
   }
@@ -284,6 +322,10 @@ export async function sincronizarFacturas(): Promise<void> {
   return estado.enCurso;
 }
 
+/** Las facturas de la última bajada (desde el primer chat del bot), para Métricas comprobables. */
+export const facturasLeidas = (): readonly FacturaContifico[] => estado.facturas;
+export const ultimaSyncFacturas = (): Date | null => estado.ultimaSync;
+
 let timer: NodeJS.Timeout | null = null;
 export function startVentasConfirmadasSync() {
   if (!config.contifico || timer) return;
@@ -320,7 +362,7 @@ async function conversacionesDe(telefonos: string[]): Promise<ConversacionParaCr
  * mensajes del asesor y cambiar a quién se atribuye).
  */
 let cruceGuardado: { at: number; sync: Date | null; resultado: ReturnType<typeof cruzar> } | null = null;
-async function cruceVigente() {
+export async function cruceVigente() {
   if (cruceGuardado && cruceGuardado.sync === estado.ultimaSync && Date.now() - cruceGuardado.at < 60_000) return cruceGuardado.resultado;
   const telefonos = [...new Set(estado.facturas.flatMap((f) => f.telefonos))];
   const resultado = cruzar(estado.facturas, await conversacionesDe(telefonos));

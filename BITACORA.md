@@ -1,3 +1,34 @@
+## 23-oct-2026 · Métricas comprobables (Sprint 1): el servidor arma los cinco bloques contra las facturas de Contífico
+
+**Qué:** (rama `feat/metricas-comprobables-datos`, sobre `60b93c3`)
+- `GET /admin/api/hub/metrics` trae `metrics.comprobables` con el contrato
+  `MetricasComprobables` del plan maestro: ventas comprobadas del período (n,
+  con y sin IVA, rango de Poisson y los tres grupos bot / bot + asesor /
+  asesor), parte del bot en las facturas de llantas de la tienda (período y 12
+  semanas con chats, chats con anuncio y marca de anuncios), embudo de la
+  cohorte hasta la factura, rezago chat → factura con lo que falta por llegar
+  en 14 días, y cuándo escriben y cuándo se factura por franja y día.
+- `domain/estadisticaVentas.ts` (puro, sin librerías): IC exacto de Poisson
+  (Garwood), cuantiles, franjas, lunes de Guayaquil, mediana, curva acumulada,
+  grupo de atención y `ventasPorLlegar`.
+- `ventasConfirmadas.ts` (aditivo): la factura guarda `hora_emision` y
+  `subtotal`; la venta gana `sinIva`, `hora`, `grupo`, `mensajesAsesor`,
+  `mensajesBot`, `primerDia`; se exportan `facturasLeidas`, `ultimaSyncFacturas`
+  y `cruceVigente`. La tarjeta actual no cambia.
+- `domain/anuncio.ts`: el anuncio guarda además `sourceId`, `sourceType`,
+  `ctwaClid` y `mediaType`, y un referral con `source_id` sin título ni texto ya
+  no se descarta.
+- Fixture real (sin teléfonos ni nombres): `app/test/fixtures/comprobables-2026-10-23.json`.
+
+**Por qué:** Manuel, 23-oct: que Métricas muestre solo lo que se comprueba.
+Las métricas de hoy cuentan `outcome = 'ganado'` marcado a mano; el cruce con
+Contífico es la única venta que no depende de eso. Leído de producción en solo
+lectura: 26 ventas, 174 facturas de llantas, 14,9 %; noche y madrugada 617
+chats y 0 ventas; con día 14 de 159 vs sin día 12 de 2.896; ≤ 7 días 61,5 %.
+Sin `source_id` no hay cómo separar un anuncio de otro (el título es «Depot Tire»).
+
+**Horas:** 3
+
 ## 21-oct-2026 · Cierre de la auditoría del 19-oct: siete familias, cinco sprints, revisión final
 
 **Qué:** (coordinación de `fix/auditoria-2026-10-20`, sobre `d464c64` de producción)

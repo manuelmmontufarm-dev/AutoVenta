@@ -10,11 +10,25 @@
  * llantas de auto. Sin el anuncio, «la del anuncio» no significa nada.
  *
  * Puro: recibe el `referral` crudo de Meta y devuelve lo que sirve.
+ *
+ * Además del texto se guarda de qué anuncio vino (23-oct): el título casi
+ * siempre es «Depot Tire», así que sin `source_id` dos olas de anuncios se
+ * confunden y no hay cómo decirle a Depot cuál trajo las ventas. Un referral
+ * que trae `source_id` sin título ni texto (pasa con los de estados) ahora se
+ * guarda: es el dato que separa un anuncio de otro.
  */
 export interface Anuncio {
   titulo: string | null;
   texto: string | null;
   url: string | null;
+  /** `source_id` de Meta: el id del anuncio. */
+  sourceId: string | null;
+  /** `source_type`: "ad" o "post". */
+  sourceType: string | null;
+  /** `ctwa_clid`: el click del anuncio «clic a WhatsApp». Los de estados no lo traen. */
+  ctwaClid: string | null;
+  /** `media_type`: "image" o "video". */
+  mediaType: string | null;
 }
 
 const recortar = (valor: unknown, tope: number): string | null => {
@@ -31,13 +45,26 @@ export function anuncioDelReferral(referral: unknown): Anuncio | null {
     titulo: recortar(r.headline, 200),
     texto: recortar(r.body, 600),
     url: recortar(r.source_url, 300),
+    sourceId: recortar(r.source_id, 100),
+    sourceType: recortar(r.source_type, 40),
+    ctwaClid: recortar(r.ctwa_clid, 300),
+    mediaType: recortar(r.media_type, 40),
   };
-  return anuncio.titulo || anuncio.texto ? anuncio : null;
+  return anuncio.titulo || anuncio.texto || anuncio.sourceId ? anuncio : null;
 }
 
-/** El hecho que recibe el vendedor y el guardián. */
+/**
+ * El hecho que recibe el vendedor y el guardián. Un anuncio que solo trae su
+ * id (sin título ni texto) no dice qué llanta mostraba: antes ese referral se
+ * descartaba y el vendedor no leía nada; ahora lee solo que no hay qué
+ * suponer. No va vacío: `agent.ts` lo manda como mensaje de sistema.
+ */
 export function hechoDelAnuncio(anuncio: Anuncio): string {
   const partes = [anuncio.titulo, anuncio.texto].filter(Boolean).join(" — ");
+  if (!partes) {
+    return "ANUNCIO POR EL QUE LLEGÓ (fuente: WhatsApp): sin título ni texto. No supongas qué llanta mostraba; "
+      + "si el cliente dice «la del anuncio», pregúntale cuál.";
+  }
   return (
     `ANUNCIO POR EL QUE LLEGÓ (fuente: WhatsApp): «${partes}». Si el cliente habla de «la del anuncio», `
     + "«esa llanta» o «la de la foto» sin nombrar otra, se refiere a la llanta, marca o tipo que ese "

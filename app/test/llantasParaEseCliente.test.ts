@@ -39,6 +39,7 @@ describe("el referral de Meta", () => {
   it("se reduce a título, texto y url", () => {
     expect(anuncioDelReferral(referral)).toEqual({
       titulo: "Depot Tire", texto: referral.body, url: "https://fb.me/abc",
+      sourceId: null, sourceType: "ad", ctwaClid: null, mediaType: null,
     });
   });
   it("sin referral o vacío, null", () => {
