@@ -168,3 +168,72 @@ export function FunnelChart({ pasos }: { pasos: FunnelPaso[] }) {
     </div>
   );
 }
+
+/* ── Barras de parte: el total en tinta clara, la parte en tinta, y una tira de marcas ──
+   Para «cuántas de las facturas de la tienda son del bot»: la parte vive
+   DENTRO del total, así que se dibuja encima de él y no al lado. La tira de
+   arriba marca una condición de cada barra (p. ej. semana con anuncios): llena
+   = sí, contorno = no, sin marca = sin dato. */
+
+export interface PuntoDeParte {
+  x: string;
+  total: number;
+  parte: number;
+  marca?: "si" | "no" | "sin_dato";
+  /** Lo que dice el cartel al pasar el cursor; por defecto «parte de total · x». */
+  detalle?: string;
+}
+
+export function BarrasDeParte({
+  data, unidad, fmt = (v) => String(v), ancho = 560, alto = 220, cadaX, etiqueta, nombreMarca,
+}: {
+  data: PuntoDeParte[];
+  unidad: string;
+  fmt?: (v: number) => string;
+  ancho?: number;
+  alto?: number;
+  cadaX?: number;
+  etiqueta?: string;
+  /** Rótulo de la tira de marcas («anuncios»). Sin marcas en los datos, no hay tira. */
+  nombreMarca?: string;
+}) {
+  const [tip, setTip] = useState<number | null>(null);
+  const id = useId();
+  if (data.length === 0) return <Vacio alto={alto} />;
+  const conMarcas = data.some((d) => d.marca);
+  const L = 48, R = 16, B = 34;
+  const T = conMarcas ? 40 : 22;
+  const iw = ancho - L - R, ih = alto - T - B;
+  const pasos = 4;
+  const paso = escala(Math.max(0, ...data.map((d) => d.total)), pasos);
+  const y = (v: number) => T + ih - (v / (paso * pasos)) * ih;
+  const n = data.length;
+  const slot = iw / n;
+  const x = (i: number) => L + slot * i + slot / 2;
+  const cada = cadaX ?? (n > 8 ? 2 : 1);
+  const tiraY = 22;
+  return (
+    <svg viewBox={`0 0 ${ancho} ${alto}`} className="block w-full" style={{ overflow: "visible" }} role="img" aria-labelledby={`${id}-t`} onMouseLeave={() => setTip(null)}>
+      <title id={`${id}-t`}>{etiqueta ?? `${unidad} por ${data.map((d) => d.x).join(", ")}`}</title>
+      <Ejes L={L} T={T} iw={iw} ih={ih} pasos={pasos} paso={paso} unidad={unidad} fmt={fmt} />
+      {conMarcas && nombreMarca && (
+        <text x={L - 8} y={tiraY + 7} textAnchor="end" fontFamily={MONO} fontSize={10} fill="var(--color-text2)">{nombreMarca}</text>
+      )}
+      {data.map((d, i) => (
+        <g key={i} onMouseEnter={() => setTip(i)} onTouchStart={() => setTip(i)}>
+          <rect x={x(i) - slot / 2} y={T} width={slot} height={ih} fill="transparent" />
+          {d.marca === "si" && <rect x={x(i) - slot * 0.3} y={tiraY} width={slot * 0.6} height={8} rx={1.5} fill="var(--color-warn)" />}
+          {d.marca === "no" && <rect x={x(i) - slot * 0.3 + 0.5} y={tiraY + 0.5} width={slot * 0.6 - 1} height={7} rx={1.5} fill="none" stroke="var(--color-line-strong)" />}
+          <rect x={x(i) - slot * 0.3} y={y(d.total)} width={slot * 0.6} height={Math.max(0, T + ih - y(d.total))} fill={tip === i ? "rgba(28,27,25,.24)" : "rgba(28,27,25,.14)"} />
+          <rect x={x(i) - slot * 0.3} y={y(d.parte)} width={slot * 0.6} height={Math.max(0, T + ih - y(d.parte))} fill={tip === i ? "var(--color-text)" : "rgba(28,27,25,.72)"} />
+          {(i % cada === 0 || i === n - 1) && (
+            <text x={x(i)} y={T + ih + 18} textAnchor="middle" fontFamily={MONO} fontSize={11} fill="var(--color-text2)">{d.x}</text>
+          )}
+        </g>
+      ))}
+      {tip !== null && (
+        <Tooltip x={x(tip)} y={y(data[tip].total)} texto={data[tip].detalle ?? `${fmt(data[tip].parte)} de ${fmt(data[tip].total)} ${unidad} · ${data[tip].x}`} L={L} iw={iw} />
+      )}
+    </svg>
+  );
+}

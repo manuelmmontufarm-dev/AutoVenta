@@ -1,3 +1,38 @@
+## 23-oct-2026 · Métricas muestra solo números comprobables (pantalla, Sprint 2)
+
+**Qué:** (rama `feat/metricas-comprobables-pantalla`, plan
+`docs/planning/PLAN-METRICAS-COMPROBABLES-MASTER-PROMPT.md`, R-08, R-09 y la
+mitad de pantalla de R-01…R-05)
+- `hub/src/data/types.ts`: el contrato `MetricasComprobables` copiado EXACTO
+  del plan y `HubMetrics.comprobables?`.
+- `hub/src/components/comprobables.tsx` (nuevo): los cinco bloques. Ventas
+  comprobadas (n · con IVA · sin IVA, «compatible con entre X y Y», Bot solo /
+  Bot + asesor / Asesor; conserva el detalle plegado y los descartes de la
+  tarjeta anterior); parte de las llantas de la tienda por semana con la tira de
+  anuncios (sí / no / sin dato) y con vs sin anuncios; del chat a la factura
+  (embudo de la cohorte y acordaron día vs no, aviso «todavía madurando»);
+  cuánto tardan (curva acumulada, mediana y «por llegar» con rango); cuándo
+  escriben y cuándo se factura (franjas y días, aviso «pocas ventas todavía:
+  patrón tentativo» mientras `suficiente` sea false).
+- `charts.tsx`: un gráfico nuevo al final, `BarrasDeParte` (la parte del bot
+  dentro del total de la tienda, con tira de marcas). Los otros, sin cambios.
+- `Dashboard.tsx`: KPIs Conversaciones · Cotizaciones · Con día de visita ·
+  Ventas comprobadas (n · $) · Parte de la tienda. Fuera: «Vendido/Ganados» de
+  Dinero, el embudo por etapas con «Ganado», «Hasta dónde llega el bot», la
+  barra «Ventas» de Plantillas, «Impacto de descuentos» y «¿A qué hora contestan
+  más?» (lo reemplaza el bloque 5).
+- Mock del demo (`fixtures.ts` / `mockSource.ts`) con las cifras del control del
+  23-oct: 26 ventas, 17 del bot solo, 14,9 %, 8,9 % vs 0,4 %, mediana 5 días.
+
+**Por qué:** Manuel (23-oct): que Métricas muestre solo lo que se comprueba.
+Todo lo que salía del «ganado» marcado a mano en el Kanban se deja de mostrar;
+cada cifra sale de una factura de Contífico o de un hecho guardado, y con su
+tamaño de muestra, porque con 26 ventas un porcentaje solo engaña. El servidor
+(Sprint 1) entrega `comprobables`; hasta que se integre, el panel real dice «el
+servidor todavía no calcula este bloque» y no inventa números.
+
+**Horas:** 3
+
 ## 21-oct-2026 · Cierre de la auditoría del 19-oct: siete familias, cinco sprints, revisión final
 
 **Qué:** (coordinación de `fix/auditoria-2026-10-20`, sobre `d464c64` de producción)

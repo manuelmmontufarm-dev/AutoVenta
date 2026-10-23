@@ -1,27 +1,16 @@
 import { useMemo, type ReactNode } from "react";
 import { BillingSection } from "../components/billing";
-import { BarChart, FunnelChart, LineChart } from "../components/charts";
+import { BarChart, LineChart } from "../components/charts";
+import {
+  Bloque, Cargando, Cifras, CuandoBloque, CuantoTardanBloque, DelChatALaFacturaBloque, ParteDeLaTiendaBloque,
+  VentasComprobadasBloque, estadoComprobables,
+} from "../components/comprobables";
 import { SelectorDeMes, etiquetaDeMes } from "../components/mes";
-import { BlockTitle, Campo, PageHeader } from "../components/ui";
-import { ETAPAS, ETAPA_META, TODOS, type VentasConfirmadas } from "../data/types";
+import { Campo, PageHeader } from "../components/ui";
+import { TODOS } from "../data/types";
 import { money, relTime } from "../lib/format";
 import { navigate } from "../router";
 import { mesEnCurso, useHub, useNow } from "../store";
-
-/** Un bloque de Métricas: título, una nota, un gráfico y sus cifras debajo. */
-export function Bloque({ titulo, nota, children, className = "" }: { titulo: string; nota?: ReactNode; children: ReactNode; className?: string }) {
-  return (
-    <section className={`flex flex-col gap-3.5 rounded-[10px] border border-line bg-surface px-5 pt-[18px] pb-4 ${className}`}>
-      <BlockTitle aside={nota}>{titulo}</BlockTitle>
-      {children}
-    </section>
-  );
-}
-
-/** Las cifras bajo un gráfico: etiqueta / valor, con línea arriba. */
-export function Cifras({ children }: { children: ReactNode }) {
-  return <div className="grid grid-cols-[minmax(110px,auto)_minmax(0,1fr)] gap-x-4 gap-y-2.5 border-t border-line pt-3 text-[13px]">{children}</div>;
-}
 
 const mono = "tnum font-mono";
 const pct = (n: number) => `${Math.round(n)} %`;
@@ -49,17 +38,16 @@ export function Dashboard() {
   }, [metrics, mesElegido]);
 
   const s = metrics?.summary;
-  const rf = metrics?.reachedFinal;
-  const conversion = Math.round((rf?.ratio ?? 0) * 100);
   const enElPeriodo = periodo.todos ? "en todo el histórico" : `en ${periodo.mes}`;
 
-  const embudo = useMemo(() => {
-    const byStage = new Map((metrics?.funnel ?? []).map((item) => [item.stage, item.value]));
-    return [
-      ...ETAPAS.map((e) => ({ label: ETAPA_META[e].corto, valor: byStage.get(e) ?? 0 })),
-      { label: "Ganado", valor: byStage.get("ganado") ?? 0 },
-    ];
-  }, [metrics]);
+  // Sólo números comprobables (Manuel, 23-oct): las ventas salen de facturas
+  // de Contífico, no del «ganado» marcado a mano en el tablero. Por eso ya no
+  // están acá el embudo por etapas, «Hasta dónde llega el bot», el impacto de
+  // descuentos ni lo «vendido» del Kanban.
+  const c = metrics?.comprobables;
+  const vc = metrics?.ventasConfirmadas;
+  const estado = estadoComprobables(c, vc, cargando);
+  const listo = estado === "listo" && c ? c : null;
 
   // Un punto por día. El rótulo es la fecha corta: «12/9».
   const porDia = useMemo(
@@ -69,22 +57,20 @@ export function Dashboard() {
     }),
     [metrics],
   );
-  const replyHours = metrics?.replyHours ?? [];
-  const porHora = replyHours.map((h) => ({ x: `${String(h.hour).padStart(2, "0")}h`, y: h.replies }));
-  const pico = replyHours.reduce<typeof replyHours[number] | null>((best, item) => (item.replies > (best?.replies ?? -1) ? item : best), null);
 
   const fu = metrics?.followUps;
-  const dsc = metrics?.discounts;
   const inv = metrics?.inventory;
   const piezas = metrics?.visualPieces ?? [];
   const piezasFallidas = piezas.reduce((t, p) => t + p.failed, 0);
 
   const guion = (v: ReactNode) => (cargando ? <span className="text-text2">—</span> : v);
+  /** Lo que sale de Contífico: guion también mientras no hay facturas leídas. */
+  const comprobado = (v: (c: NonNullable<typeof listo>) => ReactNode) => (listo ? v(listo) : <span className="text-text2">—</span>);
 
   return (
     <div className="flex h-full flex-col">
       <div className="hidden md:block">
-        <PageHeader titulo="Métricas" sub="El negocio de un vistazo"><SelectorDeMes /></PageHeader>
+        <PageHeader titulo="Métricas" sub="Sólo lo que se comprueba"><SelectorDeMes /></PageHeader>
       </div>
       <div className="px-4 pt-3 md:hidden"><SelectorDeMes className="max-w-full" /></div>
 
@@ -94,80 +80,66 @@ export function Dashboard() {
             {periodo.todos
               ? "Todo lo que hay en la base, sin recortar por mes."
               : `Los contadores arrancan de cero el día 1 y vuelven a empezar en ${periodo.proximo}. Los meses anteriores siguen acá al lado.`}
+            {" "}Las ventas son facturas de Contífico cruzadas con el teléfono del chat.
           </p>
 
           {/* KPIs */}
           <div className="grid grid-cols-2 overflow-hidden rounded-[10px] border border-line bg-surface lg:grid-cols-5">
-            <Kpi
-              nombre={periodo.esElMesEnCurso ? "Abiertos ahora" : "Conversaciones"}
-              valor={guion(periodo.esElMesEnCurso ? s?.abiertos ?? 0 : s?.conversaciones ?? 0)}
-              nota={periodo.esElMesEnCurso ? "tickets sin cerrar" : `chats que se movieron ${enElPeriodo}`}
-            />
+            <Kpi nombre="Conversaciones" valor={guion(s?.conversaciones ?? 0)} nota={`chats que se movieron ${enElPeriodo}`} />
             <Kpi nombre="Cotizaciones" valor={guion(s?.cotizaciones ?? 0)} nota={`enviadas ${enElPeriodo}`} />
             <Kpi
-              nombre="Llegan a seguimiento"
-              valor={guion(rf?.total ?? 0)}
-              nota={periodo.esElMesEnCurso && rf ? `${rf.abiertosAhora} esperando la visita hoy` : `a la última columna ${enElPeriodo}`}
+              nombre="Con día de visita"
+              valor={guion(comprobado((k) => k.embudo.conDiaDeVisita))}
+              nota={listo ? `de ${listo.embudo.chats.toLocaleString("es-EC")} chats creados ${enElPeriodo}` : "chats que acordaron un día"}
             />
-            <Kpi nombre="Cotizado → seguimiento" valor={guion(pct(conversion))} nota={`${rf?.cotizadosQueLlegaron ?? 0} de ${rf?.cotizados ?? 0} cotizaciones`} />
             <Kpi
-              nombre="Respuesta del bot"
-              valor={guion(s?.primeraRespuestaSegundos ? `${Math.round(s.primeraRespuestaSegundos)} s` : "—")}
-              nota="mediana hasta la primera respuesta"
+              nombre="Ventas comprobadas"
+              valor={guion(comprobado((k) => <>{k.ventas.n}<span className="ml-2 text-[15px] tracking-normal text-text2 md:text-[17px]">{money(k.ventas.conIva)}</span></>))}
+              nota="facturas de Contífico, con IVA"
+            />
+            <Kpi
+              nombre="Parte de la tienda"
+              valor={guion(comprobado((k) => (k.participacion.periodo.llantasTienda > 0 ? `${k.participacion.periodo.pct.toLocaleString("es-EC", { maximumFractionDigits: 1 })} %` : "—")))}
+              nota={listo ? `${listo.participacion.periodo.delBot} de ${listo.participacion.periodo.llantasTienda} facturas de llantas` : "de las facturas de llantas"}
               ultima
             />
           </div>
 
-          <VentasConfirmadasBloque vc={metrics?.ventasConfirmadas} cargando={cargando} enElPeriodo={enElPeriodo} now={now} />
+          <VentasComprobadasBloque c={c} vc={vc} estado={estado} enElPeriodo={enElPeriodo} now={now} />
 
-          {/* Por día · por hora */}
+          {/* Parte de la tienda · del chat a la factura */}
           <div className="grid gap-4 lg:grid-cols-2">
+            <ParteDeLaTiendaBloque c={c} estado={estado} enElPeriodo={enElPeriodo} />
+            <DelChatALaFacturaBloque c={c} estado={estado} periodoTexto={enElPeriodo} />
+          </div>
+
+          {/* Cuánto tardan · conversaciones por día */}
+          <div className="grid gap-4 lg:grid-cols-2">
+            <CuantoTardanBloque c={c} estado={estado} />
             <Bloque titulo="Conversaciones por día" nota={periodo.todos ? "todo el histórico · eje X: fecha" : `del 1 de ${periodo.mes} a hoy · eje X: fecha`}>
               {cargando ? <Cargando /> : <LineChart data={porDia} unidad="conversaciones" etiqueta="Conversaciones por día" />}
             </Bloque>
-            <Bloque titulo="¿A qué hora contestan más?" nota="respuestas de clientes por hora · hora de Guayaquil">
-              {cargando ? <Cargando /> : <BarChart data={porHora} unidad="respuestas" etiqueta="Respuestas de clientes por hora del día" />}
-              <Cifras>
-                <Campo etiqueta="Hora pico">{pico ? <span className={mono}>{pico.label}–{String((pico.hour + 1) % 24).padStart(2, "0")}:00 · {pico.replies} respuestas</span> : <span className="text-text2">Sin datos</span>}</Campo>
-              </Cifras>
-            </Bloque>
           </div>
 
-          {/* Dinero · hasta dónde llega el bot · inventario */}
+          <CuandoBloque c={c} estado={estado} />
+
+          {/* Dinero · inventario · plantillas */}
           <div className="grid gap-4 lg:grid-cols-3">
-            <Bloque titulo="Dinero" nota={periodo.esElMesEnCurso ? "en juego y vendido" : `cotizado y vendido ${enElPeriodo}`}>
+            <Bloque titulo="Dinero" nota={periodo.esElMesEnCurso ? "en juego y cotizado" : `cotizado ${enElPeriodo}`}>
               {cargando ? <Cargando /> : (
                 <BarChart
-                  ancho={420} alto={200} unidad="USD" fmt={usdCorto} etiqueta="Dinero cotizado, en juego y vendido"
+                  ancho={420} alto={200} unidad="USD" fmt={usdCorto} etiqueta="Dinero en juego y cotizado"
                   data={[
                     ...(periodo.esElMesEnCurso ? [{ x: "En juego", y: s?.enJuego ?? 0 }] : []),
                     { x: "Cotizado", y: s?.cotizado ?? 0 },
-                    { x: "Vendido", y: s?.vendido ?? 0 },
                   ]}
                 />
               )}
               <Cifras>
                 {periodo.esElMesEnCurso && <Campo etiqueta="En juego"><span className={mono}>{guion(money(s?.enJuego ?? 0))}</span></Campo>}
                 <Campo etiqueta="Cotizado"><span className={mono}>{guion(money(s?.cotizado ?? 0))}</span></Campo>
-                <Campo etiqueta="Vendido"><span className={mono}>{guion(money(s?.vendido ?? 0))}</span></Campo>
-                <Campo etiqueta="Ganados"><span className={mono}>{guion(s?.ganados ?? 0)}</span></Campo>
               </Cifras>
-            </Bloque>
-
-            <Bloque titulo="Hasta dónde llega el bot" nota="la venta se cierra en el local">
-              {cargando || !rf ? <Cargando /> : (
-                <BarChart
-                  ancho={420} alto={200} unidad="tickets" etiqueta="Cotizados, llegados al final y confirmados como venta"
-                  data={[{ x: "Cotizados", y: rf.cotizados }, { x: "Llegaron", y: rf.cotizadosQueLlegaron }, { x: "Venta", y: rf.ganados }]}
-                />
-              )}
-              <Cifras>
-                <Campo etiqueta="Llegaron al final"><span className={mono}>{guion(rf?.total ?? 0)}</span></Campo>
-                <Campo etiqueta="De los cotizados"><span className={mono}>{guion(`${rf?.cotizadosQueLlegaron ?? 0} de ${rf?.cotizados ?? 0} · ${pct(conversion)}`)}</span></Campo>
-                <Campo etiqueta="Confirmados"><span className={mono}>{guion(rf?.ganados ?? 0)}</span> <span className="text-text2">sólo los marcados a mano</span></Campo>
-                <Campo etiqueta="Valor cotizado"><span className={mono}>{guion(money(rf?.valor ?? 0))}</span></Campo>
-              </Cifras>
-              <p className="text-[12px] leading-relaxed text-text2">La venta se cierra en el local y no vuelve al sistema. Lo que sí se mide es cuántos tickets llegan a «Seguimiento hasta venta»: el último punto que el bot controla.</p>
+              <p className="text-[12px] text-text2">Lo vendido está arriba, en «Ventas comprobadas»: sale de las facturas, no de lo que se marca en el tablero.</p>
             </Bloque>
 
             <Bloque titulo="Inventario real" nota={inv?.lastSync ? `${inv.source ?? "catálogo"} · ${relTime(inv.lastSync, now)}` : "sin sincronizar"}>
@@ -183,19 +155,12 @@ export function Dashboard() {
                 <Campo etiqueta="Con imagen"><span className={mono}>{guion(`${inv?.withImage ?? 0} de ${inv?.total ?? 0} · ${pct(inv?.imageCoverage ?? 0)}`)}</span></Campo>
               </Cifras>
             </Bloque>
-          </div>
-
-          {/* Embudo · plantillas · entregas */}
-          <div className="grid gap-4 lg:grid-cols-3">
-            <Bloque titulo="Embudo" nota={periodo.todos ? "del histórico" : `de ${periodo.mes}`}>
-              {cargando ? <Cargando /> : <FunnelChart pasos={embudo} />}
-            </Bloque>
 
             <Bloque titulo="Plantillas de seguimiento" nota={enElPeriodo}>
               {cargando || !fu ? <Cargando /> : (
                 <BarChart
-                  ancho={420} alto={200} unidad="mensajes" etiqueta="Seguimientos programados, enviados, respondidos y ventas recuperadas"
-                  data={[{ x: "Programados", y: fu.scheduled }, { x: "Enviados", y: fu.sent }, { x: "Respondidos", y: fu.responded }, { x: "Ventas", y: fu.converted }]}
+                  ancho={420} alto={200} unidad="mensajes" etiqueta="Seguimientos programados, enviados y respondidos"
+                  data={[{ x: "Programados", y: fu.scheduled }, { x: "Enviados", y: fu.sent }, { x: "Respondidos", y: fu.responded }]}
                 />
               )}
               <Cifras>
@@ -208,7 +173,10 @@ export function Dashboard() {
                 <Campo etiqueta="Hasta la respuesta"><span className={mono}>{guion(fu?.avg_response_seconds == null ? "—" : `${Math.round(fu.avg_response_seconds / 60)} min`)}</span></Campo>
               </Cifras>
             </Bloque>
+          </div>
 
+          {/* Entregas · tokens y cuenta */}
+          <div className="grid gap-4 lg:grid-cols-3">
             <Bloque titulo="Estados de entrega" nota="lo que WhatsApp confirmó">
               {cargando ? <Cargando /> : (
                 <BarChart
@@ -228,26 +196,6 @@ export function Dashboard() {
                   {piezasFallidas > 0 && <p className="col-span-2 text-[12px] text-text2">Una pieza fallida deja al cliente con el mensaje en texto.</p>}
                 </Cifras>
               )}
-            </Bloque>
-          </div>
-
-          {/* Descuentos · tokens y cuenta */}
-          <div className="grid gap-4 lg:grid-cols-3">
-            <Bloque titulo="Impacto de descuentos" nota="% de cotizados que cierran">
-              {cargando || !dsc ? <Cargando /> : (
-                <BarChart
-                  ancho={420} alto={200} unidad="de cierre" fmt={(v) => `${Math.round(v)} %`} etiqueta="Conversión con y sin descuento"
-                  data={[{ x: "Con descuento", y: Math.round(dsc.conversionWith * 100) }, { x: "Sin descuento", y: Math.round(dsc.conversionWithout * 100) }]}
-                />
-              )}
-              <Cifras>
-                <Campo etiqueta="Ofrecidos"><span className={mono}>{guion(dsc?.offered ?? 0)}</span></Campo>
-                <Campo etiqueta="Cerraron"><span className={mono}>{guion(dsc?.wonWith ?? 0)}</span></Campo>
-                <Campo etiqueta="Total descontado"><span className={mono}>{guion(money(dsc?.totalDiscount ?? 0))}</span></Campo>
-                <Campo etiqueta="Respuesta tras oferta"><span className={mono}>{guion(dsc?.avgHoursToReply == null ? "—" : `${dsc.avgHoursToReply.toFixed(1)} h`)}</span></Campo>
-                <Campo etiqueta="Días hasta venta"><span className={mono}>{guion(`${(dsc?.avgDaysToWinWith ?? 0).toFixed(1)} con · ${(dsc?.avgDaysToWinWithout ?? 0).toFixed(1)} sin`)}</span></Campo>
-              </Cifras>
-              <p className="text-[12px] text-text2">Muestra asociación, no causalidad.</p>
             </Bloque>
 
             <BillingSection />
@@ -296,104 +244,6 @@ export function Dashboard() {
   );
 }
 
-const MOTIVO: Record<NonNullable<VentasConfirmadas["descartes"]>[number]["motivo"], string> = {
-  antes_del_chat: "la factura es de antes de escribir: ya era cliente",
-  sin_llantas: "facturó otra cosa, no llantas (repuestos, garantía)",
-  solo_saludo: "el chat no pasó del saludo: el bot no le vendió",
-};
-
-/** "2026-09-23" → "23/9". */
-const diaCorto = (d: string) => `${Number(d.slice(8, 10))}/${Number(d.slice(5, 7))}`;
-
-/**
- * Lo que de verdad se facturó. El servidor cruza el teléfono del chat con el
- * de las facturas de Contífico cada 10 minutos: es la única venta que no
- * depende de que alguien la marque a mano en el tablero.
- */
-function VentasConfirmadasBloque({ vc, cargando, enElPeriodo, now }: { vc: VentasConfirmadas | undefined; cargando: boolean; enElPeriodo: string; now: number }) {
-  const detalle = vc?.detalle ?? [];
-  const descartes = (vc?.descartes ?? []).filter((d) => d.motivo !== "antes_del_chat");
-  const nota = !vc || !vc.disponible
-    ? "sin Contífico"
-    : vc.ultimaSync
-      ? `cruce por teléfono · ${relTime(vc.ultimaSync, now)}${vc.ultimaFactura ? ` · última factura ${diaCorto(vc.ultimaFactura)}` : ""}`
-      : vc.sincronizando ? "leyendo facturas de Contífico…" : "todavía sin leer Contífico";
-
-  let cuerpo: ReactNode;
-  if (cargando) cuerpo = <Cargando />;
-  else if (!vc || !vc.disponible) cuerpo = <p className="text-[13px] text-text2">Este servidor no tiene Contífico conectado, así que no hay facturas contra las cuales cruzar.</p>;
-  else if (!vc.ultimaSync) cuerpo = vc.error
-    ? <p className="text-[13px] text-signal">No se pudo leer Contífico: {vc.error}</p>
-    : <Cargando />;
-  else cuerpo = (
-    <>
-      <Cifras>
-        <Campo etiqueta="Vendido"><span className={`${mono} text-[15px] font-medium`}>{money(vc.monto ?? 0)}</span> <span className="text-text2">en {vc.ventas ?? 0} {vc.ventas === 1 ? "venta" : "ventas"} {enElPeriodo}</span></Campo>
-        <Campo etiqueta="Las cerró el bot"><span className={mono}>{vc.delBot?.ventas ?? 0} · {money(vc.delBot?.monto ?? 0)}</span></Campo>
-        <Campo etiqueta="Las cerró un asesor"><span className={mono}>{vc.delAsesor?.ventas ?? 0} · {money(vc.delAsesor?.monto ?? 0)}</span> <span className="text-text2">el asesor escribió más que el bot</span></Campo>
-        {vc.error && <Campo etiqueta="Aviso"><span className="text-signal">La última lectura falló ({vc.error}); se muestran las facturas de la anterior.</span></Campo>}
-      </Cifras>
-      {detalle.length > 0 ? (
-        // Plegada: la tarjeta es un resumen; el detalle se abre a pedido
-        // (Manuel, 28-sep: «que no sea grande, solo si aplastas»).
-        <details className="group">
-          <summary className="cursor-pointer text-[13px] font-medium select-none">
-            <span className="group-open:hidden">Ver {detalle.length === 1 ? "la venta" : `las ${detalle.length} ventas`}</span>
-            <span className="hidden group-open:inline">Ocultar {detalle.length === 1 ? "la venta" : "las ventas"}</span>
-          </summary>
-        <div className="mt-2 overflow-x-auto">
-          <table className="w-full min-w-[640px] text-left text-[13px]">
-            <thead className="text-[12px] font-medium text-text2">
-              <tr><th className="py-2">Cliente</th><th>Factura</th><th>Llantas</th><th>Local</th><th>Atendió</th><th className="text-right">Monto</th></tr>
-            </thead>
-            <tbody>
-              {detalle.map((v) => (
-                <tr key={v.ticketId} className="cursor-pointer border-t border-line hover:bg-bg" onClick={() => navigate(`ticket/${v.ticketId}`)}>
-                  <td className="py-2 pr-3">
-                    <div className="font-medium">{v.nombre || v.telefono}</div>
-                    {v.cliente && v.cliente.toLowerCase() !== (v.nombre ?? "").toLowerCase() && <div className="text-[12px] text-text2">facturó {v.cliente}</div>}
-                  </td>
-                  <td className={`${mono} pr-3 text-[12px] whitespace-nowrap`}>
-                    {v.facturas.map((f) => <div key={f.documento}>{f.documento.slice(-6).replace(/^0+/, "")} · {diaCorto(f.dia)}</div>)}
-                  </td>
-                  <td className="max-w-[260px] truncate pr-3 text-text2" title={v.llantas}>{v.llantas}</td>
-                  <td className="pr-3 whitespace-nowrap">{[...new Set(v.facturas.map((f) => f.local))].join(" · ")}</td>
-                  <td className="pr-3">{v.atendio === "bot" ? "Bot" : "Asesor"}{!v.cotizado && <span className="text-text2"> · sin cotización</span>}</td>
-                  <td className={`${mono} text-right`}>{money(v.total)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        </details>
-      ) : (
-        <p className="text-[13px] text-text2">Ningún chat terminó en factura {enElPeriodo} todavía.</p>
-      )}
-      {descartes.length > 0 && (
-        <details className="text-[12px] text-text2">
-          <summary className="cursor-pointer">{descartes.length} {descartes.length === 1 ? "teléfono coincide" : "teléfonos coinciden"} pero no se cuenta{descartes.length === 1 ? "" : "n"}</summary>
-          <ul className="mt-2 flex flex-col gap-1">
-            {descartes.map((d) => (
-              <li key={d.ticketId}>
-                <button className="text-left hover:underline" onClick={() => navigate(`ticket/${d.ticketId}`)}>{d.nombre || d.telefono}</button>
-                {" "}· {money(d.total)} · {diaCorto(d.dia)} — {MOTIVO[d.motivo]}
-              </li>
-            ))}
-          </ul>
-        </details>
-      )}
-      <p className="text-[12px] leading-relaxed text-text2">Cuenta una venta cuando el teléfono del chat aparece en una factura con llantas emitida después del primer mensaje. Si el cliente factura con otro número o a nombre de otra persona, no aparece.</p>
-      {vc.lectura && (
-        <p className="tnum font-mono text-[11px] text-text2">
-          Leídas {vc.lectura.facturas} facturas{vc.lectura.primerDia && vc.lectura.ultimoDia ? ` del ${diaCorto(vc.lectura.primerDia)} al ${diaCorto(vc.lectura.ultimoDia)}` : ""} · {vc.lectura.conTelefono} con teléfono · {vc.lectura.paginas} {vc.lectura.paginas === 1 ? "página" : "páginas"} · llave {vc.lectura.llave === "facturas" ? "de facturas" : "del catálogo"}
-        </p>
-      )}
-    </>
-  );
-
-  return <Bloque titulo="Ventas confirmadas en Contífico" nota={nota}>{cuerpo}</Bloque>;
-}
-
 function Kpi({ nombre, valor, nota, ultima = false }: { nombre: string; valor: ReactNode; nota: string; ultima?: boolean }) {
   return (
     <div className={`flex flex-col gap-1.5 px-5 pt-[18px] pb-5 ${ultima ? "" : "border-b border-line lg:border-b-0 lg:border-r"} [&:nth-child(2n)]:border-r-0 lg:[&:nth-child(2n)]:border-r`}>
@@ -402,10 +252,6 @@ function Kpi({ nombre, valor, nota, ultima = false }: { nombre: string; valor: R
       <span className="text-[12px] text-text2">{nota}</span>
     </div>
   );
-}
-
-function Cargando() {
-  return <div className="skeleton h-[110px] w-full" aria-busy="true" />;
 }
 
 /** "2026-09" → "2026-10". Para decir cuándo vuelve a empezar el conteo. */

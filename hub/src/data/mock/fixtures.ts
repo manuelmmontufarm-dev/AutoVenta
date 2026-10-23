@@ -5,6 +5,7 @@ import {
   type FeedItem,
   type ItemCotizacion,
   type Mensaje,
+  type MetricasComprobables,
   type Rol,
   type Ticket,
   type TipoMensaje,
@@ -427,3 +428,153 @@ export const FEED_SEED: FeedItem[] = [
 
 /** Serie de conversaciones por día (14 días) para el dashboard. */
 export const SERIE_14D: number[] = [4, 6, 5, 8, 7, 9, 6, 10, 8, 11, 9, 13, 12, 14];
+
+/* ── Métricas comprobables del demo ────────────────────────────────────────
+   Las cifras son las del control medido en producción el 23-oct-2026
+   (PLAN-METRICAS-COMPROBABLES, encabezado): 26 ventas desde el 31-jul
+   (ago 10, sep 5, oct 11), 174 facturas de llantas de la tienda (14,9 %), 17
+   ventas sin asesor, mediana de 5 días hasta la factura, 0 ventas de chats de
+   noche y de sábado, 8,9 % con día de visita contra 0,4 % sin día. Lo que el
+   control no da (montos, semanas sueltas) es plausible y suma lo mismo que el
+   total. El Sprint Final reemplaza esto por la salida real del servidor. */
+
+type PeriodoComprobable = Pick<MetricasComprobables, "ventas" | "embudo"> & {
+  participacion: MetricasComprobables["participacion"]["periodo"];
+};
+
+const COMPROBABLES_POR_MES: Record<string, PeriodoComprobable> = {
+  "2026-08": {
+    ventas: {
+      n: 10, conIva: 5210, sinIva: 4530, rango: { bajo: 4.8, alto: 18.4 },
+      grupos: { bot: { n: 7, conIva: 3640 }, bot_y_asesor: { n: 2, conIva: 1050 }, asesor: { n: 1, conIva: 520 } },
+    },
+    participacion: { llantasTienda: 62, delBot: 10, pct: 16.1 },
+    embudo: {
+      chats: 690, conMedida: 430, cotizados: 280, conDiaDeVisita: 38, compraron: 9, madura: true,
+      porDia: { conDia: { chats: 38, compraron: 5 }, sinDia: { chats: 652, compraron: 4 } },
+    },
+  },
+  "2026-09": {
+    ventas: {
+      n: 5, conIva: 2480, sinIva: 2157, rango: { bajo: 1.6, alto: 11.7 },
+      grupos: { bot: { n: 3, conIva: 1490 }, bot_y_asesor: { n: 1, conIva: 510 }, asesor: { n: 1, conIva: 480 } },
+    },
+    participacion: { llantasTienda: 58, delBot: 5, pct: 8.6 },
+    embudo: {
+      chats: 1080, conMedida: 690, cotizados: 450, conDiaDeVisita: 52, compraron: 7, madura: true,
+      porDia: { conDia: { chats: 52, compraron: 4 }, sinDia: { chats: 1028, compraron: 3 } },
+    },
+  },
+  "2026-10": {
+    ventas: {
+      n: 11, conIva: 5850, sinIva: 5087, rango: { bajo: 5.5, alto: 19.7 },
+      grupos: { bot: { n: 7, conIva: 3720 }, bot_y_asesor: { n: 2, conIva: 1100 }, asesor: { n: 2, conIva: 1030 } },
+    },
+    participacion: { llantasTienda: 54, delBot: 11, pct: 20.4 },
+    embudo: {
+      chats: 1284, conMedida: 780, cotizados: 520, conDiaDeVisita: 68, compraron: 10, madura: false,
+      porDia: { conDia: { chats: 68, compraron: 5 }, sinDia: { chats: 1216, compraron: 5 } },
+    },
+  },
+};
+
+const COMPROBABLES_TODOS: PeriodoComprobable = {
+  ventas: {
+    n: 26, conIva: 13540, sinIva: 11774, rango: { bajo: 17, alto: 38.1 },
+    grupos: { bot: { n: 17, conIva: 8850 }, bot_y_asesor: { n: 5, conIva: 2660 }, asesor: { n: 4, conIva: 2030 } },
+  },
+  participacion: { llantasTienda: 174, delBot: 26, pct: 14.9 },
+  embudo: {
+    chats: 3054, conMedida: 1900, cotizados: 1250, conDiaDeVisita: 158, compraron: 26, madura: false,
+    porDia: { conDia: { chats: 158, compraron: 14 }, sinDia: { chats: 2896, compraron: 12 } },
+  },
+};
+
+/** Un mes sin chats ni facturas: todo en cero, como lo entregaría el servidor. */
+const COMPROBABLES_VACIO: PeriodoComprobable = {
+  ventas: {
+    n: 0, conIva: 0, sinIva: 0, rango: { bajo: 0, alto: 3.7 },
+    grupos: { bot: { n: 0, conIva: 0 }, bot_y_asesor: { n: 0, conIva: 0 }, asesor: { n: 0, conIva: 0 } },
+  },
+  participacion: { llantasTienda: 0, delBot: 0, pct: 0 },
+  embudo: {
+    chats: 0, conMedida: 0, cotizados: 0, conDiaDeVisita: 0, compraron: 0, madura: true,
+    porDia: { conDia: { chats: 0, compraron: 0 }, sinDia: { chats: 0, compraron: 0 } },
+  },
+};
+
+/**
+ * Doce semanas con dos olas de anuncios (desde el 19-sep, y la del 12-oct) y
+ * la pausa del 30-sep: la del 5-oct sale «no», la del 12-oct «sí». Antes del
+ * 14-sep la base no guardaba el anuncio: «sin dato». La del 19-oct va de
+ * lunes a jueves (4 de 10), como en el control.
+ */
+const SEMANAS_DEMO: MetricasComprobables["participacion"]["semanas"] = [
+  { lunes: "2026-08-03", llantasTienda: 13, delBot: 3, chats: 160, chatsConAnuncio: 0, anuncios: "sin_dato" },
+  { lunes: "2026-08-10", llantasTienda: 14, delBot: 2, chats: 170, chatsConAnuncio: 0, anuncios: "sin_dato" },
+  { lunes: "2026-08-17", llantasTienda: 12, delBot: 2, chats: 150, chatsConAnuncio: 0, anuncios: "sin_dato" },
+  { lunes: "2026-08-24", llantasTienda: 15, delBot: 2, chats: 180, chatsConAnuncio: 0, anuncios: "sin_dato" },
+  { lunes: "2026-08-31", llantasTienda: 13, delBot: 1, chats: 175, chatsConAnuncio: 0, anuncios: "sin_dato" },
+  { lunes: "2026-09-07", llantasTienda: 12, delBot: 1, chats: 165, chatsConAnuncio: 0, anuncios: "sin_dato" },
+  { lunes: "2026-09-14", llantasTienda: 14, delBot: 1, chats: 290, chatsConAnuncio: 240, anuncios: "si" },
+  { lunes: "2026-09-21", llantasTienda: 15, delBot: 1, chats: 310, chatsConAnuncio: 280, anuncios: "si" },
+  { lunes: "2026-09-28", llantasTienda: 13, delBot: 0, chats: 190, chatsConAnuncio: 12, anuncios: "no" },
+  { lunes: "2026-10-05", llantasTienda: 12, delBot: 1, chats: 150, chatsConAnuncio: 0, anuncios: "no" },
+  { lunes: "2026-10-12", llantasTienda: 17, delBot: 6, chats: 330, chatsConAnuncio: 300, anuncios: "si" },
+  { lunes: "2026-10-19", llantasTienda: 10, delBot: 4, chats: 260, chatsConAnuncio: 235, anuncios: "si" },
+];
+
+/** Rezago y «cuándo»: todo el histórico, igual para cualquier mes elegido. */
+const REZAGO_DEMO: MetricasComprobables["rezago"] = {
+  n: 26,
+  medianaDias: 5,
+  acumulado: [
+    { dias: 1, pct: 38.5 }, { dias: 3, pct: 50 }, { dias: 7, pct: 61.5 },
+    { dias: 14, pct: 80.8 }, { dias: 30, pct: 84.6 }, { dias: 60, pct: 88.5 },
+  ],
+  porLlegar: { esperado: 3.4, bajo: 0, alto: 7, chatsVivos: 640 },
+};
+
+const CUANDO_DEMO: MetricasComprobables["cuando"] = {
+  ventasTotales: 26,
+  suficiente: false,
+  escribenPorFranja: [
+    { franja: "madrugada", chats: 180, ventas: 0 },
+    { franja: "manana", chats: 780, ventas: 10 },
+    { franja: "mediodia", chats: 820, ventas: 12 },
+    { franja: "tarde", chats: 837, ventas: 4 },
+    { franja: "noche", chats: 437, ventas: 0 },
+  ],
+  escribenPorDia: [
+    { dia: 0, chats: 260, ventas: 1 }, { dia: 1, chats: 560, ventas: 6 }, { dia: 2, chats: 520, ventas: 5 },
+    { dia: 3, chats: 500, ventas: 5 }, { dia: 4, chats: 480, ventas: 5 }, { dia: 5, chats: 333, ventas: 4 },
+    { dia: 6, chats: 401, ventas: 0 },
+  ],
+  facturanPorFranja: [
+    { franja: "madrugada", bot: 0, tienda: 0 },
+    { franja: "manana", bot: 4, tienda: 52 },
+    { franja: "mediodia", bot: 18, tienda: 78 },
+    { franja: "tarde", bot: 4, tienda: 40 },
+    { franja: "noche", bot: 0, tienda: 4 },
+  ],
+  facturanPorDia: [
+    { dia: 0, bot: 0, tienda: 2 }, { dia: 1, bot: 6, tienda: 34 }, { dia: 2, bot: 5, tienda: 31 },
+    { dia: 3, bot: 4, tienda: 30 }, { dia: 4, bot: 5, tienda: 32 }, { dia: 5, bot: 4, tienda: 28 },
+    { dia: 6, bot: 2, tienda: 17 },
+  ],
+};
+
+/** `metrics.comprobables` del demo para el período elegido («todos» o "YYYY-MM"). */
+export function comprobablesDemo(clave: string, todos: boolean): MetricasComprobables {
+  const p = todos ? COMPROBABLES_TODOS : COMPROBABLES_POR_MES[clave] ?? COMPROBABLES_VACIO;
+  return {
+    disponible: true,
+    ultimaSync: new Date(Date.now() - 4 * 60_000).toISOString(),
+    periodo: { clave, todos },
+    ventas: p.ventas,
+    participacion: { periodo: p.participacion, semanas: SEMANAS_DEMO },
+    embudo: p.embudo,
+    rezago: REZAGO_DEMO,
+    cuando: CUANDO_DEMO,
+  };
+}
