@@ -345,6 +345,12 @@ export interface HubMetrics {
    * alguien la marque a mano. Recortado al mes elegido por día de factura.
    */
   ventasConfirmadas?: VentasConfirmadas;
+  /**
+   * Los números que salen de facturas de Contífico y de hechos guardados en la
+   * base, nunca del «ganado» marcado a mano. Contrato `MetricasComprobables`:
+   * es el mismo tipo, letra por letra, que `app/src/services/metricasComprobables.ts`.
+   */
+  comprobables?: MetricasComprobables;
   followUps?: {
     scheduled: number;
     sent: number;
@@ -358,6 +364,77 @@ export interface HubMetrics {
     template_read: number;
     avg_response_seconds: number | null;
     byStageAndType: Array<{ stage: string; type: string; total: number; sent: number }>;
+  };
+}
+
+/* ── Contrato de métricas comprobables (plan PLAN-METRICAS-COMPROBABLES, PARTE A) ──
+   Copiado EXACTO del servidor. Si cambia, cambia en los dos archivos a la vez. */
+
+export type Franja = "madrugada" | "manana" | "mediodia" | "tarde" | "noche";
+// madrugada [00,06) · manana [06,11) · mediodia [11,14) · tarde [14,18) · noche [18,24), hora de Guayaquil
+
+export type GrupoAtencion = "bot" | "bot_y_asesor" | "asesor";
+// bot: el asesor escribió 0 o 1 mensajes · asesor: el asesor escribió más que el bot · bot_y_asesor: el resto
+
+export interface MetricasComprobables {
+  disponible: boolean;               // false: no hay Contífico o todavía no se leyó
+  ultimaSync: string | null;         // ISO
+  /** Período del selector (mes o «todos»). */
+  periodo: { clave: string; todos: boolean };
+
+  /** Bloque 1 — ventas comprobadas DEL PERÍODO (por día de la primera factura con llantas). */
+  ventas: {
+    n: number;
+    conIva: number;                  // suma de `total` de las facturas de esas ventas
+    sinIva: number;                  // suma de `subtotal` de las mismas facturas
+    rango: { bajo: number; alto: number }; // IC 95 % exacto de Poisson sobre n (Garwood), 1 decimal
+    grupos: Record<GrupoAtencion, { n: number; conIva: number }>;
+  };
+
+  /** Bloque 2 — participación en las facturas de llantas de toda la tienda. */
+  participacion: {
+    periodo: { llantasTienda: number; delBot: number; pct: number }; // pct 0–100, 1 decimal
+    /** Últimas 12 semanas (lunes, hora de Guayaquil), de la más vieja a la más nueva, SIEMPRE (no depende del selector). */
+    semanas: Array<{
+      lunes: string;                 // "YYYY-MM-DD"
+      llantasTienda: number;         // facturas FAC no anuladas con al menos una llanta a precio ≥ $25
+      delBot: number;                // ventas comprobadas cuya primera factura cae esa semana
+      chats: number;                 // conversaciones creadas esa semana
+      chatsConAnuncio: number;       // de esas, cuyo primer mensaje del cliente trae metadata.anuncio
+      anuncios: "si" | "no" | "sin_dato"; // sin_dato: semana anterior al primer mensaje con metadata.anuncio en la base; si: chatsConAnuncio ≥ 10 y ≥ 30 % de chats
+    }>;
+  };
+
+  /** Bloque 3 — embudo de la COHORTE: chats creados en el período, hasta la factura (de cualquier fecha). */
+  embudo: {
+    chats: number;
+    conMedida: number;               // conversations.tire_size no vacío
+    cotizados: number;               // al menos una fila en quotes
+    conDiaDeVisita: number;          // conversations.visit_date no nulo
+    compraron: number;               // ventas comprobadas de esos chats
+    /** La cohorte todavía no maduró si su chat más nuevo tiene < 14 días. */
+    madura: boolean;
+    /** Conversión según si acordaron día (cohorte del período). */
+    porDia: { conDia: { chats: number; compraron: number }; sinDia: { chats: number; compraron: number } };
+  };
+
+  /** Bloque 4 — rezago chat → factura, con TODO el histórico (no depende del selector). */
+  rezago: {
+    n: number;                       // ventas con las que se calcula
+    medianaDias: number | null;
+    acumulado: Array<{ dias: 1 | 3 | 7 | 14 | 30 | 60; pct: number }>; // % de ventas con rezago ≤ dias
+    /** Ventas esperadas en los próximos 14 días de chats ya abiertos que aún no compraron. */
+    porLlegar: { esperado: number; bajo: number; alto: number; chatsVivos: number };
+  };
+
+  /** Bloque 5 — cuándo, con TODO el histórico (no depende del selector). */
+  cuando: {
+    ventasTotales: number;
+    suficiente: boolean;             // ventasTotales ≥ 40 (≥ 5 esperadas por celda en 7 días + margen)
+    escribenPorFranja: Array<{ franja: Franja; chats: number; ventas: number }>;  // por hora de creación del chat
+    escribenPorDia: Array<{ dia: 0 | 1 | 2 | 3 | 4 | 5 | 6; chats: number; ventas: number }>; // 0 = domingo
+    facturanPorFranja: Array<{ franja: Franja; bot: number; tienda: number }>;    // por hora_emision de la factura
+    facturanPorDia: Array<{ dia: 0 | 1 | 2 | 3 | 4 | 5 | 6; bot: number; tienda: number }>;
   };
 }
 

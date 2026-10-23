@@ -1,3 +1,59 @@
+## 23-oct-2026 · Métricas en dos secciones: General y Ventas (Sprint 2, cambio de Manuel)
+
+**Qué:** (rama `feat/metricas-comprobables-pantalla`, sobre la entrada de abajo)
+- La misma pantalla, dos secciones con su título y dos saltos arriba
+  («General», «Ventas»; desplazan el contenedor, no tocan la ruta `#/dashboard`).
+- General: KPIs Conversaciones · Cotizaciones · Con día de visita · Respuesta
+  del bot; Conversaciones por día; «Cuándo escriben» (chats por franja y por
+  día, ventas encima de cada barra, aviso de muestra chica); Plantillas (sin
+  «Ventas»), Estados de entrega, Inventario, Tokens y cuenta, Actividad.
+- Ventas: KPIs Ventas comprobadas (n · $) · Sin IVA · Parte de las llantas de
+  la tienda · Por llegar en 14 días (con rango); Ventas comprobadas, Parte de la
+  tienda por semana, Del chat a la factura, Cuánto tardan y «Cuándo se factura»
+  (bot vs tienda en % de su propio total).
+- Colores de la maqueta aprobada: rojo de señal = bot, gris cálido = tienda y
+  chats, raya verde = semana con anuncios. `BarrasDeParte` gana la cifra encima
+  y la raya bajo el eje; `BarrasPareadas` nuevo al final de `charts.tsx`.
+- Se va el bloque Dinero (En juego / Cotizado): la división aprobada no lo trae.
+
+**Por qué:** Manuel separó lo que mide la atención (todos los días, sin
+Contífico) de lo que mide la venta (solo facturas). El contrato de datos no
+cambia: el bloque 5 se parte en «escriben» (General) y «facturan» (Ventas).
+
+**Horas:** 1,5
+
+## 23-oct-2026 · Métricas muestra solo números comprobables (pantalla, Sprint 2)
+
+**Qué:** (rama `feat/metricas-comprobables-pantalla`, plan
+`docs/planning/PLAN-METRICAS-COMPROBABLES-MASTER-PROMPT.md`, R-08, R-09 y la
+mitad de pantalla de R-01…R-05)
+- `hub/src/data/types.ts`: el contrato `MetricasComprobables` copiado EXACTO
+  del plan y `HubMetrics.comprobables?`.
+- `hub/src/components/comprobables.tsx` (nuevo): los cinco bloques. Ventas
+  comprobadas (n · con IVA · sin IVA, «compatible con entre X y Y», Bot solo /
+  Bot + asesor / Asesor; conserva el detalle plegado y los descartes de la
+  tarjeta anterior); parte de las llantas de la tienda por semana con la tira de
+  anuncios (sí / no / sin dato) y con vs sin anuncios; del chat a la factura
+  (embudo de la cohorte y acordaron día vs no, aviso «todavía madurando»);
+  cuánto tardan (curva acumulada, mediana y «por llegar» con rango); cuándo
+  escriben y cuándo se factura (franjas y días, aviso «pocas ventas todavía:
+  patrón tentativo» mientras `suficiente` sea false).
+- `charts.tsx`: un gráfico nuevo al final, `BarrasDeParte` (la parte del bot
+  dentro del total de la tienda, con tira de marcas). Los otros, sin cambios.
+- `Dashboard.tsx`: KPIs Conversaciones · Cotizaciones · Con día de visita ·
+  Ventas comprobadas (n · $) · Parte de la tienda. Fuera: «Vendido/Ganados» de
+  Dinero, el embudo por etapas con «Ganado», «Hasta dónde llega el bot», la
+  barra «Ventas» de Plantillas, «Impacto de descuentos» y «¿A qué hora contestan
+  más?» (lo reemplaza el bloque 5).
+- Mock del demo (`fixtures.ts` / `mockSource.ts`) con las cifras del control del
+  23-oct: 26 ventas, 17 del bot solo, 14,9 %, 8,9 % vs 0,4 %, mediana 5 días.
+
+**Por qué:** Manuel (23-oct): que Métricas muestre solo lo que se comprueba.
+Todo lo que salía del «ganado» marcado a mano en el Kanban se deja de mostrar;
+cada cifra sale de una factura de Contífico o de un hecho guardado, y con su
+tamaño de muestra, porque con 26 ventas un porcentaje solo engaña. El servidor
+(Sprint 1) entrega `comprobables`; hasta que se integre, el panel real dice «el
+servidor todavía no calcula este bloque» y no inventa números.
 ## 23-oct-2026 · Métricas comprobables (Sprint 1): el servidor arma los cinco bloques contra las facturas de Contífico
 
 **Qué:** (rama `feat/metricas-comprobables-datos`, sobre `60b93c3`)

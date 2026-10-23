@@ -23,7 +23,7 @@ import {
   type BotAlert,
   type BotPower,
 } from "../types";
-import { FEED_SEED, MENSAJES_SEED, TICKETS_SEED } from "./fixtures";
+import { FEED_SEED, MENSAJES_SEED, TICKETS_SEED, comprobablesDemo } from "./fixtures";
 import { money } from "../../lib/format";
 
 /**
@@ -221,6 +221,9 @@ export class MockSource implements DataSource {
           detalle, descartes: [],
         };
       })(),
+      // Las cifras del control de producción (23-oct), no los tickets del
+      // demo: con ellas se ve la pantalla como la verá Depot.
+      comprobables: comprobablesDemo(clave, todos),
       inventory: {
         total: 375,
         available: 248,
