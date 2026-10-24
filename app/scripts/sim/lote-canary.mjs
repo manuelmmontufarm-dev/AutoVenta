@@ -52,7 +52,7 @@ function claveDePruebas() {
   const linea = readFileSync(resolve(import.meta.dirname, "../../.env.sim"), "utf8").split("\n").find((l) => l.startsWith("OPENAI_API_KEY="));
   return linea?.slice("OPENAI_API_KEY=".length).trim();
 }
-const openai = SIN_JUEZ ? null : new OpenAI({ apiKey: claveDePruebas() });
+const openai = SIN_JUEZ ? null : new OpenAI({ apiKey: claveDePruebas(), timeout: 120_000, maxRetries: 1 });
 
 const FALLAS = ["repite_pregunta_ya_respondida", "pide_dato_que_ya_tiene", "no_da_precio_pedido", "no_ofrece_nada_concreto",
   "no_avanza_al_cierre", "pide_foto_innecesaria", "respuesta_generica", "tono_robotico", "demasiado_largo", "inventa_dato",
@@ -85,7 +85,8 @@ async function juzgar(caso, r) {
         model: JUEZ_MODEL,
         messages: [{ role: "system", content: PROMPT_JUEZ }, { role: "user", content: contexto }],
         response_format: { type: "json_object" },
-        max_completion_tokens: 600,
+        // gpt-5.5 razona antes de escribir: con 600 el JSON salía vacío (9 de 25 casos, 23-oct).
+        max_completion_tokens: 4000,
       });
       const j = JSON.parse(resp.choices[0]?.message?.content ?? "{}");
       const nota = Math.round(Number(j.nota));
@@ -136,8 +137,25 @@ function banderas(r) {
 }
 
 const casos = JSON.parse(await readFile(DATOS, "utf8"));
+
+// --rejuzgar: vuelve a pedir la nota del juez SOLO a los casos sin nota de un
+// archivo ya corrido, sin tocar el simulador ni gastar tokens del bot.
+if (tiene("rejuzgar")) {
+  const archivo = JSON.parse(await readFile(SALIDA, "utf8"));
+  let n = 0;
+  for (const c of archivo.casos) {
+    if (c.juez?.nota || !c.turnos) continue;
+    c.juez = await juzgar(casos[c.n - 1], { turnos: c.turnos });
+    n += 1;
+    process.stdout.write(`   ${c.n}. ${c.juez?.nota ? `nota ${c.juez.nota} · ${c.juez.comentario}` : `sin nota: ${JSON.stringify(c.juez)}`}\n`);
+  }
+  await writeFile(SALIDA, JSON.stringify(archivo, null, 1));
+  process.stdout.write(`== «${ETIQUETA}»: ${n} casos rejuzgados\n`);
+  await sql.end();
+  process.exit(0);
+}
 await mkdir(resolve(import.meta.dirname, "mediciones"), { recursive: true });
-const previos = tiene("continuar") && existsSync(SALIDA) ? JSON.parse(await readFile(SALIDA, "utf8")) : [];
+const previos = tiene("continuar") && existsSync(SALIDA) ? (JSON.parse(await readFile(SALIDA, "utf8")).casos ?? []) : [];
 const hechos = new Set(previos.map((p) => p.n));
 const resultados = [...previos];
 

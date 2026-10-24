@@ -1,3 +1,31 @@
+## 24-oct-2026 · Lote del canary: 50 conversaciones reales × 4 configuraciones, gráfico de control
+
+**Qué:** `scripts/sim/lote-canary.mjs` corrió las 50 difíciles (`datos/dificiles-50.json`,
+textos reales de clientes, no versionado) contra el bot entero con gpt-5.5 (control) y
+con gpt-5.4-mini en vendedor+guardián (25 casos), solo guardián (50) y solo vendedor
+(50); juez gpt-5.5 sobre la conversación entera, costo por conversación, invariantes
+del T115. `comparar-canary.mjs` da el A/B y `grafico-canary.mjs` genera el gráfico de
+control (`docs/reportes-historicos/2026-10-24-canary-control-chart.html`): diferencia de
+nota caso por caso con límites de individuos y el corrimiento de la media ± 2 EE.
+Arreglos del arnés que salieron de esto: `corredor-t115.mjs` cierra el turno a los 20 s
+de silencio cuando no hay Guardián (antes esperaba 120 s por mensaje y un caso tardaba
+15 min), fetch con timeout de 180 s (la Mac dormida dejaba el lote colgado para
+siempre), juez con 4000 tokens de salida (con 600 gpt-5.5 devolvía JSON vacío),
+`--rejuzgar`, `--salida` para correr partes en paralelo y `unir-canary.mjs`.
+OJO: `gpt-5.5-mini` NO existe en la API (404); el barato real es `gpt-5.4-mini`.
+
+**Resultado:** vendedor+guardián en mini pierde de verdad (−0,84 ± 0,63 de nota, 12
+casos ≤4 vs 8, el doble de fallas técnicas). Solo guardián: −0,12 ± 0,41 (ruido), menos
+invariantes rotos (8 vs 17), mismas 29 cotizaciones y 13 visitas, 52 % del costo, 3×
+más rápido. Solo vendedor: 0,00 ± 0,49, 25 cotizaciones vs 29 (ojo), 71 % del costo,
+6× más rápido. Ningún caso cae bajo el límite de control en ninguna configuración.
+
+**Por qué:** antes de bajar un modelo en producción había que saber cuál pieza aguanta.
+La respuesta es: una sola pieza sí, las dos juntas no.
+
+**Horas:** 4 (incluye la noche perdida por la Mac dormida y dos arneses pegados al
+mismo simulador, descartados y repetidos)
+
 ## 23-oct-2026 · Canary de modelo barato por cliente (último dígito del teléfono)
 
 **Qué:** `src/agent/canary.ts`: con `OPENAI_CANARY_MODEL` puesto, los teléfonos
