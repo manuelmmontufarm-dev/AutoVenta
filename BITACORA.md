@@ -1,3 +1,11 @@
+## 24-oct-2026 · CLAUDE.md: canary de modelos y gráficos de control
+
+**Qué:** Dos secciones nuevas en CLAUDE.md: cómo funciona el canary en producción (y que todo
+camino al Guardián debe pasar el teléfono) y que los resultados se reportan con gráficos de
+control (pedido de Manuel: mentalidad Six Sigma).
+
+**Horas:** 0,2
+
 ## 24-oct-2026 · Canary 50/50 EN PRODUCCIÓN + gráficos de control de producción
 
 **Qué:** Mergeado `feat/canary-modelo-barato` (6d483ce) y prendido en Depot_Tire con
