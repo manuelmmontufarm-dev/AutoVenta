@@ -1,3 +1,16 @@
+## 24-oct-2026 · Canary: vendedor gpt-5.4 + Guardián mini es la mejor configuración medida
+
+**Qué:** `OPENAI_CANARY_MODEL_VENDEDOR` / `_GUARDIAN` (modelo distinto por pieza) y el lote
+`v54-gmini` sobre 31 de las 50 reales, en cuatro simuladores a la vez. Gráfico de control
+actualizado con la cuarta configuración.
+
+**Resultado (mismos 31 casos contra el control gpt-5.5):** nota +0,16 ± 0,48 (no pierde),
+18 cotizaciones y 7 visitas iguales, 4 fallas técnicas vs 11, 41 % del costo (≈ $0,06 por
+conversación en producción contra $0,145), 4× más rápido. Decisions (gpt-6-luna) la elige
+con 96 % y da 90 % a que la evidencia alcanza para un canary de dos semanas.
+
+**Horas:** 1
+
 ## 24-oct-2026 · Lote del canary: 50 conversaciones reales × 4 configuraciones, gráfico de control
 
 **Qué:** `scripts/sim/lote-canary.mjs` corrió las 50 difíciles (`datos/dificiles-50.json`,

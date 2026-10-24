@@ -20,6 +20,7 @@ const CONFIGS = [
   { etiqueta: "mini-ambos", nombre: "Vendedor + Guardián en mini", color: "#eb6834", colorDark: "#d95926" },
   { etiqueta: "mini-guardian", nombre: "Solo el Guardián en mini", color: "#2a78d6", colorDark: "#3987e5" },
   { etiqueta: "mini-vendedor", nombre: "Solo el vendedor en mini", color: "#1baf7a", colorDark: "#199e70" },
+  { etiqueta: "v54-gmini", nombre: "Vendedor gpt-5.4 + Guardián en mini", color: "#eda100", colorDark: "#c98500" },
 ];
 const porN = (xs) => new Map(xs.map((c) => [c.n, c]));
 const C = porN(control);
