@@ -1,3 +1,21 @@
+## 24-oct-2026 · Canary 50/50 EN PRODUCCIÓN + gráficos de control de producción
+
+**Qué:** Mergeado `feat/canary-modelo-barato` (6d483ce) y prendido en Depot_Tire con
+`OPENAI_CANARY_MODEL=gpt-5.4-mini`, `OPENAI_CANARY_MODEL_VENDEDOR=gpt-5.4`,
+`OPENAI_CANARY_MODEL_GUARDIAN=gpt-5.4-mini`, `AI_CANARY_DIGITS=0,2,4,6,8`: teléfonos PARES con
+el modelo nuevo, IMPARES siguen con gpt-5.5. Arreglo de hoy: el seguimiento automático no le
+pasaba el teléfono a `prepararSalida`, así que su Guardián se quedaba en gpt-5.5 para todos
+(la mitad de las corridas del Guardián son de seguimientos). `scripts/canary/control-charts.mjs`
+lee producción en solo lectura y dibuja 7 gráficos de control (costo por conversación, ahorro
+acumulado, % cotización, % día de visita, % correcciones del Guardián, fallas técnicas, ventas
+comprobadas por semana). Fase I = 13–23 oct (A/A, mismo bot), 24-oct = transición, fase II
+desde el 25.
+
+**Por qué:** el lote del simulador dio igual calidad al 41 % del costo; la decisión de pasar al
+100 % se toma con los gráficos de control de dos semanas de producción, no con una corrida.
+
+**Horas:** 1,5
+
 ## 24-oct-2026 · Canary: vendedor gpt-5.4 + Guardián mini es la mejor configuración medida
 
 **Qué:** `OPENAI_CANARY_MODEL_VENDEDOR` / `_GUARDIAN` (modelo distinto por pieza) y el lote

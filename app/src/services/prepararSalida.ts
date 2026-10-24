@@ -112,7 +112,8 @@ const CATEGORIAS_DE_DATO = new Set([
 ]);
 
 export interface ContextoDeSalida {
-  conversation: { id: number; current_cycle: number; stage: Stage };
+  /** `phone` decide el grupo del canary de modelos (agent/canary.ts) para el Guardián. */
+  conversation: { id: number; current_cycle: number; stage: Stage; phone?: string | null };
   tipo: TipoDeSalida;
   /** Fase real de este turno; no necesariamente coincide con el máximo guardado en el Kanban. */
   faseOperativa?: Stage;
