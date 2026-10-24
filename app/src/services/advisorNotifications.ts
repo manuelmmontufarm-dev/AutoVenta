@@ -48,29 +48,25 @@ export const EVENTOS_AVISO = [
 export type AdvisorEventType = (typeof EVENTOS_AVISO)[number];
 
 /**
- * Dos niveles, y la diferencia es de oficio, no de jerarquía.
+ * El nivel de un asesor es el id de uno de los niveles configurados en Ajustes.
  *
- *  · `admin` — Manuel y Joaquín. Reciben todo, como siempre: también los
- *    reportes, los errores del bot y las fallas técnicas.
- *  · `asesor` — quien atiende el local (Jocelyn, Jimmy). Recibe únicamente lo
- *    que puede accionar desde el mostrador. Un asesor al que le llegan trazas
- *    del guardián deja de leer el canal, y entonces tampoco lee lo que importa.
+ * Hasta el 24-oct eran dos fijos —`admin` («Todo») y `asesor` («Solo local»)—
+ * y Manuel pidió nombres claros y poder crear más. Los dos ids viejos siguen
+ * existiendo como Nivel 1 y Nivel 2: nadie que ya estaba dado de alta pierde un
+ * aviso. Un id que no existe se trata como el PRIMER nivel: equivocarse hacia
+ * «recibe de más» se nota y se corrige; hacia «no recibe nada», no.
  */
-export type RolAsesor = "admin" | "asesor";
+export type RolAsesor = string;
 
-export const ROLES_ASESOR: readonly RolAsesor[] = ["admin", "asesor"];
-
-export function esRolAsesor(valor: unknown): valor is RolAsesor {
-  return valor === "admin" || valor === "asesor";
-}
+/** Forma válida de un id de nivel (lo que se guarda en `advisors.rol`). */
+export const ID_NIVEL = /^[a-z0-9][a-z0-9-]{0,31}$/;
 
 /**
- * Categorías de aviso: el idioma en el que el negocio decide quién recibe qué
- * desde Ajustes → Avisos (reunión con Andrés, 19-ago). Antes la regla era fija
- * en código («los cinco del mostrador»); ahora es una matriz nivel × categoría
- * que se edita desde el panel. Cada evento pertenece a exactamente una
- * categoría — el test recorre la lista y no deja que un evento nuevo se quede
- * sin casilla.
+ * Categorías de aviso: solo para agrupar en el panel. Desde el 24-oct cada
+ * nivel elige aviso por aviso (Manuel: «que haya una opción para todos los
+ * tipos de avisos»); la categoría ordena la lista y permite marcar un grupo
+ * entero de un clic. Cada evento pertenece a exactamente una categoría — el
+ * test recorre la lista y no deja que un evento nuevo se quede sin casilla.
  */
 export const CATEGORIAS_AVISO = ["ventas", "visitas", "ventana", "cliente", "bot", "tecnico"] as const;
 export type CategoriaAviso = (typeof CATEGORIAS_AVISO)[number];
@@ -99,72 +95,172 @@ export const CATEGORIA_DE_EVENTO: Record<AdvisorEventType, CategoriaAviso> = {
   send_error: "tecnico",
 };
 
-/** Qué categorías recibe cada nivel. Es lo que se edita desde el panel. */
-export type MatrizAvisos = Record<RolAsesor, CategoriaAviso[]>;
+/** Nombre de cada categoría en el panel. */
+export const NOMBRE_DE_CATEGORIA: Record<CategoriaAviso, string> = {
+  ventas: "Ventas",
+  visitas: "Visitas",
+  ventana: "Ventana de 24 h",
+  cliente: "Cliente",
+  bot: "El bot necesita ayuda",
+  tecnico: "Fallas técnicas",
+};
+
+/**
+ * Cómo se llama cada aviso en el panel, en el idioma de quien lo marca. Un
+ * evento nuevo sin nombre aquí rompe el test antes de llegar a producción.
+ */
+export const NOMBRE_DE_EVENTO: Record<AdvisorEventType, string> = {
+  quote_created: "Nueva cotización",
+  customer_ready_to_buy: "El cliente quiere comprar",
+  visita_comprometida: "Confirmó cuándo viene",
+  visita_manana: "Viene mañana",
+  visita_hoy: "Viene hoy",
+  ventana_por_cerrar: "Se va a cerrar la ventana de 24 h para escribirle",
+  human_requested: "Pide hablar con un asesor",
+  negative_sentiment: "Cliente molesto",
+  customer_opt_out: "Pidió que no le escriban más",
+  repetitive_conversation: "Conversación que se repite",
+  guard_bot_atascado: "El bot se trabó",
+  guard_idea_repetida: "El bot estaba en bucle",
+  guard_pide_foto: "El bot pidió una foto que no hacía falta",
+  guard_mensaje_duplicado: "Mensaje duplicado bloqueado",
+  guard_saludo_repetido: "Saludo repetido bloqueado",
+  guard_precio_ajustado: "Precio corregido antes de enviar",
+  guard_stock_recordado: "Aviso de stock agregado",
+  caso_sin_resolver: "Caso que el bot no pudo resolver",
+  envio_fuera_de_cobertura: "Pidió envío fuera de cobertura",
+  bot_apagado_con_clientes: "Bot apagado con clientes esperando",
+  send_error: "Error al enviar un mensaje de WhatsApp",
+};
+
+/**
+ * Avisos que no son de una conversación: salen a todo un nivel de una vez. Antes
+ * iban fijos a `admin`; ahora también se eligen por nivel, como los demás.
+ */
+export const AVISOS_GENERALES = ["reporte_diario", "bot_prendido_apagado"] as const;
+export type AvisoGeneral = (typeof AVISOS_GENERALES)[number];
+export const NOMBRE_DE_AVISO_GENERAL: Record<AvisoGeneral, string> = {
+  reporte_diario: "Reporte diario de las 20:00",
+  bot_prendido_apagado: "Alguien prendió o apagó el bot",
+};
+
+/** Un nivel de aviso: su nombre, qué avisos de chat recibe y qué avisos generales. */
+export interface NivelAviso {
+  id: string;
+  nombre: string;
+  eventos: AdvisorEventType[];
+  generales: AvisoGeneral[];
+}
+
+const eventosDe = (cats: readonly CategoriaAviso[]) =>
+  EVENTOS_AVISO.filter((e) => cats.includes(CATEGORIA_DE_EVENTO[e]));
 
 /**
  * El punto de partida (y el respaldo si la base calla). Sale de la reunión con
  * Andrés del 19-ago:
- *  · `ventana` no la recibe NADIE por defecto — los avisos de «se va a cerrar
- *    la ventana de escribirle al cliente» eran demasiados. La categoría sigue
- *    existiendo para poder re-encenderla desde el panel sin deploy.
- *  · el asesor de local recibe ventas y visitas: lo que acciona en mostrador.
+ *  · la ventana de 24 h no la recibe NADIE por defecto — eran demasiados avisos.
+ *  · el Nivel 2 (el del local) recibe ventas y visitas: lo que acciona en mostrador.
+ *  · el reporte diario va solo al Nivel 1 (pedido de la reunión del 14-ago).
  */
-export const MATRIZ_DEFECTO: MatrizAvisos = {
-  admin: ["ventas", "visitas", "cliente", "bot", "tecnico"],
-  asesor: ["ventas", "visitas"],
-};
+export const NIVELES_DEFECTO: NivelAviso[] = [
+  { id: "admin", nombre: "Nivel 1", eventos: eventosDe(["ventas", "visitas", "cliente", "bot", "tecnico"]), generales: [...AVISOS_GENERALES] },
+  { id: "asesor", nombre: "Nivel 2", eventos: eventosDe(["ventas", "visitas"]), generales: [] },
+];
 
-const MatrizSchema = z.object({
+const NivelSchema = z.object({
+  id: z.string().regex(ID_NIVEL, "Id de nivel inválido"),
+  nombre: z.string().trim().min(1, "El nivel necesita un nombre").max(40),
+  eventos: z.array(z.enum(EVENTOS_AVISO)).default([]),
+  generales: z.array(z.enum(AVISOS_GENERALES)).default([]),
+});
+const NivelesSchema = z.array(NivelSchema).min(1, "Tiene que quedar al menos un nivel").max(12)
+  .refine((ns) => new Set(ns.map((n) => n.id)).size === ns.length, "Dos niveles con el mismo id");
+
+/** La matriz vieja (categorías por `admin`/`asesor`), para leer lo que Andrés ya había marcado. */
+const MatrizViejaSchema = z.object({
   admin: z.array(z.enum(CATEGORIAS_AVISO)).default([]),
   asesor: z.array(z.enum(CATEGORIAS_AVISO)).default([]),
 });
 
-const MATRIZ_TTL_MS = 30_000;
-let matrizCache: { value: MatrizAvisos; at: number } | null = null;
+/** Convierte la matriz por categorías del 19-ago en niveles, sin perder lo marcado. */
+export function nivelesDesdeMatrizVieja(vieja: unknown): NivelAviso[] | null {
+  const parsed = MatrizViejaSchema.safeParse(vieja);
+  if (!parsed.success) return null;
+  return [
+    { id: "admin", nombre: "Nivel 1", eventos: eventosDe(parsed.data.admin), generales: [...AVISOS_GENERALES] },
+    { id: "asesor", nombre: "Nivel 2", eventos: eventosDe(parsed.data.asesor), generales: [] },
+  ];
+}
 
-/** La matriz vigente. Con cache corto: se consulta en cada aviso del worker. */
-export async function getMatrizAvisos(): Promise<MatrizAvisos> {
-  if (matrizCache && Date.now() - matrizCache.at < MATRIZ_TTL_MS) return matrizCache.value;
-  let value: MatrizAvisos = MATRIZ_DEFECTO;
+const NIVELES_TTL_MS = 30_000;
+let nivelesCache: { value: NivelAviso[]; at: number } | null = null;
+
+/** Los niveles vigentes. Con cache corto: se consulta en cada aviso del worker. */
+export async function getNivelesAviso(): Promise<NivelAviso[]> {
+  if (nivelesCache && Date.now() - nivelesCache.at < NIVELES_TTL_MS) return nivelesCache.value;
+  let value: NivelAviso[] = NIVELES_DEFECTO;
   try {
-    const [row] = await sql<{ value: unknown }[]>`select value from settings where key = 'aviso_matrix'`;
-    if (row) {
-      const parsed = MatrizSchema.safeParse(row.value);
-      if (parsed.success) value = parsed.data;
-    }
+    const filas = await sql<{ key: string; value: unknown }[]>`
+      select key, value from settings where key in ('aviso_niveles', 'aviso_matrix')
+    `;
+    const nuevos = filas.find((f) => f.key === "aviso_niveles");
+    const viejos = filas.find((f) => f.key === "aviso_matrix");
+    const parsed = nuevos ? NivelesSchema.safeParse(nuevos.value) : null;
+    if (parsed?.success) value = parsed.data;
+    else if (viejos) value = nivelesDesdeMatrizVieja(viejos.value) ?? NIVELES_DEFECTO;
   } catch (error) {
-    console.error("⚠️ No se pudo leer la matriz de avisos:", error instanceof Error ? error.message : error);
+    console.error("⚠️ No se pudieron leer los niveles de aviso:", error instanceof Error ? error.message : error);
   }
-  matrizCache = { value, at: Date.now() };
+  nivelesCache = { value, at: Date.now() };
   return value;
 }
 
-export async function saveMatrizAvisos(input: unknown): Promise<MatrizAvisos> {
-  const value = MatrizSchema.parse(input);
+/**
+ * Guarda los niveles. No deja borrar un nivel que todavía tiene asesores: se
+ * quedarían recibiendo como Nivel 1 sin que nadie lo decidiera.
+ */
+export async function saveNivelesAviso(input: unknown): Promise<NivelAviso[]> {
+  const value = NivelesSchema.parse(input);
+  const ids = value.map((n) => n.id);
+  const huerfanos = await sql<{ nombre: string; rol: string }[]>`
+    select nombre, rol from advisors where not (rol = any(${ids}::text[]))
+  `;
+  if (huerfanos.length) {
+    throw new Error(`No se puede borrar un nivel con gente asignada: ${huerfanos.map((h) => h.nombre).join(", ")}. Cámbialos de nivel primero.`);
+  }
   await sql`
-    insert into settings (key, value) values ('aviso_matrix', ${sql.json(value)})
+    insert into settings (key, value) values ('aviso_niveles', ${sql.json(value)})
     on conflict (key) do update set value = excluded.value, updated_at = now()
   `;
-  matrizCache = { value, at: Date.now() };
+  nivelesCache = { value, at: Date.now() };
   return value;
 }
 
-/** Solo para pruebas: fuerza a releer la matriz de la base. */
-export function olvidarMatrizAvisos(): void {
-  matrizCache = null;
+/** Solo para pruebas: fuerza a releer los niveles de la base. */
+export function olvidarNivelesAviso(): void {
+  nivelesCache = null;
+}
+
+/** El nivel de un asesor; si su id ya no existe, el primero (recibe de más, no de menos). */
+export function nivelDe(rol: RolAsesor, niveles: NivelAviso[] = NIVELES_DEFECTO): NivelAviso {
+  return niveles.find((n) => n.id === rol) ?? niveles[0];
 }
 
 /**
  * Regla de enrutamiento, pura para poder probarla evento por evento: un nivel
- * recibe un evento si su fila de la matriz incluye la categoría del evento.
+ * recibe un evento si lo tiene marcado.
  */
 export function recibeEvento(
   rol: RolAsesor,
   evento: AdvisorEventType,
-  matriz: MatrizAvisos = MATRIZ_DEFECTO,
+  niveles: NivelAviso[] = NIVELES_DEFECTO,
 ): boolean {
-  return matriz[rol].includes(CATEGORIA_DE_EVENTO[evento]);
+  return nivelDe(rol, niveles).eventos.includes(evento);
+}
+
+/** Si al nivel le llega un aviso general (reporte diario, bot prendido/apagado). */
+export function recibeGeneral(rol: RolAsesor, aviso: AvisoGeneral, niveles: NivelAviso[] = NIVELES_DEFECTO): boolean {
+  return nivelDe(rol, niveles).generales.includes(aviso);
 }
 
 /**
@@ -324,9 +420,9 @@ export async function avisarAsesoresGlobal(texto: string): Promise<{
   error?: string;
 }> {
   try {
-    // Solo administradores: encender o apagar el bot es una decisión de Manuel y
-    // Joaquín, no del mostrador. Al asesor de local no le llega ni le sirve.
-    const destinatarios = await asesoresActivos({ rol: "admin" });
+    // Solo los niveles que lo tienen marcado (por defecto, el Nivel 1): encender
+    // o apagar el bot es una decisión de quien dirige, no del mostrador.
+    const destinatarios = await asesoresActivos({ general: "bot_prendido_apagado" });
     if (!destinatarios.length) {
       console.log("📣 Aviso global sin destino: no hay asesores activos configurados");
       return { enviados: 0, error: "No hay asesores activos configurados" };
@@ -366,8 +462,8 @@ export interface Asesor {
 /**
  * Asesores que reciben los avisos, en orden de prioridad.
  *
- * `filtro.evento` deja solo a quienes ese aviso les corresponde; `filtro.rol`
- * acota a un nivel (lo usa el reporte diario, que es solo de administradores).
+ * `filtro.evento` deja solo a quienes ese aviso les corresponde según su nivel;
+ * `filtro.general` deja solo a los niveles que reciben ese aviso general.
  *
  * Si la tabla no se puede leer (por ejemplo antes de que corra la migración),
  * cae al asesor del entorno: un aviso que no sale es una venta que nadie
@@ -375,14 +471,14 @@ export interface Asesor {
  * el nivel que lo recibía todo antes de que existieran los roles.
  */
 export async function asesoresActivos(
-  filtro: { evento?: AdvisorEventType; rol?: RolAsesor } = {},
+  filtro: { evento?: AdvisorEventType; general?: AvisoGeneral } = {},
 ): Promise<Asesor[]> {
-  // La matriz editable decide qué categoría recibe cada nivel; si la base no
-  // contesta, getMatrizAvisos ya devolvió el defecto y el aviso sale igual.
-  const matriz = filtro.evento ? await getMatrizAvisos() : MATRIZ_DEFECTO;
+  // Los niveles editables deciden qué recibe cada uno; si la base no contesta,
+  // getNivelesAviso ya devolvió el defecto y el aviso sale igual.
+  const niveles = filtro.evento || filtro.general ? await getNivelesAviso() : NIVELES_DEFECTO;
   const aplicar = (lista: Asesor[]) => lista.filter((a) =>
-    (!filtro.rol || a.rol === filtro.rol) &&
-    (!filtro.evento || recibeEvento(a.rol, filtro.evento, matriz)));
+    (!filtro.general || recibeGeneral(a.rol, filtro.general, niveles)) &&
+    (!filtro.evento || recibeEvento(a.rol, filtro.evento, niveles)));
   try {
     const filas = await sql<{ nombre: string; telefono: string; rol: string }[]>`
       select nombre, telefono, rol from advisors
@@ -394,7 +490,7 @@ export async function asesoresActivos(
     if (filas.length) {
       return aplicar(filas.map((f) => ({
         nombre: f.nombre, telefono: f.telefono,
-        rol: f.rol === "asesor" ? "asesor" : "admin",
+        rol: f.rol || "admin",
       })));
     }
   } catch (error) {

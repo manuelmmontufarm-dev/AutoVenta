@@ -350,12 +350,12 @@ interface GuardianHallazgo {
 /**
  * El Ángel Guardián: una IA que revisa cada respuesta del bot ANTES de
  * enviarla (precios contra la cotización real, preguntas repetidas,
- * contradicciones) y la corrige si hace falta. Cuesta tokens por turno, así
- * que el interruptor es del asesor: prendido = cero errores; apagado = ahorro.
+ * contradicciones) y la corrige si hace falta. Siempre prendido: Manuel quitó
+ * el interruptor del panel (24-oct) — apagarlo para ahorrar dejaba pasar los
+ * errores que el cliente sí ve.
  */
 function SeccionGuardian({ onError }: { onError: (v: string) => void }) {
   const [estado, setEstado] = useState<GuardianEstado | null>(null);
-  const [cambiando, setCambiando] = useState(false);
   const [hallazgos, setHallazgos] = useState<GuardianHallazgo[] | null>(null);
   const [abriendo, setAbriendo] = useState(false);
 
@@ -364,20 +364,6 @@ function SeccionGuardian({ onError }: { onError: (v: string) => void }) {
       .then((r) => setEstado(r))
       .catch(() => setEstado(null));
   }, []);
-
-  const alternar = async () => {
-    if (!estado) return;
-    setCambiando(true);
-    try {
-      const r = await api<{ config: { activo: boolean } }>("/api/guardian", {
-        method: "PUT",
-        body: JSON.stringify({ activo: !estado.config.activo }),
-      });
-      setEstado({ ...estado, config: r.config });
-      onError("");
-    } catch (e) { onError(e instanceof Error ? e.message : "No se pudo cambiar el guardián"); }
-    finally { setCambiando(false); }
-  };
 
   const verInforme = async () => {
     if (hallazgos) { setHallazgos(null); return; }
@@ -392,16 +378,7 @@ function SeccionGuardian({ onError }: { onError: (v: string) => void }) {
   const activo = estado?.config.activo ?? false;
   return <Tarjeta
     titulo="Ángel Guardián"
-    sub="Una IA revisa cada respuesta antes de enviarla: precios contra la cotización real, preguntas repetidas, contradicciones. Corrige el error antes de que el cliente lo vea y lo deja documentado. Prendido gasta tokens en cada respuesta; apáguelo cuando quiera ahorrar."
-    extra={estado
-      ? <button
-          onClick={() => void alternar()}
-          disabled={cambiando}
-          className={`rounded-full px-4 py-2 text-[12px] font-semibold disabled:opacity-50 ${
-            activo ? "bg-ok text-text" : "bg-bg text-text2 hover:bg-bg"
-          }`}
-        >{cambiando ? "Cambiando…" : activo ? "● Prendido" : "○ Apagado"}</button>
-      : null}
+    sub="Una IA revisa cada respuesta antes de enviarla: precios contra la cotización real, preguntas repetidas, contradicciones. Corrige el error antes de que el cliente lo vea y lo deja documentado."
   >
     {!estado && <p className="text-[12px] text-text2">Cargando el estado del guardián…</p>}
     {estado && <>
@@ -946,7 +923,42 @@ function SeccionPromociones({ benefits, setBenefits, onError }: {
   );
 }
 
-type RolAsesor = "admin" | "asesor";
+type RolAsesor = string;
+
+interface NivelAviso { id: string; nombre: string; eventos: string[]; generales: string[] }
+interface CatalogoAvisos {
+  catalogo: { id: string; nombre: string; eventos: { id: string; nombre: string }[] }[];
+  generales: { id: string; nombre: string }[];
+}
+
+/**
+ * Los niveles los usan dos tarjetas (el selector de cada asesor y la tabla de
+ * qué recibe cada nivel): un mismo estado para que renombrar o crear un nivel
+ * se vea al instante en las dos, sin recargar.
+ */
+let nivelesCompartidos: NivelAviso[] | null = null;
+let catalogoCompartido: CatalogoAvisos | null = null;
+const oyentesNiveles = new Set<() => void>();
+function publicarNiveles(n: NivelAviso[], c?: CatalogoAvisos) {
+  nivelesCompartidos = n;
+  if (c) catalogoCompartido = c;
+  oyentesNiveles.forEach((f) => f());
+}
+function useNivelesAviso(onError: (e: string) => void) {
+  const [, refrescar] = useState(0);
+  useEffect(() => {
+    const oyente = () => refrescar((x) => x + 1);
+    oyentesNiveles.add(oyente);
+    if (!nivelesCompartidos) {
+      api<{ niveles: NivelAviso[] } & CatalogoAvisos>("/api/aviso-niveles")
+        .then((r) => publicarNiveles(r.niveles, { catalogo: r.catalogo, generales: r.generales }))
+        .catch((e) => onError(e instanceof Error ? e.message : "No se pudieron cargar los niveles de aviso"));
+    }
+    return () => { oyentesNiveles.delete(oyente); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  return { niveles: nivelesCompartidos, catalogo: catalogoCompartido };
+}
 
 interface Asesor {
   id: number;
@@ -958,26 +970,6 @@ interface Asesor {
 }
 
 /**
- * Qué recibe cada nivel, en el idioma de quien lo elige desde el panel. El
- * texto largo va en el `title` del selector porque es lo que se consulta una
- * vez, al dar de alta a alguien, y después nunca más.
- */
-const ROLES: { valor: RolAsesor; etiqueta: string; explica: string }[] = [
-  {
-    valor: "admin",
-    etiqueta: "Todo",
-    explica: "Todo: ventas, visitas, reporte diario de las 20:00, fallas del bot y errores técnicos.",
-  },
-  {
-    valor: "asesor",
-    etiqueta: "Solo local",
-    explica:
-      "Solo lo que se atiende desde el mostrador: nueva cotización, cuándo viene el cliente, "
-      + "el día antes, el día de la visita y los chats por vencerse. Sin reportes ni fallas del bot.",
-  },
-];
-
-/**
  * Quién recibe los avisos del bot. Cada aviso sale a TODOS los activos a
  * quienes les corresponda por su nivel, en orden de prioridad (0 = principal).
  */
@@ -985,9 +977,18 @@ function SeccionAsesores({ onError }: { onError: (e: string) => void }) {
   const [asesores, setAsesores] = useState<Asesor[]>([]);
   const [nombre, setNombre] = useState("");
   const [telefono, setTelefono] = useState("");
-  // Quien se da de alta desde aquí de ahora en adelante es gente del local:
-  // Manuel y Joaquín ya están en la lista y siguen en «Todo».
-  const [rol, setRol] = useState<RolAsesor>("asesor");
+  // Quien se da de alta desde aquí de ahora en adelante suele ser gente del
+  // local: arranca en el Nivel 2 si existe, si no en el primero.
+  const { niveles } = useNivelesAviso(onError);
+  const nivelInicial = niveles?.find((n) => n.id === "asesor")?.id ?? niveles?.[0]?.id ?? "asesor";
+  const [rol, setRol] = useState<RolAsesor>("");
+  const rolElegido = rol || nivelInicial;
+  const opcionesNivel = (actual?: string) => {
+    const lista = niveles ?? [];
+    // Un asesor en un nivel que ya no está se muestra igual, para no mentir.
+    const conActual = actual && !lista.some((n) => n.id === actual) ? [...lista, { id: actual, nombre: `${actual} (borrado)` }] : lista;
+    return conActual.map((n) => <option key={n.id} value={n.id}>{n.nombre}</option>);
+  };
 
   const cargar = useCallback(async () => {
     try {
@@ -1007,9 +1008,9 @@ function SeccionAsesores({ onError }: { onError: (e: string) => void }) {
     try {
       await api("/api/advisors", {
         method: "POST",
-        body: JSON.stringify({ nombre: nombre.trim(), telefono: soloDigitos, prioridad: asesores.length, rol }),
+        body: JSON.stringify({ nombre: nombre.trim(), telefono: soloDigitos, prioridad: asesores.length, rol: rolElegido }),
       });
-      setNombre(""); setTelefono(""); setRol("asesor"); await cargar();
+      setNombre(""); setTelefono(""); setRol(""); await cargar();
     } catch (e) {
       onError(e instanceof Error ? e.message : "No se pudo agregar");
     }
@@ -1036,7 +1037,7 @@ function SeccionAsesores({ onError }: { onError: (e: string) => void }) {
   return (
     <Tarjeta
       titulo="Quién recibe los avisos"
-      sub="El bot avisa por WhatsApp a los de esta lista. El nivel de cada número decide qué tipo de avisos le llegan; qué recibe cada nivel se ajusta en la tarjeta de abajo."
+      sub="El bot avisa por WhatsApp a los de esta lista. El nivel de cada número decide qué avisos le llegan; los niveles se crean y se ajustan en la tarjeta de abajo."
     >
       <div className="flex flex-col gap-2">
         {asesores.map((a) => (
@@ -1055,11 +1056,11 @@ function SeccionAsesores({ onError }: { onError: (e: string) => void }) {
             <span className="tnum shrink-0 text-[12px] text-text2">+{a.telefono}</span>
             <select
               value={a.rol}
-              onChange={(e) => void cambiar(a, { rol: e.target.value as RolAsesor })}
-              title={ROLES.find((r) => r.valor === a.rol)?.explica}
+              onChange={(e) => void cambiar(a, { rol: e.target.value })}
+              aria-label={`Nivel de ${a.nombre}`}
               className={`${selectCls} py-1.5 text-[12px] ${a.active ? "" : "opacity-50"}`}
             >
-              {ROLES.map((r) => <option key={r.valor} value={r.valor}>{r.etiqueta}</option>)}
+              {opcionesNivel(a.rol)}
             </select>
             <button
               onClick={() => void quitar(a.id)}
@@ -1080,11 +1081,11 @@ function SeccionAsesores({ onError }: { onError: (e: string) => void }) {
         <input value={telefono} onChange={(e) => setTelefono(e.target.value)}
           placeholder="593987654321 (con código de país)" className={`${inputCls} flex-1`} />
         <select
-          value={rol} onChange={(e) => setRol(e.target.value as RolAsesor)}
-          title={ROLES.find((r) => r.valor === rol)?.explica}
+          value={rolElegido} onChange={(e) => setRol(e.target.value)}
+          aria-label="Nivel del nuevo asesor"
           className={selectCls}
         >
-          {ROLES.map((r) => <option key={r.valor} value={r.valor}>{r.etiqueta}</option>)}
+          {opcionesNivel()}
         </select>
         <button onClick={() => void agregar()}
           className="shrink-0 rounded-[6px] bg-bg px-4 text-[12px] font-semibold hover:bg-bg">
@@ -1280,94 +1281,143 @@ function VistaPrevia({ pieza, setPieza, paleta, fuente, plantilla, modo, benefic
 
 // ---------------------------------------------------------------------------
 
-type NivelAviso = "admin" | "asesor";
-type MatrizAvisos = Record<NivelAviso, string[]>;
-
 /**
- * Las categorías en el idioma del negocio. El detalle enumera los avisos que
- * caen dentro, para que marcar una casilla no sea un acto de fe.
- */
-const CATEGORIAS_UI: { id: string; label: string; detalle: string }[] = [
-  { id: "ventas", label: "Ventas", detalle: "Nueva cotización · el cliente quiere comprar" },
-  { id: "visitas", label: "Visitas", detalle: "Confirmó cuándo viene · viene mañana · viene hoy" },
-  {
-    id: "ventana", label: "Ventana de 24 h",
-    detalle: "Aviso antes de que se cierre la ventana para escribirle a un cliente. Apagada para todos: eran demasiados mensajes (reunión 19-ago).",
-  },
-  { id: "cliente", label: "Cliente", detalle: "Pide un asesor · está molesto · pidió que no le escriban más" },
-  { id: "bot", label: "El bot necesita ayuda", detalle: "Conversaciones trabadas y bloqueos del guardián" },
-  { id: "tecnico", label: "Fallas técnicas", detalle: "Errores al enviar mensajes de WhatsApp" },
-];
-
-const NIVELES_UI: { id: NivelAviso; label: string }[] = [
-  { id: "admin", label: "Todo" },
-  { id: "asesor", label: "Solo local" },
-];
-
-/**
- * Qué tipo de aviso recibe cada nivel. Cada casilla guarda al soltarla; si el
- * servidor la rechaza, la casilla vuelve a como estaba para no mentir.
+ * Qué recibe cada nivel, aviso por aviso. Los niveles se crean, se renombran y
+ * se borran aquí (Manuel, 24-oct: «Todo» y «Solo local» confundían; mejor
+ * Nivel 1, Nivel 2 y poder crear más). Cada casilla guarda al soltarla; si el
+ * servidor la rechaza, la tabla vuelve a como estaba para no mentir.
  */
 function SeccionMatrizAvisos({ editable, onError }: { editable: boolean; onError: (e: string) => void }) {
-  const [matriz, setMatriz] = useState<MatrizAvisos | null>(null);
-  useEffect(() => {
-    api<{ matriz: MatrizAvisos }>("/api/aviso-matrix")
-      .then((r) => setMatriz(r.matriz))
-      .catch((e) => onError(e instanceof Error ? e.message : "No se pudo cargar la matriz de avisos"));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  const { niveles, catalogo } = useNivelesAviso(onError);
+  const [abiertas, setAbiertas] = useState<Record<string, boolean>>({});
+  const [nombres, setNombres] = useState<Record<string, string>>({});
 
-  const alternar = async (nivel: NivelAviso, categoria: string) => {
-    if (!matriz) return;
-    const fila = matriz[nivel].includes(categoria)
-      ? matriz[nivel].filter((c) => c !== categoria)
-      : [...matriz[nivel], categoria];
-    const siguiente = { ...matriz, [nivel]: fila };
-    setMatriz(siguiente);
+  const guardar = async (siguiente: NivelAviso[]) => {
+    const antes = niveles;
+    publicarNiveles(siguiente);
     try {
-      const r = await api<{ matriz: MatrizAvisos }>("/api/aviso-matrix", {
-        method: "PUT", body: JSON.stringify({ matriz: siguiente }),
+      const r = await api<{ niveles: NivelAviso[] }>("/api/aviso-niveles", {
+        method: "PUT", body: JSON.stringify({ niveles: siguiente }),
       });
-      setMatriz(r.matriz);
+      publicarNiveles(r.niveles);
       onError("");
     } catch (e) {
-      setMatriz(matriz);
-      onError(e instanceof Error ? e.message : "No se pudo guardar la matriz");
+      if (antes) publicarNiveles(antes);
+      onError(e instanceof Error ? e.message : "No se pudieron guardar los niveles");
     }
   };
+
+  if (!niveles || !catalogo) {
+    return <Tarjeta titulo="Qué recibe cada nivel"><p className="text-[12px] text-text2">Cargando los niveles…</p></Tarjeta>;
+  }
+
+  const cambiarEventos = (nivelId: string, ids: string[], marcar: boolean) => void guardar(niveles.map((n) => n.id !== nivelId ? n : {
+    ...n, eventos: marcar ? [...new Set([...n.eventos, ...ids])] : n.eventos.filter((e) => !ids.includes(e)),
+  }));
+  const cambiarGeneral = (nivelId: string, id: string, marcar: boolean) => void guardar(niveles.map((n) => n.id !== nivelId ? n : {
+    ...n, generales: marcar ? [...new Set([...n.generales, id])] : n.generales.filter((g) => g !== id),
+  }));
+  const agregarNivel = () => {
+    let k = niveles.length + 1;
+    while (niveles.some((n) => n.id === `nivel-${k}`)) k++;
+    void guardar([...niveles, { id: `nivel-${k}`, nombre: `Nivel ${k}`, eventos: [], generales: [] }]);
+  };
+  const renombrar = (n: NivelAviso) => {
+    const nuevo = (nombres[n.id] ?? n.nombre).trim();
+    setNombres((x) => { const y = { ...x }; delete y[n.id]; return y; });
+    if (nuevo && nuevo !== n.nombre) void guardar(niveles.map((x) => (x.id === n.id ? { ...x, nombre: nuevo } : x)));
+  };
+  const borrar = (n: NivelAviso) => void guardar(niveles.filter((x) => x.id !== n.id));
+
+  const columnas = `minmax(220px,1fr) repeat(${niveles.length}, 96px)`;
+  const Casilla = ({ checked, indeterminado = false, onChange, etiqueta }: { checked: boolean; indeterminado?: boolean; onChange: (v: boolean) => void; etiqueta: string }) => (
+    <label className="flex justify-center" title={editable ? undefined : "Solo un administrador puede cambiarlo"}>
+      <input
+        type="checkbox" aria-label={etiqueta}
+        checked={checked}
+        ref={(el) => { if (el) el.indeterminate = indeterminado; }}
+        disabled={!editable}
+        onChange={(e) => onChange(e.target.checked)}
+        className="size-4 accent-[var(--color-ok)] disabled:opacity-40"
+      />
+    </label>
+  );
 
   return (
     <Tarjeta
       titulo="Qué recibe cada nivel"
-      sub="Cada aviso del bot cae en una de estas categorías; aquí se decide qué categoría le llega a cada nivel. El reporte diario de las 20:00 va siempre y solo al nivel «Todo»."
+      sub="Cada aviso del bot se marca por nivel. La casilla de un grupo marca o desmarca todos sus avisos; ábrelo para elegir uno por uno."
     >
-      {!matriz && <p className="text-[12px] text-text2">Cargando la matriz…</p>}
-      {matriz && (
-        <div className="flex flex-col gap-2">
-          <div className="flex items-center gap-2 px-3 text-[12px] font-semibold text-text2">
-            <span className="flex-1">Tipo de aviso</span>
-            {NIVELES_UI.map((n) => <span key={n.id} className="w-20 text-center">{n.label}</span>)}
-          </div>
-          {CATEGORIAS_UI.map((c) => (
-            <div key={c.id} className="flex items-center gap-2 rounded-[8px] border border-line bg-bg p-3">
-              <div className="min-w-0 flex-1">
-                <p className="text-[12.5px] font-semibold">{c.label}</p>
-                <p className="mt-0.5 text-[12px] text-text2">{c.detalle}</p>
+      <div className="overflow-x-auto">
+        <div className="flex min-w-max flex-col gap-2">
+          <div className="grid items-end gap-2 px-3 text-[12px] font-semibold text-text2" style={{ gridTemplateColumns: columnas }}>
+            <span>Tipo de aviso</span>
+            {niveles.map((n) => (
+              <div key={n.id} className="flex items-center gap-1">
+                <input
+                  value={nombres[n.id] ?? n.nombre}
+                  disabled={!editable}
+                  aria-label={`Nombre de ${n.nombre}`}
+                  onChange={(e) => setNombres((x) => ({ ...x, [n.id]: e.target.value }))}
+                  onBlur={() => renombrar(n)}
+                  onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
+                  className="w-full min-w-0 rounded-[4px] bg-transparent px-1 py-0.5 text-center font-semibold text-text hover:bg-bg focus:bg-bg focus:outline-none disabled:hover:bg-transparent"
+                />
+                {editable && niveles.length > 1 && (
+                  <button onClick={() => borrar(n)} aria-label={`Borrar ${n.nombre}`} title={`Borrar ${n.nombre}`}
+                    className="shrink-0 rounded px-1 text-[14px] leading-none text-text2 hover:text-[var(--color-signal)]">×</button>
+                )}
               </div>
-              {NIVELES_UI.map((n) => (
-                <label key={n.id} className="flex w-20 justify-center" title={editable ? undefined : "Solo un administrador puede cambiarlo"}>
-                  <input
-                    type="checkbox"
-                    checked={matriz[n.id].includes(c.id)}
-                    disabled={!editable}
-                    onChange={() => void alternar(n.id, c.id)}
-                    className="size-4 accent-[var(--color-ok)] disabled:opacity-40"
-                  />
-                </label>
-              ))}
-            </div>
-          ))}
+            ))}
+          </div>
+
+          {catalogo.catalogo.map((c) => {
+            const ids = c.eventos.map((e) => e.id);
+            const abierta = !!abiertas[c.id];
+            return (
+              <div key={c.id} className="rounded-[8px] border border-line bg-bg">
+                <div className="grid items-center gap-2 p-3" style={{ gridTemplateColumns: columnas }}>
+                  <button onClick={() => setAbiertas((x) => ({ ...x, [c.id]: !abierta }))} className="min-w-0 text-left" aria-expanded={abierta}>
+                    <p className="text-[12.5px] font-semibold">{c.nombre}</p>
+                    <p className="mt-0.5 text-[12px] text-text2">{abierta ? "Ocultar" : `Elegir uno por uno · ${ids.length} ${ids.length === 1 ? "aviso" : "avisos"}`}</p>
+                  </button>
+                  {niveles.map((n) => {
+                    const marcados = ids.filter((e) => n.eventos.includes(e)).length;
+                    return <Casilla key={n.id} etiqueta={`${c.nombre} para ${n.nombre}`} checked={marcados === ids.length}
+                      indeterminado={marcados > 0 && marcados < ids.length} onChange={(v) => cambiarEventos(n.id, ids, v)} />;
+                  })}
+                </div>
+                {abierta && c.eventos.map((e) => (
+                  <div key={e.id} className="grid items-center gap-2 border-t border-line px-3 py-2" style={{ gridTemplateColumns: columnas }}>
+                    <span className="pl-3 text-[12px] text-text2">{e.nombre}</span>
+                    {niveles.map((n) => (
+                      <Casilla key={n.id} etiqueta={`${e.nombre} para ${n.nombre}`} checked={n.eventos.includes(e.id)}
+                        onChange={(v) => cambiarEventos(n.id, [e.id], v)} />
+                    ))}
+                  </div>
+                ))}
+              </div>
+            );
+          })}
+
+          <div className="rounded-[8px] border border-line bg-bg">
+            <div className="px-3 pt-3"><p className="text-[12.5px] font-semibold">Avisos generales</p><p className="mt-0.5 text-[12px] text-text2">No son de un chat: salen a todo el nivel.</p></div>
+            {catalogo.generales.map((g) => (
+              <div key={g.id} className="grid items-center gap-2 px-3 py-2" style={{ gridTemplateColumns: columnas }}>
+                <span className="pl-3 text-[12px] text-text2">{g.nombre}</span>
+                {niveles.map((n) => (
+                  <Casilla key={n.id} etiqueta={`${g.nombre} para ${n.nombre}`} checked={n.generales.includes(g.id)}
+                    onChange={(v) => cambiarGeneral(n.id, g.id, v)} />
+                ))}
+              </div>
+            ))}
+          </div>
         </div>
+      </div>
+      {editable && (
+        <button onClick={agregarNivel} className="mt-3 rounded-[6px] border border-line-strong px-3 py-1.5 text-[12px] font-semibold hover:bg-bg">
+          + Agregar nivel
+        </button>
       )}
     </Tarjeta>
   );
