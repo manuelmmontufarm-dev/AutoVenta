@@ -1,3 +1,12 @@
+## 24-oct-2026 · Métricas: Ventas primero, General después
+
+**Qué:** `hub/src/screens/Dashboard.tsx` — la sección Ventas (lo comprobado en
+Contífico) va arriba y General abajo; el salto de sección también va en ese orden.
+
+**Por qué:** pedido de Manuel: lo que importa es la venta.
+
+**Horas:** 0,1
+
 ## 24-oct-2026 · Niveles de aviso con nombre propio, uno por cada tipo de aviso, y el Guardián sin interruptor
 
 **Qué:**
