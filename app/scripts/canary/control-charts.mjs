@@ -246,11 +246,82 @@ if (ventasSem) {
   bloque({ titulo: "7 · Ventas comprobadas por semana", que: "Facturas de Contífico cruzadas con el teléfono del chat, por semana de la factura. Es el resultado final, pero llega con rezago (la mitad de las ventas tarda 4–5 días) y son pocas por semana: la señal aquí tarda más.", mejor: "arriba", series: s, lim: limitesC(ventasSem), formato: (v) => v.toFixed(0), inicio: lunes(TRANSICION), porSemana: true });
 }
 
+
+// ── Vista de campana (curva normal) y nivel sigma ─────────────────────────
+const dens = (z) => Math.exp(-z * z / 2) / Math.sqrt(2 * Math.PI);
+/** Histograma de la fase I con su curva normal, y la fase II de cada grupo marcada debajo del eje. */
+function campana({ titulo, que, base, centro, sigma, fase2, formato }) {
+  if (!base.length || !sigma) return "";
+  const W = 860, H = 230, m = { l: 24, r: 24, t: 14, b: 58 };
+  const lo = centro - 4 * sigma, hi = centro + 4 * sigma;
+  const x = (v) => m.l + ((Math.min(hi, Math.max(lo, v)) - lo) / (hi - lo)) * (W - m.l - m.r);
+  const nb = 16, ancho = (hi - lo) / nb;
+  const cuenta = Array.from({ length: nb }, (_, i) => base.filter((v) => v >= lo + i * ancho && v < lo + (i + 1) * ancho).length);
+  const maxC = Math.max(1, ...cuenta), escalaCurva = base.length * ancho / sigma;
+  const yMax = Math.max(maxC, escalaCurva * dens(0)) * 1.1;
+  const y = (c) => m.t + (1 - c / yMax) * (H - m.t - m.b);
+  let s = `<svg viewBox="0 0 ${W} ${H}" role="img">`;
+  for (const k of [-3, -2, -1, 1, 2, 3]) {
+    s += `<line x1="${x(centro + k * sigma)}" x2="${x(centro + k * sigma)}" y1="${m.t}" y2="${H - m.b}" stroke="var(--grid)" ${Math.abs(k) === 3 ? 'stroke-dasharray="2 3" stroke="var(--limite)"' : ""}/>`;
+    s += `<text x="${x(centro + k * sigma)}" y="${H - m.b + 14}" text-anchor="middle" class="t">${k > 0 ? "+" : ""}${k}σ</text>`;
+  }
+  s += `<text x="${x(centro)}" y="${H - m.b + 14}" text-anchor="middle" class="t">media ${formato(centro)}</text>`;
+  cuenta.forEach((c, i) => { if (c) s += `<rect x="${x(lo + i * ancho) + 1}" y="${y(c)}" width="${(W - m.l - m.r) / nb - 2}" height="${y(0) - y(c)}" fill="var(--barra)"/>`; });
+  const curva = Array.from({ length: 121 }, (_, i) => { const v = lo + (i / 120) * (hi - lo); return `${i ? "L" : "M"}${x(v).toFixed(1)},${y(escalaCurva * dens((v - centro) / sigma)).toFixed(1)}`; }).join(" ");
+  s += `<path d="${curva}" fill="none" stroke="var(--fg2)" stroke-width="1.5"/>`;
+  s += `<line x1="${m.l}" x2="${W - m.r}" y1="${y(0)}" y2="${y(0)}" stroke="var(--fg2)"/>`;
+  GRUPOS.forEach((g, k) => {
+    const yy = H - m.b + 30 + k * 13;
+    s += `<text x="${m.l}" y="${yy + 4}" class="t">${g === "canary" ? "canary" : "control"}</text>`;
+    for (const v of fase2[g]) s += `<circle cx="${x(v)}" cy="${yy}" r="4" fill="${COLOR[g]}" opacity=".75"><title>${formato(v)} · ${((v - centro) / sigma).toFixed(1)}σ</title></circle>`;
+  });
+  return s + "</svg>";
+}
+const sigmaI = (vals) => { if (vals.length < 3) return 0; const mr = vals.slice(1).map((v, i) => Math.abs(v - vals[i])); return (mr.reduce((a, b) => a + b, 0) / mr.length) / 1.128; };
+const campanas = [];
+{
+  const base = idxI.map((i) => costoConv.control[i]?.y).concat(idxI.map((i) => costoConv.canary[i]?.y)).filter((v) => v != null);
+  const centro = base.reduce((a, b) => a + b, 0) / Math.max(1, base.length);
+  const sigma = sigmaI(idxI.map((i) => costoConv.control[i]?.y).filter((v) => v != null));
+  const f2 = Object.fromEntries(GRUPOS.map((g) => [g, serieCosto[g].filter((p) => p.fase === "II" && !p.inmaduro && p.y != null).map((p) => p.y)]));
+  campanas.push(`<section class="card"><div class="cab"><h2>Campana · costo por conversación</h2></div><p class="que">Las barras grises son los días de la fase I: así se reparte el costo cuando nada cambia, y la curva es la normal que mejor les calza. Debajo, cada punto de color es un día de la fase II. Si los puntos del canary caen a la izquierda de −3σ, el ahorro es real; si caen dentro de la campana, todavía es ruido.</p>${campana({ base, centro, sigma, fase2: f2, formato: usd })}</section>`);
+}
+{
+  let x = 0, n = 0; const base = [];
+  for (const g of GRUPOS) for (const i of idxI) { const p = correcciones[g][i]; if (p?.n) { x += p.x; n += p.n; base.push(p.x / p.n); } }
+  const pb = n ? x / n : 0, nMedio = n / Math.max(1, base.length), sigma = Math.sqrt(pb * (1 - pb) / Math.max(1, nMedio));
+  const f2 = Object.fromEntries(GRUPOS.map((g) => [g, ptsP(correcciones, g).filter((p) => p.fase === "II" && !p.inmaduro && p.y != null).map((p) => p.y)]));
+  campanas.push(`<section class="card"><div class="cab"><h2>Campana · borradores que el Guardián corrige</h2></div><p class="que">Lo mismo para el porcentaje de respuestas que el Guardián reescribe. Aquí lo malo es irse a la <b>derecha</b> de +3σ.</p>${campana({ base, centro: pb, sigma, fase2: f2, formato: pct })}</section>`);
+}
+
+// Nivel sigma (DPMO con el corrimiento de 1,5σ de la convención Six Sigma).
+const invNorm = (p) => { // Acklam
+  const a = [-39.6968302866538, 220.946098424521, -275.928510446969, 138.357751867269, -30.6647980661472, 2.50662827745924];
+  const b = [-54.4760987982241, 161.585836858041, -155.698979859887, 66.8013118877197, -13.2806815528857];
+  const c = [-0.00778489400243029, -0.322396458041136, -2.40075827716184, -2.54973253934373, 4.37466414146497, 2.93816398269878];
+  const d = [0.00778469570904146, 0.32246712907004, 2.445134137143, 3.75440866190742];
+  const q = p < 0.02425 ? Math.sqrt(-2 * Math.log(p)) : p > 1 - 0.02425 ? Math.sqrt(-2 * Math.log(1 - p)) : null;
+  if (q !== null && p < 0.5) return (((((c[0] * q + c[1]) * q + c[2]) * q + c[3]) * q + c[4]) * q + c[5]) / ((((d[0] * q + d[1]) * q + d[2]) * q + d[3]) * q + 1);
+  if (q !== null) return -(((((c[0] * q + c[1]) * q + c[2]) * q + c[3]) * q + c[4]) * q + c[5]) / ((((d[0] * q + d[1]) * q + d[2]) * q + d[3]) * q + 1);
+  const r = p - 0.5, t = r * r;
+  return (((((a[0] * t + a[1]) * t + a[2]) * t + a[3]) * t + a[4]) * t + a[5]) * r / (((((b[0] * t + b[1]) * t + b[2]) * t + b[3]) * t + b[4]) * t + 1);
+};
+const nivel = (def, opp) => { if (!opp) return null; const p = Math.min(Math.max(def / opp, 1e-9), 1 - 1e-9); return { dpmo: p * 1e6, sigma: invNorm(1 - p) + 1.5, def, opp }; };
+const suma = (serie, g, f) => serie[g].reduce((acc, p, i) => (f(dias[i]) ? { x: acc.x + (p?.x ?? 0), n: acc.n + (p?.n ?? 0) } : acc), { x: 0, n: 0 });
+const filasSigma = [["Respuesta que el Guardián tuvo que corregir", correcciones], ["Corrida del vendedor con falla técnica", fallas]].map(([nombre, serie]) => {
+  const celdas = [["control", (d) => fase(d) === "I"], ["canary", (d) => fase(d) === "I"], ["control", (d) => fase(d) === "II"], ["canary", (d) => fase(d) === "II"]]
+    .map(([g, f]) => { const t = suma(serie, g, f); const r = nivel(t.x, t.n); return r ? `<td class="num">${r.sigma.toFixed(1)}σ<br><span class="mini">${Math.round(r.dpmo).toLocaleString("es-EC")} DPMO · ${t.x}/${t.n}</span></td>` : `<td class="num mini">sin datos</td>`; });
+  return `<tr><td>${nombre}</td>${celdas.join("")}</tr>`;
+});
+const seccionSigma = `<section class="card"><div class="cab"><h2>Nivel sigma</h2></div>
+<p class="que">Cuántos defectos por millón de oportunidades (DPMO) tiene cada proceso, traducido a la escala Six Sigma: 6σ son 3,4 por millón, 4σ son 6.210, 3σ son 66.807 y 2σ son 308.538. Se usa el corrimiento de 1,5σ de la convención.</p>
+<div class="tabla"><table><tr><th>Defecto</th><th>Control · fase I</th><th>Canary · fase I</th><th>Control · fase II</th><th>Canary · fase II</th></tr>${filasSigma.join("")}</table></div></section>`;
+
 const html = `<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Canary en producción</title>
 <style>
-:root{--bg:#f7f7f4;--card:#fff;--fg:#1c1c1a;--fg2:#5b5b55;--muted:#85857e;--grid:#ecebe5;--line:#e2e1db;--fase2:#f3f1ea;--limite:#9a998f;--control:#2a78d6;--canary:#eb6834;--bueno:#15803d;--malo:#c2410c;--neutro:#5b5b55}
-@media (prefers-color-scheme:dark){:root{--bg:#161615;--card:#1f1f1d;--fg:#ecebe7;--fg2:#bdbcb5;--muted:#8f8e87;--grid:#2b2b28;--line:#33332f;--fase2:#232320;--limite:#77766f;--control:#3987e5;--canary:#d95926;--bueno:#4ade80;--malo:#fb923c;--neutro:#bdbcb5}}
+:root{--bg:#f7f7f4;--card:#fff;--fg:#1c1c1a;--fg2:#5b5b55;--muted:#85857e;--grid:#ecebe5;--line:#e2e1db;--fase2:#f3f1ea;--limite:#9a998f;--control:#2a78d6;--canary:#eb6834;--barra:#d9d7cf;--bueno:#15803d;--malo:#c2410c;--neutro:#5b5b55}
+@media (prefers-color-scheme:dark){:root{--bg:#161615;--card:#1f1f1d;--fg:#ecebe7;--fg2:#bdbcb5;--muted:#8f8e87;--grid:#2b2b28;--line:#33332f;--fase2:#232320;--limite:#77766f;--control:#3987e5;--canary:#d95926;--barra:#3a3a36;--bueno:#4ade80;--malo:#fb923c;--neutro:#bdbcb5}}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
 main{max-width:900px;margin:0 auto;padding:24px 16px 56px}h1{font-size:23px;margin:0 0 4px}h2{font-size:16px;margin:0}
 .sub{color:var(--muted);margin:0 0 16px;font-size:14px}.card{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:14px 16px;margin:0 0 14px}
@@ -258,6 +329,7 @@ main{max-width:900px;margin:0 auto;padding:24px 16px 56px}h1{font-size:23px;marg
 .chip.bueno{color:var(--bueno)}.chip.malo{color:var(--malo)}.chip.neutro{color:var(--neutro)}.chip.gris{color:var(--muted)}
 .que{margin:0 0 6px;color:var(--fg2);font-size:14px}.pie{margin:4px 0 0;color:var(--muted);font-size:13px}svg{width:100%;height:auto;display:block}.t{font-size:11px;fill:var(--muted)}
 .guia{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:14px 16px;margin:0 0 16px;font-size:14px}.guia ul{margin:6px 0 0;padding-left:18px}.guia li{margin:3px 0}
+.tabla{overflow-x:auto}table{border-collapse:collapse;width:100%;font-size:13px}th,td{padding:7px 8px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}th{color:var(--muted);font-weight:500;font-size:12px}.num{font-variant-numeric:tabular-nums;white-space:nowrap}.mini{color:var(--muted);font-size:11px}
 .ley{display:flex;gap:16px;flex-wrap:wrap;font-size:13px;margin-top:8px}.ley i{display:inline-block;width:14px;height:3px;vertical-align:middle;margin-right:6px}
 </style></head><body><main>
 <h1>Canary de modelos en producción</h1>
@@ -266,9 +338,12 @@ main{max-width:900px;margin:0 auto;padding:24px 16px 56px}h1{font-size:23px;marg
 <ul><li>La <b>zona blanca</b> es la fase I: antes del canary los dos grupos usaban el mismo bot. De ahí salen la línea central (raya) y los límites (punteado) que marcan cuánto se mueve el número solo por azar.</li>
 <li>La <b>zona sombreada</b> es la fase II: desde que prendimos el canary. Cada punto se juzga contra esos límites.</li>
 <li>Un <b>punto relleno</b> se salió de los límites: eso es una <b>señal</b>, un cambio real y no ruido. También es señal tener 8 días seguidos del mismo lado de la línea central.</li>
+<li>La <b>campana</b> es la misma información vista de lado: si giras un gráfico de control 90°, los días de la fase I se amontonan en forma de curva normal. ±3σ deja dentro el 99,7 % de los días cuando nada cambió; por eso un punto afuera es una señal.</li>
 <li>Lo que queremos ver: el costo del canary <b>baja con señal</b> y los demás gráficos <b>no tienen señal en contra</b>. Si eso se cumple dos semanas, el canary pasa al 100 %.</li></ul>
 <div class="ley"><span><i style="background:var(--control)"></i>${NOMBRE.control}</span><span><i style="background:var(--canary)"></i>${NOMBRE.canary}</span></div></div>
 ${bloques.join("\n")}
+${campanas.join("\n")}
+${seccionSigma}
 </main></body></html>`;
 
 const salida = arg("salida", resolve(APP, "..", "docs", "reportes-historicos", `canary-produccion-${hoy}.html`));

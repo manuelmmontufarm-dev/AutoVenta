@@ -1,3 +1,13 @@
+## 24-oct-2026 · Gráficos de control: vista de campana y nivel sigma
+
+**Qué:** `scripts/canary/control-charts.mjs` suma dos campanas (histograma de la fase I con su
+curva normal y los días de la fase II marcados por grupo) para costo por conversación y para
+correcciones del Guardián, y una tabla de nivel sigma (DPMO con el corrimiento de 1,5σ) para
+correcciones del Guardián (≈1,8σ) y fallas técnicas del vendedor (≈4,2σ). Se regenera cada lunes
+con una tarea programada local.
+
+**Horas:** 0,5
+
 ## 24-oct-2026 · CLAUDE.md: canary de modelos y gráficos de control
 
 **Qué:** Dos secciones nuevas en CLAUDE.md: cómo funciona el canary en producción (y que todo
