@@ -83,4 +83,13 @@ describe("canary de modelo barato por cliente", () => {
     expect(ok2).toBe(true);
     expect(c.enGrupoCanary("593990000001")).toBe(true);
   });
+
+  it("modelo distinto por pieza: vendedor gpt-5.4 y guardián gpt-5.4-mini", async () => {
+    const c = await cargar({ OPENAI_CANARY_MODEL: "gpt-5.4-mini", OPENAI_CANARY_MODEL_VENDEDOR: "gpt-5.4", AI_CANARY_DIGITS: "1,2,3", AI_CANARY_SCOPE: undefined });
+    restaurar = c.restaurar;
+    expect(c.modeloCanary("vendedor", "593990000001", "gpt-5.5")).toBe("gpt-5.4");
+    expect(c.modeloCanary("guardian", "593990000001", "gpt-5.5")).toBe("gpt-5.4-mini");
+    expect(c.modeloCanary("vendedor", "593990000005", "gpt-5.5")).toBe("gpt-5.5");
+    delete process.env.OPENAI_CANARY_MODEL_VENDEDOR;
+  });
 });

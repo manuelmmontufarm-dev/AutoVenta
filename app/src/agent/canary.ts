@@ -12,6 +12,7 @@
  *   AI_CANARY_DIGITS      últimos dígitos del teléfono que entran (default "1,2,3")
  *   AI_CANARY_SCOPE       qué piezas bajan: "vendedor,guardian" (default),
  *                         "vendedor" o "guardian" — para poder probar cada una sola
+ *   OPENAI_CANARY_MODEL_VENDEDOR / _GUARDIAN   modelo distinto por pieza (opcional)
  *
  * El grupo se decide por TELÉFONO y no por id de conversación: la misma
  * persona cae siempre del mismo lado aunque abra otra conversación, y el
@@ -39,7 +40,9 @@ export async function validarCanaryAlArrancar(cliente?: Pick<OpenAI, "models">):
   if (!config.openai.canaryModel) return false;
   try {
     const openai = cliente ?? new OpenAI({ apiKey: config.openai.apiKey });
-    await openai.models.retrieve(config.openai.canaryModel);
+    for (const m of new Set([config.openai.canaryModel, config.openai.canaryModelVendedor, config.openai.canaryModelGuardian].filter(Boolean) as string[])) {
+      await openai.models.retrieve(m);
+    }
     apagado = false;
     console.log(`🧪 Canary de modelo barato: ${config.openai.canaryModel} para dígitos ${[...config.openai.canaryDigits].join(",")} (${[...config.openai.canaryScope].join("+")})`);
     return true;
@@ -62,7 +65,8 @@ export function enGrupoCanary(phone: string | null | undefined): boolean {
 export function modeloCanary(pieza: PiezaCanary, phone: string | null | undefined, normal: string): string {
   if (!enGrupoCanary(phone)) return normal;
   if (!config.openai.canaryScope.has(pieza)) return normal;
-  return config.openai.canaryModel!;
+  const propio = pieza === "vendedor" ? config.openai.canaryModelVendedor : config.openai.canaryModelGuardian;
+  return propio ?? config.openai.canaryModel!;
 }
 
 /** Sufijo de `ai_runs.route` para que el panel separe los dos grupos. */

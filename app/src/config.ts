@@ -184,6 +184,9 @@ export const config = {
      * `canaryScope`. Sin OPENAI_CANARY_MODEL no cambia absolutamente nada.
      */
     canaryModel: process.env.OPENAI_CANARY_MODEL || null,
+    /** Modelo por pieza, si difiere del general (p. ej. vendedor gpt-5.4 y guardián gpt-5.4-mini). */
+    canaryModelVendedor: process.env.OPENAI_CANARY_MODEL_VENDEDOR || null,
+    canaryModelGuardian: process.env.OPENAI_CANARY_MODEL_GUARDIAN || null,
     canaryDigits: new Set(envOr("AI_CANARY_DIGITS", "1,2,3").split(/[,\s]+/).map((d) => d.trim()).filter((d) => /^\d$/.test(d))),
     canaryScope: new Set(
       envOr("AI_CANARY_SCOPE", "vendedor,guardian").split(/[,\s]+/).map((s) => s.trim()).filter((s) => s === "vendedor" || s === "guardian"),

@@ -580,6 +580,8 @@ function aplicarForzadosDeCanary(base) {
       OPENAI_CANARY_MODEL: canary,
       AI_CANARY_DIGITS: valor("canary-digits", "0,1,2,3,4,5,6,7,8,9"),
       AI_CANARY_SCOPE: valor("canary-scope", "vendedor,guardian"),
+      ...(valor("canary-model-vendedor", null) ? { OPENAI_CANARY_MODEL_VENDEDOR: valor("canary-model-vendedor") } : {}),
+      ...(valor("canary-model-guardian", null) ? { OPENAI_CANARY_MODEL_GUARDIAN: valor("canary-model-guardian") } : {}),
     };
   }
   return salida;
