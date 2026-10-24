@@ -3,6 +3,7 @@
  * Punto de entrada: conecta webhook → pipeline → agente → WhatsApp.
  */
 import { business, config } from "./config.js";
+import { validarCanaryAlArrancar } from "./agent/canary.js";
 import { createServer } from "./server/webhook.js";
 
 // Las rutas async del panel (admin.ts) corren sin try/catch y Express 4 no
@@ -987,6 +988,7 @@ startVentasConfirmadasSync();
 startEmbeddedFollowUpWorker();
 
 const app = createServer();
+void validarCanaryAlArrancar();
 app.listen(config.port, () => {
   console.log(`🚀 AutoVenta escuchando en :${config.port}`);
   void notifyPendingHumanRequests()

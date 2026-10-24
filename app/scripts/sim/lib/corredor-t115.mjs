@@ -24,7 +24,9 @@ export const sql = postgres(DB, { prepare: false, max: 1 });
 export const pausa = (ms) => new Promise((r) => setTimeout(r, ms));
 
 async function json(url, options) {
-  const r = await fetch(url, options);
+  // Con timeout: la Mac se durmió a mitad de un lote (23-oct) y el fetch sin
+  // límite quedó colgado para siempre al despertar; el lote no avanzó más.
+  const r = await fetch(url, { signal: AbortSignal.timeout(180_000), ...options });
   const body = await r.json().catch(() => ({}));
   if (!r.ok) throw new Error(`${r.status} ${JSON.stringify(body)}`);
   return body;
@@ -82,8 +84,14 @@ export async function mandar(textos, extra = {}) {
     const nuevos = ultimo.mensajes.filter((m) => m.author_kind === "bot" && Number(m.id) > maxBot);
     const f = JSON.stringify([nuevos.map((m) => [String(m.id), m.content]), ultimo.runs.map((r) => [String(r.id), r.error, r.tools]), ultimo.guardian.map((g) => String(g.id))]);
     const completo = nuevos.length && ultimo.runs.length > nRuns && ultimo.guardian.length > nGuard;
-    if (completo && f === firma) { if (!estable) estable = Date.now(); if (Date.now() - estable >= 2000) break; }
-    else { firma = f; estable = Date.now(); }
+    // Sin guardián (turno determinístico, pieza exacta) el turno igual cierra:
+    // con respuesta y corrida nuevas, 20 s quieto alcanza. Antes se esperaban
+    // los 120 s enteros por cada mensaje así y un caso tardaba 15 min (24-oct).
+    const casiCompleto = nuevos.length && ultimo.runs.length > nRuns;
+    if (f === firma && (completo || casiCompleto)) {
+      if (!estable) estable = Date.now();
+      if (Date.now() - estable >= (completo ? 2000 : 20_000)) break;
+    } else { firma = f; estable = Date.now(); }
     await pausa(400);
   }
   if (!ultimo) ultimo = await snapshot();

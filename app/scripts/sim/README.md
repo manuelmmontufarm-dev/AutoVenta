@@ -133,6 +133,7 @@ bot sigue desde ahí, como si el cliente acabara de escribir.
 | `--con-clave-de-produccion` | Corre con la clave de Depot (te lo va a cobrar a él). |
 | `--debounce N` | Acorta el agrupador de mensajes (producción usa 12000 ms; avisa que diverge). |
 | `--exact-tool-model M` `--rollout N` | Fuerza el canary del turno exacto barato. |
+| `--canary-model M` `--canary-scope S` `--canary-digits D` | Canary de modelo barato por cliente (todos los dígitos por defecto; `S` = `vendedor,guardian`, `vendedor` o `guardian`). |
 | `--sin-build` | No recompila (útil cuando no cambiaste `src/`). |
 | `--verboso` | Vuelca el log del bot a la terminal (también está en la pestaña Log). |
 | `--reentrega-ms N` | Espera antes de reentregar un webhook que no devolvió 200 (Meta reentrega; por defecto 1000). |

@@ -682,9 +682,23 @@ async function copiarConfiguracionDelServicio(urlProd) {
 }
 
 function aplicarForzadosDeCanary(base) {
+  let salida = base;
   const forzadoExacto = valor("exact-tool-model", null);
-  if (!forzadoExacto) return base;
-  return { ...base, OPENAI_EXACT_TOOL_MODEL: forzadoExacto, AI_EXACT_TOOL_ROLLOUT: valor("rollout", "100") };
+  if (forzadoExacto) salida = { ...salida, OPENAI_EXACT_TOOL_MODEL: forzadoExacto, AI_EXACT_TOOL_ROLLOUT: valor("rollout", "100") };
+  // Canary de modelo barato por cliente (src/agent/canary.ts). Por defecto
+  // entran TODOS los dígitos: en el simulador se prueba el modelo, no el reparto.
+  const canary = valor("canary-model", null);
+  if (canary) {
+    salida = {
+      ...salida,
+      OPENAI_CANARY_MODEL: canary,
+      AI_CANARY_DIGITS: valor("canary-digits", "0,1,2,3,4,5,6,7,8,9"),
+      AI_CANARY_SCOPE: valor("canary-scope", "vendedor,guardian"),
+      ...(valor("canary-model-vendedor", null) ? { OPENAI_CANARY_MODEL_VENDEDOR: valor("canary-model-vendedor") } : {}),
+      ...(valor("canary-model-guardian", null) ? { OPENAI_CANARY_MODEL_GUARDIAN: valor("canary-model-guardian") } : {}),
+    };
+  }
+  return salida;
 }
 
 async function modelosSegunAiRuns(urlProd) {

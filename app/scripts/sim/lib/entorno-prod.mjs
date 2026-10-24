@@ -27,7 +27,7 @@ export const LISTA_BLANCA = [
   // Los modelos, uno por uno y no `^OPENAI_`: ese prefijo también cubre las
   // claves, y una lista blanca que puede tragarse una credencial no es una
   // lista blanca.
-  /^OPENAI_(MODEL|ROUTINE_MODEL|CLASSIFIER_MODEL|RESEARCH_MODEL|VISION_MODEL|ESCALATION_MODEL|TRANSCRIBE_MODEL|EVAL_MODEL|GUARDIAN_MODEL|EXACT_TOOL_MODEL)$/,
+  /^OPENAI_(MODEL|ROUTINE_MODEL|CLASSIFIER_MODEL|RESEARCH_MODEL|VISION_MODEL|ESCALATION_MODEL|TRANSCRIBE_MODEL|EVAL_MODEL|GUARDIAN_MODEL|EXACT_TOOL_MODEL|CANARY_MODEL|CANARY_MODEL_VENDEDOR|CANARY_MODEL_GUARDIAN)$/,
   // Los interruptores del agente: prompt compacto, historia que ve, vueltas de
   // herramientas, porcentaje del canary.
   /^AI_[A-Z_]+$/,

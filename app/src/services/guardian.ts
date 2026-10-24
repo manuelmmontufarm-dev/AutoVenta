@@ -38,6 +38,7 @@ import { aroDadoPorElCliente, medidaConfirmadaPorCliente } from "../domain/medid
 import { mencionaVehiculo } from "../domain/vehiculoEnTexto.js";
 import { z } from "zod";
 import { business, config } from "../config.js";
+import { modeloCanary, rutaCanary } from "../agent/canary.js";
 import { sql } from "../db/client.js";
 import type { Stage } from "../domain/pipeline.js";
 import { ahorroDeLaCotizacion } from "../domain/ahorro.js";
@@ -949,13 +950,15 @@ export function aplicarVeredicto(borrador: string, crudo: unknown): RevisionGuar
  * sale tal cual y la conversación no se entera de que el guardián existe.
  */
 export async function revisarConGuardian(
-  conversation: { id: number; current_cycle: number; stage: Stage },
+  conversation: { id: number; current_cycle: number; stage: Stage; phone?: string | null },
   borrador: string,
   huella: readonly HuellaHerramienta[] = [],
   opciones: OpcionesRevision = {},
   dependencias: DependenciasGuardian = {},
 ): Promise<RevisionGuardian> {
   const sinRevision: RevisionGuardian = { texto: borrador, veredicto: "sin_revision", hallazgos: [] };
+  // Canary por cliente (agent/canary.ts): el revisor del grupo barato es el barato.
+  const modeloGuardian = modeloCanary("guardian", conversation.phone, config.openai.guardianModel);
   let activo = false;
   let inicio = Date.now();
   const timeoutMs = dependencias.timeoutMs ?? GUARDIAN_TIMEOUT_MS;
@@ -968,9 +971,9 @@ export async function revisarConGuardian(
     const contexto = await armarContexto(
       conversation.id, conversation.current_cycle, borrador, huella, opciones,
     );
-    const reasoningEffort = chatReasoningEffort(config.openai.guardianModel, false);
+    const reasoningEffort = chatReasoningEffort(modeloGuardian, false);
     const completar = dependencias.completar ?? (() => openai.chat.completions.create({
-        model: config.openai.guardianModel,
+        model: modeloGuardian,
         messages: [
           { role: "system", content: INSTRUCCIONES },
           { role: "user", content: contexto },
@@ -990,12 +993,12 @@ export async function revisarConGuardian(
     await logAiRun({
       conversationId: conversation.id,
       stage: conversation.stage,
-      model: config.openai.guardianModel,
+      model: modeloGuardian,
       latencyMs: ms,
       inputTokens: respuesta.usage?.prompt_tokens ?? 0,
       outputTokens: respuesta.usage?.completion_tokens ?? 0,
       cachedInputTokens: respuesta.usage?.prompt_tokens_details?.cached_tokens ?? 0,
-      route: opciones.tipo === "seguimiento" ? "guardian_seguimiento" : "guardian",
+      route: rutaCanary(opciones.tipo === "seguimiento" ? "guardian_seguimiento" : "guardian", conversation.phone),
       callType: "guardian",
       tools: [],
     }).catch(() => undefined);
@@ -1004,7 +1007,7 @@ export async function revisarConGuardian(
       insert into guardian_reviews (
         conversation_id, cycle, model, verdict, findings, original_text, corrected_text, latency_ms
       ) values (
-        ${conversation.id}, ${conversation.current_cycle}, ${config.openai.guardianModel},
+        ${conversation.id}, ${conversation.current_cycle}, ${modeloGuardian},
         ${revision.veredicto}, ${sql.json(revision.hallazgos as never)}, ${borrador},
         ${revision.veredicto === "corregir" ? revision.texto : null}, ${ms}
       )
@@ -1059,7 +1062,7 @@ export async function revisarConGuardian(
       await registrarFalloAbierto({
         conversation,
         borrador,
-        model: config.openai.guardianModel,
+        model: modeloGuardian,
         latencyMs: Date.now() - inicio,
         timeoutMs,
         error,
