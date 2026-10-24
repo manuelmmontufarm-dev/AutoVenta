@@ -179,10 +179,11 @@ export function VentasComprobadasBloque({ c, vc, estado, enElPeriodo, now }: {
         {vc?.error && <p className="text-[12px] text-signal">La última lectura falló ({vc.error}); se muestran las facturas de la anterior.</p>}
         {detalle.length > 0 ? (
           // Plegada: la tarjeta es un resumen; el detalle se abre a pedido
-          // (Manuel, 28-sep: «que no sea grande, solo si aplastas»).
+          // (Manuel, 28-sep: «que no sea grande, solo si aplastas»). Con pinta
+          // de botón: como texto gris no lo encontró (23-oct).
           <details className="group">
-            <summary className="cursor-pointer text-[13px] font-medium select-none">
-              <span className="group-open:hidden">Ver {detalle.length === 1 ? "la venta" : `las ${detalle.length} ventas`}</span>
+            <summary className="inline-flex cursor-pointer list-none items-center gap-2 rounded-[6px] border border-line-strong px-3 py-1.5 text-[13px] font-medium select-none hover:bg-bg [&::-webkit-details-marker]:hidden">
+              <span className="group-open:hidden">Ver quiénes compraron · {detalle.length === 1 ? "1 venta" : `${detalle.length} ventas`}</span>
               <span className="hidden group-open:inline">Ocultar {detalle.length === 1 ? "la venta" : "las ventas"}</span>
             </summary>
             <div className="mt-2 overflow-x-auto">
@@ -210,6 +211,8 @@ export function VentasComprobadasBloque({ c, vc, estado, enElPeriodo, now }: {
               </table>
             </div>
           </details>
+        ) : v && v.n > 0 ? (
+          <p className="text-[13px] text-text2">Cargando el detalle de las {v.n} ventas…</p>
         ) : (
           <p className="text-[13px] text-text2">Ningún chat terminó en factura {enElPeriodo} todavía.</p>
         )}
@@ -263,7 +266,7 @@ function Grupos({ grupos, n }: { grupos: MetricasComprobables["ventas"]["grupos"
 
 export function ParteDeLaTiendaBloque({ c, estado, enElPeriodo }: { c: MetricasComprobables | undefined; estado: EstadoComprobables; enElPeriodo: string }) {
   if (estado !== "listo" || !c) {
-    return <Bloque titulo="Parte de las llantas de la tienda" nota="facturas con llantas"><SinDatos estado={estado} /></Bloque>;
+    return <Bloque titulo="De las llantas que vende la tienda, cuántas vienen del bot" nota="facturas con llantas"><SinDatos estado={estado} /></Bloque>;
   }
   const { periodo, semanas } = c.participacion;
   const suma = (filtro: (s: (typeof semanas)[number]) => boolean) => semanas.filter(filtro).reduce(
@@ -273,10 +276,9 @@ export function ParteDeLaTiendaBloque({ c, estado, enElPeriodo }: { c: MetricasC
   const con = suma((s) => s.anuncios === "si");
   const sin = suma((s) => s.anuncios === "no");
   const ultima = semanas[semanas.length - 1];
-  const marca = { si: "con anuncios", no: "sin anuncios", sin_dato: "anuncios sin dato" } as const;
 
   return (
-    <Bloque titulo="Parte de las llantas de la tienda" nota="facturas con llantas de toda la tienda">
+    <Bloque titulo="De las llantas que vende la tienda, cuántas vienen del bot" nota="facturas con llantas de toda la tienda · últimas 12 semanas">
       <Cifra valor={periodo.llantasTienda > 0 ? `${dec(periodo.pct)} %` : "—"}>
         {num(periodo.delBot)} de {num(periodo.llantasTienda)} facturas con llantas {enElPeriodo} salieron de un chat del bot
       </Cifra>
@@ -289,7 +291,8 @@ export function ParteDeLaTiendaBloque({ c, estado, enElPeriodo }: { c: MetricasC
         unidad="facturas" etiqueta="Facturas de llantas de la tienda por semana, la parte del bot y si hubo anuncios"
         data={semanas.map((s) => ({
           x: diaCorto(s.lunes), total: s.llantasTienda, parte: s.delBot, marca: s.anuncios, encima: s.delBot > 0 ? String(s.delBot) : undefined,
-          detalle: `${s.delBot} de ${s.llantasTienda} · sem. ${diaCorto(s.lunes)} · ${marca[s.anuncios]}`,
+          // «Sin dato» no es un estado: la semana es de antes de que el bot guardara el anuncio y no se dice nada.
+          detalle: `Semana del ${diaCorto(s.lunes)}: ${s.delBot} de ${s.llantasTienda} facturas con llantas vinieron del bot${s.anuncios === "si" ? " · con anuncios" : s.anuncios === "no" ? " · sin anuncios" : ""}`,
         }))}
       />
       <Cifras>
@@ -297,7 +300,7 @@ export function ParteDeLaTiendaBloque({ c, estado, enElPeriodo }: { c: MetricasC
         <Campo etiqueta="Sin anuncios"><span className={mono}>{sin.bot} de {sin.tienda} · {pctDe(sin.bot, sin.tienda)}</span> <span className="text-text2">en {sin.semanas} {sin.semanas === 1 ? "semana" : "semanas"}</span></Campo>
         {ultima && <Campo etiqueta="Esta semana"><span className={mono}>{ultima.delBot} de {ultima.llantasTienda}</span> <span className="text-text2">desde el lunes {diaCorto(ultima.lunes)} · {num(ultima.chats)} chats</span></Campo>}
       </Cifras>
-      <p className="text-[12px] text-text2">Últimas 12 semanas, no cambia con el mes. «Con anuncios»: al menos 10 chats y el 30 % llegaron desde un anuncio de Meta; «sin ads» la marca la semana sin anuncios y las semanas sin marca son de antes de que el bot guardara el anuncio. Comparar semanas muestra asociación, no causa.</p>
+      <p className="text-[12px] text-text2">No cambia con el mes. «Con anuncios»: al menos 10 chats y el 30 % llegaron desde un anuncio de Meta; «sin ads» marca la semana sin anuncios. Comparar semanas muestra asociación, no causa.</p>
     </Bloque>
   );
 }
@@ -399,6 +402,13 @@ export function CuandoEscribenBloque({ c, estado }: { c: MetricasComprobables | 
   const k = c.cuando;
   const sinVentas = k.escribenPorFranja.filter((f) => f.ventas === 0 && f.chats > 0);
   const sabado = k.escribenPorDia.find((d) => d.dia === 6);
+  // La barra alta engaña: la tarde recibe más chats y compra menos. La tasa
+  // (ventas por chat) es lo que decide qué horas y días pautar (Manuel, 23-oct).
+  const tasa = (ventas: number, chats: number) => (chats > 0 ? ventas / chats : 0);
+  const mejor = <T extends { ventas: number; chats: number }>(xs: T[]) =>
+    xs.filter((x) => x.chats >= 30 && x.ventas > 0).reduce<T | null>((m, x) => (tasa(x.ventas, x.chats) > tasa(m?.ventas ?? 0, m?.chats ?? 1) ? x : m), null);
+  const mejorFranja = mejor(k.escribenPorFranja);
+  const mejorDia = mejor(k.escribenPorDia);
   return (
     <Bloque titulo="Cuándo escriben" nota={avisoMuestra(k) ?? `todo el histórico · ${ventasN(k.ventasTotales)}`}>
       {/* Uno debajo del otro: el bloque vive en media columna y lado a lado no se leen. */}
@@ -408,8 +418,8 @@ export function CuandoEscribenBloque({ c, estado }: { c: MetricasComprobables | 
           <BarrasDeParte
             alto={200} unidad="chats" etiqueta="Chats por franja de inicio, con las ventas comprobadas encima"
             data={k.escribenPorFranja.map((f) => ({
-              x: FRANJA[f.franja].corto, total: f.chats, encima: f.ventas > 0 ? `${f.ventas} v` : "0",
-              detalle: `${num(f.chats)} chats · ${f.ventas} ventas · ${FRANJA[f.franja].horas}`,
+              x: FRANJA[f.franja].corto, total: f.chats, encima: f.ventas > 0 ? `${f.ventas} v · ${pctDe(f.ventas, f.chats)}` : "0",
+              detalle: `${FRANJA[f.franja].nombre} ${FRANJA[f.franja].horas}: ${f.ventas} de ${num(f.chats)} chats compraron · ${pctDe(f.ventas, f.chats)}`,
             }))}
           />
         </div>
@@ -418,14 +428,20 @@ export function CuandoEscribenBloque({ c, estado }: { c: MetricasComprobables | 
           <BarrasDeParte
             alto={200} unidad="chats" etiqueta="Chats por día de la semana, con las ventas comprobadas encima"
             data={porDiaLunADom(k.escribenPorDia).map((d) => ({
-              x: DIA_CORTO[d.dia], total: d.chats, encima: d.ventas > 0 ? `${d.ventas} v` : "0",
-              detalle: `${num(d.chats)} chats · ${d.ventas} ventas · ${DIA[d.dia].toLowerCase()}`,
+              x: DIA_CORTO[d.dia], total: d.chats, encima: d.ventas > 0 ? `${d.ventas} v · ${pctDe(d.ventas, d.chats)}` : "0",
+              detalle: `${DIA[d.dia]}: ${d.ventas} de ${num(d.chats)} chats compraron · ${pctDe(d.ventas, d.chats)}`,
             }))}
           />
         </div>
       </div>
+      {(mejorFranja || mejorDia) && (
+        <Cifras>
+          {mejorFranja && <Campo etiqueta="Mejor franja"><span className={mono}>{FRANJA[mejorFranja.franja].nombre} {FRANJA[mejorFranja.franja].horas}</span> <span className="text-text2">{mejorFranja.ventas} de {num(mejorFranja.chats)} chats compraron · {pctDe(mejorFranja.ventas, mejorFranja.chats)}</span></Campo>}
+          {mejorDia && <Campo etiqueta="Mejor día"><span className={mono}>{DIA[mejorDia.dia]}</span> <span className="text-text2">{mejorDia.ventas} de {num(mejorDia.chats)} chats compraron · {pctDe(mejorDia.ventas, mejorDia.chats)}</span></Campo>}
+        </Cifras>
+      )}
       <p className="text-[12px] leading-relaxed text-text2">
-        Barra = chats que empezaron ahí · número = ventas comprobadas de esos chats («v»).
+        Barra = chats que empezaron ahí · encima, cuántos de esos compraron («v») y qué parte son. La barra alta no es la mejor: importa la tasa.
         {sinVentas.length > 0 && ` ${sinVentas.map((f) => `${FRANJA[f.franja].nombre} (${FRANJA[f.franja].horas}): ${num(f.chats)} chats y ninguno compró`).join("; ")}.`}
         {sabado && sabado.chats > 0 && sabado.ventas === 0 && ` Sábado: ${num(sabado.chats)} chats y ninguno compró.`}
       </p>

@@ -1,3 +1,19 @@
+## 23-oct-2026 · Retoques a Métricas tras verla en producción
+
+**Qué:** (`hub/src/components/comprobables.tsx`, `hub/src/screens/Dashboard.tsx`)
+«Cuándo escriben» muestra la tasa encima de cada barra («11 v · 1,6 %») y las
+cifras «Mejor franja» / «Mejor día» (mínimo 30 chats): la barra alta de la tarde
+parecía lo mejor y es lo contrario. «De las llantas que vende la tienda, cuántas
+vienen del bot»: título claro, tooltip que se lee a la primera y las semanas de
+antes del 19-sep ya no dicen «anuncios sin dato». «Ver quiénes compraron» es un
+botón con borde (como texto gris nadie lo encontró) y si el contrato trae ventas
+pero el detalle aún no llegó dice «cargando» en vez de «ninguna». «Seguimientos
+por etapa y tipo» va plegado. Build commiteado.
+
+**Por qué:** feedback de Manuel al ver producción (23-oct, tarde).
+
+**Horas:** 0,75
+
 ## 23-oct-2026 · Las notificaciones del hub tienen botón de cerrar
 
 **Qué:** `hub/src/components/overlays.tsx`: la tarjeta del toast deja de ser un solo

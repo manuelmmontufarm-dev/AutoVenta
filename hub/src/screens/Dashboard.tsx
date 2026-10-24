@@ -187,8 +187,14 @@ export function Dashboard() {
           </div>
 
           {fu && fu.byStageAndType.length > 0 && (
-            <Bloque titulo="Seguimientos por etapa y tipo">
-              <div className="overflow-x-auto">
+            <Bloque titulo="Seguimientos por etapa y tipo" nota="rara vez hace falta: plegado">
+              {/* Plegado: ocupa media pantalla y casi nunca se mira (Manuel, 23-oct). */}
+              <details className="group">
+                <summary className="inline-flex cursor-pointer list-none items-center rounded-[6px] border border-line-strong px-3 py-1.5 text-[13px] font-medium select-none hover:bg-bg [&::-webkit-details-marker]:hidden">
+                  <span className="group-open:hidden">Ver el desglose · {fu.byStageAndType.length} filas</span>
+                  <span className="hidden group-open:inline">Ocultar el desglose</span>
+                </summary>
+              <div className="mt-3 overflow-x-auto">
                 <table className="w-full text-left text-[13px]">
                   <thead className="text-[12px] font-medium text-text2">
                     <tr><th className="py-2">Etapa</th><th>Tipo</th><th className="text-right">Total</th><th className="text-right">Enviados</th></tr>
@@ -203,6 +209,7 @@ export function Dashboard() {
                   </tbody>
                 </table>
               </div>
+              </details>
             </Bloque>
           )}
 
