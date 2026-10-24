@@ -1,3 +1,20 @@
+## 24-oct-2026 · Hub: pestaña Para cerrar (rama feat/para-cerrar, sin publicar)
+
+**Qué:** Pestaña nueva en el hub con solo los clientes que aceptaron cotización y eligieron
+local. Para cerrar = el último mensaje es del cliente; tope de 10 contactos por día para el
+equipo, ordenados por plata, cita cerca y conversación fresca (el resto plegado). Empujando =
+un asesor ya escribió; lista llana que sale con la ✕, con factura de Contífico, o vuelve sola si
+el cliente contesta. Archivo = 14 días sin texto, con búsqueda. Reglas en
+`domain/paraCerrar.ts` (15 pruebas); migración 028 guarda solo la ✕, posponer y sacar del
+archivo. Medido en producción (solo lectura, 24-oct): 61 para cerrar, 20 empujando, 114 en el
+archivo.
+
+**Por qué:** Manuel quiere que los asesores sepan a quién empujar sin que la lista se llene con
+los ~500 chats del mes. El contador es del equipo porque los mensajes no dicen qué asesor los
+escribió.
+
+**Horas:** 1,5
+
 ## 24-oct-2026 · Gráficos de control: vista de campana y nivel sigma
 
 **Qué:** `scripts/canary/control-charts.mjs` suma dos campanas (histograma de la fase I con su

@@ -698,12 +698,15 @@ function aLaHoraDeGuayaquil(fecha: Date, hora: number): Date {
   ));
 }
 
+/** Prefijo de `location_label` cuando el local lo eligió el cliente (no una recomendación). */
+export const LOCAL_ELEGIDO = "Local elegido explícitamente";
+
 /** Una elección explícita del cliente reemplaza cualquier recomendación previa. */
 export async function setExplicitStore(conversationId: number, store: string): Promise<void> {
   await sql`
     update conversations
     set nearest_store=${store},
-        location_label=${`Local elegido explícitamente por el cliente: ${store}`},
+        location_label=${`${LOCAL_ELEGIDO} por el cliente: ${store}`},
         updated_at=now()
     where id=${conversationId}
   `;

@@ -89,6 +89,10 @@ export const IconRefresh = (p: P) =>
 export const IconSparkle = (p: P) =>
   base(p, <path d="M12 3.5 13.8 9l5.7 1.8-5.7 1.8L12 18.4l-1.8-5.8L4.5 10.8 10.2 9 12 3.5Z" />);
 
+/** Diana: Para cerrar, los clientes a punto de comprar. */
+export const IconDiana = (p: P) =>
+  base(p, <><circle cx="12" cy="12" r="8.5" /><circle cx="12" cy="12" r="4.5" /><circle cx="12" cy="12" r="1" fill="currentColor" /></>);
+
 export const IconTire = (p: P) =>
   base(p, <><circle cx="12" cy="12" r="8.5" /><circle cx="12" cy="12" r="3.4" /><path d="M12 3.5v3" /><path d="M12 17.5v3" /><path d="M3.5 12h3" /><path d="M17.5 12h3" /><path d="m6 6 2.1 2.1" /><path d="m15.9 15.9 2.1 2.1" /><path d="m18 6-2.1 2.1" /><path d="m8.1 15.9-2.1 2.1" /></>);
 

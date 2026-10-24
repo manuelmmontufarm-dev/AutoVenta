@@ -65,6 +65,7 @@ import { getFinalStageArrivals, getHubFeed, getHubMessages, getHubMetrics, getHu
 import { mesesConDatos } from "../services/periodoMensual.js";
 import { getEchoHealth } from "../services/echoHealth.js";
 import { resumenVentasConfirmadas } from "../services/ventasConfirmadas.js";
+import { decidirParaCerrar, leerParaCerrar, type AccionParaCerrar } from "../services/paraCerrar.js";
 import { comprobablesVacios, resumenComprobables } from "../services/metricasComprobables.js";
 import { marcarPagado, resumenBilling } from "../services/billing.js";
 import { buildDailyReport } from "../services/dailyReport.js";
@@ -1279,6 +1280,33 @@ export function createAdminRouter(): express.Router {
       return res.status(400).json({ ok: false, error: "Parámetros inválidos" });
     }
     await setReviewLater(id, enabled);
+    emitLiveEvent("sync", id);
+    res.json({ ok: true });
+  });
+
+  // Para cerrar: quienes ya aceptaron precio y local, a quién escribir hoy,
+  // a quién ya se le escribió y el archivo (domain/paraCerrar.ts).
+  router.get("/hub/para-cerrar", async (_req, res) => {
+    res.json({ ok: true, paraCerrar: await leerParaCerrar() });
+  });
+
+  const AccionParaCerrarSchema = z.discriminatedUnion("accion", [
+    z.object({ accion: z.literal("sacar") }),
+    z.object({ accion: z.literal("devolver") }),
+    z.object({ accion: z.literal("posponer"), hasta: z.coerce.date() }),
+    z.object({ accion: z.literal("no_posponer") }),
+    z.object({ accion: z.literal("revivir") }),
+    z.object({ accion: z.literal("no_revivir") }),
+  ]);
+  router.post("/hub/tickets/:id/para-cerrar", async (req, res) => {
+    const id = Number(req.params.id);
+    const parsed = AccionParaCerrarSchema.safeParse(req.body);
+    if (!Number.isInteger(id) || !parsed.success) {
+      return res.status(400).json({ ok: false, error: "Acción inválida" });
+    }
+    if (!(await decidirParaCerrar(id, parsed.data as AccionParaCerrar))) {
+      return res.status(404).json({ ok: false, error: "Conversación no encontrada" });
+    }
     emitLiveEvent("sync", id);
     res.json({ ok: true });
   });

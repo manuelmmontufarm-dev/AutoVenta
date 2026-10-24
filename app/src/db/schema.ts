@@ -31,6 +31,7 @@ import { runGanadosFantasmaEtapaMigration } from "./migrations/024_ganados_fanta
 import { runCuponTicketMigration } from "./migrations/025_cupon_ticket.js";
 import { runMotivoDeLaPausaMigration } from "./migrations/026_motivo_de_la_pausa.js";
 import { runDondeEstaElClienteMigration } from "./migrations/027_donde_esta_el_cliente.js";
+import { runParaCerrarMigration } from "./migrations/028_para_cerrar.js";
 
 export const SCHEMA = /* sql */ `
 create table if not exists conversations (
@@ -426,4 +427,5 @@ export async function ensureSchema(): Promise<void> {
   await runCuponTicketMigration(sql);
   await runMotivoDeLaPausaMigration(sql);
   await runDondeEstaElClienteMigration(sql);
+  await runParaCerrarMigration(sql);
 }

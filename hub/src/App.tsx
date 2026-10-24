@@ -3,7 +3,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { ConnectionChip, ConnectionGate, SalirButton, UserChip } from "./components/admin-key";
 import { hasAdminKey } from "./data/catalog";
 import { Confetti, Toasts } from "./components/overlays";
-import { IconAjustes, IconChart, IconInbox, IconKanban, IconPlay, IconSilencio, IconSonido, IconStop, IconTire } from "./components/icons";
+import { IconAjustes, IconChart, IconDiana, IconInbox, IconKanban, IconPlay, IconSilencio, IconSonido, IconStop, IconTire } from "./components/icons";
 import { PageHeader } from "./components/ui";
 import { VersionBadge } from "./components/version-badge";
 import { setSonidoActivo, sonidoActivo, sonidoBoton } from "./lib/sound";
@@ -13,10 +13,12 @@ import { Ajustes } from "./screens/Ajustes";
 import { Dashboard } from "./screens/Dashboard";
 import { Cotizador } from "./screens/Cotizador";
 import { Inbox } from "./screens/Inbox";
+import { ParaCerrar } from "./screens/ParaCerrar";
 import { Pipeline } from "./screens/Pipeline";
 import { TicketDetail } from "./screens/TicketDetail";
 import { Settings } from "./screens/Settings";
 import { useHub } from "./store";
+import { faltanHoy, useParaCerrar } from "./data/paraCerrar";
 
 import type { PhaseFlags } from "./data/types";
 import type { Permisos } from "./data/realSource";
@@ -27,6 +29,7 @@ import type { Permisos } from "./data/realSource";
 const NAV = [
   { id: "inbox", label: "Inbox", icon: IconInbox, requiere: null },
   { id: "pipeline", label: "Pipeline", icon: IconKanban, requiere: null },
+  { id: "para-cerrar", label: "Para cerrar", icon: IconDiana, requiere: null },
   { id: "cotizador", label: "Cotizador", icon: IconTire, requiere: "fase3" },
   { id: "dashboard", label: "Métricas", icon: IconChart, requiere: "fase3" },
 ] as const;
@@ -40,6 +43,7 @@ const PERMISO_DE_VISTA: Record<string, keyof Permisos> = {
   inbox: "verInbox",
   ticket: "verInbox",
   pipeline: "verKanban",
+  "para-cerrar": "verKanban",
   cotizador: "usarCotizador",
   dashboard: "verMetricas",
   ajustes: "verAjustes",
@@ -56,6 +60,7 @@ function pantallaPermitida(vista: string, phases: PhaseFlags, permisos: Permisos
 const TITULOS: Record<string, { titulo: string; sub: string }> = {
   inbox: { titulo: "Inbox", sub: "Lo que escribieron hoy y quién lo atiende" },
   pipeline: { titulo: "Pipeline", sub: "Tickets abiertos, de izquierda a derecha según avanzan" },
+  "para-cerrar": { titulo: "Para cerrar", sub: "Ya aceptaron precio y local: a quién escribir hoy" },
   dashboard: { titulo: "Métricas", sub: "El negocio de un vistazo" },
   ajustes: { titulo: "Ajustes", sub: "Negocio, seguimientos, avisos y usuarios" },
   cotizador: { titulo: "Cotizador", sub: "Inventario y precios reales de Contífico" },
@@ -64,7 +69,7 @@ const TITULOS: Record<string, { titulo: string; sub: string }> = {
 };
 
 /** Pantallas que ya dibujan su propia cabecera (tienen acciones dentro). */
-const CABECERA_PROPIA = new Set<string>(["inbox", "ticket", "pipeline", "dashboard"]);
+const CABECERA_PROPIA = new Set<string>(["inbox", "ticket", "pipeline", "para-cerrar", "dashboard"]);
 
 function navActivo(route: Route): string {
   return route.vista === "ticket" ? "inbox" : route.vista;
@@ -108,6 +113,16 @@ export default function App() {
   }, []);
 
   const abiertos = tickets.filter((t) => t.estado === "abierto").length;
+  // Para cerrar se recarga con cada cambio de tickets (los «sync» del bot):
+  // así el número del rail baja solo cuando alguien le escribe a un cliente.
+  const paraCerrar = useParaCerrar((s) => s.datos);
+  const cargarParaCerrar = useParaCerrar((s) => s.cargar);
+  useEffect(() => {
+    if (dataMode !== "real" || !permisos.verKanban) return;
+    const t = setTimeout(() => void cargarParaCerrar(), 800);
+    return () => clearTimeout(t);
+  }, [tickets, dataMode, permisos.verKanban, cargarParaCerrar]);
+  const faltan = faltanHoy(paraCerrar);
   const meta = TITULOS[route.vista];
   const enTicket = route.vista === "ticket";
   const enAjustes = route.vista === "ajustes" || route.vista === "settings";
@@ -136,7 +151,7 @@ export default function App() {
                 icon={<item.icon size={18} />}
                 label={item.label}
                 tour={`nav-${item.id}`}
-                aside={item.id === "inbox" && abiertos > 0 ? abiertos : undefined}
+                aside={item.id === "inbox" && abiertos > 0 ? abiertos : item.id === "para-cerrar" && faltan ? faltan : undefined}
               />
             ))}
           </nav>
@@ -224,6 +239,7 @@ export default function App() {
             <div key={enTicket ? `ticket-${route.id}` : route.vista} className="h-full">
               {route.vista === "inbox" && <Inbox />}
               {route.vista === "pipeline" && <Pipeline />}
+              {route.vista === "para-cerrar" && <ParaCerrar />}
               {route.vista === "dashboard" && phases.fase3 && <Dashboard />}
               {route.vista === "ajustes" && <Ajustes />}
               {route.vista === "cotizador" && phases.fase3 && <Cotizador />}

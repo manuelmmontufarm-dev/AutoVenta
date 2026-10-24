@@ -586,3 +586,65 @@ export interface Billing {
   inicioServicio: string;
   meses: MesFacturado[];
 }
+
+// ── Para cerrar (contrato idéntico a app/src/domain/paraCerrar.ts) ────────
+
+export interface ClienteParaCerrar {
+  ticketId: number;
+  nombre: string | null;
+  telefono: string;
+  medida: string | null;
+  llantas: string;
+  total: number;
+  local: string;
+  visita: string | null;
+  visitaHora: string | null;
+  compromiso: string | null;
+  ultimoCliente: string | null;
+  /** Le habían escrito, no contestaba, y volvió a escribir. */
+  volvio: boolean;
+  /** false = pasaron 24 h desde su último mensaje: solo plantilla. */
+  ventanaAbierta: boolean;
+  puntaje: number;
+}
+
+export interface ClienteEmpujando {
+  ticketId: number;
+  nombre: string | null;
+  medida: string | null;
+  llantas: string;
+  total: number;
+  local: string;
+  ultimoAsesor: string;
+  seArchivaEn: number;
+}
+
+export interface ClienteArchivado {
+  ticketId: number;
+  nombre: string | null;
+  telefono: string;
+  medida: string | null;
+  llantas: string;
+  total: number;
+  local: string;
+  ultimoTexto: string | null;
+  sacado: boolean;
+}
+
+export interface ParaCerrar {
+  tope: number;
+  contactadosHoy: number;
+  paraCerrar: ClienteParaCerrar[];
+  empujando: ClienteEmpujando[];
+  archivo: ClienteArchivado[];
+  pospuestos: number;
+  compraron: number;
+}
+
+export type AccionParaCerrar =
+  | { accion: "sacar" }
+  | { accion: "devolver" }
+  | { accion: "posponer"; hasta: string }
+  | { accion: "no_posponer" }
+  | { accion: "revivir" }
+  | { accion: "no_revivir" };
