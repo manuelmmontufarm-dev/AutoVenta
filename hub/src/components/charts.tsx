@@ -88,8 +88,7 @@ export function BarChart({ data, unidad, fmt = (v) => String(v), ancho = 560, al
   if (data.length === 0) return <Vacio alto={alto} />;
   const cada = cadaX ?? (g.n > 8 ? 2 : 1);
   return (
-    <svg viewBox={`0 0 ${ancho} ${alto}`} className="block w-full" style={{ overflow: "visible" }} role="img" aria-labelledby={`${id}-t`} onMouseLeave={() => setTip(null)}>
-      <title id={`${id}-t`}>{etiqueta ?? `${unidad} por ${data.map((d) => d.x).join(", ")}`}</title>
+    <svg viewBox={`0 0 ${ancho} ${alto}`} className="block w-full" style={{ overflow: "visible" }} role="img" aria-label={etiqueta ?? `${unidad} por ${data.map((d) => d.x).join(", ")}`} onMouseLeave={() => setTip(null)}>
       <Ejes L={g.L} T={g.T} iw={g.iw} ih={g.ih} pasos={g.pasos} paso={g.paso} unidad={unidad} fmt={fmt} />
       {data.map((d, i) => (
         <g key={i} onMouseEnter={() => setTip(i)} onTouchStart={() => setTip(i)}>
@@ -114,8 +113,7 @@ export function LineChart({ data, unidad, fmt = (v) => String(v), ancho = 560, a
   const cada = cadaX ?? (g.n > 8 ? 2 : 1);
   const puntos = data.map((d, i) => `${g.x(i)},${g.y(d.y)}`).join(" ");
   return (
-    <svg viewBox={`0 0 ${ancho} ${alto}`} className="block w-full" style={{ overflow: "visible" }} role="img" aria-labelledby={`${id}-t`} onMouseLeave={() => setTip(null)}>
-      <title id={`${id}-t`}>{etiqueta ?? `${unidad} por ${data.map((d) => d.x).join(", ")}`}</title>
+    <svg viewBox={`0 0 ${ancho} ${alto}`} className="block w-full" style={{ overflow: "visible" }} role="img" aria-label={etiqueta ?? `${unidad} por ${data.map((d) => d.x).join(", ")}`} onMouseLeave={() => setTip(null)}>
       <Ejes L={g.L} T={g.T} iw={g.iw} ih={g.ih} pasos={g.pasos} paso={g.paso} unidad={unidad} fmt={fmt} />
       <polyline points={puntos} fill="none" stroke="var(--color-text)" strokeWidth={1.5} />
       {data.map((d, i) => (
@@ -218,8 +216,7 @@ export function BarrasDeParte({
   const x = (i: number) => L + slot * i + slot / 2;
   const cada = cadaX ?? (n > 8 ? 2 : 1);
   return (
-    <svg viewBox={`0 0 ${ancho} ${alto}`} className="block w-full" style={{ overflow: "visible" }} role="img" aria-labelledby={`${id}-t`} onMouseLeave={() => setTip(null)}>
-      <title id={`${id}-t`}>{etiqueta ?? `${unidad} por ${data.map((d) => d.x).join(", ")}`}</title>
+    <svg viewBox={`0 0 ${ancho} ${alto}`} className="block w-full" style={{ overflow: "visible" }} role="img" aria-label={etiqueta ?? `${unidad} por ${data.map((d) => d.x).join(", ")}`} onMouseLeave={() => setTip(null)}>
       <Ejes L={L} T={T} iw={iw} ih={ih} pasos={pasos} paso={paso} unidad={unidad} fmt={fmt} />
       {data.map((d, i) => (
         <g key={i} onMouseEnter={() => setTip(i)} onTouchStart={() => setTip(i)}>
@@ -281,8 +278,7 @@ export function BarrasPareadas({
   const x = (i: number) => L + slot * i + slot / 2;
   const w = slot * 0.3;
   return (
-    <svg viewBox={`0 0 ${ancho} ${alto}`} className="block w-full" style={{ overflow: "visible" }} role="img" aria-labelledby={`${id}-t`} onMouseLeave={() => setTip(null)}>
-      <title id={`${id}-t`}>{etiqueta ?? `${unidad} por ${data.map((d) => d.x).join(", ")}`}</title>
+    <svg viewBox={`0 0 ${ancho} ${alto}`} className="block w-full" style={{ overflow: "visible" }} role="img" aria-label={etiqueta ?? `${unidad} por ${data.map((d) => d.x).join(", ")}`} onMouseLeave={() => setTip(null)}>
       <Ejes L={L} T={T} iw={iw} ih={ih} pasos={pasos} paso={paso} unidad={unidad} fmt={fmt} />
       {data.map((d, i) => (
         <g key={i} onMouseEnter={() => setTip(i)} onTouchStart={() => setTip(i)}>

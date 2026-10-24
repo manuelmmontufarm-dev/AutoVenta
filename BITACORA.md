@@ -1,3 +1,14 @@
+## 23-oct-2026 · Sin porcentajes encima de las barras de «Cuándo escriben»
+
+**Qué:** las cifras sobre cada barra vuelven a ser solo las ventas («12 v»); la tasa
+queda en el cartel al pasar el cursor y en «Mejor franja» / «Mejor día». Y el
+`<title>` de los SVG de `charts.tsx` pasa a `aria-label`: el navegador lo mostraba
+como un segundo cartel encima del nuestro.
+
+**Por qué:** Manuel, al verlo en producción: «quita los porcentajes, está super confuso».
+
+**Horas:** 0,25
+
 ## 23-oct-2026 · Retoques a Métricas tras verla en producción
 
 **Qué:** (`hub/src/components/comprobables.tsx`, `hub/src/screens/Dashboard.tsx`)

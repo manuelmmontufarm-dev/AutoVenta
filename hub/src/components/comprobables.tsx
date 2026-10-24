@@ -418,7 +418,7 @@ export function CuandoEscribenBloque({ c, estado }: { c: MetricasComprobables | 
           <BarrasDeParte
             alto={200} unidad="chats" etiqueta="Chats por franja de inicio, con las ventas comprobadas encima"
             data={k.escribenPorFranja.map((f) => ({
-              x: FRANJA[f.franja].corto, total: f.chats, encima: f.ventas > 0 ? `${f.ventas} v · ${pctDe(f.ventas, f.chats)}` : "0",
+              x: FRANJA[f.franja].corto, total: f.chats, encima: f.ventas > 0 ? `${f.ventas} v` : "0",
               detalle: `${FRANJA[f.franja].nombre} ${FRANJA[f.franja].horas}: ${f.ventas} de ${num(f.chats)} chats compraron · ${pctDe(f.ventas, f.chats)}`,
             }))}
           />
@@ -428,7 +428,7 @@ export function CuandoEscribenBloque({ c, estado }: { c: MetricasComprobables | 
           <BarrasDeParte
             alto={200} unidad="chats" etiqueta="Chats por día de la semana, con las ventas comprobadas encima"
             data={porDiaLunADom(k.escribenPorDia).map((d) => ({
-              x: DIA_CORTO[d.dia], total: d.chats, encima: d.ventas > 0 ? `${d.ventas} v · ${pctDe(d.ventas, d.chats)}` : "0",
+              x: DIA_CORTO[d.dia], total: d.chats, encima: d.ventas > 0 ? `${d.ventas} v` : "0",
               detalle: `${DIA[d.dia]}: ${d.ventas} de ${num(d.chats)} chats compraron · ${pctDe(d.ventas, d.chats)}`,
             }))}
           />
@@ -441,7 +441,7 @@ export function CuandoEscribenBloque({ c, estado }: { c: MetricasComprobables | 
         </Cifras>
       )}
       <p className="text-[12px] leading-relaxed text-text2">
-        Barra = chats que empezaron ahí · encima, cuántos de esos compraron («v») y qué parte son. La barra alta no es la mejor: importa la tasa.
+        Barra = chats que empezaron ahí · encima, cuántos de esos compraron («v»). La barra alta no es la mejor: la tasa está al pasar el cursor y abajo.
         {sinVentas.length > 0 && ` ${sinVentas.map((f) => `${FRANJA[f.franja].nombre} (${FRANJA[f.franja].horas}): ${num(f.chats)} chats y ninguno compró`).join("; ")}.`}
         {sabado && sabado.chats > 0 && sabado.ventas === 0 && ` Sábado: ${num(sabado.chats)} chats y ninguno compró.`}
       </p>
