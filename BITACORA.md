@@ -1,3 +1,13 @@
+## 23-oct-2026 · «Hora de Quito» en vez de «hora de Guayaquil» en Métricas
+
+**Qué:** el texto visible de «Cuándo escriben» y «Cuándo se factura» dice «hora de
+Quito». El cálculo no cambia: sigue en `America/Guayaquil` (el huso de Ecuador, el
+mismo que Quito; la base de datos de husos lo nombra así).
+
+**Por qué:** pedido de Manuel: Depot está en Quito.
+
+**Horas:** 0,1
+
 ## 23-oct-2026 · Sin porcentajes encima de las barras de «Cuándo escriben»
 
 **Qué:** las cifras sobre cada barra vuelven a ser solo las ventas («12 v»); la tasa

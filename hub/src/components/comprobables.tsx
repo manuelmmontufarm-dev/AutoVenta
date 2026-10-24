@@ -397,7 +397,7 @@ const porDiaLunADom = <T extends { dia: number }>(xs: T[]) => LUN_A_DOM.map((d) 
  */
 export function CuandoEscribenBloque({ c, estado }: { c: MetricasComprobables | undefined; estado: EstadoComprobables }) {
   if (estado !== "listo" || !c) {
-    return <Bloque titulo="Cuándo escriben" nota="hora de Guayaquil"><SinDatos estado={estado} /></Bloque>;
+    return <Bloque titulo="Cuándo escriben" nota="hora de Quito"><SinDatos estado={estado} /></Bloque>;
   }
   const k = c.cuando;
   const sinVentas = k.escribenPorFranja.filter((f) => f.ventas === 0 && f.chats > 0);
@@ -414,7 +414,7 @@ export function CuandoEscribenBloque({ c, estado }: { c: MetricasComprobables | 
       {/* Uno debajo del otro: el bloque vive en media columna y lado a lado no se leen. */}
       <div className="flex flex-col gap-4">
         <div className="flex min-w-0 flex-col gap-1.5">
-          <h3 className="text-[13px] font-medium">Por franja <span className="font-normal text-text2">· hora de Guayaquil</span></h3>
+          <h3 className="text-[13px] font-medium">Por franja <span className="font-normal text-text2">· hora de Quito</span></h3>
           <BarrasDeParte
             alto={200} unidad="chats" etiqueta="Chats por franja de inicio, con las ventas comprobadas encima"
             data={k.escribenPorFranja.map((f) => ({
@@ -456,7 +456,7 @@ export function CuandoEscribenBloque({ c, estado }: { c: MetricasComprobables | 
  */
 export function CuandoSeFacturaBloque({ c, estado }: { c: MetricasComprobables | undefined; estado: EstadoComprobables }) {
   if (estado !== "listo" || !c) {
-    return <Bloque titulo="Cuándo se factura" nota="hora de Guayaquil"><SinDatos estado={estado} /></Bloque>;
+    return <Bloque titulo="Cuándo se factura" nota="hora de Quito"><SinDatos estado={estado} /></Bloque>;
   }
   const k = c.cuando;
   // El bot se mide sobre sus ventas (el contrato trae el total); la tienda, sobre
