@@ -20,13 +20,39 @@
  * cotización, que ya tienen su propio modelo. Toda corrida del grupo canary
  * queda con el sufijo «+canary» en `ai_runs.route` para comparar A contra B.
  */
+import OpenAI from "openai";
 import { config } from "../config.js";
 
 export type PiezaCanary = "vendedor" | "guardian";
 
+/** Se apaga en caliente si al arrancar el modelo no existe (ver abajo). */
+let apagado = false;
+
+/**
+ * Comprueba contra /v1/models que `OPENAI_CANARY_MODEL` existe. Medido el
+ * 23-oct en el simulador: con un nombre inexistente (`gpt-5.5-mini`) el
+ * vendedor del grupo se iba al rescate en cada turno y el Guardián «fallaba
+ * abierto»: el 29 % de los clientes se quedaba sin revisor y nadie lo notaba.
+ * Si el modelo no existe, el canary se apaga y todos siguen con el de siempre.
+ */
+export async function validarCanaryAlArrancar(cliente?: Pick<OpenAI, "models">): Promise<boolean> {
+  if (!config.openai.canaryModel) return false;
+  try {
+    const openai = cliente ?? new OpenAI({ apiKey: config.openai.apiKey });
+    await openai.models.retrieve(config.openai.canaryModel);
+    apagado = false;
+    console.log(`🧪 Canary de modelo barato: ${config.openai.canaryModel} para dígitos ${[...config.openai.canaryDigits].join(",")} (${[...config.openai.canaryScope].join("+")})`);
+    return true;
+  } catch (error) {
+    apagado = true;
+    console.error(`🧪 Canary APAGADO: OPENAI_CANARY_MODEL=${config.openai.canaryModel} no existe o no hay acceso (${error instanceof Error ? error.message : String(error)}). Todos siguen con el modelo de siempre.`);
+    return false;
+  }
+}
+
 /** ¿Este teléfono cae en el grupo del modelo barato? */
 export function enGrupoCanary(phone: string | null | undefined): boolean {
-  if (!config.openai.canaryModel) return false;
+  if (!config.openai.canaryModel || apagado) return false;
   const digitos = (phone ?? "").replace(/\D/g, "");
   if (!digitos) return false;
   return config.openai.canaryDigits.has(digitos.at(-1)!);

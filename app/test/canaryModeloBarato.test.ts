@@ -70,4 +70,17 @@ describe("canary de modelo barato por cliente", () => {
     expect(c.enGrupoCanary("593990000001")).toBe(false);
     expect(c.enGrupoCanary("593990000002")).toBe(false);
   });
+
+  it("si el modelo no existe, la validación de arranque apaga el canary sin tumbar nada", async () => {
+    const c = await cargar({ OPENAI_CANARY_MODEL: "gpt-no-existe", AI_CANARY_DIGITS: "1,2,3", AI_CANARY_SCOPE: undefined });
+    restaurar = c.restaurar;
+    expect(c.enGrupoCanary("593990000001")).toBe(true);
+    const ok = await c.validarCanaryAlArrancar({ models: { retrieve: async () => { throw new Error("404 The model does not exist"); } } } as never);
+    expect(ok).toBe(false);
+    expect(c.enGrupoCanary("593990000001")).toBe(false);
+    expect(c.modeloCanary("guardian", "593990000001", "gpt-5.5")).toBe("gpt-5.5");
+    const ok2 = await c.validarCanaryAlArrancar({ models: { retrieve: async () => ({ id: "gpt-no-existe" }) } } as never);
+    expect(ok2).toBe(true);
+    expect(c.enGrupoCanary("593990000001")).toBe(true);
+  });
 });
