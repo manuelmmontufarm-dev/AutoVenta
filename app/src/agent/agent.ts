@@ -66,6 +66,7 @@ import {
 import { hechosDeRestricciones, restriccionesDeLlanta } from "../domain/restriccionesLlanta.js";
 import { business } from "../config.js";
 import { PREGUNTA_DE_LOCAL } from "../domain/storeSelection.js";
+import { modeloCanary, rutaCanary } from "./canary.js";
 
 const openai = new OpenAI({ apiKey: config.openai.apiKey });
 
@@ -86,12 +87,13 @@ function modeloDelTurno(
   iteration: number,
   stage: AgentContext["conversation"]["stage"],
   exactoBarato = false,
+  phone: string | null = null,
 ): string {
   const routineStage = stage === "cotizacion_enviada" || stage === "seguimiento_venta";
   if (routineStage && iteration < 2) return config.openai.routineModel;
   if (exactoBarato && iteration < 2) return config.openai.exactToolModel!;
   return iteration < Math.min(4, config.openai.maxToolIterations)
-    ? config.openai.model
+    ? modeloCanary("vendedor", phone, config.openai.model)
     : config.openai.escalationModel;
 }
 
@@ -686,7 +688,7 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
   // ANTES de cada llamada (no después) para que la auditoría vea quién atendió
   // incluso si esa llamada revienta: interesa saber que ya se había escalado.
   let exactoBarato = turnoExactoBarato(ctx.conversation.id, faseOperativa);
-  let modeloUsado = modeloDelTurno(0, faseOperativa, exactoBarato);
+  let modeloUsado = modeloDelTurno(0, faseOperativa, exactoBarato, ctx.customerPhone);
   let llamadasDeHerramienta = 0;
   let llamadasDuplicadas = 0;
   let falloEnLoop = false;
@@ -704,7 +706,7 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
   /** Cada llamada del turno con su resultado ENTERO (la huella del guardián lo corta). */
   const llamadasDelTurno: { herramienta: string; resultado: string }[] = [];
   for (let iteration = 0; iteration < rondasDelTurno; iteration += 1) {
-    modeloUsado = modeloDelTurno(iteration, faseOperativa, exactoBarato);
+    modeloUsado = modeloDelTurno(iteration, faseOperativa, exactoBarato, ctx.customerPhone);
     const gpt5 = modeloUsado.startsWith("gpt-5");
     const reasoningEffort = chatReasoningEffort(modeloUsado, tools.length > 0);
     // Un 429, un 500 o un timeout de OpenAI NO tumban el turno: se sale del
@@ -811,7 +813,7 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
         cachedInputTokens,
         reasoningTokens,
         iterations: iteration + 1,
-        route: ctx.conversation.stage === "cotizacion_enviada" || ctx.conversation.stage === "seguimiento_venta" ? "routine_stage" : "commercial",
+        route: rutaCanary(ctx.conversation.stage === "cotizacion_enviada" || ctx.conversation.stage === "seguimiento_venta" ? "routine_stage" : "commercial", ctx.customerPhone),
         tools: usedTools,
       });
       return withDiscountNotice(text || "Disculpa, ¿me repites por favor?", ctx, activeDiscount, pendingDiscount);
@@ -883,7 +885,7 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
           cachedInputTokens,
           reasoningTokens,
           iterations: iteration + 1,
-          route: "exact_tool_reply",
+          route: rutaCanary("exact_tool_reply", ctx.customerPhone),
           tools: usedTools,
         });
         return withDiscountNotice(exact, ctx, activeDiscount, pendingDiscount);
@@ -981,7 +983,7 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
         cachedInputTokens,
         reasoningTokens,
         iterations: config.openai.maxToolIterations + 1,
-        route: cadenaSanaFinalizada ? "tool_chain_finalized" : "rescue",
+        route: rutaCanary(cadenaSanaFinalizada ? "tool_chain_finalized" : "rescue", ctx.customerPhone),
         tools: usedTools,
         error: cadenaSanaFinalizada ? undefined : "max_iterations_salvaged",
       });

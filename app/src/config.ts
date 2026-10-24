@@ -178,6 +178,16 @@ export const config = {
      * 100 → todas. Solo aplica si OPENAI_EXACT_TOOL_MODEL está definido.
      */
     exactToolRollout: Math.min(100, Math.max(0, Number(envOr("AI_EXACT_TOOL_ROLLOUT", "100")) || 0)),
+    /**
+     * Canary de modelo barato por CLIENTE (ver agent/canary.ts): los teléfonos
+     * terminados en `canaryDigits` atienden con `canaryModel` en las piezas de
+     * `canaryScope`. Sin OPENAI_CANARY_MODEL no cambia absolutamente nada.
+     */
+    canaryModel: process.env.OPENAI_CANARY_MODEL || null,
+    canaryDigits: new Set(envOr("AI_CANARY_DIGITS", "1,2,3").split(/[,\s]+/).map((d) => d.trim()).filter((d) => /^\d$/.test(d))),
+    canaryScope: new Set(
+      envOr("AI_CANARY_SCOPE", "vendedor,guardian").split(/[,\s]+/).map((s) => s.trim()).filter((s) => s === "vendedor" || s === "guardian"),
+    ) as Set<"vendedor" | "guardian">,
     classifierModel: envOr("OPENAI_CLASSIFIER_MODEL", "gpt-4o-mini"),
     researchModel: envOr("OPENAI_RESEARCH_MODEL", envOr("OPENAI_MODEL", "gpt-4o-mini")),
     /** Lee fotos del cliente (medida en el costado, etiqueta de la puerta). */

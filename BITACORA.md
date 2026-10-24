@@ -1,3 +1,23 @@
+## 23-oct-2026 · Canary de modelo barato por cliente (último dígito del teléfono)
+
+**Qué:** `src/agent/canary.ts`: con `OPENAI_CANARY_MODEL` puesto, los teléfonos
+cuyo último dígito está en `AI_CANARY_DIGITS` (default 1,2,3 = 29 % de los
+chats de octubre) atienden con ese modelo en las piezas de `AI_CANARY_SCOPE`
+(default vendedor y guardián; se puede probar cada una sola). El rescate, la
+visión, el clasificador y la rutina post-cotización no cambian. Toda corrida
+del grupo lleva «+canary» en `ai_runs.route` para comparar A contra B. Sin la
+variable no cambia absolutamente nada. El simulador lo fuerza con
+`--canary-model/--canary-scope/--canary-digits` (todos los dígitos por defecto)
+y `scripts/sim/lote-canary.mjs` repite conversaciones reales difíciles con
+costo por conversación, invariantes del T115 y un juez gpt-5.5.
+
+**Por qué:** Octubre 1–23 costó $112 de IA, 98 % en gpt-5.5 ($40 el vendedor,
+$68 el Guardián). Antes de bajar nada en producción hay que saber si un cliente
+atendido entero por el mini compra igual; el experimento limpio es por cliente,
+no por pieza, y se prueba primero en el simulador (50 reales difíciles).
+
+**Horas:** 1,5
+
 ## 19-oct-2026 · El cupón del 2 % sale como ticket con QR, también en el último seguimiento
 
 **Qué:** El cupón deja de ser un texto suelto y sale como imagen de ticket
