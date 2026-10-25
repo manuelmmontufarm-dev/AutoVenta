@@ -1,3 +1,17 @@
+## 25-oct-2026 · Para cerrar como calendario (rama feat/para-cerrar, sin publicar)
+
+**Qué:** La lista con tope pasó a ser un calendario del mes: cada cliente escrito en el día
+que dijo que viene (punto lleno = te toca escribir, vacío = ya le escribieron, tachado = no
+vino). Al lado, un panel con el desglose de lo que se toque: el día (abre en hoy), «No vinieron
+en <mes>» (fecha pasada sin factura, por mes) o «Sin día» (con el tope de 10). Empujando ahora
+trae la fecha de visita para salir en el calendario. «Vendido» pide confirmación en vez de
+Deshacer: reabrir un ticket empieza una visita nueva sin cotización ni día.
+
+**Por qué:** Manuel eligió la opción A de cuatro layouts y pidió el desglose por día y los que
+no vinieron separados por mes.
+
+**Horas:** 1
+
 ## 24-oct-2026 · Hub: pestaña Para cerrar (rama feat/para-cerrar, sin publicar)
 
 **Qué:** Pestaña nueva en el hub con solo los clientes que aceptaron cotización y eligieron

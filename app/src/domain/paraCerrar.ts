@@ -79,6 +79,9 @@ export interface ClienteEmpujando {
   total: number;
   local: string;
   ultimoAsesor: string;
+  /** El día que dijo que viene: Empujando también sale en el calendario. */
+  visita: string | null;
+  visitaHora: string | null;
   /** Días que le quedan antes de pasar al archivo. */
   seArchivaEn: number;
 }
@@ -152,7 +155,7 @@ export function clasificar(filas: readonly FilaParaCerrar[], ahora: Date): ParaC
     const leTocaAlCliente = f.ultimoAsesor && (!f.ultimoCliente || f.ultimoAsesor > f.ultimoCliente);
     if (leTocaAlCliente) {
       const pasaron = Math.floor((ahora.getTime() - ultimoTexto.getTime()) / DIA_MS);
-      out.empujando.push({ ...base, ultimoAsesor: f.ultimoAsesor!.toISOString(), seArchivaEn: Math.max(1, DIAS_PARA_ARCHIVAR - pasaron) });
+      out.empujando.push({ ...base, ultimoAsesor: f.ultimoAsesor!.toISOString(), visita: iso(f.visita), visitaHora: f.visitaHora, seArchivaEn: Math.max(1, DIAS_PARA_ARCHIVAR - pasaron) });
       continue;
     }
 

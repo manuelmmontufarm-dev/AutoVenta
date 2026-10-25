@@ -616,6 +616,8 @@ export interface ClienteEmpujando {
   total: number;
   local: string;
   ultimoAsesor: string;
+  visita: string | null;
+  visitaHora: string | null;
   seArchivaEn: number;
 }
 

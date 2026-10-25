@@ -1,19 +1,20 @@
 import { AnimatePresence } from "framer-motion";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { IconX } from "../components/icons";
 import { EmptyState, MedidaChip, Modal, PageHeader, Segmented, SkeletonRows } from "../components/ui";
 import { useParaCerrar } from "../data/paraCerrar";
 import type { AccionParaCerrar, ClienteArchivado, ClienteEmpujando, ClienteParaCerrar } from "../data/types";
-import { etiquetaVisita, money, relTime } from "../lib/format";
+import { money, relTime } from "../lib/format";
 import { navigate } from "../router";
 import { useHub, useNow } from "../store";
 
 /**
  * PARA CERRAR — a quién empujar hoy para llegar a la venta (Manuel, 24-oct).
  *
- * Tres listas y nada más: Para cerrar (te toca escribir; tope de 10 por día
- * para el equipo), Empujando (ya les escribieron; se puede ignorar) y el
- * Archivo (14 días sin texto). Las reglas viven en app/src/domain/paraCerrar.ts.
+ * Para cerrar es un calendario: cada cliente en el día que dijo que viene, y
+ * al lado el desglose del día tocado, los que no vinieron y los que no dijeron
+ * día (con el tope de 10 por día para el equipo). Empujando (ya les
+ * escribieron; se puede ignorar) y el Archivo (14 días sin texto) son listas. Las reglas viven en app/src/domain/paraCerrar.ts.
  */
 
 type Vista = "cerrar" | "empujando" | "archivo";
@@ -25,10 +26,10 @@ interface Deshacer { texto: string; accion?: () => Promise<void> }
 
 export function ParaCerrar() {
   const { datos, error, cargar, decidir } = useParaCerrar();
-  const { dataMode, cerrar, reabrir } = useHub();
+  const { dataMode, cerrar } = useHub();
   const now = useNow();
   const [vista, setVista] = useState<Vista>("cerrar");
-  const [verMas, setVerMas] = useState(false);
+  const [vendiendo, setVendiendo] = useState<ClienteParaCerrar | null>(null);
   const [perdiendo, setPerdiendo] = useState<ClienteParaCerrar | null>(null);
   const [posponiendo, setPosponiendo] = useState<ClienteParaCerrar | null>(null);
   const [aviso, setAviso] = useState<Deshacer | null>(null);
@@ -50,7 +51,6 @@ export function ParaCerrar() {
   };
   const accion = (id: number, a: AccionParaCerrar) => () => decidir(id, a);
   const cerrarYRecargar = (id: number, cierre: "ganado" | "perdido", nota?: string) => async () => { await cerrar(id, cierre, nota); await cargar(); };
-  const reabrirYRecargar = (id: number) => async () => { await reabrir(id); await cargar(); };
 
   const subs: Record<Vista, string> = {
     cerrar: "Ya aceptaron precio y local, y el último mensaje es de ellos",
@@ -72,7 +72,7 @@ export function ParaCerrar() {
       <Segmented<Vista>
         id="Lista"
         valor={vista}
-        onChange={(v) => { setVista(v); setVerMas(false); }}
+        onChange={setVista}
         opciones={[
           { valor: "cerrar", label: "Para cerrar", badge: datos?.paraCerrar.length, tono: "neutral" },
           { valor: "empujando", label: "Empujando", badge: datos?.empujando.length, tono: "neutral" },
@@ -103,14 +103,14 @@ export function ParaCerrar() {
         {datos && vista === "cerrar" && (
           <VistaCerrar
             lista={datos.paraCerrar}
+            empujando={datos.empujando}
             tope={datos.tope}
             contactados={datos.contactadosHoy}
             pospuestos={datos.pospuestos}
             compraron={datos.compraron}
-            verMas={verMas}
-            setVerMas={setVerMas}
             now={now}
-            onVendido={(c) => void hacer(`Vendido · ${c.nombre ?? c.telefono} · ${money(c.total)}`, cerrarYRecargar(c.ticketId, "ganado"), reabrirYRecargar(c.ticketId))}
+            onSacar={(c) => void hacer(`${c.nombre ?? "Cliente"} salió de Empujando`, accion(c.ticketId, { accion: "sacar" }), accion(c.ticketId, { accion: "devolver" }))}
+            onVendido={setVendiendo}
             onPerdido={setPerdiendo}
             onPosponer={setPosponiendo}
           />
@@ -133,14 +133,29 @@ export function ParaCerrar() {
       </div>
 
       <AnimatePresence>
+        {/* Cerrar un ticket no tiene «Deshacer»: reabrirlo empieza una visita
+            nueva sin la cotización ni el día. Por eso se confirma antes. */}
+        {vendiendo && (
+          <Modal onClose={() => setVendiendo(null)}>
+            <Hoja titulo={`¿Vendido a ${vendiendo.nombre ?? "este cliente"}?`} detalle={`${money(vendiendo.total)} · ${vendiendo.llantas}. El ticket se cierra como ganado.`} onCerrar={() => setVendiendo(null)}>
+              <div className="flex justify-end gap-2">
+                <button className="btn-quiet h-9 rounded-[6px] px-3.5 text-[13px]" onClick={() => setVendiendo(null)}>Cancelar</button>
+                <button className="btn-signal h-9 rounded-[6px] px-3.5 text-[13px]" onClick={() => {
+                  const c = vendiendo; setVendiendo(null);
+                  void hacer(`Vendido · ${c.nombre ?? c.telefono} · ${money(c.total)}`, cerrarYRecargar(c.ticketId, "ganado"));
+                }}>Sí, vendido</button>
+              </div>
+            </Hoja>
+          </Modal>
+        )}
         {perdiendo && (
           <Modal onClose={() => setPerdiendo(null)}>
-            <Hoja titulo={`¿Por qué se perdió ${perdiendo.nombre ?? "este cliente"}?`} onCerrar={() => setPerdiendo(null)}>
+            <Hoja titulo={`¿Por qué se perdió ${perdiendo.nombre ?? "este cliente"}?`} detalle="El ticket se cierra como perdido con ese motivo." onCerrar={() => setPerdiendo(null)}>
               <div className="flex flex-wrap gap-2">
                 {MOTIVOS.map((m) => (
                   <button key={m} className="btn-quiet h-9 rounded-[6px] px-3.5 text-[13px]" onClick={() => {
                     const c = perdiendo; setPerdiendo(null);
-                    void hacer(`Perdido · ${m}`, cerrarYRecargar(c.ticketId, "perdido", `Para cerrar: ${m}`), reabrirYRecargar(c.ticketId));
+                    void hacer(`Perdido · ${c.nombre ?? c.telefono} · ${m}`, cerrarYRecargar(c.ticketId, "perdido", `Para cerrar: ${m}`));
                   }}>{m}</button>
                 ))}
               </div>
@@ -175,55 +190,97 @@ export function ParaCerrar() {
   );
 }
 
-/* ── Para cerrar: el contador del día y la lista con tope ── */
+/* ── Para cerrar: el contador, el mes y el panel del lado ──
+   Cada cliente que dijo un día está escrito en ese día del calendario, sin
+   «+3 más». El panel de la derecha es el desglose de lo que se toque: un día,
+   los que no vinieron en el mes que se mira, o los que no dijeron día. */
 
-function VistaCerrar({ lista, tope, contactados, pospuestos, compraron, verMas, setVerMas, now, onVendido, onPerdido, onPosponer }: {
-  lista: ClienteParaCerrar[]; tope: number; contactados: number; pospuestos: number; compraron: number;
-  verMas: boolean; setVerMas: (v: boolean) => void; now: number;
-  onVendido: (c: ClienteParaCerrar) => void; onPerdido: (c: ClienteParaCerrar) => void; onPosponer: (c: ClienteParaCerrar) => void;
+type Lado = { tipo: "dia"; dia: string } | { tipo: "novinieron" } | { tipo: "sindia" };
+type Cita = { tipo: "cerrar"; c: ClienteParaCerrar; dia: string } | { tipo: "empujando"; c: ClienteEmpujando; dia: string };
+
+const MESES = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
+const SEMANA = ["domingo", "lunes", "martes", "miércoles", "jueves", "viernes", "sábado"];
+const CORTO = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
+
+/** «2026-10-25» en la hora del navegador (Quito para Depot). */
+function claveDia(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+function desdeClave(k: string): Date {
+  const [y, m, d] = k.split("-").map(Number);
+  return new Date(y, m - 1, d);
+}
+/** «Hoy», «Mañana», «Ayer» o «jue 29». */
+function diaCorto(k: string, hoy: string): string {
+  const n = Math.round((desdeClave(k).getTime() - desdeClave(hoy).getTime()) / 86_400_000);
+  if (n === 0) return "Hoy";
+  if (n === 1) return "Mañana";
+  if (n === -1) return "Ayer";
+  const d = desdeClave(k);
+  return `${CORTO[d.getDay()]} ${d.getDate()}`;
+}
+
+function VistaCerrar({ lista, empujando, tope, contactados, pospuestos, compraron, now, onVendido, onPerdido, onPosponer, onSacar }: {
+  lista: ClienteParaCerrar[]; empujando: ClienteEmpujando[]; tope: number; contactados: number; pospuestos: number; compraron: number; now: number;
+  onVendido: (c: ClienteParaCerrar) => void; onPerdido: (c: ClienteParaCerrar) => void; onPosponer: (c: ClienteParaCerrar) => void; onSacar: (c: ClienteEmpujando) => void;
 }) {
+  const hoy = claveDia(new Date(now));
+  const [mes, setMes] = useState(() => ({ y: new Date(now).getFullYear(), m: new Date(now).getMonth() }));
+  const [lado, setLadoBase] = useState<Lado>({ tipo: "dia", dia: hoy });
+  const panel = useRef<HTMLElement>(null);
+  // Cuando el panel no está al lado (pantallas angostas), bajar hasta él.
+  const setLado = (l: Lado) => {
+    setLadoBase(l);
+    if (!window.matchMedia("(min-width: 1280px)").matches) {
+      requestAnimationFrame(() => panel.current?.scrollIntoView({ behavior: "smooth", block: "start" }));
+    }
+  };
+
+  const porDia = useMemo(() => {
+    const mapa = new Map<string, Cita[]>();
+    const poner = (cita: Cita) => { const l = mapa.get(cita.dia); if (l) l.push(cita); else mapa.set(cita.dia, [cita]); };
+    for (const c of lista) if (c.visita) poner({ tipo: "cerrar", c, dia: claveDia(new Date(c.visita)) });
+    for (const c of empujando) if (c.visita) poner({ tipo: "empujando", c, dia: claveDia(new Date(c.visita)) });
+    // En el día: primero la hora; a igual hora, primero a quien le toca escribir.
+    for (const l of mapa.values()) l.sort((a, b) => (a.c.visita ?? "").localeCompare(b.c.visita ?? "") || (a.tipo === "cerrar" ? -1 : 1));
+    return mapa;
+  }, [lista, empujando]);
+
+  const prefijo = `${mes.y}-${String(mes.m + 1).padStart(2, "0")}`;
+  const noVinieron = [...porDia.entries()]
+    .filter(([d]) => d < hoy && d.startsWith(prefijo))
+    .sort(([a], [b]) => b.localeCompare(a))
+    .flatMap(([, l]) => l);
+  const sinDia = lista.filter((c) => !c.visita);
   const quedan = Math.max(0, tope - contactados);
-  const listo = quedan === 0;
-  const arriba = lista.slice(0, quedan);
-  const abajo = lista.slice(quedan);
+  const irAMes = (delta: number) => setMes((x) => { const d = new Date(x.y, x.m + delta, 1); return { y: d.getFullYear(), m: d.getMonth() }; });
+  const acciones = { onVendido, onPerdido, onPosponer, onSacar };
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-5 gap-y-2 rounded-[10px] border border-line bg-surface px-5 py-4">
-        <div>
-          <span className="text-[14px] font-semibold">Hoy: {contactados} de {tope} contactados</span>
-          <span className="ml-2 text-[13px] text-text2">
-            {listo ? "Listo por hoy." : `Faltan ${quedan}. Cuando alguien del equipo le escribe a uno, entra el siguiente.`}
-          </span>
-        </div>
-        <span className={`tnum row-span-2 font-mono text-[26px] font-medium ${listo ? "text-ok" : "text-signal"}`}>{contactados}/{tope}</span>
-        <div className="h-1 overflow-hidden rounded-full bg-line">
-          <div className={`h-full ${listo ? "bg-ok" : "bg-signal"}`} style={{ width: `${Math.min(100, (contactados / tope) * 100)}%` }} />
-        </div>
-      </div>
+    <div className="flex flex-col gap-5">
+      <Contador tope={tope} contactados={contactados} />
 
-      {lista.length === 0 ? (
-        <EmptyState titulo="Nadie espera respuesta" detalle="Cuando un cliente acepte precio y local y escriba, aparece aquí." />
-      ) : (
-        <section className="flex flex-col gap-2">
-          {arriba.length > 0 && (
-            <div className="mb-1 flex items-baseline justify-between px-0.5">
-              <span className="text-[14px] font-semibold">Escríbeles<span className="ml-2.5 font-normal text-text2">primero la plata en juego, la cita cerca y la conversación fresca</span></span>
-              <span className="tnum font-mono text-[12px] text-text2">{arriba.length} de {lista.length}</span>
-            </div>
-          )}
-          {listo && <p className="rounded-[8px] bg-ok/10 px-4 py-3 text-[13px] font-medium text-ok">Llegaron a los {tope} de hoy. Los demás siguen aquí abajo por si quieren seguir.</p>}
-          {arriba.map((c, i) => <Tarjeta key={c.ticketId} c={c} n={i + 1} now={now} onVendido={onVendido} onPerdido={onPerdido} onPosponer={onPosponer} />)}
-          {abajo.length > 0 && (verMas
-            ? <>
-                <div className="mt-4 mb-1 px-0.5 text-[14px] font-semibold">Debajo del tope<span className="ml-2.5 font-normal text-text2">por si terminan y quieren seguir</span></div>
-                {abajo.map((c, i) => <Tarjeta key={c.ticketId} c={c} n={arriba.length + i + 1} now={now} tenue onVendido={onVendido} onPerdido={onPerdido} onPosponer={onPosponer} />)}
-                <button className="mt-2 rounded-[8px] border border-dashed border-line-strong py-3 text-[13px] text-text2 hover:bg-surface hover:text-text" onClick={() => setVerMas(false)}>Esconder los {abajo.length} de abajo</button>
-              </>
-            : <button className="mt-2 rounded-[8px] border border-dashed border-line-strong py-3 text-[13px] text-text2 hover:bg-surface hover:text-text" onClick={() => setVerMas(true)}>+{abajo.length} más debajo del tope</button>
-          )}
-        </section>
-      )}
+      <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_360px] 2xl:grid-cols-[minmax(0,1fr)_420px]">
+        <Calendario
+          y={mes.y} m={mes.m} hoy={hoy} porDia={porDia}
+          seleccionado={lado.tipo === "dia" ? lado.dia : null}
+          onDia={(dia) => setLado({ tipo: "dia", dia })}
+          onMes={irAMes}
+          onHoy={() => { const d = new Date(now); setMes({ y: d.getFullYear(), m: d.getMonth() }); setLadoBase({ tipo: "dia", dia: hoy }); }}
+          atajos={
+            <>
+              <Atajo activo={lado.tipo === "novinieron"} tono="signal" n={noVinieron.length} onClick={() => setLado({ tipo: "novinieron" })}>No vinieron en {MESES[mes.m]}</Atajo>
+              <Atajo activo={lado.tipo === "sindia"} tono="warn" n={sinDia.length} onClick={() => setLado({ tipo: "sindia" })}>Sin día</Atajo>
+            </>
+          }
+        />
+
+        <aside ref={panel} className="scroll-mt-3 rounded-[10px] border border-line bg-surface xl:sticky xl:top-4 xl:max-h-[calc(100vh-32px)] xl:overflow-y-auto">
+          {lado.tipo === "dia" && <LadoDia dia={lado.dia} hoy={hoy} citas={porDia.get(lado.dia) ?? []} now={now} {...acciones} />}
+          {lado.tipo === "novinieron" && <LadoNoVinieron mes={MESES[mes.m]} citas={noVinieron} hoy={hoy} now={now} {...acciones} />}
+          {lado.tipo === "sindia" && <LadoSinDia lista={sinDia} quedan={quedan} hoy={hoy} now={now} {...acciones} />}
+        </aside>
+      </div>
 
       {(pospuestos > 0 || compraron > 0) && (
         <p className="px-0.5 text-[12px] text-text2">
@@ -234,47 +291,278 @@ function VistaCerrar({ lista, tope, contactados, pospuestos, compraron, verMas, 
   );
 }
 
-function Tarjeta({ c, n, now, tenue = false, onVendido, onPerdido, onPosponer }: {
-  c: ClienteParaCerrar; n: number; now: number; tenue?: boolean;
-  onVendido: (c: ClienteParaCerrar) => void; onPerdido: (c: ClienteParaCerrar) => void; onPosponer: (c: ClienteParaCerrar) => void;
-}) {
-  const horas = c.ultimoCliente ? (now - new Date(c.ultimoCliente).getTime()) / HORA : Infinity;
-  const frio = horas > 72;
-  const color = horas < 24 ? "bg-ok" : frio ? "bg-signal" : "bg-warn";
-  const dia = etiquetaVisita(c.visita ?? undefined, c.compromiso ?? undefined, now);
-  const hoy = dia === "Hoy";
-
+function Contador({ tope, contactados }: { tope: number; contactados: number }) {
+  const quedan = Math.max(0, tope - contactados);
+  const listo = quedan === 0;
   return (
-    <article className={`grid grid-cols-[18px_10px_minmax(0,1fr)] items-center gap-x-3.5 gap-y-3 rounded-[8px] border border-line bg-surface px-4 py-3.5 shadow-[0_1px_2px_rgba(28,27,25,.04)] xl:grid-cols-[22px_10px_minmax(0,1.3fr)_minmax(0,1fr)_auto] md:px-5 ${tenue ? "opacity-75" : ""}`}>
-      <span className="tnum text-right font-mono text-[12px] text-text3">{n}</span>
-      <span className={`h-2.5 w-2.5 rounded-full ${color} ${frio ? "shadow-[0_0_0_4px_var(--color-signal-tint)]" : ""}`} title={c.ultimoCliente ? `Escribió ${relTime(c.ultimoCliente, now)}` : ""} />
-      <button type="button" onClick={() => navigate(`ticket/${c.ticketId}`)} className="min-w-0 text-left">
-        <span className="flex items-baseline gap-3">
-          <span className="truncate text-[15px] font-semibold">{c.nombre ?? c.telefono}</span>
-          <span className="tnum shrink-0 font-mono text-[13px] text-text2">{money(c.total)}</span>
-        </span>
-        <span className="mt-1.5 flex min-w-0 items-center gap-2 border-t border-line pt-1.5">
-          {c.medida && <MedidaChip medida={c.medida} size="sm" />}
-          <span className="truncate text-[12px] text-text2">{c.llantas}</span>
-        </span>
-      </button>
-      <div className="col-start-3 flex min-w-0 flex-col gap-1.5 xl:col-start-auto">
-        <span className="flex flex-wrap items-baseline gap-2 text-[13px]">
-          <span className={`font-mono font-bold ${hoy ? "text-signal" : dia ? "" : "text-text2"}`}>{dia ? `${dia}${c.visitaHora ? ` · ${c.visitaHora}` : ""}` : "Sin día"}</span>
-          <span className="truncate">{c.local}</span>
-        </span>
-        <span className="flex flex-wrap gap-1.5">
-          {c.volvio && <Etiqueta tono="ok">Volvió: respondió</Etiqueta>}
-          {!dia && <Etiqueta tono="warn">Falta día</Etiqueta>}
-          {!c.ventanaAbierta && <Etiqueta>Ventana cerrada · solo plantilla</Etiqueta>}
-          {c.ultimoCliente && <Etiqueta tono={frio ? "signal" : undefined}>Escribió {relTime(c.ultimoCliente, now)}</Etiqueta>}
+    <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-5 gap-y-2 rounded-[10px] border border-line bg-surface px-5 py-4">
+      <div>
+        <span className="text-[14px] font-semibold">Hoy: {contactados} de {tope} contactados</span>
+        <span className="ml-2 text-[13px] text-text2">
+          {listo ? "Listo por hoy." : `Faltan ${quedan}. Cuenta lo que cualquiera del equipo escribe hoy a estos clientes.`}
         </span>
       </div>
-      <div className="col-start-3 flex flex-wrap gap-1.5 xl:col-start-auto xl:justify-end">
-        <button className="btn-signal h-8 rounded-[6px] px-3 text-[13px]" onClick={() => navigate(`ticket/${c.ticketId}`)}>Escribir</button>
-        <button className="btn-quiet h-8 rounded-[6px] px-3 text-[13px]" onClick={() => onVendido(c)}>Vendido</button>
-        <button className="btn-quiet h-8 rounded-[6px] px-3 text-[13px]" onClick={() => onPerdido(c)}>Perdido</button>
-        <button className="h-8 rounded-[6px] px-2 text-[13px] text-text2 hover:bg-black/[.04] hover:text-text" onClick={() => onPosponer(c)}>Posponer</button>
+      <span className={`tnum row-span-2 font-mono text-[26px] font-medium ${listo ? "text-ok" : "text-signal"}`}>{contactados}/{tope}</span>
+      <div className="h-1 overflow-hidden rounded-full bg-line">
+        <div className={`h-full ${listo ? "bg-ok" : "bg-signal"}`} style={{ width: `${Math.min(100, (contactados / tope) * 100)}%` }} />
+      </div>
+    </div>
+  );
+}
+
+function Atajo({ activo, tono, n, onClick, children }: { activo: boolean; tono: "signal" | "warn"; n: number; onClick: () => void; children: React.ReactNode }) {
+  const color = tono === "signal" ? "text-signal" : "text-warn";
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={activo}
+      className={`flex h-8 items-center gap-2 rounded-[6px] border px-3 text-[13px] font-medium transition-colors ${activo ? "border-text bg-text text-white" : "border-line bg-surface hover:border-line-strong"}`}
+    >
+      {children}
+      <span className={`tnum font-mono text-[12px] font-bold ${activo ? "text-white" : color}`}>{n}</span>
+    </button>
+  );
+}
+
+/* ── El mes ── */
+
+function Calendario({ y, m, hoy, porDia, seleccionado, onDia, onMes, onHoy, atajos }: {
+  y: number; m: number; hoy: string; porDia: Map<string, Cita[]>; seleccionado: string | null;
+  onDia: (dia: string) => void; onMes: (delta: number) => void; onHoy: () => void; atajos: React.ReactNode;
+}) {
+  const primero = new Date(y, m, 1);
+  const inicio = new Date(y, m, 1 - ((primero.getDay() + 6) % 7)); // el lunes de esa semana
+  const semanas = Math.ceil(((primero.getDay() + 6) % 7 + new Date(y, m + 1, 0).getDate()) / 7);
+  const dias = Array.from({ length: semanas * 7 }, (_, i) => new Date(inicio.getFullYear(), inicio.getMonth(), inicio.getDate() + i));
+  const enElMes = [...porDia.entries()].filter(([d]) => d.startsWith(`${y}-${String(m + 1).padStart(2, "0")}`)).reduce((a, [, l]) => a + l.length, 0);
+
+  return (
+    <section className="overflow-hidden rounded-[10px] border border-line bg-surface">
+      <div className="flex flex-wrap items-center gap-2 border-b border-line px-4 py-3">
+        <h2 className="mr-auto text-[16px] font-semibold capitalize">
+          {MESES[m]} {y}
+          <span className="ml-2.5 text-[12px] font-normal normal-case text-text2">{enElMes} {enElMes === 1 ? "cita" : "citas"}</span>
+        </h2>
+        <button type="button" onClick={() => onMes(-1)} aria-label="Mes anterior" className="btn-quiet grid h-8 w-8 place-items-center rounded-[6px] text-[15px]">‹</button>
+        <button type="button" onClick={onHoy} className="btn-quiet h-8 rounded-[6px] px-3 text-[13px]">Hoy</button>
+        <button type="button" onClick={() => onMes(1)} aria-label="Mes siguiente" className="btn-quiet grid h-8 w-8 place-items-center rounded-[6px] text-[15px]">›</button>
+      </div>
+      <div className="flex flex-wrap items-center gap-2 border-b border-line px-4 py-2.5">
+        {atajos}
+        <span className="ml-auto hidden items-center gap-3.5 text-[12px] text-text2 lg:flex">
+          <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-ok" />te toca escribir</span>
+          <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full border-[1.5px] border-text3" />ya le escribieron</span>
+          <span className="text-text2 line-through decoration-signal decoration-[1.5px]">no vino</span>
+        </span>
+      </div>
+      <div className="grid grid-cols-7 border-b border-line">
+        {["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"].map((d) => (
+          <span key={d} className="px-2 py-1.5 text-[11px] font-medium text-text2">{d}</span>
+        ))}
+      </div>
+      <div className="grid grid-cols-7">
+        {dias.map((d, i) => {
+          const k = claveDia(d);
+          const citas = porDia.get(k) ?? [];
+          const fuera = d.getMonth() !== m;
+          const esHoy = k === hoy;
+          const paso = k < hoy;
+          const sel = k === seleccionado;
+          return (
+            <button
+              key={k}
+              type="button"
+              onClick={() => onDia(k)}
+              aria-pressed={sel}
+              aria-label={`${SEMANA[d.getDay()]} ${d.getDate()}: ${citas.length} ${citas.length === 1 ? "cliente" : "clientes"}`}
+              className={`flex min-h-[56px] min-w-0 flex-col items-stretch gap-0.5 border-line px-1 pt-1.5 pb-2 text-left transition-colors md:min-h-[92px] ${i % 7 < 6 ? "border-r" : ""} ${i < dias.length - 7 ? "border-b" : ""} ${fuera ? "bg-black/[.018]" : ""} ${sel ? "bg-signal-tint shadow-[inset_0_0_0_2px_var(--color-signal)]" : "hover:bg-signal-tint"}`}
+            >
+              <span className="flex items-center justify-between px-1 pb-0.5">
+                <span className={`tnum font-mono text-[12px] ${esHoy ? "rounded-full bg-signal px-1.5 font-bold text-white" : fuera ? "text-text3" : "text-text2"}`}>{d.getDate()}</span>
+                {citas.length > 0 && <span className="tnum font-mono text-[10.5px] text-text2">{citas.length}</span>}
+              </span>
+              {/* Escritorio: todos los nombres. Teléfono: un punto por cliente. */}
+              <span className="hidden flex-col gap-px md:flex">
+                {citas.map((cita) => <Renglon key={`${cita.tipo}-${cita.c.ticketId}`} cita={cita} paso={paso} tenue={fuera} />)}
+              </span>
+              <span className="flex flex-wrap justify-center gap-0.5 md:hidden">
+                {citas.map((cita) => <Punto key={`${cita.tipo}-${cita.c.ticketId}`} cita={cita} />)}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
+function semaforo(c: ClienteParaCerrar, now: number): "ok" | "warn" | "signal" {
+  const h = c.ultimoCliente ? (now - new Date(c.ultimoCliente).getTime()) / HORA : Infinity;
+  return h < 24 ? "ok" : h <= 72 ? "warn" : "signal";
+}
+const FONDO = { ok: "bg-ok", warn: "bg-warn", signal: "bg-signal" } as const;
+
+function Punto({ cita }: { cita: Cita }) {
+  const now = useNow();
+  return cita.tipo === "empujando"
+    ? <span className="h-1.5 w-1.5 rounded-full border border-text3" />
+    : <span className={`h-1.5 w-1.5 rounded-full ${FONDO[semaforo(cita.c, now)]}`} />;
+}
+
+function Renglon({ cita, paso, tenue }: { cita: Cita; paso: boolean; tenue: boolean }) {
+  return (
+    <span className={`grid grid-cols-[8px_minmax(0,1fr)] items-center gap-x-1.5 rounded-[4px] px-1 py-[2px] ${tenue ? "opacity-60" : ""}`}>
+      <Punto cita={cita} />
+      <span className={`min-w-0 text-[12px] leading-[1.25] font-medium break-words ${cita.tipo === "empujando" || paso ? "text-text2" : ""} ${paso ? "line-through decoration-signal decoration-[1.5px]" : ""}`}>
+        {cita.c.nombre ?? "Sin nombre"}
+      </span>
+      {cita.c.visitaHora && <span className="col-start-2 truncate font-mono text-[10.5px] text-text2">{cita.c.visitaHora}</span>}
+    </span>
+  );
+}
+
+/* ── El panel del lado ── */
+
+type Acciones = {
+  onVendido: (c: ClienteParaCerrar) => void; onPerdido: (c: ClienteParaCerrar) => void;
+  onPosponer: (c: ClienteParaCerrar) => void; onSacar: (c: ClienteEmpujando) => void;
+};
+
+function CabezaLado({ titulo, n, tono = "signal", detalle }: { titulo: string; n: number; tono?: "signal" | "warn" | "text"; detalle: string }) {
+  const color = tono === "signal" ? "text-signal" : tono === "warn" ? "text-warn" : "text-text";
+  return (
+    <div className="px-5 pt-5 pb-3">
+      <div className="flex items-baseline justify-between gap-3">
+        <h3 className="text-[17px] font-semibold tracking-[-0.01em] first-letter:uppercase">{titulo}</h3>
+        <span className={`tnum font-mono text-[26px] font-medium ${color}`}>{n}</span>
+      </div>
+      <p className="mt-1 text-[13px] text-text2">{detalle}</p>
+    </div>
+  );
+}
+
+function ListaCitas({ citas, hoy, now, ...acciones }: { citas: Cita[]; hoy: string; now: number } & Acciones) {
+  return (
+    <div className="flex flex-col gap-2.5 px-4 pb-4">
+      {citas.map((cita) => <TarjetaCita key={`${cita.tipo}-${cita.c.ticketId}`} cita={cita} hoy={hoy} now={now} {...acciones} />)}
+    </div>
+  );
+}
+
+function LadoDia({ dia, hoy, citas, now, ...acciones }: { dia: string; hoy: string; citas: Cita[]; now: number } & Acciones) {
+  const d = desdeClave(dia);
+  const rel = diaCorto(dia, hoy);
+  const fecha = `${SEMANA[d.getDay()]} ${d.getDate()} de ${MESES[d.getMonth()]}`;
+  const titulo = rel === "Hoy" ? "Vienen hoy" : ["Mañana", "Ayer"].includes(rel) ? `${rel} · ${fecha}` : fecha;
+  const detalle = dia === hoy ? "Confirmar que llegan y que la llanta está lista."
+    : dia < hoy ? "Ese día ya pasó: los que siguen aquí no compraron. Reagendar."
+    : "Dijeron que vienen este día.";
+  return (
+    <>
+      <CabezaLado titulo={titulo} n={citas.length} tono={dia < hoy ? "text" : "signal"} detalle={detalle} />
+      {citas.length === 0
+        ? <p className="px-5 pb-6 text-[13px] text-text2">Nadie dijo que viene este día.</p>
+        : <ListaCitas citas={citas} hoy={hoy} now={now} {...acciones} />}
+    </>
+  );
+}
+
+function LadoNoVinieron({ mes, citas, hoy, now, ...acciones }: { mes: string; citas: Cita[]; hoy: string; now: number } & Acciones) {
+  const dias = [...new Set(citas.map((c) => c.dia))];
+  return (
+    <>
+      <CabezaLado titulo={`No vinieron en ${mes}`} n={citas.length} tono="text" detalle="Dijeron un día que ya pasó y no hay factura. Son los más fáciles de recuperar: reagendar." />
+      {citas.length === 0
+        ? <p className="px-5 pb-6 text-[13px] text-text2">Nadie quedó mal este mes.</p>
+        : dias.map((dia) => (
+          <div key={dia}>
+            <p className="px-5 pt-1 pb-2 text-[12px] font-semibold text-text2 first-letter:uppercase">{diaCorto(dia, hoy)}</p>
+            <ListaCitas citas={citas.filter((c) => c.dia === dia)} hoy={hoy} now={now} {...acciones} />
+          </div>
+        ))}
+    </>
+  );
+}
+
+function LadoSinDia({ lista, quedan, hoy, now, ...acciones }: { lista: ClienteParaCerrar[]; quedan: number; hoy: string; now: number } & Acciones) {
+  const [verMas, setVerMas] = useState(false);
+  // Ya vienen ordenados por puntaje: los primeros son los del tope de hoy.
+  const arriba = lista.slice(0, Math.max(quedan, 0));
+  const abajo = lista.slice(arriba.length);
+  const citas = (l: ClienteParaCerrar[]): Cita[] => l.map((c) => ({ tipo: "cerrar", c, dia: "" }));
+  return (
+    <>
+      <CabezaLado titulo="Sin día" n={lista.length} tono="warn" detalle={quedan > 0 ? `Aceptaron precio y local; falta que digan cuándo. Primero estos ${arriba.length}: más plata y conversación fresca.` : "Aceptaron precio y local; falta que digan cuándo."} />
+      {lista.length === 0 && <p className="px-5 pb-6 text-[13px] text-text2">Todos dijeron un día.</p>}
+      <ListaCitas citas={citas(arriba)} hoy={hoy} now={now} {...acciones} />
+      {abajo.length > 0 && (verMas
+        ? <>
+            <p className="px-5 pb-2 text-[12px] font-semibold text-text2">Debajo del tope</p>
+            <ListaCitas citas={citas(abajo)} hoy={hoy} now={now} {...acciones} />
+            <div className="px-4 pb-4"><button className="w-full rounded-[8px] border border-dashed border-line-strong py-2.5 text-[13px] text-text2 hover:text-text" onClick={() => setVerMas(false)}>Esconder los {abajo.length} de abajo</button></div>
+          </>
+        : <div className="px-4 pb-4"><button className="w-full rounded-[8px] border border-dashed border-line-strong py-2.5 text-[13px] text-text2 hover:text-text" onClick={() => setVerMas(true)}>+{abajo.length} más debajo del tope</button></div>
+      )}
+    </>
+  );
+}
+
+/* ── La tarjeta del panel ── */
+
+function TarjetaCita({ cita, hoy, now, onVendido, onPerdido, onPosponer, onSacar }: { cita: Cita; hoy: string; now: number } & Acciones) {
+  const c = cita.c;
+  const dia = c.visita ? claveDia(new Date(c.visita)) : null;
+  const paso = Boolean(dia && dia < hoy);
+  const abrir = () => navigate(`ticket/${c.ticketId}`);
+  const punto = cita.tipo === "empujando"
+    ? <span className="h-2.5 w-2.5 shrink-0 rounded-full border-[1.5px] border-text3" />
+    : <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${FONDO[semaforo(cita.c, now)]}`} />;
+
+  return (
+    <article className={`flex flex-col gap-2 rounded-[8px] border border-line px-4 py-3 ${cita.tipo === "empujando" ? "bg-bg/60" : "bg-surface"}`}>
+      <div className="flex items-center gap-2.5">
+        {punto}
+        <button type="button" onClick={abrir} className="min-w-0 text-left text-[15px] leading-tight font-semibold break-words hover:underline">{c.nombre ?? "Sin nombre"}</button>
+        <span className="tnum ml-auto shrink-0 font-mono text-[13px] text-text2">{money(c.total)}</span>
+      </div>
+      <div className="flex min-w-0 items-center gap-2 border-t border-line pt-2">
+        {c.medida && <MedidaChip medida={c.medida} size="sm" />}
+        <span className="truncate text-[12px] text-text2">{c.llantas}</span>
+      </div>
+      <div className="flex flex-wrap items-baseline gap-x-2 text-[13px]">
+        <span className={`font-mono font-bold ${dia === hoy || paso ? "text-signal" : dia ? "" : "text-text2"}`}>
+          {dia ? `${diaCorto(dia, hoy)}${c.visitaHora ? ` · ${c.visitaHora}` : ""}` : "Sin día"}
+        </span>
+        <span>{c.local}</span>
+      </div>
+      <div className="flex flex-wrap gap-1.5">
+        {cita.tipo === "empujando" ? (
+          <Etiqueta>Le escribieron {relTime(cita.c.ultimoAsesor, now)}</Etiqueta>
+        ) : (
+          <>
+            {cita.c.volvio && <Etiqueta tono="ok">Volvió: respondió</Etiqueta>}
+            {paso && <Etiqueta tono="signal">Pasó la fecha, sin factura</Etiqueta>}
+            {!dia && <Etiqueta tono="warn">Falta día</Etiqueta>}
+            {!cita.c.ventanaAbierta && <Etiqueta>Ventana cerrada · plantilla</Etiqueta>}
+            {cita.c.ultimoCliente && <Etiqueta tono={semaforo(cita.c, now) === "signal" ? "signal" : undefined}>Escribió {relTime(cita.c.ultimoCliente, now)}</Etiqueta>}
+          </>
+        )}
+      </div>
+      <div className="flex flex-wrap gap-1.5 pt-0.5">
+        {cita.tipo === "empujando" ? (
+          <>
+            <button className="btn-quiet h-8 rounded-[6px] px-3 text-[13px]" onClick={abrir}>Abrir chat</button>
+            <button className="flex h-8 items-center gap-1 rounded-[6px] px-2 text-[13px] text-text2 hover:bg-signal-tint hover:text-signal" onClick={() => onSacar(cita.c)}><IconX size={13} />Sacar</button>
+          </>
+        ) : (
+          <>
+            <button className="btn-signal h-8 rounded-[6px] px-3 text-[13px]" onClick={abrir}>Escribir</button>
+            <button className="btn-quiet h-8 rounded-[6px] px-3 text-[13px]" onClick={() => onVendido(cita.c)}>Vendido</button>
+            <button className="btn-quiet h-8 rounded-[6px] px-3 text-[13px]" onClick={() => onPerdido(cita.c)}>Perdido</button>
+            <button className="h-8 rounded-[6px] px-2 text-[13px] text-text2 hover:bg-black/[.04] hover:text-text" onClick={() => onPosponer(cita.c)}>Posponer</button>
+          </>
+        )}
       </div>
     </article>
   );
