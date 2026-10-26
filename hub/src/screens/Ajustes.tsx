@@ -12,6 +12,7 @@ import { authHeaders } from "../data/realSource";
 import { useHub } from "../store";
 import { Segmented } from "../components/ui";
 import { BotPowerSwitch, FollowUpSettingsPanel } from "./Settings";
+import { SeccionAnuncios } from "../components/anuncios";
 
 // ---------------------------------------------------------------------------
 
@@ -259,6 +260,7 @@ export function Ajustes() {
         <div className="flex flex-col gap-4">
           {hours && <SeccionHorarios hours={hours} setHours={setHours} onError={setError} />}
           <SeccionCupones onError={setError} />
+          <SeccionAnuncios onError={setError} />
         </div>
       )}
 

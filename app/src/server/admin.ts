@@ -9,6 +9,8 @@
 import express from "express";
 import { z } from "zod";
 import { sql } from "../db/client.js";
+import { AnunciosActivosSchema } from "../domain/anunciosActivos.js";
+import { anunciosVistos, getAnunciosActivos, saveAnunciosActivos } from "../services/anunciosActivos.js";
 import { business, config } from "../config.js";
 import { appendMessage, pauseBot } from "../services/conversations.js";
 import { forceSyncNow, interbotPricesState } from "../services/interbotPrices.js";
@@ -1794,6 +1796,25 @@ export function createAdminRouter(): express.Router {
     } catch (error) {
       res.status(400).json({ ok: false, error: error instanceof Error ? error.message : "Horarios inválidos" });
     }
+  });
+
+  router.get("/anuncios-activos", async (_req, res) => {
+    res.json({ ok: true, anuncios: await getAnunciosActivos() });
+  });
+
+  router.put("/anuncios-activos", async (req, res) => {
+    const lista = Array.isArray(req.body) ? req.body : req.body?.anuncios;
+    const r = AnunciosActivosSchema.safeParse(lista);
+    if (!r.success) {
+      const msg = r.error.issues[0]?.message ?? "Anuncios inválidos";
+      return res.status(400).json({ ok: false, error: msg });
+    }
+    res.json({ ok: true, anuncios: await saveAnunciosActivos(r.data) });
+  });
+
+  router.get("/anuncios-vistos", async (req, res) => {
+    const dias = Math.min(60, Math.max(1, Number(req.query.dias) || 14));
+    res.json({ ok: true, vistos: await anunciosVistos(dias) });
   });
 
   /**
