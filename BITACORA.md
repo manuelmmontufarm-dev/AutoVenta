@@ -12,6 +12,8 @@ por dentro y el vendedor y el Guardián aceptan «3x4», «paga 3 lleva 4» o «
 **Por qué:** Manuel, 26-oct 17:31: «pensé que quedamos con 4 llantas por precio
 de 3, literalmente».
 
+Corrección: el sello chico de la cotización dice «4x3 · AL PRECIO DE 3» (más corto: con el texto largo tapaba el precio «ANTES»); su prueba ajustada.
+
 **Horas:** 0,4
 
 ## 26-oct-2026 · Segundo deploy FAILED: el esquema esperaba un candado para siempre

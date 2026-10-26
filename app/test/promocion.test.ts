@@ -141,7 +141,6 @@ describe("plantilla día y noche", () => {
     const enCotizacion = cotizacion({ ...AL_25, promocion: "3x4" });
     expect(enCotizacion).toContain("4x3");
     expect(enCotizacion).toContain("AL PRECIO DE 3");
-    expect(enCotizacion).toContain("EL PRECIO DE 3");
     expect(enCotizacion).not.toContain("−25%");
     // La plata no cambia con el modo.
     expect(enCotizacion).toContain("$690.20");
