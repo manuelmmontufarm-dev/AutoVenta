@@ -4,6 +4,7 @@
  * la tool notificar_vendedor es la señal precisa; esto persiste el funnel.
  */
 import OpenAI from "openai";
+import { nuevoClienteOpenAI } from "./openaiCliente.js";
 import { config } from "../config.js";
 import { logAiRun, setStage, type Conversation } from "../services/conversations.js";
 import { sql } from "../db/client.js";
@@ -11,7 +12,7 @@ import { puedeCerrarComoPerdido } from "../domain/cierrePerdido.js";
 import { STAGE_ORDER, isStage, type Stage } from "../domain/pipeline.js";
 import { isExplicitPurchaseConfirmation, traePedidoNuevo } from "../domain/salesIntent.js";
 
-const openai = new OpenAI({ apiKey: config.openai.apiKey });
+const openai = nuevoClienteOpenAI();
 
 export async function classifyStage(
   conversation: Conversation,

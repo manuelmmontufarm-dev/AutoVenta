@@ -402,8 +402,20 @@ export const useHub = create<HubState>((set, get) => {
       abierto ? refrescarMensajes(abierto) : Promise.resolve(),
     ]);
   }
+  /**
+   * El chat que tienes abierto se vuelve a pedir cada 4 s aunque el canal en
+   * vivo esté sano: Manuel (26-oct 16:17) esperó la respuesta del bot mirando
+   * el chat y la vio recién con el refresco de los 15 s. Es un solo GET chico
+   * (los mensajes de UN ticket); la lista sigue cada 15 s.
+   */
+  async function refrescarChatAbierto(): Promise<void> {
+    if (document.visibilityState === "hidden" || !ticketAbierto) return;
+    if (get().conexion === "clave-invalida") return;
+    await refrescarMensajes(ticketAbierto).catch(() => undefined);
+  }
   if (typeof window !== "undefined") {
     window.setInterval(() => void refrescarLigero(), 15_000);
+    window.setInterval(() => void refrescarChatAbierto(), 4_000);
     document.addEventListener("visibilitychange", () => {
       if (document.visibilityState === "visible") void refrescarLigero();
     });

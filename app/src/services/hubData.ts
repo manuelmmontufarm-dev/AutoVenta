@@ -68,7 +68,30 @@ interface TicketRow {
  * el que de verdad está pasando algo. Es la misma ventana que usan las métricas
  * (`resolverPeriodo`), así que el tablero y los números hablan del mismo mes.
  */
-export async function listHubTickets(options: { id?: number; mes?: string | null } = {}) {
+/**
+ * Varias pestañas del panel piden la lista completa a la vez (cada 15 s cada
+ * una): la misma consulta se corre UNA vez y todas reciben el mismo resultado.
+ * Vale 3 s: menos que el sondeo, así que ninguna acción del asesor (cerrar,
+ * contestar) se ve vieja más de lo que ya tardaba en refrescar.
+ */
+const LISTA_CACHE_MS = 3_000;
+let listaEnVuelo: { at: number; promesa: Promise<HubTicket[]> } | null = null;
+
+export async function listHubTickets(options: { id?: number; mes?: string | null } = {}): Promise<HubTicket[]> {
+  const esLaListaCompleta = !options.id && !options.mes;
+  if (esLaListaCompleta) {
+    if (listaEnVuelo && Date.now() - listaEnVuelo.at < LISTA_CACHE_MS) return listaEnVuelo.promesa;
+    const promesa = consultarHubTickets(options);
+    listaEnVuelo = { at: Date.now(), promesa };
+    promesa.catch(() => { listaEnVuelo = null; });
+    return promesa;
+  }
+  return consultarHubTickets(options);
+}
+
+export type HubTicket = Awaited<ReturnType<typeof consultarHubTickets>>[number];
+
+async function consultarHubTickets(options: { id?: number; mes?: string | null } = {}) {
   const periodo = options.mes ? await resolverPeriodo(options.mes) : null;
   const ventana =
     periodo && !periodo.todos
@@ -119,7 +142,23 @@ export async function listHubTickets(options: { id?: number; mes?: string | null
         where history.conversation_id = c.id and history.outcome = 'ganado'
           and history.cycle < c.current_cycle
       ) as won_count
-    from conversations c
+    from (
+      -- PRIMERO LAS 500 CANDIDATAS, DESPUÉS LAS DIEZ SUBCONSULTAS (26-oct).
+      -- Antes el «limit 500» iba al final: Postgres armaba cotización,
+      -- seguimientos, intentos, notas, descuentos y ventas de TODAS las
+      -- conversaciones de la base y recién entonces se quedaba con 500.
+      -- En producción eran 44–50 s por pedido, y el panel lo pide cada 15 s
+      -- desde cada pestaña abierta. El orden es el mismo de siempre: la
+      -- fecha del último mensaje (sin notas), y si no hay, updated_at.
+      select c.*
+      from conversations c
+      ${filtro}
+      order by coalesce(
+        (select max(created_at) from messages where conversation_id = c.id and type <> 'note'),
+        c.updated_at
+      ) desc
+      limit 500
+    ) c
     left join lateral (
       select content, created_at
       from messages
@@ -186,9 +225,7 @@ export async function listHubTickets(options: { id?: number; mes?: string | null
       from pending_discount_rules r where r.conversation_id=c.id and r.cycle=c.current_cycle
         and r.status='pending' order by r.created_at desc limit 1
     ) pending_discount on true
-    ${filtro}
     order by coalesce(m.created_at, c.updated_at) desc
-    limit 500
   `;
 
   return rows.map((row) => ({
@@ -283,11 +320,13 @@ export async function getHubMessages(conversationId: number) {
       from messages
       where conversation_id = ${conversationId} and type <> 'note'
       order by created_at desc, id desc
-      limit 1000
+      limit 300
     ) ultimos
     order by created_at asc, id asc
   `;
-  // Los ÚLTIMOS mil, no los primeros: con `order by created_at asc limit 1000`
+  // Los ÚLTIMOS trescientos, no los primeros (eran mil hasta el 26-oct: la
+  // conversación de pruebas de Manuel pesaba 357 KB por pedido, y el chat
+  // abierto se vuelve a pedir cada 4 s): con `order by created_at asc limit 1000`
   // una conversación larga (la de pruebas de Manuel pasó los mil el 27-sep)
   // devolvía siempre los mismos mensajes viejos y el hilo parecía congelado
   // aunque la ficha dijera «última respuesta hace 1 min».

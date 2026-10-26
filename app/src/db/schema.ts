@@ -33,6 +33,7 @@ import { runMotivoDeLaPausaMigration } from "./migrations/026_motivo_de_la_pausa
 import { runDondeEstaElClienteMigration } from "./migrations/027_donde_esta_el_cliente.js";
 import { runNivelesDeAvisoMigration } from "./migrations/028_niveles_de_aviso.js";
 import { runParaCerrarMigration } from "./migrations/029_para_cerrar.js";
+import { runIndicesInboxMigration } from "./migrations/030_indices_inbox.js";
 
 export const SCHEMA = /* sql */ `
 create table if not exists conversations (
@@ -430,4 +431,5 @@ export async function ensureSchema(): Promise<void> {
   await runDondeEstaElClienteMigration(sql);
   await runNivelesDeAvisoMigration(sql);
   await runParaCerrarMigration(sql);
+  await runIndicesInboxMigration(sql);
 }
