@@ -103,6 +103,17 @@ describe("la ruta del aro le cede el turno al vehículo", () => {
     }
   });
 
+  it("«la del anuncio» con aro no dispara la vitrina: ese turno es del vendedor, que tiene el anuncio", () => {
+    for (const texto of [
+      "quiero la llanta del anuncio en rin 16",
+      "las que están en el anuncio pero en rin 16",
+      "la del anuncio rin 16",
+      "la de la publicación en rin 15",
+    ]) {
+      expect(aroParaMostrar(texto, "¿Qué medida usa? Ej: 225/65R17"), texto).toBeNull();
+    }
+  });
+
   it("sin vehículo, el aro sigue alcanzando como desde el 8-sep", () => {
     expect(aroParaMostrar("Una llanta ron 15", "¿Qué medida usa? Ej: 225/65R17")).toBe(15);
     expect(aroParaMostrar("Rin 14", "¿Qué medida usa? Ej: 225/65R17")).toBe(14);

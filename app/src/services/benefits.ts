@@ -164,7 +164,8 @@ export async function activeBenefitFactsBlock(): Promise<string | null> {
     getPiecesConfig().catch(() => DEFAULT_PIECES_CONFIG),
   ]);
   // La promoción en 3x4 (26-oct, feriado): el vendedor tiene que poder decir
-  // «sí, ya está aplicada» cuando preguntan «¿tienen el 3x4?». En porcentaje
+  // «sí, y se aplica en la cotización» cuando preguntan «¿tienen el 3x4?»
+  // (no «ya está aplicada»: muchas veces todavía no hay cotización). En porcentaje
   // no hay línea y el bloque queda exactamente como antes.
   const promocion = lineaDePromocionVigente(piezas.promocion.modo);
   if (!textos.length) return promocion;

@@ -44,7 +44,7 @@ import { modeloCanary, rutaCanary } from "../agent/canary.js";
 import { sql } from "../db/client.js";
 import type { Stage } from "../domain/pipeline.js";
 import { ahorroDeLaCotizacion } from "../domain/ahorro.js";
-import { hechoDelAhorro } from "../domain/promocion.js";
+import { hechoDeLaPromocion } from "../domain/promocion.js";
 import { medidaEstaPedida, mensajesDeLaVisitaActual } from "../domain/medidaPedida.js";
 import { hechoDeLaLista, listaDeLaPieza } from "../domain/listaDeOpciones.js";
 import { hechosDeRestricciones, restriccionesDeLlanta } from "../domain/restriccionesLlanta.js";
@@ -834,8 +834,10 @@ export async function armarContexto(
       : "Cotización vigente: ninguna",
     // SIN ESTA LÍNEA EL REVISOR BORRA EL DESCUENTO (26-ago). El texto y su
     // historia viven en `domain/promocion.ts`, que también lo nombra como 3x4
-    // cuando ese es el modo vigente.
-    ahorro ? hechoDelAhorro(ahorro, piezas.promocion.modo) : null,
+    // cuando ese es el modo vigente. Sin cotización y con la 3x4 vigente va un
+    // hecho fijo (revisión del 26-oct): «¿tienen el 3x4?» antes de dar la
+    // medida no tiene ahorro que citar, y el revisor tachaba el «sí».
+    hechoDeLaPromocion(ahorro, piezas.promocion.modo),
     respaldados.length
       ? `Servicios y beneficios respaldados (lo ÚNICO que el bot puede prometer como incluido): ${respaldados.join(" · ")}`
       : "Servicios y beneficios respaldados: ninguno cargado — el borrador no puede prometer nada como incluido",

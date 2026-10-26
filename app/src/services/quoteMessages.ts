@@ -506,10 +506,17 @@ export function buildComparisonCaption(products: readonly CatalogItem[]): string
   ].join("\n");
 }
 
-export function buildComparisonMessageDetallado(products: readonly CatalogItem[]): string {
+export function buildComparisonMessageDetallado(
+  products: readonly CatalogItem[],
+  // Revisión del 26-oct: el PDF de comparación ya decía «3x4» y este respaldo
+  // seguía con «−25%» en el mismo turno. Mismo rótulo que la cotización suelta.
+  modoPromocion: ModoPromocion = piecesConfigEnMemoria().promocion.modo,
+): string {
   const lines = products.flatMap((product) => [
     `🔹 ${product.brand} ${product.design} — ${product.sizeLabel ?? product.name}`,
-    `   💰 ${money(product.minimumPriceWithTax)} (antes ${money(product.customerPriceWithTax)}, −${discount(product)}%)`,
+    `   💰 ${money(product.minimumPriceWithTax)} (antes ${money(product.customerPriceWithTax)}, ${
+      etiquetaDePromocion(modoPromocion, discount(product)).clase === "3x4" ? "3x4 · paga 3 lleva 4" : `−${discount(product)}%`
+    })`,
     ...(specLine(product) ? [`   📦 ${specLine(product)}`] : []),
     `   ⭐ ${warrantyForBrand(product.brand).factory}`,
     ...(warrantyForBrand(product.brand).roadHazard
@@ -615,7 +622,8 @@ export function buildSingleQuoteMessageDetallado(
   const hoy = firmados?.unitarioConIva ?? product.minimumPriceWithTax;
   const lista = firmados?.listaConIva ?? product.customerPriceWithTax;
   const rebaja = firmados ? porcentaje(lista, hoy) : discount(product);
-  const promocion = etiquetaDePromocion(modoPromocion, rebaja);
+  // Con la cantidad: 2 llantas «paga 3 lleva 4» no tiene sentido (26-oct).
+  const promocion = etiquetaDePromocion(modoPromocion, rebaja, quantity);
   const sello = promocion.clase === "3x4" ? "3x4 · paga 3 lleva 4" : `−${rebaja}%`;
   const total = offerDiscount?.finalTotal ?? firmados?.total ?? product.minimumPriceWithTax * quantity;
   return [

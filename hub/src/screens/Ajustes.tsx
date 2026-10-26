@@ -191,7 +191,15 @@ export function Ajustes() {
       setFuentes(cfg.fuentes);
       setBenefits(ben.benefits);
       setProfiles(br.profiles);
-      setHours(hrs.hours);
+      // Un servidor anterior al horario por día manda {weekday, weekend}: se
+      // expande acá para que un rollback del backend no rompa toda la pantalla.
+      setHours(Object.fromEntries(Object.entries(hrs.hours ?? {}).map(([k, local]) => {
+        const l = local as Store & { weekday?: StorePeriod; weekend?: StorePeriod };
+        if (l.dias) return [k, l];
+        const semana = l.weekday ?? { open: "08:30", close: "17:30", closed: false };
+        const finde = l.weekend ?? semana;
+        return [k, { dias: { lun: semana, mar: semana, mie: semana, jue: semana, vie: semana, sab: finde, dom: finde }, excepciones: l.excepciones ?? [] }];
+      })) as StoreHours);
       setError("");
     } catch (e) {
       setError(e instanceof Error ? e.message : "No se pudo cargar la configuración");

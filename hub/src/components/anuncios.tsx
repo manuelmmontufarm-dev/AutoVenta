@@ -175,7 +175,7 @@ export function SeccionAnuncios({ onError }: { onError: (v: string) => void }) {
                 </p>
               </div>
               <button
-                onClick={() => agregar({ descripcion: (v.texto ?? v.titulo ?? "").slice(0, 400), link: v.url })}
+                onClick={() => agregar({ descripcion: (v.texto ?? "").slice(0, 400), link: v.url })}
                 disabled={yaCargado(v) || (lista?.length ?? 0) >= 20}
                 className="rounded-full bg-surface px-3 py-1 text-[12px] font-semibold hover:bg-line disabled:opacity-50"
               >{yaCargado(v) ? "Ya cargado" : "Usar como activo"}</button>

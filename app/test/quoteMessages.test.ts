@@ -437,3 +437,20 @@ describe("cierre de la pieza de opciones", () => {
     expect(cierre).not.toMatch(/\?/);
   });
 });
+
+describe("comparativa de respaldo y la promoción 3x4", () => {
+  // 26-oct: el PDF de comparación ya decía «3x4» y el texto de respaldo seguía
+  // con «−25%». Dos rótulos para la misma llanta en el mismo turno.
+  it("con 3x4 vigente nombra la promoción igual que la cotización", () => {
+    const t = qm.buildComparisonMessageDetallado([producto()], "3x4");
+    expect(t).toContain("3x4 · paga 3 lleva 4");
+    expect(t).not.toContain("−25%");
+  });
+
+  it("en porcentaje queda igual que antes; con −18 % nunca dice 3x4", () => {
+    expect(qm.buildComparisonMessageDetallado([producto()], "porcentaje")).toContain("−25%");
+    expect(qm.buildComparisonMessageDetallado([producto()])).toBe(qm.buildComparisonMessageDetallado([producto()], "porcentaje"));
+    const al18 = producto({ minimumPriceWithTax: 93.06 });
+    expect(qm.buildComparisonMessageDetallado([al18], "3x4")).toContain("−18%");
+  });
+});

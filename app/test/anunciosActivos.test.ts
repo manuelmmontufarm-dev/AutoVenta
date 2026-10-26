@@ -74,6 +74,11 @@ describe("hechoDeAnunciosActivos", () => {
     expect(h).toContain("2) Llantas de auto rin 14");
     expect(h).toContain("pregunta cuál");
   });
+  it("un solo cargado con link y un referral de OTRO anuncio: pregunta cuál, no lo da por hecho", () => {
+    const h = hechoDeAnunciosActivos([kenda], { ...deFeed, sourceId: "999999", url: "https://fb.me/otro" })!;
+    expect(h).toContain("pregunta cuál");
+    expect(h).not.toContain("sin preguntarle cuál");
+  });
   it("si el referral coincide dice cuál", () => {
     const otro = { ...kenda, id: "a0", link: null, descripcion: "Llantas de auto rin 14 desde $60" };
     expect(hechoDeAnunciosActivos([otro, kenda], deFeed)).toContain("El cliente llegó por el anuncio 2");

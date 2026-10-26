@@ -76,9 +76,12 @@ export function ahorroDeLaCotizacion(
  * es-EC («$277,44») fue 4 de los 8 `precio_incorrecto` ALTA del informe del
  * guardián del 15-ago, porque el revisor lee dos números distintos.
  */
-export function fraseDeAhorro(ahorro: Pick<AhorroDeLaCotizacion, "porcentaje" | "monto" | "modo">): string {
+export function fraseDeAhorro(
+  ahorro: Pick<AhorroDeLaCotizacion, "porcentaje" | "monto" | "modo"> & { cantidad?: number | null },
+): string {
   // En 3x4 la misma plata con el nombre que trae la pieza (26-oct, feriado).
-  if (seMuestraComo3x4(ahorro.modo ?? "porcentaje", ahorro.porcentaje)) {
+  // Con 2 llantas no: «paga 3 lleva 4» prometería una cuarta que no está.
+  if (seMuestraComo3x4(ahorro.modo ?? "porcentaje", ahorro.porcentaje, ahorro.cantidad)) {
     return `*promoción 3x4* (paga 3 llantas y lleva 4), *$${ahorro.monto.toFixed(2)}* menos`;
   }
   return `*${ahorro.porcentaje} %* de descuento ya aplicado, *$${ahorro.monto.toFixed(2)}* menos`;
@@ -110,7 +113,10 @@ export function respondeElDescuento(texto: string, ahorro: AhorroDeLaCotizacion)
  * «103$.64» (conv 16982) es 103.64: el signo pegado en medio no parte la cifra.
  */
 export function cifrasDelCliente(texto: string | null | undefined): { montos: number[]; porcentajes: number[] } {
-  const t = (texto ?? "").replace(/(\d)\s*\$\s*([.,]\d)/g, "$1$2").replace(/\$/g, " ");
+  // «3x4» es el nombre de la promoción, no $3 y $4 (revisión del 26-oct): leído
+  // como montos, «¿la promo 3x4 ya está aplicada?» arrancaba con «Le aclaro:»,
+  // como si el cliente hubiera dicho una cifra equivocada.
+  const t = (texto ?? "").replace(/\b\d\s*x\s*\d\b/gi, " ").replace(/(\d)\s*\$\s*([.,]\d)/g, "$1$2").replace(/\$/g, " ");
   const porcentajes = [...t.matchAll(/(\d{1,3}(?:[.,]\d+)?)\s*%/g)].map((m) => Number(m[1].replace(",", ".")));
   const sinPorcentajes = t.replace(/\d{1,3}(?:[.,]\d+)?\s*%/g, " ");
   const montos = [...sinPorcentajes.matchAll(/(?<![\d/])(\d+(?:[.,]\d{1,2})?)(?![\d/])/g)]
@@ -139,10 +145,13 @@ export function respuestaDelDescuento(ahorro: AhorroDeLaCotizacion, textoDelClie
   const cuanto = ahorro.cantidad > 1
     ? `${dinero(ahorro.porLlanta)} por llanta, ${dinero(ahorro.monto)} en las ${ahorro.cantidad} llantas`
     : dinero(ahorro.monto);
-  // En 3x4 se nombra la promoción y se dice que es el mismo 25 %: el cliente
-  // que vio «25 %» en otro lado no tiene que pensar que son dos rebajas.
-  const nombre = seMuestraComo3x4(ahorro.modo ?? "porcentaje", ahorro.porcentaje)
-    ? `la *promoción 3x4* (paga 3 llantas y lleva 4, que es el mismo *${ahorro.porcentaje} %* de descuento)`
+  // En 3x4 se nombra la promoción y se dice que equivale al 25 %: el cliente
+  // que vio «25 %» en otro lado no tiene que pensar que son dos rebajas. Fijo
+  // en 25 y no el redondeo de la llanta: con −24 % «paga 3 lleva 4, que es el
+  // mismo 24 %» se contradice solo (el candado ya garantiza 24–26).
+  const tres = seMuestraComo3x4(ahorro.modo ?? "porcentaje", ahorro.porcentaje, ahorro.cantidad);
+  const nombre = tres
+    ? "la *promoción 3x4* (paga 3 llantas y lleva 4, que equivale al *25 %* de descuento)"
     : `el *${ahorro.porcentaje} %* de descuento`;
   const base = `su cotización ya trae ${nombre}, que son ${cuanto}. `
     + "Ya está descontado del total que le envié; no se resta otra vez.";
@@ -151,7 +160,12 @@ export function respuestaDelDescuento(ahorro: AhorroDeLaCotizacion, textoDelClie
   const totalAPagar = Math.round(ahorro.precioConDescuento * ahorro.cantidad * 100) / 100;
   const esElPrecio = montos.find((n) => cerca(n, ahorro.precioConDescuento));
   const esElTotal = montos.find((n) => cerca(n, totalAPagar));
-  const esElDescuento = montos.length > 0 && montos.every((n) => cerca(n, ahorro.monto) || cerca(n, ahorro.porLlanta));
+  // Nombrar la 3x4 es hablar del descuento: «¿la promo 3x4 ya está aplicada?»
+  // se confirma («Así es»), no se «aclara». Solo si su cotización de verdad
+  // va como 3x4; si va en porcentaje, «3x4» es algo que hay que aclarar.
+  const nombra3x4 = /\b\d\s*x\s*\d\b/i.test(textoDelCliente ?? "");
+  const esElDescuento = (montos.length > 0 || (nombra3x4 && tres))
+    && montos.every((n) => cerca(n, ahorro.monto) || cerca(n, ahorro.porLlanta));
   if (esElPrecio !== undefined) {
     return `Le aclaro: ${dinero(ahorro.precioConDescuento)} es el precio por llanta, ya con el descuento `
       + `(antes ${dinero(ahorro.precioAntes)}). El descuento del *${ahorro.porcentaje} %* son ${cuanto}. `
@@ -161,7 +175,7 @@ export function respuestaDelDescuento(ahorro: AhorroDeLaCotizacion, textoDelClie
     return `Le aclaro: ${dinero(totalAPagar)} es el total a pagar, ya con el descuento. Y ${base}`;
   }
   if (esElDescuento && !otroPorcentaje) return `Así es: ${base}`;
-  if (montos.length || otroPorcentaje) return `Le aclaro: ${base}`;
+  if (montos.length || otroPorcentaje || nombra3x4) return `Le aclaro: ${base}`;
   return base.charAt(0).toUpperCase() + base.slice(1);
 }
 

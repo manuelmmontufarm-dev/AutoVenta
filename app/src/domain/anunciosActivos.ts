@@ -70,7 +70,11 @@ export function hechoDeAnunciosActivos(lista: AnuncioActivo[], referral: Anuncio
   const cual = activos.findIndex((a) => coincide(a, referral));
   const regla = cual >= 0
     ? `El cliente llegó por el anuncio ${cual + 1}: si dice «la del anuncio», «esa llanta» o «la de la foto», es la de esa descripción; búscala por ese modelo y tipo en la medida o aro que él diga, sin preguntarle cuál.`
-    : activos.length === 1
+    // Si el chat llegó por un anuncio identificable (trae id o link) y ninguno
+    // de los cargados coincide, no se da por hecho que es el único cargado:
+    // puede ser otro anuncio distinto (auto vs. camioneta), y la orden
+    // chocaría con la del referral. Ahí se pregunta cuál.
+    : activos.length === 1 && !(referral && (referral.sourceId || referral.url) && activos[0].link)
       ? "Si el cliente dice «la llanta del anuncio», «la del anuncio» o «la de la foto» sin nombrar otra, es la de esa descripción: búscala por ese modelo y tipo en la medida o aro que él diga, sin preguntarle cuál."
       : "Si el cliente dice «la del anuncio» y no sabes cuál de estos es, pregunta cuál (por el nombre o la foto que vio); si por lo que dice encaja con uno solo, es ese.";
   return `ANUNCIOS VIGENTES (cargados por el negocio): ${enumerados} ${regla}`;

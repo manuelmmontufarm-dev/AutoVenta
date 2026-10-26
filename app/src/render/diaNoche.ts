@@ -176,8 +176,8 @@ function porcentaje(line: PosterLine): number | null {
  * ¿Esta llanta se rotula 3x4? Solo con el modo elegido en Ajustes y el
  * descuento real en 24–26 % (`domain/promocion.ts`); si no, el «−N%» de siempre.
  */
-const es3x4 = (line: PosterLine): boolean =>
-  Boolean(line.promocion) && etiquetaDePromocion(line.promocion!, porcentaje(line)).clase === "3x4";
+const es3x4 = (line: PosterLine, cantidad?: number | null): boolean =>
+  Boolean(line.promocion) && etiquetaDePromocion(line.promocion!, porcentaje(line), cantidad).clase === "3x4";
 
 const capitalizar = (marca: string) => {
   const m = marca.trim().toLowerCase();
@@ -707,6 +707,9 @@ export function quotePosterDiaNoche(data: QuoteDiaNocheData, modo: ModoPieza): S
   const line = data.line;
   const n = Math.max(1, Math.round(line.quantity || 1));
   const pct = porcentaje(line);
+  // Con la cantidad cotizada (26-oct): 2 llantas «paga 3 lleva 4» promete una
+  // cuarta que no está en el total; esa pieza sale con el «−25%» de siempre.
+  const tres = es3x4(line, n);
   const { kg, kmh } = especificaciones(line);
   const marca = capitalizar(line.brand);
   const beneficios = tarjetasDeBeneficios(data.benefits);
@@ -820,8 +823,8 @@ export function quotePosterDiaNoche(data: QuoteDiaNocheData, modo: ModoPieza): S
                 }),
                 // En 3x4 la insignia lleva una línea más: va más chica para no
                 // pisar el «ANTES» tachado de al lado (panel de 272 px).
-                text({ ...ANCHO(900), fontSize: es3x4(line) ? 21 : 24, lineHeight: 1, color: TINTA_ORO }, es3x4(line) ? "3x4" : `−${pct}%`),
-                es3x4(line)
+                text({ ...ANCHO(900), fontSize: tres ? 21 : 24, lineHeight: 1, color: TINTA_ORO }, tres ? "3x4" : `−${pct}%`),
+                tres
                   ? el({ flexDirection: "column" },
                       text({ ...ANCHO(900), fontSize: 8, lineHeight: 1.15, color: TINTA_ORO, whiteSpace: "nowrap" }, "PAGA 3 · LLEVA 4"),
                       text({ ...BARLOW(700), fontSize: 9.5, lineHeight: 1.15, color: "#5c430e", whiteSpace: "nowrap" }, `ahorra ${dinero(line.pvpConIva - line.unitConIva)} c/u`),

@@ -25,8 +25,9 @@ process.env.SELLER_PHONE ||= "x";
 
 const {
   MODOS_PROMOCION, etiquetaDePromocion, advertenciaDe3x4, modoDePromocion, lineaDePromocionVigente, hechoDelAhorro,
+  seMuestraComo3x4,
 } = await import("../src/domain/promocion.js");
-const { fraseDeAhorro, respuestaDelDescuento, ahorroDeLaCotizacion } = await import("../src/domain/ahorro.js");
+const { fraseDeAhorro, respuestaDelDescuento, ahorroDeLaCotizacion, cifrasDelCliente } = await import("../src/domain/ahorro.js");
 const { PiecesConfigSchema } = await import("../src/services/settings.js");
 const { optionsPosterDiaNoche, quotePosterDiaNoche } = await import("../src/render/diaNoche.js");
 const { quotePoster, optionsPoster } = await import("../src/render/depotPosters.js");
@@ -247,5 +248,83 @@ describe("frase del ahorro, vendedor y Guardián", () => {
     // −18 % no se presenta como 3x4 ni siquiera ante el Guardián.
     const otro = ahorroDeLaCotizacion([{ quantity: 4, listPriceWithTax: 230.07, salePriceWithTax: 188.66 }])!;
     expect(hechoDelAhorro(otro, "3x4")).not.toContain("promoción 3x4");
+  });
+});
+
+describe("revisión de la 3x4 (26-oct): cantidad, 24/26 %, «3x4» no es cifra", () => {
+  const ahorro = ahorroDeLaCotizacion([{ quantity: 4, listPriceWithTax: 230.07, salePriceWithTax: 172.55 }])!;
+  // $174.85 contra $230.07 redondea a −24 %: entra al candado, pero «el mismo 24 %»
+  // contradice «paga 3 lleva 4», que es 25 % exacto.
+  const al24 = ahorroDeLaCotizacion([{ quantity: 4, listPriceWithTax: 230.07, salePriceWithTax: 174.85 }])!;
+
+  it("«paga 3 lleva 4» solo con múltiplos de 4: 2 → porcentaje; 4 y 8 → 3x4; sin cantidad → como antes", () => {
+    expect(etiquetaDePromocion("3x4", 25, 2).clase).toBe("porcentaje");
+    expect(etiquetaDePromocion("3x4", 25, 2).grande).toBe("−25%");
+    expect(etiquetaDePromocion("3x4", 25, 4).clase).toBe("3x4");
+    expect(etiquetaDePromocion("3x4", 25, 8).clase).toBe("3x4");
+    expect(etiquetaDePromocion("3x4", 25).clase).toBe("3x4");
+    expect(etiquetaDePromocion("3x4", 25, null).clase).toBe("3x4");
+    expect(seMuestraComo3x4("3x4", 25, 6)).toBe(false);
+  });
+
+  it("la frase y la respuesta del ahorro usan la cantidad de la cotización", () => {
+    const dos = ahorroDeLaCotizacion([{ quantity: 2, listPriceWithTax: 230.07, salePriceWithTax: 172.55 }])!;
+    expect(fraseDeAhorro({ ...dos, modo: "3x4" })).toContain("*25 %*");
+    expect(fraseDeAhorro({ ...dos, modo: "3x4" })).not.toContain("3x4");
+    expect(respuestaDelDescuento({ ...dos, modo: "3x4" }, "cuanto es el descuento")).not.toContain("3x4");
+    expect(hechoDelAhorro(dos, "3x4")).not.toContain("promoción 3x4");
+    expect(fraseDeAhorro({ ...ahorro, modo: "3x4" })).toContain("3x4");
+  });
+
+  it("la pieza de cotización con 2 llantas sale en porcentaje (las dos plantillas)", () => {
+    const dos = { ...AL_25, quantity: 2, promocion: "3x4" as const };
+    const diaNoche = textoDe(quotePosterDiaNoche({ number: "COT-1", dateLabel: "26/10/2026", line: dos, total: 345.1 }, "noche"));
+    expect(diaNoche).toContain("−25%");
+    expect(diaNoche).not.toContain("PAGA 3");
+    const clasica = textoDe(quotePoster({ number: "COT-1", dateLabel: "26/10/2026", line: dos, subtotal: 300, iva: 45.1, total: 345.1 }, resolveTheme("depot", "exo")));
+    expect(clasica).toContain("−25%");
+    expect(clasica).not.toContain("PAGA 3");
+    const ocho = textoDe(quotePosterDiaNoche({ number: "COT-1", dateLabel: "26/10/2026", line: { ...dos, quantity: 8 }, total: 1380.4 }, "noche"));
+    expect(ocho).toContain("PAGA 3");
+  });
+
+  it("el texto de respaldo con 2 llantas dice −25%, no «paga 3 lleva 4»", () => {
+    const producto = normalizeContificoProduct({
+      id: "KR628", codigo: "KR628", nombre: "265/70R16 112T KR628 KENDA", marca_nombre: "KENDA",
+      estado: "A", tipo: "P", pvp1: 200.06, porcentaje_iva: 15, cantidad_stock: 8,
+    }, "pvp1")!;
+    const firmados = { unitarioConIva: 172.55, listaConIva: 230.07, total: 345.1 };
+    const t = buildSingleQuoteMessageDetallado({ product: producto, quantity: 2 }, "", undefined, firmados, "3x4");
+    expect(t).toContain("−25%");
+    expect(t).not.toContain("paga 3 lleva 4");
+  });
+
+  it("con −24 % en 3x4 se dice «equivale al 25 %», nunca «el mismo 24 %»", () => {
+    const r = respuestaDelDescuento({ ...al24, modo: "3x4" }, "¿tienen el 3x4?");
+    expect(r).toContain("equivale al *25 %*");
+    expect(r).not.toContain("24 %");
+    const h = hechoDelAhorro(al24, "3x4");
+    expect(h).toContain("equivale al 25 %");
+    expect(h).not.toContain("24 %");
+  });
+
+  it("«3x4» no son cifras: no se leen como $3 y $4", () => {
+    expect(cifrasDelCliente("¿la promo 3x4 ya está aplicada?").montos).toEqual([]);
+    expect(cifrasDelCliente("el 3 x 4 son 230 menos").montos).toEqual([230]);
+  });
+
+  it("«¿la promo 3x4 ya está aplicada?» se confirma, no arranca con «Le aclaro:»", () => {
+    const r = respuestaDelDescuento({ ...ahorro, modo: "3x4" }, "¿la promo 3x4 ya está aplicada?");
+    expect(r).not.toMatch(/^Le aclaro/);
+    expect(r).toMatch(/^Así es: /);
+    expect(r).toContain("promoción 3x4");
+    // En modo porcentaje no se confirma un 3x4 que no existe: se aclara.
+    expect(respuestaDelDescuento(ahorro, "¿la promo 3x4 ya está aplicada?")).toMatch(/^Le aclaro: /);
+  });
+
+  it("la línea del vendedor no afirma una cotización que quizá no existe", () => {
+    const l = lineaDePromocionVigente("3x4")!;
+    expect(l).toContain("se aplica en la cotización");
+    expect(l).not.toContain("ya está aplicado en su cotización");
   });
 });

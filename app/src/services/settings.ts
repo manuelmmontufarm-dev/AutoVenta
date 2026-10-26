@@ -139,6 +139,9 @@ export async function getStoreHours(): Promise<StoreHours> {
   if (storeHoursCache && Date.now() - storeHoursCache.at < CACHE_TTL_MS) return storeHoursCache.value;
   const [row] = await sql<{ value: unknown }[]>`select value from settings where key = 'store_hours'`;
   const parsed = StoreHoursSchema.safeParse(row?.value ?? {});
+  // Si lo guardado no valida se cae al defecto ENTERO (feriados incluidos):
+  // que al menos quede en el log, porque antes pasaba en silencio.
+  if (!parsed.success) console.warn("⚠️ store_hours guardado no valida; uso el horario por defecto:", parsed.error.issues[0]?.message);
   const value = conLocalesDelNegocio(parsed.success ? parsed.data : DEFAULT_STORE_HOURS);
   storeHoursCache = { value, at: Date.now() };
   return value;

@@ -51,6 +51,12 @@ interface OpcionDeBusqueda { code?: string; codigo?: string }
  */
 export function aroParaMostrar(texto: string, previousOutbound: string | null): number | null {
   if (mencionaVehiculo(texto)) return null;
+  // «LA DEL ANUNCIO» NO ES UN ARO SUELTO (Sprint Final, 26-oct): «quiero la
+  // llanta del anuncio en rin 16» entraba aquí y salía la lámina del aro 16
+  // sin modelo —llantas de auto en vez de la Kenda del anuncio, el caso de
+  // Joaquín en la conv 20527—. El vendedor sí tiene el hecho del anuncio y los
+  // ANUNCIOS VIGENTES cargados en Ajustes: ese turno es suyo.
+  if (/\banuncios?\b|\bpublicidad\b|\bpublicaci[oó]n\b/i.test(texto)) return null;
   return aroRespondido(texto, previousOutbound);
 }
 

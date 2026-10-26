@@ -1811,10 +1811,15 @@ export function createAdminRouter(): express.Router {
     const lista = Array.isArray(req.body) ? req.body : req.body?.anuncios;
     const r = AnunciosActivosSchema.safeParse(lista);
     if (!r.success) {
-      const msg = r.error.issues[0]?.message ?? "Anuncios inválidos";
-      return res.status(400).json({ ok: false, error: msg });
+      const issue = r.error.issues[0];
+      const cual = typeof issue?.path?.[0] === "number" ? `Anuncio ${issue.path[0] + 1}: ` : "";
+      return res.status(400).json({ ok: false, error: `${cual}${issue?.message ?? "Anuncios inválidos"}` });
     }
-    res.json({ ok: true, anuncios: await saveAnunciosActivos(r.data) });
+    try {
+      res.json({ ok: true, anuncios: await saveAnunciosActivos(r.data) });
+    } catch (error) {
+      res.status(500).json({ ok: false, error: error instanceof Error ? error.message : "No se pudieron guardar los anuncios" });
+    }
   });
 
   router.get("/anuncios-vistos", async (req, res) => {

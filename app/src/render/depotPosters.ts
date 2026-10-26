@@ -119,9 +119,9 @@ const savingsPct = (line: PosterLine): string | null => {
 };
 
 /** ¿El sello de esta llanta va como 3x4? Solo con el modo elegido y el descuento en 24–26 %. */
-const va3x4 = (line: PosterLine): boolean => {
+const va3x4 = (line: PosterLine, cantidad?: number | null): boolean => {
   if (!line.promocion || !line.pvpConIva || line.pvpConIva <= line.unitConIva) return false;
-  return etiquetaDePromocion(line.promocion, Math.round((1 - line.unitConIva / line.pvpConIva) * 100)).clase === "3x4";
+  return etiquetaDePromocion(line.promocion, Math.round((1 - line.unitConIva / line.pvpConIva) * 100), cantidad).clase === "3x4";
 };
 
 /** El texto del sello chico dorado: «−25%» o «3x4 · PAGA 3 LLEVA 4». */
@@ -254,7 +254,8 @@ export function quotePoster(data: QuotePosterData, theme: Theme): SatoriNode {
               text({ fontSize: 14, fontWeight: 700, letterSpacing: 3, color: p.darkSub }, "ANTES"),
               text({ fontSize: 46, color: p.darkSub, textDecoration: "line-through" }, money(line.pvpConIva)),
             ),
-            va3x4(line)
+            // La cantidad cotizada: con 2 llantas no es «paga 3 lleva 4» (26-oct).
+            va3x4(line, line.quantity)
               ? badge3x4(`ahorras ${money(line.pvpConIva - line.unitConIva)} c/u`, price)
               : savingsBadge(pct, `ahorras ${money(line.pvpConIva - line.unitConIva)} c/u`, price),
           )

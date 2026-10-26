@@ -42,13 +42,30 @@ export function modoDePromocion(valor: unknown): ModoPromocion {
   return crudo === "3x4" ? "3x4" : "porcentaje";
 }
 
-/** ¿Esta llanta, con este descuento, se puede presentar como 3x4? */
-export function seMuestraComo3x4(modo: ModoPromocion, pct: number | null | undefined): boolean {
+/**
+ * ¿Esta llanta, con este descuento, se puede presentar como 3x4?
+ *
+ * `cantidad` (revisión del 26-oct): «paga 3 lleva 4» solo es verdad con el juego
+ * de 4 (o 8, 12…). Una cotización de 2 llantas rotulada así le promete al
+ * cliente una cuarta llanta que no está en su total; esa cae al porcentaje, que
+ * es la misma plata dicha sin mentir. Sin cantidad (las láminas de OPCIONES,
+ * que siempre son el juego de 4) se decide como antes.
+ */
+export function seMuestraComo3x4(
+  modo: ModoPromocion,
+  pct: number | null | undefined,
+  cantidad?: number | null,
+): boolean {
+  if (typeof cantidad === "number" && cantidad % 4 !== 0) return false;
   return modo === "3x4" && typeof pct === "number" && pct >= MINIMO_3X4 && pct <= MAXIMO_3X4;
 }
 
-export function etiquetaDePromocion(modo: ModoPromocion, pct: number | null | undefined): EtiquetaDePromocion {
-  if (seMuestraComo3x4(modo, pct)) {
+export function etiquetaDePromocion(
+  modo: ModoPromocion,
+  pct: number | null | undefined,
+  cantidad?: number | null,
+): EtiquetaDePromocion {
+  if (seMuestraComo3x4(modo, pct, cantidad)) {
     return {
       clase: "3x4",
       grande: "3x4",
@@ -82,7 +99,10 @@ export function lineaDePromocionVigente(modo: ModoPromocion): string | null {
   if (modo !== "3x4") return null;
   return "PROMOCIÓN VIGENTE (fuente determinística): se presenta como 3x4 — paga 3 llantas y lleva 4. "
     + "Es el mismo precio que imprime la cotización (ya está descontado; no se resta otra vez ni se regala una llanta aparte). "
-    + "Si preguntan «¿tienen el 3x4?»: sí, y ya está aplicado en su cotización. "
+    // «ya está aplicado en su cotización» (revisión del 26-oct) afirmaba una
+    // cotización que a esa altura muchas veces no existe: el cliente pregunta
+    // por la promo antes de dar la medida.
+    + "Si preguntan «¿tienen el 3x4?»: sí, y se aplica en la cotización. "
     + "Si preguntan por el 25 %: es lo mismo, la misma rebaja dicha de otra forma. "
     + "Solo aplica a las llantas con 25 % de descuento; no inventes un monto distinto al de la cotización.";
 }
@@ -94,6 +114,8 @@ interface AhorroParaElHecho {
   monto: number;
   precioConDescuento: number;
   precioAntes: number;
+  /** Las llantas de la cotización: 3x4 solo con múltiplos de 4. */
+  cantidad?: number | null;
 }
 
 /**
@@ -109,9 +131,12 @@ interface AhorroParaElHecho {
  * «3x4» por no verlo en los hechos, o corrige «es lo mismo que el 25 %».
  */
 export function hechoDelAhorro(ahorro: AhorroParaElHecho, modo: ModoPromocion = "porcentaje"): string {
-  const tres = seMuestraComo3x4(modo, ahorro.porcentaje);
+  const tres = seMuestraComo3x4(modo, ahorro.porcentaje, ahorro.cantidad);
+  // «que equivale al 25 %» fijo y no el porcentaje redondeado: una llanta al
+  // −24 % entra al candado, y «3x4, que es 24 % menos» le da al revisor dos
+  // cifras que no cuadran entre sí (3 de 4 es 25 % exacto).
   return (tres
-    ? `Ahorro de esa cotización: promoción 3x4 (paga 3 llantas y lleva 4), que es ${ahorro.porcentaje} % menos que el precio de lista: `
+    ? "Ahorro de esa cotización: promoción 3x4 (paga 3 llantas y lleva 4), que equivale al 25 % menos que el precio de lista: "
     : `Ahorro de esa cotización: ${ahorro.porcentaje} % menos que el precio de lista: `)
     + `$${ahorro.porLlanta.toFixed(2)} por llanta y $${ahorro.monto.toFixed(2)} en toda la compra. `
     + `Precio por llanta con el descuento: $${ahorro.precioConDescuento.toFixed(2)} (antes $${ahorro.precioAntes.toFixed(2)}). `
@@ -123,4 +148,25 @@ export function hechoDelAhorro(ahorro: AhorroParaElHecho, modo: ModoPromocion = 
     // 58 menos») y el revisor aprobó «Sí, esa es la idea». Con las cifras a
     // la vista puede verlo.
     + "Si el cliente nombra como descuento una cifra que es el precio por llanta o el total a pagar, confirmarla («así es», «esa es la idea») es error ALTO **precio_incorrecto**: la corrección aclara cuál es cuál.";
+}
+
+/**
+ * Lo que el Guardián sabe de la promoción en este turno (`services/guardian.ts`).
+ *
+ * Con cotización, el hecho del ahorro con sus cifras. SIN cotización y con la
+ * 3x4 vigente (revisión del 26-oct): el cliente pregunta «¿tienen el 3x4?» antes
+ * de dar la medida, el vendedor contesta que sí —lo dice su línea de hechos— y
+ * el revisor lo tachaba por no ver la promoción en ningún lado. Este hecho le
+ * deja afirmarla y le sigue prohibiendo inventar un monto, que sin cotización
+ * no hay de dónde sacar. En porcentaje no hay línea: el revisor queda como antes.
+ */
+export function hechoDeLaPromocion(
+  ahorro: AhorroParaElHecho | null | undefined,
+  modo: ModoPromocion,
+): string | null {
+  if (ahorro) return hechoDelAhorro(ahorro, modo);
+  if (modo !== "3x4") return null;
+  return "Promoción vigente: se presenta como 3x4 (paga 3 llantas y lleva 4); es la misma rebaja del 25 % que ya traen "
+    + "los precios de las llantas con ese descuento, y se aplica en la cotización. Afirmar que existe NO es error; "
+    + "inventar un monto sí lo es.";
 }

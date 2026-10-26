@@ -325,7 +325,7 @@ function singleQuoteDocument(quote: Quote, line: QuoteLine, image: string | null
                 stack: [
                   { text: "PRECIO LISTA", color: MUTED, bold: true, fontSize: 8, characterSpacing: 1.2 },
                   { text: money(listPrice), decoration: "lineThrough", color: MUTED, bold: true, fontSize: 18, margin: [0, 8, 0, 4] },
-                  { text: `Ahorras ${money(saving)} · ${selloDelPdf(Math.round((1 - salePrice / listPrice) * 100))}`, color: GREEN, bold: true, fontSize: 10 },
+                  { text: `Ahorras ${money(saving)} · ${selloDelPdf(Math.round((1 - salePrice / listPrice) * 100), quantity)}`, color: GREEN, bold: true, fontSize: 10 },
                 ],
                 margin: [14, 12, 14, 12],
               },
@@ -550,8 +550,10 @@ function loadSpeedLabel(loadSpeed: NonNullable<CatalogItem["loadSpeed"]>): strin
  * Este PDF solo sale si la pieza falló; tiene que nombrar la rebaja igual que
  * ella, y la pieza ya dejó leído el ajuste en el mismo turno.
  */
-function selloDelPdf(pct: number): string {
-  const promocion = etiquetaDePromocion(piecesConfigEnMemoria().promocion.modo, pct);
+function selloDelPdf(pct: number, cantidad?: number): string {
+  // La cantidad solo viaja en la cotización: «paga 3 lleva 4» con 2 llantas es
+  // una promesa falsa. La comparativa es por juego y no la pasa.
+  const promocion = etiquetaDePromocion(piecesConfigEnMemoria().promocion.modo, pct, cantidad);
   return promocion.clase === "3x4" ? "3x4 · paga 3 lleva 4" : `-${pct}%`;
 }
 
