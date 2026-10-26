@@ -72,7 +72,7 @@ import {
   requestsBenefitsAgain,
 } from "../services/benefits.js";
 import { brandProfilesForRender } from "../services/brandProfiles.js";
-import { getAiConfig, getPiecesConfig, horarioEnPalabras } from "../services/settings.js";
+import { getAiConfig, getPiecesConfig, getStoreHours, horarioEnPalabras, localAbre, siguienteDiaAbierto } from "../services/settings.js";
 import { researchVehicleFitment } from "../services/vehicleFitmentResearch.js";
 import { arosDeCandidatos, arosDeMedidas, invitacionPorAroAmbiguo } from "../domain/fitmentResearch.js";
 import { aroVigenteDeLaVisita, rangoDeAros } from "../domain/aros.js";
@@ -3895,6 +3895,32 @@ export function buildTools(ctx: AgentContext) {
         return JSON.stringify({
           error: "No entendí qué día ni a qué hora viene. Pregúntale el día concreto antes de registrar nada.",
         });
+      }
+      // UN DÍA CERRADO NO SE AGENDA (Sprint Final, 26-oct, simulador): con
+      // domingo cerrado en Ajustes el bot escribió «los domingos estamos
+      // cerrados» y en el mismo turno registró la visita del domingo y avisó
+      // al asesor; el Guardián corrigió el texto, pero la fecha quedó guardada.
+      // Se decide con el horario real del local elegido (o de cualquiera si
+      // aún no eligió), y se le propone el siguiente día que sí abre.
+      if (conHora) {
+        const hours = await getStoreHours();
+        const [guardadoAntes] = await sql<{ nearest_store: string | null }[]>`
+          select nearest_store from conversations where id=${ctx.conversation.id}
+        `;
+        const nombreLocal = local ?? guardadoAntes?.nearest_store ?? null;
+        const clave = nombreLocal ? localPorNombre(negocio, nombreLocal)?.claveHorario ?? null : null;
+        if (!localAbre(hours, clave, conHora)) {
+          const siguiente = siguienteDiaAbierto(hours, clave, conHora);
+          const diaCerrado = conHora.toLocaleDateString("es-EC", { timeZone: "America/Guayaquil", weekday: "long" });
+          const diaSugerido = siguiente
+            ? siguiente.toLocaleDateString("es-EC", { timeZone: "America/Guayaquil", weekday: "long", day: "numeric", month: "long" })
+            : null;
+          console.log(`📅 Conv ${ctx.conversation.id}: agendar_visita rechazada (local cerrado el ${diaCerrado}).`);
+          return JSON.stringify({
+            error: "dia_cerrado",
+            regla: `Ese día (${diaCerrado}) ${nombreLocal ?? "el local"} está CERRADO: NO quedó registrada la visita ni se avisó al asesor. Dile que ese día no atienden, da el horario del local y pregúntale si puede pasar ${diaSugerido ? `el ${diaSugerido}` : "otro día que atiendan"}.`,
+          });
+        }
       }
       if (local) await setExplicitStore(ctx.conversation.id, local);
       // Por `registrarCompromisoDeVisita` y no por `updateConversationFacts`:

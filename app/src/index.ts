@@ -98,7 +98,8 @@ import { esComandoDeReinicio, MENSAJE_DE_REINICIO } from "./domain/reinicio.js";
 import { esSoloPregunta } from "./domain/preguntaSola.js";
 import { sql } from "./db/client.js";
 import { presentacionDeApertura } from "./domain/saludo.js";
-import { algunLocalAbre, getStoreHours } from "./services/settings.js";
+import { algunLocalAbre, getStoreHours, localAbre } from "./services/settings.js";
+import { negocio, localPorNombre } from "./negocio/index.js";
 import {
   esPlazoDeDecision, respuestaDeCierreDelTurno, respuestaDePlazoDeDecision, tipoDeCierreDelTurno,
 } from "./domain/cierreTurno.js";
@@ -194,7 +195,7 @@ async function atenderTurno(
   // EL «1» DEL MENÚ NO ES EL DÍA 1 (simulador, 7-sep): «1» tras el menú de
   // preferencia se leyó como «jueves 1 de octubre», la ruta de visita lo
   // registró y el cliente nunca recibió su cotización.
-  const commitment = esRespuestaDelMenuDePreferencia(text, previousOutbound, mensajeCitado)
+  const commitmentLeido = esRespuestaDelMenuDePreferencia(text, previousOutbound, mensajeCitado)
     ? null
     // El lector único de la visita (`domain/fechaDeVisita.ts`): el mismo que
     // usa `agendar_visita`, para que las dos puertas no lean fechas distintas.
@@ -204,6 +205,23 @@ async function atenderTurno(
           texto: text, preguntamosElDia: preguntamosElDia(previousOutbound), preguntamosElLocal: respondiendoAlLocal,
         }),
       });
+  // UN DÍA CERRADO NO SE AGENDA (Sprint Final, 26-oct, simulador): con domingo
+  // cerrado en Ajustes, «paso el domingo» entraba por esta puerta —no por
+  // `agendar_visita`—, registraba la visita del domingo y avisaba al asesor,
+  // mientras el texto decía «los domingos estamos cerrados». Misma regla que
+  // la herramienta: se mira el horario real del local elegido (o de cualquiera).
+  const commitment = await (async () => {
+    if (!commitmentLeido?.visitDate) return commitmentLeido;
+    const hours = await getStoreHours();
+    const [ficha] = await sql<{ nearest_store: string | null }[]>`
+      select nearest_store from conversations where id=${conversation.id}
+    `;
+    const nombreLocal = explicitStore ?? ficha?.nearest_store ?? null;
+    const clave = nombreLocal ? localPorNombre(negocio, nombreLocal)?.claveHorario ?? null : null;
+    if (localAbre(hours, clave, commitmentLeido.visitDate)) return commitmentLeido;
+    console.log(`📅 Conv ${conversation.id}: visita del ${commitmentLeido.visitDate.toISOString().slice(0, 10)} NO registrada: ${nombreLocal ?? "el local"} cierra ese día.`);
+    return null;
+  })();
   await updateConversationFacts(conversation.id, {
     ...(medidaDelTexto ? { tireSize: medidaDelTexto } : {}),
     ...(parsedVehicleYear ? { vehicleYear: parsedVehicleYear } : {}),

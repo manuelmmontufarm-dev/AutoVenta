@@ -203,6 +203,34 @@ export function excepcionDelDia(
  * asesor confirma sobre esa. Lee la config real y no un supuesto: el fin de
  * semana lo decide el negocio desde Ajustes, no este archivo.
  */
+/** El día de la semana de una fecha, leído en Quito. */
+export function diaDeLaSemanaEnQuito(fecha: Date): Dia {
+  const abreviatura = new Intl.DateTimeFormat("en-US", { weekday: "short", timeZone: "America/Guayaquil" }).format(fecha);
+  return DIA_DE_INTL[abreviatura];
+}
+
+/**
+ * ¿Atiende ESE local ese día? Con `claveHorario` null vale cualquier local.
+ * Es la pregunta de `agendar_visita` (Sprint Final, 26-oct): con domingo
+ * cerrado el bot escribió «los domingos estamos cerrados» y, en el mismo
+ * turno, registró la visita del domingo y avisó al asesor. El texto lo
+ * corrigió el Guardián; el dato quedó mal. La fecha se rechaza acá.
+ */
+export function localAbre(hours: StoreHours, claveHorario: string | null, fecha: Date): boolean {
+  const dia = diaDeLaSemanaEnQuito(fecha);
+  const locales = claveHorario && hours[claveHorario] ? [hours[claveHorario]] : Object.values(hours);
+  return locales.some((s) => !s.dias[dia]?.closed);
+}
+
+/** El primer día (desde mañana, hasta 7) en que ese local atiende; null si ninguno. */
+export function siguienteDiaAbierto(hours: StoreHours, claveHorario: string | null, desde: Date): Date | null {
+  for (let i = 1; i <= 7; i += 1) {
+    const fecha = new Date(desde.getTime() + i * 86_400_000);
+    if (localAbre(hours, claveHorario, fecha)) return fecha;
+  }
+  return null;
+}
+
 export function algunLocalAbre(hours: StoreHours, fecha: Date): boolean {
   // El día se lee en la zona del negocio, no en UTC: a las 22:00 de Quito ya es
   // el día siguiente en UTC, y el botón habría ofrecido el día equivocado.

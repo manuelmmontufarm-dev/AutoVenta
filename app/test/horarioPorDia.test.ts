@@ -8,7 +8,7 @@ import { describe, expect, it } from "vitest";
 process.env.OPENAI_API_KEY ||= "test";
 process.env.DATABASE_URL ||= "postgresql://test@localhost/test";
 
-const { StoreHoursSchema, DIAS_SEMANA, normalizarHorarioDeLocal, algunLocalAbre, formatStoreHours, horarioEnPalabras } =
+const { StoreHoursSchema, DIAS_SEMANA, normalizarHorarioDeLocal, algunLocalAbre, formatStoreHours, horarioEnPalabras, localAbre, siguienteDiaAbierto } =
   await import("../src/services/settings.js");
 const { diasSugeridos } = await import("../src/domain/botones.js");
 
@@ -110,5 +110,35 @@ describe("validación", () => {
   });
   it("un día cerrado no valida las horas", () => {
     expect(() => StoreHoursSchema.parse({ cumbaya: unaSemana({ dom: tramo("18:00", "09:00", true) }) })).not.toThrow();
+  });
+});
+
+describe("agendar en día cerrado (Sprint Final, 26-oct)", () => {
+  // Domingo 1-nov-2026 a mediodía UTC (07:00 en Quito): sigue siendo domingo en Quito.
+  const domingo = new Date("2026-11-01T12:00:00Z");
+  const soloCumbayaAbreElSabado = StoreHoursSchema.parse({
+    cumbaya: { weekday: { open: "08:30", close: "17:30" }, weekend: { open: "08:30", close: "14:30" } },
+    quitoSur: { weekday: { open: "08:30", close: "17:30" }, weekend: { open: "08:30", close: "17:30", closed: true } },
+  });
+  const h = {
+    cumbaya: { ...soloCumbayaAbreElSabado.cumbaya, dias: { ...soloCumbayaAbreElSabado.cumbaya.dias, dom: { open: "08:30", close: "14:30", closed: true } } },
+    quitoSur: soloCumbayaAbreElSabado.quitoSur,
+  };
+
+  it("el local elegido cerrado ese día no se agenda; sin local, vale cualquiera", () => {
+    expect(localAbre(h, "cumbaya", domingo)).toBe(false);
+    expect(localAbre(h, "quitoSur", domingo)).toBe(false);
+    expect(localAbre(h, null, domingo)).toBe(false);
+    const sabado = new Date("2026-10-31T12:00:00Z");
+    expect(localAbre(h, "cumbaya", sabado)).toBe(true);
+    expect(localAbre(h, "quitoSur", sabado)).toBe(false);
+    expect(localAbre(h, null, sabado)).toBe(true);
+  });
+
+  it("propone el siguiente día en que ESE local abre", () => {
+    const viernes = new Date("2026-10-30T12:00:00Z");
+    expect(siguienteDiaAbierto(h, "quitoSur", viernes)?.toISOString().slice(0, 10)).toBe("2026-11-02");
+    expect(siguienteDiaAbierto(h, "cumbaya", viernes)?.toISOString().slice(0, 10)).toBe("2026-10-31");
+    expect(siguienteDiaAbierto(h, null, domingo)?.toISOString().slice(0, 10)).toBe("2026-11-02");
   });
 });
