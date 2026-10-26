@@ -15,6 +15,8 @@ process.env.SELLER_PHONE ||= "x";
 
 const { aplicarVeredicto } = await import("../src/services/guardian.js");
 const { DEFAULT_GUARDIAN_CONFIG, GuardianConfigSchema } = await import("../src/services/settings.js");
+const { hechoDeLaPromocion } = await import("../src/domain/promocion.js");
+const { ahorroDeLaCotizacion } = await import("../src/domain/ahorro.js");
 
 const BORRADOR = "Su cotización COT-X por $499.04 sigue vigente.\n---\n¿Qué día puede pasar?";
 
@@ -69,5 +71,31 @@ describe("configuración del guardián", () => {
   it("acepta solo el interruptor, sin campos inventados", () => {
     expect(GuardianConfigSchema.parse({ activo: true }).activo).toBe(true);
     expect(GuardianConfigSchema.safeParse({ activo: "si" }).success).toBe(false);
+  });
+});
+
+describe("hecho de la promoción para el revisor", () => {
+  // 26-oct: con la 3x4 vigente y SIN cotización todavía, el cliente pregunta
+  // «¿tienen el 3x4?». Sin un hecho que diga que existe, el revisor tacha el
+  // «sí» del vendedor por no verlo en los hechos.
+  it("modo 3x4 sin cotización: hecho fijo que deja afirmarla y prohíbe inventar monto", () => {
+    expect(hechoDeLaPromocion(null, "3x4")).toBe(
+      "Promoción vigente: se presenta como 3x4 (paga 3 llantas y lleva 4); es la misma rebaja del 25 % que ya traen "
+      + "los precios de las llantas con ese descuento, y se aplica en la cotización. Afirmar que existe NO es error; "
+      + "inventar un monto sí lo es.",
+    );
+  });
+
+  it("modo porcentaje sin cotización: ninguna línea, como antes", () => {
+    expect(hechoDeLaPromocion(null, "porcentaje")).toBeNull();
+  });
+
+  it("con cotización: el hecho del ahorro de siempre, con la cantidad", () => {
+    const cuatro = ahorroDeLaCotizacion([{ quantity: 4, listPriceWithTax: 230.07, salePriceWithTax: 172.55 }]);
+    expect(hechoDeLaPromocion(cuatro, "3x4")).toContain("promoción 3x4");
+    expect(hechoDeLaPromocion(cuatro, "3x4")).toContain("$230.08");
+    const dos = ahorroDeLaCotizacion([{ quantity: 2, listPriceWithTax: 230.07, salePriceWithTax: 172.55 }]);
+    expect(hechoDeLaPromocion(dos, "3x4")).not.toContain("promoción 3x4");
+    expect(hechoDeLaPromocion(dos, "3x4")).toContain("25 % menos");
   });
 });

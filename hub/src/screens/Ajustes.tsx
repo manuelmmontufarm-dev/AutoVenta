@@ -6,12 +6,14 @@
  * que ve el cliente tiene vista previa antes de aplicar, como pide el §20 del
  * PDF de especificaciones.
  */
+import { SeccionPromocionModo } from "../components/promocion";
 import { motion } from "framer-motion";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { authHeaders } from "../data/realSource";
 import { useHub } from "../store";
 import { Segmented } from "../components/ui";
 import { BotPowerSwitch, FollowUpSettingsPanel } from "./Settings";
+import { SeccionAnuncios } from "../components/anuncios";
 
 // ---------------------------------------------------------------------------
 
@@ -62,8 +64,13 @@ interface BrandProfile {
 interface StorePeriod { open: string; close: string; closed: boolean }
 /** Feriado o cierre puntual de UN local en UNA fecha. Manda sobre el horario normal. */
 interface StoreException { fecha: string; motivo: string; open: string; close: string; closed: boolean }
-interface Store { weekday: StorePeriod; weekend: StorePeriod; excepciones: StoreException[] }
-interface StoreHours { cumbaya: Store; quitoSur: Store }
+const DIAS_SEMANA = [
+  ["lun", "Lunes"], ["mar", "Martes"], ["mie", "Miércoles"], ["jue", "Jueves"], ["vie", "Viernes"], ["sab", "Sábado"], ["dom", "Domingo"],
+] as const;
+type Dia = (typeof DIAS_SEMANA)[number][0];
+/** Un horario por día: Depot cierra el domingo y abre el sábado. */
+interface Store { dias: Record<Dia, StorePeriod>; excepciones: StoreException[] }
+type StoreHours = Record<string, Store>;
 interface PreciosEstado { fuente: string; actualizadoEn: string | null; productos: number; error: string | null }
 
 const PALETA_LABEL: Record<string, string> = {
@@ -97,7 +104,7 @@ const MODO_NOTA: Record<string, string> = {
   noche: "Sale siempre la oscura",
 };
 
-interface ConfigPiezas { paleta: string; fuente: string; plantilla: string; modo: string }
+interface ConfigPiezas { paleta: string; fuente: string; plantilla: string; modo: string; promocion?: { modo: string } }
 
 /** La que sale ahora mismo con el modo automático. Misma regla que render/diaNoche.ts. */
 function modoDeAhora(): "dia" | "noche" {
@@ -143,6 +150,7 @@ export function Ajustes() {
   const [fuentes, setFuentes] = useState<string[]>([]);
   const [plantilla, setPlantilla] = useState("clasica");
   const [modo, setModo] = useState("auto");
+  const [promocion, setPromocion] = useState("porcentaje");
   const [plantillas, setPlantillas] = useState<string[]>(["clasica"]);
   const [modos, setModos] = useState<string[]>([]);
   const [guardado, setGuardado] = useState<ConfigPiezas | null>(null);
@@ -173,6 +181,7 @@ export function Ajustes() {
       setFuente(cfg.config.fuente);
       setPlantilla(cfg.config.plantilla ?? "clasica");
       setModo(cfg.config.modo ?? "auto");
+      setPromocion(cfg.config.promocion?.modo ?? "porcentaje");
       // Un servidor anterior a las plantillas no manda estos dos campos.
       setGuardado({ ...cfg.config, plantilla: cfg.config.plantilla ?? "clasica", modo: cfg.config.modo ?? "auto" });
       setPlantillas(cfg.plantillas ?? ["clasica"]);
@@ -182,7 +191,15 @@ export function Ajustes() {
       setFuentes(cfg.fuentes);
       setBenefits(ben.benefits);
       setProfiles(br.profiles);
-      setHours(hrs.hours);
+      // Un servidor anterior al horario por día manda {weekday, weekend}: se
+      // expande acá para que un rollback del backend no rompa toda la pantalla.
+      setHours(Object.fromEntries(Object.entries(hrs.hours ?? {}).map(([k, local]) => {
+        const l = local as Store & { weekday?: StorePeriod; weekend?: StorePeriod };
+        if (l.dias) return [k, l];
+        const semana = l.weekday ?? { open: "08:30", close: "17:30", closed: false };
+        const finde = l.weekend ?? semana;
+        return [k, { dias: { lun: semana, mar: semana, mie: semana, jue: semana, vie: semana, sab: finde, dom: finde }, excepciones: l.excepciones ?? [] }];
+      })) as StoreHours);
       setError("");
     } catch (e) {
       setError(e instanceof Error ? e.message : "No se pudo cargar la configuración");
@@ -196,6 +213,7 @@ export function Ajustes() {
   const sinAplicar = guardado !== null && (
     guardado.paleta !== paleta || guardado.fuente !== fuente
     || guardado.plantilla !== plantilla || guardado.modo !== modo
+    || (guardado.promocion?.modo ?? "porcentaje") !== promocion
   );
 
   const aplicar = async () => {
@@ -203,7 +221,7 @@ export function Ajustes() {
     try {
       const r = await api<{ config: ConfigPiezas }>("/api/pieces-config", {
         method: "PUT",
-        body: JSON.stringify({ paleta, fuente, plantilla, modo }),
+        body: JSON.stringify({ paleta, fuente, plantilla, modo, promocion: { modo: promocion } }),
       });
       setGuardado(r.config);
       setError("");
@@ -259,6 +277,7 @@ export function Ajustes() {
         <div className="flex flex-col gap-4">
           {hours && <SeccionHorarios hours={hours} setHours={setHours} onError={setError} />}
           <SeccionCupones onError={setError} />
+          <SeccionAnuncios onError={setError} />
         </div>
       )}
 
@@ -275,11 +294,13 @@ export function Ajustes() {
               sinAplicar={sinAplicar} guardando={guardando} onAplicar={aplicar}
             />
             <SeccionPromociones benefits={benefits} setBenefits={setBenefits} onError={setError} />
+            <SeccionPromocionModo promocion={promocion} onPromocion={setPromocion} onError={setError} />
             <SeccionMarcas profiles={profiles} setProfiles={setProfiles} onError={setError} />
           </div>
           <VistaPrevia
             pieza={pieza} setPieza={setPieza}
             paleta={paleta} fuente={fuente} plantilla={plantilla} modo={modo} beneficios={beneficiosPreview}
+            promocion={promocion}
           />
         </div>
       )}
@@ -647,7 +668,7 @@ function SeccionPrecios({ precios, setPrecios, onError }: { precios: PreciosEsta
 }
 
 /** Feriados y cierres puntuales, por local. Cada uno puede tener los suyos. */
-function Excepciones({ store, label, data, onChange }: { store: "cumbaya" | "quitoSur"; label: string; data: Store; onChange: (v: Store) => void }) {
+function Excepciones({ store, label, data, onChange }: { store: string; label: string; data: Store; onChange: (v: Store) => void }) {
   // El backend viejo no manda `excepciones`: durante un deploy escalonado el
   // panel tiene que seguir abriendo.
   const lista = data.excepciones ?? [];
@@ -658,7 +679,7 @@ function Excepciones({ store, label, data, onChange }: { store: "cumbaya" | "qui
     <div className="flex items-center justify-between">
       <p className="text-[12px] font-semibold text-text2">Casos especiales</p>
       <button
-        onClick={() => onChange({ ...data, excepciones: [...lista, { fecha: hoy, motivo: "", open: data.weekday.open, close: data.weekday.close, closed: false }] })}
+        onClick={() => onChange({ ...data, excepciones: [...lista, { fecha: hoy, motivo: "", open: data.dias.lun.open, close: data.dias.lun.close, closed: false }] })}
         className="rounded-full bg-bg px-2.5 py-1 text-[12px] font-semibold hover:bg-bg"
       >+ Agregar</button>
     </div>
@@ -689,7 +710,17 @@ function SeccionHorarios({ hours, setHours, onError }: { hours: StoreHours; setH
     finally { setSaving(false); }
   };
   return <Tarjeta titulo="Horarios de locales" sub="El bot usa estos horarios al recomendar un local. Marca Cerrado cuando no atienda, y carga los feriados o cierres puntuales en Casos especiales — el bot los avisa cuando el cliente pregunta por esos días." extra={<button onClick={() => void save()} disabled={saving} className="rounded-full bg-ok px-4 py-2 text-[12px] font-semibold text-text disabled:opacity-50">{saving ? "Guardando…" : "Guardar horarios"}</button>}>
-    <div className="grid gap-4 md:grid-cols-2">{([ ["Cumbayá", "cumbaya"], ["Quito Sur", "quitoSur"] ] as const).map(([label, store]) => <div key={store} className="rounded-[8px] bg-bg p-4"><p className="text-[14px] font-semibold">{label}</p>{([ ["Lunes a viernes", "weekday"], ["Sábado y domingo", "weekend"] ] as const).map(([dayLabel, period]) => { const value = hours[store][period]; return <div key={period} className="mt-3 grid grid-cols-2 gap-2"><p className="col-span-2 text-[12px] font-semibold text-text2">{dayLabel}</p><label className="text-[12px]">Abre<input type="time" disabled={value.closed} className={inputCls} value={value.open} onChange={(e) => setHours({ ...hours, [store]: { ...hours[store], [period]: { ...value, open: e.target.value } } })} /></label><label className="text-[12px]">Cierra<input type="time" disabled={value.closed} className={inputCls} value={value.close} onChange={(e) => setHours({ ...hours, [store]: { ...hours[store], [period]: { ...value, close: e.target.value } } })} /></label><label className="col-span-2 flex items-center gap-2 text-[13px] font-semibold"><input type="checkbox" checked={value.closed} onChange={(e) => setHours({ ...hours, [store]: { ...hours[store], [period]: { ...value, closed: e.target.checked } } })} /> Cerrado</label></div>; })}<Excepciones store={store} label={label} data={hours[store]} onChange={(v) => setHours({ ...hours, [store]: v })} /></div>)}</div>
+    <div className="grid gap-4 md:grid-cols-2">{([ ["Cumbayá", "cumbaya"], ["Quito Sur", "quitoSur"] ] as const).map(([label, store]) => {
+      const local = hours[store];
+      const setDia = (dia: Dia, patch: Partial<StorePeriod>) => setHours({ ...hours, [store]: { ...local, dias: { ...local.dias, [dia]: { ...local.dias[dia], ...patch } } } });
+      // Copia el tramo del lunes a martes–viernes; sábado y domingo no se tocan.
+      const copiarLunes = () => setHours({ ...hours, [store]: { ...local, dias: { ...local.dias, mar: local.dias.lun, mie: local.dias.lun, jue: local.dias.lun, vie: local.dias.lun } } });
+      return <div key={store} className="rounded-[8px] bg-bg p-4">
+        <div className="flex items-center justify-between"><p className="text-[14px] font-semibold">{label}</p><button onClick={copiarLunes} className="rounded-full bg-surface px-2.5 py-1 text-[12px] font-semibold">Copiar lunes a martes–viernes</button></div>
+        {DIAS_SEMANA.map(([dia, dayLabel]) => { const value = local.dias[dia]; return <div key={dia} className="mt-3 grid grid-cols-[84px_1fr_1fr_auto] items-end gap-2"><p className="pb-2 text-[12px] font-semibold text-text2">{dayLabel}</p><label className="text-[12px]">Abre<input type="time" disabled={value.closed} className={inputCls} value={value.open} onChange={(e) => setDia(dia, { open: e.target.value })} /></label><label className="text-[12px]">Cierra<input type="time" disabled={value.closed} className={inputCls} value={value.close} onChange={(e) => setDia(dia, { close: e.target.value })} /></label><label className="flex items-center gap-1.5 pb-2 text-[12px] font-semibold"><input type="checkbox" checked={value.closed} onChange={(e) => setDia(dia, { closed: e.target.checked })} /> Cerrado</label></div>; })}
+        <Excepciones store={store} label={label} data={local} onChange={(v) => setHours({ ...hours, [store]: v })} />
+      </div>;
+    })}</div>
   </Tarjeta>;
 }
 
@@ -1178,9 +1209,9 @@ function SeccionMarcas({ profiles, setProfiles, onError }: {
  * Vista previa. Re-renderiza con retardo para no disparar una imagen por cada
  * tecla mientras se escribe una promoción.
  */
-function VistaPrevia({ pieza, setPieza, paleta, fuente, plantilla, modo, beneficios }: {
+function VistaPrevia({ pieza, setPieza, paleta, fuente, plantilla, modo, beneficios, promocion }: {
   pieza: string; setPieza: (p: string) => void;
-  paleta: string; fuente: string; plantilla: string; modo: string; beneficios: string[];
+  paleta: string; fuente: string; plantilla: string; modo: string; beneficios: string[]; promocion: string;
 }) {
   // Con el modo automático se pueden ver las dos: la que sale ahora y la otra.
   const [verModo, setVerModo] = useState<"dia" | "noche">(() => modoDeAhora());
@@ -1190,7 +1221,7 @@ function VistaPrevia({ pieza, setPieza, paleta, fuente, plantilla, modo, benefic
   const [fallo, setFallo] = useState("");
   const objectUrl = useRef<string>("");
 
-  const clave = `${pieza}|${paleta}|${fuente}|${plantilla}|${modoPreview}|${beneficios.join("|")}`;
+  const clave = `${pieza}|${paleta}|${fuente}|${plantilla}|${modoPreview}|${promocion}|${beneficios.join("|")}`;
 
   useEffect(() => {
     let cancelado = false;
@@ -1199,6 +1230,7 @@ function VistaPrevia({ pieza, setPieza, paleta, fuente, plantilla, modo, benefic
       try {
         const params = new URLSearchParams({ pieza, paleta, fuente, plantilla });
         if (modoPreview) params.set("modo", modoPreview);
+        if (promocion !== "porcentaje") params.set("promocion", promocion);
         if (beneficios.length) params.set("beneficios", beneficios.join("|"));
         // Misma credencial que el resto de la pantalla: con sesión de usuario
         // esto daba «Error 401» dentro del recuadro de la vista previa.

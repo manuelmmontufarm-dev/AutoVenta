@@ -33,6 +33,8 @@ import { NOMBRE_DEL_VENDEDOR } from "../domain/saludo.js";
 import { FIRMA_DE_PRESENTACION } from "../domain/saludo.js";
 import { negocio } from "../negocio/index.js";
 import { anuncioDeLaConversacion } from "./anuncio.js";
+import { getAnunciosVigentes } from "./anunciosActivos.js";
+import { hechoDeAnunciosActivos } from "../domain/anunciosActivos.js";
 import OpenAI from "openai";
 import { aroDadoPorElCliente, medidaConfirmadaPorCliente } from "../domain/medidaConfirmada.js";
 import { mencionaVehiculo } from "../domain/vehiculoEnTexto.js";
@@ -42,6 +44,7 @@ import { modeloCanary, rutaCanary } from "../agent/canary.js";
 import { sql } from "../db/client.js";
 import type { Stage } from "../domain/pipeline.js";
 import { ahorroDeLaCotizacion } from "../domain/ahorro.js";
+import { hechoDeLaPromocion } from "../domain/promocion.js";
 import { medidaEstaPedida, mensajesDeLaVisitaActual } from "../domain/medidaPedida.js";
 import { hechoDeLaLista, listaDeLaPieza } from "../domain/listaDeOpciones.js";
 import { hechosDeRestricciones, restriccionesDeLlanta } from "../domain/restriccionesLlanta.js";
@@ -57,7 +60,7 @@ import { logAiRun } from "./conversations.js";
 import { crearAlertaRepeticion } from "./conversationQuality.js";
 import { createBotAlert } from "./followUps.js";
 import { getActiveBenefits } from "./benefits.js";
-import { formatStoreHours, getGuardianConfig, getStoreHours } from "./settings.js";
+import { formatStoreHours, getGuardianConfig, getPiecesConfig, getStoreHours } from "./settings.js";
 import { faltanteDeCotizacion } from "./stockCorto.js";
 import { alcanzaParaVender } from "../domain/stockCorto.js";
 import { politicaDePagos } from "../domain/datosDelNegocio.js";
@@ -513,9 +516,12 @@ export async function armarContexto(
   // el 13-ago) es lo que el bot ofrece hablando — la rotación cada 10.000 km
   // solo vive ahí. Con una sola de las dos, el guardián corregiría promesas
   // ciertas, que es peor que no revisarlas: enseña al bot a callar algo real.
-  const [beneficios, storeHours] = await Promise.all([
+  // La promoción vigente (25 % o 3x4) también: el hecho del ahorro la nombra
+  // igual que la pieza, o el revisor tacha «3x4» por no verlo en los hechos.
+  const [beneficios, storeHours, piezas] = await Promise.all([
     getActiveBenefits().catch(() => []),
     getStoreHours(),
+    getPiecesConfig(),
   ]);
   const servicios = (() => {
     try {
@@ -610,6 +616,7 @@ export async function armarContexto(
   }).join("\n");
 
   const anuncio = await anuncioDeLaConversacion(conversationId).catch(() => null);
+  const anunciosVigentes = await getAnunciosVigentes().catch(() => []);
   const item = cotizacion?.items?.[0];
   const ahorro = ahorroDeLaCotizacion(cotizacion?.items ?? null);
   return [
@@ -634,6 +641,8 @@ export async function armarContexto(
     // Un anuncio que solo trae el id (sin título ni texto) no dice nada del
     // producto: no se le pone una línea vacía al revisor.
     anuncio && (anuncio.titulo || anuncio.texto) ? `Anuncio por el que llegó: «${[anuncio.titulo, anuncio.texto].filter(Boolean).join(" — ")}»` : null,
+    // Lo que el negocio cargó en Ajustes: sin esto el revisor tacha «la Kenda del anuncio».
+    hechoDeAnunciosActivos(anunciosVigentes, anuncio),
     // ...salvo que el cliente haya ESCRITO su medida (conv 12625, 22-sep): con
     // «195/55R16» escrita dos veces, este hecho —sacado del anuncio— hizo que
     // el revisor le dijera cuatro veces «usted llegó por llanta de camioneta y
@@ -823,24 +832,12 @@ export async function armarContexto(
         (item ? ` · ${item.quantity ?? "?"} × ${item.brand ?? ""} ${item.design ?? ""} ${item.sizeLabel ?? ""}` +
           (item.salePriceWithTax ? ` a $${Number(item.salePriceWithTax).toFixed(2)} c/u` : "") : "")
       : "Cotización vigente: ninguna",
-    // SIN ESTA LÍNEA EL REVISOR BORRA EL DESCUENTO.
-    //
-    // Probado en el simulador el 26-ago: la ruta directa preguntó el día con
-    // «*25 %* de descuento, *$277.44* menos» —cierto, y calculado de la propia
-    // cotización— y el guardián lo tachó por `precio_incorrecto`: «esos datos
-    // no aparecen en los hechos registrados». Tenía razón con lo que le
-    // dábamos. Un dato que el revisor no puede verificar es un dato que el
-    // revisor borra, así que el ahorro viaja como hecho igual que el faltante
-    // de stock.
-    ahorro
-      ? `Ahorro de esa cotización: ${ahorro.porcentaje} % menos que el precio de lista: $${ahorro.porLlanta.toFixed(2)} por llanta y $${ahorro.monto.toFixed(2)} en toda la compra. `
-        + `Precio por llanta con el descuento: $${ahorro.precioConDescuento.toFixed(2)} (antes $${ahorro.precioAntes.toFixed(2)}). `
-        + "Es real y sale de la misma cotización: el bot PUEDE decirlo, y no depende de que el cliente dé el día. "
-        // 12-sep 21:42: el cliente llamó descuento al precio por llanta («q son
-        // 58 menos») y el revisor aprobó «Sí, esa es la idea». Con las cifras a
-        // la vista puede verlo.
-        + "Si el cliente nombra como descuento una cifra que es el precio por llanta o el total a pagar, confirmarla («así es», «esa es la idea») es error ALTO **precio_incorrecto**: la corrección aclara cuál es cuál."
-      : null,
+    // SIN ESTA LÍNEA EL REVISOR BORRA EL DESCUENTO (26-ago). El texto y su
+    // historia viven en `domain/promocion.ts`, que también lo nombra como 3x4
+    // cuando ese es el modo vigente. Sin cotización y con la 3x4 vigente va un
+    // hecho fijo (revisión del 26-oct): «¿tienen el 3x4?» antes de dar la
+    // medida no tiene ahorro que citar, y el revisor tachaba el «sí».
+    hechoDeLaPromocion(ahorro, piezas.promocion.modo),
     respaldados.length
       ? `Servicios y beneficios respaldados (lo ÚNICO que el bot puede prometer como incluido): ${respaldados.join(" · ")}`
       : "Servicios y beneficios respaldados: ninguno cargado — el borrador no puede prometer nada como incluido",

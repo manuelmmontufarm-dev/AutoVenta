@@ -19,6 +19,8 @@ export interface PreviewOptions {
   plantilla?: string;
   /** Solo para «diaNoche»: auto, dia o noche. */
   modo?: string;
+  /** «porcentaje» o «3x4»: cómo se nombra la rebaja (26-oct). */
+  promocion?: string;
   beneficios?: readonly string[];
 }
 
@@ -56,6 +58,16 @@ async function muestra(): Promise<CatalogItem[]> {
   return EJEMPLO;
 }
 
+/**
+ * El descuento de la llanta que sale en la cotización de ejemplo. Ajustes lo
+ * usa para avisar que, con 3x4, esa llanta saldría como porcentaje (R-07).
+ */
+export async function descuentoDeLaMuestra(): Promise<number | null> {
+  const producto = (await muestra())[0];
+  if (!producto || producto.customerPriceWithTax <= producto.minimumPriceWithTax) return null;
+  return Math.round((1 - producto.minimumPriceWithTax / producto.customerPriceWithTax) * 100);
+}
+
 export async function renderPreviewPiece(options: PreviewOptions): Promise<Buffer> {
   const productos = await muestra();
   const tema = {
@@ -63,6 +75,7 @@ export async function renderPreviewPiece(options: PreviewOptions): Promise<Buffe
     fuente: options.fuente,
     plantilla: options.plantilla,
     modo: options.modo,
+    promocion: { modo: options.promocion ?? null },
     brandProfiles: await brandProfilesForRender(),
   };
   const fecha = new Date().toLocaleDateString("es-EC", {

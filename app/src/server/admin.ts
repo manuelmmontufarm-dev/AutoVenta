@@ -9,6 +9,8 @@
 import express from "express";
 import { z } from "zod";
 import { sql } from "../db/client.js";
+import { AnunciosActivosSchema } from "../domain/anunciosActivos.js";
+import { anunciosVistos, getAnunciosActivos, saveAnunciosActivos } from "../services/anunciosActivos.js";
 import { business, config } from "../config.js";
 import { appendMessage, pauseBot } from "../services/conversations.js";
 import { forceSyncNow, interbotPricesState } from "../services/interbotPrices.js";
@@ -101,7 +103,8 @@ import {
   brandProfilesForRender, deleteBrandProfile, listBrandProfiles, saveBrandProfile,
 } from "../services/brandProfiles.js";
 import { PALETTE_NAMES, PALETTES, PRICE_FONT_NAMES } from "../render/depotDesign.js";
-import { renderPreviewPiece } from "../render/preview.js";
+import { descuentoDeLaMuestra, renderPreviewPiece } from "../render/preview.js";
+import { MODOS_PROMOCION } from "../domain/promocion.js";
 import { atenderPendientes, reorganizarEtapas } from "../services/hubMaintenance.js";
 import {
   getChannelConfig,
@@ -1704,6 +1707,10 @@ export function createAdminRouter(): express.Router {
       // «diaNoche» es la plantilla del cliente (12-sep) y la única con modos.
       plantillas: PLANTILLA_NAMES,
       modos: MODO_NAMES,
+      // Cómo se nombra la rebaja (26-oct). Con el descuento de la llanta de
+      // la vista previa, Ajustes avisa si con 3x4 saldría como porcentaje.
+      modosPromocion: MODOS_PROMOCION,
+      descuentoDeMuestra: await descuentoDeLaMuestra().catch(() => null),
     });
   });
 
@@ -1711,7 +1718,7 @@ export function createAdminRouter(): express.Router {
     try {
       res.json({ ok: true, config: await savePiecesConfig(req.body) });
     } catch {
-      res.status(400).json({ ok: false, error: "Plantilla, modo, paleta o fuente inválidos" });
+      res.status(400).json({ ok: false, error: "Plantilla, modo, paleta, fuente o promoción inválidos" });
     }
   });
 
@@ -1794,6 +1801,30 @@ export function createAdminRouter(): express.Router {
     } catch (error) {
       res.status(400).json({ ok: false, error: error instanceof Error ? error.message : "Horarios inválidos" });
     }
+  });
+
+  router.get("/anuncios-activos", async (_req, res) => {
+    res.json({ ok: true, anuncios: await getAnunciosActivos() });
+  });
+
+  router.put("/anuncios-activos", async (req, res) => {
+    const lista = Array.isArray(req.body) ? req.body : req.body?.anuncios;
+    const r = AnunciosActivosSchema.safeParse(lista);
+    if (!r.success) {
+      const issue = r.error.issues[0];
+      const cual = typeof issue?.path?.[0] === "number" ? `Anuncio ${issue.path[0] + 1}: ` : "";
+      return res.status(400).json({ ok: false, error: `${cual}${issue?.message ?? "Anuncios inválidos"}` });
+    }
+    try {
+      res.json({ ok: true, anuncios: await saveAnunciosActivos(r.data) });
+    } catch (error) {
+      res.status(500).json({ ok: false, error: error instanceof Error ? error.message : "No se pudieron guardar los anuncios" });
+    }
+  });
+
+  router.get("/anuncios-vistos", async (req, res) => {
+    const dias = Math.min(60, Math.max(1, Number(req.query.dias) || 14));
+    res.json({ ok: true, vistos: await anunciosVistos(dias) });
   });
 
   /**
@@ -2042,10 +2073,11 @@ export function createAdminRouter(): express.Router {
       const fuente = req.query.fuente ? String(req.query.fuente) : undefined;
       const plantilla = req.query.plantilla ? String(req.query.plantilla) : undefined;
       const modo = req.query.modo ? String(req.query.modo) : undefined;
+      const promocion = req.query.promocion ? String(req.query.promocion) : undefined;
       const beneficios = req.query.beneficios
         ? String(req.query.beneficios).split("|").map((b) => b.trim()).filter(Boolean)
         : await applicableBenefitTexts();
-      const png = await renderPreviewPiece({ pieza, paleta, fuente, plantilla, modo, beneficios });
+      const png = await renderPreviewPiece({ pieza, paleta, fuente, plantilla, modo, promocion, beneficios });
       res.setHeader("Content-Type", "image/png");
       res.setHeader("Cache-Control", "no-store");
       res.send(png);

@@ -86,3 +86,17 @@ describe("lo que lee el vendedor", () => {
     expect(hecho).toContain("No supongas");
   });
 });
+
+describe("hechoDelAnuncio con los anuncios que cargó el negocio (26-oct)", () => {
+  const kenda = { id: "a1", link: "https://fb.me/2kQx8Ab1c", descripcion: "Kenda Klever KR601, camioneta, rin 15–17", activo: true, hasta: null };
+
+  it("sin anuncios cargados el hecho es el de siempre", () => {
+    expect(hechoDelAnuncio(anuncioDelReferral(deFeed)!, [])).toBe(hechoDelAnuncio(anuncioDelReferral(deFeed)!));
+  });
+
+  it("con el anuncio cargado y el mismo link, dice cuál es", () => {
+    const h = hechoDelAnuncio(anuncioDelReferral(deFeed)!, [kenda]);
+    expect(h).toContain("Kenda Klever KR601, camioneta, rin 15–17");
+    expect(h).toContain("El cliente llegó por el anuncio 1");
+  });
+});

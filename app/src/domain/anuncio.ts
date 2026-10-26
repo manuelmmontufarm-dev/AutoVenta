@@ -17,6 +17,8 @@
  * que trae `source_id` sin título ni texto (pasa con los de estados) ahora se
  * guarda: es el dato que separa un anuncio de otro.
  */
+import { hechoDeAnunciosActivos, type AnuncioActivo } from "./anunciosActivos.js";
+
 export interface Anuncio {
   titulo: string | null;
   texto: string | null;
@@ -59,7 +61,24 @@ export function anuncioDelReferral(referral: unknown): Anuncio | null {
  * descartaba y el vendedor no leía nada; ahora lee solo que no hay qué
  * suponer. No va vacío: `agent.ts` lo manda como mensaje de sistema.
  */
-export function hechoDelAnuncio(anuncio: Anuncio): string {
+export function hechoDelAnuncio(anuncio: Anuncio, activos: AnuncioActivo[] = []): string {
+  const base = hechoDelReferral(anuncio);
+  const deLaLista = hechoDeAnunciosActivos(activos, anuncio);
+  return deLaLista ? `${base}\n${deLaLista}` : base;
+}
+
+/**
+ * Lo que se le manda al chat sobre el anuncio (vendedor y Guardián): el hecho
+ * del referral de Meta si trae título o texto, más los anuncios que el negocio
+ * tiene vigentes. Un referral que solo trae el id no dice nada, así que sin
+ * activos devuelve null (como antes de cargar anuncios): el prompt no cambia.
+ */
+export function hechoParaElChat(anuncio: Anuncio | null, activos: AnuncioActivo[]): string | null {
+  if (anuncio && (anuncio.titulo || anuncio.texto)) return hechoDelAnuncio(anuncio, activos);
+  return hechoDeAnunciosActivos(activos, anuncio);
+}
+
+function hechoDelReferral(anuncio: Anuncio): string {
   const partes = [anuncio.titulo, anuncio.texto].filter(Boolean).join(" — ");
   if (!partes) {
     return "ANUNCIO POR EL QUE LLEGÓ (fuente: WhatsApp): sin título ni texto. No supongas qué llanta mostraba; "

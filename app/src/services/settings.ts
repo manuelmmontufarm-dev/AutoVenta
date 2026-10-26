@@ -8,6 +8,7 @@ import { z } from "zod";
 import { sql } from "../db/client.js";
 import { PIPELINE_STAGES, type Stage } from "../domain/pipeline.js";
 import { negocio } from "../negocio/index.js";
+import { MODOS_PROMOCION } from "../domain/promocion.js";
 
 export const AiConfigSchema = z.object({
   /** Texto libre que se suma al prompt: personalidad extra del asistente. */
@@ -50,12 +51,37 @@ const StoreExceptionSchema = z.object({
 }).refine((v) => v.closed || v.open < v.close, "La hora de cierre debe ser posterior a la apertura");
 export type StoreException = z.infer<typeof StoreExceptionSchema>;
 
-const StoreSchema = z.object({
-  weekday: StorePeriodSchema,
-  weekend: StorePeriodSchema,
+export const DIAS_SEMANA = ["lun", "mar", "mie", "jue", "vie", "sab", "dom"] as const;
+export type Dia = (typeof DIAS_SEMANA)[number];
+const NOMBRE_DIA: Record<Dia, string> = {
+  lun: "lunes", mar: "martes", mie: "miércoles", jue: "jueves", vie: "viernes", sab: "sábado", dom: "domingo",
+};
+/** `Intl` (en-US, weekday short) → nuestro día. */
+const DIA_DE_INTL: Record<string, Dia> = { Mon: "lun", Tue: "mar", Wed: "mie", Thu: "jue", Fri: "vie", Sat: "sab", Sun: "dom" };
+
+/**
+ * Convierte lo viejo `{ weekday, weekend }` en los 7 días y deja pasar lo nuevo.
+ *
+ * Depot cierra los domingos pero abre el sábado, y con dos tramos fijos el
+ * panel no podía expresarlo. Lo que hay guardado en `settings.store_hours` en
+ * producción sigue en la forma vieja: se lee así, sin migración, y al guardar
+ * ya sale en la nueva. `weekend` se copia a sábado Y domingo.
+ */
+export function normalizarHorarioDeLocal(crudo: unknown): unknown {
+  if (!crudo || typeof crudo !== "object") return crudo;
+  const c = crudo as Record<string, unknown>;
+  if (c.dias || !(c.weekday || c.weekend)) return crudo;
+  const { weekday, weekend, ...resto } = c;
+  const dias: Record<string, unknown> = {};
+  for (const d of DIAS_SEMANA) dias[d] = d === "sab" || d === "dom" ? weekend : weekday;
+  return { ...resto, dias };
+}
+
+const StoreSchema = z.preprocess(normalizarHorarioDeLocal, z.object({
+  dias: z.object(Object.fromEntries(DIAS_SEMANA.map((d) => [d, StorePeriodSchema])) as Record<Dia, typeof StorePeriodSchema>),
   /** Máximo 40: son fechas puntuales, no un calendario. */
   excepciones: z.array(StoreExceptionSchema).max(40).default([]),
-});
+}));
 
 /**
  * Los horarios, UNO POR LOCAL, con la `claveHorario` del perfil como llave.
@@ -113,6 +139,9 @@ export async function getStoreHours(): Promise<StoreHours> {
   if (storeHoursCache && Date.now() - storeHoursCache.at < CACHE_TTL_MS) return storeHoursCache.value;
   const [row] = await sql<{ value: unknown }[]>`select value from settings where key = 'store_hours'`;
   const parsed = StoreHoursSchema.safeParse(row?.value ?? {});
+  // Si lo guardado no valida se cae al defecto ENTERO (feriados incluidos):
+  // que al menos quede en el log, porque antes pasaba en silencio.
+  if (!parsed.success) console.warn("⚠️ store_hours guardado no valida; uso el horario por defecto:", parsed.error.issues[0]?.message);
   const value = conLocalesDelNegocio(parsed.success ? parsed.data : DEFAULT_STORE_HOURS);
   storeHoursCache = { value, at: Date.now() };
   return value;
@@ -174,6 +203,34 @@ export function excepcionDelDia(
  * asesor confirma sobre esa. Lee la config real y no un supuesto: el fin de
  * semana lo decide el negocio desde Ajustes, no este archivo.
  */
+/** El día de la semana de una fecha, leído en Quito. */
+export function diaDeLaSemanaEnQuito(fecha: Date): Dia {
+  const abreviatura = new Intl.DateTimeFormat("en-US", { weekday: "short", timeZone: "America/Guayaquil" }).format(fecha);
+  return DIA_DE_INTL[abreviatura];
+}
+
+/**
+ * ¿Atiende ESE local ese día? Con `claveHorario` null vale cualquier local.
+ * Es la pregunta de `agendar_visita` (Sprint Final, 26-oct): con domingo
+ * cerrado el bot escribió «los domingos estamos cerrados» y, en el mismo
+ * turno, registró la visita del domingo y avisó al asesor. El texto lo
+ * corrigió el Guardián; el dato quedó mal. La fecha se rechaza acá.
+ */
+export function localAbre(hours: StoreHours, claveHorario: string | null, fecha: Date): boolean {
+  const dia = diaDeLaSemanaEnQuito(fecha);
+  const locales = claveHorario && hours[claveHorario] ? [hours[claveHorario]] : Object.values(hours);
+  return locales.some((s) => !s.dias[dia]?.closed);
+}
+
+/** El primer día (desde mañana, hasta 7) en que ese local atiende; null si ninguno. */
+export function siguienteDiaAbierto(hours: StoreHours, claveHorario: string | null, desde: Date): Date | null {
+  for (let i = 1; i <= 7; i += 1) {
+    const fecha = new Date(desde.getTime() + i * 86_400_000);
+    if (localAbre(hours, claveHorario, fecha)) return fecha;
+  }
+  return null;
+}
+
 export function algunLocalAbre(hours: StoreHours, fecha: Date): boolean {
   // El día se lee en la zona del negocio, no en UTC: a las 22:00 de Quito ya es
   // el día siguiente en UTC, y el botón habría ofrecido el día equivocado.
@@ -181,9 +238,32 @@ export function algunLocalAbre(hours: StoreHours, fecha: Date): boolean {
     weekday: "short",
     timeZone: "America/Guayaquil",
   }).format(fecha);
-  const esFinde = abreviatura === "Sat" || abreviatura === "Sun";
-  const periodo = (s: StoreHoursDeUnLocal) => (esFinde ? s.weekend : s.weekday);
-  return Object.values(hours).some((s) => !periodo(s).closed);
+  const dia = DIA_DE_INTL[abreviatura];
+  return Object.values(hours).some((s) => !s.dias[dia].closed);
+}
+
+/**
+ * El horario de UN local en palabras, agrupando días CONSECUTIVOS con el mismo
+ * tramo: «lunes a viernes 08:30–17:30; sábado 08:30–14:30; domingo cerrado».
+ * Nunca dice «sábado y domingo» si difieren (Depot abre el sábado y cierra el
+ * domingo). Lo usan el prompt, el Guardián y la herramienta de horarios.
+ */
+export function horarioEnPalabras(local: StoreHoursDeUnLocal): string {
+  const texto = (p: { open: string; close: string; closed: boolean }) => (p.closed ? "cerrado" : `${p.open}–${p.close}`);
+  const grupos: { desde: Dia; hasta: Dia; n: number; texto: string }[] = [];
+  for (const d of DIAS_SEMANA) {
+    const t = texto(local.dias[d]);
+    const ultimo = grupos[grupos.length - 1];
+    if (ultimo && ultimo.texto === t) { ultimo.hasta = d; ultimo.n += 1; } else grupos.push({ desde: d, hasta: d, n: 1, texto: t });
+  }
+  return grupos
+    .map((g) => {
+      const dias = g.n === 1 ? NOMBRE_DIA[g.desde]
+        : g.n === 2 ? `${NOMBRE_DIA[g.desde]} y ${NOMBRE_DIA[g.hasta]}`
+        : `${NOMBRE_DIA[g.desde]} a ${NOMBRE_DIA[g.hasta]}`;
+      return `${dias} ${g.texto}`;
+    })
+    .join("; ");
 }
 
 export function formatStoreHours(hours: StoreHours, hoy = hoyEnEcuador()): string {
@@ -193,7 +273,7 @@ export function formatStoreHours(hours: StoreHours, hoy = hoyEnEcuador()): strin
     .map((local) => {
       const h = hours[local.claveHorario];
       if (!h) return null;
-      return `${local.nombreCorto}: lunes a viernes ${fmt(h.weekday)}; sábado y domingo ${fmt(h.weekend)}.`;
+      return `${local.nombreCorto}: ${horarioEnPalabras(h)}.`;
     })
     .filter(Boolean)
     .join(" ");
@@ -262,6 +342,10 @@ export const PiecesConfigSchema = z.object({
   // cambia para el negocio hasta que elija otra desde Ajustes.
   plantilla: z.enum(PLANTILLA_NAMES).default("clasica"),
   modo: z.enum(MODO_NAMES).default("auto"),
+  // Cómo se nombra la rebaja en la pieza, el PDF y lo que dice el bot
+  // (26-oct, feriado: «25 %» → «3x4»). La plata no cambia: sigue saliendo del
+  // catálogo. Lo guardado antes de que existiera queda en porcentaje.
+  promocion: z.object({ modo: z.enum(MODOS_PROMOCION).default("porcentaje") }).default({ modo: "porcentaje" }),
 });
 
 export type PiecesConfig = z.infer<typeof PiecesConfigSchema>;
@@ -283,6 +367,16 @@ export async function getPiecesConfig(): Promise<PiecesConfig> {
     // Una pieza no se deja de enviar porque no se pudo leer su color.
     return DEFAULT_PIECES_CONFIG;
   }
+}
+
+/**
+ * Lo último que se leyó de `pieces_config`, sin ir a la base. Para los
+ * respaldos síncronos (el texto de la cotización y el PDF de pdfmake) que
+ * tienen que nombrar la promoción igual que la pieza: en el turno que los usa,
+ * `getPiecesConfig()` ya corrió para renderizarla. Sin lectura previa, el default.
+ */
+export function piecesConfigEnMemoria(): PiecesConfig {
+  return piecesCache?.value ?? DEFAULT_PIECES_CONFIG;
 }
 
 /**

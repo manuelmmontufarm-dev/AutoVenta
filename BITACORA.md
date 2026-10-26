@@ -1,3 +1,78 @@
+## 26-oct-2026 · Sprint Final: días abiertos por día, promoción 3x4 y anuncios activos EN PRODUCCIÓN
+
+**Qué:** PRs #19 (horario por día, S1), #18 (anuncios activos, S3) y #20 (promoción
+3x4, S2) integrados en `release/promo-horarios-anuncios-2026-10` y publicados a `main`.
+Plan y requisitos: `docs/planning/PLAN-PROMO-HORARIOS-ANUNCIOS-MASTER-PROMPT.md`.
+Arreglos del Sprint Final tras tres revisiones en paralelo (c445f43, e0af9a2):
+- «quiero la llanta del anuncio en rin 16» ya no lo atrapa la vitrina por aro sin
+  modelo (`mostrarPorAro.ts`): ese turno es del vendedor, que tiene el anuncio.
+- Un solo anuncio cargado que NO coincide con el referral del chat hace preguntar
+  cuál en vez de darlo por hecho; «Usar como activo» no precarga «Depot Tire».
+- Guardián con hecho fijo de la 3x4 cuando aún no hay cotización; «paga 3 lleva
+  4» solo con cantidades múltiplo de 4 (pieza, PDF, texto, frase, hecho); «3x4»
+  no se lee como cifras; la comparativa de respaldo usa la misma etiqueta.
+- **Un día en que el local cierra no se agenda**: en el simulador, con domingo
+  cerrado, el bot escribía «los domingos estamos cerrados» y en el mismo turno
+  registraba la visita del domingo y avisaba al asesor (entraba por la lectura
+  determinística de `index.ts`, no por `agendar_visita`). Las dos puertas miran
+  ahora el horario real del local elegido (`localAbre`, `siguienteDiaAbierto`).
+- Panel de horarios tolera la forma vieja; aviso en log si `store_hours` no valida.
+Prueba conjunta en el simulador (domingo cerrado + 3x4 + anuncio activo): «la del
+anuncio en rin 16» → el vendedor sabe que es la Kenda KR601 y no pregunta cuál;
+la pieza sale «3x4 · PAGA 3 · LLEVA 4»; «¿tienen el 3x4?» → «sí, paga 3 y lleva
+4, ya va aplicada» sin que el Guardián lo tache; «paso el domingo» → «el domingo
+Cumbayá está cerrado… ¿el lunes 2?» y `visit_date` queda null hasta que dice el lunes.
+
+**Por qué:** Depot cierra los domingos, cambió la promoción del feriado a 3x4 y
+los clientes piden «la llanta del anuncio». Pendiente de Depot: marcar domingo
+cerrado y elegir 3x4 desde Ajustes (lo guardado en prod sigue como estaba), y
+cargar la descripción del anuncio vigente.
+
+**Horas:** 2,5
+
+## 26-oct-2026 · Horario por día de la semana (domingos cerrados)
+
+**Qué:** `settings.store_hours` pasa de `{weekday, weekend}` a `dias: {lun…dom}` por local. Lo guardado
+en producción (forma vieja) se lee sin migración: `weekday` → lun–vie, `weekend` → sábado Y domingo
+(`normalizarHorarioDeLocal`); al guardar sale siempre en la forma nueva. `algunLocalAbre` mira el día
+real en Guayaquil, y `horarioEnPalabras` agrupa días consecutivos iguales («lunes a viernes 08:30–17:30;
+sábado 08:30–14:30; domingo cerrado») para el prompt, el Guardián y `storeSchedule`. Ajustes → Negocio:
+7 filas por local con Abre/Cierra/Cerrado y «Copiar lunes a martes–viernes».
+
+**Por qué:** Depot cierra los domingos pero abre el sábado y el panel solo podía cerrar sábado y
+domingo juntos.
+## 26-oct-2026 · Anuncios activos: Depot cuenta qué muestra cada anuncio y el bot lo sabe
+
+**Qué:** Ajustes → Negocio → Anuncios: el negocio carga cada anuncio que corre (descripción de 10 a 400
+caracteres, link opcional, activo, vigente hasta) en `settings.anuncios_activos` (`GET/PUT
+/admin/api/anuncios-activos`), y debajo ve los anuncios que trajeron chats en 14 días (`GET
+/admin/api/anuncios-vistos`, agrega `messages.metadata.anuncio`) con «Usar como activo». El vendedor
+(`agent.ts`) y el Guardián reciben «ANUNCIOS VIGENTES (cargados por el negocio)» y, si el referral coincide
+por `sourceId` o por link, cuál es. Sin anuncios cargados el prompt no cambia. Puro en
+`domain/anunciosActivos.ts`; servicio con cache de 30 s en `services/anunciosActivos.ts`.
+
+**Por qué:** el título de Meta casi siempre es «Depot Tire» y el link no se puede leer (facebook/instagram
+piden login), así que «quiero la llanta del anuncio» no significaba nada (conv 20527: Kenda KR601, camioneta,
+y el cliente recibió llantas de auto). La única fuente fiable es lo que Depot escribe; el panel lo dice.
+## 26-oct-2026 · Promoción: el descuento se puede presentar como 3x4 (rama feat/promocion-3x4, sin publicar)
+
+**Qué:** Ajustes → Piezas tiene «Cómo se nombra la promoción»: «25 % de descuento» o «3x4 · paga
+3 lleva 4» (`pieces_config.promocion.modo`, default porcentaje; lo guardado sin el campo se lee
+igual). Una sola fuente, `domain/promocion.ts`, decide el rótulo para la cotización y las
+opciones (clásica y día/noche), el PDF de respaldo, el texto de respaldo, la frase del ahorro,
+el vendedor (`activeBenefitFactsBlock`) y el hecho del ahorro del Guardián. Candado: 3x4 solo si
+el descuento real de la llanta está entre 24 % y 26 %; si no, sale su porcentaje y el panel lo
+avisa. La vista previa cambia al instante. En el simulador (Guardián encendido, modelos de
+producción): «¿tienen el 3x4?» → «Sí, es el 3x4 y ya está aplicado en su cotización»; «¿y el
+25 %?» → «la promoción 3x4 … que es el mismo 25 %, $57.53 por llanta, $230.12 en las 4»; el
+Guardián aprobó las dos. Volviendo a porcentaje la pieza vuelve a «−25%».
+
+**Por qué:** Manuel, 26-oct: por el feriado Depot cambió «25 %» por «3x4»; es la misma plata
+dicha de otra forma y tiene que verse igual en la pieza, el PDF y lo que dice el bot. El total
+y el precio por llanta no cambian con el modo (prueba en `promocion.test.ts`).
+
+**Horas:** 2
+
 ## 26-oct-2026 · Para cerrar: la curva de llegada decide el color y se actualiza sola
 
 **Qué:** `domain/llegada.ts` mide, con las ventas reales de Contífico, cuándo llega la gente:

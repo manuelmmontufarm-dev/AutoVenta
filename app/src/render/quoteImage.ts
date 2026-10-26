@@ -10,6 +10,7 @@ import satori from "satori";
 import { renderAsync } from "@resvg/resvg-js";
 import { type CatalogAvailability, type CatalogItem } from "../domain/catalog.js";
 import { medidaEstaPedida } from "../domain/medidaPedida.js";
+import { modoDePromocion } from "../domain/promocion.js";
 import { warrantyForBrand } from "../services/quoteMessages.js";
 import { loadFonts, loadFontsDiaNoche, productPhoto, type FontSpec, type RasterImage } from "./assets.js";
 import { DEFAULT_BRAND_PROFILES, resolveTheme, type SatoriNode, type Theme } from "./depotDesign.js";
@@ -82,6 +83,11 @@ export interface PieceTheme {
   ahora?: Date;
   /** Etiqueta y frase por marca. Sin esto caen los valores del diseño. */
   brandProfiles?: Record<string, { tag: string; posicionamiento: string }>;
+  /**
+   * Cómo se nombra la rebaja: «−25%» o «3x4» (`pieces_config.promocion`,
+   * 26-oct). Llega solo por el `...getPiecesConfig()` de quien renderiza.
+   */
+  promocion?: { modo?: string | null } | null;
 }
 
 function themeOf(data: PieceTheme): Theme {
@@ -92,9 +98,13 @@ function themeOf(data: PieceTheme): Theme {
 function toPosterLine(
   line: RenderLine,
   profiles: Record<string, { tag: string; posicionamiento: string }> = DEFAULT_BRAND_PROFILES,
+  promocion?: PieceTheme["promocion"],
 ): PosterLine {
   const profile = profiles[line.brand.trim().toUpperCase()];
+  const modo = modoDePromocion(promocion);
   return {
+    // Solo viaja si no es el de siempre: en porcentaje la línea queda igual que antes.
+    ...(modo === "porcentaje" ? {} : { promocion: modo }),
     brand: line.brand,
     design: line.design,
     sizeLabel: line.sizeLabel,
@@ -141,7 +151,7 @@ export async function renderQuoteImage(data: QuoteRenderData): Promise<Buffer> {
       {
         number: data.number,
         dateLabel: data.dateLabel,
-        line: toPosterLine(line, data.brandProfiles),
+        line: toPosterLine(line, data.brandProfiles, data.promocion),
         total: data.total,
         discountAmount: data.discountAmount,
         discountCondition: data.discountCondition,
@@ -158,7 +168,7 @@ export async function renderQuoteImage(data: QuoteRenderData): Promise<Buffer> {
     {
       number: data.number,
       dateLabel: data.dateLabel,
-      line: toPosterLine(line, data.brandProfiles),
+      line: toPosterLine(line, data.brandProfiles, data.promocion),
       subtotal: data.subtotal,
       iva: data.iva,
       total: data.total,
@@ -179,7 +189,7 @@ export async function renderCompareImage(data: CompareRenderData): Promise<Buffe
     {
       dateLabel: data.dateLabel,
       sizeLabel: data.sizeLabel ?? data.products[0]?.sizeLabel ?? null,
-      lines: data.products.map((line) => toPosterLine(line, data.brandProfiles)),
+      lines: data.products.map((line) => toPosterLine(line, data.brandProfiles, data.promocion)),
     },
     themeOf(data),
   );
@@ -215,7 +225,7 @@ function aroDe(sizeLabel: string | null | undefined): string | null {
 }
 
 export async function renderOptionsImage(data: OptionsRenderData): Promise<Buffer> {
-  const base = data.products.map((line) => toPosterLine(line, data.brandProfiles));
+  const base = data.products.map((line) => toPosterLine(line, data.brandProfiles, data.promocion));
   // SIN MEDIDA PEDIDA, NADA ES «SU MEDIDA EXACTA».
   //
   // Cuando el cliente busca por ARO («¿tiene A/T rin 16?») no hay medida
