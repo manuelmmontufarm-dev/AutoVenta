@@ -1,3 +1,21 @@
+## 26-oct-2026 · La lámina de opciones decía «−25%» con la promo activa; ahora «4 llantas por el precio de 3»
+
+**Qué:** `render/diaNoche.ts` — la insignia grande de la lámina de opciones usaba
+`lines.every(es3x4)`; desde que `es3x4` recibe la cantidad, `every` le pasaba el
+ÍNDICE de la tarjeta (0, 1, 2) como cantidad y la insignia volvía a «−25%
+DESCUENTO HOY» aunque cada tarjeta dijera 3x4 (producción, conv 3, 16:26).
+Prueba de regresión que falla con el código viejo. Además, todo lo que ve el
+cliente dice «4 llantas por el precio de 3» con insignia «4x3» (pieza, PDF,
+texto de respaldo, frase del ahorro, Ajustes); el modo se sigue llamando `3x4`
+por dentro y el vendedor y el Guardián aceptan «3x4», «paga 3 lleva 4» o «25 %».
+
+**Por qué:** Manuel, 26-oct 17:31: «pensé que quedamos con 4 llantas por precio
+de 3, literalmente».
+
+Corrección: el sello chico de la cotización dice «4x3 · AL PRECIO DE 3» (más corto: con el texto largo tapaba el precio «ANTES»); su prueba ajustada.
+
+**Horas:** 0,4
+
 ## 26-oct-2026 · Segundo deploy FAILED: el esquema esperaba un candado para siempre
 
 **Qué:** `ensureSchema` corre en una conexión propia con `lock_timeout` de 5 s.

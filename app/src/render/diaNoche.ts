@@ -486,7 +486,11 @@ export function optionsPosterDiaNoche(data: OptionsDiaNocheData, modo: ModoPieza
 
   // 3x4 solo si TODAS las opciones lo son: una lámina que dice «paga 3
   // lleva 4» con una opción a −18 % adentro mentiría por esa.
-  const todas3x4 = lines.length > 0 && lines.every(es3x4);
+  // Con flecha y SIN cantidad: «lines.every(es3x4)» le pasaba a es3x4 el ÍNDICE
+  // de cada tarjeta como cantidad (0, 1, 2), la 2.ª y 3.ª «no eran múltiplo de
+  // 4» y la insignia volvía a «−25% DESCUENTO HOY» (producción, 26-oct 16:26).
+  // La lámina de opciones es siempre el juego de 4.
+  const todas3x4 = lines.length > 0 && lines.every((line) => es3x4(line));
   const insignia = pcts.length
     ? (() => {
         const iguales = todas3x4 || pcts.every((p) => p === pcts[0]);
@@ -501,10 +505,10 @@ export function optionsPosterDiaNoche(data: OptionsDiaNocheData, modo: ModoPieza
             position: "absolute", top: 0, left: 18, width: 40, height: "100%", transform: "skewX(-25deg)",
             backgroundImage: "linear-gradient(115deg, rgba(255,255,255,0.6), rgba(255,255,255,0))",
           }),
-          text({ ...ANCHO(900), fontSize: 38, lineHeight: 1, letterSpacing: -1, color: TINTA_ORO }, todas3x4 ? "3x4" : `−${pct}%`),
+          text({ ...ANCHO(900), fontSize: 38, lineHeight: 1, letterSpacing: -1, color: TINTA_ORO }, todas3x4 ? "4x3" : `−${pct}%`),
           el({ flexDirection: "column" },
-            renglon(todas3x4 ? "PAGA 3" : iguales ? "DESCUENTO" : "HASTA"),
-            renglon(todas3x4 ? "LLEVA 4" : iguales ? "HOY" : "DE DESCUENTO"),
+            renglon(todas3x4 ? "4 LLANTAS POR" : iguales ? "DESCUENTO" : "HASTA"),
+            renglon(todas3x4 ? "EL PRECIO DE 3" : iguales ? "HOY" : "DE DESCUENTO"),
             text({ ...BARLOW(700), fontSize: 10, color: "#5c430e", marginTop: 2 },
               iguales ? (opciones === 1 ? "en esta opción" : `en las ${opciones} opciones`) : "según la opción"),
           ),
@@ -613,7 +617,7 @@ export function optionsPosterDiaNoche(data: OptionsDiaNocheData, modo: ModoPieza
                 alignItems: "center", gap: 3, backgroundImage: ORO_GRAD, borderRadius: 6, padding: "4px 8px",
                 boxShadow: "0 4px 12px rgba(185,138,30,0.35)",
               },
-                text({ ...ANCHO(900), fontSize: 11, color: TINTA_ORO }, es3x4(line) ? "3x4" : `−${pct}%`),
+                text({ ...ANCHO(900), fontSize: 11, color: TINTA_ORO }, es3x4(line) ? "4x3" : `−${pct}%`),
                 text({ ...BARLOW(700), fontSize: 10, color: TINTA_ORO, whiteSpace: "nowrap" },
                   `· ahorra ${dinero((line.pvpConIva - line.unitConIva) * n)}`),
               ),
@@ -823,10 +827,10 @@ export function quotePosterDiaNoche(data: QuoteDiaNocheData, modo: ModoPieza): S
                 }),
                 // En 3x4 la insignia lleva una línea más: va más chica para no
                 // pisar el «ANTES» tachado de al lado (panel de 272 px).
-                text({ ...ANCHO(900), fontSize: tres ? 21 : 24, lineHeight: 1, color: TINTA_ORO }, tres ? "3x4" : `−${pct}%`),
+                text({ ...ANCHO(900), fontSize: tres ? 21 : 24, lineHeight: 1, color: TINTA_ORO }, tres ? "4x3" : `−${pct}%`),
                 tres
                   ? el({ flexDirection: "column" },
-                      text({ ...ANCHO(900), fontSize: 8, lineHeight: 1.15, color: TINTA_ORO, whiteSpace: "nowrap" }, "PAGA 3 · LLEVA 4"),
+                      text({ ...ANCHO(900), fontSize: 8, lineHeight: 1.15, color: TINTA_ORO, whiteSpace: "nowrap" }, "AL PRECIO DE 3"),
                       text({ ...BARLOW(700), fontSize: 9.5, lineHeight: 1.15, color: "#5c430e", whiteSpace: "nowrap" }, `ahorra ${dinero(line.pvpConIva - line.unitConIva)} c/u`),
                     )
                   : el({ flexDirection: "column" },

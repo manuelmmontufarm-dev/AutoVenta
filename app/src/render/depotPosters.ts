@@ -140,8 +140,8 @@ function badge3x4(detalle: string, price: PriceFont): SatoriNode {
       backgroundImage: "linear-gradient(115deg,rgba(255,255,255,0.55),rgba(255,255,255,0))",
       transform: "skewX(-25deg)",
     }),
-    text({ ...price, fontSize: 48, color: "#211a08", lineHeight: 1 }, "3x4"),
-    text({ fontSize: 20, fontWeight: 800, color: "#211a08", letterSpacing: 1 }, "PAGA 3 LLEVA 4"),
+    text({ ...price, fontSize: 48, color: "#211a08", lineHeight: 1 }, "4x3"),
+    text({ fontSize: 20, fontWeight: 800, color: "#211a08", letterSpacing: 1 }, "4 LLANTAS POR EL PRECIO DE 3"),
     text({ fontSize: 20, fontWeight: 700, color: "#5c430e" }, detalle),
   );
 }

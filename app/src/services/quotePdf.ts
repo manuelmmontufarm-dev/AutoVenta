@@ -554,7 +554,7 @@ function selloDelPdf(pct: number, cantidad?: number): string {
   // La cantidad solo viaja en la cotización: «paga 3 lleva 4» con 2 llantas es
   // una promesa falsa. La comparativa es por juego y no la pasa.
   const promocion = etiquetaDePromocion(piecesConfigEnMemoria().promocion.modo, pct, cantidad);
-  return promocion.clase === "3x4" ? "3x4 · paga 3 lleva 4" : `-${pct}%`;
+  return promocion.clase === "3x4" ? "4x3 · 4 llantas por el precio de 3" : `-${pct}%`;
 }
 
 function discount(product: CatalogItem): number {

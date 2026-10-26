@@ -80,7 +80,7 @@ describe("hecho de la promoción para el revisor", () => {
   // «sí» del vendedor por no verlo en los hechos.
   it("modo 3x4 sin cotización: hecho fijo que deja afirmarla y prohíbe inventar monto", () => {
     expect(hechoDeLaPromocion(null, "3x4")).toBe(
-      "Promoción vigente: se presenta como 3x4 (paga 3 llantas y lleva 4); es la misma rebaja del 25 % que ya traen "
+      "Promoción vigente: se presenta como 4x3 (4 llantas por el precio de 3) —el cliente puede llamarla «3x4»—; es la misma rebaja del 25 % que ya traen "
       + "los precios de las llantas con ese descuento, y se aplica en la cotización. Afirmar que existe NO es error; "
       + "inventar un monto sí lo es.",
     );
@@ -92,10 +92,10 @@ describe("hecho de la promoción para el revisor", () => {
 
   it("con cotización: el hecho del ahorro de siempre, con la cantidad", () => {
     const cuatro = ahorroDeLaCotizacion([{ quantity: 4, listPriceWithTax: 230.07, salePriceWithTax: 172.55 }]);
-    expect(hechoDeLaPromocion(cuatro, "3x4")).toContain("promoción 3x4");
+    expect(hechoDeLaPromocion(cuatro, "3x4")).toContain("promoción 4x3");
     expect(hechoDeLaPromocion(cuatro, "3x4")).toContain("$230.08");
     const dos = ahorroDeLaCotizacion([{ quantity: 2, listPriceWithTax: 230.07, salePriceWithTax: 172.55 }]);
-    expect(hechoDeLaPromocion(dos, "3x4")).not.toContain("promoción 3x4");
+    expect(hechoDeLaPromocion(dos, "3x4")).not.toContain("promoción 4x3");
     expect(hechoDeLaPromocion(dos, "3x4")).toContain("25 % menos");
   });
 });
