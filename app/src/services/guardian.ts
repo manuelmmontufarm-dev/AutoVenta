@@ -33,6 +33,8 @@ import { NOMBRE_DEL_VENDEDOR } from "../domain/saludo.js";
 import { FIRMA_DE_PRESENTACION } from "../domain/saludo.js";
 import { negocio } from "../negocio/index.js";
 import { anuncioDeLaConversacion } from "./anuncio.js";
+import { getAnunciosVigentes } from "./anunciosActivos.js";
+import { hechoDeAnunciosActivos } from "../domain/anunciosActivos.js";
 import OpenAI from "openai";
 import { aroDadoPorElCliente, medidaConfirmadaPorCliente } from "../domain/medidaConfirmada.js";
 import { mencionaVehiculo } from "../domain/vehiculoEnTexto.js";
@@ -610,6 +612,7 @@ export async function armarContexto(
   }).join("\n");
 
   const anuncio = await anuncioDeLaConversacion(conversationId).catch(() => null);
+  const anunciosVigentes = await getAnunciosVigentes().catch(() => []);
   const item = cotizacion?.items?.[0];
   const ahorro = ahorroDeLaCotizacion(cotizacion?.items ?? null);
   return [
@@ -634,6 +637,8 @@ export async function armarContexto(
     // Un anuncio que solo trae el id (sin título ni texto) no dice nada del
     // producto: no se le pone una línea vacía al revisor.
     anuncio && (anuncio.titulo || anuncio.texto) ? `Anuncio por el que llegó: «${[anuncio.titulo, anuncio.texto].filter(Boolean).join(" — ")}»` : null,
+    // Lo que el negocio cargó en Ajustes: sin esto el revisor tacha «la Kenda del anuncio».
+    hechoDeAnunciosActivos(anunciosVigentes, anuncio),
     // ...salvo que el cliente haya ESCRITO su medida (conv 12625, 22-sep): con
     // «195/55R16» escrita dos veces, este hecho —sacado del anuncio— hizo que
     // el revisor le dijera cuatro veces «usted llegó por llanta de camioneta y

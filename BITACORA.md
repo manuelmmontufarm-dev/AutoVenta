@@ -9,6 +9,19 @@ sábado 08:30–14:30; domingo cerrado») para el prompt, el Guardián y `storeS
 
 **Por qué:** Depot cierra los domingos pero abre el sábado y el panel solo podía cerrar sábado y
 domingo juntos.
+## 26-oct-2026 · Anuncios activos: Depot cuenta qué muestra cada anuncio y el bot lo sabe
+
+**Qué:** Ajustes → Negocio → Anuncios: el negocio carga cada anuncio que corre (descripción de 10 a 400
+caracteres, link opcional, activo, vigente hasta) en `settings.anuncios_activos` (`GET/PUT
+/admin/api/anuncios-activos`), y debajo ve los anuncios que trajeron chats en 14 días (`GET
+/admin/api/anuncios-vistos`, agrega `messages.metadata.anuncio`) con «Usar como activo». El vendedor
+(`agent.ts`) y el Guardián reciben «ANUNCIOS VIGENTES (cargados por el negocio)» y, si el referral coincide
+por `sourceId` o por link, cuál es. Sin anuncios cargados el prompt no cambia. Puro en
+`domain/anunciosActivos.ts`; servicio con cache de 30 s en `services/anunciosActivos.ts`.
+
+**Por qué:** el título de Meta casi siempre es «Depot Tire» y el link no se puede leer (facebook/instagram
+piden login), así que «quiero la llanta del anuncio» no significaba nada (conv 20527: Kenda KR601, camioneta,
+y el cliente recibió llantas de auto). La única fuente fiable es lo que Depot escribe; el panel lo dice.
 
 **Horas:** 2
 

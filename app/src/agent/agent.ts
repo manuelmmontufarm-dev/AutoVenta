@@ -38,7 +38,8 @@ import { preguntaElDia, preguntamosElDia, respondeAlDiaDeLaVisita } from "../dom
 import { ordenDeNoReusarLaVitrina, vitrinaQueNoEsSuMedida } from "../domain/vitrinaVieja.js";
 import { extractTireSizes, formatTireSize, loQueFaltaDeLaMedida } from "../domain/tireSize.js";
 import { getHistory, logAiRun, olvidarMedidaDeTrabajo, updateConversationFacts } from "../services/conversations.js";
-import { hechoDelAnuncio } from "../domain/anuncio.js";
+import { hechoParaElChat } from "../domain/anuncio.js";
+import { getAnunciosVigentes } from "../services/anunciosActivos.js";
 import { getAiConfig, getPublishedStagePrompt, getStoreHours } from "../services/settings.js";
 import { getPhaseFlags, toolEnabled } from "../services/phases.js";
 import { buildSystemPrompt } from "./prompts.js";
@@ -627,8 +628,13 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
     ...((marcaDelTurno) ? [{ role: "system" as const, content: ordenDeNombrarLaMarca(marcaDelTurno) }] : []),
     ...(hechoDeMarca ? [{ role: "system" as const, content: hechoDeMarca }] : []),
     // Un anuncio que solo trae el id (sin título ni texto) no le dice nada al
-    // vendedor: no se le manda el hecho, igual que antes de guardar el id.
-    ...(anuncioDelChat && (anuncioDelChat.titulo || anuncioDelChat.texto) ? [{ role: "system" as const, content: hechoDelAnuncio(anuncioDelChat) }] : []),
+    // vendedor: no se le manda el hecho, igual que antes de guardar el id. Los
+    // anuncios que el negocio cargó en Ajustes viajan aunque el chat no traiga
+    // referral: «la llanta del anuncio» sin ellos no significa nada.
+    ...await (async () => {
+      const hecho = hechoParaElChat(anuncioDelChat, await getAnunciosVigentes().catch(() => []));
+      return hecho ? [{ role: "system" as const, content: hecho }] : [];
+    })(),
     ...(hechoDeMedidaInferida ? [{ role: "system" as const, content: hechoDeMedidaInferida }] : []),
     ...(hechoDeMediaMedida ? [{ role: "system" as const, content: `MEDIA MEDIDA SOBRE LA MESA. ${hechoDeMediaMedida}` }] : []),
     ...(aroDelTurno ? [{ role: "system" as const, content: ordenDeMostrarPorAro(aroDelTurno) }] : []),
