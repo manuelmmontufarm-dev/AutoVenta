@@ -5,7 +5,7 @@
  * cliente vuelve a escribir, y la compra que saca al cliente sin que nadie toque nada.
  */
 import { describe, expect, it } from "vitest";
-import { clasificar, puntaje, TOPE_DIARIO, type FilaParaCerrar } from "../src/domain/paraCerrar.js";
+import { clasificar, puntaje, temperatura, TOPE_DIARIO, type FilaParaCerrar } from "../src/domain/paraCerrar.js";
 
 // Sábado 24-oct-2026, 13:15 en Quito.
 const AHORA = new Date("2026-10-24T18:15:00Z");
@@ -119,5 +119,41 @@ describe("el tope del día y el orden", () => {
     const r = clasificar([fila({ ticketId: 1, ultimoCliente: horas(3) }), fila({ ticketId: 2, ultimoCliente: horas(30) })], AHORA);
     const ventana = Object.fromEntries(r.paraCerrar.map((c) => [c.ticketId, c.ventanaAbierta]));
     expect(ventana).toEqual({ 1: true, 2: false });
+  });
+});
+
+describe("temperatura: si todavía viene (medido el 26-oct contra Contífico)", () => {
+  // Sábado 24 a las 13:15 en Quito. Las visitas a mediodía de Quito.
+  const visita = (dia: string) => new Date(`${dia}T17:00:00Z`);
+
+  it("con fecha: hoy o después es caliente; ayer, última oportunidad; 2+ días, ya no viene", () => {
+    expect(temperatura({ visita: visita("2026-10-24"), ultimoCliente: dias(10) }, AHORA)).toBe("caliente");
+    expect(temperatura({ visita: visita("2026-10-27"), ultimoCliente: dias(10) }, AHORA)).toBe("caliente");
+    expect(temperatura({ visita: visita("2026-10-23"), ultimoCliente: horas(2) }, AHORA)).toBe("ultima");
+    expect(temperatura({ visita: visita("2026-10-22"), ultimoCliente: horas(2) }, AHORA)).toBe("fria");
+  });
+
+  it("la fecha manda: aunque escriba hoy, si su día fue hace 3 días ya no viene", () => {
+    expect(temperatura({ visita: visita("2026-10-21"), ultimoCliente: horas(1) }, AHORA)).toBe("fria");
+  });
+
+  it("sin fecha: menos de 24 h callado es caliente; 1 a 4 días, última; 5 o más, ya no viene", () => {
+    expect(temperatura({ visita: null, ultimoCliente: horas(23) }, AHORA)).toBe("caliente");
+    expect(temperatura({ visita: null, ultimoCliente: horas(30) }, AHORA)).toBe("ultima");
+    expect(temperatura({ visita: null, ultimoCliente: horas(4 * 24 + 23) }, AHORA)).toBe("ultima");
+    expect(temperatura({ visita: null, ultimoCliente: dias(5) }, AHORA)).toBe("fria");
+  });
+
+  it("los que ya no vienen van al fondo de Para cerrar aunque tengan más plata", () => {
+    const r = clasificar([
+      fila({ ticketId: 1, total: 2000, ultimoCliente: dias(6) }),
+      fila({ ticketId: 2, total: 200, ultimoCliente: horas(30) }),
+    ], AHORA);
+    expect(r.paraCerrar.map((c) => [c.ticketId, c.temperatura])).toEqual([[2, "ultima"], [1, "fria"]]);
+  });
+
+  it("Empujando también trae su temperatura", () => {
+    const r = clasificar([fila({ visita: visita("2026-10-21"), ultimoCliente: dias(4), ultimoAsesor: dias(3) })], AHORA);
+    expect(r.empujando[0].temperatura).toBe("fria");
   });
 });

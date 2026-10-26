@@ -27,6 +27,34 @@ const DIA_MS = 24 * HORA_MS;
 /** WhatsApp deja escribir texto libre hasta 24 h después del último mensaje del cliente. */
 const VENTANA_MS = 24 * HORA_MS;
 
+/**
+ * TEMPERATURA: qué tan probable es que todavía compre (Manuel, 26-oct).
+ *
+ * Medido en producción el 26-oct cruzando facturas de Contífico con los chats
+ * (28 ventas; 16 de clientes cotizados — muestra chica, es un patrón):
+ *  · De 99 que dijeron un día, compraron 9: 8 ese mismo día y 1 al siguiente.
+ *    Pasados 2 días de la fecha, 0 de 81 llegaron.
+ *  · De 215 que eligieron local, casi todos compraron el día de su último
+ *    mensaje; con 1–4 días callados, 2 de 204; con 5 o más, 0 de 177.
+ *
+ * caliente = la fecha es hoy o después, o escribió hace menos de 24 h.
+ * ultima   = la fecha fue ayer, o lleva 1 a 4 días callado: escribir hoy.
+ * fria     = 2+ días desde la fecha, o 5+ días callado: ya no viene.
+ */
+export type Temperatura = "caliente" | "ultima" | "fria";
+export const DIAS_FECHA_FRIA = 2;
+export const DIAS_CALLADO_FRIO = 5;
+
+export function temperatura(f: Pick<FilaParaCerrar, "visita" | "ultimoCliente">, ahora: Date): Temperatura {
+  if (f.visita) {
+    const pasaron = diasEntre(diaDeGuayaquil(f.visita), diaDeGuayaquil(ahora));
+    return pasaron <= 0 ? "caliente" : pasaron < DIAS_FECHA_FRIA ? "ultima" : "fria";
+  }
+  if (!f.ultimoCliente) return "fria";
+  const horas = (ahora.getTime() - f.ultimoCliente.getTime()) / HORA_MS;
+  return horas < 24 ? "caliente" : horas < DIAS_CALLADO_FRIO * 24 ? "ultima" : "fria";
+}
+
 /** Una conversación que ya aceptó precio y local, como la lee la consulta. */
 export interface FilaParaCerrar {
   ticketId: number;
@@ -68,6 +96,7 @@ export interface ClienteParaCerrar {
   volvio: boolean;
   /** false = pasaron 24 h desde su último mensaje: solo plantilla. */
   ventanaAbierta: boolean;
+  temperatura: Temperatura;
   puntaje: number;
 }
 
@@ -84,6 +113,7 @@ export interface ClienteEmpujando {
   visitaHora: string | null;
   /** Días que le quedan antes de pasar al archivo. */
   seArchivaEn: number;
+  temperatura: Temperatura;
 }
 
 export interface ClienteArchivado {
@@ -155,7 +185,7 @@ export function clasificar(filas: readonly FilaParaCerrar[], ahora: Date): ParaC
     const leTocaAlCliente = f.ultimoAsesor && (!f.ultimoCliente || f.ultimoAsesor > f.ultimoCliente);
     if (leTocaAlCliente) {
       const pasaron = Math.floor((ahora.getTime() - ultimoTexto.getTime()) / DIA_MS);
-      out.empujando.push({ ...base, ultimoAsesor: f.ultimoAsesor!.toISOString(), visita: iso(f.visita), visitaHora: f.visitaHora, seArchivaEn: Math.max(1, DIAS_PARA_ARCHIVAR - pasaron) });
+      out.empujando.push({ ...base, ultimoAsesor: f.ultimoAsesor!.toISOString(), visita: iso(f.visita), visitaHora: f.visitaHora, seArchivaEn: Math.max(1, DIAS_PARA_ARCHIVAR - pasaron), temperatura: temperatura(f, ahora) });
       continue;
     }
 
@@ -172,11 +202,13 @@ export function clasificar(filas: readonly FilaParaCerrar[], ahora: Date): ParaC
       ultimoCliente: iso(f.ultimoCliente),
       volvio: f.asesorAntesDelCliente,
       ventanaAbierta: Boolean(f.ultimoCliente && ahora.getTime() - f.ultimoCliente.getTime() < VENTANA_MS),
+      temperatura: temperatura(f, ahora),
       puntaje: puntaje(f, ahora),
     });
   }
 
-  out.paraCerrar.sort((a, b) => b.puntaje - a.puntaje || (b.ultimoCliente ?? "").localeCompare(a.ultimoCliente ?? ""));
+  // Los que ya no vienen van al fondo, aunque tengan más plata en juego.
+  out.paraCerrar.sort((a, b) => Number(a.temperatura === "fria") - Number(b.temperatura === "fria") || b.puntaje - a.puntaje || (b.ultimoCliente ?? "").localeCompare(a.ultimoCliente ?? ""));
   out.empujando.sort((a, b) => b.ultimoAsesor.localeCompare(a.ultimoAsesor));
   out.archivo.sort((a, b) => (b.ultimoTexto ?? "").localeCompare(a.ultimoTexto ?? ""));
   return out;

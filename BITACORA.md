@@ -1,3 +1,18 @@
+## 26-oct-2026 · Para cerrar: color por probabilidad de que todavía venga
+
+**Qué:** Cada cliente de Para cerrar y Empujando lleva una temperatura calculada en
+`domain/paraCerrar.ts`: verde = viene (su día es hoy o después, o escribió hace menos de 24 h),
+ámbar = escribir hoy (su día fue ayer, o lleva 1–4 días callado), gris = ya no viene (2+ días
+desde su fecha, o 5+ días callado). Los grises van al fondo y nunca ocupan el tope del día.
+Cada etiqueta trae el dato que la respalda.
+
+**Por qué:** Manuel: mucha gente dice un día y no llega. Medido contra Contífico (solo lectura,
+26-oct; 28 ventas, 16 de cotizados): de 99 con día, 9 compraron — 8 ese día y 1 al siguiente;
+pasados 2 días, 0 de 81. De 215 con local, con 5+ días callados 0 de 177 compraron. Muestra
+chica: es un patrón, hay que volver a medir con más ventas.
+
+**Horas:** 1
+
 ## 25-oct-2026 · Para cerrar como calendario (rama feat/para-cerrar, sin publicar)
 
 **Qué:** La lista con tope pasó a ser un calendario del mes: cada cliente escrito en el día

@@ -589,6 +589,9 @@ export interface Billing {
 
 // ── Para cerrar (contrato idéntico a app/src/domain/paraCerrar.ts) ────────
 
+/** caliente = viene; ultima = escribir hoy; fria = ya no viene (medido contra Contífico). */
+export type Temperatura = "caliente" | "ultima" | "fria";
+
 export interface ClienteParaCerrar {
   ticketId: number;
   nombre: string | null;
@@ -605,6 +608,7 @@ export interface ClienteParaCerrar {
   volvio: boolean;
   /** false = pasaron 24 h desde su último mensaje: solo plantilla. */
   ventanaAbierta: boolean;
+  temperatura: Temperatura;
   puntaje: number;
 }
 
@@ -619,6 +623,7 @@ export interface ClienteEmpujando {
   visita: string | null;
   visitaHora: string | null;
   seArchivaEn: number;
+  temperatura: Temperatura;
 }
 
 export interface ClienteArchivado {

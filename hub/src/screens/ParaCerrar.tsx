@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { IconX } from "../components/icons";
 import { EmptyState, MedidaChip, Modal, PageHeader, Segmented, SkeletonRows } from "../components/ui";
 import { useParaCerrar } from "../data/paraCerrar";
-import type { AccionParaCerrar, ClienteArchivado, ClienteEmpujando, ClienteParaCerrar } from "../data/types";
+import type { AccionParaCerrar, ClienteArchivado, ClienteEmpujando, ClienteParaCerrar, Temperatura } from "../data/types";
 import { money, relTime } from "../lib/format";
 import { navigate } from "../router";
 import { useHub, useNow } from "../store";
@@ -19,7 +19,6 @@ import { useHub, useNow } from "../store";
 
 type Vista = "cerrar" | "empujando" | "archivo";
 
-const HORA = 3_600_000;
 const MOTIVOS = ["Precio", "Compró en otro lado", "No contestó", "Ya no necesita", "Otro"];
 
 interface Deshacer { texto: string; accion?: () => Promise<void> }
@@ -351,7 +350,9 @@ function Calendario({ y, m, hoy, porDia, seleccionado, onDia, onMes, onHoy, ataj
       <div className="flex flex-wrap items-center gap-2 border-b border-line px-4 py-2.5">
         {atajos}
         <span className="ml-auto hidden items-center gap-3.5 text-[12px] text-text2 lg:flex">
-          <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-ok" />te toca escribir</span>
+          <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-ok" />viene</span>
+          <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-warn" />escribir hoy</span>
+          <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-text3/60" />ya no viene</span>
           <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full border-[1.5px] border-text3" />ya le escribieron</span>
           <span className="text-text2 line-through decoration-signal decoration-[1.5px]">no vino</span>
         </span>
@@ -397,24 +398,24 @@ function Calendario({ y, m, hoy, porDia, seleccionado, onDia, onMes, onHoy, ataj
   );
 }
 
-function semaforo(c: ClienteParaCerrar, now: number): "ok" | "warn" | "signal" {
-  const h = c.ultimoCliente ? (now - new Date(c.ultimoCliente).getTime()) / HORA : Infinity;
-  return h < 24 ? "ok" : h <= 72 ? "warn" : "signal";
-}
-const FONDO = { ok: "bg-ok", warn: "bg-warn", signal: "bg-signal" } as const;
+/* Temperatura (app/src/domain/paraCerrar.ts): verde viene, ámbar escribir hoy,
+   gris ya no viene. Lleno = te toca escribir; hueco = ya le escribieron. */
+const LLENO: Record<Temperatura, string> = { caliente: "bg-ok", ultima: "bg-warn", fria: "bg-text3/60" };
+const HUECO: Record<Temperatura, string> = { caliente: "border-ok", ultima: "border-warn", fria: "border-text3/60" };
 
-function Punto({ cita }: { cita: Cita }) {
-  const now = useNow();
+function Punto({ cita, grande = false }: { cita: Cita; grande?: boolean }) {
+  const t = cita.c.temperatura;
+  const tam = grande ? "h-2.5 w-2.5" : "h-1.5 w-1.5";
   return cita.tipo === "empujando"
-    ? <span className="h-1.5 w-1.5 rounded-full border border-text3" />
-    : <span className={`h-1.5 w-1.5 rounded-full ${FONDO[semaforo(cita.c, now)]}`} />;
+    ? <span className={`${tam} shrink-0 rounded-full ${grande ? "border-[1.5px]" : "border"} ${HUECO[t]}`} />
+    : <span className={`${tam} shrink-0 rounded-full ${LLENO[t]}`} />;
 }
 
 function Renglon({ cita, paso, tenue }: { cita: Cita; paso: boolean; tenue: boolean }) {
   return (
     <span className={`grid grid-cols-[8px_minmax(0,1fr)] items-center gap-x-1.5 rounded-[4px] px-1 py-[2px] ${tenue ? "opacity-60" : ""}`}>
       <Punto cita={cita} />
-      <span className={`min-w-0 text-[12px] leading-[1.25] font-medium break-words ${cita.tipo === "empujando" || paso ? "text-text2" : ""} ${paso ? "line-through decoration-signal decoration-[1.5px]" : ""}`}>
+      <span className={`min-w-0 text-[12px] leading-[1.25] font-medium break-words ${cita.c.temperatura === "fria" ? "text-text3" : cita.tipo === "empujando" || paso ? "text-text2" : ""} ${paso ? "line-through decoration-signal decoration-[1.5px]" : ""}`}>
         {cita.c.nombre ?? "Sin nombre"}
       </span>
       {cita.c.visitaHora && <span className="col-start-2 truncate font-mono text-[10.5px] text-text2">{cita.c.visitaHora}</span>}
@@ -488,8 +489,9 @@ function LadoNoVinieron({ mes, citas, hoy, now, ...acciones }: { mes: string; ci
 function LadoSinDia({ lista, quedan, hoy, now, ...acciones }: { lista: ClienteParaCerrar[]; quedan: number; hoy: string; now: number } & Acciones) {
   const [verMas, setVerMas] = useState(false);
   // Ya vienen ordenados por puntaje: los primeros son los del tope de hoy.
-  const arriba = lista.slice(0, Math.max(quedan, 0));
-  const abajo = lista.slice(arriba.length);
+  // Los grises (ya no vienen) nunca ocupan un lugar del tope.
+  const arriba = lista.filter((c) => c.temperatura !== "fria").slice(0, Math.max(quedan, 0));
+  const abajo = lista.filter((c) => !arriba.includes(c));
   const citas = (l: ClienteParaCerrar[]): Cita[] => l.map((c) => ({ tipo: "cerrar", c, dia: "" }));
   return (
     <>
@@ -515,14 +517,12 @@ function TarjetaCita({ cita, hoy, now, onVendido, onPerdido, onPosponer, onSacar
   const dia = c.visita ? claveDia(new Date(c.visita)) : null;
   const paso = Boolean(dia && dia < hoy);
   const abrir = () => navigate(`ticket/${c.ticketId}`);
-  const punto = cita.tipo === "empujando"
-    ? <span className="h-2.5 w-2.5 shrink-0 rounded-full border-[1.5px] border-text3" />
-    : <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${FONDO[semaforo(cita.c, now)]}`} />;
+  const t = c.temperatura;
 
   return (
-    <article className={`flex flex-col gap-2 rounded-[8px] border border-line px-4 py-3 ${cita.tipo === "empujando" ? "bg-bg/60" : "bg-surface"}`}>
+    <article className={`flex flex-col gap-2 rounded-[8px] border border-line px-4 py-3 ${cita.tipo === "empujando" || t === "fria" ? "bg-bg/60" : "bg-surface"} ${t === "fria" ? "opacity-80" : ""}`}>
       <div className="flex items-center gap-2.5">
-        {punto}
+        <Punto cita={cita} grande />
         <button type="button" onClick={abrir} className="min-w-0 text-left text-[15px] leading-tight font-semibold break-words hover:underline">{c.nombre ?? "Sin nombre"}</button>
         <span className="tnum ml-auto shrink-0 font-mono text-[13px] text-text2">{money(c.total)}</span>
       </div>
@@ -531,21 +531,21 @@ function TarjetaCita({ cita, hoy, now, onVendido, onPerdido, onPosponer, onSacar
         <span className="truncate text-[12px] text-text2">{c.llantas}</span>
       </div>
       <div className="flex flex-wrap items-baseline gap-x-2 text-[13px]">
-        <span className={`font-mono font-bold ${dia === hoy || paso ? "text-signal" : dia ? "" : "text-text2"}`}>
+        <span className={`font-mono font-bold ${dia === hoy ? "text-signal" : paso ? (t === "ultima" ? "text-warn" : "text-text3") : dia ? "" : "text-text2"}`}>
           {dia ? `${diaCorto(dia, hoy)}${c.visitaHora ? ` · ${c.visitaHora}` : ""}` : "Sin día"}
         </span>
         <span>{c.local}</span>
       </div>
       <div className="flex flex-wrap gap-1.5">
+        <EtiquetaTemperatura t={t} conDia={Boolean(dia)} />
         {cita.tipo === "empujando" ? (
           <Etiqueta>Le escribieron {relTime(cita.c.ultimoAsesor, now)}</Etiqueta>
         ) : (
           <>
             {cita.c.volvio && <Etiqueta tono="ok">Volvió: respondió</Etiqueta>}
-            {paso && <Etiqueta tono="signal">Pasó la fecha, sin factura</Etiqueta>}
-            {!dia && <Etiqueta tono="warn">Falta día</Etiqueta>}
+            {!dia && t !== "fria" && <Etiqueta tono="warn">Falta día</Etiqueta>}
             {!cita.c.ventanaAbierta && <Etiqueta>Ventana cerrada · plantilla</Etiqueta>}
-            {cita.c.ultimoCliente && <Etiqueta tono={semaforo(cita.c, now) === "signal" ? "signal" : undefined}>Escribió {relTime(cita.c.ultimoCliente, now)}</Etiqueta>}
+            {cita.c.ultimoCliente && <Etiqueta>Escribió {relTime(cita.c.ultimoCliente, now)}</Etiqueta>}
           </>
         )}
       </div>
@@ -568,12 +568,28 @@ function TarjetaCita({ cita, hoy, now, onVendido, onPerdido, onPosponer, onSacar
   );
 }
 
-function Etiqueta({ tono, children }: { tono?: "ok" | "warn" | "signal"; children: React.ReactNode }) {
-  const estilo = tono === "ok" ? "bg-ok/10 font-semibold text-ok"
+/** Por qué está de ese color, con el dato que lo respalda (medido el 26-oct). */
+function EtiquetaTemperatura({ t, conDia }: { t: Temperatura; conDia: boolean }) {
+  if (t === "ultima") {
+    return <Etiqueta tono="warn" titulo={conDia ? "De 84 que no llegaron su día, 1 llegó al día siguiente." : "Con 1 a 4 días callados, 2 de 204 compraron después."}>
+      {conDia ? "Su día fue ayer · escribir hoy" : "Se está enfriando · escribir hoy"}
+    </Etiqueta>;
+  }
+  if (t === "fria") {
+    return <Etiqueta tono="fria" titulo={conDia ? "Pasados 2 días de su fecha, 0 de 81 llegaron." : "Con 5 o más días callados, 0 de 177 compraron."}>
+      {conDia ? "Ya no viene · pasaron 2+ días de su fecha" : "Ya no viene · 5+ días callado"}
+    </Etiqueta>;
+  }
+  return null;
+}
+
+function Etiqueta({ tono, titulo, children }: { tono?: "ok" | "warn" | "signal" | "fria"; titulo?: string; children: React.ReactNode }) {
+  const estilo = tono === "fria" ? "bg-black/[.05] font-semibold text-text2"
+    : tono === "ok" ? "bg-ok/10 font-semibold text-ok"
     : tono === "warn" ? "bg-warn/10 font-semibold text-warn"
     : tono === "signal" ? "bg-signal-tint font-semibold text-signal"
     : "bg-bg text-text2";
-  return <span className={`whitespace-nowrap rounded-[5px] px-2 py-0.5 text-[12px] ${estilo}`}>{children}</span>;
+  return <span title={titulo} className={`whitespace-nowrap rounded-[5px] px-2 py-0.5 text-[12px] ${estilo}`}>{children}</span>;
 }
 
 /* ── Empujando: lista llana, para ignorar ── */
@@ -593,7 +609,12 @@ function VistaEmpujando({ lista, compraron, now, onSacar }: {
         <Tabla cabeza={["Cliente", "Medida", "Monto", "Local", "Les escribieron", "Se archiva en", ""]} numericas={[2, 5]}>
           {lista.map((c) => (
             <tr key={c.ticketId} className="border-b border-line last:border-0 hover:bg-bg/60">
-              <Celda><button className="text-left hover:underline" onClick={() => navigate(`ticket/${c.ticketId}`)}>{c.nombre ?? "Sin nombre"}</button></Celda>
+              <Celda>
+                <span className="flex items-center gap-2">
+                  <span className={`h-2 w-2 shrink-0 rounded-full border-[1.5px] ${HUECO[c.temperatura]}`} title={c.temperatura === "fria" ? "Ya no viene" : c.temperatura === "ultima" ? "Escribir hoy" : "Viene"} />
+                  <button className={`text-left hover:underline ${c.temperatura === "fria" ? "text-text3" : ""}`} onClick={() => navigate(`ticket/${c.ticketId}`)}>{c.nombre ?? "Sin nombre"}</button>
+                </span>
+              </Celda>
               <Celda mono>{c.medida ?? c.llantas}</Celda>
               <Celda mono derecha>{money(c.total)}</Celda>
               <Celda tenue>{c.local}</Celda>
