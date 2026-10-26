@@ -1,3 +1,18 @@
+## 26-oct-2026 · El modelo espera 45 s y el chat abierto se refresca cada 4 s
+
+**Qué:** `app/src/agent/openaiCliente.ts` (nuevo): un solo cliente de OpenAI para
+el vendedor y el clasificador con `timeout: 45 s` y `maxRetries: 1` (el SDK
+esperaba hasta 10 min y reintentaba 2 veces; lo que falle después sigue cayendo
+en el rescate de `runAgent`). `hub/src/store.ts`: además del refresco general de
+15 s, el chat abierto vuelve a pedir sus mensajes cada 4 s. Prueba
+`test/openaiCliente.test.ts`.
+
+**Por qué:** Manuel escribió a las 16:17 (conv 3), la primera llamada al modelo
+venció a las 16:18:51 y el reintento contestó a las 16:19:10; el panel lo mostró
+recién en el siguiente sondeo de 15 s. Tres minutos mirando «escribiendo…».
+
+**Horas:** 0,4
+
 ## 26-oct-2026 · Sprint Final: días abiertos por día, promoción 3x4 y anuncios activos EN PRODUCCIÓN
 
 **Qué:** PRs #19 (horario por día, S1), #18 (anuncios activos, S3) y #20 (promoción

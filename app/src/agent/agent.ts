@@ -7,6 +7,7 @@ import { obligacionDeMostrarEquivalentes } from "../domain/equivalentesPorMostra
 import { opcionPorPosicion, posicionElegida } from "../domain/listaDeOpciones.js";
 import { anuncioDeLaConversacion } from "../services/anuncio.js";
 import OpenAI from "openai";
+import { nuevoClienteOpenAI } from "./openaiCliente.js";
 import { aroDadoPorElCliente, aroRespondido, medidaConfirmadaPorCliente } from "../domain/medidaConfirmada.js";
 import { medidasDelMensaje, medidaSinConfirmar } from "../domain/medidaDelCliente.js";
 import { esFalloDelProveedor } from "../domain/falloDelProveedor.js";
@@ -72,7 +73,7 @@ import { PREGUNTA_DE_LOCAL } from "../domain/storeSelection.js";
 import { avisarSiHayEntrantesDespues, soloLoDelTurno } from "../pipeline/corteDelTurno.js";
 import { modeloCanary, rutaCanary } from "./canary.js";
 
-const openai = new OpenAI({ apiKey: config.openai.apiKey });
+const openai = nuevoClienteOpenAI();
 
 /** Rondas del loop antes de rendirse; el rescate es la ronda siguiente. */
 /**
