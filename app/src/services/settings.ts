@@ -8,6 +8,7 @@ import { z } from "zod";
 import { sql } from "../db/client.js";
 import { PIPELINE_STAGES, type Stage } from "../domain/pipeline.js";
 import { negocio } from "../negocio/index.js";
+import { MODOS_PROMOCION } from "../domain/promocion.js";
 
 export const AiConfigSchema = z.object({
   /** Texto libre que se suma al prompt: personalidad extra del asistente. */
@@ -310,6 +311,10 @@ export const PiecesConfigSchema = z.object({
   // cambia para el negocio hasta que elija otra desde Ajustes.
   plantilla: z.enum(PLANTILLA_NAMES).default("clasica"),
   modo: z.enum(MODO_NAMES).default("auto"),
+  // Cómo se nombra la rebaja en la pieza, el PDF y lo que dice el bot
+  // (26-oct, feriado: «25 %» → «3x4»). La plata no cambia: sigue saliendo del
+  // catálogo. Lo guardado antes de que existiera queda en porcentaje.
+  promocion: z.object({ modo: z.enum(MODOS_PROMOCION).default("porcentaje") }).default({ modo: "porcentaje" }),
 });
 
 export type PiecesConfig = z.infer<typeof PiecesConfigSchema>;
@@ -331,6 +336,16 @@ export async function getPiecesConfig(): Promise<PiecesConfig> {
     // Una pieza no se deja de enviar porque no se pudo leer su color.
     return DEFAULT_PIECES_CONFIG;
   }
+}
+
+/**
+ * Lo último que se leyó de `pieces_config`, sin ir a la base. Para los
+ * respaldos síncronos (el texto de la cotización y el PDF de pdfmake) que
+ * tienen que nombrar la promoción igual que la pieza: en el turno que los usa,
+ * `getPiecesConfig()` ya corrió para renderizarla. Sin lectura previa, el default.
+ */
+export function piecesConfigEnMemoria(): PiecesConfig {
+  return piecesCache?.value ?? DEFAULT_PIECES_CONFIG;
 }
 
 /**

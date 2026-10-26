@@ -8,6 +8,7 @@
  */
 import { sql } from "../db/client.js";
 import { ahorroDeLaCotizacion, type AhorroDeLaCotizacion, type LineaCotizada } from "../domain/ahorro.js";
+import { getPiecesConfig } from "./settings.js";
 
 export async function ahorroVigente(
   conversationId: number,
@@ -18,5 +19,9 @@ export async function ahorroVigente(
     where conversation_id = ${conversationId} and cycle = ${cycle}
     order by created_at desc limit 1
   `;
-  return ahorroDeLaCotizacion(cotizacion?.items ?? null);
+  const ahorro = ahorroDeLaCotizacion(cotizacion?.items ?? null);
+  if (!ahorro) return null;
+  // Con el modo de Ajustes → Piezas la frase dice «promoción 3x4» igual que
+  // la pieza (26-oct). La cifra no cambia: sale de la misma cotización.
+  return { ...ahorro, modo: (await getPiecesConfig()).promocion.modo };
 }

@@ -103,7 +103,8 @@ import {
   brandProfilesForRender, deleteBrandProfile, listBrandProfiles, saveBrandProfile,
 } from "../services/brandProfiles.js";
 import { PALETTE_NAMES, PALETTES, PRICE_FONT_NAMES } from "../render/depotDesign.js";
-import { renderPreviewPiece } from "../render/preview.js";
+import { descuentoDeLaMuestra, renderPreviewPiece } from "../render/preview.js";
+import { MODOS_PROMOCION } from "../domain/promocion.js";
 import { atenderPendientes, reorganizarEtapas } from "../services/hubMaintenance.js";
 import {
   getChannelConfig,
@@ -1706,6 +1707,10 @@ export function createAdminRouter(): express.Router {
       // «diaNoche» es la plantilla del cliente (12-sep) y la única con modos.
       plantillas: PLANTILLA_NAMES,
       modos: MODO_NAMES,
+      // Cómo se nombra la rebaja (26-oct). Con el descuento de la llanta de
+      // la vista previa, Ajustes avisa si con 3x4 saldría como porcentaje.
+      modosPromocion: MODOS_PROMOCION,
+      descuentoDeMuestra: await descuentoDeLaMuestra().catch(() => null),
     });
   });
 
@@ -1713,7 +1718,7 @@ export function createAdminRouter(): express.Router {
     try {
       res.json({ ok: true, config: await savePiecesConfig(req.body) });
     } catch {
-      res.status(400).json({ ok: false, error: "Plantilla, modo, paleta o fuente inválidos" });
+      res.status(400).json({ ok: false, error: "Plantilla, modo, paleta, fuente o promoción inválidos" });
     }
   });
 
@@ -2063,10 +2068,11 @@ export function createAdminRouter(): express.Router {
       const fuente = req.query.fuente ? String(req.query.fuente) : undefined;
       const plantilla = req.query.plantilla ? String(req.query.plantilla) : undefined;
       const modo = req.query.modo ? String(req.query.modo) : undefined;
+      const promocion = req.query.promocion ? String(req.query.promocion) : undefined;
       const beneficios = req.query.beneficios
         ? String(req.query.beneficios).split("|").map((b) => b.trim()).filter(Boolean)
         : await applicableBenefitTexts();
-      const png = await renderPreviewPiece({ pieza, paleta, fuente, plantilla, modo, beneficios });
+      const png = await renderPreviewPiece({ pieza, paleta, fuente, plantilla, modo, promocion, beneficios });
       res.setHeader("Content-Type", "image/png");
       res.setHeader("Cache-Control", "no-store");
       res.send(png);

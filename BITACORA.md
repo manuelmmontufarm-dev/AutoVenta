@@ -22,6 +22,22 @@ por `sourceId` o por link, cuál es. Sin anuncios cargados el prompt no cambia. 
 **Por qué:** el título de Meta casi siempre es «Depot Tire» y el link no se puede leer (facebook/instagram
 piden login), así que «quiero la llanta del anuncio» no significaba nada (conv 20527: Kenda KR601, camioneta,
 y el cliente recibió llantas de auto). La única fuente fiable es lo que Depot escribe; el panel lo dice.
+## 26-oct-2026 · Promoción: el descuento se puede presentar como 3x4 (rama feat/promocion-3x4, sin publicar)
+
+**Qué:** Ajustes → Piezas tiene «Cómo se nombra la promoción»: «25 % de descuento» o «3x4 · paga
+3 lleva 4» (`pieces_config.promocion.modo`, default porcentaje; lo guardado sin el campo se lee
+igual). Una sola fuente, `domain/promocion.ts`, decide el rótulo para la cotización y las
+opciones (clásica y día/noche), el PDF de respaldo, el texto de respaldo, la frase del ahorro,
+el vendedor (`activeBenefitFactsBlock`) y el hecho del ahorro del Guardián. Candado: 3x4 solo si
+el descuento real de la llanta está entre 24 % y 26 %; si no, sale su porcentaje y el panel lo
+avisa. La vista previa cambia al instante. En el simulador (Guardián encendido, modelos de
+producción): «¿tienen el 3x4?» → «Sí, es el 3x4 y ya está aplicado en su cotización»; «¿y el
+25 %?» → «la promoción 3x4 … que es el mismo 25 %, $57.53 por llanta, $230.12 en las 4»; el
+Guardián aprobó las dos. Volviendo a porcentaje la pieza vuelve a «−25%».
+
+**Por qué:** Manuel, 26-oct: por el feriado Depot cambió «25 %» por «3x4»; es la misma plata
+dicha de otra forma y tiene que verse igual en la pieza, el PDF y lo que dice el bot. El total
+y el precio por llanta no cambian con el modo (prueba en `promocion.test.ts`).
 
 **Horas:** 2
 

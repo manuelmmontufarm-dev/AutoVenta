@@ -15,6 +15,8 @@
  * anunciar un ahorro que la pieza no muestra.
  */
 
+import { seMuestraComo3x4, type ModoPromocion } from "./promocion.js";
+
 export interface LineaCotizada {
   quantity?: number | null;
   /** Precio de lista con IVA: el «antes» tachado en la pieza. */
@@ -35,6 +37,11 @@ export interface AhorroDeLaCotizacion {
   precioConDescuento: number;
   /** El precio de lista por llanta: el «antes» tachado. */
   precioAntes: number;
+  /**
+   * Cómo se nombra la rebaja (Ajustes → Piezas, 26-oct). Opcional: quien no
+   * lo llena sigue diciendo el porcentaje, como siempre. Ver `domain/promocion.ts`.
+   */
+  modo?: ModoPromocion;
 }
 
 /**
@@ -69,7 +76,11 @@ export function ahorroDeLaCotizacion(
  * es-EC («$277,44») fue 4 de los 8 `precio_incorrecto` ALTA del informe del
  * guardián del 15-ago, porque el revisor lee dos números distintos.
  */
-export function fraseDeAhorro(ahorro: Pick<AhorroDeLaCotizacion, "porcentaje" | "monto">): string {
+export function fraseDeAhorro(ahorro: Pick<AhorroDeLaCotizacion, "porcentaje" | "monto" | "modo">): string {
+  // En 3x4 la misma plata con el nombre que trae la pieza (26-oct, feriado).
+  if (seMuestraComo3x4(ahorro.modo ?? "porcentaje", ahorro.porcentaje)) {
+    return `*promoción 3x4* (paga 3 llantas y lleva 4), *$${ahorro.monto.toFixed(2)}* menos`;
+  }
   return `*${ahorro.porcentaje} %* de descuento ya aplicado, *$${ahorro.monto.toFixed(2)}* menos`;
 }
 
@@ -128,7 +139,12 @@ export function respuestaDelDescuento(ahorro: AhorroDeLaCotizacion, textoDelClie
   const cuanto = ahorro.cantidad > 1
     ? `${dinero(ahorro.porLlanta)} por llanta, ${dinero(ahorro.monto)} en las ${ahorro.cantidad} llantas`
     : dinero(ahorro.monto);
-  const base = `su cotización ya trae el *${ahorro.porcentaje} %* de descuento, que son ${cuanto}. `
+  // En 3x4 se nombra la promoción y se dice que es el mismo 25 %: el cliente
+  // que vio «25 %» en otro lado no tiene que pensar que son dos rebajas.
+  const nombre = seMuestraComo3x4(ahorro.modo ?? "porcentaje", ahorro.porcentaje)
+    ? `la *promoción 3x4* (paga 3 llantas y lleva 4, que es el mismo *${ahorro.porcentaje} %* de descuento)`
+    : `el *${ahorro.porcentaje} %* de descuento`;
+  const base = `su cotización ya trae ${nombre}, que son ${cuanto}. `
     + "Ya está descontado del total que le envié; no se resta otra vez.";
   const { montos, porcentajes } = cifrasDelCliente(textoDelCliente);
   const otroPorcentaje = porcentajes.some((p) => Math.abs(p - ahorro.porcentaje) >= 1);
