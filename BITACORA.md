@@ -1,3 +1,22 @@
+## 26-oct-2026 · El inbox tardaba 45 s en cargar: primero las 500 candidatas, índices y una consulta en vuelo
+
+**Qué:** `services/hubData.ts` — `listHubTickets` elige primero las 500
+conversaciones más recientes (por fecha del último mensaje) y recién después
+arma las diez subconsultas (cotización, seguimientos, intentos, notas, descuentos,
+ventas ganadas); antes las armaba para TODAS las conversaciones de la base y
+cortaba al final. La lista completa se sirve de una sola consulta en vuelo
+(3 s) aunque la pidan varias pestañas a la vez. `getHubMessages` devuelve los
+últimos 300 mensajes (eran 1.000). Migración 030: índices por conversación en
+`quotes`, `conversation_notes`, `sales_history`, `follow_up_attempts` y
+`conversations(updated_at)`.
+
+**Por qué:** medido en producción el 26-oct 16:24: `GET /api/hub/tickets`
+44–50 s y 700 KB; los mensajes de la conv 3, 8–27 s y 357 KB; con cuatro pestañas
+sondeando cada 15 s hasta `/health` tardaba 2–4 s y el panel decía «Sin conexión
+con el servidor».
+
+**Horas:** 0,6
+
 ## 26-oct-2026 · El modelo espera 45 s y el chat abierto se refresca cada 4 s
 
 **Qué:** `app/src/agent/openaiCliente.ts` (nuevo): un solo cliente de OpenAI para
