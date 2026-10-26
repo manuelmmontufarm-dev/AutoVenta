@@ -31,7 +31,7 @@ import type { AgentContext } from "./agent/tools.js";
 import { classifyStage } from "./agent/classifier.js";
 import { startCatalogSync } from "./services/catalog.js";
 import { startVentasConfirmadasSync } from "./services/ventasConfirmadas.js";
-import { ensureSchema } from "./db/schema.js";
+import { crearIndicesEnSegundoPlano, ensureSchema } from "./db/schema.js";
 import {
   appendMessage,
   getOrCreateConversation,
@@ -979,8 +979,10 @@ setWaHandlers({
 
 // Aplica el esquema al arrancar (idempotente) → deploy sin paso manual de migración.
 await ensureSchema();
-await getHubMetrics();
 console.log("✅ Esquema de base de datos listo");
+// Calentar las métricas ya no frena el arranque (26-oct): con la base cargada
+// esa consulta tardaba y el contenedor no llegaba a contestar /health a tiempo.
+void getHubMetrics().catch((error) => console.warn("⚠️ No se pudieron precalentar las métricas:", error instanceof Error ? error.message : error));
 
 // El canal se resuelve desde DB (settings) con respaldo del entorno. Sin
 // credenciales completas, el webhook queda inactivo y se activa en caliente al
@@ -1009,6 +1011,7 @@ const app = createServer();
 void validarCanaryAlArrancar();
 app.listen(config.port, () => {
   console.log(`🚀 AutoVenta escuchando en :${config.port}`);
+  void crearIndicesEnSegundoPlano();
   void notifyPendingHumanRequests()
     .then((sent) => {
       if (sent) console.log(`📲 ${sent} solicitud(es) humana(s) pendiente(s) notificadas al asesor`);
