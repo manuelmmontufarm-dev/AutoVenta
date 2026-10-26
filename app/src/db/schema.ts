@@ -431,5 +431,18 @@ export async function ensureSchema(): Promise<void> {
   await runDondeEstaElClienteMigration(sql);
   await runNivelesDeAvisoMigration(sql);
   await runParaCerrarMigration(sql);
-  await runIndicesInboxMigration(sql);
+  // 030 NO va acá: crea índices con CONCURRENTLY y corre después de abrir el
+  // puerto (`crearIndicesEnSegundoPlano`), para que un deploy con la base
+  // cargada no se quede sin contestar /health (26-oct, deploy FAILED).
+}
+
+/** Índices que no pueden frenar el arranque. Nunca lanza: si falla, se reintenta en el próximo deploy. */
+export async function crearIndicesEnSegundoPlano(): Promise<void> {
+  const inicio = Date.now();
+  try {
+    await runIndicesInboxMigration(sql);
+    console.log(`✅ Índices del inbox listos (${Math.round((Date.now() - inicio) / 1000)} s)`);
+  } catch (error) {
+    console.warn("⚠️ No se pudieron crear los índices del inbox; se reintenta en el próximo deploy:", error instanceof Error ? error.message : error);
+  }
 }

@@ -1,3 +1,18 @@
+## 26-oct-2026 · El deploy del inbox rápido falló en Depot: índices en segundo plano
+
+**Qué:** la migración 030 sale de `ensureSchema` y corre después de abrir el
+puerto (`crearIndicesEnSegundoPlano`), un índice por vez con `create index
+concurrently`, borrando y rehaciendo uno que haya quedado INVALID. El
+precalentado de `getHubMetrics()` tampoco frena el arranque.
+
+**Por qué:** el deploy de `d5c5819` quedó FAILED en Depot (staging sí pasó):
+`create index` normal espera a que no haya escrituras y la base estaba saturada
+por el proceso viejo, que seguía corriendo la consulta de 45 s y tiraba
+`ECONNRESET`; el contenedor nuevo no contestó `/health` en 100 s. Mientras tanto
+producción siguió con el código viejo y el panel no cargaba.
+
+**Horas:** 0,3
+
 ## 26-oct-2026 · El inbox tardaba 45 s en cargar: primero las 500 candidatas, índices y una consulta en vuelo
 
 **Qué:** `services/hubData.ts` — `listHubTickets` elige primero las 500
