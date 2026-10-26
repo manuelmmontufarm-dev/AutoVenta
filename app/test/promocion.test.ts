@@ -73,9 +73,9 @@ describe("etiquetaDePromocion: los cuatro cuadrantes", () => {
   it("modo 3x4 con 25 % → 3x4, paga 3 lleva 4", () => {
     const e = etiquetaDePromocion("3x4", 25);
     expect(e.clase).toBe("3x4");
-    expect(e.grande).toBe("3x4");
-    expect(e.renglones).toEqual(["PAGA 3", "LLEVA 4"]);
-    expect(e.frase).toBe("promoción 3x4: paga 3 llantas y lleva 4");
+    expect(e.grande).toBe("4x3");
+    expect(e.renglones).toEqual(["4 LLANTAS POR", "EL PRECIO DE 3"]);
+    expect(e.frase).toBe("promoción 4x3: 4 llantas por el precio de 3");
   });
 
   it("modo 3x4 con 18 % → cae a porcentaje: no se rotula 3x4 lo que no es", () => {
@@ -137,26 +137,26 @@ describe("plantilla día y noche", () => {
     expect(opciones([AL_25])).toContain("−25%");
   });
 
-  it("modo 3x4: la insignia dice 3x4 · PAGA 3 LLEVA 4, en la cotización y en las opciones", () => {
+  it("modo 3x4: la insignia dice 4x3 · 4 llantas por el precio de 3, en la cotización y en las opciones", () => {
     const enCotizacion = cotizacion({ ...AL_25, promocion: "3x4" });
-    expect(enCotizacion).toContain("3x4");
-    expect(enCotizacion).toContain("PAGA 3");
-    expect(enCotizacion).toContain("LLEVA 4");
+    expect(enCotizacion).toContain("4x3");
+    expect(enCotizacion).toContain("AL PRECIO DE 3");
+    expect(enCotizacion).toContain("EL PRECIO DE 3");
     expect(enCotizacion).not.toContain("−25%");
     // La plata no cambia con el modo.
     expect(enCotizacion).toContain("$690.20");
     expect(enCotizacion).toContain(cotizacion(AL_25).match(/Ahorra \$[\d.]+/)![0]);
 
     const enOpciones = opciones([{ ...AL_25, promocion: "3x4" }]);
-    expect(enOpciones).toContain("3x4");
-    expect(enOpciones).toContain("PAGA 3");
+    expect(enOpciones).toContain("4x3");
+    expect(enOpciones).toContain("4 LLANTAS POR");
     expect(enOpciones).not.toContain("−25%");
   });
 
   it("modo 3x4 con una llanta al −18 %: sale como porcentaje", () => {
     const t = cotizacion({ ...AL_18, promocion: "3x4" });
     expect(t).toContain("−18%");
-    expect(t).not.toContain("PAGA 3");
+    expect(t).not.toContain("4 LLANTAS POR");
   });
 });
 
@@ -172,13 +172,13 @@ describe("plantilla clásica", () => {
     expect(opciones([AL_25])).toContain("−25%");
   });
 
-  it("modo 3x4: 3x4 · PAGA 3 LLEVA 4 en vez de −25%", () => {
+  it("modo 3x4: 4x3 · 4 llantas por el precio de 3 en vez de −25%", () => {
     const t = cotizacion({ ...AL_25, promocion: "3x4" });
-    expect(t).toContain("3x4");
-    expect(t).toContain("PAGA 3 LLEVA 4");
+    expect(t).toContain("4x3");
+    expect(t).toContain("4 LLANTAS POR EL PRECIO DE 3");
     expect(t).not.toContain("−25%");
     expect(t).toContain("ahorras $57.52 c/u");
-    expect(opciones([{ ...AL_25, promocion: "3x4" }])).toContain("3x4 · PAGA 3 LLEVA 4");
+    expect(opciones([{ ...AL_25, promocion: "3x4" }])).toContain("4x3 · 4 llantas por el precio de 3");
   });
 
   it("modo 3x4 con −18 %: porcentaje", () => {
@@ -193,11 +193,11 @@ describe("texto de respaldo", () => {
   }, "pvp1")!;
   const firmados = { unitarioConIva: 172.55, listaConIva: 230.07, total: 690.2 };
 
-  it("porcentaje: −25% como hoy; 3x4: «3x4 · paga 3 lleva 4»; el total no cambia", () => {
+  it("porcentaje: −25% como hoy; 3x4: «4x3 · 4 llantas por el precio de 3»; el total no cambia", () => {
     const hoy = buildSingleQuoteMessageDetallado({ product: producto, quantity: 4 }, "", undefined, firmados);
     const tres = buildSingleQuoteMessageDetallado({ product: producto, quantity: 4 }, "", undefined, firmados, "3x4");
     expect(hoy).toContain("−25%");
-    expect(tres).toContain("3x4 · paga 3 lleva 4");
+    expect(tres).toContain("4x3 · 4 llantas por el precio de 3");
     expect(tres).not.toContain("−25%");
     expect(tres).toContain("$690.20");
     expect(hoy).toBe(buildSingleQuoteMessageDetallado({ product: producto, quantity: 4 }, "", undefined, firmados, "porcentaje"));
@@ -213,7 +213,7 @@ describe("frase del ahorro, vendedor y Guardián", () => {
   });
 
   it("en 3x4 nombra la promoción y la misma plata", () => {
-    expect(fraseDeAhorro({ ...ahorro, modo: "3x4" })).toBe("*promoción 3x4* (paga 3 llantas y lleva 4), *$230.08* menos");
+    expect(fraseDeAhorro({ ...ahorro, modo: "3x4" })).toBe("*4 llantas por el precio de 3*, *$230.08* menos");
   });
 
   it("en 3x4 con −18 % la frase sigue en porcentaje", () => {
@@ -223,31 +223,31 @@ describe("frase del ahorro, vendedor y Guardián", () => {
 
   it("la respuesta sobre el descuento en 3x4 dice que es la misma rebaja que el 25 %", () => {
     const r = respuestaDelDescuento({ ...ahorro, modo: "3x4" }, "¿tienen el 3x4?");
-    expect(r).toContain("3x4");
+    expect(r).toContain("4 llantas por el precio de 3");
     expect(r).toContain("25 %");
     expect(r).toContain("$230.08");
-    expect(respuestaDelDescuento(ahorro, "cuanto es el descuento")).not.toContain("3x4");
+    expect(respuestaDelDescuento(ahorro, "cuanto es el descuento")).not.toContain("4x3");
   });
 
   it("el vendedor solo recibe la línea en modo 3x4", () => {
     expect(lineaDePromocionVigente("porcentaje")).toBeNull();
     const l = lineaDePromocionVigente("3x4")!;
     expect(l).toContain("PROMOCIÓN VIGENTE");
-    expect(l).toContain("paga 3 llantas y lleva 4");
+    expect(l).toContain("4 llantas por el precio de 3");
     expect(l).toMatch(/25 %.*lo mismo/);
   });
 
   it("el hecho del Guardián nombra el modo y deja confirmar que 3x4 y 25 % son lo mismo", () => {
     const porcentaje = hechoDelAhorro(ahorro, "porcentaje");
     expect(porcentaje).toContain("Ahorro de esa cotización: 25 % menos que el precio de lista");
-    expect(porcentaje).not.toContain("3x4");
+    expect(porcentaje).not.toContain("4x3");
     const tres = hechoDelAhorro(ahorro, "3x4");
-    expect(tres).toContain("promoción 3x4");
+    expect(tres).toContain("promoción 4x3");
     expect(tres).toContain("$230.08");
     expect(tres).toContain("NO es error");
     // −18 % no se presenta como 3x4 ni siquiera ante el Guardián.
     const otro = ahorroDeLaCotizacion([{ quantity: 4, listPriceWithTax: 230.07, salePriceWithTax: 188.66 }])!;
-    expect(hechoDelAhorro(otro, "3x4")).not.toContain("promoción 3x4");
+    expect(hechoDelAhorro(otro, "3x4")).not.toContain("promoción 4x3");
   });
 });
 
@@ -270,22 +270,22 @@ describe("revisión de la 3x4 (26-oct): cantidad, 24/26 %, «3x4» no es cifra",
   it("la frase y la respuesta del ahorro usan la cantidad de la cotización", () => {
     const dos = ahorroDeLaCotizacion([{ quantity: 2, listPriceWithTax: 230.07, salePriceWithTax: 172.55 }])!;
     expect(fraseDeAhorro({ ...dos, modo: "3x4" })).toContain("*25 %*");
-    expect(fraseDeAhorro({ ...dos, modo: "3x4" })).not.toContain("3x4");
-    expect(respuestaDelDescuento({ ...dos, modo: "3x4" }, "cuanto es el descuento")).not.toContain("3x4");
-    expect(hechoDelAhorro(dos, "3x4")).not.toContain("promoción 3x4");
-    expect(fraseDeAhorro({ ...ahorro, modo: "3x4" })).toContain("3x4");
+    expect(fraseDeAhorro({ ...dos, modo: "3x4" })).not.toContain("4x3");
+    expect(respuestaDelDescuento({ ...dos, modo: "3x4" }, "cuanto es el descuento")).not.toContain("4x3");
+    expect(hechoDelAhorro(dos, "3x4")).not.toContain("promoción 4x3");
+    expect(fraseDeAhorro({ ...ahorro, modo: "3x4" })).toContain("4 llantas por el precio de 3");
   });
 
   it("la pieza de cotización con 2 llantas sale en porcentaje (las dos plantillas)", () => {
     const dos = { ...AL_25, quantity: 2, promocion: "3x4" as const };
     const diaNoche = textoDe(quotePosterDiaNoche({ number: "COT-1", dateLabel: "26/10/2026", line: dos, total: 345.1 }, "noche"));
     expect(diaNoche).toContain("−25%");
-    expect(diaNoche).not.toContain("PAGA 3");
+    expect(diaNoche).not.toContain("4 LLANTAS POR");
     const clasica = textoDe(quotePoster({ number: "COT-1", dateLabel: "26/10/2026", line: dos, subtotal: 300, iva: 45.1, total: 345.1 }, resolveTheme("depot", "exo")));
     expect(clasica).toContain("−25%");
-    expect(clasica).not.toContain("PAGA 3");
+    expect(clasica).not.toContain("4 LLANTAS POR");
     const ocho = textoDe(quotePosterDiaNoche({ number: "COT-1", dateLabel: "26/10/2026", line: { ...dos, quantity: 8 }, total: 1380.4 }, "noche"));
-    expect(ocho).toContain("PAGA 3");
+    expect(ocho).toContain("AL PRECIO DE 3");
   });
 
   it("el texto de respaldo con 2 llantas dice −25%, no «paga 3 lleva 4»", () => {
@@ -317,7 +317,7 @@ describe("revisión de la 3x4 (26-oct): cantidad, 24/26 %, «3x4» no es cifra",
     const r = respuestaDelDescuento({ ...ahorro, modo: "3x4" }, "¿la promo 3x4 ya está aplicada?");
     expect(r).not.toMatch(/^Le aclaro/);
     expect(r).toMatch(/^Así es: /);
-    expect(r).toContain("promoción 3x4");
+    expect(r).toContain("4 llantas por el precio de 3");
     // En modo porcentaje no se confirma un 3x4 que no existe: se aclara.
     expect(respuestaDelDescuento(ahorro, "¿la promo 3x4 ya está aplicada?")).toMatch(/^Le aclaro: /);
   });

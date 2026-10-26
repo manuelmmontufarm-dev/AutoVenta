@@ -82,7 +82,7 @@ export function fraseDeAhorro(
   // En 3x4 la misma plata con el nombre que trae la pieza (26-oct, feriado).
   // Con 2 llantas no: «paga 3 lleva 4» prometería una cuarta que no está.
   if (seMuestraComo3x4(ahorro.modo ?? "porcentaje", ahorro.porcentaje, ahorro.cantidad)) {
-    return `*promoción 3x4* (paga 3 llantas y lleva 4), *$${ahorro.monto.toFixed(2)}* menos`;
+    return `*4 llantas por el precio de 3*, *$${ahorro.monto.toFixed(2)}* menos`;
   }
   return `*${ahorro.porcentaje} %* de descuento ya aplicado, *$${ahorro.monto.toFixed(2)}* menos`;
 }
@@ -151,7 +151,7 @@ export function respuestaDelDescuento(ahorro: AhorroDeLaCotizacion, textoDelClie
   // mismo 24 %» se contradice solo (el candado ya garantiza 24–26).
   const tres = seMuestraComo3x4(ahorro.modo ?? "porcentaje", ahorro.porcentaje, ahorro.cantidad);
   const nombre = tres
-    ? "la *promoción 3x4* (paga 3 llantas y lleva 4, que equivale al *25 %* de descuento)"
+    ? "la promoción de *4 llantas por el precio de 3* (que equivale al *25 %* de descuento)"
     : `el *${ahorro.porcentaje} %* de descuento`;
   const base = `su cotización ya trae ${nombre}, que son ${cuanto}. `
     + "Ya está descontado del total que le envié; no se resta otra vez.";

@@ -515,7 +515,7 @@ export function buildComparisonMessageDetallado(
   const lines = products.flatMap((product) => [
     `🔹 ${product.brand} ${product.design} — ${product.sizeLabel ?? product.name}`,
     `   💰 ${money(product.minimumPriceWithTax)} (antes ${money(product.customerPriceWithTax)}, ${
-      etiquetaDePromocion(modoPromocion, discount(product)).clase === "3x4" ? "3x4 · paga 3 lleva 4" : `−${discount(product)}%`
+      etiquetaDePromocion(modoPromocion, discount(product)).clase === "3x4" ? "4x3 · 4 llantas por el precio de 3" : `−${discount(product)}%`
     })`,
     ...(specLine(product) ? [`   📦 ${specLine(product)}`] : []),
     `   ⭐ ${warrantyForBrand(product.brand).factory}`,
@@ -624,7 +624,7 @@ export function buildSingleQuoteMessageDetallado(
   const rebaja = firmados ? porcentaje(lista, hoy) : discount(product);
   // Con la cantidad: 2 llantas «paga 3 lleva 4» no tiene sentido (26-oct).
   const promocion = etiquetaDePromocion(modoPromocion, rebaja, quantity);
-  const sello = promocion.clase === "3x4" ? "3x4 · paga 3 lleva 4" : `−${rebaja}%`;
+  const sello = promocion.clase === "3x4" ? "4x3 · 4 llantas por el precio de 3" : `−${rebaja}%`;
   const total = offerDiscount?.finalTotal ?? firmados?.total ?? product.minimumPriceWithTax * quantity;
   return [
     `📄 Cotización — ${dateLabel()}`,

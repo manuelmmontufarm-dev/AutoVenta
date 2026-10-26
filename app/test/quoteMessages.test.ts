@@ -443,7 +443,7 @@ describe("comparativa de respaldo y la promoción 3x4", () => {
   // con «−25%». Dos rótulos para la misma llanta en el mismo turno.
   it("con 3x4 vigente nombra la promoción igual que la cotización", () => {
     const t = qm.buildComparisonMessageDetallado([producto()], "3x4");
-    expect(t).toContain("3x4 · paga 3 lleva 4");
+    expect(t).toContain("4x3 · 4 llantas por el precio de 3");
     expect(t).not.toContain("−25%");
   });
 

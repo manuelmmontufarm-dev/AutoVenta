@@ -246,3 +246,30 @@ describe("de punta a punta con el motor de imágenes", () => {
     expect(quote.byteLength / 1_048_576).toBeLessThan(4.5);
   }, 30_000);
 });
+
+/**
+ * Producción, 26-oct 16:26: con las tres opciones al −25 % y el modo en 4x3, la
+ * insignia grande de la lámina de opciones seguía diciendo «−25% DESCUENTO
+ * HOY» mientras cada tarjeta decía «4x3». `lines.every(es3x4)` le pasaba a
+ * es3x4 el índice de la tarjeta como cantidad (0, 1, 2) y la 2.ª y la 3.ª «no
+ * eran múltiplo de 4».
+ */
+describe("insignia de la lámina de opciones con la promoción 4x3", () => {
+  it("con las tres opciones al 25 %, la insignia grande dice 4x3, no −25%", async () => {
+    const { optionsPosterDiaNoche } = await import("../src/render/diaNoche.js");
+    const linea = (marca: string, unit: number) => ({
+      brand: marca, design: "X", sizeLabel: "195/55R15", loadSpeedLabel: null, loadSpeedTranslation: null,
+      quantity: 4, unitConIva: unit, pvpConIva: Math.round((unit / 0.75) * 100) / 100,
+      availability: "disponible", golpesMeses: 6, fabricaAnios: 5, photoUri: "data:image/png;base64,iVBORw0KGgo=", tag: null,
+      posicionamiento: null, promocion: "3x4" as const,
+    });
+    const nodo = optionsPosterDiaNoche(
+      { dateLabel: "26/10/2026", sizeLabel: "R15", lines: [linea("FALKEN", 116.08), linea("KENDA", 76.28), linea("WINRUN", 58.25)], benefits: [], cantidad: 4 } as never,
+      "dia",
+    );
+    const texto = JSON.stringify(nodo);
+    expect(texto).toContain("4 LLANTAS POR");
+    expect(texto).toContain("EL PRECIO DE 3");
+    expect(texto).not.toContain("DESCUENTO");
+  });
+});

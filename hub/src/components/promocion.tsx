@@ -16,12 +16,12 @@ import { Panel, BlockTitle } from "./ui";
 
 const MODO_LABEL: Record<string, string> = {
   porcentaje: "25 % de descuento",
-  "3x4": "3x4 · paga 3 lleva 4",
+  "3x4": "4 llantas por el precio de 3",
 };
 
 const MODO_NOTA: Record<string, string> = {
   porcentaje: "La insignia dice «−25% DESCUENTO HOY», como siempre.",
-  "3x4": "La misma rebaja, dicha como «paga 3 llantas y lleva 4».",
+  "3x4": "La misma rebaja del 25 %, dicha como «4 llantas por el precio de 3» (insignia 4x3).",
 };
 
 interface InfoPromocion {
