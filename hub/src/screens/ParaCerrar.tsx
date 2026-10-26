@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { IconX } from "../components/icons";
 import { EmptyState, MedidaChip, Modal, PageHeader, Segmented, SkeletonRows } from "../components/ui";
 import { useParaCerrar } from "../data/paraCerrar";
-import type { AccionParaCerrar, ClienteArchivado, ClienteEmpujando, ClienteParaCerrar, Temperatura } from "../data/types";
+import type { AccionParaCerrar, ClienteArchivado, ClienteEmpujando, ClienteParaCerrar, CurvaLlegada, Temperatura } from "../data/types";
 import { money, relTime } from "../lib/format";
 import { navigate } from "../router";
 import { useHub, useNow } from "../store";
@@ -194,7 +194,7 @@ export function ParaCerrar() {
    «+3 más». El panel de la derecha es el desglose de lo que se toque: un día,
    los que no vinieron en el mes que se mira, o los que no dijeron día. */
 
-type Lado = { tipo: "dia"; dia: string } | { tipo: "novinieron" } | { tipo: "sindia" };
+type Lado = { tipo: "dia"; dia: string } | { tipo: "novinieron" } | { tipo: "sindia" } | { tipo: "estadistica" };
 type Cita = { tipo: "cerrar"; c: ClienteParaCerrar; dia: string } | { tipo: "empujando"; c: ClienteEmpujando; dia: string };
 
 const MESES = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
@@ -270,6 +270,14 @@ function VistaCerrar({ lista, empujando, tope, contactados, pospuestos, compraro
             <>
               <Atajo activo={lado.tipo === "novinieron"} tono="signal" n={noVinieron.length} onClick={() => setLado({ tipo: "novinieron" })}>No vinieron en {MESES[mes.m]}</Atajo>
               <Atajo activo={lado.tipo === "sindia"} tono="warn" n={sinDia.length} onClick={() => setLado({ tipo: "sindia" })}>Sin día</Atajo>
+              <button
+                type="button"
+                onClick={() => setLado({ tipo: "estadistica" })}
+                aria-pressed={lado.tipo === "estadistica"}
+                className={`h-8 rounded-[6px] px-2.5 text-[13px] underline-offset-2 ${lado.tipo === "estadistica" ? "font-semibold text-text underline" : "text-text2 hover:text-text hover:underline"}`}
+              >
+                ¿Cómo se calcula el color?
+              </button>
             </>
           }
         />
@@ -278,6 +286,7 @@ function VistaCerrar({ lista, empujando, tope, contactados, pospuestos, compraro
           {lado.tipo === "dia" && <LadoDia dia={lado.dia} hoy={hoy} citas={porDia.get(lado.dia) ?? []} now={now} {...acciones} />}
           {lado.tipo === "novinieron" && <LadoNoVinieron mes={MESES[mes.m]} citas={noVinieron} hoy={hoy} now={now} {...acciones} />}
           {lado.tipo === "sindia" && <LadoSinDia lista={sinDia} quedan={quedan} hoy={hoy} now={now} {...acciones} />}
+          {lado.tipo === "estadistica" && <LadoEstadistica now={now} />}
         </aside>
       </div>
 
@@ -352,9 +361,8 @@ function Calendario({ y, m, hoy, porDia, seleccionado, onDia, onMes, onHoy, ataj
         <span className="ml-auto hidden items-center gap-3.5 text-[12px] text-text2 lg:flex">
           <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-ok" />viene</span>
           <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-warn" />escribir hoy</span>
-          <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-text3/60" />ya no viene</span>
+          <span className="flex items-center gap-1.5 text-text3 line-through decoration-text3"><span className="h-2 w-2 rounded-full bg-text3/60" />ya no viene</span>
           <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full border-[1.5px] border-text3" />ya le escribieron</span>
-          <span className="text-text2 line-through decoration-signal decoration-[1.5px]">no vino</span>
         </span>
       </div>
       <div className="grid grid-cols-7 border-b border-line">
@@ -368,7 +376,6 @@ function Calendario({ y, m, hoy, porDia, seleccionado, onDia, onMes, onHoy, ataj
           const citas = porDia.get(k) ?? [];
           const fuera = d.getMonth() !== m;
           const esHoy = k === hoy;
-          const paso = k < hoy;
           const sel = k === seleccionado;
           return (
             <button
@@ -385,7 +392,7 @@ function Calendario({ y, m, hoy, porDia, seleccionado, onDia, onMes, onHoy, ataj
               </span>
               {/* Escritorio: todos los nombres. Teléfono: un punto por cliente. */}
               <span className="hidden flex-col gap-px md:flex">
-                {citas.map((cita) => <Renglon key={`${cita.tipo}-${cita.c.ticketId}`} cita={cita} paso={paso} tenue={fuera} />)}
+                {citas.map((cita) => <Renglon key={`${cita.tipo}-${cita.c.ticketId}`} cita={cita} tenue={fuera} />)}
               </span>
               <span className="flex flex-wrap justify-center gap-0.5 md:hidden">
                 {citas.map((cita) => <Punto key={`${cita.tipo}-${cita.c.ticketId}`} cita={cita} />)}
@@ -411,11 +418,13 @@ function Punto({ cita, grande = false }: { cita: Cita; grande?: boolean }) {
     : <span className={`${tam} shrink-0 rounded-full ${LLENO[t]}`} />;
 }
 
-function Renglon({ cita, paso, tenue }: { cita: Cita; paso: boolean; tenue: boolean }) {
+function Renglon({ cita, tenue }: { cita: Cita; tenue: boolean }) {
   return (
     <span className={`grid grid-cols-[8px_minmax(0,1fr)] items-center gap-x-1.5 rounded-[4px] px-1 py-[2px] ${tenue ? "opacity-60" : ""}`}>
       <Punto cita={cita} />
-      <span className={`min-w-0 text-[12px] leading-[1.25] font-medium break-words ${cita.c.temperatura === "fria" ? "text-text3" : cita.tipo === "empujando" || paso ? "text-text2" : ""} ${paso ? "line-through decoration-signal decoration-[1.5px]" : ""}`}>
+      {/* Tachado solo si ya no viene (gris): mientras los datos digan que todavía
+          puede llegar, se ve con su color aunque su día ya haya pasado. */}
+      <span className={`min-w-0 text-[12px] leading-[1.25] font-medium break-words ${cita.c.temperatura === "fria" ? "text-text3 line-through decoration-text3 decoration-[1.5px]" : cita.tipo === "empujando" ? "text-text2" : ""}`}>
         {cita.c.nombre ?? "Sin nombre"}
       </span>
       {cita.c.visitaHora && <span className="col-start-2 truncate font-mono text-[10.5px] text-text2">{cita.c.visitaHora}</span>}
@@ -430,13 +439,13 @@ type Acciones = {
   onPosponer: (c: ClienteParaCerrar) => void; onSacar: (c: ClienteEmpujando) => void;
 };
 
-function CabezaLado({ titulo, n, tono = "signal", detalle }: { titulo: string; n: number; tono?: "signal" | "warn" | "text"; detalle: string }) {
+function CabezaLado({ titulo, n, tono = "signal", detalle }: { titulo: string; n?: number; tono?: "signal" | "warn" | "text"; detalle: string }) {
   const color = tono === "signal" ? "text-signal" : tono === "warn" ? "text-warn" : "text-text";
   return (
     <div className="px-5 pt-5 pb-3">
       <div className="flex items-baseline justify-between gap-3">
         <h3 className="text-[17px] font-semibold tracking-[-0.01em] first-letter:uppercase">{titulo}</h3>
-        <span className={`tnum font-mono text-[26px] font-medium ${color}`}>{n}</span>
+        {n !== undefined && <span className={`tnum font-mono text-[26px] font-medium ${color}`}>{n}</span>}
       </div>
       <p className="mt-1 text-[13px] text-text2">{detalle}</p>
     </div>
@@ -537,7 +546,7 @@ function TarjetaCita({ cita, hoy, now, onVendido, onPerdido, onPosponer, onSacar
         <span>{c.local}</span>
       </div>
       <div className="flex flex-wrap gap-1.5">
-        <EtiquetaTemperatura t={t} conDia={Boolean(dia)} />
+        <EtiquetaTemperatura c={c} />
         {cita.tipo === "empujando" ? (
           <Etiqueta>Le escribieron {relTime(cita.c.ultimoAsesor, now)}</Etiqueta>
         ) : (
@@ -568,19 +577,98 @@ function TarjetaCita({ cita, hoy, now, onVendido, onPerdido, onPosponer, onSacar
   );
 }
 
-/** Por qué está de ese color, con el dato que lo respalda (medido el 26-oct). */
-function EtiquetaTemperatura({ t, conDia }: { t: Temperatura; conDia: boolean }) {
-  if (t === "ultima") {
-    return <Etiqueta tono="warn" titulo={conDia ? "De 84 que no llegaron su día, 1 llegó al día siguiente." : "Con 1 a 4 días callados, 2 de 204 compraron después."}>
-      {conDia ? "Su día fue ayer · escribir hoy" : "Se está enfriando · escribir hoy"}
-    </Etiqueta>;
+const pct = (p: number) => (p < 0.01 ? "<1 %" : `${Math.round(p * 100)} %`);
+const enDias = (n: number) => (n === 1 ? "1 día" : `${n} días`);
+
+/**
+ * Por qué está de ese color, con el número de la curva de llegada que lo
+ * respalda (se recalcula con cada factura; ver «¿Cómo se calcula el color?»).
+ */
+function EtiquetaTemperatura({ c }: { c: ClienteParaCerrar | ClienteEmpujando }) {
+  const est = useParaCerrar((s) => s.datos?.estadistica);
+  const curva = est?.[c.reloj];
+  const punto = curva?.curva[Math.min(c.dias, curva.curva.length - 1)];
+  if (c.temperatura === "ultima") {
+    // Sin ventas suficientes la curva no dice nada: no se inventa un porcentaje.
+    const conDato = Boolean(curva?.suficiente);
+    const chance = conDato ? `${pct(c.probabilidad)} todavía ${c.reloj === "fecha" ? "llega" : "compra"}` : "escribir hoy";
+    const titulo = conDato && punto ? `De ${punto.quedaban} que llegaron a ${enDias(c.dias)} ${c.reloj === "fecha" ? "de su fecha sin venir" : "callados"}, ${punto.compraron} compraron después.` : undefined;
+    return (
+      <Etiqueta tono="warn" titulo={titulo}>
+        {c.reloj === "fecha"
+          ? `Su día fue ${c.dias === 1 ? "ayer" : `hace ${enDias(c.dias)}`} · ${chance}`
+          : `Callado ${enDias(c.dias)} · ${chance}`}
+      </Etiqueta>
+    );
   }
-  if (t === "fria") {
-    return <Etiqueta tono="fria" titulo={conDia ? "Pasados 2 días de su fecha, 0 de 81 llegaron." : "Con 5 o más días callados, 0 de 177 compraron."}>
-      {conDia ? "Ya no viene · pasaron 2+ días de su fecha" : "Ya no viene · 5+ días callado"}
-    </Etiqueta>;
+  if (c.temperatura === "fria") {
+    const titulo = curva
+      ? curva.suficiente
+        ? `El que más tarde llegó lo hizo ${enDias(curva.corteMedido - 1)} después; con 1 día de margen, desde el día ${curva.corte} ya no viene.`
+        : `Todavía hay pocas ventas (${curva.compradores}): se usa el corte por defecto de ${enDias(curva.corte)}.`
+      : undefined;
+    return <Etiqueta tono="fria" titulo={titulo}>Ya no viene · nadie llegó tan tarde</Etiqueta>;
   }
   return null;
+}
+
+/* ── «¿Cómo se calcula el color?»: las dos curvas, con sus números ── */
+
+function LadoEstadistica({ now }: { now: number }) {
+  const est = useParaCerrar((s) => s.datos?.estadistica);
+  if (!est) return null;
+  return (
+    <>
+      <CabezaLado
+        titulo="Cómo se calcula el color"
+        detalle={`Sale de las ventas reales: cada factura de Contífico se cruza con el chat por el teléfono. Se recalcula solo${est.ultimaFactura ? `; última bajada de facturas ${relTime(est.ultimaFactura, now)}` : ""}.`}
+      />
+      <div className="flex flex-col gap-6 px-5 pb-6">
+        <BloqueCurva titulo="Los que dijeron un día" desde="su fecha" curva={est.fecha} />
+        <BloqueCurva titulo="Los que no dieron día" desde="su último mensaje" curva={est.silencio} />
+        <p className="text-[12px] leading-relaxed text-text2">
+          La probabilidad es de los que llegaron a esos días sin comprar, cuántos compraron después (suavizada: 0 de 80 se lee como &lt;1 %, no como imposible). «Ya no viene» empieza el día siguiente al último en que alguien llegó, más 1 día de margen. Si mañana entra una venta más tardía, el corte se corre solo.
+        </p>
+      </div>
+    </>
+  );
+}
+
+function BloqueCurva({ titulo, desde, curva }: { titulo: string; desde: string; curva: CurvaLlegada }) {
+  const tarde = Object.entries(curva.despuesPorDia).sort(([a], [b]) => Number(a) - Number(b)).map(([d, n]) => `${n} a ${enDias(Number(d))}`).join(", ");
+  const tope = Math.max(...curva.curva.map((p) => p.probabilidad), 0.0001);
+  return (
+    <section className="flex flex-col gap-2.5">
+      <h4 className="text-[14px] font-semibold">{titulo}</h4>
+      <p className="text-[13px] text-text2">
+        <span className="tnum font-mono text-text">{curva.n}</span> clientes · <span className="tnum font-mono text-text">{curva.compradores}</span> compraron:{" "}
+        {curva.antes} antes, {curva.mismoDia} el mismo día, {curva.despues} después{tarde ? ` (${tarde})` : ""}.
+      </p>
+      {/* P(todavía compra) según los días desde {desde}; el color es el que toma el cliente ese día. */}
+      {!curva.suficiente ? (
+        <p className="rounded-[6px] bg-bg px-3 py-2.5 text-[12px] text-text2">Todavía no hay ventas suficientes para dibujar la curva ({curva.compradores} de 5). Mientras tanto se usa el corte por defecto: día {curva.corte}.</p>
+      ) : (
+      <div className="flex h-[92px] items-end gap-1" role="img" aria-label={`Probabilidad de compra por día desde ${desde}`}>
+        {curva.curva.map((p) => {
+          const t: Temperatura = p.k === 0 ? "caliente" : p.k < curva.corte ? "ultima" : "fria";
+          return (
+            <div key={p.k} className="flex min-w-0 flex-1 flex-col items-center gap-1" title={`Día ${p.k}: ${p.compraron} de ${p.quedaban} compraron (${pct(p.probabilidad)})`}>
+              <span className="tnum font-mono text-[9.5px] text-text2">{pct(p.probabilidad).replace(" ", "")}</span>
+              <div className={`w-full rounded-t-[3px] ${LLENO[t]}`} style={{ height: `${Math.max(2, (p.probabilidad / tope) * 56)}px` }} />
+              <span className={`tnum font-mono text-[10px] ${p.k === curva.corte ? "font-bold text-text" : "text-text3"}`}>{p.k}</span>
+            </div>
+          );
+        })}
+      </div>
+      )}
+      <p className="text-[12px] text-text2">
+        Días desde {desde}.{" "}
+        {curva.suficiente
+          ? <>El más tardío llegó al día {curva.corteMedido - 1}; con 1 día de margen, desde el día <b className="text-text">{curva.corte}</b> se marca «ya no viene».</>
+          : <>Todavía hay pocas ventas ({curva.compradores} de 5): se usa el corte por defecto, día <b className="text-text">{curva.corte}</b>.</>}
+      </p>
+    </section>
+  );
 }
 
 function Etiqueta({ tono, titulo, children }: { tono?: "ok" | "warn" | "signal" | "fria"; titulo?: string; children: React.ReactNode }) {

@@ -4,10 +4,14 @@
  * sacar del archivo).
  */
 import { sql } from "../db/client.js";
-import { clasificar, type FilaParaCerrar, type ParaCerrar } from "../domain/paraCerrar.js";
+import {
+  clasificar, DIAS_CALLADO_FRIO, DIAS_FECHA_FRIA, ESTADISTICA_POR_DEFECTO,
+  type Estadistica, type FilaParaCerrar, type ParaCerrar,
+} from "../domain/paraCerrar.js";
 import { diaDeGuayaquil } from "../domain/estadisticaVentas.js";
+import { medirCurva, type Observacion } from "../domain/llegada.js";
 import { LOCAL_ELEGIDO } from "./conversations.js";
-import { cruceVigente } from "./ventasConfirmadas.js";
+import { cruceVigente, ultimaSyncFacturas } from "./ventasConfirmadas.js";
 
 /** Más atrás que esto el archivo ya no sirve para nada y la consulta crece sin límite. */
 const ARCHIVO_DIAS = 90;
@@ -22,6 +26,60 @@ interface FilaSql {
   ultimo_asesor: Date | null; asesor_antes_del_cliente: boolean;
   cerrar_descartado_at: Date | null; cerrar_pospuesto_hasta: Date | null;
   cerrar_pospuesto_en: Date | null; cerrar_revivido_at: Date | null;
+}
+
+/* ── La curva de llegada, medida con las ventas reales ──────────────────────
+   Se rehace cuando baja una tanda nueva de facturas o cada 30 min (los días
+   que pasan también cambian la curva: alguien más llegó a «3 días sin venir»). */
+
+const REHACER_MS = 30 * 60_000;
+let estadisticaGuardada: { at: number; sync: number | null; est: Estadistica } | null = null;
+
+export async function estadisticaDeLlegada(ahora = new Date()): Promise<Estadistica> {
+  const sync = ultimaSyncFacturas()?.getTime() ?? null;
+  // Sin facturas bajadas todavía (recién arrancó) no hay nada que medir.
+  if (sync === null) return ESTADISTICA_POR_DEFECTO;
+  if (estadisticaGuardada && estadisticaGuardada.sync === sync && ahora.getTime() - estadisticaGuardada.at < REHACER_MS) {
+    return estadisticaGuardada.est;
+  }
+  const { ventas } = await cruceVigente();
+  const compra = new Map<number, string>();
+  for (const v of ventas) if (!compra.has(v.ticketId) || v.dia < compra.get(v.ticketId)!) compra.set(v.ticketId, v.dia);
+  const hoy = diaDeGuayaquil(ahora);
+
+  // Reloj «fecha»: todos los que alguna vez dijeron un día (abiertos o cerrados).
+  const conFecha = await sql<{ id: string; visit_date: Date }[]>`
+    select id, visit_date from conversations where visit_date is not null
+  `;
+  const fecha: Observacion[] = conFecha.map((c) => ({ inicio: diaDeGuayaquil(c.visit_date), compra: compra.get(Number(c.id)) ?? null }));
+
+  // Reloj «silencio»: los que eligieron local, desde su último mensaje antes de comprar.
+  const conLocal = await sql<{ id: string; mensajes: Date[] | null }[]>`
+    select c.id, (
+      select array_agg(m.created_at order by m.created_at) from messages m
+      where m.conversation_id = c.id and m.role = 'user'
+    ) as mensajes
+    from conversations c
+    where c.location_label like ${LOCAL_ELEGIDO + "%"}
+      and exists (select 1 from quotes q where q.conversation_id = c.id)
+  `;
+  const silencio: Observacion[] = [];
+  for (const c of conLocal) {
+    const dias = (c.mensajes ?? []).map(diaDeGuayaquil);
+    const diaCompra = compra.get(Number(c.id)) ?? null;
+    const previos = diaCompra ? dias.filter((d) => d <= diaCompra) : dias;
+    const inicio = previos[previos.length - 1];
+    if (inicio) silencio.push({ inicio, compra: diaCompra });
+  }
+
+  const est: Estadistica = {
+    fecha: medirCurva(fecha, hoy, DIAS_FECHA_FRIA),
+    silencio: medirCurva(silencio, hoy, DIAS_CALLADO_FRIO),
+    calculada: ahora.toISOString(),
+    ultimaFactura: new Date(sync).toISOString(),
+  };
+  estadisticaGuardada = { at: ahora.getTime(), sync, est };
+  return est;
 }
 
 export async function leerParaCerrar(ahora = new Date()): Promise<ParaCerrar> {
@@ -58,6 +116,7 @@ export async function leerParaCerrar(ahora = new Date()): Promise<ParaCerrar> {
   const { ventas } = await cruceVigente();
   const diaDeCompra = new Map(ventas.map((v) => [v.ticketId, v.dia]));
 
+  const est = await estadisticaDeLlegada(ahora);
   const resultado = clasificar(filas.map((f): FilaParaCerrar => {
     const compra = diaDeCompra.get(Number(f.id));
     return {
@@ -82,7 +141,7 @@ export async function leerParaCerrar(ahora = new Date()): Promise<ParaCerrar> {
       revividoAt: f.cerrar_revivido_at,
       compro: Boolean(compra && compra >= diaDeGuayaquil(f.cotizado_at)),
     };
-  }), ahora);
+  }), ahora, est);
   resultado.archivo = resultado.archivo.slice(0, ARCHIVO_MAX);
   return resultado;
 }

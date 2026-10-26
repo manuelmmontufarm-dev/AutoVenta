@@ -19,6 +19,7 @@
  * `messages.author_kind` y la compra del cruce con Contífico.
  */
 import { diaDeGuayaquil, diasEntre } from "./estadisticaVentas.js";
+import { medirCurva, probabilidadEn, type Curva } from "./llegada.js";
 
 export const TOPE_DIARIO = 10;
 export const DIAS_PARA_ARCHIVAR = 14;
@@ -30,30 +31,57 @@ const VENTANA_MS = 24 * HORA_MS;
 /**
  * TEMPERATURA: qué tan probable es que todavía compre (Manuel, 26-oct).
  *
- * Medido en producción el 26-oct cruzando facturas de Contífico con los chats
- * (28 ventas; 16 de clientes cotizados — muestra chica, es un patrón):
- *  · De 99 que dijeron un día, compraron 9: 8 ese mismo día y 1 al siguiente.
- *    Pasados 2 días de la fecha, 0 de 81 llegaron.
- *  · De 215 que eligieron local, casi todos compraron el día de su último
- *    mensaje; con 1–4 días callados, 2 de 204; con 5 o más, 0 de 177.
+ * Sale de la curva de llegada medida con las ventas reales (`domain/llegada.ts`),
+ * que se recalcula sola con cada factura nueva de Contífico:
+ *  · reloj «fecha» si el cliente dijo un día; si no, reloj «silencio» desde su
+ *    último mensaje.
+ *  · caliente = su día es hoy o después / escribió hoy.
+ *  · ultima   = ya pasó su día (o calló), pero la curva dice que todavía llegan.
+ *  · fria     = desde el corte de la curva (+1 día de margen): ya no viene.
  *
- * caliente = la fecha es hoy o después, o escribió hace menos de 24 h.
- * ultima   = la fecha fue ayer, o lleva 1 a 4 días callado: escribir hoy.
- * fria     = 2+ días desde la fecha, o 5+ días callado: ya no viene.
+ * Cortes por defecto mientras haya menos de 5 ventas en un reloj: 2 días desde
+ * la fecha, 5 días callado (medidos a mano el 26-oct: 0 de 81 y 0 de 177).
  */
 export type Temperatura = "caliente" | "ultima" | "fria";
+export type Reloj = "fecha" | "silencio";
 export const DIAS_FECHA_FRIA = 2;
 export const DIAS_CALLADO_FRIO = 5;
 
-export function temperatura(f: Pick<FilaParaCerrar, "visita" | "ultimoCliente">, ahora: Date): Temperatura {
-  if (f.visita) {
-    const pasaron = diasEntre(diaDeGuayaquil(f.visita), diaDeGuayaquil(ahora));
-    return pasaron <= 0 ? "caliente" : pasaron < DIAS_FECHA_FRIA ? "ultima" : "fria";
-  }
-  if (!f.ultimoCliente) return "fria";
-  const horas = (ahora.getTime() - f.ultimoCliente.getTime()) / HORA_MS;
-  return horas < 24 ? "caliente" : horas < DIAS_CALLADO_FRIO * 24 ? "ultima" : "fria";
+export interface Estadistica {
+  fecha: Curva;
+  silencio: Curva;
+  /** Cuándo se calculó (ISO). */
+  calculada: string;
+  /** Última bajada de facturas de Contífico (ISO), o null si todavía no hay. */
+  ultimaFactura: string | null;
 }
+
+export const ESTADISTICA_POR_DEFECTO: Estadistica = {
+  fecha: medirCurva([], "2026-01-01", DIAS_FECHA_FRIA),
+  silencio: medirCurva([], "2026-01-01", DIAS_CALLADO_FRIO),
+  calculada: new Date(0).toISOString(),
+  ultimaFactura: null,
+};
+
+export interface Lectura { temperatura: Temperatura; reloj: Reloj; dias: number; probabilidad: number }
+
+export function leerTemperatura(
+  f: Pick<FilaParaCerrar, "visita" | "ultimoCliente">, ahora: Date, est: Estadistica = ESTADISTICA_POR_DEFECTO,
+): Lectura {
+  const hoy = diaDeGuayaquil(ahora);
+  if (f.visita) {
+    const dias = diasEntre(diaDeGuayaquil(f.visita), hoy);
+    const t = dias <= 0 ? "caliente" : dias < est.fecha.corte ? "ultima" : "fria";
+    return { temperatura: t, reloj: "fecha", dias, probabilidad: probabilidadEn(est.fecha, dias) };
+  }
+  if (!f.ultimoCliente) return { temperatura: "fria", reloj: "silencio", dias: 999, probabilidad: 0 };
+  const dias = diasEntre(diaDeGuayaquil(f.ultimoCliente), hoy);
+  const t = dias <= 0 ? "caliente" : dias < est.silencio.corte ? "ultima" : "fria";
+  return { temperatura: t, reloj: "silencio", dias, probabilidad: probabilidadEn(est.silencio, dias) };
+}
+
+export const temperatura = (f: Pick<FilaParaCerrar, "visita" | "ultimoCliente">, ahora: Date, est?: Estadistica) =>
+  leerTemperatura(f, ahora, est).temperatura;
 
 /** Una conversación que ya aceptó precio y local, como la lee la consulta. */
 export interface FilaParaCerrar {
@@ -97,6 +125,10 @@ export interface ClienteParaCerrar {
   /** false = pasaron 24 h desde su último mensaje: solo plantilla. */
   ventanaAbierta: boolean;
   temperatura: Temperatura;
+  /** Qué reloj manda, cuántos días lleva y la P(todavía compra) que da la curva. */
+  reloj: Reloj;
+  dias: number;
+  probabilidad: number;
   puntaje: number;
 }
 
@@ -114,6 +146,9 @@ export interface ClienteEmpujando {
   /** Días que le quedan antes de pasar al archivo. */
   seArchivaEn: number;
   temperatura: Temperatura;
+  reloj: Reloj;
+  dias: number;
+  probabilidad: number;
 }
 
 export interface ClienteArchivado {
@@ -137,6 +172,8 @@ export interface ParaCerrar {
   archivo: ClienteArchivado[];
   pospuestos: number;
   compraron: number;
+  /** La curva de llegada con la que se pintó todo: se muestra en «Cómo se calcula». */
+  estadistica: Estadistica;
 }
 
 const max = (...ds: Array<Date | null>): Date | null =>
@@ -160,10 +197,10 @@ export function puntaje(f: FilaParaCerrar, ahora: Date): number {
   return Math.round((plata + cita + fresco + (f.asesorAntesDelCliente ? 6 : 0)) * 100) / 100;
 }
 
-export function clasificar(filas: readonly FilaParaCerrar[], ahora: Date): ParaCerrar {
+export function clasificar(filas: readonly FilaParaCerrar[], ahora: Date, est: Estadistica = ESTADISTICA_POR_DEFECTO): ParaCerrar {
   const hoy = diaDeGuayaquil(ahora);
   const out: ParaCerrar = {
-    tope: TOPE_DIARIO, contactadosHoy: 0, paraCerrar: [], empujando: [], archivo: [], pospuestos: 0, compraron: 0,
+    tope: TOPE_DIARIO, contactadosHoy: 0, paraCerrar: [], empujando: [], archivo: [], pospuestos: 0, compraron: 0, estadistica: est,
   };
   const iso = (d: Date | null) => d?.toISOString() ?? null;
 
@@ -185,7 +222,7 @@ export function clasificar(filas: readonly FilaParaCerrar[], ahora: Date): ParaC
     const leTocaAlCliente = f.ultimoAsesor && (!f.ultimoCliente || f.ultimoAsesor > f.ultimoCliente);
     if (leTocaAlCliente) {
       const pasaron = Math.floor((ahora.getTime() - ultimoTexto.getTime()) / DIA_MS);
-      out.empujando.push({ ...base, ultimoAsesor: f.ultimoAsesor!.toISOString(), visita: iso(f.visita), visitaHora: f.visitaHora, seArchivaEn: Math.max(1, DIAS_PARA_ARCHIVAR - pasaron), temperatura: temperatura(f, ahora) });
+      out.empujando.push({ ...base, ultimoAsesor: f.ultimoAsesor!.toISOString(), visita: iso(f.visita), visitaHora: f.visitaHora, seArchivaEn: Math.max(1, DIAS_PARA_ARCHIVAR - pasaron), ...leerTemperatura(f, ahora, est) });
       continue;
     }
 
@@ -202,7 +239,7 @@ export function clasificar(filas: readonly FilaParaCerrar[], ahora: Date): ParaC
       ultimoCliente: iso(f.ultimoCliente),
       volvio: f.asesorAntesDelCliente,
       ventanaAbierta: Boolean(f.ultimoCliente && ahora.getTime() - f.ultimoCliente.getTime() < VENTANA_MS),
-      temperatura: temperatura(f, ahora),
+      ...leerTemperatura(f, ahora, est),
       puntaje: puntaje(f, ahora),
     });
   }

@@ -591,6 +591,28 @@ export interface Billing {
 
 /** caliente = viene; ultima = escribir hoy; fria = ya no viene (medido contra Contífico). */
 export type Temperatura = "caliente" | "ultima" | "fria";
+export type Reloj = "fecha" | "silencio";
+
+/** Curva de llegada (contrato idéntico a app/src/domain/llegada.ts). */
+export interface CurvaLlegada {
+  n: number;
+  compradores: number;
+  antes: number;
+  mismoDia: number;
+  despues: number;
+  despuesPorDia: Record<string, number>;
+  curva: Array<{ k: number; quedaban: number; compraron: number; probabilidad: number }>;
+  corteMedido: number;
+  corte: number;
+  suficiente: boolean;
+}
+
+export interface EstadisticaLlegada {
+  fecha: CurvaLlegada;
+  silencio: CurvaLlegada;
+  calculada: string;
+  ultimaFactura: string | null;
+}
 
 export interface ClienteParaCerrar {
   ticketId: number;
@@ -609,6 +631,9 @@ export interface ClienteParaCerrar {
   /** false = pasaron 24 h desde su último mensaje: solo plantilla. */
   ventanaAbierta: boolean;
   temperatura: Temperatura;
+  reloj: Reloj;
+  dias: number;
+  probabilidad: number;
   puntaje: number;
 }
 
@@ -624,6 +649,9 @@ export interface ClienteEmpujando {
   visitaHora: string | null;
   seArchivaEn: number;
   temperatura: Temperatura;
+  reloj: Reloj;
+  dias: number;
+  probabilidad: number;
 }
 
 export interface ClienteArchivado {
@@ -646,6 +674,7 @@ export interface ParaCerrar {
   archivo: ClienteArchivado[];
   pospuestos: number;
   compraron: number;
+  estadistica: EstadisticaLlegada;
 }
 
 export type AccionParaCerrar =

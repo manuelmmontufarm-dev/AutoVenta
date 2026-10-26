@@ -1,3 +1,21 @@
+## 26-oct-2026 · Para cerrar: la curva de llegada decide el color y se actualiza sola
+
+**Qué:** `domain/llegada.ts` mide, con las ventas reales de Contífico, cuándo llega la gente:
+reloj «fecha» (desde el día que dijeron) y reloj «silencio» (desde su último mensaje, para quien
+no dio día). Cuenta cuántos compraron antes, el mismo día y después, y para cada k la
+probabilidad suavizada de que todavía compre. «Ya no viene» empieza el día siguiente al último
+en que alguien llegó, más 1 día de margen (con menos de 5 ventas, cortes por defecto 2 y 5).
+Se recalcula con cada bajada de facturas o cada 30 min. Cada tarjeta dice su chance («Su día
+fue ayer · 2 % todavía llega») y hay un panel «¿Cómo se calcula el color?» con las dos curvas.
+En el calendario solo se tacha a quien ya no viene (antes se tachaba todo día pasado).
+
+**Por qué:** Manuel: mientras haya chance de que vengan, que no se tache y que se vea el
+semáforo; y que el corte salga de los datos, no de un número fijo. Con la regla anterior (P<1 %)
+el silencio cortaba al día 3 y había una compra al día 4. Hoy: fecha corta al día 3 (el más
+tardío llegó al 1), silencio al día 6 (el más tardío al 4).
+
+**Horas:** 1,5
+
 ## 26-oct-2026 · Para cerrar: color por probabilidad de que todavía venga
 
 **Qué:** Cada cliente de Para cerrar y Empujando lleva una temperatura calculada en

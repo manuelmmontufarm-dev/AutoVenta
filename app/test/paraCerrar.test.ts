@@ -137,10 +137,11 @@ describe("temperatura: si todavía viene (medido el 26-oct contra Contífico)", 
     expect(temperatura({ visita: visita("2026-10-21"), ultimoCliente: horas(1) }, AHORA)).toBe("fria");
   });
 
-  it("sin fecha: menos de 24 h callado es caliente; 1 a 4 días, última; 5 o más, ya no viene", () => {
-    expect(temperatura({ visita: null, ultimoCliente: horas(23) }, AHORA)).toBe("caliente");
-    expect(temperatura({ visita: null, ultimoCliente: horas(30) }, AHORA)).toBe("ultima");
-    expect(temperatura({ visita: null, ultimoCliente: horas(4 * 24 + 23) }, AHORA)).toBe("ultima");
+  it("sin fecha (cortes por defecto): escribió hoy es caliente; 1 a 4 días, última; 5 o más, ya no viene", () => {
+    expect(temperatura({ visita: null, ultimoCliente: horas(10) }, AHORA)).toBe("caliente");
+    // 23 h antes del sábado 13:15 es el viernes: ya es «ayer».
+    expect(temperatura({ visita: null, ultimoCliente: horas(23) }, AHORA)).toBe("ultima");
+    expect(temperatura({ visita: null, ultimoCliente: dias(4) }, AHORA)).toBe("ultima");
     expect(temperatura({ visita: null, ultimoCliente: dias(5) }, AHORA)).toBe("fria");
   });
 
