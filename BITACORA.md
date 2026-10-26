@@ -1,3 +1,17 @@
+## 26-oct-2026 · Horario por día de la semana (domingos cerrados)
+
+**Qué:** `settings.store_hours` pasa de `{weekday, weekend}` a `dias: {lun…dom}` por local. Lo guardado
+en producción (forma vieja) se lee sin migración: `weekday` → lun–vie, `weekend` → sábado Y domingo
+(`normalizarHorarioDeLocal`); al guardar sale siempre en la forma nueva. `algunLocalAbre` mira el día
+real en Guayaquil, y `horarioEnPalabras` agrupa días consecutivos iguales («lunes a viernes 08:30–17:30;
+sábado 08:30–14:30; domingo cerrado») para el prompt, el Guardián y `storeSchedule`. Ajustes → Negocio:
+7 filas por local con Abre/Cierra/Cerrado y «Copiar lunes a martes–viernes».
+
+**Por qué:** Depot cierra los domingos pero abre el sábado y el panel solo podía cerrar sábado y
+domingo juntos.
+
+**Horas:** 2
+
 ## 26-oct-2026 · Para cerrar: la curva de llegada decide el color y se actualiza sola
 
 **Qué:** `domain/llegada.ts` mide, con las ventas reales de Contífico, cuándo llega la gente:

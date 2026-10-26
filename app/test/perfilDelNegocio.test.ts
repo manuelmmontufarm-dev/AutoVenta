@@ -122,10 +122,10 @@ describe("el perfil de Depot · los horarios", () => {
   });
 
   it("Cumbayá abre medio día el finde y Quito Sur cierra", () => {
-    expect(DEFAULT_STORE_HOURS.cumbaya.weekday).toMatchObject({ open: "08:30", close: "17:30", closed: false });
-    expect(DEFAULT_STORE_HOURS.cumbaya.weekend).toMatchObject({ open: "08:30", close: "14:30", closed: false });
-    expect(DEFAULT_STORE_HOURS.quitoSur.weekday).toMatchObject({ open: "08:30", close: "17:30", closed: false });
-    expect(DEFAULT_STORE_HOURS.quitoSur.weekend).toMatchObject({ closed: true });
+    expect(DEFAULT_STORE_HOURS.cumbaya.dias.lun).toMatchObject({ open: "08:30", close: "17:30", closed: false });
+    expect(DEFAULT_STORE_HOURS.cumbaya.dias.dom).toMatchObject({ open: "08:30", close: "14:30", closed: false });
+    expect(DEFAULT_STORE_HOURS.quitoSur.dias.vie).toMatchObject({ open: "08:30", close: "17:30", closed: false });
+    expect(DEFAULT_STORE_HOURS.quitoSur.dias.dom).toMatchObject({ closed: true });
   });
 
   it("el horario que va al prompt se lee igual que antes", () => {

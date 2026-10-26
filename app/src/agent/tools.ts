@@ -72,7 +72,7 @@ import {
   requestsBenefitsAgain,
 } from "../services/benefits.js";
 import { brandProfilesForRender } from "../services/brandProfiles.js";
-import { getAiConfig, getPiecesConfig } from "../services/settings.js";
+import { getAiConfig, getPiecesConfig, horarioEnPalabras } from "../services/settings.js";
 import { researchVehicleFitment } from "../services/vehicleFitmentResearch.js";
 import { arosDeCandidatos, arosDeMedidas, invitacionPorAroAmbiguo } from "../domain/fitmentResearch.js";
 import { aroVigenteDeLaVisita, rangoDeAros } from "../domain/aros.js";
@@ -317,8 +317,7 @@ function storeSchedule(name: string, hours?: StoreHours): string {
   const local = localPorNombre(negocio, name);
   const schedule = local ? hours[local.claveHorario] : undefined;
   if (!schedule) return business.schedule;
-  const fmt = (period: { open: string; close: string; closed: boolean }) => period.closed ? "cerrado" : `${period.open}–${period.close}`;
-  return `lunes a viernes ${fmt(schedule.weekday)}; sábado y domingo ${fmt(schedule.weekend)}`;
+  return horarioEnPalabras(schedule);
 }
 
 /** Cómo se le nombra al cliente cada escalón de marca. */
