@@ -1,3 +1,35 @@
+## 26-oct-2026 · Sprint Final: días abiertos por día, promoción 3x4 y anuncios activos EN PRODUCCIÓN
+
+**Qué:** PRs #19 (horario por día, S1), #18 (anuncios activos, S3) y #20 (promoción
+3x4, S2) integrados en `release/promo-horarios-anuncios-2026-10` y publicados a `main`.
+Plan y requisitos: `docs/planning/PLAN-PROMO-HORARIOS-ANUNCIOS-MASTER-PROMPT.md`.
+Arreglos del Sprint Final tras tres revisiones en paralelo (c445f43, e0af9a2):
+- «quiero la llanta del anuncio en rin 16» ya no lo atrapa la vitrina por aro sin
+  modelo (`mostrarPorAro.ts`): ese turno es del vendedor, que tiene el anuncio.
+- Un solo anuncio cargado que NO coincide con el referral del chat hace preguntar
+  cuál en vez de darlo por hecho; «Usar como activo» no precarga «Depot Tire».
+- Guardián con hecho fijo de la 3x4 cuando aún no hay cotización; «paga 3 lleva
+  4» solo con cantidades múltiplo de 4 (pieza, PDF, texto, frase, hecho); «3x4»
+  no se lee como cifras; la comparativa de respaldo usa la misma etiqueta.
+- **Un día en que el local cierra no se agenda**: en el simulador, con domingo
+  cerrado, el bot escribía «los domingos estamos cerrados» y en el mismo turno
+  registraba la visita del domingo y avisaba al asesor (entraba por la lectura
+  determinística de `index.ts`, no por `agendar_visita`). Las dos puertas miran
+  ahora el horario real del local elegido (`localAbre`, `siguienteDiaAbierto`).
+- Panel de horarios tolera la forma vieja; aviso en log si `store_hours` no valida.
+Prueba conjunta en el simulador (domingo cerrado + 3x4 + anuncio activo): «la del
+anuncio en rin 16» → el vendedor sabe que es la Kenda KR601 y no pregunta cuál;
+la pieza sale «3x4 · PAGA 3 · LLEVA 4»; «¿tienen el 3x4?» → «sí, paga 3 y lleva
+4, ya va aplicada» sin que el Guardián lo tache; «paso el domingo» → «el domingo
+Cumbayá está cerrado… ¿el lunes 2?» y `visit_date` queda null hasta que dice el lunes.
+
+**Por qué:** Depot cierra los domingos, cambió la promoción del feriado a 3x4 y
+los clientes piden «la llanta del anuncio». Pendiente de Depot: marcar domingo
+cerrado y elegir 3x4 desde Ajustes (lo guardado en prod sigue como estaba), y
+cargar la descripción del anuncio vigente.
+
+**Horas:** 2,5
+
 ## 26-oct-2026 · Horario por día de la semana (domingos cerrados)
 
 **Qué:** `settings.store_hours` pasa de `{weekday, weekend}` a `dias: {lun…dom}` por local. Lo guardado
