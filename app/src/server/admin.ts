@@ -112,10 +112,16 @@ import { diagnoseChannel } from "../services/channelDiagnostics.js";
 import { getBotPower, setBotPower } from "../services/botPower.js";
 import {
   avisarAsesoresGlobal,
-  esRolAsesor,
-  getMatrizAvisos,
+  CATEGORIAS_AVISO,
+  CATEGORIA_DE_EVENTO,
+  EVENTOS_AVISO,
+  NOMBRE_DE_CATEGORIA,
+  NOMBRE_DE_EVENTO,
+  AVISOS_GENERALES,
+  NOMBRE_DE_AVISO_GENERAL,
+  getNivelesAviso,
   mensajeCambioDeBot,
-  saveMatrizAvisos,
+  saveNivelesAviso,
 } from "../services/advisorNotifications.js";
 import {
   activarUsuarioHub,
@@ -1867,9 +1873,12 @@ export function createAdminRouter(): express.Router {
    * cliente se quedara sin atender. Se rechaza aquí, con nombre y apellido, en
    * vez de dejar que reviente el check de la base con un error de Postgres.
    */
-  const rolPedido = (valor: unknown): string | null => {
+  const rolPedido = async (valor: unknown): Promise<string | null> => {
     if (valor === undefined || valor === null || valor === "") return null;
-    if (!esRolAsesor(valor)) throw new Error("El rol debe ser 'admin' o 'asesor'");
+    const niveles = await getNivelesAviso();
+    if (typeof valor !== "string" || !niveles.some((n) => n.id === valor)) {
+      throw new Error(`Ese nivel no existe. Los niveles son: ${niveles.map((n) => n.nombre).join(", ")}`);
+    }
     return valor;
   };
 
@@ -1881,9 +1890,9 @@ export function createAdminRouter(): express.Router {
       if (!nombre || telefono.length < 8) {
         return res.status(400).json({ ok: false, error: "Hace falta nombre y un teléfono con código de país" });
       }
-      // Sin rol explícito entra como `admin`: es el default de la columna y el
-      // nivel que tenía todo el mundo antes de que existieran los roles.
-      const rol = rolPedido(req.body?.rol) ?? "admin";
+      // Sin nivel explícito entra al primero: el que recibe más, como el default
+      // de la columna antes de que existieran los niveles.
+      const rol = (await rolPedido(req.body?.rol)) ?? (await getNivelesAviso())[0].id;
       const [asesor] = await sql`
         insert into advisors (nombre, telefono, prioridad, active, rol)
         values (${nombre}, ${telefono}, ${Number(req.body?.prioridad) || 10}, true, ${rol})
@@ -1902,7 +1911,7 @@ export function createAdminRouter(): express.Router {
     const campos = req.body ?? {};
     let rol: string | null;
     try {
-      rol = rolPedido(campos.rol);
+      rol = await rolPedido(campos.rol);
     } catch (error) {
       return res.status(400).json({ ok: false, error: mensaje(error, "Rol inválido") });
     }
@@ -1925,19 +1934,29 @@ export function createAdminRouter(): express.Router {
     res.json({ ok: true });
   });
 
-  // ── Matriz de avisos (Ajustes → Avisos) ────────────────────────────────────
-  // Qué categoría de aviso recibe cada nivel. Leerla puede cualquiera del hub
-  // (la pantalla la pinta); cambiarla es de administradores.
+  // ── Niveles de aviso (Ajustes → Avisos) ────────────────────────────────────
+  // Qué aviso recibe cada nivel, uno por uno, y el catálogo con sus nombres
+  // para que el panel no tenga que copiarlo: un aviso nuevo aparece solo.
+  // Leerlo puede cualquiera del hub; cambiarlo es de administradores.
 
-  router.get("/aviso-matrix", async (_req, res) => {
-    res.json({ ok: true, matriz: await getMatrizAvisos() });
+  const catalogoDeAvisos = () => CATEGORIAS_AVISO.map((c) => ({
+    id: c,
+    nombre: NOMBRE_DE_CATEGORIA[c],
+    eventos: EVENTOS_AVISO.filter((e) => CATEGORIA_DE_EVENTO[e] === c).map((e) => ({ id: e, nombre: NOMBRE_DE_EVENTO[e] })),
+  }));
+
+  router.get("/aviso-niveles", async (_req, res) => {
+    res.json({ ok: true, niveles: await getNivelesAviso(), catalogo: catalogoDeAvisos(), generales: AVISOS_GENERALES.map((g) => ({ id: g, nombre: NOMBRE_DE_AVISO_GENERAL[g] })) });
   });
 
-  router.put("/aviso-matrix", exigirNivelMaximo, async (req, res) => {
+  router.put("/aviso-niveles", exigirNivelMaximo, async (req, res) => {
     try {
-      res.json({ ok: true, matriz: await saveMatrizAvisos(req.body?.matriz ?? req.body) });
+      res.json({ ok: true, niveles: await saveNivelesAviso(req.body?.niveles ?? req.body), catalogo: catalogoDeAvisos(), generales: AVISOS_GENERALES.map((g) => ({ id: g, nombre: NOMBRE_DE_AVISO_GENERAL[g] })) });
     } catch (error) {
-      res.status(400).json({ ok: false, error: mensaje(error, "No se pudo guardar la matriz") });
+      const texto = error instanceof Error && "issues" in error
+        ? ((error as { issues: Array<{ message: string }> }).issues[0]?.message ?? "Niveles inválidos")
+        : mensaje(error, "No se pudieron guardar los niveles");
+      res.status(400).json({ ok: false, error: texto });
     }
   });
 

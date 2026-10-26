@@ -19,7 +19,7 @@ local. Para cerrar = el último mensaje es del cliente; tope de 10 contactos por
 equipo, ordenados por plata, cita cerca y conversación fresca (el resto plegado). Empujando =
 un asesor ya escribió; lista llana que sale con la ✕, con factura de Contífico, o vuelve sola si
 el cliente contesta. Archivo = 14 días sin texto, con búsqueda. Reglas en
-`domain/paraCerrar.ts` (15 pruebas); migración 028 guarda solo la ✕, posponer y sacar del
+`domain/paraCerrar.ts` (15 pruebas); migración 029 guarda solo la ✕, posponer y sacar del
 archivo. Medido en producción (solo lectura, 24-oct): 61 para cerrar, 20 empujando, 114 en el
 archivo.
 
@@ -28,6 +28,40 @@ los ~500 chats del mes. El contador es del equipo porque los mensajes no dicen q
 escribió.
 
 **Horas:** 1,5
+## 24-oct-2026 · Métricas: Ventas primero, General después
+
+**Qué:** `hub/src/screens/Dashboard.tsx` — la sección Ventas (lo comprobado en
+Contífico) va arriba y General abajo; el salto de sección también va en ese orden.
+
+**Por qué:** pedido de Manuel: lo que importa es la venta.
+
+**Horas:** 0,1
+
+## 24-oct-2026 · Niveles de aviso con nombre propio, uno por cada tipo de aviso, y el Guardián sin interruptor
+
+**Qué:**
+- Niveles configurables: «Todo» y «Solo local» pasan a «Nivel 1» y «Nivel 2»
+  (mismos ids `admin`/`asesor`, nadie pierde avisos) y desde Ajustes → Avisos se
+  crean, se renombran y se borran niveles. Viven en `settings.aviso_niveles`; la
+  matriz vieja por categorías (`aviso_matrix`) se lee y se convierte sin perder lo
+  marcado. Migración 028: se suelta el `check` de `advisors.rol` (la API valida
+  contra los niveles que existen). No se puede borrar un nivel con gente asignada.
+- Una casilla por cada tipo de aviso: los 21 avisos de chat (agrupados por
+  categoría, la casilla del grupo marca todos) y dos avisos generales que antes
+  iban fijos a `admin` sin poder elegirse: el reporte diario de las 20:00 y «alguien
+  prendió o apagó el bot». El servidor manda el catálogo con los nombres
+  (`GET /api/aviso-niveles`): un aviso nuevo aparece solo en el panel.
+- Ángel Guardián: fuera el botón de apagar (sigue el informe de la semana).
+
+**Por qué:** pedido de Manuel (24-oct): «Todo / Solo local» confundía, quería crear
+niveles y que haya opción para todos los tipos de aviso; y que el Guardián no se apague.
+
+**Cómo se probó:** suite completa 2.878 en verde; servidor del worktree contra una
+base local desechable: API (crear nivel, asignar, nivel inexistente, borrar con
+gente, cero niveles, id repetido) y panel (agregar Nivel 3, marcar un aviso suelto,
+casilla del grupo a medias, guardado en la base).
+
+**Horas:** 2
 
 ## 24-oct-2026 · Gráficos de control: vista de campana y nivel sigma
 

@@ -276,9 +276,9 @@ describe("A quién le llega, según la tabla advisors", () => {
       expect(await telefonos({ evento: "send_error" })).not.toContain("593988888888");
       expect(await telefonos({ evento: "guard_bot_atascado" })).not.toContain("593988888888");
 
-      // El reporte de las 20:00 pide `rol: 'admin'` explícitamente.
-      expect(await telefonos({ rol: "admin" })).not.toContain("593988888888");
-      expect(await telefonos({ rol: "admin" })).toContain("593999999999");
+      // El reporte de las 20:00 va a los niveles que lo tienen marcado: el 1, no el 2.
+      expect(await telefonos({ general: "reporte_diario" })).not.toContain("593988888888");
+      expect(await telefonos({ general: "reporte_diario" })).toContain("593999999999");
 
       // Y el de siempre sigue recibiéndolo todo, que es la mitad del trato.
       for (const evento of ["send_error", "visita_hoy", "repetitive_conversation"] as const) {

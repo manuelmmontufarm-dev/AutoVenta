@@ -1,6 +1,6 @@
 import type { Sql } from "../client.js";
 
-export const PARA_CERRAR_MIGRATION_ID = "028_para_cerrar";
+export const PARA_CERRAR_MIGRATION_ID = "029_para_cerrar";
 
 /**
  * PARA CERRAR: lo que el asesor decidió sobre un cliente que ya aceptó precio

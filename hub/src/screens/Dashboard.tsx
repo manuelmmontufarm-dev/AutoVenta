@@ -90,6 +90,35 @@ export function Dashboard() {
               : `Los contadores arrancan de cero el día 1 y vuelven a empezar en ${periodo.proximo}. Los meses anteriores siguen acá al lado.`}
           </p>
 
+          {/* ── Ventas ── */}
+          <Seccion id="ventas" titulo="Ventas" sub="solo lo que Contífico comprueba con una factura" />
+          <FilaKpis>
+            <Kpi
+              nombre="Ventas comprobadas"
+              valor={guion(comprobado((k) => <>{k.ventas.n}<span className="ml-2 text-[15px] tracking-normal whitespace-nowrap text-text2 md:text-[17px]">{usd(k.ventas.conIva)}</span></>))}
+              nota="facturas de Contífico con el teléfono del chat, con IVA"
+            />
+            <Kpi nombre="Sin IVA" valor={guion(comprobado((k) => usd(k.ventas.sinIva)))} nota="subtotal de esas mismas facturas" />
+            <Kpi
+              nombre="Parte de las llantas de la tienda"
+              valor={guion(comprobado((k) => (k.participacion.periodo.llantasTienda > 0 ? fmtPct(k.participacion.periodo.pct) : "—")))}
+              nota={listo ? `${listo.participacion.periodo.delBot} de ${listo.participacion.periodo.llantasTienda} facturas con llantas` : "de las facturas con llantas"}
+            />
+            <Kpi
+              nombre="Por llegar en 14 días"
+              valor={guion(comprobado((k) => <>~{k.rezago.porLlegar.esperado.toLocaleString("es-EC", { maximumFractionDigits: 1 })}<span className="ml-2 text-[15px] tracking-normal whitespace-nowrap text-text2 md:text-[17px]">· {k.rezago.porLlegar.bajo} a {k.rezago.porLlegar.alto}</span></>))}
+              nota={listo ? `de ${listo.rezago.porLlegar.chatsVivos.toLocaleString("es-EC")} chats vivos que aún no compraron` : "ventas esperadas de chats abiertos"}
+            />
+          </FilaKpis>
+
+          <div className="grid gap-4 lg:grid-cols-2">
+            <VentasComprobadasBloque c={c} vc={vc} estado={estado} enElPeriodo={enElPeriodo} now={now} />
+            <ParteDeLaTiendaBloque c={c} estado={estado} enElPeriodo={enElPeriodo} />
+            <DelChatALaFacturaBloque c={c} estado={estado} periodoTexto={enElPeriodo} />
+            <CuantoTardanBloque c={c} estado={estado} />
+            <div className="lg:col-span-2"><CuandoSeFacturaBloque c={c} estado={estado} /></div>
+          </div>
+
           {/* ── General ── */}
           <Seccion id="general" titulo="General" sub="cuánta gente escribe y cómo la atiende el bot" />
           <FilaKpis>
@@ -233,35 +262,6 @@ export function Dashboard() {
               </ul>
             </Bloque>
           </div>
-
-          {/* ── Ventas ── */}
-          <Seccion id="ventas" titulo="Ventas" sub="solo lo que Contífico comprueba con una factura" />
-          <FilaKpis>
-            <Kpi
-              nombre="Ventas comprobadas"
-              valor={guion(comprobado((k) => <>{k.ventas.n}<span className="ml-2 text-[15px] tracking-normal whitespace-nowrap text-text2 md:text-[17px]">{usd(k.ventas.conIva)}</span></>))}
-              nota="facturas de Contífico con el teléfono del chat, con IVA"
-            />
-            <Kpi nombre="Sin IVA" valor={guion(comprobado((k) => usd(k.ventas.sinIva)))} nota="subtotal de esas mismas facturas" />
-            <Kpi
-              nombre="Parte de las llantas de la tienda"
-              valor={guion(comprobado((k) => (k.participacion.periodo.llantasTienda > 0 ? fmtPct(k.participacion.periodo.pct) : "—")))}
-              nota={listo ? `${listo.participacion.periodo.delBot} de ${listo.participacion.periodo.llantasTienda} facturas con llantas` : "de las facturas con llantas"}
-            />
-            <Kpi
-              nombre="Por llegar en 14 días"
-              valor={guion(comprobado((k) => <>~{k.rezago.porLlegar.esperado.toLocaleString("es-EC", { maximumFractionDigits: 1 })}<span className="ml-2 text-[15px] tracking-normal whitespace-nowrap text-text2 md:text-[17px]">· {k.rezago.porLlegar.bajo} a {k.rezago.porLlegar.alto}</span></>))}
-              nota={listo ? `de ${listo.rezago.porLlegar.chatsVivos.toLocaleString("es-EC")} chats vivos que aún no compraron` : "ventas esperadas de chats abiertos"}
-            />
-          </FilaKpis>
-
-          <div className="grid gap-4 lg:grid-cols-2">
-            <VentasComprobadasBloque c={c} vc={vc} estado={estado} enElPeriodo={enElPeriodo} now={now} />
-            <ParteDeLaTiendaBloque c={c} estado={estado} enElPeriodo={enElPeriodo} />
-            <DelChatALaFacturaBloque c={c} estado={estado} periodoTexto={enElPeriodo} />
-            <CuantoTardanBloque c={c} estado={estado} />
-            <div className="lg:col-span-2"><CuandoSeFacturaBloque c={c} estado={estado} /></div>
-          </div>
         </div>
       </div>
     </div>
@@ -290,7 +290,7 @@ function SaltoDeSeccion() {
   };
   return (
     <nav className="flex gap-3.5 text-[13px]" aria-label="Secciones de Métricas">
-      {[["general", "General"], ["ventas", "Ventas"]].map(([id, nombre]) => (
+      {[["ventas", "Ventas"], ["general", "General"]].map(([id, nombre]) => (
         <a key={id} href={`#/dashboard`} onClick={ir(id)} className="border-b border-line-strong text-text2 hover:text-signal">{nombre}</a>
       ))}
     </nav>
