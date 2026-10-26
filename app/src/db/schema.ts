@@ -3,7 +3,9 @@
  * depender de copiar archivos a dist/. Modelo inspirado en horoshi10v/tires-shop (MIT).
  * Todo es idempotente (`create if not exists`) → seguro en cada boot.
  */
-import { sql } from "./client.js";
+import postgres from "postgres";
+import { config } from "../config.js";
+import { sql, type Sql } from "./client.js";
 import { runFollowUpMigration } from "./migrations/001_follow_up_system.js";
 import { runSalesPlanDiscountsMigration } from "./migrations/002_sales_follow_up_plan_discounts.js";
 import { runFollowUpStagePromptsMigration } from "./migrations/003_follow_up_stage_prompts.js";
@@ -32,7 +34,7 @@ import { runCuponTicketMigration } from "./migrations/025_cupon_ticket.js";
 import { runMotivoDeLaPausaMigration } from "./migrations/026_motivo_de_la_pausa.js";
 import { runDondeEstaElClienteMigration } from "./migrations/027_donde_esta_el_cliente.js";
 import { runNivelesDeAvisoMigration } from "./migrations/028_niveles_de_aviso.js";
-import { runParaCerrarMigration } from "./migrations/029_para_cerrar.js";
+import { PARA_CERRAR_MIGRATION_ID, runParaCerrarMigration } from "./migrations/029_para_cerrar.js";
 import { runIndicesInboxMigration } from "./migrations/030_indices_inbox.js";
 
 export const SCHEMA = /* sql */ `
@@ -399,41 +401,93 @@ where status = 'published'
   and not (allowed_tools ? 'agendar_visita');
 `;
 
-/** Aplica el esquema (idempotente). Se llama al arrancar el bot. */
-export async function ensureSchema(): Promise<void> {
-  await sql.unsafe(SCHEMA);
-  await runFollowUpMigration(sql);
-  await runSalesPlanDiscountsMigration(sql);
-  await runFollowUpStagePromptsMigration(sql);
-  await runOpportunityCampaignsPendingDiscountsMigration(sql);
-  await runConversationMemoryDiscountDeliveryMigration(sql);
-  await runCycleContextQualityMigration(sql);
-  await runAdvisorNotificationsMigration(sql);
-  await runBenefitsMigration(sql);
-  await runBrandProfilesMigration(sql);
-  await runAdvisorsMigration(sql);
-  await runVentaPrimeroMigration(sql);
-  await runAroFotoVisitaMigration(sql);
-  await runAvisosEntregadosMigration(sql);
-  await runVenderEnTodaEtapaMigration(sql);
-  await runVentanaAsesoresMigration(sql);
-  await runCumplirSolicitudMigration(sql);
-  await runConfirmationCouponsMigration(sql);
-  await runRolesDeAsesorMigration(sql);
-  await runFranjaDeVisitaMigration(sql);
-  await runAsesorEnTodaEtapaMigration(sql);
-  await runFitmentAprendidoMigration(sql);
-  await runIndicesMetricasMigration(sql);
-  await runGanadosFantasmaMigration(sql);
-  await runGanadosFantasmaEtapaMigration(sql);
-  await runCuponTicketMigration(sql);
-  await runMotivoDeLaPausaMigration(sql);
-  await runDondeEstaElClienteMigration(sql);
-  await runNivelesDeAvisoMigration(sql);
-  await runParaCerrarMigration(sql);
+async function aplicarEsquema(db: Sql): Promise<void> {
+  await db.unsafe(SCHEMA);
+  await runFollowUpMigration(db);
+  await runSalesPlanDiscountsMigration(db);
+  await runFollowUpStagePromptsMigration(db);
+  await runOpportunityCampaignsPendingDiscountsMigration(db);
+  await runConversationMemoryDiscountDeliveryMigration(db);
+  await runCycleContextQualityMigration(db);
+  await runAdvisorNotificationsMigration(db);
+  await runBenefitsMigration(db);
+  await runBrandProfilesMigration(db);
+  await runAdvisorsMigration(db);
+  await runVentaPrimeroMigration(db);
+  await runAroFotoVisitaMigration(db);
+  await runAvisosEntregadosMigration(db);
+  await runVenderEnTodaEtapaMigration(db);
+  await runVentanaAsesoresMigration(db);
+  await runCumplirSolicitudMigration(db);
+  await runConfirmationCouponsMigration(db);
+  await runRolesDeAsesorMigration(db);
+  await runFranjaDeVisitaMigration(db);
+  await runAsesorEnTodaEtapaMigration(db);
+  await runFitmentAprendidoMigration(db);
+  await runIndicesMetricasMigration(db);
+  await runGanadosFantasmaMigration(db);
+  await runGanadosFantasmaEtapaMigration(db);
+  await runCuponTicketMigration(db);
+  await runMotivoDeLaPausaMigration(db);
+  await runDondeEstaElClienteMigration(db);
+  await runNivelesDeAvisoMigration(db);
+  await runParaCerrarMigration(db);
   // 030 NO va acá: crea índices con CONCURRENTLY y corre después de abrir el
   // puerto (`crearIndicesEnSegundoPlano`), para que un deploy con la base
   // cargada no se quede sin contestar /health (26-oct, deploy FAILED).
+}
+
+/**
+ * La última migración que `aplicarEsquema` registra. Si está en
+ * `schema_migrations`, todo lo de arriba ya se aplicó alguna vez. Al agregar una
+ * migración nueva a la lista, actualizar esta constante.
+ */
+const ULTIMA_MIGRACION_REGISTRADA = PARA_CERRAR_MIGRATION_ID;
+
+/**
+ * Aplica el esquema (idempotente). Se llama al arrancar el bot.
+ *
+ * CON CONEXIÓN PROPIA Y TOPE DE CANDADO (26-oct, dos deploys FAILED seguidos).
+ * El esquema hace `alter table … add column if not exists` en cada arranque, y
+ * ese `alter` pide un candado exclusivo de la tabla aunque la columna ya exista.
+ * El proceso viejo tenía siempre abierta una lectura de 45 s sobre
+ * `conversations` (la lista del inbox, pedida cada 15 s por cada pestaña), así
+ * que el contenedor nuevo esperaba ese candado para siempre, no abría el
+ * puerto y Railway lo descartaba a los 100 s — y producción se quedaba con el
+ * código lento que justamente había que reemplazar.
+ *
+ * Ahora cada sentencia espera el candado a lo sumo 5 s. Si se pasa y la base
+ * ya tiene registrada la última migración, el esquema está aplicado y el
+ * arranque sigue con un aviso. Si falta alguna migración, sí falla: ahí el
+ * esquema nuevo es necesario y no se puede seguir sin él.
+ */
+export async function ensureSchema(): Promise<void> {
+  const db = postgres(config.databaseUrl, {
+    ssl: config.pgSsl ? "require" : false,
+    prepare: false,
+    max: 1,
+    onnotice: () => {},
+    connection: { lock_timeout: 5000 },
+  });
+  try {
+    await aplicarEsquema(db as unknown as Sql);
+  } catch (error) {
+    const esperaDeCandado = (error as { code?: string })?.code === "55P03";
+    if (esperaDeCandado && (await esquemaYaAplicado())) {
+      console.warn("⚠️ Esquema: una tabla estaba ocupada y la última migración ya está registrada; sigo sin reaplicarlo.");
+      return;
+    }
+    throw error;
+  } finally {
+    await db.end({ timeout: 5 }).catch(() => undefined);
+  }
+}
+
+async function esquemaYaAplicado(): Promise<boolean> {
+  const [fila] = await sql<{ n: number }[]>`
+    select count(*)::int as n from schema_migrations where id = ${ULTIMA_MIGRACION_REGISTRADA}
+  `.catch(() => [{ n: 0 }]);
+  return (fila?.n ?? 0) > 0;
 }
 
 /** Índices que no pueden frenar el arranque. Nunca lanza: si falla, se reintenta en el próximo deploy. */

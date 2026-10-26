@@ -1,3 +1,18 @@
+## 26-oct-2026 · Segundo deploy FAILED: el esquema esperaba un candado para siempre
+
+**Qué:** `ensureSchema` corre en una conexión propia con `lock_timeout` de 5 s.
+Si una tabla está ocupada y `schema_migrations` ya tiene la última migración
+(`ULTIMA_MIGRACION_REGISTRADA`), el arranque sigue con un aviso; si falta alguna
+migración, falla como antes. Probado en local con una lectura de 20 s abierta
+sobre `conversations`: sigue a los 5 s; sin la 029 registrada, falla con 55P03.
+
+**Por qué:** el deploy de `11efb91` también quedó FAILED sin imprimir ni una
+línea: `alter table … add column if not exists` pide un candado exclusivo aunque
+la columna exista, y el proceso viejo tenía siempre abierta su lectura de 45 s
+sobre `conversations`. Producción seguía con el inbox lento.
+
+**Horas:** 0,4
+
 ## 26-oct-2026 · El deploy del inbox rápido falló en Depot: índices en segundo plano
 
 **Qué:** la migración 030 sale de `ensureSchema` y corre después de abrir el
