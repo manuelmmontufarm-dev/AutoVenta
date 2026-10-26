@@ -10,12 +10,13 @@
  * precio de lista, si hay descuento y cuántos beneficios trae el negocio.
  */
 import {
-  ARCHIVO_BLACK, BLACK_ITALIC, type Availability, type Child, type SatoriNode, type Theme,
+  ARCHIVO_BLACK, BLACK_ITALIC, type Availability, type Child, type PriceFont, type SatoriNode, type Theme,
   availabilityChip, availabilityDot, availabilityPill, brandAccent, brandAccentDark,
   brandMark, check, depotWordmark, el, img, posterFooter, posterHeader, racingBar, savingsBadge, speedLines,
   stripEmoji, text, tick,
 } from "./depotDesign.js";
 import { guideTireImage } from "./assets.js";
+import { etiquetaDePromocion, type ModoPromocion } from "../domain/promocion.js";
 import { negocio, pieDeLocales, localesEnUnaLinea } from "../negocio/index.js";
 
 /**
@@ -104,12 +105,46 @@ export interface PosterLine {
    * destaca (tarjeta con borde rojo y «★ RECOMENDADA»); la clásica la ignora.
    */
   recomendada?: boolean;
+  /**
+   * Cómo se nombra la rebaja (Ajustes → Piezas, 26-oct). Sin valor, «−25%»
+   * como siempre. Con «3x4», el sello dice «3x4 · PAGA 3 LLEVA 4» solo si el
+   * descuento real de esta llanta es 24–26 % (`domain/promocion.ts`).
+   */
+  promocion?: ModoPromocion;
 }
 
 const savingsPct = (line: PosterLine): string | null => {
   if (!line.pvpConIva || line.pvpConIva <= line.unitConIva) return null;
   return `${Math.round((1 - line.unitConIva / line.pvpConIva) * 100)}%`;
 };
+
+/** ¿El sello de esta llanta va como 3x4? Solo con el modo elegido y el descuento en 24–26 %. */
+const va3x4 = (line: PosterLine): boolean => {
+  if (!line.promocion || !line.pvpConIva || line.pvpConIva <= line.unitConIva) return false;
+  return etiquetaDePromocion(line.promocion, Math.round((1 - line.unitConIva / line.pvpConIva) * 100)).clase === "3x4";
+};
+
+/** El texto del sello chico dorado: «−25%» o «3x4 · PAGA 3 LLEVA 4». */
+const selloCorto = (line: PosterLine, pct: string): string =>
+  va3x4(line) ? etiquetaDePromocion("3x4", 25).corta : `−${pct}`;
+
+/** La insignia grande de la cotización en 3x4: la misma caja dorada que `savingsBadge`. */
+function badge3x4(detalle: string, price: PriceFont): SatoriNode {
+  return el({
+    position: "relative", flexDirection: "column", alignItems: "flex-end", borderRadius: 14, padding: "16px 24px",
+    backgroundImage: "linear-gradient(135deg,#f7e29a 0%,#eccd6f 35%,#c99a2e 70%,#b98a1e 100%)",
+    boxShadow: "0 8px 24px rgba(185,138,30,0.45), 0 2px 6px rgba(0,0,0,0.25)",
+  },
+    el({
+      position: "absolute", top: 0, left: 14, width: 44, height: "100%",
+      backgroundImage: "linear-gradient(115deg,rgba(255,255,255,0.55),rgba(255,255,255,0))",
+      transform: "skewX(-25deg)",
+    }),
+    text({ ...price, fontSize: 48, color: "#211a08", lineHeight: 1 }, "3x4"),
+    text({ fontSize: 20, fontWeight: 800, color: "#211a08", letterSpacing: 1 }, "PAGA 3 LLEVA 4"),
+    text({ fontSize: 20, fontWeight: 700, color: "#5c430e" }, detalle),
+  );
+}
 
 const golpesLabel = (line: PosterLine) =>
   line.golpesMeses ? `${line.golpesMeses} meses` : null;
@@ -219,7 +254,9 @@ export function quotePoster(data: QuotePosterData, theme: Theme): SatoriNode {
               text({ fontSize: 14, fontWeight: 700, letterSpacing: 3, color: p.darkSub }, "ANTES"),
               text({ fontSize: 46, color: p.darkSub, textDecoration: "line-through" }, money(line.pvpConIva)),
             ),
-            savingsBadge(pct, `ahorras ${money(line.pvpConIva - line.unitConIva)} c/u`, price),
+            va3x4(line)
+              ? badge3x4(`ahorras ${money(line.pvpConIva - line.unitConIva)} c/u`, price)
+              : savingsBadge(pct, `ahorras ${money(line.pvpConIva - line.unitConIva)} c/u`, price),
           )
         : null,
     ),
@@ -408,7 +445,7 @@ export function comparePoster(data: ComparePosterData, theme: Theme): SatoriNode
               text({ fontSize: 21, color: p.tenue, textDecoration: "line-through" }, money(line.pvpConIva)),
               text({ backgroundImage: "linear-gradient(135deg,#f7e29a 0%,#eccd6f 40%,#b98a1e 100%)",
                 borderRadius: 6, padding: "4px 12px", fontSize: 16, fontWeight: 700, whiteSpace: "nowrap",
-                color: "#211a08", boxShadow: "0 4px 10px rgba(185,138,30,0.4)" }, `−${pct}`)
+                color: "#211a08", boxShadow: "0 4px 10px rgba(185,138,30,0.4)" }, selloCorto(line, pct))
             )
           : text({ fontSize: 15, color: p.tenue, marginTop: 4 }, "Precio directo de distribuidor"),
       ),
@@ -602,7 +639,7 @@ export function optionsPoster(data: OptionsPosterData, theme: Theme): SatoriNode
               text({ fontSize: t(16), color: p.tenue, textDecoration: "line-through" }, money(line.pvpConIva)),
               el({}, text({ backgroundImage: "linear-gradient(135deg,#f7e29a 0%,#eccd6f 40%,#b98a1e 100%)",
                 borderRadius: 5, padding: `${t(2)}px ${t(8)}px`, fontSize: t(13), fontWeight: 700,
-                color: "#211a08", whiteSpace: "nowrap" }, `−${pct}`)),
+                color: "#211a08", whiteSpace: "nowrap" }, selloCorto(line, pct))),
             )
           : null,
       ),

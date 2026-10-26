@@ -8,6 +8,8 @@
  * volumen a quien compra una sola llanta ni una promo de marca a otra marca.
  */
 import { sql } from "../db/client.js";
+import { lineaDePromocionVigente } from "../domain/promocion.js";
+import { DEFAULT_PIECES_CONFIG, getPiecesConfig } from "./settings.js";
 
 export interface Benefit {
   id: number;
@@ -157,12 +159,20 @@ export function debeLlevarIncluyeEnTexto(imagenOk: boolean, clienteLoPidio: bool
  * a una marca o a un mínimo de unidades no es un hecho de toda compra.
  */
 export async function activeBenefitFactsBlock(): Promise<string | null> {
-  const textos = await applicableBenefitTexts();
-  if (!textos.length) return null;
+  const [textos, piezas] = await Promise.all([
+    applicableBenefitTexts(),
+    getPiecesConfig().catch(() => DEFAULT_PIECES_CONFIG),
+  ]);
+  // La promoción en 3x4 (26-oct, feriado): el vendedor tiene que poder decir
+  // «sí, ya está aplicada» cuando preguntan «¿tienen el 3x4?». En porcentaje
+  // no hay línea y el bloque queda exactamente como antes.
+  const promocion = lineaDePromocionVigente(piezas.promocion.modo);
+  if (!textos.length) return promocion;
   return [
     `INCLUIDO CON LA COMPRA (fuente determinística): ${textos.join("; ")}.`,
     "Si el cliente pregunta si algo está incluido (alineación, balanceo, instalación…): lo que está en esta lista se AFIRMA con seguridad — es exactamente lo que imprime su cotización. PROHIBIDO decir que algo de esta lista «es aparte», «tiene costo» o «se lo confirma el asesor». Lo que NO está en la lista ni se afirma ni se niega: «se lo confirma el asesor en tienda», y sigues con la venta en la misma respuesta.",
-  ].join("\n");
+    promocion,
+  ].filter(Boolean).join("\n");
 }
 
 /** Pedido explícito que autoriza volver a mostrar el bloque. */

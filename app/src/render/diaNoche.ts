@@ -27,6 +27,7 @@
 import { DEPOT_LOGO_RATIO, depotLogo, logoOficial } from "./assets.js";
 import { el, img, stripEmoji, text, type SatoriNode } from "./depotDesign.js";
 import type { PosterLine } from "./depotPosters.js";
+import { etiquetaDePromocion } from "../domain/promocion.js";
 import { negocio, pieDeLocales, localesEnUnaLinea } from "../negocio/index.js";
 
 // ===========================================================================
@@ -170,6 +171,13 @@ function porcentaje(line: PosterLine): number | null {
   if (!line.pvpConIva || line.pvpConIva <= line.unitConIva) return null;
   return Math.round((1 - line.unitConIva / line.pvpConIva) * 100);
 }
+
+/**
+ * ¿Esta llanta se rotula 3x4? Solo con el modo elegido en Ajustes y el
+ * descuento real en 24–26 % (`domain/promocion.ts`); si no, el «−N%» de siempre.
+ */
+const es3x4 = (line: PosterLine): boolean =>
+  Boolean(line.promocion) && etiquetaDePromocion(line.promocion!, porcentaje(line)).clase === "3x4";
 
 const capitalizar = (marca: string) => {
   const m = marca.trim().toLowerCase();
@@ -476,9 +484,12 @@ export function optionsPosterDiaNoche(data: OptionsDiaNocheData, modo: ModoPieza
     11, t.sub, t.txt, pcts.length ? 420 : 560,
   );
 
+  // 3x4 solo si TODAS las opciones lo son: una lámina que dice «paga 3
+  // lleva 4» con una opción a −18 % adentro mentiría por esa.
+  const todas3x4 = lines.length > 0 && lines.every(es3x4);
   const insignia = pcts.length
     ? (() => {
-        const iguales = pcts.every((p) => p === pcts[0]);
+        const iguales = todas3x4 || pcts.every((p) => p === pcts[0]);
         const pct = Math.max(...pcts);
         const renglon = (s: string) => text({ ...ANCHO(900), fontSize: 13, lineHeight: 1.05, color: TINTA_ORO }, s);
         return el({
@@ -490,10 +501,10 @@ export function optionsPosterDiaNoche(data: OptionsDiaNocheData, modo: ModoPieza
             position: "absolute", top: 0, left: 18, width: 40, height: "100%", transform: "skewX(-25deg)",
             backgroundImage: "linear-gradient(115deg, rgba(255,255,255,0.6), rgba(255,255,255,0))",
           }),
-          text({ ...ANCHO(900), fontSize: 38, lineHeight: 1, letterSpacing: -1, color: TINTA_ORO }, `−${pct}%`),
+          text({ ...ANCHO(900), fontSize: 38, lineHeight: 1, letterSpacing: -1, color: TINTA_ORO }, todas3x4 ? "3x4" : `−${pct}%`),
           el({ flexDirection: "column" },
-            renglon(iguales ? "DESCUENTO" : "HASTA"),
-            renglon(iguales ? "HOY" : "DE DESCUENTO"),
+            renglon(todas3x4 ? "PAGA 3" : iguales ? "DESCUENTO" : "HASTA"),
+            renglon(todas3x4 ? "LLEVA 4" : iguales ? "HOY" : "DE DESCUENTO"),
             text({ ...BARLOW(700), fontSize: 10, color: "#5c430e", marginTop: 2 },
               iguales ? (opciones === 1 ? "en esta opción" : `en las ${opciones} opciones`) : "según la opción"),
           ),
@@ -602,7 +613,7 @@ export function optionsPosterDiaNoche(data: OptionsDiaNocheData, modo: ModoPieza
                 alignItems: "center", gap: 3, backgroundImage: ORO_GRAD, borderRadius: 6, padding: "4px 8px",
                 boxShadow: "0 4px 12px rgba(185,138,30,0.35)",
               },
-                text({ ...ANCHO(900), fontSize: 11, color: TINTA_ORO }, `−${pct}%`),
+                text({ ...ANCHO(900), fontSize: 11, color: TINTA_ORO }, es3x4(line) ? "3x4" : `−${pct}%`),
                 text({ ...BARLOW(700), fontSize: 10, color: TINTA_ORO, whiteSpace: "nowrap" },
                   `· ahorra ${dinero((line.pvpConIva - line.unitConIva) * n)}`),
               ),
@@ -807,11 +818,18 @@ export function quotePosterDiaNoche(data: QuoteDiaNocheData, modo: ModoPieza): S
                   position: "absolute", top: 0, left: 12, width: 30, height: "100%", transform: "skewX(-25deg)",
                   backgroundImage: "linear-gradient(115deg, rgba(255,255,255,0.6), rgba(255,255,255,0))",
                 }),
-                text({ ...ANCHO(900), fontSize: 24, lineHeight: 1, color: TINTA_ORO }, `−${pct}%`),
-                el({ flexDirection: "column" },
-                  text({ ...BARLOW(700), fontSize: 9.5, lineHeight: 1.15, color: "#5c430e" }, "ahorra"),
-                  text({ ...BARLOW(700), fontSize: 11, lineHeight: 1.15, color: TINTA_ORO }, `${dinero(line.pvpConIva - line.unitConIva)} c/u`),
-                ),
+                // En 3x4 la insignia lleva una línea más: va más chica para no
+                // pisar el «ANTES» tachado de al lado (panel de 272 px).
+                text({ ...ANCHO(900), fontSize: es3x4(line) ? 21 : 24, lineHeight: 1, color: TINTA_ORO }, es3x4(line) ? "3x4" : `−${pct}%`),
+                es3x4(line)
+                  ? el({ flexDirection: "column" },
+                      text({ ...ANCHO(900), fontSize: 8, lineHeight: 1.15, color: TINTA_ORO, whiteSpace: "nowrap" }, "PAGA 3 · LLEVA 4"),
+                      text({ ...BARLOW(700), fontSize: 9.5, lineHeight: 1.15, color: "#5c430e", whiteSpace: "nowrap" }, `ahorra ${dinero(line.pvpConIva - line.unitConIva)} c/u`),
+                    )
+                  : el({ flexDirection: "column" },
+                      text({ ...BARLOW(700), fontSize: 9.5, lineHeight: 1.15, color: "#5c430e" }, "ahorra"),
+                      text({ ...BARLOW(700), fontSize: 11, lineHeight: 1.15, color: TINTA_ORO }, `${dinero(line.pvpConIva - line.unitConIva)} c/u`),
+                    ),
               ),
             )
           : null,

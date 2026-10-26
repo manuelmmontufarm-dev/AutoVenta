@@ -6,6 +6,7 @@
  * que ve el cliente tiene vista previa antes de aplicar, como pide el §20 del
  * PDF de especificaciones.
  */
+import { SeccionPromocionModo } from "../components/promocion";
 import { motion } from "framer-motion";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { authHeaders } from "../data/realSource";
@@ -97,7 +98,7 @@ const MODO_NOTA: Record<string, string> = {
   noche: "Sale siempre la oscura",
 };
 
-interface ConfigPiezas { paleta: string; fuente: string; plantilla: string; modo: string }
+interface ConfigPiezas { paleta: string; fuente: string; plantilla: string; modo: string; promocion?: { modo: string } }
 
 /** La que sale ahora mismo con el modo automático. Misma regla que render/diaNoche.ts. */
 function modoDeAhora(): "dia" | "noche" {
@@ -143,6 +144,7 @@ export function Ajustes() {
   const [fuentes, setFuentes] = useState<string[]>([]);
   const [plantilla, setPlantilla] = useState("clasica");
   const [modo, setModo] = useState("auto");
+  const [promocion, setPromocion] = useState("porcentaje");
   const [plantillas, setPlantillas] = useState<string[]>(["clasica"]);
   const [modos, setModos] = useState<string[]>([]);
   const [guardado, setGuardado] = useState<ConfigPiezas | null>(null);
@@ -173,6 +175,7 @@ export function Ajustes() {
       setFuente(cfg.config.fuente);
       setPlantilla(cfg.config.plantilla ?? "clasica");
       setModo(cfg.config.modo ?? "auto");
+      setPromocion(cfg.config.promocion?.modo ?? "porcentaje");
       // Un servidor anterior a las plantillas no manda estos dos campos.
       setGuardado({ ...cfg.config, plantilla: cfg.config.plantilla ?? "clasica", modo: cfg.config.modo ?? "auto" });
       setPlantillas(cfg.plantillas ?? ["clasica"]);
@@ -196,6 +199,7 @@ export function Ajustes() {
   const sinAplicar = guardado !== null && (
     guardado.paleta !== paleta || guardado.fuente !== fuente
     || guardado.plantilla !== plantilla || guardado.modo !== modo
+    || (guardado.promocion?.modo ?? "porcentaje") !== promocion
   );
 
   const aplicar = async () => {
@@ -203,7 +207,7 @@ export function Ajustes() {
     try {
       const r = await api<{ config: ConfigPiezas }>("/api/pieces-config", {
         method: "PUT",
-        body: JSON.stringify({ paleta, fuente, plantilla, modo }),
+        body: JSON.stringify({ paleta, fuente, plantilla, modo, promocion: { modo: promocion } }),
       });
       setGuardado(r.config);
       setError("");
@@ -275,11 +279,13 @@ export function Ajustes() {
               sinAplicar={sinAplicar} guardando={guardando} onAplicar={aplicar}
             />
             <SeccionPromociones benefits={benefits} setBenefits={setBenefits} onError={setError} />
+            <SeccionPromocionModo promocion={promocion} onPromocion={setPromocion} onError={setError} />
             <SeccionMarcas profiles={profiles} setProfiles={setProfiles} onError={setError} />
           </div>
           <VistaPrevia
             pieza={pieza} setPieza={setPieza}
             paleta={paleta} fuente={fuente} plantilla={plantilla} modo={modo} beneficios={beneficiosPreview}
+            promocion={promocion}
           />
         </div>
       )}
@@ -1178,9 +1184,9 @@ function SeccionMarcas({ profiles, setProfiles, onError }: {
  * Vista previa. Re-renderiza con retardo para no disparar una imagen por cada
  * tecla mientras se escribe una promoción.
  */
-function VistaPrevia({ pieza, setPieza, paleta, fuente, plantilla, modo, beneficios }: {
+function VistaPrevia({ pieza, setPieza, paleta, fuente, plantilla, modo, beneficios, promocion }: {
   pieza: string; setPieza: (p: string) => void;
-  paleta: string; fuente: string; plantilla: string; modo: string; beneficios: string[];
+  paleta: string; fuente: string; plantilla: string; modo: string; beneficios: string[]; promocion: string;
 }) {
   // Con el modo automático se pueden ver las dos: la que sale ahora y la otra.
   const [verModo, setVerModo] = useState<"dia" | "noche">(() => modoDeAhora());
@@ -1190,7 +1196,7 @@ function VistaPrevia({ pieza, setPieza, paleta, fuente, plantilla, modo, benefic
   const [fallo, setFallo] = useState("");
   const objectUrl = useRef<string>("");
 
-  const clave = `${pieza}|${paleta}|${fuente}|${plantilla}|${modoPreview}|${beneficios.join("|")}`;
+  const clave = `${pieza}|${paleta}|${fuente}|${plantilla}|${modoPreview}|${promocion}|${beneficios.join("|")}`;
 
   useEffect(() => {
     let cancelado = false;
@@ -1199,6 +1205,7 @@ function VistaPrevia({ pieza, setPieza, paleta, fuente, plantilla, modo, benefic
       try {
         const params = new URLSearchParams({ pieza, paleta, fuente, plantilla });
         if (modoPreview) params.set("modo", modoPreview);
+        if (promocion !== "porcentaje") params.set("promocion", promocion);
         if (beneficios.length) params.set("beneficios", beneficios.join("|"));
         // Misma credencial que el resto de la pantalla: con sesión de usuario
         // esto daba «Error 401» dentro del recuadro de la vista previa.

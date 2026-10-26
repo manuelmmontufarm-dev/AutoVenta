@@ -1,6 +1,8 @@
 import { business } from "../config.js";
 import { CIERRE_COTIZAR } from "../domain/preguntasProhibidas.js";
 import { fraseDeAhorro, type AhorroDeLaCotizacion } from "../domain/ahorro.js";
+import { etiquetaDePromocion, type ModoPromocion } from "../domain/promocion.js";
+import { piecesConfigEnMemoria } from "./settings.js";
 import { ETIQUETA_DEL_ESCALON } from "../domain/salesIntent.js";
 import { preguntaDeEquivalente } from "../domain/equivalentePendiente.js";
 import { PREGUNTA_DE_LOCAL } from "../domain/storeSelection.js";
@@ -369,7 +371,7 @@ export function buildVisitPlanQuestion(input: {
     : input.conCotizacion === false
       ? " Con ese dato le aviso al asesor para que le atienda apenas llegue."
       : input.ahorro
-        ? ` Con ese dato le aviso al asesor y le dejan lista su cotización con ${fraseDeAhorro(input.ahorro)}.`
+        ? ` Con ese dato le aviso al asesor y le dejan lista su cotización con ${fraseDeAhorro({ ...input.ahorro, modo: input.ahorro.modo ?? piecesConfigEnMemoria().promocion.modo })}.`
         : " Con ese dato le aviso al asesor y le aplican el descuento de su cotización apenas llegue.";
   // Con local elegido va SOLO su mapa: el otro link es ruido y reabre una
   // decisión ya tomada. Sin local elegido van los dos, que es la pregunta.
@@ -604,20 +606,25 @@ export function buildSingleQuoteMessageDetallado(
   customerName = "",
   offerDiscount?: { amount: number; finalTotal: number; condition: string; expiresAt?: Date | null },
   firmados?: PreciosFirmados,
+  // La promoción como la nombra la pieza (Ajustes → Piezas). Sin pasarla, la
+  // que dejó leída el render de la pieza en este mismo turno.
+  modoPromocion: ModoPromocion = piecesConfigEnMemoria().promocion.modo,
 ): string {
   const { product, quantity } = selection;
   const warranty = warrantyForBrand(product.brand);
   const hoy = firmados?.unitarioConIva ?? product.minimumPriceWithTax;
   const lista = firmados?.listaConIva ?? product.customerPriceWithTax;
   const rebaja = firmados ? porcentaje(lista, hoy) : discount(product);
+  const promocion = etiquetaDePromocion(modoPromocion, rebaja);
+  const sello = promocion.clase === "3x4" ? "3x4 · paga 3 lleva 4" : `−${rebaja}%`;
   const total = offerDiscount?.finalTotal ?? firmados?.total ?? product.minimumPriceWithTax * quantity;
   return [
     `📄 Cotización — ${dateLabel()}`,
     `${brandEmoji(product.brand)} ${product.brand} ${product.design} — ${product.sizeLabel ?? product.name}`,
-    `💰 ${money(hoy)} c/u (antes ${money(lista)}, −${rebaja}%)`,
+    `💰 ${money(hoy)} c/u (antes ${money(lista)}, ${sello})`,
     `🛞 ${quantity} llanta${quantity === 1 ? "" : "s"}: ${money(total)}`,
     ...(offerDiscount ? [
-      `1️⃣ Descuento base ${business.name}: de ${money(lista)} a ${money(hoy)} c/u (−${rebaja}%).`,
+      `1️⃣ Descuento base ${business.name}: de ${money(lista)} a ${money(hoy)} c/u (${sello}).`,
       `2️⃣ Descuento EXTRA del asesor: −${money(offerDiscount.amount)}.`,
       `⚠️ Este segundo descuento aplica ÚNICAMENTE si: ${offerDiscount.condition}.`,
       `💰 Total final cumpliendo la condición: ${money(total)}. Si no la cumple, conserva solo el precio base.`,

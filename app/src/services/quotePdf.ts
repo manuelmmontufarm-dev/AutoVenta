@@ -12,6 +12,8 @@ import { PDFDocument } from "pdf-lib";
 import { business } from "../config.js";
 import type { CatalogItem } from "../domain/catalog.js";
 import { warrantyForBrand } from "./quoteMessages.js";
+import { piecesConfigEnMemoria } from "./settings.js";
+import { etiquetaDePromocion } from "../domain/promocion.js";
 import { DEPOT_LOGO_RATIO, depotLogo } from "../render/assets.js";
 
 pdfmake.addFonts(helvetica);
@@ -204,7 +206,7 @@ function comparisonDocument(products: readonly CatalogItem[], images: (string | 
               alignment: "right",
             },
             {
-              text: `-${discount(product)}%`,
+              text: selloDelPdf(discount(product)),
               color: GREEN,
               bold: true,
               fontSize: 9,
@@ -323,7 +325,7 @@ function singleQuoteDocument(quote: Quote, line: QuoteLine, image: string | null
                 stack: [
                   { text: "PRECIO LISTA", color: MUTED, bold: true, fontSize: 8, characterSpacing: 1.2 },
                   { text: money(listPrice), decoration: "lineThrough", color: MUTED, bold: true, fontSize: 18, margin: [0, 8, 0, 4] },
-                  { text: `Ahorras ${money(saving)} · -${Math.round((1 - salePrice / listPrice) * 100)}%`, color: GREEN, bold: true, fontSize: 10 },
+                  { text: `Ahorras ${money(saving)} · ${selloDelPdf(Math.round((1 - salePrice / listPrice) * 100))}`, color: GREEN, bold: true, fontSize: 10 },
                 ],
                 margin: [14, 12, 14, 12],
               },
@@ -541,6 +543,16 @@ function loadSpeedLabel(loadSpeed: NonNullable<CatalogItem["loadSpeed"]>): strin
     loadSpeed.speedKmh ? `${loadSpeed.speedKmh} km/h` : null,
   ].filter(Boolean);
   return detail.length ? `${loadSpeed.code} · ${detail.join(" · ")}` : loadSpeed.code;
+}
+
+/**
+ * «-25%» o, con la promoción en 3x4 (Ajustes → Piezas), «3x4 · paga 3 lleva 4».
+ * Este PDF solo sale si la pieza falló; tiene que nombrar la rebaja igual que
+ * ella, y la pieza ya dejó leído el ajuste en el mismo turno.
+ */
+function selloDelPdf(pct: number): string {
+  const promocion = etiquetaDePromocion(piecesConfigEnMemoria().promocion.modo, pct);
+  return promocion.clase === "3x4" ? "3x4 · paga 3 lleva 4" : `-${pct}%`;
 }
 
 function discount(product: CatalogItem): number {
