@@ -12,15 +12,22 @@ const { StoreHoursSchema, formatStoreHours, excepcionDelDia } = await import(
   "../src/services/settings.js"
 );
 
+// Esquema por día (26-oct). Cumbayá: sábado medio día y domingo cerrado; Quito
+// Sur: sábado y domingo cerrados.
+const dias = (sab: object, dom: object) => ({
+  lun: { open: "08:30", close: "17:30" }, mar: { open: "08:30", close: "17:30" }, mie: { open: "08:30", close: "17:30" },
+  jue: { open: "08:30", close: "17:30" }, vie: { open: "08:30", close: "17:30" }, sab, dom,
+});
+const CERRADO = { open: "08:30", close: "17:30", closed: true };
 const BASE = StoreHoursSchema.parse({
-  cumbaya: { weekday: { open: "08:30", close: "17:30" }, weekend: { open: "08:30", close: "14:30" } },
-  quitoSur: { weekday: { open: "08:30", close: "17:30" }, weekend: { open: "08:30", close: "17:30", closed: true } },
+  cumbaya: { dias: dias({ open: "08:30", close: "14:30" }, CERRADO) },
+  quitoSur: { dias: dias(CERRADO, CERRADO) },
 });
 
 describe("casos especiales de horario por local", () => {
   it("el horario normal se sigue leyendo igual cuando no hay excepciones", () => {
     const texto = formatStoreHours(BASE, "2026-08-12");
-    expect(texto).toContain("Cumbayá: lunes a viernes 08:30–17:30");
+    expect(texto).toContain("Cumbayá: lunes a viernes 08:30–17:30; sábado 08:30–14:30; domingo cerrado.");
     expect(texto).not.toContain("CASOS ESPECIALES");
   });
 

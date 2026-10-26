@@ -62,8 +62,13 @@ interface BrandProfile {
 interface StorePeriod { open: string; close: string; closed: boolean }
 /** Feriado o cierre puntual de UN local en UNA fecha. Manda sobre el horario normal. */
 interface StoreException { fecha: string; motivo: string; open: string; close: string; closed: boolean }
-interface Store { weekday: StorePeriod; weekend: StorePeriod; excepciones: StoreException[] }
-interface StoreHours { cumbaya: Store; quitoSur: Store }
+const DIAS_SEMANA = [
+  ["lun", "Lunes"], ["mar", "Martes"], ["mie", "Miércoles"], ["jue", "Jueves"], ["vie", "Viernes"], ["sab", "Sábado"], ["dom", "Domingo"],
+] as const;
+type Dia = (typeof DIAS_SEMANA)[number][0];
+/** Un horario por día: Depot cierra el domingo y abre el sábado. */
+interface Store { dias: Record<Dia, StorePeriod>; excepciones: StoreException[] }
+type StoreHours = Record<string, Store>;
 interface PreciosEstado { fuente: string; actualizadoEn: string | null; productos: number; error: string | null }
 
 const PALETA_LABEL: Record<string, string> = {
@@ -647,7 +652,7 @@ function SeccionPrecios({ precios, setPrecios, onError }: { precios: PreciosEsta
 }
 
 /** Feriados y cierres puntuales, por local. Cada uno puede tener los suyos. */
-function Excepciones({ store, label, data, onChange }: { store: "cumbaya" | "quitoSur"; label: string; data: Store; onChange: (v: Store) => void }) {
+function Excepciones({ store, label, data, onChange }: { store: string; label: string; data: Store; onChange: (v: Store) => void }) {
   // El backend viejo no manda `excepciones`: durante un deploy escalonado el
   // panel tiene que seguir abriendo.
   const lista = data.excepciones ?? [];
@@ -658,7 +663,7 @@ function Excepciones({ store, label, data, onChange }: { store: "cumbaya" | "qui
     <div className="flex items-center justify-between">
       <p className="text-[12px] font-semibold text-text2">Casos especiales</p>
       <button
-        onClick={() => onChange({ ...data, excepciones: [...lista, { fecha: hoy, motivo: "", open: data.weekday.open, close: data.weekday.close, closed: false }] })}
+        onClick={() => onChange({ ...data, excepciones: [...lista, { fecha: hoy, motivo: "", open: data.dias.lun.open, close: data.dias.lun.close, closed: false }] })}
         className="rounded-full bg-bg px-2.5 py-1 text-[12px] font-semibold hover:bg-bg"
       >+ Agregar</button>
     </div>
@@ -689,7 +694,17 @@ function SeccionHorarios({ hours, setHours, onError }: { hours: StoreHours; setH
     finally { setSaving(false); }
   };
   return <Tarjeta titulo="Horarios de locales" sub="El bot usa estos horarios al recomendar un local. Marca Cerrado cuando no atienda, y carga los feriados o cierres puntuales en Casos especiales — el bot los avisa cuando el cliente pregunta por esos días." extra={<button onClick={() => void save()} disabled={saving} className="rounded-full bg-ok px-4 py-2 text-[12px] font-semibold text-text disabled:opacity-50">{saving ? "Guardando…" : "Guardar horarios"}</button>}>
-    <div className="grid gap-4 md:grid-cols-2">{([ ["Cumbayá", "cumbaya"], ["Quito Sur", "quitoSur"] ] as const).map(([label, store]) => <div key={store} className="rounded-[8px] bg-bg p-4"><p className="text-[14px] font-semibold">{label}</p>{([ ["Lunes a viernes", "weekday"], ["Sábado y domingo", "weekend"] ] as const).map(([dayLabel, period]) => { const value = hours[store][period]; return <div key={period} className="mt-3 grid grid-cols-2 gap-2"><p className="col-span-2 text-[12px] font-semibold text-text2">{dayLabel}</p><label className="text-[12px]">Abre<input type="time" disabled={value.closed} className={inputCls} value={value.open} onChange={(e) => setHours({ ...hours, [store]: { ...hours[store], [period]: { ...value, open: e.target.value } } })} /></label><label className="text-[12px]">Cierra<input type="time" disabled={value.closed} className={inputCls} value={value.close} onChange={(e) => setHours({ ...hours, [store]: { ...hours[store], [period]: { ...value, close: e.target.value } } })} /></label><label className="col-span-2 flex items-center gap-2 text-[13px] font-semibold"><input type="checkbox" checked={value.closed} onChange={(e) => setHours({ ...hours, [store]: { ...hours[store], [period]: { ...value, closed: e.target.checked } } })} /> Cerrado</label></div>; })}<Excepciones store={store} label={label} data={hours[store]} onChange={(v) => setHours({ ...hours, [store]: v })} /></div>)}</div>
+    <div className="grid gap-4 md:grid-cols-2">{([ ["Cumbayá", "cumbaya"], ["Quito Sur", "quitoSur"] ] as const).map(([label, store]) => {
+      const local = hours[store];
+      const setDia = (dia: Dia, patch: Partial<StorePeriod>) => setHours({ ...hours, [store]: { ...local, dias: { ...local.dias, [dia]: { ...local.dias[dia], ...patch } } } });
+      // Copia el tramo del lunes a martes–viernes; sábado y domingo no se tocan.
+      const copiarLunes = () => setHours({ ...hours, [store]: { ...local, dias: { ...local.dias, mar: local.dias.lun, mie: local.dias.lun, jue: local.dias.lun, vie: local.dias.lun } } });
+      return <div key={store} className="rounded-[8px] bg-bg p-4">
+        <div className="flex items-center justify-between"><p className="text-[14px] font-semibold">{label}</p><button onClick={copiarLunes} className="rounded-full bg-surface px-2.5 py-1 text-[12px] font-semibold">Copiar lunes a martes–viernes</button></div>
+        {DIAS_SEMANA.map(([dia, dayLabel]) => { const value = local.dias[dia]; return <div key={dia} className="mt-3 grid grid-cols-[84px_1fr_1fr_auto] items-end gap-2"><p className="pb-2 text-[12px] font-semibold text-text2">{dayLabel}</p><label className="text-[12px]">Abre<input type="time" disabled={value.closed} className={inputCls} value={value.open} onChange={(e) => setDia(dia, { open: e.target.value })} /></label><label className="text-[12px]">Cierra<input type="time" disabled={value.closed} className={inputCls} value={value.close} onChange={(e) => setDia(dia, { close: e.target.value })} /></label><label className="flex items-center gap-1.5 pb-2 text-[12px] font-semibold"><input type="checkbox" checked={value.closed} onChange={(e) => setDia(dia, { closed: e.target.checked })} /> Cerrado</label></div>; })}
+        <Excepciones store={store} label={label} data={local} onChange={(v) => setHours({ ...hours, [store]: v })} />
+      </div>;
+    })}</div>
   </Tarjeta>;
 }
 
