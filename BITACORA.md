@@ -1,3 +1,17 @@
+## 27-oct-2026 · Reunión del 26-oct con Andrés Tamayo y Joaquín, documentada
+
+**Qué:** `docs/reuniones/2026-10-26-andres-tamayo.md` — transcripción completa de Teams
+(33 min) tal cual, quién habla de verdad (Joaquín compartía computadora con Andrés),
+errores del reconocimiento de voz decodificados, decisiones por minuto, pendientes e
+interpretación bloque por bloque. Precio $1.500 + $600/mes con IA incluida, estadísticas
+solo como argumento hasta el primer trimestre, 2 referidos esperando, facturación todo a
+Manuel y Joaquín factura su 40 %, pitch en 3 partes.
+
+**Por qué:** la primera versión de las notas salió de 3 minutos de transcripción; con la
+grabación completa cambian el precio, la estructura del pitch y la administración.
+
+**Horas:** 0,5
+
 ## 26-oct-2026 · La lámina de opciones decía «−25%» con la promo activa; ahora «4 llantas por el precio de 3»
 
 **Qué:** `render/diaNoche.ts` — la insignia grande de la lámina de opciones usaba
