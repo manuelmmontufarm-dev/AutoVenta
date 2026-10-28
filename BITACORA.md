@@ -1,3 +1,19 @@
+## 28-oct-2026 · Integraciones con Perseo y FÉNIX documentadas (referidos de Andrés)
+
+**Qué:** `docs/integraciones/` — README (qué usa AutoVenta de Contífico y veredicto por
+sistema), PERSEO.md (API REST pública: `productos_consulta` con stock y tarifas,
+`existencia_producto`, `facturas_consulta` con `telefono1` y detalle; condiciones: la
+activa el personal de Perseo, marcar «Visible» todas las llantas, PC necesita puerto
+abierto; pasos y precios), FENIX.md (dos productos: Comercial Contable sin API pública
+vs. FENIX ERP sobre Odoo 17 con JSON-RPC vivo; swagger propio solo de bodega, guardado
+como `fenix-erp-swagger.json`; tres caminos si es Comercial Contable; precios CIADE).
+
+**Por qué:** uno de los referidos usa Perseo y el otro FÉNIX; sin leer facturas e
+inventario no se puede replicar lo de Depot ni dar estadísticas. Perseo = luz verde;
+FÉNIX bloqueado hasta saber la versión y que conteste Fenixcorp (mensaje enviado 27-oct).
+
+**Horas:** 1,5
+
 ## 27-oct-2026 · Reunión del 26-oct con Andrés Tamayo y Joaquín, documentada
 
 **Qué:** `docs/reuniones/2026-10-26-andres-tamayo.md` — transcripción completa de Teams
