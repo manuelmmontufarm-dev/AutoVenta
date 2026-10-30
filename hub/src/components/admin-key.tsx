@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { IconAlert, IconCheck, IconSalir, IconX } from "./icons";
+import { LogoAutoVenta } from "./ui";
 import {
   activarCuenta,
   getStoredAdminKey,
@@ -414,6 +415,7 @@ export function ConnectionGate({ estado }: { estado: Extract<EstadoConexion, "cl
         // backdrop-filter de .glass dentro del scrim lo dejaba lavado.
         style={{ background: "var(--color-surface)", border: "1px solid var(--color-line)" }}
       >
+        <LogoAutoVenta className="mb-5 h-8" />
         <p className="microlabel">Acceso al producto real</p>
         <h2 className="serif mt-2 text-[18px]">
           {sinSesion ? "Entra al hub" : "Sin conexión con el servidor"}

@@ -4,7 +4,7 @@ import { ConnectionChip, ConnectionGate, SalirButton, UserChip } from "./compone
 import { hasAdminKey } from "./data/catalog";
 import { Confetti, Toasts } from "./components/overlays";
 import { IconAjustes, IconChart, IconDiana, IconInbox, IconKanban, IconPlay, IconSilencio, IconSonido, IconStop, IconTire } from "./components/icons";
-import { PageHeader } from "./components/ui";
+import { LogoAutoVenta, PageHeader } from "./components/ui";
 import { VersionBadge } from "./components/version-badge";
 import { setSonidoActivo, sonidoActivo, sonidoBoton } from "./lib/sound";
 import { Tour } from "./components/tour";
@@ -138,8 +138,10 @@ export default function App() {
       <div className="flex h-full">
         {/* ── Rail (escritorio) ── */}
         <aside className="hidden w-56 shrink-0 flex-col border-r border-line px-4 pt-[22px] pb-5 md:flex">
+          {/* Producto arriba, cliente abajo: el logo es de AutoVenta, el hub es de Depot. */}
           <div className="flex flex-col gap-0.5 px-3 pb-[26px]">
-            <span className="text-[15px] font-semibold tracking-[-0.01em]">Depot Tire</span>
+            <LogoAutoVenta className="mb-2.5 h-7 self-start" />
+            <span className="text-[14px] font-semibold tracking-[-0.01em]">Depot Tire</span>
             <span className="text-[12px] text-text2">Hub de ventas</span>
           </div>
           <nav className="flex flex-col gap-0.5" aria-label="Principal">

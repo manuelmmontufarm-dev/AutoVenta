@@ -1,3 +1,18 @@
+## 30-oct-2026 · Logo de AutoVenta en el panel y en los favicons
+
+**Qué:** el favicon del hub pasa de «DT» al bloque rojo «AV» (Barlow Condensed itálica
+800 en trazos, `hub/scripts/logo-autoventa.py`); con tickets abiertos el número va en una
+pastilla tinta arriba, de todo el ancho si son dos cifras para que se lea a 16 px. Logo
+AUTOVENTA en la barra lateral y en la pantalla de ingreso, con «Depot Tire · Hub de ventas»
+debajo. PNG 192/512/apple-touch regenerados; `app/site/icon.svg`, tester, mensajes, inicio
+y panel de fases con el ícono nuevo. Capturas en `docs/capturas/logo-autoventa/`.
+
+**Por qué:** Manuel eligió el logo para la presentación de ventas y lo quiere también en
+el producto. El nombre «Depot Tire» del título y del manifest se dejó: es la marca del
+cliente y quitarla es decisión de Manuel.
+
+**Horas:** 1
+
 ## 28-oct-2026 · Integraciones con Perseo y FÉNIX documentadas (referidos de Andrés)
 
 **Qué:** `docs/integraciones/` — README (qué usa AutoVenta de Contífico y veredicto por
