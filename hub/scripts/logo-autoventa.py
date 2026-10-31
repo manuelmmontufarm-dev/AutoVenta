@@ -7,7 +7,6 @@ trazos. Escribe:
   hub/public/autoventa-icono.svg        el bloque solo (favicon e íconos)
   hub/public/autoventa-logo-claro.svg   bloque + AUTOVENTA, tinta oscura
   hub/public/autoventa-logo-oscuro.svg  bloque + AUTOVENTA, tinta clara
-  hub/src/lib/marca-trazos.ts           los trazos de «AV» para el favicon dinámico
 
 Uso (desde hub/, con node_modules instalado):  python3 scripts/logo-autoventa.py
 Los PNG (192, 512 y el apple-touch-icon de 180) se sacan de
@@ -97,16 +96,9 @@ for tema, tinta in (("claro", TINTA), ("oscuro", CREMA)):
     )
     (HUB / f"public/autoventa-logo-{tema}.svg").write_text(logo)
 
-# ── Trazos de «AV» en un bloque de 64, para el favicon con canvas ──
-(HUB / "src/lib/marca-trazos.ts").write_text(
-    "// Generado por scripts/logo-autoventa.py: no lo edites a mano.\n"
-    "/** «AV» de Barlow Condensed itálica 800, centrado en un bloque de 64×64. */\n"
-    f'export const AV_64 = "{av_centrado(LADO)}";\n'
-)
-
 # ── PNG ── (apple-touch-icon va a sangre, sin esquinas: iOS pone las suyas)
 #   magick -background none -density 900 public/autoventa-icono.svg -resize 512x512 public/icon-512.png
 #   magick -background none -density 400 public/autoventa-icono.svg -resize 192x192 public/icon-192.png
 #   sed 's/rx="[0-9.]*"//' public/autoventa-icono.svg > /tmp/ios.svg
 #   magick -density 400 /tmp/ios.svg -resize 180x180 -background "#C8102E" -flatten public/apple-touch-icon.png
-print("Listo: SVG en public/ y src/lib/marca-trazos.ts. Los PNG, con los magick del final del script.")
+print("Listo: SVG en public/. Los PNG, con los magick del final del script.")

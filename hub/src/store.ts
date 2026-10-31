@@ -14,7 +14,6 @@ import {
   type UsuarioSesion,
 } from "./data/realSource";
 import type { DataSource } from "./data/source";
-import { updateFavicon } from "./lib/favicon";
 import { pingNotificacion, pingVenta, sonidoArranque, sonidoPitStop } from "./lib/sound";
 
 const dataMode: "demo" | "real" = window.location.pathname.includes("/demo")
@@ -256,7 +255,6 @@ export const useHub = create<HubState>((set, get) => {
     if (rTickets.ok && turno === turnoLista) {
       const tickets = respetarLeidos(rTickets.value);
       set({ tickets, cargando: false, conexion: "conectada" });
-      updateFavicon(tickets.filter((t) => t.estado === "abierto").length);
     }
 
     const [rPhases, rPower] = await Promise.allSettled([pPhases, pPower]);

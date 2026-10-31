@@ -1,3 +1,12 @@
+## 30-oct-2026 · Favicon fijo, sin el número de tickets abiertos
+
+**Qué:** el favicon del panel queda como el bloque «AV» fijo; se borran
+`hub/src/lib/favicon.ts` y `marca-trazos.ts`.
+
+**Por qué:** Manuel: el número en la pestaña sobra (ya está en el menú).
+
+**Horas:** 0,1
+
 ## 30-oct-2026 · El panel dice «AutoVenta» en vez de «Depot Tire»
 
 **Qué:** título de la pestaña, nombre de la app instalada (manifest y título de iPhone),
