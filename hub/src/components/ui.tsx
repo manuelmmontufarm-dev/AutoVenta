@@ -4,6 +4,23 @@ import { CIERRE_META, ETAPA_META, type Cierre, type Etapa, type Ticket } from ".
 import { iniciales } from "../lib/format";
 import { IconBandera, IconClock, IconInbox, IconRefresh, IconX } from "./icons";
 
+/* ── Logo de AutoVenta ──
+   El bloque rojo «AV» + AUTOVENTA, en trazos (public/autoventa-logo-claro.svg,
+   lo genera scripts/logo-autoventa.py): no depende de que cargue la fuente.
+   El rojo es solo del logo; la paleta del panel no cambia. La altura la da
+   la clase (h-7, h-8…); el ancho sale solo. */
+
+export function LogoAutoVenta({ className = "" }: { className?: string }) {
+  return (
+    <img
+      src={`${import.meta.env.BASE_URL}autoventa-logo-claro.svg`}
+      alt="AutoVenta"
+      draggable={false}
+      className={`w-auto select-none ${className}`}
+    />
+  );
+}
+
 /* ── Avatar ──
    Iniciales en un cuadrado de papel. Sin arcoíris: en Taller el color es para
    lo que exige actuar, no para distinguir personas. */

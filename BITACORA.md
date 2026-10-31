@@ -1,3 +1,54 @@
+## 30-oct-2026 · Favicon fijo, sin el número de tickets abiertos
+
+**Qué:** el favicon del panel queda como el bloque «AV» fijo; se borran
+`hub/src/lib/favicon.ts` y `marca-trazos.ts`.
+
+**Por qué:** Manuel: el número en la pestaña sobra (ya está en el menú).
+
+**Horas:** 0,1
+
+## 30-oct-2026 · El panel dice «AutoVenta» en vez de «Depot Tire»
+
+**Qué:** título de la pestaña, nombre de la app instalada (manifest y título de iPhone),
+barra lateral (logo + «Hub de ventas») y el saludo del tour pasan a AutoVenta. No se
+tocó lo que es del negocio: cotizaciones, mensajes al cliente, Ajustes, locales.
+
+**Por qué:** decisión de Manuel: el panel es el producto AutoVenta; la marca de Depot
+queda en lo que ve el cliente final.
+
+**Horas:** 0,25
+
+## 30-oct-2026 · Logo de AutoVenta en el panel y en los favicons
+
+**Qué:** el favicon del hub pasa de «DT» al bloque rojo «AV» (Barlow Condensed itálica
+800 en trazos, `hub/scripts/logo-autoventa.py`); con tickets abiertos el número va en una
+pastilla tinta arriba, de todo el ancho si son dos cifras para que se lea a 16 px. Logo
+AUTOVENTA en la barra lateral y en la pantalla de ingreso, con «Depot Tire · Hub de ventas»
+debajo. PNG 192/512/apple-touch regenerados; `app/site/icon.svg`, tester, mensajes, inicio
+y panel de fases con el ícono nuevo. Capturas en `docs/capturas/logo-autoventa/`.
+
+**Por qué:** Manuel eligió el logo para la presentación de ventas y lo quiere también en
+el producto. El nombre «Depot Tire» del título y del manifest se dejó: es la marca del
+cliente y quitarla es decisión de Manuel.
+
+**Horas:** 1
+
+## 28-oct-2026 · Integraciones con Perseo y FÉNIX documentadas (referidos de Andrés)
+
+**Qué:** `docs/integraciones/` — README (qué usa AutoVenta de Contífico y veredicto por
+sistema), PERSEO.md (API REST pública: `productos_consulta` con stock y tarifas,
+`existencia_producto`, `facturas_consulta` con `telefono1` y detalle; condiciones: la
+activa el personal de Perseo, marcar «Visible» todas las llantas, PC necesita puerto
+abierto; pasos y precios), FENIX.md (dos productos: Comercial Contable sin API pública
+vs. FENIX ERP sobre Odoo 17 con JSON-RPC vivo; swagger propio solo de bodega, guardado
+como `fenix-erp-swagger.json`; tres caminos si es Comercial Contable; precios CIADE).
+
+**Por qué:** uno de los referidos usa Perseo y el otro FÉNIX; sin leer facturas e
+inventario no se puede replicar lo de Depot ni dar estadísticas. Perseo = luz verde;
+FÉNIX bloqueado hasta saber la versión y que conteste Fenixcorp (mensaje enviado 27-oct).
+
+**Horas:** 1,5
+
 ## 27-oct-2026 · Reunión del 26-oct con Andrés Tamayo y Joaquín, documentada
 
 **Qué:** `docs/reuniones/2026-10-26-andres-tamayo.md` — transcripción completa de Teams

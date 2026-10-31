@@ -1,7 +1,7 @@
 {
-  "name": "Depot Tire Hub",
-  "short_name": "Depot Hub",
-  "description": "Panel de ventas de Depot Tire: inbox, oportunidades y pipeline.",
+  "name": "AutoVenta",
+  "short_name": "AutoVenta",
+  "description": "Panel de ventas de AutoVenta: inbox, oportunidades y pipeline.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

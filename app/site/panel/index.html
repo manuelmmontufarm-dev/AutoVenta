@@ -18,8 +18,7 @@
     .stripe{height:8px;background:repeating-linear-gradient(90deg,var(--azul) 0 18px,#fff 18px 36px)}
     .wrap{max-width:960px;margin:0 auto;padding:22px 20px 60px}
     header.top{display:flex;align-items:center;gap:14px;margin:8px 0 22px}
-    .logo{width:46px;height:46px;border-radius:13px;background:var(--rojo);color:#fff;
-      display:grid;place-items:center;font-family:'Archivo Black';font-size:15px;box-shadow:0 6px 20px rgba(214,40,40,.28)}
+    .logo{width:46px;height:46px;display:block;flex:none;box-shadow:0 6px 20px rgba(200,16,46,.28);border-radius:6px}
     h1{font-family:'Archivo Black';font-size:22px;margin:0;letter-spacing:-.02em}
     .sub{color:var(--muted);font-size:13px;margin:2px 0 0}
     .kicker{font-size:11px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:var(--rojo)}
@@ -77,7 +76,7 @@
   <div class="stripe"></div>
   <div class="wrap">
     <header class="top">
-      <div class="logo">AV</div>
+      <img class="logo" src="/icon.svg" alt="AutoVenta">
       <div>
         <p class="kicker">Control interno · no operativo</p>
         <h1>Panel de administración</h1>
