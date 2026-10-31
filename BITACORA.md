@@ -1,3 +1,14 @@
+## 30-oct-2026 · El panel dice «AutoVenta» en vez de «Depot Tire»
+
+**Qué:** título de la pestaña, nombre de la app instalada (manifest y título de iPhone),
+barra lateral (logo + «Hub de ventas») y el saludo del tour pasan a AutoVenta. No se
+tocó lo que es del negocio: cotizaciones, mensajes al cliente, Ajustes, locales.
+
+**Por qué:** decisión de Manuel: el panel es el producto AutoVenta; la marca de Depot
+queda en lo que ve el cliente final.
+
+**Horas:** 0,25
+
 ## 30-oct-2026 · Logo de AutoVenta en el panel y en los favicons
 
 **Qué:** el favicon del hub pasa de «DT» al bloque rojo «AV» (Barlow Condensed itálica

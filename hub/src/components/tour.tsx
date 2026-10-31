@@ -47,7 +47,7 @@ function armarPasos(input: {
       id: "bienvenida",
       titulo: `Hola, ${nombre}`,
       cuerpo:
-        "Este es el hub de Depot Tire. El bot atiende solo a los clientes por WhatsApp; "
+        "Este es tu hub de AutoVenta. El bot atiende solo a los clientes por WhatsApp; "
         + "aquí es donde tú lo miras trabajar, tomas el volante cuando hace falta y cierras las ventas. "
         + "Te llevo por las paradas importantes — son dos minutos.",
     },

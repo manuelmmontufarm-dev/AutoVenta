@@ -138,10 +138,10 @@ export default function App() {
       <div className="flex h-full">
         {/* ── Rail (escritorio) ── */}
         <aside className="hidden w-56 shrink-0 flex-col border-r border-line px-4 pt-[22px] pb-5 md:flex">
-          {/* Producto arriba, cliente abajo: el logo es de AutoVenta, el hub es de Depot. */}
-          <div className="flex flex-col gap-0.5 px-3 pb-[26px]">
-            <LogoAutoVenta className="mb-2.5 h-7 self-start" />
-            <span className="text-[14px] font-semibold tracking-[-0.01em]">Depot Tire</span>
+          {/* El panel es de AutoVenta; la marca del negocio vive en lo que ve
+              el cliente final (cotizaciones, mensajes), no aquí. */}
+          <div className="flex flex-col gap-1.5 px-3 pb-[26px]">
+            <LogoAutoVenta className="h-7 self-start" />
             <span className="text-[12px] text-text2">Hub de ventas</span>
           </div>
           <nav className="flex flex-col gap-0.5" aria-label="Principal">
