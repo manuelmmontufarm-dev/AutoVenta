@@ -4,8 +4,11 @@
  *
  * Desde el 24-oct-2026 los teléfonos que terminan en dígito PAR atienden con
  * vendedor gpt-5.4 + Guardián gpt-5.4-mini (grupo «canary»); los IMPARES siguen
- * con gpt-5.5 (grupo «control»). Este script lee la base de producción en modo
- * solo lectura y dibuja, día por día y por grupo:
+ * con gpt-5.5 (grupo «control»). El 2-nov-2026 se CRUZARON los grupos para la
+ * última semana: desde entonces el canary son los IMPARES y el control los PARES
+ * (así se ve si la caída de cotizaciones sigue al modelo o a los teléfonos).
+ * Este script lee la base de producción en modo solo lectura y dibuja, día por
+ * día y por grupo:
  *
  *   1. Costo de IA por conversación (gráfico I, individuos)
  *   2. Ahorro acumulado en dólares (lo que habría costado con gpt-5.5 − lo pagado)
@@ -42,6 +45,10 @@ const TZ = "America/Guayaquil";
  *  (mitad con el bot viejo) y no cuenta ni para los límites ni como señal. La fase II arranca el 25. */
 const TRANSICION = arg("transicion", "2026-10-24");
 const INICIO_CANARY = arg("inicio", "2026-10-25");
+/** Cruce de grupos: AI_CANARY_DIGITS pasó de 0,2,4,6,8 a 1,3,5,7,9 (deploy listo a esta hora).
+ *  Lo que pasa antes es de los pares; lo de después, de los impares. Ese día también es de transición. */
+const CRUCE = arg("cruce", "2026-11-02T14:07:00Z");
+const DIA_CRUCE = new Date(CRUCE).toLocaleDateString("en-CA", { timeZone: "America/Guayaquil" });
 /** Fase I: desde que se prendieron los anuncios de octubre, para comparar tráfico parecido. */
 const INICIO_BASE = arg("base", "2026-10-13");
 /** Los últimos días no han madurado: una cotización o un día de visita llegan hasta 48 h después. */
@@ -57,22 +64,23 @@ const tarifa = (m) => TARIFAS[m] ?? TARIFAS[Object.keys(TARIFAS).find((k) => m?.
 const costo = (m, inp, cached, out) => { const t = tarifa(m); const c = Math.min(cached, inp); return ((inp - c) * t.input + c * t.cached + out * t.output) / 1e6; };
 
 const sql = postgres(DB, { prepare: false, max: 1, ssl: "prefer", connection: { options: "-c default_transaction_read_only=on" } });
-const grupoSQL = sql`case when right(regexp_replace(c.phone, '\\D', '', 'g'), 1) in ('0','2','4','6','8') then 'canary' else 'control' end`;
+/** El grupo depende de CUÁNDO pasó la fila: antes del cruce el canary son los pares, después los impares. */
+const grupoSQL = (cuando) => sql`case when (right(regexp_replace(c.phone, '\\D', '', 'g'), 1) in ('0','2','4','6','8')) = (${cuando} < ${CRUCE}::timestamptz) then 'canary' else 'control' end`;
 
 // ── Datos ──────────────────────────────────────────────────────────────────
 const runs = await sql`
-  select (r.created_at at time zone ${TZ})::date::text as dia, ${grupoSQL} as grupo, r.conversation_id as conv,
+  select (r.created_at at time zone ${TZ})::date::text as dia, ${grupoSQL(sql`r.created_at`)} as grupo, r.conversation_id as conv,
          r.model, r.route, r.call_type, coalesce(r.input_tokens,0)::int as inp, coalesce(r.cached_input_tokens,0)::int as cached,
          coalesce(r.output_tokens,0)::int as outp, r.error
   from ai_runs r join conversations c on c.id = r.conversation_id
   where r.created_at >= ${INICIO_BASE}::date`;
 const chats = await sql`
-  select (c.created_at at time zone ${TZ})::date::text as dia, ${grupoSQL} as grupo,
+  select (c.created_at at time zone ${TZ})::date::text as dia, ${grupoSQL(sql`c.created_at`)} as grupo,
          exists (select 1 from quotes q where q.conversation_id = c.id) as cotizo,
          (c.visit_date is not null) as dia_visita
   from conversations c where c.created_at >= ${INICIO_BASE}::date`;
 const revisiones = await sql`
-  select (g.created_at at time zone ${TZ})::date::text as dia, ${grupoSQL} as grupo, g.verdict
+  select (g.created_at at time zone ${TZ})::date::text as dia, ${grupoSQL(sql`g.created_at`)} as grupo, g.verdict
   from guardian_reviews g join conversations c on c.id = g.conversation_id
   where g.created_at >= ${INICIO_BASE}::date and g.verdict in ('aprobar','corregir')`;
 await sql.end();
@@ -83,7 +91,7 @@ try {
   if (!key) key = JSON.parse(execFileSync("railway", ["variables", "--environment", "Depot_Tire", "--service", "AutoVenta", "--json"], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"], timeout: 25_000 })).ADMIN_KEY;
   const r = await fetch("https://autoventa-depottire.up.railway.app/api/hub/metrics?mes=todos", { headers: { "x-admin-key": key } });
   const j = await r.json();
-  ventas = (j.metrics?.ventasConfirmadas?.detalle ?? []).map((v) => ({ dia: v.dia, grupo: /[02468]$/.test(String(v.telefono).replace(/\D/g, "")) ? "canary" : "control", total: v.total }));
+  ventas = (j.metrics?.ventasConfirmadas?.detalle ?? []).map((v) => ({ dia: v.dia, grupo: /[02468]$/.test(String(v.telefono).replace(/\D/g, "")) === (v.dia < DIA_CRUCE) ? "canary" : "control", total: v.total }));
 } catch (e) { console.warn("Sin ventas de Contífico:", e.message); }
 
 // ── Agregados por día ─────────────────────────────────────────────────────
@@ -91,7 +99,7 @@ const hoy = new Date().toLocaleDateString("en-CA", { timeZone: TZ });
 const dias = [];
 for (let d = new Date(`${INICIO_BASE}T12:00:00Z`); d.toISOString().slice(0, 10) <= hoy; d.setUTCDate(d.getUTCDate() + 1)) dias.push(d.toISOString().slice(0, 10));
 // El día de hoy está a medias: se dibuja hueco y no se juzga.
-const fase = (d) => (d < TRANSICION ? "I" : d < INICIO_CANARY || d === hoy ? "T" : "II");
+const fase = (d) => (d < TRANSICION ? "I" : d < INICIO_CANARY || d === DIA_CRUCE || d === hoy ? "T" : "II");
 const GRUPOS = ["control", "canary"];
 
 const porDia = (filas, fn) => Object.fromEntries(GRUPOS.map((g) => [g, dias.map((d) => fn(filas.filter((f) => f.dia === d && f.grupo === g), d))]));
@@ -160,7 +168,7 @@ function senales(puntos, lim) {
 
 // ── SVG ───────────────────────────────────────────────────────────────────
 const COLOR = { control: "var(--control)", canary: "var(--canary)" };
-const NOMBRE = { control: "Impares · gpt-5.5 (control)", canary: "Pares · gpt-5.4 + Guardián mini (canary)" };
+const NOMBRE = { control: "Control · gpt-5.5 (impares hasta el 1-nov, pares desde el 2-nov)", canary: "Canary · gpt-5.4 + Guardián mini (pares hasta el 1-nov, impares desde el 2-nov)" };
 function grafico({ xs, series, lim, formato, yMaxMin = 0, inicio = TRANSICION }) {
   const W = 860, H = 250, m = { l: 52, r: 14, t: 12, b: 26 };
   const todos = GRUPOS.flatMap((g) => series[g].map((p) => p.y)).filter((y) => y != null);
