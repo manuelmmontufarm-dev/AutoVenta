@@ -51,7 +51,8 @@ bot, y lo que se pruebe ahí deja de decir algo del que atiende a los clientes.
 ## Canary de modelos (en producción desde el 24-oct-2026)
 
 Teléfonos que terminan en dígito **par** atienden con vendedor `gpt-5.4` + Guardián
-`gpt-5.4-mini`; los **impares** siguen con `gpt-5.5`. Lo decide `src/agent/canary.ts` con las
+`gpt-5.4-mini`; los **impares** siguen con `gpt-5.5`. **Desde el 2-nov-2026 los grupos están
+cruzados** (`AI_CANARY_DIGITS=1,3,5,7,9`): el canary son los impares, el control los pares. Lo decide `src/agent/canary.ts` con las
 variables `OPENAI_CANARY_MODEL`, `OPENAI_CANARY_MODEL_VENDEDOR`, `OPENAI_CANARY_MODEL_GUARDIAN`,
 `AI_CANARY_DIGITS` y `AI_CANARY_SCOPE` del servicio Depot_Tire en Railway. Las corridas del
 grupo llevan `+canary` en `ai_runs.route`. Todo lo que llame al Guardián tiene que pasarle el

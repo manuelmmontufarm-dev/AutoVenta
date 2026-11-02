@@ -1,3 +1,18 @@
+## 2-nov-2026 · Canary: grupos cruzados para la última semana (canary = impares)
+
+**Qué:** en Railway (Depot_Tire) `AI_CANARY_DIGITS` pasó de `0,2,4,6,8` a `1,3,5,7,9`
+(en vivo desde las 14:07 UTC, comprobado con corridas reales: impares con `+canary`
+gpt-5.4 / gpt-5.4-mini, pares con gpt-5.5). `app/scripts/canary/control-charts.mjs`
+asigna el grupo según la fecha de cada fila (`--cruce`), marca el 2-nov como día de
+transición y nombra las series «Canary» / «Control». `CLAUDE.md` lo anota.
+
+**Por qué:** sumando 24–31 oct, de los chats con medida los pares cotizaron 20 % contra
+34 % de su fase I (≈ −3,3σ; día por día no se ve porque con ~24 chats el límite inferior
+es 0 %). La fuga está en «medida confirmada → elige opción». Cruzar los grupos una
+semana dice si la caída sigue al modelo o a los teléfonos. Decisión de Manuel, 2-nov.
+
+**Horas:** 0,5
+
 ## 27-oct-2026 · Reunión del 26-oct con Andrés Tamayo y Joaquín, documentada
 
 **Qué:** `docs/reuniones/2026-10-26-andres-tamayo.md` — transcripción completa de Teams
