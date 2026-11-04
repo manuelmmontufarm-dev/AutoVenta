@@ -4,7 +4,7 @@ Ficha del prospecto. Es el referido de Andrés Tamayo «de Santo Domingo», del 
 Investigado el 3-nov-2026 con fuentes públicas. Las transcripciones de las reuniones con ellos van en `docs/reuniones/` y se enlazan abajo.
 
 - Deck interno de preparación (privado, para Manuel y Joaquín): https://claude.ai/artifact/4PQgPpxGZMvfX779w2YUda
-- Estado: reunión por confirmar después del feriado. Joaquín coordina el día y la hora.
+- Estado: **pitch hecho el 4-nov-2026, aceptaron la prueba de 2 semanas.** Ver la reunión abajo.
 
 ## Resumen
 
@@ -145,4 +145,5 @@ El 4-nov-2026 se buscó «Competillantas» en Google, Google Maps y la Bibliotec
 
 ## Reuniones con Mundillantas
 
-_(Ninguna todavía. Agregar aquí el enlace a cada transcripción en `docs/reuniones/AAAA-MM-DD-mundillantas.md`.)_
+- **4-nov-2026 · Pitch (dijeron que sí):** [transcripción + análisis](../reuniones/2026-11-04-mundillantas-competimotor.md). Marcas Mundillantas + Competimotor, Fénix en servidor local, prueba de 2 semanas.
+- Lo que falta saber de ellos y dónde se carga cada respuesta: [lista de arranque](mundillantas-arranque.md). Plan técnico: [MULTICLIENTE.md](../MULTICLIENTE.md).

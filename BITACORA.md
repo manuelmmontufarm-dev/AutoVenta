@@ -1,3 +1,18 @@
+## 4-nov-2026 · Plan multicliente: Depot + Mundillantas sobre el mismo código
+
+**Qué:** `docs/MULTICLIENTE.md` (qué sigue siendo Depot en el código, con archivo:línea, y los nombres
+decididos), `docs/clientes/mundillantas-arranque.md` (qué preguntarle al cliente en las 2 semanas y dónde
+se carga cada respuesta) y `docs/planning/PLAN-MULTICLIENTE-MASTER-PROMPT.md` (4 sprints en paralelo —dos
+marcas, catálogo por archivo, panel y alta, política por cliente— más el Sprint Final). El plan se revisó
+contra el código con un workflow de 4 lentes + verificador (88 hallazgos; los confirmados ya están
+aplicados). Enlaza la reunión desde la ficha del cliente.
+
+**Por qué:** Manuel quiere a los dos clientes bajo AutoVenta con los arreglos del bot para los dos y cada
+uno con su forma de trabajar. En vez de un sub-repo, un solo código con una carpeta de cliente (perfil,
+política, assets, Ajustes).
+
+**Horas:** 2
+
 ## 4-nov-2026 · Pitch a Mundillantas / Competimotor documentado: dijeron que sí
 
 **Qué:** `docs/reuniones/2026-11-04-mundillantas-competimotor.md` — transcripción de Fathom
