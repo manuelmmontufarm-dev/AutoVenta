@@ -1,3 +1,26 @@
+## 4-nov-2026 · Multicliente S3: semilla de base nueva y simulador por cliente
+
+**Qué:** (R-35) `npm run seed:negocio` (`db/seed-negocio.ts`) deja una base
+vacía lista para el perfil activo: esquema, prompts por etapa, fases y las 4
+llaves que exige el simulador (`guardian_config` —prendido para un cliente
+nuevo—, `ai_config`, `pieces_config`, `store_hours` desde el perfil),
+idempotente: nunca pisa lo existente. (R-36) `npm run sim -- --perfil <id>` con
+la tabla `PERFILES_SIM` en `entorno-prod.mjs`: Depot = lo de hoy; `ejemplo` y
+`mundillantas` sin servicio corren la semilla, toman solo los modelos
+`OPENAI_*` de Depot y usan catálogo por archivo (sin Contífico ni `CONTIFICO_*`,
+tampoco en humo); `--catalogo-archivo` sube el Excel por
+`POST /api/catalog/import` (404 → «falta el Sprint 2»); `NEGOCIO` del perfil se
+pone después de lo copiado y una copia con otro negocio aborta. Verificado:
+`sim -- --perfil ejemplo --humo` todo verde (catálogo vacío anunciado, guardián
+revisando). Pruebas: `seedNegocio.test.ts` (Postgres local),
+`simPorPerfil.test.ts`.
+
+**Por qué:** la prueba de Mundillantas necesita probar su bot ANTES de que
+exista su servicio, con su perfil y su catálogo de Fénix — sin arrancar jamás
+un bot con el perfil de otro cliente.
+
+**Horas:** 2
+
 ## 4-nov-2026 · Multicliente S3: PIN por cliente, usuarios por negocio y avisos al asesor del local
 
 **Qué:** (R-33) el PIN compartido del panel sale de `HUB_PIN` (sin ella sigue

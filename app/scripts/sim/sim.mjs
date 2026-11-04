@@ -35,7 +35,7 @@ import { fileURLToPath } from "node:url";
 import postgres from "postgres";
 import { levantarGraphSim } from "./lib/graph-sim.mjs";
 import { levantarContificoSim } from "./lib/contifico-sim.mjs";
-import { variablesDeProduccion } from "./lib/entorno-prod.mjs";
+import { perfilDeSimulacion, variablesDeProduccion } from "./lib/entorno-prod.mjs";
 import { TABLAS_CONFIG } from "./lib/tablas.mjs";
 import { traspasoAlCorte, jobsAlCorte } from "./lib/traspaso-al-corte.mjs";
 import { buildInboundPayload, deliverWebhook } from "../loadtest/lib/meta.mjs";
@@ -50,13 +50,31 @@ const valor = (nombre, porDefecto = null) => {
   const i = argv.indexOf(`--${nombre}`);
   return i >= 0 && argv[i + 1] && !argv[i + 1].startsWith("--") ? argv[i + 1] : porDefecto;
 };
-const snapshotCatalogo = valor("catalogo-snapshot", resolve(dirDatos, "catalogo.json"));
+// ─────────────────────────────────────────────────────────────────────────────
+// Con qué cliente se simula (R-36)
+// ─────────────────────────────────────────────────────────────────────────────
+// `--perfil <id>` corre el simulador como OTRO cliente: su base, su `.env.sim`
+// y su catálogo, según la tabla PERFILES_SIM de lib/entorno-prod.mjs. Sin la
+// bandera, todo es exactamente lo de hoy (Depot). Un id desconocido no
+// arranca: `perfilDeSimulacion` lanza con la lista de perfiles.
+const PERFIL = valor("perfil", null);
+const perfilSim = PERFIL ? perfilDeSimulacion(PERFIL) : null;
+const CATALOGO_POR_ARCHIVO = perfilSim?.catalogo === "archivo";
+const ARCHIVO_CATALOGO = valor("catalogo-archivo", null);
+if (ARCHIVO_CATALOGO && !CATALOGO_POR_ARCHIVO) {
+  throw new Error("--catalogo-archivo solo vale con un --perfil cuyo catálogo sea «archivo».");
+}
+
+const snapshotCatalogo = valor("catalogo-snapshot", resolve(
+  dirDatos,
+  PERFIL && !CATALOGO_POR_ARCHIVO ? `catalogo.${PERFIL}.json` : "catalogo.json",
+));
 
 const PUERTO_UI = Number(valor("puerto", "3210"));
 const PUERTO_APP = Number(valor("puerto-bot", "3205"));
 const PUERTO_GRAPH = Number(valor("puerto-graph", "4720"));
 const PUERTO_CONTIFICO = Number(valor("puerto-contifico", "4721"));
-const DB = valor("db", "autoventa_sim");
+const DB = valor("db", PERFIL ? `autoventa_sim_${PERFIL}` : "autoventa_sim");
 const REENTREGA_MS = Number(valor("reentrega-ms", "1000"));
 const APP_SECRET = "sim_app_secret";
 const PHONE_ID = "SIMPHONEID";
@@ -72,7 +90,10 @@ if (!/^[a-z_][a-z0-9_]*$/i.test(DB)) throw new Error(`--db inválida: ${DB}`);
 // Un worktree limpio no trae los archivos ignorados. Permite señalar el .env
 // del checkout principal para copiar configuración; en humo todas las APIs se
 // reemplazan por dobles locales y la clave de OpenAI se pisa con «humo».
-const env = entornoDelBot(valor("env-file", resolve(raízApp, ".env")));
+// Con --perfil, el `.env` por defecto es el del perfil (`app/.env.sim.<id>`),
+// que puede no existir: un cliente nuevo no tiene DATABASE_URL de producción
+// que copiar y no debe heredar la de Depot.
+const env = entornoDelBot(valor("env-file", resolve(raízApp, PERFIL ? `.env.sim.${PERFIL}` : ".env")));
 const claveOpenAI = claveDePruebas();
 // El humo usa el doble local y devuelve la clave ficticia «humo». La migración
 // también carga config.ts, así que debe recibirla aunque no exista app/.env.
@@ -174,7 +195,7 @@ async function main() {
   console.log("📐 Esquema…");
   execFileSync("npx", ["tsx", "src/db/migrate.ts"], {
     cwd: raízApp, stdio: "pipe",
-    env: { ...env, DATABASE_URL: URL_SIM, PGSSL: "" },
+    env: { ...env, DATABASE_URL: URL_SIM, PGSSL: "", ...(PERFIL ? { NEGOCIO: PERFIL } : {}) },
   });
 
   sql = postgres(URL_SIM, { prepare: false, max: 5 });
@@ -185,6 +206,17 @@ async function main() {
       cwd: raízApp, stdio: "pipe",
       env: { ...env, DATABASE_URL: URL_SIM, PGSSL: "" },
     });
+  } else if (PERFIL && !perfilSim.servicio) {
+    // Un perfil sin servicio no tiene producción de la que copiar: la base se
+    // deja lista con la semilla del perfil (R-35), que escribe las mismas
+    // llaves que `verificarLaCopia` exige. Un perfil CON servicio sigue el
+    // camino de siempre, y una copia incompleta sigue fallando como hoy.
+    console.log(`🌱 Perfil «${PERFIL}» sin servicio en producción: semilla del perfil…`);
+    execFileSync("npx", ["tsx", "src/db/seed-negocio.ts"], {
+      cwd: raízApp, stdio: "pipe",
+      env: { ...env, DATABASE_URL: URL_SIM, PGSSL: "", NEGOCIO: PERFIL },
+    });
+    await verificarLaCopia();
   } else {
     // Si producción no se puede leer (sin red, sin credenciales), el simulador
     // arranca igual y lo dice: mejor una copia parcial anunciada que no poder
@@ -239,16 +271,37 @@ async function main() {
     console.log(`🚬 Modo humo: OpenAI y Contífico de mentira en :${PUERTO_STUB} (cero tokens)`);
   }
 
-  console.log("📦 Catálogo…");
-  contifico = await levantarContificoSim({
-    puerto: PUERTO_CONTIFICO,
-    snapshot: snapshotCatalogo,
-    apiKey: env.CONTIFICO_API_KEY ?? null,
-    urlReal: env.CONTIFICO_BASE_URL ?? "https://api.contifico.com/sistema/api/v2",
-    refrescar: bandera("catalogo-fresco"),
-  });
+  if (CATALOGO_POR_ARCHIVO) {
+    // El catálogo de este cliente entra por archivo (el camino de Fénix): no se
+    // levanta el Contífico de mentira ni se exporta ninguna CONTIFICO_* —
+    // tampoco en --humo —, para que el bot pruebe exactamente la fuente que el
+    // cliente va a tener.
+    console.log("📦 Catálogo por archivo: sin Contífico (ni real ni de mentira).");
+  } else {
+    console.log("📦 Catálogo…");
+    contifico = await levantarContificoSim({
+      puerto: PUERTO_CONTIFICO,
+      snapshot: snapshotCatalogo,
+      apiKey: env.CONTIFICO_API_KEY ?? null,
+      urlReal: env.CONTIFICO_BASE_URL ?? "https://api.contifico.com/sistema/api/v2",
+      refrescar: bandera("catalogo-fresco"),
+    });
+  }
 
   modelosAlineados = bandera("sin-alinear") ? {} : await copiarConfiguracionDelServicio(env.DATABASE_URL);
+
+  // `NEGOCIO` del perfil manda sobre cualquier copiado: si lo copiado dice otro
+  // negocio, acá hay dos verdades y se aborta antes de arrancar un bot que
+  // atienda como otro cliente.
+  if (PERFIL) {
+    const copiado = modelosAlineados.NEGOCIO ?? env.NEGOCIO ?? null;
+    if (copiado && copiado !== PERFIL) {
+      throw new Error(
+        `--perfil ${PERFIL}, pero la configuración copiada trae NEGOCIO=${copiado}. ` +
+        "Revisá --entorno-prod/--servicio-prod o el .env del perfil: no se arranca un bot con el perfil de otro.",
+      );
+    }
+  }
 
   if (valor("debounce", null)) {
     console.warn(`⚠️  Debounce en ${valor("debounce")} ms (producción usa ${env.DEBOUNCE_MS ?? 12000}): los mensajes seguidos se van a agrupar distinto.`);
@@ -265,12 +318,20 @@ async function main() {
       PORT: String(PUERTO_APP),
       OPENAI_API_KEY: claveOpenAI,
       GRAPH_BASE_URL: `http://127.0.0.1:${PUERTO_GRAPH}`,
-      CONTIFICO_BASE_URL: CON_DOBLES
-        ? `http://127.0.0.1:${PUERTO_STUB}/contifico`
-        : `http://127.0.0.1:${PUERTO_CONTIFICO}`,
-      // config.ts solo habilita el catálogo si hay una clave. En humo la API
-      // es el doble local, así que una clave ficticia habilita esa ruta sin red.
-      ...(CON_DOBLES ? { CONTIFICO_API_KEY: "humo" } : {}),
+      // Con catálogo por archivo NO se exporta ninguna CONTIFICO_* (tampoco en
+      // humo): la fuente del inventario tiene que ser la misma que tendrá el
+      // cliente, el archivo subido.
+      ...(CATALOGO_POR_ARCHIVO ? {} : {
+        CONTIFICO_BASE_URL: CON_DOBLES
+          ? `http://127.0.0.1:${PUERTO_STUB}/contifico`
+          : `http://127.0.0.1:${PUERTO_CONTIFICO}`,
+        // config.ts solo habilita el catálogo si hay una clave. En humo la API
+        // es el doble local, así que una clave ficticia habilita esa ruta sin red.
+        ...(CON_DOBLES ? { CONTIFICO_API_KEY: "humo" } : {}),
+      }),
+      // EL PERFIL MANDA: `NEGOCIO` se pone DESPUÉS de las variables copiadas,
+      // para que ninguna copia pueda arrancar este bot como otro negocio.
+      ...(PERFIL ? { NEGOCIO: PERFIL } : {}),
       ...(CON_DOBLES ? { OPENAI_BASE_URL: `http://127.0.0.1:${PUERTO_STUB}/v1` } : {}),
       // El checkpoint MINI del T115 fuerza modelos SIN perder las banderas de
       // producción: la alineación con Railway corre igual y solo los modelos
@@ -324,8 +385,18 @@ async function main() {
       `\n${cola}`,
     );
   }
-  const items = await esperarCatalogo();
-  console.log(`📋 Catálogo cargado en el bot: ${items} llantas`);
+  if (ARCHIVO_CATALOGO) {
+    await subirCatalogoPorArchivo(ARCHIVO_CATALOGO);
+    const items = await esperarCatalogo();
+    console.log(`📋 Catálogo cargado desde el archivo: ${items} productos`);
+  } else if (CATALOGO_POR_ARCHIVO) {
+    // Sin archivo no hay nada que esperar: el bot arranca con catálogo vacío y
+    // se dice, en vez de esperar un minuto a un catálogo que no va a llegar.
+    console.log("📋 Catálogo VACÍO: subilo con --catalogo-archivo <xlsx|csv> o desde Ajustes → Catálogo.");
+  } else {
+    const items = await esperarCatalogo();
+    console.log(`📋 Catálogo cargado en el bot: ${items} llantas`);
+  }
 
   ui = await levantarUI({ registroBot });
 
@@ -361,7 +432,7 @@ async function comprobarLosPuertos() {
     [PUERTO_UI, "la pantalla"],
     [PUERTO_APP, "el bot"],
     [PUERTO_GRAPH, "la Graph de mentira"],
-    [PUERTO_CONTIFICO, "el catálogo"],
+    ...(CATALOGO_POR_ARCHIVO ? [] : [[PUERTO_CONTIFICO, "el catálogo"]]),
     ...(CON_DOBLES ? [[PUERTO_STUB, "el doble de OpenAI"]] : []),
   ];
   const ocupados = [];
@@ -657,9 +728,26 @@ const RUTA_A_VARIABLE = {
 };
 
 async function copiarConfiguracionDelServicio(urlProd) {
+  // Un perfil sin servicio propio toma SOLO los modelos (`OPENAI_*`) del
+  // servicio de Depot: no hay de dónde copiar interruptores, y los modelos son
+  // lo único que decide cuánto cuesta y cómo contesta la prueba. Nada más de
+  // Depot cruza (ni NEGOCIO, ni AI_*): este bot es de otro cliente.
+  if (PERFIL && !perfilSim.servicio) {
+    const deDepot = variablesDeProduccion({ entorno: "Depot_Tire", servicio: "AutoVenta" });
+    if (!deDepot.ok) {
+      console.warn(`⚠️  No se pudieron leer los modelos del servicio de Depot (${deDepot.motivo}): mandan los del .env del perfil.`);
+      return aplicarForzadosDeCanary({});
+    }
+    const modelos = Object.fromEntries(
+      Object.entries(deDepot.variables).filter(([clave]) => /^OPENAI_/.test(clave)),
+    );
+    console.log(`🎯 Modelos del servicio de Depot para «${PERFIL}»: ${Object.keys(modelos).sort().join(", ") || "(ninguno)"}`);
+    return aplicarForzadosDeCanary(modelos);
+  }
+
   const desdeRailway = variablesDeProduccion({
-    entorno: valor("entorno-prod", "Depot_Tire"),
-    servicio: valor("servicio-prod", "AutoVenta"),
+    entorno: valor("entorno-prod", perfilSim?.entorno ?? "Depot_Tire"),
+    servicio: valor("servicio-prod", perfilSim?.servicio ?? "AutoVenta"),
   });
 
   if (desdeRailway.ok) {
@@ -788,10 +876,13 @@ async function levantarUI({ registroBot }) {
       }
 
       if (url.pathname === "/api/catalogo") {
+        // Con catálogo por archivo no hay foto de Contífico que buscar.
+        if (!contifico) return json(res, 200, []);
         return json(res, 200, contifico.buscar(url.searchParams.get("q") ?? ""));
       }
 
       if (url.pathname === "/api/stock" && req.method === "POST") {
+        if (!contifico) return json(res, 400, { error: "con catálogo por archivo el stock se cambia subiendo otro archivo" });
         const { codigo, cantidad } = await cuerpoJson(req);
         contifico.forzarStock(String(codigo), cantidad === null || cantidad === "" ? null : Number(cantidad));
         return json(res, 200, { ok: true, forzados: contifico.forzados(), aviso: "el bot lo toma en ≤8 s (resync del catálogo)" });
@@ -924,7 +1015,7 @@ async function estado(desde, registroBot) {
   return {
     cliente: TELEFONO_CLIENTE,
     salientes, conv, entrantes, corridas, guardian, alertas, cotizaciones,
-    forzados: contifico.forzados(),
+    forzados: contifico ? contifico.forzados() : [],
     registro: registroBot.slice(-40),
   };
 }
@@ -1063,6 +1154,38 @@ async function esperarSalud(murió = () => null) {
     await new Promise((ok) => setTimeout(ok, 500));
   }
   return false;
+}
+
+/**
+ * Sube el Excel/CSV del cliente por la misma ruta del panel (R-36): el cuerpo
+ * crudo contra `POST /api/catalog/import`, con la ADMIN_KEY del simulador. Si
+ * la ruta no existe todavía (404), el error lo dice con nombre: falta el
+ * Sprint 2 (catálogo por archivo).
+ */
+async function subirCatalogoPorArchivo(ruta) {
+  const archivo = resolve(ruta);
+  if (!existsSync(archivo)) throw new Error(`--catalogo-archivo: no existe ${archivo}`);
+  const nombre = archivo.split("/").pop();
+  console.log(`📤 Subiendo el catálogo «${nombre}» por POST /api/catalog/import…`);
+  const r = await fetch(
+    `http://127.0.0.1:${PUERTO_APP}/api/catalog/import?nombre=${encodeURIComponent(nombre)}`,
+    {
+      method: "POST",
+      headers: { "x-admin-key": "sim", "Content-Type": "application/octet-stream" },
+      body: readFileSync(archivo),
+      signal: AbortSignal.timeout(60_000),
+    },
+  );
+  if (r.status === 404) {
+    throw new Error(
+      "POST /api/catalog/import no existe en este bot: falta el Sprint 2 (catálogo por archivo). " +
+      "Mientras tanto se puede correr sin --catalogo-archivo (catálogo vacío).",
+    );
+  }
+  if (!r.ok) {
+    const cuerpo = await r.text().catch(() => "");
+    throw new Error(`La subida del catálogo falló (HTTP ${r.status}): ${cuerpo.slice(0, 300)}`);
+  }
 }
 
 /** El catálogo sincroniza DESPUÉS de que /health responde; sin esperarlo, el primer turno sale en frío. */
