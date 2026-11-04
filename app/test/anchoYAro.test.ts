@@ -228,3 +228,34 @@ describe("demo del 4-nov (28:14) · «235 rin 15» por la ruta directa sin model
     expect(codigosALaLamina).toHaveLength(0);
   });
 });
+
+describe("el mensaje real de la demo · conv 19354 (4-nov, 10:58)", () => {
+  // «Buenas tardes tiene llanta rin 15 235» — en producción salió la lámina
+  // con WINRUN R330, KENDA KR20 y FALKEN ZE310 (205/65, 185/65, 195/55).
+  const REAL = "Buenas tardes tiene llanta rin 15 235";
+
+  it("anchoYAro lo lee aunque el aro venga primero", () => {
+    expect(anchoYAro(REAL)).toEqual({ ancho: 235, aro: 15 });
+  });
+
+  it("la ruta directa manda solo anchos 235", async () => {
+    catalogo = [...ARO_15_DE_LA_DEMO];
+    codigosALaLamina.length = 0;
+    const ctx = CTX(REAL);
+    const salida = await tryMostrarPorAro(
+      { conversation: ctx.conversation as never, customerPhone: ctx.customerPhone, customerName: "Cliente", previousOutbound: null },
+      REAL,
+    );
+    expect(salida).toBe("lámina");
+    for (const c of codigosALaLamina[0]) expect(c.startsWith("235-"), c).toBe(true);
+  });
+
+  // PENDIENTE PARA EL SPRINT FINAL (fuera de los archivos de este sprint):
+  // `medidaNoDada` (domain/medidaConfirmada.ts) devuelve 15 para una
+  // 235/75R15 con este texto, porque `extractTireSizes` no lee «rin 15 235».
+  // Si el modelo llama buscar_llanta 235/75R15, la bloquea y lo manda a
+  // buscar_por_aro_y_tipo (que ya filtra por ancho): no muestra otro ancho,
+  // pero da una vuelta de más. Arreglo: si `anchoYAro(texto)` coincide con el
+  // ancho y el aro de la medida buscada, no es una medida inventada.
+  it.todo("medidaNoDada no bloquea 235/xxR15 con «rin 15 235» (domain/medidaConfirmada.ts)");
+});

@@ -234,10 +234,24 @@ describe("buscar_aros le llega al modelo solo con aros en el catálogo", () => {
     const tool = buildTools(CTX as never).find((t) => t.function.name === "buscar_aros")!;
     const salida = await tool.execute({ diametro: 15, pernos: null, texto: null });
     const json = JSON.parse(salida);
-    expect(json.aros).toEqual([
-      { codigo: "ARO-015", nombre: "ARO 15 4X100 NEGRO MATE", diametro: 15, pernos: 4, precio_con_iva: 94.3, stock: 12 },
-    ]);
+    expect(json.aros).toEqual([{ codigo: "ARO-015", diametro: 15, pernos: 4, precio_con_iva: 94.3, stock: 12 }]);
+    expect(json.nombres).toEqual({ "ARO-015": "ARO 15 4X100 NEGRO MATE" });
     expect(json.regla).toMatch(/PROHIBIDO afirmar que calzan/);
+  });
+
+  it("5 aros caben enteros en la huella del guardián (≤ 500 caracteres)", async () => {
+    const { buildTools } = await import("../src/agent/tools.js");
+    const { cargarArosDelCatalogo: cargar, arosDelCatalogo: vigentes } = await import("../src/domain/aroProducto.js");
+    const antes = vigentes();
+    cargar(Array.from({ length: 5 }, (_, i) => ({
+      id: `ARO-0${15 + i}-XL`, codigo: `ARO-0${15 + i}-XL`, nombre: "ARO DE ALUMINIO 15 4X100 NEGRO MATE DEPORTIVO",
+      marca: "GENERICO", diametro: 15, pernos: 4, precio: 1094.35, stock: 120, imageUrl: null,
+    })));
+    const tool = buildTools(CTX as never).find((t) => t.function.name === "buscar_aros")!;
+    const salida = await tool.execute({ diametro: 15, pernos: null, texto: null });
+    const huella = salida.slice(0, 500);
+    for (let i = 0; i < 5; i++) expect(huella, `aro ${i}`).toContain(`"codigo":"ARO-0${15 + i}-XL","diametro":15,"pernos":4,"precio_con_iva":1094.35,"stock":120}`);
+    cargar(antes);
   });
 
   it("«tienen aros de 15?» no manda la vitrina de llantas por aro", async () => {

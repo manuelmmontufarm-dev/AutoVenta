@@ -1,3 +1,15 @@
+## 4-nov-2026 · Sprint 2: «rin 15 235» de la demo probado en el simulador; aros en la huella del guardián
+
+**Qué:** la prueba de ancho+aro fija también el mensaje real de la demo (conv 19354,
+«Buenas tardes tiene llanta rin 15 235»); en el simulador con el catálogo de Depot el
+código viejo manda WINRUN R330 y KENDA KR20 (205/65, 185/65) y el nuevo solo
+235/75R15 y 235/60R15. `buscar_aros` deja el nombre fuera del bloque que verifica el
+guardián: con él, 5 aros pasaban de los 500 caracteres de su huella.
+
+**Por qué:** que el antes/después del PR sea el caso que vio Jenny, no uno parecido.
+
+**Horas:** 1
+
 ## 4-nov-2026 · Sprint 2: catálogo y facturas por archivo en el panel, pruebas y tarjetas
 
 **Qué:** rutas `POST /api/catalog/import`, `GET/PUT /api/catalog/mapeo`,

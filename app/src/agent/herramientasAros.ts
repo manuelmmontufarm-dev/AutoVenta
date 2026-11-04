@@ -60,16 +60,18 @@ export function herramientasDeAros(ctx: AgentContext, definir: Definir): AgentTo
             "No hay aros con stock con esos datos. Dile cuáles diámetros SÍ hay; no inventes aros ni prometas que llegarán.",
         });
       }
-      // Lo corto primero: la huella del guardián corta en 500 caracteres.
+      // Lo que el guardián verifica va primero y sin el nombre: su huella corta
+      // en 500 caracteres y con el nombre adentro 5 aros ocupaban ~600 (el
+      // quinto quedaba sin verificar y lo tachaba). El nombre va justo después.
       return JSON.stringify({
         aros: aros.map((a) => ({
           codigo: a.codigo,
-          nombre: a.nombre.slice(0, 28),
           diametro: a.diametro,
           ...(a.pernos ? { pernos: a.pernos } : {}),
           precio_con_iva: a.precio,
           stock: a.stock,
         })),
+        nombres: Object.fromEntries(aros.map((a) => [a.codigo, a.nombre.slice(0, 40)])),
         fotos: aros.map((a) => a.imageUrl).filter((u): u is string => Boolean(u)).slice(0, 3),
         regla:
           "Solo estos aros existen. PROHIBIDO afirmar que calzan en el vehículo del cliente: sin el dato de pernos lo confirma el asesor en el local.",
