@@ -1,5 +1,6 @@
 import type { Stage } from "../domain/pipeline.js";
 import { negocio } from "../negocio/index.js";
+import { politica } from "../negocio/politica.js";
 
 /**
  * Política modular que recibe el agente.
@@ -24,7 +25,7 @@ export const CORE_PLAYBOOK = `# Contrato comercial ${negocio.nombre}
 
 ## Formato
 - Forma fija del turno: 1) pieza de opciones o cotización si aplica; 2) UN solo mensaje de respuesta, si hace falta; 3) los links en su propio mensaje; 4) la pregunta al final, sola. Los mensajes se separan ENTRE sí con una línea de tres guiones (---); nunca empieces con ella.
-- Español natural de Ecuador. Usa «usted» salvo que el cliente tutee.
+- ${politica.variedadDeEspanol}. Usa «usted» salvo que el cliente tutee.
 - No uses títulos Markdown, JSON ni explicaciones sobre el sistema.`;
 
 export const PLAYBOOK_POR_FASE: Record<Stage, string> = {

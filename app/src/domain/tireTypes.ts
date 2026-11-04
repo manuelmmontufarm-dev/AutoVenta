@@ -14,6 +14,7 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { rutaDeAsset } from "../negocio/assets.js";
 
 const ASSETS = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "assets");
 
@@ -71,7 +72,7 @@ function cargar(): BaseTipos {
   };
   try {
     const cruda = JSON.parse(
-      readFileSync(path.join(ASSETS, "base_llantas_tipos.json"), "utf8"),
+      readFileSync(rutaDeAsset("base_llantas_tipos.json"), "utf8"),
     ) as BaseCruda;
 
     const tipos = new Map<string, TipoLlanta>();

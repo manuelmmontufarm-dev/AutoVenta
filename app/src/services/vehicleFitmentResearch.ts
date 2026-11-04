@@ -1,5 +1,6 @@
 import OpenAI from "openai";
 import { config } from "../config.js";
+import { negocio } from "../negocio/index.js";
 import { lookupFitment } from "../domain/fitment.js";
 import { buscarFitmentAprendido, guardarFitmentAprendido } from "./fitmentAprendido.js";
 import {
@@ -122,7 +123,7 @@ export async function investigarCandidatosWeb(
   const vehicle = `${make} ${model}${year ? ` ${year}` : ""}`;
   const peticion = {
     model: config.openai.researchModel,
-    tools: [{ type: "web_search", search_context_size: "low", user_location: { type: "approximate", country: "EC", city: "Quito", timezone: "America/Guayaquil" } }],
+    tools: [{ type: "web_search", search_context_size: "low", user_location: { type: "approximate", country: "EC", city: negocio.ciudad, timezone: "America/Guayaquil" } }],
     input: promptCandidatosFitment(vehicle, aro),
   };
 

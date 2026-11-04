@@ -1,3 +1,28 @@
+## 4-nov-2026 · Sprint 4: la forma de vender sale del código común a una política por cliente
+
+**Qué:** `negocio/politica.ts` (`PoliticaComercial`, `politica` por `negocio.id`, registro
+`POLITICAS`, `faltantesDeLaPolitica`) con `politicas/{depot,ejemplo,mundillantas}.ts`, y
+`negocio/assets.ts` (`rutaDeAsset`). Leen la política: la frase de pagos (`datosDelNegocio.ts`),
+el prompt (pagos, «Vende …», servicios, gentilicio), el playbook (variedad de español), el
+guardián (hecho de pagos, juego, regla 16 y ejemplos con los locales del perfil), los pasos
+`sin_descuento_negado`, `el_pago_se_responde` y `el_beneficio_se_responde` (sin formas de pago,
+sin descuento o sin beneficio, pasan el texto intacto), `respaldo_marcas`, la regla de
+`generar_cotizacion` («Manuel ya fue notificado», «fuera de Quito»), el juego completo, lo que
+se deriva al asesor, el cierre a distancia y el vocabulario de Whisper. Cobertura, «otras
+ciudades», compra a distancia, fase operativa y elección de local salen de la ciudad y los
+locales del perfil (las zonas de Quito quedan como geografía común). Escalera, conocimiento
+de marcas y tipos de llanta se cargan de `assets/<negocio>/` con respaldo al común; esqueletos
+vacíos para `mundillantas` y `ejemplo`. Escalón por precio (`politica.escalonPorPrecio`) para
+catálogos multimarca: tres opciones sin repetir escalón. Pruebas `politica`, `escaleraPorPrecio`,
+`perfilAjeno.politica`, `prepararSalidaPagos`.
+
+**Por qué:** Mundillantas/Competimotor (Santo Domingo, ~10 marcas) habría prometido «3 y 6
+meses sin intereses», alineación gratis por redes y «fuera de cobertura» a su propia ciudad.
+Depot sale byte a byte igual: diff vacío de 56 superficies (prompt en todas las etapas y
+tonos, guardián, hechos, herramientas, salida de `respaldo_marcas`) contra dc50dab.
+
+**Horas:** 4,5
+
 ## 4-nov-2026 · Sprint 4: pruebas que fijan la salida de Depot antes de mover la política
 
 **Qué:** `test/politica.test.ts` y `test/prepararSalidaPagos.test.ts` — fijación byte a byte

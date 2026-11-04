@@ -62,7 +62,7 @@ import { sinFraseColgando } from "../domain/fraseColgando.js";
 import { soloQuitaOReordena } from "../domain/soloQuita.js";
 import { esFraseDelDescuento, hablaDelDescuento, respuestaDelDescuento } from "../domain/ahorro.js";
 import { ahorroVigente } from "./ahorroVigente.js";
-import { mencionaDescuentoEnEfectivo, politicaDePagos, preguntaPorElPago, niegaDescuentoEnEfectivo, respondeElPago, sinDescuentoNegado, sinPagoSinRespuesta } from "../domain/datosDelNegocio.js";
+import { hayDescuentoEnEfectivo, hayPoliticaDePagos, mencionaDescuentoEnEfectivo, politicaDePagos, preguntaPorElPago, niegaDescuentoEnEfectivo, respondeElPagoCompleto, sinDescuentoNegado, sinPagoSinRespuesta } from "../domain/datosDelNegocio.js";
 import { sinNumerosDeCotizacion } from "../domain/numerosDeCotizacion.js";
 import { conPreguntaEnSuPropioMensaje } from "../domain/preguntaSola.js";
 import { despedidaQueCorresponde } from "../domain/cierrePerdido.js";
@@ -819,6 +819,10 @@ export const PASOS: readonly PasoDeSalida[] = [
     nombre: "sin_descuento_negado",
     corre: ["respuesta", "retomada", "seguimiento"],
     async aplicar(texto, ctx) {
+      // Un negocio sin descuento por efectivo (o sin formas de pago
+      // confirmadas) no tiene nada que defender: el candado se apaga y el
+      // texto pasa sin tocar, sin la política ni un «---» colgando.
+      if (!hayDescuentoEnEfectivo()) return texto;
       const { texto: limpio, quitadas } = sinDescuentoNegado(texto);
       if (!quitadas.length) return texto;
       console.warn(`💳 Conv ${ctx.conversation.id}: se quitó una frase que negaba el descuento en efectivo: ${quitadas.join(" | ").slice(0, 300)}`);
@@ -847,7 +851,9 @@ export const PASOS: readonly PasoDeSalida[] = [
     nombre: "el_pago_se_responde",
     corre: ["respuesta", "retomada"],
     async aplicar(texto, ctx) {
-      if (!preguntaPorElPago(ctx.textoDelCliente)) return texto;
+      // Sin formas de pago confirmadas en la política no hay respuesta que
+      // poner: el texto pasa sin tocar y el bot no promete ninguna.
+      if (!hayPoliticaDePagos() || !preguntaPorElPago(ctx.textoDelCliente)) return texto;
       // La frase de pago que no responde sale (12-sep, conv 3, 17:32): la
       // política y «no le puedo confirmar un recargo» llegaron en el mismo
       // turno. Ver `sinPagoSinRespuesta`.
@@ -861,7 +867,7 @@ export const PASOS: readonly PasoDeSalida[] = [
       // el asesor en el local»), y perseguir frases es un juego que se pierde.
       // Completa es las dos mitades (Manuel, 12-sep 21:37): con tarjeta no sube,
       // y en efectivo hay descuento que se confirma en el local.
-      if (respondeElPago(limpio) && mencionaDescuentoEnEfectivo(limpio)) return limpio;
+      if (respondeElPagoCompleto(limpio)) return limpio;
       console.warn(`💳 Conv ${ctx.conversation.id}: la respuesta de pago iba incompleta; se pone la política entera.`);
       // El hecho va PRIMERO y el resto del turno se conserva: la pregunta de
       // cierre y los mapas los ponen y los revisan los pasos de siempre. Las
@@ -908,7 +914,8 @@ export const PASOS: readonly PasoDeSalida[] = [
     nombre: "el_beneficio_se_responde",
     corre: ["respuesta", "retomada"],
     async aplicar(texto, ctx) {
-      if (!preguntaPorBeneficios(ctx.textoDelCliente)) return texto;
+      // Un negocio sin beneficio de redes (política en null) no lo menciona.
+      if (!BENEFICIO_DE_REDES || !preguntaPorBeneficios(ctx.textoDelCliente)) return texto;
       // El beneficio REEMPLAZA lo que el modelo dijo de beneficios o de lo
       // incluido (Manuel, 21:45: el párrafo «Sí. Con la compra se incluye…»
       // repetía lo que la pieza ya dice). Preguntas y menú se quedan.

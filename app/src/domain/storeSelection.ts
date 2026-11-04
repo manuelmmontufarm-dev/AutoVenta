@@ -51,6 +51,20 @@ export const LOCALES_COMO_ALTERNATIVA = negocio.locales
 /** ¿Hay más de un local, es decir, hay algo que preguntar? */
 export const hayQueElegirLocal = negocio.locales.length >= 2;
 
+/**
+ * La palabra que distingue a cada local cuando el cliente o el bot los nombra
+ * de pasada: la última de su nombre corto, sin tildes («cumbaya» y «sur» para
+ * Depot, que es como estaban escritos a mano en los detectores). Con un solo
+ * local queda vacía: no hay «los dos nombres sobre la mesa».
+ */
+const PALABRA_DE_CADA_LOCAL = hayQueElegirLocal
+  ? negocio.locales.map((local) => normalize(local.nombreCorto).trim().split(/\s+/).pop() ?? "").filter(Boolean)
+  : [];
+const nombraTodosLosLocales = (texto: string, comoPalabra: boolean) =>
+  PALABRA_DE_CADA_LOCAL.length >= 2
+  && PALABRA_DE_CADA_LOCAL.every((palabra) =>
+    comoPalabra ? new RegExp(`\\b${palabra.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`).test(texto) : texto.includes(palabra));
+
 function armarPreguntaDeLocal(): string {
   const nombres = negocio.locales.map((local) => `*${local.nombreCorto}*`);
   // Con un solo local no hay nada que preguntar y esta frase no debería salir
@@ -98,7 +112,7 @@ export function preguntaElLocal(bloque: string | null | undefined): boolean {
     // nombra los dos locales en líneas sin «?», y no debe contar — este
     // detector también decide si se pintan botones.
     for (const segmento of n.split(/[.!\n]/)) {
-      if (segmento.includes("?") && /\bcumbaya\b/.test(segmento) && /\bsur\b/.test(segmento)) return true;
+      if (segmento.includes("?") && nombraTodosLosLocales(segmento, true)) return true;
     }
   }
   // Y la pregunta en imperativo, sin signos — misma razón que `preguntaElDia`.
@@ -109,7 +123,7 @@ export function preguntamosElLocal(ultimoMensajeNuestro: string | null | undefin
   if (!ultimoMensajeNuestro) return false;
   const n = normalize(ultimoMensajeNuestro);
   // Los dos nombres sobre la mesa: la señal de siempre.
-  if (n.includes("cumbaya") && n.includes("sur")) return true;
+  if (nombraTodosLosLocales(n, false)) return true;
   // Y CUALQUIER forma de preguntarlo. El 27-ago el bot cerró su respuesta con
   // «¿A cuál local le queda mejor ir?» —sin nombrar las sucursales— y este
   // detector dijo que no había preguntado, así que el candado del cierre le

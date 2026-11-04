@@ -10,7 +10,7 @@
  * sin tocar (sin `---` colgando) y el beneficio de redes en null no se
  * menciona en ninguna salida.
  */
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 process.env.OPENAI_API_KEY ||= "test";
 process.env.WHATSAPP_TOKEN ||= "test";
@@ -89,5 +89,66 @@ describe("fijación de Depot: la política de pagos sale byte a byte como hoy", 
       ctx("¿tienen alguna promoción por redes sociales?"),
     ))!;
     expect(salida).toBe(`${BENEFICIO_DEPOT}\n---\n¿Le ayudo con algo más?`);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Segunda mitad: los mismos pasos con otra política (R-12, R-13).
+// ─────────────────────────────────────────────────────────────────────────────
+
+async function pasosCon(cambios: Partial<import("../src/negocio/politica.js").PoliticaComercial>) {
+  vi.resetModules();
+  vi.doMock("../src/negocio/politica.js", async (original) => {
+    const real = await original<typeof import("../src/negocio/politica.js")>();
+    return { ...real, politica: { ...real.politica, ...cambios } };
+  });
+  const { PASOS: pasos } = await import("../src/services/prepararSalida.js");
+  const { hechoDePagos: hecho } = await import("../src/services/guardian.js");
+  vi.doUnmock("../src/negocio/politica.js");
+  return { paso: (nombre: string) => pasos.find((p) => p.nombre === nombre)!, hecho };
+}
+
+describe("sin formas de pago en la política, los pasos de pago no tocan el texto", () => {
+  const sinPagos = { formasDePago: [], cuotasSinIntereses: null, descuentoEnEfectivo: null };
+
+  it("el_pago_se_responde devuelve el borrador intacto, sin «---» colgando", async () => {
+    const { paso } = await pasosCon(sinPagos);
+    const borrador = "No puedo confirmar recargos de tarjeta por este medio.\n---\n¿A cuál local le queda mejor ir?";
+    expect(await paso("el_pago_se_responde").aplicar(borrador, ctx("¿con tarjeta sube?"))).toBe(borrador);
+  });
+
+  it("sin_descuento_negado no inyecta ninguna política", async () => {
+    const { paso } = await pasosCon(sinPagos);
+    expect(await paso("sin_descuento_negado").aplicar("No hay descuento en efectivo.", ctx("ok"))).toBe("No hay descuento en efectivo.");
+  });
+
+  it("el guardián no recibe formas de pago como hecho y tacha las que se prometan", async () => {
+    const { hecho } = await pasosCon(sinPagos);
+    expect(hecho()).not.toMatch(/sin intereses|no sube|hay un descuento/);
+    expect(hecho()).toMatch(/NO están confirmadas/);
+  });
+});
+
+describe("con formas de pago pero sin descuento ni cuotas", () => {
+  const soloFormas = { formasDePago: ["efectivo", "transferencia"], cuotasSinIntereses: null, descuentoEnEfectivo: null };
+
+  it("el candado del descuento negado se apaga", async () => {
+    const { paso } = await pasosCon(soloFormas);
+    expect(await paso("sin_descuento_negado").aplicar("No hay descuento en efectivo.", ctx("ok"))).toBe("No hay descuento en efectivo.");
+  });
+
+  it("una evasiva se reemplaza por las formas de pago, sin prometer cuotas", async () => {
+    const { paso } = await pasosCon(soloFormas);
+    const salida = (await paso("el_pago_se_responde").aplicar("Eso se lo confirma el asesor.", ctx("¿cómo puedo pagar?")))!;
+    expect(salida.startsWith("Se acepta efectivo y transferencia.\n---\n")).toBe(true);
+    expect(salida).not.toMatch(/meses|sin intereses|no sube|descuento/i);
+  });
+});
+
+describe("sin beneficio de redes en la política", () => {
+  it("el_beneficio_se_responde no lo menciona", async () => {
+    const { paso } = await pasosCon({ beneficioDeRedes: null });
+    const borrador = "¿Le ayudo con algo más?";
+    expect(await paso("el_beneficio_se_responde").aplicar(borrador, ctx("¿tienen alguna promoción por redes sociales?"))).toBe(borrador);
   });
 });

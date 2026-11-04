@@ -10,7 +10,7 @@
  * ajustes para que pase — arreglá el código.
  */
 import { createHash } from "node:crypto";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 process.env.OPENAI_API_KEY ||= "test";
 process.env.WHATSAPP_TOKEN ||= "test";
@@ -172,5 +172,176 @@ describe("fijación de Depot: juego, alcance, escalera y textos regionales", () 
     expect(promptCandidatosFitment("Kia Sportage 2020", null)).toContain(
       "Eres el asesor técnico de una llantera en Quito, Ecuador.",
     );
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SPRINT 4 — la política por cliente (R-11…R-19). Lo de arriba fija a Depot;
+// lo de abajo prueba que otro cliente vende con lo suyo.
+// ─────────────────────────────────────────────────────────────────────────────
+
+const { faltantesDeLaPolitica, politica } = await import("../src/negocio/politica.js");
+const { POLITICA_DEPOT } = await import("../src/negocio/politicas/depot.js");
+const { POLITICA_EJEMPLO } = await import("../src/negocio/politicas/ejemplo.js");
+const { POLITICA_MUNDILLANTAS } = await import("../src/negocio/politicas/mundillantas.js");
+const datos = await import("../src/domain/datosDelNegocio.js");
+
+describe("la política comercial (R-11)", () => {
+  it("sin NEGOCIO la política viva es la de Depot", () => {
+    expect(politica).toBe(POLITICA_DEPOT);
+    expect(politica.juegoCompleto).toBe(4);
+    expect(politica.escalonPorPrecio).toBe(false);
+    expect(politica.asesorEnReglas).toBe("Manuel");
+  });
+
+  it("faltantesDeLaPolitica: Depot y la plantilla completas; Mundillantas avisa que faltan las formas de pago", () => {
+    expect(faltantesDeLaPolitica(POLITICA_DEPOT)).toEqual([]);
+    expect(faltantesDeLaPolitica(POLITICA_EJEMPLO)).toEqual([]);
+    expect(faltantesDeLaPolitica(POLITICA_MUNDILLANTAS).join(" ")).toMatch(/formas de pago/);
+    expect(faltantesDeLaPolitica({ ...POLITICA_EJEMPLO, cuotasSinIntereses: "[PENDIENTE] cuántos meses" }))
+      .toContain("Política · cuotas sin intereses");
+  });
+
+  it("los archivos de política son solo literales: no importan node:fs, domain/ ni services/ (los empaqueta el panel)", async () => {
+    const { readFileSync } = await import("node:fs");
+    for (const archivo of ["politica.ts", "politicas/depot.ts", "politicas/ejemplo.ts", "politicas/mundillantas.ts"]) {
+      const fuente = readFileSync(new URL(`../src/negocio/${archivo}`, import.meta.url), "utf8");
+      const imports = [...fuente.matchAll(/^import .* from "([^"]+)";$/gm)].map((m) => m[1]);
+      for (const ruta of imports) expect(ruta, `${archivo} importa ${ruta}`).toMatch(/^\.\.?\/(?:index|politica|politicas\/\w+)\.js$/);
+    }
+  });
+
+  it("un negocio sin política no arranca (mismo criterio que un NEGOCIO mal escrito)", async () => {
+    vi.resetModules();
+    vi.doMock("../src/negocio/index.js", async (original) => {
+      const real = await original<typeof import("../src/negocio/index.js")>();
+      return { ...real, negocio: { ...real.negocio, id: "sin_politica" } };
+    });
+    await expect(import("../src/negocio/politica.js")).rejects.toThrow(/no tiene política comercial/);
+    vi.doUnmock("../src/negocio/index.js");
+    vi.resetModules();
+  });
+});
+
+describe("pagos según la política (R-12)", () => {
+  it("Depot: la frase de siempre; plantilla: solo las formas; sin formas: nada", () => {
+    expect(datos.politicaDePagos(POLITICA_DEPOT)).toBe(datos.politicaDePagos());
+    expect(datos.politicaDePagos(POLITICA_EJEMPLO)).toBe("Se acepta efectivo, tarjeta y transferencia.");
+    expect(datos.politicaDePagos(POLITICA_MUNDILLANTAS)).toBe("");
+    expect(datos.hayPoliticaDePagos(POLITICA_MUNDILLANTAS)).toBe(false);
+    expect(datos.hayDescuentoEnEfectivo(POLITICA_EJEMPLO)).toBe(false);
+  });
+
+  it("la plantilla no promete «no sube con tarjeta» ni cuotas ni descuento", () => {
+    expect(datos.politicaDePagos(POLITICA_EJEMPLO)).not.toMatch(/no sube|mismo precio|meses|descuento/i);
+  });
+
+  it("respuesta completa: Depot exige las dos mitades; la plantilla, nombrar una forma de pago", () => {
+    expect(datos.respondeElPagoCompleto("Con tarjeta no sube.", POLITICA_DEPOT)).toBe(false);
+    expect(datos.respondeElPagoCompleto(datos.politicaDePagos(POLITICA_DEPOT), POLITICA_DEPOT)).toBe(true);
+    expect(datos.respondeElPagoCompleto("Puede pagar con tarjeta.", POLITICA_EJEMPLO)).toBe(true);
+    expect(datos.respondeElPagoCompleto("Eso se lo confirma el asesor.", POLITICA_EJEMPLO)).toBe(false);
+  });
+});
+
+describe("Depot: lo que la política no debe cambiar en sus decisiones", () => {
+  it("«estoy en la av quevedo» sigue siendo Quevedo, fuera de cobertura (Depot no tiene una calle Quevedo)", () => {
+    expect(dondeEstaElCliente("estoy en la av quevedo")).toEqual({ estado: "fuera", ciudad: "Quevedo" });
+  });
+});
+
+/**
+ * Un perfil de Santo Domingo armado sobre la plantilla, con la matriz en la
+ * «Av. Quevedo km 1» (el dato confirmado de Mundillantas). Con id
+ * `mundillantas` la política que se elige es la suya. No depende de que el
+ * perfil real del Sprint 1 exista en esta rama.
+ */
+async function conPerfilDeSantoDomingo() {
+  vi.resetModules();
+  vi.doMock("../src/negocio/index.js", async (original) => {
+    const real = await original<typeof import("../src/negocio/index.js")>();
+    const { EJEMPLO } = await import("../src/negocio/negocios/ejemplo.js");
+    return {
+      ...real,
+      negocio: {
+        ...EJEMPLO,
+        id: "mundillantas",
+        nombre: "Mundillantas",
+        ciudad: "Santo Domingo",
+        marcas: [],
+        locales: [
+          { ...EJEMPLO.locales[0], slug: "matriz", nombre: "Mundillantas Matriz", nombreCorto: "Matriz", direccion: "Av. Quevedo km 1, Santo Domingo", comoLoNombran: /\bmatriz\b/ },
+          { ...EJEMPLO.locales[0], slug: "competimotor", nombre: "Competimotor", nombreCorto: "Competimotor", direccion: "[PENDIENTE] dirección", comoLoNombran: /\bcompetimotor\b/ },
+        ],
+      },
+    };
+  });
+  const modulos = {
+    cobertura: await import("../src/domain/fueraDeCobertura.js"),
+    ubicacion: await import("../src/domain/ubicacionPedida.js"),
+    alcance: await import("../src/domain/alcanceComercial.js"),
+    candados: await import("../src/domain/opcionesCandados.js"),
+    distancia: await import("../src/domain/compraADistancia.js"),
+    fase: await import("../src/agent/faseOperativa.js"),
+    local: await import("../src/domain/storeSelection.js"),
+  };
+  vi.doUnmock("../src/negocio/index.js");
+  return modulos;
+}
+
+describe("cobertura y lugares con un negocio de Santo Domingo (R-14)", () => {
+  it("«soy de santo domingo» no es otra ciudad; «estoy en la av quevedo» queda dentro", async () => {
+    const { cobertura } = await conPerfilDeSantoDomingo();
+    expect(cobertura.dondeEstaElCliente("soy de santo domingo")?.estado).toBe("cobertura");
+    expect(cobertura.dondeEstaElCliente("vivo en sto domingo")?.estado).not.toBe("fuera");
+    expect(cobertura.dondeEstaElCliente("estoy en la av quevedo")?.estado).toBe("cobertura");
+    expect(cobertura.dondeEstaElCliente("estoy por la avenida quevedo")?.estado).toBe("cobertura");
+  });
+
+  it("las ciudades de verdad lejanas siguen fuera, incluida la ciudad de Quevedo", async () => {
+    const { cobertura } = await conPerfilDeSantoDomingo();
+    expect(cobertura.dondeEstaElCliente("soy de quevedo")).toEqual({ estado: "fuera", ciudad: "Quevedo" });
+    expect(cobertura.dondeEstaElCliente("Estoy en guayaquil")).toEqual({ estado: "fuera", ciudad: "Guayaquil" });
+    // Quito ES otra ciudad para un negocio de Santo Domingo.
+    expect(cobertura.dondeEstaElCliente("vivo en quito")).toEqual({ estado: "fuera", ciudad: "Quito" });
+  });
+
+  it("anunciar que viene a Santo Domingo es «viene»", async () => {
+    const { cobertura } = await conPerfilDeSantoDomingo();
+    expect(cobertura.dondeEstaElCliente("soy de ambato pero el lunes voy a estar en santo domingo")?.estado).toBe("viene");
+  });
+
+  it("la lista de «otras ciudades» del mapa no cuenta la propia", async () => {
+    const { ubicacion } = await conPerfilDeSantoDomingo();
+    expect(ubicacion.mencionaOtraCiudad("santo domingo")).toBe(false);
+    expect(ubicacion.mencionaOtraCiudad("tsachilas")).toBe(false);
+    expect(ubicacion.mencionaOtraCiudad("ambato")).toBe(true);
+  });
+
+  it("los locales del perfil reemplazan a Cumbayá y Quito Sur en los detectores", async () => {
+    const { distancia, fase, local } = await conPerfilDeSantoDomingo();
+    expect(distancia.quiereComprarADistancia("lo compro por este medio y me lo envian")).toBe(true);
+    expect(distancia.quiereComprarADistancia("el sabado paso por competimotor y lo compro por este medio")).toBe(false);
+    expect(fase.elegirFaseOperativa({ etapaGuardada: "nuevo", tieneCotizacion: false, texto: "puedo ir a la matriz?" })).toBe("seguimiento_venta");
+    expect(fase.elegirFaseOperativa({ etapaGuardada: "nuevo", tieneCotizacion: false, texto: "cumbaya" })).toBe("nuevo");
+    expect(local.preguntamosElLocal("Le mando los mapas de Matriz y Competimotor")).toBe(true);
+    expect(local.preguntamosElLocal("Le mando los mapas de Cumbayá y Quito Sur")).toBe(false);
+  });
+});
+
+describe("juego, envío y derivados al asesor con la política de Mundillantas (R-18)", () => {
+  it("lubricantes, baterías, aceites y taller van al asesor; las llantas no", async () => {
+    const { alcance } = await conPerfilDeSantoDomingo();
+    for (const t of ["venden baterías?", "tienen lubricantes", "necesito aceite para el carro", "tienen taller?", "hacen trabajos en sus talleres?"]) {
+      expect(alcance.esConsultaFueraDeCatalogo(t), t).toBe(true);
+    }
+    expect(alcance.esConsultaFueraDeCatalogo("busco 4 llantas 205/55R16")).toBe(false);
+  });
+
+  it("el juego es el de la política y, sin envíos confirmados, el cierre a distancia no los promete", async () => {
+    const { candados, distancia } = await conPerfilDeSantoDomingo();
+    expect(candados.JUEGO_COMPLETO).toBe(POLITICA_MUNDILLANTAS.juegoCompleto);
+    expect(distancia.cierreSinVisita("compra_a_distancia")[0]).not.toMatch(/confirma pago y envío/);
+    expect(distancia.cierreSinVisita("compra_a_distancia")[0]).toMatch(/si se puede/);
   });
 });

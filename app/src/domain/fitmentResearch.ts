@@ -7,6 +7,7 @@
  * cuando la investigación de la Creta 2027 falló en silencio.
  */
 import { extractTireSizes, formatTireSize, parseTireSize } from "./tireSize.js";
+import { negocio } from "../negocio/index.js";
 
 const SIZE_RE = /\b\d{3}\/\d{2}R\d{2}\b/gi;
 
@@ -142,7 +143,7 @@ export function promptCandidatosFitment(vehicle: string, aro: number | null | un
     ? `El cliente dice que usa ARO ${aro}: es el dato más fuerte que tienes. Úsalo para identificar la generación y la versión, y pon PRIMERO los candidatos de aro ${aro}. Solo si ese vehículo no tiene ninguna medida de aro ${aro}, devuelve las de otros aros y dilo en "porque". `
     : "";
   return (
-    `Eres el asesor técnico de una llantera en Quito, Ecuador. Un cliente quiere comprar llantas para su ${vehicle}. ` +
+    `Eres el asesor técnico de una llantera en ${negocio.ciudad}, Ecuador. Un cliente quiere comprar llantas para su ${vehicle}. ` +
     pistaAro +
     `Busca en la web la medida de llantas de fábrica (OEM) de ese vehículo. ` +
     `SIEMPRE devuelve al menos un candidato si existe cualquier medida plausible; marca su confianza. ` +
