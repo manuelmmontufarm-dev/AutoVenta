@@ -18,7 +18,6 @@
  * (`hub/src/data/types.ts`): se copia IGUAL en los dos lados.
  */
 import { sql } from "../db/client.js";
-import { config } from "../config.js";
 import { resolverPeriodo } from "./periodoMensual.js";
 import {
   cruceVigente,
@@ -365,9 +364,12 @@ async function chatsVigentes() {
 export async function resumenComprobables(mes?: string | null): Promise<MetricasComprobables> {
   const periodo = await resolverPeriodo(mes);
   const sync = ultimaSyncFacturas();
-  // Sin Contífico o sin la primera bajada no hay ventas que dar: no espera a
-  // Contífico, igual que la tarjeta de ventas confirmadas.
-  if (!config.contifico || !sync) return comprobablesVacios(periodo);
+  // Sin la primera bajada no hay ventas que dar, venga la fuente que venga
+  // (Contífico o facturas importadas por archivo, R-26): `ultimaSyncFacturas`
+  // solo se llena cuando ALGUNA fuente existe y respondió, así que no hace
+  // falta preguntar por Contífico — y no se espera a la fuente, igual que la
+  // tarjeta de ventas confirmadas.
+  if (!sync) return comprobablesVacios(periodo);
   const [{ ventas }, { chats, primerDiaConAnuncio }] = await Promise.all([cruceVigente(), chatsVigentes()]);
   return armarComprobables({
     periodo,

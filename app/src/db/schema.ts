@@ -36,6 +36,7 @@ import { runDondeEstaElClienteMigration } from "./migrations/027_donde_esta_el_c
 import { runNivelesDeAvisoMigration } from "./migrations/028_niveles_de_aviso.js";
 import { PARA_CERRAR_MIGRATION_ID, runParaCerrarMigration } from "./migrations/029_para_cerrar.js";
 import { runIndicesInboxMigration } from "./migrations/030_indices_inbox.js";
+import { FACTURAS_IMPORTADAS_MIGRATION_ID, runFacturasImportadasMigration } from "./migrations/031_facturas_importadas.js";
 
 export const SCHEMA = /* sql */ `
 create table if not exists conversations (
@@ -432,6 +433,7 @@ async function aplicarEsquema(db: Sql): Promise<void> {
   await runDondeEstaElClienteMigration(db);
   await runNivelesDeAvisoMigration(db);
   await runParaCerrarMigration(db);
+  await runFacturasImportadasMigration(db);
   // 030 NO va acá: crea índices con CONCURRENTLY y corre después de abrir el
   // puerto (`crearIndicesEnSegundoPlano`), para que un deploy con la base
   // cargada no se quede sin contestar /health (26-oct, deploy FAILED).
@@ -442,7 +444,7 @@ async function aplicarEsquema(db: Sql): Promise<void> {
  * `schema_migrations`, todo lo de arriba ya se aplicó alguna vez. Al agregar una
  * migración nueva a la lista, actualizar esta constante.
  */
-const ULTIMA_MIGRACION_REGISTRADA = PARA_CERRAR_MIGRATION_ID;
+const ULTIMA_MIGRACION_REGISTRADA = FACTURAS_IMPORTADAS_MIGRATION_ID;
 
 /**
  * Aplica el esquema (idempotente). Se llama al arrancar el bot.

@@ -1,3 +1,20 @@
+## 4-nov-2026 · Sprint 2 (avance): fuentes de catálogo/facturas, aros como producto, «235 rin 15»
+
+**Qué:** `services/fuentes/` (tipos, contifico, sheets, archivo, index) con la fuente
+elegida en cada sincronización; `syncCatalog` y `sincronizarFacturas` pasan por ahí;
+`domain/aroProducto.ts` (lista aparte, `pideAroComoProducto`, `buscarAros`) y
+`domain/anchoYAro.ts` («235 rin 15»); `buscar_por_aro_y_tipo` filtra por ancho y
+`buscar_aros` existe solo con aros en el catálogo; Interbot pasa a
+`assets/depot/` y no hace nada sin snapshot del negocio; migración 031
+`facturas_importadas`; la 009 siembra marcas solo con Depot; Métricas se
+encienden con cualquier fuente. Avance del sprint: faltan rutas del panel,
+tarjetas del hub, fixtures Fénix y el resto de pruebas.
+
+**Por qué:** Mundillantas usa Fénix sin API (su inventario llega por Excel), vende
+aros, y la demo del 4-nov (28:14) mostró que «235 rin 15» salía con anchos ajenos.
+
+**Horas:** 2,5
+
 ## 2-nov-2026 · Canary: grupos cruzados para la última semana (canary = impares)
 
 **Qué:** en Railway (Depot_Tire) `AI_CANARY_DIGITS` pasó de `0,2,4,6,8` a `1,3,5,7,9`

@@ -22,7 +22,7 @@
  *       ninguna tool llega a escribir un mensaje.
  *
  * Nada sale a la red: el catálogo son objetos de este archivo y los precios
- * caen al snapshot de assets/precios-interbot.json.
+ * caen al snapshot de assets/depot/precios-interbot.json.
  *
  * Uso: node stub-eval.mjs --port 4699 --log ruta.jsonl
  */

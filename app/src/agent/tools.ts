@@ -29,6 +29,9 @@ import {
 } from "../services/catalog.js";
 
 import { aroDeMedida, enLaMedidaConfirmada, medidasEnPulgadasCercanas } from "../domain/catalog.js";
+import { anchoYAro } from "../domain/anchoYAro.js";
+import { arosDelCatalogo } from "../domain/aroProducto.js";
+import { herramientasDeAros } from "./herramientasAros.js";
 import { alcanzaParaVender, avisoStockCorto, recordatorioStockCorto } from "../domain/stockCorto.js";
 import { faltanteDeLaCotizacionVigente } from "../services/stockCorto.js";
 import { getInterbotPrice, refreshPriceForSize } from "../services/interbotPrices.js";
@@ -470,7 +473,7 @@ function recorteConEscalera<T extends { code: string; brand: string; design: str
  *
  * Quien la llame debe haber hecho `ensureCatalogReady()` antes.
  */
-function opcionesEnAro(aro: number, tipo: string | null, medidaConfirmada?: string | null, soloDeCamioneta = false, uso: UsoDeclarado | null = null): {
+function opcionesEnAro(aro: number, tipo: string | null, medidaConfirmada?: string | null, soloDeCamioneta = false, uso: UsoDeclarado | null = null, ancho: number | null = null): {
   pedido: string | null;
   enElAro: CatalogItem[];
   delTipo: CatalogItem[];
@@ -492,7 +495,13 @@ function opcionesEnAro(aro: number, tipo: string | null, medidaConfirmada?: stri
   // y los de camioneta. Encima el filtro por `size.rim` descartaba las medidas
   // en pulgadas, que no tienen medida métrica. Conv 18016: por eso el bot negó
   // una M/T que tenía en stock y la encontró un minuto después por otra puerta.
-  const enElAro = searchByRim(aro);
+  // EL ANCHO PEDIDO FILTRA ANTES DE ARMAR LA ESCALERA (R-25, demo del 4-nov,
+  // 28:14): «235 rin 15» mostraba 205/65, 185/65 y 195/55 — las económicas del
+  // aro entero. Con ancho, solo las de ese ancho entran al menú; quien llama
+  // decide qué decir si no queda ninguna (los anchos cercanos que sí hay).
+  const enElAro = ancho === null
+    ? searchByRim(aro)
+    : searchByRim(aro).filter((item) => item.size?.width === ancho);
   // Sin tipo pedido pero con una camioneta sobre la mesa, el aro se filtra a
   // lo que una camioneta monta. Ver `domain/claseDeVehiculo.ts`.
   const delTipo = pedido
@@ -1091,9 +1100,20 @@ export function buildTools(ctx: AgentContext) {
         .nullable()
         .default(null)
         .describe("Uso que declaró el cliente, si lo dijo (ciudad, mixto, trabajo pesado)."),
+      ancho: z
+        .number()
+        .int()
+        .nullable()
+        .default(null)
+        .describe("Ancho en mm si el cliente lo dio con el aro ('235 rin 15' → 235). Null si no."),
     }),
-    run: async ({ aro, tipo, uso }) => {
+    run: async ({ aro, tipo, uso, ancho }) => {
       await ensureCatalogReady();
+      // «235 RIN 15» (R-25): el ancho dicho con el aro filtra la búsqueda,
+      // venga por el parámetro o leído del propio mensaje (la ruta directa
+      // sin modelo llama sin ancho, y el cliente lo escribió igual).
+      const anchoDelTexto = anchoYAro(ctx.currentUserText ?? "");
+      const anchoPedido = ancho ?? (anchoDelTexto?.aro === aro ? anchoDelTexto.ancho : null);
       // MEDIA MEDIDA EN PULGADAS NO SE CONTESTA CON MÉTRICAS (12-sep, conv 3,
       // 17:40). «¿Dispone llantas MT 30.5 r15?» terminó en «la opción que
       // tengo es KENDA KR29 en medida 235/75R15». Falta el ancho: se pregunta, y
@@ -1139,7 +1159,29 @@ export function buildTools(ctx: AgentContext) {
       const usoDelCliente = usoDeLosTextos([ctx.currentUserText, ...dichoEnLaVisita.map((m) => m.content)])
         ?? (uso ? usoDeclarado(uso) : null);
       const { pedido, enElAro, delTipo, seleccion, avisoTipo, suMedida, sinTipoEnSuMedida, sinEquivalenteQueCalce } =
-        opcionesEnAro(aro, tipo, ficha?.tire_size, esDeCamioneta, usoDelCliente);
+        opcionesEnAro(aro, tipo, ficha?.tire_size, esDeCamioneta, usoDelCliente, anchoPedido);
+      // Del ancho pedido no hay NADA en el aro: se dice, con los anchos
+      // cercanos que sí hay — nunca se sustituye el ancho en silencio (la
+      // demo del 4-nov: «235 rin 15» salió como 205/65, 185/65 y 195/55).
+      if (anchoPedido !== null && !enElAro.length) {
+        const anchosDelAro = [...new Set(
+          searchByRim(aro)
+            .filter((item) => item.stock > 0 && item.size?.width)
+            .map((item) => item.size!.width),
+        )].sort((a, b) => Math.abs(a - anchoPedido) - Math.abs(b - anchoPedido)).slice(0, 4);
+        return JSON.stringify({
+          encontrado: false,
+          aro,
+          ancho_pedido: anchoPedido,
+          anchos_cercanos_con_stock: anchosDelAro,
+          regla:
+            `El cliente pidió ancho ${anchoPedido} en aro ${aro} y NO hay ninguna llanta de ese ancho. `
+            + "Díselo con todas las letras y PROHIBIDO ofrecer otro ancho como si fuera el pedido. "
+            + (anchosDelAro.length
+              ? `Puedes nombrarle los anchos cercanos que sí hay en ese aro (${anchosDelAro.join(", ")}) y preguntarle si alguno le sirve — son OTRA medida, no la suya.`
+              : "En ese aro no queda stock; ofrece tomar el pedido con el asesor."),
+        });
+      }
       if (esDeCamioneta && !delTipo.length) {
         return JSON.stringify({
           encontrado: false,
@@ -4106,6 +4148,9 @@ export function buildTools(ctx: AgentContext) {
     ubicacionLocales,
     agendarVisita,
     notificarVendedor,
+    // Las herramientas de aros SOLO existen si el catálogo trae aros (R-24):
+    // Depot no las ve y su ruteo por aro queda idéntico.
+    ...(arosDelCatalogo().length > 0 ? herramientasDeAros(ctx, defineTool) : []),
   ];
 }
 

@@ -38,7 +38,7 @@ const CAMBIOS = [
     antes: "El precio de venta se reconstruía desde el costo de Contífico con divisores fijos (÷0.75, ÷0.5625 = margen 33 %).",
     ahora: "Se LEE el precio del Interbot, producto por producto. Snapshot offline de 373 productos como respaldo.",
     porque: "Al cruzar las 362 llantas presentes en ambos sistemas aparecieron 32 grupos de factores (×1.0 a ×1.7): ninguna fórmula los reproduce. La regla del 33 % solo cubría el 27 % del catálogo.",
-    donde: "src/services/interbotPrices.ts · assets/precios-interbot.json",
+    donde: "src/services/interbotPrices.ts · assets/depot/precios-interbot.json",
   },
   {
     tema: "Audios del cliente",

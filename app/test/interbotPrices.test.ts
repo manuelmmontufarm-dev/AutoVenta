@@ -45,7 +45,7 @@ afterEach(() => __setPreciosForTests(null));
 
 describe("precios reales del Interbot", () => {
   it("el snapshot de fábrica trae la RT01 con el precio del Interbot", () => {
-    // Sin red y sin credenciales: getInterbotPrice carga assets/precios-interbot.json.
+    // Sin red y sin credenciales: getInterbotPrice carga assets/depot/precios-interbot.json.
     const ib = getInterbotPrice("352862");
     expect(ib).not.toBeNull();
     expect(ib!.pvpMinConIva).toBe(489.14);

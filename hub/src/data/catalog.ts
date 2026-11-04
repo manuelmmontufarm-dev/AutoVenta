@@ -38,7 +38,7 @@ export interface CatalogSearchResponse {
   catalog: {
     items: number;
     lastSync: string | null;
-    source: "contifico" | "sheets" | null;
+    source: "contifico" | "sheets" | "archivo" | null;
     error: string | null;
   };
 }
