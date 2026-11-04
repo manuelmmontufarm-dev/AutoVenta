@@ -1,3 +1,21 @@
+## 4-nov-2026 · Multicliente S3: PIN por cliente, usuarios por negocio y avisos al asesor del local
+
+**Qué:** (R-33) el PIN compartido del panel sale de `HUB_PIN` (sin ella sigue
+«1234»: Depot no cambia), clasificada en `IGNORADAS` del simulador; la semilla
+de usuarios del hub trae a los cuatro del 14-ago solo con `negocio.id ===
+"depot"` — otro negocio arranca con un solo admin. (R-34) clave
+`settings.asesores_por_local` (`services/asesoresPorLocal.ts`, SQL propio) +
+`GET/PUT /api/asesores-por-local`; `notifyAdvisor` lee `nearest_store` y, con
+local elegido y asignación, avisa solo a los asesores de ese local; sin
+asignación o sin local, a todos como hoy; un filtro que deja la lista vacía
+vuelve a todos. Pruebas: `hubPin.test.ts`, `asesoresPorLocal.test.ts`.
+
+**Por qué:** en el pitch del 4-nov a Mundillantas (3 locales, dos marcas) se
+prometió «avisa al asesor correcto», y su panel no puede abrir con el PIN
+publicado en el repo ni con los Tamayo en el login.
+
+**Horas:** 1,5
+
 ## 2-nov-2026 · Canary: grupos cruzados para la última semana (canary = impares)
 
 **Qué:** en Railway (Depot_Tire) `AI_CANARY_DIGITS` pasó de `0,2,4,6,8` a `1,3,5,7,9`

@@ -15,6 +15,7 @@
 import { randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
 import { z } from "zod";
 import { sql } from "../db/client.js";
+import { negocio } from "../negocio/index.js";
 import type { Permisos, Rol, Usuario } from "../server/auth.js";
 
 export interface UsuarioHub extends Usuario {
@@ -73,14 +74,23 @@ const ListaSchema = z.array(UsuarioHubSchema).min(1).max(30)
   .refine((lista) => new Set(lista.map((u) => u.id)).size === lista.length, "Hay usernames repetidos")
   .refine((lista) => lista.some((u) => u.rol === "admin"), "Tiene que quedar al menos un administrador");
 
-/** Los cuatro de la reunión del 14-ago: la semilla y el respaldo si la DB calla. */
+/**
+ * La semilla y el respaldo si la DB calla. Los cuatro de la reunión del 14-ago
+ * son de DEPOT: los Tamayo no pueden aparecer en el login de otro negocio
+ * (R-33). Cualquier otro perfil arranca con un solo administrador (Manuel, que
+ * hace la entrega) y los usuarios del cliente se crean desde Ajustes → Usuarios.
+ */
 const BASE = { permisos: PERMISOS_COMPLETOS, email: null, claveCompartida: true, pinHash: null };
-const SEMILLA: UsuarioHub[] = [
-  { id: "manuel", nombre: "Manuel Montufar", rol: "admin", ...BASE, permisos: { ...PERMISOS_COMPLETOS } },
-  { id: "andres", nombre: "Andres Tamayo", rol: "admin", ...BASE, permisos: { ...PERMISOS_COMPLETOS } },
-  { id: "joaquin", nombre: "Joaquin Tamayo", rol: "admin", ...BASE, permisos: { ...PERMISOS_COMPLETOS } },
-  { id: "asesor", nombre: "Asesor", rol: "asesor", ...BASE, permisos: { ...PERMISOS_COMPLETOS } },
-];
+const SEMILLA: UsuarioHub[] = negocio.id === "depot"
+  ? [
+      { id: "manuel", nombre: "Manuel Montufar", rol: "admin", ...BASE, permisos: { ...PERMISOS_COMPLETOS } },
+      { id: "andres", nombre: "Andres Tamayo", rol: "admin", ...BASE, permisos: { ...PERMISOS_COMPLETOS } },
+      { id: "joaquin", nombre: "Joaquin Tamayo", rol: "admin", ...BASE, permisos: { ...PERMISOS_COMPLETOS } },
+      { id: "asesor", nombre: "Asesor", rol: "asesor", ...BASE, permisos: { ...PERMISOS_COMPLETOS } },
+    ]
+  : [
+      { id: "manuel", nombre: "Manuel Montufar", rol: "admin", ...BASE, permisos: { ...PERMISOS_COMPLETOS } },
+    ];
 const IDS_SEMILLA = new Set(SEMILLA.map((u) => u.id));
 
 let espejo: UsuarioHub[] = SEMILLA.map((u) => ({ ...u, permisos: { ...u.permisos } }));
