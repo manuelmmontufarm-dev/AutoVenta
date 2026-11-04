@@ -1,3 +1,15 @@
+## 4-nov-2026 · Sprint 4: pruebas que fijan la salida de Depot antes de mover la política
+
+**Qué:** `test/politica.test.ts` y `test/prepararSalidaPagos.test.ts` — fijación byte a byte
+(hashes de dc50dab) del prompt del sistema, el playbook, las reglas del guardián, las
+descripciones de herramientas, la política de pagos, el beneficio de redes, cobertura,
+elección de local, fase operativa, juego de 4 y escalera, con `NEGOCIO` sin definir.
+
+**Por qué:** regla dura del plan multicliente: antes de mover un literal de Depot al perfil
+o a la política, la prueba que fija su salida de hoy tiene que existir y quedar verde.
+
+**Horas:** 0,8
+
 ## 2-nov-2026 · Canary: grupos cruzados para la última semana (canary = impares)
 
 **Qué:** en Railway (Depot_Tire) `AI_CANARY_DIGITS` pasó de `0,2,4,6,8` a `1,3,5,7,9`
