@@ -1,3 +1,18 @@
+## 4-nov-2026 · Pitch a Mundillantas / Competimotor documentado: dijeron que sí
+
+**Qué:** `docs/reuniones/2026-11-04-mundillantas-competimotor.md` — transcripción de Fathom
+(80 min, sin el tramo personal 4:46–8:28) con enlaces por minuto, quién habla de verdad,
+errores de reconocimiento, resumen por bloque y análisis. Aceptaron $1.500 + $600/mes con
+prueba de 2 semanas a nuestro riesgo. Datos nuevos: dos marcas (Mundillantas 2 locales sin
+patentar, Competimotor 1 local patentado), Fénix en servidor local (respaldo: Excel diario),
+vendedores solo a comisión, pauta ~$80/mes. En la demo el bot no filtró por ancho
+(«235 rin 15» → 205/65, 185/65, 195/55).
+
+**Por qué:** es el segundo cliente; el arranque (contrato, Fénix, catálogo, calculadora con
+sus números) sale de lo que se dijo acá.
+
+**Horas:** 1
+
 ## 4-nov-2026 · Ficha de Mundillantas (referido de Santo Domingo)
 
 **Qué:** `docs/clientes/mundillantas.md` — lo investigado el 3-nov en fuentes públicas:
