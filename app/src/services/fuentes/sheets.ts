@@ -9,7 +9,7 @@
 import { GoogleSpreadsheet } from "google-spreadsheet";
 import { JWT } from "google-auth-library";
 import { config } from "../../config.js";
-import { availabilityFromStock, type CatalogItem } from "../../domain/catalog.js";
+import { availabilityFromStock, extractCatalogSizeLabel, type CatalogItem } from "../../domain/catalog.js";
 import { extractTireSizes, formatTireSize } from "../../domain/tireSize.js";
 import type { FuenteDeCatalogo, IdFuente, ReporteDeCatalogo } from "./tipos.js";
 
@@ -46,8 +46,13 @@ export function normalizarFilaDeCatalogo(
   source: IdFuente,
   precios?: { conIva: number; listaConIva: number; minimoConIva: number; taxRate: number },
 ): { item: CatalogItem | null; motivo: string | null } {
+  // La Sheet acepta solo una medida métrica (lo de siempre). El archivo lee
+  // la medida como Contífico (`extractCatalogSizeLabel`): también pulgadas
+  // (31X10.50R15) y camión convencional (7.00R15), con `size` nulo y el
+  // `sizeLabel` canónico, que es lo que buscan `buscarPorAro` y las piezas.
   const sizes = extractTireSizes(fila.medida);
-  if (sizes.length !== 1) {
+  const deCatalogo = precios ? extractCatalogSizeLabel(fila.medida) : null;
+  if (deCatalogo ? !deCatalogo.sizeLabel : sizes.length !== 1) {
     return { item: null, motivo: `medida no reconocida: "${fila.medida}"` };
   }
   const price = Number(fila.precio.replace(/[$,]/g, ""));
@@ -55,7 +60,8 @@ export function normalizarFilaDeCatalogo(
     return { item: null, motivo: "precio inválido" };
   }
   const stock = Number(fila.stock || "0");
-  const size = sizes[0];
+  const size = deCatalogo ? deCatalogo.size : sizes[0];
+  const sizeLabel = deCatalogo ? deCatalogo.sizeLabel! : formatTireSize(sizes[0]);
   const conIva = precios?.conIva ?? price;
   const listaConIva = precios?.listaConIva ?? price;
   const minimoConIva = precios?.minimoConIva ?? price;
@@ -70,11 +76,11 @@ export function normalizarFilaDeCatalogo(
       code: fila.codigo || `ROW${fila.filaNumero}`,
       name:
         fila.nombre?.trim() ||
-        [fila.marca, fila.diseno, formatTireSize(size)].filter(Boolean).join(" "),
+        [fila.marca, fila.diseno, sizeLabel].filter(Boolean).join(" "),
       brand: fila.marca,
       design: fila.diseno,
       size,
-      sizeLabel: formatTireSize(size),
+      sizeLabel,
       price: precios ? round2(customer / (1 + taxRate)) : price,
       sourcePrice: price,
       priceTier: "pvp1",

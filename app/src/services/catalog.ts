@@ -35,6 +35,7 @@ export interface SyncReport {
   skipped: { row: number; reason: string }[];
   at: Date;
   source: IdFuente;
+  archivo?: { nombre: string; subidoEn: string; aros: number };
 }
 
 let items: CatalogItem[] = [];
@@ -237,6 +238,8 @@ export function catalogStatus(): {
   error: string | null;
   /** Filas que la última sincronización dejó fuera, con su motivo (R-22). */
   descartadas: { row: number; reason: string }[];
+  /** Con la fuente `archivo`: nombre, fecha de subida y aros del último subido. */
+  archivo: { nombre: string; subidoEn: string; aros: number } | null;
 } {
   return {
     items: items.length,
@@ -244,6 +247,7 @@ export function catalogStatus(): {
     source: lastReport?.source ?? null,
     error: lastError,
     descartadas: lastReport?.skipped ?? [],
+    archivo: lastReport?.archivo ?? null,
   };
 }
 

@@ -18,6 +18,8 @@ export interface ReporteDeCatalogo {
   skipped: { row: number; reason: string }[];
   at: Date;
   source: IdFuente;
+  /** Solo la fuente `archivo`: qué archivo se subió y cuándo (para /catalog/status). */
+  archivo?: { nombre: string; subidoEn: string; aros: number };
 }
 
 export interface ResultadoDeCatalogo {

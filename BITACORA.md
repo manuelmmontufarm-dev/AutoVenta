@@ -1,3 +1,19 @@
+## 4-nov-2026 · Sprint 2: catálogo y facturas por archivo en el panel, pruebas y tarjetas
+
+**Qué:** rutas `POST /api/catalog/import`, `GET/PUT /api/catalog/mapeo`,
+`GET /api/catalog/archivo`, `POST /api/ventas/import`, `GET/PUT /api/ventas/mapeo` y
+`GET /api/ventas/archivo` (archivo crudo, ≤ 5 MB); `/catalog/status` dice el archivo,
+la fecha y las filas descartadas con su motivo. La fuente `archivo` lee medidas en
+pulgadas y de camión como Contífico. Tarjetas `SeccionCatalogoArchivo` y
+`SeccionFacturasArchivo` (sin montar). Fixtures de Fénix (inventario xlsx/csv y
+facturas) y siete archivos de prueba nuevos; la equivalencia con Contífico se fija
+con el hash del código de `dc50dab` (muestra y snapshot completo).
+
+**Por qué:** que Jenny suba el Excel de Fénix y el bot cotice con él sin reinicio, y
+que Métricas comprobables funcione sin Contífico.
+
+**Horas:** 2
+
 ## 4-nov-2026 · Sprint 2 (avance): fuentes de catálogo/facturas, aros como producto, «235 rin 15»
 
 **Qué:** `services/fuentes/` (tipos, contifico, sheets, archivo, index) con la fuente

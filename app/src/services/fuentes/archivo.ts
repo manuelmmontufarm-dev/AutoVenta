@@ -52,22 +52,26 @@ export const CatalogoMapeoSchema = z.object({
 });
 export type CatalogoMapeo = z.infer<typeof CatalogoMapeoSchema>;
 
-/** Arranque tipo Fénix: nombres de columna típicos del export de inventario. */
+/**
+ * Arranque con columnas tipo Fénix (encabezados en minúsculas). Las columnas
+ * reales del export de Mundillantas siguen [PENDIENTE] hasta tener la captura
+ * del Excel de Jenny: se corrigen en Ajustes → Catálogo, sin deploy. El precio
+ * se asume SIN IVA, como dice el perfil (`negocio.iva`).
+ */
 export const MAPEO_CATALOGO_DEFECTO: CatalogoMapeo = {
   columnas: {
     medida: "medida",
     marca: "marca",
-    diseno: "diseno",
+    diseno: "modelo",
     codigo: "codigo",
     nombre: "descripcion",
-    precio: "precio",
-    precioLista: "precio lista",
+    precio: "pvp",
+    precioLista: "pvp lista",
     stock: "stock",
     foto: "foto",
-    tipo: "tipo",
   },
-  precioIncluyeIva: true,
-  filasDeAros: { columna: "tipo", patron: "^aro|^rin" },
+  precioIncluyeIva: false,
+  filasDeAros: { columna: "linea", patron: "^aro|^rin" },
 };
 
 export const FacturasMapeoSchema = z.object({
@@ -89,7 +93,7 @@ export type FacturasMapeo = z.infer<typeof FacturasMapeoSchema>;
 
 export const MAPEO_FACTURAS_DEFECTO: FacturasMapeo = {
   columnas: {
-    documento: "documento",
+    documento: "num factura",
     fecha: "fecha",
     hora: "hora",
     total: "total",
@@ -242,7 +246,9 @@ function filaDeAro(
 ): { aro: AroProducto | null; motivo: string | null } {
   const col = mapeo.columnas;
   const texto = `${data[col.medida] ?? ""} ${data[col.nombre] ?? ""} ${data[col.diseno] ?? ""}`;
-  const diametro = Number((texto.match(/\b(1[2-9]|2[0-4])\b/) ?? [])[1]);
+  const diametro = Number(
+    (texto.match(/\b(?:aros?|rin(?:es)?|r)\s*(1[2-9]|2[0-4])\b/i) ?? texto.match(/\b(1[2-9]|2[0-4])\b/) ?? [])[1],
+  );
   if (!Number.isFinite(diametro)) {
     return { aro: null, motivo: "aro sin diámetro reconocible (12–24)" };
   }
@@ -375,6 +381,20 @@ export async function importarCatalogoDesdeArchivo(
   return { llantas: catalogo.filas.length, aros: catalogo.aros.length, descartadas: catalogo.descartadas };
 }
 
+/**
+ * Importa y, en el mismo paso, deja al bot usándolo (R-22: sin reinicio).
+ * `catalog.ts` se carga en el momento: él importa esta fuente, y un import
+ * estático cerraría el ciclo.
+ */
+export async function importarCatalogoYSincronizar(nombre: string, cuerpo: Buffer) {
+  const importado = await importarCatalogoDesdeArchivo(nombre, cuerpo);
+  const { syncCatalog, catalogStatus } = await import("../catalog.js");
+  const reporte = await syncCatalog().catch((error: unknown) => {
+    throw new Error(`Se guardó el archivo, pero el catálogo no se pudo cargar: ${error instanceof Error ? error.message : error}`);
+  });
+  return { importado, reporte, catalog: catalogStatus() };
+}
+
 export const fuenteArchivoCatalogo: FuenteDeCatalogo = {
   id: "archivo",
   async sincronizar() {
@@ -391,7 +411,13 @@ export const fuenteArchivoCatalogo: FuenteDeCatalogo = {
     return {
       items,
       aros: guardado.aros,
-      report: { ok: items.length, skipped, at: new Date(), source: "archivo" },
+      report: {
+        ok: items.length,
+        skipped,
+        at: new Date(),
+        source: "archivo",
+        archivo: { nombre: guardado.nombreArchivo, subidoEn: guardado.subidoEn, aros: guardado.aros.length },
+      },
     };
   },
 };
@@ -524,6 +550,14 @@ export async function importarFacturasDesdeArchivo(
     `;
   }
   return { facturas: facturas.length, descartadas };
+}
+
+/** Importa las facturas y rehace la bajada: Métricas y «Para cerrar» las ven ya. */
+export async function importarFacturasYSincronizar(nombre: string, cuerpo: Buffer) {
+  const importado = await importarFacturasDesdeArchivo(nombre, cuerpo);
+  const { sincronizarFacturas } = await import("../ventasConfirmadas.js");
+  await sincronizarFacturas();
+  return { importado, estado: await estadoFacturasImportadas() };
 }
 
 export async function hayFacturasImportadas(): Promise<boolean> {
