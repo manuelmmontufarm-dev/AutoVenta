@@ -1,22 +1,24 @@
 import { useEffect, useMemo, useState } from "react";
 import { Segmented } from "../components/ui";
 import { marked } from "marked";
-import { COMPACT_PLAYBOOK } from "../../../app/src/agent/compactPlaybook";
 import { ETAPA_META, ETAPAS, type Etapa } from "../data/types";
 import { AdminKeyForm } from "../components/admin-key";
 import { WhatsAppSetup } from "../components/whatsapp-setup";
+import { useNegocio } from "../data/negocio";
 import { authHeaders } from "../data/realSource";
 import { useHub } from "../store";
 
 type SettingsTab = "whatsapp" | "manual" | "connection";
 
-/** La pestaña Manual muestra los mismos módulos que recibe el bot, no una copia. */
-const botPlaybook = COMPACT_PLAYBOOK;
 export function Settings() {
   const [tab, setTab] = useState<SettingsTab>("whatsapp");
+  // El manual que muestra esta pestaña es el que recibe EL BOT DE ESTE
+  // servidor (`/api/negocio`, R-31), no el horneado en el build del panel: con
+  // dos clientes, el build es uno y el playbook de cada servicio es el suyo.
+  const botPlaybook = useNegocio().playbook;
   const playbookHtml = useMemo(
     () => marked.parse(botPlaybook, { async: false }) as string,
-    [],
+    [botPlaybook],
   );
 
   return (
@@ -53,7 +55,7 @@ export function Settings() {
                 <button type="button" onClick={() => void navigator.clipboard.writeText(botPlaybook)} className="btn-quiet h-9 rounded-[6px] px-3.5 text-[13px]">
                   Copiar Markdown
                 </button>
-                <button type="button" onClick={downloadPlaybook} className="btn-quiet h-9 rounded-[6px] px-3.5 text-[13px]">
+                <button type="button" onClick={() => downloadPlaybook(botPlaybook)} className="btn-quiet h-9 rounded-[6px] px-3.5 text-[13px]">
                   Descargar .md
                 </button>
               </div>
@@ -153,7 +155,7 @@ export function FollowUpSettingsPanel() {
   </div>;
 }
 
-function downloadPlaybook() {
+function downloadPlaybook(botPlaybook: string) {
   const url = URL.createObjectURL(
     new Blob([botPlaybook], { type: "text/markdown;charset=utf-8" }),
   );

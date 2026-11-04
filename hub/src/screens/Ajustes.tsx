@@ -1,5 +1,5 @@
 /**
- * Ajustes del negocio — lo que Depot Tire cambia sin desarrollador.
+ * Ajustes del negocio — lo que el cliente cambia sin desarrollador.
  *
  * Separado a propósito de «Configuración técnica» (el logo DT): aquí no aparece
  * ningún token ni nada que pueda dejar al bot mudo. Cada sección que afecta lo
@@ -9,6 +9,7 @@
 import { SeccionPromocionModo } from "../components/promocion";
 import { motion } from "framer-motion";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { inicialesDelNegocio, negocioActual, useNegocio, type LocalDelNegocio } from "../data/negocio";
 import { authHeaders } from "../data/realSource";
 import { useHub } from "../store";
 import { Segmented } from "../components/ui";
@@ -73,16 +74,23 @@ interface Store { dias: Record<Dia, StorePeriod>; excepciones: StoreException[] 
 type StoreHours = Record<string, Store>;
 interface PreciosEstado { fuente: string; actualizadoEn: string | null; productos: number; error: string | null }
 
-const PALETA_LABEL: Record<string, string> = {
+/**
+ * Las paletas `depot` y `depotRojo` son los colores del sitio de Depot. En su
+ * panel se llaman como siempre; en el de otro cliente son solo un negro y un
+ * rojo más — llamarlas «Depot Tire» ahí sería mostrarle la marca de otro.
+ */
+const esDepot = () => negocioActual().id === "depot";
+const paletaLabel = (p: string): string => ({
   grafito: "Grafito", carbon: "Carbón", rojo: "Rojo", verde: "Verde",
   espresso: "Espresso", navy: "Azul marino",
-  depot: "Depot Tire negro", depotRojo: "Depot Tire rojo",
-};
+  depot: esDepot() ? `${negocioActual().nombre} negro` : "Negro intenso",
+  depotRojo: esDepot() ? `${negocioActual().nombre} rojo` : "Rojo intenso",
+} as Record<string, string>)[p] ?? p;
 /** Las paletas sacadas del sitio del cliente, no propuestas de estilo. */
-const PALETA_NOTA: Record<string, string> = {
+const paletaNota = (p: string): string | undefined => (esDepot() ? ({
   depot: "Colores de tiredepotec.com · el negro del logo manda",
   depotRojo: "Colores de tiredepotec.com · el rojo del logo manda · sin beige",
-};
+} as Record<string, string>)[p] : undefined);
 const FUENTE_LABEL: Record<string, string> = {
   exo: "Exo 2", barlow: "Barlow", kanit: "Kanit", chakra: "Chakra Petch",
   saira: "Saira", rajdhani: "Rajdhani", archivo: "Archivo Black",
@@ -92,11 +100,16 @@ const FUENTE_LABEL: Record<string, string> = {
  * y la tipografía de abajo. «Depot día y noche» es la que propuso el cliente el
  * 12-sep: la única que cambia sola entre clara y oscura.
  */
-const PLANTILLA_LABEL: Record<string, string> = { clasica: "Clásica", diaNoche: "Depot día y noche" };
-const PLANTILLA_NOTA: Record<string, string> = {
+const plantillaLabel = (p: string): string => ({
+  clasica: "Clásica",
+  diaNoche: esDepot() ? `${negocioActual().nombre.split(/\s+/)[0]} día y noche` : "Día y noche",
+} as Record<string, string>)[p] ?? p;
+const plantillaNota = (p: string): string | undefined => ({
   clasica: "Usa la paleta y la tipografía de abajo",
-  diaNoche: "La nueva del cliente · clara de día, oscura de noche · logos oficiales",
-};
+  diaNoche: esDepot()
+    ? "La nueva del cliente · clara de día, oscura de noche · logos oficiales"
+    : "Clara de día, oscura de noche · logos oficiales",
+} as Record<string, string>)[p];
 const MODO_LABEL: Record<string, string> = { auto: "Automático", dia: "Siempre de día", noche: "Siempre de noche" };
 const MODO_NOTA: Record<string, string> = {
   auto: "Clara de 6:00 a 16:59 · oscura de 17:00 a 5:59 (hora de Quito)",
@@ -239,6 +252,10 @@ export function Ajustes() {
     [benefits],
   );
 
+  // El negocio de este servidor (R-29/R-30/R-32): sus locales para los
+  // horarios y lo que todavía falta cargar para encender el bot.
+  const negocio = useNegocio();
+
   // Entrar con la clave cruda deja `usuario` en null: esa llave ya abre todo.
   const usuario = useHub((s) => s.usuario);
   const esNivelMaximo = !usuario || usuario.rol === "admin";
@@ -263,6 +280,11 @@ export function Ajustes() {
         </div>
       )}
 
+      {/* Lo que falta del cliente, arriba de todo y en cualquier pestaña: un
+          bot que se enciende con datos [PENDIENTE] le inventa al cliente. Sin
+          pendientes (Depot) la tarjeta no existe. */}
+      {negocio.faltantes.length > 0 && <TarjetaDeArranque id={negocio.id} faltantes={negocio.faltantes} />}
+
       {tab === "bot" && (
         <div className="flex flex-col gap-4">
           {/* El interruptor va primero: apagar el bot tiene que ser lo más
@@ -275,7 +297,7 @@ export function Ajustes() {
 
       {tab === "negocio" && (
         <div className="flex flex-col gap-4">
-          {hours && <SeccionHorarios hours={hours} setHours={setHours} onError={setError} />}
+          {hours && <SeccionHorarios hours={hours} setHours={setHours} locales={negocio.locales} onError={setError} />}
           <SeccionCupones onError={setError} />
           <SeccionAnuncios onError={setError} />
         </div>
@@ -307,7 +329,7 @@ export function Ajustes() {
 
       {tab === "avisos" && (
         <div className="flex flex-col gap-4">
-          <SeccionAsesores onError={setError} />
+          <SeccionAsesores editable={esNivelMaximo} onError={setError} />
           <SeccionMatrizAvisos editable={esNivelMaximo} onError={setError} />
         </div>
       )}
@@ -337,6 +359,34 @@ function Tarjeta({ titulo, sub, children, extra }: {
       </div>
       {children}
     </section>
+  );
+}
+
+/**
+ * La lista de arranque del cliente (R-32): cada dato del perfil que todavía es
+ * `[PENDIENTE]`. Sale de `/api/negocio` (`faltantes`); la lista completa, con
+ * quién responde cada pregunta, vive en el doc de arranque del cliente.
+ */
+function TarjetaDeArranque({ id, faltantes }: { id: string; faltantes: string[] }) {
+  return (
+    <div className="mb-4">
+      <Tarjeta
+        titulo={`Falta para encender el bot · ${faltantes.length} ${faltantes.length === 1 ? "dato" : "datos"}`}
+        sub="Datos del negocio que el cliente todavía no confirmó. Cuando se cargan en su perfil, desaparecen de aquí."
+      >
+        <ul className="flex flex-col gap-1.5">
+          {faltantes.map((f) => (
+            <li key={f} className="flex items-start gap-2 text-[12.5px]">
+              <span className="mt-[5px] size-1.5 shrink-0 rounded-full bg-[var(--color-warn,#e8b33a)]" aria-hidden />
+              <span>{f}</span>
+            </li>
+          ))}
+        </ul>
+        <p className="mt-3 text-[12px] text-text2">
+          Lista completa en <code className="rounded bg-bg px-1">docs/clientes/{id}-arranque.md</code>
+        </p>
+      </Tarjeta>
+    </div>
   );
 }
 
@@ -542,7 +592,7 @@ function SeccionCupones({ onError }: { onError: (v: string) => void }) {
   const activo = estado?.config.activo ?? false;
   return <Tarjeta
     titulo="Cupón de confirmación"
-    sub="Cuando el cliente dice qué día viene, el bot le manda un código tipo DT-PUMA47. En caja se le aplica ese porcentaje adicional y el cajero copia el código en la descripción de la factura — así sabemos qué cotización terminó en venta. APAGADO hasta que los cajeros estén capacitados."
+    sub={`Cuando el cliente dice qué día viene, el bot le manda un código tipo ${inicialesDelNegocio()}-PUMA47. En caja se le aplica ese porcentaje adicional y el cajero copia el código en la descripción de la factura — así sabemos qué cotización terminó en venta. APAGADO hasta que los cajeros estén capacitados.`}
     extra={estado
       ? <button
           onClick={() => void guardar({ activo: !activo })}
@@ -583,7 +633,7 @@ function SeccionCupones({ onError }: { onError: (v: string) => void }) {
             value={codigo}
             onChange={(e) => { setCodigo(e.target.value); setVerificado(null); setVeredicto(null); }}
             onKeyDown={(e) => { if (e.key === "Enter") void verificar(); }}
-            placeholder="DT-PUMA47"
+            placeholder={`${inicialesDelNegocio()}-PUMA47`}
             className="w-40 rounded-[6px] bg-bg px-2.5 py-1.5 text-[12px] font-semibold"
           />
           <button
@@ -699,7 +749,25 @@ function Excepciones({ store, label, data, onChange }: { store: string; label: s
   </div>;
 }
 
-function SeccionHorarios({ hours, setHours, onError }: { hours: StoreHours; setHours: (v: StoreHours) => void; onError: (v: string) => void }) {
+/**
+ * Qué locales se listan en Horarios (R-30). Antes eran Cumbayá y Quito Sur
+ * escritos a mano: un negocio con uno o tres locales no podía cargar los
+ * suyos. Ahora salen del negocio (`claveHorario` + `nombreCorto`), y una clave
+ * guardada que el negocio no nombra se muestra igual con su clave como nombre —
+ * mejor verla rara que perderla en silencio.
+ */
+function localesDeHorarios(hours: StoreHours, locales: LocalDelNegocio[]): Array<[string, string]> {
+  const delNegocio = locales
+    .filter((l) => hours[l.claveHorario])
+    .map((l) => [l.nombreCorto, l.claveHorario] as [string, string]);
+  const nombradas = new Set(delNegocio.map(([, clave]) => clave));
+  const sueltas = Object.keys(hours)
+    .filter((clave) => !nombradas.has(clave))
+    .map((clave) => [clave, clave] as [string, string]);
+  return [...delNegocio, ...sueltas];
+}
+
+function SeccionHorarios({ hours, setHours, locales, onError }: { hours: StoreHours; setHours: (v: StoreHours) => void; locales: LocalDelNegocio[]; onError: (v: string) => void }) {
   const [saving, setSaving] = useState(false);
   const save = async () => {
     setSaving(true);
@@ -710,7 +778,7 @@ function SeccionHorarios({ hours, setHours, onError }: { hours: StoreHours; setH
     finally { setSaving(false); }
   };
   return <Tarjeta titulo="Horarios de locales" sub="El bot usa estos horarios al recomendar un local. Marca Cerrado cuando no atienda, y carga los feriados o cierres puntuales en Casos especiales — el bot los avisa cuando el cliente pregunta por esos días." extra={<button onClick={() => void save()} disabled={saving} className="rounded-full bg-ok px-4 py-2 text-[12px] font-semibold text-text disabled:opacity-50">{saving ? "Guardando…" : "Guardar horarios"}</button>}>
-    <div className="grid gap-4 md:grid-cols-2">{([ ["Cumbayá", "cumbaya"], ["Quito Sur", "quitoSur"] ] as const).map(([label, store]) => {
+    <div className="grid gap-4 md:grid-cols-2">{localesDeHorarios(hours, locales).map(([label, store]) => {
       const local = hours[store];
       const setDia = (dia: Dia, patch: Partial<StorePeriod>) => setHours({ ...hours, [store]: { ...local, dias: { ...local.dias, [dia]: { ...local.dias[dia], ...patch } } } });
       // Copia el tramo del lunes a martes–viernes; sábado y domingo no se tocan.
@@ -764,8 +832,8 @@ function SeccionTema({
                 : "border-line bg-bg hover:bg-bg"
             }`}
           >
-            <span>{PLANTILLA_LABEL[p] ?? p}</span>
-            {PLANTILLA_NOTA[p] && <span className="text-[12px] font-normal text-text2">{PLANTILLA_NOTA[p]}</span>}
+            <span>{plantillaLabel(p)}</span>
+            {plantillaNota(p) && <span className="text-[12px] font-normal text-text2">{plantillaNota(p)}</span>}
           </button>
         ))}
       </div>
@@ -797,14 +865,14 @@ function SeccionTema({
         {paletas.map((p) => (
           <button
             key={p} onClick={() => onPaleta(p)}
-            title={PALETA_NOTA[p]}
+            title={paletaNota(p)}
             className={`flex flex-col items-start gap-1.5 rounded-[6px] border px-3.5 py-2 text-[12px] transition ${
               p === paleta
                 ? "border-line bg-bg font-semibold"
                 : "border-line bg-bg hover:bg-bg"
             }`}
           >
-            <span>{PALETA_LABEL[p] ?? p}</span>
+            <span>{paletaLabel(p)}</span>
             {/* Los cuatro colores que mandan en la pieza: oscuro, acento, dorado
                 y fondo. Con siete paletas el nombre solo ya no alcanzaba para
                 saber cuál es cuál sin abrir la vista previa. */}
@@ -813,8 +881,8 @@ function SeccionTema({
                 <span key={i} className="h-2.5 w-4" style={{ background: c }} />
               ))}
             </span>
-            {PALETA_NOTA[p] && (
-              <span className="text-[12px] font-normal text-text2">{PALETA_NOTA[p]}</span>
+            {paletaNota(p) && (
+              <span className="text-[12px] font-normal text-text2">{paletaNota(p)}</span>
             )}
           </button>
         ))}
@@ -1000,12 +1068,22 @@ interface Asesor {
   rol: RolAsesor;
 }
 
+/** `settings.asesores_por_local`: `{ [slugDeLocal]: advisorIds }`. */
+type AsignacionesPorLocal = Record<string, number[]>;
+interface LocalAsignable { slug: string; nombreCorto: string }
+
 /**
  * Quién recibe los avisos del bot. Cada aviso sale a TODOS los activos a
  * quienes les corresponda por su nivel, en orden de prioridad (0 = principal).
+ *
+ * Con las casillas de local (R-34), los avisos de un chat que ya eligió local
+ * van solo a los marcados en ese local. Un local sin nadie marcado avisa a
+ * todos, como siempre: así Depot, que no marca nada, no cambia.
  */
-function SeccionAsesores({ onError }: { onError: (e: string) => void }) {
+function SeccionAsesores({ editable, onError }: { editable: boolean; onError: (e: string) => void }) {
   const [asesores, setAsesores] = useState<Asesor[]>([]);
+  const [asignaciones, setAsignaciones] = useState<AsignacionesPorLocal>({});
+  const [locales, setLocales] = useState<LocalAsignable[]>([]);
   const [nombre, setNombre] = useState("");
   const [telefono, setTelefono] = useState("");
   // Quien se da de alta desde aquí de ahora en adelante suele ser gente del
@@ -1027,8 +1105,33 @@ function SeccionAsesores({ onError }: { onError: (e: string) => void }) {
     } catch (e) {
       onError(e instanceof Error ? e.message : "No se pudieron cargar los asesores");
     }
+    // Aparte y sin bloquear: un servidor anterior a R-34 no tiene la ruta, y la
+    // lista de asesores tiene que verse igual (sin la columna de locales).
+    api<{ asignaciones: AsignacionesPorLocal; locales: LocalAsignable[] }>("/api/asesores-por-local")
+      .then((r) => { setAsignaciones(r.asignaciones); setLocales(r.locales); })
+      .catch(() => { setAsignaciones({}); setLocales([]); });
   }, [onError]);
   useEffect(() => { void cargar(); }, [cargar]);
+
+  /** Marca o desmarca un asesor en un local; si el servidor lo rechaza, vuelve atrás. */
+  const asignar = async (slug: string, id: number, marcar: boolean) => {
+    const antes = asignaciones;
+    const actuales = asignaciones[slug] ?? [];
+    const ids = marcar ? [...new Set([...actuales, id])] : actuales.filter((x) => x !== id);
+    const siguiente = { ...asignaciones, [slug]: ids };
+    if (!ids.length) delete siguiente[slug];
+    setAsignaciones(siguiente);
+    try {
+      const r = await api<{ asignaciones: AsignacionesPorLocal }>("/api/asesores-por-local", {
+        method: "PUT", body: JSON.stringify({ asignaciones: siguiente }),
+      });
+      setAsignaciones(r.asignaciones);
+      onError("");
+    } catch (e) {
+      setAsignaciones(antes);
+      onError(e instanceof Error ? e.message : "No se pudo guardar el local del asesor");
+    }
+  };
 
   const agregar = async () => {
     const soloDigitos = telefono.replace(/\D/g, "");
@@ -1070,9 +1173,16 @@ function SeccionAsesores({ onError }: { onError: (e: string) => void }) {
       titulo="Quién recibe los avisos"
       sub="El bot avisa por WhatsApp a los de esta lista. El nivel de cada número decide qué avisos le llegan; los niveles se crean y se ajustan en la tarjeta de abajo."
     >
+      {locales.length > 0 && (
+        <p className="mb-2 rounded-[6px] bg-bg p-2.5 text-[12px] text-text2">
+          <b>Locales:</b> cuando el cliente ya eligió local, el aviso va solo a quienes estén marcados en ese local.
+          Un local sin nadie marcado avisa a todos. Antes de que el cliente elija local, avisa a todos.
+        </p>
+      )}
       <div className="flex flex-col gap-2">
         {asesores.map((a) => (
-          <div key={a.id} className="flex items-center gap-2 rounded-[8px] border border-line bg-bg p-3">
+          <div key={a.id} className="flex flex-col gap-2 rounded-[8px] border border-line bg-bg p-3">
+          <div className="flex items-center gap-2">
             <input
               type="checkbox" checked={a.active}
               onChange={(e) => void cambiar(a, { active: e.target.checked })}
@@ -1098,6 +1208,27 @@ function SeccionAsesores({ onError }: { onError: (e: string) => void }) {
               className="shrink-0 rounded-[6px] px-2 py-1 text-[16px] leading-none text-text2 hover:text-[var(--color-signal)]"
               title="Quitar"
             >×</button>
+          </div>
+          {locales.length > 0 && (
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 pl-6 text-[12px]">
+              <span className="text-text2">Atiende en:</span>
+              {locales.map((l) => (
+                <label key={l.slug} className="flex items-center gap-1.5" title={editable ? undefined : "Solo un administrador puede cambiarlo"}>
+                  <input
+                    type="checkbox"
+                    aria-label={`${a.nombre} atiende en ${l.nombreCorto}`}
+                    // `advisors.id` es bigint: `/api/advisors` lo manda como
+                    // texto ("1") y la asignación guarda números.
+                    checked={(asignaciones[l.slug] ?? []).includes(Number(a.id))}
+                    disabled={!editable}
+                    onChange={(e) => void asignar(l.slug, Number(a.id), e.target.checked)}
+                    className="size-3.5 accent-[var(--color-ok)] disabled:opacity-40"
+                  />
+                  {l.nombreCorto}
+                </label>
+              ))}
+            </div>
+          )}
           </div>
         ))}
         {!asesores.length && (

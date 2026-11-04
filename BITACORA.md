@@ -1,3 +1,24 @@
+## 4-nov-2026 · Multicliente S3: el panel muestra SU negocio (nombre, locales, playbook, arranque)
+
+**Qué:** nuevo `hub/src/data/negocio.ts`: pide `GET /api/negocio` (S1) después
+del login y lo reintenta con la credencial nueva; con 404 usa un respaldo con
+los valores de Depot de hoy (locales desde `/api/store-hours`), así Depot no
+cambia. Lo usan: el rail y el título de la pestaña (`index.html` y el manifest
+dicen «AutoVenta»), el tour, encabezado y pie del modal de cotización, el
+nombre del PDF, el texto de anuncios, el favicon, el cupón (`<iniciales>-PUMA47`)
+y los nombres de paleta/plantilla de Depot (solo en Depot). (R-30) Horarios
+lista los locales del negocio; (R-31) la pestaña Manual muestra el playbook del
+servidor; (R-32) tarjeta «Falta para encender el bot» arriba de Ajustes cuando
+`faltantes` no está vacío; (R-34) casillas «Atiende en» por local en «Quién
+recibe los avisos». Probado en un panel local con `NEGOCIO=ejemplo` (y como
+Depot, sin cambios). Arreglo de paso: `advisors.id` llega como texto y la
+casilla guardaba `"1"` → 400; se convierte a número.
+
+**Por qué:** R-29…R-32 — el panel de Mundillantas no puede decir Depot ni
+listar Cumbayá y Quito Sur.
+
+**Horas:** 2,5
+
 ## 4-nov-2026 · Multicliente S3: semilla de base nueva y simulador por cliente
 
 **Qué:** (R-35) `npm run seed:negocio` (`db/seed-negocio.ts`) deja una base
