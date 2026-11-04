@@ -22,14 +22,44 @@ import { pathToFileURL } from "node:url";
 import { sql } from "./client.js";
 import { ensureSchema } from "./schema.js";
 import { negocio } from "../negocio/index.js";
+import type { PerfilDeNegocio } from "../negocio/index.js";
 import {
   DEFAULT_AI_CONFIG,
   DEFAULT_GUARDIAN_CONFIG,
   DEFAULT_PIECES_CONFIG,
-  DEFAULT_STORE_HOURS,
+  DIAS_SEMANA,
+  StoreHoursSchema,
   ensureDefaultStagePrompts,
+  type StoreHours,
 } from "../services/settings.js";
 import { savePhaseFlags } from "../services/phases.js";
+
+/** `lun…dom` → el índice de `horasPorDia` (0 = domingo … 6 = sábado). */
+const INDICE_DEL_DIA: Record<(typeof DIAS_SEMANA)[number], number> = {
+  lun: 1, mar: 2, mie: 3, jue: 4, vie: 5, sab: 6, dom: 0,
+};
+
+/**
+ * Los horarios de arranque de cada local, desde el PERFIL.
+ *
+ * `DEFAULT_STORE_HOURS` de `settings.ts` cae en 08:30–17:30 los siete días para
+ * todo local sin `horarioPorDefecto`, y así una base nueva le ofrecía al
+ * cliente un domingo que el negocio no abre (pasó con `ejemplo`: lun–vie
+ * 9–18 en su perfil, sembrado 08:30–17:30 toda la semana). Acá manda, en orden:
+ * el `horarioPorDefecto` del local; si no, `horasPorDia` del negocio, día por
+ * día, con `null` = cerrado.
+ */
+export function horariosDelPerfil(perfil: PerfilDeNegocio): StoreHours {
+  const cualquierTramo = Object.values(perfil.horasPorDia).find(Boolean) ?? { open: "08:30", close: "17:30" };
+  return StoreHoursSchema.parse(Object.fromEntries(perfil.locales.map((local) => {
+    if (local.horarioPorDefecto) return [local.claveHorario, local.horarioPorDefecto];
+    const dias = Object.fromEntries(DIAS_SEMANA.map((dia) => {
+      const tramo = perfil.horasPorDia[INDICE_DEL_DIA[dia]];
+      return [dia, tramo ? { ...tramo, closed: false } : { ...cualquierTramo, closed: true }];
+    }));
+    return [local.claveHorario, { dias, excepciones: [] }];
+  })));
+}
 
 /** Las llaves de `settings` que el simulador exige (AJUSTES_QUE_IMPORTAN). */
 const LLAVES_DE_ARRANQUE: Array<[string, unknown]> = [
@@ -40,7 +70,7 @@ const LLAVES_DE_ARRANQUE: Array<[string, unknown]> = [
   ["guardian_config", { ...DEFAULT_GUARDIAN_CONFIG, activo: true }],
   ["ai_config", DEFAULT_AI_CONFIG],
   ["pieces_config", DEFAULT_PIECES_CONFIG],
-  ["store_hours", DEFAULT_STORE_HOURS],
+  ["store_hours", horariosDelPerfil(negocio)],
 ];
 
 /**

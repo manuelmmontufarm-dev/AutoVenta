@@ -1,3 +1,20 @@
+## 4-nov-2026 · Multicliente S3: horarios de la semilla desde el perfil y receta de alta
+
+**Qué:** `seed:negocio` sembraba `store_hours` con el 08:30–17:30 de los siete
+días para todo local sin `horarioPorDefecto` (visto en el panel con `ejemplo`,
+que abre lun–vie 9–18). Ahora `horariosDelPerfil` usa el `horarioPorDefecto`
+del local o, si no hay, `horasPorDia` del negocio día por día (`null` =
+cerrado); prueba nueva en `seedNegocio.test.ts`, también con los locales de
+Depot. (R-37) `docs/clientes/ALTA-DE-CLIENTE.md`: servicio + Postgres, tabla de
+variables (con `HUB_PIN`, `BOT_POWER_DEFAULT=off`, modelos copiados de Depot,
+`BILLING_*`), semilla con la URL pública, Ajustes, WhatsApp, catálogo,
+simulador `--perfil`, encender, y el costo de que `main` despliegue a todos.
+
+**Por qué:** un cliente nuevo no puede arrancar ofreciendo un domingo que no
+abre, y el alta tiene que poder hacerse sin reconstruirla de memoria.
+
+**Horas:** 1
+
 ## 4-nov-2026 · Multicliente S3: el panel muestra SU negocio (nombre, locales, playbook, arranque)
 
 **Qué:** nuevo `hub/src/data/negocio.ts`: pide `GET /api/negocio` (S1) después

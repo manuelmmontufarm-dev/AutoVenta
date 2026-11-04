@@ -65,6 +65,24 @@ describe("seed:negocio (R-35)", () => {
     `;
     // `ejemplo` tiene un solo local con claveHorario "principal".
     expect(Object.keys(fila.value)).toEqual(["principal"]);
+    // Y su horario es el de `horasPorDia`: lun–vie 9–18, fin de semana cerrado.
+    // (Antes caía al 08:30–17:30 de los siete días y ofrecía un domingo cerrado.)
+    const dias = (fila.value.principal as { dias: Record<string, { open: string; close: string; closed: boolean }> }).dias;
+    expect(dias.lun).toEqual({ open: "09:00", close: "18:00", closed: false });
+    expect(dias.vie).toEqual({ open: "09:00", close: "18:00", closed: false });
+    expect(dias.sab.closed).toBe(true);
+    expect(dias.dom.closed).toBe(true);
+  });
+
+  it("un local con horarioPorDefecto usa el suyo (Depot: Quito Sur cierra el fin de semana)", async () => {
+    const { horariosDelPerfil } = await import("../src/db/seed-negocio.js");
+    const { DEPOT } = await import("../src/negocio/negocios/depot.js");
+    const horarios = horariosDelPerfil(DEPOT);
+    expect(Object.keys(horarios)).toEqual(["cumbaya", "quitoSur"]);
+    // El mismo horario que trae su perfil, en la forma de 7 días.
+    const { StoreHoursSchema } = await import("../src/services/settings.js");
+    const sur = DEPOT.locales.find((l) => l.claveHorario === "quitoSur")!;
+    expect(horarios.quitoSur).toEqual(StoreHoursSchema.parse({ quitoSur: sur.horarioPorDefecto }).quitoSur);
   });
 
   it("es idempotente: la segunda corrida no pisa lo existente", async () => {
