@@ -1,3 +1,17 @@
+## 4-nov-2026 · Ficha de Mundillantas (referido de Santo Domingo)
+
+**Qué:** `docs/clientes/mundillantas.md` — lo investigado el 3-nov en fuentes públicas:
+razón social Sat Mundillantas S.A.S. (2 socios al 50 %), locales, 5 anuncios de Meta con
+botón de WhatsApp, aviso de empleo de asesor comercial, 6 teléfonos y el enlace de WhatsApp
+roto de beacons.ai, competencia en Santo Domingo, qué cambia frente a Depot, ángulo del
+pitch, preguntas para la reunión y lo que falta confirmar. Deja un espacio para enlazar las
+transcripciones de las reuniones.
+
+**Por qué:** es el próximo cliente probable; la ficha sirve de base para las transcripciones
+y para que otro chat arranque con el contexto de la empresa.
+
+**Horas:** 1
+
 ## 28-oct-2026 · Integraciones con Perseo y FÉNIX documentadas (referidos de Andrés)
 
 **Qué:** `docs/integraciones/` — README (qué usa AutoVenta de Contífico y veredicto por
