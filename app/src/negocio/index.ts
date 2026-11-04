@@ -11,6 +11,8 @@
  */
 import { DEPOT } from "./negocios/depot.js";
 import { EJEMPLO } from "./negocios/ejemplo.js";
+import { MUNDILLANTAS } from "./negocios/mundillantas.js";
+import { validarIdentidades } from "./identidad.js";
 import type { PerfilDeNegocio } from "./perfil.js";
 
 export * from "./perfil.js";
@@ -18,6 +20,7 @@ export * from "./perfil.js";
 const PERFILES: Record<string, PerfilDeNegocio> = {
   [DEPOT.id]: DEPOT,
   [EJEMPLO.id]: EJEMPLO,
+  [MUNDILLANTAS.id]: MUNDILLANTAS,
 };
 
 function elegirPerfil(): PerfilDeNegocio {
@@ -35,6 +38,13 @@ function elegirPerfil(): PerfilDeNegocio {
   }
   return perfil;
 }
+
+/**
+ * Un perfil con identidades ambiguas no puede arrancar: si un local está en
+ * dos marcas (o en ninguna), no se sabe con cuál cotizarle al cliente. Mejor
+ * caído que con el logo equivocado — mismo criterio que el NEGOCIO mal escrito.
+ */
+for (const perfil of Object.values(PERFILES)) validarIdentidades(perfil);
 
 /** El perfil vivo. Se resuelve una vez, al cargar el módulo. */
 export const negocio: PerfilDeNegocio = elegirPerfil();

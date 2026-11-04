@@ -1,3 +1,29 @@
+## 4-nov-2026 · Multicliente S1: dos marcas por negocio y perfil de Mundillantas
+
+**Qué:** un negocio puede tener varias marcas comerciales (`Identidad`,
+`identidades`, `presentacion` en `negocio/perfil.ts`; helpers puros en
+`negocio/identidad.ts`, con validación al arrancar: cada local en exactamente una
+marca). Perfil `NEGOCIO=mundillantas` con solo lo confirmado en el pitch (dos
+marcas, matriz en la Av. Quevedo km 1 con el pin del Plus Code PRQ7+887, horario
+lunes–sábado 8–18); lo demás va como `[PENDIENTE]`, y el candado `sinPendiente`
+impide que llegue al cliente en el saludo, las piezas, el PDF y los textos.
+Saludo, cierre perdido, locales inventados y cupón reconocen todas las marcas (el
+prefijo del cupón sale de la presentación: Depot `DT`, Mundillantas `MC`). Las
+piezas aceptan `identidad` (logo `logo-<id>.png` con su proporción real leída del
+PNG, nombre y pie de locales de esa marca). `warrantyForBrand` lee
+`negocio.garantias` en vez de los `includes` de Depot; el campo de Depot se
+corrigió a la tabla que veía el cliente (default 0, Winrun 6). Las cuotas de la
+pieza día y noche, la frase de impuestos y la de precio sin descuento salen del
+perfil. Nuevo `GET /api/negocio` para el panel.
+
+**Por qué:** Mundillantas y Competimotor son un cliente con dos marcas y tres
+locales; sin esto el bot se presentaba como un solo nombre, ponía el logo de la
+presentación en la cotización de cualquier local y les prometía las garantías y
+las «3 y 6 cuotas sin intereses» de Depot. Depot no cambia: 16 piezas y textos
+con reloj congelado dan el mismo sha256 en `main` y en la rama.
+
+**Horas:** 3,5
+
 ## 2-nov-2026 · Canary: grupos cruzados para la última semana (canary = impares)
 
 **Qué:** en Railway (Depot_Tire) `AI_CANARY_DIGITS` pasó de `0,2,4,6,8` a `1,3,5,7,9`

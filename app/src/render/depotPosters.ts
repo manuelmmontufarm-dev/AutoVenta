@@ -17,7 +17,8 @@ import {
 } from "./depotDesign.js";
 import { guideTireImage } from "./assets.js";
 import { etiquetaDePromocion, type ModoPromocion } from "../domain/promocion.js";
-import { negocio, pieDeLocales, localesEnUnaLinea } from "../negocio/index.js";
+import { negocio, pieDeLocales, localesEnUnaLinea, sinPendiente } from "../negocio/index.js";
+import { localesDeIdentidad } from "../negocio/identidad.js";
 
 /**
  * ¿Este color desaparecería sobre el caucho de la ilustración?
@@ -35,10 +36,27 @@ function esOscuro(hex: string): boolean {
 const money = (n: number) => `$${n.toFixed(2)}`;
 
 // Los pies de las piezas salen del perfil del negocio: cada cliente tiene su
-// antigüedad, sus condiciones y lo que incluye toda compra.
-const CONDICIONES = negocio.piezas.condiciones;
-const SUCURSALES = pieDeLocales(negocio, negocio.piezas.antiguedadClasica);
-const TODAS_INCLUYEN = negocio.piezas.todasIncluyen;
+// antigüedad, sus condiciones y lo que incluye toda compra. `sinPendiente` es
+// el candado R-10: un texto sin confirmar sale con su respaldo neutro u
+// omitido, nunca con la nota `[PENDIENTE]` dibujada en la pieza.
+const CONDICIONES = sinPendiente(negocio.piezas.condiciones, "Precios con impuestos incluidos");
+const TODAS_INCLUYEN = sinPendiente(negocio.piezas.todasIncluyen);
+const IMPUESTOS_INCLUIDOS = sinPendiente(
+  negocio.piezas.impuestosIncluidos ?? "IVA y Ecovalor incluidos",
+  "Impuestos incluidos",
+);
+const PRECIO_SIN_DESCUENTO = sinPendiente(
+  negocio.piezas.precioSinDescuento ?? "Precio directo de distribuidor",
+);
+
+/**
+ * El pie de locales de la IDENTIDAD de la pieza: la cotización del local de
+ * Competimotor no lista los locales de Mundillantas. Sin identidad (Depot,
+ * vistas previas), los del negocio entero, como siempre.
+ */
+function sucursales(identidad?: string, antiguedad = negocio.piezas.antiguedadClasica): string {
+  return pieDeLocales({ ...negocio, locales: localesDeIdentidad(negocio, identidad) }, antiguedad);
+}
 
 /**
  * La franja INCLUYE de opciones y comparativa, resaltada (P-07, reunión
@@ -51,9 +69,12 @@ const TODAS_INCLUYEN = negocio.piezas.todasIncluyen;
  * Con `beneficios` de la tabla, la franja dice EXACTAMENTE lo que dice la
  * cotización y lo que el bot afirma en el chat; sin ellos cae el genérico.
  */
-function franjaIncluye(theme: Theme, beneficios?: readonly string[]): SatoriNode {
+function franjaIncluye(theme: Theme, beneficios?: readonly string[]): SatoriNode | null {
   const p = theme.p;
   const texto = beneficios?.length ? beneficios.map(stripEmoji).join(" · ") : TODAS_INCLUYEN;
+  // Un negocio nuevo sin «qué incluye» confirmado no dibuja la franja: una
+  // franja INCLUYE vacía prometería en blanco.
+  if (!texto) return null;
   return el({ alignItems: "center", gap: 18, padding: "28px 64px", borderTop: `3px solid ${p.gold}`,
     backgroundImage: `linear-gradient(180deg,${p.base} 0%,${p.wash} 100%)` },
     el({ width: 8, height: 30, backgroundColor: p.accent, transform: "skewX(-22deg)" }),
@@ -156,6 +177,8 @@ const golpesLabel = (line: PosterLine) =>
 export interface QuotePosterData {
   number: string;
   dateLabel: string;
+  /** La marca comercial de la pieza (id de identidad); sin ella, la del negocio. */
+  identidad?: string;
   line: PosterLine;
   subtotal: number;
   iva: number;
@@ -181,7 +204,7 @@ export function quotePoster(data: QuotePosterData, theme: Theme): SatoriNode {
       // El mismo logotipo que las otras tres piezas: la cotización tenía su
       // propio encabezado copiado a mano y se le quedaba atrás cada vez que la
       // marca cambiaba algo.
-      depotWordmark(theme),
+      depotWordmark(theme, data.identidad),
       el({ alignItems: "center", gap: 18 },
         text({ border: `2px solid ${p.gold}`, color: p.gold, borderRadius: 10, padding: "8px 18px",
           fontSize: 19, fontWeight: 700, letterSpacing: 1, whiteSpace: "nowrap" }, data.number),
@@ -246,7 +269,7 @@ export function quotePoster(data: QuotePosterData, theme: Theme): SatoriNode {
       el({ flexDirection: "column", gap: 2 },
         text({ fontSize: 17, fontWeight: 700, letterSpacing: 4, color: p.gold }, "PRECIO HOY · POR LLANTA"),
         text({ ...price, fontSize: 168, lineHeight: 1.12, letterSpacing: -4, color: p.paper }, money(line.unitConIva)),
-        text({ fontSize: 19, color: p.darkSub }, "IVA y Ecovalor incluidos"),
+        text({ fontSize: 19, color: p.darkSub }, IMPUESTOS_INCLUIDOS),
       ),
       pct && line.pvpConIva
         ? el({ flexDirection: "column", alignItems: "flex-end", gap: 14 },
@@ -265,19 +288,21 @@ export function quotePoster(data: QuotePosterData, theme: Theme): SatoriNode {
 
     // Sellos de garantía — la sección que más vende, dicho por Depot: va
     // grande de verdad, con rótulo propio, no como una franja de trámite.
-    el({ flexDirection: "column", gap: 30, padding: "44px 64px 48px",
+    // Sin ningún sello que mostrar (cliente nuevo sin garantías confirmadas
+    // ni antigüedad) no se dibuja: un rótulo sobre una sección vacía.
+    !golpes && line.fabricaAnios <= 0 && !negocio.piezas.antiguedadClasica ? null : el({ flexDirection: "column", gap: 30, padding: "44px 64px 48px",
       backgroundImage: `linear-gradient(180deg,#ffffff 0%,${p.panel} 55%,${p.wash} 100%)` },
       el({ alignItems: "center", gap: 16 },
         el({ width: 10, height: 34, backgroundColor: p.accent, transform: "skewX(-22deg)" }),
         text({ fontSize: 26, fontWeight: 700, letterSpacing: 4, color: p.dark }, "GARANTÍAS QUE TE RESPALDAN"),
       ),
       el({ justifyContent: "space-between", alignItems: "center" },
-        golpes
-          ? seal(String(line.golpesMeses), "MESES", "GARANTÍA CONTRA GOLPES")
-          : seal(String(line.fabricaAnios), "AÑOS", "GARANTÍA DE FÁBRICA"),
-        divider(p.border),
-        seal(String(line.fabricaAnios), "AÑOS", "GARANTÍA DE FÁBRICA"),
-        divider(p.border),
+        // Garantía de fábrica en 0 = sin confirmar con el cliente nuevo: su
+        // sello no se dibuja (nunca «0 AÑOS»). Con Depot siempre es 5.
+        ...(golpes
+          ? [seal(String(line.golpesMeses), "MESES", "GARANTÍA CONTRA GOLPES"), divider(p.border)]
+          : line.fabricaAnios > 0 ? [seal(String(line.fabricaAnios), "AÑOS", "GARANTÍA DE FÁBRICA"), divider(p.border)] : []),
+        ...(line.fabricaAnios > 0 ? [seal(String(line.fabricaAnios), "AÑOS", "GARANTÍA DE FÁBRICA"), divider(p.border)] : []),
         ...(negocio.piezas.antiguedadClasica
           ? [seal(
               negocio.piezas.antiguedadClasica.replace(/\D+/g, "") || negocio.piezas.antiguedadClasica,
@@ -350,8 +375,11 @@ export function quotePoster(data: QuotePosterData, theme: Theme): SatoriNode {
       ),
     ),
     posterFooter(theme,
-      `${negocio.piezas.condiciones} · ${negocio.piezas.mediosDePago}`,
-      localesEnUnaLinea(negocio), "18px 64px"),
+      // `sinPendiente`: un pie sin confirmar sale con el respaldo neutro, y
+      // los medios de pago pendientes se omiten sin dejar el «·» colgando.
+      [CONDICIONES, sinPendiente(negocio.piezas.mediosDePago)].filter(Boolean).join(" · "),
+      localesEnUnaLinea({ ...negocio, locales: localesDeIdentidad(negocio, data.identidad) }),
+      "18px 64px"),
   );
 
   return el({ flexDirection: "column", width: "100%", backgroundColor: p.base,
@@ -399,6 +427,8 @@ function totalCell(theme: Theme, rotulo: string, valor: string, destacado = fals
 export interface ComparePosterData {
   dateLabel: string;
   sizeLabel?: string | null;
+  /** La marca comercial de la pieza (id de identidad); sin ella, la del negocio. */
+  identidad?: string;
   lines: readonly PosterLine[];
 }
 
@@ -448,12 +478,16 @@ export function comparePoster(data: ComparePosterData, theme: Theme): SatoriNode
                 borderRadius: 6, padding: "4px 12px", fontSize: 16, fontWeight: 700, whiteSpace: "nowrap",
                 color: "#211a08", boxShadow: "0 4px 10px rgba(185,138,30,0.4)" }, selloCorto(line, pct))
             )
-          : text({ fontSize: 15, color: p.tenue, marginTop: 4 }, "Precio directo de distribuidor"),
+          : PRECIO_SIN_DESCUENTO
+            ? text({ fontSize: 15, color: p.tenue, marginTop: 4 }, PRECIO_SIN_DESCUENTO)
+            : null,
       ),
       el({}, availabilityChip(line.availability)),
       el({ flexDirection: "column", gap: 8 },
         golpes ? garantiaFila(`${golpes} contra golpes`, p.dark) : null,
-        garantiaFila(`${line.fabricaAnios} años de fábrica`, p.dark),
+        // Garantía de fábrica en 0 = todavía sin confirmar con el cliente
+        // nuevo: se omite la fila, nunca se dibuja «0 años».
+        line.fabricaAnios > 0 ? garantiaFila(`${line.fabricaAnios} años de fábrica`, p.dark) : null,
       ),
       line.posicionamiento
         ? text({ fontSize: 15, color: p.tenue, lineHeight: 1.45 }, line.posicionamiento)
@@ -462,11 +496,11 @@ export function comparePoster(data: ComparePosterData, theme: Theme): SatoriNode
   };
 
   return el({ flexDirection: "column", width: "100%", backgroundColor: p.base, fontFamily: "Archivo", color: p.dark },
-    posterHeader(theme, "COMPARATIVA", data.sizeLabel ?? "", data.dateLabel),
+    posterHeader(theme, "COMPARATIVA", data.sizeLabel ?? "", data.dateLabel, data.identidad),
     racingBar(theme),
     el({ padding: "48px 40px 40px", alignItems: "stretch" }, ...lines.map(columna)),
     franjaIncluye(theme),
-    posterFooter(theme, CONDICIONES, SUCURSALES),
+    posterFooter(theme, CONDICIONES, sucursales(data.identidad)),
   );
 }
 
@@ -484,6 +518,8 @@ function garantiaFila(texto: string, color: string): SatoriNode {
 export interface OptionsPosterData {
   dateLabel: string;
   sizeLabel?: string | null;
+  /** La marca comercial de la pieza (id de identidad); sin ella, la del negocio. */
+  identidad?: string;
   lines: readonly PosterLine[];
   /**
    * ¿Sabemos qué medida pidió? Con `false` (buscó por aro o por vehículo) la
@@ -677,11 +713,16 @@ export function optionsPoster(data: OptionsPosterData, theme: Theme): SatoriNode
         primera.posicionamiento
           ? text({ fontSize: 15, color: p.tenue, lineHeight: 1.45 }, primera.posicionamiento)
           : null,
-        el({ alignItems: "center", gap: 8 },
-          check(16, "#b98a1e"),
-          text({ fontSize: 14, fontWeight: 500, color: p.dark },
-            `${golpes ? `${golpes} contra golpes · ` : ""}${primera.fabricaAnios} años fábrica`),
-        ),
+        // Sin seguro ni garantía confirmada (cliente nuevo) no hay fila: un
+        // check junto a «0 años» sería una promesa en contra.
+        golpes || primera.fabricaAnios > 0
+          ? el({ alignItems: "center", gap: 8 },
+              check(16, "#b98a1e"),
+              text({ fontSize: 14, fontWeight: 500, color: p.dark },
+                [golpes ? `${golpes} contra golpes` : "", primera.fabricaAnios > 0 ? `${primera.fabricaAnios} años fábrica` : ""]
+                  .filter(Boolean).join(" · ")),
+            )
+          : null,
       ),
       el({ flex: 1, gap: 20, padding: "28px 32px", alignItems: "stretch" },
         ...items.map((line) => tarjeta(line, acento, items.length)),
@@ -703,6 +744,7 @@ export function optionsPoster(data: OptionsPosterData, theme: Theme): SatoriNode
         : "TODO EN TU MEDIDA",
       data.sizeLabel ?? "",
       data.dateLabel,
+      data.identidad,
     ),
     racingBar(theme),
     ...filas,
@@ -718,7 +760,9 @@ export function optionsPoster(data: OptionsPosterData, theme: Theme): SatoriNode
         )
       : null,
     franjaIncluye(theme, data.benefits),
-    posterFooter(theme, "Precios incluyen IVA y Ecovalor · por unidad · 3 y 6 meses sin intereses", SUCURSALES),
+    // El pie decía la frase de Depot escrita a mano; es la misma que
+    // `piezas.condiciones`, que ahora es la fuente (byte a byte para Depot).
+    posterFooter(theme, CONDICIONES, sucursales(data.identidad)),
   );
 }
 
@@ -752,6 +796,8 @@ const SEGMENTOS: readonly SegmentoMedida[] = [
 
 export interface MedidaGuidePosterData {
   dateLabel: string;
+  /** La marca comercial de la pieza (id de identidad); sin ella, la del negocio. */
+  identidad?: string;
   /** Aro que ya dijo el cliente, si lo dijo: cambia el pie de «pídalo» a «confirmado». */
   aroDelCliente?: number | null;
 }
@@ -879,7 +925,7 @@ export function medidaGuidePoster(data: MedidaGuidePosterData, theme: Theme): Sa
     : "Sin el aro no podemos garantizar que la llanta entre. Es el único dato que no tiene reemplazo.";
 
   return el({ flexDirection: "column", width: "100%", backgroundColor: p.base, fontFamily: "Archivo", color: p.dark },
-    posterHeader(theme, "CÓMO LEER SU MEDIDA", "195/55R16 87V", data.dateLabel),
+    posterHeader(theme, "CÓMO LEER SU MEDIDA", "195/55R16 87V", data.dateLabel, data.identidad),
     racingBar(theme),
 
     // La llanta a la izquierda y el despiece a la derecha: primero QUÉ mirar,
@@ -914,6 +960,6 @@ export function medidaGuidePoster(data: MedidaGuidePosterData, theme: Theme): Sa
         "¿No la encuentra? Mándenos una foto del costado de la llanta: nosotros la leemos y le cotizamos."),
     ),
 
-    posterFooter(theme, "La medida está impresa en el costado de la llanta", SUCURSALES),
+    posterFooter(theme, "La medida está impresa en el costado de la llanta", sucursales(data.identidad)),
   );
 }

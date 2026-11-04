@@ -118,7 +118,10 @@ export function normalizarCodigoCupon(entrada: string): string | null {
     .replace(/[\u0300-\u036f]/g, "")
     .toUpperCase()
     .replace(/[^A-Z0-9]/g, "");
-  const cuerpo = limpio.startsWith("DT") ? limpio.slice(2) : limpio;
+  // Quita el prefijo DEL NEGOCIO (Depot: «DT», como siempre); el literal
+  // `DT` escrito acá no dejaba validar en caja el cupón de otro negocio.
+  const iniciales = inicialesDelNegocio(negocio);
+  const cuerpo = limpio.startsWith(iniciales) ? limpio.slice(iniciales.length) : limpio;
   return FORMA_CUPON.test(cuerpo) ? `${PREFIJO_CUPON}${cuerpo}` : null;
 }
 

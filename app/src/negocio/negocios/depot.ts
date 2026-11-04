@@ -104,10 +104,16 @@ export const DEPOT: PerfilDeNegocio = {
   palabrasDeLugarPropias: ["depot", "tire"],
   iva: 0.15,
   moneda: "USD",
+  // La tabla REAL que el cliente veía en `warrantyForBrand` (quoteMessages):
+  // una marca fuera de la lista nunca llevó seguro contra golpes, y Winrun
+  // siempre tuvo 6 meses. Los valores anteriores de este campo (default 6, sin
+  // Winrun) no los leía nadie y no coincidían con lo que salía en la
+  // cotización; ahora el campo ES la fuente y tiene que decir la verdad.
   garantias: {
-    default: { golpesMeses: 6, fabricaAnios: 5 },
+    default: { golpesMeses: 0, fabricaAnios: 5 },
     Kenda: { golpesMeses: 12, fabricaAnios: 5 },
     Falken: { golpesMeses: 18, fabricaAnios: 5 },
+    Winrun: { golpesMeses: 6, fabricaAnios: 5 },
   },
   // Decidido por Joaquín el 14-sep-2026: «una persona… un nombre alegre… un
   // Martín». El bot no niega ser un asistente virtual si se lo preguntan.
@@ -121,6 +127,15 @@ export const DEPOT: PerfilDeNegocio = {
     mediosDePagoDiaNoche: "Efectivo, tarjeta y transferencia · 3 y 6 meses sin intereses con tarjeta de crédito",
     todasIncluyen:
       "Instalación completa · seguro contra golpes y cortes · mantenimiento cada 10.000 km · revisión del vehículo",
+    // Literales que vivían dentro de las piezas y los mensajes; mismos textos,
+    // ahora con dueño. Sin estos campos, cada archivo conserva su frase.
+    impuestosIncluidos: "IVA y Ecovalor incluidos",
+    precioSinDescuento: "Precio directo de distribuidor",
+    notaDePrecios: "Precios por unidad incluyen IVA y Ecovalor.",
+    notaDePrecioUnitario: "Precio incluye IVA y Ecovalor.",
+    // Las que la plantilla día y noche calcula sobre el total (estaban como
+    // `[3, 6]` dentro de diaNoche.ts).
+    cuotasSinIntereses: [3, 6],
   },
   // Copiado de las facturas Siigo 001-002-000000061 y …063 (sep-2026) que
   // emite Rosanna Mancino; transferencia según docs/propuesta-depot-2026.html §11.

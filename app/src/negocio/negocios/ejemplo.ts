@@ -38,6 +38,11 @@ export const EJEMPLO: PerfilDeNegocio = {
     6: null,
   },
   marcas: ["Michelin", "Aeolus"],
+  // Con UNA sola marca comercial no hace falta `identidades` ni
+  // `presentacion`: el negocio es su propia identidad. Si el cliente atiende
+  // con dos marcas (como Mundillantas y Competimotor), ver `mundillantas.ts`.
+  // Lo que todavía no confirmó el cliente se escribe `[PENDIENTE] <qué falta>`
+  // y nunca llega a un cliente: no inventes valores.
   // UN SOLO LOCAL. Con uno, el bot no pregunta «¿a cuál le queda mejor?»: lo
   // nombra y manda su mapa.
   locales: [

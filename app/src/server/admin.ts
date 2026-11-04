@@ -105,6 +105,7 @@ import {
 import { PALETTE_NAMES, PALETTES, PRICE_FONT_NAMES } from "../render/depotDesign.js";
 import { descuentoDeLaMuestra, renderPreviewPiece } from "../render/preview.js";
 import { MODOS_PROMOCION } from "../domain/promocion.js";
+import { negocioPublico } from "./negocioPublico.js";
 import { atenderPendientes, reorganizarEtapas } from "../services/hubMaintenance.js";
 import {
   getChannelConfig,
@@ -469,6 +470,10 @@ export function createAdminRouter(): express.Router {
   });
 
   router.use(exigirCredencial);
+
+  // Quién es el negocio de esta instancia, para que el panel no diga Depot en
+  // el servicio de otro cliente (MULTICLIENTE.md §3.2).
+  router.get("/negocio", (_req, res) => res.json(negocioPublico()));
 
   // El espejo de usuarios del hub se puebla al arrancar: el login y el gate lo
   // leen síncrono y no pueden esperar a la base petición por petición.

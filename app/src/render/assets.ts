@@ -262,30 +262,45 @@ const depotLogoCache = new Map<string, RasterImage | null>();
  * una recreación tipográfica. Vive en `assets/<id del negocio>/`, así que cada
  * cliente trae el suyo sin tocar este archivo.
  *
- * Son los dos únicos originales que publica el negocio, recortados a su
- * contenido (el PNG de Wix viene en lienzo de 500×500 con el arte al centro):
- *
  * - `blanco` para fondos oscuros — el encabezado de las cuatro piezas.
  * - `color`  para fondos claros — negro, rojo y el volante de la O.
  *
- * Devuelve null si falta el archivo; quien llama dibuja el nombre en texto,
+ * Con `identidad` busca primero el logo de ESA marca comercial
+ * (`logo-<identidad>.png`): es lo que pone el logo de Competimotor en la
+ * cotización de su local. Si falta, cae al archivo del negocio de siempre.
+ *
+ * El ancho y el alto se leen del encabezado IHDR del PNG — cada marca tiene
+ * su proporción y un logo estirado es peor que ninguno (el de Depot mide
+ * 422×132, los mismos números que estaban escritos acá).
+ *
+ * Devuelve null si falta todo archivo; quien llama dibuja el nombre en texto,
  * que es lo que hacían las piezas antes de tener el logo.
  */
-export function depotLogo(variant: "blanco" | "color" = "blanco"): RasterImage | null {
-  if (depotLogoCache.has(variant)) return depotLogoCache.get(variant)!;
+export function depotLogo(variant: "blanco" | "color" = "blanco", identidad?: string): RasterImage | null {
+  const clave = `${identidad ?? ""}:${variant}`;
+  if (depotLogoCache.has(clave)) return depotLogoCache.get(clave)!;
   let result: RasterImage | null = null;
-  const file = path.join(ASSETS, negocio.id, variant === "blanco" ? "logo-blanco.png" : "logo.png");
+  const candidatos = [
+    ...(identidad ? [path.join(ASSETS, negocio.id, `logo-${identidad}.png`)] : []),
+    path.join(ASSETS, negocio.id, variant === "blanco" ? "logo-blanco.png" : "logo.png"),
+  ];
   try {
-    if (existsSync(file)) {
+    const file = candidatos.find((f) => existsSync(f));
+    if (file) {
       const buf = readFileSync(file);
-      result = { dataUri: `data:image/png;base64,${buf.toString("base64")}`, width: 422, height: 132 };
+      result = {
+        dataUri: `data:image/png;base64,${buf.toString("base64")}`,
+        // Ancho y alto del encabezado IHDR del PNG.
+        width: buf.readUInt32BE(16),
+        height: buf.readUInt32BE(20),
+      };
     } else {
-      console.warn(`⚠️ Falta el logo de ${negocio.nombre} (${file}); las piezas caen al nombre en texto`);
+      console.warn(`⚠️ Falta el logo de ${negocio.nombre} (${candidatos.at(-1)}); las piezas caen al nombre en texto`);
     }
   } catch (err) {
     console.warn(`⚠️ No se pudo leer el logo de ${negocio.nombre}:`, err);
   }
-  depotLogoCache.set(variant, result);
+  depotLogoCache.set(clave, result);
   return result;
 }
 

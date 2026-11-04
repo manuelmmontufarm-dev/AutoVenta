@@ -10,7 +10,8 @@
  * Va aquí y no en wa/client.ts porque es puro (sin base ni red) y así se prueba
  * sin levantar nada, mismo criterio que opcionesCandados y aros.
  */
-import { negocio, firmaDePresentacion } from "../negocio/index.js";
+import { negocio, firmaDePresentacion, esPendiente } from "../negocio/index.js";
+import { nombresDelNegocio } from "../negocio/identidad.js";
 
 /**
  * Formas en que de verdad saluda la gente en Ecuador al abrir un chat. Se mira
@@ -72,13 +73,22 @@ const escapar = (v: string) => v.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
  * anterior («Soy el asistente de <negocio>»), que sigue en el historial de los
  * chats abiertos antes del cambio. Recibe el texto ya sin tildes.
  *
- * El negocio se reconoce por su PRIMERA palabra («depot» de «Depot Tire»):
- * basta para identificarlo y aguanta que el modelo escriba el resto del nombre
- * distinto o lo abrevie.
+ * Cada marca comercial se reconoce por su PRIMERA palabra («depot» de «Depot
+ * Tire»): basta para identificarla y aguanta que el modelo escriba el resto
+ * del nombre distinto o lo abrevie. Con varias identidades, un patrón por
+ * marca: «soy el asistente de mundillantas…» y «…de competimotor…» son la
+ * misma presentación. Un vendedor todavía `[PENDIENTE]` no entra al patrón:
+ * con él, la firma que sale es «Soy el asistente de <frase>».
  */
+const PRIMERAS_PALABRAS_DEL_NEGOCIO = nombresDelNegocio(negocio)
+  .map((nombre) => escapar(sinTildes(nombre.split(/\s+/)[0]).toLowerCase()))
+  .join("|");
+
 export const ES_PRESENTACION_DEL_NEGOCIO = new RegExp(
-  `\\bsoy\\s+(?:el\\s+asistente\\s+de|${escapar(sinTildes(NOMBRE_DEL_VENDEDOR).toLowerCase())},?\\s+de)`
-  + `\\s+${escapar(sinTildes(negocio.nombre.split(/\s+/)[0]).toLowerCase())}\\b`,
+  `\\bsoy\\s+(?:el\\s+asistente\\s+de${
+    esPendiente(NOMBRE_DEL_VENDEDOR) ? "" : `|${escapar(sinTildes(NOMBRE_DEL_VENDEDOR).toLowerCase())},?\\s+de`
+  })`
+  + `\\s+(?:${PRIMERAS_PALABRAS_DEL_NEGOCIO})\\b`,
   "i",
 );
 

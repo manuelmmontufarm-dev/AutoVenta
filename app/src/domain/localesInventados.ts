@@ -25,6 +25,7 @@
  */
 
 import { negocio, escaparRegex } from "../negocio/index.js";
+import { nombresDelNegocio } from "../negocio/identidad.js";
 
 const normalizar = (v: string) =>
   v.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[*_]/g, "").trim();
@@ -39,11 +40,15 @@ function nombresOfrecidos(texto: string): string[] {
   const nombres: string[] = [];
   const PALABRA = "[A-ZÁÉÍÓÚÑ][\\wáéíóúñ]*";
   // El nombre del negocio sale del perfil: «Depot Tire X» estaba escrito acá y
-  // en otro cliente el patrón no habría reconocido nada.
-  const marca = negocio.nombre.split(/\s+/).map(escaparRegex).join("\\s+");
+  // en otro cliente el patrón no habría reconocido nada. Con varias marcas
+  // comerciales, un patrón por marca: «Competimotor Norte» es tan inventado
+  // como «Depot Tire Norte».
   const patrones = [
     new RegExp(`\\b(?:sector|local|sucursal|tienda)\\s+\\*?(${PALABRA}(?:\\s+${PALABRA})?)`, "g"),
-    new RegExp(`\\b${marca}\\s+\\*?(${PALABRA}(?:\\s+${PALABRA})?)`, "g"),
+    ...nombresDelNegocio(negocio).map((nombre) => {
+      const marca = nombre.split(/\s+/).map(escaparRegex).join("\\s+");
+      return new RegExp(`\\b${marca}\\s+\\*?(${PALABRA}(?:\\s+${PALABRA})?)`, "g");
+    }),
   ];
   for (const patron of patrones) {
     for (const m of texto.matchAll(patron)) if (m[1]) nombres.push(m[1].trim());
