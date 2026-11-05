@@ -41,6 +41,7 @@ import {
   pngToQuotePdf,
   renderComparisonPdf,
   renderQuotePdf,
+  type QuoteLine,
 } from "../services/quotePdf.js";
 import {
   buildCierreOpciones,
@@ -116,6 +117,7 @@ import {
   medidaEstaPedida, medidasDeProductos, medidasPermitidas, mensajesDeLaVisitaActual,
 } from "../domain/medidaPedida.js";
 import { ahorroDeLaCotizacion } from "../domain/ahorro.js";
+import { segundaLlantaDe } from "../domain/promocionDeTemporada.js";
 import { avisoDeCantidad, esCantidadInusual } from "../domain/cantidadGrande.js";
 import { claseDeVehiculoEnTexto, TIPOS_DE_CAMIONETA } from "../domain/claseDeVehiculo.js";
 import { medidaEnDisputaDelPedido, medidasDelPedido } from "../services/medidasDelPedido.js";
@@ -3017,7 +3019,7 @@ export function buildTools(ctx: AgentContext) {
       const permitidas = await medidasDelPedido(
         ctx.conversation.id, ctx.conversation.current_cycle, ctx.currentUserText,
       );
-      const lines = [];
+      const lines: QuoteLine[] = [];
       /**
        * Lo que se pidió contra lo que hay HOY (P-02, reunión del 25-ago).
        *
@@ -3396,6 +3398,10 @@ export function buildTools(ctx: AgentContext) {
           loadSpeed: product.loadSpeed,
           warrantyFactory: warrantyForBrand(product.brand).factory,
           warrantyRoadHazard: warrantyForBrand(product.brand).roadHazard,
+          // Black Friday (nov-2026): las pares Falken/Kenda con el 60 % sobre
+          // el precio de HOY. La cuenta es de `domain/promocionDeTemporada.ts`;
+          // null fuera de fechas, con otra marca o con una sola llanta.
+          segundaLlanta: segundaLlantaDe(politica.promocionDeTemporada, product.brand, item.cantidad, hoyConIva),
         });
       }
       const baseQuote = buildQuote(lines, nombre_cliente, ctx.customerPhone);
@@ -3454,9 +3460,11 @@ export function buildTools(ctx: AgentContext) {
       // el de la pieza pudieran no coincidir.
       const preciosFirmados = lines.length === 1
         ? {
-            unitarioConIva: lines[0].salePriceWithTax,
-            listaConIva: lines[0].listPriceWithTax,
+            // Los dos se llenan siempre en el `lines.push` de arriba.
+            unitarioConIva: lines[0].salePriceWithTax!,
+            listaConIva: lines[0].listPriceWithTax!,
             total: quote.total,
+            segundaLlanta: lines[0].segundaLlanta ?? null,
           }
         : undefined;
 
@@ -3481,7 +3489,8 @@ export function buildTools(ctx: AgentContext) {
             brandProfiles: await brandProfilesForRender(),
             benefits: beneficiosPieza,
 
-            lines: [await toRenderLine(product, items[0].cantidad)],
+            // La pieza dibuja las pares con el 60 %; acá solo se le pasa.
+            lines: [{ ...await toRenderLine(product, items[0].cantidad), segundaLlanta: lines[0].segundaLlanta }],
             subtotal: quote.subtotal,
             iva: quote.tax,
             total: quote.total,
@@ -3548,6 +3557,10 @@ export function buildTools(ctx: AgentContext) {
             // Lo que la cotización le muestra: unitarios con IVA y total (familia 3).
             preciosMostrados: [
               ...quote.lines.map((l) => Number(l.salePriceWithTax)),
+              // Black Friday: la par rebajada y lo que se ahorra también se leen en la pieza.
+              ...quote.lines.flatMap((l) => l.segundaLlanta
+                ? [l.segundaLlanta.precioConIva, l.segundaLlanta.ahorroConIva]
+                : []),
               quote.total,
             ].filter((precio) => Number.isFinite(precio) && precio > 0),
             ...(visual.error ? { renderError: visual.error } : {}),

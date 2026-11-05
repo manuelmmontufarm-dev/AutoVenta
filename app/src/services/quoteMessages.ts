@@ -2,7 +2,8 @@ import { business } from "../config.js";
 import { negocio, sinPendiente } from "../negocio/index.js";
 import { CIERRE_COTIZAR } from "../domain/preguntasProhibidas.js";
 import { fraseDeAhorro, type AhorroDeLaCotizacion } from "../domain/ahorro.js";
-import { etiquetaDePromocion, type ModoPromocion } from "../domain/promocion.js";
+import { etiquetaDePromocion, paresEnPalabras, type ModoPromocion } from "../domain/promocion.js";
+import { cuentaDeSegundaLlanta, type SegundaLlanta } from "../domain/promocionDeTemporada.js";
 import { piecesConfigEnMemoria } from "./settings.js";
 import { ETIQUETA_DEL_ESCALON } from "../domain/salesIntent.js";
 import { preguntaDeEquivalente } from "../domain/equivalentePendiente.js";
@@ -624,13 +625,18 @@ export function buildSingleQuoteMessageDetallado(
   const lista = firmados?.listaConIva ?? product.customerPriceWithTax;
   const rebaja = firmados ? porcentaje(lista, hoy) : discount(product);
   // Con la cantidad: 2 llantas «paga 3 lleva 4» no tiene sentido (26-oct).
-  const promocion = etiquetaDePromocion(modoPromocion, rebaja, quantity);
+  // Con el Black Friday de la 2.ª llanta gana la de temporada: no va el 4x3 encima.
+  const segunda = firmados?.segundaLlanta ?? null;
+  const promocion = etiquetaDePromocion(segunda ? "porcentaje" : modoPromocion, rebaja, quantity);
   const sello = promocion.clase === "3x4" ? "4x3 · 4 llantas por el precio de 3" : `−${rebaja}%`;
   const total = offerDiscount?.finalTotal ?? firmados?.total ?? product.minimumPriceWithTax * quantity;
   return [
     `📄 Cotización — ${dateLabel()}`,
     `${brandEmoji(product.brand)} ${product.brand} ${product.design} — ${product.sizeLabel ?? product.name}`,
-    `💰 ${money(hoy)} c/u (antes ${money(lista)}, ${sello})`,
+    segunda && rebaja <= 0 ? `💰 ${money(hoy)} c/u` : `💰 ${money(hoy)} c/u (antes ${money(lista)}, ${sello})`,
+    ...(segunda ? [
+      `🖤 ${segunda.nombre}: −${segunda.porcentaje} % en su ${paresEnPalabras(segunda.unidades)} llanta → ${cuentaDeSegundaLlanta(quantity, segunda)} (${money(segunda.ahorroConIva)} menos)`,
+    ] : []),
     `🛞 ${quantity} llanta${quantity === 1 ? "" : "s"}: ${money(total)}`,
     ...(offerDiscount ? [
       `1️⃣ Descuento base ${business.name}: de ${money(lista)} a ${money(hoy)} c/u (${sello}).`,
@@ -770,6 +776,8 @@ export interface PreciosFirmados {
   listaConIva: number;
   /** Total con IVA de la cotización, ya por la cantidad. */
   total: number;
+  /** Black Friday: las pares con el 60 %, la misma de la línea firmada. */
+  segundaLlanta?: SegundaLlanta | null;
 }
 
 function porcentaje(listaConIva: number, hoyConIva: number): number {

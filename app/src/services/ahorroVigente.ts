@@ -22,6 +22,9 @@ export async function ahorroVigente(
   const ahorro = ahorroDeLaCotizacion(cotizacion?.items ?? null);
   if (!ahorro) return null;
   // Con el modo de Ajustes → Piezas la frase dice «promoción 3x4» igual que
-  // la pieza (26-oct). La cifra no cambia: sale de la misma cotización.
+  // la pieza (26-oct). La cifra no cambia: sale de la misma cotización. El
+  // Black Friday viaja dentro de los `items` (`segundaLlanta`, guardada con la
+  // línea firmada) y `ahorroDeLaCotizacion` ya lo suma; con él la frase no
+  // dice 4x3 aunque el modo esté encendido.
   return { ...ahorro, modo: (await getPiecesConfig()).promocion.modo };
 }

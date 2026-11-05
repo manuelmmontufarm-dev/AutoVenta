@@ -126,7 +126,13 @@ const cotizaciones = (id: number) => sql<{ items: Array<{ quantity: number }>; t
 
 const PREGUNTA_LOCAL = "¿Cuál le queda mejor, *Cumbayá* o *Quito Sur*? 📍";
 
-beforeAll(async () => { await ensureSchema(); });
+beforeAll(async () => {
+  // Fuera de noviembre: el Black Friday de la 2.ª llanta (FALKEN) cambiaría
+  // estos totales. Con la promo lo prueba `blackFridayCotizacion.integration.test.ts`.
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(new Date("2026-10-20T17:00:00Z"));
+  await ensureSchema();
+});
 afterAll(async () => {
   await sql.end();
   await admin.unsafe(`drop database if exists ${BASE}`);

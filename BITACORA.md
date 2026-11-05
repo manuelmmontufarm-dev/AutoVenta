@@ -1,3 +1,27 @@
+## 5-nov-2026 · Black Friday, sprint 1: la cotización y el ahorro cuentan el 60 %
+
+**Qué:** `generar_cotizacion` pone `segundaLlanta` (de `segundaLlantaDe`) en la
+línea y se la pasa a la pieza; `buildQuote` arma el total CON IVA desde
+`segundaLlanta.totalConIva` cuando la hay, así 4 × FALKEN a $75 firma $210
+exactos (probado con 58.25, 77.66, 123.45… en 2, 3 y 4 llantas: ni un centavo
+de diferencia con `cuentaDeSegundaLlanta`). El PDF de respaldo muestra «2 ×
+$75.00 + 2 × $30.00 (−60 % en la 2.ª llanta · Black Friday)» y el ahorro; el
+texto del chat sin foto también. `ahorroDeLaCotizacion` suma la promo (catálogo
+$100 + Black Friday $90 = $190) y la frase de la pregunta del día la dice con
+sus cifras. «el 60 %» o «la segunda a $30» reciben «Así es» (`cifrasDelCliente`
+ya no lee «2da»/«4 llantas» como plata) y el hecho del Guardián trae todas las
+cifras para que no las tache. Con el 4x3 encendido gana el Black Friday y no se
+apilan rótulos. Recotizar pasa por la misma herramienta; el reenvío recalcula
+la promo con la fecha de hoy (el 1-dic se cae y el total se corrige solo por esa
+diferencia). `cambioDeCantidad.integration` fija su reloj en octubre: sus
+totales son los de sin promo.
+
+**Por qué:** si la pieza dice $210 y el texto, el ahorro o el Guardián cuentan
+como si las 4 costaran $75, el cliente lee dos cifras y el revisor tacha la
+buena.
+
+**Horas:** 1,5
+
 ## 5-nov-2026 · Black Friday de noviembre: la base (datos y cuentas)
 
 **Qué:** la promo que mandó Joaquín (13:36) quedó como datos en la política de

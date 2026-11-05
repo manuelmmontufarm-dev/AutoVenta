@@ -91,6 +91,9 @@ export async function tryRecotizarPorCantidad(
   if (Number(linea.quantity ?? 0) === nueva) return null;
 
   // La MISMA herramienta del agente, con el MISMO producto y la cantidad nueva.
+  // Por eso el Black Friday de la 2.ª llanta se recalcula solo (`segundaLlantaDe`
+  // dentro de `generar_cotizacion`): 4 → 3 deja una sola par con el 60 %, y
+  // una cotización de noviembre rehecha el 1-dic sale sin la promo.
   const tools = buildTools({
     conversation: ctx.conversation,
     customerPhone: ctx.customerPhone,

@@ -23,6 +23,8 @@ import { ahorroVigente } from "./ahorroVigente.js";
 import { brandProfilesForRender } from "./brandProfiles.js";
 import { getPiecesConfig } from "./settings.js";
 import { renderQuoteImage, toRenderLine } from "../render/quoteImage.js";
+import { politica } from "../negocio/politica.js";
+import { segundaLlantaDe, type SegundaLlanta } from "../domain/promocionDeTemporada.js";
 import { sendImage } from "../wa/client.js";
 
 interface StoredQuoteLine {
@@ -32,6 +34,35 @@ interface StoredQuoteLine {
   design?: string;
   salePriceWithTax?: number;
   listPriceWithTax?: number;
+  segundaLlanta?: SegundaLlanta | null;
+}
+
+const round2 = (n: number) => Math.round(n * 100) / 100;
+
+/**
+ * La pieza reenviada con el Black Friday de HOY, no el del día en que se firmó.
+ *
+ * `segundaLlanta` se vuelve a sacar de `segundaLlantaDe` con el precio firmado:
+ * una cotización de noviembre reenviada el 1-dic ya no lleva el 60 %. Si la
+ * promo cambió, el total cambia solo por esa diferencia (el descuento del
+ * asesor, si lo había, se conserva); si no cambió, los totales son los
+ * guardados, al centavo.
+ */
+export function reenvioConPromoDeHoy(
+  stored: StoredQuoteLine,
+  totales: { subtotal: number; tax: number; total: number },
+  ahora: Date = new Date(),
+): { segundaLlanta: SegundaLlanta | null; subtotal: number; tax: number; total: number } {
+  const quantity = Math.max(1, Number(stored.quantity ?? 1));
+  const precio = Number(stored.salePriceWithTax ?? 0);
+  const segundaLlanta = segundaLlantaDe(politica.promocionDeTemporada, stored.brand, quantity, precio, ahora);
+  const lineaDe = (s: SegundaLlanta | null | undefined) => s?.totalConIva ?? round2(quantity * precio);
+  const antes = lineaDe(stored.segundaLlanta);
+  const ahoraLinea = lineaDe(segundaLlanta);
+  if (!(precio > 0) || Math.abs(antes - ahoraLinea) < 0.005) return { segundaLlanta, ...totales };
+  const total = round2(totales.total + ahoraLinea - antes);
+  const subtotal = round2(total / (1 + business.taxRate));
+  return { segundaLlanta, subtotal, tax: round2(total - subtotal), total };
 }
 
 export interface DirectSalesContext {
@@ -110,6 +141,11 @@ export async function resendLatestQuoteImage(
   // La pieza debe conservar el snapshot vendido aunque el catálogo cambie hoy.
   line.unitConIva = Number(stored.salePriceWithTax ?? line.unitConIva);
   line.pvpConIva = stored.listPriceWithTax == null ? line.pvpConIva : Number(stored.listPriceWithTax);
+  const conPromo = reenvioConPromoDeHoy(
+    stored,
+    { subtotal: Number(quote.subtotal), tax: Number(quote.tax), total: Number(quote.total) },
+  );
+  line.segundaLlanta = conPromo.segundaLlanta;
   const filename = `Cotizacion-${business.name.replace(/\s/g, "")}-${quote.quote_number}-reenvio.png`;
   // La pieza reenviada habla con la marca del local de la conversación (R-45).
   const [datosLocal] = await sql<{ nearest_store: string | null }[]>`
@@ -123,9 +159,9 @@ export async function resendLatestQuoteImage(
     brandProfiles: await brandProfilesForRender(),
     benefits: await applicableBenefitTexts({ brands: [product.brand], quantity }),
     lines: [line],
-    subtotal: Number(quote.subtotal),
-    iva: Number(quote.tax),
-    total: Number(quote.total),
+    subtotal: conPromo.subtotal,
+    iva: conPromo.tax,
+    total: conPromo.total,
   });
   const providerId = await sendImage(
     conversationId,

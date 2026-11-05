@@ -114,9 +114,24 @@ export function buildQuote(
   customerPhone: string,
   discount?: { amount: number; reason: string; condition: string; expiresAt?: Date | null },
 ): Quote {
-  const originalSubtotal = round2(lines.reduce((sum, line) => sum + line.quantity * line.unitPrice, 0));
-  const originalTax = round2(originalSubtotal * business.taxRate);
-  const originalTotal = round2(originalSubtotal + originalTax);
+  // Black Friday (nov-2026): una línea con `segundaLlanta` vale su
+  // `totalConIva`, que es la cifra que imprimen la pieza, el texto y
+  // `cuentaDeSegundaLlanta`. El total se arma CON IVA y el subtotal sale de
+  // él (como con el descuento del asesor): ir y volver por el precio sin IVA
+  // era un centavo de diferencia en algunos precios.
+  const conPromo = lines.some((line) => line.segundaLlanta);
+  let originalSubtotal: number;
+  let originalTax: number;
+  let originalTotal: number;
+  if (conPromo) {
+    originalTotal = round2(lines.reduce((sum, line) => sum + totalDeLineaConIva(line), 0));
+    originalSubtotal = round2(originalTotal / (1 + business.taxRate));
+    originalTax = round2(originalTotal - originalSubtotal);
+  } else {
+    originalSubtotal = round2(lines.reduce((sum, line) => sum + line.quantity * line.unitPrice, 0));
+    originalTax = round2(originalSubtotal * business.taxRate);
+    originalTotal = round2(originalSubtotal + originalTax);
+  }
   const discountAmount = discount ? round2(discount.amount) : 0;
   if (discountAmount < 0 || discountAmount >= originalTotal) {
     throw new Error("El descuento autorizado no es válido para esta cotización");
@@ -144,13 +159,34 @@ export function buildQuote(
   };
 }
 
+/** El total con IVA de una línea: con la promo, el de `segundaLlanta`; si no, cantidad × unitario. */
+export function totalDeLineaConIva(line: QuoteLine): number {
+  return line.segundaLlanta
+    ? line.segundaLlanta.totalConIva
+    : round2(line.quantity * line.unitPrice * (1 + business.taxRate));
+}
+
+/** «2 × $75.00 + 2 × $30.00 (−60 % en la 2.ª llanta · Black Friday)»: el desglose del PDF de respaldo. */
+export function desgloseDeSegundaLlanta(line: QuoteLine): string | null {
+  const s = line.segundaLlanta;
+  if (!s) return null;
+  const normales = Math.round(line.quantity) - s.unidades;
+  return `${normales} × ${money(s.precioNormalConIva)} + ${s.unidades} × ${money(s.precioConIva)} `
+    + `(−${s.porcentaje} % en la 2.ª llanta · ${s.nombre})`;
+}
+
 export async function renderQuotePdf(quote: Quote, identidad?: string): Promise<Buffer> {
+  return pdfmake.createPdf(await documentoDelPdf(quote, identidad) as never).getBuffer();
+}
+
+/** La definición de pdfmake del PDF de respaldo: aparte para que las pruebas lean su texto. */
+export async function documentoDelPdf(quote: Quote, identidad?: string): Promise<unknown> {
   const line = quote.lines[0];
   if (quote.lines.length === 1 && line?.brand && line.design && line.salePriceWithTax) {
     const image = await localImageData(line.imageUrl);
-    return pdfmake.createPdf(singleQuoteDocument(quote, line, image, identidad) as never).getBuffer();
+    return singleQuoteDocument(quote, line, image, identidad);
   }
-  return pdfmake.createPdf(legacyQuoteDocument(quote) as never).getBuffer();
+  return legacyQuoteDocument(quote);
 }
 
 export async function renderComparisonPdf(products: readonly CatalogItem[], identidad?: string): Promise<Buffer> {
@@ -348,7 +384,7 @@ function singleQuoteDocument(quote: Quote, line: QuoteLine, image: string | null
                 stack: [
                   { text: "PRECIO LISTA", color: MUTED, bold: true, fontSize: 8, characterSpacing: 1.2 },
                   { text: money(listPrice), decoration: "lineThrough", color: MUTED, bold: true, fontSize: 18, margin: [0, 8, 0, 4] },
-                  { text: `Ahorras ${money(saving)} · ${selloDelPdf(Math.round((1 - salePrice / listPrice) * 100), quantity)}`, color: GREEN, bold: true, fontSize: 10 },
+                  { text: `Ahorras ${money(saving)} · ${selloDelPdf(Math.round((1 - salePrice / listPrice) * 100), quantity, Boolean(line.segundaLlanta))}`, color: GREEN, bold: true, fontSize: 10 },
                 ],
                 margin: [14, 12, 14, 12],
               },
@@ -382,6 +418,11 @@ function singleQuoteDocument(quote: Quote, line: QuoteLine, image: string | null
                 stack: [
                   { text: quote.customerName || "Cliente", bold: true, fontSize: 11 },
                   { text: `${quantity} llanta${quantity === 1 ? "" : "s"} · ${line.brand} ${line.design}`, color: MUTED, fontSize: 9, margin: [0, 3, 0, 0] },
+                  // Black Friday: la cuenta a la vista y lo que se ahorra en las pares.
+                  ...(line.segundaLlanta ? [
+                    { text: desgloseDeSegundaLlanta(line), bold: true, fontSize: 9, margin: [0, 3, 0, 0] },
+                    { text: `${line.segundaLlanta.nombre}: ahorras ${money(line.segundaLlanta.ahorroConIva)} más`, color: GREEN, bold: true, fontSize: 9, margin: [0, 2, 0, 0] },
+                  ] : []),
                 ],
               },
               {
@@ -478,10 +519,12 @@ function legacyQuoteDocument(quote: Quote) {
             })),
             ...quote.lines.map((line) => [
               line.code,
-              line.description,
+              line.segundaLlanta ? `${line.description}\n${desgloseDeSegundaLlanta(line)}` : line.description,
               String(line.quantity),
               money(line.unitPrice),
-              money(line.quantity * line.unitPrice),
+              money(line.segundaLlanta
+                ? round2(line.segundaLlanta.totalConIva / (1 + business.taxRate))
+                : line.quantity * line.unitPrice),
             ]),
           ],
         },
@@ -493,6 +536,10 @@ function legacyQuoteDocument(quote: Quote) {
           paddingBottom: () => 8,
         },
       },
+      ...quote.lines.filter((line) => line.segundaLlanta).map((line) => ({
+        text: `${line.segundaLlanta!.nombre.toUpperCase()}: −${money(line.segundaLlanta!.ahorroConIva)} CON IVA EN LA 2.ª LLANTA`,
+        bold: true, fontSize: 11, alignment: "right", color: GREEN, margin: [0, 14, 0, 0],
+      })),
       ...(quote.discountAmount ? [{ text: `2. DESCUENTO EXTRA DEL ASESOR: -${money(quote.discountAmount)}`, bold: true, fontSize: 11, alignment: "right", color: GREEN, margin: [0, 14, 0, 0] }] : []),
       ...(quote.discountAmount ? [{ text: `CONDICIÓN OBLIGATORIA: ${quote.discountCondition}. Si no se cumple, aplica únicamente el precio base. Válido presentando ${quote.number}.`, bold: true, fontSize: 9, alignment: "right", color: NAVY, margin: [0, 4, 0, 0] }] : []),
       { text: `TOTAL CON IVA: ${money(quote.total)}`, bold: true, fontSize: 16, alignment: "right", color: RED, margin: [0, quote.discountAmount ? 6 : 18, 0, 0] },
@@ -573,7 +620,10 @@ function loadSpeedLabel(loadSpeed: NonNullable<CatalogItem["loadSpeed"]>): strin
  * Este PDF solo sale si la pieza falló; tiene que nombrar la rebaja igual que
  * ella, y la pieza ya dejó leído el ajuste en el mismo turno.
  */
-function selloDelPdf(pct: number, cantidad?: number): string {
+function selloDelPdf(pct: number, cantidad?: number, conSegundaLlanta = false): string {
+  // Con el Black Friday de la 2.ª llanta no va además el «4x3»: gana la de
+  // temporada y no se apilan dos rótulos sobre la misma llanta.
+  if (conSegundaLlanta) return `-${pct}%`;
   // La cantidad solo viaja en la cotización: «paga 3 lleva 4» con 2 llantas es
   // una promesa falsa. La comparativa es por juego y no la pasa.
   const promocion = etiquetaDePromocion(piecesConfigEnMemoria().promocion.modo, pct, cantidad);

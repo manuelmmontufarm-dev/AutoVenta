@@ -17,6 +17,8 @@
  * Puro: sin base, sin catálogo.
  */
 
+import type { SegundaLlanta } from "./promocionDeTemporada.js";
+
 export const MODOS_PROMOCION = ["porcentaje", "3x4"] as const;
 export type ModoPromocion = (typeof MODOS_PROMOCION)[number];
 
@@ -110,6 +112,33 @@ export function lineaDePromocionVigente(modo: ModoPromocion): string | null {
     + "Solo aplica a las llantas con 25 % de descuento; no inventes un monto distinto al de la cotización.";
 }
 
+// ===========================================================================
+// Black Friday: el 60 % en las llantas pares, dicho en palabras
+// ===========================================================================
+
+/** «2.ª», «2.ª y 4.ª», «2.ª, 4.ª y 6.ª»: las llantas pares que llevan la promo. */
+export function paresEnPalabras(unidades: number): string {
+  const pares = Array.from({ length: Math.max(1, Math.round(unidades)) }, (_, i) => `${(i + 1) * 2}.ª`);
+  return pares.length === 1 ? pares[0] : `${pares.slice(0, -1).join(", ")} y ${pares[pares.length - 1]}`;
+}
+
+/** Cuántas llantas van a precio normal: la cantidad, o la deducida de la cuenta si no viene. */
+function normalesDe(s: SegundaLlanta, cantidad?: number | null): number {
+  if (typeof cantidad === "number" && cantidad >= s.unidades) return Math.round(cantidad) - s.unidades;
+  return Math.max(0, Math.round((s.totalConIva - s.unidades * s.precioConIva) / s.precioNormalConIva));
+}
+
+/**
+ * «*Black Friday*: 60 % menos en su 2.ª y 4.ª llanta — 2 a *$75.00* y 2 a
+ * *$30.00*, *$90.00* menos». Las cifras son las de `segundaLlantaDe`, tal cual:
+ * la pieza, el PDF, el texto y el Guardián leen la misma.
+ */
+export function fraseDeSegundaLlanta(s: SegundaLlanta, cantidad?: number | null): string {
+  return `*${s.nombre}*: ${s.porcentaje} % menos en su ${paresEnPalabras(s.unidades)} llanta — `
+    + `${normalesDe(s, cantidad)} a *$${s.precioNormalConIva.toFixed(2)}* y ${s.unidades} a *$${s.precioConIva.toFixed(2)}*, `
+    + `*$${s.ahorroConIva.toFixed(2)}* menos`;
+}
+
 /** Lo que `hechoDelAhorro` necesita de `AhorroDeLaCotizacion` (sin importar el módulo, para no hacer un ciclo). */
 interface AhorroParaElHecho {
   porcentaje: number;
@@ -119,6 +148,35 @@ interface AhorroParaElHecho {
   precioAntes: number;
   /** Las llantas de la cotización: 3x4 solo con múltiplos de 4. */
   cantidad?: number | null;
+  /** Black Friday: las pares con el 60 %. Con ella `monto` ya la incluye. */
+  segundaLlanta?: SegundaLlanta | null;
+  /** Lo que se ahorra solo por el precio de hoy contra el de lista. */
+  montoCatalogo?: number;
+}
+
+/**
+ * El hecho del Black Friday para el Guardián: cada cifra que el texto puede
+ * decir («60 %», «la 2.ª a $30», «2 × $75 + 2 × $30», «$90 menos») tiene que
+ * estar acá, o la tacha por `precio_incorrecto` (26-ago: lo que el revisor no
+ * ve en los hechos, lo borra).
+ */
+function hechoDeSegundaLlanta(ahorro: AhorroParaElHecho, s: SegundaLlanta): string {
+  const normales = normalesDe(s, ahorro.cantidad);
+  const catalogo = ahorro.montoCatalogo ?? Math.round((ahorro.monto - s.ahorroConIva) * 100) / 100;
+  const porPar = Math.round((s.precioNormalConIva - s.precioConIva) * 100) / 100;
+  return "Ahorro de esa cotización: "
+    + (ahorro.porcentaje >= 1 && catalogo >= 1
+      ? `${ahorro.porcentaje} % menos que el precio de lista: $${ahorro.porLlanta.toFixed(2)} por llanta y $${catalogo.toFixed(2)} en toda la compra `
+        + `(precio por llanta con el descuento: $${ahorro.precioConDescuento.toFixed(2)}, antes $${ahorro.precioAntes.toFixed(2)}). Además, `
+      : "")
+    + `promoción ${s.nombre}: ${s.porcentaje} % menos en la ${paresEnPalabras(s.unidades)} llanta sobre el precio de hoy — `
+    + `${normales} × $${s.precioNormalConIva.toFixed(2)} + ${s.unidades} × $${s.precioConIva.toFixed(2)} = $${s.totalConIva.toFixed(2)}; `
+    + `cada llanta par cuesta $${s.precioConIva.toFixed(2)} ($${porPar.toFixed(2)} menos) y la promo ahorra $${s.ahorroConIva.toFixed(2)}. `
+    + `Ahorro total de la compra: $${ahorro.monto.toFixed(2)}. Total a pagar de esas llantas: $${s.totalConIva.toFixed(2)}. `
+    + "Es real y sale de la misma cotización: el bot PUEDE decirlo, y no depende de que el cliente dé el día. "
+    + `Decir «${s.porcentaje} %», «la segunda a $${s.precioConIva.toFixed(2)}», «${normales} a $${s.precioNormalConIva.toFixed(2)} y ${s.unidades} a $${s.precioConIva.toFixed(2)}» `
+    + `o «$${s.ahorroConIva.toFixed(2)} menos» NO es error. Esta cotización NO se presenta como 4x3: el ${s.nombre} reemplaza ese rótulo. `
+    + "Si el cliente nombra como descuento una cifra que es el precio por llanta o el total a pagar, confirmarla («así es», «esa es la idea») es error ALTO **precio_incorrecto**: la corrección aclara cuál es cuál.";
 }
 
 /**
@@ -134,6 +192,7 @@ interface AhorroParaElHecho {
  * «3x4» por no verlo en los hechos, o corrige «es lo mismo que el 25 %».
  */
 export function hechoDelAhorro(ahorro: AhorroParaElHecho, modo: ModoPromocion = "porcentaje"): string {
+  if (ahorro.segundaLlanta) return hechoDeSegundaLlanta(ahorro, ahorro.segundaLlanta);
   const tres = seMuestraComo3x4(modo, ahorro.porcentaje, ahorro.cantidad);
   // «que equivale al 25 %» fijo y no el porcentaje redondeado: una llanta al
   // −24 % entra al candado, y «3x4, que es 24 % menos» le da al revisor dos
