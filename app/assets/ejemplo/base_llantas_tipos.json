@@ -1,0 +1,58 @@
+{
+ "generado": "2026-11-04",
+ "fuente": "Copia de los tipos comunes (assets/base_llantas_tipos.json) para la plantilla ejemplo, sin las líneas ni los SKUs de Depot. [PENDIENTE] orden de marcas y líneas propias.",
+ "orden_de_marca": [],
+ "regla_equivalencia": "Una medida alternativa es válida si el diámetro total no varía más de ±3% frente a la original. Fuera de ese rango afecta velocímetro, ABS y puede rozar en el guardafango.",
+ "tipos": {
+  "H/T": {
+   "nombre": "Highway Terrain",
+   "definicion": "Llanta de carretera para SUV y camioneta. Taco cerrado, silenciosa y cómoda.",
+   "cuando_ofrecerla": "Cliente que anda 100% en asfalto, ciudad y carretera. Prioriza confort, ruido bajo y duración.",
+   "no_ofrecerla_si": "El cliente entra a tierra, lastre o obra con frecuencia."
+  },
+  "A/T": {
+   "nombre": "All Terrain",
+   "definicion": "Mixta: taco más abierto que una H/T pero todavía manejable en carretera. El reparto asfalto/tierra cambia de un modelo a otro: se dice el de la ficha del modelo, nunca uno genérico.",
+   "cuando_ofrecerla": "Camionetas y 4x4 de uso mixto: ciudad entre semana y tierra o finca el fin de semana. Es la opción más pedida en camioneta.",
+   "no_ofrecerla_si": "El cliente solo anda en ciudad y le importa el ruido — ahí va H/T."
+  },
+  "R/T": {
+   "nombre": "Rugged Terrain",
+   "definicion": "Punto medio entre A/T y M/T. Taco abierto y flanco reforzado, pero con más confort que una barrosa.",
+   "cuando_ofrecerla": "Cliente que hace tierra, piedra o lodo seguido pero igual usa la camioneta en carretera. También el que busca look agresivo sin el ruido de una M/T.",
+   "no_ofrecerla_si": "Uso urbano puro o cliente sensible al ruido y al consumo."
+  },
+  "M/T": {
+   "nombre": "Mud Terrain",
+   "definicion": "Barrosa. Taco muy abierto y separado, flanco reforzado, máxima tracción fuera de la vía.",
+   "cuando_ofrecerla": "Lodo, cantera, trocha, minería, obra. Uso off-road real.",
+   "no_ofrecerla_si": "El cliente pasa la mayor parte en asfalto: es ruidosa, consume más y se desgasta rápido en carretera."
+  },
+  "TURISMO": {
+   "nombre": "Turismo / pasajero",
+   "definicion": "Llanta de auto de pasajeros para uso diario en asfalto.",
+   "cuando_ofrecerla": "Autos, sedanes y hatchbacks. Prioridad: duración, confort y precio.",
+   "no_ofrecerla_si": "El vehículo es camioneta, SUV pesada o van de carga."
+  },
+  "TURISMO SUV": {
+   "nombre": "Turismo SUV / UHP SUV",
+   "definicion": "Llanta de asfalto para SUV y crossover, con perfil bajo e índices de velocidad altos.",
+   "cuando_ofrecerla": "SUV moderna con aro 17 a 22 que nunca sale del pavimento.",
+   "no_ofrecerla_si": "El cliente quiere entrar a tierra."
+  },
+  "TURISMO UHP": {
+   "nombre": "Ultra High Performance",
+   "definicion": "Llanta de auto deportivo: máximo agarre, perfil bajo, índices W/Y.",
+   "cuando_ofrecerla": "Autos deportivos o sedanes de alta gama; cliente que pide agarre y respuesta.",
+   "no_ofrecerla_si": "Busca kilometraje y precio: la UHP dura menos y cuesta más."
+  },
+  "COMERCIAL": {
+   "nombre": "Comercial / carga (C - LT)",
+   "definicion": "Llanta de furgoneta, van o camión liviano. Carcasa rígida de 8 a 12 telas y alta capacidad de carga.",
+   "cuando_ofrecerla": "Vehículos de reparto y carga: medidas terminadas en C o convencionales tipo 7.00R16.",
+   "no_ofrecerla_si": "Es un auto o SUV liviana: el rodaje se siente duro y ruidoso."
+  }
+ },
+ "lineas": [],
+ "skus": []
+}

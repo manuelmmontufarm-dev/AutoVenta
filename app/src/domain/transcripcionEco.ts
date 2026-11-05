@@ -1,3 +1,6 @@
+import { negocio } from "../negocio/index.js";
+import { politica } from "../negocio/politica.js";
+
 /**
  * ¿LO QUE VOLVIÓ DEL TRANSCRIPTOR ES EL PROMPT, NO EL CLIENTE?
  *
@@ -17,10 +20,17 @@
  * la llamada a la API.
  */
 
-/** El mismo sesgo que viaja a Whisper. Fuente única: lo importa el servicio. */
+const MARCAS_DEL_VOCABULARIO = politica.vocabularioDeMarcas ?? negocio.marcas;
+
+/**
+ * El mismo sesgo que viaja a Whisper. Fuente única: lo importa el servicio.
+ * La ciudad, el juego y las marcas salen del perfil y la política del cliente
+ * (con Depot, el texto de siempre); sin marcas cargadas se omite «Marcas: …».
+ */
 export const VOCABULARIO_TRANSCRIPCION =
-  "Llantas en Quito. Medidas como 205/55R16, 265/70R17, aro, rin, juego de 4. "
-  + "Marcas: Kenda, Falken, Sunoco, Eurolub, Wildpeak. Cotización, precio, camioneta.";
+  `Llantas en ${negocio.ciudad}. Medidas como 205/55R16, 265/70R17, aro, rin, juego de ${politica.juegoCompleto}. `
+  + (MARCAS_DEL_VOCABULARIO.length ? `Marcas: ${MARCAS_DEL_VOCABULARIO.join(", ")}. ` : "")
+  + "Cotización, precio, camioneta.";
 
 const palabras = (texto: string): string[] =>
   texto

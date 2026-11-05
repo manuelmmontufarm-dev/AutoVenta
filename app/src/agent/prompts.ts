@@ -5,6 +5,7 @@ import type { Stage } from "../domain/pipeline.js";
 import { DEFAULT_AI_CONFIG, formatStoreHours, type AiConfig, type StoreHours } from "../services/settings.js";
 import { COMPACT_PLAYBOOK, playbookParaFase } from "./compactPlaybook.js";
 import { negocio } from "../negocio/index.js";
+import { politica } from "../negocio/politica.js";
 
 /**
  * Prompt estable del agente. La política comercial tiene una sola fuente
@@ -21,20 +22,27 @@ export function buildSystemPrompt(
   const stores = business.stores.map((store) => `- ${store.name}`).join("\n");
 
   const policy = stage?.key ? playbookParaFase(stage.key) : COMPACT_PLAYBOOK;
+  const pagos = politicaDePagos();
+  // El «no sube con tarjeta» solo se exige cuando la política confirmó el
+  // diferido sin intereses (Depot); sin eso, el bot no promete nada de recargos.
+  const conCuotas = politica.formasDePago.includes("tarjeta") && Boolean(politica.cuotasSinIntereses);
 
   return `${policy}
 
 ---
 
 # Negocio
-Eres ${NOMBRE_DEL_VENDEDOR}, el asistente de ventas por WhatsApp de ${business.name}, una llantera en ${negocio.ciudad}${negocio.piezas.antiguedadClasica ? ` con más de ${negocio.piezas.antiguedadClasica} de experiencia` : ""}. Vende ${business.brands.join(", ")} y ofrece mantenimiento preventivo automotriz. Si preguntan si eres bot, no lo niegues.
+Eres ${NOMBRE_DEL_VENDEDOR}, el asistente de ventas por WhatsApp de ${business.name}, una llantera en ${negocio.ciudad}${negocio.piezas.antiguedadClasica ? ` con más de ${negocio.piezas.antiguedadClasica} de experiencia` : ""}.${queVendeYOfrece(business.brands, politica.serviciosQueOfrece)} Si preguntan si eres bot, no lo niegues.
 
 Locales disponibles:
 ${stores}
 Horario: ${storeHours ? formatStoreHours(storeHours) : business.schedule}.
-Teléfono: este mismo WhatsApp. El cliente ya está escribiendo aquí: NUNCA le des un número para que llame ni le digas que no tienes la dirección — la ubicación se manda con los mapas de ${negocio.locales.length === 1 ? "el local" : "los locales"}.
-Formas de pago: ${politicaDePagos()} Es un hecho: si preguntan por tarjeta, recargos o cuotas, respóndelo con estas palabras. PROHIBIDO decir que no puedes confirmar lo de la tarjeta.
-${business.promo ? `Promoción vigente: ${business.promo}.` : ""}
+Teléfono: este mismo WhatsApp. El cliente ya está escribiendo aquí: NUNCA le des un número para que llame ni le digas que no tienes la dirección — la ubicación se manda con ${negocio.locales.length === 1 ? "el mapa del local" : "los mapas de los locales"}.
+${pagos ? `Formas de pago: ${pagos} ${conCuotas
+  ? "Es un hecho: si preguntan por tarjeta, recargos o cuotas, respóndelo con estas palabras. PROHIBIDO decir que no puedes confirmar lo de la tarjeta."
+  : "Es un hecho: si preguntan cómo pagar, respóndelo con estas palabras. Recargos, cuotas, diferidos o descuentos que no estén acá NO se prometen: los confirma un asesor."}
+` : `Formas de pago: todavía no están confirmadas. Si preguntan cómo pagar, tarjeta, cuotas o descuentos, NO prometas ninguna: di que se lo confirma un asesor y usa notificar_vendedor.
+`}${business.promo ? `Promoción vigente: ${business.promo}.` : ""}
 
 # Estilo administrado
 Estas preferencias vienen de Ajustes y son la única fuente del tono y la personalidad:
@@ -47,10 +55,25 @@ La tarjeta del Kanban sigue en ${stage.storedStage}; no borres los datos ni la c
 Indicación adicional publicada: ${stage.prompt.trim()}` : ""}` : ""}`.trim();
 }
 
+/**
+ * « Vende Kenda, Sunoco… y ofrece mantenimiento preventivo automotriz.» con lo
+ * que dicen el perfil y la política. Sin marcas cargadas se omite «Vende …»: un
+ * negocio multimarca cuyo catálogo manda no tiene por qué listarlas, y una
+ * lista vacía dejaría «Vende  y ofrece».
+ */
+function queVendeYOfrece(marcas: readonly string[], servicios: readonly string[]): string {
+  const lista = (cosas: readonly string[]) =>
+    cosas.length <= 1 ? (cosas[0] ?? "") : `${cosas.slice(0, -1).join(", ")} y ${cosas[cosas.length - 1]}`;
+  if (marcas.length && servicios.length) return ` Vende ${marcas.join(", ")} y ofrece ${lista(servicios)}.`;
+  if (marcas.length) return ` Vende ${lista(marcas)}.`;
+  if (servicios.length) return ` Ofrece ${lista(servicios)}.`;
+  return "";
+}
+
 /** Traduce la configuración de /configuracion/ia sin redefinir reglas comerciales. */
 function styleRules(ai: AiConfig): string {
   const tono = {
-    calido: "Trato cálido y directo, como un buen vendedor quiteño.",
+    calido: `Trato cálido y directo, como un buen vendedor ${politica.gentilicio}.`,
     neutral: "Trato profesional y neutro, amable sin exceso de confianza.",
     formal: 'Trato formal: siempre de "usted", sin modismos.',
   }[ai.tono];

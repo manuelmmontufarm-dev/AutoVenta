@@ -11,10 +11,7 @@
  * descartó a propósito: el stock vivo es el de Contífico.
  */
 import { readFileSync } from "node:fs";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
-
-const ASSETS = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "assets");
+import { rutaDeAsset } from "../negocio/assets.js";
 
 export type Nivel = "PREMIUM" | "INTERMEDIA" | "ECONOMICA";
 
@@ -45,7 +42,8 @@ function cargar(): Base {
   const vacia: Base = { porLinea: new Map(), porMarca: new Map(), argumento: new Map(), reglas: [] };
   try {
     const cruda = JSON.parse(
-      readFileSync(path.join(ASSETS, "escalera-precio.json"), "utf8"),
+      // La escalera es del cliente: `assets/<negocio>/escalera-precio.json` (o la común).
+      readFileSync(rutaDeAsset("escalera-precio.json"), "utf8"),
     ) as Cruda;
     const b: Base = { ...vacia };
     for (const [clave, nivelDef] of Object.entries(cruda.escalera_de_precio ?? {})) {
@@ -113,4 +111,20 @@ export function argumentoDeNivel(nivel: Nivel | null): string | null {
 
 export function reglasEscalera(): string[] {
   return cargar().reglas;
+}
+
+/**
+ * Los ejemplos de búsqueda que la descripción de `buscar_catalogo` le da al
+ * modelo, sacados de la escalera del cliente: la primera marca premium («Falken»)
+ * y la primera línea de entrada («KR203»). Con Depot es el texto de siempre;
+ * con una escalera vacía no hay ejemplos y la descripción no inventa marcas.
+ */
+export function ejemplosDeLaEscalera(): { marcaPremium: string | null; lineaEconomica: string | null } {
+  const b = cargar();
+  const premium = [...b.porMarca].find(([, nivel]) => nivel === "PREMIUM")?.[0] ?? null;
+  const economica = [...b.porLinea].find(([, nivel]) => nivel === "ECONOMICA")?.[0] ?? null;
+  return {
+    marcaPremium: premium ? premium.charAt(0) + premium.slice(1).toLowerCase() : null,
+    lineaEconomica: economica ? economica.split(" ").slice(1).join(" ") : null,
+  };
 }

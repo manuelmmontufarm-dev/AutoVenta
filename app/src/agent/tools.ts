@@ -104,9 +104,10 @@ import { getTirePatternProfile } from "../domain/tireKnowledge.js";
 import {
   catalogoDeTipos, escalonDeMarca, infoTipo, normalizarTipo, ordenDeMarca, tipoDeProducto, usoDelModelo,
 } from "../domain/tireTypes.js";
-import { nivelDeLinea, ordenDeNivel, reglasEscalera } from "../domain/escalera.js";
+import { ejemplosDeLaEscalera, nivelDeLinea, ordenDeNivel, reglasEscalera } from "../domain/escalera.js";
 import { separarPorUso, tiposCompatibles, usoDeLosTextos, usoDeclarado, type UsoDeclarado } from "../domain/usoYTipo.js";
-import { costoPorKm, respaldoCompleto, respaldoDeMarca } from "../domain/respaldoMarcas.js";
+import { condicionesDelRespaldo, costoPorKm, respaldoCompleto, respaldoDeMarca } from "../domain/respaldoMarcas.js";
+import { politica } from "../negocio/politica.js";
 import {
   debeBloquearReenvio, JUEGO_COMPLETO, medidaDesdeContenido, opcionesQueAlcanzan, tipoSolicitadoEn,
 } from "../domain/opcionesCandados.js";
@@ -327,6 +328,51 @@ function storeSchedule(name: string, hours?: StoreHours): string {
 const ESCALONES = ["premium", "equilibrio", "equilibrio", "economica"] as const;
 
 /**
+ * EL ESCALÓN POR PRECIO (Sprint 4, R-17), para un cliente multimarca cuyas
+ * marcas la escalera no conoce (`politica.escalonPorPrecio`; Depot `false`).
+ *
+ * Con ~10 marcas sin escalera, `escalonDeMarca` mandaba todas al mismo cajón
+ * («fuera de la lista») y las tres opciones salían como una sola, o tres
+ * «equilibrio». Acá el escalón sale del PRECIO dentro del conjunto que se está
+ * mostrando: tercil alto = premium, medio = equilibrio, bajo = económica. Se
+ * cuenta sobre precios DISTINTOS, así que nunca hay dos escalones iguales con
+ * tres precios distintos, y con dos precios quedan premium y económica.
+ *
+ * Los escalones del último conjunto viven a nivel de módulo (`ESCALON_POR_PRECIO`
+ * por objeto y `ESCALON_POR_CODIGO` para lo que ve el modelo) porque
+ * `tresOpciones`, `escalonDe`, `etiquetaEscalon` y `toolItem` conservan sus
+ * firmas. Se recalculan en cada llamada (sincrónica) y antes de mapear.
+ */
+const ESCALONES_POR_PRECIO = ["premium", "equilibrio", "economica"] as const;
+let ESCALON_POR_PRECIO = new WeakMap<object, number>();
+const ESCALON_POR_CODIGO = new Map<string, (typeof ESCALONES_POR_PRECIO)[number]>();
+/** Mientras `escaleraPorUso` fija los escalones del conjunto completo, `tresOpciones` no los recalcula por partes. */
+let conjuntoFijado = false;
+
+function escalonesPorPrecio<T extends { minimumPriceWithTax: number }>(productos: readonly T[]): Map<T, number> {
+  const precios = [...new Set(productos.map((p) => p.minimumPriceWithTax))].sort((a, b) => b - a);
+  const n = precios.length;
+  const escalonDelPrecio = (precio: number): number => {
+    if (n <= 1) return 1;
+    const rango = precios.indexOf(precio);
+    if (n === 2) return rango === 0 ? 0 : 2;
+    return Math.min(2, Math.floor((rango * 3) / n));
+  };
+  return new Map(productos.map((p) => [p, escalonDelPrecio(p.minimumPriceWithTax)]));
+}
+
+/** Fija los escalones por precio de ESTE conjunto para lo que viene después (escalonDe, toolItem). */
+function fijarEscalonesPorPrecio<T extends { minimumPriceWithTax: number }>(productos: readonly T[]): void {
+  ESCALON_POR_PRECIO = new WeakMap();
+  ESCALON_POR_CODIGO.clear();
+  for (const [p, escalon] of escalonesPorPrecio(productos)) {
+    ESCALON_POR_PRECIO.set(p, escalon);
+    const codigo = (p as { code?: unknown }).code;
+    if (typeof codigo === "string") ESCALON_POR_CODIGO.set(codigo, ESCALONES_POR_PRECIO[escalon]);
+  }
+}
+
+/**
  * Etiqueta del escalón para UNA llanta concreta: primero por línea (la
  * escalera del 13-ago distingue las Kenda intermedias de las de entrada) y,
  * si la línea no está clasificada, por marca como siempre.
@@ -358,6 +404,7 @@ function etiquetaEscalon(brand: string, design: string): (typeof ESCALONES)[numb
  * económica real. Es la misma cuenta de `etiquetaEscalon`, en número.
  */
 function escalonDe(p: { brand: string; design: string }): number {
+  if (politica.escalonPorPrecio) return ESCALON_POR_PRECIO.get(p) ?? 1;
   const nivel = nivelDeLinea(p.brand, p.design);
   return nivel ? ordenDeNivel(nivel) : escalonDeMarca(p.brand);
 }
@@ -365,6 +412,7 @@ function escalonDe(p: { brand: string; design: string }): number {
 function tresOpciones<T extends { brand: string; design: string; minimumPriceWithTax: number; availability: string }>(
   productos: readonly T[],
 ): T[] {
+  if (politica.escalonPorPrecio && !conjuntoFijado) fijarEscalonesPorPrecio(productos);
   const porEscalon = new Map<number, T>();
   for (const p of productos) {
     const escalon = escalonDe(p);
@@ -396,15 +444,26 @@ function escaleraPorUso<T extends { code: string; brand: string; design: string;
   uso: UsoDeclarado | null,
 ): { opciones: T[]; avisoTipo: string | null } {
   const separado = separarPorUso(productos, uso, (p) => normalizarTipo(tipoDeProducto(p.code, p.design) ?? ""));
-  const base = tresOpciones(separado.compatibles);
-  if (!separado.avisoTipo) return { opciones: base, avisoTipo: null };
-  // El relleno solo cubre los escalones que los compatibles dejaron vacíos.
-  const cubiertos = new Set(base.map(escalonDe));
-  const relleno = tresOpciones(separado.otros).filter((p) => !cubiertos.has(escalonDe(p)));
-  return {
-    opciones: [...base, ...relleno].sort((a, b) => escalonDe(a) - escalonDe(b)),
-    avisoTipo: separado.avisoTipo,
-  };
+  // Con escalón por precio, los escalones se cuentan sobre lo que se va a
+  // mostrar: los compatibles si alcanzan solos, o todos si hay relleno. Así
+  // compatibles y relleno nunca repiten escalón entre sí.
+  if (politica.escalonPorPrecio) {
+    fijarEscalonesPorPrecio(separado.avisoTipo ? productos : separado.compatibles);
+    conjuntoFijado = true;
+  }
+  try {
+    const base = tresOpciones(separado.compatibles);
+    if (!separado.avisoTipo) return { opciones: base, avisoTipo: null };
+    // El relleno solo cubre los escalones que los compatibles dejaron vacíos.
+    const cubiertos = new Set(base.map(escalonDe));
+    const relleno = tresOpciones(separado.otros).filter((p) => !cubiertos.has(escalonDe(p)));
+    return {
+      opciones: [...base, ...relleno].sort((a, b) => escalonDe(a) - escalonDe(b)),
+      avisoTipo: separado.avisoTipo,
+    };
+  } finally {
+    conjuntoFijado = false;
+  }
 }
 
 /**
@@ -427,6 +486,9 @@ function recorteConEscalera<T extends { code: string; brand: string; design: str
   productos: readonly T[],
   tope: number,
 ): T[] {
+  // Con escalón por precio, el conjunto que ve el modelo es la lista completa
+  // aunque no haya que recortarla: así cada opción lleva su escalón.
+  if (politica.escalonPorPrecio) fijarEscalonesPorPrecio(productos);
   if (productos.length <= tope) return [...productos];
   const elegidos = tresOpciones(productos).slice(0, tope);
   for (const p of productos) {
@@ -461,6 +523,17 @@ function recorteConEscalera<T extends { code: string; brand: string; design: str
   // orden se presenta.
   return productos.filter((p) => elegidos.includes(p));
 }
+
+/** Para las pruebas de la escalera (`test/escaleraPorPrecio.test.ts`): mismas funciones, sin cambiar firmas. */
+export const escaleraParaPruebas = {
+  escalonesPorPrecio,
+  tresOpciones,
+  escaleraPorUso,
+  recorteConEscalera,
+  escalonDe,
+  /** El `escalon` que `toolItem` le muestra al modelo con escalón por precio. */
+  escalonVisible: (codigo: string) => ESCALON_POR_CODIGO.get(codigo) ?? null,
+};
 
 /**
  * Búsqueda por ARO en el catálogo real, con filtro opcional por tipo.
@@ -1025,10 +1098,18 @@ export function buildTools(ctx: AgentContext) {
     },
   });
 
+  // Los ejemplos de búsqueda salen de la escalera del cliente: con Depot,
+  // «'205/55R16 Falken' y 'KR203'»; sin escalera, ninguno (no se inventan marcas).
+  const ejemplosDeBusqueda = () => {
+    const { marcaPremium, lineaEconomica } = ejemplosDeLaEscalera();
+    const ejemplos = [marcaPremium ? `'205/55R16 ${marcaPremium}'` : null, lineaEconomica ? `'${lineaEconomica}'` : null]
+      .filter(Boolean);
+    return ejemplos.length ? ` como ${ejemplos.join(" y ")}` : "";
+  };
   const buscarCatalogo = defineTool({
     name: "buscar_catalogo",
     description:
-      "Busca el catálogo real por texto: medida completa, código, marca, diseño o combinaciones como '205/55R16 Falken' y 'KR203'. Devuelve máximo 8 opciones ordenadas por coincidencia y disponibilidad. Úsala cuando el cliente escriba una referencia o una consulta libre.",
+      `Busca el catálogo real por texto: medida completa, código, marca, diseño o combinaciones${ejemplosDeBusqueda()}. Devuelve máximo 8 opciones ordenadas por coincidencia y disponibilidad. Úsala cuando el cliente escriba una referencia o una consulta libre.`,
     schema: z.object({
       consulta: z.string().min(2).max(100),
     }),
@@ -1331,16 +1412,51 @@ export function buildTools(ctx: AgentContext) {
     },
   });
 
+  // Las marcas con condiciones definidas en el conocimiento DEL CLIENTE
+  // (`assets/<negocio>/conocimiento-marcas.json`): con Depot FALKEN, KENDA y
+  // WINRUN — GITI queda fuera porque no tiene seguro ni rendimiento cargados.
+  const enTitulo = (marca: string) => marca.charAt(0) + marca.slice(1).toLowerCase();
+  const cuantasEnLetras = (n: number) => (n === 2 ? "las dos" : n === 3 ? "las tres" : "todas");
+  // LAS REGLAS DEL RESPALDO SALEN DEL CONOCIMIENTO DEL CLIENTE (R-18). Con Depot,
+  // el texto de siempre: la rotación cada 10.000 km, los 5 años de fábrica y
+  // GITI «en ingreso» son datos de SU archivo. Un cliente sin esos datos no los
+  // recibe: el modelo no puede prometer lo que el archivo no dice.
+  const reglasDelRespaldo = (marcas: ReturnType<typeof respaldoCompleto>["marcas"]): string[] => {
+    const { mantenimientoGratuito, rotacionCadaKm } = condicionesDelRespaldo();
+    const km = (n: number) => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+    const incluido = mantenimientoGratuito && rotacionCadaKm
+      ? ` — y ahí mismo ofreces el mantenimiento gratuito y la rotación cada ${km(rotacionCadaKm)} km incluidos`
+      : "";
+    const anios = [...new Set(marcas.map((m) => m.garantiaFabricaAnios))];
+    const sinCondiciones = marcas.filter((m) => m.seguroMeses === null && m.kmPromedio === null).map((m) => m.marca);
+    return [
+      `El rendimiento en km es APROXIMADO y se dice así siempre, con su condición: depende del uso y del mantenimiento${incluido}.`,
+      marcas.length
+        ? `Di siempre «hasta X meses» de seguro, nunca «X meses» a secas. Son dos respaldos distintos: garantía de fábrica (${anios.length === 1 ? `${anios[0]} años` : "años según marca"}, defectos) y seguro contra daños (meses según marca) — no los mezcles.`
+        : null,
+      "NO detalles condiciones, exclusiones ni procedimiento del seguro. Si el cliente pregunta la letra chica o ya tiene una llanta dañada, escala con notificar_vendedor: tú no evalúas ni apruebas reclamos.",
+      sinCondiciones.length
+        ? `${sinCondiciones.join(", ")} está en ingreso y sin condiciones definidas: no la cotices ni le prometas plazos.`
+        : null,
+      "En uso de obra, cantera o carga pesada el rendimiento baja: dilo ANTES de dar la cifra.",
+      "Nunca desprestigies la económica: se argumenta hacia arriba (la premium rinde más), no hacia abajo.",
+    ].filter((r): r is string => Boolean(r));
+  };
+  const marcasConRespaldo = respaldoCompleto().marcas
+    .filter((m) => m.seguroMeses !== null || m.kmPromedio !== null)
+    .map((m) => m.marca);
   const respaldoMarcas = defineTool({
     name: "respaldo_marcas",
     description:
-      "Origen, garantía de fábrica, seguro contra daños y rendimiento en km de cada marca (Falken, Kenda, Winrun), con los argumentos para justificar la diferencia de precio entre niveles. Úsala SIEMPRE que el cliente pregunte cuánto dura una llanta, de dónde es una marca, qué garantía o seguro tiene, o por qué una cuesta más que otra — y también cuando dude entre dos niveles: el costo por kilómetro es el argumento más fuerte. Pasa la marca y el precio cotizado si los tienes para recibir el costo por km ya calculado.",
+      `Origen, garantía de fábrica, seguro contra daños y rendimiento en km de cada marca${marcasConRespaldo.length ? ` (${marcasConRespaldo.map(enTitulo).join(", ")})` : ""}, con los argumentos para justificar la diferencia de precio entre niveles. Úsala SIEMPRE que el cliente pregunte cuánto dura una llanta, de dónde es una marca, qué garantía o seguro tiene, o por qué una cuesta más que otra — y también cuando dude entre dos niveles: el costo por kilómetro es el argumento más fuerte. Pasa la marca y el precio cotizado si los tienes para recibir el costo por km ya calculado.`,
     schema: z.object({
       marca: z
         .string()
         .nullable()
         .default(null)
-        .describe("Marca puntual si la pregunta es sobre una (FALKEN, KENDA, WINRUN). Null = las tres, para comparar."),
+        .describe(marcasConRespaldo.length
+          ? `Marca puntual si la pregunta es sobre una (${marcasConRespaldo.join(", ")}). Null = ${cuantasEnLetras(marcasConRespaldo.length)}, para comparar.`
+          : "Marca puntual si la pregunta es sobre una. Null = todas, para comparar."),
       precio_con_iva: z
         .number()
         .nullable()
@@ -1359,17 +1475,12 @@ export function buildTools(ctx: AgentContext) {
         // confirmar recargos por este medio», y el asesor tuvo que contestarlo
         // 22 minutos después. El dato estaba impreso en el pie de la pieza que
         // el bot acababa de mandar, como texto dibujado en la imagen.
-        formas_de_pago: politicaDePagos(),
+        // Sin formas de pago confirmadas en la política, no se mandan (y el
+        // modelo no las promete).
+        ...(politicaDePagos() ? { formas_de_pago: politicaDePagos() } : {}),
         argumentos_para_subir_de_nivel: completo.argumentosParaSubirDeNivel,
         ejemplos_de_respuesta: completo.ejemplos,
-        regla: [
-          "El rendimiento en km es APROXIMADO y se dice así siempre, con su condición: depende del uso y del mantenimiento — y ahí mismo ofreces el mantenimiento gratuito y la rotación cada 10.000 km incluidos.",
-          "Di siempre «hasta X meses» de seguro, nunca «X meses» a secas. Son dos respaldos distintos: garantía de fábrica (5 años, defectos) y seguro contra daños (meses según marca) — no los mezcles.",
-          "NO detalles condiciones, exclusiones ni procedimiento del seguro. Si el cliente pregunta la letra chica o ya tiene una llanta dañada, escala con notificar_vendedor: tú no evalúas ni apruebas reclamos.",
-          "GITI está en ingreso y sin condiciones definidas: no la cotices ni le prometas plazos.",
-          "En uso de obra, cantera o carga pesada el rendimiento baja: dilo ANTES de dar la cifra.",
-          "Nunca desprestigies la económica: se argumenta hacia arriba (la premium rinde más), no hacia abajo.",
-        ].join(" "),
+        regla: reglasDelRespaldo(completo.marcas).join(" "),
       });
     },
   });
@@ -2496,6 +2607,18 @@ export function buildTools(ctx: AgentContext) {
         // aparte para que nadie llame premium a una Kenda intermedia que salió
         // más cara que una Falken (KR608 sobre Falken, semana del 21-sep).
         ...(() => {
+          if (politica.escalonPorPrecio) {
+            // Sin escalera de marcas: el escalón ES el precio dentro de lo que
+            // está en pantalla, y así se lo decimos al modelo (R-17).
+            const porPrecio = escalonesPorPrecio(products);
+            if (products.length < 2) return {};
+            return {
+              nota_de_niveles:
+                "Los escalones de estas opciones salen del PRECIO dentro de lo que está en pantalla (sus marcas no tienen escalera): "
+                + products.map((p) => `${p.code}=${ESCALONES_POR_PRECIO[porPrecio.get(p) ?? 1]}`).join(", ")
+                + ". Premium es solo la de mayor precio: PROHIBIDO decir que una marca es de más calidad que otra por su escalón.",
+            };
+          }
           const niveles = products.map((p) => ({ codigo: p.code, nivel: etiquetaEscalon(p.brand, p.design), orden: escalonDe(p), precio: p.minimumPriceWithTax }));
           const masCara = niveles.reduce((a, b) => (b.precio > a.precio ? b : a), niveles[0]);
           const invertido = niveles.some((a) => niveles.some((b) => a.orden < b.orden && a.precio < b.precio));
@@ -3556,10 +3679,10 @@ export function buildTools(ctx: AgentContext) {
         ),
         regla: [
           sinVisita
-            ? `Responde exactamente con mensaje_para_enviar, con sus separadores '---' intactos. La cotización ya fue enviada y Manuel ya fue notificado. ${sinVisita === "compra_a_distancia" ? "El cliente compra a distancia (paga por este medio y quiere envío)" : "El cliente está fuera de Quito"}: NO le preguntes a qué local va ni qué día pasa, y NO mandes mapas. Pago y envío los coordina el asesor.`
+            ? `Responde exactamente con mensaje_para_enviar, con sus separadores '---' intactos. La cotización ya fue enviada y ${politica.asesorEnReglas} ya fue notificado. ${sinVisita === "compra_a_distancia" ? "El cliente compra a distancia (paga por este medio y quiere envío)" : `El cliente está fuera de ${negocio.ciudad}`}: NO le preguntes a qué local va ni qué día pasa, y NO mandes mapas. ${politica.vendeADistancia ? "Pago y envío los coordina el asesor." : "El envío NO está confirmado: no lo prometas; el asesor le dice si se puede."}`
             : localElegido
-            ? `Responde exactamente con mensaje_para_enviar, con sus separadores '---' intactos. La cotización ya fue enviada y Manuel ya fue notificado. El cliente YA eligió local (${localElegido}): NO vuelvas a preguntarle cuál. Tu objetivo es UNO: que diga qué día viene. No cierres ningún turno sin esa pregunta hasta tener la respuesta.`
-            : "Responde exactamente con mensaje_para_enviar, con sus separadores '---' intactos: son mensajes distintos a propósito y juntarlos arruina el cierre. La cotización ya fue enviada y Manuel ya fue notificado. En ESTE turno tu objetivo es UNO SOLO: que el cliente diga a cuál local le queda mejor ir. NO le preguntes todavía qué día viene — eso se le pregunta recién cuando haya elegido local, y ahí va con el monto del descuento.",
+            ? `Responde exactamente con mensaje_para_enviar, con sus separadores '---' intactos. La cotización ya fue enviada y ${politica.asesorEnReglas} ya fue notificado. El cliente YA eligió local (${localElegido}): NO vuelvas a preguntarle cuál. Tu objetivo es UNO: que diga qué día viene. No cierres ningún turno sin esa pregunta hasta tener la respuesta.`
+            : `Responde exactamente con mensaje_para_enviar, con sus separadores '---' intactos: son mensajes distintos a propósito y juntarlos arruina el cierre. La cotización ya fue enviada y ${politica.asesorEnReglas} ya fue notificado. En ESTE turno tu objetivo es UNO SOLO: que el cliente diga a cuál local le queda mejor ir. NO le preguntes todavía qué día viene — eso se le pregunta recién cuando haya elegido local, y ahí va con el monto del descuento.`,
           stockCorto
             ? `Hoy hay ${stockCorto.stock_hoy} de esa llanta y el cliente pidió ${stockCorto.solicitadas}: el aviso ya va en mensaje_para_enviar. NO prometas las que faltan ni des fecha de llegada — el resto lo confirma el asesor.`
             : null,
@@ -4220,7 +4343,7 @@ function toolItem(item: {
     // El uso de ESTE modelo, de su ficha. Si el cliente pregunta para qué sirve,
     // se contesta con esto y no con la definición genérica del tipo.
     uso_del_modelo: usoDelModelo(item.design) ?? undefined,
-    escalon: etiquetaEscalon(item.brand, item.design),
+    escalon: politica.escalonPorPrecio ? ESCALON_POR_CODIGO.get(item.code) : etiquetaEscalon(item.brand, item.design),
     precio_lista_con_iva: item.customerPriceWithTax,
     precio_hoy_con_iva: item.minimumPriceWithTax,
     stock: item.stock,

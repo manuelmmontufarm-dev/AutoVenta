@@ -19,6 +19,9 @@
  * Pura: entra el texto del cliente, sale sí o no.
  */
 
+import { comoPatron, negocio } from "../negocio/index.js";
+import { politica } from "../negocio/politica.js";
+
 const normalizar = (t: string): string =>
   t.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
 
@@ -30,9 +33,20 @@ const COMPRA_O_PAGA =
 const A_DISTANCIA =
   /\b(?:por|x)\s+(?:este\s+medio|aqui|aca|whatsapp|wasap|este\s+chat)\b|\bme\s+(?:lo|la|los|las)?\s*(?:envi(?:a|an|en|e|as)|mand(?:a|an|en|e)|despach(?:a|an|en|e))\b|\b(?:que\s+)?me\s+(?:lo|la|los|las)\s+(?:traigan|lleven)\b|\ba\s+domicilio\b|\benvio\s+a\s+(?:mi|la)\s+(?:casa|direccion|ciudad)\b/;
 
+/**
+ * Los nombres cortos de los locales, como patrón: «cumbaya|quito\s+sur» para
+ * Depot. Un nombre todavía `[PENDIENTE]` no se reconoce (no es un lugar).
+ */
+const LOCALES = negocio.locales
+  .map((local) => local.nombreCorto)
+  .filter((nombre) => nombre && !nombre.startsWith("[PENDIENTE]"))
+  .map((nombre) => comoPatron(nombre).toLowerCase());
+
 /** Anuncia que viene: entonces no es a distancia aunque pague por transferencia. */
-const VIENE_AL_LOCAL =
-  /\b(?:paso|pasare|pasaria|voy|ire|me\s+acerco|me\s+acercare|llego|vamos)\b[^.?!]{0,30}\b(?:local|tienda|cumbaya|quito\s+sur|manana|hoy|sabado|domingo|lunes|martes|miercoles|jueves|viernes|semana)\b|\b(?:el|este)\s+(?:sabado|domingo|lunes|martes|miercoles|jueves|viernes)\s+(?:paso|voy|me\s+acerco)\b/;
+const VIENE_AL_LOCAL = new RegExp(
+  `\\b(?:paso|pasare|pasaria|voy|ire|me\\s+acerco|me\\s+acercare|llego|vamos)\\b[^.?!]{0,30}\\b(?:local|tienda|${LOCALES.map((l) => `${l}|`).join("")}manana|hoy|sabado|domingo|lunes|martes|miercoles|jueves|viernes|semana)\\b`
+  + "|\\b(?:el|este)\\s+(?:sabado|domingo|lunes|martes|miercoles|jueves|viernes)\\s+(?:paso|voy|me\\s+acerco)\\b",
+);
 
 export function quiereComprarADistancia(texto: string | null | undefined): boolean {
   const n = normalizar(texto ?? "");
@@ -68,7 +82,11 @@ export type SinVisita = "fuera_de_cobertura" | "compra_a_distancia";
  * compromiso… ¿A cuál local le queda mejor ir?» + mapas. Lo respalda la alerta
  * alta `customer_ready_to_buy` que `index.ts` levanta al leer la compra.
  */
-export const CIERRE_COMPRA_A_DISTANCIA = "Un asesor le confirma pago y envío por acá. 🤝";
+export const CIERRE_COMPRA_A_DISTANCIA = politica.vendeADistancia
+  ? "Un asesor le confirma pago y envío por acá. 🤝"
+  // Un negocio que no confirmó envíos (`politica.vendeADistancia = false`) no
+  // los promete: el asesor dice si se puede.
+  : "Un asesor le confirma por acá si se puede hacer el envío. 🤝";
 
 /**
  * Los bloques que cierran una cotización cuando el cliente NO pasa por el
