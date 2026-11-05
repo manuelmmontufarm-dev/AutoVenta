@@ -81,15 +81,16 @@ operación del cliente. Es tu herramienta interna.
    Cotizador y Métricas no aparecen para el cliente.
 5. Listo: el cliente ve solo lo prometido; el bot responde por su WhatsApp.
 
-## Seguir mejorando staging y actualizar Depot (promoción MANUAL)
+## Staging y Depot deployan SOLOS desde `main`
 
-- Trabajas en `main` → **staging** se redeploya solo.
-- El servicio **Depot** debe tener el **auto-deploy APAGADO** (Railway → servicio
-  Depot → Settings → desactivar "Deploy on push").
-- Cuando una versión esté probada en staging, promuévela a mano: **Railway →
-  servicio Depot → Deploy → elegir el commit** (o "Redeploy").
+> **Confirmado por Manuel el 4-nov-2026 (R-40):** el servicio de Depot en
+> Railway tiene el auto-deploy ENCENDIDO. Esta sección describía un plan de
+> promoción manual que nunca se activó; quedaba contradiciendo a `CLAUDE.md`.
 
-Así el cliente nunca recibe un cambio a medio hornear.
+- Trabajas en `main` → **staging Y producción de Depot** se redeployan solos.
+- Por eso un push a `main` se junta y se saca **fuera del horario de Depot**
+  (lu–sá 8:30–17:30): el redeploy corta el bot unos segundos y los mensajes
+  que llegan en ese momento esperan a la siguiente respuesta.
 
 ## Qué desbloquea cada fase
 

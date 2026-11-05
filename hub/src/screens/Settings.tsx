@@ -1,22 +1,24 @@
 import { useEffect, useMemo, useState } from "react";
 import { Segmented } from "../components/ui";
 import { marked } from "marked";
-import { COMPACT_PLAYBOOK } from "../../../app/src/agent/compactPlaybook";
 import { ETAPA_META, ETAPAS, type Etapa } from "../data/types";
 import { AdminKeyForm } from "../components/admin-key";
 import { WhatsAppSetup } from "../components/whatsapp-setup";
+import { useNegocio } from "../data/negocio";
 import { authHeaders } from "../data/realSource";
 import { useHub } from "../store";
 
 type SettingsTab = "whatsapp" | "manual" | "connection";
 
-/** La pestaña Manual muestra los mismos módulos que recibe el bot, no una copia. */
-const botPlaybook = COMPACT_PLAYBOOK;
 export function Settings() {
   const [tab, setTab] = useState<SettingsTab>("whatsapp");
+  // El manual que muestra esta pestaña es el que recibe EL BOT DE ESTE
+  // servidor (`/api/negocio`, R-31), no el horneado en el build del panel: con
+  // dos clientes, el build es uno y el playbook de cada servicio es el suyo.
+  const botPlaybook = useNegocio().playbook;
   const playbookHtml = useMemo(
     () => marked.parse(botPlaybook, { async: false }) as string,
-    [],
+    [botPlaybook],
   );
 
   return (
@@ -53,7 +55,7 @@ export function Settings() {
                 <button type="button" onClick={() => void navigator.clipboard.writeText(botPlaybook)} className="btn-quiet h-9 rounded-[6px] px-3.5 text-[13px]">
                   Copiar Markdown
                 </button>
-                <button type="button" onClick={downloadPlaybook} className="btn-quiet h-9 rounded-[6px] px-3.5 text-[13px]">
+                <button type="button" onClick={() => downloadPlaybook(botPlaybook)} className="btn-quiet h-9 rounded-[6px] px-3.5 text-[13px]">
                   Descargar .md
                 </button>
               </div>
@@ -153,7 +155,7 @@ export function FollowUpSettingsPanel() {
   </div>;
 }
 
-function downloadPlaybook() {
+function downloadPlaybook(botPlaybook: string) {
   const url = URL.createObjectURL(
     new Blob([botPlaybook], { type: "text/markdown;charset=utf-8" }),
   );
@@ -194,16 +196,26 @@ export function BotPowerSwitch() {
   // qué) y duplicar estado invita a que se queden los dos abiertos a la vez.
   const [confirmando, setConfirmando] = useState<"on" | "off" | null>(null);
   const [motivo, setMotivo] = useState("");
+  // R-44: el servidor contesta 409 si se enciende con pendientes de arranque;
+  // acá se muestran y el dueño decide «Encender igual», que repite el PUT con
+  // la confirmación explícita. Depot no tiene pendientes y nunca ve esto.
+  const [faltanParaEncender, setFaltanParaEncender] = useState(false);
+  const faltantes = useNegocio().faltantes;
 
-  async function cambiar(activo: boolean) {
+  async function cambiar(activo: boolean, confirmarFaltantes = false) {
     setGuardando(true);
     setError("");
     try {
-      await cambiarPower(activo, motivo.trim());
+      await cambiarPower(activo, motivo.trim(), confirmarFaltantes);
       setConfirmando(null);
       setMotivo("");
+      setFaltanParaEncender(false);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "No se pudo cambiar");
+      const mensaje = e instanceof Error ? e.message : "No se pudo cambiar";
+      if (activo && mensaje.includes("faltan datos de arranque")) {
+        setFaltanParaEncender(true);
+      }
+      setError(mensaje);
     } finally {
       setGuardando(false);
     }
@@ -343,6 +355,28 @@ export function BotPowerSwitch() {
         <p className="mt-3 text-[13px] font-semibold" style={{ color: "var(--color-signal)" }}>
           {error}
         </p>
+      )}
+
+      {faltanParaEncender && (
+        <div className="border-line mt-3 rounded-[8px] border p-4">
+          <p className="text-[13px] font-semibold">Al negocio le faltan datos de arranque:</p>
+          <ul className="mt-2 list-disc pl-5 text-[13px] text-text2">
+            {faltantes.map((f) => (
+              <li key={f}>{f}</li>
+            ))}
+          </ul>
+          <p className="mt-2 text-[13px] text-text2">
+            El bot puede trabajar sin ellos, pero donde falte un dato responderá con un respaldo
+            neutro o lo derivará a un asesor.
+          </p>
+          <button
+            className="btn-signal mt-3 h-9 rounded-[6px] px-4 text-[13px]"
+            disabled={guardando}
+            onClick={() => void cambiar(true, true)}
+          >
+            Encender igual
+          </button>
+        </div>
       )}
     </div>
   );

@@ -46,7 +46,7 @@ export interface CatalogItem {
   imageSource: string | null;
   loadSpeed: TireLoadSpeed | null;
   active: boolean;
-  source: "contifico" | "sheets";
+  source: "contifico" | "sheets" | "archivo";
 }
 
 const PRICE_TIERS: PriceTier[] = ["pvp1", "pvp2", "pvp3", "pvp4"];

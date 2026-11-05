@@ -1,3 +1,5 @@
+import { politica } from "../negocio/politica.js";
+
 /**
  * EL BENEFICIO POR VENIR DE REDES SOCIALES.
  *
@@ -33,12 +35,13 @@
  * detrás de «¿A cuál local le queda mejor ir?» tapaba esa pregunta y le quitaba
  * los botones. Ver el paso `el_beneficio_se_responde` en prepararSalida.
  */
-export const BENEFICIO_DE_REDES =
-  "🎁 Y tiene un beneficio adicional por venir de nuestras redes sociales: además de los servicios "
-  + "incluidos en la instalación de sus llantas, le obsequiamos una alineación + rotación "
-  + "completamente GRATIS a los 10.000 km.\n\n"
-  + "Cuando venga a realizar su compra, recuerde mencionar este beneficio a su asesor para que "
-  + "pueda registrarlo. 🚗✅";
+/*
+ * DE QUIÉN ES EL TEXTO, desde el 4-nov-2026: de la política comercial del
+ * cliente (`negocio/politicas/<id>.ts`). El de Depot sigue siendo el de
+ * Joaquín, palabra por palabra; un negocio que no lo ofrece lo tiene en null y
+ * entonces no se menciona en ninguna salida.
+ */
+export const BENEFICIO_DE_REDES: string | null = politica.beneficioDeRedes;
 
 /** La huella que lo identifica, venga del bot o escrito a mano por el asesor. */
 const HUELLA = /beneficio adicional por venir de (?:nuestras )?redes|alineaci[óo]n \+ rotaci[óo]n/i;

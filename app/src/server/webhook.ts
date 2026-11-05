@@ -131,7 +131,11 @@ export function createServer(): express.Express {
         res.status(404).json({ error: `sin productos para ${raw}` });
         return;
       }
+      // `?identidad=` deja probar la pieza de cada marca comercial (R-45);
+      // sin el parámetro, la de la presentación — Depot igual que siempre.
+      const identidad = typeof req.query.identidad === "string" ? req.query.identidad : undefined;
       const png = await renderCompareImage({
+        identidad,
         dateLabel: new Date().toLocaleDateString("es-EC", {
           day: "2-digit",
           month: "2-digit",
@@ -192,16 +196,18 @@ export function createServer(): express.Express {
         }
       };
 
+      // `?identidad=` prueba las tres piezas con esa marca comercial (R-45).
+      const identidad = typeof req.query.identidad === "string" ? req.query.identidad : undefined;
       const piezas = [
         await medir("cotizacion", () =>
           renderQuoteImage({
             number: "COT-DIAG", dateLabel: fecha, lines: [lines[0]],
-            subtotal: 0, iva: 0, total: 0,
+            subtotal: 0, iva: 0, total: 0, identidad,
           })),
         await medir("comparativa", () =>
-          renderCompareImage({ dateLabel: fecha, products: lines.slice(0, 3) })),
+          renderCompareImage({ dateLabel: fecha, products: lines.slice(0, 3), identidad })),
         await medir("opciones", () =>
-          renderOptionsImage({ dateLabel: fecha, sizeLabel: raw, products: lines })),
+          renderOptionsImage({ dateLabel: fecha, sizeLabel: raw, products: lines, identidad })),
       ];
 
       const rotas = piezas.filter((p) => !p.ok || p.aceptaMeta === false);

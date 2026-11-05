@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { negocioActual } from "../data/negocio";
 import { authHeaders } from "../data/realSource";
 
 /**
@@ -111,7 +112,7 @@ export function SeccionAnuncios({ onError }: { onError: (v: string) => void }) {
 
       {!lista && <p className="text-[12px] text-text2">Cargando anuncios…</p>}
       {lista && lista.length === 0 && (
-        <p className="text-[12px] text-text2">No hay anuncios cargados. Sin ellos, si el cliente dice «la del anuncio» el bot solo cuenta con lo que Meta manda (casi siempre solo «Depot Tire»).</p>
+        <p className="text-[12px] text-text2">No hay anuncios cargados. Sin ellos, si el cliente dice «la del anuncio» el bot solo cuenta con lo que Meta manda (casi siempre solo «{negocioActual().nombre}»).</p>
       )}
       <div className="flex flex-col gap-3">
         {(lista ?? []).map((a, i) => (

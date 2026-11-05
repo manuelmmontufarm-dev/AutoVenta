@@ -11,7 +11,7 @@ import { renderAsync } from "@resvg/resvg-js";
 import { type CatalogAvailability, type CatalogItem } from "../domain/catalog.js";
 import { medidaEstaPedida } from "../domain/medidaPedida.js";
 import { modoDePromocion } from "../domain/promocion.js";
-import { warrantyForBrand } from "../services/quoteMessages.js";
+import { garantiaDelPerfil, warrantyForBrand } from "../services/quoteMessages.js";
 import { loadFonts, loadFontsDiaNoche, productPhoto, type FontSpec, type RasterImage } from "./assets.js";
 import { DEFAULT_BRAND_PROFILES, resolveTheme, type SatoriNode, type Theme } from "./depotDesign.js";
 import { comparePoster, medidaGuidePoster, optionsPoster, quotePoster, type PosterLine } from "./depotPosters.js";
@@ -88,6 +88,14 @@ export interface PieceTheme {
    * 26-oct). Llega solo por el `...getPiecesConfig()` de quien renderiza.
    */
   promocion?: { modo?: string | null } | null;
+  /**
+   * La marca comercial de la pieza (id de identidad del perfil): encabezado,
+   * logo y pie salen de esa marca. Sin ella, la de la presentación — Depot y
+   * todo negocio de una sola marca no la pasan y nada les cambia. El cableado
+   * desde la conversación (`identidadDeLaConversacion`) lo hace el Sprint
+   * Final; por ahora la pasan explícita las pruebas y las vistas previas.
+   */
+  identidad?: string;
 }
 
 function themeOf(data: PieceTheme): Theme {
@@ -151,6 +159,7 @@ export async function renderQuoteImage(data: QuoteRenderData): Promise<Buffer> {
       {
         number: data.number,
         dateLabel: data.dateLabel,
+        identidad: data.identidad,
         line: toPosterLine(line, data.brandProfiles, data.promocion),
         total: data.total,
         discountAmount: data.discountAmount,
@@ -168,6 +177,7 @@ export async function renderQuoteImage(data: QuoteRenderData): Promise<Buffer> {
     {
       number: data.number,
       dateLabel: data.dateLabel,
+      identidad: data.identidad,
       line: toPosterLine(line, data.brandProfiles, data.promocion),
       subtotal: data.subtotal,
       iva: data.iva,
@@ -188,6 +198,7 @@ export async function renderCompareImage(data: CompareRenderData): Promise<Buffe
   const node = comparePoster(
     {
       dateLabel: data.dateLabel,
+      identidad: data.identidad,
       sizeLabel: data.sizeLabel ?? data.products[0]?.sizeLabel ?? null,
       lines: data.products.map((line) => toPosterLine(line, data.brandProfiles, data.promocion)),
     },
@@ -253,6 +264,7 @@ export async function renderOptionsImage(data: OptionsRenderData): Promise<Buffe
         cantidad: data.cantidad ?? null,
         medidaConocida: Boolean(data.medidaPedida),
         benefits: data.benefits,
+        identidad: data.identidad,
       },
       resolverModo(data.modo, data.ahora),
     );
@@ -265,6 +277,7 @@ export async function renderOptionsImage(data: OptionsRenderData): Promise<Buffe
       // la que el cliente compara los sellos de cada tarjeta. Sin ella, el aro
       // —que sí es lo que el cliente dijo— y nunca la medida de una de las tres.
       sizeLabel: data.medidaPedida ?? (aro ? `RIN ${aro}` : null) ?? data.sizeLabel ?? null,
+      identidad: data.identidad,
       lines,
       medidaConocida: Boolean(data.medidaPedida),
       benefits: data.benefits,
@@ -288,7 +301,7 @@ export interface MedidaGuideRenderData extends PieceTheme {
  */
 export async function renderMedidaGuideImage(data: MedidaGuideRenderData): Promise<Buffer> {
   const node = medidaGuidePoster(
-    { dateLabel: data.dateLabel, aroDelCliente: data.aroDelCliente ?? null },
+    { dateLabel: data.dateLabel, aroDelCliente: data.aroDelCliente ?? null, identidad: data.identidad },
     themeOf(data),
   );
   return renderPng(node, POSTER_WIDTH);
@@ -349,7 +362,9 @@ export async function toRenderLine(
     pvpConIva: pvp,
     availability: product.availability,
     golpesMeses: warranty.roadHazardMonths,
-    fabricaAnios: 5,
+    // Del perfil, no un 5 clavado: un cliente con la garantía sin confirmar
+    // (0) no puede salir prometiendo «5 años de fábrica». Depot: siempre 5.
+    fabricaAnios: garantiaDelPerfil(product.brand).fabricaAnios,
     photo: await productPhoto(product.brand, product.design, product.imageUrl),
   };
 }

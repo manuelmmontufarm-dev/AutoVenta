@@ -66,6 +66,18 @@ describe("qué medidas se le pueden firmar al cliente", () => {
     expect(medidaEstaPedida("265/70R16", permitidas)).toBe(true);
   });
 
+  it("una medida sin perfil pide el ancho y el aro: cualquier perfil de esos dos ES su medida", () => {
+    // La demo del 4-nov (conv 19354): «235 rin 15» queda guardada como 235R15 y
+    // la lámina traía 235/75R15 y 235/60R15 — exactamente lo pedido — pero el
+    // aviso decía «en 235R15 no me queda disponibilidad exacta». Falso.
+    expect(medidaEstaPedida("235/75R15", ["235R15"])).toBe(true);
+    expect(medidaEstaPedida("235/60R15", ["235R15"])).toBe(true);
+    expect(medidaEstaPedida("205/65R15", ["235R15"])).toBe(false); // otro ancho
+    expect(medidaEstaPedida("235/75R16", ["235R15"])).toBe(false); // otro aro
+    // Al revés no se afloja: quien pidió 235/75R15 pidió ESE perfil.
+    expect(medidaEstaPedida("235R15", ["235/75R15"])).toBe(false);
+  });
+
   it("la medida que el cliente pidió después también vale (aceptó la equivalencia)", () => {
     const permitidas = medidasPermitidas(["265/70/16", "245/75/16"], "265/70R16");
     expect(medidaEstaPedida("245/75R16", permitidas)).toBe(true);

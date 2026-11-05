@@ -1,4 +1,6 @@
 /** Favicon dinámico con el contador de tickets abiertos (detalle nivel Apple). */
+import { inicialesDelNegocio } from "../data/negocio";
+
 let last = -1;
 
 export function updateFavicon(abiertos: number): void {
@@ -23,7 +25,7 @@ export function updateFavicon(abiertos: number): void {
     ctx.fillText(String(Math.min(abiertos, 99)), 32, 35);
   } else {
     ctx.font = "700 26px 'Archivo Variable', Archivo, sans-serif";
-    ctx.fillText("DT", 32, 34);
+    ctx.fillText(inicialesDelNegocio(), 32, 34);
   }
 
   const link = document.getElementById("favicon") as HTMLLinkElement | null;

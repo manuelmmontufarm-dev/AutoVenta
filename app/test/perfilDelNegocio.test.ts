@@ -45,10 +45,16 @@ describe("el perfil de Depot · identidad del negocio", () => {
     expect(business.taxRate).toBe(0.15);
     expect(business.currency).toBe("USD");
     expect(business.brands).toEqual(["Kenda", "Sunoco", "Eurolub", "Falken"]);
+    // Cambiado a propósito en el mismo commit que R-05 (4-nov-2026): el campo
+    // `garantias` no lo leía nadie y decía default 6 meses sin Winrun, que no
+    // era lo que salía en la cotización. Ahora el campo es la fuente de
+    // `warrantyForBrand` y dice la tabla REAL del cliente; lo que ve el
+    // cliente quedó fijado byte a byte en garantiasDelPerfil.test.ts.
     expect(business.warranties).toEqual({
-      default: { golpesMeses: 6, fabricaAnios: 5 },
+      default: { golpesMeses: 0, fabricaAnios: 5 },
       Kenda: { golpesMeses: 12, fabricaAnios: 5 },
       Falken: { golpesMeses: 18, fabricaAnios: 5 },
+      Winrun: { golpesMeses: 6, fabricaAnios: 5 },
     });
   });
 
@@ -225,5 +231,46 @@ describe("el perfil de Depot · lo que ve el guardián y el cupón", () => {
 
   it("el prefijo del cupón sale de las iniciales del negocio", () => {
     expect(PREFIJO_CUPON).toBe("DT-");
+  });
+});
+
+// Casos agregados con el Sprint 1 multicliente (4-nov-2026): las identidades,
+// el candado de `[PENDIENTE]` y el logo por identidad no le cambian nada a Depot.
+const { identidades, identidadDeLaConversacion, nombresDelNegocio, faltantesDelPerfil } =
+  await import("../src/negocio/identidad.js");
+const { fraseDePresentacion, inicialesDelNegocio, leyendaDelEncabezado } = await import("../src/negocio/index.js");
+const { normalizarCodigoCupon } = await import("../src/domain/coupons.js");
+const { depotLogo, DEPOT_LOGO_RATIO } = await import("../src/render/assets.js");
+
+describe("el perfil de Depot · dos marcas no le cambian nada", () => {
+  it("una sola identidad, que es Depot Tire con sus dos locales", () => {
+    expect(identidades(negocio)).toEqual([{ id: "depot", nombre: "Depot Tire", locales: ["cumbaya", "quito_sur"] }]);
+    expect(nombresDelNegocio(negocio)).toEqual(["Depot Tire"]);
+    expect(identidadDeLaConversacion(negocio, "Depot Tire Quito Sur").id).toBe("depot");
+    expect(identidadDeLaConversacion(negocio, null).id).toBe("depot");
+  });
+
+  it("la presentación, la leyenda y las iniciales son las de siempre", () => {
+    expect(fraseDePresentacion(negocio)).toBe("Depot Tire");
+    expect(leyendaDelEncabezado(negocio)).toBe("QUITO · DESDE 1996");
+    expect(inicialesDelNegocio(negocio)).toBe("DT");
+  });
+
+  it("«dt puma 47» se normaliza igual que antes", () => {
+    expect(normalizarCodigoCupon("dt puma 47")).toBe("DT-PUMA47");
+    expect(normalizarCodigoCupon("DT-PUMA-47")).toBe("DT-PUMA47");
+    expect(normalizarCodigoCupon("puma47")).toBe("DT-PUMA47");
+  });
+
+  it("nada pendiente en Depot", () => {
+    expect(faltantesDelPerfil(negocio)).toEqual([]);
+  });
+
+  it("el logo mide lo mismo leído del archivo que la constante de siempre", () => {
+    const logo = depotLogo("blanco");
+    expect(logo).not.toBeNull();
+    expect(logo!.width / logo!.height).toBe(DEPOT_LOGO_RATIO);
+    // Una identidad sin archivo propio cae al logo del negocio.
+    expect(depotLogo("blanco", "inexistente")?.dataUri).toBe(logo!.dataUri);
   });
 });

@@ -51,6 +51,7 @@ export const TABLAS_DATOS = [
   "follow_up_campaigns",
   "advisor_notifications",
   "sales_history",
+  "facturas_importadas",
   "billing_months",
   "schema_migrations",
   "hub_sessions",

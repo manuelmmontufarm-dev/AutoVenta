@@ -14,7 +14,22 @@ import type { CatalogItem } from "../domain/catalog.js";
 import { warrantyForBrand } from "./quoteMessages.js";
 import { piecesConfigEnMemoria } from "./settings.js";
 import { etiquetaDePromocion } from "../domain/promocion.js";
-import { DEPOT_LOGO_RATIO, depotLogo } from "../render/assets.js";
+import { depotLogo } from "../render/assets.js";
+import { negocio, sinPendiente } from "../negocio/index.js";
+import { identidades } from "../negocio/identidad.js";
+
+// La frase de impuestos sale del perfil (candado R-10: lo pendiente sale con
+// su respaldo neutro); sin el campo, la de siempre, que era la de Depot.
+const IMPUESTOS_INCLUIDOS = sinPendiente(
+  negocio.piezas.impuestosIncluidos ?? "IVA y Ecovalor incluidos",
+  "Impuestos incluidos",
+);
+
+/** El nombre de la marca comercial de la pieza; sin identidad, el del negocio. */
+function nombreDeIdentidad(identidad?: string): string {
+  if (!identidad) return negocio.nombre;
+  return identidades(negocio).find((i) => i.id === identidad)?.nombre ?? negocio.nombre;
+}
 
 pdfmake.addFonts(helvetica);
 
@@ -77,12 +92,13 @@ const MUTED = "#667085";
 const BORDER = "#dfe3ea";
 
 /**
- * El logotipo de Depot Tire para pdfmake, al alto pedido. Null si falta el
- * archivo — quien llama cae al nombre en texto.
+ * El logotipo del negocio —o de la marca comercial pedida— para pdfmake, al
+ * alto pedido, con la proporción real del archivo. Null si falta el archivo:
+ * quien llama cae al nombre en texto.
  */
-function depotLogoPdf(alto: number) {
-  const logo = depotLogo("blanco");
-  return logo ? { image: logo.dataUri, height: alto, width: alto * DEPOT_LOGO_RATIO } : null;
+function depotLogoPdf(alto: number, identidad?: string) {
+  const logo = depotLogo("blanco", identidad);
+  return logo ? { image: logo.dataUri, height: alto, width: alto * (logo.width / logo.height) } : null;
 }
 
 export function buildQuote(
@@ -121,26 +137,26 @@ export function buildQuote(
   };
 }
 
-export async function renderQuotePdf(quote: Quote): Promise<Buffer> {
+export async function renderQuotePdf(quote: Quote, identidad?: string): Promise<Buffer> {
   const line = quote.lines[0];
   if (quote.lines.length === 1 && line?.brand && line.design && line.salePriceWithTax) {
     const image = await localImageData(line.imageUrl);
-    return pdfmake.createPdf(singleQuoteDocument(quote, line, image) as never).getBuffer();
+    return pdfmake.createPdf(singleQuoteDocument(quote, line, image, identidad) as never).getBuffer();
   }
   return pdfmake.createPdf(legacyQuoteDocument(quote) as never).getBuffer();
 }
 
-export async function renderComparisonPdf(products: readonly CatalogItem[]): Promise<Buffer> {
+export async function renderComparisonPdf(products: readonly CatalogItem[], identidad?: string): Promise<Buffer> {
   if (products.length < 2 || products.length > 3) {
     throw new Error("La comparativa requiere dos o tres llantas");
   }
   const images = await Promise.all(products.map((product) => localImageData(product.imageUrl)));
   return pdfmake
-    .createPdf(comparisonDocument(products, images) as never)
+    .createPdf(comparisonDocument(products, images, identidad) as never)
     .getBuffer();
 }
 
-function comparisonDocument(products: readonly CatalogItem[], images: (string | null)[]) {
+function comparisonDocument(products: readonly CatalogItem[], images: (string | null)[], identidad?: string) {
   const date = dateLabel();
   const columns = products.map((product, index) => {
     const warranty = warrantyForBrand(product.brand);
@@ -253,7 +269,7 @@ function comparisonDocument(products: readonly CatalogItem[], images: (string | 
     pageMargins: [24, 20, 24, 22],
     defaultStyle: { font: "Helvetica", color: NAVY },
     content: [
-      headerBlock("COMPARATIVA DE LLANTAS", date),
+      headerBlock("COMPARATIVA DE LLANTAS", date, identidad),
       { columns, columnGap: 2 },
       {
         text: "Precios por unidad. La disponibilidad se confirma al momento de la compra.",
@@ -266,7 +282,7 @@ function comparisonDocument(products: readonly CatalogItem[], images: (string | 
   };
 }
 
-function singleQuoteDocument(quote: Quote, line: QuoteLine, image: string | null) {
+function singleQuoteDocument(quote: Quote, line: QuoteLine, image: string | null, identidad?: string) {
   const quantity = line.quantity;
   const listPrice = line.listPriceWithTax ?? quote.total;
   const salePrice = line.salePriceWithTax ?? quote.total / quantity;
@@ -280,7 +296,7 @@ function singleQuoteDocument(quote: Quote, line: QuoteLine, image: string | null
     pageMargins: [34, 20, 34, 24],
     defaultStyle: { font: "Helvetica", color: NAVY },
     content: [
-      headerBlock("COTIZACIÓN DE LLANTA", `${dateLabel()} · ${quote.number}`),
+      headerBlock("COTIZACIÓN DE LLANTA", `${dateLabel()} · ${quote.number}`, identidad),
       {
         columns: [
           {
@@ -333,7 +349,7 @@ function singleQuoteDocument(quote: Quote, line: QuoteLine, image: string | null
                 stack: [
                   { text: "PRECIO HOY", color: RED, bold: true, fontSize: 8, alignment: "right", characterSpacing: 1.2 },
                   { text: money(salePrice), color: NAVY, bold: true, fontSize: 27, alignment: "right", margin: [0, 5, 0, 2] },
-                  { text: "IVA y Ecovalor incluidos · por unidad", color: MUTED, fontSize: 8, alignment: "right" },
+                  { text: `${IMPUESTOS_INCLUIDOS} · por unidad`, color: MUTED, fontSize: 8, alignment: "right" },
                 ],
                 margin: [14, 12, 14, 12],
               },
@@ -390,7 +406,7 @@ function singleQuoteDocument(quote: Quote, line: QuoteLine, image: string | null
   };
 }
 
-function headerBlock(title: string, detail: string) {
+function headerBlock(title: string, detail: string, identidad?: string) {
   return {
     stack: [
       {
@@ -411,7 +427,7 @@ function headerBlock(title: string, detail: string) {
                   // El logotipo real de la marca, no «DEPOT TIRE» en Helvetica
                   // negrita: este PDF se manda al cliente junto con la imagen y
                   // las dos tienen que traer el mismo logo.
-                  depotLogoPdf(26) ?? { text: business.name.toUpperCase(), bold: true, color: "white", fontSize: 22 },
+                  depotLogoPdf(26, identidad) ?? { text: nombreDeIdentidad(identidad).toUpperCase(), bold: true, color: "white", fontSize: 22 },
                   { text: title, bold: true, color: GOLD, fontSize: 9, characterSpacing: 1.1, margin: [0, 4, 0, 0] },
                 ],
                 fillColor: NAVY,
@@ -420,7 +436,7 @@ function headerBlock(title: string, detail: string) {
               {
                 stack: [
                   { text: detail, alignment: "right", color: "white", bold: true, fontSize: 11 },
-                  { text: "IVA Y ECOVALOR INCLUIDOS", alignment: "right", color: "#dce4f3", fontSize: 8, margin: [0, 5, 0, 0] },
+                  { text: IMPUESTOS_INCLUIDOS.toUpperCase(), alignment: "right", color: "#dce4f3", fontSize: 8, margin: [0, 5, 0, 0] },
                 ],
                 fillColor: NAVY,
                 margin: [14, 10, 14, 10],

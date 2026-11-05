@@ -11,8 +11,9 @@
  * declarara como props.
  */
 
-import { DEPOT_LOGO_RATIO, depotLogo } from "./assets.js";
+import { depotLogo } from "./assets.js";
 import { negocio, nombreEnDosTonos, leyendaDelEncabezado } from "../negocio/index.js";
+import { identidades } from "../negocio/identidad.js";
 
 export type Child = SatoriNode | string | null | false | undefined;
 
@@ -268,15 +269,21 @@ const DEPOT_LOGO_H = 44;
  * blanca. La leyenda de al lado no es parte del logo: es dato del negocio, y
  * por eso sigue siendo texto.
  */
-export function depotWordmark(theme: Theme): SatoriNode {
-  const logo = depotLogo("blanco");
+export function depotWordmark(theme: Theme, identidad?: string): SatoriNode {
+  const logo = depotLogo("blanco", identidad);
+  // El nombre de la identidad que encabeza la pieza: con `identidad` el de esa
+  // marca comercial; sin ella, el del negocio (Depot, de siempre).
+  const nombreDeIdentidad = identidad
+    ? identidades(negocio).find((i) => i.id === identidad)?.nombre ?? negocio.nombre
+    : negocio.nombre;
   const marca: SatoriNode = logo
-    ? img(logo.dataUri, { height: DEPOT_LOGO_H, width: Math.round(DEPOT_LOGO_H * DEPOT_LOGO_RATIO) })
-    // Sin el archivo, el nombre en texto antes que un hueco en el encabezado.
-    // Sin archivo, el nombre del negocio en texto: la primera palabra en
-    // blanco y el resto en dorado, como el logo de Depot.
+    // El ancho sale de la proporción real del archivo (IHDR): cada marca tiene
+    // la suya y un logo estirado es peor que ninguno.
+    ? img(logo.dataUri, { height: DEPOT_LOGO_H, width: Math.round(DEPOT_LOGO_H * (logo.width / logo.height)) })
+    // Sin el archivo, el nombre en texto antes que un hueco en el encabezado:
+    // la primera palabra en blanco y el resto en dorado, como el logo de Depot.
     : el({ alignItems: "baseline" },
-        ...nombreEnDosTonos(negocio).map(([palabra, dorada]) =>
+        ...nombreEnDosTonos(negocio, nombreDeIdentidad).map(([palabra, dorada]) =>
           text(
             { ...ARCHIVO_BLACK, fontStyle: "italic", fontSize: 32, color: dorada ? theme.p.gold : theme.p.paper, letterSpacing: 1 },
             palabra,
@@ -309,6 +316,7 @@ export function posterHeader(
   rotulo: string,
   medida: string,
   fecha: string,
+  identidad?: string,
 ): SatoriNode {
   const { dark, darkSub, gold } = theme.p;
   return el({
@@ -316,7 +324,7 @@ export function posterHeader(
     backgroundImage: `linear-gradient(135deg,${dark} 0%,${dark} 55%,rgba(0,0,0,0.35) 100%)`,
   },
     speedLines(3, 0.1, 420, 16, 12),
-    depotWordmark(theme),
+    depotWordmark(theme, identidad),
     el({ alignItems: "center", gap: 18 },
       text({ fontSize: 15, fontWeight: 700, letterSpacing: 3, color: darkSub }, rotulo),
       medida

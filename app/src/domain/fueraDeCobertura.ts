@@ -27,7 +27,13 @@
  *
  * Puro y sin base: entra el texto del cliente, sale dónde está. Quien decida
  * qué hacer con eso es quien llama.
+ *
+ * DE QUÉ CIUDAD ES «COBERTURA», desde el 4-nov-2026: de la del perfil
+ * (`negocio.ciudad`). Con Mundillantas, «soy de Santo Domingo» es estar en
+ * casa, no un cliente lejano; y «estoy en la av Quevedo» es la calle de su
+ * matriz, no la ciudad de Quevedo. Con Depot los patrones salen idénticos.
  */
+import { negocio, sinTildes } from "../negocio/index.js";
 
 const normalizar = (t: string): string =>
   t.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
@@ -40,7 +46,10 @@ const normalizar = (t: string): string =>
  * El nombre canónico es el que se le muestra al cliente («En Santo Domingo no
  * tenemos local»), así que va escrito como se dice, no como se teclea.
  */
-const FUERA: readonly (readonly [string, RegExp])[] = [
+const OTRAS_CIUDADES: readonly (readonly [string, RegExp])[] = [
+  // Quito es «otra ciudad» para un negocio que no está en Quito. Para Depot
+  // sale de la lista sola (`FUERA` quita la ciudad del negocio).
+  ["Quito", /\bquito\b/],
   ["Guayaquil", /\bguayaquil\b|\bgye\b/],
   ["Cuenca", /\bcuenca\b/],
   ["Santo Domingo", /\bsanto\s*domingo\b|\bsto\.?\s*domingo\b|\btsachilas\b/],
@@ -97,13 +106,60 @@ const FUERA: readonly (readonly [string, RegExp])[] = [
 ];
 
 /**
+ * LO QUE SE SABE DE CADA CIUDAD DONDE HAY UN NEGOCIO: sus zonas (que también
+ * son «cobertura») y a qué nombres se «sube» o «va» el que viene de fuera.
+ * Es geografía, no política comercial: vale para cualquier llantera de esa
+ * ciudad. Una ciudad sin fila acá usa solo su propio nombre.
+ */
+const ZONAS_DE_LA_CIUDAD: Record<string, { zonas: string[]; seVaA: string; seSubeA: string }> = {
+  quito: {
+    zonas: ["cumbaya", "tumbaco", "valle\\s*de\\s*los\\s*chillos", "chillos", "sangolqui", "conocoto", "puembo", "calderon", "pomasqui", "el\\s*condado"],
+    seVaA: "quito|cumbaya|tumbaco",
+    seSubeA: "quito|cumbaya",
+  },
+};
+
+const CIUDAD = sinTildes(negocio.ciudad).toLowerCase().trim();
+/** La ciudad del negocio como patrón: «quito», «santo\\s+domingo». */
+const C = escapar(CIUDAD).replace(/\s+/g, "\\s+");
+const ZONAS = ZONAS_DE_LA_CIUDAD[CIUDAD] ?? { zonas: [], seVaA: C, seSubeA: C };
+
+function escapar(v: string): string {
+  return v.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+/**
+ * Las ciudades que NO son la del negocio. Una fila cuyo patrón reconoce la
+ * ciudad del perfil (Santo Domingo, con sus alias «sto. domingo» y
+ * «tsáchilas») sale de la lista: ahí el cliente está en casa.
+ */
+const FUERA = OTRAS_CIUDADES.filter(([, re]) => !re.test(CIUDAD));
+
+/**
+ * Palabras de las direcciones de los locales que TAMBIÉN son nombre de otra
+ * ciudad («Av. Quevedo km 1» en Santo Domingo). Precedidas de «av», «calle» o
+ * «vía» son la calle del local: cobertura, no la ciudad lejana.
+ */
+const CALLES_PROPIAS: string[] = negocio.locales.flatMap((local) => {
+  const dir = sinTildes(local.direccion ?? "").toLowerCase();
+  if (dir.startsWith("[pendiente]")) return [];
+  return FUERA
+    .filter(([, re]) => re.test(dir))
+    .map(([nombre]) => escapar(sinTildes(nombre).toLowerCase()).replace(/\s+/g, "\\s*"));
+});
+const CALLE_DEL_LOCAL = CALLES_PROPIAS.length
+  ? new RegExp(`\\b(?:av|avda|avenida|calle|via)\\.?\\s+(?:${CALLES_PROPIAS.join("|")})\\b`, "g")
+  : null;
+
+
+/**
  * «Soy de provincia» (8924): no dice cuál, pero sí que no es Quito. Para la
  * gente de Quito «provincia» es todo lo demás.
  */
 const DE_PROVINCIA = /\b(?:soy|somos|estoy|estamos|vivo|vivimos)\s+(?:de|en)\s+(?:una\s+|la\s+)?provincia\b/;
 
-/** Lo que SÍ es cobertura: Quito y el valle. */
-const COBERTURA = /\bquito\b|\bcumbaya\b|\btumbaco\b|\bvalle\s*de\s*los\s*chillos\b|\bchillos\b|\bsangolqui\b|\bconocoto\b|\bpuembo\b|\bcalderon\b|\bpomasqui\b|\bel\s*condado\b/;
+/** Lo que SÍ es cobertura: la ciudad del negocio y sus zonas (Depot: Quito y el valle). */
+const COBERTURA = new RegExp([C, ...ZONAS.zonas].map((z) => `\\b${z}\\b`).join("|"));
 
 /**
  * Está diciendo DÓNDE ESTÁ, no nombrando un lugar de paso. «Soy de», «estoy
@@ -118,11 +174,16 @@ const DICE_DONDE_ESTA =
  * está en Quito de paso (conv 22481: «vivo en Ibarra, estando en Quito sector
  * norte»): la negación («no estoy en Quito») se lee antes y gana.
  */
-const VIENE_A_QUITO =
-  /\b(?:voy|vamos|ire|iremos|estare|estaremos|paso|pasare|subo|subire|viajo|viajare|bajo|vengo|vendre)\b[^.?!]{0,40}\b(?:a|por|en|hasta|hacia)?\s*\b(?:quito|cumbaya|tumbaco)\b|\b(?:suba|subir|venir|ir|pasar|viajar)\b[^.?!]{0,30}\b(?:a\s+)?(?:la\s+)?(?:ciudad\s+de\s+)?(?:quito|cumbaya)\b|\bcuando\s+(?:este|vaya|suba|baje)\b[^.?!]{0,25}\bquito\b|\b(?:estando|estoy|estamos|ahora|ya)\s+en\s+(?:la\s+ciudad\s+de\s+)?quito\b|\ben\s+quito\s+por\s+estos\s+dias\b/;
+const VIENE_A_QUITO = new RegExp(
+  `\\b(?:voy|vamos|ire|iremos|estare|estaremos|paso|pasare|subo|subire|viajo|viajare|bajo|vengo|vendre)\\b[^.?!]{0,40}\\b(?:a|por|en|hasta|hacia)?\\s*\\b(?:${ZONAS.seVaA})\\b`
+  + `|\\b(?:suba|subir|venir|ir|pasar|viajar)\\b[^.?!]{0,30}\\b(?:a\\s+)?(?:la\\s+)?(?:ciudad\\s+de\\s+)?(?:${ZONAS.seSubeA})\\b`
+  + `|\\bcuando\\s+(?:este|vaya|suba|baje)\\b[^.?!]{0,25}\\b${C}\\b`
+  + `|\\b(?:estando|estoy|estamos|ahora|ya)\\s+en\\s+(?:la\\s+ciudad\\s+de\\s+)?${C}\\b`
+  + `|\\ben\\s+${C}\\s+por\\s+estos\\s+dias\\b`,
+);
 
 /** Niega estar o ir a Quito: «no vivo en Quito», «no viajo a Quito». */
-const NIEGA_QUITO = /\bno\s+(?:viv|estoy|soy|viaj|voy|subo|paso|puedo\s+ir)\w*\b[^.?!]{0,25}\bquito\b/;
+const NIEGA_QUITO = new RegExp(`\\bno\\s+(?:viv|estoy|soy|viaj|voy|subo|paso|puedo\\s+ir)\\w*\\b[^.?!]{0,25}\\b${C}\\b`);
 
 export interface DondeEsta {
   /** `fuera` = no puede pasar por el local. `viene` = está fuera pero sube. */
@@ -139,8 +200,12 @@ export interface DondeEsta {
  * cliente normal como si estuviera lejos.
  */
 export function dondeEstaElCliente(texto: string | null | undefined): DondeEsta | null {
-  const n = normalizar(texto ?? "");
-  if (!n.trim()) return null;
+  const crudo = normalizar(texto ?? "");
+  if (!crudo.trim()) return null;
+  // La calle del local («av quevedo») se lee como cobertura y se saca antes de
+  // buscar ciudades lejanas, para que no la confunda con la ciudad.
+  const n = CALLE_DEL_LOCAL ? crudo.replace(CALLE_DEL_LOCAL, " ") : crudo;
+  const nombraLaCalleDelLocal = n !== crudo;
 
   // La negación se lee primero: «no vivo en Quito» nombra Quito y es lo
   // contrario de estar en Quito (conv 18603).
@@ -161,8 +226,19 @@ export function dondeEstaElCliente(texto: string | null | undefined): DondeEsta 
   }
 
   if (VIENE_A_QUITO.test(n)) return { estado: "viene", ciudad: null };
-  if (COBERTURA.test(n)) return { estado: "cobertura", ciudad: null };
+  if (COBERTURA.test(n) || nombraLaCalleDelLocal) return { estado: "cobertura", ciudad: null };
   return null;
+}
+
+/**
+ * ¿Este nombre de lugar es la ciudad del negocio (o un alias suyo)? Para las
+ * otras listas de «otras ciudades» del dominio: con Mundillantas, «santo
+ * domingo» y «tsachilas» son su casa. Con Depot no excluye nada.
+ */
+export function esLaCiudadDelNegocio(lugar: string): boolean {
+  const l = normalizar(lugar).trim();
+  if (l === CIUDAD) return true;
+  return OTRAS_CIUDADES.some(([, re]) => re.test(CIUDAD) && re.test(l));
 }
 
 /** Atajo para los candados: ¿este mensaje dice que NO puede pasar por el local? */

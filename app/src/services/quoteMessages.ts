@@ -1,4 +1,5 @@
 import { business } from "../config.js";
+import { negocio, sinPendiente } from "../negocio/index.js";
 import { CIERRE_COTIZAR } from "../domain/preguntasProhibidas.js";
 import { fraseDeAhorro, type AhorroDeLaCotizacion } from "../domain/ahorro.js";
 import { etiquetaDePromocion, type ModoPromocion } from "../domain/promocion.js";
@@ -528,7 +529,7 @@ export function buildComparisonMessageDetallado(
     `Comparativa de Llantas — ${dateLabel()}`,
     "",
     ...lines,
-    "Precios por unidad incluyen IVA y Ecovalor.",
+    NOTA_DE_PRECIOS,
   ]
     .join("\n")
     .trim();
@@ -565,7 +566,7 @@ export function buildCustomerOptionsMessageDetallado(
     }
     lines.push("");
   }
-  lines.push("Precios por unidad incluyen IVA y Ecovalor.", "Confirma vigencia y stock al momento de comprar.");
+  lines.push(NOTA_DE_PRECIOS, "Confirma vigencia y stock al momento de comprar.");
   return lines.join("\n").trim();
 }
 
@@ -643,8 +644,8 @@ export function buildSingleQuoteMessageDetallado(
     ...(warranty.roadHazard ? [`🔒 ${warranty.roadHazard}`] : []),
     "",
     offerDiscount?.expiresAt
-      ? `Precio incluye IVA y Ecovalor. Oferta vigente hasta ${offerDiscount.expiresAt.toLocaleString("es-EC", { timeZone: "America/Guayaquil" })}.`
-      : "Precio incluye IVA y Ecovalor. Vigencia por confirmar con el asesor.",
+      ? `${NOTA_DE_PRECIO_UNITARIO} Oferta vigente hasta ${offerDiscount.expiresAt.toLocaleString("es-EC", { timeZone: "America/Guayaquil" })}.`
+      : `${NOTA_DE_PRECIO_UNITARIO} Vigencia por confirmar con el asesor.`,
     // Aquí NO va ninguna pregunta por la ubicación: este bloque sale en el mismo
     // turno que buildVisitPlanQuestion, que ya pregunta el día y el local. Tener
     // las dos era lo que hacía que el bot enumerara los locales y acto seguido
@@ -668,21 +669,51 @@ export function buildCustomerQuoteMessage(
       );
 }
 
+/**
+ * Las notas de precios al pie de los mensajes salen del perfil; sin el campo,
+ * la frase de siempre (que era la de Depot). `sinPendiente`: una nota sin
+ * confirmar se reemplaza por el respaldo neutro, nunca llega al cliente.
+ * Se usan más arriba dentro de funciones, que corren después de cargar el
+ * módulo: declararlas acá no las deja sin valor.
+ */
+const NOTA_DE_PRECIOS = sinPendiente(
+  negocio.piezas.notaDePrecios ?? "Precios por unidad incluyen IVA y Ecovalor.",
+  "Precios por unidad con impuestos incluidos.",
+);
+const NOTA_DE_PRECIO_UNITARIO = sinPendiente(
+  negocio.piezas.notaDePrecioUnitario ?? "Precio incluye IVA y Ecovalor.",
+  "Precio con impuestos incluidos.",
+);
+
+/**
+ * La garantía que ve el cliente, por marca — leída de `negocio.garantias` en
+ * vez de los `includes` que tenían cosidas las marcas de Depot (R-05). La
+ * clave se busca por `includes` sin mayúsculas, como siempre («falken ziex»
+ * encuentra Falken); lo que no calza cae en `default`. `golpesMeses: 0` = sin
+ * seguro contra golpes, y `fabricaAnios: 0` = garantía todavía sin confirmar
+ * con el cliente nuevo: se dice «por confirmar», nunca «0 años».
+ */
+export function garantiaDelPerfil(brand: string): { golpesMeses: number; fabricaAnios: number } {
+  const normalized = brand.toLowerCase();
+  const clave = Object.keys(negocio.garantias).find(
+    (k) => k !== "default" && normalized.includes(k.toLowerCase()),
+  );
+  return (clave ? negocio.garantias[clave] : undefined)
+    ?? negocio.garantias.default
+    ?? { golpesMeses: 0, fabricaAnios: 0 };
+}
+
 export function warrantyForBrand(brand: string): {
   factory: string;
   roadHazard: string | null;
   roadHazardMonths: number | null;
 } {
-  const normalized = brand.toLowerCase();
-  const roadHazardMonths = normalized.includes("falken")
-    ? 18
-    : normalized.includes("kenda")
-      ? 12
-      : normalized.includes("winrun")
-        ? 6
-        : null;
+  const garantia = garantiaDelPerfil(brand);
+  const roadHazardMonths = garantia.golpesMeses > 0 ? garantia.golpesMeses : null;
   return {
-    factory: "5 años garantía de fábrica contra defectos de fabricación",
+    factory: garantia.fabricaAnios > 0
+      ? `${garantia.fabricaAnios} años garantía de fábrica contra defectos de fabricación`
+      : "Garantía de fábrica por confirmar con el asesor",
     roadHazard: roadHazardMonths
       ? `${roadHazardMonths} meses contra golpes y estalladuras`
       : null,

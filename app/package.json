@@ -18,6 +18,7 @@
     "test:staging": "node scripts/staging-follow-ups-smoke.mjs",
     "db:migrate": "tsx src/db/migrate.ts",
     "seed:depot": "tsx src/db/seed-depot.ts",
+    "seed:negocio": "tsx src/db/seed-negocio.ts",
     "test:carga": "node scripts/loadtest/run.mjs",
     "test:calidad": "node scripts/eval/run.mjs",
     "ops:backup": "node scripts/ops/backup-restore.mjs",
@@ -27,6 +28,7 @@
   "dependencies": {
     "@date-fns/tz": "^1.5.0",
     "@resvg/resvg-js": "^2.6.2",
+    "exceljs": "^4.4.0",
     "express": "^4.21.0",
     "google-auth-library": "^10.9.0",
     "google-spreadsheet": "^5.0.2",

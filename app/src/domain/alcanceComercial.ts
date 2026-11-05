@@ -1,10 +1,28 @@
 import { extractConventionalSizes, extractFlotationSizes, extractTireSizes } from "./tireSize.js";
+import { politica } from "../negocio/politica.js";
 
 const normalizar = (texto: string) =>
   (texto ?? "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 
-const FUERA_DE_CATALOGO =
+const FUERA_DE_CATALOGO_COMUN =
   /\b(?:cambio\s+de\s+aceite|cambiar\s+el\s+aceite|aceite\s+de\s+motor|filtro\s+de\s+aceite|lavado|pintura|matriculacion|revision\s+tecnica|mecanica\s+general|llanta\s+industrial|llantas?\s+solid[oa]s?|montacargas|uso\s+industrial|maquinaria\s+pesada)\b/;
+
+/**
+ * LO QUE EL NEGOCIO VENDE PERO EL BOT NO COTIZA (`politica.productosQueDerivaAlAsesor`).
+ *
+ * Mundillantas vende lubricantes, baterías, aceites y taller (pitch del
+ * 4-nov): el bot no tiene ese catálogo, así que una consulta por eso se trata
+ * como fuera de catálogo y va al asesor — el camino que ya existe. Cada
+ * producto acepta su plural («batería» / «baterías», «taller» / «talleres»).
+ * Depot no deriva nada extra: la lista común queda igual.
+ */
+const DERIVADOS = politica.productosQueDerivaAlAsesor
+  .map((producto) => normalizar(producto).trim().replace(/s$/, ""))
+  .filter(Boolean)
+  .map((raiz) => `${raiz.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(/\s+/g, "\\s+")}(?:e?s)?`);
+const FUERA_DE_CATALOGO = DERIVADOS.length
+  ? new RegExp(`${FUERA_DE_CATALOGO_COMUN.source}|\\b(?:${DERIVADOS.join("|")})\\b`)
+  : FUERA_DE_CATALOGO_COMUN;
 
 const HABLA_DE_LLANTAS =
   /\b(?:llant\w*|neumatic\w*|caucho\w*|rin(?:es)?|aro(?:s)?|falken|kenda|winrun|medida\s+de\s+la\s+llanta)\b/;

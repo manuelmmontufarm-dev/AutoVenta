@@ -124,7 +124,7 @@ interface HubState {
   alertAction(id: number, action: "resolve" | "snooze" | "take"): Promise<void>;
   toggleDemo(): void;
   quitarToast(id: number): void;
-  cambiarPower(activo: boolean, motivo?: string): Promise<void>;
+  cambiarPower(activo: boolean, motivo?: string, confirmarFaltantes?: boolean): Promise<void>;
 }
 
 let toastId = 1;
@@ -605,8 +605,8 @@ export const useHub = create<HubState>((set, get) => {
      * mientras el bot le sigue escribiendo a los clientes. El error sube a
      * quien llame para mostrarlo junto al botón.
      */
-    async cambiarPower(activo, motivo = "") {
-      set({ power: await source.setBotPower(activo, motivo) });
+    async cambiarPower(activo, motivo = "", confirmarFaltantes = false) {
+      set({ power: await source.setBotPower(activo, motivo, confirmarFaltantes) });
     },
 
     toggleDemo() {

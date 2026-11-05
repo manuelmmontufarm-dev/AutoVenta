@@ -1,3 +1,4 @@
+import { nombreParaArchivo } from "./negocio";
 import { authHeaders, getSesion, getStoredAdminKey, saveStoredAdminKey } from "./realSource";
 
 export type CatalogAvailability = "available" | "check" | "out";
@@ -38,7 +39,7 @@ export interface CatalogSearchResponse {
   catalog: {
     items: number;
     lastSync: string | null;
-    source: "contifico" | "sheets" | null;
+    source: "contifico" | "sheets" | "archivo" | null;
     error: string | null;
   };
 }
@@ -247,5 +248,5 @@ async function responseError(response: Response): Promise<Error> {
 
 function filenameFromDisposition(value: string | null): string {
   const match = value?.match(/filename="?([^"]+)"?/i);
-  return match?.[1] ?? `DepotTire-${Date.now()}.pdf`;
+  return match?.[1] ?? `${nombreParaArchivo()}-${Date.now()}.pdf`;
 }

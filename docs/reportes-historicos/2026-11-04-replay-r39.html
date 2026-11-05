@@ -1,0 +1,71 @@
+<!doctype html><html lang="es"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Replay R-39</title>
+<style>
+:root { --bg:#fff; --texto:#1c1b19; --sub:#666; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --bg:#191918; --texto:#eee; --sub:#aaa; } }
+:root[data-theme="dark"] { --bg:#191918; --texto:#eee; --sub:#aaa; }
+body { background:var(--bg); color:var(--texto); font:15px/1.6 -apple-system, system-ui, sans-serif;
+  max-width:960px; margin:2rem auto; padding:0 16px; }
+table { border-collapse:collapse; width:100%; margin-top:1.5rem; font-size:14px; }
+th, td { text-align:right; padding:6px 10px; border-bottom:1px solid var(--sub); }
+th:first-child, td:first-child { text-align:left; }
+</style></head><body>
+<h1>Depot no cambió: 10 chats reales, 3 corridas en cada versión</h1>
+<p><strong>Qué estás viendo.</strong> Se tomaron los 10 chats más recientes de Depot en producción y se
+ repitieron 3 veces contra el <em>main</em> de antes del release (fase I) y 3 veces contra el release
+ (fase II), con un juez que le pone nota de 1 a 10 a cada corrida. Cada punto es <strong>un chat</strong>:
+ cuánto subió o bajó su nota promedio del release respecto del main. Cero es «igual que antes».
+ Las rayas rojas son los límites de control (la media de las diferencias ± 2,66 × el rango móvil medio):
+ un punto dentro es ruido del propio bot, porque dos corridas del mismo modelo nunca dan la misma nota.
+ Una señal —lo que habría que explicar o arreglar— es un punto fuera de las rayas u 8 seguidos del mismo
+ lado de la línea central.</p>
+<p><strong>Veredicto: sin señal — el release se comporta como el main de antes.</strong> La nota media de todas las corridas fue 6.04 en el main y 6.79 en el release; la diferencia media por
+ chat es +0.55 puntos.</p>
+<svg viewBox="0 0 900 360" role="img" style="width:100%">
+<line x1="50" y1="167.5" x2="850" y2="167.5" stroke="var(--sub)" stroke-dasharray="2 4"/>
+<line x1="50" y1="145.4" x2="850" y2="145.4" stroke="#2a78d6" stroke-width="1.5"/>
+<line x1="50" y1="236.4" x2="850" y2="236.4" stroke="#d92626" stroke-dasharray="6 4"/>
+<line x1="50" y1="54.5" x2="850" y2="54.5" stroke="#d92626" stroke-dasharray="6 4"/>
+<text x="700" y="139.4" fill="#2a78d6" font-size="12">línea central 0.55</text>
+<text x="700" y="250.4" fill="#d92626" font-size="12">límite inferior -1.72</text>
+<text x="700" y="48.5" fill="#d92626" font-size="12">límite superior 2.82</text>
+<text x="50" y="161.5" fill="var(--sub)" font-size="12">0 = igual que el main</text>
+<polyline fill="none" stroke="#1baf7a" stroke-width="1" opacity="0.5" points="50.0,140.7 138.9,140.7 227.8,107.3 316.7,207.6 405.6,140.7 494.4,147.4 583.3,160.8 672.2,127.4 761.1,154.1 850.0,127.4"/>
+<circle cx="50.0" cy="140.7" r="4" fill="#1baf7a"><title>conv 38311: fase I 7.00 (3 corridas) vs fase II 7.67 (3 corridas) = +0.67</title></circle>
+<text x="34.0" y="326.0" fill="var(--sub)" font-size="12">38311</text>
+<circle cx="138.9" cy="140.7" r="4" fill="#1baf7a"><title>conv 38295: fase I 7.33 (3 corridas) vs fase II 8.00 (3 corridas) = +0.67</title></circle>
+<text x="122.9" y="326.0" fill="var(--sub)" font-size="12">38295</text>
+<circle cx="227.8" cy="107.3" r="4" fill="#1baf7a"><title>conv 38299: fase I 3.00 (3 corridas) vs fase II 4.50 (2 corridas) = +1.50</title></circle>
+<text x="211.8" y="326.0" fill="var(--sub)" font-size="12">38299</text>
+<circle cx="316.7" cy="207.6" r="4" fill="#1baf7a"><title>conv 33350: fase I 6.33 (3 corridas) vs fase II 5.33 (3 corridas) = -1.00</title></circle>
+<text x="300.7" y="326.0" fill="var(--sub)" font-size="12">33350</text>
+<circle cx="405.6" cy="140.7" r="4" fill="#1baf7a"><title>conv 38283: fase I 7.00 (2 corridas) vs fase II 7.67 (3 corridas) = +0.67</title></circle>
+<text x="389.6" y="326.0" fill="var(--sub)" font-size="12">38283</text>
+<circle cx="494.4" cy="147.4" r="4" fill="#1baf7a"><title>conv 38276: fase I 7.00 (2 corridas) vs fase II 7.50 (2 corridas) = +0.50</title></circle>
+<text x="478.4" y="326.0" fill="var(--sub)" font-size="12">38276</text>
+<circle cx="583.3" cy="160.8" r="4" fill="#1baf7a"><title>conv 38258: fase I 8.50 (2 corridas) vs fase II 8.67 (3 corridas) = +0.17</title></circle>
+<text x="567.3" y="326.0" fill="var(--sub)" font-size="12">38258</text>
+<circle cx="672.2" cy="127.4" r="4" fill="#1baf7a"><title>conv 38261: fase I 4.33 (3 corridas) vs fase II 5.33 (3 corridas) = +1.00</title></circle>
+<text x="656.2" y="326.0" fill="var(--sub)" font-size="12">38261</text>
+<circle cx="761.1" cy="154.1" r="4" fill="#1baf7a"><title>conv 37666: fase I 5.33 (3 corridas) vs fase II 5.67 (3 corridas) = +0.33</title></circle>
+<text x="745.1" y="326.0" fill="var(--sub)" font-size="12">37666</text>
+<circle cx="850.0" cy="127.4" r="4" fill="#1baf7a"><title>conv 37703: fase I 6.00 (3 corridas) vs fase II 7.00 (3 corridas) = +1.00</title></circle>
+<text x="834.0" y="326.0" fill="var(--sub)" font-size="12">37703</text>
+</svg>
+<table><thead><tr><th>Chat</th><th>Main (fase I)</th><th>Release (fase II)</th><th>Diferencia</th></tr></thead><tbody>
+<tr><td>conv 38311</td><td>7.00 (3)</td><td>7.67 (3)</td><td>+0.67</td></tr>
+<tr><td>conv 38295</td><td>7.33 (3)</td><td>8.00 (3)</td><td>+0.67</td></tr>
+<tr><td>conv 38299</td><td>3.00 (3)</td><td>4.50 (2)</td><td>+1.50</td></tr>
+<tr><td>conv 33350</td><td>6.33 (3)</td><td>5.33 (3)</td><td>-1.00</td></tr>
+<tr><td>conv 38283</td><td>7.00 (2)</td><td>7.67 (3)</td><td>+0.67</td></tr>
+<tr><td>conv 38276</td><td>7.00 (2)</td><td>7.50 (2)</td><td>+0.50</td></tr>
+<tr><td>conv 38258</td><td>8.50 (2)</td><td>8.67 (3)</td><td>+0.17</td></tr>
+<tr><td>conv 38261</td><td>4.33 (3)</td><td>5.33 (3)</td><td>+1.00</td></tr>
+<tr><td>conv 37666</td><td>5.33 (3)</td><td>5.67 (3)</td><td>+0.33</td></tr>
+<tr><td>conv 37703</td><td>6.00 (3)</td><td>7.00 (3)</td><td>+1.00</td></tr>
+</tbody></table>
+<p style="color:var(--sub)">Entre paréntesis, cuántas de las 3 corridas recibieron nota del juez (las que
+ el juez no pudo puntuar se descartan en vez de inventarles un valor). Fase I: 27
+ corridas con nota · fase II: 28 corridas con nota.</p>
+</body></html>

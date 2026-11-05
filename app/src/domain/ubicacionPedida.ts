@@ -23,6 +23,7 @@
  *
  * Puro a propósito: se prueba sin base y sin modelo.
  */
+import { esLaCiudadDelNegocio } from "./fueraDeCobertura.js";
 
 const normalizar = (texto: string) =>
   (texto ?? "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
@@ -55,7 +56,7 @@ const PIDE_UBICACION =
  * el ruido que este candado quiere evitar; para eso está `mencionaOtraCiudad`,
  * que mira lo que está LEJOS.
  */
-const CIUDADES_Y_PROVINCIAS = [
+const TODAS_LAS_CIUDADES_Y_PROVINCIAS = [
   "santo domingo", "tsachilas", "guayaquil", "cuenca", "ambato", "riobamba",
   "ibarra", "loja", "manta", "portoviejo", "machala", "esmeraldas", "quevedo",
   "milagro", "babahoyo", "latacunga", "tulcan", "otavalo", "salinas", "duran",
@@ -67,6 +68,12 @@ const CIUDADES_Y_PROVINCIAS = [
   "la libertad", "samborondon", "daule", "sangolqui", "machachi", "cayambe",
   "el carmen", "la concordia", "quininde", "san lorenzo", "huaquillas",
 ];
+
+/**
+ * Sin la ciudad del negocio: para Mundillantas «santo domingo» no es otra
+ * ciudad (Sprint 4, R-14). Con Depot la lista queda entera.
+ */
+const CIUDADES_Y_PROVINCIAS = TODAS_LAS_CIUDADES_Y_PROVINCIAS.filter((lugar) => !esLaCiudadDelNegocio(lugar));
 
 /** «Soy de X», «vivo en X», «estoy por X»: está diciendo de dónde escribe. */
 const DICE_DE_DONDE_ES =

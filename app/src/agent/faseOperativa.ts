@@ -2,6 +2,7 @@ import type { Stage } from "../domain/pipeline.js";
 import { preguntamosElDia } from "../domain/customerCommitment.js";
 import { leerVisita } from "../domain/fechaDeVisita.js";
 import { fitmentTable } from "../domain/fitment.js";
+import { comoPatron, negocio } from "../negocio/index.js";
 import {
   extractConventionalSizes,
   extractFlotationSizes,
@@ -34,7 +35,16 @@ const RESPALDO = /\b(?:garantia|garantias|duracion|dura|kilometros|origen|fabric
 const COTIZAR = /\b(?:cotiza|cotice|cotizame|cotizacion|proforma)\b|\b(?:deme|dame|quiero|llevo|elijo|escojo|prefiero)\b(?!\s+(?:mas\s+)?(?:informacion|info|saber|consultar|preguntar|conocer|ver)\b)[^.?!]{0,55}(?<!\b(?:que|cuales|cual)\s)\b(?:llanta|llantas|falken|kenda|sunoco|winrun|maxxis|bridgestone|continental)\b/;
 const PIDE_PRESUPUESTO = /\b(?:deme|dame|hagame|hazme|quiero|necesito|envie|envieme|mande|mandeme)\b[^.?!]{0,35}\bpresupuesto\b|\bpresupuesto\b[^.?!]{0,35}\b(?:para|de)\b[^.?!]{0,35}\bllantas?\b/;
 const OBJECION_DE_PRESUPUESTO = /\b(?:no\s+me\s+alcanza|no\s+alcanza|no\s+se\s+ajusta|no\s+ajusta|fuera\s+de|se\s+sale\s+de|se\s+pasa\s+de|sobrepasa|excede|no\s+entra\s+en|demasiado\s+para)\b[^.?!]{0,35}\b(?:mi\s+|el\s+)?presupuesto\b|\b(?:mi\s+|el\s+)?presupuesto\b[^.?!]{0,25}\b(?:es|esta)\s+(?:bajo|limitado)\b/;
-const VISITA_EXPLICITA = /\b(?:local|locales|sucursal|sucursales|ubicacion|direccion|mapa|maps|cumbaya|quito\s+sur|asesor|vendedor|agendar|visita|visitar|voy|vamos|ire)\b|\b(?:puedo|podria|quiero|quisiera)\s+(?:ir|pasar|acercarme|visitar)\b/;
+// Los nombres de los locales salen del perfil («cumbaya|quito\s+sur» con Depot).
+const NOMBRES_DE_LOCALES = negocio.locales
+  .map((local) => local.nombreCorto)
+  .filter((nombre) => nombre && !nombre.startsWith("[PENDIENTE]"))
+  .map((nombre) => `${comoPatron(nombre).toLowerCase()}|`)
+  .join("");
+const VISITA_EXPLICITA = new RegExp(
+  `\\b(?:local|locales|sucursal|sucursales|ubicacion|direccion|mapa|maps|${NOMBRES_DE_LOCALES}asesor|vendedor|agendar|visita|visitar|voy|vamos|ire)\\b`
+  + "|\\b(?:puedo|podria|quiero|quisiera)\\s+(?:ir|pasar|acercarme|visitar)\\b",
+);
 const NOMBRE_DE_VEHICULO = /\b(?:vehiculo|carro|auto|automovil|camioneta|camion|pickup|suv|furgoneta|moto)\b/;
 const CONTEXTO_DE_VEHICULO = /\b(?:para\s+(?:un|una|mi)|tengo\s+(?:un|una))\b/;
 

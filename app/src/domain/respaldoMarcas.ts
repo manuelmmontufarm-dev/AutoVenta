@@ -10,10 +10,7 @@
  * a null y el bot simplemente no afirma lo que no puede respaldar.
  */
 import { readFileSync } from "node:fs";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
-
-const ASSETS = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "assets");
+import { rutaDeAsset } from "../negocio/assets.js";
 
 export interface RespaldoMarca {
   marca: string;
@@ -37,7 +34,7 @@ interface Cruda {
     rendimiento?: { km_promedio?: number | null };
     nota?: string;
   }>;
-  servicios_incluidos?: Record<string, { texto?: string; frase_de_venta?: string }>;
+  servicios_incluidos?: Record<string, { texto?: string; frase_de_venta?: string; cada_km?: number }>;
   comparativo_rapido?: unknown;
   argumento_para_subir_de_nivel?: string[];
   reglas_de_uso?: string[];
@@ -47,6 +44,10 @@ interface Cruda {
 interface Base {
   marcas: Map<string, RespaldoMarca>;
   servicios: string[];
+  /** ¿El cliente incluye mantenimiento gratuito? (Depot sí.) */
+  mantenimientoGratuito: boolean;
+  /** Cada cuántos km va la rotación incluida, o null si no la incluye. */
+  rotacionCadaKm: number | null;
   argumentos: string[];
   reglas: string[];
   ejemplos: Record<string, string>;
@@ -56,10 +57,14 @@ let base: Base | null = null;
 
 function cargar(): Base {
   if (base) return base;
-  const vacia: Base = { marcas: new Map(), servicios: [], argumentos: [], reglas: [], ejemplos: {} };
+  const vacia: Base = {
+    marcas: new Map(), servicios: [], mantenimientoGratuito: false, rotacionCadaKm: null,
+    argumentos: [], reglas: [], ejemplos: {},
+  };
   try {
     const cruda = JSON.parse(
-      readFileSync(path.join(ASSETS, "conocimiento-marcas.json"), "utf8"),
+      // El conocimiento es del cliente: `assets/<negocio>/conocimiento-marcas.json` (o el común).
+      readFileSync(rutaDeAsset("conocimiento-marcas.json"), "utf8"),
     ) as Cruda;
     const marcas = new Map<string, RespaldoMarca>();
     for (const [nombre, m] of Object.entries(cruda.marcas ?? {})) {
@@ -79,6 +84,8 @@ function cargar(): Base {
       servicios: Object.values(cruda.servicios_incluidos ?? {})
         .map((s) => s.frase_de_venta ?? s.texto ?? "")
         .filter(Boolean),
+      mantenimientoGratuito: Boolean(cruda.servicios_incluidos?.mantenimiento_gratuito),
+      rotacionCadaKm: cruda.servicios_incluidos?.rotacion?.cada_km ?? null,
       argumentos: cruda.argumento_para_subir_de_nivel ?? [],
       reglas: cruda.reglas_de_uso ?? [],
       ejemplos: cruda.ejemplos_de_respuesta ?? {},
@@ -93,6 +100,18 @@ function cargar(): Base {
 
 export function respaldoDeMarca(marca: string): RespaldoMarca | null {
   return cargar().marcas.get(marca.trim().toUpperCase()) ?? null;
+}
+
+/**
+ * Lo que las reglas de `respaldo_marcas` necesitan saber del cliente, para no
+ * decir «la rotación cada 10.000 km» ni «GITI» si no son suyos.
+ */
+export function condicionesDelRespaldo(): {
+  mantenimientoGratuito: boolean;
+  rotacionCadaKm: number | null;
+} {
+  const b = cargar();
+  return { mantenimientoGratuito: b.mantenimientoGratuito, rotacionCadaKm: b.rotacionCadaKm };
 }
 
 /** El paquete completo para el agente: marcas, reglas y argumentos de venta. */

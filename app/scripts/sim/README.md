@@ -124,6 +124,8 @@ bot sigue desde ahí, como si el cliente acabara de escribir.
 
 | Bandera | Qué hace |
 |---|---|
+| `--perfil ID` | Corre el simulador como OTRO cliente (`depot`, `ejemplo`, `mundillantas`; tabla `PERFILES_SIM` en `lib/entorno-prod.mjs`). Fija `--env-file app/.env.sim.<id>`, `--db autoventa_sim_<id>` y, con catálogo de Contífico, `--catalogo-snapshot datos/catalogo.<id>.json`. Un perfil sin servicio en Railway siembra la base con `seed-negocio.ts` y toma solo los modelos `OPENAI_*` del servicio de Depot; uno con servicio copia su producción como siempre. `NEGOCIO` del perfil manda: si lo copiado dice otro negocio, aborta. Un id desconocido no arranca. |
+| `--catalogo-archivo RUTA` | Con un perfil de catálogo por archivo: sube ese Excel/CSV por `POST /api/catalog/import` al arrancar. Sin esta bandera el bot arranca con el catálogo vacío y lo dice. Con catálogo por archivo NO se levanta el Contífico de mentira ni se exporta ninguna `CONTIFICO_*` (tampoco en `--humo`). |
 | `--copiar-conv N` | Arranca con una conversación real de producción. |
 | `--hasta ISO` | Con `--copiar-conv`, copia solo lo anterior a ese instante (para repetir el turno que falló). |
 | `--catalogo-fresco` | Vuelve a bajar la foto del catálogo de Contífico. |

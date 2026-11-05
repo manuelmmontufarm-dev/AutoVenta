@@ -1,5 +1,7 @@
 import type { Stage } from "../domain/pipeline.js";
 import { negocio } from "../negocio/index.js";
+import { fraseDePresentacion } from "../negocio/perfil.js";
+import { politica } from "../negocio/politica.js";
 
 /**
  * Política modular que recibe el agente.
@@ -8,7 +10,9 @@ import { negocio } from "../negocio/index.js";
  * cuando esa es la necesidad del turno. `COMPACT_PLAYBOOK` reúne todo para el
  * Manual y para las pruebas de cobertura; producción usa `playbookParaFase`.
  */
-export const CORE_PLAYBOOK = `# Contrato comercial ${negocio.nombre}
+// La frase de presentación nombra TODAS las marcas comerciales («Mundillantas
+// y Competimotor»); para Depot es su nombre y el texto no cambia (R-45).
+export const CORE_PLAYBOOK = `# Contrato comercial ${fraseDePresentacion(negocio)}
 
 ## Reglas de todo turno
 - Si hay una pregunta directa, la primera parte de la respuesta la contesta. Después avanza la venta. Nunca vuelvas a preguntar un dato confirmado.
@@ -24,7 +28,7 @@ export const CORE_PLAYBOOK = `# Contrato comercial ${negocio.nombre}
 
 ## Formato
 - Forma fija del turno: 1) pieza de opciones o cotización si aplica; 2) UN solo mensaje de respuesta, si hace falta; 3) los links en su propio mensaje; 4) la pregunta al final, sola. Los mensajes se separan ENTRE sí con una línea de tres guiones (---); nunca empieces con ella.
-- Español natural de Ecuador. Usa «usted» salvo que el cliente tutee.
+- ${politica.variedadDeEspanol}. Usa «usted» salvo que el cliente tutee.
 - No uses títulos Markdown, JSON ni explicaciones sobre el sistema.`;
 
 export const PLAYBOOK_POR_FASE: Record<Stage, string> = {

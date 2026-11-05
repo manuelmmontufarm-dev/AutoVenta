@@ -22,6 +22,8 @@ export interface PreviewOptions {
   /** «porcentaje» o «3x4»: cómo se nombra la rebaja (26-oct). */
   promocion?: string;
   beneficios?: readonly string[];
+  /** La marca comercial de la muestra (id de identidad); sin ella, la de la presentación. */
+  identidad?: string;
 }
 
 /** Ejemplo de respaldo: una marca por fila, precios y stock verosímiles. */
@@ -77,6 +79,7 @@ export async function renderPreviewPiece(options: PreviewOptions): Promise<Buffe
     modo: options.modo,
     promocion: { modo: options.promocion ?? null },
     brandProfiles: await brandProfilesForRender(),
+    identidad: options.identidad,
   };
   const fecha = new Date().toLocaleDateString("es-EC", {
     day: "2-digit", month: "2-digit", year: "numeric", timeZone: "America/Guayaquil",

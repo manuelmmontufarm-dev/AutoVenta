@@ -69,6 +69,7 @@ import { getEchoHealth } from "../services/echoHealth.js";
 import { resumenVentasConfirmadas } from "../services/ventasConfirmadas.js";
 import { decidirParaCerrar, leerParaCerrar, type AccionParaCerrar } from "../services/paraCerrar.js";
 import { comprobablesVacios, resumenComprobables } from "../services/metricasComprobables.js";
+import { estadoCatalogoArchivo, estadoFacturasImportadas, guardarMapeoCatalogo, guardarMapeoFacturas, importarCatalogoYSincronizar, importarFacturasYSincronizar, leerMapeoCatalogo, leerMapeoFacturas } from "../services/fuentes/archivo.js";
 import { marcarPagado, resumenBilling } from "../services/billing.js";
 import { buildDailyReport } from "../services/dailyReport.js";
 import { enviarReporteDiario } from "../services/dailyReportDelivery.js";
@@ -105,6 +106,7 @@ import {
 import { PALETTE_NAMES, PALETTES, PRICE_FONT_NAMES } from "../render/depotDesign.js";
 import { descuentoDeLaMuestra, renderPreviewPiece } from "../render/preview.js";
 import { MODOS_PROMOCION } from "../domain/promocion.js";
+import { negocioPublico } from "./negocioPublico.js";
 import { atenderPendientes, reorganizarEtapas } from "../services/hubMaintenance.js";
 import {
   getChannelConfig,
@@ -126,6 +128,7 @@ import {
   mensajeCambioDeBot,
   saveNivelesAviso,
 } from "../services/advisorNotifications.js";
+import { getAsesoresPorLocal, localesAsignables, saveAsesoresPorLocal } from "../services/asesoresPorLocal.js";
 import {
   activarUsuarioHub,
   actualizarUsuarioHub,
@@ -470,6 +473,10 @@ export function createAdminRouter(): express.Router {
 
   router.use(exigirCredencial);
 
+  // Quién es el negocio de esta instancia, para que el panel no diga Depot en
+  // el servicio de otro cliente (MULTICLIENTE.md §3.2).
+  router.get("/negocio", (_req, res) => res.json(negocioPublico()));
+
   // El espejo de usuarios del hub se puebla al arrancar: el login y el gate lo
   // leen síncrono y no pueden esperar a la base petición por petición.
   void cargarUsuariosHub();
@@ -519,6 +526,23 @@ export function createAdminRouter(): express.Router {
       // panel. A setBotPower también lo llaman las semillas y las pruebas, y
       // nadie quiere un WhatsApp por cada una.
       const previo = await getBotPower();
+      // R-44: con pendientes de arranque (`faltantes` del perfil, la política o
+      // los assets), el bot no se enciende por accidente — el panel tiene que
+      // mandar `confirmarFaltantes: true` después de mostrárselos al dueño.
+      // Depot tiene la lista vacía y no pasa por acá.
+      const pideEncender = Boolean((req.body as { activo?: unknown } | null)?.activo) && !previo.activo;
+      const confirmado = (req.body as { confirmarFaltantes?: unknown } | null)?.confirmarFaltantes === true;
+      if (pideEncender && !confirmado) {
+        const faltantes = negocioPublico().faltantes;
+        if (faltantes.length) {
+          res.status(409).json({
+            ok: false,
+            error: "Al negocio le faltan datos de arranque; confirma para encender igual.",
+            faltantes,
+          });
+          return;
+        }
+      }
       const power = await setBotPower(req.body);
       // El hub pinta el estado en la cabecera: que se entere sin recargar.
       emitLiveEvent("sync");
@@ -1593,6 +1617,69 @@ export function createAdminRouter(): express.Router {
     }
   });
 
+  // ── Catálogo y facturas por archivo (R-22, R-26) ────────────────────────────
+  // El archivo llega CRUDO (octet-stream, nombre en ?nombre=): el express.json()
+  // del router corta en 100 kB y un inventario de Fénix pesa más. El parser va
+  // a nivel de ruta para no cambiar el límite del resto del panel.
+  const archivoCrudo = express.raw({ type: "*/*", limit: "5mb" });
+  const nombreDelArchivo = (req: express.Request) =>
+    String(req.query.nombre ?? "").trim().slice(0, 200) || "archivo.csv";
+  const cuerpoDelArchivo = (req: express.Request): Buffer | null =>
+    Buffer.isBuffer(req.body) && req.body.length > 0 ? req.body : null;
+
+  router.get("/catalog/archivo", async (_req, res) => {
+    res.json({ ok: true, archivo: await estadoCatalogoArchivo(), catalog: catalogStatus() });
+  });
+
+  router.post("/catalog/import", archivoCrudo, async (req, res) => {
+    const cuerpo = cuerpoDelArchivo(req);
+    if (!cuerpo) return res.status(400).json({ ok: false, error: "Falta el archivo (cuerpo vacío)" });
+    try {
+      // El bot lo usa SIN reinicio: la fuente se decide en esta misma sincronización.
+      res.json({ ok: true, ...(await importarCatalogoYSincronizar(nombreDelArchivo(req), cuerpo)) });
+    } catch (error) {
+      res.status(400).json({ ok: false, error: error instanceof Error ? error.message : "No se pudo importar el catálogo" });
+    }
+  });
+
+  router.get("/catalog/mapeo", async (_req, res) => {
+    res.json({ ok: true, mapeo: await leerMapeoCatalogo() });
+  });
+
+  router.put("/catalog/mapeo", async (req, res) => {
+    try {
+      res.json({ ok: true, mapeo: await guardarMapeoCatalogo(req.body?.mapeo ?? req.body) });
+    } catch (error) {
+      res.status(400).json({ ok: false, error: error instanceof Error ? error.message : "Mapeo inválido" });
+    }
+  });
+
+  router.get("/ventas/archivo", async (_req, res) => {
+    res.json({ ok: true, estado: await estadoFacturasImportadas() });
+  });
+
+  router.post("/ventas/import", archivoCrudo, async (req, res) => {
+    const cuerpo = cuerpoDelArchivo(req);
+    if (!cuerpo) return res.status(400).json({ ok: false, error: "Falta el archivo (cuerpo vacío)" });
+    try {
+      res.json({ ok: true, ...(await importarFacturasYSincronizar(nombreDelArchivo(req), cuerpo)) });
+    } catch (error) {
+      res.status(400).json({ ok: false, error: error instanceof Error ? error.message : "No se pudieron importar las facturas" });
+    }
+  });
+
+  router.get("/ventas/mapeo", async (_req, res) => {
+    res.json({ ok: true, mapeo: await leerMapeoFacturas() });
+  });
+
+  router.put("/ventas/mapeo", async (req, res) => {
+    try {
+      res.json({ ok: true, mapeo: await guardarMapeoFacturas(req.body?.mapeo ?? req.body) });
+    } catch (error) {
+      res.status(400).json({ ok: false, error: error instanceof Error ? error.message : "Mapeo inválido" });
+    }
+  });
+
   // ── Mensajes ────────────────────────────────────────────────────────────────
   router.get("/conversations", async (_req, res) => {
     const rows = await sql`
@@ -1963,6 +2050,27 @@ export function createAdminRouter(): express.Router {
   router.delete("/advisors/:id", async (req, res) => {
     await sql`delete from advisors where id = ${Number(req.params.id)}`;
     res.json({ ok: true });
+  });
+
+  // ── Asesores por local (Ajustes → Avisos, R-34) ────────────────────────────
+  // Qué asesores atienden cada local: con asignación, los avisos de una
+  // conversación con local elegido van solo a ellos. Leerlo puede cualquiera
+  // del hub; cambiarlo es de administradores, como la matriz de avisos.
+
+  router.get("/asesores-por-local", async (_req, res) => {
+    res.json({ ok: true, asignaciones: await getAsesoresPorLocal(), locales: localesAsignables() });
+  });
+
+  router.put("/asesores-por-local", exigirNivelMaximo, async (req, res) => {
+    try {
+      const asignaciones = await saveAsesoresPorLocal(req.body?.asignaciones ?? req.body);
+      res.json({ ok: true, asignaciones, locales: localesAsignables() });
+    } catch (error) {
+      const texto = error instanceof Error && "issues" in error
+        ? ((error as { issues: Array<{ message: string }> }).issues[0]?.message ?? "Asignaciones inválidas")
+        : mensaje(error, "No se pudieron guardar los asesores por local");
+      res.status(400).json({ ok: false, error: texto });
+    }
   });
 
   // ── Niveles de aviso (Ajustes → Avisos) ────────────────────────────────────

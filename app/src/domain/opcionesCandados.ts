@@ -12,6 +12,7 @@
  * así se puede probar sin levantar nada.
  */
 import { normalizarTipo } from "./tireTypes.js";
+import { politica } from "../negocio/politica.js";
 
 /**
  * Techo de seguridad: la consulta de tools.ts ya se limita a las piezas que
@@ -131,7 +132,7 @@ export function debeBloquearReenvio(
  * un mensaje; si responden "no, yo quiero 8, 2, 3", ahí se vuelve a mandar con
  * el número que dicen».
  */
-export const JUEGO_COMPLETO = 4;
+export const JUEGO_COMPLETO = politica.juegoCompleto;
 
 /**
  * Las opciones que se pueden ENSEÑAR: solo las que alcanzan para la compra.

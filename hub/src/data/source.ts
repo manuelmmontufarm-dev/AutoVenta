@@ -52,6 +52,6 @@ export interface DataSource {
   getPhases(): Promise<PhaseFlags>;
   /** Interruptor global: si el bot está contestando o está apagado. */
   getBotPower(): Promise<BotPower>;
-  setBotPower(activo: boolean, motivo?: string): Promise<BotPower>;
+  setBotPower(activo: boolean, motivo?: string, confirmarFaltantes?: boolean): Promise<BotPower>;
   subscribe(listener: (ev: SourceEvent) => void): () => void;
 }

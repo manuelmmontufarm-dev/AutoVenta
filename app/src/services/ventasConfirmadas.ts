@@ -1,5 +1,5 @@
 /**
- * Ventas confirmadas: chats del bot que terminaron en una factura de Contífico.
+ * Ventas confirmadas: chats del bot que terminaron en una factura.
  *
  * De dónde sale esto: el Kanban solo sabe lo que alguien marcó «ganado» a mano,
  * y la venta se cierra en el local sin volver al sistema. Los cruces que se
@@ -19,37 +19,28 @@
  * Y si el asesor escribió más que el bot, la venta cuenta pero se atribuye al
  * asesor (JP, 8-sep).
  *
- * Contífico devuelve los documentos más o menos del más nuevo al más viejo —
- * no estrictamente: la página 2 trae facturas del 29-jul junto a las de
- * septiembre— y la API ignora los filtros de fecha. Se piden páginas desde la 1
- * hasta una que sea ENTERA anterior al primer chat del bot: unas cinco, no las
- * ~60 del histórico. Cortar en la primera fecha vieja perdía medio agosto.
+ * Las facturas llegan por la fuente que haya (`services/fuentes/`): Contífico
+ * como siempre, o las importadas por archivo en el panel (Mundillantas, R-26).
+ * Lo que era de Contífico —el paginado, la serie 001/002 → local, la llave—
+ * vive en `fuentes/contifico.ts`; acá queda el CRUCE, que es igual para todos.
  */
 import { sql } from "../db/client.js";
-import { config } from "../config.js";
 import { resolverPeriodo } from "./periodoMensual.js";
 import { grupoDeAtencion, type GrupoAtencion } from "../domain/estadisticaVentas.js";
+import { fuenteDeFacturas } from "./fuentes/index.js";
+import type { FacturaVenta, LecturaDeFacturas } from "./fuentes/tipos.js";
+import { tel9 } from "./fuentes/contifico.js";
+
+// Siguen exportados desde acá para quien ya los importaba (tests incluidos);
+// viven en el adaptador de Contífico porque son suyos.
+export { local, normalizarFactura, paginaEnteraAnterior, tel9 } from "./fuentes/contifico.js";
 
 const CADA_MS = 10 * 60_000;
-const MAX_PAGINAS = 25;
 /** Por debajo de esto una «llanta» facturada es una garantía o un ajuste, no una venta. */
 const PRECIO_MINIMO_LLANTA = 25;
-/** 205/55R16, LT265/70R17, 255/50ZR19, 31X10.50R15. */
-const LLANTA = /\d{2,3}\s*\/\s*\d{2}\s*Z?R\s*\d{2}|\d{2}\s*X\s*\d{1,2}[.,]\d{2}\s*R\s*\d{2}/i;
 
-export interface FacturaContifico {
-  documento: string;
-  /** "YYYY-MM-DD", día de emisión. */
-  dia: string;
-  /** Hora (0–23) de `hora_emision`, la del local. Null si Contífico no la trae. */
-  hora: number | null;
-  total: number;
-  /** Sin IVA: el `subtotal` de Contífico. Si no viene, `total − iva`. */
-  subtotal: number;
-  cliente: string;
-  telefonos: string[];
-  llantas: Array<{ nombre: string; cantidad: number; precio: number }>;
-}
+/** La forma de siempre; hoy es la factura de cualquier fuente. */
+export type FacturaContifico = FacturaVenta;
 
 export interface ConversacionParaCruce {
   id: number;
@@ -80,7 +71,7 @@ export interface VentaConfirmada {
   sinIva: number;
   /** Día de la primera factura con llantas: con esto se reparte por mes. */
   dia: string;
-  /** Hora de emisión de esa primera factura con llantas (0–23), si Contífico la trae. */
+  /** Hora de emisión de esa primera factura con llantas (0–23), si la fuente la trae. */
   hora: number | null;
   llantas: string;
   atendio: "bot" | "asesor";
@@ -101,71 +92,6 @@ export interface CoincidenciaDescartada {
   total: number;
   dia: string;
   motivo: MotivoDescarte;
-}
-
-export const tel9 = (s: unknown): string | null => {
-  const d = String(s ?? "").replace(/\D/g, "");
-  return d.length >= 9 ? d.slice(-9) : null;
-};
-
-export const local = (documento: string) =>
-  documento.startsWith("002-") ? "Cumbayá" : documento.startsWith("001-") ? "Quito Sur" : "—";
-
-function diaDeContifico(s: unknown): string | null {
-  const m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(String(s ?? "").trim());
-  return m ? `${m[3]}-${m[2]}-${m[1]}` : null;
-}
-
-/** "16:33:49" → 16. */
-function horaDeContifico(s: unknown): number | null {
-  const m = /^(\d{1,2}):\d{2}/.exec(String(s ?? "").trim());
-  const h = m ? Number(m[1]) : NaN;
-  return h >= 0 && h <= 23 ? h : null;
-}
-
-interface DocumentoWire {
-  tipo_documento?: string;
-  anulado?: boolean;
-  documento?: string;
-  fecha_emision?: string;
-  hora_emision?: string | null;
-  total?: string | number;
-  subtotal?: string | number | null;
-  iva?: string | number | null;
-  cliente?: { razon_social?: string | null; telefonos?: string | null } | null;
-  detalles?: Array<{
-    producto_nombre?: string | null;
-    cantidad?: string | number;
-    precio?: string | number;
-    porcentaje_descuento?: string | number;
-  }> | null;
-}
-
-export function normalizarFactura(doc: DocumentoWire): FacturaContifico | null {
-  if (doc.tipo_documento !== "FAC" || doc.anulado) return null;
-  const dia = diaDeContifico(doc.fecha_emision);
-  if (!dia || !doc.documento) return null;
-  const telefonos = [...new Set(String(doc.cliente?.telefonos ?? "").split(/[^\d]+/).map(tel9).filter((t): t is string => Boolean(t)))];
-  const total = Number(doc.total) || 0;
-  const subtotal = doc.subtotal != null && doc.subtotal !== "" ? Number(doc.subtotal) || 0 : total - (Number(doc.iva) || 0);
-  return {
-    documento: doc.documento,
-    dia,
-    hora: horaDeContifico(doc.hora_emision),
-    total,
-    subtotal,
-    cliente: (doc.cliente?.razon_social ?? "").trim(),
-    telefonos,
-    llantas: (doc.detalles ?? [])
-      .filter((l) => LLANTA.test(l.producto_nombre ?? ""))
-      // El precio que se cobró, no el de lista: una garantía viene con la
-      // llanta a $261 y 100 % de descuento (Dani R., 7-sep).
-      .map((l) => ({
-        nombre: (l.producto_nombre ?? "").trim(),
-        cantidad: Number(l.cantidad) || 0,
-        precio: (Number(l.precio) || 0) * (1 - (Number(l.porcentaje_descuento) || 0) / 100),
-      })),
-  };
 }
 
 /**
@@ -211,7 +137,9 @@ export function cruzar(facturas: FacturaContifico[], conversaciones: Conversacio
     ventas.push({
       ...base,
       cliente: conLlantas[0].cliente,
-      facturas: despues.map((f) => ({ documento: f.documento, dia: f.dia, total: f.total, local: local(f.documento) })),
+      // El local viene del adaptador de la fuente (serie 001/002 en Contífico,
+      // columna del Excel en archivo); sin dato, el guion de siempre.
+      facturas: despues.map((f) => ({ documento: f.documento, dia: f.dia, total: f.total, local: f.local ?? "—" })),
       total: Math.round(suma * 100) / 100,
       sinIva: Math.round(despues.reduce((a, f) => a + (f.subtotal ?? f.total), 0) * 100) / 100,
       dia: conLlantas[0].dia,
@@ -230,18 +158,10 @@ export function cruzar(facturas: FacturaContifico[], conversaciones: Conversacio
   return { ventas, descartes };
 }
 
-// ── Sincronización con Contífico ────────────────────────────────────────────
+// ── Sincronización con la fuente de facturas ─────────────────────────────────
 
 /** Qué se leyó en la última bajada: si el número de ventas se ve raro, esto dice por qué. */
-export interface LecturaContifico {
-  paginas: number;
-  documentos: number;
-  facturas: number;
-  conTelefono: number;
-  primerDia: string | null;
-  ultimoDia: string | null;
-  llave: "facturas" | "catalogo";
-}
+export type LecturaContifico = LecturaDeFacturas;
 
 const estado: {
   facturas: FacturaContifico[];
@@ -251,32 +171,9 @@ const estado: {
   enCurso: Promise<void> | null;
 } = { facturas: [], lectura: null, ultimaSync: null, error: null, enCurso: null };
 
-/** ¿Ya no hace falta seguir? Solo cuando la página ENTERA es anterior al primer chat. */
-export function paginaEnteraAnterior(dias: Array<string | null>, desde: string): boolean {
-  const masNueva = dias.reduce<string | null>((a, d) => (d && (!a || d > a) ? d : a), null);
-  return masNueva !== null && masNueva < desde;
-}
-
-const llave = () => config.contifico!.facturasApiKey || config.contifico!.apiKey;
-
-async function traerPagina(pagina: number): Promise<{ results: DocumentoWire[]; next: unknown }> {
-  const url = new URL(`${config.contifico!.baseUrl}/documento/`);
-  url.searchParams.set("tipo_registro", "CLI");
-  url.searchParams.set("page", String(pagina));
-  const ctrl = new AbortController();
-  const corte = setTimeout(() => ctrl.abort(), 60_000);
-  try {
-    const res = await fetch(url, { headers: { Authorization: llave(), Accept: "application/json" }, signal: ctrl.signal });
-    if (!res.ok) throw new Error(`Contífico respondió HTTP ${res.status} al leer facturas`);
-    const cuerpo = (await res.json()) as { results?: DocumentoWire[]; next?: unknown } | DocumentoWire[];
-    return Array.isArray(cuerpo) ? { results: cuerpo, next: null } : { results: cuerpo.results ?? [], next: cuerpo.next };
-  } finally {
-    clearTimeout(corte);
-  }
-}
-
 export async function sincronizarFacturas(): Promise<void> {
-  if (!config.contifico) return;
+  const fuente = await fuenteDeFacturas();
+  if (!fuente) return;
   if (estado.enCurso) return estado.enCurso;
   estado.enCurso = (async () => {
     try {
@@ -288,33 +185,14 @@ export async function sincronizarFacturas(): Promise<void> {
         estado.error = null;
         return;
       }
-      const facturas: FacturaContifico[] = [];
-      let paginas = 0;
-      let documentos = 0;
-      for (let pagina = 1; pagina <= MAX_PAGINAS; pagina += 1) {
-        const { results, next } = await traerPagina(pagina);
-        paginas = pagina;
-        documentos += results.length;
-        for (const doc of results) {
-          const f = normalizarFactura(doc);
-          if (f && f.dia >= desde) facturas.push(f);
-        }
-        const dias = results.map((doc) => diaDeContifico(doc.fecha_emision));
-        if (!next || !results.length || paginaEnteraAnterior(dias, desde)) break;
-      }
-      const diasLeidos = facturas.map((f) => f.dia).sort();
-      estado.lectura = {
-        paginas, documentos, facturas: facturas.length,
-        conTelefono: facturas.filter((f) => f.telefonos.length).length,
-        primerDia: diasLeidos[0] ?? null, ultimoDia: diasLeidos.at(-1) ?? null,
-        llave: config.contifico!.facturasApiKey ? "facturas" : "catalogo",
-      };
+      const { facturas, lectura } = await fuente.sincronizar(desde);
+      estado.lectura = lectura;
       estado.facturas = facturas;
       estado.ultimaSync = new Date();
       estado.error = null;
     } catch (error) {
       estado.error = error instanceof Error ? error.message : String(error);
-      console.error("⚠️  Ventas confirmadas: no se pudo leer Contífico —", estado.error);
+      console.error("⚠️  Ventas confirmadas: no se pudo leer la fuente de facturas —", estado.error);
     } finally {
       estado.enCurso = null;
     }
@@ -328,7 +206,10 @@ export const ultimaSyncFacturas = (): Date | null => estado.ultimaSync;
 
 let timer: NodeJS.Timeout | null = null;
 export function startVentasConfirmadasSync() {
-  if (!config.contifico || timer) return;
+  if (timer) return;
+  // La fuente se decide en CADA corrida: subir facturas por archivo en el panel
+  // enciende las ventas confirmadas sin reinicio; sin ninguna fuente, cada
+  // corrida es un no-op barato.
   void sincronizarFacturas();
   timer = setInterval(() => void sincronizarFacturas(), CADA_MS);
   timer.unref?.();
@@ -372,10 +253,11 @@ export async function cruceVigente() {
 
 /** Lo que pinta la tarjeta de Métricas, recortado al mes que se está mirando. */
 export async function resumenVentasConfirmadas(mes?: string | null) {
-  // No espera a Contífico: la pantalla ya tardaba (Manuel, 25-sep). Si la
+  // No espera a la fuente: la pantalla ya tardaba (Manuel, 25-sep). Si la
   // primera bajada no terminó, la tarjeta dice «sincronizando» y se llena sola
-  // en la próxima recarga.
-  const disponible = Boolean(config.contifico);
+  // en la próxima recarga. Disponible con CUALQUIER fuente (R-26), no solo
+  // con Contífico.
+  const disponible = Boolean(await fuenteDeFacturas());
 
   const periodo = await resolverPeriodo(mes);
   const desdeDia = periodo.todos ? "0000-00-00" : periodo.clave + "-01";

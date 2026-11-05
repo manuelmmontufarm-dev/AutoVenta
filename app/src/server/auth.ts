@@ -36,8 +36,12 @@ export interface Usuario {
  * demo se hace con gente que no va a recordar cuatro claves distintas. No se
  * "endurece" por iniciativa propia — cuando lo pidan, esto pasa a un hash por
  * usuario en `settings` y `pinValido` recibe también el userId.
+ *
+ * Sale de `HUB_PIN` para que cada cliente tenga la suya en su servicio: el
+ * «1234» está publicado en este repo y no puede ser la puerta del panel de
+ * otro negocio. Sin la variable (o vacía), Depot sigue entrando como siempre.
  */
-const PIN = "1234";
+const PIN = process.env.HUB_PIN?.trim() || "1234";
 
 const VIGENCIA_MS = 30 * 24 * 60 * 60 * 1000; // 30 días
 

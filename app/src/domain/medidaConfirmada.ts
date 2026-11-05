@@ -13,6 +13,7 @@
  * escrito, para la foto («[El cliente mandó una foto. Se lee: 225/70R16…]») y
  * para el cliente que vuelve y cuya medida quedó en una visita anterior.
  */
+import { anchoYAro } from "./anchoYAro.js";
 import { medidasEnTexto, medidasPermitidas } from "./medidaPedida.js";
 import { extractFlotationSizes, extractTireSizes, flotacionIncompleta, medidaIncompleta } from "./tireSize.js";
 
@@ -159,6 +160,18 @@ export function medidaNoDada(input: {
   if (medidaConfirmadaPorCliente(input.medida, input.textos)) return null;
   const textos = input.textos.filter((t): t is string => Boolean(t));
   if (textos.some((t) => extractTireSizes(t).length > 0 || extractFlotationSizes(t).length > 0)) return null;
+  // «rin 15 235» (el aro primero, demo del 4-nov): `extractTireSizes` no lo
+  // lee, pero el cliente SÍ dio ancho y aro — una 235/xxR15 no es inventada.
+  const buscadaParseada = [...buscada].map((m) => extractTireSizes(m)[0]).find(Boolean);
+  if (
+    buscadaParseada &&
+    textos.some((t) => {
+      const dado = anchoYAro(t);
+      return dado !== null && dado.ancho === buscadaParseada.width && dado.aro === buscadaParseada.rim;
+    })
+  ) {
+    return null;
+  }
   return aroDadoPorElCliente(textos);
 }
 

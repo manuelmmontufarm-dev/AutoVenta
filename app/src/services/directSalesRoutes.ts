@@ -1,4 +1,6 @@
 import { business, config } from "../config.js";
+import { negocio } from "../negocio/index.js";
+import { identidadDeLaConversacion } from "../negocio/identidad.js";
 import type { CustomerCommitment } from "../domain/customerCommitment.js";
 import { hayQueElegirLocal, LOCALES_COMO_ALTERNATIVA, type ExplicitStore } from "../domain/storeSelection.js";
 import { sql } from "../db/client.js";
@@ -109,9 +111,14 @@ export async function resendLatestQuoteImage(
   line.unitConIva = Number(stored.salePriceWithTax ?? line.unitConIva);
   line.pvpConIva = stored.listPriceWithTax == null ? line.pvpConIva : Number(stored.listPriceWithTax);
   const filename = `Cotizacion-${business.name.replace(/\s/g, "")}-${quote.quote_number}-reenvio.png`;
+  // La pieza reenviada habla con la marca del local de la conversación (R-45).
+  const [datosLocal] = await sql<{ nearest_store: string | null }[]>`
+    select nearest_store from conversations where id=${conversationId}
+  `;
   const png = await renderQuoteImage({
     number: quote.quote_number,
     dateLabel: dateLabel(quote.created_at),
+    identidad: identidadDeLaConversacion(negocio, datosLocal?.nearest_store ?? null).id,
     ...(await getPiecesConfig()),
     brandProfiles: await brandProfilesForRender(),
     benefits: await applicableBenefitTexts({ brands: [product.brand], quantity }),

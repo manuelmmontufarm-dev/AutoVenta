@@ -25,7 +25,12 @@
  * cuando el cliente lleva días sin contestar.
  */
 
-import { negocio, comoPatron, palabraDelNegocio, escaparRegex } from "../negocio/index.js";
+import { negocio, comoPatron, sinTildes, escaparRegex } from "../negocio/index.js";
+import { localesConfirmados, nombresDelNegocio } from "../negocio/identidad.js";
+
+/** La primera palabra de cada marca comercial, en minúsculas: «depot», «competimotor». */
+const PALABRAS_DEL_NEGOCIO = nombresDelNegocio(negocio)
+  .map((nombre) => sinTildes(nombre.split(/\s+/)[0]).toLowerCase());
 /**
  * SOLO LO SUPER OBVIO CIERRA (Manuel, 27-ago-2026).
  *
@@ -77,15 +82,23 @@ const COMPRO_EN_OTRO_LADO =
  * Cayambe» sigue siendo negociación. Y se excluyen los dos locales reales y
  * «con ustedes/Depot», que son una venta ganada.
  */
-/** «con ustedes», «en Depot», «Depot Tire»: comprar acá es ganar, no perder. */
+/**
+ * «con ustedes», «en Depot», «Depot Tire»: comprar acá es ganar, no perder.
+ * Con varias marcas comerciales, comprar en CUALQUIERA de ellas es nuestro
+ * («en competimotor» no puede cerrar como perdida una venta de Mundillantas).
+ */
 const ES_CON_NOSOTROS = new RegExp(
-  `\\b(?:con ustedes|en ${escaparRegex(palabraDelNegocio(negocio))}|${comoPatron(negocio.nombre.toLowerCase())})\\b`,
+  `\\b(?:con ustedes|${
+    nombresDelNegocio(negocio)
+      .map((nombre) => `en ${escaparRegex(sinTildes(nombre.split(/\s+/)[0]).toLowerCase())}|${comoPatron(nombre.toLowerCase())}`)
+      .join("|")
+  })\\b`,
 );
 
 const LUGARES_PROPIOS = [
   // En minúscula porque `normalizar` baja el texto antes de probar el patrón.
-  ...negocio.locales.map((local) => comoPatron(local.nombreCorto.toLowerCase())),
-  escaparRegex(palabraDelNegocio(negocio)),
+  ...localesConfirmados(negocio).map((local) => comoPatron(local.nombreCorto.toLowerCase())),
+  ...PALABRAS_DEL_NEGOCIO.map(escaparRegex),
 ].join("|");
 const COMPRO_EN_OTRA_CIUDAD = new RegExp(
   `\\b(?:(?:ya\\s+)?(?:hice|ise)\\s+(?:el\\s+)?pedido|(?:ya\\s+)?(?:compre|consegui|adquiri|pedi|monte|cambie))\\b`

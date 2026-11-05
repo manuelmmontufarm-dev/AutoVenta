@@ -149,7 +149,16 @@ export function medidaEstaPedida(
   if (!sizeLabel) return false;
   const propia = canonica(sizeLabel);
   if (!propia) return false;
-  return permitidas.some((p) => canonica(p) === propia);
+  if (permitidas.some((p) => canonica(p) === propia)) return true;
+  // Una permitida SIN perfil («235 rin 15» → 235R15, conv 19354 del 4-nov)
+  // pide el ancho y el aro: una 235/75R15 o 235/60R15 ES lo pedido, no «otra
+  // medida». Al revés no: quien escribió 235/75R15 pidió ese perfil.
+  const mia = extractTireSizes(propia)[0];
+  if (!mia || mia.aspect === null) return false;
+  return permitidas.some((p) => {
+    const suya = extractTireSizes(canonica(p) ?? "")[0];
+    return Boolean(suya) && suya.aspect === null && suya.width === mia.width && suya.rim === mia.rim;
+  });
 }
 
 /**

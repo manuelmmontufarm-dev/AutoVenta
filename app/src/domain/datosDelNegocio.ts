@@ -1,4 +1,5 @@
 import { sinFrasesDelTema } from "./respuestaDelTema.js";
+import { politica, type PoliticaComercial } from "../negocio/politica.js";
 
 /**
  * LOS DATOS QUE EL CLIENTE PREGUNTA Y EL BOT NO TENÍA.
@@ -47,17 +48,59 @@ export function lonasDelProducto(nombre: string | null | undefined): number | nu
  * Es la misma política que el pie de la pieza imprime desde agosto; acá se
  * escribe una vez para que el bot pueda responderla cuando se la preguntan en
  * texto, sin tener que leer la imagen.
+ *
+ * Desde el 4-nov-2026 la arma la política comercial del cliente
+ * (`negocio/politicas/<id>.ts`): Depot sale con la frase de siempre, palabra
+ * por palabra. Sin formas de pago confirmadas devuelve "" — y quien la usa
+ * NO promete nada (ver `hayPoliticaDePagos`).
  */
-export function politicaDePagos(): string {
-  // Manuel, 12-sep-2026 21:37: «que cuando pregunte si es más caro con tarjeta
-  // diga que NO, pero que si paga en cash hay descuento, pero eso se confirma
-  // en el local». El monto del descuento en efectivo no se dice: lo confirma
-  // el asesor, igual que ya decía el playbook compacto.
-  return (
-    "Con tarjeta *no* es más caro: no sube, es el mismo precio y se puede diferir a 3 y 6 meses "
-    + "sin intereses. Si paga en efectivo sí hay un descuento, que se lo confirman en el local. "
-    + "También se acepta transferencia."
-  );
+export function politicaDePagos(p: PoliticaComercial = politica): string {
+  if (!p.formasDePago.length) return "";
+  const partes: string[] = [];
+  // «Con tarjeta no es más caro» solo se afirma junto con el diferido sin
+  // intereses que el negocio confirmó: sin ese dato, la tarjeta se nombra como
+  // una forma de pago más y no se promete nada sobre recargos.
+  const tarjetaConCuotas = p.formasDePago.includes("tarjeta") && Boolean(p.cuotasSinIntereses);
+  if (tarjetaConCuotas) {
+    partes.push(`Con tarjeta *no* es más caro: no sube, es el mismo precio y se puede diferir a ${p.cuotasSinIntereses}.`);
+  }
+  if (p.descuentoEnEfectivo) partes.push(p.descuentoEnEfectivo);
+  const yaDichas = new Set([tarjetaConCuotas ? "tarjeta" : "", p.descuentoEnEfectivo ? "efectivo" : ""]);
+  const resto = p.formasDePago.filter((forma) => !yaDichas.has(forma));
+  if (resto.length) partes.push(`${partes.length ? "También se acepta" : "Se acepta"} ${enLista(resto)}.`);
+  return partes.join(" ");
+}
+
+/** «efectivo, tarjeta y transferencia». */
+function enLista(cosas: readonly string[]): string {
+  return cosas.length <= 1 ? (cosas[0] ?? "") : `${cosas.slice(0, -1).join(", ")} y ${cosas[cosas.length - 1]}`;
+}
+
+/** ¿El negocio tiene formas de pago confirmadas? Sin ellas no se promete ni se inyecta nada. */
+export function hayPoliticaDePagos(p: PoliticaComercial = politica): boolean {
+  return p.formasDePago.length > 0;
+}
+
+/** ¿El negocio da descuento por pagar en efectivo? Sin él, el candado `sin_descuento_negado` se apaga. */
+export function hayDescuentoEnEfectivo(p: PoliticaComercial = politica): boolean {
+  return hayPoliticaDePagos(p) && Boolean(p.descuentoEnEfectivo);
+}
+
+/**
+ * ¿El texto ya trae la respuesta COMPLETA sobre el pago, según la política?
+ *
+ * Para Depot son las dos mitades de Manuel (12-sep 21:37): con tarjeta no sube
+ * (o el diferido), y en efectivo hay descuento. Un negocio sin cuotas o sin
+ * descuento no exige esas mitades; sin ninguna de las dos, basta con que el
+ * texto nombre alguna de sus formas de pago.
+ */
+export function respondeElPagoCompleto(texto: string, p: PoliticaComercial = politica): boolean {
+  const conCuotas = p.formasDePago.includes("tarjeta") && Boolean(p.cuotasSinIntereses);
+  if (!conCuotas && !p.descuentoEnEfectivo) {
+    const n = texto.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+    return p.formasDePago.some((forma) => n.includes(forma.normalize("NFD").replace(/[̀-ͯ]/g, "")));
+  }
+  return (!conCuotas || respondeElPago(texto)) && (!p.descuentoEnEfectivo || mencionaDescuentoEnEfectivo(texto));
 }
 
 /** ¿El cliente está preguntando cómo puede pagar? */
@@ -149,9 +192,9 @@ export function sinDescuentoNegado(texto: string): { texto: string; quitadas: st
  * respuesta (ni es la política) sale. El resto del turno queda igual.
  */
 export function sinPagoSinRespuesta(texto: string, opciones: { estricto?: boolean } = {}): string {
-  const politica = politicaDePagos();
+  const frase = politicaDePagos();
   // Estricto: la política va a entrar entera, así que ninguna otra frase de
   // pago se queda, ni siquiera una correcta (se leería repetida).
   return sinFrasesDelTema(texto, (f) =>
-    preguntaPorElPago(f) && !politica.includes(f) && (Boolean(opciones.estricto) || !respondeElPago(f))).texto;
+    preguntaPorElPago(f) && !frase.includes(f) && (Boolean(opciones.estricto) || !respondeElPago(f))).texto;
 }

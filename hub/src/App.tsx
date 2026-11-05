@@ -18,6 +18,7 @@ import { Pipeline } from "./screens/Pipeline";
 import { TicketDetail } from "./screens/TicketDetail";
 import { Settings } from "./screens/Settings";
 import { useHub } from "./store";
+import { recargarNegocio, useNegocio } from "./data/negocio";
 import { faltanHoy, useParaCerrar } from "./data/paraCerrar";
 
 import type { PhaseFlags } from "./data/types";
@@ -79,6 +80,17 @@ export default function App() {
   const route = useRoute();
   const { init, cargando, tickets, demo, dataMode, toggleDemo, phases, conexion, power, usuario, permisos, salir } = useHub();
   const [audioOn, setAudioOn] = useState(sonidoActivo);
+  // El negocio que atiende este panel (R-29): nombre en el rail y en la
+  // pestaña. `index.html` dice «AutoVenta» y acá se pone el de verdad.
+  const negocio = useNegocio();
+  useEffect(() => {
+    document.title = `${negocio.nombre} · Hub`;
+  }, [negocio.nombre]);
+  // Con la credencial nueva (login o conexión recuperada) se vuelve a pedir:
+  // antes del login `/api/negocio` contesta 401 y quedaba el respaldo.
+  useEffect(() => {
+    if (dataMode === "real" && conexion === "conectada") void recargarNegocio();
+  }, [dataMode, conexion, usuario?.id]);
 
   const navVisible = NAV.filter((item) =>
     (!item.requiere || phases[item.requiere]) && pantallaPermitida(item.id, phases, permisos));
@@ -139,7 +151,7 @@ export default function App() {
         {/* ── Rail (escritorio) ── */}
         <aside className="hidden w-56 shrink-0 flex-col border-r border-line px-4 pt-[22px] pb-5 md:flex">
           <div className="flex flex-col gap-0.5 px-3 pb-[26px]">
-            <span className="text-[15px] font-semibold tracking-[-0.01em]">Depot Tire</span>
+            <span className="text-[15px] font-semibold tracking-[-0.01em]">{negocio.nombre}</span>
             <span className="text-[12px] text-text2">Hub de ventas</span>
           </div>
           <nav className="flex flex-col gap-0.5" aria-label="Principal">

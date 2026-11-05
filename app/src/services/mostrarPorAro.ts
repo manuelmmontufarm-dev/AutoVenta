@@ -22,6 +22,7 @@
 import { sql } from "../db/client.js";
 import { buildTools, type AgentContext } from "../agent/tools.js";
 import { aroRespondido, medidaConfirmadaPorCliente } from "../domain/medidaConfirmada.js";
+import { arosDelCatalogo, pideAroComoProducto } from "../domain/aroProducto.js";
 import { tipoSolicitadoEn } from "../domain/opcionesCandados.js";
 import { mencionaVehiculo } from "../domain/vehiculoEnTexto.js";
 import { logFunnelEvent } from "./conversations.js";
@@ -50,6 +51,10 @@ interface OpcionDeBusqueda { code?: string; codigo?: string }
  * 18» en llantas de auto (conv 18121).
  */
 export function aroParaMostrar(texto: string, previousOutbound: string | null): number | null {
+  // ARO COMO PRODUCTO, NO COMO MEDIDA (R-24): «¿tienen aros de 15?» con aros
+  // en el catálogo es una venta de aros — el turno es de `buscar_aros`, no de
+  // la vitrina de llantas. Sin aros en el catálogo (Depot) no cambia nada.
+  if (pideAroComoProducto(texto) && arosDelCatalogo().length > 0) return null;
   if (mencionaVehiculo(texto)) return null;
   // «LA DEL ANUNCIO» NO ES UN ARO SUELTO (Sprint Final, 26-oct): «quiero la
   // llanta del anuncio en rin 16» entraba aquí y salía la lámina del aro 16

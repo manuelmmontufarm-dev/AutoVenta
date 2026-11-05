@@ -120,6 +120,25 @@ export interface Sector {
   etiqueta: string;
 }
 
+/**
+ * Una marca comercial del negocio, con sus locales.
+ *
+ * Existe porque Mundillantas y Competimotor son UN negocio con DOS marcas: el
+ * saludo las nombra juntas, pero la cotización del local de Competimotor lleva
+ * el logo de Competimotor. Un negocio sin `identidades` tiene una sola, que es
+ * él mismo — Depot no declara ninguna y sale igual que siempre.
+ */
+export interface Identidad {
+  /** Identificador corto y estable; nombra el archivo del logo (`logo-<id>.png`). */
+  id: string;
+  /** El nombre comercial de ESTA marca, como se le dice al cliente. */
+  nombre: string;
+  /** Slugs de los locales que atienden bajo esta marca. Cada local va en exactamente una. */
+  locales: string[];
+  /** Archivo del logo en `assets/<id del negocio>/`, si difiere del estándar `logo-<id>.png`. */
+  logo?: string;
+}
+
 /** Garantía de una marca, para las piezas de cotización. */
 export interface Garantia {
   golpesMeses: number;
@@ -155,6 +174,17 @@ export interface PerfilDeNegocio {
   /** Marcas que trabaja el negocio, para el prompt. El catálogo manda sobre esto. */
   marcas: string[];
   promo?: string;
+  /**
+   * Las marcas comerciales del negocio. Sin el campo hay una sola identidad,
+   * que es el negocio mismo (`nombre`): Depot no lo declara y nada le cambia.
+   */
+  identidades?: Identidad[];
+  /**
+   * Cómo se presenta el bot ANTES de que el cliente elija local: `combinada`
+   * nombra todas las marcas («Mundillantas y Competimotor»), `fija` siempre la
+   * de `identidad`. Sin el campo, el nombre del negocio, como hoy.
+   */
+  presentacion?: { modo: "combinada" | "fija"; identidad?: string; frase?: string };
   locales: Local[];
   /** Zonas de SU ciudad. Un cliente de otra ciudad trae las suyas; vacío = siempre se pide el pin. */
   sectores: Sector[];
@@ -204,9 +234,55 @@ export interface PerfilDeNegocio {
     mediosDePagoDiaNoche: string;
     /** Lo que incluye toda compra, en la franja de la pieza. */
     todasIncluyen: string;
+    /**
+     * Los cuatro de abajo eran literales de Depot dentro de las piezas y los
+     * mensajes; son opcionales y, sin valor, cada archivo conserva su frase de
+     * siempre — así ningún perfil viejo cambia por no declararlos.
+     */
+    /** Bajo el precio de la cotización: «IVA y Ecovalor incluidos». */
+    impuestosIncluidos?: string;
+    /** Bajo el precio cuando NO hay descuento: «Precio directo de distribuidor». */
+    precioSinDescuento?: string;
+    /** Nota al pie de las listas en texto: «Precios por unidad incluyen IVA y Ecovalor.» */
+    notaDePrecios?: string;
+    /** Nota de la cotización en texto: «Precio incluye IVA y Ecovalor.» */
+    notaDePrecioUnitario?: string;
+    /**
+     * Cuotas sin intereses que la plantilla día y noche calcula sobre el total
+     * («3 cuotas de $X · 6 cuotas de $Y»). Depot: [3, 6]. A diferencia de los
+     * textos de arriba, SIN el campo no se dibuja ninguna: una cuota es una
+     * promesa de pago, y un negocio que no la declaró no la ofrece. Es texto
+     * de pieza; la verdad comercial es la política (`politica.cuotasSinIntereses`).
+     */
+    cuotasSinIntereses?: number[];
   };
   /** Sin esto no salen pre-facturas mensuales (negocio sin servicio facturado). */
   facturacion?: Facturacion;
+  /**
+   * Valores NUMÉRICOS del perfil que todavía son un supuesto y no pueden llevar
+   * la marca `[PENDIENTE]` (coordenadas, garantías en 0). `faltantesDelPerfil`
+   * los suma a la lista para que el panel los muestre junto a los textos.
+   */
+  pendientesNumericos?: string[];
+}
+
+/**
+ * EL CANDADO DE LO PENDIENTE (R-10): un valor que empieza con `[PENDIENTE]`
+ * es una nota para nosotros, nunca un texto para el cliente.
+ *
+ * Existe porque el perfil de un cliente nuevo arranca con huecos (garantías,
+ * formas de pago, el nombre del vendedor) y la alternativa —inventar un valor
+ * verosímil— es peor: el bot prometería cosas que nadie confirmó. Lo pendiente
+ * se escribe como `[PENDIENTE] <qué falta>`, el panel lo lista, y todo texto
+ * de cara al cliente pasa por `sinPendiente` antes de salir.
+ */
+export const esPendiente = (valor: string | null | undefined): boolean =>
+  typeof valor === "string" && valor.trimStart().startsWith("[PENDIENTE]");
+
+/** El valor si está confirmado; el respaldo neutro (u omisión) si está pendiente. */
+export function sinPendiente(valor: string | null | undefined, respaldo = ""): string {
+  if (valor == null) return respaldo;
+  return esPendiente(valor) ? respaldo : valor;
 }
 
 /** Sin tildes: así se comparan los nombres contra lo que escribe el cliente. */
@@ -254,8 +330,8 @@ export function comoPatronConTildes(texto: string): string {
  * Es el respaldo del encabezado de las piezas cuando falta el archivo del logo.
  * Reproduce cómo se dibujaba «DEPOT» + «TIRE» a mano.
  */
-export function nombreEnDosTonos(perfil: PerfilDeNegocio): Array<[string, boolean]> {
-  return perfil.nombre
+export function nombreEnDosTonos(perfil: PerfilDeNegocio, nombre = perfil.nombre): Array<[string, boolean]> {
+  return nombre
     .split(/\s+/)
     .filter(Boolean)
     .map((palabra, i) => [palabra.toUpperCase(), i > 0]);
@@ -263,7 +339,8 @@ export function nombreEnDosTonos(perfil: PerfilDeNegocio): Array<[string, boolea
 
 /** La leyenda del encabezado de las piezas: «QUITO · DESDE 1996». */
 export function leyendaDelEncabezado(perfil: PerfilDeNegocio): string {
-  const partes = [perfil.ciudad, perfil.piezas.antiguedad].filter(Boolean);
+  // `sinPendiente`: un dato sin confirmar se omite de la leyenda, no se dibuja.
+  const partes = [sinPendiente(perfil.ciudad), sinPendiente(perfil.piezas.antiguedad)].filter(Boolean);
   return partes.join(" · ").toUpperCase();
 }
 
@@ -274,7 +351,13 @@ export function leyendaDelEncabezado(perfil: PerfilDeNegocio): string {
  * cupones nunca quede de una sola letra.
  */
 export function inicialesDelNegocio(perfil: PerfilDeNegocio): string {
-  const palabras = perfil.nombre.split(/\s+/).filter(Boolean);
+  // Salen de la PRESENTACIÓN y no del nombre: el papelito del cupón lleva la
+  // marca con la que el bot se presentó. Para Depot es lo mismo («Depot Tire»
+  // → DT); «Mundillantas y Competimotor» da MC, no una «Y» en el medio.
+  const CONECTORES = new Set(["y", "e", "o", "u", "de", "del", "la", "el", "los", "las"]);
+  const palabras = fraseDePresentacion(perfil)
+    .split(/\s+/)
+    .filter((palabra) => palabra && !CONECTORES.has(sinTildes(palabra).toLowerCase()));
   const iniciales = palabras.map((palabra) => sinTildes(palabra)[0]).join("");
   return (iniciales.length >= 2 ? iniciales : sinTildes(palabras[0] ?? "X").slice(0, 2)).toUpperCase();
 }
@@ -290,7 +373,8 @@ export function palabraDelNegocio(perfil: PerfilDeNegocio): string {
  * imagen — de ahí el tope.
  */
 export function localesEnUnaLinea(perfil: PerfilDeNegocio, tope = 3): string {
-  const nombres = perfil.locales.map((l) => l.nombreCorto);
+  // Un local cuya forma de nombrarlo sigue pendiente no se pinta en el pie.
+  const nombres = perfil.locales.map((l) => sinPendiente(l.nombreCorto)).filter(Boolean);
   if (nombres.length <= tope) return nombres.join(" · ");
   return `${nombres.slice(0, tope).join(" · ")} y ${nombres.length - tope} más`;
 }
@@ -302,12 +386,37 @@ export function localesEnUnaLinea(perfil: PerfilDeNegocio, tope = 3): string {
  */
 export function pieDeLocales(perfil: PerfilDeNegocio, antiguedad = perfil.piezas.antiguedad): string {
   const locales = localesEnUnaLinea(perfil);
-  return antiguedad ? `${locales} · ${antiguedad}` : locales;
+  const confirmada = sinPendiente(antiguedad);
+  return confirmada ? `${locales} · ${confirmada}` : locales;
 }
 
-/** «Soy Martín, de Depot Tire». */
+/**
+ * La frase con la que el negocio se nombra al presentarse: el nombre a secas
+ * (Depot), o las marcas comerciales según `presentacion` («Mundillantas y
+ * Competimotor»). Es la fuente del saludo y del prefijo de los cupones.
+ */
+export function fraseDePresentacion(perfil: PerfilDeNegocio): string {
+  const presentacion = perfil.presentacion;
+  const identidades = perfil.identidades?.length
+    ? perfil.identidades
+    : [{ id: perfil.id, nombre: perfil.nombre }];
+  if (!presentacion) return perfil.nombre;
+  if (presentacion.frase) return presentacion.frase;
+  if (presentacion.modo === "fija") {
+    return identidades.find((i) => i.id === presentacion.identidad)?.nombre ?? perfil.nombre;
+  }
+  return identidades.map((i) => i.nombre).join(" y ");
+}
+
+/**
+ * «Soy Martín, de Depot Tire». Con `presentacion` combinada, «Soy <vendedor>,
+ * de <frase>»; con el vendedor todavía sin nombre, «Soy el asistente de
+ * <frase>» — un nombre `[PENDIENTE]` no puede llegarle a un cliente.
+ */
 export function firmaDePresentacion(perfil: PerfilDeNegocio): string {
-  return `Soy ${perfil.vendedor.nombre}, de ${perfil.nombre}`;
+  const frase = fraseDePresentacion(perfil);
+  if (esPendiente(perfil.vendedor.nombre)) return `Soy el asistente de ${frase}`;
+  return `Soy ${perfil.vendedor.nombre}, de ${frase}`;
 }
 
 /**

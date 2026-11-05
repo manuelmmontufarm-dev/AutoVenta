@@ -1,7 +1,9 @@
 import { z } from "zod";
 import { config } from "../config.js";
 import { sql } from "../db/client.js";
+import { localPorNombre, negocio } from "../negocio/index.js";
 import { sendAdvisorText } from "../wa/client.js";
+import { asesoresDelLocal, getAsesoresPorLocal } from "./asesoresPorLocal.js";
 import { emitLiveEvent } from "./liveEvents.js";
 
 /**
@@ -454,6 +456,11 @@ export async function avisarAsesoresGlobal(texto: string): Promise<{
  * en Alertas del bot y un segundo procesamiento puede reintentar hasta 3 veces.
  */
 export interface Asesor {
+  /**
+   * El id de la fila de `advisors`, para cruzarlo con `asesores_por_local`
+   * (R-34). Opcional: el respaldo del entorno no tiene fila y no se filtra.
+   */
+  id?: number;
   nombre: string;
   telefono: string;
   rol: RolAsesor;
@@ -480,8 +487,8 @@ export async function asesoresActivos(
     (!filtro.general || recibeGeneral(a.rol, filtro.general, niveles)) &&
     (!filtro.evento || recibeEvento(a.rol, filtro.evento, niveles)));
   try {
-    const filas = await sql<{ nombre: string; telefono: string; rol: string }[]>`
-      select nombre, telefono, rol from advisors
+    const filas = await sql<{ id: number; nombre: string; telefono: string; rol: string }[]>`
+      select id, nombre, telefono, rol from advisors
       where active and telefono <> '' order by prioridad, id
     `;
     // Un rol desconocido en la base se trata como `admin`: es el valor por
@@ -489,7 +496,7 @@ export async function asesoresActivos(
     // corrige; hacia «no recibe nada», no.
     if (filas.length) {
       return aplicar(filas.map((f) => ({
-        nombre: f.nombre, telefono: f.telefono,
+        id: Number(f.id), nombre: f.nombre, telefono: f.telefono,
         rol: f.rol || "admin",
       })));
     }
@@ -506,8 +513,8 @@ export async function notifyAdvisor(input: AdvisorNotificationInput): Promise<{
   skipped: boolean;
   error?: string;
 }> {
-  const [conversation] = await sql<{ name: string | null; phone: string }[]>`
-    select name, phone from conversations where id=${input.conversationId}
+  const [conversation] = await sql<{ name: string | null; phone: string; nearest_store: string | null }[]>`
+    select name, phone, nearest_store from conversations where id=${input.conversationId}
   `;
   if (!conversation) return { sent: false, skipped: true, error: "Conversación no encontrada" };
   const message = buildAdvisorMessage({
@@ -517,8 +524,16 @@ export async function notifyAdvisor(input: AdvisorNotificationInput): Promise<{
   });
 
   // Un aviso por asesor a quien le toca ESTE evento. Antes salía a uno solo,
-  // fijado por entorno; después a todos; ahora depende del rol.
-  const destinatarios = await asesoresActivos({ evento: input.eventType });
+  // fijado por entorno; después a todos; ahora depende del rol — y, si la
+  // conversación ya tiene local elegido, de la asignación por local (R-34).
+  // Sin local todavía (el primer aviso de cotización suele llegar antes de
+  // elegirlo) o sin asignación, va a todos, como hoy en Depot.
+  const localElegido = localPorNombre(negocio, conversation.nearest_store);
+  const destinatarios = asesoresDelLocal(
+    await asesoresActivos({ evento: input.eventType }),
+    await getAsesoresPorLocal(),
+    localElegido?.slug ?? null,
+  );
   if (!destinatarios.length) {
     return { sent: false, skipped: true, error: "Ningún asesor activo recibe este tipo de aviso" };
   }
