@@ -196,16 +196,26 @@ export function BotPowerSwitch() {
   // qué) y duplicar estado invita a que se queden los dos abiertos a la vez.
   const [confirmando, setConfirmando] = useState<"on" | "off" | null>(null);
   const [motivo, setMotivo] = useState("");
+  // R-44: el servidor contesta 409 si se enciende con pendientes de arranque;
+  // acá se muestran y el dueño decide «Encender igual», que repite el PUT con
+  // la confirmación explícita. Depot no tiene pendientes y nunca ve esto.
+  const [faltanParaEncender, setFaltanParaEncender] = useState(false);
+  const faltantes = useNegocio().faltantes;
 
-  async function cambiar(activo: boolean) {
+  async function cambiar(activo: boolean, confirmarFaltantes = false) {
     setGuardando(true);
     setError("");
     try {
-      await cambiarPower(activo, motivo.trim());
+      await cambiarPower(activo, motivo.trim(), confirmarFaltantes);
       setConfirmando(null);
       setMotivo("");
+      setFaltanParaEncender(false);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "No se pudo cambiar");
+      const mensaje = e instanceof Error ? e.message : "No se pudo cambiar";
+      if (activo && mensaje.includes("faltan datos de arranque")) {
+        setFaltanParaEncender(true);
+      }
+      setError(mensaje);
     } finally {
       setGuardando(false);
     }
@@ -345,6 +355,28 @@ export function BotPowerSwitch() {
         <p className="mt-3 text-[13px] font-semibold" style={{ color: "var(--color-signal)" }}>
           {error}
         </p>
+      )}
+
+      {faltanParaEncender && (
+        <div className="border-line mt-3 rounded-[8px] border p-4">
+          <p className="text-[13px] font-semibold">Al negocio le faltan datos de arranque:</p>
+          <ul className="mt-2 list-disc pl-5 text-[13px] text-text2">
+            {faltantes.map((f) => (
+              <li key={f}>{f}</li>
+            ))}
+          </ul>
+          <p className="mt-2 text-[13px] text-text2">
+            El bot puede trabajar sin ellos, pero donde falte un dato responderá con un respaldo
+            neutro o lo derivará a un asesor.
+          </p>
+          <button
+            className="btn-signal mt-3 h-9 rounded-[6px] px-4 text-[13px]"
+            disabled={guardando}
+            onClick={() => void cambiar(true, true)}
+          >
+            Encender igual
+          </button>
+        </div>
       )}
     </div>
   );

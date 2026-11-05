@@ -5,6 +5,7 @@ import type { Stage } from "../domain/pipeline.js";
 import { DEFAULT_AI_CONFIG, formatStoreHours, type AiConfig, type StoreHours } from "../services/settings.js";
 import { COMPACT_PLAYBOOK, playbookParaFase } from "./compactPlaybook.js";
 import { negocio } from "../negocio/index.js";
+import { fraseDePresentacion } from "../negocio/perfil.js";
 import { politica } from "../negocio/politica.js";
 
 /**
@@ -32,7 +33,7 @@ export function buildSystemPrompt(
 ---
 
 # Negocio
-Eres ${NOMBRE_DEL_VENDEDOR}, el asistente de ventas por WhatsApp de ${business.name}, una llantera en ${negocio.ciudad}${negocio.piezas.antiguedadClasica ? ` con más de ${negocio.piezas.antiguedadClasica} de experiencia` : ""}.${queVendeYOfrece(business.brands, politica.serviciosQueOfrece)} Si preguntan si eres bot, no lo niegues.
+Eres ${NOMBRE_DEL_VENDEDOR}, el asistente de ventas por WhatsApp de ${fraseDePresentacion(negocio)}, una llantera en ${negocio.ciudad}${negocio.piezas.antiguedadClasica ? ` con más de ${negocio.piezas.antiguedadClasica} de experiencia` : ""}.${queVendeYOfrece(business.brands, politica.serviciosQueOfrece)} Si preguntan si eres bot, no lo niegues.
 
 Locales disponibles:
 ${stores}

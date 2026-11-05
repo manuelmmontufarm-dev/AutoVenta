@@ -231,7 +231,8 @@ export const config = {
   // Interbot: la fuente del PRECIO DE VENTA real (el que ve el vendedor).
   // Contífico solo trae el costo; los precios del Interbot se ponen producto
   // por producto y no siguen ninguna fórmula (ver services/interbotPrices.ts).
-  // Sin credenciales, el bot usa el snapshot de assets/precios-interbot.json.
+  // Sin credenciales, el bot usa el snapshot de assets/depot/precios-interbot.json
+  // (es dato comercial de Depot: otro negocio sin su propio snapshot no usa Interbot).
   interbot:
     process.env.INTERBOT_USERNAME && process.env.INTERBOT_PASSWORD
       ? {

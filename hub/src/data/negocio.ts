@@ -46,22 +46,42 @@ export interface NegocioPublico {
   faltantes: string[];
 }
 
-/** Los valores de Depot que hoy están clavados en el panel. El SF los vuelve neutros. */
+/**
+ * El respaldo NEUTRO (R-45): mientras `/api/negocio` no conteste, el panel dice
+ * «AutoVenta», sin locales ni teléfono de nadie. Antes acá vivían los valores
+ * de Depot, y el panel de otro cliente los mostraba hasta que llegara la red.
+ */
 export const NEGOCIO_RESPALDO: NegocioPublico = {
-  id: "depot",
-  nombre: "Depot Tire",
-  ciudad: "Quito",
-  telefono: "+593 98 280 1766",
-  identidades: [{ id: "depot", nombre: "Depot Tire", locales: ["cumbaya", "quito_sur"] }],
-  locales: [
-    { slug: "cumbaya", nombre: "Depot Tire Cumbayá", nombreCorto: "Cumbayá", claveHorario: "cumbaya" },
-    { slug: "quito_sur", nombre: "Depot Tire Quito Sur", nombreCorto: "Quito Sur", claveHorario: "quitoSur" },
-  ],
-  marcas: ["Kenda", "Sunoco", "Eurolub", "Falken"],
-  vendedor: { nombre: "Martín" },
+  id: "autoventa",
+  nombre: "AutoVenta",
+  ciudad: "",
+  telefono: "",
+  identidades: [],
+  locales: [],
+  marcas: [],
+  vendedor: { nombre: "" },
   playbook: COMPACT_PLAYBOOK,
   faltantes: [],
 };
+
+/** ¿La respuesta trae el contrato entero de `GET /api/negocio` (§3.2)? */
+function esNegocioPublico(x: unknown): x is NegocioPublico {
+  if (!x || typeof x !== "object") return false;
+  const n = x as Record<string, unknown>;
+  const texto = (v: unknown) => typeof v === "string";
+  return (
+    texto(n.id) && texto(n.nombre) && texto(n.ciudad) && texto(n.telefono) &&
+    Array.isArray(n.identidades) &&
+    Array.isArray(n.locales) &&
+    n.locales.every((l) => l && typeof l === "object" &&
+      texto((l as Record<string, unknown>).slug) && texto((l as Record<string, unknown>).nombre) &&
+      texto((l as Record<string, unknown>).nombreCorto) && texto((l as Record<string, unknown>).claveHorario)) &&
+    Array.isArray(n.marcas) && n.marcas.every(texto) &&
+    Boolean(n.vendedor) && typeof n.vendedor === "object" && texto((n.vendedor as Record<string, unknown>).nombre) &&
+    texto(n.playbook) &&
+    Array.isArray(n.faltantes) && n.faltantes.every(texto)
+  );
+}
 
 let actual: NegocioPublico = NEGOCIO_RESPALDO;
 let pedido: Promise<void> | null = null;
@@ -118,10 +138,15 @@ export function cargarNegocio(): Promise<void> {
         pedido = null;
         return;
       }
-      const data = (await r.json()) as { negocio?: NegocioPublico } & Partial<NegocioPublico>;
-      const n = data.negocio ?? (data as NegocioPublico);
-      if (n && typeof n.nombre === "string" && Array.isArray(n.locales)) {
-        publicar({ ...NEGOCIO_RESPALDO, ...n });
+      const data = (await r.json()) as { negocio?: unknown } & Record<string, unknown>;
+      const n = esNegocioPublico(data.negocio) ? data.negocio : esNegocioPublico(data) ? data : null;
+      // El contrato se valida entero, no se mezcla con el respaldo: un campo
+      // que el servidor omita es un error visible (se queda el respaldo y se
+      // reintenta luego), no un valor de otro negocio colado en silencio.
+      if (n) {
+        publicar(n);
+      } else {
+        pedido = null;
       }
     } catch {
       // Sin red o en el demo: el respaldo ya está puesto; se reintenta luego.

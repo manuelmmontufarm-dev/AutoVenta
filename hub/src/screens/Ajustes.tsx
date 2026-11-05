@@ -15,6 +15,7 @@ import { useHub } from "../store";
 import { Segmented } from "../components/ui";
 import { BotPowerSwitch, FollowUpSettingsPanel } from "./Settings";
 import { SeccionAnuncios } from "../components/anuncios";
+import { SeccionCatalogoArchivo, SeccionFacturasArchivo } from "../components/catalogo-archivo";
 
 // ---------------------------------------------------------------------------
 
@@ -292,6 +293,10 @@ export function Ajustes() {
           <BotPowerSwitch />
           <SeccionGuardian onError={setError} />
           {precios && <SeccionPrecios precios={precios} setPrecios={setPrecios} onError={setError} />}
+          {/* Catálogo y facturas por archivo (R-28): el cliente sin API —
+              Mundillantas con Fénix— sube acá su Excel y sus facturas. */}
+          <SeccionCatalogoArchivo onError={setError} />
+          <SeccionFacturasArchivo onError={setError} />
         </div>
       )}
 

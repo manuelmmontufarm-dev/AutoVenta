@@ -121,7 +121,14 @@ cd app && npx vitest run test/<el-que-escribiste>.test.ts   # el caso, en verde
 cd app && npm test                                          # la suite entera
 cd app && npm run sim:humo                                  # el simulador vive (0 tokens)
 cd app && npx vitest run test/simuladorFidelidad.test.ts    # sigue fiel a producción
+cd app && npx vitest run test/perfilAjeno.identidad.test.ts test/perfilAjeno.politica.test.ts  # nada de Depot se cuela a otro cliente
+cd app && npm run sim -- --perfil ejemplo --humo            # el bot arranca con OTRO perfil (0 tokens)
 ```
+
+Desde nov-2026 el mismo código atiende a **más de un cliente** (`NEGOCIO` elige
+el perfil: Depot, Mundillantas). Un arreglo del bot sale a TODOS en el mismo
+deploy, por eso las dos pruebas nuevas: lo que es de un cliente vive en su
+perfil/política/assets, nunca en el código común.
 
 La de fidelidad falla si agregaste una tabla de configuración o una variable de
 entorno que el simulador no sabe copiar. **No la silencies**: clasificá lo nuevo

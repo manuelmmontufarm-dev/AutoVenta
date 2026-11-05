@@ -61,3 +61,13 @@
 Cómo se lee una medida, cuándo un «sí» autoriza, el guardián, los seguimientos, las tres opciones,
 el cierre de local y día. Si un chat de Mundillantas muestra un error del bot, se arregla **en el
 código común** y sale para los dos clientes (con su prueba en rojo, como siempre).
+
+## Nota del Sprint Final (4-nov-2026): el mapeo del catálogo es un SUPUESTO
+
+El mapeo por defecto del catálogo y de las facturas (`catalogo_mapeo` /
+`facturas_mapeo`) usa columnas **estilo Fénix supuestas** (`codigo`,
+`descripcion`, `marca`, `modelo`, `medida`, `linea`, `pvp`, `pvp lista`,
+`stock`, precios sin IVA) y **sin `precioMinimo`** (sin él no se muestra
+descuento: precio de venta = precio de lista). Cuando llegue el Excel real de
+Jenny (filas 6–7 de la lista), el mapeo se ajusta desde Ajustes → Catálogo,
+sin deploy.

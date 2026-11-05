@@ -526,6 +526,23 @@ export function createAdminRouter(): express.Router {
       // panel. A setBotPower también lo llaman las semillas y las pruebas, y
       // nadie quiere un WhatsApp por cada una.
       const previo = await getBotPower();
+      // R-44: con pendientes de arranque (`faltantes` del perfil, la política o
+      // los assets), el bot no se enciende por accidente — el panel tiene que
+      // mandar `confirmarFaltantes: true` después de mostrárselos al dueño.
+      // Depot tiene la lista vacía y no pasa por acá.
+      const pideEncender = Boolean((req.body as { activo?: unknown } | null)?.activo) && !previo.activo;
+      const confirmado = (req.body as { confirmarFaltantes?: unknown } | null)?.confirmarFaltantes === true;
+      if (pideEncender && !confirmado) {
+        const faltantes = negocioPublico().faltantes;
+        if (faltantes.length) {
+          res.status(409).json({
+            ok: false,
+            error: "Al negocio le faltan datos de arranque; confirma para encender igual.",
+            faltantes,
+          });
+          return;
+        }
+      }
       const power = await setBotPower(req.body);
       // El hub pinta el estado en la cabecera: que se entere sin recargar.
       emitLiveEvent("sync");

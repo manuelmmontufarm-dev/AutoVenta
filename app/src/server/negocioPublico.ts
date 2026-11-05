@@ -10,9 +10,13 @@
  * dueño y para nosotros, no para el cliente final, y ver qué falta es
  * justamente su trabajo. `faltantes` los lista con una ruta legible.
  */
+import { existsSync } from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { COMPACT_PLAYBOOK } from "../agent/compactPlaybook.js";
 import { negocio, type PerfilDeNegocio } from "../negocio/index.js";
 import { faltantesDelPerfil, identidades } from "../negocio/identidad.js";
+import { faltantesDeLaPolitica, politica } from "../negocio/politica.js";
 
 /** El contrato exacto de MULTICLIENTE.md §3.2 — otro sprint (el panel) lo consume. */
 export interface NegocioPublico {
@@ -28,11 +32,38 @@ export interface NegocioPublico {
   faltantes: string[];
 }
 
+const ASSETS = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "assets");
+
 /**
- * Puro: arma la respuesta desde un perfil y el playbook. `faltantes` es por
- * ahora solo lo del perfil; el Sprint Final le suma política y assets.
+ * Los archivos de marca que faltan en `assets/<id>/` (R-45): el logo de cada
+ * identidad, con `logo-blanco.png` como respaldo válido (Depot vive de él).
+ * La escalera, el conocimiento de marcas y los tipos no se listan: tienen
+ * respaldo común y los clientes nuevos ya traen los suyos commiteados.
  */
-export function armarNegocioPublico(perfil: PerfilDeNegocio, playbook: string): NegocioPublico {
+export function faltantesDeAssets(
+  perfil: PerfilDeNegocio,
+  existe: (ruta: string) => boolean = existsSync,
+): string[] {
+  const carpeta = path.join(ASSETS, perfil.id);
+  const hayRespaldo = existe(path.join(carpeta, "logo-blanco.png"));
+  const faltan: string[] = [];
+  for (const identidad of identidades(perfil)) {
+    if (!hayRespaldo && !existe(path.join(carpeta, `logo-${identidad.id}.png`))) {
+      faltan.push(`assets/${perfil.id}/logo-${identidad.id}.png (logo de ${identidad.nombre} para las piezas)`);
+    }
+  }
+  return faltan;
+}
+
+/**
+ * Puro salvo `faltantesExtra`: arma la respuesta desde un perfil y el playbook.
+ * `faltantes` = perfil ∪ política ∪ assets (R-45).
+ */
+export function armarNegocioPublico(
+  perfil: PerfilDeNegocio,
+  playbook: string,
+  faltantesExtra: string[] = [],
+): NegocioPublico {
   return {
     id: perfil.id,
     nombre: perfil.nombre,
@@ -45,11 +76,14 @@ export function armarNegocioPublico(perfil: PerfilDeNegocio, playbook: string): 
     marcas: [...perfil.marcas],
     vendedor: { nombre: perfil.vendedor.nombre },
     playbook,
-    faltantes: faltantesDelPerfil(perfil),
+    faltantes: [...faltantesDelPerfil(perfil), ...faltantesExtra],
   };
 }
 
-/** La respuesta de la instancia viva: el perfil de `NEGOCIO` y su playbook. */
+/** La respuesta de la instancia viva: perfil, política y assets de `NEGOCIO`. */
 export function negocioPublico(): NegocioPublico {
-  return armarNegocioPublico(negocio, COMPACT_PLAYBOOK);
+  return armarNegocioPublico(negocio, COMPACT_PLAYBOOK, [
+    ...faltantesDeLaPolitica(politica),
+    ...faltantesDeAssets(negocio),
+  ]);
 }

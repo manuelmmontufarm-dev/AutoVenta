@@ -450,11 +450,13 @@ export class RealSource implements DataSource {
    * estado ACTUAL y además viaja en el WhatsApp que reciben los asesores, así
    * que borrarlo aquí sería mandar un aviso mudo.
    */
-  async setBotPower(activo: boolean, motivo = ""): Promise<BotPower> {
+  async setBotPower(activo: boolean, motivo = "", confirmarFaltantes = false): Promise<BotPower> {
     return (
       await this.request<{ power: BotPower }>("/api/bot-power", {
         method: "PUT",
-        body: JSON.stringify({ activo, motivo }),
+        // `confirmarFaltantes` solo viaja en true: es la confirmación del dueño
+        // tras ver la lista de pendientes de arranque (R-44).
+        body: JSON.stringify(confirmarFaltantes ? { activo, motivo, confirmarFaltantes } : { activo, motivo }),
       })
     ).power;
   }

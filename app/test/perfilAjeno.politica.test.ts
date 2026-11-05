@@ -16,7 +16,6 @@
  * reales de la rúbrica de Depot y cambiarlas rompería su texto byte a byte;
  * la expresión de abajo, como la del plan, distingue mayúsculas.
  */
-import { existsSync } from "node:fs";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
 process.env.OPENAI_API_KEY ||= "test";
@@ -29,8 +28,6 @@ process.env.DATABASE_URL ||= "postgresql://manue@localhost/postgres";
 const DE_DEPOT = /Depot|Cumbayá|Quito|quiteño|Falken|Kenda|Winrun|3 y 6 meses/;
 const ETAPAS = ["nuevo", "medida_confirmada", "seleccionando", "cotizacion_enviada", "seguimiento_venta", "ganado", "perdido"] as const;
 const TONOS = ["calido", "neutral", "formal"] as const;
-
-const existeMundillantas = existsSync(new URL("../src/negocio/negocios/mundillantas.ts", import.meta.url));
 
 async function cargarComo(id: string) {
   vi.resetModules();
@@ -146,4 +143,5 @@ function casos(id: string, saltar: boolean) {
 }
 
 casos("ejemplo", false);
-casos("mundillantas", !existeMundillantas);
+// Desde el Sprint Final el perfil de Mundillantas está en el árbol: obligatoria.
+casos("mundillantas", false);

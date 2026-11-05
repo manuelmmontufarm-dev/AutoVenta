@@ -113,6 +113,11 @@ describe("GET /api/negocio · el contrato exacto de §3.2", () => {
         "Competimotor · dirección y pin (puestos en los de la matriz)",
         "garantías por marca (en 0 = sin seguro contra golpes hasta que Jenny confirme)",
         "domingo cerrado es un SUPUESTO del pitch (lunes–sábado confirmado)",
+        // Desde el Sprint Final, `faltantes` también suma la política y los
+        // assets (R-45): lo que falta para ENCENDER, no solo lo del perfil.
+        "Política · formas de pago (vacías: el bot no promete ninguna)",
+        "assets/mundillantas/logo-mundillantas.png (logo de Mundillantas para las piezas)",
+        "assets/mundillantas/logo-competimotor.png (logo de Competimotor para las piezas)",
       ],
     });
   });

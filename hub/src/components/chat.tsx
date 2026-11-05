@@ -396,9 +396,11 @@ export function CotizacionModal({ ticket }: { ticket: Ticket }) {
           <p className="serif text-lg tracking-tight">
             {negocioActual().nombre}
           </p>
-          <p className="text-[12px]" style={{ color: "rgba(255,255,255,.65)" }}>
-            30+ años rodando contigo
-          </p>
+          {negocioActual().ciudad && (
+            <p className="text-[12px]" style={{ color: "rgba(255,255,255,.65)" }}>
+              {negocioActual().ciudad}
+            </p>
+          )}
         </div>
         <div className="text-right">
           <p className="microlabel" style={{ color: "rgba(255,255,255,.5)" }}>Cotización</p>
@@ -452,7 +454,7 @@ export function CotizacionModal({ ticket }: { ticket: Ticket }) {
           </div>
         </div>
         <p className="mt-4 rounded-[6px] px-3 py-2.5 text-[12px] leading-relaxed opacity-70" style={{ background: "#f7f6f3" }}>
-          Incluye instalación, balanceo y válvulas nuevas. Precios con IVA. · {negocioActual().nombre} · {negocioActual().telefono}
+          {["Incluye instalación, balanceo y válvulas nuevas. Precios con IVA.", negocioActual().nombre, negocioActual().telefono].filter(Boolean).join(" · ")}
         </p>
       </div>
     </div>

@@ -1,7 +1,13 @@
 # AutoVenta — notas para quien trabaje acá
 
-Bot de ventas de llantas por WhatsApp. Cliente: **Depot Tire** (Quito).
-Producción y staging deployan de `main`: **un push a `main` sale a los dos**.
+Bot de ventas de llantas por WhatsApp. Clientes: **Depot Tire** (Quito) y
+**Mundillantas/Competimotor** (Santo Domingo, en prueba). **Un solo código**:
+cada cliente es su servicio de Railway y `NEGOCIO` elige su perfil
+(`app/src/negocio/index.ts`); lo que cambia por cliente vive en
+`negocio/negocios/<id>.ts`, `negocio/politicas/<id>.ts` y `assets/<id>/`.
+Producción y staging de Depot deployan de `main`: **un push a `main` sale a
+todos los clientes en el mismo deploy** — júntalo y sácalo fuera del horario
+de Depot (lu–sá 8:30–17:30).
 
 ## Antes de arreglar un error: leé el orden
 
@@ -27,11 +33,13 @@ tokens se los cobramos a Depot. El simulador se niega a arrancar sin ella.
 
 Detalles, banderas y qué NO prueba: [`app/scripts/sim/README.md`](app/scripts/sim/README.md).
 
-## Después de tocar el bot, corré estas dos
+## Después de tocar el bot, corré estas cuatro
 
 ```bash
 cd app && npm run sim:humo                              # ¿el simulador sigue andando? (0 tokens)
 cd app && npx vitest run test/simuladorFidelidad.test.ts # ¿sigue siendo fiel a producción?
+cd app && npx vitest run test/perfilAjeno.identidad.test.ts test/perfilAjeno.politica.test.ts # ¿nada de Depot se cuela a otro cliente?
+cd app && npm run sim -- --perfil ejemplo --humo        # ¿el bot arranca con otro perfil? (0 tokens)
 ```
 
 La segunda falla si agregaste una **tabla de configuración** o una **variable

@@ -13,6 +13,7 @@ import { lonasDelProducto, politicaDePagos } from "../domain/datosDelNegocio.js"
 import { z } from "zod";
 import { business } from "../config.js";
 import { negocio, localPorNombre } from "../negocio/index.js";
+import { identidadDeLaConversacion } from "../negocio/identidad.js";
 import { PREGUNTA_DE_CIERRE } from "../domain/preguntaPendiente.js";
 import {
   catalogCandidates,
@@ -811,6 +812,18 @@ function dateLabel(): string {
     year: "numeric",
     timeZone: "America/Guayaquil",
   });
+}
+
+/**
+ * La marca comercial con la que se le habla a ESTA conversación (R-45): la
+ * identidad del local elegido (`conversations.nearest_store`) o, sin local, la
+ * de la presentación. Depot tiene una sola, así que sus piezas no cambian.
+ */
+async function identidadDelChat(conversationId: number): Promise<string> {
+  const [fila] = await sql<{ nearest_store: string | null }[]>`
+    select nearest_store from conversations where id=${conversationId}
+  `;
+  return identidadDeLaConversacion(negocio, fila?.nearest_store ?? null).id;
 }
 
 /**
@@ -2350,6 +2363,7 @@ export function buildTools(ctx: AgentContext) {
         async () =>
           renderOptionsImage({
             dateLabel: dateLabel(),
+            identidad: await identidadDelChat(ctx.conversation.id),
             sizeLabel,
             // Con esto cada tarjeta sale marcada: verde MEDIDA EXACTA, o el
             // sello de equivalente. Es la medida que el cliente PIDIÓ, y solo
@@ -2700,6 +2714,7 @@ export function buildTools(ctx: AgentContext) {
         async () =>
           renderCompareImage({
             dateLabel: dateLabel(),
+            identidad: await identidadDelChat(ctx.conversation.id),
             sizeLabel: selected[0]?.sizeLabel ?? null,
             ...(await getPiecesConfig()),
             brandProfiles: await brandProfilesForRender(),
@@ -3461,6 +3476,7 @@ export function buildTools(ctx: AgentContext) {
           renderQuoteImage({
             number: quote.number,
             dateLabel: dateLabel(),
+            identidad: await identidadDelChat(ctx.conversation.id),
             ...(await getPiecesConfig()),
             brandProfiles: await brandProfilesForRender(),
             benefits: beneficiosPieza,
@@ -3486,7 +3502,7 @@ export function buildTools(ctx: AgentContext) {
           // clásico de pdfmake queda solo como último recurso.
           const pdf = visual.png
             ? await pngToQuotePdf(visual.png)
-            : await renderQuotePdf(quote);
+            : await renderQuotePdf(quote, await identidadDelChat(ctx.conversation.id));
           const pdfName = `Cotizacion-${business.name.replace(/\s/g, "")}-${quote.number}.pdf`;
           const pdfId = await sendPdf(
             ctx.conversation.id,

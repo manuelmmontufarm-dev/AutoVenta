@@ -1,3 +1,29 @@
+## 4-nov-2026 · Sprint Final: todo conectado (R-42, R-44, R-45)
+
+**Qué:** lo que los sprints dejaron a propósito para el final. Las piezas
+reales (opciones, comparativa, cotización, PDF, reenvío de `directSalesRoutes`
+y los diagnósticos de `webhook`) pasan la identidad del local de la
+conversación (`identidadDelChat` lee `nearest_store`); el prompt y el playbook
+se presentan con la frase de presentación («Mundillantas y Competimotor»;
+Depot idéntico por construcción). `faltantes` de `/api/negocio` ahora es
+perfil ∪ política ∪ assets (logos por identidad). (R-44) `PUT /bot-power`
+devuelve 409 al encender con `faltantes` no vacío, y el panel muestra la lista
+con un «Encender igual» que confirma (`confirmarFaltantes`). Tarjetas de
+catálogo y facturas por archivo montadas en Ajustes → Bot. El respaldo del
+panel pasó de Depot a «AutoVenta» y la respuesta de `/api/negocio` se valida
+entera en vez de mezclarse con el respaldo (un campo omitido ya no cae en un
+valor ajeno); el tagline fijo «30+ años rodando contigo» salió del modal (va
+la ciudad del negocio). Los casos de Mundillantas de `perfilAjeno.politica`
+son obligatorios; prueba nueva de consistencia: sin cuotas en la política, las
+piezas no mencionan cuotas. (R-42) `CLAUDE.md` y `COMO-ARREGLAR-EL-BOT.md`
+dicen que hay dos clientes y suman las pruebas de perfil ajeno y
+`sim --perfil ejemplo --humo`.
+
+**Por qué:** eran los archivos con dos dueños potenciales; conectarlos en los
+sprints paralelos habría pisado trabajo ajeno.
+
+**Horas:** 2
+
 ## 4-nov-2026 · Plan multicliente: Depot + Mundillantas sobre el mismo código
 
 **Qué:** `docs/MULTICLIENTE.md` (qué sigue siendo Depot en el código, con archivo:línea, y los nombres
