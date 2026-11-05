@@ -1,3 +1,23 @@
+## 5-nov-2026 · Sprint Final: el replay de R-39 cerrado, sin señal
+
+**Qué:** los 10 chats más recientes de Depot en producción (convs 38311,
+38295, 38299, 33350, 38283, 38276, 38258, 38261, 37666, 37703, sacados con un
+SELECT de solo lectura) se repitieron 3 veces contra `dc50dab` y 3 veces contra
+el release, con el juez de `lote-canary.mjs`. `scripts/sim/grafico-replay-r39.mjs`
+(nuevo) los dibuja como gráfico de control: la serie es la **diferencia por
+chat** (release − main), no la nota suelta — mezclar chats fáciles y difíciles
+en una serie mide la diferencia entre chats, no el ruido del bot, y los límites
+saturaban en 1 y 10. Línea central +0,55, límites −1,72 a +2,82, **los 10
+puntos dentro**: sin señal. Nota media 6,04 en el main y 6,79 en el release
+(ruido: dos corridas del mismo modelo no dan la misma nota). El informe está en
+`docs/reportes-historicos/2026-11-04-replay-r39.html`.
+
+**Por qué:** R-39 — el diff byte a byte del prompt ya decía que el modelo recibe
+lo mismo, pero eso no prueba que el bot entero (piezas, ruteo, herramientas) se
+comporte igual. Esto sí.
+
+**Horas:** 1,5
+
 ## 4-nov-2026 · Sprint Final: informe R-01…R-45 del release multicliente
 
 **Qué:** el release `release/multicliente-2026-11` (PR #34) junta los sprints
