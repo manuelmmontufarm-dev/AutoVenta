@@ -1,3 +1,20 @@
+## 5-nov-2026 · Black Friday de noviembre: la base (datos y cuentas)
+
+**Qué:** la promo que mandó Joaquín (13:36) quedó como datos en la política de
+Depot (`promocionDeTemporada`, 1–30 nov en hora de Ecuador): 60 % en las
+llantas PARES Falken/Kenda sobre el precio de hoy, tabla de servicios que ya
+viene al 50 % («Precio al 50% incluido iva»), 22 aceites con PVP a los que se
+resta el 40 %, y la revisión de 7 puntos gratis. `domain/promocionDeTemporada.ts`
+hace todas las cuentas (4 × $75 → 2 × $75 + 2 × $30 = $210); `QuoteLine` y
+`RenderLine` llevan `segundaLlanta` opcional. Es la base de tres sprints en
+paralelo: cotización y ahorro, piezas, y vendedor + guardián.
+
+**Por qué:** una sola fuente para la cifra: si la pieza, el texto y el guardián
+calculan cada uno el 60 %, el día que difieren en un centavo el guardián tacha
+la cotización.
+
+**Horas:** 0,5
+
 ## 5-nov-2026 · Sprint Final: el replay de R-39 cerrado, sin señal
 
 **Qué:** los 10 chats más recientes de Depot en producción (convs 38311,

@@ -11,6 +11,7 @@ import { renderAsync } from "@resvg/resvg-js";
 import { type CatalogAvailability, type CatalogItem } from "../domain/catalog.js";
 import { medidaEstaPedida } from "../domain/medidaPedida.js";
 import { modoDePromocion } from "../domain/promocion.js";
+import type { SegundaLlanta } from "../domain/promocionDeTemporada.js";
 import { garantiaDelPerfil, warrantyForBrand } from "../services/quoteMessages.js";
 import { loadFonts, loadFontsDiaNoche, productPhoto, type FontSpec, type RasterImage } from "./assets.js";
 import { DEFAULT_BRAND_PROFILES, resolveTheme, type SatoriNode, type Theme } from "./depotDesign.js";
@@ -40,6 +41,8 @@ export interface RenderLine {
   golpesMeses: number | null;
   fabricaAnios: number;
   photo: RasterImage;
+  /** Black Friday: las pares con el 60 % (solo la cotización; la vitrina no la lleva). */
+  segundaLlanta?: SegundaLlanta | null;
 }
 
 export interface QuoteRenderData extends PieceTheme {

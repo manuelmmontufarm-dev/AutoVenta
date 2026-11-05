@@ -70,6 +70,44 @@ export interface PoliticaComercial {
    * `perfil.marcas`; sin este campo se usan las marcas del perfil.
    */
   vocabularioDeMarcas?: string[];
+  /**
+   * OPCIONAL: la promoción de temporada vigente (Black Friday de Depot,
+   * noviembre 2026). Sin el campo —o fuera de sus fechas— no existe: ni el
+   * precio, ni la pieza, ni el vendedor, ni el guardián la mencionan. Las
+   * cuentas viven en `domain/promocionDeTemporada.ts`; acá solo los datos.
+   */
+  promocionDeTemporada?: PromocionDeTemporada;
+}
+
+/** Una promoción con fechas: llantas, servicios y productos con su rebaja. */
+export interface PromocionDeTemporada {
+  /** «Black Friday»: el nombre que ve el cliente. */
+  nombre: string;
+  /** «el Black Friday se vive TODO NOVIEMBRE»: la bajada de la franja. */
+  lema: string;
+  /** Primer y último día vigentes, inclusive, en hora de Ecuador (YYYY-MM-DD). */
+  desde: string;
+  hasta: string;
+  /**
+   * Las llantas pares (2.ª, 4.ª…) de la cotización con `porcentaje` % menos
+   * sobre el precio de HOY (el que ya cotiza el bot), solo de estas marcas
+   * (en mayúsculas, como `CatalogItem.brand`).
+   */
+  segundaLlanta: { porcentaje: number; marcas: string[] } | null;
+  /** Servicios con su precio YA rebajado, con IVA (tabla de Joaquín, 5-nov). */
+  servicios: {
+    porcentaje: number;
+    lista: Array<{ servicio: string; vehiculo: "auto" | "camioneta"; precioPromoConIva: number }>;
+  } | null;
+  /** Productos con su PVP con IVA; la rebaja se resta encima (`porcentaje`). */
+  productos: {
+    porcentaje: number;
+    /** «cambio de aceite»: cómo lo nombra la promo. */
+    categoria: string;
+    lista: Array<{ nombre: string; pvpConIva: number }>;
+  } | null;
+  /** Lo que se regala sin condición («Revisión de 7 puntos GRATIS»). */
+  gratis: string[];
 }
 
 const POLITICAS: Record<string, PoliticaComercial> = {

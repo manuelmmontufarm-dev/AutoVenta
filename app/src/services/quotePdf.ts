@@ -14,6 +14,7 @@ import type { CatalogItem } from "../domain/catalog.js";
 import { warrantyForBrand } from "./quoteMessages.js";
 import { piecesConfigEnMemoria } from "./settings.js";
 import { etiquetaDePromocion } from "../domain/promocion.js";
+import type { SegundaLlanta } from "../domain/promocionDeTemporada.js";
 import { depotLogo } from "../render/assets.js";
 import { negocio, sinPendiente } from "../negocio/index.js";
 import { identidades } from "../negocio/identidad.js";
@@ -63,6 +64,12 @@ export interface QuoteLine {
   loadSpeed?: CatalogItem["loadSpeed"];
   warrantyFactory?: string;
   warrantyRoadHazard?: string | null;
+  /**
+   * Black Friday (5-nov): las llantas pares de esta línea van con el 60 %
+   * menos. Presente = el total de la línea es `segundaLlanta.totalConIva`, no
+   * `quantity × unitPrice`. Ver `domain/promocionDeTemporada.ts`.
+   */
+  segundaLlanta?: SegundaLlanta | null;
 }
 
 export interface Quote {
