@@ -142,6 +142,19 @@ describe("las piezas, en las dos identidades y las dos plantillas", () => {
   });
 });
 
+describe("la pregunta de local (Sprint Final)", () => {
+  it("ofrece solo los locales confirmados, nunca un [PENDIENTE]", async () => {
+    // El hallazgo del traspaso del S1: con Mundillantas salía «¿A cuál local le
+    // queda mejor ir: *Matriz*, *[PENDIENTE] nombre corto del local 2* o
+    // *Competimotor*?». La pregunta nombra solo locales confirmados.
+    const { PREGUNTA_DE_LOCAL, LOCALES_COMO_ALTERNATIVA } = await import("../src/domain/storeSelection.js");
+    expect(PREGUNTA_DE_LOCAL).not.toContain(MARCA);
+    expect(LOCALES_COMO_ALTERNATIVA).not.toContain(MARCA);
+    expect(PREGUNTA_DE_LOCAL).toContain("*Matriz*");
+    expect(PREGUNTA_DE_LOCAL).toContain("*Competimotor*");
+  });
+});
+
 describe("los mensajes en texto", () => {
   it("listas, comparativa y cotización sin la marca ni garantías inventadas", () => {
     const textos = [

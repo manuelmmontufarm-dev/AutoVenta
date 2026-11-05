@@ -5,7 +5,8 @@ Bot de ventas de llantas por WhatsApp. Clientes: **Depot Tire** (Quito) y
 cada cliente es su servicio de Railway y `NEGOCIO` elige su perfil
 (`app/src/negocio/index.ts`); lo que cambia por cliente vive en
 `negocio/negocios/<id>.ts`, `negocio/politicas/<id>.ts` y `assets/<id>/`.
-Producción y staging de Depot deployan de `main`: **un push a `main` sale a
+Producción y staging de Depot deployan de `main` (auto-deploy de Railway
+ENCENDIDO, confirmado por Manuel el 4-nov-2026): **un push a `main` sale a
 todos los clientes en el mismo deploy** — júntalo y sácalo fuera del horario
 de Depot (lu–sá 8:30–17:30).
 

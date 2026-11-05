@@ -1,5 +1,14 @@
 import { dondeEstaElCliente } from "./fueraDeCobertura.js";
 import { negocio } from "../negocio/index.js";
+import { localesConfirmados } from "../negocio/identidad.js";
+
+/**
+ * Los locales que se le pueden NOMBRAR al cliente: los confirmados (R-10). Un
+ * local con el nombre `[PENDIENTE]` existe para el panel y la semilla, pero la
+ * pregunta de local no puede ofrecer «*[PENDIENTE] nombre corto del local 2*».
+ * Reconocer (extractExplicitStore) sigue usando TODOS los locales.
+ */
+const LOCALES_AL_CLIENTE = localesConfirmados(negocio);
 
 const normalize = (value: string) =>
   value.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
@@ -44,12 +53,12 @@ export const PREGUNTA_DE_LOCAL = armarPreguntaDeLocal();
  * queda su nombre, y quien lo use tiene que decidir antes si preguntar el local
  * tiene sentido: `hayQueElegirLocal` responde eso.
  */
-export const LOCALES_COMO_ALTERNATIVA = negocio.locales
+export const LOCALES_COMO_ALTERNATIVA = LOCALES_AL_CLIENTE
   .map((local) => `*${local.nombreCorto}*`)
   .join(" o ");
 
 /** ¿Hay más de un local, es decir, hay algo que preguntar? */
-export const hayQueElegirLocal = negocio.locales.length >= 2;
+export const hayQueElegirLocal = LOCALES_AL_CLIENTE.length >= 2;
 
 /**
  * La palabra que distingue a cada local cuando el cliente o el bot los nombra
@@ -58,7 +67,7 @@ export const hayQueElegirLocal = negocio.locales.length >= 2;
  * local queda vacía: no hay «los dos nombres sobre la mesa».
  */
 const PALABRA_DE_CADA_LOCAL = hayQueElegirLocal
-  ? negocio.locales.map((local) => normalize(local.nombreCorto).trim().split(/\s+/).pop() ?? "").filter(Boolean)
+  ? LOCALES_AL_CLIENTE.map((local) => normalize(local.nombreCorto).trim().split(/\s+/).pop() ?? "").filter(Boolean)
   : [];
 const nombraTodosLosLocales = (texto: string, comoPalabra: boolean) =>
   PALABRA_DE_CADA_LOCAL.length >= 2
@@ -66,7 +75,7 @@ const nombraTodosLosLocales = (texto: string, comoPalabra: boolean) =>
     comoPalabra ? new RegExp(`\\b${palabra.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`).test(texto) : texto.includes(palabra));
 
 function armarPreguntaDeLocal(): string {
-  const nombres = negocio.locales.map((local) => `*${local.nombreCorto}*`);
+  const nombres = LOCALES_AL_CLIENTE.map((local) => `*${local.nombreCorto}*`);
   // Con un solo local no hay nada que preguntar y esta frase no debería salir
   // nunca; igual devuelve algo pronunciable, porque también se usa para
   // RECONOCER la pregunta y una cadena vacía casaría con cualquier mensaje.

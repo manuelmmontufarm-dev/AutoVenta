@@ -1,3 +1,22 @@
+## 4-nov-2026 · Sprint Final: el auto-deploy de Depot queda escrito (R-40) y la pregunta de local sin [PENDIENTE]
+
+**Qué:** Manuel confirmó que el servicio de Depot en Railway tiene el
+**auto-deploy ENCENDIDO**: un push a `main` sale a staging y a producción
+solo. `docs/entrega-fases-depot.md` describía una promoción manual que nunca se
+activó y contradecía a `CLAUDE.md`; los dos documentos lo dicen ahora igual,
+con la fecha de la confirmación. También el hallazgo que dejó el traspaso del
+S1: `domain/storeSelection.ts` armaba la pregunta de local con TODOS los
+locales, así que con Mundillantas salía «¿A cuál local le queda mejor ir:
+*Matriz*, *[PENDIENTE] nombre corto del local 2* o *Competimotor*?». Ahora usa
+`localesConfirmados`; reconocer la respuesta del cliente sigue mirando todos
+los locales. Prueba en `pendienteNoLlega.test.ts`.
+
+**Por qué:** desplegar sin saber si el deploy es automático es desplegar a
+ciegas sobre el cliente que paga; y un `[PENDIENTE]` en la pregunta de local es
+exactamente lo que R-10 prohíbe.
+
+**Horas:** 0,5
+
 ## 4-nov-2026 · Sprint Final: la suite completa sobre el árbol mergeado
 
 **Qué:** tres fallos al juntar los cuatro sprints, cada uno con su porqué.
