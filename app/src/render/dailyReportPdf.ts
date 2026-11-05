@@ -38,7 +38,7 @@ import { fileURLToPath } from "node:url";
 import pdfmake from "pdfmake";
 import type { FilaCliente, ReporteDiario } from "../services/dailyReport.js";
 import { resolvePalette, type Palette } from "./depotDesign.js";
-import { DEPOT_LOGO_RATIO, depotLogo } from "./assets.js";
+import { depotLogo } from "./assets.js";
 import { espera } from "./dailyReportHtml.js";
 import {
   areaSemana, barrasConversaciones, barrasKanban, donaCotizado, mezclar, montoEntero,
@@ -586,7 +586,9 @@ function fondo(r: ReporteDiario, e: Estilo) {
             absolutePosition: { x: MARGEN_X, y },
             image: logo.dataUri,
             height: escala,
-            width: escala * DEPOT_LOGO_RATIO,
+            // La proporción real del archivo (IHDR); para Depot es la misma
+            // constante de siempre (422/132).
+            width: escala * (logo.width / logo.height),
           }
         : {
             absolutePosition: { x: MARGEN_X, y },

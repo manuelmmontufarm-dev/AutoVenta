@@ -24,11 +24,29 @@
  * equivocada, 13-ago), el «por confirmar» cuando no hay medida del cliente y
  * la cantidad del juego tal como la pidió.
  */
-import { DEPOT_LOGO_RATIO, depotLogo, logoOficial } from "./assets.js";
+import { depotLogo, logoOficial } from "./assets.js";
 import { el, img, stripEmoji, text, type SatoriNode } from "./depotDesign.js";
 import type { PosterLine } from "./depotPosters.js";
 import { etiquetaDePromocion } from "../domain/promocion.js";
-import { negocio, pieDeLocales, localesEnUnaLinea } from "../negocio/index.js";
+import { negocio, pieDeLocales, localesEnUnaLinea, sinPendiente } from "../negocio/index.js";
+import { localesDeIdentidad } from "../negocio/identidad.js";
+
+// Textos del perfil con el candado R-10: lo pendiente sale con su respaldo
+// neutro (o se omite), nunca con la nota `[PENDIENTE]` dibujada en la pieza.
+const CONDICIONES_DIA_NOCHE = sinPendiente(negocio.piezas.condicionesDiaNoche, "Precios con impuestos incluidos");
+const MEDIOS_DE_PAGO_DIA_NOCHE = sinPendiente(negocio.piezas.mediosDePagoDiaNoche);
+const IMPUESTOS_INCLUIDOS = sinPendiente(
+  negocio.piezas.impuestosIncluidos ?? "IVA y Ecovalor incluidos",
+  "Impuestos incluidos",
+);
+
+/** Cuotas sin intereses del perfil; sin el campo, ninguna (no se promete lo no declarado). */
+const CUOTAS = negocio.piezas.cuotasSinIntereses ?? [];
+
+/** El pie de locales de la IDENTIDAD de la pieza; sin identidad, el del negocio. */
+function perfilDeLaIdentidad(identidad?: string) {
+  return { ...negocio, locales: localesDeIdentidad(negocio, identidad) };
+}
 
 // ===========================================================================
 // Día o noche
@@ -313,10 +331,11 @@ export function fotoConFondo(dataUri: string): boolean {
   return cabecera[25] === 0 || cabecera[25] === 2;
 }
 
-function logoDepot(t: Tokens, alto: number): SatoriNode {
-  const logo = depotLogo(t.logo);
+function logoDepot(t: Tokens, alto: number, identidad?: string): SatoriNode {
+  const logo = depotLogo(t.logo, identidad);
   return logo
-    ? img(logo.dataUri, { height: alto, width: Math.round(alto * DEPOT_LOGO_RATIO) })
+    // La proporción real del archivo (IHDR): cada marca tiene la suya.
+    ? img(logo.dataUri, { height: alto, width: Math.round(alto * (logo.width / logo.height)) })
     : text({ ...ANCHO(900), fontSize: alto * 0.6, color: t.txt }, negocio.nombre.toUpperCase());
 }
 
@@ -454,6 +473,8 @@ export interface OptionsDiaNocheData {
   medidaConocida?: boolean;
   /** Beneficios vigentes de la tabla. Vacío = no hay sección de incluido. */
   benefits?: readonly string[];
+  /** La marca comercial de la pieza (id de identidad); sin ella, la del negocio. */
+  identidad?: string;
 }
 
 export function optionsPosterDiaNoche(data: OptionsDiaNocheData, modo: ModoPieza): SatoriNode {
@@ -574,7 +595,9 @@ export function optionsPosterDiaNoche(data: OptionsDiaNocheData, modo: ModoPieza
         selloDeMedida(line, t),
         el({ gap: 7, marginTop: 7, flexWrap: "wrap" },
           line.golpesMeses ? chip(icono("escudo", 10, t.icoRojo), `${line.golpesMeses} meses de seguro`, reco) : null,
-          chip(icono("medalla", 10, t.icoOro), `${line.fabricaAnios} años de fábrica`),
+          // Garantía en 0 = sin confirmar con el cliente nuevo: se omite el
+          // chip, nunca se dibuja «0 años».
+          line.fabricaAnios > 0 ? chip(icono("medalla", 10, t.icoOro), `${line.fabricaAnios} años de fábrica`) : null,
           chipDisponibilidad(line, t, 8.5),
         ),
         line.posicionamiento
@@ -623,7 +646,10 @@ export function optionsPosterDiaNoche(data: OptionsDiaNocheData, modo: ModoPieza
               ),
             )
           : null,
-        text({ ...BARLOW(400), fontSize: 9, color: t.tenue, marginTop: 6 }, `o 6 cuotas de ${dinero(juego / 6)}`),
+        // La cuota más larga del perfil (Depot: 6, la frase de siempre).
+        CUOTAS.length
+          ? text({ ...BARLOW(400), fontSize: 9, color: t.tenue, marginTop: 6 }, `o ${Math.max(...CUOTAS)} cuotas de ${dinero(juego / Math.max(...CUOTAS))}`)
+          : null,
       ),
     );
   };
@@ -657,7 +683,7 @@ export function optionsPosterDiaNoche(data: OptionsDiaNocheData, modo: ModoPieza
     fontFamily: "DN Barlow", color: t.txt,
   },
     el({ justifyContent: "space-between", alignItems: "center", height: 40 },
-      logoDepot(t, 36),
+      logoDepot(t, 36, data.identidad),
       el({ alignItems: "center", gap: 12 },
         text({ ...BARLOW(400), fontSize: 10, color: t.sub }, data.dateLabel),
         data.sizeLabel
@@ -683,8 +709,8 @@ export function optionsPosterDiaNoche(data: OptionsDiaNocheData, modo: ModoPieza
       : null,
     incluye,
     el({ justifyContent: "space-between", marginTop: 16 },
-      text({ ...BARLOW(400), fontSize: 9, color: t.sub }, negocio.piezas.condicionesDiaNoche),
-      text({ ...BARLOW(400), fontSize: 9, color: t.sub }, pieDeLocales(negocio)),
+      text({ ...BARLOW(400), fontSize: 9, color: t.sub }, CONDICIONES_DIA_NOCHE),
+      text({ ...BARLOW(400), fontSize: 9, color: t.sub }, pieDeLocales(perfilDeLaIdentidad(data.identidad))),
     ),
   );
 }
@@ -704,6 +730,8 @@ export interface QuoteDiaNocheData {
   discountCondition?: string | null;
   expiresLabel?: string | null;
   benefits?: readonly string[];
+  /** La marca comercial de la pieza (id de identidad); sin ella, la del negocio. */
+  identidad?: string;
 }
 
 export function quotePosterDiaNoche(data: QuoteDiaNocheData, modo: ModoPieza): SatoriNode {
@@ -732,7 +760,7 @@ export function quotePosterDiaNoche(data: QuoteDiaNocheData, modo: ModoPieza): S
   // Sin seguro contra golpes la tarjeta grande ya es la garantía de fábrica:
   // no se repite en las chicas.
   const minis: Array<{ ic: Icono; cifra: string; texto: string }> = [
-    ...(line.golpesMeses ? [{ ic: "medalla" as const, cifra: `${line.fabricaAnios} años`, texto: `Garantía de fábrica ${marca}` }] : []),
+    ...(line.golpesMeses && line.fabricaAnios > 0 ? [{ ic: "medalla" as const, cifra: `${line.fabricaAnios} años`, texto: `Garantía de fábrica ${marca}` }] : []),
     ...(negocio.piezas.antiguedadClasica
       ? [{
           ic: "local" as const,
@@ -741,6 +769,7 @@ export function quotePosterDiaNoche(data: QuoteDiaNocheData, modo: ModoPieza): S
         }]
       : []),
   ];
+  const hayRespaldo = Boolean(line.golpesMeses) || line.fabricaAnios > 0 || minis.length > 0;
 
   return el({
     flexDirection: "column", width: DIA_NOCHE_ANCHO.cotizacion, padding: "26px 25px 20px",
@@ -749,7 +778,7 @@ export function quotePosterDiaNoche(data: QuoteDiaNocheData, modo: ModoPieza): S
   },
     // Encabezado
     el({ justifyContent: "space-between", alignItems: "center", height: 36 },
-      logoDepot(t, 32),
+      logoDepot(t, 32, data.identidad),
       el({ alignItems: "center", gap: 10 },
         text({ ...BARLOW(400), fontSize: 8.5, color: t.sub }, fechaTexto),
         text({
@@ -809,7 +838,7 @@ export function quotePosterDiaNoche(data: QuoteDiaNocheData, modo: ModoPieza): S
       panel({ width: 272, flexShrink: 0, minHeight: 150, flexDirection: "column", padding: "17px 17px 14px" },
         text({ ...CHAKRA(700), fontSize: 10.5, letterSpacing: 1.7, color: t.txt }, "PRECIO POR LLANTA"),
         text({ ...ANCHO(800), fontSize: cuerpoQueCabe(dinero(line.unitConIva), 42, 236), lineHeight: 1, marginTop: 8, letterSpacing: -0.5, color: t.txt }, dinero(line.unitConIva)),
-        text({ ...BARLOW(400), fontSize: 9, color: t.tenue, marginTop: 6 }, "IVA y Ecovalor incluidos"),
+        text({ ...BARLOW(400), fontSize: 9, color: t.tenue, marginTop: 6 }, IMPUESTOS_INCLUIDOS),
         pct !== null && line.pvpConIva
           ? el({ alignItems: "center", justifyContent: "space-between", marginTop: 12 },
               el({ flexDirection: "column" },
@@ -855,12 +884,14 @@ export function quotePosterDiaNoche(data: QuoteDiaNocheData, modo: ModoPieza): S
           ? text({ ...BARLOW(700), fontSize: 10, marginTop: 8, color: "#ffffff" },
               `Ahorra ${dinero((line.pvpConIva - line.unitConIva) * n)} en ${n === 1 ? "su llanta" : "el juego completo"}`)
           : null,
-        el({ alignItems: "center", gap: 6, marginTop: 9, flexWrap: "wrap" },
-          ...[3, 6].map((cuotas) =>
-            text({ ...BARLOW(600), fontSize: 9, color: "#ffffff", backgroundColor: "rgba(255,255,255,0.18)", borderRadius: 999, padding: "4px 9px" },
-              `${cuotas} cuotas de ${dinero(data.total / cuotas)}`)),
-          text({ ...BARLOW(400), fontSize: 9, color: "#ffffff" }, "sin intereses"),
-        ),
+        CUOTAS.length
+          ? el({ alignItems: "center", gap: 6, marginTop: 9, flexWrap: "wrap" },
+              ...CUOTAS.map((cuotas) =>
+                text({ ...BARLOW(600), fontSize: 9, color: "#ffffff", backgroundColor: "rgba(255,255,255,0.18)", borderRadius: 999, padding: "4px 9px" },
+                  `${cuotas} cuotas de ${dinero(data.total / cuotas)}`)),
+              text({ ...BARLOW(400), fontSize: 9, color: "#ffffff" }, "sin intereses"),
+            )
+          : null,
       ),
     ),
 
@@ -879,10 +910,13 @@ export function quotePosterDiaNoche(data: QuoteDiaNocheData, modo: ModoPieza): S
         )
       : null,
 
-    // Respaldo
-    cabeceraSeccion("SU COMPRA ESTÁ RESPALDADA", 14, t, false, 24),
-    el({ gap: 10, marginTop: 12 },
-      el({
+    // Respaldo. Sin seguro, sin garantía confirmada y sin antigüedad (cliente
+    // nuevo) no hay nada que respalde: ni el título se dibuja.
+    hayRespaldo ? cabeceraSeccion("SU COMPRA ESTÁ RESPALDADA", 14, t, false, 24) : null,
+    !hayRespaldo ? null : el({ gap: 10, marginTop: 12 },
+      // Sin seguro NI garantía confirmada (cliente nuevo con garantías en 0) la
+      // tarjeta no se dibuja: «0 años de garantía» sería una promesa en contra.
+      !line.golpesMeses && line.fabricaAnios <= 0 ? null : el({
         width: 377, flexShrink: 0, minHeight: 143, alignItems: "center", gap: 18, padding: "14px 20px", borderRadius: 14,
         border: `${t.bordeAncho}px solid ${t.seguroBorde}`, backgroundImage: t.seguro, ...sombra(t.sombra),
       },
@@ -935,8 +969,8 @@ export function quotePosterDiaNoche(data: QuoteDiaNocheData, modo: ModoPieza): S
       )),
 
     el({ justifyContent: "space-between", marginTop: 16, paddingTop: 12, borderTop: `1px solid ${t.line}` },
-      text({ ...BARLOW(400), fontSize: 8.5, color: t.sub }, negocio.piezas.mediosDePagoDiaNoche),
-      text({ ...BARLOW(600), fontSize: 8.5, color: t.pieB }, localesEnUnaLinea(negocio)),
+      text({ ...BARLOW(400), fontSize: 8.5, color: t.sub }, MEDIOS_DE_PAGO_DIA_NOCHE),
+      text({ ...BARLOW(600), fontSize: 8.5, color: t.pieB }, localesEnUnaLinea(perfilDeLaIdentidad(data.identidad))),
     ),
   );
 }

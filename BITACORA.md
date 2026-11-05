@@ -1,3 +1,47 @@
+## 4-nov-2026 · Multicliente S1: evidencia que pidió la revisión del PR #30
+
+**Qué:** `test/negocioPublico.http.test.ts` levanta `exigirCredencial` con la
+ruta y fija por HTTP el 401 sin clave y el 200 con el contrato exacto de §3.2
+(con `NEGOCIO=mundillantas`). `pendienteNoLlega` también busca Depot, Cumbayá,
+Quito Sur y Pit Stop en cada pieza y texto de Mundillantas. La tabla de
+garantías suma GITI y SUNOCO (sin seguro, como en main). El arnés de los 16
+hashes de Depot queda en el repo (`test/arneses/hashesPiezasDepot.ts`) con su
+línea base de `dc50dab`, y `test/hashesPiezasDepot.test.ts` la vigila en cada
+`npm test`: se comprobó que se pone roja si se cambia una letra de un texto de
+Depot.
+
+**Por qué:** la revisión independiente pidió que la evidencia de R-05, R-08,
+R-09 y R-39 se pueda re-correr desde el repo, no desde capturas ni comandos
+sueltos.
+
+**Horas:** 0,5
+
+## 4-nov-2026 · Multicliente S1: dos marcas por negocio y perfil de Mundillantas
+
+**Qué:** un negocio puede tener varias marcas comerciales (`Identidad`,
+`identidades`, `presentacion` en `negocio/perfil.ts`; helpers puros en
+`negocio/identidad.ts`, con validación al arrancar: cada local en exactamente una
+marca). Perfil `NEGOCIO=mundillantas` con solo lo confirmado en el pitch (dos
+marcas, matriz en la Av. Quevedo km 1 con el pin del Plus Code PRQ7+887, horario
+lunes–sábado 8–18); lo demás va como `[PENDIENTE]`, y el candado `sinPendiente`
+impide que llegue al cliente en el saludo, las piezas, el PDF y los textos.
+Saludo, cierre perdido, locales inventados y cupón reconocen todas las marcas (el
+prefijo del cupón sale de la presentación: Depot `DT`, Mundillantas `MC`). Las
+piezas aceptan `identidad` (logo `logo-<id>.png` con su proporción real leída del
+PNG, nombre y pie de locales de esa marca). `warrantyForBrand` lee
+`negocio.garantias` en vez de los `includes` de Depot; el campo de Depot se
+corrigió a la tabla que veía el cliente (default 0, Winrun 6). Las cuotas de la
+pieza día y noche, la frase de impuestos y la de precio sin descuento salen del
+perfil. Nuevo `GET /api/negocio` para el panel.
+
+**Por qué:** Mundillantas y Competimotor son un cliente con dos marcas y tres
+locales; sin esto el bot se presentaba como un solo nombre, ponía el logo de la
+presentación en la cotización de cualquier local y les prometía las garantías y
+las «3 y 6 cuotas sin intereses» de Depot. Depot no cambia: 16 piezas y textos
+con reloj congelado dan el mismo sha256 en `main` y en la rama.
+
+**Horas:** 3,5
+
 ## 4-nov-2026 · Sprint 2: «rin 15 235» de la demo probado en el simulador; aros en la huella del guardián
 
 **Qué:** la prueba de ancho+aro fija también el mensaje real de la demo (conv 19354,
