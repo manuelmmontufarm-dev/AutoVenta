@@ -497,7 +497,12 @@ export interface MesDisponible {
   conversaciones: number;
 }
 
-/** Los 2 locales reales (PROYECTO.md §11 + app/src/config.ts). */
+/**
+ * Los 2 locales de Depot, SOLO como datos del mock (`data/mock/fixtures.ts`).
+ * El panel real ya no los lee: el negocio, sus locales y sus marcas salen de
+ * `GET /api/negocio` (`data/negocio.ts`), para que el panel de otro cliente no
+ * muestre los de Depot.
+ */
 export const LOCALES = [
   {
     nombre: "Depot Tire Cumbayá",
@@ -513,6 +518,7 @@ export const LOCALES = [
   },
 ] as const;
 
+/** Marcas de Depot, solo para el mock (ver `LOCALES`). */
 export const MARCAS = ["Kenda", "Sunoco", "Eurolub", "Falken"] as const;
 
 export const IVA = 0.15;

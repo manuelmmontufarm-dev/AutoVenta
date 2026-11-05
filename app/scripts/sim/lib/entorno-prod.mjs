@@ -50,6 +50,10 @@ export const LISTA_BLANCA = [
 /** Credenciales e infraestructura: esto NUNCA cruza, y no es deriva. */
 export const IGNORADAS = [
   /KEY$/, /TOKEN$/, /SECRET$/, /PASSWORD$/, /_URL$/, /^DATABASE_URL$/,
+  // El PIN compartido del panel de cada cliente (R-33): es un secreto, no se
+  // copia al simulador ni se escribe en el log — el panel del simulador entra
+  // con el respaldo «1234» de siempre.
+  /^HUB_PIN$/,
   /^WHATSAPP_/, /^RAILWAY_/, /^PORT$/, /^SELLER_PHONE$/, /^OWNER_KEY$/,
   /^INTERBOT_(USERNAME|PASSWORD|SYNC_[A-Z_]+)$/, /^NODE_ENV$/, /^PGSSL$/,
   // Infraestructura del despliegue y del hub: no cambian lo que el bot dice.
@@ -102,6 +106,36 @@ function mensajeDeFallo(error) {
  * hacen un simulador: la base desechable, la Graph de mentira, la foto del
  * catálogo. No se copian de producción ni son deriva.
  */
+/**
+ * Con qué corre el simulador CADA PERFIL (R-36, `npm run sim -- --perfil <id>`).
+ *
+ *  · `entorno`/`servicio`: de qué servicio de Railway se copian configuración y
+ *    variables. `null` = el cliente todavía no tiene servicio: la base se
+ *    siembra con `seed-negocio.ts` y solo los MODELOS (`OPENAI_*`) se toman del
+ *    servicio de Depot, porque de algo hay que cobrar los tokens de prueba.
+ *  · `catalogo`: de dónde sale el inventario. `contifico` es lo de hoy (la foto
+ *    del catálogo); `archivo` es el camino de Fénix: no se levanta el Contífico
+ *    de mentira ni se exportan `CONTIFICO_*`, y el Excel/CSV se sube con
+ *    `--catalogo-archivo` por `POST /api/catalog/import`.
+ */
+export const PERFILES_SIM = {
+  depot: { entorno: "Depot_Tire", servicio: "AutoVenta", catalogo: "contifico" },
+  ejemplo: { entorno: null, servicio: null, catalogo: "archivo" },
+  // Cambia a su servicio de Railway cuando exista (Sprint Final, R-41).
+  mundillantas: { entorno: null, servicio: null, catalogo: "archivo" },
+};
+
+/** El perfil pedido con `--perfil`. Uno desconocido NO arranca, a propósito. */
+export function perfilDeSimulacion(id) {
+  const perfil = PERFILES_SIM[id];
+  if (!perfil) {
+    throw new Error(
+      `--perfil "${id}" no existe. Perfiles del simulador: ${Object.keys(PERFILES_SIM).join(", ")}.`,
+    );
+  }
+  return perfil;
+}
+
 export const DEFINIDAS_POR_EL_SIM = [
   "DATABASE_URL", "PGSSL", "PGUSER", "PORT",
   "OPENAI_API_KEY", "OPENAI_API_KEY_SIM", "OPENAI_BASE_URL", "OPENAI_ADMIN_KEY",

@@ -1,6 +1,7 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { negocioActual } from "../data/negocio";
 import { authHeaders } from "../data/realSource";
 import type { Mensaje, Rol, Ticket } from "../data/types";
 import { horaCorta, money } from "../lib/format";
@@ -393,7 +394,7 @@ export function CotizacionModal({ ticket }: { ticket: Ticket }) {
       <div className="flex items-center justify-between px-6 py-5 text-white" style={{ background: "#1c1b19" }}>
         <div>
           <p className="serif text-lg tracking-tight">
-            Depot Tire
+            {negocioActual().nombre}
           </p>
           <p className="text-[12px]" style={{ color: "rgba(255,255,255,.65)" }}>
             30+ años rodando contigo
@@ -451,8 +452,7 @@ export function CotizacionModal({ ticket }: { ticket: Ticket }) {
           </div>
         </div>
         <p className="mt-4 rounded-[6px] px-3 py-2.5 text-[12px] leading-relaxed opacity-70" style={{ background: "#f7f6f3" }}>
-          Incluye instalación, balanceo y válvulas nuevas. Precios con IVA. · Depot Tire · +593 98 280 1766 ·
-          Lun–Sáb 8:30–17:30
+          Incluye instalación, balanceo y válvulas nuevas. Precios con IVA. · {negocioActual().nombre} · {negocioActual().telefono}
         </p>
       </div>
     </div>

@@ -14,6 +14,7 @@
  */
 import { AnimatePresence, motion } from "framer-motion";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { negocioActual } from "../data/negocio";
 import type { Permisos } from "../data/realSource";
 import type { PhaseFlags } from "../data/types";
 import { navigate, useRoute } from "../router";
@@ -47,7 +48,7 @@ function armarPasos(input: {
       id: "bienvenida",
       titulo: `Hola, ${nombre}`,
       cuerpo:
-        "Este es el hub de Depot Tire. El bot atiende solo a los clientes por WhatsApp; "
+        `Este es el hub de ${negocioActual().nombre}. El bot atiende solo a los clientes por WhatsApp; `
         + "aquí es donde tú lo miras trabajar, tomas el volante cuando hace falta y cierras las ventas. "
         + "Te llevo por las paradas importantes — son dos minutos.",
     },

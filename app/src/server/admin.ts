@@ -126,6 +126,7 @@ import {
   mensajeCambioDeBot,
   saveNivelesAviso,
 } from "../services/advisorNotifications.js";
+import { getAsesoresPorLocal, localesAsignables, saveAsesoresPorLocal } from "../services/asesoresPorLocal.js";
 import {
   activarUsuarioHub,
   actualizarUsuarioHub,
@@ -1963,6 +1964,27 @@ export function createAdminRouter(): express.Router {
   router.delete("/advisors/:id", async (req, res) => {
     await sql`delete from advisors where id = ${Number(req.params.id)}`;
     res.json({ ok: true });
+  });
+
+  // ── Asesores por local (Ajustes → Avisos, R-34) ────────────────────────────
+  // Qué asesores atienden cada local: con asignación, los avisos de una
+  // conversación con local elegido van solo a ellos. Leerlo puede cualquiera
+  // del hub; cambiarlo es de administradores, como la matriz de avisos.
+
+  router.get("/asesores-por-local", async (_req, res) => {
+    res.json({ ok: true, asignaciones: await getAsesoresPorLocal(), locales: localesAsignables() });
+  });
+
+  router.put("/asesores-por-local", exigirNivelMaximo, async (req, res) => {
+    try {
+      const asignaciones = await saveAsesoresPorLocal(req.body?.asignaciones ?? req.body);
+      res.json({ ok: true, asignaciones, locales: localesAsignables() });
+    } catch (error) {
+      const texto = error instanceof Error && "issues" in error
+        ? ((error as { issues: Array<{ message: string }> }).issues[0]?.message ?? "Asignaciones inválidas")
+        : mensaje(error, "No se pudieron guardar los asesores por local");
+      res.status(400).json({ ok: false, error: texto });
+    }
   });
 
   // ── Niveles de aviso (Ajustes → Avisos) ────────────────────────────────────

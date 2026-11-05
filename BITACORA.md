@@ -1,3 +1,82 @@
+## 4-nov-2026 · Multicliente S3: horarios de la semilla desde el perfil y receta de alta
+
+**Qué:** `seed:negocio` sembraba `store_hours` con el 08:30–17:30 de los siete
+días para todo local sin `horarioPorDefecto` (visto en el panel con `ejemplo`,
+que abre lun–vie 9–18). Ahora `horariosDelPerfil` usa el `horarioPorDefecto`
+del local o, si no hay, `horasPorDia` del negocio día por día (`null` =
+cerrado); prueba nueva en `seedNegocio.test.ts`, también con los locales de
+Depot. (R-37) `docs/clientes/ALTA-DE-CLIENTE.md`: servicio + Postgres, tabla de
+variables (con `HUB_PIN`, `BOT_POWER_DEFAULT=off`, modelos copiados de Depot,
+`BILLING_*`), semilla con la URL pública, Ajustes, WhatsApp, catálogo,
+simulador `--perfil`, encender, y el costo de que `main` despliegue a todos.
+
+**Por qué:** un cliente nuevo no puede arrancar ofreciendo un domingo que no
+abre, y el alta tiene que poder hacerse sin reconstruirla de memoria.
+
+**Horas:** 1
+
+## 4-nov-2026 · Multicliente S3: el panel muestra SU negocio (nombre, locales, playbook, arranque)
+
+**Qué:** nuevo `hub/src/data/negocio.ts`: pide `GET /api/negocio` (S1) después
+del login y lo reintenta con la credencial nueva; con 404 usa un respaldo con
+los valores de Depot de hoy (locales desde `/api/store-hours`), así Depot no
+cambia. Lo usan: el rail y el título de la pestaña (`index.html` y el manifest
+dicen «AutoVenta»), el tour, encabezado y pie del modal de cotización, el
+nombre del PDF, el texto de anuncios, el favicon, el cupón (`<iniciales>-PUMA47`)
+y los nombres de paleta/plantilla de Depot (solo en Depot). (R-30) Horarios
+lista los locales del negocio; (R-31) la pestaña Manual muestra el playbook del
+servidor; (R-32) tarjeta «Falta para encender el bot» arriba de Ajustes cuando
+`faltantes` no está vacío; (R-34) casillas «Atiende en» por local en «Quién
+recibe los avisos». Probado en un panel local con `NEGOCIO=ejemplo` (y como
+Depot, sin cambios). Arreglo de paso: `advisors.id` llega como texto y la
+casilla guardaba `"1"` → 400; se convierte a número.
+
+**Por qué:** R-29…R-32 — el panel de Mundillantas no puede decir Depot ni
+listar Cumbayá y Quito Sur.
+
+**Horas:** 2,5
+
+## 4-nov-2026 · Multicliente S3: semilla de base nueva y simulador por cliente
+
+**Qué:** (R-35) `npm run seed:negocio` (`db/seed-negocio.ts`) deja una base
+vacía lista para el perfil activo: esquema, prompts por etapa, fases y las 4
+llaves que exige el simulador (`guardian_config` —prendido para un cliente
+nuevo—, `ai_config`, `pieces_config`, `store_hours` desde el perfil),
+idempotente: nunca pisa lo existente. (R-36) `npm run sim -- --perfil <id>` con
+la tabla `PERFILES_SIM` en `entorno-prod.mjs`: Depot = lo de hoy; `ejemplo` y
+`mundillantas` sin servicio corren la semilla, toman solo los modelos
+`OPENAI_*` de Depot y usan catálogo por archivo (sin Contífico ni `CONTIFICO_*`,
+tampoco en humo); `--catalogo-archivo` sube el Excel por
+`POST /api/catalog/import` (404 → «falta el Sprint 2»); `NEGOCIO` del perfil se
+pone después de lo copiado y una copia con otro negocio aborta. Verificado:
+`sim -- --perfil ejemplo --humo` todo verde (catálogo vacío anunciado, guardián
+revisando). Pruebas: `seedNegocio.test.ts` (Postgres local),
+`simPorPerfil.test.ts`.
+
+**Por qué:** la prueba de Mundillantas necesita probar su bot ANTES de que
+exista su servicio, con su perfil y su catálogo de Fénix — sin arrancar jamás
+un bot con el perfil de otro cliente.
+
+**Horas:** 2
+
+## 4-nov-2026 · Multicliente S3: PIN por cliente, usuarios por negocio y avisos al asesor del local
+
+**Qué:** (R-33) el PIN compartido del panel sale de `HUB_PIN` (sin ella sigue
+«1234»: Depot no cambia), clasificada en `IGNORADAS` del simulador; la semilla
+de usuarios del hub trae a los cuatro del 14-ago solo con `negocio.id ===
+"depot"` — otro negocio arranca con un solo admin. (R-34) clave
+`settings.asesores_por_local` (`services/asesoresPorLocal.ts`, SQL propio) +
+`GET/PUT /api/asesores-por-local`; `notifyAdvisor` lee `nearest_store` y, con
+local elegido y asignación, avisa solo a los asesores de ese local; sin
+asignación o sin local, a todos como hoy; un filtro que deja la lista vacía
+vuelve a todos. Pruebas: `hubPin.test.ts`, `asesoresPorLocal.test.ts`.
+
+**Por qué:** en el pitch del 4-nov a Mundillantas (3 locales, dos marcas) se
+prometió «avisa al asesor correcto», y su panel no puede abrir con el PIN
+publicado en el repo ni con los Tamayo en el login.
+
+**Horas:** 1,5
+
 ## 2-nov-2026 · Canary: grupos cruzados para la última semana (canary = impares)
 
 **Qué:** en Railway (Depot_Tire) `AI_CANARY_DIGITS` pasó de `0,2,4,6,8` a `1,3,5,7,9`
