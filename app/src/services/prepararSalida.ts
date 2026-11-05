@@ -56,7 +56,19 @@ import { sinJsonCrudo } from "../domain/jsonCrudo.js";
 import { conLocalesReales } from "./localesReales.js";
 import { sql } from "../db/client.js";
 import { respuestaDeUbicacionFueraDeCobertura, sinVisitaNiMapas } from "../domain/visitaImposible.js";
-import { BENEFICIO_DE_REDES, esFraseDeBeneficios, preguntaPorBeneficios } from "../domain/beneficioDeRedes.js";
+import {
+  BENEFICIO_DE_REDES,
+  esFraseDeBeneficios,
+  nombraElBeneficioDeRedes,
+  preguntaPorBeneficios,
+  preguntaPorLaPromocion,
+} from "../domain/beneficioDeRedes.js";
+import {
+  nombraUnServicioDeLaPromo,
+  resumenDeLaPromocion,
+  sinAsentimientoSuelto,
+  yaSalioElResumenDeLaPromocion,
+} from "./hechosDeTemporada.js";
 import { sinFrasesDelTema } from "../domain/respuestaDelTema.js";
 import { sinFraseColgando } from "../domain/fraseColgando.js";
 import { soloQuitaOReordena } from "../domain/soloQuita.js";
@@ -158,6 +170,13 @@ export interface ContextoDeSalida {
   callarEsteTurno?: boolean;
   /** La intención vigente es un servicio que no está en el catálogo de llantas. */
   consultaFueraDeCatalogo?: boolean;
+  /**
+   * Este turno ya contestó «¿tienen promociones?» con la promo de temporada:
+   * el beneficio de redes no se pega detrás salvo que lo hayan nombrado.
+   */
+  promocionDeTemporadaRespondida?: boolean;
+  /** «Ahora» de la cadena, para las pruebas de fechas (promo de temporada). Por defecto, el reloj. */
+  ahora?: Date;
   /**
    * La oferta de cotizar que la puerta YA SABE que hizo (la equivalente, el
    * menú, «¿Cuál le cotizo…?»). Los pasos que reescriben la pregunta la
@@ -903,6 +922,36 @@ export const PASOS: readonly PasoDeSalida[] = [
     },
   },
   {
+    // «¿TIENEN PROMOCIONES?» EN TEMPORADA (Black Friday de Depot, nov-2026).
+    //
+    // La respuesta es la lista corta de la promo, armada de la política
+    // (`hechosDeTemporada.resumenDeLaPromocion`), una sola vez por ciclo: si
+    // ya salió, el modelo contesta lo que pregunte con sus hechos. Reemplaza
+    // lo que el modelo dijo de promos o descuentos, igual que el beneficio de
+    // redes. Fuera de fechas o en un cliente sin promo, no hace nada.
+    nombre: "la_promocion_de_temporada_se_responde",
+    corre: ["respuesta", "retomada"],
+    async aplicar(texto, ctx) {
+      const resumen = resumenDeLaPromocion({ ahora: ctx.ahora });
+      if (!resumen || !preguntaPorLaPromocion(ctx.textoDelCliente)) return texto;
+      if (nombraUnServicioDeLaPromo(ctx.textoDelCliente, { ahora: ctx.ahora })) return texto;
+      const delBot = await sql<{ content: string | null }[]>`
+        select content from messages
+        where conversation_id=${ctx.conversation.id} and cycle=${ctx.conversation.current_cycle}
+          and role='assistant' and coalesce(status, 'sent') <> 'failed'
+      `.catch(() => [] as { content: string | null }[]);
+      if (yaSalioElResumenDeLaPromocion(delBot.map((m) => m.content), { ahora: ctx.ahora })) return texto;
+      ctx.promocionDeTemporadaRespondida = true;
+      const { texto: limpio, quitadas } = sinFrasesDelTema(
+        texto,
+        (frase) => esFraseDeBeneficios(frase) || /black\s*friday|\d+\s*%|descuento/i.test(frase),
+      );
+      console.log(`🛍️ Promo de temporada contestada en la conv ${ctx.conversation.id}${quitadas.length ? `; salen ${quitadas.length} frases del modelo sobre lo mismo` : ""}.`);
+      const resto = sinAsentimientoSuelto(limpio);
+      return resto.trim() ? `${resumen}\n---\n${resto}` : resumen;
+    },
+  },
+  {
     // EL BENEFICIO DE REDES, SOLO SI LO PIDEN (Manuel, 12-sep).
     //
     // Hasta el 12-sep salía solo tras cada cotización, desde el final de la
@@ -916,6 +965,9 @@ export const PASOS: readonly PasoDeSalida[] = [
     async aplicar(texto, ctx) {
       // Un negocio sin beneficio de redes (política en null) no lo menciona.
       if (!BENEFICIO_DE_REDES || !preguntaPorBeneficios(ctx.textoDelCliente)) return texto;
+      // En temporada, «¿tienen promociones?» ya lo contestó la promo; el
+      // beneficio de redes va solo si lo nombraron («beneficio», «redes»).
+      if (ctx.promocionDeTemporadaRespondida && !nombraElBeneficioDeRedes(ctx.textoDelCliente)) return texto;
       // El beneficio REEMPLAZA lo que el modelo dijo de beneficios o de lo
       // incluido (Manuel, 21:45: el párrafo «Sí. Con la compra se incluye…»
       // repetía lo que la pieza ya dice). Preguntas y menú se quedan.

@@ -9,6 +9,7 @@
  */
 import { sql } from "../db/client.js";
 import { lineaDePromocionVigente } from "../domain/promocion.js";
+import { hechoDeTemporadaParaElVendedor } from "./hechosDeTemporada.js";
 import { DEFAULT_PIECES_CONFIG, getPiecesConfig } from "./settings.js";
 
 export interface Benefit {
@@ -158,7 +159,7 @@ export function debeLlevarIncluyeEnTexto(imagenOk: boolean, clienteLoPidio: bool
  * beneficios INCONDICIONALES se afirman como hechos generales: uno condicionado
  * a una marca o a un mínimo de unidades no es un hecho de toda compra.
  */
-export async function activeBenefitFactsBlock(): Promise<string | null> {
+export async function activeBenefitFactsBlock(ahora: Date = new Date()): Promise<string | null> {
   const [textos, piezas] = await Promise.all([
     applicableBenefitTexts(),
     getPiecesConfig().catch(() => DEFAULT_PIECES_CONFIG),
@@ -168,11 +169,16 @@ export async function activeBenefitFactsBlock(): Promise<string | null> {
   // (no «ya está aplicada»: muchas veces todavía no hay cotización). En porcentaje
   // no hay línea y el bloque queda exactamente como antes.
   const promocion = lineaDePromocionVigente(piezas.promocion.modo);
-  if (!textos.length) return promocion;
+  // LA PROMOCIÓN DE TEMPORADA (Black Friday de Depot, nov-2026): sus cifras
+  // como hecho, o el vendedor no puede decir «$20 la alineación» y el
+  // revisor la tacha. Fuera de fechas o sin promo en la política, null.
+  const temporada = hechoDeTemporadaParaElVendedor({ beneficios: textos, ahora });
+  if (!textos.length) return [promocion, temporada].filter(Boolean).join("\n") || null;
   return [
     `INCLUIDO CON LA COMPRA (fuente determinística): ${textos.join("; ")}.`,
     "Si el cliente pregunta si algo está incluido (alineación, balanceo, instalación…): lo que está en esta lista se AFIRMA con seguridad — es exactamente lo que imprime su cotización. PROHIBIDO decir que algo de esta lista «es aparte», «tiene costo» o «se lo confirma el asesor». Lo que NO está en la lista ni se afirma ni se niega: «se lo confirma el asesor en tienda», y sigues con la venta en la misma respuesta.",
     promocion,
+    temporada,
   ].filter(Boolean).join("\n");
 }
 

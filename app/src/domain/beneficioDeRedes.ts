@@ -76,3 +76,24 @@ export function esFraseDeBeneficios(frase: string): boolean {
   const n = frase.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
   return /\bbeneficio|\bpromocion|\bregalo|\bobsequi|\binclu(?:ye|yen|ido|ida|idos|idas|imos)\b|\binstalacion|\balineacion|\bbalanceo|\bseguro gratuito|\bmantenimiento|\brevision gratuita|\bgratis\b|\bgratuit|\bredes sociales/.test(n);
 }
+
+/**
+ * ¿Pregunta si hay promociones o por la promo de temporada? Mientras el Black
+ * Friday corre (Depot, nov-2026) la respuesta es la lista de la promo, no el
+ * beneficio de redes. Las mismas exclusiones que `preguntaPorBeneficios`: con
+ * una cifra habla de SU cotización.
+ */
+export function preguntaPorLaPromocion(texto: string | null | undefined): boolean {
+  const n = (texto ?? "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+  if (!n.trim()) return false;
+  if (/%|\$\s*\d|\d\s*\$|\b\d+\s*(?:dolares|usd)\b/.test(n)) return false;
+  return /\bblack\s*friday\b|\bblack\b|\bviernes\s+negro\b/.test(n)
+    || /\bpromo(?:cion)?(?:es)?\b|\bofertas?\b/.test(n)
+    || preguntaPorBeneficios(texto);
+}
+
+/** ¿Habla del beneficio de redes en sí (no solo de «promociones»)? */
+export function nombraElBeneficioDeRedes(texto: string | null | undefined): boolean {
+  const n = (texto ?? "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+  return /\bbeneficios?\b|\bredes\b|\bregalos?\b|\bobsequi\w*\b|\bfacebook\b|\binstagram\b|\btiktok\b/.test(n);
+}

@@ -192,6 +192,7 @@ describe("el orden de los candados en el turno", () => {
       "sin_descuento_negado",
       "el_pago_se_responde",
       "el_descuento_se_responde",
+      "la_promocion_de_temporada_se_responde",
       "el_beneficio_se_responde",
       "sin_telefono_propio",
       "sin_mapas_escritos_a_mano",
