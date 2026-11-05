@@ -35,6 +35,8 @@ const { normalizeContificoProduct } = await import("../src/domain/catalog.js");
 const qm = await import("../src/services/quoteMessages.js");
 
 const MARCA = "[PENDIENTE]";
+/** Lo que es de Depot y no puede aparecer en una pieza ni un texto de Mundillantas. */
+const DE_DEPOT = /Depot|Cumbay[aá]|Quito Sur|Pit ?Stop/i;
 
 /** Todo el texto de un árbol de satori, para buscar la marca adentro. */
 function textoDe(nodo: unknown): string {
@@ -75,6 +77,7 @@ describe("el saludo", () => {
   it("se presenta sin el nombre pendiente del vendedor", () => {
     for (const texto of [firmaDePresentacion(negocio), presentacionDeApertura("Jenny"), conPresentacion("¿Qué medida busca?", null)]) {
       expect(texto).not.toContain(MARCA);
+      expect(texto).not.toMatch(DE_DEPOT);
     }
   });
 });
@@ -102,6 +105,7 @@ describe("las piezas, en las dos identidades y las dos plantillas", () => {
       for (const pieza of piezas) {
         const texto = textoDe(pieza);
         expect(texto).not.toContain(MARCA);
+        expect(texto).not.toMatch(DE_DEPOT);
         // Sin garantía confirmada no se dibuja «0 años».
         expect(texto).not.toMatch(/\b0 a[ñn]os/i);
       }
@@ -116,6 +120,7 @@ describe("las piezas, en las dos identidades y las dos plantillas", () => {
         for (const pieza of piezas) {
           const texto = textoDe(pieza);
           expect(texto).not.toContain(MARCA);
+          expect(texto).not.toMatch(DE_DEPOT);
           expect(texto).not.toMatch(/\b0 a[ñn]os/i);
         }
       }
@@ -146,6 +151,7 @@ describe("los mensajes en texto", () => {
     ];
     for (const texto of textos) {
       expect(texto).not.toContain(MARCA);
+      expect(texto).not.toMatch(DE_DEPOT);
       expect(texto).not.toContain("5 años");
       expect(texto).not.toContain("Ecovalor");
     }

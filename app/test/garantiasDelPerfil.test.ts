@@ -29,6 +29,8 @@ const TABLA_DE_DEPOT = [
   ["WINRUN", 6],
   ["winrun", 6],
   ["SAILUN", null], // marca fuera de la tabla: sin seguro contra golpes
+  ["GITI", null],
+  ["SUNOCO", null], // Depot la vende, pero nunca tuvo seguro contra golpes
   ["", null],
 ] as const;
 

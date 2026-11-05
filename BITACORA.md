@@ -1,3 +1,21 @@
+## 4-nov-2026 · Multicliente S1: evidencia que pidió la revisión del PR #30
+
+**Qué:** `test/negocioPublico.http.test.ts` levanta `exigirCredencial` con la
+ruta y fija por HTTP el 401 sin clave y el 200 con el contrato exacto de §3.2
+(con `NEGOCIO=mundillantas`). `pendienteNoLlega` también busca Depot, Cumbayá,
+Quito Sur y Pit Stop en cada pieza y texto de Mundillantas. La tabla de
+garantías suma GITI y SUNOCO (sin seguro, como en main). El arnés de los 16
+hashes de Depot queda en el repo (`test/arneses/hashesPiezasDepot.ts`) con su
+línea base de `dc50dab`, y `test/hashesPiezasDepot.test.ts` la vigila en cada
+`npm test`: se comprobó que se pone roja si se cambia una letra de un texto de
+Depot.
+
+**Por qué:** la revisión independiente pidió que la evidencia de R-05, R-08,
+R-09 y R-39 se pueda re-correr desde el repo, no desde capturas ni comandos
+sueltos.
+
+**Horas:** 0,5
+
 ## 4-nov-2026 · Multicliente S1: dos marcas por negocio y perfil de Mundillantas
 
 **Qué:** un negocio puede tener varias marcas comerciales (`Identidad`,
