@@ -23,12 +23,18 @@ describe("simulador · perfiles (R-36)", () => {
     });
   });
 
-  it("ejemplo y mundillantas corren sin servicio y con catálogo por archivo", () => {
-    for (const id of ["ejemplo", "mundillantas"]) {
-      const perfil = perfilDeSimulacion(id);
-      expect(perfil.servicio, id).toBeNull();
-      expect(perfil.catalogo, id).toBe("archivo");
-    }
+  it("ejemplo corre sin servicio y con catálogo por archivo", () => {
+    const perfil = perfilDeSimulacion("ejemplo");
+    expect(perfil.servicio).toBeNull();
+    expect(perfil.catalogo).toBe("archivo");
+  });
+
+  it("mundillantas copia su servicio de Railway (creado el 5-nov) y su catálogo es por archivo", () => {
+    expect(perfilDeSimulacion("mundillantas")).toEqual({
+      entorno: "Depot_Tire",
+      servicio: "Mundillantas",
+      catalogo: "archivo",
+    });
   });
 
   it("un --perfil desconocido no arranca, y el error lista los que existen", () => {

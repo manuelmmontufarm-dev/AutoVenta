@@ -1,3 +1,21 @@
+## 5-nov-2026 · Mundillantas en Railway (R-41) y el simulador apuntando a su servicio
+
+**Qué:** creados en el entorno `Depot_Tire` el servicio `Mundillantas` (root `/app`,
+`NEGOCIO=mundillantas`, `BOT_POWER_DEFAULT=off`, claves y `HUB_PIN` propios, modelos
+copiados de Depot sin el canary) y su base `Postgres-Mundillantas`, con la semilla del
+perfil corrida. Panel en `https://mundillantas-depottire.up.railway.app/admin/`; `/health`
+responde con el bot apagado y Depot no se tocó. En el código: `PERFILES_SIM.mundillantas`
+apunta al servicio nuevo (el simulador copia sus Ajustes reales leyendo
+`app/.env.sim.mundillantas`), y `ALTA-DE-CLIENTE.md` corrige la receta: **sin
+`NODE_ENV=production`** (rompe el build: `npm ci` omite `typescript`), la referencia
+`${{Postgres-<Cliente>.DATABASE_URL}}` con el nombre exacto, y el TCP Proxy para la
+semilla. Humo `--perfil mundillantas` 8/8 contra su servicio real; humo de Depot 8/8.
+
+**Por qué:** R-41 era lo único abierto del plan multicliente, y la receta tal como
+estaba dejaba el primer deploy de un cliente nuevo caído.
+
+**Horas:** 1
+
 ## 5-nov-2026 · Sprint Final: el replay de R-39 cerrado, sin señal
 
 **Qué:** los 10 chats más recientes de Depot en producción (convs 38311,
