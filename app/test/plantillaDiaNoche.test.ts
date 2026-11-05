@@ -232,8 +232,10 @@ describe("de punta a punta con el motor de imágenes", () => {
       dateLabel: "12/09/2026", sizeLabel: "265/70R16", medidaPedida: "265/70R16", products,
       plantilla: "diaNoche", cantidad: 4, codigoRecomendado: "KR628", benefits: BENEFICIOS,
     };
-    const dia = await renderOptionsImage({ ...base, modo: "dia" });
-    const noche = await renderOptionsImage({ ...base, modo: "noche" });
+    // Las tres con el mismo reloj: además del modo, `ahora` decide si la
+    // vitrina lleva el sello de Black Friday (noviembre), y aquí solo se mide el modo.
+    const dia = await renderOptionsImage({ ...base, modo: "dia", ahora: QUITO("10:00") });
+    const noche = await renderOptionsImage({ ...base, modo: "noche", ahora: QUITO("10:00") });
     const autoManana = await renderOptionsImage({ ...base, modo: "auto", ahora: QUITO("10:00") });
     expect(dia.equals(noche)).toBe(false);
     expect(autoManana.equals(dia)).toBe(true);

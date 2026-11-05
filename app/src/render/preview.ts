@@ -9,6 +9,8 @@
 import { ensureCatalogReady, searchByText } from "../services/catalog.js";
 import { normalizeContificoProduct, type CatalogItem } from "../domain/catalog.js";
 import { brandProfilesForRender } from "../services/brandProfiles.js";
+import { segundaLlantaDe } from "../domain/promocionDeTemporada.js";
+import { politica } from "../negocio/politica.js";
 import { renderCompareImage, renderOptionsImage, renderQuoteImage, toRenderLine } from "./quoteImage.js";
 
 export interface PreviewOptions {
@@ -108,13 +110,17 @@ export async function renderPreviewPiece(options: PreviewOptions): Promise<Buffe
 
   // Cotización: 4 unidades del primer producto, con un descuento de ejemplo
   // para que se vea la franja dorada y la insignia de ahorro.
+  // Con la promo de temporada vigente y una marca que entra, la muestra sale
+  // como la cotización real: con la 2.ª llanta y su total.
   const producto = productos[0];
   const cantidad = 4;
-  const total = producto.minimumPriceWithTax * cantidad;
+  const linea = await toRenderLine(producto, cantidad);
+  linea.segundaLlanta = segundaLlantaDe(politica.promocionDeTemporada, producto.brand, cantidad, producto.minimumPriceWithTax);
+  const total = linea.segundaLlanta?.totalConIva ?? producto.minimumPriceWithTax * cantidad;
   return renderQuoteImage({
     number: "COT-EJEMPLO",
     dateLabel: fecha,
-    lines: [await toRenderLine(producto, cantidad)],
+    lines: [linea],
     subtotal: total / (1 + producto.taxRate),
     iva: total - total / (1 + producto.taxRate),
     total,

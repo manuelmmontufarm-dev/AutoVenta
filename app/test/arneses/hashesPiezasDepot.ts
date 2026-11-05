@@ -56,14 +56,18 @@ export async function hashesDePiezasDepot(raizApp = APP_PROPIO): Promise<Record<
   ];
   const lineas = await Promise.all(catalogo.map((p) => toRenderLine(p, 4)));
   const fecha = FECHA_DE_LAS_MUESTRAS;
+  // El reloj de las piezas, FUERA de toda promo de temporada: el sello de la
+  // vitrina de Black Friday (nov-2026) sale solo en sus fechas, y esta línea
+  // base es la de Depot sin promo. Sin fijarlo, el hash cambiaría según el mes.
+  const ahora = new Date("2026-10-15T12:00:00-05:00");
   const cotizacion = { number: "COT-BASE", dateLabel: fecha, lines: [lineas[0]], subtotal: 292.87, iva: 43.93, total: 336.8 };
-  const opciones = { dateLabel: fecha, sizeLabel: "205/55R16", products: lineas, cantidad: 4, codigoRecomendado: catalogo[1].code };
+  const opciones = { dateLabel: fecha, sizeLabel: "205/55R16", products: lineas, cantidad: 4, codigoRecomendado: catalogo[1].code, ahora };
 
   const salida: Record<string, string> = {};
   salida["cotizacion-clasica"] = sha(await renderQuoteImage({ ...cotizacion, benefits: ["Instalación completa"] }));
   salida["cotizacion-dianoche-dia"] = sha(await renderQuoteImage({ ...cotizacion, plantilla: "diaNoche", modo: "dia" }));
   salida["cotizacion-dianoche-noche"] = sha(await renderQuoteImage({ ...cotizacion, plantilla: "diaNoche", modo: "noche" }));
-  salida["comparativa"] = sha(await renderCompareImage({ dateLabel: fecha, products: lineas.slice(0, 3) }));
+  salida["comparativa"] = sha(await renderCompareImage({ dateLabel: fecha, products: lineas.slice(0, 3), ahora }));
   salida["opciones"] = sha(await renderOptionsImage(opciones));
   salida["opciones-dianoche-dia"] = sha(await renderOptionsImage({ ...opciones, plantilla: "diaNoche", modo: "dia" }));
   salida["guia-medida"] = sha(await renderMedidaGuideImage({ dateLabel: fecha }));

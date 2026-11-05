@@ -26,7 +26,8 @@
  */
 import { depotLogo, logoOficial } from "./assets.js";
 import { el, img, stripEmoji, text, type SatoriNode } from "./depotDesign.js";
-import type { PosterLine } from "./depotPosters.js";
+import { ahorroDeLaCotizacion, rotulosDeSegundaLlanta, textoVitrinaSegundaLlanta, type PosterLine } from "./depotPosters.js";
+import { cuentaDeSegundaLlanta } from "../domain/promocionDeTemporada.js";
 import { etiquetaDePromocion } from "../domain/promocion.js";
 import { negocio, pieDeLocales, localesEnUnaLinea, sinPendiente } from "../negocio/index.js";
 import { localesDeIdentidad } from "../negocio/identidad.js";
@@ -459,6 +460,103 @@ function selloDeMedida(line: PosterLine, t: Tokens): SatoriNode | null {
 // OPCIONES
 // ===========================================================================
 
+// ===========================================================================
+// Black Friday — la franja y el panel de precio de la cotización
+// ===========================================================================
+
+const NEGRO_BF = "#0b0b0d";
+
+/**
+ * La franja «BLACK FRIDAY · TODO NOVIEMBRE» entre el encabezado y el héroe.
+ * Negra en los dos modos —es Black Friday— con el oro y el rojo de la pieza.
+ */
+function franjaTemporadaDiaNoche(line: PosterLine): SatoriNode | null {
+  const bf = line.segundaLlanta;
+  if (!bf) return null;
+  const tempo = line.temporada;
+  return el({
+    position: "relative", overflow: "hidden", alignItems: "center", justifyContent: "space-between", marginTop: 14,
+    padding: "11px 16px 11px 14px", borderRadius: 12, backgroundColor: NEGRO_BF, border: `1px solid ${ORO}`,
+    boxShadow: "0 8px 22px rgba(0,0,0,0.25)",
+  },
+    el({ position: "absolute", top: 0, right: 150, width: 16, height: "100%", backgroundColor: "rgba(255,201,60,0.12)", transform: "skewX(-25deg)" }),
+    el({ position: "absolute", top: 0, right: 176, width: 7, height: "100%", backgroundColor: "rgba(229,44,42,0.35)", transform: "skewX(-25deg)" }),
+    el({ alignItems: "center", gap: 9 },
+      el({ gap: 3 },
+        el({ width: 9, height: 22, backgroundColor: ROJO, transform: "skewX(-22deg)" }),
+        el({ width: 4, height: 22, backgroundColor: ORO, transform: "skewX(-22deg)" }),
+      ),
+      text({ ...ANCHO(900), fontSize: 22, lineHeight: 1, letterSpacing: -0.3, color: "#ffffff", whiteSpace: "nowrap" },
+        (tempo?.nombre ?? bf.nombre).toUpperCase()),
+      tempo?.bajada
+        ? text({ ...ANCHO(800), fontSize: 13, lineHeight: 1, color: ORO, whiteSpace: "nowrap" }, `· ${tempo.bajada}`)
+        : null,
+    ),
+    el({ flexDirection: "column", alignItems: "flex-end", gap: 3 },
+      text({ ...ANCHO(900), fontSize: 12.5, lineHeight: 1, color: ORO, whiteSpace: "nowrap" }, `−${bf.porcentaje}% EN TU 2.ª LLANTA`),
+      tempo?.hasta
+        ? text({ ...BARLOW(500), fontSize: 8.5, lineHeight: 1, color: "#c9c9cf", whiteSpace: "nowrap" }, `Válido hasta el ${tempo.hasta}`)
+        : null,
+    ),
+  );
+}
+
+/**
+ * El panel «precio por llanta» con la 2.ª llanta: los dos precios con su
+ * rótulo, la cuenta entera y la insignia del 60 % (272 px de ancho: cada
+ * renglón está medido para no salirse).
+ */
+function panelSegundaLlanta(line: PosterLine, t: Tokens): SatoriNode[] {
+  const bf = line.segundaLlanta!;
+  const rot = rotulosDeSegundaLlanta(line.quantity);
+  const pct = porcentaje(line);
+  // El «ANTES» del catálogo va al lado del precio normal, que es el que rebajó;
+  // pegado a la insignia no cabía en los 272 px y la insignia lo tapaba.
+  const antes = pct !== null && line.pvpConIva ? dinero(line.pvpConIva) : null;
+  const bloque = (rotulo: string, monto: string, color: string, chip: string | null, tachado: string | null) =>
+    el({ flexDirection: "column", marginTop: 8 },
+      el({ alignItems: "center", gap: 6 },
+        text({ ...CHAKRA(700), fontSize: 8.5, letterSpacing: 1.2, color: t.sub, whiteSpace: "nowrap" }, rotulo.toUpperCase()),
+        chip
+          ? text({ ...ANCHO(900), fontSize: 8.5, lineHeight: 1, color: TINTA_ORO, backgroundImage: ORO_GRAD, borderRadius: 4, padding: "2px 5px", whiteSpace: "nowrap" }, chip)
+          : null,
+      ),
+      el({ alignItems: "baseline", gap: 8, marginTop: 3 },
+        text({ ...ANCHO(800), fontSize: cuerpoQueCabe(monto, 30, tachado ? 150 : 236), lineHeight: 1, letterSpacing: -0.4, color }, monto),
+        tachado
+          ? el({ alignItems: "baseline", gap: 4 },
+              text({ ...CHAKRA(700), fontSize: 7.5, letterSpacing: 1.2, color: t.tenue }, "ANTES"),
+              text({ ...ARCHIVO, fontSize: 12, color: t.antes, textDecoration: "line-through" }, tachado),
+            )
+          : null,
+      ),
+    );
+  return [
+    text({ ...CHAKRA(700), fontSize: 10.5, letterSpacing: 1.7, color: t.txt }, "PRECIO POR LLANTA"),
+    bloque(rot.normales, dinero(bf.precioNormalConIva), t.txt, null, antes),
+    bloque(rot.rebajadas, dinero(bf.precioConIva), ROJO, `−${bf.porcentaje} %`, null),
+    text({ ...BARLOW(700), fontSize: 9.5, color: t.txt, marginTop: 8, whiteSpace: "nowrap" }, cuentaDeSegundaLlanta(line.quantity, bf)),
+    text({ ...BARLOW(400), fontSize: 8.5, color: t.tenue, marginTop: 4 }, IMPUESTOS_INCLUIDOS),
+    el({ marginTop: 10 },
+      el({
+        position: "relative", overflow: "hidden", alignItems: "center", gap: 7, borderRadius: 10,
+        padding: "6px 11px 6px 10px", backgroundImage: ORO_GRAD, transform: "rotate(-2deg)",
+        boxShadow: "0 8px 20px rgba(185,138,30,0.38), 0 2px 6px rgba(0,0,0,0.2)",
+      },
+        el({
+          position: "absolute", top: 0, left: 12, width: 30, height: "100%", transform: "skewX(-25deg)",
+          backgroundImage: "linear-gradient(115deg, rgba(255,255,255,0.6), rgba(255,255,255,0))",
+        }),
+        text({ ...ANCHO(900), fontSize: 24, lineHeight: 1, color: TINTA_ORO }, `−${bf.porcentaje}%`),
+        el({ flexDirection: "column" },
+          text({ ...ANCHO(900), fontSize: 8.5, lineHeight: 1.15, color: TINTA_ORO, whiteSpace: "nowrap" }, "EN TU 2.ª LLANTA"),
+          text({ ...BARLOW(700), fontSize: 9.5, lineHeight: 1.15, color: "#5c430e", whiteSpace: "nowrap" }, `ahorra ${dinero(bf.ahorroConIva)}`),
+        ),
+      ),
+    ),
+  ];
+}
+
 /** Hasta seis tarjetas: es el tope de `preparar_opciones`. */
 const MAX_OPCIONES = 6;
 
@@ -650,6 +748,17 @@ export function optionsPosterDiaNoche(data: OptionsDiaNocheData, modo: ModoPieza
         CUOTAS.length
           ? text({ ...BARLOW(400), fontSize: 9, color: t.tenue, marginTop: 6 }, `o ${Math.max(...CUOTAS)} cuotas de ${dinero(juego / Math.max(...CUOTAS))}`)
           : null,
+        // Black Friday: Falken y Kenda llevan el 60 % en la 2.ª llanta.
+        line.vitrinaSegundaLlanta
+          ? el({
+              alignItems: "center", gap: 5, marginTop: 7, borderRadius: 6, padding: "4px 8px",
+              backgroundColor: NEGRO_BF, border: `1px solid ${ORO}`,
+            },
+              text({ ...ANCHO(900), fontSize: 10, lineHeight: 1, color: ORO }, `−${line.vitrinaSegundaLlanta.porcentaje}%`),
+              text({ ...BARLOW(700), fontSize: 8.5, lineHeight: 1, color: "#ffffff", whiteSpace: "nowrap" },
+                textoVitrinaSegundaLlanta(line.vitrinaSegundaLlanta)),
+            )
+          : null,
       ),
     );
   };
@@ -755,6 +864,10 @@ export function quotePosterDiaNoche(data: QuoteDiaNocheData, modo: ModoPieza): S
   const disenio = line.design.toUpperCase();
   const cuerpoModelo = disenio.length <= 6 ? 54 : disenio.length <= 9 ? 42 : disenio.length <= 13 ? 32 : 26;
   const total = dinero(data.total);
+  // Black Friday (5-nov): con la 2.ª llanta cambian la franja, el panel de
+  // precio, la insignia y el ahorro; sin ella la pieza sale como siempre.
+  const bf = line.segundaLlanta ?? null;
+  const ahorro = ahorroDeLaCotizacion(line);
 
   const fechaTexto = `${data.dateLabel}${data.expiresLabel ? ` · válida hasta ${data.expiresLabel}` : ""}`;
   // Sin seguro contra golpes la tarjeta grande ya es la garantía de fábrica:
@@ -787,6 +900,8 @@ export function quotePosterDiaNoche(data: QuoteDiaNocheData, modo: ModoPieza): S
         }, data.number),
       ),
     ),
+
+    bf ? franjaTemporadaDiaNoche(line) : null,
 
     // Héroe
     el({
@@ -835,7 +950,9 @@ export function quotePosterDiaNoche(data: QuoteDiaNocheData, modo: ModoPieza): S
 
     // Precios
     el({ gap: 11, marginTop: 12 },
-      panel({ width: 272, flexShrink: 0, minHeight: 150, flexDirection: "column", padding: "17px 17px 14px" },
+      bf ? panel({ width: 272, flexShrink: 0, minHeight: 150, flexDirection: "column", padding: "17px 17px 14px" },
+        ...panelSegundaLlanta(line, t),
+      ) : panel({ width: 272, flexShrink: 0, minHeight: 150, flexDirection: "column", padding: "17px 17px 14px" },
         text({ ...CHAKRA(700), fontSize: 10.5, letterSpacing: 1.7, color: t.txt }, "PRECIO POR LLANTA"),
         text({ ...ANCHO(800), fontSize: cuerpoQueCabe(dinero(line.unitConIva), 42, 236), lineHeight: 1, marginTop: 8, letterSpacing: -0.5, color: t.txt }, dinero(line.unitConIva)),
         text({ ...BARLOW(400), fontSize: 9, color: t.tenue, marginTop: 6 }, IMPUESTOS_INCLUIDOS),
@@ -880,10 +997,13 @@ export function quotePosterDiaNoche(data: QuoteDiaNocheData, modo: ModoPieza): S
           pildoraCantidad(17, 10, { backgroundColor: "#ffffff", padding: "2px 11px 2px 9px" }, "#c81e24"),
         ),
         text({ ...ANCHO(800), fontSize: cuerpoQueCabe(total, 48, 278), lineHeight: 1, marginTop: 10, letterSpacing: -0.5, color: "#ffffff" }, total),
-        pct !== null && line.pvpConIva
+        bf
           ? text({ ...BARLOW(700), fontSize: 10, marginTop: 8, color: "#ffffff" },
-              `Ahorra ${dinero((line.pvpConIva - line.unitConIva) * n)} en ${n === 1 ? "su llanta" : "el juego completo"}`)
-          : null,
+              `Ahorra ${dinero(ahorro)} en ${n === 1 ? "su llanta" : "el juego completo"}`)
+          : pct !== null && line.pvpConIva
+            ? text({ ...BARLOW(700), fontSize: 10, marginTop: 8, color: "#ffffff" },
+                `Ahorra ${dinero((line.pvpConIva - line.unitConIva) * n)} en ${n === 1 ? "su llanta" : "el juego completo"}`)
+            : null,
         CUOTAS.length
           ? el({ alignItems: "center", gap: 6, marginTop: 9, flexWrap: "wrap" },
               ...CUOTAS.map((cuotas) =>

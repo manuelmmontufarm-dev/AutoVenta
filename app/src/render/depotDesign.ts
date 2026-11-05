@@ -473,6 +473,27 @@ export function savingsBadge(pct: string, detalle: string, price: PriceFont): Sa
   );
 }
 
+/**
+ * La insignia dorada del Black Friday: «−60%» y «EN TU 2.ª LLANTA», la misma
+ * caja que `savingsBadge` para que la promo se lea como parte de la marca.
+ */
+export function segundaLlantaBadge(porcentaje: number, detalle: string, price: PriceFont): SatoriNode {
+  return el({
+    position: "relative", flexDirection: "column", alignItems: "flex-end", borderRadius: 14, padding: "18px 26px",
+    backgroundImage: "linear-gradient(135deg,#f7e29a 0%,#eccd6f 35%,#c99a2e 70%,#b98a1e 100%)",
+    boxShadow: "0 8px 24px rgba(185,138,30,0.45), 0 2px 6px rgba(0,0,0,0.25)",
+  },
+    el({
+      position: "absolute", top: 0, left: 14, width: 44, height: "100%",
+      backgroundImage: "linear-gradient(115deg,rgba(255,255,255,0.55),rgba(255,255,255,0))",
+      transform: "skewX(-25deg)",
+    }),
+    text({ ...price, fontSize: 76, color: "#211a08", lineHeight: 1 }, `−${porcentaje}%`),
+    text({ ...ARCHIVO_BLACK, fontSize: 24, color: "#211a08", letterSpacing: 1, whiteSpace: "nowrap" }, "EN TU 2.ª LLANTA"),
+    text({ fontSize: 20, fontWeight: 700, color: "#5c430e", whiteSpace: "nowrap" }, detalle),
+  );
+}
+
 // ---------------------------------------------------------------------------
 // Perfiles de marca
 // ---------------------------------------------------------------------------
