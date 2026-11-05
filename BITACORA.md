@@ -1,3 +1,94 @@
+## 4-nov-2026 · Sprint Final: informe R-01…R-45 del release multicliente
+
+**Qué:** el release `release/multicliente-2026-11` (PR #34) junta los sprints
+0–4 y el trabajo del Sprint Final. La tabla de los 45 requisitos con su
+evidencia está abajo y en el PR. Dos quedan abiertos: R-39 con el replay de 10
+chats × 3 corridas en curso (el diff byte a byte del prompt, playbook y
+guardián ya salió VACÍO, y la suite, humo, fidelidad y typechecks están
+verdes), y R-41 con un hallazgo a diagnosticar — el bot de Mundillantas dice
+«no tenemos stock» con el catálogo de muestra cargado (10 llantas con 235/75R15
+y un aro de 15 en stock).
+
+**Por qué:** R-43 — lo que se mergea a `main` tiene que poder revisarse
+requisito por requisito, y lo que quedó abierto tiene que estar escrito.
+
+**Horas:** 1
+
+## Informe R-01…R-45 (Sprint Final)
+
+Leyenda: ✅ cumplido con evidencia · ⚠️ cumplido con una desviación anotada · ⬜ depende de una acción de Manuel.
+
+| R | Qué pedía | Estado | Evidencia |
+|---|---|---|---|
+| R-01 | Perfil de Mundillantas registrado, solo datos confirmados | ✅ | `negocio/negocios/mundillantas.ts` (Santo Domingo, IVA 0,15, lu–sá 08:00–18:00, 2 identidades, `marcas: []`, garantías en 0, vendedor `[PENDIENTE]`); `test/perfilMundillantas.test.ts` · PR #30 |
+| R-02 | `Identidad`, `identidades?`, `presentacion?` y helpers con los nombres de §3.2 | ✅ | `negocio/perfil.ts`, `negocio/identidad.ts`; validación al arrancar (cada local en exactamente una identidad); `test/identidad.test.ts` · PR #30 |
+| R-03 | Presentación combinada en el saludo | ✅ | `domain/saludo.ts` con `firmaDePresentacion`; Depot byte a byte (`test/perfilDelNegocio.test.ts`) · PR #30 |
+| R-04 | Piezas con `identidad?`, logo por marca y medidas del PNG | ✅ | `render/*`, `services/quotePdf.ts`; `depotLogo(variant, identidad?)` lee ancho/alto del IHDR; pin de la matriz decodificado del Plus Code `67F2PRQ7+887` → −0.261712, −79.186703; 8 PNG de muestra en las notas · PR #30. **Cableado real: ver R-45** |
+| R-05 | `warrantyForBrand` lee `negocio.garantias` | ✅ | `services/quoteMessages.ts:671-691`; `test/garantiasDelPerfil.test.ts` con la tabla fija FALKEN 18 · KENDA 12 · WINRUN 6 · GITI sin seguro · SUNOCO sin seguro · desconocida sin seguro · PR #30 |
+| R-06 | Detectores y cupón con todas las identidades | ✅ | `saludo.ts`, `cierrePerdido.ts`, `localesInventados.ts`; un prefijo por negocio (Depot `DT`, Mundillantas `MC`, ejemplo `LE`) y `normalizarCodigoCupon` quita ese prefijo; ida y vuelta probada · PR #30 |
+| R-07 | Textos de las piezas desde `negocio.piezas` | ✅ | «IVA y Ecovalor», «Precio directo de distribuidor» y el pie de `depotPosters.ts:721` salen del perfil; estilo neutro para marcas desconocidas · PR #30 |
+| R-08 | `GET /api/negocio` con el contrato de §3.2, tras la credencial | ✅ | `server/negocioPublico.ts` (puro) + ruta en `admin.ts` justo tras `exigirCredencial`; `test/negocioPublico.test.ts` y **prueba HTTP** `negocioPublico.http.test.ts` (401 sin clave, 401 con clave mala, contrato clave por clave) · PR #30 |
+| R-09 | Prueba de perfil ajeno — identidad | ✅ | `test/perfilAjeno.identidad.test.ts` con `ejemplo` y `mundillantas`; barrido anti-Depot también en `pendienteNoLlega.test.ts` (`/Depot\|Cumbay[aá]\|Quito Sur\|Pit ?Stop/i`) · PR #30 |
+| R-10 | `[PENDIENTE]` nunca llega al cliente | ✅ | `esPendiente`/`sinPendiente` en el armado de cada texto; `test/pendienteNoLlega.test.ts`. **El SF cerró un hueco**: la pregunta de local ofrecía «*[PENDIENTE] nombre corto del local 2*» → `domain/storeSelection.ts` usa `localesConfirmados` (reconocer sigue mirando todos los locales) |
+| R-11 | `PoliticaComercial`, `politica` por `negocio.id`, `faltantesDeLaPolitica` | ✅ | `negocio/politica.ts` + `politicas/{depot,ejemplo,mundillantas}.ts`; un `negocio.id` sin política no arranca · PR #29 |
+| R-12 | Pagos y descuento por efectivo desde la política | ✅ | `politicaDePagos()` en `datosDelNegocio.ts`; lo leen el prompt, `hechoDePagos`, `respaldo_marcas` y los pasos `sin_descuento_negado` y `el_pago_se_responde` (texto intacto sin formas de pago, sin `---` colgando) · PR #29 |
+| R-13 | Beneficio de redes opcional | ✅ | `beneficioDeRedes.ts` desde `politica.beneficioDeRedes`; `null` = no se menciona · PR #29 |
+| R-14 | Cobertura y lugares del perfil | ✅ | `fueraDeCobertura.ts`, `ubicacionPedida.ts`, `compraADistancia.ts`, `faseOperativa.ts`, `storeSelection.ts`; con Mundillantas «soy de santo domingo» no es otra ciudad · PR #29 |
+| R-15 | Textos regionales desde perfil/política | ✅ | `prompts.ts`, `compactPlaybook.ts`, `tools.ts:3517-3520` (`politica.asesorEnReglas`), `fitmentResearch.ts`, `vehicleFitmentResearch.ts`, `transcripcionEco.ts` · PR #29 |
+| R-16 | Assets por cliente con `rutaDeAsset` | ✅ | `negocio/assets.ts`; `escalera.ts`, `respaldoMarcas.ts`, `tireTypes.ts`; `assets/{ejemplo,mundillantas}/` con sus 3 JSON · PR #29 |
+| R-17 | Tres opciones por precio con marcas desconocidas | ✅ | `escalonesPorPrecio` por tercil (con dos precios: premium y económica); `politica.escalonPorPrecio` (Mundillantas `true`, Depot `false`) · PR #29 |
+| R-18 | Herramientas y juego sin valores de Depot | ✅ | Descripciones de `buscar_catalogo` y `respaldo_marcas` desde `negocio.marcas`; juego completo desde `politica.juegoCompleto`; `alcanceComercial.ts` suma `productosQueDerivaAlAsesor` · PR #29 |
+| R-19 | Guardián sin locales fijos | ✅ | Regla 16 y los ejemplos de `INSTRUCCIONES`/`INSTRUCCIONES_SEGUIMIENTO` usan los locales del perfil y su cantidad · PR #29 |
+| R-20 | Prueba de perfil ajeno — política | ✅ | `test/perfilAjeno.politica.test.ts`, 16 pruebas verdes; **los casos de Mundillantas son obligatorios desde el SF** (ya no `skipIf`) |
+| R-21 | Fuentes de datos evaluadas en cada sincronización | ✅ | `services/fuentes/{tipos,index,contifico,sheets,archivo}.ts`; `test/fuentes.test.ts`: la muestra commiteada da el mismo hash que `dc50dab` (`94bc6f71…`). ⚠️ La prueba del snapshot completo **ya no fija conteos ni hash**: es la foto del catálogo vivo y cambia con cada corrida (405 filas el día del S2, 448 hoy). Ahora verifica lo que vale para cualquier foto — fuente Contífico, `ok + descartadas = filas`, corrida determinista |
+| R-22 | Catálogo por archivo (CSV/XLSX) | ✅ | `POST /api/catalog/import` (`express.raw`, ≤ 5 MB, 413 por encima), `GET/PUT /api/catalog/mapeo`, `GET /api/catalog/archivo`; corre `syncCatalog()` sin reinicio y lo recupera al arrancar; `/catalog/status` con fuente, fecha, filas y descartadas con motivo. Demo con `inventario-fenix-muestra.xlsx`: 10 llantas + 3 aros + 1 fila mala · PR #31 |
+| R-23 | Interbot solo para quien lo tiene | ✅ | Snapshot movido a `app/assets/depot/precios-interbot.json`; sin el archivo del negocio, `interbotPrices.ts` queda quieto (sin red ni log); `test/interbotPorNegocio.test.ts`. El SF corrigió el comentario viejo de `config.ts` que seguía nombrando la ruta global |
+| R-24 | Aros como producto | ✅ | `domain/aroProducto.ts`, `agent/herramientasAros.ts` (`buscar_aros`), `"buscar_aros"` en los `allowedTools` de las 5 etapas que venden; «¿tienen aros de 15?» no dispara la vitrina de llantas; sin aros (Depot) la herramienta no existe. El nombre del aro viaja fuera del bloque que verifica el guardián para caber en los 500 caracteres de su huella · PR #31 |
+| R-25 | Ancho + aro sin perfil («235 rin 15») | ✅ | `domain/anchoYAro.ts`; `opcionesEnAro(…, ancho)` filtra antes de la escalera; ruta directa y agente. Simulador con el mensaje real de la demo (conv 19354): antes WINRUN R330 205/65R15 + KENDA KR20 185/65R15, después solo 235 (KENDA KR15 235/60R15, KENDA KR601 235/75R15, FALKEN WILDPEAK 235/75R15). **Los dos pendientes que el S2 dejó, cerrados en el SF**: (a) el aviso falso «en 235R15 no me queda disponibilidad exacta» — una medida permitida sin perfil ahora acepta cualquier perfil de su ancho y aro, y el aviso pasa a «medidas distintas del mismo aro»; (b) `medidaNoDada` ya no bloquea una 235/xxR15 tras «rin 15 235» (consulta `anchoYAro`). El `it.todo` quedó verde |
+| R-26 | Facturas por archivo | ✅ | Migración `031_facturas_importadas.ts` (aditiva, en `aplicarEsquema`, `ULTIMA_MIGRACION_REGISTRADA` = 031), `POST /api/ventas/import`, `GET/PUT /api/ventas/mapeo`; Métricas comprobables y «Para cerrar» se encienden con cualquier fuente; regex `LLANTA` lee `33X12.5R17`, `7.00R15`, `LT245/75R16` · PR #31 |
+| R-27 | Base nueva sin las marcas de Depot | ✅ | `009_brand_profiles.ts` siembra FALKEN/KENDA/WINRUN solo con `negocio.id === "depot"`; `test/brandProfilesPorNegocio.test.ts` · PR #31 |
+| R-28 | Tarjetas de catálogo y facturas | ✅ | `hub/src/components/catalogo-archivo.tsx`; **montadas en el SF** en Ajustes → Bot, después de `SeccionPrecios` |
+| R-29 | Panel sin Depot | ✅ | `hub/src/data/negocio.ts` alimenta rail, título, tour, modal, PDF, anuncios, favicon y cupón; `index.html` y manifest dicen «AutoVenta». **El SF cambió el respaldo a neutro** («AutoVenta», sin locales ni teléfono), **validó el contrato entero** en vez de mezclarlo con el respaldo (un campo omitido ya no cae en un valor de Depot) y **quitó el tagline fijo** «30+ años rodando contigo» del modal (va la ciudad del negocio, y el pie omite las partes vacías) |
+| R-30 | Horarios por local | ✅ | `Ajustes.tsx` lista los locales del negocio, con respaldo a las claves de `/api/store-hours` · PR #32 |
+| R-31 | Playbook real | ✅ | `Settings.tsx` muestra el `playbook` de `/api/negocio` · PR #32 |
+| R-32 | Tarjeta de arranque | ✅ | «Falta para encender el bot» arriba de Ajustes cuando `faltantes` no está vacío · PR #32 |
+| R-33 | Usuarios y PIN por cliente | ⚠️ | `HUB_PIN` (clasificada en `IGNORADAS` del simulador) y semilla de usuarios de Depot solo con `negocio.id === "depot"` · PR #32. **Desviación anotada:** el respaldo es `HUB_PIN?.trim() \|\| "1234"` en vez de `??`, así que un `HUB_PIN=""` o con solo espacios cae en `"1234"` en lugar de dejar el panel sin PIN. Es más seguro para el arranque y no cambia a Depot |
+| R-34 | Asesores por local | ✅ | `services/asesoresPorLocal.ts`, `GET/PUT /api/asesores-por-local`; `notifyAdvisor` filtra por `nearest_store`; sin asignación o sin local, a todos; filtro vacío vuelve a todos. Casillas «Atiende en» en Ajustes → Avisos · PR #32 |
+| R-35 | Semilla de base nueva | ✅ | `npm run seed:negocio` (`db/seed-negocio.ts`), idempotente, con las 4 claves que exige el simulador y `store_hours` desde el perfil · PR #32 |
+| R-36 | Simulador por cliente | ✅ | `npm run sim -- --perfil <id>` con `PERFILES_SIM`; sin servicio corre la semilla y toma solo los `OPENAI_*` de Depot; `--catalogo-archivo` sube por `POST /api/catalog/import`; `NEGOCIO` del perfil manda. Verificado en el SF: `sim -- --perfil ejemplo --humo` verde · PR #32 |
+| R-37 | Receta de alta | ✅ | `docs/clientes/ALTA-DE-CLIENTE.md` · PR #32 |
+| R-38 | Documentos del plan en `main` | ✅ | PR #33 (rama `docs/multicliente-plan`, empujada por el SF) y mergeada en este release |
+| R-39 | Depot intacto | ⚠️ | Suite completa **3.234 verdes** con Postgres local; `sim:humo`, `simuladorFidelidad` (12) y `sim --perfil ejemplo --humo` verdes; typecheck de `app/` y `hub/` limpios sobre el árbol mergeado. **Diff byte a byte vacío** del prompt del sistema de las 7 etapas + playbook + reglas y HECHOS del guardián entre `dc50dab` y el release. Descripciones de herramientas: una sola diferencia, el parámetro opcional `ancho` de `buscar_por_aro_y_tipo` (R-25, deliberado) — el hash quedó re-fijado con el porqué. Replay de 10 chats reales × 3 corridas: **en curso al cerrar esta sesión** (⚠️); los JSON y el script del gráfico de control (`scripts/sim/grafico-replay-r39.mjs`, commiteado) están listos, ver la nota de traspaso. ⚠️ `unidadEnLaCantidad.test.ts` falla, pero **falla igual en `dc50dab` pelado** (comprobado en un worktree detached): es preexistente en `main` («4 llantas por el precio de 3» de la promo del 26-oct) y este release no lo introduce ni lo toca |
+| R-40 | Deploy verificado | ✅ | **Manuel confirmó el 4-nov-2026 que el auto-deploy de Depot desde `main` está ENCENDIDO.** `CLAUDE.md` y `docs/entrega-fases-depot.md` lo dicen ahora igual (ese doc describía una promoción manual que nunca se activó). Merge fuera del horario de Depot |
+| R-41 | Servicio de Mundillantas listo | ⬜ | Crear el servicio + Postgres en Railway es acción de la cuenta de Manuel. Todo lo demás está listo: perfil, política, assets, semilla, receta de alta y el simulador por perfil. Pendientes del cliente anotados en `docs/clientes/mundillantas-arranque.md` (Meta, Excel real, logos, datos de la lista), y ahí queda escrito que **el mapeo por defecto del catálogo y de las facturas es un supuesto estilo Fénix, sin `precioMinimo`**, ajustable desde el panel sin deploy |
+| R-42 | Los arreglos siguen aplicando a los dos | ✅ | `CLAUDE.md` y `docs/COMO-ARREGLAR-EL-BOT.md` dicen que hay dos clientes y suman a las pruebas de después de tocar el bot `npx vitest run test/perfilAjeno.*.test.ts` y `npm run sim -- --perfil ejemplo --humo` |
+| R-43 | Informe final | ✅ | Esta tabla, en el PR de cierre y en `BITACORA.md` |
+| R-44 | Candado de `botPower` con faltantes | ✅ | `PUT /api/bot-power` devuelve **409** con la lista cuando se enciende con `faltantes` no vacío; el panel la muestra y ofrece «Encender igual», que repite el PUT con `confirmarFaltantes: true`. Depot tiene la lista vacía y nunca pasa por ahí |
+| R-45 | Todo conectado | ✅ | Piezas reales con la identidad del local de la conversación (`identidadDelChat` lee `nearest_store`): las tres llamadas de `tools.ts`, el PDF de respaldo, `directSalesRoutes.ts` y los diagnósticos de `webhook.ts` (con `?identidad=` para probar cada marca). `prompts.ts` y `compactPlaybook.ts` usan `fraseDePresentacion`. `faltantes` = perfil ∪ política ∪ assets (logos por identidad). Tarjetas del S2 montadas. Respaldo del panel neutro. Casos de Mundillantas obligatorios. Prueba nueva `consistenciaCuotasPiezas.test.ts`: sin cuotas en la política, las piezas no mencionan cuotas |
+
+### Desviaciones menores, todas anotadas
+
+- **Imports fuera de la zona marcada** (benignos, ningún otro sprint toca esos archivos): `agent.ts`, `mostrarPorAro.ts`, `quoteMessages.ts`, `dailyReportPdf.ts`, `localesInventados.ts` y los 5 del S4 (`ubicacionPedida.ts`, `opcionesCandados.ts`, `tireTypes.ts`, `vehicleFitmentResearch.ts`, `compactPlaybook.ts` — la zona citada no se puede leer sin su import).
+- **`PoliticaComercial.vocabularioDeMarcas?`**, campo opcional fuera de §3.2: el sesgo de Whisper de Depot («Wildpeak») no coincide con `perfil.marcas`. Sin el campo se usan las marcas del perfil.
+- **El pin de warranties de `perfilDelNegocio.test.ts` cambió** con R-05: el plan pedía a la vez «no cambies los casos que fijan a Depot» y «cambia `default` a `golpesMeses: 0`», que son incompatibles. Se aceptó el cambio; la tabla fija antes/después vive en `garantiasDelPerfil.test.ts`.
+- **Conteos reales de pruebas del S4**: 34 en `politica.test.ts`, 72 en total con 8 saltadas (el plan hablaba de otras cifras).
+- **Commits con `--no-verify`**: los merges del release y el commit `2310859` del S2 tocan `hub/src` sin `app/site/admin`; el build del panel se commiteó una sola vez en el SF, como manda el plan.
+
+
+### ⚠️ Pendiente abierto de R-41 (no afecta a Depot)
+
+El simulador de Mundillantas arranca bien con el Excel de muestra (semilla del
+perfil, sin Contífico, `/api/catalog/status` → 10 llantas + 3 aros + 1 fila
+descartada con motivo) y se presenta correctamente («Soy el asistente de
+Mundillantas y Competimotor», sin nada de Depot). **Pero** contestó «no tenemos
+stock» tanto a «tiene llanta rin 15 235» como a «tienen aros de 15?», y el
+fixture sí trae 235/75R15 con stock 6 y un aro de 15 con stock 12. Queda como
+hallazgo a diagnosticar antes de encender a Mundillantas (hipótesis anotadas en
+la nota de traspaso: mapeo del stock, `allowedTools` de la base sembrada, o que
+el modelo no llamó la herramienta). No es una regresión de Depot: su catálogo
+viene de Contífico y sus pruebas están verdes.
+
+
 ## 4-nov-2026 · Sprint Final: el auto-deploy de Depot queda escrito (R-40) y la pregunta de local sin [PENDIENTE]
 
 **Qué:** Manuel confirmó que el servicio de Depot en Railway tiene el
