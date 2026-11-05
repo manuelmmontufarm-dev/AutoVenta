@@ -69,6 +69,7 @@ import { getEchoHealth } from "../services/echoHealth.js";
 import { resumenVentasConfirmadas } from "../services/ventasConfirmadas.js";
 import { decidirParaCerrar, leerParaCerrar, type AccionParaCerrar } from "../services/paraCerrar.js";
 import { comprobablesVacios, resumenComprobables } from "../services/metricasComprobables.js";
+import { estadoCatalogoArchivo, estadoFacturasImportadas, guardarMapeoCatalogo, guardarMapeoFacturas, importarCatalogoYSincronizar, importarFacturasYSincronizar, leerMapeoCatalogo, leerMapeoFacturas } from "../services/fuentes/archivo.js";
 import { marcarPagado, resumenBilling } from "../services/billing.js";
 import { buildDailyReport } from "../services/dailyReport.js";
 import { enviarReporteDiario } from "../services/dailyReportDelivery.js";
@@ -1591,6 +1592,69 @@ export function createAdminRouter(): express.Router {
     } catch (error) {
       const message = error instanceof Error ? error.message : "No se pudo generar la cotización";
       res.status(400).json({ ok: false, error: message });
+    }
+  });
+
+  // ── Catálogo y facturas por archivo (R-22, R-26) ────────────────────────────
+  // El archivo llega CRUDO (octet-stream, nombre en ?nombre=): el express.json()
+  // del router corta en 100 kB y un inventario de Fénix pesa más. El parser va
+  // a nivel de ruta para no cambiar el límite del resto del panel.
+  const archivoCrudo = express.raw({ type: "*/*", limit: "5mb" });
+  const nombreDelArchivo = (req: express.Request) =>
+    String(req.query.nombre ?? "").trim().slice(0, 200) || "archivo.csv";
+  const cuerpoDelArchivo = (req: express.Request): Buffer | null =>
+    Buffer.isBuffer(req.body) && req.body.length > 0 ? req.body : null;
+
+  router.get("/catalog/archivo", async (_req, res) => {
+    res.json({ ok: true, archivo: await estadoCatalogoArchivo(), catalog: catalogStatus() });
+  });
+
+  router.post("/catalog/import", archivoCrudo, async (req, res) => {
+    const cuerpo = cuerpoDelArchivo(req);
+    if (!cuerpo) return res.status(400).json({ ok: false, error: "Falta el archivo (cuerpo vacío)" });
+    try {
+      // El bot lo usa SIN reinicio: la fuente se decide en esta misma sincronización.
+      res.json({ ok: true, ...(await importarCatalogoYSincronizar(nombreDelArchivo(req), cuerpo)) });
+    } catch (error) {
+      res.status(400).json({ ok: false, error: error instanceof Error ? error.message : "No se pudo importar el catálogo" });
+    }
+  });
+
+  router.get("/catalog/mapeo", async (_req, res) => {
+    res.json({ ok: true, mapeo: await leerMapeoCatalogo() });
+  });
+
+  router.put("/catalog/mapeo", async (req, res) => {
+    try {
+      res.json({ ok: true, mapeo: await guardarMapeoCatalogo(req.body?.mapeo ?? req.body) });
+    } catch (error) {
+      res.status(400).json({ ok: false, error: error instanceof Error ? error.message : "Mapeo inválido" });
+    }
+  });
+
+  router.get("/ventas/archivo", async (_req, res) => {
+    res.json({ ok: true, estado: await estadoFacturasImportadas() });
+  });
+
+  router.post("/ventas/import", archivoCrudo, async (req, res) => {
+    const cuerpo = cuerpoDelArchivo(req);
+    if (!cuerpo) return res.status(400).json({ ok: false, error: "Falta el archivo (cuerpo vacío)" });
+    try {
+      res.json({ ok: true, ...(await importarFacturasYSincronizar(nombreDelArchivo(req), cuerpo)) });
+    } catch (error) {
+      res.status(400).json({ ok: false, error: error instanceof Error ? error.message : "No se pudieron importar las facturas" });
+    }
+  });
+
+  router.get("/ventas/mapeo", async (_req, res) => {
+    res.json({ ok: true, mapeo: await leerMapeoFacturas() });
+  });
+
+  router.put("/ventas/mapeo", async (req, res) => {
+    try {
+      res.json({ ok: true, mapeo: await guardarMapeoFacturas(req.body?.mapeo ?? req.body) });
+    } catch (error) {
+      res.status(400).json({ ok: false, error: error instanceof Error ? error.message : "Mapeo inválido" });
     }
   });
 

@@ -54,6 +54,7 @@ import {
 import { sql } from "../db/client.js";
 import { activeBenefitFactsBlock } from "../services/benefits.js";
 import { aroDeLaMedida, medidaEstaPedida } from "../domain/medidaPedida.js";
+import { arosDelCatalogo, pideAroComoProducto } from "../domain/aroProducto.js";
 import { anotarMedidasEscritas, medidasDelPedido } from "../services/medidasDelPedido.js";
 import {
   autorizaCotizacionEnEsteTurno, escalonContestado, esRespuestaDelMenuDePreferencia, ETIQUETA_DEL_ESCALON, extractExplicitQuantity,
@@ -553,7 +554,11 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
   //    EXACTA» a quien había pedido aro 15 (producción, 31-ago 14:02).
   //    Se olvida la medida vieja AQUÍ, antes de armar el prompt, para que este
   //    mismo turno ya no la vea.
-  const aroCrudo = aroPedido(userText) ?? aroRespondido(userText, textoUltimoDelBot);
+  // ARO COMO PRODUCTO, NO COMO MEDIDA (R-24): «¿tienen aros de 15?» con aros
+  // en el catálogo no es un aro de llanta — ni olvida la medida activa ni
+  // fuerza la vitrina: el turno es de `buscar_aros`. Depot (sin aros) idéntico.
+  const pideAros = pideAroComoProducto(userText) && arosDelCatalogo().length > 0;
+  const aroCrudo = pideAros ? null : (aroPedido(userText) ?? aroRespondido(userText, textoUltimoDelBot));
   const aroDeLaFicha = aroDeLaMedida(salesFacts.tireSize);
   const cambioDeAro = aroCrudo !== null && aroDeLaFicha !== null && aroCrudo !== aroDeLaFicha;
   if (cambioDeAro) {
@@ -844,7 +849,7 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
         && !usedTools.includes("generar_cotizacion");
       const debeNotificar = pidioHumano && !usedTools.includes("notificar_vendedor");
       const debeBuscarPorAro = aroDelTurno !== null
-        && !["buscar_por_aro_y_tipo", "buscar_llanta", "fitment_vehiculo"].some((h) => usedTools.includes(h));
+        && !["buscar_por_aro_y_tipo", "buscar_llanta", "fitment_vehiculo", "buscar_aros"].some((h) => usedTools.includes(h));
       // SIN STOCK EXACTO Y CON EQUIVALENTES DE VERDAD, LA LÁMINA SALE (V3a,
       // 28-sep): el modelo escribió «¿Le muestro las opciones equivalentes?»
       // con la KR608 245/70R16 en la mano. Ver `domain/equivalentesPorMostrar.ts`.

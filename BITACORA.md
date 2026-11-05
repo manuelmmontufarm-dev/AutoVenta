@@ -1,3 +1,48 @@
+## 4-nov-2026 · Sprint 2: «rin 15 235» de la demo probado en el simulador; aros en la huella del guardián
+
+**Qué:** la prueba de ancho+aro fija también el mensaje real de la demo (conv 19354,
+«Buenas tardes tiene llanta rin 15 235»); en el simulador con el catálogo de Depot el
+código viejo manda WINRUN R330 y KENDA KR20 (205/65, 185/65) y el nuevo solo
+235/75R15 y 235/60R15. `buscar_aros` deja el nombre fuera del bloque que verifica el
+guardián: con él, 5 aros pasaban de los 500 caracteres de su huella.
+
+**Por qué:** que el antes/después del PR sea el caso que vio Jenny, no uno parecido.
+
+**Horas:** 1
+
+## 4-nov-2026 · Sprint 2: catálogo y facturas por archivo en el panel, pruebas y tarjetas
+
+**Qué:** rutas `POST /api/catalog/import`, `GET/PUT /api/catalog/mapeo`,
+`GET /api/catalog/archivo`, `POST /api/ventas/import`, `GET/PUT /api/ventas/mapeo` y
+`GET /api/ventas/archivo` (archivo crudo, ≤ 5 MB); `/catalog/status` dice el archivo,
+la fecha y las filas descartadas con su motivo. La fuente `archivo` lee medidas en
+pulgadas y de camión como Contífico. Tarjetas `SeccionCatalogoArchivo` y
+`SeccionFacturasArchivo` (sin montar). Fixtures de Fénix (inventario xlsx/csv y
+facturas) y siete archivos de prueba nuevos; la equivalencia con Contífico se fija
+con el hash del código de `dc50dab` (muestra y snapshot completo).
+
+**Por qué:** que Jenny suba el Excel de Fénix y el bot cotice con él sin reinicio, y
+que Métricas comprobables funcione sin Contífico.
+
+**Horas:** 2
+
+## 4-nov-2026 · Sprint 2 (avance): fuentes de catálogo/facturas, aros como producto, «235 rin 15»
+
+**Qué:** `services/fuentes/` (tipos, contifico, sheets, archivo, index) con la fuente
+elegida en cada sincronización; `syncCatalog` y `sincronizarFacturas` pasan por ahí;
+`domain/aroProducto.ts` (lista aparte, `pideAroComoProducto`, `buscarAros`) y
+`domain/anchoYAro.ts` («235 rin 15»); `buscar_por_aro_y_tipo` filtra por ancho y
+`buscar_aros` existe solo con aros en el catálogo; Interbot pasa a
+`assets/depot/` y no hace nada sin snapshot del negocio; migración 031
+`facturas_importadas`; la 009 siembra marcas solo con Depot; Métricas se
+encienden con cualquier fuente. Avance del sprint: faltan rutas del panel,
+tarjetas del hub, fixtures Fénix y el resto de pruebas.
+
+**Por qué:** Mundillantas usa Fénix sin API (su inventario llega por Excel), vende
+aros, y la demo del 4-nov (28:14) mostró que «235 rin 15» salía con anchos ajenos.
+
+**Horas:** 2,5
+
 ## 4-nov-2026 · Multicliente S3: horarios de la semilla desde el perfil y receta de alta
 
 **Qué:** `seed:negocio` sembraba `store_hours` con el 08:30–17:30 de los siete

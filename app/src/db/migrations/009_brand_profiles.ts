@@ -1,4 +1,5 @@
 import type { Sql } from "../client.js";
+import { negocio } from "../../negocio/index.js";
 
 export const BRAND_PROFILES_MIGRATION_ID = "009_brand_profiles";
 
@@ -40,6 +41,12 @@ export async function runBrandProfilesMigration(sql: Sql): Promise<void> {
       returning key
     `;
     if (!seeded) return;
+
+    // Los perfiles de FALKEN/KENDA/WINRUN son el argumento de venta de DEPOT:
+    // una base nueva de otro negocio arranca sin marcas ajenas (R-27). La marca
+    // `brand_profiles_seeded_v1` ya quedó puesta arriba, así que un redeploy
+    // tampoco se las siembra después.
+    if (negocio.id !== "depot") return;
 
     const defaults = [
       {

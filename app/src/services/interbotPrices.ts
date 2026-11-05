@@ -12,17 +12,18 @@
  * Fuente en vivo: POST /api/login → GET /api/medidas → POST /api/chat por medida
  * (el mismo endpoint que usa el buscador del Interbot). Si no hay credenciales o
  * el sync falla, se usa el último snapshot bueno; de fábrica viene uno en
- * assets/precios-interbot.json. La fórmula vieja queda como último recurso solo
+ * assets/depot/precios-interbot.json. La fórmula vieja queda como último recurso solo
  * para códigos que el Interbot no tenga.
  *
  * Orden de preferencia al arrancar: último sync bueno guardado en la base >
  * snapshot de fábrica. Sin eso, cada reinicio volvía a los precios del 7-ago
  * aunque el sync llevara semanas corriendo bien.
  */
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { config } from "../config.js";
 import { sql } from "../db/client.js";
+import { negocio } from "../negocio/index.js";
 
 export interface InterbotPrice {
   marca: string;
@@ -79,10 +80,24 @@ let persistedLoaded = false;
 let sesion: { cookie: string; at: number } | null = null;
 
 const snapshotPath = fileURLToPath(
-  new URL("../../assets/precios-interbot.json", import.meta.url),
+  new URL(`../../assets/${negocio.id}/precios-interbot.json`, import.meta.url),
 );
 
+let snapshotExiste: boolean | null = null;
+
+/**
+ * El Interbot es de quien tiene su snapshot en `assets/<negocio>/` — hoy solo
+ * Depot. Sin el archivo, TODO este módulo se queda quieto: `getInterbotPrice`
+ * devuelve null y el resto no hace nada ni ensucia el log. Así otro cliente
+ * nunca cotiza con los precios de Depot aunque un código coincida (R-23).
+ */
+export function interbotDisponible(): boolean {
+  if (snapshotExiste === null) snapshotExiste = existsSync(snapshotPath);
+  return snapshotExiste;
+}
+
 function loadSnapshot(): void {
+  if (!interbotDisponible()) return;
   try {
     const parsed = JSON.parse(readFileSync(snapshotPath, "utf8")) as Snapshot;
     precios = new Map(Object.entries(parsed.productos));
@@ -108,6 +123,7 @@ function loadSnapshot(): void {
 async function loadPersisted(): Promise<void> {
   if (persistedLoaded) return;
   persistedLoaded = true;
+  if (!interbotDisponible()) return;
   try {
     const [row] = await sql<{ value: Snapshot | null }[]>`
       select value from settings where key = ${SETTINGS_KEY}
@@ -265,7 +281,7 @@ function absorberProductos(json: unknown, destino: Map<string, InterbotPrice>): 
  * Nunca lanza: si el Interbot no responde, queda el precio del último barrido.
  */
 export async function refreshPriceForSize(medida: string): Promise<boolean> {
-  if (!config.interbot || !medida.trim()) return false;
+  if (!interbotDisponible() || !config.interbot || !medida.trim()) return false;
   try {
     const cookie = await conSesion();
     const res = await fetchJson("/api/chat", {
@@ -402,6 +418,7 @@ function tocaBarrer(): boolean {
  * mensaje tras 15 min de calma pagaba ~30 s de espera antes de recibir respuesta.
  */
 export async function ensureInterbotPricesFresh(): Promise<void> {
+  if (!interbotDisponible()) return;
   if (precios.size === 0) {
     loadSnapshot();
     await loadPersisted();
@@ -431,6 +448,7 @@ export async function ensureInterbotPricesFresh(): Promise<void> {
 }
 
 export function getInterbotPrice(codigo: string): InterbotPrice | null {
+  if (!interbotDisponible()) return null;
   if (precios.size === 0) loadSnapshot();
   return precios.get(codigo) ?? null;
 }
@@ -487,6 +505,7 @@ export function __setPreciosForTests(
   sesion = null;
   nextLiveAttemptAt = 0;
   persistedLoaded = true;
+  snapshotExiste = null;
   precios = map ? new Map(Object.entries(map)) : new Map();
   state = map
     ? { source: "live", at, productos: precios.size, lastError: null }
