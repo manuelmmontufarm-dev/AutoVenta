@@ -1,3 +1,22 @@
+## 4-nov-2026 · Sprint Final: el aviso falso de «235 rin 15» y el bloqueo de «rin 15 235»
+
+**Qué:** los dos pendientes que el Sprint 2 dejó fuera de sus archivos.
+(1) Con la medida guardada «235R15» (sin perfil), `medidaEstaPedida` trataba a
+las 235/75R15 y 235/60R15 como «otra medida» y el aviso de la lámina decía «no
+me queda disponibilidad exacta» — falso. Ahora una permitida sin perfil acepta
+cualquier perfil de su ancho y aro (al revés no se afloja), y cuando lo pedido
+es sin perfil y la lámina mezcla perfiles, el aviso dice la verdad: «medidas
+distintas del mismo aro». (2) `medidaNoDada` bloqueaba una 235/75R15 tras
+«rin 15 235» (el aro primero, que `extractTireSizes` no lee): ahora consulta
+`anchoYAro` y si el ancho y el aro buscados son los que el cliente dio, no es
+medida inventada. El `it.todo` de `anchoYAro.test.ts` quedó verde.
+
+**Por qué:** es el error de la demo de Mundillantas (conv 19354, 4-nov) y pasa
+igual en Depot; el aviso falso contradecía la lámina que el cliente tenía al
+frente.
+
+**Horas:** 1
+
 ## 4-nov-2026 · Sprint 4: la forma de vender sale del código común a una política por cliente
 
 **Qué:** `negocio/politica.ts` (`PoliticaComercial`, `politica` por `negocio.id`, registro

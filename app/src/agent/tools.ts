@@ -89,7 +89,7 @@ import {
 } from "../domain/equivalencia.js";
 import { avisoDeMedidaEnOpciones, LINEA_SIN_STOCK_EXACTO, siguientePasoPorMedidaDistinta } from "../domain/equivalenciaEnTexto.js";
 import { CAMPO_EQUIVALENTES, equivalentesAMostrar, reglaDeMostrarEquivalentes } from "../domain/equivalentesPorMostrar.js";
-import { extractFlotationSizes, formatFlotationSize, formatTireSize, parseTireSize, type TireSize, type FlotationSize, flotacionIncompleta, medidaGuardable } from "../domain/tireSize.js";
+import { extractFlotationSizes, extractTireSizes, formatFlotationSize, formatTireSize, parseTireSize, type TireSize, type FlotationSize, flotacionIncompleta, medidaGuardable } from "../domain/tireSize.js";
 import { marcaPreguntada, pidioCotizacionExplicita, ultimaMarcaPedida } from "../domain/consultaConRespaldo.js";
 import { armarLista, confirmacionDeLaOpcion, opcionPorPosicion, posicionElegida } from "../domain/listaDeOpciones.js";
 import { cotizarLaUnicaDeUnaVez, ultimoTurnoDelBot } from "../domain/cotizarLaUnica.js";
@@ -2087,7 +2087,13 @@ export function buildTools(ctx: AgentContext) {
       // de la pantalla no son una sola, que cada tarjeta trae la suya, y que
       // hace falta la del costado para asegurar el calce.
       const medidasEnPantalla = [...new Set(products.map((p) => p.sizeLabel).filter(Boolean))] as string[];
-      const avisoSinMedidaPedida = !permitidasOpciones.length && medidasEnPantalla.length > 1
+      // «Sin medida» incluye la medida sin perfil («235 rin 15» → 235R15, conv
+      // 19354 del 4-nov): el cliente dio ancho y aro, las 235/75R15 y 235/60R15
+      // SÍ son lo pedido, pero mezclan perfil y hay que decirlo — no «no me
+      // queda disponibilidad exacta», que era falso.
+      const pidioSinPerfil = permitidasOpciones.length > 0 &&
+        permitidasOpciones.every((m) => extractTireSizes(m)[0]?.aspect === null);
+      const avisoSinMedidaPedida = (!permitidasOpciones.length || (pidioSinPerfil && !fueraDeMedida.length)) && medidasEnPantalla.length > 1
         ? `⚠️ Ojo: estas opciones son de *medidas distintas* del mismo aro (${medidasEnPantalla.join(", ")}) — cada tarjeta lleva la suya. Para asegurarle el calce necesito la medida del costado de su llanta.`
         : null;
       // «EQUIVALENTE» LO DICE EL JUEZ, NO LA LÁMINA (familia 1-B, 22-24 sep):

@@ -250,12 +250,19 @@ describe("el mensaje real de la demo · conv 19354 (4-nov, 10:58)", () => {
     for (const c of codigosALaLamina[0]) expect(c.startsWith("235-"), c).toBe(true);
   });
 
-  // PENDIENTE PARA EL SPRINT FINAL (fuera de los archivos de este sprint):
-  // `medidaNoDada` (domain/medidaConfirmada.ts) devuelve 15 para una
-  // 235/75R15 con este texto, porque `extractTireSizes` no lee «rin 15 235».
-  // Si el modelo llama buscar_llanta 235/75R15, la bloquea y lo manda a
-  // buscar_por_aro_y_tipo (que ya filtra por ancho): no muestra otro ancho,
-  // pero da una vuelta de más. Arreglo: si `anchoYAro(texto)` coincide con el
-  // ancho y el aro de la medida buscada, no es una medida inventada.
-  it.todo("medidaNoDada no bloquea 235/xxR15 con «rin 15 235» (domain/medidaConfirmada.ts)");
+  // El modelo busca 235/75R15 tras «rin 15 235»: `extractTireSizes` no lee el
+  // aro antes que el ancho, pero `anchoYAro` sí — y si el ancho y el aro de la
+  // medida buscada son los que el cliente dio, no es una medida inventada.
+  it("medidaNoDada no bloquea 235/xxR15 con «rin 15 235»", () => {
+    expect(
+      medidaNoDada({ medida: "235/75R15", textos: [REAL], medidaDeLaFicha: null, huboFitment: false }),
+    ).toBeNull();
+  });
+
+  it("medidaNoDada sigue bloqueando un ancho que el cliente no dio", () => {
+    // «rin 15 235» no autoriza una 205/65R15: el ancho no coincide.
+    expect(
+      medidaNoDada({ medida: "205/65R15", textos: [REAL], medidaDeLaFicha: null, huboFitment: false }),
+    ).toBe(15);
+  });
 });
