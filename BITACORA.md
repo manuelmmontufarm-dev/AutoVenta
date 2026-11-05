@@ -1,3 +1,63 @@
+## 4-nov-2026 · Plan multicliente: Depot + Mundillantas sobre el mismo código
+
+**Qué:** `docs/MULTICLIENTE.md` (qué sigue siendo Depot en el código, con archivo:línea, y los nombres
+decididos), `docs/clientes/mundillantas-arranque.md` (qué preguntarle al cliente en las 2 semanas y dónde
+se carga cada respuesta) y `docs/planning/PLAN-MULTICLIENTE-MASTER-PROMPT.md` (4 sprints en paralelo —dos
+marcas, catálogo por archivo, panel y alta, política por cliente— más el Sprint Final). El plan se revisó
+contra el código con un workflow de 4 lentes + verificador (88 hallazgos; los confirmados ya están
+aplicados). Enlaza la reunión desde la ficha del cliente.
+
+**Por qué:** Manuel quiere a los dos clientes bajo AutoVenta con los arreglos del bot para los dos y cada
+uno con su forma de trabajar. En vez de un sub-repo, un solo código con una carpeta de cliente (perfil,
+política, assets, Ajustes).
+
+**Horas:** 2
+
+## 4-nov-2026 · Pitch a Mundillantas / Competimotor documentado: dijeron que sí
+
+**Qué:** `docs/reuniones/2026-11-04-mundillantas-competimotor.md` — transcripción de Fathom
+(80 min, sin el tramo personal 4:46–8:28) con enlaces por minuto, quién habla de verdad,
+errores de reconocimiento, resumen por bloque y análisis. Aceptaron $1.500 + $600/mes con
+prueba de 2 semanas a nuestro riesgo. Datos nuevos: dos marcas (Mundillantas 2 locales sin
+patentar, Competimotor 1 local patentado), Fénix en servidor local (respaldo: Excel diario),
+vendedores solo a comisión, pauta ~$80/mes. En la demo el bot no filtró por ancho
+(«235 rin 15» → 205/65, 185/65, 195/55).
+
+**Por qué:** es el segundo cliente; el arranque (contrato, Fénix, catálogo, calculadora con
+sus números) sale de lo que se dijo acá.
+
+**Horas:** 1
+
+## 4-nov-2026 · Ficha de Mundillantas (referido de Santo Domingo)
+
+**Qué:** `docs/clientes/mundillantas.md` — lo investigado el 3-nov en fuentes públicas:
+razón social Sat Mundillantas S.A.S. (2 socios al 50 %), locales, 5 anuncios de Meta con
+botón de WhatsApp, aviso de empleo de asesor comercial, 6 teléfonos y el enlace de WhatsApp
+roto de beacons.ai, competencia en Santo Domingo, qué cambia frente a Depot, ángulo del
+pitch, preguntas para la reunión y lo que falta confirmar. Deja un espacio para enlazar las
+transcripciones de las reuniones.
+
+**Por qué:** es el próximo cliente probable; la ficha sirve de base para las transcripciones
+y para que otro chat arranque con el contexto de la empresa.
+
+**Horas:** 1
+
+## 28-oct-2026 · Integraciones con Perseo y FÉNIX documentadas (referidos de Andrés)
+
+**Qué:** `docs/integraciones/` — README (qué usa AutoVenta de Contífico y veredicto por
+sistema), PERSEO.md (API REST pública: `productos_consulta` con stock y tarifas,
+`existencia_producto`, `facturas_consulta` con `telefono1` y detalle; condiciones: la
+activa el personal de Perseo, marcar «Visible» todas las llantas, PC necesita puerto
+abierto; pasos y precios), FENIX.md (dos productos: Comercial Contable sin API pública
+vs. FENIX ERP sobre Odoo 17 con JSON-RPC vivo; swagger propio solo de bodega, guardado
+como `fenix-erp-swagger.json`; tres caminos si es Comercial Contable; precios CIADE).
+
+**Por qué:** uno de los referidos usa Perseo y el otro FÉNIX; sin leer facturas e
+inventario no se puede replicar lo de Depot ni dar estadísticas. Perseo = luz verde;
+FÉNIX bloqueado hasta saber la versión y que conteste Fenixcorp (mensaje enviado 27-oct).
+
+**Horas:** 1,5
+
 ## 4-nov-2026 · Sprint Final: el aviso falso de «235 rin 15» y el bloqueo de «rin 15 235»
 
 **Qué:** los dos pendientes que el Sprint 2 dejó fuera de sus archivos.
@@ -236,7 +296,6 @@ es 0 %). La fuga está en «medida confirmada → elige opción». Cruzar los gr
 semana dice si la caída sigue al modelo o a los teléfonos. Decisión de Manuel, 2-nov.
 
 **Horas:** 0,5
-
 ## 27-oct-2026 · Reunión del 26-oct con Andrés Tamayo y Joaquín, documentada
 
 **Qué:** `docs/reuniones/2026-10-26-andres-tamayo.md` — transcripción completa de Teams
