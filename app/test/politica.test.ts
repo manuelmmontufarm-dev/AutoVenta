@@ -86,7 +86,11 @@ describe("fijación de Depot: las reglas del guardián, byte a byte", () => {
 });
 
 describe("fijación de Depot: las descripciones de herramientas, byte a byte", () => {
-  it("todas las herramientas (nombre, descripción y parámetros) son las de dc50dab", () => {
+  // El hash original era el de dc50dab; en el merge del Sprint Final cambió UNA
+  // cosa, verificada con un diff de los volcados: el Sprint 2 agregó el
+  // parámetro opcional `ancho` a buscar_por_aro_y_tipo (R-25, «235 rin 15»).
+  // Ese cambio es deliberado y tiene sus propias pruebas (anchoYAro.test.ts).
+  it("todas las herramientas (nombre, descripción y parámetros) son las del release multicliente", () => {
     const ctx = {
       conversation: { id: 1, current_cycle: 1, stage: "nuevo", phone: "+593990000001" },
       currentUserText: "",
@@ -94,7 +98,7 @@ describe("fijación de Depot: las descripciones de herramientas, byte a byte", (
     const volcado = buildTools(ctx)
       .map((t) => `## ${t.function.name}\n${t.function.description}\n### parámetros\n${JSON.stringify(t.function.parameters, null, 1)}`)
       .join("\n\n");
-    expect(sha(volcado)).toBe("dc6ebe3fcd796676330e6d2fc722e3a5fbc33f99482636a0828849f0d4a8f27f");
+    expect(sha(volcado)).toBe("735655699a5f5ef094aaf70d79c0a4916a9f100b3956e681d4e8d51009681527");
   });
 });
 

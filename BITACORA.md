@@ -1,3 +1,23 @@
+## 4-nov-2026 · Sprint Final: la suite completa sobre el árbol mergeado
+
+**Qué:** tres fallos al juntar los cuatro sprints, cada uno con su porqué.
+(1) `politica.test.ts` fijaba el volcado de herramientas de Depot con el hash
+de `dc50dab`; el diff de volcados muestra UN solo cambio, el parámetro `ancho`
+de `buscar_por_aro_y_tipo` que el S2 agregó a propósito (R-25): hash re-fijado
+al del release con el porqué en el comentario. (2) `fuentes.test.ts` fijaba
+conteos y hash del snapshot del simulador, que es la foto del catálogo VIVO y
+cambia con cada corrida (405 filas el día del S2, 448 hoy): la prueba ahora
+verifica lo que vale para cualquier foto — fuente Contífico, nada se descarta
+en silencio, corrida determinista. (3) `unidadEnLaCantidad.test.ts` falla
+IGUAL en `dc50dab` pelado («por el precio de 3» de la promo del 26-oct):
+preexistente en main, no lo introduce este release y no se toca acá (cambiar
+ese texto es tocar la copy viva de Depot).
+
+**Por qué:** la fijación byte a byte entre sprints paralelos no distingue un
+cambio deliberado de otro sprint de una regresión; acá se revisó cuál era cuál.
+
+**Horas:** 1
+
 ## 4-nov-2026 · Sprint Final: todo conectado (R-42, R-44, R-45)
 
 **Qué:** lo que los sprints dejaron a propósito para el final. Las piezas

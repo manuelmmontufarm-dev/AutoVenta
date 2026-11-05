@@ -28,7 +28,6 @@ const SNAPSHOT = fileURLToPath(new URL("../scripts/sim/datos/catalogo.json", imp
 
 /** Hash de `dc50dab` (código viejo) — ver el encabezado. */
 const HASH_MUESTRA = "94bc6f71be19dee65745f9319c6a33794263eb38ff7262b1858fb7f5ec072e84";
-const HASH_SNAPSHOT = "15d7474db38447d2b04d4cf80932ad75dcafc1a732f268e7b01a72c9f33fc85f";
 
 const fetchOriginal = globalThis.fetch;
 afterEach(() => {
@@ -76,12 +75,20 @@ describe("Contífico por la fuente nueva = el catálogo de antes", () => {
     expect(hash).toBe(HASH_MUESTRA);
   });
 
-  // El snapshot completo lo ignora git (pesa 1,4 MB): corre donde existe.
-  it.skipIf(!existsSync(SNAPSHOT))("el snapshot completo del simulador da el mismo hash que dc50dab", async () => {
+  // El snapshot completo lo ignora git (pesa 1,4 MB) y CAMBIA con cada corrida
+  // del simulador (es la foto del catálogo vivo): corre donde existe, pero no
+  // puede fijar conteos ni hash — el Sprint 2 los fijó con SU foto (405 ok /
+  // 694 saltadas) y la siguiente foto ya era otra. Lo que sí vale para
+  // cualquier foto: la fuente es Contífico, nada se pierde en silencio
+  // (ok + saltadas = filas) y la corrida es determinista (mismo hash dos veces).
+  it.skipIf(!existsSync(SNAPSHOT))("el snapshot completo del simulador pasa entero y determinista", async () => {
+    const filas = JSON.parse(readFileSync(SNAPSHOT, "utf8")) as unknown[];
     const { reporte, hash } = await hashDelCatalogo(SNAPSHOT);
-    expect(reporte.ok).toBe(405);
-    expect(reporte.skipped).toHaveLength(694);
-    expect(hash).toBe(HASH_SNAPSHOT);
+    expect(reporte.source).toBe("contifico");
+    expect(reporte.ok).toBeGreaterThan(300);
+    expect(reporte.ok + reporte.skipped.length).toBe(filas.length);
+    const segunda = await hashDelCatalogo(SNAPSHOT);
+    expect(segunda.hash).toBe(hash);
   });
 });
 
