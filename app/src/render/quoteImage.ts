@@ -11,11 +11,14 @@ import { renderAsync } from "@resvg/resvg-js";
 import { type CatalogAvailability, type CatalogItem } from "../domain/catalog.js";
 import { medidaEstaPedida } from "../domain/medidaPedida.js";
 import { modoDePromocion } from "../domain/promocion.js";
-import type { SegundaLlanta } from "../domain/promocionDeTemporada.js";
+import { hastaEnPalabras, marcaConSegundaLlanta, type SegundaLlanta } from "../domain/promocionDeTemporada.js";
+import { politica } from "../negocio/politica.js";
 import { garantiaDelPerfil, warrantyForBrand } from "../services/quoteMessages.js";
 import { loadFonts, loadFontsDiaNoche, productPhoto, type FontSpec, type RasterImage } from "./assets.js";
 import { DEFAULT_BRAND_PROFILES, resolveTheme, type SatoriNode, type Theme } from "./depotDesign.js";
-import { comparePoster, medidaGuidePoster, optionsPoster, quotePoster, type PosterLine } from "./depotPosters.js";
+import {
+  comparePoster, medidaGuidePoster, optionsPoster, quotePoster, type PosterLine, type TemporadaDeLaPieza,
+} from "./depotPosters.js";
 import { DIA_NOCHE_ANCHO, DIA_NOCHE_ESCALA, optionsPosterDiaNoche, quotePosterDiaNoche, resolverModo } from "./diaNoche.js";
 
 // ---------------------------------------------------------------------------
@@ -82,7 +85,7 @@ export interface PieceTheme {
   plantilla?: string | null;
   /** Solo «diaNoche»: auto (según la hora de Quito), dia o noche. */
   modo?: string | null;
-  /** Reloj del modo automático; solo lo fijan las pruebas. */
+  /** Reloj del modo automático y de las fechas de la promo de temporada; solo lo fijan las pruebas. */
   ahora?: Date;
   /** Etiqueta y frase por marca. Sin esto caen los valores del diseño. */
   brandProfiles?: Record<string, { tag: string; posicionamiento: string }>;
@@ -105,17 +108,44 @@ function themeOf(data: PieceTheme): Theme {
   return resolveTheme(data.paleta, data.fuente);
 }
 
-/** RenderLine (catálogo) → PosterLine (diseño). */
+/**
+ * El rótulo de la franja de temporada: «BLACK FRIDAY» y, si la promo cubre el
+ * mes entero, «TODO NOVIEMBRE»; «válido hasta» sale de la política.
+ */
+function temporadaDe(segunda: SegundaLlanta): TemporadaDeLaPieza {
+  const promo = politica.promocionDeTemporada;
+  if (!promo) return { nombre: segunda.nombre, bajada: null, hasta: null };
+  const hasta = hastaEnPalabras(promo);
+  const [, mesDesde, diaDesde] = promo.desde.split("-").map(Number);
+  const [, mesHasta] = promo.hasta.split("-").map(Number);
+  const mesEntero = diaDesde === 1 && mesDesde === mesHasta;
+  return { nombre: segunda.nombre, bajada: mesEntero ? `TODO ${hasta.split(" de ").pop()!.toUpperCase()}` : null, hasta };
+}
+
+/**
+ * RenderLine (catálogo) → PosterLine (diseño).
+ *
+ * `vitrina` (opciones y comparativa): la tarjeta lleva el sello de la 2.ª
+ * llanta si la marca entra hoy en la promo. La cotización no lo usa: allí
+ * manda `segundaLlanta`, que trae la cuenta hecha.
+ */
 function toPosterLine(
   line: RenderLine,
   profiles: Record<string, { tag: string; posicionamiento: string }> = DEFAULT_BRAND_PROFILES,
   promocion?: PieceTheme["promocion"],
+  vitrina?: { ahora?: Date },
 ): PosterLine {
   const profile = profiles[line.brand.trim().toUpperCase()];
   const modo = modoDePromocion(promocion);
+  const promo = politica.promocionDeTemporada;
+  const conVitrina = Boolean(vitrina) && promo?.segundaLlanta
+    && marcaConSegundaLlanta(promo, line.brand, vitrina?.ahora ?? new Date());
   return {
     // Solo viaja si no es el de siempre: en porcentaje la línea queda igual que antes.
     ...(modo === "porcentaje" ? {} : { promocion: modo }),
+    // Igual con la promo de temporada: sin ella la línea no lleva ni la clave.
+    ...(line.segundaLlanta ? { segundaLlanta: line.segundaLlanta, temporada: temporadaDe(line.segundaLlanta) } : {}),
+    ...(conVitrina ? { vitrinaSegundaLlanta: { porcentaje: promo!.segundaLlanta!.porcentaje, nombre: promo!.nombre } } : {}),
     brand: line.brand,
     design: line.design,
     sizeLabel: line.sizeLabel,
@@ -203,7 +233,7 @@ export async function renderCompareImage(data: CompareRenderData): Promise<Buffe
       dateLabel: data.dateLabel,
       identidad: data.identidad,
       sizeLabel: data.sizeLabel ?? data.products[0]?.sizeLabel ?? null,
-      lines: data.products.map((line) => toPosterLine(line, data.brandProfiles, data.promocion)),
+      lines: data.products.map((line) => toPosterLine(line, data.brandProfiles, data.promocion, { ahora: data.ahora })),
     },
     themeOf(data),
   );
@@ -239,7 +269,7 @@ function aroDe(sizeLabel: string | null | undefined): string | null {
 }
 
 export async function renderOptionsImage(data: OptionsRenderData): Promise<Buffer> {
-  const base = data.products.map((line) => toPosterLine(line, data.brandProfiles, data.promocion));
+  const base = data.products.map((line) => toPosterLine(line, data.brandProfiles, data.promocion, { ahora: data.ahora }));
   // SIN MEDIDA PEDIDA, NADA ES «SU MEDIDA EXACTA».
   //
   // Cuando el cliente busca por ARO («¿tiene A/T rin 16?») no hay medida

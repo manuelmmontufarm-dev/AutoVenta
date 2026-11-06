@@ -12,11 +12,12 @@
 import {
   ARCHIVO_BLACK, BLACK_ITALIC, type Availability, type Child, type PriceFont, type SatoriNode, type Theme,
   availabilityChip, availabilityDot, availabilityPill, brandAccent, brandAccentDark,
-  brandMark, check, depotWordmark, el, img, posterFooter, posterHeader, racingBar, savingsBadge, speedLines,
+  brandMark, check, depotWordmark, el, img, posterFooter, posterHeader, racingBar, savingsBadge, segundaLlantaBadge, speedLines,
   stripEmoji, text, tick,
 } from "./depotDesign.js";
 import { guideTireImage } from "./assets.js";
 import { etiquetaDePromocion, type ModoPromocion } from "../domain/promocion.js";
+import { cuentaDeSegundaLlanta, type SegundaLlanta } from "../domain/promocionDeTemporada.js";
 import { negocio, pieDeLocales, localesEnUnaLinea, sinPendiente } from "../negocio/index.js";
 import { localesDeIdentidad } from "../negocio/identidad.js";
 
@@ -132,7 +133,58 @@ export interface PosterLine {
    * descuento real de esta llanta es 24–26 % (`domain/promocion.ts`).
    */
   promocion?: ModoPromocion;
+  /**
+   * Black Friday en la COTIZACIÓN: las pares con el 60 % (5-nov). Lo llena
+   * quien cotiza con `segundaLlantaDe`; la pieza solo lo dibuja —nunca recalcula
+   * el porcentaje— y sin él sale idéntica a la de siempre.
+   */
+  segundaLlanta?: SegundaLlanta | null;
+  /** El rótulo de la temporada que acompaña a `segundaLlanta` (franja de la cotización). */
+  temporada?: TemporadaDeLaPieza | null;
+  /** Vitrina (opciones y comparativa): la marca entra hoy en la promo de la 2.ª llanta. */
+  vitrinaSegundaLlanta?: { porcentaje: number; nombre: string } | null;
 }
+
+/** Lo que la franja de temporada dice: «BLACK FRIDAY · TODO NOVIEMBRE», válido hasta… */
+export interface TemporadaDeLaPieza {
+  /** «BLACK FRIDAY». */
+  nombre: string;
+  /** «TODO NOVIEMBRE» cuando la promo cubre el mes entero; si no, null. */
+  bajada: string | null;
+  /** «30 de noviembre», para «válido hasta el…»; null si la política no la trae. */
+  hasta: string | null;
+}
+
+/**
+ * Cómo se nombran las llantas a precio normal y las rebajadas: con 4, «1.ª y
+ * 3.ª llanta» y «2.ª y 4.ª llanta»; con 2, «1.ª llanta» y «2.ª llanta»; con 3,
+ * una sola rebajada. Más de tres posiciones por lado ya no se leen: «impares» y
+ * «pares».
+ */
+export function rotulosDeSegundaLlanta(cantidad: number): { normales: string; rebajadas: string } {
+  const n = Math.max(1, Math.round(cantidad));
+  const lista = (paridad: 0 | 1, plural: string): string => {
+    const pos = Array.from({ length: n }, (_, i) => i + 1).filter((i) => i % 2 === paridad).map((i) => `${i}.ª`);
+    if (pos.length > 3) return `llantas ${plural}`;
+    const nombres = pos.length > 1 ? `${pos.slice(0, -1).join(", ")} y ${pos[pos.length - 1]}` : pos[0];
+    return `${nombres} llanta`;
+  };
+  return { normales: lista(1, "impares"), rebajadas: lista(0, "pares") };
+}
+
+/**
+ * Lo que se ahorra la cotización entera: la rebaja del catálogo en todas las
+ * llantas más la de la 2.ª llanta. Ambos montos ya vienen hechos; aquí solo se
+ * suman.
+ */
+export function ahorroDeLaCotizacion(line: PosterLine): number {
+  const n = Math.max(1, Math.round(line.quantity || 1));
+  const catalogo = line.pvpConIva && line.pvpConIva > line.unitConIva ? (line.pvpConIva - line.unitConIva) * n : 0;
+  return Math.round((catalogo + (line.segundaLlanta?.ahorroConIva ?? 0)) * 100) / 100;
+}
+
+/** «en tu 2.ª llanta · Black Friday»: el rótulo de la vitrina, igual en todas las piezas. */
+export const textoVitrinaSegundaLlanta = (v: { nombre: string }) => `en tu 2.ª llanta · ${v.nombre}`;
 
 const savingsPct = (line: PosterLine): string | null => {
   if (!line.pvpConIva || line.pvpConIva <= line.unitConIva) return null;
@@ -197,6 +249,9 @@ export function quotePoster(data: QuotePosterData, theme: Theme): SatoriNode {
   const hasDesc = Boolean(data.discountAmount && data.discountAmount > 0);
   const benefits = data.benefits ?? [];
   const golpes = golpesLabel(line);
+  // Black Friday (5-nov): con la 2.ª llanta la pieza cambia el panel de precio,
+  // la insignia y el total; sin ella, todo sale como siempre.
+  const bf = line.segundaLlanta ?? null;
 
   const bloques: Child[] = [
     // Encabezado
@@ -212,6 +267,7 @@ export function quotePoster(data: QuotePosterData, theme: Theme): SatoriNode {
       ),
     ),
     racingBar(theme),
+    bf ? franjaTemporada(line, bf, theme) : null,
 
     // Héroe: foto + identidad del producto
     el({ alignItems: "center", gap: 56, padding: "56px 64px 40px", position: "relative",
@@ -263,7 +319,7 @@ export function quotePoster(data: QuotePosterData, theme: Theme): SatoriNode {
     ),
 
     // Precio
-    el({ justifyContent: "space-between", alignItems: "center", padding: "44px 64px", position: "relative",
+    bf ? precioSegundaLlanta(line, bf, theme) : el({ justifyContent: "space-between", alignItems: "center", padding: "44px 64px", position: "relative",
       backgroundImage: `linear-gradient(135deg,${p.dark} 0%,${p.dark} 55%,rgba(0,0,0,0.35) 100%)` },
       speedLines(4, 0.1, 180),
       el({ flexDirection: "column", gap: 2 },
@@ -369,10 +425,20 @@ export function quotePoster(data: QuotePosterData, theme: Theme): SatoriNode {
         totalCell(theme, "SUBTOTAL", money(data.subtotal)),
         totalCell(theme, `IVA ${Math.round(negocio.iva * 100)}%`, money(data.iva)),
       ),
-      el({ alignItems: "baseline", gap: 16 },
-        text({ fontSize: 16, fontWeight: 700, letterSpacing: 3, color: p.gold }, "TOTAL"),
-        text({ ...price, fontSize: 80, letterSpacing: -2, color: p.paper }, money(data.total)),
-      ),
+      bf
+        // El total ya es el de la promo (lo firma quien cotiza); debajo, cuánto
+        // se ahorra en total: la rebaja del catálogo más la de la 2.ª llanta.
+        ? el({ flexDirection: "column", alignItems: "flex-end", gap: 4 },
+            el({ alignItems: "baseline", gap: 16 },
+              text({ fontSize: 16, fontWeight: 700, letterSpacing: 3, color: p.gold }, "TOTAL"),
+              text({ ...price, fontSize: 80, letterSpacing: -2, color: p.paper }, money(data.total)),
+            ),
+            text({ fontSize: 22, fontWeight: 700, color: ORO_BF }, `Ahorras ${money(ahorroDeLaCotizacion(line))}`),
+          )
+        : el({ alignItems: "baseline", gap: 16 },
+            text({ fontSize: 16, fontWeight: 700, letterSpacing: 3, color: p.gold }, "TOTAL"),
+            text({ ...price, fontSize: 80, letterSpacing: -2, color: p.paper }, money(data.total)),
+          ),
     ),
     posterFooter(theme,
       // `sinPendiente`: un pie sin confirmar sale con el respaldo neutro, y
@@ -417,6 +483,97 @@ function totalCell(theme: Theme, rotulo: string, valor: string, destacado = fals
   return el({ flexDirection: "column", gap: 2 },
     text({ fontSize: 13, letterSpacing: 2, color: theme.p.darkSub }, rotulo),
     text({ fontSize: destacado ? 38 : 26, fontWeight: 700, color: theme.p.paper }, valor),
+  );
+}
+
+// ===========================================================================
+// BLACK FRIDAY — la franja, el panel de precio y el sello de vitrina
+// ===========================================================================
+
+/** El oro de los sellos de garantía: la promo usa el mismo, no el de la paleta. */
+const ORO_BF = "#e8c15a";
+const NEGRO_BF = "#0b0b0c";
+
+/**
+ * La franja «BLACK FRIDAY · TODO NOVIEMBRE» bajo el encabezado. Negra con el
+ * oro de los sellos y las rayas de carrera de la marca: es Depot vestido de
+ * Black Friday, no una calcomanía encima de la pieza.
+ */
+function franjaTemporada(line: PosterLine, bf: SegundaLlanta, theme: Theme): SatoriNode {
+  const tempo = line.temporada;
+  const nombre = (tempo?.nombre ?? bf.nombre).toUpperCase();
+  const pie = [tempo?.hasta ? `Válido hasta el ${tempo.hasta}` : null, "#UnViernesNoAlcanza"].filter(Boolean).join(" · ");
+  return el({ justifyContent: "space-between", alignItems: "center", padding: "26px 64px", position: "relative",
+    backgroundColor: NEGRO_BF, borderBottom: `4px solid ${ORO_BF}`, overflow: "hidden" },
+    speedLines(5, 0.16, 120),
+    el({ alignItems: "center", gap: 18 },
+      el({ gap: 6 },
+        el({ width: 34, height: 40, backgroundColor: theme.p.accent, transform: "skewX(-22deg)" }),
+        el({ width: 14, height: 40, backgroundColor: ORO_BF, transform: "skewX(-22deg)" }),
+      ),
+      text({ ...BLACK_ITALIC, fontSize: 48, lineHeight: 1, letterSpacing: -1, color: "#ffffff", whiteSpace: "nowrap" }, nombre),
+      tempo?.bajada
+        ? text({ ...ARCHIVO_BLACK, fontSize: 25, lineHeight: 1, letterSpacing: 1, color: ORO_BF, whiteSpace: "nowrap" }, `· ${tempo.bajada}`)
+        : null,
+    ),
+    el({ flexDirection: "column", alignItems: "flex-end", gap: 6 },
+      text({ ...ARCHIVO_BLACK, fontSize: 27, lineHeight: 1, color: ORO_BF, whiteSpace: "nowrap" },
+        `−${bf.porcentaje}% EN TU 2.ª LLANTA`),
+      text({ fontSize: 16, fontWeight: 600, color: "#c9c9cf", whiteSpace: "nowrap" }, pie),
+    ),
+  );
+}
+
+/**
+ * El panel de precio con la 2.ª llanta: los DOS precios por llanta, cada uno
+ * con su rótulo («1.ª y 3.ª llanta», «2.ª y 4.ª llanta · −60 %»), la cuenta a
+ * la vista y la insignia dorada del 60 % como protagonista. El «ANTES» del
+ * catálogo queda chico encima de la insignia, si lo hay.
+ */
+function precioSegundaLlanta(line: PosterLine, bf: SegundaLlanta, theme: Theme): SatoriNode {
+  const { p, price } = theme;
+  const rot = rotulosDeSegundaLlanta(line.quantity);
+  const fila = (rotulo: string, monto: string, color: string, chip?: string) =>
+    el({ alignItems: "center", gap: 28 },
+      el({ flexDirection: "column", gap: 8, width: 340 },
+        text({ fontSize: 22, fontWeight: 700, letterSpacing: 3, color: p.darkSub, whiteSpace: "nowrap" }, rotulo.toUpperCase()),
+        chip
+          ? el({}, text({ ...ARCHIVO_BLACK, fontSize: 22, color: "#211a08", borderRadius: 8, padding: "4px 14px",
+              backgroundImage: "linear-gradient(135deg,#f7e29a 0%,#eccd6f 40%,#b98a1e 100%)", whiteSpace: "nowrap" }, chip))
+          : null,
+      ),
+      text({ ...price, fontSize: 112, lineHeight: 1.05, letterSpacing: -3, color }, monto),
+    );
+  return el({ justifyContent: "space-between", alignItems: "center", padding: "44px 64px", position: "relative",
+    backgroundImage: `linear-gradient(135deg,${p.dark} 0%,${p.dark} 55%,rgba(0,0,0,0.35) 100%)` },
+    speedLines(4, 0.1, 180),
+    el({ flexDirection: "column", gap: 10 },
+      text({ fontSize: 17, fontWeight: 700, letterSpacing: 4, color: p.gold }, "PRECIO HOY · POR LLANTA"),
+      fila(rot.normales, money(bf.precioNormalConIva), p.paper),
+      fila(rot.rebajadas, money(bf.precioConIva), ORO_BF, `−${bf.porcentaje} %`),
+      text({ fontSize: 26, fontWeight: 700, color: p.paper, marginTop: 6 }, cuentaDeSegundaLlanta(line.quantity, bf)),
+      text({ fontSize: 19, color: p.darkSub }, IMPUESTOS_INCLUIDOS),
+    ),
+    el({ flexDirection: "column", alignItems: "flex-end", gap: 14 },
+      line.pvpConIva && line.pvpConIva > line.unitConIva
+        ? el({ flexDirection: "column", alignItems: "flex-end", gap: 2 },
+            text({ fontSize: 14, fontWeight: 700, letterSpacing: 3, color: p.darkSub }, "ANTES"),
+            text({ fontSize: 40, color: p.darkSub, textDecoration: "line-through" }, money(line.pvpConIva)),
+          )
+        : null,
+      segundaLlantaBadge(bf.porcentaje, `ahorras ${money(bf.ahorroConIva)}`, price),
+    ),
+  );
+}
+
+/** El sello chico de vitrina: «−60% en tu 2.ª llanta · Black Friday», negro y oro. */
+function selloVitrina(v: { porcentaje: number; nombre: string }, cifra: number, rotulo: number): SatoriNode {
+  return el({},
+    el({ alignItems: "center", gap: Math.round(rotulo * 0.5), backgroundColor: NEGRO_BF, borderRadius: 6,
+      border: `2px solid ${ORO_BF}`, padding: `${Math.round(rotulo * 0.3)}px ${Math.round(rotulo * 0.75)}px` },
+      text({ ...ARCHIVO_BLACK, fontSize: cifra, lineHeight: 1, color: ORO_BF, whiteSpace: "nowrap" }, `−${v.porcentaje}%`),
+      text({ fontSize: rotulo, fontWeight: 700, lineHeight: 1, color: "#ffffff", whiteSpace: "nowrap" }, textoVitrinaSegundaLlanta(v)),
+    ),
   );
 }
 
@@ -482,6 +639,7 @@ export function comparePoster(data: ComparePosterData, theme: Theme): SatoriNode
             ? text({ fontSize: 15, color: p.tenue, marginTop: 4 }, PRECIO_SIN_DESCUENTO)
             : null,
       ),
+      line.vitrinaSegundaLlanta ? selloVitrina(line.vitrinaSegundaLlanta, 17, 14) : null,
       el({}, availabilityChip(line.availability)),
       el({ flexDirection: "column", gap: 8 },
         golpes ? garantiaFila(`${golpes} contra golpes`, p.dark) : null,
@@ -680,6 +838,7 @@ export function optionsPoster(data: OptionsPosterData, theme: Theme): SatoriNode
             )
           : null,
       ),
+      line.vitrinaSegundaLlanta ? selloVitrina(line.vitrinaSegundaLlanta, t(15), t(13)) : null,
       availabilityDot(line.availability, texto),
     );
 

@@ -21,6 +21,32 @@ como si las 4 costaran $75, el cliente lee dos cifras y el revisor tacha la
 buena.
 
 **Horas:** 1,5
+## 5-nov-2026 · Black Friday en la pieza (= el PDF): la 2.ª llanta a la vista
+
+**Qué:** cuando la línea trae `segundaLlanta`, la cotización, en las dos
+plantillas (día y noche y clásica), lleva la franja negra y oro «BLACK FRIDAY · TODO
+NOVIEMBRE» (válido hasta el 30 de noviembre), el panel de precio con los DOS
+precios por llanta y su rótulo según la cantidad («1.ª y 3.ª llanta $75.00»,
+«2.ª y 4.ª llanta $30.00 · −60 %»; con 3, una sola rebajada), la cuenta de
+`cuentaDeSegundaLlanta`, la insignia dorada «−60% EN TU 2.ª LLANTA» en lugar
+del −25 %/4x3, y «Ahorra $X» = rebaja del catálogo + `ahorroConIva`. El total y
+las cuotas siguen saliendo de `data.total`. En opciones y comparativa, las
+tarjetas Falken/Kenda llevan el sello «−60% en tu 2.ª llanta · Black Friday»
+mientras la promo esté vigente (`marcaConSegundaLlanta`); Winrun no. La vista
+previa de Ajustes cotiza la muestra con la promo. La pieza no calcula el 60 %:
+dibuja lo que le llega.
+
+Sin `segundaLlanta` la cotización sale byte a byte igual. El arnés de hashes de
+Depot fija ahora su reloj en octubre (fuera de la promo), porque la vitrina sí
+cambia en noviembre; `plantillaDiaNoche` pone el mismo reloj en las tres piezas
+que compara. Las 7 imágenes siguen idénticas a la línea base. Los 3 hashes de
+texto y `unidadEnLaCantidad` ya fallaban antes de este cambio.
+
+**Por qué:** Manuel: «el pdf nuevo lo refleje más claro». El PDF es el PNG de la
+pieza: si la pieza solo muestra $75 y un total de $210, el cliente no entiende de
+dónde sale la cifra.
+
+**Horas:** 2
 
 ## 5-nov-2026 · Black Friday de noviembre: la base (datos y cuentas)
 
