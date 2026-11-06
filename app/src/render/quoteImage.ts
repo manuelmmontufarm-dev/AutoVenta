@@ -11,7 +11,7 @@ import { renderAsync } from "@resvg/resvg-js";
 import { type CatalogAvailability, type CatalogItem } from "../domain/catalog.js";
 import { medidaEstaPedida } from "../domain/medidaPedida.js";
 import { modoDePromocion } from "../domain/promocion.js";
-import { hastaEnPalabras, marcaConSegundaLlanta, type SegundaLlanta } from "../domain/promocionDeTemporada.js";
+import { hastaEnPalabras, marcaConSegundaLlanta, segundaLlantaDe, type SegundaLlanta } from "../domain/promocionDeTemporada.js";
 import { politica } from "../negocio/politica.js";
 import { garantiaDelPerfil, warrantyForBrand } from "../services/quoteMessages.js";
 import { loadFonts, loadFontsDiaNoche, productPhoto, type FontSpec, type RasterImage } from "./assets.js";
@@ -133,7 +133,7 @@ function toPosterLine(
   line: RenderLine,
   profiles: Record<string, { tag: string; posicionamiento: string }> = DEFAULT_BRAND_PROFILES,
   promocion?: PieceTheme["promocion"],
-  vitrina?: { ahora?: Date },
+  vitrina?: { ahora?: Date; cantidad?: number | null },
 ): PosterLine {
   const profile = profiles[line.brand.trim().toUpperCase()];
   const modo = modoDePromocion(promocion);
@@ -145,7 +145,18 @@ function toPosterLine(
     ...(modo === "porcentaje" ? {} : { promocion: modo }),
     // Igual con la promo de temporada: sin ella la línea no lleva ni la clave.
     ...(line.segundaLlanta ? { segundaLlanta: line.segundaLlanta, temporada: temporadaDe(line.segundaLlanta) } : {}),
-    ...(conVitrina ? { vitrinaSegundaLlanta: { porcentaje: promo!.segundaLlanta!.porcentaje, nombre: promo!.nombre } } : {}),
+    ...(conVitrina
+      ? {
+          vitrinaSegundaLlanta: {
+            porcentaje: promo!.segundaLlanta!.porcentaje,
+            nombre: promo!.nombre,
+            // El juego con las pares rebajadas: la misma cuenta que firmará la cotización.
+            cuenta: vitrina?.cantidad
+              ? segundaLlantaDe(promo, line.brand, vitrina.cantidad, line.unitConIva, vitrina.ahora ?? new Date())
+              : null,
+          },
+        }
+      : {}),
     brand: line.brand,
     design: line.design,
     sizeLabel: line.sizeLabel,
@@ -269,7 +280,8 @@ function aroDe(sizeLabel: string | null | undefined): string | null {
 }
 
 export async function renderOptionsImage(data: OptionsRenderData): Promise<Buffer> {
-  const base = data.products.map((line) => toPosterLine(line, data.brandProfiles, data.promocion, { ahora: data.ahora }));
+  const base = data.products.map((line) =>
+    toPosterLine(line, data.brandProfiles, data.promocion, { ahora: data.ahora, cantidad: data.cantidad ?? 4 }));
   // SIN MEDIDA PEDIDA, NADA ES «SU MEDIDA EXACTA».
   //
   // Cuando el cliente busca por ARO («¿tiene A/T rin 16?») no hay medida

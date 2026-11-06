@@ -2287,11 +2287,17 @@ export function buildTools(ctx: AgentContext) {
       // mejor») se pueda entregar al siguiente turno sin volver a buscar.
       // Quedan también en la metadata del mensaje: es de ahí que los hechos
       // del agente (getAgentSalesFacts) los recuperan en el turno siguiente.
+      // Black Friday: el juego de cada opción con las pares al −60 % (null si
+      // la marca no entra o la promo está cerrada para este chat). La lámina,
+      // la lista escrita y lo guardado para el guardián dicen esta misma cifra.
+      const segundaDeOpcion = (p: { brand: string; minimumPriceWithTax: number }) =>
+        segundaLlantaDe(politica.promocionDeTemporada, p.brand, cantidadResuelta.cantidad, p.minimumPriceWithTax);
       const escalones = escalonesDeOpciones(
         products.map((p) => ({
           codigo: p.code,
           nombre: `${p.brand} ${p.design}`,
           precio_con_iva: p.minimumPriceWithTax,
+          ...(segundaDeOpcion(p) ? { segunda_llanta: segundaDeOpcion(p) } : {}),
           // Las lonas viajan con la opción para poder contestarlas en un turno
           // POSTERIOR sin volver a buscar. Tres clientes las preguntaron en la
           // semana del 8 al 11-sep (convs 16974, 18294, 18880) y las tres veces
@@ -2386,7 +2392,9 @@ export function buildTools(ctx: AgentContext) {
             // Solo la plantilla día y noche los usa: la cantidad del juego, y
             // la recomendada destacada únicamente si este turno la entrega —si
             // queda guardada para cuando la pida, la imagen no se adelanta.
-            cantidad,
+            // La cantidad RESUELTA, la misma de la lista escrita: con Black
+            // Friday el total del juego depende de ella y no pueden diferir.
+            cantidad: cantidadResuelta.cantidad,
             codigoRecomendado: entregarRecomendacion ? entregada.code : null,
             ...(await getPiecesConfig()),
             brandProfiles: await brandProfilesForRender(),
@@ -2437,7 +2445,10 @@ export function buildTools(ctx: AgentContext) {
             // 19-oct): la traba del guardián los lee de aquí para no tirar una
             // corrección que solo repite lo que dice la lámina (chat 27418).
             preciosMostrados: products
-              .map((p) => p.minimumPriceWithTax)
+              .flatMap((p) => {
+                const bf = segundaDeOpcion(p);
+                return bf ? [p.minimumPriceWithTax, bf.precioConIva, bf.totalConIva, bf.ahorroConIva] : [p.minimumPriceWithTax];
+              })
               .filter((precio): precio is number => Number.isFinite(precio) && precio > 0),
             // La recomendada y su porqué, para que la ruta directa pueda
             // volver a entregar la pieza cuando el cliente pida criterio
@@ -2541,6 +2552,7 @@ export function buildTools(ctx: AgentContext) {
           nombre: `${p.brand} ${p.design}`,
           precio: p.minimumPriceWithTax ?? 0,
           codigo: p.code,
+          segundaLlanta: segundaDeOpcion(p),
         })),
         cantidadResuelta.cantidad,
       );

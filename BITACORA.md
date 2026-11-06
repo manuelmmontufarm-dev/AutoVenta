@@ -1,3 +1,29 @@
+## 6-nov-2026 · Black Friday en la lámina de opciones: el juego ya con el 60 %
+
+**Qué:** Manuel probó desde su número (235/75R15: Falken + 2 Kenda) y las opciones «solo
+salían con el 25 %». La lámina día y noche ponía el Black Friday como un sello chico; el
+precio grande del juego seguía siendo unitario × 4 y la insignia grande «−25% DESCUENTO HOY».
+La lista escrita también («$181.69 c/u · 4 = $726.76»), aunque la cotización después firmaba
+el 60 %. Ahora, en Falken y Kenda: el juego grande es la cuenta de la promo, la tarjeta
+muestra los dos precios («1.ª y 3.ª llanta» / «2.ª y 4.ª llanta −60%»), el sello dice
+cuánto ahorra, la insignia grande es negra «BLACK FRIDAY −60% EN TU 2.ª LLANTA» («en las 3
+opciones» o «en Falken y Kenda») y la lista escrita dice «2 × $181.69 + 2 × $72.68 = $508.74
+(−60 % en la 2.ª llanta)». El −25 % del catálogo sigue en cada tarjeta.
+
+**Cómo:** `toPosterLine` saca la cuenta con `segundaLlantaDe` para la cantidad de la lámina
+(`vitrinaSegundaLlanta.cuenta`); `preparar_opciones` la guarda en cada escalón
+(`segunda_llanta`) para que la lista, los seguimientos y el guardián digan lo que el cliente
+vio, y suma esas cifras a `preciosMostrados`. La lámina ahora usa la cantidad RESUELTA (la
+misma de la lista escrita) y no el argumento crudo de la herramienta: con la promo el total
+depende de ella. La clásica no cambia (ya mostraba precio por llanta + sello).
+
+**Ojo:** la lista sigue ordenada por precio unitario, así que con una Winrun en la mesa «la
+1 / MEJOR PRECIO» puede salir más cara en el juego que una Kenda con Black Friday.
+
+**Probado:** `test/listaDeOpcionesBlackFriday.test.ts`; láminas de muestra día/noche
+(235/75R15 todas en promo y una mezcla con Winrun). `npm test`: 3342 pasan, fallan las 2
+que también fallan en `main`. Las cuatro de CLAUDE.md pasan.
+
 ## 5-nov-2026 · Black Friday: los tres sprints juntos y la compuerta de Ajustes (solo el número de Manuel)
 
 **Qué:** se juntaron `feat/bf-cotizacion`, `feat/bf-piezas` y `feat/bf-vendedor` (más

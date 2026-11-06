@@ -141,8 +141,13 @@ export interface PosterLine {
   segundaLlanta?: SegundaLlanta | null;
   /** El rótulo de la temporada que acompaña a `segundaLlanta` (franja de la cotización). */
   temporada?: TemporadaDeLaPieza | null;
-  /** Vitrina (opciones y comparativa): la marca entra hoy en la promo de la 2.ª llanta. */
-  vitrinaSegundaLlanta?: { porcentaje: number; nombre: string } | null;
+  /**
+   * Vitrina (opciones y comparativa): la marca entra hoy en la promo de la 2.ª
+   * llanta. `cuenta` es el juego con el 60 % ya aplicado (6-nov, Manuel: «las
+   * opciones salían solo con el 25 %»); solo la lleva la lámina de opciones,
+   * que sabe de cuántas llantas es el juego.
+   */
+  vitrinaSegundaLlanta?: { porcentaje: number; nombre: string; cuenta?: SegundaLlanta | null } | null;
 }
 
 /** Lo que la franja de temporada dice: «BLACK FRIDAY · TODO NOVIEMBRE», válido hasta… */

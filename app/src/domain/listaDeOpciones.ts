@@ -19,6 +19,7 @@
  * escribe el cliente coincide con Costo / Equilibrio / Premium, que es lo que
  * `respuestaDePreferencia` ya entiende por «1», «2» y «3».
  */
+import { cuentaDeSegundaLlanta, type SegundaLlanta } from "./promocionDeTemporada.js";
 
 export interface OpcionConPrecio {
   /** «KENDA KR20» — marca y modelo, tal como sale en la lámina. */
@@ -27,6 +28,11 @@ export interface OpcionConPrecio {
   precio: number;
   /** Para deduplicar (tres escalones con el mismo código son una sola opción). */
   codigo?: string | null;
+  /**
+   * Black Friday: el juego con las pares al −60 %, hecho por `segundaLlantaDe`
+   * con la MISMA cantidad de la lista. Con ella, el total es el de la promo.
+   */
+  segundaLlanta?: SegundaLlanta | null;
 }
 
 export interface LineaDeLista {
@@ -35,6 +41,7 @@ export interface LineaDeLista {
   nombre: string;
   precio: number;
   total: number;
+  segundaLlanta?: SegundaLlanta | null;
 }
 
 const dinero = (v: number) => `$${v.toFixed(2)}`;
@@ -66,12 +73,19 @@ export function armarLista(
       codigo: o.codigo ?? null,
       nombre: o.nombre.trim(),
       precio: centavos(o.precio),
-      total: centavos(o.precio * c),
+      total: o.segundaLlanta ? o.segundaLlanta.totalConIva : centavos(o.precio * c),
+      ...(o.segundaLlanta ? { segundaLlanta: o.segundaLlanta } : {}),
     }));
 }
 
-/** `1 · KENDA KR20 — $80.50 c/u · 4 = $322.00` */
+/**
+ * `1 · KENDA KR20 — $80.50 c/u · 4 = $322.00`; con Black Friday, la cuenta de
+ * la lámina: `1 · KENDA KR601 — 2 × $181.69 + 2 × $72.68 = $508.74 (−60 % en la 2.ª llanta)`.
+ */
 export function lineaDeLista(l: LineaDeLista, cantidad: number): string {
+  if (l.segundaLlanta) {
+    return `${l.n} · ${l.nombre} — ${cuentaDeSegundaLlanta(cantidad, l.segundaLlanta)} (−${l.segundaLlanta.porcentaje} % en la 2.ª llanta)`;
+  }
   return `${l.n} · ${l.nombre} — ${dinero(l.precio)} c/u · ${cantidad} = ${dinero(l.total)}`;
 }
 
@@ -96,12 +110,16 @@ export function listaDeLaPieza(
   metadata: { escalones?: unknown; cantidad?: unknown } | null | undefined,
 ): { lista: LineaDeLista[]; cantidad: number } | null {
   const esc = metadata?.escalones as
-    Record<string, { codigo?: string; nombre?: string; precio_con_iva?: number } | null> | null | undefined;
+    Record<string, { codigo?: string; nombre?: string; precio_con_iva?: number; segunda_llanta?: SegundaLlanta | null } | null> | null | undefined;
   if (!esc) return null;
+  // La promo que el cliente VIO (guardada con la lámina), no la de hoy.
   const opciones: OpcionConPrecio[] = ["economica", "equilibrada", "premium"]
     .map((k) => esc[k])
     .filter((o): o is NonNullable<typeof o> => Boolean(o?.nombre) && Number.isFinite(Number(o?.precio_con_iva)))
-    .map((o) => ({ nombre: o.nombre!, precio: Number(o.precio_con_iva), codigo: o.codigo ?? null }));
+    .map((o) => ({
+      nombre: o.nombre!, precio: Number(o.precio_con_iva), codigo: o.codigo ?? null,
+      ...(o.segunda_llanta ? { segundaLlanta: o.segunda_llanta } : {}),
+    }));
   const cantidad = Number.isInteger(metadata?.cantidad) && Number(metadata?.cantidad) >= 1
     ? Number(metadata?.cantidad)
     : 4;
@@ -117,7 +135,7 @@ export function listaDeLaPieza(
 export function hechoDeLaLista(lista: readonly LineaDeLista[], cantidad: number): string {
   return `LISTA DE OPCIONES CON PRECIOS EN PANTALLA (fuente determinística, salió con la lámina): ${
     lista.map((l) => lineaDeLista(l, cantidad)).join(" | ")
-  }. Cada total es unitario × ${cantidad}, ya calculado: son datos duros, el bot PUEDE decirlos y NO se corrigen. `
+  }. Cada total es unitario × ${cantidad} (o, con Black Friday, la cuenta de la 2.ª llanta escrita en la línea), ya calculado: son datos duros, el bot PUEDE decirlos y NO se corrigen. `
     + `Cerrar con «${preguntaDeLaLista(lista.length)}» es la pregunta correcta de ese turno (elegir entre las opciones, NO pedir permiso por la cantidad): `
     + "se conserva y NO es pregunta_de_mas. Lo que sí está prohibido es volver a preguntar qué prioriza el cliente.";
 }

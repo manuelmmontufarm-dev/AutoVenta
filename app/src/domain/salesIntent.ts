@@ -1,3 +1,4 @@
+import type { SegundaLlanta } from "./promocionDeTemporada.js";
 import { cantidadGrandePedida } from "./cantidadGrande.js";
 import { comproEnOtroLugar } from "./cierrePerdido.js";
 /** Guardas deterministas del flujo: el LLM no puede saltárselas. */
@@ -351,6 +352,8 @@ export interface OpcionDeEscalon {
    * semana del 8 al 11-sep y las tres veces el bot dijo que no lo tenía.
    */
   lonas?: number;
+  /** Black Friday: el juego con las pares al −60 %, tal como salió en la lámina. */
+  segunda_llanta?: SegundaLlanta | null;
 }
 
 export interface Escalones {

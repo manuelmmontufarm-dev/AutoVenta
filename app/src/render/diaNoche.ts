@@ -635,13 +635,44 @@ export function optionsPosterDiaNoche(data: OptionsDiaNocheData, modo: ModoPieza
       })()
     : null;
 
+  // BLACK FRIDAY EN LA LÁMINA (6-nov, Manuel: «las opciones solo salían con
+  // el 25 %»). Si alguna opción lleva la 2.ª llanta al −60 %, esa es la
+  // insignia grande; el −25 % del catálogo sigue en cada tarjeta.
+  const conBF = lines.filter((l) => l.vitrinaSegundaLlanta);
+  const insigniaBF = conBF.length
+    ? (() => {
+        const v = conBF[0].vitrinaSegundaLlanta!;
+        const marcas = [...new Set(conBF.map((l) => l.brand.trim()))]
+          .map((m) => m.charAt(0).toUpperCase() + m.slice(1).toLowerCase());
+        const donde = conBF.length === opciones
+          ? (opciones === 1 ? "en esta opción" : `en las ${opciones} opciones`)
+          : `en ${marcas.join(" y ")}`;
+        const renglon = (s: string) => text({ ...ANCHO(900), fontSize: 13, lineHeight: 1.05, color: "#ffffff" }, s);
+        return el({
+          alignItems: "center", gap: 10, borderRadius: 12, padding: "8px 16px 8px 14px",
+          backgroundColor: NEGRO_BF, border: `2px solid ${ORO}`, transform: "rotate(-2deg)", flexShrink: 0,
+          boxShadow: "0 10px 26px rgba(0,0,0,0.38), 0 2px 6px rgba(0,0,0,0.25)",
+        },
+          text({ ...ANCHO(900), fontSize: 38, lineHeight: 1, letterSpacing: -1, color: ORO }, `−${v.porcentaje}%`),
+          el({ flexDirection: "column" },
+            text({ ...CHAKRA(700), fontSize: 9, letterSpacing: 1.4, color: ORO }, v.nombre.toUpperCase()),
+            renglon("EN TU 2.ª"),
+            renglon("LLANTA"),
+            text({ ...BARLOW(700), fontSize: 10, color: "#d8d8d8", marginTop: 2 }, donde),
+          ),
+        );
+      })()
+    : null;
+
   // Si una sola foto trae fondo, todas van sobre recuadro blanco: mezclar
   // recuadros blancos y oscuros en la misma lámina se ve como un error.
   const recuadroBlanco = lines.some((l) => fotoConFondo(l.photoUri));
 
   const tarjeta = (line: PosterLine): SatoriNode => {
     const reco = Boolean(line.recomendada);
-    const juego = line.unitConIva * n;
+    // Black Friday: el juego ya con las pares al −60 % (la cuenta viene hecha).
+    const bf = line.vitrinaSegundaLlanta?.cuenta ?? null;
+    const juego = bf ? bf.totalConIva : line.unitConIva * n;
     const pct = porcentaje(line);
     const { kg, kmh } = especificaciones(line);
     const specs = [line.loadSpeedLabel, kg ? `${kg} kg` : null, kmh ? `${kmh} km/h` : null].filter(Boolean).join(" · ");
@@ -722,7 +753,26 @@ export function optionsPosterDiaNoche(data: OptionsDiaNocheData, modo: ModoPieza
           letterSpacing: -0.3, color: t.txt,
         }, montoJuego),
         // El precio por llanta con cifra propia (Manuel, 12-sep: «que se note más»).
-        n > 1
+        // Con Black Friday son dos precios: las impares y las pares rebajadas.
+        bf
+          ? el({ flexDirection: "column", alignItems: "flex-end", gap: 4, marginTop: 8 },
+              el({
+                alignItems: "baseline", gap: 5, padding: "2px 9px 3px", borderRadius: 8,
+                backgroundColor: t.chipBg, border: `1px solid ${t.chipBorde}`,
+              },
+                text({ ...ANCHO(800), fontSize: 15, lineHeight: 1.1, color: t.txt }, dinero(bf.precioNormalConIva)),
+                text({ ...BARLOW(600), fontSize: 9.5, color: t.sub, whiteSpace: "nowrap" }, rotulosDeSegundaLlanta(n).normales),
+              ),
+              el({
+                alignItems: "baseline", gap: 5, padding: "2px 9px 3px", borderRadius: 8,
+                backgroundColor: NEGRO_BF, border: `1px solid ${ORO}`,
+              },
+                text({ ...ANCHO(800), fontSize: 15, lineHeight: 1.1, color: ORO }, dinero(bf.precioConIva)),
+                text({ ...BARLOW(600), fontSize: 9.5, color: "#ffffff", whiteSpace: "nowrap" },
+                  `${rotulosDeSegundaLlanta(n).rebajadas} −${bf.porcentaje}%`),
+              ),
+            )
+          : n > 1
           ? el({
               alignItems: "baseline", gap: 5, marginTop: 8, padding: "3px 10px 4px", borderRadius: 8,
               backgroundColor: t.chipBg, border: `1px solid ${t.chipBorde}`,
@@ -756,7 +806,9 @@ export function optionsPosterDiaNoche(data: OptionsDiaNocheData, modo: ModoPieza
             },
               text({ ...ANCHO(900), fontSize: 10, lineHeight: 1, color: ORO }, `−${line.vitrinaSegundaLlanta.porcentaje}%`),
               text({ ...BARLOW(700), fontSize: 8.5, lineHeight: 1, color: "#ffffff", whiteSpace: "nowrap" },
-                textoVitrinaSegundaLlanta(line.vitrinaSegundaLlanta)),
+                bf
+                  ? `en tu 2.ª llanta · ahorra ${dinero(bf.ahorroConIva)}`
+                  : textoVitrinaSegundaLlanta(line.vitrinaSegundaLlanta)),
             )
           : null,
       ),
@@ -801,7 +853,7 @@ export function optionsPosterDiaNoche(data: OptionsDiaNocheData, modo: ModoPieza
       ),
     ),
     text({ ...ARCHIVO, fontSize: 30, lineHeight: 1, letterSpacing: -0.2, marginTop: 20, color: t.txt, whiteSpace: "nowrap" }, titulo),
-    el({ justifyContent: "space-between", alignItems: "center", marginTop: 4, gap: 16 }, bajada, insignia),
+    el({ justifyContent: "space-between", alignItems: "center", marginTop: 4, gap: 16 }, bajada, insigniaBF ?? insignia),
     el({ flexDirection: "column", gap: 13, marginTop: 20 }, ...lines.map(tarjeta)),
     hayEquivalentes
       ? el({
