@@ -117,6 +117,52 @@ describe("normalizar el Excel (puro)", () => {
   });
 });
 
+describe("el reporte «Inventario de Articulos» de Fénix tal cual sale (.xls)", () => {
+  // Mismo formato que el Excel que Jenny mandó el 6-nov: .xls viejo, 15 filas
+  // de membrete, filas de categoría y de totales, todo el producto en «articulo».
+  const XLS = readFileSync(fixture("inventario-fenix-reporte.xls"));
+  // Es el mapeo por defecto: Jenny sube el archivo sin tocar Ajustes.
+  const MAPEO_FENIX = archivo.CatalogoMapeoSchema.parse(archivo.MAPEO_CATALOGO_DEFECTO);
+  const leer = async () =>
+    archivo.normalizarCatalogoSubido("INVENTARIO.xls", await archivo.filasDelArchivo("INVENTARIO.xls", XLS), MAPEO_FENIX);
+
+  it("lee el .xls, salta membrete, categorías y totales, y copia la categoría a cada fila", async () => {
+    const filas = await archivo.filasDelArchivo("INVENTARIO.xls", XLS);
+    expect(filas.map((f) => f["código"])).toEqual(["A0100", "A0101", "A0102", "A0103", "A0104", "A0105"]);
+    expect(filas[0]).toMatchObject({ categoria: "LLANTAS RIN 15 CAMIONETA", subcategoria: "LLANTAS 235/75", "precio a": "139.99" });
+    expect(filas[5]).toMatchObject({ categoria: "LLANTAS RIN 17 .5 CAMIONZ" });
+  });
+
+  it("marca y diseño salen del nombre; el precio ya trae IVA; existencia negativa = 0", async () => {
+    const r = await leer();
+    expect(r.filas.map((f) => f.cruda.codigo)).toEqual(["A0100", "A0101", "A0103"]);
+    const [haida, kenda, haulmax] = r.filas.map((f) => f.cruda);
+    expect(haida).toMatchObject({ marca: "HAIDA", stock: "11" });
+    expect(r.filas[0].precios.minimoConIva).toBe(139.99);
+    expect(kenda).toMatchObject({ marca: "KENDA", diseno: "KR29", stock: "0" });
+    // «750/15» es la convencional 7.50R15 aunque la marca termine en X.
+    expect(haulmax.medida).toBe("7.50R15");
+  });
+
+  it("el diseño del nombre no se come los números del modelo (TH161 no es «TH 1»)", () => {
+    expect(archivo.disenoDelNombre("TOWNHALL 205/55R16 TH161", "TOWNHALL")).toBe("TH161");
+    expect(archivo.disenoDelNombre("TOWNHALL 275/65R18LT TH-AT806 10PR 123/120S", "TOWNHALL")).toBe("TH-AT806");
+    expect(archivo.disenoDelNombre("HAIDA 175/70R14 RUNSPIRIT 88T", "HAIDA")).toBe("RUNSPIRIT");
+    expect(archivo.disenoDelNombre("MINERVA 175/70R12 209 81T", "MINERVA")).toBe("209");
+    expect(archivo.disenoDelNombre("PRESA 205/70R15 PJ88 96 T TL", "PRESA")).toBe("PJ88");
+    expect(archivo.disenoDelNombre("SPEEDWAYS 700/15 MILESTONE 12PR DIRECCIONAL- SET-MADE IN INDIA", "SPEEDWAYS")).toBe("MILESTONE DIRECCIONAL");
+  });
+
+  it("descarta con motivo y fila real: precio mal tipeado, precio 0 y aro de camión 17.5", async () => {
+    const r = await leer();
+    expect(r.descartadas).toEqual([
+      { fila: 20, motivo: "A0102: precio a (17.8) menor que precio d (138), revisar en el sistema" },
+      { fila: 24, motivo: "precio inválido" },
+      { fila: 28, motivo: "aro de camión 17.5: el bot todavía no lo cotiza" },
+    ]);
+  });
+});
+
 describe("subir el Excel por el panel (HTTP + Postgres)", () => {
   it("PUT /catalog/mapeo valida con zod", async () => {
     const malo = await fetch(`${baseUrl}/api/catalog/mapeo`, {

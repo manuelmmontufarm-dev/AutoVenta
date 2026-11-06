@@ -12,11 +12,13 @@
  * (`facturas_importadas`, migración 031): son datos de clientes, no un ajuste.
  */
 import ExcelJS from "exceljs";
+import * as XLS from "xlsx";
 import { z } from "zod";
 import { sql } from "../../db/client.js";
 import { negocio } from "../../negocio/index.js";
 import type { AroProducto } from "../../domain/aroProducto.js";
-import type { CatalogItem } from "../../domain/catalog.js";
+import { extractCatalogSizeLabel, inferCatalogDesign, type CatalogItem } from "../../domain/catalog.js";
+import { resolveCatalogMedia, resolveCatalogMediaPorNombre } from "../../domain/catalogMedia.js";
 import { getCell, normalizarFilaDeCatalogo, type FilaCruda } from "./sheets.js";
 import { LLANTA, tel9 } from "./contifico.js";
 import type {
@@ -39,6 +41,12 @@ export const CatalogoMapeoSchema = z.object({
     precio: z.string().min(1),
     precioLista: z.string().optional(),
     precioMinimo: z.string().optional(),
+    /**
+     * Otra lista del mismo archivo que el precio nunca baja (Fénix: «precio d»).
+     * Si el precio sale MENOR, es un error de tipeo en el sistema (A = 17,80 con
+     * D = 138) y la fila se descarta con su motivo en vez de cotizarse.
+     */
+    precioControl: z.string().optional(),
     stock: z.string().min(1),
     foto: z.string().optional(),
     tipo: z.string().optional(),
@@ -53,25 +61,27 @@ export const CatalogoMapeoSchema = z.object({
 export type CatalogoMapeo = z.infer<typeof CatalogoMapeoSchema>;
 
 /**
- * Arranque con columnas tipo Fénix (encabezados en minúsculas). Las columnas
- * reales del export de Mundillantas siguen [PENDIENTE] hasta tener la captura
- * del Excel de Jenny: se corrigen en Ajustes → Catálogo, sin deploy. El precio
- * se asume SIN IVA, como dice el perfil (`negocio.iva`).
+ * El reporte «Inventario de Articulos» de Fénix tal cual lo exporta Jenny
+ * (Excel del 6-nov-2026): todo el producto va en «articulo» (marca, medida y
+ * diseño salen de ahí), cuatro listas A–D, «existencia» = total de los locales.
+ * Precio A = el del público, ya con IVA (los precios son enteros × 1,15 o
+ * terminan en ,99). Sin `precioMinimo`: no se muestra descuento hasta que el
+ * cliente diga cuál lista es su piso. Precio D es el control de tipeo. Se
+ * cambia en Ajustes → Catálogo, sin deploy.
  */
 export const MAPEO_CATALOGO_DEFECTO: CatalogoMapeo = {
   columnas: {
-    medida: "medida",
-    marca: "marca",
-    diseno: "modelo",
-    codigo: "codigo",
-    nombre: "descripcion",
-    precio: "pvp",
-    precioLista: "pvp lista",
-    stock: "stock",
-    foto: "foto",
+    medida: "articulo",
+    marca: "articulo",
+    diseno: "articulo",
+    codigo: "código",
+    nombre: "articulo",
+    precio: "precio a",
+    precioControl: "precio d",
+    stock: "existencia",
   },
-  precioIncluyeIva: false,
-  filasDeAros: { columna: "linea", patron: "^aro|^rin" },
+  precioIncluyeIva: true,
+  filasDeAros: { columna: "categoria", patron: "^aro|^rin\\b" },
 };
 
 export const FacturasMapeoSchema = z.object({
@@ -179,36 +189,83 @@ function filasDeCsv(texto: string): Record<string, string>[] {
   });
 }
 
+/**
+ * Una hoja como matriz de texto → filas con encabezado. El encabezado es la
+ * primera fila con una celda «código»/«codigo»; si no hay, la primera fila.
+ * Así entra tal cual el reporte «Inventario de Articulos» de Fénix: 14 filas
+ * de membrete antes del encabezado, filas «Categoria: …» / «Subcategoria: …»
+ * que valen para lo que sigue (se copian a las columnas `categoria` y
+ * `subcategoria` de cada fila) y filas «Total …» que no son productos.
+ */
+/** Número de fila real en el Excel (con membrete y todo), para los motivos. */
+const FILA = "__fila";
+
+export function filasDeMatriz(matriz: string[][]): Record<string, string>[] {
+  const sinTilde = (t: string) => t.normalize("NFD").replace(/[̀-ͯ]/g, "").trim().toLowerCase();
+  let inicio = matriz.findIndex((fila) => fila.some((c) => sinTilde(c) === "codigo"));
+  if (inicio < 0) inicio = matriz.findIndex((fila) => fila.some((c) => c.trim() !== ""));
+  if (inicio < 0) return [];
+  const encabezado = matriz[inicio].map((c) => c.trim().toLowerCase());
+  const contexto: Record<string, string> = {};
+  const filas: Record<string, string>[] = [];
+  for (const [k, cruda] of matriz.slice(inicio + 1).entries()) {
+    const celdas = cruda.map((c) => c.trim());
+    const llenas = celdas.filter(Boolean);
+    if (!llenas.length) continue;
+    const seccion = celdas[0].match(/^(sub)?categor[ií]a\s*:\s*(.+)$/i);
+    if (seccion && llenas.length === 1) {
+      contexto[seccion[1] ? "subcategoria" : "categoria"] = seccion[2].trim();
+      if (!seccion[1]) delete contexto.subcategoria;
+      continue;
+    }
+    if (/^total\b/i.test(celdas[0])) continue;
+    if (!celdas[0] && llenas.every((c) => /^-?[\d.,]+$/.test(c))) continue; // total general sin rótulo
+    const fila: Record<string, string> = { ...contexto, [FILA]: String(inicio + k + 2) };
+    encabezado.forEach((col, i) => {
+      if (col) fila[col] = celdas[i] ?? "";
+    });
+    filas.push(fila);
+  }
+  return filas;
+}
+
 async function filasDeXlsx(cuerpo: Buffer): Promise<Record<string, string>[]> {
   const libro = new ExcelJS.Workbook();
   await libro.xlsx.load(cuerpo as unknown as ArrayBuffer);
   const hoja = libro.worksheets[0];
   if (!hoja) return [];
-  const encabezado: string[] = [];
-  hoja.getRow(1).eachCell({ includeEmpty: true }, (celda, n) => {
-    encabezado[n] = String(celda.text ?? "").trim().toLowerCase();
-  });
-  const filas: Record<string, string>[] = [];
-  hoja.eachRow((row, numero) => {
-    if (numero === 1) return;
-    const fila: Record<string, string> = {};
-    let conAlgo = false;
+  const matriz: string[][] = [];
+  hoja.eachRow({ includeEmpty: true }, (row, numero) => {
+    const fila: string[] = [];
     row.eachCell({ includeEmpty: true }, (celda, n) => {
-      const col = encabezado[n];
-      if (!col) return;
-      const valor = String(celda.text ?? "").trim();
-      fila[col] = valor;
-      if (valor) conAlgo = true;
+      fila[n - 1] = String(celda.text ?? "");
     });
-    if (conAlgo) filas.push(fila);
+    matriz[numero - 1] = Array.from(fila, (c) => c ?? "");
   });
-  return filas;
+  return filasDeMatriz(Array.from(matriz, (f) => f ?? []));
 }
+
+/** Excel 97-2003 (.xls, BIFF): el formato en que Fénix exporta el inventario. */
+function filasDeXls(cuerpo: Buffer): Record<string, string>[] {
+  const libro = XLS.read(cuerpo, { type: "buffer", dense: true });
+  const hoja = libro.Sheets[libro.SheetNames[0]];
+  if (!hoja) return [];
+  const matriz = XLS.utils.sheet_to_json<unknown[]>(hoja, { header: 1, raw: false, defval: "", blankrows: true });
+  // La hoja puede empezar más abajo de la fila 1: se rellena para que los
+  // números de fila de los motivos sean los que Jenny ve en el Excel.
+  const desde = hoja["!ref"] ? XLS.utils.decode_range(hoja["!ref"]).s.r : 0;
+  return filasDeMatriz([...Array.from({ length: desde }, () => [] as string[]), ...matriz.map((fila) => fila.map((c) => String(c ?? "")))]);
+}
+
+/** Firma OLE2 (D0 CF 11 E0): un .xls de verdad, aunque se llame .xlsx. */
+const esXlsViejo = (cuerpo: Buffer) =>
+  cuerpo.length > 3 && cuerpo[0] === 0xd0 && cuerpo[1] === 0xcf && cuerpo[2] === 0x11 && cuerpo[3] === 0xe0;
 
 const esXlsx = (nombre: string, cuerpo: Buffer) =>
   /\.xlsx?$/i.test(nombre) || (cuerpo.length > 1 && cuerpo[0] === 0x50 && cuerpo[1] === 0x4b);
 
 export async function filasDelArchivo(nombre: string, cuerpo: Buffer): Promise<Record<string, string>[]> {
+  if (esXlsViejo(cuerpo)) return filasDeXls(cuerpo);
   return esXlsx(nombre, cuerpo) ? filasDeXlsx(cuerpo) : filasDeCsv(cuerpo.toString("utf8"));
 }
 
@@ -280,7 +337,63 @@ function sumarStock(data: Record<string, string>, mapeo: CatalogoMapeo): number 
       .map((columna) => numero(data[columna.toLowerCase()] ?? "") ?? 0)
       .reduce((a, b) => a + b, 0);
   }
-  return numero(data[mapeo.columnas.stock] ?? "") ?? 0;
+  // Fénix deja existencias negativas (vendido sin ingresar): para el bot es 0.
+  return Math.max(0, numero(data[mapeo.columnas.stock] ?? "") ?? 0);
+}
+
+/**
+ * Fénix escribe la convencional de camión sin punto: «700/15», «LT700R15»,
+ * «825/16». Solo para el catálogo y solo si el texto no traía otra medida: se
+ * reescribe a «7.00R15» para que la lea el mismo lector de siempre. El lector
+ * de lo que escribe el cliente no se toca.
+ */
+function medidaDelArchivo(texto: string): string {
+  if (extractCatalogSizeLabel(texto).sizeLabel) return texto;
+  // Devuelve solo la medida: en «HAULMAX 7.50R15» la X de la marca parece una
+  // flotación para el lector y la medida se perdería.
+  const m = texto.match(/(?<![\d.,/])(?:LT)?([5-9]|1[0-2])(\d{2})\s*[/R]\s*(1[2-9]|2[0-4])(?![\d.,])/i);
+  return m ? `${m[1]}.${m[2]}R${m[3]}` : texto;
+}
+
+/**
+ * Cuando el archivo no trae marca ni diseño aparte (Fénix: todo va en
+ * «articulo»), el mapeo apunta Marca y Diseño a la misma columna del nombre:
+ * la marca es la primera palabra y el diseño lo que queda sin marca ni medida.
+ */
+function marcaYDiseno(data: Record<string, string>, col: CatalogoMapeo["columnas"]): { marca: string; diseno: string } {
+  const nombre = (data[col.nombre] ?? "").trim();
+  const marcaCruda = (data[col.marca] ?? "").trim();
+  const disenoCrudo = (data[col.diseno] ?? "").trim();
+  const marca = marcaCruda && marcaCruda === nombre ? (nombre.split(/\s+/)[0] ?? "") : marcaCruda;
+  if (!disenoCrudo || disenoCrudo !== nombre) return { marca, diseno: disenoCrudo };
+  // Falken, Kenda y Winrun: el mismo diseño que les da Contífico en Depot, que
+  // es la clave de sus fotos en `catalogMedia`.
+  if (/^(falken|kenda|winrun)$/i.test(marca)) {
+    const { sizeLabel } = extractCatalogSizeLabel(data[col.medida] ?? nombre);
+    return { marca, diseno: inferCatalogDesign(nombre, marca, sizeLabel) };
+  }
+  return { marca, diseno: disenoDelNombre(nombre, marca) || nombre };
+}
+
+/**
+ * El diseño de un «articulo» de Fénix para el resto de marcas: el nombre sin
+ * la marca, sin la medida y sin índices de carga/velocidad ni lonas. No usa
+ * `inferCatalogDesign`, que borra los números de la medida en cualquier parte
+ * («TOWNHALL 205/55R16 TH161» le quedaba «TH 1»).
+ */
+export function disenoDelNombre(nombre: string, marca: string): string {
+  let t = ` ${nombre.toUpperCase()} `;
+  if (marca) t = t.replace(` ${marca.toUpperCase()} `, " ");
+  return t
+    // la medida con sus prefijos/sufijos: LT245/75R16, 31X10.5R15LT, 155R12C, 700/15, 9.5R17.5
+    .replace(/\s(?:LT|P)?\d{2,3}(?:[.,]\d{1,2})?(?:\s*[X/]\s*\d{1,2}(?:[.,]\d{1,2})?)?\s*(?:Z?R|\/|-)\s*\d{2}(?:[.,]5)?(?:LT|C|XL)?(?=[\s-])/g, " ")
+    .replace(/\b\d{2,3}(?:\/\d{2,3})?\s?[A-Z]{1,2}(?:XL)?\b(?=[\s/]|$)/g, (m) => (/^\d{2,3}(?:\/\d{2,3})?\s?(?:[A-Z]|[HVWYZ]XL|XL)$/.test(m) ? " " : m))
+    .replace(/\b\d{2,3}\/\d{2,3}\b/g, " ")
+    .replace(/\b\d{1,2}\s?(?:PR|L|LONAS)\b/g, " ")
+    .replace(/\b(?:TL|BSW|ESR|SET|MADE IN INDIA|CON TUBO|SOLA|XL)\b/g, " ")
+    .replace(/[-/]+(?=\s)|(?<=\s)[-/.]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 export function normalizarCatalogoSubido(
@@ -307,7 +420,7 @@ export function normalizarCatalogoSubido(
   };
 
   filas.forEach((data, i) => {
-    const filaNumero = i + 2; // +1 encabezado, +1 índice desde 1
+    const filaNumero = Number(data[FILA]) || i + 2; // CSV: +1 encabezado, +1 índice desde 1
     if (esAro(data)) {
       const { aro, motivo } = filaDeAro(data, mapeo, filaNumero, mapeo.precioIncluyeIva);
       if (aro) aros.push(aro);
@@ -317,10 +430,12 @@ export function normalizarCatalogoSubido(
     const precioCrudo = numero(data[col.precio] ?? "");
     const lista = col.precioLista ? numero(data[col.precioLista] ?? "") : null;
     const minimo = col.precioMinimo ? numero(data[col.precioMinimo] ?? "") : null;
+    const control = col.precioControl ? numero(data[col.precioControl] ?? "") : null;
+    const { marca, diseno } = marcaYDiseno(data, col);
     const cruda: FilaCruda = {
-      medida: (data[col.medida] ?? "").trim(),
-      marca: (data[col.marca] ?? "").trim(),
-      diseno: (data[col.diseno] ?? "").trim(),
+      medida: medidaDelArchivo((data[col.medida] ?? "").trim()),
+      marca,
+      diseno,
       codigo: (data[col.codigo] ?? "").trim(),
       nombre: (data[col.nombre] ?? "").trim(),
       precio: String(precioCrudo ?? ""),
@@ -330,6 +445,20 @@ export function normalizarCatalogoSubido(
     };
     if (precioCrudo === null || precioCrudo <= 0) {
       descartadas.push({ fila: filaNumero, motivo: "precio inválido" });
+      return;
+    }
+    // Aro de camión con medio: «235/75R17.5» se leería 235/75R17 —una medida
+    // real de camioneta— y se le ofrecería a quien pide esa.
+    const medioAro = `${data[col.medida] ?? ""} ${cruda.nombre}`.match(/R\s*(1[79]|2[24])[.,]5\b/i);
+    if (medioAro) {
+      descartadas.push({ fila: filaNumero, motivo: `aro de camión ${medioAro[1]}.5: el bot todavía no lo cotiza` });
+      return;
+    }
+    if (control !== null && control > 0 && precioCrudo < control) {
+      descartadas.push({
+        fila: filaNumero,
+        motivo: `${cruda.codigo || "sin código"}: ${col.precio} (${precioCrudo}) menor que ${col.precioControl} (${control}), revisar en el sistema`,
+      });
       return;
     }
     const conIva = conIvaDelPerfil(precioCrudo, mapeo.precioIncluyeIva);
@@ -404,6 +533,12 @@ export const fuenteArchivoCatalogo: FuenteDeCatalogo = {
     const skipped: ReporteDeCatalogo["skipped"] = [...guardado.descartadas.map((d) => ({ row: d.fila, reason: d.motivo }))];
     for (const fila of guardado.filas) {
       const { item, motivo } = normalizarFilaDeCatalogo(fila.cruda, "archivo", fila.precios);
+      // Sin foto en el archivo, la del catálogo de fotos. Se busca al cargar y no
+      // al subir: una foto nueva en el código vale sin volver a subir el Excel.
+      if (item && !item.imageUrl) {
+        const media = resolveCatalogMedia(item.brand, item.design) ?? resolveCatalogMediaPorNombre(item.brand, item.name);
+        if (media) Object.assign(item, { imageUrl: media.publicUrl, imageSource: media.sourceLabel });
+      }
       if (item) items.push(item);
       else skipped.push({ row: fila.cruda.filaNumero, reason: motivo ?? "fila inválida" });
     }

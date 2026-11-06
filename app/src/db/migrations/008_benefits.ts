@@ -1,4 +1,5 @@
 import type { Sql } from "../client.js";
+import { negocio } from "../../negocio/index.js";
 
 export const BENEFITS_MIGRATION_ID = "008_benefits";
 
@@ -46,6 +47,10 @@ export async function runBenefitsMigration(sql: Sql): Promise<void> {
       returning key
     `;
     if (!seeded) return;
+    // Son las promesas de Depot (seguro contra golpes, mantenimiento cada
+    // 10.000 km). Otro negocio arranca sin ninguna y las carga en Ajustes →
+    // Promociones cuando el dueño confirme qué incluye su compra.
+    if (negocio.id !== "depot") return;
 
     const defaults = [
       "Todos los servicios de instalación y beneficios",

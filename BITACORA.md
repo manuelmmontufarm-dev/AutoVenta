@@ -1,3 +1,92 @@
+## 6-nov-2026 · El panel de cada cliente con el «AV» de AutoVenta y Mundillantas sin «depottire»
+
+**Qué:** Manuel abrió el panel de Mundillantas y la pestaña decía «MU» en negro y la dirección
+`mundillantas-depottire.up.railway.app`: el nombre de otro cliente en la URL de este. Ahora
+la pestaña de todos los paneles (Depot y Mundillantas) es el logo de AutoVenta del 30-oct
+(bloque rojo #C8102E con «AV»), y la dirección es `mundillantas.up.railway.app`.
+
+**Cómo:** `hub/src/lib/favicon.ts` dibuja `autoventa-icono.svg` y, si hay tickets abiertos, el
+número en un círculo oscuro encima (antes reemplazaba el logo). `favicon.svg`, `icon-192`,
+`icon-512` y `apple-touch-icon` del hub salen del mismo SVG. El dominio se cambió en Railway
+(`serviceDomainUpdate`); el webhook de Meta todavía no estaba registrado, así que no se rompe
+nada. `ALTA-DE-CLIENTE.md` suma el paso de cambiar el dominio.
+
+**Probado:** `https://mundillantas.up.railway.app/health` → 200. Build del hub copiado a
+`app/site/admin` (sin tocar `demo-showroom-gp`).
+
+**Horas:** 0,5
+
+## 6-nov-2026 · Mundillantas: fotos de 449 de 482 llantas y sin las promesas de Depot
+
+**Qué:** las piezas y el PDF de Mundillantas salían con la llanta genérica en todo lo que
+no fuera Falken/Kenda/Winrun, y con el «INCLUYE» de Depot (seguro contra golpes,
+mantenimiento cada 10.000 km) que Mundillantas no ofrece. Ahora 449 de 482 llantas (92 %
+del stock) tienen la foto de su modelo y una base nueva de otro negocio arranca sin esas
+promesas.
+
+**Cómo:** 121 fotos nuevas en `site/assets/catalog/` (fabricante cuando la publica; si no,
+un distribuidor), cada una abierta y comparada con el dibujo; lo dudoso quedó sin foto
+(Goodyear Direction Sport vs Direction Sport 2, iLink TerraMax LSR1 vs LSR2, General
+Altimax, Durun B717). `FOTOS_POR_MODELO` las casa por un patrón del modelo dentro de la
+marca. `008_benefits` siembra el INCLUYE solo en Depot, igual que `009_brand_profiles`.
+
+**Ojo:** la base de producción de Mundillantas ya tiene las 4 de Depot sembradas el 5-nov:
+se apagan a mano (no se borran). Antes de vender, Mundillantas confirma el permiso de uso de
+las fotos con sus proveedores (igual que Depot, ver SOURCES.md).
+
+**Probado:** `fotosCatalogo.test.ts` (cada archivo abre y su extensión dice la verdad, que es
+lo que mira el PDF) y `brandProfilesPorNegocio.test.ts` (rojo sin el arreglo, verde con él).
+Simulador con el Excel real: «4 llantas 265/70r16» → lámina con fotos de Falken, Durun y
+Wideway; «la 2 en pdf» → PDF de la Durun K325 con foto, $209,30 × 4 = $837,20; con el
+INCLUYE apagado la franja desaparece.
+
+**Horas:** 2
+
+## 6-nov-2026 · Mundillantas: diseño limpio y fotos para el catálogo por archivo
+
+**Qué:** el diseño sacado del «articulo» se comía los números del modelo («TOWNHALL
+205/55R16 TH161» → «TH 1»), feo en la cotización e imposible de casar con una foto. Y la
+fuente por archivo nunca buscaba foto: hasta las Falken/Kenda/Winrun que Depot ya tiene
+salían sin ella en la pieza y en el PDF.
+
+**Cómo:** `disenoDelNombre` (archivo.ts) quita marca, medida, carga/velocidad y lonas sin
+tocar el código del modelo; Falken/Kenda/Winrun siguen con `inferCatalogDesign` para casar
+con sus fotos de `catalogMedia`. Al cargar, cada llanta sin foto toma la de `catalogMedia`
+o la de `FOTOS_POR_MODELO` (patrón del modelo en el nombre: «HD828», «AT HD828 LB» y
+«HD828 AT» son la misma foto). Con eso 192 de 482 llantas ya tienen foto.
+
+**Probado:** `catalogoArchivo.test.ts` 21/21, `fotosCatalogo.test.ts` verde.
+
+**Horas:** 0,5
+
+## 6-nov-2026 · Mundillantas: el Excel de Fénix entra tal cual sale (482 llantas)
+
+**Qué:** Jenny mandó el inventario (`INVENTARIO_06NOV_fenix.xls`) y el cargador no lo podía
+leer: es `.xls` viejo (exceljs solo lee `.xlsx`), con 15 filas de membrete antes del
+encabezado, filas de categoría y de totales, y todo el producto en una sola columna
+«Articulo». Ahora se sube tal cual en Ajustes → Catálogo y es el mapeo por defecto:
+Precio A ya con IVA, existencia total, marca y diseño sacados del nombre. Quedan 482 de
+501 llantas; lo que se descarta sale con su motivo y su fila real del Excel.
+
+**Cómo:** `fuentes/archivo.ts`: `.xls` con SheetJS (`xlsx` 0.20.3 del CDN de SheetJS; el del
+registro de npm está abandonado y con CVE), un solo lector de matriz para `.xls`/`.xlsx`
+que busca la fila «código», copia `categoria`/`subcategoria` a cada fila y salta totales.
+`precioControl` (opcional): si el precio sale menor que esa lista, la fila se descarta (la
+AOQISHI con A $17,80 y D $138 se habría cotizado a $17,80). Medio aro de camión (17.5,
+19.5, 22.5) se descarta: se leía 235/75R17 y se le podía ofrecer a una camioneta. «700/15»,
+«LT700R15», «825/16» se leen como 7.00R15 / 8.25R16, solo del lado del catálogo; el lector
+de lo que escribe el cliente no se tocó. Existencia negativa = 0.
+
+**Ojo:** el cliente que escribe «750 16» todavía no se entiende como 7.50R16 (con «7.50R16»
+sí). Es el lector común, también de Depot: queda para otro cambio, con su prueba.
+
+**Probado:** `catalogoArchivo.test.ts` con un `.xls` armado como el de Fénix (20/20). El
+simulador `--perfil mundillantas --catalogo-archivo` con el Excel real subió 482 por la ruta
+del panel; «4 llantas 265/70r17» cotizó TOURADOR $165,60, COOPER $262,20 y FALKEN $351,90,
+los tres iguales al Precio A del Excel; «7.50R16» dio las tres de tracción. Suite completa:
+las mismas 3 que ya fallaban en `main` (Black Friday / hashes de piezas), ninguna nueva.
+
+**Horas:** 2
 ## 6-nov-2026 · Black Friday: el resumen dice el 25 % de Winrun y la promo se abre a todos
 
 **Qué:** Manuel probó «¿cómo es esa promoción?» y el resumen no nombraba Winrun. Ahora dice

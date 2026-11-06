@@ -26,7 +26,7 @@
 | 3 | Por cada local: nombre como lo dicen los clientes, dirección, pin de Maps, link corto, teléfono, marca (Mundillantas/Competimotor) | `locales[]` e `identidades[]` en `negocios/mundillantas.ts` | Jenny | 🟨 (solo la matriz, Av. Quevedo km 1) |
 | 4 | Horario de cada local, feriados, cierres de mediodía | Ajustes → Horarios (arranque en `horarioPorDefecto`) | Jenny | 🟨 |
 | 5 | Zonas de Santo Domingo por las que la gente dice dónde vive, y a qué local queda cada una | `sectores[]` (vacío = el bot pide el pin, que está bien) | Asesores | ⬜ |
-| 6 | Captura del Excel de inventario de Fénix: columnas, ¿stock por local?, ¿precio con IVA?, qué lista es la del público, ¿hay precio de lista y precio mínimo (para mostrar descuento)? | Ajustes → Catálogo (`catalogo_mapeo`) | Contacto designado | ⬜ |
+| 6 | Captura del Excel de inventario de Fénix: columnas, ¿stock por local?, ¿precio con IVA?, qué lista es la del público, ¿hay precio de lista y precio mínimo (para mostrar descuento)? | Ajustes → Catálogo (`catalogo_mapeo`) | Contacto designado | ✅ 6-nov (ver la nota de abajo); falta que Jenny diga si hay precio mínimo |
 | 7 | Cómo distinguir un aro de una llanta en ese Excel, y qué datos del aro hay (diámetro, pernos, offset, acabado, foto) | `catalogo_mapeo.filasDeAros` | Contacto | ⬜ |
 | 8 | Marcas que venden y cuál es premium / equilibrio / económica | `app/assets/mundillantas/escalera-precio.json` | Jenny | ⬜ |
 | 9 | Garantía de fábrica y seguro por marca | `garantias` en el perfil | Jenny | ⬜ |
@@ -71,3 +71,30 @@ El mapeo por defecto del catálogo y de las facturas (`catalogo_mapeo` /
 descuento: precio de venta = precio de lista). Cuando llegue el Excel real de
 Jenny (filas 6–7 de la lista), el mapeo se ajusta desde Ajustes → Catálogo,
 sin deploy.
+
+## 6-nov-2026: llegó el Excel real y es el mapeo por defecto
+
+Jenny mandó `INVENTARIO_06NOV_fenix.xls` (solo llantas, por la prueba). Es el
+reporte «Inventario de Articulos» de Fénix tal cual: `.xls` viejo, 15 filas de
+membrete, filas «Categoria: LLANTAS RIN 16 CAMIONETA» / «Subcategoria: …» y
+filas de totales. Columnas: `Código`, `Alterno`, `Articulo` (marca + medida +
+diseño en un solo texto), `Precio A`–`Precio D`, `Existencia` y el stock de
+`Principal` (vacía), `Compe`, `Matriz`, `Tsachila`, `La Feria`.
+
+El cargador ya lo lee sin convertirlo, y ese es ahora el mapeo por defecto:
+
+| Qué | Decisión | Por qué |
+|---|---|---|
+| Precio al público | `Precio A`, **ya con IVA** | Los precios son enteros × 1,15 (41 × 1,15 = 47,15) o terminan en ,99 |
+| Descuento visible | Ninguno (sin `precioMinimo`) | Falta que Jenny diga cuál lista es su piso. Se pone en Ajustes → Catálogo |
+| Control de tipeo | `Precio D` (`precioControl`) | Si A sale menor que D, la fila se descarta con su motivo |
+| Stock | `Existencia` (el total), negativo = 0 | La suma de los locales no cuadra: Principal viene vacía |
+| Marca / diseño | Salen de `Articulo` | Primera palabra = marca; el diseño, sin marca ni medida |
+| Aros | Filas cuya `categoria` empieza con «aro» o «rin» | Este Excel no trae aros |
+
+Resultado del 6-nov: **482 de 501 llantas al bot**. Fuera quedan 17 de camión con
+aro 17.5 / 22.5 (se leían como aro 17 / 22 y se le podían ofrecer a una camioneta),
+la AOQISHI LT245/75R16 (cód. 008760, Precio A $17,80 con Precio D $138) y la RADAR
+235/50R19 (cód. 2006, todos los precios en 0). También hay que avisarle a Jenny:
+la CARLEO 215/75R17.5 tiene Precio B $1.177,99 y la FALKEN 265/65R17 WILDPEAK AT4W
+tiene existencia −4.
