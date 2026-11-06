@@ -25,10 +25,16 @@ código es uno solo; lo que cambia de un cliente a otro vive en su perfil
 
 1. En el proyecto de Railway: **New Service → Deploy from GitHub repo** (el mismo repo de Depot).
    Root Directory = `app/`.
-2. **Add Postgres** (uno nuevo, solo de este cliente) y en el servicio:
-   `DATABASE_URL=${{Postgres.DATABASE_URL}}`.
-3. **Un solo servicio por cliente, sin réplicas**: la ráfaga de mensajes y las colas viven en memoria
+2. **Add Postgres** (uno nuevo, solo de este cliente), renómbralo `Postgres-<Cliente>` y en el
+   servicio: `DATABASE_URL=${{Postgres-<Cliente>.DATABASE_URL}}` (la referencia lleva el nombre
+   exacto del servicio de Postgres; `${{Postgres.…}}` es la base de **Depot**).
+3. En el Postgres nuevo: **Settings → Networking → TCP Proxy** (puerto 5432). Sin él no hay URL
+   pública y la semilla del paso 3 no se puede correr desde el portátil.
+4. **Un solo servicio por cliente, sin réplicas**: la ráfaga de mensajes y las colas viven en memoria
    (`docs/OPERACION.md`).
+
+> Mundillantas (5-nov-2026): entorno `Depot_Tire`, servicios `Mundillantas` y
+> `Postgres-Mundillantas`, panel en `https://mundillantas-depottire.up.railway.app/admin/`.
 
 ## 2. Variables del servicio
 
@@ -36,7 +42,7 @@ código es uno solo; lo que cambia de un cliente a otro vive en su perfil
 |---|---|---|
 | `DATABASE_URL` | `${{Postgres.DATABASE_URL}}` del Postgres de **este** cliente | Cada cliente tiene su base; nunca la de Depot. |
 | `NEGOCIO` | `<id>` del perfil (`mundillantas`) | Elige perfil, política y assets. Mal escrito = no arranca. |
-| `NODE_ENV` | `production` | Cierra el panel si falta la clave (fail-closed). |
+| `NODE_ENV` | **No la pongas** (Depot tampoco la tiene) | Con `production` el build falla: `npm ci` omite las devDependencies y `tsc` no existe. El panel igual queda cerrado porque `ADMIN_KEY` está puesta. |
 | `ADMIN_KEY` | Clave nueva, **distinta** de la de Depot | Firma las sesiones del panel y abre la API. |
 | `OWNER_KEY` | Clave nueva, distinta de `ADMIN_KEY` | Solo para marcar meses como pagados (facturación). |
 | `HUB_PIN` | PIN compartido nuevo del panel | Sin ella el PIN es «1234», que está publicado en el repo. |
@@ -116,9 +122,11 @@ cd app && npm run sim -- --perfil <id> --catalogo-archivo <ruta/al/inventario.xl
 - Sin servicio en la tabla `PERFILES_SIM` (`app/scripts/sim/lib/entorno-prod.mjs`), el simulador
   siembra su base con `seed:negocio` y toma de Depot **solo los modelos** (`OPENAI_*`).
 - Cuando el cliente tenga servicio, ponlo en `PERFILES_SIM` (`entorno`/`servicio` de Railway) y el
-  simulador copiará su configuración real, como hace con Depot.
-- Clave de OpenAI de pruebas en `app/.env.sim.<id>` (nunca la del cliente). Detalle en
-  [app/scripts/sim/README.md](../../app/scripts/sim/README.md).
+  simulador copiará su configuración real, como hace con Depot. Para eso necesita
+  `app/.env.sim.<id>` (ignorado por git) con `DATABASE_URL=<URL pública del Postgres del cliente>`
+  y `NEGOCIO=<id>`: de ahí **lee** los Ajustes, nunca escribe. Mundillantas ya está así (5-nov).
+- Clave de OpenAI de pruebas en `app/.env.sim` (la misma de siempre, nunca la del cliente). Detalle
+  en [app/scripts/sim/README.md](../../app/scripts/sim/README.md).
 
 Criterio de la prueba de Mundillantas: que conteste bien 20 chats reales de ellos antes de encender
 (ver la lista de arranque).
