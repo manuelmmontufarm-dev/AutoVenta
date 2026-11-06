@@ -28,7 +28,12 @@ import { PLANTILLA_NAMES, MODO_NAMES,
   publishStagePrompt,
   saveAiConfig,
   saveStagePromptDraft,
+  getTemporadaConfig,
+  saveTemporadaConfig,
+  MODOS_TEMPORADA,
 } from "../services/settings.js";
+import { comoVistaPrevia } from "../services/temporadaDelTurno.js";
+import { politica } from "../negocio/politica.js";
 import { informeGuardian } from "../services/guardian.js";
 import { canjearCupon, consultarCupon, resumenCupones } from "../services/coupons.js";
 import {
@@ -1809,6 +1814,26 @@ export function createAdminRouter(): express.Router {
     }
   });
 
+  // La promo de temporada (Black Friday de Depot, nov-2026): quién la ve.
+  // Las fechas y cifras son de la política; acá solo se abre o se cierra.
+  router.get("/temporada", async (_req, res) => {
+    const promo = politica.promocionDeTemporada ?? null;
+    res.json({
+      ok: true,
+      config: await getTemporadaConfig(),
+      modos: MODOS_TEMPORADA,
+      promo: promo ? { nombre: promo.nombre, lema: promo.lema, desde: promo.desde, hasta: promo.hasta } : null,
+    });
+  });
+
+  router.put("/temporada", async (req, res) => {
+    try {
+      res.json({ ok: true, config: await saveTemporadaConfig(req.body) });
+    } catch {
+      res.status(400).json({ ok: false, error: "Modo o teléfonos inválidos" });
+    }
+  });
+
   // El Ángel Guardián: interruptor + el informe con la lista documentada de
   // lo que encontró (services/guardian.ts). El interruptor es una decisión de
   // gasto del asesor, por eso vive aquí y no en una variable de entorno.
@@ -2185,7 +2210,7 @@ export function createAdminRouter(): express.Router {
       const beneficios = req.query.beneficios
         ? String(req.query.beneficios).split("|").map((b) => b.trim()).filter(Boolean)
         : await applicableBenefitTexts();
-      const png = await renderPreviewPiece({ pieza, paleta, fuente, plantilla, modo, promocion, beneficios });
+      const png = await comoVistaPrevia(() => renderPreviewPiece({ pieza, paleta, fuente, plantilla, modo, promocion, beneficios }));
       res.setHeader("Content-Type", "image/png");
       res.setHeader("Cache-Control", "no-store");
       res.send(png);

@@ -4,6 +4,7 @@
  */
 import { business, config } from "./config.js";
 import { validarCanaryAlArrancar } from "./agent/canary.js";
+import { conElTelefonoDelTurno, instalarCompuertaDeTemporada } from "./services/temporadaDelTurno.js";
 import { createServer } from "./server/webhook.js";
 
 // Las rutas async del panel (admin.ts) corren sin try/catch y Express 4 no
@@ -640,8 +641,9 @@ async function atenderTurno(
 
 // UN TURNO VE SOLO LO QUE ATIENDE (chats 29847 y 26561): lo que el cliente
 // escribió mientras este turno corría es del siguiente. Ver pipeline/corteDelTurno.ts.
+// La promo de temporada mira el teléfono del turno (services/temporadaDelTurno.ts).
 const pipeline = new InboundPipeline(async (job) =>
-  enElTurno(await ultimoEntranteDe(job.waMessageIds), () => atenderTurno(job)));
+  enElTurno(await ultimoEntranteDe(job.waMessageIds), () => conElTelefonoDelTurno(job.from, () => atenderTurno(job))));
 
 /**
  * EL PEDIDO DE ASESOR NO SE CONTESTA CON SILENCIO.
@@ -1009,6 +1011,7 @@ startEmbeddedFollowUpWorker();
 
 const app = createServer();
 void validarCanaryAlArrancar();
+instalarCompuertaDeTemporada();
 app.listen(config.port, () => {
   console.log(`🚀 AutoVenta escuchando en :${config.port}`);
   void crearIndicesEnSegundoPlano();

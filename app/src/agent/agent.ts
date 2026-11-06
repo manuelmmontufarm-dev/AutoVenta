@@ -58,6 +58,7 @@ import {
   ORDEN_DE_DERIVAR_SERVICIO_DE_TEMPORADA,
   ordenDeServicioDeTemporada,
 } from "../services/hechosDeTemporada.js";
+import { conElTelefonoDelTurno } from "../services/temporadaDelTurno.js";
 import { aroDeLaMedida, medidaEstaPedida } from "../domain/medidaPedida.js";
 import { arosDelCatalogo, pideAroComoProducto } from "../domain/aroProducto.js";
 import { anotarMedidasEscritas, medidasDelPedido } from "../services/medidasDelPedido.js";
@@ -152,7 +153,8 @@ function turnoExactoBarato(conversationId: number, stage: AgentContext["conversa
  */
 export async function runAgent(ctx: AgentContext, userText: string): Promise<string> {
   try {
-    return await ejecutarAgente(ctx, userText);
+    // El retomado desde humano (resumeBot) no pasa por el turno de index.ts.
+    return await conElTelefonoDelTurno(ctx.customerPhone, () => ejecutarAgente(ctx, userText));
   } catch (error) {
     const mensaje = error instanceof Error ? error.message : String(error);
     console.error("❌ El turno del agente se cayó entero:", mensaje);

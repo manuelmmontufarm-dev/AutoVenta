@@ -28,14 +28,29 @@ export function diaEnEcuador(ahora: Date = new Date()): string {
   return new Date(ahora.getTime() - OFFSET_ECUADOR_MS).toISOString().slice(0, 10);
 }
 
-/** ¿La promoción corre hoy? Null o fuera de fechas = no existe. */
+/**
+ * LA COMPUERTA (Manuel, 5-nov): antes de que la vea todo el mundo, la promo se
+ * prueba con un número. Quién la ve lo decide Ajustes (`temporada_config`:
+ * apagada / solo números de prueba / todos) y el teléfono del turno; eso vive
+ * en `services/temporadaDelTurno.ts`, que instala la compuerta al arrancar el
+ * servidor. Sin instalar (pruebas puras), la promo corre por fechas y nada más.
+ */
+let compuerta: () => boolean = () => true;
+export function fijarCompuertaDeTemporada(fn: () => boolean): void {
+  compuerta = fn;
+}
+
+/**
+ * ¿La promoción corre hoy, para este turno? Null, fuera de fechas o cerrada
+ * por la compuerta = no existe. Todo lo que habla de la promo pasa por acá.
+ */
 export function promocionVigente(
   promo: PromocionDeTemporada | null | undefined,
   ahora: Date = new Date(),
 ): promo is PromocionDeTemporada {
   if (!promo) return false;
   const hoy = diaEnEcuador(ahora);
-  return hoy >= promo.desde && hoy <= promo.hasta;
+  return hoy >= promo.desde && hoy <= promo.hasta && compuerta();
 }
 
 /** «30 de noviembre»: el último día, para «válido hasta…». */

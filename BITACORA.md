@@ -1,3 +1,29 @@
+## 5-nov-2026 · Black Friday: los tres sprints juntos y la compuerta de Ajustes (solo el número de Manuel)
+
+**Qué:** se juntaron `feat/bf-cotizacion`, `feat/bf-piezas` y `feat/bf-vendedor` (más
+`main` al día) en `feat/black-friday-noviembre`. Encima, la promo de temporada ya no corre
+para todos solo por fechas: Ajustes → Piezas → «Promoción de temporada · Black Friday»
+elige **apagada / solo números de prueba / todos** (`settings.temporada_config`, endpoint
+`/api/temporada`). Nace en «pruebas» sin números: un deploy no se la muestra a nadie hasta
+que se abra.
+
+**Cómo:** todo lo que habla de la promo (cotización, pieza, PDF, texto, vendedor, guardián,
+reenvío) ya pasaba por `promocionVigente`; ahí se agregó una compuerta
+(`fijarCompuertaDeTemporada`) que instala `services/temporadaDelTurno.ts` al arrancar
+`index.ts` y `worker.ts`. Cada turno de WhatsApp corre con su teléfono
+(`conElTelefonoDelTurno`, en el pipeline y en `runAgent` para el retomado desde humano);
+los teléfonos se comparan por los últimos 9 dígitos. Fuera de un turno (seguimientos,
+reporte, reenvío desde el hub) no hay teléfono: en «pruebas» la promo queda cerrada. La
+vista previa de Ajustes la ve mientras no esté apagada. Sin compuerta instalada (pruebas
+puras) corre por fechas, como antes.
+
+**Probado:** `test/temporadaDelTurno.test.ts` (4 Falken a $75: el número de prueba ve
+$210, otro cliente $300 y fuera de turno nadie; «todos», «apagada» y la vista previa).
+`npm test`: 3333 pasan; 3 fallan y no son de acá (`hashesPiezasDepot` y
+`unidadEnLaCantidad` fallan igual en `main`; `buscarPorAroCompleto` necesita la foto local
+del catálogo). Las cuatro de CLAUDE.md pasan. No probado de punta a punta en el simulador
+con tokens: la prueba real es el WhatsApp de Manuel.
+
 ## 5-nov-2026 · Black Friday, sprint 1: la cotización y el ahorro cuentan el 60 %
 
 **Qué:** `generar_cotizacion` pone `segundaLlanta` (de `segundaLlantaDe`) en la

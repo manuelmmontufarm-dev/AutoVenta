@@ -380,6 +380,57 @@ export function piecesConfigEnMemoria(): PiecesConfig {
 }
 
 /**
+ * Quién ve la promoción de temporada (Black Friday de Depot, nov-2026). Las
+ * fechas y cifras son de la política del cliente; esto solo abre o cierra:
+ *   apagada  nadie, aunque esté en fechas
+ *   pruebas  solo los teléfonos de `telefonos` (para probarla por WhatsApp)
+ *   todos    todo el que escribe, dentro de las fechas
+ * Nace en «pruebas» sin teléfonos: un deploy nuevo no le muestra la promo a
+ * ningún cliente hasta que alguien la abra desde Ajustes.
+ */
+export const MODOS_TEMPORADA = ["apagada", "pruebas", "todos"] as const;
+export const TemporadaConfigSchema = z.object({
+  modo: z.enum(MODOS_TEMPORADA).default("pruebas"),
+  telefonos: z.array(z.string().trim().regex(/^\+?[\d\s-]{7,20}$/)).max(20).default([]),
+});
+export type TemporadaConfig = z.infer<typeof TemporadaConfigSchema>;
+export const DEFAULT_TEMPORADA_CONFIG: TemporadaConfig = TemporadaConfigSchema.parse({});
+
+let temporadaCache: { value: TemporadaConfig; at: number } | null = null;
+
+export async function getTemporadaConfig(): Promise<TemporadaConfig> {
+  if (temporadaCache && Date.now() - temporadaCache.at < CACHE_TTL_MS) return temporadaCache.value;
+  try {
+    const [row] = await sql<{ value: unknown }[]>`
+      select value from settings where key = 'temporada_config'
+    `;
+    const parsed = TemporadaConfigSchema.safeParse(row?.value ?? {});
+    const value = parsed.success ? parsed.data : DEFAULT_TEMPORADA_CONFIG;
+    temporadaCache = { value, at: Date.now() };
+    return value;
+  } catch {
+    // Sin poder leerla, se queda lo último leído (o el default: cerrada).
+    return temporadaCache?.value ?? DEFAULT_TEMPORADA_CONFIG;
+  }
+}
+
+/** Lo último leído de `temporada_config`, sin ir a la base (la compuerta es síncrona). */
+export function temporadaConfigEnMemoria(): TemporadaConfig {
+  return temporadaCache?.value ?? DEFAULT_TEMPORADA_CONFIG;
+}
+
+export async function saveTemporadaConfig(input: unknown): Promise<TemporadaConfig> {
+  const merged = TemporadaConfigSchema.parse({ ...(await getTemporadaConfig()), ...(input as object) });
+  await sql`
+    insert into settings (key, value)
+    values ('temporada_config', ${sql.json(merged)})
+    on conflict (key) do update set value = excluded.value, updated_at = now()
+  `;
+  temporadaCache = { value: merged, at: Date.now() };
+  return merged;
+}
+
+/**
  * El Ángel Guardián (revisión IA pre-envío, services/guardian.ts).
  *
  * Nace APAGADO: prenderlo es una decisión de gasto del asesor — cada turno

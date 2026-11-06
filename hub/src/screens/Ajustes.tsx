@@ -320,6 +320,7 @@ export function Ajustes() {
               onPlantilla={setPlantilla} onModo={setModo}
               sinAplicar={sinAplicar} guardando={guardando} onAplicar={aplicar}
             />
+            <SeccionTemporada onError={setError} />
             <SeccionPromociones benefits={benefits} setBenefits={setBenefits} onError={setError} />
             <SeccionPromocionModo promocion={promocion} onPromocion={setPromocion} onError={setError} />
             <SeccionMarcas profiles={profiles} setProfiles={setProfiles} onError={setError} />
@@ -479,6 +480,104 @@ function SeccionGuardian({ onError }: { onError: (v: string) => void }) {
         </div>)}
       </div>}
     </>}
+  </Tarjeta>;
+}
+
+interface TemporadaEstado {
+  config: { modo: string; telefonos: string[] };
+  modos: string[];
+  promo: { nombre: string; lema: string; desde: string; hasta: string } | null;
+}
+
+const MODO_TEMPORADA: Record<string, { label: string; nota: string }> = {
+  apagada: { label: "Apagada", nota: "Nadie la ve, aunque esté en fechas." },
+  pruebas: { label: "Solo números de prueba", nota: "La ven solo los teléfonos de abajo: para probarla por WhatsApp." },
+  todos: { label: "Todos los clientes", nota: "La ve todo el que escribe, dentro de las fechas." },
+};
+
+/**
+ * La promo de temporada (Black Friday, nov-2026): quién la ve. Las fechas y
+ * las cifras vienen de la política del cliente; acá solo se abre o se cierra.
+ * Nace en «solo números de prueba» para probarla antes de soltarla. Se guarda
+ * al tocar, como el guardián.
+ */
+function SeccionTemporada({ onError }: { onError: (v: string) => void }) {
+  const [estado, setEstado] = useState<TemporadaEstado | null>(null);
+  const [nuevo, setNuevo] = useState("");
+  const [cambiando, setCambiando] = useState(false);
+
+  useEffect(() => {
+    api<TemporadaEstado & { ok: boolean }>("/api/temporada")
+      .then((r) => setEstado(r))
+      .catch(() => setEstado(null));
+  }, []);
+
+  const guardar = async (cambio: Partial<TemporadaEstado["config"]>): Promise<boolean> => {
+    if (!estado) return false;
+    setCambiando(true);
+    try {
+      const r = await api<{ config: TemporadaEstado["config"] }>("/api/temporada", {
+        method: "PUT",
+        body: JSON.stringify(cambio),
+      });
+      setEstado({ ...estado, config: r.config });
+      onError("");
+      return true;
+    } catch (e) { onError(e instanceof Error ? e.message : "No se pudo guardar la promoción"); return false; }
+    finally { setCambiando(false); }
+  };
+
+  // Un servidor sin promo de temporada (otro cliente) no muestra el panel.
+  if (!estado?.promo) return null;
+  const { config, promo } = estado;
+  const agregar = () => {
+    const t = nuevo.trim();
+    if (!t) return;
+    void guardar({ telefonos: [...config.telefonos, t] }).then((ok) => ok && setNuevo(""));
+  };
+
+  return <Tarjeta
+    titulo={`Promoción de temporada · ${promo.nombre}`}
+    sub={`«${promo.lema}» · del ${promo.desde} al ${promo.hasta}. Cambia la cotización, el PDF y lo que dice el bot. Se guarda al tocar.`}
+  >
+    <div className="flex flex-wrap gap-2">
+      {estado.modos.map((m) => (
+        <button
+          key={m} disabled={cambiando} onClick={() => void guardar({ modo: m })}
+          className={`flex flex-col items-start gap-1 rounded-[6px] border px-3.5 py-2 text-left text-[12px] transition disabled:opacity-50 ${
+            m === config.modo ? "border-signal bg-bg font-semibold" : "border-line bg-bg hover:bg-bg"
+          }`}
+        >
+          <span>{MODO_TEMPORADA[m]?.label ?? m}</span>
+          {MODO_TEMPORADA[m] && <span className="text-[12px] font-normal text-text2">{MODO_TEMPORADA[m].nota}</span>}
+        </button>
+      ))}
+    </div>
+    {config.modo === "pruebas" && <div className="mt-4">
+      <p className="mb-2 text-[12px] font-semibold">Números de prueba</p>
+      {!config.telefonos.length && <p className="mb-2 text-[12px] font-semibold text-warn">Sin números: así nadie la ve.</p>}
+      <div className="flex flex-wrap gap-2">
+        {config.telefonos.map((t) => (
+          <span key={t} className="flex items-center gap-1.5 rounded-full bg-bg px-2.5 py-1 text-[12px]">
+            {t}
+            <button
+              disabled={cambiando} aria-label={`Quitar ${t}`}
+              onClick={() => void guardar({ telefonos: config.telefonos.filter((x) => x !== t) })}
+              className="text-text2 hover:text-text disabled:opacity-50"
+            >×</button>
+          </span>
+        ))}
+      </div>
+      <div className="mt-2 flex gap-2">
+        <input
+          value={nuevo} onChange={(e) => setNuevo(e.target.value)} onKeyDown={(e) => e.key === "Enter" && agregar()}
+          placeholder="0991234567" inputMode="tel"
+          className="w-44 rounded-[6px] border border-line bg-bg px-2.5 py-1.5 text-[12px]"
+        />
+        <button disabled={cambiando || !nuevo.trim()} onClick={agregar}
+          className="rounded-full bg-bg px-3 py-1 text-[12px] font-semibold hover:bg-bg disabled:opacity-50">Agregar</button>
+      </div>
+    </div>}
   </Tarjeta>;
 }
 

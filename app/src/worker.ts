@@ -3,6 +3,7 @@ import { ensureSchema } from "./db/schema.js";
 import { sql } from "./db/client.js";
 import { processFollowUpJob } from "./services/followUpProcessor.js";
 import { startFollowUpWorker } from "./workers/followUpWorker.js";
+import { instalarCompuertaDeTemporada } from "./services/temporadaDelTurno.js";
 
 // Mismo salvavidas que en index.ts: un ECONNRESET de Postgres dentro de una
 // promesa suelta no debe matar el worker (Node ≥15 lo haría por defecto).
@@ -14,6 +15,8 @@ process.on("unhandledRejection", (reason) => {
 });
 
 await ensureSchema();
+// Sin teléfono de turno: en «pruebas» los seguimientos no nombran la promo.
+instalarCompuertaDeTemporada();
 const controller = new AbortController();
 for (const signal of ["SIGTERM", "SIGINT"] as const) {
   process.once(signal, () => controller.abort());
