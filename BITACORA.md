@@ -1,3 +1,20 @@
+## 6-nov-2026 · Mundillantas: diseño limpio y fotos para el catálogo por archivo
+
+**Qué:** el diseño sacado del «articulo» se comía los números del modelo («TOWNHALL
+205/55R16 TH161» → «TH 1»), feo en la cotización e imposible de casar con una foto. Y la
+fuente por archivo nunca buscaba foto: hasta las Falken/Kenda/Winrun que Depot ya tiene
+salían sin ella en la pieza y en el PDF.
+
+**Cómo:** `disenoDelNombre` (archivo.ts) quita marca, medida, carga/velocidad y lonas sin
+tocar el código del modelo; Falken/Kenda/Winrun siguen con `inferCatalogDesign` para casar
+con sus fotos de `catalogMedia`. Al cargar, cada llanta sin foto toma la de `catalogMedia`
+o la de `FOTOS_POR_MODELO` (patrón del modelo en el nombre: «HD828», «AT HD828 LB» y
+«HD828 AT» son la misma foto). Con eso 192 de 482 llantas ya tienen foto.
+
+**Probado:** `catalogoArchivo.test.ts` 21/21, `fotosCatalogo.test.ts` verde.
+
+**Horas:** 0,5
+
 ## 6-nov-2026 · Mundillantas: el Excel de Fénix entra tal cual sale (482 llantas)
 
 **Qué:** Jenny mandó el inventario (`INVENTARIO_06NOV_fenix.xls`) y el cargador no lo podía

@@ -218,6 +218,25 @@ const MEDIA: Record<string, CatalogMedia> = {
   },
 };
 
+/**
+ * Fotos de los catálogos por archivo (Mundillantas): el diseño que sale del
+ * «articulo» de Fénix varía de fila a fila para el mismo modelo («HD828»,
+ * «AT HD828 LB», «HD828 AT»), así que se buscan por un patrón del modelo en el
+ * nombre, no por la clave exacta marca:diseño de arriba.
+ */
+export interface FotoPorModelo extends CatalogMedia {
+  marca: string;
+  modelo: RegExp;
+}
+
+export const FOTOS_POR_MODELO: readonly FotoPorModelo[] = [];
+
+export function resolveCatalogMediaPorNombre(brand: string, name: string): CatalogMedia | null {
+  const marca = normalize(brand);
+  const foto = FOTOS_POR_MODELO.find((f) => normalize(f.marca) === marca && f.modelo.test(name.toUpperCase()));
+  return foto ? { publicUrl: foto.publicUrl, sourceUrl: foto.sourceUrl, sourceLabel: foto.sourceLabel } : null;
+}
+
 export function resolveCatalogMedia(brand: string, design: string): CatalogMedia | null {
   const normalizedBrand = normalize(brand);
   const normalizedDesign = normalize(design);

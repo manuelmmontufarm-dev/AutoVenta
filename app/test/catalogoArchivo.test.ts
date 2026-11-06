@@ -144,6 +144,15 @@ describe("el reporte «Inventario de Articulos» de Fénix tal cual sale (.xls)"
     expect(haulmax.medida).toBe("7.50R15");
   });
 
+  it("el diseño del nombre no se come los números del modelo (TH161 no es «TH 1»)", () => {
+    expect(archivo.disenoDelNombre("TOWNHALL 205/55R16 TH161", "TOWNHALL")).toBe("TH161");
+    expect(archivo.disenoDelNombre("TOWNHALL 275/65R18LT TH-AT806 10PR 123/120S", "TOWNHALL")).toBe("TH-AT806");
+    expect(archivo.disenoDelNombre("HAIDA 175/70R14 RUNSPIRIT 88T", "HAIDA")).toBe("RUNSPIRIT");
+    expect(archivo.disenoDelNombre("MINERVA 175/70R12 209 81T", "MINERVA")).toBe("209");
+    expect(archivo.disenoDelNombre("PRESA 205/70R15 PJ88 96 T TL", "PRESA")).toBe("PJ88");
+    expect(archivo.disenoDelNombre("SPEEDWAYS 700/15 MILESTONE 12PR DIRECCIONAL- SET-MADE IN INDIA", "SPEEDWAYS")).toBe("MILESTONE DIRECCIONAL");
+  });
+
   it("descarta con motivo y fila real: precio mal tipeado, precio 0 y aro de camión 17.5", async () => {
     const r = await leer();
     expect(r.descartadas).toEqual([

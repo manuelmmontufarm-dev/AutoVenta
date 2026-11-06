@@ -18,6 +18,7 @@ import { sql } from "../../db/client.js";
 import { negocio } from "../../negocio/index.js";
 import type { AroProducto } from "../../domain/aroProducto.js";
 import { extractCatalogSizeLabel, inferCatalogDesign, type CatalogItem } from "../../domain/catalog.js";
+import { resolveCatalogMedia, resolveCatalogMediaPorNombre } from "../../domain/catalogMedia.js";
 import { getCell, normalizarFilaDeCatalogo, type FilaCruda } from "./sheets.js";
 import { LLANTA, tel9 } from "./contifico.js";
 import type {
@@ -365,8 +366,34 @@ function marcaYDiseno(data: Record<string, string>, col: CatalogoMapeo["columnas
   const disenoCrudo = (data[col.diseno] ?? "").trim();
   const marca = marcaCruda && marcaCruda === nombre ? (nombre.split(/\s+/)[0] ?? "") : marcaCruda;
   if (!disenoCrudo || disenoCrudo !== nombre) return { marca, diseno: disenoCrudo };
-  const { sizeLabel } = extractCatalogSizeLabel(data[col.medida] ?? nombre);
-  return { marca, diseno: inferCatalogDesign(nombre, marca, sizeLabel) };
+  // Falken, Kenda y Winrun: el mismo diseño que les da Contífico en Depot, que
+  // es la clave de sus fotos en `catalogMedia`.
+  if (/^(falken|kenda|winrun)$/i.test(marca)) {
+    const { sizeLabel } = extractCatalogSizeLabel(data[col.medida] ?? nombre);
+    return { marca, diseno: inferCatalogDesign(nombre, marca, sizeLabel) };
+  }
+  return { marca, diseno: disenoDelNombre(nombre, marca) || nombre };
+}
+
+/**
+ * El diseño de un «articulo» de Fénix para el resto de marcas: el nombre sin
+ * la marca, sin la medida y sin índices de carga/velocidad ni lonas. No usa
+ * `inferCatalogDesign`, que borra los números de la medida en cualquier parte
+ * («TOWNHALL 205/55R16 TH161» le quedaba «TH 1»).
+ */
+export function disenoDelNombre(nombre: string, marca: string): string {
+  let t = ` ${nombre.toUpperCase()} `;
+  if (marca) t = t.replace(` ${marca.toUpperCase()} `, " ");
+  return t
+    // la medida con sus prefijos/sufijos: LT245/75R16, 31X10.5R15LT, 155R12C, 700/15, 9.5R17.5
+    .replace(/\s(?:LT|P)?\d{2,3}(?:[.,]\d{1,2})?(?:\s*[X/]\s*\d{1,2}(?:[.,]\d{1,2})?)?\s*(?:Z?R|\/|-)\s*\d{2}(?:[.,]5)?(?:LT|C|XL)?(?=[\s-])/g, " ")
+    .replace(/\b\d{2,3}(?:\/\d{2,3})?\s?[A-Z]{1,2}(?:XL)?\b(?=[\s/]|$)/g, (m) => (/^\d{2,3}(?:\/\d{2,3})?\s?(?:[A-Z]|[HVWYZ]XL|XL)$/.test(m) ? " " : m))
+    .replace(/\b\d{2,3}\/\d{2,3}\b/g, " ")
+    .replace(/\b\d{1,2}\s?(?:PR|L|LONAS)\b/g, " ")
+    .replace(/\b(?:TL|BSW|ESR|SET|MADE IN INDIA|CON TUBO|SOLA|XL)\b/g, " ")
+    .replace(/[-/]+(?=\s)|(?<=\s)[-/.]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 export function normalizarCatalogoSubido(
@@ -506,6 +533,12 @@ export const fuenteArchivoCatalogo: FuenteDeCatalogo = {
     const skipped: ReporteDeCatalogo["skipped"] = [...guardado.descartadas.map((d) => ({ row: d.fila, reason: d.motivo }))];
     for (const fila of guardado.filas) {
       const { item, motivo } = normalizarFilaDeCatalogo(fila.cruda, "archivo", fila.precios);
+      // Sin foto en el archivo, la del catálogo de fotos. Se busca al cargar y no
+      // al subir: una foto nueva en el código vale sin volver a subir el Excel.
+      if (item && !item.imageUrl) {
+        const media = resolveCatalogMedia(item.brand, item.design) ?? resolveCatalogMediaPorNombre(item.brand, item.name);
+        if (media) Object.assign(item, { imageUrl: media.publicUrl, imageSource: media.sourceLabel });
+      }
       if (item) items.push(item);
       else skipped.push({ row: fila.cruda.filaNumero, reason: motivo ?? "fila inválida" });
     }
