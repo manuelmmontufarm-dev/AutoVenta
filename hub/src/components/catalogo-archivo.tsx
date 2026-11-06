@@ -38,7 +38,7 @@ async function api<T extends object>(url: string, init: RequestInit = {}): Promi
 }
 
 /** Manda el archivo CRUDO (sin base64): el servidor lo lee con express.raw, hasta 5 MB. */
-async function subirArchivo<T extends object>(ruta: string, archivo: File): Promise<T> {
+export async function subirArchivo<T extends object>(ruta: string, archivo: File): Promise<T> {
   if (archivo.size > 5 * 1024 * 1024) throw new Error("El archivo pesa más de 5 MB");
   return api<T>(`${ruta}?nombre=${encodeURIComponent(archivo.name)}`, {
     method: "POST",

@@ -11,7 +11,7 @@ import helvetica from "pdfmake/standard-fonts/Helvetica.js";
 import { PDFDocument } from "pdf-lib";
 import { business } from "../config.js";
 import type { CatalogItem } from "../domain/catalog.js";
-import { warrantyForBrand } from "./quoteMessages.js";
+import { garantiaDelPerfil, warrantyForBrand } from "./quoteMessages.js";
 import { piecesConfigEnMemoria } from "./settings.js";
 import { etiquetaDePromocion } from "../domain/promocion.js";
 import type { SegundaLlanta } from "../domain/promocionDeTemporada.js";
@@ -201,10 +201,11 @@ export async function renderComparisonPdf(products: readonly CatalogItem[], iden
     .getBuffer();
 }
 
-function comparisonDocument(products: readonly CatalogItem[], images: (string | null)[], identidad?: string) {
+export function comparisonDocument(products: readonly CatalogItem[], images: (string | null)[], identidad?: string) {
   const date = dateLabel();
   const columns = products.map((product, index) => {
     const warranty = warrantyForBrand(product.brand);
+    const fabricaAnios = garantiaDelPerfil(product.brand).fabricaAnios;
     const spec = specLabel(product);
     return {
       width: "*",
@@ -257,7 +258,8 @@ function comparisonDocument(products: readonly CatalogItem[], images: (string | 
           alignment: "center",
           color: RED,
         },
-        {
+        // Sin descuento no hay «Antes $X · -0%»: un tachado igual al precio confunde.
+        discount(product) <= 0 ? { text: "", margin: [0, 2, 0, 9] } : {
           columns: [
             {
               text: `Antes ${money(product.customerPriceWithTax)}`,
@@ -277,13 +279,15 @@ function comparisonDocument(products: readonly CatalogItem[], images: (string | 
           ],
           margin: [0, 2, 0, 9],
         },
-        {
+        // Las garantías salen del perfil del negocio: sin ninguna confirmada no
+        // se dibujan (antes «5 AÑOS» estaba fijo, era la de Depot).
+        !warranty.roadHazardMonths && !fabricaAnios ? { text: "" } : {
           table: {
             widths: ["*", "*"],
             body: [
               [
                 warrantyBadge(`${warranty.roadHazardMonths ?? "-"} MESES`, "Golpes"),
-                warrantyBadge("5 AÑOS", "Fábrica"),
+                warrantyBadge(fabricaAnios ? `${fabricaAnios} AÑOS` : "-", "Fábrica"),
               ],
             ],
           },
@@ -332,9 +336,20 @@ function singleQuoteDocument(quote: Quote, line: QuoteLine, image: string | null
   const listPrice = line.listPriceWithTax ?? quote.total;
   const salePrice = line.salePriceWithTax ?? quote.total / quantity;
   const saving = round2(listPrice - salePrice);
+  // Lo que diga la línea; si no dice, el perfil del negocio. Nunca un texto
+  // fijo: «Cobertura por golpes» salía en marcas y negocios que no la tienen.
+  const delPerfil = warrantyForBrand(line.brand ?? "");
   const warranty = {
-    factory: line.warrantyFactory ?? "5 años contra defectos de fabricación",
-    roadHazard: line.warrantyRoadHazard ?? "Cobertura por golpes y estalladuras",
+    factory: line.warrantyFactory ?? delPerfil.factory,
+    roadHazard: line.warrantyRoadHazard ?? delPerfil.roadHazard,
+  };
+  const precioHoy = {
+    stack: [
+      { text: "PRECIO HOY", color: RED, bold: true, fontSize: 8, alignment: "right", characterSpacing: 1.2 },
+      { text: money(salePrice), color: NAVY, bold: true, fontSize: 27, alignment: "right", margin: [0, 5, 0, 2] },
+      { text: `${IMPUESTOS_INCLUIDOS} · por unidad`, color: MUTED, fontSize: 8, alignment: "right" },
+    ],
+    margin: [14, 12, 14, 12],
   };
   return {
     pageSize: "A4",
@@ -378,7 +393,7 @@ function singleQuoteDocument(quote: Quote, line: QuoteLine, image: string | null
         ],
       },
       {
-        table: {
+        table: saving <= 0 ? { widths: ["*"], body: [[precioHoy]] } : {
           widths: ["*", "*"],
           body: [
             [
@@ -390,14 +405,7 @@ function singleQuoteDocument(quote: Quote, line: QuoteLine, image: string | null
                 ],
                 margin: [14, 12, 14, 12],
               },
-              {
-                stack: [
-                  { text: "PRECIO HOY", color: RED, bold: true, fontSize: 8, alignment: "right", characterSpacing: 1.2 },
-                  { text: money(salePrice), color: NAVY, bold: true, fontSize: 27, alignment: "right", margin: [0, 5, 0, 2] },
-                  { text: `${IMPUESTOS_INCLUIDOS} · por unidad`, color: MUTED, fontSize: 8, alignment: "right" },
-                ],
-                margin: [14, 12, 14, 12],
-              },
+              precioHoy,
             ],
           ],
         },
@@ -406,7 +414,7 @@ function singleQuoteDocument(quote: Quote, line: QuoteLine, image: string | null
       },
       {
         columns: [
-          warrantyCard("GARANTÍA CONTRA GOLPES", warranty.roadHazard, "#fff0ef", RED),
+          ...(warranty.roadHazard ? [warrantyCard("GARANTÍA CONTRA GOLPES", warranty.roadHazard, "#fff0ef", RED)] : []),
           warrantyCard("GARANTÍA DE FÁBRICA", warranty.factory, "#edf2ff", "#315bd9"),
         ],
         columnGap: 12,
@@ -636,11 +644,12 @@ function discount(product: CatalogItem): number {
   return Math.round((1 - product.minimumPriceWithTax / product.customerPriceWithTax) * 100);
 }
 
+// Sin «✓»/«⚠»: la Helvetica de pdfmake no los trae y salían como un apóstrofo.
 function availabilityLabel(value: CatalogItem["availability"]): string {
   return value === "available"
-    ? "✓ Disponible"
+    ? "Disponible"
     : value === "check"
-      ? "⚠ Consultar disponibilidad"
+      ? "Consultar disponibilidad"
       : "Agotada";
 }
 

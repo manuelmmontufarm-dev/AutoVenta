@@ -64,7 +64,7 @@ const TITULOS: Record<string, { titulo: string; sub: string }> = {
   "para-cerrar": { titulo: "Para cerrar", sub: "Ya aceptaron precio y local: a quién escribir hoy" },
   dashboard: { titulo: "Métricas", sub: "El negocio de un vistazo" },
   ajustes: { titulo: "Ajustes", sub: "Negocio, seguimientos, avisos y usuarios" },
-  cotizador: { titulo: "Cotizador", sub: "Inventario y precios reales de Contífico" },
+  cotizador: { titulo: "Cotizador", sub: "Inventario y precios reales" },
   settings: { titulo: "Configuración técnica", sub: "WhatsApp, encendido y manual del bot" },
   ticket: { titulo: "Conversación", sub: "" },
 };

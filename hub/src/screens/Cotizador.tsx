@@ -1,6 +1,7 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { MedidaChip } from "../components/ui";
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { subirArchivo } from "../components/catalogo-archivo";
 import {
   downloadComparisonImage,
   downloadComparisonPdf,
@@ -15,6 +16,7 @@ import {
   searchCatalog,
   type CatalogAvailability,
   type CatalogProduct,
+  type CatalogSearchResponse,
 } from "../data/catalog";
 import {
   IconCandado,
@@ -55,14 +57,19 @@ const QUICK_SEARCHES = [
 
 const ALL_AVAILABILITY: CatalogAvailability[] = ["available", "check", "out"];
 
+type CatalogMeta = CatalogSearchResponse["catalog"];
+
+/** «6-nov 17:40»: cuándo se subió el Excel que está usando el cotizador. */
+function fechaCorta(iso: string): string {
+  const d = new Date(iso);
+  const mes = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"][d.getMonth()];
+  return `${d.getDate()}-${mes} ${d.toLocaleTimeString("es-EC", { hour: "2-digit", minute: "2-digit", hourCycle: "h23" })}`;
+}
+
 export function Cotizador() {
   const [query, setQuery] = useState("205/55R16");
   const [products, setProducts] = useState<CatalogProduct[]>([]);
-  const [catalogMeta, setCatalogMeta] = useState<{
-    items: number;
-    lastSync: string | null;
-    source: string | null;
-  } | null>(null);
+  const [catalogMeta, setCatalogMeta] = useState<CatalogMeta | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [selectedBrands, setSelectedBrands] = useState<string[]>([]);
@@ -312,6 +319,12 @@ export function Cotizador() {
         loading={loading}
         runSearch={runSearch}
         catalogMeta={catalogMeta}
+        onExcelSubido={(llantas) => {
+          void runSearch().then(() =>
+            setNotice(`Excel cargado: ${llantas} llantas. El cotizador y el bot ya usan estos precios.`),
+          );
+        }}
+        onError={setError}
       />
 
       <div className="scrollbar-none flex gap-1.5 overflow-x-auto pb-3">
@@ -414,6 +427,7 @@ export function Cotizador() {
             action={action}
             notice={notice}
             copyOptions={copyOptions}
+            conDistribuidor={catalogMeta?.source !== "archivo"}
             createOptionsImage={createOptionsImage}
             copyComparison={copyComparison}
             createComparisonImage={createComparisonImage}
@@ -459,13 +473,33 @@ function SearchBar({
   loading,
   runSearch,
   catalogMeta,
+  onExcelSubido,
+  onError,
 }: {
   query: string;
   setQuery: (value: string) => void;
   loading: boolean;
   runSearch: (value?: string) => Promise<void>;
-  catalogMeta: { items: number; source: string | null } | null;
+  catalogMeta: CatalogMeta | null;
+  onExcelSubido: (llantas: number) => void;
+  onError: (mensaje: string) => void;
 }) {
+  const input = useRef<HTMLInputElement>(null);
+  const [subiendo, setSubiendo] = useState(false);
+  const porArchivo = catalogMeta?.source === "archivo";
+  const subir = async (archivo: File) => {
+    setSubiendo(true);
+    onError("");
+    try {
+      const r = await subirArchivo<{ importado: { llantas: number } }>("/api/catalog/import", archivo);
+      onExcelSubido(r.importado.llantas);
+    } catch (e) {
+      onError(e instanceof Error ? e.message : "No se pudo subir el Excel");
+    } finally {
+      setSubiendo(false);
+      if (input.current) input.current.value = "";
+    }
+  };
   return (
     <div className="flex flex-wrap items-center gap-2.5 pb-3">
       <form
@@ -500,8 +534,34 @@ function SearchBar({
       {catalogMeta && (
         <span className="hidden items-center gap-2 text-[12px] text-text2 md:flex">
           <span className="pulse-dot" />
-          <span className="font-mono">{catalogMeta.items}</span> llantas · {catalogMeta.source ?? "catálogo"}
+          <span className="font-mono">{catalogMeta.items}</span> llantas ·{" "}
+          {porArchivo && catalogMeta.archivo
+            ? `Excel del ${fechaCorta(catalogMeta.archivo.subidoEn)}`
+            : catalogMeta.source ?? "catálogo"}
         </span>
+      )}
+      {porArchivo && (
+        <>
+          <input
+            ref={input}
+            type="file"
+            accept=".xls,.xlsx,.csv"
+            className="hidden"
+            onChange={(e) => {
+              const archivo = e.target.files?.[0];
+              if (archivo) void subir(archivo);
+            }}
+          />
+          <button
+            onClick={() => input.current?.click()}
+            disabled={subiendo}
+            className="btn-quiet flex h-11 items-center gap-2 rounded-[6px] px-3 text-[13px]"
+            title="Sube el inventario que exporta Fénix (.xls) tal cual sale"
+          >
+            <IconDoc size={15} />
+            {subiendo ? "Subiendo…" : "Actualizar Excel"}
+          </button>
+        </>
       )}
     </div>
   );
@@ -570,12 +630,14 @@ function ProductCard({
             <p className="tnum font-mono text-[22px] leading-[1.1] font-bold">
               {money(product.salePrice)}
             </p>
-            <p className="tnum font-mono text-[11px] text-text2">
-              <s>{money(product.listPrice)}</s>{" · "}
-              <b className="font-semibold text-ok">
-                −{product.discountPercent} %
-              </b>
-            </p>
+            {product.discountPercent > 0 && (
+              <p className="tnum font-mono text-[11px] text-text2">
+                <s>{money(product.listPrice)}</s>{" · "}
+                <b className="font-semibold text-ok">
+                  −{product.discountPercent} %
+                </b>
+              </p>
+            )}
           </div>
           <button
             onClick={onToggle}
@@ -756,6 +818,7 @@ function ActionPanel({
   action,
   notice,
   copyOptions,
+  conDistribuidor = true,
   createOptionsImage,
   copyComparison,
   createComparisonImage,
@@ -777,6 +840,8 @@ function ActionPanel({
   action: Action;
   notice: string;
   copyOptions: (style: "customer" | "distributor") => Promise<void>;
+  /** El mensaje de distribuidor es de Depot (precio de distribuidor de Contífico). */
+  conDistribuidor?: boolean;
   createOptionsImage: () => Promise<void>;
   copyComparison: () => Promise<void>;
   createComparisonImage: () => Promise<void>;
@@ -812,6 +877,7 @@ function ActionPanel({
           setCustomerName={setCustomerName}
           action={action}
           copyOptions={copyOptions}
+          conDistribuidor={conDistribuidor}
           createImage={createOptionsImage}
         />
       )}
@@ -853,6 +919,7 @@ function OptionsPanel({
   setCustomerName,
   action,
   copyOptions,
+  conDistribuidor,
   createImage,
 }: {
   products: CatalogProduct[];
@@ -860,6 +927,7 @@ function OptionsPanel({
   setCustomerName: (value: string) => void;
   action: Action;
   copyOptions: (style: "customer" | "distributor") => Promise<void>;
+  conDistribuidor: boolean;
   createImage: () => Promise<void>;
 }) {
   return (
@@ -878,13 +946,15 @@ function OptionsPanel({
         placeholder="Nombre opcional"
       />
       <div className="mt-auto pt-5">
-        <ActionButton
-          onClick={() => void copyOptions("distributor")}
-          loading={action === "options-distributor"}
-          disabled={Boolean(action) || !products.length}
-          label="Copiar mensaje distribuidor"
-          icon={<IconDoc size={14} />}
-        />
+        {conDistribuidor && (
+          <ActionButton
+            onClick={() => void copyOptions("distributor")}
+            loading={action === "options-distributor"}
+            disabled={Boolean(action) || !products.length}
+            label="Copiar mensaje distribuidor"
+            icon={<IconDoc size={14} />}
+          />
+        )}
         <ActionButton
           onClick={() => void copyOptions("customer")}
           loading={action === "options-customer"}

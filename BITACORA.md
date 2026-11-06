@@ -1,3 +1,29 @@
+## 6-nov-2026 · Cotizador de Mundillantas: «Actualizar Excel» y PDFs sin promesas de Depot
+
+**Qué:** Manuel pidió el cotizador funcionando con el Excel de Fénix, un lugar para subirlo
+y los PDFs cerrados. En el cotizador hay un botón **Actualizar Excel** (solo con catálogo por
+archivo) y al lado dice de qué fecha es el Excel en uso; al subirlo, el cotizador y el bot
+usan los precios nuevos en el acto (probado: un precio cambiado a $77,77 apareció sin
+reiniciar). Se fueron los restos de Depot: «precios reales de Contífico», «$X · −0 %» bajo
+cada precio, el botón «Copiar mensaje distribuidor». En los PDF: sin «Cobertura por golpes»,
+«5 AÑOS Fábrica» ni «Ahorras $0.00 · -0%» cuando el negocio no los tiene, y sin el apóstrofo
+de «'Disponible» (la Helvetica de pdfmake no trae ✓ ni ⚠; también pasaba en Depot).
+
+**Cómo:** `Cotizador.tsx` (botón + `subirArchivo` de `catalogo-archivo.tsx`, `CatalogMeta`
+con `archivo`); `quotePdf.ts`: garantías desde `warrantyForBrand`/`garantiaDelPerfil` en vez
+de textos fijos, la tarjeta de golpes solo si hay cobertura, el precio de lista solo si hay
+ahorro. En Mundillantas (producción): Excel subido (482 llantas), INCLUYE de Depot apagado y
+Fase 3 encendida (Cotizador y Métricas).
+
+**Ojo Depot:** su comparativa queda igual (fábrica 5 años, golpes por marca). En la cotización
+de una marca sin seguro contra golpes ya no sale «Cobertura por golpes y estalladuras».
+
+**Probado:** `pdfSinPromesasAjenas.test.ts` (rojo sin el cambio, verde con él), Black Friday
+44/44; suite: las mismas 3 que ya fallan en `main`. Simulador: PDF de cotización y comparativa
+con foto, precio y total, sin las promesas.
+
+**Horas:** 1,5
+
 ## 6-nov-2026 · El panel de cada cliente con el «AV» de AutoVenta y Mundillantas sin «depottire»
 
 **Qué:** Manuel abrió el panel de Mundillantas y la pestaña decía «MU» en negro y la dirección
