@@ -32,9 +32,13 @@ código es uno solo; lo que cambia de un cliente a otro vive en su perfil
    pública y la semilla del paso 3 no se puede correr desde el portátil.
 4. **Un solo servicio por cliente, sin réplicas**: la ráfaga de mensajes y las colas viven en memoria
    (`docs/OPERACION.md`).
+5. **Settings → Networking → dominio:** Railway arma el dominio con el nombre del entorno
+   (`<servicio>-depottire.up.railway.app`) y el cliente lo ve. Cámbialo a `<cliente>.up.railway.app`
+   antes de mandarle el enlace o de registrar el webhook de Meta.
 
 > Mundillantas (5-nov-2026): entorno `Depot_Tire`, servicios `Mundillantas` y
-> `Postgres-Mundillantas`, panel en `https://mundillantas-depottire.up.railway.app/admin/`.
+> `Postgres-Mundillantas`, panel en `https://mundillantas.up.railway.app/admin/` (desde el 6-nov;
+> antes `mundillantas-depottire…`).
 
 ## 2. Variables del servicio
 

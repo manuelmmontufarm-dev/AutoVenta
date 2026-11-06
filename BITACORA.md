@@ -1,3 +1,21 @@
+## 6-nov-2026 · El panel de cada cliente con el «AV» de AutoVenta y Mundillantas sin «depottire»
+
+**Qué:** Manuel abrió el panel de Mundillantas y la pestaña decía «MU» en negro y la dirección
+`mundillantas-depottire.up.railway.app`: el nombre de otro cliente en la URL de este. Ahora
+la pestaña de todos los paneles (Depot y Mundillantas) es el logo de AutoVenta del 30-oct
+(bloque rojo #C8102E con «AV»), y la dirección es `mundillantas.up.railway.app`.
+
+**Cómo:** `hub/src/lib/favicon.ts` dibuja `autoventa-icono.svg` y, si hay tickets abiertos, el
+número en un círculo oscuro encima (antes reemplazaba el logo). `favicon.svg`, `icon-192`,
+`icon-512` y `apple-touch-icon` del hub salen del mismo SVG. El dominio se cambió en Railway
+(`serviceDomainUpdate`); el webhook de Meta todavía no estaba registrado, así que no se rompe
+nada. `ALTA-DE-CLIENTE.md` suma el paso de cambiar el dominio.
+
+**Probado:** `https://mundillantas.up.railway.app/health` → 200. Build del hub copiado a
+`app/site/admin` (sin tocar `demo-showroom-gp`).
+
+**Horas:** 0,5
+
 ## 6-nov-2026 · Mundillantas: fotos de 449 de 482 llantas y sin las promesas de Depot
 
 **Qué:** las piezas y el PDF de Mundillantas salían con la llanta genérica en todo lo que
