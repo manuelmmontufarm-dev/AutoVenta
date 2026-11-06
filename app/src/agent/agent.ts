@@ -52,7 +52,12 @@ import {
   pendingDiscountNoticeMessage,
 } from "../services/discountOffers.js";
 import { sql } from "../db/client.js";
-import { activeBenefitFactsBlock } from "../services/benefits.js";
+import { activeBenefitFactsBlock, applicableBenefitTexts } from "../services/benefits.js";
+import {
+  consultaDeTemporadaDelTurno,
+  ORDEN_DE_DERIVAR_SERVICIO_DE_TEMPORADA,
+  ordenDeServicioDeTemporada,
+} from "../services/hechosDeTemporada.js";
 import { aroDeLaMedida, medidaEstaPedida } from "../domain/medidaPedida.js";
 import { arosDelCatalogo, pideAroComoProducto } from "../domain/aroProducto.js";
 import { anotarMedidasEscritas, medidasDelPedido } from "../services/medidasDelPedido.js";
@@ -272,7 +277,18 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
     ...history.filter((m) => m.role === "user").map((m) => m.content),
     userText,
   ];
-  const fueraDeCatalogo = consultaFueraDeCatalogoActiva(textosDelCliente);
+  // SERVICIOS Y ACEITE EN PROMOCIÓN (Black Friday de Depot, nov-2026): mientras
+  // la promo corre, «cambio de aceite», «alineación para camioneta» o «ABC de
+  // frenos» se contestan con la promo y se derivan al asesor, sin buscar
+  // llantas (por eso cuentan como fuera de catálogo para las herramientas).
+  // Quien compra llantas y pregunta por la alineación ya la tiene incluida:
+  // esa consulta NO es de servicio. Fuera de fechas o sin promo, null.
+  const consultaDeTemporada = consultaDeTemporadaDelTurno(textosDelCliente, {
+    beneficios: await applicableBenefitTexts(),
+  });
+  const servicioDeTemporada = consultaDeTemporada?.tipo === "servicio" ? consultaDeTemporada : null;
+  const ordenDeTemporada = consultaDeTemporada ? ordenDeServicioDeTemporada(consultaDeTemporada) : null;
+  const fueraDeCatalogo = consultaFueraDeCatalogoActiva(textosDelCliente) || Boolean(servicioDeTemporada);
   ctx.consultaFueraDeCatalogo = fueraDeCatalogo;
   const restricciones = restriccionesDeLlanta(textosDelCliente);
   const hechoRestricciones = hechosDeRestricciones(restricciones);
@@ -668,7 +684,10 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
       ? [{ role: "system" as const, content: ordenDeNotificarLoPrometido() }]
       : []),
     ...(pidioHumano ? [{ role: "system" as const, content: ordenDeNotificarHumano() }] : []),
-    ...(fueraDeCatalogoSinAviso && !pidioHumano
+    ...(fueraDeCatalogoSinAviso && !pidioHumano && servicioDeTemporada
+      ? [{ role: "system" as const, content: ORDEN_DE_DERIVAR_SERVICIO_DE_TEMPORADA }]
+      : []),
+    ...(fueraDeCatalogoSinAviso && !pidioHumano && !servicioDeTemporada
       ? [{
           role: "system" as const,
           content:
@@ -738,9 +757,12 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
     // cotización imprimía «alineación y balanceo incluidos». Va en los bloques
     // volátiles —detrás del historial— para no romper el prefijo del caché.
     ...(benefitFacts ? [{ role: "system" as const, content: benefitFacts }] : []),
-    ...(fueraDeCatalogo
+    // En temporada, la consulta de servicio lleva su propia orden (contestar con
+    // la promo) en vez de la de fuera de catálogo (no afirmar nada).
+    ...(fueraDeCatalogo && !servicioDeTemporada
       ? [{ role: "system" as const, content: ORDEN_FUERA_DE_CATALOGO }]
       : []),
+    ...(ordenDeTemporada ? [{ role: "system" as const, content: ordenDeTemporada }] : []),
     ...(hechoRestricciones
       ? [{ role: "system" as const, content: hechoRestricciones }]
       : []),

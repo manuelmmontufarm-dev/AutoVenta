@@ -60,6 +60,7 @@ import { logAiRun } from "./conversations.js";
 import { crearAlertaRepeticion } from "./conversationQuality.js";
 import { createBotAlert } from "./followUps.js";
 import { getActiveBenefits } from "./benefits.js";
+import { hechoDeTemporadaParaElGuardian } from "./hechosDeTemporada.js";
 import { formatStoreHours, getGuardianConfig, getPiecesConfig, getStoreHours } from "./settings.js";
 import { faltanteDeCotizacion } from "./stockCorto.js";
 import { alcanzaParaVender } from "../domain/stockCorto.js";
@@ -867,6 +868,14 @@ export async function armarContexto(
     // hecho fijo (revisión del 26-oct): «¿tienen el 3x4?» antes de dar la
     // medida no tiene ahorro que citar, y el revisor tachaba el «sí».
     hechoDeLaPromocion(ahorro, piezas.promocion.modo),
+    // LA PROMOCIÓN DE TEMPORADA (Black Friday de Depot, nov-2026): el revisor
+    // tiene que ver las mismas cifras que el vendedor, o tacha «$20 la
+    // alineación» por inventado — y tiene que saber qué SÍ es inventado (el
+    // 60 % en otra marca o en las 4 llantas). Null fuera de fechas o sin promo.
+    hechoDeTemporadaParaElGuardian({
+      beneficios: beneficios.map((b) => b.text),
+      conAceites: /aceite|lubricante/i.test(`${borrador}\n${historial}`),
+    }),
     respaldados.length
       ? `Servicios y beneficios respaldados (lo ÚNICO que el bot puede prometer como incluido): ${respaldados.join(" · ")}`
       : "Servicios y beneficios respaldados: ninguno cargado — el borrador no puede prometer nada como incluido",

@@ -84,3 +84,20 @@ export const COMPACT_PLAYBOOK = [
   CORE_PLAYBOOK,
   ...Object.entries(PLAYBOOK_POR_FASE).map(([fase, reglas]) => `# Fase ${fase}\n${reglas}`),
 ].join("\n\n");
+
+/**
+ * LA PROMOCIÓN DE TEMPORADA — cómo se habla de ella (Black Friday de Depot,
+ * noviembre 2026). Son reglas sin datos: las cifras, marcas y fechas las pone
+ * la política del cliente y las arma `services/hechosDeTemporada.ts`, que
+ * pega estas reglas al hecho SOLO mientras la promo corre. Por eso no entran
+ * a `COMPACT_PLAYBOOK`: fuera de fechas, o en un cliente sin promo, no existen.
+ */
+export const REGLAS_DE_PROMOCION_DE_TEMPORADA = [
+  "Cómo se usa (reglas del vendedor):",
+  "- Las cifras de esta promo se COPIAN de aquí, tal cual. Ninguna otra cifra, marca, servicio ni aceite está en promoción.",
+  "- Llantas: el descuento es SOLO en las llantas pares (la 2.ª y la 4.ª de un juego de 4 llantas) y SOLO en las marcas nombradas. No es sobre todas las llantas, no aplica a una sola llanta ni a otra marca. La cuenta la hace generar_cotizacion: nunca calcules tú un total.",
+  "- Quien COMPRA LLANTAS ya tiene incluido lo de INCLUIDO CON LA COMPRA (alineación, balanceo, instalación…) sin costo: a esa persona PROHIBIDO ofrecerle el descuento de servicios ni su precio de temporada. El descuento de servicios es para quien viene solo por el servicio.",
+  "- Servicios: si no sabe si es auto o camioneta, pregúntalo antes de dar el precio. Con el dato, da el precio de temporada (y el normal, si ayuda) y ofrece agendar la visita.",
+  "- Aceite: el descuento es sobre el PVP de los aceites de la lista. Qué aceite le corresponde a su vehículo lo confirma el asesor: PROHIBIDO elegirlo tú por el modelo del vehículo.",
+  "- Si preguntan si hay promociones, nombra las de esta lista en una o dos líneas, sin títulos ni viñetas.",
+].join("\n");

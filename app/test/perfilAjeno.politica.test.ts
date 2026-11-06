@@ -41,9 +41,10 @@ async function cargarComo(id: string) {
   const { VOCABULARIO_TRANSCRIPCION } = await import("../src/domain/transcripcionEco.js");
   const { promptCandidatosFitment } = await import("../src/domain/fitmentResearch.js");
   const { COMPACT_PLAYBOOK } = await import("../src/agent/compactPlaybook.js");
+  const temporada = await import("../src/services/hechosDeTemporada.js");
   return {
     buildSystemPrompt, DEFAULT_AI_CONFIG, guardian, buildTools, PASOS, politica,
-    VOCABULARIO_TRANSCRIPCION, promptCandidatosFitment, COMPACT_PLAYBOOK,
+    VOCABULARIO_TRANSCRIPCION, promptCandidatosFitment, COMPACT_PLAYBOOK, temporada,
   };
 }
 
@@ -112,9 +113,19 @@ function casos(id: string, saltar: boolean) {
         ["el_pago_se_responde", "No puedo confirmar recargos de tarjeta por este medio.", "¿si pago con tarjeta sube el valor?"],
         ["el_pago_se_responde", "Le confirmo enseguida.\n---\n¿A cuál local le queda mejor ir?", "¿aceptan tarjeta? ¿hay cuotas?"],
         ["el_beneficio_se_responde", "¿Le ayudo con algo más?", "¿tienen alguna promoción por redes sociales?"],
+        ["la_promocion_de_temporada_se_responde", "¿Le ayudo con algo más?", "¿tienen promo de black friday?"],
       ] as const) {
         sinDepot(String(await paso(nombre).aplicar(borrador, ctxDeSalida(cliente))), `paso ${nombre}`);
       }
+    });
+
+    it("el Black Friday de Depot no existe: ni hecho del vendedor, ni del guardián, ni respuesta, ni consulta de servicio", () => {
+      const noviembre = new Date("2026-11-05T17:00:00Z");
+      expect(m.politica.promocionDeTemporada).toBeUndefined();
+      expect(m.temporada.hechoDeTemporadaParaElVendedor({ ahora: noviembre, beneficios: ["Alineación incluida"] })).toBeNull();
+      expect(m.temporada.hechoDeTemporadaParaElGuardian({ ahora: noviembre })).toBeNull();
+      expect(m.temporada.resumenDeLaPromocion({ ahora: noviembre })).toBeNull();
+      expect(m.temporada.consultaDeTemporadaDelTurno(["cuánto el cambio de aceite?"], { ahora: noviembre })).toBeNull();
     });
 
     it("los textos regionales (Whisper, investigación del vehículo) son de su ciudad", () => {

@@ -45,6 +45,35 @@ texto y `unidadEnLaCantidad` ya fallaban antes de este cambio.
 **Por qué:** Manuel: «el pdf nuevo lo refleje más claro». El PDF es el PNG de la
 pieza: si la pieza solo muestra $75 y un total de $210, el cliente no entiende de
 dónde sale la cifra.
+## 5-nov-2026 · Black Friday, sprint 3: el vendedor y el guardián conocen la promo
+
+**Qué:** `services/hechosDeTemporada.ts` (nuevo) arma, solo mientras corre la
+`promocionDeTemporada` de la política, un hecho determinístico con las cuatro
+promos: el 60 % en las llantas PARES Falken/Kenda (ni otra marca, ni las 4, ni
+una sola), la tabla de servicios por auto/camioneta normal → noviembre, el 40 %
+sobre el PVP de los aceites (la lista de 22 viaja solo cuando se habla de
+aceite) y la revisión de 7 puntos gratis. El vendedor lo recibe por
+`activeBenefitFactsBlock`; el guardián, en sus HECHOS, con lo que debe dejar
+pasar y lo que debe tachar como `hecho_comercial_inventado`. Las reglas sin
+datos viven en `compactPlaybook.ts` (`REGLAS_DE_PROMOCION_DE_TEMPORADA`, fuera
+del `COMPACT_PLAYBOOK`). `alcanceComercial.consultaDeServicioDeTemporada`:
+«cambio de aceite», «alineación camioneta» o «ABC de frenos» se contestan con la
+promo, el precio de su vehículo (o la pregunta auto/camioneta), el asesor elige
+el aceite y `notificar_vendedor` sigue saliendo; quien compra llantas y pregunta
+por alineación/balanceo recibe «ya va incluida», nunca el 50 %. Nuevo paso
+`la_promocion_de_temporada_se_responde` en `prepararSalida`: «¿tienen
+promociones?» / «black friday» → una línea con las 4 promos, una vez por ciclo,
+y el beneficio de redes no se pega detrás salvo que lo nombren. Después del
+30-nov todo vuelve solo a como era. Mundillantas y ejemplo no tienen promo: nada
+de esto existe para ellos (`perfilAjeno.politica.test.ts`).
+
+**Por qué:** sin las cifras en sus hechos el guardián tacha «$20 la alineación»
+por inventada y no frena «60 % en las 4 Winrun». Y el cambio de aceite, que el
+bot rechazaba por fuera de catálogo, es una de las cuatro promos.
+
+**Pendiente (manual, Manuel):** cargar «Revisión de 7 puntos GRATIS» en la
+tabla `benefits` si debe imprimirse en la pieza; el bot ya la dice desde la
+política.
 
 **Horas:** 2
 

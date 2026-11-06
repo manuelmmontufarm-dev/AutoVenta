@@ -205,7 +205,12 @@ describe.sequential("Cierre por preferencia — reunión del 25-ago", () => {
     it("sin beneficios vigentes no se inventa el bloque", async () => {
       await appSql`update benefits set active=false`;
       benefits.invalidateBenefitsCache();
-      expect(await benefits.activeBenefitFactsBlock()).toBeNull();
+      // Fuera del Black Friday de Depot (nov-2026): en noviembre el bloque
+      // trae la promo de temporada, que sale de la política y no de la tabla.
+      expect(await benefits.activeBenefitFactsBlock(new Date("2026-12-01T17:00:00Z"))).toBeNull();
+      const enNoviembre = await benefits.activeBenefitFactsBlock(new Date("2026-11-05T17:00:00Z"));
+      expect(enNoviembre).toMatch(/^PROMOCIÓN DE TEMPORADA VIGENTE/);
+      expect(enNoviembre).not.toMatch(/^INCLUIDO CON LA COMPRA \(fuente/m);
       await appSql`update benefits set active=true`;
       benefits.invalidateBenefitsCache();
     });
