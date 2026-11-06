@@ -1,3 +1,32 @@
+## 6-nov-2026 · Mundillantas: el Excel de Fénix entra tal cual sale (482 llantas)
+
+**Qué:** Jenny mandó el inventario (`INVENTARIO_06NOV_fenix.xls`) y el cargador no lo podía
+leer: es `.xls` viejo (exceljs solo lee `.xlsx`), con 15 filas de membrete antes del
+encabezado, filas de categoría y de totales, y todo el producto en una sola columna
+«Articulo». Ahora se sube tal cual en Ajustes → Catálogo y es el mapeo por defecto:
+Precio A ya con IVA, existencia total, marca y diseño sacados del nombre. Quedan 482 de
+501 llantas; lo que se descarta sale con su motivo y su fila real del Excel.
+
+**Cómo:** `fuentes/archivo.ts`: `.xls` con SheetJS (`xlsx` 0.20.3 del CDN de SheetJS; el del
+registro de npm está abandonado y con CVE), un solo lector de matriz para `.xls`/`.xlsx`
+que busca la fila «código», copia `categoria`/`subcategoria` a cada fila y salta totales.
+`precioControl` (opcional): si el precio sale menor que esa lista, la fila se descarta (la
+AOQISHI con A $17,80 y D $138 se habría cotizado a $17,80). Medio aro de camión (17.5,
+19.5, 22.5) se descarta: se leía 235/75R17 y se le podía ofrecer a una camioneta. «700/15»,
+«LT700R15», «825/16» se leen como 7.00R15 / 8.25R16, solo del lado del catálogo; el lector
+de lo que escribe el cliente no se tocó. Existencia negativa = 0.
+
+**Ojo:** el cliente que escribe «750 16» todavía no se entiende como 7.50R16 (con «7.50R16»
+sí). Es el lector común, también de Depot: queda para otro cambio, con su prueba.
+
+**Probado:** `catalogoArchivo.test.ts` con un `.xls` armado como el de Fénix (20/20). El
+simulador `--perfil mundillantas --catalogo-archivo` con el Excel real subió 482 por la ruta
+del panel; «4 llantas 265/70r17» cotizó TOURADOR $165,60, COOPER $262,20 y FALKEN $351,90,
+los tres iguales al Precio A del Excel; «7.50R16» dio las tres de tracción. Suite completa:
+las mismas 3 que ya fallaban en `main` (Black Friday / hashes de piezas), ninguna nueva.
+
+**Horas:** 2
+
 ## 6-nov-2026 · Canary: el cruce culpa al vendedor 5.4 → fase III «solo Guardián»
 
 **Qué:** el cruce del 2-nov mostró que la caída de cotizaciones seguía al modelo y no a los
