@@ -41,6 +41,8 @@ export interface CatalogSearchResponse {
     lastSync: string | null;
     source: "contifico" | "sheets" | "archivo" | null;
     error: string | null;
+    /** Con fuente «archivo»: qué Excel se subió y cuándo. */
+    archivo?: { nombre: string; subidoEn: string; aros: number } | null;
   };
 }
 
