@@ -46,7 +46,8 @@ export const POLITICA_DEPOT: PoliticaComercial = {
   // «60% de descuento en tu segunda llanta Falken o Kenda · 50% en ABC de
   // frenos y en alineación y balanceo · 40% en cambio de aceite · Revisión de
   // 7 puntos GRATIS». Manuel, 5-nov: las llantas pares de la cotización llevan
-  // el 60 % sobre el precio de hoy; la tabla de servicios YA viene al 50 %
+  // el 60 % sobre el precio de LISTA (6-nov: «es solo el 60 %», no encima del
+  // −25 %); la tabla de servicios YA viene al 50 %
   // («Precio al 50% incluido iva»); la de aceites es PVP y se resta el 40 %.
   promocionDeTemporada: {
     nombre: "Black Friday",

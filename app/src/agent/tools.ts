@@ -117,7 +117,7 @@ import {
   medidaEstaPedida, medidasDeProductos, medidasPermitidas, mensajesDeLaVisitaActual,
 } from "../domain/medidaPedida.js";
 import { ahorroDeLaCotizacion } from "../domain/ahorro.js";
-import { segundaLlantaDe } from "../domain/promocionDeTemporada.js";
+import { marcaConSegundaLlanta, segundaLlantaDe } from "../domain/promocionDeTemporada.js";
 import { avisoDeCantidad, esCantidadInusual } from "../domain/cantidadGrande.js";
 import { claseDeVehiculoEnTexto, TIPOS_DE_CAMIONETA } from "../domain/claseDeVehiculo.js";
 import { medidaEnDisputaDelPedido, medidasDelPedido } from "../services/medidasDelPedido.js";
@@ -2213,7 +2213,9 @@ export function buildTools(ctx: AgentContext) {
             recomendacion: `${elegida.brand} ${elegida.design}`,
             codigo: elegida.code,
             mensaje_para_enviar: porLista
-              ? confirmacionDeLaOpcion(posicionDeLista!, `${elegida.brand} ${elegida.design}`, elegida.minimumPriceWithTax)
+              // Con Black Friday no hay UN precio por llanta: lo dice la cotización.
+              ? confirmacionDeLaOpcion(posicionDeLista!, `${elegida.brand} ${elegida.design}`,
+                  marcaConSegundaLlanta(politica.promocionDeTemporada, elegida.brand) ? null : elegida.minimumPriceWithTax)
               : `La opción ${etiqueta} es la *${elegida.brand} ${elegida.design}*${precio}.`,
             regla: `El cliente contestó el menú: la lámina ya la tiene y NO se reenvía. Llama generar_cotizacion AHORA MISMO con code ${elegida.code} y 4 llantas (o la cantidad que haya dicho); el texto de arriba va antes de la cotización.`,
           });
@@ -2290,8 +2292,9 @@ export function buildTools(ctx: AgentContext) {
       // Black Friday: el juego de cada opción con las pares al −60 % (null si
       // la marca no entra o la promo está cerrada para este chat). La lámina,
       // la lista escrita y lo guardado para el guardián dicen esta misma cifra.
-      const segundaDeOpcion = (p: { brand: string; minimumPriceWithTax: number }) =>
-        segundaLlantaDe(politica.promocionDeTemporada, p.brand, cantidadResuelta.cantidad, p.minimumPriceWithTax);
+      const segundaDeOpcion = (p: { brand: string; minimumPriceWithTax: number; customerPriceWithTax: number }) =>
+        segundaLlantaDe(politica.promocionDeTemporada, p.brand, cantidadResuelta.cantidad,
+          { hoyConIva: p.minimumPriceWithTax, listaConIva: p.customerPriceWithTax });
       const escalones = escalonesDeOpciones(
         products.map((p) => ({
           codigo: p.code,
@@ -2447,7 +2450,7 @@ export function buildTools(ctx: AgentContext) {
             preciosMostrados: products
               .flatMap((p) => {
                 const bf = segundaDeOpcion(p);
-                return bf ? [p.minimumPriceWithTax, bf.precioConIva, bf.totalConIva, bf.ahorroConIva] : [p.minimumPriceWithTax];
+                return bf ? [bf.precioNormalConIva, bf.precioConIva, bf.totalConIva, bf.ahorroConIva] : [p.minimumPriceWithTax];
               })
               .filter((precio): precio is number => Number.isFinite(precio) && precio > 0),
             // La recomendada y su porqué, para que la ruta directa pueda
@@ -3385,6 +3388,13 @@ export function buildTools(ctx: AgentContext) {
           : product.minimumPriceWithTax;
         const antesConIva =
           vivo && vivo.pvpFullConIva > hoyConIva ? vivo.pvpFullConIva : product.customerPriceWithTax;
+        // Black Friday (nov-2026): en Falken/Kenda el 60 % de las pares
+        // REEMPLAZA el −25 % del catálogo (Manuel, 6-nov): la línea se firma al
+        // precio de LISTA y las pares van a lista × 0,4. Null fuera de fechas,
+        // con otra marca, con una sola llanta o si saliera más caro que el −25 %.
+        const segundaLlanta = segundaLlantaDe(politica.promocionDeTemporada, product.brand, item.cantidad,
+          { hoyConIva, listaConIva: antesConIva });
+        const firmaConIva = segundaLlanta ? segundaLlanta.precioNormalConIva : hoyConIva;
 
         lines.push({
           code: product.code,
@@ -3399,21 +3409,19 @@ export function buildTools(ctx: AgentContext) {
           // ya dentro y buildQuote le sumaba otro 15%: unas llantas anunciadas
           // a $480 se firmaban en $552. Donde las dos tasas coinciden —que es
           // el caso de Contífico con porcentaje_iva 15— esto no cambia nada.
-          unitPrice: hoyConIva / (1 + business.taxRate),
+          unitPrice: firmaConIva / (1 + business.taxRate),
           brand: product.brand,
           design: product.design,
           sizeLabel: product.sizeLabel,
-          listPriceWithTax: antesConIva > hoyConIva ? antesConIva : hoyConIva,
-          salePriceWithTax: hoyConIva,
+          listPriceWithTax: antesConIva > firmaConIva ? antesConIva : firmaConIva,
+          salePriceWithTax: firmaConIva,
+          ...(segundaLlanta ? { precioSinPromoConIva: hoyConIva } : {}),
           availability: product.availability,
           imageUrl: product.imageUrl,
           loadSpeed: product.loadSpeed,
           warrantyFactory: warrantyForBrand(product.brand).factory,
           warrantyRoadHazard: warrantyForBrand(product.brand).roadHazard,
-          // Black Friday (nov-2026): las pares Falken/Kenda con el 60 % sobre
-          // el precio de HOY. La cuenta es de `domain/promocionDeTemporada.ts`;
-          // null fuera de fechas, con otra marca o con una sola llanta.
-          segundaLlanta: segundaLlantaDe(politica.promocionDeTemporada, product.brand, item.cantidad, hoyConIva),
+          segundaLlanta,
         });
       }
       const baseQuote = buildQuote(lines, nombre_cliente, ctx.customerPhone);

@@ -64,6 +64,8 @@ export interface QuoteLine {
   loadSpeed?: CatalogItem["loadSpeed"];
   warrantyFactory?: string;
   warrantyRoadHazard?: string | null;
+  /** Black Friday: el precio de hoy (con el −25 %) de una línea que se firmó a lista. */
+  precioSinPromoConIva?: number;
   /**
    * Black Friday (5-nov): las llantas pares de esta línea van con el 60 %
    * menos. Presente = el total de la línea es `segundaLlanta.totalConIva`, no

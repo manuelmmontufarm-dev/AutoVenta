@@ -50,3 +50,23 @@ describe("promoción de temporada (Black Friday de Depot)", () => {
     expect(xenon).toMatchObject({ pvpConIva: 90.7, precioPromoConIva: 54.42, porcentaje: 40 });
   });
 });
+
+describe("en Falken/Kenda el 60 % REEMPLAZA el −25 % (Manuel, 6-nov)", () => {
+  const promo = POLITICA_DEPOT.promocionDeTemporada;
+  const NOV = new Date("2026-11-15T17:00:00Z");
+
+  it("lista $100, hoy $75: 2 × $100 + 2 × $40 = $280 (las impares a lista, sin el −25 %)", () => {
+    const s = segundaLlantaDe(promo, "FALKEN", 4, { hoyConIva: 75, listaConIva: 100 }, NOV)!;
+    expect(s).toMatchObject({ precioNormalConIva: 100, precioConIva: 40, totalConIva: 280, ahorroConIva: 120 });
+  });
+
+  it("nadie paga más por la promo: 3 llantas ($240) contra el −25 % ($225) no la llevan", () => {
+    expect(segundaLlantaDe(promo, "FALKEN", 3, { hoyConIva: 75, listaConIva: 100 }, NOV)).toBeNull();
+    expect(segundaLlantaDe(promo, "FALKEN", 2, { hoyConIva: 75, listaConIva: 100 }, NOV)?.totalConIva).toBe(140);
+  });
+
+  it("sin lista (o lista menor que hoy) la base es el precio de hoy", () => {
+    expect(segundaLlantaDe(promo, "KENDA", 4, { hoyConIva: 75, listaConIva: null }, NOV)?.precioConIva).toBe(30);
+    expect(segundaLlantaDe(promo, "KENDA", 4, { hoyConIva: 75, listaConIva: 60 }, NOV)?.precioConIva).toBe(30);
+  });
+});

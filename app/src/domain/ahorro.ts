@@ -15,7 +15,7 @@
  * anunciar un ahorro que la pieza no muestra.
  */
 
-import { fraseDeSegundaLlanta, paresEnPalabras, seMuestraComo3x4, type ModoPromocion } from "./promocion.js";
+import { fraseDeSegundaLlanta, fraseDeSegundaLlantaConCatalogo, paresEnPalabras, seMuestraComo3x4, type ModoPromocion } from "./promocion.js";
 import type { SegundaLlanta } from "./promocionDeTemporada.js";
 
 export interface LineaCotizada {
@@ -47,7 +47,7 @@ export interface AhorroDeLaCotizacion {
   modo?: ModoPromocion;
   /**
    * Black Friday (nov-2026): las llantas pares con el 60 % sobre el precio de
-   * hoy. Con ella `monto` = catálogo + promo, y el precio por llanta deja de
+   * lista (solo el 60 %). Con ella `monto` = catálogo + promo, y el precio por llanta deja de
    * ser uno solo: las pares cuestan `segundaLlanta.precioConIva`.
    */
   segundaLlanta?: SegundaLlanta | null;
@@ -126,10 +126,9 @@ export function fraseDeAhorro(
   // Black Friday: gana sobre el 4x3 (no se apilan rótulos) y se dice con sus
   // cifras, que son las que el cliente ve en la pieza.
   if (ahorro.segundaLlanta) {
-    const promo = fraseDeSegundaLlanta(ahorro.segundaLlanta, ahorro.cantidad);
     return conRebajaDeCatalogo(ahorro)
-      ? `${promo}, además del *${ahorro.porcentaje} %* de descuento ya aplicado — en total *$${ahorro.monto.toFixed(2)}* menos`
-      : promo;
+      ? fraseDeSegundaLlantaConCatalogo(ahorro.segundaLlanta, ahorro.porcentaje, ahorro.monto, ahorro.cantidad)
+      : fraseDeSegundaLlanta(ahorro.segundaLlanta, ahorro.cantidad);
   }
   // En 3x4 la misma plata con el nombre que trae la pieza (26-oct, feriado).
   // Con 2 llantas no: «paga 3 lleva 4» prometería una cuarta que no está.
@@ -266,9 +265,11 @@ function respuestaDeSegundaLlanta(
   const normales = Math.max(0, ahorro.cantidad - s.unidades);
   const promo = `el *${s.nombre}*: *${s.porcentaje} %* menos en su ${paresEnPalabras(s.unidades)} llanta — `
     + `${normales} a ${dinero(s.precioNormalConIva)} y ${s.unidades} a ${dinero(s.precioConIva)}, ${dinero(s.ahorroConIva)} menos`;
+  // Con rebaja de catálogo, cada llanta con SU descuento: las impares con el
+  // 25 % y las pares con el 60 % sobre la lista, sin apilarlos (6-nov).
   const base = catalogo
-    ? `su cotización ya trae el *${ahorro.porcentaje} %* de descuento (${dinero(ahorro.porLlanta)} por llanta) y ${promo}; `
-      + `en total ${dinero(ahorro.monto)} menos. Ya está descontado del total que le envié (${dinero(s.totalConIva)}); no se resta otra vez.`
+    ? `su cotización ya trae ${fraseDeSegundaLlantaConCatalogo(s, ahorro.porcentaje, ahorro.monto, ahorro.cantidad)}. `
+      + `Ya está descontado del total que le envié (${dinero(s.totalConIva)}); no se resta otra vez.`
     : `su cotización ya trae ${promo}. Ya está descontado del total que le envié (${dinero(s.totalConIva)}); no se resta otra vez.`;
   const { montos, porcentajes } = cifrasDelCliente(textoDelCliente);
   const porcentajesBuenos = [s.porcentaje, ...(catalogo ? [ahorro.porcentaje] : [])];

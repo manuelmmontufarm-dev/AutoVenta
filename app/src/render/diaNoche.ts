@@ -550,7 +550,7 @@ function panelSegundaLlanta(line: PosterLine, t: Tokens): SatoriNode[] {
         text({ ...ANCHO(900), fontSize: 24, lineHeight: 1, color: TINTA_ORO }, `−${bf.porcentaje}%`),
         el({ flexDirection: "column" },
           text({ ...ANCHO(900), fontSize: 8.5, lineHeight: 1.15, color: TINTA_ORO, whiteSpace: "nowrap" }, "EN TU 2.ª LLANTA"),
-          text({ ...BARLOW(700), fontSize: 9.5, lineHeight: 1.15, color: "#5c430e", whiteSpace: "nowrap" }, `ahorra ${dinero(bf.ahorroConIva)}`),
+          text({ ...BARLOW(700), fontSize: 9.5, lineHeight: 1.15, color: "#5c430e", whiteSpace: "nowrap" }, `ahorra ${dinero(bf.ahorroSobreListaConIva ?? bf.ahorroConIva)}`),
         ),
       ),
     ),
@@ -629,7 +629,12 @@ export function optionsPosterDiaNoche(data: OptionsDiaNocheData, modo: ModoPieza
             renglon(todas3x4 ? "4 LLANTAS POR" : iguales ? "DESCUENTO" : "HASTA"),
             renglon(todas3x4 ? "EL PRECIO DE 3" : iguales ? "HOY" : "DE DESCUENTO"),
             text({ ...BARLOW(700), fontSize: 10, color: "#5c430e", marginTop: 2 },
-              iguales ? (opciones === 1 ? "en esta opción" : `en las ${opciones} opciones`) : "según la opción"),
+              // Con Black Friday, Falken/Kenda ya no llevan el −25 % (lo reemplaza
+              // el 60 %): la insignia nombra las marcas que sí lo llevan.
+              lines.some((l) => l.vitrinaSegundaLlanta) && pcts.length < opciones
+                ? `en ${[...new Set(lines.filter((l) => porcentaje(l) !== null).map((l) => l.brand.trim()))]
+                    .map((m) => m.charAt(0).toUpperCase() + m.slice(1).toLowerCase()).join(" y ")}`
+                : iguales ? (opciones === 1 ? "en esta opción" : `en las ${opciones} opciones`) : "según la opción"),
           ),
         );
       })()
@@ -789,8 +794,10 @@ export function optionsPosterDiaNoche(data: OptionsDiaNocheData, modo: ModoPieza
                 boxShadow: "0 4px 12px rgba(185,138,30,0.35)",
               },
                 text({ ...ANCHO(900), fontSize: 11, color: TINTA_ORO }, es3x4(line) ? "4x3" : `−${pct}%`),
+                // Con Black Friday el −25 % es solo de las impares: las pares
+                // llevan el −60 % sobre la lista y lo dice su propio sello.
                 text({ ...BARLOW(700), fontSize: 10, color: TINTA_ORO, whiteSpace: "nowrap" },
-                  `· ahorra ${dinero((line.pvpConIva - line.unitConIva) * n)}`),
+                  `· ahorra ${dinero((line.pvpConIva - line.unitConIva) * (bf ? n - bf.unidades : n))}`),
               ),
             )
           : null,
@@ -807,7 +814,7 @@ export function optionsPosterDiaNoche(data: OptionsDiaNocheData, modo: ModoPieza
               text({ ...ANCHO(900), fontSize: 10, lineHeight: 1, color: ORO }, `−${line.vitrinaSegundaLlanta.porcentaje}%`),
               text({ ...BARLOW(700), fontSize: 8.5, lineHeight: 1, color: "#ffffff", whiteSpace: "nowrap" },
                 bf
-                  ? `en tu 2.ª llanta · ahorra ${dinero(bf.ahorroConIva)}`
+                  ? `en tu 2.ª llanta · ahorra ${dinero(bf.ahorroSobreListaConIva ?? bf.ahorroConIva)}`
                   : textoVitrinaSegundaLlanta(line.vitrinaSegundaLlanta)),
             )
           : null,
@@ -853,7 +860,12 @@ export function optionsPosterDiaNoche(data: OptionsDiaNocheData, modo: ModoPieza
       ),
     ),
     text({ ...ARCHIVO, fontSize: 30, lineHeight: 1, letterSpacing: -0.2, marginTop: 20, color: t.txt, whiteSpace: "nowrap" }, titulo),
-    el({ justifyContent: "space-between", alignItems: "center", marginTop: 4, gap: 16 }, bajada, insigniaBF ?? insignia),
+    el({ justifyContent: "space-between", alignItems: "center", marginTop: 4, gap: 16 }, bajada,
+      // Con marcas mezcladas van las dos: las de la promo llevan el −60 % y
+      // las demás (Winrun…) siguen con su −25 % de siempre (Manuel, 6-nov).
+      insigniaBF && insignia && conBF.length < opciones
+        ? el({ flexDirection: "column", alignItems: "flex-end", gap: 10 }, insigniaBF, insignia)
+        : insigniaBF ?? insignia),
     el({ flexDirection: "column", gap: 13, marginTop: 20 }, ...lines.map(tarjeta)),
     hayEquivalentes
       ? el({

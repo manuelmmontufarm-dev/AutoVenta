@@ -70,6 +70,64 @@ las mismas 3 que ya fallaban en `main` (Black Friday / hashes de piezas), ningun
 
 **Horas:** 2
 
+## 6-nov-2026 · Black Friday: en Falken/Kenda el 60 % REEMPLAZA el −25 %
+
+**Qué:** Manuel: «el 60 % en las llantas pares Kenda y Falken REEMPLAZA el 25 % que había».
+Confirmado con él: lista $100 (hoy $75) → 4 llantas = 2 × $100 + 2 × $40 = **$280**. Las
+impares van a precio de LISTA, sin el −25 %; las pares a lista × 0,4. Winrun y las demás marcas
+siguen con su −25 % (4 × $75 = $300). Regla nuestra, avisada a Manuel: si la promo saliera más
+cara que el −25 % (pasa con cantidades impares: 3 llantas = $240 contra $225) no se aplica y la
+línea va como siempre; nadie paga más por la promo.
+
+**Cómo:** `segundaLlantaDe` devuelve `precioNormalConIva` = lista y `ahorroConIva` = (lista −
+par) × pares, y null si el total no baja de cantidad × precio de hoy. `generar_cotizacion` firma
+la línea con Black Friday a LISTA (`unitPrice`, `salePriceWithTax`) y guarda el precio de hoy en
+`precioSinPromoConIva`: así la pieza, el PDF, el texto y el ahorro ven una línea sin rebaja de
+catálogo y con la promo (sin «antes», sin −25 %), y un reenvío sin promo (diciembre) vuelve al
+precio de hoy y no se queda en la lista. La tarjeta de opciones va a lista igual; la insignia
+dorada nombra las marcas que siguen con el −25 % («en Winrun»). Al elegir por número no se dice
+un precio por llanta en Falken/Kenda (lo dice la cotización). Los hechos del vendedor y del
+guardián dicen que el 60 % reemplaza el descuento del catálogo.
+
+**Probado:** pruebas de Black Friday re-escritas (280 / 120 / 3 llantas = 225 sin promo / reenvío
+de diciembre con el descuento del asesor = 220). `npm test`: fallan las 2 de siempre (y una de
+integración que comparte la base y pasa sola). Cuatro de CLAUDE.md pasan. PDFs en
+`docs/black-friday/`.
+
+## 6-nov-2026 · Black Friday: las Winrun (y toda marca fuera de la promo) siguen con su −25 %
+
+**Qué:** Manuel: «las Winrun mantienen su 25 % de descuento, eso también hay que mantener en
+el PDF». La cuenta ya lo hacía (Winrun no lleva `segundaLlanta`: cotiza a precio de hoy, −25 %,
+igual que siempre), pero la lámina de opciones mezclada reemplazaba la insignia dorada «−25%
+DESCUENTO HOY» por la negra del Black Friday. Ahora, si en la lámina hay marcas en la promo y
+marcas fuera, van las dos insignias (la negra «−60% en Falken y Kenda» y la dorada «−25%»). El
+hecho del vendedor dice que las otras marcas siguen con su descuento de siempre.
+
+**Probado:** PDFs de muestra en `docs/black-friday/` (opciones 205/55R16 con Falken + Kenda +
+Winrun, cotización de 4 Winrun, cotización de 4 Kenda KR601 y opciones 235/75R15). `npm test`:
+fallan solo las 2 de siempre.
+
+## 6-nov-2026 · Black Friday: el 60 % de las pares es sobre la LISTA, no encima del −25 %
+
+**Qué:** Manuel, 6-nov: «estás aplicando el 25 % Y el 60 en cada llanta par. Es solo el 60 %
+en cada llanta par». Corrige la regla del 5-nov (que tomaba el precio de hoy como base). Ahora
+las impares pagan el precio de hoy (con el −25 % del catálogo) y las pares el precio de LISTA ×
+0,4. Lista $100, hoy $75: 2 × $75 + 2 × $40 = **$230** (antes salía $210). Ahorro total $170
+contra $400 de lista.
+
+**Cómo:** `segundaLlantaDe` recibe `{ hoyConIva, listaConIva }` (un número suelto = sin lista,
+la base es el de hoy) y nunca deja una par más cara que el precio de hoy. Los cinco que la
+llaman pasan la lista que ya tenían (`antesConIva`, `customerPriceWithTax`, `pvpConIva`,
+`listPriceWithTax`). Nuevo `ahorroSobreListaConIva` = (lista − par) × pares: es el que dicen los
+sellos «−60 %» de la cotización y de las opciones; el «−25 %» de la tarjeta de opciones cuenta
+solo las impares. La frase al cliente ya no apila: «2 a *$75.00* con el *25 %* y 2 a *$40.00*
+con el *60 %* — en total *$170.00* menos». Los hechos del vendedor y del guardián dicen «sobre
+el precio de LISTA (solo el 60 %, no encima del descuento del catálogo)».
+
+**Probado:** `test/promocionDeTemporada.test.ts` (lista/hoy, sin lista, tope), las pruebas de
+Black Friday re-escritas con la regla nueva (230/190/170), muestras de cotización y opciones.
+`npm test`: 3345 pasan, fallan las 2 de siempre. Cuatro de CLAUDE.md pasan (el humo falla
+cuando arranca justo después de otro simulador: el bot anterior todavía tiene el :3205).
 ## 6-nov-2026 · Canary: el cruce culpa al vendedor 5.4 → fase III «solo Guardián»
 
 **Qué:** el cruce del 2-nov mostró que la caída de cotizaciones seguía al modelo y no a los

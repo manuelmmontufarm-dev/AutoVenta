@@ -139,6 +139,23 @@ export function fraseDeSegundaLlanta(s: SegundaLlanta, cantidad?: number | null)
     + `*$${s.ahorroConIva.toFixed(2)}* menos`;
 }
 
+/**
+ * Con la rebaja del catálogo: cada llanta con SU descuento, sin apilarlos
+ * (6-nov, Manuel: «es solo el 60 % en cada llanta par»). «*Black Friday*: 60 %
+ * menos en su 2.ª y 4.ª llanta — 2 a *$75.00* con el *25 %* y 2 a *$40.00* con
+ * el *60 %* — en total *$170.00* menos».
+ */
+export function fraseDeSegundaLlantaConCatalogo(
+  s: SegundaLlanta,
+  porcentajeCatalogo: number,
+  ahorroTotal: number,
+  cantidad?: number | null,
+): string {
+  return `*${s.nombre}*: ${s.porcentaje} % menos en su ${paresEnPalabras(s.unidades)} llanta — `
+    + `${normalesDe(s, cantidad)} a *$${s.precioNormalConIva.toFixed(2)}* con el *${porcentajeCatalogo} %* `
+    + `y ${s.unidades} a *$${s.precioConIva.toFixed(2)}* con el *${s.porcentaje} %* — en total *$${ahorroTotal.toFixed(2)}* menos`;
+}
+
 /** Lo que `hechoDelAhorro` necesita de `AhorroDeLaCotizacion` (sin importar el módulo, para no hacer un ciclo). */
 interface AhorroParaElHecho {
   porcentaje: number;
@@ -169,7 +186,7 @@ function hechoDeSegundaLlanta(ahorro: AhorroParaElHecho, s: SegundaLlanta): stri
       ? `${ahorro.porcentaje} % menos que el precio de lista: $${ahorro.porLlanta.toFixed(2)} por llanta y $${catalogo.toFixed(2)} en toda la compra `
         + `(precio por llanta con el descuento: $${ahorro.precioConDescuento.toFixed(2)}, antes $${ahorro.precioAntes.toFixed(2)}). Además, `
       : "")
-    + `promoción ${s.nombre}: ${s.porcentaje} % menos en la ${paresEnPalabras(s.unidades)} llanta sobre el precio de hoy — `
+    + `promoción ${s.nombre}: ${s.porcentaje} % menos en la ${paresEnPalabras(s.unidades)} llanta sobre el precio de LISTA (reemplaza el descuento del catálogo: las impares van a precio de lista) — `
     + `${normales} × $${s.precioNormalConIva.toFixed(2)} + ${s.unidades} × $${s.precioConIva.toFixed(2)} = $${s.totalConIva.toFixed(2)}; `
     + `cada llanta par cuesta $${s.precioConIva.toFixed(2)} ($${porPar.toFixed(2)} menos) y la promo ahorra $${s.ahorroConIva.toFixed(2)}. `
     + `Ahorro total de la compra: $${ahorro.monto.toFixed(2)}. Total a pagar de esas llantas: $${s.totalConIva.toFixed(2)}. `

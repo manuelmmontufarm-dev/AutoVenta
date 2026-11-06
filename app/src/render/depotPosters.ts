@@ -566,7 +566,7 @@ function precioSegundaLlanta(line: PosterLine, bf: SegundaLlanta, theme: Theme):
             text({ fontSize: 40, color: p.darkSub, textDecoration: "line-through" }, money(line.pvpConIva)),
           )
         : null,
-      segundaLlantaBadge(bf.porcentaje, `ahorras ${money(bf.ahorroConIva)}`, price),
+      segundaLlantaBadge(bf.porcentaje, `ahorras ${money(bf.ahorroSobreListaConIva ?? bf.ahorroConIva)}`, price),
     ),
   );
 }

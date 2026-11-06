@@ -140,6 +140,11 @@ function toPosterLine(
   const promo = politica.promocionDeTemporada;
   const conVitrina = Boolean(vitrina) && promo?.segundaLlanta
     && marcaConSegundaLlanta(promo, line.brand, vitrina?.ahora ?? new Date());
+  // El juego con las pares rebajadas: la misma cuenta que firmará la cotización.
+  const cuenta = conVitrina && vitrina?.cantidad
+    ? segundaLlantaDe(promo, line.brand, vitrina.cantidad,
+        { hoyConIva: line.unitConIva, listaConIva: line.pvpConIva }, vitrina.ahora ?? new Date())
+    : null;
   return {
     // Solo viaja si no es el de siempre: en porcentaje la línea queda igual que antes.
     ...(modo === "porcentaje" ? {} : { promocion: modo }),
@@ -150,10 +155,7 @@ function toPosterLine(
           vitrinaSegundaLlanta: {
             porcentaje: promo!.segundaLlanta!.porcentaje,
             nombre: promo!.nombre,
-            // El juego con las pares rebajadas: la misma cuenta que firmará la cotización.
-            cuenta: vitrina?.cantidad
-              ? segundaLlantaDe(promo, line.brand, vitrina.cantidad, line.unitConIva, vitrina.ahora ?? new Date())
-              : null,
+            cuenta,
           },
         }
       : {}),
@@ -163,7 +165,9 @@ function toPosterLine(
     loadSpeedLabel: line.loadSpeedLabel,
     loadSpeedTranslation: line.loadSpeedTranslation,
     quantity: line.quantity,
-    unitConIva: line.unitConIva,
+    // Con Black Friday el 60 % reemplaza al −25 %: la tarjeta va a precio de
+    // lista (las impares) y no lleva el sello del catálogo.
+    unitConIva: cuenta ? cuenta.precioNormalConIva : line.unitConIva,
     pvpConIva: line.pvpConIva,
     availability: line.availability,
     golpesMeses: line.golpesMeses,

@@ -7,10 +7,13 @@
  * solo hace las cuentas, para que la cotización, la pieza, el PDF, el texto,
  * el vendedor y el guardián digan exactamente la misma cifra.
  *
- * LA REGLA DE LAS LLANTAS (Manuel, 5-nov): las llantas PARES de la cotización
- * —la 2.ª, la 4.ª…— llevan el 60 % menos sobre el precio de HOY (el que el bot
- * ya cotiza, con la rebaja del catálogo adentro). 4 llantas a $75 = 2 × $75 +
- * 2 × $30 = $210. Solo Falken y Kenda; una sola llanta no lleva nada.
+ * LA REGLA DE LAS LLANTAS (Manuel, 6-nov, corrige la del 5-nov): en Falken y
+ * Kenda el 60 % de las llantas PARES —la 2.ª, la 4.ª…— REEMPLAZA el −25 % del
+ * catálogo: las pares van al precio de LISTA × 0,4 y las impares al precio de
+ * LISTA, sin rebaja. Lista $100 (hoy $75): 2 × $100 + 2 × $40 = $280. Las otras
+ * marcas siguen con su −25 % (4 × $75 = $300). Una sola llanta no lleva nada, y
+ * si la promo saliera más cara que el −25 % (3 llantas: $240 contra $225) no se
+ * aplica: nadie paga más por la promo. Sin precio de lista, la base es el de hoy.
  *
  * Puro: sin base, sin catálogo. `ahora` entra por parámetro para las pruebas.
  */
@@ -71,12 +74,17 @@ export interface SegundaLlanta {
   porcentaje: number;
   /** Cuántas llantas lo llevan: floor(cantidad / 2). */
   unidades: number;
-  /** El precio de hoy por llanta, con IVA: el que pagan las impares. */
+  /** El precio de LISTA por llanta, con IVA: el que pagan las impares (sin el −25 %). */
   precioNormalConIva: number;
-  /** El precio de cada llanta par, con IVA: precio de hoy × (1 − 60 %). */
+  /** El precio de cada llanta par, con IVA: precio de LISTA × (1 − 60 %). */
   precioConIva: number;
-  /** Lo que se ahorra en toda la compra por esta promo, con IVA. */
+  /** Lo que la promo ahorra contra la lista: (lista − par) × pares, con IVA. */
   ahorroConIva: number;
+  /**
+   * Igual a `ahorroConIva` desde que el 60 % reemplaza al −25 %. Queda por las
+   * piezas que lo leen; las cotizaciones guardadas antes no lo traen.
+   */
+  ahorroSobreListaConIva?: number;
   /** El total de la línea con IVA: impares a precio normal + pares rebajadas. */
   totalConIva: number;
   /** «Black Friday»: para el rótulo. */
@@ -93,31 +101,46 @@ export function marcaConSegundaLlanta(
   return promo.segundaLlanta.marcas.includes(marca.trim().toUpperCase());
 }
 
+/** Los dos precios de la llanta: el de hoy (impares) y el de lista (base del 60 %). */
+export interface PreciosDeLaLlanta {
+  hoyConIva: number;
+  /** El PVP sin la rebaja del catálogo. Null o menor que el de hoy = el de hoy. */
+  listaConIva?: number | null;
+}
+
 /**
  * La promo de la 2.ª llanta para esta línea, o null si no aplica (otra marca,
- * una sola llanta, fuera de fechas o sin precio).
+ * una sola llanta, fuera de fechas o sin precio). Un número suelto es el
+ * precio de hoy sin lista conocida.
  */
 export function segundaLlantaDe(
   promo: PromocionDeTemporada | null | undefined,
   marca: string | null | undefined,
   cantidad: number,
-  precioHoyConIva: number,
+  precios: number | PreciosDeLaLlanta,
   ahora: Date = new Date(),
 ): SegundaLlanta | null {
   if (!marcaConSegundaLlanta(promo, marca, ahora)) return null;
+  const { hoyConIva: precioHoyConIva, listaConIva } = typeof precios === "number" ? { hoyConIva: precios } : precios;
   const n = Math.max(0, Math.round(cantidad));
   const unidades = Math.floor(n / 2);
   if (unidades < 1 || !(precioHoyConIva > 0)) return null;
   const porcentaje = promo!.segundaLlanta!.porcentaje;
-  const precioConIva = round2(precioHoyConIva * (1 - porcentaje / 100));
-  const ahorroConIva = round2((precioHoyConIva - precioConIva) * unidades);
-  const totalConIva = round2((n - unidades) * precioHoyConIva + unidades * precioConIva);
+  const base = round2(listaConIva && listaConIva > precioHoyConIva ? listaConIva : precioHoyConIva);
+  const precioConIva = round2(base * (1 - porcentaje / 100));
+  const totalConIva = round2((n - unidades) * base + unidades * precioConIva);
+  // Nadie paga más por la promo: si el −25 % de siempre sale igual o más
+  // barato (pasa con cantidades impares), la línea va como siempre.
+  if (totalConIva >= round2(n * precioHoyConIva)) return null;
+  const ahorroConIva = round2((base - precioConIva) * unidades);
+  const ahorroSobreListaConIva = ahorroConIva;
   return {
     porcentaje,
     unidades,
-    precioNormalConIva: round2(precioHoyConIva),
+    precioNormalConIva: base,
     precioConIva,
     ahorroConIva,
+    ahorroSobreListaConIva,
     totalConIva,
     nombre: promo!.nombre,
   };

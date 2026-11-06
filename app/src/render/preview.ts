@@ -115,7 +115,10 @@ export async function renderPreviewPiece(options: PreviewOptions): Promise<Buffe
   const producto = productos[0];
   const cantidad = 4;
   const linea = await toRenderLine(producto, cantidad);
-  linea.segundaLlanta = segundaLlantaDe(politica.promocionDeTemporada, producto.brand, cantidad, producto.minimumPriceWithTax);
+  linea.segundaLlanta = segundaLlantaDe(politica.promocionDeTemporada, producto.brand, cantidad,
+    { hoyConIva: producto.minimumPriceWithTax, listaConIva: producto.customerPriceWithTax });
+  // Como la cotización real: con Black Friday la línea va a precio de lista.
+  if (linea.segundaLlanta) linea.unitConIva = linea.segundaLlanta.precioNormalConIva;
   const total = linea.segundaLlanta?.totalConIva ?? producto.minimumPriceWithTax * cantidad;
   return renderQuoteImage({
     number: "COT-EJEMPLO",

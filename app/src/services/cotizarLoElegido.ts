@@ -29,6 +29,8 @@ import {
   cantidadDelTexto, escalonContestado, esReferenciaPluralAlMenu, pideVariasOpciones,
 } from "../domain/salesIntent.js";
 import { confirmacionDeLaOpcion, opcionPorPosicion, posicionElegida } from "../domain/listaDeOpciones.js";
+import { marcaConSegundaLlanta } from "../domain/promocionDeTemporada.js";
+import { politica } from "../negocio/politica.js";
 import { findByCode } from "./catalog.js";
 import { buildStoreLinksBlockOnce } from "./storeLinks.js";
 import { preguntamosElLocal } from "../domain/storeSelection.js";
@@ -356,7 +358,9 @@ export async function tryCotizarLoElegido(ctx: CotizarLoElegidoContext, texto: s
   const mapas = sinVisita || preguntamosElLocal(ctx.previousOutbound) ? "" : await buildStoreLinksBlockOnce(ctx.conversation.id);
   return composeBlocks(
     elegido.posicion
-      ? confirmacionDeLaOpcion(elegido.posicion, `${producto.brand} ${producto.design}`, producto.minimumPriceWithTax)
+      // Con Black Friday no hay UN precio por llanta: lo dice la cotización.
+      ? confirmacionDeLaOpcion(elegido.posicion, `${producto.brand} ${producto.design}`,
+          marcaConSegundaLlanta(politica.promocionDeTemporada, producto.brand) ? null : producto.minimumPriceWithTax)
       : elegido.etiqueta
       ? `La opción ${elegido.etiqueta} es la *${producto.brand} ${producto.design}*${precio}. Le dejo la cotización 👍`
       : `Listo, le cotizo la *${producto.brand} ${producto.design}*${precio} 👍`,
