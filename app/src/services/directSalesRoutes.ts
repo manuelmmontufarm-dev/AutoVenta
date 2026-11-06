@@ -55,7 +55,8 @@ export function reenvioConPromoDeHoy(
 ): { segundaLlanta: SegundaLlanta | null; subtotal: number; tax: number; total: number } {
   const quantity = Math.max(1, Number(stored.quantity ?? 1));
   const precio = Number(stored.salePriceWithTax ?? 0);
-  const segundaLlanta = segundaLlantaDe(politica.promocionDeTemporada, stored.brand, quantity, precio, ahora);
+  const segundaLlanta = segundaLlantaDe(politica.promocionDeTemporada, stored.brand, quantity,
+    { hoyConIva: precio, listaConIva: Number(stored.listPriceWithTax ?? 0) || null }, ahora);
   const lineaDe = (s: SegundaLlanta | null | undefined) => s?.totalConIva ?? round2(quantity * precio);
   const antes = lineaDe(stored.segundaLlanta);
   const ahoraLinea = lineaDe(segundaLlanta);

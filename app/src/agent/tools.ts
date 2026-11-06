@@ -2290,8 +2290,9 @@ export function buildTools(ctx: AgentContext) {
       // Black Friday: el juego de cada opción con las pares al −60 % (null si
       // la marca no entra o la promo está cerrada para este chat). La lámina,
       // la lista escrita y lo guardado para el guardián dicen esta misma cifra.
-      const segundaDeOpcion = (p: { brand: string; minimumPriceWithTax: number }) =>
-        segundaLlantaDe(politica.promocionDeTemporada, p.brand, cantidadResuelta.cantidad, p.minimumPriceWithTax);
+      const segundaDeOpcion = (p: { brand: string; minimumPriceWithTax: number; customerPriceWithTax: number }) =>
+        segundaLlantaDe(politica.promocionDeTemporada, p.brand, cantidadResuelta.cantidad,
+          { hoyConIva: p.minimumPriceWithTax, listaConIva: p.customerPriceWithTax });
       const escalones = escalonesDeOpciones(
         products.map((p) => ({
           codigo: p.code,
@@ -3411,9 +3412,11 @@ export function buildTools(ctx: AgentContext) {
           warrantyFactory: warrantyForBrand(product.brand).factory,
           warrantyRoadHazard: warrantyForBrand(product.brand).roadHazard,
           // Black Friday (nov-2026): las pares Falken/Kenda con el 60 % sobre
-          // el precio de HOY. La cuenta es de `domain/promocionDeTemporada.ts`;
-          // null fuera de fechas, con otra marca o con una sola llanta.
-          segundaLlanta: segundaLlantaDe(politica.promocionDeTemporada, product.brand, item.cantidad, hoyConIva),
+          // el precio de LISTA (solo el 60 %, no encima del −25 %). La cuenta es
+          // de `domain/promocionDeTemporada.ts`; null fuera de fechas, con otra
+          // marca o con una sola llanta.
+          segundaLlanta: segundaLlantaDe(politica.promocionDeTemporada, product.brand, item.cantidad,
+            { hoyConIva, listaConIva: antesConIva }),
         });
       }
       const baseQuote = buildQuote(lines, nombre_cliente, ctx.customerPhone);

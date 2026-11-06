@@ -90,7 +90,8 @@ export interface PromocionDeTemporada {
   hasta: string;
   /**
    * Las llantas pares (2.ª, 4.ª…) de la cotización con `porcentaje` % menos
-   * sobre el precio de HOY (el que ya cotiza el bot), solo de estas marcas
+   * sobre el precio de LISTA (solo el 60 %, no encima del −25 % del catálogo; las
+   * impares pagan el de hoy), solo de estas marcas
    * (en mayúsculas, como `CatalogItem.brand`).
    */
   segundaLlanta: { porcentaje: number; marcas: string[] } | null;

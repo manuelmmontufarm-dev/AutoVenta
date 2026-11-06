@@ -550,7 +550,7 @@ function panelSegundaLlanta(line: PosterLine, t: Tokens): SatoriNode[] {
         text({ ...ANCHO(900), fontSize: 24, lineHeight: 1, color: TINTA_ORO }, `−${bf.porcentaje}%`),
         el({ flexDirection: "column" },
           text({ ...ANCHO(900), fontSize: 8.5, lineHeight: 1.15, color: TINTA_ORO, whiteSpace: "nowrap" }, "EN TU 2.ª LLANTA"),
-          text({ ...BARLOW(700), fontSize: 9.5, lineHeight: 1.15, color: "#5c430e", whiteSpace: "nowrap" }, `ahorra ${dinero(bf.ahorroConIva)}`),
+          text({ ...BARLOW(700), fontSize: 9.5, lineHeight: 1.15, color: "#5c430e", whiteSpace: "nowrap" }, `ahorra ${dinero(bf.ahorroSobreListaConIva ?? bf.ahorroConIva)}`),
         ),
       ),
     ),
@@ -789,8 +789,10 @@ export function optionsPosterDiaNoche(data: OptionsDiaNocheData, modo: ModoPieza
                 boxShadow: "0 4px 12px rgba(185,138,30,0.35)",
               },
                 text({ ...ANCHO(900), fontSize: 11, color: TINTA_ORO }, es3x4(line) ? "4x3" : `−${pct}%`),
+                // Con Black Friday el −25 % es solo de las impares: las pares
+                // llevan el −60 % sobre la lista y lo dice su propio sello.
                 text({ ...BARLOW(700), fontSize: 10, color: TINTA_ORO, whiteSpace: "nowrap" },
-                  `· ahorra ${dinero((line.pvpConIva - line.unitConIva) * n)}`),
+                  `· ahorra ${dinero((line.pvpConIva - line.unitConIva) * (bf ? n - bf.unidades : n))}`),
               ),
             )
           : null,
@@ -807,7 +809,7 @@ export function optionsPosterDiaNoche(data: OptionsDiaNocheData, modo: ModoPieza
               text({ ...ANCHO(900), fontSize: 10, lineHeight: 1, color: ORO }, `−${line.vitrinaSegundaLlanta.porcentaje}%`),
               text({ ...BARLOW(700), fontSize: 8.5, lineHeight: 1, color: "#ffffff", whiteSpace: "nowrap" },
                 bf
-                  ? `en tu 2.ª llanta · ahorra ${dinero(bf.ahorroConIva)}`
+                  ? `en tu 2.ª llanta · ahorra ${dinero(bf.ahorroSobreListaConIva ?? bf.ahorroConIva)}`
                   : textoVitrinaSegundaLlanta(line.vitrinaSegundaLlanta)),
             )
           : null,

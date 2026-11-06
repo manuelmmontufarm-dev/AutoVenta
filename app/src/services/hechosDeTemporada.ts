@@ -85,7 +85,7 @@ function lineasDeLaPromo(
   if (promo.segundaLlanta) {
     const marcas = unidos(promo.segundaLlanta.marcas.map(marcaEnPalabras), "y");
     lineas.push(
-      `- Llantas: ${promo.segundaLlanta.porcentaje} % de descuento en la SEGUNDA llanta sobre el precio de hoy — `
+      `- Llantas: ${promo.segundaLlanta.porcentaje} % de descuento en la SEGUNDA llanta sobre el precio de LISTA (solo ese ${promo.segundaLlanta.porcentaje} %, NO encima del descuento del catálogo) — `
       + `cada llanta par de la cotización (la 2.ª y la 4.ª de un juego de 4 llantas; las impares van a precio de hoy). `
       + `SOLO marcas ${marcas}; cualquier otra marca NO lo lleva. Una sola llanta no lleva nada. `
       + `NO es el ${promo.segundaLlanta.porcentaje} % en todas las llantas.`,

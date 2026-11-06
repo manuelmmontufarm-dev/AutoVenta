@@ -152,7 +152,8 @@ function toPosterLine(
             nombre: promo!.nombre,
             // El juego con las pares rebajadas: la misma cuenta que firmará la cotización.
             cuenta: vitrina?.cantidad
-              ? segundaLlantaDe(promo, line.brand, vitrina.cantidad, line.unitConIva, vitrina.ahora ?? new Date())
+              ? segundaLlantaDe(promo, line.brand, vitrina.cantidad,
+                { hoyConIva: line.unitConIva, listaConIva: line.pvpConIva }, vitrina.ahora ?? new Date())
               : null,
           },
         }

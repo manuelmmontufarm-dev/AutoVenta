@@ -5,7 +5,8 @@ import type { CatalogItem } from "../src/domain/catalog.js";
 /**
  * BLACK FRIDAY: `generar_cotizacion` de punta a punta (sprint 1, 5-nov-2026).
  *
- * 4 × FALKEN a $75 hoy ($100 antes) → 2 × $75 + 2 × $30 = $210. Lo que se
+ * 4 × FALKEN a $75 hoy ($100 de lista) → 2 × $75 + 2 × $40 = $230 (6-nov: el 60 % es
+ * sobre la lista, no encima del −25 %). Lo que se
  * afirma vive en la base y en lo que la herramienta le pasa a la pieza: el
  * total firmado, la promo guardada dentro de `items`, la pieza que la recibe,
  * y el texto que va al cliente. Y que el 1-dic se apaga sola, también al
@@ -130,7 +131,7 @@ afterAll(async () => {
 });
 
 describe.sequential("generar_cotizacion con el Black Friday", () => {
-  it("4 × FALKEN a $75: firma $210, guarda la promo y se la pasa a la pieza", async () => {
+  it("4 × FALKEN a $75 ($100 de lista): firma $230, guarda la promo y se la pasa a la pieza", async () => {
     enNoviembre();
     catalogo = [llanta("FALKEN")];
     const { fila, phone } = await conversacion();
@@ -138,23 +139,23 @@ describe.sequential("generar_cotizacion con el Black Friday", () => {
     const salida = await cotizar(fila, phone, "C-FALKEN", 4);
 
     expect(salida.enviada).toBe(true);
-    expect(salida.total_con_iva).toBe(210);
+    expect(salida.total_con_iva).toBe(230);
     const [q] = await guardadas(fila.id);
-    expect(Number(q.total)).toBe(210);
-    expect(Math.round((Number(q.subtotal) + Number(q.tax)) * 100)).toBe(21000);
-    expect(q.items[0].segundaLlanta).toMatchObject({ porcentaje: 60, unidades: 2, precioConIva: 30, ahorroConIva: 90, totalConIva: 210 });
+    expect(Number(q.total)).toBe(230);
+    expect(Math.round((Number(q.subtotal) + Number(q.tax)) * 100)).toBe(23000);
+    expect(q.items[0].segundaLlanta).toMatchObject({ porcentaje: 60, unidades: 2, precioConIva: 40, ahorroConIva: 70, totalConIva: 230 });
     // La pieza recibe la promo en la línea y el total con ella.
-    expect(piezas[0].lines[0].segundaLlanta).toMatchObject({ precioConIva: 30, totalConIva: 210 });
-    expect(piezas[0].total).toBe(210);
+    expect(piezas[0].lines[0].segundaLlanta).toMatchObject({ precioConIva: 40, totalConIva: 230 });
+    expect(piezas[0].total).toBe(230);
     // El ahorro que leen la ruta directa y el guardián sale de esos items.
     const ahorro = await ahorroVigente(fila.id, fila.current_cycle);
-    expect(ahorro?.monto).toBe(190);
-    expect(ahorro?.segundaLlanta?.ahorroConIva).toBe(90);
+    expect(ahorro?.monto).toBe(170);
+    expect(ahorro?.segundaLlanta?.ahorroConIva).toBe(70);
     // Lo que la pieza muestra, para la traba del guardián.
     const [msg] = await sql<{ metadata: { preciosMostrados: number[] } }[]>`
       select metadata from messages where conversation_id=${fila.id} and metadata->>'piece'='quote'
     `;
-    expect(msg.metadata.preciosMostrados).toEqual(expect.arrayContaining([75, 30, 90, 210]));
+    expect(msg.metadata.preciosMostrados).toEqual(expect.arrayContaining([75, 40, 70, 230]));
     console.log(`\n=== TEXTO AL CLIENTE (4 × FALKEN a $75, sin local) ===\n${salida.mensaje_para_enviar}\n`);
   });
 
@@ -166,8 +167,8 @@ describe.sequential("generar_cotizacion con el Black Friday", () => {
     const salida = await cotizar(fila, phone, "C-FALKEN", 4);
 
     expect(salida.mensaje_para_enviar).toContain(
-      "*Black Friday*: 60 % menos en su 2.ª y 4.ª llanta — 2 a *$75.00* y 2 a *$30.00*, *$90.00* menos, "
-      + "además del *25 %* de descuento ya aplicado — en total *$190.00* menos",
+      "*Black Friday*: 60 % menos en su 2.ª y 4.ª llanta — 2 a *$75.00* con el *25 %* "
+      + "y 2 a *$40.00* con el *60 %* — en total *$170.00* menos",
     );
     console.log(`\n=== TEXTO AL CLIENTE (4 × FALKEN a $75, local elegido) ===\n${salida.mensaje_para_enviar}\n`);
   });
@@ -196,7 +197,7 @@ describe.sequential("generar_cotizacion con el Black Friday", () => {
     expect((await guardadas(fila.id))[0].items[0].segundaLlanta).toBeNull();
   });
 
-  it("recotizar de 4 a 3 en noviembre rehace la promo: 2 × $75 + 1 × $30 = $180", async () => {
+  it("recotizar de 4 a 3 en noviembre rehace la promo: 2 × $75 + 1 × $40 = $190", async () => {
     enNoviembre();
     catalogo = [llanta("KENDA")];
     const { fila, phone } = await conversacion();
@@ -209,8 +210,8 @@ describe.sequential("generar_cotizacion con el Black Friday", () => {
 
     expect(reply).toContain("se la ajusté a 3");
     const [, nueva] = await guardadas(fila.id);
-    expect(Number(nueva.total)).toBe(180);
-    expect(nueva.items[0].segundaLlanta).toMatchObject({ unidades: 1, totalConIva: 180 });
+    expect(Number(nueva.total)).toBe(190);
+    expect(nueva.items[0].segundaLlanta).toMatchObject({ unidades: 1, totalConIva: 190 });
   });
 
   it("recotizar el 1-dic una cotización de noviembre la deja sin promo", async () => {

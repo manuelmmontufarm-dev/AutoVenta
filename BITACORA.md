@@ -1,3 +1,25 @@
+## 6-nov-2026 · Black Friday: el 60 % de las pares es sobre la LISTA, no encima del −25 %
+
+**Qué:** Manuel, 6-nov: «estás aplicando el 25 % Y el 60 en cada llanta par. Es solo el 60 %
+en cada llanta par». Corrige la regla del 5-nov (que tomaba el precio de hoy como base). Ahora
+las impares pagan el precio de hoy (con el −25 % del catálogo) y las pares el precio de LISTA ×
+0,4. Lista $100, hoy $75: 2 × $75 + 2 × $40 = **$230** (antes salía $210). Ahorro total $170
+contra $400 de lista.
+
+**Cómo:** `segundaLlantaDe` recibe `{ hoyConIva, listaConIva }` (un número suelto = sin lista,
+la base es el de hoy) y nunca deja una par más cara que el precio de hoy. Los cinco que la
+llaman pasan la lista que ya tenían (`antesConIva`, `customerPriceWithTax`, `pvpConIva`,
+`listPriceWithTax`). Nuevo `ahorroSobreListaConIva` = (lista − par) × pares: es el que dicen los
+sellos «−60 %» de la cotización y de las opciones; el «−25 %» de la tarjeta de opciones cuenta
+solo las impares. La frase al cliente ya no apila: «2 a *$75.00* con el *25 %* y 2 a *$40.00*
+con el *60 %* — en total *$170.00* menos». Los hechos del vendedor y del guardián dicen «sobre
+el precio de LISTA (solo el 60 %, no encima del descuento del catálogo)».
+
+**Probado:** `test/promocionDeTemporada.test.ts` (lista/hoy, sin lista, tope), las pruebas de
+Black Friday re-escritas con la regla nueva (230/190/170), muestras de cotización y opciones.
+`npm test`: 3345 pasan, fallan las 2 de siempre. Cuatro de CLAUDE.md pasan (el humo falla
+cuando arranca justo después de otro simulador: el bot anterior todavía tiene el :3205).
+
 ## 6-nov-2026 · Black Friday en la lámina de opciones: el juego ya con el 60 %
 
 **Qué:** Manuel probó desde su número (235/75R15: Falken + 2 Kenda) y las opciones «solo

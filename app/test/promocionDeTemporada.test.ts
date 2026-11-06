@@ -50,3 +50,22 @@ describe("promoción de temporada (Black Friday de Depot)", () => {
     expect(xenon).toMatchObject({ pvpConIva: 90.7, precioPromoConIva: 54.42, porcentaje: 40 });
   });
 });
+
+describe("el 60 % es sobre el precio de LISTA, no encima del −25 % (Manuel, 6-nov)", () => {
+  const promo = POLITICA_DEPOT.promocionDeTemporada;
+  const NOV = new Date("2026-11-15T17:00:00Z");
+
+  it("lista $100, hoy $75: 2 × $75 + 2 × $40 = $230", () => {
+    const s = segundaLlantaDe(promo, "FALKEN", 4, { hoyConIva: 75, listaConIva: 100 }, NOV)!;
+    expect(s).toMatchObject({ precioNormalConIva: 75, precioConIva: 40, totalConIva: 230, ahorroConIva: 70 });
+  });
+
+  it("sin lista (o lista menor que hoy) la base es el precio de hoy", () => {
+    expect(segundaLlantaDe(promo, "KENDA", 4, { hoyConIva: 75, listaConIva: null }, NOV)?.precioConIva).toBe(30);
+    expect(segundaLlantaDe(promo, "KENDA", 4, { hoyConIva: 75, listaConIva: 60 }, NOV)?.precioConIva).toBe(30);
+  });
+
+  it("una par nunca sale más cara que el precio de hoy", () => {
+    expect(segundaLlantaDe(promo, "KENDA", 2, { hoyConIva: 30, listaConIva: 100 }, NOV)?.precioConIva).toBe(30);
+  });
+});
