@@ -55,6 +55,8 @@ export const POLITICA_DEPOT: PoliticaComercial = {
     desde: "2026-11-01",
     hasta: "2026-11-30",
     segundaLlanta: { porcentaje: 60, marcas: ["FALKEN", "KENDA"] },
+    // Manuel, 6-nov: «incluye el 25 % en Winrun» en el saludo de temporada.
+    otrasLlantas: { porcentaje: 25, marcas: ["WINRUN"] },
     servicios: {
       porcentaje: 50,
       lista: [

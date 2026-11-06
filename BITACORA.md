@@ -87,6 +87,38 @@ los tres iguales al Precio A del Excel; «7.50R16» dio las tres de tracción. S
 las mismas 3 que ya fallaban en `main` (Black Friday / hashes de piezas), ninguna nueva.
 
 **Horas:** 2
+## 6-nov-2026 · Black Friday: el resumen dice el 25 % de Winrun y la promo se abre a todos
+
+**Qué:** Manuel probó «¿cómo es esa promoción?» y el resumen no nombraba Winrun. Ahora dice
+«60 % de descuento en cada segunda llanta Falken o Kenda, 25 % en todas las Winrun, 50 % en…»
+(`resumenDeLaPromocion`, de `otrasLlantas`). El panel de Ajustes → Piezas se llama «Modo
+promoción · Black Friday». Con esto, Manuel pidió dejarla para todos los chats:
+`temporada_config.modo = "todos"` en producción (se cambia desde ese mismo panel).
+
+**Probado:** `test/hechosDeTemporada.test.ts`; `npm test`: fallan las 2 de siempre.
+
+## 6-nov-2026 · Black Friday: franja grande en las opciones, «en cada 2.ª llanta» y la promo en el saludo
+
+**Qué:** Manuel probó desde su número (235R15). La matemática de la lámina está bien (lista ×
+0,4 en las pares, totales y cuotas al centavo), pero (1) la insignia negra de arriba se salía
+de la lámina y solo se leía «−60%», (2) pidió que diga en grande «promoción Black Friday» y
+que el descuento es en CADA 2.ª llanta, y (3) que el saludo mande un segundo mensaje con la
+promo de la temporada, incluido el 25 % de Winrun.
+
+**Cómo:** la lámina de opciones lleva bajo el título una franja negra a todo el ancho
+«PROMOCIÓN BLACK FRIDAY · TODO NOVIEMBRE / −60% EN CADA 2.ª LLANTA FALKEN Y KENDA / 1.ª y 3.ª
+a precio de lista · 2.ª y 4.ª con el −60% · válido hasta…»; la insignia negra se fue (era la
+que se cortaba: con todas las opciones en la promo no había dorada y la bajada tomaba 560 px).
+La dorada queda solo para las marcas que siguen con su −25 % («en Winrun»). «en tu 2.ª
+llanta» → «en cada 2.ª llanta» en todas las piezas. Nuevo `promocionDeTemporada.otrasLlantas`
+(Depot: Winrun 25 %) para decirlo; `mensajeDeTemporadaParaElSaludo` arma el mensaje y
+`index.ts` lo manda aparte detrás de la presentación (no pasa por el guardián: es texto fijo
+de la política), también con un «hola» pelado, que entonces solo pide la medida. Respeta la
+compuerta de Ajustes: en «pruebas» solo lo recibe el número de prueba.
+
+**Probado:** simulador con el número de Manuel: «Hola» → presentación, promo, pedido de medida;
+«Hola 235 rin 15» → presentación, promo, lámina con la franja y la lista con la cuenta.
+`npm test`: fallan las 2 de siempre. Cuatro de CLAUDE.md pasan.
 
 ## 6-nov-2026 · Black Friday: en Falken/Kenda el 60 % REEMPLAZA el −25 %
 

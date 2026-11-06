@@ -92,6 +92,12 @@ function lineasDeLaPromo(
       + `NO es el ${promo.segundaLlanta.porcentaje} % en todas las llantas.`,
     );
   }
+  if (promo.otrasLlantas?.marcas.length) {
+    lineas.push(
+      `- ${unidos(promo.otrasLlantas.marcas.map(marcaEnPalabras), "y")}: siguen con su ${promo.otrasLlantas.porcentaje} % `
+      + `de descuento de siempre en TODAS sus llantas (no llevan el ${promo.segundaLlanta?.porcentaje ?? ""} % de la 2.ª llanta).`,
+    );
+  }
   const servicios = serviciosEnPromocion(promo, ahora);
   if (servicios.length) {
     const porServicio = nombresDeServicios(promo).map((nombre) => {
@@ -281,9 +287,13 @@ export function resumenDeLaPromocion(opciones: OpcionesDeTemporada = {}): string
   const partes: string[] = [];
   if (promo.segundaLlanta) {
     partes.push(
-      `${promo.segundaLlanta.porcentaje} % de descuento en la segunda llanta `
+      `${promo.segundaLlanta.porcentaje} % de descuento en cada segunda llanta `
       + `${unidos(promo.segundaLlanta.marcas.map(marcaEnPalabras), "o")}`,
     );
+  }
+  // Manuel, 6-nov: «que también diga el 25 % en todas las Winrun».
+  if (promo.otrasLlantas?.marcas.length) {
+    partes.push(`${promo.otrasLlantas.porcentaje} % en todas las ${unidos(promo.otrasLlantas.marcas.map(marcaEnPalabras), "y")}`);
   }
   const servicios = serviciosEnPromocion(promo, ahora);
   if (servicios.length) {
@@ -338,4 +348,32 @@ export function yaSalioElResumenDeLaPromocion(
   if (!promo) return false;
   const huella = `tenemos ${promo.nombre}:`.toLowerCase();
   return mensajesDelBot.some((m) => Boolean(m) && m!.toLowerCase().includes(huella));
+}
+
+/**
+ * EL SEGUNDO MENSAJE DEL SALUDO (Manuel, 6-nov): mientras corre la promo, al
+ * presentarse el bot manda aparte la lista corta de la temporada, «para que se
+ * lea». Sale de los mismos datos que el vendedor y el guardián; null si la promo
+ * no corre (o está cerrada para este chat en Ajustes).
+ */
+export function mensajeDeTemporadaParaElSaludo(opciones: OpcionesDeTemporada = {}): string | null {
+  const promo = vigente(opciones);
+  if (!promo) return null;
+  const ahora = opciones.ahora ?? new Date();
+  const lineas: string[] = [`🖤 *PROMOCIÓN ${promo.nombre.toUpperCase()}* 🖤`, promo.lema, ""];
+  if (promo.segundaLlanta) {
+    lineas.push(`🛞 *−${promo.segundaLlanta.porcentaje} % en cada 2.ª llanta* ${unidos(promo.segundaLlanta.marcas.map(marcaEnPalabras), "y")}`);
+  }
+  if (promo.otrasLlantas?.marcas.length) {
+    lineas.push(`🛞 *−${promo.otrasLlantas.porcentaje} %* en ${unidos(promo.otrasLlantas.marcas.map(marcaEnPalabras), "y")}`);
+  }
+  const servicios = serviciosEnPromocion(promo, ahora);
+  if (servicios.length) {
+    lineas.push(`🔧 *−${servicios[0].porcentaje} %* en ${unidos(nombresDeServicios(promo).map((n) => (/^[A-ZÁÉÍÓÚ]{2}/.test(n) ? n : n.charAt(0).toLowerCase() + n.slice(1))), "y")}`);
+  }
+  const productos = productosEnPromocion(promo, ahora);
+  if (productos.length && promo.productos) lineas.push(`🛢️ *−${productos[0].porcentaje} %* en ${promo.productos.categoria}`);
+  for (const regalo of promo.gratis) lineas.push(`✅ ${regalo}`);
+  lineas.push("", `Válido hasta el ${hastaEnPalabras(promo)}.`);
+  return lineas.join("\n");
 }

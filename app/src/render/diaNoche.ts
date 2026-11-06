@@ -493,7 +493,7 @@ function franjaTemporadaDiaNoche(line: PosterLine): SatoriNode | null {
         : null,
     ),
     el({ flexDirection: "column", alignItems: "flex-end", gap: 3 },
-      text({ ...ANCHO(900), fontSize: 12.5, lineHeight: 1, color: ORO, whiteSpace: "nowrap" }, `−${bf.porcentaje}% EN TU 2.ª LLANTA`),
+      text({ ...ANCHO(900), fontSize: 12.5, lineHeight: 1, color: ORO, whiteSpace: "nowrap" }, `−${bf.porcentaje}% EN CADA 2.ª LLANTA`),
       tempo?.hasta
         ? text({ ...BARLOW(500), fontSize: 8.5, lineHeight: 1, color: "#c9c9cf", whiteSpace: "nowrap" }, `Válido hasta el ${tempo.hasta}`)
         : null,
@@ -549,7 +549,7 @@ function panelSegundaLlanta(line: PosterLine, t: Tokens): SatoriNode[] {
         }),
         text({ ...ANCHO(900), fontSize: 24, lineHeight: 1, color: TINTA_ORO }, `−${bf.porcentaje}%`),
         el({ flexDirection: "column" },
-          text({ ...ANCHO(900), fontSize: 8.5, lineHeight: 1.15, color: TINTA_ORO, whiteSpace: "nowrap" }, "EN TU 2.ª LLANTA"),
+          text({ ...ANCHO(900), fontSize: 8.5, lineHeight: 1.15, color: TINTA_ORO, whiteSpace: "nowrap" }, "EN CADA 2.ª LLANTA"),
           text({ ...BARLOW(700), fontSize: 9.5, lineHeight: 1.15, color: "#5c430e", whiteSpace: "nowrap" }, `ahorra ${dinero(bf.ahorroSobreListaConIva ?? bf.ahorroConIva)}`),
         ),
       ),
@@ -641,29 +641,45 @@ export function optionsPosterDiaNoche(data: OptionsDiaNocheData, modo: ModoPieza
     : null;
 
   // BLACK FRIDAY EN LA LÁMINA (6-nov, Manuel: «las opciones solo salían con
-  // el 25 %»). Si alguna opción lleva la 2.ª llanta al −60 %, esa es la
-  // insignia grande; el −25 % del catálogo sigue en cada tarjeta.
+  // el 25 %» y «que diga en grande promoción Black Friday, y que el descuento
+  // es en cada segunda llanta»). Una franja a todo el ancho bajo el título,
+  // como la de la cotización; la insignia dorada queda solo para las marcas
+  // que siguen con su −25 % (Winrun…).
   const conBF = lines.filter((l) => l.vitrinaSegundaLlanta);
-  const insigniaBF = conBF.length
+  const franjaBF = conBF.length
     ? (() => {
         const v = conBF[0].vitrinaSegundaLlanta!;
-        const marcas = [...new Set(conBF.map((l) => l.brand.trim()))]
-          .map((m) => m.charAt(0).toUpperCase() + m.slice(1).toLowerCase());
-        const donde = conBF.length === opciones
-          ? (opciones === 1 ? "en esta opción" : `en las ${opciones} opciones`)
-          : `en ${marcas.join(" y ")}`;
-        const renglon = (s: string) => text({ ...ANCHO(900), fontSize: 13, lineHeight: 1.05, color: "#ffffff" }, s);
+        const tempo = conBF[0].temporada;
+        const marcas = [...new Set(conBF.map((l) => l.brand.trim().toUpperCase()))];
+        const rot = rotulosDeSegundaLlanta(n);
         return el({
-          alignItems: "center", gap: 10, borderRadius: 12, padding: "8px 16px 8px 14px",
-          backgroundColor: NEGRO_BF, border: `2px solid ${ORO}`, transform: "rotate(-2deg)", flexShrink: 0,
-          boxShadow: "0 10px 26px rgba(0,0,0,0.38), 0 2px 6px rgba(0,0,0,0.25)",
+          position: "relative", overflow: "hidden", flexDirection: "column", gap: 7, marginTop: 14,
+          padding: "13px 18px 12px 16px", borderRadius: 12, backgroundColor: NEGRO_BF, border: `1.5px solid ${ORO}`,
+          boxShadow: "0 8px 22px rgba(0,0,0,0.25)",
         },
-          text({ ...ANCHO(900), fontSize: 38, lineHeight: 1, letterSpacing: -1, color: ORO }, `−${v.porcentaje}%`),
-          el({ flexDirection: "column" },
-            text({ ...CHAKRA(700), fontSize: 9, letterSpacing: 1.4, color: ORO }, v.nombre.toUpperCase()),
-            renglon("EN TU 2.ª"),
-            renglon("LLANTA"),
-            text({ ...BARLOW(700), fontSize: 10, color: "#d8d8d8", marginTop: 2 }, donde),
+          el({ position: "absolute", top: 0, right: 120, width: 18, height: "100%", backgroundColor: "rgba(255,201,60,0.12)", transform: "skewX(-25deg)" }),
+          el({ position: "absolute", top: 0, right: 148, width: 8, height: "100%", backgroundColor: "rgba(229,44,42,0.35)", transform: "skewX(-25deg)" }),
+          el({ alignItems: "center", gap: 9 },
+            el({ gap: 3 },
+              el({ width: 10, height: 24, backgroundColor: ROJO, transform: "skewX(-22deg)" }),
+              el({ width: 4, height: 24, backgroundColor: ORO, transform: "skewX(-22deg)" }),
+            ),
+            text({ ...ANCHO(900), fontSize: 23, lineHeight: 1, letterSpacing: -0.3, color: "#ffffff", whiteSpace: "nowrap" },
+              `PROMOCIÓN ${(tempo?.nombre ?? v.nombre).toUpperCase()}`),
+            tempo?.bajada
+              ? text({ ...ANCHO(800), fontSize: 13, lineHeight: 1, color: ORO, whiteSpace: "nowrap" }, `· ${tempo.bajada}`)
+              : null,
+          ),
+          el({ alignItems: "center", gap: 9 },
+            text({ ...ANCHO(900), fontSize: 26, lineHeight: 1, letterSpacing: -0.5, color: ORO, whiteSpace: "nowrap" }, `−${v.porcentaje}%`),
+            el({ flexDirection: "column", gap: 2 },
+              text({ ...ANCHO(900), fontSize: 13, lineHeight: 1.05, color: "#ffffff", whiteSpace: "nowrap" },
+                `EN CADA 2.ª LLANTA ${marcas.join(" Y ")}`),
+              text({ ...BARLOW(500), fontSize: 9.5, lineHeight: 1.1, color: "#c9c9cf", whiteSpace: "nowrap" },
+                n > 1
+                  ? `${rot.normales.charAt(0).toUpperCase()}${rot.normales.slice(1)} a precio de lista · ${rot.rebajadas} con el −${v.porcentaje}%${tempo?.hasta ? ` · válido hasta el ${tempo.hasta}` : ""}`
+                  : `Llevando 2 o más llantas${tempo?.hasta ? ` · válido hasta el ${tempo.hasta}` : ""}`),
+            ),
           ),
         );
       })()
@@ -814,7 +830,7 @@ export function optionsPosterDiaNoche(data: OptionsDiaNocheData, modo: ModoPieza
               text({ ...ANCHO(900), fontSize: 10, lineHeight: 1, color: ORO }, `−${line.vitrinaSegundaLlanta.porcentaje}%`),
               text({ ...BARLOW(700), fontSize: 8.5, lineHeight: 1, color: "#ffffff", whiteSpace: "nowrap" },
                 bf
-                  ? `en tu 2.ª llanta · ahorra ${dinero(bf.ahorroSobreListaConIva ?? bf.ahorroConIva)}`
+                  ? `en cada 2.ª llanta · ahorra ${dinero(bf.ahorroSobreListaConIva ?? bf.ahorroConIva)}`
                   : textoVitrinaSegundaLlanta(line.vitrinaSegundaLlanta)),
             )
           : null,
@@ -860,12 +876,10 @@ export function optionsPosterDiaNoche(data: OptionsDiaNocheData, modo: ModoPieza
       ),
     ),
     text({ ...ARCHIVO, fontSize: 30, lineHeight: 1, letterSpacing: -0.2, marginTop: 20, color: t.txt, whiteSpace: "nowrap" }, titulo),
-    el({ justifyContent: "space-between", alignItems: "center", marginTop: 4, gap: 16 }, bajada,
-      // Con marcas mezcladas van las dos: las de la promo llevan el −60 % y
-      // las demás (Winrun…) siguen con su −25 % de siempre (Manuel, 6-nov).
-      insigniaBF && insignia && conBF.length < opciones
-        ? el({ flexDirection: "column", alignItems: "flex-end", gap: 10 }, insigniaBF, insignia)
-        : insigniaBF ?? insignia),
+    franjaBF,
+    // La dorada, si queda: con Black Friday es solo de las marcas que siguen
+    // con su −25 % (Winrun…), y lo dice.
+    el({ justifyContent: "space-between", alignItems: "center", marginTop: franjaBF ? 12 : 4, gap: 16 }, bajada, insignia),
     el({ flexDirection: "column", gap: 13, marginTop: 20 }, ...lines.map(tarjeta)),
     hayEquivalentes
       ? el({

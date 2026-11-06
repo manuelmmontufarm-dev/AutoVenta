@@ -174,6 +174,16 @@ export function firstContactReply(): string {
   return [
     `¡Hola! 👋 ${FIRMA_DE_PRESENTACION}. Le cotizo al instante con stock y precios reales, comparo modelos y le armo su cotización para tienda.`,
     "",
+    pedidoDeMedidaDelPrimerContacto(),
+  ].join("\n");
+}
+
+/**
+ * La segunda mitad de `firstContactReply`: lo que se pide. Sale sola cuando la
+ * presentación ya se mandó aparte (con la promo de temporada detrás, 6-nov).
+ */
+export function pedidoDeMedidaDelPrimerContacto(): string {
+  return [
     "Puede mandarme la medida escrita, una foto del costado de la llanta o decirme su vehículo.",
     "",
     "¿Qué medida usa? Ej: 225/65R17",

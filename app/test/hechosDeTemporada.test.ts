@@ -158,8 +158,8 @@ describe("«¿tienen promociones?»: la respuesta corta", () => {
 
   it("nombra las cuatro promos en una línea, sin «¿»/«¡» de apertura ni formato de IA", () => {
     expect(resumen).toBe(
-      "Sí, hasta el 30 de noviembre tenemos Black Friday: 60 % de descuento en la segunda llanta Falken o Kenda, "
-      + "50 % en alineación, balanceo, ABC de frenos y enllantaje, 40 % en el cambio de aceite y "
+      "Sí, hasta el 30 de noviembre tenemos Black Friday: 60 % de descuento en cada segunda llanta Falken o Kenda, "
+      + "25 % en todas las Winrun, 50 % en alineación, balanceo, ABC de frenos y enllantaje, 40 % en el cambio de aceite y "
       + "revisión de 7 puntos gratis.",
     );
     expect(resumen).not.toMatch(/[¿¡*•#]|\n/);
@@ -206,7 +206,8 @@ describe("la cadena de salida", () => {
     const borrador = "Sí, tenemos descuentos del 25 %.\n---\n¿Qué medida usa?";
     const conPromo = (await paso("la_promocion_de_temporada_se_responde").aplicar(borrador, c))!;
     expect(conPromo).toMatch(/^Sí, hasta el 30 de noviembre tenemos Black Friday:/);
-    expect(conPromo).not.toMatch(/25 %/);
+    expect(conPromo).not.toMatch(/descuentos del 25 %/);
+    expect(conPromo).toMatch(/25 % en todas las Winrun/);
     expect(conPromo).toMatch(/¿Qué medida usa\?$/);
     expect(await paso("el_beneficio_se_responde").aplicar(conPromo, c)).toBe(conPromo);
   });
@@ -228,5 +229,24 @@ describe("la cadena de salida", () => {
   it("en diciembre no hace nada", async () => {
     const borrador = "¿Qué medida usa?";
     expect(await paso("la_promocion_de_temporada_se_responde").aplicar(borrador, ctx("¿Tienen promociones?", DIC))).toBe(borrador);
+  });
+});
+
+describe("el segundo mensaje del saludo (Manuel, 6-nov)", () => {
+  it("en noviembre: la lista corta con el 60 % en cada 2.ª llanta y el 25 % de Winrun", async () => {
+    const { mensajeDeTemporadaParaElSaludo } = await import("../src/services/hechosDeTemporada.js");
+    const m = mensajeDeTemporadaParaElSaludo({ ahora: new Date("2026-11-06T12:00:00-05:00") })!;
+    expect(m).toContain("*PROMOCIÓN BLACK FRIDAY*");
+    expect(m).toContain("*−60 % en cada 2.ª llanta* Falken y Kenda");
+    expect(m).toContain("*−25 %* en Winrun");
+    expect(m).toContain("ABC de frenos");
+    expect(m).toContain("*−40 %* en cambio de aceite");
+    expect(m).toContain("Revisión de 7 puntos GRATIS");
+    expect(m).toContain("Válido hasta el 30 de noviembre.");
+  });
+
+  it("en diciembre no sale", async () => {
+    const { mensajeDeTemporadaParaElSaludo } = await import("../src/services/hechosDeTemporada.js");
+    expect(mensajeDeTemporadaParaElSaludo({ ahora: new Date("2026-12-01T12:00:00-05:00") })).toBeNull();
   });
 });
