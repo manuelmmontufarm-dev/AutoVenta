@@ -855,7 +855,12 @@ export function optionsPosterDiaNoche(data: OptionsDiaNocheData, modo: ModoPieza
       ),
     ),
     text({ ...ARCHIVO, fontSize: 30, lineHeight: 1, letterSpacing: -0.2, marginTop: 20, color: t.txt, whiteSpace: "nowrap" }, titulo),
-    el({ justifyContent: "space-between", alignItems: "center", marginTop: 4, gap: 16 }, bajada, insigniaBF ?? insignia),
+    el({ justifyContent: "space-between", alignItems: "center", marginTop: 4, gap: 16 }, bajada,
+      // Con marcas mezcladas van las dos: las de la promo llevan el −60 % y
+      // las demás (Winrun…) siguen con su −25 % de siempre (Manuel, 6-nov).
+      insigniaBF && insignia && conBF.length < opciones
+        ? el({ flexDirection: "column", alignItems: "flex-end", gap: 10 }, insigniaBF, insignia)
+        : insigniaBF ?? insignia),
     el({ flexDirection: "column", gap: 13, marginTop: 20 }, ...lines.map(tarjeta)),
     hayEquivalentes
       ? el({

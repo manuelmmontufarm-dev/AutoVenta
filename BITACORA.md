@@ -1,3 +1,16 @@
+## 6-nov-2026 · Black Friday: las Winrun (y toda marca fuera de la promo) siguen con su −25 %
+
+**Qué:** Manuel: «las Winrun mantienen su 25 % de descuento, eso también hay que mantener en
+el PDF». La cuenta ya lo hacía (Winrun no lleva `segundaLlanta`: cotiza a precio de hoy, −25 %,
+igual que siempre), pero la lámina de opciones mezclada reemplazaba la insignia dorada «−25%
+DESCUENTO HOY» por la negra del Black Friday. Ahora, si en la lámina hay marcas en la promo y
+marcas fuera, van las dos insignias (la negra «−60% en Falken y Kenda» y la dorada «−25%»). El
+hecho del vendedor dice que las otras marcas siguen con su descuento de siempre.
+
+**Probado:** PDFs de muestra en `docs/black-friday/` (opciones 205/55R16 con Falken + Kenda +
+Winrun, cotización de 4 Winrun, cotización de 4 Kenda KR601 y opciones 235/75R15). `npm test`:
+fallan solo las 2 de siempre.
+
 ## 6-nov-2026 · Black Friday: el 60 % de las pares es sobre la LISTA, no encima del −25 %
 
 **Qué:** Manuel, 6-nov: «estás aplicando el 25 % Y el 60 en cada llanta par. Es solo el 60 %
