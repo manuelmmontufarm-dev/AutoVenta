@@ -158,8 +158,8 @@ describe("«¿tienen promociones?»: la respuesta corta", () => {
 
   it("nombra las cuatro promos en una línea, sin «¿»/«¡» de apertura ni formato de IA", () => {
     expect(resumen).toBe(
-      "Sí, hasta el 30 de noviembre tenemos Black Friday: 60 % de descuento en la segunda llanta Falken o Kenda, "
-      + "50 % en alineación, balanceo, ABC de frenos y enllantaje, 40 % en el cambio de aceite y "
+      "Sí, hasta el 30 de noviembre tenemos Black Friday: 60 % de descuento en cada segunda llanta Falken o Kenda, "
+      + "25 % en todas las Winrun, 50 % en alineación, balanceo, ABC de frenos y enllantaje, 40 % en el cambio de aceite y "
       + "revisión de 7 puntos gratis.",
     );
     expect(resumen).not.toMatch(/[¿¡*•#]|\n/);
@@ -206,7 +206,8 @@ describe("la cadena de salida", () => {
     const borrador = "Sí, tenemos descuentos del 25 %.\n---\n¿Qué medida usa?";
     const conPromo = (await paso("la_promocion_de_temporada_se_responde").aplicar(borrador, c))!;
     expect(conPromo).toMatch(/^Sí, hasta el 30 de noviembre tenemos Black Friday:/);
-    expect(conPromo).not.toMatch(/25 %/);
+    expect(conPromo).not.toMatch(/descuentos del 25 %/);
+    expect(conPromo).toMatch(/25 % en todas las Winrun/);
     expect(conPromo).toMatch(/¿Qué medida usa\?$/);
     expect(await paso("el_beneficio_se_responde").aplicar(conPromo, c)).toBe(conPromo);
   });

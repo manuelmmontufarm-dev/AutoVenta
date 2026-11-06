@@ -1,3 +1,13 @@
+## 6-nov-2026 · Black Friday: el resumen dice el 25 % de Winrun y la promo se abre a todos
+
+**Qué:** Manuel probó «¿cómo es esa promoción?» y el resumen no nombraba Winrun. Ahora dice
+«60 % de descuento en cada segunda llanta Falken o Kenda, 25 % en todas las Winrun, 50 % en…»
+(`resumenDeLaPromocion`, de `otrasLlantas`). El panel de Ajustes → Piezas se llama «Modo
+promoción · Black Friday». Con esto, Manuel pidió dejarla para todos los chats:
+`temporada_config.modo = "todos"` en producción (se cambia desde ese mismo panel).
+
+**Probado:** `test/hechosDeTemporada.test.ts`; `npm test`: fallan las 2 de siempre.
+
 ## 6-nov-2026 · Black Friday: franja grande en las opciones, «en cada 2.ª llanta» y la promo en el saludo
 
 **Qué:** Manuel probó desde su número (235R15). La matemática de la lámina está bien (lista ×

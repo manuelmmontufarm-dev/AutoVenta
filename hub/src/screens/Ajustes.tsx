@@ -537,7 +537,7 @@ function SeccionTemporada({ onError }: { onError: (v: string) => void }) {
   };
 
   return <Tarjeta
-    titulo={`Promoción de temporada · ${promo.nombre}`}
+    titulo={`Modo promoción · ${promo.nombre}`}
     sub={`«${promo.lema}» · del ${promo.desde} al ${promo.hasta}. Cambia la cotización, el PDF y lo que dice el bot. Se guarda al tocar.`}
   >
     <div className="flex flex-wrap gap-2">

@@ -287,9 +287,13 @@ export function resumenDeLaPromocion(opciones: OpcionesDeTemporada = {}): string
   const partes: string[] = [];
   if (promo.segundaLlanta) {
     partes.push(
-      `${promo.segundaLlanta.porcentaje} % de descuento en la segunda llanta `
+      `${promo.segundaLlanta.porcentaje} % de descuento en cada segunda llanta `
       + `${unidos(promo.segundaLlanta.marcas.map(marcaEnPalabras), "o")}`,
     );
+  }
+  // Manuel, 6-nov: «que también diga el 25 % en todas las Winrun».
+  if (promo.otrasLlantas?.marcas.length) {
+    partes.push(`${promo.otrasLlantas.porcentaje} % en todas las ${unidos(promo.otrasLlantas.marcas.map(marcaEnPalabras), "y")}`);
   }
   const servicios = serviciosEnPromocion(promo, ahora);
   if (servicios.length) {
