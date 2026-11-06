@@ -5,6 +5,7 @@
 import { business, config } from "./config.js";
 import { validarCanaryAlArrancar } from "./agent/canary.js";
 import { conElTelefonoDelTurno, instalarCompuertaDeTemporada } from "./services/temporadaDelTurno.js";
+import { mensajeDeTemporadaParaElSaludo } from "./services/hechosDeTemporada.js";
 import { createServer } from "./server/webhook.js";
 
 // Las rutas async del panel (admin.ts) corren sin try/catch y Express 4 no
@@ -92,7 +93,7 @@ import { tryRecotizarPorCantidad } from "./services/recotizar.js";
 import { tryReenviarOpciones } from "./services/reenviarOpciones.js";
 import { tryMedidaIncompleta } from "./services/medidaIncompleta.js";
 import { tryRecomendarConLaPieza } from "./services/recomendarConLaPieza.js";
-import { firstContactReply, isGenericFirstContact } from "./domain/firstContact.js";
+import { firstContactReply, isGenericFirstContact, pedidoDeMedidaDelPrimerContacto } from "./domain/firstContact.js";
 import { despedidaQueCorresponde } from "./domain/cierrePerdido.js";
 import { botonesParaBloque, recortarTitulo, textoDeBoton, type BloqueConBotones } from "./domain/botones.js";
 import { esComandoDeReinicio, MENSAJE_DE_REINICIO } from "./domain/reinicio.js";
@@ -394,7 +395,19 @@ async function atenderTurno(
   // saber con quién habla (simulador, 31-ago: «Opciones disponibles 🏁» salió
   // primero). Cuando el turno es un saludo pelado no hace falta: la bienvenida
   // de `firstContactReply` ya es la presentación entera.
-  if (!isFirstGenericMessage && previousOutbound === null && saludoPermitido) {
+  //
+  // PROMO DE TEMPORADA EN EL SALUDO (Manuel, 6-nov): mientras corre (y está
+  // abierta para este chat en Ajustes), detrás de la presentación va un segundo
+  // mensaje con la lista corta de la promo. Va por aquí y no por la salida del
+  // turno: es texto fijo de la política y el guardián no tiene nada que
+  // corregirle. Con un saludo pelado, la presentación sale aquí también y el
+  // turno solo pide la medida.
+  const promoDelSaludo = saludoPermitido && (previousOutbound === null || previousOutbound === MENSAJE_DE_REINICIO)
+    ? mensajeDeTemporadaParaElSaludo()
+    : null;
+  const presentadoAntes = saludoPermitido
+    && ((!isFirstGenericMessage && previousOutbound === null) || (isFirstGenericMessage && Boolean(promoDelSaludo)));
+  if (presentadoAntes) {
     const presentacion = presentacionDeApertura(name);
     try {
       const sentId = await sendCustomerText(conversation.id, from, presentacion);
@@ -402,6 +415,13 @@ async function atenderTurno(
         authorKind: "bot", status: "sent", metadata: { oferta: null },
       });
       await esperar(PAUSA_ENTRE_BLOQUES_MS);
+      if (promoDelSaludo) {
+        const promoId = await sendCustomerText(conversation.id, from, promoDelSaludo);
+        await appendMessage(conversation.id, "assistant", promoDelSaludo, promoId, {
+          authorKind: "bot", status: "sent", metadata: { oferta: null, piece: "promo_de_temporada" },
+        });
+        await esperar(PAUSA_ENTRE_BLOQUES_MS);
+      }
     } catch (error) {
       // Que falle la presentación no puede costarle al cliente su respuesta.
       console.error(`❌ No se pudo presentar el bot a ${from}:`, error);
@@ -441,7 +461,7 @@ async function atenderTurno(
       : ubicacionFueraDeCobertura
         ? ubicacionFueraDeCobertura
       : isFirstGenericMessage
-      ? firstContactReply()
+      ? (presentadoAntes ? pedidoDeMedidaDelPrimerContacto() : firstContactReply())
       // Media medida en pulgadas («MT 30.5 r15»): se pregunta el ancho, sin
       // modelo (12-sep). Va primero: no es una elección ni una cantidad.
       : (await tryMedidaIncompleta({ conversation }, textoConLinks).then((respuesta) => {

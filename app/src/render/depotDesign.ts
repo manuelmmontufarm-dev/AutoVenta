@@ -474,7 +474,7 @@ export function savingsBadge(pct: string, detalle: string, price: PriceFont): Sa
 }
 
 /**
- * La insignia dorada del Black Friday: «−60%» y «EN TU 2.ª LLANTA», la misma
+ * La insignia dorada del Black Friday: «−60%» y «EN CADA 2.ª LLANTA», la misma
  * caja que `savingsBadge` para que la promo se lea como parte de la marca.
  */
 export function segundaLlantaBadge(porcentaje: number, detalle: string, price: PriceFont): SatoriNode {
@@ -489,7 +489,7 @@ export function segundaLlantaBadge(porcentaje: number, detalle: string, price: P
       transform: "skewX(-25deg)",
     }),
     text({ ...price, fontSize: 76, color: "#211a08", lineHeight: 1 }, `−${porcentaje}%`),
-    text({ ...ARCHIVO_BLACK, fontSize: 24, color: "#211a08", letterSpacing: 1, whiteSpace: "nowrap" }, "EN TU 2.ª LLANTA"),
+    text({ ...ARCHIVO_BLACK, fontSize: 24, color: "#211a08", letterSpacing: 1, whiteSpace: "nowrap" }, "EN CADA 2.ª LLANTA"),
     text({ fontSize: 20, fontWeight: 700, color: "#5c430e", whiteSpace: "nowrap" }, detalle),
   );
 }

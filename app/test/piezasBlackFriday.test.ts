@@ -94,7 +94,7 @@ describe("la cotización con la 2.ª llanta", () => {
       expect(texto).toContain("$75.00");
       expect(texto).toContain("$30.00");
       expect(texto).toContain("2 × $75.00 + 2 × $30.00 = $210.00");
-      expect(texto).toContain("EN TU 2.ª LLANTA");
+      expect(texto).toContain("EN CADA 2.ª LLANTA");
       expect(texto).toContain("−60%");
       // El total es el que firma la cotización; el ahorro, catálogo ($25 × 4) + 2.ª llanta ($90).
       expect(texto).toContain("$210.00");
@@ -178,7 +178,7 @@ describe("la vitrina: el sello de la 2.ª llanta", () => {
     expect((await comparar(NOVIEMBRE)).equals(await comparar(DICIEMBRE))).toBe(false);
   }, 60_000);
 
-  it("el sello dice «−60% · en tu 2.ª llanta · Black Friday» en las tres piezas", () => {
+  it("el sello dice «−60% · en cada 2.ª llanta · Black Friday» en las tres piezas", () => {
     const v = { vitrinaSegundaLlanta: { porcentaje: 60, nombre: "Black Friday" } };
     const lines = [linea("FALKEN", 4, 75, 100, v), linea("WINRUN", 4, 48.3, 64.4)];
     for (const nodo of [
@@ -189,7 +189,7 @@ describe("la vitrina: el sello de la 2.ª llanta", () => {
       const texto = textoDe(nodo);
       expect(texto).toContain("−60%");
       // Una sola vez: Winrun no lo lleva.
-      expect(texto.split("en tu 2.ª llanta · Black Friday")).toHaveLength(2);
+      expect(texto.split("en cada 2.ª llanta · Black Friday")).toHaveLength(2);
     }
   });
 });

@@ -188,8 +188,8 @@ export function ahorroDeLaCotizacion(line: PosterLine): number {
   return Math.round((catalogo + (line.segundaLlanta?.ahorroConIva ?? 0)) * 100) / 100;
 }
 
-/** «en tu 2.ª llanta · Black Friday»: el rótulo de la vitrina, igual en todas las piezas. */
-export const textoVitrinaSegundaLlanta = (v: { nombre: string }) => `en tu 2.ª llanta · ${v.nombre}`;
+/** «en cada 2.ª llanta · Black Friday»: el rótulo de la vitrina, igual en todas las piezas. */
+export const textoVitrinaSegundaLlanta = (v: { nombre: string }) => `en cada 2.ª llanta · ${v.nombre}`;
 
 const savingsPct = (line: PosterLine): string | null => {
   if (!line.pvpConIva || line.pvpConIva <= line.unitConIva) return null;
@@ -523,7 +523,7 @@ function franjaTemporada(line: PosterLine, bf: SegundaLlanta, theme: Theme): Sat
     ),
     el({ flexDirection: "column", alignItems: "flex-end", gap: 6 },
       text({ ...ARCHIVO_BLACK, fontSize: 27, lineHeight: 1, color: ORO_BF, whiteSpace: "nowrap" },
-        `−${bf.porcentaje}% EN TU 2.ª LLANTA`),
+        `−${bf.porcentaje}% EN CADA 2.ª LLANTA`),
       text({ fontSize: 16, fontWeight: 600, color: "#c9c9cf", whiteSpace: "nowrap" }, pie),
     ),
   );
@@ -571,7 +571,7 @@ function precioSegundaLlanta(line: PosterLine, bf: SegundaLlanta, theme: Theme):
   );
 }
 
-/** El sello chico de vitrina: «−60% en tu 2.ª llanta · Black Friday», negro y oro. */
+/** El sello chico de vitrina: «−60% en cada 2.ª llanta · Black Friday», negro y oro. */
 function selloVitrina(v: { porcentaje: number; nombre: string }, cifra: number, rotulo: number): SatoriNode {
   return el({},
     el({ alignItems: "center", gap: Math.round(rotulo * 0.5), backgroundColor: NEGRO_BF, borderRadius: 6,

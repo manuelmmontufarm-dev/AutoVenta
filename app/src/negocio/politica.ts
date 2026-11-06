@@ -90,11 +90,17 @@ export interface PromocionDeTemporada {
   hasta: string;
   /**
    * Las llantas pares (2.ª, 4.ª…) de la cotización con `porcentaje` % menos
-   * sobre el precio de LISTA (solo el 60 %, no encima del −25 % del catálogo; las
-   * impares pagan el de hoy), solo de estas marcas
-   * (en mayúsculas, como `CatalogItem.brand`).
+   * sobre el precio de LISTA, solo de estas marcas (en mayúsculas, como
+   * `CatalogItem.brand`). Reemplaza el descuento del catálogo: las impares van
+   * a precio de lista.
    */
   segundaLlanta: { porcentaje: number; marcas: string[] } | null;
+  /**
+   * Las marcas que NO entran en la promo y siguen con su descuento de siempre
+   * (Depot: Winrun con el 25 %). Solo para DECIRLO —saludo, vendedor,
+   * guardián—: el precio sigue saliendo del catálogo.
+   */
+  otrasLlantas?: { porcentaje: number; marcas: string[] } | null;
   /** Servicios con su precio YA rebajado, con IVA (tabla de Joaquín, 5-nov). */
   servicios: {
     porcentaje: number;

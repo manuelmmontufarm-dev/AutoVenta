@@ -230,3 +230,22 @@ describe("la cadena de salida", () => {
     expect(await paso("la_promocion_de_temporada_se_responde").aplicar(borrador, ctx("¿Tienen promociones?", DIC))).toBe(borrador);
   });
 });
+
+describe("el segundo mensaje del saludo (Manuel, 6-nov)", () => {
+  it("en noviembre: la lista corta con el 60 % en cada 2.ª llanta y el 25 % de Winrun", async () => {
+    const { mensajeDeTemporadaParaElSaludo } = await import("../src/services/hechosDeTemporada.js");
+    const m = mensajeDeTemporadaParaElSaludo({ ahora: new Date("2026-11-06T12:00:00-05:00") })!;
+    expect(m).toContain("*PROMOCIÓN BLACK FRIDAY*");
+    expect(m).toContain("*−60 % en cada 2.ª llanta* Falken y Kenda");
+    expect(m).toContain("*−25 %* en Winrun");
+    expect(m).toContain("ABC de frenos");
+    expect(m).toContain("*−40 %* en cambio de aceite");
+    expect(m).toContain("Revisión de 7 puntos GRATIS");
+    expect(m).toContain("Válido hasta el 30 de noviembre.");
+  });
+
+  it("en diciembre no sale", async () => {
+    const { mensajeDeTemporadaParaElSaludo } = await import("../src/services/hechosDeTemporada.js");
+    expect(mensajeDeTemporadaParaElSaludo({ ahora: new Date("2026-12-01T12:00:00-05:00") })).toBeNull();
+  });
+});

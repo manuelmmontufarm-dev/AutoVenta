@@ -152,6 +152,8 @@ function toPosterLine(
     ...(line.segundaLlanta ? { segundaLlanta: line.segundaLlanta, temporada: temporadaDe(line.segundaLlanta) } : {}),
     ...(conVitrina
       ? {
+          // El rótulo de la franja de la lámina («PROMOCIÓN BLACK FRIDAY · TODO NOVIEMBRE»).
+          ...(line.segundaLlanta ? {} : { temporada: temporadaDe({ nombre: promo!.nombre } as SegundaLlanta) }),
           vitrinaSegundaLlanta: {
             porcentaje: promo!.segundaLlanta!.porcentaje,
             nombre: promo!.nombre,
