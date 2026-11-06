@@ -7,11 +7,13 @@
  * solo hace las cuentas, para que la cotización, la pieza, el PDF, el texto,
  * el vendedor y el guardián digan exactamente la misma cifra.
  *
- * LA REGLA DE LAS LLANTAS (Manuel, 6-nov, corrige la del 5-nov): las llantas
- * PARES de la cotización —la 2.ª, la 4.ª…— llevan SOLO el 60 % sobre el precio
- * de LISTA, no el 60 % encima del −25 % del catálogo. Las impares pagan el
- * precio de hoy. Lista $100, hoy $75: 2 × $75 + 2 × $40 = $230. Solo Falken y
- * Kenda; una sola llanta no lleva nada. Sin precio de lista, la base es el de hoy.
+ * LA REGLA DE LAS LLANTAS (Manuel, 6-nov, corrige la del 5-nov): en Falken y
+ * Kenda el 60 % de las llantas PARES —la 2.ª, la 4.ª…— REEMPLAZA el −25 % del
+ * catálogo: las pares van al precio de LISTA × 0,4 y las impares al precio de
+ * LISTA, sin rebaja. Lista $100 (hoy $75): 2 × $100 + 2 × $40 = $280. Las otras
+ * marcas siguen con su −25 % (4 × $75 = $300). Una sola llanta no lleva nada, y
+ * si la promo saliera más cara que el −25 % (3 llantas: $240 contra $225) no se
+ * aplica: nadie paga más por la promo. Sin precio de lista, la base es el de hoy.
  *
  * Puro: sin base, sin catálogo. `ahora` entra por parámetro para las pruebas.
  */
@@ -72,17 +74,15 @@ export interface SegundaLlanta {
   porcentaje: number;
   /** Cuántas llantas lo llevan: floor(cantidad / 2). */
   unidades: number;
-  /** El precio de hoy por llanta, con IVA: el que pagan las impares. */
+  /** El precio de LISTA por llanta, con IVA: el que pagan las impares (sin el −25 %). */
   precioNormalConIva: number;
   /** El precio de cada llanta par, con IVA: precio de LISTA × (1 − 60 %). */
   precioConIva: number;
-  /** Lo que la promo ahorra además del precio de hoy: (hoy − par) × pares, con IVA. */
+  /** Lo que la promo ahorra contra la lista: (lista − par) × pares, con IVA. */
   ahorroConIva: number;
   /**
-   * Lo que el 60 % ahorra contra el precio de LISTA en las pares: (lista − par)
-   * × pares. Es lo que dice el sello «−60 %»; las impares ahorran aparte el
-   * descuento del catálogo. Opcional: las cotizaciones guardadas antes del
-   * 6-nov no lo traen (se cae a `ahorroConIva`).
+   * Igual a `ahorroConIva` desde que el 60 % reemplaza al −25 %. Queda por las
+   * piezas que lo leen; las cotizaciones guardadas antes no lo traen.
    */
   ahorroSobreListaConIva?: number;
   /** El total de la línea con IVA: impares a precio normal + pares rebajadas. */
@@ -126,16 +126,18 @@ export function segundaLlantaDe(
   const unidades = Math.floor(n / 2);
   if (unidades < 1 || !(precioHoyConIva > 0)) return null;
   const porcentaje = promo!.segundaLlanta!.porcentaje;
-  const base = listaConIva && listaConIva > precioHoyConIva ? listaConIva : precioHoyConIva;
-  // Nunca más cara que el precio de hoy (un catálogo con más del 60 % de rebaja).
-  const precioConIva = Math.min(round2(base * (1 - porcentaje / 100)), round2(precioHoyConIva));
-  const ahorroConIva = round2((precioHoyConIva - precioConIva) * unidades);
-  const totalConIva = round2((n - unidades) * precioHoyConIva + unidades * precioConIva);
-  const ahorroSobreListaConIva = round2((base - precioConIva) * unidades);
+  const base = round2(listaConIva && listaConIva > precioHoyConIva ? listaConIva : precioHoyConIva);
+  const precioConIva = round2(base * (1 - porcentaje / 100));
+  const totalConIva = round2((n - unidades) * base + unidades * precioConIva);
+  // Nadie paga más por la promo: si el −25 % de siempre sale igual o más
+  // barato (pasa con cantidades impares), la línea va como siempre.
+  if (totalConIva >= round2(n * precioHoyConIva)) return null;
+  const ahorroConIva = round2((base - precioConIva) * unidades);
+  const ahorroSobreListaConIva = ahorroConIva;
   return {
     porcentaje,
     unidades,
-    precioNormalConIva: round2(precioHoyConIva),
+    precioNormalConIva: base,
     precioConIva,
     ahorroConIva,
     ahorroSobreListaConIva,

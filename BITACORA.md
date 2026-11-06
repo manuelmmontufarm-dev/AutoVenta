@@ -1,3 +1,27 @@
+## 6-nov-2026 · Black Friday: en Falken/Kenda el 60 % REEMPLAZA el −25 %
+
+**Qué:** Manuel: «el 60 % en las llantas pares Kenda y Falken REEMPLAZA el 25 % que había».
+Confirmado con él: lista $100 (hoy $75) → 4 llantas = 2 × $100 + 2 × $40 = **$280**. Las
+impares van a precio de LISTA, sin el −25 %; las pares a lista × 0,4. Winrun y las demás marcas
+siguen con su −25 % (4 × $75 = $300). Regla nuestra, avisada a Manuel: si la promo saliera más
+cara que el −25 % (pasa con cantidades impares: 3 llantas = $240 contra $225) no se aplica y la
+línea va como siempre; nadie paga más por la promo.
+
+**Cómo:** `segundaLlantaDe` devuelve `precioNormalConIva` = lista y `ahorroConIva` = (lista −
+par) × pares, y null si el total no baja de cantidad × precio de hoy. `generar_cotizacion` firma
+la línea con Black Friday a LISTA (`unitPrice`, `salePriceWithTax`) y guarda el precio de hoy en
+`precioSinPromoConIva`: así la pieza, el PDF, el texto y el ahorro ven una línea sin rebaja de
+catálogo y con la promo (sin «antes», sin −25 %), y un reenvío sin promo (diciembre) vuelve al
+precio de hoy y no se queda en la lista. La tarjeta de opciones va a lista igual; la insignia
+dorada nombra las marcas que siguen con el −25 % («en Winrun»). Al elegir por número no se dice
+un precio por llanta en Falken/Kenda (lo dice la cotización). Los hechos del vendedor y del
+guardián dicen que el 60 % reemplaza el descuento del catálogo.
+
+**Probado:** pruebas de Black Friday re-escritas (280 / 120 / 3 llantas = 225 sin promo / reenvío
+de diciembre con el descuento del asesor = 220). `npm test`: fallan las 2 de siempre (y una de
+integración que comparte la base y pasa sola). Cuatro de CLAUDE.md pasan. PDFs en
+`docs/black-friday/`.
+
 ## 6-nov-2026 · Black Friday: las Winrun (y toda marca fuera de la promo) siguen con su −25 %
 
 **Qué:** Manuel: «las Winrun mantienen su 25 % de descuento, eso también hay que mantener en

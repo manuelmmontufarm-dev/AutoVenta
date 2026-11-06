@@ -186,7 +186,7 @@ function hechoDeSegundaLlanta(ahorro: AhorroParaElHecho, s: SegundaLlanta): stri
       ? `${ahorro.porcentaje} % menos que el precio de lista: $${ahorro.porLlanta.toFixed(2)} por llanta y $${catalogo.toFixed(2)} en toda la compra `
         + `(precio por llanta con el descuento: $${ahorro.precioConDescuento.toFixed(2)}, antes $${ahorro.precioAntes.toFixed(2)}). Además, `
       : "")
-    + `promoción ${s.nombre}: ${s.porcentaje} % menos en la ${paresEnPalabras(s.unidades)} llanta sobre el precio de LISTA (solo el ${s.porcentaje} %, no encima del descuento del catálogo) — `
+    + `promoción ${s.nombre}: ${s.porcentaje} % menos en la ${paresEnPalabras(s.unidades)} llanta sobre el precio de LISTA (reemplaza el descuento del catálogo: las impares van a precio de lista) — `
     + `${normales} × $${s.precioNormalConIva.toFixed(2)} + ${s.unidades} × $${s.precioConIva.toFixed(2)} = $${s.totalConIva.toFixed(2)}; `
     + `cada llanta par cuesta $${s.precioConIva.toFixed(2)} ($${porPar.toFixed(2)} menos) y la promo ahorra $${s.ahorroConIva.toFixed(2)}. `
     + `Ahorro total de la compra: $${ahorro.monto.toFixed(2)}. Total a pagar de esas llantas: $${s.totalConIva.toFixed(2)}. `

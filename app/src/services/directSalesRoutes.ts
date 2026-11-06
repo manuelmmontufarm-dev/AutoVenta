@@ -34,6 +34,8 @@ interface StoredQuoteLine {
   design?: string;
   salePriceWithTax?: number;
   listPriceWithTax?: number;
+  /** Black Friday: el precio de hoy (con el −25 %) de una línea firmada a lista. */
+  precioSinPromoConIva?: number;
   segundaLlanta?: SegundaLlanta | null;
 }
 
@@ -52,18 +54,22 @@ export function reenvioConPromoDeHoy(
   stored: StoredQuoteLine,
   totales: { subtotal: number; tax: number; total: number },
   ahora: Date = new Date(),
-): { segundaLlanta: SegundaLlanta | null; subtotal: number; tax: number; total: number } {
+): { segundaLlanta: SegundaLlanta | null; precioConIva: number; subtotal: number; tax: number; total: number } {
   const quantity = Math.max(1, Number(stored.quantity ?? 1));
-  const precio = Number(stored.salePriceWithTax ?? 0);
+  const firmado = Number(stored.salePriceWithTax ?? 0);
+  // La línea con Black Friday se firmó a LISTA (el 60 % reemplaza al −25 %):
+  // sin la promo vuelve al precio de hoy, no se queda en la lista.
+  const hoy = Number(stored.precioSinPromoConIva ?? firmado);
   const segundaLlanta = segundaLlantaDe(politica.promocionDeTemporada, stored.brand, quantity,
-    { hoyConIva: precio, listaConIva: Number(stored.listPriceWithTax ?? 0) || null }, ahora);
-  const lineaDe = (s: SegundaLlanta | null | undefined) => s?.totalConIva ?? round2(quantity * precio);
-  const antes = lineaDe(stored.segundaLlanta);
-  const ahoraLinea = lineaDe(segundaLlanta);
-  if (!(precio > 0) || Math.abs(antes - ahoraLinea) < 0.005) return { segundaLlanta, ...totales };
+    { hoyConIva: hoy, listaConIva: Number(stored.listPriceWithTax ?? 0) || null }, ahora);
+  const precioConIva = segundaLlanta ? segundaLlanta.precioNormalConIva : hoy;
+  const lineaDe = (s: SegundaLlanta | null | undefined, unitario: number) => s?.totalConIva ?? round2(quantity * unitario);
+  const antes = lineaDe(stored.segundaLlanta, firmado);
+  const ahoraLinea = lineaDe(segundaLlanta, hoy);
+  if (!(firmado > 0) || Math.abs(antes - ahoraLinea) < 0.005) return { segundaLlanta, precioConIva, ...totales };
   const total = round2(totales.total + ahoraLinea - antes);
   const subtotal = round2(total / (1 + business.taxRate));
-  return { segundaLlanta, subtotal, tax: round2(total - subtotal), total };
+  return { segundaLlanta, precioConIva, subtotal, tax: round2(total - subtotal), total };
 }
 
 export interface DirectSalesContext {
@@ -147,6 +153,7 @@ export async function resendLatestQuoteImage(
     { subtotal: Number(quote.subtotal), tax: Number(quote.tax), total: Number(quote.total) },
   );
   line.segundaLlanta = conPromo.segundaLlanta;
+  line.unitConIva = conPromo.precioConIva;
   const filename = `Cotizacion-${business.name.replace(/\s/g, "")}-${quote.quote_number}-reenvio.png`;
   // La pieza reenviada habla con la marca del local de la conversación (R-45).
   const [datosLocal] = await sql<{ nearest_store: string | null }[]>`

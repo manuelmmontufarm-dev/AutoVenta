@@ -629,7 +629,12 @@ export function optionsPosterDiaNoche(data: OptionsDiaNocheData, modo: ModoPieza
             renglon(todas3x4 ? "4 LLANTAS POR" : iguales ? "DESCUENTO" : "HASTA"),
             renglon(todas3x4 ? "EL PRECIO DE 3" : iguales ? "HOY" : "DE DESCUENTO"),
             text({ ...BARLOW(700), fontSize: 10, color: "#5c430e", marginTop: 2 },
-              iguales ? (opciones === 1 ? "en esta opción" : `en las ${opciones} opciones`) : "según la opción"),
+              // Con Black Friday, Falken/Kenda ya no llevan el −25 % (lo reemplaza
+              // el 60 %): la insignia nombra las marcas que sí lo llevan.
+              lines.some((l) => l.vitrinaSegundaLlanta) && pcts.length < opciones
+                ? `en ${[...new Set(lines.filter((l) => porcentaje(l) !== null).map((l) => l.brand.trim()))]
+                    .map((m) => m.charAt(0).toUpperCase() + m.slice(1).toLowerCase()).join(" y ")}`
+                : iguales ? (opciones === 1 ? "en esta opción" : `en las ${opciones} opciones`) : "según la opción"),
           ),
         );
       })()
