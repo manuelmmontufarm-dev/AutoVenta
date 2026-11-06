@@ -56,6 +56,32 @@ el precio de LISTA (solo el 60 %, no encima del descuento del catálogo)».
 Black Friday re-escritas con la regla nueva (230/190/170), muestras de cotización y opciones.
 `npm test`: 3345 pasan, fallan las 2 de siempre. Cuatro de CLAUDE.md pasan (el humo falla
 cuando arranca justo después de otro simulador: el bot anterior todavía tiene el :3205).
+## 6-nov-2026 · Canary: el cruce culpa al vendedor 5.4 → fase III «solo Guardián»
+
+**Qué:** el cruce del 2-nov mostró que la caída de cotizaciones seguía al modelo y no a los
+teléfonos: de los chats con medida, los pares cotizaron 34 % → 20 % con el canary → 36 % de
+vuelta en 5.5, y los impares 28 % → 36 % → 21 %. Sumado: 20 % contra 36 %, −16 ± 9 pts
+(z −3,4). La fuga estaba en el turno después de que el cliente contesta las opciones (lo
+decide el vendedor); el Guardián corregía ese turno igual en los dos grupos. Manuel decidió
+probar dos semanas más solo con el Guardián mini: `AI_CANARY_SCOPE=guardian` en Railway
+(Depot_Tire) desde el 6-nov 17:47 UTC. Vendedor gpt-5.5 para todos; Guardián de los impares
+en gpt-5.4-mini.
+
+**Cómo:** `control-charts.mjs` separa la fase III (`--guardian-solo`) y la juzga por defecto
+(`--fase II` para la anterior), agrega el gráfico 7 (cotizan después de contestar las
+opciones) y la comprobación del registro (Guardián canary = mini, control = 5.5, gpt-5.4 en
+ningún vendedor), cuenta como ahorro solo las corridas con el modelo del canary (el turno
+exacto y la rutina usan mini para todos: $40,86 → $40,59) y deja escritas las predicciones
+para el 20-nov. Artifact HVdJaqYTutWpH4K6JFX5uV.
+
+**Ojo:** el Black Friday entra en la fase III para los dos grupos: si mueve la cotización,
+lo va a mover en el control también (el gráfico lo marca como «algo cambió para todos»).
+
+**Probado:** el script corre con `--fase II` (repite los números de la fase II) y por
+defecto (fase III esperando datos; registro correcto con las primeras corridas). Log de
+arranque en Railway: «🧪 Canary … (guardian)».
+
+**Horas:** 1,5
 
 ## 6-nov-2026 · Black Friday en la lámina de opciones: el juego ya con el 60 %
 

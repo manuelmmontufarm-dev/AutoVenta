@@ -7,6 +7,10 @@
  * con gpt-5.5 (grupo «control»). El 2-nov-2026 se CRUZARON los grupos para la
  * última semana: desde entonces el canary son los IMPARES y el control los PARES
  * (así se ve si la caída de cotizaciones sigue al modelo o a los teléfonos).
+ * La siguió: el 6-nov-2026 terminó la fase II y empezó la FASE III, «solo
+ * Guardián» (AI_CANARY_SCOPE=guardian): el vendedor vuelve a gpt-5.5 para todos
+ * y solo el Guardián de los impares sigue en gpt-5.4-mini. Los gráficos juzgan
+ * la fase III (--fase II para volver a ver la anterior).
  * Este script lee la base de producción en modo solo lectura y dibuja, día por
  * día y por grupo:
  *
@@ -16,7 +20,11 @@
  *   4. % de chats con día de visita acordado (gráfico p)
  *   5. % de borradores que el Guardián tuvo que corregir (gráfico p)
  *   6. Fallas técnicas por cada 100 corridas del vendedor (gráfico u)
- *   7. Ventas comprobadas contra facturas de Contífico por semana (gráfico c)
+ *   7. % de chats que cotizan DESPUÉS de contestar las opciones (gráfico p):
+ *      el paso donde la fase II perdió las cotizaciones
+ *   8. Ventas comprobadas contra facturas de Contífico por semana (gráfico c)
+ *   +  Comprobación del registro: cada corrida de la fase III usó el modelo
+ *      que le toca a su grupo (si no, los gráficos no miden lo que dicen)
  *
  * Fase I = días ANTES del canary (los dos grupos corrían igual: es una prueba
  * A/A que mide el ruido natural). Sus datos fijan la línea central y los
@@ -49,6 +57,14 @@ const INICIO_CANARY = arg("inicio", "2026-10-25");
  *  Lo que pasa antes es de los pares; lo de después, de los impares. Ese día también es de transición. */
 const CRUCE = arg("cruce", "2026-11-02T14:07:00Z");
 const DIA_CRUCE = new Date(CRUCE).toLocaleDateString("en-CA", { timeZone: "America/Guayaquil" });
+/** Fase III «solo Guardián»: AI_CANARY_SCOPE pasó a «guardian» (deploy listo a esta hora). Ese día es de transición. */
+const GUARDIAN_SOLO = arg("guardian-solo", "2026-11-06T17:47:00Z");
+const DIA_GSOLO = new Date(GUARDIAN_SOLO).toLocaleDateString("en-CA", { timeZone: "America/Guayaquil" });
+/** La fase que se juzga: la del experimento que está corriendo. */
+const FASE_ACTUAL = arg("fase", "III");
+/** El modelo barato de cada pieza en el canary. Solo esas corridas cuentan como ahorro (el turno exacto y la
+ *  rutina usan gpt-5.4-mini para TODOS, no son del canary) y gpt-5.4 no debe aparecer en la fase III. */
+const MODELO_CANARY = { vendedor: "gpt-5.4", guardian: "gpt-5.4-mini" };
 /** Fase I: desde que se prendieron los anuncios de octubre, para comparar tráfico parecido. */
 const INICIO_BASE = arg("base", "2026-10-13");
 /** Los últimos días no han madurado: una cotización o un día de visita llegan hasta 48 h después. */
@@ -71,7 +87,7 @@ const grupoSQL = (cuando) => sql`case when (right(regexp_replace(c.phone, '\\D',
 const runs = await sql`
   select (r.created_at at time zone ${TZ})::date::text as dia, ${grupoSQL(sql`r.created_at`)} as grupo, r.conversation_id as conv,
          r.model, r.route, r.call_type, coalesce(r.input_tokens,0)::int as inp, coalesce(r.cached_input_tokens,0)::int as cached,
-         coalesce(r.output_tokens,0)::int as outp, r.error
+         coalesce(r.output_tokens,0)::int as outp, r.error, (r.created_at >= ${GUARDIAN_SOLO}::timestamptz) as fase3
   from ai_runs r join conversations c on c.id = r.conversation_id
   where r.created_at >= ${INICIO_BASE}::date`;
 const chats = await sql`
@@ -83,6 +99,18 @@ const revisiones = await sql`
   select (g.created_at at time zone ${TZ})::date::text as dia, ${grupoSQL(sql`g.created_at`)} as grupo, g.verdict
   from guardian_reviews g join conversations c on c.id = g.conversation_id
   where g.created_at >= ${INICIO_BASE}::date and g.verdict in ('aprobar','corregir')`;
+/** Chats que vieron las opciones y CONTESTARON: ¿llegaron a cotización? En la fase II el canary perdió aquí
+ *  (29 % contra 44 %), con el mismo mensaje de opciones en los dos grupos. El día es el del inicio del chat. */
+const respuestas = await sql`
+  with op as (
+    select distinct on (r.conversation_id) r.conversation_id, r.created_at as t
+    from ai_runs r where r.created_at >= ${INICIO_BASE}::date and r.tools::text like '%preparar_opciones%'
+    order by r.conversation_id, r.created_at)
+  select (c.created_at at time zone ${TZ})::date::text as dia, ${grupoSQL(sql`c.created_at`)} as grupo,
+         exists (select 1 from quotes q where q.conversation_id = c.id) as cotizo
+  from op join conversations c on c.id = op.conversation_id
+  where c.created_at >= ${INICIO_BASE}::date
+    and exists (select 1 from messages m where m.conversation_id = c.id and m.role = 'user' and m.created_at > op.t + interval '5 seconds')`;
 await sql.end();
 
 let ventas = null;
@@ -99,7 +127,8 @@ const hoy = new Date().toLocaleDateString("en-CA", { timeZone: TZ });
 const dias = [];
 for (let d = new Date(`${INICIO_BASE}T12:00:00Z`); d.toISOString().slice(0, 10) <= hoy; d.setUTCDate(d.getUTCDate() + 1)) dias.push(d.toISOString().slice(0, 10));
 // El día de hoy está a medias: se dibuja hueco y no se juzga.
-const fase = (d) => (d < TRANSICION ? "I" : d < INICIO_CANARY || d === DIA_CRUCE || d === hoy ? "T" : "II");
+const fase = (d) => (d < TRANSICION ? "I" : d < INICIO_CANARY || d === DIA_CRUCE || d === DIA_GSOLO || d === hoy ? "T" : d > DIA_GSOLO ? "III" : "II");
+const NOMBRE_FASE = { II: "fase II (vendedor 5.4 + Guardián mini)", III: "fase III (solo Guardián mini)" };
 const GRUPOS = ["control", "canary"];
 
 const porDia = (filas, fn) => Object.fromEntries(GRUPOS.map((g) => [g, dias.map((d) => fn(filas.filter((f) => f.dia === d && f.grupo === g), d))]));
@@ -110,13 +139,15 @@ const costoConv = porDia(runs, (fs) => {
   return convs >= 5 ? { y: usd / convs, n: convs, usd } : { y: null, n: convs, usd };
 });
 const RUTAS_QUE_CAMBIAN = /^(commercial|tool_chain_finalized|guardian|guardian_seguimiento)\+canary$/;
-const ahorroDia = dias.map((d) => runs.filter((f) => f.dia === d && RUTAS_QUE_CAMBIAN.test(f.route ?? "") && f.model !== "gpt-5.5")
+const pieza = (route) => (/^guardian/.test(route ?? "") ? "guardian" : "vendedor");
+const ahorroDia = dias.map((d) => runs.filter((f) => f.dia === d && RUTAS_QUE_CAMBIAN.test(f.route ?? "") && f.model === MODELO_CANARY[pieza(f.route)])
   .reduce((a, f) => a + costo("gpt-5.5", f.inp, f.cached, f.outp) - costo(f.model, f.inp, f.cached, f.outp), 0));
 const prop = (filas, campo) => porDia(filas, (fs, d) => ({ x: fs.filter((f) => f[campo]).length, n: fs.length, inmaduro: dias.indexOf(d) >= dias.length - DIAS_INMADUROS }));
 const cotiz = prop(chats, "cotizo");
 const visita = prop(chats, "dia_visita");
 const correcciones = porDia(revisiones, (fs) => ({ x: fs.filter((f) => f.verdict === "corregir").length, n: fs.length }));
 const fallas = porDia(runs.filter((f) => f.call_type === "chat"), (fs) => ({ x: fs.filter((f) => f.error || /^(failed|rescue)/.test(f.route ?? "")).length, n: fs.length }));
+const trasOpciones = prop(respuestas, "cotizo");
 
 // Semanas (lunes) para las ventas.
 const lunes = (d) => { const x = new Date(`${d}T12:00:00Z`); x.setUTCDate(x.getUTCDate() - ((x.getUTCDay() + 6) % 7)); return x.toISOString().slice(0, 10); };
@@ -155,7 +186,7 @@ function senales(puntos, lim) {
   const out = [];
   let racha = 0, lado = 0;
   for (const p of puntos) {
-    if (p.y == null || p.fase !== "II" || p.inmaduro) continue;
+    if (p.y == null || p.fase !== FASE_ACTUAL || p.inmaduro) continue;
     const u = lim.ucl(p.n), l = lim.lcl(p.n);
     if (p.y > u) out.push({ dia: p.x, tipo: "arriba" });
     if (p.y < l) out.push({ dia: p.x, tipo: "abajo" });
@@ -168,7 +199,7 @@ function senales(puntos, lim) {
 
 // ── SVG ───────────────────────────────────────────────────────────────────
 const COLOR = { control: "var(--control)", canary: "var(--canary)" };
-const NOMBRE = { control: "Control · gpt-5.5 (impares hasta el 1-nov, pares desde el 2-nov)", canary: "Canary · gpt-5.4 + Guardián mini (pares hasta el 1-nov, impares desde el 2-nov)" };
+const NOMBRE = { control: "Control · gpt-5.5 (impares hasta el 1-nov, pares desde el 2-nov)", canary: "Canary · pares hasta el 1-nov, impares desde el 2-nov · vendedor 5.4 + Guardián mini hasta el 6-nov, solo Guardián mini después" };
 function grafico({ xs, series, lim, formato, yMaxMin = 0, inicio = TRANSICION }) {
   const W = 860, H = 250, m = { l: 52, r: 14, t: 12, b: 26 };
   const todos = GRUPOS.flatMap((g) => series[g].map((p) => p.y)).filter((y) => y != null);
@@ -180,6 +211,8 @@ function grafico({ xs, series, lim, formato, yMaxMin = 0, inicio = TRANSICION })
   for (let k = 0; k <= 4; k++) { const v = (yMax * k) / 4; s += `<line x1="${m.l}" x2="${W - m.r}" y1="${y(v)}" y2="${y(v)}" stroke="var(--grid)"/><text x="${m.l - 6}" y="${y(v) + 4}" text-anchor="end" class="t">${formato(v)}</text>`; }
   const ic = xs.findIndex((d) => d >= inicio);
   if (ic >= 0) s += `<rect x="${x(ic) - 4}" y="${m.t}" width="${W - m.r - x(ic) + 4}" height="${H - m.t - m.b}" fill="var(--fase2)"/><text x="${x(ic)}" y="${m.t + 11}" class="t">canary →</text>`;
+  const ig = xs.findIndex((d) => d >= DIA_GSOLO);
+  if (ig >= 0) s += `<line x1="${x(ig)}" x2="${x(ig)}" y1="${m.t}" y2="${H - m.b}" stroke="var(--fg2)" stroke-dasharray="3 3"/><text x="${x(ig) - 4}" y="${m.t + 11}" text-anchor="end" class="t">solo Guardián →</text>`;
   if (lim) {
     s += `<line x1="${m.l}" x2="${W - m.r}" y1="${y(lim.centro)}" y2="${y(lim.centro)}" stroke="var(--fg2)" stroke-dasharray="5 4"/>`;
     // En los gráficos p los límites dependen de n: se dibujan con el n del canary (cada punto se juzga con el suyo).
@@ -190,7 +223,7 @@ function grafico({ xs, series, lim, formato, yMaxMin = 0, inicio = TRANSICION })
     const pts = series[g].map((p, i) => ({ ...p, i })).filter((p) => p.y != null);
     s += `<path d="${pts.map((p, k) => `${k ? "L" : "M"}${x(p.i).toFixed(1)},${y(p.y).toFixed(1)}`).join(" ")}" fill="none" stroke="${COLOR[g]}" stroke-width="2"/>`;
     for (const p of pts) {
-      const fuera = lim && p.fase === "II" && !p.inmaduro && (p.y > lim.ucl(p.n) || p.y < lim.lcl(p.n));
+      const fuera = lim && (p.fase === "II" || p.fase === "III") && !p.inmaduro && (p.y > lim.ucl(p.n) || p.y < lim.lcl(p.n));
       s += `<circle cx="${x(p.i)}" cy="${y(p.y)}" r="${fuera ? 5.5 : 3.5}" fill="${fuera ? COLOR[g] : p.inmaduro ? "var(--bg)" : "var(--card)"}" stroke="${COLOR[g]}" stroke-width="2" ${p.inmaduro ? 'stroke-dasharray="2 2"' : ""}><title>${xs[p.i]} · ${NOMBRE[g]} · ${formato(p.y)}${p.n != null ? ` · n=${p.n}` : ""}</title></circle>`;
     }
   }
@@ -204,7 +237,7 @@ const ptsI = (serie, g) => serie[g].map((p, i) => ({ y: p.y, n: p.n, x: dias[i],
 const pct = (v) => `${(v * 100).toFixed(0)} %`;
 const pct1 = (v) => `${(v * 100).toFixed(1)} %`;
 const usd = (v) => `$${v.toFixed(v < 1 ? 3 : 0)}`;
-const resumenFase2 = (pts) => { const xs = pts.filter((p) => p.fase === "II" && !p.inmaduro && p.y != null); return xs.length ? { media: xs.reduce((a, p) => a + p.y * (p.n || 1), 0) / xs.reduce((a, p) => a + (p.n || 1), 0), dias: xs.length } : null; };
+const resumenFase = (pts, f) => { const xs = pts.filter((p) => p.fase === f && !p.inmaduro && p.y != null); return xs.length ? { media: xs.reduce((a, p) => a + p.y * (p.n || 1), 0) / xs.reduce((a, p) => a + (p.n || 1), 0), dias: xs.length } : null; };
 const unidad = (k, porSemana) => `${k} ${porSemana ? (k === 1 ? "semana" : "semanas") : (k === 1 ? "día" : "días")}`;
 
 const bloques = [];
@@ -212,8 +245,8 @@ function bloque({ titulo, que, mejor, series, lim, formato, nota = "", inicio = 
   const sen = lim ? GRUPOS.map((g) => ({ g, s: senales(series[g], lim) })) : [];
   const can = sen.find((x) => x.g === "canary")?.s ?? [];
   const ctl = sen.find((x) => x.g === "control")?.s ?? [];
-  const r2 = { canary: resumenFase2(series.canary), control: resumenFase2(series.control) };
-  let estado = "Esperando datos del canary";
+  const r2 = { canary: resumenFase(series.canary, FASE_ACTUAL), control: resumenFase(series.control, FASE_ACTUAL) };
+  let estado = `Esperando datos de la fase ${FASE_ACTUAL}`;
   let clase = "gris";
   if (r2.canary) {
     const malo = can.some((x) => x.tipo.includes(mejor === "abajo" ? "arriba" : "abajo"));
@@ -222,7 +255,10 @@ function bloque({ titulo, que, mejor, series, lim, formato, nota = "", inicio = 
     else if (bueno) { estado = "Señal a favor: el canary mejoró más allá del ruido"; clase = "bueno"; }
     else { estado = "Sin señal: el canary se comporta igual que antes (ruido)"; clase = "neutro"; }
   }
-  const linea = GRUPOS.map((g) => r2[g] ? `${g === "canary" ? "Canary" : "Control"}: ${formato(r2[g].media)} en ${unidad(r2[g].dias, porSemana)}` : null).filter(Boolean).join(" · ");
+  const linea = ["II", "III"].map((f) => {
+    const partes = GRUPOS.map((g) => { const r = resumenFase(series[g], f); return r ? `${g === "canary" ? "canary" : "control"} ${formato(r.media)} en ${unidad(r.dias, porSemana)}` : null; }).filter(Boolean);
+    return partes.length ? `<b>${NOMBRE_FASE[f]}</b>: ${partes.join(", ")}` : null;
+  }).filter(Boolean).join(" · ");
   bloques.push(`<section class="card"><div class="cab"><h2>${titulo}</h2><span class="chip ${clase}">${estado}</span></div>
   <p class="que">${que}</p>${grafico({ xs: series.xs ?? dias, series, lim, formato, inicio })}
   <p class="pie">${lim ? `Línea central ${formato(lim.centro)} (fase I) · límites ±3σ punteados.` : ""} ${linea}${ctl.length ? ` · El control también tuvo ${ctl.length} señal(es): algo cambió para todos, no solo el canary.` : ""} ${nota}</p></section>`);
@@ -235,8 +271,11 @@ let acum = 0;
 const serieAhorro = { control: dias.map((d) => ({ y: null, x: d, fase: fase(d) })), canary: dias.map((d, i) => { acum += ahorroDia[i]; return { y: acum, x: d, fase: fase(d) }; }) };
 const diasCanary = dias.filter((d) => d >= TRANSICION).length;
 const ahorroMes = diasCanary ? (acum / diasCanary) * 30 : 0;
-bloques.push(`<section class="card"><div class="cab"><h2>2 · Ahorro acumulado</h2><span class="chip ${acum > 0 ? "bueno" : "gris"}">$${acum.toFixed(2)} en ${diasCanary} días · ≈ $${ahorroMes.toFixed(0)}/mes con la mitad de los clientes</span></div>
-<p class="que">Lo que habrían costado con gpt-5.5 las respuestas del canary, menos lo que costaron de verdad. Es una línea que sube: no tiene límites de control porque no mide un proceso sino una suma. Con el 100 % de los clientes el ahorro sería aproximadamente el doble.</p>
+const diasIII = dias.map((d, i) => (fase(d) === "III" ? i : -1)).filter((i) => i >= 0);
+const ahorroIII = diasIII.reduce((a, i) => a + ahorroDia[i], 0);
+const textoIII = diasIII.length ? ` · solo Guardián: $${ahorroIII.toFixed(2)} en ${unidad(diasIII.length)} ≈ $${((ahorroIII / diasIII.length) * 30).toFixed(0)}/mes` : "";
+bloques.push(`<section class="card"><div class="cab"><h2>2 · Ahorro acumulado</h2><span class="chip ${acum > 0 ? "bueno" : "gris"}">$${acum.toFixed(2)} en ${diasCanary} días · ≈ $${ahorroMes.toFixed(0)}/mes con la mitad de los clientes${textoIII}</span></div>
+<p class="que">Lo que habrían costado con gpt-5.5 las respuestas del canary, menos lo que costaron de verdad. Es una línea que sube: no tiene límites de control porque no mide un proceso sino una suma. Con el 100 % de los clientes el ahorro sería aproximadamente el doble. Desde el 7-nov solo ahorra el Guardián: la pendiente de la línea tiene que bajar un poco, no a cero.</p>
 ${grafico({ xs: dias, series: serieAhorro, lim: null, formato: (v) => `$${v.toFixed(0)}` })}</section>`);
 
 for (const [titulo, que, serie, mejor] of [
@@ -244,14 +283,17 @@ for (const [titulo, que, serie, mejor] of [
   ["4 · Chats con día de visita acordado", "El predictor de venta más fuerte (con día compran 20× más). Si el canary cae bajo el límite, el modelo nuevo cierra peor.", visita, "arriba"],
   ["5 · Borradores que el Guardián corrige", "Qué porcentaje de las respuestas el Guardián tuvo que reescribir. Si sube, el vendedor nuevo redacta peor o el Guardián mini corrige de más.", correcciones, "abajo"],
   ["6 · Fallas técnicas del vendedor", "Corridas del vendedor que terminaron en error o en rescate (el cliente ve «tengo un problema técnico»). Por cada 100 corridas.", fallas, "abajo"],
+  ["7 · Cotizan después de contestar las opciones", "De los chats que vieron las opciones y le contestaron al bot, cuántos llegaron a cotización. Aquí se perdió la fase II (canary 29 % contra control 44 %) con el mismo mensaje de opciones en los dos grupos: es el paso que decide el vendedor. En la fase III el vendedor es gpt-5.5 para todos, así que el canary debería quedar dentro de límites.", trasOpciones, "arriba"],
 ]) {
   const s = { control: ptsP(serie, "control"), canary: ptsP(serie, "canary") };
-  bloque({ titulo, que, mejor, series: s, lim: limitesP(serie), formato: serie === fallas ? pct1 : pct, nota: serie === cotiz || serie === visita ? `Los últimos ${DIAS_INMADUROS} días (círculos punteados) todavía no maduran y no cuentan como señal.` : "" });
+  bloque({ titulo, que, mejor, series: s, lim: limitesP(serie), formato: serie === fallas ? pct1 : pct, nota: serie === cotiz || serie === visita || serie === trasOpciones ? `Los últimos ${DIAS_INMADUROS} días (círculos punteados) todavía no maduran y no cuentan como señal.` : "" });
 }
 
 if (ventasSem) {
-  const s = { xs: semanas, control: ventasSem.control.map((v, i) => ({ y: v, n: 1, x: semanas[i], fase: semanas[i] < lunes(TRANSICION) ? "I" : "II", inmaduro: semanas[i] === lunes(hoy) })), canary: ventasSem.canary.map((v, i) => ({ y: v, n: 1, x: semanas[i], fase: semanas[i] < lunes(TRANSICION) ? "I" : "II", inmaduro: semanas[i] === lunes(hoy) })) };
-  bloque({ titulo: "7 · Ventas comprobadas por semana", que: "Facturas de Contífico cruzadas con el teléfono del chat, por semana de la factura. Es el resultado final, pero llega con rezago (la mitad de las ventas tarda 4–5 días) y son pocas por semana: la señal aquí tarda más.", mejor: "arriba", series: s, lim: limitesC(ventasSem), formato: (v) => v.toFixed(0), inicio: lunes(TRANSICION), porSemana: true });
+  // La semana del 6-nov es mixta (cruce + solo Guardián): cuenta como fase II; la III empieza el lunes siguiente.
+  const faseSem = (s) => (s < lunes(TRANSICION) ? "I" : s > lunes(DIA_GSOLO) ? "III" : "II");
+  const s = { xs: semanas, control: ventasSem.control.map((v, i) => ({ y: v, n: 1, x: semanas[i], fase: faseSem(semanas[i]), inmaduro: semanas[i] === lunes(hoy) })), canary: ventasSem.canary.map((v, i) => ({ y: v, n: 1, x: semanas[i], fase: faseSem(semanas[i]), inmaduro: semanas[i] === lunes(hoy) })) };
+  bloque({ titulo: "8 · Ventas comprobadas por semana", que: "Facturas de Contífico cruzadas con el teléfono del chat, por semana de la factura. Es el resultado final, pero llega con rezago (la mitad de las ventas tarda 4–5 días) y son pocas por semana: la señal aquí tarda más.", mejor: "arriba", series: s, lim: limitesC(ventasSem), formato: (v) => v.toFixed(0), inicio: lunes(TRANSICION), porSemana: true });
 }
 
 
@@ -291,14 +333,14 @@ const campanas = [];
   const base = idxI.map((i) => costoConv.control[i]?.y).concat(idxI.map((i) => costoConv.canary[i]?.y)).filter((v) => v != null);
   const centro = base.reduce((a, b) => a + b, 0) / Math.max(1, base.length);
   const sigma = sigmaI(idxI.map((i) => costoConv.control[i]?.y).filter((v) => v != null));
-  const f2 = Object.fromEntries(GRUPOS.map((g) => [g, serieCosto[g].filter((p) => p.fase === "II" && !p.inmaduro && p.y != null).map((p) => p.y)]));
-  campanas.push(`<section class="card"><div class="cab"><h2>Campana · costo por conversación</h2></div><p class="que">Las barras grises son los días de la fase I: así se reparte el costo cuando nada cambia, y la curva es la normal que mejor les calza. Debajo, cada punto de color es un día de la fase II. Si los puntos del canary caen a la izquierda de −3σ, el ahorro es real; si caen dentro de la campana, todavía es ruido.</p>${campana({ base, centro, sigma, fase2: f2, formato: usd })}</section>`);
+  const f2 = Object.fromEntries(GRUPOS.map((g) => [g, serieCosto[g].filter((p) => p.fase === FASE_ACTUAL && !p.inmaduro && p.y != null).map((p) => p.y)]));
+  campanas.push(`<section class="card"><div class="cab"><h2>Campana · costo por conversación</h2></div><p class="que">Las barras grises son los días de la fase I: así se reparte el costo cuando nada cambia, y la curva es la normal que mejor les calza. Debajo, cada punto de color es un día de la fase ${FASE_ACTUAL}. Si los puntos del canary caen a la izquierda de −3σ, el ahorro es real; si caen dentro de la campana, todavía es ruido.</p>${campana({ base, centro, sigma, fase2: f2, formato: usd })}</section>`);
 }
 {
   let x = 0, n = 0; const base = [];
   for (const g of GRUPOS) for (const i of idxI) { const p = correcciones[g][i]; if (p?.n) { x += p.x; n += p.n; base.push(p.x / p.n); } }
   const pb = n ? x / n : 0, nMedio = n / Math.max(1, base.length), sigma = Math.sqrt(pb * (1 - pb) / Math.max(1, nMedio));
-  const f2 = Object.fromEntries(GRUPOS.map((g) => [g, ptsP(correcciones, g).filter((p) => p.fase === "II" && !p.inmaduro && p.y != null).map((p) => p.y)]));
+  const f2 = Object.fromEntries(GRUPOS.map((g) => [g, ptsP(correcciones, g).filter((p) => p.fase === FASE_ACTUAL && !p.inmaduro && p.y != null).map((p) => p.y)]));
   campanas.push(`<section class="card"><div class="cab"><h2>Campana · borradores que el Guardián corrige</h2></div><p class="que">Lo mismo para el porcentaje de respuestas que el Guardián reescribe. Aquí lo malo es irse a la <b>derecha</b> de +3σ.</p>${campana({ base, centro: pb, sigma, fase2: f2, formato: pct })}</section>`);
 }
 
@@ -317,13 +359,53 @@ const invNorm = (p) => { // Acklam
 const nivel = (def, opp) => { if (!opp) return null; const p = Math.min(Math.max(def / opp, 1e-9), 1 - 1e-9); return { dpmo: p * 1e6, sigma: invNorm(1 - p) + 1.5, def, opp }; };
 const suma = (serie, g, f) => serie[g].reduce((acc, p, i) => (f(dias[i]) ? { x: acc.x + (p?.x ?? 0), n: acc.n + (p?.n ?? 0) } : acc), { x: 0, n: 0 });
 const filasSigma = [["Respuesta que el Guardián tuvo que corregir", correcciones], ["Corrida del vendedor con falla técnica", fallas]].map(([nombre, serie]) => {
-  const celdas = [["control", (d) => fase(d) === "I"], ["canary", (d) => fase(d) === "I"], ["control", (d) => fase(d) === "II"], ["canary", (d) => fase(d) === "II"]]
+  const celdas = ["I", "II", "III"].flatMap((f) => GRUPOS.map((g) => [g, (d) => fase(d) === f]))
     .map(([g, f]) => { const t = suma(serie, g, f); const r = nivel(t.x, t.n); return r ? `<td class="num">${r.sigma.toFixed(1)}σ<br><span class="mini">${Math.round(r.dpmo).toLocaleString("es-EC")} DPMO · ${t.x}/${t.n}</span></td>` : `<td class="num mini">sin datos</td>`; });
   return `<tr><td>${nombre}</td>${celdas.join("")}</tr>`;
 });
 const seccionSigma = `<section class="card"><div class="cab"><h2>Nivel sigma</h2></div>
 <p class="que">Cuántos defectos por millón de oportunidades (DPMO) tiene cada proceso, traducido a la escala Six Sigma: 6σ son 3,4 por millón, 4σ son 6.210, 3σ son 66.807 y 2σ son 308.538. Se usa el corrimiento de 1,5σ de la convención.</p>
-<div class="tabla"><table><tr><th>Defecto</th><th>Control · fase I</th><th>Canary · fase I</th><th>Control · fase II</th><th>Canary · fase II</th></tr>${filasSigma.join("")}</table></div></section>`;
+<div class="tabla"><table><tr><th>Defecto</th>${["I", "II", "III"].flatMap((f) => GRUPOS.map((g) => `<th>${g === "canary" ? "Canary" : "Control"} · fase ${f}</th>`)).join("")}</tr>${filasSigma.join("")}</table></div></section>`;
+
+// ── Comprobación del registro (fase III) ──────────────────────────────────
+// Si una corrida usó otro modelo del que le toca a su grupo, los gráficos comparan otra cosa sin avisar
+// (pasó con los seguimientos: el Guardián se quedaba en 5.5 para todos). Reglas de la fase III:
+//   · Guardián: canary → gpt-5.4-mini, control → gpt-5.5.
+//   · Vendedor: nadie usa gpt-5.4 (era el vendedor del canary). gpt-5.4-mini en el vendedor es el turno
+//     exacto y la rutina, que lo usan TODOS: no es error.
+const runs3 = runs.filter((f) => f.fase3 && (f.call_type === "chat" || f.call_type === "guardian"));
+const cuenta3 = {};
+for (const f of runs3) { const k = `${f.grupo}|${f.call_type === "guardian" ? "guardian" : "vendedor"}|${f.model}`; cuenta3[k] = (cuenta3[k] ?? 0) + 1; }
+const esperado = (grupo, pz, modelo) => (pz === "guardian" ? modelo === (grupo === "canary" ? MODELO_CANARY.guardian : "gpt-5.5") : modelo !== MODELO_CANARY.vendedor);
+const filasReg = Object.entries(cuenta3).sort().map(([k, n]) => { const [g, pz, mo] = k.split("|"); return { g, pz, mo, n, ok: esperado(g, pz, mo) }; });
+const malas = filasReg.filter((r) => !r.ok).reduce((a, r) => a + r.n, 0);
+const guardianCanary = filasReg.filter((r) => r.g === "canary" && r.pz === "guardian").reduce((a, r) => a + r.n, 0);
+const regEstado = !runs3.length ? ["gris", "Todavía no hay corridas de la fase III"]
+  : malas ? ["malo", `Revisar: ${malas} corrida(s) con un modelo que no le toca a su grupo`]
+  : !guardianCanary ? ["malo", "Revisar: ninguna revisión del Guardián en el canary"]
+  : ["bueno", `Registro correcto: ${runs3.length} corridas, todas con el modelo de su grupo`];
+const seccionRegistro = `<section class="card"><div class="cab"><h2>Comprobación del registro · fase III</h2><span class="chip ${regEstado[0]}">${regEstado[1]}</span></div>
+<p class="que">Cada corrida de la IA guarda el modelo que usó de verdad (<code>ai_runs.model</code>). Desde el cambio a «solo Guardián» (${GUARDIAN_SOLO}) el Guardián del canary tiene que ser gpt-5.4-mini, el del control gpt-5.5, y gpt-5.4 no puede aparecer en el vendedor de nadie. Si algo de esto falla, los gráficos de arriba no están midiendo lo que dicen.</p>
+${filasReg.length ? `<div class="tabla"><table><tr><th>Grupo</th><th>Pieza</th><th>Modelo</th><th class="num">Corridas</th><th></th></tr>${filasReg.map((r) => `<tr><td>${r.g}</td><td>${r.pz === "guardian" ? "Guardián" : "Vendedor"}</td><td>${r.mo}</td><td class="num">${r.n}</td><td>${r.ok ? "✓" : "✗ no debería"}</td></tr>`).join("")}</table></div>` : ""}</section>`;
+
+// ── Predicciones de la fase III (escritas el 6-nov, se revisan el 20-nov) ──
+// Base: en la fase II el Guardián era ~60 % del costo de un chat del control y el mini cuesta ~1/5;
+// con el vendedor en 5.5 para todos, un chat del canary debería costar ~51 % del control.
+const seccionPredicciones = `<section class="card"><div class="cab"><h2>Predicciones de la fase III</h2><span class="chip gris">Escritas el 6-nov · se revisan el 20-nov</span></div>
+<div class="tabla"><table><tr><th>Gráfico</th><th>Predicción</th><th>Confianza</th></tr>
+<tr><td>Registro</td><td>0 corridas con un modelo que no le toca a su grupo</td><td>95 %</td></tr>
+<tr><td>1 · Costo por chat</td><td>Canary ≈ $0,044 (entre $0,038 y $0,052), la mitad del control. Queda <b>pegado al límite inferior</b> ($0,038): pocos días o ninguno se salen, así que este gráfico puede decir «sin señal» aunque el ahorro sea real</td><td>70 %</td></tr>
+<tr><td>2 · Ahorro</td><td>≈ $2 por día: ≈ $60–65/mes con la mitad de los clientes (la fase II daba $87), ≈ $125/mes al 100 %</td><td>70 %</td></tr>
+<tr><td>3 · Cotización</td><td>El canary vuelve al nivel del control (25–28 %); diferencia dentro de ±8 puntos; sin señal</td><td>75 %</td></tr>
+<tr><td>7 · Cotizan tras las opciones</td><td>Canary 40–45 %, a menos de 6 puntos del control; sin señal</td><td>70 %</td></tr>
+<tr><td>5 · Guardián corrige</td><td>El canary sigue corrigiendo algo más que el control (≈ 37 % contra ≈ 31 %): el mini reescribe de más. Sin señal</td><td>55 %</td></tr>
+<tr><td>4, 6 y 8 · Visita, fallas, ventas</td><td>Sin señal en ninguno</td><td>80 %</td></tr>
+</table></div>
+<p class="pie">Si se cumplen la 3 y la 7, el Guardián mini pasa al 100 % el 20-nov. Si el canary vuelve a cotizar menos con el vendedor en 5.5, el problema era también el Guardián y se apaga el canary.</p></section>`;
+
+// ── Lo que dejó la fase II (veredicto del cruce, 6-nov) ───────────────────
+const seccionFaseII = `<section class="card"><div class="cab"><h2>Lo que dejó la fase II</h2><span class="chip malo">Vendedor 5.4 + Guardián mini: cotiza menos</span></div>
+<p class="que">El 2-nov se cruzaron los grupos y la caída de cotizaciones <b>se fue con el modelo</b>: de los chats que dieron la medida, los pares cotizaron 34 % → 20 % con el canary → 36 % de vuelta en gpt-5.5; los impares 28 % → 36 % → 21 % con el canary. Sumado: 20 % contra 36 %, −16 ± 9 puntos (z = −3,4). La fuga estaba en el turno después de que el cliente contesta las opciones (gráfico 7: 29 % contra 44 %), que lo decide el vendedor; el Guardián corregía ese turno igual en los dos grupos (12 % y 13 %). Por eso la fase III deja el vendedor en gpt-5.5 y prueba solo el Guardián mini.</p></section>`;
 
 const html = `<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Canary en producción</title>
@@ -341,20 +423,25 @@ main{max-width:900px;margin:0 auto;padding:24px 16px 56px}h1{font-size:23px;marg
 .ley{display:flex;gap:16px;flex-wrap:wrap;font-size:13px;margin-top:8px}.ley i{display:inline-block;width:14px;height:3px;vertical-align:middle;margin-right:6px}
 </style></head><body><main>
 <h1>Canary de modelos en producción</h1>
-<p class="sub">Depot Tire · actualizado ${new Date().toLocaleString("es-EC", { timeZone: TZ, dateStyle: "long", timeStyle: "short" })} · fase I desde ${INICIO_BASE}, canary prendido el ${TRANSICION} (día de transición), fase II desde ${INICIO_CANARY}</p>
+<p class="sub">Depot Tire · actualizado ${new Date().toLocaleString("es-EC", { timeZone: TZ, dateStyle: "long", timeStyle: "short" })} · fase I desde ${INICIO_BASE}, canary prendido el ${TRANSICION} (día de transición), fase II desde ${INICIO_CANARY}, fase III (solo Guardián) desde el día siguiente a ${DIA_GSOLO} · se juzga la fase ${FASE_ACTUAL}</p>
 <div class="guia"><b>Qué estás viendo.</b> Cada gráfico es un <b>gráfico de control</b>: una línea por grupo, día por día.
 <ul><li>La <b>zona blanca</b> es la fase I: antes del canary los dos grupos usaban el mismo bot. De ahí salen la línea central (raya) y los límites (punteado) que marcan cuánto se mueve el número solo por azar.</li>
-<li>La <b>zona sombreada</b> es la fase II: desde que prendimos el canary. Cada punto se juzga contra esos límites.</li>
+<li>La <b>zona sombreada</b> es desde que prendimos el canary. Hasta la raya «solo Guardián» es la fase II (vendedor gpt-5.4 + Guardián mini); después es la <b>fase III</b>: vendedor gpt-5.5 para todos y solo el Guardián del canary en mini. Cada punto se juzga contra los límites de la fase I; la etiqueta de color de cada gráfico juzga la fase ${FASE_ACTUAL}.</li>
 <li>Un <b>punto relleno</b> se salió de los límites: eso es una <b>señal</b>, un cambio real y no ruido. También es señal tener 8 días seguidos del mismo lado de la línea central.</li>
 <li>La <b>campana</b> es la misma información vista de lado: si giras un gráfico de control 90°, los días de la fase I se amontonan en forma de curva normal. ±3σ deja dentro el 99,7 % de los días cuando nada cambió; por eso un punto afuera es una señal.</li>
-<li>Lo que queremos ver: el costo del canary <b>baja con señal</b> y los demás gráficos <b>no tienen señal en contra</b>. Si eso se cumple dos semanas, el canary pasa al 100 %.</li></ul>
+<li>Lo que queremos ver en la fase III: el costo del canary <b>baja con señal</b> (menos que en la fase II) y los demás gráficos, sobre todo el 3 y el 7, <b>no tienen señal en contra</b>. Si eso se cumple dos semanas (hasta el 20-nov), el Guardián mini pasa al 100 %.</li></ul>
 <div class="ley"><span><i style="background:var(--control)"></i>${NOMBRE.control}</span><span><i style="background:var(--canary)"></i>${NOMBRE.canary}</span></div></div>
+${seccionRegistro}
+${seccionPredicciones}
 ${bloques.join("\n")}
 ${campanas.join("\n")}
 ${seccionSigma}
+${seccionFaseII}
 </main></body></html>`;
 
 const salida = arg("salida", resolve(APP, "..", "docs", "reportes-historicos", `canary-produccion-${hoy}.html`));
 writeFileSync(salida, html);
 console.log(salida);
-console.log(`ahorro acumulado $${acum.toFixed(2)} en ${diasCanary} días de canary`);
+console.log(`ahorro acumulado $${acum.toFixed(2)} en ${diasCanary} días de canary${textoIII.replace(" · ", "; ")}`);
+console.log(`registro fase III: ${regEstado[1]}`);
+for (const r of filasReg) if (!r.ok) console.log(`  ✗ ${r.g} · ${r.pz} · ${r.mo} · ${r.n}`);
