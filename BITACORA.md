@@ -1,3 +1,29 @@
+## 6-nov-2026 · Mundillantas: fotos de 449 de 482 llantas y sin las promesas de Depot
+
+**Qué:** las piezas y el PDF de Mundillantas salían con la llanta genérica en todo lo que
+no fuera Falken/Kenda/Winrun, y con el «INCLUYE» de Depot (seguro contra golpes,
+mantenimiento cada 10.000 km) que Mundillantas no ofrece. Ahora 449 de 482 llantas (92 %
+del stock) tienen la foto de su modelo y una base nueva de otro negocio arranca sin esas
+promesas.
+
+**Cómo:** 121 fotos nuevas en `site/assets/catalog/` (fabricante cuando la publica; si no,
+un distribuidor), cada una abierta y comparada con el dibujo; lo dudoso quedó sin foto
+(Goodyear Direction Sport vs Direction Sport 2, iLink TerraMax LSR1 vs LSR2, General
+Altimax, Durun B717). `FOTOS_POR_MODELO` las casa por un patrón del modelo dentro de la
+marca. `008_benefits` siembra el INCLUYE solo en Depot, igual que `009_brand_profiles`.
+
+**Ojo:** la base de producción de Mundillantas ya tiene las 4 de Depot sembradas el 5-nov:
+se apagan a mano (no se borran). Antes de vender, Mundillantas confirma el permiso de uso de
+las fotos con sus proveedores (igual que Depot, ver SOURCES.md).
+
+**Probado:** `fotosCatalogo.test.ts` (cada archivo abre y su extensión dice la verdad, que es
+lo que mira el PDF) y `brandProfilesPorNegocio.test.ts` (rojo sin el arreglo, verde con él).
+Simulador con el Excel real: «4 llantas 265/70r16» → lámina con fotos de Falken, Durun y
+Wideway; «la 2 en pdf» → PDF de la Durun K325 con foto, $209,30 × 4 = $837,20; con el
+INCLUYE apagado la franja desaparece.
+
+**Horas:** 2
+
 ## 6-nov-2026 · Mundillantas: diseño limpio y fotos para el catálogo por archivo
 
 **Qué:** el diseño sacado del «articulo» se comía los números del modelo («TOWNHALL

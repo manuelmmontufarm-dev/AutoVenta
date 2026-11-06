@@ -45,3 +45,15 @@ Los URLs exactos y el proveedor quedan registrados en
 `src/domain/catalogMedia.ts`. Antes de producción, Depot Tire debe confirmar
 permiso de uso comercial con sus fabricantes o distribuidores. Google Images
 solo se usa para descubrir una fuente; no se trata como licencia.
+
+## Mundillantas / Competimotor (6-nov-2026)
+
+123 modelos del inventario de Fénix de Mundillantas, en `FOTOS_POR_MODELO`
+(`src/domain/catalogMedia.ts`), cada uno con su URL de origen. Prioridad de
+fuente: el fabricante (Tourador, Maxxis, Continental, Linglong, Kapsen, Barum,
+Goodyear Latinoamérica, ZC Rubber) y, si no publica la foto, un distribuidor
+(Tireclub México, Priority Tire, Mantallanta Quito, SimpleTire, NeoTires,
+Supercheap NZ…). Cada foto se abrió y se comparó con el dibujo del modelo; lo
+dudoso se dejó sin foto (la pieza dibuja la llanta genérica). Algunas de
+Tireclub traen una marca de agua tenue. Igual que arriba: antes de producción,
+Mundillantas debe confirmar el permiso de uso con sus proveedores.
