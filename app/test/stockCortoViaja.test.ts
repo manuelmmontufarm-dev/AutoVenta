@@ -197,6 +197,10 @@ describe("el orden de los candados en el turno", () => {
       "sin_telefono_propio",
       "sin_mapas_escritos_a_mano",
       "sin_menu_repetido",
+      // Con Black Friday no existe un «$X c/u» en Falken/Kenda (auditoría 9-nov):
+      // el candado lee lo que la cotización/pieza guardaron. Va DESPUÉS del
+      // guardián y de todo lo que escribe un precio (incluido el menú recortado).
+      "sin_precio_por_llanta_con_promo",
       "sin_reparto_inventado",
       "sin_numeros_de_cotizacion",
       // La cotización que no existe no se anuncia (conv 13635, 1-sep): agrega

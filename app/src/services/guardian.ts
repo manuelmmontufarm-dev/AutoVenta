@@ -45,6 +45,8 @@ import { sql } from "../db/client.js";
 import type { Stage } from "../domain/pipeline.js";
 import { ahorroDeLaCotizacion } from "../domain/ahorro.js";
 import { hechoDeLaPromocion } from "../domain/promocion.js";
+import { cuentaConRotulo, segundaLlantaDe } from "../domain/promocionDeTemporada.js";
+import { lineaDeLaCotizacionVigente, type ItemDeCotizacion } from "../domain/hechoDeCotizacionVigente.js";
 import { medidaEstaPedida, mensajesDeLaVisitaActual } from "../domain/medidaPedida.js";
 import { hechoDeLaLista, listaDeLaPieza } from "../domain/listaDeOpciones.js";
 import { hechosDeRestricciones, restriccionesDeLlanta } from "../domain/restriccionesLlanta.js";
@@ -243,7 +245,7 @@ export const INSTRUCCIONES = `Eres el ÁNGEL GUARDIÁN del bot de ventas de ${bu
 
 REVISA, en este orden de gravedad:
 0. NO VENDAS POR TU CUENTA. El CATÁLOGO DE HOY sirve para AUDITAR afirmaciones del borrador, no para crear una oferta nueva. Una corrección NO puede agregar un modelo, producto, precio, cantidad ni disponibilidad que el BORRADOR no traía. Si el borrador no nombró precio o producto, conserva ese límite aunque el catálogo tenga datos. Si el borrador dice que no hay stock vendible, no lo contradigas ofreciendo unidades sueltas: el juego comercial es de ${politica.juegoCompleto} y las filas marcadas NO VENDIBLE no se ofrecen. Si para corregir hiciera falta una tool o una nueva cotización, deja el borrador y reporta **hecho_comercial_inventado**; no improvises la venta. **LA REGLA 0 MANDA SOBRE TODAS LAS DEMÁS:** si una regla inferior parece pedirte agregar una llanta o un precio que el borrador no nombró, aplica la regla 0; corrige solo con palabras genéricas o aprueba con el hallazgo. **ÚNICA EXCEPCIÓN, y es quirúrgica (regla 21):** cuando el CLIENTE pidió un TIPO de llanta (A/T, H/T, R/T, M/T…) y el borrador lo niega o disfraza otra llanta de ese tipo, la corrección SÍ nombra la llanta de ese tipo que el CATÁLOGO DE HOY trae con stock para el juego — marca, diseño y precio copiados de esa fila, sin inventar nada. Ahí no estás vendiendo por tu cuenta: estás entregando el dato determinístico que el cliente pidió y el borrador escondió.
-1. PRECIOS Y COTIZACIONES. Todo número que el borrador afirme (precio unitario, total, número de cotización, meses de garantía) debe coincidir EXACTAMENTE con los datos duros del contexto. Si el borrador confirma que una cotización corresponde a una medida y los datos dicen otra medida, eso es un error ALTO. Si el contexto trae la sección CATÁLOGO DE HOY, los precios de esas medidas SÍ son verificables — nada de «no puedo verificar la cifra»: un precio dicho FUERA de una cotización (una oferta, una recomendación, «la más económica es…») tiene que coincidir con la fila de esa llanta, y si no coincide es error ALTO **precio_incorrecto** cuya corrección usa el número del catálogo. El precio de la COTIZACIÓN vigente es aparte: es un número ya firmado y se compara contra la cotización, no contra el catálogo. La DISPONIBILIDAD sale de la misma sección: ofrecer, recomendar o prometer una llanta cuya fila dice «stock hoy: 0 (AGOTADA)» es error ALTO **stock_prometido**, y la corrección quita ESA llanta. Puede conservar otras alternativas que YA estaban en el borrador; el catálogo por sí solo NO autoriza a nombrar alternativas, precios ni disponibilidad nuevos. Solo si la llanta que el borrador nombra NO aparece en la sección se reporta y se aprueba sin cambiar la cifra.
+1. PRECIOS Y COTIZACIONES. Todo número que el borrador afirme (precio unitario, total, número de cotización, meses de garantía) debe coincidir EXACTAMENTE con los datos duros del contexto. Si el borrador confirma que una cotización corresponde a una medida y los datos dicen otra medida, eso es un error ALTO. Si el contexto trae la sección CATÁLOGO DE HOY, los precios de esas medidas SÍ son verificables — nada de «no puedo verificar la cifra»: un precio dicho FUERA de una cotización (una oferta, una recomendación, «la más económica es…») tiene que coincidir con la fila de esa llanta, y si no coincide es error ALTO **precio_incorrecto** cuya corrección usa el número del catálogo. El precio de la COTIZACIÓN vigente es aparte: es un número ya firmado y se compara contra la cotización, no contra el catálogo. **BLACK FRIDAY (auditoría 9-nov, convs 39597, 39615, 39909, 40082):** si la fila del catálogo o los HECHOS dicen «SIN Black Friday» o «NO existe un precio por llanta», un «$X c/u» («cada una», «por llanta») para esa llanta con 2 o más llantas es error ALTO **precio_incorrecto** aunque coincida con el catálogo o con la lista: las impares valen la lista y las pares la lista × 0,4, no hay un precio único. La corrección usa la CUENTA que traen los HECHOS («2 × $L + 2 × $P = $T») o el total de la cotización — NUNCA el precio de lista ni el del catálogo de hoy como «c/u». La cuenta y el total del juego que el bot dice con esas cifras SON hechos: se conservan. La DISPONIBILIDAD sale de la misma sección: ofrecer, recomendar o prometer una llanta cuya fila dice «stock hoy: 0 (AGOTADA)» es error ALTO **stock_prometido**, y la corrección quita ESA llanta. Puede conservar otras alternativas que YA estaban en el borrador; el catálogo por sí solo NO autoriza a nombrar alternativas, precios ni disponibilidad nuevos. Solo si la llanta que el borrador nombra NO aparece en la sección se reporta y se aprueba sin cambiar la cifra.
 2. MEDIDA. Si el cliente pidió una medida concreta y el borrador ofrece o confirma otra sin decirle con todas las letras que es una equivalente, error ALTO.
 3. RE-PREGUNTAS. Si el borrador pregunta algo que el cliente ya respondió en la conversación (local, fecha, medida, uso), error ALTO. La corrección usa el dato ya dado y avanza. OJO: preguntar CUÁNTAS llantas quiere no es re-pregunta aunque lo parezca —el cliente puede no haberlo dicho nunca— y tiene su propia categoría en la regla 15; clasifícalo ahí.
 4. CONTRADICCIONES con lo que el propio bot dijo antes.
@@ -308,7 +310,7 @@ interface CotizacionVigente {
   quote_number: string;
   total: string | number;
   created_at: Date;
-  items: Array<{ code?: string; brand?: string; design?: string; sizeLabel?: string; quantity?: number; salePriceWithTax?: number }>;
+  items: Array<ItemDeCotizacion & { code?: string }>;
 }
 
 /** «Origen de las marcas (ficha del negocio): KENDA: Taiwán · FALKEN: Japón · …» o null sin ficha. */
@@ -478,8 +480,17 @@ async function catalogoParaElGuardian(pedidas: readonly string[]): Promise<strin
         // Sin él, el revisor no puede juzgar un «no hay A/T»: el 1-sep tenía
         // la KR28 con 89 unidades en la lista y no sabía que era A/T.
         const tipo = tipoDeProducto(p.code, p.design);
+        // Black Friday: el precio de la fila es el de catálogo (−25 %), NO lo que
+        // paga el cliente. Si la marca entra en la promo, la fila lo dice y trae
+        // la cuenta del juego — sin eso el revisor copiaba este «c/u» como si
+        // fuera el precio (auditoría 9-nov, convs 39615 y 40082).
+        const enPromo = segundaLlantaDe(politica.promocionDeTemporada, p.brand, JUEGO_COMPLETO,
+          { hoyConIva: p.minimumPriceWithTax, listaConIva: p.customerPriceWithTax });
+        const precio = enPromo
+          ? `hoy $${p.minimumPriceWithTax.toFixed(2)} c/u con IVA SIN Black Friday; CON Black Friday no existe un precio por llanta — el juego de ${JUEGO_COMPLETO} es ${cuentaConRotulo(JUEGO_COMPLETO, enPromo)}`
+          : `hoy $${p.minimumPriceWithTax.toFixed(2)} c/u con IVA`;
         filas.push(
-          `· ${p.brand} ${p.design} ${p.sizeLabel} ${tipo ? `[${tipo}]` : "[tipo sin clasificar]"} — hoy $${p.minimumPriceWithTax.toFixed(2)} c/u con IVA · ` +
+          `· ${p.brand} ${p.design} ${p.sizeLabel} ${tipo ? `[${tipo}]` : "[tipo sin clasificar]"} — ${precio} · ` +
           `stock hoy: ${p.stock}${estado}`,
         );
       }
@@ -487,7 +498,7 @@ async function catalogoParaElGuardian(pedidas: readonly string[]): Promise<strin
     }
     if (!filas.length) return [];
     return [
-      "== CATÁLOGO DE HOY (fuente determinística: Contífico + precios Interbot, el mismo número que imprimen las piezas) ==",
+      "== CATÁLOGO DE HOY (fuente determinística: Contífico + precios Interbot. Es el precio de catálogo con el descuento de siempre; NO es lo que paga el cliente en las filas que dicen «SIN Black Friday»: ahí vale la cuenta de la fila) ==",
       ...filas,
     ];
   } catch {
@@ -859,8 +870,7 @@ export async function armarContexto(
       : null,
     cotizacion
       ? `Cotización vigente: ${cotizacion.quote_number} · total $${Number(cotizacion.total).toFixed(2)}` +
-        (item ? ` · ${item.quantity ?? "?"} × ${item.brand ?? ""} ${item.design ?? ""} ${item.sizeLabel ?? ""}` +
-          (item.salePriceWithTax ? ` a $${Number(item.salePriceWithTax).toFixed(2)} c/u` : "") : "")
+        lineaDeLaCotizacionVigente(item)
       : "Cotización vigente: ninguna",
     // SIN ESTA LÍNEA EL REVISOR BORRA EL DESCUENTO (26-ago). El texto y su
     // historia viven en `domain/promocion.ts`, que también lo nombra como 3x4

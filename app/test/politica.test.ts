@@ -65,8 +65,12 @@ describe("fijación de Depot: el prompt del sistema, byte a byte", () => {
 
 describe("fijación de Depot: las reglas del guardián, byte a byte", () => {
   it("INSTRUCCIONES es la rúbrica de dc50dab", () => {
+    // Re-fijado a propósito el 9-nov-2026: la regla 1 ganó la cláusula de Black
+    // Friday (un «$X c/u» para Falken/Kenda con 2+ llantas es precio_incorrecto
+    // y se corrige con la cuenta, nunca con la lista ni el catálogo). Solo esa
+    // frase cambió; el resto de la rúbrica sigue byte a byte.
     expect(sha(guardian.INSTRUCCIONES)).toBe(
-      "bbde53997896325e6176b809a6ca7417dc6c59e3815dea2be7ff062496dac148",
+      "8822d18df7e48ce721daaad5a3ae3fd45568cae1c4ff34186387d99cf4c6f7de",
     );
   });
 

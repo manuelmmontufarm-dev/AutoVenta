@@ -205,7 +205,8 @@ describe("la confirmación tras elegir de la lista dice «La opción N», no el 
   });
 
   it("el texto: «La opción 2, *KENDA KR28* — $154.07 c/u con IVA. Le dejo la cotización 👍»", () => {
-    const t = confirmacionDeLaOpcion(2, "KENDA KR28", 154.07);
+    // El precio llega ya dicho por `decirPrecioDeLaLinea` (ver precioPorLlantaConBlackFriday.test.ts).
+    const t = confirmacionDeLaOpcion(2, "KENDA KR28", "*$154.07 c/u con IVA*");
     expect(t).toBe("La opción 2, *KENDA KR28* — *$154.07 c/u con IVA*. Le dejo la cotización 👍");
     expect(t).not.toMatch(/equilibrio|premium|costo/i);
   });

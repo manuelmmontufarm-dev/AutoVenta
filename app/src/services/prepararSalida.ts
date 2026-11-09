@@ -76,6 +76,10 @@ import { esFraseDelDescuento, hablaDelDescuento, respuestaDelDescuento } from ".
 import { ahorroVigente } from "./ahorroVigente.js";
 import { hayDescuentoEnEfectivo, hayPoliticaDePagos, mencionaDescuentoEnEfectivo, politicaDePagos, preguntaPorElPago, niegaDescuentoEnEfectivo, respondeElPagoCompleto, sinDescuentoNegado, sinPagoSinRespuesta } from "../domain/datosDelNegocio.js";
 import { sinNumerosDeCotizacion } from "../domain/numerosDeCotizacion.js";
+import { precioDeLaOpcionGuardada, precioDelProducto, type SegundaLlanta } from "../domain/promocionDeTemporada.js";
+import { sinPrecioPorLlantaConPromo } from "../domain/sinPrecioPorLlantaConPromo.js";
+import { lineasConPromoDelCiclo } from "./lineasConPromo.js";
+import { politica } from "../negocio/politica.js";
 import { conPreguntaEnSuPropioMensaje } from "../domain/preguntaSola.js";
 import { despedidaQueCorresponde } from "../domain/cierrePerdido.js";
 import { motivoDeUbicacion, ofrecioLaUbicacion } from "../domain/ubicacionPedida.js";
@@ -1029,8 +1033,9 @@ export const PASOS: readonly PasoDeSalida[] = [
       if (!limpio.quitado) return texto;
       // Si el cliente acaba de contestar el menú, lo que sigue no es el menú.
       if (ctx.textoDelCliente && respuestaDePreferencia(ctx.textoDelCliente)) return texto;
-      const [pieza] = await sql<{ id: number; created_at: Date; codes: unknown }[]>`
-        select id, created_at, metadata->'codes' as codes from messages
+      const [pieza] = await sql<{ id: number; created_at: Date; codes: unknown; escalones: unknown; cantidad: unknown }[]>`
+        select id, created_at, metadata->'codes' as codes, metadata->'escalones' as escalones,
+          metadata->'cantidad' as cantidad from messages
         where conversation_id=${ctx.conversation.id} and cycle=${ctx.conversation.current_cycle}
           and metadata->>'piece'='options'
         order by created_at desc, id desc limit 1
@@ -1059,11 +1064,45 @@ export const PASOS: readonly PasoDeSalida[] = [
         const codigo = codigos ? [...codigos][0] : null;
         const producto = codigo ? findByCode(codigo) : undefined;
         if (producto) {
-          const precio = producto.minimumPriceWithTax ? ` — *$${producto.minimumPriceWithTax.toFixed(2)} c/u con IVA*` : "";
+          // El precio como lo dejó la pieza (la cuenta si llevaba Black Friday);
+          // sin pieza que lo guarde, el del producto para el juego.
+          const guardada = Object.values((pieza?.escalones ?? {}) as Record<string, { codigo?: string; precio_con_iva?: number; segunda_llanta?: SegundaLlanta | null } | null>)
+            .find((o) => o?.codigo === codigo);
+          const cantidadDeLaPieza = Number(pieza?.cantidad) >= 1 ? Number(pieza?.cantidad) : politica.juegoCompleto;
+          const dicho = guardada && Number(guardada.precio_con_iva) > 0
+            ? precioDeLaOpcionGuardada(politica.promocionDeTemporada,
+                { precio_con_iva: Number(guardada.precio_con_iva), segunda_llanta: guardada.segunda_llanta }, { negrita: true })
+            : producto.minimumPriceWithTax
+              ? precioDelProducto(politica.promocionDeTemporada, producto, cantidadDeLaPieza, { negrita: true }).texto
+              : null;
+          const precio = dicho ? ` — ${dicho}` : "";
           return `Es la única opción que tengo en su medida: *${producto.brand} ${producto.design}*${precio}.\n---\n¿Se la cotizo? 😊`;
         }
       }
       return texto;
+    },
+  },
+  {
+    // CON BLACK FRIDAY NO EXISTE UN «$X c/u» EN FALKEN NI KENDA (auditoría 9-nov:
+    // convs 39597, 39731, 18535, 40034, 39573, 40027, 39615, 40082, 39909).
+    //
+    // La lámina y la cotización dicen «2 × $270.49 + 2 × $108.20 = $757.38» y el
+    // texto de al lado «$202.87 c/u» (el precio de hoy) o «$251.59 c/u» (la
+    // lista, que el Guardián copió de su "cotización vigente"). Las puertas
+    // que arman texto ya lo dicen con `decirPrecioDeLaLinea`; este paso cubre
+    // lo que escriba el vendedor o el propio Guardián, y por eso va DESPUÉS de
+    // ellos. Lee las líneas con promo que la cotización o la pieza GUARDARON:
+    // nunca parsea el texto del bot. Ver domain/sinPrecioPorLlantaConPromo.ts.
+    nombre: "sin_precio_por_llanta_con_promo",
+    corre: ["respuesta", "retomada", "seguimiento"],
+    async aplicar(texto, ctx) {
+      if (!/c\/u|cada\s+una|por\s+llanta/i.test(texto)) return texto;
+      const lineas = await lineasConPromoDelCiclo(ctx.conversation.id, ctx.conversation.current_cycle);
+      const { texto: nuevo, cambios } = sinPrecioPorLlantaConPromo(texto, lineas);
+      for (const c of cambios) {
+        console.warn(`💲 Conv ${ctx.conversation.id}: «${c.de}» de ${c.linea} (Black Friday) → «${c.a}»`);
+      }
+      return nuevo;
     },
   },
   {

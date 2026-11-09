@@ -14,7 +14,7 @@
  * contra el modelo real en `scripts/guardian/probar-rubrica.mjs`.
  */
 import postgres from "postgres";
-import { beforeAll, describe, expect, it, vi } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import type { CatalogItem } from "../src/domain/catalog.js";
 
 process.env.OPENAI_API_KEY ||= "test";
@@ -62,10 +62,16 @@ const { armarContexto } = await import("../src/services/guardian.js");
 
 beforeAll(async () => {
   await ensureSchema();
+  vi.useFakeTimers({ toFake: ["Date"] });
 });
+afterAll(() => vi.useRealTimers());
 
 describe("armarContexto · el catálogo de hoy viaja como hecho duro", () => {
   it("EL CASO QUE FALLÓ: con la medida pedida, el precio y el stock están a la vista", async () => {
+    // Fuera de la temporada (1-dic, hora Ecuador): la fila es la de siempre.
+    // El Black Friday tiene su propia prueba abajo; sin fijar el reloj esta
+    // dependería de la fecha en que se corra.
+    vi.setSystemTime(new Date("2026-12-01T17:00:00Z"));
     const [conv] = await sql<{ id: number }[]>`
       insert into conversations (phone, name, status, stage, current_cycle, tire_size)
       values ('593999111333', 'Cliente', 'open', 'medida_confirmada', 1, '245/70R16')
@@ -86,6 +92,25 @@ describe("armarContexto · el catálogo de hoy viaja como hecho duro", () => {
     // Y la agotada viene marcada con la regla comercial completa: no pasa el
     // mismo filtro que arma la vitrina para un juego de cuatro.
     expect(contexto).toContain("KENDA KR608 245/70R16 [A/T] — hoy $213.50 c/u con IVA · stock hoy: 0 (NO VENDIBLE para el juego de 4: no se ofrece)");
+  });
+
+  it("BLACK FRIDAY (9-nov): la fila de Kenda dice que el «c/u» es SIN la promo y trae la cuenta del juego", async () => {
+    vi.setSystemTime(new Date("2026-11-15T17:00:00Z"));
+    const [conv] = await sql<{ id: number }[]>`
+      insert into conversations (phone, name, status, stage, current_cycle, tire_size)
+      values ('593999111335', 'Cliente', 'open', 'medida_confirmada', 1, '245/70R16')
+      returning id
+    `;
+    await sql`
+      insert into messages (conversation_id, cycle, role, direction, content, type)
+      values (${conv.id}, 1, 'user', 'inbound', 'En la medida 245/70/16', 'text')
+    `;
+    const contexto = await armarContexto(conv.id, 1, "La más económica es KENDA KR628 a $144.44 c/u con IVA.");
+    expect(contexto).toContain(
+      "KENDA KR628 245/70R16 [A/T] — hoy $144.44 c/u con IVA SIN Black Friday; CON Black Friday no existe un precio por llanta — el juego de 4 es 2 × $144.44 + 2 × $57.78 = $404.44 (−60 % en la 2.ª llanta) · stock hoy: 10",
+    );
+    // El encabezado ya no afirma que ese número sea el que imprimen las piezas.
+    expect(contexto).not.toContain("el mismo número que imprimen las piezas");
   });
 
   it("EL CASO QUE NO DEBE DISPARAR: sin medida pedida no hay sección ni ruido", async () => {

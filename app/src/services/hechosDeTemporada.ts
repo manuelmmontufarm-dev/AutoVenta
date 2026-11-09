@@ -179,6 +179,9 @@ export function hechoDeTemporadaParaElGuardian(opciones: OpcionesDeTemporada = {
   const tacha = [
     pct != null ? `el ${pct} % en otra marca que no sea ${marcas}` : null,
     pct != null ? `el ${pct} % en todas las llantas, en las 4 o en una sola llanta` : null,
+    pct != null
+      ? `un «$X c/u» («cada una», «por llanta») para una llanta ${marcas} con 2 o más llantas: con esta promo NO existe un precio por llanta — la corrección usa la cuenta («2 × $X + 2 × $Y = $T») o el total de la cotización, NUNCA el precio de lista ni el del catálogo de hoy`
+      : null,
     servicios.length ? `un descuento o precio de un servicio que no está en la tabla, o un precio distinto al de la tabla` : null,
     productos.length ? "un precio de aceite que no está en la lista, o un aceite elegido por el modelo del vehículo" : null,
     incluidos.length

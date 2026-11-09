@@ -1,3 +1,29 @@
+## 9-nov-2026 · Black Friday: el texto ya no dice un «$X c/u» que contradice la lámina (auditoría 9-nov, sprint 1)
+
+- **Qué:** en Falken/Kenda con la promo (impares a LISTA, pares a lista × 0,4) no existe un precio por
+  llanta, pero el texto que acompaña a la lámina decía «$202.87 c/u» (el precio de hoy) y el Guardián
+  «corregía» a «$251.59 c/u» (la lista). Ahora todo texto que habla del precio de una línea con promo dice
+  la cuenta («2 × $270.49 + 2 × $108.20 = $757.38 (−60 % en la 2.ª llanta)») y con 1 o 3 llantas, Winrun, promo
+  apagada o compuerta cerrada sigue el «$P c/u con IVA». Casos: 39597, 39731, 18535, 40034, 39573, 40027,
+  39615, 40082, 39909.
+- **Cómo:** una sola fuente, `decirPrecioDeLaLinea` / `precioDeLaLinea` / `precioDeLaOpcionGuardada` en
+  `domain/promocionDeTemporada.ts` (mismo interruptor que `promocionVigente`). Las 11 líneas que escribían el
+  c/u (`buildCierreOpciones`, `textoDeLaPieza`, `tools.ts` ×3, `cotizarLoElegido` ×2, `sin_menu_repetido`) la usan, y
+  `confirmacionDeLaOpcion` deja de callar el precio. Hechos del vendedor (`escalonesLine`, órdenes de
+  `agent.ts`, `buscar_llanta` → `precio_para_decir`) y una regla en `compactPlaybook.ts`. Hechos del Guardián:
+  «Cotización vigente» con la cuenta (`domain/hechoDeCotizacionVigente.ts`), fila del catálogo «SIN Black Friday»
+  con la cuenta, encabezado sin la mentira, y la regla 1 de la rúbrica. Candado nuevo
+  `sin_precio_por_llanta_con_promo` (después del Guardián, en respuesta/retomada/seguimiento): lee las líneas con
+  promo que la cotización o la pieza GUARDARON (`services/lineasConPromo.ts`), nunca el texto del bot.
+- **Por qué:** `minimumPriceWithTax` y `salePriceWithTax` dejaron de ser «lo que paga el cliente por llanta» el
+  6-nov (`a553745`) y solo se parchó «elegir por número». Los frenos del Guardián eran casualidad, no regla.
+- **Probado:** simulador (antes/después con los mismos mensajes), prueba en rojo (14 de 22 fallan sin el arreglo),
+  integración con la cotización firmada de verdad, Guardián real (canary mini) contra el borrador de 39909.
+  Re-fijados a propósito: hash de la rúbrica (`politica.test`), lista de `PASOS` (`stockCortoViaja`), fila del
+  catálogo (`guardianCatalogo`, ahora con reloj fijo). **No toqué:** la comparativa (bloque C), `listaDeLaPieza`
+  ni los seguimientos (sprint 2: una pieza guardada en noviembre seguirá diciendo el 60 % el 2-dic).
+- **Horas:** 3,5
+
 ## 8-nov-2026 · Mundillantas: tres huecos del INCLUYE por cantidad (revisión del PR #38)
 
 - **Qué:** el Cotizador del panel, el re-dibujo de cotización y la vista previa de piezas no pasaban la

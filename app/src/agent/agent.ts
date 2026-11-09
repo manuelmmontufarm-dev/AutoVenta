@@ -5,6 +5,8 @@
  */
 import { obligacionDeMostrarEquivalentes } from "../domain/equivalentesPorMostrar.js";
 import { opcionPorPosicion, posicionElegida } from "../domain/listaDeOpciones.js";
+import { precioDeLaOpcionGuardada, segundaGuardadaVigente, type SegundaLlanta } from "../domain/promocionDeTemporada.js";
+import { politica } from "../negocio/politica.js";
 import { anuncioDeLaConversacion } from "../services/anuncio.js";
 import OpenAI from "openai";
 import { nuevoClienteOpenAI } from "./openaiCliente.js";
@@ -326,7 +328,7 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
     extractTireSizes(userText).map(formatTireSize)[0] ?? salesFacts.tireSize ?? null;
   const [piezaPrevia] = await sql<{ metadata: {
     sizeLabel?: string | null;
-    escalones?: Record<string, { nombre?: string; codigo?: string; precio_con_iva?: number } | null>;
+    escalones?: Record<string, { nombre?: string; codigo?: string; precio_con_iva?: number; segunda_llanta?: SegundaLlanta | null } | null>;
     /** Medidas de las tarjetas que NO son la pedida: la pieza fue de equivalentes. */
     equivalentes?: string[];
     recomendado?: string;
@@ -513,7 +515,13 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
     const opcion = piezaPrevia?.metadata?.escalones?.[nivel];
     const producto = opcion?.codigo ? findByCode(opcion.codigo) : undefined;
     return opcion?.codigo && opcion.nombre
-      ? { codigo: opcion.codigo, nombre: opcion.nombre, precio: opcion.precio_con_iva ?? null, medida: producto?.sizeLabel ?? null }
+      ? {
+          codigo: opcion.codigo, nombre: opcion.nombre, precio: opcion.precio_con_iva ?? null, medida: producto?.sizeLabel ?? null,
+          // Cómo se dice el precio de esa opción (la cuenta con Black Friday, el «c/u» sin ella).
+          precioDicho: opcion.precio_con_iva
+            ? precioDeLaOpcionGuardada(politica.promocionDeTemporada, { precio_con_iva: opcion.precio_con_iva, segunda_llanta: opcion.segunda_llanta })
+            : null,
+        }
       : null;
   };
   let ordenDeEquivalente: string | null = null;
@@ -543,7 +551,7 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
         const pregunta = preguntaDeEquivalente({ recomendacion: delEscalon.nombre, medida: delEscalon.medida });
         ordenDeEquivalente =
           `EL CLIENTE CONTESTÓ SU PREFERENCIA (fuente determinística) y las opciones en pantalla son EQUIVALENTES (otra medida que la pedida). `
-          + `Entrega LA del escalón que eligió: *${delEscalon.nombre}*${delEscalon.precio ? ` a $${delEscalon.precio.toFixed(2)} c/u con IVA` : ""}${delEscalon.medida ? ` en ${delEscalon.medida}` : ""}, en UNA frase, y cierra en un mensaje aparte (---) EXACTAMENTE con: «${pregunta}». `
+          + `Entrega LA del escalón que eligió: *${delEscalon.nombre}*${delEscalon.precioDicho ? ` — ${delEscalon.precioDicho}` : ""}${delEscalon.medida ? ` en ${delEscalon.medida}` : ""}, en UNA frase, y cierra en un mensaje aparte (---) EXACTAMENTE con: «${pregunta}». `
           + "PROHIBIDO llamar generar_cotizacion (todavía no dio su sí a la otra medida), PROHIBIDO buscar_llanta o preparar_opciones (ya las tiene en pantalla), PROHIBIDO preguntar «¿quiere que le envíe esa opción?» o cerrar con «si acepta esa equivalente»: la única pregunta del turno es la de cotizar.";
       }
     }
@@ -671,7 +679,7 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
     ...(escalonSinReply
       ? [{
           role: "system" as const,
-          content: `RESPUESTA AL MENÚ DE PREFERENCIA (fuente determinística): el cliente eligió el escalón «${ETIQUETA_DEL_ESCALON[opcionPorLista?.escalon ?? escalonSinReply]}»${opcionDelEscalon ? `, que en la última pieza de opciones es *${opcionDelEscalon.nombre}* ($${opcionDelEscalon.precio_con_iva.toFixed(2)} c/u con IVA, código ${opcionDelEscalon.codigo})` : ""}. Llama generar_cotizacion AHORA MISMO${opcionDelEscalon ? ` con code ${opcionDelEscalon.codigo}` : " con ESA opción"} y 4 llantas (o la cantidad que haya dicho). PROHIBIDO leer ese número como cantidad, PROHIBIDO volver a preguntar qué prefiere, PROHIBIDO preguntar si la quiere o anunciar que «se la prepara»: la cotización sale en este turno o no sale.`,
+          content: `RESPUESTA AL MENÚ DE PREFERENCIA (fuente determinística): el cliente eligió el escalón «${ETIQUETA_DEL_ESCALON[opcionPorLista?.escalon ?? escalonSinReply]}»${opcionDelEscalon ? `, que en la última pieza de opciones es *${opcionDelEscalon.nombre}* (${precioDeLaOpcionGuardada(politica.promocionDeTemporada, opcionDelEscalon)}, código ${opcionDelEscalon.codigo})` : ""}. Llama generar_cotizacion AHORA MISMO${opcionDelEscalon ? ` con code ${opcionDelEscalon.codigo}` : " con ESA opción"} y 4 llantas (o la cantidad que haya dicho). PROHIBIDO leer ese número como cantidad, PROHIBIDO volver a preguntar qué prefiere, PROHIBIDO preguntar si la quiere o anunciar que «se la prepara»: la cotización sale en este turno o no sale.`,
         }]
       : []),
     ...(esPreguntaTecnica
@@ -1397,11 +1405,17 @@ function escalonesLine(escalones: Escalones | null): string | null {
       // lonas es?» en un turno posterior: el dato está en el nombre del
       // fabricante y el bot decía que no lo tenía (convs 16974, 18294, 18880).
       const lonas = opcion?.lonas ? `, ${opcion.lonas} lonas` : "";
-      return opcion ? `${nivel}: ${opcion.nombre} ($${opcion.precio_con_iva.toFixed(2)} c/u con IVA, código ${opcion.codigo}${lonas})` : null;
+      // El precio como se DICE: la cuenta con Black Friday (no existe un c/u), el «c/u» sin ella.
+      return opcion ? `${nivel}: ${opcion.nombre} (${precioDeLaOpcionGuardada(politica.promocionDeTemporada, opcion)}, código ${opcion.codigo}${lonas})` : null;
     })
     .filter(Boolean);
   if (!partes.length) return null;
-  return `Escalones de la última pieza de opciones enviada — ${partes.join("; ")}. Cuando ahí diga las lonas, es un dato REAL del producto y se responde con él; no digas que no lo tienes. Si el cliente responde su preferencia («mejor precio», «la más barata», «equilibrada», «la del medio», «premium», «la mejor»), entrega LA opción de ese escalón con su precio y en ESE MISMO turno llama generar_cotizacion con su código y 4 llantas (o la cantidad que haya dicho): contestar el menú ES pedir la cotización — PROHIBIDO ofrecerla o pedir permiso, PROHIBIDO volver a preguntarle qué prefiere o si necesita una recomendación.`;
+  const conPromo = (["premium", "equilibrada", "economica"] as const)
+    .some((nivel) => segundaGuardadaVigente(politica.promocionDeTemporada, escalones[nivel]?.segunda_llanta) !== null);
+  const reglaDeLaCuenta = conPromo
+    ? " Las opciones que traen una CUENTA («2 × $X + 2 × $Y = $T») son de Falken/Kenda con Black Friday: de ellas NO existe un precio por llanta — di esa cuenta o el total, NUNCA «$X c/u», «cada una» ni el total dividido en 4. Si piden «cuánto vale cada una», contesta con la cuenta (las impares valen un precio y las pares otro) sin contarle esta regla."
+    : "";
+  return `Escalones de la última pieza de opciones enviada — ${partes.join("; ")}.${reglaDeLaCuenta} Cuando ahí diga las lonas, es un dato REAL del producto y se responde con él; no digas que no lo tienes. Si el cliente responde su preferencia («mejor precio», «la más barata», «equilibrada», «la del medio», «premium», «la mejor»), entrega LA opción de ese escalón con su precio (si lo es, la cuenta) y en ESE MISMO turno llama generar_cotizacion con su código y 4 llantas (o la cantidad que haya dicho): contestar el menú ES pedir la cotización — PROHIBIDO ofrecerla o pedir permiso, PROHIBIDO volver a preguntarle qué prefiere o si necesita una recomendación.`;
 }
 
 function withDiscountNotice(

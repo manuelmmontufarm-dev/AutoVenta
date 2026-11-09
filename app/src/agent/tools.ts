@@ -117,7 +117,7 @@ import {
   medidaEstaPedida, medidasDeProductos, medidasPermitidas, mensajesDeLaVisitaActual,
 } from "../domain/medidaPedida.js";
 import { ahorroDeLaCotizacion } from "../domain/ahorro.js";
-import { marcaConSegundaLlanta, segundaLlantaDe } from "../domain/promocionDeTemporada.js";
+import { precioDelProducto, segundaLlantaDe } from "../domain/promocionDeTemporada.js";
 import { avisoDeCantidad, esCantidadInusual } from "../domain/cantidadGrande.js";
 import { claseDeVehiculoEnTexto, TIPOS_DE_CAMIONETA } from "../domain/claseDeVehiculo.js";
 import { medidaEnDisputaDelPedido, medidasDelPedido } from "../services/medidasDelPedido.js";
@@ -2193,7 +2193,11 @@ export function buildTools(ctx: AgentContext) {
         const codigoDelEscalon = porLista?.codigo ?? escalonesPrevios?.[nivel]?.codigo ?? null;
         const elegida = (codigoDelEscalon && products.find((p) => p.code === codigoDelEscalon)) ?? null;
         if (elegida) {
-          const precio = elegida.minimumPriceWithTax ? ` — *$${elegida.minimumPriceWithTax.toFixed(2)} c/u con IVA*` : "";
+          // Cómo se dice el precio de la elegida: la cuenta con Black Friday, el «c/u» sin ella.
+          const precioElegido = elegida.minimumPriceWithTax
+            ? precioDelProducto(politica.promocionDeTemporada, elegida, cantidadResuelta.cantidad, { negrita: true }).texto
+            : null;
+          const precio = precioElegido ? ` — ${precioElegido}` : "";
           const esEquivalente = permitidasOpciones.length > 0 && !medidaEstaPedida(elegida.sizeLabel, permitidasOpciones);
           const equivaleDeVerdad = porQueNoEquivale(permitidasOpciones, elegida, requisitosDelCliente) === null;
           const etiqueta = preferenciaContestada === "precio" ? "de costo" : preferenciaContestada === "premium" ? "premium" : "de equilibrio";
@@ -2214,9 +2218,7 @@ export function buildTools(ctx: AgentContext) {
             recomendacion: `${elegida.brand} ${elegida.design}`,
             codigo: elegida.code,
             mensaje_para_enviar: porLista
-              // Con Black Friday no hay UN precio por llanta: lo dice la cotización.
-              ? confirmacionDeLaOpcion(posicionDeLista!, `${elegida.brand} ${elegida.design}`,
-                  marcaConSegundaLlanta(politica.promocionDeTemporada, elegida.brand) ? null : elegida.minimumPriceWithTax)
+              ? confirmacionDeLaOpcion(posicionDeLista!, `${elegida.brand} ${elegida.design}`, precioElegido)
               : `La opción ${etiqueta} es la *${elegida.brand} ${elegida.design}*${precio}.`,
             regla: `El cliente contestó el menú: la lámina ya la tiene y NO se reenvía. Llama generar_cotizacion AHORA MISMO con code ${elegida.code} y 4 llantas (o la cantidad que haya dicho); el texto de arriba va antes de la cotización.`,
           });
@@ -2225,7 +2227,9 @@ export function buildTools(ctx: AgentContext) {
       if (pideAlternativaMasBarata(ctx.currentUserText)) {
         if (mismaVitrina) {
           const unica = products[0];
-          const precio = unica.minimumPriceWithTax ? ` — *$${unica.minimumPriceWithTax.toFixed(2)} c/u con IVA*` : "";
+          const precio = unica.minimumPriceWithTax
+            ? ` — ${precioDelProducto(politica.promocionDeTemporada, unica, cantidadResuelta.cantidad, { negrita: true }).texto}`
+            : "";
           return JSON.stringify({
             imagen_enviada: false,
             recomendacion_entregada: false,
@@ -2572,6 +2576,9 @@ export function buildTools(ctx: AgentContext) {
         recomendacion,
         motivo: motivo.trim().replace(/\.$/, ""),
         precioConIva: entregada.minimumPriceWithTax ?? null,
+        marca: entregada.brand,
+        listaConIva: entregada.customerPriceWithTax,
+        cantidad: cantidadResuelta.cantidad,
         // El cierre no puede prometer «la opción exacta para su medida» en
         // dos casos: cuando hay equivalentes en la pieza (guardián del
         // 26-ago) y cuando NO SABEMOS su medida —buscó por aro o por
@@ -4391,9 +4398,21 @@ function toolItem(item: {
   stock: number;
   availability?: string;
 }) {
+  // Sin cantidad dicha, el bot cotiza el juego completo: la cuenta de la promo
+  // se hace para esa. (Sin segundo parámetro: se usa con `.map(toolItem)`.)
+  const cantidad = politica.juegoCompleto;
   // El tipo (H/T, A/T, R/T…) no viene de Contífico: sale de la base que entregó
   // el cliente. Es lo que permite responder "quiero una R17 A/T".
   const tipo = tipoDeProducto(item.code, item.design);
+  // BLACK FRIDAY: en Falken/Kenda con la promo aplicada NO existe un precio por
+  // llanta (impares a lista, pares a lista × 0,4). Antes el vendedor recibía
+  // `precio_hoy_con_iva` (el −25 %) y lo repetía como «$X c/u» (convs 39615 y
+  // 40082, 7-nov: +$46 y +$38 contra el juego real). Con promo no se entregan
+  // los dos precios sueltos: se entrega lo que se DICE (`precio_para_decir`).
+  const dicho = item.minimumPriceWithTax
+    ? precioDelProducto(politica.promocionDeTemporada,
+        { brand: item.brand, minimumPriceWithTax: item.minimumPriceWithTax, customerPriceWithTax: item.customerPriceWithTax }, cantidad)
+    : null;
   return {
     code: item.code,
     marca: item.brand,
@@ -4404,8 +4423,16 @@ function toolItem(item: {
     // se contesta con esto y no con la definición genérica del tipo.
     uso_del_modelo: usoDelModelo(item.design) ?? undefined,
     escalon: politica.escalonPorPrecio ? ESCALON_POR_CODIGO.get(item.code) : etiquetaEscalon(item.brand, item.design),
-    precio_lista_con_iva: item.customerPriceWithTax,
-    precio_hoy_con_iva: item.minimumPriceWithTax,
+    ...(dicho?.segunda
+      ? {
+          precio_para_decir: dicho.texto,
+          regla_de_precio: `Black Friday: en ${item.brand} NO existe un precio por llanta. Del precio di SOLO la cuenta de 'precio_para_decir' (para ${cantidad} llantas) o el total; PROHIBIDO escribir «$X c/u», «cada una» o dividir el total.`,
+        }
+      : {
+          precio_lista_con_iva: item.customerPriceWithTax,
+          precio_hoy_con_iva: item.minimumPriceWithTax,
+          ...(dicho ? { precio_para_decir: dicho.texto } : {}),
+        }),
     stock: item.stock,
     disponibilidad: item.availability,
     // Las lonas viven en el nombre del fabricante («KR29 10PR TL») y se
