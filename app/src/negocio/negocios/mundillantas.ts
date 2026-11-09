@@ -26,13 +26,16 @@ export const PENDIENTES_NUMERICOS = [
 ];
 
 /**
- * Pines que mandó Jenny por WhatsApp el 6-nov-2026. El de Falken (km 2) cae a
- * 6 m del Plus Code PRQ7+887 que antes usábamos como «matriz»: era este local.
- * El de Competimotor (km 1½) queda ~470 m hacia el centro, como corresponde.
+ * Links de Google Maps que mandó Jenny el 9-nov-2026 (la ficha de cada local
+ * en Maps) y el pin de esa ficha. Reemplazan los pines del 6-nov, que estaban
+ * a 6 m (Falken) y 8 m (Competimotor) y salían como `maps.google.com/?q=…`.
+ * La ficha de Falken en Maps se llama «Mundillantas Matriz» (Plus Code
+ * PRQ7+887). Competimotor (km 1½) queda ~480 m hacia el centro.
  */
-const PIN_FALKEN = { lat: -0.26177, lng: -79.186684 };
-const PIN_COMPETIMOTOR = { lat: -0.259614, lng: -79.183052 };
-const maps = (pin: { lat: number; lng: number }) => `https://maps.google.com/?q=${pin.lat},${pin.lng}`;
+const PIN_FALKEN = { lat: -0.2617224, lng: -79.186715 };
+const PIN_COMPETIMOTOR = { lat: -0.2595733, lng: -79.1829972 };
+const MAPS_FALKEN = "https://maps.app.goo.gl/swNHGotRKPLJn3LZA";
+const MAPS_COMPETIMOTOR = "https://maps.app.goo.gl/QTFCzK2KDRXULRwz7";
 
 export const MUNDILLANTAS: PerfilDeNegocio = {
   id: "mundillantas",
@@ -77,7 +80,7 @@ export const MUNDILLANTAS: PerfilDeNegocio = {
       direccion: "Vía Quevedo km 2 y Manuel Borrero, margen derecho, Santo Domingo",
       lat: PIN_FALKEN.lat,
       lng: PIN_FALKEN.lng,
-      mapsUrl: maps(PIN_FALKEN),
+      mapsUrl: MAPS_FALKEN,
       claveHorario: "matriz",
       comoLoNombran: /\bmundi(llantas)?\s+falken\b|\bfalken\s+mundi|\bmanuel\s+borrero\b|\bkm\.?\s*2\b|\bkilometro\s+2\b|\bmatriz\b/,
     },
@@ -100,7 +103,7 @@ export const MUNDILLANTAS: PerfilDeNegocio = {
       direccion: "Vía Quevedo km 1½ y Juan León Mera #834, Santo Domingo",
       lat: PIN_COMPETIMOTOR.lat,
       lng: PIN_COMPETIMOTOR.lng,
-      mapsUrl: maps(PIN_COMPETIMOTOR),
+      mapsUrl: MAPS_COMPETIMOTOR,
       claveHorario: "competimotor",
       comoLoNombran: /\bcompetimotor\b|\bcompeti\s*motor\b|\bjuan\s+leon\s+mera\b/,
     },
