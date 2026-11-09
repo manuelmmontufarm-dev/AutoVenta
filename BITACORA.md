@@ -1,3 +1,11 @@
+## 9-nov-2026 · Esquema: la 018 ya no recrea el check de rol (deploy de Depot FAILED)
+
+- **Qué:** la migración 018 deja de crear `advisors_rol_valido` (`rol in ('admin','asesor')`). Prueba de
+  integración nueva (`test/esquemaNivelNuevo.integration.test.ts`) con un asesor en `nivel-2`.
+- **Por qué:** el deploy de Depot de las 18:06 (merge del #40) murió con `23514`: la 018 corre en cada
+  arranque antes que la 028 y recreaba el check, pero Manuel está en `nivel-2`. Cualquier reinicio de
+  Depot habría fallado igual. La 028 ya lo borraba; el estado final de la base no cambia. ~0,5 h.
+
 ## 9-nov-2026 · Mundillantas: links y pines de Google Maps de la matriz y de Competimotor
 
 - **Qué:** Mundillantas Falken (`matriz`) y Competimotor mandan el link corto de la ficha de Maps que

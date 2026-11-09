@@ -18,18 +18,12 @@ export async function runRolesDeAsesorMigration(sql: Sql): Promise<void> {
   await sql.unsafe(/* sql */ `
     alter table advisors add column if not exists rol text not null default 'admin';
 
-    -- Un rol mal escrito desde la API dejaría al asesor sin ningún aviso (el
-    -- filtro no lo reconocería como admin ni como asesor). Que falle al
-    -- guardarse, no en silencio a las tres semanas.
-    do $$
-    begin
-      if not exists (
-        select 1 from pg_constraint where conname = 'advisors_rol_valido'
-      ) then
-        alter table advisors add constraint advisors_rol_valido
-          check (rol in ('admin', 'asesor'));
-      end if;
-    end $$;
+    -- El check advisors_rol_valido (solo 'admin'/'asesor') ya NO se crea acá.
+    -- Desde la 028 rol guarda el id de cualquier nivel (p. ej. 'nivel-2') y
+    -- la 028 borra el check. Pero esta migración corre en CADA arranque, antes
+    -- que la 028: volvía a crear el check y, con un asesor en un nivel nuevo,
+    -- el arranque moría (deploy FAILED de Depot, 9-nov-2026). La validación del
+    -- nivel vive en la API (admin.ts).
 
     insert into schema_migrations (id)
     values ('${ROLES_DE_ASESOR_MIGRATION_ID}')
