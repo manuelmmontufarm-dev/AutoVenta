@@ -1,3 +1,13 @@
+## 9-nov-2026 · fix(db): el próximo reinicio de producción no arrancaba (migración 018 + asesor en `nivel-2`)
+
+- **Qué:** producción tiene un asesor con rol `nivel-2` (puesto el 9-nov a las 22:52 UTC). Cada arranque corre la 018, que
+  volvía a crear `advisors_rol_valido check (rol in ('admin','asesor'))` (la 028 lo había borrado); Postgres validaba las filas y
+  daba 23514, y `ensureSchema` solo perdona 55P03: el siguiente deploy o reinicio no arrancaba. También tumbaba `npm run sim`
+  (copia los asesores de producción).
+- **Cómo:** la 018 solo agrega el check si `028_niveles_de_aviso` no está en `schema_migrations`. Base nueva: 018 lo crea y 028 lo
+  quita, como siempre; después ya no vuelve. Prueba de integración `migracion018NivelesDeAviso.integration.test.ts` (rojo sin el
+  arreglo con el 23514 real). Commit separado para poder publicarlo solo.
+
 ## 9-nov-2026 · Cantidades mal entendidas: un número del menú o de la medida ya no es «cuántas» (auditoría 9-nov, sprint 3)
 
 - **Qué:** la cantidad dice CUÁNTAS llantas, no CUÁL ni qué medida. Cuatro chats: **39535** «Las 1-2-3 por favor» se
