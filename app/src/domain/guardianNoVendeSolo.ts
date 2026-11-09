@@ -113,14 +113,24 @@ function preciosConocidos(
  * dos veces) y «hoy aparecen 3 unidades y para juego de 4 no la manejo» (40097)
  * decían lo contrario de vender, y la regex de abajo las leía como «hay 1
  * unidad… ofrecer»: el candado restauraba el borrador que el propio Guardián
- * acababa de marcar como error. Se mira CADA cláusula (se parte en puntos,
- * saltos de línea, «;» y «pero/sino/aunque»): si la cláusula que trae «N
- * llantas» también trae un rechazo («no puedo», «no la manejo», «no hay
- * juego»…), explica por qué NO se ofrece. Una oferta con negación en OTRA
- * cláusula («No tengo juego de 4, pero tengo 1 unidad disponible») sigue frenada.
+ * acababa de marcar como error.
+ *
+ * Dos reglas, y la segunda manda sobre la primera (revisión del sprint 2):
+ *  1. Una PROPUESTA de venta en cualquier parte del texto («¿le cotizo las 3?»,
+ *     «le cotizo esas 2», «¿le sirve?», «se las dejo», «le consigo la cuarta»)
+ *     hace que «N llantas disponibles» siga siendo una oferta, diga lo que diga
+ *     alrededor («no alcanzan para el juego, ¿le cotizo las 3?» es 11972).
+ *  2. Sin propuesta, la cláusula (se parte en puntos, «;» y «pero/sino/aunque»)
+ *     que trae «N llantas» no es oferta si la NEGACIÓN RIGE EL VERBO DE OFRECER:
+ *     «no puedo ofrecerla», «no se la puedo cotizar», «no la manejo», «no hay
+ *     juego». Un «no» cualquiera («no alcanzan», «no le puedo hacer descuento»)
+ *     no cuenta.
  */
+const PROPUESTA_DE_VENTA =
+  /\b(?:le|se\s+la|se\s+las|se\s+lo|se\s+los|te)\s+(?:cotizo|sirve|dejo|consigo|armo|preparo|separo|reservo)\b|\bcotizo\s+(?:esas?|esos?|las|los|la|lo)\b|\bsi\s+(?:desea|quiere|gusta|le\s+parece)[^.?!]{0,30}\b(?:cotizo|dejo|consigo|armo)\b/;
+
 const RECHAZO_DE_LA_OFERTA =
-  /\bno\s+(?:\w+\s+){0,3}?(?:puedo|podemos|puede|ofrezc\w*|ofrec\w*|cotiz\w*|vend\w*|manej\w*|alcanz\w*|sirv\w*|recomiend\w*|aplica\w*)\b|\bno\s+(?:hay|tengo|tenemos|queda\w*|existe\w*)\s+(?:el\s+|un\s+)?juego\b|\bsin\s+(?:el\s+)?juego\b/;
+  /\bno\s+(?:(?:le|la|lo|se|les|las|los|me)\s+){0,2}(?:puedo|podemos|ofrezc\w*|ofrec\w*|cotiz\w*|vend\w*|manej\w*)\b|\bno\s+(?:hay|tengo|tenemos|queda\w*|existe\w*)\s+(?:el\s+|un\s+)?juego\b|\bsin\s+(?:el\s+)?juego\b/;
 
 const OFERTA_DE_1_A_3 = [
   /\b(?:tengo|hay|quedan|cuento\s+con|disponible(?:s)?|ofrezco|ofrecer\w*|cotizo|cotizar\w*|vendo|vender\w*)\b.{0,64}\b[1-3]\s+(?:llantas?|unidad(?:es)?)\b/,
@@ -128,11 +138,13 @@ const OFERTA_DE_1_A_3 = [
 ];
 
 function ofreceJuegoIncompleto(texto: string): boolean {
+  const hayPropuesta = PROPUESTA_DE_VENTA.test(normalizeCatalogText(texto));
   return texto
     .split(/[.!?¿\n;]+|\b(?:pero|sino|aunque)\b/i)
     .some((clausula) => {
       const normalizada = normalizeCatalogText(clausula);
-      return OFERTA_DE_1_A_3.some((patron) => patron.test(normalizada)) && !RECHAZO_DE_LA_OFERTA.test(normalizada);
+      if (!OFERTA_DE_1_A_3.some((patron) => patron.test(normalizada))) return false;
+      return hayPropuesta || !RECHAZO_DE_LA_OFERTA.test(normalizada);
     });
 }
 

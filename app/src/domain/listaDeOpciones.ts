@@ -132,8 +132,11 @@ export function listaDeLaPieza(
  * en ninguna cotización ni en el catálogo y los borra por `precio_incorrecto`, y
  * la pregunta «¿Le cotizo la 1, la 2 o la 3?» le parece un permiso de más.
  */
-export function hechoDeLaLista(lista: readonly LineaDeLista[], cantidad: number): string {
-  return `LISTA DE OPCIONES CON PRECIOS EN PANTALLA (fuente determinística, salió con la lámina): ${
+export function hechoDeLaLista(lista: readonly LineaDeLista[], cantidad: number, vigente = false): string {
+  // En un turno normal la lista es la que SALIÓ con la lámina; en un seguimiento es la VIGENTE
+  // (precio y promo de hoy sobre las opciones de la lámina): el revisor tiene que saber cuál es.
+  const origen = vigente ? "recalculada HOY con el catálogo y la promo de hoy sobre las opciones de la lámina" : "salió con la lámina";
+  return `LISTA DE OPCIONES CON PRECIOS EN PANTALLA (fuente determinística, ${origen}): ${
     lista.map((l) => lineaDeLista(l, cantidad)).join(" | ")
   }. Cada total es unitario × ${cantidad} (o, con Black Friday, la cuenta de la 2.ª llanta escrita en la línea), ya calculado: son datos duros, el bot PUEDE decirlos y NO se corrigen. `
     + `Cerrar con «${preguntaDeLaLista(lista.length)}» es la pregunta correcta de ese turno (elegir entre las opciones, NO pedir permiso por la cantidad): `

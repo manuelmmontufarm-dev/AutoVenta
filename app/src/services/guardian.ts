@@ -916,7 +916,7 @@ export async function armarContexto(
     respaldados.length
       ? `Servicios y beneficios respaldados (lo ÚNICO que el bot puede prometer como incluido): ${respaldados.join(" · ")}`
       : "Servicios y beneficios respaldados: ninguno cargado — el borrador no puede prometer nada como incluido",
-    listaEnPantalla ? hechoDeLaLista(listaEnPantalla.lista, listaEnPantalla.cantidad) : null,
+    listaEnPantalla ? hechoDeLaLista(listaEnPantalla.lista, listaEnPantalla.cantidad, opciones.tipo === "seguimiento") : null,
     opciones.avisoRegistrado === undefined ? null : hechoDelAvisoAlAsesor(opciones.avisoRegistrado),
     ...(catalogoHoy.length ? ["", ...catalogoHoy] : []),
     "",

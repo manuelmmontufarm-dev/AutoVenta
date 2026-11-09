@@ -26,7 +26,7 @@ import { motivoParaNoSeguir, sinVisitaDelSeguimiento, type MotivoSinSeguimiento 
 import { parseTireSize } from "../domain/tireSize.js";
 import { generateFollowUpCopy } from "./followUpCopy.js";
 import { catalogStatus, findByCode, searchBySize } from "./catalog.js";
-import { lineaDeLista } from "../domain/listaDeOpciones.js";
+import { lineaDeLista, listaDeLaPieza } from "../domain/listaDeOpciones.js";
 import { listaVigenteDeLaPieza } from "./listaVigente.js";
 import { asesoresActivos, notifyAdvisor } from "./advisorNotifications.js";
 
@@ -242,6 +242,8 @@ export interface ContextoDeOpciones {
   optionsNames?: string[];
   /** Esta misma lista ya salió en un seguimiento anterior del ciclo (2b): no se reenvía. */
   listaYaEnviada?: boolean;
+  /** Algún precio de la lista vigente difiere del que vio con la lámina (la cabecera no puede decir «que le mostré»). */
+  preciosDeHoy?: boolean;
   preferenceAnswered: boolean;
   customerHasNoTireSize: boolean;
   /** Pidió precio o cotización en el ciclo (ver `domain/cotizarLaUnica.ts`). */
@@ -322,12 +324,19 @@ async function contextoDeOpciones(
   // guardados con la lámina (familia 2a). Y si esa misma lista ya salió en un
   // seguimiento anterior del ciclo, el siguiente solo nombra las opciones (2b).
   const vigente = listaVigenteDeLaPieza(pieza?.metadata, ahora);
-  const listaYaEnviada = vigente?.lista ? await listaYaSalioEnUnSeguimiento(conversationId, cycle, vigente.lista, vigente.cantidad) : false;
+  // ¿Alguna línea de hoy dice otra cosa que la que el cliente vio con la lámina?
+  const guardada = listaDeLaPieza(pieza?.metadata);
+  const preciosDeHoy = Boolean(vigente?.lista && guardada && vigente.lista.some((l) => {
+    const antes = guardada.lista.find((g) => g.n === l.n);
+    return !antes || lineaDeLista(antes, guardada.cantidad) !== lineaDeLista(l, vigente.cantidad);
+  }));
+  const listaYaEnviada = vigente?.lista ? await listaYaSalioEnUnSeguimiento(conversationId, cycle, vigente.lista) : false;
   return {
     optionsCount,
     optionsList: vigente?.lista && !listaYaEnviada ? { lista: vigente.lista, cantidad: vigente.cantidad } : null,
     ...(vigente ? { optionsNames: vigente.nombres } : {}),
     ...(listaYaEnviada ? { listaYaEnviada } : {}),
+    ...(preciosDeHoy ? { preciosDeHoy } : {}),
     preferenceAnswered, customerHasNoTireSize,
     customerAskedPrice, sinVisita, juegoEnSuMedida: pieza ? null : juegoEnLaMedida(ficha.tireSize, ficha.cantidad),
     optionsEquivalentes: Array.isArray(pieza?.metadata?.equivalentes) && pieza.metadata.equivalentes.length > 0,
@@ -335,29 +344,28 @@ async function contextoDeOpciones(
 }
 
 /**
- * ¿Esta lista (todas sus líneas, con precio) ya salió dentro de un SEGUIMIENTO
- * anterior de este ciclo? Compara por líneas, no por el mensaje entero: el 2.º
- * recordatorio solo cambiaba la cabecera («Estas son las opciones…» / «Le dejo
- * otra vez…») y el filtro de calco exacto nunca lo veía (24 chats). La lista
- * que salió en el turno normal no cuenta: el primer seguimiento puede traerla
- * una vez.
+ * ¿La lista CON PRECIOS de estas opciones ya salió en un seguimiento anterior de
+ * este ciclo? Se lee del HECHO que `followUpProcessor` escribe en la metadata
+ * del mensaje al enviar (`listaConPrecios: { codigos, cantidad }`), nunca del
+ * texto del bot: si el Guardián reescribió una línea o el catálogo movió un
+ * precio entre el 1.º y el 2.º, el hecho sigue siendo cierto (regla 9). El 2.º
+ * recordatorio solo cambiaba la cabecera y el filtro de calco exacto no lo veía
+ * (24 chats). La lista del turno normal no cuenta: el primer seguimiento puede
+ * traerla una vez.
  */
 async function listaYaSalioEnUnSeguimiento(
   conversationId: number,
   cycle: number,
   lista: readonly import("../domain/listaDeOpciones.js").LineaDeLista[],
-  cantidad: number,
 ): Promise<boolean> {
-  const previos = await sql<{ content: string | null }[]>`
-    select content from messages
+  const previos = await sql<{ lista: { codigos?: unknown } | null }[]>`
+    select metadata->'listaConPrecios' as lista from messages
     where conversation_id = ${conversationId} and cycle = ${cycle}
-      and direction = 'outbound' and metadata ? 'followUpJobId' and content is not null
+      and direction = 'outbound' and metadata ? 'listaConPrecios'
   `;
-  const lineas = lista.map((l) => lineaDeLista(l, cantidad));
-  return previos.some((p) => {
-    const dichas = new Set((p.content ?? "").split("\n").map((l) => l.trim()));
-    return lineas.every((l) => dichas.has(l));
-  });
+  const codigos = lista.map((l) => String(l.codigo ?? "")).sort().join("|");
+  return previos.some((p) =>
+    Array.isArray(p.lista?.codigos) && p.lista.codigos.map(String).sort().join("|") === codigos);
 }
 
 /**
@@ -1128,6 +1136,9 @@ function jobCopyContext(context: FollowUpJobContext) {
   };
 }
 
+/** El hecho que un seguimiento deja en su mensaje cuando la plantilla llevó la lista con precios. */
+export interface ListaConPrecios { codigos: Array<string | null | undefined>; cantidad: number }
+
 /**
  * Devuelve el texto definitivo del seguimiento, redactándolo con IA solo si
  * todavía está pendiente (`aiPending`). El resultado se persiste en el payload
@@ -1140,12 +1151,12 @@ export async function ensureFollowUpJobCopy(input: {
   force?: boolean;
   /** El reloj del trabajo. Ver `generateFollowUpCopy`. */
   now?: Date;
-}): Promise<{ text: string; generated: boolean }> {
+}): Promise<{ text: string; generated: boolean; listaConPrecios?: ListaConPrecios | null }> {
   const { context, policy, force = false, now = new Date() } = input;
   const stored = String(context.job_payload.preview ?? "").trim();
   const kind = followUpJobCopyKind(context.job_type);
   if (!kind || (!context.job_payload.aiPending && !force)) {
-    return { text: stored, generated: false };
+    return { text: stored, generated: false, listaConPrecios: (context.job_payload.listaConPrecios as ListaConPrecios | null | undefined) ?? null };
   }
   const copyContext = {
     ...jobCopyContext(context),
@@ -1168,14 +1179,23 @@ export async function ensureFollowUpJobCopy(input: {
       now,
     );
   const text = conMapasPegados(copy.text.trim() || stored, copyContext, kind);
+  // EL HECHO «salió la lista con precios»: se decide acá, donde se sabe qué
+  // rama de la plantilla se usó, y viaja al mensaje enviado. Una redacción con
+  // IA nunca lleva precios (`isSafeCopy`), así que solo cuenta la plantilla.
+  const salida: { conLista?: boolean } = {};
+  buildContextualFollowUpMessage(copyContext, kind, now, salida);
+  const listaConPrecios = copy.source === "fallback" && salida.conLista && copyContext.optionsList
+    ? { codigos: copyContext.optionsList.lista.map((l) => l.codigo).filter(Boolean), cantidad: copyContext.optionsList.cantidad }
+    : null;
   await sql`
     update follow_up_jobs
     set payload = payload
       || jsonb_build_object('preview', ${text}::text, 'aiPending', false,
-                            'copySource', ${copy.source}::text, 'aiGeneratedAt', now())
+                            'copySource', ${copy.source}::text, 'aiGeneratedAt', now(),
+                            'listaConPrecios', ${sql.json(listaConPrecios as never)})
     where id = ${context.job_id}
   `;
-  return { text, generated: true };
+  return { text, generated: true, listaConPrecios };
 }
 
 /** Genera el texto bajo demanda desde el panel (botón «Generar»). */

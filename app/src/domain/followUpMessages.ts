@@ -72,6 +72,8 @@ export interface FollowUpMessageContext {
   optionsNames?: readonly string[];
   /** La lista con precios ya salió en un seguimiento anterior del ciclo. */
   listaYaEnviada?: boolean;
+  /** Algún precio de la lista vigente difiere del que el cliente vio con la lámina. */
+  preciosDeHoy?: boolean;
   /**
    * El cliente ya contestó el menú Costo/Equilibrio/Premium (o eligió por
    * nombre). Con esto en true, preguntarle «¿qué prioriza?» o «¿cuál le
@@ -206,8 +208,10 @@ export function buildContextualFollowUpMessage(
   context: FollowUpMessageContext,
   kind: FollowUpMessageKind,
   now = new Date(),
+  /** Si se pasa, el constructor anota aquí si el texto llevó la lista CON PRECIOS (el hecho que se guarda al enviar). */
+  salida?: { conLista?: boolean },
 ): string {
-  const texto = redactarSeguimiento(context, kind, now);
+  const texto = redactarSeguimiento(context, kind, now, salida);
   return followUpNeedsStoreLinks(context, kind)
     ? `${texto}\n${context.storeLinks!.trim()}`
     : texto;
@@ -217,6 +221,7 @@ function redactarSeguimiento(
   context: FollowUpMessageContext,
   kind: FollowUpMessageKind,
   now: Date,
+  salida?: { conLista?: boolean },
 ): string {
   const prefix = questionPrefix(context, kind);
   const size = context.tireSize ? ` ${context.tireSize}` : "";
@@ -399,6 +404,15 @@ function redactarSeguimiento(
     if (lista && lista.lista.length >= 2) {
       const bloque = lista.lista.map((l) => lineaDeLista(l, lista.cantidad)).join("\n");
       const pregunta = preguntaDeLaLista(lista.lista.length);
+      if (salida) salida.conLista = true;
+      // Si algún precio ya no es el que el cliente vio (la promo cambió, el
+      // catálogo se movió), NO se dice «que le mostré»: sube o baja el número y
+      // se afirmaría que es el de la lámina.
+      if (context.preciosDeHoy) {
+        return kind === "in_window_second"
+          ? `😊 Le dejo otra vez las opciones${deLaLamina}, con los precios de hoy:\n${bloque}\n${pregunta}`
+          : `${prefix}🛞 Con los precios de hoy, sus opciones${deLaLamina}:\n${bloque}\n${pregunta}`;
+      }
       return kind === "in_window_second"
         ? `😊 Le dejo otra vez las opciones${deLaLamina}:\n${bloque}\n${pregunta}`
         : `${prefix}🛞 Estas son las opciones${deLaLamina} que le mostré:\n${bloque}\n${pregunta}`;

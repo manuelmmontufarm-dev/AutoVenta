@@ -29,6 +29,25 @@
   `due_at`, `never_outside_hours`); la supresión 2d con el Guardián real no se pudo provocar (depende de que el modelo
   escriba esa corrección), está cubierta por integración. Con una opción sin stock hoy, la lista sale con los
   nombres de TODAS las opciones de la lámina y sin precios.
+- **Ronda 1 de la revisión (misma fecha):** (B1) `ofreceJuegoIncompleto`: la negación tiene que regir el VERBO de
+  ofrecer («no puedo ofrecerla», «no se la puedo cotizar», «no la manejo», «no hay juego»), no un «no» cualquiera, y
+  una propuesta de venta en cualquier cláusula («¿le cotizo las 3?», «le cotizo esas 2», «¿le sirve?», «le consigo la
+  cuarta») sigue siendo oferta: vuelven a frenarse las cinco variantes de 11972 que se habían colado. (B2)
+  `rechazo_del_cliente` no aplica si el mismo mensaje pregunta, pide (cotiza, precio, tienen, mejora…) o habla hacia
+  adelante (mañana, el sábado, voy, vamos…); un rechazo de la racha solo vale si ningún mensaje POSTERIOR la reactiva; y
+  la cancelación deja una alerta baja (`seguimiento_cancelado_por_rechazo`, con lo que dijo el cliente). (B3) el hecho
+  «la lista con precios ya salió» se escribe al enviar (`metadata.listaConPrecios = { codigos, cantidad }`, decidido donde
+  se sabe qué rama de la plantilla se usó) y se lee de ahí, no del texto del bot; `sin_calco_del_hilo` conserva su
+  comparación por líneas del borrador. (B4) si algún precio vigente difiere del que el cliente vio con la lámina, la
+  cabecera dice «Con los precios de hoy, sus opciones…» / «…con los precios de hoy:», nunca «que le mostré». Menores: el
+  hecho del Guardián dice «recalculada HOY…» en el seguimiento; el seguimiento corre dentro de `conElTelefonoDelTurno`
+  (modo «pruebas»); la prueba de 39168 usa la lámina real (144.44 / 194.85 / 213.50).
+- **Límites conocidos (no se arreglan acá):** (1) el turno normal sigue leyendo la lista GUARDADA (`agent.ts:522,682,1409`,
+  `cotizarLoElegido.ts:104`, `guardian.ts` en la rama de respuesta) y puede contradecir a un seguimiento recalculado
+  («$194.85 c/u» después de un seguimiento con $727.44). (2) Una sola opción sin stock quita los precios de TODA la lista
+  y el texto igual invita a «¿Le cotizo la 1, la 2 o la 3?», incluida la opción sin juego; tampoco se mira
+  `producto.active`. (3) 39282 («Ninguna gracias, necesito llantas doble propósito») cancela TODO el seguimiento; lo que
+  proponía el análisis era no reenviar el menú, no callar.
 
 ## 9-nov-2026 · Black Friday: el texto ya no dice un «$X c/u» que contradice la lámina (auditoría 9-nov, sprint 1)
 

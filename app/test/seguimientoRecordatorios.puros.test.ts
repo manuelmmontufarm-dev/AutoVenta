@@ -72,6 +72,21 @@ describe("2d · ofreceJuegoIncompleto no lee una negación como oferta", () => {
     expect(r.texto).toBe(correccion);
   });
 
+  // Revisión ronda 1, bloqueante 1: la negación tiene que regir el VERBO de la
+  // oferta; un «no» cualquiera («no alcanzan», «no le puedo hacer descuento») no
+  // la anula, y una propuesta de venta en CUALQUIER cláusula sigue siendo oferta.
+  it.each([
+    "Hoy hay 3 unidades disponibles, no alcanzan para el juego, ¿le cotizo las 3?",
+    "Hoy solo tengo 2 llantas, no alcanzan para el juego; si desea, le cotizo esas 2.",
+    "Tengo 3 llantas disponibles, no le puedo hacer descuento, ¿se las cotizo?",
+    "Solo quedan 3 llantas, no hay juego de 4, pero le consigo la cuarta por pedido.",
+    "Hay 1 unidad disponible y no puedo garantizar la segunda, ¿le sirve?",
+  ])("guarda · sigue siendo oferta aunque diga «no»: %s", (correccion) => {
+    const r = frenarHechosNuevosDelGuardian("En 195/55R15 no tengo stock disponible ahora mismo.", correccion, [], "", []);
+    expect(r.bloqueado).toBe(true);
+    expect(r.motivos).toContain("juego_incompleto");
+  });
+
   // GUARDA — lo que el candado SÍ debe frenar (caso 11972 y variantes).
   it.each([
     ["11972: ofrece 1 KENDA a un precio",
@@ -116,6 +131,40 @@ describe("2c1 · motivoParaNoSeguir reconoce las frases reales", () => {
     // «déjeme pensarlo» ya tenía su regla propia; solo importa que no sea ninguna de las nuevas.
     if (motivo !== null) expect(["el_cliente_avisa", "espera_que_le_avisen", "cierre_del_cliente"]).toContain(motivo);
     expect(motivo).not.toBe("compro_en_otro_lugar");
+  });
+});
+
+// Revisión ronda 1, bloqueante 2: el rechazo no cancela una venta viva.
+describe("2c1 · un mensaje que sigue vendiendo no es un rechazo", () => {
+  it.each([
+    "No nos espere hoy, mañana sí vamos",
+    "No nos espere hoy, vamos otro día",
+    "Está muy lejos Cumbayá, ¿tienen local en el sur?",
+    "Es muy lejos el norte, voy al de la Shyris mejor",
+    "Encontré la llanta en su página, la KR601, ¿tienen?",
+    "Encontré las llantas que buscaba en su catálogo, ¿me cotiza 4?",
+    "Conseguí unas Kenda más baratas, me mejora el precio?",
+    "ninguna de esas gracias, ¿tiene en rin 17?",
+  ])("guarda · «%s» sigue con seguimiento", (frase) => {
+    expect(motivoParaNoSeguir({ ultimo: frase, rachaDelCliente: [frase] })).toBeNull();
+  });
+
+  it("un «No nos espere» viejo no cuenta si un mensaje POSTERIOR de la racha reactiva la venta", () => {
+    expect(motivoParaNoSeguir({
+      ultimo: "¿Entonces mañana sí me atienden?",
+      rachaDelCliente: ["¿Entonces mañana sí me atienden?", "No nos espere"],
+    })).toBeNull();
+    expect(motivoParaNoSeguir({
+      ultimo: "Gracias, voy el sábado",
+      rachaDelCliente: ["Gracias, voy el sábado", "Está muy lejos le agradezco"],
+    })).toBeNull();
+  });
+
+  it("guarda · 39667: «No nos espere» + «Gracias» + «Muy amable» sigue cancelando", () => {
+    expect(motivoParaNoSeguir({
+      ultimo: "Muy amable",
+      rachaDelCliente: ["Muy amable", "Gracias", "No nos espere", "Encontramos las BFGoodrich"],
+    })).not.toBeNull();
   });
 });
 

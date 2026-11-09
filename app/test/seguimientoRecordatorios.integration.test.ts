@@ -100,6 +100,15 @@ const WINRUN = llanta("W-R380", "WINRUN", "R380", 124.76, 124.76);
 const KENDA = llanta("K-KR601", "KENDA", "KR601", 194.85, 259.8);
 const FALKEN = llanta("F-CT60", "FALKEN", "ZIEX CT60 A/S", 200.0, 266.67);
 
+/** La lámina REAL de 39168 (6-nov): KR628 / KR601 / KR608 a 144.44 / 194.85 / 213.50, todo Kenda. */
+const KR628 = llanta("K-KR628", "KENDA", "KR628", 144.44, 192.59);
+const KR608 = llanta("K-KR608", "KENDA", "KR608", 213.5, 284.67);
+const ESCALONES_39168 = {
+  economica: { codigo: KR628.code, nombre: "KENDA KR628", precio_con_iva: 144.44 },
+  equilibrada: { codigo: KENDA.code, nombre: "KENDA KR601", precio_con_iva: 194.85 },
+  premium: { codigo: KR608.code, nombre: "KENDA KR608", precio_con_iva: 213.5 },
+};
+
 let siguienteTelefono = 0;
 /** Un id de WhatsApp distinto por envío: con el mismo, el hilo no guarda el segundo mensaje. */
 let siguienteWamid = 0;
@@ -222,7 +231,7 @@ describe.sequential("recordatorios automáticos · sprint 2", () => {
     guardianFalso.cola = [];
     guardianFalso.vistos = [];
     cat.cargado = true;
-    cat.items = new Map([WINRUN, KENDA, FALKEN].map((i) => [i.code, i]));
+    cat.items = new Map([WINRUN, KENDA, FALKEN, KR628, KR608].map((i) => [i.code, i]));
     fijarCompuertaDeTemporada(() => true);
   });
 
@@ -245,11 +254,26 @@ describe.sequential("recordatorios automáticos · sprint 2", () => {
       expect(texto).toContain("WINRUN R380 — $124.76 c/u · 4 = $499.04");
     });
 
+    it("39168 con su lámina REAL (144.44 / 194.85 / 213.50): las tres líneas con la cuenta de hoy y la cabecera lo dice", async () => {
+      const conv = await ciclo({ escalones: ESCALONES_39168 });
+      const [texto] = await procesar(conv.id);
+      expect(texto).not.toMatch(/\$144\.44|\$194\.85|\$213\.50/);
+      expect(texto).toContain("2 · KENDA KR601 — 2 × $259.80 + 2 × $103.92 = $727.44 (−60 % en la 2.ª llanta)");
+      expect(texto).toMatch(/^1 · KENDA KR628 — 2 × \$192\.59 \+ 2 × \$77\.04 = \$539\.26/m);
+      expect(texto).toMatch(/^3 · KENDA KR608 — 2 × \$284\.67/m);
+      // Los precios ya no son los que el cliente vio: el texto no puede decir «que le mostré».
+      expect(texto).toMatch(/precios de hoy/i);
+      expect(texto).not.toMatch(/que le mostré/);
+    });
+
     it("guarda · 38811 / 39011: lámina posterior a la promo, la cuenta guardada es la misma de hoy", async () => {
       const conv = await ciclo({ escalones: escalonesConPromo(AHORA) });
       const [texto] = await procesar(conv.id);
       expect(texto).toContain("KENDA KR601 — 2 × $259.80 + 2 × $103.92 = $727.44 (−60 % en la 2.ª llanta)");
       expect(texto).toContain("WINRUN R380 — $124.76 c/u · 4 = $499.04");
+      // Los precios son los mismos que vio: sigue siendo «que le mostré».
+      expect(texto).toMatch(/que le mostré/);
+      expect(texto).not.toMatch(/precios de hoy/i);
     });
 
     it("1-dic: lámina de noviembre con `segunda_llanta` y reloj en el 2-dic → no aparece «−60 %»", async () => {
@@ -265,6 +289,9 @@ describe.sequential("recordatorios automáticos · sprint 2", () => {
       expect(texto).not.toBeNull();
       expect(texto).not.toMatch(/−60|2\.ª llanta|2 ×/);
       expect(texto).toContain("KENDA KR601 — $194.85 c/u · 4 = $779.40");
+      // Subió el precio respecto de lo que vio ($727.44): no se puede decir «que le mostré».
+      expect(texto).toMatch(/precios de hoy/i);
+      expect(texto).not.toMatch(/que le mostré/);
     });
 
     it("compuerta del admin cerrada (promo apagada a mano) → tampoco aparece «−60 %»", async () => {
@@ -320,6 +347,33 @@ describe.sequential("recordatorios automáticos · sprint 2", () => {
         expect(segundo).toMatch(/la 1, la 2 o la 3/);
         expect(segundo).toMatch(/WINRUN R380|KENDA KR601|FALKEN/);
       }
+    });
+  });
+
+  describe("2b · el HECHO «la lista con precios ya salió» se escribe al enviar, no se lee del texto", () => {
+    it("aunque el Guardián reescriba las líneas del 1.º (negritas, otra raya), el 2.º no reenvía la lista", async () => {
+      guardianFalso.hallazgos = [{ categoria: "tono", severidad: "baja", detalle: "Tono." }];
+      guardianFalso.cola = [
+        "Con gusto le recuerdo sus opciones:\n*1* - WINRUN R380 a $124.76 c/u\n*2* - KENDA KR601 a $194.85\n*3* - FALKEN ZIEX CT60 A/S a $200.00\n¿Cuál le cotizo?",
+        null,
+      ];
+      const conv = await ciclo({ escalones: escalonesConPromo(AHORA) });
+      const [primero, segundo] = await procesar(conv.id);
+      expect(primero).toContain("$124.76");
+      expect(segundo).not.toBeNull();
+      expect(segundo).not.toMatch(/\$\s*\d/);
+      expect(segundo).toMatch(/KENDA KR601/);
+    });
+
+    it("el mensaje enviado guarda el hecho en su metadata", async () => {
+      const conv = await ciclo({ escalones: escalonesConPromo(AHORA) });
+      await procesar(conv.id);
+      const [m] = await sql<{ lista: { codigos: string[]; cantidad: number } | null }[]>`
+        select metadata->'listaConPrecios' as lista from messages
+        where conversation_id = ${conv.id} and metadata ? 'followUpJobId' order by id limit 1
+      `;
+      expect(m.lista?.cantidad).toBe(4);
+      expect([...(m.lista?.codigos ?? [])].sort()).toEqual([FALKEN.code, KENDA.code, WINRUN.code].sort());
     });
   });
 

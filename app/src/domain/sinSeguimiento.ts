@@ -41,16 +41,48 @@ export type MotivoSinSeguimiento =
  */
 const NO_ME_ESPERE = /\bno\s+(?:me|nos|se)\s+espere(?:n)?\b/i;
 const ESTA_MUY_LEJOS = /\b(?:est[aá]|queda|me\s+queda|nos\s+queda|es|sale)\s+(?:muy|demasiado|bastante|tan)\s+lejos\b/i;
-const LEJOS_PERO_VOY = /\b(?:pero|igual|aun\s*as[ií]|de\s+todas\s+(?:formas|maneras))\b.{0,40}\b(?:voy|paso|ir[eé]|llego|vengo|vienen?|pasar[eé]|ir|paso|visito)\b/i;
 const ENCONTRO_LLANTAS = /\b(?:encontramos|encontr[eé]|conseguimos|consegu[ií])\s+(?:ya\s+)?(?:las|unas?|otras?|llantas|el|la|los)\b/i;
 const ENCONTRO_UN_DATO = /\b(?:medida|numeraci[oó]n|costado|c[oó]digo|foto|d[oó]nde|donde)\b/i;
 const NINGUNA_GRACIAS = /^\s*ningunas?(?:\s+de\s+(?:las|esas|ellas|estas))?[\s,.!]*gracias\b/i;
 
+/**
+ * UN MENSAJE QUE SIGUE VENDIENDO NO ES UN RECHAZO (revisión del sprint 2). Si el
+ * mismo mensaje pregunta (?), pide algo (cotiza, precio, tienen, mejora…) o
+ * habla hacia adelante (mañana, el sábado, otro día, voy, paso, vamos), el
+ * cliente está negociando: «No nos espere hoy, mañana sí vamos», «Está muy
+ * lejos Cumbayá, ¿tienen local en el sur?», «Es muy lejos el norte, voy al de
+ * la Shyris». Se cancelaban en silencio.
+ */
+const PREGUNTA = /[?¿]/;
+const PEDIDO = /\b(?:cotiz\w*|precio\w*|cu[aá]nto\w*|tienen|tiene\s+en|mejora\w*|descuento\w*|disponible\w*|env[ií]\w*|necesito|quiero|busco)\b/i;
+const HACIA_ADELANTE =
+  /\b(?:ma[nñ]ana|pasado\s+ma[nñ]ana|el\s+(?:lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo)|otro\s+d[ií]a|la\s+pr[oó]xima|voy|vamos|paso|pasamos|pasar[eé]\w*|ir[eé]|iremos|llego|llegamos|vengo|venimos|vendr[eé]\w*)\b/i;
+
+/** ¿Este mensaje del cliente mantiene viva la venta? (pregunta, pedido, futuro o una medida) */
+export function mantieneLaVenta(texto: string): boolean {
+  return PREGUNTA.test(texto) || PEDIDO.test(texto) || HACIA_ADELANTE.test(texto) || /\b\d{3}\s*\/\s*\d{2}\b/.test(texto);
+}
+
 function rechazaSeguir(texto: string): boolean {
+  // «Ninguna gracias, necesito llantas doble propósito» (39282) es rechazo de lo
+  // que se le mostró aunque diga qué necesita: su regla va aparte.
+  if (NINGUNA_GRACIAS.test(texto)) return !PREGUNTA.test(texto);
+  if (mantieneLaVenta(texto)) return false;
   if (NO_ME_ESPERE.test(texto)) return true;
-  if (NINGUNA_GRACIAS.test(texto)) return true;
-  if (ESTA_MUY_LEJOS.test(texto) && !LEJOS_PERO_VOY.test(texto)) return true;
+  if (ESTA_MUY_LEJOS.test(texto)) return true;
   if (ENCONTRO_LLANTAS.test(texto) && !ENCONTRO_UN_DATO.test(texto)) return true;
+  return false;
+}
+
+/**
+ * Lo que el cliente dijo en su última racha, del más nuevo al más viejo: un
+ * rechazo vale solo si NINGÚN mensaje posterior de la racha reactiva la venta.
+ */
+function rachaRechaza(racha: readonly string[]): boolean {
+  for (const mensaje of racha) {
+    if (rechazaSeguir(mensaje)) return true;
+    if (mantieneLaVenta(mensaje)) return false;
+  }
   return false;
 }
 
@@ -83,7 +115,8 @@ export function motivoParaNoSeguir(input: {
 }): MotivoSinSeguimiento | null {
   const ultimo = input.ultimo?.trim() ?? "";
   if (!ultimo) return null;
-  if ([ultimo, ...(input.rachaDelCliente ?? [])].some((m) => m && rechazaSeguir(m))) return "rechazo_del_cliente";
+  const racha = (input.rachaDelCliente ?? []).map((m) => m?.trim() ?? "").filter(Boolean);
+  if (rachaRechaza(racha.length ? racha : [ultimo])) return "rechazo_del_cliente";
   const anterior = input.anterior?.trim() || null;
   // El «ok» que sigue a la despedida no la deshace: se mira lo de antes.
   // El dueño de «esto es un acuse» es `esAcuseSimple` (ofertaAceptada.ts).
