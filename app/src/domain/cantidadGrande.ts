@@ -109,13 +109,15 @@ export function cantidadGrandePedida(text: string): number | null {
     && !/\b(?:llantas?|unidades?|neumaticos?)\b/.test(normalizado)) return null;
   const n = Number(crudo);
   if (!Number.isFinite(n) || n <= MAXIMO_NORMAL || n > TOPE_ABSURDO || esAnchoDeLlanta(n)) return null;
-  // Sin nombrar la unidad («son 16, creo, la número en 65»), un número que convive con otras
-  // cifras de 2–3 dígitos es parte de una medida o de un aro, no una compra. Con «llantas»
-  // pegado («quiero 16 llantas») sí es cantidad aunque haya más cifras.
+  // Sin nombrar la unidad («son 16, creo, la número en 65»), un número que parece un aro (12–26) y
+  // convive con una cifra que parece ANCHO o PERFIL de la medida (125–355 / 25–90, de 5 en 5) es parte de
+  // una medida, no una compra. Solo esa combinación: «necesito 10 rin 16», «quiero 12 rin 15»,
+  // «son 20 para 10 carros» o «necesito 10, mi presupuesto es 900» siguen siendo cantidades. Con
+  // «llantas» pegado («quiero 16 llantas») es cantidad aunque haya más cifras.
   const nombraLaUnidad = /^\s*(?:llantas?|unidades?|neum[áa]ticos?)\b/i.test(despues) || /\b(?:llantas?|unidades?|neum[áa]ticos?)\s*$/i.test(m[0]);
-  if (!nombraLaUnidad) {
-    const otras = (antes + " " + despues).match(/(?<![\d$.,])\d{2,3}(?![\d%])/g) ?? [];
-    if (otras.length > 0) return null;
+  if (!nombraLaUnidad && n >= 12 && n <= 26) {
+    const otras = ((antes + " " + despues).match(/(?<![\d$.,])\d{2,3}(?![\d%])/g) ?? []).map(Number);
+    if (otras.some((o) => esAnchoDeLlanta(o) || (o >= 25 && o <= 90 && o % 5 === 0))) return null;
   }
   return n;
 }

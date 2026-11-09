@@ -29,8 +29,7 @@
  * las dos digan cosas distintas.
  */
 import { sql } from "../db/client.js";
-import { esReferenciaPluralAlMenu, esRespuestaDelMenuDePreferencia, extractExplicitQuantity, pideVariasOpciones } from "../domain/salesIntent.js";
-import { cantidadGrandePedida } from "../domain/cantidadGrande.js";
+import { cantidadPedidaPorElCliente, esReferenciaPluralAlMenu, esRespuestaDelMenuDePreferencia, pideVariasOpciones } from "../domain/salesIntent.js";
 import { buildTools, type AgentContext } from "../agent/tools.js";
 import { buildStoreLinksBlockOnce } from "./storeLinks.js";
 import { preguntamosElLocal } from "../domain/storeSelection.js";
@@ -76,7 +75,9 @@ export async function tryRecotizarPorCantidad(
   // aviso de la cantidad va en la pieza, no en una pregunta previa (Manuel,
   // 27-ago). `extractExplicitQuantity` no sabe leer más de 8, por eso hace
   // falta el detector aparte. Ver `domain/cantidadGrande.ts`.
-  const nueva = cantidadGrandePedida(text) ?? extractExplicitQuantity(text);
+  // Por `cantidadPedidaPorElCliente`: trae los candados del menú, del plural y de la enumeración
+  // de posiciones («Las 1-2-3 por favor quiero ver» no es 1 llanta; 39535).
+  const nueva = cantidadPedidaPorElCliente(text, ctx.previousOutbound, ctx.mensajeCitado);
   if (!nueva) return null;
 
   const [vigente] = await sql<{ items: LineaCotizada[] | null }[]>`

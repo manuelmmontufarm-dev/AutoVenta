@@ -66,7 +66,7 @@ import { aroDeLaMedida, medidaEstaPedida } from "../domain/medidaPedida.js";
 import { arosDelCatalogo, pideAroComoProducto } from "../domain/aroProducto.js";
 import { anotarMedidasEscritas, medidasDelPedido } from "../services/medidasDelPedido.js";
 import {
-  autorizaCotizacionEnEsteTurno, escalonContestado, esRespuestaDelMenuDePreferencia, ETIQUETA_DEL_ESCALON, extractExplicitQuantity,
+  autorizaCotizacionEnEsteTurno, escalonContestado, esRespuestaDelMenuDePreferencia, ETIQUETA_DEL_ESCALON, cantidadDelTexto,
   extractVehicleYear, respuestaDePreferencia, type Escalones,
 } from "../domain/salesIntent.js";
 import { findByCode, searchByText } from "../services/catalog.js";
@@ -558,7 +558,7 @@ async function ejecutarAgente(ctx: AgentContext, userText: string): Promise<stri
     }
   }
   if (ordenDeEquivalente) usedTools.push("orden_equivalente");
-  const cantidadNueva = extractExplicitQuantity(userText);
+  const cantidadNueva = cantidadDelTexto(userText, textoUltimoDelBot);
   const cantidadCambia = cantidadNueva !== null
     && salesFacts.lastQuote !== null
     && !ctx.consultaFueraDeCatalogo;

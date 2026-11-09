@@ -31,7 +31,7 @@ import {
 } from "../domain/salesIntent.js";
 import { confirmacionDeLaOpcion, opcionPorPosicion, posicionElegida } from "../domain/listaDeOpciones.js";
 import { decirPrecioDeLaLinea, precioDeLaOpcionGuardada, precioDelProducto, type SegundaLlanta } from "../domain/promocionDeTemporada.js";
-import { lineaCotizadaDe } from "./lineasConPromo.js";
+import { cantidadDelCliente, lineaCotizadaDe } from "./lineasConPromo.js";
 import { politica } from "../negocio/politica.js";
 import { findByCode } from "./catalog.js";
 import { buildStoreLinksBlockOnce } from "./storeLinks.js";
@@ -320,7 +320,18 @@ export async function tryCotizarLoElegido(ctx: CotizarLoElegidoContext, texto: s
   const producto = findByCode(elegido.codigo);
   if (!producto) return null;
   // El número que eligió el escalón no es una cantidad (chat 18134).
-  const cantidad = cantidadDelTexto(texto, ctx.previousOutbound, ctx.mensajeCitado) ?? cantidadValidaDeLaFicha(facts.selectedQuantity) ?? 4;
+  // La cantidad la dice el CLIENTE: este mensaje, la ficha o —con la ficha vacía— lo que dijo antes
+  // en el ciclo (40137: «tres llantas» junto a la medida, el agente respondió sin `preparar_opciones`
+  // y la ficha quedó en NULL; «La 2» cotizaba 4 después de que el bot dijo 3). Un lector, el de
+  // `cantidadDelCliente`, que ya ignora el «2» que contesta un menú.
+  const dichaPorElCliente = cantidadDelTexto(texto, ctx.previousOutbound, ctx.mensajeCitado)
+    ?? (await cantidadDelCliente(ctx.conversation.id, texto, ctx.mensajeCitado)).cantidad;
+  const cantidad = dichaPorElCliente ?? 4;
+  // Lo que el cliente dijo y la ficha no tenía (o tenía distinto) se registra: es el dato que el candado de la
+  // cotización lee para saber que la cantidad fue declarada (y los demás lectores, después).
+  if (dichaPorElCliente !== null && cantidadValidaDeLaFicha(facts.selectedQuantity) !== dichaPorElCliente) {
+    await updateConversationFacts(ctx.conversation.id, { selectedQuantity: dichaPorElCliente });
+  }
   const contextoDeHerramienta: AgentContext = {
     conversation: ctx.conversation,
     customerPhone: ctx.customerPhone,
@@ -383,7 +394,8 @@ export async function tryCotizarLoElegido(ctx: CotizarLoElegidoContext, texto: s
       : elegido.etiqueta
       ? `La opción ${elegido.etiqueta} es la *${producto.brand} ${producto.design}*${precio}. Le dejo la cotización 👍`
       : `Listo, le cotizo la *${producto.brand} ${producto.design}*${precio} 👍`,
-    cantidad,
+    // La FIRMADA, no la pedida: el candado de `generar_cotizacion` puede haberla cambiado a 4.
+    Number(firmada?.quantity) || cantidad,
   );
   return composeBlocks(
     confirmacion,

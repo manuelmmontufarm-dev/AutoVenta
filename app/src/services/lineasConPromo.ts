@@ -158,15 +158,17 @@ export async function cantidadDelCliente(
   const turno = textoDelTurno
     ? leer(textoDelTurno, previoDelTurno, mensajeCitado)
     : entrantes[0] ? leer(entrantes[0].texto, entrantes[0].previo) : null;
+  // Lo último que el cliente DIJO en el ciclo se lee siempre, no solo con la ficha vacía: la ficha puede
+  // traer el 4 que el modelo declaró por defecto y el cliente, después, escribió «tres llantas»
+  // (40137 en el orden real: medida sola → menú → «tres llantas…» → «La 2» cotizaba 4). Lo dicho
+  // por él manda sobre la ficha; sin nada dicho, manda la ficha.
   let historial: number | null = null;
-  if (ficha === null) {
-    for (const e of entrantes) {
-      const n = leer(e.texto, e.previo);
-      if (n !== null) { historial = n; break; }
-    }
+  for (const e of entrantes) {
+    const n = leer(e.texto, e.previo);
+    if (n !== null) { historial = n; break; }
   }
   return {
-    cantidad: turno ?? ficha ?? historial,
+    cantidad: turno ?? historial ?? ficha,
     ficha, turno, historial,
     vetos: [ficha, turno, historial].filter((n): n is number => n !== null),
   };

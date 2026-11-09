@@ -1,3 +1,26 @@
+## 9-nov-2026 · Cantidades, ronda 1 de la revisión del sprint 3 (devuelto con 2 bloqueantes)
+
+- **Bloqueante 1 (40137 en el orden real):** en producción el orden fue menú → «tres llantas por favor me cotizas» → el agente
+  contestó sin llamar a `preparar_opciones` → ficha NULL; «La 2» cotizaba 4 después de que el bot dijo 3. `tryCotizarLoElegido` ahora
+  lee la cantidad con el lector único (`cantidadDelCliente`: este mensaje → lo último que dijo el cliente en el ciclo → la ficha) y la
+  registra en la ficha si falta o difiere (el candado de `generar_cotizacion` la lee para saber que fue declarada). En el simulador salió
+  un segundo caso: la ficha traía el 4 que el modelo declaró por defecto («225/70R16» solo) y «tres llantas» no la movía; por eso el
+  historial se lee SIEMPRE y lo último que dijo el cliente manda sobre la ficha (`lineasConPromo.ts`; las 191 pruebas de Sprint 1 y
+  Black Friday siguen en verde).
+- **Bloqueante 2 (puertas de la enumeración):** `recotizar.ts` usa `cantidadPedidaPorElCliente` y `agent.ts` (orden de recotizar)
+  usa `cantidadDelTexto`: «Las 1-2-3 por favor quiero ver» con una cotización vigente + menú ya no rehace la cotización por 1.
+- **Menores:** (m3) la regla «otra cifra» solo aplica si el número parece un aro (12–26) y la otra cifra parece ancho o perfil
+  (125–355 / 25–90 de 5 en 5): «necesito 10 rin 16», «quiero 12 rin 15», «son 20 para 10 carros», «necesito 10, mi presupuesto es
+  900» vuelven a dar la cantidad; «Son 16, creo, la número en 65» sigue en null. (m4) `conLaCantidadDicha` usa la cantidad FIRMADA.
+  (m6) `guardian.ts` e `insistirCierre.ts` pasan por `cantidadValidaDeLaFicha`; **`followUps.ts:370/497/1059/1096` queda para el
+  Sprint 2** (lo corrige en paralelo). El script de fichas sucias separa «sucias» (5) de «inusuales de 9 a 100» (2).
+- **Límites conocidos (no se arreglan acá):** dos topes de cantidad plausible (100 en `cantidadGrande`, 40 en
+  `promocionDeTemporada`: con 41–100 llantas el hecho del Guardián dice 4); `max(500)` del esquema de `generar_cotizacion` y
+  `preparar_opciones` lo fija `politica.test` y los ítems firmados no pasan por el filtro; «quiero 2 y 2 de repuesto» y «La 1 y la 3,
+  2 llantas de cada una» dan null (preferible a leer 1); 97 y 16 pasan el filtro 1..100.
+- **Probado:** 40137 en el simulador con el orden real (medida → menú → «tres llantas…» → «La 2» = 3 × KR50, ficha 3), pruebas en
+  rojo primero (`3.5b`, `3.5c`, `3.1b`, `3.1c`).
+
 ## 9-nov-2026 · fix(db): el próximo reinicio de producción no arrancaba (migración 018 + asesor en `nivel-2`)
 
 - **Qué:** producción tiene un asesor con rol `nivel-2` (puesto el 9-nov a las 22:52 UTC). Cada arranque corre la 018, que

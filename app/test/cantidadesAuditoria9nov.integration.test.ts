@@ -81,6 +81,7 @@ const { sql } = await import("../src/db/client.js");
 const { ensureSchema } = await import("../src/db/schema.js");
 const { buildTools } = await import("../src/agent/tools.js");
 const { tryCotizarLoElegido } = await import("../src/services/cotizarLoElegido.js");
+const { cantidadPedidaPorElCliente, cantidadDelTexto } = await import("../src/domain/salesIntent.js");
 
 const MENU_TEXTO = "1 · KENDA KR601 — $181.69 c/u\n2 · KENDA KR29 — $194.30 c/u\n3 · FALKEN WILDPEAK A/T 4W — $209.15 c/u";
 const PREGUNTA_MENU = "¿Le cotizo la 1, la 2 o la 3?";
@@ -298,5 +299,64 @@ describe.sequential("el candado de la ficha: ningún número que no sea cantidad
     expect(await fichaCantidad(h.fila.id)).toBe(1);
     await updateConversationFacts(h.fila.id, { selectedQuantity: 100 });
     expect(await fichaCantidad(h.fila.id)).toBe(100);
+  });
+});
+
+describe.sequential("3.5b · 40137 en el orden REAL: menú → «tres llantas» con la medida → «La 2»", () => {
+  it("la ficha está vacía y el agente no llamó a preparar_opciones: «La 2» cotiza 3, no 4", async () => {
+    const h = await hilo({ guardada: null, cantidadDelMenu: 4, pedido: "Hola, 235/75R15" });
+    await sql`insert into messages (conversation_id, cycle, role, direction, author_kind, type, content)
+              values (${h.fila.id}, 1, 'user', 'inbound', 'customer', 'text', '235 75 rin 15 tres llantas por favor me cotizas')`;
+    await sql`insert into messages (conversation_id, cycle, role, direction, author_kind, type, content, metadata)
+              values (${h.fila.id}, 1, 'assistant', 'outbound', 'bot', 'text', 'Sí, le cotizo 3 llantas. ¿Cuál prefiere?', ${sql.json({} as never)})`;
+    expect(await fichaCantidad(h.fila.id)).toBeNull();
+    const respuesta = await responder(h, "La 2");
+    const [q] = await cotizaciones(h.fila.id);
+    expect(q.items[0].quantity).toBe(3);
+    expect(respuesta).toMatch(/por \*3 llantas\*/);
+  });
+});
+
+describe.sequential("3.5c · 40137 con la ficha en el 4 que el modelo declaró por defecto", () => {
+  it("medida sola (ficha 4) → menú → «tres llantas» → «La 2»: manda lo que dijo el cliente, cotiza 3 y la ficha pasa a 3", async () => {
+    const h = await hilo({ guardada: 4, cantidadDelMenu: 4, pedido: "235/75R15" });
+    await sql`insert into messages (conversation_id, cycle, role, direction, author_kind, type, content)
+              values (${h.fila.id}, 1, 'user', 'inbound', 'customer', 'text', '235 75 rin 15 tres llantas por favor me cotizas')`;
+    await sql`insert into messages (conversation_id, cycle, role, direction, author_kind, type, content, metadata)
+              values (${h.fila.id}, 1, 'assistant', 'outbound', 'bot', 'text', 'Perfecto, para *3 llantas* queda así', ${sql.json({} as never)})`;
+    await responder(h, "La 2");
+    const [q] = await cotizaciones(h.fila.id);
+    expect(q.items[0].quantity).toBe(3);
+    expect(await fichaCantidad(h.fila.id)).toBe(3);
+  });
+});
+
+describe.sequential("3.1b · «Las 1-2-3 por favor quiero ver» no recotiza por 1 (puertas de la recotización)", () => {
+  it("cantidadPedidaPorElCliente y cantidadDelTexto: enumeración con más palabras = null", () => {
+    for (const t of ["Las 1-2-3 por favor quiero ver", "las 1 y 3 cuanto cuestan"]) {
+      expect(cantidadPedidaPorElCliente(t, MENU_TEXTO + "\n" + PREGUNTA_MENU)).toBeNull();
+      expect(cantidadDelTexto(t, MENU_TEXTO + "\n" + PREGUNTA_MENU)).toBeNull();
+    }
+  });
+});
+
+describe.sequential("3.1c · cotización vigente + lámina + menú + enumeración: no se recotiza por 1 (puerta de recotizar.ts)", () => {
+  it.each(["Las 1-2-3 por favor quiero ver", "las 1 y 3 cuanto cuestan"])("«%s»", async (texto) => {
+    const { tryRecotizarPorCantidad } = await import("../src/services/recotizar.js");
+    const h = await hilo({ guardada: 4, cantidadDelMenu: 4, pedido: "Necesito 4 llantas 235/75R15" });
+    await responder(h, "La 1"); // cotización vigente de 4
+    // …y después, como en 39601, una lámina nueva y un menú.
+    await sql`insert into messages (conversation_id, cycle, role, direction, author_kind, type, content, metadata)
+              values (${h.fila.id}, 1, 'assistant', 'outbound', 'bot', 'text', ${MENU_TEXTO + "\n" + PREGUNTA_MENU},
+                      ${sql.json({ oferta: { tipo: "oferta_de_cotizar", clase: "menu", opciones: 3 } } as never)})`;
+    await sql`insert into messages (conversation_id, cycle, role, direction, author_kind, type, content)
+              values (${h.fila.id}, 1, 'user', 'inbound', 'customer', 'text', ${texto})`;
+    const antes = (await cotizaciones(h.fila.id)).length;
+    const r = await tryRecotizarPorCantidad({
+      conversation: h.conversation as never, customerPhone: h.phone, customerName: "Cliente",
+      previousOutbound: MENU_TEXTO + "\n" + PREGUNTA_MENU,
+    } as never, texto);
+    expect(r).toBeNull();
+    expect((await cotizaciones(h.fila.id)).length).toBe(antes);
   });
 });

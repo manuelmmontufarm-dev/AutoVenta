@@ -196,6 +196,8 @@ describe("3.2 · números pegados a otras cifras sin nombrar la unidad", () => {
   ])("«%s» no es una cantidad", (t) => { expect(cantidadGrandePedida(t)).toBeNull(); });
   it.each([
     ["necesito 20", 20], ["quiero 12 llantas 205/55R16", 12], ["deme 24 unidades", 24],
+    ["necesito 10 rin 16", 10], ["quiero 12 rin 15", 12], ["necesito 10 aro 14", 10], ["necesito 24 rin 22.5", 24],
+    ["son 20 para 10 carros", 20], ["necesito 12 para el 15 de noviembre", 12], ["necesito 10, mi presupuesto es 900", 10],
   ])("«%s» sí (%s)", (t, n) => { expect(cantidadGrandePedida(t as string)).toBe(n); });
 });
 
