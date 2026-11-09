@@ -106,10 +106,34 @@ function preciosConocidos(
   ]);
 }
 
+/**
+ * LA FRASE QUE NIEGA O EXPLICA NO ES UNA OFERTA (auditoría 9-nov, 2d).
+ *
+ * «Hoy solo hay 1 unidad, así que no puedo ofrecerla para juego de 4» (39282,
+ * dos veces) y «hoy aparecen 3 unidades y para juego de 4 no la manejo» (40097)
+ * decían lo contrario de vender, y la regex de abajo las leía como «hay 1
+ * unidad… ofrecer»: el candado restauraba el borrador que el propio Guardián
+ * acababa de marcar como error. Se mira CADA cláusula (se parte en puntos,
+ * saltos de línea, «;» y «pero/sino/aunque»): si la cláusula que trae «N
+ * llantas» también trae un rechazo («no puedo», «no la manejo», «no hay
+ * juego»…), explica por qué NO se ofrece. Una oferta con negación en OTRA
+ * cláusula («No tengo juego de 4, pero tengo 1 unidad disponible») sigue frenada.
+ */
+const RECHAZO_DE_LA_OFERTA =
+  /\bno\s+(?:\w+\s+){0,3}?(?:puedo|podemos|puede|ofrezc\w*|ofrec\w*|cotiz\w*|vend\w*|manej\w*|alcanz\w*|sirv\w*|recomiend\w*|aplica\w*)\b|\bno\s+(?:hay|tengo|tenemos|queda\w*|existe\w*)\s+(?:el\s+|un\s+)?juego\b|\bsin\s+(?:el\s+)?juego\b/;
+
+const OFERTA_DE_1_A_3 = [
+  /\b(?:tengo|hay|quedan|cuento\s+con|disponible(?:s)?|ofrezco|ofrecer\w*|cotizo|cotizar\w*|vendo|vender\w*)\b.{0,64}\b[1-3]\s+(?:llantas?|unidad(?:es)?)\b/,
+  /\b[1-3]\s+(?:llantas?|unidad(?:es)?)\b.{0,64}\b(?:disponible(?:s)?|ofrezco|ofrecer\w*|cotizo|cotizar\w*|vendo|vender\w*)\b/,
+];
+
 function ofreceJuegoIncompleto(texto: string): boolean {
-  const normalizado = normalizeCatalogText(texto);
-  return /\b(?:tengo|hay|quedan|cuento\s+con|disponible(?:s)?|ofrezco|ofrecer\w*|cotizo|cotizar\w*|vendo|vender\w*)\b.{0,64}\b[1-3]\s+(?:llantas?|unidad(?:es)?)\b/.test(normalizado)
-    || /\b[1-3]\s+(?:llantas?|unidad(?:es)?)\b.{0,64}\b(?:disponible(?:s)?|ofrezco|ofrecer\w*|cotizo|cotizar\w*|vendo|vender\w*)\b/.test(normalizado);
+  return texto
+    .split(/[.!?¿\n;]+|\b(?:pero|sino|aunque)\b/i)
+    .some((clausula) => {
+      const normalizada = normalizeCatalogText(clausula);
+      return OFERTA_DE_1_A_3.some((patron) => patron.test(normalizada)) && !RECHAZO_DE_LA_OFERTA.test(normalizada);
+    });
 }
 
 /**

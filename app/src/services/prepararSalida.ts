@@ -157,7 +157,14 @@ export interface ContextoDeSalida {
    * que insistía tras un rechazo, o el texto era calco de algo ya enviado.
    * Lo lee `followUpProcessor` para cancelar el job con ese motivo.
    */
-  motivoDeSupresion?: "insiste_tras_rechazo" | "calco_del_hilo" | "el_cliente_avisa" | "cliente_fuera_de_cobertura" | "compra_a_distancia";
+  motivoDeSupresion?: "insiste_tras_rechazo" | "calco_del_hilo" | "el_cliente_avisa" | "cliente_fuera_de_cobertura" | "compra_a_distancia"
+    | "guardian_rechazo_sin_salida" | "lista_ya_enviada";
+  /**
+   * El job de seguimiento que se está preparando. Va en la clave de las alertas
+   * del candado `guardian_no_vende_solo`: dos seguimientos del mismo ciclo que
+   * se bloquean con el mismo motivo son DOS bloqueos, no uno (39282).
+   */
+  jobId?: number;
   /**
    * Cuándo empezó este turno (antes de que corrieran el agente y sus
    * herramientas). Lo usa `sin_aviso_inventado`: «ya avisé al asesor» solo
@@ -425,9 +432,23 @@ export const PASOS: readonly PasoDeSalida[] = [
         return podado;
       }
 
+      // UN BORRADOR QUE EL GUARDIÁN MARCÓ COMO MALO NO SALE (39282, dos veces).
+      // Un seguimiento no contesta a nadie: si el Guardián rotuló el borrador con
+      // un hallazgo de severidad ALTA (contradicción, ignora la pregunta, la
+      // re-pregunta…) y su corrección no puede salir porque este candado la
+      // bloquea, restaurar el borrador es mandar justo lo que él acaba de
+      // calificar de error. Se calla. Con hallazgos medios o bajos el borrador
+      // sigue saliendo como antes: no vale la pena perder el recordatorio.
+      const borradorRechazado = ctx.tipo === "seguimiento"
+        && (ctx.hallazgosDelGuardian ?? []).some((h) => h.severidad === "alta");
+
       console.warn(
-        `🛑 Corrección comercial frenada en la conv ${ctx.conversation.id}: ${resultado.motivos.join(", ")}`,
+        `🛑 Corrección comercial frenada en la conv ${ctx.conversation.id}: ${resultado.motivos.join(", ")}${borradorRechazado ? " (el seguimiento se suprime: el borrador estaba marcado como error)" : ""}`,
       );
+      // La clave incluye el job (o la hora si no hay job): cada bloqueo deja su
+      // rastro. Con la clave por ciclo la 2.ª alerta del 39282 no se grabó
+      // porque la 1.ª seguía abierta (`on conflict do nothing`).
+      const cuando = ctx.jobId !== undefined ? `job${ctx.jobId}` : `h${Math.floor(Date.now() / 3_600_000)}`;
       await createBotAlert({
         conversationId: ctx.conversation.id,
         cycle: ctx.conversation.current_cycle,
@@ -437,11 +458,16 @@ export const PASOS: readonly PasoDeSalida[] = [
         exactReason:
           `Se frenó la corrección por: ${resultado.motivos.join(", ")}. `
           + `Borrador: «${borrador.slice(0, 180)}». Corrección: «${texto.slice(0, 180)}».`,
-        suggestedAction:
-          "El cliente recibió el borrador original. Revisa por qué el guardián intentó vender con datos del catálogo.",
+        suggestedAction: borradorRechazado
+          ? "El seguimiento NO se envió: el guardián había marcado el borrador como error y su corrección no podía salir. Revisa si el cliente necesita un mensaje a mano."
+          : "El cliente recibió el borrador original. Revisa por qué el guardián intentó vender con datos del catálogo.",
         dedupeKey:
-          `guardian_hecho_nuevo:${ctx.conversation.id}:${ctx.conversation.current_cycle}:${resultado.motivos.join("-")}`,
+          `guardian_hecho_nuevo:${ctx.conversation.id}:${ctx.conversation.current_cycle}:${resultado.motivos.join("-")}:${cuando}`,
       }).catch(() => undefined);
+      if (borradorRechazado) {
+        ctx.motivoDeSupresion = "guardian_rechazo_sin_salida";
+        return null;
+      }
       return resultado.texto;
     },
   },
@@ -1222,10 +1248,37 @@ export const PASOS: readonly PasoDeSalida[] = [
         limit 60
       `;
       const nuevo = aplanar(texto);
-      if (!previos.some((p) => aplanar(p.content ?? "") === nuevo)) return texto;
-      console.warn(`🔁 Seguimiento suprimido en la conv ${ctx.conversation.id}: calco de un mensaje ya enviado.`);
-      ctx.motivoDeSupresion = "calco_del_hilo";
-      return null;
+      if (previos.some((p) => aplanar(p.content ?? "") === nuevo)) {
+        console.warn(`🔁 Seguimiento suprimido en la conv ${ctx.conversation.id}: calco de un mensaje ya enviado.`);
+        ctx.motivoDeSupresion = "calco_del_hilo";
+        return null;
+      }
+      // EL MISMO BLOQUE CON OTRA CABECERA TAMBIÉN ES CALCO (auditoría 9-nov, 2b:
+      // 24 chats). «Estas son las opciones…» y «Le dejo otra vez las
+      // opciones…» (o lo que el Guardián reescriba: «Le comparto nuevamente…»)
+      // traen LAS MISMAS líneas con precio, y el texto entero nunca iguala. Se
+      // comparan las líneas de la lista contra lo que ya salió en un SEGUIMIENTO
+      // anterior del ciclo (la lista del turno normal no cuenta: el primer
+      // seguimiento la puede traer una vez). La plantilla ya manda el 2.º sin la
+      // lista (`listaYaEnviada`); esto cubre lo que reescriba el Guardián.
+      const lineasDeLista = texto.split("\n").map((l) => l.trim()).filter((l) => /^\d\s*·\s.*\$\s*\d/.test(l));
+      if (lineasDeLista.length >= 2) {
+        const deSeguimientos = await sql<{ content: string | null }[]>`
+          select content from messages
+          where conversation_id = ${ctx.conversation.id} and cycle = ${ctx.conversation.current_cycle}
+            and direction = 'outbound' and metadata ? 'followUpJobId' and content is not null
+        `;
+        const yaEnviada = deSeguimientos.some((m) => {
+          const dichas = new Set((m.content ?? "").split("\n").map((l) => l.trim()));
+          return lineasDeLista.every((l) => dichas.has(l));
+        });
+        if (yaEnviada) {
+          console.warn(`🔁 Seguimiento suprimido en la conv ${ctx.conversation.id}: la misma lista ya salió en un seguimiento anterior.`);
+          ctx.motivoDeSupresion = "lista_ya_enviada";
+          return null;
+        }
+      }
+      return texto;
     },
   },
   {

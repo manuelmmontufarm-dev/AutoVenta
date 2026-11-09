@@ -26,7 +26,8 @@ import { motivoParaNoSeguir, sinVisitaDelSeguimiento, type MotivoSinSeguimiento 
 import { parseTireSize } from "../domain/tireSize.js";
 import { generateFollowUpCopy } from "./followUpCopy.js";
 import { catalogStatus, findByCode, searchBySize } from "./catalog.js";
-import { listaDeLaPieza } from "../domain/listaDeOpciones.js";
+import { lineaDeLista } from "../domain/listaDeOpciones.js";
+import { listaVigenteDeLaPieza } from "./listaVigente.js";
 import { asesoresActivos, notifyAdvisor } from "./advisorNotifications.js";
 
 export type FollowUpJobStatus =
@@ -237,6 +238,10 @@ function etiquetaDelProducto(codigo: string | null | undefined): string | null {
 export interface ContextoDeOpciones {
   optionsCount: number | null;
   optionsList?: FollowUpMessageContext["optionsList"];
+  /** Los nombres de la lista, en el orden que el cliente leyó (para el seguimiento sin precios). */
+  optionsNames?: string[];
+  /** Esta misma lista ya salió en un seguimiento anterior del ciclo (2b): no se reenvía. */
+  listaYaEnviada?: boolean;
   preferenceAnswered: boolean;
   customerHasNoTireSize: boolean;
   /** Pidió precio o cotización en el ciclo (ver `domain/cotizarLaUnica.ts`). */
@@ -280,6 +285,7 @@ async function contextoDeOpciones(
   conversationId: number,
   cycle: number,
   ficha: { tireSize?: string | null; cantidad?: number | null } = {},
+  ahora: Date = new Date(),
 ): Promise<ContextoDeOpciones> {
   const [pieza] = await sql<{ id: number; created_at: Date; codes: unknown; metadata: { escalones?: unknown; cantidad?: unknown; equivalentes?: unknown } | null }[]>`
     select id, created_at, metadata->'codes' as codes, metadata from messages
@@ -312,11 +318,46 @@ async function contextoDeOpciones(
     await porQueNoPasaPorElLocal(conversationId, cycle, null),
     await hayCotizacionEnElCiclo(conversationId, cycle),
   );
+  // La lista VIGENTE (precio y promo de hoy), no los números que quedaron
+  // guardados con la lámina (familia 2a). Y si esa misma lista ya salió en un
+  // seguimiento anterior del ciclo, el siguiente solo nombra las opciones (2b).
+  const vigente = listaVigenteDeLaPieza(pieza?.metadata, ahora);
+  const listaYaEnviada = vigente?.lista ? await listaYaSalioEnUnSeguimiento(conversationId, cycle, vigente.lista, vigente.cantidad) : false;
   return {
-    optionsCount, optionsList: listaDeLaPieza(pieza?.metadata), preferenceAnswered, customerHasNoTireSize,
+    optionsCount,
+    optionsList: vigente?.lista && !listaYaEnviada ? { lista: vigente.lista, cantidad: vigente.cantidad } : null,
+    ...(vigente ? { optionsNames: vigente.nombres } : {}),
+    ...(listaYaEnviada ? { listaYaEnviada } : {}),
+    preferenceAnswered, customerHasNoTireSize,
     customerAskedPrice, sinVisita, juegoEnSuMedida: pieza ? null : juegoEnLaMedida(ficha.tireSize, ficha.cantidad),
     optionsEquivalentes: Array.isArray(pieza?.metadata?.equivalentes) && pieza.metadata.equivalentes.length > 0,
   };
+}
+
+/**
+ * ¿Esta lista (todas sus líneas, con precio) ya salió dentro de un SEGUIMIENTO
+ * anterior de este ciclo? Compara por líneas, no por el mensaje entero: el 2.º
+ * recordatorio solo cambiaba la cabecera («Estas son las opciones…» / «Le dejo
+ * otra vez…») y el filtro de calco exacto nunca lo veía (24 chats). La lista
+ * que salió en el turno normal no cuenta: el primer seguimiento puede traerla
+ * una vez.
+ */
+async function listaYaSalioEnUnSeguimiento(
+  conversationId: number,
+  cycle: number,
+  lista: readonly import("../domain/listaDeOpciones.js").LineaDeLista[],
+  cantidad: number,
+): Promise<boolean> {
+  const previos = await sql<{ content: string | null }[]>`
+    select content from messages
+    where conversation_id = ${conversationId} and cycle = ${cycle}
+      and direction = 'outbound' and metadata ? 'followUpJobId' and content is not null
+  `;
+  const lineas = lista.map((l) => lineaDeLista(l, cantidad));
+  return previos.some((p) => {
+    const dichas = new Set((p.content ?? "").split("\n").map((l) => l.trim()));
+    return lineas.every((l) => dichas.has(l));
+  });
 }
 
 /**
@@ -337,9 +378,25 @@ export async function porQueNoQuiereSeguimiento(
   `;
   const [ultimo, anterior] = ultimos;
   if (!ultimo?.content) return null;
+  // La última racha del cliente: sus mensajes seguidos, sin que el bot hable
+  // en medio. Las respuestas del bot que vinieron DESPUÉS no la cortan.
+  const recientes = await sql<{ direction: string; content: string | null }[]>`
+    select direction, content from messages
+    where conversation_id = ${conversationId} and cycle = ${cycle}
+    order by created_at desc, id desc limit 30
+  `;
+  const racha: string[] = [];
+  let enRacha = false;
+  for (const m of recientes) {
+    if (m.direction === "inbound") {
+      enRacha = true;
+      if (m.content) racha.push(m.content);
+    } else if (enRacha) break;
+  }
   return motivoParaNoSeguir({
     ultimo: ultimo.content,
     anterior: anterior?.content ?? null,
+    rachaDelCliente: racha,
     sinVisita: await porQueNoPasaPorElLocal(conversationId, cycle, null),
     hayCotizacion: await hayCotizacionEnElCiclo(conversationId, cycle),
   });
@@ -1094,7 +1151,7 @@ export async function ensureFollowUpJobCopy(input: {
     ...jobCopyContext(context),
     ...(await contextoDeOpciones(context.id, context.current_cycle, {
       tireSize: context.tire_size, cantidad: context.selected_quantity,
-    })),
+    }, now)),
   };
   // Al modelo, los hechos SIN los links: las URLs de Maps son exactamente el
   // tipo de string que un LLM copia mal, y una mutilada en el chat es peor

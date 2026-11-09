@@ -1,3 +1,35 @@
+## 9-nov-2026 · Recordatorios automáticos: ni precio viejo, ni lista repetida, ni borrador malo (auditoría 9-nov, sprint 2)
+
+- **Qué:** (2a) el seguimiento ya no copia los precios guardados con la lámina: 26 seguimientos en 17 chats
+  (39168…) decían «KENDA KR601 $194.85 c/u · 4 = $779.40» cuando valía «2 × $259.80 + 2 × $103.92 = $727.44»; el
+  1-dic habrían dicho «−60 %» sin promo. (2b) el 2.º recordatorio no reenvía la misma lista con otra cabecera (24
+  chats: 39194, 39208, 39258…). (2c1) el gate «este cliente no quiere seguimiento» entiende «Ninguna gracias…»
+  (39282), «Está muy lejos le agradezco» (38924), «No nos espere» + «Gracias» + «Muy amable» y «Encontramos las
+  BFGoodrich» (39667), sin cortar «está muy lejos PERO voy». (2c3) el texto fijo de compra a distancia ya no afirma
+  una compra («Quedó en marcha su compra…», 21106): «Quedo atento a su cotización de X; si desea coordinar el pago y
+  el envío, un asesor le ayuda». (2d/2c2) un borrador que el Guardián marcó con severidad alta y cuya corrección el
+  candado bloquea ya no vuelve: el seguimiento se suprime (39282, dos veces).
+- **Cómo:** `services/listaVigente.ts` (NUEVO): con los códigos, la cantidad y el ORDEN guardados en la pieza vuelve a
+  pedir el precio de hoy al catálogo y la promo de hoy con `precioDelProducto` (Sprint 1); sin stock para el juego,
+  sin precio o sin catálogo cargado → lista sin precios, con nombres. La leen los DOS lectores del seguimiento
+  (`followUps.contextoDeOpciones` y `guardian.armarContexto` con `tipo: "seguimiento"`); el turno normal sigue con
+  `listaDeLaPieza` (lo que el cliente VIO). 2b: la plantilla no reenvía una lista cuyas líneas ya salieron en un
+  seguimiento anterior (`listaYaEnviada`) y `sin_calco_del_hilo` suprime por líneas lo que reescriba el Guardián
+  (motivo `lista_ya_enviada`). 2d: `ofreceJuegoIncompleto` mira cláusula por cláusula y no dispara si la misma dice
+  «no puedo ofrecerla / no la manejo / no hay juego»; `guardian_no_vende_solo` suprime el seguimiento con motivo
+  `guardian_rechazo_sin_salida`; la clave de la alerta lleva el job (`ctx.jobId`) o la hora. 2c1: `rachaDelCliente`
+  (los mensajes seguidos del cliente antes de que el bot contestara) + `rechazaSeguir` en `domain/sinSeguimiento.ts`
+  (motivo `rechazo_del_cliente`). `firstName` → `nombreSaludable` (pedido del Sprint 4).
+- **Por qué:** el seguimiento se escribía mirando la ficha y los números guardados, no lo que valía o lo que dijo el
+  cliente; el Guardián recibía esos números como «dato duro» y los daba por buenos (21 de 26 `aprobar`).
+- **Probado:** 3 archivos de prueba nuevos (`seguimientoRecordatorios.*.test.ts`, 47 pruebas, 30 en rojo antes) con
+  `processFollowUpJob` real contra Postgres; simulador (39168 copiado con `--copiar-conv`; 39282 para el gate).
+  Re-fijados: `seguimientoCompraADistancia` y `sinSeguimiento` (el texto nuevo de compra a distancia).
+- **Falta / ojo:** el simulador solo dispara el seguimiento si se reabre el job a mano en su base (`aiPending`,
+  `due_at`, `never_outside_hours`); la supresión 2d con el Guardián real no se pudo provocar (depende de que el modelo
+  escriba esa corrección), está cubierta por integración. Con una opción sin stock hoy, la lista sale con los
+  nombres de TODAS las opciones de la lámina y sin precios.
+
 ## 9-nov-2026 · Black Friday: el texto ya no dice un «$X c/u» que contradice la lámina (auditoría 9-nov, sprint 1)
 
 - **Qué:** en Falken/Kenda con la promo (impares a LISTA, pares a lista × 0,4) no existe un precio por

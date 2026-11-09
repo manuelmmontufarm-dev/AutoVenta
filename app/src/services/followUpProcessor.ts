@@ -311,6 +311,7 @@ export async function processFollowUpJob(
     // El teléfono viaja para que el Guardián del seguimiento respete el canary por cliente.
     conversation: { id: context.id, current_cycle: context.current_cycle, stage: context.stage, phone: context.phone },
     tipo: isPostWindow ? "plantilla" : "seguimiento",
+    jobId: job.id,
     // Un seguimiento no escala a nadie: «ya avisé al asesor» no puede salir aquí.
     inicioDelTurno: new Date(),
   };

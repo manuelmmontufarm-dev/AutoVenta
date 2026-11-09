@@ -82,6 +82,10 @@ export type SinVisita = "fuera_de_cobertura" | "compra_a_distancia";
  * compromiso… ¿A cuál local le queda mejor ir?» + mapas. Lo respalda la alerta
  * alta `customer_ready_to_buy` que `index.ts` levanta al leer la compra.
  */
+export const INVITACION_COMPRA_A_DISTANCIA = politica.vendeADistancia
+  ? "si desea coordinar el pago y el envío, un asesor le ayuda"
+  : "si desea ver si se puede hacer el envío, un asesor le ayuda";
+
 export const CIERRE_COMPRA_A_DISTANCIA = politica.vendeADistancia
   ? "Un asesor le confirma pago y envío por acá. 🤝"
   // Un negocio que no confirmó envíos (`politica.vendeADistancia = false`) no

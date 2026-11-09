@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { buildContextualFollowUpMessage, followUpNeedsStoreLinks } from "../src/domain/followUpMessages.js";
-import { CIERRE_COMPRA_A_DISTANCIA } from "../src/domain/compraADistancia.js";
+import { INVITACION_COMPRA_A_DISTANCIA } from "../src/domain/compraADistancia.js";
 
 /**
  * EL SEGUIMIENTO DE QUIEN COMPRA A DISTANCIA NO LLEVA MAPAS (familia 2-E,
@@ -30,7 +30,8 @@ describe("seguimiento de una compra a distancia", () => {
   it("habla de pago y envío, no de visita", () => {
     for (const kind of ["in_window_first", "in_window_second"] as const) {
       const texto = buildContextualFollowUpMessage(REMOTO, kind);
-      expect(texto).toContain(CIERRE_COMPRA_A_DISTANCIA);
+      // 2c3 (9-nov): no afirma una compra; habla de la cotización y ofrece al asesor para el pago y el envío.
+      expect(texto).toContain(INVITACION_COMPRA_A_DISTANCIA);
       expect(texto).not.toMatch(/maps\.app|goo\.gl/);
       expect(texto).not.toMatch(/qué día|cuál local|pasar por|su visita/i);
     }
