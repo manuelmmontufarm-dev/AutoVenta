@@ -9,14 +9,18 @@
  *  · `consultaConRespaldo.ts`: «¿tienen Venom?» sin esa marca en catálogo;
  *  · `catalog.ts`: el buscador nunca descarta una marca que el cliente nombró.
  *
+ * NINGUNA puede ser una palabra común del español suelta: «general» estuvo y
+ * «¿Cuánto cuestan en general las 205/55R16?» salía como «De GENERAL no tengo
+ * disponibilidad» (ronda 2 del sprint 4). Por eso va «general tire», no «general».
+ *
  * En minúscula y sin tildes; las de dos palabras van tal cual se escriben. Para
  * agregar una, aquí y en ningún otro sitio.
  */
 export const MARCAS_DE_LLANTA_CONOCIDAS = [
-  "falken", "kenda", "winrun", "giti", "aplus", "maxtrek", "sunoco",
+  "falken", "kenda", "winrun", "giti", "aplus", "maxtrek",
   "michelin", "bridgestone", "goodyear", "continental", "hankook", "pirelli",
   "firestone", "toyo", "yokohama", "dunlop", "kumho", "nexen", "sailun",
-  "triangle", "linglong", "general tire", "general",
+  "triangle", "linglong", "general tire",
   // Auditoría 2-6 sep (conv 15158: «busco 4 Venom Power 315/70R17» y el bot
   // mostró otras sin decir que esa no la maneja). Las que llegan a WhatsApp
   // porque el cliente las tiene puestas o las vio en otra vitrina.

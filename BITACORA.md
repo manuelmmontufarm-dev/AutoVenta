@@ -1,3 +1,26 @@
+## 9-nov-2026 · Sprint 4 ronda 2 · «general» suelta no es una marca
+
+- **Qué:** al unificar las marcas (ronda 1) entró «general» como palabra suelta y `marcaPreguntada` detectaba la
+  marca GENERAL en «¿Cuánto cuestan en general las 205/55R16?», «¿Qué precios tienen en general?», «por lo
+  general cuanto cuesta…», «precio general de…»: el bot decía «De GENERAL no tengo disponibilidad» y
+  `ultimaMarcaPedida` se quedaba en GENERAL.
+- **Cómo:** `domain/marcasDeLlanta.ts` sin «general» (queda «general tire») y sin «sunoco» (lo había agregado yo:
+  no es marca de llanta y «aceite sunoco» no debe forzar la búsqueda de llantas). Una marca que también es una
+  palabra común no puede ir suelta (nota en el archivo).
+- **Qué ganó o perdió cada lector con la lista única** (contra `2e3465d`): `consultaConRespaldo` ganó apollo,
+  aeolus, chaoyang, goodrich y bf goodrich; no perdió ninguna. `firstContact` ganó 35 (achilles, aplus, aptany,
+  arivo, atturo, bf goodrich, comforser, compasal, cooper, delinte, doublestar, durun, farroad, federal, general
+  tire, giti, goodrich, goodride, haida, jinyu, kapsen, landsail, lanvigator, laufenn, mastercraft, maxtrek,
+  nankang, nitto, ovation, sumitomo, sunfull, uniroyal, venom, wanli…); no perdió ninguna, y en la práctica no
+  cambia nada: solo se mira la lista cuando todo el resto del mensaje son palabras de relleno, y cualquier otra
+  palabra ya lo hace «no genérico». El buscador usa la lista única más las marcas que declara el catálogo.
+  Quedan sueltas, como ya estaban en `consultaConRespaldo`, «cooper» y «federal» (palabras comunes en otros
+  contextos pero casi nunca en un chat de llantas, y solo disparan con señal de disponibilidad).
+- **Probado:** `test/marcasComunes.test.ts` (10; en rojo antes: 8): las 4 frases del informe y una más dan null,
+  «tienen General Tire en 205/55R16» sigue dando GENERAL TIRE, apollo/aeolus/chaoyang/goodrich/bf goodrich solo
+  disparan nombrados, «aceite sunoco» da null. Simulador: «¿Cuánto cuestan en general las 205/55R16?» →
+  opciones (WINRUN R330, KENDA KR20, FALKEN ZE310R) sin mencionar General. ~0,5 h.
+
 ## 9-nov-2026 · Sprint 4 ronda 1 · El buscador relajado ya no devuelve otra marca como exacta
 
 - **Qué:** la revisión midió que la relajación de «Klever» era demasiado ancha: «Michelin Primacy 4» pasaba de 0 a
