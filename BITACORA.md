@@ -1,3 +1,26 @@
+## 9-nov-2026 · Sprint 4 ronda 1 · El buscador relajado ya no devuelve otra marca como exacta
+
+- **Qué:** la revisión midió que la relajación de «Klever» era demasiado ancha: «Michelin Primacy 4» pasaba de 0 a
+  8 Winrun «exactas» (el «4» casaba con un código de Contífico), «Goodyear Wrangler AT 265/70R17» devolvía la
+  Winrun Maxclaw, «llantas Michelin rin 16» una 165/65R13, «Michelin KR601» las KR601 sin decir que no son
+  Michelin. El mismo camino alimenta `resolveCatalogCandidates` (la llanta que se va a cotizar).
+- **Cómo (`domain/catalog.ts`):** (a) una marca nombrada nunca se descarta: si el catálogo no la tiene, vacío
+  como siempre (lista única en `domain/marcasDeLlanta.ts`, que ahora leen también `firstContact.ts` y
+  `consultaConRespaldo.ts`, antes dos copias; más las marcas que el propio catálogo declara); (b) solo se ignora
+  un nombre comercial (4+ letras, no un tipo): un número, un tipo («mt») o un código que no existe («kr610»)
+  cancelan la relajación; el ancla es un código de modelo (3+, letras y dígitos, no `at`/`ht`/`4x4`/`r16`) igual,
+  como palabra entera, a una palabra del diseño o del código; (c) rastro: `buscarConEscalera` devuelve
+  **`palabrasIgnoradas: string[]`** (p. ej. `["klever"]`; vacío si la búsqueda fue estricta) para que el
+  vendedor pueda decir «en catálogo figura como KR601». `agent/tools.ts` no se tocó: queda para el Sprint 5.
+- **Menores:** `nombreSaludable` saluda sin nombre si otra palabra del perfil es de negocio («Mercedes Benz
+  Repuestos», «Victoria Motors», «Henry Auto Lujos»); 24 nombres comunes más y sin duplicados; el log del pedido
+  omitido solo sale si de verdad se calló el pedido; nota del canary en la entrada del saludo.
+- **Probado:** `test/catalogoMarcaAjena.test.ts` (57; contra la foto real del catálogo cuando está, un fixture
+  siempre, y un catálogo de ejemplo de Mundillantas: Kenda, Falken, Winrun, Maxxis). Simulador: «vi el anuncio de
+  la Kenda Klever KR601…» 3 de 3 muestra las KR601; «tienen Michelin Primacy 4?» → «no tengo disponibilidad…
+  alternativas en Falken o Kenda»; «Goodyear Wrangler AT 265/70R17» → «De GOODYEAR no tengo disponibilidad en esta
+  medida… estas son las alternativas». ~2 h.
+
 ## 9-nov-2026 · Sprint 4a · El saludo fijo ya no le pide la medida a quien la acaba de mandar
 
 - **Qué:** el cliente manda «Hola», el bot espera 12 s y arranca el turno del saludo (texto fijo). Si el cliente
@@ -18,6 +41,9 @@
   legítimo). Un «Hola» pelado sigue recibiendo presentación, promo y pedido; tres mensajes dentro de los
   12 s (40074) siguen siendo un solo turno sin re-pregunta. `test/saludoFijo.integration.test.ts` (7, con la
   línea de tiempo de la 39899 y el debounce de 12 s con reloj controlado) y `test/pedidoDeMedidaSaludo.test.ts`.
+- **Para el canary (fase III, lectura del 20-nov):** el saludo fijo dejó de pasar por el Guardián, así que la tasa de
+  aprobación y el costo del Guardián cambian el día del deploy en los dos grupos por igual: la lectura tiene que
+  cortar en la hora del deploy o excluir `route=first_contact`.
 - **No cubre:** la medida que viene en un audio (40017) entra a la base ~10 s después y no se ve desde acá; el
   cliente que escribe DESPUÉS de que el pedido salió ve el pedido (no hay forma de saberlo antes). ~2 h.
 

@@ -33,6 +33,19 @@ export function yaSaluda(texto: string): boolean {
  */
 const SUFIJO_DE_EMPRESA = /^(?:s\.?a\.?s?\.?|c\.?a\.?|cia\.?|c[ií]a\.?|ltda\.?|corp\.?|inc\.?|llc|eirl|s\.?r\.?l\.?|group|grupo|cli|cia)$/iu;
 
+/**
+ * Palabras de negocio: «Mercedes Benz Repuestos», «Victoria Motors», «Henry Auto
+ * Lujos» empiezan con un nombre de pila y son empresas. Si cualquier OTRA
+ * palabra del perfil es de estas, se saluda sin nombre.
+ */
+const PALABRA_DE_NEGOCIO = new Set([
+  "motors", "motor", "repuestos", "llantas", "llantera", "taller", "autos", "auto", "carros", "store",
+  "bar", "importaciones", "importadora", "benz", "bakery", "lujos", "lujo", "tienda", "ferreteria",
+  "comercial", "servicios", "service", "multimarcas", "tapiceria", "restaurant", "restaurante",
+  "pizzeria", "cafe", "hotel", "farmacia", "distribuidora", "ventas", "accesorios", "parts",
+  "garage", "lubricadora", "mecanica", "vulcanizadora", "constructora", "ingenieria", "yacht",
+]);
+
 /** Perfil de más palabras que esto es un negocio o una frase, no un nombre. */
 const MAXIMO_DE_PALABRAS_DEL_PERFIL = 4;
 
@@ -52,10 +65,13 @@ const MAXIMO_DE_PALABRAS_DEL_PERFIL = 4;
  *  · y esa primera palabra es un nombre de pila de la lista de
  *    `nombresDePila.ts` (con o sin tilde, o su diminutivo).
  */
+const sinTildesDe = (valor: string) => valor.normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^\p{L}\p{N}]/gu, "");
+
 export function nombreSaludable(nombre: string | null | undefined): string | null {
   const palabras = (nombre ?? "").trim().split(/\s+/).filter(Boolean);
   if (!palabras.length || palabras.length > MAXIMO_DE_PALABRAS_DEL_PERFIL) return null;
   if (palabras.some((palabra) => SUFIJO_DE_EMPRESA.test(palabra))) return null;
+  if (palabras.slice(1).some((palabra) => PALABRA_DE_NEGOCIO.has(sinTildesDe(palabra).toLowerCase()))) return null;
   // «Tatiana🌷» → «Tatiana»: el adorno de cola no es parte del nombre.
   const primero = palabras[0].replace(/[^\p{L}\p{N}]+$/u, "");
   if (primero.length < 2 || primero.length > 20) return null;

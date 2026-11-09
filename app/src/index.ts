@@ -101,6 +101,7 @@ import { esSoloPregunta } from "./domain/preguntaSola.js";
 import { sql } from "./db/client.js";
 import { presentacionDeApertura } from "./domain/saludo.js";
 import { bloqueDelSaludoFijoVigente, clienteEscribioDespuesDe } from "./services/saludoFijo.js";
+import { contieneElPedidoDeMedida } from "./domain/firstContact.js";
 import { algunLocalAbre, getStoreHours, localAbre } from "./services/settings.js";
 import { negocio, localPorNombre } from "./negocio/index.js";
 import {
@@ -588,7 +589,9 @@ async function atenderTurno(
     // no sale (chats 39899, 40017… del 7-nov). Ver services/saludoFijo.ts.
     if (isFirstGenericMessage) {
       const vigente = await bloqueDelSaludoFijoVigente(conversation.id, idEntranteAlEmpezar, bloque);
-      if (vigente !== bloque) {
+      // El log solo cuando de verdad se calló el pedido: `sinElPedidoDeMedida`
+      // también recorta espacios de un bloque que no era el pedido.
+      if (vigente !== bloque && contieneElPedidoDeMedida(bloque)) {
         console.log(
           `⏭️ Pedido de medida del saludo omitido en la conv ${conversation.id}: el cliente ya escribió otra cosa`,
         );

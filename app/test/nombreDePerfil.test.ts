@@ -101,3 +101,21 @@ describe("todas las puertas que saludan por nombre usan el mismo filtro", () => 
     expect(conPresentacion("¿Qué aro usa?", "Paul Escobar")).toMatch(/^¡Hola, Paul! 👋 /);
   });
 });
+
+describe("ronda 1: negocios que empiezan con un nombre de pila", () => {
+  it.each(["Mercedes Benz Repuestos", "Victoria Motors", "Henry Auto Lujos", "Gloria Bakery", "Bolívar Repuestos", "Coco Loco Bar", "Nube Store", "Marina Yacht"])(
+    "«%s» → sin nombre", (perfil) => {
+      expect(nombreSaludable(perfil)).toBeNull();
+    });
+  it("pero un apellido o segundo nombre sigue siendo una persona", () => {
+    expect(nombreSaludable("Henry Rivera")).toBe("Henry");
+    expect(nombreSaludable("Gloria Maria Auz")).toBe("Gloria");
+  });
+  it.each(["Mauro", "Wladimir", "Ivonne", "Gissela", "Yessenia", "Joselyn", "Estefany", "Stefany", "Mishell", "Jhoanna", "Dany", "Majo", "Pao", "Vale", "Cris"])(
+    "«%s» es un nombre de pila", (nombre) => {
+      expect(nombreSaludable(nombre)).toBe(nombre);
+    });
+  it("«Lady» no: es más veces un negocio que un nombre", () => {
+    expect(nombreSaludable("Lady")).toBeNull();
+  });
+});

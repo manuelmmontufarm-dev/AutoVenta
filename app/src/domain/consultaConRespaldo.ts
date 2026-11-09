@@ -1,3 +1,4 @@
+import { MARCAS_DE_LLANTA_CONOCIDAS } from "./marcasDeLlanta.js";
 import { aroEnTexto } from "./medidaConfirmada.js";
 /**
  * Dos preguntas del cliente que el modelo contesta mal cuando se le deja solo,
@@ -29,20 +30,7 @@ const normalizar = (texto: string): string =>
  * tiene puestas o las vio en otra vitrina. Una marca desconocida no dispara
  * nada: el detector prefiere callarse a inventar.
  */
-const MARCAS_CONOCIDAS = [
-  "falken", "kenda", "winrun", "giti", "aplus", "maxtrek",
-  "michelin", "bridgestone", "goodyear", "continental", "hankook", "pirelli",
-  "firestone", "toyo", "yokohama", "dunlop", "kumho", "nexen", "sailun",
-  "triangle", "linglong", "general tire",
-  // Auditoría 2-6 sep (conv 15158: «busco 4 Venom Power 315/70R17» y el bot
-  // mostró otras sin decir que esa no la maneja). Las que llegan a WhatsApp
-  // porque el cliente las tiene puestas o las vio en otra vitrina.
-  "venom", "maxxis", "bfgoodrich", "cooper", "nitto", "roadstone", "westlake",
-  "sunfull", "jinyu", "ovation", "aptany", "lanvigator", "durun", "haida",
-  "kapsen", "doublestar", "landsail", "goodride", "delinte", "gt radial",
-  "arivo", "farroad", "wanli", "compasal", "comforser", "atturo", "achilles",
-  "nankang", "federal", "sumitomo", "laufenn", "mastercraft", "uniroyal",
-] as const;
+const MARCAS_CONOCIDAS = MARCAS_DE_LLANTA_CONOCIDAS;
 
 /** Una medida escrita de cualquier forma: 195/50R15, 195 50 15, 1955015, 265-70-17. */
 const TRAE_MEDIDA = /\b\d{3}\s*[/ -]?\s*\d{2}\s*[/ -]?\s*r?\s*\d{2}\b|\b\d{7}\b|\b\d{2}x\d{1,2}(?:[.,]\d)?r?\d{2}\b/;

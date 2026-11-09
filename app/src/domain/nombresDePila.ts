@@ -15,11 +15,11 @@ const HOMBRES = `
 abel abraham adrian agustin alan albert alberto alejandro alex alexander alexis alfonso alfredo alvaro amilcar anderson andre andres angel
 anibal anthony antonio ariel armando arnaldo arturo augusto aurelio bairon baltazar bayron benjamin bernardo bladimir bolivar brandon
 brayan bryan byron camilo carlos cesar christian cristhian cristian cristobal cleber clever claudio dairo dalton damian dani danilo daniel
-dario darwin david denis dennis diego dilan dixon domingo edgar edgardo edison edmundo edgar eduardo edwin efrain elias eliecer emilio
+dario darwin david denis dennis diego dilan dixon domingo edgar edgardo edison edmundo eduardo edwin efrain elias eliecer emilio
 enrique erick erik ernesto esteban estalin eugenio ever ezequiel fabian fabio fabricio fausto federico felipe felix fernando fidel
 flavio francisco franco frank franklin freddy fredy gabriel galo gary geovanny geovani gerardo german gilbert giovanni giovanny gonzalo
 guido guillermo gustavo harold hector henry herman hernan hernando holger homero hugo humberto ignacio isaac isaias ismael ivan jaime
-jair jairo jandry javier joaquin jefferson jeferson jeison jeremy jeronimo jesus jhon jhonatan jhonny jimmy joel joffre johan johnny jonatan
+jair jairo jandry javier joaquin mauro wladimir jefferson jeferson jeison jeremy jeronimo jesus jhon jhonatan jhonny jimmy joel joffre johan johnny jonatan
 jonathan jordan jorge jose josue juan julian julio kevin kleber klever lenin leonardo leonel leopoldo lester lorenzo lucas luciano luis
 manuel marcelo marco marcos mario mariano martin mateo mauricio maximo mayker michael miguel milton moises nelson nestor nicolas noe
 norberto octavio omar orlando oscar osvaldo oswaldo pablo patricio paul paulino paulo pedro rafael ramiro ramon raul reinaldo rene
@@ -40,13 +40,13 @@ lorena lourdes lucia luisa luz magdalena maite manuela marcela margarita maria m
 mercedes michelle miriam mireya mirian mishel mónica monica myriam nancy narcisa natali natalia nataly nayeli nelly nicole nidia
 noemi norma nube olga ofelia paola pamela patricia paulina priscila rebeca regina rocio rosa rosario rosana roxana ruth sabrina sandra
 sara sarita sheyla silvia sofia soledad sonia susana tamara tania tatiana teresa valentina valeria vanessa vera veronica victoria
-viviana wendy ximena yadira yajaira yesenia yolanda zoila
+viviana wendy ximena yadira yajaira yesenia yolanda zoila ivonne gissela yessenia joselyn estefany stefany mishell jhoanna
 `;
 
 /** Formas cortas y de cariño que la gente pone de nombre de perfil. */
 const APODOS = `
-chelo chicho coco danny dani fer fercho fercho gaby javi javy jose lucho luchito macu pepe pepito paco pancho pato patito tony toño
-xavi vero beto
+chelo chicho coco danny dany fer fercho gaby javi javy lucho luchito macu pepe pepito paco pancho pato patito tony toño
+xavi vero beto majo pao vale cris
 `;
 
 const sinTildes = (valor: string) => valor.normalize("NFD").replace(/[̀-ͯ]/g, "");

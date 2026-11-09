@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { firstContactReply, pedidoDeMedidaDelPrimerContacto, sinElPedidoDeMedida } from "../src/domain/firstContact.js";
+import { contieneElPedidoDeMedida, firstContactReply, pedidoDeMedidaDelPrimerContacto, sinElPedidoDeMedida } from "../src/domain/firstContact.js";
 
 describe("sinElPedidoDeMedida", () => {
   it("el pedido solo queda vacío", () => {
@@ -17,5 +17,13 @@ describe("sinElPedidoDeMedida", () => {
 
   it("no toca un texto que no es el pedido", () => {
     expect(sinElPedidoDeMedida("¿Qué medida necesita para su Hilux?")).toBe("¿Qué medida necesita para su Hilux?");
+  });
+});
+
+describe("contieneElPedidoDeMedida", () => {
+  it("distingue el pedido de un bloque que solo tenía espacios de más", () => {
+    expect(contieneElPedidoDeMedida(pedidoDeMedidaDelPrimerContacto())).toBe(true);
+    expect(contieneElPedidoDeMedida(firstContactReply())).toBe(true);
+    expect(contieneElPedidoDeMedida("🖤 PROMOCIÓN BLACK FRIDAY 🖤  ")).toBe(false);
   });
 });

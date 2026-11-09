@@ -1,3 +1,4 @@
+import { MARCAS_DE_LLANTA_CONOCIDAS } from "./marcasDeLlanta.js";
 import { FIRMA_DE_PRESENTACION } from "./saludo.js";
 /**
  * ¿El mensaje de entrada es solo un saludo, sin un dato con el que trabajar?
@@ -75,12 +76,7 @@ function loQueSobraTrasElSaludo(text: string): string | null {
  * Marcas del catálogo: nombrarlas es un dato de venta, no un saludo. «Hola,
  * ¿precio de la Kenda?» tiene que llegarle al agente para que la busque.
  */
-const MARCAS = [
-  "kenda", "falken", "winrun", "michelin", "bridgestone", "goodyear", "pirelli",
-  "continental", "hankook", "yokohama", "dunlop", "toyo", "maxxis", "nexen",
-  "kumho", "bfgoodrich", "firestone", "apollo", "linglong", "triangle",
-  "aeolus", "westlake", "chaoyang", "sailun", "roadstone", "gt radial",
-];
+const MARCAS = MARCAS_DE_LLANTA_CONOCIDAS;
 
 /**
  * Palabras que describen el vehículo o el uso: también son un dato. El agente
@@ -200,13 +196,23 @@ export function pedidoDeMedidaDelPrimerContacto(): string {
  * presentación sigue valiendo. Devuelve vacío si el bloque era solo el pedido.
  */
 export function sinElPedidoDeMedida(texto: string): string {
-  const lineasDelPedido = new Set(
-    pedidoDeMedidaDelPrimerContacto().split("\n").map((linea) => linea.trim()).filter(Boolean),
-  );
+  const lineasDelPedido = lineasDelPedidoDeMedida();
   return texto
     .split("\n")
     .filter((linea) => !lineasDelPedido.has(linea.trim()))
     .join("\n")
     .replace(/\n{3,}/g, "\n\n")
     .trim();
+}
+
+/** ¿Este bloque trae alguna línea del pedido de medida? */
+export function contieneElPedidoDeMedida(texto: string): boolean {
+  const lineasDelPedido = lineasDelPedidoDeMedida();
+  return texto.split("\n").some((linea) => lineasDelPedido.has(linea.trim()));
+}
+
+function lineasDelPedidoDeMedida(): Set<string> {
+  return new Set(
+    pedidoDeMedidaDelPrimerContacto().split("\n").map((linea) => linea.trim()).filter(Boolean),
+  );
 }
