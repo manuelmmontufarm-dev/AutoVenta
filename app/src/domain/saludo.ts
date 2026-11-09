@@ -12,6 +12,7 @@
  */
 import { negocio, firmaDePresentacion, esPendiente } from "../negocio/index.js";
 import { nombresDelNegocio } from "../negocio/identidad.js";
+import { esNombreDePila } from "./nombresDePila.js";
 
 /**
  * Formas en que de verdad saluda la gente en Ecuador al abrir un chat. Se mira
@@ -27,16 +28,43 @@ export function yaSaluda(texto: string): boolean {
 }
 
 /**
+ * Cómo se escribe una empresa y no una persona: «CAMBICOL S.A.S», «Pérez Cía.
+ * Ltda». Una palabra suelta de estas en el perfil basta para no saludar por nombre.
+ */
+const SUFIJO_DE_EMPRESA = /^(?:s\.?a\.?s?\.?|c\.?a\.?|cia\.?|c[ií]a\.?|ltda\.?|corp\.?|inc\.?|llc|eirl|s\.?r\.?l\.?|group|grupo|cli|cia)$/iu;
+
+/** Perfil de más palabras que esto es un negocio o una frase, no un nombre. */
+const MAXIMO_DE_PALABRAS_DEL_PERFIL = 4;
+
+/**
  * Primer nombre, para tutear con nombre sin soltarle el apellido completo.
- * Descarta lo que claramente no es un nombre: los pushnames de WhatsApp vienen
- * con cualquier cosa (usuarios, teléfonos, emojis, «angelbarreiro1986»).
+ *
+ * ES LA FUENTE ÚNICA de «¿con qué nombre se saluda a este cliente?». Los
+ * perfiles de WhatsApp vienen con cualquier cosa (negocios, frases, usuarios,
+ * emojis), y el 6–8 nov 16 de 69 saludos no eran una persona: «Hola La»
+ * (La Brocheta Burguer), «Hola Tapicería», «Hola Mmmmmm». Solo se usa el nombre
+ * si TODO esto se cumple; en la duda se saluda sin nombre, que no cuesta nada:
+ *
+ *  · el perfil tiene hasta 4 palabras y ninguna es un sufijo de empresa;
+ *  · la primera palabra son solo letras (los emojis de cola se ignoran),
+ *    de 2 a 20, sin una letra repetida 4+ veces seguidas y no escrita toda
+ *    en mayúsculas (siglas y nombres de marca);
+ *  · y esa primera palabra es un nombre de pila de la lista de
+ *    `nombresDePila.ts` (con o sin tilde, o su diminutivo).
  */
 export function nombreSaludable(nombre: string | null | undefined): string | null {
-  const primero = (nombre ?? "").trim().split(/\s+/)[0] ?? "";
+  const palabras = (nombre ?? "").trim().split(/\s+/).filter(Boolean);
+  if (!palabras.length || palabras.length > MAXIMO_DE_PALABRAS_DEL_PERFIL) return null;
+  if (palabras.some((palabra) => SUFIJO_DE_EMPRESA.test(palabra))) return null;
+  // «Tatiana🌷» → «Tatiana»: el adorno de cola no es parte del nombre.
+  const primero = palabras[0].replace(/[^\p{L}\p{N}]+$/u, "");
   if (primero.length < 2 || primero.length > 20) return null;
   // Solo letras (con tildes y ñ): nada de dígitos, arrobas ni emojis.
   if (!/^[\p{L}][\p{L}'’-]*$/u.test(primero)) return null;
-  return primero[0].toUpperCase() + primero.slice(1);
+  if (primero === primero.toUpperCase()) return null;
+  if (/(\p{L})\1{3,}/iu.test(primero)) return null;
+  if (!esNombreDePila(primero)) return null;
+  return primero[0].toUpperCase() + primero.slice(1).toLowerCase();
 }
 
 /**

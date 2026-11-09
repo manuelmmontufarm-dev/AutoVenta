@@ -1,3 +1,23 @@
+## 9-nov-2026 · Sprint 4b · El nombre del perfil de WhatsApp solo se usa si es un nombre de pila
+
+- **Qué:** el saludo tomaba la primera palabra del perfil tal cual: «Hola La» (La Brocheta Burguer), «Hola
+  Tapicería», «Hola Mmmmmm», «Hola Lagophone», «Hola CAMBICOL»… 16 de 69 saludos del 6–8 nov no eran una
+  persona. Solo se verificaba que fueran letras.
+- **Cómo:** `nombreSaludable` (`domain/saludo.ts`) es la fuente única y ahora exige: perfil de ≤ 4 palabras
+  sin sufijo de empresa (S.A.S, Cía, Ltda…), primera palabra solo letras (los emojis de cola se ignoran),
+  sin una letra repetida 4+ veces, no toda en mayúsculas y que esté en la lista de nombres de pila
+  (`domain/nombresDePila.ts`, ~450 nombres de Ecuador, con o sin tilde, más diminutivos: «Miguelito»). En la
+  duda, «¡Hola!» sin nombre. Lo leen la presentación de apertura (`index.ts`) y el saludo/presentación que
+  antepone `wa/client.ts` (retomada y rutas directas): no hubo que tocar nada más.
+- **Anotado para la coordinadora:** `domain/followUpMessages.ts:169` (`firstName`, el «Hola, <nombre> 👋» del
+  seguimiento tardío) es OTRO lector del nombre que no filtra nada; es de otro sprint y no se tocó. Hay que
+  cambiarlo por `nombreSaludable(context.name)` (ya exportado).
+- **Probado:** `test/nombreDePerfil.test.ts` (27; en rojo antes: 25 fallaban) con los perfiles reales del
+  análisis; pasadas las 135 fichas de la auditoría por el filtro, las 68 que quedan con nombre son todas personas (los nombres poco comunes —«Yady», «Moly», «Yillian»— y los escritos en MAYÚSCULAS —«JOSÉ»— se saludan sin nombre, a propósito). Simulador,
+  8 perfiles: «La Brocheta Burguer», «Tapicería Multimarcas», «mmmmmm», «Lagophone», «CAMBICOL S.A.S» →
+  «¡Hola!» (antes «¡Hola, La!», «¡Hola, Tapicería!»…); «Carlos», «Paul Escobar», «Miguelito» se siguen
+  usando. ~1 h.
+
 ## 9-nov-2026 · Sprint 4c · «Kenda Klever KR601»: el buscador ya no se rinde por una palabra que el catálogo no conoce
 
 - **Qué:** quien llegaba por el anuncio de la «Kenda Klever KR601» (convs 39845 y 39615) recibía «por ahora
