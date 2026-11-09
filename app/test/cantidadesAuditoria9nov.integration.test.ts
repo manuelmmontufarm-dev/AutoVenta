@@ -360,3 +360,50 @@ describe.sequential("3.1c · cotización vigente + lámina + menú + enumeració
     expect((await cotizaciones(h.fila.id)).length).toBe(antes);
   });
 });
+
+describe.sequential("ronda 2 · lo dicho antes solo le gana a la ficha si es POSTERIOR a la pieza que la fijó", () => {
+  async function conLa1(opts: { guardada: number | null; cantidadDelMenu: number; pedido: string }, despuesDelMenu: string[] = []) {
+    const h = await hilo(opts);
+    for (const t of despuesDelMenu) {
+      await sql`insert into messages (conversation_id, cycle, role, direction, author_kind, type, content)
+                values (${h.fila.id}, 1, 'user', 'inbound', 'customer', 'text', ${t})`;
+    }
+    await sql`insert into messages (conversation_id, cycle, role, direction, author_kind, type, content)
+              values (${h.fila.id}, 1, 'user', 'inbound', 'customer', 'text', 'La 1')`;
+    const { cantidadDelCliente } = await import("../src/services/lineasConPromo.js");
+    return { h, q: await cantidadDelCliente(h.fila.id, "La 1") };
+  }
+
+  it("ficha 20 (la fijó la lámina de 20) y un «4 llantas» ANTERIOR a la lámina: manda la ficha, 20", async () => {
+    const { q } = await conLa1({ guardada: 20, cantidadDelMenu: 20, pedido: "Necesito 4 llantas 235/75R15" });
+    expect(q.cantidad).toBe(20);
+  });
+
+  it("ficha 2 (las de adelante) y un «4» dicho antes de la lámina: manda la ficha, 2", async () => {
+    const { q } = await conLa1({ guardada: 2, cantidadDelMenu: 2, pedido: "Necesito 4 llantas 235/75R15, las de adelante" });
+    expect(q.cantidad).toBe(2);
+  });
+
+  it("«las de adelante» DESPUÉS del menú (sin número) no cambia nada: ficha 2", async () => {
+    const { q } = await conLa1({ guardada: 2, cantidadDelMenu: 2, pedido: "Necesito 4 llantas 235/75R15" }, ["son las de adelante"]);
+    expect(q.cantidad).toBe(2);
+  });
+
+  it("40137 con el 4 por defecto del menú y «tres llantas» DESPUÉS de la lámina: gana lo que dijo, 3", async () => {
+    const { q } = await conLa1({ guardada: 4, cantidadDelMenu: 4, pedido: "235/75R15" }, ["235 75 rin 15 tres llantas por favor me cotizas"]);
+    expect(q.cantidad).toBe(3);
+  });
+
+  it("ficha vacía: lo dicho antes sigue contando (original de 40137)", async () => {
+    const { q } = await conLa1({ guardada: null, cantidadDelMenu: 4, pedido: "225 70 rin 16 tres llantas por favor me cotizas" });
+    expect(q.cantidad).toBe(3);
+  });
+
+  it("la ruta directa no pisa la ficha 20 con el «4 llantas» viejo", async () => {
+    const h = await hilo({ guardada: 20, cantidadDelMenu: 20, pedido: "Necesito 4 llantas 235/75R15" });
+    await responder(h, "La 1");
+    expect(await fichaCantidad(h.fila.id)).toBe(20);
+    const [q] = await cotizaciones(h.fila.id);
+    expect(q.items[0].quantity).toBe(20);
+  });
+});

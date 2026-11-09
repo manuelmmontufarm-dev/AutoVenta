@@ -1,3 +1,17 @@
+## 9-nov-2026 · Cantidades, ronda 2 de la revisión del sprint 3: lo dicho antes solo le gana a la ficha si es posterior a la pieza que la fijó
+
+- **Qué:** mi cambio de la ronda 1 dejaba que un mensaje VIEJO del cliente le ganara a la ficha, pero ese lector solo entiende hasta 8
+  y no ve lo que el modelo guardó: ficha 20 con un «4 llantas» anterior daba 4; ficha 2 («las de adelante») con un «4» dicho antes daba 4,
+  y la ruta directa escribía ese 4 sobre la ficha correcta.
+- **Cómo:** `cantidadDelCliente` (`lineasConPromo.ts`) sigue `turno ?? historial ?? ficha`, pero el historial con la ficha llena solo
+  cuenta si el mensaje es POSTERIOR a la última pieza `options`/`quote` del ciclo (leída de `metadata.piece`, no del texto): «tres
+  llantas» dicho después del menú le gana al 4 por defecto; un «4 llantas» anterior a la lámina de 20 no. Con la ficha vacía cuenta todo
+  lo dicho en el ciclo, como antes. Devuelve además `origen` (turno/historial/ficha), y `cotizarLoElegido` escribe la ficha solo si la
+  cantidad vino del turno o del historial: nunca copia el valor de la ficha ni uno viejo.
+- **Probado:** 6 pruebas nuevas en rojo primero (ficha 20, ficha 2, «las de adelante» sin número, 40137 con ficha 4, ficha vacía, ruta
+  directa sin pisar la ficha); 198 en verde con las de Sprint 1; suite completa con las 2 de siempre; simulador 40137 en el orden real
+  (ficha 4 por defecto → «tres llantas» → «La 2» = 3 × KR50, ficha 3).
+
 ## 9-nov-2026 · Cantidades, ronda 1 de la revisión del sprint 3 (devuelto con 2 bloqueantes)
 
 - **Bloqueante 1 (40137 en el orden real):** en producción el orden fue menú → «tres llantas por favor me cotizas» → el agente

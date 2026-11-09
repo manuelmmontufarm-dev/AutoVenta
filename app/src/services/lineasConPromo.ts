@@ -98,7 +98,7 @@ export async function cantidadDelCliente(
   conversationId: number,
   textoDelTurno?: string | null,
   mensajeCitado?: string | null,
-): Promise<{ cantidad: number | null; ficha: number | null; turno: number | null; historial: number | null; vetos: number[] }> {
+): Promise<{ cantidad: number | null; ficha: number | null; turno: number | null; historial: number | null; origen: "turno" | "historial" | "ficha" | null; vetos: number[] }> {
   const [fila] = await sql<{ selected_quantity: number | null; current_cycle: number }[]>`
     select selected_quantity, current_cycle from conversations where id = ${conversationId}
   `.catch(() => []);
@@ -106,10 +106,10 @@ export async function cantidadDelCliente(
   // Los mensajes del ciclo en las DOS direcciones, del más nuevo al más viejo: para leer lo que dijo
   // el cliente hay que saber a qué CONTESTABA. Sin el saliente anterior, el «3» que elige la 3 del
   // menú «¿Le cotizo la 1, la 2 o la 3?» se lee como 3 llantas (ronda 3: reabría la familia original).
-  type Fila = { direction: string; author_kind: string | null; content: string | null; clase: string | null };
+  type Fila = { direction: string; author_kind: string | null; content: string | null; clase: string | null; pieza: string | null };
   const filas = fila
     ? await sql<Fila[]>`
-        select direction, author_kind, content, metadata->'oferta'->>'clase' as clase from messages
+        select direction, author_kind, content, metadata->'oferta'->>'clase' as clase, metadata->>'piece' as pieza from messages
         where conversation_id = ${conversationId} and cycle = ${fila.current_cycle}
         order by created_at desc, id desc limit 60
       `.catch(() => [] as Fila[])
@@ -136,7 +136,11 @@ export async function cantidadDelCliente(
     .map((m, i) => ({ m, i }))
     .filter(({ m }) => esDelCliente(m))
     .slice(0, 12)
-    .map(({ m, i }) => ({ texto: m.content, previo: previoDe(i) }));
+    .map(({ m, i }) => ({ texto: m.content, previo: previoDe(i), i }));
+  // La última pieza que FIJÓ la cantidad de la ficha: la lámina de opciones (`preparar_opciones`
+  // guarda la cantidad con que se armó) o la cotización firmada. Se lee del dato (`piece`), nunca del
+  // texto. Índice 0 = lo más nuevo; `-1` = no hay ninguna en la ventana.
+  const piezaQueFijo = filas.findIndex((m) => m.direction === "outbound" && (m.pieza === "options" || m.pieza === "quote"));
   // El mensaje de ESTE turno: si ya está guardado es el último entrante y se lee contra lo que lo
   // precedió (NO contra el saliente más nuevo: para cuando corre el candado, `generar_cotizacion` ya
   // guardó «Cotización … enviada»). Si todavía no está guardado, lo anterior es lo último que se dijo.
@@ -162,14 +166,21 @@ export async function cantidadDelCliente(
   // traer el 4 que el modelo declaró por defecto y el cliente, después, escribió «tres llantas»
   // (40137 en el orden real: medida sola → menú → «tres llantas…» → «La 2» cotizaba 4). Lo dicho
   // por él manda sobre la ficha; sin nada dicho, manda la ficha.
+  //
+  // PERO solo si es POSTERIOR a la pieza que fijó la ficha: «tres llantas» dicho después del menú le
+  // gana al 4 por defecto del menú; un «4 llantas» anterior a la lámina de 20 no le gana a la ficha 20
+  // (el lector solo entiende hasta 8 y no ve lo que el modelo guardó). Con la ficha vacía no hay nada
+  // que pisar: cuenta todo lo dicho en el ciclo, como siempre.
   let historial: number | null = null;
   for (const e of entrantes) {
+    if (ficha !== null && !(piezaQueFijo >= 0 && e.i < piezaQueFijo)) continue;
     const n = leer(e.texto, e.previo);
     if (n !== null) { historial = n; break; }
   }
   return {
     cantidad: turno ?? historial ?? ficha,
     ficha, turno, historial,
+    origen: turno !== null ? "turno" : historial !== null ? "historial" : ficha !== null ? "ficha" : null,
     vetos: [ficha, turno, historial].filter((n): n is number => n !== null),
   };
 }

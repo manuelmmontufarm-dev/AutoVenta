@@ -324,9 +324,13 @@ export async function tryCotizarLoElegido(ctx: CotizarLoElegidoContext, texto: s
   // en el ciclo (40137: «tres llantas» junto a la medida, el agente respondió sin `preparar_opciones`
   // y la ficha quedó en NULL; «La 2» cotizaba 4 después de que el bot dijo 3). Un lector, el de
   // `cantidadDelCliente`, que ya ignora el «2» que contesta un menú.
-  const dichaPorElCliente = cantidadDelTexto(texto, ctx.previousOutbound, ctx.mensajeCitado)
-    ?? (await cantidadDelCliente(ctx.conversation.id, texto, ctx.mensajeCitado)).cantidad;
-  const cantidad = dichaPorElCliente ?? 4;
+  const delTexto = cantidadDelTexto(texto, ctx.previousOutbound, ctx.mensajeCitado);
+  const lecturaDelCliente = delTexto !== null ? null : await cantidadDelCliente(ctx.conversation.id, texto, ctx.mensajeCitado);
+  // Solo lo que el cliente dijo en ESTE turno o después de la última pieza se vuelve a escribir en la
+  // ficha; el valor de la ficha misma no se copia, ni un valor del historial viejo (que el lector ya
+  // no deja ganarle a la ficha).
+  const dichaPorElCliente = delTexto ?? (lecturaDelCliente && (lecturaDelCliente.origen === "turno" || lecturaDelCliente.origen === "historial") ? lecturaDelCliente.cantidad : null);
+  const cantidad = dichaPorElCliente ?? lecturaDelCliente?.cantidad ?? 4;
   // Lo que el cliente dijo y la ficha no tenía (o tenía distinto) se registra: es el dato que el candado de la
   // cotización lee para saber que la cantidad fue declarada (y los demás lectores, después).
   if (dichaPorElCliente !== null && cantidadValidaDeLaFicha(facts.selectedQuantity) !== dichaPorElCliente) {
