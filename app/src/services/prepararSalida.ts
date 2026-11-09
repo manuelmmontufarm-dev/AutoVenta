@@ -25,6 +25,7 @@
  * guardián volvió a prometer «4 × KENDA KR203 … $262.60» cuando había 3,
  * borrando el aviso que un candado anterior ya había pegado.
  */
+import { alternativaDelCatalogo, CATEGORIAS_CON_ALTERNATIVA, type AlternativaDelCatalogo } from "./alternativaDelCatalogo.js";
 import { fraseDelAvisoEn, ORACION_DE_MEDIDAS_DISTINTAS } from "../domain/avisoDeMedidas.js";
 import { preguntaElDia } from "../domain/customerCommitment.js";
 import { preguntaElLocal } from "../domain/storeSelection.js";
@@ -399,9 +400,25 @@ export const PASOS: readonly PasoDeSalida[] = [
       // «· 4 = $771.88» de la KR605 que el cliente tenía en pantalla se tiró la
       // corrección del chat 27418 (familia 3, auditoría del 19-oct).
       const dicho = await loYaDichoEnElCiclo(ctx.conversation.id, ctx.conversation.current_cycle);
-      const yaDicho = [dicho.texto, equivalentesDevueltos(ctx.huella ?? [])].filter(Boolean).join("\n");
+      // Bajo `tipo_negado_con_stock` / `stock_prometido`, la llanta del catálogo de
+      // hoy de su medida, del tipo pedido y con stock para el juego es un HECHO que
+      // el Guardián recibió: nombrarla con su precio no es vender solo (auditoría
+      // 9-nov, 40017). Ver services/alternativaDelCatalogo.ts.
+      const conAlternativa = (ctx.hallazgosDelGuardian ?? []).some((h) => CATEGORIAS_CON_ALTERNATIVA.has(h.categoria));
+      const alternativa = conAlternativa && texto.trim() !== borrador.trim()
+        ? await alternativaDelCatalogo(ctx.conversation.id, texto, productos, ctx.textoDelCliente)
+          .catch((err) => { console.warn(`⚠️ alternativaDelCatalogo falló en la conv ${ctx.conversation.id}:`, err); return null; })
+        : null;
+      if (alternativa?.permitidas.length) {
+        console.log(
+          `🧭 Conv ${ctx.conversation.id}: la corrección nombra ${alternativa.permitidas.map((p) => `${p.brand} ${p.design}`).join(", ")} `
+          + `(${alternativa.tiposPedidos.join("/") || "sin tipo pedido"}, ${alternativa.medida}, stock para el juego): cuenta como hecho del catálogo.`,
+        );
+      }
+      const yaDicho = [dicho.texto, equivalentesDevueltos(ctx.huella ?? []), alternativa?.hecho].filter(Boolean).join("\n");
       const resultado = frenarHechosNuevosDelGuardian(borrador, texto, productos, yaDicho, dicho.preciosMostrados);
-      if (!resultado.bloqueado) return texto;
+      // Sin poda no se valida nada: la corrección salió entera; solo se declara la oferta.
+      if (!resultado.bloqueado) return alternativa ? await cerrarConLaAlternativa(texto, ctx, alternativa, false) : texto;
 
       // SI EL GUARDIÁN DIJO QUE EL BORRADOR ES UN DATO FALSO, NO SE RESTAURA.
       // Auditoría 25-27 sep (convs 23080, 23489, 23448): la corrección traía
@@ -430,8 +447,11 @@ export const PASOS: readonly PasoDeSalida[] = [
           dedupeKey:
             `guardian_podada:${ctx.conversation.id}:${ctx.conversation.current_cycle}:${resultado.motivos.join("-")}`,
         }).catch(() => undefined);
-        return podado;
+        return alternativa ? await cerrarConLaAlternativa(podado, ctx, alternativa, true) : podado;
       }
+      // Podada no quedó nada y el borrador es el dato falso: con la alternativa
+      // del catálogo a mano, sale el respaldo fijo en vez del borrador.
+      if (datoFalso && alternativa) return await cerrarConLaAlternativa("", ctx, alternativa, true);
 
       // UN BORRADOR QUE EL GUARDIÁN MARCÓ COMO MALO NO SALE (39282, dos veces).
       // Un seguimiento no contesta a nadie: si el Guardián rotuló el borrador con
@@ -1552,6 +1572,42 @@ export interface SalidaPreparada {
  * cada escalón). Es el «ya dicho» contra el que se juzga si el guardián está
  * abriendo una venta o repitiendo la que ya existe.
  */
+/**
+ * La corrección con la alternativa del catálogo ya decidida (5d): si no deja
+ * pregunta, sale el respaldo fijo (el hecho + «¿Le muestro las A/T que
+ * tengo?»); si ofrece una llanta permitida, la oferta queda declarada para que
+ * un «sí» la cotice.
+ */
+async function cerrarConLaAlternativa(
+  texto: string,
+  ctx: ContextoDeSalida,
+  alternativa: AlternativaDelCatalogo,
+  /** Solo lo PODADO se valida: una corrección entera sale como el Guardián la escribió. */
+  podada: boolean,
+): Promise<string> {
+  const bloques = texto.split(/\n\s*-{3,}\s*\n/).map((b) => b.trim()).filter(Boolean);
+  const ultimo = bloques[bloques.length - 1] ?? "";
+  if (podada && !/\?\s*\S{0,3}\s*$/u.test(ultimo)) {
+    console.warn(`🧭 Conv ${ctx.conversation.id}: la corrección quedó sin pregunta; sale el respaldo «${alternativa.respaldo}».`);
+    await createBotAlert({
+      conversationId: ctx.conversation.id,
+      cycle: ctx.conversation.current_cycle,
+      type: "guardian_correccion_con_respaldo",
+      priority: "medium",
+      summary: "La corrección del Guardián quedó sin alternativa ni pregunta; salió el respaldo fijo",
+      exactReason: `Quedaba: «${texto.slice(0, 200)}». Salió: «${alternativa.respaldo}».`,
+      suggestedAction: "El cliente recibió el tipo de lo que tenía y la pregunta. Revisa si conviene ofrecerle algo a mano.",
+      dedupeKey: `guardian_respaldo:${ctx.conversation.id}:${ctx.conversation.current_cycle}:${Date.now()}`,
+    }).catch(() => undefined);
+    return alternativa.respaldo;
+  }
+  const oferta = ofertaEnElTexto(ultimo, alternativa.lamina);
+  if (oferta?.clase === "una" && oferta.codigo && alternativa.permitidas.some((p) => p.code === oferta.codigo)) {
+    ctx.ofertaDelTurno = { ...oferta, medida: oferta.medida ?? alternativa.medida };
+  }
+  return texto;
+}
+
 async function loYaDichoEnElCiclo(
   conversationId: number,
   cycle: number,

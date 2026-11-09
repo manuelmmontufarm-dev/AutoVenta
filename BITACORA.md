@@ -1,3 +1,24 @@
+## 9-nov-2026 · La corrección del Guardián con su alternativa y su pregunta (auditoría 9-nov, sprint 5d)
+
+- **Qué:** 40017 («En labrado mixto», tenía cotizada la Falken ZIEX CT60 A/S, H/T): el Guardián
+  (`tipo_negado_con_stock`) ofreció la WINRUN MAXCLAW A/T con stock a $124.76 —lo correcto—, `guardian_no_vende_solo`
+  podó producto y precio por «nuevos» y salió solo «La Falken … es H/T…; no es A/T.», sin alternativa ni pregunta.
+- **Cómo:** `services/alternativaDelCatalogo.ts` (NUEVO). Bajo `tipo_negado_con_stock` o `stock_prometido`, una llanta
+  nombrada en la corrección que es de la medida de la ficha, del tipo pedido (escrito, o el principal del uso:
+  `tiposPrincipalesDelUso`, nuevo en `usoYTipo.ts`) y con stock para el juego (`cantidadDelCliente`) entra en «lo ya
+  dicho» con su precio dicho por `precioDelProducto` (Sprint 1). Lo demás se poda igual que antes (11986 no cambia). Si
+  lo PODADO no termina en pregunta —o no queda nada y el borrador era el dato falso— sale un respaldo fijo: «En
+  225/70R16 la *FALKEN ZIEX CT60 A/S* es *H/T*. ¿Le muestro las A/T que tengo?» (alerta media
+  `guardian_correccion_con_respaldo`). Si la corrección ofrece una permitida, `ctx.ofertaDelTurno` la declara (clase
+  «una», con código y medida) para que un «sí» la cotice. Logs «🧭».
+- **Por qué:** el candado leía como vitrina inventada justo el hecho del catálogo que la regla 21 le pide al Guardián.
+- **Probado:** `s5dCorreccionPodada.integration.test.ts` (5, 4 en rojo antes; 11986 sigue frenado; una M/T no pedida
+  sigue podándose; sin stock para el juego no cuenta). El pendiente heredado (lector único de la cantidad en
+  `guardian.ts` y seguimientos) ya venía hecho en la integración: `cantidadValidaDeLaFicha` en `guardian.ts:792` y
+  `followUps.ts`.
+- **Falta / ojo:** una corrección que sale ENTERA (sin poda) no se valida: el respaldo solo reemplaza lo podado. Bajo
+  `stock_prometido` sin tipo pedido, cualquier llanta de la medida con stock para el juego cuenta.
+
 ## 9-nov-2026 · La pregunta del menú nuevo no es «calco» (auditoría 9-nov, sprint 5c)
 
 - **Qué:** 39971: lista 1 + «¿Le cotizo la 1, la 2 o la 3?»; el cliente pidió «la 1 pero en otro labrado»; salió una
