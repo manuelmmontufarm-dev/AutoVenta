@@ -1,6 +1,6 @@
 import { business, config } from "../config.js";
 import { negocio } from "../negocio/index.js";
-import { identidadDeLaConversacion } from "../negocio/identidad.js";
+import { identidadDeLaPieza } from "../negocio/identidad.js";
 import type { CustomerCommitment } from "../domain/customerCommitment.js";
 import { hayQueElegirLocal, LOCALES_COMO_ALTERNATIVA, type ExplicitStore } from "../domain/storeSelection.js";
 import { sql } from "../db/client.js";
@@ -162,7 +162,8 @@ export async function resendLatestQuoteImage(
   const png = await renderQuoteImage({
     number: quote.quote_number,
     dateLabel: dateLabel(quote.created_at),
-    identidad: identidadDeLaConversacion(negocio, datosLocal?.nearest_store ?? null).id,
+    // Sin local elegido y con dos marcas, la pieza habla por las dos.
+    identidad: identidadDeLaPieza(negocio, datosLocal?.nearest_store ?? null),
     ...(await getPiecesConfig()),
     brandProfiles: await brandProfilesForRender(),
     benefits: await applicableBenefitTexts({ brands: [product.brand], quantity }),
