@@ -153,6 +153,147 @@ export function cuentaDeSegundaLlanta(cantidad: number, s: SegundaLlanta): strin
     + `= $${s.totalConIva.toFixed(2)}`;
 }
 
+/**
+ * El campo con que el vendedor recibe el precio por llanta de un ítem que SÍ trae
+ * la cuenta de la promo (`precio_para_decir`). Un solo nombre, usado por la
+ * herramienta y por la regla del playbook: si uno cambia, el otro lo sigue.
+ */
+export const CAMPO_PRECIO_POR_LLANTA_SIN_PROMO = "precio_por_llanta_solo_con_1_3_o_5_llantas";
+
+/** Más de esto no es un pedido: es una ficha sucia, y una cuenta de 118 × … no se le dice a nadie. */
+export const MAXIMO_PARA_LA_CUENTA = 40;
+
+/** La cantidad con que se hace una cuenta: la dicha si es plausible; si no, `porDefecto` (el juego). */
+export function cantidadParaLaCuenta(cantidad: number | null | undefined, porDefecto: number): number {
+  const n = Number(cantidad);
+  return Number.isInteger(n) && n >= 1 && n <= MAXIMO_PARA_LA_CUENTA ? n : porDefecto;
+}
+
+/**
+ * ¿La promo de la 2.ª llanta aplica con esta cantidad? Lo decide `segundaLlantaDe`
+ * con un precio típico (hoy = lista × 0,75): pares sí; 1, 3 y 5 no (saldría más
+ * caro que el −25 %); 7 sí. Para decírselo calculado al Guardián, que no razona la paridad.
+ */
+export function promoAplicaConLaCantidad(
+  promo: PromocionDeTemporada | null | undefined,
+  cantidad: number,
+  ahora: Date = new Date(),
+): boolean {
+  const marca = promo?.segundaLlanta?.marcas[0];
+  return Boolean(marca) && segundaLlantaDe(promo, marca, cantidad, { hoyConIva: 75, listaConIva: 100 }, ahora) !== null;
+}
+
+/** «(−60 % en la 2.ª llanta)»: el rótulo que acompaña a la cuenta. */
+export function rotuloDeSegundaLlanta(s: SegundaLlanta): string {
+  return `(−${s.porcentaje} % en la 2.ª llanta)`;
+}
+
+/**
+ * «2 × $75.00 + 2 × $30.00 = $210.00 (−60 % en la 2.ª llanta)»: la cuenta con su
+ * rótulo, TAL COMO se le dice al cliente. La lista escrita, la lámina y todo
+ * texto que hable del precio de una línea con la promo la escriben con esta.
+ */
+export function cuentaConRotulo(cantidad: number, s: SegundaLlanta): string {
+  return `${cuentaDeSegundaLlanta(cantidad, s)} ${rotuloDeSegundaLlanta(s)}`;
+}
+
+/**
+ * CÓMO SE DICE EL PRECIO DE UNA LÍNEA — la única fuente (auditoría 9-nov, familia
+ * «el texto dice un c/u que contradice la promo»).
+ *
+ * En Falken y Kenda con Black Friday NO EXISTE un precio por llanta: las impares
+ * valen la lista y las pares lista × 0,4. Decir «$202.87 c/u» (el precio de hoy,
+ * −25 %) o «$270.49 c/u» (la lista) es falso en las dos puntas. Por eso, con la
+ * promo aplicada, el precio se dice con la cuenta; y sin ella (otra marca, una o
+ * tres llantas, promo apagada o compuerta cerrada) es el «$P c/u con IVA» de
+ * siempre. Nadie más formatea el precio de una línea.
+ *
+ * `negrita` envuelve el resultado en *…* (los textos que ya iban en negrita).
+ */
+export function decirPrecioDeLaLinea(
+  linea: { hoyConIva: number; cantidad: number; segunda?: SegundaLlanta | null },
+  opciones: { negrita?: boolean } = {},
+): string {
+  const texto = linea.segunda
+    ? cuentaConRotulo(linea.cantidad, linea.segunda)
+    : `$${linea.hoyConIva.toFixed(2)} c/u con IVA`;
+  return opciones.negrita ? `*${texto}*` : texto;
+}
+
+/**
+ * Resuelve y dice el precio de una línea de catálogo: lo que necesitan los textos
+ * armados con un producto en la mano. Sigue el MISMO interruptor que
+ * `promocionVigente` (fechas + compuerta) porque pasa por `segundaLlantaDe`.
+ * `segunda` viaja para quien necesite la cifra además del texto.
+ */
+export function precioDeLaLinea(
+  promo: PromocionDeTemporada | null | undefined,
+  marca: string | null | undefined,
+  cantidad: number,
+  precios: PreciosDeLaLlanta,
+  opciones: { negrita?: boolean; ahora?: Date } = {},
+): { texto: string; segunda: SegundaLlanta | null } {
+  const segunda = segundaLlantaDe(promo, marca, cantidad, precios, opciones.ahora);
+  return {
+    segunda,
+    texto: decirPrecioDeLaLinea({ hoyConIva: precios.hoyConIva, cantidad, segunda }, opciones),
+  };
+}
+
+/** `precioDeLaLinea` para quien tiene el producto del catálogo en la mano. */
+export function precioDelProducto(
+  promo: PromocionDeTemporada | null | undefined,
+  producto: { brand: string; minimumPriceWithTax: number; customerPriceWithTax?: number | null },
+  cantidad: number,
+  opciones: { negrita?: boolean; ahora?: Date } = {},
+): { texto: string; segunda: SegundaLlanta | null } {
+  return precioDeLaLinea(promo, producto.brand, cantidad,
+    { hoyConIva: producto.minimumPriceWithTax, listaConIva: producto.customerPriceWithTax }, opciones);
+}
+
+/**
+ * Cuántas llantas lleva la línea que esta promo describe: lo que no son pares
+ * valen la lista, lo demás ya está en `totalConIva`. Sirve para decir la cuenta
+ * desde lo que una pieza o cotización guardó sin volver a preguntar la cantidad.
+ */
+export function cantidadDeLaSegunda(s: SegundaLlanta): number {
+  const normales = Math.round((s.totalConIva - s.unidades * s.precioConIva) / s.precioNormalConIva);
+  return normales + s.unidades;
+}
+
+/**
+ * El precio de una opción tal como la pieza la dejó guardada (`metadata.escalones`):
+ * la cuenta si guardó la promo y la temporada sigue vigente, el «c/u» si no.
+ * Para los textos que salen de la pieza y no de un producto (hechos del vendedor,
+ * «los dos valores de la marca», el texto de la pieza).
+ */
+export function precioDeLaOpcionGuardada(
+  promo: PromocionDeTemporada | null | undefined,
+  opcion: { precio_con_iva: number; segunda_llanta?: SegundaLlanta | null },
+  opciones: { negrita?: boolean; ahora?: Date } = {},
+): string {
+  const segunda = segundaGuardadaVigente(promo, opcion.segunda_llanta, opciones.ahora);
+  return decirPrecioDeLaLinea(
+    { hoyConIva: Number(opcion.precio_con_iva), cantidad: segunda ? cantidadDeLaSegunda(segunda) : 0, segunda },
+    opciones,
+  );
+}
+
+/**
+ * La promo que una pieza o cotización GUARDÓ para una línea, si todavía cuenta
+ * como promo: la que el cliente vio (no se recalcula con precios de hoy), pero
+ * solo mientras la temporada siga vigente. Sin `guardada`, o con la promo ya
+ * apagada, es null y el texto vuelve al «c/u». Se usa donde el texto sale de
+ * lo que la pieza dejó escrito (`metadata.escalones`) y no de un producto.
+ */
+export function segundaGuardadaVigente(
+  promo: PromocionDeTemporada | null | undefined,
+  guardada: SegundaLlanta | null | undefined,
+  ahora: Date = new Date(),
+): SegundaLlanta | null {
+  return guardada && promocionVigente(promo, ahora) ? guardada : null;
+}
+
 // ===========================================================================
 // Servicios y productos
 // ===========================================================================

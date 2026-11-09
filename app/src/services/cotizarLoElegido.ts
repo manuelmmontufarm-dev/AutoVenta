@@ -29,7 +29,8 @@ import {
   cantidadDelTexto, escalonContestado, esReferenciaPluralAlMenu, pideVariasOpciones,
 } from "../domain/salesIntent.js";
 import { confirmacionDeLaOpcion, opcionPorPosicion, posicionElegida } from "../domain/listaDeOpciones.js";
-import { marcaConSegundaLlanta } from "../domain/promocionDeTemporada.js";
+import { decirPrecioDeLaLinea, precioDeLaOpcionGuardada, precioDelProducto, type SegundaLlanta } from "../domain/promocionDeTemporada.js";
+import { lineaCotizadaDe } from "./lineasConPromo.js";
 import { politica } from "../negocio/politica.js";
 import { findByCode } from "./catalog.js";
 import { buildStoreLinksBlockOnce } from "./storeLinks.js";
@@ -56,7 +57,7 @@ export interface CotizarLoElegidoContext {
   registro?: { ofertaDelTurno?: OfertaDeCotizar | null };
 }
 
-interface Escalon { codigo?: string; nombre?: string; precio_con_iva?: number }
+interface Escalon { codigo?: string; nombre?: string; precio_con_iva?: number; segunda_llanta?: SegundaLlanta | null }
 type Escalones = Partial<Record<"economica" | "equilibrada" | "premium", Escalon | null>>;
 
 function esPedidoDeAmbasOpcionesDe(texto: string, previousOutbound: string | null): boolean {
@@ -98,7 +99,10 @@ export function loQueEligio(
       : todas;
     const linea = (o: Escalon) => {
       const precio = Number(o.precio_con_iva);
-      return `• *${o.nombre ?? "Opción"}*${Number.isFinite(precio) ? `: *$${precio.toFixed(2)} c/u con IVA*` : ""}`;
+      // Con Black Friday guardado en la lámina, la cuenta; sin él, el «c/u».
+      return `• *${o.nombre ?? "Opción"}*${Number.isFinite(precio)
+        ? `: ${precioDeLaOpcionGuardada(politica.promocionDeTemporada, { precio_con_iva: precio, segunda_llanta: o.segunda_llanta }, { negrita: true })}`
+        : ""}`;
     };
     const pideValores = pideVariasOpciones(texto);
     // Nombró una marca: van las de esa marca que hay en la lámina, sean dos o
@@ -351,16 +355,27 @@ export async function tryCotizarLoElegido(ctx: CotizarLoElegidoContext, texto: s
   }
   console.log(`✅ Cotización directa de lo elegido en la conv ${ctx.conversation.id}: ${cantidad} × ${producto.code} (${producto.brand} ${producto.design})`);
   await logFunnelEvent(ctx.conversation.id, "respuesta_directa", { route: "cotizar_lo_elegido" }).catch(() => undefined);
-  const precio = producto.minimumPriceWithTax ? ` — *$${producto.minimumPriceWithTax.toFixed(2)} c/u con IVA*` : "";
+  // El precio se dice como la cotización que ACABA de firmarse (se lee lo
+  // guardado, no se recalcula con el catálogo en memoria): la cuenta si la línea
+  // lleva Black Friday, el «c/u» firmado si no. Caso 39909 (7-nov): el borrador
+  // decía «$188.69 c/u» —el precio de hoy— y la cotización era 2 × $251.59 + 2 × $100.64.
+  const firmada = await lineaCotizadaDe(ctx.conversation.id, ctx.conversation.current_cycle, producto.code).catch(() => null);
+  const precioDicho = firmada?.salePriceWithTax
+    ? decirPrecioDeLaLinea(
+        { hoyConIva: Number(firmada.salePriceWithTax), cantidad: Number(firmada.quantity) || cantidad, segunda: firmada.segundaLlanta ?? null },
+        { negrita: true },
+      )
+    : producto.minimumPriceWithTax
+      ? precioDelProducto(politica.promocionDeTemporada, producto, cantidad, { negrita: true }).texto
+      : null;
+  const precio = precioDicho ? ` — ${precioDicho}` : "";
   // Sin visita (compra a distancia o fuera de Quito), ni mapas ni invitación:
   // la misma decisión que el cierre de generar_cotizacion.
   const sinVisita = await porQueNoPasaPorElLocal(ctx.conversation.id, ctx.conversation.current_cycle, texto);
   const mapas = sinVisita || preguntamosElLocal(ctx.previousOutbound) ? "" : await buildStoreLinksBlockOnce(ctx.conversation.id);
   return composeBlocks(
     elegido.posicion
-      // Con Black Friday no hay UN precio por llanta: lo dice la cotización.
-      ? confirmacionDeLaOpcion(elegido.posicion, `${producto.brand} ${producto.design}`,
-          marcaConSegundaLlanta(politica.promocionDeTemporada, producto.brand) ? null : producto.minimumPriceWithTax)
+      ? confirmacionDeLaOpcion(elegido.posicion, `${producto.brand} ${producto.design}`, precioDicho)
       : elegido.etiqueta
       ? `La opción ${elegido.etiqueta} es la *${producto.brand} ${producto.design}*${precio}. Le dejo la cotización 👍`
       : `Listo, le cotizo la *${producto.brand} ${producto.design}*${precio} 👍`,

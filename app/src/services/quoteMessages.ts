@@ -3,7 +3,8 @@ import { negocio, sinPendiente } from "../negocio/index.js";
 import { CIERRE_COTIZAR } from "../domain/preguntasProhibidas.js";
 import { fraseDeAhorro, type AhorroDeLaCotizacion } from "../domain/ahorro.js";
 import { etiquetaDePromocion, paresEnPalabras, type ModoPromocion } from "../domain/promocion.js";
-import { cuentaDeSegundaLlanta, type SegundaLlanta } from "../domain/promocionDeTemporada.js";
+import { cuentaDeSegundaLlanta, precioDeLaLinea, precioDeLaOpcionGuardada, segundaGuardadaVigente, type SegundaLlanta } from "../domain/promocionDeTemporada.js";
+import { politica } from "../negocio/politica.js";
 import { piecesConfigEnMemoria } from "./settings.js";
 import { ETIQUETA_DEL_ESCALON } from "../domain/salesIntent.js";
 import { preguntaDeEquivalente } from "../domain/equivalentePendiente.js";
@@ -186,12 +187,31 @@ export const PREGUNTA_PREFERENCIA_EQUIVALENTES = [
 export const CIERRE_PIDE_MEDIDA =
   "Estas son las que más se usan en su vehículo, pero para cotizarle con seguridad necesito la medida exacta. ¿Me escribe la que dice el filo de la llanta (ej. 225/65R17), o me manda una foto del costado? 📸";
 
+/**
+ * « — <precio>» de la línea que el cierre nombra: la cuenta con Black Friday
+ * en Falken/Kenda, el «$P c/u con IVA» en lo demás. Vacío sin precio.
+ */
+function precioDicho(input: { precioConIva?: number | null; marca?: string | null; listaConIva?: number | null; cantidad?: number }): string {
+  if (!input.precioConIva) return "";
+  const { texto } = precioDeLaLinea(politica.promocionDeTemporada, input.marca, input.cantidad ?? 4,
+    { hoyConIva: input.precioConIva, listaConIva: input.listaConIva });
+  return ` — ${texto}`;
+}
+
 export function buildCierreOpciones(input: {
   entregarRecomendacion: boolean;
   recomendacion: string;
   motivo: string;
   /** Precio unitario con IVA de la recomendada; null si no vino de la herramienta. */
   precioConIva?: number | null;
+  /**
+   * Con la marca, el precio de lista y la cantidad, el precio se dice con
+   * `precioDeLaLinea`: en Falken/Kenda con Black Friday es la cuenta, no un
+   * «c/u». Sin ellos (o sin promo) es el «$P c/u con IVA» de siempre.
+   */
+  marca?: string | null;
+  listaConIva?: number | null;
+  cantidad?: number;
   /** Alguna opción NO es de la medida pedida: no se promete «su medida». */
   hayEquivalentes?: boolean;
   /**
@@ -231,7 +251,7 @@ export function buildCierreOpciones(input: {
   if (input.pedirMedida) {
     if (!input.entregarRecomendacion) return CIERRE_PIDE_MEDIDA;
     const motivo = input.motivo.trim().replace(/[.\s]+$/, "");
-    const precio = input.precioConIva ? ` — $${input.precioConIva.toFixed(2)} c/u con IVA` : "";
+    const precio = precioDicho(input);
     return `Yo iría por la *${input.recomendacion}*${precio}: ${motivo}.\n${CIERRE_PIDE_MEDIDA}`;
   }
   if (!input.entregarRecomendacion) {
@@ -239,7 +259,7 @@ export function buildCierreOpciones(input: {
     // Con una sola opción no se pregunta nada: preguntar «¿qué prioriza?» sobre
     // una lista de uno es una pregunta sin respuesta posible. Se entrega.
     if (hay.length <= 1) {
-      const precio = input.precioConIva ? ` — $${input.precioConIva.toFixed(2)} c/u con IVA` : "";
+      const precio = precioDicho(input);
       return `Es la única que tengo para lo que me pidió: *${input.recomendacion}*${precio}. ¿Se la cotizo? 😊`;
     }
     if (input.lista) return textoDeLaLista(input.lista.lista, input.lista.cantidad);
@@ -249,7 +269,7 @@ export function buildCierreOpciones(input: {
     return [...menuDePreferencia(hay), cierre].join("\n");
   }
   const motivo = input.motivo.trim().replace(/[.\s]+$/, "");
-  const precio = input.precioConIva ? ` — $${input.precioConIva.toFixed(2)} c/u con IVA` : "";
+  const precio = precioDicho(input);
   // NO SE PIDE PERMISO PARA COTIZAR (Manuel, 31-ago-2026, viendo su propia
   // prueba en vivo: «no debería preguntar eso, sino… automáticamente cotizarle
   // las 4»). Cuando el cliente ya pidió precio, pidió recomendación, contó su
@@ -836,11 +856,15 @@ export function textoDeLaPieza(
     return `Para${medida} tengo estas opciones:\n\n${textoDeLaLista(pieza.lista, pieza.cantidad)}`;
   }
   const esc = metadata?.escalones as
-    Record<string, { codigo?: string; nombre?: string; precio_con_iva?: number } | null> | null | undefined;
+    Record<string, { codigo?: string; nombre?: string; precio_con_iva?: number; segunda_llanta?: SegundaLlanta | null } | null> | null | undefined;
   const unica = esc ? Object.values(esc).find((o) => o?.nombre && Number(o.precio_con_iva) > 0) : null;
   if (!unica) return null;
   const cantidad = Number.isInteger(metadata?.cantidad) && Number(metadata?.cantidad) >= 1 ? Number(metadata?.cantidad) : 4;
   const precio = Number(unica.precio_con_iva);
   const total = Math.round(precio * cantidad * 100) / 100;
-  return `Para${medida} tengo la *${unica.nombre!.trim()}* — *$${precio.toFixed(2)} c/u con IVA* · ${cantidad} = *$${total.toFixed(2)}*.\n\n¿Se la cotizo?`;
+  // Con Black Friday guardado en la pieza, la cuenta ya trae el total del juego.
+  const dicho = precioDeLaOpcionGuardada(politica.promocionDeTemporada, { precio_con_iva: precio, segunda_llanta: unica.segunda_llanta }, { negrita: true });
+  const conPromo = segundaGuardadaVigente(politica.promocionDeTemporada, unica.segunda_llanta) !== null;
+  const conTotal = conPromo ? dicho : `${dicho} · ${cantidad} = *$${total.toFixed(2)}*`;
+  return `Para${medida} tengo la *${unica.nombre!.trim()}* — ${conTotal}.\n\n¿Se la cotizo?`;
 }

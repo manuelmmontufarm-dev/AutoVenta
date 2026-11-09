@@ -1,3 +1,79 @@
+## 9-nov-2026 · Black Friday: el texto ya no dice un «$X c/u» que contradice la lámina (auditoría 9-nov, sprint 1)
+
+- **Qué:** en Falken/Kenda con la promo (impares a LISTA, pares a lista × 0,4) no existe un precio por
+  llanta, pero el texto que acompaña a la lámina decía «$202.87 c/u» (el precio de hoy) y el Guardián
+  «corregía» a «$251.59 c/u» (la lista). Ahora todo texto que habla del precio de una línea con promo dice
+  la cuenta («2 × $270.49 + 2 × $108.20 = $757.38 (−60 % en la 2.ª llanta)») y con 1 o 3 llantas, Winrun, promo
+  apagada o compuerta cerrada sigue el «$P c/u con IVA». Casos: 39597, 39731, 18535, 40034, 39573, 40027,
+  39615, 40082, 39909.
+- **Cómo:** una sola fuente, `decirPrecioDeLaLinea` / `precioDeLaLinea` / `precioDeLaOpcionGuardada` en
+  `domain/promocionDeTemporada.ts` (mismo interruptor que `promocionVigente`). Las 11 líneas que escribían el
+  c/u (`buildCierreOpciones`, `textoDeLaPieza`, `tools.ts` ×3, `cotizarLoElegido` ×2, `sin_menu_repetido`) la usan, y
+  `confirmacionDeLaOpcion` deja de callar el precio. Hechos del vendedor (`escalonesLine`, órdenes de
+  `agent.ts`, `buscar_llanta` → `precio_para_decir`) y una regla en `compactPlaybook.ts`. Hechos del Guardián:
+  «Cotización vigente» con la cuenta (`domain/hechoDeCotizacionVigente.ts`), fila del catálogo «SIN Black Friday»
+  con la cuenta, encabezado sin la mentira, y la regla 1 de la rúbrica. Candado nuevo
+  `sin_precio_por_llanta_con_promo` (después del Guardián, en respuesta/retomada/seguimiento): lee las líneas con
+  promo que la cotización o la pieza GUARDARON (`services/lineasConPromo.ts`), nunca el texto del bot.
+- **Por qué:** `minimumPriceWithTax` y `salePriceWithTax` dejaron de ser «lo que paga el cliente por llanta» el
+  6-nov (`a553745`) y solo se parchó «elegir por número». Los frenos del Guardián eran casualidad, no regla.
+- **Probado:** simulador (antes/después con los mismos mensajes), prueba en rojo (14 de 22 fallan sin el arreglo),
+  integración con la cotización firmada de verdad, Guardián real (canary mini) contra el borrador de 39909.
+  Re-fijados a propósito: hash de la rúbrica (`politica.test`), lista de `PASOS` (`stockCortoViaja`), fila del
+  catálogo (`guardianCatalogo`, ahora con reloj fijo). **No toqué:** la comparativa (bloque C), `listaDeLaPieza`
+  ni los seguimientos (sprint 2: una pieza guardada en noviembre seguirá diciendo el 60 % el 2-dic).
+- **Ronda 1 de la revisión (misma fecha):** (1) el candado y el hecho «Cotización vigente» del Guardián solo
+  valen mientras la temporada corre (`promocionVigente` + `segundaGuardadaVigente`): una cotización del 29-nov leída el
+  2-dic, o con la compuerta cerrada, ya no se reescribe con el 60 %. (2) La cantidad sale del ESTADO
+  (`conversations.selected_quantity` contra la de la cotización/pieza guardada, `lineasConPromo.ts`), nunca del
+  borrador: en 40137 («tres llantas por favor») el «$127.93 c/u · 3 = $383.79» ya no se convierte en la cuenta de 4;
+  tampoco se reescribe si el «· N =» pegado o el texto hablan de otra cantidad. (3) Con 1, 3 o 5 llantas el «c/u» es el
+  precio: `toolItem` lo conserva (`precio_hoy_con_iva`; con promo, `precio_por_llanta_solo_con_1_o_3_llantas`) y hace la
+  cuenta con la cantidad de la ficha. (M2) La regla «no existe un c/u» vive en UN sitio por lado: el playbook del vendedor
+  y el HECHO de temporada del Guardián (una categoría, `precio_incorrecto`); salió de la rúbrica, que vuelve a su hash
+  original, y de `escalonesLine` y de cada ítem de `buscar_llanta`. (M1) se come « + IVA», reconoce «la unidad» / «cada
+  llanta» y anota en el log un total viejo que queda al lado. (M4) el turno de `enviar_comparacion` queda fuera del
+  candado (por la herramienta de la huella, no por el texto). Pruebas nuevas en rojo primero (12), 30 + 9 en verde.
+  **Falta / ojo:** el Guardián mini a veces anota un `precio_incorrecto` de más sobre un «c/u» correcto de 3 llantas
+  (deja el texto intacto); el humo con `--perfil ejemplo` falla hoy también en `a554cba` (entorno, no este cambio).
+- **Ronda 2 de la revisión:** (B2 con el estado REAL) en producción la ficha de 40137 tiene
+  `selected_quantity = NULL` aunque el cliente escribió «tres llantas»; ahora la cantidad que dijo el CLIENTE entra
+  como veto del candado: `cantidadDelCliente()` (`services/lineasConPromo.ts`) lee con el `cantidadDelTexto` que ya
+  existe (sin tocarlo) su mensaje de este turno o el último entrante, la ficha y, con la ficha vacía, lo último que
+  dijo en el ciclo; si alguna difiere de `linea.cantidad`, no se reescribe. Cubre «¿y si llevo solo 2?» y el 40137
+  con ficha vacía; sigue reescribiendo con la cuenta de 4 cuando el cliente no dijo cantidad (39597). (m1) tope en la
+  cantidad de la cuenta (`cantidadParaLaCuenta`, máx. 40): una ficha en 235 → el juego de 4; 16 sigue siendo 8 + 8
+  (no usé `esCantidadInusual`: marca 2, 3 y 16 como inusuales y los habría vuelto 4). (m2) un solo nombre,
+  `CAMPO_PRECIO_POR_LLANTA_SIN_PROMO` = `precio_por_llanta_solo_con_1_3_o_5_llantas`, compartido por el ítem y el
+  playbook. (m3) el Guardián razona con la cantidad del cliente: la fila del catálogo se calcula con ella
+  («para 3 llantas Black Friday NO aplica: este ES el precio», sin la cuenta de 4) y hay una línea calculada en código
+  «Cantidad del cliente para la promo: N → APLICA / NO aplica». (m5) alerta `precio_total_viejo_junto_a_la_cuenta`
+  (baja) cuando queda un importe suelto al lado de la cuenta; no se borra del texto.
+  **Límites conocidos (no se tocan):** (m4) si en un MISMO turno hay `enviar_comparacion` y un cierre con precio, ese
+  «c/u» queda fuera del candado (el turno entero se excluye); (m6) los vetos de texto dan falsos negativos inofensivos
+  («por 2 años», «los 2 locales», un «2» pelado que contesta el menú): solo impiden reescribir.
+- **Ronda 3 de la revisión:** `cantidadDelCliente` leía con `cantidadDelTexto(texto, null, null)` y eso apagaba
+  el freno del menú: el «3», «2» o «1» que ELIGE una opción de «¿Le cotizo la 1, la 2 o la 3?» se leía como 3, 2 o 1
+  LLANTAS (40137, 39226) y, como manda sobre la ficha, descartaba la línea de 4 y le decía al Guardián «para 3 llantas
+  NO aplica: el c/u ES el precio»: la familia original reabierta. Ahora trae los mensajes del ciclo en las dos
+  direcciones, le pasa a cada entrante del CLIENTE (nunca asesor ni bot) el saliente que lo precedió, y no lo lee como
+  cantidad si ese saliente trae el hecho guardado `oferta.clase = "menu"` (salvo que nombre la unidad: «mejor quiero 3
+  llantas»); además rige el freno de texto del lector. El historial con la ficha vacía de 39226 («4 llantas», menú, «1»)
+  da 4, no 1. También (menor 2) el Guardián solo consulta la cantidad mientras corre la promo.
+  **Límites conocidos:** (1) con un cambio real de cantidad (turno 3, cotización vigente de 4) los hechos del
+  Guardián traen a la vez la cotización de 4 y la línea de 3; (2) «quiero la 2» sin menú en pantalla lo lee como 2
+  llantas el propio bot (`generar_cotizacion`, Sprint 3), no este candado.
+- **Ronda 4 (verificación final):** (bloqueante) con el texto del turno, el «mensaje anterior» era el saliente más
+  nuevo de la base; pero en el turno que contesta el menú `generar_cotizacion` ya guardó «Cotización COT-… enviada» antes
+  de que corra el candado, así que el «3» se leía como 3 llantas y el «$X c/u» del vendedor salía sin corregir (39615,
+  40082). Ahora el anterior es el saliente previo al ÚLTIMO entrante del cliente (el mismo criterio del historial).
+  (m1) el freno del menú mira hasta 4 burbujas del bot entre el menú y la respuesta (mapas, «Quedo atento…»), y se
+  corta en el primer mensaje del cliente. (m2) `mensajeCitado` entra a `cantidadDelCliente` desde las búsquedas
+  (`tools.ts`). (m3) `cantidadDeLaFicha` no consulta la base si la promo no corre (diciembre, Mundillantas).
+  **Límite conocido:** el mensaje citado no se guarda en la fila del entrante; el candado y el Guardián (que no lo reciben
+  en su contexto) solo lo usan si el llamador lo pasa, o sea hoy solo las búsquedas.
+- **Horas:** 3,5 + 1,5 de la ronda 1 + 2 de la ronda 2 + 1 de la ronda 3 + 0,5 de la ronda 4
+
 ## 9-nov-2026 · Sprint 4 ronda 2 · «general» suelta no es una marca
 
 - **Qué:** al unificar las marcas (ronda 1) entró «general» como palabra suelta y `marcaPreguntada` detectaba la

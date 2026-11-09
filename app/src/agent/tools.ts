@@ -117,7 +117,8 @@ import {
   medidaEstaPedida, medidasDeProductos, medidasPermitidas, mensajesDeLaVisitaActual,
 } from "../domain/medidaPedida.js";
 import { ahorroDeLaCotizacion } from "../domain/ahorro.js";
-import { marcaConSegundaLlanta, segundaLlantaDe } from "../domain/promocionDeTemporada.js";
+import { CAMPO_PRECIO_POR_LLANTA_SIN_PROMO, cantidadParaLaCuenta, precioDelProducto, promocionVigente, segundaLlantaDe } from "../domain/promocionDeTemporada.js";
+import { cantidadDelCliente } from "../services/lineasConPromo.js";
 import { avisoDeCantidad, esCantidadInusual } from "../domain/cantidadGrande.js";
 import { claseDeVehiculoEnTexto, TIPOS_DE_CAMIONETA } from "../domain/claseDeVehiculo.js";
 import { medidaEnDisputaDelPedido, medidasDelPedido } from "../services/medidasDelPedido.js";
@@ -992,7 +993,7 @@ export function buildTools(ctx: AgentContext) {
         await updateConversationFacts(ctx.conversation.id, { tireSize: etiqueta });
         return JSON.stringify({
           medida: etiqueta,
-          resultados: tresOpciones(encontradas).map(toolItem),
+          resultados: tresOpciones(encontradas).map(toolItemDe(await cantidadDeLaFicha(ctx))),
           total_en_esa_medida: encontradas.length,
           regla: encontradas.some((i) => i.stock > 0)
             ? "PROHIBIDO listarlas en texto: llama preparar_opciones para que salga la imagen."
@@ -1084,6 +1085,7 @@ export function buildTools(ctx: AgentContext) {
         alternatives, formatTireSize(size), exact.some((i) => i.stock > 0),
         { direccion: direccionDelCiclo, carga: requisitoDeCarga(textosDelCicloBuscar) },
       );
+      const cantidadFicha = await cantidadDeLaFicha(ctx);
       return JSON.stringify({
         ...(aMostrar.length ? { [CAMPO_EQUIVALENTES]: aMostrar } : {}),
         medida: formatTireSize(size),
@@ -1095,10 +1097,10 @@ export function buildTools(ctx: AgentContext) {
             }
           : {}),
         resultados: recorteConEscalera(exact, 5).map((p) => ({
-          ...toolItem(p),
+          ...toolItem(p, cantidadFicha),
           ...(sirvenAlUso ? { le_sirve_a_su_uso: sirvenAlUso.includes(normalizarTipo(tipoDeProducto(p.code, p.design) ?? "")) } : {}),
         })),
-        alternativas_mismo_aro: recorteConEscalera(alternatives, 3).map(toolItem),
+        alternativas_mismo_aro: recorteConEscalera(alternatives, 3).map(toolItemDe(cantidadFicha)),
         ...(direccion
           ? {
               direccion_pedida: direccion,
@@ -1141,7 +1143,7 @@ export function buildTools(ctx: AgentContext) {
       if (!escalera.sinCoincidenciaExacta) {
         return JSON.stringify({
           consulta,
-          resultados: escalera.resultados.map(toolItem),
+          resultados: escalera.resultados.map(toolItemDe(await cantidadDeLaFicha(ctx))),
           siguiente_paso: MOSTRAR,
         });
       }
@@ -1159,8 +1161,8 @@ export function buildTools(ctx: AgentContext) {
         resultados: [],
         sin_coincidencia_exacta: true,
         medida_pedida: sizeLabel,
-        en_esa_medida: enEsaMedida.map(toolItem),
-        ese_modelo_en_otras_medidas: elModeloEnOtrasMedidas.map(toolItem),
+        en_esa_medida: enEsaMedida.map(toolItemDe(await cantidadDeLaFicha(ctx))),
+        ese_modelo_en_otras_medidas: elModeloEnOtrasMedidas.map(toolItemDe(await cantidadDeLaFicha(ctx))),
         catalogo: { items: estado.items, error: estado.error },
         siguiente_paso: catalogoCaido
           ? "El catálogo no está disponible ahora mismo: NO afirmes que no tenemos nada. Dile que lo confirmas en un momento y avisa con notificar_vendedor."
@@ -1403,7 +1405,7 @@ export function buildTools(ctx: AgentContext) {
         su_medida: suMedida,
         sin_tipo_en_su_medida: sinTipoEnSuMedida,
         // Tres y no seis: una por escalón de marca.
-        opciones: seleccionPermitida.map(toolItem),
+        opciones: seleccionPermitida.map(toolItemDe(await cantidadDeLaFicha(ctx))),
         otras_en_ese_aro: delTipoPermitido.length - seleccionPermitida.length,
         ...(restricciones.anchosRechazados.length
           ? { anchos_rechazados_excluidos: restricciones.anchosRechazados }
@@ -1727,7 +1729,7 @@ export function buildTools(ctx: AgentContext) {
       }
       return JSON.stringify({
         paso: "mostrar_muestra_e_invitar",
-        opciones: muestra.map(toolItem),
+        opciones: muestra.map(toolItemDe(await cantidadDeLaFicha(ctx))),
         aros_en_stock: aros,
         rango_para_decir: rango,
         // Solo los nombres: la dirección escrita no se manda nunca (va el link
@@ -1823,7 +1825,7 @@ export function buildTools(ctx: AgentContext) {
         medidas_con_stock: medidasConStock,
         medidas_agotadas: medidasAgotadas,
         medidas_descartadas_por_confianza: medidasDescartadas,
-        opciones: opciones.map(toolItem),
+        opciones: opciones.map(toolItemDe(await cantidadDeLaFicha(ctx))),
         ...(avisoTipo ? { aviso_tipo: avisoTipo } : {}),
         origen_opciones: origen,
         siguiente_pregunta: result.nextQuestion,
@@ -2193,7 +2195,11 @@ export function buildTools(ctx: AgentContext) {
         const codigoDelEscalon = porLista?.codigo ?? escalonesPrevios?.[nivel]?.codigo ?? null;
         const elegida = (codigoDelEscalon && products.find((p) => p.code === codigoDelEscalon)) ?? null;
         if (elegida) {
-          const precio = elegida.minimumPriceWithTax ? ` — *$${elegida.minimumPriceWithTax.toFixed(2)} c/u con IVA*` : "";
+          // Cómo se dice el precio de la elegida: la cuenta con Black Friday, el «c/u» sin ella.
+          const precioElegido = elegida.minimumPriceWithTax
+            ? precioDelProducto(politica.promocionDeTemporada, elegida, cantidadResuelta.cantidad, { negrita: true }).texto
+            : null;
+          const precio = precioElegido ? ` — ${precioElegido}` : "";
           const esEquivalente = permitidasOpciones.length > 0 && !medidaEstaPedida(elegida.sizeLabel, permitidasOpciones);
           const equivaleDeVerdad = porQueNoEquivale(permitidasOpciones, elegida, requisitosDelCliente) === null;
           const etiqueta = preferenciaContestada === "precio" ? "de costo" : preferenciaContestada === "premium" ? "premium" : "de equilibrio";
@@ -2214,9 +2220,7 @@ export function buildTools(ctx: AgentContext) {
             recomendacion: `${elegida.brand} ${elegida.design}`,
             codigo: elegida.code,
             mensaje_para_enviar: porLista
-              // Con Black Friday no hay UN precio por llanta: lo dice la cotización.
-              ? confirmacionDeLaOpcion(posicionDeLista!, `${elegida.brand} ${elegida.design}`,
-                  marcaConSegundaLlanta(politica.promocionDeTemporada, elegida.brand) ? null : elegida.minimumPriceWithTax)
+              ? confirmacionDeLaOpcion(posicionDeLista!, `${elegida.brand} ${elegida.design}`, precioElegido)
               : `La opción ${etiqueta} es la *${elegida.brand} ${elegida.design}*${precio}.`,
             regla: `El cliente contestó el menú: la lámina ya la tiene y NO se reenvía. Llama generar_cotizacion AHORA MISMO con code ${elegida.code} y 4 llantas (o la cantidad que haya dicho); el texto de arriba va antes de la cotización.`,
           });
@@ -2225,7 +2229,9 @@ export function buildTools(ctx: AgentContext) {
       if (pideAlternativaMasBarata(ctx.currentUserText)) {
         if (mismaVitrina) {
           const unica = products[0];
-          const precio = unica.minimumPriceWithTax ? ` — *$${unica.minimumPriceWithTax.toFixed(2)} c/u con IVA*` : "";
+          const precio = unica.minimumPriceWithTax
+            ? ` — ${precioDelProducto(politica.promocionDeTemporada, unica, cantidadResuelta.cantidad, { negrita: true }).texto}`
+            : "";
           return JSON.stringify({
             imagen_enviada: false,
             recomendacion_entregada: false,
@@ -2572,6 +2578,9 @@ export function buildTools(ctx: AgentContext) {
         recomendacion,
         motivo: motivo.trim().replace(/\.$/, ""),
         precioConIva: entregada.minimumPriceWithTax ?? null,
+        marca: entregada.brand,
+        listaConIva: entregada.customerPriceWithTax,
+        cantidad: cantidadResuelta.cantidad,
         // El cierre no puede prometer «la opción exacta para su medida» en
         // dos casos: cuando hay equivalentes en la pieza (guardián del
         // 26-ago) y cuando NO SABEMOS su medida —buscó por aro o por
@@ -4380,7 +4389,25 @@ function buildTechnicalGuidance(
   return lines.join("\n");
 }
 
-function toolItem(item: {
+/**
+ * La cantidad con que se hacen las cuentas de la promo en los resultados de
+ * búsqueda: la que el CLIENTE dijo (este turno, la ficha o —con la ficha vacía— lo último
+ * que dijo en el ciclo; ver `cantidadDelCliente`) y, si no hay, el juego completo.
+ * Con un tope: una ficha sucia en 235 no se convierte en «118 × … + 117 × …».
+ */
+export async function cantidadDeLaFicha(
+  ctx: { conversation: { id: number }; currentUserText?: string | null; mensajeCitado?: string | null },
+): Promise<number> {
+  // Fuera de la promo (diciembre, Mundillantas) la cuenta no existe: ni se consulta la base.
+  if (!promocionVigente(politica.promocionDeTemporada)) return politica.juegoCompleto;
+  const { cantidad } = await cantidadDelCliente(ctx.conversation.id, ctx.currentUserText, ctx.mensajeCitado);
+  return cantidadParaLaCuenta(cantidad, politica.juegoCompleto);
+}
+
+/** Para `.map(...)`: el mismo `toolItem` con la cantidad ya resuelta. */
+const toolItemDe = (cantidad: number) => (item: Parameters<typeof toolItem>[0]) => toolItem(item, cantidad);
+
+export function toolItem(item: {
   code: string;
   brand: string;
   design: string;
@@ -4390,10 +4417,19 @@ function toolItem(item: {
   minimumPriceWithTax?: number;
   stock: number;
   availability?: string;
-}) {
+}, cantidad: number = politica.juegoCompleto) {
   // El tipo (H/T, A/T, R/T…) no viene de Contífico: sale de la base que entregó
   // el cliente. Es lo que permite responder "quiero una R17 A/T".
   const tipo = tipoDeProducto(item.code, item.design);
+  // BLACK FRIDAY: en Falken/Kenda con la promo aplicada NO existe un precio por
+  // llanta (impares a lista, pares a lista × 0,4). Antes el vendedor recibía
+  // `precio_hoy_con_iva` (el −25 %) y lo repetía como «$X c/u» (convs 39615 y
+  // 40082, 7-nov: +$46 y +$38 contra el juego real). Con promo no se entregan
+  // los dos precios sueltos: se entrega lo que se DICE (`precio_para_decir`).
+  const dicho = item.minimumPriceWithTax
+    ? precioDelProducto(politica.promocionDeTemporada,
+        { brand: item.brand, minimumPriceWithTax: item.minimumPriceWithTax, customerPriceWithTax: item.customerPriceWithTax }, cantidad)
+    : null;
   return {
     code: item.code,
     marca: item.brand,
@@ -4404,8 +4440,19 @@ function toolItem(item: {
     // se contesta con esto y no con la definición genérica del tipo.
     uso_del_modelo: usoDelModelo(item.design) ?? undefined,
     escalon: politica.escalonPorPrecio ? ESCALON_POR_CODIGO.get(item.code) : etiquetaEscalon(item.brand, item.design),
-    precio_lista_con_iva: item.customerPriceWithTax,
-    precio_hoy_con_iva: item.minimumPriceWithTax,
+    // Con la promo aplicada para esta cantidad: la cuenta (`precio_para_decir`) y el
+    // precio por llanta SOLO rotulado como el de 1, 3 o 5 llantas. Sin promo (otra
+    // marca, 1/3/5 llantas, promo apagada) el precio por llanta de siempre. La regla
+    // «no existe un c/u» va UNA vez, en el playbook; no se repite en cada ítem.
+    ...(dicho?.segunda
+      ? {
+          precio_para_decir: dicho.texto,
+          [CAMPO_PRECIO_POR_LLANTA_SIN_PROMO]: item.minimumPriceWithTax,
+        }
+      : {
+          precio_lista_con_iva: item.customerPriceWithTax,
+          precio_hoy_con_iva: item.minimumPriceWithTax,
+        }),
     stock: item.stock,
     disponibilidad: item.availability,
     // Las lonas viven en el nombre del fabricante («KR29 10PR TL») y se

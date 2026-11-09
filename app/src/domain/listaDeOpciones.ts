@@ -19,7 +19,7 @@
  * escribe el cliente coincide con Costo / Equilibrio / Premium, que es lo que
  * `respuestaDePreferencia` ya entiende por «1», «2» y «3».
  */
-import { cuentaDeSegundaLlanta, type SegundaLlanta } from "./promocionDeTemporada.js";
+import { cuentaConRotulo, type SegundaLlanta } from "./promocionDeTemporada.js";
 
 export interface OpcionConPrecio {
   /** «KENDA KR20» — marca y modelo, tal como sale en la lámina. */
@@ -84,7 +84,7 @@ export function armarLista(
  */
 export function lineaDeLista(l: LineaDeLista, cantidad: number): string {
   if (l.segundaLlanta) {
-    return `${l.n} · ${l.nombre} — ${cuentaDeSegundaLlanta(cantidad, l.segundaLlanta)} (−${l.segundaLlanta.porcentaje} % en la 2.ª llanta)`;
+    return `${l.n} · ${l.nombre} — ${cuentaConRotulo(cantidad, l.segundaLlanta)}`;
   }
   return `${l.n} · ${l.nombre} — ${dinero(l.precio)} c/u · ${cantidad} = ${dinero(l.total)}`;
 }
@@ -159,20 +159,24 @@ export type EscalonElegido = "precio" | "equilibrada" | "premium";
 export function opcionPorPosicion(
   metadata: { escalones?: unknown; cantidad?: unknown } | null | undefined,
   n: number,
-): { codigo: string; nombre: string; precio_con_iva: number; escalon: EscalonElegido } | null {
+): { codigo: string; nombre: string; precio_con_iva: number; escalon: EscalonElegido; segunda_llanta?: SegundaLlanta | null } | null {
   const pieza = listaDeLaPieza(metadata);
   const linea = pieza?.lista.find((l) => l.n === n);
   if (!pieza || !linea?.codigo) return null;
   const escalon: EscalonElegido = n === 1 ? "precio" : n === pieza.lista.length ? "premium" : "equilibrada";
-  return { codigo: linea.codigo, nombre: linea.nombre, precio_con_iva: linea.precio, escalon };
+  return { codigo: linea.codigo, nombre: linea.nombre, precio_con_iva: linea.precio, escalon, segunda_llanta: linea.segundaLlanta ?? null };
 }
 
 /**
  * La confirmación cuando el cliente eligió por su número de la lista. Dice «La
  * opción 2», no «la opción de equilibrio»: con dos opciones el escalón «premium»
  * o «de equilibrio» sería un rótulo que el cliente nunca vio.
+ *
+ * `precioDicho` es el precio de la línea ya dicho por `decirPrecioDeLaLinea`
+ * (la cuenta con Black Friday, el «c/u» sin ella): este texto no formatea
+ * precios por su cuenta.
  */
-export function confirmacionDeLaOpcion(posicion: number, nombre: string, precio: number | null | undefined): string {
-  const p = precio ? ` — *$${precio.toFixed(2)} c/u con IVA*` : "";
+export function confirmacionDeLaOpcion(posicion: number, nombre: string, precioDicho: string | null | undefined): string {
+  const p = precioDicho ? ` — ${precioDicho}` : "";
   return `La opción ${posicion}, *${nombre}*${p}. Le dejo la cotización 👍`;
 }

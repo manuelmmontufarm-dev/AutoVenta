@@ -45,6 +45,9 @@ import { sql } from "../db/client.js";
 import type { Stage } from "../domain/pipeline.js";
 import { ahorroDeLaCotizacion } from "../domain/ahorro.js";
 import { hechoDeLaPromocion } from "../domain/promocion.js";
+import { cantidadParaLaCuenta, cuentaConRotulo, marcaConSegundaLlanta, promocionVigente, promoAplicaConLaCantidad, segundaLlantaDe } from "../domain/promocionDeTemporada.js";
+import { cantidadDelCliente } from "./lineasConPromo.js";
+import { lineaDeLaCotizacionVigente, type ItemDeCotizacion } from "../domain/hechoDeCotizacionVigente.js";
 import { medidaEstaPedida, mensajesDeLaVisitaActual } from "../domain/medidaPedida.js";
 import { hechoDeLaLista, listaDeLaPieza } from "../domain/listaDeOpciones.js";
 import { hechosDeRestricciones, restriccionesDeLlanta } from "../domain/restriccionesLlanta.js";
@@ -308,7 +311,7 @@ interface CotizacionVigente {
   quote_number: string;
   total: string | number;
   created_at: Date;
-  items: Array<{ code?: string; brand?: string; design?: string; sizeLabel?: string; quantity?: number; salePriceWithTax?: number }>;
+  items: Array<ItemDeCotizacion & { code?: string }>;
 }
 
 /** «Origen de las marcas (ficha del negocio): KENDA: Taiwán · FALKEN: Japón · …» o null sin ficha. */
@@ -453,7 +456,7 @@ async function registrarFalloAbierto(input: {
  * lista y la pieza de opciones salen de la misma celda. Falla en silencio a
  * propósito: un guardián sin catálogo revisa como antes, no revienta el turno.
  */
-async function catalogoParaElGuardian(pedidas: readonly string[]): Promise<string[]> {
+async function catalogoParaElGuardian(pedidas: readonly string[], cantidadDelClienteDicha: number | null = null): Promise<string[]> {
   if (!pedidas.length) return [];
   try {
     await ensureCatalogReady();
@@ -478,8 +481,22 @@ async function catalogoParaElGuardian(pedidas: readonly string[]): Promise<strin
         // Sin él, el revisor no puede juzgar un «no hay A/T»: el 1-sep tenía
         // la KR28 con 89 unidades en la lista y no sabía que era A/T.
         const tipo = tipoDeProducto(p.code, p.design);
+        // Black Friday: el precio de la fila es el de catálogo (−25 %), NO lo que
+        // paga el cliente. Si la marca entra en la promo, la fila lo dice y trae
+        // la cuenta del juego — sin eso el revisor copiaba este «c/u» como si
+        // fuera el precio (auditoría 9-nov, convs 39615 y 40082).
+        // La cuenta se hace con la cantidad del CLIENTE (la ficha, o lo que dijo si la ficha
+        // está vacía); sin dato, con el juego. Con 3 o 5 llantas la promo no aplica y la fila lo dice.
+        const n = cantidadParaLaCuenta(cantidadDelClienteDicha, JUEGO_COMPLETO);
+        const enPromo = segundaLlantaDe(politica.promocionDeTemporada, p.brand, n,
+          { hoyConIva: p.minimumPriceWithTax, listaConIva: p.customerPriceWithTax });
+        const precio = enPromo
+          ? `hoy $${p.minimumPriceWithTax.toFixed(2)} c/u con IVA (es el precio por llanta con 1, 3 o 5 llantas); con ${n} llantas rige Black Friday y NO existe un precio por llanta — el juego de ${n} es ${cuentaConRotulo(n, enPromo)}`
+          : marcaConSegundaLlanta(politica.promocionDeTemporada, p.brand)
+            ? `hoy $${p.minimumPriceWithTax.toFixed(2)} c/u con IVA — para ${n} llantas Black Friday NO aplica: este ES el precio`
+            : `hoy $${p.minimumPriceWithTax.toFixed(2)} c/u con IVA`;
         filas.push(
-          `· ${p.brand} ${p.design} ${p.sizeLabel} ${tipo ? `[${tipo}]` : "[tipo sin clasificar]"} — hoy $${p.minimumPriceWithTax.toFixed(2)} c/u con IVA · ` +
+          `· ${p.brand} ${p.design} ${p.sizeLabel} ${tipo ? `[${tipo}]` : "[tipo sin clasificar]"} — ${precio} · ` +
           `stock hoy: ${p.stock}${estado}`,
         );
       }
@@ -487,7 +504,7 @@ async function catalogoParaElGuardian(pedidas: readonly string[]): Promise<strin
     }
     if (!filas.length) return [];
     return [
-      "== CATÁLOGO DE HOY (fuente determinística: Contífico + precios Interbot, el mismo número que imprimen las piezas) ==",
+      "== CATÁLOGO DE HOY (fuente determinística: Contífico + precios Interbot. Es el precio de catálogo con el descuento de siempre; NO es lo que paga el cliente en las filas que dicen «SIN Black Friday»: ahí vale la cuenta de la fila) ==",
       ...filas,
     ];
   } catch {
@@ -561,7 +578,12 @@ export async function armarContexto(
     }
   })();
   const respaldados = [...beneficios.map((b) => b.text), ...servicios];
-  const catalogoHoy = await catalogoParaElGuardian(pedidas);
+  // La cantidad que dijo el CLIENTE (ficha, o lo último que dijo si la ficha está vacía).
+  // Solo mientras corre la promo: fuera de ella (diciembre, Mundillantas) no se gasta la consulta.
+  const cantidadCliente = promocionVigente(politica.promocionDeTemporada)
+    ? (await cantidadDelCliente(conversationId)).cantidad
+    : null;
+  const catalogoHoy = await catalogoParaElGuardian(pedidas, cantidadCliente);
 
   // El rechazo de medida como HECHO, no como deducción. 31-ago (conv 3 c20):
   // el cliente escribió «ya no 185, ¿qué otras tiene?» y el revisor aprobó una
@@ -754,6 +776,15 @@ export async function armarContexto(
         : `ARO DADO POR EL CLIENTE: rin ${aro}. Las opciones mostradas son de ese aro y cada una lleva su medida en la lámina. Si elige una, se cotiza con la medida de esa opción: NO se le pide «la medida exacta» para cotizar lo que ya eligió.`;
     })(),
     hechos?.selected_quantity != null ? `Cantidad elegida: ${hechos.selected_quantity}` : null,
+    // Calculado en código, para que el revisor no razone la paridad (solo mientras corre la promo).
+    promocionVigente(politica.promocionDeTemporada) && politica.promocionDeTemporada?.segundaLlanta
+      ? (() => {
+          const n = cantidadParaLaCuenta(cantidadCliente, JUEGO_COMPLETO);
+          const aplica = promoAplicaConLaCantidad(politica.promocionDeTemporada, n);
+          const origen = cantidadCliente === null ? " (sin dato: se asume el juego)" : "";
+          return `Cantidad del cliente para la promo: ${n}${origen} → la promo ${aplica ? "APLICA" : "NO aplica: el «c/u» de esa llanta ES el precio y se conserva"}`;
+        })()
+      : null,
     // Estas dos líneas se escriben SIEMPRE, también cuando están vacías. Es lo
     // que permite el hallazgo `estado_desincronizado`: sin un «(ninguno)»
     // explícito, el revisor no puede notar que el bot acaba de confirmar una
@@ -859,8 +890,7 @@ export async function armarContexto(
       : null,
     cotizacion
       ? `Cotización vigente: ${cotizacion.quote_number} · total $${Number(cotizacion.total).toFixed(2)}` +
-        (item ? ` · ${item.quantity ?? "?"} × ${item.brand ?? ""} ${item.design ?? ""} ${item.sizeLabel ?? ""}` +
-          (item.salePriceWithTax ? ` a $${Number(item.salePriceWithTax).toFixed(2)} c/u` : "") : "")
+        lineaDeLaCotizacionVigente(item, politica.promocionDeTemporada)
       : "Cotización vigente: ninguna",
     // SIN ESTA LÍNEA EL REVISOR BORRA EL DESCUENTO (26-ago). El texto y su
     // historia viven en `domain/promocion.ts`, que también lo nombra como 3x4
