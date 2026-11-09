@@ -8,8 +8,15 @@
  * «los precios de la cotización mandan» y lo cambió por «$251.59 c/u»: +$301.90
  * contra lo que cuesta. Con Black Friday la línea no tiene un «c/u»; se la
  * damos con la cuenta, la misma que dice la lámina.
+ *
+ * Solo mientras la temporada siga vigente (`segundaGuardadaVigente`): una
+ * cotización de noviembre leída el 2-dic, o con la compuerta cerrada, vuelve
+ * al «a $P c/u». Aquí va el HECHO; la regla («un c/u para esta marca es
+ * precio_incorrecto») vive en el hecho de temporada (`hechosDeTemporada.ts`).
  */
-import { cuentaConRotulo, type SegundaLlanta } from "./promocionDeTemporada.js";
+import {
+  cuentaConRotulo, segundaGuardadaVigente, type PromocionDeTemporada, type SegundaLlanta,
+} from "./promocionDeTemporada.js";
 
 export interface ItemDeCotizacion {
   brand?: string;
@@ -20,11 +27,16 @@ export interface ItemDeCotizacion {
   segundaLlanta?: SegundaLlanta | null;
 }
 
-export function lineaDeLaCotizacionVigente(item: ItemDeCotizacion | undefined): string {
+export function lineaDeLaCotizacionVigente(
+  item: ItemDeCotizacion | undefined,
+  promo: PromocionDeTemporada | null | undefined,
+  ahora: Date = new Date(),
+): string {
   if (!item) return "";
   const nombre = ` · ${item.quantity ?? "?"} × ${item.brand ?? ""} ${item.design ?? ""} ${item.sizeLabel ?? ""}`;
-  if (item.segundaLlanta && Number(item.quantity) >= 2) {
-    return `${nombre}: ${cuentaConRotulo(Number(item.quantity), item.segundaLlanta)} — con Black Friday NO existe un precio por llanta: ni «$${item.segundaLlanta.precioNormalConIva.toFixed(2)} c/u» (es la lista de las impares) ni el precio de catálogo de hoy; se dice la cuenta o el total`;
+  const segunda = segundaGuardadaVigente(promo, item.segundaLlanta, ahora);
+  if (segunda && Number(item.quantity) >= 2) {
+    return `${nombre}: ${cuentaConRotulo(Number(item.quantity), segunda)} (con Black Friday no hay un precio por llanta: ni $${segunda.precioNormalConIva.toFixed(2)} ni el de catálogo de hoy)`;
   }
   return nombre + (item.salePriceWithTax ? ` a $${Number(item.salePriceWithTax).toFixed(2)} c/u` : "");
 }

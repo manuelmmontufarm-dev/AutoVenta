@@ -992,7 +992,7 @@ export function buildTools(ctx: AgentContext) {
         await updateConversationFacts(ctx.conversation.id, { tireSize: etiqueta });
         return JSON.stringify({
           medida: etiqueta,
-          resultados: tresOpciones(encontradas).map(toolItem),
+          resultados: tresOpciones(encontradas).map(toolItemDe(await cantidadDeLaFicha(ctx))),
           total_en_esa_medida: encontradas.length,
           regla: encontradas.some((i) => i.stock > 0)
             ? "PROHIBIDO listarlas en texto: llama preparar_opciones para que salga la imagen."
@@ -1084,6 +1084,7 @@ export function buildTools(ctx: AgentContext) {
         alternatives, formatTireSize(size), exact.some((i) => i.stock > 0),
         { direccion: direccionDelCiclo, carga: requisitoDeCarga(textosDelCicloBuscar) },
       );
+      const cantidadFicha = await cantidadDeLaFicha(ctx);
       return JSON.stringify({
         ...(aMostrar.length ? { [CAMPO_EQUIVALENTES]: aMostrar } : {}),
         medida: formatTireSize(size),
@@ -1095,10 +1096,10 @@ export function buildTools(ctx: AgentContext) {
             }
           : {}),
         resultados: recorteConEscalera(exact, 5).map((p) => ({
-          ...toolItem(p),
+          ...toolItem(p, cantidadFicha),
           ...(sirvenAlUso ? { le_sirve_a_su_uso: sirvenAlUso.includes(normalizarTipo(tipoDeProducto(p.code, p.design) ?? "")) } : {}),
         })),
-        alternativas_mismo_aro: recorteConEscalera(alternatives, 3).map(toolItem),
+        alternativas_mismo_aro: recorteConEscalera(alternatives, 3).map(toolItemDe(cantidadFicha)),
         ...(direccion
           ? {
               direccion_pedida: direccion,
@@ -1141,7 +1142,7 @@ export function buildTools(ctx: AgentContext) {
       if (!escalera.sinCoincidenciaExacta) {
         return JSON.stringify({
           consulta,
-          resultados: escalera.resultados.map(toolItem),
+          resultados: escalera.resultados.map(toolItemDe(await cantidadDeLaFicha(ctx))),
           siguiente_paso: MOSTRAR,
         });
       }
@@ -1159,8 +1160,8 @@ export function buildTools(ctx: AgentContext) {
         resultados: [],
         sin_coincidencia_exacta: true,
         medida_pedida: sizeLabel,
-        en_esa_medida: enEsaMedida.map(toolItem),
-        ese_modelo_en_otras_medidas: elModeloEnOtrasMedidas.map(toolItem),
+        en_esa_medida: enEsaMedida.map(toolItemDe(await cantidadDeLaFicha(ctx))),
+        ese_modelo_en_otras_medidas: elModeloEnOtrasMedidas.map(toolItemDe(await cantidadDeLaFicha(ctx))),
         catalogo: { items: estado.items, error: estado.error },
         siguiente_paso: catalogoCaido
           ? "El catálogo no está disponible ahora mismo: NO afirmes que no tenemos nada. Dile que lo confirmas en un momento y avisa con notificar_vendedor."
@@ -1403,7 +1404,7 @@ export function buildTools(ctx: AgentContext) {
         su_medida: suMedida,
         sin_tipo_en_su_medida: sinTipoEnSuMedida,
         // Tres y no seis: una por escalón de marca.
-        opciones: seleccionPermitida.map(toolItem),
+        opciones: seleccionPermitida.map(toolItemDe(await cantidadDeLaFicha(ctx))),
         otras_en_ese_aro: delTipoPermitido.length - seleccionPermitida.length,
         ...(restricciones.anchosRechazados.length
           ? { anchos_rechazados_excluidos: restricciones.anchosRechazados }
@@ -1727,7 +1728,7 @@ export function buildTools(ctx: AgentContext) {
       }
       return JSON.stringify({
         paso: "mostrar_muestra_e_invitar",
-        opciones: muestra.map(toolItem),
+        opciones: muestra.map(toolItemDe(await cantidadDeLaFicha(ctx))),
         aros_en_stock: aros,
         rango_para_decir: rango,
         // Solo los nombres: la dirección escrita no se manda nunca (va el link
@@ -1823,7 +1824,7 @@ export function buildTools(ctx: AgentContext) {
         medidas_con_stock: medidasConStock,
         medidas_agotadas: medidasAgotadas,
         medidas_descartadas_por_confianza: medidasDescartadas,
-        opciones: opciones.map(toolItem),
+        opciones: opciones.map(toolItemDe(await cantidadDeLaFicha(ctx))),
         ...(avisoTipo ? { aviso_tipo: avisoTipo } : {}),
         origen_opciones: origen,
         siguiente_pregunta: result.nextQuestion,
@@ -4387,7 +4388,22 @@ function buildTechnicalGuidance(
   return lines.join("\n");
 }
 
-function toolItem(item: {
+/**
+ * La cantidad con que se hacen las cuentas de la promo en los resultados de
+ * búsqueda: la que el cliente ya tiene en la ficha (`selected_quantity`) y, si
+ * no hay, el juego completo (lo que el bot cotiza cuando no le dicen otra).
+ */
+async function cantidadDeLaFicha(ctx: { conversation: { id: number } }): Promise<number> {
+  const [fila] = await sql<{ selected_quantity: number | null }[]>`
+    select selected_quantity from conversations where id=${ctx.conversation.id}
+  `.catch(() => []);
+  return Number(fila?.selected_quantity) >= 1 ? Number(fila!.selected_quantity) : politica.juegoCompleto;
+}
+
+/** Para `.map(...)`: el mismo `toolItem` con la cantidad ya resuelta. */
+const toolItemDe = (cantidad: number) => (item: Parameters<typeof toolItem>[0]) => toolItem(item, cantidad);
+
+export function toolItem(item: {
   code: string;
   brand: string;
   design: string;
@@ -4397,10 +4413,7 @@ function toolItem(item: {
   minimumPriceWithTax?: number;
   stock: number;
   availability?: string;
-}) {
-  // Sin cantidad dicha, el bot cotiza el juego completo: la cuenta de la promo
-  // se hace para esa. (Sin segundo parámetro: se usa con `.map(toolItem)`.)
-  const cantidad = politica.juegoCompleto;
+}, cantidad: number = politica.juegoCompleto) {
   // El tipo (H/T, A/T, R/T…) no viene de Contífico: sale de la base que entregó
   // el cliente. Es lo que permite responder "quiero una R17 A/T".
   const tipo = tipoDeProducto(item.code, item.design);
@@ -4423,15 +4436,18 @@ function toolItem(item: {
     // se contesta con esto y no con la definición genérica del tipo.
     uso_del_modelo: usoDelModelo(item.design) ?? undefined,
     escalon: politica.escalonPorPrecio ? ESCALON_POR_CODIGO.get(item.code) : etiquetaEscalon(item.brand, item.design),
+    // Con la promo aplicada para esta cantidad: la cuenta (`precio_para_decir`) y el
+    // precio por llanta SOLO rotulado como el de 1, 3 o 5 llantas. Sin promo (otra
+    // marca, 1/3/5 llantas, promo apagada) el precio por llanta de siempre. La regla
+    // «no existe un c/u» va UNA vez, en el playbook; no se repite en cada ítem.
     ...(dicho?.segunda
       ? {
           precio_para_decir: dicho.texto,
-          regla_de_precio: `Black Friday: en ${item.brand} NO existe un precio por llanta. Del precio di SOLO la cuenta de 'precio_para_decir' (para ${cantidad} llantas) o el total; PROHIBIDO escribir «$X c/u», «cada una» o dividir el total.`,
+          precio_por_llanta_solo_con_1_o_3_llantas: item.minimumPriceWithTax,
         }
       : {
           precio_lista_con_iva: item.customerPriceWithTax,
           precio_hoy_con_iva: item.minimumPriceWithTax,
-          ...(dicho ? { precio_para_decir: dicho.texto } : {}),
         }),
     stock: item.stock,
     disponibilidad: item.availability,

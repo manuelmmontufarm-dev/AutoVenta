@@ -184,8 +184,9 @@ describe("hechos del vendedor (A2: 39615 y 40082)", () => {
       economica: null, equilibrada: { codigo: "K628", nombre: "KENDA KR628", precio_con_iva: 173.32, segunda_llanta: k }, premium: null,
     }));
     expect(linea).toContain("2 × $231.10 + 2 × $92.44 = $647.08");
-    expect(linea).not.toContain("$173.32 c/u");
-    expect(linea).toMatch(/NUNCA «\$X c\/u»/);
+    expect(linea).not.toContain("$173.32");
+    // La regla «no se dice c/u» vive UNA vez, en el playbook; aquí solo el dato.
+    expect(linea).not.toMatch(/NUNCA «\$X c\/u»/);
   });
 
   it("Winrun (sin promo) conserva el c/u en los escalones", () => {
@@ -193,13 +194,12 @@ describe("hechos del vendedor (A2: 39615 y 40082)", () => {
       economica: { codigo: "W", nombre: "WINRUN R380", precio_con_iva: 124.76 }, equilibrada: null, premium: null,
     }));
     expect(linea).toContain("$124.76 c/u con IVA");
-    expect(linea).not.toMatch(/NUNCA «\$X c\/u»/);
   });
 
   it("la regla de la promo dice que en Falken/Kenda no existe un precio por llanta (vendedor y Guardián)", () => {
     expect(REGLAS_DE_PROMOCION_DE_TEMPORADA).toMatch(/NO EXISTE un precio por llanta/);
     expect(hechoDeTemporadaParaElVendedor({ promo, ahora: NOVIEMBRE })).toMatch(/NO EXISTE un precio por llanta/);
-    expect(hechoDeTemporadaParaElGuardian({ promo, ahora: NOVIEMBRE })).toMatch(/NO existe un precio por llanta/);
+    expect(hechoDeTemporadaParaElGuardian({ promo, ahora: NOVIEMBRE })).toMatch(/PRECIO POR LLANTA/);
   });
 });
 
@@ -209,14 +209,14 @@ describe("hechos del Guardián (B: 39909)", () => {
   it("«Cotización vigente» con Black Friday dice la cuenta y no «a $251.59 c/u»", () => {
     const l = lineaDeLaCotizacionVigente({
       brand: "KENDA", design: "KR50", sizeLabel: "265/60R18", quantity: 4, salePriceWithTax: 251.59, segundaLlanta: kr50,
-    });
+    }, promo, NOVIEMBRE);
     expect(l).toContain("2 × $251.59 + 2 × $100.64 = $704.46");
     expect(l).not.toContain("a $251.59 c/u");
     expect(l).not.toContain("$188.69 c/u");
   });
 
   it("sin promo la línea es la de siempre: «a $P c/u»", () => {
-    expect(lineaDeLaCotizacionVigente({ brand: "WINRUN", design: "R380", sizeLabel: "205/55R16", quantity: 4, salePriceWithTax: 124.76 }))
+    expect(lineaDeLaCotizacionVigente({ brand: "WINRUN", design: "R380", sizeLabel: "205/55R16", quantity: 4, salePriceWithTax: 124.76 }, promo, NOVIEMBRE))
       .toBe(" · 4 × WINRUN R380 205/55R16 a $124.76 c/u");
   });
 
@@ -259,5 +259,94 @@ describe("el candado después del Guardián", () => {
 
   it("sin líneas con promo no hace nada", () => {
     expect(sinPrecioPorLlantaConPromo("$188.69 c/u", []).texto).toBe("$188.69 c/u");
+  });
+});
+
+// ===========================================================================
+// RONDA 1 DE LA REVISIÓN (coordinadora, 9-nov): vigencia, cantidad del ESTADO,
+// 3 y 5 llantas, comparativa fuera, regla en UN solo sitio.
+// ===========================================================================
+const { toolItem } = await import("../src/agent/tools.js");
+const { POLITICA_MUNDILLANTAS } = await import("../src/negocio/politicas/mundillantas.js");
+const guardianMod = await import("../src/services/guardian.js");
+
+describe("B2 · la cantidad no se lee del borrador (conv 40137: «tres llantas por favor me cotizas»)", () => {
+  const kr50 = temporada.segundaLlantaDe(promo, "KENDA", 4, { hoyConIva: 127.93, listaConIva: 170.57 }, NOVIEMBRE)!;
+  const lineas = [{ nombre: "KENDA KR50", hoyConIva: 127.93, listaConIva: 170.57, cantidad: 4, segunda: kr50 }];
+
+  it("«KENDA KR50 — $127.93 c/u · 3 = $383.79»: el 3 capturado no es el 4 de la cuenta → no se toca", () => {
+    const t = "KENDA KR50 — $127.93 c/u · 3 = $383.79";
+    expect(sinPrecioPorLlantaConPromo(t, lineas).texto).toBe(t);
+  });
+
+  it("«Por las 3, la KR50 queda en $127.93 c/u con IVA.»: tampoco", () => {
+    const t = "Por las 3, la KR50 queda en $127.93 c/u con IVA.";
+    expect(sinPrecioPorLlantaConPromo(t, lineas).texto).toBe(t);
+  });
+});
+
+describe("M1 · lo que queda colgando", () => {
+  const kr50 = temporada.segundaLlantaDe(promo, "KENDA", 4, { hoyConIva: 188.69, listaConIva: 251.59 }, NOVIEMBRE)!;
+  const lineas = [{ nombre: "KENDA KR50", hoyConIva: 188.69, listaConIva: 251.59, cantidad: 4, segunda: kr50 }];
+  const cuenta = "2 × $251.59 + 2 × $100.64 = $704.46 (−60 % en la 2.ª llanta)";
+
+  it("se come el « + IVA» y reconoce «la unidad» / «cada llanta»", () => {
+    expect(sinPrecioPorLlantaConPromo("La KR50 a $188.69 c/u + IVA.", lineas).texto).toBe(`La KR50 a ${cuenta}.`);
+    expect(sinPrecioPorLlantaConPromo("La KR50: $188.69 la unidad.", lineas).texto).toBe(`La KR50: ${cuenta}.`);
+    expect(sinPrecioPorLlantaConPromo("La KR50: $188.69 cada llanta.", lineas).texto).toBe(`La KR50: ${cuenta}.`);
+  });
+
+  it("un total viejo que queda al lado de la cuenta se anota (huérfano)", () => {
+    const r = sinPrecioPorLlantaConPromo("La KR50 está a $188.69 c/u, son $754.76 por las 4.", lineas);
+    expect(r.cambios[0].totalHuerfano).toBe(true);
+  });
+});
+
+describe("B1 · promo vencida: lo que el cliente tiene guardado ya no es lo que se cobra", () => {
+  const kr50 = temporada.segundaLlantaDe(promo, "KENDA", 4, { hoyConIva: 188.69, listaConIva: 251.59 }, NOVIEMBRE)!;
+  const item = { brand: "KENDA", design: "KR50", sizeLabel: "265/60R18", quantity: 4, salePriceWithTax: 251.59, segundaLlanta: kr50 };
+
+  it("«Cotización vigente» del Guardián: en noviembre la cuenta; el 2-dic o con la compuerta cerrada, el c/u", () => {
+    expect(lineaDeLaCotizacionVigente(item, promo, NOVIEMBRE)).toContain("2 × $251.59 + 2 × $100.64 = $704.46");
+    expect(lineaDeLaCotizacionVigente(item, promo, DICIEMBRE)).toBe(" · 4 × KENDA KR50 265/60R18 a $251.59 c/u");
+    vi.setSystemTime(NOVIEMBRE);
+    temporada.fijarCompuertaDeTemporada(() => false);
+    expect(lineaDeLaCotizacionVigente(item, promo, NOVIEMBRE)).not.toContain("= $704.46");
+  });
+});
+
+describe("B3 · 3 y 5 llantas: la promo no aplica y el «c/u» existe", () => {
+  const fila = (cantidad: number) => toolItem({
+    code: "K", brand: "KENDA", design: "KR50", sizeLabel: "225/70R16",
+    customerPriceWithTax: 170.57, minimumPriceWithTax: 127.93, stock: 8,
+  }, cantidad) as Record<string, unknown>;
+
+  it("herramienta: con 3 y 5 llantas conserva el precio por llanta; con 4 da la cuenta Y el c/u rotulado «solo con 1, 3 o 5»", () => {
+    expect(fila(3)).toMatchObject({ precio_hoy_con_iva: 127.93, precio_lista_con_iva: 170.57 });
+    expect(fila(3).precio_para_decir).toBeUndefined();
+    expect(fila(5).precio_para_decir).toBeUndefined();
+    const cuatro = fila(4);
+    expect(String(cuatro.precio_para_decir)).toContain("2 × $170.57 + 2 × $68.23");
+    expect(cuatro.precio_por_llanta_solo_con_1_o_3_llantas).toBe(127.93);
+    expect(cuatro.precio_hoy_con_iva).toBeUndefined();
+    // La regla va UNA vez en el playbook, no en cada ítem (costo).
+    expect(cuatro.regla_de_precio).toBeUndefined();
+  });
+
+  it("sin promo (Mundillantas / Winrun) no se duplica el precio en «precio_para_decir»", () => {
+    const w = toolItem({ code: "W", brand: "WINRUN", design: "R380", sizeLabel: "205/55R16", customerPriceWithTax: 166, minimumPriceWithTax: 124.76, stock: 8 }, 4) as Record<string, unknown>;
+    expect(w.precio_para_decir).toBeUndefined();
+    expect(w.precio_hoy_con_iva).toBe(124.76);
+  });
+
+  it("la cláusula vive en el HECHO de temporada (una categoría: precio_incorrecto), no en la rúbrica; Mundillantas y diciembre no la cargan", () => {
+    const hecho = hechoDeTemporadaParaElGuardian({ promo, ahora: NOVIEMBRE })!;
+    expect(hecho).toMatch(/precio_incorrecto/);
+    expect(hecho).toMatch(/con 1, 3 o 5 llantas.*SÍ es el precio/);
+    expect(hecho).toMatch(/cantidad PAR/);
+    expect(hecho).not.toMatch(/2 o más llantas/);
+    expect(guardianMod.INSTRUCCIONES).not.toMatch(/Black Friday NO existe|BLACK FRIDAY \(auditoría 9-nov/);
+    expect(hechoDeTemporadaParaElGuardian({ promo: POLITICA_MUNDILLANTAS.promocionDeTemporada ?? null, ahora: NOVIEMBRE })).toBeNull();
+    expect(hechoDeTemporadaParaElGuardian({ promo, ahora: DICIEMBRE })).toBeNull();
   });
 });

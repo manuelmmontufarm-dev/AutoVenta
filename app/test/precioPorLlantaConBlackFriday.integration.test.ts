@@ -177,3 +177,61 @@ describe.sequential("el paso sin_precio_por_llanta_con_promo", () => {
     expect(await lineasConPromoDelCiclo(fila.id, fila.current_cycle)).toEqual([]);
   });
 });
+
+describe.sequential("ronda 1 de la revisión: el candado lee el ESTADO y respeta la temporada", () => {
+  const cuenta = "2 × $100.00 + 2 × $40.00 = $280.00 (−60 % en la 2.ª llanta)";
+
+  it("B1 · cotización del 29-nov leída el 2-dic: el «$75.00 c/u» (que ese día es el precio) sale intacto", async () => {
+    vi.setSystemTime(new Date("2026-11-29T17:00:00Z"));
+    const { fila, phone } = await conversacion();
+    await cotizar(fila, phone, "C-FALKEN", 4);
+    expect(await lineasConPromoDelCiclo(fila.id, fila.current_cycle)).toHaveLength(1);
+    vi.setSystemTime(new Date("2026-12-02T17:00:00Z"));
+    expect(await lineasConPromoDelCiclo(fila.id, fila.current_cycle)).toEqual([]);
+    for (const tipo of ["respuesta", "retomada", "seguimiento"] as const) {
+      expect(await paso.aplicar("Cada una le sale en $75.00 c/u con IVA.", salida(fila, phone, tipo)))
+        .toBe("Cada una le sale en $75.00 c/u con IVA.");
+    }
+  });
+
+  it("B1 · compuerta cerrada por Ajustes a mitad de mes: tampoco se reescribe", async () => {
+    const { fila, phone } = await conversacion();
+    await cotizar(fila, phone, "C-FALKEN", 4);
+    const temporada = await import("../src/domain/promocionDeTemporada.js");
+    temporada.fijarCompuertaDeTemporada(() => false);
+    try {
+      expect(await paso.aplicar("La Falken: $75.00 c/u con IVA.", salida(fila, phone, "respuesta")))
+        .toBe("La Falken: $75.00 c/u con IVA.");
+    } finally {
+      temporada.fijarCompuertaDeTemporada(() => true);
+    }
+  });
+
+  it("B2 · conv 40137: la ficha dice 3 llantas y la lámina trae la cuenta de 4: no se reescribe NADA con la cuenta de 4", async () => {
+    const { fila, phone } = await conversacion();
+    await sql`update conversations set selected_quantity = 3 where id = ${fila.id}`;
+    const segunda = { porcentaje: 60, unidades: 2, precioNormalConIva: 100, precioConIva: 40, ahorroConIva: 120, totalConIva: 280, nombre: "Black Friday" };
+    await sql`
+      insert into messages (conversation_id, cycle, role, direction, content, type, metadata)
+      values (${fila.id}, 1, 'assistant', 'outbound', 'Opciones enviadas', 'image',
+        ${sql.json({ piece: "options", cantidad: 4, escalones: { economica: { codigo: "C-FALKEN", nombre: "FALKEN ZE310", precio_con_iva: 75, segunda_llanta: segunda }, equilibrada: null, premium: null } } as never)})
+    `;
+    expect(await lineasConPromoDelCiclo(fila.id, fila.current_cycle)).toEqual([]);
+    const t = "FALKEN ZE310 — $75.00 c/u · 3 = $225.00";
+    expect(await paso.aplicar(t, salida(fila, phone, "respuesta"))).toBe(t);
+    // Con la ficha en 4 (o sin ficha) la misma pieza sí se lee.
+    await sql`update conversations set selected_quantity = 4 where id = ${fila.id}`;
+    expect(await lineasConPromoDelCiclo(fila.id, fila.current_cycle)).toHaveLength(1);
+    expect(await paso.aplicar("La Falken: $75.00 c/u con IVA.", salida(fila, phone, "respuesta")))
+      .toBe(`La Falken: ${cuenta}.`);
+  });
+
+  it("M4 · el turno de la comparativa (enviar_comparacion) queda fuera del candado: es decisión pendiente de Manuel", async () => {
+    const { fila, phone } = await conversacion();
+    await cotizar(fila, phone, "C-FALKEN", 4);
+    const t = "FALKEN ZE310 · $75.00 c/u";
+    const conComparativa = { ...salida(fila, phone, "respuesta"), huella: [{ herramienta: "enviar_comparacion", argumentos: "{}", resultado: "{}" }] };
+    expect(await paso.aplicar(t, conComparativa)).toBe(t);
+    expect(await paso.aplicar(t, salida(fila, phone, "respuesta"))).toBe(`FALKEN ZE310 · ${cuenta}`);
+  });
+});

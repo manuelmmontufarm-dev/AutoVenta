@@ -5,7 +5,7 @@
  */
 import { obligacionDeMostrarEquivalentes } from "../domain/equivalentesPorMostrar.js";
 import { opcionPorPosicion, posicionElegida } from "../domain/listaDeOpciones.js";
-import { precioDeLaOpcionGuardada, segundaGuardadaVigente, type SegundaLlanta } from "../domain/promocionDeTemporada.js";
+import { precioDeLaOpcionGuardada, type SegundaLlanta } from "../domain/promocionDeTemporada.js";
 import { politica } from "../negocio/politica.js";
 import { anuncioDeLaConversacion } from "../services/anuncio.js";
 import OpenAI from "openai";
@@ -1410,12 +1410,8 @@ function escalonesLine(escalones: Escalones | null): string | null {
     })
     .filter(Boolean);
   if (!partes.length) return null;
-  const conPromo = (["premium", "equilibrada", "economica"] as const)
-    .some((nivel) => segundaGuardadaVigente(politica.promocionDeTemporada, escalones[nivel]?.segunda_llanta) !== null);
-  const reglaDeLaCuenta = conPromo
-    ? " Las opciones que traen una CUENTA («2 × $X + 2 × $Y = $T») son de Falken/Kenda con Black Friday: de ellas NO existe un precio por llanta — di esa cuenta o el total, NUNCA «$X c/u», «cada una» ni el total dividido en 4. Si piden «cuánto vale cada una», contesta con la cuenta (las impares valen un precio y las pares otro) sin contarle esta regla."
-    : "";
-  return `Escalones de la última pieza de opciones enviada — ${partes.join("; ")}.${reglaDeLaCuenta} Cuando ahí diga las lonas, es un dato REAL del producto y se responde con él; no digas que no lo tienes. Si el cliente responde su preferencia («mejor precio», «la más barata», «equilibrada», «la del medio», «premium», «la mejor»), entrega LA opción de ese escalón con su precio (si lo es, la cuenta) y en ESE MISMO turno llama generar_cotizacion con su código y 4 llantas (o la cantidad que haya dicho): contestar el menú ES pedir la cotización — PROHIBIDO ofrecerla o pedir permiso, PROHIBIDO volver a preguntarle qué prefiere o si necesita una recomendación.`;
+  // La regla «una cuenta no se dice como c/u» vive UNA vez, en el playbook de la promo.
+  return `Escalones de la última pieza de opciones enviada — ${partes.join("; ")}. Cuando ahí diga las lonas, es un dato REAL del producto y se responde con él; no digas que no lo tienes. Si el cliente responde su preferencia («mejor precio», «la más barata», «equilibrada», «la del medio», «premium», «la mejor»), entrega LA opción de ese escalón con su precio (si lo es, la cuenta) y en ESE MISMO turno llama generar_cotizacion con su código y 4 llantas (o la cantidad que haya dicho): contestar el menú ES pedir la cotización — PROHIBIDO ofrecerla o pedir permiso, PROHIBIDO volver a preguntarle qué prefiere o si necesita una recomendación.`;
 }
 
 function withDiscountNotice(

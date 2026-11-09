@@ -179,9 +179,6 @@ export function hechoDeTemporadaParaElGuardian(opciones: OpcionesDeTemporada = {
   const tacha = [
     pct != null ? `el ${pct} % en otra marca que no sea ${marcas}` : null,
     pct != null ? `el ${pct} % en todas las llantas, en las 4 o en una sola llanta` : null,
-    pct != null
-      ? `un «$X c/u» («cada una», «por llanta») para una llanta ${marcas} con 2 o más llantas: con esta promo NO existe un precio por llanta — la corrección usa la cuenta («2 × $X + 2 × $Y = $T») o el total de la cotización, NUNCA el precio de lista ni el del catálogo de hoy`
-      : null,
     servicios.length ? `un descuento o precio de un servicio que no está en la tabla, o un precio distinto al de la tabla` : null,
     productos.length ? "un precio de aceite que no está en la lista, o un aceite elegido por el modelo del vehículo" : null,
     incluidos.length
@@ -193,7 +190,12 @@ export function hechoDeTemporadaParaElGuardian(opciones: OpcionesDeTemporada = {
     ...lineasDeLaPromo(promo, ahora, opciones.beneficios ?? [], Boolean(opciones.conAceites)),
     `PARA EL REVISOR: NO taches como inventado ${unidos(vale as string[], "ni")}: son hechos.`,
     `SÍ es **hecho_comercial_inventado** (alta): ${unidos(tacha as string[], "o")}. Corrige con la cifra de esta lista o quitándola.`,
-  ].join("\n");
+    // UNA regla de precio, en UNA categoría (revisión 9-nov): vive aquí y no en la
+    // rúbrica para que exista solo mientras la promo corre y solo en el cliente que la tiene.
+    pct != null
+      ? `PRECIO POR LLANTA (depende de la cantidad que traen los HECHOS: «Cantidad elegida» y «Cotización vigente»): con 1, 3 o 5 llantas, o en otra marca, la promo NO aplica y el «$X c/u» SÍ es el precio (el total es $X × la cantidad): se conserva y NO es error. SOLO con una cantidad PAR de ${marcas} (2, 4, 6…) no existe un precio por llanta, porque las impares valen la lista y las pares la lista × 0,4: ahí un «$X c/u» («cada una», «por llanta») es **precio_incorrecto** (alta) aunque coincida con el catálogo o con la lista, y la corrección usa la CUENTA de los HECHOS («2 × $L + 2 × $P = $T») o el total de la cotización — NUNCA el precio de lista ni el del catálogo de hoy como «c/u». La cuenta y el total que el bot dice con esas cifras SON hechos: se conservan.`
+      : null,
+  ].filter(Boolean).join("\n");
 }
 
 // ===========================================================================

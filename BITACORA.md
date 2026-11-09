@@ -22,7 +22,21 @@
   Re-fijados a propósito: hash de la rúbrica (`politica.test`), lista de `PASOS` (`stockCortoViaja`), fila del
   catálogo (`guardianCatalogo`, ahora con reloj fijo). **No toqué:** la comparativa (bloque C), `listaDeLaPieza`
   ni los seguimientos (sprint 2: una pieza guardada en noviembre seguirá diciendo el 60 % el 2-dic).
-- **Horas:** 3,5
+- **Ronda 1 de la revisión (misma fecha):** (1) el candado y el hecho «Cotización vigente» del Guardián solo
+  valen mientras la temporada corre (`promocionVigente` + `segundaGuardadaVigente`): una cotización del 29-nov leída el
+  2-dic, o con la compuerta cerrada, ya no se reescribe con el 60 %. (2) La cantidad sale del ESTADO
+  (`conversations.selected_quantity` contra la de la cotización/pieza guardada, `lineasConPromo.ts`), nunca del
+  borrador: en 40137 («tres llantas por favor») el «$127.93 c/u · 3 = $383.79» ya no se convierte en la cuenta de 4;
+  tampoco se reescribe si el «· N =» pegado o el texto hablan de otra cantidad. (3) Con 1, 3 o 5 llantas el «c/u» es el
+  precio: `toolItem` lo conserva (`precio_hoy_con_iva`; con promo, `precio_por_llanta_solo_con_1_o_3_llantas`) y hace la
+  cuenta con la cantidad de la ficha. (M2) La regla «no existe un c/u» vive en UN sitio por lado: el playbook del vendedor
+  y el HECHO de temporada del Guardián (una categoría, `precio_incorrecto`); salió de la rúbrica, que vuelve a su hash
+  original, y de `escalonesLine` y de cada ítem de `buscar_llanta`. (M1) se come « + IVA», reconoce «la unidad» / «cada
+  llanta» y anota en el log un total viejo que queda al lado. (M4) el turno de `enviar_comparacion` queda fuera del
+  candado (por la herramienta de la huella, no por el texto). Pruebas nuevas en rojo primero (12), 30 + 9 en verde.
+  **Falta / ojo:** el Guardián mini a veces anota un `precio_incorrecto` de más sobre un «c/u» correcto de 3 llantas
+  (deja el texto intacto); el humo con `--perfil ejemplo` falla hoy también en `a554cba` (entorno, no este cambio).
+- **Horas:** 3,5 + 1,5 de la ronda 1
 
 ## 8-nov-2026 · Mundillantas: tres huecos del INCLUYE por cantidad (revisión del PR #38)
 

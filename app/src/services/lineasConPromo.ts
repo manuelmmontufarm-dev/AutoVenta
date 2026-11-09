@@ -12,7 +12,8 @@
  * cantidad, las líneas de la pieza vieja ya no describen lo que tiene.
  */
 import { sql } from "../db/client.js";
-import { cantidadDeLaSegunda, type SegundaLlanta } from "../domain/promocionDeTemporada.js";
+import { cantidadDeLaSegunda, promocionVigente, segundaGuardadaVigente, type SegundaLlanta } from "../domain/promocionDeTemporada.js";
+import { politica } from "../negocio/politica.js";
 import type { LineaConPromo } from "../domain/sinPrecioPorLlantaConPromo.js";
 
 export interface LineaDeCotizacion {
@@ -80,8 +81,27 @@ function deLaPieza(escalones: unknown): LineaConPromo[] {
   });
 }
 
-/** Todas las líneas con promo que el cliente tiene a la vista en este ciclo. */
-export async function lineasConPromoDelCiclo(conversationId: number, cycle: number): Promise<LineaConPromo[]> {
+/**
+ * Todas las líneas con promo que el cliente tiene a la vista en este ciclo Y que
+ * siguen valiendo hoy:
+ *
+ *  · Solo mientras la temporada corra (fechas + compuerta, `promocionVigente`): una
+ *    cotización de noviembre leída el 2-dic, o con la promo apagada en Ajustes, ya
+ *    no se cobra con el 60 %, y reescribir un «c/u» correcto con esa cuenta sería
+ *    prometer un descuento que no existe.
+ *  · Solo si la cantidad de la línea es la que el ESTADO dice: la ficha
+ *    (`conversations.selected_quantity`) manda sobre lo que la lámina calculó. Si el
+ *    cliente ya pidió 3 («tres llantas por favor», conv 40137) y la lámina trae la
+ *    cuenta de 4, esa línea no describe lo que quiere y no se reescribe nada con ella.
+ *    Sin cantidad en la ficha rige la de la cotización o la pieza guardadas, que
+ *    también son estado. Nunca se lee una cantidad del texto del bot ni del cliente.
+ */
+export async function lineasConPromoDelCiclo(
+  conversationId: number,
+  cycle: number,
+  ahora: Date = new Date(),
+): Promise<LineaConPromo[]> {
+  if (!promocionVigente(politica.promocionDeTemporada, ahora)) return [];
   const cotizacion = await lineasDeLaUltimaCotizacion(conversationId, cycle);
   const [pieza] = await sql<{ escalones: unknown; created_at: Date }[]>`
     select metadata->'escalones' as escalones, created_at from messages
@@ -89,11 +109,16 @@ export async function lineasConPromoDelCiclo(conversationId: number, cycle: numb
       and metadata->>'piece' = 'options'
     order by created_at desc, id desc limit 1
   `;
+  const [ficha] = await sql<{ selected_quantity: number | null }[]>`
+    select selected_quantity from conversations where id = ${conversationId}
+  `;
+  const cantidadDelCliente = Number(ficha?.selected_quantity) >= 1 ? Number(ficha!.selected_quantity) : null;
   const piezaVigente = pieza && (!cotizacion || new Date(pieza.created_at) > cotizacion.creada);
   return [
     ...(cotizacion ? deLaCotizacion(cotizacion.lineas) : []),
     ...(piezaVigente ? deLaPieza(pieza.escalones) : []),
-  ];
+  ].filter((l) => segundaGuardadaVigente(politica.promocionDeTemporada, l.segunda, ahora) !== null
+    && (cantidadDelCliente === null || cantidadDelCliente === l.cantidad));
 }
 
 /**

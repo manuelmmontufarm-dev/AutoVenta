@@ -76,7 +76,7 @@ import { esFraseDelDescuento, hablaDelDescuento, respuestaDelDescuento } from ".
 import { ahorroVigente } from "./ahorroVigente.js";
 import { hayDescuentoEnEfectivo, hayPoliticaDePagos, mencionaDescuentoEnEfectivo, politicaDePagos, preguntaPorElPago, niegaDescuentoEnEfectivo, respondeElPagoCompleto, sinDescuentoNegado, sinPagoSinRespuesta } from "../domain/datosDelNegocio.js";
 import { sinNumerosDeCotizacion } from "../domain/numerosDeCotizacion.js";
-import { precioDeLaOpcionGuardada, precioDelProducto, type SegundaLlanta } from "../domain/promocionDeTemporada.js";
+import { precioDeLaOpcionGuardada, precioDelProducto, promocionVigente, type SegundaLlanta } from "../domain/promocionDeTemporada.js";
 import { sinPrecioPorLlantaConPromo } from "../domain/sinPrecioPorLlantaConPromo.js";
 import { lineasConPromoDelCiclo } from "./lineasConPromo.js";
 import { politica } from "../negocio/politica.js";
@@ -1096,11 +1096,20 @@ export const PASOS: readonly PasoDeSalida[] = [
     nombre: "sin_precio_por_llanta_con_promo",
     corre: ["respuesta", "retomada", "seguimiento"],
     async aplicar(texto, ctx) {
-      if (!/c\/u|cada\s+una|por\s+llanta/i.test(texto)) return texto;
-      const lineas = await lineasConPromoDelCiclo(ctx.conversation.id, ctx.conversation.current_cycle);
+      if (!/c\/u|cada\s+una|cada\s+llanta|por\s+llanta|por\s+unidad|la\s+unidad/i.test(texto)) return texto;
+      // Fuera de la temporada (fechas o compuerta) el «c/u» es el precio y no se toca.
+      if (!promocionVigente(politica.promocionDeTemporada, ctx.ahora)) return texto;
+      // La comparativa es «por unidad» por diseño y su política es decisión pendiente
+      // de Manuel (bloque C de la auditoría): este turno queda fuera. Se sabe por la
+      // herramienta que lo armó, no por el texto.
+      if ((ctx.huella ?? []).some((h) => h.herramienta === "enviar_comparacion")) return texto;
+      const lineas = await lineasConPromoDelCiclo(ctx.conversation.id, ctx.conversation.current_cycle, ctx.ahora);
       const { texto: nuevo, cambios } = sinPrecioPorLlantaConPromo(texto, lineas);
       for (const c of cambios) {
         console.warn(`💲 Conv ${ctx.conversation.id}: «${c.de}» de ${c.linea} (Black Friday) → «${c.a}»`);
+        if (c.totalHuerfano) {
+          console.warn(`💲 Conv ${ctx.conversation.id}: quedó un importe suelto al lado de la cuenta de ${c.linea} (¿un total viejo?): «${nuevo.slice(0, 160)}»`);
+        }
       }
       return nuevo;
     },

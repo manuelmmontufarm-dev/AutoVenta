@@ -107,7 +107,7 @@ describe("armarContexto · el catálogo de hoy viaja como hecho duro", () => {
     `;
     const contexto = await armarContexto(conv.id, 1, "La más económica es KENDA KR628 a $144.44 c/u con IVA.");
     expect(contexto).toContain(
-      "KENDA KR628 245/70R16 [A/T] — hoy $144.44 c/u con IVA SIN Black Friday; CON Black Friday no existe un precio por llanta — el juego de 4 es 2 × $144.44 + 2 × $57.78 = $404.44 (−60 % en la 2.ª llanta) · stock hoy: 10",
+      "KENDA KR628 245/70R16 [A/T] — hoy $144.44 c/u con IVA (es el precio por llanta con 1, 3 o 5 llantas); con 2, 4 o 6 llantas rige Black Friday y NO existe un precio por llanta — el juego de 4 es 2 × $144.44 + 2 × $57.78 = $404.44 (−60 % en la 2.ª llanta) · stock hoy: 10",
     );
     // El encabezado ya no afirma que ese número sea el que imprimen las piezas.
     expect(contexto).not.toContain("el mismo número que imprimen las piezas");
