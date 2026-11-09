@@ -189,3 +189,24 @@ export function pedidoDeMedidaDelPrimerContacto(): string {
     "¿Qué medida usa? Ej: 225/65R17",
   ].join("\n");
 }
+
+/**
+ * El saludo fijo SIN el pedido de medida, para cuando el cliente ya escribió
+ * otra cosa mientras el saludo salía (auditoría 9-nov-2026, bloque B: 10 chats
+ * a los que el bot les pidió la medida que acababan de mandar).
+ *
+ * Quita las líneas del pedido tal como las escribe `pedidoDeMedidaDelPrimerContacto`
+ * (de ahí salen, para que no se desincronicen) y deja lo demás — la
+ * presentación sigue valiendo. Devuelve vacío si el bloque era solo el pedido.
+ */
+export function sinElPedidoDeMedida(texto: string): string {
+  const lineasDelPedido = new Set(
+    pedidoDeMedidaDelPrimerContacto().split("\n").map((linea) => linea.trim()).filter(Boolean),
+  );
+  return texto
+    .split("\n")
+    .filter((linea) => !lineasDelPedido.has(linea.trim()))
+    .join("\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}

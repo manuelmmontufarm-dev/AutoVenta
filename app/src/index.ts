@@ -100,6 +100,7 @@ import { esComandoDeReinicio, MENSAJE_DE_REINICIO } from "./domain/reinicio.js";
 import { esSoloPregunta } from "./domain/preguntaSola.js";
 import { sql } from "./db/client.js";
 import { presentacionDeApertura } from "./domain/saludo.js";
+import { bloqueDelSaludoFijoVigente, clienteEscribioDespuesDe } from "./services/saludoFijo.js";
 import { algunLocalAbre, getStoreHours, localAbre } from "./services/settings.js";
 import { negocio, localPorNombre } from "./negocio/index.js";
 import {
@@ -524,8 +525,12 @@ async function atenderTurno(
   const contextoDeSalida: ContextoDeSalida = {
     conversation, tipo: "respuesta", huella: agentContext.toolTrace ?? [],
     textoDelCliente: textoConLinks, faseOperativa: agentContext.faseOperativa, inicioDelTurno,
+    // El saludo de primer contacto también es una constante: pasarla por el
+    // Guardián no corrige nada (en el 7-nov aprobó todas) y alarga 3-4 s la
+    // ventana en la que el cliente puede escribir antes del pedido de medida.
     suprimirEmpujeComercial: Boolean(
-      cierreAntesDeHerramientas || cierreDelTurno || plazoDeDecision || ubicacionFueraDeCobertura,
+      cierreAntesDeHerramientas || cierreDelTurno || plazoDeDecision || ubicacionFueraDeCobertura
+        || isFirstGenericMessage,
     ),
     consultaFueraDeCatalogo: agentContext.consultaFueraDeCatalogo,
     // Lo que la puerta ya sabe que ofreció (la equivalente, el menú, «¿Cuál…?»).
@@ -567,20 +572,29 @@ async function atenderTurno(
    * pregunta de cierre no salen. El turno siguiente los vuelve a plantear si
    * todavía hacen falta.
    */
-  const clienteYaEscribioDeNuevo = async (): Promise<boolean> => {
-    const [fila] = await sql<{ id: number }[]>`
-      select max(id) as id from messages
-      where conversation_id=${conversation.id} and direction='inbound'
-    `;
-    return Number(fila?.id ?? 0) > idEntranteAlEmpezar;
-  };
-  for (const [indice, bloque] of bloques.entries()) {
+  const clienteYaEscribioDeNuevo = (): Promise<boolean> =>
+    clienteEscribioDespuesDe(conversation.id, idEntranteAlEmpezar);
+  for (const [indice, bloqueDelTurno] of bloques.entries()) {
     if (indice > 0) await esperar(PAUSA_ENTRE_BLOQUES_MS);
+    let bloque = bloqueDelTurno;
     if (indice > 0 && esSoloPregunta(bloque) && await clienteYaEscribioDeNuevo()) {
       console.log(
         `⏭️ Bloque de cierre omitido en la conv ${conversation.id}: el cliente ya escribió otra cosa`,
       );
       break;
+    }
+    // El saludo fijo es de texto que no mira el chat: si el cliente ya escribió
+    // otra cosa mientras salían la presentación y la promo, el pedido de medida
+    // no sale (chats 39899, 40017… del 7-nov). Ver services/saludoFijo.ts.
+    if (isFirstGenericMessage) {
+      const vigente = await bloqueDelSaludoFijoVigente(conversation.id, idEntranteAlEmpezar, bloque);
+      if (vigente !== bloque) {
+        console.log(
+          `⏭️ Pedido de medida del saludo omitido en la conv ${conversation.id}: el cliente ya escribió otra cosa`,
+        );
+      }
+      if (vigente === null) continue;
+      bloque = vigente;
     }
     try {
       const botones = indice === bloques.length - 1 ? conBotones : null;

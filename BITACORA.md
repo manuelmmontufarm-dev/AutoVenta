@@ -1,3 +1,26 @@
+## 9-nov-2026 · Sprint 4a · El saludo fijo ya no le pide la medida a quien la acaba de mandar
+
+- **Qué:** el cliente manda «Hola», el bot espera 12 s y arranca el turno del saludo (texto fijo). Si el cliente
+  escribe mientras salen la presentación y la promo, el turno no se entera y suelta «Puede mandarme la medida
+  escrita…» a quien ya la mandó (10 chats: 39899, 39971, 40064, 40017, 40046, 39515, 39759, 1750, 39675,
+  39834). 10,4 % de las bienvenidas antes del 6-nov; 18,6 % desde que la promo sale como 2.º mensaje y el
+  texto fijo pasaba por el Ángel Guardián (+3-4 s de ventana).
+- **Cómo:** (1) `index.ts`: antes de mandar CADA bloque de la respuesta fija de primer contacto se mira si el
+  cliente ya escribió (`services/saludoFijo.ts`, que también es ahora la única definición de «escribió de
+  nuevo» para los bloques de cierre) y, si sí, el pedido de medida no sale (`sinElPedidoDeMedida` en
+  `domain/firstContact.ts`; la presentación y la promo sí, una vez). Si es la bienvenida entera en un solo
+  bloque, sale la presentación sin el pedido. (2) `suprimirEmpujeComercial` también para el saludo
+  genérico: una constante no pasa por el Guardián (igual que la despedida; en el 7-nov aprobó todas) y la
+  ventana se acorta unos 3 s. El turno siguiente contesta la medida con todo el historial.
+- **Probado:** simulador con las mismas 8 esperas (12,6 a 15,5 s entre «Hola» y «Precio en 245/75/16»): antes
+  el pedido pisó al cliente en 7 de 8 (el 8.º salió antes de que escribiera); después en 0 de 8 (4 veces
+  el cliente escribió dentro de la ventana y no hubo pedido; 4 veces escribió después del pedido, que es
+  legítimo). Un «Hola» pelado sigue recibiendo presentación, promo y pedido; tres mensajes dentro de los
+  12 s (40074) siguen siendo un solo turno sin re-pregunta. `test/saludoFijo.integration.test.ts` (7, con la
+  línea de tiempo de la 39899 y el debounce de 12 s con reloj controlado) y `test/pedidoDeMedidaSaludo.test.ts`.
+- **No cubre:** la medida que viene en un audio (40017) entra a la base ~10 s después y no se ve desde acá; el
+  cliente que escribe DESPUÉS de que el pedido salió ve el pedido (no hay forma de saberlo antes). ~2 h.
+
 ## 9-nov-2026 · Sprint 4b · El nombre del perfil de WhatsApp solo se usa si es un nombre de pila
 
 - **Qué:** el saludo tomaba la primera palabra del perfil tal cual: «Hola La» (La Brocheta Burguer), «Hola
