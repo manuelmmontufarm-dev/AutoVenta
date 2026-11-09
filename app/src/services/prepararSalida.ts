@@ -1417,13 +1417,22 @@ export const PASOS: readonly PasoDeSalida[] = [
       // la ventana de 10 minutos y este candado se comía el bloque entero
       // (simulador, 31-ago: el turno salió sin presentarse, solo con la
       // pregunta suelta «¿Qué medida usa?»).
-      const recientes = await sql<{ content: string | null }[]>`
-        select content from messages
+      const recientes = await sql<{ content: string | null; created_at: Date }[]>`
+        select content, created_at from messages
         where conversation_id=${ctx.conversation.id}
           and direction='outbound' and author_kind='bot' and type='text'
           and cycle=(select current_cycle from conversations where id=${ctx.conversation.id})
           and created_at > now() - interval '10 minutes'
         order by created_at desc limit 8
+      `;
+      // La última lámina o cotización del ciclo: una pregunta de ANTES de ella
+      // tenía otro referente y repetirla no es calco (auditoría 9-nov, 39971).
+      // Se lee de la metadata de la pieza, no del texto.
+      const [pieza] = await sql<{ t: Date | null }[]>`
+        select max(created_at) as t from messages
+        where conversation_id=${ctx.conversation.id}
+          and direction='outbound' and metadata->>'piece' in ('options', 'quote')
+          and cycle=(select current_cycle from conversations where id=${ctx.conversation.id})
       `;
       // Si el cliente PIDIÓ los mapas con todas las letras («mándeme las dos»),
       // el bloque de links no es un calco aunque haya salido hace segundos:
@@ -1436,10 +1445,16 @@ export const PASOS: readonly PasoDeSalida[] = [
       // el calco se la comió y el turno quedó en «le dejo como referencia»).
       if (pideOtroDia(ctx.textoDelCliente)) return texto;
       const conLink = /https?:\/\//i;
+      const vigentes = recientes.filter((m) => !(pidioMapas && conLink.test(m.content ?? "")));
+      const ultimaPieza = pieza?.t ? new Date(pieza.t).getTime() : null;
       const resultado = sinBloquesCalcados(
         texto,
-        recientes.map((m) => m.content ?? "").filter((m) => !(pidioMapas && conLink.test(m))),
+        vigentes.map((m) => m.content ?? ""),
+        ultimaPieza === null ? vigentes.length : vigentes.filter((m) => new Date(m.created_at).getTime() > ultimaPieza).length,
       );
+      if (ultimaPieza !== null && sinBloquesCalcados(texto, vigentes.map((m) => m.content ?? "")).calcados.length > resultado.calcados.length) {
+        console.log(`🆕 Conv ${ctx.conversation.id}: la pregunta repetida va sobre una lámina o cotización nueva; no es calco y se conserva.`);
+      }
       if (!resultado.calcados.length) return texto;
       console.warn(
         `✂️ Calco reciente quitado en la conv ${ctx.conversation.id}: ${resultado.calcados.map((b) => b.slice(0, 80)).join(" | ")}`,

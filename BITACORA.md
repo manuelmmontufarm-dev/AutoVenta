@@ -1,3 +1,15 @@
+## 9-nov-2026 · La pregunta del menú nuevo no es «calco» (auditoría 9-nov, sprint 5c)
+
+- **Qué:** 39971: lista 1 + «¿Le cotizo la 1, la 2 o la 3?»; el cliente pidió «la 1 pero en otro labrado»; salió una
+  lámina NUEVA y su lista, y `sin_calco_reciente` le quitó la misma pregunta por haber salido hace 4 minutos: el
+  cliente recibió una lista sin pregunta (contribuye a 40017).
+- **Cómo:** el paso lee de la metadata la última pieza `options` o `quote` del ciclo; las preguntas de mensajes
+  anteriores a ella no cuentan como calco (`sinBloquesCalcados(texto, salientes, preguntasVigentes)`). Los bloques sin
+  pregunta siguen comparándose contra todo. Log «🆕 … no es calco y se conserva».
+- **Por qué:** una pregunta que vuelve a salir sobre otra lámina u otra cotización cambió de referente.
+- **Probado:** `s5cCalcoMenuNuevo.integration.test.ts` (4, 2 en rojo antes; sanos 39561 y bloque sin pregunta).
+- **Falta / ojo:** —
+
 ## 9-nov-2026 · El aviso de «medidas distintas» ya no lo borra el Guardián (auditoría 9-nov, sprint 5b)
 
 - **Qué:** 39897 («Que precio tienen en 175 x. Rin 16»): el bot no leyó el 175, la lámina salió con tres medidas del
