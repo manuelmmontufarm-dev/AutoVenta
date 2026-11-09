@@ -1103,12 +1103,23 @@ export const PASOS: readonly PasoDeSalida[] = [
       // de Manuel (bloque C de la auditoría): este turno queda fuera. Se sabe por la
       // herramienta que lo armó, no por el texto.
       if ((ctx.huella ?? []).some((h) => h.herramienta === "enviar_comparacion")) return texto;
-      const lineas = await lineasConPromoDelCiclo(ctx.conversation.id, ctx.conversation.current_cycle, ctx.ahora);
+      const lineas = await lineasConPromoDelCiclo(ctx.conversation.id, ctx.conversation.current_cycle, ctx.ahora, ctx.textoDelCliente);
       const { texto: nuevo, cambios } = sinPrecioPorLlantaConPromo(texto, lineas);
       for (const c of cambios) {
         console.warn(`💲 Conv ${ctx.conversation.id}: «${c.de}» de ${c.linea} (Black Friday) → «${c.a}»`);
         if (c.totalHuerfano) {
           console.warn(`💲 Conv ${ctx.conversation.id}: quedó un importe suelto al lado de la cuenta de ${c.linea} (¿un total viejo?): «${nuevo.slice(0, 160)}»`);
+          // Para contarlo en la próxima auditoría. No se intenta borrar del texto (límite conocido).
+          await createBotAlert({
+            conversationId: ctx.conversation.id,
+            cycle: ctx.conversation.current_cycle,
+            type: "precio_total_viejo_junto_a_la_cuenta",
+            priority: "low",
+            summary: "Quedó un total viejo al lado de la cuenta de Black Friday",
+            exactReason: `El candado cambió «${c.de}» por la cuenta de ${c.linea}, pero el texto trae otro importe al lado. Enviado: «${nuevo.slice(0, 220)}».`,
+            suggestedAction: "Revisa que el importe suelto no contradiga la cuenta; el texto salió tal cual.",
+            dedupeKey: `total_viejo_junto_a_la_cuenta:${ctx.conversation.id}:${ctx.conversation.current_cycle}:${c.linea}`,
+          }).catch(() => undefined);
         }
       }
       return nuevo;

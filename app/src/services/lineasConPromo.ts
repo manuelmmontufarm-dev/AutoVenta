@@ -14,6 +14,7 @@
 import { sql } from "../db/client.js";
 import { cantidadDeLaSegunda, promocionVigente, segundaGuardadaVigente, type SegundaLlanta } from "../domain/promocionDeTemporada.js";
 import { politica } from "../negocio/politica.js";
+import { cantidadDelTexto } from "../domain/salesIntent.js";
 import type { LineaConPromo } from "../domain/sinPrecioPorLlantaConPromo.js";
 
 export interface LineaDeCotizacion {
@@ -82,6 +83,51 @@ function deLaPieza(escalones: unknown): LineaConPromo[] {
 }
 
 /**
+ * LA CANTIDAD QUE DIJO EL CLIENTE (no el bot): su mensaje de este turno, la ficha
+ * (`selected_quantity`) y, solo si la ficha está vacía, lo último que dijo de cantidad
+ * en el ciclo (sus mensajes entrantes). En producción la ficha de 40137 quedó vacía
+ * aunque escribió «tres llantas por favor me cotizas». Usa el lector que ya existe
+ * (`cantidadDelTexto`, que no se toca aquí); es texto del CLIENTE, nunca del bot.
+ *
+ * `cantidad` es la que se usa para hacer una cuenta (lo que dice en este turno manda
+ * sobre una ficha vieja); `vetos` son todas las que, si difieren de una línea, impiden
+ * reescribirla con la cuenta de esa línea.
+ */
+export async function cantidadDelCliente(
+  conversationId: number,
+  textoDelTurno?: string | null,
+): Promise<{ cantidad: number | null; ficha: number | null; turno: number | null; historial: number | null; vetos: number[] }> {
+  const [fila] = await sql<{ selected_quantity: number | null; current_cycle: number }[]>`
+    select selected_quantity, current_cycle from conversations where id = ${conversationId}
+  `.catch(() => []);
+  const ficha = Number(fila?.selected_quantity) >= 1 ? Number(fila!.selected_quantity) : null;
+  // Lo último que dijo el cliente manda siempre (su mensaje de este turno o, si el
+  // llamador no lo pasa, el más reciente de la base). El resto del ciclo se mira
+  // solo con la ficha vacía.
+  const entrantes = fila
+    ? await sql<{ content: string | null }[]>`
+        select content from messages
+        where conversation_id = ${conversationId} and cycle = ${fila.current_cycle} and direction = 'inbound'
+        order by created_at desc, id desc limit 12
+      `.catch(() => [])
+    : [];
+  const leer = (t: string | null | undefined) => (t ? cantidadDelTexto(t, null, null) : null);
+  const turno = textoDelTurno ? leer(textoDelTurno) : leer(entrantes[0]?.content);
+  let historial: number | null = null;
+  if (ficha === null) {
+    for (const m of entrantes) {
+      const n = leer(m.content);
+      if (n !== null) { historial = n; break; }
+    }
+  }
+  return {
+    cantidad: turno ?? ficha ?? historial,
+    ficha, turno, historial,
+    vetos: [ficha, turno, historial].filter((n): n is number => n !== null),
+  };
+}
+
+/**
  * Todas las líneas con promo que el cliente tiene a la vista en este ciclo Y que
  * siguen valiendo hoy:
  *
@@ -100,6 +146,7 @@ export async function lineasConPromoDelCiclo(
   conversationId: number,
   cycle: number,
   ahora: Date = new Date(),
+  textoDelCliente?: string | null,
 ): Promise<LineaConPromo[]> {
   if (!promocionVigente(politica.promocionDeTemporada, ahora)) return [];
   const cotizacion = await lineasDeLaUltimaCotizacion(conversationId, cycle);
@@ -109,16 +156,13 @@ export async function lineasConPromoDelCiclo(
       and metadata->>'piece' = 'options'
     order by created_at desc, id desc limit 1
   `;
-  const [ficha] = await sql<{ selected_quantity: number | null }[]>`
-    select selected_quantity from conversations where id = ${conversationId}
-  `;
-  const cantidadDelCliente = Number(ficha?.selected_quantity) >= 1 ? Number(ficha!.selected_quantity) : null;
+  const { vetos } = await cantidadDelCliente(conversationId, textoDelCliente);
   const piezaVigente = pieza && (!cotizacion || new Date(pieza.created_at) > cotizacion.creada);
   return [
     ...(cotizacion ? deLaCotizacion(cotizacion.lineas) : []),
     ...(piezaVigente ? deLaPieza(pieza.escalones) : []),
   ].filter((l) => segundaGuardadaVigente(politica.promocionDeTemporada, l.segunda, ahora) !== null
-    && (cantidadDelCliente === null || cantidadDelCliente === l.cantidad));
+    && vetos.every((n) => n === l.cantidad));
 }
 
 /**

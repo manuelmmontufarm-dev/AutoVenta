@@ -327,7 +327,7 @@ describe("B3 · 3 y 5 llantas: la promo no aplica y el «c/u» existe", () => {
     expect(fila(5).precio_para_decir).toBeUndefined();
     const cuatro = fila(4);
     expect(String(cuatro.precio_para_decir)).toContain("2 × $170.57 + 2 × $68.23");
-    expect(cuatro.precio_por_llanta_solo_con_1_o_3_llantas).toBe(127.93);
+    expect(cuatro.precio_por_llanta_solo_con_1_3_o_5_llantas).toBe(127.93);
     expect(cuatro.precio_hoy_con_iva).toBeUndefined();
     // La regla va UNA vez en el playbook, no en cada ítem (costo).
     expect(cuatro.regla_de_precio).toBeUndefined();
@@ -348,5 +348,18 @@ describe("B3 · 3 y 5 llantas: la promo no aplica y el «c/u» existe", () => {
     expect(guardianMod.INSTRUCCIONES).not.toMatch(/Black Friday NO existe|BLACK FRIDAY \(auditoría 9-nov/);
     expect(hechoDeTemporadaParaElGuardian({ promo: POLITICA_MUNDILLANTAS.promocionDeTemporada ?? null, ahora: NOVIEMBRE })).toBeNull();
     expect(hechoDeTemporadaParaElGuardian({ promo, ahora: DICIEMBRE })).toBeNull();
+  });
+});
+
+describe("ronda 2 · m2: un solo nombre de campo y un solo texto", () => {
+  it("el ítem con promo y el playbook nombran el MISMO campo, y dicen «1, 3 o 5»", async () => {
+    const { CAMPO_PRECIO_POR_LLANTA_SIN_PROMO } = await import("../src/domain/promocionDeTemporada.js");
+    const cuatro = toolItem({ code: "K", brand: "KENDA", design: "KR50", sizeLabel: "225/70R16", customerPriceWithTax: 170.57, minimumPriceWithTax: 127.93, stock: 8 }, 4) as Record<string, unknown>;
+    expect(cuatro[CAMPO_PRECIO_POR_LLANTA_SIN_PROMO]).toBe(127.93);
+    expect(Object.keys(cuatro).filter((k) => k.startsWith("precio_por_llanta"))).toEqual([CAMPO_PRECIO_POR_LLANTA_SIN_PROMO]);
+    expect(REGLAS_DE_PROMOCION_DE_TEMPORADA).toContain(CAMPO_PRECIO_POR_LLANTA_SIN_PROMO);
+    expect(REGLAS_DE_PROMOCION_DE_TEMPORADA).toContain("1, 3 o 5");
+    expect(REGLAS_DE_PROMOCION_DE_TEMPORADA).not.toMatch(/1 o 3 llantas/);
+    expect(CAMPO_PRECIO_POR_LLANTA_SIN_PROMO).toMatch(/1_3_o_5/);
   });
 });

@@ -36,7 +36,23 @@
   candado (por la herramienta de la huella, no por el texto). Pruebas nuevas en rojo primero (12), 30 + 9 en verde.
   **Falta / ojo:** el Guardián mini a veces anota un `precio_incorrecto` de más sobre un «c/u» correcto de 3 llantas
   (deja el texto intacto); el humo con `--perfil ejemplo` falla hoy también en `a554cba` (entorno, no este cambio).
-- **Horas:** 3,5 + 1,5 de la ronda 1
+- **Ronda 2 de la revisión:** (B2 con el estado REAL) en producción la ficha de 40137 tiene
+  `selected_quantity = NULL` aunque el cliente escribió «tres llantas»; ahora la cantidad que dijo el CLIENTE entra
+  como veto del candado: `cantidadDelCliente()` (`services/lineasConPromo.ts`) lee con el `cantidadDelTexto` que ya
+  existe (sin tocarlo) su mensaje de este turno o el último entrante, la ficha y, con la ficha vacía, lo último que
+  dijo en el ciclo; si alguna difiere de `linea.cantidad`, no se reescribe. Cubre «¿y si llevo solo 2?» y el 40137
+  con ficha vacía; sigue reescribiendo con la cuenta de 4 cuando el cliente no dijo cantidad (39597). (m1) tope en la
+  cantidad de la cuenta (`cantidadParaLaCuenta`, máx. 40): una ficha en 235 → el juego de 4; 16 sigue siendo 8 + 8
+  (no usé `esCantidadInusual`: marca 2, 3 y 16 como inusuales y los habría vuelto 4). (m2) un solo nombre,
+  `CAMPO_PRECIO_POR_LLANTA_SIN_PROMO` = `precio_por_llanta_solo_con_1_3_o_5_llantas`, compartido por el ítem y el
+  playbook. (m3) el Guardián razona con la cantidad del cliente: la fila del catálogo se calcula con ella
+  («para 3 llantas Black Friday NO aplica: este ES el precio», sin la cuenta de 4) y hay una línea calculada en código
+  «Cantidad del cliente para la promo: N → APLICA / NO aplica». (m5) alerta `precio_total_viejo_junto_a_la_cuenta`
+  (baja) cuando queda un importe suelto al lado de la cuenta; no se borra del texto.
+  **Límites conocidos (no se tocan):** (m4) si en un MISMO turno hay `enviar_comparacion` y un cierre con precio, ese
+  «c/u» queda fuera del candado (el turno entero se excluye); (m6) los vetos de texto dan falsos negativos inofensivos
+  («por 2 años», «los 2 locales», un «2» pelado que contesta el menú): solo impiden reescribir.
+- **Horas:** 3,5 + 1,5 de la ronda 1 + 2 de la ronda 2
 
 ## 8-nov-2026 · Mundillantas: tres huecos del INCLUYE por cantidad (revisión del PR #38)
 

@@ -153,6 +153,36 @@ export function cuentaDeSegundaLlanta(cantidad: number, s: SegundaLlanta): strin
     + `= $${s.totalConIva.toFixed(2)}`;
 }
 
+/**
+ * El campo con que el vendedor recibe el precio por llanta de un ítem que SÍ trae
+ * la cuenta de la promo (`precio_para_decir`). Un solo nombre, usado por la
+ * herramienta y por la regla del playbook: si uno cambia, el otro lo sigue.
+ */
+export const CAMPO_PRECIO_POR_LLANTA_SIN_PROMO = "precio_por_llanta_solo_con_1_3_o_5_llantas";
+
+/** Más de esto no es un pedido: es una ficha sucia, y una cuenta de 118 × … no se le dice a nadie. */
+export const MAXIMO_PARA_LA_CUENTA = 40;
+
+/** La cantidad con que se hace una cuenta: la dicha si es plausible; si no, `porDefecto` (el juego). */
+export function cantidadParaLaCuenta(cantidad: number | null | undefined, porDefecto: number): number {
+  const n = Number(cantidad);
+  return Number.isInteger(n) && n >= 1 && n <= MAXIMO_PARA_LA_CUENTA ? n : porDefecto;
+}
+
+/**
+ * ¿La promo de la 2.ª llanta aplica con esta cantidad? Lo decide `segundaLlantaDe`
+ * con un precio típico (hoy = lista × 0,75): pares sí; 1, 3 y 5 no (saldría más
+ * caro que el −25 %); 7 sí. Para decírselo calculado al Guardián, que no razona la paridad.
+ */
+export function promoAplicaConLaCantidad(
+  promo: PromocionDeTemporada | null | undefined,
+  cantidad: number,
+  ahora: Date = new Date(),
+): boolean {
+  const marca = promo?.segundaLlanta?.marcas[0];
+  return Boolean(marca) && segundaLlantaDe(promo, marca, cantidad, { hoyConIva: 75, listaConIva: 100 }, ahora) !== null;
+}
+
 /** «(−60 % en la 2.ª llanta)»: el rótulo que acompaña a la cuenta. */
 export function rotuloDeSegundaLlanta(s: SegundaLlanta): string {
   return `(−${s.porcentaje} % en la 2.ª llanta)`;

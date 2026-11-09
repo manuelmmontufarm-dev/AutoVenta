@@ -35,7 +35,7 @@ await admin.end();
 const llanta = (code: string, design: string, precio: number, stock: number): Partial<CatalogItem> => ({
   code, brand: "KENDA", design, sizeLabel: "245/70R16",
   size: { width: 245, aspect: 70, rim: 16 },
-  minimumPriceWithTax: precio, customerPriceWithTax: precio, stock,
+  minimumPriceWithTax: precio, customerPriceWithTax: Math.round((precio / 0.75) * 100) / 100, stock,
   availability: stock > 0 ? "available" : "out",
 });
 
@@ -107,7 +107,7 @@ describe("armarContexto · el catálogo de hoy viaja como hecho duro", () => {
     `;
     const contexto = await armarContexto(conv.id, 1, "La más económica es KENDA KR628 a $144.44 c/u con IVA.");
     expect(contexto).toContain(
-      "KENDA KR628 245/70R16 [A/T] — hoy $144.44 c/u con IVA (es el precio por llanta con 1, 3 o 5 llantas); con 2, 4 o 6 llantas rige Black Friday y NO existe un precio por llanta — el juego de 4 es 2 × $144.44 + 2 × $57.78 = $404.44 (−60 % en la 2.ª llanta) · stock hoy: 10",
+      "KENDA KR628 245/70R16 [A/T] — hoy $144.44 c/u con IVA (es el precio por llanta con 1, 3 o 5 llantas); con 4 llantas rige Black Friday y NO existe un precio por llanta — el juego de 4 es 2 × $192.59 + 2 × $77.04 = $539.26 (−60 % en la 2.ª llanta) · stock hoy: 10",
     );
     // El encabezado ya no afirma que ese número sea el que imprimen las piezas.
     expect(contexto).not.toContain("el mismo número que imprimen las piezas");
@@ -127,5 +127,51 @@ describe("armarContexto · el catálogo de hoy viaja como hecho duro", () => {
     const contexto = await armarContexto(conv.id, 1, "¡Hola! ¿Me dice la medida?");
 
     expect(contexto).not.toContain("CATÁLOGO DE HOY");
+  });
+});
+
+describe("armarContexto · la promo se razona con la cantidad del CLIENTE (ronda 2, m3)", () => {
+  async function conv(telefono: string, ficha: number | null, mensajes: string[]) {
+    const [c] = await sql<{ id: number }[]>`
+      insert into conversations (phone, name, status, stage, current_cycle, tire_size, selected_quantity)
+      values (${telefono}, 'Cliente', 'open', 'medida_confirmada', 1, '245/70R16', ${ficha})
+      returning id
+    `;
+    for (const m of mensajes) {
+      await sql`insert into messages (conversation_id, cycle, role, direction, content, type) values (${c.id}, 1, 'user', 'inbound', ${m}, 'text')`;
+    }
+    return c.id;
+  }
+  const borrador = "La KENDA KR628 queda en $144.44 c/u con IVA.";
+
+  it("3 llantas (ficha): la fila dice que ahí la promo NO aplica y ese c/u ES el precio; sin la cuenta de 4; la línea de hecho lo dice calculado", async () => {
+    vi.setSystemTime(new Date("2026-11-15T17:00:00Z"));
+    const id = await conv("593999111401", 3, ["En la medida 245/70/16"]);
+    const contexto = await armarContexto(id, 1, borrador);
+    expect(contexto).toContain("KENDA KR628 245/70R16 [A/T] — hoy $144.44 c/u con IVA — para 3 llantas Black Friday NO aplica: este ES el precio");
+    expect(contexto).not.toMatch(/KR628[^\n]*2 × \$144\.44/);
+    expect(contexto).toContain("Cantidad del cliente para la promo: 3 → la promo NO aplica");
+  });
+
+  it("3 llantas dichas por el cliente con la ficha VACÍA (40137 real): igual", async () => {
+    vi.setSystemTime(new Date("2026-11-15T17:00:00Z"));
+    const id = await conv("593999111402", null, ["En la medida 245/70/16, tres llantas por favor me cotizas"]);
+    const contexto = await armarContexto(id, 1, borrador);
+    expect(contexto).toContain("para 3 llantas Black Friday NO aplica: este ES el precio");
+    expect(contexto).toContain("Cantidad del cliente para la promo: 3 → la promo NO aplica");
+  });
+
+  it("4 llantas (o sin dato): la fila trae la cuenta y la línea dice que la promo APLICA", async () => {
+    vi.setSystemTime(new Date("2026-11-15T17:00:00Z"));
+    const id = await conv("593999111403", 4, ["En la medida 245/70/16"]);
+    const contexto = await armarContexto(id, 1, borrador);
+    expect(contexto).toContain("2 × $192.59 + 2 × $77.04 = $539.26");
+    expect(contexto).toContain("Cantidad del cliente para la promo: 4 → la promo APLICA");
+  });
+
+  it("fuera de temporada (1-dic) no hay línea de promo", async () => {
+    vi.setSystemTime(new Date("2026-12-01T17:00:00Z"));
+    const id = await conv("593999111404", 3, ["En la medida 245/70/16"]);
+    expect(await armarContexto(id, 1, borrador)).not.toContain("Cantidad del cliente para la promo");
   });
 });

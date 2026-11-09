@@ -2,6 +2,7 @@ import type { Stage } from "../domain/pipeline.js";
 import { negocio } from "../negocio/index.js";
 import { fraseDePresentacion } from "../negocio/perfil.js";
 import { politica } from "../negocio/politica.js";
+import { CAMPO_PRECIO_POR_LLANTA_SIN_PROMO } from "../domain/promocionDeTemporada.js";
 
 /**
  * Política modular que recibe el agente.
@@ -96,7 +97,7 @@ export const REGLAS_DE_PROMOCION_DE_TEMPORADA = [
   "Cómo se usa (reglas del vendedor):",
   "- Las cifras de esta promo se COPIAN de aquí, tal cual. Ninguna otra cifra, marca, servicio ni aceite está en promoción.",
   "- Llantas: el descuento es SOLO en las llantas pares (la 2.ª y la 4.ª de un juego de 4 llantas) y SOLO en las marcas nombradas. No es sobre todas las llantas, no aplica a una sola llanta ni a otra marca. La cuenta la hace generar_cotizacion: nunca calcules tú un total.",
-  "- En las marcas de la promo (Falken/Kenda) NO EXISTE un precio por llanta: las impares valen la lista y las pares la lista × 0,4. Cuando tus datos traen una CUENTA para la cantidad del cliente («precio_para_decir»: «2 × $X + 2 × $Y = $T»), di esa cuenta o el total, NUNCA «$X c/u», «cada una» ni el total dividido entre las llantas. Si el cliente pide «cuánto vale cada una», dile en una frase que con Black Friday las impares valen un precio y las pares otro, y dale la cuenta; nunca le cuentes esta regla ni escribas «no debo darle…». Con 1, 3 o 5 llantas, o en otra marca (Winrun…), tus datos traen el precio por llanta (`precio_hoy_con_iva`) y ese sí es el precio.",
+  "- En las marcas de la promo (Falken/Kenda) NO EXISTE un precio por llanta: las impares valen la lista y las pares la lista × 0,4. Cuando tus datos traen una CUENTA para la cantidad del cliente («precio_para_decir»: «2 × $X + 2 × $Y = $T»), di esa cuenta o el total, NUNCA «$X c/u», «cada una» ni el total dividido entre las llantas. Si el cliente pide «cuánto vale cada una», dile en una frase que con Black Friday las impares valen un precio y las pares otro, y dale la cuenta; nunca le cuentes esta regla ni escribas «no debo darle…». Con 1, 3 o 5 llantas, o en otra marca (Winrun…), el precio por llanta de tus datos sí es el precio: está en `precio_hoy_con_iva` o, en el ítem que trae `precio_para_decir`, en `" + CAMPO_PRECIO_POR_LLANTA_SIN_PROMO + "` (vale solo con 1, 3 o 5 llantas).",
   "- Quien COMPRA LLANTAS ya tiene incluido lo de INCLUIDO CON LA COMPRA (alineación, balanceo, instalación…) sin costo: a esa persona PROHIBIDO ofrecerle el descuento de servicios ni su precio de temporada. El descuento de servicios es para quien viene solo por el servicio.",
   "- Servicios: si no sabe si es auto o camioneta, pregúntalo antes de dar el precio. Con el dato, da el precio de temporada (y el normal, si ayuda) y ofrece agendar la visita.",
   "- Aceite: el descuento es sobre el PVP de los aceites de la lista. Qué aceite le corresponde a su vehículo lo confirma el asesor: PROHIBIDO elegirlo tú por el modelo del vehículo.",

@@ -235,3 +235,77 @@ describe.sequential("ronda 1 de la revisión: el candado lee el ESTADO y respeta
     expect(await paso.aplicar(t, salida(fila, phone, "respuesta"))).toBe(`FALKEN ZE310 · ${cuenta}`);
   });
 });
+
+// ===========================================================================
+// RONDA 2 DE LA REVISIÓN: el estado REAL de 40137 (ficha vacía) y la cantidad que dijo el CLIENTE
+// ===========================================================================
+describe.sequential("ronda 2: la cantidad que dijo el cliente es un veto", () => {
+  const cuenta4 = "2 × $100.00 + 2 × $40.00 = $280.00 (−60 % en la 2.ª llanta)";
+  const segunda4 = { porcentaje: 60, unidades: 2, precioNormalConIva: 100, precioConIva: 40, ahorroConIva: 120, totalConIva: 280, nombre: "Black Friday" };
+
+  async function conPiezaDe4(mensajesDelCliente: string[]) {
+    const { fila, phone } = await conversacion();
+    // La ficha VACÍA, como en producción (40137): el bot no registró la cantidad.
+    await sql`update conversations set selected_quantity = null where id = ${fila.id}`;
+    for (const m of mensajesDelCliente) {
+      await sql`insert into messages (conversation_id, cycle, role, direction, content, type) values (${fila.id}, 1, 'user', 'inbound', ${m}, 'text')`;
+    }
+    await sql`
+      insert into messages (conversation_id, cycle, role, direction, content, type, metadata)
+      values (${fila.id}, 1, 'assistant', 'outbound', 'Opciones enviadas', 'image',
+        ${sql.json({ piece: "options", cantidad: 4, escalones: { economica: { codigo: "C-FALKEN", nombre: "FALKEN ZE310", precio_con_iva: 75, segunda_llanta: segunda4 }, equilibrada: null, premium: null } } as never)})
+    `;
+    return { fila, phone };
+  }
+
+  it("(1) ficha VACÍA + pieza de 4 + el mensaje real del 40137: «Le queda en $75.00 c/u con IVA.» sale intacto", async () => {
+    const { fila, phone } = await conPiezaDe4(["225 70 rin 16 tres llantas por favor me cotizas"]);
+    const t = "Le queda en $75.00 c/u con IVA.";
+    expect(await paso.aplicar(t, salida(fila, phone, "respuesta"))).toBe(t);
+    // También con el texto del turno (el mensaje que se está contestando aún no está en la base).
+    const { fila: f2, phone: p2 } = await conPiezaDe4([]);
+    expect(await paso.aplicar(t, { ...salida(f2, p2, "respuesta"), textoDelCliente: "225 70 rin 16 tres llantas por favor me cotizas" })).toBe(t);
+  });
+
+  it("(2) cotización de 4 + «¿y si llevo solo 2?»: nunca sale la cuenta de 4 por 2 llantas", async () => {
+    const { fila, phone } = await conversacion();
+    await cotizar(fila, phone, "C-FALKEN", 4);
+    await sql`insert into messages (conversation_id, cycle, role, direction, content, type) values (${fila.id}, 1, 'user', 'inbound', '¿y si llevo solo 2?', 'text')`;
+    for (const borrador of ["Con 2 serían $75.00 c/u", "Si lleva solo 2, quedan a $75.00 c/u."]) {
+      expect(await paso.aplicar(borrador, salida(fila, phone, "respuesta"))).toBe(borrador);
+      expect(await paso.aplicar(borrador, { ...salida(fila, phone, "respuesta"), textoDelCliente: "¿y si llevo solo 2?" })).toBe(borrador);
+    }
+  });
+
+  it("(3) NO se rompe: ficha vacía, pieza de 4 y el cliente no dijo ninguna cantidad (39597 sin «las 4») → sí reescribe con la cuenta de 4", async () => {
+    const { fila, phone } = await conPiezaDe4(["Hola, 255/65/17 camioneta"]);
+    expect(await paso.aplicar("La Falken queda en $75.00 c/u con IVA.", salida(fila, phone, "respuesta")))
+      .toBe(`La Falken queda en ${cuenta4}.`);
+  });
+
+  it("(4) la ÚLTIMA cantidad que dijo manda: «quiero 2» y después «mejor las 4» → reescribe con la de 4", async () => {
+    const { fila, phone } = await conPiezaDe4(["quiero 2 llantas", "mejor las 4 por favor"]);
+    expect(await paso.aplicar("La Falken: $75.00 c/u con IVA.", salida(fila, phone, "respuesta")))
+      .toBe(`La Falken: ${cuenta4}.`);
+  });
+
+  it("m1 · ficha sucia: 235 → el juego de 4; 16 sigue siendo 16 (8 + 8)", async () => {
+    const { cantidadDeLaFicha } = await import("../src/agent/tools.js");
+    const a = await conversacion();
+    await sql`update conversations set selected_quantity = 235 where id = ${a.fila.id}`;
+    expect(await cantidadDeLaFicha({ conversation: { id: a.fila.id } })).toBe(4);
+    await sql`update conversations set selected_quantity = 16 where id = ${a.fila.id}`;
+    expect(await cantidadDeLaFicha({ conversation: { id: a.fila.id } })).toBe(16);
+    await sql`update conversations set selected_quantity = null where id = ${a.fila.id}`;
+    expect(await cantidadDeLaFicha({ conversation: { id: a.fila.id } })).toBe(4);
+  });
+
+  it("m5 · un total viejo al lado de la cuenta deja una alerta propia (se cuenta en la próxima auditoría) y el texto no se borra", async () => {
+    const { fila, phone } = await conversacion();
+    await cotizar(fila, phone, "C-FALKEN", 4);
+    const salidaTexto = await paso.aplicar("La Falken está a $75.00 c/u, son $300.00 por las 4.", salida(fila, phone, "respuesta"));
+    expect(salidaTexto).toContain("$300.00");
+    const alertas = await sql<{ type: string }[]>`select type from bot_alerts where conversation_id = ${fila.id}`;
+    expect(alertas.map((a) => a.type)).toContain("precio_total_viejo_junto_a_la_cuenta");
+  });
+});

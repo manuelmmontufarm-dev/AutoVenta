@@ -117,7 +117,8 @@ import {
   medidaEstaPedida, medidasDeProductos, medidasPermitidas, mensajesDeLaVisitaActual,
 } from "../domain/medidaPedida.js";
 import { ahorroDeLaCotizacion } from "../domain/ahorro.js";
-import { precioDelProducto, segundaLlantaDe } from "../domain/promocionDeTemporada.js";
+import { CAMPO_PRECIO_POR_LLANTA_SIN_PROMO, cantidadParaLaCuenta, precioDelProducto, segundaLlantaDe } from "../domain/promocionDeTemporada.js";
+import { cantidadDelCliente } from "../services/lineasConPromo.js";
 import { avisoDeCantidad, esCantidadInusual } from "../domain/cantidadGrande.js";
 import { claseDeVehiculoEnTexto, TIPOS_DE_CAMIONETA } from "../domain/claseDeVehiculo.js";
 import { medidaEnDisputaDelPedido, medidasDelPedido } from "../services/medidasDelPedido.js";
@@ -4390,14 +4391,15 @@ function buildTechnicalGuidance(
 
 /**
  * La cantidad con que se hacen las cuentas de la promo en los resultados de
- * búsqueda: la que el cliente ya tiene en la ficha (`selected_quantity`) y, si
- * no hay, el juego completo (lo que el bot cotiza cuando no le dicen otra).
+ * búsqueda: la que el CLIENTE dijo (este turno, la ficha o —con la ficha vacía— lo último
+ * que dijo en el ciclo; ver `cantidadDelCliente`) y, si no hay, el juego completo.
+ * Con un tope: una ficha sucia en 235 no se convierte en «118 × … + 117 × …».
  */
-async function cantidadDeLaFicha(ctx: { conversation: { id: number } }): Promise<number> {
-  const [fila] = await sql<{ selected_quantity: number | null }[]>`
-    select selected_quantity from conversations where id=${ctx.conversation.id}
-  `.catch(() => []);
-  return Number(fila?.selected_quantity) >= 1 ? Number(fila!.selected_quantity) : politica.juegoCompleto;
+export async function cantidadDeLaFicha(
+  ctx: { conversation: { id: number }; currentUserText?: string | null },
+): Promise<number> {
+  const { cantidad } = await cantidadDelCliente(ctx.conversation.id, ctx.currentUserText);
+  return cantidadParaLaCuenta(cantidad, politica.juegoCompleto);
 }
 
 /** Para `.map(...)`: el mismo `toolItem` con la cantidad ya resuelta. */
@@ -4443,7 +4445,7 @@ export function toolItem(item: {
     ...(dicho?.segunda
       ? {
           precio_para_decir: dicho.texto,
-          precio_por_llanta_solo_con_1_o_3_llantas: item.minimumPriceWithTax,
+          [CAMPO_PRECIO_POR_LLANTA_SIN_PROMO]: item.minimumPriceWithTax,
         }
       : {
           precio_lista_con_iva: item.customerPriceWithTax,
