@@ -45,6 +45,10 @@ export const EVENTOS_AVISO = [
   // Ventana de 24 h a punto de cerrarse (14-ago): para Manuel era ruido, para el
   // asesor de local es su trabajo. Ver `recibeEvento`.
   "ventana_por_cerrar",
+  // Celebración (8-nov): una factura de Contífico confirmó que un chat que
+  // atendió el bot terminó en venta. Es la única buena noticia que el equipo
+  // no se enteraba: la venta se cerraba en el local y nadie la ligaba al bot.
+  "venta_confirmada",
 ] as const;
 
 export type AdvisorEventType = (typeof EVENTOS_AVISO)[number];
@@ -76,6 +80,7 @@ export type CategoriaAviso = (typeof CATEGORIAS_AVISO)[number];
 export const CATEGORIA_DE_EVENTO: Record<AdvisorEventType, CategoriaAviso> = {
   quote_created: "ventas",
   customer_ready_to_buy: "ventas",
+  venta_confirmada: "ventas",
   visita_comprometida: "visitas",
   visita_manana: "visitas",
   visita_hoy: "visitas",
@@ -114,6 +119,7 @@ export const NOMBRE_DE_CATEGORIA: Record<CategoriaAviso, string> = {
 export const NOMBRE_DE_EVENTO: Record<AdvisorEventType, string> = {
   quote_created: "Nueva cotización",
   customer_ready_to_buy: "El cliente quiere comprar",
+  venta_confirmada: "¡Venta del bot! (celebración cuando llega la factura)",
   visita_comprometida: "Confirmó cuándo viene",
   visita_manana: "Viene mañana",
   visita_hoy: "Viene hoy",
@@ -152,6 +158,31 @@ export interface NivelAviso {
   nombre: string;
   eventos: AdvisorEventType[];
   generales: AvisoGeneral[];
+  /**
+   * Los avisos que existían cuando alguien guardó este nivel en Ajustes. Sirve
+   * para distinguir «lo desmarcó» de «todavía no existía»: ver
+   * `EVENTOS_ENCENDIDOS_AL_LLEGAR`. Lo pone `saveNivelesAviso`, no el panel.
+   */
+  vistos?: AdvisorEventType[];
+}
+
+/**
+ * Avisos nuevos que entran ENCENDIDOS en los niveles ya guardados.
+ *
+ * Sin esto, un aviso agregado después de que Depot guardó sus niveles no le
+ * llega a nadie: la lista guardada no lo nombra. La celebración de una venta
+ * del bot la pidió Manuel para todos (8-nov), así que entra marcada en cada
+ * nivel hasta que alguien la desmarque y guarde — desde ahí manda lo guardado.
+ */
+export const EVENTOS_ENCENDIDOS_AL_LLEGAR: readonly AdvisorEventType[] = ["venta_confirmada"];
+
+/** Agrega a cada nivel los avisos nuevos que su dueño todavía no vio. Pura. */
+export function completarEventosNuevos(niveles: NivelAviso[]): NivelAviso[] {
+  return niveles.map((n) => {
+    const vistos = n.vistos ?? [];
+    const faltan = EVENTOS_ENCENDIDOS_AL_LLEGAR.filter((e) => !vistos.includes(e) && !n.eventos.includes(e));
+    return faltan.length ? { ...n, eventos: [...n.eventos, ...faltan] } : n;
+  });
 }
 
 const eventosDe = (cats: readonly CategoriaAviso[]) =>
@@ -174,6 +205,7 @@ const NivelSchema = z.object({
   nombre: z.string().trim().min(1, "El nivel necesita un nombre").max(40),
   eventos: z.array(z.enum(EVENTOS_AVISO)).default([]),
   generales: z.array(z.enum(AVISOS_GENERALES)).default([]),
+  vistos: z.array(z.enum(EVENTOS_AVISO)).optional(),
 });
 const NivelesSchema = z.array(NivelSchema).min(1, "Tiene que quedar al menos un nivel").max(12)
   .refine((ns) => new Set(ns.map((n) => n.id)).size === ns.length, "Dos niveles con el mismo id");
@@ -208,8 +240,8 @@ export async function getNivelesAviso(): Promise<NivelAviso[]> {
     const nuevos = filas.find((f) => f.key === "aviso_niveles");
     const viejos = filas.find((f) => f.key === "aviso_matrix");
     const parsed = nuevos ? NivelesSchema.safeParse(nuevos.value) : null;
-    if (parsed?.success) value = parsed.data;
-    else if (viejos) value = nivelesDesdeMatrizVieja(viejos.value) ?? NIVELES_DEFECTO;
+    if (parsed?.success) value = completarEventosNuevos(parsed.data);
+    else if (viejos) value = completarEventosNuevos(nivelesDesdeMatrizVieja(viejos.value) ?? NIVELES_DEFECTO);
   } catch (error) {
     console.error("⚠️ No se pudieron leer los niveles de aviso:", error instanceof Error ? error.message : error);
   }
@@ -222,7 +254,9 @@ export async function getNivelesAviso(): Promise<NivelAviso[]> {
  * quedarían recibiendo como Nivel 1 sin que nadie lo decidiera.
  */
 export async function saveNivelesAviso(input: unknown): Promise<NivelAviso[]> {
-  const value = NivelesSchema.parse(input);
+  // Quien guarda vio todos los avisos que hay hoy: lo que dejó sin marcar
+  // queda apagado, también los que `completarEventosNuevos` había prendido.
+  const value = NivelesSchema.parse(input).map((n) => ({ ...n, vistos: [...EVENTOS_AVISO] }));
   const ids = value.map((n) => n.id);
   const huerfanos = await sql<{ nombre: string; rol: string }[]>`
     select nombre, rol from advisors where not (rol = any(${ids}::text[]))
@@ -281,6 +315,7 @@ const CABECERAS: Record<AdvisorEventType, string> = {
   // Venta
   quote_created: "💰 *NUEVA COTIZACIÓN*",
   customer_ready_to_buy: "💰 *QUIERE COMPRAR*",
+  venta_confirmada: "🎉 *¡VENTA DEL BOT!*",
   // Visita
   visita_comprometida: "📅 *CONFIRMÓ VISITA*",
   visita_manana: "⏰ *VIENE MAÑANA*",

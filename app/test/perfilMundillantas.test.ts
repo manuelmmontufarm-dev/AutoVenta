@@ -60,17 +60,22 @@ describe("Mundillantas · solo lo confirmado", () => {
     expect(negocio.presentacion).toEqual({ modo: "combinada", frase: "Competimotor y Mundillantas" });
   });
 
-  it("los tres locales con la dirección que dio Jenny (6-nov)", () => {
+  it("los tres locales con la dirección que dio Jenny (6-nov) y los pines del 9-nov", () => {
     const por = (slug: string) => negocio.locales.find((l) => l.slug === slug)!;
     expect(por("matriz").nombre).toBe("Mundillantas Falken");
     expect(por("matriz").direccion).toContain("Vía Quevedo km 2 y Manuel Borrero");
-    expect(por("matriz").lat).toBeCloseTo(-0.26177, 5);
-    expect(por("matriz").lng).toBeCloseTo(-79.186684, 5);
+    // Pines y links que mandó Jenny el 9-nov (Google Maps de cada local).
+    expect(por("matriz").lat).toBeCloseTo(-0.2617224, 6);
+    expect(por("matriz").lng).toBeCloseTo(-79.186715, 6);
+    expect(por("matriz").mapsUrl).toBe("https://maps.app.goo.gl/swNHGotRKPLJn3LZA");
     expect(por("local2").nombre).toBe("Mundillantas Kenda");
     expect(por("local2").direccion).toContain("a una cuadra del Banco Pichincha");
     expect(por("competimotor").direccion).toContain("Juan León Mera #834");
-    expect(por("competimotor").lat).toBeCloseTo(-0.259614, 5);
-    expect(por("competimotor").lng).toBeCloseTo(-79.183052, 5);
+    expect(por("competimotor").lat).toBeCloseTo(-0.2595733, 6);
+    expect(por("competimotor").lng).toBeCloseTo(-79.1829972, 6);
+    expect(por("competimotor").mapsUrl).toBe("https://maps.app.goo.gl/QTFCzK2KDRXULRwz7");
+    // Kenda sigue sin pin propio: NO lleva link (no se manda el de otro local).
+    expect(por("local2").mapsUrl).toBeUndefined();
     for (const l of negocio.locales) expect(l.nombreCorto.length).toBeLessThanOrEqual(20);
   });
 
