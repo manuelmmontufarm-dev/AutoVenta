@@ -101,22 +101,44 @@ export async function cantidadDelCliente(
     select selected_quantity, current_cycle from conversations where id = ${conversationId}
   `.catch(() => []);
   const ficha = Number(fila?.selected_quantity) >= 1 ? Number(fila!.selected_quantity) : null;
-  // Lo último que dijo el cliente manda siempre (su mensaje de este turno o, si el
-  // llamador no lo pasa, el más reciente de la base). El resto del ciclo se mira
-  // solo con la ficha vacía.
-  const entrantes = fila
-    ? await sql<{ content: string | null }[]>`
-        select content from messages
-        where conversation_id = ${conversationId} and cycle = ${fila.current_cycle} and direction = 'inbound'
-        order by created_at desc, id desc limit 12
-      `.catch(() => [])
+  // Los mensajes del ciclo en las DOS direcciones, del más nuevo al más viejo: para leer lo que dijo
+  // el cliente hay que saber a qué CONTESTABA. Sin el saliente anterior, el «3» que elige la 3 del
+  // menú «¿Le cotizo la 1, la 2 o la 3?» se lee como 3 llantas (ronda 3: reabría la familia original).
+  type Fila = { direction: string; author_kind: string | null; content: string | null; clase: string | null };
+  const filas = fila
+    ? await sql<Fila[]>`
+        select direction, author_kind, content, metadata->'oferta'->>'clase' as clase from messages
+        where conversation_id = ${conversationId} and cycle = ${fila.current_cycle}
+        order by created_at desc, id desc limit 60
+      `.catch(() => [] as Fila[])
     : [];
-  const leer = (t: string | null | undefined) => (t ? cantidadDelTexto(t, null, null) : null);
-  const turno = textoDelTurno ? leer(textoDelTurno) : leer(entrantes[0]?.content);
+  const salienteDespuesDe = (i: number) => {
+    for (let j = i; j < filas.length; j++) if (filas[j].direction === "outbound") return filas[j];
+    return null;
+  };
+  // Un entrante del CLIENTE (nunca del asesor ni del bot), con el saliente que lo precedió.
+  const entrantes = filas
+    .map((m, i) => ({ m, i }))
+    .filter(({ m }) => m.direction === "inbound" && (m.author_kind ?? "customer") === "customer")
+    .slice(0, 12)
+    .map(({ m, i }) => ({ texto: m.content, previo: salienteDespuesDe(i + 1) }));
+  // Contestar el menú es elegir, no pedir llantas: lo dice el HECHO guardado en el saliente
+  // (`oferta.clase = "menu"`), aunque el cliente escriba «quiero la 2»; la excepción es que
+  // nombre la unidad («mejor quiero 3 llantas»). Además rige el freno de texto del lector.
+  const leer = (texto: string | null | undefined, previo: Fila | null): number | null => {
+    if (!texto) return null;
+    if (previo?.clase === "menu" && !/\b(?:llantas?|unidad(?:es)?)\b/i.test(texto)) return null;
+    return cantidadDelTexto(texto, previo?.content ?? null, null);
+  };
+  // Lo último que dijo el cliente manda siempre (su mensaje de este turno o, si el llamador no lo
+  // pasa, el más reciente de la base). El resto del ciclo se mira solo con la ficha vacía.
+  const turno = textoDelTurno
+    ? leer(textoDelTurno, salienteDespuesDe(0))
+    : entrantes[0] ? leer(entrantes[0].texto, entrantes[0].previo) : null;
   let historial: number | null = null;
   if (ficha === null) {
-    for (const m of entrantes) {
-      const n = leer(m.content);
+    for (const e of entrantes) {
+      const n = leer(e.texto, e.previo);
       if (n !== null) { historial = n; break; }
     }
   }

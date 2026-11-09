@@ -579,7 +579,10 @@ export async function armarContexto(
   })();
   const respaldados = [...beneficios.map((b) => b.text), ...servicios];
   // La cantidad que dijo el CLIENTE (ficha, o lo último que dijo si la ficha está vacía).
-  const cantidadCliente = (await cantidadDelCliente(conversationId)).cantidad;
+  // Solo mientras corre la promo: fuera de ella (diciembre, Mundillantas) no se gasta la consulta.
+  const cantidadCliente = promocionVigente(politica.promocionDeTemporada)
+    ? (await cantidadDelCliente(conversationId)).cantidad
+    : null;
   const catalogoHoy = await catalogoParaElGuardian(pedidas, cantidadCliente);
 
   // El rechazo de medida como HECHO, no como deducción. 31-ago (conv 3 c20):

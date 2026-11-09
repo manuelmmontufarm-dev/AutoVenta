@@ -52,7 +52,18 @@
   **Límites conocidos (no se tocan):** (m4) si en un MISMO turno hay `enviar_comparacion` y un cierre con precio, ese
   «c/u» queda fuera del candado (el turno entero se excluye); (m6) los vetos de texto dan falsos negativos inofensivos
   («por 2 años», «los 2 locales», un «2» pelado que contesta el menú): solo impiden reescribir.
-- **Horas:** 3,5 + 1,5 de la ronda 1 + 2 de la ronda 2
+- **Ronda 3 de la revisión:** `cantidadDelCliente` leía con `cantidadDelTexto(texto, null, null)` y eso apagaba
+  el freno del menú: el «3», «2» o «1» que ELIGE una opción de «¿Le cotizo la 1, la 2 o la 3?» se leía como 3, 2 o 1
+  LLANTAS (40137, 39226) y, como manda sobre la ficha, descartaba la línea de 4 y le decía al Guardián «para 3 llantas
+  NO aplica: el c/u ES el precio»: la familia original reabierta. Ahora trae los mensajes del ciclo en las dos
+  direcciones, le pasa a cada entrante del CLIENTE (nunca asesor ni bot) el saliente que lo precedió, y no lo lee como
+  cantidad si ese saliente trae el hecho guardado `oferta.clase = "menu"` (salvo que nombre la unidad: «mejor quiero 3
+  llantas»); además rige el freno de texto del lector. El historial con la ficha vacía de 39226 («4 llantas», menú, «1»)
+  da 4, no 1. También (menor 2) el Guardián solo consulta la cantidad mientras corre la promo.
+  **Límites conocidos:** (1) con un cambio real de cantidad (turno 3, cotización vigente de 4) los hechos del
+  Guardián traen a la vez la cotización de 4 y la línea de 3; (2) «quiero la 2» sin menú en pantalla lo lee como 2
+  llantas el propio bot (`generar_cotizacion`, Sprint 3), no este candado.
+- **Horas:** 3,5 + 1,5 de la ronda 1 + 2 de la ronda 2 + 1 de la ronda 3
 
 ## 8-nov-2026 · Mundillantas: tres huecos del INCLUYE por cantidad (revisión del PR #38)
 

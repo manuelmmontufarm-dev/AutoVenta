@@ -64,6 +64,7 @@ const { ensureSchema } = await import("../src/db/schema.js");
 const { buildTools } = await import("../src/agent/tools.js");
 const { PASOS } = await import("../src/services/prepararSalida.js");
 const { lineasConPromoDelCiclo, lineaCotizadaDe } = await import("../src/services/lineasConPromo.js");
+const lineasMod = await import("../src/services/lineasConPromo.js");
 
 function llanta(marca: string): CatalogItem {
   return {
@@ -307,5 +308,71 @@ describe.sequential("ronda 2: la cantidad que dijo el cliente es un veto", () =>
     expect(salidaTexto).toContain("$300.00");
     const alertas = await sql<{ type: string }[]>`select type from bot_alerts where conversation_id = ${fila.id}`;
     expect(alertas.map((a) => a.type)).toContain("precio_total_viejo_junto_a_la_cuenta");
+  });
+});
+
+// ===========================================================================
+// RONDA 3: la respuesta al menú («1», «2», «3», «quiero la 2») NO es una cantidad de llantas
+// ===========================================================================
+describe.sequential("ronda 3: contestar el menú no es pedir llantas", () => {
+  const { cantidadDelCliente } = lineasMod;
+  const cuenta4 = "2 × $100.00 + 2 × $40.00 = $280.00 (−60 % en la 2.ª llanta)";
+  const segunda4 = { porcentaje: 60, unidades: 2, precioNormalConIva: 100, precioConIva: 40, ahorroConIva: 120, totalConIva: 280, nombre: "Black Friday" };
+  const MENU = "¿Le cotizo la 1, la 2 o la 3?";
+
+  async function hilo(ficha: number | null, mensajes: Array<["in" | "out", string, object?]>) {
+    const { fila, phone } = await conversacion();
+    await sql`update conversations set selected_quantity = ${ficha} where id = ${fila.id}`;
+    for (const [dir, texto, metadata] of mensajes) {
+      if (dir === "in") {
+        await sql`insert into messages (conversation_id, cycle, role, direction, author_kind, content, type) values (${fila.id}, 1, 'user', 'inbound', 'customer', ${texto}, 'text')`;
+      } else {
+        await sql`insert into messages (conversation_id, cycle, role, direction, author_kind, content, type, metadata) values (${fila.id}, 1, 'assistant', 'outbound', 'bot', ${texto}, 'text', ${sql.json((metadata ?? {}) as never)})`;
+      }
+    }
+    return { fila, phone };
+  }
+  const menu: ["out", string, object] = ["out", MENU, { oferta: { tipo: "oferta_de_cotizar", clase: "menu", opciones: 3 } }];
+
+  for (const respuesta of ["3", "2", "1", "quiero la 2", "la 3"]) {
+    it(`«${respuesta}» contestando «${MENU}»: no es cantidad (ficha 4 y ficha vacía)`, async () => {
+      for (const ficha of [4, null]) {
+        const { fila } = await hilo(ficha, [["in", "Hola, 225/70/16"], menu, ["in", respuesta]]);
+        const q = await cantidadDelCliente(fila.id);
+        expect(q.turno).toBeNull();
+        expect(q.historial).toBeNull();
+        expect(q.vetos).toEqual(ficha === null ? [] : [4]);
+        // …y lo mismo si el llamador pasa el texto del turno.
+        const q2 = await cantidadDelCliente(fila.id, respuesta);
+        expect(q2.turno).toBeNull();
+      }
+    });
+  }
+
+  it("control: «tres llantas por favor me cotizas» (sin menú de por medio) sigue dando 3", async () => {
+    const { fila } = await hilo(null, [["in", "225 70 rin 16 tres llantas por favor me cotizas"]]);
+    expect((await cantidadDelCliente(fila.id)).turno).toBe(3);
+  });
+
+  it("control: después del menú, «quiero 3 llantas» SÍ es una cantidad (dice la unidad)", async () => {
+    const { fila } = await hilo(null, [menu, ["in", "mejor quiero 3 llantas"]]);
+    expect((await cantidadDelCliente(fila.id)).turno).toBe(3);
+  });
+
+  it("39226 real, ficha vacía: «4 llantas», el menú, «1», «Y fotos tiene», «De esta llanta» → el historial da 4, no 1", async () => {
+    const { fila } = await hilo(null, [
+      ["in", "Hola, quiero 4 llantas 265/65/17"], menu, ["in", "1"], ["out", "Aquí tiene la cotización."], ["in", "Y fotos tiene"], ["in", "De esta llanta"],
+    ]);
+    const q = await cantidadDelCliente(fila.id);
+    expect(q.historial).toBe(4);
+    expect(q.turno).toBeNull();
+  });
+
+  it("de punta a punta: pieza de 4, menú, el cliente contesta «3» (la Falken) → el candado SIGUE reescribiendo con la cuenta de 4", async () => {
+    // El orden real: el cliente pide, sale la pieza, sale el menú, y recién entonces contesta «3».
+    const pieza: ["out", string, object] = ["out", "Opciones enviadas", { piece: "options", cantidad: 4, escalones: { economica: { codigo: "C-FALKEN", nombre: "FALKEN ZE310", precio_con_iva: 75, segunda_llanta: segunda4 }, equilibrada: null, premium: null } }];
+    const { fila, phone } = await hilo(null, [["in", "Hola, 225/70/16"], pieza, menu, ["in", "3"]]);
+    expect(await paso.aplicar("La Falken queda en $75.00 c/u con IVA.", { ...salida(fila, phone, "respuesta"), textoDelCliente: "3" }))
+      .toBe(`La Falken queda en ${cuenta4}.`);
   });
 });
